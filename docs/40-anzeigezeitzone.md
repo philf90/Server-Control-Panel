@@ -1,7 +1,8 @@
 # 40 — Die Zeitzone der Anzeige
 
-**Stand: entschieden, nicht gebaut.** Gebaut wird nach P5b, als eigener Zweig
-und eigene Änderung.
+**Stand: im Bau, seit dem 11. August 2026.** Die Klasse aus §4 steht samt
+Wächter; die achtzehn Aufrufe, das Feld in den Einstellungen und der Bruch im
+Wächterskript folgen.
 
 ---
 
@@ -60,10 +61,20 @@ Wer sie später will, baut sie auf diese auf und nicht neben sie.
 werden vor der Abfrage nach UTC gedreht. Ohne das zeigt die Seite `14:31` und
 findet die Zeile nicht, wenn man nach diesem Tag sucht.
 
-**Das ist die Stelle mit dem Wächter**, und zwar an der Grenze: Ein Eintrag um
-`23:30` Ortszeit muss beim Filter auf *diesen* Tag erscheinen und beim Filter auf
-den nächsten nicht — obwohl er in UTC am nächsten Tag liegt. Eine Prüfung, die
-nur mitten am Tag misst, ist grün und beweist nichts.
+**Das ist die Stelle mit dem Wächter**, und zwar an der Grenze: Ein Eintrag muss
+beim Filter auf *seinen* Ortszeit-Tag erscheinen und beim Nachbartag nicht —
+obwohl er in UTC am anderen Tag liegt. Eine Prüfung, die nur mitten am Tag
+misst, ist grün und beweist nichts.
+
+**Hier stand `23:30` Ortszeit, und für `Europe/Berlin` trifft das nicht zu.**
+Gemessen am 11. August 2026: `23:30` Ortszeit ist `21:30` UTC — derselbe Tag.
+Bei einem **positiven** Offset kippt nicht der Abend, sondern der frühe Morgen:
+`00:30` Ortszeit ist `22:30` UTC des Vortags. Für eine Zone westlich von
+Greenwich ist es umgekehrt.
+
+> **Ein Beispiel, das die Richtung nicht mitdenkt, prüft die falsche Grenze.**
+
+`ClockTest` prüft deshalb **beide** Enden des Tages.
 
 ### 3.3 Das CSV bleibt UTC
 

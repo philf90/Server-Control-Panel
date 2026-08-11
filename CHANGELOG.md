@@ -8948,3 +8948,29 @@ vergessen wird — und genau das war ja passiert.
 Das Format ist dasselbe wie bei „Begonnen", „Beendet" und „Gemessen am"; die
 Zeit steht in UTC wie jede andere im Panel, und `docs/40` stellt das für alle
 Stellen zugleich um statt für diese eine.
+
+### `docs/40` beginnt: eine Klasse, die aus UTC eine Uhrzeit macht
+
+`App\Support\Time\Clock` steht — die einzige Stelle, die aus einer gespeicherten
+Zeit eine Anzeige macht und aus einer Filtergrenze wieder UTC. Dieselbe Bauform
+wie `Names::fqdn()`, das viermal neu erfunden wurde, bevor es einen Wächter
+dafür gab.
+
+Gespeichert wird weiter in UTC; die Frage war nie, wo die Zeit herkommt,
+sondern was auf der Seite steht.
+
+**Und der Plan hat beim ersten Messen einen Denkfehler gezeigt.** `docs/40 §3.2`
+nannte als Grenzfall einen Eintrag um `23:30` Ortszeit, „obwohl er in UTC am
+nächsten Tag liegt". Für `Europe/Berlin` stimmt das nicht: `23:30` Ortszeit ist
+`21:30` UTC, derselbe Tag. Bei einem **positiven** Offset kippt nicht der Abend,
+sondern der frühe Morgen — `00:30` Ortszeit ist `22:30` UTC des Vortags.
+
+> **Ein Beispiel, das die Richtung nicht mitdenkt, prüft die falsche Grenze.**
+
+`ClockTest` prüft beide Enden des Tages, dazu die Rückfallregel: Eine unbekannte
+Zone wirft nicht, sondern fällt auf UTC zurück — `setTimezone()` würde bei einem
+Tippfehler mitten im Aufbau einer Seite werfen, an achtzehn Stellen. Verhindert
+wird der Tippfehler beim **Setzen**.
+
+Noch nicht gebaut: die achtzehn Aufrufe, das Feld in den Einstellungen und der
+Bruch im Wächterskript. Die Klasse ändert bis dahin nichts — niemand ruft sie.

@@ -87,7 +87,17 @@ final class PgHbaRollbackTest extends TestCase
         );
     }
 
-    /** Eine Zeile, die PostgreSQL annimmt — für den Erfolgsfall. */
+    /**
+     * Eine Zeile, die PostgreSQL annimmt — für den Erfolgsfall.
+     *
+     * **Die Marke steht auf einer eigenen Zeile, und das ist kein Geschmack.**
+     * In einem einzeiligen Block ist `@return` Fliesstext und die Angabe damit
+     * weg; PHPStan meldet „no value type specified", und zwar erst in der CI.
+     * Genau so ist diese Zeile am 11. August 2026 rot geworden — die Falle
+     * steht in `CLAUDE.md` und hat trotzdem wieder zugeschlagen.
+     *
+     * @return list<string>
+     */
     private function good(): array
     {
         return [Hba::rule('x7f3a91c2b40e15d6_shop', 'x7f3a91c2b40e15d6_web', '203.0.113.5/32')];

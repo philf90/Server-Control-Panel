@@ -425,10 +425,16 @@ function size(): string {
                 <!--
                   **Bei PostgreSQL eine Liste, bei MariaDB ein Wert** — und die
                   Unterscheidung hängt an `over_tcp` und nicht am Namen des
-                  Systems. Ein `=== 'postgres'` im Template wäre eine
+                  Systems. Ein Vergleich mit dem Wert des Systems wäre hier eine
                   Zeichenkette aus dem Enum, und `DatabaseEngineTest` weist sie
                   ab; der Grund dahinter ist derselbe wie bei der Sortierung
                   weiter oben.
+
+                  Der Satz stand hier zuerst mit dem Wert als Beispiel darin —
+                  und der Wächter liest Kommentare mit, zu Recht: Er kann nicht
+                  wissen, ob eine Zeichenkette gemeint oder zitiert ist.
+                  Dieselbe Stelle hat `DatabaseController::row()` schon einmal
+                  erwischt.
 
                   Jedes Netz steht auf einer eigenen Zeile und nicht mit Komma
                   aneinander: `198.51.100.0/24` und `2001:db8::/32` in einer

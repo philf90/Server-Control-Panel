@@ -13,6 +13,7 @@ use App\Support\Databases\RemoteAccess;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use SrvPanel\Agent\Pg\Hba;
+use SrvPanel\Agent\Pg\Names as PgNames;
 use Tests\TestCase;
 
 /**
@@ -56,19 +57,46 @@ final class PgHbaReachTest extends TestCase
     }
 
     /**
+     * Das Präfix, unter dem dieses Abonnement seine PostgreSQL-Namen führt.
+     *
+     * **Gewürfelt und nichtssagend, nicht `p1001`** (`docs/38 §4`). Es steht
+     * hier fest statt aus {@see PgNames::newPrefix()}, damit ein Fehlschlag
+     * zweimal dieselbe Zeile zeigt.
+     */
+    private const PREFIX = 'x7f3a91c2b40e15d6';
+
+    /**
      * Ein Abonnement mit einer PostgreSQL-Datenbank, einem Zugang und einem Netz.
+     *
+     * **`system_user` wird gesetzt und nicht der Factory überlassen.**
+     * `SubscriptionFactory` füllt die Spalte nicht, und `forSubscription()`
+     * baut den Namen daraus — ohne sie kommt `Names::database('', 'shop')`
+     * heraus und der Agent weist mit „user ist leer oder zu lang" ab. Die acht
+     * Fehlschläge dieses Tests am 11. August 2026 hatten alle diese eine
+     * Ursache.
+     *
+     * **Und die Namen kommen aus {@see PgNames} statt aus der Factory.** Deren
+     * `forSubscription()` bildet die Form von MariaDB (`p1001_shop`); eine
+     * PostgreSQL-Datenbank heisst `x7f3a…_shop`, und `Names::existing()` im
+     * Agenten weist alles andere ab. Der Test prüft zwar nur, dass Zeile und
+     * Bestand zueinanderpassen — aber mit Namen, die es so nie gäbe, prüfte er
+     * das an einem Fall, den es nicht gibt.
      *
      * @return array{user: DbUser, database: Database, subscription: Subscription}
      */
     private function scenario(string $cidr = '203.0.113.5/32'): array
     {
-        $subscription = Subscription::factory()->create();
+        $subscription = Subscription::factory()->create(['system_user' => 'p1001']);
 
         /** @var Database $database */
-        $database = Database::factory()->postgres()->forSubscription($subscription, 'shop')->create();
+        $database = Database::factory()->postgres()->forSubscription($subscription, 'shop')->create([
+            'name' => PgNames::database(self::PREFIX, 'shop'),
+        ]);
 
         /** @var DbUser $user */
-        $user = DbUser::factory()->postgres()->forSubscription($subscription, 'web')->create();
+        $user = DbUser::factory()->postgres()->forSubscription($subscription, 'web')->create([
+            'name' => PgNames::role(self::PREFIX, 'web'),
+        ]);
 
         $user->databases()->attach($database);
         DbUserNetwork::factory()->create(['db_user_id' => $user->id, 'cidr' => $cidr]);
@@ -117,7 +145,9 @@ final class PgHbaReachTest extends TestCase
 
         /** @var Database $second */
         $second = Database::factory()->postgres()
-            ->forSubscription($subscription, 'blog')->create();
+            ->forSubscription($subscription, 'blog')->create([
+                'name' => PgNames::database(self::PREFIX, 'blog'),
+            ]);
 
         $user->databases()->attach($second);
 
@@ -190,7 +220,7 @@ final class PgHbaReachTest extends TestCase
      */
     public function test_a_mariadb_user_never_reaches_the_block(): void
     {
-        $subscription = Subscription::factory()->create();
+        $subscription = Subscription::factory()->create(['system_user' => 'p1002']);
 
         /** @var DbUser $user */
         $user = DbUser::factory()->forSubscription($subscription, 'web')->create(['host' => '203.0.113.9']);

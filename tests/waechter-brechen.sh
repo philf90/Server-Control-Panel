@@ -6311,8 +6311,8 @@ python3 - <<'PY2'
 p = 'agent/src/Pg/Hba.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    'return $rest."\n".self::BEGIN."\n".implode("\n", $lines)."\n".self::END."\n";',
-    'return self::BEGIN."\n".implode("\n", $lines)."\n".self::END."\n\n".$rest;')
+    'return $rest."\\n".self::BEGIN."\\n".implode("\\n", $lines)."\\n".self::END."\\n";',
+    'return self::BEGIN."\\n".implode("\\n", $lines)."\\n".self::END."\\n\\n".$rest;')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei agent/src/Pg/Hba.php "Block über dem Bestand" &&

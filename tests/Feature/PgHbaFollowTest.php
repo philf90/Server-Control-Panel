@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Support\Databases\Databases;
 use App\Support\Databases\PgLifecycle;
 use App\Support\Databases\RemoteAccess;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use Tests\Support\ReadsMethodSource;
@@ -148,8 +149,13 @@ final class PgHbaFollowTest extends TestCase
     }
 
     /**
-     * @dataProvider lifecycleMethods
+     * **Als Attribut und nicht als Marke im Dokumentationsblock.** PHPUnit 12
+     * liest `@dataProvider` nicht mehr; der Fall lief dann ohne Argument und
+     * scheiterte an `ArgumentCountError` — ein Fehlschlag, der nach einem
+     * kaputten Test aussieht und einer im Testwerkzeug ist. Der Rest dieses
+     * Baums schreibt es seit jeher als Attribut.
      */
+    #[DataProvider('lifecycleMethods')]
     public function test_the_lifecycle_follows_up(string $method): void
     {
         $source = $this->methodSource(PgLifecycle::class, $method);

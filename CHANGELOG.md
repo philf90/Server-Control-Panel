@@ -8751,3 +8751,56 @@ meldete „0 tot" für dieselbe Datei.
 Die Probe liest jetzt mit demselben Ausdruck und derselben Entwertung wie
 `BreakScriptTest`; gegengeprüft an genau diesem Fall — vorher zwei tote Nadeln,
 nach der Reparatur keine.
+
+### Der Abnahmelauf hat einen Fehlerweg gefunden, der selbst scheitert
+
+**Punkt 8 von `docs/38 §19`**, gefahren am 11. August 2026 auf `cloudsrv24`: Ein
+hochgeladener Dump wollte `ALTER ROLE … SUPERUSER`. Der Agent hat ihn abgewiesen
+und genau das gemeldet, was das Abnahmekriterium verlangt — die Anweisung, ihre
+Zeilennummer, den Grund:
+
+    Das Zurückspielen ist gescheitert: psql:….restore.sql:74:
+    ERROR:  permission denied to alter role
+    DETAIL:  Only roles with the SUPERUSER attribute may change the
+    SUPERUSER attribute.
+
+**Im Panel stand davon nichts.** Dort stand *„Der Vorgang wurde von der
+Warteschlange abgebrochen — vermutlich Zeitüberschreitung"*, an einem Vorgang,
+der **eine Sekunde** lief.
+
+Die Kette: `operations.message` war `varchar(255)` — angelegt als
+`$table->string('message')`, die Voreinstellung, über die nie jemand nachgedacht
+hat. Die Begründung ist 260 Zeichen lang. `OperationRecorder::fail()` schrieb
+sie, MariaDB wies sie ab (`SQLSTATE[22001]`), und die `PDOException` flog aus
+genau dem `catch (AgentException)`-Zweig heraus, der den Fehlschlag festhalten
+sollte. Der Auftrag starb, Laravel rief `failed()`, der Vorgang stand noch
+offen — und bekam die Vermutung dieses Handlers.
+
+> **Ein Fehlerweg, der selbst fehlschlagen kann, ist kein Fehlerweg.**
+
+> **Ein Fehlertext, der eine Ursache rät, ist schlimmer als einer, der keine
+> nennt — er beendet die Suche.**
+
+Und die Pointe steckt in der Länge: **Je wichtiger die Begründung, desto länger
+ist sie.** „Datei nicht gefunden" passte immer in die Spalte. Die abgewiesene
+Anweisung eines fremden Dumps — die einzige Auskunft, an der Kriterium 5 hängt —
+passte nie.
+
+Behoben an allen drei Stellen: Die Spalte ist `text`. Der `OperationRecorder`
+kürzt auf 8 KB und sagt es (dieselbe Regel, die seine **Ausgabe** seit dem
+ersten Tag hat — nur die Meldung hatte sie nie). Und `failed()` unterscheidet
+jetzt an der Klasse der Ausnahme statt an einer Vermutung, meldet sie über
+`report()` ins Protokoll des Panels und nennt sonst nur, was es weiss.
+
+**Und der Wächter dazu hätte den Fehler beinahe wieder nicht gefunden.** Der
+erste Entwurf war ein Verhaltenstest: schreiben, zurücklesen, vergleichen. Er
+wäre grün gewesen — auch mit der alten Spalte. Diese Tests laufen gegen SQLite
+im Speicher, und SQLite hält sich nicht an `varchar(255)`; es legt jede Länge
+hinein.
+
+> **Ein Test, der gegen eine andere Datenbank läuft als der Server, prüft die
+> Grenzen der falschen.**
+
+Genau daran ist dieser Fehler zwei Jahre vorbeigekommen: 1647 Tests, alle grün,
+und keiner konnte die Breite der Spalte sehen. Geprüft wird sie jetzt am
+**Schema**; die beiden anderen Stellen prüft ihr Verhalten.

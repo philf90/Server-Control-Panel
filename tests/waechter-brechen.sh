@@ -6058,6 +6058,70 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NoticeShapeTest passed
 
 echo
+echo "── FailureReasonTest: die Begruendung passt wieder in 255 Zeichen ──"
+#
+# Der Fund aus dem Abnahmelauf von P5b, zurueckgedreht. `operations.message`
+# war varchar(255); die Begruendung des Agenten fuer einen abgewiesenen Dump
+# ist 260 Zeichen lang. MariaDB wies sie ab, und die PDOException riss genau
+# den catch-Zweig mit, der den Fehlschlag festhalten sollte.
+#
+# **Geprueft wird das Schema und nicht ein Schreibversuch.** Diese Tests laufen
+# gegen SQLite, und SQLite legt jede Laenge in eine varchar(255) — ein
+# Verhaltenstest waere mit beiden Spalten gruen.
+vorher_datei database/migrations/2026_08_11_090000_the_reason_of_a_failure_no_longer_fits_in_255_characters.php
+python3 - <<'PY2'
+p = 'database/migrations/2026_08_11_090000_the_reason_of_a_failure_no_longer_fits_in_255_characters.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$table->text('message')->nullable()->change();",
+              "$table->string('message')->nullable()->change();")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei database/migrations/2026_08_11_090000_the_reason_of_a_failure_no_longer_fits_in_255_characters.php "Spalte fester Laenge" &&
+pruefe "Spalte fester Laenge" \
+  FailureReasonTest::test_the_column_is_wide_enough_for_a_real_reason failed
+wiederherstellen
+
+echo
+echo "── FailureReasonTest: die Begruendung waechst wieder ohne Grenze ──"
+#
+# Die zweite Sicherung. Die Ausgabe war seit dem ersten Tag gedeckelt, die
+# Meldung nicht — weil ihre Spalte kurz war und niemand vorhatte, mehr
+# hineinzuschreiben. Eine Spalte mit 65535 Byte verschiebt diesen Fehler nur.
+vorher_datei app/Support/Operations/OperationRecorder.php
+python3 - <<'PY2'
+p = 'app/Support/Operations/OperationRecorder.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("self::shorten($message)", "$message")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Operations/OperationRecorder.php "Meldung ohne Grenze" &&
+pruefe "Meldung ohne Grenze" \
+  FailureReasonTest::test_an_endless_reason_is_shortened_and_says_so failed
+wiederherstellen
+
+echo
+echo "── FailureReasonTest: der letzte Halt raet wieder eine Ursache ──"
+#
+# „vermutlich Zeitueberschreitung" stand am 11. August 2026 an einem Vorgang,
+# der eine Sekunde lief. Ein Fehlertext, der eine Ursache raet, beendet die
+# Suche — die echte Ursache stand in failed_jobs und sonst nirgends.
+vorher_datei app/Jobs/RunAgentOperation.php
+python3 - <<'PY2'
+p = 'app/Jobs/RunAgentOperation.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    ": 'Der Vorgang ist in der Warteschlange gescheitert. Näheres im Protokoll des Panels.';",
+    ": 'Der Vorgang wurde von der Warteschlange abgebrochen — vermutlich Zeitüberschreitung.';",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Jobs/RunAgentOperation.php "geratene Ursache" &&
+pruefe "geratene Ursache" \
+  FailureReasonTest::test_the_queue_handler_names_what_it_knows failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FailureReasonTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

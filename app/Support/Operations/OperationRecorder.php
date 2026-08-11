@@ -29,6 +29,29 @@ final class OperationRecorder
     /** Höchstens so viel Ausgabe landet in der Datenbank. */
     public const OUTPUT_MAX = 256 * 1024;
 
+    /**
+     * Und höchstens so viel Begründung — dieselbe Regel, elf Tage später.
+     *
+     * **Hier fehlte sie, und das hat ein Abnahmekriterium gekostet.** Die
+     * Ausgabe war seit dem ersten Tag gedeckelt; die Meldung nicht, weil ihre
+     * Spalte `varchar(255)` war und niemand vorhatte, mehr hineinzuschreiben.
+     * Am 11. August 2026 wies der Agent einen Dump ab und begründete es auf
+     * 260 Zeichen — MariaDB nahm sie nicht, die `PDOException` riss den
+     * Fehlerweg mit, und der Vorgang bekam vom Warteschlangen-Handler die
+     * Meldung „vermutlich Zeitüberschreitung" nach einer Sekunde Laufzeit.
+     *
+     * > **Ein Fehlerweg, der selbst fehlschlagen kann, ist kein Fehlerweg.**
+     *
+     * Die Spalte ist jetzt `text`, und trotzdem steht diese Grenze hier: Was
+     * ein Agent an Ausgabe eines fehlgeschlagenen Kommandos durchreicht, hat
+     * keine Obergrenze, die dieses Panel kennt. Wer eine Grenze setzt, hält
+     * sie selbst ein — sonst wandert der Fehlschlag nur an die nächste.
+     *
+     * Achttausend Byte, weil eine Fehlermeldung darüber niemand mehr liest und
+     * das Protokoll des Agenten den vollständigen Text ohnehin führt.
+     */
+    public const MESSAGE_MAX = 8 * 1024;
+
     private const FLUSH_INTERVAL = 0.25;
 
     private string $buffer = '';
@@ -138,6 +161,27 @@ final class OperationRecorder
         $this->finish(OperationStatus::Cancelled, [], 'Abgebrochen.');
     }
 
+    /**
+     * Die Begründung auf ein Mass, das die Spalte sicher trägt.
+     *
+     * **Geschnitten wird nach Byte und nicht nach Zeichen**, denn die Grenze
+     * der Spalte ist eine in Byte. `mb_strcut` schneidet dabei nicht mitten in
+     * ein Zeichen — bei `str_split` stünde am Ende ein halbes Umlaut-Byte, und
+     * die Meldung wäre kein gültiges UTF-8 mehr.
+     *
+     * Der Vermerk gehört dazu: Eine Begründung, die still endet, sieht aus wie
+     * eine vollständige.
+     */
+    private static function shorten(string $message): string
+    {
+        if (strlen($message) <= self::MESSAGE_MAX) {
+            return $message;
+        }
+
+        return mb_strcut($message, 0, self::MESSAGE_MAX - 64).
+            "\n… gekürzt; der vollständige Text steht im Protokoll des Agenten.";
+    }
+
     /** @param  array<string,mixed>  $result */
     private function finish(OperationStatus $status, array $result, ?string $message): void
     {
@@ -146,7 +190,7 @@ final class OperationRecorder
         $this->operation->forceFill([
             'status' => $status,
             'result' => $result === [] ? null : $result,
-            'message' => $message ?? $this->operation->message,
+            'message' => $message === null ? $this->operation->message : self::shorten($message),
             'progress' => $status === OperationStatus::Succeeded ? 100 : $this->operation->progress,
             'finished_at' => now(),
         ])->save();

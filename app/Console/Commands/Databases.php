@@ -15,9 +15,12 @@ use App\Support\Databases\RemoteAccess;
 use App\Support\Settings\Settings;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
+use SrvPanel\Agent\Ops\DbRemoteAccess;
 use SrvPanel\Agent\Pg\Server;
+use Throwable;
 
 /**
  * Der Datenbankserver von der Kommandozeile — nachsehen und aufräumen.
@@ -54,7 +57,7 @@ final class Databases extends Command
         {--prune : Reste eines misslungenen Rückbaus entfernen — Schemata, Zugänge und Sicherungen}
         {--dry-run : Mit --prune: nur zeigen, was entfernt würde}
         {--remote= : on oder off — ob der Datenbankserver auf einer erreichbaren Adresse horcht}
-        {--bind=0.0.0.0 : Mit --remote=on: 0.0.0.0 für IPv4 oder :: für beide Stapel}
+        {--bind=0.0.0.0 : Mit --remote=on: * für beide Stapel, 0.0.0.0 nur IPv4, :: nur IPv6}
         {--postgresql= : on oder off — ob das Panel PostgreSQL-Datenbanken anbietet}';
 
     protected $description = 'Zeigt den Datenbankserver und räumt auf, was ein Rückbau liegenliess';
@@ -646,13 +649,20 @@ final class Databases extends Command
      *    eine fremde Adresse ist in MariaDB ein eigener Benutzer; nach
      *    `--remote=off` erreicht ihn niemand mehr, und die Anwendung dahinter
      *    steht. Die Zahl kommt aus dem Bestand des Panels — der Agent kennt sie
-     *    nicht, und er soll sie auch nicht kennen.
+     *    nicht, und er soll sie auch nicht kennen. Sie darf den Rückweg aber
+     *    nicht aufhalten ({@see self::foreignAccess()}).
      * 2. **Der Neustart wird angesagt.** Der Datenbankserver trägt auch das
      *    Panel. Eine Rückfrage vor einer Unterbrechung ist das Mindeste;
      *    Vorgabe `false`, wie bei `--prune`, damit `--no-interaction` nichts tut.
      * 3. **Gemeldet wird, worauf der Server danach horcht** — seine Antwort und
      *    nicht die Datei, die wir geschrieben haben. Genau hier fällt auf, wenn
      *    eine andere Include-Datei gewinnt.
+     * 4. **Und danach wird gefragt, ob das Panel selbst noch hereinkommt**
+     *    ({@see self::panelDatabaseUnreachable()}). Punkt 3 ist die Antwort des
+     *    Servers über den Unix-Socket des Agenten; sie war am 11. August 2026
+     *    auf `cloudsrv24` „Fernzugriff möglich", während das Panel schon nicht
+     *    mehr verband. Kommt es nicht herein, wird zurückgenommen — der Schalter
+     *    lässt kein Panel ohne Datenbank stehen, auch nicht für eine Minute.
      */
     private function remote(Client $agent, Tenancy $tenancy): int
     {
@@ -666,25 +676,26 @@ final class Databases extends Command
 
         $address = (string) $this->option('bind');
 
-        if ($mode === 'on' && ! in_array($address, ['0.0.0.0', '::'], true)) {
-            $this->error('--bind erwartet 0.0.0.0 (IPv4) oder :: (beide Stapel).');
+        /*
+         * **Die Liste steht im Agenten und nicht hier.** Sie ein zweites Mal
+         * aufzuschreiben wäre die zweite Fassung derselben Regel, und die
+         * zweite ist die, die veraltet — als `*` dazukam, hätte genau das
+         * gefehlt.
+         */
+        if ($mode === 'on' && ! in_array($address, DbRemoteAccess::ADDRESSES, true)) {
+            $this->error(sprintf(
+                '--bind erwartet %s. Für „von überall" ist * der richtige Wert: MariaDB bindet :: '
+                .'ausschliesslich IPv6 (gemessen auf 10.11.14), und das Panel verbindet sich über '
+                .'127.0.0.1 mit seiner eigenen Datenbank.',
+                implode(', ', DbRemoteAccess::ADDRESSES),
+            ));
 
             return self::FAILURE;
         }
 
-        /*
-         * **Beide Systeme werden gezählt, und sie zählen verschieden.** In
-         * MariaDB steht die fremde Adresse im Benutzer (`host`), in PostgreSQL
-         * in `db_user_networks` — dieselbe Frage, zwei Tabellen (`docs/38
-         * §14.3`). Nur die eine zu zählen wäre eine Warnung, die die Hälfte der
-         * Ausgesperrten verschweigt.
-         */
-        $fern = $tenancy->withoutRestriction(
-            static fn (): int => DbUser::query()->where('host', '!=', 'localhost')->count()
-                + DbUserNetwork::query()->count(),
-        );
+        $fern = $mode === 'off' ? $this->foreignAccess($tenancy) : null;
 
-        if ($mode === 'off' && $fern > 0) {
+        if ($fern !== null && $fern > 0) {
             $this->warn(sprintf(
                 '%d Zugang/Zugänge bzw. Netz(e) sind für eine fremde Adresse eingetragen. Nach dem '
                 .'Ausschalten erreicht sie niemand mehr — die Zeilen bleiben, die Verbindung nicht.',
@@ -735,7 +746,125 @@ final class Databases extends Command
             return self::FAILURE;
         }
 
+        if ($mode === 'on') {
+            $fehlt = $this->panelDatabaseUnreachable();
+
+            if ($fehlt !== null) {
+                return $this->undoRemote($agent, (string) ($result['path'] ?? ''), $fehlt);
+            }
+        }
+
         return $this->remotePostgres($mode, $address);
+    }
+
+    /**
+     * Wie viele Zugänge eine fremde Adresse tragen — **oder `null`, wenn es
+     * gerade niemand sagen kann.**
+     *
+     * **Beide Systeme werden gezählt, und sie zählen verschieden.** In MariaDB
+     * steht die fremde Adresse im Benutzer (`host`), in PostgreSQL in
+     * `db_user_networks` — dieselbe Frage, zwei Tabellen (`docs/38 §14.3`). Nur
+     * die eine zu zählen wäre eine Warnung, die die Hälfte der Ausgesperrten
+     * verschweigt.
+     *
+     * **Und ein Fehlschlag hier hält den Rückweg nicht mehr auf.** Diese Zahl
+     * stand bis zum 11. August 2026 unbedingt am Anfang von {@see
+     * self::remote()} — für beide Richtungen, obwohl nur das Ausschalten sie
+     * braucht. Auf `cloudsrv24` hatte gerade `--remote=on --bind=::` das Panel
+     * von seiner Datenbank abgeschnitten, und `--remote=off` starb an genau
+     * dieser Abfrage, bevor es zum Agenten kam:
+     * `SQLSTATE[HY000] [2002] Connection refused … from `db_users``.
+     *
+     * > Ein Rückweg, der den Bestand braucht, ist keiner für den Fall, dass der
+     * > Bestand weg ist.
+     *
+     * Die Warnung ist eine Höflichkeit; der Rückweg ist es nicht. Fällt die
+     * eine aus, sagt sie das und lässt den anderen laufen.
+     */
+    private function foreignAccess(Tenancy $tenancy): ?int
+    {
+        try {
+            return $tenancy->withoutRestriction(
+                static fn (): int => DbUser::query()->where('host', '!=', 'localhost')->count()
+                    + DbUserNetwork::query()->count(),
+            );
+        } catch (Throwable $error) {
+            $this->warn(
+                'Wie viele Zugänge das betrifft, steht nicht dabei — der Bestand ist nicht lesbar: '
+                .$error->getMessage(),
+            );
+
+            return null;
+        }
+    }
+
+    /**
+     * Erreicht das Panel seine eigene Datenbank noch?
+     *
+     * **Der Agent kann diese Frage nicht beantworten**, und das ist keine
+     * Arbeitsteilung aus Geschmack: Er spricht mit MariaDB über den
+     * Unix-Socket, weil er dafür kein Passwort braucht. Über den Socket bleibt
+     * ein Server erreichbar, der auf TCP niemanden mehr hereinlässt — seine
+     * Gegenprobe konnte den Ausfall vom 11. August also gar nicht sehen. Hier
+     * steht sie richtig, weil hier steht, über welchen Wirt und welchen Port
+     * das Panel verbindet.
+     *
+     * **Verbunden wird neu und nicht nachgesehen.** Die vorhandene
+     * PDO-Instanz hat den Neustart nicht überlebt; ohne `disconnect()` käme die
+     * Antwort aus einer Leiche.
+     *
+     * @return string|null die Meldung des letzten Versuchs, oder `null`, wenn es geht
+     */
+    private function panelDatabaseUnreachable(): ?string
+    {
+        $letzte = 'kein Versuch';
+
+        // Fünf Anläufe, weil systemd die Unit als aktiv meldet, bevor MariaDB
+        // die erste Verbindung annimmt. Ein einziger Versuch machte aus jedem
+        // langsamen Start einen Rückbau.
+        for ($versuch = 1; $versuch <= 5; $versuch++) {
+            try {
+                DB::connection()->disconnect();
+                DB::connection()->getPdo();
+
+                return null;
+            } catch (Throwable $error) {
+                $letzte = $error->getMessage();
+            }
+
+            if ($versuch < 5) {
+                sleep(1);
+            }
+        }
+
+        return $letzte;
+    }
+
+    /**
+     * Das Panel kommt nicht mehr an seine Datenbank — **also zurück, sofort.**
+     *
+     * Der Weg zurück geht über dieselbe Operation mit `mode = off`: Sie nimmt
+     * die Include-Datei weg und startet neu. Scheitert auch das, steht der
+     * Handgriff da, mit dem Pfad, den der Agent gerade gemeldet hat — wer an
+     * dieser Stelle steht, hat kein Panel mehr, in dem er nachlesen könnte.
+     */
+    private function undoRemote(Client $agent, string $path, string $grund): int
+    {
+        $this->error('Das Panel erreicht seine eigene Datenbank nicht mehr: '.$grund);
+
+        try {
+            $agent->call('db.remote.access', ['mode' => 'off'], $this->actor());
+
+            $this->line('Zurückgenommen — der Datenbankserver horcht wieder nur lokal.');
+        } catch (AgentException $error) {
+            $this->error(sprintf(
+                'Und der Rückweg ist ebenfalls gescheitert: %s — von Hand: rm -f %s && systemctl restart mariadb',
+                $error->getMessage(),
+                $path !== '' ? $path : '/etc/mysql/mariadb.conf.d/'.DbRemoteAccess::FILE,
+            ));
+        }
+
+        return self::FAILURE;
     }
 
     /**
@@ -760,26 +889,43 @@ final class Databases extends Command
      */
     private function remotePostgres(string $mode, string $address): int
     {
-        $settings = app(Settings::class);
+        $angeboten = app(Settings::class)->postgresOffered();
 
-        if (! $settings->postgres()) {
+        /*
+         * **„Nicht nachgesehen" ist kein „nein".** Diese Zeile hat am
+         * 11. August 2026 auf `cloudsrv24` gemeldet, der Betreiber habe
+         * PostgreSQL nicht freigeschaltet — während die Betreiberseite „Wird
+         * angeboten: ja" zeigte und beide dieselbe Methode lasen. Der Unterschied
+         * war, dass MariaDB zwei Zeilen weiter oben gerade neu gestartet worden
+         * war und das Panel ausgesperrt hatte; der Leseversuch scheiterte, und
+         * `Settings` machte daraus ein `false` (siehe
+         * {@see Settings::postgresOffered()}).
+         */
+        if ($angeboten === null) {
+            $this->error(
+                'Die Einstellungen sind nicht lesbar — ob das Panel PostgreSQL anbietet, steht damit '
+                .'nicht fest. MariaDB ist umgestellt, PostgreSQL nicht.',
+            );
+
+            return self::FAILURE;
+        }
+
+        if (! $angeboten) {
             $this->line('PostgreSQL: übersprungen — das Panel bietet es nicht an (srvpanel db --postgresql=on).');
 
             return self::SUCCESS;
         }
 
         /*
-         * **Die Adressen heissen in beiden Systemen anders, und das ist keine
-         * Kosmetik.** MariaDBs `::` bindet einen Doppelstapel-Socket und
-         * scheitert auf einem Rechner ohne IPv6; PostgreSQLs `*` geht die
-         * Familien einzeln durch und nimmt, was da ist. Die Zuordnung steht
-         * hier und nicht in der Operation, weil sie eine Aussage über *zwei*
-         * Systeme ist und keine über eines.
+         * **Die Adresse geht durch und wird nicht übersetzt.** Hier stand eine
+         * Umrechnung (`::` → `*`), und sie beruhte auf der Annahme, MariaDBs
+         * `::` binde einen Doppelstapel. Gemessen bindet es IPv6-only — genau
+         * wie PostgreSQLs `::`. Damit bedeuten die drei erlaubten Werte in
+         * beiden Systemen dasselbe, und eine Zuordnung, die nichts mehr zuordnet,
+         * ist nur noch eine Stelle, an der die beiden auseinanderlaufen können.
          */
-        $listen = $address === '::' ? '*' : '0.0.0.0';
-
         try {
-            $result = app(RemoteAccess::class)->sync($mode, $mode === 'on' ? $listen : null);
+            $result = app(RemoteAccess::class)->sync($mode, $mode === 'on' ? $address : null);
         } catch (AgentException $error) {
             $this->error('PostgreSQL hat abgewiesen: '.$error->getMessage());
 

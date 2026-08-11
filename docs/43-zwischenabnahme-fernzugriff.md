@@ -66,14 +66,21 @@ Punkt dieses Laufs erst möglich:**
 | `v0.5.2-rc.1` | Schritt 10: `pg.remote.access`, die Netze, `srvpanel db --remote` für beide Systeme | 0–3, 5–9 |
 | `v0.5.2-rc.2` | die Nachziehung: eine Rechteänderung schreibt den Block mit (`docs/38 §14.6`) | **4b, 4c** |
 | `v0.5.2-rc.3` | die Betreiberseite: PostgreSQLs Horchadresse in den Einstellungen (`docs/38 §14.7`) | **2b, 4d, 8b, 9b** |
+| `v0.5.2-rc.4` | `--bind=*`, die eigene Gegenprobe des Panels, der Rückweg ohne Bestand (`docs/44`) | **3** — und ohne sie alle folgenden |
+
+**Gegen `rc.3` und älter darf Punkt 3 nicht mit `--bind=::` gefahren werden**,
+und das ist keine Empfehlung: Auf `cloudsrv24` hat genau dieser Wert am
+11. August 2026 das Panel abgeschaltet, weil MariaDB `::` ausschliesslich IPv6
+bindet. `--bind=0.0.0.0` geht auf jeder Fassung; `--bind=*` erst ab `rc.4`.
+Die Einzelheiten stehen in `docs/44`.
 
 **Gegen `rc.1` schlägt Punkt 4b fehl**, und zwar auf eine Art, die wie ein
 kaputter Fernzugriff aussieht und keiner ist: Die Zeile für die zweite Datenbank
 fehlt, im Panel steht „erreichbar von …", und die Anwendung kommt nicht herein.
 Wer den Lauf gegen `rc.1` fährt, misst diesen Fehler und nicht den Fernzugriff.
 
-**Gefahren wird gegen `v0.5.2-rc.3`** — die erste Fassung, die alle drei Teile
-trägt. Gegen eine ältere sind die Punkte der fehlenden Zeile zu überspringen,
+**Gefahren wird gegen `v0.5.2-rc.4`** — die erste Fassung, die alle Teile trägt
+*und* den Lauf nicht in einen Ausfall führt. Gegen eine ältere sind die Punkte der fehlenden Zeile zu überspringen,
 und zwar **mit einer Zeile im Protokoll und nicht stillschweigend**: Ein Lauf,
 der Punkte auslässt, ohne es zu sagen, sieht hinterher aus wie ein
 vollständiger.
@@ -122,14 +129,35 @@ sudo -u postgres psql -Atc "SHOW listen_addresses"
 #    nur auf einem Server, der genau eines von beiden erreichbar hat.
 
 # 3  FREISCHALTEN
-srvpanel db --remote=on --bind=::
+srvpanel db --remote=on --bind=*
 #    Die Rückfrage mit „yes" beantworten — beide Datenbankserver werden neu
 #    gestartet, MariaDB zuerst.
 #    erwartet in der Ausgabe, WÖRTLICH:
-#      Horcht auf :: — Fernzugriff möglich.
+#      Horcht auf * — Fernzugriff möglich.
 #      PostgreSQL horcht auf * — Fernzugriff möglich, 0 Zugangsregel(n) in
 #      /etc/postgresql/16/main/pg_hba.conf.
 #    „0" ist hier richtig: Es hat noch niemand ein Netz eingetragen.
+#
+#    HIER STAND --bind=:: UND DAS HAT AM 11. AUGUST 2026 DAS PANEL ABGESCHALTET.
+#    MariaDB bindet :: ausschliesslich IPv6 — `ss -tlnp` zeigt nur [::]:3306 —,
+#    und das Panel verbindet sich über 127.0.0.1: Connection refused, 500er auf
+#    jeder Seite. Der Doppelstapel liegt auf *. Das ganze Protokoll samt der drei
+#    weiteren Fehler, die daran beteiligt waren, steht in `docs/44`.
+#
+#    Ein Abnahmelauf, der eine ungeprüfte Annahme als Anweisung führt, prüft sie
+#    nicht — er führt sie aus.
+
+curl -sS -o /dev/null -w '%{http_code}\n' https://$(hostname -f)/login
+#    erwartet: 200.
+#    BELEG: DIESE ZAHL. Der Datenbankserver zu fragen, ob er horcht, genügt
+#    nicht — genau das hat der Agent am 11. August getan und „Fernzugriff
+#    möglich" gemeldet, während das Panel schon unten war. Seine Gegenprobe
+#    läuft über den Unix-Socket, also über eine Strecke, die nicht kaputtgeht,
+#    wenn TCP kaputtgeht.
+#
+#    Das Kommando prüft das seit `docs/44` selbst und nimmt bei einem Fehlschlag
+#    zurück. Diese Zeile ist die Gegenprobe dazu: Ein Rückweg, den niemand von
+#    aussen nachmisst, ist wieder nur eine Behauptung.
 
 cat /etc/postgresql/16/main/conf.d/60-srvpanel.conf
 md5sum /etc/postgresql/16/main/postgresql.conf
@@ -309,7 +337,7 @@ srvpanel db --remote=off
 #
 #    Danach wieder aufräumen — das Netz zurücknehmen —, sonst stimmen die
 #    md5-Summen in Punkt 9 nicht:
-srvpanel db --remote=on --bind=::
+srvpanel db --remote=on --bind=*
 #    (Netz im Panel zurücknehmen, dann weiter mit Punkt 9.)
 
 # 9  ABSCHALTEN

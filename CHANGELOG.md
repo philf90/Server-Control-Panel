@@ -9413,3 +9413,84 @@ Ausfall nicht gesehen hat.
 
 > **Ein Abnahmelauf, der eine ungeprüfte Annahme als Anweisung führt, prüft sie
 > nicht — er führt sie aus.**
+
+### Ein Formularfehler kam nie am Formular an
+
+**Im Abnahmelauf des Fernzugriffs (`docs/43` Punkt 6) sollte ein abgewiesenes
+Netz eine Begründung zeigen.** Abgewiesen wurde es — die Begründung fehlte, und
+statt ihrer kam eine wortlose Weiterleitung auf die Übersicht.
+
+Entschieden hat das ein Vergleich zweier Antworten und kein Nachdenken: Ein
+gültiges Netz ging auf `302 → /databases/22`, ein abgewiesenes auf
+`302 → /login`. Der Erfolgsweg nennt sein Ziel (`to_route(…)`), der Fehlerweg
+fragt die Sitzung — und dort stand etwas Falsches.
+
+**Laravel merkt sich die vorige Seite nur bei GET-Anfragen, die nicht als XHR
+gelten, und jede Inertia-Navigation ist XHR.** In diesem Panel wurde
+`_previous.url` damit nach dem Anmelden **nie wieder gesetzt**: Es blieb auf der
+letzten vollständigen Seitenladung stehen, und das ist `/login`. Dorthin leitete
+jede `ValidationException`; die `guest`-Middleware schickte den angemeldeten
+Benutzer weiter auf die Übersicht, und die Meldung — die es gab, die in der
+Sitzung lag und richtig formuliert war — zeigte niemand mehr an.
+
+Das traf **jedes Formular dieses Panels**, seit es das Panel gibt.
+
+`RememberPageUrl` setzt das „Zurück" jetzt für Inertia-Navigationen.
+{@see KeepPreviousUrl} macht seit dem 10. August das Gegenstück — der
+Vorgangskanal ist eine GET-Anfrage, die *keine* Seite ist. Beide zusammen sagen
+dasselbe: **Was das „Zurück" setzt, ist eine Entscheidung und kein Nebeneffekt
+der Übertragungsart.**
+
+Nicht am `Referer`, obwohl `back()` zuerst dort liest: Der Vhost schickt
+`Referrer-Policy: no-referrer`, und das ist Absicht. Eine
+Sicherheitsentscheidung gegen eine Bequemlichkeit zu tauschen wäre der falsche
+Handel.
+
+> **Ein Wächter über `back()` im eigenen Code sagt nichts über das `back()`, das
+> das Framework macht.**
+
+**Und warum kein Test das je gemerkt hat:** Die Tests schicken einen `Referer`.
+`->from('/irgendwo')` setzt ihn, und damit funktioniert im Test genau der Weg,
+den es im Browser nicht gibt. Fast jeder Formulartest hier benutzt es, weil es
+die bequeme Art ist, `assertRedirect` zu schreiben.
+
+> **Ein Test, der eine Kopfzeile mitschickt, die der Browser nicht schickt,
+> prüft eine andere Anwendung.**
+
+`PreviousUrlTest` benutzt `->from()` deshalb nicht, sondern baut den Zustand so
+auf, wie ein Browser ihn erzeugt: erst die Seite ansehen, dann abschicken.
+
+### Zwei Netze in einer Zelle klebten aneinander
+
+Ebenfalls im Abnahmelauf, beim zweiten Eintrag eines Zugangs: Die beiden
+„Zurücknehmen" standen ohne Lücke übereinander, und Benutzername, Zustand und
+Aktionen standen mittig neben dem Stapel. `.button-row` legt seinen `gap`
+waagerecht, und Tabellenzellen erben `vertical-align: middle` — beides richtig,
+solange jede Zelle eine Zeile hoch bleibt.
+
+Eine Zeile mit einer gestapelten Zelle richtet ihre Zellen jetzt oben aus
+(`tr:has(td.multiline)`), und zwei Knopfreihen übereinander bekommen denselben
+Abstand wie zwei Knöpfe nebeneinander. Gemessen im Chromium gegen das gebaute
+Stylesheet: vier Zellen mit derselben Oberkante, 10px Lücke, kein waagerechter
+Überlauf.
+
+> **Ein Baustein, den man nur mit einem Element bebildert, ist für zwei nicht
+> geprüft.**
+
+### Vier Überschriften im Bruch-Skript verschluckten ihren Eingriff
+
+Beim Ergänzen der Eingriffe aufgefallen und **zwei davon standen seit P4 im
+Repo:** Eine Zeile `echo "── X: „Noch" an einem Vorgang ──"` trägt drei
+ASCII-Anführungszeichen. Das mittlere beendet die Zeichenkette der Shell, das
+letzte öffnet eine neue — und alles bis zum nächsten Anführungszeichen ist
+danach Text und kein Befehl. Der Eingriff läuft nicht, die Prüfung wird nicht
+gefahren, und `bash -n` ist zufrieden, weil sich die Anzahl über die Datei
+hinweg wieder ausgleicht.
+
+> **Ein Wächter, dessen Bruch verschluckt wird, war nie rot — und sieht aus wie
+> einer, der immer grün ist.**
+
+`BreakScriptTest` prüft das jetzt mit. Er hat davon nichts gemerkt, weil er die
+Python-Blöcke liest, und die waren in Ordnung — nur unerreichbar. `bootstrap/`
+steht ausserdem in `wiederherstellen()`, sonst käme die entfernte Middleware
+nach ihrem Bruch nicht zurück.

@@ -357,4 +357,62 @@ final class TableStyleTest extends TestCase
 
         return $found;
     }
+
+    /**
+     * Eine Zelle, die stapelt, richtet ihre Nachbarn oben aus — und ihre
+     * Knopfreihen bekommen Abstand.
+     *
+     * **Beides ist am 11. August 2026 auf `cloudsrv24` aufgefallen**, beim
+     * zweiten Netz eines Zugangs: Die zwei „Zurücknehmen" klebten ohne Lücke
+     * aneinander, und Benutzername, Zustand und Aktionen standen in der Mitte
+     * neben dem Stapel. Mit einem Netz sieht beides normal aus, und genau
+     * deshalb hat es niemand gesehen — auch keine Aufnahme, denn die
+     * Abnahmedaten trugen bis dahin je einen Eintrag.
+     *
+     * > **Ein Baustein, den man nur mit einem Element bebildert, ist für zwei
+     * > nicht geprüft.**
+     *
+     * `.button-row` legt seinen `gap` waagerecht; zwei gestapelte Reihen sind
+     * davon nicht berührt. Und Tabellenzellen erben `vertical-align: middle`,
+     * was richtig ist, solange jede Zelle eine Zeile hoch bleibt.
+     *
+     * **Der Bruch dazu** (`tests/waechter-brechen.sh`): die Regel
+     * `tr:has(td.multiline)` aus `app.css` streichen.
+     */
+    public function test_a_stacked_cell_aligns_its_row_and_spaces_its_rows(): void
+    {
+        $css = (string) preg_replace(
+            '#/\\*.*?\\*/#su',
+            '',
+            (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css'),
+        );
+
+        preg_match_all('/([^{}]*)\\{([^{}]*)\\}/s', $css, $rules, PREG_SET_ORDER);
+
+        $ausrichtung = false;
+        $abstand = false;
+
+        foreach ($rules as $rule) {
+            $selector = trim($rule[1]);
+
+            if (str_contains($selector, ':has(td.multiline)')
+                && preg_match('/vertical-align:\\s*top/', $rule[2]) === 1) {
+                $ausrichtung = true;
+            }
+
+            if (str_contains($selector, '.button-row + .button-row')
+                && preg_match('/margin-top:/', $rule[2]) === 1) {
+                $abstand = true;
+            }
+        }
+
+        $this->assertTrue($ausrichtung,
+            'Eine Zeile mit gestapelter Zelle richtet ihre Zellen nicht oben aus. Ab dem zweiten '
+            .'Eintrag steht der Benutzername in der Mitte neben dem Stapel, und je mehr Einträge, '
+            .'desto falscher liest sich die Zeile.');
+
+        $this->assertTrue($abstand,
+            'Zwei Knopfreihen übereinander bekommen keinen Abstand — sie kleben aneinander. '
+            .'`.button-row` setzt seinen gap waagerecht.');
+    }
 }

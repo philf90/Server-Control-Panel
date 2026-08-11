@@ -4,90 +4,139 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Http\Middleware\KeepPreviousUrl;
-use Illuminate\Http\Request;
-use Illuminate\Session\Middleware\StartSession;
-use PHPUnit\Framework\TestCase;
-use Symfony\Component\HttpFoundation\Response;
+use App\Http\Middleware\RememberPageUrl;
+use App\Models\Account;
+use App\Models\Customer;
+use App\Models\Database;
+use App\Models\DbUser;
+use App\Models\Subscription;
+use App\Support\Tenancy\Tenancy;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 /**
- * Ein Ereigniskanal ist keine Seite, zu der jemand zurückkehrt.
+ * Ein Formularfehler kommt am Formular an — und nicht auf der Anmeldeseite.
  *
- * **Der Anlass ist der Fehler, der die Zwischenabnahme eine Stunde gekostet
- * hat.** Laravel merkt sich jede GET-Anfrage als „vorige Seite"
- * ({@see StartSession::storeCurrentUrl()}), und eine `ValidationException`
- * leitet dorthin zurück. Der Vorgangskanal `/operations/{id}/stream` ist eine
- * GET-Anfrage — `EventSource` schickt kein `X-Requested-With` und gilt damit
- * nicht als XHR.
+ * ## Der Fehler
  *
- * Folge: **Jeder Formularfehler dieses Panels landete auf dem Ereigniskanal**,
- * sobald irgendwo ein Vorgang lief. Der Benutzer sah keine Meldung; gehörte der
- * Vorgang einem anderen Konto, sah er eine 403 ohne erkennbaren Auslöser.
- * `docs/39` Punkt 3 ist genau daran hängengeblieben, und die Meldung, die alles
- * erklärt hätte, kam nie an.
+ * Laravel merkt sich die vorige Seite nur bei GET-Anfragen, die **nicht** als
+ * XHR gelten. Jede Inertia-Navigation ist XHR. In diesem Panel wurde
+ * `_previous.url` damit nach dem Anmelden nie wieder gesetzt: Es stand auf der
+ * letzten vollständigen Seitenladung — `/login`. Dorthin leitete jede
+ * `ValidationException`, die `guest`-Middleware schickte den angemeldeten
+ * Benutzer weiter auf die Übersicht, und die Meldung sah niemand.
  *
- * **Warum `RedirectTargetTest` das nicht gefunden hat**, obwohl er genau diese
- * Regel durchsetzt: Er liest `back()`-Aufrufe im eigenen Code. Die
- * Weiterleitung einer `ValidationException` macht das Framework.
+ * Das traf **jedes Formular des Panels**, seit es das Panel gibt.
  *
- * > **Eine Regel mit Wächter, und daneben eine Tür, durch die dieselbe Regel
- * > gebrochen wird.**
+ * ## Warum kein Test das je gemerkt hat
  *
- * Das ist die Lehre über Wächter, die dieser Tag zu den bisherigen hinzufügt:
- * Ein Wächter deckt einen *Weg* ab, nicht eine *Wirkung*. Wer die Wirkung
- * meint, sucht nach dem zweiten Weg dorthin.
+ * **Weil die Tests einen `Referer` schicken.** `->from('/irgendwo')` setzt ihn,
+ * und `back()` liest zuerst ihn — im Test funktioniert also genau der Weg, den
+ * es im Browser nicht gibt: Der Vhost des Panels schickt
+ * `Referrer-Policy: no-referrer`. Fast jeder Formulartest hier benutzt
+ * `->from()`, weil es die bequeme Art ist, `assertRedirect` zu schreiben.
+ *
+ * > **Ein Test, der eine Kopfzeile mitschickt, die der Browser nicht schickt,
+ * > prüft eine andere Anwendung.**
+ *
+ * Das ist dieselbe Lehre wie `docs/42`: *Ein Test, der gegen eine andere
+ * Datenbank läuft als der Server, prüft die Grenzen der falschen.* Deshalb
+ * benutzt dieser Test `->from()` **nicht** — er baut den Zustand so auf, wie
+ * ein Browser ihn erzeugt: erst die Seite ansehen, dann das Formular abschicken.
  */
 final class PreviousUrlTest extends TestCase
 {
+    use RefreshDatabase;
+
     /**
-     * Die Kennzeichnung ist die, die Laravel selbst liest.
+     * Ein Kunde mit einer PostgreSQL-Datenbank und einem Zugang daran.
      *
-     * **Geprüft wird die Wirkung und nicht die Kopfzeile.** `ajax()` ist die
-     * Frage, die `storeCurrentUrl()` stellt; welche Kopfzeile sie beantwortet,
-     * ist Sache des Frameworks. Ein Test gegen `X-Requested-With` prüfte unsere
-     * Umsetzung gegen sich selbst.
+     * @return array{0: Account, 1: Database, 2: DbUser}
      */
-    public function test_the_stream_does_not_look_like_a_page(): void
+    private function scenario(): array
     {
-        $request = Request::create('/operations/1/stream', 'GET');
+        [$subscription, $database, $user] = app(Tenancy::class)->withoutRestriction(function (): array {
+            $subscription = Subscription::factory()->create(['system_user' => 'p1000']);
 
-        $this->assertFalse($request->ajax(), 'Ohne die Mittelschicht sieht die Anfrage aus wie eine Seite.');
+            /** @var Database $database */
+            $database = Database::factory()->postgres()->forSubscription($subscription, 'shop')->create();
 
-        $reached = false;
+            /** @var DbUser $user */
+            $user = DbUser::factory()->postgres()->forSubscription($subscription, 'web')->create();
 
-        (new KeepPreviousUrl)->handle($request, static function (Request $passed) use (&$reached): Response {
-            $reached = true;
+            $user->databases()->attach($database);
 
-            return new Response;
+            return [$subscription, $database, $user];
         });
 
-        $this->assertTrue($reached, 'Die Mittelschicht reicht die Anfrage nicht weiter.');
+        $customer = Customer::query()->findOrFail($subscription->customer_id);
 
-        $this->assertTrue(
-            $request->ajax(),
-            'Die Anfrage gilt wieder als Seite. Dann merkt Laravel sie als „zurück", und der '.
-            'nächste Formularfehler landet auf dem Ereigniskanal statt auf dem Formular.',
+        return [Account::factory()->customer($customer)->create(), $database, $user];
+    }
+
+    /**
+     * Eine Inertia-Navigation ist eine Seite und wird als solche gemerkt.
+     *
+     * **Die Untergrenze dieses Wächters.** Ohne diesen Fall bliebe unbemerkt,
+     * wenn {@see RememberPageUrl} gar nichts mehr merkt —
+     * der Test darunter wäre dann immer noch grün, sobald irgendetwas anderes
+     * zufällig dieselbe Adresse ablegte.
+     */
+    public function test_an_inertia_navigation_is_remembered_as_the_previous_page(): void
+    {
+        [$account, $database] = $this->scenario();
+
+        $this->actingAs($account)
+            ->withHeader('X-Inertia', 'true')
+            ->withHeader('X-Inertia-Version', '')
+            ->get("/databases/{$database->id}")
+            ->assertSuccessful();
+
+        $this->assertSame(
+            url("/databases/{$database->id}"),
+            session()->previousUrl(),
+            'Eine Inertia-Navigation wird nicht als vorige Seite gemerkt — dann weiss „zurück" nicht, wohin.',
         );
     }
 
     /**
-     * Und der Kanal trägt sie — vor der Rechteprüfung.
+     * **Und deshalb landet ein Eingabefehler am Formular.**
      *
-     * **Die Reihenfolge gehört zur Regel.** `storeCurrentUrl()` läuft auch dann,
-     * wenn `can:` abweist; stünde die Kennzeichnung dahinter, kaperte eine 403
-     * auf dem Kanal weiterhin das „Zurück" der nächsten Formularseite. Das ist
-     * derselbe Fehler wie „eine Prüfung, die eine Zeile zu spät läuft", den der
-     * Abnahmelauf von P4 schon einmal gefunden hat.
+     * Kein `->from()`: Der Browser schickt hier keinen `Referer`, und ein Test,
+     * der einen mitschickt, prüft den Weg, den es nicht gibt.
+     *
+     * Der Fehlschlag entsteht in `DatabaseController::guardNetwork()` — in
+     * diesem Container antwortet kein Agent, der Server gilt damit als nur
+     * lokal erreichbar, und ein Netz käme nie zustande. Das ist eine
+     * `ValidationException` wie jede andere; welche es ist, ist für diese Regel
+     * gleichgültig.
+     *
+     * **Der Bruch dazu** (`tests/waechter-brechen.sh`): `RememberPageUrl` aus
+     * `bootstrap/app.php` streichen.
      */
-    public function test_the_route_carries_it_before_the_policy(): void
+    public function test_a_form_error_returns_to_the_page_and_not_to_the_login(): void
     {
-        $routes = (string) file_get_contents(dirname(__DIR__, 2).'/routes/web.php');
+        [$account, $database, $user] = $this->scenario();
 
-        $this->assertMatchesRegularExpression(
-            '/->middleware\(\[KeepPreviousUrl::class, \x27can:view,operation\x27\]\)/',
-            $routes,
-            'Der Vorgangskanal kennzeichnet sich nicht mehr als „keine Seite" — oder erst nach '.
-            'der Rechteprüfung, und dann zu spät.',
+        $this->actingAs($account)
+            ->withHeader('X-Inertia', 'true')
+            ->withHeader('X-Inertia-Version', '')
+            ->get("/databases/{$database->id}")
+            ->assertSuccessful();
+
+        $response = $this->actingAs($account)
+            ->post("/databases/{$database->id}/users/{$user->id}/networks", ['cidr' => '0.0.0.0/0']);
+
+        $response->assertSessionHasErrors('cidr');
+
+        $response->assertRedirect("/databases/{$database->id}");
+
+        $this->assertNotSame(
+            url('/login'),
+            $response->headers->get('location'),
+            'Ein Eingabefehler leitet auf die Anmeldung. Dort schickt die guest-Middleware den '
+            .'angemeldeten Benutzer weiter auf die Übersicht — und die Meldung, die es gibt, sieht '
+            .'niemand.',
         );
     }
 }

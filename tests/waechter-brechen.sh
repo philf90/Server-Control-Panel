@@ -35,6 +35,11 @@
 # Sein Bruch legt eine schreibende Route an, und die steht in `routes/web.php` —
 # in keiner der beiden Listen wäre sie danach stehengeblieben.
 #
+# `bootstrap/` kam am 11. August 2026 dazu, und der Anlass ist derselbe wie bei
+# `routes/`: Dort steht die Liste der Middleware, und ob eine davon eingetragen
+# ist, ist eine Regel wie jede andere. Ihr Bruch nimmt einen Eintrag heraus — in
+# keiner der bisherigen Listen wäre er danach zurückgekommen.
+#
 # `docs/` kam mit P5b dazu, und der Anlass ist derselbe wie bei `routes/`: Ein
 # Wächter prüft dort, dass jeder Verweis eines Dokuments auf eine Datei zeigt,
 # die es gibt (`DocLinkTest`), und sein Bruch macht aus einem Verweis einen
@@ -81,7 +86,7 @@ if ! git diff --quiet -- resources/ app/ agent/ packaging/ .github/ database/ ro
   exit 1
 fi
 
-wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ .github/ database/ routes/ docs/ config/ 2>/dev/null; }
+wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ .github/ database/ routes/ docs/ config/ bootstrap/ 2>/dev/null; }
 trap wiederherstellen EXIT INT TERM
 
 fehler=0
@@ -4399,7 +4404,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OrphanedGrantTest passed
 
 echo
-echo "── WordChoiceTest: „Noch" an einem fertigen Vorgang ──"
+echo "── WordChoiceTest: „Noch\" an einem fertigen Vorgang ──"
 #
 # Das Wort verspricht, dass etwas kommt. An einem abgeschlossenen Vorgang kommt
 # nichts mehr — Vorgang 449 stand am 8. August 2026 auf „fertig" und darunter
@@ -5600,7 +5605,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" InertiaPropsTest passed
 
 echo
-echo "── KernelStaleTest: ein unlesbares /boot behauptet „aktuell" ──"
+echo "── KernelStaleTest: ein unlesbares /boot behauptet „aktuell\" ──"
 #
 # `null` heisst „nicht nachgesehen" und nicht „nein". Derselbe Satz hat am
 # 10. August 2026 dreimal Geld gekostet; hier steht er von Anfang an im Code.
@@ -6472,7 +6477,7 @@ pruefe "Umschalten ohne eigene Gegenprobe" \
 wiederherstellen
 
 echo
-echo "── RemoteAccessTest: kein Wert für „von überall", der das Panel verschont ──"
+echo "── RemoteAccessTest: kein Wert für „von überall\", der das Panel verschont ──"
 #
 # `bind-address = ::` bindet in MariaDB ausschliesslich IPv6 — gemessen, nicht
 # gelesen. Ohne `*` bleibt für „von überall" nur ein Wert übrig, der das Panel
@@ -6511,7 +6516,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RemoteAccessTest passed
 
 echo
-echo "── SettingsProbeTest: ein gescheiterter Leseversuch heisst „nein" ──"
+echo "── SettingsProbeTest: ein gescheiterter Leseversuch heisst „nein\" ──"
 #
 # Der Zustand von vor diesem Wächter: `catch (Throwable) { return []; }` machte
 # aus „der Datenbankserver antwortet nicht" eine leere Ablage, und das Kommando
@@ -6568,6 +6573,46 @@ pruefe "Kommandozeile wieder zweiwertig" \
   SettingsProbeTest::test_the_command_line_asks_the_three_valued_question failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SettingsProbeTest passed
+
+echo
+echo "── PreviousUrlTest: ein Formularfehler ohne Ziel ──"
+#
+# Laravel merkt sich die vorige Seite nur bei GET-Anfragen, die nicht als XHR
+# gelten — und jede Inertia-Navigation ist XHR. Ohne diese Middleware steht
+# `_previous.url` nach dem Anmelden dauerhaft auf /login, und JEDER
+# Formularfehler dieses Panels landet dort statt am Formular. Gefunden am
+# 11. August 2026 im Abnahmelauf des Fernzugriffs.
+vorher_datei bootstrap/app.php
+python3 - <<'PY2'
+p = 'bootstrap/app.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                RememberPageUrl::class,\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei bootstrap/app.php "Formularfehler ohne Ziel" &&
+pruefe "Formularfehler ohne Ziel" \
+  PreviousUrlTest::test_a_form_error_returns_to_the_page_and_not_to_the_login failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PreviousUrlTest passed
+
+echo
+echo "── TableStyleTest: eine gestapelte Zelle ohne Ausrichtung ──"
+#
+# Ab dem zweiten Eintrag steht der Benutzername in der Mitte neben dem Stapel.
+# Mit einem Eintrag sieht es normal aus, und genau deshalb hat es niemand
+# gesehen — auch keine Aufnahme.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace("tr:has(td.multiline) > td {\n  vertical-align: top;\n}", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "gestapelte Zelle ohne Ausrichtung" &&
+pruefe "gestapelte Zelle ohne Ausrichtung" \
+  TableStyleTest::test_a_stacked_cell_aligns_its_row_and_spaces_its_rows failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TableStyleTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

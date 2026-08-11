@@ -7,6 +7,8 @@ namespace SrvPanel\Agent\Pg;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Db\Server as DbServer;
+use SrvPanel\Agent\Ops\DbRemoteAccess;
+use SrvPanel\Agent\Ops\PgRemoteAccess;
 
 /**
  * Läuft hier ein PostgreSQL — und dürfen wir darauf arbeiten?
@@ -114,6 +116,8 @@ final class Server
      *     directory: string|null,
      *     port: int|null,
      *     clusters: list<array{version: int, name: string, port: int, running: bool, directory: string}>,
+     *     listen_addresses: string,
+     *     remote: bool,
      * }
      */
     public function describe(Context $context, Session $session): array
@@ -148,6 +152,13 @@ final class Server
             'directory' => null,
             'port' => null,
             'clusters' => [],
+
+            // Wie `handed_over` oben: Wer nicht verbunden war, hat es nicht
+            // gelesen. `''` und `false` sind hier keine Messung, sondern der
+            // Zustand „nicht nachgesehen" — die Oberfläche zeigt in diesen
+            // Fällen ohnehin `reason` und keinen Schalter.
+            'listen_addresses' => '',
+            'remote' => false,
         ];
 
         $clusters = $this->clusters->all($context);
@@ -227,7 +238,8 @@ final class Server
             $rows = $session->query(
                 $context,
                 "SELECT current_setting('server_version_num'), current_setting('server_version'), "
-                ."current_setting('data_directory'), current_setting('port')",
+                ."current_setting('data_directory'), current_setting('port'), "
+                ."current_setting('listen_addresses')",
             );
         } catch (AgentException $error) {
             /*
@@ -296,7 +308,43 @@ final class Server
             'cluster' => sprintf('%d/%s', $running[0]['version'], $running[0]['name']),
             'directory' => $directory,
             'port' => (int) ($row[3] ?? 0),
+
+            /*
+             * **Der Fernzugriff, als Zustand und nicht als Einstellung.**
+             * Dieselbe Zusage wie `bind_address` in {@see DbServer}: Das Panel
+             * merkt sich nicht, ob es ihn eingeschaltet hat, sondern fragt den
+             * laufenden Server. Der Betreiber kann `listen_addresses` jederzeit
+             * von Hand ändern, und eine im Panel gemerkte Fassung wäre die, die
+             * veraltet (`docs/36 §12` Punkt 1).
+             */
+            'listen_addresses' => (string) ($row[4] ?? ''),
+            'remote' => self::reachable((string) ($row[4] ?? '')),
         ]);
+    }
+
+    /**
+     * Horcht der Server auf einer Adresse, die von aussen erreichbar ist?
+     *
+     * **Die leere Zeichenkette ist die Vorgabe von Debian und heisst „nur der
+     * Socket"** — nicht „unbekannt". `localhost` heisst Loopback. Alles andere
+     * nennt entweder `*` oder eine Adresse, die jemand ausgesucht hat, und
+     * beides ist eine Antwort mit „ja".
+     *
+     * Gelesen wird die *Liste*: `listen_addresses = 'localhost,10.0.0.5'` ist
+     * erreichbar, obwohl `localhost` darin vorkommt. Ein `str_contains` auf
+     * `localhost` hätte hier „nein" gesagt.
+     */
+    public static function reachable(string $value): bool
+    {
+        foreach (explode(',', $value) as $entry) {
+            $entry = trim($entry);
+
+            if ($entry !== '' && $entry !== 'localhost' && $entry !== '127.0.0.1' && $entry !== '::1') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -385,6 +433,62 @@ final class Server
         }
 
         return $path;
+    }
+
+    /**
+     * Das Verzeichnis, aus dem `postgresql.conf` weitere Dateien liest.
+     *
+     * **Aus `SHOW config_file` abgeleitet und nicht aus Fassung und
+     * Clusternamen gebaut**, aus demselben Grund wie bei
+     * {@see self::hbaFile()}: `/etc/postgresql/16/main/conf.d` stimmte fast
+     * immer, und „fast immer" ist in P5b dreimal der Fehler gewesen. Ein
+     * Cluster, den jemand mit `initdb` von Hand angelegt hat, legt seine
+     * Konfiguration ins Datenverzeichnis; dort heisst das Verzeichnis auch
+     * `conf.d`, aber es liegt woanders.
+     *
+     * **Ob der Include-Punkt wirkt, lässt sich hier nicht erfragen — und das
+     * ist gemessen, nicht vermutet.** Der erste Entwurf fragte `SHOW
+     * include_dir`; am 11. August 2026 gegen PostgreSQL 16.13:
+     *
+     *     ERROR:  unrecognized configuration parameter "include_dir"
+     *
+     * `include_dir` ist eine **Anweisung an den Parser** und kein Parameter.
+     * Der laufende Server weiss hinterher nicht mehr, aus welcher Datei ein
+     * Wert kam — er kennt nur den Wert. Es gibt hier also keinen Zustand zu
+     * lesen, sondern nur eine Wirkung zu prüfen.
+     *
+     * **Deshalb prüft diese Methode das Verzeichnis und die Operation das
+     * Ergebnis.** Fehlt `conf.d`, steht es hier mit einem Satz, der sagt, was
+     * zu tun ist. Ist es da, aber ohne `include_dir` davor, merkt das
+     * {@see PgRemoteAccess}: Es liest `listen_addresses`
+     * nach dem Neustart zurück und meldet, wenn dort etwas anderes steht als
+     * geschrieben wurde. Wortgleich die Regel aus {@see DbRemoteAccess}
+     * — eine geschriebene Zeile ist eine Absicht, erst die Antwort des Servers
+     * ist ein Zustand. `docs/36 §22.3w` hat genau den umgekehrten Fall bezahlt.
+     */
+    public const INCLUDE_DIRECTORY = 'conf.d';
+
+    public function includeDirectory(Context $context, Session $session): string
+    {
+        $rows = $session->query($context, 'SHOW config_file');
+        $config = (string) ($rows[0][0] ?? '');
+
+        if ($config === '' || ! str_starts_with($config, '/')) {
+            throw AgentException::execFailed('Der Ort von postgresql.conf liess sich nicht feststellen.');
+        }
+
+        $directory = rtrim(dirname($config), '/').'/'.self::INCLUDE_DIRECTORY;
+
+        if (! is_dir($directory)) {
+            throw new AgentException(
+                AgentException::NOT_FOUND,
+                $directory.' fehlt. srvpanel schreibt seine Einstellungen in eine eigene Datei und '
+                .'fasst keine der Distribution an — ohne dieses Verzeichnis und ein aktives '
+                ."include_dir = '".self::INCLUDE_DIRECTORY."' in ".$config.' gibt es dafür keine Stelle.',
+            );
+        }
+
+        return $directory;
     }
 
     /** @return array{0: bool, 1: string|null} */

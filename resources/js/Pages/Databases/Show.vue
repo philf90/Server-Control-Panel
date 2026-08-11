@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import Badge from '../../Components/Badge.vue'
 import FormErrors from '../../Components/FormErrors.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Section from '../../Components/Section.vue'
 import { formatBytes } from '../../bytes'
+
+/** Ein Netz, aus dem ein PostgreSQL-Zugang hereindarf (docs/38 §14.3). */
+interface Network {
+  id: number
+  cidr: string
+}
 
 interface User {
   id: number
@@ -14,6 +20,9 @@ interface User {
   remote: boolean
   status: string
   status_label: string
+
+  /** Bei MariaDB immer leer — dort steht die Herkunft im Benutzernamen. */
+  networks: Network[]
 }
 
 interface DumpRow {
@@ -147,6 +156,56 @@ function revoke(user: User): void {
 
 function removeUser(user: User): void {
   router.delete(`/databases/${props.database.id}/users/${user.id}`)
+}
+
+/*
+ * Die Netze eines PostgreSQL-Zugangs.
+ *
+ * **Ein Formular unter der Tabelle, und „Netz eintragen" wählt den Zugang aus.**
+ * Der erste Entwurf legte je Zeile ein eigenes Formular in die Aktionsspalte —
+ * die Zuordnung wäre damit ohne ein zweites Feld klar gewesen. Bei 390px ist
+ * eine gestapelte Zelle aber eine Flexzeile aus Beschriftung und Inhalt: Das
+ * Eingabefeld bekam 180px, und eine Fehlermeldung stand einwortweise über
+ * zwanzig Zeilen (gesehen in der Aufnahme, `docs/38 §14`).
+ *
+ * Die Zuordnung trägt jetzt der Name im Kopf des Formulars — dieselbe Form wie
+ * „Vorhandenen Zugang verbinden" darüber.
+ */
+const networkForm = useForm({ cidr: '' })
+const editing = ref<number | null>(null)
+
+/**
+ * Der Zugang, für den das Formular gerade offensteht — oder `null`.
+ *
+ * **Gerechnet und nicht mitgeführt.** Ein zweites `ref` mit dem ganzen Objekt
+ * wäre eine Abschrift, die nach dem nächsten Seitenaufruf auf einen Zugang
+ * zeigt, den es nicht mehr gibt.
+ */
+const chosenForNetwork = computed<User | null>(
+  () => props.database.users.find((user) => user.id === editing.value) ?? null,
+)
+
+function addNetwork(user: User): void {
+  networkForm.post(`/databases/${props.database.id}/users/${user.id}/networks`, {
+    preserveScroll: true,
+    onSuccess: () => {
+      networkForm.reset()
+      editing.value = null
+    },
+  })
+}
+
+/*
+ * Und die Gegenrichtung mit Rückfrage.
+ *
+ * Anders als beim Eintragen sperrt das eine laufende Anwendung aus, und zwar
+ * sofort: Der verwaltete Block wird beim nächsten Reload ohne diese Zeile
+ * gelesen. Dieselbe Überlegung wie bei `revoke()` darüber.
+ */
+function removeNetwork(user: User, network: Network): void {
+  if (!confirm(`${network.cidr} für ${user.name} zurücknehmen? Eine Anwendung, die von dort verbindet, kommt danach nicht mehr herein.`)) return
+
+  router.delete(`/databases/${props.database.id}/users/${user.id}/networks/${network.id}`, { preserveScroll: true })
 }
 
 function resetPassword(user: User): void {
@@ -362,7 +421,57 @@ function size(): string {
             <tbody>
               <tr v-for="user in props.database.users" :key="user.id">
                 <td data-column="Benutzer" class="ident name">{{ user.name }}</td>
-                <td data-column="Herkunft" class="ident">{{ user.host }}</td>
+
+                <!--
+                  **Bei PostgreSQL eine Liste, bei MariaDB ein Wert** — und die
+                  Unterscheidung hängt an `over_tcp` und nicht am Namen des
+                  Systems. Ein Vergleich mit dem Wert des Systems wäre hier eine
+                  Zeichenkette aus dem Enum, und `DatabaseEngineTest` weist sie
+                  ab; der Grund dahinter ist derselbe wie bei der Sortierung
+                  weiter oben.
+
+                  Der Satz stand hier zuerst mit dem Wert als Beispiel darin —
+                  und der Wächter liest Kommentare mit, zu Recht: Er kann nicht
+                  wissen, ob eine Zeichenkette gemeint oder zitiert ist.
+                  Dieselbe Stelle hat `DatabaseController::row()` schon einmal
+                  erwischt.
+
+                  Jedes Netz steht auf einer eigenen Zeile und nicht mit Komma
+                  aneinander: `198.51.100.0/24` und `2001:db8::/32` in einer
+                  Zeile sind bei 390px genau die Sorte Kennung im Fliesstext,
+                  die `v0.4.0-rc.4` gekostet hat.
+                -->
+                <!--
+                  **`multiline`, sobald mehr als ein Wert darin steht.** Bei
+                  390px stellt eine gestapelte Zelle Beschriftung und Inhalt
+                  *nebeneinander*; zwei Netze mit ihren Knöpfen landen damit
+                  rechts in einer Spalte von 180px und werden abgeschnitten —
+                  gemessen am gebauten Stylesheet, und der Überlauf steht dabei
+                  auf 0, weil er innerhalb von `.scrolls` passiert und nicht am
+                  Dokument. `multiline` stellt beides untereinander.
+                -->
+                <td
+                  data-column="Herkunft"
+                  class="ident"
+                  :class="{ multiline: props.database.over_tcp }"
+                >
+                  <template v-if="props.database.over_tcp">
+                    <div v-for="net in user.networks" :key="net.id" class="button-row">
+                      <span class="ident">{{ net.cidr }}</span>
+                      <button
+                        v-if="props.can.update"
+                        type="button"
+                        class="button"
+                        @click="removeNetwork(user, net)"
+                      >
+                        Zurücknehmen
+                      </button>
+                    </div>
+                    <span v-if="user.networks.length === 0" class="quiet">nur von diesem Server</span>
+                  </template>
+                  <template v-else>{{ user.host }}</template>
+                </td>
+
                 <td data-column="Zustand">
                   <Badge :kind="rang(user.status)">{{ user.status_label }}</Badge>
                 </td>
@@ -370,6 +479,14 @@ function size(): string {
                   <div class="button-row">
                     <button type="button" class="button" @click="resetPassword(user)">
                       Neues Passwort
+                    </button>
+                    <button
+                      v-if="props.database.over_tcp && props.remote.possible"
+                      type="button"
+                      class="button"
+                      @click="editing = editing === user.id ? null : user.id"
+                    >
+                      Netz eintragen
                     </button>
                     <button type="button" class="button" @click="revoke(user)">
                       Zugriff entziehen
@@ -388,6 +505,75 @@ function size(): string {
             </tbody>
           </table>
         </div>
+
+        <!--
+          **Der Satz, den ein Kunde braucht, der P5 kennt** (docs/38 §14.3).
+
+          In MariaDB sind `p1001_web@localhost` und `p1001_web@203.0.113.5`
+          zwei Benutzer mit zwei Passwörtern; wer das eine verliert, verliert
+          nicht das andere. In PostgreSQL ist es eine Rolle, ein Passwort,
+          mehrere erlaubte Netze — und wer das Gegenteil annimmt, setzt ein
+          Passwort zurück und sperrt dabei seine zweite Anwendung aus.
+
+          Er steht bei den Zugängen und nicht in der Dokumentation, weil er
+          genau dann gebraucht wird, wenn jemand das zweite Netz einträgt.
+        -->
+        <p v-if="props.database.over_tcp && props.remote.possible" class="hint">
+          Ein Zugang ist hier <b>eine Rolle mit einem Passwort</b> und mehreren
+          erlaubten Netzen — anders als in MariaDB, wo zwei Herkünfte zwei
+          Zugänge mit eigenen Passwörtern sind. Ein neues Passwort gilt deshalb
+          für alle Netze zugleich. Eintragen lässt sich eine Adresse
+          (<span class="ident">203.0.113.5/32</span>) oder ein Netz
+          (<span class="ident">198.51.100.0/24</span>);
+          <span class="ident">0.0.0.0/0</span> wird abgewiesen.
+          <b>Die Beschränkung gilt im Datenbankserver und nicht im Paketfilter.</b>
+        </p>
+        <p v-else-if="props.database.over_tcp" class="hint">{{ props.remote.reason }}</p>
+
+        <!--
+          **Das Formular steht unter der Tabelle und nicht in ihrer Zelle.**
+
+          Der erste Entwurf legte es in die Aktionsspalte der Zeile, zu der es
+          gehört — die Zuordnung war damit ohne ein zweites Auswahlfeld klar.
+          Bei 390px ist eine gestapelte Zelle eine Flexzeile aus Beschriftung
+          und Inhalt: Das Feld bekam 180px, und die Fehlermeldung stand
+          einwortweise untereinander über zwanzig Zeilen. Gesehen in der
+          Aufnahme, nicht im Test — `scrollWidth - clientWidth` stand dabei auf
+          0, weil der Überlauf innerhalb von `.scrolls` passiert.
+
+          Unter der Tabelle steht schon „Vorhandenen Zugang verbinden", und die
+          Zuordnung trägt hier der Name im Kopf des Formulars.
+        -->
+        <form
+          v-if="chosenForNetwork !== null"
+          class="form"
+          @submit.prevent="addNetwork(chosenForNetwork)"
+        >
+          <label class="field">
+            <span>Erreichbar von — für <span class="ident">{{ chosenForNetwork.name }}</span></span>
+            <input
+              v-model="networkForm.cidr"
+              type="text"
+              placeholder="203.0.113.5/32"
+              autocomplete="off"
+              required
+            >
+          </label>
+          <p v-if="networkForm.errors.cidr" class="error">{{ networkForm.errors.cidr }}</p>
+          <p class="hint">
+            Eine Adresse oder ein Netz in der Schreibweise von PostgreSQL. Ohne Präfixlänge
+            wird <span class="ident">/32</span> bzw. <span class="ident">/128</span> ergänzt.
+          </p>
+
+          <div class="button-row">
+            <button type="submit" class="button" :disabled="networkForm.processing">
+              Eintragen
+            </button>
+            <button type="button" class="button" @click="editing = null">
+              Abbrechen
+            </button>
+          </div>
+        </form>
 
         <!--
           Verbinden steht vor Anlegen: Wer schon einen Zugang hat, soll ihn
@@ -436,19 +622,28 @@ function size(): string {
             einschalten kann — ein Feld, das ohne Erklärung verschwindet, sieht
             aus wie ein Fehler.
           -->
-          <label v-if="props.remote.possible" class="field">
+          <label v-if="props.remote.possible && !props.database.over_tcp" class="field">
             <span>Erreichbar von</span>
             <input v-model="userForm.host" type="text" placeholder="localhost" autocomplete="off">
           </label>
           <p v-if="userForm.errors.host" class="error">{{ userForm.errors.host }}</p>
-          <p v-if="props.remote.possible" class="hint">
+
+          <!--
+            **Bei PostgreSQL steht hier nichts, und das ist kein Weglassen.**
+            Der Wirt gehört dort nicht zum Zugang, sondern zu einer Zeile in
+            `pg_hba.conf`, die es erst geben kann, wenn die Rolle da ist und
+            eine Datenbank erreicht. Ein Feld im Anlegeformular verspräche das
+            Gegenteil — der Weg führt über „Netz eintragen" in der Zeile des
+            fertigen Zugangs.
+          -->
+          <p v-if="props.remote.possible && !props.database.over_tcp" class="hint">
             Leer oder <span class="ident">localhost</span> für den Zugriff vom Server selbst.
             Sonst eine IP-Adresse oder ein Netz in der Schreibweise von MariaDB
             (<span class="ident">203.0.113.0/255.255.255.0</span>). Zwei Adressen sind zwei
             Zugänge mit eigenen Passwörtern, und <span class="ident">%</span> wird abgewiesen.
             <b>Die Beschränkung gilt in MariaDB und nicht im Paketfilter.</b>
           </p>
-          <p v-else class="hint">{{ props.remote.reason }}</p>
+          <p v-else-if="!props.database.over_tcp" class="hint">{{ props.remote.reason }}</p>
 
           <p class="hint">
             Heisst auf dem Server

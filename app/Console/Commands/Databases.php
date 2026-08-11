@@ -8,8 +8,10 @@ use App\Enums\DatabaseEngine;
 use App\Models\Database;
 use App\Models\DatabaseDump;
 use App\Models\DbUser;
+use App\Models\DbUserNetwork;
 use App\Support\Databases\DatabasePrune;
 use App\Support\Databases\DumpIntegrity;
+use App\Support\Databases\RemoteAccess;
 use App\Support\Settings\Settings;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Console\Command;
@@ -459,9 +461,69 @@ final class Databases extends Command
             default => 'postgresql — '.($info['reason'] ?? 'unklarer Zustand'),
         });
 
+        if (($info['state'] ?? '') === 'ready') {
+            $this->line(sprintf(
+                'PostgreSQL horcht auf %s — Fernzugriff %s.',
+                ($info['listen_addresses'] ?? '') === '' ? 'nur dem Socket' : $info['listen_addresses'],
+                ($info['remote'] ?? false) === true ? 'möglich' : 'aus',
+            ));
+        }
+
         $this->reportStale(
             is_array($info['stale_roles'] ?? null) ? $info['stale_roles'] : [],
             'PostgreSQL',
+        );
+
+        $this->reportOrphanRules(
+            is_array($info['hba_rules'] ?? null) ? array_values(array_filter($info['hba_rules'], 'is_string')) : [],
+        );
+    }
+
+    /**
+     * Zeilen im verwalteten Block, zu denen es im Bestand nichts gibt.
+     *
+     * **Der Weg zurück, den PostgreSQL selbst nicht geht** (`docs/38 §14.4`).
+     * Eine `pg_hba.conf`-Zeile für eine Rolle, die es nicht mehr gibt, ist dort
+     * **kein Fehler** (M22): Sie bleibt liegen, `pg_hba_file_rules` schweigt,
+     * und der Cluster startet damit anstandslos. Damit ist sie das Vierte, was
+     * diese Stufe auf der Platte hinterlässt — neben Datenbanken, Rollen und
+     * Sicherungen —, und das Einzige davon, was gar nichts von sich meldet.
+     *
+     * **Gemeldet und nicht gelöscht** (`docs/36 §5`). Der Regelfall, der hier
+     * auftaucht, ist harmlos: `pg.role.remove` nimmt die Zeilen einer Rolle im
+     * selben Vorgang mit, und was trotzdem übrigbleibt, stammt aus einem
+     * abgebrochenen Rückbau oder aus einer Zeile, die jemand von Hand in den
+     * Block geschrieben hat. Beides gehört angesehen und nicht weggeräumt.
+     *
+     * @param  list<string>  $managed
+     */
+    private function reportOrphanRules(array $managed): void
+    {
+        if ($managed === []) {
+            return;
+        }
+
+        $orphans = app(RemoteAccess::class)->orphans($managed);
+
+        if ($orphans === []) {
+            $this->line(sprintf('%d Zugangsregel(n) in pg_hba.conf, alle im Bestand.', count($managed)));
+
+            return;
+        }
+
+        $this->warn(sprintf(
+            '%d von %d Zugangsregel(n) in pg_hba.conf zeigen auf nichts im Bestand:',
+            count($orphans),
+            count($managed),
+        ));
+
+        foreach ($orphans as $line) {
+            $this->line('  '.$line);
+        }
+
+        $this->line(
+            '  Sie werden nicht von selbst entfernt. Der nächste Lauf von `srvpanel db --remote=on` '
+            .'schreibt den Block neu und nimmt sie mit.',
         );
     }
 
@@ -610,14 +672,22 @@ final class Databases extends Command
             return self::FAILURE;
         }
 
+        /*
+         * **Beide Systeme werden gezählt, und sie zählen verschieden.** In
+         * MariaDB steht die fremde Adresse im Benutzer (`host`), in PostgreSQL
+         * in `db_user_networks` — dieselbe Frage, zwei Tabellen (`docs/38
+         * §14.3`). Nur die eine zu zählen wäre eine Warnung, die die Hälfte der
+         * Ausgesperrten verschweigt.
+         */
         $fern = $tenancy->withoutRestriction(
-            static fn (): int => DbUser::query()->where('host', '!=', 'localhost')->count(),
+            static fn (): int => DbUser::query()->where('host', '!=', 'localhost')->count()
+                + DbUserNetwork::query()->count(),
         );
 
         if ($mode === 'off' && $fern > 0) {
             $this->warn(sprintf(
-                '%d Zugang/Zugänge sind für eine fremde Adresse angelegt. Nach dem Ausschalten '
-                .'erreicht sie niemand mehr — die Zeilen bleiben, die Verbindung nicht.',
+                '%d Zugang/Zugänge bzw. Netz(e) sind für eine fremde Adresse eingetragen. Nach dem '
+                .'Ausschalten erreicht sie niemand mehr — die Zeilen bleiben, die Verbindung nicht.',
                 $fern,
             ));
         }
@@ -660,6 +730,77 @@ final class Databases extends Command
             $this->error(
                 'Der Server horcht nicht so, wie es angefordert wurde. Vermutlich setzt eine andere '
                 .'Include-Datei die Horchadresse später — sie werden lexikalisch gelesen.',
+            );
+
+            return self::FAILURE;
+        }
+
+        return $this->remotePostgres($mode, $address);
+    }
+
+    /**
+     * Und dieselbe Frage für PostgreSQL (`docs/38 §14`).
+     *
+     * **Ein Schalter für beide Systeme und nicht zwei.** „Der Datenbankserver
+     * ist von aussen erreichbar" ist eine Aussage über den *Rechner*, und ein
+     * Betreiber, der sie für MariaDB trifft und für PostgreSQL vergisst, hat
+     * eine Fläche offen, von der er nichts weiss — oder eine geschlossen, die
+     * er gerade aufmachen wollte. Zwei Schalter wären zwei Fassungen derselben
+     * Entscheidung, und die zweite ist die, die veraltet.
+     *
+     * **Übersprungen wird nur, was das Panel nicht anbietet.** Ist PostgreSQL
+     * abgeschaltet (`--postgresql=off`) oder nicht nutzbar, steht der Grund
+     * da — als Zeile und nicht als Schweigen. Ein Kommando, das die Hälfte
+     * seiner Arbeit stillschweigend auslässt, gibt Entwarnung über eine Fläche,
+     * die es nicht angesehen hat; genau das war der Fund aus `docs/39 §12a`.
+     *
+     * **Und die Netze gehen mit.** Der Aufruf trägt den vollständigen
+     * Sollzustand ({@see RemoteAccess::rules()}), damit der verwaltete Block
+     * beim Einschalten sofort steht statt beim nächsten Formular eines Kunden.
+     */
+    private function remotePostgres(string $mode, string $address): int
+    {
+        $settings = app(Settings::class);
+
+        if (! $settings->postgres()) {
+            $this->line('PostgreSQL: übersprungen — das Panel bietet es nicht an (srvpanel db --postgresql=on).');
+
+            return self::SUCCESS;
+        }
+
+        /*
+         * **Die Adressen heissen in beiden Systemen anders, und das ist keine
+         * Kosmetik.** MariaDBs `::` bindet einen Doppelstapel-Socket und
+         * scheitert auf einem Rechner ohne IPv6; PostgreSQLs `*` geht die
+         * Familien einzeln durch und nimmt, was da ist. Die Zuordnung steht
+         * hier und nicht in der Operation, weil sie eine Aussage über *zwei*
+         * Systeme ist und keine über eines.
+         */
+        $listen = $address === '::' ? '*' : '0.0.0.0';
+
+        try {
+            $result = app(RemoteAccess::class)->sync($mode, $mode === 'on' ? $listen : null);
+        } catch (AgentException $error) {
+            $this->error('PostgreSQL hat abgewiesen: '.$error->getMessage());
+
+            return self::FAILURE;
+        }
+
+        $this->line(sprintf(
+            'PostgreSQL horcht auf %s — Fernzugriff %s, %d Zugangsregel(n) in %s.',
+            $result['listen_addresses'] ?? 'unbekannt',
+            ($result['remote'] ?? false) === true ? 'möglich' : 'aus',
+            (int) ($result['rule_count'] ?? 0),
+            $result['hba_path'] ?? 'pg_hba.conf',
+        ));
+
+        // Dieselbe Gegenprobe wie für MariaDB darüber, und aus demselben Grund:
+        // Ob der Include-Punkt greift, lässt sich nicht erfragen — nur hier
+        // ablesen (`Pg\Server::includeDirectory()`).
+        if ((bool) ($result['remote'] ?? false) !== ($mode === 'on')) {
+            $this->error(
+                'PostgreSQL horcht nicht so, wie es angefordert wurde. Vermutlich fehlt in '
+                ."postgresql.conf das aktive include_dir = 'conf.d'.",
             );
 
             return self::FAILURE;

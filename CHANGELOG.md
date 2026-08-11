@@ -9043,3 +9043,193 @@ Oberfläche für „Einstellungen" überhaupt, und hier ist schon die ganze Grup
 eine.
 
 Gemessen im Chromium bei 390px, beide Themes: kein waagerechter Überlauf.
+
+### P5b Schritt 10: der Fernzugriff für PostgreSQL
+
+Das letzte ungebaute Stück von P5b (`docs/38 §14`). Zwei Hälften, und nur eine
+hat ein Vorbild in P5: `listen_addresses` geht wie `bind-address` in eine eigene
+Datei im Include-Verzeichnis (`60-srvpanel.conf`), aber **von wo eine Rolle
+kommen darf, steht in PostgreSQL in `pg_hba.conf` und sonst nirgends.**
+
+`pg.remote.access` schreibt beides. Die Zeile nennt die Datenbank und nicht
+`all` — die zweite Wand hinter dem `REVOKE CONNECT` aus §10; gemessen erreicht
+dieselbe Rolle damit ihre eigene Datenbank und `postgres` nicht. Der Aufruf
+trägt immer den **vollständigen Sollzustand** und keine Änderung: Ein „füge
+diese eine Zeile hinzu" hinge an der Reihenfolge früherer Aufrufe, und P5b hat
+zwei Fehler genau dieser Bauart bezahlt.
+
+**Ein Fernzugang hat kein eigenes Passwort**, und das gehört auf die Seite, weil
+ein Kunde, der P5 kennt, das Gegenteil annimmt. In MariaDB sind
+`p1001_web@localhost` und `p1001_web@203.0.113.5` zwei Benutzer mit zwei
+Passwörtern; in PostgreSQL ist es eine Rolle, ein Passwort, mehrere erlaubte
+Netze. Sie stehen deshalb in `db_user_networks` — die Tabelle gab es seit der
+Migration von P5b, benutzt hat sie bis jetzt nichts.
+
+### Und der Rückweg, der die Datei retten soll, hat sie beschädigt
+
+**Das ist der Fund dieses Beitrags, und gefunden hat ihn keine Überlegung,
+sondern ein Wegwerf-Cluster.** In `pg_hba.conf` schrieb schon jemand:
+`Hba::ensure()` stellt der Datei seit Schritt 6 eine Zeile voran, ohne die das
+Zurückspielen nicht anfangen kann. Der Block aus §14 wäre der zweite verwaltete
+Bereich in derselben Datei — und nachgestellt verliert jeder der drei möglichen
+Verläufe etwas:
+
+| wer schreibt | was verschwindet |
+|---|---|
+| der Block auf einem Stand von vor `ensure()` | die Zeile |
+| `ensure()` auf einem Stand von vor dem Block | der Block |
+| **der Rückweg** legt den Stand von Schritt 1 zurück | die Zeile |
+
+Der dritte ist der teuerste, denn er ist der *Fehlerweg*. Genau der Griff, der
+den Server vor einer kaputten `pg_hba.conf` bewahren soll — und die ist bei
+einem Reload folgenlos und bei einem Neustart tödlich —, wirft dabei die Zeile
+weg, an der das Zurückspielen hängt. Auffallen würde das nicht: Der Fernzugriff
+meldet einen sauberen Fehlschlag, der Server läuft weiter, und erst das nächste
+Zurückspielen scheitert, Wochen später, an einer Meldung über
+peer-Authentifizierung.
+
+> **Ein Fehlerweg, der selbst fehlschlagen kann, ist kein Fehlerweg.**
+
+Der Agent gabelt je Verbindung; zwei Operationen sind zwei Prozesse, und ein
+Merker im Speicher hilft nicht. Jeder Zugriff geht deshalb durch
+`Hba::locked()` — ein `flock` auf eine Sperrdatei daneben, gehalten über Lesen,
+Schreiben, Nachladen, Nachsehen und Rückweg. Geschrieben wird über eine
+Nachbardatei und `rename`: Ein `file_put_contents` kürzt erst und schreibt dann,
+und ein Abbruch dazwischen liesse eine **leere** `pg_hba.conf` zurück — die ist
+fehlerfrei, der Cluster startet damit, und niemand kommt mehr herein.
+
+Zwei Marken und nicht eine, weil die beiden Bereiche entgegengesetzte
+Platzansprüche haben: Die Zeile muss über Debians `local all all peer` stehen
+(darunter: `FATAL: Peer authentication failed`), der Block hinter alles, was der
+Betreiber selbst eingetragen hat — sonst gewänne eine Zeile von uns über sein
+`reject`. Streiten können sie sich trotzdem nicht: Die eine ist `local`, der
+andere `host`.
+
+### Und die Sperre stand sich zwei Minuten lang selbst im Weg
+
+`flock` sperrt je *offener Datei* und nicht je Prozess. Die Operation nahm die
+Sperre in `execute()` und noch einmal in `apply()`; der zweite Aufruf wartete
+auf den ersten und damit auf sich selbst. Kein Fehler, keine Meldung, nur nichts
+— aufgefallen, weil der Lauf gegen einen echten Cluster nach zwei Minuten noch
+stand. Beim Lesen sah die Zeile richtig aus.
+
+`Hba::locked()` zählt seitdem mit, und
+`PgHbaRollbackTest::test_the_lock_does_not_block_itself` hält es fest. Der
+Wächter ist unbequem — schlägt er fehl, hängt er —, und er gehört trotzdem
+dorthin: Wer den nächsten Aufrufer schreibt, der die Sperre schon hält, soll es
+an dieser Stelle erfahren und nicht an einem Vorgang, der nie zurückkommt.
+
+### Drei Dinge, die PostgreSQL klaglos annimmt und wir nicht
+
+- **Eine Adresse ohne Präfixlänge ist eine kaputte Zeile**, nicht eine
+  ungenaue: `host … 203.0.113.5 scram-sha-256` → `invalid IP mask
+  "scram-sha-256"`, weil die zweispaltige Form die Methode als Maske liest. Sie
+  wird deshalb ergänzt (`/32` bzw. `/128`) statt abgewiesen.
+- **Gesetzte Wirtsbits werden abgewiesen, obwohl PostgreSQL sie nimmt.**
+  `198.51.100.5/24` erzeugt keinen Fehler — der Server liest stillschweigend
+  `198.51.100.0/24` und lässt 254 Rechner herein, wo jemand einen gemeint hat.
+  Die Meldung nennt beide gemeinten Auflösungen und rät nicht.
+- **`0.0.0.0/0` wird abgewiesen**, und `::/0` fällt mit. Wer das will, trägt es
+  von Hand ein; dann ist es seine Entscheidung und nicht ein Feld, das wir
+  angeboten haben.
+
+Und eine vierte Messung hat einen Entwurf umgeworfen: **`SHOW include_dir`
+gibt es nicht** (`unrecognized configuration parameter`). Es ist eine Anweisung
+an den Parser und kein Parameter — ob der Include-Punkt greift, lässt sich nicht
+erfragen, nur am zurückgelesenen `listen_addresses` ablesen. Die Operation
+meldet deshalb, was der Server nach dem Neustart sagt, und nicht, was in die
+Datei geschrieben wurde.
+
+### Der Weg zurück, den PostgreSQL selbst nicht geht
+
+Eine Zeile für eine Rolle, die es nicht mehr gibt, ist dort **kein Fehler**: Sie
+bleibt liegen, `pg_hba_file_rules` schweigt, und der Cluster startet damit
+anstandslos. `pg.role.remove` nimmt die Zeilen der Rolle deshalb im selben
+Vorgang mit, und `srvpanel db` hält den Block gegen den Bestand und meldet, was
+übrigbleibt — **gemeldet und nicht gelöscht**, wie `docs/36 §5` es festlegt.
+
+`srvpanel db --remote=on` schaltet jetzt **beide** Systeme. „Der Datenbankserver
+ist von aussen erreichbar" ist eine Aussage über den Rechner; zwei Schalter
+wären zwei Fassungen derselben Entscheidung, und ein Betreiber, der die eine
+trifft und die andere vergisst, hat eine Fläche offen, von der er nichts weiss.
+Übersprungen wird nur, was das Panel nicht anbietet — mit dem Grund als Zeile
+und nicht als Schweigen.
+
+### Und die Seite hat eine Auskunft über das falsche System gegeben
+
+`DatabaseController::remoteAccess()` rief `db.server.info` ohne
+Fallunterscheidung — auch auf der Seite einer PostgreSQL-Datenbank. Daraus wurde
+entschieden, ob ein PostgreSQL-Zugang ein Netz eintragen darf, und auf einem
+Server, der nur eines der beiden von aussen erreichbar hat, ist das genau falsch
+herum. Aufgefallen wäre es niemandem: Beide Antworten haben dieselbe Form.
+
+### Das Formular stand in der Zelle, in die es nicht passt
+
+Der erste Entwurf legte das Eingabefeld in die Aktionsspalte der Zeile, zu der
+es gehört — die Zuordnung war damit ohne ein zweites Auswahlfeld klar. Bei 390px
+ist eine gestapelte Zelle aber eine Flexzeile aus Beschriftung und Inhalt: Das
+Feld bekam 180px, und die Fehlermeldung über die Wirtsbits stand einwortweise
+über zwanzig Zeilen.
+
+**Gesehen in der Aufnahme, und `scrollWidth - clientWidth` stand dabei auf 0** —
+der Überlauf passiert innerhalb von `.scrolls` und nicht am Dokument. Das ist
+die Grenze der Messung, die dieses Projekt seit `v0.4.0-rc.4` fährt:
+
+> **Eine Zahl, die am Dokument misst, sagt nichts über eine Zelle, die selbst
+> scrollen darf.**
+
+Das Formular steht jetzt unter der Tabelle, wo „Vorhandenen Zugang verbinden"
+schon steht, und die Zuordnung trägt der Name in seiner Beschriftung. Die
+Herkunftsspalte bekommt `multiline`, damit zwei Netze mit ihren Knöpfen
+untereinander stehen statt rechts in 180px. Gemessen im Chromium bei 390px und
+1440px, beide Themes: kein Überlauf, nichts abgeschnitten.
+
+### `EngineReachTest` — und drei Zeilen des Plans, die Absichten geblieben sind
+
+Der letzte Wächter aus `docs/38 §18`, den P5b vorgesehen und nicht gebaut hatte.
+Er verlangt zu jeder `db.*`-Operation ihr `pg.*`-Gegenstück, oder einen
+begründeten Eintrag, der sagt warum nicht. Die Lücke, die er fängt, ist eine
+**Abwesenheit**: Nicht dass eine Operation fehlt — dann bricht der Vorgang mit
+„Unbekannte Operation", und das sieht man —, sondern dass eine Fläche für das
+eine System gebaut wird und für das andere nicht. Ein Kunde mit MariaDB kann
+seine Sicherung löschen, einer mit PostgreSQL nicht, und auffallen würde das
+dem, der es versucht.
+
+**Er hat beim ersten Lauf drei Zeilen aus der Tabelle in `docs/38 §10`
+gefunden, die nie gebaut wurden** — `pg.role.password`, `pg.dump.remove`,
+`pg.isolation.probe`. Zwei davon zu Recht, mit ihrer Begründung im Code:
+`pg.role.create` ist wiederholbar und setzt das Passwort mit (`CREATE ROLE`
+kennt kein `IF NOT EXISTS`), und `db.dump.remove` entfernt eine Datei, die kein
+Datenbanksystem hat.
+
+**Die dritte hatte nirgends eine.** `pg.isolation.probe` sollte das
+Abnahmekriterium von P5 gegenprüfen — und §3 hat genau dieses Kriterium
+umgeworfen, weil „ein Datenbankbenutzer kann fremde Datenbanknamen nicht
+aufzählen" in PostgreSQL nicht erfüllbar ist. Die Operation wurde damit
+gegenstandslos; nur stand das nirgends, und die Zeile im Plan behauptete
+weiter, es gebe sie.
+
+> **Ein Plan, dessen Tabelle nach dem Bau niemand zurückliest, wird zur
+> Behauptung über den Code.**
+
+**Die beiden Systeme nennen dasselbe verschieden**, und der Wächter muss das
+wissen: In MariaDB heisst es Benutzer, in PostgreSQL Rolle. `db.user.create`
+sucht deshalb `pg.role.create` und nicht `pg.user.create` — Letzteres wäre nicht
+das gesuchte Gegenstück, sondern ein falscher Name. Die Zuordnung wird
+mitgeprüft, damit sie nicht ins Leere zeigt.
+
+**Zwei Untergrenzen, und die erste sitzt dort, wo die Regel stehen *darf*** —
+die Falle, in die dieses Vorgehen dreimal gelaufen ist. Gezählt werden die
+`db.*`-Operationen und nicht die gefundenen Paare, sonst meldete der Wächter
+Rot, sobald jemand aufräumt. Die zweite zählt die Paare, die tatsächlich
+aufgehen: Trüge die Ausnahmeliste irgendwann jede Operation, wäre jede Schleife
+erfüllt und nichts gemessen — eine Ausnahmeliste, die alles enthält, ist keine
+mehr.
+
+Vier Brüche gefahren, jeder rot: eine `pg.*`-Operation aus der Registratur
+nehmen (der Bruch aus §18, im Skript), das Gegenstück bauen und den
+Ausnahmeeintrag stehenlassen, die Begriffszuordnung entfernen, einen Eintrag
+für eine Operation eintragen, die es nicht gibt. Die letzten drei ändern
+`tests/` oder legen eine Datei unter `agent/src/Ops/` an — beides nimmt
+`wiederherstellen()` nicht zurück, sie stehen deshalb von Hand im Kopf des
+Tests.

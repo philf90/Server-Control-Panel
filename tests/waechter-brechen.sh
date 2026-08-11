@@ -6252,6 +6252,117 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ClockTest passed
 
 echo
+echo "── PgHbaRollbackTest: der Rückweg wird eine Meldung ──"
+#
+# docs/38 §14.2: Eine kaputte pg_hba.conf ist bei einem Reload folgenlos und
+# bei einem Neustart toedlich — gemessen am 11. August 2026 auf einem echten
+# Debian-Cluster: „pg_ctl: could not start server", 16/main down. Eine
+# Operation, die die kaputte Datei liegenlaesst und darueber berichtet, hat den
+# Server scharf gemacht und ein Protokoll geschrieben.
+vorher_datei agent/src/Ops/PgRemoteAccess.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgRemoteAccess.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""                Hba::put($path, $before);
+                $reload();
+""", """                $reload();
+""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgRemoteAccess.php "Rückweg ohne Rückweg" &&
+pruefe "Rückweg ohne Rückweg" \
+  PgHbaRollbackTest::test_a_rejected_block_restores_the_file_byte_for_byte failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgHbaRollbackTest passed
+
+echo
+echo "── PgHbaRollbackTest: die Sperre fällt weg ──"
+#
+# Der Agent gabelt je Verbindung; zwei Operationen sind zwei Prozesse. Ohne
+# flock schreibt der Rueckweg einen Stand zurueck, in dem die Zeile fuers
+# Zurueckspielen fehlt, die Hba::ensure() inzwischen ergaenzt hat — und
+# auffallen wuerde das erst Wochen spaeter, an einer Meldung ueber
+# peer-Authentifizierung.
+vorher_datei agent/src/Ops/PgRemoteAccess.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgRemoteAccess.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "return Hba::locked($path, static function () use ($path, $rules, $reload, $errors): array {",
+    "return (static function () use ($path, $rules, $reload, $errors): array {")
+s = s.replace("""            return ['rules' => Hba::managed($after), 'changed' => true];
+        });""", """            return ['rules' => Hba::managed($after), 'changed' => true];
+        })();""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgRemoteAccess.php "pg_hba.conf ohne Sperre" &&
+pruefe "pg_hba.conf ohne Sperre" \
+  PgHbaRollbackTest::test_the_file_is_locked_while_the_block_is_written failed
+wiederherstellen
+
+echo
+echo "── PgHbaRollbackTest: der Block stellt sich vor den Bestand ──"
+#
+# In pg_hba.conf entscheidet die erste passende Zeile. Steht unser Block ueber
+# einem „reject" des Betreibers, gewinnt er — und „der Bestand ist Gesetz"
+# waere eine Behauptung. Dieselbe Falle wie in docs/28 §6 fuer nginx.
+vorher_datei agent/src/Pg/Hba.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Hba.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    'return $rest."\\n".self::BEGIN."\\n".implode("\\n", $lines)."\\n".self::END."\\n";',
+    'return self::BEGIN."\\n".implode("\\n", $lines)."\\n".self::END."\\n\\n".$rest;')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Hba.php "Block über dem Bestand" &&
+pruefe "Block über dem Bestand" \
+  PgHbaRollbackTest::test_the_block_goes_below_what_the_operator_wrote failed
+wiederherstellen
+
+echo
+echo "── PgHbaReachTest: eine Rolle geht, ihre Zeilen bleiben ──"
+#
+# docs/38 §14.4 und M22: Eine pg_hba.conf-Zeile fuer eine Rolle, die es nicht
+# mehr gibt, ist fuer PostgreSQL kein Fehler. Sie bleibt liegen, und niemand
+# meldet es — deshalb muss der Abgleich es tun.
+vorher_datei app/Support/Databases/RemoteAccess.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/RemoteAccess.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""        return array_values(array_filter(
+            $managed,
+            static fn (string $line): bool => ! isset($wanted[$line]),
+        ));""", """        return [];""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/RemoteAccess.php "verwaiste Zeile ohne Meldung" &&
+pruefe "verwaiste Zeile ohne Meldung" \
+  PgHbaReachTest::test_a_line_without_a_role_in_the_inventory_is_reported failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgHbaReachTest passed
+
+echo
+echo "── EngineReachTest: eine pg.*-Operation verschwindet ──"
+#
+# docs/38 §18: Zu jeder db.*-Operation mit einem Gegenstueck gibt es pg.*, oder
+# ein begruendeter Eintrag sagt warum nicht. Was hier still schiefgeht, ist eine
+# Flaeche, die es fuer das eine System gibt und fuer das andere nicht — und
+# auffallen wuerde das dem Kunden, der es versucht.
+vorher_datei agent/src/Registry.php
+python3 - <<'PY2'
+p = 'agent/src/Registry.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $this->register(new PgRemoteAccess);", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Registry.php "pg.remote.access fehlt" &&
+pruefe "pg.remote.access fehlt" \
+  EngineReachTest::test_every_mariadb_operation_has_a_postgresql_counterpart failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" EngineReachTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

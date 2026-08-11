@@ -9520,3 +9520,35 @@ unten (10px), kein waagerechter Überlauf.
 Ausrichtungsregel zeigte auf den alten Regeltext und lief nach dieser Änderung
 ins Leere — `BreakScriptTest` meldete ihn als tot, bevor er zum zweiten Mal
 grün blieb, ohne etwas zu prüfen.
+
+### Der Fernzugriff ist abgenommen (docs/45)
+
+**Gefahren am 11. August 2026 auf `cloudsrv24`**, alle sechzehn Punkte aus
+`docs/43`. Beide Prüfsummen sind danach bytegleich die von vor dem Lauf — nach
+Freischalten, vier Netzen, einer zweiten Datenbank, zwei Rückbauten, einer
+kaputten Zeile, einem Rückweg und zwei Neustarts bleibt nichts liegen.
+
+**Zwölf Fehler gefunden, keinen davon ein Test.** Zwei haben den Lauf
+unterbrochen, bis sie behoben und ausgeliefert waren (`docs/44` und
+`RememberPageUrl`), fünf steckten im Abnahmelauf selbst, fünf bleiben als
+Befunde am Produkt offen und stehen benannt in `docs/45 §5`.
+
+**Der teuerste Fund gilt dem Lauf und nicht dem Produkt.** Punkt 6 — sein Kern —
+baute die kaputte Zeile mit `sed` in die *verwaltete* Zeile ein. Die setzt
+`Hba::render()` bei jedem Schreiben neu; der Eingriff war fort, bevor ihn etwas
+bemerken konnte, die Datei war fehlerfrei, und der Vorgang meldete Erfolg.
+
+> **Ein Eingriff, den der Prüfling selbst überschreibt, prüft nichts.**
+
+Die Zeile gehört ausserhalb des Blocks; dort steht sie jetzt, und mit ihr ist
+der Rückweg zum ersten Mal wirklich gefahren: Die Datei war kaputt, das Panel
+lief hinein, der Rückweg legte den vorgefundenen Stand bytegenau zurück, die
+Meldung nannte Zeile und Grund, und der Cluster startete danach.
+
+**Vier weitere Stellen von `docs/43` sind beim Fahren gerissen** und korrigiert:
+ein `sed` mit `#` als Trenner *und* im Suchmuster, der nie laufen konnte; ein
+Punkt 9, dessen Warnung der später ergänzte Punkt 8b unmöglich macht; ein 8b,
+das einen zweiten Zugang braucht, den Punkt 8 vorher entfernt; und `--bind=*`
+unquotiert samt `$(hostname -f)` statt der Adresse, unter der das Panel bedient.
+
+> **Ein Abnahmelauf ist Code, den niemand ausführt, bis es darauf ankommt.**

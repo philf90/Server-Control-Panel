@@ -17,6 +17,34 @@ PostgreSQL** — abgenommen am 11. August 2026 auf `cloudsrv24` gegen
 PostgreSQL 16.14: **alle sieben Kriterien aus `docs/38 §3`**, das Protokoll
 steht in **`docs/42`**. Die Übergabe dafür war `docs/37`, der Plan `docs/38`.
 
+**Der Fernzugriff ist abgenommen** — am 11. August 2026 auf `cloudsrv24`, alle
+sechzehn Punkte aus `docs/43`. Das Protokoll ist **`docs/45`**. Der Lauf hat
+**zwölf Fehler gefunden und keinen davon ein Test**; zwei haben ihn
+unterbrochen, bis sie behoben und ausgeliefert waren, und **fünf steckten im
+Abnahmelauf selbst.** Der teuerste davon: Die kaputte Zeile aus Punkt 6 — dem
+Kern des Laufs — stand *innerhalb* des verwalteten Blocks, und den schreibt das
+Panel bei jedem Lauf neu. Der Eingriff war fort, bevor ihn etwas bemerken
+konnte, und der Vorgang meldete Erfolg.
+
+> **Ein Eingriff, den der Prüfling selbst überschreibt, prüft nichts.**
+
+> **Ein Abnahmelauf ist Code, den niemand ausführt, bis es darauf ankommt.**
+
+**Und der zweite Unterbrecher traf jedes Formular dieses Panels, seit es das
+Panel gibt:** Laravel merkt sich die vorige Seite nur bei GET-Anfragen, die
+nicht als XHR gelten — und jede Inertia-Navigation ist XHR. `_previous.url`
+stand nach dem Anmelden dauerhaft auf `/login`, dorthin ging jede
+`ValidationException`, und die Meldung sah niemand. `RememberPageUrl` setzt es
+jetzt.
+
+> **Ein Wächter über `back()` im eigenen Code sagt nichts über das `back()`, das
+> das Framework macht.**
+
+> **Ein Test, der eine Kopfzeile mitschickt, die der Browser nicht schickt,
+> prüft eine andere Anwendung.** Fast jeder Formulartest hier benutzt
+> `->from()`, und damit funktioniert im Test genau der Weg, den es im Browser
+> nicht gibt.
+
 **Und der Abnahmelauf des Fernzugriffs hat das Panel abgeschaltet — an der
 Stelle, an der er es vorschrieb.** `docs/43` Punkt 3 lautete `srvpanel db
 --remote=on --bind=::`; danach gab jede Seite einen 500er. **MariaDB bindet `::`

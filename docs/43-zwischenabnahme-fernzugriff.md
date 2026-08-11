@@ -67,6 +67,7 @@ Punkt dieses Laufs erst möglich:**
 | `v0.5.2-rc.2` | die Nachziehung: eine Rechteänderung schreibt den Block mit (`docs/38 §14.6`) | **4b, 4c** |
 | `v0.5.2-rc.3` | die Betreiberseite: PostgreSQLs Horchadresse in den Einstellungen (`docs/38 §14.7`) | **2b, 4d, 8b, 9b** |
 | `v0.5.2-rc.4` | `--bind=*`, die eigene Gegenprobe des Panels, der Rückweg ohne Bestand (`docs/44`) | **3** — und ohne sie alle folgenden |
+| `v0.5.2-rc.5` | `RememberPageUrl`: ein Formularfehler kommt am Formular an (`docs/45 §4.2`) | **6** erste Hälfte |
 
 **Gegen `rc.3` und älter darf Punkt 3 nicht mit `--bind=::` gefahren werden**,
 und das ist keine Empfehlung: Auf `cloudsrv24` hat genau dieser Wert am
@@ -79,8 +80,8 @@ kaputter Fernzugriff aussieht und keiner ist: Die Zeile für die zweite Datenban
 fehlt, im Panel steht „erreichbar von …", und die Anwendung kommt nicht herein.
 Wer den Lauf gegen `rc.1` fährt, misst diesen Fehler und nicht den Fernzugriff.
 
-**Gefahren wird gegen `v0.5.2-rc.4`** — die erste Fassung, die alle Teile trägt
-*und* den Lauf nicht in einen Ausfall führt. Gegen eine ältere sind die Punkte der fehlenden Zeile zu überspringen,
+**Gefahren wird gegen `v0.5.2-rc.5`** — die erste Fassung, die alle Teile trägt,
+den Lauf nicht in einen Ausfall führt *und* eine abgewiesene Eingabe begründet. Gegen eine ältere sind die Punkte der fehlenden Zeile zu überspringen,
 und zwar **mit einer Zeile im Protokoll und nicht stillschweigend**: Ein Lauf,
 der Punkte auslässt, ohne es zu sagen, sieht hinterher aus wie ein
 vollständiger.
@@ -287,17 +288,55 @@ srvpanel db
 #    selbst nimmt das klaglos an und lässt 254 Rechner herein).
 
 #    UND JETZT DER RÜCKWEG, VON HAND SCHARF GEMACHT:
-md5sum /etc/postgresql/16/main/pg_hba.conf
-sudo sed -i 's#^host    <DB>#host    <DB>   KAPUTT#' /etc/postgresql/16/main/pg_hba.conf
-#    Im Panel ein zweites Netz eintragen: 198.51.100.0/24
-#    erwartet: der Vorgang SCHEITERT, und die Meldung nennt die ZEILENNUMMER.
-md5sum /etc/postgresql/16/main/pg_hba.conf
-#    erwartet: DIE SUMME VON VOR DEM sed — der Rückweg hat den Stand
-#    zurückgelegt, den er vorgefunden hat, samt der von Hand eingebauten
-#    kaputten Zeile. Das ist richtig: Er stellt her, was da war, und repariert
-#    nicht, was jemand anders getan hat.
+#
+#    DIE KAPUTTE ZEILE GEHÖRT AUSSERHALB DES BLOCKS. Hier stand bis zum
+#    11. August 2026 ein sed auf die verwaltete Zeile selbst — und die setzt
+#    `Hba::render()` bei jedem Schreiben neu: Es wirft alles zwischen BEGIN und
+#    END weg und hängt seinen eigenen Stand ans Ende. Der Eingriff war damit
+#    verschwunden, bevor irgendetwas ihn bemerken konnte; die Datei war nach dem
+#    Schreiben fehlerfrei, `errors()` fand nichts, und es gab nichts
+#    zurückzurollen. Der Kern dieses Laufs hat dabei zugesehen und Erfolg
+#    gemeldet.
+#
+#    > Ein Eingriff, den der Prüfling selbst überschreibt, prüft nichts.
+#
+#    Gemessen am 11. August 2026 auf cloudsrv24 (`docs/45 §4.1`). Die Zeile geht
+#    deshalb ans Dateiende, hinter „# END srvpanel" — dort schreibt das Panel
+#    nicht, und `errors()` fragt die ganze Datei.
+md5sum /etc/postgresql/16/main/pg_hba.conf | tee /root/punkt6-heil.md5
+printf 'host    kaputt   kaputt   198.51.100.0/24   NICHTEINEMETHODE\n' \
+  | sudo tee -a /etc/postgresql/16/main/pg_hba.conf >/dev/null
+sudo tail -3 /etc/postgresql/16/main/pg_hba.conf
+md5sum /etc/postgresql/16/main/pg_hba.conf | tee /root/punkt6-fremd.md5
+sudo -u postgres psql -Atc "SELECT line_number, error FROM pg_hba_file_rules WHERE error IS NOT NULL"
+#    erwartet: die Zeile steht NACH „# END srvpanel", und PostgreSQL meldet sie
+#              mit `invalid authentication method "NICHTEINEMETHODE"`.
+#    MELDET ER NICHTS, IST HIER SCHLUSS: Dann greift der Eingriff nicht, und der
+#    Punkt misst wieder nichts. Dieselbe Frage wie `griff_datei` im Bruch-Skript.
+#
+#    AB HIER BIS ZUM AUFRÄUMEN KEIN NEUSTART DES CLUSTERS — er käme nicht hoch.
 
-sudo sed -i 's#^host    <DB>   KAPUTT#host    <DB>#' /etc/postgresql/16/main/pg_hba.conf
+#    Im Panel ein zweites Netz eintragen: 198.51.100.0/24
+#    erwartet: der Vorgang SCHEITERT, und die Meldung nennt Zeile und Grund.
+md5sum /etc/postgresql/16/main/pg_hba.conf
+sudo grep -n -A3 'BEGIN srvpanel' /etc/postgresql/16/main/pg_hba.conf
+#    erwartet: DIE SUMME AUS punkt6-fremd.md5 — also der Stand MIT der kaputten
+#    Zeile. Der Rückweg legt zurück, was er vorgefunden hat; vorgefunden hat er
+#    den kaputten Stand. Er stellt her, was da war, und repariert nicht, was
+#    jemand anders getan hat. Im Block steht das neue Netz NICHT.
+#
+#    Hier stand „die Summe von vor dem sed", und das widersprach dem Satz
+#    daneben. Beides zugleich geht nicht.
+#
+#    Und die Zeilennummer in der Meldung ist eine ANDERE als die oben gemessene:
+#    Während des Versuchs stand die Datei anders — der alte Block war heraus,
+#    der neue ans Ende gehängt —, und die fremde Zeile rutschte nach oben. Der
+#    Text identifiziert sie eindeutig, die Nummer allein führt in die Irre.
+
+sudo sed -i '/NICHTEINEMETHODE/d' /etc/postgresql/16/main/pg_hba.conf
+md5sum /etc/postgresql/16/main/pg_hba.conf
+cat /root/punkt6-heil.md5
+#    erwartet: wieder die heile Summe.
 sudo -u postgres psql -Atc "SELECT pg_reload_conf()"
 sudo -u postgres psql -Atc "SELECT count(*) FROM pg_hba_file_rules WHERE error IS NOT NULL"
 #    erwartet: 0
@@ -325,12 +364,21 @@ head -3 /etc/postgresql/16/main/pg_hba.conf
 #    Zurückspielen an „Peer authentication failed" scheitert.
 
 # 8  DER WEG ZURÜCK
+#    ZUERST EINEN ZWEITEN ZUGANG ANLEGEN. Punkt 8 entfernt den vorhandenen, und
+#    8b braucht danach einen — mit nur einem ist 8b nicht fahrbar. Im Panel:
+#    Feld „Weiterer Zugang" auf der Seite der Datenbank. Er kostet nichts
+#    Knappes; anders als eine Kundennummer ist ein Rollenname nicht auf Dauer
+#    verbraucht.
+
 #    Im Panel das Netz zurücknehmen.
 grep -c "<ROLLE>" /etc/postgresql/16/main/pg_hba.conf
-#    erwartet: 0
+sudo grep -n -A3 'BEGIN srvpanel' /etc/postgresql/16/main/pg_hba.conf
+#    erwartet: 0 — und der BLOCK IST GANZ FORT, nicht leer. `Hba::render()`
+#    kehrt ohne Regeln früh zurück und lässt keine Marke zurück.
 
-#    Und dasselbe über den Rückbau: den ZUGANG im Panel entfernen (mit einem
-#    zweiten, vorher eingetragenen Netz).
+#    Und dasselbe über den Rückbau: beim Zugang ZWEI Netze eintragen, dann den
+#    ZUGANG im Panel entfernen. Zwei, weil ein Rückbau, der nur eines mitnimmt,
+#    bei einem Netz aussieht wie ein Erfolg.
 grep -c "<ROLLE>" /etc/postgresql/16/main/pg_hba.conf
 #    erwartet: 0 — pg.role.remove nimmt die Zeilen im selben Vorgang mit.
 #    Eine Zeile für eine gelöschte Rolle ist für PostgreSQL kein Fehler (M22);
@@ -340,11 +388,16 @@ srvpanel db
 #    erwartet: „0 Zugangsregel(n)…" bzw. „…alle im Bestand." und
 #              „Nichts liegengeblieben."
 
-#    UND DIE GEGENPROBE ZUR MELDUNG — sonst ist sie nie rot gewesen:
-sudo sed -i 's#^# END srvpanel#host    stillgelegt   x0000000000000000_web   198.51.100.0/24   scram-sha-256\n# END srvpanel#' /etc/postgresql/16/main/pg_hba.conf
+#    UND DIE GEGENPROBE ZUR MELDUNG — sonst ist sie nie rot gewesen.
+#    Sie braucht einen Block: dem zweiten Zugang ein Netz geben (das steht in 8b
+#    ohnehin an), dann die verwaiste Zeile hineinschreiben.
+sudo sed -i 's|^# END srvpanel|host    stillgelegt   x0000000000000000_web   198.51.100.0/24   scram-sha-256\n# END srvpanel|' /etc/postgresql/16/main/pg_hba.conf
 srvpanel db
-#    erwartet: „1 von 1 Zugangsregel(n) in pg_hba.conf zeigen auf nichts im
+#    erwartet: „1 von 2 Zugangsregel(n) in pg_hba.conf zeigen auf nichts im
 #              Bestand:" und die Zeile darunter. GEMELDET UND NICHT GELÖSCHT.
+#    DER TRENNER IST `|` UND NICHT `#`. Hier stand `s#^# END srvpanel#…#`, und
+#    das `#` im Suchmuster beendet den Trenner von sed — der Befehl konnte nie
+#    laufen. Aufgefallen erst beim Fahren.
 sudo sed -i '/x0000000000000000_web/d' /etc/postgresql/16/main/pg_hba.conf
 
 # 8b DER GESTRANDETE ZUSTAND   ← der einzige, den dieser Lauf sonst auslässt
@@ -352,7 +405,8 @@ sudo sed -i '/x0000000000000000_web/d' /etc/postgresql/16/main/pg_hba.conf
 #    richtig aussehen und niemanden hereinlassen. Sie entstehen NUR so:
 #    ausschalten, während noch Netze eingetragen sind.
 #
-#    Auf einem verbliebenen Zugang noch einmal 203.0.113.5/32 eintragen, dann:
+#    Auf dem in Punkt 8 angelegten zweiten Zugang ein Netz eintragen — dasselbe
+#    wie in Punkt 4 —, dann:
 srvpanel db --remote=off
 #    Einstellungen → Datenbankserver, Abschnitt „PostgreSQL".
 #    erwartet: eine WARNUNG, die die Zahl der Netze nennt und sagt, dass die
@@ -362,13 +416,21 @@ srvpanel db --remote=off
 #
 #    Danach wieder aufräumen — das Netz zurücknehmen —, sonst stimmen die
 #    md5-Summen in Punkt 9 nicht:
-srvpanel db --remote=on --bind=*
+srvpanel db --remote=on --bind='*'
 #    (Netz im Panel zurücknehmen, dann weiter mit Punkt 9.)
 
 # 9  ABSCHALTEN
 srvpanel db --remote=off
-#    erwartet: die Warnung nennt die Zahl der Zugänge UND Netze, die danach
-#              niemand mehr erreicht.
+#    erwartet: KEINE Warnung über Ausgesperrte — 8b hat sein Netz gerade
+#    zurückgenommen, es gibt niemanden auszusperren.
+#
+#    Hier stand „die Warnung nennt die Zahl der Zugänge UND Netze". Das war
+#    richtig, bis 8b dazukam und sein Netz vorher abräumt; seitdem ist die
+#    Voraussetzung weg und niemandem ist es aufgefallen. Gesehen wird die
+#    Warnung in 8b, mit einem Netz — dort ist sie belegt.
+#
+#    > Ein Abnahmeschritt, der zwei Fälle vergleicht, wird sinnlos, wenn ein
+#    > späterer einen davon abgeräumt hat — und er merkt es nicht.
 ls /etc/postgresql/16/main/conf.d/
 sudo -u postgres psql -Atc "SHOW listen_addresses"
 md5sum /etc/postgresql/16/main/postgresql.conf /etc/postgresql/16/main/pg_hba.conf

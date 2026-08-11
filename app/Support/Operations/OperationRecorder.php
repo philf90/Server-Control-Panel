@@ -52,6 +52,9 @@ final class OperationRecorder
      */
     public const MESSAGE_MAX = 8 * 1024;
 
+    /** Was am Ende einer gekürzten Begründung steht — eine, die still endet, sieht vollständig aus. */
+    private const SHORTENED = "\n… gekürzt; der vollständige Text steht im Protokoll des Agenten.";
+
     private const FLUSH_INTERVAL = 0.25;
 
     private string $buffer = '';
@@ -178,8 +181,14 @@ final class OperationRecorder
             return $message;
         }
 
-        return mb_strcut($message, 0, self::MESSAGE_MAX - 64).
-            "\n… gekürzt; der vollständige Text steht im Protokoll des Agenten.";
+        /*
+         * **Gerechnet und nicht geschätzt.** Hier stand `self::MESSAGE_MAX - 64`
+         * mit dem Vermerk darunter — der ist 69 Byte lang, weil „gekürzt",
+         * „vollständige" und das Auslassungszeichen mehr als ein Byte kosten.
+         * Das Ergebnis war fünf Byte über der eigenen Grenze, und der Test dazu
+         * hat es beim ersten Lauf gemeldet.
+         */
+        return mb_strcut($message, 0, self::MESSAGE_MAX - strlen(self::SHORTENED)).self::SHORTENED;
     }
 
     /** @param  array<string,mixed>  $result */

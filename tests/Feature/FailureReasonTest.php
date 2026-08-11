@@ -50,10 +50,25 @@ final class FailureReasonTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Jeder Vorgang bekommt sein eigenes Abonnement.
+     *
+     * **Der Zähler ist kein Zierat.** `subscriptions.system_user` ist eindeutig
+     * — ein zweiter Aufruf mit demselben Namen bricht mit einer
+     * `UniqueConstraintViolationException` ab, und der Test daneben sieht aus
+     * wie ein Fehler in der Sache. Beim ersten Lauf genau so passiert.
+     */
+    private int $nummer = 1088;
+
     private function operation(): Operation
     {
-        return app(Tenancy::class)->withoutRestriction(function (): Operation {
-            $subscription = Subscription::factory()->create(['name' => 'grund.de', 'system_user' => 'p1088']);
+        $nummer = $this->nummer++;
+
+        return app(Tenancy::class)->withoutRestriction(function () use ($nummer): Operation {
+            $subscription = Subscription::factory()->create([
+                'name' => sprintf('grund-%d.de', $nummer),
+                'system_user' => 'p'.$nummer,
+            ]);
 
             return Operation::query()->create([
                 'subscription_id' => $subscription->id,

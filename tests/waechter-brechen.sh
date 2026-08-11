@@ -4195,7 +4195,7 @@ vorher_datei app/Http/Controllers/OperationStreamController.php
 python3 - <<'PY2'
 p = 'app/Http/Controllers/OperationStreamController.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace("                    'started_at' => $operation->started_at?->toDateTimeString(),\n", '')
+s = s.replace("                    'started_at' => Clock::display($operation->started_at),\n", '')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei app/Http/Controllers/OperationStreamController.php "Zeitstempel nicht im Kanal" &&
@@ -6208,6 +6208,48 @@ pruefe "Sicherung ohne Zeitstempel" \
   DumpRowReachTest::test_every_field_of_a_dump_row_is_read_by_the_page failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DumpRowReachTest passed
+
+echo
+echo "── TimeDisplayTest: eine Seite formatiert ihre Zeit wieder selbst ──"
+#
+# docs/40: Achtzehn Stellen gaben eine Zeit heraus, alle ueber
+# toDateTimeString(), und alle in UTC. Sie umzustellen ist die eine Haelfte;
+# die andere ist, dass die neunzehnte nicht wieder danebengeht. Names::fqdn()
+# ist viermal neu erfunden worden, bevor es dafuer einen Waechter gab.
+vorher_datei app/Http/Controllers/ProfileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/ProfileController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("Clock::display($account->last_login_at)",
+              "$account->last_login_at?->toDateTimeString()")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/ProfileController.php "Zeit ohne Clock" &&
+pruefe "Zeit ohne Clock" \
+  TimeDisplayTest::test_no_page_formats_a_time_of_its_own failed
+wiederherstellen
+
+echo
+echo "── ClockTest: der Filter des Protokolls rechnet nicht mehr mit ──"
+#
+# Die Haelfte, die still bricht: Eine umgestellte Anzeige ohne mitrechnenden
+# Filter zeigt eine Zeile und findet sie nicht. Der Eintrag im Test liegt auf
+# 22:30 UTC — in Berlin bereits 00:30 des naechsten Tages.
+vorher_datei app/Support/Audit/AuditQuery.php
+python3 - <<'PY2'
+p = 'app/Support/Audit/AuditQuery.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$from = Clock::boundaryToUtc($filters['from'], end: false);",
+              "$from = $filters['from'].' 00:00:00';")
+s = s.replace("$to = Clock::boundaryToUtc($filters['to'], end: true);",
+              "$to = $filters['to'].' 23:59:59';")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Audit/AuditQuery.php "Filter ohne Zeitzone" &&
+pruefe "Filter ohne Zeitzone" \
+  ClockTest::test_the_audit_filter_uses_the_same_zone_as_the_display failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ClockTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

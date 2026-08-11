@@ -7,6 +7,7 @@ namespace App\Support\Audit;
 use App\Enums\AuditResult;
 use App\Models\Account;
 use App\Models\AuditEvent;
+use App\Support\Time\Clock;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -70,12 +71,35 @@ final class AuditQuery
      */
     public static function filter(Builder $query, array $filters): Builder
     {
+        /*
+         * **Die Grenzen kommen in der Anzeigezone herein und gehen als UTC
+         * hinaus** (`docs/40 §3.2`). Hier stand `$filters['from'].' 00:00:00'`
+         * — ein Datum aus dem Formular, roh gegen eine Spalte in UTC gehalten.
+         * Solange die Anzeige ebenfalls UTC war, stimmte das; sobald sie
+         * umrechnet, sucht der Filter in einem anderen Tag als dem, den die
+         * Seite zeigt.
+         *
+         * > **Ein Filter, der eine andere Zeitrechnung benutzt als die Anzeige
+         * > daneben, findet die Zeile nicht, die er selbst anzeigt.**
+         *
+         * `null` heisst „unlesbares Datum": Dann fällt der Filter weg, statt
+         * gegen eine erfundene Grenze zu suchen — dieselbe Wahl wie bei den
+         * übrigen Filtern hier.
+         */
         if (is_string($filters['from'] ?? null) && $filters['from'] !== '') {
-            $query->where('created_at', '>=', $filters['from'].' 00:00:00');
+            $from = Clock::boundaryToUtc($filters['from'], end: false);
+
+            if ($from !== null) {
+                $query->where('created_at', '>=', $from);
+            }
         }
 
         if (is_string($filters['to'] ?? null) && $filters['to'] !== '') {
-            $query->where('created_at', '<=', $filters['to'].' 23:59:59');
+            $to = Clock::boundaryToUtc($filters['to'], end: true);
+
+            if ($to !== null) {
+                $query->where('created_at', '<=', $to);
+            }
         }
 
         if (is_string($filters['action'] ?? null) && $filters['action'] !== '') {
@@ -145,7 +169,15 @@ final class AuditQuery
     {
         return [
             'id' => (int) $event->id,
-            'created_at' => $event->created_at?->toDateTimeString(),
+            /*
+             * **In der Anzeigezone, und das CSV nimmt einen anderen Weg.**
+             * Diese Ablage geht auf die Seite; der Export baut seine Zeile in
+             * {@see \App\Http\Controllers\AuditController} aus derselben
+             * Zeile, ersetzt aber diesen Wert durch UTC. Ein Zeitstempel ohne
+             * Zone in einer Datei, die drei Jahre liegt, ist eine Falle
+             * (`docs/40 §3.3`).
+             */
+            'created_at' => Clock::display($event->created_at),
             'action' => $event->action,
             'result' => $event->result->value,
             'result_label' => $event->result->label(),

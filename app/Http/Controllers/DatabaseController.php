@@ -22,6 +22,7 @@ use App\Support\Databases\Staging;
 use App\Support\Plans\Quota;
 use App\Support\Settings\Settings;
 use App\Support\Tenancy\Tenancy;
+use App\Support\Time\Clock;
 use App\Support\Web\Page;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -558,7 +559,7 @@ final class DatabaseController extends Controller
                  * ist, regelt `docs/40` für alle Stellen zugleich und nicht
                  * für diese eine.
                  */
-                'created_at' => $dump->created_at?->toDateTimeString(),
+                'created_at' => Clock::display($dump->created_at),
                 'last_error' => $dump->last_error,
             ])
             ->values()

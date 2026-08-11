@@ -13,6 +13,7 @@ use App\Models\Customer;
 use App\Support\Audit\Audit;
 use App\Support\Passwords\Policy;
 use App\Support\Subscriptions\Lifecycle;
+use App\Support\Time\Clock;
 use App\Support\Web\Page;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -433,7 +434,7 @@ final class CustomerController extends Controller
                     'type' => $account->type->value,
                     'type_label' => $account->type->label(),
                     'status_label' => $account->status->label(),
-                    'last_login_at' => $account->last_login_at?->toDateTimeString(),
+                    'last_login_at' => Clock::display($account->last_login_at),
                 ])->all(),
             'subscriptions' => $customer->subscriptions()->orderBy('name')->get()
                 ->map(static fn ($subscription): array => [

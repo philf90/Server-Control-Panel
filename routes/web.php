@@ -11,6 +11,7 @@ use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\DatabaseSettingsController;
 use App\Http\Controllers\DnsSettingsController;
 use App\Http\Controllers\DomainController;
+use App\Http\Controllers\GeneralSettingsController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\MailSettingsController;
 use App\Http\Controllers\OperationController;
@@ -531,6 +532,20 @@ Route::middleware('auth')->group(function (): void {
      * dem diese Einstellungen gehören. Installieren und Entfernen laufen von
      * hier aus über den Aufgabenkatalog — die Prüfung steht an dessen Route.
      */
+    /*
+     * **Serverweit und zu keinem Dienst gehörend** — der Ort, den `docs/40`
+     * verlangt hat und den es nicht gab. `can:manage-settings` wie bei den
+     * übrigen Einstellungsseiten: Es gibt kein Modell, an dem eine Policy
+     * hinge, sondern eine Fähigkeit.
+     */
+    Route::get('/settings/general', [GeneralSettingsController::class, 'show'])
+        ->middleware('can:manage-settings')
+        ->name('settings.general');
+
+    Route::put('/settings/general', [GeneralSettingsController::class, 'update'])
+        ->middleware('can:manage-settings')
+        ->name('settings.general.update');
+
     Route::get('/settings/php', [PhpSettingsController::class, 'show'])
         ->middleware('can:manage-settings')
         ->name('settings.php');

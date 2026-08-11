@@ -74,6 +74,11 @@ const PATHS: Record<string, string> = {
   // nebeneinander im selben Menü unterscheidet im Vorbeigehen niemand.
   dns: 'M7.5 14.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM10.9 10.2H20M17 10.2v3M20 10.2v2.4',
 
+  // Allgemein: eine Uhr — was diese Seite bisher trägt, ist die Anzeigezone.
+  // Kein Zahnrad: Das steht auf jeder zweiten Oberfläche für „Einstellungen"
+  // überhaupt, und hier ist schon die ganze Gruppe eine.
+  general: 'M12 20a8 8 0 100-16 8 8 0 000 16zM12 8v4l2.5 2.5',
+
   // Mein Konto: eine Person.
   account: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4.5 20a7.5 7.5 0 0115 0',
 }

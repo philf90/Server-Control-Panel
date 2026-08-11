@@ -9,6 +9,7 @@ use App\Models\Account;
 use App\Support\Audit\Audit;
 use App\Support\Settings\MailSettings;
 use App\Support\Settings\Settings;
+use App\Support\Time\Clock;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -134,7 +135,7 @@ final class MailSettingsController extends Controller
         }
 
         try {
-            Mail::to($account->signInAddress())->send(new TestMessage($account->name, now()->toDateTimeString()));
+            Mail::to($account->signInAddress())->send(new TestMessage($account->name, (string) Clock::display(now())));
         } catch (Throwable $error) {
             $audit->failure('settings.mail.tested', ['error' => mb_substr($error->getMessage(), 0, 500)]);
 

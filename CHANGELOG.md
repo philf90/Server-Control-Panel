@@ -8948,3 +8948,98 @@ vergessen wird — und genau das war ja passiert.
 Das Format ist dasselbe wie bei „Begonnen", „Beendet" und „Gemessen am"; die
 Zeit steht in UTC wie jede andere im Panel, und `docs/40` stellt das für alle
 Stellen zugleich um statt für diese eine.
+
+### `docs/40` beginnt: eine Klasse, die aus UTC eine Uhrzeit macht
+
+`App\Support\Time\Clock` steht — die einzige Stelle, die aus einer gespeicherten
+Zeit eine Anzeige macht und aus einer Filtergrenze wieder UTC. Dieselbe Bauform
+wie `Names::fqdn()`, das viermal neu erfunden wurde, bevor es einen Wächter
+dafür gab.
+
+Gespeichert wird weiter in UTC; die Frage war nie, wo die Zeit herkommt,
+sondern was auf der Seite steht.
+
+**Und der Plan hat beim ersten Messen einen Denkfehler gezeigt.** `docs/40 §3.2`
+nannte als Grenzfall einen Eintrag um `23:30` Ortszeit, „obwohl er in UTC am
+nächsten Tag liegt". Für `Europe/Berlin` stimmt das nicht: `23:30` Ortszeit ist
+`21:30` UTC, derselbe Tag. Bei einem **positiven** Offset kippt nicht der Abend,
+sondern der frühe Morgen — `00:30` Ortszeit ist `22:30` UTC des Vortags.
+
+> **Ein Beispiel, das die Richtung nicht mitdenkt, prüft die falsche Grenze.**
+
+`ClockTest` prüft beide Enden des Tages, dazu die Rückfallregel: Eine unbekannte
+Zone wirft nicht, sondern fällt auf UTC zurück — `setTimezone()` würde bei einem
+Tippfehler mitten im Aufbau einer Seite werfen, an achtzehn Stellen. Verhindert
+wird der Tippfehler beim **Setzen**.
+
+Noch nicht gebaut: die achtzehn Aufrufe, das Feld in den Einstellungen und der
+Bruch im Wächterskript. Die Klasse ändert bis dahin nichts — niemand ruft sie.
+
+### Und die Filter des Protokolls rechnen mit
+
+Die Anzeige im Protokoll geht durch `Clock`, und die Grenzen „Von" und „Bis"
+gehen den Weg zurück: Sie kommen in der Anzeigezone herein und werden vor der
+Abfrage nach UTC gedreht.
+
+> **Ein Filter, der eine andere Zeitrechnung benutzt als die Anzeige daneben,
+> findet die Zeile nicht, die er selbst anzeigt.**
+
+Beides zusammen und nicht nacheinander — eine umgestellte Anzeige ohne
+mitrechnenden Filter ist genau der Zustand, vor dem `docs/40 §3.2` warnt, und
+er bricht still.
+
+**Das CSV bleibt UTC** (`docs/40 §3.3`) und sagt es jetzt auch: Die Kopfzeile
+heisst „Zeitpunkt (UTC)". Der Export baut seine Zeile aus derselben Abfrage,
+ersetzt den Zeitstempel aber durch den gespeicherten Wert. Ein Zeitstempel ohne
+Zone in einer Datei, die drei Jahre liegt, ist eine Falle — er wird gelesen,
+wenn der Server längst umgezogen und die Einstellung eine andere ist.
+
+### Und die übrigen dreizehn Stellen
+
+Vorgänge, Domains, Abonnements, Kunden, Übersicht, Profil, Datenbanken, der
+SSE-Kanal und die Testmail geben ihre Zeiten jetzt durch `Clock`. Zwei Stellen
+tun es weiterhin nicht, und beide stehen mit ihrem Grund in
+`TimeDisplayTest::EXEMPT`:
+
+- **das CSV des Protokolls** — ein Beleg, den jemand aufhebt (`docs/40 §3.3`);
+- **`Settings`** — dort wird *geschrieben* und nicht angezeigt. Eine Zeit in der
+  Anzeigezone zu speichern hiesse, den Bestand von einer Einstellung abhängig
+  zu machen, die sich ändern darf. Wer sie später zeigt, dreht sie an der
+  Lesestelle.
+
+Der Wächter zählt beide Richtungen: keine Stelle ausserhalb der Liste, und die
+Liste selbst nicht leer — läuft der Ausdruck ins Leere, meldete er sonst „alles
+in Ordnung" für eine Fläche, die er nicht mehr liest.
+
+**Und er hat beim Einbauen einen bestehenden Bruch mitgenommen.** Der Eingriff
+zu `OperationStreamTest` suchte `$operation->started_at?->toDateTimeString()` —
+genau die Zeile, die jetzt durch `Clock` geht. `BreakScriptTest` hätte das in
+der CI gemeldet; hier fand es die Gegenprobe vor dem Commit.
+
+### Und die Zone lässt sich einstellen — auf einer Seite, die es nicht gab
+
+`docs/40` verlangte „ein Feld in Einstellungen", und es gab keinen Ort dafür:
+Die fünf vorhandenen Seiten sind themengebunden — PHP, Datenbankserver,
+Mailversand, Zertifikat, DNS —, und das Profil gehört einem Konto. Die
+Anzeigezone ist serverweit und hat mit keinem Dienst zu tun.
+
+**Eine Seite mit einem Feld ist wenig, und das ist in Ordnung.** Der Ort für
+serverweite Anzeigeeinstellungen fehlte; ihn beim ersten Bedarf anzulegen ist
+billiger, als das Feld irgendwo unterzubringen, wo es niemand sucht.
+
+Die Auswahl kommt aus `DateTimeZone::listIdentifiers()` und ist **kein
+Freitextfeld**: Der Wert geht in `setTimezone()`, und ein unbekannter Name wirft
+dort — mitten im Aufbau einer Seite. Geprüft wird beim Setzen, nicht beim Lesen.
+
+**Und die Gegenprobe steht neben dem Feld:** dieselbe Zeit zweimal — was in der
+Datenbank steht und was auf der Seite stünde, mit der Zonenmarke dahinter. Ohne
+sie wäre die Auswahl eine Behauptung, und genau daran hing der Anlass:
+
+> **Ein Zeitstempel, den man falsch liest, ist schlimmer als keiner — er sieht
+> aus wie eine Auskunft.**
+
+Das Zeichen im Menü ist eine Uhr und kein Zahnrad — das steht auf jeder zweiten
+Oberfläche für „Einstellungen" überhaupt, und hier ist schon die ganze Gruppe
+eine.
+
+Gemessen im Chromium bei 390px, beide Themes: kein waagerechter Überlauf.

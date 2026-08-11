@@ -8,6 +8,7 @@ use App\Models\Account;
 use App\Support\Audit\Audit;
 use App\Support\Audit\Impersonation;
 use App\Support\Passwords\Policy;
+use App\Support\Time\Clock;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -52,7 +53,7 @@ final class ProfileController extends Controller
                 'type_label' => $account->type->label(),
                 'two_factor' => $account->hasTwoFactor(),
                 'theme' => $account->theme,
-                'last_login_at' => $account->last_login_at?->toDateTimeString(),
+                'last_login_at' => Clock::display($account->last_login_at),
                 'last_login_ip' => $account->last_login_ip,
             ],
             'impersonating' => $this->impersonating($request),

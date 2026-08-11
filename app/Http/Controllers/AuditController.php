@@ -78,7 +78,7 @@ final class AuditController extends Controller
             }
 
             fputcsv($handle, [
-                'Zeitpunkt', 'Aktion', 'Ergebnis', 'Konto', 'Im Kontext von',
+                'Zeitpunkt (UTC)', 'Aktion', 'Ergebnis', 'Konto', 'Im Kontext von',
                 'Abonnement', 'Ziel', 'IP',
             ]);
 
@@ -95,7 +95,17 @@ final class AuditController extends Controller
                 $row = AuditQuery::toArrayRow($event);
 
                 fputcsv($handle, array_map(self::harmless(...), [
-                    $row['created_at'],
+                    /*
+                     * **UTC, und nicht die Anzeigezone** (`docs/40 §3.3`). Der
+                     * Export ist ein Beleg, den jemand aufhebt: Er wird
+                     * gelesen, wenn der Server längst umgezogen und die
+                     * Einstellung eine andere ist. Die Zone steht in der
+                     * Kopfzeile, die Werte bleiben, wie sie gespeichert sind.
+                     *
+                     * Die Oberfläche darf umrechnen, weil sie die Zone daneben
+                     * zeigen kann und weil niemand eine Seite archiviert.
+                     */
+                    $event->created_at?->toDateTimeString(),
                     $row['action'],
                     $row['result_label'],
                     $row['account_id'],

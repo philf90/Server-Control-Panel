@@ -53,12 +53,14 @@ final class FormLabelTest extends TestCase
         $ohne = [];
 
         foreach ($this->vueFiles() as $name => $source) {
+            $markup = $this->withoutComments($source);
+
             foreach (self::ELEMENTS as $element) {
-                foreach ($this->unlabelled($source, $element) as $line) {
+                foreach ($this->unlabelled($markup, $element) as $line) {
                     $ohne[] = sprintf('%s:%d', $name, $line);
                 }
 
-                $gelesen += substr_count($source, '<'.$element);
+                $gelesen += substr_count($markup, '<'.$element);
             }
         }
 
@@ -72,6 +74,48 @@ final class FormLabelTest extends TestCase
             'trifft seine Vorgabe — und die ist bei einer Auswahl nie leer.',
             implode("\n  ", $ohne),
         ));
+    }
+
+    /**
+     * Ein Kommentar ist kein Markup.
+     *
+     * **Der Anlass:** Auf der neuen Seite „Allgemein" stand im Kommentar über
+     * dem Feld, warum es *in* seiner Beschriftung steht — mit einem `<select>`
+     * im Fliesstext. Der Wächter las ihn mit und meldete ein unbeschriftetes
+     * Feld an einer Stelle, an der gar keines steht.
+     *
+     * **Die falsche Meldung ist dabei die harmlose Richtung.** Ein `<label>` in
+     * einem Kommentar hebt die Verschachtelung, ohne je zugehen zu müssen — und
+     * dann verschwindet ein *echtes* nacktes Auswahlfeld dahinter. Genau das
+     * prüft {@see self::test_a_label_in_a_comment_does_not_hide_a_bare_select()}.
+     *
+     * Ausgebleicht statt entfernt: Zeilenumbrüche und Länge bleiben stehen, die
+     * gemeldete Zeilennummer zeigt also weiter auf die Stelle in der Datei.
+     */
+    private function withoutComments(string $source): string
+    {
+        return (string) preg_replace_callback(
+            '/<!--.*?-->/s',
+            static fn (array $treffer): string => (string) preg_replace('/[^\n]/', ' ', $treffer[0]),
+            $source,
+        );
+    }
+
+    /**
+     * Ein `<label>` im Kommentar deckt kein nacktes Feld zu.
+     *
+     * Die Gegenprobe zum Abzug der Kommentare, und sie steht hier statt in
+     * `waechter-brechen.sh`: Sie braucht keine Datei im Baum, nur die Regel.
+     */
+    public function test_a_label_in_a_comment_does_not_hide_a_bare_select(): void
+    {
+        $quelle = "<template>\n  <!-- Ein <label> gehört um jedes <select>. -->\n  <select id=\"nackt\" />\n</template>\n";
+
+        $this->assertSame(
+            [3],
+            $this->unlabelled($this->withoutComments($quelle), 'select'),
+            'Ein `<label>` im Kommentar hebt die Verschachtelung und versteckt das Feld darunter.',
+        );
     }
 
     /**

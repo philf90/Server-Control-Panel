@@ -167,6 +167,17 @@ final class PackagingTest extends TestCase
      * Das ist die teure Sorte Ausnahme: eine Regel, die überall gilt, ausser
      * an der einen Stelle, an der niemand hinsieht, weil sie schon immer
      * funktioniert hat.
+     *
+     * **Und einmal hat er den Falschen erwischt.** Der Ausdruck las jede Zeile
+     * der Datei, auch die Kommentare — und meldete den Satz „nach `apt-get
+     * install postgresql` stand der Cluster auf `down`", also ausgerechnet die
+     * Zeile, die einen Fehlschlag festhält. Ein Wächter, der Prosa prüft,
+     * bringt niemandem etwas bei; er bringt nur dazu, die Wörter zu meiden.
+     * Es ist dieselbe Grenze, die {@see WordChoiceTest} für sich schon
+     * gezogen hat: Beisst der Test in einem Kommentar, liest er das Falsche.
+     *
+     * > **Ein Wächter, der Kommentare liest, bestraft das Dokumentieren
+     * > genau des Fehlers, vor dem er schützt.**
      */
     public function test_no_apt_install_in_the_ci_can_ask_a_question(): void
     {
@@ -180,6 +191,17 @@ final class PackagingTest extends TestCase
         foreach ($workflows as $path) {
             foreach (explode("\n", (string) file_get_contents($path)) as $number => $line) {
                 if (! preg_match('/apt-get (install|remove|purge|upgrade)\b/', $line)) {
+                    continue;
+                }
+
+                /*
+                 * Ausgeführt wird nur, was kein Kommentar ist — und zwar in
+                 * beiden Sprachen dieser Datei: In YAML wie in der Shell
+                 * beginnt ein Kommentar mit `#`. Ein `#` **hinter** einem
+                 * Kommando steht nicht am Zeilenanfang, die Zeile wird also
+                 * weiter geprüft.
+                 */
+                if (str_starts_with(ltrim($line), '#')) {
                     continue;
                 }
 

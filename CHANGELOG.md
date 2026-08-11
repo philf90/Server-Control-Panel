@@ -9677,3 +9677,26 @@ Quota aus `docs/41`, wo `usrquota` in den Optionen stand und `quotaon -p` `is
 off` sagte. Bleibt er aus, stehen `pg_lsclusters`, der Zustand der Units und die
 letzten Zeilen des Cluster-Protokolls im Lauf — Zustand vor Ausgabe, wie beim
 Warten auf systemd.
+
+### Ein Wächter, der Prosa las
+
+Der Kommentar oben — der, der `apt-get install postgresql` und den stehenden
+Cluster festhält — hat den Wächter für `DEBIAN_FRONTEND=noninteractive` zum
+Zubeissen gebracht. Er las **jede** Zeile der Ablaufdatei und unterschied nicht
+zwischen einem Kommando und einem Satz darüber.
+
+> **Ein Wächter, der Kommentare liest, bestraft das Dokumentieren genau des
+> Fehlers, vor dem er schützt.**
+
+Es ist dieselbe Grenze, die `WordChoiceTest` für sich längst gezogen hat
+(„Steht es in einem Kommentar, ist der Test falsch"). Geprüft werden jetzt nur
+Zeilen, die kein Kommentar sind — in YAML wie in der Shell beginnt der mit `#`.
+Ein `#` *hinter* einem Kommando steht nicht am Zeilenanfang und schützt also
+nichts.
+
+**Und dabei kam heraus, dass dieser Wächter nie rot war:** Er hatte als einziger
+in `PackagingTest` keinen Eingriff im Bruch-Skript. Beim Beheben stand deshalb
+die Frage im Raum, ob er die echte Sache überhaupt noch findet — und beantworten
+konnte sie niemand. Jetzt schon: Der Eingriff nimmt die Angabe aus der
+PostgreSQL-Installation, und der Wächter meldet sie. Fünfzehn apt-Aufrufe stehen
+in den Abläufen, alle mit Angabe.

@@ -1068,6 +1068,28 @@ pruefe "Update ohne neuen Server-Block" \
 wiederherstellen
 
 echo
+echo "── PackagingTest: ein apt-get in der CI darf wieder fragen ──"
+#
+# Dieser Wächter hatte keinen Eingriff, seit es ihn gibt. Aufgefallen ist das,
+# als er zubiss — an einem Kommentar, der einen Fehlschlag festhielt statt an
+# einem Kommando. Beim Beheben stand die Frage im Raum, ob er die echte Sache
+# ueberhaupt noch findet, und beantworten konnte sie niemand.
+vorher_datei .github/workflows/ci.yml
+python3 - <<'PY2'
+p = '.github/workflows/ci.yml'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "docker exec target sh -c \\\n            'DEBIAN_FRONTEND=noninteractive apt-get install -y postgresql >/dev/null'",
+    "docker exec target sh -c \\\n            'apt-get install -y postgresql >/dev/null'",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei .github/workflows/ci.yml "apt-get ohne DEBIAN_FRONTEND" &&
+pruefe "apt-get ohne DEBIAN_FRONTEND" \
+  PackagingTest::test_no_apt_install_in_the_ci_can_ask_a_question failed
+wiederherstellen
+
+echo
 echo "── PackagingTest: das Warten auf systemd misst nicht mehr mit ──"
 #
 # Das Fenster stand auf 300 s, die einzige Messung daneben auf 255 s — und am

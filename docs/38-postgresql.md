@@ -165,7 +165,26 @@ gegen einen echten Server gefahren.
 Diese Fragen gehören auf `cloudsrv24` und auf die vier Zielplattformen, **bevor
 Schritt 4 beginnt**:
 
-1. **Die Fassungsspanne — für drei der vier Plattformen.** Ubuntu 24.04
+**Erledigt seit dem 11. August 2026: Punkte 1, 2 und 3 misst die CI.** Der Job
+„Installation auf …" fährt auf jeder der vier Plattformen `postgresql` hoch,
+liest `server_version_num`, vergleicht gegen `Server::MIN_VERSION` — die Zahl
+kommt aus dem Quelltext und nicht aus der Ablaufdatei —, stellt die Lage von vor
+PG 15 her (`GRANT ALL ON SCHEMA public TO PUBLIC`), belegt mit einer Untergrenze,
+dass `PUBLIC` dann tatsächlich anlegen darf, fährt die Absperrung aus
+`Shielding::statements()` und prüft, dass es danach nicht mehr geht. Die Abfrage
+der Katalogsichten läuft im selben Schritt.
+
+> **Eine Messung, die einmal jemand von Hand macht, ist ein Datum. Eine, die die
+> CI macht, ist eine Zusage.**
+
+Liegt eine Plattform unter der Grenze, ist das kein Fehlschlag, sondern eine
+`::notice::` — das Panel weist die Fassung ab, und genau das ist die richtige
+Antwort. Gesagt wird es trotzdem, denn ein Lauf, der Punkte auslässt, ohne es zu
+sagen, sieht hinterher aus wie ein vollständiger.
+
+Was ursprünglich hier stand, und warum:
+
+1. ~~**Die Fassungsspanne — für drei der vier Plattformen.**~~ Ubuntu 24.04
    liefert 16.14, gemessen auf `cloudsrv24` nach der ersten Installation
    (§2.2c) — im Entwicklungscontainer sind es 16.13, und der Unterschied ist
    ein Wartungsstand derselben Hauptfassung. Für Debian 12, Debian 13 und Ubuntu
@@ -174,8 +193,10 @@ Schritt 4 beginnt**:
    Datenbank Objekte anlegen, ab PG 15 nicht mehr. Auf der älteren Fassung ist
    das ein Loch in genau der Wand, die §5 baut. **Für die Abnahme von P5b ist
    das folgenlos** — sie läuft auf `cloudsrv24` —, für die Freigabe nicht.
-2. **Ob das Metapaket `postgresql` überall die richtige Fassung zieht.**
-3. **Die Liste der elf Sichten ist fassungsabhängig** — PG 17 hat mehr
+2. ~~**Ob das Metapaket `postgresql` überall die richtige Fassung zieht.**~~ Die
+   CI nennt seine Version auf jeder Plattform.
+3. ~~**Die Liste der elf Sichten ist fassungsabhängig**~~ — gemessen wird jetzt,
+   dass die Abfrage auf jeder Fassung etwas findet. Ursprünglich: PG 17 hat mehr
    `pg_stat_progress_*` als PG 14. Deshalb wird sie in §10 **erfragt und nicht
    verdrahtet**; gemessen gehört, dass die Abfrage auf jeder Fassung etwas
    findet.

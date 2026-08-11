@@ -296,6 +296,103 @@ jobs:
             *) echo "::error::Socket steht auf ${mode}, erwartet ist 660 root:srvpanel"; exit 1 ;;
           esac
 
+      # **Die Fassungsspanne, gemessen statt vermutet** (`docs/38 §2.3`, A1–A4).
+      #
+      # Sie stand seit P5b als offener Punkt da: Gemessen war PostgreSQL nur auf
+      # Ubuntu 24.04 und im Entwicklungscontainer. Für Debian 12, Debian 13 und
+      # Ubuntu 22.04 war die Zahl unbekannt — und die für uns wichtigste Regel
+      # hat sich mit PG 15 geändert: Bis PG 14 darf PUBLIC im Schema `public`
+      # jeder Datenbank Objekte anlegen.
+      #
+      # **Der Bau ist davon unabhängig**, denn `Pg\Shielding` widerruft
+      # ausdrücklich statt sich auf die Vorgabe zu verlassen. Was fehlte, war der
+      # Beleg. Er steht jetzt hier und nicht in einem Protokoll, das jemand
+      # einmal geschrieben hat:
+      #
+      #   Eine Messung, die einmal jemand von Hand macht, ist ein Datum.
+      #   Eine, die die CI macht, ist eine Zusage.
+      - name: PostgreSQL — Fassung und Abschottung
+        run: |
+          set -e
+
+          docker exec target sh -c \
+            'DEBIAN_FRONTEND=noninteractive apt-get install -y postgresql >/dev/null'
+          docker exec target pg_lsclusters
+          docker exec target dpkg-query -W -f='Metapaket postgresql: ${Version}\n' postgresql
+
+          # **Die Grenze kommt aus dem Quelltext und nicht aus dieser Datei.**
+          # Eine Zahl hier wäre die zweite Fassung derselben Regel, und die
+          # zweite ist die, die veraltet.
+          grenze="$(docker exec target /opt/srvpanel/bin/php -r \
+            'require "/opt/srvpanel/current/agent/src/autoload.php"; echo SrvPanel\Agent\Pg\Server::MIN_VERSION;')"
+          num="$(docker exec target su postgres -s /bin/sh -c "psql -XAtc 'SHOW server_version_num'")"
+          haupt="$((num / 10000))"
+
+          echo "${{ matrix.name }}: PostgreSQL ${haupt} (${num}), Grenze des Panels: ${grenze}"
+
+          if [ "${haupt}" -lt "${grenze}" ]; then
+            # Kein Fehlschlag: Das Panel weist diese Fassung ab, und genau das
+            # ist die richtige Antwort. Gesagt wird es trotzdem — ein Lauf, der
+            # Punkte auslässt, ohne es zu sagen, sieht aus wie ein vollständiger.
+            echo "::notice::${{ matrix.name }} liefert PostgreSQL ${haupt}, unter der Grenze ${grenze}."
+            echo "::notice::Die Abschottung wird hier nicht gefahren — das Panel bietet die Fläche gar nicht an."
+            exit 0
+          fi
+
+          docker exec target su postgres -s /bin/sh -c "psql -v ON_ERROR_STOP=1 -q -c 'CREATE ROLE fremd NOLOGIN'"
+          docker exec target su postgres -s /bin/sh -c "psql -v ON_ERROR_STOP=1 -q -c 'CREATE DATABASE pruef'"
+
+          # **Erst die Lage von vor PG 15 herstellen.** Ab PG 15 ist der Widerruf
+          # die Vorgabe; ohne diese Zeile prüfte der Test auf den neuen
+          # Plattformen die Vorgabe und nicht die Absperrung.
+          docker exec target su postgres -s /bin/sh -c \
+            "psql -v ON_ERROR_STOP=1 -q -d pruef -c 'GRANT ALL ON SCHEMA public TO PUBLIC'"
+
+          # **Die Untergrenze: jetzt MUSS es gehen.** Ohne sie bestünde der Test
+          # auch dann, wenn `fremd` aus einem ganz anderen Grund nichts anlegen
+          # kann — und niemand wüsste es.
+          docker exec -i target su postgres -s /bin/sh -c 'psql -v ON_ERROR_STOP=1 -q -d pruef -f -' <<'SQL'
+          SET ROLE fremd;
+          CREATE TABLE offen (i int);
+          SQL
+          echo "Untergrenze: PUBLIC durfte anlegen, wie vor PG 15."
+
+          # Die Absperrung kommt aus dem Quelltext — dieselbe Zeichenkette, die
+          # der Agent beim Anlegen einer Kundendatenbank ausführt.
+          docker exec target /opt/srvpanel/bin/php -r \
+            'require "/opt/srvpanel/current/agent/src/autoload.php";
+             foreach (SrvPanel\Agent\Pg\Shielding::statements("pruef", []) as $sql) { echo $sql, ";\n"; }' \
+            > sperre.sql
+          cat sperre.sql
+          docker exec -i target su postgres -s /bin/sh -c 'psql -v ON_ERROR_STOP=1 -q -d pruef -f -' < sperre.sql
+
+          if docker exec -i target su postgres -s /bin/sh -c 'psql -v ON_ERROR_STOP=1 -q -d pruef -f -' <<'SQL'
+          SET ROLE fremd;
+          CREATE TABLE verboten (i int);
+          SQL
+          then
+            echo "::error::Nach der Absperrung darf PUBLIC im Schema public immer noch anlegen (PostgreSQL ${haupt})."
+            exit 1
+          fi
+          echo "Abschottung: PUBLIC darf im Schema public nicht mehr anlegen."
+
+          # Und die Liste der Katalogsichten ist fassungsabhängig — sie wird
+          # erfragt und nicht verdrahtet (`docs/38 §10`). Zu messen ist, dass die
+          # Abfrage auf dieser Fassung etwas findet.
+          docker exec target /opt/srvpanel/bin/php -r \
+            'require "/opt/srvpanel/current/agent/src/autoload.php"; echo SrvPanel\Agent\Pg\Shielding::DISCOVERY;' \
+            > sichten.sql
+          # `|| true`, damit `set -e` nicht vor der Meldung zuschlägt: `grep -c`
+          # gibt bei null Treffern 1 zurück, und genau dann soll unten etwas
+          # Lesbares stehen statt eines abgebrochenen Schritts.
+          anzahl="$(docker exec -i target su postgres -s /bin/sh -c 'psql -XAt -d pruef -f -' < sichten.sql | grep -c . || true)"
+          echo "Katalogsichten mit einem Datenbanknamen: ${anzahl}"
+
+          if [ "${anzahl}" -lt 1 ]; then
+            echo "::error::Die Abfrage der Katalogsichten findet auf PostgreSQL ${haupt} nichts."
+            exit 1
+          fi
+
       - name: Ersteinrichtung und Oberfläche
         run: |
           docker exec target sh -c 'systemctl start mariadb || service mariadb start' || true

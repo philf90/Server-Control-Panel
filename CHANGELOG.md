@@ -9612,3 +9612,50 @@ anders war.
 `PackagingTest::test_every_wait_for_systemd_reports_how_long_it_took` hält beides
 fest — dass gemessen wird und dass die Grenze nicht wieder als feste Zahl in der
 Schleife steht.
+
+### Die Fassungsspanne von PostgreSQL wird gemessen, nicht angenommen
+
+`docs/38 §2.3` führte drei Fragen, die vor der Freigabe auf allen vier
+Zielplattformen zu beantworten waren und bis jetzt auf einer einzigen Messung
+standen: Ubuntu 24.04 liefert 16.14, gemessen auf `cloudsrv24`. Für Debian 12,
+Debian 13 und Ubuntu 22.04 war es eine Annahme — und an der Hauptfassung hängt
+mehr als eine Zahl: **Bis PostgreSQL 14 darf `PUBLIC` im Schema `public` jeder
+Datenbank Objekte anlegen**, also genau in der Wand, die die Abschottung baut.
+
+Der Integrationslauf fährt das jetzt auf jeder der vier Plattformen: Metapaket
+installieren, seine Version nennen, `server_version_num` lesen, gegen
+`Server::MIN_VERSION` vergleichen — **die Grenze kommt aus dem Quelltext**, eine
+Zahl in der Ablaufdatei wäre die zweite Fassung derselben Regel —, die Lage von
+vor PG 15 herstellen (`GRANT ALL ON SCHEMA public TO PUBLIC`), belegen dass
+`PUBLIC` dann wirklich anlegen darf, die Anweisungen aus
+`Shielding::statements()` fahren und prüfen, dass es danach nicht mehr geht.
+
+> **Eine Messung, die einmal jemand von Hand macht, ist ein Datum. Eine, die die
+> CI macht, ist eine Zusage.**
+
+**Die Untergrenze steht mit im Schritt**, und ohne sie wäre er wertlos: Er
+bestünde auch dann, wenn die Testrolle aus einem ganz anderen Grund nichts
+anlegen kann. Dieselbe Falle wie beim Zähler eines Wächters — die grüne Seite
+sagt nichts, solange die rote nie belegt wurde.
+
+**Und die Zeile, die auf den neuen Plattformen alles entwertet hätte, ist der
+Widerruf davor.** Ab PG 15 ist die Absperrung die Vorgabe; ohne
+`GRANT ALL … TO PUBLIC` prüfte der Schritt auf Debian 13 und Ubuntu 24.04 die
+Vorgabe von PostgreSQL und nicht die Arbeit dieses Panels. Genau deshalb widerruft
+`Shielding::statements()` ausdrücklich, statt sich auf die Vorgabe zu verlassen:
+Die Fläche ist auf 14 ebenso zu wie darüber.
+
+Liegt eine Plattform unter der Grenze, ist das kein Fehlschlag, sondern eine
+`::notice::` — das Panel weist die Fassung ab, und das ist die richtige Antwort.
+Gesagt wird es trotzdem: Ein Lauf, der Punkte auslässt, ohne es zu sagen, sieht
+hinterher aus wie ein vollständiger. Die Abfrage der Katalogsichten (`docs/38
+§10`) läuft im selben Schritt und muss auf jeder Fassung mindestens eine Zeile
+finden — die Liste ist fassungsabhängig und wird deshalb erfragt und nicht
+verdrahtet.
+
+**Und eine Meldung, die ihre eigene Grenze falsch begründete, ist mit weg.**
+`Server::usable()` sagte „Bis PostgreSQL 14 darf PUBLIC im Schema public jeder
+Datenbank Objekte anlegen" — ein Satz, der 14 einschliesst, während die Grenze
+14 zulässt. Wer das liest, korrigiert irgendwann die Zahl statt des Satzes.
+Richtig ist die Zahl: Was darunter liegt, ist nicht gefährlicher, sondern
+**ungemessen**.

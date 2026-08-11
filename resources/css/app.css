@@ -1230,6 +1230,42 @@ td.right > .button-row {
 }
 
 /*
+ * Mehrere Knopfreihen in einer Zelle stehen untereinander — mit Abstand.
+ *
+ * **`.button-row` setzt seinen `gap` waagerecht, nicht senkrecht.** Zwei Netze
+ * in einer Zelle sind zwei Reihen nebeneinandergestapelt, und die klebten
+ * aneinander: „Zurücknehmen" unter „Zurücknehmen" ohne eine Lücke dazwischen.
+ * Bei einem Netz fällt das nicht auf, und genau deshalb ist es niemandem
+ * aufgefallen — gefunden hat es der Betreiber im Abnahmelauf, beim zweiten
+ * Eintrag.
+ *
+ * Derselbe Wert wie der waagerechte `gap`: Der Abstand zwischen zwei Knöpfen
+ * nebeneinander und zwei Knöpfen übereinander soll derselbe sein, sonst sieht
+ * die Zelle in jeder Richtung anders aus.
+ */
+td > .button-row + .button-row {
+  margin-top: 10px;
+}
+
+/*
+ * Eine Zeile mit einer gestapelten Zelle richtet **alle** ihre Zellen oben aus.
+ *
+ * Tabellenzellen erben `vertical-align: middle` von der Tabelle. Solange jede
+ * Zelle eine Zeile hoch ist, ist das richtig. Wächst eine davon — zwei Netze,
+ * drei, fünf —, steht der Benutzername in der Mitte neben dem dritten Eintrag,
+ * und die Zeile liest sich, als gehörte er dorthin. Je mehr Einträge, desto
+ * falscher.
+ *
+ * **Der Ausdruck fragt nach dem Zustand und nicht nach der Seite.** Eine Klasse
+ * auf der Zeile wäre eine zweite Fassung derselben Aussage — sie müsste jedes
+ * Mal mitgesetzt werden, wenn eine Zelle stapelt, und beim nächsten Mal fehlte
+ * sie. `:has()` liest, was tatsächlich in der Zeile steht.
+ */
+tr:has(td.multiline) > td {
+  vertical-align: top;
+}
+
+/*
  * Eine Knopfreihe unter einem Formular bekommt Abstand — hier und nicht auf
  * der Seite.
  *

@@ -3,6 +3,7 @@
 use App\Http\Middleware\ApplyTenancy;
 use App\Http\Middleware\EnforceSessionLifetime;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RememberPageUrl;
 use App\Http\Middleware\RequireTwoFactor;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -41,6 +42,12 @@ $app = Application::configure(basePath: dirname(__DIR__))
                 ApplyTenancy::class,
                 SubstituteBindings::class,
                 RequireTwoFactor::class,
+
+                // RememberPageUrl setzt das „Zurück" für Inertia-Navigationen.
+                // Ohne sie steht es nach dem Anmelden dauerhaft auf /login, und
+                // jeder Formularfehler dieses Panels landet dort statt am
+                // Formular — siehe den Klassenkopf.
+                RememberPageUrl::class,
                 HandleInertiaRequests::class,
             ],
         );

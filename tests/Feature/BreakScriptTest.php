@@ -345,4 +345,58 @@ final class BreakScriptTest extends TestCase
             implode("\n  ", $dead),
         ));
     }
+
+    /**
+     * Und keine Überschrift verschluckt den Eingriff darunter.
+     *
+     * **Gefunden am 11. August 2026, und es lag seit P4 da.** Eine Zeile
+     * `echo "── X: „Noch" an einem Vorgang ──"` trägt drei ASCII-Anführungs-
+     * zeichen: Das mittlere beendet die Zeichenkette der Shell, das letzte
+     * öffnet eine neue — und die läuft weiter, bis irgendwo unten das nächste
+     * kommt. Alles dazwischen ist dann **Text und kein Befehl**: Der Eingriff
+     * wird nicht ausgeführt, die Prüfung nicht gefahren, und `bash -n` ist
+     * zufrieden, weil sich die Anzahl über die Datei hinweg wieder ausgleicht.
+     *
+     * > **Ein Wächter, dessen Bruch verschluckt wird, war nie rot — und sieht
+     * > aus wie einer, der immer grün ist.**
+     *
+     * Zwei der vier betroffenen Überschriften standen seit P4 im Skript.
+     * {@see self::interventions()} hat davon nichts gemerkt: Er liest die
+     * Python-Blöcke, und die waren in Ordnung — nur unerreichbar.
+     *
+     * Der Bruch dazu wird von Hand geführt, wie beim Test darüber:
+     *
+     *     sed -i '0,/^echo "──/{s/^echo "── \(.*\) ──"$/echo "── \1 „x" ──"/}' tests/waechter-brechen.sh
+     *     ./vendor/bin/phpunit --filter BreakScriptTest      # muss rot sein
+     *     git checkout -- tests/waechter-brechen.sh
+     */
+    public function test_no_heading_swallows_the_intervention_below_it(): void
+    {
+        $lines = explode("\n", (string) file_get_contents($this->root().'/tests/waechter-brechen.sh'));
+
+        $headings = 0;
+        $broken = [];
+
+        foreach ($lines as $number => $line) {
+            if (! str_starts_with($line, 'echo "')) {
+                continue;
+            }
+
+            $headings++;
+
+            // Maskierte zählen nicht — sie beenden die Zeichenkette nicht.
+            if (substr_count(str_replace('\\"', '', $line), '"') % 2 !== 0) {
+                $broken[] = sprintf('Zeile %d: %s', $number + 1, $line);
+            }
+        }
+
+        $this->assertGreaterThan(50, $headings,
+            'Kaum Überschriften gefunden — dann prüft dieser Test nichts.');
+
+        $this->assertSame([], $broken, sprintf(
+            'Diese Überschriften beenden ihre Zeichenkette nicht. Was darunter steht, wird zu Text '
+            ."statt zu einem Befehl — der Eingriff läuft nicht.\n\n  %s",
+            implode("\n  ", $broken),
+        ));
+    }
 }

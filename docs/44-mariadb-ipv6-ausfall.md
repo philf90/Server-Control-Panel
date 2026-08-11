@@ -43,6 +43,26 @@ Eintrag für `0.0.0.0`, und eine Verbindung auf `127.0.0.1:3306` wird abgewiesen
 Das Panel verbindet sich über `127.0.0.1`. Gemessen auf MariaDB
 10.11.14-0ubuntu0.24.04.1; der Doppelstapel liegt auf `*`.
 
+**Und der Unterschied steht in `ss` direkt da** — gemessen beim Wiederanlauf mit
+`bind-address = *` auf demselben Server:
+
+```
+LISTEN 0  80  0.0.0.0:3306  0.0.0.0:*  users:(("mariadbd",pid=41097,fd=23))
+LISTEN 0  80     [::]:3306     [::]:*  users:(("mariadbd",pid=41097,fd=25))
+```
+
+**Zwei getrennte Sockets, einer je Familie**, an den Dateikennungen zu
+unterscheiden. Bei `::` war es genau einer.
+
+> **Ein Eintrag heisst IPv6-only. Zwei Einträge heissen beides.**
+
+Hier stand zuerst das Gegenteil: `ss` könne die Fälle nicht unterscheiden, der
+Unterschied liege unsichtbar in `IPV6_V6ONLY`, und erst ein Verbindungsversuch
+entscheide. Das war wieder eine Annahme über ein Verhalten, das man messen kann
+— dieselbe Bauart wie der Fehler, den dieses Dokument beschreibt, nur eine Runde
+später und ohne Schaden. **Die schnellste Diagnose für diesen Ausfall ist damit
+eine einzige Zeile `ss`.**
+
 Der Server war die ganze Zeit gesund: `systemctl is-active mariadb` sagte
 `active`, das Journal meldete `ready for connections`, und über den Unix-Socket
 antwortete er. Nur über TCP kam niemand mehr herein.

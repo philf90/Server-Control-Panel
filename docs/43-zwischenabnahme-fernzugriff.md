@@ -129,7 +129,10 @@ sudo -u postgres psql -Atc "SHOW listen_addresses"
 #    nur auf einem Server, der genau eines von beiden erreichbar hat.
 
 # 3  FREISCHALTEN
-srvpanel db --remote=on --bind=*
+srvpanel db --remote=on --bind='*'
+#    Die Anführungszeichen gehören dazu. Unquotiert ist * ein Suchmuster der
+#    Shell: In bash bleibt es stehen, weil nichts passt, in zsh bricht der
+#    Befehl mit „no matches found" ab, bevor er startet.
 #    Die Rückfrage mit „yes" beantworten — beide Datenbankserver werden neu
 #    gestartet, MariaDB zuerst.
 #    erwartet in der Ausgabe, WÖRTLICH:
@@ -147,8 +150,30 @@ srvpanel db --remote=on --bind=*
 #    Ein Abnahmelauf, der eine ungeprüfte Annahme als Anweisung führt, prüft sie
 #    nicht — er führt sie aus.
 
-curl -sS -o /dev/null -w '%{http_code}\n' https://$(hostname -f)/login
+ss -tlnp | grep :3306
+#    erwartet ZWEI Zeilen: 0.0.0.0:3306 und [::]:3306, beide mariadbd, mit
+#    VERSCHIEDENEN Dateikennungen (fd=23 und fd=25 auf cloudsrv24).
+#    DAS IST DIE SCHNELLSTE DIAGNOSE FÜR DEN AUSFALL AUS `docs/44`: Bei
+#    bind-address = :: steht dort GENAU EINE Zeile, [::]:3306, und das Panel
+#    kommt über 127.0.0.1 nicht mehr herein. Bei * legt MariaDB zwei getrennte
+#    Sockets an, einen je Familie.
+#
+#    > Ein Eintrag heisst IPv6-only. Zwei Einträge heissen beides.
+#
+#    In `docs/44` stand zuerst, ss könne die beiden Fälle nicht unterscheiden —
+#    der Unterschied liege unsichtbar in IPV6_V6ONLY. Gemessen am 11. August
+#    2026 auf cloudsrv24 stimmt das nicht; er steht direkt da.
+
+timeout 3 bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/3306' && echo "IPv4 offen" || echo "IPv4 ZU"
+#    erwartet: IPv4 offen.
+
+curl -sS -o /dev/null -w '%{http_code}\n' https://<PANEL>/login
 #    erwartet: 200.
+#    <PANEL> ist die Adresse, unter der das Panel bedient wird, MIT PORT, falls
+#    es nicht 443 ist — auf cloudsrv24 ist es cloudsrv24.de:8443. NICHT
+#    $(hostname -f): Der volle Rechnername muss nicht der Name im Zertifikat
+#    sein, und dann scheitert dieser Aufruf an der Prüfung statt an der Sache.
+#    Genau so passiert, am 11. August 2026.
 #    BELEG: DIESE ZAHL. Der Datenbankserver zu fragen, ob er horcht, genügt
 #    nicht — genau das hat der Agent am 11. August getan und „Fernzugriff
 #    möglich" gemeldet, während das Panel schon unten war. Seine Gegenprobe

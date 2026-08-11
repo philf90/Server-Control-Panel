@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\AuditResult;
+use App\Models\AuditEvent;
 use App\Models\Setting;
+use App\Support\Audit\AuditQuery;
 use App\Support\Time\Clock;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -151,5 +154,43 @@ final class ClockTest extends TestCase
         $this->useZone('UTC');
 
         $this->assertSame('UTC', Clock::label());
+    }
+
+    /**
+     * Und der Filter des Protokolls rechnet mit der Anzeige mit.
+     *
+     * **Die Hälfte, die still bricht.** Eine umgestellte Anzeige ohne
+     * mitrechnenden Filter zeigt eine Zeile und findet sie nicht — der Zustand,
+     * vor dem `docs/40 §3.2` warnt. Deshalb steht diese Prüfung neben der
+     * Anzeige und nicht in einer eigenen Runde.
+     */
+    public function test_the_audit_filter_uses_the_same_zone_as_the_display(): void
+    {
+        $this->useZone('Europe/Berlin');
+
+        // 22:30 UTC ist in Berlin bereits der nächste Tag, 00:30 Ortszeit.
+        $event = AuditEvent::query()->create([
+            'action' => 'auth.login',
+            'result' => AuditResult::Success,
+            'created_at' => CarbonImmutable::parse('2026-08-11 22:30:00', 'UTC'),
+        ]);
+
+        $shown = AuditQuery::toArrayRow($event->refresh());
+
+        $this->assertSame('2026-08-12 00:30:00', $shown['created_at'], 'Die Anzeige rechnet nicht um.');
+
+        $found = static fn (string $tag): int => AuditQuery::filter(
+            AuditEvent::query(),
+            ['from' => $tag, 'to' => $tag],
+        )->count();
+
+        $this->assertSame(1, $found('2026-08-12'), sprintf(
+            "Die Seite zeigt %s und der Filter findet die Zeile an diesem Tag nicht.\n\n"
+            .'Ein Filter, der eine andere Zeitrechnung benutzt als die Anzeige daneben, sucht in '
+            .'einem anderen Tag als dem, den er zeigt.',
+            $shown['created_at'],
+        ));
+
+        $this->assertSame(0, $found('2026-08-11'), 'Die Zeile wird an ihrem UTC-Tag gefunden statt an ihrem Ortszeit-Tag.');
     }
 }

@@ -8974,3 +8974,22 @@ wird der Tippfehler beim **Setzen**.
 
 Noch nicht gebaut: die achtzehn Aufrufe, das Feld in den Einstellungen und der
 Bruch im Wächterskript. Die Klasse ändert bis dahin nichts — niemand ruft sie.
+
+### Und die Filter des Protokolls rechnen mit
+
+Die Anzeige im Protokoll geht durch `Clock`, und die Grenzen „Von" und „Bis"
+gehen den Weg zurück: Sie kommen in der Anzeigezone herein und werden vor der
+Abfrage nach UTC gedreht.
+
+> **Ein Filter, der eine andere Zeitrechnung benutzt als die Anzeige daneben,
+> findet die Zeile nicht, die er selbst anzeigt.**
+
+Beides zusammen und nicht nacheinander — eine umgestellte Anzeige ohne
+mitrechnenden Filter ist genau der Zustand, vor dem `docs/40 §3.2` warnt, und
+er bricht still.
+
+**Das CSV bleibt UTC** (`docs/40 §3.3`) und sagt es jetzt auch: Die Kopfzeile
+heisst „Zeitpunkt (UTC)". Der Export baut seine Zeile aus derselben Abfrage,
+ersetzt den Zeitstempel aber durch den gespeicherten Wert. Ein Zeitstempel ohne
+Zone in einer Datei, die drei Jahre liegt, ist eine Falle — er wird gelesen,
+wenn der Server längst umgezogen und die Einstellung eine andere ist.

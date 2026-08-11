@@ -6041,15 +6041,13 @@ vorher_datei resources/js/Pages/Subscriptions/Show.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Subscriptions/Show.vue'
 s = open(p, encoding='utf-8').read()
-s = s.replace("""        <p v-if="quotaBroken" class="notice warn">
-          <span>
+s = s.replace("""          <span>
             Diese Grenze ist""",
-              """        <p v-if="quotaBroken" class="notice warn">
-            Diese Grenze ist""")
-s = s.replace("""            <span class="ident">docs/41-dateisystem-quota.md</span>.
+              """            Diese Grenze ist""")
+s = s.replace("""            </template>
           </span>
         </p>""",
-              """            <span class="ident">docs/41-dateisystem-quota.md</span>.
+              """            </template>
         </p>""")
 open(p, 'w', encoding='utf-8').write(s)
 PY2

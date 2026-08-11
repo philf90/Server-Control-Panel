@@ -8737,3 +8737,17 @@ findet: Der Absatz las sich als „…for device Der Weg dorthin steht in…". E
 wörtlich übernommene Systemmeldung endet nicht verlässlich mit einem Punkt, und
 was danach kommt, klebt an ihr. Sie steht jetzt am Satzende — auf beiden
 Seiten, denn `Overview.vue` hatte dieselbe Reihenfolge.
+
+**Und der Nachtrag dazu, weil er eine Runde CI gekostet hat:** Der Bruch zu
+diesem Wächter war gegen den *alten* Wortlaut der Meldung geschrieben, und die
+Umstellung des Satzes kam danach. Zwei seiner Nadeln zeigten damit ins Leere.
+Gemerkt hat es `BreakScriptTest`, nicht die Wegwerfprobe daneben — die las die
+Eingriffe über Pythons `ast` statt über denselben Ausdruck wie der Wächter und
+meldete „0 tot" für dieselbe Datei.
+
+> **Ein Prüfwerkzeug, das anders liest als der Wächter, gibt Entwarnung für
+> etwas anderes.**
+
+Die Probe liest jetzt mit demselben Ausdruck und derselben Entwertung wie
+`BreakScriptTest`; gegengeprüft an genau diesem Fall — vorher zwei tote Nadeln,
+nach der Reparatur keine.

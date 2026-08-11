@@ -10,6 +10,7 @@ use App\Models\Account;
 use App\Models\Operation;
 use App\Support\Audit\Audit;
 use App\Support\Operations\Task;
+use App\Support\Time\Clock;
 use App\Support\Web\Page;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -197,8 +198,8 @@ final class OperationController extends Controller
             'progress' => $operation->progress,
             'message' => $operation->message,
             'account' => $operation->account?->name,
-            'started_at' => $operation->started_at?->toDateTimeString(),
-            'finished_at' => $operation->finished_at?->toDateTimeString(),
+            'started_at' => Clock::display($operation->started_at),
+            'finished_at' => Clock::display($operation->finished_at),
             // Angefordert, nicht vollzogen — solange der Vorgang noch offen
             // ist, ist das der ehrliche Zwischenzustand.
             'cancel_requested' => $operation->cancel_requested_at !== null,

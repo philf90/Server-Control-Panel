@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Operation;
+use App\Support\Time\Clock;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -106,8 +107,8 @@ final class OperationStreamController extends Controller
                      * Die Signatur unten braucht sie nicht: Beide ändern sich
                      * genau dann, wenn auch der Zustand sich ändert.
                      */
-                    'started_at' => $operation->started_at?->toDateTimeString(),
-                    'finished_at' => $operation->finished_at?->toDateTimeString(),
+                    'started_at' => Clock::display($operation->started_at),
+                    'finished_at' => Clock::display($operation->finished_at),
                 ]);
 
                 $lastSignature = $signature;

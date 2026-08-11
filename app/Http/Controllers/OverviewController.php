@@ -15,6 +15,7 @@ use App\Models\Domain;
 use App\Models\Subscription;
 use App\Support\Metrics\Store;
 use App\Support\Settings\Settings;
+use App\Support\Time\Clock;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -181,7 +182,7 @@ final class OverviewController extends Controller
                 'name' => $subscription->name,
                 'used_mb' => (int) $subscription->disk_used_mb,
                 'percent' => $subscription->diskUsagePercent(),
-                'measured_at' => $subscription->disk_usage_measured_at?->toDateTimeString(),
+                'measured_at' => Clock::display($subscription->disk_usage_measured_at),
             ])
             ->filter(static fn (array $row): bool => $row['percent'] !== null)
             ->sortByDesc('percent')

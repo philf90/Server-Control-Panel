@@ -8993,3 +8993,25 @@ heisst „Zeitpunkt (UTC)". Der Export baut seine Zeile aus derselben Abfrage,
 ersetzt den Zeitstempel aber durch den gespeicherten Wert. Ein Zeitstempel ohne
 Zone in einer Datei, die drei Jahre liegt, ist eine Falle — er wird gelesen,
 wenn der Server längst umgezogen und die Einstellung eine andere ist.
+
+### Und die übrigen dreizehn Stellen
+
+Vorgänge, Domains, Abonnements, Kunden, Übersicht, Profil, Datenbanken, der
+SSE-Kanal und die Testmail geben ihre Zeiten jetzt durch `Clock`. Zwei Stellen
+tun es weiterhin nicht, und beide stehen mit ihrem Grund in
+`TimeDisplayTest::EXEMPT`:
+
+- **das CSV des Protokolls** — ein Beleg, den jemand aufhebt (`docs/40 §3.3`);
+- **`Settings`** — dort wird *geschrieben* und nicht angezeigt. Eine Zeit in der
+  Anzeigezone zu speichern hiesse, den Bestand von einer Einstellung abhängig
+  zu machen, die sich ändern darf. Wer sie später zeigt, dreht sie an der
+  Lesestelle.
+
+Der Wächter zählt beide Richtungen: keine Stelle ausserhalb der Liste, und die
+Liste selbst nicht leer — läuft der Ausdruck ins Leere, meldete er sonst „alles
+in Ordnung" für eine Fläche, die er nicht mehr liest.
+
+**Und er hat beim Einbauen einen bestehenden Bruch mitgenommen.** Der Eingriff
+zu `OperationStreamTest` suchte `$operation->started_at?->toDateTimeString()` —
+genau die Zeile, die jetzt durch `Clock` geht. `BreakScriptTest` hätte das in
+der CI gemeldet; hier fand es die Gegenprobe vor dem Commit.

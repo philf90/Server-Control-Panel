@@ -64,6 +64,7 @@ final class Databases
         private readonly Tenancy $tenancy,
         private readonly Client $agent,
         private readonly Secret $secret,
+        private readonly RemoteAccess $remote,
     ) {}
 
     /**
@@ -295,11 +296,31 @@ final class Databases
 
         if ($granted) {
             $user->databases()->syncWithoutDetaching([(int) $database->id]);
-
-            return;
+        } else {
+            $user->databases()->detach((int) $database->id);
         }
 
-        $user->databases()->detach((int) $database->id);
+        /*
+         * **Und der verwaltete Block zieht nach** (`docs/38 §14`).
+         *
+         * Eine Rolle mit einem Netz und einer zweiten Datenbank braucht eine
+         * zweite Zeile in `pg_hba.conf` — die Zeile nennt die Datenbank und
+         * nicht `all`. Ohne diesen Aufruf stünde im Panel „erreichbar von
+         * 203.0.113.5" und die Anwendung käme nicht herein.
+         *
+         * **Nach dem Schreiben der Zuordnung und nicht davor.** Was der Agent
+         * bekommt, ist der Sollzustand; er wird aus dem Bestand gelesen, und
+         * der Bestand ist erst hier vollständig.
+         *
+         * **Ein Fehlschlag reisst den Aufruf mit, und das ist richtig.** Das
+         * Recht in PostgreSQL ist gesetzt, die Zeile im Panel steht — nur die
+         * Datei nicht. Der Kunde bekommt die Meldung an seinem Formular und
+         * kann es erneut versuchen; der Aufruf trägt jedes Mal den ganzen
+         * Sollzustand und ist damit wiederholbar. Ein stiller Fehlschlag wäre
+         * hier das Schlechtere: Er hinterliesse einen Zugang, der laut Panel
+         * hereinkommt und es nicht tut.
+         */
+        $this->remote->follow($user->engine);
     }
 
     /** Einen Zugang entfernen — unmittelbar; er trägt kein Geheimnis, aber auch keine Wartezeit. */

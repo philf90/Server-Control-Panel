@@ -9233,3 +9233,47 @@ für eine Operation eintragen, die es nicht gibt. Die letzten drei ändern
 `tests/` oder legen eine Datei unter `agent/src/Ops/` an — beides nimmt
 `wiederherstellen()` nicht zurück, sie stehen deshalb von Hand im Kopf des
 Tests.
+
+### Der Block folgte den Netzen und nicht dem Bestand
+
+Der Sollzustand des verwalteten Blocks in `pg_hba.conf` ist **Datenbank × Rolle
+× Netz** — geschrieben hat ihn nach Schritt 10 aber nur, wer ein *Netz* anfasste.
+Die Datenbanken einer Rolle ändern sich woanders:
+
+| Weg | ohne Nachziehung |
+|---|---|
+| „Vorhandenen Zugang verbinden" | die Zeile für die neue Datenbank fehlt |
+| Zugriff entziehen | die Zeile bleibt stehen |
+| Datenbank entfernt, Rolle überlebt | Zeile für eine Datenbank, die es nicht mehr gibt |
+| Abonnement gesperrt | Datei und Bestand laufen auseinander |
+
+**Der erste ist der ernste, und er ist das Gegenteil eines Sicherheitslochs:**
+Die fehlende Zeile sperrt aus. Im Panel steht „erreichbar von 203.0.113.5", die
+Anwendung kommt nicht herein, und gesucht wird der Fehler im Fernzugriff — wo
+keiner ist.
+
+**Gefunden hat ihn nicht der Betrieb, sondern die Frage, ob sich Schritt 10
+abnehmen lässt.** Die Befehlsfolge in `docs/38 §19a` kam an allen vier Wegen
+vorbei, weil sie genau *eine* Datenbank kennt. Sie hat jetzt Punkt 4b (die
+zweite Datenbank, verbinden und wieder entziehen) und 4c (eine von zwei
+Datenbanken entfernen, während die Rolle überlebt).
+
+> **Ein Abnahmelauf, der den häufigsten Weg nicht geht, misst die Fläche und
+> nicht den Betrieb.**
+
+`RemoteAccess::follow()` ist die eine Stelle, und drei Entscheidungen gehören
+dazu. **Unmittelbar und nicht über die Warteschlange** — das ist keine
+Bequemlichkeit, sondern die Lehre aus `docs/42`: *Eine Frage an den Bestand, die
+beim Einreihen gestellt wird, kennt die anderen Vorgänge derselben Reihe nicht.*
+**Ohne ein einziges Netz passiert gar nichts**, sonst ginge jede Rechteänderung
+zum Datenbankserver, auch auf Servern ohne PostgreSQL. Und **im Kundenweg reisst
+ein Fehlschlag den Aufruf mit, im Lebenslauf nicht**: Beim Verbinden sieht der
+Kunde die Meldung und kann es wiederholen; nach einem Rückbau wäre dasselbe eine
+Behauptung, die nicht stimmt — die Datenbank *ist* weg. Dort geht der Fehler an
+`report()`, und was liegenbleibt, meldet `srvpanel db` als verwaist.
+
+`PgHbaFollowTest` hält den Bezug und liest dafür im Quelltext: `Client` ist
+`final`, ein Testdoppel gibt es nicht, und ob die Nachziehung zur Laufzeit
+wirkt, kann nur der Abnahmelauf sagen. Was sich prüfen lässt, ist der Fall, für
+den es diesen Wächter gibt — ein **neuer** Weg, der den Bestand ändert und die
+Datei vergisst. Vier Brüche gefahren, jeder rot; zwei davon stehen im Skript.

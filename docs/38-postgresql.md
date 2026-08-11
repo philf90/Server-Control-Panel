@@ -993,6 +993,8 @@ damit das Vierte, was diese Stufe auf der Platte hinterlässt, neben Datenbanken
 Rollen und Sicherungen.
 
 - `pg.role.remove` nimmt die Zeilen der Rolle mit, im selben Vorgang.
+- **`RemoteAccess::follow()` zieht den Block nach, wenn sich der Bestand
+  ändert** — nachgetragen am 11. August 2026, siehe §14.6.
 - `srvpanel db` gleicht den Block gegen den Bestand ab und meldet, was
   übrigbleibt — **melden und nicht löschen**, wie `docs/36 §5` es festlegt.
 - `PgHbaReachTest` hält beide Richtungen (§18).
@@ -1055,6 +1057,55 @@ wartete also auf den ersten und damit auf sich selbst. Kein Fehler, keine
 Meldung, nur nichts; aufgefallen nach zwei Minuten Stillstand gegen einen
 echten Cluster. `Hba::locked()` zählt seitdem mit, und
 `PgHbaRollbackTest::test_the_lock_does_not_block_itself` hält es fest.
+
+### 14.6 Der Sollzustand ändert sich nicht nur an den Netzen
+
+**Schritt 10 schrieb den Block nur, wenn jemand ein Netz anfasste** — und der
+Sollzustand ist *Datenbank × Rolle × Netz*. Die Datenbanken einer Rolle ändern
+sich woanders:
+
+| Weg | ohne Nachziehung |
+|---|---|
+| „Vorhandenen Zugang verbinden" | die Zeile für die neue Datenbank fehlt |
+| Zugriff entziehen | die Zeile bleibt stehen |
+| Datenbank entfernt, Rolle überlebt | Zeile für eine Datenbank, die es nicht mehr gibt |
+| Abonnement gesperrt | Datei und Bestand laufen auseinander |
+
+**Der erste ist der ernste, und er ist das Gegenteil eines Sicherheitslochs:**
+Die fehlende Zeile sperrt aus. Im Panel steht „erreichbar von 203.0.113.5", die
+Anwendung kommt nicht herein, und gesucht wird der Fehler im Fernzugriff — wo
+keiner ist.
+
+**Gefunden hat ihn nicht der Betrieb, sondern die Frage, ob sich Schritt 10
+abnehmen lässt.** Der Lauf in §19a kam an allen vier Wegen vorbei, weil er
+genau *eine* Datenbank kennt. Er hat seitdem die Punkte 4b und 4c.
+
+> **Ein Abnahmelauf, der den häufigsten Weg nicht geht, misst die Fläche und
+> nicht den Betrieb.**
+
+**`RemoteAccess::follow()` ist die eine Stelle**, und drei Entscheidungen
+gehören dazu:
+
+1. **Unmittelbar und nicht über die Warteschlange.** Das ist hier keine
+   Bequemlichkeit, sondern `docs/42`: *Eine Frage an den Bestand, die beim
+   Einreihen gestellt wird, kennt die anderen Vorgänge derselben Reihe nicht.*
+   Ein eingereihter Vorgang trüge den Sollzustand von *jetzt*; bis er liefe,
+   wäre er veraltet.
+2. **Ohne ein einziges Netz passiert gar nichts.** Auf den meisten Servern gibt
+   es keinen Fernzugriff; ein `pg.remote.access` bei jeder Rechteänderung wäre
+   ein Gang zum Datenbankserver für nichts.
+3. **Im Kundenweg reisst ein Fehlschlag den Aufruf mit, im Lebenslauf nicht.**
+   Beim Verbinden sieht der Kunde die Meldung an seinem Formular und kann es
+   wiederholen — der Aufruf trägt jedes Mal den ganzen Sollzustand. Nach einem
+   *Rückbau* wäre dasselbe falsch: Die Datenbank ist weg, die Rollen sind weg,
+   und ihn als gescheitert zu melden, wäre eine Behauptung, die nicht stimmt.
+   Dort geht der Fehler an `report()`, und was liegenbleibt, meldet
+   `srvpanel db` als verwaist — **melden und nicht löschen**.
+
+`PgHbaFollowTest` hält den Bezug: Jede Stelle, die die Zuordnung von Datenbanken
+zu Rollen schreibt, ruft die Nachziehung, oder ein begründeter Eintrag sagt
+warum nicht. Er liest im Quelltext, weil `Client` `final` ist und es dafür kein
+Testdoppel gibt; ob es zur Laufzeit wirkt, misst Punkt 4b des Abnahmelaufs.
 
 ---
 
@@ -1273,6 +1324,7 @@ Container am meisten auszahlt.
 | `EngineReachTest` | Zu jeder `db.*`-Operation mit einem Gegenstück gibt es `pg.*`, oder ein begründeter Eintrag sagt warum nicht | Eine `pg.*`-Operation entfernen |
 | `PgHbaRollbackTest` | Eine ungültige Zeile führt zur **alten Datei** zurück, nicht zu einer Meldung — geprüft gegen einen echten Cluster, nicht am Quelltext | Den Rückweg durch ein `log()` ersetzen |
 | `PgHbaReachTest` | Jede Zeile im verwalteten Block zeigt auf eine Rolle, die es gibt — **und jede Rolle mit Netzen hat ihre Zeilen** | Eine Rolle entfernen und ihre Zeilen stehenlassen |
+| `PgHbaFollowTest` | Wer die Zuordnung von Datenbanken zu Rollen ändert, zieht den Block nach — oder ein begründeter Eintrag sagt warum nicht (§14.6) | Die Nachziehung aus `Databases::grant()` nehmen |
 
 **Vier laufen von selbst mit** und sind der eigentliche Grund, warum §8 so
 entschieden ist: `RemovalPathTest` (§15), `AgentOperationReachTest`,
@@ -1530,6 +1582,50 @@ sudo -u postgres psql -Atc \
 
 sudo -u postgres psql -Atc "SELECT count(*) FROM pg_hba_file_rules WHERE error IS NOT NULL"
 #    erwartet: 0
+
+# 4b DIE ZWEITE DATENBANK   ← der Weg, den ein echter Kunde als Erstes geht
+#    OHNE DIESEN PUNKT IST DER HÄUFIGSTE FALL NICHT GEFAHREN. Punkt 4 legt eine
+#    Datenbank an; die Zeile nennt die Datenbank und nicht `all` (M23), also
+#    braucht JEDE weitere Datenbank derselben Rolle eine eigene Zeile.
+#
+#    In Abo A eine zweite PostgreSQL-Datenbank anlegen. Dann auf ihrer Seite:
+#    „Vorhandenen Zugang verbinden" → <ROLLE>.
+sudo -u postgres psql -Atc \
+  "SELECT database, address FROM pg_hba_file_rules WHERE '<ROLLE>' = ANY(user_name) ORDER BY 1"
+#    erwartet: ZWEI Zeilen — je eine Datenbank, dasselbe Netz.
+#    BELEG: beide ausgegebenen Zeilen ins Protokoll, nicht ihre Anzahl.
+#
+#    Und die Gegenrichtung, im selben Punkt:
+#    Auf derselben Seite „Zugriff entziehen".
+sudo -u postgres psql -Atc \
+  "SELECT count(*) FROM pg_hba_file_rules WHERE '<ROLLE>' = ANY(user_name)"
+#    erwartet: 1 — die Zeile der zweiten Datenbank ist mitgegangen.
+#
+#    DER ANLASS, damit niemand ihn für Zierde hält: Bis zum 11. August 2026
+#    schrieb den Block nur, wer ein NETZ anfasste. Eine Rechteänderung liess ihn
+#    stehen, wie er war — im Panel stand „erreichbar von 203.0.113.5", und die
+#    Anwendung kam nicht herein. Das ist das Gegenteil eines Sicherheitslochs
+#    und trotzdem der teuerste Fehler dieser Fläche, weil er wie ein kaputter
+#    Fernzugriff aussieht. Gefunden hat ihn nicht der Betrieb, sondern die
+#    Frage, ob sich Schritt 10 überhaupt abnehmen lässt — der Lauf kam an
+#    diesem Weg vorbei, weil er nur EINE Datenbank kannte.
+#
+#    > Ein Abnahmelauf, der den häufigsten Weg nicht geht, misst die Fläche und
+#    > nicht den Betrieb.
+#
+#    Der Wächter dazu ist `PgHbaFollowTest`; er liest im Quelltext und kann
+#    nicht sehen, ob es zur Laufzeit wirkt. Dieser Punkt kann es.
+
+# 4c UND DER RÜCKBAU EINER VON ZWEI DATENBANKEN
+#    Die zweite Datenbank wieder verbinden (wie in 4b), dann die ZWEITE
+#    Datenbank entfernen — die Rolle überlebt, weil sie noch an der ersten hängt.
+sudo -u postgres psql -Atc \
+  "SELECT database FROM pg_hba_file_rules WHERE '<ROLLE>' = ANY(user_name)"
+#    erwartet: nur noch die erste Datenbank.
+#    Eine Zeile für eine Datenbank, die es nicht mehr gibt, ist für PostgreSQL
+#    kein Fehler (M22) — sie fiele nur auf, wenn jemand danach fragt.
+srvpanel db
+#    erwartet: „…alle im Bestand." und KEINE verwaiste Zeile.
 
 # 5  UND SIE WIRKT — von einem anderen Rechner aus
 #    Von einem Rechner mit der Adresse 203.0.113.5:

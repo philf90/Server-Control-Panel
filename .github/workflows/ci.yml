@@ -173,6 +173,22 @@ jobs:
       # findet der Ausdruck nichts) und ist die Quelle, die der Läufer ohnehin
       # benutzt. Aber wer hier später Zeit sparen will, fängt bei der Grösse der
       # Paketlisten an und nicht beim Spiegel.
+      #
+      # **Und am 11. August ist genau dieses Fenster gerissen** — auf 22.04, im
+      # Herunterladen stehend, beim einunddreissigsten von einunddreissig
+      # Paketen. Die Messung von oben sagt, warum das kommen musste: 255 s
+      # gemessen gegen 300 s erlaubt, also fünfzehn Prozent Luft gegen eine
+      # Quelle, deren Durchsatz zwischen 200 kB/s und mehr schwankt. Ein
+      # Fehlschlag war da keine Frage des Ob.
+      #
+      # Das Fenster steht deshalb jetzt auf 600 s, und der Schritt **misst
+      # mit**: Kommt systemd, schreibt er in den Lauf, nach wie vielen
+      # Sekunden. Damit muss die nächste Fassung dieses Fensters nicht wieder
+      # aus einem Fehlschlag geschätzt werden — die Zahl steht in jedem grünen
+      # Lauf.
+      #
+      # > **Ein Grenzwert, dessen Abstand zur Messung niemand kennt, ist ein
+      # > Fehlschlag mit Verzögerung.**
       - name: Container mit systemd starten
         run: |
           docker run -d --name target --privileged \
@@ -185,17 +201,24 @@ jobs:
           # gab den Rückgabewert von `head` zurück und nicht den von `docker
           # exec` —, und gescheitert ist der Lauf drei Schritte später an einer
           # dpkg-Sperre. Eine Meldung, die mit der Ursache nichts zu tun hat.
+          #
+          # Fenster und Meldung kommen aus derselben Zahl. Standen sie
+          # getrennt da, sagte die Meldung „in 300 s" für ein Fenster, das
+          # längst anders war — und wer sie liest, sucht den Fehler bei der
+          # falschen Dauer.
+          versuche=300
           bereit=nein
-          for i in $(seq 1 150); do
+          for i in $(seq 1 "$versuche"); do
             if docker exec target systemctl is-system-running 2>/dev/null | grep -qE 'running|degraded'; then
               bereit=ja
+              echo "::notice::systemd war nach $((i * 2)) s da (Fenster: $((versuche * 2)) s)."
               break
             fi
             sleep 2
           done
 
           if [ "$bereit" != ja ]; then
-            echo "::error::systemd im Container ist in 300 s nicht hochgekommen."
+            echo "::error::systemd im Container ist in $((versuche * 2)) s nicht hochgekommen."
 
             # **Zustand vor Ausgabe.** Beim ersten Fehlschlag stand hier nur
             # `docker logs`, und das gab nichts aus — womit offen blieb, ob der
@@ -464,18 +487,21 @@ jobs:
             ${{ matrix.image }} /bin/sh -c \
             'export DEBIAN_FRONTEND=noninteractive; set -x; sed -i "s|//archive.ubuntu.com|//azure.archive.ubuntu.com|g" /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null; apt-get update && apt-get install -y systemd systemd-sysv && exec /sbin/init'
           # Dieselbe Prüfung wie oben, und hier fehlte sie ganz: Ein
-          # Zeitüberschreiten war vollständig unsichtbar.
+          # Zeitüberschreiten war vollständig unsichtbar. Dasselbe Fenster und
+          # dieselbe Messung wie dort — die Begründung steht beim ersten Lauf.
+          versuche=300
           bereit=nein
-          for i in $(seq 1 150); do
+          for i in $(seq 1 "$versuche"); do
             if docker exec bare systemctl is-system-running 2>/dev/null | grep -qE 'running|degraded'; then
               bereit=ja
+              echo "::notice::systemd war nach $((i * 2)) s da (Fenster: $((versuche * 2)) s)."
               break
             fi
             sleep 2
           done
 
           if [ "$bereit" != ja ]; then
-            echo "::error::systemd im Container ist in 300 s nicht hochgekommen."
+            echo "::error::systemd im Container ist in $((versuche * 2)) s nicht hochgekommen."
 
             # **Zustand vor Ausgabe.** Beim ersten Fehlschlag stand hier nur
             # `docker logs`, und das gab nichts aus — womit offen blieb, ob der

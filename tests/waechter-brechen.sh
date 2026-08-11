@@ -1068,6 +1068,26 @@ pruefe "Update ohne neuen Server-Block" \
 wiederherstellen
 
 echo
+echo "── PackagingTest: das Warten auf systemd misst nicht mehr mit ──"
+#
+# Das Fenster stand auf 300 s, die einzige Messung daneben auf 255 s — und am
+# 11. August riss es. Teuer war nicht das knappe Fenster, sondern dass der
+# Abstand nur in einem Kommentar stand und lautlos veraltete. Seitdem schreibt
+# jeder gruene Lauf seine Dauer selbst hin.
+vorher_datei .github/workflows/ci.yml
+python3 - <<'PY2'
+p = '.github/workflows/ci.yml'
+s = open(p, encoding='utf-8').read()
+s = s.replace('              echo "::notice::systemd war nach $((i * 2)) s da (Fenster: $((versuche * 2)) s)."\n', '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei .github/workflows/ci.yml "Warten ohne gemessene Dauer" &&
+pruefe "Warten ohne gemessene Dauer" \
+  PackagingTest::test_every_wait_for_systemd_reports_how_long_it_took failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PackagingTest passed
+
+echo
 echo "── PackagingTest: der Wrapper kennt das neue Kommando nicht ──"
 #
 # Wer `srvpanel vhost` tippt, bekommt sonst „Command not defined" — und das

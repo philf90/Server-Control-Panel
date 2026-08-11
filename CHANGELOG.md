@@ -9588,3 +9588,27 @@ am Passwort — nur nicht an einer Zeile, die laut Panel da ist.
 `NetworkDriftTest` hält beides fest, mit der Untergrenze im selben Test: Eine
 Zeile, die in Datei und Bestand steht, darf nicht als fehlend gelten, sonst
 meldete die Abfrage jede und sagte nichts.
+
+### Ein Fenster, dessen Abstand zur Messung niemand kannte
+
+Der Integrationslauf wartet darauf, dass systemd im Container hochkommt, und das
+Fenster dafür stand seit dem 4. August auf 300 Sekunden. Daneben, im Kommentar,
+stand die einzige Messung, die es je gab: **255 Sekunden auf Ubuntu 22.04.**
+Fünfzehn Prozent Luft gegen eine Paketquelle, die mit 202 kB/s gemessen wurde
+und schwankt — am 11. August riss es, mitten im Herunterladen des letzten von
+einunddreissig Paketen.
+
+> **Ein Grenzwert, dessen Abstand zur Messung niemand kennt, ist ein Fehlschlag
+> mit Verzögerung.**
+
+Das Fenster steht jetzt auf 600 s. Wichtiger als die Zahl ist, was daneben neu
+ist: Der Schritt **misst mit** und schreibt die tatsächliche Dauer als
+`::notice::` in jeden Lauf. Damit muss die nächste Fassung dieses Fensters nicht
+wieder aus einem roten Lauf geschätzt werden — der Abstand steht in jedem
+grünen. Schleifengrenze und Meldung kommen ausserdem aus derselben Variablen;
+vorher hätte die Meldung „in 300 s" ein Fenster benennen können, das längst
+anders war.
+
+`PackagingTest::test_every_wait_for_systemd_reports_how_long_it_took` hält beides
+fest — dass gemessen wird und dass die Grenze nicht wieder als feste Zahl in der
+Schleife steht.

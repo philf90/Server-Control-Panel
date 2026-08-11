@@ -98,6 +98,63 @@ final class PackagingTest extends TestCase
     }
 
     /**
+     * Und ein Warten, das ablaufen kann, sagt auch, wie lange es gebraucht hat.
+     *
+     * **Der Fall dahinter.** Das Fenster für systemd stand auf 300 s, und
+     * daneben stand die einzige Messung, die es je gab: 255 s auf Ubuntu
+     * 22.04. Fünfzehn Prozent Luft gegen eine Paketquelle, die mit 202 kB/s
+     * gemessen wurde und schwankt — am 11. August riss es, mitten im
+     * Herunterladen des letzten Pakets.
+     *
+     * Teuer war daran nicht das grössere Fenster, sondern dass niemand den
+     * Abstand kannte. Die Zahl entstand einmal von Hand und veraltete
+     * lautlos; der nächste Beleg dafür, dass sie nicht mehr stimmte, war ein
+     * roter Lauf.
+     *
+     * > **Ein Grenzwert, dessen Abstand zur Messung niemand kennt, ist ein
+     * > Fehlschlag mit Verzögerung.**
+     *
+     * Geprüft wird deshalb, dass jedes solche Warten seine tatsächliche Dauer
+     * in den Lauf schreibt — dann steht die Zahl in jedem grünen Lauf und
+     * nicht nur in einem Kommentar.
+     *
+     * **Der Bruch dazu** (`tests/waechter-brechen.sh`): die `::notice::`-Zeile
+     * aus dem Warteschritt nehmen.
+     */
+    public function test_every_wait_for_systemd_reports_how_long_it_took(): void
+    {
+        $ci = (string) file_get_contents(dirname(__DIR__, 2).'/.github/workflows/ci.yml');
+
+        $steps = preg_split('/^      - (?:name|uses):/m', $ci) ?: [];
+
+        $waiting = array_filter(
+            $steps,
+            static fn (string $step): bool => str_contains($step, 'is-system-running'),
+        );
+
+        $this->assertNotSame([], $waiting, 'Kein Schritt wartet mehr auf systemd — dann prüft dieser Test nichts.');
+
+        foreach ($waiting as $step) {
+            $this->assertMatchesRegularExpression('/::notice::[^\n]*\$\(\(i \* 2\)\)/', $step, implode(' ', [
+                'Ein Schritt wartet auf systemd und sagt nicht, wie lange es gedauert hat.',
+                'Dann kennt niemand den Abstand zum Fenster, und der nächste Beleg dafür, dass es zu',
+                'knapp ist, ist ein roter Lauf.',
+                'Schritt:'."\n".trim(substr($step, 0, 400)),
+            ]));
+
+            /*
+             * **Und das Fenster steht nur einmal da.** Standen Schleife und
+             * Meldung getrennt, sagte die Meldung „in 300 s" für ein Fenster,
+             * das längst anders war — eine Auskunft, die in die Irre führt.
+             */
+            $this->assertDoesNotMatchRegularExpression('/seq 1 [0-9]/', $step, implode(' ', [
+                'Die Schleifengrenze steht wieder als Zahl im Aufruf statt in einer Variablen.',
+                'Dann läuft sie irgendwann von der Meldung weg, die die Sekunden nennt.',
+            ]));
+        }
+    }
+
+    /**
      * Kein `apt-get install` in der CI ohne `DEBIAN_FRONTEND=noninteractive`.
      *
      * **Der Fall dahinter.** Jede Installationszeile der Datei trug die

@@ -5979,6 +5979,172 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AgentAnswerReachTest passed
 
 echo
+echo "── QuotaActionReachTest: der Knopf haengt wieder allein am gemessenen Fehlschlag ──"
+#
+# Der Fehler, der diesen Waechter ausgeloest hat, zurueckgedreht: Der Knopf
+# „Grenze anwenden" stand unter `enforced === false` — also unter einer
+# Messung. `disk_quota_enforced` kam ohne Backfill dazu, und damit hatte jedes
+# Abonnement von davor `null`. Auf cloudsrv24 fehlte der Knopf genau den beiden
+# Abonnements, fuer die er gebaut worden war.
+vorher_datei resources/js/Pages/Subscriptions/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    'const quotaActionable = computed(() => quotaBroken.value || quotaUnknown.value)',
+    'const quotaActionable = computed(() => quotaBroken.value)',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Show.vue "Knopf nur beim gemessenen Fehlschlag" &&
+pruefe "Knopf nur beim gemessenen Fehlschlag" \
+  QuotaActionReachTest::test_the_button_is_offered_in_every_state_but_yes failed
+wiederherstellen
+
+echo
+echo "── QuotaActionReachTest: die Route weist ein Abo ohne Auskunft ab ──"
+#
+# Die andere Haelfte. Ein sichtbarer Knopf, den die Route abweist, ist dieselbe
+# Falle wie ein Knopf ohne Recht — nur andersherum. Wer die Route „absichert",
+# indem er einen unbekannten Zustand ausschliesst, nimmt genau den Abonnements
+# den Weg, die ihn brauchen.
+vorher_datei app/Http/Controllers/SubscriptionController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/SubscriptionController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $audit->success('subscription.quota_reapplied', $subscription, [",
+    """        if ($subscription->disk_quota_enforced === null) {
+            throw ValidationException::withMessages([
+                'subscription' => 'Ueber diese Grenze ist nichts bekannt.',
+            ]);
+        }
+
+        $audit->success('subscription.quota_reapplied', $subscription, [""",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/SubscriptionController.php "Route weist unbekannten Zustand ab" &&
+pruefe "Route weist unbekannten Zustand ab" \
+  QuotaActionReachTest::test_a_subscription_without_an_answer_can_apply_its_limit failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuotaActionReachTest passed
+
+echo
+echo "── NoticeShapeTest: eine Meldung setzt ihre Teile nebeneinander ──"
+#
+# Der ausgelieferte Fehler aus v0.5.1-rc.7, zurueckgedreht: `.notice` ist eine
+# Flexbox ohne `flex-wrap`, und vier direkte Kinder stehen darin in einer Reihe
+# statt umzubrechen. Gemessen im Chromium bei 390px: 65px waagerechter
+# Ueberlauf. Einzeln lief keine der drei Kennungen ueber — erst zusammen.
+vorher_datei resources/js/Pages/Subscriptions/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""          <span>
+            Diese Grenze ist""",
+              """            Diese Grenze ist""")
+s = s.replace("""            </template>
+          </span>
+        </p>""",
+              """            </template>
+        </p>""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Show.vue "Meldung ohne Wickel" &&
+pruefe "Meldung ohne Wickel" \
+  NoticeShapeTest::test_a_notice_with_more_than_one_child_wraps_its_text failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NoticeShapeTest passed
+
+echo
+echo "── FailureReasonTest: die Begruendung passt wieder in 255 Zeichen ──"
+#
+# Der Fund aus dem Abnahmelauf von P5b, zurueckgedreht. `operations.message`
+# war varchar(255); die Begruendung des Agenten fuer einen abgewiesenen Dump
+# ist 260 Zeichen lang. MariaDB wies sie ab, und die PDOException riss genau
+# den catch-Zweig mit, der den Fehlschlag festhalten sollte.
+#
+# **Geprueft wird das Schema und nicht ein Schreibversuch.** Diese Tests laufen
+# gegen SQLite, und SQLite legt jede Laenge in eine varchar(255) — ein
+# Verhaltenstest waere mit beiden Spalten gruen.
+vorher_datei database/migrations/2026_08_11_090000_the_reason_of_a_failure_no_longer_fits_in_255_characters.php
+python3 - <<'PY2'
+p = 'database/migrations/2026_08_11_090000_the_reason_of_a_failure_no_longer_fits_in_255_characters.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$table->text('message')->nullable()->change();",
+              "$table->string('message')->nullable()->change();")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei database/migrations/2026_08_11_090000_the_reason_of_a_failure_no_longer_fits_in_255_characters.php "Spalte fester Laenge" &&
+pruefe "Spalte fester Laenge" \
+  FailureReasonTest::test_the_column_is_wide_enough_for_a_real_reason failed
+wiederherstellen
+
+echo
+echo "── FailureReasonTest: die Begruendung waechst wieder ohne Grenze ──"
+#
+# Die zweite Sicherung. Die Ausgabe war seit dem ersten Tag gedeckelt, die
+# Meldung nicht — weil ihre Spalte kurz war und niemand vorhatte, mehr
+# hineinzuschreiben. Eine Spalte mit 65535 Byte verschiebt diesen Fehler nur.
+vorher_datei app/Support/Operations/OperationRecorder.php
+python3 - <<'PY2'
+p = 'app/Support/Operations/OperationRecorder.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("self::shorten($message)", "$message")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Operations/OperationRecorder.php "Meldung ohne Grenze" &&
+pruefe "Meldung ohne Grenze" \
+  FailureReasonTest::test_an_endless_reason_is_shortened_and_says_so failed
+wiederherstellen
+
+echo
+echo "── FailureReasonTest: der letzte Halt raet wieder eine Ursache ──"
+#
+# „vermutlich Zeitueberschreitung" stand am 11. August 2026 an einem Vorgang,
+# der eine Sekunde lief. Ein Fehlertext, der eine Ursache raet, beendet die
+# Suche — die echte Ursache stand in failed_jobs und sonst nirgends.
+vorher_datei app/Jobs/RunAgentOperation.php
+python3 - <<'PY2'
+p = 'app/Jobs/RunAgentOperation.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    ": 'Der Vorgang ist in der Warteschlange gescheitert. Näheres im Protokoll des Panels.';",
+    ": 'Der Vorgang wurde von der Warteschlange abgebrochen — vermutlich Zeitüberschreitung.';",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Jobs/RunAgentOperation.php "geratene Ursache" &&
+pruefe "geratene Ursache" \
+  FailureReasonTest::test_the_queue_handler_names_what_it_knows failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FailureReasonTest passed
+
+echo
+echo "── OrphanedGrantTest: der Rueckbau laesst einen Zugang stehen ──"
+#
+# Der Fund aus dem Abnahmelauf von P5b, Punkt 9. `removeAllFor()` reiht alle
+# Datenbanken auf einmal ein, und jeder Vorgang berechnet seine Listen beim
+# Einreihen — waehrend die anderen noch dastehen. Ein Zugang an zwei
+# Datenbanken zaehlt damit zweimal als „haengt noch woanders" und geht mit
+# keinem mit. Auf cloudsrv24 blieb genau so eine Rolle stehen, und der Vorgang
+# meldete „fertig".
+vorher_datei app/Support/Databases/Databases.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/Databases.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$this->remove($database, $accountId, withdrawing: true)",
+              "$this->remove($database, $accountId)")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/Databases.php "Rueckbau ohne die Zugaenge" &&
+pruefe "Rueckbau ohne die Zugaenge" \
+  OrphanedGrantTest::test_withdrawing_takes_every_access_with_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OrphanedGrantTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

@@ -10,6 +10,8 @@ use App\Support\Operations\OperationRecorder;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\MaxAttemptsExceededException;
+use Illuminate\Queue\TimeoutExceededException;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
 use Throwable;
@@ -160,17 +162,44 @@ final class RunAgentOperation implements ShouldQueue
         ];
     }
 
+    /**
+     * Der letzte Halt — wenn der Auftrag selbst gestorben ist.
+     *
+     * Greift, wenn `handle()` gar nicht mehr dazu kam, den Vorgang zu
+     * schliessen. Ohne das bliebe er für immer auf „läuft".
+     *
+     * ## Hier stand eine Vermutung, und sie war falsch
+     *
+     * Bis zum 11. August 2026 schrieb dieser Handler *„vermutlich
+     * Zeitüberschreitung"* — in jedem Fall, unabhängig davon, was Laravel ihm
+     * gerade übergeben hatte. Im Abnahmelauf von P5b stand dieser Satz an einem
+     * Vorgang, der **eine Sekunde** lief: Die Zeitstempel daneben widerlegten
+     * ihn, und die eigentliche Ursache — eine `PDOException`, weil die
+     * Begründung des Agenten nicht in ihre Spalte passte — stand nirgends.
+     *
+     * > **Ein Fehlertext, der eine Ursache rät, ist schlimmer als einer, der
+     * > keine nennt — er beendet die Suche.**
+     *
+     * Unterschieden wird jetzt an dem, was der Handler **weiss**: der Klasse
+     * der Ausnahme. Ein Zeitlimit meldet Laravel als eigene Ausnahme; alles
+     * andere ist unbekannt und heisst so. Und `report()` gehört dazu, sonst
+     * bleibt die Ausnahme in `failed_jobs` liegen, wo sie im Panel niemand
+     * sieht — genau der Grund, warum die Ursache erst über einen SQL-Aufruf
+     * von Hand zu finden war.
+     */
     public function failed(Throwable $error): void
     {
-        // Greift, wenn die Warteschlange den Auftrag selbst abbricht — etwa
-        // beim Zeitlimit. Ohne das bliebe der Vorgang für immer auf „läuft".
-        app(Tenancy::class)->withoutRestriction(function (): void {
+        report($error);
+
+        $message = $error instanceof TimeoutExceededException || $error instanceof MaxAttemptsExceededException
+            ? 'Der Vorgang hat das Zeitlimit der Warteschlange überschritten.'
+            : 'Der Vorgang ist in der Warteschlange gescheitert. Näheres im Protokoll des Panels.';
+
+        app(Tenancy::class)->withoutRestriction(function () use ($message): void {
             $operation = Operation::query()->find($this->operationId);
 
             if ($operation !== null && $operation->open()) {
-                (new OperationRecorder($operation))->fail(
-                    'Der Vorgang wurde von der Warteschlange abgebrochen — vermutlich Zeitüberschreitung.'
-                );
+                (new OperationRecorder($operation))->fail($message);
             }
         });
     }

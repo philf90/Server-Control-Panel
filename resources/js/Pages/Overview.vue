@@ -154,13 +154,18 @@ const headline = props.server.reachable
       <span>
         <b>Das Dateisystem führt keine Benutzerquota.</b>
         Speichergrenzen stehen im Panel, gelten aber nicht, und der belegte
-        Platz wird nicht gemessen.
+        Platz wird nicht gemessen; der Weg dorthin steht in
+        <span class="ident">docs/41-dateisystem-quota.md</span>.
+        <!--
+          **Zuletzt, weil sie wörtlich ist.** Eine übernommene Systemmeldung
+          endet nicht verlässlich mit einem Punkt — steht ein Satz dahinter,
+          klebt er an ihr („…for device Der Weg dorthin…"). Auf dem Bildschirm
+          gesehen, nicht im Test.
+        -->
         <template v-if="server.disk_quota.reason">
           Das System meldet:
           <span class="ident">{{ server.disk_quota.reason }}</span>
         </template>
-        Der Weg dorthin steht in
-        <span class="ident">docs/41-dateisystem-quota.md</span>.
       </span>
     </p>
 

@@ -339,7 +339,7 @@ final class Databases
      * Vorgang läuft. Was der Agent entscheidet, ist, ob die Zeile danach
      * verschwindet, und das tut sie in {@see DbLifecycle}.
      */
-    public function remove(Database $database, ?int $accountId = null): Operation
+    public function remove(Database $database, ?int $accountId = null, bool $withdrawing = false): Operation
     {
         $subscription = $this->subscriptionOf($database);
 
@@ -350,7 +350,7 @@ final class Databases
         $driver = $this->driver($database->engine);
         $prefix = $driver->prefix($subscription);
 
-        [$doomed, $staying] = $this->usersOf($database);
+        [$doomed, $staying] = $this->usersOf($database, $withdrawing);
 
         $task = $driver->removalTask();
 
@@ -382,6 +382,12 @@ final class Databases
      * zuerst dran. Dasselbe Mittel wie in `WebLifecycle::apply()`, wo der
      * FPM-Pool vor dem Server-Block liegen muss.
      *
+     * **Und jeder Zugang geht mit** — siehe {@see self::usersOf()}. Wer hier
+     * fragt, ob ein Zugang noch an einer anderen Datenbank hängt, bekommt für
+     * jede dieser Datenbanken „ja", weil sie alle noch dastehen und erst
+     * nacheinander verschwinden. Genau so blieb am 11. August 2026 eine Rolle
+     * auf `cloudsrv24` stehen, während der Vorgang „fertig" meldete.
+     *
      * Scheitert einer der Vorgänge, bleibt seine Zeile stehen — und weil
      * `databases.subscription_id` auf `nullOnDelete` steht, bleibt sie
      * **auffindbar**, statt mit dem Abonnement zu verschwinden. Das ist der
@@ -403,7 +409,7 @@ final class Databases
         $operations = [];
 
         foreach ($databases as $database) {
-            $operations[] = $this->remove($database, $accountId);
+            $operations[] = $this->remove($database, $accountId, withdrawing: true);
         }
 
         return $operations;
@@ -461,15 +467,40 @@ final class Databases
      * herausfällt, landet in der zweiten und verliert dort sein Recht — es gibt
      * keinen dritten Ausgang, an dem einer unerwähnt bleibt.
      *
+     * **Beim Rückbau gilt die Frage nicht**, und das hat ein Abnahmelauf
+     * gekostet. Verschwindet das ganze Abonnement, werden alle seine
+     * Datenbanken **auf einmal** eingereiht — und jeder dieser Vorgänge
+     * berechnet seine Listen beim Einreihen, also während die anderen
+     * Datenbanken noch dastehen. Ein Zugang an zwei Datenbanken zählt damit in
+     * beiden Vorgängen als „hängt noch woanders" und geht mit keinem mit.
+     *
+     * > **Eine Frage an den Bestand, die beim Einreihen gestellt wird, kennt
+     * > die anderen Vorgänge derselben Reihe nicht.**
+     *
+     * Gemessen am 11. August 2026 auf `cloudsrv24`: Nach dem Rückbau von
+     * `cloudlab24.de` stand `x45c97683d84c369c_web` noch im Cluster, während
+     * Datenbanken, Sicherungen und die Eigentümerrolle fort waren. Gemeldet hat
+     * es `srvpanel db` — der Vorgang selbst stand auf „fertig".
+     *
+     * `$withdrawing` beantwortet sie deshalb ohne Blick auf den Bestand: Wenn
+     * das Abonnement geht, geht jeder seiner Zugänge. Doppelt genannte Rollen
+     * schaden nicht, der Agent entfernt sie mit `IF EXISTS`.
+     *
      * @return array{0: list<DbUser>, 1: list<DbUser>}
      */
-    private function usersOf(Database $database): array
+    private function usersOf(Database $database, bool $withdrawing = false): array
     {
-        return $this->tenancy->withoutRestriction(function () use ($database): array {
+        return $this->tenancy->withoutRestriction(function () use ($database, $withdrawing): array {
             $doomed = [];
             $staying = [];
 
             foreach ($database->users()->get() as $user) {
+                if ($withdrawing) {
+                    $doomed[] = $user;
+
+                    continue;
+                }
+
                 // `count()` über die Zuordnungstabelle und nicht über die
                 // geladene Beziehung: Diese Zeilen kennt nur die Datenbank, und
                 // eine geladene Beziehung wäre der Stand von vor dem letzten

@@ -1240,13 +1240,39 @@ nicht wo sie stehen soll. Sonst meldet er Rot, sobald jemand aufräumt.
 #              Die AUSGEGEBENEN NAMEN gehören ins Protokoll, nicht ihre Anzahl.
 
 # 3b DIE template0-FALLE   ← der Fund, den kein Test gefunden hätte
-#    In Abo A eine ZWEITE Datenbank anlegen, diesmal mit gesetzter Sortierung
-#    (die erzwingt TEMPLATE template0). Dann als <A>_web darin:
+#    In Abo A eine ZWEITE Datenbank anlegen. Dann als <A>_web darin:
 #      SELECT count(*) FROM pg_stat_database;
 #    erwartet: permission denied — WIE in der ersten.
 #    OHNE DIESEN SCHRITT IST KRITERIUM 2 NICHT GEFAHREN. Am 9. August 2026 im
 #    Container gemessen: dieselbe Rolle sah in der einen Datenbank nichts und
 #    in der nächsten sieben Namen, und beide sahen von aussen gleich aus.
+#
+#    HIER STAND „diesmal mit gesetzter Sortierung (die erzwingt TEMPLATE
+#    template0)", UND DAS GEHT IN DIESEM PANEL NICHT. Aufgefallen am 11. August
+#    2026 im Abnahmelauf: Für PostgreSQL gibt es kein Sortierungsfeld — der
+#    Agent liest die Sortierung aus template0 (`SELECT datcollate FROM
+#    pg_database WHERE datname = 'template0'`) und legt JEDE Datenbank mit
+#    `TEMPLATE template0` an. Frei eintragen lässt sie sich nur bei MariaDB.
+#
+#    Der Plan beschrieb hier die Welt vor seiner eigenen Lösung: Der Fund vom
+#    9. August war der Anlass, template0 zur Regel zu machen (§10,
+#    `PgDatabaseCreate`, „TEMPLATE template0, immer"). Damit gibt es die zwei
+#    Wege nicht mehr, zwischen denen dieser Schritt unterscheiden wollte — es
+#    gibt nur noch den gefährlichen, und die Absperrung läuft für jede
+#    Datenbank neu.
+#
+#    > Ein Abnahmeschritt, der zwei Fälle vergleicht, wird sinnlos, wenn der
+#    > Bau einen davon abgeschafft hat — und er merkt es nicht.
+#
+#    WAS STATTDESSEN ZU MESSEN IST, und beides gehört ins Protokoll:
+#      (a) Die zweite Datenbank desselben Abos ist ebenso abgesperrt — das
+#          prüft, dass die Absperrung je Datenbank läuft und nicht einmal je
+#          Abonnement.
+#      (b) Dass es den anderen Weg wirklich nicht gibt, statt es zu glauben:
+#            SELECT datname, datcollate FROM pg_database ORDER BY 1;
+#          als Betreiber. Jede Kundendatenbank trägt die Sortierung von
+#          template0. Eine, die davon abweicht, wäre über template1 entstanden
+#          — und damit der Fall, den §10 ausgeschlossen hat.
 
 # 4  KEIN ZUGRIFF   ← Kriterium 3
 #      psql "postgresql://<A>_web:PW@127.0.0.1/<B>_shop"
@@ -1271,6 +1297,12 @@ nicht wo sie stehen soll. Sonst meldet er Rot, sobald jemand aufräumt.
 # 6  SICHERN   ← Kriterium 6 und die Hälfte des Auftrags
 #    (a) Im Panel exportieren, warten, herunterladen.
 #        erwartet: Datei unter /var/lib/srvpanel/dumps/<abo>/, root:srvpanel
+#                  — <abo> ist der ABONNEMENTNAME (cloudlab24.de), nicht der
+#                  Systembenutzer. `Dump::directory()` ruft
+#                  `SubscriptionProvision::subscriptionName()`. Am 11. August
+#                  2026 im Abnahmelauf verwechselt, weil hier „<abo>" stand
+#                  und daneben „<A>" für ein Präfix und „p1126" für einen
+#                  Systembenutzer.
 #                  0640, Verzeichnis root:srvpanel 0710, mit den Zeilen aus 2:
 #                    zcat <datei> | grep -c "^COPY\|^INSERT"   → > 0
 #    (b) UND als Kunde von aussen:

@@ -8682,3 +8682,158 @@ Skript lief weiter, als wäre der Eingriff erfolgt.
 Der bestehende Wächter prüfte bis dahin, dass jede Nadel in ihrer Zieldatei
 **steht** — was sie tat. Dass der Block, der sie ersetzt, nie lief, hat er nicht
 gesehen. Beide Fragen gehören zusammen, und sie stehen jetzt nebeneinander.
+
+### Ein Knopf, der genau dort fehlte, wofür er gebaut war
+
+`disk_quota_enforced` kam am 10. August 2026 ohne Backfill dazu, und die
+Abonnementseite hängte den Knopf „Grenze erneut anwenden" an `=== false` — also
+an eine **Messung**. Für die beiden Abonnements auf `cloudsrv24` gab es die nie:
+Sie waren angelegt worden, bevor es die Spalte gab, und standen damit auf
+`null`. Das Panel zeigte eine Speichergrenze, wandte sie nicht an und bot
+keinen Weg, das zu ändern — ausser die Grenze zu *ändern*, weil
+`SubscriptionController::update()` `subscription.quota` nur bei einem
+abweichenden Wert einreiht.
+
+> **Ein Knopf, der an einer Messung hängt, fehlt dort, wo nie gemessen wurde.**
+
+Der dreiwertige Wert war richtig; falsch war, eine **Handlung** an genau einem
+seiner drei Werte aufzuhängen. `null` führt jetzt zum selben Knopf, aber nicht
+zum selben Satz: „gilt nicht" ist ein Befund und wird gewarnt, „nicht
+nachgesehen" ist eine Auskunft und bleibt nüchtern. Ein Abonnement aus der Zeit
+vor der Spalte bekäme sonst eine Warnung über einen Zustand, den niemand
+gemessen hat — dieselbe Sorte Meldung wie die, die im August bei jeder Freigabe
+erschien. Beide Hälften haben einen Wächter, die Seite und die Route: Ein
+sichtbarer Knopf, den die Route abweist, ist die Falle aus `AbilityReachTest` in
+der anderen Richtung.
+
+### Und die Meldung daneben war 65px zu breit — ausgeliefert
+
+Auf der Abonnementseite standen in `<p class="notice warn">` vier direkte
+Kinder: ein `strong` und drei Kennungen. `.notice` ist `display: flex` ohne
+`flex-wrap`, und damit ist jedes davon ein Flex-Item, das **neben** den anderen
+steht statt mit ihnen umzubrechen. Bei 390px schob die Meldung die Seite um
+**65px** aus dem Bild. Einzeln lief keine der drei Kennungen über — erst
+zusammen.
+
+Das ist derselbe Fehler wie der aus P4, der 83px gekostet hat, und er ist auf
+demselben Weg gefunden worden: von einer Messung bei 390px, nicht von einem
+Test. Der Bereich war vollständig grün. Ausgeliefert war er mit
+`v0.5.1-rc.7` — die Screenshot-Runde war beim Bauen der Quota übersprungen
+worden, weil ohne `vendor/` kein `artisan serve` läuft. Der Weg dafür stand seit
+P4 in `CLAUDE.md` und ist diesmal gegangen worden: das gebaute Stylesheet aus
+`public/build`, das Markup in einer eigenen Datei, gerendert im
+vorinstallierten Chromium.
+
+> **Eine Regel, die nur eine Seite befolgt, ist keine Regel, sondern ein
+> Zufall.** `Overview.vue` wickelte seinen Text am selben Tag richtig ein.
+
+`NoticeShapeTest` prüft jetzt alle 44 Meldungen der Oberfläche: Wer mehr als ein
+Kind in eine Meldung setzt, wickelt sie in ein `span`. Geprüft wird die **Form**
+und nicht die Breite — ob etwas überläuft, beantwortet nur ein Rendering, und
+hier läuft kein Browser. Dieselbe Wahl wie bei `SiteTemplateTest`.
+
+**Und derselbe Screenshot hat einen zweiten Fehler gezeigt**, den kein Test
+findet: Der Absatz las sich als „…for device Der Weg dorthin steht in…". Eine
+wörtlich übernommene Systemmeldung endet nicht verlässlich mit einem Punkt, und
+was danach kommt, klebt an ihr. Sie steht jetzt am Satzende — auf beiden
+Seiten, denn `Overview.vue` hatte dieselbe Reihenfolge.
+
+**Und der Nachtrag dazu, weil er eine Runde CI gekostet hat:** Der Bruch zu
+diesem Wächter war gegen den *alten* Wortlaut der Meldung geschrieben, und die
+Umstellung des Satzes kam danach. Zwei seiner Nadeln zeigten damit ins Leere.
+Gemerkt hat es `BreakScriptTest`, nicht die Wegwerfprobe daneben — die las die
+Eingriffe über Pythons `ast` statt über denselben Ausdruck wie der Wächter und
+meldete „0 tot" für dieselbe Datei.
+
+> **Ein Prüfwerkzeug, das anders liest als der Wächter, gibt Entwarnung für
+> etwas anderes.**
+
+Die Probe liest jetzt mit demselben Ausdruck und derselben Entwertung wie
+`BreakScriptTest`; gegengeprüft an genau diesem Fall — vorher zwei tote Nadeln,
+nach der Reparatur keine.
+
+### Der Abnahmelauf hat einen Fehlerweg gefunden, der selbst scheitert
+
+**Punkt 8 von `docs/38 §19`**, gefahren am 11. August 2026 auf `cloudsrv24`: Ein
+hochgeladener Dump wollte `ALTER ROLE … SUPERUSER`. Der Agent hat ihn abgewiesen
+und genau das gemeldet, was das Abnahmekriterium verlangt — die Anweisung, ihre
+Zeilennummer, den Grund:
+
+    Das Zurückspielen ist gescheitert: psql:….restore.sql:74:
+    ERROR:  permission denied to alter role
+    DETAIL:  Only roles with the SUPERUSER attribute may change the
+    SUPERUSER attribute.
+
+**Im Panel stand davon nichts.** Dort stand *„Der Vorgang wurde von der
+Warteschlange abgebrochen — vermutlich Zeitüberschreitung"*, an einem Vorgang,
+der **eine Sekunde** lief.
+
+Die Kette: `operations.message` war `varchar(255)` — angelegt als
+`$table->string('message')`, die Voreinstellung, über die nie jemand nachgedacht
+hat. Die Begründung ist 260 Zeichen lang. `OperationRecorder::fail()` schrieb
+sie, MariaDB wies sie ab (`SQLSTATE[22001]`), und die `PDOException` flog aus
+genau dem `catch (AgentException)`-Zweig heraus, der den Fehlschlag festhalten
+sollte. Der Auftrag starb, Laravel rief `failed()`, der Vorgang stand noch
+offen — und bekam die Vermutung dieses Handlers.
+
+> **Ein Fehlerweg, der selbst fehlschlagen kann, ist kein Fehlerweg.**
+
+> **Ein Fehlertext, der eine Ursache rät, ist schlimmer als einer, der keine
+> nennt — er beendet die Suche.**
+
+Und die Pointe steckt in der Länge: **Je wichtiger die Begründung, desto länger
+ist sie.** „Datei nicht gefunden" passte immer in die Spalte. Die abgewiesene
+Anweisung eines fremden Dumps — die einzige Auskunft, an der Kriterium 5 hängt —
+passte nie.
+
+Behoben an allen drei Stellen: Die Spalte ist `text`. Der `OperationRecorder`
+kürzt auf 8 KB und sagt es (dieselbe Regel, die seine **Ausgabe** seit dem
+ersten Tag hat — nur die Meldung hatte sie nie). Und `failed()` unterscheidet
+jetzt an der Klasse der Ausnahme statt an einer Vermutung, meldet sie über
+`report()` ins Protokoll des Panels und nennt sonst nur, was es weiss.
+
+**Und der Wächter dazu hätte den Fehler beinahe wieder nicht gefunden.** Der
+erste Entwurf war ein Verhaltenstest: schreiben, zurücklesen, vergleichen. Er
+wäre grün gewesen — auch mit der alten Spalte. Diese Tests laufen gegen SQLite
+im Speicher, und SQLite hält sich nicht an `varchar(255)`; es legt jede Länge
+hinein.
+
+> **Ein Test, der gegen eine andere Datenbank läuft als der Server, prüft die
+> Grenzen der falschen.**
+
+Genau daran ist dieser Fehler zwei Jahre vorbeigekommen: 1647 Tests, alle grün,
+und keiner konnte die Breite der Spalte sehen. Geprüft wird sie jetzt am
+**Schema**; die beiden anderen Stellen prüft ihr Verhalten.
+
+### Und Punkt 9 hat einen Zugang gefunden, der den Rückbau überlebt hat
+
+Nach dem Rückbau von `cloudlab24.de` auf `cloudsrv24` waren Datenbanken,
+Sicherungen und die Eigentümerrolle fort — und `x45c97683d84c369c_web` stand
+noch im Cluster. Der Vorgang `subscription.remove` meldete **fertig, 100 %**.
+Gefunden hat es `srvpanel db`, das seit P5 genau dafür gebaut ist: *„1 Zeile(n)
+ohne Abonnement — Zugang x45c97683d84c369c_web (PostgreSQL, cloudlab24.de)"*.
+
+Die Ursache ist ein Zeitpunkt und kein vergessener Aufruf. Ein Zugang geht mit
+seiner Datenbank, wenn er an keiner anderen hängt — und `removeAllFor()` reiht
+**alle** Datenbanken des Abonnements auf einmal ein. Jeder dieser Vorgänge
+berechnet seine Listen beim Einreihen, also während die anderen Datenbanken
+noch dastehen: Bei `_shop` hängt `_web` noch an `_blog`, bei `_blog` noch an
+`_shop`. Beide Vorgänge lassen ihn stehen.
+
+> **Eine Frage an den Bestand, die beim Einreihen gestellt wird, kennt die
+> anderen Vorgänge derselben Reihe nicht.**
+
+Beim Rückbau hat die Frage keinen Gegenstand mehr — es verschwindet ja alles.
+`usersOf()` beantwortet sie deshalb nicht mehr, wenn das Abonnement geht: Jeder
+verbundene Zugang steht dann in der Liste, die mitgeht. Dass eine Rolle dabei
+zweimal genannt wird, schadet nicht; der Agent entfernt sie mit `IF EXISTS`.
+
+**Der Fehler trifft MariaDB genauso** und ist nur nie aufgetreten: Er verlangt
+ein Abonnement mit mehr als einer Datenbank *und* einen Zugang an mehreren. Der
+Abnahmelauf von P5 hatte diese Kombination nicht.
+
+**Offen und benannt:** Ein Zugang, der an **gar keiner** Datenbank hängt, kommt
+an keinen dieser Vorgänge und bliebe weiter stehen. Der Weg dorthin ist eine
+gelöste Zuordnung; ob es ihn im Panel überhaupt gibt, ist ungeprüft. Er wird
+hier nicht mitbehoben — ein Code, dessen Fall niemand gemessen hat, ist die
+zweite Fassung einer Regel, und die veraltet.

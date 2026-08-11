@@ -466,7 +466,7 @@ function size(): string {
         <div class="scrolls">
           <table class="stacks">
             <thead>
-              <tr><th>Sicherung</th><th>Grösse</th><th>Zustand</th><th v-if="props.can.update">Aktion</th></tr>
+              <tr><th>Sicherung</th><th>Erstellt</th><th>Grösse</th><th>Zustand</th><th v-if="props.can.update">Aktion</th></tr>
             </thead>
             <tbody>
               <tr v-for="dump in props.dumps" :key="dump.id">
@@ -481,6 +481,17 @@ function size(): string {
                   -->
                   <Badge v-if="dump.kind_label" kind="neutral">{{ dump.kind_label }}</Badge>
                 </td>
+                <!--
+                  **Der Zeitstempel stand im Payload und nirgends auf der
+                  Seite.** Im Namen steckt er zwar — `…-20260811-093136-…` —,
+                  aber als Teil einer Kennung liest ihn niemand, und zwei
+                  Sicherungen desselben Tages sind daran nicht zu
+                  unterscheiden. Gemeldet vom Betreiber am 11. August 2026.
+
+                  In UTC wie jede Zeit dieses Panels; `docs/40` stellt das für
+                  alle Stellen zugleich um.
+                -->
+                <td data-column="Erstellt">{{ dump.created_at ?? '—' }}</td>
                 <td data-column="Grösse">{{ bytes(dump.bytes) }}</td>
                 <!--
                   `multiline` nur, wenn ein Grund dasteht: Unter 720px ist eine
@@ -509,7 +520,7 @@ function size(): string {
                 </td>
               </tr>
               <tr v-if="props.dumps.length === 0">
-                <td :colspan="props.can.update ? 4 : 3" class="quiet">Noch keine Sicherung.</td>
+                <td :colspan="props.can.update ? 5 : 4" class="quiet">Noch keine Sicherung.</td>
               </tr>
             </tbody>
           </table>

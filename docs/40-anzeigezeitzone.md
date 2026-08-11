@@ -1,8 +1,15 @@
 # 40 — Die Zeitzone der Anzeige
 
-**Stand: im Bau, seit dem 11. August 2026.** Die Klasse aus §4 steht samt
-Wächter; die achtzehn Aufrufe, das Feld in den Einstellungen und der Bruch im
-Wächterskript folgen.
+**Stand: gebaut, am 11. August 2026, ausgeliefert mit `v0.5.1-rc.11`.** Die
+Klasse aus §4 steht samt Wächter, die achtzehn Aufrufe gehen darüber, das Feld
+sitzt auf der neuen Seite „Allgemein", und der Bruch steht im Wächterskript.
+
+**Zwei Stellen hat der Bau anders vorgefunden, als dieses Dokument sie
+beschrieb**, und beide stehen unten korrigiert statt stillschweigend gebogen:
+das Beispiel in §3.2 prüfte die falsche Tagesgrenze (bei einem *positiven*
+Versatz kippt der frühe Morgen, nicht der Abend), und für das Feld gab es
+keinen Ort — die fünf vorhandenen Einstellungsseiten sind themengebunden, das
+Profil gehört einem Konto.
 
 ---
 

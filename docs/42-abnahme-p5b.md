@@ -180,5 +180,9 @@ Und der Test zur Dumpablage las zuerst einen festen Ausschnitt von 2000 Zeichen
    Ob das Panel diesen Zustand überhaupt erlaubt, ist ungemessen; blind gebaut
    wäre die Behandlung die zweite Fassung einer Regel.
 3. **Schritt 10, der Fernzugriff** (`docs/38 §19` Punkt 10) — nicht gebaut.
-4. **Die Anzeigezeitzone** (`docs/40`) — alle Zeiten stehen in UTC, auch der
-   neue Zeitstempel der Sicherungen.
+4. ~~**Die Anzeigezeitzone** (`docs/40`) — alle Zeiten stehen in UTC, auch der
+   neue Zeitstempel der Sicherungen.~~ **Erledigt** mit `v0.5.1-rc.11`: Die
+   Zeiten kommen aus `App\Support\Time\Clock`, der Filter des Protokolls
+   rechnet mit, und der CSV-Export bleibt UTC mit der Zone in der Kopfzeile.
+   Durchgestrichen statt gelöscht — eine Liste, aus der Erledigtes verschwindet,
+   sagt nicht mehr, was sie einmal wusste.

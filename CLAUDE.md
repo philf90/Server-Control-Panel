@@ -51,9 +51,20 @@ hätten:
 > **Ein Abnahmeschritt, der zwei Fälle vergleicht, wird sinnlos, wenn der Bau
 > einen davon abgeschafft hat — und er merkt es nicht.**
 
-**Als Nächstes:** `docs/40` (die Anzeigezeitzone) und Schritt 10 aus
-`docs/38 §19` (Fernzugriff, nicht gebaut — die Stufe ist ohne ihn abnahmefähig).
-Was offen blieb, steht benannt in `docs/42 §5`.
+**`docs/40` ist gebaut** (die Anzeigezeitzone): `App\Support\Time\Clock` ist die
+einzige Stelle, die aus UTC eine Anzeige macht und eine Filtergrenze zurück;
+achtzehn Lesestellen gehen darüber, das Protokoll mitsamt seinem Filter, und der
+CSV-Export bleibt UTC mit der Zone in der Kopfzeile. Die Einstellung sitzt auf
+der neuen Seite **„Allgemein"** — den Ort gab es vorher nicht.
+
+> **Eine umgestellte Anzeige ohne mitrechnenden Filter zeigt eine Zeile und
+> findet sie nicht.** Das ist die Hälfte, die still bricht; sie hat den
+> Grenzfalltest an *beiden* Enden des Tages bekommen, weil die Richtung am
+> Vorzeichen des Versatzes hängt.
+
+**Als Nächstes:** Schritt 10 aus `docs/38 §19` (Fernzugriff, nicht gebaut — die
+Stufe ist ohne ihn abnahmefähig). Was offen blieb, steht benannt in
+`docs/42 §5`.
 
 **Und die eine Frage, die `docs/37 §3` vor dem Planen verlangt hat, ist
 gemessen worden — sie hat das Abnahmekriterium umgeworfen.** „Ein
@@ -68,7 +79,7 @@ lesbare Katalogsichten, die Namen führen, und eine Absperrung, die bei
 > für jeden lesbar" stimmte — und war trotzdem die falsche Frage, weil er einen
 > von elf Kanälen nannte und den Preis der Antwort verschwieg.
 
-Ausgeliefert wird `v0.5.1-rc.9`.
+Ausgeliefert wird `v0.5.1-rc.11`.
 
 **Auch der Abnahmelauf von P4 hat sechs Fehler gefunden, und keinen davon ein
 Test.** Drei betrafen ein Kriterium, drei die Bedienung. Der teuerste sah aus wie ein Erfolg:

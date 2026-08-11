@@ -6122,6 +6122,29 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FailureReasonTest passed
 
 echo
+echo "── OrphanedGrantTest: der Rueckbau laesst einen Zugang stehen ──"
+#
+# Der Fund aus dem Abnahmelauf von P5b, Punkt 9. `removeAllFor()` reiht alle
+# Datenbanken auf einmal ein, und jeder Vorgang berechnet seine Listen beim
+# Einreihen — waehrend die anderen noch dastehen. Ein Zugang an zwei
+# Datenbanken zaehlt damit zweimal als „haengt noch woanders" und geht mit
+# keinem mit. Auf cloudsrv24 blieb genau so eine Rolle stehen, und der Vorgang
+# meldete „fertig".
+vorher_datei app/Support/Databases/Databases.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/Databases.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$this->remove($database, $accountId, withdrawing: true)",
+              "$this->remove($database, $accountId)")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/Databases.php "Rueckbau ohne die Zugaenge" &&
+pruefe "Rueckbau ohne die Zugaenge" \
+  OrphanedGrantTest::test_withdrawing_takes_every_access_with_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OrphanedGrantTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

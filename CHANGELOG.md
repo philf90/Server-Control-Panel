@@ -8804,3 +8804,36 @@ hinein.
 Genau daran ist dieser Fehler zwei Jahre vorbeigekommen: 1647 Tests, alle grün,
 und keiner konnte die Breite der Spalte sehen. Geprüft wird sie jetzt am
 **Schema**; die beiden anderen Stellen prüft ihr Verhalten.
+
+### Und Punkt 9 hat einen Zugang gefunden, der den Rückbau überlebt hat
+
+Nach dem Rückbau von `cloudlab24.de` auf `cloudsrv24` waren Datenbanken,
+Sicherungen und die Eigentümerrolle fort — und `x45c97683d84c369c_web` stand
+noch im Cluster. Der Vorgang `subscription.remove` meldete **fertig, 100 %**.
+Gefunden hat es `srvpanel db`, das seit P5 genau dafür gebaut ist: *„1 Zeile(n)
+ohne Abonnement — Zugang x45c97683d84c369c_web (PostgreSQL, cloudlab24.de)"*.
+
+Die Ursache ist ein Zeitpunkt und kein vergessener Aufruf. Ein Zugang geht mit
+seiner Datenbank, wenn er an keiner anderen hängt — und `removeAllFor()` reiht
+**alle** Datenbanken des Abonnements auf einmal ein. Jeder dieser Vorgänge
+berechnet seine Listen beim Einreihen, also während die anderen Datenbanken
+noch dastehen: Bei `_shop` hängt `_web` noch an `_blog`, bei `_blog` noch an
+`_shop`. Beide Vorgänge lassen ihn stehen.
+
+> **Eine Frage an den Bestand, die beim Einreihen gestellt wird, kennt die
+> anderen Vorgänge derselben Reihe nicht.**
+
+Beim Rückbau hat die Frage keinen Gegenstand mehr — es verschwindet ja alles.
+`usersOf()` beantwortet sie deshalb nicht mehr, wenn das Abonnement geht: Jeder
+verbundene Zugang steht dann in der Liste, die mitgeht. Dass eine Rolle dabei
+zweimal genannt wird, schadet nicht; der Agent entfernt sie mit `IF EXISTS`.
+
+**Der Fehler trifft MariaDB genauso** und ist nur nie aufgetreten: Er verlangt
+ein Abonnement mit mehr als einer Datenbank *und* einen Zugang an mehreren. Der
+Abnahmelauf von P5 hatte diese Kombination nicht.
+
+**Offen und benannt:** Ein Zugang, der an **gar keiner** Datenbank hängt, kommt
+an keinen dieser Vorgänge und bliebe weiter stehen. Der Weg dorthin ist eine
+gelöste Zuordnung; ob es ihn im Panel überhaupt gibt, ist ungeprüft. Er wird
+hier nicht mitbehoben — ein Code, dessen Fall niemand gemessen hat, ist die
+zweite Fassung einer Regel, und die veraltet.

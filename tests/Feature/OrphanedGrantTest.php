@@ -238,4 +238,58 @@ final class OrphanedGrantTest extends TestCase
 
         $this->assertSame([count($statements) - 1], $drop);
     }
+
+    /**
+     * Und beim Rückbau geht jeder Zugang mit — auch der an zwei Datenbanken.
+     *
+     * **Der Fund aus dem Abnahmelauf von P5b, Punkt 9.** Nach dem Rückbau von
+     * `cloudlab24.de` stand `x45c97683d84c369c_web` noch im Cluster, während
+     * Datenbanken, Sicherungen und Eigentümerrolle fort waren. Der Vorgang
+     * meldete „fertig"; gefunden hat es `srvpanel db`.
+     *
+     * Die Ursache ist ein Zeitpunkt: `removeAllFor()` reiht **alle**
+     * Datenbanken auf einmal ein, und jeder Vorgang berechnet seine Listen
+     * beim Einreihen — also während die anderen noch dastehen. Ein Zugang an
+     * zwei Datenbanken zählt damit zweimal als „hängt noch woanders".
+     *
+     * > **Eine Frage an den Bestand, die beim Einreihen gestellt wird, kennt
+     * > die anderen Vorgänge derselben Reihe nicht.**
+     *
+     * Geprüft wird an **beiden** Aufträgen: Die Rolle darf in keinem fehlen.
+     * Dass sie zweimal genannt wird, ist kein Fehler — der Agent entfernt sie
+     * mit `IF EXISTS`, und ein zweiter Anlauf trifft ohnehin auf denselben
+     * Zustand.
+     */
+    public function test_withdrawing_takes_every_access_with_it(): void
+    {
+        [$subscription, $shop, $blog] = $this->twoDatabases();
+
+        app(Tenancy::class)->withoutRestriction(function () use ($subscription, $shop, $blog): void {
+            DbUser::factory()->forSubscription($subscription, 'web')->create()
+                ->databases()->attach([$shop->id, $blog->id]);
+        });
+
+        Queue::fake();
+
+        app(Databases::class)->removeAllFor($subscription);
+
+        $operations = app(Tenancy::class)->withoutRestriction(
+            fn (): array => Operation::query()->where('type', 'db.database.remove')->orderBy('id')->get()->all(),
+        );
+
+        $this->assertCount(2, $operations, 'Es wurden nicht beide Datenbanken eingereiht.');
+
+        foreach ($operations as $operation) {
+            $payload = (array) $operation->payload;
+
+            $this->assertContains('p1000_web', $this->names($payload['users'] ?? []), sprintf(
+                "Der Auftrag für %s nimmt den Zugang nicht mit.\n\n"
+                .'Beim Rückbau verschwindet jede Datenbank dieses Abonnements — die Frage, ob der '
+                .'Zugang noch an einer anderen hängt, hat dann keinen Gegenstand mehr. Wird sie '
+                .'trotzdem gestellt, bleibt die Rolle im Cluster stehen, und der Vorgang meldet '
+                .'„fertig".',
+                (string) ($payload['name'] ?? '?'),
+            ));
+        }
+    }
 }

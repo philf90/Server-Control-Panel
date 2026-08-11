@@ -40,10 +40,20 @@ const props = defineProps<{
     handed_over: boolean | null
     databases: number
     can_install: boolean
+
+    /** Worauf PostgreSQL horcht — `null` heisst „nicht nachgesehen". */
+    listen_addresses: string | null
+    remote: boolean
   }
   remote_users: {
     total: number
     hosts: { host: string; count: number }[]
+  }
+
+  /** Die Netze der PostgreSQL-Zugänge — nicht mit remote_users addierbar. */
+  remote_networks: {
+    total: number
+    networks: { cidr: string; count: number }[]
   }
   commands: { on: string; off: string; postgresql_on: string; postgresql_off: string }
 }>()
@@ -74,6 +84,18 @@ const pgMarke = computed<'ok' | 'warn' | 'neutral'>(() => {
 
   return 'warn'
 })
+
+/*
+ * Netze an einem PostgreSQL, das nur lokal horcht.
+ *
+ * Dasselbe wie `gestrandet` weiter unten, für das andere System: Zeilen, die
+ * im Panel richtig aussehen und niemanden hereinlassen. Sie entstehen, wenn
+ * der Fernzugriff nachträglich abgeschaltet wird — eintragen lassen sie sich
+ * in diesem Zustand nicht.
+ */
+const pgGestrandet = computed(
+  () => !props.postgresql.remote && props.remote_networks.total > 0,
+)
 
 const installiert = ref(false)
 
@@ -271,6 +293,26 @@ const bezeichnung = computed(() => props.server.flavour_label)
               <td class="quiet">Port</td>
               <td class="right ident">{{ props.postgresql.port ?? '—' }}</td>
             </tr>
+
+            <!--
+              **Die Horchadresse des richtigen Servers.** Bis zum 11. August
+              2026 stand auf dieser Seite nur die von MariaDB — wer
+              `srvpanel db --remote=on` gefahren hatte und hier nachsah, bekam
+              die Auskunft des anderen Systems. Beide Antworten haben dieselbe
+              Form, und genau deshalb wäre es niemandem aufgefallen.
+            -->
+            <tr>
+              <td class="quiet">Horcht auf</td>
+              <td class="right ident">{{ props.postgresql.listen_addresses ?? '—' }}</td>
+            </tr>
+            <tr>
+              <td class="quiet">Fernzugriff</td>
+              <td class="right">
+                <Badge :kind="props.postgresql.remote ? 'ok' : 'neutral'">
+                  {{ props.postgresql.remote ? 'an' : 'aus' }}
+                </Badge>
+              </td>
+            </tr>
             <tr>
               <td class="quiet">Wird angeboten</td>
               <td class="right">
@@ -283,8 +325,53 @@ const bezeichnung = computed(() => props.server.flavour_label)
               <td class="quiet">Datenbanken</td>
               <td class="right">{{ props.postgresql.databases }}</td>
             </tr>
+            <tr>
+              <td class="quiet">Erlaubte Netze</td>
+              <td class="right">{{ props.remote_networks.total }}</td>
+            </tr>
           </tbody>
         </table>
+
+        <!--
+          Dieselbe Warnung wie für MariaDB weiter unten, für das andere System.
+          Sie steht hier und nicht dort, weil die beiden Zahlen nicht dasselbe
+          zählen: ein Zugang mit fremdem Wirt gegen ein Netz neben einer Rolle.
+        -->
+        <p v-if="pgGestrandet" class="notice warn">
+          <span>
+            {{ props.remote_networks.total }} Netz(e) sind für PostgreSQL-Zugänge
+            eingetragen, aber der Server horcht nur lokal. Die Zeilen stehen in
+            <span class="ident">pg_hba.conf</span> und lassen niemanden herein,
+            solange der Fernzugriff aus ist.
+          </span>
+        </p>
+
+        <div v-if="props.remote_networks.networks.length > 0" class="scrolls">
+          <table class="stacks">
+            <thead>
+              <tr><th>Netz</th><th class="right">Zugänge</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="netz in props.remote_networks.networks" :key="netz.cidr">
+                <td data-column="Netz" class="ident">{{ netz.cidr }}</td>
+                <td data-column="Zugänge" class="right">{{ netz.count }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!--
+          **„Zugänge" und nicht „Rollen".** Eine Rolle kann mehrere Netze haben
+          — eine Rolle, ein Passwort, mehrere erlaubte Netze (docs/38 §14.3) —,
+          und deshalb ist die Summe dieser Spalte nicht die Zahl der Zugänge,
+          die von aussen hereinkommen. Der Satz steht hier, weil die Tabelle
+          sonst genau das behauptet.
+        -->
+        <p v-if="props.remote_networks.total > 0" class="section-note">
+          Ein Zugang kann mehrere Netze haben; die Summe ist deshalb die Zahl
+          der Einträge und nicht die der Zugänge. Welcher Zugang welches Netz
+          hat, steht auf der Seite seiner Datenbank.
+        </p>
 
         <!--
           **Der Knopf erscheint nur, wenn die Operation etwas tut.** Welche
@@ -369,6 +456,21 @@ const bezeichnung = computed(() => props.server.flavour_label)
             dieses Panel auf ihm arbeitet, geschieht das nicht hinter einem
             Klick.
           </span>
+        </p>
+
+        <!--
+          **Ein Schalter für beide Systeme, und das gehört gesagt.** „Der
+          Datenbankserver ist von aussen erreichbar" ist eine Aussage über den
+          Rechner; wer den Befehl für MariaDB liest und PostgreSQL vergisst,
+          hat eine Fläche offen, von der er nichts weiss — oder eine
+          geschlossen, die er gerade aufmachen wollte.
+        -->
+        <p class="section-note">
+          Der Befehl schaltet <b>beide</b> Systeme: MariaDBs Horchadresse und,
+          sofern das Panel PostgreSQL anbietet, dessen
+          <span class="ident">listen_addresses</span> samt den Zugangsregeln in
+          <span class="ident">pg_hba.conf</span>. Was er auslässt, sagt er in
+          seiner Ausgabe.
         </p>
 
         <table class="pairs">

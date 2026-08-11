@@ -9277,3 +9277,44 @@ Behauptung, die nicht stimmt — die Datenbank *ist* weg. Dort geht der Fehler a
 wirkt, kann nur der Abnahmelauf sagen. Was sich prüfen lässt, ist der Fall, für
 den es diesen Wächter gibt — ein **neuer** Weg, der den Bestand ändert und die
 Datei vergisst. Vier Brüche gefahren, jeder rot; zwei davon stehen im Skript.
+
+### Die Betreiberseite zeigte für PostgreSQL die Adresse von MariaDB
+
+„Einstellungen → Datenbankserver" nannte für PostgreSQL Zustand, Fassung,
+Cluster, Port und ob es angeboten wird — **aber keine Horchadresse.** Wer
+`srvpanel db --remote=on` gefahren hatte und dort nachsah, bekam die
+`bind-address` von MariaDB und sonst nichts.
+
+Der PostgreSQL-Abschnitt zeigt jetzt `listen_addresses` und den Fernzugriff als
+Marke, dazu die eingetragenen Netze und — wie für MariaDB schon länger — die
+Warnung, wenn Netze eingetragen sind und der Server nur lokal horcht. Der
+Abschnitt „Fernzugriff umschalten" sagt ausserdem, dass der Befehl **beide**
+Systeme schaltet; das steht seit der Nachziehung so im Code, aber nicht auf der
+Seite.
+
+**Die Netze werden getrennt gezählt und nicht zu den Zugängen addiert.** In
+MariaDB ist die fremde Adresse Teil des *Benutzers*
+(`'p1001_web'@'203.0.113.5'`), in PostgreSQL eine Zeile neben einer Rolle, die
+auch ohne sie existiert (`docs/38 §14.3`). Eine gemeinsame Zahl hiesse „so viele
+Zugänge kommen von aussen" und stimmte für keines der beiden Systeme — und weil
+eine Rolle mehrere Netze haben kann, ist selbst die Summe der Netze nicht die
+Zahl der Zugänge. Der Satz dazu steht unter der Tabelle.
+
+**Der Wächter hält die Zuordnung, nicht das Ergebnis.** `RemoteAccessTest`
+prüft, dass jede der beiden Methoden ihre *eigene* Operation ruft und die des
+anderen Systems nicht. Ein Testfall mit einem Agenten, der für beide dasselbe
+antwortet, wäre grün — die Verwechslung ist eine Frage der Zuordnung. Sie ist
+zweimal passiert: einmal hier, einmal in `DatabaseController::remoteAccess()`,
+und beide Male unsichtbar, weil die Antworten dieselbe Form haben.
+
+> **Zwei Auskünfte gleicher Form über verschiedene Dinge sind kein Datentyp,
+> sondern eine Falle.**
+
+**Und der Wächter hat beim ersten Lauf sich selbst gemeldet:** Der Kommentar,
+der erklärt, warum hier *nicht* das andere System gefragt wird, nennt dessen
+Operation beim Namen. Er liest jetzt über `WithoutPhpComments` — dieselbe Lehre
+wie bei `DatabaseEngineTest`, wo ein Kommentar mit einem Beispiel dasselbe Wort
+trägt wie der Code.
+
+Gemessen im Chromium bei 390px und 1440px, beide Themes: kein waagerechter
+Überlauf. Ein `/128`-Netz in voller Länge bricht in seiner Zelle.

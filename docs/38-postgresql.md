@@ -1297,6 +1297,12 @@ nicht wo sie stehen soll. Sonst meldet er Rot, sobald jemand aufräumt.
 # 6  SICHERN   ← Kriterium 6 und die Hälfte des Auftrags
 #    (a) Im Panel exportieren, warten, herunterladen.
 #        erwartet: Datei unter /var/lib/srvpanel/dumps/<abo>/, root:srvpanel
+#                  — <abo> ist der ABONNEMENTNAME (cloudlab24.de), nicht der
+#                  Systembenutzer. `Dump::directory()` ruft
+#                  `SubscriptionProvision::subscriptionName()`. Am 11. August
+#                  2026 im Abnahmelauf verwechselt, weil hier „<abo>" stand
+#                  und daneben „<A>" für ein Präfix und „p1126" für einen
+#                  Systembenutzer.
 #                  0640, Verzeichnis root:srvpanel 0710, mit den Zeilen aus 2:
 #                    zcat <datei> | grep -c "^COPY\|^INSERT"   → > 0
 #    (b) UND als Kunde von aussen:

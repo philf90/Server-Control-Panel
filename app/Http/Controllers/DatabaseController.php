@@ -546,7 +546,19 @@ final class DatabaseController extends Controller
                 'status_label' => $dump->status->label(),
                 'usable' => $dump->status->usable(),
                 'bytes' => $dump->bytes,
-                'created_at' => $dump->created_at?->toIso8601String(),
+                /*
+                 * **Derselbe Text wie überall sonst im Panel.** Hier stand
+                 * `toIso8601String()`, und der Wert wurde von niemandem
+                 * gelesen — die Sicherungen zeigten keinen Zeitstempel. Wer
+                 * ihn jetzt anzeigt, soll nicht ein zweites Zeitformat neben
+                 * „Begonnen", „Beendet" und „Gemessen am" stellen.
+                 *
+                 * Die Zeit steht in UTC, wie jede andere im Panel; dass der
+                 * Betreiber sie auf einer Uhr liest, die zwei Stunden weiter
+                 * ist, regelt `docs/40` für alle Stellen zugleich und nicht
+                 * für diese eine.
+                 */
+                'created_at' => $dump->created_at?->toDateTimeString(),
                 'last_error' => $dump->last_error,
             ])
             ->values()

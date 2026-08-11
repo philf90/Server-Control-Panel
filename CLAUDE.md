@@ -10,14 +10,50 @@ Architektur (§4), Rechtemodell (§6), Gestaltung (§7.2) und die Ausbaustufen
 Die Oberfläche folgt seit August 2026 dem Gestaltungssystem **„Kontor"**
 (Plan §7.2) — hell entworfen, keine Karten, Monospace nur für Kennungen.
 
-Stand: **P0 bis P5 abgenommen.** P5 brachte Datenbanken, Zugänge, Sicherungen,
-Zurückspielen, Fernzugriff und das Hochladen mitgebrachter Sicherungen.
-Nachgewiesen auf `cloudsrv24` gegen MariaDB 10.11.14: **alle sieben Kriterien
-aus `docs/36 §17`**, dazu Schritt 10 und 11 am 9. August in zwölf Schritten
-(`docs/36 §22.3w` und `§22.3x`).
+Stand: **P0 bis P5b abgenommen.** P5 brachte Datenbanken, Zugänge, Sicherungen,
+Zurückspielen, Fernzugriff und das Hochladen mitgebrachter Sicherungen
+(MariaDB 10.11.14, alle sieben Kriterien aus `docs/36 §17`). **P5b brachte
+PostgreSQL** — abgenommen am 11. August 2026 auf `cloudsrv24` gegen
+PostgreSQL 16.14: **alle sieben Kriterien aus `docs/38 §3`**, das Protokoll
+steht in **`docs/42`**. Die Übergabe dafür war `docs/37`, der Plan `docs/38`.
 
-**Als Nächstes kommt P5b — PostgreSQL**, als eigene Stufe mit eigenem Plan und
-eigener Abnahme. Die Übergabe dafür ist **`docs/37`**, der Plan **`docs/38`**.
+**Der Lauf hat sechs Fehler gefunden, und keinen davon ein Test** — vier fand
+ein echter Server, zwei eine Messung im Browser bei 390px. Die drei teuersten
+hingen aneinander, und das ist die Lehre dieser Stufe:
+
+> **Ein Fehlerweg, der selbst fehlschlagen kann, ist kein Fehlerweg.**
+
+Die Begründung eines abgewiesenen Dumps — die einzige Auskunft, an der ein
+Abnahmekriterium hing — passte nicht in ihre Spalte (`varchar(255)`). Die
+`PDOException` riss genau den `catch`-Zweig mit, der den Fehlschlag festhalten
+sollte, und der Vorgang bekam vom Warteschlangen-Handler *„vermutlich
+Zeitüberschreitung"* nach einer Sekunde Laufzeit. **Je wichtiger die Begründung,
+desto länger ist sie** — „Datei nicht gefunden" passte immer. Kaum kam sie an,
+schob sie die Seite bei 390px um 110px aus dem Bild, und der Fix am Rückbau
+erzeugte einen zweiten Rest, den nur die inzwischen lesbare Meldung erklärte.
+
+Zwei weitere Sätze aus demselben Lauf, beide über Vorgänge, die „fertig"
+meldeten:
+
+> **Eine Frage an den Bestand, die beim Einreihen gestellt wird, kennt die
+> anderen Vorgänge derselben Reihe nicht.**
+
+> **Eine Reihenfolge, die erst beim Ausführen entsteht, kann beim Einreihen
+> niemand kennen.**
+
+Und zwei über die Wächter selbst, die beinahe ihren eigenen Fehler verfehlt
+hätten:
+
+> **Ein Test, der gegen eine andere Datenbank läuft als der Server, prüft die
+> Grenzen der falschen.** Diese Tests laufen gegen SQLite, der Server gegen
+> MariaDB — eine `varchar(255)` nimmt dort jede Länge.
+
+> **Ein Abnahmeschritt, der zwei Fälle vergleicht, wird sinnlos, wenn der Bau
+> einen davon abgeschafft hat — und er merkt es nicht.**
+
+**Als Nächstes:** `docs/40` (die Anzeigezeitzone) und Schritt 10 aus
+`docs/38 §19` (Fernzugriff, nicht gebaut — die Stufe ist ohne ihn abnahmefähig).
+Was offen blieb, steht benannt in `docs/42 §5`.
 
 **Und die eine Frage, die `docs/37 §3` vor dem Planen verlangt hat, ist
 gemessen worden — sie hat das Abnahmekriterium umgeworfen.** „Ein
@@ -32,10 +68,10 @@ lesbare Katalogsichten, die Namen führen, und eine Absperrung, die bei
 > für jeden lesbar" stimmte — und war trotzdem die falsche Frage, weil er einen
 > von elf Kanälen nannte und den Preis der Antwort verschwieg.
 
-Ausgeliefert wird `v0.5.0-rc.10`.
+Ausgeliefert wird `v0.5.1-rc.9`.
 
-**Der Abnahmelauf hat sechs Fehler gefunden, und keinen davon ein Test.** Drei
-betrafen ein Kriterium, drei die Bedienung. Der teuerste sah aus wie ein Erfolg:
+**Auch der Abnahmelauf von P4 hat sechs Fehler gefunden, und keinen davon ein
+Test.** Drei betrafen ein Kriterium, drei die Bedienung. Der teuerste sah aus wie ein Erfolg:
 Die Erneuerung meldete `1 fällig, 1 bestellt` — genau die Zahl, die das
 Kriterium verlangt — und bestellte ein **gewöhnliches** Zertifikat statt eines
 Platzhalters. Gefunden hat es der Betreiber, weil er nach der grünen Meldung die
@@ -236,7 +272,10 @@ echten Server gegen `v0.5.1-rc.2`, weil die Schritte 4 bis 7 nur gegen einen
 Wegwerf-Cluster im Container gemessen sind. Sie steht dort, weil sie zuerst nur
 in einem Sitzungsverlauf stand: **Was man zweimal braucht, gehört ins Repo —
 auch wenn es keine Zeile Code ist.** Aus demselben Grund gibt es **`40` die
-Zeitzone der Anzeige**: entschieden am 10. August, gebaut nach P5b. Das Panel
+Zeitzone der Anzeige**: entschieden am 10. August, gebaut nach P5b — und
+**`42` die Abnahme von P5b**: die sieben Kriterien mit ihren gemessenen Werten,
+die sechs Fehler mit ihren Lehren, die drei Stellen, an denen der Plan nicht
+trug, und in §5 das, was offen blieb. Das Panel
 zeigt Zeiten in UTC, und der Betreiber liest sie auf einer Uhr, die zwei Stunden
 weiter ist. Und **`41` die Dateisystem-Quota** — wie sie eingeschaltet wird, und
 warum das Panel den *Leseversuch* misst statt der Mount-Option: Auf `cloudsrv24`

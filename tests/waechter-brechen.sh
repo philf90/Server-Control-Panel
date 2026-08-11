@@ -6189,6 +6189,27 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PgGrantTest passed
 
 echo
+echo "── DumpRowReachTest: der Zeitstempel einer Sicherung wird wieder verschwiegen ──"
+#
+# Der Fund des Betreibers vom 11. August 2026: `created_at` lag seit jeher in
+# der Ablage, und die Tabelle „Sicherungen" zeigte ihn nicht. Wer zwei
+# Sicherungen desselben Tages unterscheiden wollte, musste den Zeitstempel aus
+# dem Dateinamen lesen — und der ist eine Kennung und kein Datum.
+vorher_datei resources/js/Pages/Databases/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""                <td data-column="Erstellt">{{ dump.created_at ?? '—' }}</td>
+""", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Show.vue "Sicherung ohne Zeitstempel" &&
+pruefe "Sicherung ohne Zeitstempel" \
+  DumpRowReachTest::test_every_field_of_a_dump_row_is_read_by_the_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DumpRowReachTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

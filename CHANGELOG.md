@@ -8910,3 +8910,41 @@ lokalisierten Ausgabe still gescheitert.
 Verbunden wird über `pg_roles` und nicht über `::regrole`: Die Umwandlung wirft,
 sobald es die Rolle nicht mehr gibt, und in genau dem Fall lautet die Antwort
 „nein" und nicht „Fehler". Derselbe Fallstrick wie in `docs/39`.
+
+### P5b ist abgenommen — sieben Kriterien, sechs Fehler, keinen davon ein Test
+
+Der Abnahmelauf nach `docs/38 §19` ist am 11. August 2026 auf `cloudsrv24`
+durchgelaufen. **Alle sieben Kriterien aus `docs/38 §3` sind belegt**, das
+Protokoll steht in `docs/42` — mit den gemessenen Werten und nicht mit „hat
+funktioniert".
+
+Er hat **sechs Fehler gefunden, und keinen davon ein Test.** Vier fand ein
+echter Server, zwei eine Messung im Browser bei 390px. Und drei davon hat erst
+der jeweils vorige Fix sichtbar gemacht: Die Begründung des Agenten kam nicht
+an, weil ihre Spalte zu kurz war; kaum kam sie an, schob sie die Seite aus dem
+Bild; und der Fix am Rückbau erzeugte einen zweiten, kleineren Rest, den nur die
+inzwischen lesbare Fehlermeldung erklärte.
+
+Der Plan trug an drei Stellen nicht — ein Vergleich, den der Bau selbst
+abgeschafft hatte, eine Messung, die zwei Möglichkeiten nicht unterscheidet, und
+ein mehrdeutiges `<abo>` im Dumppfad. Alle drei stehen in `docs/42 §2`, samt dem
+Beleg, der weiterhin aussteht.
+
+### Und eine Sicherung sagt jetzt, wann sie entstanden ist
+
+`created_at` ging seit jeher an den Browser; die Tabelle „Sicherungen" zeigte
+Name, Grösse, Zustand und Aktion. Zwei Sicherungen desselben Tages waren nur
+über den Dateinamen zu unterscheiden — `…-20260811-093136-15abd902` —, und der
+ist eine Kennung und kein Datum. Gemeldet vom Betreiber.
+
+> **Ein Feld, das niemand liest, ist keine Auskunft, sondern Rechenzeit.**
+
+Derselbe Satz wie bei der Quota, nur eine Grenze weiter: dort Agent → Panel,
+hier Panel → Browser. Der Wächter dazu prüft deshalb nicht diese eine Spalte,
+sondern die Ablage: **Was der Controller über eine Sicherung schickt, steht auch
+auf der Seite.** Eine Liste einzelner Felder wäre gepflegt worden, bis das erste
+vergessen wird — und genau das war ja passiert.
+
+Das Format ist dasselbe wie bei „Begonnen", „Beendet" und „Gemessen am"; die
+Zeit steht in UTC wie jede andere im Panel, und `docs/40` stellt das für alle
+Stellen zugleich um statt für diese eine.

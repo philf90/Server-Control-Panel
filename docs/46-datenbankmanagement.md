@@ -1004,7 +1004,7 @@ abgeschlossen.**
 > **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
 > Keines von beiden ersetzt das andere.**
 
-### Schritt 5 — Zeilen, blättern, filtern, sortieren, eine Zelle öffnen
+### Schritt 5 — Zeilen, blättern, filtern, sortieren, eine Zelle öffnen ✓
 
 Die dritte Ansicht — der Baustein aus §11 — mit den **drei** Filteroperatoren,
 `limit + 1` statt einer Anzahl, und der Zelleinzelsicht dazu (Entscheidung 5,
@@ -1013,6 +1013,39 @@ Punkte 1 bis 3). Screenshots, und die Überlaufmessung **an beiden Stellen**.
 Die Zelleinzelsicht gehört hierher und nicht zu Schritt 6: Sie ist der Ausweg aus
 der Kürzung und wird gebraucht, sobald die Tabelle Werte zeigt — nicht erst,
 sobald jemand sie ändern darf.
+
+**Gebaut am 12. August 2026.** Der Agent konnte alles schon (Schritte 1 bis 3);
+neu sind die Oberfläche und drei Regeln in `app.css` — `.rows`, `.filter` und
+`.cell-value`. Vier Dinge, die der Plan nicht vorgesehen hatte, stehen in §20.12
+bis §20.15; zwei davon hat erst die Messung gefunden, und eine davon hätte keine
+Zahl gemeldet.
+
+**Die Messung an beiden Stellen, bei 390 px und 1440 px, in beiden Themes:**
+
+```
+zeilen @390  light/dark:   dokument: 0px  |  rollende Zelle: 1517px
+zeilen @1440 light/dark:   dokument: 0px  |  rollende Zelle:  431px
+gegenprobe @390:           dokument: 510px
+```
+
+Die dritte Zeile ist die Gegenprobe: dieselbe Seite mit einem absichtlichen
+900-px-Block. Ohne sie wären die beiden Nullen darüber keine Messung.
+
+> **Eine Zahl, die 0 sein soll, braucht daneben eine, die es nicht ist.**
+
+Die zweite Spalte ist die einzige Stelle dieses Panels, an der eine Zahl grösser
+als 0 die **richtige** Antwort ist — und genau deshalb hat sie einen Fehler
+verdeckt, den erst ein Bild gezeigt hat (§20.13).
+
+**Die Zelleinzelsicht ist ein Bereich und kein Dialog.** Dieses Panel hat keinen
+modalen Dialog, und diese Ansicht ist kein Anlass, den ersten einzuführen: Sie
+ist eine dritte Auskunft zur offenen Tabelle, genau wie Spalten und Indexe, und
+steht deshalb da, wo die auch stehen.
+
+**Offen bleiben die Screenshots auf `cloudsrv24`** — mit echten Daten, in beiden
+Themes, bei 390 px. Was hier gemessen wurde, ist das gebaute Stylesheet mit dem
+Markup dieser Ansicht im vorinstallierten Chromium; das beantwortet die Frage
+nach dem Überlauf und ersetzt den Blick auf die echte Seite nicht.
 
 ### Schritt 5b — Die Baumansicht
 
@@ -1186,6 +1219,23 @@ wird als Textregel — kein `map`/`for` über die Tabellen, der `columns` oder
 
 > **Ein Bedienelement, das zwanzig Datenbankrollen anlegt, sieht aus wie ein
 > Komfort.**
+
+### 14.10 Zwei Regeln an `MobileLayoutTest` — nachgetragen zu Schritt 5
+
+Beide kommen aus der Messung von Schritt 5 und nicht aus diesem Plan; die
+Begründungen stehen in §20.13 und §20.14.
+
+`test_a_value_cell_of_the_rows_view_may_break`: Eine Zelle der Zeilenansicht darf
+brechen, keine Regel nimmt ihr das wieder, **und die Vorlage gibt ihr kein
+`.ident`**. Drei Behauptungen, weil jede einzeln umgangen werden kann.
+
+`test_the_pager_state_may_break`: Die Angabe zwischen „Zurück" und „Weiter" trägt
+kein `white-space: nowrap`. Sie führt in der Konsole eine Zeilennummer, und die
+wächst mit dem Bestand.
+
+**Die vier Brüche sind gefahren** — `nowrap` an `.rows .cell`; `overflow-wrap`
+dort entfernt; `class="ident"` zurück an die Wertzelle; `nowrap` zurück an
+`.pager-state`. Jeder war rot, und jeder mit seiner eigenen Meldung.
 
 ### Wächter, die von selbst mitlaufen
 
@@ -1783,3 +1833,109 @@ Kommentar steht jetzt richtig da.
 > **Ein Fix ohne Nachmessung ist eine Behauptung.** Gegengeprüft wurde auf
 > demselben Weg, an derselben Tabelle, mit derselben Zeile in der Konsole:
 > `dokument: 0px`.
+
+### 20.12 Die Zelleinzelsicht ist ein Bereich, weil es keinen Dialog gibt
+
+§11 nennt sie „eine Zelle — der ganze Wert einer einzelnen Zelle" und sagt nicht,
+in welcher Bauform. Die naheliegende wäre ein modaler Dialog gewesen; **dieses
+Panel hat keinen**, und Schritt 5 war kein Anlass, den ersten einzuführen.
+
+Ein Dialog bringt Dinge mit, die keine einzige Seite hier bisher braucht: eine
+Falle für die Tastatur, ein Ziel für die Rückgabe des Fokus, eine Abdeckung, ein
+`Esc`, und die Frage, was beim Rollen darunter passiert. Fünf Regeln für eine
+Ansicht, die dasselbe zeigt wie Spalten und Indexe — eine Auskunft zur offenen
+Tabelle.
+
+> **Ein neues Bedienmuster ist teurer als die Ansicht, für die es kommt.**
+
+Dieselbe Überlegung steht schon in §11.1 unter „Drei Entscheidungen": Der
+zweispaltige Grundriss ist deshalb ein eigener Schritt und kein Zusatz.
+
+### 20.13 Der Fund, den keine Zahl gemeldet hat — und der Grund dafür
+
+**Die Messung war grün, und die Ansicht war kaputt.** `dokument: 0px`, der
+Rollbehälter rollte — genau wie §11 es verlangt. Erst ein Bildschirmfoto des
+*gerollten* Zustands zeigte, was los war: Eine bei 512 Zeichen gekürzte Textzelle
+machte den Inhalt der Tabelle **5710 px** breit statt 1907. Bei 390 px sind das
+zehn Bildschirme Rollen durch eine einzige Zelle.
+
+> **Eine Zelle, die rollen darf, hat keine Obergrenze — sie hat nur keine Zahl,
+> die sich beschwert.**
+
+Das ist die Umkehrung des Satzes aus §20.11. Dort hatte eine Zahl gemeldet, was
+ein Bild nicht erklärte; hier erklärt ein Bild, was keine Zahl melden konnte —
+weil die einzige Zahl, die hier misst, absichtlich grösser als 0 sein darf.
+
+**Die Ursache stand seit dem Optik-Rework in `app.css`:**
+
+```css
+td .ident, th .ident, td.ident, th.ident { white-space: nowrap; }
+```
+
+Diese Regel hat eine ausführliche Begründung, und sie stimmt — für Kennungen: Ein
+Pfad, der mitten im Verzeichnisnamen umbricht, ist schwerer zu lesen als einer,
+für den man die Tabelle schiebt, und schieben kann man dort. Für einen
+**Kundenwert** von 512 Zeichen stimmt sie nicht.
+
+> **Ein Format, das für Bezeichner reicht, reicht nicht für Werte.**
+
+Derselbe Satz wie bei `psql -A -t -F'\t'` in §2 — dort für die Ausgabe des
+Servers, hier für die Anzeige im Browser. Beide Male hat eine Form, die zwei
+Stufen lang richtig war, den Übergang von Katalog zu Inhalt nicht überstanden.
+
+**Behoben ist es an drei Stellen zugleich**, und keine ersetzt die andere:
+
+1. Die Wertzelle trägt `.cell` statt `.ident` — sie ist kein Bezeichner.
+2. `.rows .cell` bekommt `max-width: 48ch` und `overflow-wrap: anywhere`. Die
+   Grenze steht auf einem `div` und nicht auf der `td`: `max-width` gilt für eine
+   Tabellenzelle nicht (CSS 2.1, „does not apply").
+3. Der Wert **bricht** und wird nicht abgeschnitten. Was abgeschnitten dasteht,
+   ist ohne Weg zum Rest — und den gibt es nur für die Zellen, die der Agent
+   gekürzt hat.
+
+`MobileLayoutTest::test_a_value_cell_of_the_rows_view_may_break` rechnet alle
+drei nach. Die dritte Behauptung liest die Vorlage und nicht das Stylesheet, und
+ohne sie wäre der Wächter grün, während der Fehler zurück ist: `.ident` bringt
+sein `nowrap` aus einer Regel mit, die auf `.ident` endet — und der Selektor
+dieses Tests sieht nur Regeln an, die auf der Zelle enden.
+
+> **Ein Wächter, der die Regel prüft und nicht ihren Anlass, sieht die Rückkehr
+> des Fehlers nicht.**
+
+### 20.14 Ein `nowrap` über einer Zahl, die wächst
+
+**Die Blätterleiste hat die Seite um 8 px geschoben**, und zwar an einer Stelle,
+die dieses Panel seit `v0.4.0` hat. `.pager-state` trug `white-space: nowrap` —
+richtig, solange dort „Seite 2 von 5" stand: kurz, und in der Länge unabhängig
+davon, wie gross die Liste ist. Die Zeilenansicht schreibt
+„1.001–1.050 von mehr als 1.050".
+
+> **Ein `nowrap` über einer Zahl, die wächst, ist keine Zusage über die Zeile —
+> es ist eine über den Bestand.**
+
+Das `nowrap` ist ersatzlos gefallen. Der Umbruch nimmt nichts weg: Was kurz genug
+ist, bricht nicht, und „Seite 2 von 5" bleibt einzeilig. Was zu lang ist, stand
+vorher ausserhalb des Bildes. `MobileLayoutTest::test_the_pager_state_may_break`
+hält es fest — und seine Untergrenze zählt **Regeln** und nicht Umbruchregeln,
+denn die richtige Antwort ist hier gerade, dass keine Umbruchregel die Angabe
+erreicht.
+
+> **Ein Wächter über eine Abwesenheit braucht einen zweiten Beleg dafür, dass er
+> noch hinsieht.**
+
+### 20.15 Zwei Kleinigkeiten, die aus demselben Grund keine sind
+
+**Der Knopf zum ganzen Wert steht an der Zelle und nicht an der Spalte.** Der
+Agent meldet mit `truncated` die *Spalte*, in der gekürzt wurde — in einer
+Textspalte mit einem langen Wert bekämen sonst alle fünfzig Zeilen den Knopf,
+auch die mit drei Zeichen. Welche Zelle es trifft, rechnet die Anzeige aus der
+Seite aus: Gekürzt wird auf eine feste Länge, und in einer Spalte, in der gekürzt
+wurde, ist das die längste, die vorkommt. **Die 512 steht dabei nicht in der
+Oberfläche** — sie gehört dem Agenten, und eine zweite Fassung wäre die, die
+veraltet.
+
+**Und die Zelleinzelsicht nennt keine Grenze in Zeichen.** Sie schreibt
+„gekürzt" und daneben die Grösse des ganzen Wertes, die der Agent in der
+Datenbank misst. Aus demselben Grund: `CELL_FULL_LIMIT` gehört dem Agenten. Die
+Tabelle in §9 nennt sie „64 KiB"; gemessen wird sie in Zeichen (`mb_strlen`), und
+die beiden sind nicht dasselbe, sobald ein `ü` im Wert steht.

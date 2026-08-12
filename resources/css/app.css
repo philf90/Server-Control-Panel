@@ -1199,9 +1199,6 @@ table.pairs {
   filter: none;
 }
 
-/* Eine Reihe von Knöpfen. Unter 480px untereinander und über die volle
-   Breite — nebeneinander bleiben auf 390px vom dritten nur noch drei
-   Buchstaben übrig. */
 /* ═══════════════════════════════════════════════════════════════════════
    Blättern
 
@@ -1229,13 +1226,153 @@ table.pairs {
   justify-self: end;
 }
 
+/*
+ * Die Angabe in der Mitte — und sie darf umbrechen.
+ *
+ * **Hier stand `white-space: nowrap`, und das war eine Wette.** Bis P5c hiess
+ * diese Zeile „Seite 2 von 5" — kurz und in der Länge fest, egal wie gross der
+ * Bestand ist. Die Zeilenansicht der Konsole schreibt „1.001–1.050 von mehr als
+ * 1.050", und diese Zahl wächst mit der Tabelle. Gemessen bei 390px: 8px
+ * Überlauf am Dokument, also auf dem Telefon eine Seite, die sich waagerecht
+ * schieben lässt — durch eine Angabe, die keine Bedienung ist.
+ *
+ * Der Umbruch nimmt nichts weg: Was kurz genug ist, bricht nicht, und „Seite 2
+ * von 5" bleibt einzeilig. Was zu lang ist, stand vorher ausserhalb des Bildes.
+ *
+ * > **Ein `nowrap` über einer Zahl, die wächst, ist keine Zusage über die
+ * > Zeile — es ist eine über den Bestand.**
+ */
 .pager-state {
   margin: 0;
   font-size: var(--text-small);
   color: var(--text-muted);
-  white-space: nowrap;
+  text-align: center;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   Die Zeilenansicht der Konsole (docs/46 §11, Schritt 5)
+
+   Die einzige Tabelle dieses Panels, die waagerecht rollen SOLL.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/*
+ * Sie trägt kein `.stacks`, und das ist der Kern.
+ *
+ * Eine Tabelle mit unbekannter Spaltenzahl zerfällt nicht sinnvoll in
+ * Kärtchen — bei zwanzig Spalten wären es zwanzig beschriftete Zeilen je
+ * Datensatz, und der Vergleich *zwischen* den Zeilen ist genau der Zweck
+ * dieser Ansicht. `docs/24 §5` nennt für diesen Fall `.scrolls`.
+ *
+ * **Die erste Spalte bleibt stehen**, damit man beim Rollen weiss, in welcher
+ * Zeile man ist. Sie braucht dafür dreierlei, und keines ist Zierde: einen
+ * eigenen Hintergrund — ohne ihn rollen die übrigen Spalten sichtbar unter ihr
+ * durch —, einen linken Innenabstand, den `td` sonst nicht hat, und eine Kante
+ * als `box-shadow` statt als `border-right`: Bei `border-collapse: collapse`
+ * gehört eine Rahmenlinie der Tabelle und nicht der Zelle, und sie bliebe beim
+ * Rollen zurück.
+ */
+.rows th:first-child,
+.rows td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  padding-left: 14px;
+  background: var(--bg);
+  box-shadow: inset -1px 0 0 var(--line);
+}
+
+/*
+ * Eine Spalte wird breit — aber nicht beliebig breit.
+ *
+ * **Gefunden beim Rollen und nicht beim Messen.** Der Überlauf am Dokument war
+ * 0, der Rollbehälter rollte wie gewollt, und trotzdem war die Ansicht kaputt:
+ * Eine bei 512 Zeichen gekürzte Textzelle machte den Inhalt der Tabelle
+ * **5710 px** breit statt 1907, und wer bei 390 px waagerecht rollt, rollt zehn
+ * Bildschirme lang durch eine einzige Zelle. Die Zahl sagte davon nichts — sie
+ * sagt nur, *dass* gerollt wird.
+ *
+ * > **Eine Zelle, die rollen darf, hat keine Obergrenze — sie hat nur keine
+ * > Zahl, die sich beschwert.**
+ *
+ * **Diese Zelle trägt kein `.ident`, und das ist der Kern.** `td .ident` setzt
+ * `white-space: nowrap`, mit einer Begründung, die für Kennungen stimmt: Ein
+ * Pfad, der mitten im Verzeichnisnamen umbricht, ist schwerer zu lesen als
+ * einer, für den man die Tabelle schiebt. Für einen **Wert** von 512 Zeichen
+ * stimmt sie nicht — dieselbe Trennung, an der schon `psql -A -t` gescheitert
+ * ist (`docs/46 §2`).
+ *
+ * > **Ein Format, das für Bezeichner reicht, reicht nicht für Werte.**
+ *
+ * Die Grenze steht auf einem `div` und nicht auf der `td`: `max-width` gilt für
+ * eine Tabellenzelle nicht (CSS 2.1, „does not apply"), und die Browser nehmen
+ * sie dort bestenfalls als Wunsch. Der Wert bricht statt zu kürzen — was
+ * abgeschnitten dasteht, ist ohne Weg zum Rest, und den gibt es nur für die
+ * Zellen, die der Agent gekürzt hat.
+ */
+.rows .cell {
+  max-width: 48ch;
+  font-family: var(--font-mono);
+  font-size: var(--text-table);
+  overflow-wrap: anywhere;
+}
+
+/* Eine hohe Zelle neben einer flachen liest sich von oben. */
+.rows td {
+  vertical-align: top;
+}
+
+/*
+ * Die Filterzeile — das dichteste Bedienelement dieser Fläche.
+ *
+ * Sie steht bei 390px über einer Tabelle, die schon rollt, und **bricht um,
+ * statt selbst zu rollen**: Zwei Rollrichtungen übereinander sind eine zu viel.
+ * Das ist der zweite Grund für die drei Operatoren aus Entscheidung 5 — acht
+ * hätten hier keinen Platz.
+ */
+.filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin: var(--block-gap) 0 14px;
+}
+
+/*
+ * Die Felder bringen ihren eigenen oberen Abstand mit, und der ist hier falsch:
+ * Der Abstand gehört der Zeile, sonst steht die erste Beschriftung dicht unter
+ * der Beizeile darüber und die umgebrochene zweite Reihe zu weit unter der
+ * ersten.
+ */
+.filter .field {
+  margin-top: 0;
+}
+
+/*
+ * Der ganze Wert einer einzeln geöffneten Zelle (Entscheidung 5, Punkt 3).
+ *
+ * **Er bricht, statt zu rollen.** Ein langer Wert ohne ein einziges Leerzeichen
+ * — eine Base64-Zeichenkette, ein serialisiertes Feld — schöbe sonst die Seite.
+ * `overflow-wrap: anywhere` ist an dieser Stelle die vierte Fassung derselben
+ * Ausnahme nach `.ident`, `.stacks td .ident` und `.section-head h2`.
+ */
+.cell-value {
+  margin: 0;
+  max-height: 60dvh;
+  overflow-y: auto;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: var(--text-table);
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Eine Reihe von Knöpfen. Unter 480px untereinander und über die volle
+   Breite — nebeneinander bleiben auf 390px vom dritten nur noch drei
+   Buchstaben übrig. */
 .button-row {
   display: flex;
   flex-wrap: wrap;

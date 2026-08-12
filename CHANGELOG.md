@@ -10811,3 +10811,131 @@ Panels: Ein Flexkind behält seine Inhaltsbreite, und der Nachbar verliert.
 Die Antwort war keine CSS-Reparatur, sondern eine Entwurfsentscheidung: **Der
 Navigationsbaum trägt nur den Namen.** Die Zahlen stehen im Inhalt, wo Platz für
 sie ist.
+
+### Schritt 5 von P5c — Zeilen ansehen, blättern, filtern, sortieren, eine Zelle öffnen
+
+Die dritte Ansicht der Konsole. Der Agent konnte alles davon schon seit Schritt
+3; neu sind die Oberfläche und drei Regeln in `app.css`: die Zeilentabelle, die
+Filterzeile und der ganze Wert einer einzeln geöffneten Zelle.
+
+**Die Zeilenansicht ist die einzige Tabelle dieses Panels, die waagerecht rollen
+soll.** Eine Tabelle mit unbekannter Spaltenzahl zerfällt nicht sinnvoll in
+Kärtchen — bei zwanzig Spalten wären es zwanzig beschriftete Zeilen je Datensatz,
+und der Vergleich *zwischen* den Zeilen ist genau der Zweck. Die erste Spalte
+bleibt beim Rollen stehen, damit man weiss, in welcher Zeile man ist.
+
+**Gemessen wird deshalb an zwei Orten, und sie sagen Entgegengesetztes:**
+
+```
+zeilen @390  light/dark:   dokument: 0px  |  rollende Zelle: 1517px
+zeilen @1440 light/dark:   dokument: 0px  |  rollende Zelle:  431px
+gegenprobe @390:           dokument: 510px
+```
+
+Die dritte Zeile ist dieselbe Seite mit einem absichtlichen 900-px-Block. Ohne
+sie wären die Nullen darüber keine Messung.
+
+**Blättern ohne Trefferzahl.** Der Agent holt `limit + 1` Zeilen und sagt mit
+`more`, ob es weitergeht; ein `count(*)` über eine gefilterte Spalte ohne Index
+ist genau die Abfrage, die ins Zeitlimit läuft, und sie liefe bei jedem
+Seitenaufruf. „Zurück" benutzt einen **Stapel der besuchten Versätze** und keine
+Rechnung: Auf der letzten Seite stehen weniger als fünfzig Zeilen, und wer den
+Versatz um die Zahl der gezeigten verringert, landet mitten in der vorigen Seite.
+
+**Die Zelleinzelsicht ist ein Bereich und kein Dialog.** Dieses Panel hat keinen
+modalen Dialog, und diese Ansicht war kein Anlass, den ersten einzuführen: Sie
+ist eine dritte Auskunft zur offenen Tabelle, genau wie Spalten und Indexe, und
+steht deshalb da, wo die auch stehen. Ein Dialog brächte eine Fokusfalle, ein
+Rückgabeziel, eine Abdeckung, ein `Esc` und die Frage nach dem Rollen darunter —
+fünf Regeln für eine Ansicht, die dasselbe zeigt wie zwei vorhandene.
+
+> **Ein neues Bedienmuster ist teurer als die Ansicht, für die es kommt.**
+
+### Eine Zelle, die rollen darf, hat keine Obergrenze
+
+**Die Messung war grün, und die Ansicht war kaputt.** `dokument: 0px`, der
+Rollbehälter rollte — genau wie der Plan es verlangt. Erst ein Bildschirmfoto des
+*gerollten* Zustands zeigte es: Eine bei 512 Zeichen gekürzte Textzelle machte
+den Inhalt der Tabelle **5710 px** breit statt 1907. Bei 390 px sind das zehn
+Bildschirme Rollen durch eine einzige Zelle.
+
+> **Eine Zelle, die rollen darf, hat keine Obergrenze — sie hat nur keine Zahl,
+> die sich beschwert.**
+
+Das ist die Umkehrung des Funds aus Schritt 4. Dort meldete eine Zahl, was ein
+Bild nicht erklärte; hier erklärt ein Bild, was keine Zahl melden konnte — weil
+die einzige Zahl, die hier misst, absichtlich grösser als 0 sein darf.
+
+**Die Ursache stand seit dem Optik-Rework im Stylesheet:** `td .ident` setzt
+`white-space: nowrap`, mit einer ausführlichen Begründung, die stimmt — für
+Kennungen. Ein Pfad, der mitten im Verzeichnisnamen umbricht, ist schwerer zu
+lesen als einer, für den man die Tabelle schiebt, und schieben kann man dort. Für
+einen **Kundenwert** von 512 Zeichen stimmt sie nicht.
+
+> **Ein Format, das für Bezeichner reicht, reicht nicht für Werte.**
+
+Derselbe Satz wie bei `psql -A -t -F'\t'` — dort für die Ausgabe des Servers,
+hier für die Anzeige im Browser. Beide Male hat eine Form, die zwei Stufen lang
+richtig war, den Übergang von Katalog zu Inhalt nicht überstanden.
+
+Behoben an drei Stellen zugleich: Die Wertzelle trägt eine eigene Klasse statt
+der für Kennungen; sie bekommt eine Höchstbreite und die Erlaubnis, überall zu
+brechen — auf einem `div` und nicht auf der `td`, denn `max-width` gilt für eine
+Tabellenzelle nicht; und der Wert bricht, statt abgeschnitten zu werden, weil
+Abgeschnittenes ohne Weg zum Rest ist.
+
+### Ein `nowrap` über einer Zahl, die wächst
+
+**Die Blätterleiste hat die Seite um 8 px geschoben**, an einer Stelle, die es
+seit `v0.4.0` gibt. Die Angabe zwischen „Zurück" und „Weiter" trug
+`white-space: nowrap` — richtig, solange dort „Seite 2 von 5" stand: kurz, und in
+der Länge unabhängig davon, wie gross die Liste ist. Die Zeilenansicht schreibt
+„1.001–1.050 von mehr als 1.050", und diese Zahl wächst mit der Tabelle.
+
+> **Ein `nowrap` über einer Zahl, die wächst, ist keine Zusage über die Zeile —
+> es ist eine über den Bestand.**
+
+Das `nowrap` ist ersatzlos gefallen. Was kurz genug ist, bricht nicht; was zu
+lang ist, stand vorher ausserhalb des Bildes.
+
+### Zwei neue Regeln in `MobileLayoutTest`, und vier Brüche dazu
+
+`MobileLayoutTest::test_a_value_cell_of_the_rows_view_may_break` prüft **drei**
+Dinge, und keines ersetzt das andere: dass die Wertzelle brechen darf, dass keine
+Regel ihr das wieder nimmt, und dass die Vorlage ihr keine Kennungsklasse gibt.
+Ohne die dritte bliebe der Wächter grün, während der Fehler zurück ist — das
+`nowrap` kommt aus einer Regel, die auf der Kennungsklasse endet, und der
+Selektor dieses Tests sieht nur Regeln an, die auf der Zelle enden.
+
+> **Ein Wächter, der die Regel prüft und nicht ihren Anlass, sieht die Rückkehr
+> des Fehlers nicht.**
+
+`MobileLayoutTest::test_the_pager_state_may_break` hält das Gegenstück fest. Seine
+Untergrenze zählt **Regeln** und nicht Umbruchregeln: Die richtige Antwort ist
+hier gerade, dass keine Umbruchregel die Angabe erreicht — ohne den Nachweis,
+dass der Selektor überhaupt noch trifft, wäre der Test nach einer Umbenennung
+still grün.
+
+> **Ein Wächter über eine Abwesenheit braucht einen zweiten Beleg dafür, dass er
+> noch hinsieht.**
+
+Alle vier Brüche sind gefahren, jeder war rot, und jeder mit seiner eigenen
+Meldung.
+
+### Der Container kann seine Wächter fahren, auch ohne PHPUnit
+
+Hier stand bisher, dass ohne `vendor/` nur die CI prüft und **jede** Änderung an
+`tests/` eine Runde kostet. Für die framework-freien Wächter stimmt das nicht:
+`PHPUnit\Framework\TestCase` ist in diesen Tests eine Basisklasse mit
+Behauptungsmethoden und sonst nichts. Ein Wegwerfskript im Scratchpad, das diese
+Klasse selbst definiert und die Testdatei einbindet, fährt sie — 41 von 41
+gefahrenen Fällen aus zwölf Wächtern liefen so, und die vier Brüche zu den zwei
+neuen Regeln liessen sich damit hier belegen statt in der CI.
+
+`phar.phpunit.de` sperrt der Proxy übrigens genauso wie `codeload.github.com`
+(403 am CONNECT); die Wächter aus `docs/46 §14`, die Laravels `Tests\TestCase`
+erben, bleiben Sache der CI.
+
+> **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite
+> braucht einen Versuch.** Derselbe Satz wie bei MariaDB in diesem Container —
+> und beim zweiten Mal hat er wieder gestimmt.

@@ -182,6 +182,28 @@ Der erste ist die **dritte** Fassung derselben Ausnahme nach `.ident` und
 Flexkind sonst nicht unter seine Inhaltsbreite darf.
 `MobileLayoutTest::test_a_section_heading_can_break` rechnet sie seitdem nach.
 
+**Und Schritt 5 hat den umgekehrten Fall gebracht** (`docs/46 §20.13`): Die
+Messung war grün — `dokument: 0px`, der Rollbehälter rollte wie gewollt —, und
+die Ansicht war trotzdem kaputt. Eine bei 512 Zeichen gekürzte Textzelle machte
+den Inhalt der Zeilentabelle **5710px** breit statt 1907; bei 390px sind das
+zehn Bildschirme Rollen durch eine einzige Zelle.
+
+> **Eine Zelle, die rollen darf, hat keine Obergrenze — sie hat nur keine Zahl,
+> die sich beschwert.**
+
+Die Ursache war `td .ident { white-space: nowrap }` — eine Regel mit einer
+Begründung, die für Kennungen stimmt und für Werte nicht. Derselbe Schnitt wie
+bei `psql -A -t`, nur im Browser statt am Server:
+
+> **Ein Format, das für Bezeichner reicht, reicht nicht für Werte.**
+
+Und die Blätterleiste schob dabei 8px, an einer Stelle, die es seit `v0.4.0`
+gibt: `.pager-state` trug `nowrap`, richtig für „Seite 2 von 5" und falsch für
+„1.001–1.050 von mehr als 1.050".
+
+> **Ein `nowrap` über einer Zahl, die wächst, ist keine Zusage über die Zeile —
+> es ist eine über den Bestand.**
+
 **Und der Plan hat einen Schritt dazubekommen: 5b, die Baumansicht** (§11.1,
 §13). Der Betreiber hat gefragt, ob sich Tabellen und Struktur als aufklappbarer
 Baum zeigen lassen; ich hatte erwartet, dass das bei 390px an der Einrückung
@@ -196,7 +218,7 @@ Der Grund steht in `docs/24 §5`: `.stacks` ist für ein **Verzeichnis** gedacht
 das man Zeile für Zeile liest. Eine Tabellenliste sucht man nach *einem* Namen
 ab, und dafür ist das Kärtchen die falsche Form.
 
-**P5c ist bis Schritt 4 gebaut** — `docs/46`, das Datenbankmanagement: Tabellen
+**P5c ist bis Schritt 5 gebaut** — `docs/46`, das Datenbankmanagement: Tabellen
 und Struktur durchsehen, Zeilen ansehen, filtern, blättern und ändern, für beide
 Systeme. Vier Entscheidungen des Betreibers tragen ihn, und die zweite hat die
 Architektur entschieden: **kein freies SQL.** Damit bekommt der Agent typisierte
@@ -659,6 +681,26 @@ Testen berücksichtigen:
     nicht, ist das `method.abstract` — und in den Tests kein Fehlschlag, sondern
     ein Abbruch („Premature end of PHP process"), der alles Folgende verschluckt.
     Am 7. August genau so passiert, mit `DnsProvider::patience()`.
+
+  **Und die framework-freien Wächter laufen hier — ohne PHPUnit.** Hier stand
+  neun Monate lang, dass ohne `vendor/` nur die CI prüft und **jede** Änderung an
+  `tests/` eine Runde kostet. Für die Wächter, die `PHPUnit\Framework\TestCase`
+  erben, stimmt das nicht: Diese Basisklasse ist dort eine Sammlung von
+  `assert…`-Methoden und sonst nichts. Ein Wegwerfskript im Scratchpad, das sie
+  selbst definiert und die Testdatei einbindet, fährt sie — in P5c Schritt 5
+  waren das 41 Fälle aus zwölf Wächtern, und die vier Brüche zu zwei neuen
+  Regeln liessen sich damit **hier** belegen statt in der CI. Zwei Fassungen
+  desselben Tests ist das nicht: In dem Skript steht keine einzige Behauptung,
+  nur die Maschine, die die echten ausführt.
+
+  Drei Dinge dabei: `tests/Support/` blind zu laden zieht Interfaces nach, die
+  kein Wächter braucht (nur die Traits einbinden); `agent/src/autoload.php`
+  gehört dazu; und was Laravels `Tests\TestCase` erbt — `DesignTokensTest`,
+  `WordChoiceTest` — bleibt Sache der CI. `phar.phpunit.de` sperrt der Proxy
+  übrigens genauso wie `codeload.github.com` (403 am CONNECT).
+
+  > **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite
+  > braucht einen Versuch.** Derselbe Satz wie bei MariaDB weiter oben.
 
   **Für `agent/` gibt es ausserdem einen Ausweg, und er hat in P4 eine Runde
   gespart.**

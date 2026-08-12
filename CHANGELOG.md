@@ -9725,3 +9725,173 @@ Haus aus anlegen darf. Die Untergrenze des Schritts hat das belegt, und nach
 `Shielding::statements()` antwortete dieselbe Anweisung mit
 `no schema has been selected to create in`. Die Wand steht dort also nicht,
 weil PostgreSQL sie baut, sondern weil das Panel sie baut. Debian 12 liefert 15.
+
+### Drei Auskünfte, die etwas anderes sagten als sie meinten
+
+Die Befunde 2, 4 und 5 aus `docs/45 §5` — allesamt ohne Datenwirkung, allesamt
+Sätze, die jemand falsch versteht, der sie zum ersten Mal liest.
+
+**Die Bestandszeile stand unter der falschen Überschrift.** `srvpanel db` zählte
+Datenbanken, Zugänge und Sicherungen über *beide* Systeme und druckte die Summe
+unmittelbar unter dem MariaDB-Block. Auf `cloudsrv24` hielt MariaDB nichts und
+PostgreSQL alles — die Zeile las sich trotzdem wie eine Auskunft über MariaDB.
+
+> **Eine Zahl erbt die Überschrift, unter der sie steht.**
+
+Sie steht jetzt hinter beiden Serverblöcken und nennt je System seine eigenen
+Zahlen. Die Summe war ohnehin die falsche Antwort: Wer hier nachsieht, fragt
+nach einem der beiden.
+
+**Die Zeilennummer im Rückweg zeigte auf eine Datei, die es nicht mehr gibt.**
+Gemessen: 140 Zeilen vor dem Versuch, „Zeile 136" in der Meldung. Während des
+Versuchs war der alte Block heraus und der neue ans Ende gehängt — und zwei
+Zeilen weiter oben hatte der Rückweg diesen Stand schon wieder ersetzt. Wer die
+Meldung liest und die Datei öffnet, zählt in der falschen.
+
+> **Eine Zeilennummer aus einem Zwischenstand zeigt auf eine Datei, die niemand
+> mehr öffnen kann.**
+
+Die Nummer bleibt — ohne sie sucht der Betreiber in über hundert Zeilen —, aber
+sie kommt jetzt mit dem **Text** der beanstandeten Zeile, und der ist in beiden
+Ständen derselbe. Danach lässt sich suchen. Dafür gibt `PgRemoteAccess::errors()`
+Nummer und Grund getrennt heraus statt eines fertigen Satzes: Erst in `apply()`
+liegt die abgewiesene Fassung vor, und ohne sie liesse sich die Nummer nicht
+auflösen — ein früh formatierter Satz hätte genau das verhindert.
+
+**Und die Entwarnung nannte nicht, worüber sie Entwarnung gibt.** „Nichts
+liegengeblieben." stand in Grün direkt unter einer orangen Meldung über
+befristete Zugänge, die stehengeblieben sind. Beide Aussagen stimmten und
+meinten Verschiedenes; nebeneinander gelesen widersprachen sie sich. Der Satz
+heisst jetzt „Keine Zeile ohne Abonnement." — und redet damit über den Umfang,
+den er wirklich hat.
+
+> **Eine Entwarnung ohne Umfang wird als die grössere gelesen, die sie ist.**
+
+`PgHbaRollbackTest::test_the_message_quotes_the_offending_line` hält die zweite
+fest, mit Eingriff im Bruch-Skript. Die Zeilennummer im Test wird **gerechnet
+und nicht getippt**: Eine feste Zahl ginge beim nächsten Zusatz zum Block
+lautlos daneben — und der Test bestünde weiter, weil er dann den Zweig ohne Text
+prüft.
+
+### Ein Fehler steht einmal auf der Seite
+
+Der letzte der fünf Befunde aus `docs/45 §5` — und der einzige, der beim Anfassen
+grösser wurde, statt kleiner. Gemeldet war „die Fehlermeldung steht doppelt: als
+Banner oben und am Feld unten, wörtlich derselbe Satz". Gemessen waren es dann
+**70 Stellen in 16 Dateien**: keine Nachlässigkeit dieser einen Seite, sondern
+die Konvention der ganzen Anwendung, mit einer Begründung in `FormErrors.vue`.
+
+Den Satz trägt jetzt allein die Zusammenfassung. Das Feld sagt über
+`aria-invalid` nur noch *welches* — und das ist genauer als vorher: Die
+Markierung sitzt am Bedienelement statt als Zeile darunter, sie zeigt auf das
+Feld, statt neben ihm zu stehen. Zwei Kanäle, nicht einer: Farbe **und** Breite
+(ein eingelegter Schatten verdoppelt den Rand optisch, ohne das Feld um ein Pixel
+zu verschieben), dazu das Attribut für die Hilfstechnik. Gerechnet statt
+geschätzt: `--critical` auf `--control-bg` steht bei **6,79:1** hell und
+**6,90:1** dunkel, gefordert sind 3:1 (WCAG 1.4.11).
+
+**Die gefährliche Richtung ist erst durch diesen Umbau entstanden**, und sie ist
+das eigentliche Thema des Wächters: Ein Feld, das rot werden kann, auf einer
+Seite ohne Zusammenfassung — dann ist die Meldung nicht doppelt, sondern *fort*.
+Roter Rand, kein Wort dazu.
+
+> **Wer die Auskunft an einen Ort verlegt, muss prüfen, dass es den Ort auf jeder
+> Seite gibt.**
+
+`FieldErrorTest` prüft beide Richtungen, Komponenten eingerechnet: `CodeField`,
+`DnsCredentials` und `PasswordFields` bringen die Markierung mit, die
+Zusammenfassung steht auf der Seite, die sie einbaut.
+
+**Zwei Dinge sind am Feld geblieben, und beide zu Recht.** „Die beiden Eingaben
+sind nicht gleich." entsteht beim Tippen und geht nie über den Draht — die
+Zusammenfassung liest die letzte Antwort und kann sie gar nicht kennen. Und ein
+Fehler, der zu *keinem* Feld gehört — der Sammelfehler einer Domain, die Grenzen
+einer ganzen Einstellungsgruppe —, markiert nichts, sondern steht nur oben; er
+hat kein Feld, das er anstreichen könnte.
+
+**Drei Dinge, die beim Umbau nur der Bau gefunden hat, nicht der Typprüfer.**
+Zuerst der falsche Anker: „das Feld über der Fehlerzeile" greift bei zwei Feldern
+nebeneinander zweimal auf dasselbe — Vorname und Nachname teilen sich eine Zeile,
+ihre Meldungen stehen beide darunter. Der richtige Anker ist der Name selbst
+(`form.errors.first_name` gehört zu `v-model="form.first_name"`). Dann vier
+Fehlerzeilen, die Kopf einer `v-else`-Kette waren: Der Hinweis darunter erschien
+nur, *solange* kein Fehler stand — ohne den Kopf ist er ein `v-else` ohne `v-if`,
+und das meldet erst der Compiler. Und zuletzt der Zähler dieses neuen Wächters,
+der auf 20 stand, während 16 Dateien markieren: Er wäre rot geworden für genau
+die Ordnung, die er durchsetzt.
+
+> **Ein Typprüfer, der eine Vorlage übersetzt, prüft nicht, ob sie sich bauen
+> lässt.**
+
+### Und die Regel steht jetzt geschrieben — samt der Richtung, die es nicht gibt
+
+Ein app-weiter Umbau ohne Vorgabe hält bis zum nächsten Formular. `docs/19 §6`
+hält den Ort einer Rückmeldung fest: Der Satz eines Fehlers steht oben in der
+Zusammenfassung, das Feld trägt `aria-invalid` und keinen Satz, ein Fehler ohne
+eigenes Feld markiert nichts, und eine Seite, die markieren kann, **muss** die
+Zusammenfassung tragen.
+
+Die Vorgabe steht in `docs/19` und nicht im Plan, aus demselben Grund wie §3a
+(keine Emoji): Es ist eine Eigenschaft der Oberfläche, die man ohne Regel bei
+jedem neuen Formular neu entscheidet.
+
+**Und die Frage nach der Gegenrichtung hat eine eigene Antwort bekommen: Erfolg
+wird nie am Feld gemeldet.** Nachgesehen statt vermutet — das Panel hat dafür
+schon genau eine Stelle, `PanelLayout.vue` rendert `flash.success` als
+`.notice ok` mit `role="status"`; eine grüne Markierung an einem Feld gab es
+nirgends. Der Grund, warum das so bleibt, ist nicht Symmetrie, sondern die
+Aufgabe der Markierung: Sie zeigt, wo noch etwas zu tun ist. Erfolg hat keinen
+Ort, an dem man weiterarbeitet — ein grüner Rand an vierzehn Feldern eines
+gespeicherten Formulars sagt vierzehnmal dasselbe und weist auf nichts hin.
+
+> **Eine Markierung, die überall sitzt, weist nirgendwohin.**
+
+Dazu kommt, dass ständig eingefärbte Felder genau das entwerten, wofür es die
+Markierung gibt: Das eine rote fällt dann nicht mehr auf.
+
+`FieldErrorTest::test_success_is_never_reported_at_a_field` hält beides fest —
+dass es die eine grüne Meldung **gibt** und dass sie nicht in einem Formular
+steht. Ohne die erste Hälfte ginge „nirgends eine grüne Meldung" als Erfolg
+durch.
+
+### Die CPU-Kachel stand auf 0 %, während ihre Kurve Ausschläge zeigte
+
+Gemeldet vom Betreiber, mit Bildschirmfoto: Die Linie verläuft plausibel, aber
+die grosse Zahl **und jede Ablesung beim Zeigen auf die Kurve** stehen auf
+`0 %`.
+
+Falsch war der Wert nicht. `cpu` wurde mit **null** Nachkommastellen
+formatiert, und die Auslastung eines ruhigen Servers liegt den ganzen Tag
+zwischen 0,1 und 0,9 — `number_format(0,42, 0)` ist `0`. Die Kurve daneben
+zeichnet aus den **Rohwerten** und zeigt deshalb völlig richtig, dass sich
+etwas tut.
+
+> **Eine Zahl, die jeden Wert einer Reihe gleich schreibt, misst nichts mehr —
+> sie behauptet nur noch.**
+
+Genau diese Mischung macht den Fehler teuer: Das Bild sagt „da tut sich etwas",
+die Zahl sagt „nichts", und beide kommen aus derselben Reihe. Wer das sieht,
+sucht beim Sammler oder beim Agenten — die Zahl steht ja da, sie ist nur null.
+
+Die Stellenzahl richtet sich jetzt nach der **Grösse des Wertes**: unter 1 zwei
+Stellen, unter 10 eine, darüber keine. So schreibt es auch ein Mensch —
+„0,42 %", „3,7 %", „37 %". **Weniger als angefragt wird es nie:** Die Load
+fragt zwei Stellen an und behält sie auch bei `12,00`, sonst hinge ihre
+Genauigkeit daran, wie ausgelastet der Server gerade ist.
+
+Betroffen war allein die CPU: RAM sitzt nie unter einem Prozent, die Load
+rechnet längst mit zwei Stellen, und Netz und Schreibdurchsatz haben ihren
+eigenen Formatierer, der seine Grössenordnung schon aus der Reihe wählt.
+
+**Und der Wächter dazu hat beim Gegenprüfen seinen eigenen Fehler gezeigt.**
+Die erste Fassung verlangte „mehr als eine verschiedene Ablesung" — mit der
+alten Formatierung wird `0,88` zu `1 %` und alles andere zu `0 %`, also zwei
+verschiedene, Bedingung erfüllt, grün. Er hätte den Fehler durchgelassen, wegen
+dem es ihn gibt. Verlangt ist jetzt die **Auflösung der Reihe**: acht
+verschiedene Messwerte, acht verschiedene Ablesungen. Gebrochen meldet er
+`2 von 8`.
+
+`SeriesReadingTest` prüft dazu die drei Richtungen, die eine übereifrige
+Lösung kaputt machen würde: Die Geometrie der Kurve bleibt unberührt, ein
+ausgelasteter Server behält ganze Zahlen, und angefragte Stellen werden nie
+weggenommen.

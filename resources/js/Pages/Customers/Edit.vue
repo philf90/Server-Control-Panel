@@ -67,21 +67,18 @@ const form = useForm({
         <div class="field-row">
           <label class="field">
             <span>Vorname</span>
-            <input v-model="form.first_name" type="text" required>
+            <input v-model="form.first_name" type="text" required :aria-invalid="Boolean(form.errors.first_name)">
           </label>
           <label class="field">
             <span>Nachname</span>
-            <input v-model="form.last_name" type="text" required>
+            <input v-model="form.last_name" type="text" required :aria-invalid="Boolean(form.errors.last_name)">
           </label>
         </div>
-        <p v-if="form.errors.first_name" class="error">{{ form.errors.first_name }}</p>
-        <p v-if="form.errors.last_name" class="error">{{ form.errors.last_name }}</p>
 
         <label class="field">
           <span>E-Mail</span>
-          <input v-model="form.email" type="email" required>
+          <input v-model="form.email" type="email" required :aria-invalid="Boolean(form.errors.email)">
         </label>
-        <p v-if="form.errors.email" class="error">{{ form.errors.email }}</p>
         <p class="hint">
           Die Adresse des Vertragspartners. Die Anmeldeadresse gehört zum Konto
           und wird unter „Mein Konto" geändert.
@@ -89,9 +86,8 @@ const form = useForm({
 
         <label class="field">
           <span>Telefon</span>
-          <input v-model="form.phone" type="text">
+          <input v-model="form.phone" type="text" :aria-invalid="Boolean(form.errors.phone)">
         </label>
-        <p v-if="form.errors.phone" class="error">{{ form.errors.phone }}</p>
       </Section>
 
       <Section title="Anschrift">
@@ -117,9 +113,8 @@ const form = useForm({
 
         <label class="field">
           <span>Land</span>
-          <input v-model="form.country" type="text" maxlength="2" placeholder="DE">
+          <input v-model="form.country" type="text" maxlength="2" placeholder="DE" :aria-invalid="Boolean(form.errors.country)">
         </label>
-        <p v-if="form.errors.country" class="error">{{ form.errors.country }}</p>
         <p class="hint">Zwei Buchstaben nach ISO 3166-1, etwa DE, AT oder CH.</p>
       </Section>
 

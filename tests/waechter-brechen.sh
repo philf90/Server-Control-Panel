@@ -322,6 +322,68 @@ pruefe "eigene Tabellenform auf einer Seite" \
 wiederherstellen
 
 echo
+echo "── FieldErrorTest: ein Serverfehler steht wieder am Feld ──"
+#
+# docs/45 §5: Bis August 2026 stand jede Meldung zweimal auf der Seite — oben in
+# der Zusammenfassung und woertlich noch einmal unter dem Feld. Zwei gleiche
+# Saetze uebereinander liest niemand als „Uebersicht und Ort".
+vorher_datei resources/js/Pages/Settings/Tls.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Tls.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '        </label>\n        <p class="hint">\n          Sie wird nicht',
+    '        </label>\n        <p v-if="form.errors.contact" class="error">{{ form.errors.contact }}</p>\n'
+    '        <p class="hint">\n          Sie wird nicht',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Settings/Tls.vue "Serverfehler wieder am Feld" &&
+pruefe "Serverfehler wieder am Feld" \
+  FieldErrorTest::test_no_template_repeats_a_server_error_at_the_field failed
+wiederherstellen
+
+echo
+echo "── FieldErrorTest: eine Seite markiert und sagt nicht warum ──"
+#
+# Die Richtung mit Folgen. Ohne sie waere der Umbau ein Tausch von „doppelt"
+# gegen „gar nicht": roter Rand, kein Wort dazu.
+vorher_datei resources/js/Pages/Settings/Tls.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Tls.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('<FormErrors', '<KeinBanner')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Settings/Tls.vue "Markierung ohne Zusammenfassung" &&
+pruefe "Markierung ohne Zusammenfassung" \
+  FieldErrorTest::test_every_page_that_can_mark_a_field_shows_the_summary failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FieldErrorTest passed
+
+echo
+echo "── FieldErrorTest: Erfolg wird am Feld gemeldet ──"
+#
+# docs/19 §6.3: Die Markierung zeigt, wo noch etwas zu tun ist. Erfolg hat keinen
+# solchen Ort — und ein Formular voller gruener Raender entwertet das eine rote.
+vorher_datei resources/js/Pages/Settings/Tls.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Tls.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '<form class="form" @submit.prevent="speichern">',
+    '<form class="form" @submit.prevent="speichern">\n        <p class="notice ok">Gespeichert.</p>',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Settings/Tls.vue "gruene Meldung im Formular" &&
+pruefe "gruene Meldung im Formular" \
+  FieldErrorTest::test_success_is_never_reported_at_a_field failed
+wiederherstellen
+
+echo
 echo "── ClassNameTest: ein deutscher Klassenname ──"
 vorher
 printf '\n.knopfreihe-neu { color: var(--text); }\n' >> resources/css/app.css
@@ -382,6 +444,33 @@ pruefe "  … und man landet auf der Übersicht" \
   RedirectTargetTest::test_saving_the_theme_stays_on_the_account_page failed
 git checkout -- app/ 2>/dev/null
 pruefe "  … zurückgesetzt wieder grün" RedirectTargetTest passed
+
+echo
+echo "── SeriesReadingTest: die Ablesung rundet die Reihe weg ──"
+#
+# Die CPU-Kachel stand auf einem ruhigen Server dauerhaft auf 0 % — in der
+# grossen Zahl und bei jeder Ablesung auf der Linie —, waehrend die Kurve
+# daneben aus den Rohwerten ihre Ausschlaege zeichnete. Der Wert war nicht
+# falsch, er war weggerundet: alles zwischen 0,1 und 0,9 bei null Stellen.
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Store.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """        return static function (float $value) use ($unit, $decimals): string {
+            $betrag = abs($value);
+            $noetig = $betrag >= 10.0 ? 0 : ($betrag >= 1.0 ? 1 : 2);
+
+            return number_format($value, max($decimals, $noetig), ',', '.').$unit;
+        };""",
+    """        return static fn (float $value): string => number_format($value, $decimals, ',', '.').$unit;""",
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Ablesung ohne Aufloesung" \
+  SeriesReadingTest::test_a_moving_curve_below_one_percent_is_not_all_zeroes failed
+git checkout -- app/ 2>/dev/null
+pruefe "  … zurückgesetzt wieder grün" SeriesReadingTest passed
 
 echo
 echo "── PairedSeriesTest: jede Kurve gegen ihre eigene Spanne ──"
@@ -6319,6 +6408,30 @@ PY2
 griff_datei agent/src/Ops/PgRemoteAccess.php "Rückweg ohne Rückweg" &&
 pruefe "Rückweg ohne Rückweg" \
   PgHbaRollbackTest::test_a_rejected_block_restores_the_file_byte_for_byte failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgHbaRollbackTest passed
+
+echo
+echo "── PgHbaRollbackTest: die Meldung nennt nur noch die Nummer ──"
+#
+# Gemessen im Abnahmelauf (docs/45 §5): 140 Zeilen vor dem Versuch, „Zeile 136"
+# in der Meldung. Die Nummer zaehlt in der abgewiesenen Fassung, und die hat der
+# Rueckweg zwei Zeilen weiter oben schon wieder ersetzt. Der Text der Zeile ist
+# in beiden Staenden derselbe — danach laesst sich suchen, nach einer Nummer
+# nicht.
+vorher_datei agent/src/Ops/PgRemoteAccess.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgRemoteAccess.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """                        return sprintf('Zeile %d („%s"): %s', $row['line'], trim($text), $row['error']);""",
+    """                        return sprintf('Zeile %d: %s', $row['line'], $row['error']);""",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgRemoteAccess.php "Zeilennummer ohne Text" &&
+pruefe "Zeilennummer ohne Text" \
+  PgHbaRollbackTest::test_the_message_quotes_the_offending_line failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PgHbaRollbackTest passed
 

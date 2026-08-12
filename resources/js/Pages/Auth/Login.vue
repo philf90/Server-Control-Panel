@@ -68,6 +68,7 @@ function submit(): void {
       <label class="field">
         <span>Adresse</span>
         <input
+          :aria-invalid="Boolean(form.errors.email)"
           v-model="form.email"
           type="email"
           name="email"
@@ -112,7 +113,6 @@ function submit(): void {
         deaktiviertes Konto. Wer unterscheidet, verrät, welche Adressen es
         gibt.
       -->
-      <p v-if="form.errors.email" class="error" role="alert">{{ form.errors.email }}</p>
 
       <label class="toggle">
         <input v-model="form.remember" type="checkbox" name="remember">

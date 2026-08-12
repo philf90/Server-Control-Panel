@@ -68,21 +68,18 @@ function submit(): void {
         <div class="field-row">
           <label class="field">
             <span>Vorname</span>
-            <input v-model="form.first_name" type="text" required>
+            <input v-model="form.first_name" type="text" required :aria-invalid="Boolean(form.errors.first_name)">
           </label>
           <label class="field">
             <span>Nachname</span>
-            <input v-model="form.last_name" type="text" required>
+            <input v-model="form.last_name" type="text" required :aria-invalid="Boolean(form.errors.last_name)">
           </label>
         </div>
-        <p v-if="form.errors.first_name" class="error">{{ form.errors.first_name }}</p>
-        <p v-if="form.errors.last_name" class="error">{{ form.errors.last_name }}</p>
 
         <label class="field">
           <span>E-Mail</span>
-          <input v-model="form.email" type="email" required>
+          <input v-model="form.email" type="email" required :aria-invalid="Boolean(form.errors.email)">
         </label>
-        <p v-if="form.errors.email" class="error">{{ form.errors.email }}</p>
 
         <label class="field">
           <span>Telefon</span>
@@ -93,9 +90,8 @@ function submit(): void {
       <Section title="Anmeldekonto">
         <label class="field">
           <span>Anmeldeadresse</span>
-          <input v-model="form.login_email" type="email" autocomplete="off" required>
+          <input v-model="form.login_email" type="email" autocomplete="off" required :aria-invalid="Boolean(form.errors.login_email)">
         </label>
-        <p v-if="form.errors.login_email" class="error">{{ form.errors.login_email }}</p>
 
         <PasswordFields
           v-model="form.password"

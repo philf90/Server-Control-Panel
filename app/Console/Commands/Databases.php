@@ -128,26 +128,6 @@ final class Databases extends Command
         }
 
         /*
-         * **Ohne Mandantenklammer, und ausdrücklich.** Auf der Kommandozeile
-         * ist niemand angemeldet; der Grundzustand der Klammer ist „nichts",
-         * und damit zählte dieses Kommando null Datenbanken auf einem Server
-         * voller Datenbanken. Dieselbe Stelle, derselbe Name wie in
-         * `Lifecycle::afterSuccess()` und `Usage::apply()`.
-         */
-        $bestand = $tenancy->withoutRestriction(static fn (): array => [
-            'databases' => Database::query()->count(),
-            'users' => DbUser::query()->count(),
-            'dumps' => DatabaseDump::query()->count(),
-        ]);
-
-        $this->line(sprintf(
-            '%d Datenbank(en), %d Zugang/Zugänge, %d Sicherung(en) im Bestand.',
-            $bestand['databases'],
-            $bestand['users'],
-            $bestand['dumps'],
-        ));
-
-        /*
          * **Befristete Zugänge, die stehengeblieben sind.** Das Zurückspielen
          * legt einen an und entfernt ihn im `finally`; ein abgebrochener Lauf —
          * Stromausfall, SIGKILL — kann trotzdem einen zurücklassen, und das
@@ -178,12 +158,35 @@ final class Databases extends Command
          */
         $this->reportPostgres($agent);
 
+        /*
+         * **Der Bestand steht hinter beiden Servern und nicht unter einem.**
+         * Diese Zahlen zählten schon immer über beide Systeme — gedruckt wurden
+         * sie aber unmittelbar unter dem MariaDB-Block. Auf `cloudsrv24` hielt
+         * MariaDB nichts und PostgreSQL alles, und die Zeile las sich trotzdem
+         * wie eine Auskunft über MariaDB (`docs/45 §5`).
+         *
+         * > **Eine Zahl erbt die Überschrift, unter der sie steht.**
+         */
+        $this->reportInventory($tenancy);
+
         $this->reportDumpSizes($tenancy);
 
         $plan = $prune->plan();
 
+        /*
+         * **Die Entwarnung nennt, worüber sie Entwarnung gibt.** „Nichts
+         * liegengeblieben." stand in Grün unmittelbar unter einer orangen
+         * Meldung über befristete Zugänge, die stehengeblieben sind — beide
+         * Aussagen stimmen und meinen Verschiedenes, aber nebeneinander gelesen
+         * widersprechen sie sich (`docs/45 §5`). Diese Zeile hier redet allein
+         * über Bestand ohne Abonnement; was auf dem Server steht, hat
+         * {@see self::reportStale()} zwei Zeilen darüber beantwortet.
+         *
+         * > **Eine Entwarnung ohne Umfang wird als die grössere gelesen, die
+         * > sie ist.**
+         */
         if ($plan['total'] === 0) {
-            $this->info('Nichts liegengeblieben.');
+            $this->info('Keine Zeile ohne Abonnement.');
         }
 
         if ($plan['total'] > 0) {
@@ -283,8 +286,10 @@ final class Databases extends Command
     {
         $plan = $prune->plan();
 
+        // Dieselbe Auskunft wie in der Übersicht, und deshalb derselbe Satz:
+        // Dieses Kommando räumt Bestand ohne Abonnement ab und nichts sonst.
         if ($plan['total'] === 0) {
-            $this->info('Nichts liegengeblieben.');
+            $this->info('Keine Zeile ohne Abonnement.');
 
             return self::SUCCESS;
         }
@@ -402,6 +407,59 @@ final class Databases extends Command
         $this->info('Aufgeräumt.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Was das Panel führt — je Datenbanksystem einzeln.
+     *
+     * **Die Summe war die falsche Antwort.** Diese drei Zahlen zählten schon
+     * immer über beide Systeme, standen aber unmittelbar unter dem
+     * MariaDB-Block. Auf `cloudsrv24` hielt MariaDB nichts und PostgreSQL
+     * alles — die Zeile las sich trotzdem wie eine Auskunft über MariaDB
+     * (`docs/45 §5`).
+     *
+     * > **Eine Zahl erbt die Überschrift, unter der sie steht.**
+     *
+     * Sie steht deshalb hinter beiden Serverblöcken und nennt je System seine
+     * eigenen. Wer hier nachsieht, fragt nach einem der beiden — und eine
+     * Summe beantwortet diese Frage nicht.
+     *
+     * **Ohne Mandantenklammer, und ausdrücklich.** Auf der Kommandozeile ist
+     * niemand angemeldet; der Grundzustand der Klammer ist „nichts", und damit
+     * zählte dieses Kommando null Datenbanken auf einem Server voller
+     * Datenbanken. Dieselbe Stelle, derselbe Name wie in
+     * `Lifecycle::afterSuccess()` und `Usage::apply()`.
+     */
+    private function reportInventory(Tenancy $tenancy): void
+    {
+        /** @var array<string, array{databases: int, users: int, dumps: int}> $bestand */
+        $bestand = $tenancy->withoutRestriction(static function (): array {
+            $zahlen = [];
+
+            foreach (DatabaseEngine::cases() as $engine) {
+                $zahlen[$engine->value] = [
+                    'databases' => Database::query()->where('engine', $engine)->count(),
+                    'users' => DbUser::query()->where('engine', $engine)->count(),
+                    'dumps' => DatabaseDump::query()->where('engine', $engine)->count(),
+                ];
+            }
+
+            return $zahlen;
+        });
+
+        $this->line('Im Bestand des Panels:');
+
+        foreach (DatabaseEngine::cases() as $engine) {
+            $zahlen = $bestand[$engine->value];
+
+            $this->line(sprintf(
+                '  %-11s %d Datenbank(en), %d Zugang/Zugänge, %d Sicherung(en)',
+                $engine->label(),
+                $zahlen['databases'],
+                $zahlen['users'],
+                $zahlen['dumps'],
+            ));
+        }
     }
 
     /**

@@ -48,7 +48,7 @@ const form = useForm({
       <Section title="Zuordnung">
         <label class="field">
           <span>Kunde</span>
-          <select v-model="form.customer_id" required>
+          <select v-model="form.customer_id" required :aria-invalid="Boolean(form.errors.customer_id)">
             <option
               v-for="c in props.customers"
               :key="c.id"
@@ -59,25 +59,22 @@ const form = useForm({
             </option>
           </select>
         </label>
-        <p v-if="form.errors.customer_id" class="error">{{ form.errors.customer_id }}</p>
 
         <label class="field">
           <span>Plan</span>
-          <select v-model="form.plan_id" required>
+          <select v-model="form.plan_id" required :aria-invalid="Boolean(form.errors.plan_id)">
             <option v-for="p in props.plans" :key="p.id" :value="p.id">
               {{ p.label }}{{ p.is_default ? ' (Standard)' : '' }}
             </option>
           </select>
         </label>
-        <p v-if="form.errors.plan_id" class="error">{{ form.errors.plan_id }}</p>
       </Section>
 
       <Section title="Abonnement">
         <label class="field">
           <span>Name</span>
-          <input v-model="form.name" type="text" placeholder="kunde-example.de" autocomplete="off" required>
+          <input v-model="form.name" type="text" placeholder="kunde-example.de" autocomplete="off" required :aria-invalid="Boolean(form.errors.name)">
         </label>
-        <p v-if="form.errors.name" class="error">{{ form.errors.name }}</p>
         <p class="hint">
           Wird zum Verzeichnis <span class="ident">/var/www/vhosts/&lt;name&gt;</span>.
           Kleinbuchstaben, Ziffern, Punkt und Bindestrich; Anfang und Ende

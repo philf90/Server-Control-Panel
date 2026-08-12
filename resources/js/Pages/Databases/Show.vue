@@ -552,6 +552,7 @@ function size(): string {
           <label class="field">
             <span>Erreichbar von — für <span class="ident">{{ chosenForNetwork.name }}</span></span>
             <input
+              :aria-invalid="Boolean(networkForm.errors.cidr)"
               v-model="networkForm.cidr"
               type="text"
               placeholder="203.0.113.5/32"
@@ -559,7 +560,6 @@ function size(): string {
               required
             >
           </label>
-          <p v-if="networkForm.errors.cidr" class="error">{{ networkForm.errors.cidr }}</p>
           <p class="hint">
             Eine Adresse oder ein Netz in der Schreibweise von PostgreSQL. Ohne Präfixlänge
             wird <span class="ident">/32</span> bzw. <span class="ident">/128</span> ergänzt.
@@ -610,9 +610,8 @@ function size(): string {
         >
           <label class="field">
             <span>Weiterer Zugang</span>
-            <input v-model="userForm.label" type="text" placeholder="user2" autocomplete="off" required>
+            <input v-model="userForm.label" type="text" placeholder="user2" autocomplete="off" required :aria-invalid="Boolean(userForm.errors.label)">
           </label>
-          <p v-if="userForm.errors.label" class="error">{{ userForm.errors.label }}</p>
 
           <!--
             **Der Wirt steht nur da, wenn er etwas bewirkt.** Ein Feld für eine
@@ -624,9 +623,8 @@ function size(): string {
           -->
           <label v-if="props.remote.possible && !props.database.over_tcp" class="field">
             <span>Erreichbar von</span>
-            <input v-model="userForm.host" type="text" placeholder="localhost" autocomplete="off">
+            <input v-model="userForm.host" type="text" placeholder="localhost" autocomplete="off" :aria-invalid="Boolean(userForm.errors.host)">
           </label>
-          <p v-if="userForm.errors.host" class="error">{{ userForm.errors.host }}</p>
 
           <!--
             **Bei PostgreSQL steht hier nichts, und das ist kein Weglassen.**
@@ -743,9 +741,13 @@ function size(): string {
         <form v-if="props.can.update" class="form" @submit.prevent="uploadDump()">
           <label class="field">
             <span>Sicherung hochladen</span>
-            <input type="file" accept=".gz,application/gzip" @change="chooseDump">
+            <input
+              type="file"
+              accept=".gz,application/gzip"
+              :aria-invalid="Boolean(importForm.errors.dump)"
+              @change="chooseDump"
+            >
           </label>
-          <p v-if="importForm.errors.dump" class="error">{{ importForm.errors.dump }}</p>
           <p class="hint">
             Eine gepackte Sicherung (<span class="ident">.sql.gz</span>) bis
             {{ props.import_limit }}. Sie wird übernommen und liegt danach in dieser Liste

@@ -177,6 +177,7 @@ function randomBelow(bound: number): number {
         <input
           :value="props.modelValue"
           :type="visible ? 'text' : 'password'"
+          :aria-invalid="Boolean(props.error)"
           autocomplete="new-password"
           spellcheck="false"
           required
@@ -193,7 +194,6 @@ function randomBelow(bound: number): number {
         </button>
       </div>
     </label>
-    <p v-if="props.error" class="error">{{ props.error }}</p>
 
     <label class="field">
       <span>Passwort wiederholen</span>
@@ -201,6 +201,7 @@ function randomBelow(bound: number): number {
         <input
           :value="props.confirmation"
           :type="visible ? 'text' : 'password'"
+          :aria-invalid="Boolean(props.confirmationError) || (props.confirmation.length > 0 && !matches)"
           autocomplete="new-password"
           spellcheck="false"
           required
@@ -217,8 +218,13 @@ function randomBelow(bound: number): number {
         </button>
       </div>
     </label>
-    <p v-if="props.confirmationError" class="error">{{ props.confirmationError }}</p>
-    <p v-else-if="props.confirmation.length > 0 && !matches" class="error">
+    <!--
+      **Diese Meldung bleibt am Feld, und das ist kein Rest.** Alles andere hier
+      kommt aus einer Antwort und steht damit oben in der Zusammenfassung; diese
+      entsteht beim Tippen und geht nie über den Draht. Der Banner kann sie
+      nicht tragen, also trägt sie das Feld.
+    -->
+    <p v-if="props.confirmation.length > 0 && !matches" class="error">
       Die beiden Eingaben sind nicht gleich.
     </p>
 

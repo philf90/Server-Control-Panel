@@ -510,6 +510,7 @@ function entfernen(): void {
           <label class="field">
             <span>Zertifikat samt Kette (PEM)</span>
             <textarea
+              :aria-invalid="Boolean(hochladen.errors.certificate)"
               v-model="hochladen.certificate"
               rows="6"
               spellcheck="false"
@@ -517,8 +518,7 @@ function entfernen(): void {
               required
             ></textarea>
           </label>
-          <p v-if="hochladen.errors.certificate" class="error">{{ hochladen.errors.certificate }}</p>
-          <p v-else class="hint">
+          <p class="hint">
             Zuerst das eigene, danach die ausstellenden. Die Reihenfolge zählt:
             Eine verkehrte Kette verzeihen manche Browser und Mobilgeräte nicht.
           </p>
@@ -526,6 +526,7 @@ function entfernen(): void {
           <label class="field">
             <span>Privater Schlüssel (PEM)</span>
             <textarea
+              :aria-invalid="Boolean(hochladen.errors.private_key)"
               v-model="hochladen.private_key"
               rows="6"
               spellcheck="false"
@@ -533,8 +534,7 @@ function entfernen(): void {
               required
             ></textarea>
           </label>
-          <p v-if="hochladen.errors.private_key" class="error">{{ hochladen.errors.private_key }}</p>
-          <p v-else class="hint">
+          <p class="hint">
             Ohne Passwort — nginx fragt beim Start danach, und niemand ist da,
             um es einzutippen. Er wird nach dem Absenden geleert.
           </p>
@@ -580,16 +580,15 @@ function entfernen(): void {
           <fieldset :disabled="props.domain.pending">
             <label v-if="props.domain.type !== 'alias'" class="field">
               <span>Verzeichnis</span>
-              <input v-model="form.document_root" type="text" autocomplete="off">
+              <input v-model="form.document_root" type="text" autocomplete="off" :aria-invalid="Boolean(form.errors.document_root)">
             </label>
-            <p v-if="form.errors.document_root" class="error">{{ form.errors.document_root }}</p>
             <p v-if="props.domain.type !== 'alias'" class="hint">
               Relativ zum Abonnement, ohne führenden Schrägstrich.
             </p>
 
             <label v-if="props.domain.type !== 'alias'" class="field">
               <span>PHP-Version</span>
-              <select v-model="form.php_version">
+              <select v-model="form.php_version" :aria-invalid="Boolean(form.errors.php_version)">
                 <option value="">ohne Handler — nur statische Dateien</option>
                 <option
                   v-for="option in props.php"
@@ -601,13 +600,11 @@ function entfernen(): void {
                 </option>
               </select>
             </label>
-            <p v-if="form.errors.php_version" class="error">{{ form.errors.php_version }}</p>
 
             <label class="field">
               <span>Weiterleitung</span>
-              <input v-model="form.redirect_target" type="url" placeholder="leer = keine" autocomplete="off">
+              <input v-model="form.redirect_target" type="url" placeholder="leer = keine" autocomplete="off" :aria-invalid="Boolean(form.errors.redirect_target)">
             </label>
-            <p v-if="form.errors.redirect_target" class="error">{{ form.errors.redirect_target }}</p>
 
             <label v-if="form.redirect_target !== ''" class="field">
               <span>Art der Weiterleitung</span>
@@ -641,7 +638,6 @@ function entfernen(): void {
             </label>
           </fieldset>
 
-          <p v-if="form.errors.php_settings" class="error">{{ form.errors.php_settings }}</p>
           <p class="hint">
             Leer lassen heißt: Vorgabe des Servers. Die Grenzen kommen aus dem
             Plan; <span class="ident">open_basedir</span> und die Abschottung
@@ -653,11 +649,10 @@ function entfernen(): void {
           <fieldset :disabled="props.domain.pending">
             <label class="field">
               <span>Eine je Zeile</span>
-              <textarea v-model="form.nginx_directives" rows="4" spellcheck="false" class="ident-field" />
+              <textarea v-model="form.nginx_directives" rows="4" spellcheck="false" class="ident-field" :aria-invalid="Boolean(form.errors.nginx_directives)"/>
             </label>
           </fieldset>
 
-          <p v-if="form.errors.nginx_directives" class="error">{{ form.errors.nginx_directives }}</p>
           <p class="hint">
             Erlaubt sind: {{ props.directives.join(', ') }}. Keine Blöcke, ein
             Semikolon am Ende. Was einen Pfad oder einen Empfänger bestimmt,
@@ -666,7 +661,6 @@ function entfernen(): void {
         </Section>
       </div>
 
-      <p v-if="allgemein" class="error">{{ allgemein }}</p>
 
       <div class="button-row footer-row">
         <button type="submit" class="button primary" :disabled="form.processing || props.domain.pending">

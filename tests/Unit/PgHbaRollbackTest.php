@@ -121,7 +121,7 @@ final class PgHbaRollbackTest extends TestCase
                 $this->path,
                 $this->good(),
                 static function (): void {},
-                static fn (): array => ['Zeile 138: invalid IP mask "scram-sha-256"'],
+                static fn (): array => [['line' => 138, 'error' => 'invalid IP mask "scram-sha-256"']],
             );
 
             $this->fail('Ein abgewiesener Block muss den Vorgang scheitern lassen.');
@@ -138,6 +138,75 @@ final class PgHbaRollbackTest extends TestCase
             (string) file_get_contents($this->path),
             'Nach dem Rückweg steht nicht mehr die Datei da, die vorher dastand.',
         );
+    }
+
+    /**
+     * Und die Meldung nennt den **Text** der beanstandeten Zeile.
+     *
+     * **Die Nummer allein zeigt auf eine Datei, die es nicht mehr gibt.**
+     * Gemessen im Abnahmelauf (`docs/45 §5`): 140 Zeilen vor dem Versuch,
+     * „Zeile 136" in der Meldung. Zwischendurch war der alte Block heraus und
+     * der neue ans Ende gehängt — und der Rückweg hat diesen Stand längst
+     * wieder ersetzt, bevor jemand die Meldung liest.
+     *
+     * > **Eine Zeilennummer aus einem Zwischenstand zeigt auf eine Datei, die
+     * > niemand mehr öffnen kann.**
+     *
+     * Der Text ist in beiden Ständen derselbe, danach lässt sich also suchen.
+     * Die Nummer bleibt daneben stehen — sie ist nicht falsch, sie ist nur
+     * allein nicht genug.
+     *
+     * **Der Bruch dazu** (`tests/waechter-brechen.sh`): in `apply()` wieder
+     * `sprintf('Zeile %d: %s', …)` ohne den Text bilden.
+     */
+    public function test_the_message_quotes_the_offending_line(): void
+    {
+        file_put_contents($this->path, $this->existing());
+
+        /*
+         * Die Nummer wird **gerechnet und nicht getippt**: Sie muss auf die
+         * Regel in der abgewiesenen Fassung zeigen, und wo die steht, hängt an
+         * {@see Hba::render()}. Eine feste Zahl hier ginge beim nächsten
+         * Zusatz zum Block lautlos daneben — und der Test bestünde weiter,
+         * weil er dann den Zweig ohne Text prüft.
+         */
+        $kandidat = explode("\n", Hba::render($this->existing(), $this->good()));
+        $nummer = 0;
+
+        foreach ($kandidat as $index => $zeile) {
+            if (str_contains($zeile, '203.0.113.5/32')) {
+                $nummer = $index + 1;
+
+                break;
+            }
+        }
+
+        $this->assertGreaterThan(0, $nummer, 'Die Regel steht nicht in der abgewiesenen Fassung.');
+
+        try {
+            PgRemoteAccess::apply(
+                $this->path,
+                $this->good(),
+                static function (): void {},
+                static fn (): array => [['line' => $nummer, 'error' => 'erfunden']],
+            );
+
+            $this->fail('Ein abgewiesener Block muss den Vorgang scheitern lassen.');
+        } catch (AgentException $error) {
+            $this->assertStringContainsString(
+                '203.0.113.5/32',
+                $error->getMessage(),
+                'Die Meldung nennt den Text der beanstandeten Zeile nicht. Die Nummer allein zählt in '
+                .'einer Fassung, die der Rückweg schon ersetzt hat.',
+            );
+
+            $this->assertStringContainsString(
+                'nicht in der Datei, die jetzt dasteht',
+                $error->getMessage(),
+                'Die Meldung sagt nicht, dass die Nummer in einer anderen Fassung zählt — dann sucht '
+                .'der Betreiber an der Nummer in der falschen Datei.',
+            );
+        }
     }
 
     /**
@@ -164,7 +233,7 @@ final class PgHbaRollbackTest extends TestCase
                 $this->path,
                 $this->good(),
                 static function (): void {},
-                static fn (): array => ['Zeile 138: erfunden'],
+                static fn (): array => [['line' => 138, 'error' => 'erfunden']],
             );
         } catch (AgentException) {
             // Erwartet — geprüft wird, was die Datei danach ist.
@@ -208,7 +277,7 @@ final class PgHbaRollbackTest extends TestCase
                 static function () use (&$reloads): void {
                     $reloads++;
                 },
-                static fn (): array => ['Zeile 138: erfunden'],
+                static fn (): array => [['line' => 138, 'error' => 'erfunden']],
             );
         } catch (AgentException) {
             // Erwartet.

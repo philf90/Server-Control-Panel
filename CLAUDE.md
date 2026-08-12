@@ -216,7 +216,8 @@ weiterleitet, nennt das Ziel; `back()` kennt es hier nicht) und
 `HostnameSourceTest` (nur `Names` fragt den Kernel nach dem Rechnernamen) und
 `AbilityReachTest` (ein Knopf, den der Betrachter nicht drücken darf, wird nicht
 gezeigt), `NavIconTest` (jeder Menüpunkt trägt ein Zeichen, und jedes Zeichen ist
-gezeichnet) und `SparklineShapeTest` (in einem ungleich gezogenen Feld wird
+gezeichnet), `FieldErrorTest` (ein Fehler steht einmal auf der Seite — und wo
+ein Feld rot werden kann, steht auch die Zusammenfassung, die sagt warum) und `SparklineShapeTest` (in einem ungleich gezogenen Feld wird
 nichts Rundes in Nutzerkoordinaten gezeichnet). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
@@ -311,7 +312,10 @@ Agent-Klassen sind aus der Anwendung autoladbar (`SrvPanel\Agent\` →
 ## Sprache und Gestaltung
 
 **`docs/19-sprache-der-oberflaeche.md` ist bindend** und wird von
-`WordChoiceTest` geprüft. Kurz:
+`WordChoiceTest` geprüft — **und seit dem 12. August auch der Ort einer
+Rückmeldung (§6):** Der Satz eines Fehlers steht oben in der Zusammenfassung,
+das Feld trägt nur `aria-invalid`, und Erfolg wird **nie** am Feld gemeldet.
+`FieldErrorTest` prüft alle drei Richtungen. Kurz:
 
 - **Kommentare, Dokumentation und alle Texte der Oberfläche: deutsch.
   Bezeichner: englisch** (§4a) — das schliesst CSS-Klassen, Datenattribute,

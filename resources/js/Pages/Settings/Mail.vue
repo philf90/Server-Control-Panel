@@ -91,9 +91,8 @@ function test(): void {
       <Section title="Relay">
         <label class="field">
           <span>Server</span>
-          <input v-model="form.host" type="text" autocomplete="off" placeholder="mail.example.net" required>
+          <input v-model="form.host" type="text" autocomplete="off" placeholder="mail.example.net" required :aria-invalid="Boolean(form.errors.host)">
         </label>
-        <p v-if="form.errors.host" class="error">{{ form.errors.host }}</p>
 
         <div class="field-row">
           <label class="field">
@@ -105,10 +104,9 @@ function test(): void {
 
           <label class="field narrow">
             <span>Port</span>
-            <input v-model.number="form.port" type="number" min="1" max="65535" required>
+            <input v-model.number="form.port" type="number" min="1" max="65535" required :aria-invalid="Boolean(form.errors.port)">
           </label>
         </div>
-        <p v-if="form.errors.port" class="error">{{ form.errors.port }}</p>
       </Section>
 
       <Section title="Anmeldung">
@@ -122,6 +120,7 @@ function test(): void {
           <span>Passwort</span>
           <span class="with-reveal">
             <input
+              :aria-invalid="Boolean(form.errors.password)"
               v-model="form.password"
               :type="zeigen ? 'text' : 'password'"
               autocomplete="new-password"
@@ -139,7 +138,6 @@ function test(): void {
             </button>
           </span>
         </label>
-        <p v-if="form.errors.password" class="error">{{ form.errors.password }}</p>
 
         <label v-if="props.mail.password_set" class="toggle">
           <input v-model="form.password_clear" type="checkbox">
@@ -150,9 +148,8 @@ function test(): void {
       <Section title="Absender">
         <label class="field">
           <span>Adresse</span>
-          <input v-model="form.from_address" type="email" autocomplete="off" placeholder="panel@example.net" required>
+          <input v-model="form.from_address" type="email" autocomplete="off" placeholder="panel@example.net" required :aria-invalid="Boolean(form.errors.from_address)">
         </label>
-        <p v-if="form.errors.from_address" class="error">{{ form.errors.from_address }}</p>
         <p class="hint">
           Muss beim Relay als Absender zulässig sein. Viele Anbieter weisen
           alles ab, was nicht zum angemeldeten Konto gehört.
@@ -160,9 +157,8 @@ function test(): void {
 
         <label class="field">
           <span>Anzeigename</span>
-          <input v-model="form.from_name" type="text" required>
+          <input v-model="form.from_name" type="text" required :aria-invalid="Boolean(form.errors.from_name)">
         </label>
-        <p v-if="form.errors.from_name" class="error">{{ form.errors.from_name }}</p>
       </Section>
 
       <div class="button-row">

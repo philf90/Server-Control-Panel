@@ -125,22 +125,19 @@ function savePassword(): void {
         <form @submit.prevent="saveAccount">
           <label class="field">
             <span>Anzeigename</span>
-            <input v-model="konto.name" type="text" required>
+            <input v-model="konto.name" type="text" required :aria-invalid="Boolean(konto.errors.name)">
           </label>
-          <p v-if="konto.errors.name" class="error">{{ konto.errors.name }}</p>
 
           <label class="field">
             <span>Anmeldeadresse</span>
-            <input v-model="konto.email" type="email" autocomplete="username" required>
+            <input v-model="konto.email" type="email" autocomplete="username" required :aria-invalid="Boolean(konto.errors.email)">
           </label>
-          <p v-if="konto.errors.email" class="error">{{ konto.errors.email }}</p>
           <p class="hint">Mit dieser Adresse melden Sie sich an.</p>
 
           <label class="field">
             <span>Aktuelles Passwort</span>
-            <input v-model="konto.current_password" type="password" autocomplete="current-password" required>
+            <input v-model="konto.current_password" type="password" autocomplete="current-password" required :aria-invalid="Boolean(konto.errors.current_password)">
           </label>
-          <p v-if="konto.errors.current_password" class="error">{{ konto.errors.current_password }}</p>
           <p class="hint">
             Auch für eine Änderung am Namen — sonst genügte ein unbeaufsichtigter
             Rechner, um die Anmeldeadresse umzuschreiben.
@@ -158,9 +155,8 @@ function savePassword(): void {
         <form @submit.prevent="savePassword">
           <label class="field">
             <span>Aktuelles Passwort</span>
-            <input v-model="passwort.current_password" type="password" autocomplete="current-password" required>
+            <input v-model="passwort.current_password" type="password" autocomplete="current-password" required :aria-invalid="Boolean(passwort.errors.current_password)">
           </label>
-          <p v-if="passwort.errors.current_password" class="error">{{ passwort.errors.current_password }}</p>
 
           <PasswordFields
             v-model="passwort.password"

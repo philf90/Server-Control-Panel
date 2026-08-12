@@ -190,10 +190,40 @@ final class Store
         ];
     }
 
-    /** @return callable(float): string */
+    /**
+     * Die Zahl zu einem Wert — mit so vielen Stellen, dass sie etwas sagt.
+     *
+     * **Der Fall, aus dem das kommt.** Die CPU-Kachel stand auf einem ruhigen
+     * Server dauerhaft auf `0 %` — in der Kachel und bei jeder Ablesung auf
+     * der Kurve. Falsch war der Wert nicht: `cpu` wurde mit **null**
+     * Nachkommastellen formatiert, und die Auslastung lag den ganzen Tag
+     * zwischen 0,1 und 0,9. `number_format(0,42, 0)` ist `0`.
+     *
+     * Die Kurve daneben zeichnete derweil aus den **Rohwerten** und zeigte
+     * deshalb ihre Ausschläge. Genau diese Mischung macht den Fehler so
+     * unangenehm: Das Bild sagt „da tut sich etwas", die Zahl sagt „nichts",
+     * und beide kommen aus derselben Reihe.
+     *
+     * > **Eine Zahl, die jeden Wert einer Reihe gleich schreibt, misst nichts
+     * > mehr — sie behauptet nur noch.**
+     *
+     * Die Stellenzahl richtet sich deshalb nach der **Grösse des Wertes** und
+     * nicht mehr allein nach dem Wunsch des Aufrufers: unter 1 zwei Stellen,
+     * unter 10 eine, darüber keine. So schreibt es auch ein Mensch —
+     * „0,42 %", „3,7 %", „37 %".
+     *
+     * **Weniger als gewünscht wird es nie.** Die Load fragt zwei Stellen an
+     * und behält sie auch bei 12,00; sonst hinge ihre Genauigkeit daran, wie
+     * ausgelastet der Server gerade ist.
+     */
     private function plainFormatter(string $unit, int $decimals): callable
     {
-        return static fn (float $value): string => number_format($value, $decimals, ',', '.').$unit;
+        return static function (float $value) use ($unit, $decimals): string {
+            $betrag = abs($value);
+            $noetig = $betrag >= 10.0 ? 0 : ($betrag >= 1.0 ? 1 : 2);
+
+            return number_format($value, max($decimals, $noetig), ',', '.').$unit;
+        };
     }
 
     /**

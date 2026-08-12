@@ -199,3 +199,74 @@ schlägt an, wenn ein Wort nur noch an einer der beiden Stellen steht.
 Ein Wort landet dort nicht, weil es jemandem missfällt, sondern weil es im Panel
 schon einmal falsch stand. Die Liste ist ein Protokoll und keine Stilrichtlinie
 für die deutsche Sprache.
+
+## 6. Wo eine Rückmeldung steht
+
+Diese Vorgabe ist am 12. August 2026 dazugekommen, nachdem der Abnahmelauf des
+Fernzugriffs gemeldet hatte, dass jede Fehlermeldung **zweimal** auf der Seite
+steht (`docs/45 §5`, Befund 3). Sie regelt nicht die Wörter, sondern den Ort —
+und gehört trotzdem hierher, aus demselben Grund wie §3a: Es ist eine Eigenschaft
+der Oberfläche, die man ohne Regel bei jedem neuen Formular neu entscheidet.
+
+### 6.1 Ein Fehler aus einer Antwort
+
+**Der Satz steht oben, die Markierung am Feld.**
+
+| | |
+|---|---|
+| Der Satz | einmal, in der Zusammenfassung (`FormErrors.vue`) |
+| Das Feld | `:aria-invalid="Boolean(form.errors.x)"` — sonst nichts |
+| Am Feld | **kein** Satz, auch nicht gekürzt |
+
+Der Grund für die Zusammenfassung steht in `FormErrors.vue`: Inertia setzt die
+Scrollposition nach einer Antwort zurück, der Betreiber landet oben, und eine
+rote Zeile weit unten im Formular sieht er nicht — das hat einmal einen halben
+Tag gekostet. Der Grund gegen den zweiten Satz ist einfacher: Zwei gleiche Sätze
+übereinander liest niemand als „Übersicht und Ort", sondern als Versehen.
+
+Die Markierung ist dabei **genauer** als die Zeile, die sie ersetzt: Sie sitzt am
+Bedienelement statt darunter, und sie sagt damit ohne ein Wort, wo gearbeitet
+wird. Sie trägt zwei Kanäle, weil Farbe allein nach WCAG 1.4.1 zu wenig wäre —
+Farbe **und** Randbreite; die Form dazu steht in `app.css` und nirgends sonst.
+
+**Ein Fehler, der zu keinem Feld gehört, markiert nichts.** Der Sammelfehler
+einer Domain, die Grenzen einer ganzen Einstellungsgruppe: Sie stehen allein in
+der Zusammenfassung. Es gibt kein Feld, das sie anstreichen könnten, und alle
+anzustreichen wäre eine Behauptung über jedes einzelne.
+
+**Und die Gegenrichtung ist die gefährliche:** Eine Seite, die ein Feld markieren
+kann, **muss** die Zusammenfassung tragen. Sonst wird ein Rand rot, und kein Wort
+sagt warum. `FieldErrorTest` prüft beide Richtungen.
+
+> **Wer die Auskunft an einen Ort verlegt, muss prüfen, dass es den Ort auf jeder
+> Seite gibt.**
+
+### 6.2 Eine Meldung, die nie über den Draht geht
+
+Sie bleibt am Feld, und das ist keine Ausnahme von der Regel, sondern ihre
+Kehrseite: Die Zusammenfassung liest die **Antwort der letzten Anfrage**. Was
+beim Tippen entsteht, kann sie gar nicht kennen.
+
+Es gibt genau eine davon: „Die beiden Eingaben sind nicht gleich." in
+`PasswordFields.vue`. Kommt eine dazu, gehört sie an dieselbe Stelle — ans Feld,
+mit Satz.
+
+### 6.3 Erfolg wird nie am Feld gemeldet
+
+**Eine grüne Meldung je Vorgang, oben, und keine am Feld.** Das Panel hat dafür
+genau eine Stelle: `PanelLayout.vue` rendert `flash.success` als `.notice ok` mit
+`role="status"`.
+
+Der Grund ist nicht Symmetrie, sondern die Aufgabe der Markierung. Sie zeigt, wo
+noch etwas zu tun ist — sie ist ein Wegweiser zur Arbeit. Erfolg hat keinen Ort,
+an dem man weiterarbeitet: Ein grüner Rand an vierzehn Feldern eines
+gespeicherten Formulars sagt vierzehnmal dasselbe und weist auf nichts hin. Er
+wäre auch der einzige Zustand, den man nicht wegbekommt, ohne etwas kaputt zu
+machen.
+
+Dazu kommt, dass Grün am Feld die eine Sache entwertet, für die die Markierung da
+ist: Sind Felder ständig eingefärbt, fällt das eine rote nicht mehr auf.
+
+**Ein Vorgang, der auf dem Server weiterläuft, ist kein Erfolg.** Dafür gibt es
+das Protokoll und den Zustand der Zeile, nicht die grüne Meldung — sie sagt „ist
+geschehen" und nicht „ist beauftragt".

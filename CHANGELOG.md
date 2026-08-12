@@ -10709,3 +10709,27 @@ Bereichen, „Spalten" und „Indexe".
 neuen CSS-Regel stand zuerst, der Titel werde *geschnitten* und die
 Überlaufmessung sei dabei grün. Gemessen war das nicht — die Zahl vom Server
 sagte 99 px. Der Kommentar steht jetzt richtig da.
+
+### Schritt 4 von P5c ist abgeschlossen — die Gegenprobe steht
+
+`0.5.3-rc.4` auf `cloudsrv24`, Strukturansicht bei 390 px, dieselbe Zeile in der
+Browser-Konsole wie beim Fund:
+
+```
+dokument: 0px        (vorher 99px)
+scrolls[0]: 0px      Tabellenliste
+scrolls[1]: 0px      Spalten
+scrolls[2]: 0px      Indexe
+```
+
+**Drei Rollbehälter statt zwei** sind der Beleg für die zweite Hälfte, die keine
+Zahl beantworten konnte: Spalten und Indexe stehen in getrennten Bereichen. Und
+auf dem Bild bricht der Tabellenname als Kennung unter der kurzen Überschrift,
+statt in ihr zu stehen.
+
+> **Ein Fix ohne Nachmessung ist eine Behauptung.**
+
+Damit sind die Schritte 0 bis 4 aus `docs/46 §13` erledigt. Offen sind 5 bis 9 —
+und aus dem Lauf von `docs/47` das Protokoll (Kriterium 7, Schritt 7) sowie
+Befund 2 daraus, die PL/pgSQL-`CONTEXT`-Zeile an einer Meldung, die der Kunde
+lesen soll; sie gehört zu Schritt 6.

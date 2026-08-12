@@ -910,6 +910,20 @@ gefunden, die vorher grün waren** (§20.11). Der teuerste schob die Seite bei
 390 px um 99 px aus dem Bild; der zweite war überhaupt nicht messbar und nur zu
 sehen.
 
+**Beides ist behoben und auf demselben Weg gegengeprüft** — `0.5.3-rc.4` auf
+`cloudsrv24`, Strukturansicht bei 390 px:
+
+```
+dokument: 0px        (vorher 99px)
+scrolls[0]: 0px      Tabellenliste
+scrolls[1]: 0px      Spalten
+scrolls[2]: 0px      Indexe
+```
+
+Drei Rollbehälter statt zwei sind dabei der Beleg für die zweite Hälfte: Spalten
+und Indexe stehen wirklich in getrennten Bereichen. **Damit ist Schritt 4
+abgeschlossen.**
+
 > **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
 > Keines von beiden ersetzt das andere.**
 
@@ -1650,3 +1664,7 @@ stehen jetzt in zwei Bereichen, „Spalten" und „Indexe".
 geschrieben, der Titel werde *geschnitten* und die Überlaufmessung sei dabei
 grün. Gemessen hatte ich das nicht; die Zahl vom Server sagte 99 px. Der
 Kommentar steht jetzt richtig da.
+
+> **Ein Fix ohne Nachmessung ist eine Behauptung.** Gegengeprüft wurde auf
+> demselben Weg, an derselben Tabelle, mit derselben Zeile in der Konsole:
+> `dokument: 0px`.

@@ -165,6 +165,31 @@ lesbare Katalogsichten, die Namen führen, und eine Absperrung, die bei
 
 Ausgeliefert wird `v0.5.2-rc.7`.
 
+**P5c ist geplant, nicht gebaut** — `docs/46`, das Datenbankmanagement: Tabellen
+und Struktur durchsehen, Zeilen ansehen, filtern, blättern und ändern, für beide
+Systeme. Vier Entscheidungen des Betreibers tragen ihn, und die zweite hat die
+Architektur entschieden: **kein freies SQL.** Damit bekommt der Agent typisierte
+Fragen und keine Anweisung, und die erste Grenze gilt wörtlich statt dem Sinne
+nach. Der Plan fügt **keinen neuen Weg mit Rechten** hinzu — er benutzt den
+befristeten Zugang, unter dem seit P5 mitgebrachte Dumps laufen.
+
+Drei Messungen haben den Entwurf vor der ersten Zeile umgeworfen. Die teuerste
+betrifft eine Form, die seit P5 in jeder Antwort steckt:
+
+> **Ein Format, das für Bezeichner reicht, reicht nicht für Werte.** `psql -A -t
+> -F'\t'` gibt `NULL` und `''` beide als leeres Feld aus, macht aus einem
+> Tabulator im Wert eine Spalte und aus einem Zeilenumbruch eine Zeile. Für
+> Katalogfragen ist das richtig und hat zwei Stufen getragen.
+
+> **Was der Geprüfte selbst zurücknehmen kann, ist keine Schranke, sondern eine
+> Voreinstellung.** `RESET ROLE` hebt ein `SET ROLE` auf, `SET TRANSACTION READ
+> WRITE` ein `BEGIN READ ONLY`, und `SET statement_timeout = 0` auch ein
+> `ALTER ROLE … SET`. Alle drei gemessen.
+
+Fünf Messungen fehlen, alle für MariaDB, und sie stehen als Schritt 0 **vor**
+dem Bauen — die wichtigste: `mysql --batch` maskiert in der Ausgabe auch den
+Rückstrich, und eine JSON-Zeichenkette besteht aus maskierten Rückstrichen.
+
 **Auch der Abnahmelauf von P4 hat sechs Fehler gefunden, und keinen davon ein
 Test.** Drei betrafen ein Kriterium, drei die Bedienung. Der teuerste sah aus wie ein Erfolg:
 Die Erneuerung meldete `1 fällig, 1 bestellt` — genau die Zahl, die das
@@ -381,7 +406,12 @@ weiter ist. Und **`43` die Zwischenabnahme des Fernzugriffs** — der Lauf für 
 zwölf Punkte, mit der Fassungstabelle in §3 und dem, was er ausdrücklich nicht
 prüft. Und **`41` die Dateisystem-Quota** — wie sie eingeschaltet wird, und
 warum das Panel den *Leseversuch* misst statt der Mount-Option: Auf `cloudsrv24`
-stand `usrquota` in den Optionen und `quotaon -p /` sagte `is off`.
+stand `usrquota` in den Optionen und `quotaon -p /` sagte `is off`. Und **`46`
+das Datenbankmanagement (P5c)** — geplant am 12. August 2026, noch nicht gebaut:
+§2 die dreiundzwanzig Messungen, die vor dem Plan kamen, §2.3 die fünf, die
+fehlen und für MariaDB gemessen werden müssen, §3 die vier Entscheidungen des
+Betreibers, §4 das Abnahmekriterium mit sieben Punkten, §15 die Befehlsfolge
+dazu und **§16 was P5c ausdrücklich nicht wird**.
 
 > **Eine Option, die etwas erlaubt, ist nicht dasselbe wie ein Zustand, in dem
 > es geschieht.**

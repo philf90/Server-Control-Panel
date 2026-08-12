@@ -10046,3 +10046,49 @@ eine einzelne Zelle, ein entprellter Protokolleintrag beim Öffnen, und die
 optimistische Sperre benannt statt gebaut. Keine davon ändert eine der vier
 Entscheidungen; sie stehen dort, damit sie nicht in einem Sitzungsverlauf
 bleiben.
+
+### Die fünf Ergänzungen sind angenommen — und Schritt 6 bleibt
+
+Vorgelegt, nachdem der Plan einmal ausgeschrieben war, und am 12. August 2026
+angenommen. Sie stehen als Entscheidung 5 in `docs/46 §3` und ändern keine der
+vier oberen.
+
+**Drei Filteroperatoren statt acht** — ist gleich, enthält, ist leer. Die
+Filterzeile steht bei 390 px über einer Tabelle, die schon waagerecht rollt, und
+acht Operatoren sind acht Wege, auf denen die Maskierung falsch sein kann — an
+der einzigen Stelle dieses Projekts, an der Kundentext in eine Anweisung geht.
+`ist leer` deckt NULL und die leere Zeichenkette zusammen ab, und das ist
+Absicht: Die beiden auseinanderzuhalten ist die Aufgabe der Anzeige und des
+Schreibwegs, nicht des Filters.
+
+**Keine Trefferzahl unter einem Filter**, und damit keine Seitenzahlen in der
+Blätterleiste. Geholt wird `limit + 1`, angezeigt „mehr als 50". Ein `count(*)`
+mit `WHERE` über eine Spalte ohne Index ist genau die Abfrage, die ins Zeitlimit
+läuft — und sie liefe bei jedem Aufruf, auch für den, der nur die erste Seite
+ansieht und gleich wieder geht.
+
+> **Eine Zahl, für die jemand bei jedem Aufruf bezahlt, muss auch bei jedem
+> Aufruf gebraucht werden.**
+
+**Eine Zelle lässt sich einzeln öffnen**, bis 64 KiB — ein fünftes
+Operationenpaar. In der Tabelle ist ein Wert bei 512 Zeichen gekürzt und damit
+gesperrt; ohne diesen Weg käme niemand mehr an den Rest. Sie nimmt den
+Schlüssel und nicht die Zeilennummer: Zwischen dem Abruf einer Seite und dem
+Öffnen einer Zelle kann jemand eine Zeile einfügen, und dann zeigte die Ansicht
+den Wert einer anderen Zeile, ohne dass es jemand sähe.
+
+**Ein Protokolleintrag beim Öffnen, entprellt** — einer je Datenbank und Stunde.
+Sonst beantwortet das Protokoll „was wurde geändert" und nicht „wer hatte
+Zugriff", und die zweite Frage ist die, die im Zweifel gestellt wird. Der
+Wächter prüft die Entprellung und nicht den Eintrag: Ein Eintrag entsteht
+sichtbar, eine fehlende Entprellung sieht man erst, wenn das Protokoll nach
+einer Woche nur noch aus Konsolenzeilen besteht.
+
+**Die optimistische Sperre wird benannt und nicht gebaut** — Risiko 7.
+
+**Schritt 6 bleibt im Umfang.** Er stand zur Debatte als der Schnitt, wenn die
+Stufe kleiner werden soll; damit ist die Regel „nur die geänderten Spalten"
+keine Vorsichtsmassnahme für später, sondern Bauvorschrift dieser Stufe. Sie hat
+dafür eine zweite Hälfte im Abnahmekriterium bekommen und einen eigenen Punkt im
+Abnahmelauf, an einer Spalte, die niemand angefasst hat — **der einzige Punkt
+des Laufs, dessen Fehlschlag man an der geänderten Zeile nicht sieht.**

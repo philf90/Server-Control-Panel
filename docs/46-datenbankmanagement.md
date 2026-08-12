@@ -236,42 +236,55 @@ vermutet — und sie überlebt das Löschen der Zeile. Was im Protokoll steht, i
 > **Ein Protokoll, das den Inhalt mitschreibt, ist eine Datenhaltung mit einem
 > anderen Namen.**
 
+**Dazu ein Eintrag beim Öffnen** (Entscheidung 5, Punkt 4), und zwar
+**entprellt: einer je Datenbank und Stunde.** Ohne ihn beantwortet das Protokoll
+„was wurde geändert" und nicht „wer hatte Zugriff" — und die zweite Frage ist
+die, die im Zweifel gestellt wird. Ohne die Entprellung schriebe er bei jedem
+Blättern eine Zeile und wäre nach einer Woche das, wogegen der erste Absatz
+argumentiert.
+
+Der Eintrag entsteht in der **Anwendung** und nicht im Agenten: Er hält fest, wer
+gesehen hat, und das weiss nur die Seite, die ein angemeldetes Konto kennt.
+
 ---
 
-## 3a. Fünf Empfehlungen zum Zuschnitt — offen
+### Entscheidung 5 — Fünf Ergänzungen zum Zuschnitt
 
-Die vier Entscheidungen stehen. Was hier steht, sind Vorschläge **innerhalb**
-ihres Rahmens, entstanden beim Ausschreiben des Plans; keiner ist entschieden,
-und keiner ändert eine der vier.
+Vorgelegt und angenommen am 12. August 2026, nachdem der Plan einmal
+ausgeschrieben war. Keine davon ändert eine der vier oberen; sie stehen hier
+zusammen, weil sie zusammen vorgelegt wurden, und jede sagt, wo sie im Plan
+sitzt.
 
-1. **Der Filter fängt mit drei Operatoren an, nicht mit acht.** `=`, `enthält`,
-   `ist NULL`. Die Filterzeile ist das dichteste Bedienelement der ganzen Fläche
-   und steht bei 390 px über einer Tabelle, die schon waagerecht rollt; und acht
-   Operatoren sind acht Wege, auf denen die Maskierung falsch sein kann. Die
-   übrigen kommen dazu, wenn jemand die drei benutzt hat.
-2. **Kein `count(*)` über einen Filter.** Es wird `limit + 1` geholt, und die
+1. **Der Filter fängt mit drei Operatoren an, nicht mit acht** — `ist gleich`,
+   `enthält`, `ist leer`. Die Filterzeile ist das dichteste Bedienelement der
+   ganzen Fläche und steht bei 390 px über einer Tabelle, die schon waagerecht
+   rollt; und acht Operatoren sind acht Wege, auf denen die Maskierung falsch
+   sein kann. Die übrigen kommen dazu, wenn jemand die drei benutzt hat — nicht
+   vorher. (§11)
+2. **Kein `count(*)` über einen Filter.** Geholt wird `limit + 1`, und die
    Oberfläche sagt „mehr als 50" statt einer Zahl. Ein `count(*)` über eine
    gefilterte Spalte ohne Index ist genau die Abfrage, die ins Zeitlimit läuft —
    und sie liefe **jedes Mal**, auch für den, der nur die erste Seite ansieht.
-3. **Eine Zelle einzeln ansehen.** Nach §9 ist eine Zelle bei 512 Zeichen
-   gekürzt und nach §10.1 dann gesperrt — ohne einen Weg zum ganzen Wert ist das
-   eine Sackgasse. Eine Ansicht für **eine** Zelle, mit eigener, höherer Grenze.
-4. **Ein Protokolleintrag beim Öffnen der Konsole, entprellt.** Entscheidung 4
-   hält die ändernden Handlungen fest, und das ist richtig. Was dann offenbleibt,
-   ist „wer hatte überhaupt Zugriff" — und mit Entscheidung 3 und der
-   Impersonation aus §3 ist genau das die Frage, die im Zweifel jemand stellt.
-   Ein Eintrag je Datenbank und Stunde beantwortet sie, ohne dass das Protokoll
-   mit dem Blättern wächst.
+   (§9, §11)
+3. **Eine Zelle lässt sich einzeln ansehen.** Nach §9 ist eine Zelle bei 512
+   Zeichen gekürzt und nach §10.1 dann gesperrt; ohne einen Weg zum ganzen Wert
+   wäre das eine Sackgasse. Ein fünftes Operationenpaar, mit eigener, höherer
+   Grenze. (§9, §12)
+4. **Ein Protokolleintrag beim Öffnen, entprellt.** Entscheidung 4 hält fest,
+   *was geändert wurde*; offen bliebe „wer hatte überhaupt Zugriff" — und mit
+   Entscheidung 3 und der Impersonation ist genau das die Frage, die im Zweifel
+   jemand stellt. Ein Eintrag je Datenbank und Stunde beantwortet sie, ohne dass
+   das Protokoll mit dem Blättern wächst. (§3 Entscheidung 4, §13 Schritt 7)
 5. **Die optimistische Sperre wird benannt und nicht gebaut.** Zwei Personen, die
    dieselbe Zeile gleichzeitig öffnen, überschreiben einander; §10 fängt das
    nicht, weil die Zeile ja getroffen wird. Die Regel aus §10.1 — nur geänderte
-   Spalten — macht den Schaden klein genug, und ein Kunde, der sich selbst ins
-   Gehege kommt, ist in dieser Umgebung selten. Es steht in §18.
+   Spalten — hält den Schaden auf die Spalten begrenzt, an denen beide gearbeitet
+   haben. (§16, §18)
 
-**Und wenn die Stufe kleiner werden soll, ist Schritt 6 der Schnitt.** Lesen
-trägt den grössten Teil des Nutzens und keines der Risiken aus §10.1; die
-Reihenfolge in §13 ist bereits so gebaut, dass nach Schritt 5 etwas Fertiges
-dasteht.
+**Schritt 6 bleibt im Umfang.** Er stand zur Debatte als der Schnitt, wenn die
+Stufe kleiner werden soll — Lesen trägt den grössten Teil des Nutzens und keines
+der Risiken aus §10.1. Der Betreiber hat ihn drin gelassen; damit ist §10.1
+keine Vorsichtsmassnahme für später, sondern Bauvorschrift für diese Stufe.
 
 ---
 
@@ -295,8 +308,11 @@ dasteht.
 > 5. eine Tabelle **ohne Schlüssel** als nicht änderbar erkennbar ist, mit dem
 >    Grund daneben;
 > 6. ein Schreibvorgang, der **nicht genau eine Zeile** trifft, zurückgenommen
->    wird;
-> 7. das Protokoll die drei ändernden Handlungen führt und **keinen Zellenwert**.
+>    wird — und einer, der eine Zeile trifft, **nur die geänderten Spalten**
+>    schreibt: Eine gekürzte Zelle und ein `NULL` überstehen das Speichern einer
+>    Zeile, an der sie niemand angefasst hat;
+> 7. das Protokoll die drei ändernden Handlungen führt und **keinen Zellenwert**
+>    — dazu **einen** Eintrag für zwanzig Seitenaufrufe und nicht zwanzig.
 >
 > **Für beide Datenbanksysteme**, jeder Punkt zweimal gefahren.
 
@@ -308,6 +324,13 @@ Meldung des Servers.
 Punkt 2 ist die Umsetzung von M7 in ein Kriterium — mit derselben Vorsicht, die
 `docs/36 §17` gelernt hat: **die vier Werte gehören ins Protokoll, nicht ihre
 Anzahl.** „Sonderzeichen kommen an" wäre erfüllt, solange irgendetwas ankommt.
+
+**Die zweite Hälfte von Punkt 6 ist mit Entscheidung 5 dazugekommen**, und sie
+misst dieselbe Sache wie Punkt 2 auf dem Rückweg (§10.1). Sie ist der einzige
+Punkt dieses Kriteriums, dessen Fehlschlag man an der geänderten Zeile **nicht
+sieht**: Die Zeile ist danach da, sie sieht richtig aus, und der Rest einer
+gekürzten Zelle ist fort. Deshalb wird er an einer Spalte gefahren, die
+niemand angefasst hat, und nicht an der geänderten.
 
 ---
 
@@ -463,7 +486,9 @@ beschädigen, ohne es zu merken.
 | Zeilen je Seite | **50** | M20: 11 KB JSON gegen 1 MiB Anfragegrenze — Raum um den Faktor 90 für breite Tabellen |
 | Zeichen je Zelle | **512**, gekürzt markiert | M21/M22: eine Zelle mit 3 MB sprengt die Grenze allein, gekürzt sind es 524 Byte |
 | Zeitlimit je Abfrage | **5 s** | eine Konsolenabfrage ist eine Bedienung und kein Vorgang |
-| Zeilenzahl | **Schätzung** aus dem Katalog | ein `count(*)` über eine grosse Tabelle ist selbst die teure Abfrage |
+| Zeilenzahl, ungefiltert | **Schätzung** aus dem Katalog | ein `count(*)` über eine grosse Tabelle ist selbst die teure Abfrage |
+| Zeilenzahl, gefiltert | **gar keine** — `limit + 1` | Entscheidung 5, Punkt 2 |
+| Zeichen einer **einzeln** geöffneten Zelle | **64 KiB**, gekürzt markiert | Entscheidung 5, Punkt 3: weit unter der Anfragegrenze, weit über allem, was eine Tabellenzeile trägt |
 
 **Das Zeitlimit ist durchsetzbar, weil es kein freies SQL gibt.** M11 hat
 gemessen, dass ein Rolleninhaber `statement_timeout` selbst zurücknehmen kann —
@@ -487,6 +512,21 @@ ist schlimmer, weil es aussieht wie eine Antwort. Die Oberfläche zeigt
 
 > **Eine Zahl, die „nicht gemessen" bedeutet, darf nicht wie eine Messung
 > aussehen.**
+
+**Über einem Filter gibt es überhaupt keine Zahl.** Die Schätzung des Katalogs
+gilt für die ganze Tabelle und wäre unter einem Filter schlicht falsch; ein
+`count(*)` mit `WHERE` über eine Spalte ohne Index ist genau die Abfrage, die
+das Zeitlimit auslöst — und sie liefe bei **jedem** Seitenaufruf, auch für den,
+der nur die erste Seite ansieht und gleich wieder geht. Geholt wird `limit + 1`,
+und danach steht dort „mehr als 50" oder die genaue Zahl, wenn die Seite die
+letzte ist.
+
+Das kostet die Blätterleiste ihre Seitenzahlen — sie kann nur „weiter" und
+„zurück". Das ist der ehrliche Preis, und er ist kleiner als eine Zahl, die
+gelegentlich fünf Sekunden braucht.
+
+> **Eine Zahl, für die jemand bei jedem Aufruf bezahlt, muss auch bei jedem
+> Aufruf gebraucht werden.**
 
 Was die Grenzen **nicht** leisten: Blättern mit grossem `OFFSET` bleibt langsam,
 weil der Server die übersprungenen Zeilen erzeugt. Das steht in §18 als benanntes
@@ -566,8 +606,26 @@ Drei Ansichten, alle unter der vorhandenen Datenbankseite:
 - **Struktur** — Spalten mit Typ, `NULL`-Zulässigkeit, Vorgabe, Schlüssel; dazu
   die Indexe.
 - **Zeilen** — eine Seite, sortierbar über eine Spalte, filterbar über eine
-  Spalte mit einem Operator aus einer festen Liste (`=`, `≠`, `enthält`,
-  `beginnt mit`, `ist NULL`, `ist nicht NULL`, `<`, `>`), mit Blättern.
+  Spalte mit einem Operator aus einer festen Liste, mit „weiter" und „zurück".
+- **Eine Zelle** — der ganze Wert einer einzelnen Zelle, bis 64 KiB
+  (Entscheidung 5, Punkt 3). Sie ist der Ausweg aus der Kürzung: In der Tabelle
+  steht ein Wert bei 512 Zeichen abgeschnitten und ist nach §10.1 gesperrt, und
+  ohne diesen Weg käme niemand mehr an den Rest.
+
+**Die feste Liste hat drei Einträge und nicht acht** (Entscheidung 5, Punkt 1):
+`ist gleich`, `enthält`, `ist leer`. Zwei Gründe, und der zweite ist der
+schwerere: Die Filterzeile steht bei 390 px über einer Tabelle, die schon
+waagerecht rollt — und acht Operatoren sind acht Wege, auf denen die Maskierung
+falsch sein kann, an der einzigen Stelle dieses Projekts, an der Kundentext in
+eine Anweisung geht (§7).
+
+**`ist leer` deckt `NULL` und die leere Zeichenkette zusammen ab**, und das ist
+Absicht: Sie auseinanderzuhalten ist die Aufgabe der **Anzeige** (Kriterium 2)
+und des **Schreibwegs** (§10.1). Wer nach der einen sucht, sucht in aller Regel
+nach beiden — und `ist NULL` neben `ist gleich ''` wären zwei Einträge, die
+neunundneunzig von hundert Bedienenden nicht unterscheiden wollen. Die genaue
+Unterscheidung kommt zurück, sobald jemand sie braucht; sie steht dann in der
+Liste und nicht in einer Fussnote.
 
 **Bei 390 px ist das der schwierigste Baustein, den dieses Panel bisher hatte** —
 eine Tabelle mit unbekannter Spaltenzahl. `docs/24 §5` kennt drei Muster, und
@@ -593,15 +651,30 @@ wird nie am Feld gemeldet.
 
 ## 12. Die Operationen
 
-Vier Paare. `EngineReachTest` verlangt zu jeder `db.*` eine `pg.*`, und keine
+Fünf Paare. `EngineReachTest` verlangt zu jeder `db.*` eine `pg.*`, und keine
 davon braucht einen Ausnahmeeintrag.
 
 | Operation | nimmt | gibt |
 |---|---|---|
 | `db.console.tables` · `pg.console.tables` | `database` | Liste `{schema, name, rows|null, bytes, key: bool}` |
 | `db.console.columns` · `pg.console.columns` | `database, schema, table` | Liste `{name, type, nullable, default, key, binary}` + Indexe |
-| `db.console.rows` · `pg.console.rows` | `database, schema, table, order, direction, offset, limit, filter?` | `{columns, rows, truncated: list<string>}` |
+| `db.console.rows` · `pg.console.rows` | `database, schema, table, order, direction, offset, limit, filter?` | `{columns, rows, truncated: list<string>, more: bool}` |
+| `db.console.cell` · `pg.console.cell` | `database, schema, table, key, column` | `{value, truncated: bool, bytes}` |
 | `db.console.row.write` · `pg.console.row.write` | `database, schema, table, mode, key, values?` | `{affected}` |
+
+**`more` statt einer Anzahl.** `console.rows` holt `limit + 1` Zeilen, gibt
+`limit` zurück und sagt mit `more`, ob es weitergeht (Entscheidung 5, Punkt 2).
+Ein Feld `total` gibt es nicht — es zu füllen wäre der `count(*)`, den §9
+ausgeschlossen hat, und ein Feld, das manchmal `null` ist, lädt dazu ein, es
+irgendwann doch zu füllen.
+
+**`console.cell` braucht den Schlüssel und nicht die Zeilennummer.** Eine
+Zeilennummer wäre eine Aussage über eine Seite, und zwischen ihrem Abruf und dem
+Öffnen der Zelle kann jemand eine Zeile einfügen — dann zeigte die Ansicht den
+Wert einer anderen Zeile, und niemand sähe es. Damit gilt für sie dieselbe
+Voraussetzung wie fürs Ändern (§10): **Ohne Schlüssel gibt es die Zelleinzelsicht
+nicht**, und die Kürzung in der Tabelle ist dort endgültig. Das ist eine benannte
+Lücke; sie trifft dieselben Tabellen, die ohnehin nur lesbar sind.
 
 **Keine davon geht durch die Warteschlange.** Ein eingereihter Vorgang legt seine
 Argumente in `operations.payload` ab — und dort stünde bei `console.row.write`
@@ -613,7 +686,7 @@ dafür erweitert wird.
 > **Was nicht in der Warteschlange stehen darf, ist nicht nur ein Geheimnis —
 > es ist alles, was dem Kunden gehört.**
 
-Alle vier laufen als unmittelbarer Aufruf (`Client::call`), wie
+Alle fünf laufen als unmittelbarer Aufruf (`Client::call`), wie
 `db.user.create`. Ein Vorgang mit Fortschrittsanzeige wäre für eine Anzeige, die
 in 50 ms fertig ist, die falsche Bauform.
 
@@ -651,10 +724,15 @@ Policy-Methode, die `can`-Ablage im Inertia-Payload. Keine Oberfläche.
 
 Die beiden lesenden Ansichten, mit Screenshots in beiden Themes und bei 390 px.
 
-### Schritt 5 — Zeilen, blättern, filtern, sortieren
+### Schritt 5 — Zeilen, blättern, filtern, sortieren, eine Zelle öffnen
 
-Die dritte Ansicht — der Baustein aus §11. Screenshots, und die
-Überlaufmessung **an beiden Stellen**.
+Die dritte Ansicht — der Baustein aus §11 — mit den **drei** Filteroperatoren,
+`limit + 1` statt einer Anzahl, und der Zelleinzelsicht dazu (Entscheidung 5,
+Punkte 1 bis 3). Screenshots, und die Überlaufmessung **an beiden Stellen**.
+
+Die Zelleinzelsicht gehört hierher und nicht zu Schritt 6: Sie ist der Ausweg aus
+der Kürzung und wird gebraucht, sobald die Tabelle Werte zeigt — nicht erst,
+sobald jemand sie ändern darf.
 
 ### Schritt 6 — Ändern
 
@@ -662,12 +740,19 @@ Anlegen, ändern, löschen; die Schlüsselregel aus §10; die Prüfung auf genau
 Zeile; **und die drei Regeln des Schreibwegs aus §10.1** — `NULL` als eigener
 Zustand, eine gekürzte Zelle gesperrt, nur geänderte Spalten in der Anweisung.
 
-**Dies ist der Schritt, der herausfällt, wenn die Stufe kleiner werden soll**
-(§3a). Nach Schritt 5 steht etwas Fertiges.
+**Er stand zur Debatte als der Schnitt** für den Fall, dass die Stufe kleiner
+werden soll (Entscheidung 5); der Betreiber hat ihn drin gelassen. Nach Schritt 5
+steht trotzdem etwas Fertiges — die Reihenfolge bleibt so.
 
 ### Schritt 7 — Das Protokoll
 
-Die drei ändernden Handlungen ins Audit-Protokoll, ohne Werte.
+Die drei ändernden Handlungen ins Audit-Protokoll, ohne Werte — und der
+entprellte Eintrag beim Öffnen, einer je Datenbank und Stunde (Entscheidung 5,
+Punkt 4).
+
+**Die Entprellung ist der Teil, den ein Test braucht, und nicht der Eintrag.**
+Ein Eintrag entsteht sichtbar; eine fehlende Entprellung sieht man erst, wenn
+das Protokoll nach einer Woche nur noch aus Konsolenzeilen besteht.
 
 ### Schritt 8 — Die Wächter brechen
 
@@ -734,6 +819,11 @@ weil es hier keinen MariaDB-Server gibt (dieselbe Bauform wie `PhpIsolationTest`
 
 **Bruch:** Den geänderten Wert in den Eintrag schreiben. Erwartet: rot.
 
+**Und die zweite Hälfte:** Zwanzig Seitenaufrufe hintereinander erzeugen **einen**
+Eintrag und nicht zwanzig (Entscheidung 5, Punkt 4). Bruch: die Entprellung
+entfernen. Erwartet: rot — und der Test nennt die Anzahl, weil hier ausnahmsweise
+genau sie die Regel ist.
+
 ### 14.6 `RowKeyTest`
 
 **Regel:** Ein Schreibvorgang ohne Schlüssel entsteht gar nicht erst, und einer,
@@ -799,9 +889,15 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #    Schleife), im Panel öffnen, auf Seite 2 blättern, absteigend sortieren,
 #    filtern.
 #    erwartet: Seite 2 beginnt bei Zeile 51; die Sortierung dreht die Reihen-
-#              folge; der Filter reduziert die Trefferzahl.
+#              folge; der Filter lässt weniger Zeilen stehen.
 #    BELEG: die erste und die letzte Kennung jeder Seite. „Es blättert" ist
 #           keine Erfüllung — zwei gleiche Seiten blättern auch.
+#    UND: es steht KEINE Trefferzahl da, sondern „mehr als 50" bzw. auf der
+#    letzten Seite die genaue Zahl (Entscheidung 5, Punkt 2). Eine Zahl an
+#    dieser Stelle ist kein hübscher Zusatz, sondern der count(*), den §9
+#    ausgeschlossen hat — sie gehört gesucht und nicht übersehen.
+#    Und die drei Operatoren sind drei: ist gleich, enthält, ist leer. Ein
+#    vierter im Auswahlfeld ist ein Befund und kein Bonus.
 
 # 3  KEINE FREMDE TABELLE  ← Kriterium 3
 #    Die Konsole von Abo A auf eine Tabelle aus Abo B richten. Der Weg dafür
@@ -863,6 +959,28 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #      SELECT id FROM audit_events WHERE payload LIKE '%<der neue Wert>%';
 #      → 0 Zeilen.
 #    Nach dem WERT suchen, nicht die Einträge zählen.
+#    UND DIE ENTPRELLUNG, denn sie ist die Hälfte, die still bricht:
+#    Zwanzig Seitenaufrufe hintereinander, dann
+#      SELECT count(*) FROM audit_events WHERE action LIKE 'db.console%'
+#        AND created_at > <Beginn>;
+#    erwartet: EINS, nicht zwanzig. Hier ist die Anzahl ausnahmsweise die
+#    Regel selbst — sonst gilt in diesem Lauf durchweg das Gegenteil.
+
+# 8b DIE UNBERÜHRTE SPALTE  ← Kriterium 6, zweite Hälfte
+#    Eine Tabelle mit einer langen Textspalte (> 512 Zeichen) und einer
+#    nullbaren Spalte, die auf NULL steht:
+#      CREATE TABLE lang (id int primary key, text text, leer text);
+#      INSERT INTO lang VALUES (1, repeat('a', 5000), NULL);
+#    Im Panel die Zeile öffnen, NUR id unverändert lassen und NUR eine dritte
+#    Spalte ändern — die beiden anderen nicht anfassen. Speichern. Dann:
+#      SELECT length(text), leer IS NULL FROM lang WHERE id = 1;
+#    erwartet: 5000 und t.
+#    OHNE DIESEN SCHRITT IST KRITERIUM 6 HALB GEFAHREN. Er ist der einzige des
+#    Laufs, dessen Fehlschlag an der Zeile nicht zu sehen ist: Sie steht da, sie
+#    sieht richtig aus, und 4488 Zeichen sind fort.
+#    Und die Zelleinzelsicht ist die Gegenprobe dazu, denn ohne sie ist der
+#    ganze Wert gar nicht nachzusehen:
+#      Zelle `text` öffnen  → 5000 Zeichen, ungekürzt.
 
 # 9  DER RÜCKBAU LÄSST NICHTS LIEGEN
 #    Abo A zurückbauen.
@@ -901,6 +1019,16 @@ Diese Liste ist so wichtig wie der Umfang, und jeder Eintrag hat einen Grund.
   grossem `OFFSET` (§18).
 - **Keine Erweiterungen.** `CREATE EXTENSION` bleibt offen, wie
   [38 §5](38-postgresql.md) es benannt hat.
+- **Keine optimistische Sperre** (Entscheidung 5, Punkt 5). Zwei Personen an
+  derselben Zeile überschreiben einander; die Regel „nur geänderte Spalten" aus
+  §10.1 hält den Schaden auf die Spalten begrenzt, an denen beide gearbeitet
+  haben. Steht als Risiko 7 in §18 — benannt, nicht gebaut.
+- **Keine Anzahl der Treffer unter einem Filter** (Entscheidung 5, Punkt 2), und
+  damit auch keine Seitenzahlen in der Blätterleiste. Der Grund steht in §9: Die
+  Zahl kostet bei jedem Aufruf, gebraucht wird sie selten.
+- **Fünf der acht Filteroperatoren** (Entscheidung 5, Punkt 1). `≠`,
+  `beginnt mit`, `ist nicht NULL`, `<` und `>` kommen dazu, wenn jemand die drei
+  benutzt hat — und dann mit einem Wächter über der Maskierung jedes einzelnen.
 
 ---
 
@@ -953,9 +1081,9 @@ und nicht bei null.
 
 | | |
 |---|---|
-| Agent | `Db\Console`, `Pg\Console`, acht Operationen |
+| Agent | `Db\Console`, `Pg\Console`, zehn Operationen |
 | Anwendung | `Console`, Controller, Policy-Methode, Routen |
-| Oberfläche | drei Ansichten unter `Pages/Databases/` |
+| Oberfläche | drei Ansichten und eine Zelleinzelsicht unter `Pages/Databases/` |
 | Wächter | sieben neue, acht Brüche |
 | Migrationen | **keine** — die Konsole führt keinen Zustand |
 | Positivliste | **keine Erweiterung** — `psql` und `mysql` stehen seit P5/P5b |

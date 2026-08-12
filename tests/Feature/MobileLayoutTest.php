@@ -93,11 +93,34 @@ final class MobileLayoutTest extends TestCase
         $this->assertGreaterThan(3, $found, 'Der Ausdruck findet keine Haltepunkte mehr.');
     }
 
+    /**
+     * Keine Seite misst in `vh`.
+     *
+     * `vh` zählt die Adressleiste des Telefons mit, die beim Rollen
+     * verschwindet — die Seite steht dann im Ausgangszustand zu hoch. Gemeint
+     * ist `dvh` (`docs/24 §6`).
+     *
+     * **Das Stylesheet stand bis Schritt 5 von P5c nicht in dieser Liste**, und
+     * das war eine Lücke: Die Regel gilt für jede Höhenangabe, und die
+     * allermeisten stehen in `app.css` und nicht in einer Komponente. Aufgefallen
+     * ist es, weil `max-height: 60vh` an der Zelleinzelsicht dort hineingeriet —
+     * an einer Stelle, die dieser Wächter nie angesehen hätte.
+     *
+     * > **Ein Wächter, der nur die Hälfte der Orte kennt, an denen eine Regel
+     * > gelten muss, ist an der anderen Hälfte keiner.**
+     */
     public function test_no_page_measures_in_vh(): void
     {
-        // `vh` zählt die Adressleiste des Telefons mit, die beim Rollen
-        // verschwindet — die Seite steht dann im Ausgangszustand zu hoch.
-        foreach ($this->files('resources/js', 'vue') as $path) {
+        $quellen = $this->files('resources/js', 'vue');
+        $quellen[] = dirname(__DIR__, 2).'/resources/css/app.css';
+
+        $this->assertGreaterThan(
+            10,
+            count($quellen),
+            'Es werden kaum Dateien gelesen — dann prüft dieser Test nichts.',
+        );
+
+        foreach ($quellen as $path) {
             $source = (string) file_get_contents($path);
 
             $this->assertSame(
@@ -443,6 +466,150 @@ final class MobileLayoutTest extends TestCase
     }
 
     /**
+     * Eine Zelle der Zeilenansicht trägt einen **Wert** und keine Kennung.
+     *
+     * **Der Fund, und warum keine Zahl ihn gemeldet hat.** Der Überlauf am
+     * Dokument war 0, der Rollbehälter rollte wie vorgesehen — und die Ansicht
+     * war trotzdem kaputt: Eine bei 512 Zeichen gekürzte Textzelle machte den
+     * Inhalt der Tabelle 5710px breit statt 1907. Bei 390px sind das zehn
+     * Bildschirme Rollen durch eine einzige Zelle. Die Messung sagt davon
+     * nichts; sie sagt nur, *dass* gerollt wird, und das war ja gewollt.
+     *
+     * > **Eine Zelle, die rollen darf, hat keine Obergrenze — sie hat nur keine
+     * > Zahl, die sich beschwert.**
+     *
+     * Die Ursache war `td .ident { white-space: nowrap }` — eine Regel mit einer
+     * Begründung, die für Kennungen stimmt und für Werte nicht. Es ist derselbe
+     * Schnitt wie bei `psql -A -t` in `docs/46 §2`:
+     *
+     * > **Ein Format, das für Bezeichner reicht, reicht nicht für Werte.**
+     *
+     * **Drei Fragen, und keine ersetzt die andere.** Die Erlaubnis zu brechen
+     * nützt nichts, wenn sie jemand widerruft; und beide zusammen nützen nichts,
+     * wenn die Vorlage der Zelle wieder ein `.ident` gibt — dann gewinnt eine
+     * Regel, die dieser Selektor gar nicht ansieht.
+     */
+    public function test_a_value_cell_of_the_rows_view_may_break(): void
+    {
+        [$selector, $wrap, $seen] = $this->winner('overflow-wrap', $this->selectsRowValueCell(...));
+
+        $this->assertGreaterThanOrEqual(
+            1,
+            $seen,
+            'Es wird keine Umbruchregel gefunden, die eine Wertzelle der Zeilenansicht erreicht — '.
+            'dann rechnet dieser Test an nichts mehr nach.',
+        );
+
+        $this->assertSame(
+            'anywhere',
+            $wrap,
+            sprintf(
+                'An der Wertzelle der Zeilenansicht gewinnt „%s" mit `overflow-wrap: %s`. Ein Wert von '.
+                '512 Zeichen ohne Leerzeichen macht seine Spalte sonst breiter als zehn Bildschirme.',
+                (string) $selector,
+                (string) $wrap,
+            ),
+        );
+
+        [$engster, $space] = $this->winner('white-space', $this->selectsRowValueCell(...));
+
+        $this->assertNotSame(
+            'nowrap',
+            $space,
+            sprintf(
+                'An der Wertzelle der Zeilenansicht gewinnt „%s" mit `white-space: nowrap`. Für eine '.
+                'Kennung ist das richtig — für einen Kundenwert nicht (docs/46 §11).',
+                (string) $engster,
+            ),
+        );
+
+        $this->assertRowValueCellsCarryNoIdentifier();
+    }
+
+    /**
+     * Und die dritte Frage: Die Vorlage gibt der Zelle kein `.ident`.
+     *
+     * Ohne sie bliebe der Test grün, während der Fehler zurück ist: `.ident`
+     * bringt sein `nowrap` aus einer Regel mit, die auf `.ident` endet — und
+     * `selectsRowValueCell()` sieht nur Regeln an, die auf der Zelle enden.
+     */
+    private function assertRowValueCellsCarryNoIdentifier(): void
+    {
+        $found = 0;
+
+        foreach ($this->files('resources/js', 'vue') as $path) {
+            $template = $this->template((string) file_get_contents($path));
+
+            if (preg_match('#<table class="rows">(.*?)</table>#su', $template, $match) !== 1) {
+                continue;
+            }
+
+            $found++;
+
+            preg_match_all('/<td\b[^>]*>/', $match[1], $cells);
+
+            foreach ($cells[0] as $cell) {
+                $this->assertStringNotContainsString(
+                    'ident',
+                    $cell,
+                    sprintf(
+                        '%s gibt einer Zelle der Zeilenansicht `%s` mit. `td .ident` verbietet den Umbruch, '.
+                        'und eine Wertzelle darf ihn nicht verlieren (docs/46 §11).',
+                        $this->relative($path),
+                        trim($cell, '<>'),
+                    ),
+                );
+            }
+        }
+
+        $this->assertSame(
+            1,
+            $found,
+            'Es wird keine `<table class="rows">` in einer Vorlage gefunden — dann prüft diese Hälfte nichts.',
+        );
+    }
+
+    /**
+     * Die Angabe zwischen „Zurück" und „Weiter" bricht um.
+     *
+     * **Hier stand `white-space: nowrap`, und es war eine Wette auf den
+     * Bestand.** Bis P5c hiess diese Zeile „Seite 2 von 5" — kurz, und in der
+     * Länge unabhängig davon, wie gross die Liste ist. Die Zeilenansicht der
+     * Konsole schreibt „1.001–1.050 von mehr als 1.050", und diese Zahl wächst
+     * mit der Tabelle. Gemessen bei 390px: **8px** Überlauf am Dokument, durch
+     * eine Angabe, die keine Bedienung ist.
+     *
+     * > **Ein `nowrap` über einer Zahl, die wächst, ist keine Zusage über die
+     * > Zeile — es ist eine über den Bestand.**
+     *
+     * Die Untergrenze zählt Regeln und nicht Umbruchregeln: Die richtige Antwort
+     * ist hier gerade, dass **keine** Umbruchregel die Angabe erreicht. Ohne den
+     * Nachweis, dass der Selektor überhaupt noch etwas trifft, wäre dieser Test
+     * nach einer Umbenennung still grün.
+     */
+    public function test_the_pager_state_may_break(): void
+    {
+        $this->assertGreaterThanOrEqual(
+            1,
+            $this->rulesReaching($this->selectsPagerState(...)),
+            'Es wird keine Regel gefunden, die die Angabe der Blätterleiste erreicht — dann prüft '.
+            'dieser Test nichts mehr.',
+        );
+
+        [$selector, $value] = $this->winner('white-space', $this->selectsPagerState(...));
+
+        $this->assertNotSame(
+            'nowrap',
+            $value,
+            sprintf(
+                'An der Angabe der Blätterleiste gewinnt „%s" mit `white-space: nowrap`. Sie trägt in der '.
+                'Konsole eine Zeilennummer, und die wächst mit dem Bestand (docs/46 §11).',
+                (string) $selector,
+            ),
+        );
+    }
+
+    /**
      * Eine Zustandsmarke bleibt eine Marke, auch in einer gestapelten Zelle.
      *
      * **Der dritte Fund derselben Aufnahme, und der leiseste.** `.multiline`
@@ -532,6 +699,31 @@ final class MobileLayoutTest extends TestCase
         }
 
         return [$selector, $value, $seen];
+    }
+
+    /**
+     * Wie viele Regeln auf schmaler Fläche dieses Element überhaupt erreichen.
+     *
+     * **Die Untergrenze für eine Regel, die aus einer Abwesenheit besteht.**
+     * `winner()` zählt nur Regeln, die die gesuchte Eigenschaft *setzen* — für
+     * „hier steht kein `nowrap`" ist die richtige Antwort null, und dann zählt
+     * `$seen` nichts mehr. Diese Zahl hält fest, dass der Selektor noch trifft.
+     *
+     * @param  callable(string): bool  $reaches
+     */
+    private function rulesReaching(callable $reaches): int
+    {
+        $count = 0;
+
+        foreach ($this->narrowRules() as [$rule]) {
+            foreach (explode(',', $rule) as $single) {
+                if ($reaches(trim($single))) {
+                    $count++;
+                }
+            }
+        }
+
+        return $count;
     }
 
     /**
@@ -631,6 +823,28 @@ final class MobileLayoutTest extends TestCase
             ['h2'],
             ['div', '.section', '.sections', '.section-head', '.full', '.wide'],
             ['.page-head', '.tile', '.notice', '.empty'],
+        );
+    }
+
+    /** Trifft er die Zelle, in der ein Wert der Zeilenansicht steht? */
+    private function selectsRowValueCell(string $selector): bool
+    {
+        return $this->reaches(
+            $selector,
+            ['.cell', 'div.cell'],
+            ['div', 'table', 'tbody', 'tr', 'td', '.scrolls', '.rows', 'table.rows'],
+            ['.stacks', 'table.stacks', '.pairs', 'table.pairs', '.sheet', '.tile'],
+        );
+    }
+
+    /** Und die Angabe zwischen „Zurück" und „Weiter"? */
+    private function selectsPagerState(string $selector): bool
+    {
+        return $this->reaches(
+            $selector,
+            ['.pager-state', 'p.pager-state'],
+            ['div', 'nav', '.pager', '.section'],
+            ['.sheet', '.tile'],
         );
     }
 

@@ -10779,9 +10779,27 @@ Aufklappen, und „alles aufklappen" gibt es nicht.
 > **Ein Bedienelement, das zwanzig Datenbankrollen anlegt, sieht aus wie ein
 > Komfort.**
 
-Dazu zwei neue Wächter in §14.9: `TreeSemanticsTest` über `role="tree"`,
-`role="treeitem"` und `aria-expanded`, und `ConsoleFanoutTest` darüber, dass kein
+Dazu zwei Wächter, die `docs/46 §14.9` festlegt: einer über die Baum-Semantik
+(`role="tree"`, `role="treeitem"`, `aria-expanded`) und einer darüber, dass kein
 Weg in der Oberfläche die Struktur für mehr als eine Tabelle in einem Zug holt.
+**Ihre Namen stehen hier bewusst nicht** — es gibt sie noch nicht, und dieser
+Changelog hält fest, was ist.
+
+### Der Wächter über den Changelog hat seinen eigenen Ausweg vorweggenommen
+
+Der erste Anlauf dieses Eintrags nannte die beiden geplanten Tests bei Namen.
+`ChangelogTest::every_named_test_exists` hat das abgewiesen — und die Meldung
+nennt die Umgehung, die einem als Nächstes einfällt, gleich mit:
+
+    Wurde der Test entfernt, gehört er mit Datum und Grund in
+    ChangelogTest::REMOVED — ihn im Fliesstext ohne Rückstriche zu nennen wäre
+    kein Ausweg, sondern eine Umgehung dieses Wächters.
+
+Das war exakt der Plan. Ein Wächter, der die naheliegende Umgehung beim Namen
+nennt, ist mehr wert als einer, der nur zubeisst.
+
+> **Ein Changelog, der auf einen Test verweist, den es nicht gibt, ist dieselbe
+> Zeichenkette ohne Bezug, gegen die dieses Projekt seine Wächter gebaut hat.**
 
 ### Ein Entwurf, der beim Bauen seinen eigenen Fehler gezeigt hat
 

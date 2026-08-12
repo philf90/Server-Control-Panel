@@ -1403,7 +1403,31 @@ Dazu zehn Einträge in `WITHOUT_LIFECYCLE`, jeder mit demselben Grund: Ein
 eingereihter Vorgang legte einen Filterwert oder den Inhalt einer Kundenzeile in
 `operations.payload` ab.
 
-### 20.8 Fünfmal `POST`, und der Einstieg ist noch keine Seite
+### 20.8 Eine Fähigkeit, die niemand abfragt, ist auch ein Fehler
+
+Schritt 3 hat `can.console` schon in die Nutzlast der Datenbankseite gelegt —
+die Fähigkeit gibt es ja, und der Knopf käme mit Schritt 4. **`AbilityReachTest`
+prüft aber beide Richtungen**, und die zweite hatte ich beim Lesen übersehen:
+
+> Eine Fahne, die die Seite abfragt und niemand schickt, ist in Vue `undefined`
+> — der Knopf verschwindet dann für **alle**, ohne dass etwas meldet. Eine, die
+> geschickt wird und die niemand abfragt, ist eine **Zusage ins Leere.** Beides
+> ist dasselbe Muster: eine Zeichenkette, die auf etwas verweist, das es nicht
+> gibt.
+
+Der Satz stimmt, und die Regel ist strenger als sie aussieht: **Die Fahne kommt
+mit dem Knopf, der sie liest, und keinen Beitrag früher.** Das ist keine
+Förmlichkeit — eine Nutzlast, die Fähigkeiten auf Vorrat trägt, sagt nach
+einigen Beiträgen nichts mehr darüber, was die Seite wirklich anbietet.
+
+**Und die Lehre über den Fall hinaus:** Ich hatte den Wächter gelesen, den
+Namen der ersten Testmethode für seine ganze Aussage gehalten und daraus
+geschlossen, ein zusätzlicher Schlüssel sei harmlos. Er war es nicht.
+
+> **Ein Wächter sagt, was er prüft, in seinen Behauptungen — nicht im Namen
+> seiner ersten Methode.**
+
+### 20.9 Fünfmal `POST`, und der Einstieg ist noch keine Seite
 
 **Vier der fünf Griffe müssen `POST` sein, und der Grund ist der Inhalt.** Ein
 Filterwert und ein Zeilenschlüssel gehören nicht in eine Adresse: Dort stünden

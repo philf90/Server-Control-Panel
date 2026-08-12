@@ -10329,3 +10329,24 @@ bei `Runner::PROGRAMS`, wo sie seit P0 steht:
 
 Dazu zehn Einträge in `WITHOUT_LIFECYCLE` mit ihrem Grund — dass die Argumente
 sonst in `operations.payload` lägen.
+
+### Eine Fähigkeit, die niemand abfragt, ist auch ein Fehler
+
+Schritt 3 legte `can.console` schon in die Nutzlast der Datenbankseite — die
+Fähigkeit gibt es, der Knopf käme mit Schritt 4. `AbilityReachTest` prüft aber
+**beide** Richtungen:
+
+> Eine Fahne, die die Seite abfragt und niemand schickt, ist in Vue `undefined`
+> — der Knopf verschwindet dann für alle. Eine, die geschickt wird und die
+> niemand abfragt, ist eine Zusage ins Leere.
+
+Die Fahne kommt jetzt mit dem Knopf, der sie liest, und keinen Beitrag früher.
+Das ist keine Förmlichkeit: Eine Nutzlast, die Fähigkeiten auf Vorrat trägt,
+sagt nach einigen Beiträgen nichts mehr darüber, was die Seite wirklich
+anbietet.
+
+Der Fehler ist entstanden, weil ich den Wächter gelesen und den Namen seiner
+ersten Testmethode für seine ganze Aussage gehalten habe.
+
+> **Ein Wächter sagt, was er prüft, in seinen Behauptungen — nicht im Namen
+> seiner ersten Methode.**

@@ -281,10 +281,20 @@ final class DatabaseController extends Controller
                 'update' => $request->user()?->can('update', $database) ?? false,
                 'delete' => $request->user()?->can('delete', $database) ?? false,
 
-                // Die Konsole bekommt ein Betreiberkonto nicht (docs/46 §3,
-                // Entscheidung 3). Gefragt wird dieselbe Policy, die die Route
-                // abweist — der Knopf FEHLT dann, er ist nicht abgeblendet.
-                'console' => $request->user()?->can('console', $database) ?? false,
+                /*
+                 * **`console` steht hier noch nicht, und das ist kein
+                 * Vergessen.** Die Fähigkeit gibt es (`DatabasePolicy::console`,
+                 * Entscheidung 3), den Knopf dazu erst mit Schritt 4.
+                 *
+                 * {@see \Tests\Feature\AbilityReachTest} prüft **beide**
+                 * Richtungen: Eine Fahne, die die Seite abfragt und niemand
+                 * schickt, ist in Vue `undefined` — der Knopf verschwindet dann
+                 * für alle. Eine, die geschickt wird und die niemand abfragt,
+                 * ist eine Zusage ins Leere. Beides ist dasselbe Muster.
+                 *
+                 * Sie kommt mit dem Knopf, der sie liest, und keinen Beitrag
+                 * früher.
+                 */
             ],
 
             // Das Passwort eines gerade angelegten Zugangs — genau einmal, aus

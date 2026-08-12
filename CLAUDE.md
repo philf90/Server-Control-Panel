@@ -312,7 +312,10 @@ Agent-Klassen sind aus der Anwendung autoladbar (`SrvPanel\Agent\` →
 ## Sprache und Gestaltung
 
 **`docs/19-sprache-der-oberflaeche.md` ist bindend** und wird von
-`WordChoiceTest` geprüft. Kurz:
+`WordChoiceTest` geprüft — **und seit dem 12. August auch der Ort einer
+Rückmeldung (§6):** Der Satz eines Fehlers steht oben in der Zusammenfassung,
+das Feld trägt nur `aria-invalid`, und Erfolg wird **nie** am Feld gemeldet.
+`FieldErrorTest` prüft alle drei Richtungen. Kurz:
 
 - **Kommentare, Dokumentation und alle Texte der Oberfläche: deutsch.
   Bezeichner: englisch** (§4a) — das schliesst CSS-Klassen, Datenattribute,

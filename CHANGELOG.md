@@ -9822,3 +9822,34 @@ die Ordnung, die er durchsetzt.
 
 > **Ein Typprüfer, der eine Vorlage übersetzt, prüft nicht, ob sie sich bauen
 > lässt.**
+
+### Und die Regel steht jetzt geschrieben — samt der Richtung, die es nicht gibt
+
+Ein app-weiter Umbau ohne Vorgabe hält bis zum nächsten Formular. `docs/19 §6`
+hält den Ort einer Rückmeldung fest: Der Satz eines Fehlers steht oben in der
+Zusammenfassung, das Feld trägt `aria-invalid` und keinen Satz, ein Fehler ohne
+eigenes Feld markiert nichts, und eine Seite, die markieren kann, **muss** die
+Zusammenfassung tragen.
+
+Die Vorgabe steht in `docs/19` und nicht im Plan, aus demselben Grund wie §3a
+(keine Emoji): Es ist eine Eigenschaft der Oberfläche, die man ohne Regel bei
+jedem neuen Formular neu entscheidet.
+
+**Und die Frage nach der Gegenrichtung hat eine eigene Antwort bekommen: Erfolg
+wird nie am Feld gemeldet.** Nachgesehen statt vermutet — das Panel hat dafür
+schon genau eine Stelle, `PanelLayout.vue` rendert `flash.success` als
+`.notice ok` mit `role="status"`; eine grüne Markierung an einem Feld gab es
+nirgends. Der Grund, warum das so bleibt, ist nicht Symmetrie, sondern die
+Aufgabe der Markierung: Sie zeigt, wo noch etwas zu tun ist. Erfolg hat keinen
+Ort, an dem man weiterarbeitet — ein grüner Rand an vierzehn Feldern eines
+gespeicherten Formulars sagt vierzehnmal dasselbe und weist auf nichts hin.
+
+> **Eine Markierung, die überall sitzt, weist nirgendwohin.**
+
+Dazu kommt, dass ständig eingefärbte Felder genau das entwerten, wofür es die
+Markierung gibt: Das eine rote fällt dann nicht mehr auf.
+
+`FieldErrorTest::test_success_is_never_reported_at_a_field` hält beides fest —
+dass es die eine grüne Meldung **gibt** und dass sie nicht in einem Formular
+steht. Ohne die erste Hälfte ginge „nirgends eine grüne Meldung" als Erfolg
+durch.

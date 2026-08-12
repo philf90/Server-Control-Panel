@@ -363,6 +363,27 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FieldErrorTest passed
 
 echo
+echo "── FieldErrorTest: Erfolg wird am Feld gemeldet ──"
+#
+# docs/19 §6.3: Die Markierung zeigt, wo noch etwas zu tun ist. Erfolg hat keinen
+# solchen Ort — und ein Formular voller gruener Raender entwertet das eine rote.
+vorher_datei resources/js/Pages/Settings/Tls.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Tls.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '<form class="form" @submit.prevent="speichern">',
+    '<form class="form" @submit.prevent="speichern">\n        <p class="notice ok">Gespeichert.</p>',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Settings/Tls.vue "gruene Meldung im Formular" &&
+pruefe "gruene Meldung im Formular" \
+  FieldErrorTest::test_success_is_never_reported_at_a_field failed
+wiederherstellen
+
+echo
 echo "── ClassNameTest: ein deutscher Klassenname ──"
 vorher
 printf '\n.knopfreihe-neu { color: var(--text); }\n' >> resources/css/app.css

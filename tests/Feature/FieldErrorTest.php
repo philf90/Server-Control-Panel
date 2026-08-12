@@ -156,6 +156,56 @@ final class FieldErrorTest extends TestCase
     }
 
     /**
+     * Erfolg wird nie am Feld gemeldet.
+     *
+     * **Der Grund ist nicht Symmetrie, sondern die Aufgabe der Markierung**
+     * (`docs/19 §6.3`): Sie zeigt, wo noch etwas zu tun ist. Erfolg hat keinen
+     * Ort, an dem man weiterarbeitet — ein grüner Rand an vierzehn Feldern
+     * eines gespeicherten Formulars sagt vierzehnmal dasselbe und weist auf
+     * nichts hin. Und er entwertet das eine rote Feld: Sind Felder ständig
+     * eingefärbt, fällt die Beanstandung nicht mehr auf.
+     *
+     * Geprüft wird beides — dass es die eine grüne Meldung **gibt** und dass
+     * sie nicht in einem Formular steht. Die Untergrenze ist hier nötig, weil
+     * „nirgends eine grüne Meldung" sonst als Erfolg durchginge.
+     *
+     * **Der Bruch dazu** (`tests/waechter-brechen.sh`): eine `notice ok` in ein
+     * Formular auf `Pages/Settings/Tls.vue` setzen.
+     */
+    public function test_success_is_never_reported_at_a_field(): void
+    {
+        $stellen = [];
+
+        foreach ($this->vueFiles() as $path) {
+            $source = (string) file_get_contents($path);
+
+            if (! str_contains($source, 'notice ok')) {
+                continue;
+            }
+
+            $stellen[] = $this->relative($path);
+        }
+
+        $this->assertNotSame(
+            [],
+            $stellen,
+            'Es gibt keine grüne Meldung mehr — dann prüft dieser Test nichts, und der Erfolg '
+            .'eines Vorgangs steht nirgends.',
+        );
+
+        $found = array_values(array_filter(
+            $stellen,
+            static fn (string $pfad): bool => ! str_contains($pfad, '/Layouts/'),
+        ));
+
+        $this->assertSame([], $found, implode("\n  ", array_merge(
+            ['Eine grüne Meldung steht ausserhalb des Layouts. Erfolg ist eine Aussage über den '
+                .'Vorgang und nicht über ein Feld (docs/19 §6.3):'],
+            $found,
+        )));
+    }
+
+    /**
      * Markiert diese Seite ein Feld — selbst oder über eine Komponente?
      *
      * Eine Ebene tief, und das reicht: Die drei Komponenten mit Feldern

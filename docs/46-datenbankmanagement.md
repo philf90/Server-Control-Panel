@@ -544,6 +544,67 @@ zerstört, eine vergessene der Frage nur eine Spalte zu viel zeigt.
 > **Was ein Format nicht tragen kann, gehört nicht hinein — nicht hinein und
 > hinterher entfernt.**
 
+### 8.3 Und der Klient muss seinen Zeichensatz nennen — gefunden erst auf dem Server
+
+**Nachgetragen am 12. August 2026, aus dem Lauf von `docs/47`.** §8.1 und §8.2
+haben zwei Wege gefunden, auf denen eine ganze Zeile unlesbar wird. Es gibt
+einen dritten, und er trifft nicht eine Sonderspalte, sondern **jede deutsche
+Kundendatenbank**.
+
+`Db\Session` rief `mysql` ohne `--default-character-set`. Der Klient leitet den
+Zeichensatz sonst aus der Locale ab — und `Runner::ENVIRONMENT` erzwingt seit P0
+`LC_ALL=C`, damit Zahlen- und Datumsformate stabil bleiben. Ohne Locale fällt
+`mysql` auf seinen eingebauten Zeichensatz zurück: **latin1**. Der Server steht
+auf `utf8mb4` und konvertiert am Ausgang. Gemessen auf `cloudsrv24`, MariaDB
+10.11.14:
+
+```
+env -i LC_ALL=C LANG=C mysql --batch --raw --skip-column-names \
+  -e "SELECT JSON_OBJECT('n', notiz) FROM lang"
+→ 75 6e 62 65 72  fc  68 72 74        "unber" · FC · "hrt"
+
+… mit --default-character-set=utf8mb4:
+→ 75 6e 62 65 72  c3 bc  68 72 74     "unber" · C3 BC · "hrt"
+```
+
+`FC` ist `ü` in latin1 und für sich genommen kein gültiges UTF-8;
+`json_decode()` gibt `null` zurück, und damit ist wieder die **ganze Zeile**
+fort. Die drei Wege enden also am selben Ort, und nur einer davon war geplant.
+
+**Warum PostgreSQL denselben Fehler nicht hat:** `psql` leitet
+`client_encoding` ebenfalls aus der Locale ab, und `LC_ALL=C` ergibt dort
+`SQL_ASCII` — also **keine Konvertierung**. Die Bytes gehen unangetastet durch.
+
+> **Zwei Systeme unter derselben Umgebung treffen entgegengesetzte Vorgaben —
+> und die eine ist verlustfrei, die andere nicht.**
+
+**`utf8mb4` und nicht „was die Locale sagt".** Auf demselben Server handelt ein
+`mariadb` aus einer UTF-8-Shell `utf8mb3` aus; ein Zeichen ausserhalb der BMP —
+ein Emoji in einer Kundentabelle — käme auch dort nicht heil an. Der Zeichensatz
+gehört zur Abfrage und nicht zur Umgebung dessen, der sie stellt.
+
+**Und die Argumentliste stand zweimal da**, in `run()` und in `linesAs()`.
+Genau daran ist die fehlende Angabe nicht aufgefallen: Es gab keinen Ort, an dem
+man nachsieht. Sie steht jetzt als `Session::CLIENT` einmal, und §14.8 prüft
+beides — die Angabe und dass beide Wege die Konstante benutzen.
+
+> **Zwei Listen, die dasselbe meinen, laufen auseinander — und keine von beiden
+> ist der Ort, an dem man nachsieht.**
+
+**Dazu ein zweiter Fund, der danebenlag:** Die Meldung aus `Console::decode()`
+lautete „*Steht eine binäre Spalte in der Abfrage?*" — der Hinweis aus §8.2, und
+für diesen Fall die falsche Fährte. Sie nennt jetzt beide Ursachen.
+
+> **Ein Hinweis, der genau eine Ursache nennt, ist eine Diagnose — und eine
+> falsche Diagnose ist teurer als keine.**
+
+**Warum kein Test das gefunden hat:** Die Testdoppel dieses Projekts sind ASCII,
+und der Abnahmelauf wäre es beinahe auch gewesen. Das einzige nicht-ASCII-Zeichen
+im ganzen Testbestand von `docs/47` ist das `ü` in `'unberührt'` — hingeschrieben
+als deutsches Wort, nicht als Prüfung.
+
+> **Ein Testdatensatz aus ASCII prüft keine Kodierung.**
+
 ---
 
 ## 9. Die Grenzen, und woher jede ihre Zahl hat

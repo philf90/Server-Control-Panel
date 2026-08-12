@@ -6831,6 +6831,46 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NetworkDriftTest passed
 
 echo
+echo "── ResultEncodingTest: der Klient ohne Zeichensatz ──"
+#
+# Ohne `--default-character-set` handelt mysql unter LC_ALL=C latin1 aus. Der
+# Server konvertiert JSON_OBJECT() am Ausgang, aus `ue` wird das einzelne Byte
+# FC, und json_decode() gibt null zurueck — fuer die ganze Zeile, nicht nur die
+# Zelle. Gemessen auf cloudsrv24 am 12. August 2026; gefunden hat es der
+# Abnahmelauf und kein Test.
+vorher_datei agent/src/Db/Session.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Session.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        '--default-character-set=utf8mb4',\n", "", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Session.php "Klient ohne Zeichensatz" &&
+pruefe "Klient ohne Zeichensatz" \
+  ResultEncodingTest::test_the_client_always_speaks_utf8mb4 failed
+wiederherstellen
+
+echo
+echo "── ResultEncodingTest: die Argumentliste steht wieder zweimal da ──"
+#
+# Die zweite Haelfte derselben Regel, und die wichtigere: Die Liste stand in
+# run() und in linesAs(), und die Angabe fehlte in beiden. Ein Wert, den zwei
+# Stellen fuehren, ist kein Wert — er ist zwei.
+vorher_datei agent/src/Db/Session.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Session.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $arguments = self::CLIENT;\n        $file = null;",
+              "        $arguments = ['--protocol=socket', '--batch', '--skip-column-names'];\n        $file = null;", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Session.php "Argumentliste zum zweiten Mal" &&
+pruefe "Argumentliste zum zweiten Mal" \
+  ResultEncodingTest::test_the_client_always_speaks_utf8mb4 failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ResultEncodingTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

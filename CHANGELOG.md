@@ -10406,3 +10406,85 @@ Gefunden hat es kein Test, sondern das Ausschreiben des Abnahmelaufs gegen den
 Quelltext. Das ist derselbe Befund wie in `docs/45`, eine Stufe früher:
 
 > **Ein Abnahmelauf ist Code, den niemand ausführt, bis es darauf ankommt.**
+
+### Der MariaDB-Klient nannte seinen Zeichensatz nicht — und eine Zeile mit einem Umlaut war unlesbar
+
+**Gefunden am 12. August 2026 im Abnahmelauf von P5c auf `cloudsrv24`, von
+keinem Test.** `Db\Session` rief `mysql` ohne `--default-character-set`. Der
+Klient leitet ihn sonst aus der Locale ab — und `Runner::ENVIRONMENT` erzwingt
+seit P0 `LC_ALL=C`, damit Zahlen- und Datumsformate stabil bleiben. Ohne Locale
+fällt `mysql` auf seinen eingebauten Zeichensatz zurück: **latin1**. Der Server
+steht auf `utf8mb4` und konvertiert am Ausgang.
+
+```
+env -i LC_ALL=C LANG=C mysql --batch --raw --skip-column-names \
+  -e "SELECT JSON_OBJECT('n', notiz) FROM lang"
+→ 75 6e 62 65 72  fc  68 72 74           "unber" · FC · "hrt"
+… mit --default-character-set=utf8mb4:
+→ 75 6e 62 65 72  c3 bc  68 72 74        "unber" · C3 BC · "hrt"
+```
+
+`FC` ist `ü` in latin1 und für sich kein gültiges UTF-8. `json_decode()` gibt
+`null` zurück, und damit ist nicht die Zelle unlesbar, sondern **die ganze
+Zeile** — derselbe Schaden wie beim `BLOB` aus `docs/46 §8.2`, nur mit einer
+Ursache, die praktisch jede deutsche Kundendatenbank trifft.
+
+**PostgreSQL hat denselben Fehler nicht**, und zwar aus Gründen, die niemand
+entschieden hat: `psql` leitet `client_encoding` ebenfalls aus der Locale ab, und
+`LC_ALL=C` ergibt dort `SQL_ASCII` — also *keine* Konvertierung.
+
+> **Zwei Systeme unter derselben Umgebung treffen entgegengesetzte Vorgaben —
+> und die eine ist verlustfrei, die andere nicht.**
+
+**`utf8mb4` und nicht „was die Locale sagt".** Auf demselben Server handelt ein
+`mariadb` aus einer UTF-8-Shell `utf8mb3` aus; ein Emoji in einer Kundentabelle
+käme auch dort nicht heil an.
+
+**Und die Argumentliste stand zweimal da**, in `run()` und in `linesAs()`. Genau
+daran ist die fehlende Angabe nicht aufgefallen — es gab keinen Ort, an dem man
+nachsieht. Sie steht jetzt einmal als `Db\Session::CLIENT`.
+
+> **Zwei Listen, die dasselbe meinen, laufen auseinander — und keine von beiden
+> ist der Ort, an dem man nachsieht.**
+
+`ResultEncodingTest` prüft beides: dass die Angabe in der Konstante steht und
+dass beide Aufrufwege die Konstante benutzen. Zwei Brüche dazu in
+`tests/waechter-brechen.sh`, beide gegengeprüft.
+
+### Eine Fehlermeldung, die genau eine Ursache nannte — und die falsche
+
+`Console::decode()` fragte bei ungültigem JSON „Steht eine binäre Spalte in der
+Abfrage?". Der Hinweis war für seinen Fall richtig (`docs/46 §8.2`) und schickte
+beim Zeichensatzfehler an die falsche Stelle: eine binäre Spalte gab es nicht.
+Die Meldung nennt jetzt beide Ursachen.
+
+> **Ein Hinweis, der genau eine Ursache nennt, ist eine Diagnose — und eine
+> falsche Diagnose ist teurer als keine.**
+
+### Warum kein Test das gefunden hat
+
+Die Testdoppel dieses Projekts sind ASCII, und der Abnahmelauf wäre es beinahe
+auch gewesen: Das einzige nicht-ASCII-Zeichen im ganzen Testbestand von
+`docs/47` ist das `ü` in `'unberührt'` — hingeschrieben als deutsches Wort, nicht
+als Prüfung.
+
+> **Ein Testdatensatz aus ASCII prüft keine Kodierung.**
+
+### Zwei Fehler in `docs/47` selbst, gefunden beim Fahren
+
+**Die Fassungsprüfung suchte in der falschen Datei.** Ein
+`grep -c "pg.console.tables"` auf `Registry.php` kann nur `0` finden: Die
+Registratur trägt Objekte (`new PgConsoleTables`), der Name steht in der
+Op-Klasse. Der Ausdruck hätte bei einer kaputten Fassung dasselbe gesagt wie bei
+einer heilen. An seiner Stelle steht jetzt eine Abfrage an die Registratur der
+ausgelieferten Fassung.
+
+> **Ein Wächter, der in der falschen Datei sucht, ist kein Wächter — er ist eine
+> Zeile, die immer dasselbe sagt.**
+
+**Und eine Hilfsdatei unter `/root` ist für `srvpanel tinker` unlesbar.** Der
+Wrapper gibt seine Rechte ab (`setpriv --reuid=srvpanel`), `/root` ist `0700`,
+und die Meldung „Failed opening required" liest sich wie ein Tippfehler im Pfad.
+
+> **Ein Werkzeug, das Rechte abgibt, liest die Datei nicht mehr, die man ihm als
+> root hinlegt.**

@@ -10488,3 +10488,90 @@ und die Meldung „Failed opening required" liest sich wie ein Tippfehler im Pfa
 
 > **Ein Werkzeug, das Rechte abgibt, liest die Datei nicht mehr, die man ihm als
 > root hinlegt.**
+
+### Die Zwischenabnahme von P5c ist gefahren (`docs/47 §6`)
+
+**12. August 2026 auf `cloudsrv24`**, gegen `0.5.3-rc.1` und ab Punkt 7 gegen
+`0.5.3-rc.2`. Sechs der sieben Kriterien aus `docs/46 §4` sind gemessen, das
+siebte — das Protokoll — steht als benannte Lücke da und gehört zu Schritt 7.
+**Kein einziges Bild**, weil es die Oberfläche noch nicht gibt.
+
+Was belegt ist, mit Werten und nicht mit Häkchen: vierzig befristete Zugänge bei
+vierzig Aufrufen, jeder mit anderem Namen und keiner zwei gleichzeitig; die vier
+Werte (`''`, `NULL`, Tabulator, Zeilenumbruch) in beiden Systemen unterscheidbar;
+die fremde Datenbank abgewiesen mit der Meldung des **Servers** und nicht des
+Panels; das Zeitlimit bei 5,2 s und 5,3 s mit dem Grund wörtlich; eine Tabelle
+ohne Schlüssel lesbar und auf drei Schreibwegen abgewiesen; genau eine Zeile
+getroffen, und die unberührte Spalte behielt ihre 5000 Zeichen und ihr `NULL`.
+
+**Und nichts blieb liegen** — nach rund sechzig Konsolenaufrufen war die Ausgabe
+von `srvpanel db` wortgleich die vom Anfang.
+
+### Drei Befunde des Laufs steckten im Lauf selbst
+
+Dasselbe Verhältnis wie beim Fernzugriff (`docs/45`: zwölf Fehler, fünf davon im
+Abnahmelauf).
+
+**Die Fassungsprüfung suchte in der falschen Datei** — behandelt weiter oben.
+**Eine Hilfsdatei unter `/root` ist für `srvpanel tinker` unlesbar**, weil der
+Wrapper `setpriv --reuid=srvpanel` macht — ebenfalls oben.
+
+**Und die Gegenprobe zum Zeitlimit zählte sich selbst mit.** Sie fragte
+`… WHERE state='active' AND query LIKE '%viel%'`, und der Text dieser Abfrage
+enthält `viel`. Herausgekommen ist `2`, wo `0` erwartet war. Sie fragt jetzt nach
+der Kennung des Aufrufers statt nach dem Abfragetext.
+
+> **Eine Frage an den Bestand, die sich selbst enthält, zählt sich mit.**
+
+Die zweite der beiden Zeilen liess sich Minuten später nicht mehr feststellen.
+Sie steht deshalb **nicht** als Befund in `docs/47` — ein Autovacuum-Arbeiter war
+der Verdacht, belegt ist er nicht.
+
+> **Eine Vermutung, die man nicht mehr prüfen kann, gehört nicht ins Protokoll —
+> auch wenn sie plausibel ist.**
+
+### Ein Nachbau, der eine Zeile weglässt, beweist ihre Notwendigkeit
+
+Punkt 11 baut den befristeten Zugang von Hand nach, um die Wand des Servers zu
+messen — die einzige der drei Wände, die uns nicht gehört. Beim Abräumen
+scheiterte das `DROP ROLE`: „role cannot be dropped because some objects depend
+on it". `Pg\Ephemeral::with()` macht im `finally` ein `DROP OWNED BY` davor, und
+der Kommentar dort erklärt genau diesen Fehler. Der Nachbau hatte die Zeile
+nicht.
+
+Der Punkt trägt beide `DROP`-Zeilen jetzt in der richtigen Reihenfolge, und die
+Schlussprüfung sucht ausdrücklich auch nach der Probe: Ein Zugang mit einem
+Namen, den `isEphemeral()` nicht erkennt, fällt keinem Aufräumlauf auf.
+
+### Zwei Belege, die den Unterschied zwischen Messung und Behauptung machen
+
+Beide sind erst beim Schreiben des Laufs dazugekommen, und ohne sie hätte er zwei
+Kriterien nur scheinbar geprüft:
+
+- Bei Kriterium 1 zählt nicht die Leere der Restabfrage, sondern der **Name** aus
+  einem Beobachter, der lief, während die Konsole arbeitete. Eine Abfrage nach
+  Resten ist auch dann leer, wenn nie eine Konsole lief.
+- Bei Kriterium 3 zählt nicht die Abweisung, sondern die **gelungene** Verbindung
+  derselben Rolle zur eigenen Datenbank daneben. Ohne sie wäre eine Abweisung von
+  einem Tippfehler im Datenbanknamen nicht zu unterscheiden.
+
+Dasselbe beim Protokoll: `konsole = 0` bekam seine Bedeutung erst durch die eine
+fremde Zeile daneben, die zeigt, dass die Tabelle überhaupt beschrieben wird.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+### Offen geblieben: derselbe Satz, zwei Verpackungen
+
+Der Schreibvorgang, der null Zeilen trifft, meldet in beiden Systemen wörtlich
+denselben Satz — aber PostgreSQL liefert ihn als `ERROR: … CONTEXT: PL/pgSQL
+function inline_code_block line 7 at RAISE`, MariaDB nackt. Der Satz ist
+**unserer**; er kommt als Datenbankfehler verkleidet zurück, mit einer
+Zeilennummer auf eine Datei, die es nicht gibt. Beim Zeitlimit ist dieselbe
+Verpackung richtig, weil es dort die Meldung des Servers *ist*.
+
+> **Eine Verpackung, die für eine fremde Meldung richtig ist, ist für die eigene
+> falsch.**
+
+Nicht behoben, mit Absicht: Was ein Kunde liest, entscheidet sich in Schritt 6,
+wo die Meldung zum ersten Mal auf einen Menschen trifft.

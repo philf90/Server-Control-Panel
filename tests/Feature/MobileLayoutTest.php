@@ -375,6 +375,74 @@ final class MobileLayoutTest extends TestCase
     }
 
     /**
+     * Eine Bereichsüberschrift bricht, bevor sie die Seite schiebt.
+     *
+     * **Die dritte Fassung derselben Ausnahme.** Sie steht an `.ident` und an
+     * `.stacks td .ident`; an der Überschrift fehlte sie. Gefunden hat es der
+     * Bildschirmfoto-Durchgang zu P5c Schritt 4 auf `cloudsrv24`: Der Titel
+     * „Struktur — bestellpositionen_archiv_2026_langer_name_zum_messen" schob
+     * die Seite bei 390px um **99px** aus dem Bild. Ohne offene
+     * Strukturansicht stand dieselbe Seite auf `0px`.
+     *
+     * **Bild und Zahl waren beide nötig.** Auf dem Bildschirmfoto sah der
+     * abgeschnittene Name nach einem Zuschnitt aus; erst
+     * `scrollWidth - clientWidth` sagte, dass die Seite schiebt.
+     *
+     * > **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite
+     * > schiebt.**
+     *
+     * **Beide Hälften in einem Test**, anders als bei der gestapelten Tabelle
+     * darüber: Dort sind es zwei Elemente mit je einer Frage, hier ist es ein
+     * Element mit einem Paar. `overflow-wrap` allein nützt nichts, solange das
+     * Flexkind seine Inhaltsbreite behalten darf — wer nur eine Hälfte
+     * zurücknimmt, hat den Fehler wieder.
+     */
+    public function test_a_section_heading_can_break(): void
+    {
+        [$selector, $wrap, $seen] = $this->winner('overflow-wrap', $this->selectsSectionHeading(...));
+
+        $this->assertGreaterThanOrEqual(
+            1,
+            $seen,
+            'Es wird keine Umbruchregel gefunden, die eine Bereichsüberschrift erreicht — dann rechnet '.
+            'dieser Test an nichts mehr nach.',
+        );
+
+        $this->assertSame(
+            'anywhere',
+            $wrap,
+            sprintf(
+                'An der Bereichsüberschrift gewinnt „%s" mit `overflow-wrap: %s`. Eine Überschrift trägt '.
+                'hier Kundendaten — einen Tabellennamen, einen Abonnementnamen —, und eine Kennung hat '.
+                'keine Leerzeichen, an denen sie von selbst bräche.',
+                (string) $selector,
+                (string) $wrap,
+            ),
+        );
+
+        [$engster, $breite, $gesehen] = $this->winner('min-width', $this->selectsSectionHeading(...));
+
+        $this->assertGreaterThanOrEqual(
+            1,
+            $gesehen,
+            'Es wird keine Breitenregel gefunden, die eine Bereichsüberschrift erreicht — dann prüft die '.
+            'zweite Hälfte dieses Tests nichts.',
+        );
+
+        $this->assertSame(
+            '0',
+            $breite,
+            sprintf(
+                'An der Bereichsüberschrift gewinnt „%s" mit `min-width: %s`. `.section-head` ist ein '.
+                'Flexbehälter, und ein Flexkind darf ohne `min-width: 0` nicht unter seine Inhaltsbreite '.
+                '— die Erlaubnis zu brechen bleibt dann wirkungslos.',
+                (string) $engster,
+                (string) $breite,
+            ),
+        );
+    }
+
+    /**
      * Eine Zustandsmarke bleibt eine Marke, auch in einer gestapelten Zelle.
      *
      * **Der dritte Fund derselben Aufnahme, und der leiseste.** `.multiline`
@@ -550,6 +618,19 @@ final class MobileLayoutTest extends TestCase
             ['table', '.stacks', 'table.stacks'],
             ['div', '.scrolls', '.panel', 'body'],
             ['.pairs', 'table.pairs'],
+        );
+    }
+
+    /** Trifft er die Überschrift eines Bereichs? */
+    private function selectsSectionHeading(string $selector): bool
+    {
+        return $this->reaches(
+            $selector,
+            // `reaches()` zerlegt den Selektor an Leerzeichen und `>` und
+            // vergleicht das *letzte* Stück — hier also immer nur `h2`.
+            ['h2'],
+            ['div', '.section', '.sections', '.section-head', '.full', '.wide'],
+            ['.page-head', '.tile', '.notice', '.empty'],
         );
     }
 

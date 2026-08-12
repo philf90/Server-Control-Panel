@@ -165,6 +165,23 @@ lesbare Katalogsichten, die Namen führen, und eine Absperrung, die bei
 
 Ausgeliefert wird `v0.5.3-rc.2`.
 
+**Und der Bildschirmfoto-Durchgang zu Schritt 4 hat zwei Fehler gefunden, die
+grün waren** (`docs/46 §20.11`). Der erste schob die Seite bei 390px um **99px**
+aus dem Bild: Ein Bereichstitel trug einen Tabellennamen, und der darf 63 Zeichen
+lang sein. Der zweite war **überhaupt nicht messbar** — Spalten- und Indextabelle
+standen ohne Abstand und ohne Beschriftung untereinander und lasen sich als eine.
+
+> **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt. Keines
+> von beiden ersetzt das andere.**
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+Der erste ist die **dritte** Fassung derselben Ausnahme nach `.ident` und
+`.stacks td .ident`: `overflow-wrap: anywhere` **mit** `min-width: 0`, weil ein
+Flexkind sonst nicht unter seine Inhaltsbreite darf.
+`MobileLayoutTest::test_a_section_heading_can_break` rechnet sie seitdem nach.
+
 **P5c ist bis Schritt 4 gebaut** — `docs/46`, das Datenbankmanagement: Tabellen
 und Struktur durchsehen, Zeilen ansehen, filtern, blättern und ändern, für beide
 Systeme. Vier Entscheidungen des Betreibers tragen ihn, und die zweite hat die

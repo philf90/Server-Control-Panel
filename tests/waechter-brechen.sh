@@ -6871,6 +6871,42 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ResultEncodingTest passed
 
 echo
+echo "── MobileLayoutTest: eine Bereichsüberschrift, die nicht brechen darf ──"
+#
+# Ein Bereichstitel traegt hier Kundendaten — einen Tabellennamen, einen
+# Abonnementnamen. Ohne overflow-wrap schob er die Seite bei 390px um 99px aus
+# dem Bild, gemessen auf cloudsrv24 am 12. August 2026.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace("  min-width: 0;\n  overflow-wrap: anywhere;\n}", "  min-width: 0;\n}", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Überschrift ohne Umbruch" &&
+pruefe "Überschrift ohne Umbruch" \
+  MobileLayoutTest::test_a_section_heading_can_break failed
+wiederherstellen
+
+echo
+echo "── MobileLayoutTest: … und die Haelfte, die nach einem Fix aussieht ──"
+#
+# Die Erlaubnis zu brechen nuetzt nichts, solange das Flexkind seine
+# Inhaltsbreite behalten darf. Dritte Fassung derselben Ausnahme.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace("  min-width: 0;\n  overflow-wrap: anywhere;\n}", "  overflow-wrap: anywhere;\n}", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Überschrift ohne min-width" &&
+pruefe "Überschrift ohne min-width" \
+  MobileLayoutTest::test_a_section_heading_can_break failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

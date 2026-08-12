@@ -10709,3 +10709,105 @@ Bereichen, „Spalten" und „Indexe".
 neuen CSS-Regel stand zuerst, der Titel werde *geschnitten* und die
 Überlaufmessung sei dabei grün. Gemessen war das nicht — die Zahl vom Server
 sagte 99 px. Der Kommentar steht jetzt richtig da.
+
+### Schritt 4 von P5c ist abgeschlossen — die Gegenprobe steht
+
+`0.5.3-rc.4` auf `cloudsrv24`, Strukturansicht bei 390 px, dieselbe Zeile in der
+Browser-Konsole wie beim Fund:
+
+```
+dokument: 0px        (vorher 99px)
+scrolls[0]: 0px      Tabellenliste
+scrolls[1]: 0px      Spalten
+scrolls[2]: 0px      Indexe
+```
+
+**Drei Rollbehälter statt zwei** sind der Beleg für die zweite Hälfte, die keine
+Zahl beantworten konnte: Spalten und Indexe stehen in getrennten Bereichen. Und
+auf dem Bild bricht der Tabellenname als Kennung unter der kurzen Überschrift,
+statt in ihr zu stehen.
+
+> **Ein Fix ohne Nachmessung ist eine Behauptung.**
+
+Damit sind die Schritte 0 bis 4 aus `docs/46 §13` erledigt. Offen sind 5 bis 9 —
+und aus dem Lauf von `docs/47` das Protokoll (Kriterium 7, Schritt 7) sowie
+Befund 2 daraus, die PL/pgSQL-`CONTEXT`-Zeile an einer Meldung, die der Kunde
+lesen soll; sie gehört zu Schritt 6.
+
+### Der Plan bekommt einen Schritt: 5b, die Baumansicht
+
+Der Betreiber hat gefragt, ob sich Tabellen, Spalten und Zeilen als aufklappbarer
+Baum zeigen lassen und ob das als Navigation innerhalb einer Datenbank taugt.
+Die Antwort ist ja — aber der Nutzen liegt woanders, als die Frage vermuten
+lässt, und das ist gemessen und nicht überlegt.
+
+**Die Erwartung war falsch.** Ein Baum sollte bei 390 px an der Einrückung
+scheitern: Jede Ebene kostet Breite, und die Breite fehlt den Daten. Der
+waagerechte Überlauf ist in jedem Entwurf `0px`. Entschieden wird die Frage
+**senkrecht**:
+
+| 20 Tabellen, zugeklappt | 390 px | 1440 px |
+|---|---|---|
+| als gestapelte Tabelle (heute) | **4992 px** — 5,9 Bildschirme | 881 px |
+| als Baum | **964 px** — 1,1 Bildschirme | 803 px |
+
+Dieselben fünf Angaben je Tabelle, dieselben Daten. **Am Arbeitsplatz nehmen die
+beiden sich nichts.**
+
+> **Der Baum löst kein Navigationsproblem. Er löst ein Telefonproblem.**
+
+Der Grund steht in `docs/24 §5` und ist eine Präzisierung an dessen drei Mustern:
+`.stacks` macht aus jeder Zeile ein Kärtchen mit einer beschrifteten Zeile je
+Spalte — richtig für ein **Verzeichnis**, das man Zeile für Zeile liest, falsch
+für eine Liste, die man nach **einem Namen absucht**.
+
+**Der Baum trägt Tabellen und Ziele, keine Daten.** Ein Zweig ist eine Tabelle,
+seine Blätter sind Spalten, Indexe und Zeilen. Spalten als Blätter müssten vier
+von fünf Angaben weglassen und wären eine zweite, schlechtere Strukturansicht;
+eine Seite Zeilen passt in keinen Knoten.
+
+**Drei Entscheidungen** stehen in §11.1: eine Form für beide Breiten (nicht Baum
+unten und Tabelle oben — das wären zwei Fassungen derselben Ansicht), nach
+Schritt 5 (der Baum ruft die Zeilenansicht auf), und als eigener Schritt, weil
+ein zweispaltiger Grundriss eine Änderung am Plan ist und nicht an seiner
+Umsetzung.
+
+**Und der teuerste Posten steht als Regel da, nicht als Empfehlung:** Jedes
+Aufklappen ist ein befristeter Datenbankzugang. Der Baum lädt deshalb erst beim
+Aufklappen, und „alles aufklappen" gibt es nicht.
+
+> **Ein Bedienelement, das zwanzig Datenbankrollen anlegt, sieht aus wie ein
+> Komfort.**
+
+Dazu zwei Wächter, die `docs/46 §14.9` festlegt: einer über die Baum-Semantik
+(`role="tree"`, `role="treeitem"`, `aria-expanded`) und einer darüber, dass kein
+Weg in der Oberfläche die Struktur für mehr als eine Tabelle in einem Zug holt.
+**Ihre Namen stehen hier bewusst nicht** — es gibt sie noch nicht, und dieser
+Changelog hält fest, was ist.
+
+### Der Wächter über den Changelog hat seinen eigenen Ausweg vorweggenommen
+
+Der erste Anlauf dieses Eintrags nannte die beiden geplanten Tests bei Namen.
+`ChangelogTest::every_named_test_exists` hat das abgewiesen — und die Meldung
+nennt die Umgehung, die einem als Nächstes einfällt, gleich mit:
+
+    Wurde der Test entfernt, gehört er mit Datum und Grund in
+    ChangelogTest::REMOVED — ihn im Fliesstext ohne Rückstriche zu nennen wäre
+    kein Ausweg, sondern eine Umgehung dieses Wächters.
+
+Das war exakt der Plan. Ein Wächter, der die naheliegende Umgehung beim Namen
+nennt, ist mehr wert als einer, der nur zubeisst.
+
+> **Ein Changelog, der auf einen Test verweist, den es nicht gibt, ist dieselbe
+> Zeichenkette ohne Bezug, gegen die dieses Projekt seine Wächter gebaut hat.**
+
+### Ein Entwurf, der beim Bauen seinen eigenen Fehler gezeigt hat
+
+Der erste Vorschlag hatte im Navigationsbaum Art, Zeilenzahl und Grösse rechts
+neben dem Namen. In einer 300 px schmalen Spalte quetschte das den Tabellennamen
+auf **ein Zeichen je Zeile** — dieselbe Falle wie an drei anderen Stellen dieses
+Panels: Ein Flexkind behält seine Inhaltsbreite, und der Nachbar verliert.
+
+Die Antwort war keine CSS-Reparatur, sondern eine Entwurfsentscheidung: **Der
+Navigationsbaum trägt nur den Namen.** Die Zahlen stehen im Inhalt, wo Platz für
+sie ist.

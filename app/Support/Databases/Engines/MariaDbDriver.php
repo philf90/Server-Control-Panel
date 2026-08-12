@@ -12,6 +12,8 @@ use RuntimeException;
 use SrvPanel\Agent\Client;
 use SrvPanel\Agent\Db\Names;
 use SrvPanel\Agent\Ops\DbDatabaseCreate;
+use SrvPanel\Agent\Runner;
+use Tests\Feature\AgentOperationReachTest;
 
 /**
  * MariaDB — unverändert das, was P5 gebaut hat.
@@ -138,6 +140,48 @@ final class MariaDbDriver implements EngineDriver
             'name' => $user->name,
             'host' => $user->host,
         ]);
+    }
+
+    /**
+     * Die fünf Griffe der Konsole, **ausgeschrieben**.
+     *
+     * **Zusammengesetzt wäre kürzer und ist genau das, was hier nicht sein
+     * darf.** `'{prefix}.console.'.$handle` erzeugt denselben Namen — und
+     * {@see AgentOperationReachTest} findet ihn dann nirgends,
+     * weil er im Quelltext gar nicht steht. Der Wächter fragt: *Führt ein Weg
+     * dorthin?* Auf eine zusammengesetzte Zeichenkette antwortet er mit Nein,
+     * und er hat recht: Ein Tippfehler in einem der fünf Griffe fiele erst auf,
+     * wenn ein Kunde die Konsole öffnet.
+     *
+     * Dieselbe Überlegung wie bei {@see Runner::PROGRAMS}:
+     * *Aus einem Wert einen Pfad zu bauen ist der Vorgang, den eine Positivliste
+     * verhindert.*
+     *
+     * @var array<string, string>
+     */
+    public const CONSOLE = [
+        'tables' => 'db.console.tables',
+        'columns' => 'db.console.columns',
+        'rows' => 'db.console.rows',
+        'cell' => 'db.console.cell',
+        'row.write' => 'db.console.row.write',
+    ];
+
+    public function consoleOperation(string $handle): string
+    {
+        return self::CONSOLE[$handle] ?? throw new RuntimeException('Diesen Konsolengriff gibt es nicht: '.$handle);
+    }
+
+    /**
+     * Die Datenbank selbst — in MariaDB gibt es kein Schema daneben.
+     *
+     * `Db\Console::schema()` besteht im Agenten darauf und weist alles andere
+     * ab. Dass hier trotzdem ein Wert steht statt einer leeren Zeichenkette,
+     * ist Absicht: Ein leeres Feld sähe aus wie ein vergessenes.
+     */
+    public function consoleSchema(Database $database): string
+    {
+        return (string) $database->name;
     }
 
     public function removalTask(): string

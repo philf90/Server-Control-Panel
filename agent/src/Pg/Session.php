@@ -187,6 +187,129 @@ final class Session
     }
 
     /**
+     * Eine Abfrage unter einer fremden Rolle — zeilenweise, Felder durch Tabulator.
+     *
+     * Für die Katalogfragen der Konsole ({@see Console}). Was hier zurückkommt,
+     * sind Bezeichner und Zahlen; die Textform trägt das (`docs/46 §8`).
+     *
+     * @return list<list<string>>
+     */
+    public function queryAs(Context $context, Credentials $as, string $database, string $sql, int $timeoutMs): array
+    {
+        $rows = [];
+
+        foreach ($this->linesAs($context, $as, $database, $sql, $timeoutMs) as $line) {
+            $rows[] = explode("\t", $line);
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Eine Abfrage unter einer fremden Rolle — eine JSON-Zeile je Datenzeile.
+     *
+     * **Für Daten und nicht für Bezeichner**, und der Unterschied ist gemessen:
+     * `-A -t -F "\t"` gibt `NULL` und die leere Zeichenkette beide als leeres
+     * Feld aus, macht aus einem Tabulator im Wert eine Spalte und aus einem
+     * Zeilenumbruch eine Zeile (`docs/46 §2.2`, M7). `row_to_json` trägt alle
+     * vier Fälle.
+     *
+     * **Die Zeilentrennung bleibt trotzdem gültig**, obwohl ein Wert einen
+     * Zeilenumbruch enthalten darf: JSON maskiert ihn selbst zu `\n`, und damit
+     * ist eine Datenzeile genau eine Ausgabezeile (M8).
+     *
+     * @return list<string> je Eintrag ein JSON-Dokument
+     */
+    public function jsonAs(Context $context, Credentials $as, string $database, string $sql, int $timeoutMs): array
+    {
+        return $this->linesAs($context, $as, $database, $sql, $timeoutMs);
+    }
+
+    /**
+     * Anweisungen unter einer fremden Rolle ausführen; die Ausgabe interessiert nicht.
+     */
+    public function executeAs(Context $context, Credentials $as, string $database, string $statement, int $timeoutMs): void
+    {
+        $this->linesAs($context, $as, $database, $statement, $timeoutMs);
+    }
+
+    /**
+     * Der Lauf unter einer fremden Rolle.
+     *
+     * **Er steht hier und nicht in {@see Console}, weil `AgentIdentityTest`
+     * darauf besteht** — dieselbe Begründung wie bei {@see self::restore()}:
+     * `psql` wird an genau einer Stelle gerufen, damit Socketpfad, Anmeldeweise
+     * und `ON_ERROR_STOP` nicht in zwei Fassungen auseinanderlaufen.
+     *
+     * **Das Zeitlimit steht in derselben Sitzung wie die Abfrage.** Ein
+     * `ALTER ROLE … SET` wäre der andere Weg und der schlechtere: Der
+     * Rolleninhaber kann ihn zurücknehmen (`docs/46 §2.2`, M11). Dass er es hier
+     * nicht kann, liegt allein daran, dass er kein `SET` schicken darf — die
+     * Anweisung baut {@see Console}, nicht die Anwendung.
+     *
+     * **Und es steht *vor* der Abfrage in demselben Strom**, nicht in einem
+     * eigenen Aufruf: Jeder Aufruf ist eine eigene Verbindung, und eine
+     * Einstellung in einer anderen Verbindung gilt für diese nicht.
+     *
+     * @return list<string>
+     */
+    private function linesAs(Context $context, Credentials $as, string $database, string $sql, int $timeoutMs): array
+    {
+        $password = null;
+
+        $prepared = sprintf("SET statement_timeout = %d;\n%s;\n", $timeoutMs, rtrim($sql, "; \t\n"));
+
+        try {
+            $password = $as->write();
+
+            $result = $context->runner->run(
+                'psql',
+                array_merge(self::ARGUMENTS, [
+                    '-h', Server::SOCKET_DIRECTORY,
+                    '-U', $as->role(),
+                    '-d', $database,
+                ]),
+                self::TIMEOUT,
+                null,
+                $prepared,
+                fn (): bool => $context->abandoned(),
+                null,
+                [Credentials::VARIABLE => $password],
+            );
+        } finally {
+            if ($password !== null) {
+                @unlink($password);
+            }
+        }
+
+        if (! $result->successful()) {
+            /*
+             * **Die Meldung wörtlich und nicht umschrieben.** An ihr hängen zwei
+             * Abnahmekriterien: die abgebrochene Abfrage nach dem Zeitlimit
+             * (`docs/46 §4`, Punkt 4) und der Schreibvorgang, der nicht genau
+             * eine Zeile getroffen hat (Punkt 6) — der zweite bringt seinen
+             * Text aus dem `DO`-Block mit, und eine Umschreibung nähme ihn weg.
+             */
+            throw AgentException::execFailed(
+                'Die Datenbank hat abgewiesen: '.$result->message(),
+                ['code' => $result->code],
+            );
+        }
+
+        $lines = [];
+
+        foreach (explode("\n", trim($result->stdout)) as $line) {
+            if (trim($line) === '') {
+                continue;
+            }
+
+            $lines[] = $line;
+        }
+
+        return $lines;
+    }
+
+    /**
      * Der eigentliche Lauf.
      *
      * **`--host` zeigt auf das Socketverzeichnis und nicht auf einen Namen.**

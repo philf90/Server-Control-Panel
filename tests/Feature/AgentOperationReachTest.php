@@ -82,6 +82,17 @@ final class AgentOperationReachTest extends TestCase
         'dns.credential.list' => 'Zeigt, welche DNS-Profile hinterlegt sind; im Bestand des Panels steht dazu nichts.',
         'dns.credential.forget' => 'Entfernt ein DNS-Profil im Agenten; im Bestand des Panels steht dazu nichts.',
 
+        'db.console.tables' => 'Das Datenbankmanagement (docs/46 §12). Ein eingereihter Vorgang legte seine Argumente in operations.payload ab — dort stünde ein Filterwert oder der Inhalt einer Kundenzeile. App\Support\Databases\Console ruft deshalb unmittelbar auf, und im Bestand des Panels steht zur Konsole nichts. Was nicht in der Warteschlange stehen darf, ist nicht nur ein Geheimnis — es ist alles, was dem Kunden gehört.',
+        'db.console.columns' => 'Siehe db.console.tables.',
+        'db.console.rows' => 'Siehe db.console.tables.',
+        'db.console.cell' => 'Siehe db.console.tables.',
+        'db.console.row.write' => 'Siehe db.console.tables.',
+        'pg.console.tables' => 'Das Datenbankmanagement (docs/46 §12). Ein eingereihter Vorgang legte seine Argumente in operations.payload ab — dort stünde ein Filterwert oder der Inhalt einer Kundenzeile. App\Support\Databases\Console ruft deshalb unmittelbar auf, und im Bestand des Panels steht zur Konsole nichts. Was nicht in der Warteschlange stehen darf, ist nicht nur ein Geheimnis — es ist alles, was dem Kunden gehört.',
+        'pg.console.columns' => 'Siehe pg.console.tables.',
+        'pg.console.rows' => 'Siehe pg.console.tables.',
+        'pg.console.cell' => 'Siehe pg.console.tables.',
+        'pg.console.row.write' => 'Siehe pg.console.tables.',
+
         /*
          * P5 — Datenbanken (docs/36 §8).
          *

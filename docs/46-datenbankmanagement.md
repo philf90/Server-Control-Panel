@@ -115,35 +115,66 @@ das Passwort der Konsolensitzung" stellt sich nicht.
 **M9 hat die Seitengrösse zu einer Zahl mit Grund gemacht.** Ein Ergebnis wird
 vollständig geholt, ganz gleich wie viel davon jemand liest.
 
-### 2.3 Was hier nicht zu messen war
+### 2.3 Die fünf für MariaDB — hier stand „nicht zu messen", und das war falsch
 
-Diese fünf gehören **auf `cloudsrv24` gemessen, bevor Schritt 2 anfängt** —
-nicht danach, und nicht geschätzt. Sie betreffen alle MariaDB, für die es in
-diesem Container keinen Server gibt.
+**Hier stand, diese fünf gehörten auf `cloudsrv24` gemessen, weil es in diesem
+Container keinen MariaDB-Server gibt.** Das ist am 12. August 2026 nachgeprüft
+worden, und der Satz stimmte nur zur Hälfte: MariaDB ist hier **nicht
+installiert** und war die ganze Zeit **installierbar** —
+`mariadb-server 1:10.11.14-0ubuntu0.24.04.1` liegt im Ubuntu-Archiv, dieselbe
+Fassung, die auf `cloudsrv24` läuft. Was der Proxy sperrt, ist `composer install`
+und zwei PPAs, nicht das Archiv der Distribution.
 
-1. **`JSON_OBJECT()` über eine `BLOB`-Spalte mit ungültigem UTF-8.** Die
-   PostgreSQL-Hälfte ist gemessen (M8, `bytea` wird zu Hex). MariaDB kann hier
-   einen Fehler werfen statt einer Zeichenkette — und dann bräche die Konsole an
-   genau der Tabelle, an der sie am nötigsten ist.
-2. **Ob `mysql --batch` eine JSON-Zeile unverändert durchlässt.** `--batch`
-   maskiert Tabulator, Zeilenumbruch **und den Rückstrich** in der Ausgabe. Eine
-   JSON-Zeichenkette besteht aus maskierten Rückstrichen; eine zweite Maskierung
-   darüber ergäbe `\\n`, wo `\n` stehen soll. **Das ist die wahrscheinlichste
-   Stelle, an der dieser Plan für MariaDB nicht trägt**, und `--raw` ist die
-   Gegenprobe dazu.
-3. **`max_statement_time`** — ob er greift und ob er, wie `statement_timeout`
-   in M11, vom Rolleninhaber zurückgenommen werden kann. Für P5c ist nur die
-   erste Hälfte nötig (§9), die zweite gehört trotzdem gemessen: Sie
-   entscheidet, ob der Satz aus §9 für beide Systeme gilt oder nur für eines.
-4. **`information_schema.TABLES.TABLE_ROWS` bei InnoDB** — eine Schätzung, und
-   die Frage ist, ob sie wie `reltuples` einen Wert für „unbekannt" hat (M19)
-   oder stillschweigend `0` meldet.
-5. **Ob ein Kundenbenutzer `information_schema` gefiltert sieht.** Die
-   PostgreSQL-Hälfte ist gemessen (M18). Für MariaDB ist es die Grundlage der
-   ganzen Tabellenliste.
+Ein Wegwerf-Server ist damit derselbe Handgriff wie für PostgreSQL:
+`mariadb-install-db` in den Scratchpad, `mariadbd --skip-networking` auf einem
+eigenen Socket, kein systemd nötig. **Schritt 0 ist damit hier gefahren und
+nicht auf dem Zielserver**, gegen 10.11.14 statt gegen eine Annahme.
 
-> **Ein Plan, der eine Bauform nennt, hat sie noch nicht gemessen.**
-> ([38 §6](38-postgresql.md), und hier zum zweiten Mal.)
+> **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite braucht
+> einen Versuch.** `CLAUDE.md` hat den ersten geführt und den zweiten gemeint;
+> gekostet hat das nichts, weil jemand nachgesehen hat, bevor er es als Blockade
+> gemeldet hat.
+
+| | Messung | Ergebnis |
+|---|---|---|
+| **N1** | `mysql --batch` über eine JSON-Zeile — die heutigen Argumente von `Db\Session` | **Die Maskierung wird ein zweites Mal maskiert:** `"a\tb"` kommt als `"a\\tb"`, `"c\\d"` als `"c\\\\d"` |
+| **N2** | dasselbe mit `--raw --batch` | unverändert: `"a\tb"`, `"z1\nz2"`, `"c\\d"` |
+| **N3** | `JSON_OBJECT()` über ein `BLOB` mit ungültigem UTF-8 | rohe Bytes `0xFF 0x80` **mitten in der JSON-Zeichenkette** |
+| **N4** | `JSON_VALID()` auf ebendiese Ausgabe | **`1`** — MariaDB hält sie für gültig |
+| **N5** | `json_decode()` in PHP auf dieselbe Ausgabe | **`null`**, „Malformed UTF-8 characters" — und damit **die ganze Zeile**, nicht die eine Zelle |
+| **N6** | dasselbe über `HEX(binaer)` | geht, und `OCTET_LENGTH` liefert die Länge daneben |
+| **N7** | `max_statement_time` | greift: `ERROR 1969 … max_statement_time exceeded`, Rückgabewert 1 |
+| **N8** | ob der Benutzer ihn zurücknehmen kann | ja, `SET max_statement_time=0` — wie M11, und aus demselben Grund ohne Belang (§9) |
+| **N9** | `TABLE_ROWS` bei InnoDB | Schätzung: **197 076** bei 200 000 echten Zeilen (−1,5 %); **kein** Wert für „unbekannt" wie `reltuples = -1` |
+| **N10** | `TABLE_ROWS` bei einer Sicht | **`NULL`** — hier gibt es das „unbekannt" doch, nur woanders |
+| **N11** | `information_schema` für den Kundenbenutzer | nach Rechten gefiltert: eigene Tabellen 4, fremde **0**, Primärschlüssel lesbar |
+| **N12** | Zugriff auf eine fremde Tabelle | `ERROR 1142 … SELECT command denied` |
+
+**N1 hat den Verdacht bestätigt, und der Fehler wäre nicht aufgefallen.** Die
+zweite Maskierung erzeugt kein kaputtes JSON — sie erzeugt **gültiges JSON mit
+falschen Werten**. `{"tabulator": "a\\tb"}` liest sich fehlerfrei und ergibt die
+vier Zeichen `a`, `\`, `t`, `b` statt `a`, Tabulator, `b`. Ein Parserfehler wäre
+harmlos gewesen, weil er auffällt.
+
+> **Eine Maskierung über einer Maskierung ist schlimmer als ein Parserfehler.**
+
+**N3 bis N5 sind der eigentliche Fund dieses Schritts**, und er stand in keiner
+der fünf Fragen so scharf: Ein einziges `BLOB` in einer Tabelle macht nicht seine
+Zelle unlesbar, sondern **die ganze Seite** — `json_decode` gibt `null` für die
+komplette Zeile zurück, und die anderen neunzehn Spalten sind mit fort. Dass
+MariaDBs eigenes `JSON_VALID` dabei `1` sagt, ist die gefährliche Hälfte:
+
+> **Eine Gültigkeitsprüfung des einen Systems sagt nichts über den Leser im
+> anderen.**
+
+Was daraus folgt, steht in §8 und ist schärfer als vorher: Eine binäre Spalte
+darf `JSON_OBJECT()` **gar nicht erst erreichen** — nicht „wird später nicht
+angezeigt", sondern gar nicht erst hinein.
+
+**N9 und N10 zusammen sind die MariaDB-Fassung der `-1`-Falle aus M19**, nur an
+einer anderen Stelle: Eine Basistabelle liefert immer eine Zahl, auch eine nie
+analysierte; eine **Sicht** liefert `NULL`. Wer die Spalte für Basistabellen
+prüft und sich dann sicher fühlt, schreibt unter jede Sicht „0 Zeilen".
 
 ---
 
@@ -470,12 +501,48 @@ ist: Für Katalogfragen ist die Textform richtig, und sie hat zwei Stufen
 getragen. Was dazukommt, ist eine zweite Methode neben ihr — nicht ein Umbau der
 ersten.
 
+### 8.1 Für MariaDB gilt `--raw`, und zwar nur hier
+
+`Db\Session` ruft heute mit `--batch --skip-column-names`. **Für eine JSON-Zeile
+ist das falsch** (N1): `--batch` maskiert in der Ausgabe Tabulator,
+Zeilenumbruch und Rückstrich — und eine JSON-Zeichenkette besteht aus maskierten
+Rückstrichen. Aus `"a\tb"` wird `"a\\tb"`, und das ist **gültiges JSON mit einem
+falschen Wert**: vier Zeichen `a \ t b` statt drei.
+
+Die neue Methode ruft deshalb mit `--raw --batch`. Dass `--raw` sonst
+gefährlich wäre — ein roher Zeilenumbruch im Wert bräche die Zeilentrennung —
+gilt hier nicht: `JSON_OBJECT()` maskiert Steuerzeichen selbst, gemessen (N2).
+**Die Sicherheit kommt vom Format, nicht vom Klienten**, und deshalb darf der
+Klient sie loslassen.
+
+**`--raw` bleibt aus der bestehenden `query()` heraus.** Dort ist die Maskierung
+des Klienten genau die Sicherung, die die Zeilentrennung trägt; wer sie dort
+entfernte, machte aus einer richtigen Methode eine kaputte. Der Wächter dazu
+steht in §14.8.
+
+### 8.2 Eine binäre Spalte erreicht `JSON_OBJECT()` gar nicht erst
+
 **Binäre Spalten zeigt die Konsole als Länge und nicht als Wert.** `bytea` und
-`BLOB` werden als `<binär, 48 kB>` dargestellt und lassen sich nicht ändern. Das
-ist eine benannte Lücke und keine Nachlässigkeit: Ein Hexblock in einer
-Tabellenzelle hilft niemandem, ein Bild kann diese Oberfläche nicht anzeigen, und
-das Ändern eines binären Werts über ein Textfeld wäre ein Weg, Daten zu
-beschädigen, ohne es zu merken.
+`BLOB` erscheinen als `<binär, 48 kB>` und lassen sich nicht ändern. Ein
+Hexblock in einer Tabellenzelle hilft niemandem, ein Bild kann diese Oberfläche
+nicht anzeigen, und das Ändern eines binären Werts über ein Textfeld wäre ein
+Weg, Daten zu beschädigen, ohne es zu merken.
+
+**Bis Schritt 0 war das eine Frage der Anzeige. Jetzt ist es eine Bedingung.**
+N3 bis N5: Ein `BLOB` mit ungültigem UTF-8 landet als rohe Bytes in der
+JSON-Zeichenkette; MariaDBs `JSON_VALID()` sagt dazu `1`, und PHPs
+`json_decode()` gibt `null` zurück — **für die ganze Zeile.** Ein einziges
+Bildchen in Spalte drei nimmt die anderen neunzehn Spalten mit, und die Meldung
+lautet „Malformed UTF-8", also nach einem Fehler des Panels.
+
+Deshalb: **Die Spaltenliste der Abfrage entsteht aus dem Katalog, und eine
+binäre Spalte kommt dort als `OCTET_LENGTH(spalte)` hinein und nie als Wert**
+(N6). Das ist keine Filterung des Ergebnisses, sondern eine der Frage — der
+Unterschied ist, dass eine vergessene Filterung des Ergebnisses die Seite
+zerstört, eine vergessene der Frage nur eine Spalte zu viel zeigt.
+
+> **Was ein Format nicht tragen kann, gehört nicht hinein — nicht hinein und
+> hinterher entfernt.**
 
 ---
 
@@ -503,9 +570,13 @@ die Absperrung aus P5b `pg_stat_activity` verschlossen hat. Es gibt also **keine
 Weg, der ohne den Agenten auskäme** — was ein weiteres Argument für Entscheidung
 1 ist, und es ist erst beim Messen entstanden.
 
-**Die Schätzung hat einen dritten Zustand, und der ist der gefährliche.** M19:
-`pg_class.reltuples` ist `-1` für eine Tabelle, die noch nie analysiert wurde —
-nicht `0`. Wer die Zahl unbesehen anzeigt, schreibt „−1 Zeilen" unter eine
+**Die Schätzung hat einen dritten Zustand, und er sitzt in jedem System
+woanders.** M19: `pg_class.reltuples` ist `-1` für eine Tabelle, die noch nie
+analysiert wurde — nicht `0`. In MariaDB gibt es das für Basistabellen **nicht**
+(N9: 197 076 bei 200 000 echten Zeilen, und eine nie analysierte Tabelle liefert
+ihre drei Zeilen genau), dafür ist `TABLE_ROWS` bei einer **Sicht** `NULL` (N10).
+Wer die eine Hälfte prüft und sich dann sicher fühlt, schreibt im anderen System
+unter jede Sicht „0 Zeilen". Wer die Zahl unbesehen anzeigt, schreibt „−1 Zeilen" unter eine
 Tabelle mit Inhalt; wer sie auf `max(0, …)` klemmt, schreibt „0 Zeilen" und das
 ist schlimmer, weil es aussieht wie eine Antwort. Die Oberfläche zeigt
 **„unbekannt"**, und `docs/41` hat denselben Satz schon einmal gebraucht:
@@ -696,29 +767,64 @@ in 50 ms fertig ist, die falsche Bauform.
 
 Kein Schritt beginnt, bevor der vorige grün ist. Jeder ist für sich lieferbar.
 
-### Schritt 0 — Die fünf offenen Messungen (§2.3)
+### Schritt 0 — Die fünf offenen Messungen (§2.3) ✓
 
-Auf `cloudsrv24`, gegen MariaDB 10.11.14, **vor Schritt 2**. Ergebnis ist ein
-Abschnitt in diesem Dokument, kein Code. Fällt Messung 2 (`--batch` maskiert die
-Maskierung), ändert das §8 für MariaDB — und dann ist es besser, es steht hier,
-als dass es in Schritt 2 als Fehler auftaucht.
+**Erledigt am 12. August 2026**, und nicht auf `cloudsrv24`, sondern hier: Der
+Container hatte keinen MariaDB-Server und konnte einen bekommen — 10.11.14 aus
+dem Ubuntu-Archiv, dieselbe Fassung wie der Zielserver (§2.3). Zwölf Messungen,
+N1 bis N12.
 
-### Schritt 1 — Der Agent für PostgreSQL
+**Zwei davon haben etwas gefunden**, und beide ändern §8: `--batch` maskiert die
+Maskierung einer JSON-Zeile und erzeugt gültiges JSON mit falschen Werten (§8.1),
+und ein `BLOB` mit ungültigem UTF-8 macht über `json_decode()` die **ganze Zeile**
+unlesbar, während MariaDBs `JSON_VALID()` sie für gültig hält (§8.2).
 
-`Pg\Console` (die Katalogfragen und der Bau der Anweisungen), die vier
-`pg.console.*`-Operationen, `Names::ephemeral()` um das `c`-Zeichen erweitert,
-`Names::isEphemeral()` mit. Gemessen gegen einen Wegwerf-Cluster im Container —
-das geht hier vollständig, ohne Panel und ohne Warteschlange.
+Beides wäre in Schritt 2 als Fehler aufgetaucht — das erste vermutlich gar nicht,
+weil es keine Ausnahme wirft, sondern falsche Zeichen liefert.
 
-### Schritt 2 — Derselbe Agent für MariaDB
+### Schritt 1 — Der Agent für PostgreSQL ✓
 
-`Db\Console` und die vier `db.console.*`. Gegen `cloudsrv24`, weil es hier keinen
-Server gibt. Am Ende steht `EngineReachTest` grün, ohne Ausnahmeeintrag.
+**Erledigt am 12. August 2026.** `Pg\Console` (die Katalogfragen und der Bau der
+Anweisungen), die fünf `pg.console.*`-Operationen, `Session::queryAs()`,
+`jsonAs()` und `executeAs()`, `Names::ephemeral()` um das `c`-Zeichen erweitert,
+`isEphemeral()` mit.
 
-### Schritt 3 — Die Anwendung
+Gemessen gegen den **echten Debian-Cluster** im Container und nicht gegen einen
+im Scratchpad: `Pg\Server::require()` fragt `pg_lsclusters`, und ein Cluster,
+den Debians Werkzeug nicht kennt, gibt es für den Agenten nicht. Einundfünfzig
+Behauptungen, alle grün — darunter die vier Werte aus Kriterium 2, die Kürzung,
+der Filter mit einem Prozentzeichen im Wert, ein Ausbruchsversuch, die fremde
+Datenbank und die drei Regeln des Schreibwegs.
 
-`App\Support\Databases\Console`, der Controller, die Routen mit `can:`, die
-Policy-Methode, die `can`-Ablage im Inertia-Payload. Keine Oberfläche.
+**Drei Dinge waren beim Bauen anders als im Plan**, sie stehen in §20.
+
+### Schritt 2 — Derselbe Agent für MariaDB ✓
+
+**Erledigt am 12. August 2026**, und **nicht** auf `cloudsrv24`: Der Container
+bekam MariaDB 10.11.14 aus dem Ubuntu-Archiv (§2.3). `Db\Console`, die fünf
+`db.console.*`, `Session::queryAs()` und `jsonAs()` mit `--raw`,
+`Sql::qualified()`.
+
+Siebenundvierzig Behauptungen, alle grün — **darunter die beiden Funde aus
+Schritt 0 im Betrieb**: Der Tabulator steht in der Zelle und nicht als zweite
+Spalte daneben (`--raw`), und das `BLOB` kommt als Länge, ohne die Zeile
+mitzunehmen.
+
+Vier Unterschiede zur PostgreSQL-Hälfte, jeder mit Grund, stehen in §20.5.
+`EngineReachTest` geht ohne Ausnahmeeintrag auf: fünf Paare, fünf Gegenstücke.
+
+### Schritt 3 — Die Anwendung ✓
+
+**Erledigt am 12. August 2026.** `App\Support\Databases\Console`, fünf
+Controller-Methoden, fünf Routen mit `can:console,database`,
+`DatabasePolicy::console()`, die `can`-Ablage auf der Datenbankseite — und die
+zehn Agent-Operationen sind jetzt registriert, weil sie einen Aufrufer haben.
+
+**Alle fünf Griffe sind `POST` und geben JSON zurück**, auch der, der nur die
+Tabellenliste holt. Zwei Gründe, und der zweite ist der, der nicht auf der Hand
+liegt (§20.7).
+
+Was beim Bauen anders war, steht in §20.7.
 
 ### Schritt 4 — Tabellen und Struktur
 
@@ -849,6 +955,29 @@ Zeichenkette schreiben. Erwartet: rot, und der Test benennt beide Werte — nich
 Abnahmelaufs auf dem Schreibweg, und es hat denselben Grund: **Wer die beiden
 gleich behandelt, merkt es an keiner Zählung.**
 
+### 14.8 `ResultEncodingTest` — der Wächter zu den beiden Funden aus Schritt 0
+
+**Regel eins:** Die JSON-Methode für MariaDB ruft mit `--raw`, die bestehende
+`query()` **ohne**. Beide Richtungen, denn beide Fehler sind still: `--batch` auf
+der JSON-Methode liefert gültiges JSON mit falschen Werten (N1), `--raw` auf
+`query()` nimmt der Zeilentrennung ihre Sicherung.
+
+**Bruch:** `--raw` aus der einen entfernen, in die andere setzen. Erwartet: zwei
+rote Tests, jeder mit der Argumentliste im Text.
+
+**Regel zwei:** Keine binäre Spalte steht als Wert in der Spaltenliste einer
+Konsolenabfrage — sie steht als `OCTET_LENGTH(…)` (§8.2).
+
+**Bruch:** Die Umsetzung auf `OCTET_LENGTH` entfernen. Erwartet: rot **an der
+erzeugten Anweisung**, nicht an einem Ergebnis. Der Grund steht in §8.2: Am
+Ergebnis sähe man es auch — aber erst, wenn jemand eine Tabelle mit einem `BLOB`
+öffnet, und dann als „Malformed UTF-8" ohne jeden Hinweis auf die Ursache.
+
+Beide Regeln sind **Textprüfungen** und brauchen keinen Server; das ist dieselbe
+Bauform wie `SiteTemplateTest` und `PhpIsolationTest`, und sie ist hier aus
+demselben Grund richtig: Der Standardschutz ist eine Eigenschaft der erzeugten
+Zeichenkette.
+
 ### Wächter, die von selbst mitlaufen
 
 `EngineReachTest` (vier neue Paare), `AgentOperationReachTest` (jede neue
@@ -900,17 +1029,37 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #    vierter im Auswahlfeld ist ein Befund und kein Bonus.
 
 # 3  KEINE FREMDE TABELLE  ← Kriterium 3
-#    Die Konsole von Abo A auf eine Tabelle aus Abo B richten. Der Weg dafür
-#    ist die Adresse, nicht die Oberfläche — die zeigt sie gar nicht erst an.
-#    erwartet: Abweisung.
-#    UND DER BELEG IST DIE HERKUNFT DER MELDUNG. Zwei Wände stehen hier
-#    hintereinander:
+#    DREI Wände stehen hier hintereinander, und nur die dritte gehört uns nicht:
 #      (a) die Mandantenklammer des Panels (403, bevor der Agent gefragt wird),
-#      (b) die Rechte der Datenbank.
-#    Um (b) zu belegen, wird (a) für einen Lauf ABGESCHALTET — Tenancy::
-#    withoutRestriction() in einer Wegwerf-Zeile — und dann muss die Meldung
-#    von PostgreSQL bzw. MariaDB kommen, wörtlich.
-#    OHNE DIESEN SCHRITT IST KRITERIUM 3 NICHT GEFAHREN: Mit (a) allein wäre
+#      (b) Names::belongsTo() im Agenten (Pg\Console::within()),
+#      (c) die Rechte der befristeten Rolle — die Meldung kommt vom SERVER.
+#    Jede wird EINZELN gefahren; der Beleg ist die Herkunft der Meldung.
+#
+#    (a)  Als Kunde von Abo A die Adresse einer Datenbank von Abo B aufrufen.
+#         erwartet: 403, ohne dass der Agent gefragt wurde.
+#    (b)  Am Agenten vorbei an der Anwendung, mit erfundener Nutzlast:
+#           Client::call("pg.console.tables", ["prefix" => <A>, "database" =>
+#                        <B-Datenbank>, "schema" => "public"])
+#         erwartet: „Diese Datenbank gehört nicht zu diesem Abonnement."
+#    (c)  An einer Rolle, die den befristeten Zugang nachbaut (CREATE ROLE …
+#         IN ROLE srvpanel_restore, <A>_owner; GRANT CONNECT ON <A-Datenbank>),
+#         über den SOCKET — den Weg, den Pg\Session::linesAs() geht:
+#           psql -h /var/run/postgresql -U <probe> -d <B-Datenbank>
+#         erwartet: FATAL: permission denied for database "<B>". Für MariaDB
+#         ein Benutzer mit GRANT ALL auf genau eine Datenbank → ERROR 1044.
+#
+#    HIER STAND „(a) für einen Lauf abschalten, dann muss die Meldung vom Server
+#    kommen", UND DAS KANN NICHT FUNKTIONIEREN. Das Präfix reist mit der
+#    DATENBANK und nicht mit dem Aufrufer: App\Support\Databases\Console holt es
+#    aus $database->subscription. Wer die Klammer abschaltet und die Adresse
+#    einer Datenbank von B aufruft, richtet damit nicht die Konsole von A auf B,
+#    sondern die von B auf B — der Aufruf GELINGT, und zwar zu Recht. Gefunden
+#    beim Ausschreiben von `docs/47`, gegen den Quelltext gelesen.
+#
+#    > Eine Wand, die man nur erreicht, indem man die davor abschaltet, wird
+#    > durch das Abschalten nicht erreicht — sie wird umgangen.
+#
+#    OHNE (c) IST KRITERIUM 3 NICHT GEFAHREN: Mit (a) und (b) allein wäre
 #    belegt, dass unsere Prüfung greift, und genau das ist nicht die Frage.
 
 # 4  DAS ZEITLIMIT  ← Kriterium 4
@@ -925,8 +1074,17 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 
 # 5  DER BEFRISTETE ZUGANG  ← Kriterium 1
 #    Nach den Punkten 1 bis 4, ohne offene Konsole:
-#      SELECT rolname FROM pg_roles WHERE rolname LIKE '%\_c%';     → leer
-#      SELECT user FROM mysql.user WHERE user LIKE '%\_c%';         → leer
+#      SELECT rolname FROM pg_roles
+#       WHERE rolname ~ '^x[0-9a-f]{16}_[rc][0-9a-f]{8}$';           → leer
+#      SELECT user FROM mysql.user
+#       WHERE user REGEXP '^p[0-9]+_[rc][0-9a-f]{8}$';               → leer
+#    HIER STAND `LIKE '%\_c%'`, UND DAS KANN NIE LEER SEIN. Gemessen am
+#    12. August 2026 auf einem nackten PostgreSQL 16: Das Muster trifft
+#    pg_checkpoint, pg_create_subscription und pg_use_reserved_connections.
+#    Dieselbe Zeile mit `_r` — so steht sie in docs/38 §19 Punkt 7 — trifft
+#    sechs Rollen, darunter srvpanel_restore, das das Panel selbst anlegt.
+#    Der Ausdruck oben trifft die Form aus Names::isEphemeral() und sonst
+#    nichts.
 #    BELEG: DIE ABFRAGE ALLEIN GENÜGT NICHT — sie ist auch dann leer, wenn nie
 #           eine Konsole lief. Dazu gehört der Nachweis, dass einer ENTSTANDEN
 #           ist: das Journal des Agenten für einen der Läufe aus Punkt 1.
@@ -1043,11 +1201,11 @@ und nicht bei null.
 
 ## 18. Risiken, ehrlich benannt
 
-1. **Die MariaDB-Hälfte von §8 ist nicht gemessen.** Wenn `mysql --batch` die
-   Maskierung einer JSON-Zeile ein zweites Mal maskiert, trägt der Plan dort
-   nicht, und Schritt 2 braucht eine andere Form (`--raw`, oder das Ergebnis
-   Base64-kodiert durch die Leitung). Das ist das grösste Einzelrisiko dieser
-   Stufe, und es steht als Schritt 0 vor dem Bauen.
+1. ~~**Die MariaDB-Hälfte von §8 ist nicht gemessen.**~~ **Gemessen am
+   12. August 2026** (§2.3, N1 bis N12). Der Verdacht war richtig: `--batch`
+   maskiert die Maskierung. Die Antwort ist `--raw --batch` und keine
+   Base64-Kodierung — §8.1. Damit ist das grösste Einzelrisiko dieser Stufe fort,
+   und das zweite, das dabei zum Vorschein kam, ebenfalls benannt (§8.2).
 2. **Blättern mit grossem `OFFSET` ist langsam** und wird es bleiben. Bei einer
    Tabelle mit Millionen Zeilen ist Seite 20 000 eine Abfrage, die ins Zeitlimit
    läuft. Die Oberfläche sagt das dann — sie tut nicht so, als gäbe es die
@@ -1068,6 +1226,14 @@ und nicht bei null.
    `DELETE` auf die falsche Zeile ist eine Handlung und kein Fehler; das Panel
    fragt zurück ([20 §7](20-hostingpanel-neuplan.md)) und hat für den Rest die
    Sicherungen aus P5.
+8. **Die Form einer befristeten Kennung ist breiter geworden.** `[rc]` statt
+   `r` reserviert mehr Namen, als es vorher tat (§20.2) — richtig für alles, was
+   ab jetzt entsteht, und **rückwirkend nicht**: Ein Zugang, der vor dieser
+   Fassung `c` plus acht Hexziffern hiess, gilt ab jetzt als Rest und würde vom
+   Aufräumlauf eingesammelt. Vor der Auslieferung gehört einmal nachgesehen:
+   `SELECT rolname FROM pg_roles WHERE rolname ~ '^x[0-9a-f]{16}_c[0-9a-f]{8}$'`
+   und das Gegenstück in `mysql.user`. Erwartet wird leer; ist es das nicht, ist
+   das ein Kundenzugang und kein Rest.
 7. **Es gibt keine optimistische Sperre.** Zwei Personen, die dieselbe Zeile
    gleichzeitig öffnen, überschreiben einander, und §10 fängt das nicht — die
    Zeile wird ja getroffen. Die Regel „nur geänderte Spalten" aus §10.1 hält den
@@ -1084,7 +1250,7 @@ und nicht bei null.
 | Agent | `Db\Console`, `Pg\Console`, zehn Operationen |
 | Anwendung | `Console`, Controller, Policy-Methode, Routen |
 | Oberfläche | drei Ansichten und eine Zelleinzelsicht unter `Pages/Databases/` |
-| Wächter | sieben neue, acht Brüche |
+| Wächter | acht neue, elf Brüche |
 | Migrationen | **keine** — die Konsole führt keinen Zustand |
 | Positivliste | **keine Erweiterung** — `psql` und `mysql` stehen seit P5/P5b |
 | Paketabhängigkeiten | **keine Erweiterung** (Entscheidung 1) |
@@ -1094,3 +1260,221 @@ Plans: **P5c fügt dem System keinen neuen Weg mit Rechten hinzu.** Es benutzt
 den, unter dem seit P5 fremde Dumps laufen.
 
 Geschätzt 2–3 Wochen, im Zuschnitt von P5b.
+
+---
+
+## 20. Umsetzung — was beim Bauen anders war als im Plan
+
+### 20.1 Ein Prozentzeichen, das zwei Herren dient
+
+`Console::writeStatement()` baut den `DO`-Block mit `sprintf()`, und der Block
+enthält `RAISE EXCEPTION '… hat % Zeilen getroffen …', getroffen`. **Das `%` ist
+in `RAISE` der Platzhalter für die Zahl und in `sprintf()` der Platzhalter für
+das nächste Argument** — PHP zählte zwei und bekam eins.
+
+Der Fehler heisst `ArgumentCountError` und nennt eine Zeilennummer in
+`Console.php`, nicht das Prozentzeichen. `php -l` sieht ihn nicht, weil eine
+Formatzeichenkette erst zur Laufzeit gezählt wird; gefunden hat ihn der erste
+Lauf gegen einen echten Cluster.
+
+> **Eine Zeichenkette, die zwei Sprachen gleichzeitig liest, ist an jeder Stelle
+> zweideutig, an der beide dasselbe Zeichen benutzen.**
+
+### 20.2 Die befristete Kennung braucht ein Zeichen mehr, und das kostet etwas
+
+`Names::ephemeral()` erzeugte `<präfix>_r<8 hex>`, und `suffix()` sperrt genau
+diese Form, damit kein Kunde einen Zugang bekommt, den der Aufräumlauf nach einer
+Stunde für einen Rest hält. Die Konsole bekommt `c` — und damit wird aus dem
+Muster `[rc]`.
+
+**Das reserviert mehr Kundennamen als vorher**, und rückwirkend gilt es nicht:
+Ein Zugang, der heute `c1234abcd` heisst, ist ab dieser Fassung ein Rest. Der
+Preis ist klein und er ist keiner, den man nachträglich merkt — deshalb steht er
+als Risiko 8 in §18, mit der Abfrage, die vor der Auslieferung einmal zu fahren
+ist.
+
+### 20.3 Jede Zelle ausser einer binären kommt als Text
+
+Die Spaltenliste castet mit `::text`, damit `left()` auf jedem Typ arbeitet und
+die Kürzung überall gilt. Die Folge steht nirgends im Plan und gehört gewusst:
+**Eine `integer`-Spalte kommt als `"3"` an und nicht als `3`.** Nur eine binäre
+Spalte trägt eine Zahl, und die ist ihre Länge.
+
+Das ist richtig so — die Anzeige braucht Text, und der Schlüssel geht als Text
+zurück, also gibt es genau eine Fassung eines Werts statt zweier. Es ist nur
+nicht selbstverständlich, und ein Test, der `=== 3` erwartet, ist rot, ohne dass
+etwas kaputt wäre. Genau das ist beim ersten Lauf passiert.
+
+### 20.4 Der Abnahmelauf von P5b trug eine Erwartung, die nie eintreten konnte
+
+Beim Nachbauen von Kriterium 1 fiel auf, dass die Abfrage nach Resten so nicht
+stimmen kann. `docs/38 §19` Punkt 7 schreibt:
+
+```
+SELECT rolname FROM pg_roles WHERE rolname LIKE '%\_r%';  → 0 Zeilen.
+```
+
+Gemessen am 12. August 2026 auf einem nackten PostgreSQL 16 trifft das Muster
+**sechs** Rollen: `pg_read_all_data`, `pg_read_all_settings`, `pg_read_all_stats`,
+`pg_read_server_files`, `pg_use_reserved_connections` — und `srvpanel_restore`,
+das das Panel für genau dieses Zurückspielen anlegt. Mit `_c` sind es drei.
+
+Das Kriterium ist richtig, die Abfrage war es nicht. Beide Fassungen sind
+berichtigt (`docs/38 §19`, `docs/46 §15`) und fragen jetzt nach der Form aus
+`Names::isEphemeral()`.
+
+> **Ein Abnahmeschritt, dessen Erwartung nie eintreten kann, wird beim Fahren
+> stillschweigend umgedeutet** — und ab da prüft er nichts mehr.
+
+### 20.5 Zehn Operationen ohne Aufrufer — der Fehler, vor dem der Code warnt
+
+Schritt 1 und 2 haben die zehn `*.console.*`-Operationen in `Registry` **und**
+in die Registratur eingetragen. Einen Aufrufer bekommen sie erst in Schritt 3.
+`AgentOperationReachTest` verlangt zu jeder Operation einen — *Code, der als
+root läuft und zu dem kein Weg führt, ist Angriffsfläche ohne Nutzen* —, und
+damit wäre die CI rot gewesen.
+
+**Der Kommentar direkt darüber beschreibt genau diesen Fehler**, mit demselben
+Ausgang, aus P5b: „Der erste Anlauf hat `pg.server.info` schon in Schritt 1
+registriert und die CI rot gemacht." Ich habe ihn beim Schreiben gelesen und
+beim Registrieren nicht angewandt.
+
+> **Eine Warnung, die neben der Zeile steht, hält niemanden auf, der sie beim
+> Lesen versteht und beim Schreiben vergisst.** Was aufhält, ist der Test — und
+> der lief hier nicht, weil `vendor/` fehlt.
+
+Die Klassen bleiben liegen, die zehn `register()`-Zeilen kommen erst mit
+Schritt 3 zurück. Auf die Messungen hat das keinen Einfluss: Die Wegwerf-Läufe
+haben die Operationen unmittelbar erzeugt und nicht über die Registratur geholt
+— was bequem war und die Lücke zugleich verdeckt hat.
+
+### 20.6 Vier Unterschiede zwischen den beiden Konsolen
+
+Der Plan sagt „dasselbe für MariaDB". Vier Stellen sind es nicht, und jede hat
+ihren Grund im System und nicht im Geschmack.
+
+**1. `--raw`.** Der Fund aus Schritt 0 (§8.1), hier gebaut: `jsonAs()` ruft mit
+`--raw`, `query()` ohne. Beide Richtungen haben einen Wächter, weil beide Fehler
+still sind.
+
+**2. Kein anonymer Block, dafür `LIMIT 1`.** PostgreSQL bekommt einen `DO`-Block
+mit `GET DIAGNOSTICS` und `RAISE EXCEPTION`; **MariaDB kennt keinen anonymen
+Block ausserhalb einer gespeicherten Routine.** Eine Prozedur dafür anzulegen
+hiesse, ein Ding zu bauen, das den Lauf überlebt und aufgeräumt werden muss —
+genau die Sorte Rest, die dieses Projekt sonst einsammelt.
+
+An seine Stelle treten zwei Dinge, die zusammen dasselbe leisten: **`LIMIT 1`**
+macht „mehr als eine Zeile" unmöglich — MariaDB erlaubt es an `UPDATE` und
+`DELETE`, PostgreSQL nicht —, und **`ROW_COUNT()`** in derselben Verbindung sagt,
+ob es null waren. Die Meldung lautet wörtlich wie die aus dem Block.
+
+> **Zwei Systeme dürfen dieselbe Zusage auf zwei Wegen halten. Sie dürfen sie
+> nicht auf einem halten und auf dem anderen behaupten.**
+
+**3. Es gibt kein Schema neben der Datenbank.** In MariaDB *ist* die Datenbank
+das Schema. Die Operationen tragen das Feld trotzdem, damit die Anwendung
+**eine** Frage für beide Systeme baut; `Db\Console::schema()` besteht darauf,
+dass es die Datenbank selbst nennt. Ein anderer Wert wäre kein Fehler des
+Kunden, sondern einer im Panel — und er soll auffallen, statt still ignoriert zu
+werden.
+
+**4. Das Präfix heisst `prefix` und nicht `user`.** Die älteren `db.*`-Operationen
+aus P5 nennen es `user`, die `pg.*` aus P5b `prefix`. Die fünf Konsolengriffe
+sind für beide Systeme zusammen entworfen und nehmen **beide** `prefix`, damit
+die Anwendung eine Nutzlast baut statt zweier, die sich in einem Feldnamen
+unterscheiden. Die alten bleiben, wie sie sind: Sie umzubenennen wäre eine
+Änderung an einer Schnittstelle, über die Vorgänge in der Warteschlange liegen
+können (`docs/19 §4a`).
+
+**Und eine Kleinigkeit, die keine ist:** `TABLE_TYPE` heisst `BASE TABLE`,
+`relkind` heisst `r`. Keines der beiden Wörter gehört in eine Vue-Datei, also
+übersetzen beide Konsolen in `table` und `view` (`Pg\Console::KINDS`,
+`Db\Console::KINDS`). Sonst stünde die Fallunterscheidung in der Oberfläche —
+und damit die dritte Fassung einer Regel, die es zweimal gibt.
+
+### 20.7 Ein zusammengesetzter Operationsname hat keinen Aufrufer
+
+`EngineDriver::consoleOperation()` machte im ersten Wurf aus dem Griff `rows` den
+Namen `'db.console.'.$handle`. Das ist kürzer, es funktioniert — und es hat die
+CI rot gemacht, aus einem Grund, der über diese Stufe hinausgeht.
+
+**`AgentOperationReachTest` sucht den Namen als Zeichenkette unter `app/`.** Er
+fragt nicht „gibt es Code, der das aufruft", sondern *„führt ein Weg dorthin?"*,
+und die Antwort auf eine zusammengesetzte Zeichenkette ist Nein: Der Name steht
+im Quelltext nirgends. Der Test hat recht — ein Tippfehler in einem der fünf
+Griffe fiele erst auf, wenn ein Kunde die Konsole öffnet.
+
+**Die zweite Hälfte des Wächters ist dabei die wichtigere**, und sie gibt es,
+weil dieses Projekt die Lücke schon einmal bezahlt hat: `db.user.grant` hatte
+seit P5 einen Eintrag in der Ausnahmeliste, eine fertige Methode und **keinen
+einzigen Aufrufer** — drei Monate lang, gefunden von einer Frage des Betreibers
+und nicht vom Test (`docs/36 §22.3o`). Wer erklärt, dass ein Dienst unmittelbar
+aufruft, muss zeigen, dass es diesen Dienst gibt. Eine zusammengesetzte
+Zeichenkette macht die Erklärung zu einer Behauptung.
+
+Die fünf Griffe stehen deshalb in jedem Treiber **ausgeschrieben**, als
+`CONSOLE`-Zuordnung; ein unbekannter Griff wirft. Dieselbe Überlegung wie bei
+`Runner::PROGRAMS`:
+
+> **Aus einem Wert einen Namen zu bauen ist der Vorgang, den eine Positivliste
+> verhindert.**
+
+Dazu zehn Einträge in `WITHOUT_LIFECYCLE`, jeder mit demselben Grund: Ein
+eingereihter Vorgang legte einen Filterwert oder den Inhalt einer Kundenzeile in
+`operations.payload` ab.
+
+### 20.8 Eine Fähigkeit, die niemand abfragt, ist auch ein Fehler
+
+Schritt 3 hat `can.console` schon in die Nutzlast der Datenbankseite gelegt —
+die Fähigkeit gibt es ja, und der Knopf käme mit Schritt 4. **`AbilityReachTest`
+prüft aber beide Richtungen**, und die zweite hatte ich beim Lesen übersehen:
+
+> Eine Fahne, die die Seite abfragt und niemand schickt, ist in Vue `undefined`
+> — der Knopf verschwindet dann für **alle**, ohne dass etwas meldet. Eine, die
+> geschickt wird und die niemand abfragt, ist eine **Zusage ins Leere.** Beides
+> ist dasselbe Muster: eine Zeichenkette, die auf etwas verweist, das es nicht
+> gibt.
+
+Der Satz stimmt, und die Regel ist strenger als sie aussieht: **Die Fahne kommt
+mit dem Knopf, der sie liest, und keinen Beitrag früher.** Das ist keine
+Förmlichkeit — eine Nutzlast, die Fähigkeiten auf Vorrat trägt, sagt nach
+einigen Beiträgen nichts mehr darüber, was die Seite wirklich anbietet.
+
+**Und die Lehre über den Fall hinaus:** Ich hatte den Wächter gelesen, den
+Namen der ersten Testmethode für seine ganze Aussage gehalten und daraus
+geschlossen, ein zusätzlicher Schlüssel sei harmlos. Er war es nicht.
+
+> **Ein Wächter sagt, was er prüft, in seinen Behauptungen — nicht im Namen
+> seiner ersten Methode.**
+
+### 20.9 Fünfmal `POST`, und der Einstieg ist noch keine Seite
+
+**Vier der fünf Griffe müssen `POST` sein, und der Grund ist der Inhalt.** Ein
+Filterwert und ein Zeilenschlüssel gehören nicht in eine Adresse: Dort stünden
+sie im Zugriffsprotokoll des Webservers, in der Verlaufsliste des Browsers und
+in jedem `Referer`, den die Seite danach schickt. Das ist dieselbe Überlegung,
+aus der sie nicht in `operations.payload` dürfen (§12) — nur eine Schicht weiter
+aussen, und dort ist sie noch leichter zu übersehen.
+
+**Der fünfte ist es aus einem schwächeren Grund**, und der gehört benannt: Er
+holt die Tabellenliste und trägt nichts, was nicht ohnehin in der Adresse steht.
+Er ist `POST`, damit die fünf zusammenbleiben — eine Bauform, die für einen von
+fünf abweicht, muss später jemand erklären, und beim Erklären wird sie
+angeglichen, wahrscheinlich in die falsche Richtung.
+
+**Und er ist noch keine Seite.** Der Plan sieht für Schritt 3 ausdrücklich keine
+Oberfläche vor; ein `Inertia::render('Databases/Console')` bräuchte aber die
+Vue-Datei, und `InertiaPagesTest` besteht zu Recht darauf, dass es sie gibt. Der
+Einstieg bleibt deshalb bis Schritt 4 ein JSON-Griff und wird dort zur
+`GET`-Route mit einer Ansicht.
+
+> **Ein Schritt, der seine Grenze einhält, muss sie manchmal an einer Stelle
+> ziehen, an der sie unbequem liegt.**
+
+**Dazu zwei Kleinigkeiten, die sonst niemand aufschriebe.** Für PostgreSQL ist
+`schema` immer `public` — das Panel legt keine weiteren Schemata an, und ein
+Schema, das ein mitgebrachter Dump angelegt hat, ist über die Konsole nicht
+erreichbar. Es zu übernehmen hiesse, einen Bezeichner aus der Anfrage in die
+Nutzlast zu legen, den niemand nachgeschlagen hat. Und `values` geht **ohne**
+`array_filter` durch: Es würfe genau die Spalten weg, die auf `NULL` gesetzt
+werden sollen (§10.1).

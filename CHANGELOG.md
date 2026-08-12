@@ -10092,3 +10092,317 @@ keine Vorsichtsmassnahme für später, sondern Bauvorschrift dieser Stufe. Sie h
 dafür eine zweite Hälfte im Abnahmekriterium bekommen und einen eigenen Punkt im
 Abnahmelauf, an einer Spalte, die niemand angefasst hat — **der einzige Punkt
 des Laufs, dessen Fehlschlag man an der geänderten Zeile nicht sieht.**
+
+### Schritt 0 von P5c — und der Container hatte die ganze Zeit MariaDB
+
+`docs/46 §2.3` führte fünf Messungen, die „auf `cloudsrv24` gehören, weil es in
+diesem Container keinen MariaDB-Server gibt". Der Satz stimmte zur Hälfte:
+MariaDB war hier **nicht installiert** und die ganze Zeit **installierbar** —
+`mariadb-server 1:10.11.14-0ubuntu0.24.04.1` liegt im Ubuntu-Archiv, dieselbe
+Fassung, die auf dem Zielserver läuft. Was der Proxy sperrt, ist
+`composer install` und zwei PPAs, nicht das Archiv der Distribution. Ein
+Wegwerf-Server ist derselbe Handgriff wie für PostgreSQL, ohne systemd.
+
+> **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite
+> braucht einen Versuch.**
+
+Damit ist Schritt 0 gefahren statt verschoben — zwölf Messungen gegen 10.11.14,
+und **zwei haben etwas gefunden.**
+
+**`mysql --batch` maskiert die Maskierung.** `--batch` ersetzt in der Ausgabe
+Tabulator, Zeilenumbruch und Rückstrich durch ihre maskierte Form — und eine
+JSON-Zeichenkette besteht aus maskierten Rückstrichen. Aus `"a\tb"` wird
+`"a\\tb"`. Das ist kein kaputtes JSON, sondern **gültiges JSON mit einem
+falschen Wert**: vier Zeichen statt drei, fehlerfrei gelesen. Die Antwort ist
+`--raw --batch` für die neue Methode — und ausdrücklich **nicht** für die
+bestehende `query()`, wo die Maskierung des Klienten genau die Sicherung ist,
+die die Zeilentrennung trägt.
+
+> **Eine Maskierung über einer Maskierung ist schlimmer als ein Parserfehler.**
+> Der fiele auf.
+
+**Ein `BLOB` nimmt die ganze Zeile mit.** Über einer Spalte mit ungültigem UTF-8
+schreibt `JSON_OBJECT()` die rohen Bytes in die JSON-Zeichenkette. MariaDBs
+eigenes `JSON_VALID()` sagt dazu `1`; PHPs `json_decode()` gibt `null` zurück,
+„Malformed UTF-8 characters" — und zwar für die **ganze Zeile**, nicht für die
+eine Zelle. Ein Bildchen in Spalte drei nimmt die anderen neunzehn Spalten mit,
+und die Meldung sieht aus wie ein Fehler des Panels.
+
+> **Eine Gültigkeitsprüfung des einen Systems sagt nichts über den Leser im
+> anderen.**
+
+Aus der Anzeigeentscheidung „binäre Spalten als Länge" wird damit eine
+Bedingung: Eine binäre Spalte darf `JSON_OBJECT()` gar nicht erst erreichen. Sie
+kommt als `OCTET_LENGTH(…)` in die Spaltenliste — eine Filterung der **Frage**
+und nicht des **Ergebnisses**, weil eine vergessene Filterung der Frage nur eine
+Spalte zu viel zeigt und eine vergessene des Ergebnisses die Seite zerstört.
+
+> **Was ein Format nicht tragen kann, gehört nicht hinein — nicht hinein und
+> hinterher entfernt.**
+
+Die übrigen zehn Messungen bestätigen den Plan: `max_statement_time` greift
+(`ERROR 1969`), `information_schema` ist für den Kundenbenutzer nach Rechten
+gefiltert (eigene Tabellen 4, fremde 0), ein Zugriff auf eine fremde Tabelle
+endet in `ERROR 1142`. Eine Abweichung gibt es bei der Zeilenschätzung: Was in
+PostgreSQL `reltuples = -1` ist, gibt es in MariaDB für Basistabellen **nicht** —
+dafür ist `TABLE_ROWS` bei einer **Sicht** `NULL`. Dieselbe Falle, in jedem
+System an einer anderen Stelle.
+
+### Schritt 1 von P5c — der Agent kann PostgreSQL durchsehen
+
+`Pg\Console` und fünf Operationen: `pg.console.tables`, `.columns`, `.rows`,
+`.cell` und `.row.write` (`docs/46 §12`). Dazu `Session::queryAs()`,
+`jsonAs()` und `executeAs()` — die drei Wege, auf denen ein Lauf unter einer
+**befristeten Rolle** statt unter der Kennung des Agenten läuft.
+
+**Alle fünf gehen durch `Console::within()`, und das ist die Regel selbst.**
+Läuft eine Konsolenabfrage als `root`, sieht die Antwort genau gleich aus —
+dieselben Zeilen, dieselben Spalten. Was fehlt, ist die zweite Wand: Die
+Mandantentrennung ruhte dann allein auf `Names::belongsTo()`, also auf einer
+Prüfung dieses Projekts, und nicht auf den Rechten der Datenbank. Der Wächter
+dazu ist `ConsoleIdentityTest`; er prüft beide Richtungen, weil der Fehler im
+Ergebnis unsichtbar ist.
+
+**Keine der fünf hat einen Lebenslauf.** Ein eingereihter Vorgang legt seine
+Argumente in `operations.payload` ab, und dort stünde ein Filterwert oder der
+Inhalt einer Kundenzeile.
+
+**Gemessen wurde gegen den echten Debian-Cluster**, nicht gegen einen im
+Scratchpad: `Pg\Server::require()` fragt `pg_lsclusters`, und ein Cluster, den
+Debians Werkzeug nicht kennt, gibt es für den Agenten nicht. Einundfünfzig
+Behauptungen, alle grün — die vier Werte aus Kriterium 2, die Kürzung bei 512
+Zeichen und ihre Meldung, die binäre Spalte als Länge, ein Prozentzeichen im
+Filterwert (kein Platzhalter, weil `strpos` und nicht `LIKE`), ein
+Ausbruchsversuch, die fremde Datenbank, und die drei Regeln des Schreibwegs.
+
+**Drei Dinge waren beim Bauen anders als im Plan** (`docs/46 §20`).
+
+Das `%` in `RAISE EXCEPTION '… hat % Zeilen getroffen …'` ist zugleich ein
+Platzhalter von `sprintf()` — PHP zählte zwei und bekam eins. `php -l` sieht das
+nicht, weil eine Formatzeichenkette erst zur Laufzeit gezählt wird.
+
+> **Eine Zeichenkette, die zwei Sprachen gleichzeitig liest, ist an jeder Stelle
+> zweideutig, an der beide dasselbe Zeichen benutzen.**
+
+Die befristete Kennung trägt jetzt `[rc]` statt `r` — `c` für die Konsole, damit
+ein Rest auf dem Server sagt, wobei er entstanden ist. Das reserviert mehr
+Kundennamen als vorher und gilt rückwirkend **nicht**; die Abfrage, die vor der
+Auslieferung einmal zu fahren ist, steht als Risiko 8 in `docs/46 §18`.
+
+Und jede Zelle ausser einer binären kommt als **Text** an, weil die Spaltenliste
+mit `::text` castet, damit die Kürzung auf jedem Typ arbeitet. Eine
+`integer`-Spalte liefert `"3"` und nicht `3`. Das ist richtig — die Anzeige
+braucht Text, und der Schlüssel geht als Text zurück, also gibt es genau eine
+Fassung eines Werts statt zweier.
+
+### Ein Abnahmeschritt aus P5b konnte nie erfüllt werden
+
+Beim Nachbauen von Kriterium 1 fiel auf, dass die Abfrage nach Resten so nicht
+stimmen kann. `docs/38 §19` Punkt 7 schrieb:
+
+```
+SELECT rolname FROM pg_roles WHERE rolname LIKE '%\_r%';  → 0 Zeilen.
+```
+
+Gemessen auf einem nackten PostgreSQL 16 trifft das Muster **sechs** Rollen:
+`pg_read_all_data`, `pg_read_all_settings`, `pg_read_all_stats`,
+`pg_read_server_files`, `pg_use_reserved_connections` — und `srvpanel_restore`,
+das das Panel für genau dieses Zurückspielen anlegt. Die Erwartung „0 Zeilen"
+konnte auf keinem Server eintreten.
+
+Das Kriterium war richtig, die Abfrage nicht. Wer den Schritt wörtlich fährt,
+bekommt sechs Zeilen und legt sich die Erwartung zurecht — und ab da prüft der
+Schritt nichts mehr. Beide Fassungen fragen jetzt nach der Form aus
+`Names::isEphemeral()`.
+
+> **Ein Abnahmeschritt, dessen Erwartung nie eintreten kann, wird beim Fahren
+> stillschweigend umgedeutet.**
+
+### Schritt 2 von P5c — dieselbe Konsole für MariaDB
+
+`Db\Console` und fünf Operationen: `db.console.tables`, `.columns`, `.rows`,
+`.cell` und `.row.write`. Dazu `Session::queryAs()` und `jsonAs()` sowie
+`Sql::qualified()`. `EngineReachTest` geht ohne Ausnahmeeintrag auf — fünf
+Paare, fünf Gegenstücke.
+
+**Gefahren wurde gegen MariaDB 10.11.14 im Container** und nicht auf dem
+Zielserver: Der Wegwerf-Server aus Schritt 0 ist derselbe Handgriff wie für
+PostgreSQL. Siebenundvierzig Behauptungen, alle grün — **darunter die beiden
+Funde aus Schritt 0, jetzt im Betrieb**: Der Tabulator steht in der Zelle und
+nicht als zweite Spalte daneben, und das `BLOB` kommt als Länge, ohne die ganze
+Zeile mitzunehmen.
+
+**Vier Unterschiede zur PostgreSQL-Hälfte**, jeder mit einem Grund im System.
+
+`--raw` in `jsonAs()` und ausdrücklich **nicht** in `query()` — der Fund aus
+Schritt 0. `ResultEncodingTest` prüft beide Richtungen, weil beide Fehler still
+sind: Ohne `--raw` kommt gültiges JSON mit falschen Werten an, mit `--raw` an der
+falschen Stelle bricht ein Wert mit einem Zeilenumbruch die Zeilentrennung.
+
+**MariaDB kennt keinen anonymen Block ausserhalb einer gespeicherten Routine**,
+also gibt es kein Gegenstück zum `DO`-Block mit `GET DIAGNOSTICS`. Eine Prozedur
+dafür anzulegen hiesse, ein Ding zu bauen, das den Lauf überlebt und aufgeräumt
+werden muss — genau die Sorte Rest, die dieses Projekt sonst einsammelt. An
+seine Stelle treten `LIMIT 1`, das „mehr als eine Zeile" unmöglich macht, und
+`ROW_COUNT()` in derselben Verbindung, das sagt, ob es null waren.
+
+> **Zwei Systeme dürfen dieselbe Zusage auf zwei Wegen halten. Sie dürfen sie
+> nicht auf einem halten und auf dem anderen behaupten.**
+
+In MariaDB **ist** die Datenbank das Schema. Das Feld kommt trotzdem mit, damit
+die Anwendung eine Frage für beide Systeme baut; `Db\Console::schema()` besteht
+darauf, dass es die Datenbank selbst nennt — ein anderer Wert wäre ein Fehler im
+Panel und soll auffallen.
+
+Und das Präfix heisst in beiden Konsolen `prefix`, obwohl die älteren
+`db.*`-Operationen es `user` nennen. Die alten bleiben: Sie umzubenennen wäre
+eine Änderung an einer Schnittstelle, über die Vorgänge in der Warteschlange
+liegen können.
+
+Dazu übersetzen beide Konsolen `relkind` und `TABLE_TYPE` in `table` und `view`.
+Keines der beiden Wörter gehört in eine Vue-Datei — und die Fallunterscheidung
+dort wäre die dritte Fassung einer Regel, die es schon zweimal gibt.
+
+### Schritt 3 von P5c — die Anwendung, und die zehn Operationen bekommen ihren Aufrufer
+
+`App\Support\Databases\Console` ruft den Agenten unmittelbar, fünf
+Controller-Methoden, fünf Routen mit `can:console,database`, und
+`DatabasePolicy::console()`. Damit stehen die zehn `*.console.*`-Operationen
+wieder in der Registratur — diesmal mit einem Weg zu ihnen.
+
+**`console` ist die einzige Fähigkeit dieses Panels, die der Betreiber nicht
+hat.** Überall sonst in `DatabasePolicy` kommt er durch; hier weist `isAdmin()`
+ab (Entscheidung 3, `docs/46 §3`). Wer im Störfall in Kundendaten sehen muss,
+meldet sich als Kunde an — `Auth::login($target)` macht `isAdmin()` falsch, die
+Konsole geht auf, und jede Handlung steht doppelt im Protokoll.
+
+> **Der Unterschied zwischen einem Weg, den es nicht gibt, und einem, der einen
+> Namen und ein Protokoll hat, ist der ganze Punkt.**
+
+**Vier der fünf Griffe sind `POST`, weil ein Filterwert und ein Zeilenschlüssel
+nicht in eine Adresse gehören** — dort stünden sie im Zugriffsprotokoll des
+Webservers, in der Verlaufsliste des Browsers und in jedem `Referer`. Dieselbe
+Überlegung wie bei `operations.payload`, eine Schicht weiter aussen. Der fünfte
+holt nur die Tabellenliste und ist es trotzdem, damit die fünf zusammenbleiben.
+
+**Und der Einstieg ist noch keine Seite.** Schritt 3 baut ausdrücklich keine
+Oberfläche; ein `Inertia::render('Databases/Console')` bräuchte aber die
+Vue-Datei, und `InertiaPagesTest` besteht darauf, dass es sie gibt. Er bleibt
+bis Schritt 4 ein JSON-Griff.
+
+**Der neue Wächter ist `ConsoleQueueTest`**, und er prüft die Regel, deren
+Verletzung man nicht sieht: Ein eingereihter Konsolenaufruf **funktioniert** —
+die Zeile wird geändert, die Antwort kommt, die Seite sieht richtig aus. Was
+dazukommt, ist eine Kopie der Kundendaten in `operations.payload`, und sie fällt
+erst auf, wenn jemand ein Jahr später die Vorgangsliste eines Kunden durchsieht.
+
+Auf `EngineDriver` kommen zwei Methoden: `consoleOperation()` macht aus dem
+kurzen Griff `rows` den Namen `db.console.rows` oder `pg.console.rows`, und
+`consoleSchema()` beantwortet, was im Feld `schema` steht — `public` für
+PostgreSQL, der Name der Datenbank für MariaDB. Damit bleibt die Verzweigung auf
+das System die eine aus `Databases::driver()` und wird nicht zu fünf.
+
+### Ein zusammengesetzter Operationsname hat keinen Aufrufer
+
+Schritt 3 baute den Namen einer Konsolenoperation aus zwei Hälften —
+`'db.console.'.$handle` — und `AgentOperationReachTest` hat die CI rot gemacht:
+„Diese Operationen kennt der Agent, und niemand ruft sie auf", alle zehn.
+
+**Der Test sucht den Namen als Zeichenkette unter `app/`.** Er fragt nicht, ob es
+Code gibt, der das aufruft, sondern *ob ein Weg dorthin führt* — und auf eine
+zusammengesetzte Zeichenkette ist die Antwort Nein. Er hat recht: Ein Tippfehler
+in einem der fünf Griffe fiele erst auf, wenn ein Kunde die Konsole öffnet.
+
+**Die Lücke, gegen die er gebaut ist, hat dieses Projekt schon bezahlt.**
+`db.user.grant` hatte seit P5 einen Eintrag in der Ausnahmeliste, eine fertige
+Methode und keinen einzigen Aufrufer — drei Monate lang, gefunden von einer
+Frage des Betreibers und nicht vom Test (`docs/36 §22.3o`). Wer erklärt, dass ein
+Dienst unmittelbar aufruft, muss zeigen, dass es ihn gibt; eine zusammengesetzte
+Zeichenkette macht die Erklärung zu einer Behauptung.
+
+Die fünf Griffe stehen jetzt in jedem Treiber ausgeschrieben, als
+`CONSOLE`-Zuordnung, und ein unbekannter Griff wirft. Dieselbe Überlegung wie
+bei `Runner::PROGRAMS`, wo sie seit P0 steht:
+
+> **Aus einem Wert einen Namen zu bauen ist der Vorgang, den eine Positivliste
+> verhindert.**
+
+Dazu zehn Einträge in `WITHOUT_LIFECYCLE` mit ihrem Grund — dass die Argumente
+sonst in `operations.payload` lägen.
+
+### Eine Fähigkeit, die niemand abfragt, ist auch ein Fehler
+
+Schritt 3 legte `can.console` schon in die Nutzlast der Datenbankseite — die
+Fähigkeit gibt es, der Knopf käme mit Schritt 4. `AbilityReachTest` prüft aber
+**beide** Richtungen:
+
+> Eine Fahne, die die Seite abfragt und niemand schickt, ist in Vue `undefined`
+> — der Knopf verschwindet dann für alle. Eine, die geschickt wird und die
+> niemand abfragt, ist eine Zusage ins Leere.
+
+Die Fahne kommt jetzt mit dem Knopf, der sie liest, und keinen Beitrag früher.
+Das ist keine Förmlichkeit: Eine Nutzlast, die Fähigkeiten auf Vorrat trägt,
+sagt nach einigen Beiträgen nichts mehr darüber, was die Seite wirklich
+anbietet.
+
+Der Fehler ist entstanden, weil ich den Wächter gelesen und den Namen seiner
+ersten Testmethode für seine ganze Aussage gehalten habe.
+
+> **Ein Wächter sagt, was er prüft, in seinen Behauptungen — nicht im Namen
+> seiner ersten Methode.**
+
+### Die Zwischenabnahme von P5c steht als `docs/47`
+
+Sechzehn Punkte für `cloudsrv24` nach Schritt 3, **ohne ein einziges Bild** —
+die Oberfläche gibt es noch nicht, und alles, was diese Stufe bisher gebaut hat,
+ist über `srvpanel tinker` und die beiden Datenbankklienten erreichbar.
+
+Der Lauf steht jetzt und nicht nach Schritt 6, weil eine seiner Fragen keinen
+Aufschub duldet. **Punkt 1 ist Risiko 8 und gehört vor das Update:** Die Form
+einer befristeten Kennung ist von `r` auf `[rc]` erweitert worden
+(`docs/46 §20.2`) und gilt rückwirkend nicht. Was einem Kundenzugang passiert,
+der heute `<präfix>_c` plus acht Hexziffern heisst, ist schlimmer als „er wird
+eingesammelt" — er **verschwindet**: `Pg\Owner::roles()` überspringt jeden Namen
+dieser Form, also steht er nicht mehr in der Zugangsliste seiner Datenbank und
+ist im Panel weder zu berechtigen noch zu entfernen. Gleichzeitig meldet
+`srvpanel db` ihn als Rest. Der Kunde verbindet sich weiter, das Panel kennt ihn
+nicht mehr, und der Betreiber liest eine Aufforderung, ihn wegzuräumen.
+
+Dazu zwei Abfragen und nicht eine: die strenge auf die Form aus
+`Names::isEphemeral()` und eine bewusst lose, deren Zeilen **gelesen** werden.
+Eine strenge Abfrage mit falschem Anker ist leer und sieht aus wie eine
+Entwarnung — genau die Falle, in die `docs/38 §19` Punkt 7 gelaufen ist.
+
+**Und was der Lauf beantwortet, das dieser Container nicht kann:** Hier gibt es
+keinen Agenten. Alles, was `App\Support\Databases\Console` tut, ist gegen eine
+Attrappe geprüft; ob die zehn Operationen unter `srvpanel-agentd` überhaupt
+erreichbar sind, hat noch nie jemand gemessen.
+
+> **Ein Aufruf gegen eine Attrappe prüft den Aufrufer und nicht die Leitung.**
+
+### `docs/46 §15` Punkt 3 war nicht fahrbar
+
+Er verlangte für den Beleg der Serverwand, die Mandantenklammer für einen Lauf
+abzuschalten und dann die Adresse einer Datenbank aus einem fremden Abonnement
+aufzurufen; die Meldung müsse danach von PostgreSQL bzw. MariaDB kommen.
+
+**Sie kommt gar nicht — der Aufruf gelingt, und zwar zu Recht.** Das Präfix
+reist mit der **Datenbank** und nicht mit dem Aufrufer:
+`App\Support\Databases\Console::call()` holt es aus `$database->subscription`.
+Wer die Klammer abschaltet, richtet damit nicht die Konsole von A auf B, sondern
+die von B auf B.
+
+> **Eine Wand, die man nur erreicht, indem man die davor abschaltet, wird durch
+> das Abschalten nicht erreicht — sie wird umgangen.**
+
+Der Punkt steht jetzt als drei getrennte Wände da, jede an ihrer eigenen Stelle
+gemessen: die Mandantenklammer über die Adresse, `Names::belongsTo()` über eine
+erfundene Nutzlast am Agenten, und die Rechte der befristeten Rolle an einer
+Rolle, die den Zugang nachbaut — **über den Socket**, weil der Agent so
+verbindet und eine Gegenprobe über einen anderen Weg den falschen Weg prüft
+(`docs/44`).
+
+Gefunden hat es kein Test, sondern das Ausschreiben des Abnahmelaufs gegen den
+Quelltext. Das ist derselbe Befund wie in `docs/45`, eine Stufe früher:
+
+> **Ein Abnahmelauf ist Code, den niemand ausführt, bis es darauf ankommt.**

@@ -432,6 +432,42 @@ Route::middleware('auth')->group(function (): void {
         ->name('databases.show');
 
     /*
+     * Das Datenbankmanagement (docs/46).
+     *
+     * **Alle fünf tragen `can:console,database`**, und `console` ist die eine
+     * Fähigkeit, die ein Betreiberkonto nicht bekommt (Entscheidung 3,
+     * `DatabasePolicy::console()`). Wer im Störfall hineinsehen muss, meldet
+     * sich als Kunde an — der Weg hat einen Namen und steht doppelt im
+     * Protokoll.
+     *
+     * **Vier davon sind `POST` und lesen trotzdem nur.** Der Grund ist der
+     * Inhalt: Ein Filterwert und ein Zeilenschlüssel gehören nicht in eine
+     * Adresse — dort stünden sie im Zugriffsprotokoll des Webservers, in der
+     * Verlaufsliste des Browsers und in jedem `Referer`, den die Seite später
+     * schickt. Das ist dieselbe Überlegung, aus der `operations.payload` sie
+     * nicht bekommt (`docs/46 §12`), nur eine Schicht weiter aussen.
+     */
+    Route::post('/databases/{database}/console/tables', [DatabaseController::class, 'consoleTables'])
+        ->middleware('can:console,database')
+        ->name('databases.console.tables');
+
+    Route::post('/databases/{database}/console/columns', [DatabaseController::class, 'consoleColumns'])
+        ->middleware('can:console,database')
+        ->name('databases.console.columns');
+
+    Route::post('/databases/{database}/console/rows', [DatabaseController::class, 'consoleRows'])
+        ->middleware('can:console,database')
+        ->name('databases.console.rows');
+
+    Route::post('/databases/{database}/console/cell', [DatabaseController::class, 'consoleCell'])
+        ->middleware('can:console,database')
+        ->name('databases.console.cell');
+
+    Route::post('/databases/{database}/console/row', [DatabaseController::class, 'consoleWrite'])
+        ->middleware('can:console,database')
+        ->name('databases.console.row');
+
+    /*
      * Entfernen nimmt die Daten mit, und die Rückfrage sagt das.
      *
      * Es gibt keine Sicherung davor — dieselbe Lage wie beim Rückbau eines

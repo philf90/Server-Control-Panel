@@ -92,7 +92,26 @@ final class Names
      * Erkennen ({@see self::isEphemeral()}) und zum **Reservieren**
      * ({@see self::suffix()}).
      */
-    private const EPHEMERAL_SUFFIX = '/^r[0-9a-f]{8}$/D';
+    private const EPHEMERAL_SUFFIX = '/^[rc][0-9a-f]{8}$/D';
+
+    /**
+     * Das Zeichen, das sagt, wobei eine befristete Kennung entstanden ist.
+     *
+     * `r` fürs Zurückspielen (seit P5), `c` für die Konsole (`docs/46 §6`). Ein
+     * Rest auf dem Server sagt damit, aus welchem Vorgang er stammt — sonst
+     * kostet das Aufräumen genau die Zeit, die das Benennen gespart hätte.
+     *
+     * **Die Erweiterung von `r` auf `[rc]` reserviert mehr Namen als vorher**,
+     * und das ist kein Nebeneffekt, sondern der Zweck: {@see self::suffix()}
+     * sperrt beide Formen, damit kein Kunde einen Zugang bekommt, den der
+     * Aufräumlauf nach einer Stunde für einen Rest hält. Was sie **nicht** kann,
+     * ist rückwirkend gelten — ein Zugang, der vor dieser Fassung `c` plus acht
+     * Hexziffern hiess, gilt ab jetzt als Rest. Vor der Auslieferung gehört
+     * einmal nachgesehen, ob es einen gibt (`docs/46 §18`, Risiko 8).
+     */
+    public const KIND_RESTORE = 'r';
+
+    public const KIND_CONSOLE = 'c';
 
     /**
      * Der Zusatz, geprüft.
@@ -256,11 +275,11 @@ final class Names
      * beginnen und darf danach Ziffern tragen, aber `r` gefolgt von acht
      * Hexziffern ist ein Name, den niemand tippt (`docs/36 §10.2`).
      */
-    public static function ephemeral(string $systemUser): string
+    public static function ephemeral(string $systemUser, string $kind = self::KIND_RESTORE): string
     {
         return self::compose(
             self::prefix($systemUser),
-            'r'.bin2hex(random_bytes(4)),
+            $kind.bin2hex(random_bytes(4)),
             self::MAX_USER,
             'Benutzername',
         );

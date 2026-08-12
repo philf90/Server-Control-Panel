@@ -186,9 +186,18 @@ betrifft eine Form, die seit P5 in jeder Antwort steckt:
 > WRITE` ein `BEGIN READ ONLY`, und `SET statement_timeout = 0` auch ein
 > `ALTER ROLE … SET`. Alle drei gemessen.
 
-Fünf Messungen fehlen, alle für MariaDB, und sie stehen als Schritt 0 **vor**
-dem Bauen — die wichtigste: `mysql --batch` maskiert in der Ausgabe auch den
-Rückstrich, und eine JSON-Zeichenkette besteht aus maskierten Rückstrichen.
+**Schritt 0 ist gefahren** (12. August, `docs/46 §2.3`, N1–N12) — und er hat die
+beiden Funde gebracht, die §8 tragen. `mysql --batch` maskiert die Maskierung
+einer JSON-Zeile: Aus `"a\tb"` wird `"a\\tb"`, und das ist **gültiges JSON mit
+einem falschen Wert**. Und ein `BLOB` mit ungültigem UTF-8 macht die **ganze
+Zeile** über `json_decode()` unlesbar, während MariaDBs `JSON_VALID()` sie für
+gültig hält.
+
+> **Eine Maskierung über einer Maskierung ist schlimmer als ein Parserfehler.**
+> Der fiele auf.
+
+> **Eine Gültigkeitsprüfung des einen Systems sagt nichts über den Leser im
+> anderen.**
 
 **Auch der Abnahmelauf von P4 hat sechs Fehler gefunden, und keinen davon ein
 Test.** Drei betrafen ein Kriterium, drei die Bedienung. Der teuerste sah aus wie ein Erfolg:
@@ -407,11 +416,27 @@ zwölf Punkte, mit der Fassungstabelle in §3 und dem, was er ausdrücklich nich
 prüft. Und **`41` die Dateisystem-Quota** — wie sie eingeschaltet wird, und
 warum das Panel den *Leseversuch* misst statt der Mount-Option: Auf `cloudsrv24`
 stand `usrquota` in den Optionen und `quotaon -p /` sagte `is off`. Und **`46`
-das Datenbankmanagement (P5c)** — geplant am 12. August 2026, noch nicht gebaut:
-§2 die dreiundzwanzig Messungen, die vor dem Plan kamen, §2.3 die fünf, die
-fehlen und für MariaDB gemessen werden müssen, §3 die vier Entscheidungen des
+das Datenbankmanagement (P5c)** — geplant am 12. August 2026, Schritte 0 bis 3
+gebaut: §2 die dreiundzwanzig Messungen, die vor dem Plan kamen, §2.3 die zwölf,
+die am 12. August für MariaDB nachgeholt wurden, §3 die vier Entscheidungen des
 Betreibers, §4 das Abnahmekriterium mit sieben Punkten, §15 die Befehlsfolge
-dazu und **§16 was P5c ausdrücklich nicht wird**.
+dazu, **§16 was P5c ausdrücklich nicht wird** und §20 was beim Bauen anders war
+als im Plan. Und **`47` die Zwischenabnahme von P5c** — der Lauf für
+`cloudsrv24` nach Schritt 3, sechzehn Punkte **ohne ein einziges Bild**, weil
+die Oberfläche noch nicht existiert. Sein Punkt 1 ist Risiko 8 und **gehört vor
+das Update**: Die Form einer befristeten Kennung ist von `r` auf `[rc]`
+erweitert worden und gilt rückwirkend nicht — ein Kundenzugang, der heute
+`<präfix>_c` plus acht Hexziffern heisst, verschwindet ab dieser Fassung aus der
+Zugangsliste seiner Datenbank und wird gleichzeitig als Rest gemeldet.
+
+**Und §15 Punkt 3 des Plans war nicht fahrbar, gefunden beim Ausschreiben von
+`docs/47`.** Er verlangte, für den Beleg der Serverwand die Mandantenklammer
+abzuschalten und die Adresse einer fremden Datenbank aufzurufen. Das Präfix
+reist aber mit der **Datenbank** und nicht mit dem Aufrufer — der Aufruf gelingt
+dann, und zwar zu Recht. Der Punkt steht jetzt als drei getrennte Wände da.
+
+> **Eine Wand, die man nur erreicht, indem man die davor abschaltet, wird durch
+> das Abschalten nicht erreicht — sie wird umgangen.**
 
 > **Eine Option, die etwas erlaubt, ist nicht dasselbe wie ein Zustand, in dem
 > es geschieht.**
@@ -439,9 +464,20 @@ Auf dem Zielserver:
 Der Container ist **nicht** der Zielserver. Was hier fehlt, muss man beim
 Testen berücksichtigen:
 
+- **MariaDB gibt es hier auch — sie ist nur nicht installiert.** Hier stand neun
+  Monate lang „dieser Container hat keine Datenbank" für MariaDB, und das war die
+  Hälfte der Wahrheit: `apt-get install mariadb-server` holt
+  **10.11.14 aus dem Ubuntu-Archiv, dieselbe Fassung wie `cloudsrv24`**. Der
+  Proxy sperrt `composer install` und zwei PPAs, nicht das Archiv der
+  Distribution. Ein Wegwerf-Server ist derselbe Handgriff wie für PostgreSQL:
+  `mariadb-install-db --datadir=…` in den Scratchpad, `mariadbd --skip-networking
+  --socket=…`, kein systemd nötig. Gemessen am 12. August 2026, als Schritt 0 von
+  P5c fällig war und als Blockade gemeldet werden sollte (`docs/46 §2.3`).
+
+  > **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite
+  > braucht einen Versuch.**
 - **PostgreSQL gibt es hier, und zwar vollständig.** `postgresql-16` ist
-  installiert, Serverbinärdateien und alles — der Satz „dieser Container hat
-  keine Datenbank" gilt für MariaDB und **nicht** für PostgreSQL. Ein
+  installiert, Serverbinärdateien und alles. Ein
   Wegwerf-Cluster (`initdb` in den Scratchpad, `pg_ctl` auf einem eigenen Port)
   hat in P5b das Abnahmekriterium umgeworfen, bevor eine Zeile Plan entstand.
   Zwei Dinge dabei: Der Socketpfad muss **kurz** sein — der Scratchpad

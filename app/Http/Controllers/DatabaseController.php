@@ -15,6 +15,7 @@ use App\Models\DbUser;
 use App\Models\DbUserNetwork;
 use App\Models\Subscription;
 use App\Support\Audit\Audit;
+use App\Support\Databases\Console;
 use App\Support\Databases\Databases;
 use App\Support\Databases\Dumps;
 use App\Support\Databases\Engines\PostgresDriver;
@@ -26,6 +27,7 @@ use App\Support\Settings\Settings;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Time\Clock;
 use App\Support\Web\Page;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -39,6 +41,7 @@ use SrvPanel\Agent\Client;
 use SrvPanel\Agent\Db\Names;
 use SrvPanel\Agent\Ops\DbDatabaseCreate;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Tests\Feature\InertiaPagesTest;
 
 /**
  * Datenbanken ansehen, anlegen, Zugänge verwalten, entfernen.
@@ -62,6 +65,7 @@ final class DatabaseController extends Controller
         private readonly Audit $audit,
         private readonly Client $agent,
         private readonly RemoteAccess $remote,
+        private readonly Console $console,
     ) {}
 
     /**
@@ -276,6 +280,21 @@ final class DatabaseController extends Controller
             'can' => [
                 'update' => $request->user()?->can('update', $database) ?? false,
                 'delete' => $request->user()?->can('delete', $database) ?? false,
+
+                /*
+                 * **`console` steht hier noch nicht, und das ist kein
+                 * Vergessen.** Die Fähigkeit gibt es (`DatabasePolicy::console`,
+                 * Entscheidung 3), den Knopf dazu erst mit Schritt 4.
+                 *
+                 * {@see \Tests\Feature\AbilityReachTest} prüft **beide**
+                 * Richtungen: Eine Fahne, die die Seite abfragt und niemand
+                 * schickt, ist in Vue `undefined` — der Knopf verschwindet dann
+                 * für alle. Eine, die geschickt wird und die niemand abfragt,
+                 * ist eine Zusage ins Leere. Beides ist dasselbe Muster.
+                 *
+                 * Sie kommt mit dem Knopf, der sie liest, und keinen Beitrag
+                 * früher.
+                 */
             ],
 
             // Das Passwort eines gerade angelegten Zugangs — genau einmal, aus
@@ -1097,5 +1116,193 @@ final class DatabaseController extends Controller
                     ])->values()->all(),
             ])->values()->all(),
         ];
+    }
+
+    /**
+     * Die Tabellen einer Datenbank.
+     *
+     * **Noch keine Seite, sondern eine Antwort.** Schritt 3 baut die Anwendung
+     * und ausdrücklich keine Oberfläche (`docs/46 §13`); die Ansicht kommt mit
+     * Schritt 4 und macht daraus eine `GET`-Route mit `Inertia::render`. Bis
+     * dahin gäbe es hier einen Namen, zu dem keine Vue-Datei gehört — und
+     * {@see InertiaPagesTest} besteht zu Recht darauf, dass es
+     * die Datei gibt.
+     *
+     * **Auch dieser Griff ist `POST`**, obwohl er nur liest und keinen Wert des
+     * Kunden trägt — damit die fünf zusammenbleiben und nicht einer von ihnen
+     * eine andere Bauform hat, die später jemand erklären muss.
+     */
+    public function consoleTables(Request $request, Database $database): JsonResponse
+    {
+        return $this->answer(fn (): array => [
+            'tables' => $this->console->tables($database),
+        ]);
+    }
+
+    /**
+     * Die Struktur einer Tabelle.
+     *
+     * Sie kommt als eigene Anfrage und nicht mit der Tabellenliste: Bei
+     * zweihundert Tabellen wären das zweihundert Katalogabfragen für eine
+     * Seite, von denen der Kunde eine ansieht.
+     */
+    public function consoleColumns(Request $request, Database $database): JsonResponse
+    {
+        $table = $this->consoleTable($request);
+
+        return $this->answer(fn (): array => [
+            'columns' => $this->console->columns($database, $table),
+        ]);
+    }
+
+    /**
+     * Eine Seite Zeilen.
+     *
+     * **Der Filterwert wird hier nicht geprüft, sondern nur weitergereicht.**
+     * Der Vergleich kommt aus einer Positivliste im Agenten, der Spaltenname
+     * wird dort im Katalog nachgeschlagen, und der Wert geht durch
+     * `Sql::text()`. Ihn hier ein zweites Mal zu prüfen hiesse, die Regel
+     * zweimal zu haben — und die zweite Fassung ist die, die veraltet.
+     */
+    public function consoleRows(Request $request, Database $database): JsonResponse
+    {
+        $validated = $request->validate([
+            'table' => ['required', 'string'],
+            'order' => ['required', 'string'],
+            'direction' => ['nullable', 'in:asc,desc'],
+            'offset' => ['nullable', 'integer', 'min:0'],
+            'filter' => ['nullable', 'array'],
+            'filter.column' => ['required_with:filter', 'string'],
+            'filter.operator' => ['required_with:filter', 'string'],
+            'filter.value' => ['nullable', 'string'],
+        ]);
+
+        /** @var array{column: string, operator: string, value: string}|null $filter */
+        $filter = isset($validated['filter']) ? [
+            'column' => (string) $validated['filter']['column'],
+            'operator' => (string) $validated['filter']['operator'],
+            'value' => (string) ($validated['filter']['value'] ?? ''),
+        ] : null;
+
+        return $this->answer(fn (): array => $this->console->rows(
+            $database,
+            (string) $validated['table'],
+            (string) $validated['order'],
+            ($validated['direction'] ?? 'asc') === 'desc',
+            (int) ($validated['offset'] ?? 0),
+            $filter,
+        ));
+    }
+
+    /** Der ganze Wert einer Zelle — der Ausweg aus der Kürzung (`docs/46 §12`). */
+    public function consoleCell(Request $request, Database $database): JsonResponse
+    {
+        $validated = $request->validate([
+            'table' => ['required', 'string'],
+            'column' => ['required', 'string'],
+            'key' => ['required', 'array', 'min:1'],
+        ]);
+
+        return $this->answer(fn (): array => $this->console->cell(
+            $database,
+            (string) $validated['table'],
+            $this->consoleKey($validated['key']),
+            (string) $validated['column'],
+        ));
+    }
+
+    /**
+     * Eine Zeile anlegen, ändern oder löschen.
+     *
+     * **`values` wird nicht nach `string` gezwungen.** `null` ist dort ein
+     * eigener Zustand und keine leere Eingabe (`docs/46 §10.1`); eine Regel
+     * `string` machte aus jedem `NULL` lautlos ein `''`, und zwar an der Stelle,
+     * an der der Schaden an der Zeile hinterher nicht zu sehen ist.
+     */
+    public function consoleWrite(Request $request, Database $database): JsonResponse
+    {
+        $validated = $request->validate([
+            'table' => ['required', 'string'],
+            'mode' => ['required', 'in:insert,update,delete'],
+            'key' => ['required_unless:mode,insert', 'array'],
+            'values' => ['required_unless:mode,delete', 'array'],
+        ]);
+
+        $mode = (string) $validated['mode'];
+
+        return $this->answer(fn (): array => $this->console->write(
+            $database,
+            (string) $validated['table'],
+            $mode,
+            $mode === 'insert' ? [] : $this->consoleKey($validated['key'] ?? []),
+            $mode === 'delete' ? [] : $this->consoleValues($validated['values'] ?? []),
+        ));
+    }
+
+    /**
+     * Die Antwort eines Konsolengriffs.
+     *
+     * **Ein Fehler des Agenten wird zu einer Meldung und nicht zu einem 500er.**
+     * Was er sagt, ist für den Kunden brauchbar — „Diese Spalte gibt es in
+     * dieser Tabelle nicht", „Der Vorgang hat 0 Zeilen getroffen" —, und es ist
+     * die Auskunft, an der zwei Abnahmekriterien hängen (`docs/46 §4`,
+     * Punkte 4 und 6). Eine Umschreibung nähme sie weg.
+     *
+     * @param  callable(): array<string, mixed>  $work
+     */
+    private function answer(callable $work): JsonResponse
+    {
+        try {
+            return response()->json($work());
+        } catch (RuntimeException|AgentException $error) {
+            return response()->json(['message' => $error->getMessage()], 422);
+        }
+    }
+
+    private function consoleTable(Request $request): string
+    {
+        /** @var array{table: string} $validated */
+        $validated = $request->validate(['table' => ['required', 'string']]);
+
+        return $validated['table'];
+    }
+
+    /**
+     * Der Schlüssel einer Zeile — nur Zeichenketten.
+     *
+     * Was aus der Anzeige zurückkommt, ist der Text, den die Datenbank geliefert
+     * hat (`docs/46 §20.3`). Ihn hier in eine Zahl zu wandeln hiesse, dass zwei
+     * Stellen entscheiden, wie ein Wert aussieht — und die zweite kennt den Typ
+     * der Spalte nicht.
+     *
+     * @param  array<array-key, mixed>  $key
+     * @return array<string, string>
+     */
+    private function consoleKey(array $key): array
+    {
+        $clean = [];
+
+        foreach ($key as $column => $value) {
+            $clean[(string) $column] = is_scalar($value) ? (string) $value : '';
+        }
+
+        return $clean;
+    }
+
+    /**
+     * Die zu schreibenden Spalten — `null` bleibt `null`.
+     *
+     * @param  array<array-key, mixed>  $values
+     * @return array<string, string|null>
+     */
+    private function consoleValues(array $values): array
+    {
+        $clean = [];
+
+        foreach ($values as $column => $value) {
+            $clean[(string) $column] = $value === null ? null : (is_scalar($value) ? (string) $value : '');
+        }
+
+        return $clean;
     }
 }

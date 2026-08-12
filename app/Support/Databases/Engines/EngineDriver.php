@@ -8,6 +8,8 @@ use App\Enums\DatabaseEngine;
 use App\Models\Database;
 use App\Models\DbUser;
 use App\Models\Subscription;
+use App\Support\Databases\Console;
+use App\Support\Databases\Databases;
 
 /**
  * Was an einem Datenbanksystem eigen ist — Namen und Nutzlast, sonst nichts.
@@ -116,6 +118,26 @@ interface EngineDriver
     public function removeUser(string $prefix, DbUser $user, array $databases): void;
 
     /** Der Name der Aufgabe, die den Rückbau einer Datenbank ausführt. */
+    /**
+     * Der Name eines Konsolengriffs — `db.console.rows` oder `pg.console.rows`.
+     *
+     * **Der Griff kommt als kurzer Name und der Rest von hier**, damit
+     * {@see Console} nicht an fünf Stellen auf das
+     * System verzweigt. Die Verzweigung bleibt die eine aus
+     * {@see Databases::driver()}.
+     */
+    public function consoleOperation(string $handle): string;
+
+    /**
+     * Was im Feld `schema` steht.
+     *
+     * PostgreSQL kennt Schemata neben der Datenbank, MariaDB nicht — dort *ist*
+     * die Datenbank das Schema (`docs/46 §20.6`). Das Feld gibt es trotzdem in
+     * beiden Nutzlasten: Die Anwendung baut **eine** Frage für beide Systeme,
+     * und was hineingehört, weiss der Treiber.
+     */
+    public function consoleSchema(Database $database): string;
+
     public function removalTask(): string;
 
     /**

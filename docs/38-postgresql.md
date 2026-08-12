@@ -1500,7 +1500,18 @@ nicht wo sie stehen soll. Sonst meldet er Rot, sobald jemand aufräumt.
 #    erwartet: die Zeilen sind zurück — dieselben Zahlen je Tabelle wie vorher,
 #              auf beiden Seiten notiert.
 #    Und: während des Laufs entsteht <A>_r<zufall> und ist danach fort:
-#      SELECT rolname FROM pg_roles WHERE rolname LIKE '%\_r%';  → 0 Zeilen.
+#      SELECT rolname FROM pg_roles
+#       WHERE rolname ~ '^x[0-9a-f]{16}_r[0-9a-f]{8}$';  → 0 Zeilen.
+#    BERICHTIGT AM 12. AUGUST 2026. Hier stand `LIKE '%\_r%'`, und das kann
+#    auf keinem PostgreSQL leer sein: Gemessen trifft es pg_read_all_data,
+#    pg_read_all_settings, pg_read_all_stats, pg_read_server_files,
+#    pg_use_reserved_connections — und srvpanel_restore, das das Panel für
+#    genau dieses Zurückspielen anlegt. Wer den Schritt wörtlich fährt,
+#    bekommt sechs Zeilen und muss sich die Erwartung zurechtlegen; wer sie
+#    sich zurechtlegt, prüft nichts mehr.
+#
+#    > Ein Abnahmeschritt, dessen Erwartung nie eintreten kann, wird beim
+#    > Fahren stillschweigend umgedeutet.
 #    BELEG: die Nummer des Vorgangs und sein Zustand „erledigt". OHNE DIESE
 #           ZEILE IST DAS KRITERIUM NICHT GEFAHREN — die Abfrage oben ist auch
 #           dann leer, wenn nie ein Restore lief (docs/36 §22.3m).

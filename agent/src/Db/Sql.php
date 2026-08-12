@@ -76,6 +76,20 @@ final class Sql
         return "'".str_replace(['\\', "'"], ['\\\\', "\\'"], $value)."'";
     }
 
+    /**
+     * Ein qualifizierter Name — `` `p1001_shop`.`kunden` ``.
+     *
+     * Beide Hälften einzeln angeführt, wortgleich die Begründung aus
+     * {@see \SrvPanel\Agent\Pg\Sql::qualified()}: Ein Punkt zwischen zwei
+     * Backticks trennt, einer innerhalb ist ein Zeichen. Wer den ganzen Ausdruck
+     * in einem Aufruf anführte, bekäme eine einzige Tabelle mit einem Punkt im
+     * Namen.
+     */
+    public static function qualified(string $database, string $name): string
+    {
+        return self::identifier($database).'.'.self::identifier($name);
+    }
+
     /** `'p1001_web'@'localhost'` — beide Hälften einzeln maskiert. */
     public static function account(string $user, string $host): string
     {

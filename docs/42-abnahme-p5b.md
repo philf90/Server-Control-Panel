@@ -174,12 +174,30 @@ Und der Test zur Dumpablage las zuerst einen festen Ausschnitt von 2000 Zeichen
 
 ## 5. Was offen bleibt, benannt
 
+> **P5b ist am 12. August 2026 abgeschlossen und abgenommen.** Punkt 3 dieser
+> Liste ist gebaut und auf `cloudsrv24` gefahren (`docs/45`); die fünf Befunde
+> jenes Laufs sind behoben, und die Fassungsspanne aus `docs/38 §2.3` misst
+> seitdem die CI auf allen vier Zielplattformen. Ausgeliefert als
+> `v0.5.2-rc.7`.
+>
+> **Die Punkte 1 und 2 bleiben bewusst offen — sie sind nie gemessen worden.**
+> Der Betreiber hat P5b mit ihnen abgenommen; beide sind ohne Wirkung auf Daten
+> im laufenden Betrieb. Sie stehen weiter hier und nicht in einem Kopf: Wer sie
+> später anfasst, fängt bei dieser Liste an.
+>
+> Warum sie nicht gestrichen werden, obwohl die Stufe fertig ist: **Eine Liste,
+> die beim Abnehmen leer gemacht wird, sagt hinterher, es habe nie etwas
+> gefehlt.**
+
 1. **Der `template1`-Beleg** aus §2 — die Gegenprobe, dass keine
    Kundendatenbank über `template1` entsteht.
 2. **Ein Zugang ohne jede Datenbank** käme an keinen der Entfernungsvorgänge.
    Ob das Panel diesen Zustand überhaupt erlaubt, ist ungemessen; blind gebaut
    wäre die Behandlung die zweite Fassung einer Regel.
-3. **Schritt 10, der Fernzugriff** (`docs/38 §19` Punkt 10) — nicht gebaut.
+3. ~~**Schritt 10, der Fernzugriff** (`docs/38 §19` Punkt 10) — nicht gebaut.~~
+   **Erledigt** und am 11. August 2026 auf `cloudsrv24` abgenommen, alle
+   sechzehn Punkte aus `docs/43`; das Protokoll ist `docs/45`. Der Lauf hat
+   zwölf Fehler gefunden und keinen davon ein Test.
 4. ~~**Die Anzeigezeitzone** (`docs/40`) — alle Zeiten stehen in UTC, auch der
    neue Zeitstempel der Sicherungen.~~ **Erledigt** mit `v0.5.1-rc.11`: Die
    Zeiten kommen aus `App\Support\Time\Clock`, der Filter des Protokolls

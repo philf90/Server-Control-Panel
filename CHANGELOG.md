@@ -9895,3 +9895,25 @@ verschiedene Messwerte, acht verschiedene Ablesungen. Gebrochen meldet er
 Lösung kaputt machen würde: Die Geometrie der Kurve bleibt unberührt, ein
 ausgelasteter Server behält ganze Zahlen, und angefragte Stellen werden nie
 weggenommen.
+
+### P5b ist abgeschlossen — und zwei Punkte bleiben stehen
+
+Abgenommen am 12. August 2026, ausgeliefert als `v0.5.2-rc.7`: die sieben
+Kriterien aus `docs/38 §3` (`docs/42`), der Fernzugriff mit allen sechzehn
+Punkten aus `docs/43` (`docs/45`), die fünf Befunde jenes Laufs behoben, und die
+Fassungsspanne aus `docs/38 §2.3` als CI-Messung auf allen vier Zielplattformen
+statt als Annahme auf einer.
+
+**Zwei Punkte aus `docs/42 §5` sind nie gemessen worden** und bleiben bewusst
+offen: der `template1`-Beleg und die Frage, ob ein Zugang ohne jede Datenbank
+überhaupt entstehen kann. Beide sind ohne Wirkung auf Daten im laufenden
+Betrieb, und der Betreiber hat die Stufe mit ihnen abgenommen. Sie stehen
+weiter in der Liste — nicht durchgestrichen, weil sie nicht erledigt sind.
+
+> **Eine Liste, die beim Abnehmen leer gemacht wird, sagt hinterher, es habe nie
+> etwas gefehlt.**
+
+Punkt 3 derselben Liste — Schritt 10, der Fernzugriff — ist dagegen
+durchgestrichen: gebaut, gefahren, abgenommen. Und `CLAUDE.md` behauptete an
+einer Stelle weiter noch das Gegenteil („Abgenommen ist er nicht"); zwei
+Wahrheiten in derselben Datei sind hier schon oft genug teuer gewesen.

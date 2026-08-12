@@ -7,6 +7,7 @@ namespace SrvPanel\Agent\Db;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Ops\PanelProvision;
+use SrvPanel\Agent\Runner;
 
 /**
  * Ein Lauf gegen den Datenbankserver.
@@ -40,6 +41,58 @@ final class Session
      * {@see Context::stream()} den Abbruch in der Warteschleife prüft.
      */
     public const TIMEOUT = 600;
+
+    /**
+     * Die Argumente, mit denen `mysql` in diesem Agenten **immer** läuft.
+     *
+     * Sie standen zweimal da — in {@see self::run()} und in
+     * {@see self::linesAs()} —, und genau daran ist die Angabe zum Zeichensatz
+     * jahrelang nicht aufgefallen: Zwei Listen, die dasselbe meinen, laufen
+     * auseinander, und keine von beiden ist der Ort, an dem man nachsieht.
+     *
+     * ## `--default-character-set=utf8mb4`, und ohne das ist eine Zeile mit einem Umlaut unlesbar
+     *
+     * **Gemessen am 12. August 2026 auf `cloudsrv24`** (MariaDB 10.11.14), im
+     * Abnahmelauf von P5c und von keinem Test:
+     *
+     *     env -i LC_ALL=C LANG=C mysql --batch --raw --skip-column-names \
+     *       -e "SELECT JSON_OBJECT('n', notiz) FROM lang"
+     *     → 75 6e 62 65 72  fc  68 72 74      ("unber" · FC · "hrt")
+     *
+     * Das `fc` ist `ü` in **latin1** und für sich genommen kein gültiges UTF-8.
+     * `json_decode()` gibt `null` zurück, und damit ist nicht die Zelle
+     * unlesbar, sondern **die ganze Zeile** — derselbe Schaden wie beim `BLOB`
+     * aus `docs/46 §8.2`, nur mit einer Ursache, die jede deutsche
+     * Kundendatenbank trifft.
+     *
+     * **Woher latin1 kommt:** Der Klient leitet seinen Zeichensatz aus der
+     * Locale ab, und {@see Runner::ENVIRONMENT} setzt seit P0
+     * `LC_ALL=C` — richtig, damit Zahlen- und Datumsformate stabil bleiben. Ohne
+     * Locale fällt `mysql` auf seinen eingebauten Zeichensatz zurück, und der
+     * ist latin1. Der Server steht auf `utf8mb4` und konvertiert am Ausgang.
+     *
+     * **Warum PostgreSQL denselben Fehler nicht hat:** `psql` leitet
+     * `client_encoding` ebenfalls aus der Locale ab, und `LC_ALL=C` ergibt dort
+     * `SQL_ASCII` — also **keine Konvertierung**. Die Bytes gehen unangetastet
+     * durch.
+     *
+     * > **Zwei Systeme unter derselben Umgebung treffen entgegengesetzte
+     * > Vorgaben — und die eine ist verlustfrei, die andere nicht.**
+     *
+     * **`utf8mb4` und nicht „was die Locale sagt".** Auf demselben Server
+     * handelt ein `mariadb` aus einer UTF-8-Shell `utf8mb3` aus; ein Zeichen
+     * ausserhalb der BMP — ein Emoji in einer Kundentabelle — käme auch dort
+     * nicht heil an. Der Zeichensatz gehört zur Abfrage und nicht zur Umgebung
+     * dessen, der sie stellt.
+     *
+     * @var list<string>
+     */
+    public const CLIENT = [
+        '--default-character-set=utf8mb4',
+        '--protocol=socket',
+        '--batch',
+        '--skip-column-names',
+    ];
 
     /**
      * Anweisungen ausführen; die Ausgabe interessiert nicht.
@@ -147,7 +200,7 @@ final class Session
             rtrim($sql, "; \t\n"),
         );
 
-        $arguments = ['--protocol=socket', '--batch', '--skip-column-names'];
+        $arguments = self::CLIENT;
 
         if ($raw) {
             $arguments[] = '--raw';
@@ -199,11 +252,13 @@ final class Session
      * `--protocol=socket`, damit auch dann der Socket benutzt wird, wenn in
      * einer `my.cnf` ein Host steht: Über TCP käme die Anmeldung als root nicht
      * zustande, und der Fehler führte an eine Stelle, an der niemand nach einer
-     * Konfigurationsdatei sucht.
+     * Konfigurationsdatei sucht. Die Argumente stehen in {@see self::CLIENT} und
+     * nicht hier — sie standen zweimal da, und die Angabe zum Zeichensatz fehlte
+     * in beiden.
      */
     private function run(Context $context, string $sql, ?Credentials $as): string
     {
-        $arguments = ['--protocol=socket', '--batch', '--skip-column-names'];
+        $arguments = self::CLIENT;
         $file = null;
 
         try {

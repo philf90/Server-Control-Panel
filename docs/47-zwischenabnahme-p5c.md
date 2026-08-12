@@ -101,6 +101,21 @@ Fehlerquelle mehr, als der Lauf braucht.
 **Und jeder Aufruf gibt aus, was er getan hat.** Ein `tinker`-Aufruf, der nichts
 druckt, ist von einem, der nicht gelaufen ist, nicht zu unterscheiden.
 
+### Und eine dritte, die dieser Lauf gefunden hat
+
+**`srvpanel tinker` läuft nicht als root.** Der Wrapper gibt die Rechte ab:
+`setpriv --reuid=srvpanel --regid=srvpanel --init-groups`. Eine Hilfsdatei unter
+`/root` — dort `0700` — kann er deshalb nicht lesen, und die Meldung
+(„Failed opening required") sieht nach einem Tippfehler im Pfad aus. Sie gehört
+nach `/tmp`, und die Leseprobe davor ist eine Zeile wert:
+
+```bash
+setpriv --reuid=srvpanel --regid=srvpanel --init-groups head -1 /tmp/p5c/namen.php
+```
+
+> **Ein Werkzeug, das Rechte abgibt, liest die Datei nicht mehr, die man ihm als
+> root hinlegt.**
+
 ---
 
 ## 3. Welche Fassung — und warum das hier steht
@@ -121,11 +136,25 @@ Alles andere braucht die neue Fassung. Nachgesehen wird sie so:
 ```bash
 dpkg-query -W -f='${Version}\n' srvpanel
 readlink /opt/srvpanel/current
-grep -c "pg\.console\.tables" /opt/srvpanel/current/agent/src/Registry.php
-#    erwartet: 1. DAS IST DIE PRÜFUNG, NICHT DIE NUMMER OBEN.
-#    Eine Fassungsnummer sagt, welches Paket installiert wurde; dieser Ausdruck
-#    sagt, ob die Operation im Agenten registriert ist — und genau das war in
-#    dieser Stufe zweimal die Frage (docs/46 §20.5, §20.7).
+HOME=/tmp srvpanel tinker --execute='
+  $n = array_filter((new SrvPanel\Agent\Registry(new SrvPanel\Agent\Config))->names(),
+                    fn (string $x): bool => str_contains($x, ".console."));
+  echo count($n), "\n"; print_r(array_values($n));
+'
+#    erwartet: 10, und die zehn Namen.
+#    DAS IST DIE PRÜFUNG, NICHT DIE NUMMER OBEN. Eine Fassungsnummer sagt,
+#    welches Paket installiert wurde; diese Abfrage sagt, ob die Operationen im
+#    Agenten registriert sind — und genau das war in dieser Stufe zweimal die
+#    Frage (docs/46 §20.5, §20.7).
+#
+#    HIER STAND EIN `grep -c "pg\.console\.tables"` AUF Registry.php, UND DER
+#    KANN NUR 0 FINDEN. Die Registratur trägt Objekte (`new PgConsoleTables`),
+#    der Name steht in der Op-Klasse. Der Ausdruck hätte bei einer kaputten
+#    Fassung dasselbe gesagt wie bei einer heilen. Gefunden am 12. August 2026
+#    im Lauf selbst.
+#
+#    > Ein Wächter, der in der falschen Datei sucht, ist kein Wächter — er ist
+#    > eine Zeile, die immer dasselbe sagt.
 ```
 
 > **Eine Fassungsnummer ist eine Zusage, ein registrierter Name ist eine
@@ -138,9 +167,14 @@ grep -c "pg\.console\.tables" /opt/srvpanel/current/agent/src/Registry.php
 ```
 # 0  DIE NAMEN, MIT DENEN GEARBEITET WIRD
 mariadb srvpanel -e "
-SELECT s.id, s.name, su.number, su.db_prefix
-  FROM subscriptions s LEFT JOIN system_users su ON su.subscription_id = s.id
+SELECT s.id, s.name, s.system_user, s.status, s.customer_id, su.db_prefix
+  FROM subscriptions s
+  LEFT JOIN system_users su ON CONCAT('p', su.number) = s.system_user
  ORDER BY s.id;
+-- HIER STAND `ON su.subscription_id = s.id`, UND DIE SPALTE GIBT ES NICHT.
+-- `system_users` führt `number`, `subscription` (eine Abschrift des Namens,
+-- kein Fremdschlüssel) und `db_prefix`; die Verbindung läuft über
+-- `subscriptions.system_user`, das `p<number>` heisst (docs/35).
 SELECT d.id, d.name, d.engine, d.subscription_id FROM databases d ORDER BY d.id;
 SELECT a.id, a.email, a.type, a.customer_id FROM accounts a ORDER BY a.id;
 "
@@ -245,8 +279,14 @@ while :; do mariadb -Ns -e \
 #    Und danach BEIDE Dateien gegen Punkt 2 prüfen: die Rolle ist wieder fort.
 
 # 5  DIE STRUKTUR EINER TABELLE
-#    Vorher, als Kunde von aussen (oder über den Zugang aus dem Panel), in
-#    BEIDEN Datenbanken von A:
+#    Vorher, in BEIDEN Datenbanken von A — und in PostgreSQL mit
+#      SET ROLE <präfix>_owner;
+#    vor jedem CREATE und INSERT. Die Eigentümerrolle besitzt das Schema public
+#    (Pg\Owner: ALTER SCHEMA public OWNER TO …), und Console::TABLES zeigt nur,
+#    was has_table_privilege(…, 'SELECT') bejaht: Eine als postgres angelegte
+#    Tabelle wäre für den Kunden UNSICHTBAR, und der Lauf sähe aus wie ein
+#    Fehler der Konsole. Für MariaDB entfällt das — der befristete Benutzer
+#    bekommt GRANT ALL auf die ganze Datenbank.
 #      CREATE TABLE probe (id int primary key, leer text, nichts text,
 #                          tab text, umbruch text);
 #    PostgreSQL:
@@ -416,8 +456,11 @@ sudo -u postgres psql -c "DROP ROLE p5c_probe"
 #    ein Benutzer mit GRANT ALL auf GENAU EINE Datenbank:
 mariadb -e "CREATE USER 'p5c_probe'@'localhost' IDENTIFIED BY 'p5c';
             GRANT ALL PRIVILEGES ON \`<AMY>\`.* TO 'p5c_probe'@'localhost'"
-mariadb -u p5c_probe -pp5c -e "SHOW TABLES FROM \`<AMY>\`"
-mariadb -u p5c_probe -pp5c -e "SHOW TABLES FROM \`<BMY>\`"
+mariadb --protocol=socket -u p5c_probe -pp5c -e "SHOW TABLES FROM \`<AMY>\`"
+mariadb --protocol=socket -u p5c_probe -pp5c -e "SHOW TABLES FROM \`<BMY>\`"
+#    --protocol=socket, weil der Agent so verbindet (Db\Session::CLIENT). Steht
+#    in einer my.cnf ein Host, ginge der Klient sonst über TCP — und dann prüfte
+#    diese Gegenprobe einen Weg, den niemand benutzt.
 #    erwartet: die erste Zeile listet die Tabellen, die zweite meldet
 #              ERROR 1044 (42000): Access denied for user 'p5c_probe'@'localhost'
 #              to database '<BMY>'
@@ -601,7 +644,57 @@ sondern gegen den Quelltext gelesen.
 
 ---
 
-## 6. Was dieser Lauf ausdrücklich nicht prüft
+## 6. Was der Lauf gefunden hat
+
+**Gefahren am 12. August 2026 auf `cloudsrv24`.** Diese Liste wächst, während er
+läuft; sie steht hier und nicht erst im Protokoll danach, weil ein Befund, den
+man erst hinterher aufschreibt, seinen Zusammenhang verliert.
+
+### Befund 1 — Der MariaDB-Klient nannte seinen Zeichensatz nicht
+
+**Gefunden in Punkt 7, an einem einzigen `ü`.** `Db\Session` rief `mysql` ohne
+`--default-character-set`; unter `LC_ALL=C` aus `Runner::ENVIRONMENT` handelt der
+Klient dann **latin1** aus, der Server konvertiert `JSON_OBJECT()` am Ausgang,
+und aus `ü` wird das einzelne Byte `FC`. `json_decode()` gibt `null` zurück —
+für die **ganze Zeile**. Gemessen mit `xxd`:
+
+```
+ohne  --default-character-set : 75 6e 62 65 72  fc     68 72 74
+mit   --default-character-set=utf8mb4 : 75 6e 62 65 72  c3 bc  68 72 74
+```
+
+Das trifft **jede Datenbank mit einem Umlaut**, also praktisch jeden deutschen
+Kunden. Der Fix steht in `docs/46 §8.3`, der Wächter in §14.8, zwei Brüche in
+`tests/waechter-brechen.sh`.
+
+**Drei Dinge hingen daran**, und jedes ist für sich eine Lehre:
+
+> **Zwei Systeme unter derselben Umgebung treffen entgegengesetzte Vorgaben —
+> und die eine ist verlustfrei, die andere nicht.** `psql` fällt unter `LC_ALL=C`
+> auf `SQL_ASCII` zurück, also auf *keine* Konvertierung. Deshalb war die
+> PostgreSQL-Hälfte desselben Punktes fehlerfrei.
+
+> **Ein Hinweis, der genau eine Ursache nennt, ist eine Diagnose — und eine
+> falsche Diagnose ist teurer als keine.** Die Meldung fragte „Steht eine binäre
+> Spalte in der Abfrage?"; es stand keine.
+
+> **Ein Testdatensatz aus ASCII prüft keine Kodierung.** Das einzige
+> nicht-ASCII-Zeichen im ganzen Bestand dieses Laufs ist das `ü` in
+> `'unberührt'` — hingeschrieben als deutsches Wort, nicht als Prüfung. Um ein
+> Haar hätte auch dieser Lauf nichts gemerkt.
+
+### Befund 2 — Die Fassungsprüfung dieses Dokuments suchte in der falschen Datei
+
+Siehe §3. Ein `grep` auf `Registry.php` nach `pg.console.tables` kann nur `0`
+finden: Die Registratur trägt Objekte, der Name steht in der Op-Klasse.
+
+### Befund 3 — Eine Hilfsdatei unter `/root` ist für `srvpanel tinker` unlesbar
+
+Siehe §2. Der Wrapper gibt seine Rechte an den Benutzer `srvpanel` ab.
+
+---
+
+## 7. Was dieser Lauf ausdrücklich nicht prüft
 
 - **Die Oberfläche.** Es gibt sie noch nicht (Schritte 4 bis 6). Kriterium 2
   verlangt „in der Oberfläche unterscheidbar"; gemessen wird hier, dass die vier

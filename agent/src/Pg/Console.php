@@ -759,10 +759,25 @@ final class Console
         $decoded = json_decode($line, true);
 
         if (! is_array($decoded)) {
-            throw AgentException::execFailed(
-                'Die Antwort der Datenbank liess sich nicht lesen ('.json_last_error_msg()
-                .'). Steht eine binäre Spalte in der Abfrage?',
-            );
+            /*
+             * **Zwei Ursachen und nicht eine.**
+             *
+             * Hier stand nur die Frage nach der binären Spalte. Sie war für
+             * ihren Fall richtig (`docs/46 §8.2`) — und im Abnahmelauf vom
+             * 12. August 2026 war es die andere: `mysql` lief ohne
+             * `--default-character-set`, gab ein `ü` als latin1-Byte `FC` aus,
+             * und `json_decode()` scheiterte an ungültigem UTF-8. Eine binäre
+             * Spalte gab es in der Abfrage nicht.
+             *
+             * > **Ein Hinweis, der genau eine Ursache nennt, ist eine Diagnose —
+             * > und eine falsche Diagnose ist teurer als keine.**
+             */
+            throw AgentException::execFailed(sprintf(
+                'Die Antwort der Datenbank liess sich nicht lesen (%s). Zwei Ursachen kommen in '
+                .'Frage: eine binäre Spalte in der Abfrage, oder eine Verbindung, die nicht auf '
+                .'utf8mb4 steht.',
+                json_last_error_msg(),
+            ));
         }
 
         /** @var array<string, mixed> $decoded */

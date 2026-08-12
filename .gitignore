@@ -43,3 +43,8 @@ MINISIGN_KEY*
 
 # Der lokale Fixer dieses Containers — sein Zwischenspeicher gehört nicht ins Repo.
 .php-cs-fixer.cache
+
+# Werkzeuge, die dieser Container von Hand holt (CLAUDE.md) — nicht Teil der
+# Auslieferung. `composer install` scheitert hier am Proxy, `pint.phar` von den
+# GitHub-Releases ist der Ersatz und ist dieselbe Fassung.
+*.phar

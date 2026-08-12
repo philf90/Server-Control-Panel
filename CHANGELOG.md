@@ -9772,3 +9772,53 @@ fest, mit Eingriff im Bruch-Skript. Die Zeilennummer im Test wird **gerechnet
 und nicht getippt**: Eine feste Zahl ginge beim nächsten Zusatz zum Block
 lautlos daneben — und der Test bestünde weiter, weil er dann den Zweig ohne Text
 prüft.
+
+### Ein Fehler steht einmal auf der Seite
+
+Der letzte der fünf Befunde aus `docs/45 §5` — und der einzige, der beim Anfassen
+grösser wurde, statt kleiner. Gemeldet war „die Fehlermeldung steht doppelt: als
+Banner oben und am Feld unten, wörtlich derselbe Satz". Gemessen waren es dann
+**70 Stellen in 16 Dateien**: keine Nachlässigkeit dieser einen Seite, sondern
+die Konvention der ganzen Anwendung, mit einer Begründung in `FormErrors.vue`.
+
+Den Satz trägt jetzt allein die Zusammenfassung. Das Feld sagt über
+`aria-invalid` nur noch *welches* — und das ist genauer als vorher: Die
+Markierung sitzt am Bedienelement statt als Zeile darunter, sie zeigt auf das
+Feld, statt neben ihm zu stehen. Zwei Kanäle, nicht einer: Farbe **und** Breite
+(ein eingelegter Schatten verdoppelt den Rand optisch, ohne das Feld um ein Pixel
+zu verschieben), dazu das Attribut für die Hilfstechnik. Gerechnet statt
+geschätzt: `--critical` auf `--control-bg` steht bei **6,79:1** hell und
+**6,90:1** dunkel, gefordert sind 3:1 (WCAG 1.4.11).
+
+**Die gefährliche Richtung ist erst durch diesen Umbau entstanden**, und sie ist
+das eigentliche Thema des Wächters: Ein Feld, das rot werden kann, auf einer
+Seite ohne Zusammenfassung — dann ist die Meldung nicht doppelt, sondern *fort*.
+Roter Rand, kein Wort dazu.
+
+> **Wer die Auskunft an einen Ort verlegt, muss prüfen, dass es den Ort auf jeder
+> Seite gibt.**
+
+`FieldErrorTest` prüft beide Richtungen, Komponenten eingerechnet: `CodeField`,
+`DnsCredentials` und `PasswordFields` bringen die Markierung mit, die
+Zusammenfassung steht auf der Seite, die sie einbaut.
+
+**Zwei Dinge sind am Feld geblieben, und beide zu Recht.** „Die beiden Eingaben
+sind nicht gleich." entsteht beim Tippen und geht nie über den Draht — die
+Zusammenfassung liest die letzte Antwort und kann sie gar nicht kennen. Und ein
+Fehler, der zu *keinem* Feld gehört — der Sammelfehler einer Domain, die Grenzen
+einer ganzen Einstellungsgruppe —, markiert nichts, sondern steht nur oben; er
+hat kein Feld, das er anstreichen könnte.
+
+**Drei Dinge, die beim Umbau nur der Bau gefunden hat, nicht der Typprüfer.**
+Zuerst der falsche Anker: „das Feld über der Fehlerzeile" greift bei zwei Feldern
+nebeneinander zweimal auf dasselbe — Vorname und Nachname teilen sich eine Zeile,
+ihre Meldungen stehen beide darunter. Der richtige Anker ist der Name selbst
+(`form.errors.first_name` gehört zu `v-model="form.first_name"`). Dann vier
+Fehlerzeilen, die Kopf einer `v-else`-Kette waren: Der Hinweis darunter erschien
+nur, *solange* kein Fehler stand — ohne den Kopf ist er ein `v-else` ohne `v-if`,
+und das meldet erst der Compiler. Und zuletzt der Zähler dieses neuen Wächters,
+der auf 20 stand, während 16 Dateien markieren: Er wäre rot geworden für genau
+die Ordnung, die er durchsetzt.
+
+> **Ein Typprüfer, der eine Vorlage übersetzt, prüft nicht, ob sie sich bauen
+> lässt.**

@@ -322,6 +322,47 @@ pruefe "eigene Tabellenform auf einer Seite" \
 wiederherstellen
 
 echo
+echo "── FieldErrorTest: ein Serverfehler steht wieder am Feld ──"
+#
+# docs/45 §5: Bis August 2026 stand jede Meldung zweimal auf der Seite — oben in
+# der Zusammenfassung und woertlich noch einmal unter dem Feld. Zwei gleiche
+# Saetze uebereinander liest niemand als „Uebersicht und Ort".
+vorher_datei resources/js/Pages/Settings/Tls.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Tls.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '        </label>\n        <p class="hint">\n          Sie wird nicht',
+    '        </label>\n        <p v-if="form.errors.contact" class="error">{{ form.errors.contact }}</p>\n'
+    '        <p class="hint">\n          Sie wird nicht',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Settings/Tls.vue "Serverfehler wieder am Feld" &&
+pruefe "Serverfehler wieder am Feld" \
+  FieldErrorTest::test_no_template_repeats_a_server_error_at_the_field failed
+wiederherstellen
+
+echo
+echo "── FieldErrorTest: eine Seite markiert und sagt nicht warum ──"
+#
+# Die Richtung mit Folgen. Ohne sie waere der Umbau ein Tausch von „doppelt"
+# gegen „gar nicht": roter Rand, kein Wort dazu.
+vorher_datei resources/js/Pages/Settings/Tls.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Tls.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('<FormErrors', '<KeinBanner')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Settings/Tls.vue "Markierung ohne Zusammenfassung" &&
+pruefe "Markierung ohne Zusammenfassung" \
+  FieldErrorTest::test_every_page_that_can_mark_a_field_shows_the_summary failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FieldErrorTest passed
+
+echo
 echo "── ClassNameTest: ein deutscher Klassenname ──"
 vorher
 printf '\n.knopfreihe-neu { color: var(--text); }\n' >> resources/css/app.css

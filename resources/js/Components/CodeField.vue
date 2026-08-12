@@ -51,6 +51,7 @@ const id = useId()
     <input
       :id="id"
       v-model="value"
+      :aria-invalid="Boolean(error)"
       type="text"
       name="code"
       inputmode="text"
@@ -64,7 +65,6 @@ const id = useId()
     >
 
     <p v-if="hint" class="hint">{{ hint }}</p>
-    <p v-if="error" class="error" role="alert">{{ error }}</p>
   </div>
 </template>
 

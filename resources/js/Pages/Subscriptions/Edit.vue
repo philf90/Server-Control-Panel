@@ -120,11 +120,10 @@ function submit(): void {
       <Section title="Plan">
         <label class="field">
           <span>Plan</span>
-          <select v-model.number="form.plan_id">
+          <select v-model.number="form.plan_id" :aria-invalid="Boolean(fehler('plan_id'))">
             <option v-for="p in props.plans" :key="p.id" :value="p.id">{{ p.label }}</option>
           </select>
         </label>
-        <p v-if="fehler('plan_id')" class="error">{{ fehler('plan_id') }}</p>
         <p class="hint">
           Der Plan gibt jedes Kontingent vor, das unten nicht abweicht. Ein
           Wechsel wirkt sofort auf alle geerbten Werte.
@@ -167,6 +166,7 @@ function submit(): void {
                 <input
                   :id="`quota-${entry.key}`"
                   v-model.number="form.overrides[entry.key] as number"
+                  :aria-invalid="Boolean(fehler(`overrides.${entry.key}`))"
                   type="number"
                   :min="entry.minimum"
                   :max="entry.maximum"
@@ -178,7 +178,6 @@ function submit(): void {
               <p class="hint dependent">{{ entry.hint }}</p>
             </template>
 
-            <p v-if="fehler(`overrides.${entry.key}`)" class="error">{{ fehler(`overrides.${entry.key}`) }}</p>
           </div>
         </div>
       </Section>

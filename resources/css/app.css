@@ -1722,6 +1722,39 @@ tr:has(td.multiline) > td {
   color: var(--critical);
 }
 
+/*
+ * Ein Feld, das die Antwort beanstandet hat.
+ *
+ * **Warum der Satz hier nicht mehr steht.** Bis August 2026 stand jede
+ * Fehlermeldung zweimal auf der Seite: oben in der Zusammenfassung und
+ * wörtlich noch einmal unter dem Feld (`docs/45 §5`). Zwei gleiche Sätze
+ * übereinander liest niemand als „Übersicht und Ort", sondern als Versehen.
+ *
+ * Den Satz trägt jetzt allein die Zusammenfassung; das Feld sagt nur noch
+ * *welches*. Das ist kein Verlust, sondern genauer: Die Markierung sitzt am
+ * Bedienelement selbst und nicht als Zeile darunter — sie zeigt auf das Feld,
+ * statt neben ihm zu stehen.
+ *
+ * **Zwei Kanäle, nicht einer.** Farbe allein wäre nach WCAG 1.4.1 zu wenig,
+ * deshalb kommt die Breite dazu: Der eingelegte Schatten verdoppelt den Rand
+ * optisch auf 2px, ohne das Feld um ein Pixel zu verschieben — ein zweiter
+ * Rand hätte jede Zeile darunter verrückt. Gerechnet statt geschätzt:
+ * `--critical` auf `--control-bg` steht bei **6,79:1** hell und **6,90:1**
+ * dunkel, gefordert sind 3:1 für die Grenze eines Bedienelements (WCAG
+ * 1.4.11).
+ *
+ * Und der Träger ist `aria-invalid` und keine eigene Klasse: Das Attribut
+ * sagt dieselbe Sache der Hilfstechnik, und eine Klasse daneben wäre eine
+ * zweite Fassung derselben Aussage — die zweite ist die, die veraltet.
+ */
+.field input[aria-invalid='true'],
+.field select[aria-invalid='true'],
+.field textarea[aria-invalid='true'],
+.with-unit input[aria-invalid='true'] {
+  border-color: var(--critical);
+  box-shadow: inset 0 0 0 1px var(--critical);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    Die Anmeldeseite
 

@@ -246,10 +246,9 @@ function neuAusstellen(): void {
       <Section title="Let’s Encrypt" note="Ohne diese beiden Angaben bestellt das Panel nichts.">
         <label class="field">
           <span>Kontaktadresse</span>
-          <input v-model="form.contact" type="email" autocomplete="off" placeholder="post@example.de" required>
+          <input v-model="form.contact" type="email" autocomplete="off" placeholder="post@example.de" required :aria-invalid="Boolean(form.errors.contact)">
         </label>
-        <p v-if="form.errors.contact" class="error">{{ form.errors.contact }}</p>
-        <p v-else class="hint">
+        <p class="hint">
           Sie wird nicht aus dem ersten Adminkonto abgeleitet: Ein Zertifikat ist
           eine Behauptung darüber, wer man ist, und die Adresse dazu gehört
           gesetzt.
@@ -257,12 +256,11 @@ function neuAusstellen(): void {
 
         <label class="field">
           <span>Zertifizierungsstelle</span>
-          <select v-model="form.directory">
+          <select v-model="form.directory" :aria-invalid="Boolean(form.errors.directory)">
             <option v-for="d in props.directories" :key="d.value" :value="d.value">{{ d.label }}</option>
           </select>
         </label>
-        <p v-if="form.errors.directory" class="error">{{ form.errors.directory }}</p>
-        <p v-else class="hint">
+        <p class="hint">
           Produktiv sind fünf Fehlversuche je Stunde die Grenze. Wer einen neuen
           Server einrichtet, bleibt so lange im Testbetrieb, bis eine Domain
           wirklich hierher zeigt.

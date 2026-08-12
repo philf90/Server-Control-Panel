@@ -230,11 +230,10 @@ function moment(seconds: number): string {
     <form @submit.prevent="submit">
       <label class="field">
         <span>Anbieter</span>
-        <select v-model="form.provider">
+        <select v-model="form.provider" :aria-invalid="Boolean(form.errors.provider)">
           <option v-for="p in usable" :key="p.value" :value="p.value">{{ p.label }}</option>
         </select>
       </label>
-      <p v-if="form.errors.provider" class="error">{{ form.errors.provider }}</p>
       <p v-for="p in withheld" :key="p.value" class="hint">
         Nicht angeboten: {{ p.label }} — {{ p.reason }}
       </p>
@@ -250,6 +249,7 @@ function moment(seconds: number): string {
           <span>Token</span>
           <span class="with-reveal">
             <input
+              :aria-invalid="Boolean(form.errors.token)"
               v-model="form.token"
               :type="revealed ? 'text' : 'password'"
               autocomplete="new-password"
@@ -266,7 +266,6 @@ function moment(seconds: number): string {
             </button>
           </span>
         </label>
-        <p v-if="form.errors.token" class="error">{{ form.errors.token }}</p>
         <p v-if="form.provider === IPV64" class="hint">
           Aus dem Konto bei IPv64.net. Die Zonen kommen von dort und werden
           nicht hier eingetragen — der Anbieter führt sie selbst, und bei ihm
@@ -321,14 +320,14 @@ function moment(seconds: number): string {
 
         <label class="field">
           <span>Benutzername</span>
-          <input v-model="form.username" type="text" autocomplete="off" required>
+          <input v-model="form.username" type="text" autocomplete="off" required :aria-invalid="Boolean(form.errors.username)">
         </label>
-        <p v-if="form.errors.username" class="error">{{ form.errors.username }}</p>
 
         <label class="field">
           <span>Passwort</span>
           <span class="with-reveal">
             <input
+              :aria-invalid="Boolean(form.errors.password)"
               v-model="form.password"
               :type="revealed ? 'text' : 'password'"
               autocomplete="new-password"
@@ -345,12 +344,12 @@ function moment(seconds: number): string {
             </button>
           </span>
         </label>
-        <p v-if="form.errors.password" class="error">{{ form.errors.password }}</p>
 
         <label class="field">
           <span>Gemeinsames Geheimnis</span>
           <span class="with-reveal">
             <input
+              :aria-invalid="Boolean(form.errors.shared_secret)"
               v-model="form.shared_secret"
               :type="revealed ? 'text' : 'password'"
               autocomplete="new-password"
@@ -366,7 +365,6 @@ function moment(seconds: number): string {
             </button>
           </span>
         </label>
-        <p v-if="form.errors.shared_secret" class="error">{{ form.errors.shared_secret }}</p>
         <p class="hint">
           Nur nötig, wenn das Konto einen zweiten Faktor hat — dann dasselbe
           Base32, das in der Authenticator-App steht. Ohne zweiten Faktor bleibt
@@ -385,6 +383,7 @@ function moment(seconds: number): string {
           <span>API-Schlüssel</span>
           <span class="with-reveal">
             <input
+              :aria-invalid="Boolean(form.errors.api_key)"
               v-model="form.api_key"
               :type="revealed ? 'text' : 'password'"
               autocomplete="new-password"
@@ -401,7 +400,6 @@ function moment(seconds: number): string {
             </button>
           </span>
         </label>
-        <p v-if="form.errors.api_key" class="error">{{ form.errors.api_key }}</p>
         <p class="hint">
           Beide Teile zusammen, verbunden mit einem Punkt: erst der Präfix, dann
           das Geheimnis. IONOS zeigt sie getrennt an; der Präfix allein wird
@@ -418,14 +416,14 @@ function moment(seconds: number): string {
       <template v-if="form.provider === NETCUP">
         <label class="field">
           <span>Kundennummer</span>
-          <input v-model="form.customer_number" type="text" inputmode="numeric" autocomplete="off" required>
+          <input v-model="form.customer_number" type="text" inputmode="numeric" autocomplete="off" required :aria-invalid="Boolean(form.errors.customer_number)">
         </label>
-        <p v-if="form.errors.customer_number" class="error">{{ form.errors.customer_number }}</p>
 
         <label class="field">
           <span>API-Schlüssel</span>
           <span class="with-reveal">
             <input
+              :aria-invalid="Boolean(form.errors.api_key)"
               v-model="form.api_key"
               :type="revealed ? 'text' : 'password'"
               autocomplete="new-password"
@@ -442,12 +440,12 @@ function moment(seconds: number): string {
             </button>
           </span>
         </label>
-        <p v-if="form.errors.api_key" class="error">{{ form.errors.api_key }}</p>
 
         <label class="field">
           <span>API-Passwort</span>
           <span class="with-reveal">
             <input
+              :aria-invalid="Boolean(form.errors.api_password)"
               v-model="form.api_password"
               :type="revealed ? 'text' : 'password'"
               autocomplete="new-password"
@@ -464,7 +462,6 @@ function moment(seconds: number): string {
             </button>
           </span>
         </label>
-        <p v-if="form.errors.api_password" class="error">{{ form.errors.api_password }}</p>
         <p class="hint">
           Beide stehen im Kundenkonto von netcup unter den API-Zugängen. Sie
           überqueren die Grenze zum Agenten genau einmal — beim Speichern — und
@@ -473,9 +470,8 @@ function moment(seconds: number): string {
 
         <label class="field">
           <span>Zonen</span>
-          <textarea v-model="form.zones" rows="3" placeholder="example.de&#10;example.net" required />
+          <textarea v-model="form.zones" rows="3" placeholder="example.de&#10;example.net" required :aria-invalid="Boolean(form.errors.zones)"/>
         </label>
-        <p v-if="form.errors.zones" class="error">{{ form.errors.zones }}</p>
         <p class="hint">
           Eine je Zeile. Die Schnittstelle von netcup nennt die Domains eines
           Kontos nicht selbst, deshalb stehen sie hier — und nur diese Zonen
@@ -486,22 +482,19 @@ function moment(seconds: number): string {
       <template v-if="form.provider === RFC2136">
         <label class="field">
           <span>Nameserver</span>
-          <input v-model="form.server" type="text" autocomplete="off" placeholder="ns1.example.de" required>
+          <input v-model="form.server" type="text" autocomplete="off" placeholder="ns1.example.de" required :aria-invalid="Boolean(form.errors.server)">
         </label>
-        <p v-if="form.errors.server" class="error">{{ form.errors.server }}</p>
         <p class="hint">Der Server, der die Aktualisierung annimmt — nicht der, der die Zone ausliefert.</p>
 
         <label class="field">
           <span>Port</span>
-          <input v-model="form.port" type="number" inputmode="numeric" placeholder="53">
+          <input v-model="form.port" type="number" inputmode="numeric" placeholder="53" :aria-invalid="Boolean(form.errors.port)">
         </label>
-        <p v-if="form.errors.port" class="error">{{ form.errors.port }}</p>
 
         <label class="field">
           <span>Zonen</span>
-          <textarea v-model="form.zones" rows="3" placeholder="example.de&#10;example.net" required />
+          <textarea v-model="form.zones" rows="3" placeholder="example.de&#10;example.net" required :aria-invalid="Boolean(form.errors.zones)"/>
         </label>
-        <p v-if="form.errors.zones" class="error">{{ form.errors.zones }}</p>
         <p class="hint">
           Eine je Zeile. Nur diese Zonen darf das Profil ändern; für einen Namen
           ausserhalb wird gar nicht erst ein Versuch verbraucht.
@@ -509,21 +502,20 @@ function moment(seconds: number): string {
 
         <label class="field">
           <span>Schlüsselname</span>
-          <input v-model="form.key_name" type="text" autocomplete="off" placeholder="srvpanel-acme" required>
+          <input v-model="form.key_name" type="text" autocomplete="off" placeholder="srvpanel-acme" required :aria-invalid="Boolean(form.errors.key_name)">
         </label>
-        <p v-if="form.errors.key_name" class="error">{{ form.errors.key_name }}</p>
 
         <label class="field">
           <span>Verfahren</span>
-          <input v-model="form.algorithm" type="text" autocomplete="off" placeholder="hmac-sha256">
+          <input v-model="form.algorithm" type="text" autocomplete="off" placeholder="hmac-sha256" :aria-invalid="Boolean(form.errors.algorithm)">
         </label>
-        <p v-if="form.errors.algorithm" class="error">{{ form.errors.algorithm }}</p>
         <p class="hint">Leer lassen für hmac-sha256. Zugelassen sind ausserdem hmac-sha384 und hmac-sha512.</p>
 
         <label class="field">
           <span>Geheimnis</span>
           <span class="with-reveal">
             <input
+              :aria-invalid="Boolean(form.errors.secret)"
               v-model="form.secret"
               :type="revealed ? 'text' : 'password'"
               autocomplete="new-password"
@@ -540,7 +532,6 @@ function moment(seconds: number): string {
             </button>
           </span>
         </label>
-        <p v-if="form.errors.secret" class="error">{{ form.errors.secret }}</p>
         <p class="hint">
           Das Base64 aus der Schlüsseldatei des Nameservers. Es überquert die
           Grenze zum Agenten genau einmal — beim Speichern — und wird danach nie

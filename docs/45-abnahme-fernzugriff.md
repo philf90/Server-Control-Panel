@@ -150,6 +150,10 @@ heissen beides.**
 Fünf Befunde am Produkt, unterwegs **notiert und nicht repariert** (`docs/43 §5`
 — ein Lauf, der unterwegs repariert wird, misst den Zustand nach der Reparatur):
 
+> **Erledigt am 12. August 2026 — alle fünf.** Befund 1 zuerst, weil er als
+> einziger Folgen hatte; danach 2, 4 und 5 zusammen, zuletzt 3. Was dabei
+> auffiel und im Befund nicht stand, steht bei den Punkten selbst.
+
 1. **Ein gescheiterter Netz-Eintrag lässt seine Zeile im Bestand.**
    `RemoteAccess::add()` legt die Zeile an und ruft danach `sync()`; wirft der,
    bleibt sie stehen. Im Panel steht dann „erreichbar von …", und die Datei hat
@@ -157,19 +161,36 @@ Fünf Befunde am Produkt, unterwegs **notiert und nicht repariert** (`docs/43 §
    von der anderen Seite. **`srvpanel db` meldet diese Richtung nicht:**
    `orphans()` sieht nur Zeilen, die im Bestand fehlen, nicht Bestand, der in der
    Datei fehlt.
-2. **Die Bestandszeile steht unter der falschen Überschrift.**
+2. ~~**Die Bestandszeile steht unter der falschen Überschrift.**~~ **Erledigt:**
+   Sie steht hinter beiden Serverblöcken und nennt je System seine eigenen
+   Zahlen — die Summe war ohnehin die falsche Antwort. Ursprünglich:
    `Databases::showServer()` zählt Datenbanken, Zugänge und Sicherungen ohne
    `engine`-Filter, druckt sie aber im MariaDB-Block. Auf `cloudsrv24` hielt
    MariaDB nichts und PostgreSQL alles — die Zeile las sich trotzdem wie eine
    Auskunft über MariaDB.
-3. **Die Fehlermeldung steht doppelt** auf der Seite: als Banner oben und am
-   Feld unten, wörtlich derselbe Satz.
-4. **Die Zeilennummer im Rückweg beschreibt einen Dateizustand, den es nicht
-   mehr gibt.** Gemessen: `140` vor dem Versuch, `136` in der Meldung — während
-   des Versuchs war der alte Block heraus und der neue ans Ende gehängt.
-5. **„Nichts liegengeblieben." in Grün** steht direkt unter einer orangen
-   Meldung über verwaiste Zeilen. Beide Aussagen stimmen und meinen
-   Verschiedenes; nebeneinander gelesen widersprechen sie sich.
+3. ~~**Die Fehlermeldung steht doppelt** auf der Seite: als Banner oben und am
+   Feld unten, wörtlich derselbe Satz.~~ **Erledigt, und teurer als der Befund
+   aussah:** Die Zeile am Feld war nicht das Versehen dieser einen Seite,
+   sondern die Konvention der ganzen Anwendung — 70 Stellen in 16 Dateien, mit
+   einer Begründung in `FormErrors.vue`. Den Satz trägt jetzt allein die
+   Zusammenfassung; das Feld sagt über `aria-invalid` nur noch *welches*.
+   **Die gefährliche Richtung entstand dabei erst:** ein markiertes Feld auf
+   einer Seite ohne Zusammenfassung wäre roter Rand ohne ein Wort dazu —
+   `FieldErrorTest` prüft beides. Am Feld geblieben ist genau eine Meldung, und
+   sie gehört dorthin: „Die beiden Eingaben sind nicht gleich." entsteht beim
+   Tippen und geht nie über den Draht.
+
+   > **Wer die Auskunft an einen Ort verlegt, muss prüfen, dass es den Ort auf
+   > jeder Seite gibt.**
+4. ~~**Die Zeilennummer im Rückweg beschreibt einen Dateizustand, den es nicht
+   mehr gibt.**~~ Gemessen: `140` vor dem Versuch, `136` in der Meldung —
+   während des Versuchs war der alte Block heraus und der neue ans Ende
+   gehängt. **Erledigt:** Die Nummer bleibt, denn ohne sie sucht der Betreiber
+   in über hundert Zeilen; sie kommt jetzt mit dem **Text** der beanstandeten
+   Zeile, und der ist in beiden Ständen derselbe.
+5. ~~**„Nichts liegengeblieben." in Grün** steht direkt unter einer orangen
+   Meldung über verwaiste Zeilen.~~ **Erledigt:** Der Satz heisst jetzt „Keine
+   Zeile ohne Abonnement." und nennt damit den Umfang, den er wirklich hat.
 
 Dazu unverändert aus `docs/44 §5`: **die übrigen Schalter, die einen Dienst neu
 starten, den das Panel selbst braucht, sind nicht durchgesehen.**

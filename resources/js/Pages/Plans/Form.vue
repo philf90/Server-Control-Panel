@@ -171,9 +171,8 @@ function remove(): void {
       <Section title="Plan">
         <label class="field">
           <span>Name</span>
-          <input v-model="form.name" type="text" required>
+          <input v-model="form.name" type="text" required :aria-invalid="Boolean(form.errors.name)">
         </label>
-        <p v-if="form.errors.name" class="error">{{ form.errors.name }}</p>
 
         <label class="field">
           <span>Beschreibung</span>
@@ -222,6 +221,7 @@ function remove(): void {
                 <input
                   :id="`quota-${entry.key}`"
                   v-model.number="form.quotas[entry.key] as number"
+                  :aria-invalid="Boolean(fieldError(`quotas.${entry.key}`))"
                   type="number"
                   :min="entry.minimum"
                   :max="entry.maximum"
@@ -249,7 +249,6 @@ function remove(): void {
             </template>
 
               <p class="hint">{{ entry.hint }}</p>
-            <p v-if="fieldError(`quotas.${entry.key}`)" class="error">{{ fieldError(`quotas.${entry.key}`) }}</p>
           </div>
         </div>
       </Section>

@@ -96,11 +96,10 @@ const fullUser = computed(() => `${prefix.value}_${form.user_label || '…'}`)
         <template v-if="props.engines.length > 1">
           <label class="field">
             <span>System</span>
-            <select v-model="form.engine">
+            <select v-model="form.engine" :aria-invalid="Boolean(form.errors.engine)">
               <option v-for="e in props.engines" :key="e.value" :value="e.value">{{ e.label }}</option>
             </select>
           </label>
-          <p v-if="form.errors.engine" class="error">{{ form.errors.engine }}</p>
           <p class="hint">
             Beide Systeme stehen auf demselben Server und zählen zusammen auf
             das Kontingent. Nachträglich lässt sich eine Datenbank nicht
@@ -110,9 +109,8 @@ const fullUser = computed(() => `${prefix.value}_${form.user_label || '…'}`)
 
         <label class="field">
           <span>Name</span>
-          <input v-model="form.label" type="text" placeholder="shop" autocomplete="off" required>
+          <input v-model="form.label" type="text" placeholder="shop" autocomplete="off" required :aria-invalid="Boolean(form.errors.label)">
         </label>
-        <p v-if="form.errors.label" class="error">{{ form.errors.label }}</p>
         <p class="hint">
           Heisst auf dem Server <span class="ident">{{ fullName }}</span> — das Präfix
           gehört zum Abonnement und wird vergeben, nicht gewählt.
@@ -122,11 +120,10 @@ const fullUser = computed(() => `${prefix.value}_${form.user_label || '…'}`)
 
         <label v-if="waehltSortierung" class="field">
           <span>Sortierung</span>
-          <select v-model="form.collation">
+          <select v-model="form.collation" :aria-invalid="Boolean(form.errors.collation)">
             <option v-for="c in props.collations" :key="c" :value="c">{{ c }}</option>
           </select>
         </label>
-        <p v-if="form.errors.collation" class="error">{{ form.errors.collation }}</p>
         <p v-if="waehltSortierung" class="hint">
           Der Zeichensatz ist immer <span class="ident">utf8mb4</span>.
           <span class="ident">unicode_ci</span> sortiert nach dem
@@ -139,9 +136,8 @@ const fullUser = computed(() => `${prefix.value}_${form.user_label || '…'}`)
       <Section title="Zugang">
         <label class="field">
           <span>Benutzername</span>
-          <input v-model="form.user_label" type="text" placeholder="user" autocomplete="off">
+          <input v-model="form.user_label" type="text" placeholder="user" autocomplete="off" :aria-invalid="Boolean(form.errors.user_label)">
         </label>
-        <p v-if="form.errors.user_label" class="error">{{ form.errors.user_label }}</p>
         <p class="hint">
           Heisst auf dem Server <span class="ident">{{ fullUser }}</span> und darf sich
           zunächst nur vom Server selbst anmelden. Leer lassen, wenn kein Zugang

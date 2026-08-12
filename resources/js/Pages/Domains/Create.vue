@@ -86,22 +86,20 @@ const eigenesVerzeichnis = computed(() => form.type !== 'alias' && form.redirect
       <Section title="Sorte und Name">
         <label class="field">
           <span>Sorte</span>
-          <select v-model="form.type">
+          <select v-model="form.type" :aria-invalid="Boolean(form.errors.type)">
             <option value="addon">Zusatzdomain</option>
             <option value="subdomain">Subdomain</option>
             <option value="alias">Alias</option>
           </select>
         </label>
-        <p v-if="form.errors.type" class="error">{{ form.errors.type }}</p>
 
         <label v-if="brauchtEltern" class="field">
           <span>Gehört zu</span>
-          <select v-model="form.parent_domain_id" required>
+          <select v-model="form.parent_domain_id" required :aria-invalid="Boolean(form.errors.parent_domain_id)">
             <option v-for="p in props.parents" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
         </label>
         <template v-if="brauchtEltern">
-          <p v-if="form.errors.parent_domain_id" class="error">{{ form.errors.parent_domain_id }}</p>
           <p class="hint">
             Eine Subdomain muss unterhalb dieser Domain liegen. Ein Alias darf
             jeden Namen tragen — er ist ein zweiter Name für dieselben Inhalte.
@@ -110,9 +108,8 @@ const eigenesVerzeichnis = computed(() => form.type !== 'alias' && form.redirect
 
         <label class="field">
           <span>Name</span>
-          <input v-model="form.name" type="text" placeholder="beispiel.de" autocomplete="off" required>
+          <input v-model="form.name" type="text" placeholder="beispiel.de" autocomplete="off" required :aria-invalid="Boolean(form.errors.name)">
         </label>
-        <p v-if="form.errors.name" class="error">{{ form.errors.name }}</p>
         <p class="hint">
           Kleinbuchstaben, Ziffern, Punkt und Bindestrich. Umlautdomains in
           Punycode (<span class="ident">xn--…</span>).
@@ -122,9 +119,8 @@ const eigenesVerzeichnis = computed(() => form.type !== 'alias' && form.redirect
       <Section v-if="eigenesVerzeichnis" title="Auslieferung">
         <label class="field">
           <span>Verzeichnis</span>
-          <input v-model="form.document_root" type="text" :placeholder="form.name || 'beispiel.de'" autocomplete="off">
+          <input v-model="form.document_root" type="text" :placeholder="form.name || 'beispiel.de'" autocomplete="off" :aria-invalid="Boolean(form.errors.document_root)">
         </label>
-        <p v-if="form.errors.document_root" class="error">{{ form.errors.document_root }}</p>
         <p class="hint">
           Relativ zum Abonnement. Leer lassen für ein Verzeichnis mit dem Namen
           der Domain.
@@ -132,7 +128,7 @@ const eigenesVerzeichnis = computed(() => form.type !== 'alias' && form.redirect
 
         <label class="field">
           <span>PHP-Version</span>
-          <select v-model="form.php_version">
+          <select v-model="form.php_version" :aria-invalid="Boolean(form.errors.php_version)">
             <!--
               Abgeblendete Versionen bleiben sichtbar: Der Plan gibt sie her,
               der Server hat sie nicht. Wer sie gar nicht sähe, hielte die
@@ -148,7 +144,6 @@ const eigenesVerzeichnis = computed(() => form.type !== 'alias' && form.redirect
             </option>
           </select>
         </label>
-        <p v-if="form.errors.php_version" class="error">{{ form.errors.php_version }}</p>
         <p v-if="props.php.length === 0" class="hint">
           Der Plan gibt keine PHP-Version frei. Diese Domain liefert dann nur
           statische Dateien aus.
@@ -158,9 +153,8 @@ const eigenesVerzeichnis = computed(() => form.type !== 'alias' && form.redirect
       <Section v-if="form.type !== 'alias'" title="Weiterleitung">
         <label class="field">
           <span>Ziel</span>
-          <input v-model="form.redirect_target" type="url" placeholder="https://ziel.de/" autocomplete="off">
+          <input v-model="form.redirect_target" type="url" placeholder="https://ziel.de/" autocomplete="off" :aria-invalid="Boolean(form.errors.redirect_target)">
         </label>
-        <p v-if="form.errors.redirect_target" class="error">{{ form.errors.redirect_target }}</p>
         <p class="hint">
           Leer lassen, wenn diese Domain eigene Dateien ausliefert. Mit Ziel
           antwortet nginx selbst — ohne Verzeichnis und ohne PHP.

@@ -183,6 +183,17 @@ gestapelte Anweisung aus M15/M16, das Zurücknehmen des Zeitlimits aus M11 (der
 Kunde kann kein `SET` schicken), und die Unterscheidung „lesend oder
 schreibend" aus M14.
 
+**Entscheidung 1 und 2 hängen aneinander, und das gehört aufgeschrieben, bevor
+es jemand einzeln aufmacht.** Freies SQL über die Leitung des Agenten liesse
+sich nicht auf eine Anweisung begrenzen: `psql` liest von der Standardeingabe,
+und M14 hat gemessen, dass ein `SELECT 1; SELECT 2` beide Hälften ausführt — der
+`DECLARE`-Rahmen umschliesst nur die erste. Was das verhindert, ist die
+erweiterte Anfrage von PDO, und die gibt es nur, wenn die Anwendung selbst
+verbindet (M15).
+
+> **Wer später freies SQL will, öffnet damit Entscheidung 1 mit** — es ist keine
+> Ergänzung des Umfangs, sondern eine andere Architektur.
+
 ### Entscheidung 3 — Nur der Kunde
 
 Die Konsole gehört dem Kunden für seine eigenen Datenbanken. **Der Betreiber
@@ -196,6 +207,19 @@ Richtungen.
 Der Betreiber hat weiterhin `srvpanel db` und den Weg über die Kommandozeile
 seines Servers. Er verliert nichts, was er hatte — er bekommt nur nicht dazu,
 was der Kunde bekommt.
+
+**Und es gibt eine Tür, die deshalb keine Lücke ist.** [20 §6.3](20-hostingpanel-neuplan.md)
+kennt „Anmelden als Kunde", gebaut seit P1 (`ImpersonationController`,
+`App\Support\Audit\Impersonation`): sichtbares Band in der Oberfläche, kein
+stiller Wechsel, **jede Handlung doppelt im Protokoll** — handelnde Person und
+Kontext. Wer im Störfall in die Daten eines Kunden sehen muss, geht dort hindurch
+und hinterlässt dabei mehr Spur als eine eigene Betreiberkonsole je hätte.
+
+Das ist keine Umgehung von Entscheidung 3, sondern ihr Gegenstück: **Der
+Unterschied zwischen einem Weg, den es nicht gibt, und einem, der einen Namen
+und ein Protokoll hat, ist der ganze Punkt.** Dass die Konsole unter
+Impersonation erreichbar ist und das Protokoll dabei beide Seiten führt, gehört
+in Schritt 3 geprüft — nicht angenommen.
 
 ### Entscheidung 4 — Protokolliert wird, was ändert
 
@@ -211,6 +235,43 @@ vermutet — und sie überlebt das Löschen der Zeile. Was im Protokoll steht, i
 
 > **Ein Protokoll, das den Inhalt mitschreibt, ist eine Datenhaltung mit einem
 > anderen Namen.**
+
+---
+
+## 3a. Fünf Empfehlungen zum Zuschnitt — offen
+
+Die vier Entscheidungen stehen. Was hier steht, sind Vorschläge **innerhalb**
+ihres Rahmens, entstanden beim Ausschreiben des Plans; keiner ist entschieden,
+und keiner ändert eine der vier.
+
+1. **Der Filter fängt mit drei Operatoren an, nicht mit acht.** `=`, `enthält`,
+   `ist NULL`. Die Filterzeile ist das dichteste Bedienelement der ganzen Fläche
+   und steht bei 390 px über einer Tabelle, die schon waagerecht rollt; und acht
+   Operatoren sind acht Wege, auf denen die Maskierung falsch sein kann. Die
+   übrigen kommen dazu, wenn jemand die drei benutzt hat.
+2. **Kein `count(*)` über einen Filter.** Es wird `limit + 1` geholt, und die
+   Oberfläche sagt „mehr als 50" statt einer Zahl. Ein `count(*)` über eine
+   gefilterte Spalte ohne Index ist genau die Abfrage, die ins Zeitlimit läuft —
+   und sie liefe **jedes Mal**, auch für den, der nur die erste Seite ansieht.
+3. **Eine Zelle einzeln ansehen.** Nach §9 ist eine Zelle bei 512 Zeichen
+   gekürzt und nach §10.1 dann gesperrt — ohne einen Weg zum ganzen Wert ist das
+   eine Sackgasse. Eine Ansicht für **eine** Zelle, mit eigener, höherer Grenze.
+4. **Ein Protokolleintrag beim Öffnen der Konsole, entprellt.** Entscheidung 4
+   hält die ändernden Handlungen fest, und das ist richtig. Was dann offenbleibt,
+   ist „wer hatte überhaupt Zugriff" — und mit Entscheidung 3 und der
+   Impersonation aus §3 ist genau das die Frage, die im Zweifel jemand stellt.
+   Ein Eintrag je Datenbank und Stunde beantwortet sie, ohne dass das Protokoll
+   mit dem Blättern wächst.
+5. **Die optimistische Sperre wird benannt und nicht gebaut.** Zwei Personen, die
+   dieselbe Zeile gleichzeitig öffnen, überschreiben einander; §10 fängt das
+   nicht, weil die Zeile ja getroffen wird. Die Regel aus §10.1 — nur geänderte
+   Spalten — macht den Schaden klein genug, und ein Kunde, der sich selbst ins
+   Gehege kommt, ist in dieser Umgebung selten. Es steht in §18.
+
+**Und wenn die Stufe kleiner werden soll, ist Schritt 6 der Schnitt.** Lesen
+trägt den grössten Teil des Nutzens und keines der Risiken aus §10.1; die
+Reihenfolge in §13 ist bereits so gebaut, dass nach Schritt 5 etwas Fertiges
+dasteht.
 
 ---
 
@@ -448,6 +509,41 @@ Die Regel:
    „Ändern nicht möglich", sondern „Diese Tabelle hat keinen Primärschlüssel;
    ohne ihn lässt sich eine einzelne Zeile nicht eindeutig ansprechen."
 
+### 10.1 Der Schreibweg hat dieselbe Hälfte wie M7, und sie ist die gefährlichere
+
+M7 hat gemessen, was auf dem **Leseweg** verlorengeht. Zwei Fälle davon haben
+einen Zwilling auf dem **Schreibweg**, und dort ist der Verlust nicht eine
+Anzeige, sondern ein Datenverlust. Beide sind in der ersten Fassung dieses
+Abschnitts gefehlt.
+
+**Ein Textfeld kann `NULL` nicht ausdrücken.** Ein Formular, das eine leere
+Eingabe als `''` schreibt, macht aus jedem `NULL` einer nullbaren Spalte eine
+leere Zeichenkette — lautlos, und beim ersten Speichern einer Zeile, an der
+niemand diese Spalte anfassen wollte. Ein `WHERE spalte IS NULL` der
+Kundenanwendung findet die Zeile danach nicht mehr.
+
+Deshalb: **`NULL` ist ein eigener Zustand des Feldes und keine leere Eingabe.**
+Ein Kästchen daneben, und solange es gesetzt ist, ist das Textfeld gesperrt.
+Bei einer Spalte mit `NOT NULL` gibt es das Kästchen nicht.
+
+**Eine gekürzte Zelle darf nicht zurückgeschrieben werden.** §9 kürzt bei 512
+Zeichen, weil eine einzelne Zelle sonst die Anfragegrenze sprengt (M21). Käme
+der gekürzte Wert beim Speichern zurück in die Zeile, wäre der Rest fort — und
+zwar für den, der die Zeile aus einem ganz anderen Grund geöffnet hat. Zwei
+Regeln, und die zweite trägt die erste:
+
+1. **Ein gekürztes Feld ist gesperrt**, mit dem Grund daneben.
+2. **Die Anweisung enthält nur die Spalten, die der Kunde geändert hat.** Ein
+   `UPDATE` über alle Spalten schreibt auch die zurück, die nur angezeigt
+   wurden — und damit jede Kürzung, jedes `''` aus einem `NULL` und jede
+   Rundung, die zwischen Anzeige und Formular entstanden ist.
+
+Regel 2 ist die wichtigere von beiden: Sie schützt auch vor den Fällen, die hier
+niemand aufgezählt hat.
+
+> **Ein Formular, das zurückschreibt, was es nur angezeigt hat, überträgt jeden
+> Anzeigefehler in die Daten.**
+
 **Und der Schreibvorgang prüft sich selbst.** Er läuft in einer Transaktion, und
 was er ändert, muss **genau eine Zeile** sein; sonst wird zurückgenommen und der
 Vorgang meldet, was er vorgefunden hat. Das fängt den Fall, den Regel 2 nicht
@@ -563,7 +659,11 @@ Die dritte Ansicht — der Baustein aus §11. Screenshots, und die
 ### Schritt 6 — Ändern
 
 Anlegen, ändern, löschen; die Schlüsselregel aus §10; die Prüfung auf genau eine
-Zeile.
+Zeile; **und die drei Regeln des Schreibwegs aus §10.1** — `NULL` als eigener
+Zustand, eine gekürzte Zelle gesperrt, nur geänderte Spalten in der Anweisung.
+
+**Dies ist der Schritt, der herausfällt, wenn die Stufe kleiner werden soll**
+(§3a). Nach Schritt 5 steht etwas Fertiges.
 
 ### Schritt 7 — Das Protokoll
 
@@ -640,6 +740,24 @@ weil es hier keinen MariaDB-Server gibt (dieselbe Bauform wie `PhpIsolationTest`
 der nicht genau eine Zeile trifft, wird zurückgenommen (§10).
 
 **Bruch:** Die Zählung nach dem `UPDATE` entfernen. Erwartet: rot.
+
+### 14.7 `WriteBackTest` — der Zwilling von 14.4
+
+**Regel:** Eine Anweisung enthält nur Spalten, die der Kunde geändert hat; eine
+gekürzte Zelle ist nie darunter; `NULL` und `''` sind auf dem Schreibweg zwei
+verschiedene Werte (§10.1).
+
+**Bruch:** In `Console::write()` alle Spalten in das `UPDATE` nehmen statt der
+geänderten. Erwartet: rot — **und der Wächter misst an der erzeugten Anweisung**,
+nicht an einem Ergebnis, denn der Schaden dieser Regel ist gerade der, den man
+am Ergebnis nicht sieht: Die Zeile ist danach da, sie sieht richtig aus, und der
+Rest einer gekürzten Zelle ist fort.
+
+**Der zweite Bruch:** Ein Feld mit gesetztem `NULL`-Kästchen als leere
+Zeichenkette schreiben. Erwartet: rot, und der Test benennt beide Werte — nicht
+„der Wert stimmt nicht", sondern `NULL` gegen `''`. Das ist Kriterium 2 des
+Abnahmelaufs auf dem Schreibweg, und es hat denselben Grund: **Wer die beiden
+gleich behandelt, merkt es an keiner Zählung.**
 
 ### Wächter, die von selbst mitlaufen
 
@@ -822,6 +940,12 @@ und nicht bei null.
    `DELETE` auf die falsche Zeile ist eine Handlung und kein Fehler; das Panel
    fragt zurück ([20 §7](20-hostingpanel-neuplan.md)) und hat für den Rest die
    Sicherungen aus P5.
+7. **Es gibt keine optimistische Sperre.** Zwei Personen, die dieselbe Zeile
+   gleichzeitig öffnen, überschreiben einander, und §10 fängt das nicht — die
+   Zeile wird ja getroffen. Die Regel „nur geänderte Spalten" aus §10.1 hält den
+   Schaden auf die Spalten begrenzt, an denen beide gearbeitet haben. Gebaut wird
+   sie nicht (§3a Punkt 5); benannt ist sie hier, damit die Entscheidung eine
+   war.
 
 ---
 
@@ -832,7 +956,7 @@ und nicht bei null.
 | Agent | `Db\Console`, `Pg\Console`, acht Operationen |
 | Anwendung | `Console`, Controller, Policy-Methode, Routen |
 | Oberfläche | drei Ansichten unter `Pages/Databases/` |
-| Wächter | sechs neue, sechs Brüche |
+| Wächter | sieben neue, acht Brüche |
 | Migrationen | **keine** — die Konsole führt keinen Zustand |
 | Positivliste | **keine Erweiterung** — `psql` und `mysql` stehen seit P5/P5b |
 | Paketabhängigkeiten | **keine Erweiterung** (Entscheidung 1) |

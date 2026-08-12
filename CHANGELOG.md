@@ -10001,3 +10001,48 @@ braucht die MariaDB-Hälfte eine andere Form — und das gehört gemessen, bevor
 eine Zeile entsteht, und nicht als Fehler in Schritt 2 gefunden.
 
 > **Ein Plan, der eine Bauform nennt, hat sie noch nicht gemessen.**
+
+### Der Schreibweg hat dieselbe Hälfte wie die Ausgabe — und sie fehlte
+
+Die erste Fassung von `docs/46 §10` regelte, wie eine Zeile angesprochen wird
+(Schlüssel, und der Schreibvorgang zählt nach, dass er genau eine getroffen
+hat). Was sie nicht regelte, ist der Weg der **Werte** zurück — und dort steht
+dieselbe Messung noch einmal, die für die Anzeige den Entwurf umgeworfen hat,
+nur mit Datenverlust statt einer falschen Anzeige.
+
+**Ein Textfeld kann `NULL` nicht ausdrücken.** Ein Formular, das eine leere
+Eingabe als `''` schreibt, macht aus jedem `NULL` einer nullbaren Spalte eine
+leere Zeichenkette — lautlos, beim Speichern einer Zeile, an der niemand diese
+Spalte anfassen wollte, und ein `WHERE spalte IS NULL` der Kundenanwendung
+findet sie danach nicht mehr. `NULL` ist deshalb ein eigener Zustand des Feldes.
+
+**Eine gekürzte Zelle darf nicht zurückgeschrieben werden.** Gekürzt wird bei
+512 Zeichen, weil eine einzelne Zelle sonst die Anfragegrenze des Agenten
+sprengt. Käme sie beim Speichern zurück, wäre der Rest fort — für den, der die
+Zeile aus einem ganz anderen Grund geöffnet hat.
+
+Die Regel, die beide trägt und die allgemeiner ist als ihre zwei Anlässe: **die
+Anweisung enthält nur die Spalten, die der Kunde geändert hat.**
+
+> **Ein Formular, das zurückschreibt, was es nur angezeigt hat, überträgt jeden
+> Anzeigefehler in die Daten.**
+
+Dazu drei Nachträge im selben Plan. **Entscheidung 1 und 2 hängen aneinander:**
+Freies SQL über die Leitung des Agenten liesse sich nicht auf eine Anweisung
+begrenzen — `psql` liest von der Standardeingabe, und ein `SELECT 1; SELECT 2`
+führt gemessen beide Hälften aus, während der `DECLARE`-Rahmen nur die erste
+umschliesst. Wer später freies SQL will, öffnet damit die Architekturfrage mit.
+
+**Entscheidung 3 hat eine Tür, und sie ist keine Lücke:** „Anmelden als Kunde"
+(`docs/20 §6.3`) ist seit P1 gebaut, mit sichtbarem Band und doppeltem
+Protokolleintrag. Wer im Störfall in Kundendaten sehen muss, geht dort hindurch
+und hinterlässt mehr Spur, als eine eigene Betreiberkonsole je hätte. Dass die
+Konsole unter Impersonation erreichbar ist und das Protokoll beide Seiten führt,
+gehört geprüft und nicht angenommen.
+
+Und **fünf Empfehlungen zum Zuschnitt** stehen als offen in `docs/46 §3a` — drei
+Filteroperatoren statt acht, kein `count(*)` über einen Filter, eine Ansicht für
+eine einzelne Zelle, ein entprellter Protokolleintrag beim Öffnen, und die
+optimistische Sperre benannt statt gebaut. Keine davon ändert eine der vier
+Entscheidungen; sie stehen dort, damit sie nicht in einem Sitzungsverlauf
+bleiben.

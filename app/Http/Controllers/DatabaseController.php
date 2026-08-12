@@ -41,7 +41,6 @@ use SrvPanel\Agent\Client;
 use SrvPanel\Agent\Db\Names;
 use SrvPanel\Agent\Ops\DbDatabaseCreate;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use Tests\Feature\InertiaPagesTest;
 
 /**
  * Datenbanken ansehen, anlegen, Zugänge verwalten, entfernen.
@@ -282,19 +281,19 @@ final class DatabaseController extends Controller
                 'delete' => $request->user()?->can('delete', $database) ?? false,
 
                 /*
-                 * **`console` steht hier noch nicht, und das ist kein
-                 * Vergessen.** Die Fähigkeit gibt es (`DatabasePolicy::console`,
-                 * Entscheidung 3), den Knopf dazu erst mit Schritt 4.
+                 * **`console` ist die eine Fähigkeit, die ein Betreiberkonto
+                 * nicht bekommt** (Entscheidung 3, `DatabasePolicy::console()`).
+                 * Sie steht seit Schritt 4 hier, weil es den Knopf gibt, der sie
+                 * liest — und keinen Beitrag früher.
                  *
                  * {@see \Tests\Feature\AbilityReachTest} prüft **beide**
                  * Richtungen: Eine Fahne, die die Seite abfragt und niemand
                  * schickt, ist in Vue `undefined` — der Knopf verschwindet dann
                  * für alle. Eine, die geschickt wird und die niemand abfragt,
-                 * ist eine Zusage ins Leere. Beides ist dasselbe Muster.
-                 *
-                 * Sie kommt mit dem Knopf, der sie liest, und keinen Beitrag
-                 * früher.
+                 * ist eine Zusage ins Leere. Beides ist dasselbe Muster, und der
+                 * erste Anlauf von Schritt 3 ist in die zweite Hälfte gelaufen.
                  */
+                'console' => $request->user()?->can('console', $database) ?? false,
             ],
 
             // Das Passwort eines gerade angelegten Zugangs — genau einmal, aus
@@ -1119,14 +1118,34 @@ final class DatabaseController extends Controller
     }
 
     /**
-     * Die Tabellen einer Datenbank.
+     * Der Einstieg in die Konsole — die einzige `GET`-Route dieser Fläche.
      *
-     * **Noch keine Seite, sondern eine Antwort.** Schritt 3 baut die Anwendung
-     * und ausdrücklich keine Oberfläche (`docs/46 §13`); die Ansicht kommt mit
-     * Schritt 4 und macht daraus eine `GET`-Route mit `Inertia::render`. Bis
-     * dahin gäbe es hier einen Namen, zu dem keine Vue-Datei gehört — und
-     * {@see InertiaPagesTest} besteht zu Recht darauf, dass es
-     * die Datei gibt.
+     * **Sie trägt nichts als die Datenbank.** Die Tabellenliste holt die Seite
+     * nach dem Aufbau über {@see self::consoleTables()}, und das ist kein
+     * Umweg: Bei zweihundert Tabellen stünde die Liste sonst in jeder Antwort
+     * dieser Route, auch bei einem Zurück aus der Strukturansicht. Der Einstieg
+     * ist der Rahmen, nicht der Inhalt.
+     *
+     * **Und deshalb steht hier kein Tabellenname in der Adresse.** Welche
+     * Tabelle offen ist, hält die Seite; ein Name in der Adresse wäre eine
+     * zweite Fassung dieses Zustands, und die zweite ist die, die veraltet.
+     */
+    public function console(Request $request, Database $database): Response
+    {
+        return Inertia::render('Databases/Console', [
+            'database' => [
+                'id' => (int) $database->id,
+                'name' => (string) $database->name,
+                'label' => (string) $database->label,
+                'engine' => $database->engine->value,
+                'engine_label' => $database->engine->label(),
+                'subscription' => $database->subscription?->name,
+            ],
+        ]);
+    }
+
+    /**
+     * Die Tabellen einer Datenbank.
      *
      * **Auch dieser Griff ist `POST`**, obwohl er nur liest und keinen Wert des
      * Kunden trägt — damit die fünf zusammenbleiben und nicht einer von ihnen
@@ -1152,6 +1171,22 @@ final class DatabaseController extends Controller
 
         return $this->answer(fn (): array => [
             'columns' => $this->console->columns($database, $table),
+        ]);
+    }
+
+    /**
+     * Die Indexe einer Tabelle.
+     *
+     * **Getrennt von der Spaltenliste**, weil die Spaltenliste bei jedem
+     * Blättern, Filtern und Schreiben geholt wird und die Indexe nur die
+     * Strukturansicht braucht.
+     */
+    public function consoleIndexes(Request $request, Database $database): JsonResponse
+    {
+        $table = $this->consoleTable($request);
+
+        return $this->answer(fn (): array => [
+            'indexes' => $this->console->indexes($database, $table),
         ]);
     }
 

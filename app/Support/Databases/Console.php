@@ -82,6 +82,23 @@ final class Console
     }
 
     /**
+     * Die Indexe einer Tabelle.
+     *
+     * **Eine eigene Anfrage neben {@see self::columns()}** und nicht mit ihr
+     * zusammen: Die Spaltenliste holt der Agent bei jedem Blättern, Filtern und
+     * Schreiben, die Indexe braucht nur die Strukturansicht.
+     *
+     * @return list<array{name: string, columns: string, unique: bool, primary: bool}>
+     */
+    public function indexes(Database $database, string $table): array
+    {
+        /** @var list<array{name: string, columns: string, unique: bool, primary: bool}> $indexes */
+        $indexes = $this->call($database, 'indexes', ['table' => $table])['indexes'] ?? [];
+
+        return $indexes;
+    }
+
+    /**
      * Eine Seite Zeilen.
      *
      * **`offset` und keine Seitennummer**, und **kein `total`.** Was

@@ -162,6 +162,7 @@ final class MariaDbDriver implements EngineDriver
     public const CONSOLE = [
         'tables' => 'db.console.tables',
         'columns' => 'db.console.columns',
+        'indexes' => 'db.console.indexes',
         'rows' => 'db.console.rows',
         'cell' => 'db.console.cell',
         'row.write' => 'db.console.row.write',

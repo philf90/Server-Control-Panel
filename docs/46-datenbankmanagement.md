@@ -887,9 +887,28 @@ liegt (§20.7).
 
 Was beim Bauen anders war, steht in §20.7.
 
-### Schritt 4 — Tabellen und Struktur
+### Schritt 4 — Tabellen und Struktur ✓
 
-Die beiden lesenden Ansichten, mit Screenshots in beiden Themes und bei 390 px.
+**Erledigt am 12. August 2026.** `Databases/Console.vue`, die `GET`-Route
+`databases.console` als Einstieg, `can.console` in der Nutzlast der
+Datenbankseite und der Knopf, der sie liest.
+
+**Und zwei Operationen mehr als geplant** — `pg.console.indexes` und
+`db.console.indexes`. §11 verlangt für die Struktur „dazu die Indexe", und die
+kannte der Agent nicht; `columns()` führt sie nicht mit, weil diese Abfrage bei
+**jedem** Blättern, Filtern und Schreiben läuft und die Indexe nur eine Ansicht
+braucht.
+
+> **Was eine Ansicht braucht, gehört nicht in die Abfrage, die alle brauchen.**
+
+**Gemessen gegen beide Systeme**, bevor eine Zeile Oberfläche entstand — und die
+PostgreSQL-Abfrage war beim ersten Wurf falsch (§20.10). Screenshots stehen aus:
+Dieser Container hat kein `vendor/`, also keine laufende Seite. Was er kann, ist
+`npm run types`, `npm run build` und die **Überlaufmessung bei 390 px** über das
+gebaute Stylesheet — Dokument `0px`, alle drei Rollbehälter `0px`, und die
+Messung selbst gegengeprüft an einem absichtlichen 900px-Block (`510px`).
+
+> **Eine Messung, die nie etwas anderes als Null liefern kann, ist keine.**
 
 ### Schritt 5 — Zeilen, blättern, filtern, sortieren, eine Zelle öffnen
 
@@ -1539,3 +1558,40 @@ erreichbar. Es zu übernehmen hiesse, einen Bezeichner aus der Anfrage in die
 Nutzlast zu legen, den niemand nachgeschlagen hat. Und `values` geht **ohne**
 `array_filter` durch: Es würfe genau die Spalten weg, die auf `NULL` gesetzt
 werden sollen (§10.1).
+
+### 20.10 Die Indexabfrage zählte in zwei Systemen verschieden — und beide waren richtig
+
+`Pg\Console::indexesQuery()` holte die Spalten eines Index über
+
+```sql
+SELECT pg_get_indexdef(ix.indexrelid, k.n, true)
+  FROM generate_subscripts(ix.indkey, 1) AS k(n)
+```
+
+Gemessen am 12. August 2026 gegen PostgreSQL 16 gab das für einen Index über
+`(ort, name)`:
+
+```
+kunde_ort_name | f | f | CREATE INDEX kunde_ort_name ON kunde USING btree (ort, name), ort
+```
+
+**`indkey` ist ein `int2vector` und zählt ab 0**, `pg_get_indexdef(oid, colno, …)`
+zählt **ab 1**, und `colno = 0` bedeutet dort „die ganze Definition". In der
+Spaltenliste stand deshalb ein vollständiges `CREATE INDEX …`, und die **letzte
+Spalte fehlte**.
+
+> **Zwei Zählweisen im selben Ausdruck, und keine der beiden ist falsch — falsch
+> ist, sie füreinander zu halten.**
+
+Es steht jetzt `generate_series(1, ix.indnkeyatts)` da. `indnkeyatts` statt
+`indnatts` lässt die `INCLUDE`-Spalten weg: Sie stehen im Index, aber die
+Sortierung folgt ihnen nicht, und genau danach sieht hier jemand.
+
+**Vier Fälle sind danach gegen einen echten Cluster gemessen worden** —
+Primärschlüssel, eindeutiger Index, Index über einem Ausdruck (`lower(name)`),
+mehrspaltiger Index, Index mit `INCLUDE`, und eine Tabelle ohne jeden Index. Für
+MariaDB dasselbe gegen 10.11.14 im Container.
+
+**Und ein Unterschied, den man einmal falsch herum liest:**
+`information_schema.STATISTICS.NON_UNIQUE` ist **`0` für eindeutig**. Die Spalte
+fragt nach dem Gegenteil dessen, was in der Antwort steht.

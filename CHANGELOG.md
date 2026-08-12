@@ -10488,3 +10488,173 @@ und die Meldung „Failed opening required" liest sich wie ein Tippfehler im Pfa
 
 > **Ein Werkzeug, das Rechte abgibt, liest die Datei nicht mehr, die man ihm als
 > root hinlegt.**
+
+### Die Zwischenabnahme von P5c ist gefahren (`docs/47 §6`)
+
+**12. August 2026 auf `cloudsrv24`**, gegen `0.5.3-rc.1` und ab Punkt 7 gegen
+`0.5.3-rc.2`. Sechs der sieben Kriterien aus `docs/46 §4` sind gemessen, das
+siebte — das Protokoll — steht als benannte Lücke da und gehört zu Schritt 7.
+**Kein einziges Bild**, weil es die Oberfläche noch nicht gibt.
+
+Was belegt ist, mit Werten und nicht mit Häkchen: vierzig befristete Zugänge bei
+vierzig Aufrufen, jeder mit anderem Namen und keiner zwei gleichzeitig; die vier
+Werte (`''`, `NULL`, Tabulator, Zeilenumbruch) in beiden Systemen unterscheidbar;
+die fremde Datenbank abgewiesen mit der Meldung des **Servers** und nicht des
+Panels; das Zeitlimit bei 5,2 s und 5,3 s mit dem Grund wörtlich; eine Tabelle
+ohne Schlüssel lesbar und auf drei Schreibwegen abgewiesen; genau eine Zeile
+getroffen, und die unberührte Spalte behielt ihre 5000 Zeichen und ihr `NULL`.
+
+**Und nichts blieb liegen** — nach rund sechzig Konsolenaufrufen war die Ausgabe
+von `srvpanel db` wortgleich die vom Anfang.
+
+### Drei Befunde des Laufs steckten im Lauf selbst
+
+Dasselbe Verhältnis wie beim Fernzugriff (`docs/45`: zwölf Fehler, fünf davon im
+Abnahmelauf).
+
+**Die Fassungsprüfung suchte in der falschen Datei** — behandelt weiter oben.
+**Eine Hilfsdatei unter `/root` ist für `srvpanel tinker` unlesbar**, weil der
+Wrapper `setpriv --reuid=srvpanel` macht — ebenfalls oben.
+
+**Und die Gegenprobe zum Zeitlimit zählte sich selbst mit.** Sie fragte
+`… WHERE state='active' AND query LIKE '%viel%'`, und der Text dieser Abfrage
+enthält `viel`. Herausgekommen ist `2`, wo `0` erwartet war. Sie fragt jetzt nach
+der Kennung des Aufrufers statt nach dem Abfragetext.
+
+> **Eine Frage an den Bestand, die sich selbst enthält, zählt sich mit.**
+
+Die zweite der beiden Zeilen liess sich Minuten später nicht mehr feststellen.
+Sie steht deshalb **nicht** als Befund in `docs/47` — ein Autovacuum-Arbeiter war
+der Verdacht, belegt ist er nicht.
+
+> **Eine Vermutung, die man nicht mehr prüfen kann, gehört nicht ins Protokoll —
+> auch wenn sie plausibel ist.**
+
+### Ein Nachbau, der eine Zeile weglässt, beweist ihre Notwendigkeit
+
+Punkt 11 baut den befristeten Zugang von Hand nach, um die Wand des Servers zu
+messen — die einzige der drei Wände, die uns nicht gehört. Beim Abräumen
+scheiterte das `DROP ROLE`: „role cannot be dropped because some objects depend
+on it". `Pg\Ephemeral::with()` macht im `finally` ein `DROP OWNED BY` davor, und
+der Kommentar dort erklärt genau diesen Fehler. Der Nachbau hatte die Zeile
+nicht.
+
+Der Punkt trägt beide `DROP`-Zeilen jetzt in der richtigen Reihenfolge, und die
+Schlussprüfung sucht ausdrücklich auch nach der Probe: Ein Zugang mit einem
+Namen, den `isEphemeral()` nicht erkennt, fällt keinem Aufräumlauf auf.
+
+### Zwei Belege, die den Unterschied zwischen Messung und Behauptung machen
+
+Beide sind erst beim Schreiben des Laufs dazugekommen, und ohne sie hätte er zwei
+Kriterien nur scheinbar geprüft:
+
+- Bei Kriterium 1 zählt nicht die Leere der Restabfrage, sondern der **Name** aus
+  einem Beobachter, der lief, während die Konsole arbeitete. Eine Abfrage nach
+  Resten ist auch dann leer, wenn nie eine Konsole lief.
+- Bei Kriterium 3 zählt nicht die Abweisung, sondern die **gelungene** Verbindung
+  derselben Rolle zur eigenen Datenbank daneben. Ohne sie wäre eine Abweisung von
+  einem Tippfehler im Datenbanknamen nicht zu unterscheiden.
+
+Dasselbe beim Protokoll: `konsole = 0` bekam seine Bedeutung erst durch die eine
+fremde Zeile daneben, die zeigt, dass die Tabelle überhaupt beschrieben wird.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+### Offen geblieben: derselbe Satz, zwei Verpackungen
+
+Der Schreibvorgang, der null Zeilen trifft, meldet in beiden Systemen wörtlich
+denselben Satz — aber PostgreSQL liefert ihn als `ERROR: … CONTEXT: PL/pgSQL
+function inline_code_block line 7 at RAISE`, MariaDB nackt. Der Satz ist
+**unserer**; er kommt als Datenbankfehler verkleidet zurück, mit einer
+Zeilennummer auf eine Datei, die es nicht gibt. Beim Zeitlimit ist dieselbe
+Verpackung richtig, weil es dort die Meldung des Servers *ist*.
+
+> **Eine Verpackung, die für eine fremde Meldung richtig ist, ist für die eigene
+> falsch.**
+
+Nicht behoben, mit Absicht: Was ein Kunde liest, entscheidet sich in Schritt 6,
+wo die Meldung zum ersten Mal auf einen Menschen trifft.
+
+### Schritt 4 von P5c — Tabellen und Struktur, und der erste `fetch` dieses Panels
+
+`Databases/Console.vue`, die `GET`-Route `databases.console` als Einstieg,
+`can.console` in der Nutzlast der Datenbankseite und der Knopf, der sie liest.
+
+**Der Einstieg trägt nichts als die Datenbank.** Welche Tabelle offen ist, hält
+die Seite; ein Tabellenname in der Adresse wäre eine zweite Fassung dieses
+Zustands, und die zweite ist die, die veraltet. Die Tabellenliste holt die Seite
+nach dem Aufbau — bei zweihundert Tabellen stünde sie sonst in jeder Antwort
+dieser Route, auch bei einem Zurück aus der Strukturansicht.
+
+**`resources/js/Composables/useConsole.ts` ist die erste Stelle in diesem
+Projekt, die `fetch` ruft.** Bis hierher kam jede Antwort über Inertia, also über
+eine Seitennavigation; die sieben Konsolengriffe geben JSON zurück. Sie bekommt
+den Weg **einmal** und nicht je Ansicht — mit `X-XSRF-TOKEN` aus dem Keks (ohne
+ihn 419 nach der Anmeldung), `Accept: application/json` und
+`X-Requested-With` (ohne die beiden wäre die Antwort auf eine fehlerhafte Anfrage
+eine Umleitung, der `fetch` stillschweigend folgt).
+
+> **Ein Mechanismus, den zwei Stellen selbst bauen, hat zwei Fassungen — und die
+> zweite ist die, die den Kopf vergisst.**
+
+Der Rumpf wird **vor** dem Status gelesen: Ein 422 trägt die Begründung, an der
+zwei Abnahmekriterien hängen (`docs/46 §4`, Punkte 4 und 6). Wer beim Status
+abbricht, wirft genau sie weg und zeigt „fehlgeschlagen".
+
+### Zwei Operationen mehr als geplant: `*.console.indexes`
+
+`docs/46 §11` verlangt für die Strukturansicht „dazu die Indexe", und die kannte
+der Agent nicht. Sie kommen **nicht** in `columns()`: Diese Abfrage ist die
+Prüfliste, gegen die jeder Bezeichner geht, bevor er in eine Anweisung kommt —
+sie läuft bei jedem Blättern, Filtern und Schreiben. Die Indexe braucht nur eine
+Ansicht.
+
+> **Was eine Ansicht braucht, gehört nicht in die Abfrage, die alle brauchen.**
+
+### Die Indexabfrage zählte in zwei Systemen verschieden — und beide waren richtig
+
+Gemessen gegen einen echten PostgreSQL-16-Cluster, **bevor** eine Zeile
+Oberfläche entstand. Der erste Wurf holte die Spalten über
+`generate_subscripts(ix.indkey, 1)` und lieferte für einen Index über
+`(ort, name)`:
+
+```
+kunde_ort_name | f | f | CREATE INDEX kunde_ort_name ON kunde USING btree (ort, name), ort
+```
+
+**`indkey` ist ein `int2vector` und zählt ab 0**, `pg_get_indexdef(oid, colno, …)`
+zählt **ab 1**, und `colno = 0` bedeutet dort „die ganze Definition". In der
+Spaltenliste stand deshalb ein vollständiges `CREATE INDEX …`, und die letzte
+Spalte fehlte.
+
+> **Zwei Zählweisen im selben Ausdruck, und keine der beiden ist falsch — falsch
+> ist, sie füreinander zu halten.**
+
+Es steht jetzt `generate_series(1, ix.indnkeyatts)` da; `indnkeyatts` lässt die
+`INCLUDE`-Spalten weg, weil die Sortierung ihnen nicht folgt. Danach gegen einen
+Cluster gemessen: Primärschlüssel, eindeutiger Index, Index über einem Ausdruck
+(`lower(name)`), mehrspaltiger Index, Index mit `INCLUDE`, Tabelle ohne Index —
+und dasselbe für MariaDB 10.11.14. Dort ist `NON_UNIQUE` **`0` für eindeutig**:
+Die Spalte fragt nach dem Gegenteil dessen, was in der Antwort steht.
+
+### npm geht in diesem Container, Composer nicht
+
+Gemessen und in `CLAUDE.md` nachgetragen: `npm ci` holt 108 Pakete in neun
+Sekunden, `npm run build` und `npm run types` laufen durch. Der Proxy sperrt
+`codeload.github.com`, nicht die npm-Registry.
+
+Damit ist die **Überlaufmessung bei 390 px hier fahrbar**, auch ohne `vendor/`:
+gebautes Stylesheet aus `public/build`, das Markup des Bausteins in einer eigenen
+HTML-Datei, Chromium, `scrollWidth - clientWidth`. Für Schritt 4 gemessen —
+Dokument `0px`, alle drei Rollbehälter `0px`, bei 390 px und bei 1440 px.
+
+**Und die Messung hat ihre eigene Gegenprobe bekommen.** Ein absichtlicher
+900px-Block meldet `510px`; ohne diesen Nachweis wären die Nullen darüber keine
+Messung, sondern ein Skript, das immer dasselbe sagt.
+
+> **Eine Messung, die nie etwas anderes als Null liefern kann, ist keine.**
+
+Was das nicht ersetzt: den Blick auf die echte Seite mit echten Daten. Der
+braucht `artisan serve` und damit `vendor/` — die Screenshots in beiden Themes
+stehen weiter aus und werden auf `cloudsrv24` nachgeholt, nicht abgehakt.

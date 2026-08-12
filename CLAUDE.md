@@ -163,9 +163,9 @@ lesbare Katalogsichten, die Namen führen, und eine Absperrung, die bei
 > für jeden lesbar" stimmte — und war trotzdem die falsche Frage, weil er einen
 > von elf Kanälen nannte und den Preis der Antwort verschwieg.
 
-Ausgeliefert wird `v0.5.2-rc.7`.
+Ausgeliefert wird `v0.5.3-rc.2`.
 
-**P5c ist geplant, nicht gebaut** — `docs/46`, das Datenbankmanagement: Tabellen
+**P5c ist bis Schritt 4 gebaut** — `docs/46`, das Datenbankmanagement: Tabellen
 und Struktur durchsehen, Zeilen ansehen, filtern, blättern und ändern, für beide
 Systeme. Vier Entscheidungen des Betreibers tragen ihn, und die zweite hat die
 Architektur entschieden: **kein freies SQL.** Damit bekommt der Agent typisierte
@@ -429,6 +429,43 @@ erweitert worden und gilt rückwirkend nicht — ein Kundenzugang, der heute
 `<präfix>_c` plus acht Hexziffern heisst, verschwindet ab dieser Fassung aus der
 Zugangsliste seiner Datenbank und wird gleichzeitig als Rest gemeldet.
 
+**Der Lauf ist gefahren — am 12. August 2026, gegen `0.5.3-rc.1` und ab Punkt 7
+gegen `0.5.3-rc.2`.** Sechs Kriterien erfüllt, das siebte (das Protokoll) benannt
+offen, **sechs Befunde und keinen davon ein Test.** Drei betrafen den Code, drei
+den Abnahmelauf selbst — dasselbe Verhältnis wie beim Fernzugriff.
+
+**Der teuerste hat den Lauf unterbrochen und trifft jede deutsche
+Kundendatenbank:** `Db\Session` rief `mysql` ohne `--default-character-set`.
+Unter dem `LC_ALL=C` aus `Runner::ENVIRONMENT` — richtig gesetzt, seit P0, damit
+Zahlenformate stabil bleiben — handelt der Klient **latin1** aus, der Server
+konvertiert `JSON_OBJECT()` am Ausgang, und aus `ü` wird das einzelne Byte `FC`.
+`json_decode()` gibt `null` zurück, und damit ist nicht die Zelle unlesbar,
+sondern **die ganze Zeile**. Die Argumentliste stand dabei zweimal da, in `run()`
+und in `linesAs()`; sie steht jetzt einmal als `Db\Session::CLIENT`.
+
+> **Zwei Systeme unter derselben Umgebung treffen entgegengesetzte Vorgaben —
+> und die eine ist verlustfrei, die andere nicht.** `psql` fällt unter `LC_ALL=C`
+> auf `SQL_ASCII` zurück, also auf *keine* Konvertierung. Die PostgreSQL-Hälfte
+> war fehlerfrei, und niemand hat das entschieden.
+
+> **Zwei Listen, die dasselbe meinen, laufen auseinander — und keine von beiden
+> ist der Ort, an dem man nachsieht.**
+
+> **Ein Testdatensatz aus ASCII prüft keine Kodierung.** Das einzige
+> nicht-ASCII-Zeichen im ganzen Bestand des Laufs war ein `ü` in `'unberührt'`,
+> hingeschrieben als deutsches Wort und nicht als Prüfung.
+
+**Und drei der sechs Befunde steckten im Lauf selbst**: eine Fassungsprüfung, die
+in der falschen Datei suchte; eine Hilfsdatei unter `/root`, die `srvpanel
+tinker` nach seinem `setpriv` nicht lesen kann; und eine Gegenprobe, deren
+`LIKE`-Muster den eigenen Abfragetext traf.
+
+> **Eine Frage an den Bestand, die sich selbst enthält, zählt sich mit.**
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.** `konsole = 0` im Protokoll bekam seine Bedeutung erst durch die eine
+> fremde Zeile daneben, die zeigt, dass die Tabelle überhaupt beschrieben wird.
+
 **Und §15 Punkt 3 des Plans war nicht fahrbar, gefunden beim Ausschreiben von
 `docs/47`.** Er verlangte, für den Beleg der Serverwand die Mandantenklammer
 abzuschalten und die Adresse einer fremden Datenbank aufzurufen. Das Präfix
@@ -495,6 +532,26 @@ Testen berücksichtigen:
 
   > **Eine Messung, die einmal jemand von Hand macht, ist ein Datum. Eine, die
   > die CI macht, ist eine Zusage.**
+- **npm geht, Composer nicht — und das ist keine Kleinigkeit.** Gemessen am
+  12. August 2026: `npm ping` antwortet, `npm ci` holt 108 Pakete in neun
+  Sekunden, `npm run build` und `npm run types` laufen durch. Der Proxy sperrt
+  `codeload.github.com` (Composer), nicht die npm-Registry. Damit sind
+  **Typprüfung, Bau und die Überlaufmessung bei 390 px hier fahrbar**, auch wenn
+  `vendor/` fehlt: Das gebaute Stylesheet aus `public/build` plus das Markup des
+  fraglichen Bausteins in einer eigenen HTML-Datei, gerendert im
+  vorinstallierten Chromium, `scrollWidth - clientWidth` per `<script>` als Text
+  auf die Seite. Hier stand neun Monate lang nur, was ohne `vendor/` alles nicht
+  geht, und zu npm nichts — ich hatte es stillschweigend für genauso gesperrt
+  gehalten.
+
+  **Und die Messung braucht ihre eigene Gegenprobe.** Ein absichtlicher
+  900px-Block muss dort eine Zahl erzeugen; tut er es nicht, misst das Skript
+  nichts und seine Nullen bedeuten nichts.
+
+  > **Eine Messung, die nie etwas anderes als Null liefern kann, ist keine.**
+
+  Was das **nicht** ersetzt: den Blick auf die echte Seite mit echten Daten. Der
+  braucht `artisan serve` und damit `vendor/`.
 - **kein nginx, kein PHP-FPM, kein Agent, kein systemd.** Operationen laufen
   gegen Attrappen. Zwei Fehler sind nur aufgefallen, weil die CI nginx *hat*
   und dieser Container nicht — Tests, die Systemzustand annehmen, gehören

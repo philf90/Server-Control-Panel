@@ -71,6 +71,16 @@ final class Console
     /** `TABLE_TYPE` in die zwei Arten aus {@see PgConsole::KINDS}. */
     public const KINDS = ['BASE TABLE' => PgConsole::TABLE, 'SYSTEM VIEW' => PgConsole::VIEW, 'VIEW' => PgConsole::VIEW];
 
+    /**
+     * Der Name, unter dem MariaDB den Primärschlüssel führt.
+     *
+     * Er ist eine Zeichenkette und kein Kennzeichen: `information_schema.STATISTICS`
+     * hat keine Spalte „ist Primärschlüssel", der Index heisst schlicht so. Die
+     * Konstante steht hier, damit der Vergleich einmal dasteht und nicht in der
+     * Abfrage und noch einmal im Lesen der Antwort.
+     */
+    public const PRIMARY = 'PRIMARY';
+
     public function __construct(
         private readonly Session $session = new Session,
         private readonly Ephemeral $ephemeral = new Ephemeral,
@@ -203,6 +213,56 @@ final class Console
              WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s
              ORDER BY ORDINAL_POSITION
             SQL, Sql::text($database), Sql::text($table));
+    }
+
+    /**
+     * Die Indexe einer Tabelle — das Gegenstück zu {@see PgConsole::indexes()}.
+     *
+     * @return list<array{name: string, columns: string, unique: bool, primary: bool}>
+     */
+    public function indexes(Context $context, Credentials $as, string $database, string $table): array
+    {
+        $indexes = [];
+
+        foreach ($this->session->queryAs($context, $as, self::indexesQuery($database, $table)) as $row) {
+            $name = (string) ($row[0] ?? '');
+
+            $indexes[] = [
+                'name' => $name,
+                'columns' => (string) ($row[2] ?? ''),
+                // `NON_UNIQUE` ist 0 für eindeutig — die Spalte fragt nach dem
+                // Gegenteil dessen, was hier steht, und das ist die Sorte
+                // Umkehrung, die man einmal falsch herum liest.
+                'unique' => ($row[1] ?? '1') === '0',
+                'primary' => $name === self::PRIMARY,
+            ];
+        }
+
+        return $indexes;
+    }
+
+    /**
+     * Die Abfrage nach den Indexen.
+     *
+     * **`GROUP_CONCAT` mit `ORDER BY SEQ_IN_INDEX`, und die Reihenfolge ist
+     * nicht kosmetisch:** Ein Index über `(kunde, datum)` hilft einer Sortierung
+     * nach `kunde`, einer nach `datum` nicht. Ohne `ORDER BY` gibt MariaDB die
+     * Spalten in einer Reihenfolge zurück, die nichts bedeutet — und die Anzeige
+     * behauptete etwas über die Tabelle, das nicht stimmt.
+     *
+     * `information_schema.STATISTICS` führt je Spalte eine Zeile; die Gruppierung
+     * macht daraus je Index eine.
+     */
+    public static function indexesQuery(string $database, string $table): string
+    {
+        return sprintf(<<<'SQL'
+            SELECT INDEX_NAME, NON_UNIQUE,
+                   GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX SEPARATOR ', ')
+              FROM information_schema.STATISTICS
+             WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s
+             GROUP BY INDEX_NAME, NON_UNIQUE
+             ORDER BY INDEX_NAME = %s DESC, INDEX_NAME
+            SQL, Sql::text($database), Sql::text($table), Sql::text(self::PRIMARY));
     }
 
     /**

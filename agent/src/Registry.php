@@ -13,6 +13,7 @@ use SrvPanel\Agent\Ops\CertificateUpload;
 use SrvPanel\Agent\Ops\ConfigValidate;
 use SrvPanel\Agent\Ops\DbConsoleCell;
 use SrvPanel\Agent\Ops\DbConsoleColumns;
+use SrvPanel\Agent\Ops\DbConsoleIndexes;
 use SrvPanel\Agent\Ops\DbConsoleRows;
 use SrvPanel\Agent\Ops\DbConsoleRowWrite;
 use SrvPanel\Agent\Ops\DbConsoleTables;
@@ -41,6 +42,7 @@ use SrvPanel\Agent\Ops\PanelUpdate;
 use SrvPanel\Agent\Ops\PanelVhost;
 use SrvPanel\Agent\Ops\PgConsoleCell;
 use SrvPanel\Agent\Ops\PgConsoleColumns;
+use SrvPanel\Agent\Ops\PgConsoleIndexes;
 use SrvPanel\Agent\Ops\PgConsoleRows;
 use SrvPanel\Agent\Ops\PgConsoleRowWrite;
 use SrvPanel\Agent\Ops\PgConsoleTables;
@@ -262,12 +264,14 @@ final class Registry
          */
         $this->register(new DbConsoleTables);
         $this->register(new DbConsoleColumns);
+        $this->register(new DbConsoleIndexes);
         $this->register(new DbConsoleRows);
         $this->register(new DbConsoleCell);
         $this->register(new DbConsoleRowWrite);
 
         $this->register(new PgConsoleTables);
         $this->register(new PgConsoleColumns);
+        $this->register(new PgConsoleIndexes);
         $this->register(new PgConsoleRows);
         $this->register(new PgConsoleCell);
         $this->register(new PgConsoleRowWrite);

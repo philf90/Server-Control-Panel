@@ -11,6 +11,12 @@ der Grund, warum er jetzt geht: Nach Schritt 3 ist die ganze Fläche über
 `srvpanel tinker` und `psql`/`mysql` erreichbar, und was sie beantwortet, hat mit
 Anzeige nichts zu tun.
 
+> **Gefahren am 12. August 2026** gegen `0.5.3-rc.1` und ab Punkt 7 gegen
+> `0.5.3-rc.2`. Sechs Kriterien erfüllt, das siebte benannt offen, **sechs
+> Befunde und keinen davon ein Test** — einer davon hat den Lauf unterbrochen,
+> bis er behoben und ausgeliefert war. Das Protokoll steht in §6. Die Punkte
+> unten tragen die Korrekturen, die er an sich selbst gefunden hat.
+
 ---
 
 ## 1. Warum dieser Lauf eigenständig ist
@@ -450,7 +456,15 @@ PGPASSWORD=p5c psql -h /var/run/postgresql -U p5c_probe -d <BPG> -Atc "SELECT 1"
 #
 #    > Eine Gegenprobe über einen anderen Weg als den benutzten prüft den
 #    > falschen Weg.  (docs/44)
+sudo -u postgres psql -c "DROP OWNED BY p5c_probe"
 sudo -u postgres psql -c "DROP ROLE p5c_probe"
+#    BEIDE ZEILEN, IN DIESER REIHENFOLGE. Hier stand nur die zweite, und sie
+#    scheitert: „role cannot be dropped because some objects depend on it —
+#    privileges for database …". Pg\Ephemeral::with() macht im finally genau
+#    dieses DROP OWNED BY davor, und der Kommentar dort erklärt den Fehler.
+#
+#    > Ein Nachbau, der eine Zeile weglässt, beweist ihre Notwendigkeit besser
+#    > als jeder Test.
 #
 #    Für MariaDB dasselbe, ebenfalls nachgebaut wie Db\Ephemeral::with() —
 #    ein Benutzer mit GRANT ALL auf GENAU EINE Datenbank:
@@ -499,9 +513,21 @@ HOME=/tmp srvpanel tinker --execute='
 #    nicht gefahren. In dem Fall die Zeilenzahl erhöhen und wiederholen.
 #    BELEG: DIE MELDUNG UND DIE DAUER. „Fehlgeschlagen" ist eine Aussage über
 #           uns und nicht über den Server (docs/36 §17, Kriterium 6).
-sudo -u postgres psql -Atc \
-  "SELECT count(*) FROM pg_stat_activity WHERE state='active' AND query LIKE '%viel%'"
-#    erwartet: 0 — die abgebrochene Abfrage rechnet NICHT weiter (M12).
+sudo -u postgres psql -c \
+  "SELECT pid, state, left(query, 70) FROM pg_stat_activity
+    WHERE pid <> pg_backend_pid()
+      AND usename ~ '^x[0-9a-f]{16}_c[0-9a-f]{8}$'"
+#    erwartet: keine Zeile — die abgebrochene Abfrage rechnet NICHT weiter (M12).
+#
+#    NACH DER KENNUNG UND NICHT NACH DEM ABFRAGETEXT. Hier stand
+#      SELECT count(*) … WHERE state='active' AND query LIKE '%viel%'
+#    und der Text DIESER Abfrage enthält `viel` — sie stand in ihrer eigenen
+#    Ergebnismenge und zählte sich mit. Herausgekommen ist 2, wo 0 erwartet war.
+#
+#    > Eine Frage an den Bestand, die sich selbst enthält, zählt sich mit.
+#
+#    Der Ausdruck oben kann sich nicht selbst treffen (`postgres` passt nicht
+#    auf das Muster) und auch keinen Hintergrundprozess.
 
 # 11 OHNE SCHLÜSSEL   ← Kriterium 5, die Hälfte, die ohne Oberfläche geht
 #      CREATE TABLE ohne_schluessel (a int, b text);
@@ -588,9 +614,17 @@ sudo -u postgres psql -Atc \
   "SELECT rolname FROM pg_roles WHERE rolname ~ '^x[0-9a-f]{16}_[rc][0-9a-f]{8}$'"
 mariadb -e \
   "SELECT user FROM mysql.user WHERE user REGEXP '^p[0-9]+_[rc][0-9a-f]{8}$'"
+#    UND die Proben aus Punkt 9 — sie tragen KEINEN Namen, den isEphemeral()
+#    erkennt, also meldet sie kein Aufräumlauf. Wer sie stehen lässt, hinterlässt
+#    einen Zugang, den niemand mehr findet.
+sudo -u postgres psql -Atc "SELECT rolname FROM pg_roles WHERE rolname LIKE '%p5c_probe%'"
+mariadb -Ns -e "SELECT user FROM mysql.user WHERE user LIKE '%p5c_probe%'"
 srvpanel db
-#    erwartet: beide leer, „Nichts liegengeblieben." — WORTGLEICH DIE AUSGABE
-#              AUS PUNKT 2.
+#    erwartet: alle vier leer, und die Ausgabe von `srvpanel db` WORTGLEICH die
+#              aus Punkt 2.
+#    „Nichts liegengeblieben." steht dort NICHT — den Satz gibt es seit
+#    `docs/45 §5` nicht mehr. Schweigen IST die Entwarnung; gemeldet wird nur,
+#    was stehengeblieben ist.
 #    Nach fünfzehn Punkten mit gut zwei Dutzend Konsolenaufrufen ist das die
 #    Zusage aus `docs/46 §19`: Die Konsole legt nichts an, was sie überlebt.
 #    Und Punkt 4 ist der Beleg, dass überhaupt etwas anzulegen war.
@@ -644,35 +678,88 @@ sondern gegen den Quelltext gelesen.
 
 ---
 
-## 6. Was der Lauf gefunden hat
+## 6. Der Lauf vom 12. August 2026
 
-**Gefahren am 12. August 2026 auf `cloudsrv24`.** Diese Liste wächst, während er
-läuft; sie steht hier und nicht erst im Protokoll danach, weil ein Befund, den
-man erst hinterher aufschreibt, seinen Zusammenhang verliert.
+**Gefahren auf `cloudsrv24`** gegen `0.5.3-rc.1` und, ab Punkt 7, gegen
+`0.5.3-rc.2`. Abo A war `cloudlab24.de` (`p1130`, Präfix `x1b311d2b6eedc3aa`),
+Abo B `cloudlab24.ipv64.de` (`p1131`) — beide unter demselben Kunden, je eine
+frische Datenbank `p5c` in beiden Systemen. **Kein einziges Bild**, wie geplant.
 
-### Befund 1 — Der MariaDB-Klient nannte seinen Zeichensatz nicht
+### 6.1 Was gemessen wurde
 
-**Gefunden in Punkt 7, an einem einzigen `ü`.** `Db\Session` rief `mysql` ohne
-`--default-character-set`; unter `LC_ALL=C` aus `Runner::ENVIRONMENT` handelt der
-Klient dann **latin1** aus, der Server konvertiert `JSON_OBJECT()` am Ausgang,
-und aus `ü` wird das einzelne Byte `FC`. `json_decode()` gibt `null` zurück —
-für die **ganze Zeile**. Gemessen mit `xxd`:
+| Kriterium | gemessen | Wert |
+|---|---|---|
+| **1** — befristeter Zugang, belegt am Namen | ✓ | 40 Aufrufe, 40 verschiedene Rollen `x1b311d2b6eedc3aa_c<8 hex>`, 40 Benutzer `p1130_c<8 hex>`; danach beide Kataloge leer |
+| **2** — die vier Werte unterscheidbar | ✓ (halb) | `''` · `NULL` · `'a⇥b'` (laenge=3) · `'z1⏎z2'` (laenge=5), in **beiden** Systemen. Die andere Hälfte — „in der Oberfläche" — gibt es noch nicht |
+| **3** — fremde Datenbank, Meldung des Servers | ✓ | `FATAL: permission denied for database "xb5692b0b484effac_p5c"` / `ERROR 1044 (42000): Access denied … to database 'p1131_p5c'` |
+| **4** — Zeitlimit, Grund wörtlich | ✓ | `canceling statement due to statement timeout` (5,2 s) · `Query execution was interrupted (max_statement_time exceeded)` (5,3 s); danach keine laufende Abfrage der Konsolenrolle |
+| **5** — ohne Schlüssel nicht änderbar | ✓ | `key=false`, zwei Zeilen lesbar, drei Schreibwege abgewiesen mit dem Wort „Primärschlüssel" |
+| **6** — genau eine Zeile, nur geänderte Spalten | ✓ | `affected=1`; `leer=['geaendert','x','x','x']`; die unberührte Spalte behielt 5000 Zeichen und ihr `NULL` |
+| **7** — das Protokoll | **nicht gebaut** | `SELECT COUNT(*) … action LIKE '%console%'` → `0`. Gehört zu Schritt 7 des Plans |
+
+**Und zwei Messungen, die der Lauf zusätzlich mitgenommen hat:**
+
+Die **Zeilenschätzung** hat ihren dritten Zustand in beiden Systemen gezeigt, so
+wie §9 es vorhergesagt hat: PostgreSQL meldet `rows=NULL` für nie analysierte
+Tabellen (`reltuples = -1`), MariaDB die exakte Zahl. Wer nur eine Hälfte prüft,
+schreibt im anderen System „0 Zeilen" unter eine Tabelle mit Inhalt.
+
+Die **Kodierung** ist nach Befund 1 in alle drei Richtungen belegt: hinaus (ein
+Wert mit `ü` kommt lesbar zurück), hinein als Bedingung (ein Filter auf `üß` und
+auf `Köln` findet je genau eine Zeile) und hinein als Wert (ein `INSERT` mit
+`'Grüße'` steht danach als fünf Zeichen bzw. sieben Bytes in der Tabelle). Der
+ursprüngliche Fehler betraf nur die erste.
+
+**Nichts blieb liegen.** Nach rund sechzig Konsolenaufrufen, achtzig befristeten
+Zugängen, sechs Schreibvorgängen und zwei abgebrochenen Abfragen war die Ausgabe
+von `srvpanel db` **wortgleich** die aus Punkt 2.
+
+### 6.2 Sechs Befunde, und keinen davon hat ein Test gefunden
+
+Drei betreffen den Code, drei den Abnahmelauf selbst — dasselbe Verhältnis wie
+beim Fernzugriff (`docs/45`: zwölf Fehler, fünf davon im Lauf).
+
+#### Befund 1 — Der MariaDB-Klient nannte seinen Zeichensatz nicht
+
+**Gefunden in Punkt 7, an einem einzigen `ü`, und er hat den Lauf
+unterbrochen.** `Db\Session` rief `mysql` ohne `--default-character-set`; unter
+`LC_ALL=C` aus `Runner::ENVIRONMENT` handelt der Klient dann **latin1** aus, der
+Server konvertiert `JSON_OBJECT()` am Ausgang, und aus `ü` wird das einzelne Byte
+`FC`. `json_decode()` gibt `null` zurück — für die **ganze Zeile**.
 
 ```
-ohne  --default-character-set : 75 6e 62 65 72  fc     68 72 74
-mit   --default-character-set=utf8mb4 : 75 6e 62 65 72  c3 bc  68 72 74
+env -i LC_ALL=C LANG=C mysql --protocol=socket --batch --skip-column-names \
+  -e "SELECT @@character_set_client, @@character_set_results, @@character_set_connection"
+→ latin1   latin1   latin1
+
+… derselbe Aufruf auf JSON_OBJECT('n', notiz):
+ohne  --default-character-set        : 75 6e 62 65 72  fc     68 72 74
+mit   --default-character-set=utf8mb4: 75 6e 62 65 72  c3 bc  68 72 74
 ```
 
-Das trifft **jede Datenbank mit einem Umlaut**, also praktisch jeden deutschen
-Kunden. Der Fix steht in `docs/46 §8.3`, der Wächter in §14.8, zwei Brüche in
-`tests/waechter-brechen.sh`.
+Das trifft **jede Kundendatenbank mit einem Umlaut**. `Db\Session` ist die
+einzige Stelle im Agenten, die `mysql` ruft — die Verbindung war also seit P0
+latin1, für jeden MariaDB-Zugriff. Dass es nicht früher auffiel, liegt daran,
+dass Bezeichner ASCII sind und ein `mysqldump` sein `SET NAMES utf8mb4` selbst
+mitbringt.
 
-**Drei Dinge hingen daran**, und jedes ist für sich eine Lehre:
+**Behoben in `0.5.3-rc.2`** (`docs/46 §8.3`): `Db\Session::CLIENT` trägt die
+Angabe, `run()` und `linesAs()` benutzen die Konstante. Der Wächter steht in
+`ResultEncodingTest`, zwei Brüche in `tests/waechter-brechen.sh`; beide waren
+nachweislich rot. **Gegengeprüft auf demselben Server**, an derselben Zeile:
+`notiz='unberührt'` steht seitdem lesbar da.
+
+Vier Dinge hingen daran:
 
 > **Zwei Systeme unter derselben Umgebung treffen entgegengesetzte Vorgaben —
 > und die eine ist verlustfrei, die andere nicht.** `psql` fällt unter `LC_ALL=C`
 > auf `SQL_ASCII` zurück, also auf *keine* Konvertierung. Deshalb war die
-> PostgreSQL-Hälfte desselben Punktes fehlerfrei.
+> PostgreSQL-Hälfte desselben Punktes fehlerfrei — nicht, weil jemand es besser
+> gemacht hätte.
+
+> **Zwei Listen, die dasselbe meinen, laufen auseinander — und keine von beiden
+> ist der Ort, an dem man nachsieht.** Die Argumente standen in `run()` und in
+> `linesAs()`. Genau daran ist die fehlende Angabe jahrelang nicht aufgefallen.
 
 > **Ein Hinweis, der genau eine Ursache nennt, ist eine Diagnose — und eine
 > falsche Diagnose ist teurer als keine.** Die Meldung fragte „Steht eine binäre
@@ -683,14 +770,114 @@ Kunden. Der Fix steht in `docs/46 §8.3`, der Wächter in §14.8, zwei Brüche i
 > `'unberührt'` — hingeschrieben als deutsches Wort, nicht als Prüfung. Um ein
 > Haar hätte auch dieser Lauf nichts gemerkt.
 
-### Befund 2 — Die Fassungsprüfung dieses Dokuments suchte in der falschen Datei
+#### Befund 2 — Derselbe Satz, zwei Verpackungen
 
-Siehe §3. Ein `grep` auf `Registry.php` nach `pg.console.tables` kann nur `0`
-finden: Die Registratur trägt Objekte, der Name steht in der Op-Klasse.
+Der Schreibvorgang, der null Zeilen trifft, meldet in beiden Systemen wörtlich
+denselben Satz. Was **um ihn herum** steht, unterscheidet sich:
 
-### Befund 3 — Eine Hilfsdatei unter `/root` ist für `srvpanel tinker` unlesbar
+```
+PostgreSQL  Die Datenbank hat abgewiesen: ERROR:  Der Vorgang hat 0 Zeilen …
+            CONTEXT:  PL/pgSQL function inline_code_block line 7 at RAISE
+MariaDB     Der Vorgang hat 0 Zeilen …
+```
 
-Siehe §2. Der Wrapper gibt seine Rechte an den Benutzer `srvpanel` ab.
+Der Satz ist **unserer** — er steht in dem `RAISE EXCEPTION`, das der Agent baut
+— und kommt als Datenbankfehler verkleidet zurück, mit einer Zeilennummer auf
+eine Datei, die es nicht gibt. Beim Zeitlimit ist dieselbe Verpackung richtig:
+Dort *ist* es die Meldung des Servers, und `docs/36 §17` verlangt sie wörtlich.
+
+> **Eine Verpackung, die für eine fremde Meldung richtig ist, ist für die eigene
+> falsch.**
+
+**Offen, mit Absicht.** Was ein Kunde liest, entscheidet sich in Schritt 6 des
+Plans; ein Fix jetzt wäre eine Vermutung darüber, wie die Oberfläche die Meldung
+zeigt.
+
+#### Befund 3 — Die Fassungsprüfung dieses Dokuments suchte in der falschen Datei
+
+Siehe §3. Ein `grep -c "pg.console.tables"` auf `Registry.php` kann nur `0`
+finden — die Registratur trägt Objekte, der Name steht in der Op-Klasse. Der
+Ausdruck hätte bei einer kaputten Fassung dasselbe gesagt wie bei einer heilen.
+
+> **Ein Wächter, der in der falschen Datei sucht, ist kein Wächter — er ist eine
+> Zeile, die immer dasselbe sagt.**
+
+#### Befund 4 — Eine Hilfsdatei unter `/root` ist für `srvpanel tinker` unlesbar
+
+Siehe §2. Der Wrapper gibt seine Rechte ab (`setpriv --reuid=srvpanel`), `/root`
+ist `0700`, und die Meldung „Failed opening required" liest sich wie ein
+Tippfehler im Pfad.
+
+> **Ein Werkzeug, das Rechte abgibt, liest die Datei nicht mehr, die man ihm als
+> root hinlegt.**
+
+#### Befund 5 — Die Gegenprobe zum Zeitlimit zählte sich selbst mit
+
+Punkt 12 fragte
+
+```sql
+SELECT count(*) FROM pg_stat_activity WHERE state='active' AND query LIKE '%viel%'
+```
+
+und **der Text dieser Abfrage enthält `viel`**. Sie stand in ihrer eigenen
+Ergebnismenge. Herausgekommen ist `2`, wo `0` erwartet war; eine der beiden
+Zeilen war sie selbst, die zweite war vorübergehend und liess sich Minuten
+später nicht mehr feststellen. Sie steht deshalb **nicht** als Befund da — ein
+Autovacuum-Arbeiter auf der frischen Tabelle war der Verdacht, belegt ist er
+nicht.
+
+Die Abfrage fragt jetzt nach der **Kennung** des Aufrufers statt nach dem
+Abfragetext: Sie kann sich nicht selbst treffen, und sie trifft auch keinen
+Hintergrundprozess.
+
+> **Eine Frage an den Bestand, die sich selbst enthält, zählt sich mit.**
+
+> **Eine Vermutung, die man nicht mehr prüfen kann, gehört nicht ins Protokoll —
+> auch wenn sie plausibel ist.**
+
+#### Befund 6 — Der Nachbau liess eine Zeile weg und bewies damit ihre Notwendigkeit
+
+Punkt 11 baut den befristeten Zugang von Hand nach, um die Wand des Servers zu
+messen. Beim Abräumen:
+
+```
+ERROR:  role "p5c_probe" cannot be dropped because some objects depend on it
+DETAIL:  privileges for database x1b311d2b6eedc3aa_p5c
+```
+
+`Pg\Ephemeral::with()` macht im `finally` ein `DROP OWNED BY` vor dem
+`DROP ROLE`, und der Kommentar dort erklärt genau diesen Fehler. Der Nachbau
+hatte die Zeile nicht — und ist prompt hineingelaufen.
+
+> **Ein Nachbau, der eine Zeile weglässt, beweist ihre Notwendigkeit besser als
+> jeder Test.**
+
+Der Punkt trägt die beiden `DROP`-Zeilen jetzt in der richtigen Reihenfolge, und
+die Schlussprüfung sucht ausdrücklich auch nach `p5c_probe`: Ein Zugang mit
+einem Namen, den `isEphemeral()` nicht erkennt, fällt keinem Aufräumlauf auf.
+
+### 6.3 Was der Lauf über Abnahmen selbst gezeigt hat
+
+**Drei der sechs Befunde stecken im Lauf und nicht im Code** — dieselbe
+Beobachtung wie in `docs/45`. Ein Abnahmelauf ist Code, den niemand ausführt, bis
+es darauf ankommt, und er hat dieselbe Fehlerdichte wie anderer Code.
+
+**Und die zwei Belege, die den Unterschied zwischen Messung und Behauptung
+machen, sind beide erst beim Schreiben dazugekommen:**
+
+- In Punkt 5 zählt nicht die Leere der Restabfrage, sondern der **Name** aus dem
+  Beobachter. Eine Abfrage nach Resten ist auch dann leer, wenn nie eine Konsole
+  lief.
+- In Punkt 11 zählt nicht die Abweisung, sondern die **gelungene** erste Zeile
+  jedes Paares. Ohne sie wäre eine Abweisung von einem Tippfehler im
+  Datenbanknamen nicht zu unterscheiden.
+
+Dasselbe gilt für Punkt 18: `konsole = 0` bekam seine Bedeutung erst durch die
+eine fremde Zeile daneben (`impersonation.stop`), die zeigt, dass die Tabelle
+überhaupt beschrieben wird.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
 
 ---
 
@@ -716,6 +903,10 @@ Siehe §2. Der Wrapper gibt seine Rechte an den Benutzer `srvpanel` ab.
 - **Die Fassungsspanne.** Gefahren wird gegen PostgreSQL 16 und MariaDB 10.11 auf
   Ubuntu 24.04. Debian 12, Debian 13 und Ubuntu 22.04 misst die CI, nicht dieser
   Lauf.
+- **Wie eine Meldung beim Kunden ankommt.** Befund 2 aus §6 — die PL/pgSQL-
+  `CONTEXT`-Zeile an einer Meldung, die der Kunde lesen soll — bleibt mit Absicht
+  offen: Die Entscheidung gehört in Schritt 6, wo die Meldung zum ersten Mal auf
+  einen Menschen trifft.
 - **Last und Dauerbetrieb.** Was ein befristeter Zugang je Anfrage kostet, wenn
   zwanzig Kunden gleichzeitig blättern, steht als Risiko 4 in `docs/46 §18` und
   ist weiter ungemessen. Punkt 4 legt zwei an, nicht zweitausend.

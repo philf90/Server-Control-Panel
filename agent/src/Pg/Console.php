@@ -307,6 +307,83 @@ final class Console
     }
 
     /**
+     * Die Indexe einer Tabelle.
+     *
+     * **Anzeige und sonst nichts.** Keine andere Methode dieser Klasse schlägt
+     * hier nach — die Prüfliste für Bezeichner ist und bleibt
+     * {@see self::columns()}. Der Kunde sieht hier, warum eine Sortierung schnell
+     * ist und eine andere ins Zeitlimit läuft (`docs/46 §9`), und das ist der
+     * ganze Zweck.
+     *
+     * @return list<array{name: string, columns: string, unique: bool, primary: bool}>
+     */
+    public function indexes(Context $context, Credentials $as, string $database, string $schema, string $table): array
+    {
+        // **Ohne die Prüfung auf „gibt es nicht".** Eine Tabelle ohne einen
+        // einzigen Index ist ein gewöhnlicher Fall und keine falsche Angabe;
+        // `columns()` hat die Existenz der Tabelle bereits beantwortet, und ein
+        // zweites Mal `[]` als Fehler zu lesen wäre hier schlicht falsch.
+        $indexes = [];
+
+        foreach ($this->session->queryAs($context, $as, $database, self::indexesQuery($schema, $table), self::TIMEOUT_MS) as $row) {
+            $indexes[] = [
+                'name' => (string) ($row[0] ?? ''),
+                'columns' => (string) ($row[3] ?? ''),
+                'unique' => ($row[1] ?? '') === 't',
+                'primary' => ($row[2] ?? '') === 't',
+            ];
+        }
+
+        return $indexes;
+    }
+
+    /**
+     * Die Abfrage nach den Indexen.
+     *
+     * **Der Unterausdruck auf `pg_class`/`pg_namespace` ist wortgleich der aus
+     * {@see self::columnsQuery()}**, und aus demselben Grund: `'schema.tabelle'::regclass`
+     * läse bei einem Tabellennamen mit einem Punkt die falsche Hälfte als Schema.
+     *
+     * **`pg_get_indexdef()` je Spalte statt `indkey` gegen `pg_attribute`.** Ein
+     * Index kann über einem **Ausdruck** liegen — `lower(name)` —, und der hat
+     * keine `attnum`. Ein Verbund auf `pg_attribute` liesse ihn lautlos aus der
+     * Spaltenliste fallen, und dann stünde ein Index ohne Spalten da.
+     *
+     * **`generate_series(1, indnkeyatts)` und nicht `generate_subscripts(indkey, 1)`.**
+     * Hier stand das zweite, und es war falsch — gemessen am 12. August 2026
+     * gegen PostgreSQL 16: `indkey` ist ein `int2vector` und zählt **ab 0**,
+     * `pg_get_indexdef(oid, colno, …)` zählt **ab 1**, und `colno = 0` bedeutet
+     * dort „die ganze Definition". In der Spaltenliste eines Index stand deshalb
+     * ein vollständiges `CREATE INDEX …`, und die **letzte Spalte fehlte**: aus
+     * `(ort, name)` wurde `CREATE INDEX … (ort, name), ort`.
+     *
+     * > **Zwei Zählweisen im selben Ausdruck, und keine der beiden ist falsch —
+     * > falsch ist, sie füreinander zu halten.**
+     *
+     * `indnkeyatts` statt `indnatts` lässt die `INCLUDE`-Spalten weg: Sie stehen
+     * im Index, aber die Sortierung folgt ihnen nicht, und genau danach sieht
+     * hier jemand.
+     */
+    public static function indexesQuery(string $schema, string $table): string
+    {
+        return sprintf(<<<'SQL'
+            SELECT i.relname,
+                   ix.indisunique,
+                   ix.indisprimary,
+                   array_to_string(array(
+                     SELECT pg_get_indexdef(ix.indexrelid, k.n, true)
+                       FROM generate_series(1, ix.indnkeyatts) AS k(n)
+                      ORDER BY k.n), ', ')
+              FROM pg_index ix
+              JOIN pg_class i ON i.oid = ix.indexrelid
+             WHERE ix.indrelid = (SELECT c.oid FROM pg_class c
+                                    JOIN pg_namespace n ON n.oid = c.relnamespace
+                                   WHERE n.nspname = %s AND c.relname = %s)
+             ORDER BY ix.indisprimary DESC, i.relname
+            SQL, Sql::text($schema), Sql::text($table));
+    }
+
+    /**
      * Eine Seite Zeilen.
      *
      * @param  array{column: string, operator: string, value: string}|null  $filter

@@ -215,11 +215,35 @@ onMounted(loadTables)
         </div>
       </Section>
 
-      <Section v-if="openTable !== null" :title="`Struktur — ${openTable}`" full>
-        <p v-if="loadingTable" class="empty">Wird geladen …</p>
+      <!--
+        **Zwei Bereiche und nicht einer**, und der Name der Tabelle steht in
+        keinem von beiden Titeln.
 
-        <template v-else>
-          <div class="scrolls">
+        Hier stand ein einziger Bereich `Struktur — {{ openTable }}` mit beiden
+        Tabellen darin. Der Bildschirmfoto-Durchgang auf `cloudsrv24` hat daran
+        zwei Dinge gefunden:
+
+        1. Der Titel schob die Seite bei 390px um **99px** aus dem Bild — ein
+           Tabellenname darf 63 Zeichen lang sein, und eine Kennung hat keine
+           Leerzeichen, an denen sie bräche. Er steht jetzt als `.ident` unter
+           der Überschrift, wo er brechen darf und ausserdem in der Schrift
+           erscheint, die für Kennungen vorgesehen ist (`docs/19`).
+        2. Spalten- und Indextabelle standen ohne Abstand und ohne Beschriftung
+           untereinander und lasen sich als **eine** Tabelle: Auf die Zeile
+           `anhang` folgte unmittelbar der Kopf `INDEX | SPALTEN | ART`.
+
+        Der zweite Fund ist der, den keine Messung finden kann — nichts lief
+        über, nichts war abgeschnitten. Es sah nur falsch aus.
+      -->
+      <template v-if="openTable !== null">
+        <Section title="Spalten" full>
+          <p class="section-note">
+            Tabelle <span class="ident">{{ openTable }}</span>
+          </p>
+
+          <p v-if="loadingTable" class="empty">Wird geladen …</p>
+
+          <div v-else class="scrolls">
             <table class="stacks">
               <thead>
                 <tr>
@@ -258,8 +282,12 @@ onMounted(loadTables)
               </tbody>
             </table>
           </div>
+        </Section>
 
-          <p v-if="indexes.length === 0" class="empty">
+        <Section title="Indexe" full>
+          <p v-if="loadingTable" class="empty">Wird geladen …</p>
+
+          <p v-else-if="indexes.length === 0" class="empty">
             Diese Tabelle hat keinen Index. Eine Sortierung über eine ihrer Spalten liest sie
             vollständig und kann in das Zeitlimit von fünf Sekunden laufen.
           </p>
@@ -293,8 +321,8 @@ onMounted(loadTables)
           <div class="button-row">
             <button type="button" class="button" @click="closeStructure()">Schliessen</button>
           </div>
-        </template>
-      </Section>
+        </Section>
+      </template>
     </div>
   </PanelLayout>
 </template>

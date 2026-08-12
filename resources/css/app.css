@@ -539,6 +539,38 @@ input[type='radio'] {
   font-weight: 660;
   letter-spacing: -0.01em;
   color: var(--text-strong);
+
+  /*
+   * Eine Überschrift bricht, bevor sie die Seite schiebt.
+   *
+   * **Dritte Fassung derselben Ausnahme.** Sie steht schon an `.ident` und an
+   * `.stacks td .ident`; hier fehlte sie, und der Bildschirmfoto-Durchgang zu
+   * P5c Schritt 4 hat sie gefunden: Der Titel „Struktur —
+   * bestellpositionen_archiv_2026_langer_name_zum_messen" schob die Seite bei
+   * 390px um **99px** aus dem Bild, gemessen auf `cloudsrv24`. Ohne offene
+   * Strukturansicht stand dieselbe Seite auf `0px` — der Titel war die ganze
+   * Ursache.
+   *
+   * **Bild und Zahl haben zusammen erst die Diagnose ergeben.** Auf dem
+   * Bildschirmfoto war der Name ab `…langer_name_z` abgeschnitten, und das sah
+   * nach einem Zuschnitt aus; erst `scrollWidth - clientWidth` sagte, dass die
+   * Seite schiebt. Ich hatte vorher das Gegenteil in diesen Kommentar
+   * geschrieben, ohne gemessen zu haben.
+   *
+   * > **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
+   * > Keines von beiden ersetzt das andere.**
+   *
+   * **`min-width: 0` gehört dazu und ist nicht die Hälfte.** `.section-head`
+   * ist ein Flexbehälter, und ein Flexkind hat `min-width: auto` — es darf
+   * nicht unter seine Inhaltsbreite. Die Erlaubnis zu brechen nützt nichts,
+   * solange das Element seine Breite behalten darf; wörtlich derselbe Fund wie
+   * bei `.stacks td .ident`.
+   *
+   * `MobileLayoutTest::test_a_section_heading_can_break` rechnet die Kaskade
+   * seitdem nach, statt dass jemand sie liest.
+   */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* Der Erklärsatz unter einer Bereichsüberschrift. Er behält seine

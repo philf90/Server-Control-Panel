@@ -10658,3 +10658,54 @@ Messung, sondern ein Skript, das immer dasselbe sagt.
 Was das nicht ersetzt: den Blick auf die echte Seite mit echten Daten. Der
 braucht `artisan serve` und damit `vendor/` — die Screenshots in beiden Themes
 stehen weiter aus und werden auf `cloudsrv24` nachgeholt, nicht abgehakt.
+
+### Der Bildschirmfoto-Durchgang zu Schritt 4 hat zwei Fehler gefunden, die grün waren
+
+**12. August 2026 auf `cloudsrv24`**, acht Bilder: Tabellenliste und Struktur, je
+bei Arbeitsplatzbreite und 390 px, je hell und dunkel. Dieser Container konnte
+davon nichts zeigen — ohne `vendor/` läuft keine Seite —, und beide Funde wären
+ohne die Runde ausgeliefert worden.
+
+**Der erste schob die Seite um 99 px.** Der Bereichstitel lautete
+`Struktur — {{ openTable }}`, und ein Tabellenname darf 63 Zeichen lang sein. Mit
+geschlossener Strukturansicht stand dieselbe Seite auf `0px` — der Titel war die
+ganze Ursache.
+
+Zwei Ursachen lagen übereinander; im Nachbau lässt sich jede einzeln abschalten:
+
+| Aufbau | CSS | Dokument bei 390 px |
+|---|---|---|
+| Name im **Titel** | ohne `overflow-wrap`/`min-width` | **152 px** |
+| Name im Titel | mit | 0 px |
+| Name als `.ident` | ohne | 0 px |
+| Name als `.ident` | mit | 0 px |
+
+Behoben wurden beide. Der Name steht als `.ident` unter einer kurzen Überschrift
+— dort darf er brechen und erscheint in der Schrift, die für Kennungen vorgesehen
+ist —, und `.section-head h2` bekommt `overflow-wrap: anywhere` **mit**
+`min-width: 0`: Ein Flexkind darf ohne das nicht unter seine Inhaltsbreite, und
+die Erlaubnis zu brechen bleibt wirkungslos. Das ist die **dritte** Fassung
+derselben Ausnahme nach `.ident` und `.stacks td .ident` — deshalb rechnet
+`MobileLayoutTest::test_a_section_heading_can_break` sie jetzt nach, mit beiden
+Hälften und zwei Brüchen.
+
+Die CSS-Hälfte bleibt, obwohl die Markup-Hälfte allein genügt hätte:
+`CustomerOverview.vue` setzt `:title="abo.name"` und trägt denselben latenten
+Fehler.
+
+**Der zweite war überhaupt nicht messbar.** Spalten- und Indextabelle standen
+ohne Abstand und ohne Beschriftung untereinander — auf die Zeile `anhang` folgte
+unmittelbar der Kopf `INDEX | SPALTEN | ART`. Nichts lief über, nichts war
+abgeschnitten; beide lasen sich als **eine** Tabelle. Sie stehen jetzt in zwei
+Bereichen, „Spalten" und „Indexe".
+
+> **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt. Keines
+> von beiden ersetzt das andere.**
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+**Und eine Korrektur an einer eigenen Behauptung:** Im Quelltextkommentar zur
+neuen CSS-Regel stand zuerst, der Titel werde *geschnitten* und die
+Überlaufmessung sei dabei grün. Gemessen war das nicht — die Zahl vom Server
+sagte 99 px. Der Kommentar steht jetzt richtig da.

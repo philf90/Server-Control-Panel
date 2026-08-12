@@ -902,13 +902,16 @@ braucht.
 > **Was eine Ansicht braucht, gehört nicht in die Abfrage, die alle brauchen.**
 
 **Gemessen gegen beide Systeme**, bevor eine Zeile Oberfläche entstand — und die
-PostgreSQL-Abfrage war beim ersten Wurf falsch (§20.10). Screenshots stehen aus:
-Dieser Container hat kein `vendor/`, also keine laufende Seite. Was er kann, ist
-`npm run types`, `npm run build` und die **Überlaufmessung bei 390 px** über das
-gebaute Stylesheet — Dokument `0px`, alle drei Rollbehälter `0px`, und die
-Messung selbst gegengeprüft an einem absichtlichen 900px-Block (`510px`).
+PostgreSQL-Abfrage war beim ersten Wurf falsch (§20.10).
 
-> **Eine Messung, die nie etwas anderes als Null liefern kann, ist keine.**
+**Die Screenshots sind nachgeholt worden** — am 12. August 2026 auf
+`cloudsrv24`, acht Bilder in beiden Themes, und sie haben **zwei Fehler
+gefunden, die vorher grün waren** (§20.11). Der teuerste schob die Seite bei
+390 px um 99 px aus dem Bild; der zweite war überhaupt nicht messbar und nur zu
+sehen.
+
+> **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
+> Keines von beiden ersetzt das andere.**
 
 ### Schritt 5 — Zeilen, blättern, filtern, sortieren, eine Zelle öffnen
 
@@ -1595,3 +1598,55 @@ MariaDB dasselbe gegen 10.11.14 im Container.
 **Und ein Unterschied, den man einmal falsch herum liest:**
 `information_schema.STATISTICS.NON_UNIQUE` ist **`0` für eindeutig**. Die Spalte
 fragt nach dem Gegenteil dessen, was in der Antwort steht.
+
+
+### 20.11 Der Bildschirmfoto-Durchgang hat zwei Fehler gefunden, die grün waren
+
+**12. August 2026 auf `cloudsrv24`**, acht Bilder: Tabellenliste und Struktur, je
+bei Arbeitsplatzbreite und 390 px, je hell und dunkel. Der Container konnte davon
+nichts zeigen — ohne `vendor/` läuft keine Seite —, und beide Funde wären ohne
+diese Runde ausgeliefert worden.
+
+**Der erste schob die Seite.** Der Bereichstitel lautete
+`Struktur — {{ openTable }}`, und ein Tabellenname darf 63 Zeichen lang sein:
+
+```
+dokument: 99px      ← Strukturansicht offen
+dokument:  0px      ← nur die Tabellenliste
+```
+
+Zwei Ursachen lagen übereinander, und im Nachbau lässt sich jede einzeln
+abschalten (390 px, gebautes Stylesheet, Chromium):
+
+| Aufbau | CSS | Dokument |
+|---|---|---|
+| Name im **Titel** | ohne `overflow-wrap`/`min-width` | **152 px** |
+| Name im Titel | mit | 0 px |
+| Name als `.ident` | ohne | 0 px |
+| Name als `.ident` | mit | 0 px |
+
+Behoben wurden **beide**: Der Name steht jetzt als `.ident` unter einer kurzen
+Überschrift — dort darf er brechen und erscheint in der Schrift, die für
+Kennungen vorgesehen ist (`docs/19`) —, und `.section-head h2` bekommt
+`overflow-wrap: anywhere` **mit** `min-width: 0`, weil ein Flexkind sonst nicht
+unter seine Inhaltsbreite darf. Das ist die **dritte** Fassung derselben
+Ausnahme nach `.ident` und `.stacks td .ident`; deshalb rechnet
+`MobileLayoutTest::test_a_section_heading_can_break` sie seitdem nach.
+
+Die CSS-Hälfte bleibt, obwohl die Markup-Hälfte allein genügt hätte:
+`CustomerOverview.vue` setzt `:title="abo.name"` und trägt denselben latenten
+Fehler.
+
+**Der zweite war überhaupt nicht messbar.** Spalten- und Indextabelle standen
+ohne Abstand und ohne Beschriftung untereinander — auf die Zeile `anhang` folgte
+unmittelbar der Kopf `INDEX | SPALTEN | ART`, und beide lasen sich als **eine**
+Tabelle. Nichts lief über, nichts war abgeschnitten; es sah nur falsch aus. Sie
+stehen jetzt in zwei Bereichen, „Spalten" und „Indexe".
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+**Und eine Korrektur an mir selbst:** Ich hatte in den Quelltextkommentar
+geschrieben, der Titel werde *geschnitten* und die Überlaufmessung sei dabei
+grün. Gemessen hatte ich das nicht; die Zahl vom Server sagte 99 px. Der
+Kommentar steht jetzt richtig da.

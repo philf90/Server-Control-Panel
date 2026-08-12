@@ -37,7 +37,7 @@ use SrvPanel\Agent\Registry;
  *    Aufgaben, die einen Lebenslauf haben und damit über die Reihe laufen.
  * 2. `App\Support\Databases\Console` reiht nichts ein: kein `RunAgentOperation`,
  *    kein `Task::`, kein `dispatch`.
- * 3. Es gibt die zehn Operationen überhaupt — sonst prüfen 1 und 2 eine leere
+ * 3. Es gibt die Operationen überhaupt — sonst prüfen 1 und 2 eine leere
  *    Menge und sind grün, ohne etwas zu sagen.
  *
  * **Der Bruch dazu** (`tests/waechter-brechen.sh`): eine `console`-Aufgabe in
@@ -86,9 +86,14 @@ final class ConsoleQueueTest extends TestCase
      * Die Untergrenze.
      *
      * Sie zählt dort, wo die Regel stehen **darf** — in der Registratur des
-     * Agenten. Ohne sie wäre dieser Wächter grün, sobald jemand die zehn
-     * Operationen umbenennt, und niemand merkte, dass er nichts mehr prüft
-     * (`CLAUDE.md`).
+     * Agenten. Ohne sie wäre dieser Wächter grün, sobald jemand die
+     * Konsolenoperationen umbenennt, und niemand merkte, dass er nichts mehr
+     * prüft (`CLAUDE.md`).
+     *
+     * **Die Zahl ist eine Untergrenze und keine Ansage.** Schritt 4 hat zwei
+     * Operationen dazugebracht (`*.console.indexes`); ein `assertSame(10, …)`
+     * wäre bei jeder Erweiterung rot geworden — für eine Ordnung, die er
+     * durchsetzen soll.
      */
     public function test_there_are_console_operations_to_guard(): void
     {

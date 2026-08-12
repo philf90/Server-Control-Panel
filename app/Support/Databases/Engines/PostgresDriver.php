@@ -236,6 +236,7 @@ final class PostgresDriver implements EngineDriver
     public const CONSOLE = [
         'tables' => 'pg.console.tables',
         'columns' => 'pg.console.columns',
+        'indexes' => 'pg.console.indexes',
         'rows' => 'pg.console.rows',
         'cell' => 'pg.console.cell',
         'row.write' => 'pg.console.row.write',

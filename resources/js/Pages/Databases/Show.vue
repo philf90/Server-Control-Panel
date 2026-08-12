@@ -60,7 +60,15 @@ interface Row {
 const props = defineProps<{
   database: Row
   subscription: { id: number; name: string; prefix: string } | null
-  can: { update: boolean; delete: boolean }
+  /**
+   * Was der Betrachter hier darf.
+   *
+   * **`console` fehlt dem Betreiber**, und das ist keine Lücke: Er sieht die
+   * Daten seiner Kunden nicht nebenbei (`docs/46 §3`, Entscheidung 3). Wer im
+   * Störfall hineinsehen muss, meldet sich als Kunde an — der Weg hat einen
+   * Namen und steht doppelt im Protokoll.
+   */
+  can: { update: boolean; delete: boolean; console: boolean }
 
   /**
    * Das Passwort eines gerade angelegten oder zurückgesetzten Zugangs.
@@ -304,6 +312,19 @@ function size(): string {
     </p>
 
     <FormErrors />
+
+    <!--
+      **Der Einstieg in die Konsole steht oben und nicht in einem Bereich.**
+      Er ist keine Angabe über die Datenbank, sondern der Weg in sie hinein —
+      und `can.console` ist die eine Fähigkeit, die ein Betreiberkonto **nicht**
+      bekommt (`docs/46 §3`, Entscheidung 3). Der Knopf fehlt dann, er ist nicht
+      abgeblendet: `AbilityReachTest`.
+    -->
+    <div v-if="props.can.console" class="button-row">
+      <Link :href="`/databases/${props.database.id}/console`" class="button">
+        Tabellen durchsehen
+      </Link>
+    </div>
 
     <!--
       **Der Behälter trägt den Abstand, nicht der Bereich** (`SectionSpacingTest`).

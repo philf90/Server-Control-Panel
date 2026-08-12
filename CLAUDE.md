@@ -165,7 +165,7 @@ lesbare Katalogsichten, die Namen führen, und eine Absperrung, die bei
 
 Ausgeliefert wird `v0.5.3-rc.2`.
 
-**P5c ist geplant, nicht gebaut** — `docs/46`, das Datenbankmanagement: Tabellen
+**P5c ist bis Schritt 4 gebaut** — `docs/46`, das Datenbankmanagement: Tabellen
 und Struktur durchsehen, Zeilen ansehen, filtern, blättern und ändern, für beide
 Systeme. Vier Entscheidungen des Betreibers tragen ihn, und die zweite hat die
 Architektur entschieden: **kein freies SQL.** Damit bekommt der Agent typisierte
@@ -532,6 +532,26 @@ Testen berücksichtigen:
 
   > **Eine Messung, die einmal jemand von Hand macht, ist ein Datum. Eine, die
   > die CI macht, ist eine Zusage.**
+- **npm geht, Composer nicht — und das ist keine Kleinigkeit.** Gemessen am
+  12. August 2026: `npm ping` antwortet, `npm ci` holt 108 Pakete in neun
+  Sekunden, `npm run build` und `npm run types` laufen durch. Der Proxy sperrt
+  `codeload.github.com` (Composer), nicht die npm-Registry. Damit sind
+  **Typprüfung, Bau und die Überlaufmessung bei 390 px hier fahrbar**, auch wenn
+  `vendor/` fehlt: Das gebaute Stylesheet aus `public/build` plus das Markup des
+  fraglichen Bausteins in einer eigenen HTML-Datei, gerendert im
+  vorinstallierten Chromium, `scrollWidth - clientWidth` per `<script>` als Text
+  auf die Seite. Hier stand neun Monate lang nur, was ohne `vendor/` alles nicht
+  geht, und zu npm nichts — ich hatte es stillschweigend für genauso gesperrt
+  gehalten.
+
+  **Und die Messung braucht ihre eigene Gegenprobe.** Ein absichtlicher
+  900px-Block muss dort eine Zahl erzeugen; tut er es nicht, misst das Skript
+  nichts und seine Nullen bedeuten nichts.
+
+  > **Eine Messung, die nie etwas anderes als Null liefern kann, ist keine.**
+
+  Was das **nicht** ersetzt: den Blick auf die echte Seite mit echten Daten. Der
+  braucht `artisan serve` und damit `vendor/`.
 - **kein nginx, kein PHP-FPM, kein Agent, kein systemd.** Operationen laufen
   gegen Attrappen. Zwei Fehler sind nur aufgefallen, weil die CI nginx *hat*
   und dieser Container nicht — Tests, die Systemzustand annehmen, gehören

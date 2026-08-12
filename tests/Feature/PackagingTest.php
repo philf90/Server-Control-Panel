@@ -284,6 +284,106 @@ final class PackagingTest extends TestCase
         ));
     }
 
+    /**
+     * Ein Abruf aus dem Netz wird wiederholt — eine Messung am Prüfling nie.
+     *
+     * **Der Anlass sind zwei Fehlschläge an einem Tag, beide ohne Zutun des
+     * Codes.** Am 12. August 2026 scheiterte „nfpm bereitstellen" einmal mit
+     * `curl: (56) Connection died` und einmal mit `curl: (22) … error: 503`;
+     * beide Male haben vier Geschwisterjobs denselben Schritt in derselben
+     * Minute erfolgreich gefahren. In `release.yml` steht derselbe Abruf, und
+     * dort heisst ein Fehlschlag: zu einem gesetzten Tag gibt es kein Paket.
+     *
+     * **Die Regel hat zwei Hälften, und die zweite ist die wichtigere.** Nicht
+     * jeder `curl` gehört wiederholt: Die Abfrage auf `https://127.0.0.1:8443/health`
+     * misst, ob der Prüfling antwortet. Ein `--retry` davor machte aus „das
+     * Panel ist nicht hochgekommen" ein „es hat etwas länger gedauert" — und
+     * genau das soll dieser Schritt ja unterscheiden.
+     *
+     * > **Ein Wiederholversuch über einer Messung misst nicht mehr, ob es
+     * > funktioniert, sondern nur noch, ob es irgendwann funktioniert.**
+     *
+     * **Und ein Abruf geht nicht in eine Pipe.** `--retry` beginnt die
+     * Übertragung neu; was schon durch die Pipe ist, hat der Empfänger gelesen,
+     * und der zweite Versuch schöbe Bytes hinterher, die nicht an diese Stelle
+     * gehören. Das ist schlimmer als der Fehlschlag, weil es aussieht wie
+     * Erfolg.
+     */
+    public function test_a_fetch_retries_and_a_probe_does_not(): void
+    {
+        $workflows = glob(dirname(__DIR__, 2).'/.github/workflows/*.yml') ?: [];
+
+        $this->assertGreaterThanOrEqual(3, count($workflows), 'Das Glob findet keine Arbeitsabläufe mehr.');
+
+        $found = [];
+        $fetches = 0;
+        $probes = 0;
+
+        foreach ($workflows as $path) {
+            $lines = explode("\n", (string) file_get_contents($path));
+
+            foreach ($lines as $number => $line) {
+                // Ein Kommentar ist kein Kommando — und dieser Wächter erklärt
+                // sich in Kommentaren, die `curl` beim Namen nennen.
+                if (str_starts_with(ltrim($line), '#') || ! preg_match('/(?:^|\s)curl\s/', $line)) {
+                    continue;
+                }
+
+                // Fortsetzungszeilen gehören dazu: Ziel und Adresse stehen bei
+                // einem mehrzeiligen Aufruf nicht in derselben Zeile wie
+                // `curl`, und ein `|` kann am Ende jeder von ihnen stehen.
+                $command = rtrim($line);
+                $next = $number;
+
+                while (str_ends_with($command, '\\') && isset($lines[$next + 1])) {
+                    $next++;
+                    $command = rtrim(substr($command, 0, -1)).' '.trim($lines[$next]);
+                }
+
+                $where = basename($path).':'.($number + 1);
+
+                // Ein Abruf holt etwas von aussen; eine Messung fragt den
+                // Prüfling, und der steht auf diesem Rechner.
+                $probe = (bool) preg_match('#https?://(127\.0\.0\.1|localhost|\[::1\])#', $command);
+
+                if ($probe) {
+                    $probes++;
+
+                    if (str_contains($command, '--retry')) {
+                        $found[] = $where.' — Messung am Prüfling mit `--retry`';
+                    }
+
+                    continue;
+                }
+
+                if (! preg_match('#https?://#', $command)) {
+                    continue; // z.B. der Paketname `php8.4-curl` in einer apt-Zeile
+                }
+
+                $fetches++;
+
+                if (! str_contains($command, '--retry')) {
+                    $found[] = $where.' — Abruf aus dem Netz ohne `--retry`';
+                }
+
+                if (preg_match('/\|\s*(sudo\s+)?\w/', $command)) {
+                    $found[] = $where.' — Abruf aus dem Netz in eine Pipe';
+                }
+            }
+        }
+
+        $this->assertGreaterThanOrEqual(3, $fetches, 'Es wird kaum ein Abruf gefunden — dann prüft die eine Hälfte nichts.');
+        $this->assertGreaterThanOrEqual(1, $probes, 'Es wird keine Messung am Prüfling gefunden — dann prüft die andere Hälfte nichts.');
+
+        $this->assertSame([], $found, sprintf(
+            "Diese Aufrufe halten die Regel nicht ein:\n  %s\n\n".
+            "Ein Abruf aus dem Netz trägt `--retry` und geht in eine Datei, nicht in eine Pipe — ein\n".
+            "Wiederholversuch hinter einer Pipe wiederholt nur die Hälfte. Eine Messung am Prüfling trägt\n".
+            'kein `--retry`: Sie soll unterscheiden, ob es läuft, und nicht, ob es irgendwann läuft.',
+            implode("\n  ", $found),
+        ));
+    }
+
     public function test_the_release_publishes_every_file_the_installer_fetches(): void
     {
         $root = dirname(__DIR__, 2);

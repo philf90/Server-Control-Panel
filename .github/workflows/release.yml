@@ -58,10 +58,16 @@ jobs:
           node-version: '22'
           cache: npm
 
+      # Dieselbe Bauform wie in `ci.yml`, und hier wiegt sie schwerer: Ein
+      # Fehlschlag an dieser Stelle heisst, dass es zu einem gesetzten Tag kein
+      # Paket gibt. Erst in eine Datei, dann auspacken — ein `--retry` an einer
+      # Pipe wiederholt nur die Hälfte, weil `tar` das Vorige schon gelesen hat.
       - name: nfpm bereitstellen
         run: |
-          curl -fsSL https://github.com/goreleaser/nfpm/releases/download/v2.43.0/nfpm_2.43.0_Linux_x86_64.tar.gz \
-            | sudo tar -xz -C /usr/local/bin nfpm
+          curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors \
+            -o "${RUNNER_TEMP}/nfpm.tar.gz" \
+            https://github.com/goreleaser/nfpm/releases/download/v2.43.0/nfpm_2.43.0_Linux_x86_64.tar.gz
+          sudo tar -xzf "${RUNNER_TEMP}/nfpm.tar.gz" -C /usr/local/bin nfpm
 
       - name: Bauen
         run: |

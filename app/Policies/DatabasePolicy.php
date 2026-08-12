@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Policies;
 
 use App\Enums\Permission;
+use App\Http\Controllers\ImpersonationController;
 use App\Models\Account;
 use App\Models\Database;
 use App\Models\Subscription;
 use App\Support\Databases\Databases;
 use App\Support\Plans\Feature;
+use Tests\Feature\AbilityReachTest;
 
 /**
  * Wer was mit einer Datenbank darf.
@@ -89,6 +91,41 @@ final class DatabasePolicy
      */
     public function delete(Account $account, Database $database): bool
     {
+        return $this->update($account, $database);
+    }
+
+    /**
+     * Die Konsole — **die einzige Fähigkeit dieses Panels, die der Betreiber
+     * nicht hat.**
+     *
+     * Entscheidung 3 aus `docs/46 §3`: Das Datenbankmanagement gehört dem
+     * Kunden für seine eigenen Datenbanken. Damit stellt sich die Frage „wer hat
+     * in Kundendaten gesehen" nicht — und der Knopf erscheint für ein
+     * Betreiberkonto gar nicht erst, weil {@see AbilityReachTest}
+     * darauf besteht, dass eine gezeigte Aktion dieselbe Policy fragt, die sie
+     * später abweist.
+     *
+     * **`isAdmin()` weist hier ab, und das ist die Umkehrung des sonstigen
+     * Musters.** Überall sonst in dieser Datei kommt der Betreiber über
+     * {@see self::may()} durch; hier ist er der einzige, der es nicht tut.
+     *
+     * **Und es gibt eine Tür, die deshalb keine Lücke ist.** „Anmelden als
+     * Kunde" ({@see ImpersonationController}) meldet
+     * das Kundenkonto an — `isAdmin()` ist dann falsch, die Konsole geht auf,
+     * und **jede Handlung steht doppelt im Protokoll**, mit handelnder Person
+     * und Kontext (`docs/20 §6.3`). Wer im Störfall hineinsehen muss, geht dort
+     * hindurch und hinterlässt mehr Spur, als eine eigene Betreiberkonsole je
+     * hätte.
+     *
+     * > **Der Unterschied zwischen einem Weg, den es nicht gibt, und einem, der
+     * > einen Namen und ein Protokoll hat, ist der ganze Punkt.**
+     */
+    public function console(Account $account, Database $database): bool
+    {
+        if ($account->isAdmin()) {
+            return false;
+        }
+
         return $this->update($account, $database);
     }
 

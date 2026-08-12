@@ -11,6 +11,11 @@ use SrvPanel\Agent\Ops\AcmeCertificateRemove;
 use SrvPanel\Agent\Ops\AgentPing;
 use SrvPanel\Agent\Ops\CertificateUpload;
 use SrvPanel\Agent\Ops\ConfigValidate;
+use SrvPanel\Agent\Ops\DbConsoleCell;
+use SrvPanel\Agent\Ops\DbConsoleColumns;
+use SrvPanel\Agent\Ops\DbConsoleRows;
+use SrvPanel\Agent\Ops\DbConsoleRowWrite;
+use SrvPanel\Agent\Ops\DbConsoleTables;
 use SrvPanel\Agent\Ops\DbDatabaseCreate;
 use SrvPanel\Agent\Ops\DbDatabaseRemove;
 use SrvPanel\Agent\Ops\DbDumpCreate;
@@ -34,6 +39,11 @@ use SrvPanel\Agent\Ops\PanelTls;
 use SrvPanel\Agent\Ops\PanelTlsInfo;
 use SrvPanel\Agent\Ops\PanelUpdate;
 use SrvPanel\Agent\Ops\PanelVhost;
+use SrvPanel\Agent\Ops\PgConsoleCell;
+use SrvPanel\Agent\Ops\PgConsoleColumns;
+use SrvPanel\Agent\Ops\PgConsoleRows;
+use SrvPanel\Agent\Ops\PgConsoleRowWrite;
+use SrvPanel\Agent\Ops\PgConsoleTables;
 use SrvPanel\Agent\Ops\PgDatabaseCreate;
 use SrvPanel\Agent\Ops\PgDatabaseRemove;
 use SrvPanel\Agent\Ops\PgDumpCreate;
@@ -246,7 +256,21 @@ final class Registry
          * **Keine der zehn bekommt einen Lebenslauf.** Ein eingereihter Vorgang
          * legt seine Argumente in `operations.payload` ab, und dort stünde ein
          * Filterwert oder der Inhalt einer Kundenzeile (`docs/46 §12`).
+         *
+         * **Mit Schritt 3 stehen sie hier**, weil es sie jetzt ruft:
+         * `App\Support\Databases\Console` über `Client::call`.
          */
+        $this->register(new DbConsoleTables);
+        $this->register(new DbConsoleColumns);
+        $this->register(new DbConsoleRows);
+        $this->register(new DbConsoleCell);
+        $this->register(new DbConsoleRowWrite);
+
+        $this->register(new PgConsoleTables);
+        $this->register(new PgConsoleColumns);
+        $this->register(new PgConsoleRows);
+        $this->register(new PgConsoleCell);
+        $this->register(new PgConsoleRowWrite);
     }
 
     public function register(Op $op): void

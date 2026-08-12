@@ -10262,3 +10262,42 @@ liegen können.
 Dazu übersetzen beide Konsolen `relkind` und `TABLE_TYPE` in `table` und `view`.
 Keines der beiden Wörter gehört in eine Vue-Datei — und die Fallunterscheidung
 dort wäre die dritte Fassung einer Regel, die es schon zweimal gibt.
+
+### Schritt 3 von P5c — die Anwendung, und die zehn Operationen bekommen ihren Aufrufer
+
+`App\Support\Databases\Console` ruft den Agenten unmittelbar, fünf
+Controller-Methoden, fünf Routen mit `can:console,database`, und
+`DatabasePolicy::console()`. Damit stehen die zehn `*.console.*`-Operationen
+wieder in der Registratur — diesmal mit einem Weg zu ihnen.
+
+**`console` ist die einzige Fähigkeit dieses Panels, die der Betreiber nicht
+hat.** Überall sonst in `DatabasePolicy` kommt er durch; hier weist `isAdmin()`
+ab (Entscheidung 3, `docs/46 §3`). Wer im Störfall in Kundendaten sehen muss,
+meldet sich als Kunde an — `Auth::login($target)` macht `isAdmin()` falsch, die
+Konsole geht auf, und jede Handlung steht doppelt im Protokoll.
+
+> **Der Unterschied zwischen einem Weg, den es nicht gibt, und einem, der einen
+> Namen und ein Protokoll hat, ist der ganze Punkt.**
+
+**Vier der fünf Griffe sind `POST`, weil ein Filterwert und ein Zeilenschlüssel
+nicht in eine Adresse gehören** — dort stünden sie im Zugriffsprotokoll des
+Webservers, in der Verlaufsliste des Browsers und in jedem `Referer`. Dieselbe
+Überlegung wie bei `operations.payload`, eine Schicht weiter aussen. Der fünfte
+holt nur die Tabellenliste und ist es trotzdem, damit die fünf zusammenbleiben.
+
+**Und der Einstieg ist noch keine Seite.** Schritt 3 baut ausdrücklich keine
+Oberfläche; ein `Inertia::render('Databases/Console')` bräuchte aber die
+Vue-Datei, und `InertiaPagesTest` besteht darauf, dass es sie gibt. Er bleibt
+bis Schritt 4 ein JSON-Griff.
+
+**Der neue Wächter ist `ConsoleQueueTest`**, und er prüft die Regel, deren
+Verletzung man nicht sieht: Ein eingereihter Konsolenaufruf **funktioniert** —
+die Zeile wird geändert, die Antwort kommt, die Seite sieht richtig aus. Was
+dazukommt, ist eine Kopie der Kundendaten in `operations.payload`, und sie fällt
+erst auf, wenn jemand ein Jahr später die Vorgangsliste eines Kunden durchsieht.
+
+Auf `EngineDriver` kommen zwei Methoden: `consoleOperation()` macht aus dem
+kurzen Griff `rows` den Namen `db.console.rows` oder `pg.console.rows`, und
+`consoleSchema()` beantwortet, was im Feld `schema` steht — `public` für
+PostgreSQL, der Name der Datenbank für MariaDB. Damit bleibt die Verzweigung auf
+das System die eine aus `Databases::driver()` und wird nicht zu fünf.

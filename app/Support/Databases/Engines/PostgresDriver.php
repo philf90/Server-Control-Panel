@@ -214,6 +214,26 @@ final class PostgresDriver implements EngineDriver
         ]);
     }
 
+    public function consoleOperation(string $handle): string
+    {
+        return 'pg.console.'.$handle;
+    }
+
+    /**
+     * Immer `public`.
+     *
+     * Das Panel legt keine weiteren Schemata an, und der Kunde bekommt kein
+     * `CREATE SCHEMA` (`docs/38 §5`). Ein Schema, das ein mitgebrachter Dump
+     * angelegt hat, ist damit über die Konsole nicht erreichbar — eine benannte
+     * Lücke und keine Nachlässigkeit: Sie zu schliessen hiesse, das Feld aus
+     * der Anfrage zu übernehmen, und dann stünde ein Bezeichner in der Nutzlast,
+     * den niemand nachgeschlagen hat.
+     */
+    public function consoleSchema(Database $database): string
+    {
+        return 'public';
+    }
+
     public function removalTask(): string
     {
         return 'pg.database.remove';

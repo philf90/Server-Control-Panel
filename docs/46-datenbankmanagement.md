@@ -813,10 +813,18 @@ mitzunehmen.
 Vier Unterschiede zur PostgreSQL-Hälfte, jeder mit Grund, stehen in §20.5.
 `EngineReachTest` geht ohne Ausnahmeeintrag auf: fünf Paare, fünf Gegenstücke.
 
-### Schritt 3 — Die Anwendung
+### Schritt 3 — Die Anwendung ✓
 
-`App\Support\Databases\Console`, der Controller, die Routen mit `can:`, die
-Policy-Methode, die `can`-Ablage im Inertia-Payload. Keine Oberfläche.
+**Erledigt am 12. August 2026.** `App\Support\Databases\Console`, fünf
+Controller-Methoden, fünf Routen mit `can:console,database`,
+`DatabasePolicy::console()`, die `can`-Ablage auf der Datenbankseite — und die
+zehn Agent-Operationen sind jetzt registriert, weil sie einen Aufrufer haben.
+
+**Alle fünf Griffe sind `POST` und geben JSON zurück**, auch der, der nur die
+Tabellenliste holt. Zwei Gründe, und der zweite ist der, der nicht auf der Hand
+liegt (§20.7).
+
+Was beim Bauen anders war, steht in §20.7.
 
 ### Schritt 4 — Tabellen und Struktur
 
@@ -1363,3 +1371,35 @@ können (`docs/19 §4a`).
 übersetzen beide Konsolen in `table` und `view` (`Pg\Console::KINDS`,
 `Db\Console::KINDS`). Sonst stünde die Fallunterscheidung in der Oberfläche —
 und damit die dritte Fassung einer Regel, die es zweimal gibt.
+
+### 20.7 Fünfmal `POST`, und der Einstieg ist noch keine Seite
+
+**Vier der fünf Griffe müssen `POST` sein, und der Grund ist der Inhalt.** Ein
+Filterwert und ein Zeilenschlüssel gehören nicht in eine Adresse: Dort stünden
+sie im Zugriffsprotokoll des Webservers, in der Verlaufsliste des Browsers und
+in jedem `Referer`, den die Seite danach schickt. Das ist dieselbe Überlegung,
+aus der sie nicht in `operations.payload` dürfen (§12) — nur eine Schicht weiter
+aussen, und dort ist sie noch leichter zu übersehen.
+
+**Der fünfte ist es aus einem schwächeren Grund**, und der gehört benannt: Er
+holt die Tabellenliste und trägt nichts, was nicht ohnehin in der Adresse steht.
+Er ist `POST`, damit die fünf zusammenbleiben — eine Bauform, die für einen von
+fünf abweicht, muss später jemand erklären, und beim Erklären wird sie
+angeglichen, wahrscheinlich in die falsche Richtung.
+
+**Und er ist noch keine Seite.** Der Plan sieht für Schritt 3 ausdrücklich keine
+Oberfläche vor; ein `Inertia::render('Databases/Console')` bräuchte aber die
+Vue-Datei, und `InertiaPagesTest` besteht zu Recht darauf, dass es sie gibt. Der
+Einstieg bleibt deshalb bis Schritt 4 ein JSON-Griff und wird dort zur
+`GET`-Route mit einer Ansicht.
+
+> **Ein Schritt, der seine Grenze einhält, muss sie manchmal an einer Stelle
+> ziehen, an der sie unbequem liegt.**
+
+**Dazu zwei Kleinigkeiten, die sonst niemand aufschriebe.** Für PostgreSQL ist
+`schema` immer `public` — das Panel legt keine weiteren Schemata an, und ein
+Schema, das ein mitgebrachter Dump angelegt hat, ist über die Konsole nicht
+erreichbar. Es zu übernehmen hiesse, einen Bezeichner aus der Anfrage in die
+Nutzlast zu legen, den niemand nachgeschlagen hat. Und `values` geht **ohne**
+`array_filter` durch: Es würfe genau die Spalten weg, die auf `NULL` gesetzt
+werden sollen (§10.1).

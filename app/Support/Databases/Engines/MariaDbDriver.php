@@ -140,6 +140,23 @@ final class MariaDbDriver implements EngineDriver
         ]);
     }
 
+    public function consoleOperation(string $handle): string
+    {
+        return 'db.console.'.$handle;
+    }
+
+    /**
+     * Die Datenbank selbst — in MariaDB gibt es kein Schema daneben.
+     *
+     * `Db\Console::schema()` besteht im Agenten darauf und weist alles andere
+     * ab. Dass hier trotzdem ein Wert steht statt einer leeren Zeichenkette,
+     * ist Absicht: Ein leeres Feld sähe aus wie ein vergessenes.
+     */
+    public function consoleSchema(Database $database): string
+    {
+        return (string) $database->name;
+    }
+
     public function removalTask(): string
     {
         return 'db.database.remove';

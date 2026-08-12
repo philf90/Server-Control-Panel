@@ -446,6 +446,33 @@ git checkout -- app/ 2>/dev/null
 pruefe "  … zurückgesetzt wieder grün" RedirectTargetTest passed
 
 echo
+echo "── SeriesReadingTest: die Ablesung rundet die Reihe weg ──"
+#
+# Die CPU-Kachel stand auf einem ruhigen Server dauerhaft auf 0 % — in der
+# grossen Zahl und bei jeder Ablesung auf der Linie —, waehrend die Kurve
+# daneben aus den Rohwerten ihre Ausschlaege zeichnete. Der Wert war nicht
+# falsch, er war weggerundet: alles zwischen 0,1 und 0,9 bei null Stellen.
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Store.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """        return static function (float $value) use ($unit, $decimals): string {
+            $betrag = abs($value);
+            $noetig = $betrag >= 10.0 ? 0 : ($betrag >= 1.0 ? 1 : 2);
+
+            return number_format($value, max($decimals, $noetig), ',', '.').$unit;
+        };""",
+    """        return static fn (float $value): string => number_format($value, $decimals, ',', '.').$unit;""",
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Ablesung ohne Aufloesung" \
+  SeriesReadingTest::test_a_moving_curve_below_one_percent_is_not_all_zeroes failed
+git checkout -- app/ 2>/dev/null
+pruefe "  … zurückgesetzt wieder grün" SeriesReadingTest passed
+
+echo
 echo "── PairedSeriesTest: jede Kurve gegen ihre eigene Spanne ──"
 #
 # Der Fehler, der auf einem Bildschirmfoto richtig aussieht: Zwei Kurven, jede

@@ -9853,3 +9853,45 @@ Markierung gibt: Das eine rote fällt dann nicht mehr auf.
 dass es die eine grüne Meldung **gibt** und dass sie nicht in einem Formular
 steht. Ohne die erste Hälfte ginge „nirgends eine grüne Meldung" als Erfolg
 durch.
+
+### Die CPU-Kachel stand auf 0 %, während ihre Kurve Ausschläge zeigte
+
+Gemeldet vom Betreiber, mit Bildschirmfoto: Die Linie verläuft plausibel, aber
+die grosse Zahl **und jede Ablesung beim Zeigen auf die Kurve** stehen auf
+`0 %`.
+
+Falsch war der Wert nicht. `cpu` wurde mit **null** Nachkommastellen
+formatiert, und die Auslastung eines ruhigen Servers liegt den ganzen Tag
+zwischen 0,1 und 0,9 — `number_format(0,42, 0)` ist `0`. Die Kurve daneben
+zeichnet aus den **Rohwerten** und zeigt deshalb völlig richtig, dass sich
+etwas tut.
+
+> **Eine Zahl, die jeden Wert einer Reihe gleich schreibt, misst nichts mehr —
+> sie behauptet nur noch.**
+
+Genau diese Mischung macht den Fehler teuer: Das Bild sagt „da tut sich etwas",
+die Zahl sagt „nichts", und beide kommen aus derselben Reihe. Wer das sieht,
+sucht beim Sammler oder beim Agenten — die Zahl steht ja da, sie ist nur null.
+
+Die Stellenzahl richtet sich jetzt nach der **Grösse des Wertes**: unter 1 zwei
+Stellen, unter 10 eine, darüber keine. So schreibt es auch ein Mensch —
+„0,42 %", „3,7 %", „37 %". **Weniger als angefragt wird es nie:** Die Load
+fragt zwei Stellen an und behält sie auch bei `12,00`, sonst hinge ihre
+Genauigkeit daran, wie ausgelastet der Server gerade ist.
+
+Betroffen war allein die CPU: RAM sitzt nie unter einem Prozent, die Load
+rechnet längst mit zwei Stellen, und Netz und Schreibdurchsatz haben ihren
+eigenen Formatierer, der seine Grössenordnung schon aus der Reihe wählt.
+
+**Und der Wächter dazu hat beim Gegenprüfen seinen eigenen Fehler gezeigt.**
+Die erste Fassung verlangte „mehr als eine verschiedene Ablesung" — mit der
+alten Formatierung wird `0,88` zu `1 %` und alles andere zu `0 %`, also zwei
+verschiedene, Bedingung erfüllt, grün. Er hätte den Fehler durchgelassen, wegen
+dem es ihn gibt. Verlangt ist jetzt die **Auflösung der Reihe**: acht
+verschiedene Messwerte, acht verschiedene Ablesungen. Gebrochen meldet er
+`2 von 8`.
+
+`SeriesReadingTest` prüft dazu die drei Richtungen, die eine übereifrige
+Lösung kaputt machen würde: Die Geometrie der Kurve bleibt unberührt, ein
+ausgelasteter Server behält ganze Zahlen, und angefragte Stellen werden nie
+weggenommen.

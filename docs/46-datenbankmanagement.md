@@ -782,12 +782,21 @@ unlesbar, während MariaDBs `JSON_VALID()` sie für gültig hält (§8.2).
 Beides wäre in Schritt 2 als Fehler aufgetaucht — das erste vermutlich gar nicht,
 weil es keine Ausnahme wirft, sondern falsche Zeichen liefert.
 
-### Schritt 1 — Der Agent für PostgreSQL
+### Schritt 1 — Der Agent für PostgreSQL ✓
 
-`Pg\Console` (die Katalogfragen und der Bau der Anweisungen), die vier
-`pg.console.*`-Operationen, `Names::ephemeral()` um das `c`-Zeichen erweitert,
-`Names::isEphemeral()` mit. Gemessen gegen einen Wegwerf-Cluster im Container —
-das geht hier vollständig, ohne Panel und ohne Warteschlange.
+**Erledigt am 12. August 2026.** `Pg\Console` (die Katalogfragen und der Bau der
+Anweisungen), die fünf `pg.console.*`-Operationen, `Session::queryAs()`,
+`jsonAs()` und `executeAs()`, `Names::ephemeral()` um das `c`-Zeichen erweitert,
+`isEphemeral()` mit.
+
+Gemessen gegen den **echten Debian-Cluster** im Container und nicht gegen einen
+im Scratchpad: `Pg\Server::require()` fragt `pg_lsclusters`, und ein Cluster,
+den Debians Werkzeug nicht kennt, gibt es für den Agenten nicht. Einundfünfzig
+Behauptungen, alle grün — darunter die vier Werte aus Kriterium 2, die Kürzung,
+der Filter mit einem Prozentzeichen im Wert, ein Ausbruchsversuch, die fremde
+Datenbank und die drei Regeln des Schreibwegs.
+
+**Drei Dinge waren beim Bauen anders als im Plan**, sie stehen in §20.
 
 ### Schritt 2 — Derselbe Agent für MariaDB
 
@@ -1027,8 +1036,17 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 
 # 5  DER BEFRISTETE ZUGANG  ← Kriterium 1
 #    Nach den Punkten 1 bis 4, ohne offene Konsole:
-#      SELECT rolname FROM pg_roles WHERE rolname LIKE '%\_c%';     → leer
-#      SELECT user FROM mysql.user WHERE user LIKE '%\_c%';         → leer
+#      SELECT rolname FROM pg_roles
+#       WHERE rolname ~ '^x[0-9a-f]{16}_[rc][0-9a-f]{8}$';           → leer
+#      SELECT user FROM mysql.user
+#       WHERE user REGEXP '^p[0-9]+_[rc][0-9a-f]{8}$';               → leer
+#    HIER STAND `LIKE '%\_c%'`, UND DAS KANN NIE LEER SEIN. Gemessen am
+#    12. August 2026 auf einem nackten PostgreSQL 16: Das Muster trifft
+#    pg_checkpoint, pg_create_subscription und pg_use_reserved_connections.
+#    Dieselbe Zeile mit `_r` — so steht sie in docs/38 §19 Punkt 7 — trifft
+#    sechs Rollen, darunter srvpanel_restore, das das Panel selbst anlegt.
+#    Der Ausdruck oben trifft die Form aus Names::isEphemeral() und sonst
+#    nichts.
 #    BELEG: DIE ABFRAGE ALLEIN GENÜGT NICHT — sie ist auch dann leer, wenn nie
 #           eine Konsole lief. Dazu gehört der Nachweis, dass einer ENTSTANDEN
 #           ist: das Journal des Agenten für einen der Läufe aus Punkt 1.
@@ -1170,6 +1188,14 @@ und nicht bei null.
    `DELETE` auf die falsche Zeile ist eine Handlung und kein Fehler; das Panel
    fragt zurück ([20 §7](20-hostingpanel-neuplan.md)) und hat für den Rest die
    Sicherungen aus P5.
+8. **Die Form einer befristeten Kennung ist breiter geworden.** `[rc]` statt
+   `r` reserviert mehr Namen, als es vorher tat (§20.2) — richtig für alles, was
+   ab jetzt entsteht, und **rückwirkend nicht**: Ein Zugang, der vor dieser
+   Fassung `c` plus acht Hexziffern hiess, gilt ab jetzt als Rest und würde vom
+   Aufräumlauf eingesammelt. Vor der Auslieferung gehört einmal nachgesehen:
+   `SELECT rolname FROM pg_roles WHERE rolname ~ '^x[0-9a-f]{16}_c[0-9a-f]{8}$'`
+   und das Gegenstück in `mysql.user`. Erwartet wird leer; ist es das nicht, ist
+   das ein Kundenzugang und kein Rest.
 7. **Es gibt keine optimistische Sperre.** Zwei Personen, die dieselbe Zeile
    gleichzeitig öffnen, überschreiben einander, und §10 fängt das nicht — die
    Zeile wird ja getroffen. Die Regel „nur geänderte Spalten" aus §10.1 hält den
@@ -1196,3 +1222,68 @@ Plans: **P5c fügt dem System keinen neuen Weg mit Rechten hinzu.** Es benutzt
 den, unter dem seit P5 fremde Dumps laufen.
 
 Geschätzt 2–3 Wochen, im Zuschnitt von P5b.
+
+---
+
+## 20. Umsetzung — was beim Bauen anders war als im Plan
+
+### 20.1 Ein Prozentzeichen, das zwei Herren dient
+
+`Console::writeStatement()` baut den `DO`-Block mit `sprintf()`, und der Block
+enthält `RAISE EXCEPTION '… hat % Zeilen getroffen …', getroffen`. **Das `%` ist
+in `RAISE` der Platzhalter für die Zahl und in `sprintf()` der Platzhalter für
+das nächste Argument** — PHP zählte zwei und bekam eins.
+
+Der Fehler heisst `ArgumentCountError` und nennt eine Zeilennummer in
+`Console.php`, nicht das Prozentzeichen. `php -l` sieht ihn nicht, weil eine
+Formatzeichenkette erst zur Laufzeit gezählt wird; gefunden hat ihn der erste
+Lauf gegen einen echten Cluster.
+
+> **Eine Zeichenkette, die zwei Sprachen gleichzeitig liest, ist an jeder Stelle
+> zweideutig, an der beide dasselbe Zeichen benutzen.**
+
+### 20.2 Die befristete Kennung braucht ein Zeichen mehr, und das kostet etwas
+
+`Names::ephemeral()` erzeugte `<präfix>_r<8 hex>`, und `suffix()` sperrt genau
+diese Form, damit kein Kunde einen Zugang bekommt, den der Aufräumlauf nach einer
+Stunde für einen Rest hält. Die Konsole bekommt `c` — und damit wird aus dem
+Muster `[rc]`.
+
+**Das reserviert mehr Kundennamen als vorher**, und rückwirkend gilt es nicht:
+Ein Zugang, der heute `c1234abcd` heisst, ist ab dieser Fassung ein Rest. Der
+Preis ist klein und er ist keiner, den man nachträglich merkt — deshalb steht er
+als Risiko 8 in §18, mit der Abfrage, die vor der Auslieferung einmal zu fahren
+ist.
+
+### 20.3 Jede Zelle ausser einer binären kommt als Text
+
+Die Spaltenliste castet mit `::text`, damit `left()` auf jedem Typ arbeitet und
+die Kürzung überall gilt. Die Folge steht nirgends im Plan und gehört gewusst:
+**Eine `integer`-Spalte kommt als `"3"` an und nicht als `3`.** Nur eine binäre
+Spalte trägt eine Zahl, und die ist ihre Länge.
+
+Das ist richtig so — die Anzeige braucht Text, und der Schlüssel geht als Text
+zurück, also gibt es genau eine Fassung eines Werts statt zweier. Es ist nur
+nicht selbstverständlich, und ein Test, der `=== 3` erwartet, ist rot, ohne dass
+etwas kaputt wäre. Genau das ist beim ersten Lauf passiert.
+
+### 20.4 Der Abnahmelauf von P5b trug eine Erwartung, die nie eintreten konnte
+
+Beim Nachbauen von Kriterium 1 fiel auf, dass die Abfrage nach Resten so nicht
+stimmen kann. `docs/38 §19` Punkt 7 schreibt:
+
+```
+SELECT rolname FROM pg_roles WHERE rolname LIKE '%\_r%';  → 0 Zeilen.
+```
+
+Gemessen am 12. August 2026 auf einem nackten PostgreSQL 16 trifft das Muster
+**sechs** Rollen: `pg_read_all_data`, `pg_read_all_settings`, `pg_read_all_stats`,
+`pg_read_server_files`, `pg_use_reserved_connections` — und `srvpanel_restore`,
+das das Panel für genau dieses Zurückspielen anlegt. Mit `_c` sind es drei.
+
+Das Kriterium ist richtig, die Abfrage war es nicht. Beide Fassungen sind
+berichtigt (`docs/38 §19`, `docs/46 §15`) und fragen jetzt nach der Form aus
+`Names::isEphemeral()`.
+
+> **Ein Abnahmeschritt, dessen Erwartung nie eintreten kann, wird beim Fahren
+> stillschweigend umgedeutet** — und ab da prüft er nichts mehr.

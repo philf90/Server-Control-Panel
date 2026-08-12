@@ -86,7 +86,26 @@ final class Names
      * `r3f9a20c1` nennt, verlöre ihn nach einer Stunde, weil der Aufräumlauf ihn
      * für den Rest eines abgebrochenen Zurückspielens hält.
      */
-    private const EPHEMERAL_SUFFIX = '/^r[0-9a-f]{8}$/D';
+    private const EPHEMERAL_SUFFIX = '/^[rc][0-9a-f]{8}$/D';
+
+    /**
+     * Das Zeichen, das sagt, wobei eine befristete Kennung entstanden ist.
+     *
+     * `r` fürs Zurückspielen (seit P5), `c` für die Konsole (`docs/46 §6`). Ein
+     * Rest auf dem Server sagt damit, aus welchem Vorgang er stammt — sonst
+     * kostet das Aufräumen genau die Zeit, die das Benennen gespart hätte.
+     *
+     * **Die Erweiterung von `r` auf `[rc]` reserviert mehr Namen als vorher**,
+     * und das ist kein Nebeneffekt, sondern der Zweck: {@see self::suffix()}
+     * sperrt beide Formen, damit kein Kunde einen Zugang bekommt, den der
+     * Aufräumlauf nach einer Stunde für einen Rest hält. Was sie **nicht** kann,
+     * ist rückwirkend gelten — ein Zugang, der vor dieser Fassung `c` plus acht
+     * Hexziffern hiess, gilt ab jetzt als Rest. Vor der Auslieferung gehört
+     * einmal nachgesehen, ob es einen gibt (`docs/46 §18`, Risiko 8).
+     */
+    public const KIND_RESTORE = 'r';
+
+    public const KIND_CONSOLE = 'c';
 
     /**
      * Ein neues Präfix — **einmal je Abonnement**.
@@ -268,9 +287,9 @@ final class Names
      * sie der Rückbau, wenn ein abgebrochener Vorgang sie stehenlässt, und damit
      * gehört sie sichtbar zu jemandem (`docs/36 §10.2`).
      */
-    public static function ephemeral(string $prefix): string
+    public static function ephemeral(string $prefix, string $kind = self::KIND_RESTORE): string
     {
-        return self::compose(self::prefix($prefix), 'r'.bin2hex(random_bytes(4)), 'Rollenname');
+        return self::compose(self::prefix($prefix), $kind.bin2hex(random_bytes(4)), 'Rollenname');
     }
 
     /**

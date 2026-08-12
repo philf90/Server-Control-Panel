@@ -10147,3 +10147,73 @@ endet in `ERROR 1142`. Eine Abweichung gibt es bei der Zeilenschätzung: Was in
 PostgreSQL `reltuples = -1` ist, gibt es in MariaDB für Basistabellen **nicht** —
 dafür ist `TABLE_ROWS` bei einer **Sicht** `NULL`. Dieselbe Falle, in jedem
 System an einer anderen Stelle.
+
+### Schritt 1 von P5c — der Agent kann PostgreSQL durchsehen
+
+`Pg\Console` und fünf Operationen: `pg.console.tables`, `.columns`, `.rows`,
+`.cell` und `.row.write` (`docs/46 §12`). Dazu `Session::queryAs()`,
+`jsonAs()` und `executeAs()` — die drei Wege, auf denen ein Lauf unter einer
+**befristeten Rolle** statt unter der Kennung des Agenten läuft.
+
+**Alle fünf gehen durch `Console::within()`, und das ist die Regel selbst.**
+Läuft eine Konsolenabfrage als `root`, sieht die Antwort genau gleich aus —
+dieselben Zeilen, dieselben Spalten. Was fehlt, ist die zweite Wand: Die
+Mandantentrennung ruhte dann allein auf `Names::belongsTo()`, also auf einer
+Prüfung dieses Projekts, und nicht auf den Rechten der Datenbank. Der Wächter
+dazu ist `ConsoleIdentityTest`; er prüft beide Richtungen, weil der Fehler im
+Ergebnis unsichtbar ist.
+
+**Keine der fünf hat einen Lebenslauf.** Ein eingereihter Vorgang legt seine
+Argumente in `operations.payload` ab, und dort stünde ein Filterwert oder der
+Inhalt einer Kundenzeile.
+
+**Gemessen wurde gegen den echten Debian-Cluster**, nicht gegen einen im
+Scratchpad: `Pg\Server::require()` fragt `pg_lsclusters`, und ein Cluster, den
+Debians Werkzeug nicht kennt, gibt es für den Agenten nicht. Einundfünfzig
+Behauptungen, alle grün — die vier Werte aus Kriterium 2, die Kürzung bei 512
+Zeichen und ihre Meldung, die binäre Spalte als Länge, ein Prozentzeichen im
+Filterwert (kein Platzhalter, weil `strpos` und nicht `LIKE`), ein
+Ausbruchsversuch, die fremde Datenbank, und die drei Regeln des Schreibwegs.
+
+**Drei Dinge waren beim Bauen anders als im Plan** (`docs/46 §20`).
+
+Das `%` in `RAISE EXCEPTION '… hat % Zeilen getroffen …'` ist zugleich ein
+Platzhalter von `sprintf()` — PHP zählte zwei und bekam eins. `php -l` sieht das
+nicht, weil eine Formatzeichenkette erst zur Laufzeit gezählt wird.
+
+> **Eine Zeichenkette, die zwei Sprachen gleichzeitig liest, ist an jeder Stelle
+> zweideutig, an der beide dasselbe Zeichen benutzen.**
+
+Die befristete Kennung trägt jetzt `[rc]` statt `r` — `c` für die Konsole, damit
+ein Rest auf dem Server sagt, wobei er entstanden ist. Das reserviert mehr
+Kundennamen als vorher und gilt rückwirkend **nicht**; die Abfrage, die vor der
+Auslieferung einmal zu fahren ist, steht als Risiko 8 in `docs/46 §18`.
+
+Und jede Zelle ausser einer binären kommt als **Text** an, weil die Spaltenliste
+mit `::text` castet, damit die Kürzung auf jedem Typ arbeitet. Eine
+`integer`-Spalte liefert `"3"` und nicht `3`. Das ist richtig — die Anzeige
+braucht Text, und der Schlüssel geht als Text zurück, also gibt es genau eine
+Fassung eines Werts statt zweier.
+
+### Ein Abnahmeschritt aus P5b konnte nie erfüllt werden
+
+Beim Nachbauen von Kriterium 1 fiel auf, dass die Abfrage nach Resten so nicht
+stimmen kann. `docs/38 §19` Punkt 7 schrieb:
+
+```
+SELECT rolname FROM pg_roles WHERE rolname LIKE '%\_r%';  → 0 Zeilen.
+```
+
+Gemessen auf einem nackten PostgreSQL 16 trifft das Muster **sechs** Rollen:
+`pg_read_all_data`, `pg_read_all_settings`, `pg_read_all_stats`,
+`pg_read_server_files`, `pg_use_reserved_connections` — und `srvpanel_restore`,
+das das Panel für genau dieses Zurückspielen anlegt. Die Erwartung „0 Zeilen"
+konnte auf keinem Server eintreten.
+
+Das Kriterium war richtig, die Abfrage nicht. Wer den Schritt wörtlich fährt,
+bekommt sechs Zeilen und legt sich die Erwartung zurecht — und ab da prüft der
+Schritt nichts mehr. Beide Fassungen fragen jetzt nach der Form aus
+`Names::isEphemeral()`.
+
+> **Ein Abnahmeschritt, dessen Erwartung nie eintreten kann, wird beim Fahren
+> stillschweigend umgedeutet.**

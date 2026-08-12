@@ -34,6 +34,11 @@ use SrvPanel\Agent\Ops\PanelTls;
 use SrvPanel\Agent\Ops\PanelTlsInfo;
 use SrvPanel\Agent\Ops\PanelUpdate;
 use SrvPanel\Agent\Ops\PanelVhost;
+use SrvPanel\Agent\Ops\PgConsoleCell;
+use SrvPanel\Agent\Ops\PgConsoleColumns;
+use SrvPanel\Agent\Ops\PgConsoleRows;
+use SrvPanel\Agent\Ops\PgConsoleRowWrite;
+use SrvPanel\Agent\Ops\PgConsoleTables;
 use SrvPanel\Agent\Ops\PgDatabaseCreate;
 use SrvPanel\Agent\Ops\PgDatabaseRemove;
 use SrvPanel\Agent\Ops\PgDumpCreate;
@@ -225,6 +230,26 @@ final class Registry
          * löst damit keinen Neustart aus.
          */
         $this->register(new PgRemoteAccess);
+
+        /*
+         * P5c: das Datenbankmanagement (docs/46).
+         *
+         * **Fünf Griffe und kein sechster für SQL.** Der Betreiber hat das
+         * Eingabefeld für beliebige Anweisungen ausgeschlossen (docs/46 §3,
+         * Entscheidung 2), und das ist der Grund, warum diese Fläche über den
+         * Agenten laufen darf: Was hier ankommt, sind Felder — Tabelle, Spalte,
+         * Richtung, Versatz — und kein Text, der zu einer Anweisung wird.
+         *
+         * **Keine davon hat einen Lebenslauf.** Ein eingereihter Vorgang legt
+         * seine Argumente in `operations.payload` ab, und dort stünde ein
+         * Filterwert oder der Inhalt einer Kundenzeile. Aufgerufen werden sie
+         * unmittelbar aus `App\Support\Databases\Console`.
+         */
+        $this->register(new PgConsoleTables);
+        $this->register(new PgConsoleColumns);
+        $this->register(new PgConsoleRows);
+        $this->register(new PgConsoleCell);
+        $this->register(new PgConsoleRowWrite);
     }
 
     public function register(Op $op): void

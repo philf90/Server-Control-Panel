@@ -17,6 +17,13 @@ PostgreSQL** — abgenommen am 11. August 2026 auf `cloudsrv24` gegen
 PostgreSQL 16.14: **alle sieben Kriterien aus `docs/38 §3`**, das Protokoll
 steht in **`docs/42`**. Die Übergabe dafür war `docs/37`, der Plan `docs/38`.
 
+**P5b ist am 12. August 2026 vollständig abgeschlossen und abgenommen** — mit
+dem Fernzugriff (`docs/45`), den fünf Befunden daraus und der Fassungsspanne als
+CI-Messung. **Zwei Punkte aus `docs/42 §5` bleiben dabei bewusst offen und sind
+nie gemessen worden:** der `template1`-Beleg und die Frage, ob ein Zugang ohne
+jede Datenbank überhaupt entstehen kann. Wer sie später anfasst, fängt bei
+`docs/42 §5` an und nicht bei null.
+
 **Der Fernzugriff ist abgenommen** — am 11. August 2026 auf `cloudsrv24`, alle
 sechzehn Punkte aus `docs/43`. Das Protokoll ist **`docs/45`**. Der Lauf hat
 **zwölf Fehler gefunden und keinen davon ein Test**; zwei haben ihn
@@ -115,10 +122,10 @@ der neuen Seite **„Allgemein"** — den Ort gab es vorher nicht.
 **Schritt 10 aus `docs/38 §17` ist gebaut** (der Fernzugriff): `pg.remote.access`
 schreibt `listen_addresses` nach `conf.d/60-srvpanel.conf` und den verwalteten
 Block nach `pg_hba.conf`, die Netze eines Zugangs stehen in `db_user_networks`,
-und `srvpanel db --remote=on` schaltet beide Systeme. **Abgenommen ist er
-nicht** — der Lauf dafür steht in **`docs/43`** und gehört auf `cloudsrv24`;
-er braucht `v0.5.2-rc.3`, weil vier seiner Punkte an der Betreiberseite hängen.
-Was sonst offen blieb, steht benannt in `docs/42 §5`.
+und `srvpanel db --remote=on` schaltet beide Systeme. **Abgenommen ist er seit
+dem 11. August 2026** — der Lauf stand in `docs/43`, das Protokoll ist
+`docs/45`. Was aus `docs/42 §5` offen blieb, steht dort benannt; zwei Punkte
+sind es geblieben.
 
 **Und der Fund dieses Schritts stand in keinem Plan:** In `pg_hba.conf` schrieb
 schon jemand — `Hba::ensure()` seit Schritt 6 —, und der **Rückweg** des
@@ -156,7 +163,7 @@ lesbare Katalogsichten, die Namen führen, und eine Absperrung, die bei
 > für jeden lesbar" stimmte — und war trotzdem die falsche Frage, weil er einen
 > von elf Kanälen nannte und den Preis der Antwort verschwieg.
 
-Ausgeliefert wird `v0.5.1-rc.11`.
+Ausgeliefert wird `v0.5.2-rc.7`.
 
 **Auch der Abnahmelauf von P4 hat sechs Fehler gefunden, und keinen davon ein
 Test.** Drei betrafen ein Kriterium, drei die Bedienung. Der teuerste sah aus wie ein Erfolg:

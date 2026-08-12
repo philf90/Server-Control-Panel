@@ -10301,3 +10301,31 @@ kurzen Griff `rows` den Namen `db.console.rows` oder `pg.console.rows`, und
 `consoleSchema()` beantwortet, was im Feld `schema` steht — `public` für
 PostgreSQL, der Name der Datenbank für MariaDB. Damit bleibt die Verzweigung auf
 das System die eine aus `Databases::driver()` und wird nicht zu fünf.
+
+### Ein zusammengesetzter Operationsname hat keinen Aufrufer
+
+Schritt 3 baute den Namen einer Konsolenoperation aus zwei Hälften —
+`'db.console.'.$handle` — und `AgentOperationReachTest` hat die CI rot gemacht:
+„Diese Operationen kennt der Agent, und niemand ruft sie auf", alle zehn.
+
+**Der Test sucht den Namen als Zeichenkette unter `app/`.** Er fragt nicht, ob es
+Code gibt, der das aufruft, sondern *ob ein Weg dorthin führt* — und auf eine
+zusammengesetzte Zeichenkette ist die Antwort Nein. Er hat recht: Ein Tippfehler
+in einem der fünf Griffe fiele erst auf, wenn ein Kunde die Konsole öffnet.
+
+**Die Lücke, gegen die er gebaut ist, hat dieses Projekt schon bezahlt.**
+`db.user.grant` hatte seit P5 einen Eintrag in der Ausnahmeliste, eine fertige
+Methode und keinen einzigen Aufrufer — drei Monate lang, gefunden von einer
+Frage des Betreibers und nicht vom Test (`docs/36 §22.3o`). Wer erklärt, dass ein
+Dienst unmittelbar aufruft, muss zeigen, dass es ihn gibt; eine zusammengesetzte
+Zeichenkette macht die Erklärung zu einer Behauptung.
+
+Die fünf Griffe stehen jetzt in jedem Treiber ausgeschrieben, als
+`CONSOLE`-Zuordnung, und ein unbekannter Griff wirft. Dieselbe Überlegung wie
+bei `Runner::PROGRAMS`, wo sie seit P0 steht:
+
+> **Aus einem Wert einen Namen zu bauen ist der Vorgang, den eine Positivliste
+> verhindert.**
+
+Dazu zehn Einträge in `WITHOUT_LIFECYCLE` mit ihrem Grund — dass die Argumente
+sonst in `operations.payload` lägen.

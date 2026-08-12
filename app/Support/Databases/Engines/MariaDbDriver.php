@@ -12,6 +12,8 @@ use RuntimeException;
 use SrvPanel\Agent\Client;
 use SrvPanel\Agent\Db\Names;
 use SrvPanel\Agent\Ops\DbDatabaseCreate;
+use SrvPanel\Agent\Runner;
+use Tests\Feature\AgentOperationReachTest;
 
 /**
  * MariaDB — unverändert das, was P5 gebaut hat.
@@ -140,9 +142,34 @@ final class MariaDbDriver implements EngineDriver
         ]);
     }
 
+    /**
+     * Die fünf Griffe der Konsole, **ausgeschrieben**.
+     *
+     * **Zusammengesetzt wäre kürzer und ist genau das, was hier nicht sein
+     * darf.** `'{prefix}.console.'.$handle` erzeugt denselben Namen — und
+     * {@see AgentOperationReachTest} findet ihn dann nirgends,
+     * weil er im Quelltext gar nicht steht. Der Wächter fragt: *Führt ein Weg
+     * dorthin?* Auf eine zusammengesetzte Zeichenkette antwortet er mit Nein,
+     * und er hat recht: Ein Tippfehler in einem der fünf Griffe fiele erst auf,
+     * wenn ein Kunde die Konsole öffnet.
+     *
+     * Dieselbe Überlegung wie bei {@see Runner::PROGRAMS}:
+     * *Aus einem Wert einen Pfad zu bauen ist der Vorgang, den eine Positivliste
+     * verhindert.*
+     *
+     * @var array<string, string>
+     */
+    public const CONSOLE = [
+        'tables' => 'db.console.tables',
+        'columns' => 'db.console.columns',
+        'rows' => 'db.console.rows',
+        'cell' => 'db.console.cell',
+        'row.write' => 'db.console.row.write',
+    ];
+
     public function consoleOperation(string $handle): string
     {
-        return 'db.console.'.$handle;
+        return self::CONSOLE[$handle] ?? throw new RuntimeException('Diesen Konsolengriff gibt es nicht: '.$handle);
     }
 
     /**

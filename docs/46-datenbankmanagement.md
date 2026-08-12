@@ -1372,7 +1372,38 @@ können (`docs/19 §4a`).
 `Db\Console::KINDS`). Sonst stünde die Fallunterscheidung in der Oberfläche —
 und damit die dritte Fassung einer Regel, die es zweimal gibt.
 
-### 20.7 Fünfmal `POST`, und der Einstieg ist noch keine Seite
+### 20.7 Ein zusammengesetzter Operationsname hat keinen Aufrufer
+
+`EngineDriver::consoleOperation()` machte im ersten Wurf aus dem Griff `rows` den
+Namen `'db.console.'.$handle`. Das ist kürzer, es funktioniert — und es hat die
+CI rot gemacht, aus einem Grund, der über diese Stufe hinausgeht.
+
+**`AgentOperationReachTest` sucht den Namen als Zeichenkette unter `app/`.** Er
+fragt nicht „gibt es Code, der das aufruft", sondern *„führt ein Weg dorthin?"*,
+und die Antwort auf eine zusammengesetzte Zeichenkette ist Nein: Der Name steht
+im Quelltext nirgends. Der Test hat recht — ein Tippfehler in einem der fünf
+Griffe fiele erst auf, wenn ein Kunde die Konsole öffnet.
+
+**Die zweite Hälfte des Wächters ist dabei die wichtigere**, und sie gibt es,
+weil dieses Projekt die Lücke schon einmal bezahlt hat: `db.user.grant` hatte
+seit P5 einen Eintrag in der Ausnahmeliste, eine fertige Methode und **keinen
+einzigen Aufrufer** — drei Monate lang, gefunden von einer Frage des Betreibers
+und nicht vom Test (`docs/36 §22.3o`). Wer erklärt, dass ein Dienst unmittelbar
+aufruft, muss zeigen, dass es diesen Dienst gibt. Eine zusammengesetzte
+Zeichenkette macht die Erklärung zu einer Behauptung.
+
+Die fünf Griffe stehen deshalb in jedem Treiber **ausgeschrieben**, als
+`CONSOLE`-Zuordnung; ein unbekannter Griff wirft. Dieselbe Überlegung wie bei
+`Runner::PROGRAMS`:
+
+> **Aus einem Wert einen Namen zu bauen ist der Vorgang, den eine Positivliste
+> verhindert.**
+
+Dazu zehn Einträge in `WITHOUT_LIFECYCLE`, jeder mit demselben Grund: Ein
+eingereihter Vorgang legte einen Filterwert oder den Inhalt einer Kundenzeile in
+`operations.payload` ab.
+
+### 20.8 Fünfmal `POST`, und der Einstieg ist noch keine Seite
 
 **Vier der fünf Griffe müssen `POST` sein, und der Grund ist der Inhalt.** Ein
 Filterwert und ein Zeilenschlüssel gehören nicht in eine Adresse: Dort stünden

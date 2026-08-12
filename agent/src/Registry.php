@@ -11,11 +11,6 @@ use SrvPanel\Agent\Ops\AcmeCertificateRemove;
 use SrvPanel\Agent\Ops\AgentPing;
 use SrvPanel\Agent\Ops\CertificateUpload;
 use SrvPanel\Agent\Ops\ConfigValidate;
-use SrvPanel\Agent\Ops\DbConsoleCell;
-use SrvPanel\Agent\Ops\DbConsoleColumns;
-use SrvPanel\Agent\Ops\DbConsoleRows;
-use SrvPanel\Agent\Ops\DbConsoleRowWrite;
-use SrvPanel\Agent\Ops\DbConsoleTables;
 use SrvPanel\Agent\Ops\DbDatabaseCreate;
 use SrvPanel\Agent\Ops\DbDatabaseRemove;
 use SrvPanel\Agent\Ops\DbDumpCreate;
@@ -39,11 +34,6 @@ use SrvPanel\Agent\Ops\PanelTls;
 use SrvPanel\Agent\Ops\PanelTlsInfo;
 use SrvPanel\Agent\Ops\PanelUpdate;
 use SrvPanel\Agent\Ops\PanelVhost;
-use SrvPanel\Agent\Ops\PgConsoleCell;
-use SrvPanel\Agent\Ops\PgConsoleColumns;
-use SrvPanel\Agent\Ops\PgConsoleRows;
-use SrvPanel\Agent\Ops\PgConsoleRowWrite;
-use SrvPanel\Agent\Ops\PgConsoleTables;
 use SrvPanel\Agent\Ops\PgDatabaseCreate;
 use SrvPanel\Agent\Ops\PgDatabaseRemove;
 use SrvPanel\Agent\Ops\PgDumpCreate;
@@ -237,30 +227,26 @@ final class Registry
         $this->register(new PgRemoteAccess);
 
         /*
-         * P5c: das Datenbankmanagement (docs/46).
+         * P5c: das Datenbankmanagement (docs/46) — **hier steht nichts, und das
+         * ist Absicht.**
          *
-         * **Fünf Griffe und kein sechster für SQL.** Der Betreiber hat das
-         * Eingabefeld für beliebige Anweisungen ausgeschlossen (docs/46 §3,
-         * Entscheidung 2), und das ist der Grund, warum diese Fläche über den
-         * Agenten laufen darf: Was hier ankommt, sind Felder — Tabelle, Spalte,
-         * Richtung, Versatz — und kein Text, der zu einer Anweisung wird.
+         * Die zehn `*.console.*`-Klassen liegen seit den Schritten 1 und 2 unter
+         * `agent/src/Ops/` und sind aus dem Agenten nicht erreichbar. Sie werden
+         * in dem Beitrag eingetragen, der ihnen einen Aufrufer gibt — Schritt 3,
+         * `App\Support\Databases\Console`.
          *
-         * **Keine davon hat einen Lebenslauf.** Ein eingereihter Vorgang legt
-         * seine Argumente in `operations.payload` ab, und dort stünde ein
-         * Filterwert oder der Inhalt einer Kundenzeile. Aufgerufen werden sie
-         * unmittelbar aus `App\Support\Databases\Console`.
+         * **Der erste Anlauf hat sie hier schon eingetragen**, wörtlich derselbe
+         * Fehler, vor dem der Block über P5b warnt, und mit demselben Ergebnis:
+         * {@see \Tests\Feature\AgentOperationReachTest} verlangt zu jeder
+         * Operation einen Aufrufer. *Code, der als root läuft und zu dem kein Weg
+         * führt, ist Angriffsfläche ohne Nutzen* — und eine Warnung, die
+         * danebensteht, hält niemanden auf, der sie beim Schreiben liest und
+         * beim Registrieren vergisst.
+         *
+         * **Keine der zehn bekommt einen Lebenslauf.** Ein eingereihter Vorgang
+         * legt seine Argumente in `operations.payload` ab, und dort stünde ein
+         * Filterwert oder der Inhalt einer Kundenzeile (`docs/46 §12`).
          */
-        $this->register(new DbConsoleTables);
-        $this->register(new DbConsoleColumns);
-        $this->register(new DbConsoleRows);
-        $this->register(new DbConsoleCell);
-        $this->register(new DbConsoleRowWrite);
-
-        $this->register(new PgConsoleTables);
-        $this->register(new PgConsoleColumns);
-        $this->register(new PgConsoleRows);
-        $this->register(new PgConsoleCell);
-        $this->register(new PgConsoleRowWrite);
     }
 
     public function register(Op $op): void

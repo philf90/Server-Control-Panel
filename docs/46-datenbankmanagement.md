@@ -1298,7 +1298,29 @@ berichtigt (`docs/38 §19`, `docs/46 §15`) und fragen jetzt nach der Form aus
 > **Ein Abnahmeschritt, dessen Erwartung nie eintreten kann, wird beim Fahren
 > stillschweigend umgedeutet** — und ab da prüft er nichts mehr.
 
-### 20.5 Vier Unterschiede zwischen den beiden Konsolen
+### 20.5 Zehn Operationen ohne Aufrufer — der Fehler, vor dem der Code warnt
+
+Schritt 1 und 2 haben die zehn `*.console.*`-Operationen in `Registry` **und**
+in die Registratur eingetragen. Einen Aufrufer bekommen sie erst in Schritt 3.
+`AgentOperationReachTest` verlangt zu jeder Operation einen — *Code, der als
+root läuft und zu dem kein Weg führt, ist Angriffsfläche ohne Nutzen* —, und
+damit wäre die CI rot gewesen.
+
+**Der Kommentar direkt darüber beschreibt genau diesen Fehler**, mit demselben
+Ausgang, aus P5b: „Der erste Anlauf hat `pg.server.info` schon in Schritt 1
+registriert und die CI rot gemacht." Ich habe ihn beim Schreiben gelesen und
+beim Registrieren nicht angewandt.
+
+> **Eine Warnung, die neben der Zeile steht, hält niemanden auf, der sie beim
+> Lesen versteht und beim Schreiben vergisst.** Was aufhält, ist der Test — und
+> der lief hier nicht, weil `vendor/` fehlt.
+
+Die Klassen bleiben liegen, die zehn `register()`-Zeilen kommen erst mit
+Schritt 3 zurück. Auf die Messungen hat das keinen Einfluss: Die Wegwerf-Läufe
+haben die Operationen unmittelbar erzeugt und nicht über die Registratur geholt
+— was bequem war und die Lücke zugleich verdeckt hat.
+
+### 20.6 Vier Unterschiede zwischen den beiden Konsolen
 
 Der Plan sagt „dasselbe für MariaDB". Vier Stellen sind es nicht, und jede hat
 ihren Grund im System und nicht im Geschmack.

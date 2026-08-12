@@ -9725,3 +9725,50 @@ Haus aus anlegen darf. Die Untergrenze des Schritts hat das belegt, und nach
 `Shielding::statements()` antwortete dieselbe Anweisung mit
 `no schema has been selected to create in`. Die Wand steht dort also nicht,
 weil PostgreSQL sie baut, sondern weil das Panel sie baut. Debian 12 liefert 15.
+
+### Drei Auskünfte, die etwas anderes sagten als sie meinten
+
+Die Befunde 2, 4 und 5 aus `docs/45 §5` — allesamt ohne Datenwirkung, allesamt
+Sätze, die jemand falsch versteht, der sie zum ersten Mal liest.
+
+**Die Bestandszeile stand unter der falschen Überschrift.** `srvpanel db` zählte
+Datenbanken, Zugänge und Sicherungen über *beide* Systeme und druckte die Summe
+unmittelbar unter dem MariaDB-Block. Auf `cloudsrv24` hielt MariaDB nichts und
+PostgreSQL alles — die Zeile las sich trotzdem wie eine Auskunft über MariaDB.
+
+> **Eine Zahl erbt die Überschrift, unter der sie steht.**
+
+Sie steht jetzt hinter beiden Serverblöcken und nennt je System seine eigenen
+Zahlen. Die Summe war ohnehin die falsche Antwort: Wer hier nachsieht, fragt
+nach einem der beiden.
+
+**Die Zeilennummer im Rückweg zeigte auf eine Datei, die es nicht mehr gibt.**
+Gemessen: 140 Zeilen vor dem Versuch, „Zeile 136" in der Meldung. Während des
+Versuchs war der alte Block heraus und der neue ans Ende gehängt — und zwei
+Zeilen weiter oben hatte der Rückweg diesen Stand schon wieder ersetzt. Wer die
+Meldung liest und die Datei öffnet, zählt in der falschen.
+
+> **Eine Zeilennummer aus einem Zwischenstand zeigt auf eine Datei, die niemand
+> mehr öffnen kann.**
+
+Die Nummer bleibt — ohne sie sucht der Betreiber in über hundert Zeilen —, aber
+sie kommt jetzt mit dem **Text** der beanstandeten Zeile, und der ist in beiden
+Ständen derselbe. Danach lässt sich suchen. Dafür gibt `PgRemoteAccess::errors()`
+Nummer und Grund getrennt heraus statt eines fertigen Satzes: Erst in `apply()`
+liegt die abgewiesene Fassung vor, und ohne sie liesse sich die Nummer nicht
+auflösen — ein früh formatierter Satz hätte genau das verhindert.
+
+**Und die Entwarnung nannte nicht, worüber sie Entwarnung gibt.** „Nichts
+liegengeblieben." stand in Grün direkt unter einer orangen Meldung über
+befristete Zugänge, die stehengeblieben sind. Beide Aussagen stimmten und
+meinten Verschiedenes; nebeneinander gelesen widersprachen sie sich. Der Satz
+heisst jetzt „Keine Zeile ohne Abonnement." — und redet damit über den Umfang,
+den er wirklich hat.
+
+> **Eine Entwarnung ohne Umfang wird als die grössere gelesen, die sie ist.**
+
+`PgHbaRollbackTest::test_the_message_quotes_the_offending_line` hält die zweite
+fest, mit Eingriff im Bruch-Skript. Die Zeilennummer im Test wird **gerechnet
+und nicht getippt**: Eine feste Zahl ginge beim nächsten Zusatz zum Block
+lautlos daneben — und der Test bestünde weiter, weil er dann den Zweig ohne Text
+prüft.

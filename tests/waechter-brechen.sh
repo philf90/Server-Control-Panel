@@ -6323,6 +6323,30 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PgHbaRollbackTest passed
 
 echo
+echo "── PgHbaRollbackTest: die Meldung nennt nur noch die Nummer ──"
+#
+# Gemessen im Abnahmelauf (docs/45 §5): 140 Zeilen vor dem Versuch, „Zeile 136"
+# in der Meldung. Die Nummer zaehlt in der abgewiesenen Fassung, und die hat der
+# Rueckweg zwei Zeilen weiter oben schon wieder ersetzt. Der Text der Zeile ist
+# in beiden Staenden derselbe — danach laesst sich suchen, nach einer Nummer
+# nicht.
+vorher_datei agent/src/Ops/PgRemoteAccess.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgRemoteAccess.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """                        return sprintf('Zeile %d („%s"): %s', $row['line'], trim($text), $row['error']);""",
+    """                        return sprintf('Zeile %d: %s', $row['line'], $row['error']);""",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgRemoteAccess.php "Zeilennummer ohne Text" &&
+pruefe "Zeilennummer ohne Text" \
+  PgHbaRollbackTest::test_the_message_quotes_the_offending_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgHbaRollbackTest passed
+
+echo
 echo "── PgHbaRollbackTest: die Sperre fällt weg ──"
 #
 # Der Agent gabelt je Verbindung; zwei Operationen sind zwei Prozesse. Ohne

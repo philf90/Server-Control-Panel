@@ -251,7 +251,7 @@ final class PgRemoteAccess implements Op
      *
      * @param  list<string>  $rules
      * @param  callable(): void  $reload
-     * @param  callable(): list<string>  $errors
+     * @param  callable(): list<array{line: int, error: string}>  $errors
      * @return array{rules: list<string>, changed: bool}
      */
     public static function apply(string $path, array $rules, callable $reload, callable $errors): array
@@ -288,10 +288,43 @@ final class PgRemoteAccess implements Op
                 Hba::put($path, $before);
                 $reload();
 
+                /*
+                 * **Die Nummer zählt in einer Datei, die es nicht mehr gibt.**
+                 * Gemessen im Abnahmelauf (`docs/45 §5`): 140 Zeilen vor dem
+                 * Versuch, „Zeile 136" in der Meldung. Während des Versuchs war
+                 * der alte Block heraus und der neue ans Ende gehängt — und
+                 * zwei Zeilen weiter oben hat der Rückweg genau diesen Stand
+                 * schon wieder ersetzt. Wer die Meldung liest und die Datei
+                 * öffnet, zählt also in der falschen.
+                 *
+                 * > **Eine Zeilennummer aus einem Zwischenstand zeigt auf eine
+                 * > Datei, die niemand mehr öffnen kann.**
+                 *
+                 * Die Nummer bleibt trotzdem — ohne sie sucht der Betreiber in
+                 * über hundert Zeilen —, aber sie kommt jetzt mit dem **Text**
+                 * der beanstandeten Zeile, und der ist in beiden Ständen
+                 * derselbe. Danach lässt sich suchen; nach einer Nummer nicht.
+                 */
+                $zeilen = explode("\n", $after);
+
+                $gemeldet = array_map(
+                    static function (array $row) use ($zeilen): string {
+                        $text = $zeilen[$row['line'] - 1] ?? null;
+
+                        if ($text === null || trim($text) === '') {
+                            return sprintf('Zeile %d: %s', $row['line'], $row['error']);
+                        }
+
+                        return sprintf('Zeile %d („%s"): %s', $row['line'], trim($text), $row['error']);
+                    },
+                    $broken,
+                );
+
                 throw AgentException::execFailed(
-                    'Die Zugangsregeln wurden abgewiesen und der vorherige Stand ist wiederhergestellt: '
-                    .implode('; ', $broken),
-                    ['errors' => $broken],
+                    'Die Zugangsregeln wurden abgewiesen und der vorherige Stand ist wiederhergestellt. '
+                    .'Die Zeilennummer zählt in der abgewiesenen Fassung, nicht in der Datei, die jetzt '
+                    .'dasteht: '.implode('; ', $gemeldet),
+                    ['errors' => $gemeldet],
                 );
             }
 
@@ -418,7 +451,13 @@ final class PgRemoteAccess implements Op
      * die Regeln übernommen hat. Sie belegt, dass die **Datei** trägt — und
      * das ist die Frage, an der der nächste Neustart hängt.
      *
-     * @return list<string>
+     * **Nummer und Grund kommen getrennt heraus und nicht als fertiger Satz.**
+     * Den baut {@see self::apply()}, weil erst dort die abgewiesene Fassung
+     * vorliegt — und ohne sie liesse sich die Nummer nicht in den Text der
+     * beanstandeten Zeile auflösen. Ein hier fertig formatierter Satz hätte
+     * genau das verhindert.
+     *
+     * @return list<array{line: int, error: string}>
      */
     private function errors(Context $context): array
     {
@@ -428,7 +467,10 @@ final class PgRemoteAccess implements Op
         );
 
         return array_map(
-            static fn (array $row): string => sprintf('Zeile %s: %s', $row[0] ?? '?', $row[1] ?? 'ohne Grund'),
+            static fn (array $row): array => [
+                'line' => (int) ($row[0] ?? 0),
+                'error' => (string) ($row[1] ?? 'ohne Grund'),
+            ],
             $rows,
         );
     }

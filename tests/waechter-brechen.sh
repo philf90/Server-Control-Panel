@@ -1068,6 +1068,48 @@ pruefe "Update ohne neuen Server-Block" \
 wiederherstellen
 
 echo
+echo "── PackagingTest: ein apt-get in der CI darf wieder fragen ──"
+#
+# Dieser Wächter hatte keinen Eingriff, seit es ihn gibt. Aufgefallen ist das,
+# als er zubiss — an einem Kommentar, der einen Fehlschlag festhielt statt an
+# einem Kommando. Beim Beheben stand die Frage im Raum, ob er die echte Sache
+# ueberhaupt noch findet, und beantworten konnte sie niemand.
+vorher_datei .github/workflows/ci.yml
+python3 - <<'PY2'
+p = '.github/workflows/ci.yml'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "docker exec target sh -c \\\n            'DEBIAN_FRONTEND=noninteractive apt-get install -y postgresql >/dev/null'",
+    "docker exec target sh -c \\\n            'apt-get install -y postgresql >/dev/null'",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei .github/workflows/ci.yml "apt-get ohne DEBIAN_FRONTEND" &&
+pruefe "apt-get ohne DEBIAN_FRONTEND" \
+  PackagingTest::test_no_apt_install_in_the_ci_can_ask_a_question failed
+wiederherstellen
+
+echo
+echo "── PackagingTest: das Warten auf systemd misst nicht mehr mit ──"
+#
+# Das Fenster stand auf 300 s, die einzige Messung daneben auf 255 s — und am
+# 11. August riss es. Teuer war nicht das knappe Fenster, sondern dass der
+# Abstand nur in einem Kommentar stand und lautlos veraltete. Seitdem schreibt
+# jeder gruene Lauf seine Dauer selbst hin.
+vorher_datei .github/workflows/ci.yml
+python3 - <<'PY2'
+p = '.github/workflows/ci.yml'
+s = open(p, encoding='utf-8').read()
+s = s.replace('              echo "::notice::systemd war nach $((i * 2)) s da (Fenster: $((versuche * 2)) s)."\n', '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei .github/workflows/ci.yml "Warten ohne gemessene Dauer" &&
+pruefe "Warten ohne gemessene Dauer" \
+  PackagingTest::test_every_wait_for_systemd_reports_how_long_it_took failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PackagingTest passed
+
+echo
 echo "── PackagingTest: der Wrapper kennt das neue Kommando nicht ──"
 #
 # Wer `srvpanel vhost` tippt, bekommt sonst „Command not defined" — und das
@@ -6633,6 +6675,47 @@ pruefe "Ausrichtung ohne Polster" \
   TableStyleTest::test_a_stacked_cell_aligns_its_row_and_spaces_its_rows failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TableStyleTest passed
+
+echo
+echo "── NetworkDriftTest: ein gescheitertes Schreiben laesst die Zeile stehen ──"
+#
+# Der Zustand von vor diesem Wächter, gemessen im Abnahmelauf: Der Vorgang
+# scheiterte am Rückweg des Agenten, die Zeile blieb im Bestand, und im Panel
+# stand „erreichbar von …" für ein Netz, das in pg_hba.conf nicht existierte.
+vorher_datei app/Support/Databases/RemoteAccess.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/RemoteAccess.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $network = DB::transaction(function () use ($user, $cidr): DbUserNetwork {",
+              "        $network = (function () use ($user, $cidr): DbUserNetwork {")
+s = s.replace("            return $network;\n        });\n\n        return $network;",
+              "            return $network;\n        })();\n\n        return $network;")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/RemoteAccess.php "Eintrag ohne Klammer" &&
+pruefe "Eintrag ohne Klammer" \
+  NetworkDriftTest::test_a_failed_write_leaves_no_network_behind failed
+wiederherstellen
+
+echo
+echo "── NetworkDriftTest: der Abgleich kennt nur eine Richtung ──"
+#
+# Eine Zeile ohne Bestand laesst jemanden herein, den niemand mehr kennt —
+# sichtbar. Ein Bestand ohne Zeile sperrt aus, waehrend die Anzeige das
+# Gegenteil verspricht. Die zweite Richtung hat vier Monate lang niemand
+# gefragt.
+vorher_datei app/Console/Commands/Databases.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Databases.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $missing = $remote->missing($managed);", "        $missing = [];")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/Databases.php "Abgleich ohne Gegenrichtung" &&
+pruefe "Abgleich ohne Gegenrichtung" \
+  NetworkDriftTest::test_the_reconciliation_asks_both_directions failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NetworkDriftTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

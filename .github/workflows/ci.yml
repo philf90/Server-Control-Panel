@@ -173,6 +173,22 @@ jobs:
       # findet der Ausdruck nichts) und ist die Quelle, die der Läufer ohnehin
       # benutzt. Aber wer hier später Zeit sparen will, fängt bei der Grösse der
       # Paketlisten an und nicht beim Spiegel.
+      #
+      # **Und am 11. August ist genau dieses Fenster gerissen** — auf 22.04, im
+      # Herunterladen stehend, beim einunddreissigsten von einunddreissig
+      # Paketen. Die Messung von oben sagt, warum das kommen musste: 255 s
+      # gemessen gegen 300 s erlaubt, also fünfzehn Prozent Luft gegen eine
+      # Quelle, deren Durchsatz zwischen 200 kB/s und mehr schwankt. Ein
+      # Fehlschlag war da keine Frage des Ob.
+      #
+      # Das Fenster steht deshalb jetzt auf 600 s, und der Schritt **misst
+      # mit**: Kommt systemd, schreibt er in den Lauf, nach wie vielen
+      # Sekunden. Damit muss die nächste Fassung dieses Fensters nicht wieder
+      # aus einem Fehlschlag geschätzt werden — die Zahl steht in jedem grünen
+      # Lauf.
+      #
+      # > **Ein Grenzwert, dessen Abstand zur Messung niemand kennt, ist ein
+      # > Fehlschlag mit Verzögerung.**
       - name: Container mit systemd starten
         run: |
           docker run -d --name target --privileged \
@@ -185,17 +201,24 @@ jobs:
           # gab den Rückgabewert von `head` zurück und nicht den von `docker
           # exec` —, und gescheitert ist der Lauf drei Schritte später an einer
           # dpkg-Sperre. Eine Meldung, die mit der Ursache nichts zu tun hat.
+          #
+          # Fenster und Meldung kommen aus derselben Zahl. Standen sie
+          # getrennt da, sagte die Meldung „in 300 s" für ein Fenster, das
+          # längst anders war — und wer sie liest, sucht den Fehler bei der
+          # falschen Dauer.
+          versuche=300
           bereit=nein
-          for i in $(seq 1 150); do
+          for i in $(seq 1 "$versuche"); do
             if docker exec target systemctl is-system-running 2>/dev/null | grep -qE 'running|degraded'; then
               bereit=ja
+              echo "::notice::systemd war nach $((i * 2)) s da (Fenster: $((versuche * 2)) s)."
               break
             fi
             sleep 2
           done
 
           if [ "$bereit" != ja ]; then
-            echo "::error::systemd im Container ist in 300 s nicht hochgekommen."
+            echo "::error::systemd im Container ist in $((versuche * 2)) s nicht hochgekommen."
 
             # **Zustand vor Ausgabe.** Beim ersten Fehlschlag stand hier nur
             # `docker logs`, und das gab nichts aus — womit offen blieb, ob der
@@ -272,6 +295,160 @@ jobs:
             "660 root:srvpanel") ;;
             *) echo "::error::Socket steht auf ${mode}, erwartet ist 660 root:srvpanel"; exit 1 ;;
           esac
+
+      # **Die Fassungsspanne, gemessen statt vermutet** (`docs/38 §2.3`, A1–A4).
+      #
+      # Sie stand seit P5b als offener Punkt da: Gemessen war PostgreSQL nur auf
+      # Ubuntu 24.04 und im Entwicklungscontainer. Für Debian 12, Debian 13 und
+      # Ubuntu 22.04 war die Zahl unbekannt — und die für uns wichtigste Regel
+      # hat sich mit PG 15 geändert: Bis PG 14 darf PUBLIC im Schema `public`
+      # jeder Datenbank Objekte anlegen.
+      #
+      # **Der Bau ist davon unabhängig**, denn `Pg\Shielding` widerruft
+      # ausdrücklich statt sich auf die Vorgabe zu verlassen. Was fehlte, war der
+      # Beleg. Er steht jetzt hier und nicht in einem Protokoll, das jemand
+      # einmal geschrieben hat:
+      #
+      #   Eine Messung, die einmal jemand von Hand macht, ist ein Datum.
+      #   Eine, die die CI macht, ist eine Zusage.
+      - name: PostgreSQL — Fassung und Abschottung
+        run: |
+          set -e
+
+          docker exec target sh -c \
+            'DEBIAN_FRONTEND=noninteractive apt-get install -y postgresql >/dev/null'
+          docker exec target pg_lsclusters
+          docker exec target dpkg-query -W -f='Metapaket postgresql: ${Version}\n' postgresql
+
+          # **Ein installiertes Paket ist kein laufender Dienst.** Nach
+          # `apt-get install postgresql` stand der Cluster auf allen vier
+          # Plattformen auf `down`, und der erste `psql` scheiterte am
+          # fehlenden Socket. Auf einem Zielserver startet das Paket den
+          # Cluster mit; in diesem Container tut es das nicht.
+          #
+          # Gestartet wird er deshalb hier — und **gemessen wird die
+          # Bereitschaft und nicht der Rückgabewert von `systemctl`.** Der
+          # sagt, dass die Unit angenommen wurde, nicht dass jemand auf dem
+          # Socket antwortet. Derselbe Unterschied wie bei der Quota in
+          # `docs/41`: Eine Option, die etwas erlaubt, ist nicht dasselbe wie
+          # ein Zustand, in dem es geschieht.
+          docker exec target systemctl start postgresql || true
+
+          bereit=nein
+          for i in $(seq 1 60); do
+            if docker exec target pg_isready -q; then
+              bereit=ja
+              echo "::notice::PostgreSQL war nach $((i * 2)) s bereit."
+              break
+            fi
+            sleep 2
+          done
+
+          if [ "$bereit" != ja ]; then
+            echo "::error::PostgreSQL im Container nimmt keine Verbindungen an."
+            # Zustand vor Ausgabe, wie beim Warten auf systemd: drei sehr
+            # verschiedene Lagen sähen sonst gleich aus.
+            docker exec target pg_lsclusters || true
+            docker exec target systemctl --no-pager status 'postgresql*' || true
+            docker exec target sh -c 'tail -40 /var/log/postgresql/*.log' || true
+            exit 1
+          fi
+
+          # **Die Grenze kommt aus dem Quelltext und nicht aus dieser Datei.**
+          # Eine Zahl hier wäre die zweite Fassung derselben Regel, und die
+          # zweite ist die, die veraltet.
+          grenze="$(docker exec target /opt/srvpanel/bin/php -r \
+            'require "/opt/srvpanel/current/agent/src/autoload.php"; echo SrvPanel\Agent\Pg\Server::MIN_VERSION;')"
+          num="$(docker exec target su postgres -s /bin/sh -c "psql -XAtc 'SHOW server_version_num'")"
+          haupt="$((num / 10000))"
+
+          paket="$(docker exec target dpkg-query -W -f='${Version}' postgresql)"
+
+          echo "${{ matrix.name }}: PostgreSQL ${haupt} (${num}), Grenze des Panels: ${grenze}"
+
+          # **Die Zahl gehört auf die Übersicht des Laufs und nicht nur ins
+          # Protokoll.** Beim ersten grünen Lauf standen alle vier Messungen da
+          # — und um sie zu lesen, musste man vier Protokolle einzeln aufmachen
+          # und in jedem ein paar hundert Zeilen weit zurückblättern. Eine
+          # Messung, die niemand findet, ist so gut wie keine.
+          #
+          # Jeder Job der Reihe schreibt seine eigene Übersicht; eine
+          # gemeinsame Tabelle gibt es nicht, weil `GITHUB_STEP_SUMMARY` je
+          # Job existiert. Deshalb trägt jede Zeile ihre Kopfzeile mit.
+          {
+            echo "### PostgreSQL auf ${{ matrix.name }}"
+            echo
+            echo "| Metapaket | Fassung | Grenze des Panels | Abschottung |"
+            echo "|---|---|---|---|"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          if [ "${haupt}" -lt "${grenze}" ]; then
+            # Kein Fehlschlag: Das Panel weist diese Fassung ab, und genau das
+            # ist die richtige Antwort. Gesagt wird es trotzdem — ein Lauf, der
+            # Punkte auslässt, ohne es zu sagen, sieht aus wie ein vollständiger.
+            echo "::notice::${{ matrix.name }} liefert PostgreSQL ${haupt}, unter der Grenze ${grenze}."
+            echo "::notice::Die Abschottung wird hier nicht gefahren — das Panel bietet die Fläche gar nicht an."
+            echo "| \`${paket}\` | ${haupt} (${num}) | ${grenze} | übersprungen — unter der Grenze |" \
+              >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+
+          docker exec target su postgres -s /bin/sh -c "psql -v ON_ERROR_STOP=1 -q -c 'CREATE ROLE fremd NOLOGIN'"
+          docker exec target su postgres -s /bin/sh -c "psql -v ON_ERROR_STOP=1 -q -c 'CREATE DATABASE pruef'"
+
+          # **Erst die Lage von vor PG 15 herstellen.** Ab PG 15 ist der Widerruf
+          # die Vorgabe; ohne diese Zeile prüfte der Test auf den neuen
+          # Plattformen die Vorgabe und nicht die Absperrung.
+          docker exec target su postgres -s /bin/sh -c \
+            "psql -v ON_ERROR_STOP=1 -q -d pruef -c 'GRANT ALL ON SCHEMA public TO PUBLIC'"
+
+          # **Die Untergrenze: jetzt MUSS es gehen.** Ohne sie bestünde der Test
+          # auch dann, wenn `fremd` aus einem ganz anderen Grund nichts anlegen
+          # kann — und niemand wüsste es.
+          docker exec -i target su postgres -s /bin/sh -c 'psql -v ON_ERROR_STOP=1 -q -d pruef -f -' <<'SQL'
+          SET ROLE fremd;
+          CREATE TABLE offen (i int);
+          SQL
+          echo "Untergrenze: PUBLIC durfte anlegen, wie vor PG 15."
+
+          # Die Absperrung kommt aus dem Quelltext — dieselbe Zeichenkette, die
+          # der Agent beim Anlegen einer Kundendatenbank ausführt.
+          docker exec target /opt/srvpanel/bin/php -r \
+            'require "/opt/srvpanel/current/agent/src/autoload.php";
+             foreach (SrvPanel\Agent\Pg\Shielding::statements("pruef", []) as $sql) { echo $sql, ";\n"; }' \
+            > sperre.sql
+          cat sperre.sql
+          docker exec -i target su postgres -s /bin/sh -c 'psql -v ON_ERROR_STOP=1 -q -d pruef -f -' < sperre.sql
+
+          if docker exec -i target su postgres -s /bin/sh -c 'psql -v ON_ERROR_STOP=1 -q -d pruef -f -' <<'SQL'
+          SET ROLE fremd;
+          CREATE TABLE verboten (i int);
+          SQL
+          then
+            echo "::error::Nach der Absperrung darf PUBLIC im Schema public immer noch anlegen (PostgreSQL ${haupt})."
+            exit 1
+          fi
+          echo "Abschottung: PUBLIC darf im Schema public nicht mehr anlegen."
+
+          # Und die Liste der Katalogsichten ist fassungsabhängig — sie wird
+          # erfragt und nicht verdrahtet (`docs/38 §10`). Zu messen ist, dass die
+          # Abfrage auf dieser Fassung etwas findet.
+          docker exec target /opt/srvpanel/bin/php -r \
+            'require "/opt/srvpanel/current/agent/src/autoload.php"; echo SrvPanel\Agent\Pg\Shielding::DISCOVERY;' \
+            > sichten.sql
+          # `|| true`, damit `set -e` nicht vor der Meldung zuschlägt: `grep -c`
+          # gibt bei null Treffern 1 zurück, und genau dann soll unten etwas
+          # Lesbares stehen statt eines abgebrochenen Schritts.
+          anzahl="$(docker exec -i target su postgres -s /bin/sh -c 'psql -XAt -d pruef -f -' < sichten.sql | grep -c . || true)"
+          echo "Katalogsichten mit einem Datenbanknamen: ${anzahl}"
+
+          if [ "${anzahl}" -lt 1 ]; then
+            echo "::error::Die Abfrage der Katalogsichten findet auf PostgreSQL ${haupt} nichts."
+            exit 1
+          fi
+
+          echo "| \`${paket}\` | ${haupt} (${num}) | ${grenze} | gefahren, ${anzahl} Katalogsichten |" \
+            >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Ersteinrichtung und Oberfläche
         run: |
@@ -464,18 +641,21 @@ jobs:
             ${{ matrix.image }} /bin/sh -c \
             'export DEBIAN_FRONTEND=noninteractive; set -x; sed -i "s|//archive.ubuntu.com|//azure.archive.ubuntu.com|g" /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null; apt-get update && apt-get install -y systemd systemd-sysv && exec /sbin/init'
           # Dieselbe Prüfung wie oben, und hier fehlte sie ganz: Ein
-          # Zeitüberschreiten war vollständig unsichtbar.
+          # Zeitüberschreiten war vollständig unsichtbar. Dasselbe Fenster und
+          # dieselbe Messung wie dort — die Begründung steht beim ersten Lauf.
+          versuche=300
           bereit=nein
-          for i in $(seq 1 150); do
+          for i in $(seq 1 "$versuche"); do
             if docker exec bare systemctl is-system-running 2>/dev/null | grep -qE 'running|degraded'; then
               bereit=ja
+              echo "::notice::systemd war nach $((i * 2)) s da (Fenster: $((versuche * 2)) s)."
               break
             fi
             sleep 2
           done
 
           if [ "$bereit" != ja ]; then
-            echo "::error::systemd im Container ist in 300 s nicht hochgekommen."
+            echo "::error::systemd im Container ist in $((versuche * 2)) s nicht hochgekommen."
 
             # **Zustand vor Ausgabe.** Beim ersten Fehlschlag stand hier nur
             # `docker logs`, und das gab nichts aus — womit offen blieb, ob der

@@ -495,10 +495,23 @@ final class Server
     private static function usable(int $major): array
     {
         if ($major < self::MIN_VERSION) {
+            /*
+             * **Die Grenze und ihre Begründung waren um eins versetzt.** Hier
+             * stand „Bis PostgreSQL 14 darf PUBLIC im Schema public jeder
+             * Datenbank Objekte anlegen" — ein Satz, der 14 einschliesst,
+             * während die Grenze es zulässt. Wer das liest, korrigiert
+             * irgendwann die Zahl.
+             *
+             * Richtig ist die Zahl: {@see Shielding::statements()} widerruft
+             * ausdrücklich, statt sich auf die Vorgabe ab PG 15 zu verlassen —
+             * auf 14 ist die Fläche damit ebenso zu wie darüber, und die CI
+             * fährt genau das auf jeder Zielplattform (`docs/38 §2.3`). Was
+             * unterhalb liegt, ist nicht gefährlicher, sondern **ungemessen**,
+             * und das ist der Grund für die Grenze.
+             */
             return [false, sprintf(
-                'PostgreSQL %d ist älter als %d. Bis PostgreSQL 14 darf PUBLIC im Schema public jeder '
-                .'Datenbank Objekte anlegen; darunter liegen Fassungen, gegen die dieses Panel die '
-                .'Abschottung nie gemessen hat.',
+                'PostgreSQL %d ist älter als %d. Gegen ältere Fassungen ist die Abschottung dieses '
+                .'Panels nie gemessen worden — angeboten wird nur, was geprüft ist.',
                 $major,
                 self::MIN_VERSION,
             )];

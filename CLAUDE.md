@@ -407,6 +407,17 @@ Testen berücksichtigen:
   überschreitet die Grenze von 107 Byte, und die Meldung nennt sie —, und
   `postgres` läuft nicht als root, also `su postgres -c`. Was für MariaDB als
   Textprüfung gebaut werden musste, lässt sich für PostgreSQL messen.
+
+  **Und seit dem 11. August misst es die CI auf allen vier Zielplattformen.**
+  Der Integrationslauf fährt `postgresql` hoch, liest `server_version_num`,
+  vergleicht gegen `Server::MIN_VERSION` aus dem Quelltext, stellt die Lage von
+  vor PG 15 her und belegt beide Richtungen: dass `PUBLIC` vorher anlegen darf
+  und nach `Shielding::statements()` nicht mehr. Damit sind die Punkte 1 bis 3
+  aus `docs/38 §2.3` erledigt — sie standen auf **einer** Messung auf einer
+  Plattform und auf Annahmen für die anderen drei.
+
+  > **Eine Messung, die einmal jemand von Hand macht, ist ein Datum. Eine, die
+  > die CI macht, ist eine Zusage.**
 - **kein nginx, kein PHP-FPM, kein Agent, kein systemd.** Operationen laufen
   gegen Attrappen. Zwei Fehler sind nur aufgefallen, weil die CI nginx *hat*
   und dieser Container nicht — Tests, die Systemzustand annehmen, gehören

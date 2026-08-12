@@ -9552,3 +9552,176 @@ das einen zweiten Zugang braucht, den Punkt 8 vorher entfernt; und `--bind=*`
 unquotiert samt `$(hostname -f)` statt der Adresse, unter der das Panel bedient.
 
 > **Ein Abnahmelauf ist Code, den niemand ausführt, bis es darauf ankommt.**
+
+### Bestand und `pg_hba.conf` laufen nicht mehr auseinander
+
+Der erste der fünf offenen Befunde aus `docs/45 §5`, und der einzige mit Folgen.
+
+**Ein gescheiterter Netz-Eintrag liess seine Zeile im Bestand stehen.**
+`RemoteAccess::add()` legte sie an und rief danach `sync()`; wirft der — im
+Abnahmelauf am Rückweg des Agenten —, blieb sie. Im Panel stand danach
+„erreichbar von 198.51.100.0/24" für ein Netz, das in `pg_hba.conf` nicht
+existierte.
+
+> **Ein Vorgang, der seinen Bestand vor dem Server ändert, hat zwei Ergebnisse —
+> und ein Fehlschlag kennt sonst nur eines.**
+
+Die Zeile **muss** vor dem Schreiben da sein, denn `rules()` liest sie: Der
+Sollzustand entsteht aus dem Bestand. Also hilft kein Umstellen der Reihenfolge,
+sondern nur die Klammer — beide stehen jetzt in einer Transaktion, beim
+Eintragen wie beim Zurücknehmen.
+
+**Und gemeldet hat es niemand.** `srvpanel db` fragte nur nach Zeilen ohne
+Bestand; für die Gegenrichtung stand dort sogar ein früher Ausstieg bei leerem
+Block — also genau für den Fall, in dem der Bestand etwas führt und die Datei
+nichts hat.
+
+> **Ein Abgleich, der nur eine Richtung kennt, ist eine halbe Frage.**
+
+`RemoteAccess::missing()` beantwortet sie jetzt, und `srvpanel db` meldet beide
+Richtungen getrennt. **Die neue ist die gefährlichere:** Eine Zeile ohne Bestand
+lässt jemanden herein, den niemand mehr kennt — schlecht, aber sichtbar, sobald
+man hinsieht. Ein Bestand ohne Zeile sperrt aus, während die Anzeige das
+Gegenteil verspricht; wer den Fehler sucht, sucht ihn am Netz, an der Firewall,
+am Passwort — nur nicht an einer Zeile, die laut Panel da ist.
+
+`NetworkDriftTest` hält beides fest, mit der Untergrenze im selben Test: Eine
+Zeile, die in Datei und Bestand steht, darf nicht als fehlend gelten, sonst
+meldete die Abfrage jede und sagte nichts.
+
+### Ein Fenster, dessen Abstand zur Messung niemand kannte
+
+Der Integrationslauf wartet darauf, dass systemd im Container hochkommt, und das
+Fenster dafür stand seit dem 4. August auf 300 Sekunden. Daneben, im Kommentar,
+stand die einzige Messung, die es je gab: **255 Sekunden auf Ubuntu 22.04.**
+Fünfzehn Prozent Luft gegen eine Paketquelle, die mit 202 kB/s gemessen wurde
+und schwankt — am 11. August riss es, mitten im Herunterladen des letzten von
+einunddreissig Paketen.
+
+> **Ein Grenzwert, dessen Abstand zur Messung niemand kennt, ist ein Fehlschlag
+> mit Verzögerung.**
+
+Das Fenster steht jetzt auf 600 s. Wichtiger als die Zahl ist, was daneben neu
+ist: Der Schritt **misst mit** und schreibt die tatsächliche Dauer als
+`::notice::` in jeden Lauf. Damit muss die nächste Fassung dieses Fensters nicht
+wieder aus einem roten Lauf geschätzt werden — der Abstand steht in jedem
+grünen. Schleifengrenze und Meldung kommen ausserdem aus derselben Variablen;
+vorher hätte die Meldung „in 300 s" ein Fenster benennen können, das längst
+anders war.
+
+`PackagingTest::test_every_wait_for_systemd_reports_how_long_it_took` hält beides
+fest — dass gemessen wird und dass die Grenze nicht wieder als feste Zahl in der
+Schleife steht.
+
+### Die Fassungsspanne von PostgreSQL wird gemessen, nicht angenommen
+
+`docs/38 §2.3` führte drei Fragen, die vor der Freigabe auf allen vier
+Zielplattformen zu beantworten waren und bis jetzt auf einer einzigen Messung
+standen: Ubuntu 24.04 liefert 16.14, gemessen auf `cloudsrv24`. Für Debian 12,
+Debian 13 und Ubuntu 22.04 war es eine Annahme — und an der Hauptfassung hängt
+mehr als eine Zahl: **Bis PostgreSQL 14 darf `PUBLIC` im Schema `public` jeder
+Datenbank Objekte anlegen**, also genau in der Wand, die die Abschottung baut.
+
+Der Integrationslauf fährt das jetzt auf jeder der vier Plattformen: Metapaket
+installieren, seine Version nennen, `server_version_num` lesen, gegen
+`Server::MIN_VERSION` vergleichen — **die Grenze kommt aus dem Quelltext**, eine
+Zahl in der Ablaufdatei wäre die zweite Fassung derselben Regel —, die Lage von
+vor PG 15 herstellen (`GRANT ALL ON SCHEMA public TO PUBLIC`), belegen dass
+`PUBLIC` dann wirklich anlegen darf, die Anweisungen aus
+`Shielding::statements()` fahren und prüfen, dass es danach nicht mehr geht.
+
+> **Eine Messung, die einmal jemand von Hand macht, ist ein Datum. Eine, die die
+> CI macht, ist eine Zusage.**
+
+**Die Untergrenze steht mit im Schritt**, und ohne sie wäre er wertlos: Er
+bestünde auch dann, wenn die Testrolle aus einem ganz anderen Grund nichts
+anlegen kann. Dieselbe Falle wie beim Zähler eines Wächters — die grüne Seite
+sagt nichts, solange die rote nie belegt wurde.
+
+**Und die Zeile, die auf den neuen Plattformen alles entwertet hätte, ist der
+Widerruf davor.** Ab PG 15 ist die Absperrung die Vorgabe; ohne
+`GRANT ALL … TO PUBLIC` prüfte der Schritt auf Debian 13 und Ubuntu 24.04 die
+Vorgabe von PostgreSQL und nicht die Arbeit dieses Panels. Genau deshalb widerruft
+`Shielding::statements()` ausdrücklich, statt sich auf die Vorgabe zu verlassen:
+Die Fläche ist auf 14 ebenso zu wie darüber.
+
+Liegt eine Plattform unter der Grenze, ist das kein Fehlschlag, sondern eine
+`::notice::` — das Panel weist die Fassung ab, und das ist die richtige Antwort.
+Gesagt wird es trotzdem: Ein Lauf, der Punkte auslässt, ohne es zu sagen, sieht
+hinterher aus wie ein vollständiger. Die Abfrage der Katalogsichten (`docs/38
+§10`) läuft im selben Schritt und muss auf jeder Fassung mindestens eine Zeile
+finden — die Liste ist fassungsabhängig und wird deshalb erfragt und nicht
+verdrahtet.
+
+**Und eine Meldung, die ihre eigene Grenze falsch begründete, ist mit weg.**
+`Server::usable()` sagte „Bis PostgreSQL 14 darf PUBLIC im Schema public jeder
+Datenbank Objekte anlegen" — ein Satz, der 14 einschliesst, während die Grenze
+14 zulässt. Wer das liest, korrigiert irgendwann die Zahl statt des Satzes.
+Richtig ist die Zahl: Was darunter liegt, ist nicht gefährlicher, sondern
+**ungemessen**.
+
+### Und der Cluster, der installiert war und nicht lief
+
+Der erste Lauf des neuen Schritts scheiterte auf **allen vier Plattformen** an
+derselben Zeile: `psql` fand keinen Socket. `pg_lsclusters` sagte es im selben
+Log, zwei Zeilen darüber — `15 main 5432 down`. Nach `apt-get install
+postgresql` steht der Cluster in diesem Container still; auf einem Zielserver
+startet das Paket ihn mit.
+
+> **Ein installiertes Paket ist kein laufender Dienst.**
+
+Der Schritt startet ihn jetzt selbst — und wartet auf `pg_isready` statt auf den
+Rückgabewert von `systemctl`. Der sagt, dass die Unit angenommen wurde, nicht
+dass jemand auf dem Socket antwortet; es ist derselbe Unterschied wie bei der
+Quota aus `docs/41`, wo `usrquota` in den Optionen stand und `quotaon -p` `is
+off` sagte. Bleibt er aus, stehen `pg_lsclusters`, der Zustand der Units und die
+letzten Zeilen des Cluster-Protokolls im Lauf — Zustand vor Ausgabe, wie beim
+Warten auf systemd.
+
+### Ein Wächter, der Prosa las
+
+Der Kommentar oben — der, der `apt-get install postgresql` und den stehenden
+Cluster festhält — hat den Wächter für `DEBIAN_FRONTEND=noninteractive` zum
+Zubeissen gebracht. Er las **jede** Zeile der Ablaufdatei und unterschied nicht
+zwischen einem Kommando und einem Satz darüber.
+
+> **Ein Wächter, der Kommentare liest, bestraft das Dokumentieren genau des
+> Fehlers, vor dem er schützt.**
+
+Es ist dieselbe Grenze, die `WordChoiceTest` für sich längst gezogen hat
+(„Steht es in einem Kommentar, ist der Test falsch"). Geprüft werden jetzt nur
+Zeilen, die kein Kommentar sind — in YAML wie in der Shell beginnt der mit `#`.
+Ein `#` *hinter* einem Kommando steht nicht am Zeilenanfang und schützt also
+nichts.
+
+**Und dabei kam heraus, dass dieser Wächter nie rot war:** Er hatte als einziger
+in `PackagingTest` keinen Eingriff im Bruch-Skript. Beim Beheben stand deshalb
+die Frage im Raum, ob er die echte Sache überhaupt noch findet — und beantworten
+konnte sie niemand. Jetzt schon: Der Eingriff nimmt die Angabe aus der
+PostgreSQL-Installation, und der Wächter meldet sie. Fünfzehn apt-Aufrufe stehen
+in den Abläufen, alle mit Angabe.
+
+### Und die Messung stand an einer Stelle, an der sie niemand liest
+
+Der erste grüne Lauf hat alle vier Fassungen gemessen — und um sie zu lesen,
+musste man vier Protokolle einzeln aufmachen und in jedem ein paar hundert
+Zeilen weit zurückblättern. Zwei der vier Zahlen waren so nicht zu bekommen,
+ohne die halbe Ausgabe durchzusehen.
+
+> **Eine Messung, die niemand findet, ist so gut wie keine.**
+
+Jeder Job der Reihe schreibt seine Zahlen jetzt zusätzlich in die Übersicht des
+Laufs: Metapaket, Hauptfassung mit `server_version_num`, die Grenze des Panels
+und ob die Abschottung **gefahren** oder **übersprungen** wurde — mit der Anzahl
+der gefundenen Katalogsichten als Beleg dafür, dass sie wirklich lief. Gerade
+die letzte Spalte fehlte: Eine Plattform unter der Grenze lässt den Schritt mit
+0 enden, und ein grüner Haken sagt dann nichts darüber, ob gemessen oder
+ausgelassen wurde.
+
+**Was der erste Lauf gemessen hat**, mit dem Fund, der die Sorge aus
+`docs/38 §2.3` bestätigt: **Ubuntu 22.04 liefert PostgreSQL 14** — genau die
+Fassung an der Grenze, und genau die, bei der `PUBLIC` im Schema `public` von
+Haus aus anlegen darf. Die Untergrenze des Schritts hat das belegt, und nach
+`Shielding::statements()` antwortete dieselbe Anweisung mit
+`no schema has been selected to create in`. Die Wand steht dort also nicht,
+weil PostgreSQL sie baut, sondern weil das Panel sie baut. Debian 12 liefert 15.

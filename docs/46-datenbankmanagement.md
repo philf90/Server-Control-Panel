@@ -1029,17 +1029,37 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #    vierter im Auswahlfeld ist ein Befund und kein Bonus.
 
 # 3  KEINE FREMDE TABELLE  ← Kriterium 3
-#    Die Konsole von Abo A auf eine Tabelle aus Abo B richten. Der Weg dafür
-#    ist die Adresse, nicht die Oberfläche — die zeigt sie gar nicht erst an.
-#    erwartet: Abweisung.
-#    UND DER BELEG IST DIE HERKUNFT DER MELDUNG. Zwei Wände stehen hier
-#    hintereinander:
+#    DREI Wände stehen hier hintereinander, und nur die dritte gehört uns nicht:
 #      (a) die Mandantenklammer des Panels (403, bevor der Agent gefragt wird),
-#      (b) die Rechte der Datenbank.
-#    Um (b) zu belegen, wird (a) für einen Lauf ABGESCHALTET — Tenancy::
-#    withoutRestriction() in einer Wegwerf-Zeile — und dann muss die Meldung
-#    von PostgreSQL bzw. MariaDB kommen, wörtlich.
-#    OHNE DIESEN SCHRITT IST KRITERIUM 3 NICHT GEFAHREN: Mit (a) allein wäre
+#      (b) Names::belongsTo() im Agenten (Pg\Console::within()),
+#      (c) die Rechte der befristeten Rolle — die Meldung kommt vom SERVER.
+#    Jede wird EINZELN gefahren; der Beleg ist die Herkunft der Meldung.
+#
+#    (a)  Als Kunde von Abo A die Adresse einer Datenbank von Abo B aufrufen.
+#         erwartet: 403, ohne dass der Agent gefragt wurde.
+#    (b)  Am Agenten vorbei an der Anwendung, mit erfundener Nutzlast:
+#           Client::call("pg.console.tables", ["prefix" => <A>, "database" =>
+#                        <B-Datenbank>, "schema" => "public"])
+#         erwartet: „Diese Datenbank gehört nicht zu diesem Abonnement."
+#    (c)  An einer Rolle, die den befristeten Zugang nachbaut (CREATE ROLE …
+#         IN ROLE srvpanel_restore, <A>_owner; GRANT CONNECT ON <A-Datenbank>),
+#         über den SOCKET — den Weg, den Pg\Session::linesAs() geht:
+#           psql -h /var/run/postgresql -U <probe> -d <B-Datenbank>
+#         erwartet: FATAL: permission denied for database "<B>". Für MariaDB
+#         ein Benutzer mit GRANT ALL auf genau eine Datenbank → ERROR 1044.
+#
+#    HIER STAND „(a) für einen Lauf abschalten, dann muss die Meldung vom Server
+#    kommen", UND DAS KANN NICHT FUNKTIONIEREN. Das Präfix reist mit der
+#    DATENBANK und nicht mit dem Aufrufer: App\Support\Databases\Console holt es
+#    aus $database->subscription. Wer die Klammer abschaltet und die Adresse
+#    einer Datenbank von B aufruft, richtet damit nicht die Konsole von A auf B,
+#    sondern die von B auf B — der Aufruf GELINGT, und zwar zu Recht. Gefunden
+#    beim Ausschreiben von `docs/47`, gegen den Quelltext gelesen.
+#
+#    > Eine Wand, die man nur erreicht, indem man die davor abschaltet, wird
+#    > durch das Abschalten nicht erreicht — sie wird umgangen.
+#
+#    OHNE (c) IST KRITERIUM 3 NICHT GEFAHREN: Mit (a) und (b) allein wäre
 #    belegt, dass unsere Prüfung greift, und genau das ist nicht die Frage.
 
 # 4  DAS ZEITLIMIT  ← Kriterium 4

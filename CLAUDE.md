@@ -416,11 +416,27 @@ zwölf Punkte, mit der Fassungstabelle in §3 und dem, was er ausdrücklich nich
 prüft. Und **`41` die Dateisystem-Quota** — wie sie eingeschaltet wird, und
 warum das Panel den *Leseversuch* misst statt der Mount-Option: Auf `cloudsrv24`
 stand `usrquota` in den Optionen und `quotaon -p /` sagte `is off`. Und **`46`
-das Datenbankmanagement (P5c)** — geplant am 12. August 2026, noch nicht gebaut:
-§2 die dreiundzwanzig Messungen, die vor dem Plan kamen, §2.3 die fünf, die
-fehlen und für MariaDB gemessen werden müssen, §3 die vier Entscheidungen des
+das Datenbankmanagement (P5c)** — geplant am 12. August 2026, Schritte 0 bis 3
+gebaut: §2 die dreiundzwanzig Messungen, die vor dem Plan kamen, §2.3 die zwölf,
+die am 12. August für MariaDB nachgeholt wurden, §3 die vier Entscheidungen des
 Betreibers, §4 das Abnahmekriterium mit sieben Punkten, §15 die Befehlsfolge
-dazu und **§16 was P5c ausdrücklich nicht wird**.
+dazu, **§16 was P5c ausdrücklich nicht wird** und §20 was beim Bauen anders war
+als im Plan. Und **`47` die Zwischenabnahme von P5c** — der Lauf für
+`cloudsrv24` nach Schritt 3, sechzehn Punkte **ohne ein einziges Bild**, weil
+die Oberfläche noch nicht existiert. Sein Punkt 1 ist Risiko 8 und **gehört vor
+das Update**: Die Form einer befristeten Kennung ist von `r` auf `[rc]`
+erweitert worden und gilt rückwirkend nicht — ein Kundenzugang, der heute
+`<präfix>_c` plus acht Hexziffern heisst, verschwindet ab dieser Fassung aus der
+Zugangsliste seiner Datenbank und wird gleichzeitig als Rest gemeldet.
+
+**Und §15 Punkt 3 des Plans war nicht fahrbar, gefunden beim Ausschreiben von
+`docs/47`.** Er verlangte, für den Beleg der Serverwand die Mandantenklammer
+abzuschalten und die Adresse einer fremden Datenbank aufzurufen. Das Präfix
+reist aber mit der **Datenbank** und nicht mit dem Aufrufer — der Aufruf gelingt
+dann, und zwar zu Recht. Der Punkt steht jetzt als drei getrennte Wände da.
+
+> **Eine Wand, die man nur erreicht, indem man die davor abschaltet, wird durch
+> das Abschalten nicht erreicht — sie wird umgangen.**
 
 > **Eine Option, die etwas erlaubt, ist nicht dasselbe wie ein Zustand, in dem
 > es geschieht.**

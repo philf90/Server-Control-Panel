@@ -10350,3 +10350,59 @@ ersten Testmethode für seine ganze Aussage gehalten habe.
 
 > **Ein Wächter sagt, was er prüft, in seinen Behauptungen — nicht im Namen
 > seiner ersten Methode.**
+
+### Die Zwischenabnahme von P5c steht als `docs/47`
+
+Sechzehn Punkte für `cloudsrv24` nach Schritt 3, **ohne ein einziges Bild** —
+die Oberfläche gibt es noch nicht, und alles, was diese Stufe bisher gebaut hat,
+ist über `srvpanel tinker` und die beiden Datenbankklienten erreichbar.
+
+Der Lauf steht jetzt und nicht nach Schritt 6, weil eine seiner Fragen keinen
+Aufschub duldet. **Punkt 1 ist Risiko 8 und gehört vor das Update:** Die Form
+einer befristeten Kennung ist von `r` auf `[rc]` erweitert worden
+(`docs/46 §20.2`) und gilt rückwirkend nicht. Was einem Kundenzugang passiert,
+der heute `<präfix>_c` plus acht Hexziffern heisst, ist schlimmer als „er wird
+eingesammelt" — er **verschwindet**: `Pg\Owner::roles()` überspringt jeden Namen
+dieser Form, also steht er nicht mehr in der Zugangsliste seiner Datenbank und
+ist im Panel weder zu berechtigen noch zu entfernen. Gleichzeitig meldet
+`srvpanel db` ihn als Rest. Der Kunde verbindet sich weiter, das Panel kennt ihn
+nicht mehr, und der Betreiber liest eine Aufforderung, ihn wegzuräumen.
+
+Dazu zwei Abfragen und nicht eine: die strenge auf die Form aus
+`Names::isEphemeral()` und eine bewusst lose, deren Zeilen **gelesen** werden.
+Eine strenge Abfrage mit falschem Anker ist leer und sieht aus wie eine
+Entwarnung — genau die Falle, in die `docs/38 §19` Punkt 7 gelaufen ist.
+
+**Und was der Lauf beantwortet, das dieser Container nicht kann:** Hier gibt es
+keinen Agenten. Alles, was `App\Support\Databases\Console` tut, ist gegen eine
+Attrappe geprüft; ob die zehn Operationen unter `srvpanel-agentd` überhaupt
+erreichbar sind, hat noch nie jemand gemessen.
+
+> **Ein Aufruf gegen eine Attrappe prüft den Aufrufer und nicht die Leitung.**
+
+### `docs/46 §15` Punkt 3 war nicht fahrbar
+
+Er verlangte für den Beleg der Serverwand, die Mandantenklammer für einen Lauf
+abzuschalten und dann die Adresse einer Datenbank aus einem fremden Abonnement
+aufzurufen; die Meldung müsse danach von PostgreSQL bzw. MariaDB kommen.
+
+**Sie kommt gar nicht — der Aufruf gelingt, und zwar zu Recht.** Das Präfix
+reist mit der **Datenbank** und nicht mit dem Aufrufer:
+`App\Support\Databases\Console::call()` holt es aus `$database->subscription`.
+Wer die Klammer abschaltet, richtet damit nicht die Konsole von A auf B, sondern
+die von B auf B.
+
+> **Eine Wand, die man nur erreicht, indem man die davor abschaltet, wird durch
+> das Abschalten nicht erreicht — sie wird umgangen.**
+
+Der Punkt steht jetzt als drei getrennte Wände da, jede an ihrer eigenen Stelle
+gemessen: die Mandantenklammer über die Adresse, `Names::belongsTo()` über eine
+erfundene Nutzlast am Agenten, und die Rechte der befristeten Rolle an einer
+Rolle, die den Zugang nachbaut — **über den Socket**, weil der Agent so
+verbindet und eine Gegenprobe über einen anderen Weg den falschen Weg prüft
+(`docs/44`).
+
+Gefunden hat es kein Test, sondern das Ausschreiben des Abnahmelaufs gegen den
+Quelltext. Das ist derselbe Befund wie in `docs/45`, eine Stufe früher:
+
+> **Ein Abnahmelauf ist Code, den niemand ausführt, bis es darauf ankommt.**

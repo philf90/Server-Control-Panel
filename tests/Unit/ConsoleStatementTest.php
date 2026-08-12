@@ -179,6 +179,8 @@ final class ConsoleStatementTest extends TestCase
     {
         $this->assertNull(Console::table(['public', 'kunden', 'r', '-1', '8192', 'f'])['rows']);
         $this->assertSame(3, Console::table(['public', 'kunden', 'r', '3', '8192', 'f'])['rows']);
+        $this->assertSame(Console::TABLE, Console::table(['public', 'kunden', 'r', '3', '8192', 'f'])['kind']);
+        $this->assertSame(Console::VIEW, Console::table(['public', 'sicht', 'm', '3', '8192', 'f'])['kind']);
 
         // Eine Sicht liefert gar keine Zahl — in MariaDB ist das der einzige
         // Fall, in dem es „unbekannt" gibt (`docs/46 §2.3`, N10).

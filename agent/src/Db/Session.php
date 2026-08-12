@@ -86,6 +86,114 @@ final class Session
     }
 
     /**
+     * Eine Abfrage unter einem befristeten Benutzer — zeilenweise, Felder durch Tabulator.
+     *
+     * Für die Katalogfragen der Konsole ({@see Console}) und für das
+     * `SELECT ROW_COUNT()` hinter einem Schreibvorgang. Was hier zurückkommt,
+     * sind Bezeichner und Zahlen; die Textform trägt das.
+     *
+     * @return list<list<string>>
+     */
+    public function queryAs(Context $context, Credentials $as, string $sql): array
+    {
+        $rows = [];
+
+        foreach ($this->linesAs($context, $as, $sql, false) as $line) {
+            $rows[] = explode("\t", $line);
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Eine Abfrage unter einem befristeten Benutzer — eine JSON-Zeile je Datenzeile.
+     *
+     * **`--raw`, und das ist der ganze Unterschied** (`docs/46 §8.1`). `--batch`
+     * maskiert in der Ausgabe Tabulator, Zeilenumbruch und **Rückstrich**; eine
+     * JSON-Zeichenkette besteht aus maskierten Rückstrichen, und aus `"a\tb"`
+     * wird damit `"a\\tb"` — gültiges JSON mit einem falschen Wert, das
+     * fehlerfrei gelesen wird. Gemessen am 12. August 2026 (N1/N2).
+     *
+     * **Dass `--raw` sonst gefährlich wäre, gilt hier nicht:** Ein roher
+     * Zeilenumbruch im Wert bräche die Zeilentrennung — `JSON_OBJECT()`
+     * maskiert Steuerzeichen aber selbst, und damit ist eine Datenzeile genau
+     * eine Ausgabezeile. **Die Sicherheit kommt vom Format und nicht vom
+     * Klienten**, und deshalb darf der Klient sie loslassen.
+     *
+     * @return list<string> je Eintrag ein JSON-Dokument
+     */
+    public function jsonAs(Context $context, Credentials $as, string $sql): array
+    {
+        return $this->linesAs($context, $as, $sql, true);
+    }
+
+    /**
+     * Der Lauf unter einem befristeten Benutzer.
+     *
+     * **Das Zeitlimit steht in derselben Sitzung wie die Abfrage** und nicht in
+     * einer Einstellung am Benutzer: Ein zweiter Aufruf wäre eine zweite
+     * Verbindung, und was dort gilt, gilt hier nicht. Dass der Benutzer es nicht
+     * zurücknehmen kann, liegt allein daran, dass er kein `SET` schicken darf —
+     * die Anweisung baut {@see Console} und nicht die Anwendung
+     * (`docs/46 §9`).
+     *
+     * @return list<string>
+     */
+    private function linesAs(Context $context, Credentials $as, string $sql, bool $raw): array
+    {
+        $prepared = sprintf(
+            "SET max_statement_time = %s;\n%s;\n",
+            (string) Console::TIMEOUT_SECONDS,
+            rtrim($sql, "; \t\n"),
+        );
+
+        $arguments = ['--protocol=socket', '--batch', '--skip-column-names'];
+
+        if ($raw) {
+            $arguments[] = '--raw';
+        }
+
+        $file = null;
+
+        try {
+            $file = $as->write();
+            array_unshift($arguments, '--defaults-extra-file='.$file);
+
+            $result = $context->runner->run(
+                'mysql',
+                $arguments,
+                self::TIMEOUT,
+                null,
+                $prepared,
+                fn (): bool => $context->abandoned(),
+            );
+        } finally {
+            if ($file !== null) {
+                @unlink($file);
+            }
+        }
+
+        if (! $result->successful()) {
+            throw AgentException::execFailed(
+                'Die Datenbank hat abgewiesen: '.$result->message(),
+                ['code' => $result->code],
+            );
+        }
+
+        $lines = [];
+
+        foreach (explode("\n", trim($result->stdout)) as $line) {
+            if (trim($line) === '') {
+                continue;
+            }
+
+            $lines[] = $line;
+        }
+
+        return $lines;
+    }
+
+    /**
      * Der eigentliche Lauf.
      *
      * `--protocol=socket`, damit auch dann der Socket benutzt wird, wenn in

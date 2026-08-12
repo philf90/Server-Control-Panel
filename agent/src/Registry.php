@@ -11,6 +11,11 @@ use SrvPanel\Agent\Ops\AcmeCertificateRemove;
 use SrvPanel\Agent\Ops\AgentPing;
 use SrvPanel\Agent\Ops\CertificateUpload;
 use SrvPanel\Agent\Ops\ConfigValidate;
+use SrvPanel\Agent\Ops\DbConsoleCell;
+use SrvPanel\Agent\Ops\DbConsoleColumns;
+use SrvPanel\Agent\Ops\DbConsoleRows;
+use SrvPanel\Agent\Ops\DbConsoleRowWrite;
+use SrvPanel\Agent\Ops\DbConsoleTables;
 use SrvPanel\Agent\Ops\DbDatabaseCreate;
 use SrvPanel\Agent\Ops\DbDatabaseRemove;
 use SrvPanel\Agent\Ops\DbDumpCreate;
@@ -245,6 +250,12 @@ final class Registry
          * Filterwert oder der Inhalt einer Kundenzeile. Aufgerufen werden sie
          * unmittelbar aus `App\Support\Databases\Console`.
          */
+        $this->register(new DbConsoleTables);
+        $this->register(new DbConsoleColumns);
+        $this->register(new DbConsoleRows);
+        $this->register(new DbConsoleCell);
+        $this->register(new DbConsoleRowWrite);
+
         $this->register(new PgConsoleTables);
         $this->register(new PgConsoleColumns);
         $this->register(new PgConsoleRows);

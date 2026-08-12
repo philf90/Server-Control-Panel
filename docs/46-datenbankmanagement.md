@@ -798,10 +798,20 @@ Datenbank und die drei Regeln des Schreibwegs.
 
 **Drei Dinge waren beim Bauen anders als im Plan**, sie stehen in §20.
 
-### Schritt 2 — Derselbe Agent für MariaDB
+### Schritt 2 — Derselbe Agent für MariaDB ✓
 
-`Db\Console` und die vier `db.console.*`. Gegen `cloudsrv24`, weil es hier keinen
-Server gibt. Am Ende steht `EngineReachTest` grün, ohne Ausnahmeeintrag.
+**Erledigt am 12. August 2026**, und **nicht** auf `cloudsrv24`: Der Container
+bekam MariaDB 10.11.14 aus dem Ubuntu-Archiv (§2.3). `Db\Console`, die fünf
+`db.console.*`, `Session::queryAs()` und `jsonAs()` mit `--raw`,
+`Sql::qualified()`.
+
+Siebenundvierzig Behauptungen, alle grün — **darunter die beiden Funde aus
+Schritt 0 im Betrieb**: Der Tabulator steht in der Zelle und nicht als zweite
+Spalte daneben (`--raw`), und das `BLOB` kommt als Länge, ohne die Zeile
+mitzunehmen.
+
+Vier Unterschiede zur PostgreSQL-Hälfte, jeder mit Grund, stehen in §20.5.
+`EngineReachTest` geht ohne Ausnahmeeintrag auf: fünf Paare, fünf Gegenstücke.
 
 ### Schritt 3 — Die Anwendung
 
@@ -1287,3 +1297,47 @@ berichtigt (`docs/38 §19`, `docs/46 §15`) und fragen jetzt nach der Form aus
 
 > **Ein Abnahmeschritt, dessen Erwartung nie eintreten kann, wird beim Fahren
 > stillschweigend umgedeutet** — und ab da prüft er nichts mehr.
+
+### 20.5 Vier Unterschiede zwischen den beiden Konsolen
+
+Der Plan sagt „dasselbe für MariaDB". Vier Stellen sind es nicht, und jede hat
+ihren Grund im System und nicht im Geschmack.
+
+**1. `--raw`.** Der Fund aus Schritt 0 (§8.1), hier gebaut: `jsonAs()` ruft mit
+`--raw`, `query()` ohne. Beide Richtungen haben einen Wächter, weil beide Fehler
+still sind.
+
+**2. Kein anonymer Block, dafür `LIMIT 1`.** PostgreSQL bekommt einen `DO`-Block
+mit `GET DIAGNOSTICS` und `RAISE EXCEPTION`; **MariaDB kennt keinen anonymen
+Block ausserhalb einer gespeicherten Routine.** Eine Prozedur dafür anzulegen
+hiesse, ein Ding zu bauen, das den Lauf überlebt und aufgeräumt werden muss —
+genau die Sorte Rest, die dieses Projekt sonst einsammelt.
+
+An seine Stelle treten zwei Dinge, die zusammen dasselbe leisten: **`LIMIT 1`**
+macht „mehr als eine Zeile" unmöglich — MariaDB erlaubt es an `UPDATE` und
+`DELETE`, PostgreSQL nicht —, und **`ROW_COUNT()`** in derselben Verbindung sagt,
+ob es null waren. Die Meldung lautet wörtlich wie die aus dem Block.
+
+> **Zwei Systeme dürfen dieselbe Zusage auf zwei Wegen halten. Sie dürfen sie
+> nicht auf einem halten und auf dem anderen behaupten.**
+
+**3. Es gibt kein Schema neben der Datenbank.** In MariaDB *ist* die Datenbank
+das Schema. Die Operationen tragen das Feld trotzdem, damit die Anwendung
+**eine** Frage für beide Systeme baut; `Db\Console::schema()` besteht darauf,
+dass es die Datenbank selbst nennt. Ein anderer Wert wäre kein Fehler des
+Kunden, sondern einer im Panel — und er soll auffallen, statt still ignoriert zu
+werden.
+
+**4. Das Präfix heisst `prefix` und nicht `user`.** Die älteren `db.*`-Operationen
+aus P5 nennen es `user`, die `pg.*` aus P5b `prefix`. Die fünf Konsolengriffe
+sind für beide Systeme zusammen entworfen und nehmen **beide** `prefix`, damit
+die Anwendung eine Nutzlast baut statt zweier, die sich in einem Feldnamen
+unterscheiden. Die alten bleiben, wie sie sind: Sie umzubenennen wäre eine
+Änderung an einer Schnittstelle, über die Vorgänge in der Warteschlange liegen
+können (`docs/19 §4a`).
+
+**Und eine Kleinigkeit, die keine ist:** `TABLE_TYPE` heisst `BASE TABLE`,
+`relkind` heisst `r`. Keines der beiden Wörter gehört in eine Vue-Datei, also
+übersetzen beide Konsolen in `table` und `view` (`Pg\Console::KINDS`,
+`Db\Console::KINDS`). Sonst stünde die Fallunterscheidung in der Oberfläche —
+und damit die dritte Fassung einer Regel, die es zweimal gibt.

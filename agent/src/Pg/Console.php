@@ -108,6 +108,29 @@ final class Console
     public const MODES = ['insert', 'update', 'delete'];
 
     /**
+     * Die zwei Arten, die die Oberfläche unterscheidet.
+     *
+     * **Nicht `relkind` und nicht `TABLE_TYPE`.** Beide Systeme nennen dieselbe
+     * Sache verschieden — `r` gegen `BASE TABLE` —, und keines der beiden Wörter
+     * gehört in eine Vue-Datei. Übersetzt wird hier und im Gegenstück, damit die
+     * Oberfläche eine Antwort bekommt und nicht zwei.
+     */
+    public const TABLE = 'table';
+
+    public const VIEW = 'view';
+
+    /**
+     * `relkind` in die zwei Arten.
+     *
+     * `p` ist eine partitionierte Tabelle und für den Kunden eine Tabelle; `m`
+     * ist eine materialisierte Sicht und für ihn eine Sicht — sie hat Zeilen auf
+     * der Platte, aber keinen Weg, eine davon zu ändern.
+     *
+     * @var array<string, string>
+     */
+    public const KINDS = ['r' => self::TABLE, 'p' => self::TABLE, 'v' => self::VIEW, 'm' => self::VIEW];
+
+    /**
      * Die Tabellen einer Datenbank.
      *
      * **Fest verdrahtet und ohne eine Zeile aus der Anfrage** — es gibt nichts
@@ -673,7 +696,7 @@ final class Console
         return [
             'schema' => (string) ($row[0] ?? ''),
             'name' => (string) ($row[1] ?? ''),
-            'kind' => (string) ($row[2] ?? ''),
+            'kind' => self::KINDS[(string) ($row[2] ?? '')] ?? self::VIEW,
             'rows' => $estimate < 0 ? null : $estimate,
             'bytes' => max(0, (int) ($row[4] ?? 0)),
             'key' => ($row[5] ?? '') === 't',

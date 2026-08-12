@@ -10217,3 +10217,48 @@ Schritt nichts mehr. Beide Fassungen fragen jetzt nach der Form aus
 
 > **Ein Abnahmeschritt, dessen Erwartung nie eintreten kann, wird beim Fahren
 > stillschweigend umgedeutet.**
+
+### Schritt 2 von P5c — dieselbe Konsole für MariaDB
+
+`Db\Console` und fünf Operationen: `db.console.tables`, `.columns`, `.rows`,
+`.cell` und `.row.write`. Dazu `Session::queryAs()` und `jsonAs()` sowie
+`Sql::qualified()`. `EngineReachTest` geht ohne Ausnahmeeintrag auf — fünf
+Paare, fünf Gegenstücke.
+
+**Gefahren wurde gegen MariaDB 10.11.14 im Container** und nicht auf dem
+Zielserver: Der Wegwerf-Server aus Schritt 0 ist derselbe Handgriff wie für
+PostgreSQL. Siebenundvierzig Behauptungen, alle grün — **darunter die beiden
+Funde aus Schritt 0, jetzt im Betrieb**: Der Tabulator steht in der Zelle und
+nicht als zweite Spalte daneben, und das `BLOB` kommt als Länge, ohne die ganze
+Zeile mitzunehmen.
+
+**Vier Unterschiede zur PostgreSQL-Hälfte**, jeder mit einem Grund im System.
+
+`--raw` in `jsonAs()` und ausdrücklich **nicht** in `query()` — der Fund aus
+Schritt 0. `ResultEncodingTest` prüft beide Richtungen, weil beide Fehler still
+sind: Ohne `--raw` kommt gültiges JSON mit falschen Werten an, mit `--raw` an der
+falschen Stelle bricht ein Wert mit einem Zeilenumbruch die Zeilentrennung.
+
+**MariaDB kennt keinen anonymen Block ausserhalb einer gespeicherten Routine**,
+also gibt es kein Gegenstück zum `DO`-Block mit `GET DIAGNOSTICS`. Eine Prozedur
+dafür anzulegen hiesse, ein Ding zu bauen, das den Lauf überlebt und aufgeräumt
+werden muss — genau die Sorte Rest, die dieses Projekt sonst einsammelt. An
+seine Stelle treten `LIMIT 1`, das „mehr als eine Zeile" unmöglich macht, und
+`ROW_COUNT()` in derselben Verbindung, das sagt, ob es null waren.
+
+> **Zwei Systeme dürfen dieselbe Zusage auf zwei Wegen halten. Sie dürfen sie
+> nicht auf einem halten und auf dem anderen behaupten.**
+
+In MariaDB **ist** die Datenbank das Schema. Das Feld kommt trotzdem mit, damit
+die Anwendung eine Frage für beide Systeme baut; `Db\Console::schema()` besteht
+darauf, dass es die Datenbank selbst nennt — ein anderer Wert wäre ein Fehler im
+Panel und soll auffallen.
+
+Und das Präfix heisst in beiden Konsolen `prefix`, obwohl die älteren
+`db.*`-Operationen es `user` nennen. Die alten bleiben: Sie umzubenennen wäre
+eine Änderung an einer Schnittstelle, über die Vorgänge in der Warteschlange
+liegen können.
+
+Dazu übersetzen beide Konsolen `relkind` und `TABLE_TYPE` in `table` und `view`.
+Keines der beiden Wörter gehört in eine Vue-Datei — und die Fallunterscheidung
+dort wäre die dritte Fassung einer Regel, die es schon zweimal gibt.

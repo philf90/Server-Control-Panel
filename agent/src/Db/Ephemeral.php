@@ -48,9 +48,14 @@ final class Ephemeral
      * @param  callable(Credentials): T  $work
      * @return T
      */
-    public function with(Context $context, string $systemUser, string $database, callable $work): mixed
-    {
-        $account = Names::ephemeral($systemUser);
+    public function with(
+        Context $context,
+        string $systemUser,
+        string $database,
+        callable $work,
+        string $kind = Names::KIND_RESTORE,
+    ): mixed {
+        $account = Names::ephemeral($systemUser, $kind);
         $password = self::password();
 
         $this->session->execute($context, [

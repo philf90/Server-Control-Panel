@@ -10092,3 +10092,58 @@ keine Vorsichtsmassnahme für später, sondern Bauvorschrift dieser Stufe. Sie h
 dafür eine zweite Hälfte im Abnahmekriterium bekommen und einen eigenen Punkt im
 Abnahmelauf, an einer Spalte, die niemand angefasst hat — **der einzige Punkt
 des Laufs, dessen Fehlschlag man an der geänderten Zeile nicht sieht.**
+
+### Schritt 0 von P5c — und der Container hatte die ganze Zeit MariaDB
+
+`docs/46 §2.3` führte fünf Messungen, die „auf `cloudsrv24` gehören, weil es in
+diesem Container keinen MariaDB-Server gibt". Der Satz stimmte zur Hälfte:
+MariaDB war hier **nicht installiert** und die ganze Zeit **installierbar** —
+`mariadb-server 1:10.11.14-0ubuntu0.24.04.1` liegt im Ubuntu-Archiv, dieselbe
+Fassung, die auf dem Zielserver läuft. Was der Proxy sperrt, ist
+`composer install` und zwei PPAs, nicht das Archiv der Distribution. Ein
+Wegwerf-Server ist derselbe Handgriff wie für PostgreSQL, ohne systemd.
+
+> **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite
+> braucht einen Versuch.**
+
+Damit ist Schritt 0 gefahren statt verschoben — zwölf Messungen gegen 10.11.14,
+und **zwei haben etwas gefunden.**
+
+**`mysql --batch` maskiert die Maskierung.** `--batch` ersetzt in der Ausgabe
+Tabulator, Zeilenumbruch und Rückstrich durch ihre maskierte Form — und eine
+JSON-Zeichenkette besteht aus maskierten Rückstrichen. Aus `"a\tb"` wird
+`"a\\tb"`. Das ist kein kaputtes JSON, sondern **gültiges JSON mit einem
+falschen Wert**: vier Zeichen statt drei, fehlerfrei gelesen. Die Antwort ist
+`--raw --batch` für die neue Methode — und ausdrücklich **nicht** für die
+bestehende `query()`, wo die Maskierung des Klienten genau die Sicherung ist,
+die die Zeilentrennung trägt.
+
+> **Eine Maskierung über einer Maskierung ist schlimmer als ein Parserfehler.**
+> Der fiele auf.
+
+**Ein `BLOB` nimmt die ganze Zeile mit.** Über einer Spalte mit ungültigem UTF-8
+schreibt `JSON_OBJECT()` die rohen Bytes in die JSON-Zeichenkette. MariaDBs
+eigenes `JSON_VALID()` sagt dazu `1`; PHPs `json_decode()` gibt `null` zurück,
+„Malformed UTF-8 characters" — und zwar für die **ganze Zeile**, nicht für die
+eine Zelle. Ein Bildchen in Spalte drei nimmt die anderen neunzehn Spalten mit,
+und die Meldung sieht aus wie ein Fehler des Panels.
+
+> **Eine Gültigkeitsprüfung des einen Systems sagt nichts über den Leser im
+> anderen.**
+
+Aus der Anzeigeentscheidung „binäre Spalten als Länge" wird damit eine
+Bedingung: Eine binäre Spalte darf `JSON_OBJECT()` gar nicht erst erreichen. Sie
+kommt als `OCTET_LENGTH(…)` in die Spaltenliste — eine Filterung der **Frage**
+und nicht des **Ergebnisses**, weil eine vergessene Filterung der Frage nur eine
+Spalte zu viel zeigt und eine vergessene des Ergebnisses die Seite zerstört.
+
+> **Was ein Format nicht tragen kann, gehört nicht hinein — nicht hinein und
+> hinterher entfernt.**
+
+Die übrigen zehn Messungen bestätigen den Plan: `max_statement_time` greift
+(`ERROR 1969`), `information_schema` ist für den Kundenbenutzer nach Rechten
+gefiltert (eigene Tabellen 4, fremde 0), ein Zugriff auf eine fremde Tabelle
+endet in `ERROR 1142`. Eine Abweichung gibt es bei der Zeilenschätzung: Was in
+PostgreSQL `reltuples = -1` ist, gibt es in MariaDB für Basistabellen **nicht** —
+dafür ist `TABLE_ROWS` bei einer **Sicht** `NULL`. Dieselbe Falle, in jedem
+System an einer anderen Stelle.

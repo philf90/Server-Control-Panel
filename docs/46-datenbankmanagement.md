@@ -115,35 +115,66 @@ das Passwort der Konsolensitzung" stellt sich nicht.
 **M9 hat die Seitengrösse zu einer Zahl mit Grund gemacht.** Ein Ergebnis wird
 vollständig geholt, ganz gleich wie viel davon jemand liest.
 
-### 2.3 Was hier nicht zu messen war
+### 2.3 Die fünf für MariaDB — hier stand „nicht zu messen", und das war falsch
 
-Diese fünf gehören **auf `cloudsrv24` gemessen, bevor Schritt 2 anfängt** —
-nicht danach, und nicht geschätzt. Sie betreffen alle MariaDB, für die es in
-diesem Container keinen Server gibt.
+**Hier stand, diese fünf gehörten auf `cloudsrv24` gemessen, weil es in diesem
+Container keinen MariaDB-Server gibt.** Das ist am 12. August 2026 nachgeprüft
+worden, und der Satz stimmte nur zur Hälfte: MariaDB ist hier **nicht
+installiert** und war die ganze Zeit **installierbar** —
+`mariadb-server 1:10.11.14-0ubuntu0.24.04.1` liegt im Ubuntu-Archiv, dieselbe
+Fassung, die auf `cloudsrv24` läuft. Was der Proxy sperrt, ist `composer install`
+und zwei PPAs, nicht das Archiv der Distribution.
 
-1. **`JSON_OBJECT()` über eine `BLOB`-Spalte mit ungültigem UTF-8.** Die
-   PostgreSQL-Hälfte ist gemessen (M8, `bytea` wird zu Hex). MariaDB kann hier
-   einen Fehler werfen statt einer Zeichenkette — und dann bräche die Konsole an
-   genau der Tabelle, an der sie am nötigsten ist.
-2. **Ob `mysql --batch` eine JSON-Zeile unverändert durchlässt.** `--batch`
-   maskiert Tabulator, Zeilenumbruch **und den Rückstrich** in der Ausgabe. Eine
-   JSON-Zeichenkette besteht aus maskierten Rückstrichen; eine zweite Maskierung
-   darüber ergäbe `\\n`, wo `\n` stehen soll. **Das ist die wahrscheinlichste
-   Stelle, an der dieser Plan für MariaDB nicht trägt**, und `--raw` ist die
-   Gegenprobe dazu.
-3. **`max_statement_time`** — ob er greift und ob er, wie `statement_timeout`
-   in M11, vom Rolleninhaber zurückgenommen werden kann. Für P5c ist nur die
-   erste Hälfte nötig (§9), die zweite gehört trotzdem gemessen: Sie
-   entscheidet, ob der Satz aus §9 für beide Systeme gilt oder nur für eines.
-4. **`information_schema.TABLES.TABLE_ROWS` bei InnoDB** — eine Schätzung, und
-   die Frage ist, ob sie wie `reltuples` einen Wert für „unbekannt" hat (M19)
-   oder stillschweigend `0` meldet.
-5. **Ob ein Kundenbenutzer `information_schema` gefiltert sieht.** Die
-   PostgreSQL-Hälfte ist gemessen (M18). Für MariaDB ist es die Grundlage der
-   ganzen Tabellenliste.
+Ein Wegwerf-Server ist damit derselbe Handgriff wie für PostgreSQL:
+`mariadb-install-db` in den Scratchpad, `mariadbd --skip-networking` auf einem
+eigenen Socket, kein systemd nötig. **Schritt 0 ist damit hier gefahren und
+nicht auf dem Zielserver**, gegen 10.11.14 statt gegen eine Annahme.
 
-> **Ein Plan, der eine Bauform nennt, hat sie noch nicht gemessen.**
-> ([38 §6](38-postgresql.md), und hier zum zweiten Mal.)
+> **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite braucht
+> einen Versuch.** `CLAUDE.md` hat den ersten geführt und den zweiten gemeint;
+> gekostet hat das nichts, weil jemand nachgesehen hat, bevor er es als Blockade
+> gemeldet hat.
+
+| | Messung | Ergebnis |
+|---|---|---|
+| **N1** | `mysql --batch` über eine JSON-Zeile — die heutigen Argumente von `Db\Session` | **Die Maskierung wird ein zweites Mal maskiert:** `"a\tb"` kommt als `"a\\tb"`, `"c\\d"` als `"c\\\\d"` |
+| **N2** | dasselbe mit `--raw --batch` | unverändert: `"a\tb"`, `"z1\nz2"`, `"c\\d"` |
+| **N3** | `JSON_OBJECT()` über ein `BLOB` mit ungültigem UTF-8 | rohe Bytes `0xFF 0x80` **mitten in der JSON-Zeichenkette** |
+| **N4** | `JSON_VALID()` auf ebendiese Ausgabe | **`1`** — MariaDB hält sie für gültig |
+| **N5** | `json_decode()` in PHP auf dieselbe Ausgabe | **`null`**, „Malformed UTF-8 characters" — und damit **die ganze Zeile**, nicht die eine Zelle |
+| **N6** | dasselbe über `HEX(binaer)` | geht, und `OCTET_LENGTH` liefert die Länge daneben |
+| **N7** | `max_statement_time` | greift: `ERROR 1969 … max_statement_time exceeded`, Rückgabewert 1 |
+| **N8** | ob der Benutzer ihn zurücknehmen kann | ja, `SET max_statement_time=0` — wie M11, und aus demselben Grund ohne Belang (§9) |
+| **N9** | `TABLE_ROWS` bei InnoDB | Schätzung: **197 076** bei 200 000 echten Zeilen (−1,5 %); **kein** Wert für „unbekannt" wie `reltuples = -1` |
+| **N10** | `TABLE_ROWS` bei einer Sicht | **`NULL`** — hier gibt es das „unbekannt" doch, nur woanders |
+| **N11** | `information_schema` für den Kundenbenutzer | nach Rechten gefiltert: eigene Tabellen 4, fremde **0**, Primärschlüssel lesbar |
+| **N12** | Zugriff auf eine fremde Tabelle | `ERROR 1142 … SELECT command denied` |
+
+**N1 hat den Verdacht bestätigt, und der Fehler wäre nicht aufgefallen.** Die
+zweite Maskierung erzeugt kein kaputtes JSON — sie erzeugt **gültiges JSON mit
+falschen Werten**. `{"tabulator": "a\\tb"}` liest sich fehlerfrei und ergibt die
+vier Zeichen `a`, `\`, `t`, `b` statt `a`, Tabulator, `b`. Ein Parserfehler wäre
+harmlos gewesen, weil er auffällt.
+
+> **Eine Maskierung über einer Maskierung ist schlimmer als ein Parserfehler.**
+
+**N3 bis N5 sind der eigentliche Fund dieses Schritts**, und er stand in keiner
+der fünf Fragen so scharf: Ein einziges `BLOB` in einer Tabelle macht nicht seine
+Zelle unlesbar, sondern **die ganze Seite** — `json_decode` gibt `null` für die
+komplette Zeile zurück, und die anderen neunzehn Spalten sind mit fort. Dass
+MariaDBs eigenes `JSON_VALID` dabei `1` sagt, ist die gefährliche Hälfte:
+
+> **Eine Gültigkeitsprüfung des einen Systems sagt nichts über den Leser im
+> anderen.**
+
+Was daraus folgt, steht in §8 und ist schärfer als vorher: Eine binäre Spalte
+darf `JSON_OBJECT()` **gar nicht erst erreichen** — nicht „wird später nicht
+angezeigt", sondern gar nicht erst hinein.
+
+**N9 und N10 zusammen sind die MariaDB-Fassung der `-1`-Falle aus M19**, nur an
+einer anderen Stelle: Eine Basistabelle liefert immer eine Zahl, auch eine nie
+analysierte; eine **Sicht** liefert `NULL`. Wer die Spalte für Basistabellen
+prüft und sich dann sicher fühlt, schreibt unter jede Sicht „0 Zeilen".
 
 ---
 
@@ -470,12 +501,48 @@ ist: Für Katalogfragen ist die Textform richtig, und sie hat zwei Stufen
 getragen. Was dazukommt, ist eine zweite Methode neben ihr — nicht ein Umbau der
 ersten.
 
+### 8.1 Für MariaDB gilt `--raw`, und zwar nur hier
+
+`Db\Session` ruft heute mit `--batch --skip-column-names`. **Für eine JSON-Zeile
+ist das falsch** (N1): `--batch` maskiert in der Ausgabe Tabulator,
+Zeilenumbruch und Rückstrich — und eine JSON-Zeichenkette besteht aus maskierten
+Rückstrichen. Aus `"a\tb"` wird `"a\\tb"`, und das ist **gültiges JSON mit einem
+falschen Wert**: vier Zeichen `a \ t b` statt drei.
+
+Die neue Methode ruft deshalb mit `--raw --batch`. Dass `--raw` sonst
+gefährlich wäre — ein roher Zeilenumbruch im Wert bräche die Zeilentrennung —
+gilt hier nicht: `JSON_OBJECT()` maskiert Steuerzeichen selbst, gemessen (N2).
+**Die Sicherheit kommt vom Format, nicht vom Klienten**, und deshalb darf der
+Klient sie loslassen.
+
+**`--raw` bleibt aus der bestehenden `query()` heraus.** Dort ist die Maskierung
+des Klienten genau die Sicherung, die die Zeilentrennung trägt; wer sie dort
+entfernte, machte aus einer richtigen Methode eine kaputte. Der Wächter dazu
+steht in §14.8.
+
+### 8.2 Eine binäre Spalte erreicht `JSON_OBJECT()` gar nicht erst
+
 **Binäre Spalten zeigt die Konsole als Länge und nicht als Wert.** `bytea` und
-`BLOB` werden als `<binär, 48 kB>` dargestellt und lassen sich nicht ändern. Das
-ist eine benannte Lücke und keine Nachlässigkeit: Ein Hexblock in einer
-Tabellenzelle hilft niemandem, ein Bild kann diese Oberfläche nicht anzeigen, und
-das Ändern eines binären Werts über ein Textfeld wäre ein Weg, Daten zu
-beschädigen, ohne es zu merken.
+`BLOB` erscheinen als `<binär, 48 kB>` und lassen sich nicht ändern. Ein
+Hexblock in einer Tabellenzelle hilft niemandem, ein Bild kann diese Oberfläche
+nicht anzeigen, und das Ändern eines binären Werts über ein Textfeld wäre ein
+Weg, Daten zu beschädigen, ohne es zu merken.
+
+**Bis Schritt 0 war das eine Frage der Anzeige. Jetzt ist es eine Bedingung.**
+N3 bis N5: Ein `BLOB` mit ungültigem UTF-8 landet als rohe Bytes in der
+JSON-Zeichenkette; MariaDBs `JSON_VALID()` sagt dazu `1`, und PHPs
+`json_decode()` gibt `null` zurück — **für die ganze Zeile.** Ein einziges
+Bildchen in Spalte drei nimmt die anderen neunzehn Spalten mit, und die Meldung
+lautet „Malformed UTF-8", also nach einem Fehler des Panels.
+
+Deshalb: **Die Spaltenliste der Abfrage entsteht aus dem Katalog, und eine
+binäre Spalte kommt dort als `OCTET_LENGTH(spalte)` hinein und nie als Wert**
+(N6). Das ist keine Filterung des Ergebnisses, sondern eine der Frage — der
+Unterschied ist, dass eine vergessene Filterung des Ergebnisses die Seite
+zerstört, eine vergessene der Frage nur eine Spalte zu viel zeigt.
+
+> **Was ein Format nicht tragen kann, gehört nicht hinein — nicht hinein und
+> hinterher entfernt.**
 
 ---
 
@@ -503,9 +570,13 @@ die Absperrung aus P5b `pg_stat_activity` verschlossen hat. Es gibt also **keine
 Weg, der ohne den Agenten auskäme** — was ein weiteres Argument für Entscheidung
 1 ist, und es ist erst beim Messen entstanden.
 
-**Die Schätzung hat einen dritten Zustand, und der ist der gefährliche.** M19:
-`pg_class.reltuples` ist `-1` für eine Tabelle, die noch nie analysiert wurde —
-nicht `0`. Wer die Zahl unbesehen anzeigt, schreibt „−1 Zeilen" unter eine
+**Die Schätzung hat einen dritten Zustand, und er sitzt in jedem System
+woanders.** M19: `pg_class.reltuples` ist `-1` für eine Tabelle, die noch nie
+analysiert wurde — nicht `0`. In MariaDB gibt es das für Basistabellen **nicht**
+(N9: 197 076 bei 200 000 echten Zeilen, und eine nie analysierte Tabelle liefert
+ihre drei Zeilen genau), dafür ist `TABLE_ROWS` bei einer **Sicht** `NULL` (N10).
+Wer die eine Hälfte prüft und sich dann sicher fühlt, schreibt im anderen System
+unter jede Sicht „0 Zeilen". Wer die Zahl unbesehen anzeigt, schreibt „−1 Zeilen" unter eine
 Tabelle mit Inhalt; wer sie auf `max(0, …)` klemmt, schreibt „0 Zeilen" und das
 ist schlimmer, weil es aussieht wie eine Antwort. Die Oberfläche zeigt
 **„unbekannt"**, und `docs/41` hat denselben Satz schon einmal gebraucht:
@@ -696,12 +767,20 @@ in 50 ms fertig ist, die falsche Bauform.
 
 Kein Schritt beginnt, bevor der vorige grün ist. Jeder ist für sich lieferbar.
 
-### Schritt 0 — Die fünf offenen Messungen (§2.3)
+### Schritt 0 — Die fünf offenen Messungen (§2.3) ✓
 
-Auf `cloudsrv24`, gegen MariaDB 10.11.14, **vor Schritt 2**. Ergebnis ist ein
-Abschnitt in diesem Dokument, kein Code. Fällt Messung 2 (`--batch` maskiert die
-Maskierung), ändert das §8 für MariaDB — und dann ist es besser, es steht hier,
-als dass es in Schritt 2 als Fehler auftaucht.
+**Erledigt am 12. August 2026**, und nicht auf `cloudsrv24`, sondern hier: Der
+Container hatte keinen MariaDB-Server und konnte einen bekommen — 10.11.14 aus
+dem Ubuntu-Archiv, dieselbe Fassung wie der Zielserver (§2.3). Zwölf Messungen,
+N1 bis N12.
+
+**Zwei davon haben etwas gefunden**, und beide ändern §8: `--batch` maskiert die
+Maskierung einer JSON-Zeile und erzeugt gültiges JSON mit falschen Werten (§8.1),
+und ein `BLOB` mit ungültigem UTF-8 macht über `json_decode()` die **ganze Zeile**
+unlesbar, während MariaDBs `JSON_VALID()` sie für gültig hält (§8.2).
+
+Beides wäre in Schritt 2 als Fehler aufgetaucht — das erste vermutlich gar nicht,
+weil es keine Ausnahme wirft, sondern falsche Zeichen liefert.
 
 ### Schritt 1 — Der Agent für PostgreSQL
 
@@ -848,6 +927,29 @@ Zeichenkette schreiben. Erwartet: rot, und der Test benennt beide Werte — nich
 „der Wert stimmt nicht", sondern `NULL` gegen `''`. Das ist Kriterium 2 des
 Abnahmelaufs auf dem Schreibweg, und es hat denselben Grund: **Wer die beiden
 gleich behandelt, merkt es an keiner Zählung.**
+
+### 14.8 `ResultEncodingTest` — der Wächter zu den beiden Funden aus Schritt 0
+
+**Regel eins:** Die JSON-Methode für MariaDB ruft mit `--raw`, die bestehende
+`query()` **ohne**. Beide Richtungen, denn beide Fehler sind still: `--batch` auf
+der JSON-Methode liefert gültiges JSON mit falschen Werten (N1), `--raw` auf
+`query()` nimmt der Zeilentrennung ihre Sicherung.
+
+**Bruch:** `--raw` aus der einen entfernen, in die andere setzen. Erwartet: zwei
+rote Tests, jeder mit der Argumentliste im Text.
+
+**Regel zwei:** Keine binäre Spalte steht als Wert in der Spaltenliste einer
+Konsolenabfrage — sie steht als `OCTET_LENGTH(…)` (§8.2).
+
+**Bruch:** Die Umsetzung auf `OCTET_LENGTH` entfernen. Erwartet: rot **an der
+erzeugten Anweisung**, nicht an einem Ergebnis. Der Grund steht in §8.2: Am
+Ergebnis sähe man es auch — aber erst, wenn jemand eine Tabelle mit einem `BLOB`
+öffnet, und dann als „Malformed UTF-8" ohne jeden Hinweis auf die Ursache.
+
+Beide Regeln sind **Textprüfungen** und brauchen keinen Server; das ist dieselbe
+Bauform wie `SiteTemplateTest` und `PhpIsolationTest`, und sie ist hier aus
+demselben Grund richtig: Der Standardschutz ist eine Eigenschaft der erzeugten
+Zeichenkette.
 
 ### Wächter, die von selbst mitlaufen
 
@@ -1043,11 +1145,11 @@ und nicht bei null.
 
 ## 18. Risiken, ehrlich benannt
 
-1. **Die MariaDB-Hälfte von §8 ist nicht gemessen.** Wenn `mysql --batch` die
-   Maskierung einer JSON-Zeile ein zweites Mal maskiert, trägt der Plan dort
-   nicht, und Schritt 2 braucht eine andere Form (`--raw`, oder das Ergebnis
-   Base64-kodiert durch die Leitung). Das ist das grösste Einzelrisiko dieser
-   Stufe, und es steht als Schritt 0 vor dem Bauen.
+1. ~~**Die MariaDB-Hälfte von §8 ist nicht gemessen.**~~ **Gemessen am
+   12. August 2026** (§2.3, N1 bis N12). Der Verdacht war richtig: `--batch`
+   maskiert die Maskierung. Die Antwort ist `--raw --batch` und keine
+   Base64-Kodierung — §8.1. Damit ist das grösste Einzelrisiko dieser Stufe fort,
+   und das zweite, das dabei zum Vorschein kam, ebenfalls benannt (§8.2).
 2. **Blättern mit grossem `OFFSET` ist langsam** und wird es bleiben. Bei einer
    Tabelle mit Millionen Zeilen ist Seite 20 000 eine Abfrage, die ins Zeitlimit
    läuft. Die Oberfläche sagt das dann — sie tut nicht so, als gäbe es die
@@ -1084,7 +1186,7 @@ und nicht bei null.
 | Agent | `Db\Console`, `Pg\Console`, zehn Operationen |
 | Anwendung | `Console`, Controller, Policy-Methode, Routen |
 | Oberfläche | drei Ansichten und eine Zelleinzelsicht unter `Pages/Databases/` |
-| Wächter | sieben neue, acht Brüche |
+| Wächter | acht neue, elf Brüche |
 | Migrationen | **keine** — die Konsole führt keinen Zustand |
 | Positivliste | **keine Erweiterung** — `psql` und `mysql` stehen seit P5/P5b |
 | Paketabhängigkeiten | **keine Erweiterung** (Entscheidung 1) |

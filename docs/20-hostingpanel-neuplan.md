@@ -1122,6 +1122,32 @@ gesperrte Statistiksichten, kein Zugriff, eine Absperrung, die der Kunde nicht
 aufheben kann — und der verbleibende Ratekanal wird im Abnahmelauf ausdrücklich
 gefahren und protokolliert, statt verschwiegen zu werden.
 
+### P5c — Datenbankmanagement · 2–3 Wochen · (0.6.x)
+
+Der Plan dazu ist [46](46-datenbankmanagement.md). Er beantwortet §15 Punkt 5a
+(Adminer) — **selbst gebaut statt eingebunden**, und damit bleibt die Begründung
+von damals stehen, während die Sache anders entschieden ist.
+
+- Tabellen und Struktur durchsehen, Zeilen ansehen, filtern, sortieren,
+  blättern, eine Zeile anlegen, ändern und löschen — für **beide**
+  Datenbanksysteme
+- **Kein freies SQL.** Der Agent bekommt typisierte Fragen und keine Anweisung;
+  damit gilt §4.2 wörtlich statt dem Sinne nach, und der Kunde kann weder eine
+  zweite Anweisung anhängen noch das Zeitlimit zurücknehmen ([46 §3](46-datenbankmanagement.md))
+- Jede Handlung läuft unter einem **befristeten Zugang**, der nach der Anfrage
+  fort ist — derselbe Mechanismus, unter dem seit P5 mitgebrachte Dumps laufen.
+  Die Trennung durchsetzt damit die Datenbank und nicht unsere Prüfung
+- Nur für den Kunden, nicht für den Betreiber. Protokolliert wird, was ändert —
+  **ohne die Werte**
+
+**Fertig, wenn** ein Kunde in seiner Datenbank durchsieht, blättert und eine
+Zeile ändert — und die sieben Punkte aus [46 §4](46-datenbankmanagement.md)
+belegt sind. Der zweite davon ist der, den ein Test nicht findet: Ein Wert mit
+Tabulator, einer mit Zeilenumbruch, ein `NULL` und eine leere Zeichenkette
+kommen **unterscheidbar** an. Die Textausgabe, mit der der Agent seit P5
+antwortet, kann das gemessen nicht — sie macht aus einem Tabulator eine Spalte
+und aus einem Umbruch eine Zeile.
+
 ### P6 — Dateien, Zugänge, Cron · 3–4 Wochen · (0.7)
 
 - Dateimanager: Baum, Editor mit Syntaxhervorhebung, Hochladen, Entpacken,
@@ -1405,7 +1431,7 @@ Offen bleibt:
 | 3a | **Den Schlüssel von sury im Paket mitliefern statt beim Einrichten zu holen?** `srvpanel-php-source` lädt ihn heute im `postinst` über das Netz — das braucht Netz zur Installationszeit und ist nicht reproduzierbar. Ihn einzubetten wäre besser, bindet aber einen fremden Schlüssel an unsere Fassung: Rotiert sury, ist jede ausgelieferte Fassung falsch, bis eine neue erscheint. Dieselbe Abwägung wie Punkt 2a, nur mit einem Schlüssel, der uns nicht gehört | vor 1.0 |
 | ~~4~~ | **Beantwortet in P3: dauerhaft nur nginx.** Zwei Webserver-Vorlagen zu pflegen verdoppelte genau die Fläche, die klein bleiben soll — und die Vorlagen sind die Stelle, an der ein Fehler `root` auf ein fremdes Verzeichnis zeigen lässt. Ein *laufender* fremder Webserver verweigert den Betrieb (`webserver.detect`), ein bloss installierter nicht: Auf manchen Systemen liegt Apache als Abhängigkeit herum, ohne je zu starten, und wer deswegen den Dienst verweigerte, verweigerte ihn auf einem Server, auf dem nichts im Weg ist | erledigt |
 | ~~5~~ | **Beantwortet vor P5: in der 1.0, aber als eigene Stufe P5b.** Nicht „nach hinten" und nicht „als zweiter Schritt der Stufe", wie §9 P5 es formuliert hatte — sondern getrennt abnehmbar, mit eigener Übergabe ([37](37-uebergabe-an-p5b.md)), eigenem Plan ([38](38-postgresql.md)) und eigener Abnahme. Der Grund ist eine Überprüfbarkeit: [36 §14](36-datenbanken.md) behauptet, ein zweites Datenbanksystem sei eine Erweiterung und kein Umbau. Eine eigene Stufe ist die Bauform, in der sich das nachweisen lässt — muss P5b `agent/src/Db/` aufreissen, war die Trennung falsch, und es fällt auf, bevor MariaDB darunter leidet. **P5 baut dafür nichts vor:** keine `engine`-Spalte auf Verdacht, keine Schnittstelle mit einer einzigen Umsetzung. Die ganze Vorleistung ist eine Unterlassung — `Db\Session` bleibt die einzige Stelle, die `mysql` aufruft, und kein Modell, keine Tabelle und keine Spalte trägt `mysql` im Namen. Zu klären hat P5b vor allem eines: „sieht keine fremde Datenbank" heisst dort etwas anderes, weil `pg_database` für jeden lesbar ist und `REVOKE CONNECT` die Verbindung nimmt und nicht den **Namen** | erledigt |
-| 5a | **Adminer** — bauen, aufschieben oder streichen? §9 P5 nennt ihn („eingebettetes Werkzeug, Anmeldung ohne Passwortweitergabe"), er ist aber nicht Teil des Abnahmekriteriums. **Vor P5 aufgeschoben**, und der Grund ist derselbe, aus dem `certbot` mit P4 wieder von der Positivliste des Agenten verschwunden ist: fremder Code auf dem Panel-Host, den wir ab dann mit ausliefern und aktualisieren — hier mit Datenbankzugangsdaten. Dazu kommt, dass die Aufgabe sich mit P5b ändert: Ein eingebettetes Werkzeug für zwei Datenbanksysteme ist etwas anderes als eines für eines. **Zu entscheiden nach P5b**, und die Alternative gehört mitbetrachtet — eine schmale eigene Tabellenansicht deckt den Fall „ich will in meine Daten sehen" ab, ohne eine fremde Anwendung mit voller SQL-Fläche auszuliefern ([36 §13](36-datenbanken.md)) | nach P5b |
+| ~~5a~~ | **Beantwortet am 12. August 2026: die Alternative, nicht Adminer.** Aufgeschoben war er vor P5, aus demselben Grund, aus dem `certbot` mit P4 wieder von der Positivliste verschwunden ist: fremder Code auf dem Panel-Host, den wir ab dann mit ausliefern und aktualisieren — hier mit Datenbankzugangsdaten. **Diese Begründung bleibt vollständig stehen; entschieden ist nur die Sache anders.** Gebaut wird die „schmale eigene Tabellenansicht", die hier schon als Alternative stand — als eigene Stufe P5c mit eigenem Plan ([46](46-datenbankmanagement.md)) und eigener Abnahme. Der dritte Einwand aus [36 §13](36-datenbanken.md) — „Anmeldung ohne Passwortweitergabe ist baubar und ist nicht wenig" — ist inzwischen keiner mehr: Der befristete Zugang läuft seit P5 unter jedem Zurückspielen, gemessen 11,2 ms je Anfrage. Und der Einwand „ein Werkzeug für zwei Systeme ist etwas anderes als eines für eines" ist der Grund, warum die Stufe nach P5b liegt und nicht davor. **Die volle SQL-Fläche entfällt ausdrücklich** (Entscheidung 2 in [46 §3](46-datenbankmanagement.md)): kein Eingabefeld für Anweisungen, sondern typisierte Fragen an den Agenten | erledigt |
 | 5b | **PostgreSQL-Erweiterungen**: welche gehören auf die Positivliste? In P5b gehört die Datenbank dem Panel und nicht dem Kunden — das ist die einzige Bauform, in der der Kunde die Absperrung nicht selbst wieder aufheben kann ([38 §5](38-postgresql.md), gemessen). Der Preis ist, dass er kein `CREATE EXTENSION` bekommt, auch kein `pgcrypto`, das PostgreSQL selbst als vertraut einstuft. Der Ausweg ist eine Positivliste im Agenten und eine Operation, die daraus installiert — wörtlich die Form von `PhpVersions::EXTENSIONS`. **Welche Erweiterungen daraufgehören, ist eine Frage an den Betrieb und nicht an einen Plan**, und sie lässt sich erst beantworten, wenn jemand PostgreSQL im Panel benutzt hat | nach P5b |
 | ~~5c~~ | **Beantwortet am 9. August 2026: Der Fernzugriff auf PostgreSQL wird in P5b gebaut.** Er stand einen halben Tag lang als offener Punkt hier, weil [38 §14](38-postgresql.md) abgeraten hatte: Ein Include-Punkt für `pg_hba.conf` existiert erst ab PG 16 und ist bei Debian auch dort nicht eingeschaltet, ein Fernzugriff wäre also auf der Hälfte der Zielplattformen anders gebaut. **Die Nachmessung hat die Begründung umgeworfen** — ein verwalteter Block zwischen Marken braucht keinen Include-Punkt und ist auf PG 14 bis 17 derselbe Bau. Die Prämisse stimmte, die Folgerung nicht; es ist derselbe Fehler, den [38 §3](38-postgresql.md) für `pg_database` beschreibt, im selben Dokument ein zweites Mal. Was aus der Messung wirklich bleibt, ist ein anderes Risiko: Eine kaputte `pg_hba.conf` stört den laufenden Betrieb nicht und verhindert den **nächsten Start** — deshalb rollt die Operation die Datei zurück, statt den Fehler zu melden | erledigt |
 | 6 | **FTP** (unverschlüsselt/FTPS über vsftpd oder ProFTPD) neben SFTP wirklich nötig, oder reicht SFTP? | P6 |

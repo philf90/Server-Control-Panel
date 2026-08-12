@@ -9917,3 +9917,87 @@ Punkt 3 derselben Liste — Schritt 10, der Fernzugriff — ist dagegen
 durchgestrichen: gebaut, gefahren, abgenommen. Und `CLAUDE.md` behauptete an
 einer Stelle weiter noch das Gegenteil („Abgenommen ist er nicht"); zwei
 Wahrheiten in derselben Datei sind hier schon oft genug teuer gewesen.
+
+### P5c — Datenbankmanagement: der Plan, und vier Entscheidungen davor (docs/46)
+
+`docs/20 §15` führte Adminer als Punkt 5a, fällig „nach P5b", mit einem
+ausdrücklichen Nein aus `docs/36 §13`: fremder PHP-Code auf dem Panel-Host, den
+wir ab dann mitausliefern und aktualisieren, mit Datenbankzugangsdaten. **Das
+Nein bleibt in der Begründung und fällt in der Sache:** Es wird selbst gebaut,
+nicht eingebunden. Der Plan dazu ist `docs/46`.
+
+**Gemessen wurde vor dem Planen, und drei Messungen haben den Entwurf
+umgeworfen, mit dem die Sitzung anfing** — dieselbe Reihenfolge wie in P5b und
+aus demselben Grund. Ein Wegwerf-Cluster im Container, PostgreSQL 16.13, mit
+zwei Abonnements und der Absperrung aus `docs/38 §10` wörtlich gefahren.
+
+**Die Textausgabe des Agenten trägt keine Tabellendaten.** `psql -A -t -F'\t'`
+— die einzige Form, in der der Agent heute ein Ergebnis zurückgibt — liefert
+`NULL` und die leere Zeichenkette beide als leeres Feld; ein Wert mit einem
+Tabulator erzeugt eine Spalte, die es nicht gibt, einer mit einem
+Zeilenumbruch eine Zeile, die es nicht gibt. Für Katalogfragen ist die Form
+richtig und hat zwei Stufen getragen — ein Datenbankname enthält keinen
+Tabulator. `row_to_json` trägt alle vier Fälle, gemessen.
+
+> **Ein Format, das für Bezeichner reicht, reicht nicht für Werte.**
+
+**`SET ROLE` ist keine Schranke.** Eine dauerhafte Konsolenrolle, die Mitglied
+jeder Kundenrolle ist und sich je Sitzung in die richtige stellt, wäre der Weg
+ohne jede Rollenerzeugung gewesen. `RESET ROLE` kommt zurück, und die
+zurückgekehrte Rolle steht in jeder fremden Datenbank. Dasselbe gilt für
+`BEGIN READ ONLY`: `SET TRANSACTION READ WRITE` von innen ging durch, danach
+`INSERT` und `CREATE TABLE`.
+
+> **Was der Geprüfte selbst zurücknehmen kann, ist keine Schranke, sondern eine
+> Voreinstellung.**
+
+**Ein befristeter Zugang je Anfrage kostet 11,2 ms gegen 6,6 ms.** Damit muss
+zwischen zwei Anfragen kein Geheimnis irgendwo liegen — die Frage „wo liegt das
+Passwort der Konsolensitzung" stellt sich nicht, und die Antwort auf „wo liegen
+die Datenbankpasswörter der Kunden" bleibt die aus `docs/36 §4`: nirgends.
+
+Dazu, weil sie den Zuschnitt tragen: ein Ergebnis von 200 000 Zeilen kostet den
+lesenden Prozess 51 MB, auch wenn nur eine Zeile daraus gelesen wird; eine
+einzelne Zelle mit 3 MB sprengt die Anfragegrenze des Agenten von 1 MiB allein;
+`statement_timeout` lässt sich vom Rolleninhaber selbst zurücknehmen, auch
+gegen `ALTER ROLE … SET`; eine Abfrage rechnet weiter, wenn ihr Klient
+wegfällt; und eine zweite befristete Rolle kann sie nicht abbrechen, weil die
+Absperrung aus P5b `pg_stat_activity` verschlossen hat. `pg_class.reltuples`
+ist für eine nie analysierte Tabelle **`-1`** und nicht `0`.
+
+**Die vier Entscheidungen des Betreibers, vorgelegt am 12. August 2026:**
+
+1. **Die Abfrage läuft über den Agenten**, nicht über eine zweite Anmeldung aus
+   der Anwendung. `php8.4-pgsql` kommt damit nicht in die Abhängigkeiten des
+   Pakets, und es entsteht keine zweite Stelle, die sich an einem
+   Datenbankserver anmeldet.
+2. **Kein freies SQL.** Im Umfang sind Tabellen und Struktur durchsehen, Zeilen
+   ansehen, filtern, sortieren und blättern, und eine Zeile anlegen, ändern und
+   löschen. Das ist die Entscheidung mit den weitesten Folgen, und sie trägt
+   Entscheidung 1: Der Agent bekommt **typisierte Fragen und keine Anweisung**,
+   die erste Grenze aus `CLAUDE.md` gilt also wörtlich und nicht dem Sinne nach.
+   Vier Fragen erledigen sich mit — der SQL-Parser, die gestapelte Anweisung,
+   das Zurücknehmen des Zeitlimits und die Unterscheidung „lesend oder
+   schreibend".
+3. **Nur der Kunde**, auch nicht lesend für den Betreiber. Damit stellt sich die
+   Frage „wer hat in Kundendaten gesehen" nicht.
+4. **Protokolliert wird, was ändert — ohne die Werte.** Ein Protokoll, das den
+   Inhalt einer geänderten Zeile führt, ist eine zweite Kopie der Kundendaten an
+   einer Stelle, an der sie niemand vermutet, und sie überlebt das Löschen der
+   Zeile.
+
+**Was der Plan an Wegen mit Rechten hinzufügt: nichts.** Der befristete Zugang,
+die Anmeldung über den Socket mit Passwort, die Namensprüfung gegen das Präfix,
+die Maskierung — alles steht seit P5 und P5b. Genau der Mechanismus, unter dem
+mitgebrachte Dumps laufen, also beliebiges fremdes SQL, trägt jetzt auch das
+Durchsehen. Keine Migration, keine Erweiterung der Positivliste, keine neue
+Paketabhängigkeit.
+
+**Fünf Messungen fehlen, und sie stehen als Schritt 0 vor dem Bauen** — alle
+betreffen MariaDB, für die es in diesem Container keinen Server gibt. Die
+wichtigste: `mysql --batch` maskiert in der Ausgabe auch den Rückstrich, und
+eine JSON-Zeichenkette besteht aus maskierten Rückstrichen. Trägt das nicht,
+braucht die MariaDB-Hälfte eine andere Form — und das gehört gemessen, bevor
+eine Zeile entsteht, und nicht als Fehler in Schritt 2 gefunden.
+
+> **Ein Plan, der eine Bauform nennt, hat sie noch nicht gemessen.**

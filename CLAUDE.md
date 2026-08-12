@@ -182,6 +182,20 @@ Der erste ist die **dritte** Fassung derselben Ausnahme nach `.ident` und
 Flexkind sonst nicht unter seine Inhaltsbreite darf.
 `MobileLayoutTest::test_a_section_heading_can_break` rechnet sie seitdem nach.
 
+**Und der Plan hat einen Schritt dazubekommen: 5b, die Baumansicht** (§11.1,
+§13). Der Betreiber hat gefragt, ob sich Tabellen und Struktur als aufklappbarer
+Baum zeigen lassen; ich hatte erwartet, dass das bei 390px an der Einrückung
+scheitert, und **gemessen ist das Gegenteil.** Der waagerechte Überlauf ist in
+jedem Entwurf 0px — entschieden wird die Frage senkrecht: zwanzig Tabellen,
+zugeklappt, **4992px als gestapelte Tabelle gegen 964px als Baum**. Bei 1440px
+nehmen sich die beiden nichts (881 gegen 803).
+
+> **Der Baum löst kein Navigationsproblem. Er löst ein Telefonproblem.**
+
+Der Grund steht in `docs/24 §5`: `.stacks` ist für ein **Verzeichnis** gedacht,
+das man Zeile für Zeile liest. Eine Tabellenliste sucht man nach *einem* Namen
+ab, und dafür ist das Kärtchen die falsche Form.
+
 **P5c ist bis Schritt 4 gebaut** — `docs/46`, das Datenbankmanagement: Tabellen
 und Struktur durchsehen, Zeilen ansehen, filtern, blättern und ändern, für beide
 Systeme. Vier Entscheidungen des Betreibers tragen ihn, und die zweite hat die

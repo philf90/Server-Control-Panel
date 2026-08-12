@@ -779,6 +779,83 @@ stehen, damit man beim Rollen weiss, in welcher Zeile man ist.
 steht oben in der Zusammenfassung, das Feld trägt `aria-invalid`, und Erfolg
 wird nie am Feld gemeldet.
 
+### 11.1 Die Baumansicht — nachgetragen am 12. August 2026
+
+**Der Betreiber hat gefragt, ob sich die drei Ansichten als aufklappbarer Baum
+zeigen lassen.** Die Antwort ist ja, aber der Nutzen liegt woanders, als die
+Frage vermuten lässt — und das steht hier, weil es gemessen wurde und nicht
+überlegt.
+
+Erwartet war, dass ein Baum bei 390 px an der Einrückung scheitert: Jede Ebene
+kostet Breite, und die Breite fehlt den Daten. **Gemessen ist das Gegenteil.**
+Der waagerechte Überlauf ist in jedem Entwurf `0px`; entschieden wird die Frage
+**senkrecht**:
+
+| 20 Tabellen, zugeklappt | 390 px | 1440 px |
+|---|---|---|
+| als gestapelte Tabelle (heute) | **4992 px** — 5,9 Bildschirme | 881 px |
+| als Baum | **964 px** — 1,1 Bildschirme | 803 px |
+
+Dieselben fünf Angaben je Tabelle, dieselben Daten, nur die Form ist anders.
+**Am Arbeitsplatz nehmen die beiden sich nichts** — über 720 px ist die Tabelle
+wieder eine Tabelle, und sie ist gut.
+
+> **Der Baum löst kein Navigationsproblem. Er löst ein Telefonproblem.**
+
+Der Grund liegt in `docs/24 §5`: `.stacks` macht aus jeder Zeile ein Kärtchen mit
+einer beschrifteten Zeile je Spalte. Das ist richtig für ein **Verzeichnis**, das
+man Zeile für Zeile liest — Kunden, Pläne, Vorgänge. Es ist falsch für eine
+Liste, die man nach **einem Namen absucht**, und genau das ist eine Tabellenliste.
+
+#### Was der Baum trägt, und was nicht
+
+**Tabellen und Ziele, keine Daten.** Ein Zweig ist eine Tabelle, seine Blätter
+sind drei Ziele — Spalten, Indexe, Zeilen —, und was man wählt, erscheint als
+Tabelle: bei 390 px darunter, ab 900 px daneben.
+
+**Keine Spalten als Blätter.** Ein Baum, der sie führt, müsste Typ,
+`NULL`-Zulässigkeit, Vorgabe und Schlüssel weglassen — vier von fünf Angaben —
+und wäre damit eine zweite, schlechtere Fassung der Strukturansicht.
+
+**Keine Zeilen im Knoten.** Eine Seite Zeilen ist fünfzig Datensätze mit
+unbekannter Spaltenzahl, die waagerecht rollen dürfen. In einen Baumknoten passt
+das nicht; der Baum **ruft sie auf**.
+
+**Und im Navigationsbaum steht nur der Name.** Der erste Entwurf hatte Art,
+Zeilenzahl und Grösse rechts daneben; in einer 300 px schmalen Spalte quetschte
+das den Tabellennamen auf ein Zeichen je Zeile. Dieselbe Falle wie an drei
+anderen Stellen dieses Panels — ein Flexkind behält seine Inhaltsbreite, und der
+Nachbar verliert. Die Zahlen stehen im Inhalt, wo Platz für sie ist.
+
+#### Drei Entscheidungen
+
+**1. Eine Form für beide Breiten.** Der Baum unter 720 px und die Tabelle
+darüber wären zwei Fassungen derselben Ansicht — und die zweite ist die, die
+veraltet. Der Baum gilt überall; ab 900 px bekommt er den Inhalt daneben statt
+darunter.
+
+**2. Nach Schritt 5.** Der Baum ruft die Zeilenansicht auf. Vorher gebaut, hätte
+er nichts zum Aufrufen, und die Blätter wären Zusagen ins Leere.
+
+**3. Als eigener Schritt und nicht als Zusatz zu 4.** Ein zweispaltiger
+Grundriss ist eine Änderung an diesem Plan und nicht an seiner Umsetzung: Jede
+Seite dieses Panels ist heute **eine** Spalte aus Bereichen.
+
+#### Was er kostet
+
+**Jedes Aufklappen ist ein befristeter Zugang.** Eine Katalogfrage legt eine
+Rolle an und räumt sie ab — in PostgreSQL gemessene 11 ms, in MariaDB kommt ein
+Neuladen der Rechtetabellen dazu und ist **ungemessen** (Risiko 4 in §18). Daraus
+folgt zweierlei, und beides ist eine Regel und keine Empfehlung:
+
+- **Der Baum lädt erst beim Aufklappen**, nie auf Vorrat.
+- **„Alles aufklappen" gibt es nicht.** Ein Knopf, der zwanzig Zweige öffnet,
+  legt zwanzig Datenbankrollen an.
+
+Dazu ein Bedienmuster, das dieses Panel noch nicht hat: `role="tree"`,
+`role="treeitem"`, `aria-expanded` und Pfeiltastenbedienung. Der Wächter dazu
+steht in §14.9.
+
 ---
 
 ## 12. Die Operationen
@@ -937,6 +1014,20 @@ Die Zelleinzelsicht gehört hierher und nicht zu Schritt 6: Sie ist der Ausweg a
 der Kürzung und wird gebraucht, sobald die Tabelle Werte zeigt — nicht erst,
 sobald jemand sie ändern darf.
 
+### Schritt 5b — Die Baumansicht
+
+Der Baum aus §11.1 als Navigation: Tabellen als Zweige, Spalten/Indexe/Zeilen als
+Ziele, der Inhalt ab 900 px daneben und darunter, solange es enger ist.
+
+**Er kommt nach Schritt 5 und vor Schritt 6.** Nach 5, weil er die Zeilenansicht
+aufruft und sie vorher nicht existiert; vor 6, weil Schritt 6 sonst auf einem
+Grundriss baut, den 5b danach umstellt.
+
+**Belegt wird er mit denselben Zahlen, die ihn begründet haben** — die
+senkrechte Länge bei 390 px für zwanzig Tabellen, zugeklappt, gegen die heutige
+Form. Und mit Screenshots in beiden Themes, weil der zweite Fund aus Schritt 4
+zeigt, dass eine Zahl nicht alles sieht.
+
 ### Schritt 6 — Ändern
 
 Anlegen, ändern, löschen; die Schlüsselregel aus §10; die Prüfung auf genau eine
@@ -1074,6 +1165,27 @@ Beide Regeln sind **Textprüfungen** und brauchen keinen Server; das ist dieselb
 Bauform wie `SiteTemplateTest` und `PhpIsolationTest`, und sie ist hier aus
 demselben Grund richtig: Der Standardschutz ist eine Eigenschaft der erzeugten
 Zeichenkette.
+
+### 14.9 `TreeSemanticsTest` und `ConsoleFanoutTest` — zu Schritt 5b
+
+**Zwei Regeln, und die zweite ist die teurere.**
+
+`TreeSemanticsTest`: Wo eine Vorlage einen Baum zeichnet, trägt der Behälter
+`role="tree"`, jeder Knoten `role="treeitem"` und `aria-expanded`. Ein Baum ohne
+diese drei ist für einen Screenreader eine Liste von Knöpfen ohne Zusammenhang —
+und das fällt niemandem auf, der ihn sieht.
+
+`ConsoleFanoutTest`: **Kein Weg in der Oberfläche holt die Struktur für mehr als
+eine Tabelle in einem Zug.** Jede Katalogfrage legt eine Datenbankrolle an und
+räumt sie ab; eine Schleife über die Tabellenliste wären zwanzig davon. Geprüft
+wird als Textregel — kein `map`/`for` über die Tabellen, der `columns` oder
+`indexes` ruft, und kein Bedienelement mit „alles".
+
+**Die Brüche dazu**: `aria-expanded` aus einem Knoten nehmen; einen Knopf
+„Alles aufklappen" einbauen, der über die Tabellenliste läuft.
+
+> **Ein Bedienelement, das zwanzig Datenbankrollen anlegt, sieht aus wie ein
+> Komfort.**
 
 ### Wächter, die von selbst mitlaufen
 
@@ -1266,7 +1378,9 @@ Diese Liste ist so wichtig wie der Umfang, und jeder Eintrag hat einen Grund.
 - **Kein Zugang für den Betreiber.** Entscheidung 3.
 - **Keine Navigation über Fremdschlüssel**, keine Suche über mehrere Tabellen,
   keine gespeicherten Ansichten. Das ist die Grenze zwischen „hineinsehen" und
-  „ein zweites Werkzeug".
+  „ein zweites Werkzeug". **Der Baum aus §11.1 ändert daran nichts:** Er führt
+  Tabelle und Struktur, nicht Beziehungen zwischen Tabellen — und er hat keine
+  Datenblätter, sondern Ziele.
 - **Keine Transaktion über mehrere Schritte.** Der befristete Zugang lebt eine
   Anfrage lang; eine Transaktion, die länger lebt, hielte eine Sperre auf einer
   Kundentabelle über eine Bedienpause hinweg.
@@ -1346,8 +1460,8 @@ und nicht bei null.
 |---|---|
 | Agent | `Db\Console`, `Pg\Console`, zehn Operationen |
 | Anwendung | `Console`, Controller, Policy-Methode, Routen |
-| Oberfläche | drei Ansichten und eine Zelleinzelsicht unter `Pages/Databases/` |
-| Wächter | acht neue, elf Brüche |
+| Oberfläche | drei Ansichten, eine Zelleinzelsicht und der Navigationsbaum (§11.1) unter `Pages/Databases/` |
+| Wächter | zehn neue, dreizehn Brüche |
 | Migrationen | **keine** — die Konsole führt keinen Zustand |
 | Positivliste | **keine Erweiterung** — `psql` und `mysql` stehen seit P5/P5b |
 | Paketabhängigkeiten | **keine Erweiterung** (Entscheidung 1) |
@@ -1356,7 +1470,8 @@ Dass die letzten drei Zeilen leer sind, ist die eigentliche Aussage dieses
 Plans: **P5c fügt dem System keinen neuen Weg mit Rechten hinzu.** Es benutzt
 den, unter dem seit P5 fremde Dumps laufen.
 
-Geschätzt 2–3 Wochen, im Zuschnitt von P5b.
+Geschätzt 2–3 Wochen, im Zuschnitt von P5b — plus rund drei Tage für Schritt 5b,
+der am 12. August dazugekommen ist und im ursprünglichen Zuschnitt nicht stand.
 
 ---
 

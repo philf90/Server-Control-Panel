@@ -10733,3 +10733,63 @@ Damit sind die Schritte 0 bis 4 aus `docs/46 §13` erledigt. Offen sind 5 bis 9 
 und aus dem Lauf von `docs/47` das Protokoll (Kriterium 7, Schritt 7) sowie
 Befund 2 daraus, die PL/pgSQL-`CONTEXT`-Zeile an einer Meldung, die der Kunde
 lesen soll; sie gehört zu Schritt 6.
+
+### Der Plan bekommt einen Schritt: 5b, die Baumansicht
+
+Der Betreiber hat gefragt, ob sich Tabellen, Spalten und Zeilen als aufklappbarer
+Baum zeigen lassen und ob das als Navigation innerhalb einer Datenbank taugt.
+Die Antwort ist ja — aber der Nutzen liegt woanders, als die Frage vermuten
+lässt, und das ist gemessen und nicht überlegt.
+
+**Die Erwartung war falsch.** Ein Baum sollte bei 390 px an der Einrückung
+scheitern: Jede Ebene kostet Breite, und die Breite fehlt den Daten. Der
+waagerechte Überlauf ist in jedem Entwurf `0px`. Entschieden wird die Frage
+**senkrecht**:
+
+| 20 Tabellen, zugeklappt | 390 px | 1440 px |
+|---|---|---|
+| als gestapelte Tabelle (heute) | **4992 px** — 5,9 Bildschirme | 881 px |
+| als Baum | **964 px** — 1,1 Bildschirme | 803 px |
+
+Dieselben fünf Angaben je Tabelle, dieselben Daten. **Am Arbeitsplatz nehmen die
+beiden sich nichts.**
+
+> **Der Baum löst kein Navigationsproblem. Er löst ein Telefonproblem.**
+
+Der Grund steht in `docs/24 §5` und ist eine Präzisierung an dessen drei Mustern:
+`.stacks` macht aus jeder Zeile ein Kärtchen mit einer beschrifteten Zeile je
+Spalte — richtig für ein **Verzeichnis**, das man Zeile für Zeile liest, falsch
+für eine Liste, die man nach **einem Namen absucht**.
+
+**Der Baum trägt Tabellen und Ziele, keine Daten.** Ein Zweig ist eine Tabelle,
+seine Blätter sind Spalten, Indexe und Zeilen. Spalten als Blätter müssten vier
+von fünf Angaben weglassen und wären eine zweite, schlechtere Strukturansicht;
+eine Seite Zeilen passt in keinen Knoten.
+
+**Drei Entscheidungen** stehen in §11.1: eine Form für beide Breiten (nicht Baum
+unten und Tabelle oben — das wären zwei Fassungen derselben Ansicht), nach
+Schritt 5 (der Baum ruft die Zeilenansicht auf), und als eigener Schritt, weil
+ein zweispaltiger Grundriss eine Änderung am Plan ist und nicht an seiner
+Umsetzung.
+
+**Und der teuerste Posten steht als Regel da, nicht als Empfehlung:** Jedes
+Aufklappen ist ein befristeter Datenbankzugang. Der Baum lädt deshalb erst beim
+Aufklappen, und „alles aufklappen" gibt es nicht.
+
+> **Ein Bedienelement, das zwanzig Datenbankrollen anlegt, sieht aus wie ein
+> Komfort.**
+
+Dazu zwei neue Wächter in §14.9: `TreeSemanticsTest` über `role="tree"`,
+`role="treeitem"` und `aria-expanded`, und `ConsoleFanoutTest` darüber, dass kein
+Weg in der Oberfläche die Struktur für mehr als eine Tabelle in einem Zug holt.
+
+### Ein Entwurf, der beim Bauen seinen eigenen Fehler gezeigt hat
+
+Der erste Vorschlag hatte im Navigationsbaum Art, Zeilenzahl und Grösse rechts
+neben dem Namen. In einer 300 px schmalen Spalte quetschte das den Tabellennamen
+auf **ein Zeichen je Zeile** — dieselbe Falle wie an drei anderen Stellen dieses
+Panels: Ein Flexkind behält seine Inhaltsbreite, und der Nachbar verliert.
+
+Die Antwort war keine CSS-Reparatur, sondern eine Entwurfsentscheidung: **Der
+Navigationsbaum trägt nur den Namen.** Die Zahlen stehen im Inhalt, wo Platz für
+sie ist.

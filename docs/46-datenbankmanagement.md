@@ -1177,6 +1177,9 @@ das Protokoll nach einer Woche nur noch aus Konsolenzeilen besteht.
 `tests/waechter-brechen.sh` um die Eingriffe aus §14 erweitert, jeder einmal rot
 gesehen.
 
+**Gebaut am 13. August 2026: 51 Eingriffe** zu den Schritten 1 bis 7, jeder mit
+seinem Anlass beschriftet. Was beim Fahren herauskam, steht in §20.48.
+
 ### Schritt 9 — Der Abnahmelauf (§15)
 
 Auf `cloudsrv24`, beide Systeme, jeder Punkt mit seinem Beleg.
@@ -3485,3 +3488,69 @@ Konstante da und nicht als Zahl mitten im Griff.
 Kontext; Werte in den Kontext; Entprellung durch eine gewöhnliche Aufzeichnung
 ersetzt; Spanne auf eine Minute; und die Frage nach der handelnden Person
 entfernt.
+
+### 20.48 Schritt 8 — 51 Eingriffe, und zwei davon haben etwas über sich selbst gesagt
+
+`tests/waechter-brechen.sh` hat die Brüche der Schritte 1 bis 7 bekommen: 51
+Eingriffe für zwölf Wächter, jeder mit dem Anlass daneben, aus dem er entstanden
+ist. Bis dahin standen sie in Sitzungsverläufen — gefahren worden waren sie
+alle, wiederholen konnte sie niemand.
+
+> **Was man zweimal braucht, gehört ins Repo — auch wenn es keine Zeile Code
+> ist.** (Derselbe Satz wie bei `docs/39`.)
+
+#### Der erste Fund: eine Überschrift, die den Eingriff darunter verschluckt
+
+`echo "── RowKeyTest: „nur lesbar" ohne Begründung ──"` — deutsches
+Anführungszeichen auf, ASCII-Anführungszeichen zu. Damit stehen drei davon in
+der Zeile: Das mittlere beendet die Zeichenkette der Shell, das letzte öffnet
+eine neue, und alles bis zum nächsten wäre **Text und kein Befehl** gewesen.
+
+Das ist wortwörtlich der Fund vom 11. August, für den
+`BreakScriptTest::test_no_heading_swallows_the_intervention_below_it` gebaut
+wurde — und er hat beim ersten Lauf zugebissen. Hier ist er zum zweiten Mal
+passiert, in derselben Datei, von derselben Hand.
+
+> **Eine Regel, die man kennt, schützt nicht vor dem Fehler, den man nicht
+> bemerkt.**
+
+#### Der zweite: ein Bruch, der abstürzt, statt zurückzufallen
+
+Der Eingriff zu `RowKeyTest::test_the_marker_is_one_constant_on_both_sides` soll
+den Zustand von vor `docs/47` Befund 2 herstellen — den Satz für den Kunden
+wieder in den `DO`-Block schreiben. Geschrieben stand er als
+
+    RAISE EXCEPTION 'Der Vorgang hat % Zeilen getroffen', getroffen;
+
+und das ist kein Rückfall, sondern ein Absturz: Der Block ist die
+Formatzeichenkette eines `sprintf()`, und `%` mit einem Leerzeichen dahinter ist
+dort keine Angabe. PHP wirft `ValueError: Unknown format specifier`, der Testfall
+bricht ab, und die Klasse meldet „übersprungen" statt „rot".
+
+**Ein Bruch, der abstürzt, prüft den falschen Fehlschlag.** Der Wächter war nie
+rot; er ist gar nicht erst dazu gekommen. Gemerkt hat es nur, dass die Prüfung
+danach nach `ROT` gesucht hat und etwas anderes fand.
+
+> **Ein Bruch muss die Regel verletzen und nicht den Code zerstören. Der
+> Unterschied sieht in der Ausgabe fast gleich aus.**
+
+Richtig ist `%%` — dann steht in der Anweisung ein einzelnes Prozentzeichen, so
+wie es vor der Korrektur wirklich dastand.
+
+#### Gefahren, hier, ohne PHPUnit
+
+47 der 51 Eingriffe sind in diesem Container einzeln gefahren worden: anwenden,
+den Wächter über das Gestell aus `docs/46 §20.42` laufen lassen, auf `ROT` mit
+**dem genannten Namen** prüfen, zurücksetzen. Alle 47 haben zugebissen.
+
+**Vier konnten es hier nicht**, und das ist eine Eigenschaft des Gestells und
+kein Befund: `ConsoleQueueTest` bindet `App\Support\Operations\Task` ein und
+braucht damit Laravel (zwei Eingriffe), und
+`ConsoleStatementTest::test_an_unknown_identifier_never_becomes_a_statement`
+benutzt `expectException()`, das dieses Gestell nicht hat. Sie hängen am Lauf des
+Skripts in der CI.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.** Deshalb prüft der Fahrplan auf den *Namen* des roten Tests und nicht
+> darauf, dass irgendetwas rot war — sonst hätte der abstürzende Eingriff oben
+> wie ein Biss ausgesehen.

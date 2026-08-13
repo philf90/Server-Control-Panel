@@ -43,6 +43,26 @@ use Tests\TestCase;
  * Datenbank läuft als der Server, prüft die Grenzen der falschen.* Deshalb
  * benutzt dieser Test `->from()` **nicht** — er baut den Zustand so auf, wie
  * ein Browser ihn erzeugt: erst die Seite ansehen, dann das Formular abschicken.
+ *
+ * ## Und derselbe Satz noch einmal, andersherum — der Fund vom 13. August 2026
+ *
+ * **Dieser Wächter hielt seine Regel nicht.** Der Bruch dazu — `RememberPageUrl`
+ * aus `bootstrap/app.php` streichen — liess ihn **grün**, gefunden vom Lauf des
+ * Bruchskripts und von keinem Test.
+ *
+ * Der Grund ist der Satz oben mit umgekehrtem Vorzeichen: Nicht eine Kopfzeile
+ * zu viel, sondern **eine zu wenig.** Die Aufrufe hier trugen `X-Inertia`, aber
+ * kein `X-Requested-With` — im Browser setzt Inertia beide. Ohne die zweite ist
+ * `$request->ajax()` falsch, und dann merkt sich Laravels `StartSession` die Seite
+ * **selbst**. Genau der Weg, dessen Fehlen diese Mittelschicht ausgleicht, war
+ * im Test also offen; die Regel wurde von der Voraussetzung erfüllt, die es im
+ * Browser nicht gibt.
+ *
+ * > **Eine fehlende Kopfzeile prüft eine andere Anwendung genauso wie eine
+ * > überflüssige — nur fällt sie niemandem auf, weil der Test grün ist.**
+ *
+ * Die Aufrufe schicken sie seitdem. Belegt ist es am Bruch: Ohne
+ * {@see RememberPageUrl} sind jetzt **beide** Fälle rot.
  */
 final class PreviousUrlTest extends TestCase
 {
@@ -89,6 +109,7 @@ final class PreviousUrlTest extends TestCase
         $this->actingAs($account)
             ->withHeader('X-Inertia', 'true')
             ->withHeader('X-Inertia-Version', '')
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')
             ->get("/databases/{$database->id}")
             ->assertSuccessful();
 
@@ -121,6 +142,7 @@ final class PreviousUrlTest extends TestCase
         $this->actingAs($account)
             ->withHeader('X-Inertia', 'true')
             ->withHeader('X-Inertia-Version', '')
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')
             ->get("/databases/{$database->id}")
             ->assertSuccessful();
 

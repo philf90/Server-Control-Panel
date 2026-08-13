@@ -11710,3 +11710,82 @@ Ein Admin, der über „Anmelden als" in dieselbe Datenbank sieht, bekommt einen
 eigenen Eintrag.
 
 Sechs Brüche, sechs Bisse.
+
+### P5c Schritt 8 — die Brüche der Stufe wandern ins Skript
+
+`tests/waechter-brechen.sh` hat 51 Eingriffe für die Wächter der Schritte 1 bis 7
+bekommen. Gefahren worden waren sie alle — beim Bauen, von Hand, jeder einmal
+rot. Wiederholen konnte sie niemand: Sie standen in Sitzungsverläufen.
+
+> **Was man zweimal braucht, gehört ins Repo — auch wenn es keine Zeile Code
+> ist.**
+
+Jeder Eingriff trägt seinen Anlass daneben, und der ist die eigentliche Auskunft:
+die Warteschlange, die den Inhalt einer Kundenzeile in `operations.payload`
+ablegen würde; die Konsolenoperation, deren Abfrage ohne befristeten Zugang als
+`root` liefe und dabei **genau dasselbe Ergebnis** lieferte; das `UPDATE` über
+alle Spalten, dessen Schaden man an der geänderten Zeile nicht sieht.
+
+**Zwei Funde, und beide betreffen das Werkzeug und nicht die Wächter.**
+
+Der erste ist eine Überschrift mit drei Anführungszeichen — deutsches auf, ASCII
+zu. Das mittlere beendet die Zeichenkette der Shell, und alles darunter wäre Text
+statt Befehl gewesen. Genau der Fall vom 11. August, für den
+`BreakScriptTest::test_no_heading_swallows_the_intervention_below_it` gebaut
+wurde; er hat zum zweiten Mal zugebissen, in derselben Datei.
+
+Der zweite ist ein Bruch, der **abstürzt statt zurückzufallen**. Er sollte den
+Satz für den Kunden wieder in den `DO`-Block schreiben (Befund 2 aus `docs/47`)
+und tat das mit einem einfachen `%`. Der Block ist die Formatzeichenkette eines
+`sprintf()`; PHP wirft `ValueError: Unknown format specifier`, der Testfall bricht
+ab, und die Klasse meldet „übersprungen" statt „rot".
+
+> **Ein Bruch muss die Regel verletzen und nicht den Code zerstören. Der
+> Unterschied sieht in der Ausgabe fast gleich aus.**
+
+Gemerkt hat es nur, dass jeder Eingriff hier einzeln gefahren und auf `ROT` **mit
+dem genannten Namen** geprüft worden ist. 47 der 51 gehen so in diesem Container;
+die vier übrigen brauchen Laravel oder `expectException()` und hängen am Lauf des
+Skripts in der CI.
+
+### Der Wochenlauf war rot, und keiner der drei Befunde war neu
+
+Der Lauf von `tests/waechter-brechen.sh` gegen P5c Schritt 8 hat alle 51 neuen
+Eingriffe beissen sehen — und drei alte Prüfungen als kaputt gemeldet. Alle drei
+hängen an derselben Umbenennung vom 11. August.
+
+**Zwei Wächter waren ersatzlos verschwunden.** Der Fund zu `RememberPageUrl` hat
+damals `PreviousUrlTest` übernommen — gleicher Name, gleiches Thema, **anderer
+Gegenstand** —, und die beiden Fälle zu `KeepPreviousUrl` sind dabei gestrichen
+worden. Die Mittelschicht blieb, ihr Eintrag in `routes/web.php` blieb, der
+Wächter darüber war fort: dass der Vorgangskanal keine Seite ist, und dass er
+sich **vor** der Rechteprüfung so kennzeichnet. Beide stehen jetzt in
+`StreamNotAPageTest` — in einer Datei, die nach *ihrer* Regel heisst.
+
+> **Zwei Regeln in einer Datei, die nach der einen heisst, verlieren die andere
+> beim nächsten Umbau.**
+
+**Und der dritte Befund ist der Wächter, der seine eigene Regel nicht hielt.**
+`PreviousUrlTest` blieb grün, als der Bruch `RememberPageUrl` aus
+`bootstrap/app.php` strich. Der Grund ist der Satz aus seinem eigenen Kopf mit
+umgekehrtem Vorzeichen: nicht eine Kopfzeile zu viel, sondern **eine zu wenig.**
+Die Aufrufe trugen `X-Inertia`, aber kein `X-Requested-With` — im Browser setzt
+Inertia beide. Ohne die zweite ist `$request->ajax()` falsch, und Laravels
+`StartSession` merkt sich die Seite selbst. Der Weg, dessen Fehlen die
+Mittelschicht ausgleicht, war im Test also offen.
+
+> **Eine fehlende Kopfzeile prüft eine andere Anwendung genauso wie eine
+> überflüssige — nur fällt sie niemandem auf, weil der Test grün ist.**
+
+**Der Wächter dagegen prüft ab jetzt die Methode und nicht die Klasse.**
+`BreakScriptTest::test_every_check_names_a_test_that_exists` liest die Zielangabe
+jeder Prüfung im Skript und sucht sie in den Testdateien. Bisher sah niemand
+diesen Fall: Der Eingriff *griff* seine Datei noch, `GuardReachTest` fand die
+*Klasse* noch, und nur der wöchentliche Lauf meldete „kein Test".
+
+> **Ein Wächter, der die Klasse prüft, hat über die Methode nichts gesagt.**
+
+Er hat beim Schreiben gleich seinen eigenen Fehler gefunden: Der erste Ausdruck
+kannte nur die umbrochene Schreibweise einer Prüfung und hätte einen falschen
+Klassennamen auf einer einzeiligen durchgelassen. Gemerkt hat es der Gegenbruch,
+der genau das versucht hat.

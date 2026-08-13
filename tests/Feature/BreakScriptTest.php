@@ -300,6 +300,93 @@ final class BreakScriptTest extends TestCase
         ));
     }
 
+    /**
+     * Und jede Prüfung nennt einen Test, den es **mit diesem Namen** gibt.
+     *
+     * **Der Fund vom 13. August 2026, und er lag zwei Tage da.** Am 11. August
+     * hat der Fund zu `RememberPageUrl` die Datei `PreviousUrlTest` übernommen —
+     * gleicher Name, gleiches Thema, **anderer Gegenstand**. Die zwei Fälle zu
+     * `KeepPreviousUrl`, die vorher darin standen, sind dabei ersatzlos
+     * verschwunden; die Mittelschicht blieb, ihr Eintrag in `routes/web.php`
+     * blieb, der Wächter darüber war fort.
+     *
+     * Gemerkt hat es **nur der Lauf des Skripts**, mit „kein Test" — und der
+     * läuft wöchentlich. {@see self::test_every_intervention_still_grips_its_file()}
+     * sah nichts: Die *Datei* gab es noch, und der gesuchte Text stand darin.
+     * `GuardReachTest` sah nichts: Die *Klasse* gab es noch.
+     *
+     * > **Ein Wächter, der die Klasse prüft, hat über die Methode nichts
+     * > gesagt.**
+     *
+     * Deshalb liest dieser Test die **Zielangabe** jeder Prüfung. Er kostet
+     * nichts, läuft an jedem Pull Request und meldet denselben Befund sechs Tage
+     * früher.
+     */
+    public function test_every_check_names_a_test_that_exists(): void
+    {
+        /*
+         * **Erst die Fortsetzungen zusammenziehen.** Eine Prüfung steht mal auf
+         * einer Zeile und mal auf zweien, mit `\` am Ende — und ein Ausdruck,
+         * der nur die zweite Form kennt, liest zwei Drittel des Skripts nicht.
+         * Beim ersten Anlauf war es andersherum: Er fand nur die umbrochenen und
+         * hätte einen falschen Klassennamen auf einer einzeiligen Prüfung
+         * durchgelassen. Gemerkt hat es der Gegenbruch, der genau das versucht
+         * hat.
+         *
+         * > **Ein Ausdruck, der eine von zwei Schreibweisen kennt, meldet für
+         * > die andere „alles in Ordnung".**
+         */
+        $script = (string) preg_replace(
+            '/\\\\\n\s*/',
+            ' ',
+            (string) file_get_contents($this->root().'/tests/waechter-brechen.sh'),
+        );
+
+        preg_match_all('/pruefe\s+"[^"]*"\s+(\w+)(?:::(\w+))?\s/', $script, $ziele, PREG_SET_ORDER);
+
+        $this->assertGreaterThan(
+            200,
+            count($ziele),
+            'Es werden kaum Prüfungen gefunden — dann prüft dieser Test nichts.',
+        );
+
+        $quellen = [];
+
+        foreach ((array) glob($this->root().'/tests/{Feature,Unit}/*.php', GLOB_BRACE) as $path) {
+            $quellen[basename((string) $path, '.php')] = (string) file_get_contents((string) $path);
+        }
+
+        $tot = [];
+
+        foreach ($ziele as $ziel) {
+            $klasse = $ziel[1];
+            $methode = $ziel[2] ?? '';
+
+            if (! isset($quellen[$klasse])) {
+                $tot[$klasse.($methode === '' ? '' : '::'.$methode)] = 'die Klasse gibt es nicht';
+
+                continue;
+            }
+
+            if ($methode !== '' && ! str_contains($quellen[$klasse], 'function '.$methode.'(')) {
+                $tot[$klasse.'::'.$methode] = 'die Klasse gibt es, diesen Fall nicht';
+            }
+        }
+
+        $this->assertSame([], $tot, sprintf(
+            "Diese Prüfungen in tests/waechter-brechen.sh nennen einen Test, den es nicht gibt:\n  %s\n\n".
+            'Der Filter trifft dann nichts, und die Prüfung meldet „kein Test" — im Wochenlauf und '.
+            'nirgends sonst. Meistens ist der Fall umbenannt oder in eine andere Klasse gezogen '.
+            'worden; dann zeigt die Prüfung auf seinen neuen Namen. Ist die Regel weggefallen, geht '.
+            'der Eingriff mit ihr.',
+            implode("\n  ", array_map(
+                static fn (string $name, string $grund): string => $name.': '.$grund,
+                array_keys($tot),
+                $tot,
+            )),
+        ));
+    }
+
     public function test_every_intervention_still_grips_its_file(): void
     {
         $interventions = $this->interventions();

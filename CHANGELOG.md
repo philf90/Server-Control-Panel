@@ -11941,11 +11941,19 @@ schärfere Antwort — eine 403 bestätigt die Existenz der fremden Datenbank, e
 > **Eine Erwartung, die niemand gegen den Code gelesen hat, ist eine Vermutung
 > mit Aktenzeichen.**
 
-**Und der zweite Teil des Belegs brauchte eine Gegenprobe, die im Plan fehlte.**
-„Der Agent wurde nicht gefragt" wird am Journal gemessen und ist damit eine
-Null. Der Punkt verlangt jetzt zuerst den positiven Fall — die eigene Konsole
-öffnen, die Zeile im Journal suchen —, denn sonst belegt „keine Einträge" nur,
-dass der Agent überhaupt nicht ins Journal schreibt.
+**Und der zweite Teil des Belegs stand am falschen Ort.** „Der Agent wurde
+nicht gefragt" sollte an `journalctl -u srvpanel-agentd` gemessen werden — und
+das liefert `-- No entries --`, **auch wenn der Agent gerade gearbeitet hat**:
+Er schreibt sein Protokoll nach `/var/log/srvpanel/agent.log`, als NDJSON mit
+einer Zeile `request` je Aufruf.
+
+> **Ein Beleg, der immer dasselbe sagt, sagt nichts — auch dann, wenn das, was
+> er sagt, gerade stimmt.**
+
+Gemessen wird jetzt an der Zeilenzahl dieser Datei, mit dem positiven Fall in
+der Mitte: erst die eigene Konsole öffnen (die Zahl **muss** steigen), dann der
+Versuch auf die fremde (sie **muss** stehenbleiben). Ohne den positiven Fall
+belegt „nichts dazugekommen" nur, dass niemand hingesehen hat.
 
 > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
 > steht.** (Derselbe Satz wie in `docs/47`.)

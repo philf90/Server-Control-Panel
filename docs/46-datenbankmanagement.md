@@ -1656,14 +1656,27 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #         > Vermutung mit Aktenzeichen.
 #
 #         UND DER ZWEITE TEIL DES BELEGS BRAUCHT EINE GEGENPROBE. „Der Agent
-#         wurde nicht gefragt" wird am Journal gemessen:
-#           journalctl -u srvpanel-agentd --since "2 min ago" --no-pager
-#         Das ist eine Null — und eine Null ist nur dann eine Messung, wenn
-#         daneben etwas anderes als Null steht (`docs/47`). Also ZUERST die
-#         eigene Konsole von Abo A oeffnen, im Journal die Zeile dazu suchen,
-#         und ERST DANN den Versuch auf B. Ohne den positiven Fall belegt
-#         „keine Eintraege" nur, dass der Agent ueberhaupt nicht ins Journal
-#         schreibt.
+#         wurde nicht gefragt" wird an SEINEM PROTOKOLL gemessen, und das ist
+#         `/var/log/srvpanel/agent.log` — NDJSON, eine Zeile `request` je
+#         Aufruf mit dem Namen der Operation (`Connection::handle()`).
+#
+#         NICHT `journalctl -u srvpanel-agentd`. Am 13. August 2026 auf
+#         cloudsrv24 gemessen: Der Aufruf liefert `-- No entries --`, und zwar
+#         AUCH DANN, wenn der Agent gerade gearbeitet hat. Wer damit belegt,
+#         dass der Agent nicht gefragt wurde, belegt gar nichts.
+#
+#         > Ein Beleg, der immer dasselbe sagt, sagt nichts — auch dann, wenn
+#         > das, was er sagt, gerade stimmt.
+#
+#         Gemessen wird deshalb an der Zeilenzahl, mit dem positiven Fall
+#         davor:
+#           VOR=$(wc -l < /var/log/srvpanel/agent.log)
+#           → im Browser die EIGENE Konsole von A oeffnen
+#           EIGEN=$(wc -l < /var/log/srvpanel/agent.log)   # MUSS groesser sein
+#           → im Browser die Adresse einer Datenbank von B aufrufen
+#           FREMD=$(wc -l < /var/log/srvpanel/agent.log)   # MUSS gleich EIGEN sein
+#         Ohne den positiven Fall in der Mitte belegt „nichts dazugekommen"
+#         nur, dass niemand hingesehen hat.
 #    (b)  Am Agenten vorbei an der Anwendung, mit erfundener Nutzlast:
 #           Client::call("pg.console.tables", ["prefix" => <A>, "database" =>
 #                        <B-Datenbank>, "schema" => "public"])

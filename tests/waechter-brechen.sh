@@ -5606,7 +5606,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" EngineCollationTest passed
 
 echo
-echo "── PreviousUrlTest: der Ereigniskanal wird wieder eine Seite ──"
+echo "── StreamNotAPageTest: der Ereigniskanal wird wieder eine Seite ──"
 #
 # Der Fehler, der die Zwischenabnahme eine Stunde gekostet hat (docs/39): Laravel
 # merkt sich jede GET-Anfrage als „vorige Seite", und ValidationException leitet
@@ -5621,12 +5621,12 @@ open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei app/Http/Middleware/KeepPreviousUrl.php "Kanal wird wieder eine Seite" &&
 pruefe "Kanal wird wieder eine Seite" \
-  PreviousUrlTest::test_the_stream_does_not_look_like_a_page failed
+  StreamNotAPageTest::test_the_stream_does_not_look_like_a_page failed
 wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" PreviousUrlTest passed
+pruefe "  … zurückgesetzt wieder grün" StreamNotAPageTest passed
 
 echo
-echo "── PreviousUrlTest: die Kennzeichnung steht eine Zeile zu spaet ──"
+echo "── StreamNotAPageTest: die Kennzeichnung steht eine Zeile zu spaet ──"
 #
 # storeCurrentUrl() laeuft auch dann, wenn can: abweist. Steht die
 # Kennzeichnung dahinter, kapert eine 403 auf dem Kanal weiterhin das „Zurueck"
@@ -5642,9 +5642,9 @@ open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei routes/web.php "Kennzeichnung zu spaet" &&
 pruefe "Kennzeichnung zu spaet" \
-  PreviousUrlTest::test_the_route_carries_it_before_the_policy failed
+  StreamNotAPageTest::test_the_route_carries_it_before_the_policy failed
 wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" PreviousUrlTest passed
+pruefe "  … zurückgesetzt wieder grün" StreamNotAPageTest passed
 
 echo
 echo "── PgLocaleTest: das Gebietsschema wird wieder verdrahtet ──"

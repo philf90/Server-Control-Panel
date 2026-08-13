@@ -11230,3 +11230,28 @@ eigenen Behälterregel, und eine in einer waagerechten Flexzeile.
 
 Er fragt jetzt umgekehrt: Welche Bausteine enden bündig, und steht unter einem
 von ihnen eine Knopfreihe, ohne dass die Regel ihn kennt?
+
+### Der Mangel, den die Frage nach dem Beleg gefunden hat
+
+Der Betreiber hat gefragt, wie sich die Tastaturbedienung des Baums noch belegen
+lässt — ausser mit der Aussage, dass sie funktioniert. Beim Ausschreiben der
+Antwort gehörte die Zeile `[role="treeitem"][tabindex="0"]` in die Messung, und
+dabei war zu sehen, dass sie zwar genau einen Knoten trifft, aber **immer
+denselben**.
+
+Der Baum war damit eine Tabulatorstation — richtig und der ganze Zweck des
+Musters —, aber die Station wanderte nicht mit: Wer ihn verliess und mit `Tab`
+zurückkam, stand wieder oben statt dort, wo er war.
+
+> **Wer aufschreibt, wie etwas zu belegen wäre, sieht dabei, was der Beleg
+> zeigen würde.**
+
+Kein Fund aus einem Bild und keiner aus einer Messung — der Beleg musste gar
+nicht erst gefahren werden. Es genügte, ihn so genau zu formulieren, dass sein
+Ergebnis vorhersagbar wurde.
+
+Behoben mit einer wandernden Station. `TreeSemanticsTest` prüft seitdem beide
+Hälften: dass jede Station gebunden ist (eine feste `0` kann nicht wandern) und
+dass der Baum mitbekommt, wohin der Fokus geht. Und `docs/46 §20.27` hält die
+vier Belege fest, mit denen sich diese Ansicht prüfen lässt — für den
+Abnahmelauf und für jeden, der das Muster später anfasst.

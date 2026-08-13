@@ -2421,3 +2421,52 @@ Er fragt jetzt von der anderen Seite: Welche Bausteine enden bündig, und steht
 unter einem von ihnen eine Knopfreihe, ohne dass die Regel ihn kennt? Was das
 **nicht** abdeckt, steht in seinem Kopf: Ein neuer bündiger Baustein, den seine
 Liste nicht kennt, fällt durch. Die Liste ist die Regel, nicht ihr Ersatz.
+
+### 20.27 Der Mangel, den die Frage nach dem Beleg gefunden hat
+
+**Der Betreiber hat gefragt, wie sich die Tastaturbedienung noch belegen lässt —
+ausser mit der Aussage, dass sie funktioniert.** Beim Ausschreiben der Antwort
+gehörte diese Zeile in die Messung:
+
+```js
+document.querySelectorAll('[role="treeitem"][tabindex="0"]').length   // erwartet: 1
+```
+
+Sie trifft genau einen Knoten, wie sie soll. Aber **immer denselben**: Der erste
+Wurf schrieb `:tabindex="index === 0 ? 0 : -1"`. Der Baum war damit **eine**
+Tabulatorstation — richtig und der ganze Zweck des Musters —, aber die Station
+wanderte nicht mit. Wer den Baum verliess und mit `Tab` zurückkam, stand wieder
+oben statt dort, wo er war.
+
+> **Wer aufschreibt, wie etwas zu belegen wäre, sieht dabei, was der Beleg
+> zeigen würde.**
+
+Das ist kein Fund aus einem Bild und keiner aus einer Messung — der Beleg musste
+gar nicht erst gefahren werden. Es genügte, ihn so genau zu formulieren, dass
+sein Ergebnis vorhersagbar wurde.
+
+**Behoben** mit einer wandernden Station: `tabStop` merkt sich den zuletzt
+besuchten Punkt, `@focusin` am Baum schreibt ihn fort, und solange niemand im
+Baum war, trägt ihn der erste Zweig — irgendwo muss man hineinkommen.
+
+`TreeSemanticsTest::test_a_tree_is_one_tab_stop_and_it_moves` prüft beide
+Hälften: dass **jede** Station gebunden ist (eine feste `0` kann nicht wandern)
+und dass der Baum mitbekommt, wohin der Fokus geht. Beide Brüche gefahren.
+
+#### Wie sich diese Ansicht belegen lässt
+
+Für den Abnahmelauf und für jeden, der das Muster später anfasst — vier Belege,
+vom schwächsten zum stärksten:
+
+1. **Ein Protokoll der Fokusbewegung.** Tasten aus der Konsole schicken und nach
+   jeder festhalten, welches Element den Fokus hat und was sein `aria-expanded`
+   sagt. Das ist die Messung statt der Behauptung.
+2. **Der Zugänglichkeitsbaum** (DevTools → Elements → Accessibility) am
+   fokussierten Knoten. Er zeigt, was eine Vorleseausgabe bekommt — und Markup
+   und Zugänglichkeitsbaum sind zwei verschiedene Dinge: Ein `role` an der
+   falschen Stelle verschwindet dort schweigend.
+3. **Die Tabulatorprobe.** Einmal `Tab` hinein, einmal `Tab` heraus — nicht
+   zwanzigmal. Das ist der ganze Zweck des Musters, und genau hier ist der
+   Mangel oben aufgefallen.
+4. **Der Bruch.** `@keydown` aus dem Baum nehmen und dieselbe Messung fahren.
+   Bleibt der Fokus stehen, hat die Messung gemessen.

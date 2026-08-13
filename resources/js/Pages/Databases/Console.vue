@@ -154,6 +154,21 @@ const expanded = ref<Set<string>>(new Set())
 /** Der Baum selbst — für die Tastaturbedienung, die in der Vorlage steht. */
 const tree = ref<HTMLElement | null>(null)
 
+/**
+ * Der Punkt im Baum, auf dem der Tabulator landet.
+ *
+ * **Ein Baum ist **eine** Tabulatorstation und nicht zwanzig.** Wer sich mit
+ * `Tab` durch die Seite bewegt, soll den Baum in einem Schritt betreten und in
+ * einem verlassen — sonst tabbt er sich bei zwanzig Tabellen durch zwanzig
+ * Knöpfe, bevor er den Inhalt erreicht. Innen bewegen die Pfeile.
+ *
+ * **Und die Station wandert mit.** Der erste Wurf hielt sie fest am ersten
+ * Zweig: Wer den Baum verliess und zurückkam, stand wieder oben statt dort, wo
+ * er war. Das gehört zum Muster und ist keine Feinheit — es ist der Unterschied
+ * zwischen „ich war hier" und „fang von vorn an".
+ */
+const tabStop = ref('')
+
 /** Die Inhaltsspalte — auf schmaler Fläche steht sie unterhalb des Baums. */
 const content = ref<HTMLElement | null>(null)
 
@@ -489,6 +504,25 @@ function toggle(table: string): void {
  * das Muster, das ein Screenreader hier erwartet (`aria-expanded` sagt an, was
  * die Pfeile tun).
  */
+/**
+ * Trägt dieser Punkt die Tabulatorstation?
+ *
+ * Solange niemand im Baum war, ist es der erste Zweig — irgendwo muss man
+ * hineinkommen. Danach ist es der zuletzt besuchte Punkt.
+ */
+function stops(key: string): boolean {
+  return tabStop.value === '' ? key === tables.value[0]?.name : tabStop.value === key;
+}
+
+/** Wer den Fokus bekommt, wird zur Station. */
+function remember(event: FocusEvent): void {
+  const punkt = (event.target as HTMLElement | null)?.closest<HTMLElement>('[role="treeitem"]');
+
+  if (punkt !== null && punkt !== undefined) {
+    tabStop.value = punkt.dataset.stop ?? punkt.dataset.table ?? '';
+  }
+}
+
 function navigate(event: KeyboardEvent): void {
   const wurzel = tree.value
 
@@ -685,15 +719,15 @@ onMounted(loadTables)
             `treeitem` darf nichts mit eigener Rolle stehen, und ein `<li>`
             bringt `listitem` mit.
           -->
-          <ul v-else ref="tree" class="tree" role="tree" @keydown="navigate">
-            <li v-for="(table, index) in tables" :key="`${table.schema}.${table.name}`" role="none">
+          <ul v-else ref="tree" class="tree" role="tree" @keydown="navigate" @focusin="remember">
+            <li v-for="table in tables" :key="`${table.schema}.${table.name}`" role="none">
               <button
                 type="button"
                 class="node"
                 role="treeitem"
                 :data-table="table.name"
                 :aria-expanded="expanded.has(table.name)"
-                :tabindex="index === 0 ? 0 : -1"
+                :tabindex="stops(table.name) ? 0 : -1"
                 @click="toggle(table.name)"
               >
                 <!-- Das Zeichen sagt dasselbe wie `aria-expanded`; zweimal
@@ -717,7 +751,8 @@ onMounted(loadTables)
                     type="button"
                     class="leaf"
                     role="treeitem"
-                    tabindex="-1"
+                    :tabindex="stops(`${table.name}/columns`) ? 0 : -1"
+                    :data-stop="`${table.name}/columns`"
                     :class="openTable === table.name && openView === 'columns' ? 'active' : ''"
                     @click="openColumns(table.name)"
                   >
@@ -729,7 +764,8 @@ onMounted(loadTables)
                     type="button"
                     class="leaf"
                     role="treeitem"
-                    tabindex="-1"
+                    :tabindex="stops(`${table.name}/indexes`) ? 0 : -1"
+                    :data-stop="`${table.name}/indexes`"
                     :class="openTable === table.name && openView === 'indexes' ? 'active' : ''"
                     @click="openIndexes(table.name)"
                   >
@@ -741,7 +777,8 @@ onMounted(loadTables)
                     type="button"
                     class="leaf"
                     role="treeitem"
-                    tabindex="-1"
+                    :tabindex="stops(`${table.name}/rows`) ? 0 : -1"
+                    :data-stop="`${table.name}/rows`"
                     :class="openTable === table.name && openView === 'rows' ? 'active' : ''"
                     @click="openRows(table.name)"
                   >

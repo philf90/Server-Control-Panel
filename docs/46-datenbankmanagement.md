@@ -3221,4 +3221,20 @@ von dreizehn Namen aufgerufen wurde. Framework-freie Wächter gibt es **136**.
 Der Aufruf zählt seitdem selbst ab: `grep -l 'use PHPUnit\Framework\TestCase;'`
 über `tests/`. Was dabei nicht laufen kann — ein Test, der einen Socket braucht
 oder eine Laravel-Klasse —, wird als **übersprungen** ausgewiesen und nicht als
-grün; eine Zahl, die Übersprungenes mitzählt, wäre schlimmer als keine.
+grün; eine Zahl, die Übersprungenes mitzählt, wäre schlimmer als keine. Dazu ruft
+das Gestell jetzt `setUp()`, sonst scheitern Tests an uninitialisierten
+Eigenschaften und sähen aus wie gebrochene Regeln.
+
+**Gemessen am 13. August 2026 über den ganzen Bestand: 501 grün, 7 rot, 309
+übersprungen.** Die sieben stehen in drei Klassen — `DbCommandReachTest`,
+`PgHbaFollowTest`, `PolicyReachTest` —, und **keine davon ist ein Befund**: Alle
+drei binden Klassen aus `app/`, die ohne Laravels Autoloader leer bleiben; die
+Prüfung sieht dann eine Methode, die es „nicht mehr gibt". In der CI sind sie
+gegen denselben Commit grün.
+
+> **Ein Wächter ausserhalb seiner Umgebung ist rot, ohne dass etwas kaputt
+> ist — und das ist genauso wertlos wie grün.**
+
+Wer die Zahl hier benutzt, vergleicht sie deshalb gegen die CI und nicht gegen
+null. Was das Gestell trägt, sind die **Textwächter**: Sie lesen Dateien und
+brauchen nichts weiter.

@@ -58,6 +58,60 @@ final class Audit
         ]);
     }
 
+    /**
+     * Ein Eintrag, der sich nicht wiederholt.
+     *
+     * ## Warum es ihn gibt
+     *
+     * **Ohne ihn beantwortet das Protokoll „was wurde geändert" und nicht „wer
+     * hatte Zugriff"** (`docs/46 §3`, Entscheidung 5, Punkt 4) — und die zweite
+     * Frage ist die, die im Zweifel gestellt wird. Mit ihm, aber ohne Entprellung,
+     * schriebe die Konsole bei **jedem Blättern** eine Zeile und wäre nach einer
+     * Woche genau das, wogegen Entscheidung 4 argumentiert:
+     *
+     * > **Ein Protokoll, das den Inhalt mitschreibt, ist eine Datenhaltung mit
+     * > einem anderen Namen.** — und eines, das jeden Klick mitschreibt, ist
+     * > eine Datenhaltung über die Bedienung.
+     *
+     * ## Woran entprellt wird
+     *
+     * **An Aktion, Ziel und handelnder Person** — nicht an der Sitzung und nicht
+     * an der IP. Sieht ein Admin über „Anmelden als" in dieselbe Datenbank,
+     * gehört das in einen eigenen Eintrag: `account_id` trägt dann ihn und nicht
+     * den Kunden, und genau dieser Fall ist der, für den man das Protokoll liest.
+     *
+     * **Die Frage geht an `created_at` und damit an UTC.** Das ist Speicherung
+     * und keine Anzeige — die Anzeigezeitzone aus `docs/40` bleibt aussen vor.
+     * Eine Spanne, die in der Zone des Betrachters rechnet, wäre je nach Sommer-
+     * zeit eine andere.
+     *
+     * @param  array<string, mixed>  $context
+     * @return AuditEvent|null `null`, wenn in der Spanne schon einer steht
+     */
+    public function throttled(
+        string $action,
+        Model $target,
+        int $seconds,
+        ?int $subscriptionId = null,
+        array $context = [],
+    ): ?AuditEvent {
+        $acting = $this->impersonatorId() ?? $this->actor()?->id;
+
+        $recent = AuditEvent::query()
+            ->where('action', $action)
+            ->where('target_type', $target::class)
+            ->where('target_id', $target->getKey())
+            ->where('account_id', $acting)
+            ->where('created_at', '>=', now()->subSeconds($seconds))
+            ->exists();
+
+        if ($recent) {
+            return null;
+        }
+
+        return $this->record($action, target: $target, subscriptionId: $subscriptionId, context: $context);
+    }
+
     /** @param array<string, mixed> $context */
     public function success(string $action, ?Model $target = null, array $context = []): AuditEvent
     {

@@ -1162,7 +1162,7 @@ Zustand, eine gekürzte Zelle gesperrt, nur geänderte Spalten in der Anweisung.
 werden soll (Entscheidung 5); der Betreiber hat ihn drin gelassen. Nach Schritt 5
 steht trotzdem etwas Fertiges — die Reihenfolge bleibt so.
 
-### Schritt 7 — Das Protokoll
+### Schritt 7 — Das Protokoll ✓
 
 Die drei ändernden Handlungen ins Audit-Protokoll, ohne Werte — und der
 entprellte Eintrag beim Öffnen, einer je Datenbank und Stunde (Entscheidung 5,
@@ -3424,3 +3424,64 @@ prüfte `COLUMN_KEY` und blieb grün, als die Sicht von `COLUMNS` auf `STATISTIC
 wechselte.
 
 > **Ein Feldname ohne seine Tabelle ist eine halbe Angabe.**
+
+### 20.47 Schritt 7 — das Protokoll, und die Hälfte, die man nicht sieht
+
+**Vier Einträge, und drei davon sind der einfache Teil.** `database.console.row.created`,
+`.changed` und `.removed` entstehen im Griff, **nachdem** der Vorgang gelungen
+ist — ein abgewiesener Schreibvorgang hat nichts geändert, und ein Eintrag über
+einen Versuch beantwortet keine Frage, die jemand stellt.
+
+Der Kontext trägt **Tabelle und Schlüssel** und keine Werte (Entscheidung 4). Der
+Schlüssel gehört ausdrücklich hinein: Er sagt, *welche* Zeile es war. Die
+geänderten Werte sagen *worauf*, und das ist die Frage, die das Protokoll nicht
+beantworten soll.
+
+> **Ein Protokoll, das den Inhalt mitschreibt, ist eine Datenhaltung mit einem
+> anderen Namen.**
+
+**Drei Namen und nicht einer mit der Art im Kontext.** Wer nach „hier wurde
+gelöscht" sucht, filtert nach einer Aktion und nicht nach einem Feld in einem
+JSON — so machen es `database.dump.created` und `database.user.removed` auch.
+
+#### Der vierte ist der, der einen Wächter braucht
+
+`database.console.opened` ist **entprellt: einer je Datenbank und Stunde.** Ohne
+den Eintrag beantwortet das Protokoll „was wurde geändert" und nicht „wer hatte
+Zugriff" — und die zweite Frage ist die, die im Zweifel gestellt wird. Ohne die
+Entprellung stünde er bei jedem Betreten darin, und die Konsole wird beim
+Arbeiten mehrfach betreten und verlassen.
+
+**Warum gerade er den Test braucht:** Ein Eintrag entsteht sichtbar. Wer die
+Konsole öffnet und ins Protokoll sieht, bemerkt sofort, ob eine Zeile dasteht.
+Eine **fehlende** Entprellung sieht beim ersten Mal genauso aus und fällt erst
+nach einer Woche auf — also genau dann, wenn das Protokoll gebraucht wird und
+nichts mehr hergibt.
+
+> **Ein Fehler, der beim ersten Mal richtig aussieht, hat keinen Finder.**
+
+#### Die Entprellung fragt nach *wer* und nicht nur nach *was*
+
+`action`, `target_type`, `target_id`, **`account_id`** und `created_at`. Ohne die
+handelnde Person verschluckt sie den Fall, für den man das Protokoll liest: Sieht
+ein Admin über „Anmelden als" in dieselbe Datenbank, in der der Kunde gerade war,
+gehört das in einen eigenen Eintrag — sonst schweigt das Protokoll genau dort.
+
+Die Spanne fragt an `created_at` und damit an UTC. Das ist Speicherung und keine
+Anzeige; die Anzeigezeitzone aus `docs/40` bleibt aussen vor, denn eine Spanne,
+die in der Zone des Betrachters rechnet, wäre je nach Sommerzeit eine andere.
+
+#### Und der Test nennt hier ausnahmsweise die Zahl
+
+Sonst gilt in diesem Projekt der Satz aus P4:
+
+> **Ein Kriterium, das nach einer Anzahl fragt, prüft nicht, was gezählt wurde.**
+
+Hier **ist** die Anzahl die Regel — „einer je Datenbank und Stunde" ist der
+Wortlaut von Entscheidung 5, Punkt 4 —, und deshalb steht die 3600 als benannte
+Konstante da und nicht als Zahl mitten im Griff.
+
+**Sechs Brüche, sechs Bisse:** Löschen aus der Aktionsliste; Schlüssel aus dem
+Kontext; Werte in den Kontext; Entprellung durch eine gewöhnliche Aufzeichnung
+ersetzt; Spanne auf eine Minute; und die Frage nach der handelnden Person
+entfernt.

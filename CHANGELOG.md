@@ -11396,3 +11396,74 @@ Abstand gegeben, der zu keinem ihrer Nachbarn passt.
 
 > **Eine Messung ohne die Stufe, in der sie entstand, ist eine Zahl ohne
 > Einheit.**
+
+### P5c Schritt 6, erste Hälfte — §10 Regel 2 war nie gebaut
+
+Der Plan nennt drei Regeln für den Bezug auf eine Zeile: Primärschlüssel, sonst
+ein eindeutiger Index über Spalten ohne `NULL`, sonst nur lesbar. Gebaut war
+Regel 1. Eine Tabelle mit einem tauglichen eindeutigen Index war damit nicht
+änderbar, obwohl sich eine Zeile darüber genauso eindeutig ansprechen lässt.
+
+Aufgefallen ist es an MariaDB, **die es längst richtig machte**: Sie befördert
+den ersten solchen Index zum impliziten Primärschlüssel und meldet seine Spalten
+als `PRI`. Der MariaDB-Zweig erfüllt Regel 2 also, seit es ihn gibt, und niemand
+hat es aufgeschrieben. Der PostgreSQL-Zweig erfüllte sie nicht.
+
+> **Ein Unterschied zwischen zwei Umsetzungen derselben Regel ist kein
+> Unterschied der Systeme, solange ihn niemand gemessen hat.**
+
+Neun Fälle gegen Wegwerf-Server im Container gemessen — PostgreSQL 16.13 und
+MariaDB 10.11.14, mit den echten Abfragen aus dem Quelltext und nicht mit
+nachgebauten. Beide Systeme stimmen jetzt in allen neun überein, einschliesslich
+der vier Ausschlüsse: Teilindex, Ausdrucksindex, nullbare Spalte, Sicht.
+
+Die Reihenfolge bei zwei tauglichen Indexen war dabei keine freie Wahl. Der
+erste Entwurf nahm den schmalsten — vernünftig, und es hätte die beiden Systeme
+auseinanderlaufen lassen, weil MariaDB den zuerst angelegten nimmt.
+
+### Dieselbe Schlüsselregel stand zweimal da
+
+`Db\Console::keyCondition()` war Zeile für Zeile die PostgreSQL-Fassung mit
+`` ` `` statt `"`. Als die dritte Prüfung dazukam — ist jede Spalte des
+Schlüssels genannt? —, wäre die zweite Fassung die gewesen, die sie nicht
+bekommt. Die Prüfung steht jetzt einmal, die Maskierung bleibt je System.
+
+Der neue Fall: Bei einem Schlüssel `(b, c)` trifft `WHERE b = '1'` jede Zeile mit
+diesem `b`. Gefährlich ist das nicht — die Anweisung zählt nach und nimmt
+zurück. Aber sie meldet dann „hat 3 Zeilen getroffen", und das liest sich wie
+ein Nebenläufigkeitsproblem statt wie ein unvollständiger Aufruf.
+
+> **Eine Sicherung, die den Schaden verhindert, erklärt ihn nicht.**
+
+### Befund 2 aus `docs/47` ist entschieden — der Satz gehört uns
+
+Ein Schreibvorgang, der nicht genau eine Zeile trifft, meldete in PostgreSQL:
+
+```
+Die Datenbank hat abgewiesen: ERROR:  Der Vorgang hat 0 Zeilen getroffen …
+CONTEXT:  PL/pgSQL function inline_code_block line 7 at RAISE
+```
+
+Ein Satz, den dieses Panel selbst geschrieben hat — mit einem Vorspann, der sagt,
+es habe jemand anders gesprochen. Der Block schickt jetzt nur noch die Zahl,
+gekennzeichnet mit einer Marke, und den Satz baut PHP; für beide Systeme aus
+einer Quelle. Jede andere Meldung behält ihre Verpackung — beim Zeitlimit *ist*
+es die Meldung des Servers.
+
+> **Eine Verpackung, die für eine fremde Meldung richtig ist, ist für die eigene
+> falsch.**
+
+`VERBOSITY terse` wäre der naheliegende Fix gewesen und der falsche: Er nimmt mit
+der `CONTEXT`-Zeile auch die `DETAIL`-Zeile, und die ist bei drei von vier
+gemessenen Fehlern die nützliche Hälfte — „Key (id)=(1) is still referenced from
+table kind" sagt dem Kunden, welche Zeile sein Löschen blockiert.
+
+> **Ein Schalter, der Rauschen entfernt, entfernt es nicht nur dort, wo es
+> Rauschen ist.**
+
+Und der erste Wurf des Erkenners hat nichts erkannt: `^ERROR:` traf nicht, weil
+die Verpackung davorsteht und die Meldung mitten in der Zeile beginnt. Der Fall
+sah aus wie „keine eigene Meldung" und fiel still in die alte Verpackung zurück.
+
+> **Ein Ausdruck, der nichts findet, sieht aus wie einer, der nichts zu finden
+> hatte.**

@@ -2805,3 +2805,138 @@ Regel die **Marke** liest und keine Zahl: In der Kundensicht ist `--block-gap`
 
 > **Eine Messung, die anders ausfällt als erwartet und trotzdem stimmt, prüft
 > mehr als eine, die trifft.**
+
+### 20.35 Schritt 6, erste Hälfte — und §10 Regel 2 war nie gebaut
+
+**Der Rückstand stand nicht im Plan, sondern im Quelltext.** `docs/46 §10` nennt
+drei Regeln für den Bezug auf eine Zeile: Primärschlüssel, sonst ein eindeutiger
+Index über Spalten ohne `NULL`, sonst nur lesbar. Gebaut war Regel 1. Beide
+Konsolen meldeten `key` ausschliesslich für den Primärschlüssel — eine Tabelle
+mit einem tauglichen eindeutigen Index war damit nicht änderbar, obwohl sich
+eine Zeile darüber genauso eindeutig ansprechen lässt.
+
+**Aufgefallen ist es an MariaDB, die es längst richtig machte.** Sie befördert
+den ersten eindeutigen Index über `NOT NULL`-Spalten zum impliziten
+Primärschlüssel und meldet seine Spalten in `COLUMN_KEY` als `PRI`. Der
+MariaDB-Zweig dieses Panels erfüllt Regel 2 also, seit es ihn gibt — und niemand
+hat es aufgeschrieben. Der PostgreSQL-Zweig erfüllte sie nicht.
+
+> **Ein Unterschied zwischen zwei Umsetzungen derselben Regel ist kein
+> Unterschied der Systeme, solange ihn niemand gemessen hat.**
+
+`EngineReachTest` kann das nicht sehen: Er vergleicht Namen von Operationen und
+kein Verhalten. Es ist dieselbe Lücke wie bei der Kodierung in `docs/47` — zwei
+Systeme, eine Regel, zwei Antworten, und kein Wächter dazwischen.
+
+#### Neun Fälle, beide Systeme, gemessen
+
+Wegwerf-Server im Container: PostgreSQL **16.13**, MariaDB **10.11.14** (dieselbe
+Fassung wie `cloudsrv24`; `apt-get install mariadb-server` holt sie aus dem
+Ubuntu-Archiv). Gefahren mit den **echten** `columnsQuery()` aus dem Quelltext
+und nicht mit einer nachgebauten Abfrage.
+
+| Fixtur | erwartet | PostgreSQL | MariaDB |
+|---|---|---|---|
+| Primärschlüssel | `id` | `id` | `id` |
+| nur eindeutiger Index, `NOT NULL` | `kennung` | `kennung` | `kennung` |
+| eindeutiger Index über nullbare Spalte | — | — | — |
+| gar kein Index | — | — | — |
+| zwei taugliche Indexe | der zuerst angelegte | `b, c` | `b, c` |
+| Primärschlüssel **und** eindeutiger Index | der Primärschlüssel | `id` | `id` |
+| Teilindex (`WHERE aktiv`) / Präfixindex | — | — | — |
+| Ausdrucksindex (`lower(kennung)`) | — | — (kein Fall in MariaDB) |
+| eine Sicht | — | — | — |
+
+Vier Ausschlüsse in PostgreSQL, jeder einzeln belegt:
+
+- **`indpred IS NULL`** — ein Teilindex ist nur für die Zeilen eindeutig, die
+  seine Bedingung erfüllen, und sagt über die anderen nichts.
+- **`0 <> ALL (indkey)`** — eine `0` in `indkey` steht für einen *Ausdruck*, und
+  zu einem Ausdruck gibt es keine Spalte, in die sich ein `WHERE` schreiben
+  liesse.
+- **keine nullbare Spalte darunter** — `NULL = NULL` ist nicht wahr, ein `WHERE`
+  darüber träfe die Zeile nicht.
+- **`ORDER BY indisprimary DESC, indexrelid`** — der Primärschlüssel gewinnt,
+  sonst der zuerst angelegte.
+
+**Die letzte Hälfte war keine freie Wahl.** Der erste Entwurf sortierte nach
+Spaltenzahl („der schmalste Index gewinnt"), und das ist für sich genommen
+vernünftig — es hätte die beiden Systeme bei zwei tauglichen Indexen
+auseinanderlaufen lassen: MariaDB nimmt den zuerst angelegten. Auch das
+gemessen, nicht überlegt.
+
+#### Und dieselbe Regel stand zweimal da
+
+`Db\Console::keyCondition()` war Zeile für Zeile `Pg\Console::keyCondition()`
+mit `` ` `` statt `"`. Als die dritte Prüfung dazukam — **ist jede Spalte des
+Schlüssels genannt?** —, wäre die zweite Fassung die gewesen, die sie nicht
+bekommt. Die Prüfung steht jetzt einmal in `PgConsole::checkedKey()`, die
+Maskierung bleibt je System.
+
+Der neue Fall: Bei einem zusammengesetzten Schlüssel `(b, c)` trifft
+`WHERE b = '1'` jede Zeile mit diesem `b`. Gefährlich ist das nicht — die
+Anweisung zählt nach und nimmt zurück, was nicht genau eine Zeile war. Aber sie
+meldet dann „hat 3 Zeilen getroffen", und das liest sich wie ein
+Nebenläufigkeitsproblem statt wie ein unvollständiger Aufruf.
+
+> **Eine Sicherung, die den Schaden verhindert, erklärt ihn nicht.**
+
+### 20.36 Befund 2 aus `docs/47` ist entschieden — der Satz gehört uns
+
+**Die Frage stand seit dem Zwischenlauf offen und war Schritt 6 zugewiesen:** Was
+liest ein Kunde, dessen Schreibvorgang nicht genau eine Zeile trifft? Gemessen
+gegen 16.13, das war die Antwort vorher:
+
+```
+Die Datenbank hat abgewiesen: ERROR:  Der Vorgang hat 0 Zeilen getroffen …
+CONTEXT:  PL/pgSQL function inline_code_block line 7 at RAISE
+```
+
+Ein Satz, den dieses Panel selbst geschrieben hat — mit einem Vorspann, der sagt,
+es habe jemand anders gesprochen, und einer Zeilennummer auf eine Datei, die es
+nicht gibt. **MariaDB machte es von Anfang an richtig**: Dort entsteht der Satz
+in PHP, weil es keinen anonymen Block gibt. Niemand hat entschieden, dass die
+beiden es verschieden machen.
+
+> **Eine Verpackung, die für eine fremde Meldung richtig ist, ist für die eigene
+> falsch.**
+
+**Entschieden: der Block schickt eine Zahl, den Satz baut PHP.** `RAISE
+EXCEPTION '<Marke>=%'` statt der Prosa; `Console::missed()` macht daraus den
+Satz, und zwar für beide Systeme aus einer Quelle. Die Marke steht als
+`Console::MISS_MARKER` an einer Stelle, weil sie beim Bauen und beim Lesen
+gebraucht wird — zwei Zeichenketten, die aufeinander zeigen, sind der Fehler,
+den dieses Projekt sechsmal bezahlt hat.
+
+**Was ausdrücklich bleibt:** Jede andere Meldung behält ihre Verpackung. Beim
+Zeitlimit *ist* es die Meldung des Servers, und `docs/36 §17` verlangt sie
+wörtlich.
+
+#### `VERBOSITY terse` wäre der naheliegende Fix gewesen und der falsche
+
+Er hätte die `CONTEXT`-Zeile entfernt — und mit ihr die `DETAIL`-Zeile, die bei
+drei von vier gemessenen Fehlern die nützliche Hälfte ist:
+
+| Fehler | `DETAIL`, das `terse` wegnähme |
+|---|---|
+| Fremdschlüssel | `Key (id)=(1) is still referenced from table "kind".` |
+| Eindeutigkeit | `Key (id)=(1) already exists.` |
+| `NOT NULL` | `Failing row contains (2, null).` |
+
+> **Ein Schalter, der Rauschen entfernt, entfernt es nicht nur dort, wo es
+> Rauschen ist.**
+
+#### Und der erste Wurf des Erkenners hat nichts erkannt
+
+`/^ERROR:\s+<Marke>=(\d+)$/m` traf nichts — `Session` setzt
+`Die Datenbank hat abgewiesen: ` davor, und die Meldung beginnt damit mitten in
+der Zeile. Der Fall sah aus wie „keine eigene Meldung" und fiel still in die
+alte Verpackung zurück.
+
+> **Ein Ausdruck, der nichts findet, sieht aus wie einer, der nichts zu finden
+> hatte.**
+
+Nach hinten bleibt er streng verankert, und das ist die Hälfte, die zählt:
+Gesucht wird eine `ERROR:`-Zeile, auf der nach der Marke nichts mehr folgt. Ein
+Kundenwert, der die Marke in einer `DETAIL`-Zeile nachahmt, wird nicht erkannt —
+gegengeprüft.

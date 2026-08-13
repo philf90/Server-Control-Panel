@@ -11201,3 +11201,32 @@ fallen sie zusammen.
 
 > **Ein Wächter, der ein Wort sucht statt einer Bedeutung, findet die Wörter,
 > die zufällig gleich aussehen.**
+
+### „Schliessen" klebte an der Tabelle — seit Schritt 4
+
+**Gefunden vom Betreiber auf einem Bild des Durchgangs zu Schritt 5b.** Der
+Knopf stand ohne einen Millimeter Abstand unter der Spaltentabelle; nach der
+Behebung sind es 16 px.
+
+`.button-row` bringt keinen Rand nach oben mit. Der Nachbarschaftsausdruck in
+`app.css` kannte nur Formularinhalt — dabei hat der Grund nichts mit Formularen
+zu tun: Diese Bausteine **enden bündig**, und `.scrolls`, `.pager` und
+`.cell-value` tun das genauso.
+
+> **Eine Regel, die eine Liste von Nachbarn führt, ist eine Liste, die wächst —
+> der Grund steht nicht in ihr, sondern daneben.**
+
+Der Fehler war seit Schritt 4 da und hat zwei Bildschirmfoto-Durchgänge
+überlebt. Gefunden hat ihn kein Wächter und keine Messung: Nichts lief über,
+nichts war abgeschnitten, es sah nur gedrängt aus.
+
+**Und der neue Wächter hat dreimal falsch herum gefragt.** Er suchte zuerst
+Knopfreihen und fragte, ob ihr Vorgänger erfasst sei — und meldete drei richtige
+Dinge als Fehler: eine Reihe in einem Flexbehälter mit `gap`, eine unter einer
+eigenen Behälterregel, und eine in einer waagerechten Flexzeile.
+
+> **Ein Wächter, der von der falschen Seite fragt, findet drei richtige Antworten
+> und nennt sie Fehler.**
+
+Er fragt jetzt umgekehrt: Welche Bausteine enden bündig, und steht unter einem
+von ihnen eine Knopfreihe, ohne dass die Regel ihn kennt?

@@ -2381,3 +2381,43 @@ Möglichkeit im Ausdruck.
 „Oben" und „unten" stehen bewusst nicht in der Regel: Sie bleiben beim Umbruch
 richtig — was untereinander steht, steht in jeder Breite untereinander, es
 wandert nur, wie weit.
+
+### 20.26 „Schliessen" klebte an der Tabelle — seit Schritt 4
+
+**Der Betreiber hat es auf Bild 3 und 4 des Durchgangs zu Schritt 5b gesehen:**
+Der Knopf „Schliessen" stand ohne einen Millimeter Abstand unter der
+Spaltentabelle. Gemessen nach der Behebung: **16 px**, vorher 0.
+
+`.button-row` bringt keinen Rand nach oben mit. In einem `.form` fällt das nicht
+auf — die Reihe ist dort ein Flexkind und erbt den `gap`. Für die Fälle
+ausserhalb gibt es seit dem Optik-Rework einen Nachbarschaftsausdruck in
+`app.css`, und der kannte **nur Formularinhalt**: `.field`, `.hint`, `.error`.
+
+Der Grund hat aber nichts mit Formularen zu tun: Diese Bausteine **enden
+bündig**. Und das tun `.scrolls` (hört an der Tabellenkante auf), `.pager` (oben
+eine Linie, unten nichts) und `.cell-value` (`margin: 0`) genauso.
+
+> **Eine Regel, die eine Liste von Nachbarn führt, ist eine Liste, die wächst —
+> der Grund steht nicht in ihr, sondern daneben.**
+
+**Der Fehler war seit Schritt 4 da und hat zwei Bildschirmfoto-Durchgänge
+überlebt.** Gefunden hat ihn kein Wächter und keine Messung: Nichts lief über,
+nichts war abgeschnitten, es sah nur gedrängt aus.
+
+**Und der Wächter dazu hat dreimal falsch herum gefragt.** `ButtonRowSpacingTest`
+suchte zuerst *Knopfreihen* und fragte, ob ihr Vorgänger von der Regel erfasst
+sei. Das meldete drei richtige Dinge als Fehler:
+
+| Fundstelle | warum sie richtig ist |
+|---|---|
+| `.form` in `Login.vue` | Flexbehälter mit `gap` — der Abstand kommt vom Behälter |
+| `.sheet` in `Login.vue` | eigene Regel `.sheet .button-row { margin-top: 22px }` |
+| `.tasks li` in `Operations/Index.vue` | Flexzeile mit `gap`, und waagerecht |
+
+> **Ein Wächter, der von der falschen Seite fragt, findet drei richtige Antworten
+> und nennt sie Fehler.**
+
+Er fragt jetzt von der anderen Seite: Welche Bausteine enden bündig, und steht
+unter einem von ihnen eine Knopfreihe, ohne dass die Regel ihn kennt? Was das
+**nicht** abdeckt, steht in seinem Kopf: Ein neuer bündiger Baustein, den seine
+Liste nicht kennt, fällt durch. Die Liste ist die Regel, nicht ihr Ersatz.

@@ -131,8 +131,31 @@ const indexes = ref<IndexRow[]>([])
 /** Die geöffnete Tabelle, oder `null`, solange keine offen ist. */
 const openTable = ref<string | null>(null)
 
-/** Welche der beiden Ansichten dazu offen ist. */
-const openView = ref<'structure' | 'rows' | null>(null)
+/**
+ * Welches Ziel dazu offen ist.
+ *
+ * **Drei und nicht zwei**, seit der Baum da ist. Spalten und Indexe waren eine
+ * Ansicht mit zwei Bereichen; im Baum sind sie zwei Blätter, und zwei Blätter,
+ * die dasselbe öffnen, sind eine Lüge über die Navigation. Nebenbei kostet
+ * jedes Ziel damit genau eine Katalogfrage statt zweier — und jede ist ein
+ * befristeter Zugang (§11.1).
+ */
+const openView = ref<'columns' | 'indexes' | 'rows' | null>(null)
+
+/**
+ * Die aufgeklappten Zweige.
+ *
+ * **Ein Satz von Namen und kein Feld von Zuständen an den Tabellen.** Wer die
+ * Tabellenliste neu lädt, bekommt neue Objekte; ein Zustand, der an ihnen
+ * hängt, wäre danach fort. Der Name überlebt das.
+ */
+const expanded = ref<Set<string>>(new Set())
+
+/** Der Baum selbst — für die Tastaturbedienung, die in der Vorlage steht. */
+const tree = ref<HTMLElement | null>(null)
+
+/** Die Inhaltsspalte — auf schmaler Fläche steht sie unterhalb des Baums. */
+const content = ref<HTMLElement | null>(null)
 
 const loadingTables = ref(true)
 const loadingTable = ref(false)
@@ -230,30 +253,43 @@ function reset(table: string): void {
 }
 
 /**
- * Struktur und Indexe einer Tabelle.
+ * Die Spalten einer Tabelle.
  *
- * **Zwei Anfragen und nicht eine.** Die Spaltenliste holt der Agent bei jedem
- * Blättern, Filtern und Schreiben; die Indexe braucht nur diese Ansicht. Sie
- * laufen deshalb nebeneinander und nicht nacheinander — die zweite wartet sonst
- * auf einen befristeten Zugang, den die erste schon wieder abgeräumt hat.
+ * **Ohne die Indexe**, seit es den Baum gibt. Vorher holten beide zusammen, weil
+ * beide auf einer Seite standen; jetzt sind es zwei Ziele, und wer nach den
+ * Spalten fragt, soll nicht die Indexe bezahlen. Jede Katalogfrage ist ein
+ * befristeter Zugang (§11.1).
  */
-async function openStructure(table: string): Promise<void> {
+async function openColumns(table: string): Promise<void> {
   reset(table)
-  openView.value = 'structure'
+  openView.value = 'columns'
   loadingTable.value = true
 
   try {
-    const [struktur, register] = await Promise.all([
-      ask<{ columns: ColumnRow[] }>(props.database.id, 'columns', { table }),
-      ask<{ indexes: IndexRow[] }>(props.database.id, 'indexes', { table }),
-    ])
-
+    const struktur = await ask<{ columns: ColumnRow[] }>(props.database.id, 'columns', { table })
     columns.value = struktur.columns
+  } catch (error) {
+    report(error)
+  } finally {
+    loadingTable.value = false
+    reveal()
+  }
+}
+
+/** Die Indexe einer Tabelle. */
+async function openIndexes(table: string): Promise<void> {
+  reset(table)
+  openView.value = 'indexes'
+  loadingTable.value = true
+
+  try {
+    const register = await ask<{ indexes: IndexRow[] }>(props.database.id, 'indexes', { table })
     indexes.value = register.indexes
   } catch (error) {
     report(error)
   } finally {
     loadingTable.value = false
+    reveal()
   }
 }
 
@@ -286,7 +322,30 @@ async function openRows(table: string): Promise<void> {
     report(error)
   } finally {
     loadingTable.value = false
+    reveal()
   }
+}
+
+/**
+ * Den Inhalt ins Bild holen — aber nur, wenn er nicht daneben steht.
+ *
+ * **Ohne das tut ein Klick auf dem Telefon scheinbar nichts.** Unter 720px liegt
+ * der Inhalt *unter* dem Baum, und zwanzig Zweige sind rund 930px hoch: Wer
+ * „Zeilen" wählt, sieht die Zeilen erst nach zwei Bildschirmen Rollen. Ab 720px
+ * steht der Inhalt daneben und ist längst zu sehen; dort wäre ein Sprung eine
+ * Bewegung ohne Anlass.
+ *
+ * Die Breite kommt aus `matchMedia` und nicht aus einer Zahl in einer
+ * Bedingung — es ist derselbe Haltepunkt wie in `app.css`, und zwei Fassungen
+ * davon wären eine zu viel. Dass es genau dieser ist, hält `MobileLayoutTest`
+ * fest.
+ */
+function reveal(): void {
+  if (window.matchMedia('(min-width: 720px)').matches) {
+    return
+  }
+
+  content.value?.scrollIntoView({ block: 'start', behavior: 'smooth' })
 }
 
 async function loadPage(): Promise<void> {
@@ -398,6 +457,106 @@ async function openCell(column: string, row: Record<string, string | number | nu
   }
 }
 
+/**
+ * Einen Zweig auf- oder zuklappen.
+ *
+ * **Es wird dabei nichts geholt**, und das ist der Kern von §11.1: Die drei
+ * Ziele darunter sind Beschriftungen und keine Daten. Geladen wird erst, wenn
+ * jemand eines wählt — für **eine** Tabelle. Ein „alles aufklappen" gibt es
+ * deshalb nicht; es wäre ein Knopf, der zwanzig Datenbankrollen anlegt.
+ */
+function toggle(table: string): void {
+  const offen = new Set(expanded.value)
+
+  if (offen.has(table)) {
+    offen.delete(table)
+  } else {
+    offen.add(table)
+  }
+
+  expanded.value = offen
+}
+
+/**
+ * Die Tastaturbedienung eines Baums.
+ *
+ * **Sie liest den Baum aus dem Dokument und nicht aus dem Zustand.** Welche
+ * Knoten sichtbar sind, hängt daran, welche Zweige offen sind — und das steht
+ * bereits im DOM. Eine zweite Fassung davon in einer Liste wäre die, die
+ * veraltet, sobald jemand die Vorlage umstellt.
+ *
+ * Rechts klappt auf oder geht hinein, links klappt zu oder geht heraus; das ist
+ * das Muster, das ein Screenreader hier erwartet (`aria-expanded` sagt an, was
+ * die Pfeile tun).
+ */
+function navigate(event: KeyboardEvent): void {
+  const wurzel = tree.value
+
+  if (wurzel === null) {
+    return
+  }
+
+  const punkte = [...wurzel.querySelectorAll<HTMLElement>('[role="treeitem"]')]
+    .filter((el) => el.offsetParent !== null)
+
+  const hier = punkte.indexOf(document.activeElement as HTMLElement)
+
+  if (hier === -1) {
+    return
+  }
+
+  const springe = (ziel: number): void => {
+    event.preventDefault()
+    punkte[Math.max(0, Math.min(punkte.length - 1, ziel))]?.focus()
+  }
+
+  const auf = document.activeElement as HTMLElement
+  const zweig = auf.getAttribute('aria-expanded')
+  const name = auf.dataset.table ?? ''
+
+  switch (event.key) {
+    case 'ArrowDown':
+      return springe(hier + 1)
+
+    case 'ArrowUp':
+      return springe(hier - 1)
+
+    case 'Home':
+      return springe(0)
+
+    case 'End':
+      return springe(punkte.length - 1)
+
+    case 'ArrowRight':
+      if (zweig === 'false') {
+        event.preventDefault()
+        return toggle(name)
+      }
+
+      if (zweig === 'true') {
+        return springe(hier + 1)
+      }
+
+      return
+
+    case 'ArrowLeft':
+      if (zweig === 'true') {
+        event.preventDefault()
+        return toggle(name)
+      }
+
+      // Auf einem Blatt geht es zum Zweig darüber — das ist der nächste Knoten
+      // nach oben, der `aria-expanded` trägt.
+      if (zweig === null) {
+        for (let i = hier - 1; i >= 0; i--) {
+          if (punkte[i].hasAttribute('aria-expanded')) {
+            return springe(i)
+          }
+        }
+      }
+  }
+}
+
 function closeTable(): void {
   openTable.value = null
   openView.value = null
@@ -412,6 +571,34 @@ function closeTable(): void {
 function formatRows(value: number | null): string {
   return value === null ? 'unbekannt' : value.toLocaleString('de-DE')
 }
+
+/**
+ * Die vier Angaben zur offenen Tabelle — Art, Zeilen, Grösse, Schlüssel.
+ *
+ * **Sie standen bis Schritt 5b im Verzeichnis und stehen jetzt im Inhalt.** Der
+ * Baum trägt nur den Namen (§11.1): Der erste Entwurf hatte sie rechts daneben,
+ * und in einer 280px schmalen Spalte quetschte das den Tabellennamen auf ein
+ * Zeichen je Zeile. Weglassen war keine Möglichkeit — „hat diese Tabelle einen
+ * Schlüssel" entscheidet, ob es die Zelleinzelsicht gibt, und ab Schritt 6, ob
+ * man sie ändern kann.
+ *
+ * > **Was aus der Navigation fällt, muss im Inhalt landen — sonst ist es
+ * > weggefallen.**
+ */
+const openFacts = computed((): string => {
+  const tabelle = tables.value.find((t) => t.name === openTable.value)
+
+  if (tabelle === undefined) {
+    return ''
+  }
+
+  return [
+    tabelle.kind === 'view' ? 'Sicht' : 'Tabelle',
+    `${formatRows(tabelle.rows)} Zeilen`,
+    formatBytes(tabelle.bytes),
+    tabelle.key ? 'mit Schlüssel' : 'ohne Schlüssel',
+  ].join(' · ')
+})
 
 function isBinary(column: string): boolean {
   return columns.value.some((c) => c.name === column && c.binary)
@@ -471,72 +658,117 @@ onMounted(loadTables)
       <span>{{ failure }}</span>
     </p>
 
-    <div class="sections">
-      <Section title="Tabellen" full>
-        <p v-if="loadingTables" class="empty">Wird geladen …</p>
+    <!--
+      Der Grundriss dieser Seite ist der einzige des Panels mit zwei Spalten.
 
-        <p v-else-if="tables.length === 0" class="empty">
-          In dieser Datenbank gibt es noch keine Tabelle.
+      Unter 720px liegt der Inhalt unter dem Baum, darüber daneben — **eine
+      Form für beide Breiten** (§11.1, Entscheidung 1). Baum unten und Tabelle
+      oben wären zwei Fassungen derselben Ansicht, und die zweite ist die, die
+      veraltet.
+    -->
+    <div class="split">
+      <div class="sections aside">
+        <Section title="Tabellen" full>
+          <p v-if="loadingTables" class="empty">Wird geladen …</p>
+
+          <p v-else-if="tables.length === 0" class="empty">
+            In dieser Datenbank gibt es noch keine Tabelle.
+          </p>
+
+          <!--
+            **Ein Baum und keine Liste von Knöpfen.** `role="tree"`,
+            `role="treeitem"` und `aria-expanded` sind das, woran ein
+            Screenreader den Zusammenhang erkennt — wer den Baum *sieht*,
+            bemerkt ihr Fehlen nie. `TreeSemanticsTest` besteht darauf.
+
+            Die `<li>` tragen `role="none"`: Zwischen einem `tree` und seinen
+            `treeitem` darf nichts mit eigener Rolle stehen, und ein `<li>`
+            bringt `listitem` mit.
+          -->
+          <ul v-else ref="tree" class="tree" role="tree" @keydown="navigate">
+            <li v-for="(table, index) in tables" :key="`${table.schema}.${table.name}`" role="none">
+              <button
+                type="button"
+                class="node"
+                role="treeitem"
+                :data-table="table.name"
+                :aria-expanded="expanded.has(table.name)"
+                :tabindex="index === 0 ? 0 : -1"
+                @click="toggle(table.name)"
+              >
+                <!-- Das Zeichen sagt dasselbe wie `aria-expanded`; zweimal
+                     vorgelesen wäre es eine Angabe zu viel. -->
+                <span class="arrow" aria-hidden="true">
+                  {{ expanded.has(table.name) ? '▾' : '▸' }}
+                </span>
+                <span class="label">{{ table.name }}</span>
+              </button>
+
+              <!--
+                **Drei Ziele und keine Daten** (§11.1). Spalten als Blätter
+                müssten Typ, Leer-erlaubt, Vorgabe und Schlüssel weglassen —
+                vier von fünf Angaben — und wären eine zweite, schlechtere
+                Strukturansicht. Eine Seite Zeilen passt in keinen Knoten; der
+                Baum ruft sie auf.
+              -->
+              <ul v-if="expanded.has(table.name)" role="group">
+                <li role="none">
+                  <button
+                    type="button"
+                    class="leaf"
+                    role="treeitem"
+                    tabindex="-1"
+                    :class="openTable === table.name && openView === 'columns' ? 'active' : ''"
+                    @click="openColumns(table.name)"
+                  >
+                    Spalten
+                  </button>
+                </li>
+                <li role="none">
+                  <button
+                    type="button"
+                    class="leaf"
+                    role="treeitem"
+                    tabindex="-1"
+                    :class="openTable === table.name && openView === 'indexes' ? 'active' : ''"
+                    @click="openIndexes(table.name)"
+                  >
+                    Indexe
+                  </button>
+                </li>
+                <li role="none">
+                  <button
+                    type="button"
+                    class="leaf"
+                    role="treeitem"
+                    tabindex="-1"
+                    :class="openTable === table.name && openView === 'rows' ? 'active' : ''"
+                    @click="openRows(table.name)"
+                  >
+                    Zeilen
+                  </button>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </Section>
+      </div>
+
+      <div ref="content" class="sections">
+        <p v-if="openTable === null" class="empty">
+          Wählen Sie links eine Tabelle und darunter, was Sie sehen möchten.
         </p>
 
-        <div v-else class="scrolls">
-          <table class="stacks">
-            <thead>
-              <tr>
-                <th>Tabelle</th>
-                <th>Art</th>
-                <th class="right">Zeilen</th>
-                <th class="right">Grösse</th>
-                <th>Schlüssel</th>
-                <th>Aktion</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="table in tables" :key="`${table.schema}.${table.name}`">
-                <td data-column="Tabelle" class="ident name">{{ table.name }}</td>
-                <td data-column="Art">{{ table.kind === 'view' ? 'Sicht' : 'Tabelle' }}</td>
-                <td data-column="Zeilen" class="right" :class="table.rows === null ? 'quiet' : ''">
-                  {{ formatRows(table.rows) }}
-                </td>
-                <td data-column="Grösse" class="right">{{ formatBytes(table.bytes) }}</td>
-                <td data-column="Schlüssel" :class="table.key ? '' : 'quiet'">
-                  {{ table.key ? 'ja' : 'keiner' }}
-                </td>
-                <td data-column="Aktion">
-                  <div class="button-row">
-                    <button
-                      type="button"
-                      class="button"
-                      :class="openTable === table.name && openView === 'structure' ? 'active' : ''"
-                      @click="openStructure(table.name)"
-                    >
-                      Struktur
-                    </button>
-                    <button
-                      type="button"
-                      class="button"
-                      :class="openTable === table.name && openView === 'rows' ? 'active' : ''"
-                      @click="openRows(table.name)"
-                    >
-                      Zeilen
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </Section>
-
       <!--
-        **Zwei Bereiche und nicht einer**, und der Name der Tabelle steht in
-        keinem von beiden Titeln — ein Tabellenname darf 63 Zeichen lang sein
-        und schob die Seite bei 390px um 99px aus dem Bild (`docs/46 §20.11`).
+        Der Name der Tabelle steht in keinem Bereichstitel — er darf 63 Zeichen
+        lang sein und schob die Seite bei 390px um 99px aus dem Bild
+        (`docs/46 §20.11`). Er steht als Kennung in der Beizeile, und dort
+        stehen seit Schritt 5b auch die vier Angaben, die der Baum nicht trägt.
       -->
-      <template v-if="openTable !== null && openView === 'structure'">
+      <template v-if="openTable !== null && openView === 'columns'">
         <Section title="Spalten" full>
           <p class="section-note">
-            Tabelle <span class="ident">{{ openTable }}</span>
+            Tabelle <span class="ident">{{ openTable }}</span> · {{ openFacts }}
           </p>
 
           <p v-if="loadingTable" class="empty">Wird geladen …</p>
@@ -580,9 +812,19 @@ onMounted(loadTables)
               </tbody>
             </table>
           </div>
-        </Section>
 
+          <div class="button-row">
+            <button type="button" class="button" @click="closeTable()">Schliessen</button>
+          </div>
+        </Section>
+      </template>
+
+      <template v-if="openTable !== null && openView === 'indexes'">
         <Section title="Indexe" full>
+          <p class="section-note">
+            Tabelle <span class="ident">{{ openTable }}</span> · {{ openFacts }}
+          </p>
+
           <p v-if="loadingTable" class="empty">Wird geladen …</p>
 
           <p v-else-if="indexes.length === 0" class="empty">
@@ -632,7 +874,7 @@ onMounted(loadTables)
       -->
       <Section v-if="openTable !== null && openView === 'rows'" title="Zeilen" full>
         <p class="section-note">
-          Tabelle <span class="ident">{{ openTable }}</span>
+          Tabelle <span class="ident">{{ openTable }}</span> · {{ openFacts }}
         </p>
 
         <div class="filter">
@@ -822,7 +1064,8 @@ onMounted(loadTables)
             <button type="button" class="button" @click="cell = null">Schliessen</button>
           </div>
         </template>
-      </Section>
+        </Section>
+      </div>
     </div>
   </PanelLayout>
 </template>

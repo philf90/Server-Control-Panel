@@ -44,22 +44,22 @@ final class ClassNameTest extends TestCase
      * die in CSS und HTML zu Hause ist (`nav`, `sr`, `sub`, `op`).
      */
     private const VOCABULARY = [
-        'account', 'active', 'after', 'area', 'badge', 'band', 'bar', 'blank',
+        'account', 'active', 'after', 'area', 'arrow', 'aside', 'badge', 'band', 'bar', 'blank',
         'block', 'breadcrumb', 'button', 'cell', 'check', 'choice', 'choices', 'codes',
         'content', 'critical', 'cursor', 'danger', 'dependent', 'description',
         'done', 'empty', 'end', 'error', 'eye', 'facts', 'field', 'filter',
         'foot', 'footer', 'form', 'frame', 'full', 'grid', 'group', 'head',
-        'hint', 'icon', 'ident', 'inline', 'item', 'label', 'line', 'link',
+        'hint', 'icon', 'ident', 'inline', 'item', 'label', 'leaf', 'line', 'link',
         'list',
-        'log', 'long', 'mark', 'menu', 'met', 'meter', 'multiline', 'name',
+        'log', 'long', 'mark', 'menu', 'met', 'meter', 'multiline', 'name', 'node',
         'narrow', 'nav', 'neutral', 'note', 'notice', 'ok', 'on', 'op',
         'open', 'output', 'over', 'page', 'pager', 'pair', 'paired', 'pairs', 'password',
         'postscript', 'primary', 'progress', 'quiet', 'rail', 'release',
         'reveal', 'right', 'row', 'rows', 'rules', 'running', 'scrim', 'scrolls',
         'second', 'section', 'sections', 'sheet', 'signin', 'signout', 'small',
-        'source', 'spaced', 'sr', 'stacks', 'state', 'strength', 'sub', 'subline',
+        'source', 'spaced', 'split', 'sr', 'stacks', 'state', 'strength', 'sub', 'subline',
         'tasks', 'text', 'tight', 'tile', 'tiles', 'time', 'title', 'toggle',
-        'top', 'topbar', 'trend', 'unit', 'usage', 'value', 'version', 'warn',
+        'top', 'topbar', 'tree', 'trend', 'unit', 'usage', 'value', 'version', 'warn',
         'wide', 'with',
     ];
 

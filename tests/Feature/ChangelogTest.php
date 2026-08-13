@@ -80,6 +80,13 @@ final class ChangelogTest extends TestCase
      * @var array<string, string>
      */
     private const REMOVED = [
+        'ButtonRowSpacingTest' => 'Am 13. August 2026 zu BlockSpacingTest geworden (P5c Schritt 6). '
+            .'Er fragte nach Knopfreihen — die Frage der ersten vier Fälle derselben Fuge und '
+            .'trotzdem die falsche: Beim fünften stand unter der Blätterleiste eine Meldung, und er '
+            .'sah nichts. Der Nachfolger fragt, ob der eine Baustein bündig endet und der andere '
+            .'bündig anfängt, und prüft alle Paare daraus. Der alte Name bleibt in CHANGELOG.md und '
+            .'docs/46 stehen, weil dort die Geschichte der vier Fälle erzählt wird.',
+
         'SecretsStayOutOfTheStoreTest' => 'Beim Bauen in SecretsStayOutOfTheQueueTest aufgegangen '
             .'(P5): Die Regel lebt dort als test_the_database_tables_have_no_place_for_a_secret(). '
             .'Der Name blieb in einem Kommentar der Migration und im Plan stehen und zeigte ins '

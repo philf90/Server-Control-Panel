@@ -3174,3 +3174,51 @@ undurchsichtig, sinkt die Zahl der gefundenen Fugen von drei auf zwei — und
 **Fünf Brüche, fünf Bisse**, und der erste nennt die Fuge des Betreibers
 wörtlich: „`Console.vue` setzt `.notice` unmittelbar unter `.pager`, und app.css
 kennt diese Nachbarschaft nicht."
+
+### 20.42 Eine Umbenennung, drei Wächter — und mein lokaler Durchgang war eine Liste
+
+Die Umbenennung von `ButtonRowSpacingTest` nach `BlockSpacingTest` hat drei
+bestehende Wächter rot gemacht, und **jeder hatte recht**:
+
+| Wächter | Befund |
+|---|---|
+| `ChangelogTest` | Der Changelog nennt `ButtonRowSpacingTest`, die Datei gibt es nicht mehr |
+| `GuardReachTest` | Der Kommentar in `BlockSpacingTest` nennt ihn ebenfalls |
+| `NoticeShapeTest` | fand die falsche Regel — dazu unten |
+
+Für die ersten beiden gibt es seit August den vorgesehenen Weg:
+`ChangelogTest::REMOVED`, mit Datum und Grund. Ein Test, den es absichtlich nicht
+mehr gibt, wird dort eingetragen — und nicht im Fliesstext ohne Rückstriche
+umschrieben, was den Wächter umginge statt ihn zu erweitern.
+
+> **Ein Name, den es nicht mehr gibt, ist kein kleineres Problem als ein Name,
+> den es nie gab.**
+
+#### `NoticeShapeTest` fand die falsche Regel
+
+Er suchte mit `strpos($css, '.notice {')` — und ab dieser Fassung steht 650
+Zeilen früher `:is(.field, …, .button-row) + .notice {`. Derselbe Text, andere
+Regel. Der Wächter las seitdem einen Block, in dem nur `margin-top` steht, und
+meldete, die Umbrucherlaubnis der Meldung sei fort. Sie stand unverändert da.
+
+> **Ein Ausdruck, der einen Selektor am Namen sucht, findet jeden, der ihn
+> enthält.**
+
+Gesucht wird jetzt am Zeilenanfang. Es ist derselbe Fund wie beim `\b` über
+Klassennamen in §20.30 — eine Grenze, die für den einfachen Fall reicht und für
+den nächsten nicht.
+
+#### Und der eigentliche Befund: mein lokaler Durchgang war eine Liste
+
+Alle drei Wächter **laufen in diesem Container** — sie erben
+`PHPUnit\Framework\TestCase` und brauchen kein Framework. Gefahren habe ich sie
+nicht, weil das Gestell aus `docs/46 §20.38` mit einer **handverlesenen** Liste
+von dreizehn Namen aufgerufen wurde. Framework-freie Wächter gibt es **136**.
+
+> **Eine Prüfung, die nur nachsieht, woran man gerade denkt, prüft das
+> Erinnerungsvermögen.**
+
+Der Aufruf zählt seitdem selbst ab: `grep -l 'use PHPUnit\Framework\TestCase;'`
+über `tests/`. Was dabei nicht laufen kann — ein Test, der einen Socket braucht
+oder eine Laravel-Klasse —, wird als **übersprungen** ausgewiesen und nicht als
+grün; eine Zahl, die Übersprungenes mitzählt, wäre schlimmer als keine.

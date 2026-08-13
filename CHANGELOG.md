@@ -11601,3 +11601,24 @@ Meldung dahinter — im Quelltext keine Geschwister, im Browser schon.
 
 Ohne diesen Punkt hätte der neue Wächter genau den Fall nicht gefunden, für den
 er gebaut wurde.
+
+### Eine Umbenennung, drei Wächter
+
+`ButtonRowSpacingTest` heisst jetzt `BlockSpacingTest`, und das hat drei
+bestehende Wächter rot gemacht — jeden zu Recht. `ChangelogTest` und
+`GuardReachTest` verlangen für einen Test, den es nicht mehr gibt, einen Eintrag
+in `ChangelogTest::REMOVED` mit Datum und Grund; er steht dort.
+
+> **Ein Name, den es nicht mehr gibt, ist kein kleineres Problem als ein Name,
+> den es nie gab.**
+
+Der dritte, `NoticeShapeTest`, suchte die Regel `.notice` mit einem `strpos` auf
+`.notice {` — und fand ab dieser Fassung den neuen Nachbarschaftsausdruck, der
+denselben Text enthält und 650 Zeilen früher steht. Er las seitdem den falschen
+Block und meldete, die Umbrucherlaubnis sei fort; sie stand unverändert da.
+
+> **Ein Ausdruck, der einen Selektor am Namen sucht, findet jeden, der ihn
+> enthält.**
+
+Es ist derselbe Fund wie beim `\b` über Klassennamen: eine Grenze, die für den
+einfachen Fall reicht und für den nächsten nicht.

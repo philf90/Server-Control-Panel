@@ -1383,8 +1383,23 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 
 ```
 # Voraussetzung: ein Abonnement A mit einer MariaDB- und einer
-# PostgreSQL-Datenbank, ein zweites Abonnement B mit je einer.
+# PostgreSQL-Datenbank, ein zweites Abonnement B mit je einer —
+# UND B GEHOERT EINEM ANDEREN KUNDEN ALS A.
 # Der Lauf legt sie NICHT selbst an (docs/35).
+#
+# HIER STAND NUR „ein zweites Abonnement B", UND DAS REICHT FUER PUNKT 3 (a)
+# NICHT. Die Mandantenklammer haengt am Abonnement, die ANMELDUNG aber am
+# Konto — und `Tenancy::forAccount()` gibt einem Kunden „alle des eigenen
+# Kundenkontos" (`accessibleSubscriptionIds()`). Zwei Abonnements desselben
+# Kunden sind fuer das Panel EIN Mandant: Der Aufruf auf B gelaenge, und zwar
+# zu Recht. Der Lauf saehe aus wie ein gerissenes Kriterium 3.
+#
+# > Zwei Abonnements sind nicht zwei Mandanten. Der Mandant ist der Kunde.
+#
+# Fuer die Punkte 3 (b) und (c) genuegt das zweite ABONNEMENT: Dort haengt die
+# Trennung am Praefix und an den Rechten der Datenbank, und beide reisen mit
+# dem Abonnement und nicht mit dem Kunden. Nur (a) braucht den zweiten Kunden.
+# Gefunden am 13. August 2026 vom Betreiber beim Aufbau des Laufs.
 # Jeder Punkt wird ZWEIMAL gefahren — einmal je System.
 
 # 0  DERSELBE BESTAND AUF BEIDEN SEITEN  ← vor allem anderen
@@ -1637,7 +1652,8 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #      (c) die Rechte der befristeten Rolle — die Meldung kommt vom SERVER.
 #    Jede wird EINZELN gefahren; der Beleg ist die Herkunft der Meldung.
 #
-#    (a)  Als Kunde von Abo A die Adresse einer Datenbank von Abo B aufrufen.
+#    (a)  Als Kunde von Abo A die Adresse einer Datenbank von Abo B aufrufen —
+#         und B GEHOERT EINEM ANDEREN KUNDEN (siehe Voraussetzung oben).
 #         erwartet: 404, ohne dass der Agent gefragt wurde.
 #
 #         HIER STAND 403, UND DAS IST DIE FALSCHE ERWARTUNG. `Database` traegt

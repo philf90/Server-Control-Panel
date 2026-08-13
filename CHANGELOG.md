@@ -11970,3 +11970,28 @@ auffiele. Der Punkt schreibt jetzt `HOME=/tmp srvpanel tinker` vor.
 
 Dieselbe Sorte Fall wie in `docs/47`, wo eine Hilfsdatei unter `/root` nach dem
 `setpriv` unlesbar war — nur andersherum: dort das Lesen, hier das Schreiben.
+
+### Zwei Abonnements sind nicht zwei Mandanten
+
+Die Voraussetzung des Abnahmelaufs verlangte „ein zweites Abonnement B". Für
+Punkt 3 (a) reicht das nicht: Die Mandantenklammer hängt am **Abonnement**, die
+Anmeldung aber am **Konto** — und `Tenancy::forAccount()` gibt einem Kunden
+ausdrücklich „alle des eigenen Kundenkontos" (`accessibleSubscriptionIds()`).
+Zwei Abonnements desselben Kunden sind für das Panel **ein** Mandant.
+
+> **Zwei Abonnements sind nicht zwei Mandanten. Der Mandant ist der Kunde.**
+
+Der Aufruf auf B wäre also gelungen, und zwar zu Recht — der Lauf hätte
+ausgesehen wie ein gerissenes Kriterium 3, und der Fehler hätte in der
+Vorbereitung gelegen und nicht im Panel. **Gefunden hat es der Betreiber beim
+Aufbau des Laufs**, bevor der Punkt gefahren wurde.
+
+Für die Punkte 3 (b) und (c) genügt das zweite Abonnement weiterhin: Dort hängt
+die Trennung am Präfix und an den Rechten der Datenbank, und beide reisen mit
+dem Abonnement und nicht mit dem Kunden. Beide sind auf `cloudsrv24` gegen zwei
+Abonnements **desselben** Kunden gemessen worden und bleiben damit gültig — der
+Agent wies mit „Diese Datenbank gehört nicht zu diesem Abonnement" ab, und
+PostgreSQL und MariaDB wiesen die nachgebaute Rolle ab.
+
+Es ist die zweite Korrektur, die Punkt 3 an seinem eigenen Aufbau erzwungen hat:
+Die erste war die Wand, die man nur erreicht, indem man die davor abschaltet.

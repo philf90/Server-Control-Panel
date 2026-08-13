@@ -10939,3 +10939,41 @@ erben, bleiben Sache der CI.
 > **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite
 > braucht einen Versuch.** Derselbe Satz wie bei MariaDB in diesem Container —
 > und beim zweiten Mal hat er wieder gestimmt.
+
+### Ein `NULL` in einer binären Spalte war eine Null
+
+**Gefunden im Bildschirmfoto-Durchgang zu Schritt 5 auf `cloudsrv24`.** In der
+Zeilenansicht stand in der Spalte `anhang` in jeder Zeile „binär · 0 B". Die
+Spalte war leer — nicht null Byte lang, sondern `NULL` —, und die Anzeige machte
+daraus eine Zahl.
+
+Die Ursache war die Reihenfolge der Zweige: Der für die binäre Spalte stand vor
+dem für `NULL`, `OCTET_LENGTH(NULL)` ist `NULL`, und `Number(null ?? 0)` ist
+`0`. Eine leere Zelle war damit von einem tatsächlich leeren Blob nicht mehr zu
+unterscheiden — und genau das verlangt Kriterium 2 aus `docs/46 §4`.
+
+> **Eine 0, die für „nichts da" steht, sieht aus wie eine Antwort.**
+
+Es ist derselbe Fund wie bei der geschätzten Zeilenzahl in `docs/46 §9`: Dort
+hiess die falsche Antwort „0 Zeilen", hier „0 B". Beide Male war die richtige
+Anzeige ein Wort und keine Zahl, und beide Male stand sie schon da — sie kam nur
+nie dran.
+
+**Keine Zahl hätte das gemeldet.** Die Überlaufmessung war 0, die Spalte war
+gefüllt, jede Zeile sah gleich aus. Einer Zelle sieht man nicht an, dass sie die
+Wahrheit über eine andere sagt.
+
+`NullDisplayTest` prüft seitdem die **Reihenfolge** und nicht das Wort „NULL".
+Dass es in der Vorlage steht, sagt nichts darüber, ob es je zu sehen ist — der
+Fehler war ja nicht, dass die Anzeige fehlte.
+
+### Ein Bruch, der nicht bricht, prüft nichts
+
+Der erste Anlauf des Bruchs zu diesem Wächter hat die Datei gar nicht verändert
+— ein Ausdruck, der nicht passte —, und der Wächter blieb grün. Das sah aus wie
+eine Lücke im Wächter und war eine im Bruch. Der zweite Anlauf hat die
+Vertauschung erst belegt und dann gemessen.
+
+> **Wer eine Regel bricht, sieht danach in die Datei.** Sonst prüft er, ob sein
+> Werkzeug funktioniert, und hält das Ergebnis für eine Aussage über den
+> Wächter.

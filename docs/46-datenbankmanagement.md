@@ -1237,6 +1237,23 @@ wächst mit dem Bestand.
 dort entfernt; `class="ident"` zurück an die Wertzelle; `nowrap` zurück an
 `.pager-state`. Jeder war rot, und jeder mit seiner eigenen Meldung.
 
+### 14.11 `NullDisplayTest` — nachgetragen zu Schritt 5
+
+**Regel:** In der Zeilenansicht wird `NULL` als `NULL` angezeigt, **bevor** ein
+Zweig auf den Typ der Spalte sieht. Und die Länge einer binären Spalte fällt
+nicht auf einen Ersatzwert zurück.
+
+Der Anlass steht in §20.16: Ein `NULL` in einer `BLOB`-Spalte erschien als
+„binär · 0 B". Das ist Kriterium 2, und keine Messung hätte es gemeldet.
+
+**Die Brüche:** die beiden Zweige vertauschen; `?? 0` an die Länge zurückgeben.
+Beide sind gefahren, beide waren rot — der erste erst, nachdem die Vertauschung
+wirklich in der Datei stand.
+
+> **Ein Bruch, der nicht bricht, prüft nichts.** Der erste Anlauf hat die Datei
+> gar nicht verändert, und der Wächter blieb grün — was wie eine Lücke aussah
+> und keine war. Wer bricht, sieht danach in die Datei.
+
 ### Wächter, die von selbst mitlaufen
 
 `EngineReachTest` (vier neue Paare), `AgentOperationReachTest` (jede neue
@@ -1939,3 +1956,60 @@ veraltet.
 Datenbank misst. Aus demselben Grund: `CELL_FULL_LIMIT` gehört dem Agenten. Die
 Tabelle in §9 nennt sie „64 KiB"; gemessen wird sie in Zeichen (`mb_strlen`), und
 die beiden sind nicht dasselbe, sobald ein `ü` im Wert steht.
+
+### 20.16 Ein `NULL` in einer binären Spalte war eine Null
+
+**Gefunden im Bildschirmfoto-Durchgang zu Schritt 5, auf `cloudsrv24`.** In der
+Zeilenansicht stand in der Spalte `anhang` in **jeder** Zeile „binär · 0 B". Die
+Spalte war leer — nicht null Byte lang, sondern `NULL` —, und die Anzeige machte
+daraus eine Zahl.
+
+Die Ursache stand in der Reihenfolge der Zweige:
+
+```
+<span v-if="isBinary(column)">binär · {{ formatBytes(Number(row[column] ?? 0)) }}</span>
+<span v-else-if="row[column] === null">NULL</span>
+```
+
+`OCTET_LENGTH(NULL)` ist `NULL`, `Number(null ?? 0)` ist `0`, und der Zweig für
+`NULL` kam nie dran. Eine leere Zelle war damit von einem tatsächlich leeren Blob
+nicht mehr zu unterscheiden — **und genau das ist Kriterium 2** (§4).
+
+> **Eine 0, die für „nichts da" steht, sieht aus wie eine Antwort.**
+
+Es ist derselbe Fund wie bei der geschätzten Zeilenzahl in §9: Dort hiess die
+falsche Antwort „0 Zeilen", hier „0 B". Beide Male war die richtige Anzeige ein
+Wort und keine Zahl — und beide Male stand sie schon da und war unerreichbar.
+
+**Keine Zahl hätte das gemeldet.** Die Ansicht lief über, ohne überzulaufen; die
+Überlaufmessung war 0, die Spalte war gefüllt, jede Zeile sah gleich aus. Nur
+kann man einer Zelle nicht ansehen, dass sie die Wahrheit über eine andere sagt.
+
+**Der Wächter dazu ist `NullDisplayTest`** (§14.11), und er prüft die
+**Reihenfolge** und nicht das Wort „NULL". Dass es in der Vorlage steht, sagt
+nichts darüber, ob es je zu sehen ist — der Fehler war ja nicht, dass die
+Anzeige fehlte.
+
+### 20.17 Ein `IF NOT EXISTS` im Vorbereitungsblock, und was es verschwiegen hat
+
+**Der Block, der die Daten für die Aufnahmen legt, ist zur Hälfte gescheitert**,
+und die Meldung stand an einer Stelle, die nichts damit zu tun hatte:
+
+```
+ERROR:  column "zeitpunkt" is of type timestamp with time zone
+        but expression is of type integer
+LINE 1: INSERT INTO protokoll_ohne_schluessel VALUES (1, repeat('b',...
+```
+
+`protokoll_ohne_schluessel` gab es schon — aus dem Zwischenlauf, mit einer
+anderen Spaltenfolge. Das `CREATE TABLE IF NOT EXISTS` hat das übersprungen, und
+der `INSERT` **ohne Spaltennamen** hat danach auf die eigene Form gesetzt statt
+auf die vorhandene.
+
+> **Ein `IF NOT EXISTS` macht aus einer Annahme über die Form eine stille.** Es
+> sagt „die Tabelle ist da" und nicht „sie sieht aus, wie du denkst" — und der
+> Fehler kommt eine Anweisung später.
+
+Das gehört hierher und nicht in eine Fussnote: Der Abnahmelauf von §15 legt
+Tabellen auf demselben Weg an, und `docs/47` hat schon einmal gezeigt, dass die
+teuersten Fehler eines Laufs im Lauf selbst stecken.

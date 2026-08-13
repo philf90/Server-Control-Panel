@@ -1079,6 +1079,43 @@ dem Kunden *sagt*, warum es keinen Weg zum Rest gibt. Der Satz dafür ist
 Kriterium 5 und gehört zu Schritt 6; ihn hier halb zu bauen hiesse, ihn zweimal
 zu haben.
 
+#### Die Gegenprobe — 13. August 2026, `0.5.3-rc.6` auf `cloudsrv24`
+
+| | vorher | nachher |
+|---|---|---|
+| Sortierung nach `id` (PostgreSQL) | `1, 10, 100, 101, 102` | **`1, 2, 3, 4, 5`** |
+| `anhang` in jeder Zeile (MariaDB) | `binär · 0 B` | **`NULL`** |
+
+Und der Plan derselben Abfrage, an der Tabelle aus dem Durchgang:
+
+```
+Subquery Scan on t
+  ->  Limit
+        ->  Index Only Scan using bestellpositionen_…_pkey on bestellpositionen_… src
+```
+
+**Kein `Sort`-Knoten** — und der Planer nimmt sogar bei 120 Zeilen den Index.
+Vorher stand dort zwingend `Sort (Sort Key: left((id)::text, 513))` über einem
+`Seq Scan`. Damit ist die Zusage der Oberfläche wieder gedeckt, dass die
+Sortierung über den Schlüssel läuft, *weil* dort ein Index liegt.
+
+**Zwei Prüfungen sind bewusst unterblieben, und beide aus demselben Grund.**
+
+Ein Blätter-Test von Hand — vor, zurück, Reihenfolge vergleichen — zeigt im
+Erfolgsfall dasselbe wie im Fehlerfall: Der Plan wechselt innerhalb weniger
+Sekunden nicht. Der Beleg für §20.19 ist die erzwungene Planänderung im
+Container (5 doppelt und 25 ausgefallen gegen 0 doppelt), und die steht dort.
+
+Eine neue Überlaufmessung misst die Änderung nicht, sondern folgt aus ihr: Beide
+Korrekturen machen die Anzeige ausschliesslich schmaler — `NULL` ist kürzer als
+„binär · 0 B", und die richtige Sortierung setzt auf Seite 1 die IDs `1…51`
+statt dreistelliger.
+
+> **Eine Prüfung, die im Erfolgsfall dasselbe zeigt wie im Fehlerfall, belegt
+> nichts. Eine, deren Ergebnis aus der Änderung folgt, auch nicht.**
+
+**Damit ist Schritt 5 abgeschlossen.**
+
 ### Schritt 5b — Die Baumansicht
 
 Der Baum aus §11.1 als Navigation: Tabellen als Zweige, Spalten/Indexe/Zeilen als

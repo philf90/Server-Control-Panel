@@ -11070,3 +11070,30 @@ Die dritte Spalte sagt am meisten: **Zwei Rollbehälter auf einer Seite, und nur
 der richtige rollt.** Die Tabellenliste ist bei dieser Breite ein Kärtchenstapel
 und rollt nicht; die Zeilentabelle rollt, wie vorgesehen. Ohne diese
 Unterscheidung hiesse „scrolls rollt" nur, dass irgendein Behälter überläuft.
+
+### Schritt 5 von P5c ist abgeschlossen — die Gegenprobe steht
+
+`0.5.3-rc.6` auf `cloudsrv24`, 13. August 2026, in beiden Datenbanksystemen:
+
+| | vorher | nachher |
+|---|---|---|
+| Sortierung nach `id` (PostgreSQL) | `1, 10, 100, 101, 102` | **`1, 2, 3, 4, 5`** |
+| `anhang` in jeder Zeile (MariaDB) | `binär · 0 B` | **`NULL`** |
+
+Und der Plan derselben Abfrage an derselben Tabelle: **kein `Sort`-Knoten**,
+sondern ein `Index Only Scan` über den Primärschlüssel — bei 120 Zeilen, wo der
+Planer auch anders dürfte. Vorher stand dort zwingend ein `Sort` über
+`left(id::text, 513)`.
+
+**Zwei Prüfungen sind bewusst unterblieben.** Ein Blätter-Test von Hand zeigt im
+Erfolgsfall dasselbe wie im Fehlerfall — der Plan wechselt in wenigen Sekunden
+nicht; der Beleg ist die erzwungene Planänderung im Container. Und eine neue
+Überlaufmessung folgt aus der Änderung, statt sie zu messen: Beide Korrekturen
+machen die Anzeige ausschliesslich schmaler.
+
+> **Eine Prüfung, die im Erfolgsfall dasselbe zeigt wie im Fehlerfall, belegt
+> nichts. Eine, deren Ergebnis aus der Änderung folgt, auch nicht.**
+
+Damit sind die Schritte 0 bis 5 aus `docs/46 §13` erledigt. Offen sind 5b (die
+Baumansicht), 6 (Ändern, mit Kriterium 5 und dem Befund 2 aus `docs/47`), 7 (das
+Protokoll), 8 (die Wächter brechen) und 9 (der Abnahmelauf).

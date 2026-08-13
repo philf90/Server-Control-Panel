@@ -163,7 +163,7 @@ lesbare Katalogsichten, die Namen führen, und eine Absperrung, die bei
 > für jeden lesbar" stimmte — und war trotzdem die falsche Frage, weil er einen
 > von elf Kanälen nannte und den Preis der Antwort verschwieg.
 
-Ausgeliefert wird `v0.5.3-rc.5`.
+Ausgeliefert wird `v0.5.3-rc.6`.
 
 **Und der Bildschirmfoto-Durchgang zu Schritt 4 hat zwei Fehler gefunden, die
 grün waren** (`docs/46 §20.11`). Der erste schob die Seite bei 390px um **99px**

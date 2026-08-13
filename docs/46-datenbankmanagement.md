@@ -1401,8 +1401,52 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #    ERST WEGWERFEN, DANN ANLEGEN. Das `DROP` ist nicht Hygiene, sondern der
 #    Punkt: Was hier schiefging, war ein Rest aus einem früheren Lauf.
 #
+#    UND DAS `DROP` NENNT MEHR, ALS DER BLOCK ANLEGT — gefunden am 13. August
+#    2026 beim ersten Lauf dieses Punktes auf cloudsrv24. Der erste Wurf warf
+#    die sechs Tabellen weg, die er selbst anlegt; die Reste der Messrunden zu
+#    Bild 4, 5 und 6 blieben stehen, und einer davon (`umsaetze_je_ort`) gab es
+#    nur in MariaDB.
+#
+#    > Ein `DROP`, das die Tabellen nennt, die man anlegt, räumt nicht den
+#    > Bestand auf — es räumt die eigene Spur auf.
+#
+#    DER TEURERE TEIL DESSELBEN FUNDES: Drei der Reste standen auf BEIDEN
+#    Seiten, mit denselben Namen — über ihren INHALT sagte die Prüfung nichts,
+#    denn sie zählt nur die Tabellen der Fixture. Ein „identisch" wäre eine
+#    Aussage über Namen gewesen und nicht über den Bestand; die Zeile mit der
+#    Tabellenliste fand die eine unsymmetrische, eine abweichende Zeilenzahl in
+#    einem geteilten Rest wäre durchgegangen.
+#
+#    > Eine Prüfung, die eine Teilmenge zählt, sagt über den Rest nichts — und
+#    > sieht dabei aus, als sagte sie etwas über alles.
+#
+#    DESHALB IST DER BESTAND GESCHLOSSEN: Jedes Objekt, das dasteht, legt
+#    dieser Block an, und jedes Objekt der Liste steht auch in der Zählung. Die
+#    lange Kennung aus §20.11 bleibt — sie trägt die 390px-Aufnahme —, aber mit
+#    festgelegtem Inhalt statt als Rest.
+#
+#    UND EINER DER RESTE WAR EINE SICHT — `umsaetze_je_ort`, gefunden im selben
+#    Lauf. Das hat gleich dreimal zugeschlagen:
+#      - `DROP TABLE` entfernt in PostgreSQL keine Sicht, sondern bricht ab
+#        (`ERROR: … is not a table`). Mit `ON_ERROR_STOP=1` — richtig gesetzt —
+#        lief der GANZE Block nicht mehr, und weil MariaDB an derselben Stelle
+#        nur warnt, sah das Ergebnis nach einem Unterschied im Bestand aus statt
+#        nach einer Hälfte, die nie gelaufen ist.
+#      - Die Sicht gehört ÜBERHAUPT in die Fixture und nicht in die Reste: §15
+#        Punkt 6 verlangt, dass die Oberfläche eine Sicht anders begründet als
+#        eine Tabelle ohne Schlüssel („eine Sicht speichert nichts"), und §20.28
+#        hängt daran, dass eine Sicht keine Grösse bekommt. Ein Zustand, den der
+#        Lauf prüft, darf kein Rest sein.
+#      - Und sie hat die Listenabfrage auffliegen lassen (siehe unten).
+#
+#    > Ein Rest, den der Lauf braucht, ist kein Rest — er ist eine Zusage ohne
+#    > Herkunft.
+#
 #    ── PostgreSQL, als Kunde in der eigenen Datenbank ──
-     DROP TABLE IF EXISTS probe, blaettern, gross, ohne_schluessel, nur_unique, lang;
+     DROP VIEW IF EXISTS umsaetze_je_ort;
+     DROP TABLE IF EXISTS probe, blaettern, gross, ohne_schluessel, nur_unique, lang,
+                          ohne_schluessel_lang, protokoll_ohne_schluessel,
+                          bestellpositionen_archiv_2026_langer_name_zum_messen;
      CREATE TABLE probe (id int primary key, leer text, nichts text, tab text, umbruch text);
      INSERT INTO probe VALUES (1, '', NULL, e'a\tb', e'z1\nz2');
      CREATE TABLE blaettern (id int primary key, wert text);
@@ -1416,9 +1460,15 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
      INSERT INTO nur_unique VALUES (1, 'x'), (2, 'y');
      CREATE TABLE lang (id int primary key, langtext text, leer text);
      INSERT INTO lang VALUES (1, repeat('a', 5000), NULL);
+     CREATE TABLE bestellpositionen_archiv_2026_langer_name_zum_messen (id int primary key, wert text);
+     INSERT INTO bestellpositionen_archiv_2026_langer_name_zum_messen VALUES (1, 'a'), (2, 'b'), (3, 'c');
+     CREATE VIEW umsaetze_je_ort AS SELECT b AS ort, count(*) AS anzahl FROM ohne_schluessel GROUP BY b;
 #
 #    ── MariaDB, als Kunde in der eigenen Datenbank ──
-     DROP TABLE IF EXISTS probe, blaettern, gross, ohne_schluessel, nur_unique, lang;
+     DROP VIEW IF EXISTS umsaetze_je_ort;
+     DROP TABLE IF EXISTS probe, blaettern, gross, ohne_schluessel, nur_unique, lang,
+                          ohne_schluessel_lang, protokoll_ohne_schluessel,
+                          bestellpositionen_archiv_2026_langer_name_zum_messen;
      CREATE TABLE probe (id int primary key, leer text, nichts text, tab text, umbruch text);
      INSERT INTO probe VALUES (1, '', NULL, 'a\tb', 'z1\nz2');
      CREATE TABLE blaettern (id int primary key, wert text);
@@ -1432,6 +1482,9 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
      INSERT INTO nur_unique VALUES (1, 'x'), (2, 'y');
      CREATE TABLE lang (id int primary key, langtext text, leer text);
      INSERT INTO lang VALUES (1, REPEAT('a', 5000), NULL);
+     CREATE TABLE bestellpositionen_archiv_2026_langer_name_zum_messen (id int primary key, wert text);
+     INSERT INTO bestellpositionen_archiv_2026_langer_name_zum_messen VALUES (1, 'a'), (2, 'b'), (3, 'c');
+     CREATE VIEW umsaetze_je_ort AS SELECT b AS ort, count(*) AS anzahl FROM ohne_schluessel GROUP BY b;
 #
 #    DREI UNTERSCHIEDE, UND JEDER IST EINER ZU VIEL, WENN MAN IHN NICHT KENNT:
 #      - `e'a\tb'` gegen `'a\tb'` — PostgreSQL braucht das `e`, MariaDB deutet
@@ -1447,20 +1500,35 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #    UND DANN DER BELEG, DASS SIE JETZT GLEICH SIND. Beide Seiten laufen
 #    lassen, die Ausgaben nebeneinanderlegen — sie müssen ZEICHENGLEICH sein:
 #
-#      psql  -A -t -F' ' -c "SELECT 'tabellen ' || string_agg(tablename, ',' ORDER BY tablename)
-#                              FROM pg_tables WHERE schemaname = 'public'"
+#      psql -A -t -c "SELECT 'objekte ' || string_agg(c.relname || ':' ||
+#                              CASE c.relkind WHEN 'v' THEN 'v' ELSE 'r' END,
+#                              ',' ORDER BY c.relname COLLATE \"C\")
+#                         FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+#                        WHERE n.nspname = 'public' AND c.relkind IN ('r','v')"
 #      mysql --batch --skip-column-names
-#            -e "SELECT CONCAT('tabellen ', GROUP_CONCAT(TABLE_NAME ORDER BY TABLE_NAME))
+#            -e "SELECT CONCAT('objekte ', GROUP_CONCAT(CONCAT(TABLE_NAME, ':',
+#                              IF(TABLE_TYPE='VIEW','v','r')) ORDER BY TABLE_NAME))
 #                  FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()"
+#
+#    BEIDE ZEILEN FRAGEN DASSELBE, UND DER ERSTE WURF TAT DAS NICHT: `pg_tables`
+#    listet nur Tabellen, `information_schema.TABLES` listet Tabellen UND
+#    Sichten. Die Sicht war auf der PostgreSQL-Seite unsichtbar und auf der
+#    MariaDB-Seite sichtbar — die Zeile meldete einen Unterschied, den es nicht
+#    gab, und hätte einen echten genauso erzeugt.
+#
+#    > Eine Gegenprobe über einen anderen Weg als den benutzten prüft den
+#    > falschen Weg. (docs/44)
 #
 #    dann in BEIDEN dieselbe Abfrage (sie ist absichtlich in beiden Systemen
 #    dieselbe Zeichenkette):
-     SELECT 'blaettern' AS t, count(*) AS n FROM blaettern
+     SELECT 'archivtabelle' AS t, count(*) AS n FROM bestellpositionen_archiv_2026_langer_name_zum_messen
+     UNION ALL SELECT 'blaettern', count(*) FROM blaettern
      UNION ALL SELECT 'gross', count(*) FROM gross
      UNION ALL SELECT 'lang', count(*) FROM lang
      UNION ALL SELECT 'nur_unique', count(*) FROM nur_unique
      UNION ALL SELECT 'ohne_schluessel', count(*) FROM ohne_schluessel
      UNION ALL SELECT 'probe', count(*) FROM probe
+     UNION ALL SELECT 'sicht', count(*) FROM umsaetze_je_ort
      UNION ALL SELECT 'probe.leer laenge', length(leer) FROM probe
      UNION ALL SELECT 'probe.nichts', CASE WHEN nichts IS NULL THEN 1 ELSE 0 END FROM probe
      UNION ALL SELECT 'probe.tab zeichen', ascii(substr(tab, 2, 1)) FROM probe
@@ -1472,12 +1540,21 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
      ORDER BY 1;
 #
 #    erwartet, auf beiden Seiten Zeile für Zeile gleich:
-#      tabellen blaettern,gross,lang,nur_unique,ohne_schluessel,probe
+#      objekte bestellpositionen_archiv_2026_langer_name_zum_messen:r,blaettern:r,
+#              gross:r,lang:r,nur_unique:r,ohne_schluessel:r,probe:r,umsaetze_je_ort:v
+#      archivtabelle 3 / sicht 1
 #      blaettern 120 / blaettern erste 1 / blaettern letzte 120
 #      gross 3000000 / lang 1 / nur_unique 2 / ohne_schluessel 2 / probe 1
 #      lang.langtext laenge 5000 / lang.leer 1
 #      probe.leer laenge 0 / probe.nichts 1
 #      probe.tab zeichen 9 / probe.umbruch zeichen 10
+#
+#    WARUM DIE BESCHRIFTUNG `archivtabelle` HEISST UND NICHT `langer name`:
+#    Die Zeilen werden mit `ORDER BY 1` sortiert, und ob PostgreSQL und MariaDB
+#    eine Zeichenkette mit Punkt und Leerzeichen gleich einsortieren, hängt an
+#    der Kollation. Die vierzehn vorhandenen sind gemessen gleich sortiert; eine
+#    neue bekommt keinen Namen, dessen Sortierung eine offene Frage ist — sonst
+#    sähe eine Kollationsdifferenz aus wie ein Befund über den Bestand.
 #
 #    WARUM DIE ABFRAGE KEINE NULL UND KEINE LEERE ZELLE AUSGIBT: `psql -A -t`
 #    gibt beide als leeres Feld aus (§2). Eine Prüfung, die das Ergebnis über
@@ -1497,6 +1574,11 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #    hergestellte Abweichung mit Tabellenliste und Zeilenzahl.
 #    `nur_unique` gilt dabei in BEIDEN Systemen als schlüsselfähig — geprüft
 #    mit dem Prädikat aus Pg\Console::KEY_INDEX und mit COLUMN_KEY = 'PRI'.
+#
+#    NACHGEMESSEN am 13. August 2026, nach dem ersten Lauf auf cloudsrv24: Die
+#    Objektliste liefert auf beiden Systemen dieselbe Zeichenkette, samt `:v`
+#    für die Sicht; die Sicht hat auf beiden 1 Zeile; und der Rückbau
+#    (`DROP VIEW` vor `DROP TABLE`) läuft zweimal hintereinander ohne Fehler.
 
 # 1  DIE VIER WERTE  ← Kriterium 2
 #    Als Kunde von aussen in die eigene Datenbank:

@@ -11871,3 +11871,52 @@ erwarteten Verhalten stehen jetzt im Lauf, und der Beleg ist `aria-expanded` und
 die Adresse des fokussierten Knotens nach jedem einzelnen. Die beiden mittleren
 sind die, die niemand von selbst probiert: `ArrowRight` bedeutet auf einem
 zugeklappten Zweig etwas anderes als auf einem offenen.
+
+### Punkt 0 auf einem echten Server: eine Sicht, und eine Prüfung, die zwei Fragen stellte
+
+Der erste Lauf des neuen Punktes 0 auf `cloudsrv24` hat drei Fehler in ihm
+selbst gefunden — keinen davon im Panel.
+
+**Das `DROP` räumte nur die eigene Spur.** Es nannte die sechs Tabellen, die der
+Block anlegt; die Reste der Messrunden zu Bild 4, 5 und 6 blieben stehen.
+
+> **Ein `DROP`, das die Tabellen nennt, die man anlegt, räumt nicht den Bestand
+> auf — es räumt die eigene Spur auf.**
+
+**Drei dieser Reste standen auf beiden Seiten, mit denselben Namen.** Über ihren
+Inhalt sagte die Prüfung nichts: Sie zählt die Tabellen der Fixture. Ein
+„identisch" wäre eine Aussage über Namen gewesen und nicht über den Bestand. Der
+Bestand ist deshalb jetzt **geschlossen** — jedes Objekt, das dasteht, legt der
+Block an, und jedes Objekt der Liste steht auch in der Zählung.
+
+> **Eine Prüfung, die eine Teilmenge zählt, sagt über den Rest nichts — und
+> sieht dabei aus, als sagte sie etwas über alles.**
+
+**Und einer der Reste war eine Sicht.** Das hat dreimal zugeschlagen:
+`DROP TABLE` entfernt in PostgreSQL keine Sicht, sondern bricht ab — mit
+`ON_ERROR_STOP=1`, richtig gesetzt, lief der ganze Block nicht mehr, während
+MariaDB an derselben Stelle nur warnt und durchlief. Das Ergebnis sah nach einem
+Unterschied im Bestand aus statt nach einer Hälfte, die nie gelaufen ist.
+
+Die Sicht gehört ausserdem **in** die Fixture: `docs/46 §15` Punkt 6 verlangt,
+dass die Oberfläche eine Sicht anders begründet als eine Tabelle ohne Schlüssel,
+und §20.28 hängt daran, dass eine Sicht keine Grösse bekommt.
+
+> **Ein Rest, den der Lauf braucht, ist kein Rest — er ist eine Zusage ohne
+> Herkunft.**
+
+**Der teuerste Fund ist der dritte: Die beiden Hälften der Listenzeile stellten
+verschiedene Fragen.** `pg_tables` listet nur Tabellen, `information_schema.TABLES`
+listet Tabellen **und** Sichten. Die Sicht war auf der PostgreSQL-Seite von
+Anfang an unsichtbar und auf der MariaDB-Seite sichtbar — die Zeile meldete
+einen Unterschied, den es nicht gab, und hätte einen echten genauso erzeugt.
+
+> **Eine Gegenprobe über einen anderen Weg als den benutzten prüft den falschen
+> Weg.** (Derselbe Satz wie in `docs/44`, wo eine Gegenprobe über den
+> Unix-Socket einen kaputten TCP-Weg nicht sehen konnte.)
+
+Beide Seiten fragen jetzt über den Katalog nach Objekten **mit ihrer Art**
+(`:r` / `:v`) und sortieren unter `COLLATE "C"`. Nachgemessen gegen PostgreSQL
+16.13 und MariaDB 10.11.14: dieselbe Zeichenkette auf beiden Seiten, die Sicht
+mit einer Zeile auf beiden, und der Rückbau (`DROP VIEW` vor `DROP TABLE`)
+zweimal hintereinander fehlerfrei.

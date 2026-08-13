@@ -58,6 +58,32 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
  */
 final class DatabaseController extends Controller
 {
+    /**
+     * Wie lange ein Eintrag „Konsole geöffnet" den nächsten unterdrückt.
+     *
+     * **Eine Stunde** (`docs/46 §3`, Entscheidung 5, Punkt 4). Sie steht als
+     * Konstante da, weil der Wächter dazu die Zahl nennt — hier ist
+     * ausnahmsweise genau sie die Regel, und ein `3600` mitten im Griff wäre
+     * eine Zahl ohne Namen.
+     */
+    private const CONSOLE_AUDIT_SECONDS = 3600;
+
+    /**
+     * Die drei ändernden Handlungen der Konsole, je eine mit eigenem Namen.
+     *
+     * **Drei Namen und nicht einer mit `mode` im Kontext.** Wer das Protokoll
+     * nach „hier wurde gelöscht" durchsucht, filtert nach einer Aktion und nicht
+     * nach einem Feld in einem JSON; die vorhandenen Namen dieser Fläche —
+     * `database.dump.created`, `database.user.removed` — machen es ebenso.
+     *
+     * @var array<string, string>
+     */
+    private const CONSOLE_WRITE_ACTIONS = [
+        'insert' => 'database.console.row.created',
+        'update' => 'database.console.row.changed',
+        'delete' => 'database.console.row.removed',
+    ];
+
     public function __construct(
         private readonly Databases $databases,
         private readonly Dumps $dumps,
@@ -1132,6 +1158,27 @@ final class DatabaseController extends Controller
      */
     public function console(Request $request, Database $database): Response
     {
+        /*
+         * **Wer gesehen hat, steht im Protokoll — einmal je Stunde.**
+         *
+         * Ohne diesen Eintrag beantwortet das Protokoll „was wurde geändert"
+         * und nicht „wer hatte Zugriff" (`docs/46 §3`, Entscheidung 5, Punkt 4).
+         * Ohne die Entprellung stünde er bei jedem Öffnen darin — und die
+         * Konsole wird beim Arbeiten mehrfach betreten und verlassen.
+         *
+         * **Er entsteht hier und nicht im Agenten:** Er hält fest, *wer* gesehen
+         * hat, und das weiss nur die Seite, die ein angemeldetes Konto kennt.
+         *
+         * Ein Wert des Kunden steht nicht darin — es gibt an dieser Stelle noch
+         * keinen. Was drinsteht, ist die Datenbank, und die ist das Ziel.
+         */
+        $this->audit->throttled(
+            'database.console.opened',
+            $database,
+            self::CONSOLE_AUDIT_SECONDS,
+            $database->subscription_id === null ? null : (int) $database->subscription_id,
+        );
+
         return Inertia::render('Databases/Console', [
             'database' => [
                 'id' => (int) $database->id,
@@ -1264,14 +1311,49 @@ final class DatabaseController extends Controller
         ]);
 
         $mode = (string) $validated['mode'];
+        $table = (string) $validated['table'];
+        $key = $mode === 'insert' ? [] : $this->consoleKey($validated['key'] ?? []);
 
-        return $this->answer(fn (): array => $this->console->write(
+        $answer = $this->answer(fn (): array => $this->console->write(
             $database,
-            (string) $validated['table'],
+            $table,
             $mode,
-            $mode === 'insert' ? [] : $this->consoleKey($validated['key'] ?? []),
+            $key,
             $mode === 'delete' ? [] : $this->consoleValues($validated['values'] ?? []),
         ));
+
+        /*
+         * **Protokolliert wird die gelungene Handlung, und ohne die Werte.**
+         *
+         * Der Eintrag steht **nach** dem Vorgang, weil ein abgewiesener
+         * Schreibvorgang nichts geändert hat — die Meldung dazu bekommt der
+         * Kunde, und ein Protokolleintrag über einen Versuch beantwortet keine
+         * Frage, die jemand stellt.
+         *
+         * **Und ohne die Werte** (`docs/46 §3`, Entscheidung 4). Was im Eintrag
+         * steht, ist *welche* Zeile geändert wurde, nicht *worauf*: Tabelle und
+         * Schlüssel. Der Schlüssel gehört dazu — er sagt, welche Zeile es war —,
+         * der Inhalt nicht.
+         *
+         * > **Ein Protokoll, das den Inhalt mitschreibt, ist eine Datenhaltung
+         * > mit einem anderen Namen.**
+         *
+         * Und sie überlebte das Löschen der Zeile: Wer eine Zeile entfernt,
+         * hinterliesse ihren Inhalt an einer Stelle, an der ihn niemand vermutet.
+         */
+        if ($answer->getStatusCode() < 400) {
+            $this->audit->record(
+                self::CONSOLE_WRITE_ACTIONS[$mode],
+                target: $database,
+                subscriptionId: $database->subscription_id === null ? null : (int) $database->subscription_id,
+                context: array_filter([
+                    'table' => $table,
+                    'key' => $key === [] ? null : $key,
+                ], static fn (mixed $value): bool => $value !== null),
+            );
+        }
+
+        return $answer;
     }
 
     /**

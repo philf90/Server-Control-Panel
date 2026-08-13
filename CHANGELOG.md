@@ -11684,3 +11684,29 @@ nicht gibt.
 
 > **Ein Topf für „geht hier nicht" nimmt jeden Fehler auf, der nicht
 > widerspricht — und macht ihn unsichtbar.**
+
+### P5c Schritt 7 — das Protokoll
+
+Vier Einträge: die drei ändernden Handlungen der Konsole, jede mit eigenem Namen,
+und einer beim Öffnen. Der Kontext trägt Tabelle und Schlüssel und **keine
+Werte** — er sagt, *welche* Zeile geändert wurde, nicht *worauf*.
+
+> **Ein Protokoll, das den Inhalt mitschreibt, ist eine Datenhaltung mit einem
+> anderen Namen.**
+
+Der vierte ist **entprellt: einer je Datenbank und Stunde.** Ohne ihn beantwortet
+das Protokoll „was wurde geändert" und nicht „wer hatte Zugriff"; ohne die
+Entprellung stünde er bei jedem Betreten darin.
+
+**Und er ist der, der einen Wächter braucht.** Ein Eintrag entsteht sichtbar —
+eine fehlende Entprellung sieht beim ersten Mal genauso aus und fällt erst nach
+einer Woche auf, wenn das Protokoll gebraucht wird und nichts mehr hergibt.
+
+> **Ein Fehler, der beim ersten Mal richtig aussieht, hat keinen Finder.**
+
+Die Entprellung fragt nach Aktion, Ziel, **handelnder Person** und Spanne. Ohne
+die dritte Bedingung verschluckt sie den Fall, für den man das Protokoll liest:
+Ein Admin, der über „Anmelden als" in dieselbe Datenbank sieht, bekommt einen
+eigenen Eintrag.
+
+Sechs Brüche, sechs Bisse.

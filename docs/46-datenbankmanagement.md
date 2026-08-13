@@ -2122,3 +2122,27 @@ die Frage nach Gleichständen gar nicht zu sehen — `left(id::text, 513)` ist �
 einem Primärschlüssel eindeutig, und die Reihenfolge sah deshalb stabil aus.
 
 > **Ein Fehler, der einen zweiten verdeckt, wird beim Beheben zum Finder.**
+
+### 20.20 Die hohe Zeile bleibt — eine Entscheidung des Betreibers
+
+Auf Bild 8 des Durchgangs hat die Zeile mit der gekürzten `bemerkung` eine hohe
+leere Fläche: Die Zelle bricht auf elf Zeilen, und ihre Spalte ist gerade aus dem
+Bild gerollt. Der Grund für die Höhe steht ausserhalb des Bildschirms.
+
+**Entschieden am 13. August 2026: so lassen.** Nichts ist versteckt, die Höhe ist
+ehrlich, und wer nach rechts rollt, sieht sofort warum. Der Fall tritt nur bei
+Zellen über etwa 500 Zeichen auf.
+
+Die beiden Alternativen kosten mehr, als sie einbringen:
+
+- **Die Zelle klemmen** verlangt den `…`-Knopf ausserhalb der Klemmung — und ein
+  langer, vom Agenten **nicht** gekürzter Wert wäre dann abgeschnitten, ohne dass
+  ein Weg zum Rest bliebe. Aus einer sichtbaren Unschönheit würde eine
+  unsichtbare Lücke.
+- **Eine zweite Kürzungsgrenze nur für die Anzeige** wären zwei Zahlen für
+  dieselbe Sache, und die zweite ist die, die veraltet.
+
+> **Eine hohe Zeile ist ehrlich. Eine geklemmte verschweigt, dass sie klemmt.**
+
+Die Begründung steht ausserdem bei `.rows .cell` in `app.css` — dort, wo jemand
+als Nächstes ein `max-height` hinschreiben würde.

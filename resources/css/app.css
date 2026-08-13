@@ -1316,6 +1316,24 @@ table.pairs {
   overflow-wrap: anywhere;
 }
 
+/*
+ * **Und hier steht bewusst kein `max-height`.**
+ *
+ * Eine Zelle mit 512 Zeichen wird elf Zeilen hoch, und wenn ihre Spalte gerade
+ * aus dem Bild gerollt ist, sieht man eine hohe leere Zeile, deren Grund
+ * ausserhalb des Bildschirms liegt. Gesehen im Durchgang zu Schritt 5, und der
+ * Betreiber hat entschieden, es so zu lassen.
+ *
+ * Die beiden Alternativen kosten mehr, als sie einbringen. Die Zelle zu klemmen
+ * verlangt den `…`-Knopf ausserhalb der Klemmung — und ein langer, vom Agenten
+ * **nicht** gekürzter Wert wäre dann abgeschnitten, ohne dass ein Weg zum Rest
+ * bliebe. Eine zweite Kürzungsgrenze nur für die Anzeige wären zwei Zahlen für
+ * dieselbe Sache, und die zweite ist die, die veraltet.
+ *
+ * > **Eine hohe Zeile ist ehrlich. Eine geklemmte verschweigt, dass sie
+ * > klemmt.**
+ */
+
 /* Eine hohe Zelle neben einer flachen liest sich von oben. */
 .rows td {
   vertical-align: top;

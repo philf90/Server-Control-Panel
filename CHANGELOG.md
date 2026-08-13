@@ -11789,3 +11789,34 @@ Er hat beim Schreiben gleich seinen eigenen Fehler gefunden: Der erste Ausdruck
 kannte nur die umbrochene Schreibweise einer Prüfung und hätte einen falschen
 Klassennamen auf einer einzeiligen durchgelassen. Gemerkt hat es der Gegenbruch,
 der genau das versucht hat.
+
+### Der Bruchlauf hängt jetzt am Pull Request
+
+`waechter.yml` lief auf Zuruf und montags um vier. Im Kopf der Datei stand als
+Begründung: „Über zweihundert Läufe gehören nicht vor jeden Pull Request." Die
+Zahl stimmte — es sind 364 Eingriffe mit 607 Testläufen —, die Folgerung nicht:
+**Gemessen dauert der ganze Lauf fünf Minuten**, weniger als der
+Installationsjob auf Ubuntu 22.04, den niemand infrage stellt.
+
+> **Eine Vorsicht, die auf einer Rechnung beruht, die nie jemand gemacht hat.**
+
+Entschieden hat es der Befund vom selben Tag: Der Wochenlauf meldete drei
+Prüfungen ohne Biss, und alle drei hingen an einem Umbau vom 11. August. Zwei
+Tage lang stand im Repo ein Wächter, den es nicht mehr gab, und einer, der seine
+Regel nicht hielt.
+
+> **Ein Lauf, der wöchentlich prüft, findet Fehler, die eine Woche alt sein
+> dürfen.**
+
+Der Zeitplan bleibt daneben stehen, und zwar mit einer eigenen Aufgabe: Er ist
+der einzige, der auch dann fährt, wenn wochenlang niemand etwas ändert — was er
+dann findet, ist kein Fehler von heute, sondern eine Regel, die von aussen
+gebrochen wurde: eine neue PHP-Fassung, ein anderes Verhalten einer
+Abhängigkeit.
+
+Der Auslöser ist Teil der Regel und hat seinen Wächter:
+`BreakScriptTest::test_a_workflow_runs_the_script` besteht nicht mehr nur
+darauf, dass *irgendein* Ablauf das Skript fährt, sondern dass der es an einem
+Pull Request tut. Und die Zeitgrenze steht auf 30 statt 90 Minuten — sechsmal
+das Gemessene: Seit der Lauf am Pull Request hängt, blockiert eine Hängepartie
+nicht mehr nur eine Nacht, sondern jemandes Arbeit.

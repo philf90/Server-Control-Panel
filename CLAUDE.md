@@ -52,6 +52,38 @@ jetzt.
 > `->from()`, und damit funktioniert im Test genau der Weg, den es im Browser
 > nicht gibt.
 
+**Und derselbe Satz noch einmal, andersherum — am 13. August, an genau diesem
+Wächter.** `PreviousUrlTest` blieb **grün**, als der Bruch `RememberPageUrl` aus
+`bootstrap/app.php` strich: Seine Aufrufe trugen `X-Inertia`, aber kein
+`X-Requested-With`, und im Browser setzt Inertia beide. Ohne die zweite ist
+`ajax()` falsch, und Laravels `StartSession` merkt sich die Seite selbst — der
+Weg, dessen Fehlen diese Mittelschicht ausgleicht, war im Test offen.
+
+> **Eine fehlende Kopfzeile prüft eine andere Anwendung genauso wie eine
+> überflüssige — nur fällt sie niemandem auf, weil der Test grün ist.**
+
+Gefunden hat es der Lauf des Bruchskripts, und zwar zwei Tage zu spät: Er fährt
+wöchentlich. Im selben Lauf lagen zwei Wächter, die es gar nicht mehr gab — der
+Umbau vom 11. August hat `PreviousUrlTest` übernommen (gleicher Name, gleiches
+Thema, **anderer Gegenstand**) und die beiden Fälle zu `KeepPreviousUrl`
+mitgenommen, während die Mittelschicht und ihr Eintrag in `routes/web.php`
+stehenblieben. Sie stehen jetzt als `StreamNotAPageTest` da.
+
+> **Zwei Regeln in einer Datei, die nach der einen heisst, verlieren die andere
+> beim nächsten Umbau.**
+
+> **Ein Wächter, der die Klasse prüft, hat über die Methode nichts gesagt.**
+> `GuardReachTest` fand `PreviousUrlTest` und war zufrieden.
+> `BreakScriptTest::test_every_check_names_a_test_that_exists` liest seitdem die
+> Zielangabe jeder Prüfung im Skript.
+
+Und einer über die Brüche selbst, aus demselben Schritt:
+
+> **Ein Bruch muss die Regel verletzen und nicht den Code zerstören.** Ein `%`
+> statt `%%` in einer Formatzeichenkette macht aus dem Rückfall einen
+> `ValueError`: Der Testfall bricht ab, die Klasse meldet „übersprungen" statt
+> „rot", und der Wächter war nie rot — er ist gar nicht erst dazu gekommen.
+
 **Und der Abnahmelauf des Fernzugriffs hat das Panel abgeschaltet — an der
 Stelle, an der er es vorschrieb.** `docs/43` Punkt 3 lautete `srvpanel db
 --remote=on --bind=::`; danach gab jede Seite einen 500er. **MariaDB bindet `::`
@@ -218,9 +250,9 @@ Der Grund steht in `docs/24 §5`: `.stacks` ist für ein **Verzeichnis** gedacht
 das man Zeile für Zeile liest. Eine Tabellenliste sucht man nach *einem* Namen
 ab, und dafür ist das Kärtchen die falsche Form.
 
-**P5c ist bis Schritt 5 gebaut** — `docs/46`, das Datenbankmanagement: Tabellen
+**P5c ist bis Schritt 8 gebaut** — `docs/46`, das Datenbankmanagement: Tabellen
 und Struktur durchsehen, Zeilen ansehen, filtern, blättern und ändern, für beide
-Systeme. Vier Entscheidungen des Betreibers tragen ihn, und die zweite hat die
+Systeme. Offen ist **Schritt 9**, der Abnahmelauf nach §15 auf `cloudsrv24`. Vier Entscheidungen des Betreibers tragen ihn, und die zweite hat die
 Architektur entschieden: **kein freies SQL.** Damit bekommt der Agent typisierte
 Fragen und keine Anweisung, und die erste Grenze gilt wörtlich statt dem Sinne
 nach. Der Plan fügt **keinen neuen Weg mit Rechten** hinzu — er benutzt den

@@ -2683,3 +2683,84 @@ Kontrast ist ebenfalls schon gerechnet und nicht geschätzt
 
 > **Eine Frage nach einer neuen Farbe ist meistens eine nach einem Rang, den es
 > schon gibt.**
+
+### 20.32 Eine Messung, die überall eine Zahl findet, sagt nicht, wo sie gemessen hat
+
+**Der Beleg zu §20.30 ist beim ersten Versuch auf der falschen Seite gelaufen**
+— und das Ergebnis sah aus wie eines:
+
+```
+{ luecke: -2231, rang: 'button', dokument: 0 }
+```
+
+Der Ausdruck war so geschrieben:
+
+```js
+const knopf = document.querySelector('.button-row')
+const bereiche = document.querySelector('.sections')
+if (!knopf || !bereiche) throw new Error('Knopfreihe oder Bereiche nicht gefunden')
+```
+
+Auf der Datenbankseite trifft das genau das gemeinte Paar. Auf der
+**Konsolenseite** gibt es beide Klassen auch — nur in der anderen Reihenfolge:
+`.sections` steht dort in Zeile 827, die erste `.button-row` in 893. Der
+Ausdruck hat also zwei Elemente gefunden, die nichts miteinander zu tun haben,
+ihren Abstand ausgerechnet und **−2231** gemeldet.
+
+Der Wächter im Ausdruck — das `throw` aus §20.29 — hat nicht angeschlagen, weil
+er die falsche Frage stellte: *Gibt es die beiden?* Ja, gab es. Die richtige
+Frage ist: *Sind es die beiden, die ich meine?*
+
+> **Eine Messung, die ins Leere greift, bricht ab. Eine, die daneben greift,
+> rechnet weiter.** Die zweite ist die gefährlichere.
+
+Das Vorzeichen war der einzige Hinweis: Ein negativer Abstand heisst, dass die
+angenommene Reihenfolge nicht stimmt. Er wurde ausgegeben statt geprüft.
+
+Richtig gestellt wird der Ausdruck über die **Nachbarschaft** — dieselbe
+Beziehung, die auch die CSS-Regel ausdrückt:
+
+```js
+(() => {
+  const knopf = [...document.querySelectorAll('.button-row')]
+    .find((el) => el.nextElementSibling?.classList.contains('sections'))
+  if (!knopf) throw new Error('Keine Knopfreihe mit Bereichen als nächstem Geschwister — falsche Seite?')
+  const bereiche = knopf.nextElementSibling
+  return {
+    luecke: Math.round(bereiche.getBoundingClientRect().top - knopf.getBoundingClientRect().bottom),
+    rang: knopf.querySelector('.button').className,
+    dokument: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  }
+})()
+```
+
+Auf der Konsolenseite bricht er jetzt ab, und der Abbruch nennt den Grund.
+
+**Und derselbe Fehler steckt in jeder Messung dieses Projekts, die mit
+`querySelector` anfängt.** Die Überlaufmessung bei 390px fragt nach dem
+Dokument und ist damit unverdächtig; die aus §20.29 — der Abstand unter der
+Tabelle — nimmt `.scrolls` und `.button-row` und hat dasselbe Problem, nur ist
+sie auf der einzigen Seite gelaufen, auf der es das Paar gibt.
+
+> **Ein Ausdruck, der zwei Dinge sucht, muss sagen, dass sie zusammengehören.**
+
+### 20.33 Und das Bild für die Messung hat den offenen Beleg mitgeliefert
+
+Auf demselben Bildschirmfoto — aufgenommen, um die Konsole des Browsers zu
+zeigen — steht die Beizeile einer **echten Tabelle**:
+
+```
+Tabelle bestellpositionen_archiv_2026_langer_name_zum_messen · 120 Zeilen · 136 KB · mit Schlüssel
+```
+
+Damit ist die Gegenprobe zu §20.28 vollständig. Die Sicht daneben las sich
+`Sicht umsaetze_je_ort · Zeilenzahl unbekannt · ohne Schlüssel`, und erst
+zusammen belegen die beiden Zeilen etwas: Bei der Tabelle steht die Grösse, bei
+der Sicht steht sie nicht — nicht als `0 B`, sondern gar nicht.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.** Zum zweiten Mal in dieser Stufe, und zum zweiten Mal hat das Bild
+> die Gegenprobe zufällig mitgebracht.
+
+> **Ein Bild vom echten Server zeigt auch das, wofür es nicht aufgenommen
+> wurde.**

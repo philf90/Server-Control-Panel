@@ -11350,3 +11350,31 @@ Knopf führt hinein.
 
 > **Eine Frage nach einer neuen Farbe ist meistens eine nach einem Rang, den es
 > schon gibt.**
+
+### Eine Messung, die überall eine Zahl findet
+
+Der Beleg für den Abstand unter der Knopfreihe lief beim ersten Versuch auf der
+Konsolenseite statt auf der Datenbankseite — und meldete `luecke: -2231` statt
+abzubrechen. Beide Klassen gibt es dort auch, nur in der anderen Reihenfolge:
+Der Ausdruck hat zwei Elemente gefunden, die nichts miteinander zu tun haben,
+und ihren Abstand ausgerechnet.
+
+Das `throw` im Ausdruck stellte die falsche Frage — *gibt es die beiden?* statt
+*sind es die beiden, die ich meine?*
+
+> **Eine Messung, die ins Leere greift, bricht ab. Eine, die daneben greift,
+> rechnet weiter.** Die zweite ist die gefährlichere.
+
+Das Vorzeichen war der einzige Hinweis: Ein negativer Abstand heisst, dass die
+angenommene Reihenfolge nicht stimmt. Er wurde ausgegeben statt geprüft. Der
+Ausdruck fragt jetzt nach der **Nachbarschaft** — derselben Beziehung, die auch
+die CSS-Regel ausdrückt — und bricht auf jeder anderen Seite mit einem Grund ab.
+
+> **Ein Ausdruck, der zwei Dinge sucht, muss sagen, dass sie zusammengehören.**
+
+Auf demselben Bild stand nebenbei der Beleg, der noch fehlte: die Beizeile einer
+echten Tabelle mit `120 Zeilen · 136 KB · mit Schlüssel`, neben der Sicht ohne
+jede Grössenangabe. Erst zusammen belegen die beiden etwas.
+
+> **Ein Bild vom echten Server zeigt auch das, wofür es nicht aufgenommen
+> wurde.**

@@ -11044,3 +11044,29 @@ sortierte, war die Frage nach Gleichständen gar nicht zu sehen: `left(id::text,
 aus.
 
 > **Ein Fehler, der einen zweiten verdeckt, wird beim Beheben zum Finder.**
+
+### Der Bildschirmfoto-Durchgang zu Schritt 5 ist gefahren
+
+**13. August 2026 auf `cloudsrv24`, gegen `0.5.3-rc.5`, in beiden
+Datenbanksystemen.** Er hat **drei Fehler gefunden, und keinen davon ein Test**;
+ein vierter betraf die CI und nicht das Panel.
+
+Vorher war für diesen Schritt im Container gemessen worden — das gebaute
+Stylesheet mit dem Markup der Ansicht, gerendert im vorinstallierten Chromium.
+Diese Messung war grün und hat von den drei Funden **keinen** gesehen.
+
+> **Eine Messung im Container beantwortet die Frage, die sie stellt. Ein Bild
+> vom echten Server stellt die, an die niemand gedacht hat.**
+
+Die Messung auf dem Server, an beiden Stellen und mit ihrer Gegenprobe:
+
+```
+MESSUNG     dokument:   0px | scrolls[0]: 0px | scrolls[1]: 1299px
+GEGENPROBE  dokument: 525px | scrolls[0]: 0px | scrolls[1]: 1299px
+DANACH      dokument:   0px | scrolls[0]: 0px | scrolls[1]: 1299px
+```
+
+Die dritte Spalte sagt am meisten: **Zwei Rollbehälter auf einer Seite, und nur
+der richtige rollt.** Die Tabellenliste ist bei dieser Breite ein Kärtchenstapel
+und rollt nicht; die Zeilentabelle rollt, wie vorgesehen. Ohne diese
+Unterscheidung hiesse „scrolls rollt" nur, dass irgendein Behälter überläuft.

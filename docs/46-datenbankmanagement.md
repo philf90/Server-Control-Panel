@@ -1042,10 +1042,42 @@ modalen Dialog, und diese Ansicht ist kein Anlass, den ersten einzuführen: Sie
 ist eine dritte Auskunft zur offenen Tabelle, genau wie Spalten und Indexe, und
 steht deshalb da, wo die auch stehen.
 
-**Offen bleiben die Screenshots auf `cloudsrv24`** — mit echten Daten, in beiden
-Themes, bei 390 px. Was hier gemessen wurde, ist das gebaute Stylesheet mit dem
-Markup dieser Ansicht im vorinstallierten Chromium; das beantwortet die Frage
-nach dem Überlauf und ersetzt den Blick auf die echte Seite nicht.
+**Der Bildschirmfoto-Durchgang ist gefahren** — am 13. August 2026 auf
+`cloudsrv24` gegen `0.5.3-rc.5`, in beiden Systemen, bei rund 375 px. Er hat
+**drei Fehler gefunden, und keinen davon ein Test** (§20.16, §20.18, §20.19); ein
+vierter betraf die CI und nicht das Panel. Was vorher hier gemessen wurde, war
+das gebaute Stylesheet mit dem Markup dieser Ansicht im Container — das
+beantwortet die Frage nach dem Überlauf und hat von den drei Funden **keinen**
+gesehen.
+
+> **Eine Messung im Container beantwortet die Frage, die sie stellt. Ein Bild
+> vom echten Server stellt die, an die niemand gedacht hat.**
+
+Die Messung auf dem Server, an beiden Stellen und mit ihrer Gegenprobe:
+
+```
+MESSUNG     dokument:   0px | scrolls[0]: 0px | scrolls[1]: 1299px
+GEGENPROBE  dokument: 525px | scrolls[0]: 0px | scrolls[1]: 1299px
+DANACH      dokument:   0px | scrolls[0]: 0px | scrolls[1]: 1299px
+```
+
+Die dritte Spalte ist die, die am meisten sagt: **Zwei Rollbehälter auf einer
+Seite, und nur der richtige rollt.** Die Tabellenliste ist bei dieser Breite ein
+Kärtchenstapel und rollt nicht; die Zeilentabelle rollt, wie §11 es verlangt.
+Ohne diese Unterscheidung hiesse „scrolls rollt" nur, dass irgendein Behälter
+überläuft.
+
+**Belegt sind ausserdem** — je Bild eines: die drei Zustände `NULL`, leere
+Zeichenkette und gekürzter Wert nebeneinander (Kriterium 2), der `…`-Knopf **nur**
+an der gekürzten Zelle und in beiden Systemen, die Zelleinzelsicht mit Grösse und
+ohne „gekürzt" unterhalb der Grenze, der Filter mit `enthält`, die leere
+Trefferliste als Satz statt als Leere, und eine Tabelle ohne Schlüssel **ohne**
+`…`-Knopf — die benannte Lücke aus §12, jetzt sichtbar.
+
+**Was der Durchgang bewusst nicht beantwortet:** ob eine Tabelle ohne Schlüssel
+dem Kunden *sagt*, warum es keinen Weg zum Rest gibt. Der Satz dafür ist
+Kriterium 5 und gehört zu Schritt 6; ihn hier halb zu bauen hiesse, ihn zweimal
+zu haben.
 
 ### Schritt 5b — Die Baumansicht
 

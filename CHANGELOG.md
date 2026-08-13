@@ -10939,3 +10939,134 @@ erben, bleiben Sache der CI.
 > **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite
 > braucht einen Versuch.** Derselbe Satz wie bei MariaDB in diesem Container —
 > und beim zweiten Mal hat er wieder gestimmt.
+
+### Ein `NULL` in einer binären Spalte war eine Null
+
+**Gefunden im Bildschirmfoto-Durchgang zu Schritt 5 auf `cloudsrv24`.** In der
+Zeilenansicht stand in der Spalte `anhang` in jeder Zeile „binär · 0 B". Die
+Spalte war leer — nicht null Byte lang, sondern `NULL` —, und die Anzeige machte
+daraus eine Zahl.
+
+Die Ursache war die Reihenfolge der Zweige: Der für die binäre Spalte stand vor
+dem für `NULL`, `OCTET_LENGTH(NULL)` ist `NULL`, und `Number(null ?? 0)` ist
+`0`. Eine leere Zelle war damit von einem tatsächlich leeren Blob nicht mehr zu
+unterscheiden — und genau das verlangt Kriterium 2 aus `docs/46 §4`.
+
+> **Eine 0, die für „nichts da" steht, sieht aus wie eine Antwort.**
+
+Es ist derselbe Fund wie bei der geschätzten Zeilenzahl in `docs/46 §9`: Dort
+hiess die falsche Antwort „0 Zeilen", hier „0 B". Beide Male war die richtige
+Anzeige ein Wort und keine Zahl, und beide Male stand sie schon da — sie kam nur
+nie dran.
+
+**Keine Zahl hätte das gemeldet.** Die Überlaufmessung war 0, die Spalte war
+gefüllt, jede Zeile sah gleich aus. Einer Zelle sieht man nicht an, dass sie die
+Wahrheit über eine andere sagt.
+
+`NullDisplayTest` prüft seitdem die **Reihenfolge** und nicht das Wort „NULL".
+Dass es in der Vorlage steht, sagt nichts darüber, ob es je zu sehen ist — der
+Fehler war ja nicht, dass die Anzeige fehlte.
+
+### Ein Bruch, der nicht bricht, prüft nichts
+
+Der erste Anlauf des Bruchs zu diesem Wächter hat die Datei gar nicht verändert
+— ein Ausdruck, der nicht passte —, und der Wächter blieb grün. Das sah aus wie
+eine Lücke im Wächter und war eine im Bruch. Der zweite Anlauf hat die
+Vertauschung erst belegt und dann gemessen.
+
+> **Wer eine Regel bricht, sieht danach in die Datei.** Sonst prüft er, ob sein
+> Werkzeug funktioniert, und hält das Ergebnis für eine Aussage über den
+> Wächter.
+
+### PostgreSQL sortierte den gekürzten Text — und benutzte den Index nie
+
+**Gefunden auf einem Bildschirmfoto der Zeilenansicht.** Die IDs kamen als
+`1, 10, 100, 101` zurück, obwohl `id` eine `bigint`-Spalte ist und über den
+Primärschlüssel sortiert wurde. Dieselbe Ansicht in MariaDB zählte richtig.
+
+Die Ursache steht in der Auswahlliste: Sie gibt jeder Spalte ihren eigenen Namen
+als Alias — `left(id::text, 513) AS "id"` —, und PostgreSQL löst einen einfachen
+Namen im `ORDER BY` gegen die **Ausgabespalte** auf. Sortiert wurde der gekürzte
+Text.
+
+> **Ein Alias, der wie seine Spalte heisst, ist keine Umbenennung — er ist eine
+> zweite Bedeutung desselben Namens.**
+
+**Der zweite Schaden war auf keinem Bild zu sehen, und er ist der schwerere.**
+Ein Sortierschlüssel `left(id::text, 513)` passt auf keinen Index. Gemessen auf
+PostgreSQL 16.13 mit 200.000 Zeilen: vorher ein `Parallel Seq Scan` mit `Sort`
+über die ganze Tabelle bei **jedem** Seitenaufruf, nachher ein
+`Index Only Scan using t_pkey`. Damit war die Begründung hinfällig, über den
+Schlüssel zu sortieren, weil dort ein Index liegt und die erste Seite deshalb
+nicht ins Zeitlimit läuft.
+
+> **Eine Zusage über ein Zeitlimit, die an einem kleinen Bestand geprüft wird,
+> ist keine.** Auf dem Testserver stehen 120 Zeilen; die sortiert auch ein
+> Seq Scan in Millisekunden.
+
+Behoben mit einem Aliasnamen an der Tabelle und einem qualifizierten `ORDER BY`.
+Gegengeprüft, dass der Aliasname nicht kollidiert: eine Tabelle namens `src` mit
+einer Spalte namens `src` liefert dieselbe Reihenfolge.
+
+**MariaDB war hier zufällig richtig** — dort steht die Kürzung in einem
+`JSON_OBJECT`, das keinen Alias je Spalte erzeugt. Zwei Systeme, dieselbe
+Absicht, und nur eines hatte den Fehler; `EngineReachTest` sieht so etwas nicht,
+weil beide Operationen ja da sind. Der neue Wächter prüft deshalb je System das,
+was den Namen dort eindeutig macht — in PostgreSQL die Qualifizierung, in
+MariaDB die Abwesenheit des Alias.
+
+### Eine Sortierung ohne eindeutigen Schluss ist beim Blättern eine Stichprobe
+
+**Gefunden auf einem Bildschirmfoto der nach `ort` sortierten Zeilenansicht.**
+Innerhalb desselben Ortes standen die IDs als `116, 5, 92, 113, 47` da. Der
+Server sagt zu, nach `ort` zu sortieren, und über Zeilen mit demselben `ort`
+sagt er nichts.
+
+Mit `OFFSET` ist das kein Schönheitsfehler. Gemessen auf PostgreSQL 16.13 mit
+120 Zeilen und drei Werten in `ort` — Seite 1 ohne und Seite 2 mit Index:
+`ORDER BY ort` liefert **5 Zeilen doppelt und 25 nie**; `ORDER BY ort, id`
+liefert 0 doppelt, und die 20 offenen sind Seite 3.
+
+> **Eine Sortierung ohne eindeutigen Schluss ist beim Blättern keine Sortierung,
+> sondern eine Stichprobe.**
+
+Der Plan wechselt in echten Beständen von allein: wenn ein Index dazukommt, wenn
+`ANALYZE` läuft, wenn die Tabelle wächst. Der Kunde sieht Zeilen doppelt,
+während andere ausfallen — und nichts daran sieht nach einem Fehler aus.
+
+Die Sortierung endet jetzt in **beiden** Systemen auf dem Schlüssel. Ohne
+Schlüssel bleibt es dabei; das ist eine benannte Lücke und trifft dieselben
+Tabellen, die ohnehin nur lesbar sind.
+
+**Und dieser Fund hing am vorigen.** Solange PostgreSQL den gekürzten Text
+sortierte, war die Frage nach Gleichständen gar nicht zu sehen: `left(id::text,
+513)` ist über einem Primärschlüssel eindeutig, und die Reihenfolge sah stabil
+aus.
+
+> **Ein Fehler, der einen zweiten verdeckt, wird beim Beheben zum Finder.**
+
+### Der Bildschirmfoto-Durchgang zu Schritt 5 ist gefahren
+
+**13. August 2026 auf `cloudsrv24`, gegen `0.5.3-rc.5`, in beiden
+Datenbanksystemen.** Er hat **drei Fehler gefunden, und keinen davon ein Test**;
+ein vierter betraf die CI und nicht das Panel.
+
+Vorher war für diesen Schritt im Container gemessen worden — das gebaute
+Stylesheet mit dem Markup der Ansicht, gerendert im vorinstallierten Chromium.
+Diese Messung war grün und hat von den drei Funden **keinen** gesehen.
+
+> **Eine Messung im Container beantwortet die Frage, die sie stellt. Ein Bild
+> vom echten Server stellt die, an die niemand gedacht hat.**
+
+Die Messung auf dem Server, an beiden Stellen und mit ihrer Gegenprobe:
+
+```
+MESSUNG     dokument:   0px | scrolls[0]: 0px | scrolls[1]: 1299px
+GEGENPROBE  dokument: 525px | scrolls[0]: 0px | scrolls[1]: 1299px
+DANACH      dokument:   0px | scrolls[0]: 0px | scrolls[1]: 1299px
+```
+
+Die dritte Spalte sagt am meisten: **Zwei Rollbehälter auf einer Seite, und nur
+der richtige rollt.** Die Tabellenliste ist bei dieser Breite ein Kärtchenstapel
+und rollt nicht; die Zeilentabelle rollt, wie vorgesehen. Ohne diese
+Unterscheidung hiesse „scrolls rollt" nur, dass irgendein Behälter überläuft.

@@ -1042,10 +1042,42 @@ modalen Dialog, und diese Ansicht ist kein Anlass, den ersten einzuführen: Sie
 ist eine dritte Auskunft zur offenen Tabelle, genau wie Spalten und Indexe, und
 steht deshalb da, wo die auch stehen.
 
-**Offen bleiben die Screenshots auf `cloudsrv24`** — mit echten Daten, in beiden
-Themes, bei 390 px. Was hier gemessen wurde, ist das gebaute Stylesheet mit dem
-Markup dieser Ansicht im vorinstallierten Chromium; das beantwortet die Frage
-nach dem Überlauf und ersetzt den Blick auf die echte Seite nicht.
+**Der Bildschirmfoto-Durchgang ist gefahren** — am 13. August 2026 auf
+`cloudsrv24` gegen `0.5.3-rc.5`, in beiden Systemen, bei rund 375 px. Er hat
+**drei Fehler gefunden, und keinen davon ein Test** (§20.16, §20.18, §20.19); ein
+vierter betraf die CI und nicht das Panel. Was vorher hier gemessen wurde, war
+das gebaute Stylesheet mit dem Markup dieser Ansicht im Container — das
+beantwortet die Frage nach dem Überlauf und hat von den drei Funden **keinen**
+gesehen.
+
+> **Eine Messung im Container beantwortet die Frage, die sie stellt. Ein Bild
+> vom echten Server stellt die, an die niemand gedacht hat.**
+
+Die Messung auf dem Server, an beiden Stellen und mit ihrer Gegenprobe:
+
+```
+MESSUNG     dokument:   0px | scrolls[0]: 0px | scrolls[1]: 1299px
+GEGENPROBE  dokument: 525px | scrolls[0]: 0px | scrolls[1]: 1299px
+DANACH      dokument:   0px | scrolls[0]: 0px | scrolls[1]: 1299px
+```
+
+Die dritte Spalte ist die, die am meisten sagt: **Zwei Rollbehälter auf einer
+Seite, und nur der richtige rollt.** Die Tabellenliste ist bei dieser Breite ein
+Kärtchenstapel und rollt nicht; die Zeilentabelle rollt, wie §11 es verlangt.
+Ohne diese Unterscheidung hiesse „scrolls rollt" nur, dass irgendein Behälter
+überläuft.
+
+**Belegt sind ausserdem** — je Bild eines: die drei Zustände `NULL`, leere
+Zeichenkette und gekürzter Wert nebeneinander (Kriterium 2), der `…`-Knopf **nur**
+an der gekürzten Zelle und in beiden Systemen, die Zelleinzelsicht mit Grösse und
+ohne „gekürzt" unterhalb der Grenze, der Filter mit `enthält`, die leere
+Trefferliste als Satz statt als Leere, und eine Tabelle ohne Schlüssel **ohne**
+`…`-Knopf — die benannte Lücke aus §12, jetzt sichtbar.
+
+**Was der Durchgang bewusst nicht beantwortet:** ob eine Tabelle ohne Schlüssel
+dem Kunden *sagt*, warum es keinen Weg zum Rest gibt. Der Satz dafür ist
+Kriterium 5 und gehört zu Schritt 6; ihn hier halb zu bauen hiesse, ihn zweimal
+zu haben.
 
 ### Schritt 5b — Die Baumansicht
 
@@ -1236,6 +1268,23 @@ wächst mit dem Bestand.
 **Die vier Brüche sind gefahren** — `nowrap` an `.rows .cell`; `overflow-wrap`
 dort entfernt; `class="ident"` zurück an die Wertzelle; `nowrap` zurück an
 `.pager-state`. Jeder war rot, und jeder mit seiner eigenen Meldung.
+
+### 14.11 `NullDisplayTest` — nachgetragen zu Schritt 5
+
+**Regel:** In der Zeilenansicht wird `NULL` als `NULL` angezeigt, **bevor** ein
+Zweig auf den Typ der Spalte sieht. Und die Länge einer binären Spalte fällt
+nicht auf einen Ersatzwert zurück.
+
+Der Anlass steht in §20.16: Ein `NULL` in einer `BLOB`-Spalte erschien als
+„binär · 0 B". Das ist Kriterium 2, und keine Messung hätte es gemeldet.
+
+**Die Brüche:** die beiden Zweige vertauschen; `?? 0` an die Länge zurückgeben.
+Beide sind gefahren, beide waren rot — der erste erst, nachdem die Vertauschung
+wirklich in der Datei stand.
+
+> **Ein Bruch, der nicht bricht, prüft nichts.** Der erste Anlauf hat die Datei
+> gar nicht verändert, und der Wächter blieb grün — was wie eine Lücke aussah
+> und keine war. Wer bricht, sieht danach in die Datei.
 
 ### Wächter, die von selbst mitlaufen
 
@@ -1939,3 +1988,193 @@ veraltet.
 Datenbank misst. Aus demselben Grund: `CELL_FULL_LIMIT` gehört dem Agenten. Die
 Tabelle in §9 nennt sie „64 KiB"; gemessen wird sie in Zeichen (`mb_strlen`), und
 die beiden sind nicht dasselbe, sobald ein `ü` im Wert steht.
+
+### 20.16 Ein `NULL` in einer binären Spalte war eine Null
+
+**Gefunden im Bildschirmfoto-Durchgang zu Schritt 5, auf `cloudsrv24`.** In der
+Zeilenansicht stand in der Spalte `anhang` in **jeder** Zeile „binär · 0 B". Die
+Spalte war leer — nicht null Byte lang, sondern `NULL` —, und die Anzeige machte
+daraus eine Zahl.
+
+Die Ursache stand in der Reihenfolge der Zweige:
+
+```
+<span v-if="isBinary(column)">binär · {{ formatBytes(Number(row[column] ?? 0)) }}</span>
+<span v-else-if="row[column] === null">NULL</span>
+```
+
+`OCTET_LENGTH(NULL)` ist `NULL`, `Number(null ?? 0)` ist `0`, und der Zweig für
+`NULL` kam nie dran. Eine leere Zelle war damit von einem tatsächlich leeren Blob
+nicht mehr zu unterscheiden — **und genau das ist Kriterium 2** (§4).
+
+> **Eine 0, die für „nichts da" steht, sieht aus wie eine Antwort.**
+
+Es ist derselbe Fund wie bei der geschätzten Zeilenzahl in §9: Dort hiess die
+falsche Antwort „0 Zeilen", hier „0 B". Beide Male war die richtige Anzeige ein
+Wort und keine Zahl — und beide Male stand sie schon da und war unerreichbar.
+
+**Keine Zahl hätte das gemeldet.** Die Ansicht lief über, ohne überzulaufen; die
+Überlaufmessung war 0, die Spalte war gefüllt, jede Zeile sah gleich aus. Nur
+kann man einer Zelle nicht ansehen, dass sie die Wahrheit über eine andere sagt.
+
+**Der Wächter dazu ist `NullDisplayTest`** (§14.11), und er prüft die
+**Reihenfolge** und nicht das Wort „NULL". Dass es in der Vorlage steht, sagt
+nichts darüber, ob es je zu sehen ist — der Fehler war ja nicht, dass die
+Anzeige fehlte.
+
+### 20.17 Ein `IF NOT EXISTS` im Vorbereitungsblock, und was es verschwiegen hat
+
+**Der Block, der die Daten für die Aufnahmen legt, ist zur Hälfte gescheitert**,
+und die Meldung stand an einer Stelle, die nichts damit zu tun hatte:
+
+```
+ERROR:  column "zeitpunkt" is of type timestamp with time zone
+        but expression is of type integer
+LINE 1: INSERT INTO protokoll_ohne_schluessel VALUES (1, repeat('b',...
+```
+
+`protokoll_ohne_schluessel` gab es schon — aus dem Zwischenlauf, mit einer
+anderen Spaltenfolge. Das `CREATE TABLE IF NOT EXISTS` hat das übersprungen, und
+der `INSERT` **ohne Spaltennamen** hat danach auf die eigene Form gesetzt statt
+auf die vorhandene.
+
+> **Ein `IF NOT EXISTS` macht aus einer Annahme über die Form eine stille.** Es
+> sagt „die Tabelle ist da" und nicht „sie sieht aus, wie du denkst" — und der
+> Fehler kommt eine Anweisung später.
+
+Das gehört hierher und nicht in eine Fussnote: Der Abnahmelauf von §15 legt
+Tabellen auf demselben Weg an, und `docs/47` hat schon einmal gezeigt, dass die
+teuersten Fehler eines Laufs im Lauf selbst stecken.
+
+### 20.18 PostgreSQL sortierte den gekürzten Text — und benutzte den Index nie
+
+**Der Fund kam von einem Bildschirmfoto, und er sah aus wie eine Kleinigkeit.**
+Auf Bild 4 und 5 der Zeilenansicht standen die IDs in dieser Reihenfolge:
+
+```
+PostgreSQL:   1, 10, 100, 101, 102, 103, 104, 105
+MariaDB:      1, 2, 3, 4, 6, 7, 8, 9, 13, 14, …
+```
+
+`id` ist `bigint`, sortiert wird aufsteigend über den Primärschlüssel — und
+PostgreSQL sortierte **lexikographisch**.
+
+Die Ursache steht in der Auswahlliste. `selectList()` gibt jeder Spalte ihren
+eigenen Namen als Alias:
+
+```sql
+SELECT left("id"::text, 513) AS "id", … FROM "public"."t" ORDER BY "id" ASC
+```
+
+**PostgreSQL löst einen einfachen Namen im `ORDER BY` gegen die Ausgabespalte
+auf**, nicht gegen die Eingangsspalte — so steht es in seiner Dokumentation zu
+`SELECT`, und so ist es hier gemessen worden (16.13, Wegwerf-Cluster).
+
+> **Ein Alias, der wie seine Spalte heisst, ist keine Umbenennung — er ist eine
+> zweite Bedeutung desselben Namens.**
+
+**Der zweite Schaden war auf keinem Bild zu sehen, und er ist der schwerere.**
+Ein Sortierschlüssel `left(id::text, 513)` passt auf keinen Index. Gemessen an
+derselben Tabelle mit 200.000 Zeilen:
+
+```
+vorher:   Limit -> Gather Merge -> Sort (Sort Key: left((t.id)::text, 513))
+                                   -> Parallel Seq Scan on t
+nachher:  Limit -> Index Only Scan using t_pkey on t src
+```
+
+Damit war die Begründung hinfällig, die in `Console.vue` steht: über den
+Schlüssel zu sortieren, *weil* dort ein Index liegt und die erste Seite deshalb
+nicht ins Zeitlimit läuft. Er wurde nie benutzt — auf `cloudsrv24` fiel das
+nicht auf, weil 120 Zeilen auch ohne Index schnell sortiert sind.
+
+> **Eine Zusage über ein Zeitlimit, die an einem kleinen Bestand geprüft wird,
+> ist keine.**
+
+**Behoben** ist es mit einem Aliasnamen an der Tabelle und einem qualifizierten
+`ORDER BY`; ein qualifizierter Name kann keine Ausgabespalte treffen. Die
+Auswahlliste und das `WHERE` bleiben unqualifiziert — beide sehen Ausgabenamen
+ohnehin nicht. Gegengeprüft, dass der Aliasname nicht kollidiert: eine Tabelle
+namens `src` mit einer Spalte namens `src` liefert dieselbe Reihenfolge.
+
+**Und MariaDB war hier zufällig richtig.** Dort steht die Kürzung in einem
+`JSON_OBJECT(...)`, das gar keinen Alias je Spalte erzeugt; `ORDER BY id` konnte
+nur die Spalte meinen. Zwei Systeme, dieselbe Absicht, und nur eines hatte den
+Fehler — die Art von Unterschied, für die es `EngineReachTest` gibt und die er
+nicht sieht, weil beide Operationen ja da sind.
+
+**Der Wächter dazu ist `ResultEncodingTest::test_the_sort_key_can_only_mean_the_column`.**
+Er prüft je System das, was den Namen dort eindeutig macht: in PostgreSQL die
+Qualifizierung, in MariaDB die Abwesenheit eines Alias je Spalte. Eine Regel,
+zwei Belege — denn fiele das `JSON_OBJECT` weg, träte derselbe Fehler dort auf,
+ohne dass jemand die PostgreSQL-Hälfte angefasst hätte.
+
+### 20.19 Eine Sortierung ohne eindeutigen Schluss ist beim Blättern eine Stichprobe
+
+**Gefunden auf Bild 7 des Durchgangs zu Schritt 5.** Sortiert nach `ort`, und
+innerhalb von „Grünheide" standen die IDs so da:
+
+```
+116, 5, 92, 113, 47, 98, 77, 89, 104, 110, 119, 74, 23
+```
+
+Das ist keine Nachlässigkeit des Servers. Er sagt zu, nach `ort` zu sortieren,
+und über Zeilen mit demselben `ort` sagt er **nichts** — die Reihenfolge darf
+sich zwischen zwei Aufrufen ändern, und sie tut es, sobald der Plan sich ändert.
+
+**Mit `OFFSET` ist das kein Schönheitsfehler.** Gemessen auf PostgreSQL 16.13,
+120 Zeilen und drei Werten in `ort`, Seite 1 ohne und Seite 2 mit Index:
+
+| | doppelt gesehen | nie gesehen |
+|---|---|---|
+| `ORDER BY ort` | **5 Zeilen** | **25 Zeilen** |
+| `ORDER BY ort, id` | 0 | 20 — und das ist Seite 3 |
+
+> **Eine Sortierung ohne eindeutigen Schluss ist beim Blättern keine Sortierung,
+> sondern eine Stichprobe.**
+
+Der Plan wechselt in echten Beständen von allein: wenn ein Index dazukommt, wenn
+`ANALYZE` läuft, wenn die Tabelle wächst. Der Kunde sieht dann Zeilen doppelt,
+während andere ausfallen — und nichts daran sieht nach einem Fehler aus.
+
+**Behoben** ist es in `PgConsole::orderColumns()`, das **beide** Systeme
+benutzen: die gewählte Spalte, dann die Spalten des Schlüssels, alle in derselben
+Richtung. Wer nach dem Schlüssel selbst sortiert, bekommt ihn nicht zweimal.
+Gegengeprüft mit den **erzeugten** Anweisungen über zwei verschiedene Pläne:
+0 doppelt, 18 offen bei 2 × 51 von 120 Zeilen.
+
+**Ohne Schlüssel bleibt es dabei**, und das ist eine benannte Lücke — es gibt
+dann keine Spalte, die eine Zeile eindeutig macht. Sie trifft dieselben Tabellen,
+die nach §10 ohnehin nur lesbar sind, und steht neben der Lücke aus §12, dass es
+für sie auch die Zelleinzelsicht nicht gibt.
+
+**Und dieser Fund hängt am vorigen.** §20.18 hat die Sortierung überhaupt erst
+auf die richtige Spalte gestellt; solange sie den gekürzten Text sortierte, war
+die Frage nach Gleichständen gar nicht zu sehen — `left(id::text, 513)` ist über
+einem Primärschlüssel eindeutig, und die Reihenfolge sah deshalb stabil aus.
+
+> **Ein Fehler, der einen zweiten verdeckt, wird beim Beheben zum Finder.**
+
+### 20.20 Die hohe Zeile bleibt — eine Entscheidung des Betreibers
+
+Auf Bild 8 des Durchgangs hat die Zeile mit der gekürzten `bemerkung` eine hohe
+leere Fläche: Die Zelle bricht auf elf Zeilen, und ihre Spalte ist gerade aus dem
+Bild gerollt. Der Grund für die Höhe steht ausserhalb des Bildschirms.
+
+**Entschieden am 13. August 2026: so lassen.** Nichts ist versteckt, die Höhe ist
+ehrlich, und wer nach rechts rollt, sieht sofort warum. Der Fall tritt nur bei
+Zellen über etwa 500 Zeichen auf.
+
+Die beiden Alternativen kosten mehr, als sie einbringen:
+
+- **Die Zelle klemmen** verlangt den `…`-Knopf ausserhalb der Klemmung — und ein
+  langer, vom Agenten **nicht** gekürzter Wert wäre dann abgeschnitten, ohne dass
+  ein Weg zum Rest bliebe. Aus einer sichtbaren Unschönheit würde eine
+  unsichtbare Lücke.
+- **Eine zweite Kürzungsgrenze nur für die Anzeige** wären zwei Zahlen für
+  dieselbe Sache, und die zweite ist die, die veraltet.
+
+> **Eine hohe Zeile ist ehrlich. Eine geklemmte verschweigt, dass sie klemmt.**
+
+Die Begründung steht ausserdem bei `.rows .cell` in `app.css` — dort, wo jemand
+als Nächstes ein `max-height` hinschreiben würde.

@@ -140,10 +140,25 @@ jobs:
           node-version: '22'
           cache: npm
 
+      # **Erst in eine Datei, dann auspacken — und nicht in `tar` pipen.**
+      # Dieser Schritt ist am 12. August 2026 zweimal an einem Tag ohne Zutun
+      # des Codes gescheitert: einmal `curl: (56) Connection died`, einmal
+      # `curl: (22) … error: 503`. Beide Male haben vier Geschwisterjobs
+      # denselben Schritt in derselben Minute erfolgreich gefahren.
+      #
+      # Ein `--retry` an der Pipe wäre die falsche Reparatur: curl beginnt die
+      # Übertragung neu, aber was schon durch die Pipe ist, hat `tar` gelesen —
+      # der zweite Versuch schöbe Bytes hinterher, die nicht an diese Stelle
+      # gehören. Das ist schlimmer als der Fehlschlag, weil es aussieht wie
+      # Erfolg.
+      #
+      # > **Ein Wiederholversuch hinter einer Pipe wiederholt nur die Hälfte.**
       - name: nfpm bereitstellen
         run: |
-          curl -fsSL https://github.com/goreleaser/nfpm/releases/download/v2.43.0/nfpm_2.43.0_Linux_x86_64.tar.gz \
-            | sudo tar -xz -C /usr/local/bin nfpm
+          curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors \
+            -o "${RUNNER_TEMP}/nfpm.tar.gz" \
+            https://github.com/goreleaser/nfpm/releases/download/v2.43.0/nfpm_2.43.0_Linux_x86_64.tar.gz
+          sudo tar -xzf "${RUNNER_TEMP}/nfpm.tar.gz" -C /usr/local/bin nfpm
 
       - name: Paket bauen
         run: packaging/build.sh 0.0.0-ci amd64
@@ -625,10 +640,25 @@ jobs:
           node-version: '22'
           cache: npm
 
+      # **Erst in eine Datei, dann auspacken — und nicht in `tar` pipen.**
+      # Dieser Schritt ist am 12. August 2026 zweimal an einem Tag ohne Zutun
+      # des Codes gescheitert: einmal `curl: (56) Connection died`, einmal
+      # `curl: (22) … error: 503`. Beide Male haben vier Geschwisterjobs
+      # denselben Schritt in derselben Minute erfolgreich gefahren.
+      #
+      # Ein `--retry` an der Pipe wäre die falsche Reparatur: curl beginnt die
+      # Übertragung neu, aber was schon durch die Pipe ist, hat `tar` gelesen —
+      # der zweite Versuch schöbe Bytes hinterher, die nicht an diese Stelle
+      # gehören. Das ist schlimmer als der Fehlschlag, weil es aussieht wie
+      # Erfolg.
+      #
+      # > **Ein Wiederholversuch hinter einer Pipe wiederholt nur die Hälfte.**
       - name: nfpm bereitstellen
         run: |
-          curl -fsSL https://github.com/goreleaser/nfpm/releases/download/v2.43.0/nfpm_2.43.0_Linux_x86_64.tar.gz \
-            | sudo tar -xz -C /usr/local/bin nfpm
+          curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors \
+            -o "${RUNNER_TEMP}/nfpm.tar.gz" \
+            https://github.com/goreleaser/nfpm/releases/download/v2.43.0/nfpm_2.43.0_Linux_x86_64.tar.gz
+          sudo tar -xzf "${RUNNER_TEMP}/nfpm.tar.gz" -C /usr/local/bin nfpm
 
       - name: Paket bauen
         run: packaging/build.sh 0.0.0-ci amd64

@@ -714,16 +714,34 @@ onMounted(loadTables)
                   <td v-for="column in page.columns" :key="column">
                     <div class="cell">
                       <!--
+                        **`NULL` steht vor allem anderen, und das war ein
+                        Fehler.** Hier kam die binäre Spalte zuerst, und ihre
+                        Länge ist für `NULL` eben `NULL` — `Number(null ?? 0)`
+                        machte daraus `0`, und jede leere Zelle einer
+                        `BLOB`-Spalte las sich als „binär · 0 B". Damit war sie
+                        von einem tatsächlich leeren Blob nicht mehr zu
+                        unterscheiden, und genau das verlangt Kriterium 2.
+                        Gefunden im Bildschirmfoto-Durchgang zu Schritt 5, auf
+                        einer Tabelle, in der `anhang` in jeder Zeile leer war.
+
+                        > **Eine 0, die für „nichts da" steht, sieht aus wie
+                        > eine Antwort.**
+
+                        Es ist derselbe Fund wie bei der geschätzten Zeilenzahl
+                        in `docs/46 §9` — dort hiess die falsche Antwort
+                        „0 Zeilen", hier „0 B".
+                      -->
+                      <span v-if="row[column] === null" class="quiet">NULL</span>
+
+                      <!--
                         **Eine binäre Spalte trägt ihre Länge und keinen Wert**
                         (`docs/46 §8.2`). Der Wert ist gar nicht erst abgefragt
                         worden — ein `BLOB` mit ungültigem UTF-8 machte sonst
                         die ganze Zeile unlesbar.
                       -->
-                      <span v-if="isBinary(column)" class="quiet">
-                        binär · {{ formatBytes(Number(row[column] ?? 0)) }}
+                      <span v-else-if="isBinary(column)" class="quiet">
+                        binär · {{ formatBytes(Number(row[column])) }}
                       </span>
-
-                      <span v-else-if="row[column] === null" class="quiet">NULL</span>
 
                       <template v-else>
                         {{ row[column] }}

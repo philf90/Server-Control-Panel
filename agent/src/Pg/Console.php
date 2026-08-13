@@ -91,6 +91,18 @@ final class Console
     public const TIMEOUT_MS = 5_000;
 
     /**
+     * Der Aliasname der Tabelle in der Zeilenabfrage.
+     *
+     * Er steht als Konstante da, weil er zweimal in dieselbe Anweisung geht —
+     * einmal hinter `FROM` und einmal vor der Sortierspalte — und die beiden
+     * denselben Namen tragen müssen. Er ist kein Bezeichner aus einer Anfrage
+     * und geht deshalb nicht durch `Sql::identifier()`; ein Tabellen- oder
+     * Spaltenname, der ebenfalls `src` heisst, wird von ihm nur verdeckt und
+     * nicht verwechselt.
+     */
+    private const SOURCE = 'src';
+
+    /**
      * Die Vergleiche, die der Filter kennt.
      *
      * **Drei und nicht acht** (`docs/46 §3`, Entscheidung 5). Die Filterzeile ist
@@ -417,6 +429,38 @@ final class Console
      * Punkt 2). Ein `count(*)` über einen Filter liefe bei jedem Aufruf und ist
      * genau die Abfrage, die ins Zeitlimit läuft.
      *
+     * **Das `ORDER BY` trägt den Tabellennamen, und daran hängt mehr als die
+     * Reihenfolge.** `selectList()` gibt jeder Spalte ihren eigenen Namen als
+     * Alias — `left(id::text, 513) AS "id"` —, und PostgreSQL löst einen
+     * einfachen Namen im `ORDER BY` gegen die **Ausgabespalte** auf, nicht
+     * gegen die Eingangsspalte (so steht es auch in seiner Dokumentation zu
+     * `SELECT`). Sortiert wurde damit der gekürzte **Text**: Eine
+     * `bigint`-Spalte kam als `1, 10, 100, 101` zurück.
+     *
+     * Der zweite Schaden ist der schwerere und war auf keinem Bild zu sehen:
+     * Ein Sortierschlüssel `left(id::text, 513)` passt auf keinen Index. Gemessen
+     * auf PostgreSQL 16.13 mit 200.000 Zeilen:
+     *
+     *     vorher:  Parallel Seq Scan on t  ->  Sort (left((t.id)::text, 513))
+     *     nachher: Index Only Scan using t_pkey on t src
+     *
+     * Damit war die Zusage der Oberfläche hinfällig, über den Schlüssel zu
+     * sortieren, *weil* dort ein Index liegt und die erste Seite deshalb nicht
+     * ins Zeitlimit läuft. Er wurde nie benutzt.
+     *
+     * > **Ein Alias, der wie seine Spalte heisst, ist keine Umbenennung — er ist
+     * > eine zweite Bedeutung desselben Namens.**
+     *
+     * Ein qualifizierter Name kann keine Ausgabespalte treffen; deshalb bekommt
+     * die Tabelle einen Aliasnamen und das `ORDER BY` ihn davor. Die
+     * Auswahlliste und das `WHERE` bleiben unqualifiziert — beide sehen
+     * Ausgabenamen ohnehin nicht.
+     *
+     * **MariaDB war hier zufällig richtig** (`Db\Console::rowsQuery()`): Dort
+     * steht die Kürzung in einem `JSON_OBJECT(...)`, das gar keinen Alias je
+     * Spalte erzeugt, und `ORDER BY id` konnte nur die Spalte meinen. Zwei
+     * Systeme, dieselbe Absicht, und nur eines hatte den Fehler.
+     *
      * @param  list<array{name: string, type: string, nullable: bool, default: string|null, key: bool, binary: bool}>  $columns
      * @param  array{column: string, operator: string, value: string}|null  $filter
      */
@@ -433,16 +477,64 @@ final class Console
             ? ''
             : ' WHERE '.self::condition(self::column($columns, $filter['column']), $filter['operator'], $filter['value']);
 
+        $direction = $descending ? 'DESC' : 'ASC';
+
+        $terms = array_map(
+            static fn (string $name): string => sprintf('%s.%s %s', self::SOURCE, Sql::identifier($name), $direction),
+            self::orderColumns($columns, $order),
+        );
+
         return sprintf(
-            'SELECT row_to_json(t) FROM (SELECT %s FROM %s%s ORDER BY %s %s LIMIT %d OFFSET %d) t',
+            'SELECT row_to_json(t) FROM (SELECT %s FROM %s AS %s%s ORDER BY %s LIMIT %d OFFSET %d) t',
             implode(', ', self::selectList($columns, self::CELL_LIMIT)),
             Sql::qualified($schema, $table),
+            self::SOURCE,
             $where,
-            Sql::identifier(self::column($columns, $order)['name']),
-            $descending ? 'DESC' : 'ASC',
+            implode(', ', $terms),
             self::ROWS_PER_PAGE + 1,
             $offset,
         );
+    }
+
+    /**
+     * Die Spalten, nach denen sortiert wird — die gewählte, dann der Schlüssel.
+     *
+     * **Eine Sortierung über eine mehrdeutige Spalte ist keine Reihenfolge.**
+     * Der Server sagt zu, nach `ort` sortiert zu liefern, und über Zeilen mit
+     * demselben `ort` sagt er **nichts** — die Reihenfolge darf sich zwischen
+     * zwei Aufrufen ändern, und sie tut es, sobald der Plan sich ändert. Mit
+     * `OFFSET` ist das kein Schönheitsfehler: Was beim zweiten Aufruf weiter
+     * vorn liegt, erscheint auf Seite 2 noch einmal, und was nach hinten
+     * rutscht, sieht der Kunde nie.
+     *
+     * Gemessen auf PostgreSQL 16.13, 120 Zeilen und drei Werten in `ort` —
+     * Seite 1 ohne Index, Seite 2 mit:
+     *
+     *     ORDER BY ort       →  5 Zeilen doppelt, 25 Zeilen nie gesehen
+     *     ORDER BY ort, id   →  0 doppelt, und die 20 offenen sind Seite 3
+     *
+     * > **Eine Sortierung ohne eindeutigen Schluss ist beim Blättern keine
+     * > Sortierung, sondern eine Stichprobe.**
+     *
+     * **Ohne Schlüssel bleibt es dabei**, und das ist eine benannte Lücke: Es
+     * gibt dann keine Spalte, die eine Zeile eindeutig macht. Sie trifft
+     * dieselben Tabellen, die nach `docs/46 §10` ohnehin nur lesbar sind.
+     *
+     * @param  list<array{name: string, type: string, nullable: bool, default: string|null, key: bool, binary: bool}>  $columns
+     * @return list<string>
+     */
+    public static function orderColumns(array $columns, string $order): array
+    {
+        $first = self::column($columns, $order)['name'];
+        $names = [$first];
+
+        foreach ($columns as $column) {
+            if ($column['key'] && $column['name'] !== $first) {
+                $names[] = $column['name'];
+            }
+        }
+
+        return $names;
     }
 
     /**

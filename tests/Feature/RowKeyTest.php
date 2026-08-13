@@ -188,15 +188,19 @@ final class RowKeyTest extends TestCase
                     continue;
                 }
 
-                $this->assertTrue(
-                    false,
-                    sprintf(
-                        'Ein `%s` ohne Schlüssel entsteht in %s ohne Widerspruch. Ein `UPDATE` ohne '
-                        .'`WHERE` trifft die ganze Tabelle, ein `DELETE` leert sie (docs/46 §10).',
-                        $mode,
-                        $engine === 'pg' ? 'PostgreSQL' : 'MariaDB',
-                    ),
-                );
+                /*
+                 * **`fail()` und nicht `assertTrue(false, …)`.** Hier stand das
+                 * zweite, und PHPStan hat es in der CI als
+                 * `method.impossibleType` gemeldet — zu Recht: Eine Behauptung
+                 * über eine Konstante ist keine Behauptung. `fail()` sagt, was
+                 * gemeint ist, und ist als `never` typisiert.
+                 */
+                $this->fail(sprintf(
+                    'Ein `%s` ohne Schlüssel entsteht in %s ohne Widerspruch. Ein `UPDATE` ohne '
+                    .'`WHERE` trifft die ganze Tabelle, ein `DELETE` leert sie (docs/46 §10).',
+                    $mode,
+                    $engine === 'pg' ? 'PostgreSQL' : 'MariaDB',
+                ));
             }
         }
 
@@ -228,10 +232,10 @@ final class RowKeyTest extends TestCase
                 continue;
             }
 
-            $this->assertTrue(
-                false,
-                sprintf('%s baut aus einem halben Schlüssel eine Bedingung. Sie trifft jede Zeile mit diesem `b`.', $name),
-            );
+            $this->fail(sprintf(
+                '%s baut aus einem halben Schlüssel eine Bedingung. Sie trifft jede Zeile mit diesem `b`.',
+                $name,
+            ));
         }
 
         // Und die Gegenprobe: Der vollständige Schlüssel geht durch. Ohne sie

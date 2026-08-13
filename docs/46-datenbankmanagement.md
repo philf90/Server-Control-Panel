@@ -3042,3 +3042,25 @@ brechen** — der Bruch ist ein Werkzeug, das den Baum verändert, und kein Lese
 
 > **Ein Wiederherstellen, das nicht zwischen fremder und eigener Änderung
 > unterscheidet, ist ein Löschen mit gutem Namen.**
+
+### 20.39 `assertTrue(false, …)` ist keine Behauptung
+
+**Gefunden von PHPStan in der CI**, und hier findet es nichts: `vendor/bin/phpstan`
+gibt es in diesem Container nicht. Beide neuen Wächter benutzten für „hier darf
+der Lauf nicht ankommen" die Form
+
+```php
+$this->assertTrue(false, 'Ein UPDATE ohne Schlüssel entsteht ohne Widerspruch.');
+```
+
+`method.impossibleType` — eine Behauptung über eine Konstante ist keine
+Behauptung. Sie tut zwar das Richtige, sagt es aber nicht: Wer sie liest, prüft
+erst den Wert und dann die Absicht. PHPUnit hat dafür `fail()`, und das ist als
+`never` typisiert.
+
+> **Ein Test, der einen Fehlschlag als Behauptung tarnt, prüft dasselbe und
+> erklärt weniger.**
+
+Es ist die zweite Meldung dieser Art in dieser Stufe, nach der ungenutzten
+Konstante in `ButtonRowSpacingTest` — beide Male hat PHPStan etwas gefunden, das
+kein Wächter dieses Projekts sieht und das dieser Container nicht fahren kann.

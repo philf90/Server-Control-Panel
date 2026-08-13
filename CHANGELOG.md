@@ -11529,3 +11529,14 @@ Scratchpad, die zehn Minuten vorher aus einem anderen Grund entstanden war.
 
 > **Ein Wiederherstellen, das nicht zwischen fremder und eigener Änderung
 > unterscheidet, ist ein Löschen mit gutem Namen.**
+
+### `assertTrue(false, …)` ist keine Behauptung
+
+Beide neuen Wächter benutzten für „hier darf der Lauf nicht ankommen" ein
+`assertTrue(false, …)`. PHPStan meldet das als `method.impossibleType`, und zu
+Recht: Die Form tut das Richtige, sagt es aber nicht. PHPUnit hat dafür `fail()`.
+
+> **Ein Test, der einen Fehlschlag als Behauptung tarnt, prüft dasselbe und
+> erklärt weniger.**
+
+Beide Brüche dazu sind mit `fail()` erneut gefahren und wieder rot.

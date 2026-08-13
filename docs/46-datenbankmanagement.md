@@ -3107,3 +3107,134 @@ Container fährt die framework-freien Wächter; `ConsoleStatementTest` und
 
 > **Ein Wächter, den die eigene Umgebung nicht fahren kann, findet trotzdem —
 > nur später und teurer.**
+
+### 20.41 Die fünfte Fuge — und der Wächter, der vier davon nicht sehen konnte
+
+**Kriterium 5 ist belegt** (Bild vom 13. August gegen `0.5.3-rc.11`): Auf
+`protokoll_ohne_schluessel` gibt es keine Spalte „Zeile", kein „Zeile anlegen",
+und der Satz steht da. Auf demselben Bild fand der Betreiber den Fehler: Der Satz
+klebte unter der Blätterleiste.
+
+Gemessen mit dem gebauten Stylesheet:
+
+| | 1200px | 390px |
+|---|---|---|
+| Blätterleiste → Hinweis, vorher | **0px** | **0px** |
+| Blätterleiste → Hinweis, nachher | 26px | 24px |
+| Hinweis → Knopfreihe (seine eigene Kante) | 26px | 24px |
+| Meldung → Meldung (Gegenprobe) | 26px | 24px |
+
+`--block-gap` und nicht die 16px der Knopfreihe: Eine Meldung lässt **unter**
+sich genau so viel, und ein Abstand, der oben enger ist als unten, setzt sie
+sichtbar schief zwischen ihre Nachbarn.
+
+#### Der Wächter hat die falsche Frage gestellt — viermal richtig
+
+`ButtonRowSpacingTest` fragte nach **Knopfreihen**. Das war die Frage der ersten
+vier Fälle und trotzdem die falsche: Beim fünften stand dort eine Meldung.
+
+> **Eine Liste von Nachbarn, die wächst, ist keine Regel — sie ist eine
+> Aufzählung der Fälle, die schon jemand gesehen hat.**
+
+Er heisst jetzt `BlockSpacingTest` und fragt: **Endet der eine bündig, und fängt
+der andere bündig an?** Zwei Listen, alle Paare daraus, und für jedes Paar, das
+in einer Vorlage wirklich vorkommt, muss `app.css` eine Nachbarschaftsregel
+haben.
+
+#### Und dabei kamen drei Fehler im Wächter selbst heraus
+
+**Erstens: `.pager` stand seit Schritt 5 in der Liste und wurde nie gefunden.**
+Der alte Ausdruck las den Vorgänger „bis zum nächsten Tag desselben Namens" —
+`.scrolls` geht so, `.pager` nicht, denn darin stehen drei `<div>`. Die
+Untergrenze zählte die anderen Bausteine mit und blieb grün.
+
+> **Ein Eintrag in einer Liste, den der Ausdruck nie erreicht, sieht aus wie eine
+> Abdeckung und ist eine Lücke.**
+
+Gesucht wird jetzt über die **Verschachtelungstiefe**, und ein dritter Test
+verlangt, dass jeder Name beider Listen in einer Vorlage wirklich vorkommt — der
+Wächter über den Wächter.
+
+**Zweitens: der Ausdruck las den `<script>`-Block mit.** `ref<HTMLElement | null>`
+sieht aus wie ein Tag, das nie zugeht; die Tiefenzählung lief ins Dateiende und
+fand fast nichts. Sie meldete das nicht — sie gab weniger Paare zurück.
+
+**Drittens, und das ist der Kern: `<template v-else>` rendert nichts.** Die
+Blätterleiste steht darin, die Meldung dahinter — im Quelltext sind sie **keine**
+Geschwister, im Browser sind sie es, und dort klebten sie.
+
+> **Ein Wächter, der Markup liest, muss lesen, was gerendert wird — nicht, was
+> dasteht.**
+
+Ohne diesen dritten Punkt hätte der neue Wächter genau den Fall nicht gefunden,
+für den er gebaut wurde. Belegt hat es der Bruch: Macht man `<template>` wieder
+undurchsichtig, sinkt die Zahl der gefundenen Fugen von drei auf zwei — und
+`.pager + .notice` ist die, die fehlt.
+
+**Fünf Brüche, fünf Bisse**, und der erste nennt die Fuge des Betreibers
+wörtlich: „`Console.vue` setzt `.notice` unmittelbar unter `.pager`, und app.css
+kennt diese Nachbarschaft nicht."
+
+### 20.42 Eine Umbenennung, drei Wächter — und mein lokaler Durchgang war eine Liste
+
+Die Umbenennung von `ButtonRowSpacingTest` nach `BlockSpacingTest` hat drei
+bestehende Wächter rot gemacht, und **jeder hatte recht**:
+
+| Wächter | Befund |
+|---|---|
+| `ChangelogTest` | Der Changelog nennt `ButtonRowSpacingTest`, die Datei gibt es nicht mehr |
+| `GuardReachTest` | Der Kommentar in `BlockSpacingTest` nennt ihn ebenfalls |
+| `NoticeShapeTest` | fand die falsche Regel — dazu unten |
+
+Für die ersten beiden gibt es seit August den vorgesehenen Weg:
+`ChangelogTest::REMOVED`, mit Datum und Grund. Ein Test, den es absichtlich nicht
+mehr gibt, wird dort eingetragen — und nicht im Fliesstext ohne Rückstriche
+umschrieben, was den Wächter umginge statt ihn zu erweitern.
+
+> **Ein Name, den es nicht mehr gibt, ist kein kleineres Problem als ein Name,
+> den es nie gab.**
+
+#### `NoticeShapeTest` fand die falsche Regel
+
+Er suchte mit `strpos($css, '.notice {')` — und ab dieser Fassung steht 650
+Zeilen früher `:is(.field, …, .button-row) + .notice {`. Derselbe Text, andere
+Regel. Der Wächter las seitdem einen Block, in dem nur `margin-top` steht, und
+meldete, die Umbrucherlaubnis der Meldung sei fort. Sie stand unverändert da.
+
+> **Ein Ausdruck, der einen Selektor am Namen sucht, findet jeden, der ihn
+> enthält.**
+
+Gesucht wird jetzt am Zeilenanfang. Es ist derselbe Fund wie beim `\b` über
+Klassennamen in §20.30 — eine Grenze, die für den einfachen Fall reicht und für
+den nächsten nicht.
+
+#### Und der eigentliche Befund: mein lokaler Durchgang war eine Liste
+
+Alle drei Wächter **laufen in diesem Container** — sie erben
+`PHPUnit\Framework\TestCase` und brauchen kein Framework. Gefahren habe ich sie
+nicht, weil das Gestell aus `docs/46 §20.38` mit einer **handverlesenen** Liste
+von dreizehn Namen aufgerufen wurde. Framework-freie Wächter gibt es **136**.
+
+> **Eine Prüfung, die nur nachsieht, woran man gerade denkt, prüft das
+> Erinnerungsvermögen.**
+
+Der Aufruf zählt seitdem selbst ab: `grep -l 'use PHPUnit\Framework\TestCase;'`
+über `tests/`. Was dabei nicht laufen kann — ein Test, der einen Socket braucht
+oder eine Laravel-Klasse —, wird als **übersprungen** ausgewiesen und nicht als
+grün; eine Zahl, die Übersprungenes mitzählt, wäre schlimmer als keine. Dazu ruft
+das Gestell jetzt `setUp()`, sonst scheitern Tests an uninitialisierten
+Eigenschaften und sähen aus wie gebrochene Regeln.
+
+**Gemessen am 13. August 2026 über den ganzen Bestand: 501 grün, 7 rot, 309
+übersprungen.** Die sieben stehen in drei Klassen — `DbCommandReachTest`,
+`PgHbaFollowTest`, `PolicyReachTest` —, und **keine davon ist ein Befund**: Alle
+drei binden Klassen aus `app/`, die ohne Laravels Autoloader leer bleiben; die
+Prüfung sieht dann eine Methode, die es „nicht mehr gibt". In der CI sind sie
+gegen denselben Commit grün.
+
+> **Ein Wächter ausserhalb seiner Umgebung ist rot, ohne dass etwas kaputt
+> ist — und das ist genauso wertlos wie grün.**
+
+Wer die Zahl hier benutzt, vergleicht sie deshalb gegen die CI und nicht gegen
+null. Was das Gestell trägt, sind die **Textwächter**: Sie lesen Dateien und
+brauchen nichts weiter.

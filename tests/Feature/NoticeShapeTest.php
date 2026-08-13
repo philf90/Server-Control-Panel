@@ -143,7 +143,18 @@ final class NoticeShapeTest extends TestCase
     {
         $css = (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css');
 
-        $start = strpos($css, '.notice {');
+        /*
+         * **Am Zeilenanfang und nicht irgendwo.** Hier stand
+         * `strpos($css, '.notice {')`, und das traf ab P5c Schritt 6 die falsche
+         * Regel: `:is(.field, …, .button-row) + .notice {` enthält denselben
+         * Text und steht 650 Zeilen früher in der Datei. Der Wächter las
+         * seitdem einen Block, in dem nur `margin-top` steht, und meldete, die
+         * Umbrucherlaubnis sei fort — sie stand unverändert da.
+         *
+         * > **Ein Ausdruck, der einen Selektor am Namen sucht, findet jeden, der
+         * > ihn enthält.**
+         */
+        $start = strpos($css, "\n.notice {");
 
         $this->assertNotFalse($start, 'Die Regel .notice gibt es nicht mehr.');
 

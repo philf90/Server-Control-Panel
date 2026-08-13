@@ -1684,15 +1684,27 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #         > Ein Beleg, der immer dasselbe sagt, sagt nichts — auch dann, wenn
 #         > das, was er sagt, gerade stimmt.
 #
-#         Gemessen wird deshalb an der Zeilenzahl, mit dem positiven Fall
-#         davor:
-#           VOR=$(wc -l < /var/log/srvpanel/agent.log)
+#         Gemessen wird am NAMEN und nicht an der Zeilenzahl:
 #           → im Browser die EIGENE Konsole von A oeffnen
-#           EIGEN=$(wc -l < /var/log/srvpanel/agent.log)   # MUSS groesser sein
+#           grep -c '"op":"db.console.tables"' /var/log/srvpanel/agent.log
+#             MUSS groesser als 0 sein — der positive Fall
 #           → im Browser die Adresse einer Datenbank von B aufrufen
-#           FREMD=$(wc -l < /var/log/srvpanel/agent.log)   # MUSS gleich EIGEN sein
-#         Ohne den positiven Fall in der Mitte belegt „nichts dazugekommen"
-#         nur, dass niemand hingesehen hat.
+#           grep -c '<B-Datenbank>' /var/log/srvpanel/agent.log
+#             MUSS 0 sein — der Agent hat den Namen nie zu sehen bekommen
+#
+#         DIE ZEILENZAHL TAUGT DAFUER NICHT, und der erste Anlauf hat es
+#         vorgefuehrt: Zwischen den beiden Messungen kamen acht Zeilen dazu,
+#         und keine davon gehoerte zum Versuch — das Protokoll traegt
+#         `system.info` und `db.server.info` aus dem Hintergrund. Wer die
+#         Differenz liest, liest den Verkehr anderer.
+#
+#         > Eine Zaehlung ueber einen Kanal, auf dem auch andere sprechen,
+#         > misst das Gespraech nicht.
+#
+#         Der Name haengt dagegen an keinem Zeitfenster: Kommt die fremde
+#         Datenbank im ganzen Protokoll nicht vor, hat der Agent sie nie
+#         gesehen — egal, wer sonst noch geredet hat. Ohne den positiven Fall
+#         davor belegt die 0 allerdings weiterhin nichts.
 #    (b)  Am Agenten vorbei an der Anwendung, mit erfundener Nutzlast:
 #           Client::call("pg.console.tables", ["prefix" => <A>, "database" =>
 #                        <B-Datenbank>, "schema" => "public"])

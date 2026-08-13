@@ -11995,3 +11995,23 @@ PostgreSQL und MariaDB wiesen die nachgebaute Rolle ab.
 
 Es ist die zweite Korrektur, die Punkt 3 an seinem eigenen Aufbau erzwungen hat:
 Die erste war die Wand, die man nur erreicht, indem man die davor abschaltet.
+
+### Und die Zeilenzahl war das falsche Messgerät
+
+Punkt 3 (a) sollte belegen, dass der Agent beim Aufruf einer fremden Datenbank
+nicht gefragt wurde — gemessen an der Zeilenzahl von
+`/var/log/srvpanel/agent.log` vor und nach dem Versuch. Auf `cloudsrv24` kamen
+dabei acht Zeilen dazu, **und keine davon gehörte zum Versuch**: Das Protokoll
+trägt `system.info` und `db.server.info` aus dem Hintergrund.
+
+> **Eine Zählung über einen Kanal, auf dem auch andere sprechen, misst das
+> Gespräch nicht.**
+
+Gemessen wird jetzt am **Namen**: Kommt die fremde Datenbank im ganzen Protokoll
+nicht vor, hat der Agent sie nie gesehen — unabhängig davon, wer sonst geredet
+hat und in welchem Zeitfenster. Der positive Fall davor bleibt: Ohne ihn belegt
+auch eine 0 nichts.
+
+Es ist derselbe Fehler wie eine Stufe zuvor, nur andersherum: Dort wurde an
+einer Stelle gemessen, an der **nie** etwas steht (`journalctl`), hier an einer,
+an der **immer** etwas steht.

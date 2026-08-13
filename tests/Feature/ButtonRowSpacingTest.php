@@ -38,14 +38,20 @@ use SplFileInfo;
  */
 final class ButtonRowSpacingTest extends TestCase
 {
-    /**
-     * Bausteine, die ihren Abstand selbst mitbringen.
+    /*
+     * **Hier stand eine Liste `BRINGS_ITS_OWN`**, und sie ist beim Umdrehen der
+     * Frage überflüssig geworden: Solange der Test *Knopfreihen* suchte, musste
+     * er wissen, welche Vorgänger ihren Abstand selbst mitbringen. Seit er
+     * *bündige Bausteine* sucht, kommen die anderen gar nicht mehr vor.
      *
-     * `.empty` hat `padding: 22px 0`, `.notice` und `.section-note` haben einen
-     * eigenen Rand. Wer hier steht, braucht die Regel nicht — und bekäme mit ihr
-     * zu viel.
+     * Gefunden hat den Rest **PHPStan in der CI** — hier gibt es ihn nicht, und
+     * kein Wächter dieses Projekts sieht eine ungenutzte Konstante.
+     *
+     * > **Wer eine Frage umdreht, lässt die Antwort auf die alte stehen.**
+     *
+     * Was die Liste wusste, steht weiter dort, wo es hingehört: bei der Regel in
+     * `app.css`. `.empty` hat `padding: 22px 0` und braucht sie deshalb nicht.
      */
-    private const BRINGS_ITS_OWN = ['empty', 'notice', 'section-note', 'hint', 'lead', 'prose'];
 
     /**
      * Bausteine, die bündig enden — sie bringen unten keinen Abstand mit.

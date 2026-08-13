@@ -3225,19 +3225,59 @@ grün; eine Zahl, die Übersprungenes mitzählt, wäre schlimmer als keine. Dazu
 das Gestell jetzt `setUp()`, sonst scheitern Tests an uninitialisierten
 Eigenschaften und sähen aus wie gebrochene Regeln.
 
-**Gemessen am 13. August 2026 über den ganzen Bestand: 501 grün, 7 rot, 309
-übersprungen.** Die sieben stehen in drei Klassen — `DbCommandReachTest`,
-`PgHbaFollowTest`, `PolicyReachTest` —, und **keine davon ist ein Befund**: Alle
-drei binden Klassen aus `app/`, die ohne Laravels Autoloader leer bleiben; die
-Prüfung sieht dann eine Methode, die es „nicht mehr gibt". In der CI sind sie
-gegen denselben Commit grün.
+**Gemessen am 13. August 2026 über den ganzen Bestand: 468 grün, 1 rot, 263
+übersprungen** — und die 263 stehen nach Art daneben:
+
+| kann dieses Gestell nicht | |
+|---|---|
+| `Error` (Klassen aus `tests/Support`, Laravel) | 154 |
+| `setUp()` | 48 |
+| `ArgumentCountError` (Datenlieferanten) | 35 |
+| bindet `App\` ein — braucht Laravel | 25 |
+| `ReflectionException` | 1 |
+
+Der eine rote ist `PolicyReachTest`; er spiegelt über `App\Policies\…`, und in
+der CI ist er gegen denselben Commit grün.
 
 > **Ein Wächter ausserhalb seiner Umgebung ist rot, ohne dass etwas kaputt
 > ist — und das ist genauso wertlos wie grün.**
 
-Wer die Zahl hier benutzt, vergleicht sie deshalb gegen die CI und nicht gegen
-null. Was das Gestell trägt, sind die **Textwächter**: Sie lesen Dateien und
-brauchen nichts weiter.
+#### Und die Einteilung selbst ist dreimal danebengegangen
+
+**Erst war der Topf zu.** Jeder Fehler galt als „übersprungen", und ein
+`ArgumentCountError` aus meinem eigenen `sprintf()` verschwand darin — ein echter
+Bug in einer Abfrage, die ich gerade geschrieben hatte (§20.46).
+
+> **Ein Topf für „geht hier nicht" nimmt jeden Fehler auf, der nicht
+> widerspricht — und macht ihn unsichtbar.**
+
+**Dann sollte der Wortlaut entscheiden.** `str_contains($e->getMessage(), 'not
+found')` — und 104 Wächter kippten in die falsche Richtung, weil PHP für eine
+fehlende Klasse je nach Weg „not found" **oder** „does not exist" schreibt.
+
+> **Ein Kriterium, das den Wortlaut einer Meldung liest, ist so genau wie die
+> Laune dessen, der sie geschrieben hat.**
+
+Es ist derselbe Fehler wie das `\b` über Klassennamen (§20.30) und das `strpos`
+über `.notice {` (§20.42) — **dreimal an einem Tag**, und das dritte Mal in
+meinem eigenen Werkzeug.
+
+**Dann strukturell**, und auch das griff nicht: Der Ausdruck `/^use App\\/m`
+wurde beim Durchreichen zu `/^use App\/m` und suchte einen Schrägstrich. Er
+legte dabei offen, dass das Gestell auch an Datenlieferanten, `expectException()`
+und Hilfsklassen scheitert — die Einteilung „läuft/läuft nicht" hat also gar
+keine einfache Bedingung.
+
+**Die Antwort ist keine bessere Bedingung, sondern ein offener Topf.** Jede
+Ursache wird nach Art gezählt und ausgewiesen; ein neuer Grund fällt damit auf,
+ohne dass irgendwo eine Liste von Fehlertexten gepflegt werden muss.
+
+> **Ein Loch, das man zählt, ist kein Loch mehr — es ist eine Zahl, die kleiner
+> werden kann.**
+
+Wer die Zahl benutzt, vergleicht sie gegen die CI und nicht gegen null. Was das
+Gestell trägt, sind die **Textwächter**: Sie lesen Dateien und brauchen nichts
+weiter.
 
 ### 20.43 Befund 2 aus `docs/47` ist geschlossen — in beiden Systemen wörtlich gleich
 

@@ -2511,3 +2511,88 @@ Nachzuholen mit einer Folge, die auf einem zugeklappten Zweig beginnt:
 Punkt 3 zeigt in `rc.7` ausserdem noch die **feste** Station; dass sie mitwandert
 (§20.27), ist erst gegen die nächste Fassung zu belegen — Baum verlassen,
 zurücktabben, und dort landen, wo man war.
+
+### 20.28 Drei Fehler in einer Zeile — und der dritte zum dritten Mal
+
+**Der Nachtrag zu Schritt 5b hat die Beizeile getroffen**, die ich in eben
+diesem Schritt eingeführt habe (§20.23). Bei einer **Sicht** stand da:
+
+> Tabelle `umsaetze_je_ort` · Sicht · unbekannt Zeilen · 0 B · ohne Schlüssel
+
+Drei Fehler, alle meine:
+
+1. **„Tabelle … · Sicht"** — beides in einem Satz, zwei Wörter Abstand. Die
+   Beschriftung vor dem Namen stand fest auf „Tabelle", während die Angaben
+   dahinter die Art nannten.
+2. **„unbekannt Zeilen"** ist kein Deutsch. `formatRows(null)` gibt das Wort
+   „unbekannt" zurück, und ich hatte blind „ Zeilen" angehängt. Die Zahl trägt
+   ihre Einheit, das Wort trägt seinen Satz.
+3. **„0 B" für eine Sicht.** Eine Sicht speichert nichts; der Katalog meldet
+   dafür `0`, und die Anzeige machte daraus eine Grösse.
+
+> **Eine Beschriftung, die einen Wert wiederholt, der daneben steht, ist nicht
+> doppelt — sie ist die zweite Fassung.**
+
+**Der dritte ist der teure, weil er zum dritten Mal auftritt.** Vorher: die
+geschätzte Zeilenzahl (§9 — PostgreSQL meldet `-1`, und `max(0, …)` machte
+daraus „0 Zeilen") und die Länge einer binären Spalte mit `NULL` (§20.16 —
+„binär · 0 B"). Dreimal dieselbe Ursache: **eine Zahl, die es gibt, für eine
+Angabe, die es nicht gibt.**
+
+> **Eine 0, die für „nichts da" steht, sieht aus wie eine Antwort.**
+
+Beim dritten Mal bekommt sie einen Wächter:
+`NullDisplayTest::test_a_view_is_shown_without_a_size`. Er prüft den
+Zusammenhang und nicht den Aufruf — dass `formatBytes` vorkommt, ist richtig;
+falsch wäre, es ohne Rücksicht auf die Art der Tabelle zu tun.
+
+**Gefunden hat alle drei ein Bildschirmfoto**, und zwar eines, das für etwas
+ganz anderes aufgenommen wurde: Der Betreiber hat die Tabulatorstation belegt,
+und die Beizeile stand zufällig daneben.
+
+> **Ein Bild vom echten Server zeigt auch das, wofür es nicht aufgenommen
+> wurde.**
+
+### 20.29 Wie sich eine Bedienung belegen lässt
+
+**Die Frage des Betreibers zum Nachtrag war: „Die Anweisungen funktionieren.
+Aber wie soll ich es nachweisen?"** Sie gilt über diesen Schritt hinaus — für
+Schritt 6 stellt sie sich bei jedem Formular neu.
+
+> **Eine Bedienung hinterlässt keine Spur. Ein Zustand schon — also verwandle
+> die eine in den anderen.**
+
+Drei Wege, und der zweite ist der beste:
+
+**1 · Die Bewegung mitschreiben lassen.** Ein `focusin`-Horcher auf dem
+Dokument, dann von Hand tabben und pfeilen. Jede Zeile im Protokoll ist ein
+**echter** Tastendruck — das ist stärker als ein Lauf mit `dispatchEvent`, der
+zwar den Handler prüft, aber nicht, ob der Browser die Taste überhaupt dorthin
+leitet.
+
+**2 · Den Zustand danach ablesen.** Nach der Bedienung eine Zeile:
+
+```js
+document.querySelector('[role="treeitem"][tabindex="0"]').textContent.trim()
+```
+
+Gemessen am 13. August 2026 gegen `0.5.3-rc.8` nach „Tab hinein, dreimal
+Pfeil ab, Tab hinaus, Umschalt+Tab zurück": **`▾umsaetze_je_ort`** — die dritte
+Tabelle. In `rc.7` hätte dieselbe Zeile die erste genannt. Ein Bildschirmfoto
+dieser einen Zeile sagt mehr als ein Video der Bedienung.
+
+**3 · Messen statt ansehen.** Der Abstand unter der Tabelle: gemessen `16`.
+„Sieht jetzt besser aus" ist keine Zahl.
+
+**Und ein Nebenbefund aus demselben Lauf:** Als kein `.scrolls` auf der Seite
+war, ist die Messung mit einem `TypeError` **laut** gescheitert, statt still
+eine 0 zu liefern.
+
+> **Eine Messung, die ins Leere greift, soll abbrechen und nicht null
+> zurückgeben.**
+
+**Was keiner der drei belegt**, und das gehört benannt: dass eine
+**Vorleseausgabe** den Baum richtig ansagt. Die Rollen im Zugänglichkeitsbaum
+sind die Voraussetzung dafür, nicht der Beweis — den liefert nur NVDA oder
+VoiceOver, mit dem Baum bedient und dem Gehörten daneben. Das ist eine benannte
+Lücke und keine erledigte Sache.

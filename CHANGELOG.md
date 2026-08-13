@@ -11255,3 +11255,51 @@ Hälften: dass jede Station gebunden ist (eine feste `0` kann nicht wandern) und
 dass der Baum mitbekommt, wohin der Fokus geht. Und `docs/46 §20.27` hält die
 vier Belege fest, mit denen sich diese Ansicht prüfen lässt — für den
 Abnahmelauf und für jeden, der das Muster später anfasst.
+
+### Drei Fehler in einer Zeile — und der dritte zum dritten Mal
+
+Der Nachtrag zu Schritt 5b hat die Beizeile getroffen, die eben dieser Schritt
+eingeführt hat. Bei einer **Sicht** stand da: „Tabelle `umsaetze_je_ort` · Sicht
+· unbekannt Zeilen · 0 B · ohne Schlüssel".
+
+„Tabelle … · Sicht" widerspricht sich zwei Wörter später; „unbekannt Zeilen" ist
+kein Deutsch; und „0 B" für eine Sicht ist der **dritte** Fall derselben Falle in
+dieser Stufe — nach der geschätzten Zeilenzahl (`docs/46 §9`) und der Länge einer
+binären Spalte mit `NULL`.
+
+> **Eine 0, die für „nichts da" steht, sieht aus wie eine Antwort.**
+
+Beim dritten Mal bekommt sie einen Wächter. Er prüft den Zusammenhang und nicht
+den Aufruf: Dass `formatBytes` vorkommt, ist richtig — falsch wäre, es ohne
+Rücksicht auf die Art der Tabelle zu tun.
+
+**Gefunden hat alle drei ein Bildschirmfoto, das für etwas ganz anderes
+aufgenommen wurde:** Der Betreiber hat die Tabulatorstation belegt, und die
+Beizeile stand zufällig daneben.
+
+> **Ein Bild vom echten Server zeigt auch das, wofür es nicht aufgenommen
+> wurde.**
+
+### Wie sich eine Bedienung belegen lässt
+
+Die Frage dazu war: „Die Anweisungen funktionieren. Aber wie soll ich es
+nachweisen?" `docs/46 §20.29` hält die Antwort fest, weil sie über diesen Schritt
+hinausgilt.
+
+> **Eine Bedienung hinterlässt keine Spur. Ein Zustand schon — also verwandle
+> die eine in den anderen.**
+
+Belegt ist damit gegen `0.5.3-rc.8`: Nach „Tab hinein, dreimal Pfeil ab, Tab
+hinaus, Umschalt+Tab zurück" nennt `[role="treeitem"][tabindex="0"]` die
+**dritte** Tabelle. In `rc.7` hätte dieselbe Zeile die erste genannt — die
+Behauptung ist widerlegbar, und genau das macht sie zu einem Beleg.
+
+Und ein Nebenbefund: Als kein `.scrolls` auf der Seite war, ist die Messung mit
+einem `TypeError` laut gescheitert, statt still eine 0 zu liefern.
+
+> **Eine Messung, die ins Leere greift, soll abbrechen und nicht null
+> zurückgeben.**
+
+Was keiner dieser Belege zeigt, steht dabei: dass eine Vorleseausgabe den Baum
+richtig ansagt. Das liefert nur NVDA oder VoiceOver — eine benannte Lücke und
+keine erledigte Sache.

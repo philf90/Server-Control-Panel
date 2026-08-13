@@ -102,6 +102,49 @@ final class NullDisplayTest extends TestCase
     }
 
     /**
+     * Eine Sicht bekommt keine Grösse.
+     *
+     * **Der dritte Fall derselben Falle in dieser Stufe.** Eine Sicht speichert
+     * nichts; der Katalog meldet dafür `0`, und „0 B" liest sich wie „leer"
+     * statt wie „gibt es nicht".
+     *
+     * > **Eine 0, die für „nichts da" steht, sieht aus wie eine Antwort.**
+     *
+     * Vorher: die geschätzte Zeilenzahl (`docs/46 §9`, wo `-1` zu `null` wird
+     * statt zu `0`) und die Länge einer binären Spalte mit `NULL` (§20.16).
+     * Dreimal dieselbe Ursache — eine Zahl, die es gibt, für eine Angabe, die es
+     * nicht gibt. Beim dritten Mal bekommt sie einen Wächter.
+     *
+     * **Geprüft wird der Zusammenhang und nicht der Aufruf**: Dass irgendwo
+     * `formatBytes` steht, ist richtig; falsch wäre, es ohne Rücksicht auf die
+     * Art der Tabelle zu tun.
+     */
+    public function test_a_view_is_shown_without_a_size(): void
+    {
+        $source = (string) preg_replace('#/\*.*?\*/#su', '', $this->console());
+
+        $this->assertSame(
+            1,
+            preg_match('/const openFacts = computed\(.*?\n\}\)/su', $source, $treffer),
+            'Es gibt keine Angabenzeile zur offenen Tabelle mehr — dann prüft dieser Test nichts.',
+        );
+
+        $this->assertStringContainsString(
+            'formatBytes',
+            $treffer[0],
+            'Die Angabenzeile nennt keine Grösse mehr — dann rechnet dieser Test an nichts nach.',
+        );
+
+        $this->assertMatchesRegularExpression(
+            "/kind !== 'view'[^}]*formatBytes/su",
+            $treffer[0],
+            'Die Angabenzeile nennt die Grösse ohne Rücksicht auf die Art. Eine Sicht speichert '
+            .'nichts, der Katalog meldet dafür 0, und „0 B" liest sich wie „leer" statt wie „gibt es '
+            .'nicht" (docs/46 §20.28).',
+        );
+    }
+
+    /**
      * Und die Länge einer binären Spalte wird nicht auf 0 geklemmt.
      *
      * **Die zweite Hälfte, und ohne sie wäre die erste zu umgehen.** Wer die

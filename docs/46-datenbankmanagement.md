@@ -2940,3 +2940,105 @@ Nach hinten bleibt er streng verankert, und das ist die Hälfte, die zählt:
 Gesucht wird eine `ERROR:`-Zeile, auf der nach der Marke nichts mehr folgt. Ein
 Kundenwert, der die Marke in einer `DETAIL`-Zeile nachahmt, wird nicht erkannt —
 gegengeprüft.
+
+### 20.37 Schritt 6, zweite Hälfte — die Oberfläche und drei Funde beim Bauen
+
+Das Zeilenformular setzt die drei Regeln aus §10.1 um: `NULL` als eigener
+Zustand des Feldes, eine gekürzte oder binäre Zelle gesperrt mit dem Grund
+daneben, und nur geänderte Spalten in der Anweisung. Dazu Kriterium 5 — eine
+Tabelle ohne Schlüssel sagt, **warum** sie nur lesbar ist, und eine Sicht bekommt
+einen anderen Satz als eine Tabelle ohne Schlüssel („leg einen Schlüssel an"
+wäre dort der falsche Rat).
+
+**`touched` und nicht nur der Vergleich mit dem Ausgangswert.** Beim Ändern
+genügte ein Vergleich; beim **Anlegen** gibt es keinen Ausgangswert, und „das
+Feld ist leer" hiesse dann entweder „schreib `''`" oder „lass die Vorgabe
+gelten" — zwei Dinge, die ein leeres Textfeld nicht auseinanderhält.
+
+#### Fund 1 — Eine Feldbeschriftung schob die Seite um 96px
+
+Jede Beschriftung dieses Formulars ist ein **Spaltenname**, und der darf 63
+Zeichen lang sein. Es ist die vierte Fassung derselben Ausnahme, nach `.ident`,
+`.stacks td .ident` und dem Bereichstitel.
+
+> **Eine Beschriftung ist so lang wie das, was sie beschriftet — und das
+> entscheidet nicht, wer sie gestaltet.**
+
+#### Fund 2 — `min-width: 0` ist nicht die zweite Hälfte, sondern der zweite Weg
+
+Dieses Stylesheet behauptete an **drei** Stellen: „`min-width: 0` gehört dazu,
+weil ein Flexkind sonst nicht unter seine Inhaltsbreite darf." Das klingt richtig
+und ist seit dem Bereichstitel ungeprüft weitergereicht worden. Gemessen bei
+390px mit dem gebauten Stylesheet, am Feld **und** am Bereichstitel, gleiches
+Bild:
+
+| `overflow-wrap` | `min-width` | Überlauf |
+|---|---|---|
+| `anywhere` | `0` | 0px |
+| `anywhere` | `auto` | **0px** — allein genug |
+| `break-word` | `0` | **0px** — allein genug |
+| `break-word` | `auto` | 96px |
+| `normal` | `auto` | 96px |
+
+`overflow-wrap: anywhere` verkleinert die **Mindestbreite des Inhalts**,
+`break-word` nicht — deshalb bindet `min-width: auto` im einen Fall und im
+anderen nicht. Beide Regeln bleiben stehen, jetzt aber mit dem richtigen Grund:
+Wer `anywhere` für ein Synonym von `break-word` hält und tauscht, bekommt die
+Seite nicht zurückgeschoben.
+
+> **Zwei Regeln, die zusammen wirken, können auch zwei Wege zum selben Ziel sein
+> — und welcher davon trägt, sagt nur die Messung.**
+
+Gefunden hat es der **Bruch**: Die eine Hälfte zurückzunehmen sollte nach meiner
+eigenen Behauptung 94px ergeben und ergab 0.
+
+#### Fund 3 — Der Wächter über die Rangfolge meinte die Gliederung
+
+`ButtonStyleTest::test_at_most_one_primary_button_per_form` biss mit „3 Knöpfe
+mit ‚wichtig' in einem Formular". Die Antwort war nicht, einen Rang wegzunehmen:
+Die Filterzeile und das Zeilenformular sind wirklich zwei Formulare, sie waren
+nur `<div>`. Nebenbei tut die Eingabetaste jetzt, was man von ihr erwartet.
+
+> **Ein Wächter, der über die Rangfolge klagt, meint manchmal die Gliederung.**
+
+### 20.38 Dreizehn Brüche, und zwei davon haben Lücken gefunden
+
+`RowKeyTest` und `WriteBackTest` messen beide **an der erzeugten Anweisung** und
+nicht an einem Ergebnis (§14.6, §14.7). Jede Regel wurde einzeln gebrochen; elf
+bissen sofort, zwei nicht.
+
+**Die erste Lücke: Der Wächter las den Kommentar.** `RowKeyTest` verlangt, dass
+die MariaDB-Konsole den Satz nicht selbst baut, sondern `PgConsole::missed()`
+ruft. Der Bruch entfernte den Aufruf — und der Test blieb grün, weil derselbe
+Name zwei Zeilen darüber im **Kommentar** steht, der genau das erklärt.
+
+> **Ein Wächter, der Kommentare liest, wird von der Dokumentation des Fehlers
+> beruhigt, vor dem er schützt.**
+
+Dasselbe Muster wie in `ConsoleFanoutTest` und `NullDisplayTest`, nur andersherum:
+Dort machte ein Kommentar den Test rot, hier grün. **Die zweite Richtung ist die
+gefährlichere, weil sie nach Ordnung aussieht.**
+
+**Die zweite Lücke: ein Zweig von zweien.** `test_null_and_the_empty_string_stay_two_values`
+prüfte `NULL` nur beim **Ändern**. Der Bruch (`strval()` über die Werte) traf den
+Zweig fürs **Anlegen** und blieb grün — eine neue Zeile mit einem ausdrücklichen
+`NULL` in einer nullbaren Spalte ist ein gewöhnlicher Fall und hatte keinen
+Wächter. Geprüft werden jetzt vier Fälle: zwei Arten mal zwei Systeme.
+
+> **Ein Wächter, der einen von zwei Zweigen prüft, deckt die Hälfte ab und meldet
+> das nicht.**
+
+#### Und `git checkout -- resources/` hat die halbe Stufe weggeworfen
+
+Der Bruchlauf stellte jede Datei mit `git checkout` wieder her — auch die, deren
+Arbeit **noch nicht eingecheckt** war. 450 Zeilen Zeilenformular waren fort, in
+einem Befehl, der nach Aufräumen aussieht. Die Warnung dafür steht in `CLAUDE.md`
+und ist der Grund, weshalb `tests/waechter-brechen.sh` sich bei schmutzigem
+`resources/` weigert.
+
+Gerettet hat es eine Dateikopie im Scratchpad, die zehn Minuten vorher aus einem
+anderen Grund entstanden war. Seitdem gilt hier: **erst einchecken, dann
+brechen** — der Bruch ist ein Werkzeug, das den Baum verändert, und kein Lesen.
+
+> **Ein Wiederherstellen, das nicht zwischen fremder und eigener Änderung
+> unterscheidet, ist ein Löschen mit gutem Namen.**

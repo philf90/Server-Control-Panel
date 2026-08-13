@@ -138,17 +138,45 @@ final class WriteBackTest extends TestCase
             .'(docs/46 §10.1).',
         );
 
-        // Und in der ganzen Anweisung, nicht nur im Baustein: Ein `array_filter`
-        // irgendwo dazwischen würfe genau die Spalten weg, die auf `NULL`
-        // gesetzt werden sollen.
-        $statement = PgConsole::writeStatement('public', 't', $this->table(), 'update', ['id' => '1'], ['ort' => null]);
+        /*
+         * **Und in der ganzen Anweisung, in beiden Arten und beiden Systemen.**
+         *
+         * Der erste Wurf prüfte nur das Ändern — und der Bruch dazu (ein
+         * `strval()` über die Werte) blieb **grün**, weil er den Zweig fürs
+         * Anlegen traf. Eine neue Zeile mit einem ausdrücklichen `NULL` in einer
+         * nullbaren Spalte ist ein gewöhnlicher Fall, und er hatte keinen
+         * Wächter.
+         *
+         * > **Ein Wächter, der einen von zwei Zweigen prüft, deckt die Hälfte
+         * > ab und meldet das nicht.**
+         */
+        $faelle = 0;
 
-        $this->assertMatchesRegularExpression(
-            '/"ort"\s*=\s*NULL/',
-            $statement,
-            "Eine Spalte, die auf `NULL` gesetzt werden soll, kommt nicht als `NULL` in der Anweisung an:\n\n"
-            .$statement,
-        );
+        foreach (['PostgreSQL', 'MariaDB'] as $engine) {
+            foreach (['update' => '/(?:"ort"|`ort`)\s*=\s*NULL/', 'insert' => '/VALUES\s*\(NULL\)/'] as $mode => $muster) {
+                $faelle++;
+
+                $statement = $engine === 'PostgreSQL'
+                    ? PgConsole::writeStatement('public', 't', $this->table(), $mode, ['id' => '1'], ['ort' => null])
+                    : DbConsole::writeStatement('db', 't', $this->table(), $mode, ['id' => '1'], ['ort' => null]);
+
+                $this->assertMatchesRegularExpression(
+                    $muster,
+                    $statement,
+                    sprintf(
+                        "%s schreibt beim `%s` kein `NULL`, obwohl eines gesetzt werden soll:\n\n%s\n\n"
+                        .'Ein `NULL`, das unterwegs zu `\'\'` wird, ist der Fehler aus docs/46 §10.1 — '
+                        .'und ein `WHERE spalte IS NULL` der Kundenanwendung findet die Zeile danach '
+                        .'nicht mehr.',
+                        $engine,
+                        $mode,
+                        $statement,
+                    ),
+                );
+            }
+        }
+
+        $this->assertSame(4, $faelle, 'Es werden nicht alle vier Fälle gefahren — dann prüft dieser Test weniger, als er behauptet.');
     }
 
     /**

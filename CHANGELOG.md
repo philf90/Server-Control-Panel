@@ -11467,3 +11467,65 @@ sah aus wie „keine eigene Meldung" und fiel still in die alte Verpackung zurü
 
 > **Ein Ausdruck, der nichts findet, sieht aus wie einer, der nichts zu finden
 > hatte.**
+
+### P5c Schritt 6, zweite Hälfte — das Zeilenformular
+
+Anlegen, Ändern und Löschen, mit den drei Regeln des Schreibwegs: `NULL` als
+eigener Zustand des Feldes, eine gekürzte oder binäre Zelle gesperrt mit dem
+Grund daneben, und nur geänderte Spalten in der Anweisung. Dazu Kriterium 5 —
+eine Tabelle ohne Schlüssel sagt, warum sie nur lesbar ist, und eine Sicht
+bekommt einen anderen Satz als eine Tabelle ohne Schlüssel.
+
+Zwei neue Wächter, `RowKeyTest` und `WriteBackTest`, beide **an der erzeugten
+Anweisung** und nicht am Ergebnis: Der Schaden von Regel 2 ist gerade der, den
+man am Ergebnis nicht sieht — die Zeile ist danach da, sie sieht richtig aus, und
+der Rest einer gekürzten Zelle ist fort.
+
+### Eine Feldbeschriftung ist so lang wie der Spaltenname
+
+96px aus dem Bild bei 390px. Vierte Fassung derselben Ausnahme.
+
+> **Eine Beschriftung ist so lang wie das, was sie beschriftet — und das
+> entscheidet nicht, wer sie gestaltet.**
+
+### `min-width: 0` ist nicht die zweite Hälfte von `overflow-wrap`
+
+Dieses Stylesheet behauptete an drei Stellen: „`min-width: 0` gehört dazu, weil
+ein Flexkind sonst nicht unter seine Inhaltsbreite darf." Ungeprüft, und
+gemessen falsch: `overflow-wrap: anywhere` **allein** genügt (0px), `break-word`
+allein nicht (96px). `anywhere` verkleinert die Mindestbreite des Inhalts,
+`break-word` nicht.
+
+Beide Regeln bleiben stehen, jetzt mit dem richtigen Grund: Wer `anywhere` für
+ein Synonym von `break-word` hält und tauscht, bekommt die Seite nicht
+zurückgeschoben. Gefunden hat es der Bruch — die eine Hälfte zurückzunehmen
+sollte nach der eigenen Behauptung 94px ergeben und ergab 0.
+
+> **Zwei Regeln, die zusammen wirken, können auch zwei Wege zum selben Ziel sein
+> — und welcher davon trägt, sagt nur die Messung.**
+
+### Dreizehn Brüche, zwei Lücken
+
+Der Wächter über die MariaDB-Meldung blieb grün, als der Aufruf entfernt wurde —
+er las den **Kommentar**, der genau diesen Aufruf erklärt.
+
+> **Ein Wächter, der Kommentare liest, wird von der Dokumentation des Fehlers
+> beruhigt, vor dem er schützt.** Dieselbe Falle wie in `ConsoleFanoutTest`, nur
+> andersherum; die zweite Richtung ist die gefährlichere, weil sie nach Ordnung
+> aussieht.
+
+Und der Wächter über `NULL` prüfte nur das Ändern, nicht das Anlegen — der Bruch
+traf den anderen Zweig und blieb grün. Geprüft werden jetzt vier Fälle.
+
+> **Ein Wächter, der einen von zwei Zweigen prüft, deckt die Hälfte ab und meldet
+> das nicht.**
+
+### Und `git checkout -- resources/` hat die halbe Stufe weggeworfen
+
+Der Bruchlauf stellte jede Datei mit `git checkout` wieder her — auch die, deren
+Arbeit noch nicht eingecheckt war. 450 Zeilen Zeilenformular waren fort, in einem
+Befehl, der nach Aufräumen aussieht. Gerettet hat es eine Dateikopie im
+Scratchpad, die zehn Minuten vorher aus einem anderen Grund entstanden war.
+
+> **Ein Wiederherstellen, das nicht zwischen fremder und eigener Änderung
+> unterscheidet, ist ein Löschen mit gutem Namen.**

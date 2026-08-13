@@ -1721,6 +1721,31 @@ tr:has(td.multiline) > td {
   margin-top: var(--block-gap);
 }
 
+/*
+ * **Und beim fünften Mal war es eine Meldung.**
+ *
+ * Der Betreiber hat es auf dem Bild zu P5c Schritt 6 gesehen: Der Satz „Diese
+ * Tabelle hat keinen Primärschlüssel …" klebte unter der Blätterleiste. Es ist
+ * dieselbe Fuge wie oben, mit einem anderen Nachfolger — und damit der Beleg,
+ * dass die Frage nicht „welcher Nachbar?" heisst, sondern **„endet der eine
+ * bündig, und fängt der andere bündig an?"**
+ *
+ * `.notice` bringt `margin-bottom` mit und oben nichts; `.pager` hat oben eine
+ * Linie und unten nichts. Zwei Bausteine, die beide in dieselbe Richtung nichts
+ * mitbringen, und dazwischen 0px.
+ *
+ * > **Eine Liste von Nachbarn, die wächst, ist keine Regel — sie ist eine
+ * > Aufzählung der Fälle, die schon jemand gesehen hat.**
+ *
+ * `--block-gap` und nicht die 16px darüber: Eine Meldung lässt **unter** sich
+ * genau so viel, und ein Abstand, der oben enger ist als unten, setzt sie
+ * sichtbar schief zwischen ihre Nachbarn. Gemessen 26/26 bei 1200px und 24/24
+ * bei 390px.
+ */
+:is(.field, .hint, .error, .scrolls, .pager, .cell-value, .button-row) + .notice {
+  margin-top: var(--block-gap);
+}
+
 @media (max-width: 480px) {
   .button-row {
     flex-direction: column;

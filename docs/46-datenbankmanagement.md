@@ -3107,3 +3107,70 @@ Container fährt die framework-freien Wächter; `ConsoleStatementTest` und
 
 > **Ein Wächter, den die eigene Umgebung nicht fahren kann, findet trotzdem —
 > nur später und teurer.**
+
+### 20.41 Die fünfte Fuge — und der Wächter, der vier davon nicht sehen konnte
+
+**Kriterium 5 ist belegt** (Bild vom 13. August gegen `0.5.3-rc.11`): Auf
+`protokoll_ohne_schluessel` gibt es keine Spalte „Zeile", kein „Zeile anlegen",
+und der Satz steht da. Auf demselben Bild fand der Betreiber den Fehler: Der Satz
+klebte unter der Blätterleiste.
+
+Gemessen mit dem gebauten Stylesheet:
+
+| | 1200px | 390px |
+|---|---|---|
+| Blätterleiste → Hinweis, vorher | **0px** | **0px** |
+| Blätterleiste → Hinweis, nachher | 26px | 24px |
+| Hinweis → Knopfreihe (seine eigene Kante) | 26px | 24px |
+| Meldung → Meldung (Gegenprobe) | 26px | 24px |
+
+`--block-gap` und nicht die 16px der Knopfreihe: Eine Meldung lässt **unter**
+sich genau so viel, und ein Abstand, der oben enger ist als unten, setzt sie
+sichtbar schief zwischen ihre Nachbarn.
+
+#### Der Wächter hat die falsche Frage gestellt — viermal richtig
+
+`ButtonRowSpacingTest` fragte nach **Knopfreihen**. Das war die Frage der ersten
+vier Fälle und trotzdem die falsche: Beim fünften stand dort eine Meldung.
+
+> **Eine Liste von Nachbarn, die wächst, ist keine Regel — sie ist eine
+> Aufzählung der Fälle, die schon jemand gesehen hat.**
+
+Er heisst jetzt `BlockSpacingTest` und fragt: **Endet der eine bündig, und fängt
+der andere bündig an?** Zwei Listen, alle Paare daraus, und für jedes Paar, das
+in einer Vorlage wirklich vorkommt, muss `app.css` eine Nachbarschaftsregel
+haben.
+
+#### Und dabei kamen drei Fehler im Wächter selbst heraus
+
+**Erstens: `.pager` stand seit Schritt 5 in der Liste und wurde nie gefunden.**
+Der alte Ausdruck las den Vorgänger „bis zum nächsten Tag desselben Namens" —
+`.scrolls` geht so, `.pager` nicht, denn darin stehen drei `<div>`. Die
+Untergrenze zählte die anderen Bausteine mit und blieb grün.
+
+> **Ein Eintrag in einer Liste, den der Ausdruck nie erreicht, sieht aus wie eine
+> Abdeckung und ist eine Lücke.**
+
+Gesucht wird jetzt über die **Verschachtelungstiefe**, und ein dritter Test
+verlangt, dass jeder Name beider Listen in einer Vorlage wirklich vorkommt — der
+Wächter über den Wächter.
+
+**Zweitens: der Ausdruck las den `<script>`-Block mit.** `ref<HTMLElement | null>`
+sieht aus wie ein Tag, das nie zugeht; die Tiefenzählung lief ins Dateiende und
+fand fast nichts. Sie meldete das nicht — sie gab weniger Paare zurück.
+
+**Drittens, und das ist der Kern: `<template v-else>` rendert nichts.** Die
+Blätterleiste steht darin, die Meldung dahinter — im Quelltext sind sie **keine**
+Geschwister, im Browser sind sie es, und dort klebten sie.
+
+> **Ein Wächter, der Markup liest, muss lesen, was gerendert wird — nicht, was
+> dasteht.**
+
+Ohne diesen dritten Punkt hätte der neue Wächter genau den Fall nicht gefunden,
+für den er gebaut wurde. Belegt hat es der Bruch: Macht man `<template>` wieder
+undurchsichtig, sinkt die Zahl der gefundenen Fugen von drei auf zwei — und
+`.pager + .notice` ist die, die fehlt.
+
+**Fünf Brüche, fünf Bisse**, und der erste nennt die Fuge des Betreibers
+wörtlich: „`Console.vue` setzt `.notice` unmittelbar unter `.pager`, und app.css
+kennt diese Nachbarschaft nicht."

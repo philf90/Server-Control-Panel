@@ -11564,3 +11564,40 @@ Stelle dafür, `PanelLayout.vue`. Die Konsole hat eine eigene bekommen, weil ein
 `Composables/useAnnounce.ts` ist dieser Weg. Die Regel bleibt: Gerendert wird
 weiter nur im Layout, es gibt weiter genau eine Datei mit `notice ok`, und
 `FieldErrorTest` ist unverändert. `docs/19 §6.3` hat den Zusatz bekommen.
+
+### Die fünfte Fuge, und der Wächter, der vier davon nicht sehen konnte
+
+Der Satz „Diese Tabelle hat keinen Primärschlüssel …" klebte unter der
+Blätterleiste — 0px, wo dieselbe Meldung unter sich 26px lässt. Gefunden hat es
+der Betreiber auf dem Bild zu Kriterium 5.
+
+`ButtonRowSpacingTest` fragte nach **Knopfreihen**. Das war die Frage der ersten
+vier Fälle und trotzdem die falsche.
+
+> **Eine Liste von Nachbarn, die wächst, ist keine Regel — sie ist eine
+> Aufzählung der Fälle, die schon jemand gesehen hat.**
+
+Er heisst jetzt `BlockSpacingTest` und fragt: Endet der eine bündig, und fängt
+der andere bündig an? Alle Paare aus zwei Listen, und jedes, das in einer Vorlage
+vorkommt, braucht seine Regel.
+
+### Drei Fehler im Wächter, die dabei herauskamen
+
+**`.pager` stand seit Schritt 5 in seiner Liste und wurde nie gefunden.** Der
+alte Ausdruck las „bis zum nächsten Tag desselben Namens", und in einer
+Blätterleiste stehen drei `<div>`. Die Untergrenze zählte die anderen mit.
+
+> **Ein Eintrag in einer Liste, den der Ausdruck nie erreicht, sieht aus wie eine
+> Abdeckung und ist eine Lücke.**
+
+**Der Ausdruck las den `<script>`-Block mit.** `ref<HTMLElement | null>` sieht
+aus wie ein Tag, das nie zugeht.
+
+**Und `<template v-else>` rendert nichts.** Die Blätterleiste steht darin, die
+Meldung dahinter — im Quelltext keine Geschwister, im Browser schon.
+
+> **Ein Wächter, der Markup liest, muss lesen, was gerendert wird — nicht, was
+> dasteht.**
+
+Ohne diesen Punkt hätte der neue Wächter genau den Fall nicht gefunden, für den
+er gebaut wurde.

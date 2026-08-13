@@ -11350,3 +11350,49 @@ Knopf führt hinein.
 
 > **Eine Frage nach einer neuen Farbe ist meistens eine nach einem Rang, den es
 > schon gibt.**
+
+### Eine Messung, die überall eine Zahl findet
+
+Der Beleg für den Abstand unter der Knopfreihe lief beim ersten Versuch auf der
+Konsolenseite statt auf der Datenbankseite — und meldete `luecke: -2231` statt
+abzubrechen. Beide Klassen gibt es dort auch, nur in der anderen Reihenfolge:
+Der Ausdruck hat zwei Elemente gefunden, die nichts miteinander zu tun haben,
+und ihren Abstand ausgerechnet.
+
+Das `throw` im Ausdruck stellte die falsche Frage — *gibt es die beiden?* statt
+*sind es die beiden, die ich meine?*
+
+> **Eine Messung, die ins Leere greift, bricht ab. Eine, die daneben greift,
+> rechnet weiter.** Die zweite ist die gefährlichere.
+
+Das Vorzeichen war der einzige Hinweis: Ein negativer Abstand heisst, dass die
+angenommene Reihenfolge nicht stimmt. Er wurde ausgegeben statt geprüft. Der
+Ausdruck fragt jetzt nach der **Nachbarschaft** — derselben Beziehung, die auch
+die CSS-Regel ausdrückt — und bricht auf jeder anderen Seite mit einem Grund ab.
+
+> **Ein Ausdruck, der zwei Dinge sucht, muss sagen, dass sie zusammengehören.**
+
+Auf demselben Bild stand nebenbei der Beleg, der noch fehlte: die Beizeile einer
+echten Tabelle mit `120 Zeilen · 136 KB · mit Schlüssel`, neben der Sicht ohne
+jede Grössenangabe. Erst zusammen belegen die beiden etwas.
+
+> **Ein Bild vom echten Server zeigt auch das, wofür es nicht aufgenommen
+> wurde.**
+
+### Der Beleg zum Abstand, gefahren — mit einer Zahl, die anders ausfiel
+
+Auf `cloudsrv24` gegen `0.5.3-rc.10`, mit dem berichtigten Ausdruck: `luecke`
+**34** in der weiten Fläche, **24** bei 390px, `rang` beide Male
+`button primary`, `dokument` beide Male 0.
+
+Erwartet hatte ich 26 — den Wert der Dichtestufe `admin`, gegen die hier
+gemessen wurde. Gemessen wurde in der **Kundensicht**, und dort ist
+`--block-gap` 34px. Die Abweichung ist die Probe darauf, dass die Regel die
+Marke liest und keine Zahl: Eine feste `26px` hätte der Kundenfläche einen
+Abstand gegeben, der zu keinem ihrer Nachbarn passt.
+
+> **Eine Messung, die anders ausfällt als erwartet und trotzdem stimmt, prüft
+> mehr als eine, die trifft.**
+
+> **Eine Messung ohne die Stufe, in der sie entstand, ist eine Zahl ohne
+> Einheit.**

@@ -1116,10 +1116,32 @@ statt dreistelliger.
 
 **Damit ist Schritt 5 abgeschlossen.**
 
-### Schritt 5b — Die Baumansicht
+### Schritt 5b — Die Baumansicht ✓
 
 Der Baum aus §11.1 als Navigation: Tabellen als Zweige, Spalten/Indexe/Zeilen als
-Ziele, der Inhalt ab 900 px daneben und darunter, solange es enger ist.
+Ziele, der Inhalt ab 720 px daneben und darunter, solange es enger ist.
+
+**Gebaut am 13. August 2026.** Die Tabellenliste ist ein `role="tree"` mit
+Pfeiltastenbedienung, jeder Zweig eine Tabelle, jedes Blatt eines von drei
+Zielen. Der Grundriss ist der **einzige zweispaltige dieses Panels**.
+
+**Die Zahlen, die den Baum begründet haben — jetzt gegen das ausgelieferte
+Stylesheet, zwanzig Tabellen, zugeklappt:**
+
+| | 390 px | 1440 px |
+|---|---|---|
+| als Kärtchenstapel (vorher) | **6072 px** | 881 px |
+| als Baum | **929 px** | 803 px |
+
+Der waagerechte Überlauf ist bei jeder gemessenen Breite `0px` — 390, 720, 800,
+900 und 1440. Am Arbeitsplatz nehmen sich die beiden nichts; der Unterschied ist
+das Telefon, und dort ist er das Sechsfache.
+
+> **Der Baum löst kein Navigationsproblem. Er löst ein Telefonproblem.**
+
+**Drei Dinge sind beim Bauen anders gekommen als geplant** — der Haltepunkt
+(§20.21), eine unsichtbare Rückmeldung (§20.22) und die Frage, wohin die vier
+Angaben gehen, die der Baum nicht mehr trägt (§20.23).
 
 **Er kommt nach Schritt 5 und vor Schritt 6.** Nach 5, weil er die Zeilenansicht
 aufruft und sie vorher nicht existiert; vor 6, weil Schritt 6 sonst auf einem
@@ -1283,8 +1305,25 @@ räumt sie ab; eine Schleife über die Tabellenliste wären zwanzig davon. Gepr�
 wird als Textregel — kein `map`/`for` über die Tabellen, der `columns` oder
 `indexes` ruft, und kein Bedienelement mit „alles".
 
-**Die Brüche dazu**: `aria-expanded` aus einem Knoten nehmen; einen Knopf
-„Alles aufklappen" einbauen, der über die Tabellenliste läuft.
+**Gebaut am 13. August 2026, und die Regeln sind feiner geworden als geplant.**
+
+`TreeSemanticsTest` prüft vier Dinge: `role="tree"` am Behälter, mindestens zwei
+`treeitem`, **zu jeder `role="group"` genau ein `aria-expanded`** — gezählt und
+nicht gesucht, denn dass das Wort irgendwo vorkommt, sagt nichts über den zweiten
+Zweig — jedes `<li>` mit `role="none"`, und ein `@keydown` am Baum. Die
+Pfeiltastenbedienung ist Teil des Musters und nicht sein Zubehör.
+
+`ConsoleFanoutTest` prüft drei: **Aufklappen stellt keine Anfrage** (die schärfste
+Fassung — nicht „sparsam", sondern gar nicht), keine Anfrage in einer Schleife
+über die Tabellenliste, und kein Bedienelement, das alles öffnet.
+
+**Sieben Brüche gefahren, alle rot.** Der siebte hat den Wächter dabei selbst
+verbessert: „Alles aufklappen" stand als Erklärung in einem Quelltextkommentar,
+und der erste Anlauf las ihn mit.
+
+> **Ein Wächter, der Kommentare liest, bestraft das Dokumentieren genau des
+> Fehlers, vor dem er schützt.** (Derselbe Fund wie in `PackagingTest`, nur in
+> einer anderen Sprache.)
 
 > **Ein Bedienelement, das zwanzig Datenbankrollen anlegt, sieht aus wie ein
 > Komfort.**
@@ -2215,3 +2254,96 @@ Die beiden Alternativen kosten mehr, als sie einbringen:
 
 Die Begründung steht ausserdem bei `.rows .cell` in `app.css` — dort, wo jemand
 als Nächstes ein `max-height` hinschreiben würde.
+
+### 20.21 Der Plan sagte 900 px, und dieses Panel kennt keinen dritten Haltepunkt
+
+§11.1 schreibt „ab 900 px daneben". **`docs/24 §1` heisst „Zwei Haltepunkte, und
+kein dritter"** — 720 px und 480 px, mit Begründung und mit einem Wächter, der
+jeden anderen Wert abweist.
+
+Die 900 stammen aus der Entwurfsphase dieses Plans und sind gegen `docs/24` nie
+gehalten worden. Gemessen reicht 720:
+
+| Breite | Inhaltsspalte |
+|---|---|
+| 720 px | 416 px |
+| 800 px | 496 px |
+| 900 px | 596 px |
+| 1440 px | 798 px |
+
+Bei 720 px teilen sich Baum (280 px) und Inhalt (416 px) die Fläche; die
+Strukturtabelle rollt dort innerhalb ihrer Spalte, wofür `.scrolls` da ist. Ein
+dritter Haltepunkt hätte dafür eine Vorgabe gebrochen, die neun Monate lang
+gehalten hat.
+
+> **Eine Zahl in einem Schrittplan ist keine Vorgabe. Sie ist ein Vorschlag, bis
+> jemand sie gegen die Vorgabe hält.**
+
+### 20.22 Ein Überlauf, der nur in der Mitte auftritt
+
+**Der erste zweispaltige Entwurf schob die Seite — aber nur bei 800 und 900 px.**
+Bei 720 und bei 1440 stand die Messung auf `0px`, also genau an den beiden
+Stellen, an denen man zuerst nachsieht: am Haltepunkt und am Arbeitsplatz.
+
+```
+ohne min-width: 0     720px: 0px   800px: 242px   900px: 142px   1440px: 0px
+mit  min-width: 0     720px: 0px   800px:   0px   900px:   0px   1440px: 0px
+```
+
+Die Ursache ist dieselbe wie an vier anderen Stellen dieses Panels: **Ein
+Rasterkind hat als Mindestbreite seine Inhaltsbreite**, und im Inhalt steht eine
+Tabelle, deren Kennungen `white-space: nowrap` tragen. Die `1fr`-Spalte konnte
+deshalb nicht unter die Breite des längsten Bezeichners, und der Rest schob.
+
+> **Ein Überlauf, der nur in der Mitte auftritt, entkommt beiden Messungen, die
+> man von selbst macht.**
+
+Deshalb misst das Skript zu diesem Schritt vier Breiten und nicht zwei.
+
+**Und eine zweite Rückmeldung war unsichtbar.** Der erste Entwurf nahm
+`--control-bg` als Hintergrund für Hover und ausgewähltes Ziel. Im hellen Theme
+ist das `#ffffff` — derselbe Wert wie `--bg`. Eine Rückmeldung, die es nur im
+dunklen Theme gibt, und dieselbe Fehlerklasse wie der Knopfrand mit 1,04:1 und
+das Eingabefeld mit 1,09:1.
+
+> **Eine Marke, die man für einen Hintergrund hält, ist noch keine Farbe, die
+> sich vom Hintergrund abhebt.**
+
+Behoben nach der Hausform: Hover ändert die Farbe (wie `.button:hover`), das
+ausgewählte Ziel trägt `--accent-surface` (wie `.button.active`). Beides sind
+vorhandene Marken, und „ausgewählt" sieht damit im ganzen Panel gleich aus.
+
+### 20.23 Was aus der Navigation fällt, muss im Inhalt landen
+
+Die alte Tabellenliste trug fünf Angaben je Tabelle: Name, Art, Zeilenzahl,
+Grösse, Schlüssel. **Der Baum trägt nur den Namen** (§11.1) — und die anderen
+vier waren damit erst einmal weg.
+
+Weglassen war keine Möglichkeit. „Hat diese Tabelle einen Schlüssel" entscheidet,
+ob es die Zelleinzelsicht gibt (§12), und ab Schritt 6, ob man sie ändern kann;
+Zeilenzahl und Grösse sind das, woran man eine Tabelle einschätzt, bevor man sie
+öffnet.
+
+Sie stehen jetzt in der Beizeile des offenen Ziels:
+
+    Tabelle bestellpositionen_… · Tabelle · 16.008 Zeilen · 3,3 MB · mit Schlüssel
+
+> **Was aus der Navigation fällt, muss im Inhalt landen — sonst ist es
+> weggefallen.**
+
+**Und ein Ziel öffnet jetzt genau eine Katalogfrage.** Spalten und Indexe waren
+eine Ansicht mit zwei Bereichen und zwei Anfragen nebeneinander; im Baum sind sie
+zwei Blätter. Zwei Blätter, die dasselbe öffnen, wären eine Lüge über die
+Navigation — und nebenbei kostet jedes Ziel damit einen befristeten Zugang statt
+zweier.
+
+### 20.24 Ein Klick, der auf dem Telefon nichts zu tun scheint
+
+Unter 720 px liegt der Inhalt **unter** dem Baum, und zwanzig Zweige sind rund
+930 px hoch. Wer „Zeilen" wählt, bekommt die Zeilen zwei Bildschirme weiter
+unten — die Seite ändert sich sichtbar überhaupt nicht.
+
+Die Ansicht holt den Inhalt deshalb ins Bild, und nur dort: Ab 720 px steht er
+daneben und ist längst zu sehen, ein Sprung wäre eine Bewegung ohne Anlass. Die
+Breite kommt aus `matchMedia` mit demselben Haltepunkt wie in `app.css` — zwei
+Fassungen davon wären eine zu viel.

@@ -11097,3 +11097,85 @@ machen die Anzeige ausschliesslich schmaler.
 Damit sind die Schritte 0 bis 5 aus `docs/46 §13` erledigt. Offen sind 5b (die
 Baumansicht), 6 (Ändern, mit Kriterium 5 und dem Befund 2 aus `docs/47`), 7 (das
 Protokoll), 8 (die Wächter brechen) und 9 (der Abnahmelauf).
+
+### Schritt 5b von P5c — der Navigationsbaum
+
+Die Tabellenliste der Konsole ist ein Baum: jeder Zweig eine Tabelle, jedes Blatt
+eines von drei Zielen — Spalten, Indexe, Zeilen. Der Grundriss ist der **einzige
+zweispaltige dieses Panels**: unter 720 px liegt der Inhalt unter dem Baum,
+darüber daneben.
+
+**Gemessen gegen das ausgelieferte Stylesheet, zwanzig Tabellen, zugeklappt:**
+
+| | 390 px | 1440 px |
+|---|---|---|
+| als Kärtchenstapel (vorher) | **6072 px** | 881 px |
+| als Baum | **929 px** | 803 px |
+
+Der waagerechte Überlauf ist bei jeder gemessenen Breite `0px` — 390, 720, 800,
+900 und 1440.
+
+> **Der Baum löst kein Navigationsproblem. Er löst ein Telefonproblem.**
+
+Der Grund steht in `docs/24 §5`: `.stacks` macht aus jeder Zeile ein Kärtchen mit
+einer beschrifteten Zeile je Spalte. Das ist richtig für ein Verzeichnis, das man
+Zeile für Zeile liest, und falsch für eine Liste, die man nach **einem** Namen
+absucht.
+
+**Aufklappen holt nichts.** Die drei Ziele unter einem Zweig sind
+Beschriftungen; geholt wird erst, wenn jemand eines wählt — für eine Tabelle.
+Ein „alles aufklappen" gibt es nicht: Es wäre ein Knopf, der so viele
+Datenbankrollen anlegt, wie die Datenbank Tabellen hat.
+
+**Und ein Ziel öffnet jetzt genau eine Katalogfrage.** Spalten und Indexe waren
+eine Ansicht mit zwei Anfragen nebeneinander; als zwei Blätter sind sie zwei
+Ziele. Zwei Blätter, die dasselbe öffnen, wären eine Lüge über die Navigation.
+
+### Der Plan sagte 900 px, und dieses Panel kennt keinen dritten Haltepunkt
+
+`docs/46 §11.1` schreibt „ab 900 px daneben". `docs/24 §1` heisst „Zwei
+Haltepunkte, und kein dritter" — mit Begründung und mit einem Wächter, der jeden
+anderen Wert abweist. Die 900 stammen aus der Entwurfsphase und sind gegen
+`docs/24` nie gehalten worden.
+
+Gemessen reicht 720: Die Inhaltsspalte ist dort 416 px breit, und die
+Strukturtabelle rollt innerhalb ihrer Spalte, wofür `.scrolls` da ist.
+
+> **Eine Zahl in einem Schrittplan ist keine Vorgabe. Sie ist ein Vorschlag, bis
+> jemand sie gegen die Vorgabe hält.**
+
+### Ein Überlauf, der nur in der Mitte auftritt
+
+Der erste zweispaltige Entwurf schob die Seite — aber **nur bei 800 und 900 px**.
+Bei 720 und bei 1440 stand die Messung auf `0px`, also genau an den beiden
+Stellen, an denen man zuerst nachsieht: am Haltepunkt und am Arbeitsplatz.
+
+Die Ursache ist dieselbe wie an vier anderen Stellen dieses Panels: Ein
+Rasterkind hat als Mindestbreite seine Inhaltsbreite, und im Inhalt steht eine
+Tabelle, deren Kennungen nicht umbrechen dürfen.
+
+> **Ein Überlauf, der nur in der Mitte auftritt, entkommt beiden Messungen, die
+> man von selbst macht.**
+
+**Und eine zweite Rückmeldung war unsichtbar.** Hover und ausgewähltes Ziel
+standen auf `--control-bg`; im hellen Theme ist das `#ffffff` und damit derselbe
+Wert wie `--bg`. Eine Rückmeldung, die es nur im dunklen Theme gibt — dieselbe
+Fehlerklasse wie der Knopfrand mit 1,04:1 und das Eingabefeld mit 1,09:1.
+
+> **Eine Marke, die man für einen Hintergrund hält, ist noch keine Farbe, die
+> sich vom Hintergrund abhebt.**
+
+### Was aus der Navigation fällt, muss im Inhalt landen
+
+Die alte Tabellenliste trug fünf Angaben je Tabelle. Der Baum trägt nur den
+Namen — der erste Entwurf hatte die anderen rechts daneben, und in einer 280 px
+schmalen Spalte quetschte das den Tabellennamen auf ein Zeichen je Zeile.
+
+Weglassen war keine Möglichkeit: „hat diese Tabelle einen Schlüssel" entscheidet,
+ob es die Zelleinzelsicht gibt, und ab Schritt 6, ob man sie ändern kann. Die
+vier Angaben stehen jetzt in der Beizeile des offenen Ziels.
+
+**Und ein Klick tat auf dem Telefon scheinbar nichts.** Unter 720 px liegt der
+Inhalt unter dem Baum, und zwanzig Zweige sind rund 930 px hoch. Die Ansicht
+holt ihn deshalb ins Bild — und nur dort, denn ab 720 px steht er daneben und
+ist längst zu sehen.

@@ -1388,6 +1388,171 @@ table.pairs {
   overflow-wrap: anywhere;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   Der Navigationsbaum (docs/46 §11.1, Schritt 5b)
+
+   Er löst kein Navigationsproblem, er löst ein Telefonproblem.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/*
+ * **Warum eine Tabellenliste kein Kärtchenstapel ist.**
+ *
+ * `docs/24 §5` kennt drei Muster, und `.stacks` ist für ein **Verzeichnis**
+ * gedacht, das man Zeile für Zeile liest — Kunden, Pläne, Vorgänge. Eine
+ * Tabellenliste sucht man nach *einem* Namen ab, und dafür ist das Kärtchen die
+ * falsche Form: Es macht aus fünf Angaben fünf beschriftete Zeilen, und aus
+ * zwanzig Tabellen sechs Bildschirme.
+ *
+ * Gemessen mit dem gebauten Stylesheet, zwanzig Tabellen, zugeklappt:
+ *
+ *     390px:   als Kärtchenstapel 6072px   ·   als Baum  929px
+ *     1440px:  als Tabelle          881px   ·   als Baum  803px
+ *
+ * Am Arbeitsplatz nehmen sich die beiden nichts. Der Unterschied ist das
+ * Telefon, und dort ist er das Sechsfache.
+ *
+ * **Die Einrückung war die erwartete Gefahr und ist keine.** Der waagerechte
+ * Überlauf ist in jedem Entwurf 0px — entschieden wird die Frage senkrecht.
+ */
+.tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Die Linie zeigt, wozu die Ziele gehören — 18px Einzug, mehr braucht eine
+   Ebene nicht, und mehr fehlte den Namen. */
+.tree ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 18px;
+  border-left: 1px solid var(--line);
+}
+
+.tree li {
+  margin: 0;
+}
+
+/*
+ * Ein Zweig — eine Tabelle.
+ *
+ * **Er trägt nur den Namen**, und das ist eine Entscheidung und keine
+ * Sparsamkeit. Der erste Entwurf hatte Art, Zeilenzahl und Grösse rechts
+ * daneben; in einer 280px schmalen Spalte quetschte das den Tabellennamen auf
+ * ein Zeichen je Zeile — dieselbe Falle wie an vier anderen Stellen dieses
+ * Panels: Ein Flexkind behält seine Inhaltsbreite, und der Nachbar verliert.
+ * Die Zahlen stehen im Inhalt, wo Platz für sie ist.
+ */
+.node,
+.leaf {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 4px 8px;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+/*
+ * **Keine Füllung, sondern Farbe** — so wie `.button:hover` und `.link:hover`.
+ *
+ * Der erste Entwurf nahm `--control-bg` als Hintergrund. Im hellen Theme ist
+ * das `#ffffff` und damit derselbe Wert wie `--bg`: eine Rückmeldung, die es
+ * nur im dunklen Theme gibt. Dieselbe Fehlerklasse wie der Knopfrand mit
+ * 1,04:1 und das Eingabefeld mit 1,09:1, beide in diesem Projekt schon
+ * dagewesen.
+ *
+ * > **Eine Marke, die man für einen Hintergrund hält, ist noch keine Farbe, die
+ * > sich vom Hintergrund abhebt.**
+ */
+.node:hover,
+.leaf:hover {
+  color: var(--text-strong);
+}
+
+/* Das offene Ziel bleibt erkennbar, während man daneben liest — sonst weiss man
+   nach dem dritten Klick nicht mehr, was gerade im Inhalt steht. Dieselbe Form
+   wie `.button.active`, damit „ausgewählt" im ganzen Panel gleich aussieht. */
+.leaf.active {
+  color: var(--accent);
+  background: var(--accent-surface);
+}
+
+/* Das Zeichen vor dem Namen. `aria-hidden`, weil `aria-expanded` dasselbe
+   bereits sagt — zweimal vorgelesen ist es eine Angabe zu viel. */
+.arrow {
+  flex: none;
+  width: 1em;
+  color: var(--text-muted);
+  font-size: var(--text-small);
+}
+
+/*
+ * Der Name bricht, bevor er die Spalte schiebt.
+ *
+ * Die **fünfte** Fassung derselben Ausnahme nach `.ident`, `.stacks td .ident`,
+ * `.section-head h2` und `.rows .cell`: `overflow-wrap: anywhere` **mit**
+ * `min-width: 0`, weil ein Flexkind sonst nicht unter seine Inhaltsbreite darf.
+ * Ein Tabellenname darf 63 Zeichen lang sein.
+ */
+.node .label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: var(--text-table);
+}
+
+/* Ein Ziel — Spalten, Indexe, Zeilen. Weiter eingerückt als sein Zweig, damit
+   die Ebene ohne die Linie erkennbar bleibt. */
+.leaf {
+  padding-left: 30px;
+  font-size: var(--text-small);
+}
+
+/*
+ * Der Baum neben dem Inhalt — ab 720px.
+ *
+ * **Der Plan sagte 900px, und dieses Panel kennt keinen dritten Haltepunkt**
+ * (`docs/24 §1`, mit Begründung und Wächter). Die 900 waren eine Zahl aus der
+ * Entwurfsphase, gegen die Vorgabe nicht gehalten; gemessen reicht 720 (§20.21).
+ *
+ * **`min-width: 0` an beiden Kindern, und ohne das schiebt die Seite.** Ein
+ * Rasterkind hat als Mindestbreite seine Inhaltsbreite, und im Inhalt steht eine
+ * Tabelle mit `white-space: nowrap` an den Kennungen. Gemessen ohne diese Zeile:
+ * 242px Überlauf bei 800px, 142px bei 900px — und 0 bei 720 und bei 1440, also
+ * genau dort, wo man zuerst nachsieht.
+ *
+ * > **Ein Überlauf, der nur in der Mitte auftritt, entkommt beiden Messungen,
+ * > die man von selbst macht.**
+ */
+.split {
+  display: block;
+}
+
+@media (min-width: 720px) {
+  .split {
+    display: grid;
+    grid-template-columns: minmax(200px, 280px) 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  .split > * {
+    min-width: 0;
+  }
+
+  .split > .aside {
+    padding-right: 20px;
+    border-right: 1px solid var(--line);
+  }
+}
+
 /* Eine Reihe von Knöpfen. Unter 480px untereinander und über die volle
    Breite — nebeneinander bleiben auf 390px vom dritten nur noch drei
    Buchstaben übrig. */

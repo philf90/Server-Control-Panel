@@ -2470,3 +2470,44 @@ vom schwächsten zum stärksten:
    Mangel oben aufgefallen.
 4. **Der Bruch.** `@keydown` aus dem Baum nehmen und dieselbe Messung fahren.
    Bleibt der Fokus stehen, hat die Messung gemessen.
+
+#### Die Belege, gefahren am 13. August 2026 gegen `0.5.3-rc.7`
+
+**Punkt 1, das Protokoll der Fokusbewegung** — jede Zeile eine Taste, dahinter
+das Element, das danach den Fokus hat:
+
+```
+start        → ▾bestellpositionen_…   aria-expanded=true
+ArrowDown    → Spalten                aria-expanded=—
+ArrowDown    → Indexe                 aria-expanded=—
+ArrowUp      → Spalten                aria-expanded=—
+ArrowRight   → Spalten                aria-expanded=—      ein Blatt klappt nichts auf
+ArrowRight   → Spalten                aria-expanded=—
+ArrowDown    → Indexe                 aria-expanded=—
+ArrowLeft    → ▾bestellpositionen_…   aria-expanded=true   heraus aus der Gruppe
+End          → ▸umsaetze_je_ort       aria-expanded=false  letzter *sichtbarer* Punkt
+Home         → ▾bestellpositionen_…   aria-expanded=true
+```
+
+**Punkt 2, der Zugänglichkeitsbaum**: Chromium löst `tree "" multiselectable:
+false` unter `main` auf — die Rolle steht also nicht nur im Quelltext.
+
+**Punkt 3**: `document.querySelectorAll('[role="treeitem"][tabindex="0"]').length`
+→ `1`. Eine Tabulatorstation, keine zwanzig.
+
+**Und was das Protokoll nicht zeigt.** Der Lauf begann auf einem bereits offenen
+Zweig und ging von dort in die Blätter; `aria-expanded` stand durchweg auf `true`
+und hat nie gewechselt. Damit fehlen genau die beiden Übergänge, die den Zweig
+betreffen — `ArrowRight` auf einem zugeklappten und `ArrowLeft` auf einem
+offenen.
+
+> **Ein Protokoll, in dem eine Spalte nie ihren Wert wechselt, hat den Übergang
+> nicht gesehen — nur den Zustand.**
+
+Nachzuholen mit einer Folge, die auf einem zugeklappten Zweig beginnt:
+`['End', 'ArrowRight', 'ArrowRight', 'ArrowLeft', 'ArrowLeft']`. Dann muss
+`aria-expanded` **false → true** und wieder **true → false** durchlaufen.
+
+Punkt 3 zeigt in `rc.7` ausserdem noch die **feste** Station; dass sie mitwandert
+(§20.27), ist erst gegen die nächste Fassung zu belegen — Baum verlassen,
+zurücktabben, und dort landen, wo man war.

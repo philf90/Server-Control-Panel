@@ -24,6 +24,7 @@ import { Link, router, usePage } from '@inertiajs/vue3'
 import MarkIcon from '../Components/MarkIcon.vue'
 import NavIcon from '../Components/NavIcon.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { announcement } from '../Composables/useAnnounce'
 
 defineProps<{ title: string; subline?: string }>()
 
@@ -47,7 +48,23 @@ const impersonation = computed(() => page.props.impersonation as { active: boole
  * `role="status"` und nicht `alert`: Es ist eine Bestätigung und keine
  * Warnung — ein Screenreader liest sie vor, ohne die Arbeit zu unterbrechen.
  */
-const erfolg = computed(() => (page.props.flash as Record<string, string> | undefined)?.success)
+const gemeldet = announcement()
+
+/*
+ * **Zwei Quellen, ein Ort.** `flash.success` kommt aus einer Inertia-Antwort;
+ * `announcement()` aus einer Seite, die über XHR ändert und dabei stehen bleibt
+ * — die Konsole aus P5c ist die erste davon, und ein `flash` erreicht sie nicht.
+ *
+ * Gerendert wird weiter nur hier. Die Alternative wäre eine eigene grüne Meldung
+ * auf der Konsolenseite gewesen, und `FieldErrorTest` hat genau die abgewiesen:
+ * Zwei Orte für dieselbe Auskunft heissen, dass einer veraltet.
+ *
+ * Die Seite hat Vorrang vor dem `flash`: Wer gerade etwas getan hat, soll das
+ * lesen und nicht, was beim Aufbau der Seite galt.
+ */
+const erfolg = computed(
+  () => gemeldet.value ?? (page.props.flash as Record<string, string> | undefined)?.success,
+)
 
 /*
  * Die Navigation kommt aus dem Kontotyp, nicht aus einer Rechteprüfung im

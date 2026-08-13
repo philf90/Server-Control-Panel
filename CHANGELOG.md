@@ -11540,3 +11540,27 @@ Recht: Die Form tut das Richtige, sagt es aber nicht. PHPUnit hat dafür `fail()
 > erklärt weniger.**
 
 Beide Brüche dazu sind mit `fail()` erneut gefahren und wieder rot.
+
+### Zwei Fehler, die nur die CI sehen konnte
+
+**Die neuen Wächter waren teilweise eine zweite Fassung.**
+`tests/Unit/ConsoleStatementTest.php` gibt es seit Schritt 1 und prüft die
+PostgreSQL-Anweisung längst. Aufgefallen ist es, weil dieser Test rot wurde: Er
+verlangte den Satz „nicht genau eine" in der Anweisung, und der ist jetzt in PHP.
+Ein bestehender Wächter hat die Doppelung gemeldet, indem er an seiner eigenen
+Regel scheiterte.
+
+> **Wer eine Regel für ein zweites System aufschreibt, schreibt sie leicht ein
+> zweites Mal auf.**
+
+**Und die grüne Meldung stand am falschen Ort.** `docs/19 §6.3` nennt genau eine
+Stelle dafür, `PanelLayout.vue`. Die Konsole hat eine eigene bekommen, weil ein
+`flash` sie nicht erreicht — sie ist die erste Seite dieses Panels, die über XHR
+ändert und dabei stehen bleibt.
+
+> **Eine Regel, die einen Ort vorschreibt, braucht einen Weg dorthin — sonst baut
+> die nächste Seite ihren eigenen.**
+
+`Composables/useAnnounce.ts` ist dieser Weg. Die Regel bleibt: Gerendert wird
+weiter nur im Layout, es gibt weiter genau eine Datei mit `notice ok`, und
+`FieldErrorTest` ist unverändert. `docs/19 §6.3` hat den Zusatz bekommen.

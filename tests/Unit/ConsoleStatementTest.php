@@ -144,11 +144,39 @@ final class ConsoleStatementTest extends TestCase
 
         $this->assertStringContainsString('GET DIAGNOSTICS', $statement);
         $this->assertStringContainsString('RAISE EXCEPTION', $statement);
+
+        /*
+         * **Die Marke und nicht der Satz.** Hier stand `nicht genau eine` — der
+         * Satz für den Kunden, wörtlich in der Anweisung. Er kam damit als
+         * Datenbankfehler verkleidet zurück, mit `CONTEXT: PL/pgSQL function
+         * inline_code_block line 7 at RAISE` und einem Vorspann, der sagt, es
+         * habe jemand anders gesprochen (`docs/47 §6`, Befund 2).
+         *
+         * > **Eine Verpackung, die für eine fremde Meldung richtig ist, ist für
+         * > die eigene falsch.**
+         *
+         * Der Block schickt jetzt die Zahl, den Satz baut PHP — und dieser Test
+         * prüft beide Richtungen, denn nur eine davon wäre zu umgehen.
+         */
         $this->assertStringContainsString(
-            'nicht genau eine',
+            Console::MISS_MARKER.'=',
             $statement,
             'Der Schreibvorgang zählt nicht nach. Ein UPDATE, das keine oder mehrere Zeilen trifft, '
             .'meldete dann Erfolg (docs/46 §10).',
+        );
+
+        $this->assertStringNotContainsString(
+            'nicht genau eine',
+            $statement,
+            'Der Satz für den Kunden steht in der Anweisung. Er kommt damit als Datenbankfehler '
+            .'verkleidet zurück, mit einer Zeilennummer auf eine Datei, die es nicht gibt.',
+        );
+
+        $this->assertStringContainsString(
+            'nicht genau eine',
+            Console::missed(0),
+            'Der Satz entsteht nicht mehr in PHP — dann steht er nirgends, und der Kunde liest die '
+            .'nackte Marke.',
         );
     }
 

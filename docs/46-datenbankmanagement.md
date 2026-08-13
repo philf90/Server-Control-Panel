@@ -3064,3 +3064,46 @@ erst den Wert und dann die Absicht. PHPUnit hat dafür `fail()`, und das ist als
 Es ist die zweite Meldung dieser Art in dieser Stufe, nach der ungenutzten
 Konstante in `ButtonRowSpacingTest` — beide Male hat PHPStan etwas gefunden, das
 kein Wächter dieses Projekts sieht und das dieser Container nicht fahren kann.
+
+### 20.40 Die CI hat zwei Fehler gefunden, die kein Wächter hier sieht
+
+**Fund 1 — §14.6 und §14.7 waren längst gebaut.** `tests/Unit/ConsoleStatementTest.php`
+gibt es seit Schritt 1 und prüft die PostgreSQL-Anweisung: die Zählung im
+`DO`-Block, den Schlüsselzwang, die geänderten Spalten, `NULL` gegen `''`. Der
+erste Wurf von `RowKeyTest` und `WriteBackTest` hat das alles noch einmal
+aufgeschrieben — genau das Muster, vor dem dieses Projekt an zehn Stellen warnt,
+und es ist einem Wächter passiert.
+
+> **Wer eine Regel für ein zweites System aufschreibt, schreibt sie leicht ein
+> zweites Mal auf.**
+
+Aufgefallen ist es nicht beim Schreiben, sondern weil `ConsoleStatementTest` rot
+wurde: Es verlangte den Satz „nicht genau eine" **in der Anweisung**, und §20.36
+hat ihn dort herausgenommen. Ein bestehender Wächter hat also die Doppelung
+gemeldet, indem er an seiner eigenen Regel scheiterte.
+
+Die Aufteilung ist jetzt benannt: **`ConsoleStatementTest` gehört die
+PostgreSQL-Anweisung als Text**; in `RowKeyTest` und `WriteBackTest` steht, was
+dort nicht hinpasst — die MariaDB-Hälfte, die Regeln über beide Systeme zugleich,
+und die Oberfläche.
+
+**Fund 2 — die grüne Meldung stand am falschen Ort.** `docs/19 §6.3` nennt genau
+eine Stelle dafür: `PanelLayout.vue`. Die Konsole hat eine eigene `notice ok`
+bekommen, weil ein `flash` sie nicht erreicht — sie ist die **erste Seite dieses
+Panels, die über XHR ändert und dabei stehen bleibt**. `FieldErrorTest` hat das
+abgewiesen.
+
+> **Eine Regel, die einen Ort vorschreibt, braucht einen Weg dorthin — sonst baut
+> die nächste Seite ihren eigenen.**
+
+Der Weg heisst jetzt `Composables/useAnnounce.ts` und ändert die Regel nicht:
+Gerendert wird weiter ausschliesslich im Layout, es gibt weiter genau eine Datei
+mit `notice ok`, und `FieldErrorTest` bleibt unverändert. `docs/19 §6.3` hat den
+Zusatz bekommen.
+
+**Beide Funde hat nur die CI sehen können.** Das PHPUnit-freie Gestell in diesem
+Container fährt die framework-freien Wächter; `ConsoleStatementTest` und
+`FieldErrorTest` erben Laravels Basisklasse und laufen hier nicht.
+
+> **Ein Wächter, den die eigene Umgebung nicht fahren kann, findet trotzdem —
+> nur später und teurer.**

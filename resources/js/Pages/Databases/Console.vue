@@ -19,6 +19,7 @@ import { Head, Link } from '@inertiajs/vue3'
 import { computed, onMounted, ref } from 'vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Section from '../../Components/Section.vue'
+import { announce } from '../../Composables/useAnnounce'
 import { ask, ConsoleError } from '../../Composables/useConsole'
 import { formatBytes } from '../../bytes'
 
@@ -252,15 +253,15 @@ const saving = ref(false)
  * und nicht am Element, das ihn ausgelöst hat: Wer zwei Meldungen sieht, sucht
  * zwei Ursachen.
  *
- * **Und Erfolg wird nie am Feld gemeldet**, sondern an derselben Stelle wie der
- * Fehler — dieselbe Regel, dieselbe Stelle. `FieldErrorTest` prüft beide
- * Richtungen.
+ * **Erfolg steht dagegen nicht hier**, sondern im Layout: `docs/19 §6.3` nennt
+ * dafür genau eine Stelle, und die erreicht diese Seite über
+ * {@link announce()}. Der erste Wurf hatte eine eigene grüne Meldung an dieser
+ * Stelle — `FieldErrorTest` hat sie abgewiesen, weil damit zwei Orte dieselbe
+ * Auskunft tragen und der zweite der ist, der veraltet.
  */
 const failure = ref<string | null>(null)
-const success = ref<string | null>(null)
 
 function report(error: unknown): void {
-  success.value = null
   failure.value =
     error instanceof ConsoleError
       ? error.message
@@ -305,7 +306,6 @@ async function loadTables(): Promise<void> {
 function reset(table: string): void {
   openTable.value = table
   failure.value = null
-  success.value = null
   editing.value = null
   before.value = {}
   columns.value = []
@@ -857,7 +857,6 @@ function startInsert(): void {
   before.value = {}
   editing.value = { mode: 'insert', key: {}, fields: fieldsFor(null) }
   failure.value = null
-  success.value = null
   cell.value = null
 }
 
@@ -880,7 +879,6 @@ function startUpdate(row: Record<string, string | number | null>): void {
   before.value = stand
   editing.value = { mode: 'update', key: schluessel, fields: fieldsFor(row) }
   failure.value = null
-  success.value = null
   cell.value = null
 }
 
@@ -920,7 +918,6 @@ async function save(): Promise<void> {
 
   saving.value = true
   failure.value = null
-  success.value = null
 
   try {
     await ask<{ affected: number }>(props.database.id, 'row', {
@@ -930,7 +927,7 @@ async function save(): Promise<void> {
       values: werte,
     })
 
-    success.value = formular.mode === 'insert' ? 'Die Zeile ist angelegt.' : 'Die Zeile ist geändert.'
+    announce(formular.mode === 'insert' ? 'Die Zeile ist angelegt.' : 'Die Zeile ist geändert.')
     editing.value = null
     before.value = {}
     await loadPage()
@@ -965,7 +962,6 @@ async function removeRow(): Promise<void> {
 
   saving.value = true
   failure.value = null
-  success.value = null
 
   try {
     await ask<{ affected: number }>(props.database.id, 'row', {
@@ -974,7 +970,7 @@ async function removeRow(): Promise<void> {
       key: formular.key,
     })
 
-    success.value = 'Die Zeile ist gelöscht.'
+    announce('Die Zeile ist gelöscht.')
     editing.value = null
     before.value = {}
     await loadPage()
@@ -1003,15 +999,6 @@ onMounted(loadTables)
       <span>{{ failure }}</span>
     </p>
 
-    <!--
-      **Erfolg steht, wo der Fehler steht** (`docs/19 §6`) — nie am Feld, und
-      nicht an zwei Orten je nach Handlung. Anlegen, Ändern und Löschen melden
-      sich hier, weil das Formular danach zu ist und eine Meldung an einem
-      geschlossenen Formular niemand liest.
-    -->
-    <p v-else-if="success !== null" class="notice ok" role="status">
-      <span>{{ success }}</span>
-    </p>
 
     <!--
       Der Grundriss dieser Seite ist der einzige des Panels mit zwei Spalten.

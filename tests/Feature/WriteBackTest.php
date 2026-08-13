@@ -115,29 +115,12 @@ final class WriteBackTest extends TestCase
      */
     public function test_null_and_the_empty_string_stay_two_values(): void
     {
-        $leer = PgConsole::literal('');
-        $nichts = PgConsole::literal(null);
-
-        $this->assertSame(
-            "''",
-            $leer,
-            sprintf('Die leere Zeichenkette wird zu `%s` und nicht zu `\'\'`.', $leer),
-        );
-
-        $this->assertSame(
-            'NULL',
-            $nichts,
-            sprintf('`null` wird zu `%s` und nicht zu `NULL`.', $nichts),
-        );
-
-        $this->assertNotSame(
-            $leer,
-            $nichts,
-            'Die leere Zeichenkette und `NULL` werden zum selben Wert. Ein `WHERE spalte IS NULL` der '
-            .'Kundenanwendung findet die Zeile danach nicht mehr, und keine Zählung meldet es '
-            .'(docs/46 §10.1).',
-        );
-
+        /*
+         * **`literal()` selbst prüft `ConsoleStatementTest`** — hier stand das
+         * noch einmal, und zwei Fassungen einer Regel sind eine zu viel. Was
+         * dort fehlt und hier steht: derselbe Wert auf dem Weg durch die **ganze
+         * Anweisung**, in beiden Arten und beiden Systemen.
+         */
         /*
          * **Und in der ganzen Anweisung, in beiden Arten und beiden Systemen.**
          *

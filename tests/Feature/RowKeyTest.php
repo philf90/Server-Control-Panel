@@ -33,8 +33,25 @@ use SrvPanel\Agent\Pg\Console as PgConsole;
  *
  * PostgreSQL kennt keinen `LIMIT` an `UPDATE` und bekommt deshalb einen
  * `DO`-Block mit `GET DIAGNOSTICS`; MariaDB kennt keinen anonymen Block und
- * bekommt `LIMIT 1` plus `ROW_COUNT()`. Geprüft wird beides, denn eine Regel,
- * die nur für ein System gilt, ist in diesem Panel eine halbe.
+ * bekommt `LIMIT 1` plus `ROW_COUNT()`. Eine Regel, die nur für ein System
+ * gilt, ist in diesem Panel eine halbe.
+ *
+ * ## Was hier steht und was in `ConsoleStatementTest`
+ *
+ * **Der erste Wurf dieses Wächters war eine zweite Fassung, und die CI hat es
+ * gefunden.** `tests/Unit/ConsoleStatementTest.php` gibt es seit Schritt 1, und
+ * es prüft die PostgreSQL-Anweisung schon: die Zählung im `DO`-Block, den
+ * Schlüsselzwang, die geänderten Spalten. Hier stand dasselbe noch einmal —
+ * genau das Muster, vor dem dieses Projekt an zehn Stellen warnt, und es ist
+ * einem Wächter passiert.
+ *
+ * > **Wer eine Regel für ein zweites System aufschreibt, schreibt sie leicht
+ * > ein zweites Mal auf.**
+ *
+ * Die Aufteilung ist deshalb: **`ConsoleStatementTest` gehört die
+ * PostgreSQL-Anweisung als Text.** Hier steht, was dort nicht hinpasst — die
+ * MariaDB-Hälfte, die Regeln, die beide Systeme zugleich betreffen, und die
+ * Oberfläche.
  */
 final class RowKeyTest extends TestCase
 {
@@ -85,38 +102,6 @@ final class RowKeyTest extends TestCase
     private function simple(): array
     {
         return $this->columns([['name' => 'id', 'key' => true], ['name' => 'ort', 'key' => false]]);
-    }
-
-    /**
-     * Der `DO`-Block zählt nach, und was er zählt, entscheidet.
-     *
-     * **Der Bruch dazu ist, die Zählung zu entfernen** — dann bleibt eine
-     * Anweisung, die genau dasselbe tut und nichts mehr prüft.
-     */
-    public function test_postgres_counts_what_it_touched(): void
-    {
-        $statement = PgConsole::writeStatement('public', 't', $this->simple(), 'update', ['id' => '1'], ['ort' => 'Kiel']);
-
-        $this->assertStringContainsString(
-            'GET DIAGNOSTICS',
-            $statement,
-            'Der Schreibvorgang für PostgreSQL fragt seine Trefferzahl nicht ab. Ohne sie meldet er '
-            .'Erfolg für einen Treffer, den niemand geprüft hat (docs/46 §10.1).',
-        );
-
-        $this->assertMatchesRegularExpression(
-            '/getroffen\s*<>\s*1/',
-            $statement,
-            'Der Schreibvorgang für PostgreSQL vergleicht seine Trefferzahl nicht gegen genau eins. '
-            .'Ein `UPDATE`, das zwei Zeilen trifft, liefe damit durch.',
-        );
-
-        $this->assertStringContainsString(
-            'RAISE EXCEPTION',
-            $statement,
-            'Der Schreibvorgang für PostgreSQL bricht bei der falschen Trefferzahl nicht ab. Eine '
-            .'Zählung ohne Abbruch ist eine Zahl, die niemand liest — und die Transaktion bliebe stehen.',
-        );
     }
 
     /**

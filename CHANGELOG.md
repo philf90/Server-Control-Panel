@@ -11820,3 +11820,54 @@ darauf, dass *irgendein* Ablauf das Skript fährt, sondern dass der es an einem
 Pull Request tut. Und die Zeitgrenze steht auf 30 statt 90 Minuten — sechsmal
 das Gemessene: Seit der Lauf am Pull Request hängt, blockiert eine Hängepartie
 nicht mehr nur eine Nacht, sondern jemandes Arbeit.
+
+### Vor Schritt 9: beide Bestände sind jetzt derselbe, und das ist belegt
+
+`docs/46 §20.45` hatte einen Nebenbefund notiert: Auf `cloudsrv24` war `id =
+9001` in MariaDB belegt und in PostgreSQL nicht, MariaDB hatte eine Tabelle mehr
+und 16384 Zeilen gegen 120. Für die Messung, bei der es auffiel, war das
+gleichgültig — für den Abnahmelauf nicht, denn der bezieht seine ganze Aussage
+daraus, jeden Punkt zweimal zu fahren.
+
+> **Zwei Läufe über zwei verschiedene Bestände sind zwei Messungen und keine
+> Gegenprobe.**
+
+Der Bestand steht jetzt als **Punkt 0** in der Befehlsfolge — nicht als
+Aufräumen nebenbei, sondern als erster Schritt, mit `DROP` vor `CREATE`: Was
+schiefging, war ein Rest aus einem früheren Lauf, und ein Bestand, der nur
+ergänzt wird, trägt ihn weiter.
+
+**Gefahren, nicht aufgeschrieben.** Beide Blöcke laufen im Container gegen
+PostgreSQL 16.13 und MariaDB 10.11.14 — dieselbe MariaDB-Fassung wie auf
+`cloudsrv24` — fehlerfrei durch, 19 s und 12,6 s. Dazu ein Vergleich, der belegt,
+dass die Seiten danach gleich **sind**: eine Abfrage, die in beiden Systemen
+dieselbe Zeichenkette ist, und deren Ausgabe zeichengleich sein muss.
+
+Sie gibt bewusst **kein** `NULL` und keine leere Zelle aus, sondern `length()`
+und ein `CASE` — `psql -A -t` stellt die beiden gleich dar (§2), und eine
+Prüfung über dieses Format könnte sie sonst nicht auseinanderhalten. Der
+Tabulator wird als Zeichencode 9 belegt und nicht als Zeichen.
+
+**Und der Vergleich hat seinen eigenen Bruch bekommen**, denn sonst wäre er die
+Sorte Messung, die nie etwas anderes als „gleich" sagen kann. Der erste Entwurf
+zählte Zeilen in einer festen Liste von Tabellen — eine Tabelle **zu viel** wäre
+darin unsichtbar geblieben, also genau die eine der beiden Abweichungen aus
+§20.45. Er fragt jetzt zuerst den Katalog nach der Tabellenliste.
+
+> **Ein Vergleich, der nie etwas findet, ist keiner.**
+
+Drei Stellen unterscheiden sich zwischen den Systemen und stehen einzeln im
+Plan, weil jede den Lauf still verfälschen würde: `e'a\tb'` gegen `'a\tb'` —
+ohne das `e` prüft Punkt 1 in PostgreSQL eine Zeichenkette statt eines
+Tabulators —, `generate_series` gegen `seq_1_to_N`, und `text` gegen
+`varchar(64)` für die Spalte des eindeutigen Index, weil MariaDB `TEXT` ohne
+Längenangabe nicht indiziert und es ohne den Index die Tabelle nicht gäbe, an
+der §10 Regel 2 hängt.
+
+**Dazu Punkt 2b: der Baum mit der Tastatur.** `TreeSemanticsTest` prüft, dass
+ein `@keydown` am Baum hängt — was es *tut*, prüft kein Test dieses Projekts,
+und im Container gibt es dafür keine laufende Seite. Fünf Schritte mit ihrem
+erwarteten Verhalten stehen jetzt im Lauf, und der Beleg ist `aria-expanded` und
+die Adresse des fokussierten Knotens nach jedem einzelnen. Die beiden mittleren
+sind die, die niemand von selbst probiert: `ArrowRight` bedeutet auf einem
+zugeklappten Zweig etwas anderes als auf einem offenen.

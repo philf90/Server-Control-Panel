@@ -1387,6 +1387,117 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 # Der Lauf legt sie NICHT selbst an (docs/35).
 # Jeder Punkt wird ZWEIMAL gefahren — einmal je System.
 
+# 0  DERSELBE BESTAND AUF BEIDEN SEITEN  ← vor allem anderen
+#    Der Grund steht in §20.45: Auf cloudsrv24 war `id = 9001` in MariaDB
+#    belegt und in PostgreSQL nicht, MariaDB hatte eine Tabelle
+#    `ohne_schluessel_lang` mehr, und 16384 Zeilen gegen 120. Der Lauf fährt
+#    jeden Punkt zweimal und bezieht genau daraus seine Aussage — über zwei
+#    verschiedene Bestände gefahren, sagt er nichts über die Systeme, sondern
+#    über die Bestände.
+#
+#    > Zwei Läufe über zwei verschiedene Bestände sind zwei Messungen und
+#    > keine Gegenprobe.
+#
+#    ERST WEGWERFEN, DANN ANLEGEN. Das `DROP` ist nicht Hygiene, sondern der
+#    Punkt: Was hier schiefging, war ein Rest aus einem früheren Lauf.
+#
+#    ── PostgreSQL, als Kunde in der eigenen Datenbank ──
+     DROP TABLE IF EXISTS probe, blaettern, gross, ohne_schluessel, nur_unique, lang;
+     CREATE TABLE probe (id int primary key, leer text, nichts text, tab text, umbruch text);
+     INSERT INTO probe VALUES (1, '', NULL, e'a\tb', e'z1\nz2');
+     CREATE TABLE blaettern (id int primary key, wert text);
+     INSERT INTO blaettern SELECT g, 'w' || lpad(g::text, 4, '0') FROM generate_series(1, 120) g;
+     CREATE TABLE gross (id int primary key, wert text);
+     INSERT INTO gross SELECT g, md5(g::text) FROM generate_series(1, 3000000) g;
+     CREATE TABLE ohne_schluessel (a int, b text);
+     INSERT INTO ohne_schluessel VALUES (1, 'x'), (1, 'x');
+     CREATE TABLE nur_unique (a int NOT NULL, b text NOT NULL);
+     CREATE UNIQUE INDEX nur_unique_ab ON nur_unique (a, b);
+     INSERT INTO nur_unique VALUES (1, 'x'), (2, 'y');
+     CREATE TABLE lang (id int primary key, langtext text, leer text);
+     INSERT INTO lang VALUES (1, repeat('a', 5000), NULL);
+#
+#    ── MariaDB, als Kunde in der eigenen Datenbank ──
+     DROP TABLE IF EXISTS probe, blaettern, gross, ohne_schluessel, nur_unique, lang;
+     CREATE TABLE probe (id int primary key, leer text, nichts text, tab text, umbruch text);
+     INSERT INTO probe VALUES (1, '', NULL, 'a\tb', 'z1\nz2');
+     CREATE TABLE blaettern (id int primary key, wert text);
+     INSERT INTO blaettern SELECT seq, CONCAT('w', LPAD(seq, 4, '0')) FROM seq_1_to_120;
+     CREATE TABLE gross (id int primary key, wert text);
+     INSERT INTO gross SELECT seq, MD5(seq) FROM seq_1_to_3000000;
+     CREATE TABLE ohne_schluessel (a int, b text);
+     INSERT INTO ohne_schluessel VALUES (1, 'x'), (1, 'x');
+     CREATE TABLE nur_unique (a int NOT NULL, b varchar(64) NOT NULL);
+     CREATE UNIQUE INDEX nur_unique_ab ON nur_unique (a, b);
+     INSERT INTO nur_unique VALUES (1, 'x'), (2, 'y');
+     CREATE TABLE lang (id int primary key, langtext text, leer text);
+     INSERT INTO lang VALUES (1, REPEAT('a', 5000), NULL);
+#
+#    DREI UNTERSCHIEDE, UND JEDER IST EINER ZU VIEL, WENN MAN IHN NICHT KENNT:
+#      - `e'a\tb'` gegen `'a\tb'` — PostgreSQL braucht das `e`, MariaDB deutet
+#        den Gegenschrägstrich von sich aus. Ohne das `e` steht in PostgreSQL
+#        ein Backslash und ein t, und Punkt 1 prüft dann eine Zeichenkette
+#        statt eines Tabulators.
+#      - `generate_series` gegen `seq_1_to_N` (die Sequence-Engine von MariaDB).
+#      - `b text NOT NULL` gegen `b varchar(64) NOT NULL` — MariaDB indiziert
+#        `TEXT` nicht ohne Längenangabe. Die Spalte trägt zwei Zeichen; die
+#        Länge ist nur da, damit der eindeutige Index entsteht, an dem §10
+#        Regel 2 hängt.
+#
+#    UND DANN DER BELEG, DASS SIE JETZT GLEICH SIND. Beide Seiten laufen
+#    lassen, die Ausgaben nebeneinanderlegen — sie müssen ZEICHENGLEICH sein:
+#
+#      psql  -A -t -F' ' -c "SELECT 'tabellen ' || string_agg(tablename, ',' ORDER BY tablename)
+#                              FROM pg_tables WHERE schemaname = 'public'"
+#      mysql --batch --skip-column-names
+#            -e "SELECT CONCAT('tabellen ', GROUP_CONCAT(TABLE_NAME ORDER BY TABLE_NAME))
+#                  FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()"
+#
+#    dann in BEIDEN dieselbe Abfrage (sie ist absichtlich in beiden Systemen
+#    dieselbe Zeichenkette):
+     SELECT 'blaettern' AS t, count(*) AS n FROM blaettern
+     UNION ALL SELECT 'gross', count(*) FROM gross
+     UNION ALL SELECT 'lang', count(*) FROM lang
+     UNION ALL SELECT 'nur_unique', count(*) FROM nur_unique
+     UNION ALL SELECT 'ohne_schluessel', count(*) FROM ohne_schluessel
+     UNION ALL SELECT 'probe', count(*) FROM probe
+     UNION ALL SELECT 'probe.leer laenge', length(leer) FROM probe
+     UNION ALL SELECT 'probe.nichts', CASE WHEN nichts IS NULL THEN 1 ELSE 0 END FROM probe
+     UNION ALL SELECT 'probe.tab zeichen', ascii(substr(tab, 2, 1)) FROM probe
+     UNION ALL SELECT 'probe.umbruch zeichen', ascii(substr(umbruch, 3, 1)) FROM probe
+     UNION ALL SELECT 'lang.langtext laenge', length(langtext) FROM lang
+     UNION ALL SELECT 'lang.leer', CASE WHEN leer IS NULL THEN 1 ELSE 0 END FROM lang
+     UNION ALL SELECT 'blaettern erste', min(id) FROM blaettern
+     UNION ALL SELECT 'blaettern letzte', max(id) FROM blaettern
+     ORDER BY 1;
+#
+#    erwartet, auf beiden Seiten Zeile für Zeile gleich:
+#      tabellen blaettern,gross,lang,nur_unique,ohne_schluessel,probe
+#      blaettern 120 / blaettern erste 1 / blaettern letzte 120
+#      gross 3000000 / lang 1 / nur_unique 2 / ohne_schluessel 2 / probe 1
+#      lang.langtext laenge 5000 / lang.leer 1
+#      probe.leer laenge 0 / probe.nichts 1
+#      probe.tab zeichen 9 / probe.umbruch zeichen 10
+#
+#    WARUM DIE ABFRAGE KEINE NULL UND KEINE LEERE ZELLE AUSGIBT: `psql -A -t`
+#    gibt beide als leeres Feld aus (§2). Eine Prüfung, die das Ergebnis über
+#    dieses Format vergleicht, könnte NULL und '' nicht unterscheiden — also
+#    fragt sie nach `length()` und nach einem `CASE`, und der Tabulator wird
+#    als Zeichencode 9 belegt und nicht als Zeichen.
+#
+#    UND DIE GEGENPROBE ZUR GEGENPROBE, denn ein Vergleich, der nie etwas
+#    findet, ist keiner: In einem System eine Tabelle anlegen und eine Zeile
+#    einfügen, dann noch einmal vergleichen — beide Abweichungen müssen
+#    dastehen. Genau das sind die zwei aus §20.45.
+#
+#    GEMESSEN am 13. August 2026 gegen PostgreSQL 16.13 und MariaDB 10.11.14
+#    (Wegwerf-Server im Container, dieselbe MariaDB-Fassung wie cloudsrv24):
+#    beide Blöcke laufen fehlerfrei durch — 19 s und 12,6 s, fast alles davon
+#    `gross` —, der Vergleich ist zeichengleich, und die Gegenprobe meldet die
+#    hergestellte Abweichung mit Tabellenliste und Zeilenzahl.
+#    `nur_unique` gilt dabei in BEIDEN Systemen als schlüsselfähig — geprüft
+#    mit dem Prädikat aus Pg\Console::KEY_INDEX und mit COLUMN_KEY = 'PRI'.
+
 # 1  DIE VIER WERTE  ← Kriterium 2
 #    Als Kunde von aussen in die eigene Datenbank:
 #      CREATE TABLE probe (id int primary key, leer text, nichts text,
@@ -1414,6 +1525,28 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #    ausgeschlossen hat — sie gehört gesucht und nicht übersehen.
 #    Und die drei Operatoren sind drei: ist gleich, enthält, ist leer. Ein
 #    vierter im Auswahlfeld ist ein Befund und kein Bonus.
+
+# 2b DER BAUM MIT DER TASTATUR
+#    Nachgetragen aus Schritt 5b: Die Pfeiltastenbedienung ist Teil des
+#    Musters und nicht sein Zubehör (§11.1). `TreeSemanticsTest` prüft, dass
+#    ein `@keydown` am Baum HÄNGT — was es TUT, prüft kein Test dieses
+#    Projekts, und im Container gibt es dafür keine laufende Seite.
+#
+#    In den Baum tabben, dann der Reihe nach:
+#      End         → der Fokus steht auf dem letzten SICHTBAREN Knoten
+#      ArrowRight  auf einem ZUGEKLAPPTEN Zweig → klappt auf, Fokus BLEIBT
+#      ArrowRight  auf dem nun offenen Zweig    → Fokus geht auf „Spalten"
+#      ArrowLeft   auf einem Blatt              → Fokus geht auf seinen Zweig
+#      ArrowLeft   auf dem offenen Zweig        → klappt zu, Fokus BLEIBT
+#    erwartet: genau das, und `aria-expanded` sagt nach jedem Schritt dasselbe
+#              wie das Dreieck.
+#    BELEG: der Wert von `aria-expanded` und die Adresse des fokussierten
+#           Knotens nach JEDEM der fünf Schritte. „Die Pfeiltasten gehen" ist
+#           keine Erfüllung — vier der fünf Schritte tun verschiedene Dinge,
+#           und zwei davon lassen den Fokus ausdrücklich stehen.
+#    Die beiden mittleren sind die, die niemand von selbst probiert:
+#    ArrowRight bedeutet auf einem zugeklappten Zweig etwas anderes als auf
+#    einem offenen, und genau diese Fallunterscheidung ist bisher ungefahren.
 
 # 3  KEINE FREMDE TABELLE  ← Kriterium 3
 #    DREI Wände stehen hier hintereinander, und nur die dritte gehört uns nicht:
@@ -3354,6 +3487,28 @@ dort nicht neu auffällt.
 
 > **Zwei Läufe über zwei verschiedene Bestände sind zwei Messungen und keine
 > Gegenprobe.**
+
+**Geklärt am 13. August 2026, und zwar als Punkt 0 von §15** — nicht als
+Aufräumen nebenbei, sondern als erster Schritt des Laufs, mit `DROP` vor
+`CREATE`: Was hier schiefging, war ein Rest aus einem früheren Lauf, und ein
+Bestand, der nur ergänzt wird, trägt ihn weiter.
+
+Dazu ein Vergleich, der belegt, dass die beiden Seiten danach gleich **sind** —
+zeichengleiche Ausgabe aus einer Abfrage, die in beiden Systemen dieselbe
+Zeichenkette ist. Gefahren gegen PostgreSQL 16.13 und MariaDB 10.11.14 im
+Container; die Gegenprobe (eine Tabelle und eine Zeile mehr auf einer Seite,
+also genau die beiden Abweichungen von oben) meldet beide.
+
+> **Ein Vergleich, der nie etwas findet, ist keiner** — auch der zwischen zwei
+> Beständen braucht seinen eigenen Bruch.
+
+Drei Stellen unterscheiden sich dabei zwischen den Systemen und sind im Plan
+benannt, weil jede einzeln den Lauf verfälschen würde: `e'a\tb'` gegen `'a\tb'`
+(ohne das `e` prüft Punkt 1 in PostgreSQL eine Zeichenkette statt eines
+Tabulators), `generate_series` gegen `seq_1_to_N`, und `text` gegen
+`varchar(64)` für die Spalte des eindeutigen Index — MariaDB indiziert `TEXT`
+nicht ohne Längenangabe, und ohne den Index gäbe es die Tabelle nicht, an der
+§10 Regel 2 hängt.
 
 ### 20.46 Bild 6 ist belegt — und die Beizeile widersprach der Seite, auf der sie stand
 

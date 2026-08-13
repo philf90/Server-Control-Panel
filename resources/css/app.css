@@ -560,11 +560,20 @@ input[type='radio'] {
    * > **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
    * > Keines von beiden ersetzt das andere.**
    *
-   * **`min-width: 0` gehört dazu und ist nicht die Hälfte.** `.section-head`
-   * ist ein Flexbehälter, und ein Flexkind hat `min-width: auto` — es darf
-   * nicht unter seine Inhaltsbreite. Die Erlaubnis zu brechen nützt nichts,
-   * solange das Element seine Breite behalten darf; wörtlich derselbe Fund wie
-   * bei `.stacks td .ident`.
+   * **`min-width: 0` ist der zweite Weg und nicht die zweite Hälfte.** Hier
+   * stand bis P5c Schritt 6 das Gegenteil — „die Erlaubnis zu brechen nützt
+   * nichts, solange das Element seine Breite behalten darf" —, und das ist
+   * ungeprüft gewesen. Gemessen an genau dieser Überschrift bei 390px: mit
+   * `overflow-wrap: anywhere` **allein** ist der Überlauf 0px, mit
+   * `break-word` allein 152px. `anywhere` verkleinert die Mindestbreite des
+   * Inhalts, `break-word` nicht.
+   *
+   * Beide Regeln bleiben stehen, und zwar mit Absicht: Wer `anywhere` für ein
+   * Synonym von `break-word` hält und tauscht, bekommt die Seite nicht
+   * zurückgeschoben. Die volle Messtabelle steht bei `.field > span`.
+   *
+   * > **Zwei Regeln, die zusammen wirken, können auch zwei Wege zum selben Ziel
+   * > sein — und welcher davon trägt, sagt nur die Messung.**
    *
    * `MobileLayoutTest::test_a_section_heading_can_break` rechnet die Kaskade
    * seitdem nach, statt dass jemand sie liest.
@@ -1497,9 +1506,13 @@ table.pairs {
  * Der Name bricht, bevor er die Spalte schiebt.
  *
  * Die **fünfte** Fassung derselben Ausnahme nach `.ident`, `.stacks td .ident`,
- * `.section-head h2` und `.rows .cell`: `overflow-wrap: anywhere` **mit**
- * `min-width: 0`, weil ein Flexkind sonst nicht unter seine Inhaltsbreite darf.
- * Ein Tabellenname darf 63 Zeichen lang sein.
+ * `.section-head h2` und `.rows .cell`: `overflow-wrap: anywhere` **und**
+ * `min-width: 0`. Ein Tabellenname darf 63 Zeichen lang sein.
+ *
+ * Die beiden sind zwei Wege zum selben Ziel und nicht zwei Hälften eines —
+ * gemessen in Schritt 6, die Tabelle steht bei `.field > span`. Hier stand
+ * vorher „weil ein Flexkind sonst nicht unter seine Inhaltsbreite darf"; das
+ * gilt für `break-word` und nicht für `anywhere`.
  */
 .node .label {
   min-width: 0;
@@ -1809,10 +1822,61 @@ tr:has(td.multiline) > td {
   flex-direction: column;
   gap: 6px;
   margin-top: 16px;
+
+  /*
+   * **Der zweite Weg zum Umbruch der Beschriftung unten, nicht seine Hälfte.**
+   * Welcher der beiden trägt, hängt am Schlüsselwort dort — siehe die Tabelle
+   * bei `.field > span`. Er steht hier, damit ein Wechsel von `anywhere` nach
+   * `break-word` die Seite nicht wieder schiebt.
+   */
+  min-width: 0;
   max-width: 540px;
 }
 
+/*
+ * Eine Beschriftung, die einen Bezeichner trägt, bricht.
+ *
+ * **Die vierte Fassung derselben Ausnahme** — nach `.ident`, `.stacks td .ident`
+ * und dem Bereichstitel. Der Anlass ist jedes Mal derselbe: An einer Stelle, an
+ * der sonst ein deutsches Wort steht, steht plötzlich ein Name aus einer
+ * Kundendatenbank. Hier ist es das Zeilenformular aus P5c Schritt 6, in dem
+ * jede Beschriftung ein Spaltenname ist, und der darf 63 Zeichen lang sein.
+ * Gemessen bei 390px, ohne Regel: **96px** aus dem Bild.
+ *
+ * > **Eine Beschriftung ist so lang wie das, was sie beschriftet — und das
+ * > entscheidet nicht, wer sie gestaltet.**
+ *
+ * ## Und `min-width: 0` ist nicht die zweite Hälfte, sondern der zweite Weg
+ *
+ * **Dieses Stylesheet behauptet an drei Stellen das Gegenteil**, seit der
+ * Bereichstitel die Ausnahme bekam: „`min-width: 0` gehört dazu, weil ein
+ * Flexkind sonst nicht unter seine Inhaltsbreite darf." Das klingt richtig und
+ * ist ungeprüft weitergereicht worden. Gemessen (390px, gebautes Stylesheet,
+ * am Feld **und** am Bereichstitel, gleiches Bild):
+ *
+ *   overflow-wrap    min-width      Überlauf
+ *   anywhere         0              0px
+ *   anywhere         auto           0px      ← allein genug
+ *   break-word       0              0px      ← allein genug
+ *   break-word       auto           96px
+ *   normal           auto           96px
+ *
+ * `overflow-wrap: anywhere` verkleinert die **Mindestbreite des Inhalts**,
+ * `break-word` nicht — deshalb bindet `min-width: auto` im einen Fall und im
+ * anderen nicht. Die zwei Regeln sind also Alternativen, und beide zu setzen
+ * ist Absicht: Wer `anywhere` für ein Synonym von `break-word` hält und
+ * tauscht, bekommt die Seite nicht zurückgeschoben.
+ *
+ * > **Zwei Regeln, die zusammen wirken, können auch zwei Wege zum selben Ziel
+ * > sein — und welcher davon trägt, sagt nur die Messung.**
+ *
+ * Für „Erreichbar von" ändert die Regel nichts; sie wird erst wirksam, wo ein
+ * Wort nicht passt. Ein `word-break: break-all` wäre das Gegenteil: Es bräche
+ * auch dort, wo Platz ist. `MobileLayoutTest::test_a_field_label_can_break`
+ * rechnet beide Wege nach.
+ */
 .field > span {
+  overflow-wrap: anywhere;
   font-size: var(--text-small);
   font-weight: 540;
   color: var(--text-muted);

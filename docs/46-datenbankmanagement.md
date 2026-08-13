@@ -1689,8 +1689,16 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #           grep -c '"op":"db.console.tables"' /var/log/srvpanel/agent.log
 #             MUSS groesser als 0 sein — der positive Fall
 #           → im Browser die Adresse einer Datenbank von B aufrufen
-#           grep -c '<B-Datenbank>' /var/log/srvpanel/agent.log
-#             MUSS 0 sein — der Agent hat den Namen nie zu sehen bekommen
+#           grep 'console' /var/log/srvpanel/agent.log | grep -c '<B-Datenbank>'
+#             MUSS 0 sein — keine KONSOLENoperation hat den Namen je genannt
+#
+#         UND DAS `grep 'console'` DAVOR GEHOERT DAZU. Der Name allein steht
+#         auch dann im Protokoll, wenn die Datenbank ueber das Panel ANGELEGT
+#         wurde — das geht durch den Agenten und ist voellig in Ordnung. Der
+#         erste Anlauf zaehlte sieben Treffer und keiner davon war ein Leck.
+#
+#         > Ein Name allein sagt nicht, wer ihn genannt hat. Erst die Frage
+#         > nach der Operation trennt „angelegt" von „ausgelesen".
 #
 #         DIE ZEILENZAHL TAUGT DAFUER NICHT, und der erste Anlauf hat es
 #         vorgefuehrt: Zwischen den beiden Messungen kamen acht Zeilen dazu,

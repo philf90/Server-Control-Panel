@@ -236,6 +236,68 @@ final class ResultEncodingTest extends TestCase
         );
     }
 
+    /**
+     * Eine Sortierung endet auf etwas Eindeutigem — sonst blättert sie nicht.
+     *
+     * **Gefunden auf Bild 7 des Durchgangs zu Schritt 5.** Sortiert nach `ort`,
+     * und innerhalb von „Grünheide" standen die IDs als `116, 5, 92, 113, 47`
+     * da. Das ist keine Nachlässigkeit des Servers: Er sagt zu, nach `ort` zu
+     * sortieren, und über Zeilen mit demselben `ort` sagt er **nichts**.
+     *
+     * Mit `OFFSET` ist das kein Schönheitsfehler. Gemessen auf PostgreSQL 16.13,
+     * 120 Zeilen und drei Werten in `ort`, Seite 1 ohne und Seite 2 mit Index:
+     *
+     *     ORDER BY ort       →  5 Zeilen doppelt, 25 Zeilen nie gesehen
+     *     ORDER BY ort, id   →  0 doppelt, und die 20 offenen sind Seite 3
+     *
+     * > **Eine Sortierung ohne eindeutigen Schluss ist beim Blättern keine
+     * > Sortierung, sondern eine Stichprobe.**
+     *
+     * Der Plan wechselt in echten Beständen von allein — wenn ein Index
+     * dazukommt, wenn `ANALYZE` läuft, wenn die Tabelle wächst. Der Kunde sieht
+     * dann Zeilen doppelt, während andere ausfallen, und nichts daran sieht nach
+     * einem Fehler aus.
+     *
+     * **Ohne Schlüssel bleibt es dabei**, und das ist eine benannte Lücke —
+     * dieselben Tabellen, die nach `docs/46 §10` ohnehin nur lesbar sind.
+     */
+    public function test_a_sort_ends_on_the_key_in_both_engines(): void
+    {
+        $columns = [
+            ['name' => 'id', 'type' => 'bigint', 'nullable' => false, 'default' => null, 'key' => true, 'binary' => false],
+            ['name' => 'ort', 'type' => 'text', 'nullable' => true, 'default' => null, 'key' => false, 'binary' => false],
+        ];
+
+        $this->assertSame(
+            ['ort', 'id'],
+            PgConsole::orderColumns($columns, 'ort'),
+            'Eine Sortierung über eine mehrdeutige Spalte endet nicht auf dem Schlüssel. Beim Blättern '
+            .'sieht der Kunde dann Zeilen doppelt, während andere ausfallen (docs/46 §20.19).',
+        );
+
+        // Und die Sortierung über den Schlüssel selbst nennt ihn nicht zweimal.
+        $this->assertSame(['id'], PgConsole::orderColumns($columns, 'id'));
+
+        foreach ([
+            'PostgreSQL' => PgConsole::rowsQuery('public', 'g', $columns, 'ort', false, 0, null),
+            'MariaDB' => DbConsole::rowsQuery('p1000_shop', 'g', $columns, 'ort', false, 0, null),
+        ] as $engine => $sql) {
+            $this->assertMatchesRegularExpression(
+                '/ORDER BY [^L]*"?`?ort`?"? ASC, [^L]*"?`?id`?"? ASC LIMIT/',
+                $sql,
+                sprintf('%s sortiert nicht zuletzt über den Schlüssel: %s', $engine, $sql),
+            );
+        }
+
+        // Ohne Schlüssel gibt es nichts anzuhängen — das ist die benannte Lücke
+        // und kein Grund, hier etwas zu erfinden.
+        $keyless = [
+            ['name' => 'a', 'type' => 'int', 'nullable' => true, 'default' => null, 'key' => false, 'binary' => false],
+        ];
+
+        $this->assertSame(['a'], PgConsole::orderColumns($keyless, 'a'));
+    }
+
     public function test_both_engines_carry_the_same_limits(): void
     {
         // Zwei Zahlen für dieselbe Grenze liefen auseinander; die eine steht in

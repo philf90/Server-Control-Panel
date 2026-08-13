@@ -11014,3 +11014,33 @@ Absicht, und nur eines hatte den Fehler; `EngineReachTest` sieht so etwas nicht,
 weil beide Operationen ja da sind. Der neue Wächter prüft deshalb je System das,
 was den Namen dort eindeutig macht — in PostgreSQL die Qualifizierung, in
 MariaDB die Abwesenheit des Alias.
+
+### Eine Sortierung ohne eindeutigen Schluss ist beim Blättern eine Stichprobe
+
+**Gefunden auf einem Bildschirmfoto der nach `ort` sortierten Zeilenansicht.**
+Innerhalb desselben Ortes standen die IDs als `116, 5, 92, 113, 47` da. Der
+Server sagt zu, nach `ort` zu sortieren, und über Zeilen mit demselben `ort`
+sagt er nichts.
+
+Mit `OFFSET` ist das kein Schönheitsfehler. Gemessen auf PostgreSQL 16.13 mit
+120 Zeilen und drei Werten in `ort` — Seite 1 ohne und Seite 2 mit Index:
+`ORDER BY ort` liefert **5 Zeilen doppelt und 25 nie**; `ORDER BY ort, id`
+liefert 0 doppelt, und die 20 offenen sind Seite 3.
+
+> **Eine Sortierung ohne eindeutigen Schluss ist beim Blättern keine Sortierung,
+> sondern eine Stichprobe.**
+
+Der Plan wechselt in echten Beständen von allein: wenn ein Index dazukommt, wenn
+`ANALYZE` läuft, wenn die Tabelle wächst. Der Kunde sieht Zeilen doppelt,
+während andere ausfallen — und nichts daran sieht nach einem Fehler aus.
+
+Die Sortierung endet jetzt in **beiden** Systemen auf dem Schlüssel. Ohne
+Schlüssel bleibt es dabei; das ist eine benannte Lücke und trifft dieselben
+Tabellen, die ohnehin nur lesbar sind.
+
+**Und dieser Fund hing am vorigen.** Solange PostgreSQL den gekürzten Text
+sortierte, war die Frage nach Gleichständen gar nicht zu sehen: `left(id::text,
+513)` ist über einem Primärschlüssel eindeutig, und die Reihenfolge sah stabil
+aus.
+
+> **Ein Fehler, der einen zweiten verdeckt, wird beim Beheben zum Finder.**

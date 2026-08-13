@@ -311,13 +311,23 @@ final class Console
             ? ''
             : ' WHERE '.self::condition(PgConsole::column($columns, $filter['column']), $filter['operator'], $filter['value']);
 
+        $direction = $descending ? 'DESC' : 'ASC';
+
+        // Die gewählte Spalte, dann der Schlüssel — die Begründung steht bei
+        // `PgConsole::orderColumns()` und gilt hier genauso: MariaDB sagt über
+        // die Reihenfolge gleicher Werte ebenfalls nichts zu, und mit `OFFSET`
+        // sieht der Kunde dann Zeilen doppelt, während andere ausfallen.
+        $terms = array_map(
+            static fn (string $name): string => Sql::identifier($name).' '.$direction,
+            PgConsole::orderColumns($columns, $order),
+        );
+
         return sprintf(
-            'SELECT %s FROM %s%s ORDER BY %s %s LIMIT %d OFFSET %d',
+            'SELECT %s FROM %s%s ORDER BY %s LIMIT %d OFFSET %d',
             self::jsonObject($columns, PgConsole::CELL_LIMIT),
             Sql::qualified($database, $table),
             $where,
-            Sql::identifier(PgConsole::column($columns, $order)['name']),
-            $descending ? 'DESC' : 'ASC',
+            implode(', ', $terms),
             PgConsole::ROWS_PER_PAGE + 1,
             $offset,
         );

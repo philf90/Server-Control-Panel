@@ -2076,3 +2076,49 @@ Er prüft je System das, was den Namen dort eindeutig macht: in PostgreSQL die
 Qualifizierung, in MariaDB die Abwesenheit eines Alias je Spalte. Eine Regel,
 zwei Belege — denn fiele das `JSON_OBJECT` weg, träte derselbe Fehler dort auf,
 ohne dass jemand die PostgreSQL-Hälfte angefasst hätte.
+
+### 20.19 Eine Sortierung ohne eindeutigen Schluss ist beim Blättern eine Stichprobe
+
+**Gefunden auf Bild 7 des Durchgangs zu Schritt 5.** Sortiert nach `ort`, und
+innerhalb von „Grünheide" standen die IDs so da:
+
+```
+116, 5, 92, 113, 47, 98, 77, 89, 104, 110, 119, 74, 23
+```
+
+Das ist keine Nachlässigkeit des Servers. Er sagt zu, nach `ort` zu sortieren,
+und über Zeilen mit demselben `ort` sagt er **nichts** — die Reihenfolge darf
+sich zwischen zwei Aufrufen ändern, und sie tut es, sobald der Plan sich ändert.
+
+**Mit `OFFSET` ist das kein Schönheitsfehler.** Gemessen auf PostgreSQL 16.13,
+120 Zeilen und drei Werten in `ort`, Seite 1 ohne und Seite 2 mit Index:
+
+| | doppelt gesehen | nie gesehen |
+|---|---|---|
+| `ORDER BY ort` | **5 Zeilen** | **25 Zeilen** |
+| `ORDER BY ort, id` | 0 | 20 — und das ist Seite 3 |
+
+> **Eine Sortierung ohne eindeutigen Schluss ist beim Blättern keine Sortierung,
+> sondern eine Stichprobe.**
+
+Der Plan wechselt in echten Beständen von allein: wenn ein Index dazukommt, wenn
+`ANALYZE` läuft, wenn die Tabelle wächst. Der Kunde sieht dann Zeilen doppelt,
+während andere ausfallen — und nichts daran sieht nach einem Fehler aus.
+
+**Behoben** ist es in `PgConsole::orderColumns()`, das **beide** Systeme
+benutzen: die gewählte Spalte, dann die Spalten des Schlüssels, alle in derselben
+Richtung. Wer nach dem Schlüssel selbst sortiert, bekommt ihn nicht zweimal.
+Gegengeprüft mit den **erzeugten** Anweisungen über zwei verschiedene Pläne:
+0 doppelt, 18 offen bei 2 × 51 von 120 Zeilen.
+
+**Ohne Schlüssel bleibt es dabei**, und das ist eine benannte Lücke — es gibt
+dann keine Spalte, die eine Zeile eindeutig macht. Sie trifft dieselben Tabellen,
+die nach §10 ohnehin nur lesbar sind, und steht neben der Lücke aus §12, dass es
+für sie auch die Zelleinzelsicht nicht gibt.
+
+**Und dieser Fund hängt am vorigen.** §20.18 hat die Sortierung überhaupt erst
+auf die richtige Spalte gestellt; solange sie den gekürzten Text sortierte, war
+die Frage nach Gleichständen gar nicht zu sehen — `left(id::text, 513)` ist über
+einem Primärschlüssel eindeutig, und die Reihenfolge sah deshalb stabil aus.
+
+> **Ein Fehler, der einen zweiten verdeckt, wird beim Beheben zum Finder.**

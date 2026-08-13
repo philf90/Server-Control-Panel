@@ -1638,11 +1638,51 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #    Jede wird EINZELN gefahren; der Beleg ist die Herkunft der Meldung.
 #
 #    (a)  Als Kunde von Abo A die Adresse einer Datenbank von Abo B aufrufen.
-#         erwartet: 403, ohne dass der Agent gefragt wurde.
+#         erwartet: 404, ohne dass der Agent gefragt wurde.
+#
+#         HIER STAND 403, UND DAS IST DIE FALSCHE ERWARTUNG. `Database` traegt
+#         `BelongsToSubscription`, und der globale Filter greift VOR der Policy:
+#         Die Adressaufloesung (`SubstituteBindings`) findet den Datensatz gar
+#         nicht erst, also antwortet Laravel mit 404 und `can:console,database`
+#         kommt nie dran. Die 403 stand hier als Vermutung, seit der Punkt
+#         geschrieben wurde — gegen den Quelltext gelesen am 13. August 2026.
+#
+#         DIE 404 IST DABEI DIE SCHAERFERE ANTWORT und kein Mangel: Eine 403
+#         sagt „das gibt es, du darfst nicht", eine 404 sagt gar nichts. Wer
+#         hier auf 403 besteht, verlangt, dass das Panel die Existenz fremder
+#         Datenbanken bestaetigt.
+#
+#         > Eine Erwartung, die niemand gegen den Code gelesen hat, ist eine
+#         > Vermutung mit Aktenzeichen.
+#
+#         UND DER ZWEITE TEIL DES BELEGS BRAUCHT EINE GEGENPROBE. „Der Agent
+#         wurde nicht gefragt" wird am Journal gemessen:
+#           journalctl -u srvpanel-agentd --since "2 min ago" --no-pager
+#         Das ist eine Null — und eine Null ist nur dann eine Messung, wenn
+#         daneben etwas anderes als Null steht (`docs/47`). Also ZUERST die
+#         eigene Konsole von Abo A oeffnen, im Journal die Zeile dazu suchen,
+#         und ERST DANN den Versuch auf B. Ohne den positiven Fall belegt
+#         „keine Eintraege" nur, dass der Agent ueberhaupt nicht ins Journal
+#         schreibt.
 #    (b)  Am Agenten vorbei an der Anwendung, mit erfundener Nutzlast:
 #           Client::call("pg.console.tables", ["prefix" => <A>, "database" =>
 #                        <B-Datenbank>, "schema" => "public"])
 #         erwartet: „Diese Datenbank gehört nicht zu diesem Abonnement."
+#
+#         GEFAHREN WIRD DAS MIT `HOME=/tmp srvpanel tinker --execute="…"`, UND
+#         DAS `HOME` GEHOERT DAZU. Der Wrapper setzt per `setpriv` auf den
+#         Benutzer `srvpanel` um, `HOME` bleibt dabei auf dem des Aufrufers
+#         (`/root`), und psysh will dort `.config/psysh` anlegen. Es scheitert
+#         mit „Writing to directory .config/psysh is not allowed" — und zwar
+#         als blosse `User Notice`: Der Aufruf gibt danach NICHTS aus, weder
+#         Ergebnis noch Fehler. Gemessen am 13. August 2026 auf cloudsrv24.
+#
+#         > Ein Werkzeug, das mit einer Warnung aufhoert, sieht aus wie eins,
+#         > das nichts zu sagen hatte.
+#
+#         Dieselbe Sorte Fall wie in `docs/47`, wo eine Hilfsdatei unter /root
+#         nach dem `setpriv` unlesbar war — nur andersherum: dort das Lesen,
+#         hier das Schreiben.
 #    (c)  An einer Rolle, die den befristeten Zugang nachbaut (CREATE ROLE …
 #         IN ROLE srvpanel_restore, <A>_owner; GRANT CONNECT ON <A-Datenbank>),
 #         über den SOCKET — den Weg, den Pg\Session::linesAs() geht:

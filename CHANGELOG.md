@@ -11920,3 +11920,45 @@ Beide Seiten fragen jetzt über den Katalog nach Objekten **mit ihrer Art**
 16.13 und MariaDB 10.11.14: dieselbe Zeichenkette auf beiden Seiten, die Sicht
 mit einer Zeile auf beiden, und der Rückbau (`DROP VIEW` vor `DROP TABLE`)
 zweimal hintereinander fehlerfrei.
+
+### Punkt 3 des Abnahmelaufs: die 403 war eine Vermutung, und zwei Werkzeuge schwiegen
+
+**Die dritte Wand steht, und sie ist die, die uns nicht gehört.** Gemessen am
+13. August 2026 auf `cloudsrv24`: Eine Rolle, die den befristeten Zugang
+nachbaut, kommt an eine fremde Datenbank nicht heran — PostgreSQL sagt
+`FATAL: permission denied … User does not have CONNECT privilege`, MariaDB
+`ERROR 1044`. Beide Meldungen kommen vom **Server** und nicht von uns, und genau
+das ist der Punkt: Mit unseren eigenen zwei Wänden allein wäre belegt, dass
+unsere Prüfung greift — und das ist nicht die Frage.
+
+**Die erwartete 403 in Punkt 3 (a) war falsch.** `Database` trägt
+`BelongsToSubscription`, und der globale Filter greift **vor** der Policy: Die
+Adressauflösung findet den Datensatz gar nicht erst, also antwortet Laravel mit
+**404**, und `can:console,database` kommt nie dran. Die 404 ist dabei die
+schärfere Antwort — eine 403 bestätigt die Existenz der fremden Datenbank, eine
+404 sagt nichts.
+
+> **Eine Erwartung, die niemand gegen den Code gelesen hat, ist eine Vermutung
+> mit Aktenzeichen.**
+
+**Und der zweite Teil des Belegs brauchte eine Gegenprobe, die im Plan fehlte.**
+„Der Agent wurde nicht gefragt" wird am Journal gemessen und ist damit eine
+Null. Der Punkt verlangt jetzt zuerst den positiven Fall — die eigene Konsole
+öffnen, die Zeile im Journal suchen —, denn sonst belegt „keine Einträge" nur,
+dass der Agent überhaupt nicht ins Journal schreibt.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.** (Derselbe Satz wie in `docs/47`.)
+
+**Punkt 3 (b) lief gar nicht, und es sah aus wie ein leeres Ergebnis.** Der
+Wrapper setzt per `setpriv` auf den Benutzer `srvpanel` um; `HOME` bleibt dabei
+auf `/root`, und psysh will dort `.config/psysh` anlegen. Es scheitert mit
+„Writing to directory .config/psysh is not allowed" — als blosse `User Notice`.
+Danach kommt **nichts**: kein Ergebnis, kein Fehler, kein Rückgabewert, der
+auffiele. Der Punkt schreibt jetzt `HOME=/tmp srvpanel tinker` vor.
+
+> **Ein Werkzeug, das mit einer Warnung aufhört, sieht aus wie eins, das nichts
+> zu sagen hatte.**
+
+Dieselbe Sorte Fall wie in `docs/47`, wo eine Hilfsdatei unter `/root` nach dem
+`setpriv` unlesbar war — nur andersherum: dort das Lesen, hier das Schreiben.

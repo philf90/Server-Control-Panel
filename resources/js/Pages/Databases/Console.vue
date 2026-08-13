@@ -626,13 +626,46 @@ const openFacts = computed((): string => {
     return ''
   }
 
-  return [
-    tabelle.kind === 'view' ? 'Sicht' : 'Tabelle',
-    `${formatRows(tabelle.rows)} Zeilen`,
-    formatBytes(tabelle.bytes),
-    tabelle.key ? 'mit Schlüssel' : 'ohne Schlüssel',
-  ].join(' · ')
+  const angaben = [
+    // **„unbekannt Zeilen" war kein Deutsch.** `formatRows(null)` gibt das Wort
+    // „unbekannt" zurück, und ich hatte blind „ Zeilen" angehängt. Die Zahl
+    // trägt ihre Einheit, das Wort trägt seinen Satz.
+    tabelle.rows === null ? 'Zeilenzahl unbekannt' : `${formatRows(tabelle.rows)} Zeilen`,
+  ]
+
+  /*
+   * **Eine Sicht bekommt keine Grösse**, und das ist der dritte Fall derselben
+   * Falle in dieser Stufe. Eine Sicht speichert nichts; der Katalog meldet
+   * dafür 0, und „0 B" liest sich wie „leer" statt wie „gibt es nicht".
+   *
+   * > **Eine 0, die für „nichts da" steht, sieht aus wie eine Antwort.**
+   *
+   * Vorher: die geschätzte Zeilenzahl (`docs/46 §9`) und die Länge einer
+   * binären Spalte mit `NULL` (§20.16). Dreimal dieselbe Ursache — eine Zahl,
+   * die es gibt, für eine Angabe, die es nicht gibt.
+   */
+  if (tabelle.kind !== 'view') {
+    angaben.push(formatBytes(tabelle.bytes))
+  }
+
+  angaben.push(tabelle.key ? 'mit Schlüssel' : 'ohne Schlüssel')
+
+  return angaben.join(' · ')
 })
+
+/**
+ * „Tabelle" oder „Sicht" — das Wort vor dem Namen.
+ *
+ * **Vorher stand hier immer „Tabelle", und die Angaben dahinter sagten „Sicht".**
+ * Zwei Wörter Abstand, und sie widersprachen sich. Gefunden auf einem Bild des
+ * Durchgangs zu Schritt 5b.
+ *
+ * > **Eine Beschriftung, die einen Wert wiederholt, der daneben steht, ist
+ * > nicht doppelt — sie ist die zweite Fassung.**
+ */
+const openKind = computed((): string =>
+  tables.value.find((t) => t.name === openTable.value)?.kind === 'view' ? 'Sicht' : 'Tabelle',
+)
 
 function isBinary(column: string): boolean {
   return columns.value.some((c) => c.name === column && c.binary)
@@ -812,7 +845,7 @@ onMounted(loadTables)
       <template v-if="openTable !== null && openView === 'columns'">
         <Section title="Spalten" full>
           <p class="section-note">
-            Tabelle <span class="ident">{{ openTable }}</span> · {{ openFacts }}
+            {{ openKind }} <span class="ident">{{ openTable }}</span> · {{ openFacts }}
           </p>
 
           <p v-if="loadingTable" class="empty">Wird geladen …</p>
@@ -866,7 +899,7 @@ onMounted(loadTables)
       <template v-if="openTable !== null && openView === 'indexes'">
         <Section title="Indexe" full>
           <p class="section-note">
-            Tabelle <span class="ident">{{ openTable }}</span> · {{ openFacts }}
+            {{ openKind }} <span class="ident">{{ openTable }}</span> · {{ openFacts }}
           </p>
 
           <p v-if="loadingTable" class="empty">Wird geladen …</p>
@@ -918,7 +951,7 @@ onMounted(loadTables)
       -->
       <Section v-if="openTable !== null && openView === 'rows'" title="Zeilen" full>
         <p class="section-note">
-          Tabelle <span class="ident">{{ openTable }}</span> · {{ openFacts }}
+          {{ openKind }} <span class="ident">{{ openTable }}</span> · {{ openFacts }}
         </p>
 
         <div class="filter">

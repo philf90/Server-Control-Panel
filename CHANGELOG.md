@@ -11622,3 +11622,65 @@ Block und meldete, die Umbrucherlaubnis sei fort; sie stand unverändert da.
 
 Es ist derselbe Fund wie beim `\b` über Klassennamen: eine Grenze, die für den
 einfachen Fall reicht und für den nächsten nicht.
+
+### Der Satz eines fehlgeschlagenen Schreibvorgangs — in beiden Systemen wörtlich gleich
+
+Gemessen auf `cloudsrv24` gegen `0.5.3-rc.12`, mit einem Eingriff von aussen bei
+offenem Formular: PostgreSQL 120 Zeilen vorher und nachher, MariaDB 16384 vorher
+und nachher, und beide Male
+
+```
+Der Vorgang hat 0 Zeilen getroffen und nicht genau eine; nichts wurde geändert.
+```
+
+Kein Vorspann, keine `CONTEXT`-Zeile. Damit ist Befund 2 aus `docs/47`
+geschlossen. Die unveränderte Zeilenzahl ist dabei der eigentliche Beleg — eine
+Fehlermeldung sagt, dass etwas abgewiesen wurde, nicht dass nichts geschrieben
+wurde.
+
+### Die Zeilenzahl behauptete fünf Stellen, die sie nicht hat
+
+Die Beizeile las sich `16.008 Zeilen`; `SELECT COUNT(*)` sagte 16384. Die Zahl
+ist die Schätzung aus dem Katalog — so entschieden, weil die Zählung selbst die
+teure Abfrage wäre —, und das Wort „geschätzt" stand in diesem Panel
+ausschliesslich in Quelltextkommentaren.
+
+> **Eine Zahl ohne das Wort, das sie einschränkt, behauptet mehr als sie weiss.**
+
+Kein Test konnte das finden: Die Zahl ist richtig gerechnet und richtig
+formatiert, der Code widerspricht sich nirgends — er verschweigt nur etwas.
+Gefunden hat es der Betreiber, weil neben dem Bild ein `SELECT COUNT(*)` stand,
+das für etwas ganz anderes gefahren wurde.
+
+### Die Beizeile widersprach der Seite, auf der sie stand
+
+Über einer Tabelle, deren Zeilen die gleiche Seite ändern lässt, stand „ohne
+Schlüssel". Die Beizeile kommt aus `tables()`, die Bearbeitbarkeit aus
+`columns()` — und beim Bau von §10 Regel 2 wurde eine von zwei Stellen angefasst.
+
+> **Eine Regel an zwei Stellen ist keine Regel, sondern eine Absprache — und sie
+> hält genau bis zur ersten Änderung.**
+
+Kein Test konnte das sehen: Beide Abfragen waren für sich genommen richtig, und
+keine widersprach sich selbst. PostgreSQL teilt jetzt die Bedingung in einer
+Konstante, MariaDB liest in beiden Abfragen dieselbe Katalogspalte — und dort
+hatte es einen eigenen Grund: **MariaDB befördert den eindeutigen Index zum
+impliziten Primärschlüssel, benennt ihn aber nicht um.** Die alte Abfrage suchte
+einen Index namens `PRIMARY`.
+
+> **Zwei Abfragen an dieselbe Frage sind zwei Antworten, solange sie nicht
+> dieselbe Spalte lesen.**
+
+### Zwei Fehler auf dem Weg dorthin
+
+Der geteilte Baustein war zuerst die ganze Abfrage statt der Bedingung — die eine
+Seite braucht `SELECT 1`, die andere `SELECT i.indkey`.
+
+> **Zwei Stellen, die dieselbe Regel brauchen, brauchen nicht dieselbe Abfrage.**
+
+Und das Gestell in diesem Container hat den daraus folgenden `ArgumentCountError`
+als „übersprungen" abgelegt — im selben Topf wie eine Laravel-Klasse, die es hier
+nicht gibt.
+
+> **Ein Topf für „geht hier nicht" nimmt jeden Fehler auf, der nicht
+> widerspricht — und macht ihn unsichtbar.**

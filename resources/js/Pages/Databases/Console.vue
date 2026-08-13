@@ -680,10 +680,26 @@ const openFacts = computed((): string => {
   }
 
   const angaben = [
-    // **„unbekannt Zeilen" war kein Deutsch.** `formatRows(null)` gibt das Wort
-    // „unbekannt" zurück, und ich hatte blind „ Zeilen" angehängt. Die Zahl
-    // trägt ihre Einheit, das Wort trägt seinen Satz.
-    tabelle.rows === null ? 'Zeilenzahl unbekannt' : `${formatRows(tabelle.rows)} Zeilen`,
+    /*
+     * **„unbekannt Zeilen" war kein Deutsch.** `formatRows(null)` gibt das Wort
+     * „unbekannt" zurück, und ich hatte blind „ Zeilen" angehängt. Die Zahl
+     * trägt ihre Einheit, das Wort trägt seinen Satz.
+     *
+     * **Und „geschätzt" steht davor, seit es jemand nachgezählt hat.** Die Zahl
+     * kommt aus dem Katalog und nicht aus einem `count(*)` — so entschieden in
+     * `docs/46 §9`, weil die Zählung selbst die teure Abfrage wäre. Bis hierher
+     * stand sie ohne ein Wort dazu da, und auf `cloudsrv24` las sich das als
+     * `16.008 Zeilen`, während es **16384** waren. Fünf Stellen Genauigkeit für
+     * eine Angabe, die keine hat.
+     *
+     * > **Eine Zahl ohne das Wort, das sie einschränkt, behauptet mehr als sie
+     * > weiss.**
+     *
+     * Es ist derselbe Fehler wie „0 B" für eine Sicht, nur andersherum: Dort log
+     * eine Null über etwas, das es nicht gibt, hier eine Genauigkeit über etwas,
+     * das es ungefähr gibt.
+     */
+    tabelle.rows === null ? 'Zeilenzahl unbekannt' : `geschätzt ${formatRows(tabelle.rows)} Zeilen`,
   ]
 
   /*

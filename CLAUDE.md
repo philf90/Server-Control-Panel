@@ -696,7 +696,25 @@ Testen berücksichtigen:
   Drei Dinge dabei: `tests/Support/` blind zu laden zieht Interfaces nach, die
   kein Wächter braucht (nur die Traits einbinden); `agent/src/autoload.php`
   gehört dazu; und was Laravels `Tests\TestCase` erbt — `DesignTokensTest`,
-  `WordChoiceTest` — bleibt Sache der CI. `phar.phpunit.de` sperrt der Proxy
+  `WordChoiceTest` — bleibt Sache der CI.
+
+  **Und die Liste der Wächter zählt sich selbst ab.** Am 13. August stand dort
+  eine handverlesene — dreizehn von 136 —, und drei Wächter, die eine
+  Umbenennung gemeldet hätten, waren nicht darunter; sie liefen erst in der CI.
+
+  > **Eine Prüfung, die nur nachsieht, woran man gerade denkt, prüft das
+  > Erinnerungsvermögen.**
+
+  **Was das Gestell nicht kann, zählt es nach Art** statt es „übersprungen" zu
+  nennen: fehlende Klassen, `setUp()`, Datenlieferanten, `use App\`. Gemessen
+  468 grün, 1 rot, 263 solcher Löcher. Der Grund für die Aufzählung ist ein
+  eigener Fehler — ein `ArgumentCountError` aus einem `sprintf()` verschwand
+  vorher im Topf, und eine Einteilung nach dem **Wortlaut** der Meldung
+  (`not found` gegen `does not exist`) hat 104 Wächter in die falsche Richtung
+  gekippt (`docs/46 §20.42`).
+
+  > **Ein Loch, das man zählt, ist kein Loch mehr — es ist eine Zahl, die
+  > kleiner werden kann.** `phar.phpunit.de` sperrt der Proxy
   übrigens genauso wie `codeload.github.com` (403 am CONNECT).
 
   > **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite

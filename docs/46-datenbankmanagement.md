@@ -3225,16 +3225,202 @@ grün; eine Zahl, die Übersprungenes mitzählt, wäre schlimmer als keine. Dazu
 das Gestell jetzt `setUp()`, sonst scheitern Tests an uninitialisierten
 Eigenschaften und sähen aus wie gebrochene Regeln.
 
-**Gemessen am 13. August 2026 über den ganzen Bestand: 501 grün, 7 rot, 309
-übersprungen.** Die sieben stehen in drei Klassen — `DbCommandReachTest`,
-`PgHbaFollowTest`, `PolicyReachTest` —, und **keine davon ist ein Befund**: Alle
-drei binden Klassen aus `app/`, die ohne Laravels Autoloader leer bleiben; die
-Prüfung sieht dann eine Methode, die es „nicht mehr gibt". In der CI sind sie
-gegen denselben Commit grün.
+**Gemessen am 13. August 2026 über den ganzen Bestand: 468 grün, 1 rot, 263
+übersprungen** — und die 263 stehen nach Art daneben:
+
+| kann dieses Gestell nicht | |
+|---|---|
+| `Error` (Klassen aus `tests/Support`, Laravel) | 154 |
+| `setUp()` | 48 |
+| `ArgumentCountError` (Datenlieferanten) | 35 |
+| bindet `App\` ein — braucht Laravel | 25 |
+| `ReflectionException` | 1 |
+
+Der eine rote ist `PolicyReachTest`; er spiegelt über `App\Policies\…`, und in
+der CI ist er gegen denselben Commit grün.
 
 > **Ein Wächter ausserhalb seiner Umgebung ist rot, ohne dass etwas kaputt
 > ist — und das ist genauso wertlos wie grün.**
 
-Wer die Zahl hier benutzt, vergleicht sie deshalb gegen die CI und nicht gegen
-null. Was das Gestell trägt, sind die **Textwächter**: Sie lesen Dateien und
-brauchen nichts weiter.
+#### Und die Einteilung selbst ist dreimal danebengegangen
+
+**Erst war der Topf zu.** Jeder Fehler galt als „übersprungen", und ein
+`ArgumentCountError` aus meinem eigenen `sprintf()` verschwand darin — ein echter
+Bug in einer Abfrage, die ich gerade geschrieben hatte (§20.46).
+
+> **Ein Topf für „geht hier nicht" nimmt jeden Fehler auf, der nicht
+> widerspricht — und macht ihn unsichtbar.**
+
+**Dann sollte der Wortlaut entscheiden.** `str_contains($e->getMessage(), 'not
+found')` — und 104 Wächter kippten in die falsche Richtung, weil PHP für eine
+fehlende Klasse je nach Weg „not found" **oder** „does not exist" schreibt.
+
+> **Ein Kriterium, das den Wortlaut einer Meldung liest, ist so genau wie die
+> Laune dessen, der sie geschrieben hat.**
+
+Es ist derselbe Fehler wie das `\b` über Klassennamen (§20.30) und das `strpos`
+über `.notice {` (§20.42) — **dreimal an einem Tag**, und das dritte Mal in
+meinem eigenen Werkzeug.
+
+**Dann strukturell**, und auch das griff nicht: Der Ausdruck `/^use App\\/m`
+wurde beim Durchreichen zu `/^use App\/m` und suchte einen Schrägstrich. Er
+legte dabei offen, dass das Gestell auch an Datenlieferanten, `expectException()`
+und Hilfsklassen scheitert — die Einteilung „läuft/läuft nicht" hat also gar
+keine einfache Bedingung.
+
+**Die Antwort ist keine bessere Bedingung, sondern ein offener Topf.** Jede
+Ursache wird nach Art gezählt und ausgewiesen; ein neuer Grund fällt damit auf,
+ohne dass irgendwo eine Liste von Fehlertexten gepflegt werden muss.
+
+> **Ein Loch, das man zählt, ist kein Loch mehr — es ist eine Zahl, die kleiner
+> werden kann.**
+
+Wer die Zahl benutzt, vergleicht sie gegen die CI und nicht gegen null. Was das
+Gestell trägt, sind die **Textwächter**: Sie lesen Dateien und brauchen nichts
+weiter.
+
+### 20.43 Befund 2 aus `docs/47` ist geschlossen — in beiden Systemen wörtlich gleich
+
+**Gemessen am 13. August 2026 auf `cloudsrv24` gegen `0.5.3-rc.12`**, mit einem
+Eingriff von aussen bei offenem Formular.
+
+| | PostgreSQL (`x1b311d2b6eedc3aa_p5c`) | MariaDB (`p1130_p5c`) |
+|---|---|---|
+| Zeilen vorher | 120 | 16384 |
+| Wegwerfzeile angelegt | `INSERT 0 1` | `1` |
+| von aussen gelöscht, Formular offen | `DELETE 1` | ohne Ausgabe |
+| **Meldung im Panel** | `Der Vorgang hat 0 Zeilen getroffen und nicht genau eine; nichts wurde geändert.` | **wörtlich dieselbe** |
+| Zeilen danach | 120 | 16384 |
+
+Kein `Die Datenbank hat abgewiesen: ERROR: …`, keine
+`CONTEXT: PL/pgSQL function inline_code_block line 7 at RAISE`. Der Satz kommt
+aus `Console::missed()` und damit in beiden Systemen aus einer Quelle.
+
+**Die letzte Zeile der Tabelle ist die, die zählt.** Eine Fehlermeldung belegt,
+dass etwas abgewiesen wurde; sie belegt nicht, dass nichts geschrieben wurde.
+Erst die unveränderte Zeilenzahl macht aus der Meldung einen Beleg.
+
+> **Ein Schreibvorgang, der nicht nachzählt, was er getroffen hat, meldet Erfolg
+> für einen Treffer, den niemand geprüft hat.**
+
+### 20.44 Und die Zeilenzahl behauptete fünf Stellen, die sie nicht hat
+
+**Auf demselben Bild, und kein Test konnte es sehen.** Die Beizeile der
+MariaDB-Tabelle las sich
+
+```
+Tabelle bestellpositionen_archiv_2026_langer_name_zum_messen · 16.008 Zeilen · 3,3 MB · mit Schlüssel
+```
+
+`SELECT COUNT(*)` sagte **16384**. Die Zahl ist nicht falsch gerechnet — sie ist
+die Schätzung aus dem Katalog, und dass es eine ist, hat `docs/46 §9`
+entschieden, weil die Zählung selbst die teure Abfrage wäre. **Falsch war, dass
+nichts es sagt:** Das Wort „geschätzt" stand in diesem Panel ausschliesslich in
+Quelltextkommentaren.
+
+> **Eine Zahl ohne das Wort, das sie einschränkt, behauptet mehr als sie weiss.**
+
+Es ist derselbe Fehler wie „0 B" für eine Sicht und „0 Zeilen" für eine
+unbekannte Zahl, nur andersherum: Dort log eine Null über etwas, das es nicht
+gibt, hier eine Genauigkeit über etwas, das es ungefähr gibt. Die Beizeile sagt
+jetzt `geschätzt 16.008 Zeilen`.
+
+**Warum kein Test das finden konnte**, und das gehört dazu: Die Zahl ist richtig
+gerechnet und richtig formatiert. Es gibt keinen Zustand, in dem der Code sich
+widerspricht — nur einen, in dem er etwas verschweigt. Gefunden hat es der
+Betreiber, weil neben dem Bild ein `SELECT COUNT(*)` im Terminal stand, das für
+etwas ganz anderes gefahren wurde.
+
+> **Ein Bild vom echten Server zeigt auch das, wofür es nicht aufgenommen
+> wurde.** Zum dritten Mal in dieser Stufe.
+
+`NullDisplayTest::test_an_estimated_row_count_says_so` prüft seitdem die
+**Nachbarschaft** und nicht das Vorkommen: Dass das Wort irgendwo in der Datei
+steht, sagt nichts — es muss an der Zahl stehen.
+
+### 20.45 Und ein Nebenbefund für Schritt 9: die beiden Fixturen laufen auseinander
+
+Der MariaDB-Bestand hat `id = 9001` bereits belegt (der `INSERT` scheiterte mit
+`Duplicate entry`), PostgreSQL nicht; MariaDB hat ausserdem eine Tabelle
+`ohne_schluessel_lang`, die es dort nicht gibt, und 16384 Zeilen gegen 120.
+
+Für diese Messung ist das gleichgültig. Für den Abnahmelauf aus §15 nicht:
+**„jeder Punkt zweimal gefahren" prüft zweimal etwas anderes, wenn die Bestände
+verschieden sind.** Das ist vor Schritt 9 zu klären und hier notiert, damit es
+dort nicht neu auffällt.
+
+> **Zwei Läufe über zwei verschiedene Bestände sind zwei Messungen und keine
+> Gegenprobe.**
+
+### 20.46 Bild 6 ist belegt — und die Beizeile widersprach der Seite, auf der sie stand
+
+**§10 Regel 2 im Betrieb, gemessen auf `cloudsrv24` gegen `0.5.3-rc.12`.** Eine
+Tabelle ohne Primärschlüssel, aber mit einem eindeutigen Index über eine
+`NOT NULL`-Spalte ist in **beiden** Systemen änderbar: Spalte „Zeile" mit
+„Ändern", „Zeile anlegen", und das Formular mit `kennung` und `ort`. Daneben die
+Gegenproben — `protokoll_ohne_schluessel` und `ohne_schluessel_lang` bleiben nur
+lesbar, mit ihrem Satz.
+
+**Auf demselben Bild stand der Fehler:**
+
+```
+Tabelle nur_unique · Zeilenzahl unbekannt · 32 KB · ohne Schlüssel
+```
+
+„ohne Schlüssel" — über einer Tabelle, deren Zeilen die gleiche Seite ändern
+lässt. Die Beizeile kommt aus `tables()`, die Bearbeitbarkeit aus `columns()`,
+und beim Bau von §20.35 habe ich **eine von zwei Stellen** angefasst.
+
+> **Eine Regel an zwei Stellen ist keine Regel, sondern eine Absprache — und sie
+> hält genau bis zur ersten Änderung.**
+
+Kein Test konnte das sehen: Beide Abfragen waren für sich genommen richtig, und
+keine widersprach sich selbst. Es ist der Fehler, vor dem dieses Projekt am
+häufigsten warnt, in seiner reinsten Form — und er ist mir beim Beheben eines
+anderen unterlaufen.
+
+#### Wie es jetzt aussieht
+
+**PostgreSQL** teilt die **Bedingung** in `Console::KEY_INDEX`; jede der beiden
+Abfragen schreibt ihr eigenes `SELECT` darum. **MariaDB** liest in beiden
+Abfragen `information_schema.COLUMNS.COLUMN_KEY` — dieselbe Spalte, aus der auch
+der implizite Primärschlüssel kommt.
+
+Der MariaDB-Teil hat dabei einen eigenen Grund: **Sie befördert den eindeutigen
+Index zwar zum impliziten Primärschlüssel, benennt ihn aber nicht um.** Die alte
+Abfrage suchte einen Index namens `PRIMARY`, und den gibt es dann nicht.
+
+> **Zwei Abfragen an dieselbe Frage sind zwei Antworten, solange sie nicht
+> dieselbe Spalte lesen.**
+
+Gemessen gegen beide Wegwerf-Server, zwölf beziehungsweise acht Fixturen, und
+Tabellenliste und Spaltenliste stimmen jetzt in jeder überein.
+
+#### Und zwei Fehler auf dem Weg dorthin
+
+**Der geteilte Baustein war der falsche.** Der erste Versuch zog das ganze
+`SELECT` in die Konstante — die Tabellenliste braucht `SELECT 1`, die
+Spaltenliste `SELECT i.indkey`, und PostgreSQL wies es mit `cannot cast type
+integer to smallint[]` ab.
+
+> **Zwei Stellen, die dieselbe Regel brauchen, brauchen nicht dieselbe
+> Abfrage.**
+
+**Und mein Gestell hat den Fehler als „übersprungen" abgelegt.** Der fehlende
+`sprintf()`-Parameter warf einen `ArgumentCountError`, und der landete im selben
+Topf wie eine Laravel-Klasse, die es hier nicht gibt: als etwas, das man nicht
+wissen kann. Es war ein Fehler in einer Abfrage, die ich gerade geschrieben
+hatte.
+
+> **Ein Topf für „geht hier nicht" nimmt jeden Fehler auf, der nicht
+> widerspricht — und macht ihn unsichtbar.**
+
+Übersprungen wird seitdem nur noch, was nach fehlender Umgebung aussieht —
+„class not found" und eine uninitialisierte Eigenschaft aus einem fehlenden
+`setUp()`. Alles andere zählt rot.
+
+**Vier Brüche, vier Bisse.** Der dritte hat den Wächter dabei geschärft: Er
+prüfte `COLUMN_KEY` und blieb grün, als die Sicht von `COLUMNS` auf `STATISTICS`
+wechselte.
+
+> **Ein Feldname ohne seine Tabelle ist eine halbe Angabe.**

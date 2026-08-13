@@ -297,6 +297,97 @@ final class RowKeyTest extends TestCase
     }
 
     /**
+     * Beide Katalogfragen meinen dasselbe mit „Schlüssel".
+     *
+     * **Der Anlass ist ein Bild, auf dem sich zwei Angaben widersprachen**
+     * (`docs/46 §20.46`). Über einer Tabelle, die sich ändern liess, stand
+     *
+     *     Tabelle nur_unique · Zeilenzahl unbekannt · 32 KB · ohne Schlüssel
+     *
+     * und daneben die Spalte „Zeile" mit „Ändern". `columns()` kannte §10
+     * Regel 2, `tables()` nicht — beim Bau habe ich eine von zwei Stellen
+     * angefasst.
+     *
+     * > **Eine Regel an zwei Stellen ist keine Regel, sondern eine Absprache —
+     * > und sie hält genau bis zur ersten Änderung.**
+     *
+     * Kein Test konnte das sehen: Beide Abfragen waren für sich genommen
+     * richtig, und keine widersprach sich selbst. Dieser hier vergleicht sie
+     * miteinander.
+     */
+    public function test_both_catalogue_questions_agree_on_what_a_key_is(): void
+    {
+        $tabellen = PgConsole::tablesQuery();
+        $spalten = PgConsole::columnsQuery('public', 't');
+
+        foreach (['i.indisunique', 'i.indpred IS NULL', 'x.attnotnull'] as $teil) {
+            foreach (['Tabellenliste' => $tabellen, 'Spaltenliste' => $spalten] as $wo => $abfrage) {
+                $this->assertStringContainsString(
+                    $teil,
+                    $abfrage,
+                    sprintf(
+                        'Die %s von PostgreSQL fragt nicht mehr nach `%s`. Beide Abfragen müssen '
+                        .'denselben Schlüsselbegriff benutzen — sonst sagt die eine „ohne Schlüssel" '
+                        .'über eine Tabelle, die die andere änderbar macht (docs/46 §10, Regel 2).',
+                        $wo,
+                        $teil,
+                    ),
+                );
+            }
+        }
+
+        /*
+         * **Und die alte Fassung darf nicht zurückkommen.** `indisprimary` steht
+         * weiter in der Sortierung — der Primärschlüssel gewinnt vor dem zuerst
+         * angelegten Index —, aber nicht mehr als *Bedingung*.
+         */
+        $this->assertStringNotContainsString(
+            'AND i.indisprimary',
+            $tabellen,
+            'Die Tabellenliste von PostgreSQL fragt wieder nur nach dem Primärschlüssel. Eine Tabelle '
+            .'mit einem tauglichen eindeutigen Index gälte dann als schlüssellos, obwohl die '
+            .'Spaltenliste sie änderbar macht.',
+        );
+
+        $dbTabellen = DbConsole::tablesQuery('db');
+        $dbSpalten = DbConsole::columnsQuery('db', 't');
+
+        /*
+         * **Die Spalte **und** die Sicht, aus der sie kommt.** Der erste Wurf
+         * prüfte nur, dass `COLUMN_KEY` vorkommt — und blieb grün, als der Bruch
+         * `information_schema.COLUMNS` durch `STATISTICS` ersetzte. Die Abfrage
+         * wäre dann kaputt statt still falsch, also kein Datenschaden; ein
+         * Wächter, der einen Unsinn durchlässt, prüft trotzdem weniger als er
+         * behauptet.
+         *
+         * > **Ein Feldname ohne seine Tabelle ist eine halbe Angabe.**
+         */
+        foreach (['Tabellenliste' => $dbTabellen, 'Spaltenliste' => $dbSpalten] as $wo => $abfrage) {
+            foreach (['information_schema.COLUMNS', 'COLUMN_KEY'] as $teil) {
+                $this->assertStringContainsString(
+                    $teil,
+                    $abfrage,
+                    sprintf(
+                        'Die %s von MariaDB liest `%s` nicht. Der implizite Primärschlüssel, den '
+                        .'MariaDB aus einem eindeutigen Index über Spalten ohne `NULL` macht, steht '
+                        .'in `information_schema.COLUMNS.COLUMN_KEY` — der Index selbst heisst '
+                        .'weiterhin nicht `PRIMARY`.',
+                        $wo,
+                        $teil,
+                    ),
+                );
+            }
+        }
+
+        $this->assertStringNotContainsString(
+            DbConsole::PRIMARY,
+            $dbTabellen,
+            'Die Tabellenliste von MariaDB fragt wieder nach einem Index namens `PRIMARY`. Den gibt es '
+            .'bei einem beförderten eindeutigen Index nicht, und die Tabelle gälte als schlüssellos.',
+        );
+    }
+
+    /**
      * Und die Oberfläche sagt, warum eine Tabelle nur lesbar ist.
      *
      * **Ein fehlendes Bedienelement ist keine Auskunft** (`docs/46 §4`,

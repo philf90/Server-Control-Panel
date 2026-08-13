@@ -171,6 +171,70 @@ final class TreeSemanticsTest extends TestCase
     }
 
     /**
+     * Ein Baum ist **eine** Tabulatorstation, und sie wandert mit.
+     *
+     * **Der Mangel, den erst die Frage nach dem Beleg gefunden hat.** Der erste
+     * Wurf hielt die Station fest am ersten Zweig: `:tabindex="index === 0 ? 0
+     * : -1"`. Das ist die halbe Regel — der Baum war eine Station, aber wer ihn
+     * verliess und mit `Tab` zurückkam, stand wieder oben statt dort, wo er war.
+     *
+     * Aufgefallen ist es nicht beim Bauen und nicht auf einem Bild, sondern
+     * beim Ausschreiben, **wie man die Bedienung belegt**: Die Zeile
+     * `[role="treeitem"][tabindex="0"]` gehörte in die Messung, und dabei war zu
+     * sehen, dass sie immer dasselbe Element trifft.
+     *
+     * > **Wer aufschreibt, wie etwas zu belegen wäre, sieht dabei, was der
+     * > Beleg zeigen würde.**
+     *
+     * Geprüft wird beides: dass jede Station **gebunden** ist — eine feste `0`
+     * an einem Knoten kann nicht wandern — und dass der Baum mitbekommt, wohin
+     * der Fokus geht.
+     */
+    public function test_a_tree_is_one_tab_stop_and_it_moves(): void
+    {
+        foreach ($this->trees() as $name => $template) {
+            preg_match_all('/<[a-z]+[^>]*role="treeitem"[^>]*>/i', $template, $punkte);
+
+            $this->assertGreaterThanOrEqual(
+                2,
+                count($punkte[0]),
+                $name.' hat weniger als zwei Knoten — dann prüft dieser Test nichts.',
+            );
+
+            foreach ($punkte[0] as $punkt) {
+                $this->assertMatchesRegularExpression(
+                    '/(?::tabindex|v-bind:tabindex)="/',
+                    $punkt,
+                    sprintf(
+                        '%s hat einen Knoten mit fester oder fehlender Tabulatorangabe: `%s`. Eine '.
+                        'Station, die nicht gebunden ist, kann nicht mitwandern — wer den Baum '.
+                        'verlässt und zurückkommt, landet dann wieder am Anfang (docs/46 §20.27).',
+                        $name,
+                        trim($punkt, '<>'),
+                    ),
+                );
+            }
+
+            $this->assertSame(
+                1,
+                preg_match('/<[a-z]+[^>]*role="tree"[^>]*>/', $template, $behaelter),
+                $name.' hat kein einzelnes Element mit `role="tree"`.',
+            );
+
+            $this->assertStringContainsString(
+                '@focusin',
+                $behaelter[0],
+                sprintf(
+                    '%s merkt sich nicht, wohin der Fokus im Baum geht: `%s`. Ohne das bleibt die '.
+                    'Tabulatorstation stehen, wo sie beim Aufbau war.',
+                    $name,
+                    trim($behaelter[0], '<>'),
+                ),
+            );
+        }
+    }
+
+    /**
      * Ein Baum wird mit den Pfeiltasten bedient.
      *
      * **Sonst ist er eine Liste von Knöpfen, durch die man tabbt** — und genau

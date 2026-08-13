@@ -11179,3 +11179,79 @@ vier Angaben stehen jetzt in der Beizeile des offenen Ziels.
 Inhalt unter dem Baum, und zwanzig Zweige sind rund 930 px hoch. Die Ansicht
 holt ihn deshalb ins Bild — und nur dort, denn ab 720 px steht er daneben und
 ist längst zu sehen.
+
+### Ein Satz, der eine Seite verspricht
+
+**Gefunden auf dem ersten Bild des Durchgangs zu Schritt 5b.** Solange keine
+Tabelle gewählt war, stand in der Konsole „Wählen Sie **links** eine Tabelle …".
+Der Baum steht aber nur ab 720 px daneben; darunter steht er *oben* — und genau
+auf dem Telefon schickte der Satz in die falsche Richtung.
+
+Kein Wächter konnte das sehen: Der Satz war grammatisch, deutsch, freundlich und
+sachlich richtig. Falsch war er nur zusammen mit dem Grundriss, den er nicht
+kennt.
+
+> **Ein Text, der eine Anordnung behauptet, ist nur so lange richtig wie die
+> Anordnung — und die hängt hier an der Breite des Fensters.**
+
+`MobileLayoutTest` hält es seitdem fest, und der erste Lauf hat die Regel gleich
+geschärft: Ein Fehlalarm auf „Einmal-Links" — Verweise, keine Richtung. Die
+deutsche Rechtschreibung trennt die beiden zuverlässig, und nur am Satzanfang
+fallen sie zusammen.
+
+> **Ein Wächter, der ein Wort sucht statt einer Bedeutung, findet die Wörter,
+> die zufällig gleich aussehen.**
+
+### „Schliessen" klebte an der Tabelle — seit Schritt 4
+
+**Gefunden vom Betreiber auf einem Bild des Durchgangs zu Schritt 5b.** Der
+Knopf stand ohne einen Millimeter Abstand unter der Spaltentabelle; nach der
+Behebung sind es 16 px.
+
+`.button-row` bringt keinen Rand nach oben mit. Der Nachbarschaftsausdruck in
+`app.css` kannte nur Formularinhalt — dabei hat der Grund nichts mit Formularen
+zu tun: Diese Bausteine **enden bündig**, und `.scrolls`, `.pager` und
+`.cell-value` tun das genauso.
+
+> **Eine Regel, die eine Liste von Nachbarn führt, ist eine Liste, die wächst —
+> der Grund steht nicht in ihr, sondern daneben.**
+
+Der Fehler war seit Schritt 4 da und hat zwei Bildschirmfoto-Durchgänge
+überlebt. Gefunden hat ihn kein Wächter und keine Messung: Nichts lief über,
+nichts war abgeschnitten, es sah nur gedrängt aus.
+
+**Und der neue Wächter hat dreimal falsch herum gefragt.** Er suchte zuerst
+Knopfreihen und fragte, ob ihr Vorgänger erfasst sei — und meldete drei richtige
+Dinge als Fehler: eine Reihe in einem Flexbehälter mit `gap`, eine unter einer
+eigenen Behälterregel, und eine in einer waagerechten Flexzeile.
+
+> **Ein Wächter, der von der falschen Seite fragt, findet drei richtige Antworten
+> und nennt sie Fehler.**
+
+Er fragt jetzt umgekehrt: Welche Bausteine enden bündig, und steht unter einem
+von ihnen eine Knopfreihe, ohne dass die Regel ihn kennt?
+
+### Der Mangel, den die Frage nach dem Beleg gefunden hat
+
+Der Betreiber hat gefragt, wie sich die Tastaturbedienung des Baums noch belegen
+lässt — ausser mit der Aussage, dass sie funktioniert. Beim Ausschreiben der
+Antwort gehörte die Zeile `[role="treeitem"][tabindex="0"]` in die Messung, und
+dabei war zu sehen, dass sie zwar genau einen Knoten trifft, aber **immer
+denselben**.
+
+Der Baum war damit eine Tabulatorstation — richtig und der ganze Zweck des
+Musters —, aber die Station wanderte nicht mit: Wer ihn verliess und mit `Tab`
+zurückkam, stand wieder oben statt dort, wo er war.
+
+> **Wer aufschreibt, wie etwas zu belegen wäre, sieht dabei, was der Beleg
+> zeigen würde.**
+
+Kein Fund aus einem Bild und keiner aus einer Messung — der Beleg musste gar
+nicht erst gefahren werden. Es genügte, ihn so genau zu formulieren, dass sein
+Ergebnis vorhersagbar wurde.
+
+Behoben mit einer wandernden Station. `TreeSemanticsTest` prüft seitdem beide
+Hälften: dass jede Station gebunden ist (eine feste `0` kann nicht wandern) und
+dass der Baum mitbekommt, wohin der Fokus geht. Und `docs/46 §20.27` hält die
+vier Belege fest, mit denen sich diese Ansicht prüfen lässt — für den
+Abnahmelauf und für jeden, der das Muster später anfasst.

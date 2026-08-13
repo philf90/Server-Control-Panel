@@ -1659,7 +1659,27 @@ tr:has(td.multiline) > td {
  * Formularinhalt. Eine Knopfreihe am Kopf einer Seite oder in einer Kachel
  * berührt er nicht.
  */
-:is(.field, .hint, .error) + .button-row {
+/*
+ * **Und beim vierten Mal war es keine Formularzeile, sondern eine Tabelle.**
+ *
+ * Der Betreiber hat es auf dem Bild zu P5c Schritt 5b gesehen: „Schliessen"
+ * klebte unter der Spaltentabelle, ohne einen Millimeter dazwischen. Der
+ * Nachbarschaftsausdruck kannte nur Formularinhalt — dabei ist der Grund
+ * derselbe, und er hat nichts mit Formularen zu tun: **Diese Bausteine enden
+ * bündig.** `.scrolls` hört an der Tabellenkante auf, `.pager` hat oben eine
+ * Linie und unten nichts, `.cell-value` steht auf `margin: 0`.
+ *
+ * `.empty` steht bewusst nicht dabei — es bringt mit `padding: 22px 0` seine
+ * eigene Luft mit, und ein zweiter Abstand wäre dort zu viel.
+ *
+ * > **Eine Regel, die eine Liste von Nachbarn führt, ist eine Liste, die
+ * > wächst — der Grund steht nicht in ihr, sondern daneben.**
+ *
+ * Der Fehler war seit Schritt 4 da und hat zwei Bildschirmfoto-Durchgänge
+ * überlebt. Gefunden hat ihn kein Wächter und keine Messung: Nichts lief über,
+ * nichts war abgeschnitten, es sah nur gedrängt aus.
+ */
+:is(.field, .hint, .error, .scrolls, .pager, .cell-value) + .button-row {
   margin-top: 16px;
 }
 

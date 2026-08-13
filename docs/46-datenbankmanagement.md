@@ -2347,3 +2347,167 @@ Die Ansicht holt den Inhalt deshalb ins Bild, und nur dort: Ab 720 px steht er
 daneben und ist längst zu sehen, ein Sprung wäre eine Bewegung ohne Anlass. Die
 Breite kommt aus `matchMedia` mit demselben Haltepunkt wie in `app.css` — zwei
 Fassungen davon wären eine zu viel.
+
+### 20.25 Ein Satz, der eine Seite verspricht
+
+**Das erste Bild des Durchgangs zu Schritt 5b hat einen Fehler gefunden, den
+kein Wächter sehen konnte.** Solange keine Tabelle gewählt ist, stand im Inhalt:
+
+> Wählen Sie **links** eine Tabelle und darunter, was Sie sehen möchten.
+
+Der Baum steht nur **ab 720 px** daneben. Darunter steht er *oben* — und genau
+auf dem Telefon schickte der Satz in die falsche Richtung.
+
+Der Satz war grammatisch, deutsch, freundlich und sachlich richtig; falsch war
+er nur zusammen mit dem Grundriss, den er nicht kennt.
+
+> **Ein Text, der eine Anordnung behauptet, ist nur so lange richtig wie die
+> Anordnung — und die hängt hier an der Breite des Fensters.**
+
+Er heisst jetzt „Wählen Sie eine Tabelle und dann, was Sie von ihr sehen
+möchten." — ohne Richtung, in jeder Breite wahr.
+
+**Der Wächter dazu ist `MobileLayoutTest::test_no_text_promises_a_side`**, und
+er hat beim ersten Lauf einen Fehlalarm produziert, der die Regel geschärft hat:
+`Settings/Mail.vue` schreibt „Einmal-**Links** und Warnungen entstehen" — das
+sind Verweise und keine Richtung. Die deutsche Rechtschreibung trennt die beiden
+zuverlässig (die Richtung ist ein Adverb und klein, das Substantiv gross), und
+nur am Satzanfang fallen sie zusammen; genau dieser Fall steht als zweite
+Möglichkeit im Ausdruck.
+
+> **Ein Wächter, der ein Wort sucht statt einer Bedeutung, findet die Wörter,
+> die zufällig gleich aussehen.**
+
+„Oben" und „unten" stehen bewusst nicht in der Regel: Sie bleiben beim Umbruch
+richtig — was untereinander steht, steht in jeder Breite untereinander, es
+wandert nur, wie weit.
+
+### 20.26 „Schliessen" klebte an der Tabelle — seit Schritt 4
+
+**Der Betreiber hat es auf Bild 3 und 4 des Durchgangs zu Schritt 5b gesehen:**
+Der Knopf „Schliessen" stand ohne einen Millimeter Abstand unter der
+Spaltentabelle. Gemessen nach der Behebung: **16 px**, vorher 0.
+
+`.button-row` bringt keinen Rand nach oben mit. In einem `.form` fällt das nicht
+auf — die Reihe ist dort ein Flexkind und erbt den `gap`. Für die Fälle
+ausserhalb gibt es seit dem Optik-Rework einen Nachbarschaftsausdruck in
+`app.css`, und der kannte **nur Formularinhalt**: `.field`, `.hint`, `.error`.
+
+Der Grund hat aber nichts mit Formularen zu tun: Diese Bausteine **enden
+bündig**. Und das tun `.scrolls` (hört an der Tabellenkante auf), `.pager` (oben
+eine Linie, unten nichts) und `.cell-value` (`margin: 0`) genauso.
+
+> **Eine Regel, die eine Liste von Nachbarn führt, ist eine Liste, die wächst —
+> der Grund steht nicht in ihr, sondern daneben.**
+
+**Der Fehler war seit Schritt 4 da und hat zwei Bildschirmfoto-Durchgänge
+überlebt.** Gefunden hat ihn kein Wächter und keine Messung: Nichts lief über,
+nichts war abgeschnitten, es sah nur gedrängt aus.
+
+**Und der Wächter dazu hat dreimal falsch herum gefragt.** `ButtonRowSpacingTest`
+suchte zuerst *Knopfreihen* und fragte, ob ihr Vorgänger von der Regel erfasst
+sei. Das meldete drei richtige Dinge als Fehler:
+
+| Fundstelle | warum sie richtig ist |
+|---|---|
+| `.form` in `Login.vue` | Flexbehälter mit `gap` — der Abstand kommt vom Behälter |
+| `.sheet` in `Login.vue` | eigene Regel `.sheet .button-row { margin-top: 22px }` |
+| `.tasks li` in `Operations/Index.vue` | Flexzeile mit `gap`, und waagerecht |
+
+> **Ein Wächter, der von der falschen Seite fragt, findet drei richtige Antworten
+> und nennt sie Fehler.**
+
+Er fragt jetzt von der anderen Seite: Welche Bausteine enden bündig, und steht
+unter einem von ihnen eine Knopfreihe, ohne dass die Regel ihn kennt? Was das
+**nicht** abdeckt, steht in seinem Kopf: Ein neuer bündiger Baustein, den seine
+Liste nicht kennt, fällt durch. Die Liste ist die Regel, nicht ihr Ersatz.
+
+### 20.27 Der Mangel, den die Frage nach dem Beleg gefunden hat
+
+**Der Betreiber hat gefragt, wie sich die Tastaturbedienung noch belegen lässt —
+ausser mit der Aussage, dass sie funktioniert.** Beim Ausschreiben der Antwort
+gehörte diese Zeile in die Messung:
+
+```js
+document.querySelectorAll('[role="treeitem"][tabindex="0"]').length   // erwartet: 1
+```
+
+Sie trifft genau einen Knoten, wie sie soll. Aber **immer denselben**: Der erste
+Wurf schrieb `:tabindex="index === 0 ? 0 : -1"`. Der Baum war damit **eine**
+Tabulatorstation — richtig und der ganze Zweck des Musters —, aber die Station
+wanderte nicht mit. Wer den Baum verliess und mit `Tab` zurückkam, stand wieder
+oben statt dort, wo er war.
+
+> **Wer aufschreibt, wie etwas zu belegen wäre, sieht dabei, was der Beleg
+> zeigen würde.**
+
+Das ist kein Fund aus einem Bild und keiner aus einer Messung — der Beleg musste
+gar nicht erst gefahren werden. Es genügte, ihn so genau zu formulieren, dass
+sein Ergebnis vorhersagbar wurde.
+
+**Behoben** mit einer wandernden Station: `tabStop` merkt sich den zuletzt
+besuchten Punkt, `@focusin` am Baum schreibt ihn fort, und solange niemand im
+Baum war, trägt ihn der erste Zweig — irgendwo muss man hineinkommen.
+
+`TreeSemanticsTest::test_a_tree_is_one_tab_stop_and_it_moves` prüft beide
+Hälften: dass **jede** Station gebunden ist (eine feste `0` kann nicht wandern)
+und dass der Baum mitbekommt, wohin der Fokus geht. Beide Brüche gefahren.
+
+#### Wie sich diese Ansicht belegen lässt
+
+Für den Abnahmelauf und für jeden, der das Muster später anfasst — vier Belege,
+vom schwächsten zum stärksten:
+
+1. **Ein Protokoll der Fokusbewegung.** Tasten aus der Konsole schicken und nach
+   jeder festhalten, welches Element den Fokus hat und was sein `aria-expanded`
+   sagt. Das ist die Messung statt der Behauptung.
+2. **Der Zugänglichkeitsbaum** (DevTools → Elements → Accessibility) am
+   fokussierten Knoten. Er zeigt, was eine Vorleseausgabe bekommt — und Markup
+   und Zugänglichkeitsbaum sind zwei verschiedene Dinge: Ein `role` an der
+   falschen Stelle verschwindet dort schweigend.
+3. **Die Tabulatorprobe.** Einmal `Tab` hinein, einmal `Tab` heraus — nicht
+   zwanzigmal. Das ist der ganze Zweck des Musters, und genau hier ist der
+   Mangel oben aufgefallen.
+4. **Der Bruch.** `@keydown` aus dem Baum nehmen und dieselbe Messung fahren.
+   Bleibt der Fokus stehen, hat die Messung gemessen.
+
+#### Die Belege, gefahren am 13. August 2026 gegen `0.5.3-rc.7`
+
+**Punkt 1, das Protokoll der Fokusbewegung** — jede Zeile eine Taste, dahinter
+das Element, das danach den Fokus hat:
+
+```
+start        → ▾bestellpositionen_…   aria-expanded=true
+ArrowDown    → Spalten                aria-expanded=—
+ArrowDown    → Indexe                 aria-expanded=—
+ArrowUp      → Spalten                aria-expanded=—
+ArrowRight   → Spalten                aria-expanded=—      ein Blatt klappt nichts auf
+ArrowRight   → Spalten                aria-expanded=—
+ArrowDown    → Indexe                 aria-expanded=—
+ArrowLeft    → ▾bestellpositionen_…   aria-expanded=true   heraus aus der Gruppe
+End          → ▸umsaetze_je_ort       aria-expanded=false  letzter *sichtbarer* Punkt
+Home         → ▾bestellpositionen_…   aria-expanded=true
+```
+
+**Punkt 2, der Zugänglichkeitsbaum**: Chromium löst `tree "" multiselectable:
+false` unter `main` auf — die Rolle steht also nicht nur im Quelltext.
+
+**Punkt 3**: `document.querySelectorAll('[role="treeitem"][tabindex="0"]').length`
+→ `1`. Eine Tabulatorstation, keine zwanzig.
+
+**Und was das Protokoll nicht zeigt.** Der Lauf begann auf einem bereits offenen
+Zweig und ging von dort in die Blätter; `aria-expanded` stand durchweg auf `true`
+und hat nie gewechselt. Damit fehlen genau die beiden Übergänge, die den Zweig
+betreffen — `ArrowRight` auf einem zugeklappten und `ArrowLeft` auf einem
+offenen.
+
+> **Ein Protokoll, in dem eine Spalte nie ihren Wert wechselt, hat den Übergang
+> nicht gesehen — nur den Zustand.**
+
+Nachzuholen mit einer Folge, die auf einem zugeklappten Zweig beginnt:
+`['End', 'ArrowRight', 'ArrowRight', 'ArrowLeft', 'ArrowLeft']`. Dann muss
+`aria-expanded` **false → true** und wieder **true → false** durchlaufen.
+
+Punkt 3 zeigt in `rc.7` ausserdem noch die **feste** Station; dass sie mitwandert
+(§20.27), ist erst gegen die nächste Fassung zu belegen — Baum verlassen,
+zurücktabben, und dort landen, wo man war.

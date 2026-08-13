@@ -131,6 +131,81 @@ final class MobileLayoutTest extends TestCase
         }
     }
 
+    /**
+     * Kein Satz der Oberfläche verspricht eine Seite.
+     *
+     * **Der Anlass ist ein Bild aus dem Durchgang zu P5c Schritt 5b.** Die
+     * Konsole schrieb „Wählen Sie **links** eine Tabelle …". Der Baum steht aber
+     * nur ab 720px daneben; darunter steht er *oben* — und genau auf dem Telefon
+     * schickte der Satz in die falsche Richtung.
+     *
+     * **Kein Wächter konnte das sehen**, denn der Satz war grammatisch, deutsch
+     * und freundlich. Was ihn falsch machte, war nichts an ihm selbst, sondern
+     * der Grundriss daneben.
+     *
+     * > **Ein Text, der eine Anordnung behauptet, ist nur so lange richtig wie
+     * > die Anordnung — und die hängt hier an der Breite des Fensters.**
+     *
+     * Geprüft wird nur der **sichtbare** Text: Kommentare erklären diese Regel
+     * an drei Stellen und nennen dabei ihre Wörter. Ein Wächter, der sie mitläse,
+     * bestrafte das Dokumentieren genau des Fehlers, vor dem er schützt.
+     *
+     * „Oben" und „unten" stehen bewusst nicht in der Liste. Sie bleiben auch
+     * beim Umbruch richtig: Was untereinander steht, steht in jeder Breite
+     * untereinander — es wandert nur, wie weit.
+     *
+     * **Und die Gross-/Kleinschreibung ist hier keine Kosmetik.** Der erste
+     * Anlauf suchte ohne Rücksicht darauf und meldete `Settings/Mail.vue`:
+     * „Einmal-**Links** und Warnungen entstehen, erreichen aber niemanden."
+     * Das sind Verweise und keine Richtung. Die deutsche Rechtschreibung trennt
+     * die beiden zuverlässig — die Richtung ist ein Adverb und klein, das
+     * Substantiv gross —, und nur am Satzanfang fallen sie zusammen. Genau
+     * dieser Fall steht als zweite Möglichkeit im Ausdruck.
+     *
+     * > **Ein Wächter, der ein Wort sucht statt einer Bedeutung, findet die
+     * > Wörter, die zufällig gleich aussehen.**
+     */
+    public function test_no_text_promises_a_side(): void
+    {
+        $sources = $this->files('resources/js', 'vue');
+
+        $this->assertGreaterThan(
+            10,
+            count($sources),
+            'Es werden kaum Dateien gelesen — dann prüft dieser Test nichts.',
+        );
+
+        $seen = 0;
+
+        foreach ($sources as $path) {
+            $template = $this->template((string) file_get_contents($path));
+
+            if ($template === '') {
+                continue;
+            }
+
+            $seen++;
+
+            $this->assertSame(
+                0,
+                preg_match(
+                    '/(?<![\w-])(?:links|rechts)(?![\w-])|(?:^|[.!?]\s|>\s*)(?:Links|Rechts)(?![\w-])/u',
+                    $template,
+                    $treffer,
+                ),
+                sprintf(
+                    '%s verspricht im sichtbaren Text eine Seite („%s"). Der Grundriss dieses Panels '.
+                    'hängt an der Breite: Was bei 1440px daneben steht, steht bei 390px darüber — und '.
+                    'der Satz schickt dann in die falsche Richtung (docs/46 §20.25).',
+                    $this->relative($path),
+                    $treffer[0] ?? '',
+                ),
+            );
+        }
+
+        $this->assertGreaterThan(10, $seen, 'Es werden kaum Vorlagen gefunden — dann prüft dieser Test nichts.');
+    }
+
     public function test_every_table_carries_one_of_the_patterns(): void
     {
         /*

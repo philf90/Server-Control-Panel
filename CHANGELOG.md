@@ -11622,3 +11622,32 @@ Block und meldete, die Umbrucherlaubnis sei fort; sie stand unverändert da.
 
 Es ist derselbe Fund wie beim `\b` über Klassennamen: eine Grenze, die für den
 einfachen Fall reicht und für den nächsten nicht.
+
+### Der Satz eines fehlgeschlagenen Schreibvorgangs — in beiden Systemen wörtlich gleich
+
+Gemessen auf `cloudsrv24` gegen `0.5.3-rc.12`, mit einem Eingriff von aussen bei
+offenem Formular: PostgreSQL 120 Zeilen vorher und nachher, MariaDB 16384 vorher
+und nachher, und beide Male
+
+```
+Der Vorgang hat 0 Zeilen getroffen und nicht genau eine; nichts wurde geändert.
+```
+
+Kein Vorspann, keine `CONTEXT`-Zeile. Damit ist Befund 2 aus `docs/47`
+geschlossen. Die unveränderte Zeilenzahl ist dabei der eigentliche Beleg — eine
+Fehlermeldung sagt, dass etwas abgewiesen wurde, nicht dass nichts geschrieben
+wurde.
+
+### Die Zeilenzahl behauptete fünf Stellen, die sie nicht hat
+
+Die Beizeile las sich `16.008 Zeilen`; `SELECT COUNT(*)` sagte 16384. Die Zahl
+ist die Schätzung aus dem Katalog — so entschieden, weil die Zählung selbst die
+teure Abfrage wäre —, und das Wort „geschätzt" stand in diesem Panel
+ausschliesslich in Quelltextkommentaren.
+
+> **Eine Zahl ohne das Wort, das sie einschränkt, behauptet mehr als sie weiss.**
+
+Kein Test konnte das finden: Die Zahl ist richtig gerechnet und richtig
+formatiert, der Code widerspricht sich nirgends — er verschweigt nur etwas.
+Gefunden hat es der Betreiber, weil neben dem Bild ein `SELECT COUNT(*)` stand,
+das für etwas ganz anderes gefahren wurde.

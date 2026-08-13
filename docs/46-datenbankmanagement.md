@@ -3238,3 +3238,76 @@ gegen denselben Commit grün.
 Wer die Zahl hier benutzt, vergleicht sie deshalb gegen die CI und nicht gegen
 null. Was das Gestell trägt, sind die **Textwächter**: Sie lesen Dateien und
 brauchen nichts weiter.
+
+### 20.43 Befund 2 aus `docs/47` ist geschlossen — in beiden Systemen wörtlich gleich
+
+**Gemessen am 13. August 2026 auf `cloudsrv24` gegen `0.5.3-rc.12`**, mit einem
+Eingriff von aussen bei offenem Formular.
+
+| | PostgreSQL (`x1b311d2b6eedc3aa_p5c`) | MariaDB (`p1130_p5c`) |
+|---|---|---|
+| Zeilen vorher | 120 | 16384 |
+| Wegwerfzeile angelegt | `INSERT 0 1` | `1` |
+| von aussen gelöscht, Formular offen | `DELETE 1` | ohne Ausgabe |
+| **Meldung im Panel** | `Der Vorgang hat 0 Zeilen getroffen und nicht genau eine; nichts wurde geändert.` | **wörtlich dieselbe** |
+| Zeilen danach | 120 | 16384 |
+
+Kein `Die Datenbank hat abgewiesen: ERROR: …`, keine
+`CONTEXT: PL/pgSQL function inline_code_block line 7 at RAISE`. Der Satz kommt
+aus `Console::missed()` und damit in beiden Systemen aus einer Quelle.
+
+**Die letzte Zeile der Tabelle ist die, die zählt.** Eine Fehlermeldung belegt,
+dass etwas abgewiesen wurde; sie belegt nicht, dass nichts geschrieben wurde.
+Erst die unveränderte Zeilenzahl macht aus der Meldung einen Beleg.
+
+> **Ein Schreibvorgang, der nicht nachzählt, was er getroffen hat, meldet Erfolg
+> für einen Treffer, den niemand geprüft hat.**
+
+### 20.44 Und die Zeilenzahl behauptete fünf Stellen, die sie nicht hat
+
+**Auf demselben Bild, und kein Test konnte es sehen.** Die Beizeile der
+MariaDB-Tabelle las sich
+
+```
+Tabelle bestellpositionen_archiv_2026_langer_name_zum_messen · 16.008 Zeilen · 3,3 MB · mit Schlüssel
+```
+
+`SELECT COUNT(*)` sagte **16384**. Die Zahl ist nicht falsch gerechnet — sie ist
+die Schätzung aus dem Katalog, und dass es eine ist, hat `docs/46 §9`
+entschieden, weil die Zählung selbst die teure Abfrage wäre. **Falsch war, dass
+nichts es sagt:** Das Wort „geschätzt" stand in diesem Panel ausschliesslich in
+Quelltextkommentaren.
+
+> **Eine Zahl ohne das Wort, das sie einschränkt, behauptet mehr als sie weiss.**
+
+Es ist derselbe Fehler wie „0 B" für eine Sicht und „0 Zeilen" für eine
+unbekannte Zahl, nur andersherum: Dort log eine Null über etwas, das es nicht
+gibt, hier eine Genauigkeit über etwas, das es ungefähr gibt. Die Beizeile sagt
+jetzt `geschätzt 16.008 Zeilen`.
+
+**Warum kein Test das finden konnte**, und das gehört dazu: Die Zahl ist richtig
+gerechnet und richtig formatiert. Es gibt keinen Zustand, in dem der Code sich
+widerspricht — nur einen, in dem er etwas verschweigt. Gefunden hat es der
+Betreiber, weil neben dem Bild ein `SELECT COUNT(*)` im Terminal stand, das für
+etwas ganz anderes gefahren wurde.
+
+> **Ein Bild vom echten Server zeigt auch das, wofür es nicht aufgenommen
+> wurde.** Zum dritten Mal in dieser Stufe.
+
+`NullDisplayTest::test_an_estimated_row_count_says_so` prüft seitdem die
+**Nachbarschaft** und nicht das Vorkommen: Dass das Wort irgendwo in der Datei
+steht, sagt nichts — es muss an der Zahl stehen.
+
+### 20.45 Und ein Nebenbefund für Schritt 9: die beiden Fixturen laufen auseinander
+
+Der MariaDB-Bestand hat `id = 9001` bereits belegt (der `INSERT` scheiterte mit
+`Duplicate entry`), PostgreSQL nicht; MariaDB hat ausserdem eine Tabelle
+`ohne_schluessel_lang`, die es dort nicht gibt, und 16384 Zeilen gegen 120.
+
+Für diese Messung ist das gleichgültig. Für den Abnahmelauf aus §15 nicht:
+**„jeder Punkt zweimal gefahren" prüft zweimal etwas anderes, wenn die Bestände
+verschieden sind.** Das ist vor Schritt 9 zu klären und hier notiert, damit es
+dort nicht neu auffällt.
+
+> **Zwei Läufe über zwei verschiedene Bestände sind zwei Messungen und keine
+> Gegenprobe.**

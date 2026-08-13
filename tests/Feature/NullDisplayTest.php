@@ -145,6 +145,52 @@ final class NullDisplayTest extends TestCase
     }
 
     /**
+     * Eine geschätzte Zeilenzahl sagt, dass sie geschätzt ist.
+     *
+     * **Gefunden, weil jemand nachgezählt hat.** Auf `cloudsrv24` stand in der
+     * Beizeile `16.008 Zeilen`; `SELECT COUNT(*)` sagte **16384**. Die Zahl
+     * kommt aus dem Katalog und nicht aus einer Zählung — so entschieden in
+     * `docs/46 §9`, weil die Zählung selbst die teure Abfrage wäre —, und sie
+     * stand ohne ein Wort dazu da. Fünf Stellen Genauigkeit für eine Angabe, die
+     * keine hat.
+     *
+     * > **Eine Zahl ohne das Wort, das sie einschränkt, behauptet mehr als sie
+     * > weiss.**
+     *
+     * Es ist derselbe Fehler wie „0 B" für eine Sicht, nur andersherum: Dort log
+     * eine Null über etwas, das es nicht gibt, hier eine Genauigkeit über etwas,
+     * das es ungefähr gibt. Kein Test konnte das sehen — die Zahl ist richtig
+     * gerechnet, sie ist nur falsch angekündigt.
+     *
+     * **Geprüft wird die Nachbarschaft und nicht das Vorkommen**: Dass das Wort
+     * irgendwo in der Datei steht, sagt nichts; es muss an der Zahl stehen.
+     */
+    public function test_an_estimated_row_count_says_so(): void
+    {
+        $source = (string) preg_replace('#/\*.*?\*/|//[^\n]*#su', '', $this->console());
+
+        $this->assertSame(
+            1,
+            preg_match('/const openFacts = computed\(.*?\n\}\)/su', $source, $treffer),
+            'Es gibt keine Angabenzeile zur offenen Tabelle mehr — dann prüft dieser Test nichts.',
+        );
+
+        $this->assertStringContainsString(
+            'formatRows',
+            $treffer[0],
+            'Die Angabenzeile nennt keine Zeilenzahl mehr — dann rechnet dieser Test an nichts nach.',
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/geschätzt[^`\n]*\$\{formatRows/su',
+            $treffer[0],
+            'Die Zeilenzahl steht ohne das Wort „geschätzt" da. Sie kommt aus dem Katalog und nicht '
+            .'aus einem `count(*)` (docs/46 §9); auf cloudsrv24 waren es 16.008 gegen 16384 '
+            .'tatsächliche Zeilen, und der Kunde las die Schätzung als Zählung.',
+        );
+    }
+
+    /**
      * Und die Länge einer binären Spalte wird nicht auf 0 geklemmt.
      *
      * **Die zweite Hälfte, und ohne sie wäre die erste zu umgehen.** Wer die

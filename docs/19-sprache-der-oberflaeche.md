@@ -270,3 +270,22 @@ ist: Sind Felder ständig eingefärbt, fällt das eine rote nicht mehr auf.
 **Ein Vorgang, der auf dem Server weiterläuft, ist kein Erfolg.** Dafür gibt es
 das Protokoll und den Zustand der Zeile, nicht die grüne Meldung — sie sagt „ist
 geschehen" und nicht „ist beauftragt".
+
+#### Zwei Quellen, ein Ort — ergänzt am 13. August 2026
+
+**Der Ort bleibt `PanelLayout.vue`.** Was dazukommt, ist eine zweite Quelle
+dafür: `Composables/useAnnounce.ts`.
+
+Bis P5c war jede Änderung eine Inertia-Antwort, und `flash.success` reichte. Die
+**Konsole** aus `docs/46` ist die erste Seite dieses Panels, die über XHR ändert
+und dabei stehen bleibt — es gibt dort keine Antwort, die eine Seite aufbaut,
+und damit keinen `flash`. Der erste Wurf hat deshalb eine eigene `notice ok` auf
+die Seite gesetzt; `FieldErrorTest` hat sie abgewiesen, und zwar zu Recht.
+
+> **Eine Regel, die einen Ort vorschreibt, braucht einen Weg dorthin — sonst baut
+> die nächste Seite ihren eigenen.**
+
+`announce('Die Zeile ist angelegt.')` setzt die Meldung, das Layout rendert sie,
+und beim nächsten Seitenwechsel ist sie fällig — wie ein `flash`, der eine
+Antwort lang lebt. `FieldErrorTest` bleibt unverändert: Es gibt weiter genau eine
+Datei mit `notice ok`.

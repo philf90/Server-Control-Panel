@@ -418,10 +418,10 @@ final class Console
         $affected = (int) ($rows[0][0] ?? -1);
 
         if ($affected !== 1) {
-            throw AgentException::execFailed(sprintf(
-                'Der Vorgang hat %d Zeilen getroffen und nicht genau eine; nichts wurde geändert.',
-                max(0, $affected),
-            ));
+            // Der Satz steht in {@see PgConsole::missed()} und hier nicht noch
+            // einmal: Beide Systeme melden denselben Fall und sollen ihn nicht in
+            // zwei Fassungen melden (`docs/47 §6`, Befund 2).
+            throw AgentException::execFailed(PgConsole::missed($affected));
         }
 
         return ['affected' => 1];
@@ -557,30 +557,22 @@ final class Console
     /**
      * Die Bedingung, die genau eine Zeile trifft.
      *
+     * **Die Prüfung steht in {@see PgConsole::checkedKey()} und hier nur noch
+     * die Maskierung.** Vorher war das Zeile für Zeile dieselbe Methode mit
+     * `` ` `` statt `"` — und als die Prüfung auf die *Vollständigkeit* des
+     * Schlüssels dazukam, wäre diese Fassung die gewesen, die sie nicht bekommt.
+     * Verschieden ist an den beiden wirklich nur, wie ein Bezeichner
+     * eingefasst wird.
+     *
      * @param  list<array{name: string, type: string, nullable: bool, default: string|null, key: bool, binary: bool}>  $columns
      * @param  array<string, string>  $key
      */
     public static function keyCondition(array $columns, array $key): string
     {
-        if ($key === []) {
-            throw AgentException::badRequest(
-                'Ohne Primärschlüssel lässt sich eine einzelne Zeile nicht eindeutig ansprechen.',
-            );
-        }
-
         $parts = [];
 
-        foreach ($key as $name => $value) {
-            $column = PgConsole::column($columns, (string) $name);
-
-            if (! $column['key']) {
-                throw AgentException::badRequest(
-                    'Diese Spalte gehört nicht zum Primärschlüssel.',
-                    ['column' => $column['name']],
-                );
-            }
-
-            $parts[] = Sql::identifier($column['name']).' = '.Sql::text((string) $value);
+        foreach (PgConsole::checkedKey($columns, $key) as $name => $value) {
+            $parts[] = Sql::identifier($name).' = '.Sql::text($value);
         }
 
         return implode(' AND ', $parts);

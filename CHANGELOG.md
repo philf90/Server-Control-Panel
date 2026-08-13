@@ -11396,3 +11396,171 @@ Abstand gegeben, der zu keinem ihrer Nachbarn passt.
 
 > **Eine Messung ohne die Stufe, in der sie entstand, ist eine Zahl ohne
 > Einheit.**
+
+### P5c Schritt 6, erste Hälfte — §10 Regel 2 war nie gebaut
+
+Der Plan nennt drei Regeln für den Bezug auf eine Zeile: Primärschlüssel, sonst
+ein eindeutiger Index über Spalten ohne `NULL`, sonst nur lesbar. Gebaut war
+Regel 1. Eine Tabelle mit einem tauglichen eindeutigen Index war damit nicht
+änderbar, obwohl sich eine Zeile darüber genauso eindeutig ansprechen lässt.
+
+Aufgefallen ist es an MariaDB, **die es längst richtig machte**: Sie befördert
+den ersten solchen Index zum impliziten Primärschlüssel und meldet seine Spalten
+als `PRI`. Der MariaDB-Zweig erfüllt Regel 2 also, seit es ihn gibt, und niemand
+hat es aufgeschrieben. Der PostgreSQL-Zweig erfüllte sie nicht.
+
+> **Ein Unterschied zwischen zwei Umsetzungen derselben Regel ist kein
+> Unterschied der Systeme, solange ihn niemand gemessen hat.**
+
+Neun Fälle gegen Wegwerf-Server im Container gemessen — PostgreSQL 16.13 und
+MariaDB 10.11.14, mit den echten Abfragen aus dem Quelltext und nicht mit
+nachgebauten. Beide Systeme stimmen jetzt in allen neun überein, einschliesslich
+der vier Ausschlüsse: Teilindex, Ausdrucksindex, nullbare Spalte, Sicht.
+
+Die Reihenfolge bei zwei tauglichen Indexen war dabei keine freie Wahl. Der
+erste Entwurf nahm den schmalsten — vernünftig, und es hätte die beiden Systeme
+auseinanderlaufen lassen, weil MariaDB den zuerst angelegten nimmt.
+
+### Dieselbe Schlüsselregel stand zweimal da
+
+`Db\Console::keyCondition()` war Zeile für Zeile die PostgreSQL-Fassung mit
+`` ` `` statt `"`. Als die dritte Prüfung dazukam — ist jede Spalte des
+Schlüssels genannt? —, wäre die zweite Fassung die gewesen, die sie nicht
+bekommt. Die Prüfung steht jetzt einmal, die Maskierung bleibt je System.
+
+Der neue Fall: Bei einem Schlüssel `(b, c)` trifft `WHERE b = '1'` jede Zeile mit
+diesem `b`. Gefährlich ist das nicht — die Anweisung zählt nach und nimmt
+zurück. Aber sie meldet dann „hat 3 Zeilen getroffen", und das liest sich wie
+ein Nebenläufigkeitsproblem statt wie ein unvollständiger Aufruf.
+
+> **Eine Sicherung, die den Schaden verhindert, erklärt ihn nicht.**
+
+### Befund 2 aus `docs/47` ist entschieden — der Satz gehört uns
+
+Ein Schreibvorgang, der nicht genau eine Zeile trifft, meldete in PostgreSQL:
+
+```
+Die Datenbank hat abgewiesen: ERROR:  Der Vorgang hat 0 Zeilen getroffen …
+CONTEXT:  PL/pgSQL function inline_code_block line 7 at RAISE
+```
+
+Ein Satz, den dieses Panel selbst geschrieben hat — mit einem Vorspann, der sagt,
+es habe jemand anders gesprochen. Der Block schickt jetzt nur noch die Zahl,
+gekennzeichnet mit einer Marke, und den Satz baut PHP; für beide Systeme aus
+einer Quelle. Jede andere Meldung behält ihre Verpackung — beim Zeitlimit *ist*
+es die Meldung des Servers.
+
+> **Eine Verpackung, die für eine fremde Meldung richtig ist, ist für die eigene
+> falsch.**
+
+`VERBOSITY terse` wäre der naheliegende Fix gewesen und der falsche: Er nimmt mit
+der `CONTEXT`-Zeile auch die `DETAIL`-Zeile, und die ist bei drei von vier
+gemessenen Fehlern die nützliche Hälfte — „Key (id)=(1) is still referenced from
+table kind" sagt dem Kunden, welche Zeile sein Löschen blockiert.
+
+> **Ein Schalter, der Rauschen entfernt, entfernt es nicht nur dort, wo es
+> Rauschen ist.**
+
+Und der erste Wurf des Erkenners hat nichts erkannt: `^ERROR:` traf nicht, weil
+die Verpackung davorsteht und die Meldung mitten in der Zeile beginnt. Der Fall
+sah aus wie „keine eigene Meldung" und fiel still in die alte Verpackung zurück.
+
+> **Ein Ausdruck, der nichts findet, sieht aus wie einer, der nichts zu finden
+> hatte.**
+
+### P5c Schritt 6, zweite Hälfte — das Zeilenformular
+
+Anlegen, Ändern und Löschen, mit den drei Regeln des Schreibwegs: `NULL` als
+eigener Zustand des Feldes, eine gekürzte oder binäre Zelle gesperrt mit dem
+Grund daneben, und nur geänderte Spalten in der Anweisung. Dazu Kriterium 5 —
+eine Tabelle ohne Schlüssel sagt, warum sie nur lesbar ist, und eine Sicht
+bekommt einen anderen Satz als eine Tabelle ohne Schlüssel.
+
+Zwei neue Wächter, `RowKeyTest` und `WriteBackTest`, beide **an der erzeugten
+Anweisung** und nicht am Ergebnis: Der Schaden von Regel 2 ist gerade der, den
+man am Ergebnis nicht sieht — die Zeile ist danach da, sie sieht richtig aus, und
+der Rest einer gekürzten Zelle ist fort.
+
+### Eine Feldbeschriftung ist so lang wie der Spaltenname
+
+96px aus dem Bild bei 390px. Vierte Fassung derselben Ausnahme.
+
+> **Eine Beschriftung ist so lang wie das, was sie beschriftet — und das
+> entscheidet nicht, wer sie gestaltet.**
+
+### `min-width: 0` ist nicht die zweite Hälfte von `overflow-wrap`
+
+Dieses Stylesheet behauptete an drei Stellen: „`min-width: 0` gehört dazu, weil
+ein Flexkind sonst nicht unter seine Inhaltsbreite darf." Ungeprüft, und
+gemessen falsch: `overflow-wrap: anywhere` **allein** genügt (0px), `break-word`
+allein nicht (96px). `anywhere` verkleinert die Mindestbreite des Inhalts,
+`break-word` nicht.
+
+Beide Regeln bleiben stehen, jetzt mit dem richtigen Grund: Wer `anywhere` für
+ein Synonym von `break-word` hält und tauscht, bekommt die Seite nicht
+zurückgeschoben. Gefunden hat es der Bruch — die eine Hälfte zurückzunehmen
+sollte nach der eigenen Behauptung 94px ergeben und ergab 0.
+
+> **Zwei Regeln, die zusammen wirken, können auch zwei Wege zum selben Ziel sein
+> — und welcher davon trägt, sagt nur die Messung.**
+
+### Dreizehn Brüche, zwei Lücken
+
+Der Wächter über die MariaDB-Meldung blieb grün, als der Aufruf entfernt wurde —
+er las den **Kommentar**, der genau diesen Aufruf erklärt.
+
+> **Ein Wächter, der Kommentare liest, wird von der Dokumentation des Fehlers
+> beruhigt, vor dem er schützt.** Dieselbe Falle wie in `ConsoleFanoutTest`, nur
+> andersherum; die zweite Richtung ist die gefährlichere, weil sie nach Ordnung
+> aussieht.
+
+Und der Wächter über `NULL` prüfte nur das Ändern, nicht das Anlegen — der Bruch
+traf den anderen Zweig und blieb grün. Geprüft werden jetzt vier Fälle.
+
+> **Ein Wächter, der einen von zwei Zweigen prüft, deckt die Hälfte ab und meldet
+> das nicht.**
+
+### Und `git checkout -- resources/` hat die halbe Stufe weggeworfen
+
+Der Bruchlauf stellte jede Datei mit `git checkout` wieder her — auch die, deren
+Arbeit noch nicht eingecheckt war. 450 Zeilen Zeilenformular waren fort, in einem
+Befehl, der nach Aufräumen aussieht. Gerettet hat es eine Dateikopie im
+Scratchpad, die zehn Minuten vorher aus einem anderen Grund entstanden war.
+
+> **Ein Wiederherstellen, das nicht zwischen fremder und eigener Änderung
+> unterscheidet, ist ein Löschen mit gutem Namen.**
+
+### `assertTrue(false, …)` ist keine Behauptung
+
+Beide neuen Wächter benutzten für „hier darf der Lauf nicht ankommen" ein
+`assertTrue(false, …)`. PHPStan meldet das als `method.impossibleType`, und zu
+Recht: Die Form tut das Richtige, sagt es aber nicht. PHPUnit hat dafür `fail()`.
+
+> **Ein Test, der einen Fehlschlag als Behauptung tarnt, prüft dasselbe und
+> erklärt weniger.**
+
+Beide Brüche dazu sind mit `fail()` erneut gefahren und wieder rot.
+
+### Zwei Fehler, die nur die CI sehen konnte
+
+**Die neuen Wächter waren teilweise eine zweite Fassung.**
+`tests/Unit/ConsoleStatementTest.php` gibt es seit Schritt 1 und prüft die
+PostgreSQL-Anweisung längst. Aufgefallen ist es, weil dieser Test rot wurde: Er
+verlangte den Satz „nicht genau eine" in der Anweisung, und der ist jetzt in PHP.
+Ein bestehender Wächter hat die Doppelung gemeldet, indem er an seiner eigenen
+Regel scheiterte.
+
+> **Wer eine Regel für ein zweites System aufschreibt, schreibt sie leicht ein
+> zweites Mal auf.**
+
+**Und die grüne Meldung stand am falschen Ort.** `docs/19 §6.3` nennt genau eine
+Stelle dafür, `PanelLayout.vue`. Die Konsole hat eine eigene bekommen, weil ein
+`flash` sie nicht erreicht — sie ist die erste Seite dieses Panels, die über XHR
+ändert und dabei stehen bleibt.
+
+> **Eine Regel, die einen Ort vorschreibt, braucht einen Weg dorthin — sonst baut
+> die nächste Seite ihren eigenen.**
+
+`Composables/useAnnounce.ts` ist dieser Weg. Die Regel bleibt: Gerendert wird
+weiter nur im Layout, es gibt weiter genau eine Datei mit `notice ok`, und
+`FieldErrorTest` ist unverändert. `docs/19 §6.3` hat den Zusatz bekommen.

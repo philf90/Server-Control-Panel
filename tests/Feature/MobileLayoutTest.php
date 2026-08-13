@@ -489,11 +489,17 @@ final class MobileLayoutTest extends TestCase
      * > **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite
      * > schiebt.**
      *
-     * **Beide Hälften in einem Test**, anders als bei der gestapelten Tabelle
+     * **Beide Regeln in einem Test**, anders als bei der gestapelten Tabelle
      * darüber: Dort sind es zwei Elemente mit je einer Frage, hier ist es ein
-     * Element mit einem Paar. `overflow-wrap` allein nützt nichts, solange das
-     * Flexkind seine Inhaltsbreite behalten darf — wer nur eine Hälfte
-     * zurücknimmt, hat den Fehler wieder.
+     * Element mit zwei Regeln.
+     *
+     * **Sie sind zwei Wege zum selben Ziel und nicht zwei Hälften eines.** Hier
+     * stand bis P5c Schritt 6 „`overflow-wrap` allein nützt nichts, solange das
+     * Flexkind seine Inhaltsbreite behalten darf" — ungeprüft, und gemessen an
+     * genau dieser Überschrift falsch: Mit `anywhere` **allein** ist der
+     * Überlauf 0px, mit `break-word` allein 152px. Verlangt werden trotzdem
+     * beide, damit ein Tausch des Schlüsselworts die Seite nicht wieder
+     * schiebt.
      */
     public function test_a_section_heading_can_break(): void
     {
@@ -534,6 +540,87 @@ final class MobileLayoutTest extends TestCase
                 'An der Bereichsüberschrift gewinnt „%s" mit `min-width: %s`. `.section-head` ist ein '.
                 'Flexbehälter, und ein Flexkind darf ohne `min-width: 0` nicht unter seine Inhaltsbreite '.
                 '— die Erlaubnis zu brechen bleibt dann wirkungslos.',
+                (string) $engster,
+                (string) $breite,
+            ),
+        );
+    }
+
+    /**
+     * Eine Feldbeschriftung bricht, bevor sie die Seite schiebt.
+     *
+     * **Die vierte Fassung derselben Ausnahme** — nach `.ident`,
+     * `.stacks td .ident` und der Bereichsüberschrift. Der Anlass ist jedes Mal
+     * derselbe: An einer Stelle, an der sonst ein deutsches Wort steht, steht
+     * plötzlich ein Name aus einer Kundendatenbank.
+     *
+     * Hier ist es das Zeilenformular aus P5c Schritt 6. Jede Beschriftung darin
+     * ist ein **Spaltenname**, und der darf 63 Zeichen lang sein;
+     * `rechnungsempfaenger_umsatzsteuer_identnummer_und_noch_laenger_63` schob
+     * die Seite bei 390px um **96px** aus dem Bild. Gemessen mit dem gebauten
+     * Stylesheet im vorinstallierten Chromium, bevor eine Zeile Regel entstand.
+     *
+     * > **Eine Beschriftung ist so lang wie das, was sie beschriftet — und das
+     * > entscheidet nicht, wer sie gestaltet.**
+     *
+     * **Beide Wege in einem Test — und es sind Wege und keine Hälften.** Das
+     * ist beim Brechen herausgekommen und widerlegt, was dieses Projekt an drei
+     * Stellen behauptet hatte:
+     *
+     *   overflow-wrap    min-width      Überlauf bei 390px
+     *   anywhere         0              0px
+     *   anywhere         auto           0px      ← allein genug
+     *   break-word       0              0px      ← allein genug
+     *   break-word       auto           96px
+     *   normal           auto           96px
+     *
+     * `overflow-wrap: anywhere` verkleinert die Mindestbreite des Inhalts,
+     * `break-word` nicht. Beide Regeln zu verlangen ist trotzdem richtig: Wer
+     * `anywhere` für ein Synonym von `break-word` hält und tauscht, bekommt die
+     * Seite nicht zurückgeschoben.
+     *
+     * > **Zwei Regeln, die zusammen wirken, können auch zwei Wege zum selben
+     * > Ziel sein — und welcher davon trägt, sagt nur die Messung.**
+     */
+    public function test_a_field_label_can_break(): void
+    {
+        [$selector, $wrap, $seen] = $this->winner('overflow-wrap', $this->selectsFieldLabel(...));
+
+        $this->assertGreaterThanOrEqual(
+            1,
+            $seen,
+            'Es wird keine Umbruchregel gefunden, die eine Feldbeschriftung erreicht — dann rechnet '.
+            'dieser Test an nichts mehr nach.',
+        );
+
+        $this->assertSame(
+            'anywhere',
+            $wrap,
+            sprintf(
+                'An der Feldbeschriftung gewinnt „%s" mit `overflow-wrap: %s`. Im Zeilenformular der '.
+                'Konsole ist jede Beschriftung ein Spaltenname, und eine Kennung hat keine Leerzeichen, '.
+                'an denen sie von selbst bräche (docs/46 §20.37).',
+                (string) $selector,
+                (string) $wrap,
+            ),
+        );
+
+        [$engster, $breite, $gesehen] = $this->winner('min-width', $this->selectsField(...));
+
+        $this->assertGreaterThanOrEqual(
+            1,
+            $gesehen,
+            'Es wird keine Breitenregel gefunden, die ein Eingabefeld erreicht — dann prüft die zweite '.
+            'Hälfte dieses Tests nichts.',
+        );
+
+        $this->assertSame(
+            '0',
+            $breite,
+            sprintf(
+                'Am Feld gewinnt „%s" mit `min-width: %s`. `.form` ist ein Flexbehälter, und ein '.
+                'Flexkind darf ohne `min-width: 0` nicht unter seine Inhaltsbreite — die Erlaubnis zu '.
+                'brechen bleibt dann wirkungslos, und die Seite schiebt weiter.',
                 (string) $engster,
                 (string) $breite,
             ),
@@ -898,6 +985,28 @@ final class MobileLayoutTest extends TestCase
             ['h2'],
             ['div', '.section', '.sections', '.section-head', '.full', '.wide'],
             ['.page-head', '.tile', '.notice', '.empty'],
+        );
+    }
+
+    /** Trifft er die Beschriftung über einem Eingabefeld? */
+    private function selectsFieldLabel(string $selector): bool
+    {
+        return $this->reaches(
+            $selector,
+            ['span'],
+            ['label', '.field', '.form', 'div', 'form'],
+            ['.toggle', '.inline', '.field-row', '.notice', '.tile', '.sheet'],
+        );
+    }
+
+    /** Und das Feld selbst, in dem sie steht? */
+    private function selectsField(string $selector): bool
+    {
+        return $this->reaches(
+            $selector,
+            ['.field', 'label.field', 'div.field'],
+            ['div', 'form', '.form', '.section', '.sections'],
+            ['.field-row', '.inline', '.sheet', '.tile'],
         );
     }
 

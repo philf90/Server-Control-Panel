@@ -2805,3 +2805,305 @@ Regel die **Marke** liest und keine Zahl: In der Kundensicht ist `--block-gap`
 
 > **Eine Messung, die anders ausfällt als erwartet und trotzdem stimmt, prüft
 > mehr als eine, die trifft.**
+
+### 20.35 Schritt 6, erste Hälfte — und §10 Regel 2 war nie gebaut
+
+**Der Rückstand stand nicht im Plan, sondern im Quelltext.** `docs/46 §10` nennt
+drei Regeln für den Bezug auf eine Zeile: Primärschlüssel, sonst ein eindeutiger
+Index über Spalten ohne `NULL`, sonst nur lesbar. Gebaut war Regel 1. Beide
+Konsolen meldeten `key` ausschliesslich für den Primärschlüssel — eine Tabelle
+mit einem tauglichen eindeutigen Index war damit nicht änderbar, obwohl sich
+eine Zeile darüber genauso eindeutig ansprechen lässt.
+
+**Aufgefallen ist es an MariaDB, die es längst richtig machte.** Sie befördert
+den ersten eindeutigen Index über `NOT NULL`-Spalten zum impliziten
+Primärschlüssel und meldet seine Spalten in `COLUMN_KEY` als `PRI`. Der
+MariaDB-Zweig dieses Panels erfüllt Regel 2 also, seit es ihn gibt — und niemand
+hat es aufgeschrieben. Der PostgreSQL-Zweig erfüllte sie nicht.
+
+> **Ein Unterschied zwischen zwei Umsetzungen derselben Regel ist kein
+> Unterschied der Systeme, solange ihn niemand gemessen hat.**
+
+`EngineReachTest` kann das nicht sehen: Er vergleicht Namen von Operationen und
+kein Verhalten. Es ist dieselbe Lücke wie bei der Kodierung in `docs/47` — zwei
+Systeme, eine Regel, zwei Antworten, und kein Wächter dazwischen.
+
+#### Neun Fälle, beide Systeme, gemessen
+
+Wegwerf-Server im Container: PostgreSQL **16.13**, MariaDB **10.11.14** (dieselbe
+Fassung wie `cloudsrv24`; `apt-get install mariadb-server` holt sie aus dem
+Ubuntu-Archiv). Gefahren mit den **echten** `columnsQuery()` aus dem Quelltext
+und nicht mit einer nachgebauten Abfrage.
+
+| Fixtur | erwartet | PostgreSQL | MariaDB |
+|---|---|---|---|
+| Primärschlüssel | `id` | `id` | `id` |
+| nur eindeutiger Index, `NOT NULL` | `kennung` | `kennung` | `kennung` |
+| eindeutiger Index über nullbare Spalte | — | — | — |
+| gar kein Index | — | — | — |
+| zwei taugliche Indexe | der zuerst angelegte | `b, c` | `b, c` |
+| Primärschlüssel **und** eindeutiger Index | der Primärschlüssel | `id` | `id` |
+| Teilindex (`WHERE aktiv`) / Präfixindex | — | — | — |
+| Ausdrucksindex (`lower(kennung)`) | — | — (kein Fall in MariaDB) |
+| eine Sicht | — | — | — |
+
+Vier Ausschlüsse in PostgreSQL, jeder einzeln belegt:
+
+- **`indpred IS NULL`** — ein Teilindex ist nur für die Zeilen eindeutig, die
+  seine Bedingung erfüllen, und sagt über die anderen nichts.
+- **`0 <> ALL (indkey)`** — eine `0` in `indkey` steht für einen *Ausdruck*, und
+  zu einem Ausdruck gibt es keine Spalte, in die sich ein `WHERE` schreiben
+  liesse.
+- **keine nullbare Spalte darunter** — `NULL = NULL` ist nicht wahr, ein `WHERE`
+  darüber träfe die Zeile nicht.
+- **`ORDER BY indisprimary DESC, indexrelid`** — der Primärschlüssel gewinnt,
+  sonst der zuerst angelegte.
+
+**Die letzte Hälfte war keine freie Wahl.** Der erste Entwurf sortierte nach
+Spaltenzahl („der schmalste Index gewinnt"), und das ist für sich genommen
+vernünftig — es hätte die beiden Systeme bei zwei tauglichen Indexen
+auseinanderlaufen lassen: MariaDB nimmt den zuerst angelegten. Auch das
+gemessen, nicht überlegt.
+
+#### Und dieselbe Regel stand zweimal da
+
+`Db\Console::keyCondition()` war Zeile für Zeile `Pg\Console::keyCondition()`
+mit `` ` `` statt `"`. Als die dritte Prüfung dazukam — **ist jede Spalte des
+Schlüssels genannt?** —, wäre die zweite Fassung die gewesen, die sie nicht
+bekommt. Die Prüfung steht jetzt einmal in `PgConsole::checkedKey()`, die
+Maskierung bleibt je System.
+
+Der neue Fall: Bei einem zusammengesetzten Schlüssel `(b, c)` trifft
+`WHERE b = '1'` jede Zeile mit diesem `b`. Gefährlich ist das nicht — die
+Anweisung zählt nach und nimmt zurück, was nicht genau eine Zeile war. Aber sie
+meldet dann „hat 3 Zeilen getroffen", und das liest sich wie ein
+Nebenläufigkeitsproblem statt wie ein unvollständiger Aufruf.
+
+> **Eine Sicherung, die den Schaden verhindert, erklärt ihn nicht.**
+
+### 20.36 Befund 2 aus `docs/47` ist entschieden — der Satz gehört uns
+
+**Die Frage stand seit dem Zwischenlauf offen und war Schritt 6 zugewiesen:** Was
+liest ein Kunde, dessen Schreibvorgang nicht genau eine Zeile trifft? Gemessen
+gegen 16.13, das war die Antwort vorher:
+
+```
+Die Datenbank hat abgewiesen: ERROR:  Der Vorgang hat 0 Zeilen getroffen …
+CONTEXT:  PL/pgSQL function inline_code_block line 7 at RAISE
+```
+
+Ein Satz, den dieses Panel selbst geschrieben hat — mit einem Vorspann, der sagt,
+es habe jemand anders gesprochen, und einer Zeilennummer auf eine Datei, die es
+nicht gibt. **MariaDB machte es von Anfang an richtig**: Dort entsteht der Satz
+in PHP, weil es keinen anonymen Block gibt. Niemand hat entschieden, dass die
+beiden es verschieden machen.
+
+> **Eine Verpackung, die für eine fremde Meldung richtig ist, ist für die eigene
+> falsch.**
+
+**Entschieden: der Block schickt eine Zahl, den Satz baut PHP.** `RAISE
+EXCEPTION '<Marke>=%'` statt der Prosa; `Console::missed()` macht daraus den
+Satz, und zwar für beide Systeme aus einer Quelle. Die Marke steht als
+`Console::MISS_MARKER` an einer Stelle, weil sie beim Bauen und beim Lesen
+gebraucht wird — zwei Zeichenketten, die aufeinander zeigen, sind der Fehler,
+den dieses Projekt sechsmal bezahlt hat.
+
+**Was ausdrücklich bleibt:** Jede andere Meldung behält ihre Verpackung. Beim
+Zeitlimit *ist* es die Meldung des Servers, und `docs/36 §17` verlangt sie
+wörtlich.
+
+#### `VERBOSITY terse` wäre der naheliegende Fix gewesen und der falsche
+
+Er hätte die `CONTEXT`-Zeile entfernt — und mit ihr die `DETAIL`-Zeile, die bei
+drei von vier gemessenen Fehlern die nützliche Hälfte ist:
+
+| Fehler | `DETAIL`, das `terse` wegnähme |
+|---|---|
+| Fremdschlüssel | `Key (id)=(1) is still referenced from table "kind".` |
+| Eindeutigkeit | `Key (id)=(1) already exists.` |
+| `NOT NULL` | `Failing row contains (2, null).` |
+
+> **Ein Schalter, der Rauschen entfernt, entfernt es nicht nur dort, wo es
+> Rauschen ist.**
+
+#### Und der erste Wurf des Erkenners hat nichts erkannt
+
+`/^ERROR:\s+<Marke>=(\d+)$/m` traf nichts — `Session` setzt
+`Die Datenbank hat abgewiesen: ` davor, und die Meldung beginnt damit mitten in
+der Zeile. Der Fall sah aus wie „keine eigene Meldung" und fiel still in die
+alte Verpackung zurück.
+
+> **Ein Ausdruck, der nichts findet, sieht aus wie einer, der nichts zu finden
+> hatte.**
+
+Nach hinten bleibt er streng verankert, und das ist die Hälfte, die zählt:
+Gesucht wird eine `ERROR:`-Zeile, auf der nach der Marke nichts mehr folgt. Ein
+Kundenwert, der die Marke in einer `DETAIL`-Zeile nachahmt, wird nicht erkannt —
+gegengeprüft.
+
+### 20.37 Schritt 6, zweite Hälfte — die Oberfläche und drei Funde beim Bauen
+
+Das Zeilenformular setzt die drei Regeln aus §10.1 um: `NULL` als eigener
+Zustand des Feldes, eine gekürzte oder binäre Zelle gesperrt mit dem Grund
+daneben, und nur geänderte Spalten in der Anweisung. Dazu Kriterium 5 — eine
+Tabelle ohne Schlüssel sagt, **warum** sie nur lesbar ist, und eine Sicht bekommt
+einen anderen Satz als eine Tabelle ohne Schlüssel („leg einen Schlüssel an"
+wäre dort der falsche Rat).
+
+**`touched` und nicht nur der Vergleich mit dem Ausgangswert.** Beim Ändern
+genügte ein Vergleich; beim **Anlegen** gibt es keinen Ausgangswert, und „das
+Feld ist leer" hiesse dann entweder „schreib `''`" oder „lass die Vorgabe
+gelten" — zwei Dinge, die ein leeres Textfeld nicht auseinanderhält.
+
+#### Fund 1 — Eine Feldbeschriftung schob die Seite um 96px
+
+Jede Beschriftung dieses Formulars ist ein **Spaltenname**, und der darf 63
+Zeichen lang sein. Es ist die vierte Fassung derselben Ausnahme, nach `.ident`,
+`.stacks td .ident` und dem Bereichstitel.
+
+> **Eine Beschriftung ist so lang wie das, was sie beschriftet — und das
+> entscheidet nicht, wer sie gestaltet.**
+
+#### Fund 2 — `min-width: 0` ist nicht die zweite Hälfte, sondern der zweite Weg
+
+Dieses Stylesheet behauptete an **drei** Stellen: „`min-width: 0` gehört dazu,
+weil ein Flexkind sonst nicht unter seine Inhaltsbreite darf." Das klingt richtig
+und ist seit dem Bereichstitel ungeprüft weitergereicht worden. Gemessen bei
+390px mit dem gebauten Stylesheet, am Feld **und** am Bereichstitel, gleiches
+Bild:
+
+| `overflow-wrap` | `min-width` | Überlauf |
+|---|---|---|
+| `anywhere` | `0` | 0px |
+| `anywhere` | `auto` | **0px** — allein genug |
+| `break-word` | `0` | **0px** — allein genug |
+| `break-word` | `auto` | 96px |
+| `normal` | `auto` | 96px |
+
+`overflow-wrap: anywhere` verkleinert die **Mindestbreite des Inhalts**,
+`break-word` nicht — deshalb bindet `min-width: auto` im einen Fall und im
+anderen nicht. Beide Regeln bleiben stehen, jetzt aber mit dem richtigen Grund:
+Wer `anywhere` für ein Synonym von `break-word` hält und tauscht, bekommt die
+Seite nicht zurückgeschoben.
+
+> **Zwei Regeln, die zusammen wirken, können auch zwei Wege zum selben Ziel sein
+> — und welcher davon trägt, sagt nur die Messung.**
+
+Gefunden hat es der **Bruch**: Die eine Hälfte zurückzunehmen sollte nach meiner
+eigenen Behauptung 94px ergeben und ergab 0.
+
+#### Fund 3 — Der Wächter über die Rangfolge meinte die Gliederung
+
+`ButtonStyleTest::test_at_most_one_primary_button_per_form` biss mit „3 Knöpfe
+mit ‚wichtig' in einem Formular". Die Antwort war nicht, einen Rang wegzunehmen:
+Die Filterzeile und das Zeilenformular sind wirklich zwei Formulare, sie waren
+nur `<div>`. Nebenbei tut die Eingabetaste jetzt, was man von ihr erwartet.
+
+> **Ein Wächter, der über die Rangfolge klagt, meint manchmal die Gliederung.**
+
+### 20.38 Dreizehn Brüche, und zwei davon haben Lücken gefunden
+
+`RowKeyTest` und `WriteBackTest` messen beide **an der erzeugten Anweisung** und
+nicht an einem Ergebnis (§14.6, §14.7). Jede Regel wurde einzeln gebrochen; elf
+bissen sofort, zwei nicht.
+
+**Die erste Lücke: Der Wächter las den Kommentar.** `RowKeyTest` verlangt, dass
+die MariaDB-Konsole den Satz nicht selbst baut, sondern `PgConsole::missed()`
+ruft. Der Bruch entfernte den Aufruf — und der Test blieb grün, weil derselbe
+Name zwei Zeilen darüber im **Kommentar** steht, der genau das erklärt.
+
+> **Ein Wächter, der Kommentare liest, wird von der Dokumentation des Fehlers
+> beruhigt, vor dem er schützt.**
+
+Dasselbe Muster wie in `ConsoleFanoutTest` und `NullDisplayTest`, nur andersherum:
+Dort machte ein Kommentar den Test rot, hier grün. **Die zweite Richtung ist die
+gefährlichere, weil sie nach Ordnung aussieht.**
+
+**Die zweite Lücke: ein Zweig von zweien.** `test_null_and_the_empty_string_stay_two_values`
+prüfte `NULL` nur beim **Ändern**. Der Bruch (`strval()` über die Werte) traf den
+Zweig fürs **Anlegen** und blieb grün — eine neue Zeile mit einem ausdrücklichen
+`NULL` in einer nullbaren Spalte ist ein gewöhnlicher Fall und hatte keinen
+Wächter. Geprüft werden jetzt vier Fälle: zwei Arten mal zwei Systeme.
+
+> **Ein Wächter, der einen von zwei Zweigen prüft, deckt die Hälfte ab und meldet
+> das nicht.**
+
+#### Und `git checkout -- resources/` hat die halbe Stufe weggeworfen
+
+Der Bruchlauf stellte jede Datei mit `git checkout` wieder her — auch die, deren
+Arbeit **noch nicht eingecheckt** war. 450 Zeilen Zeilenformular waren fort, in
+einem Befehl, der nach Aufräumen aussieht. Die Warnung dafür steht in `CLAUDE.md`
+und ist der Grund, weshalb `tests/waechter-brechen.sh` sich bei schmutzigem
+`resources/` weigert.
+
+Gerettet hat es eine Dateikopie im Scratchpad, die zehn Minuten vorher aus einem
+anderen Grund entstanden war. Seitdem gilt hier: **erst einchecken, dann
+brechen** — der Bruch ist ein Werkzeug, das den Baum verändert, und kein Lesen.
+
+> **Ein Wiederherstellen, das nicht zwischen fremder und eigener Änderung
+> unterscheidet, ist ein Löschen mit gutem Namen.**
+
+### 20.39 `assertTrue(false, …)` ist keine Behauptung
+
+**Gefunden von PHPStan in der CI**, und hier findet es nichts: `vendor/bin/phpstan`
+gibt es in diesem Container nicht. Beide neuen Wächter benutzten für „hier darf
+der Lauf nicht ankommen" die Form
+
+```php
+$this->assertTrue(false, 'Ein UPDATE ohne Schlüssel entsteht ohne Widerspruch.');
+```
+
+`method.impossibleType` — eine Behauptung über eine Konstante ist keine
+Behauptung. Sie tut zwar das Richtige, sagt es aber nicht: Wer sie liest, prüft
+erst den Wert und dann die Absicht. PHPUnit hat dafür `fail()`, und das ist als
+`never` typisiert.
+
+> **Ein Test, der einen Fehlschlag als Behauptung tarnt, prüft dasselbe und
+> erklärt weniger.**
+
+Es ist die zweite Meldung dieser Art in dieser Stufe, nach der ungenutzten
+Konstante in `ButtonRowSpacingTest` — beide Male hat PHPStan etwas gefunden, das
+kein Wächter dieses Projekts sieht und das dieser Container nicht fahren kann.
+
+### 20.40 Die CI hat zwei Fehler gefunden, die kein Wächter hier sieht
+
+**Fund 1 — §14.6 und §14.7 waren längst gebaut.** `tests/Unit/ConsoleStatementTest.php`
+gibt es seit Schritt 1 und prüft die PostgreSQL-Anweisung: die Zählung im
+`DO`-Block, den Schlüsselzwang, die geänderten Spalten, `NULL` gegen `''`. Der
+erste Wurf von `RowKeyTest` und `WriteBackTest` hat das alles noch einmal
+aufgeschrieben — genau das Muster, vor dem dieses Projekt an zehn Stellen warnt,
+und es ist einem Wächter passiert.
+
+> **Wer eine Regel für ein zweites System aufschreibt, schreibt sie leicht ein
+> zweites Mal auf.**
+
+Aufgefallen ist es nicht beim Schreiben, sondern weil `ConsoleStatementTest` rot
+wurde: Es verlangte den Satz „nicht genau eine" **in der Anweisung**, und §20.36
+hat ihn dort herausgenommen. Ein bestehender Wächter hat also die Doppelung
+gemeldet, indem er an seiner eigenen Regel scheiterte.
+
+Die Aufteilung ist jetzt benannt: **`ConsoleStatementTest` gehört die
+PostgreSQL-Anweisung als Text**; in `RowKeyTest` und `WriteBackTest` steht, was
+dort nicht hinpasst — die MariaDB-Hälfte, die Regeln über beide Systeme zugleich,
+und die Oberfläche.
+
+**Fund 2 — die grüne Meldung stand am falschen Ort.** `docs/19 §6.3` nennt genau
+eine Stelle dafür: `PanelLayout.vue`. Die Konsole hat eine eigene `notice ok`
+bekommen, weil ein `flash` sie nicht erreicht — sie ist die **erste Seite dieses
+Panels, die über XHR ändert und dabei stehen bleibt**. `FieldErrorTest` hat das
+abgewiesen.
+
+> **Eine Regel, die einen Ort vorschreibt, braucht einen Weg dorthin — sonst baut
+> die nächste Seite ihren eigenen.**
+
+Der Weg heisst jetzt `Composables/useAnnounce.ts` und ändert die Regel nicht:
+Gerendert wird weiter ausschliesslich im Layout, es gibt weiter genau eine Datei
+mit `notice ok`, und `FieldErrorTest` bleibt unverändert. `docs/19 §6.3` hat den
+Zusatz bekommen.
+
+**Beide Funde hat nur die CI sehen können.** Das PHPUnit-freie Gestell in diesem
+Container fährt die framework-freien Wächter; `ConsoleStatementTest` und
+`FieldErrorTest` erben Laravels Basisklasse und laufen hier nicht.
+
+> **Ein Wächter, den die eigene Umgebung nicht fahren kann, findet trotzdem —
+> nur später und teurer.**

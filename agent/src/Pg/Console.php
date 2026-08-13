@@ -120,6 +120,21 @@ final class Console
     public const MODES = ['insert', 'update', 'delete'];
 
     /**
+     * Die Marke, mit der der `DO`-Block seine Trefferzahl zurückschickt.
+     *
+     * **Sie steht hier, weil sie an zwei Stellen gebraucht wird** — beim Bauen
+     * in {@see self::writeStatement()} und beim Lesen in
+     * {@see self::missedCount()}. Zwei Zeichenketten, die aufeinander zeigen,
+     * ohne dass etwas den Bezug prüft, sind der Fehler, den dieses Projekt
+     * mindestens sechsmal teuer bezahlt hat; `RowKeyTest` prüft, dass beide
+     * Seiten diese Konstante benutzen und keine abgeschriebene Fassung.
+     *
+     * Englisch und ohne Umlaut: Sie ist eine Kennung und kein Text der
+     * Oberfläche (`docs/19 §4a`).
+     */
+    public const MISS_MARKER = 'SRVPANEL_ROWS';
+
+    /**
      * Die zwei Arten, die die Oberfläche unterscheidet.
      *
      * **Nicht `relkind` und nicht `TABLE_TYPE`.** Beide Systeme nennen dieselbe
@@ -295,6 +310,48 @@ final class Console
      * Der Primärschlüssel kommt aus `pg_index`, nicht aus
      * `information_schema.key_column_usage`: Dieselbe Auskunft, aber ohne die
      * Sichten, die je Fassung anders heissen können.
+     *
+     * ## Der Schlüssel ist nicht nur der Primärschlüssel
+     *
+     * **Hier stand `i.indisprimary`, und das war Regel 1 aus `docs/46 §10` ohne
+     * Regel 2.** Eine Tabelle ohne Primärschlüssel, aber mit einem eindeutigen
+     * Index über Spalten ohne `NULL`, war damit nur lesbar — obwohl sich eine
+     * Zeile über diesen Index genauso eindeutig ansprechen lässt.
+     *
+     * **Aufgefallen ist es an MariaDB, die es längst richtig machte.** Sie
+     * befördert den ersten solchen Index zum impliziten Primärschlüssel und
+     * meldet seine Spalten in `COLUMN_KEY` als `PRI` — gemessen am 13. August
+     * 2026 gegen 10.11.14. Der MariaDB-Zweig dieses Panels erfüllt Regel 2 also,
+     * seit es ihn gibt, und niemand hat es aufgeschrieben; der PostgreSQL-Zweig
+     * erfüllte sie nicht. Zwei Systeme, dieselbe Regel, zwei Antworten — und
+     * `EngineReachTest` kann das nicht sehen, weil er Namen vergleicht und kein
+     * Verhalten.
+     *
+     * > **Ein Unterschied zwischen zwei Umsetzungen derselben Regel ist kein
+     * > Unterschied der Systeme, solange ihn niemand gemessen hat.**
+     *
+     * Vier Ausschlüsse, jeder einzeln gegen einen Wegwerf-Cluster (16.13) belegt:
+     *
+     * - `indisunique` **ohne** `indpred` — ein Teilindex ist nur für die Zeilen
+     *   eindeutig, die seine Bedingung erfüllen, und sagt über die anderen
+     *   nichts.
+     * - `0 <> ALL (indkey)` — eine `0` in `indkey` steht für einen **Ausdruck**
+     *   (`lower(kennung)`), und zu einem Ausdruck gibt es keine Spalte, in die
+     *   sich ein `WHERE` schreiben liesse.
+     * - keine nullbare Spalte darunter — `NULL = NULL` ist nicht wahr, ein
+     *   `WHERE` darüber träfe die Zeile nicht.
+     * - `ORDER BY i.indisprimary DESC, i.indexrelid` — der Primärschlüssel
+     *   gewinnt, sonst der **zuerst angelegte**. Die zweite Hälfte ist keine
+     *   freie Wahl: MariaDB nimmt ebenfalls den zuerst angelegten, und ein
+     *   „der mit den wenigsten Spalten" hätte die beiden Systeme bei zwei
+     *   tauglichen Indexen auseinanderlaufen lassen. Auch das gemessen, nicht
+     *   überlegt.
+     *
+     * `COALESCE(…, false)` und nicht der nackte Vergleich: Ohne Treffer gibt der
+     * Unterausdruck `NULL`, und `= ANY (NULL)` ist `NULL`. Über `psql -A -t`
+     * sähe das aus wie ein leeres Feld — also wie `''`, wie `NULL` und wie
+     * `false` zugleich (`docs/46 §2`). Der Leser unten prüft auf `'t'` und läge
+     * damit zufällig richtig; das ist kein Grund, es dabei zu belassen.
      */
     public static function columnsQuery(string $schema, string $table): string
     {
@@ -303,9 +360,18 @@ final class Console
                    format_type(a.atttypid, a.atttypmod),
                    NOT a.attnotnull,
                    pg_get_expr(d.adbin, d.adrelid),
-                   EXISTS (SELECT 1 FROM pg_index i
-                            WHERE i.indrelid = a.attrelid AND i.indisprimary
-                              AND a.attnum = ANY (i.indkey)),
+                   COALESCE(a.attnum = ANY ((
+                     SELECT i.indkey FROM pg_index i
+                      WHERE i.indrelid = a.attrelid
+                        AND i.indisunique
+                        AND i.indpred IS NULL
+                        AND 0 <> ALL (i.indkey::int2[])
+                        AND NOT EXISTS (SELECT 1 FROM unnest(i.indkey::int2[]) k
+                                          JOIN pg_attribute x
+                                            ON x.attrelid = i.indrelid AND x.attnum = k
+                                         WHERE NOT x.attnotnull)
+                      ORDER BY i.indisprimary DESC, i.indexrelid
+                      LIMIT 1)::int2[]), false),
                    a.atttypid = 'pg_catalog.bytea'::regtype
               FROM pg_attribute a
               LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
@@ -608,13 +674,25 @@ final class Console
     ): array {
         $columns = $this->columns($context, $as, $database, $schema, $table);
 
-        $this->session->executeAs(
-            $context,
-            $as,
-            $database,
-            self::writeStatement($schema, $table, $columns, $mode, $key, $values),
-            self::TIMEOUT_MS,
-        );
+        try {
+            $this->session->executeAs(
+                $context,
+                $as,
+                $database,
+                self::writeStatement($schema, $table, $columns, $mode, $key, $values),
+                self::TIMEOUT_MS,
+            );
+        } catch (AgentException $error) {
+            /*
+             * **Nur die eigene Meldung wird ausgepackt.** Alles andere — das
+             * Zeitlimit, eine verletzte Fremdschlüsselbedingung, ein Trigger des
+             * Kunden — behält seine Verpackung, denn dort *hat* die Datenbank
+             * gesprochen und `docs/36 §17` verlangt ihren Wortlaut.
+             */
+            $getroffen = self::missedCount($error->getMessage());
+
+            throw $getroffen === null ? $error : AgentException::execFailed(self::missed($getroffen));
+        }
 
         // Der Block oben wirft, wenn es nicht genau eine Zeile war — hier
         // anzukommen heisst, dass es eine war.
@@ -706,11 +784,75 @@ final class Console
               %s;
               GET DIAGNOSTICS getroffen = ROW_COUNT;
               IF getroffen <> 1 THEN
-                RAISE EXCEPTION 'Der Vorgang hat %% Zeilen getroffen und nicht genau eine; nichts wurde geändert.', getroffen;
+                RAISE EXCEPTION '%s=%%', getroffen;
               END IF;
             END
             $srvpanel$
-            SQL, $statement);
+            SQL, $statement, self::MISS_MARKER);
+    }
+
+    /**
+     * Was ein Schreibvorgang meldet, der nicht genau eine Zeile getroffen hat.
+     *
+     * **Der Satz steht in PHP und in keiner Anweisung** — und das ist die
+     * Antwort auf Befund 2 aus `docs/47`.
+     *
+     * Vorher stand er wörtlich im `RAISE EXCEPTION` des `DO`-Blocks. Er kam
+     * damit als Datenbankfehler zurück und trug die Verpackung dafür:
+     *
+     *     Die Datenbank hat abgewiesen: ERROR:  Der Vorgang hat 0 Zeilen …
+     *     CONTEXT:  PL/pgSQL function inline_code_block line 7 at RAISE
+     *
+     * Ein Satz, den dieses Panel selbst geschrieben hat, mit einer Zeilennummer
+     * auf eine Datei, die es nicht gibt — und mit einem Vorspann, der sagt, es
+     * habe jemand anders gesprochen. MariaDB machte es von Anfang an richtig
+     * (der Satz entsteht dort in PHP), und niemand hat entschieden, dass die
+     * beiden es verschieden machen.
+     *
+     * > **Eine Verpackung, die für eine fremde Meldung richtig ist, ist für die
+     * > eigene falsch.** (`docs/47 §6`, Befund 2.)
+     *
+     * Der Block schickt jetzt nur noch die **Zahl**, gekennzeichnet mit
+     * {@see self::MISS_MARKER}; den Satz baut {@see self::write()} daraus. Für
+     * jede andere Meldung bleibt die Verpackung, wo sie hingehört: Beim
+     * Zeitlimit *ist* es die Meldung des Servers, und `docs/36 §17` verlangt sie
+     * wörtlich.
+     */
+    public static function missed(int $affected): string
+    {
+        return sprintf(
+            'Der Vorgang hat %d Zeilen getroffen und nicht genau eine; nichts wurde geändert.',
+            max(0, $affected),
+        );
+    }
+
+    /**
+     * Die Zahl aus der Meldung des Blocks — oder `null`, wenn sie nicht von uns ist.
+     *
+     * **Streng verankert, und der Grund ist Kundentext.** Ein `str_contains`
+     * über die ganze Meldung träfe auch eine Kennung, die zufällig so heisst und
+     * in einer `DETAIL`-Zeile einer Eindeutigkeitsverletzung steht. Gesucht wird
+     * deshalb eine `ERROR:`-Zeile, auf der nach der Marke **nichts mehr folgt** —
+     * die Form, die `RAISE EXCEPTION '<Marke>=%'` erzeugt und die kein Wert
+     * nachbauen kann, ohne selbst eine Fehlermeldung zu sein.
+     *
+     * **Nach vorn ist der Ausdruck ausdrücklich *nicht* verankert, und das war
+     * ein Fehler.** Der erste Wurf schrieb `^ERROR:` — und traf nichts, weil
+     * {@see Session} `Die Datenbank hat abgewiesen: ` davorsetzt und die Meldung
+     * damit mitten in der Zeile beginnt. Der Fall sah aus wie „keine eigene
+     * Meldung" und lief still in die alte Verpackung zurück.
+     *
+     * > **Ein Ausdruck, der nichts findet, sieht aus wie einer, der nichts zu
+     * > finden hatte.**
+     *
+     * Gefunden hat es kein Nachdenken, sondern der Lauf gegen einen
+     * Wegwerf-Cluster mit der Meldung, die dabei wirklich entsteht.
+     */
+    public static function missedCount(string $message): ?int
+    {
+        return preg_match('/ERROR:\s+'.preg_quote(self::MISS_MARKER, '/').'=(\d+)\s*$/m', $message, $treffer) === 1
+            ? (int) $treffer[1]
+            : null;
     }
 
     /**
@@ -788,13 +930,58 @@ final class Console
      */
     public static function keyCondition(array $columns, array $key): string
     {
+        $parts = [];
+
+        foreach (self::checkedKey($columns, $key) as $name => $value) {
+            $parts[] = Sql::identifier($name).' = '.Sql::text($value);
+        }
+
+        return implode(' AND ', $parts);
+    }
+
+    /**
+     * Der geprüfte Schlüssel — die Regel, die beide Systeme teilen.
+     *
+     * **Sie stand zweimal da, und das ist genau das Muster, vor dem dieses
+     * Projekt an zehn Stellen warnt:** {@see Db\Console::keyCondition()} war
+     * Zeile für Zeile dieselbe Prüfung mit anderer Maskierung. Zwei Fassungen
+     * einer Regel heissen, dass eine gepflegt wird und die andere nicht — und
+     * bei der Prüfung auf die Vollständigkeit des Schlüssels wäre die zweite
+     * gerade die gewesen, die es nicht bekommt.
+     *
+     * Was hier bleibt, ist die **Prüfung**; was dort bleibt, ist die
+     * **Maskierung**. Die ist wirklich verschieden — `"` gegen `` ` ``.
+     *
+     * ## Drei Prüfungen, und die dritte ist neu
+     *
+     * 1. Der Schlüssel ist nicht leer. Ohne ihn ist die Tabelle nur lesbar
+     *    (`docs/46 §10`).
+     * 2. Jede genannte Spalte gehört zum Schlüssel. Sonst wäre die Bedingung
+     *    ein `WHERE` über eine beliebige Spalte.
+     * 3. **Jede Spalte des Schlüssels ist genannt.** Bei einem zusammengesetzten
+     *    Schlüssel ist das der Unterschied: `WHERE b = '1'` über einem Schlüssel
+     *    `(b, c)` trifft jede Zeile mit diesem `b`.
+     *
+     * Gefährlich ist der dritte Fall nicht — die Anweisung zählt nach und nimmt
+     * zurück, was nicht genau eine Zeile war. Aber sie meldet dann „hat 3 Zeilen
+     * getroffen", und das liest sich wie ein Nebenläufigkeitsproblem statt wie
+     * ein unvollständiger Aufruf.
+     *
+     * > **Eine Sicherung, die den Schaden verhindert, erklärt ihn nicht.**
+     *
+     * @param  list<array{name: string, type: string, nullable: bool, default: string|null, key: bool, binary: bool}>  $columns
+     * @param  array<string, string>  $key
+     * @return array<string, string>
+     */
+    public static function checkedKey(array $columns, array $key): array
+    {
         if ($key === []) {
             throw AgentException::badRequest(
                 'Ohne Primärschlüssel lässt sich eine einzelne Zeile nicht eindeutig ansprechen.',
             );
         }
 
-        $parts = [];
+        $checked = [];
 
         foreach ($key as $name => $value) {
             $column = self::column($columns, (string) $name);
@@ -806,10 +993,29 @@ final class Console
                 );
             }
 
-            $parts[] = Sql::identifier($column['name']).' = '.Sql::text((string) $value);
+            $checked[$column['name']] = (string) $value;
         }
 
-        return implode(' AND ', $parts);
+        $expected = [];
+
+        foreach ($columns as $column) {
+            if ($column['key']) {
+                $expected[] = $column['name'];
+            }
+        }
+
+        $given = array_keys($checked);
+        sort($expected);
+        sort($given);
+
+        if ($expected !== $given) {
+            throw AgentException::badRequest(
+                'Der Schlüssel dieser Zeile ist unvollständig.',
+                ['expected' => implode(', ', $expected), 'given' => implode(', ', $given)],
+            );
+        }
+
+        return $checked;
     }
 
     /**

@@ -19,6 +19,7 @@ import { Head, Link } from '@inertiajs/vue3'
 import { computed, onMounted, ref } from 'vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Section from '../../Components/Section.vue'
+import { announce } from '../../Composables/useAnnounce'
 import { ask, ConsoleError } from '../../Composables/useConsole'
 import { formatBytes } from '../../bytes'
 
@@ -203,10 +204,60 @@ const trail = ref<number[]>([])
 const cell = ref<{ column: string; value: string | null; truncated: boolean; bytes: number } | null>(null)
 const loadingCell = ref(false)
 
+/* ------------------------------------------------------- Anlegen und Ändern */
+
+/**
+ * Ein Feld des Zeilenformulars.
+ *
+ * **`isNull` ist ein eigener Zustand und keine leere Eingabe** (`docs/46
+ * §10.1`). Ein Textfeld kann `NULL` nicht ausdrücken; wer eine leere Eingabe als
+ * `''` schreibt, macht aus jedem `NULL` einer nullbaren Spalte lautlos eine
+ * leere Zeichenkette — und zwar beim Speichern einer Zeile, an der niemand diese
+ * Spalte anfassen wollte.
+ *
+ * **`touched` entscheidet, ob die Spalte überhaupt in die Anweisung kommt.** Das
+ * ist Regel 2 aus §10.1 und die wichtigere der beiden: Ein `UPDATE` über alle
+ * Spalten schreibt auch die zurück, die nur angezeigt wurden — jede Kürzung,
+ * jedes `''` aus einem `NULL` und jede Rundung, die zwischen Anzeige und
+ * Formular entstanden ist.
+ *
+ * Ein Vergleich mit dem Ausgangswert allein reichte dafür nicht: Beim **Anlegen**
+ * gibt es keinen, und „das Feld ist leer" hiesse dann entweder „schreib `''`"
+ * oder „lass die Vorgabe gelten" — zwei Dinge, die ein leeres Textfeld nicht
+ * auseinanderhält.
+ *
+ * **`locked` trägt den Grund und nicht nur ein `true`.** Ein gesperrtes Feld
+ * ohne Begründung ist die Sorte Oberfläche, bei der man zweimal klickt und dann
+ * aufgibt.
+ */
+interface Field {
+  column: string
+  value: string
+  isNull: boolean
+  touched: boolean
+  locked: string | null
+}
+
+const editing = ref<{ mode: 'insert' | 'update'; key: Record<string, string>; fields: Field[] } | null>(null)
+
+/**
+ * Der Stand vor der Änderung — je Spalte, und `undefined` heisst „gab es nicht".
+ *
+ * Beim Anlegen steht überall `undefined`; dort entscheidet allein `touched`.
+ */
+const before = ref<Record<string, string | null | undefined>>({})
+const saving = ref(false)
+
 /*
  * **Ein Fehlersatz, und er steht oben** (`docs/19 §6`). Nicht je Abschnitt einer
  * und nicht am Element, das ihn ausgelöst hat: Wer zwei Meldungen sieht, sucht
  * zwei Ursachen.
+ *
+ * **Erfolg steht dagegen nicht hier**, sondern im Layout: `docs/19 §6.3` nennt
+ * dafür genau eine Stelle, und die erreicht diese Seite über
+ * {@link announce()}. Der erste Wurf hatte eine eigene grüne Meldung an dieser
+ * Stelle — `FieldErrorTest` hat sie abgewiesen, weil damit zwei Orte dieselbe
+ * Auskunft tragen und der zweite der ist, der veraltet.
  */
 const failure = ref<string | null>(null)
 
@@ -255,6 +306,8 @@ async function loadTables(): Promise<void> {
 function reset(table: string): void {
   openTable.value = table
   failure.value = null
+  editing.value = null
+  before.value = {}
   columns.value = []
   indexes.value = []
   page.value = null
@@ -671,6 +724,11 @@ function isBinary(column: string): boolean {
   return columns.value.some((c) => c.name === column && c.binary)
 }
 
+/** Darf diese Spalte `NULL` sein? Nur dann gibt es das Kästchen dafür. */
+function nullable(column: string): boolean {
+  return columns.value.some((c) => c.name === column && c.nullable)
+}
+
 /**
  * Die Länge, auf die in einer Spalte gekürzt wurde — je Spalte, in der es
  * überhaupt geschah.
@@ -707,6 +765,222 @@ function isTruncated(column: string, value: string): boolean {
   return column in cuts.value && value.length >= cuts.value[column]
 }
 
+/* ------------------------------------------------------- Anlegen und Ändern */
+
+/**
+ * Warum diese Tabelle nur lesbar ist — oder `null`, wenn sie es nicht ist.
+ *
+ * **Der Satz sagt den Grund und nicht das Ergebnis** (`docs/46 §10`, Regel 3).
+ * „Ändern nicht möglich" beantwortet die Frage nicht, die jemand hat, der es
+ * gerade versucht hat; ein Satz über den fehlenden Schlüssel sagt ihm auch,
+ * womit es ginge.
+ *
+ * **Die beiden Fälle sind wirklich zwei.** Eine Sicht speichert nichts — sie
+ * hat keinen Schlüssel, aber „leg einen an" wäre dort der falsche Rat.
+ */
+const readOnlyReason = computed((): string | null => {
+  if (openKind.value === 'Sicht') {
+    return 'Eine Sicht speichert nichts. Geändert wird in den Tabellen, aus denen sie liest.'
+  }
+
+  if (keyColumns.value.length === 0) {
+    return (
+      'Diese Tabelle hat keinen Primärschlüssel und keinen eindeutigen Index über Spalten ohne '
+      + 'NULL; ohne einen von beiden lässt sich eine einzelne Zeile nicht eindeutig ansprechen.'
+    )
+  }
+
+  return null
+})
+
+/**
+ * Warum ein Feld gesperrt ist — oder `null`.
+ *
+ * Zwei Gründe, und beide haben dieselbe Ursache: **Was hier steht, ist nicht der
+ * Wert.** Eine binäre Spalte trägt in der Tabelle ihre Länge (`docs/46 §8.2`),
+ * eine gekürzte Zelle die ersten Zeichen. Beides zurückzuschreiben hiesse, den
+ * Rest wegzuwerfen — für den, der die Zeile aus einem ganz anderen Grund
+ * geöffnet hat.
+ *
+ * > **Ein Formular, das zurückschreibt, was es nur angezeigt hat, überträgt
+ * > jeden Anzeigefehler in die Daten.**
+ */
+function lockReason(column: string, value: string | number | null): string | null {
+  if (isBinary(column)) {
+    return 'binär — hier steht die Länge und nicht der Wert'
+  }
+
+  if (typeof value === 'string' && isTruncated(column, value)) {
+    return 'gekürzt — der ganze Wert steht in der Zelleinzelsicht'
+  }
+
+  return null
+}
+
+/** Was ein Feld gerade bedeutet: ein Text, oder `NULL`. */
+function current(field: Field): string | null {
+  return field.isNull ? null : field.value
+}
+
+/**
+ * Hat der Kunde dieses Feld geändert?
+ *
+ * **Zwei Bedingungen, und beide werden gebraucht.** `touched` fängt das Anlegen,
+ * wo es keinen Ausgangswert gibt; der Vergleich fängt das Ändern, bei dem jemand
+ * tippt und es wieder zurücknimmt. Nur was hier `true` ist, kommt in die
+ * Anweisung.
+ */
+function isChanged(field: Field): boolean {
+  return field.touched && current(field) !== before.value[field.column]
+}
+
+const changedFields = computed((): Field[] => (editing.value?.fields ?? []).filter(isChanged))
+
+function fieldsFor(row: Record<string, string | number | null> | null): Field[] {
+  return columns.value.map((column): Field => {
+    const wert = row === null ? null : row[column.name]
+    const gesperrt = row === null
+      ? (column.binary ? 'binär — hier nicht zu setzen' : null)
+      : lockReason(column.name, wert)
+
+    return {
+      column: column.name,
+      value: row === null || wert === null || gesperrt !== null ? '' : String(wert),
+      isNull: row !== null && wert === null,
+      touched: false,
+      locked: gesperrt,
+    }
+  })
+}
+
+function startInsert(): void {
+  before.value = {}
+  editing.value = { mode: 'insert', key: {}, fields: fieldsFor(null) }
+  failure.value = null
+  cell.value = null
+}
+
+function startUpdate(row: Record<string, string | number | null>): void {
+  const stand: Record<string, string | null | undefined> = {}
+  const schluessel: Record<string, string> = {}
+
+  for (const column of columns.value) {
+    const wert = row[column.name]
+    stand[column.name] = wert === null ? null : String(wert)
+  }
+
+  // **Der Schlüssel ist der Stand *vor* der Änderung.** Wer eine
+  // Schlüsselspalte ändert, ändert sie in `SET` — gefunden wird die Zeile über
+  // den alten Wert. Ein Schlüssel, der mitwandert, fände nichts.
+  for (const column of keyColumns.value) {
+    schluessel[column.name] = String(row[column.name] ?? '')
+  }
+
+  before.value = stand
+  editing.value = { mode: 'update', key: schluessel, fields: fieldsFor(row) }
+  failure.value = null
+  cell.value = null
+}
+
+function touch(field: Field): void {
+  field.touched = true
+}
+
+/**
+ * Das `NULL`-Kästchen umlegen.
+ *
+ * Der getippte Text bleibt dabei stehen: Wer versehentlich ankreuzt, hat ihn
+ * nach dem Zurücknehmen wieder. Gespeichert wird er nicht — {@see current()}
+ * sieht auf `isNull`.
+ */
+function toggleNull(field: Field): void {
+  field.isNull = !field.isNull
+  field.touched = true
+}
+
+function cancelEdit(): void {
+  editing.value = null
+  before.value = {}
+}
+
+async function save(): Promise<void> {
+  const formular = editing.value
+
+  if (formular === null || openTable.value === null) {
+    return
+  }
+
+  const werte: Record<string, string | null> = {}
+
+  for (const field of changedFields.value) {
+    werte[field.column] = current(field)
+  }
+
+  saving.value = true
+  failure.value = null
+
+  try {
+    await ask<{ affected: number }>(props.database.id, 'row', {
+      table: openTable.value,
+      mode: formular.mode,
+      ...(formular.mode === 'insert' ? {} : { key: formular.key }),
+      values: werte,
+    })
+
+    announce(formular.mode === 'insert' ? 'Die Zeile ist angelegt.' : 'Die Zeile ist geändert.')
+    editing.value = null
+    before.value = {}
+    await loadPage()
+  } catch (error) {
+    report(error)
+  } finally {
+    saving.value = false
+  }
+}
+
+/**
+ * Eine Zeile löschen.
+ *
+ * **Die Rückfrage steht im `confirm()` und nennt die Zeile.** Dieselbe Form wie
+ * beim Entziehen eines Zugriffs — ein Eingabefeld zum Abtippen ist für das
+ * Entfernen einer ganzen Datenbank da, nicht für eine Zeile.
+ */
+async function removeRow(): Promise<void> {
+  const formular = editing.value
+
+  if (formular === null || openTable.value === null || formular.mode !== 'update') {
+    return
+  }
+
+  const bezeichnung = Object.entries(formular.key)
+    .map(([spalte, wert]) => `${spalte} = ${wert}`)
+    .join(', ')
+
+  if (!confirm(`Die Zeile mit ${bezeichnung} aus ${openTable.value} löschen? Das lässt sich nicht zurücknehmen.`)) {
+    return
+  }
+
+  saving.value = true
+  failure.value = null
+
+  try {
+    await ask<{ affected: number }>(props.database.id, 'row', {
+      table: openTable.value,
+      mode: 'delete',
+      key: formular.key,
+    })
+
+    announce('Die Zeile ist gelöscht.')
+    editing.value = null
+    before.value = {}
+    await loadPage()
+  } catch (error) {
+    report(error)
+  } finally {
+    saving.value = false
+  }
+}
+
 onMounted(loadTables)
 </script>
 
@@ -724,6 +998,7 @@ onMounted(loadTables)
     <p v-if="failure !== null" class="notice critical">
       <span>{{ failure }}</span>
     </p>
+
 
     <!--
       Der Grundriss dieser Seite ist der einzige des Panels mit zwei Spalten.
@@ -882,8 +1157,19 @@ onMounted(loadTables)
                   >
                     {{ column.default ?? 'keine' }}
                   </td>
+                  <!--
+                    **„ja" und nicht „Primärschlüssel".** Seit §10 Regel 2 gebaut
+                    ist, kann diese Spalte auch zu einem eindeutigen Index über
+                    Spalten ohne `NULL` gehören — „Primärschlüssel" wäre dann
+                    schlicht falsch. Welcher Index es ist, steht eine Ansicht
+                    weiter unter „Indexe"; hier steht, was diese Ansicht
+                    beantwortet: ob die Spalte die Zeile mit identifiziert.
+
+                    `ja` ist dabei kein neues Wort, sondern das der Nachbarspalte
+                    „Leer erlaubt".
+                  -->
                   <td data-column="Schlüssel" :class="column.key ? '' : 'quiet'">
-                    {{ column.key ? 'Primärschlüssel' : '—' }}
+                    {{ column.key ? 'ja' : '—' }}
                   </td>
                 </tr>
               </tbody>
@@ -954,7 +1240,21 @@ onMounted(loadTables)
           {{ openKind }} <span class="ident">{{ openTable }}</span> · {{ openFacts }}
         </p>
 
-        <div class="filter">
+        <!--
+          **Ein `<form>` und kein `<div>`, und das hat der Wächter gefunden.**
+          Die Filterzeile war ein Behälter mit einem Knopf daneben — damit gab
+          es auf dieser Seite drei Knöpfe mit „wichtig", und
+          `ButtonStyleTest::test_at_most_one_primary_button_per_form` hat
+          zugebissen. Die Regel lautet „je Formular eine Hauptsache", und die
+          Antwort war nicht, einen Rang wegzunehmen: Hier stehen wirklich zwei
+          Formulare, sie waren nur keine.
+
+          Nebenbei tut jetzt die Eingabetaste, was man von ihr erwartet.
+
+          > **Ein Wächter, der über die Rangfolge klagt, meint manchmal die
+          > Gliederung.**
+        -->
+        <form class="filter" @submit.prevent="applyFilter()">
           <label class="field">
             <span>Spalte</span>
             <select v-model="draft.column">
@@ -985,12 +1285,12 @@ onMounted(loadTables)
           </label>
 
           <div class="button-row">
-            <button type="button" class="button primary" @click="applyFilter()">Filtern</button>
+            <button type="submit" class="button primary">Filtern</button>
             <button v-if="filter !== null" type="button" class="button" @click="clearFilter()">
               Zurücksetzen
             </button>
           </div>
-        </div>
+        </form>
 
         <p v-if="loadingTable" class="empty">Wird geladen …</p>
 
@@ -1019,6 +1319,16 @@ onMounted(loadTables)
                       <span v-if="order === column">{{ descending ? '↓' : '↑' }}</span>
                     </button>
                   </th>
+
+                  <!--
+                    **Die Aktionsspalte steht hinten und nicht vorn.** Die erste
+                    Spalte bleibt beim waagerechten Rollen stehen (§11), und was
+                    dort steht, soll sagen, in welcher Zeile man ist — ein Knopf
+                    sagt das nicht. Es ist **eine** Spalte und nicht zwei:
+                    Löschen steht im Formular, wo die Zeile zu sehen ist, die es
+                    trifft.
+                  -->
+                  <th v-if="readOnlyReason === null" class="right">Zeile</th>
                 </tr>
               </thead>
               <tbody>
@@ -1076,6 +1386,12 @@ onMounted(loadTables)
                       </template>
                     </div>
                   </td>
+
+                  <td v-if="readOnlyReason === null" class="right">
+                    <div class="button-row">
+                      <button type="button" class="button small" @click="startUpdate(row)">Ändern</button>
+                    </div>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -1101,9 +1417,126 @@ onMounted(loadTables)
           </div>
         </template>
 
+        <!--
+          **Der Grund steht bei der Tabelle und nicht am Knopf, den es nicht
+          gibt** (`docs/46 §4`, Kriterium 5). Ein fehlendes Bedienelement ist
+          keine Auskunft — wer die Zeile ändern will, sucht sonst weiter.
+
+          `.notice.neutral` und nicht `warn`: Es ist keine Störung, sondern eine
+          Eigenschaft dieser Tabelle.
+        -->
+        <p v-if="readOnlyReason !== null" class="notice neutral">
+          <span>{{ readOnlyReason }}</span>
+        </p>
+
         <div class="button-row">
+          <button
+            v-if="readOnlyReason === null"
+            type="button"
+            class="button primary"
+            :disabled="loadingTable"
+            @click="startInsert()"
+          >
+            Zeile anlegen
+          </button>
           <button type="button" class="button" @click="closeTable()">Schliessen</button>
         </div>
+      </Section>
+
+      <!--
+        Das Zeilenformular — ein Bereich, wie die Zelleinzelsicht.
+
+        Dieses Panel hat keinen modalen Dialog, und eine Zeile mit zwanzig
+        Spalten wäre der schlechteste Anlass, den ersten einzuführen: Sie ist
+        hoch, und ein Dialog, in dem man rollt, verdeckt genau die Tabelle, auf
+        die man sich bezieht.
+      -->
+      <Section v-if="editing !== null" :title="editing.mode === 'insert' ? 'Zeile anlegen' : 'Zeile ändern'" full>
+        <p class="section-note">
+          {{ openKind }} <span class="ident">{{ openTable }}</span> ·
+          <template v-if="editing.mode === 'update'">
+            {{ changedFields.length === 0 ? 'nichts geändert' : `${changedFields.length} Spalte(n) geändert` }}
+          </template>
+          <template v-else>
+            {{ changedFields.length === 0 ? 'nichts eingetragen' : `${changedFields.length} Spalte(n) eingetragen` }}
+          </template>
+        </p>
+
+        <!--
+          **Nur die geänderten Spalten gehen in die Anweisung** (`docs/46
+          §10.1`, Regel 2) — und dieser Satz sagt es, weil man es sonst nicht
+          sehen kann. Der Schaden der Gegenregel ist gerade der, den man am
+          Ergebnis nicht bemerkt: Die Zeile ist danach da, sie sieht richtig
+          aus, und der Rest einer gekürzten Zelle ist fort.
+        -->
+        <p class="hint">
+          Gespeichert werden nur die Spalten, die hier geändert wurden. Was
+          unverändert bleibt, fasst der Vorgang nicht an.
+        </p>
+
+        <!--
+          **Ein `.form` mit `.field` je Spalte und keine Tabelle.** Der erste
+          Entwurf setzte die Felder in eine `pairs`-Tabelle — sie sah aus wie die
+          Strukturansicht daneben, und das ist genau der Fehler: Eine Tabelle
+          zeigt an, was da ist, ein Formular fragt nach dem, was sein soll. Die
+          Bausteine dafür gibt es seit „Kontor", einschliesslich des
+          Ankreuzfelds (`.toggle`) — eine eigene Fassung wäre derselbe Fehler wie
+          ein Hexwert in einer Komponente.
+        -->
+        <form class="form" @submit.prevent="save()">
+          <template v-for="field in editing.fields" :key="field.column">
+            <label v-if="field.locked === null" class="field">
+              <span>{{ field.column }}</span>
+              <input
+                v-model="field.value"
+                type="text"
+                autocomplete="off"
+                :disabled="field.isNull || saving"
+                @input="touch(field)"
+              >
+
+              <!--
+                **`NULL` ist ein eigener Zustand des Feldes** (`docs/46 §10.1`).
+                Bei einer Spalte mit `NOT NULL` gibt es das Kästchen nicht —
+                dort wäre es eine Zusage, die die Datenbank zurückweist.
+              -->
+              <span v-if="nullable(field.column)" class="toggle">
+                <input
+                  type="checkbox"
+                  :checked="field.isNull"
+                  :disabled="saving"
+                  @change="toggleNull(field)"
+                >
+                <span>NULL — kein Wert, und nicht die leere Zeichenkette</span>
+              </span>
+            </label>
+
+            <div v-else class="field">
+              <span>{{ field.column }}</span>
+              <p class="hint">{{ field.locked }}</p>
+            </div>
+          </template>
+
+          <div class="button-row">
+            <button
+              type="submit"
+              class="button primary"
+              :disabled="saving || changedFields.length === 0"
+            >
+              {{ editing.mode === 'insert' ? 'Anlegen' : 'Speichern' }}
+            </button>
+            <button type="button" class="button" :disabled="saving" @click="cancelEdit()">Abbrechen</button>
+            <button
+              v-if="editing.mode === 'update'"
+              type="button"
+              class="button danger"
+              :disabled="saving"
+              @click="removeRow()"
+            >
+              Zeile löschen
+            </button>
+          </div>
+        </form>
       </Section>
 
       <!--

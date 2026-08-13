@@ -2631,6 +2631,16 @@ Die dritte Zeile ist der Grund, dass die erste etwas heisst. Ohne sie wäre die
 0 keine Messung, sondern eine Behauptung — derselbe Satz wie beim `konsole = 0`
 aus `docs/47`.
 
+**Die Zahlen gelten für die Dichtestufe `admin`**, und das gehört dazu: Auf
+`cloudsrv24` ist am 13. August dieselbe Stelle in der **Kundensicht** gemessen
+worden, und dort steht **34px**. Das ist kein Widerspruch, sondern die Marke bei
+der Arbeit — `--block-gap` ist 26px für `admin`, 34px für `customer` und 24px
+unterhalb von 720px. Eine feste `26px` in der Regel hätte der Kundenfläche einen
+Abstand gegeben, der zu keinem ihrer Nachbarn passt.
+
+> **Eine Messung ohne die Stufe, in der sie entstand, ist eine Zahl ohne
+> Einheit.**
+
 > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
 > steht.**
 
@@ -2764,3 +2774,34 @@ der Sicht steht sie nicht — nicht als `0 B`, sondern gar nicht.
 
 > **Ein Bild vom echten Server zeigt auch das, wofür es nicht aufgenommen
 > wurde.**
+
+### 20.34 Der Beleg, gefahren — und was die dritte Zahl noch gezeigt hat
+
+**Gemessen auf `cloudsrv24` gegen `0.5.3-rc.10`**, mit dem berichtigten Ausdruck
+aus §20.32, in der Kundensicht (Dichtestufe `customer`):
+
+| Fläche | `luecke` | `rang` | `dokument` |
+|---|---|---|---|
+| weit | **34** | `button primary` | 0 |
+| schmal (390px) | **24** | `button primary` | 0 |
+| Konsolenseite, alter Ausdruck | −2231 | `button` | 0 |
+
+Die dritte Zeile ist der Fund aus §20.32 und steht hier, damit sie nicht als
+Fehlmessung durchgeht: Sie ist der Beleg dafür, **dass** der alte Ausdruck eine
+Zahl liefert, wo er keine liefern dürfte.
+
+Zwei Dinge, die die Zahlen sagen und ein Bild nicht sagt:
+
+**1 · `rang` nennt die Klasse und nicht die Farbe.** `button primary` ist
+prüfbar; „sieht violett aus" ist es nicht — und ein Bild könnte auch eine Farbe
+zeigen, die aus einem Hexwert in der Komponente käme. Die Klasse zeigt auf eine
+Regel in `app.css`, und `ClassReachTest` besteht darauf, dass es sie gibt.
+
+**2 · Die 34 war nicht vorhergesagt, und das ist der interessantere Teil.** Ich
+hatte 26 erwartet — der Wert der Dichtestufe `admin`, gegen die ich hier
+gemessen habe. Dass stattdessen 34 herauskam, ist die Probe darauf, dass die
+Regel die **Marke** liest und keine Zahl: In der Kundensicht ist `--block-gap`
+34px, und der Abstand folgt mit.
+
+> **Eine Messung, die anders ausfällt als erwartet und trotzdem stimmt, prüft
+> mehr als eine, die trifft.**

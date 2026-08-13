@@ -11378,3 +11378,21 @@ jede Grössenangabe. Erst zusammen belegen die beiden etwas.
 
 > **Ein Bild vom echten Server zeigt auch das, wofür es nicht aufgenommen
 > wurde.**
+
+### Der Beleg zum Abstand, gefahren — mit einer Zahl, die anders ausfiel
+
+Auf `cloudsrv24` gegen `0.5.3-rc.10`, mit dem berichtigten Ausdruck: `luecke`
+**34** in der weiten Fläche, **24** bei 390px, `rang` beide Male
+`button primary`, `dokument` beide Male 0.
+
+Erwartet hatte ich 26 — den Wert der Dichtestufe `admin`, gegen die hier
+gemessen wurde. Gemessen wurde in der **Kundensicht**, und dort ist
+`--block-gap` 34px. Die Abweichung ist die Probe darauf, dass die Regel die
+Marke liest und keine Zahl: Eine feste `26px` hätte der Kundenfläche einen
+Abstand gegeben, der zu keinem ihrer Nachbarn passt.
+
+> **Eine Messung, die anders ausfällt als erwartet und trotzdem stimmt, prüft
+> mehr als eine, die trifft.**
+
+> **Eine Messung ohne die Stufe, in der sie entstand, ist eine Zahl ohne
+> Einheit.**

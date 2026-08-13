@@ -198,6 +198,41 @@ final class BreakScriptTest extends TestCase
             'selbst einer. Einer, den niemand fährt, meldet nie etwas: %s',
             implode(', ', array_map('basename', $workflows)),
         ));
+
+        /*
+         * **Und er hängt am Pull Request und nicht nur am Zeitplan.**
+         *
+         * Der Auslöser ist seit dem 13. August 2026 Teil der Regel, und der
+         * Anlass ist gemessen: Der Wochenlauf meldete an diesem Tag drei
+         * Prüfungen ohne Biss, und alle drei hingen an einem Umbau vom 11. —
+         * zwei Tage lang stand im Repo ein Wächter, den es nicht mehr gab.
+         *
+         * > **Ein Lauf, der wöchentlich prüft, findet Fehler, die eine Woche
+         * > alt sein dürfen.**
+         *
+         * Der Zeitplan bleibt daneben stehen: Er ist der einzige, der auch dann
+         * fährt, wenn wochenlang niemand etwas ändert. Geprüft wird deshalb
+         * `pull_request` und nicht „irgendein Auslöser".
+         */
+        foreach ($running as $file) {
+            $on = (string) preg_replace(
+                ['/^.*?\non:\n/su', '/\n[a-z]+:\n.*$/su'],
+                '',
+                (string) file_get_contents($file),
+            );
+
+            $this->assertMatchesRegularExpression(
+                '/^\s*pull_request:/m',
+                $on,
+                sprintf(
+                    "%s fährt das Bruchskript, aber nicht an einem Pull Request.\n\n".
+                    'Dann findet es einen verlorenen Wächter erst im nächsten Zeitplanlauf — an dem '.
+                    'Beitrag, der ihn verliert, wäre es sofort aufgefallen. Der Lauf dauert gemessen '.
+                    'fünf Minuten.',
+                    basename($file),
+                ),
+            );
+        }
     }
 
     /**

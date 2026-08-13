@@ -7,8 +7,8 @@ name: Wächter brechen
 # 1. Das Skript **ändert Dateien** im Arbeitsbaum und stellt sie über git wieder
 #    her. In einem Lauf, der nebenher ein Paket baut, wäre das ein Wettlauf um
 #    denselben Baum.
-# 2. Es fährt die Testsuite einmal je Eingriff — über zweihundert Läufe. Das
-#    gehört nicht vor jeden Pull Request, sondern regelmässig und auf Zuruf.
+# 2. Es fährt die Testsuite einmal je Eingriff — 364 Eingriffe, 607 Läufe. In
+#    `ci.yml` hinge das an einem Job, der ohnehin schon die ganze Suite fährt.
 #
 # **Und warum es ihn überhaupt gibt.** CLAUDE.md verlangt: „Ein Wächter, der nie
 # rot war, ist kein Wächter." Das Skript stand seit dem Optik-Rework im Repo und
@@ -20,10 +20,29 @@ name: Wächter brechen
 
 on:
   workflow_dispatch:
+  # **Und seit dem 13. August 2026 auch an jedem Pull Request.**
+  #
+  # Hier stand: „Über zweihundert Läufe gehören nicht vor jeden Pull Request,
+  # sondern regelmässig und auf Zuruf." Die Zahl stimmte, die Folgerung nicht —
+  # **gemessen dauert der ganze Lauf fünf Minuten**, weniger als der
+  # Installationsjob auf Ubuntu 22.04, den niemand infrage stellt. Die Vorsicht
+  # galt einer Rechnung, die nie jemand gemacht hat.
+  #
+  # Entschieden hat es ein Befund: Am 13. August meldete der Wochenlauf drei
+  # Prüfungen ohne Biss, und alle drei hingen an einem Umbau vom 11. — zwei Tage
+  # lang stand im Repo ein Wächter, den es nicht mehr gab, und einer, der seine
+  # Regel nicht hielt. An dem Pull Request, der sie verlor, wäre es sofort
+  # aufgefallen.
+  #
+  # > **Ein Lauf, der wöchentlich prüft, findet Fehler, die eine Woche alt sein
+  # > dürfen.**
+  pull_request:
   schedule:
-    # Montags um 04:00 UTC. Ein wöchentlicher Lauf reicht: Was er findet, ist
-    # kein Fehler von heute, sondern ein Wächter, der seine Regel schon länger
-    # nicht mehr hält.
+    # Montags um 04:00 UTC. Der Zeitplan **bleibt**, obwohl der Lauf jetzt an
+    # jedem Pull Request hängt: Er ist der einzige, der auch dann fährt, wenn
+    # wochenlang niemand etwas ändert — und was er dann findet, ist kein Fehler
+    # von heute, sondern eine Regel, die von aussen gebrochen wurde: eine neue
+    # PHP-Fassung, ein anderes Verhalten einer Abhängigkeit.
     - cron: '0 4 * * 1'
 
 permissions:
@@ -37,9 +56,12 @@ jobs:
     name: Jede Regel absichtlich brechen
     runs-on: ubuntu-latest
 
-    # Über zweihundert Eingriffe, jeder mit mindestens zwei Testläufen. Die
-    # Vorgabe von sechs Stunden wäre kein Schutz, sondern eine Rechnung.
-    timeout-minutes: 90
+    # 364 Eingriffe, 607 Testläufe, **gemessen fünf Minuten**. Die Vorgabe von
+    # sechs Stunden wäre kein Schutz, sondern eine Rechnung — und seit der Lauf
+    # an jedem Pull Request hängt, blockiert eine Hängepartie nicht mehr nur
+    # eine Nacht, sondern jemandes Arbeit. Dreissig ist das Sechsfache des
+    # Gemessenen und immer noch eine Grenze, die etwas bedeutet.
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4

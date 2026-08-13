@@ -6906,6 +6906,958 @@ pruefe "Überschrift ohne min-width" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest passed
 
+# ═══════════════════════════════════════════════════════════════════════
+# P5c — das Datenbankmanagement (docs/46 §14)
+#
+# Die Brüche zu den Schritten 1 bis 7. Jeder ist beim Bauen einmal von Hand
+# gefahren worden und war rot; hier stehen sie, damit das jemand wiederholen
+# kann, ohne die Sitzung zu kennen, in der sie entstanden sind.
+# ═══════════════════════════════════════════════════════════════════════
+
+echo
+echo "── ConsoleQueueTest: eine Konsolenoperation in der Warteschlange ──"
+#
+# Ein eingereihter Vorgang legt seine Argumente in `operations.payload` ab —
+# bei `console.row.write` wäre das der Inhalt einer Kundenzeile. Der Fehler
+# wäre unsichtbar: Die Zeile wird geändert, die Antwort kommt, die Seite sieht
+# richtig aus.
+vorher_datei app/Support/Operations/Task.php
+python3 - <<'PY2'
+p = 'app/Support/Operations/Task.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("    case AgentPing = 'agent.ping';",
+              "    case AgentPing = 'agent.ping';\n    case DbConsoleRows = 'db.console.rows';", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Operations/Task.php "Konsolenaufgabe in der Reihe" &&
+pruefe "Konsolenaufgabe in der Reihe" \
+  ConsoleQueueTest::test_no_console_operation_has_a_task failed
+wiederherstellen
+
+echo
+echo "── ConsoleQueueTest: der Panelgriff reiht ein, statt zu rufen ──"
+vorher_datei app/Support/Databases/Console.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/Console.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("return $this->agent->call($driver->consoleOperation($handle)",
+              "return $this->queue->dispatch($driver->consoleOperation($handle)", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/Console.php "Konsolengriff über die Reihe" &&
+pruefe "Konsolengriff über die Reihe" \
+  ConsoleQueueTest::test_the_panel_side_console_calls_the_agent_directly failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ConsoleQueueTest passed
+
+echo
+echo "── ConsoleIdentityTest: eine Operation ohne befristeten Zugang ──"
+#
+# Die Regel, an der die Mandantentrennung dieser Stufe hängt (§5): Ohne
+# `within()` liefe die Abfrage als root — und das Ergebnis sähe genau gleich
+# aus. Eine Prüfung, die im Fehlerfall dasselbe sagt wie im Erfolgsfall, belegt
+# nichts.
+vorher_datei agent/src/Ops/PgConsoleRows.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgConsoleRows.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("return $this->console->within(", "return $this->console->unmittelbar(", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgConsoleRows.php "Operation ohne Zugangsrahmen" &&
+pruefe "Operation ohne Zugangsrahmen" \
+  ConsoleIdentityTest::test_every_console_operation_goes_through_the_ephemeral_frame failed
+wiederherstellen
+
+echo
+echo "── ConsoleIdentityTest: eine Operation ruft die Sitzung selbst ──"
+vorher_datei agent/src/Ops/PgConsoleRows.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgConsoleRows.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $filter = self::filter($args);",
+              "        $filter = self::filter($args);\n\n        $this->console->session->query('SELECT 1');", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgConsoleRows.php "Sitzung am Rahmen vorbei" &&
+pruefe "Sitzung am Rahmen vorbei" \
+  ConsoleIdentityTest::test_no_console_operation_talks_to_a_session_itself failed
+wiederherstellen
+
+echo
+echo "── ConsoleIdentityTest: der Rest sagt nicht, woher er stammt ──"
+vorher_datei agent/src/Pg/Console.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Console.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            Names::KIND_CONSOLE,", "            Names::KIND_RESTORE,", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Console.php "Rest ohne Kennzeichnung" &&
+pruefe "Rest ohne Kennzeichnung" \
+  ConsoleIdentityTest::test_the_frame_marks_its_leftovers_as_console failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ConsoleIdentityTest passed
+
+echo
+echo "── ConsoleStatementTest: ein Bezeichner wird nur maskiert ──"
+#
+# §7: Ein Name aus einer Anfrage wird gegen den Katalog geprüft, bevor er
+# maskiert wird. Ohne das Nachschlagen käme beim Kunden eine Meldung des
+# Servers über eine Relation an, die es anderswo geben könnte.
+vorher_datei agent/src/Pg/Console.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Console.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        throw AgentException::badRequest('Diese Spalte gibt es in dieser Tabelle nicht.', ['column' => $name]);",
+              "        return ['name' => $name, 'type' => 'text', 'nullable' => true, 'default' => null, 'key' => false, 'binary' => false];", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Console.php "Bezeichner ohne Nachschlagen" &&
+pruefe "Bezeichner ohne Nachschlagen" \
+  ConsoleStatementTest::test_an_unknown_identifier_never_becomes_a_statement failed
+wiederherstellen
+
+echo
+echo "── ConsoleStatementTest: die Kürzung fällt aus der Abfrage ──"
+#
+# Gemessen an der erzeugten Anweisung und nicht an einem Ergebnis: Die Grenze
+# ist eine Eigenschaft der Zeichenkette (§9). Ohne sie holt eine Seite mit
+# fünfzig Zeilen alles, was in den Zellen steht.
+vorher_datei agent/src/Pg/Console.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Console.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                : sprintf('left(%s::text, %d) AS %s', $identifier, $limit + 1, $identifier);",
+              "                : sprintf('%s::text AS %s', $identifier, $identifier);", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Console.php "Abfrage ohne Kürzung" &&
+pruefe "Abfrage ohne Kürzung" \
+  ConsoleStatementTest::test_every_other_column_is_cut_in_the_statement failed
+wiederherstellen
+
+echo
+echo "── ConsoleStatementTest: eine gekürzte Zelle sagt es nicht ──"
+#
+# Die andere Hälfte derselben Regel: Gekürzt wird in der Abfrage, gemeldet beim
+# Lesen. Ohne die Meldung ist ein abgeschnittener Wert von einem vollständigen
+# nicht zu unterscheiden — und das Formular schriebe den Rest weg.
+vorher_datei agent/src/Pg/Console.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Console.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                    $row[$name] = mb_substr($value, 0, self::CELL_LIMIT);",
+              "                    $row[$name] = $value;", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Console.php "Kürzung ohne Kennzeichnung" &&
+pruefe "Kürzung ohne Kennzeichnung" \
+  ConsoleStatementTest::test_a_cut_cell_says_so failed
+wiederherstellen
+
+echo
+echo "── ConsoleStatementTest: der Filter wird wieder ein Muster ──"
+#
+# `LIKE` macht aus einem Prozentzeichen im Wert des Kunden einen Platzhalter,
+# und seine Maskierung bräuchte ein eigenes Fluchtzeichen — drei Ebenen für
+# eine Suche nach einer Zeichenkette (§7).
+vorher_datei agent/src/Pg/Console.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Console.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            'contains' => sprintf('strpos(%s::text, %s) > 0', $identifier, Sql::text($value)),",
+              "            'contains' => sprintf('%s::text LIKE %s', $identifier, Sql::text($value)),", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Console.php "Filter mit LIKE" &&
+pruefe "Filter mit LIKE" \
+  ConsoleStatementTest::test_a_filter_value_is_quoted_and_never_a_pattern failed
+wiederherstellen
+
+echo
+echo "── ConsoleStatementTest: NULL wird zur leeren Zeichenkette ──"
+#
+# Der Fehler, den keine Zählung meldet: Ein `WHERE spalte IS NULL` der
+# Kundenanwendung findet die Zeile danach einfach nicht mehr (§10.1).
+vorher_datei agent/src/Pg/Console.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Console.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        return $value === null ? 'NULL' : Sql::text($value);",
+              "        return Sql::text((string) $value);", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Console.php "NULL als leere Zeichenkette" &&
+pruefe "NULL als leere Zeichenkette" \
+  ConsoleStatementTest::test_null_and_the_empty_string_are_two_values_on_the_way_back failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ConsoleStatementTest passed
+
+echo
+echo "── RowKeyTest: das UPDATE für MariaDB ohne LIMIT 1 ──"
+#
+# MariaDB hat keinen anonymen Block, in dem sich nachzählen liesse — `LIMIT 1`
+# ist dort der Riegel gegen „mehr als eine Zeile" (§10).
+vorher_datei agent/src/Db/Console.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Console.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                'UPDATE %s SET %s WHERE %s LIMIT 1',",
+              "                'UPDATE %s SET %s WHERE %s',", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Console.php "MariaDB ohne LIMIT 1" &&
+pruefe "MariaDB ohne LIMIT 1" \
+  RowKeyTest::test_mariadb_can_touch_at_most_one_row_and_checks_it_was_one failed
+wiederherstellen
+
+echo
+echo "── RowKeyTest: … und ohne die Nachzählung ──"
+#
+# Der zweite Riegel, und er fängt die andere Richtung: null Zeilen, weil die
+# Zeile zwischen Anzeige und Änderung verschwunden ist. Ohne ihn meldet der
+# Vorgang Erfolg für einen Treffer, den niemand geprüft hat.
+vorher_datei agent/src/Db/Console.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Console.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            'SELECT ROW_COUNT()',", "            'SELECT 1',", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Console.php "MariaDB ohne Nachzählung" &&
+pruefe "MariaDB ohne Nachzählung" \
+  RowKeyTest::test_mariadb_can_touch_at_most_one_row_and_checks_it_was_one failed
+wiederherstellen
+
+echo
+echo "── RowKeyTest: ein Schreibvorgang ohne Schlüssel ──"
+#
+# Der eine Fall dieser Stufe, bei dem ein fehlender Riegel nicht eine Zeile
+# kostet, sondern alle: Ein `UPDATE` ohne `WHERE` trifft die ganze Tabelle, ein
+# `DELETE` leert sie.
+vorher_datei agent/src/Pg/Console.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Console.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""        if ($key === []) {
+            throw AgentException::badRequest(
+                'Ohne Primärschlüssel lässt sich eine einzelne Zeile nicht eindeutig ansprechen.',
+            );
+        }""", "        if ($key === []) {\n            return [];\n        }", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Console.php "Anweisung ohne Schlüssel" &&
+pruefe "Anweisung ohne Schlüssel" \
+  RowKeyTest::test_no_statement_is_built_without_a_key failed
+wiederherstellen
+
+echo
+echo "── RowKeyTest: ein halber Schlüssel geht durch ──"
+#
+# Bei einem zusammengesetzten Schlüssel `(b, c)` trifft `WHERE b = '1'` jede
+# Zeile mit diesem `b`. Die Nachzählung nimmt das zurück — sie meldet dann aber
+# „hat 3 Zeilen getroffen", und das liest sich wie ein Nebenläufigkeitsproblem
+# statt wie ein unvollständiger Aufruf.
+vorher_datei agent/src/Pg/Console.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Console.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        if ($expected !== $given) {", "        if (false) {", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Console.php "halber Schlüssel" &&
+pruefe "halber Schlüssel" RowKeyTest::test_half_a_key_is_refused failed
+wiederherstellen
+
+echo
+echo "── RowKeyTest: der Satz steht wieder in der Anweisung ──"
+#
+# Befund 2 aus docs/47: Der Satz kam als Datenbankfehler verkleidet zurück, mit
+# `CONTEXT: PL/pgSQL function inline_code_block line 7 at RAISE` — eine
+# Zeilennummer auf eine Datei, die es nicht gibt.
+vorher_datei agent/src/Pg/Console.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Console.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                RAISE EXCEPTION '%s=%%', getroffen;",
+              "                RAISE EXCEPTION 'Der Vorgang hat % Zeilen getroffen', getroffen;", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Console.php "Satz in der Anweisung" &&
+pruefe "Satz in der Anweisung" \
+  RowKeyTest::test_the_marker_is_one_constant_on_both_sides failed
+wiederherstellen
+
+echo
+echo "── RowKeyTest: MariaDB baut ihren eigenen Satz ──"
+vorher_datei agent/src/Db/Console.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Console.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            throw AgentException::execFailed(PgConsole::missed($affected));",
+              "            throw AgentException::execFailed('Der Vorgang hat nicht genau eine Zeile getroffen.');", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Console.php "zweite Fassung der Meldung" &&
+pruefe "zweite Fassung der Meldung" \
+  RowKeyTest::test_the_marker_is_one_constant_on_both_sides failed
+wiederherstellen
+
+echo
+echo "── RowKeyTest: die Tabellenliste kennt nur den Primärschlüssel ──"
+#
+# Der Fund aus docs/46 §20.46: Über einer Tabelle, die sich ändern liess, stand
+# „ohne Schlüssel". `columns()` kannte §10 Regel 2, `tables()` nicht — beim Bau
+# ist eine von zwei Stellen angefasst worden.
+vorher_datei agent/src/Pg/Console.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Console.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                            WHERE i.indrelid = c.oid AND %s)",
+              "                            WHERE i.indrelid = c.oid AND i.indisprimary AND %s)", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Console.php "PostgreSQL nur Primärschlüssel" &&
+pruefe "PostgreSQL nur Primärschlüssel" \
+  RowKeyTest::test_both_catalogue_questions_agree_on_what_a_key_is failed
+wiederherstellen
+
+echo
+echo "── RowKeyTest: … und dieselbe Hälfte in MariaDB ──"
+#
+# MariaDB befördert einen eindeutigen Index über Spalten ohne NULL zum
+# impliziten Primärschlüssel und meldet ihn in `COLUMNS.COLUMN_KEY` als `PRI` —
+# den Index selbst benennt sie dabei nicht um. Wer nach `STATISTICS` fragt,
+# findet ihn nicht.
+vorher_datei agent/src/Db/Console.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Console.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                   EXISTS (SELECT 1 FROM information_schema.COLUMNS k",
+              "                   EXISTS (SELECT 1 FROM information_schema.STATISTICS k", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Console.php "MariaDB fragt die falsche Sicht" &&
+pruefe "MariaDB fragt die falsche Sicht" \
+  RowKeyTest::test_both_catalogue_questions_agree_on_what_a_key_is failed
+wiederherstellen
+
+echo
+echo "── RowKeyTest: „nur lesbar“ ohne Begründung ──"
+#
+# Ein fehlendes Bedienelement ist keine Auskunft (§4, Kriterium 5). Wer eine
+# Zeile ändern will und keinen Knopf findet, sucht weiter.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("      + 'NULL; ohne einen von beiden lässt sich eine einzelne Zeile nicht eindeutig ansprechen.'",
+              "      + 'NULL. Ändern ist hier nicht möglich.'", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "nur lesbar ohne Grund" &&
+pruefe "nur lesbar ohne Grund" \
+  RowKeyTest::test_the_interface_says_why_a_table_is_read_only failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RowKeyTest passed
+
+echo
+echo "── WriteBackTest: das UPDATE nimmt alle Spalten ──"
+#
+# Der einzige Punkt des Abnahmekriteriums, dessen Fehlschlag man an der
+# geänderten Zeile nicht sieht (§4, Punkt 6). Die Zeile ist danach da, sie sieht
+# richtig aus, und der Rest einer gekürzten Zelle ist fort.
+vorher_datei agent/src/Pg/Console.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Console.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""                        .' = '.self::literal($values[$name]),
+                    array_keys($values),""",
+              """                        .' = '.self::literal($values[$name] ?? null),
+                    array_column($columns, 'name'),""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Console.php "UPDATE über alle Spalten" &&
+pruefe "UPDATE über alle Spalten" \
+  WriteBackTest::test_only_the_given_columns_reach_the_statement failed
+wiederherstellen
+
+echo
+echo "── WriteBackTest: NULL beim Anlegen als leere Zeichenkette ──"
+#
+# Der Zweig, den der erste Wurf dieses Wächters nicht geprüft hat: Ein
+# `strval()` über die Werte traf das Anlegen und blieb grün.
+vorher_datei agent/src/Pg/Console.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Console.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                implode(', ', array_map(self::literal(...), $values)),",
+              "                implode(', ', array_map(strval(...), $values)),", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Console.php "NULL beim Anlegen" &&
+pruefe "NULL beim Anlegen" \
+  WriteBackTest::test_null_and_the_empty_string_stay_two_values failed
+wiederherstellen
+
+echo
+echo "── WriteBackTest: das Formular schickt alle Felder ──"
+#
+# Das obere Ende derselben Regel: Die Anweisung kann nur weglassen, was ihr
+# nicht gegeben wird. Ein Formular, das alle Felder schickt, macht die Prüfung
+# am Agenten wirkungslos, ohne sie zu verletzen.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("  for (const field of changedFields.value) {", "  for (const field of formular.fields) {", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Formular schickt alles" &&
+pruefe "Formular schickt alles" \
+  WriteBackTest::test_the_form_sends_only_what_was_touched failed
+wiederherstellen
+
+echo
+echo "── WriteBackTest: ein gekürztes Feld ist nicht gesperrt ──"
+#
+# Was dort steht, ist nicht der Wert — es zurückzuschreiben wirft den Rest weg,
+# für den, der die Zeile aus einem ganz anderen Grund geöffnet hat.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""  if (typeof value === 'string' && isTruncated(column, value)) {
+    return 'gekürzt — der ganze Wert steht in der Zelleinzelsicht'
+  }
+
+""", "", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "gekürztes Feld offen" &&
+pruefe "gekürztes Feld offen" \
+  WriteBackTest::test_a_truncated_or_binary_field_is_locked_with_a_reason failed
+wiederherstellen
+
+echo
+echo "── WriteBackTest: NULL ist im Formular kein eigener Zustand ──"
+#
+# Ein Textfeld kann `NULL` nicht ausdrücken. Ohne das Kästchen wäre jede leere
+# Eingabe ein `''`, und aus jedem `NULL` einer nullbaren Spalte würde lautlos
+# eine leere Zeichenkette.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("  return field.isNull ? null : field.value", "  return field.value", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "NULL ohne eigenen Zustand" &&
+pruefe "NULL ohne eigenen Zustand" \
+  WriteBackTest::test_null_is_its_own_state_in_the_form failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" WriteBackTest passed
+
+echo
+echo "── NullDisplayTest: der Typ entscheidet vor dem NULL ──"
+#
+# Der Anlass ist ein Bildschirmfoto aus Schritt 5: In jeder Zeile der Spalte
+# `anhang` stand „binär · 0 B". Die Spalte war leer — nicht null Byte lang,
+# sondern NULL —, und `Number(null ?? 0)` ist `0`.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('<span v-if="row[column] === null" class="quiet">NULL</span>',
+              '<span v-else-if="row[column] === null" class="quiet">NULL</span>', 1)
+s = s.replace('<span v-else-if="isBinary(column)" class="quiet">',
+              '<span v-if="isBinary(column)" class="quiet">', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Typ vor NULL" &&
+pruefe "Typ vor NULL" NullDisplayTest::test_a_null_is_shown_before_any_type_decides failed
+wiederherstellen
+
+echo
+echo "── NullDisplayTest: die Länge fällt auf 0 zurück ──"
+#
+# Die zweite Hälfte, und ohne sie wäre die erste zu umgehen: Wer die
+# Reihenfolge richtig stellt und `?? 0` stehen lässt, hat den Fehler behoben und
+# den Grund behalten.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("binär · {{ formatBytes(Number(row[column])) }}",
+              "binär · {{ formatBytes(Number(row[column] ?? 0)) }}", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Länge mit Ersatzwert" &&
+pruefe "Länge mit Ersatzwert" \
+  NullDisplayTest::test_a_length_is_never_defaulted_to_zero failed
+wiederherstellen
+
+echo
+echo "── NullDisplayTest: die Schätzung gibt sich als Zählung aus ──"
+#
+# Auf cloudsrv24 stand `16.008 Zeilen`; `SELECT COUNT(*)` sagte 16384. Fünf
+# Stellen Genauigkeit für eine Angabe, die keine hat.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("`geschätzt ${formatRows(tabelle.rows)} Zeilen`",
+              "`${formatRows(tabelle.rows)} Zeilen`", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Schätzung ohne das Wort" &&
+pruefe "Schätzung ohne das Wort" \
+  NullDisplayTest::test_an_estimated_row_count_says_so failed
+wiederherstellen
+
+echo
+echo "── NullDisplayTest: eine Sicht bekommt eine Grösse ──"
+#
+# Der dritte Fall derselben Falle in dieser Stufe. Eine Sicht speichert nichts;
+# der Katalog meldet dafür 0, und „0 B" liest sich wie „leer" statt wie „gibt es
+# nicht".
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""  if (tabelle.kind !== 'view') {
+    angaben.push(formatBytes(tabelle.bytes))
+  }""", "  angaben.push(formatBytes(tabelle.bytes))", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Sicht mit Grösse" &&
+pruefe "Sicht mit Grösse" NullDisplayTest::test_a_view_is_shown_without_a_size failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NullDisplayTest passed
+
+echo
+echo "── TreeSemanticsTest: ein Baum ohne Behälterrolle ──"
+#
+# Sichtbar besteht der Baum aus Knöpfen mit einem Dreieck davor; ohne die drei
+# Rollen ist er für einen Screenreader eine Liste von Knöpfen ohne Zusammenhang
+# — und das fällt niemandem auf, der ihn sieht.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('class="tree" role="tree" @keydown="navigate"', 'class="tree" @keydown="navigate"', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Baum ohne Behälterrolle" &&
+pruefe "Baum ohne Behälterrolle" \
+  TreeSemanticsTest::test_every_tree_carries_its_roles failed
+wiederherstellen
+
+echo
+echo "── TreeSemanticsTest: ein Zweig sagt seinen Zustand nicht an ──"
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('                :aria-expanded="expanded.has(table.name)"\n', "", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Zweig ohne Zustand" &&
+pruefe "Zweig ohne Zustand" \
+  TreeSemanticsTest::test_every_expandable_node_announces_its_state failed
+wiederherstellen
+
+echo
+echo "── TreeSemanticsTest: die Liste dazwischen behält ihre Rolle ──"
+#
+# Ein `<li>` bringt `listitem` mit, und damit stünde zwischen `tree` und
+# `treeitem` eine Liste.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('<li v-for="table in tables" :key="`${table.schema}.${table.name}`" role="none">',
+              '<li v-for="table in tables" :key="`${table.schema}.${table.name}`">', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Liste mit eigener Rolle" &&
+pruefe "Liste mit eigener Rolle" \
+  TreeSemanticsTest::test_the_list_between_them_carries_no_role_of_its_own failed
+wiederherstellen
+
+echo
+echo "── TreeSemanticsTest: die Tabulatorstation steht fest ──"
+#
+# Der Mangel, den erst die Frage nach dem Beleg gefunden hat (§20.27): Der Baum
+# war eine Station, aber wer ihn verliess und mit Tab zurückkam, stand wieder
+# oben statt dort, wo er war.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(':tabindex="stops(table.name) ? 0 : -1"', 'tabindex="0"', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "feste Tabulatorstation" &&
+pruefe "feste Tabulatorstation" \
+  TreeSemanticsTest::test_a_tree_is_one_tab_stop_and_it_moves failed
+wiederherstellen
+
+echo
+echo "── TreeSemanticsTest: … und der Baum merkt sich den Fokus nicht ──"
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(' @focusin="remember">', '>', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Fokus ohne Gedächtnis" &&
+pruefe "Fokus ohne Gedächtnis" \
+  TreeSemanticsTest::test_a_tree_is_one_tab_stop_and_it_moves failed
+wiederherstellen
+
+echo
+echo "── TreeSemanticsTest: ein Baum ohne Pfeiltasten ──"
+#
+# Sonst ist er eine Liste von Knöpfen, durch die man tabbt — und genau das
+# unterscheidet ihn von der Tabelle, die er ersetzt hat.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(' @keydown="navigate" @focusin="remember">', ' @focusin="remember">', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Baum ohne Pfeiltasten" &&
+pruefe "Baum ohne Pfeiltasten" \
+  TreeSemanticsTest::test_a_tree_is_operated_with_the_arrow_keys failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TreeSemanticsTest passed
+
+echo
+echo "── ConsoleFanoutTest: Aufklappen holt etwas ──"
+#
+# Jede Katalogfrage der Konsole legt eine Datenbankrolle an und räumt sie ab.
+# Die drei Ziele unter einem Zweig sind Beschriftungen und keine Daten (§11.1);
+# aus jedem Klick auf ein Dreieck würde sonst ein befristeter Zugang.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""  expanded.value = offen
+}""", """  expanded.value = offen
+
+  void ask(props.database.id, 'columns', { table })
+}""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Aufklappen fragt" &&
+pruefe "Aufklappen fragt" ConsoleFanoutTest::test_expanding_a_branch_asks_nothing failed
+wiederherstellen
+
+echo
+echo "── ConsoleFanoutTest: eine Anfrage in der Schleife über die Tabellen ──"
+#
+# Zwanzig Tabellen wären zwanzig befristete Datenbankzugänge — für eine Ansicht,
+# die niemand angefordert hat.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("function toggle(table: string): void {",
+              """function vorladen(): void {
+  tables.value.map((t) => ask(props.database.id, 'columns', { table: t.name }))
+}
+
+function toggle(table: string): void {""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Anfrage in der Schleife" &&
+pruefe "Anfrage in der Schleife" \
+  ConsoleFanoutTest::test_no_request_stands_inside_a_loop_over_the_tables failed
+wiederherstellen
+
+echo
+echo "── ConsoleFanoutTest: der Knopf, den man aus Freundlichkeit einbaut ──"
+#
+# „Alles aufklappen" ist die naheliegendste Ergänzung an einem Baum und in
+# dieser Konsole die teuerste: Er legt so viele Datenbankrollen an, wie die
+# Datenbank Tabellen hat — und sieht dabei aus wie ein Komfort.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('          <ul v-else ref="tree" class="tree"',
+              '          <button type="button" class="button">Alles aufklappen</button>\n'
+              '          <ul v-else ref="tree" class="tree"', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Knopf für alles" &&
+pruefe "Knopf für alles" \
+  ConsoleFanoutTest::test_there_is_no_control_that_opens_everything failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ConsoleFanoutTest passed
+
+echo
+echo "── AuditContentTest: der Eintrag trägt den geänderten Wert ──"
+#
+# Ein Protokoll, das den Inhalt einer geänderten Zeile führt, ist eine zweite
+# Kopie der Kundendaten an einer Stelle, an der sie niemand vermutet — und sie
+# überlebt das Löschen der Zeile.
+vorher_datei app/Http/Controllers/DatabaseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                    'key' => $key === [] ? null : $key,",
+              "                    'key' => $key === [] ? null : $key,\n                    'values' => $values,", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/DatabaseController.php "Wert im Protokoll" &&
+pruefe "Wert im Protokoll" AuditContentTest::test_no_entry_carries_a_cell_value failed
+wiederherstellen
+
+echo
+echo "── AuditContentTest: eine der drei Handlungen fehlt ──"
+vorher_datei app/Http/Controllers/DatabaseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        'delete' => 'database.console.row.removed',\n", "", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/DatabaseController.php "Löschen ohne Protokoll" &&
+pruefe "Löschen ohne Protokoll" \
+  AuditContentTest::test_all_three_changing_actions_are_recorded failed
+wiederherstellen
+
+echo
+echo "── AuditContentTest: der Eintrag beim Öffnen ist nicht entprellt ──"
+#
+# Eine fehlende Entprellung bemerkt niemand: Sie sieht beim ersten Mal genauso
+# aus und fällt erst nach einer Woche auf, wenn das Protokoll nur noch aus
+# Konsolenzeilen besteht — also genau dann, wenn es gebraucht wird.
+vorher_datei app/Http/Controllers/DatabaseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $this->audit->throttled(", "        $this->audit->record(", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/DatabaseController.php "Öffnen ohne Entprellung" &&
+pruefe "Öffnen ohne Entprellung" \
+  AuditContentTest::test_the_entry_on_opening_is_debounced_to_one_per_hour failed
+wiederherstellen
+
+echo
+echo "── AuditContentTest: … und die Spanne ist keine Stunde ──"
+vorher_datei app/Http/Controllers/DatabaseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("CONSOLE_AUDIT_SECONDS = 3600;", "CONSOLE_AUDIT_SECONDS = 60;", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/DatabaseController.php "Spanne unter einer Stunde" &&
+pruefe "Spanne unter einer Stunde" \
+  AuditContentTest::test_the_entry_on_opening_is_debounced_to_one_per_hour failed
+wiederherstellen
+
+echo
+echo "── AuditContentTest: die Entprellung fragt nicht, wer gehandelt hat ──"
+#
+# Ohne die dritte Bedingung verschluckt sie den Fall, für den man das Protokoll
+# liest: Sieht ein Admin über „Anmelden als" in dieselbe Datenbank, in der der
+# Kunde gerade war, gehört das in einen eigenen Eintrag.
+vorher_datei app/Support/Audit/Audit.php
+python3 - <<'PY2'
+p = 'app/Support/Audit/Audit.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            ->where('account_id', $acting)\n", "", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Audit/Audit.php "Entprellung ohne Person" &&
+pruefe "Entprellung ohne Person" \
+  AuditContentTest::test_the_debounce_asks_who_and_not_only_what failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AuditContentTest passed
+
+echo
+echo "── ResultEncodingTest: der JSON-Weg ohne --raw ──"
+#
+# `mysql --batch` maskiert die Maskierung einer JSON-Zeile: Aus einem Tabulator
+# im Wert wird `\\t` im schon maskierten JSON — gültiges JSON mit einem falschen
+# Wert. Eine Maskierung über einer Maskierung ist schlimmer als ein
+# Parserfehler; der fiele auf.
+vorher_datei agent/src/Db/Session.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Session.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            $arguments[] = '--raw';", "            $arguments[] = '--batch';", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Session.php "JSON-Weg ohne --raw" &&
+pruefe "JSON-Weg ohne --raw" \
+  ResultEncodingTest::test_the_json_way_asks_for_raw_output failed
+wiederherstellen
+
+echo
+echo "── ResultEncodingTest: … und die Gegenrichtung ──"
+#
+# Auf dem Textweg ist die Maskierung des Klienten gerade die Sicherung, die die
+# Zeilentrennung trägt. Beide Fehler sind still, und deshalb steht hier beides.
+vorher_datei agent/src/Db/Session.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Session.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""        $arguments = self::CLIENT;
+        $file = null;""", """        $arguments = self::CLIENT;
+        $arguments[] = '--raw';
+        $file = null;""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Session.php "Textweg mit --raw" &&
+pruefe "Textweg mit --raw" \
+  ResultEncodingTest::test_the_text_way_never_asks_for_raw_output failed
+wiederherstellen
+
+echo
+echo "── ResultEncodingTest: eine binäre Spalte als Wert ──"
+#
+# Ein BLOB mit ungültigem UTF-8 macht die ganze Zeile über json_decode()
+# unlesbar, während MariaDBs JSON_VALID() sie für gültig hält. Am Ergebnis sähe
+# man es auch — aber erst, wenn jemand eine Tabelle mit einem BLOB öffnet, und
+# dann als „Malformed UTF-8" ohne jeden Hinweis auf die Ursache.
+vorher_datei agent/src/Db/Console.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Console.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                ? sprintf('OCTET_LENGTH(%s)', $identifier)",
+              "                ? sprintf('LEFT(CAST(%s AS CHAR), 512)', $identifier)", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Console.php "binäre Spalte als Wert" &&
+pruefe "binäre Spalte als Wert" \
+  ResultEncodingTest::test_a_binary_column_is_a_length_in_both_engines failed
+wiederherstellen
+
+echo
+echo "── BlockSpacingTest: die Fuge unter der Knopfreihe fehlt ──"
+#
+# Der Betreiber hat sie auf einem Bild gefunden: „Tabellen durchsehen" klebte an
+# den Bereichen darunter. Gemessen 0px, daneben 26px zwischen Meldung und
+# Bereichen — die zweite Zahl ist der Grund, dass die erste etwas heisst.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace(".button-row + .sections {", ".button-row + .sections-x {", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Fuge unter der Knopfreihe" &&
+pruefe "Fuge unter der Knopfreihe" \
+  BlockSpacingTest::test_the_rule_still_lists_what_it_used_to failed
+wiederherstellen
+
+echo
+echo "── BlockSpacingTest: eine Meldung unter der Blätterleiste ──"
+#
+# Der fünfte Fall, und er hat die Frage dieses Wächters umgestellt: nicht mehr
+# „wo steht eine Knopfreihe?", sondern „welche zwei bündigen Bausteine stehen
+# aneinander?"
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace(":is(.field, .hint, .error, .scrolls, .pager, .cell-value, .button-row) + .notice {",
+              ":is(.field, .hint, .error, .scrolls, .cell-value, .button-row) + .notice {", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Meldung unter der Blätterleiste" &&
+pruefe "Meldung unter der Blätterleiste" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
+wiederherstellen
+
+echo
+echo "── BlockSpacingTest: ein Baustein der Liste, den es nicht gibt ──"
+#
+# Der Wächter über den Wächter: Ein Name in einer der beiden Listen, den keine
+# Vorlage trägt, ist eine Zeile, die nach Abdeckung aussieht und keine ist.
+# Genau das war `pager` fünf Schritte lang.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('class="cell-value"', 'class="cell-text"', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Baustein ohne Vorlage" &&
+pruefe "Baustein ohne Vorlage" \
+  BlockSpacingTest::test_every_listed_block_really_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
+
+echo
+echo "── MobileLayoutTest: eine Wertzelle, die nicht brechen darf ──"
+#
+# Die Messung war grün und die Ansicht kaputt: Eine bei 512 Zeichen gekürzte
+# Zelle machte den Inhalt der Zeilentabelle 5710px breit statt 1907 — bei 390px
+# zehn Bildschirme Rollen durch eine einzige Zelle.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace(""".rows .cell {
+  max-width: 48ch;""", """.rows .cell {
+  max-width: 48ch;
+  white-space: nowrap;""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Wertzelle mit nowrap" &&
+pruefe "Wertzelle mit nowrap" \
+  MobileLayoutTest::test_a_value_cell_of_the_rows_view_may_break failed
+wiederherstellen
+
+echo
+echo "── MobileLayoutTest: … und ihr wird der Umbruch entzogen ──"
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""  font-size: var(--text-table);
+  overflow-wrap: anywhere;
+}""", """  font-size: var(--text-table);
+}""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Wertzelle ohne Umbruch" &&
+pruefe "Wertzelle ohne Umbruch" \
+  MobileLayoutTest::test_a_value_cell_of_the_rows_view_may_break failed
+wiederherstellen
+
+echo
+echo "── MobileLayoutTest: die Angabe der Blätterleiste bricht nicht ──"
+#
+# Ein `nowrap` über einer Zahl, die wächst, ist keine Zusage über die Zeile — es
+# ist eine über den Bestand. „Seite 2 von 5" passt immer, „1.001–1.050 von mehr
+# als 1.050" schob 8px.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace(""".pager-state {
+  margin: 0;""", """.pager-state {
+  margin: 0;
+  white-space: nowrap;""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Blätterangabe mit nowrap" &&
+pruefe "Blätterangabe mit nowrap" \
+  MobileLayoutTest::test_the_pager_state_may_break failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

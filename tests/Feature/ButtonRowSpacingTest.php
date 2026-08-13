@@ -62,6 +62,20 @@ final class ButtonRowSpacingTest extends TestCase
      */
     private const FLUSH = ['scrolls', 'pager', 'cell-value'];
 
+    /**
+     * Bausteine, die oben bündig anfangen — sie bringen keinen Abstand darüber.
+     *
+     * **Die Gegenrichtung, und sie hat vier Fälle lang niemand gestellt.**
+     * `.sections` setzt bewusst keinen Rand nach oben: Davor steht auf jeder
+     * anderen Seite dieses Panels eine Meldung oder `FormErrors`, und die
+     * bringen ihren `margin-bottom` selbst mit. Die Datenbankseite ist die
+     * einzige, auf der eine Knopfreihe davor steht — und die bringt in keine
+     * Richtung etwas mit.
+     *
+     * > **Eine Regel über den Nachbarn davor sagt nichts über den danach.**
+     */
+    private const FLUSH_TOP = ['sections'];
+
     /** @return list<string> */
     private function templates(): array
     {
@@ -87,6 +101,28 @@ final class ButtonRowSpacingTest extends TestCase
     }
 
     /**
+     * Ein ganzer Klassenname in einer Klassenliste.
+     *
+     * **`\b` ist dafür die falsche Grenze, und dieses Projekt hat die Klassen,
+     * an denen es auffällt.** `\bpager\b` trifft `pager-state`, `\bcell\b`
+     * trifft `cell-value` — beide gibt es in `app.css`, und beide sind etwas
+     * anderes als der Baustein, nach dem gefragt wird. Aufgefallen ist es beim
+     * Bruch: Umbenennen von `sections` nach `sections-x` liess den Wächter grün,
+     * weil `\bsections\b` das umbenannte auch noch traf.
+     *
+     * > **Ein Bindestrich ist für einen regulären Ausdruck eine Wortgrenze und
+     * > für eine Klassenliste keine.**
+     *
+     * Ausschauen statt verankern: `^` und `$` meinten hier den Anfang der
+     * ganzen Datei und nicht den des Attributs — der Ausdruck steht mitten in
+     * einem `class="[^"]*…[^"]*"`.
+     */
+    private function className(string $name): string
+    {
+        return '(?<![\w-])'.preg_quote($name, '/').'(?![\w-])';
+    }
+
+    /**
      * Die Nachbarn, die der Ausdruck in `app.css` erfasst.
      *
      * @return list<string>
@@ -109,6 +145,107 @@ final class ButtonRowSpacingTest extends TestCase
         preg_match_all('/\.([\w-]+)/', $regel[1], $klassen);
 
         return $klassen[1];
+    }
+
+    /**
+     * Die Nachbarn, die eine Knopfreihe **nach unten** abdeckt.
+     *
+     * @return list<string>
+     */
+    private function coveredBelow(): array
+    {
+        $css = (string) preg_replace(
+            '#/\*.*?\*/#su',
+            '',
+            (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css'),
+        );
+
+        preg_match_all('/\.button-row\s*\+\s*([^{]+)\{/', $css, $regeln);
+
+        $klassen = [];
+
+        foreach ($regeln[1] as $selektor) {
+            // Eine Knopfreihe nach einer Knopfreihe ist ein anderer Fall — den
+            // regelt `td > .button-row + .button-row`, und er gehört nicht in
+            // diese Liste.
+            preg_match_all('/\.([\w-]+)/', $selektor, $treffer);
+
+            foreach ($treffer[1] as $klasse) {
+                if ($klasse !== 'button-row') {
+                    $klassen[] = $klasse;
+                }
+            }
+        }
+
+        return array_values(array_unique($klassen));
+    }
+
+    /**
+     * Jeder oben bündige Baustein unter einer Knopfreihe ist erfasst.
+     *
+     * **Der fünfte Fall derselben Sache, und der erste in der anderen
+     * Richtung.** Auf der Datenbankseite steht „Tabellen durchsehen" am Kopf und
+     * darunter fangen die Bereiche an; zwischen beiden waren **0px**. Gefunden
+     * hat es wieder der Betreiber auf einem Bild, und wieder hat nichts
+     * überlaufen — es sah nur gedrängt aus.
+     *
+     * Gemessen mit dem gebauten Stylesheet bei 1440px und 390px, mit der
+     * Meldung an derselben Stelle als Gegenprobe: 0 gegen 26 und 0 gegen 24.
+     *
+     * > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als
+     * > Null steht.**
+     */
+    public function test_every_flush_top_block_under_a_button_row_is_covered(): void
+    {
+        $abgedeckt = $this->coveredBelow();
+        $gesehen = 0;
+
+        foreach ($this->templates() as $path) {
+            $template = (string) preg_replace(
+                '/<!--.*?-->/su',
+                '',
+                (string) file_get_contents($path),
+            );
+
+            foreach (self::FLUSH_TOP as $baustein) {
+                $treffer = preg_match_all(
+                    sprintf(
+                        '/<div[^>]*class="button-row"[^>]*>(?:(?!<\/?div[\s>]).)*<\/div>\s*'.
+                        '<\w+[^>]*class="[^"]*%s/su',
+                        $this->className($baustein),
+                    ),
+                    $template,
+                );
+
+                if ($treffer === 0) {
+                    continue;
+                }
+
+                $gesehen += $treffer;
+
+                $this->assertContains(
+                    $baustein,
+                    $abgedeckt,
+                    sprintf(
+                        "%s setzt `.%s` direkt unter eine Knopfreihe, und app.css kennt diese\n".
+                        "Nachbarschaft nicht.\n\n".
+                        '`.button-row` bringt in **keine** Richtung einen Abstand mit, und `.%s` fängt '.
+                        'oben bündig an. Die Bereiche kleben dann am Knopf — gemessen 0px, wo eine '.
+                        'Meldung an derselben Stelle 26px macht (docs/46 §20.30).',
+                        $this->relative($path),
+                        $baustein,
+                        $baustein,
+                    ),
+                );
+            }
+        }
+
+        $this->assertGreaterThanOrEqual(
+            1,
+            $gesehen,
+            'Es wird keine Knopfreihe mit einem bündigen Baustein darunter gefunden — dann rechnet '.
+            'diese Hälfte an nichts mehr nach.',
+        );
     }
 
     public function test_the_rule_still_lists_what_it_used_to(): void
@@ -174,8 +311,8 @@ final class ButtonRowSpacingTest extends TestCase
                 // verstehen — und was er nicht versteht, meldet er auch nicht.
                 $treffer = preg_match_all(
                     sprintf(
-                        '/<(\w+)[^>]*class="[^"]*\b%s\b[^"]*"[^>]*>(?:(?!<\/?\1[\s>]).)*<\/\1>\s*<div class="button-row">/su',
-                        preg_quote($baustein, '/'),
+                        '/<(\w+)[^>]*class="[^"]*%s[^"]*"[^>]*>(?:(?!<\/?\1[\s>]).)*<\/\1>\s*<div class="button-row">/su',
+                        $this->className($baustein),
                     ),
                     $template,
                 );

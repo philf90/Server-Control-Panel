@@ -319,9 +319,19 @@ function size(): string {
       und `can.console` ist die eine Fähigkeit, die ein Betreiberkonto **nicht**
       bekommt (`docs/46 §3`, Entscheidung 3). Der Knopf fehlt dann, er ist nicht
       abgeblendet: `AbilityReachTest`.
+
+      **Und er ist die Hauptsache dieser Seite** — deshalb `primary` und keine
+      neue Farbe. Der Betreiber hat auf dem Bild zu P5c Schritt 5b gefragt, ob
+      der Knopf sich hervorheben lässt; die Rangfolge dafür steht seit „Kontor"
+      in `app.css` und heisst `.button.primary`: „die eine Aktion, für die man
+      die Seite geöffnet hat". Alles andere hier — Zugänge, Netze, Sicherungen —
+      verwaltet die Datenbank; dieser Knopf führt hinein.
+
+      Ein zweites `primary` gibt es auf dieser Seite nicht, und
+      `ButtonStyleTest::test_at_most_one_primary_button_per_form` besteht darauf.
     -->
     <div v-if="props.can.console" class="button-row">
-      <Link :href="`/databases/${props.database.id}/console`" class="button">
+      <Link :href="`/databases/${props.database.id}/console`" class="button primary">
         Tabellen durchsehen
       </Link>
     </div>

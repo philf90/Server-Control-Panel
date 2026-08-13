@@ -11303,3 +11303,50 @@ einem `TypeError` laut gescheitert, statt still eine 0 zu liefern.
 Was keiner dieser Belege zeigt, steht dabei: dass eine Vorleseausgabe den Baum
 richtig ansagt. Das liefert nur NVDA oder VoiceOver — eine benannte Lücke und
 keine erledigte Sache.
+
+### Die fünfte Fuge unter einer Knopfreihe — und die erste über ihr
+
+Auf der Datenbankseite steht „Tabellen durchsehen" am Kopf, darunter fangen die
+Bereiche an, und dazwischen war **nichts**. Es ist derselbe Fehler wie
+„Schliessen klebt an der Tabelle" — mit dem einen Unterschied, der ihn vier
+Anläufe lang unsichtbar gemacht hat: Die Knopfreihe steht diesmal *oben*.
+
+`.button-row` bringt in keine Richtung einen Abstand mit. Die vier Fälle davor
+fragten deshalb alle dasselbe: Was steht über der Reihe? Der
+Nachbarschaftsausdruck in `app.css` ist von dieser Frage geformt, und der
+Wächter dazu war es auch.
+
+> **Eine Regel über den Nachbarn davor sagt nichts über den danach.**
+
+Gemessen mit dem gebauten Stylesheet: 0px zwischen Knopfreihe und Bereichen,
+jetzt 26px (390px: 24) — und daneben eine Meldung an derselben Stelle, die
+dieselben 26px macht. Ohne diese zweite Zahl wäre die 0 keine Messung, sondern
+eine Behauptung.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+### Und der Bruch hat einen zweiten Fehler gefunden — im Wächter
+
+Der Bruch, der die Untergrenze prüfen sollte, blieb grün: Umbenennen von
+`class="sections"` nach `class="sections-x"` traf `\bsections\b` weiterhin, weil
+`\b` zwischen `s` und `-` genauso sitzt wie zwischen `s` und einem Leerzeichen.
+
+> **Ein Bindestrich ist für einen regulären Ausdruck eine Wortgrenze und für
+> eine Klassenliste keine.**
+
+Das traf **auch die ältere Hälfte** desselben Wächters: `\bpager\b` trifft
+`pager-state`, `\bcell\b` trifft `cell-value` — beide Klassen gibt es in
+`app.css`. Beide Hälften fragen jetzt nach einem ganzen Klassennamen. Gefunden
+hat es kein Nachdenken über den Ausdruck, sondern der Versuch, ihn zu brechen.
+
+### Der Einstieg in die Konsole ist die Hauptsache seiner Seite
+
+Der Betreiber hat gefragt, ob sich der Knopf farblich hervorheben lässt. Die
+Antwort brauchte keine neue Farbe: Die Rangfolge steht seit „Kontor" in
+`app.css` und heisst `.button.primary` — „die eine Aktion, für die man die Seite
+geöffnet hat". Alles andere auf dieser Seite verwaltet die Datenbank; dieser
+Knopf führt hinein.
+
+> **Eine Frage nach einer neuen Farbe ist meistens eine nach einem Rang, den es
+> schon gibt.**

@@ -1683,6 +1683,31 @@ tr:has(td.multiline) > td {
   margin-top: 16px;
 }
 
+/*
+ * **Und beim fünften Mal stand die Knopfreihe oben statt unten.**
+ *
+ * Die vier Fälle davor fragten alle dasselbe: Was steht *über* einer
+ * Knopfreihe, und bringt es Abstand mit? Auf der Datenbankseite steht sie am
+ * Kopf — „Tabellen durchsehen" ist keine Angabe über die Datenbank, sondern der
+ * Weg in sie hinein —, und darunter fangen die Bereiche an. `.sections` setzt
+ * keinen Rand nach oben, weil dort sonst immer eine Meldung steht, und die
+ * bringt ihren `margin-bottom` selbst mit. Eine Knopfreihe bringt gar nichts
+ * mit, in keine Richtung.
+ *
+ * > **Eine Regel über den Nachbarn davor sagt nichts über den danach.**
+ *
+ * Gemessen mit dem gebauten Stylesheet: 0px zwischen Knopfreihe und Bereichen,
+ * daneben 26px zwischen Meldung und Bereichen (390px: 0 gegen 24). Die zweite
+ * Zahl ist der Grund, dass die erste etwas heisst — ohne sie wäre 0px kein
+ * Befund, sondern eine Behauptung.
+ *
+ * `--block-gap` und nicht die 16px von oben: Das hier ist die Fuge zwischen
+ * zwei Blöcken einer Seite und nicht die zwischen zwei Zeilen eines Formulars.
+ */
+.button-row + .sections {
+  margin-top: var(--block-gap);
+}
+
 @media (max-width: 480px) {
   .button-row {
     flex-direction: column;

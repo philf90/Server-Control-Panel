@@ -2596,3 +2596,90 @@ eine 0 zu liefern.
 sind die Voraussetzung dafür, nicht der Beweis — den liefert nur NVDA oder
 VoiceOver, mit dem Baum bedient und dem Gehörten daneben. Das ist eine benannte
 Lücke und keine erledigte Sache.
+
+### 20.30 Der fünfte Fall derselben Fuge — und der erste in der anderen Richtung
+
+**Der Betreiber hat es auf demselben Bild gesehen wie die Beizeile**: Auf der
+Datenbankseite steht „Tabellen durchsehen" am Kopf, darunter fangen die
+Bereiche an, und zwischen beiden war nichts. Es ist derselbe Fehler wie in
+§20.26 — mit einem Unterschied, der ihn vier Anläufe lang unsichtbar gemacht
+hat: **Die Knopfreihe steht diesmal oben.**
+
+`.button-row` bringt keinen Abstand mit. Die vier Fälle davor fragten deshalb
+alle dasselbe: Was steht *über* der Reihe, und bringt es welchen mit? Der
+Nachbarschaftsausdruck in `app.css` ist von dieser Frage geformt —
+`:is(.field, .hint, …) + .button-row`. Er kann den umgekehrten Fall nicht
+sehen, und der Wächter dazu konnte es auch nicht.
+
+> **Eine Regel über den Nachbarn davor sagt nichts über den danach.**
+
+`.sections` setzt seinerseits keinen Rand nach oben, und das ist richtig: Auf
+jeder anderen Seite dieses Panels steht davor eine Meldung oder `FormErrors`,
+und die bringen ihren `margin-bottom` selbst mit. Die Datenbankseite ist die
+einzige mit einer Knopfreihe an dieser Stelle — und damit die einzige, auf der
+zwei Bausteine aufeinandertreffen, die beide nichts mitbringen.
+
+**Gemessen**, mit dem gebauten Stylesheet im vorinstallierten Chromium:
+
+| | 1440px | 390px |
+|---|---|---|
+| Knopfreihe → Bereiche, vorher | **0px** | **0px** |
+| Knopfreihe → Bereiche, nachher | 26px | 24px |
+| Meldung → Bereiche (Gegenprobe) | 26px | 24px |
+
+Die dritte Zeile ist der Grund, dass die erste etwas heisst. Ohne sie wäre die
+0 keine Messung, sondern eine Behauptung — derselbe Satz wie beim `konsole = 0`
+aus `docs/47`.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+Die Regel nimmt `--block-gap` und nicht die 16px von §20.26: Das hier ist die
+Fuge zwischen zwei Blöcken einer Seite und nicht die zwischen zwei Zeilen eines
+Formulars. Dass die Zahl danach auf den Millimeter der einer Meldung entspricht,
+ist kein Zufall, sondern die Probe darauf.
+
+#### Und der Bruch hat einen zweiten Fehler gefunden — im Wächter selbst
+
+Der erste Bruch — die Regel aus `app.css` entfernen — biss sofort. Der zweite —
+die Nachbarschaft in `Show.vue` auflösen, damit die Untergrenze anschlägt —
+blieb **grün**, und das war kein Fehler des Bruchs.
+
+Umbenannt hatte ich `class="sections"` nach `class="sections-x"`. Der Wächter
+suchte mit `\bsections\b`, und `\b` sitzt zwischen `s` und `-` genauso wie
+zwischen `s` und einem Leerzeichen. Der umbenannte Baustein galt weiter als der
+alte.
+
+> **Ein Bindestrich ist für einen regulären Ausdruck eine Wortgrenze und für
+> eine Klassenliste keine.**
+
+Das traf **auch die vier Jahre alte Hälfte** dieses Wächters: `\bpager\b` trifft
+`pager-state`, `\bcell\b` trifft `cell-value` — beide Klassen gibt es in
+`app.css`, und beide sind etwas anderes als der Baustein, nach dem gefragt wird.
+Gefunden hat es kein Nachdenken über den Ausdruck, sondern der Versuch, ihn zu
+brechen.
+
+Beide Hälften fragen jetzt über `className()` nach einem ganzen Klassennamen:
+`(?<![\w-])name(?![\w-])`. Verankern (`(?:^|\s)`) ginge nicht — der Ausdruck
+steht mitten in einem `class="[^"]*…[^"]*"`, und `^` meinte dort den Anfang der
+ganzen Datei.
+
+**Drei Brüche, drei Bisse** (nach der Korrektur): Regel weg → rot; Nachbarschaft
+weg → rot an der Untergrenze; und die alte Hälfte, `.scrolls` aus dem Ausdruck
+entfernt → rot in beiden alten Fällen.
+
+### 20.31 Der Einstieg in die Konsole ist die Hauptsache seiner Seite
+
+**Der Betreiber hat gefragt, ob sich der Knopf farblich hervorheben lässt.** Die
+Antwort brauchte keine neue Farbe: Die Rangfolge steht seit „Kontor" in
+`app.css` und heisst `.button.primary` — „die eine Aktion, für die man die Seite
+geöffnet hat". Alles andere auf der Datenbankseite — Zugänge, Netze,
+Sicherungen — *verwaltet* die Datenbank; dieser Knopf führt hinein.
+
+Ein zweites `primary` gibt es dort nicht, und
+`ButtonStyleTest::test_at_most_one_primary_button_per_form` besteht darauf. Der
+Kontrast ist ebenfalls schon gerechnet und nicht geschätzt
+(`test_the_label_on_a_button_stays_readable`), in beiden Themes.
+
+> **Eine Frage nach einer neuen Farbe ist meistens eine nach einem Rang, den es
+> schon gibt.**

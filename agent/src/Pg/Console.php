@@ -172,21 +172,79 @@ final class Console
      *   damit keine Zeilenzahl; `relkind` trägt die Unterscheidung bis in die
      *   Oberfläche.
      */
-    public const TABLES = <<<'SQL'
-        SELECT n.nspname,
-               c.relname,
-               c.relkind,
-               CASE WHEN c.relkind IN ('r', 'p', 'm') THEN c.reltuples::bigint ELSE NULL END,
-               pg_total_relation_size(c.oid),
-               EXISTS (SELECT 1 FROM pg_index i WHERE i.indrelid = c.oid AND i.indisprimary)
-          FROM pg_class c
-          JOIN pg_namespace n ON n.oid = c.relnamespace
-         WHERE c.relkind IN ('r', 'p', 'v', 'm')
-           AND n.nspname NOT IN ('pg_catalog', 'information_schema')
-           AND n.nspname NOT LIKE 'pg\_%'
-           AND has_table_privilege(c.oid, 'SELECT')
-         ORDER BY 1, 2
+    /**
+     * Was hier als **Schlüssel** einer Tabelle gilt — einmal, für beide Abfragen.
+     *
+     * ## Warum das eine Konstante ist
+     *
+     * **Weil es zwei Abfragen gibt und die Regel eine ist.** Geteilt wird die
+     * **Bedingung** und nicht die ganze Abfrage: Die Tabellenliste fragt
+     * `SELECT 1` (gibt es so einen Index?), die Spaltenliste `SELECT i.indkey`
+     * (welche Spalten gehören dazu?). Der erste Versuch teilte das ganze
+     * `SELECT`, und PostgreSQL wies es ab — `cannot cast type integer to
+     * smallint[]`.
+     *
+     * > **Zwei Stellen, die dieselbe Regel brauchen, brauchen nicht dieselbe
+     * > Abfrage.**
+     *
+     * Welche Relation gemeint ist, sagt jede Abfrage selbst: `i.indrelid = c.oid`
+     * beziehungsweise `= a.attrelid`.
+     *
+     * Beim Bau von §10 Regel 2 (`docs/46 §20.35`) habe ich nur `columnsQuery()`
+     * angefasst. Die Tabellenliste fragte weiter nach `indisprimary` — und auf
+     * `cloudsrv24` stand deshalb über einer Tabelle, die sich ändern liess:
+     *
+     *     Tabelle nur_unique · Zeilenzahl unbekannt · 32 KB · ohne Schlüssel
+     *
+     * Daneben die Spalte „Zeile" mit „Ändern" und darunter „Zeile anlegen". Die
+     * Beizeile widersprach der Seite, auf der sie stand. Gefunden hat es der
+     * Betreiber auf dem Bild zu Bild 6 — kein Test, denn beide Abfragen waren
+     * für sich genommen richtig.
+     *
+     * > **Eine Regel an zwei Stellen ist keine Regel, sondern eine Absprache —
+     * > und sie hält genau bis zur ersten Änderung.**
+     *
+     * ## Die vier Ausschlüsse
+     *
+     * Jeder einzeln gegen einen Wegwerf-Cluster belegt (16.13), Begründung in
+     * {@see self::columnsQuery()}: kein Teilindex, kein Ausdrucksindex, keine
+     * nullbare Spalte, und der Primärschlüssel gewinnt vor dem zuerst angelegten.
+     */
+    private const KEY_INDEX = <<<'SQL'
+        i.indisunique
+               AND i.indpred IS NULL
+               AND 0 <> ALL (i.indkey::int2[])
+               AND NOT EXISTS (SELECT 1 FROM unnest(i.indkey::int2[]) k
+                                 JOIN pg_attribute x
+                                   ON x.attrelid = i.indrelid AND x.attnum = k
+                                WHERE NOT x.attnotnull)
         SQL;
+
+    /**
+     * Die Abfrage nach den Tabellen.
+     *
+     * **Eine Methode und keine Konstante**, seit der Schlüsselbegriff aus
+     * {@see self::KEY_INDEX} kommt: Eine Konstante kann nicht einsetzen.
+     */
+    public static function tablesQuery(): string
+    {
+        return sprintf(<<<'SQL'
+            SELECT n.nspname,
+                   c.relname,
+                   c.relkind,
+                   CASE WHEN c.relkind IN ('r', 'p', 'm') THEN c.reltuples::bigint ELSE NULL END,
+                   pg_total_relation_size(c.oid),
+                   EXISTS (SELECT 1 FROM pg_index i
+                            WHERE i.indrelid = c.oid AND %s)
+              FROM pg_class c
+              JOIN pg_namespace n ON n.oid = c.relnamespace
+             WHERE c.relkind IN ('r', 'p', 'v', 'm')
+               AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+               AND n.nspname NOT LIKE 'pg\_%%'
+               AND has_table_privilege(c.oid, 'SELECT')
+             ORDER BY 1, 2
+            SQL, self::KEY_INDEX);
+    }
 
     public function __construct(
         private readonly Session $session = new Session,
@@ -254,7 +312,7 @@ final class Console
     {
         $tables = [];
 
-        foreach ($this->session->queryAs($context, $as, $database, self::TABLES, self::TIMEOUT_MS) as $row) {
+        foreach ($this->session->queryAs($context, $as, $database, self::tablesQuery(), self::TIMEOUT_MS) as $row) {
             $tables[] = self::table($row);
         }
 
@@ -362,14 +420,7 @@ final class Console
                    pg_get_expr(d.adbin, d.adrelid),
                    COALESCE(a.attnum = ANY ((
                      SELECT i.indkey FROM pg_index i
-                      WHERE i.indrelid = a.attrelid
-                        AND i.indisunique
-                        AND i.indpred IS NULL
-                        AND 0 <> ALL (i.indkey::int2[])
-                        AND NOT EXISTS (SELECT 1 FROM unnest(i.indkey::int2[]) k
-                                          JOIN pg_attribute x
-                                            ON x.attrelid = i.indrelid AND x.attnum = k
-                                         WHERE NOT x.attnotnull)
+                      WHERE i.indrelid = a.attrelid AND %s
                       ORDER BY i.indisprimary DESC, i.indexrelid
                       LIMIT 1)::int2[]), false),
                    a.atttypid = 'pg_catalog.bytea'::regtype
@@ -381,7 +432,7 @@ final class Console
                AND a.attnum > 0
                AND NOT a.attisdropped
              ORDER BY a.attnum
-            SQL, Sql::text($schema), Sql::text($table));
+            SQL, self::KEY_INDEX, Sql::text($schema), Sql::text($table));
     }
 
     /**

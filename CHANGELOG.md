@@ -11651,3 +11651,36 @@ Kein Test konnte das finden: Die Zahl ist richtig gerechnet und richtig
 formatiert, der Code widerspricht sich nirgends — er verschweigt nur etwas.
 Gefunden hat es der Betreiber, weil neben dem Bild ein `SELECT COUNT(*)` stand,
 das für etwas ganz anderes gefahren wurde.
+
+### Die Beizeile widersprach der Seite, auf der sie stand
+
+Über einer Tabelle, deren Zeilen die gleiche Seite ändern lässt, stand „ohne
+Schlüssel". Die Beizeile kommt aus `tables()`, die Bearbeitbarkeit aus
+`columns()` — und beim Bau von §10 Regel 2 wurde eine von zwei Stellen angefasst.
+
+> **Eine Regel an zwei Stellen ist keine Regel, sondern eine Absprache — und sie
+> hält genau bis zur ersten Änderung.**
+
+Kein Test konnte das sehen: Beide Abfragen waren für sich genommen richtig, und
+keine widersprach sich selbst. PostgreSQL teilt jetzt die Bedingung in einer
+Konstante, MariaDB liest in beiden Abfragen dieselbe Katalogspalte — und dort
+hatte es einen eigenen Grund: **MariaDB befördert den eindeutigen Index zum
+impliziten Primärschlüssel, benennt ihn aber nicht um.** Die alte Abfrage suchte
+einen Index namens `PRIMARY`.
+
+> **Zwei Abfragen an dieselbe Frage sind zwei Antworten, solange sie nicht
+> dieselbe Spalte lesen.**
+
+### Zwei Fehler auf dem Weg dorthin
+
+Der geteilte Baustein war zuerst die ganze Abfrage statt der Bedingung — die eine
+Seite braucht `SELECT 1`, die andere `SELECT i.indkey`.
+
+> **Zwei Stellen, die dieselbe Regel brauchen, brauchen nicht dieselbe Abfrage.**
+
+Und das Gestell in diesem Container hat den daraus folgenden `ArgumentCountError`
+als „übersprungen" abgelegt — im selben Topf wie eine Laravel-Klasse, die es hier
+nicht gibt.
+
+> **Ein Topf für „geht hier nicht" nimmt jeden Fehler auf, der nicht
+> widerspricht — und macht ihn unsichtbar.**

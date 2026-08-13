@@ -151,6 +151,22 @@ final class Console
      * N11): Der Kundenbenutzer sieht seine vier Tabellen und null fremde. Ein
      * `has_table_privilege` wie in PostgreSQL gibt es hier nicht und wird auch
      * nicht gebraucht.
+     *
+     * ## Der Schlüssel kommt aus derselben Quelle wie in {@see self::columns()}
+     *
+     * **Hier stand `STATISTICS.INDEX_NAME = 'PRIMARY'`, und das ist nicht,
+     * was §10 Regel 2 meint.** MariaDB befördert den ersten eindeutigen Index
+     * über Spalten ohne `NULL` zum impliziten Primärschlüssel und meldet ihn in
+     * `COLUMNS.COLUMN_KEY` als `PRI` — **den Index selbst benennt sie dabei
+     * nicht um.** `nur_unique` hatte also `COLUMN_KEY = 'PRI'` und keinen Index
+     * namens `PRIMARY`; die Spaltenansicht sagte „Schlüssel: ja", die
+     * Tabellenliste „ohne Schlüssel", und beide lasen denselben Katalog.
+     *
+     * > **Zwei Abfragen an dieselbe Frage sind zwei Antworten, solange sie nicht
+     * > dieselbe Spalte lesen.**
+     *
+     * Gefunden auf `cloudsrv24` am 13. August 2026 (`docs/46 §20.46`) — von
+     * keinem Test, denn beide Abfragen waren für sich genommen richtig.
      */
     public static function tablesQuery(string $database): string
     {
@@ -160,10 +176,10 @@ final class Console
                    t.TABLE_TYPE,
                    t.TABLE_ROWS,
                    COALESCE(t.DATA_LENGTH, 0) + COALESCE(t.INDEX_LENGTH, 0),
-                   EXISTS (SELECT 1 FROM information_schema.STATISTICS s
-                            WHERE s.TABLE_SCHEMA = t.TABLE_SCHEMA
-                              AND s.TABLE_NAME = t.TABLE_NAME
-                              AND s.INDEX_NAME = 'PRIMARY')
+                   EXISTS (SELECT 1 FROM information_schema.COLUMNS k
+                            WHERE k.TABLE_SCHEMA = t.TABLE_SCHEMA
+                              AND k.TABLE_NAME = t.TABLE_NAME
+                              AND k.COLUMN_KEY = 'PRI')
               FROM information_schema.TABLES t
              WHERE t.TABLE_SCHEMA = %s
              ORDER BY 2

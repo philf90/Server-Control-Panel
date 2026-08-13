@@ -3311,3 +3311,76 @@ dort nicht neu auffällt.
 
 > **Zwei Läufe über zwei verschiedene Bestände sind zwei Messungen und keine
 > Gegenprobe.**
+
+### 20.46 Bild 6 ist belegt — und die Beizeile widersprach der Seite, auf der sie stand
+
+**§10 Regel 2 im Betrieb, gemessen auf `cloudsrv24` gegen `0.5.3-rc.12`.** Eine
+Tabelle ohne Primärschlüssel, aber mit einem eindeutigen Index über eine
+`NOT NULL`-Spalte ist in **beiden** Systemen änderbar: Spalte „Zeile" mit
+„Ändern", „Zeile anlegen", und das Formular mit `kennung` und `ort`. Daneben die
+Gegenproben — `protokoll_ohne_schluessel` und `ohne_schluessel_lang` bleiben nur
+lesbar, mit ihrem Satz.
+
+**Auf demselben Bild stand der Fehler:**
+
+```
+Tabelle nur_unique · Zeilenzahl unbekannt · 32 KB · ohne Schlüssel
+```
+
+„ohne Schlüssel" — über einer Tabelle, deren Zeilen die gleiche Seite ändern
+lässt. Die Beizeile kommt aus `tables()`, die Bearbeitbarkeit aus `columns()`,
+und beim Bau von §20.35 habe ich **eine von zwei Stellen** angefasst.
+
+> **Eine Regel an zwei Stellen ist keine Regel, sondern eine Absprache — und sie
+> hält genau bis zur ersten Änderung.**
+
+Kein Test konnte das sehen: Beide Abfragen waren für sich genommen richtig, und
+keine widersprach sich selbst. Es ist der Fehler, vor dem dieses Projekt am
+häufigsten warnt, in seiner reinsten Form — und er ist mir beim Beheben eines
+anderen unterlaufen.
+
+#### Wie es jetzt aussieht
+
+**PostgreSQL** teilt die **Bedingung** in `Console::KEY_INDEX`; jede der beiden
+Abfragen schreibt ihr eigenes `SELECT` darum. **MariaDB** liest in beiden
+Abfragen `information_schema.COLUMNS.COLUMN_KEY` — dieselbe Spalte, aus der auch
+der implizite Primärschlüssel kommt.
+
+Der MariaDB-Teil hat dabei einen eigenen Grund: **Sie befördert den eindeutigen
+Index zwar zum impliziten Primärschlüssel, benennt ihn aber nicht um.** Die alte
+Abfrage suchte einen Index namens `PRIMARY`, und den gibt es dann nicht.
+
+> **Zwei Abfragen an dieselbe Frage sind zwei Antworten, solange sie nicht
+> dieselbe Spalte lesen.**
+
+Gemessen gegen beide Wegwerf-Server, zwölf beziehungsweise acht Fixturen, und
+Tabellenliste und Spaltenliste stimmen jetzt in jeder überein.
+
+#### Und zwei Fehler auf dem Weg dorthin
+
+**Der geteilte Baustein war der falsche.** Der erste Versuch zog das ganze
+`SELECT` in die Konstante — die Tabellenliste braucht `SELECT 1`, die
+Spaltenliste `SELECT i.indkey`, und PostgreSQL wies es mit `cannot cast type
+integer to smallint[]` ab.
+
+> **Zwei Stellen, die dieselbe Regel brauchen, brauchen nicht dieselbe
+> Abfrage.**
+
+**Und mein Gestell hat den Fehler als „übersprungen" abgelegt.** Der fehlende
+`sprintf()`-Parameter warf einen `ArgumentCountError`, und der landete im selben
+Topf wie eine Laravel-Klasse, die es hier nicht gibt: als etwas, das man nicht
+wissen kann. Es war ein Fehler in einer Abfrage, die ich gerade geschrieben
+hatte.
+
+> **Ein Topf für „geht hier nicht" nimmt jeden Fehler auf, der nicht
+> widerspricht — und macht ihn unsichtbar.**
+
+Übersprungen wird seitdem nur noch, was nach fehlender Umgebung aussieht —
+„class not found" und eine uninitialisierte Eigenschaft aus einem fehlenden
+`setUp()`. Alles andere zählt rot.
+
+**Vier Brüche, vier Bisse.** Der dritte hat den Wächter dabei geschärft: Er
+prüfte `COLUMN_KEY` und blieb grün, als die Sicht von `COLUMNS` auf `STATISTICS`
+wechselte.
+
+> **Ein Feldname ohne seine Tabelle ist eine halbe Angabe.**

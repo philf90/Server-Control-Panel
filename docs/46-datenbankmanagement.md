@@ -2347,3 +2347,37 @@ Die Ansicht holt den Inhalt deshalb ins Bild, und nur dort: Ab 720 px steht er
 daneben und ist längst zu sehen, ein Sprung wäre eine Bewegung ohne Anlass. Die
 Breite kommt aus `matchMedia` mit demselben Haltepunkt wie in `app.css` — zwei
 Fassungen davon wären eine zu viel.
+
+### 20.25 Ein Satz, der eine Seite verspricht
+
+**Das erste Bild des Durchgangs zu Schritt 5b hat einen Fehler gefunden, den
+kein Wächter sehen konnte.** Solange keine Tabelle gewählt ist, stand im Inhalt:
+
+> Wählen Sie **links** eine Tabelle und darunter, was Sie sehen möchten.
+
+Der Baum steht nur **ab 720 px** daneben. Darunter steht er *oben* — und genau
+auf dem Telefon schickte der Satz in die falsche Richtung.
+
+Der Satz war grammatisch, deutsch, freundlich und sachlich richtig; falsch war
+er nur zusammen mit dem Grundriss, den er nicht kennt.
+
+> **Ein Text, der eine Anordnung behauptet, ist nur so lange richtig wie die
+> Anordnung — und die hängt hier an der Breite des Fensters.**
+
+Er heisst jetzt „Wählen Sie eine Tabelle und dann, was Sie von ihr sehen
+möchten." — ohne Richtung, in jeder Breite wahr.
+
+**Der Wächter dazu ist `MobileLayoutTest::test_no_text_promises_a_side`**, und
+er hat beim ersten Lauf einen Fehlalarm produziert, der die Regel geschärft hat:
+`Settings/Mail.vue` schreibt „Einmal-**Links** und Warnungen entstehen" — das
+sind Verweise und keine Richtung. Die deutsche Rechtschreibung trennt die beiden
+zuverlässig (die Richtung ist ein Adverb und klein, das Substantiv gross), und
+nur am Satzanfang fallen sie zusammen; genau dieser Fall steht als zweite
+Möglichkeit im Ausdruck.
+
+> **Ein Wächter, der ein Wort sucht statt einer Bedeutung, findet die Wörter,
+> die zufällig gleich aussehen.**
+
+„Oben" und „unten" stehen bewusst nicht in der Regel: Sie bleiben beim Umbruch
+richtig — was untereinander steht, steht in jeder Breite untereinander, es
+wandert nur, wie weit.

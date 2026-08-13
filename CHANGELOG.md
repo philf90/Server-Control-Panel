@@ -11179,3 +11179,25 @@ vier Angaben stehen jetzt in der Beizeile des offenen Ziels.
 Inhalt unter dem Baum, und zwanzig Zweige sind rund 930 px hoch. Die Ansicht
 holt ihn deshalb ins Bild — und nur dort, denn ab 720 px steht er daneben und
 ist längst zu sehen.
+
+### Ein Satz, der eine Seite verspricht
+
+**Gefunden auf dem ersten Bild des Durchgangs zu Schritt 5b.** Solange keine
+Tabelle gewählt war, stand in der Konsole „Wählen Sie **links** eine Tabelle …".
+Der Baum steht aber nur ab 720 px daneben; darunter steht er *oben* — und genau
+auf dem Telefon schickte der Satz in die falsche Richtung.
+
+Kein Wächter konnte das sehen: Der Satz war grammatisch, deutsch, freundlich und
+sachlich richtig. Falsch war er nur zusammen mit dem Grundriss, den er nicht
+kennt.
+
+> **Ein Text, der eine Anordnung behauptet, ist nur so lange richtig wie die
+> Anordnung — und die hängt hier an der Breite des Fensters.**
+
+`MobileLayoutTest` hält es seitdem fest, und der erste Lauf hat die Regel gleich
+geschärft: Ein Fehlalarm auf „Einmal-Links" — Verweise, keine Richtung. Die
+deutsche Rechtschreibung trennt die beiden zuverlässig, und nur am Satzanfang
+fallen sie zusammen.
+
+> **Ein Wächter, der ein Wort sucht statt einer Bedeutung, findet die Wörter,
+> die zufällig gleich aussehen.**

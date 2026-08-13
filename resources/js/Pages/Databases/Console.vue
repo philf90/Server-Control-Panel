@@ -755,8 +755,15 @@ onMounted(loadTables)
       </div>
 
       <div ref="content" class="sections">
+        <!--
+          **Kein „links".** Der Baum steht nur ab 720px daneben; darunter steht
+          er *oben*, und der Satz schickte auf dem Telefon in die falsche
+          Richtung. Gefunden auf dem ersten Bild des Durchgangs zu Schritt 5b —
+          von keinem Wächter, denn der Satz war grammatisch, deutsch und
+          freundlich.
+        -->
         <p v-if="openTable === null" class="empty">
-          Wählen Sie links eine Tabelle und darunter, was Sie sehen möchten.
+          Wählen Sie eine Tabelle und dann, was Sie von ihr sehen möchten.
         </p>
 
       <!--

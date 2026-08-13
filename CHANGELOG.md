@@ -10977,3 +10977,40 @@ Vertauschung erst belegt und dann gemessen.
 > **Wer eine Regel bricht, sieht danach in die Datei.** Sonst prüft er, ob sein
 > Werkzeug funktioniert, und hält das Ergebnis für eine Aussage über den
 > Wächter.
+
+### PostgreSQL sortierte den gekürzten Text — und benutzte den Index nie
+
+**Gefunden auf einem Bildschirmfoto der Zeilenansicht.** Die IDs kamen als
+`1, 10, 100, 101` zurück, obwohl `id` eine `bigint`-Spalte ist und über den
+Primärschlüssel sortiert wurde. Dieselbe Ansicht in MariaDB zählte richtig.
+
+Die Ursache steht in der Auswahlliste: Sie gibt jeder Spalte ihren eigenen Namen
+als Alias — `left(id::text, 513) AS "id"` —, und PostgreSQL löst einen einfachen
+Namen im `ORDER BY` gegen die **Ausgabespalte** auf. Sortiert wurde der gekürzte
+Text.
+
+> **Ein Alias, der wie seine Spalte heisst, ist keine Umbenennung — er ist eine
+> zweite Bedeutung desselben Namens.**
+
+**Der zweite Schaden war auf keinem Bild zu sehen, und er ist der schwerere.**
+Ein Sortierschlüssel `left(id::text, 513)` passt auf keinen Index. Gemessen auf
+PostgreSQL 16.13 mit 200.000 Zeilen: vorher ein `Parallel Seq Scan` mit `Sort`
+über die ganze Tabelle bei **jedem** Seitenaufruf, nachher ein
+`Index Only Scan using t_pkey`. Damit war die Begründung hinfällig, über den
+Schlüssel zu sortieren, weil dort ein Index liegt und die erste Seite deshalb
+nicht ins Zeitlimit läuft.
+
+> **Eine Zusage über ein Zeitlimit, die an einem kleinen Bestand geprüft wird,
+> ist keine.** Auf dem Testserver stehen 120 Zeilen; die sortiert auch ein
+> Seq Scan in Millisekunden.
+
+Behoben mit einem Aliasnamen an der Tabelle und einem qualifizierten `ORDER BY`.
+Gegengeprüft, dass der Aliasname nicht kollidiert: eine Tabelle namens `src` mit
+einer Spalte namens `src` liefert dieselbe Reihenfolge.
+
+**MariaDB war hier zufällig richtig** — dort steht die Kürzung in einem
+`JSON_OBJECT`, das keinen Alias je Spalte erzeugt. Zwei Systeme, dieselbe
+Absicht, und nur eines hatte den Fehler; `EngineReachTest` sieht so etwas nicht,
+weil beide Operationen ja da sind. Der neue Wächter prüft deshalb je System das,
+was den Namen dort eindeutig macht — in PostgreSQL die Qualifizierung, in
+MariaDB die Abwesenheit des Alias.

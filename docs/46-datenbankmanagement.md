@@ -2013,3 +2013,66 @@ auf die vorhandene.
 Das gehört hierher und nicht in eine Fussnote: Der Abnahmelauf von §15 legt
 Tabellen auf demselben Weg an, und `docs/47` hat schon einmal gezeigt, dass die
 teuersten Fehler eines Laufs im Lauf selbst stecken.
+
+### 20.18 PostgreSQL sortierte den gekürzten Text — und benutzte den Index nie
+
+**Der Fund kam von einem Bildschirmfoto, und er sah aus wie eine Kleinigkeit.**
+Auf Bild 4 und 5 der Zeilenansicht standen die IDs in dieser Reihenfolge:
+
+```
+PostgreSQL:   1, 10, 100, 101, 102, 103, 104, 105
+MariaDB:      1, 2, 3, 4, 6, 7, 8, 9, 13, 14, …
+```
+
+`id` ist `bigint`, sortiert wird aufsteigend über den Primärschlüssel — und
+PostgreSQL sortierte **lexikographisch**.
+
+Die Ursache steht in der Auswahlliste. `selectList()` gibt jeder Spalte ihren
+eigenen Namen als Alias:
+
+```sql
+SELECT left("id"::text, 513) AS "id", … FROM "public"."t" ORDER BY "id" ASC
+```
+
+**PostgreSQL löst einen einfachen Namen im `ORDER BY` gegen die Ausgabespalte
+auf**, nicht gegen die Eingangsspalte — so steht es in seiner Dokumentation zu
+`SELECT`, und so ist es hier gemessen worden (16.13, Wegwerf-Cluster).
+
+> **Ein Alias, der wie seine Spalte heisst, ist keine Umbenennung — er ist eine
+> zweite Bedeutung desselben Namens.**
+
+**Der zweite Schaden war auf keinem Bild zu sehen, und er ist der schwerere.**
+Ein Sortierschlüssel `left(id::text, 513)` passt auf keinen Index. Gemessen an
+derselben Tabelle mit 200.000 Zeilen:
+
+```
+vorher:   Limit -> Gather Merge -> Sort (Sort Key: left((t.id)::text, 513))
+                                   -> Parallel Seq Scan on t
+nachher:  Limit -> Index Only Scan using t_pkey on t src
+```
+
+Damit war die Begründung hinfällig, die in `Console.vue` steht: über den
+Schlüssel zu sortieren, *weil* dort ein Index liegt und die erste Seite deshalb
+nicht ins Zeitlimit läuft. Er wurde nie benutzt — auf `cloudsrv24` fiel das
+nicht auf, weil 120 Zeilen auch ohne Index schnell sortiert sind.
+
+> **Eine Zusage über ein Zeitlimit, die an einem kleinen Bestand geprüft wird,
+> ist keine.**
+
+**Behoben** ist es mit einem Aliasnamen an der Tabelle und einem qualifizierten
+`ORDER BY`; ein qualifizierter Name kann keine Ausgabespalte treffen. Die
+Auswahlliste und das `WHERE` bleiben unqualifiziert — beide sehen Ausgabenamen
+ohnehin nicht. Gegengeprüft, dass der Aliasname nicht kollidiert: eine Tabelle
+namens `src` mit einer Spalte namens `src` liefert dieselbe Reihenfolge.
+
+**Und MariaDB war hier zufällig richtig.** Dort steht die Kürzung in einem
+`JSON_OBJECT(...)`, das gar keinen Alias je Spalte erzeugt; `ORDER BY id` konnte
+nur die Spalte meinen. Zwei Systeme, dieselbe Absicht, und nur eines hatte den
+Fehler — die Art von Unterschied, für die es `EngineReachTest` gibt und die er
+nicht sieht, weil beide Operationen ja da sind.
+
+**Der Wächter dazu ist `ResultEncodingTest::test_the_sort_key_can_only_mean_the_column`.**
+Er prüft je System das, was den Namen dort eindeutig macht: in PostgreSQL die
+Qualifizierung, in MariaDB die Abwesenheit eines Alias je Spalte. Eine Regel,
+zwei Belege — denn fiele das `JSON_OBJECT` weg, träte derselbe Fehler dort auf,
+ohne dass jemand die PostgreSQL-Hälfte angefasst hätte.

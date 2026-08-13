@@ -167,6 +167,75 @@ final class ResultEncodingTest extends TestCase
         $this->assertStringNotContainsString('LEFT(CAST(`bild`', $mariadb);
     }
 
+    /**
+     * Der Name hinter `ORDER BY` kann nur die Spalte meinen.
+     *
+     * **Der Fund kam von einem Bildschirmfoto und war eine Reihenfolge.** Eine
+     * `bigint`-Spalte kam als `1, 10, 100, 101` zurück: `selectList()` gibt
+     * jeder Spalte ihren eigenen Namen als Alias — `left(id::text, 513) AS
+     * "id"` —, und PostgreSQL löst einen einfachen Namen im `ORDER BY` gegen
+     * die **Ausgabespalte** auf. Sortiert wurde der gekürzte Text.
+     *
+     * > **Ein Alias, der wie seine Spalte heisst, ist keine Umbenennung — er
+     * > ist eine zweite Bedeutung desselben Namens.**
+     *
+     * **Der zweite Schaden war auf keinem Bild zu sehen**, und er ist der
+     * schwerere: Ein Sortierschlüssel `left(id::text, 513)` passt auf keinen
+     * Index. Gemessen auf PostgreSQL 16.13 mit 200.000 Zeilen — vorher
+     * `Parallel Seq Scan` plus `Sort` über die ganze Tabelle, nachher
+     * `Index Only Scan using t_pkey`. Damit war die Begründung der Oberfläche
+     * hinfällig, über den Schlüssel zu sortieren, *weil* dort ein Index liegt.
+     *
+     * **Zwei Systeme, dieselbe Absicht, und nur eines hatte den Fehler.**
+     * MariaDB kürzt in einem `JSON_OBJECT(...)`, das gar keinen Alias je Spalte
+     * erzeugt; dort konnte `ORDER BY id` nur die Spalte meinen. Deshalb prüft
+     * dieser Wächter je System das, was den Namen dort eindeutig macht — eine
+     * Regel, zwei Belege.
+     */
+    public function test_the_sort_key_can_only_mean_the_column(): void
+    {
+        $columns = [
+            ['name' => 'id', 'type' => 'bigint', 'nullable' => false, 'default' => null, 'key' => true, 'binary' => false],
+            ['name' => 'ort', 'type' => 'text', 'nullable' => true, 'default' => null, 'key' => false, 'binary' => false],
+        ];
+
+        $postgres = PgConsole::rowsQuery('public', 'kunden', $columns, 'id', false, 0, null);
+
+        // In PostgreSQL trägt die Auswahlliste die Aliase — der Sortiername muss
+        // deshalb qualifiziert sein. Ein qualifizierter Name kann keine
+        // Ausgabespalte treffen.
+        $this->assertMatchesRegularExpression(
+            '/ORDER BY [A-Za-z_][A-Za-z0-9_]*\."id"/',
+            $postgres,
+            'Das ORDER BY der PostgreSQL-Zeilenabfrage nennt die Spalte unqualifiziert. Die Auswahlliste '
+            .'gibt ihr denselben Namen als Alias, PostgreSQL nimmt den Ausgabenamen — sortiert wird dann '
+            .'der gekürzte Text, und kein Index trägt die Sortierung mehr (docs/46 §20.18).',
+        );
+
+        // Und der Alias muss auch wirklich vergeben sein, sonst zeigt der
+        // qualifizierte Name auf nichts.
+        $this->assertMatchesRegularExpression(
+            '/FROM "public"."kunden" AS [A-Za-z_][A-Za-z0-9_]*/',
+            $postgres,
+            'Die Tabelle bekommt keinen Aliasnamen — dann kann das ORDER BY ihn nicht davorsetzen.',
+        );
+
+        $mariadb = DbConsole::rowsQuery('p1000_shop', 'kunden', $columns, 'id', false, 0, null);
+
+        $this->assertStringContainsString('ORDER BY `id`', $mariadb);
+
+        // Der Grund, aus dem MariaDB ohne Qualifizierung auskommt: Die Kürzung
+        // steht in einem JSON_OBJECT und vergibt keinen Alias je Spalte. Fiele
+        // das weg, träte derselbe Fehler dort auf — und niemand hätte hier eine
+        // Zeile geändert.
+        $this->assertStringNotContainsString(
+            'AS `id`',
+            $mariadb,
+            'Die MariaDB-Zeilenabfrage vergibt der Spalte ihren eigenen Namen als Alias. Damit hätte der '
+            .'Name hinter ORDER BY dort zwei Bedeutungen — genau der Fehler, den PostgreSQL hatte.',
+        );
+    }
+
     public function test_both_engines_carry_the_same_limits(): void
     {
         // Zwei Zahlen für dieselbe Grenze liefen auseinander; die eine steht in

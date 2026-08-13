@@ -7181,7 +7181,7 @@ python3 - <<'PY2'
 p = 'agent/src/Pg/Console.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace("                RAISE EXCEPTION '%s=%%', getroffen;",
-              "                RAISE EXCEPTION 'Der Vorgang hat % Zeilen getroffen', getroffen;", 1)
+              "                RAISE EXCEPTION 'Der Vorgang hat %% Zeilen getroffen', getroffen;", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei agent/src/Pg/Console.php "Satz in der Anweisung" &&

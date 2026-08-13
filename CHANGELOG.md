@@ -11710,3 +11710,40 @@ Ein Admin, der über „Anmelden als" in dieselbe Datenbank sieht, bekommt einen
 eigenen Eintrag.
 
 Sechs Brüche, sechs Bisse.
+
+### P5c Schritt 8 — die Brüche der Stufe wandern ins Skript
+
+`tests/waechter-brechen.sh` hat 51 Eingriffe für die Wächter der Schritte 1 bis 7
+bekommen. Gefahren worden waren sie alle — beim Bauen, von Hand, jeder einmal
+rot. Wiederholen konnte sie niemand: Sie standen in Sitzungsverläufen.
+
+> **Was man zweimal braucht, gehört ins Repo — auch wenn es keine Zeile Code
+> ist.**
+
+Jeder Eingriff trägt seinen Anlass daneben, und der ist die eigentliche Auskunft:
+die Warteschlange, die den Inhalt einer Kundenzeile in `operations.payload`
+ablegen würde; die Konsolenoperation, deren Abfrage ohne befristeten Zugang als
+`root` liefe und dabei **genau dasselbe Ergebnis** lieferte; das `UPDATE` über
+alle Spalten, dessen Schaden man an der geänderten Zeile nicht sieht.
+
+**Zwei Funde, und beide betreffen das Werkzeug und nicht die Wächter.**
+
+Der erste ist eine Überschrift mit drei Anführungszeichen — deutsches auf, ASCII
+zu. Das mittlere beendet die Zeichenkette der Shell, und alles darunter wäre Text
+statt Befehl gewesen. Genau der Fall vom 11. August, für den
+`BreakScriptTest::test_no_heading_swallows_the_intervention_below_it` gebaut
+wurde; er hat zum zweiten Mal zugebissen, in derselben Datei.
+
+Der zweite ist ein Bruch, der **abstürzt statt zurückzufallen**. Er sollte den
+Satz für den Kunden wieder in den `DO`-Block schreiben (Befund 2 aus `docs/47`)
+und tat das mit einem einfachen `%`. Der Block ist die Formatzeichenkette eines
+`sprintf()`; PHP wirft `ValueError: Unknown format specifier`, der Testfall bricht
+ab, und die Klasse meldet „übersprungen" statt „rot".
+
+> **Ein Bruch muss die Regel verletzen und nicht den Code zerstören. Der
+> Unterschied sieht in der Ausgabe fast gleich aus.**
+
+Gemerkt hat es nur, dass jeder Eingriff hier einzeln gefahren und auf `ROT` **mit
+dem genannten Namen** geprüft worden ist. 47 der 51 gehen so in diesem Container;
+die vier übrigen brauchen Laravel oder `expectException()` und hängen am Lauf des
+Skripts in der CI.

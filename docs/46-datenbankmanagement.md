@@ -1757,6 +1757,22 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #    Eine Tabelle mit einigen Millionen Zeilen, dann im Panel nach einer
 #    Spalte ohne Index sortieren.
 #    erwartet: Abbruch nach 5 s, und der Kunde liest den Grund.
+#
+#    DIE GROESSE GEHOERT GEMESSEN UND NICHT GERATEN, JE SYSTEM. Am 13. August
+#    2026 auf cloudsrv24: Dieselbe Tabelle `gross` mit 20 Millionen Zeilen
+#    reisst in MariaDB die Grenze und wird in PostgreSQL durchsortiert. Bei
+#    3 Millionen waren es 0,134 s (PostgreSQL) gegen 1,141 s (MariaDB) — Faktor
+#    acht. Beide Systeme kuerzen bei kleinem LIMIT mit einem Haldenverfahren
+#    ab, und wie weit das traegt, haengt am Server.
+#
+#    > „Einige Millionen Zeilen" ist keine portable Anweisung.
+#
+#    Deshalb VOR dem Klick messen und die Tabelle notfalls aufstocken:
+#      time sudo -u postgres psql -d <A-pg> -c \
+#           "SELECT id FROM gross ORDER BY wert LIMIT 51" > /dev/null
+#      time mysql <A-my> -e "SELECT id FROM gross ORDER BY wert LIMIT 51" > /dev/null
+#    Aufgestockt wird auf BEIDEN Seiten — Punkt 0 hat den Bestand geschlossen,
+#    und eine Seite allein zu vergroessern nimmt dem Lauf seine Gegenprobe.
 #    BELEG: die Meldung, wörtlich. „Fehlgeschlagen" ist eine Aussage über uns
 #           und nicht über den Server (docs/36 §17, Kriterium 6).
 #    Und danach:

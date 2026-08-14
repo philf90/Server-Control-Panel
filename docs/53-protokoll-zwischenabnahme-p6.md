@@ -635,6 +635,62 @@ und ohne die Zahl ist ein Bild eine Vermutung mit Bild.
 Das Weltbit ist der einzige Grund, aus dem der Webserver diese Datei lesen kann
 — die Gruppe ist die des Abonnements und nicht `www-data`.
 
+### Das verschwundene Abonnement — nachgesehen und nicht geraten
+
+Zwischen zwei Messungen war `test.invalid` fort, und `/var/www/vhosts/` stand
+danach vollständig leer da. Drei Ausgänge waren denkbar, und der schlimmste wäre
+gewesen, dass ein einziger Rückbau zwei Abonnements mitnimmt — genau der Fehler,
+gegen den dieser Punkt misst.
+
+**Es war Ausgang 1: ein eigener, regulärer Vorgang.**
+
+```
+602  test.invalid    db.database.remove   succeeded  18:58:51
+603  test.invalid    pg.database.remove   succeeded  18:58:51
+604  test.invalid    subscription.remove  succeeded  18:58:51
+605  p6-weg.invalid  subscription.remove  succeeded  18:59:12
+```
+
+Zwei getrennte Rückbauten, einundzwanzig Sekunden auseinander, jeder mit eigenem
+Protokolleintrag und eigenem Systembenutzer (`p1132` und `p1133`). Der Vorgang
+für `test.invalid` hat vorher seine beiden Datenbanken abgeräumt — der reguläre
+Weg, nicht der eines Baumlaufs, der sich verlaufen hat.
+
+**Belegt hat das die Warteschlange und das Protokoll**, nicht eine Überlegung.
+Beide überleben den Rückbau, und beide führen den Namen mit.
+
+> **Ein Verdacht, der nach dem Beleg fragt, kostet eine Abfrage. Einer, der nach
+> einer Erklärung fragt, kostet den Lauf.**
+
+### Und der Verdacht stand auf einem Rechenfehler
+
+**Zwei Uhren.** Die Shell zeigt Ortszeit (`ls` um 19:51, `/var/www/vhosts` mit
+21:03), die Tabellen des Panels stehen in UTC. Aus `18:58:51` in der Tabelle und
+`19:51` in der Shell wurde ein Fenster, in dem etwas fehlte — tatsächlich ist
+`18:58:51 UTC` beim Betreiber `20:58:51`, also **nach** dem `ls` und **vor** der
+Vorher-Aufnahme. Es fügt sich lückenlos.
+
+> **Zwei Uhren in einem Protokoll sind eine Fehlerquelle und keine Auskunft.**
+
+Das ist der Gegenstand von `docs/40`, und dieser Lauf ist mitten hineingelaufen
+— beim Untersuchen eines vermuteten Datenverlusts, also an der Stelle, an der
+ein Rechenfehler am teuersten ist. `Clock` löst das für die **Anzeige**; ein
+Protokoll, das Ausgaben aus zwei Werkzeugen nebeneinanderlegt, hat davon nichts.
+
+**Für den Lauf heisst das:** Zeiten aus der Shell und Zeiten aus dem Panel
+gehören nicht nebeneinander in eine Zeile, ohne dass die Zone dabeisteht.
+
+### Und was dabei mit abgeräumt wurde
+
+`/var/www/vhosts/` ist leer. **Punkt 7 — der P5c-Bestand — entfällt damit**: Was
+dort an Abonnements mit echtem Inhalt stand, ist fort. `test.invalid` trug
+sowohl eine MariaDB- als auch eine PostgreSQL-Datenbank und war damit
+vermutlich selbst dieser Bestand.
+
+Das ist kein Verlust für diese Stufe — der Bestand war ein *Prüfling der
+Bequemlichkeit*, kein Kriterium (`docs/52 §4`, Punkt 7). Es heisst aber, dass
+Punkt 6 seinen Nachbarn selbst mitbringen muss und ihn nicht vorfindet.
+
 ---
 
-*Die Punkte 6 (Nachholung) und 7 folgen.*
+*Die Punkte 6 (Nachholung) und 8 folgen. Punkt 7 entfällt.*

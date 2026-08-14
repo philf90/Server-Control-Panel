@@ -132,6 +132,21 @@ final class Files
     }
 
     /**
+     * Eine hochgeladene Datei übernehmen.
+     *
+     * **`$source` ist ein Pfad im Zwischenlager und nicht der Inhalt.** Der
+     * Agent öffnet ihn vor seinem `chroot` und schreibt den Strom im Kind
+     * weiter; damit wandert auch eine grosse Datei nicht durch den
+     * Arbeitsspeicher — und schon gar nicht durch `operations.payload`.
+     *
+     * @return array<string, mixed>
+     */
+    public function upload(Subscription $subscription, string $source, string $path): array
+    {
+        return $this->call($subscription, 'files.upload', ['source' => $source, 'path' => $path]);
+    }
+
+    /**
      * Der eine Aufruf, durch den alle gehen.
      *
      * `subscription` und `user` stehen hier und nicht in den acht Methoden

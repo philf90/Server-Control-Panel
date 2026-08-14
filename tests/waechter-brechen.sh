@@ -8396,6 +8396,62 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SandboxPreloadTest passed
 
 echo
+echo "── FileStagingTest: die Quelle des Uploads wird nicht geprueft ──"
+#
+# files.upload liest seine Quelle als root und ausserhalb jedes Chroots — das
+# Ziel ist eingesperrt, die Quelle nicht. Ohne die Pruefung gegen das
+# Zwischenlager waere „source: /etc/shadow" ein gueltiger Aufruf.
+vorher_datei agent/src/Ops/FilesUpload.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesUpload.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("Guard::pathInside($args['source'] ?? null, [Staging::ROOT])",
+              "Guard::string($args['source'] ?? null, 'source')")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Quelle des Uploads ungeprueft" \
+  FileStagingTest::test_the_upload_confines_its_source failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FileStagingTest passed
+
+echo
+echo "── FileStagingTest: die Quelle wird erst im Kind geoeffnet ──"
+#
+# Nach dem chroot gibt es ihren Pfad nicht mehr. Der Deskriptor muss vorher
+# aufgemacht werden; die Closure nimmt ihn mit hinein.
+vorher_datei agent/src/Ops/FilesUpload.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesUpload.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $handle = @fopen($source, 'rb');\n", '')
+s = s.replace('static function () use ($handle, $path, $size): array {',
+              "static function () use ($source, $path, $size): array {\n                $handle = @fopen($source, 'rb');")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Quelle erst im Kind geoeffnet" \
+  FileStagingTest::test_the_source_is_opened_before_the_child_starts failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FileStagingTest passed
+
+echo
+echo "── FileStagingTest: beide Zwischenlager auf dasselbe Verzeichnis ──"
+#
+# Zwei Positivlisten, die auf dasselbe Verzeichnis zeigen, sind eine
+# Positivliste: db.dump.import duerfte dann jede Kundendatei einspielen und
+# files.upload jede Datenbanksicherung verteilen.
+vorher_datei agent/src/Files/Staging.php
+python3 - <<'PY2'
+p = 'agent/src/Files/Staging.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('private/uploads', 'private/imports')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Uploads und Sicherungen im selben Lager" \
+  FileStagingTest::test_the_two_stores_stay_apart failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FileStagingTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

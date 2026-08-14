@@ -12559,3 +12559,56 @@ Gegenprobe hat also das Messskript belegt und nicht das, worauf es ankam.
 Ausnahme nach `.ident`, `.stacks td .ident`, `.section-head h2` und
 `.cell-value`. Ein Dateiname darf 255 Zeichen lang sein; `docs/46 §20.13` hat
 gemessen, was `nowrap` daraus macht.
+
+### P6 Schritt 5 — Hochladen, Anlegen, Umbenennen, Rechte
+
+`files.upload` und die Griffe dazu in der Liste. **Der Kern dieser Operation ist
+ein Deskriptor, der ein Chroot überlebt.**
+
+Die hochgeladene Datei liegt im Schreibbereich des Panels, also ausserhalb der
+Abo-Wurzel; das Kind der Sandbox kann sie nach dem `chroot` nicht mehr öffnen.
+Geöffnet wird sie deshalb **vorher**, und die Closure nimmt den offenen Strom
+mit hinein.
+
+> **Ein Deskriptor, der vor dem Chroot geöffnet wurde, gilt danach weiter — ein
+> Pfad, der vorher galt, nicht.**
+
+Derselbe Satz trägt schon den Rückweg der Sandbox (das Socketpaar entsteht vor
+dem `fork`). Er ist auch der Grund, warum nichts durch den Arbeitsspeicher
+wandert: Eine 500-MB-Datei als Zeichenkette im Argument spränge beides.
+Gemessen: 3 MB durchgeleitet, Grösse am Ziel identisch, Eigentümer das
+Abonnement.
+
+**Diese Operation hat zwei Pfade, und nur einer ist eingesperrt.** Das Ziel darf
+frei sein — es wird im Chroot gedeutet. Die **Quelle** dagegen wird als root und
+ausserhalb jedes Chroots gelesen; ohne Schranke wäre `source: /etc/shadow` ein
+gültiger Aufruf. Sie muss deshalb unterhalb von `Files\Staging::ROOT` liegen,
+geprüft mit `Guard::pathInside()` — dieselbe Bauform wie bei `db.dump.import`
+seit P5. Gemessen: `/etc/passwd`, ein Symlink im Zwischenlager auf
+`/etc/passwd` und ein `..` heraus werden alle drei abgewiesen.
+
+**Das Zwischenlager ist ein eigenes und nicht das der Sicherungen.** Beide sind
+Vorräte, aus denen der Agent als root liest; lägen sie im selben Verzeichnis,
+dürfte `db.dump.import` jede hochgeladene Kundendatei einspielen und
+`files.upload` jede Datenbanksicherung verteilen.
+
+> **Zwei Positivlisten, die auf dasselbe Verzeichnis zeigen, sind eine
+> Positivliste.**
+
+**Der Name im Zwischenlager kommt nicht vom Kunden**, sondern wird gewürfelt.
+Der gewünschte Name gilt erst am Ziel, und dort deutet ihn das Chroot; ein
+kundengewählter Name im Schreibbereich des Panels wäre ein Pfad, den der Agent
+später als root liest. Und aufgeräumt wird im `finally` — ein Zwischenlager, das
+nur bei Erfolg geleert wird, füllt sich genau mit den Dateien, deren Übernahme
+scheiterte, und das sind die grossen.
+
+Bei der Rechteeingabe steht `parseInt(x, 8)` und nicht `Number(x)`: „644" als
+Dezimalzahl wäre 644 und läge ausserhalb der zwölf Bits — der Agent wiese es ab,
+und der Kunde läse eine Meldung über eine Zahl, die er nie gemeint hat.
+
+Wächter: `FileStagingTest` — Panel und Agent meinen dasselbe Lager, die beiden
+Lager bleiben getrennt, die Quelle wird geprüft, und sie wird **vor** dem Fork
+geöffnet. Drei Eingriffe im Bruchskript, alle vier Regeln gegengeprüft.
+
+Messung bei 390px: Überlauf 0px in beiden Themes, Gegenprobe 526px, und die
+Gegenprobe belegt seit Schritt 4 zuerst, dass das Stylesheet überhaupt wirkt.

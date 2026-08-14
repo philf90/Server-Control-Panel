@@ -9,6 +9,7 @@ use App\Support\Audit\Audit;
 use App\Support\Files\Files;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -203,6 +204,57 @@ final class FileController extends Controller
 
         return to_route('files.index', ['subscription' => $subscription->id, 'path' => dirname($data['path'])])
             ->with('success', 'Die Rechte sind gesetzt.');
+    }
+
+    /**
+     * Hochladen.
+     *
+     * **Die Datei geht über das Zwischenlager und nicht über den Aufruf.**
+     * Laravel legt sie beim Empfang ohnehin im Dateisystem ab; sie von dort zu
+     * lesen und als Zeichenkette an den Agenten zu reichen hiesse, eine
+     * 500-MB-Datei zweimal durch den Arbeitsspeicher zu schicken.
+     *
+     * **Der Name im Zwischenlager kommt nicht vom Kunden.** Er wird gewürfelt;
+     * der gewünschte Name gilt erst am Ziel, und dort deutet ihn das Chroot.
+     * Ein kundengewählter Name im Schreibbereich des Panels wäre ein Pfad, den
+     * der Agent später als root liest.
+     */
+    public function upload(Request $request, Subscription $subscription): RedirectResponse
+    {
+        $data = $request->validate([
+            'path' => ['required', 'string', 'max:4096'],
+            'file' => ['required', 'file'],
+        ]);
+
+        $staged = $request->file('file')->storeAs(
+            'uploads',
+            bin2hex(random_bytes(16)),
+            ['disk' => 'local'],
+        );
+
+        if ($staged === false) {
+            throw ValidationException::withMessages([
+                'file' => 'Die Datei liess sich nicht zwischenspeichern.',
+            ]);
+        }
+
+        $absolute = Storage::disk('local')->path($staged);
+
+        try {
+            $this->attempt(fn (): array => $this->files->upload($subscription, $absolute, $data['path']));
+        } finally {
+            // **Auch im Fehlerfall.** Ein Zwischenlager, das nur bei Erfolg
+            // aufgeräumt wird, füllt sich genau mit den Dateien, deren
+            // Übernahme scheiterte — und das sind die grossen.
+            Storage::disk('local')->delete($staged);
+        }
+
+        $this->audit->record('file.uploaded', subscriptionId: (int) $subscription->id, context: [
+            'path' => $data['path'],
+        ]);
+
+        return to_route('files.index', ['subscription' => $subscription->id, 'path' => dirname($data['path'])])
+            ->with('success', 'Die Datei ist hochgeladen.');
     }
 
     /**

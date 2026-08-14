@@ -42,6 +42,7 @@ use SrvPanel\Agent\Ops\FilesMkdir;
 use SrvPanel\Agent\Ops\FilesMove;
 use SrvPanel\Agent\Ops\FilesRead;
 use SrvPanel\Agent\Ops\FilesRemove;
+use SrvPanel\Agent\Ops\FilesUpload;
 use SrvPanel\Agent\Ops\FilesWrite;
 use SrvPanel\Agent\Ops\PanelProvision;
 use SrvPanel\Agent\Ops\PanelTls;
@@ -131,6 +132,7 @@ final class Registry
         $this->register(new FilesMove);
         $this->register(new FilesCopy);
         $this->register(new FilesChmod);
+        $this->register(new FilesUpload);
 
         $this->register(new WebserverDetect);
         $this->register(new WebSiteApply);

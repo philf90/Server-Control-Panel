@@ -459,6 +459,10 @@ Route::middleware('auth')->group(function (): void {
         ->middleware('can:editFiles,subscription')
         ->name('files.copy');
 
+    Route::post('/subscriptions/{subscription}/files/upload', [FileController::class, 'upload'])
+        ->middleware('can:editFiles,subscription')
+        ->name('files.upload');
+
     Route::post('/subscriptions/{subscription}/files/chmod', [FileController::class, 'chmod'])
         ->middleware('can:editFiles,subscription')
         ->name('files.chmod');

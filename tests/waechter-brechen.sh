@@ -8685,6 +8685,82 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" LinkReachTest passed
 
 echo
+echo "── InheritedGroupTest: httpdocs ohne setgid ──"
+#
+# Befund 3 aus docs/53: Zwei Dateien nebeneinander im selben httpdocs, die eine
+# 1004:33 (www-data) und die andere 1004:1004. Der Webserver kam an die zweite
+# nur ueber das Weltbit — wer sie auf 0640 setzt, bekommt einen 403.
+vorher_datei agent/src/Ops/SubscriptionProvision.php
+sed -i 's/DOCUMENT_ROOT_MODE = 0o2750/DOCUMENT_ROOT_MODE = 0o750/' agent/src/Ops/SubscriptionProvision.php
+griff_datei agent/src/Ops/SubscriptionProvision.php "httpdocs ohne setgid" &&
+pruefe "httpdocs ohne setgid" \
+  InheritedGroupTest::test_every_directory_of_the_customer_inherits_its_group failed
+wiederherstellen
+
+echo
+echo "── InheritedGroupTest: ein Verzeichnis des Schemas ohne setgid ──"
+#
+# Der zweite Bruch trifft eines, bei dem das Bit heute nichts aendert. Genau
+# deshalb steht es dort: Die Regel heisst „alle Verzeichnisse des Kunden" und
+# nicht „die mit einer fremden Gruppe" — sonst muesste sie bei jedem Zuwachs
+# des Schemas neu beurteilt werden.
+vorher_datei agent/src/Ops/SubscriptionProvision.php
+sed -i "s/'mail' => \['%u', '%g', 0o2700\]/'mail' => ['%u', '%g', 0o700]/" agent/src/Ops/SubscriptionProvision.php
+griff_datei agent/src/Ops/SubscriptionProvision.php "mail ohne setgid" &&
+pruefe "mail ohne setgid" \
+  InheritedGroupTest::test_every_directory_of_the_customer_inherits_its_group failed
+wiederherstellen
+
+echo
+echo "── InheritedGroupTest: die Angabe steht wieder zweimal da ──"
+#
+# Bis zum 14. August standen 'www-data' und 0750 in SubscriptionProvision::TREE
+# und noch einmal als Literal in WebSiteApply. Das setgid-Bit waere an der
+# zweiten Stelle nicht angekommen.
+vorher_datei agent/src/Ops/WebSiteApply.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebSiteApply.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                SubscriptionProvision::DOCUMENT_ROOT_GROUP,\n"
+              "                SubscriptionProvision::DOCUMENT_ROOT_MODE,",
+              "                'www-data',\n                0o750,")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/WebSiteApply.php "Angabe zweimal" &&
+pruefe "Angabe des DocumentRoots zweimal" \
+  InheritedGroupTest::test_the_document_root_is_described_in_one_place failed
+wiederherstellen
+
+echo
+echo "── InheritedGroupTest: die Angabe gilt nur beim Anlegen ──"
+#
+# Der Fehler, der beinahe passiert waere: directories() setzte Rechte nur, wenn
+# das Verzeichnis neu entstand. Das setgid-Bit haette damit kein einziges
+# bestehendes Abonnement erreicht.
+vorher_datei agent/src/Ops/WebSiteApply.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebSiteApply.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""        $entstanden = ! is_dir($site->logDir());
+
+        Filesystem::directory($site->logDir(), $site->user, 'adm', 0o2750);
+
+        if ($entstanden) {
+            $created[] = $site->logDir();
+        }""",
+              """        if (! is_dir($site->logDir())) {
+            Filesystem::directory($site->logDir(), $site->user, 'adm', 0o2750);
+            $created[] = $site->logDir();
+        }""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/WebSiteApply.php "Angabe nur beim Anlegen" &&
+pruefe "Rechte nur beim Anlegen gesetzt" \
+  InheritedGroupTest::test_the_rule_reaches_existing_subscriptions failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InheritedGroupTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

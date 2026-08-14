@@ -152,9 +152,11 @@ final class WebSiteApply implements Op
      * DocumentRoot und Protokollverzeichnis.
      *
      * Die Rechte kommen aus §4.5 und sind dieselben wie beim Anlegen des
-     * Abonnements: das ausgelieferte Verzeichnis `<benutzer>:www-data 0750`,
-     * damit der Webserver hineinkommt und kein anderes Abonnement; die
-     * Protokolle `<benutzer>:adm 0750`.
+     * Abonnements — sie stehen deshalb als Konstante in
+     * {@see SubscriptionProvision} und nicht ein zweites Mal hier: das
+     * ausgelieferte Verzeichnis `<benutzer>:www-data 2750`, damit der
+     * Webserver hineinkommt und kein anderes Abonnement; die Protokolle
+     * `<benutzer>:adm 2750`.
      *
      * @return list<string> Was in diesem Lauf entstanden ist
      */
@@ -164,13 +166,45 @@ final class WebSiteApply implements Op
 
         $documentRoot = $site->documentRootPath();
 
-        if ($documentRoot !== null && ! is_dir($documentRoot)) {
-            Filesystem::directory($documentRoot, $site->user, 'www-data', 0o750);
-            $created[] = $documentRoot;
+        /*
+         * **Die Angabe wird auch dann durchgesetzt, wenn es das Verzeichnis
+         * schon gibt.**
+         *
+         * Hier stand `if (! is_dir(...))`, und damit galt sie ausschliesslich
+         * für neu entstandene Verzeichnisse. Das setgid-Bit aus
+         * {@see SubscriptionProvision::DOCUMENT_ROOT_MODE} käme so bei keinem
+         * einzigen bestehenden Abonnement an — es entstünde erst mit der
+         * nächsten neuen Domain, und die Datei daneben trüge weiter die
+         * falsche Gruppe.
+         *
+         * > **Eine Regel, die nur beim Anlegen gilt, erreicht den Bestand
+         * > nie.**
+         *
+         * `Filesystem::directory()` legt an, wenn nötig, und setzt Eigentümer,
+         * Gruppe und Rechte in jedem Fall. Gemeldet wird weiterhin nur, was in
+         * diesem Lauf wirklich **entstanden** ist — das ist eine andere Frage
+         * als die, welche Rechte am Ende dastehen.
+         */
+        if ($documentRoot !== null) {
+            $entstanden = ! is_dir($documentRoot);
+
+            Filesystem::directory(
+                $documentRoot,
+                $site->user,
+                SubscriptionProvision::DOCUMENT_ROOT_GROUP,
+                SubscriptionProvision::DOCUMENT_ROOT_MODE,
+            );
+
+            if ($entstanden) {
+                $created[] = $documentRoot;
+            }
         }
 
-        if (! is_dir($site->logDir())) {
-            Filesystem::directory($site->logDir(), $site->user, 'adm', 0o750);
+        $entstanden = ! is_dir($site->logDir());
+
+        Filesystem::directory($site->logDir(), $site->user, 'adm', 0o2750);
+
+        if ($entstanden) {
             $created[] = $site->logDir();
         }
 

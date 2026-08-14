@@ -78,15 +78,41 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-if ! git diff --quiet -- resources/ app/ agent/ packaging/ .github/ database/ routes/ docs/ config/; then
-  echo "resources/, app/, agent/, packaging/, .github/, database/, routes/, docs/ oder config/ hat ungesicherte" >&2
-  echo "Änderungen. Erst committen" >&2
-  echo "oder verwerfen — dieses Skript ändert dort Dateien und stellt sie über" >&2
-  echo "git wieder her." >&2
+# **Die Bäume, in denen dieses Skript arbeitet — einmal aufgeschrieben.**
+#
+# Sie standen zweimal da, für die Sauberkeitsprüfung und für den Rückweg, und
+# die beiden Listen waren nicht dieselbe: `tests/` fehlte im Rückweg. Ein
+# Eingriff aus P5b hat sich deshalb mit einem eigenen `git checkout --`
+# beholfen — und der nächste, der einen Wächter bricht, um dessen Gegenprobe
+# zu prüfen, hat den Fehler geerbt: Die Änderung blieb stehen, und **alles
+# danach mass einen Baum, den niemand hergestellt hat.** Gefunden am
+# 14. August 2026 im ersten Lauf an einem Pull Request.
+#
+# > **Ein Rückweg, der eine Datei nicht kennt, die ein Eingriff ändert, ist
+# > keiner — und was danach kommt, misst etwas anderes als es glaubt.**
+BAEUME="resources/ app/ agent/ tests/ packaging/ .github/ database/ routes/ docs/ config/ bootstrap/"
+
+# **Dieses Skript liegt selbst unter `tests/` und nimmt sich aus.**
+#
+# Zwei Gründe, und beide sind handfest. Bash liest ein Skript während der
+# Ausführung weiter; eine Datei, die sich dabei unter ihm ändert, ist eine
+# Fehlerquelle, die niemand debuggen will. Und wer hier einen neuen Eingriff
+# schreibt, muss ihn fahren können, bevor er ihn committet — genau dafür
+# steht das Skript ausserhalb der Sauberkeitsprüfung. Beim Bauen dieser Zeile
+# ist mir die eigene Änderung einmal weggeflogen; die Warnung in CLAUDE.md
+# über `git checkout -- resources/` gilt wörtlich auch hier.
+SELBST=":(exclude)tests/waechter-brechen.sh"
+
+# shellcheck disable=SC2086
+if ! git diff --quiet -- $BAEUME "$SELBST"; then
+  echo "Ungesicherte Änderungen in: $BAEUME" >&2
+  echo "Erst committen oder verwerfen — dieses Skript ändert dort Dateien und" >&2
+  echo "stellt sie über git wieder her." >&2
   exit 1
 fi
 
-wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ .github/ database/ routes/ docs/ config/ bootstrap/ 2>/dev/null; }
+# shellcheck disable=SC2086
+wiederherstellen() { git checkout -- $BAEUME "$SELBST" 2>/dev/null; }
 trap wiederherstellen EXIT INT TERM
 
 fehler=0
@@ -425,7 +451,7 @@ sed -i "s|\\\$store->series('cpu', 2, 0, 60, ' %', 0, 85.0)|\\\$store->series('c
   app/Http/Controllers/OverviewController.php
 pruefe "Schwelle im Controller weggekürzt" \
   PanelWalkthroughTest::test_a_tile_over_its_threshold_says_so failed
-git checkout -- app/ 2>/dev/null
+wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   PanelWalkthroughTest::test_a_tile_over_its_threshold_says_so passed
 
@@ -442,7 +468,7 @@ pruefe "Weiterleitung ohne Ziel" \
   RedirectTargetTest::test_no_controller_leaves_the_target_to_back failed
 pruefe "  … und man landet auf der Übersicht" \
   RedirectTargetTest::test_saving_the_theme_stays_on_the_account_page failed
-git checkout -- app/ 2>/dev/null
+wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RedirectTargetTest passed
 
 echo
@@ -469,7 +495,7 @@ open(p, 'w', encoding='utf-8').write(s)
 PY2
 pruefe "Ablesung ohne Aufloesung" \
   SeriesReadingTest::test_a_moving_curve_below_one_percent_is_not_all_zeroes failed
-git checkout -- app/ 2>/dev/null
+wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SeriesReadingTest passed
 
 echo
@@ -483,7 +509,7 @@ sed -i 's|\$min = min(min(\$a), min(\$b));|\$min = min(\$a);|' app/Support/Metri
 sed -i 's|\$max = max(max(\$a), max(\$b));|\$max = max(\$a);|' app/Support/Metrics/Store.php
 pruefe "getrennte Achsen in einem Feld" \
   PairedSeriesTest::test_the_smaller_direction_stays_flat_at_the_bottom failed
-git checkout -- app/ 2>/dev/null
+wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PairedSeriesTest passed
 
 echo
@@ -496,7 +522,7 @@ sed -i "s|\\\$store->pair('network', 2, 0, 1, 60|\\\$store->pair('network', 2, 0
   app/Http/Controllers/OverviewController.php
 pruefe "zweite Richtung ist die erste" \
   PanelWalkthroughTest::test_the_network_tile_carries_both_directions failed
-git checkout -- app/ 2>/dev/null
+wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   PanelWalkthroughTest::test_the_network_tile_carries_both_directions passed
 
@@ -5395,7 +5421,7 @@ PY2
 griff_datei tests/Feature/RemovalPathTest.php "Sicherung ohne Weg zurueck" &&
 pruefe "Sicherung ohne Weg zurueck" \
   RemovalPathTest::test_every_creating_operation_has_a_removing_one failed
-git checkout -- tests/Feature/RemovalPathTest.php
+wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RemovalPathTest passed
 
 echo

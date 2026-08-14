@@ -12123,3 +12123,44 @@ Dokument, gemessen in beiden Themes, mit Gegenprobe.
 `BreakScriptTest` hat ein zweites Mal zugebissen: Die zwei neuen Zeilen in
 `.rows .cell` haben einem Eingriff aus Schritt 5 den Text unter den Füssen
 weggezogen.
+
+### Der Rückweg des Bruchskripts kannte `tests/` nicht
+
+Gefunden im **ersten Lauf an einem Pull Request** — genau dem, für den
+`waechter.yml` am 13. August dort angehängt wurde. Elf von zwölf Prüfungen waren
+grün, rot war der Wächterlauf, und zwar nicht an einem Eingriff, sondern an einer
+Rückstellprüfung zwei Blöcke später.
+
+`wiederherstellen()` holte `resources/ app/ agent/ packaging/ .github/ database/
+routes/ docs/ config/ bootstrap/` zurück. **`tests/` stand nicht dabei.** Ein
+Eingriff, der einen Wächter bricht, um dessen Gegenprobe zu prüfen, blieb also
+stehen — und alles danach mass einen Arbeitsbaum, den niemand hergestellt hat.
+
+> **Ein Rückweg, der eine Datei nicht kennt, die ein Eingriff ändert, ist keiner
+> — und was danach kommt, misst etwas anderes als es glaubt.**
+
+**Das Skript hatte den Fall schon einmal, und die Lösung war das Problem.** Ein
+Eingriff aus P5b half sich mit einem eigenen
+`git checkout -- tests/Feature/RemovalPathTest.php`, statt die Lücke zu melden.
+Damit gab es zwei Fassungen desselben Rückwegs, und der nächste Eingriff hat die
+falsche geerbt. Vier weitere Zeilen `git checkout -- app/` standen aus demselben
+Grund im Skript.
+
+Die Liste steht jetzt einmal als `BAEUME` da und wird von der Sauberkeitsprüfung
+und vom Rückweg gelesen. `BreakScriptTest::test_every_touched_file_lies_on_the_way_back`
+hält beide Richtungen: jede angefasste Datei liegt im Baum, und kein Block
+behilft sich selbst.
+
+**Und das Skript nimmt sich aus dem Rückweg heraus**, weil es selbst unter
+`tests/` liegt: Bash liest ein Skript während der Ausführung weiter, und wer
+einen neuen Eingriff schreibt, muss ihn fahren können, bevor er ihn committet.
+Beim Bauen dieser Zeile ist mir die eigene Änderung einmal weggeflogen — die
+Warnung über `git checkout -- resources/` gilt hier wörtlich.
+
+Zu dieser Regel gibt es **keinen Eingriff im Skript**, und das ist kein
+Versehen: Sie liesse sich nur brechen, indem man das Skript selbst ändert, und
+genau dessen Datei ist die eine, die der Rückweg auslässt. Gebrochen wurde sie
+von Hand, in vier Richtungen, alle vier rot.
+
+> **Eine Regel, deren Bruch das Werkzeug selbst beschädigt, wird von Hand
+> gebrochen — und dass sie es wurde, gehört aufgeschrieben.**

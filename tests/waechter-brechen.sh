@@ -8170,6 +8170,119 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" EngineLabelTest passed
 
 echo
+echo "── SandboxReachTest: das chroot aus der Sandbox nehmen ──"
+#
+# Die Grenze von P6 ist keine Pruefung, sondern ein Prozess ohne Rechte in
+# einem chroot. docs/50 §3 hat gemessen, was die naheliegende Ersetzung taugt:
+# realpath()+is_link liess 11081 von 36056 bestandenen Pruefungen ausserhalb
+# der Grenze lesen. Wer das chroot herausnimmt, nimmt die Stufe heraus.
+vorher_datei agent/src/Sandbox.php
+python3 - <<'PY2'
+p = 'agent/src/Sandbox.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('if (! @chroot($root)) {', 'if (! self::confine($root)) {')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "chroot aus der Sandbox entfernt" \
+  SandboxReachTest::test_the_sandbox_uses_all_of_them failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxReachTest passed
+
+echo
+echo "── SandboxReachTest: einsperren an einer zweiten Stelle ──"
+#
+# Eine Grenze, die an zwei Stellen steht, ist keine. Die zweite Fassung ist
+# die, die veraltet — und bei einer Schranke heisst „veraltet" offen.
+vorher_datei agent/src/Filesystem.php
+python3 - <<'PY2'
+p = 'agent/src/Filesystem.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('    public static function removeTree(string $path): void\n    {\n',
+              '    public static function removeTree(string $path): void\n    {\n        chroot($path);\n')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "chroot ausserhalb der Sandbox" \
+  SandboxReachTest::test_only_the_sandbox_confines failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxReachTest passed
+
+echo
+echo "── SandboxReachTest: der Socket des Agenten bleibt im Kind offen ──"
+#
+# AgentIdentityTest hat diese Zeile schon einmal bezahlt: Einer der zwei
+# Gruende, warum docs/38 §6 den Kennungswechsel im Runner verwarf, war, dass
+# der geforkte Prozess den Socket des Agenten erbt. P6 forkt trotzdem — also
+# muss der Socket weg, bevor fremder Code im Kind laeuft.
+vorher_datei agent/src/Sandbox.php
+python3 - <<'PY2'
+p = 'agent/src/Sandbox.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        try {\n            self::closeInherited($close);\n', '        try {\n')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "closeInherited nicht mehr die erste Zeile im Kind" \
+  SandboxReachTest::test_the_child_closes_what_it_inherited failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxReachTest passed
+
+echo
+echo "── PrivilegeDropTest: initgroups faellt weg ──"
+#
+# posix_setgroups() gibt es in PHP nicht. Ein Kind, das nur setgid und setuid
+# aufruft, behaelt die Zusatzgruppen von root und liest damit eine Datei mit
+# root:root 0640 — gemessen in docs/50 §5, und im Container zuerst unsichtbar,
+# weil root dort eine leere Zusatzgruppenliste hat.
+vorher_datei agent/src/Sandbox.php
+python3 - <<'PY2'
+p = 'agent/src/Sandbox.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('posix_initgroups(', 'self::groups(')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "initgroups aus der Rechteabgabe entfernt" \
+  PrivilegeDropTest::test_the_drop_happens_in_the_only_order_that_works failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PrivilegeDropTest passed
+
+echo
+echo "── PrivilegeDropTest: setuid vor setgid ──"
+#
+# Nach setuid darf ein Prozess seine Gruppe nicht mehr wechseln. Die falsche
+# Reihenfolge laesst das setgid fehlschlagen, und zwar leise.
+vorher_datei agent/src/Sandbox.php
+python3 - <<'PY2'
+p = 'agent/src/Sandbox.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("! posix_setgid($account['gid']) || ! posix_setuid($account['uid'])",
+              "! posix_setuid($account['uid']) || ! posix_setgid($account['gid'])")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "setuid vor setgid" \
+  PrivilegeDropTest::test_the_drop_happens_in_the_only_order_that_works failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PrivilegeDropTest passed
+
+echo
+echo "── PrivilegeDropTest: der Elternprozess glaubt dem Beleg ──"
+#
+# Das Kind meldet uid und Gruppen mit. Ein Elternprozess, der sie nur
+# durchreicht, hat einen Beleg eingesammelt und nicht gelesen — und ein
+# Ergebnis, das behauptet als root gelaufen zu sein, ist ein Fehler und kein
+# Ergebnis (docs/51 §4, Punkt 13).
+vorher_datei agent/src/Sandbox.php
+python3 - <<'PY2'
+p = 'agent/src/Sandbox.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("if (($decoded['uid'] ?? 0) === 0 || in_array(0, $decoded['groups'] ?? [0], true)) {",
+              "if (in_array(0, $decoded['groups'] ?? [0], true)) {")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Elternprozess prueft die gemeldete uid nicht" \
+  PrivilegeDropTest::test_the_parent_checks_the_proof_it_gets_back failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PrivilegeDropTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

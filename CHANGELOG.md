@@ -12311,3 +12311,69 @@ auf eine Seite begrenzt und wird nachgeladen, die Farben kommen weiter aus
 `app.css` — und weil „keine Abhängigkeit" bisher eine Selbstverständlichkeit war
 und deshalb von nichts geprüft, bekommt die Liste mit der ersten Ausnahme ihren
 Wächter.
+
+### P6 Schritt 1 — die Sandbox: die Grenze, die den weggefallenen Schutz ersetzt
+
+`SrvPanel\Agent\Sandbox` forkt, chrootet auf die Abo-Wurzel, gibt die Rechte an
+den Systembenutzer ab und führt erst dann die Arbeit aus. Jede Datei-Operation
+von P6 geht hindurch. Gemessen gegen den Angreifer aus `docs/50 §3` — vier
+Prozesse, `renameat2(RENAME_EXCHANGE)` — **0 Ausbrüche bei 5 805 Zugriffen**,
+während dieselbe Arbeit ausserhalb der Sandbox mit der heutigen Prüfung 371 Mal
+ausserhalb der Grenze las.
+
+Sie prüft den Pfad nicht, sie sperrt ihn ein. Ein Pfad kann im Chroot nichts
+ausserhalb bezeichnen — auch dann nicht, wenn ein Verzeichnis mitten im Vorgang
+durch einen Symlink ersetzt wird. Das ist der Unterschied zwischen einer Grenze,
+die geprüft wird, und einer, die der Kernel hält.
+
+**Ein bestehender Wächter hat einen Fehler in dieser Klasse gefunden, bevor ein
+Test dazu existierte.** `AgentIdentityTest` verwirft seit `docs/38 §6` den
+Kennungswechsel im `Runner`, und einer seiner zwei gemessenen Gründe war, dass
+*der geforkte Prozess den Socket des Agenten erbt*. P6 forkt trotzdem — und der
+erste Entwurf der Sandbox schloss den Socket nicht. Er stand als Risiko 2 im
+eigenen Plan und war im eigenen Code nicht umgesetzt.
+
+> **Ein Wächter, der eine Entscheidung festhält, hält auch ihre Begründung fest
+> — und die gilt weiter, wenn die Entscheidung fällt.**
+
+**Und der erste Versuch, ihn zu schliessen, war schlimmer als das Versäumnis.**
+Der Entwurf zählte `/proc/self/fd` auf und schloss jeden fremden Deskriptor mit
+`fclose(fopen('php://fd/N'))`. Das schliesst nichts: PHP dupliziert den
+Deskriptor beim Öffnen. Gemessen — vor und nach dem `fclose` standen dieselben
+Nummern in `/proc/self/fd`, und die ursprüngliche Datei war weiter lesbar.
+
+> **Ein Deskriptor, der beim Öffnen dupliziert wird, wird beim Schliessen nicht
+> geschlossen.** Ein Aufräumen, das aussieht wie eines und keines ist, ist
+> schlimmer als gar keines.
+
+Geschlossen wird deshalb, was der Aufrufer benennt, und nicht, was ein
+Verzeichnis auflistet.
+
+**Zwei weitere Fallen sind vorher hineingebaut worden, weil sie im Plan
+standen:** Nach dem Chroot findet der Autoloader `agent/src/` nicht mehr — und
+`AgentException` wird nur im *Fehlerfall* gebraucht, fehlte also genau dann,
+wenn sie gebraucht wird; sie wird jetzt vor dem Fork geladen. Und ein Kind, das
+durch ein Signal stirbt, ist ein Fehlschlag und keine leere Antwort — derselbe
+Fehler, der in `docs/48` „vermutlich Zeitüberschreitung" nach einer Sekunde
+Laufzeit gemeldet hat.
+
+**Die Rechteabgabe ist die Schranke und nicht ihre Zugabe.** Für root ist
+`chroot` keine: Ein roher `chroot(2)` als root bricht aus, derselbe Code nach
+`setuid` nicht (`docs/50 §5`). Dass PHPs `chroot()` hinterher selbst `chdir("/")`
+macht und dem klassischen Ausbruch damit den Hebel nimmt, ist eine Eigenheit der
+Implementierung und keine Zusage — darauf stützt sich nichts.
+
+Wächter: `SandboxReachTest` (nur eine Stelle sperrt ein — und sie tut es noch;
+der Socket wird als erstes geschlossen) und `PrivilegeDropTest` (die Reihenfolge
+`chroot → initgroups → setgid → setuid`, die Nachprüfung im Kind, und der
+Elternprozess, der den gemeldeten Beleg liest statt ihn durchzureichen). Sechs
+Eingriffe im Bruchskript.
+
+**Zwei der sechs Brüche haben zuerst nichts gebrochen**, und beide Male lag es am
+Bruch. `perl -0p` ohne `/g` ersetzt nur das **erste** Vorkommen in der ganzen
+Datei — und das stand im Dokumentationsblock, also genau in dem Teil, den
+`withoutComments()` wegwirft, bevor der Wächter liest. Der Wächter war zu Recht
+grün.
+
+> **Ein Bruch, der einen Kommentar trifft, verändert nichts, was der Wächter
+> ansieht.**

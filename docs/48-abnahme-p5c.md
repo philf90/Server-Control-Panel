@@ -730,7 +730,64 @@ Aufgestockt wurde auf **beiden** Systemen um `notiz`, wie schon `gross` in
 Punkt 4 auf beiden Seiten gewachsen ist: Eine Seite allein zu ändern nimmt dem
 Lauf seine Gegenprobe.
 
-## 4. Was noch offen ist
+## 4. Die Fixes am lebenden Objekt
+
+**Gemessen am 14. August 2026 auf `cloudsrv24` gegen `v0.5.3-rc.14`**, beide
+Systeme, im Browser. Der Bestand aus Punkt 0 stand dafür noch — deshalb wurde
+für Punkt 9 das zweite Abonnement desselben Kunden zurückgebaut und nicht
+dieses.
+
+**Warum diese Runde überhaupt sein muss.** Die vier Fixes waren gemessen (Pixel
+im Browser-Gestell), typgeprüft, gebaut und mit zwölf Eingriffen abgesichert —
+und trotzdem hatte sie niemand auf der echten Seite mit echten Daten gesehen.
+`v0.4.0-rc.4` ist mit einem Umbruchfehler ausgeliefert worden, weil die
+Bilderrunde einen Tag zu spät kam.
+
+| Befund | MariaDB | PostgreSQL |
+|---|---|---|
+| §3.2 Weissraum | `tab` weit, `umbruch` zweizeilig, `luecke` doppelt, `leer` leer, `nichts` als `NULL` | ebenso |
+| §3.3 Einzahl | `geschätzt 1 Zeile` (`lang`, `probe`) | `geschätzt 1 Zeile` (`lang`) |
+| §3.3 Gegenprobe | `geschätzt 59.787.129 Zeilen` (`gross`) | `geschätzt 60.000.000 Zeilen` (`gross`) |
+| §3.4 Sortierkopf | `ERROR 1969 … max_statement_time exceeded`, Kopf bleibt `id ↑` | `ERROR: canceling statement due to statement timeout`, Kopf bleibt `id ↑` |
+| §3.10 Meldung | grün, dann **allein** rot | grün, dann **allein** rot |
+
+**Fünf Werte, fünf verschiedene Bilder.** Vorher ergaben `a\tb`, `a  b` und
+`a b` dieselben 25×16 Pixel; jetzt steht in derselben Zeile ein weiter
+Tabulatorabstand neben einer sichtbaren Doppellücke neben einem Umbruch über
+zwei Zeilen.
+
+**Die Mehrzahl daneben ist der eigentliche Beleg für §3.3.** Eine Einzahl allein
+zeigte nur, dass irgendjemand das Wort getauscht hat — erst „59.787.129 Zeilen"
+in derselben Ansicht belegt, dass die Entscheidung am **Wert** hängt. Dieselbe
+Logik wie bei der Null mit ihrem Zeugen in Punkt 8 (d).
+
+**Und die Zeitüberschreitung reisst auf beiden Seiten**, mit verschiedenen
+Meldungen aus verschiedenen Servern. Die Aufstockung von `gross` auf 60
+Millionen Zeilen aus Punkt 4 war nötig und hat gereicht: Bei 3 Millionen
+sortierte PostgreSQL in 0,134 s durch.
+
+### Und §3.10 war im ersten Anlauf nicht belegt
+
+**Auf PostgreSQL zeigte das erste Bild die rote Meldung ohne grüne darüber — und
+das bewies nichts.** Die Zeilentabelle stand auf dem unveränderten Ausgangswert:
+Auf dieser Datenbank war nie erfolgreich gespeichert worden, es gab also gar
+keine grüne Meldung, die hätte weichen können. Dazu räumt `useAnnounce` bei
+jeder Navigation ab, und der Wechsel zwischen den beiden Datenbanken ist eine.
+
+Zum **dritten Mal** in diesem Lauf dieselbe Lücke, nach §3.5 und §3.11:
+
+> **Ein Beleg, der aus einer Abwesenheit besteht, braucht daneben den Fall, in
+> dem etwas da war.**
+
+Nachgeholt mit `blaettern`, Zeile 54: erst ändern (`test`, grüne Meldung, Tabelle
+zeigt den neuen Wert), dann die Zeile von aussen löschen, dann speichern — rote
+Meldung allein. **Ohne Seitenwechsel dazwischen**, sonst misst der Versuch
+wieder nichts.
+
+Der Fix sitzt in `report()` und kennt die Engine nicht; ein anderes Verhalten
+wäre technisch nicht möglich gewesen. Das ist trotzdem keine Messung.
+
+## 5. Was noch offen ist
 
 **Der Lauf ist durch, und alle vier Befunde am Panel sind behoben** — §3.2, §3.3,
 §3.4 und §3.10, jeder mit einem Wächter, der ohne den Fix zubeisst. Die zwölf
@@ -752,12 +809,17 @@ war — für genau das ist er am 13. August an jeden Pull Request gehängt worde
 die Frage, ob ein Zugang ohne jede Datenbank entstehen kann. Sie standen nie in
 `docs/46 §15`, und sie sind hier nicht heimlich miterledigt worden.
 
-**Und der Bestand aus Punkt 0 steht noch**, auf `p1130_p5c` und
-`x1b311d2b6eedc3aa_p5c`: Zurückgebaut wurde für Punkt 9 das zweite Abonnement
-desselben Kunden. Wer die vier Fixes am lebenden Objekt nachsieht, braucht genau
-diese Tabellen — `probe` für §3.2, `lang` für §3.3, `gross` mit seinen 60
-Millionen Zeilen für die Zeitüberschreitung hinter §3.4 und §3.10 — und muss sie
-nicht erst wieder einfüllen.
+**Der Bestand aus Punkt 0 hat seine Aufgabe erfüllt und kann weg.** Er blieb für
+§4 stehen — `probe` für den Weissraum, `lang` für die Einzahl, `gross` mit seinen
+60 Millionen Zeilen für die Zeitüberschreitung. Alle vier Fixes sind daran
+gemessen; Abo **1130** zurückzubauen kostet den Lauf jetzt nichts mehr.
+
+**Damit ist P5c abgeschlossen** — abgenommen am 14. August 2026 gegen
+`v0.5.3-rc.13`, die vier Befunde behoben und gegen `v0.5.3-rc.14` nachgeprüft.
+
+Zwei Ergänzungen an der Fixture stehen dabei im Bestand und nicht im Plan: die
+Spalte `probe.luecke` (`a  b`) und `lang.notiz`. Beide sind für Belege entstanden,
+die `docs/46 §15` nicht vorgesehen hatte — §3.12 und §4.
 
 **Der Bestand aus Punkt 0 steht dafür noch**, auf `p1130_p5c` und
 `x1b311d2b6eedc3aa_p5c`: Zurückgebaut wurde für Punkt 9 das zweite Abonnement
@@ -769,3 +831,57 @@ sie nicht erst wieder einfüllen. `gross` allein trägt 60 Millionen Zeilen.
 der `template1`-Beleg und die Frage, ob ein Zugang ohne jede Datenbank entstehen
 kann. Sie standen nie in `docs/46 §15`, und sie sind hier nicht heimlich
 miterledigt worden.
+
+## 6. Die Systemmarke in der Konsole
+
+**Ein Wunsch des Betreibers nach der Abnahme, und ein Fund daneben.** Die Konsole
+zeigte in ihrer Beizeile den Datenbanknamen und sonst nichts. Beide Systeme
+haben dieselbe Fläche, dieselben Griffe und dieselben Meldungen — welches man
+gerade bedient, verrät nur der Name, und den liest richtig, wer die
+Präfixregeln kennt (`p1130_p5c` gegen `x1b3…_p5c`).
+
+**`engine_label` stand seit dem ersten Tag im Payload und wurde nie angezeigt.**
+Liste und Detailseite zeigten es längst, jede als neutrale Marke; die Konsole war
+die dritte Fläche und die einzige ohne.
+
+> **Eine Angabe, die eine Seite bekommt und nicht zeigt, ist entweder überflüssig
+> oder vergessen — und man sieht ihr nicht an, welches von beidem.**
+
+Die Marke ist deshalb **dieselbe Form** wie an den anderen beiden Stellen und
+keine neue: `<Badge kind="neutral">`. `PanelLayout` hat dafür einen Slot für die
+Beizeile bekommen; das Prop bleibt, weil sechzehn Seiten dort Text geben.
+
+### Und der Fund: die Beizeile bricht nicht
+
+**Gemessen bei 390 px, weil es niemand angenommen hat.** Der Name auf
+`cloudsrv24` ist 21 Zeichen lang und passt; ein Datenbankname darf **64** haben.
+
+| | Überlauf am Dokument |
+|---|---|
+| `x1b311d2b6eedc3aa_p5c` + Marke | **0 px** |
+| 61-Zeichen-Name **ohne** Marke | **59 px** |
+| 61-Zeichen-Name **mit** Marke | **59 px** |
+| Gegenprobe (900 px breiter Block) | 510 px |
+
+**Die Marke ist nicht die Ursache** — dieselben 59 px mit und ohne sie. Sie
+bricht in die nächste Zeile um und schiebt nichts. Der Fehler lag in `.subline`,
+seit es sie gibt, und trifft jede Seite mit einer langen Kennung in der
+Beizeile.
+
+> **Ein Fehler, den nur ein langer Name auslöst, wartet auf den ersten Kunden,
+> der einen hat.**
+
+Behoben mit `overflow-wrap: anywhere` — der **fünften** Fassung derselben
+Ausnahme nach `.ident`, `.stacks td .ident`, `.section-head h2` und
+`.cell-value`. `min-width: 0` gehört nicht dazu, und das ist gemessen und nicht
+geraten: Die Beizeile liegt in `.title-block` und ist kein Flexkind.
+
+**Und die Gegenprobe hat sich zuerst selbst betrogen.** Der 900-px-Block
+lieferte 0 — er stand als Flexkind im Seitenkopf, wo `width` zur Basis wird und
+schrumpft. Mit `min-width` und `flex: none` sind es 510. Ohne diesen Zwischenfall
+hätte die 0 der echten Messung nichts bedeutet.
+
+> **Eine Messung, die nie etwas anderes als Null liefern kann, ist keine.**
+
+Wächter: `EngineLabelTest` (wer die Angabe bekommt, zeigt sie — und alle in
+derselben Form) und `MobileLayoutTest::test_the_subline_can_break`.

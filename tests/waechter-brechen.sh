@@ -8105,6 +8105,71 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CellWhitespaceTest passed
 
 echo
+echo "── MobileLayoutTest: die Beizeile bricht nicht ──"
+#
+# Gemessen beim Einbau der Systemmarke: Ein Datenbankname von 61 Zeichen schob
+# das Dokument bei 390px um 59px aus dem Bild. Die Marke war nicht die Ursache —
+# mit und ohne sie waren es dieselben 59px.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = """  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}"""
+neu = """  color: var(--text-muted);
+}"""
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Beizeile ohne Umbruch" &&
+pruefe "Beizeile ohne Umbruch" \
+  MobileLayoutTest::test_the_subline_can_break failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest passed
+
+echo
+echo "── EngineLabelTest: die Konsole verschweigt ihr System ──"
+#
+# Der Zustand, in dem die Konsole ihren ersten Tag verbracht hat: engine_label
+# im Payload, nirgends gezeigt. Beide Systeme sehen gleich aus, und der Name
+# verraet sein System nur dem, der die Praefixregeln kennt.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+alt = """      {{ props.database.name }}
+      <Badge kind="neutral">{{ props.database.engine_label }}</Badge>"""
+neu = """      {{ props.database.name }}"""
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "System verschwiegen" &&
+pruefe "System verschwiegen" \
+  EngineLabelTest::test_a_page_that_gets_the_engine_shows_it failed
+wiederherstellen
+
+echo
+echo "── EngineLabelTest: das System als nackter Text ──"
+#
+# Dieselbe Angabe in zwei Formen ist eine Fassung zu viel — der Grund, aus dem
+# es Badge.vue ueberhaupt gibt.
+vorher_datei resources/js/Pages/Databases/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<Badge kind="neutral">{{ row.engine_label }}</Badge>'
+neu = '{{ row.engine_label }}'
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Index.vue "System ohne Marke" &&
+pruefe "System ohne Marke" \
+  EngineLabelTest::test_all_of_them_show_it_the_same_way failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" EngineLabelTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

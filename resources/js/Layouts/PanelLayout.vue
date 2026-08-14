@@ -330,7 +330,21 @@ onBeforeUnmount(() => {
         <div class="title-block">
           <p v-if="$slots.breadcrumb" class="breadcrumb"><slot name="breadcrumb" /></p>
           <h1>{{ title }}</h1>
-          <p v-if="subline" class="subline">{{ subline }}</p>
+          <!--
+            **Die Beizeile nimmt auch Bausteine und nicht nur Text.**
+            `subline` als Zeichenkette trägt jede Seite dieses Panels; die
+            Konsole aus P5c braucht daneben die Marke ihres Datenbanksystems
+            (`docs/48 §6`), und eine zweite Auskunft in einer Zeichenkette wäre
+            ein `MariaDB` ohne Marke — dieselbe Angabe in zwei Formen, je
+            nachdem, welche Fläche man gerade ansieht.
+
+            **Das Prop bleibt und wird nicht ersetzt.** Sechzehn Seiten geben
+            hier Text, und ein Slot für alle wäre sechzehnmal dieselbe
+            Zeremonie für eine Zeile. Der Slot gewinnt nur, wo es ihn gibt.
+          -->
+          <p v-if="$slots.subline || subline" class="subline">
+            <slot name="subline">{{ subline }}</slot>
+          </p>
         </div>
 
         <!--

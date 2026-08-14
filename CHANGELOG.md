@@ -12164,3 +12164,64 @@ von Hand, in vier Richtungen, alle vier rot.
 
 > **Eine Regel, deren Bruch das Werkzeug selbst beschädigt, wird von Hand
 > gebrochen — und dass sie es wurde, gehört aufgeschrieben.**
+
+### Die vier Fixes am lebenden Objekt
+
+Gegen `v0.5.3-rc.14` auf `cloudsrv24`, beide Systeme, im Browser — die Runde, die
+`v0.4.0-rc.4` einen Tag zu spät bekommen hat.
+
+Fünf Werte in `probe` ergeben jetzt fünf verschiedene Bilder, wo drei davon
+identische 25×16 Pixel waren. Die Beizeile sagt „geschätzt 1 Zeile" auf `lang` und
+daneben „geschätzt 59.787.129 Zeilen" auf `gross` — **erst die Mehrzahl belegt,
+dass die Entscheidung am Wert hängt und nicht am getauschten Wort.** Nach der
+Zeitüberschreitung steht die Kopfzeile weiter auf `id ↑` mit den alten Zeilen,
+auf beiden Servern und mit deren eigenen Meldungen. Und über der roten Meldung
+steht nichts Grünes mehr.
+
+**§3.10 war im ersten Anlauf nicht belegt**, und das ist der Befund dieser Runde.
+Auf PostgreSQL zeigte das Bild die rote Meldung ohne grüne darüber — nur war dort
+nie erfolgreich gespeichert worden, es gab also gar keine, die hätte weichen
+können. Zum dritten Mal in diesem Lauf dieselbe Lücke.
+
+> **Ein Beleg, der aus einer Abwesenheit besteht, braucht daneben den Fall, in
+> dem etwas da war.**
+
+Der Fix sitzt in `report()` und kennt die Engine nicht; ein anderes Verhalten
+wäre technisch nicht möglich gewesen. Das ist trotzdem keine Messung.
+
+### Die Konsole nennt jetzt ihr Datenbanksystem
+
+Ein Wunsch des Betreibers nach der Abnahme. Beide Systeme haben dieselbe Fläche,
+dieselben Griffe und dieselben Meldungen — welches man gerade bedient, verriet nur
+der Datenbankname, und den liest richtig, wer die Präfixregeln kennt.
+
+**`engine_label` stand seit dem ersten Tag im Payload und wurde nie angezeigt.**
+Liste und Detailseite zeigten es längst, jede als neutrale Marke; die Konsole war
+die dritte Fläche und die einzige ohne.
+
+> **Eine Angabe, die eine Seite bekommt und nicht zeigt, ist entweder überflüssig
+> oder vergessen — und man sieht ihr nicht an, welches von beidem.**
+
+Die Marke ist deshalb dieselbe Form wie an den anderen beiden Stellen und keine
+neue. `PanelLayout` hat einen Slot für die Beizeile bekommen; das Prop bleibt,
+weil sechzehn Seiten dort Text geben.
+
+**Und die Messung dazu hat einen Fehler gefunden, den die Marke nicht verursacht
+hat.** Bei 390 px schob ein Datenbankname von 61 Zeichen das Dokument um 59 px aus
+dem Bild — mit und ohne Marke dieselben 59 px. Der Name darf 64 Zeichen lang sein;
+auf `cloudsrv24` heisst die Datenbank `x1b311d2b6eedc3aa_p5c` und passt.
+
+> **Ein Fehler, den nur ein langer Name auslöst, wartet auf den ersten Kunden, der
+> einen hat.**
+
+`.subline` bricht jetzt um — die fünfte Fassung derselben Ausnahme nach `.ident`,
+`.stacks td .ident`, `.section-head h2` und `.cell-value`. Ein `min-width: 0`
+gehört nicht dazu, und das ist gemessen: Die Beizeile ist kein Flexkind.
+
+**Die Gegenprobe hat sich dabei zuerst selbst betrogen.** Der 900-px-Block lieferte
+0, weil er als Flexkind im Seitenkopf schrumpfte; mit `min-width` und `flex: none`
+sind es 510. Ohne diesen Zwischenfall hätte die 0 der echten Messung nichts
+bedeutet.
+
+Wächter: `EngineLabelTest` und `MobileLayoutTest::test_the_subline_can_break`,
+mit drei Eingriffen im Bruchskript.

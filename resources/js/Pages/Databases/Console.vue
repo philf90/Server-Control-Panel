@@ -19,6 +19,7 @@ import { Head, Link } from '@inertiajs/vue3'
 import { computed, onMounted, ref } from 'vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Section from '../../Components/Section.vue'
+import Badge from '../../Components/Badge.vue'
 import { announce, dismiss } from '../../Composables/useAnnounce'
 import { counted } from '../../Composables/useCounted'
 import { ask, ConsoleError } from '../../Composables/useConsole'
@@ -1075,7 +1076,23 @@ onMounted(loadTables)
 <template>
   <Head :title="`Konsole — ${props.database.label}`" />
 
-  <PanelLayout title="Konsole" :subline="props.database.name">
+  <PanelLayout title="Konsole">
+    <!--
+      **Der Name allein sagt nicht, wo man ist.** Beide Systeme haben dieselbe
+      Fläche, dieselben Griffe und dieselben Meldungen — und einen Namen, der
+      sein System nicht verrät: `p1130_p5c` ist MariaDB, `x1b3…_p5c` ist
+      PostgreSQL, und das weiss nur, wer die Präfixregeln kennt. Wer zwei
+      Konsolen offen hat, verwechselt sie.
+
+      Die Form ist die, die Liste und Detailseite schon benutzen — eine
+      neutrale Marke mit dem Namen des Systems. Eine dritte Fassung derselben
+      Angabe wäre der Fehler, den `Badge.vue` selbst behoben hat.
+    -->
+    <template #subline>
+      {{ props.database.name }}
+      <Badge kind="neutral">{{ props.database.engine_label }}</Badge>
+    </template>
+
     <template #breadcrumb>
       <Link href="/databases" class="link">Datenbanken</Link> ·
       <Link :href="`/databases/${props.database.id}`" class="link">

@@ -300,6 +300,34 @@ dasselbe).
 **Die Fixture musste dafür wachsen**, und das ist ein Befund über den Lauf —
 §3.12.
 
+**Die Gegenprobe im Panel**, beide Systeme: In der Zeilentabelle steht der bei
+512 Zeichen abgeschnittene Wert mit dem Weg zum Rest, in der Zelleinzelsicht der
+ganze:
+
+```
+Spalte langtext · 5 KB          (beide Systeme, und ohne „gekürzt")
+```
+
+**Das fehlende Wort ist der Beleg und nicht die Länge.** „gekürzt" steht in
+dieser Kopfzeile genau dann, wenn auch die Einzelsicht abschneiden musste
+(`Console::CELL_FULL_LIMIT` im Agenten); die Grösse misst der Agent in der
+Datenbank und nicht an dem, was er ausliefert. Das Panel sagt hier also selbst,
+dass der Wert vollständig ist — niemand muss Zeichen zählen. Ohne diese Ansicht
+wäre eine gekürzte Zelle eine Sackgasse.
+
+Zwei Nebenbeobachtungen aus denselben zwei Bildern:
+
+**Dieselbe Tabelle heisst auf beiden Seiten verschieden gross** — `32 KB`
+(PostgreSQL) gegen `16 KB` (MariaDB) —, und die Zeilenzahl steht nur auf einer
+Seite: PostgreSQL sagt `Zeilenzahl unbekannt`, MariaDB `geschätzt 1 Zeilen`.
+Beides ist richtig. `reltuples` steht bei einer nie analysierten Tabelle auf
+`-1`, und das Panel schreibt dafür **„unbekannt" und nicht „0"** — die Regel aus
+`Console.vue:657` im Betrieb, an genau der Stelle, an der eine `0` sich wie
+„leer" gelesen hätte.
+
+Und `geschätzt 1 Zeilen` ist §3.3 zum zweiten Mal, jetzt an einer anderen
+Tabelle.
+
 ## 3. Die Befunde
 
 ### 3.1 Zwei Abonnements sind nicht zwei Mandanten — **Aufbau**
@@ -476,7 +504,6 @@ Lauf seine Gegenprobe.
 
 ## 4. Was noch offen ist
 
-- **Punkt 8b** — die Zelleinzelsicht als Gegenprobe (die Messung steht)
 - **Punkt 9** — der Rückbau lässt nichts liegen
 - **Punkt 2b** — der Baum mit der Tastatur
 

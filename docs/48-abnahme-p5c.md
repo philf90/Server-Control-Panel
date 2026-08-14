@@ -146,6 +146,38 @@ Eine liegengebliebene Zugangsdatei enthält ein Passwort und wäre ein Rest, den
 Kriterium 1 dem Sinne nach genauso ausschliesst wie eine Rolle. Sie steht nicht
 im Plan, weil beim Schreiben niemand an sie gedacht hat.
 
+### Punkt 6 — ohne Schlüssel · Kriterium 5 · **erfüllt**
+
+Drei Tabellen, beide Systeme, alle sechs Fälle richtig:
+
+| Tabelle | Beizeile | Ändern | Grund |
+|---|---|---|---|
+| `ohne_schluessel` | `Tabelle … · ohne Schlüssel` | **fehlt** | „…keinen **Primärschlüssel** und keinen eindeutigen Index über Spalten ohne NULL…" |
+| `nur_unique` | `Tabelle … · **mit Schlüssel**` | **vorhanden** | — |
+| `umsaetze_je_ort` | `**Sicht** … · ohne Schlüssel`, **keine Grösse** | **fehlt** | „Eine **Sicht** speichert nichts. Geändert wird in den Tabellen, aus denen sie liest." |
+
+Drei Dinge daran, die einzeln durchgerutscht wären:
+
+**Die beiden Gründe sind verschieden.** Bei der Tabelle steht der Schlüssel, bei
+der Sicht steht, dass sie nichts speichert — „leg einen Schlüssel an" wäre dort
+der falsche Rat. `RowKeyTest::test_the_interface_says_why_a_table_is_read_only`
+prüft genau diese zwei Sätze; hier stehen sie am lebenden Objekt.
+
+**Die Sicht bekommt keine Grösse** und heisst „Sicht" statt „Tabelle" — §20.28
+im Betrieb. Der Katalog meldet für eine Sicht `0`, und „0 B" hätte sich wie
+„leer" gelesen statt wie „gibt es nicht".
+
+**Und `nur_unique` ist auf beiden Seiten änderbar**, obwohl der Schlüssel dort
+auf ganz verschiedenen Wegen entsteht: MariaDB befördert den eindeutigen Index
+selbst zum impliziten Primärschlüssel (`COLUMN_KEY = 'PRI'`, der Index heisst
+dabei weiterhin nicht `PRIMARY`), PostgreSQL braucht das Prädikat aus
+`KEY_INDEX`. Zwei Mechanismen, ein Ergebnis — §10 Regel 2 im Betrieb, und die
+Stelle, an der §20.46 einmal einen Widerspruch gefunden hat.
+
+Auch **„Zeile anlegen" fehlt** in beiden nur lesbaren Fällen, nicht nur
+„Ändern" — folgerichtig: Eine Zeile, die man danach nicht eindeutig ansprechen
+kann, sollte gar nicht erst entstehen.
+
 ## 3. Die Befunde
 
 ### 3.1 Zwei Abonnements sind nicht zwei Mandanten — **Aufbau**
@@ -231,7 +263,6 @@ dort nicht gibt — und damit eine Messung an etwas anderem.
 
 ## 4. Was noch offen ist
 
-- **Punkt 6** — ohne Schlüssel (Kriterium 5)
 - **Punkt 7** — genau eine Zeile (Kriterium 6)
 - **Punkt 8 / 8b** — das Protokoll (Kriterium 7) und die unberührte Spalte
 - **Punkt 9** — der Rückbau lässt nichts liegen

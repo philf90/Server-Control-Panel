@@ -691,6 +691,75 @@ Das ist kein Verlust für diese Stufe — der Bestand war ein *Prüfling der
 Bequemlichkeit*, kein Kriterium (`docs/52 §4`, Punkt 7). Es heisst aber, dass
 Punkt 6 seinen Nachbarn selbst mitbringen muss und ihn nicht vorfindet.
 
+## Punkt 6 nachgeholt — mit einem Nachbarn, und damit als Messung
+
+Zwei Abonnements nebeneinander, beide befüllt: `p6-a.invalid` (`p1135`) und
+`p6-b.invalid` (`p1136`). Zurückgebaut wurde **nur `p6-a.invalid`**.
+
+**Der Bestand vor dem Rückbau, und diesmal steht neben der Null etwas anderes:**
+
+```
+31 /tmp/p6-vorher.txt
+39 /tmp/p6-benutzer-vorher.txt
+```
+
+Einunddreissig Zeilen statt einer. Das ist der Unterschied zum ersten Anlauf und
+der ganze Grund, warum der Punkt wiederholt wurde.
+
+**Der Vergleich danach:**
+
+```
+2,16d1
+< /var/www/vhosts/p6-a.invalid
+< /var/www/vhosts/p6-a.invalid/conf
+< /var/www/vhosts/p6-a.invalid/conf/p6-a.invalid.include
+< /var/www/vhosts/p6-a.invalid/httpdocs
+< /var/www/vhosts/p6-a.invalid/httpdocs/DHL-Paketmarke_PAKYEXH9DLYT_837770771.pdf
+< /var/www/vhosts/p6-a.invalid/httpdocs/index.html
+< /var/www/vhosts/p6-a.invalid/httpdocs/sn2info-import-vorlage.xlsx
+< /var/www/vhosts/p6-a.invalid/httpdocs/test
+< /var/www/vhosts/p6-a.invalid/logs
+< /var/www/vhosts/p6-a.invalid/logs/p6-a.invalid
+< /var/www/vhosts/p6-a.invalid/logs/p6-a.invalid/access.log
+< /var/www/vhosts/p6-a.invalid/logs/p6-a.invalid/error.log
+< /var/www/vhosts/p6-a.invalid/mail
+< /var/www/vhosts/p6-a.invalid/.ssh
+< /var/www/vhosts/p6-a.invalid/tmp
+20d19
+< p1135
+```
+
+**Fünfzehn Zeilen weg, alle unterhalb von `p6-a.invalid`. Kein `>` in beiden
+Vergleichen. Genau ein Systembenutzer weniger, von 39.**
+
+Die fünfzehn Zeilen von `p6-b.invalid` stehen unverändert da — nicht als
+Behauptung, sondern als Rest: Von 31 Zeilen sind 16 geblieben, und der `diff`
+nennt keine davon.
+
+| Frage | Antwort |
+|---|---|
+| Ist das Verzeichnis weg? | ja, mit Inhalt |
+| Ist der Systembenutzer weg? | ja, `p1135`, und nur er |
+| **Ist der Nachbar unversehrt?** | **ja — keine Zeile aus `p6-b.invalid` im `diff`** |
+| Ist etwas Neues entstanden? | nein, kein `>` in beiden Vergleichen |
+
+**Das ist das Kriterium dieses Punktes**, und es ist das eine in P6, bei dem ein
+Fehler Daten kostet statt eine Fehlermeldung zu erzeugen. Im Container hat
+derselbe Baumlauf in 5 von 120 Durchgängen Dateien ausserhalb des Abonnements
+zerstört (`docs/50 §3`); `Filesystem::purgeContents()` ist deshalb umgebaut
+worden, und hier läuft der umgebaute Weg gegen einen echten Nachbarn.
+
+### Was der Rückbau mitnimmt und mitnehmen soll
+
+`conf/p6-a.invalid.include` gehört `root` und ist mit weg. Das ist richtig und
+nicht dasselbe wie in Punkt 4: Dort scheitert der **Dateimanager** an `conf/`,
+weil er als `p1135` in der Sandbox läuft. Der Rückbau ist ein anderer Vorgang
+mit einer anderen Berechtigung und läuft als root ausserhalb der Sandbox.
+
+> **Dieselbe Datei, zwei Vorgänge, zwei Antworten — und das ist keine
+> Inkonsistenz, sondern der Unterschied zwischen „der Kunde räumt auf" und „der
+> Betreiber baut zurück".**
+
 ---
 
-*Die Punkte 6 (Nachholung) und 8 folgen. Punkt 7 entfällt.*
+*Punkt 8 folgt. Punkt 7 entfällt.*

@@ -2,6 +2,7 @@
 import { Head, router, useForm } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import CodeEditor from '../../Components/CodeEditor.vue'
+import FormErrors from '../../Components/FormErrors.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 interface Entry {
@@ -65,6 +66,8 @@ function back(): void {
       §20.11` hat gemessen, was ein Bereichstitel mit einem 63 Zeichen langen
       Namen anrichtet: 99px Überlauf bei 390px. Ein Dateiname darf 255.
     -->
+    <FormErrors />
+
     <p class="path-line ident">{{ props.path }}</p>
 
     <p v-if="props.tooLarge" class="notice warn">

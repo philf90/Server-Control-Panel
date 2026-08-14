@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3'
 import { ref } from 'vue'
+import FormErrors from '../../Components/FormErrors.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 interface Entry {
@@ -44,6 +45,8 @@ function suchen(): void {
   <Head :title="`Suche — ${props.subscription.name}`" />
 
   <PanelLayout title="Suche" :subline="props.subscription.name">
+    <FormErrors />
+
     <form class="button-row" @submit.prevent="suchen">
       <label class="field inline">
         <span>Suchbegriff</span>
@@ -57,7 +60,7 @@ function suchen(): void {
     </form>
 
     <p class="quiet">
-      Gesucht unter <span class="ident">{{ props.path }}</span> — {{ props.visited }} Einträge angesehen.
+      Gesucht unter <span class="ident">{{ props.path }}</span> — angesehene Einträge: {{ props.visited }}.
     </p>
 
     <!--

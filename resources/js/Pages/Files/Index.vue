@@ -2,6 +2,8 @@
 import { Head, Link, router, useForm } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import FormErrors from '../../Components/FormErrors.vue'
+import { formatBytes } from '../../bytes'
 
 interface Entry {
   name: string
@@ -64,26 +66,20 @@ function rights(mode: number): string {
 }
 
 /*
- * Grössen in Bytes bis 1024, danach in KB/MB/GB.
+ * Die Grösse kommt aus `bytes.ts` und wird hier nicht gerechnet.
  *
- * Verzeichnisse und Verweise bekommen einen Strich und keine 0: Die Grösse
- * eines Verzeichniseintrags ist eine Zahl über die Verwaltung des Dateisystems
- * und keine über den Inhalt, und 0 würde behaupten, es sei leer.
+ * **Diese Seite hatte ihre eigene Umrechnung, und `SizeUnitTest` hat sie
+ * gefunden.** Der Wächter steht seit dem dritten Abnahmelauf: Liste und
+ * Einzelansicht hatten je eine `size()`-Funktion mit demselben Inhalt, und zwei
+ * Fassungen derselben Regel heissen, dass die eine nachgezogen wird und die
+ * andere nicht.
+ *
+ * Was hier bleibt, ist die Entscheidung, die nur diese Seite treffen kann:
+ * Ein Verzeichnis und ein Verweis haben keine Inhaltsgrösse. „0 B" behauptete,
+ * sie seien leer.
  */
 function size(entry: Entry): string {
-  if (entry.type !== 'file') return '—'
-  if (entry.size < 1024) return `${entry.size} B`
-
-  const units = ['KB', 'MB', 'GB', 'TB']
-  let value = entry.size / 1024
-  let unit = 0
-
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024
-    unit++
-  }
-
-  return `${value.toFixed(1)} ${units[unit]}`
+  return entry.type === 'file' ? formatBytes(entry.size) : '—'
 }
 
 function moment(seconds: number): string {
@@ -209,6 +205,8 @@ function remove(entry: Entry): void {
   <Head :title="`Dateien — ${props.subscription.name}`" />
 
   <PanelLayout title="Dateien" :subline="props.subscription.name">
+    <FormErrors />
+
     <!--
       Die Krümel sind der Baum. `docs/46 §20.11` hat gemessen, was ein langer
       Name in einer Überschrift anrichtet — deshalb steht der Pfad hier als

@@ -1656,7 +1656,12 @@ table.pairs {
  */
 .field textarea.code {
   font-family: var(--font-mono);
-  font-size: var(--text-table);
+
+  /* **Nicht `--text-table`.** Quelltext in 14px liest sich besser, und Safari
+     zoomt beim Fokus in ein Eingabefeld unter 16px in die Seite hinein
+     (`docs/24 §3`) — der Kunde tippt danach in einer Ansicht, die er erst
+     wieder herausziehen muss. `MobileLayoutTest` besteht darauf. */
+  font-size: var(--text-input);
   white-space: pre;
   overflow-x: auto;
   tab-size: 4;

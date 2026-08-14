@@ -12775,3 +12775,73 @@ Wächter: `ArchiveEntryTest` mit sieben Regeln, vier Eingriffe im Bruchskript.
 **Einer der vier Brüche blieb zuerst grün** — an der Schachtelung von
 Anführungszeichen in meinem Skript, nicht am Wächter; direkt ausgeführt beisst
 er. Dasselbe Muster wie schon dreimal in dieser Stufe.
+
+### P6 — acht Befunde der CI, und keinen davon hätte der Container gefunden
+
+Der erste Lauf von `#129` war rot: PHPStan mit fünf Meldungen, die Tests mit
+vierzehn. **Acht verschiedene Wächter haben angeschlagen, und jeder zu Recht.**
+Der Entwicklungscontainer hat kein `vendor/`, also läuft dort weder PHPStan noch
+die volle Suite — das ist die Runde, mit der `CLAUDE.md` rechnet, wenn man
+`app/`, `agent/` oder `tests/` anfasst.
+
+**`SizeUnitTest`** — `Files/Index.vue` hatte seine eigene Byte-Umrechnung.
+`resources/js/bytes.ts` ist die eine Stelle, und der Wächter steht seit dem
+dritten Abnahmelauf genau dafür. Was auf der Seite bleibt, ist die Entscheidung,
+die nur sie treffen kann: Ein Verzeichnis hat keine Inhaltsgrösse, und „0 B"
+behauptete, es sei leer.
+
+**`RemovalPathTest`** — vier Operationen legen etwas ab und heissen nicht nach
+einem Verb. Der Weg zurück ist für alle `files.remove`, und das steht jetzt mit
+Begründung in `WRITES_WITHOUT_VERB`. Der Unterschied zur Lücke aus `docs/35` ist
+genau der: Dort blieb ein privater Schlüssel liegen, den *niemand* entfernen
+konnte, weil es den Griff nicht gab.
+
+**`FormErrorTest`** — beide neuen Seiten schicken Formulare ab und zeigten
+nicht, wenn sie abgewiesen werden. `docs/19 §6` habe ich im Controller zitiert
+und in den Vorlagen nicht eingelöst; ohne `<FormErrors />` steht die einzige
+Meldung am Feld, und nach der Antwort springt die Seite dorthin, wo nichts steht.
+
+**`MobileLayoutTest`** — `.field textarea.code` stand auf `--text-table` (14px).
+Safari zoomt beim Fokus in ein Eingabefeld unter 16px in die Seite hinein
+(`docs/24 §3`); der Kunde tippt danach in einer Ansicht, die er erst wieder
+herausziehen muss. Für Quelltext liest sich 14px besser — das ist der Grund,
+warum die Zeile so entstand, und er trägt nicht.
+
+**`CountedNounTest`** — „{{ visited }} Einträge angesehen" liest sich bei genau
+eins als „1 Einträge". Das Wort steht jetzt vor der Zahl.
+
+**`GuardReachTest`** — `Sandbox.php` nannte einen `SandboxSocketTest`, den es
+nicht gibt. Ich habe im Kommentar einen Wächter versprochen und ihn dann anders
+genannt (`SandboxReachTest::test_the_child_closes_what_it_inherited`).
+
+> **Ein Kommentar, der einen Test nennt, ist eine Zusage — und eine Zusage auf
+> einen Namen, den es nicht gibt, ist die Zeichenkette ohne Bezug, gegen die
+> dieses Projekt seine Wächter baut.**
+
+**`ClassNameTest`, zweimal.** Die Marken der Syntaxhervorhebung standen nicht im
+Vokabular, und die `.cm-*`-Regeln erreichte kein Template. Zwei verschiedene
+Antworten, weil es zwei verschiedene Fälle sind:
+
+- **`cm-*` sind CodeMirrors Namen und nicht unsere.** Sie ins Vokabular dieses
+  Projekts aufzunehmen hiesse zu behaupten, wir hätten sie gewählt — und beim
+  nächsten Update stünden dort Wörter, die niemand mehr braucht. Sie stehen als
+  `FOREIGN_PREFIX` da. Gestaltet werden sie trotzdem hier; das ist Auflage 2.
+- **Erreicht wird beides zur Laufzeit**, aus der `HighlightStyle` heraus, und
+  steht in keinem Template. Sie stehen deshalb in derselben Liste wie
+  `menu-open`, mit dem Hinweis, dass `FrontendDependencyTest` die andere
+  Richtung hält: jede vergebene Marke bekommt in `app.css` eine Farbe.
+
+**Und PHPStan hat zwei Dinge in `tests/sandbox-messen.php` gefunden**, von denen
+das erste mehr ist als eine Formalie: `$rot` und `$stumm` waren `global`, und
+aus der Sicht des Hauptteils blieben beide auf `0` — die Abfragen am Ende waren
+„immer falsch". Der Analysator sah damit genau das, was auch ein Leser sieht.
+
+> **Ein Zustand, dessen Änderung man nicht sieht, ist einer, auf den man sich
+> nicht verlassen kann** — und ein Abnahmeskript, dessen Zählstand verlorengeht,
+> meldet Erfolg.
+
+Das zweite war `FFI::syscall()`, das es statisch nicht gibt: Die Methode
+entsteht erst zur Laufzeit aus der `cdef`-Zeile. Ein `@phpstan-ignore` stünde
+als erstes im ganzen Repo; stattdessen steht der Aufruf jetzt einmal als
+`tausche()` da — was zweimal gebraucht wird, wird einmal benannt, und `316`,
+`-100` und `2` haben endlich ihre Namen.

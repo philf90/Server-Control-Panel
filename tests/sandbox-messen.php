@@ -45,18 +45,55 @@ const NUTZER = 'p9998';
 $wurzel = SubscriptionProvision::VHOSTS.'/'.ABO;
 $aussen = '/tmp/sandbox-messung-aussen';
 
-$rot = 0;
-$stumm = 0;
+/**
+ * Die Zählstände des Laufs.
+ *
+ * **Sie standen zuerst als `global`, und PHPStan hat das zu Recht gemeldet:**
+ * Aus der Sicht des Hauptteils blieben beide auf `0`, weil ihre Veränderung in
+ * Funktionen versteckt war — die Abfragen am Ende waren „immer falsch". Der
+ * Analysator sah damit genau das, was auch ein Leser sieht: einen Wert, der
+ * sich ändert, ohne dass die Stelle es zeigt.
+ *
+ * > **Ein Zustand, dessen Änderung man nicht sieht, ist einer, auf den man sich
+ * > nicht verlassen kann** — und ein Abnahmeskript, dessen Zählstand
+ * > verlorengeht, meldet Erfolg.
+ */
+final class Lauf
+{
+    /** Wie viele Befunde es gibt — jeder davon heisst: die Grenze hält nicht. */
+    public static int $rot = 0;
+
+    /** Wie viele Messungen ohne Gegenprobe blieben — kein Befund, aber auch kein Beleg. */
+    public static int $stumm = 0;
+}
+
+/**
+ * Verzeichnis und Verweis atomar tauschen — `renameat2(…, RENAME_EXCHANGE)`.
+ *
+ * **Zweimal gebraucht, deshalb einmal benannt.** Die Zahlen sind sonst
+ * unlesbar: `316` ist der Systemaufruf auf x86_64, `-100` ist `AT_FDCWD`, `2`
+ * ist `RENAME_EXCHANGE`. Der Tausch lässt den Namen nie verschwinden — genau
+ * daran scheitert jede Prüfung, die zwischen Nachsehen und Zugriff liegt.
+ *
+ * **`call_user_func` und nicht `$ffi->syscall(...)`**, und das ist kein
+ * Kunstgriff um den Analysator herum: `FFI` hat keine Methode `syscall`, sie
+ * entsteht erst zur Laufzeit aus der `cdef`-Zeile. PHPStan meldet den direkten
+ * Aufruf als `method.notFound` — zu Recht, denn statisch *gibt* es sie nicht.
+ * Ein `@phpstan-ignore` stünde hier als erstes im ganzen Repo; ein benannter
+ * Aufruf sagt stattdessen, was passiert.
+ */
+function tausche(object $ffi, string $eins, string $zwei): void
+{
+    call_user_func([$ffi, 'syscall'], 316, -100, $eins, -100, $zwei, 2);
+}
 
 /** Ein Befund mit seiner Gegenprobe. */
 function befund(string $was, bool $scharfHaelt, bool $stumpfTrifft, string $zahlen = ''): void
 {
-    global $rot, $stumm;
-
     if (! $stumpfTrifft) {
         // **Der wichtigste Zweig dieser Datei.** Trifft die Gegenprobe nicht,
         // ist nicht die Abwehr belegt — dann hat dieser Lauf nichts gemessen.
-        $stumm++;
+        Lauf::$stumm++;
         printf("  %-46s OHNE MESSUNG  %s\n", $was, $zahlen);
         printf("  %-46s   die Gegenprobe trifft nicht: der Angreifer ist zu langsam,\n", '');
         printf("  %-46s   nicht die Abwehr gut.\n", '');
@@ -65,7 +102,7 @@ function befund(string $was, bool $scharfHaelt, bool $stumpfTrifft, string $zahl
     }
 
     if (! $scharfHaelt) {
-        $rot++;
+        Lauf::$rot++;
         printf("  %-46s DURCHLAESSIG  %s\n", $was, $zahlen);
 
         return;
@@ -76,10 +113,8 @@ function befund(string $was, bool $scharfHaelt, bool $stumpfTrifft, string $zahl
 
 function meldung(string $was, bool $ok, string $zusatz = ''): void
 {
-    global $rot;
-
     if (! $ok) {
-        $rot++;
+        Lauf::$rot++;
     }
 
     printf("  %-46s %s %s\n", $was, $ok ? 'ja  ' : 'NEIN', $zusatz);
@@ -229,7 +264,7 @@ $angreifer = static function () use ($dir, $tausch, $atomar, $aussen): array {
                 $ffi = FFI::cdef('long syscall(long number, ...);', 'libc.so.6');
 
                 for (; ;) {
-                    $ffi->syscall(316, -100, $dir, -100, $tausch, 2);
+                    tausche($ffi, $dir, $tausch);
                 }
             }
 
@@ -352,7 +387,7 @@ $durchgang = static function (string $art) use ($wurzel, $aussen, $atomar, $stop
                 $ffi = FFI::cdef('long syscall(long number, ...);', 'libc.so.6');
 
                 for (; ;) {
-                    $ffi->syscall(316, -100, $wurzel.'/httpdocs/ziel', -100, $wurzel.'/httpdocs/.tausch', 2);
+                    tausche($ffi, $wurzel.'/httpdocs/ziel', $wurzel.'/httpdocs/.tausch');
                 }
             }
 
@@ -437,17 +472,17 @@ exec('groupdel '.NUTZER.' 2>&1');
 
 echo "\n";
 
-if ($stumm > 0) {
-    printf("%d Messung(en) ohne Gegenprobe — darüber ist nichts gesagt.\n", $stumm);
+if (Lauf::$stumm > 0) {
+    printf("%d Messung(en) ohne Gegenprobe — darüber ist nichts gesagt.\n", Lauf::$stumm);
 }
 
-if ($rot > 0) {
-    printf("%d Befund(e). Die Grenze hält auf dieser Maschine nicht.\n\n", $rot);
+if (Lauf::$rot > 0) {
+    printf("%d Befund(e). Die Grenze hält auf dieser Maschine nicht.\n\n", Lauf::$rot);
 
     exit(1);
 }
 
-if ($stumm > 0) {
+if (Lauf::$stumm > 0) {
     echo "Kein Befund, aber der Lauf ist unvollständig.\n\n";
 
     exit(3);

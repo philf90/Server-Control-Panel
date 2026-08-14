@@ -542,16 +542,16 @@ Dazu wachsen mit: `AgentOperationReachTest`, `RouteAuthorizationTest`,
 | 3 | Datei-Operationen (`files.*`) | der Agent kann, was P6 braucht |
 | 4 | Datenmodell, Dienstschicht, Policies | Panel-Seite, alle drei Ebenen |
 | 5 | Dateimanager ohne Editor | Baum, Liste, Hochladen, Rechte |
-| **5b** | **Ein Weg zum Dateimanager, und ein Wächter dafür** | **aus Befund 6 — siehe unten** |
-| **5c** | **Die Rechte geführt einstellen** | **aus Befund 8 — §8.2** |
-| **5d** | **Der Abstand, und die Regel dahinter** | **aus Befund 7 — siehe unten** |
-| **6d** | **Der Editor: Breite und Hervorhebung** | **aus Befund 9 — §8.1** |
+| **5b** | Ein Weg zum Dateimanager, und ein Wächter dafür | **gebaut** — `LinkReachTest` |
+| **5c** | Die Rechte geführt einstellen | **gebaut** — `PermissionEditor`, §8.2 |
+| **5d** | Der Abstand, und die Regel dahinter | **gebaut** — `BlockSpacingTest` leitet ab |
+| **6d** | Der Editor: Breite und Hervorhebung | **gebaut** — §8.1 |
 | 6 | Editor (CodeMirror 6) | Entscheidung 1, mit ihren drei Auflagen |
 | 7 | Entpacken, Packen, Suche | über die Warteschlange |
 | 8 | SFTP: Block, Schlüssel, Prüfung der Kette | Zugang steht |
 | 9 | Cron: Datei, Wrapper, Aufzeichnung, Zeitplan | Zeitsteuerung steht |
 | **6b** | **Zwischenabnahme auf `cloudsrv24`** | **vorgezogen — `docs/52`** |
-| **6c** | **Die Gruppe, unter der abgelegt wird** | **aus Befund 3 — siehe unten** |
+| **6c** | Die Gruppe, unter der abgelegt wird | **gebaut** — setgid, `InheritedGroupTest` |
 | 10 | ~~Zwischenabnahme~~ | vorgezogen auf 6b |
 | 11 | **Der Angriffsdurchgang**, scharf und stumpf | §4 |
 | 12 | Bilderrunde: beide Themes, 390 px, mit Messung | `docs/49 §6` Punkt 2 |

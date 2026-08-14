@@ -12904,3 +12904,230 @@ weggenommen. `git status` war sauber, und die Änderung war fort.
 
 > **Ein Rückweg, den man zum Prüfen selbst benutzt, nimmt auch die Prüfung
 > zurück.**
+
+### P6 — die Zwischenabnahme auf `cloudsrv24`: neun Befunde, keinen davon ein Test
+
+**Gefahren am 14. August 2026 gegen `v0.6.0-rc.1`**, nach dem Lauf aus
+`docs/52`; das Protokoll ist `docs/53`. Acht Punkte, und die Frage, wegen der er
+vorgezogen wurde, ist beantwortet: **Die Grenze aus `docs/51 §5` hält auf einem
+echten Server.** Alle sieben Abschnitte des Messskripts, jede Gegenprobe
+getroffen.
+
+**Der Befund, der in keiner Erwartung stand**: Das Zeitfenster des Angreifers
+ist auf dem Produktivsystem fast dreimal so weit wie im Entwicklungscontainer —
+2175 von 30 000 gegen 759 von 30 000. Die Richtung war erwartet, die
+Grössenordnung nicht.
+
+> **Eine Messung, die man vom Entwicklungsrechner auf den Zielserver überträgt,
+> überträgt auch ihre Grössenordnung — und die stimmt nicht.**
+
+**Drei der neun Befunde betrafen den Lauf und nicht den Prüfling**, wie in
+`docs/45`, `47` und `48`. Zwei davon waren *bekannt und aufgeschrieben*:
+`srvpanel tinker` startet ohne `HOME=/tmp` nicht (psysh scheitert am Anlegen von
+`.config/psysh`, mit einer blossen `User Notice` und Rückgabewert 0), und
+`Subscription::first()` ist ohne `Tenancy::allowAll()` schlicht `null`. Beides
+steht seit `docs/47 §2` und `docs/48 §3.8` da und stand in `docs/52` trotzdem
+falsch.
+
+> **Eine Falle, die in zwei Protokollen steht, steht deshalb noch in keinem
+> Lauf.**
+
+Dazu zwei Punkte, die gar nichts gemessen haben, bis sie wiederholt wurden. Ein
+`chmod 0644` auf eine Datei, die `files.write` ohnehin mit `0644` anlegt — der
+Aufruf stellte den Zustand her, in dem die Datei schon war, und wäre
+`files.chmod` eine leere Methode, sähe der Lauf genauso aus. Und ein
+Rückbau-Vergleich über eine Bestandsaufnahme mit **einer** Zeile: Der `diff` war
+leer, weil nichts da war, das hätte verschwinden können.
+
+> **Ein Griff, der den Zustand herstellt, in dem die Sache schon ist, meldet
+> Erfolg und misst nichts.**
+
+Wiederholt mit zwei Abonnements nebeneinander, beide befüllt, eines
+zurückgebaut: **31 Zeilen vorher, 15 weg, alle unterhalb des zurückgebauten
+Abonnements, kein `>` in beiden Vergleichen, genau ein Systembenutzer weniger
+von 39.** Das ist das Kriterium dieses Punktes — nicht „ist das Abonnement weg",
+sondern „ist der Nachbar unversehrt".
+
+**Und ein Verdacht, der sich als Rechenfehler herausstellte.** Zwischen zwei
+Messungen war ein Abonnement fort. Die Warteschlange und das Protokoll haben
+zwei getrennte, reguläre Rückbauten gezeigt, 21 Sekunden auseinander — der
+Verdacht stand auf dem Vergleich einer Shell-Zeit (Ortszeit) mit einer
+Tabellenzeit (UTC).
+
+> **Zwei Uhren in einem Protokoll sind eine Fehlerquelle und keine Auskunft.**
+
+Sechs Befunde betrafen das Panel. Fünf davon sind in den Schritten 5b bis 6d
+behoben; der sechste — dass ein fehlgeschlagener rekursiver Rückbau nicht atomar
+ist — steht benannt offen, weil er keine Grenze verletzt.
+
+### P6 Schritt 5b — der Dateimanager war von nirgendwo aus erreichbar
+
+**Gefunden durch eine Frage des Betreibers und nicht durch einen Test:** „Wo
+finde ich den Dateimanager?" Zwölf Routen mit ihrem `can:`, drei Seiten unter
+`resources/js/Pages/Files/`, eine Policy mit zwei Methoden, zwölf Operationen im
+Agenten — und **kein einziges Template nannte `/files`**. Erreichbar war er nur
+über die Adresszeile.
+
+> **Eine Seite, auf die nichts zeigt, ist nicht ausgeliefert — sie ist nur
+> vorhanden.**
+
+Kein vorhandener Wächter konnte das sehen, weil alle die andere Richtung prüfen:
+`RouteAuthorizationTest` (jede Route trägt `can:`), `PolicyReachTest` (jede
+Policy-Methode wird benutzt), `InertiaPagesTest` (jede Seite existiert als
+Datei). `AbilityReachTest` kommt am nächsten dran und sagt genau das Falsche.
+
+> **Ein Wächter, der prüft, dass nichts Verbotenes gezeigt wird, hat über das
+> Fehlende nichts gesagt.**
+
+`Subscriptions/Show.vue` bekommt den Knopf, der Controller die Antwort
+`browseFiles` im `can`-Payload. Dazu **`LinkReachTest`** — und dessen erster Wurf
+hat den eigenen Bruch überlebt: Er fragte, ob *irgendein* Template die Adresse
+nennt, und `Files/Index.vue` nennt sie selbst, für den Sprung ins
+Unterverzeichnis. Liste zeigt auf Editor, Editor zurück auf Liste, Suche auf
+Editor.
+
+> **Drei Seiten, die aufeinander zeigen, sind eine Insel ohne Anleger.**
+
+Gefragt wird jetzt nach Erreichbarkeit: Wurzeln sind die Dateien, die keine
+Seite sind — Layouts und Komponenten, denn die stehen überall.
+
+### P6 Schritt 5d — der Abstand fehlte zum sechsten Mal, und die Liste war schuld
+
+Zwischen dem Formular zum Hochladen und den Brotkrumen darunter stand nichts.
+Die Ursache ist ihre eigene Anklage: `.button-row + .sections` hängt an einem
+bestimmten Nachfolger, und der heisst hier `.crumbs`. Direkt darüber im
+Stylesheet steht der Kommentar „**Und beim fünften Mal war es eine Meldung**".
+
+**`BlockSpacingTest` gab es längst** — er ist der fünfte Anlauf und hatte die
+Frage schon richtig gestellt („endet der eine bündig, fängt der andere bündig
+an?"). Er blieb trotzdem grün: Seine zwei Listen wurden **von Hand gepflegt**,
+und `.crumbs` kam in P6 dazu, ohne eingetragen zu werden.
+
+> **Eine Liste, die von Hand gepflegt wird, ist beim nächsten Zuwachs
+> unvollständig — auch dann, wenn sie schon die Verbesserung einer schlechteren
+> Liste war.**
+
+Beide Listen werden jetzt aus `app.css` **abgeleitet**: bündig heisst kein Rand
+an der berührenden Kante. Padding zählt dabei nicht — es trennt zwei Kästen
+nicht, ausser der Kasten ist unsichtbar; dafür gibt es `HAS_OWN_AIR` mit
+nachgerechneter Begründung.
+
+Damit kamen 30 Fugen zum Vorschein, die vorher nicht im Blick lagen. Sie stehen
+als `OPEN_SEAMS` mit einer Sperrklinke in **beide** Richtungen: eine neue ist
+rot, eine geschlossene auch.
+
+> **Ein Loch, das man zählt, ist kein Loch mehr — es ist eine Zahl, die kleiner
+> werden kann.**
+
+Zwei eigene Fehler beim Umbau, beide vom Wächter selbst gemeldet. Die
+Sammelregel liess `covered()` fünf Nachbarschaften verlieren, weil ein Komma in
+einer `:is()`-Klammer etwas anderes trennt als eines daneben. Und 118 von 148
+Paaren liegen **nebeneinander** statt untereinander — die Richtung des
+Elternteils sortiert sie aus, und ein spaltenweiser Flexkasten mit `gap` trennt
+seine Kinder ohnehin schon.
+
+Gemessen im gebauten Stylesheet: 0px ohne die Regel, 24px bei 390 und 26px bei
+1440 mit ihr, Überlauf 0, Gegenprobe 400px.
+
+### P6 Schritt 6c — die Gruppe erbt jetzt vom Verzeichnis und nicht vom Erzeuger
+
+Auf `cloudsrv24` standen zwei Dateien nebeneinander im selben `httpdocs`:
+`index.html` als `1004:33` (`www-data`) und eine über den Dateimanager angelegte
+als `1004:1004`. **`httpdocs` gehört `%u:www-data`, und der Webserver kommt über
+die Gruppe hinein** — die zweite Datei war für ihn nur über das **Weltbit**
+lesbar.
+
+Das ging gut, bis jemand tut, wozu das Panel ausdrücklich einlädt: Er setzt
+`0640` — dieselbe Angabe, die die Willkommensseite daneben trägt und die dort
+funktioniert — und bekommt einen 403.
+
+> **Zwei Wege, die dieselbe Datei anlegen, müssen sie gleich anlegen — sonst ist
+> die Rechteanzeige eine Auskunft über die Hälfte der Wahrheit.**
+
+Das setgid-Bit steht **einmal** am Verzeichnis statt als `chgrp` in zwölf
+Operationen und in SFTP noch einmal. Es gilt für jeden, der darin etwas anlegt,
+auch für den Weg, den es noch nicht gibt, und neue Unterverzeichnisse erben es
+mit. Rechte vergibt es keine.
+
+Alle Verzeichnisse des Kunden tragen es, auch die, bei denen es heute nichts
+ändert — eine Regel für „die mit einer fremden Gruppe" müsste bei jedem Zuwachs
+des Schemas neu beurteilt werden. Für `.ssh` ist nachgesehen statt geraten:
+OpenSSH prüft in `safe_path()` nur `st_mode & 022`, und `02000` fällt nicht
+darunter.
+
+**Zwei Funde beim Bauen.** `WebSiteApply` nannte `'www-data'` und `0750` selbst,
+also stand die Angabe zweimal da — das Bit wäre dort nicht angekommen. Und es
+setzte Eigentümer, Gruppe und Rechte nur, wenn das Verzeichnis **neu entstand**:
+
+> **Eine Regel, die nur beim Anlegen gilt, erreicht den Bestand nie.**
+
+Dazu eine zweite Fassung von `Filesystem::directory()` in
+`SubscriptionProvision`, Zeile für Zeile dieselbe bis auf den Kommentar.
+
+### P6 Schritt 5c — die Rechte werden geführt eingestellt
+
+Der `window.prompt` nach einer Oktalzahl ist fort. Drei Dinge waren daran
+falsch, und das dritte ist das schwerste: ein Browserdialog ohne jede Verbindung
+zum Gestaltungssystem, eine Zahl, die man auswendig können muss, und keine
+Auskunft darüber, was sie bewirkt.
+
+> **Eine Eingabe, die eine Zahl verlangt, die man auswendig können muss, ist
+> keine Bedienung, sondern eine Prüfung.**
+
+An seiner Stelle steht ein Bereich auf der Seite — kein Dialog, denn dieses
+Panel hat keine Modalen. Neun Kästchen (mit `.toggle`, derselben Klasse wie
+jedes andere Kästchen des Panels), die Zahl und die Buchstaben mitlaufend
+daneben, zwei Vorlagen — und darunter der Satz, um den es eigentlich geht.
+
+Er unterscheidet Datei und Verzeichnis, weil dasselbe Bit dort etwas anderes
+heisst, und warnt vor dem häufigsten selbstgemachten Fehler: **Ein Ordner ohne
+`x` sperrt seinen Eigentümer aus, und das sieht aus wie ein Serverfehler.** Der
+Satz über den Webserver hängt am Gruppenbit und nicht mehr am Weltbit — seit
+Schritt 6c ist das die richtige Frage.
+
+Welche Verzeichnisse ausgeliefert werden, sagt der **Server**: `httpdocs` ist
+der DocumentRoot der Hauptdomain, jede weitere heisst wie ihre Domain.
+
+> **Ein Satz, der an einer Stelle stimmt und an der nächsten nicht, ist
+> schlechter als kein Satz.**
+
+`setuid`, `setgid` und das Sticky-Bit werden nicht angeboten.
+
+**Und im Bild bei 390px rutschte „Ausführen" unter die Beschriftung** und las
+sich als eigene Gruppe. Die Messung war dabei `0px`.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+### P6 Schritt 6d — der Editor bekommt Breite und Unterscheidung
+
+**Die Breite.** `.field` steht auf `max-width: 540px`, und das ist für ein
+Formular richtig. Quelltext ist kein Fliesstext.
+
+> **Eine Vorgabe, die für Lesbarkeit gemacht ist, gilt nicht für Text, den man
+> nicht liest, sondern bearbeitet.**
+
+Nicht mit `none`: Gemessen wären das auf einem 27-Zoll-Schirm 2528px, und
+jenseits von 160 Zeichen gewinnt man nichts mehr, man verliert nur den Weg
+zurück an den Zeilenanfang. Gemessen 540 → 1360 bei 1440 und 2560, unverändert
+358 bei 390. Die Höhe kommt vom Sichtfenster statt von `rows="24"` — das ist auf
+einem grossen Schirm dasselbe wie auf dem Telefon.
+
+**Die Hervorhebung.** Vier Paare sahen gleich aus: `propertyName` lag auf
+derselben Marke wie `tagName` (in CSS sah `color` aus wie `red`, in JSON der
+Schlüssel wie die Zeichenkette daneben), `variableName` war gar nicht vergeben,
+`punctuation` lag auf `operator`. Drei neue Marken, **keine davon eine neue
+Farbe** — sie teilen ihren Ton und unterscheiden sich im Gewicht.
+
+Dazu zwei Dinge, die keine Farbe sind und mehr helfen als jede weitere: die
+zusammengehörige Klammer und die Suche im Dokument. Die zweite ist kein Komfort
+— CodeMirror zeichnet lange Dateien nicht vollständig, also durchsucht das
+Strg+F des Browsers nur das Sichtbare.
+
+> **Eine Suche, die nur das Sichtbare durchsucht, meldet ihre Lücke nicht — sie
+> meldet „nicht gefunden".**
+
+**Zwei Eingriffe in `waechter-brechen.sh` griffen nicht mehr, beide gemeldet von
+`BreakScriptTest`:** einer zeigte auf eine Zeile, die durch Schritt 5d zur
+Sammelregel geworden ist, der andere fasste zwei Dateien in einem Block an und
+wurde dadurch der falschen zugeordnet.

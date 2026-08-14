@@ -70,6 +70,7 @@ const props = defineProps<{
     addDomain: boolean
     viewCustomer: boolean
     manageDns: boolean
+    browseFiles: boolean
   }
 
   /**
@@ -204,6 +205,25 @@ function remove(): void {
         class="button primary"
         :href="`/subscriptions/${props.subscription.id}/edit`"
       >Bearbeiten</Link>
+
+      <!--
+        **Der einzige Weg zum Dateimanager, und er hat gefehlt.**
+
+        Bis zur Zwischenabnahme am 14. August 2026 zeigte kein Template auf
+        `/files` — weder diese Seite noch die Navigation. Elf Routen, drei
+        Seiten und eine Policy waren gebaut und über die Adresszeile
+        erreichbar (`docs/53`, Befund 6).
+
+        Er steht hier und nicht in der Navigation: Der Dateimanager gehört zu
+        *einem* Abonnement, und ein Menüpunkt bräuchte davor eine Auswahl, die
+        es an dieser Stelle schon gibt. Derselbe Grund, aus dem die Domains
+        eines Abonnements hier stehen und nicht doppelt im Menü.
+      -->
+      <Link
+        v-if="props.can.browseFiles && props.subscription.status !== 'provisioning'"
+        class="button"
+        :href="`/subscriptions/${props.subscription.id}/files`"
+      >Dateien</Link>
       <button
         v-if="props.can.suspend && props.subscription.status === 'active'"
         type="button"

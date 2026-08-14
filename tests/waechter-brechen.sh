@@ -8606,6 +8606,44 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ArchiveEntryTest passed
 
 echo
+echo "── LinkReachTest: der Weg zu einer Seite faellt weg ──"
+#
+# Der Anlass ist Befund 6 aus `docs/53`: Der Dateimanager war vollstaendig
+# gebaut, und kein Template zeigte darauf. Erreichbar war er nur ueber die
+# Adresszeile.
+vorher_datei resources/js/Pages/Subscriptions/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('/files`"', '/dateien`"', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "Weg zum Dateimanager entfernt" &&
+pruefe "Weg zum Dateimanager entfernt" \
+  LinkReachTest::test_every_page_is_reachable_from_a_template failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LinkReachTest passed
+
+echo
+echo "── LinkReachTest: eine Route zieht um, der Link bleibt stehen ──"
+#
+# Der wiederkehrende Fehler dieses Projekts: eine Zeichenkette, die auf etwas
+# verweist, das umgezogen ist. Hier faellt er auf, statt eine Seite still
+# unerreichbar zu machen.
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("Route::get('/audit'", "Route::get('/protokoll'", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "Route umgezogen" &&
+pruefe "Route umgezogen, Link steht still" \
+  LinkReachTest::test_every_page_is_reachable_from_a_template failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LinkReachTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

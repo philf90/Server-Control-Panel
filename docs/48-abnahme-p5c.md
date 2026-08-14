@@ -369,6 +369,52 @@ Beides ist richtig. `reltuples` steht bei einer nie analysierten Tabelle auf
 Und `geschätzt 1 Zeilen` ist §3.3 zum zweiten Mal, jetzt an einer anderen
 Tabelle.
 
+### Punkt 9 — der Rückbau lässt nichts liegen · **(a) und (b) gefahren**
+
+**(a) Vor dem Rückbau**, nach allen Konsolensitzungen des Laufs — sieben
+geöffnete Konsolen über zwölf Stunden, dazu die zwanzig aus Punkt 8 (d):
+
+```
+mariadb 10.11.14 — nutzbar · Horcht auf 127.0.0.1 — Fernzugriff aus.
+postgresql 16.14 — nutzbar · horcht auf localhost — Fernzugriff aus.
+Im Bestand des Panels:
+  MariaDB      3 Datenbank(en), 3 Zugang/Zugänge, 0 Sicherung(en)
+  PostgreSQL   3 Datenbank(en), 3 Zugang/Zugänge, 0 Sicherung(en)
+Keine Zeile ohne Abonnement.
+```
+
+**Keine Zeile über befristete Zugänge, auf keinem der beiden Systeme.** Die
+Konsole hat nichts angelegt, was sie überlebt.
+
+**Der Blick gehört vor den Rückbau**, und das war die Korrektur am Plan: Der
+Rückbau entfernt alles mit dem Präfix des Abonnements, also auch einen Zugang aus
+einer abgebrochenen Konsolensitzung. Wer erst danach nachsieht, misst den
+Rückbau.
+
+**(b) Die Gegenprobe**, denn die Entwarnung besteht hier aus **Schweigen**:
+`reportStale()` gibt gar nichts aus, wenn nichts da ist — das ist noch weniger
+als eine Null. Ein Rest von Hand gelegt, auf beiden Systemen:
+
+```
+1 befristete(r) Zugang/Zugänge blieben in MariaDB stehen:
+  p1130_c00000000@localhost
+1 befristete(r) Zugang/Zugänge blieben in PostgreSQL stehen:
+  x1b311d2b6eedc3aa_c00000000
+Sie gehen mit `srvpanel db --prune`.
+```
+
+Beide beim Namen, mit dem Weg zum Aufräumen. Nach `DROP USER` und `DROP ROLE`
+kehrt das Schweigen zurück — zweimal nachgesehen.
+
+**Die beiden Reste entstehen auf verschiedenen Wegen**, und das gehört zum
+Beleg: Der MariaDB-Zugang brauchte einen zurückgesetzten
+`password_last_changed`, sonst gilt er als frisch und wird zu Recht
+verschwiegen; die PostgreSQL-Rolle nicht, weil die Messung dort ohne offene
+Verbindung sofort auf die Karenz zurückfällt. Zwei Mechanismen, ein Ergebnis.
+
+> **Eine Entwarnung, die aus Schweigen besteht, ist von einem kaputten Messgerät
+> nicht zu unterscheiden.**
+
 ## 3. Die Befunde
 
 ### 3.1 Zwei Abonnements sind nicht zwei Mandanten — **Aufbau**
@@ -545,7 +591,7 @@ Lauf seine Gegenprobe.
 
 ## 4. Was noch offen ist
 
-- **Punkt 9** — der Rückbau lässt nichts liegen
+- **Punkt 9 (c)** — der Rückbau von Abo 1130 selbst; (a) und (b) stehen
 
 Und die vier offenen Befunde §3.2, §3.3, §3.4 und §3.10 werden nach `docs/46 §15`
 **gesammelt und am Ende behoben** — Weg 3, entschieden vom Betreiber: Ein Update

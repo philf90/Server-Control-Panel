@@ -348,11 +348,33 @@ HOME=/tmp srvpanel tinker --execute='
 Gruppe ist weg — und **nichts ausserhalb ist angefasst**. Vorher und nachher:
 
 ```bash
-find /var/www/vhosts -maxdepth 1 | sort > /tmp/vorher.txt
-# … Rückbau …
-find /var/www/vhosts -maxdepth 1 | sort > /tmp/nachher.txt
-diff /tmp/vorher.txt /tmp/nachher.txt      # genau eine Zeile weniger
+find /var/www/vhosts | sort > /tmp/vorher.txt
+getent passwd | cut -d: -f1 | sort > /tmp/benutzer-vorher.txt
+wc -l /tmp/vorher.txt /tmp/benutzer-vorher.txt     # KEINE der beiden Zahlen darf klein sein
+# … Wegwerf-Abo anlegen, befüllen, zurückbauen …
+find /var/www/vhosts | sort > /tmp/nachher.txt
+getent passwd | cut -d: -f1 | sort > /tmp/benutzer-nachher.txt
+diff /tmp/vorher.txt /tmp/nachher.txt
+diff /tmp/benutzer-vorher.txt /tmp/benutzer-nachher.txt
 ```
+
+**Beide `diff` müssen leer sein — und die `wc`-Zeile davor entscheidet, ob das
+etwas heisst.** Ein leerer `diff` über eine Bestandsaufnahme, die nur den Namen
+des Elternverzeichnisses enthält, ist keine Aussage über den Rückbau, sondern
+eine über den Bestand.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+**Deshalb gehören mindestens zwei Abonnements nebeneinander**, beide mit Inhalt,
+und eines bleibt stehen. Die Frage dieses Punktes lautet nicht „ist das
+Abonnement weg" — das sieht man —, sondern **„ist der Nachbar unversehrt"**, und
+die braucht einen Nachbarn. Ohne `-maxdepth` steht auch sein Inhalt in der
+Aufnahme; ein Rückbau, der eine einzelne Datei nebenan mitnimmt, fiele bei
+`-maxdepth 1` oder `2` nicht auf.
+
+Im Container hat derselbe Baumlauf in 5 von 120 Durchgängen Dateien ausserhalb
+des Abonnements zerstört (`docs/50 §3`). Genau dagegen misst dieser Punkt.
 
 ### Punkt 7 — der P5c-Bestand
 

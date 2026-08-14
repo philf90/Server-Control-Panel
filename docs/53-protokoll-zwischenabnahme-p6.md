@@ -559,6 +559,82 @@ und genau deshalb braucht es die Liste statt einer stillen Duldung.
 Schritt 5b in `docs/51` und ist vor der Bilderrunde fällig — eine Seite, die
 niemand aufrufen kann, lässt sich auch nicht fotografieren.
 
+## Punkt 6 — der Rückbau, halb gemessen
+
+Gefahren über den Browser und damit über den ganzen Weg: Route, Policy,
+Warteschlange, Agent, Lebenslauf. Wegwerf-Abonnement `p6-weg.invalid`, über den
+Dateimanager befüllt, danach zurückgebaut.
+
+### Die Hälfte, die gemessen hat
+
+```
+37 /tmp/p6-benutzer-vorher.txt
+diff /tmp/p6-benutzer-vorher.txt /tmp/p6-benutzer-nachher.txt   → leer
+```
+
+**Siebenunddreissig Systembenutzer vorher, siebenunddreissig nachher, und keine
+Zeile verschoben.** Der Benutzer von `p6-weg.invalid` ist zwischendurch
+entstanden und wieder verschwunden, und kein anderer hat sich dabei verändert.
+Das ist eine Aussage, weil neben der Null etwas anderes als Null steht: 37
+Zeilen, die gleich geblieben sind.
+
+### Die Hälfte, die nichts gemessen hat
+
+```
+1 /tmp/p6-vorher.txt
+diff /tmp/p6-vorher.txt /tmp/p6-nachher.txt   → leer
+```
+
+**Der Vorher-Stand hat eine einzige Zeile** — `/var/www/vhosts` selbst.
+`find -maxdepth 2` hat darunter nichts gefunden; `test.invalid` war zu diesem
+Zeitpunkt bereits fort, was das gleichzeitige `rmdir: failed to remove
+'…/test.invalid/leer-und-root': No such file or directory` bestätigt.
+
+Damit vergleicht der `diff` zwei Dateien, die beide nur den Namen des
+Elternverzeichnisses enthalten. **Er ist leer, weil nichts da war, das hätte
+verschwinden können** — nicht, weil der Rückbau sauber gearbeitet hat.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+Derselbe Satz wie bei `konsole = 0` in `docs/47` und bei der Entprellung in
+`docs/48` — hier zum dritten Mal, und diesmal an der Stelle, an der der Fehler
+Daten kostet. Die Frage dieses Punktes lautet: *Greift der Rückbau in etwas
+hinein, das ihm nicht gehört?* Zum Beantworten braucht es etwas, in das
+hineingegriffen werden könnte.
+
+**Was dieser Lauf trotzdem belegt:** Das Verzeichnis des zurückgebauten
+Abonnements ist weg, und der Systembenutzer ist weg. Das Kriterium „nichts
+ausserhalb ist angefasst" ist **nicht** belegt.
+
+**Nachzuholen** mit mindestens zwei Abonnements nebeneinander, von denen eines
+stehenbleibt — und mit Inhalt in beiden, weil ein leeres Nachbarverzeichnis
+denselben Fehler noch einmal machte.
+
+## Punkt 8 (nebenbei) — der Dateimanager auf dem Telefon
+
+Der Browserdurchgang zu Punkt 6 hat den Dateimanager bei 390 px gezeigt, und
+zwei Dinge stehen damit fest, die bis dahin nur gebaut waren:
+
+- **Der Weg vom Formular bis in die Sandbox trägt.** Ein Hochladen über die
+  Fläche — mehrteilige Anfrage, Zwischenlager, Agent, `chroot`, Rechteabgabe —
+  endet mit „Die Datei ist hochgeladen." und der Datei in der Liste. Bis hierher
+  war dieser Weg nur über `tinker` gemessen.
+- **Die Liste bricht bei 390 px in Kärtchen um**, mit Brotkrumen
+  („Abo-Wurzel / httpdocs"), „… eine Ebene höher" und den drei Griffen je
+  Eintrag. Ein Name von 34 Zeichen (`EA_3_Program_Terms-End_Users.pdf`) passt
+  ohne Überlauf.
+
+**Gemessen ist das nicht** — `scrollWidth - clientWidth` stand nicht daneben,
+und ohne die Zahl ist ein Bild eine Vermutung mit Bild.
+
+> **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
+> Keines von beiden ersetzt das andere.** (`docs/46 §20.11`)
+
+**Und Befund 3 ist auf dem Bild zu sehen**: Die Rechte stehen auf `rw-r--r--`.
+Das Weltbit ist der einzige Grund, aus dem der Webserver diese Datei lesen kann
+— die Gruppe ist die des Abonnements und nicht `www-data`.
+
 ---
 
-*Die Punkte 6 bis 8 folgen, während sie gefahren werden.*
+*Die Punkte 6 (Nachholung) und 7 folgen.*

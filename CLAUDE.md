@@ -195,7 +195,7 @@ lesbare Katalogsichten, die Namen führen, und eine Absperrung, die bei
 > für jeden lesbar" stimmte — und war trotzdem die falsche Frage, weil er einen
 > von elf Kanälen nannte und den Preis der Antwort verschwieg.
 
-Ausgeliefert wird `v0.5.3-rc.13`.
+Ausgeliefert wird `v0.5.3-rc.14`.
 
 **Und der Bildschirmfoto-Durchgang zu Schritt 4 hat zwei Fehler gefunden, die
 grün waren** (`docs/46 §20.11`). Der erste schob die Seite bei 390px um **99px**
@@ -250,9 +250,10 @@ Der Grund steht in `docs/24 §5`: `.stacks` ist für ein **Verzeichnis** gedacht
 das man Zeile für Zeile liest. Eine Tabellenliste sucht man nach *einem* Namen
 ab, und dafür ist das Kärtchen die falsche Form.
 
-**P5c ist abgenommen** — am 14. August 2026 auf `cloudsrv24` gegen
-`v0.5.3-rc.13`, **alle sieben Kriterien aus `docs/46 §4`**, beide Systeme. Das
-Protokoll ist **`docs/48`**. `docs/46` ist der Plan: Tabellen und Struktur
+**P5c ist abgeschlossen** — abgenommen am 14. August 2026 auf `cloudsrv24` gegen
+`v0.5.3-rc.13`, **alle sieben Kriterien aus `docs/46 §4`**, beide Systeme; die
+vier Befunde am Panel behoben und gegen `v0.5.3-rc.14` im Browser nachgeprüft
+(`docs/48 §4`). Das Protokoll ist **`docs/48`**. `docs/46` ist der Plan: Tabellen und Struktur
 durchsehen, Zeilen ansehen, filtern, blättern und ändern.
 
 **Der Lauf hat zwölf Befunde gebracht und keinen davon ein Test** — **sieben über

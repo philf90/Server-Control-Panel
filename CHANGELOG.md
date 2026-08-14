@@ -12164,3 +12164,27 @@ von Hand, in vier Richtungen, alle vier rot.
 
 > **Eine Regel, deren Bruch das Werkzeug selbst beschädigt, wird von Hand
 > gebrochen — und dass sie es wurde, gehört aufgeschrieben.**
+
+### Die vier Fixes am lebenden Objekt
+
+Gegen `v0.5.3-rc.14` auf `cloudsrv24`, beide Systeme, im Browser — die Runde, die
+`v0.4.0-rc.4` einen Tag zu spät bekommen hat.
+
+Fünf Werte in `probe` ergeben jetzt fünf verschiedene Bilder, wo drei davon
+identische 25×16 Pixel waren. Die Beizeile sagt „geschätzt 1 Zeile" auf `lang` und
+daneben „geschätzt 59.787.129 Zeilen" auf `gross` — **erst die Mehrzahl belegt,
+dass die Entscheidung am Wert hängt und nicht am getauschten Wort.** Nach der
+Zeitüberschreitung steht die Kopfzeile weiter auf `id ↑` mit den alten Zeilen,
+auf beiden Servern und mit deren eigenen Meldungen. Und über der roten Meldung
+steht nichts Grünes mehr.
+
+**§3.10 war im ersten Anlauf nicht belegt**, und das ist der Befund dieser Runde.
+Auf PostgreSQL zeigte das Bild die rote Meldung ohne grüne darüber — nur war dort
+nie erfolgreich gespeichert worden, es gab also gar keine, die hätte weichen
+können. Zum dritten Mal in diesem Lauf dieselbe Lücke.
+
+> **Ein Beleg, der aus einer Abwesenheit besteht, braucht daneben den Fall, in
+> dem etwas da war.**
+
+Der Fix sitzt in `report()` und kennt die Engine nicht; ein anderes Verhalten
+wäre technisch nicht möglich gewesen. Das ist trotzdem keine Messung.

@@ -760,6 +760,132 @@ mit einer anderen Berechtigung und läuft als root ausserhalb der Sandbox.
 > Inkonsistenz, sondern der Unterschied zwischen „der Kunde räumt auf" und „der
 > Betreiber baut zurück".**
 
+## Punkt 8 — der Blick, kein Kriterium
+
+**Und er hat vier Befunde gebracht, keinen davon ein Test.** Wie in `docs/46
+§20.11`: Die Zahl war grün, und die Ansicht war trotzdem nicht fertig.
+
+### Die Messung, und ihre Gegenprobe
+
+```
+document.documentElement.scrollWidth - document.documentElement.clientWidth  → 0
+Gegenprobe (900px-Block):                                                    → 510
+echt:                                                                        → 0
+```
+
+**Die Null ist eine Messung**, weil daneben eine 510 steht. Ohne die Gegenprobe
+wäre sie nur eine Zahl gewesen, die auch dann dasteht, wenn nichts gemessen wird.
+
+### CodeMirror läuft — zum ersten Mal in einem Browser
+
+Bis heute war nur der Rückfall auf das `textarea` gesehen worden. Auf `0.6.0-rc.1`
+steht der Editor da: Zeilennummern, hervorgehobene aktive Zeile, eingefärbte
+Tags, Zeichenketten, Zahlen und Eigenschaftsnamen. **Die drei Auflagen aus
+`docs/51 §3` halten** — das Bündel wird nachgeladen, die Farben kommen aus
+`app.css`, und der Rückweg steht darunter.
+
+> **Eine Bibliothek, die nie in einem Browser lief, ist eine Abhängigkeit ohne
+> Beleg.** Sie hat jetzt einen.
+
+## Befund 7 — der Abstand fehlt, und zwar zum sechsten Mal
+
+**Zwischen dem Formular („Datei hochladen", „Verzeichnis anlegen") und der Liste
+darunter steht nichts.** Gemeldet vom Betreiber, auf dem Bild sichtbar, von
+keinem Test bemerkt — der Überlauf ist ja 0.
+
+Die Ursache steht in `app.css` und ist ihre eigene Anklage:
+
+```css
+.button-row + .sections { margin-top: var(--block-gap); }
+```
+
+**Ein Abstand, der an einem bestimmten Nachfolger hängt.** Hier ist der
+Nachfolger `.crumbs`, und `.crumbs` trägt nur `margin-bottom`. Also kein
+Abstand.
+
+Danebensteht im selben Stylesheet der Kommentar „**Und beim fünften Mal war es
+eine Meldung.**" Das hier ist das sechste Mal, und es ist wieder eine Meldung
+und kein Test.
+
+> **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit der
+> nächsten Ergänzung.** (`docs/49 §6`, wörtlich)
+
+**Und `.button-row + .crumbs` wäre der siebte Fall und nicht die Lösung.** Die
+Regel muss sagen, was ein Block ist, und nicht, welcher Block auf welchen folgt
+— ein Abstand zwischen Geschwistern im Inhaltsbereich (`> * + *`) statt einer
+Aufzählung von Paaren. Dann kostet die nächste Ergänzung nichts.
+
+Der Wächter dazu ist der eigentliche Punkt: **Jede `X + Y`-Regel in `app.css`
+ist eine Wette darauf, dass niemand ein `Z` dazwischenschiebt.** Ein Test, der
+solche Regeln zählt und ihre Zahl nicht wachsen lässt, hätte hier gewarnt.
+
+## Befund 8 — die Rechte werden über `window.prompt` gesetzt
+
+```js
+const wanted = window.prompt(`Rechte für „${entry.name}" (oktal)`, …)
+```
+
+**Drei Dinge sind daran falsch, und das dritte ist das schwerste.**
+
+1. **Es ist ein Browserdialog.** Auf dem Bild steht ein schwarzer Kasten mit
+   runden Systemknöpfen mitten in einem hellen Panel — er nimmt keine Farbe aus
+   `app.css`, keine Schrift, keinen Abstand. Ein Hexwert in einer Komponente ist
+   hier ein Fehler und keine Ausnahme; ein Dialog, der das Gestaltungssystem
+   komplett umgeht, ist derselbe Fehler eine Stufe grösser.
+2. **Es verlangt Oktal.** `644` ist eine Zahl, die man wissen muss. Wer sie
+   nicht weiss, rät — und `777` ist die Zahl, die man rät.
+3. **Es erklärt nichts.** Genau die Auskunft, die der Kunde braucht — *was
+   passiert, wenn ich das tue* —, steht nirgends. Und wegen Befund 3 ist sie
+   hier nicht einmal offensichtlich: Ob der Webserver eine Datei ausliefern
+   kann, hängt derzeit am **Weltbit**, nicht am Gruppenbit.
+
+> **Eine Eingabe, die eine Zahl verlangt, die man auswendig können muss, ist
+> keine Bedienung, sondern eine Prüfung.**
+
+Der Vorschlag steht in `docs/51` als Schritt 5c.
+
+## Befund 9 — der Editor ist zu schmal, und die Hervorhebung zu grob
+
+**Beides Beobachtungen des Betreibers, kein Defekt** — aber beide gehören
+festgehalten, weil sie sonst als „gebaut" durchgehen.
+
+- **Zu schmal.** Am Desktop steht der Editor in der Breite eines Formulars,
+  während daneben zwei Drittel des Fensters leer bleiben. Eine Seite, deren
+  einziger Inhalt ein Texteditor ist, ist kein Formular; Zeilenlängen von 100
+  Zeichen sind in Quelltext normal und brechen hier.
+- **Zu grob.** Acht Marken decken Schlüsselwort, Zeichenkette, Kommentar, Zahl,
+  Name, Tag, Operator und Ungültiges ab. Nicht unterschieden werden
+  Attributwert und Zeichenkette, Klammer und Operator, CSS-Eigenschaft und
+  CSS-Wert, PHP-Variable und Bezeichner.
+
 ---
 
-*Punkt 8 folgt. Punkt 7 entfällt.*
+## Der Stand nach dem Lauf
+
+| Punkt | Ergebnis |
+|---|---|
+| 1 — die Grenze, gemessen | **hält**, alle sieben Abschnitte, jede Gegenprobe getroffen |
+| 2 — die Plattform | `disable_functions` leer, PHP 8.4.24 |
+| 3 — die acht Operationen | alle, als `p1132` und nicht als root |
+| 4 — was scheitern muss | sechs von sechs, und nach der Nachholung aus dem richtigen Grund |
+| 5 — der Upload | Prüfsumme identisch über 64 MiB |
+| 6 — der Rückbau | **der Nachbar ist unversehrt** |
+| 7 — der P5c-Bestand | entfällt, mit zurückgebaut |
+| 8 — der Blick | kein Kriterium; vier Befunde |
+
+**Neun Befunde, und keinen davon ein Test.** Drei betrafen den Lauf selbst
+(Befunde 1, 2 und die beiden nicht gemessenen Punkte 4 und 6), sechs das Panel.
+Dasselbe Verhältnis wie in `docs/45`, `47` und `48`.
+
+**Die Grenze aus `docs/51 §5` hält auf einem echten Server** — das war der
+Grund, diesen Lauf vorzuziehen, und er ist beantwortet. Die Schritte 7 bis 9
+können darauf bauen.
+
+**Was der Lauf nicht beantwortet hat**, steht unverändert offen: Die vierzehn
+PHP-Funktionen sind auf **einer** von vier Zielplattformen belegt. `cloudsrv24`
+ist Ubuntu 24.04 mit PHP 8.4, also dieselbe Plattform wie der
+Entwicklungscontainer. Debian 12 (PHP 8.2), Debian 13 und Ubuntu 22.04 (PHP 8.1)
+sind weiter Annahme.
+
+> **Eine Messung, die einmal jemand von Hand macht, ist ein Datum. Eine, die die
+> CI macht, ist eine Zusage.** (`CLAUDE.md`)

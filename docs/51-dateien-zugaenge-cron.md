@@ -309,6 +309,114 @@ CodeMirror 6 (Entscheidung 1), und drei Auflagen dazu:
    welcher Begründung — sonst ist die zweite Abhängigkeit eine Frage der
    Gewohnheit und keine Entscheidung.
 
+**Nachtrag vom 14. August, aus Befund 9 der Zwischenabnahme** — der erste Blick
+auf den laufenden Editor. Zwei Sachen sind kein Defekt und trotzdem nicht
+fertig, und beide gehen als Schritt **6d**:
+
+**Die Breite.** Der Editor steht am Desktop in der Breite eines Formulars,
+während zwei Drittel des Fensters leer bleiben. Das ist die Vorgabe der
+Inhaltsspalte, und sie ist für Formulare richtig: Eine Zeile Fliesstext über
+120 Zeichen liest sich schlecht. **Quelltext ist kein Fliesstext.** Zeilen von
+100 Zeichen sind dort normal, und eine Seite, deren einziger Inhalt ein Editor
+ist, ist kein Formular.
+
+> **Eine Vorgabe, die für Lesbarkeit gemacht ist, gilt nicht für Text, den man
+> nicht liest, sondern bearbeitet.**
+
+Die Seite bekommt die volle Breite und der Editor eine Höhe, die sich am
+Sichtfenster orientiert statt an einer Zeilenzahl — ein `rows="24"` ist auf
+einem 27-Zoll-Schirm dasselbe wie auf einem Telefon, und das kann nicht beides
+richtig sein.
+
+**Die Hervorhebung.** Acht Marken sind der kleinste Satz, der überhaupt etwas
+zeigt. Nicht unterschieden werden bisher:
+
+| gleich eingefärbt | gehört getrennt |
+|---|---|
+| `class="x"` und `"x"` | Attributwert gegen Zeichenkette |
+| `(` und `+` | Klammer gegen Operator |
+| `color` und `red` | CSS-Eigenschaft gegen CSS-Wert |
+| `$name` und `name` | PHP-Variable gegen Bezeichner |
+
+Dazu gehören zwei Dinge, die keine Farbe sind und mehr helfen als jede weitere:
+**die zusammengehörige Klammer** und **die Suche im Dokument**. Wer eine
+`wp-config.php` öffnet, sucht darin.
+
+**Und jede neue Marke wird gerechnet, nicht geschätzt** — 4,5:1 gegen den
+Editorgrund, in beiden Themes. Eine Hervorhebung, die im dunklen Theme
+verschwindet, ist schlechter als keine: Sie behauptet, etwas markiert zu haben.
+
+### 8.2 Die Rechte — geführt statt geraten
+
+**Aus Befund 8 der Zwischenabnahme**, gemeldet vom Betreiber am 14. August.
+Bisher fragt ein `window.prompt` nach einer Oktalzahl. Das geht aus drei
+Gründen nicht, und der dritte ist der schwerste: Es ist ein Browserdialog ohne
+Bezug zum Gestaltungssystem, es verlangt eine Zahl, die man auswendig können
+muss, und es erklärt nicht, was sie bewirkt.
+
+> **Eine Eingabe, die eine Zahl verlangt, die man auswendig können muss, ist
+> keine Bedienung, sondern eine Prüfung.**
+
+**Der Ersatz ist ein Bereich auf der Seite und kein Dialog.** Dieses Panel hat
+keine Modalen, und es soll auch für diesen einen Fall keine bekommen — eine
+zweite Bauform für Formulare ist eine zweite Fassung der Gestaltung.
+
+**Das Raster.** Drei Zeilen, drei Spalten, neun Kästchen:
+
+|  | Lesen | Schreiben | Ausführen |
+|---|---|---|---|
+| **Eigentümer** (`p1132`) | ☑ | ☑ | ☐ |
+| **Gruppe** | ☑ | ☐ | ☐ |
+| **Andere** | ☑ | ☐ | ☐ |
+
+Darunter, mitlaufend und nicht auf Knopfdruck: **`644` · `rw-r--r--`**. Beide
+Schreibweisen, weil die eine in jeder Anleitung im Netz steht und die andere in
+jedem `ls -l`. Wer die Zahl kennt, darf sie auch direkt eintippen — das Feld ist
+mit den Kästchen verbunden, in beide Richtungen. **Es ist der zweite Weg und
+nicht der erste.**
+
+**Der Satz darunter ist der eigentliche Punkt.** Er sagt in gewöhnlichem
+Deutsch, was die Einstellung für *diesen* Eintrag bedeutet:
+
+> Der Eigentümer darf lesen und ändern. Alle anderen dürfen nur lesen.
+> Der Webserver kann diese Datei ausliefern.
+
+Und er unterscheidet Datei von Verzeichnis, weil dasselbe Bit dort etwas anderes
+heisst:
+
+| Bit | bei einer Datei | bei einem Verzeichnis |
+|---|---|---|
+| `x` | ausführbar (ein Skript) | **betretbar** — ohne es sieht man den Inhalt nicht |
+| `r` | Inhalt lesbar | Namen auflistbar |
+| `w` | Inhalt änderbar | Einträge anlegen und entfernen |
+
+**Ein Verzeichnis ohne `x` ist der häufigste selbstgemachte Fehler**, und er
+sieht aus wie ein Serverfehler. Wer `755` auf `644` setzt, sperrt sich aus
+seinem eigenen Ordner aus.
+
+**Drei Vorlagen** decken ab, was Kunden tatsächlich brauchen, mit ihrem Grund
+danebengeschrieben statt nur ihrer Zahl:
+
+- **Übliche Datei (`644`)** — der Webserver liest, sonst niemand ändert.
+- **Übliches Verzeichnis (`755`)** — betretbar, Inhalt sichtbar.
+- **Nur für mich (`600` / `700`)** — Zugangsdaten, Schlüssel, Sicherungen.
+
+**Was nicht angeboten wird**, und zwar ausdrücklich: `setuid`, `setgid` und das
+Sticky-Bit. Sie erscheinen in keinem der drei Sätze oben, ihre Wirkung lässt
+sich in einer Zeile nicht ehrlich erklären, und ein `setuid` auf eine
+Kundendatei ist nichts, wozu eine Oberfläche einladen soll. Wer sie braucht,
+hat SFTP.
+
+**Und eine Abhängigkeit von Schritt 6c**: Der Satz „Der Webserver kann diese
+Datei ausliefern" ist heute nur wegen des **Weltbits** wahr (Befund 3) — die
+Gruppe einer Datei aus dem Dateimanager ist die des Abonnements und nicht
+`www-data`. Setzt 6c das gerade, ändert sich die Bedingung von „Andere: Lesen"
+auf „Gruppe: Lesen".
+
+**Der Satz wird deshalb an einer Stelle gebildet und nicht an zweien.** Eine
+Fassung im Panel und eine im Kopf des Lesers wäre schon eine zu viel; zwei im
+Code wären die Wiederholung des Fehlers, den dieses Projekt am häufigsten macht.
+
 ---
 
 ## 9. SFTP
@@ -435,6 +543,9 @@ Dazu wachsen mit: `AgentOperationReachTest`, `RouteAuthorizationTest`,
 | 4 | Datenmodell, Dienstschicht, Policies | Panel-Seite, alle drei Ebenen |
 | 5 | Dateimanager ohne Editor | Baum, Liste, Hochladen, Rechte |
 | **5b** | **Ein Weg zum Dateimanager, und ein Wächter dafür** | **aus Befund 6 — siehe unten** |
+| **5c** | **Die Rechte geführt einstellen** | **aus Befund 8 — §8.2** |
+| **5d** | **Der Abstand, und die Regel dahinter** | **aus Befund 7 — siehe unten** |
+| **6d** | **Der Editor: Breite und Hervorhebung** | **aus Befund 9 — §8.1** |
 | 6 | Editor (CodeMirror 6) | Entscheidung 1, mit ihren drei Auflagen |
 | 7 | Entpacken, Packen, Suche | über die Warteschlange |
 | 8 | SFTP: Block, Schlüssel, Prüfung der Kette | Zugang steht |
@@ -479,6 +590,32 @@ angesteuert), und deshalb braucht es die Liste statt einer stillen Duldung.
 
 Der Schritt gehört **vor die Bilderrunde**: Eine Seite, die niemand aufrufen
 kann, lässt sich auch nicht fotografieren.
+
+**Schritt 5d ist am 14. August dazugekommen**, aus Befund 7 — und er ist das
+sechste Mal derselbe Fehler. Zwischen dem Formular und der Liste darunter fehlt
+der Abstand, weil die Regel dafür an einem bestimmten Nachfolger hängt:
+
+```css
+.button-row + .sections { margin-top: var(--block-gap); }
+```
+
+Der Nachfolger heisst hier `.crumbs`, also greift sie nicht. Im selben
+Stylesheet steht darüber der Kommentar „**Und beim fünften Mal war es eine
+Meldung**" — es war wieder eine.
+
+> **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit der
+> nächsten Ergänzung.** (`docs/49 §6`)
+
+**`.button-row + .crumbs` wäre der siebte Fall und nicht die Behebung.** Die
+Regel muss sagen, was ein Block ist, statt welcher Block auf welchen folgt: ein
+Abstand zwischen Geschwistern im Inhaltsbereich (`> * + *`), einmal, und die
+nächste Ergänzung kostet nichts. Der Umbau nimmt die bestehenden Paarregeln mit
+— sie stehen sonst doppelt und addieren sich.
+
+Der Wächter dazu ist der Punkt, an dem dieser Schritt hängt: **Jede
+`X + Y`-Regel ist eine Wette darauf, dass niemand ein `Z` dazwischenschiebt.**
+Ein Test, der sie zählt und ihre Zahl nicht wachsen lässt, hätte sechsmal
+gewarnt.
 
 **Schritt 6c ist am 14. August dazugekommen**, aus Befund 3 der Zwischenabnahme
 (`docs/53`). `httpdocs` gehört `%u:www-data 0750` — der Webserver kommt über die

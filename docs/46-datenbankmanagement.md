@@ -1930,10 +1930,51 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #      Zelle `langtext` öffnen  → 5000 Zeichen, ungekürzt.
 
 # 9  DER RÜCKBAU LÄSST NICHTS LIEGEN
-#    Abo A zurückbauen.
-#      srvpanel db   → „Nichts liegengeblieben."
 #    Die Konsole legt nichts an, was sie überlebt — dieser Punkt belegt es,
-#    statt es anzunehmen.
+#    statt es anzunehmen. Er läuft in DREI Teilen, und die Reihenfolge ist der
+#    Punkt.
+#
+#    (a) VOR DEM RÜCKBAU, nach allen Konsolensitzungen des Laufs:
+#          srvpanel db
+#        erwartet: KEINE Zeile über befristete Zugänge — weder für MariaDB
+#        noch für PostgreSQL.
+#
+#        HIER STAND NUR DER RÜCKBAU, UND DAS IST DIE FALSCHE REIHENFOLGE. Der
+#        Rückbau entfernt alles mit dem Präfix des Abonnements, also auch einen
+#        Zugang, der aus einer abgebrochenen Konsolensitzung liegengeblieben
+#        wäre. Wer erst danach nachsieht, misst den Rückbau und nicht die
+#        Konsole.
+#
+#        > Ein Rückbau, der alles mitnimmt, verdeckt, was vorher liegengeblieben
+#        > war.
+#
+#    (b) DIE GEGENPROBE, denn hier ist die Entwarnung SCHWEIGEN und nicht
+#        einmal eine Null: `reportStale()` gibt nichts aus, wenn nichts da ist.
+#        Ein Rest wird von Hand gelegt, auf beiden Systemen, und muss auftauchen:
+#          MariaDB     CREATE USER '<präfix>_c00000000'@'localhost';
+#                      dazu `password_last_changed` auf über eine Stunde zurück-
+#                      setzen (`DbServerInfo::GRACE_SECONDS`), sonst gilt er als
+#                      frisch und wird zu Recht verschwiegen.
+#          PostgreSQL  CREATE ROLE <präfix>_c00000000;
+#                      ohne offene Verbindung fällt die Messung sofort auf die
+#                      Karenz zurück (`PgServerInfo::staleRoles()`) — kein
+#                      Zeitstempel nötig.
+#        erwartet: `srvpanel db` nennt beide beim Namen. Danach von Hand
+#        entfernen und die Meldung wieder verschwinden sehen.
+#
+#        > Eine Entwarnung, die aus Schweigen besteht, ist von einem kaputten
+#        > Messgerät nicht zu unterscheiden.
+#
+#    (c) DANN Abo A zurückbauen und noch einmal:
+#          srvpanel db   → „Keine Zeile ohne Abonnement."
+#
+#        DER WORTLAUT STAND HIER FALSCH: „Nichts liegengeblieben." gibt es seit
+#        `docs/45 §5` nicht mehr. Die Zeile hiess so, stand in Grün unmittelbar
+#        unter einer orangen Meldung über stehengebliebene Zugänge und las sich
+#        als Entwarnung über beides. Sie nennt jetzt ihren Umfang.
+#
+#        > Ein erwarteter Wortlaut, den niemand gegen den Code gelesen hat, ist
+#        > eine Vermutung mit Anführungszeichen.
 ```
 
 ---

@@ -118,4 +118,54 @@ Agenten. Gelingt dort eine Datei-Operation, ist die Frage praktisch beantwortet
 
 ---
 
+## Befund 1 — der Lauf selbst, und zwar an einer Stelle, die zweimal aufgeschrieben war
+
+**`srvpanel tinker` startet nicht.**
+
+```
+User Notice  Writing to directory .config/psysh is not allowed.
+```
+
+Der Wrapper setzt per `setpriv --reuid=srvpanel` um, `HOME` bleibt auf `/root`,
+und psysh scheitert am Anlegen seines Einrichtungsverzeichnisses. Es ist eine
+`User Notice` und kein Fehler — der Aufruf endet **mit Rückgabewert 0** und ohne
+eine einzige Zeile Ergebnis.
+
+Das ist nicht neu. Es steht in **`docs/48 §3.8`** als eigener Abschnitt, mit
+demselben Satz:
+
+> **Ein Werkzeug, das mit einer Warnung aufhört, sieht aus wie eins, das nichts
+> zu sagen hatte.**
+
+Und es steht in **`docs/47 §2`** als eine von zwei Fallen, die einen Lauf stumm
+scheitern lassen. Die zweite dort ist die Mandantenklammer — und die stand in
+`docs/52` genauso falsch: `Subscription::first()` ohne `allowAll()` ist `null`,
+und der nächste Aufruf stirbt an einer Methode auf `null` statt an der Sache.
+**Zwei bekannte Fallen, beide beim Schreiben von `docs/52` wieder hineingelegt.**
+
+> **Eine Falle, die in zwei Protokollen steht, steht deshalb noch in keinem
+> Lauf.** Das Aufschreiben und das nächste Schreiben sind zwei Handgriffe, und
+> nur der erste hat stattgefunden.
+
+Bemerkenswert ist die Bauart: Es ist derselbe Fehler wie der teuerste aus
+`docs/45` — **eine Prüfung, die als Anweisung im Lauf steht und nie gefahren
+wurde.** `docs/52` ist wie jeder Abnahmelauf hier Code, den niemand ausführt,
+bis es darauf ankommt; die vier `tinker`-Blöcke darin waren zum Zeitpunkt des
+Schreibens ungefahren, und drei von ihnen hätten dasselbe getan.
+
+**Behoben**: Alle vier Blöcke in `docs/52` tragen jetzt `HOME=/tmp` und
+`allowAll()`, und sie sind von `>>>`-Zeilen auf `--execute=` umgestellt — damit
+gibt jeder Aufruf aus, was er getan hat, statt sich auf die Anzeige einer
+interaktiven Sitzung zu verlassen.
+
+Zwei Kleinigkeiten sind beim Nachsehen mitgegangen, beide aus derselben Familie
+„eine Anweisung, die etwas anderes tut als gemeint":
+
+- `ls -l` zeigt **Namen**; ein `uid=0` mit passend danebenstehendem Namen
+  rutscht durch. Der Lauf misst jetzt mit `ls -ln`.
+- `chown` ohne `-h` auf einem Symlink ändert das **Ziel**. Punkt 4 hätte
+  `/etc/passwd` auf den Kunden umgeschrieben, und zwar auf dem Produktivserver.
+
+---
+
 *Die Punkte 3 bis 8 folgen, während sie gefahren werden.*

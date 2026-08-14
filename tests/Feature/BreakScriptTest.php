@@ -521,4 +521,114 @@ final class BreakScriptTest extends TestCase
             implode("\n  ", $broken),
         ));
     }
+
+    /**
+     * Jede angefasste Datei liegt im Rückweg.
+     *
+     * **Der Anlass ist der erste Lauf dieses Skripts an einem Pull Request.**
+     * `tests/` stand nicht in der Liste, die `wiederherstellen()` zurückholt —
+     * ein Eingriff, der einen Wächter bricht, um dessen Gegenprobe zu prüfen,
+     * blieb also stehen. Alles danach mass einen Arbeitsbaum, den niemand
+     * hergestellt hat, und gemeldet wurde es erst zwei Blöcke später an einer
+     * Rückstellprüfung.
+     *
+     * > **Ein Rückweg, der eine Datei nicht kennt, die ein Eingriff ändert, ist
+     * > keiner — und was danach kommt, misst etwas anderes als es glaubt.**
+     *
+     * **Das Skript hatte den Fall schon einmal**, und die Lösung war das
+     * Problem: Ein Eingriff aus P5b half sich mit einem eigenen
+     * `git checkout -- tests/Feature/RemovalPathTest.php`, statt die Lücke zu
+     * melden. Damit gab es zwei Fassungen desselben Rückwegs, und der nächste
+     * Eingriff hat die falsche geerbt. Deshalb prüft dieser Test **beide**
+     * Richtungen: dass jede Datei im Baum liegt, und dass sich kein Block selbst
+     * behilft.
+     *
+     * ## Warum es zu dieser Regel keinen Eingriff im Skript gibt
+     *
+     * **Weil das Skript sie nicht brechen kann, ohne sich selbst zu ändern** —
+     * und genau seine eigene Datei ist die eine, die der Rückweg auslässt. Ein
+     * Eingriff darauf bliebe stehen, und das nächste `wiederherstellen` machte
+     * es nicht besser: Er stünde in derselben Datei, die bash gerade liest.
+     *
+     * Gebrochen wurde die Regel deshalb **von Hand**, am 14. August 2026, in
+     * drei Richtungen — `tests/` aus der Liste genommen, ein eigener
+     * `git checkout` eingeschmuggelt, die Liste umbenannt. Alle drei waren rot.
+     *
+     * > **Eine Regel, deren Bruch das Werkzeug selbst beschädigt, wird von Hand
+     * > gebrochen — und dass sie es wurde, gehört aufgeschrieben.**
+     */
+    public function test_every_touched_file_lies_on_the_way_back(): void
+    {
+        $script = (string) file_get_contents($this->root().'/tests/waechter-brechen.sh');
+
+        $this->assertSame(
+            1,
+            preg_match('/^BAEUME="([^"]+)"$/m', $script, $treffer),
+            'Es gibt keine Liste der Bäume mehr, in denen dieses Skript arbeitet.',
+        );
+
+        $baeume = preg_split('/\s+/', trim($treffer[1])) ?: [];
+
+        $this->assertGreaterThan(
+            5,
+            count($baeume),
+            'Kaum Bäume in der Liste — dann prüft dieser Test nichts.',
+        );
+
+        /*
+         * **Was der Rückweg ausdrücklich auslässt, zählt nicht als abgedeckt.**
+         * Das Skript nimmt sich selbst aus — es liegt unter `tests/`, und bash
+         * liest es während der Ausführung weiter. Ein Eingriff auf das Skript
+         * wäre also von der Liste gedeckt und würde trotzdem stehenbleiben.
+         */
+        $this->assertSame(
+            1,
+            preg_match('/^SELBST=":\(exclude\)([^"]+)"$/m', $script, $selbst),
+            'Der Rückweg nimmt das Skript nicht mehr aus — dann stellt es sich mitten im Lauf '
+            .'selbst wieder her, während bash es liest.',
+        );
+
+        $draussen = [];
+
+        foreach ($this->interventions() as $intervention) {
+            $datei = $intervention['file'];
+
+            if ($datei === $selbst[1]) {
+                $draussen[$datei] = $datei.' (vom Rückweg ausgenommen)';
+
+                continue;
+            }
+
+            foreach ($baeume as $baum) {
+                if (str_starts_with($datei, $baum)) {
+                    continue 2;
+                }
+            }
+
+            $draussen[$datei] = $datei;
+        }
+
+        $this->assertSame([], array_values($draussen), sprintf(
+            "Diese Dateien werden von einem Eingriff geändert und liegen nicht im Rückweg:\n  %s\n\n"
+            .'Sie bleiben nach dem Eingriff verändert stehen, und jede Prüfung danach misst einen '
+            .'Arbeitsbaum, den niemand hergestellt hat.',
+            implode("\n  ", $draussen),
+        ));
+
+        /*
+         * **Und niemand behilft sich mit einem eigenen Rückweg.** Ein
+         * `git checkout --` mitten im Skript ist kein Fix, sondern eine zweite
+         * Fassung von `wiederherstellen()` — und die zweite ist die, die
+         * veraltet. Die Definition selbst steht in einer Funktion und wird von
+         * dieser Zählung nicht getroffen.
+         */
+        preg_match_all('/^\s*git checkout .*$/m', $script, $eigene);
+
+        $this->assertSame([], $eigene[0], sprintf(
+            "Diese Zeilen stellen an `wiederherstellen()` vorbei her:\n  %s\n\n"
+            .'Wer eine Datei zurückholt, die der Rückweg nicht kennt, behebt seinen eigenen Fall '
+            .'und lässt die Lücke für den nächsten stehen.',
+            implode("\n  ", $eigene[0]),
+        ));
+    }
 }

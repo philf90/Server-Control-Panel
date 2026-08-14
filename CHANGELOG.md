@@ -11871,3 +11871,296 @@ erwarteten Verhalten stehen jetzt im Lauf, und der Beleg ist `aria-expanded` und
 die Adresse des fokussierten Knotens nach jedem einzelnen. Die beiden mittleren
 sind die, die niemand von selbst probiert: `ArrowRight` bedeutet auf einem
 zugeklappten Zweig etwas anderes als auf einem offenen.
+
+### Punkt 0 auf einem echten Server: eine Sicht, und eine Prüfung, die zwei Fragen stellte
+
+Der erste Lauf des neuen Punktes 0 auf `cloudsrv24` hat drei Fehler in ihm
+selbst gefunden — keinen davon im Panel.
+
+**Das `DROP` räumte nur die eigene Spur.** Es nannte die sechs Tabellen, die der
+Block anlegt; die Reste der Messrunden zu Bild 4, 5 und 6 blieben stehen.
+
+> **Ein `DROP`, das die Tabellen nennt, die man anlegt, räumt nicht den Bestand
+> auf — es räumt die eigene Spur auf.**
+
+**Drei dieser Reste standen auf beiden Seiten, mit denselben Namen.** Über ihren
+Inhalt sagte die Prüfung nichts: Sie zählt die Tabellen der Fixture. Ein
+„identisch" wäre eine Aussage über Namen gewesen und nicht über den Bestand. Der
+Bestand ist deshalb jetzt **geschlossen** — jedes Objekt, das dasteht, legt der
+Block an, und jedes Objekt der Liste steht auch in der Zählung.
+
+> **Eine Prüfung, die eine Teilmenge zählt, sagt über den Rest nichts — und
+> sieht dabei aus, als sagte sie etwas über alles.**
+
+**Und einer der Reste war eine Sicht.** Das hat dreimal zugeschlagen:
+`DROP TABLE` entfernt in PostgreSQL keine Sicht, sondern bricht ab — mit
+`ON_ERROR_STOP=1`, richtig gesetzt, lief der ganze Block nicht mehr, während
+MariaDB an derselben Stelle nur warnt und durchlief. Das Ergebnis sah nach einem
+Unterschied im Bestand aus statt nach einer Hälfte, die nie gelaufen ist.
+
+Die Sicht gehört ausserdem **in** die Fixture: `docs/46 §15` Punkt 6 verlangt,
+dass die Oberfläche eine Sicht anders begründet als eine Tabelle ohne Schlüssel,
+und §20.28 hängt daran, dass eine Sicht keine Grösse bekommt.
+
+> **Ein Rest, den der Lauf braucht, ist kein Rest — er ist eine Zusage ohne
+> Herkunft.**
+
+**Der teuerste Fund ist der dritte: Die beiden Hälften der Listenzeile stellten
+verschiedene Fragen.** `pg_tables` listet nur Tabellen, `information_schema.TABLES`
+listet Tabellen **und** Sichten. Die Sicht war auf der PostgreSQL-Seite von
+Anfang an unsichtbar und auf der MariaDB-Seite sichtbar — die Zeile meldete
+einen Unterschied, den es nicht gab, und hätte einen echten genauso erzeugt.
+
+> **Eine Gegenprobe über einen anderen Weg als den benutzten prüft den falschen
+> Weg.** (Derselbe Satz wie in `docs/44`, wo eine Gegenprobe über den
+> Unix-Socket einen kaputten TCP-Weg nicht sehen konnte.)
+
+Beide Seiten fragen jetzt über den Katalog nach Objekten **mit ihrer Art**
+(`:r` / `:v`) und sortieren unter `COLLATE "C"`. Nachgemessen gegen PostgreSQL
+16.13 und MariaDB 10.11.14: dieselbe Zeichenkette auf beiden Seiten, die Sicht
+mit einer Zeile auf beiden, und der Rückbau (`DROP VIEW` vor `DROP TABLE`)
+zweimal hintereinander fehlerfrei.
+
+### Punkt 3 des Abnahmelaufs: die 403 war eine Vermutung, und zwei Werkzeuge schwiegen
+
+**Die dritte Wand steht, und sie ist die, die uns nicht gehört.** Gemessen am
+13. August 2026 auf `cloudsrv24`: Eine Rolle, die den befristeten Zugang
+nachbaut, kommt an eine fremde Datenbank nicht heran — PostgreSQL sagt
+`FATAL: permission denied … User does not have CONNECT privilege`, MariaDB
+`ERROR 1044`. Beide Meldungen kommen vom **Server** und nicht von uns, und genau
+das ist der Punkt: Mit unseren eigenen zwei Wänden allein wäre belegt, dass
+unsere Prüfung greift — und das ist nicht die Frage.
+
+**Die erwartete 403 in Punkt 3 (a) war falsch.** `Database` trägt
+`BelongsToSubscription`, und der globale Filter greift **vor** der Policy: Die
+Adressauflösung findet den Datensatz gar nicht erst, also antwortet Laravel mit
+**404**, und `can:console,database` kommt nie dran. Die 404 ist dabei die
+schärfere Antwort — eine 403 bestätigt die Existenz der fremden Datenbank, eine
+404 sagt nichts.
+
+> **Eine Erwartung, die niemand gegen den Code gelesen hat, ist eine Vermutung
+> mit Aktenzeichen.**
+
+**Und der zweite Teil des Belegs stand am falschen Ort.** „Der Agent wurde
+nicht gefragt" sollte an `journalctl -u srvpanel-agentd` gemessen werden — und
+das liefert `-- No entries --`, **auch wenn der Agent gerade gearbeitet hat**:
+Er schreibt sein Protokoll nach `/var/log/srvpanel/agent.log`, als NDJSON mit
+einer Zeile `request` je Aufruf.
+
+> **Ein Beleg, der immer dasselbe sagt, sagt nichts — auch dann, wenn das, was
+> er sagt, gerade stimmt.**
+
+Gemessen wird jetzt an der Zeilenzahl dieser Datei, mit dem positiven Fall in
+der Mitte: erst die eigene Konsole öffnen (die Zahl **muss** steigen), dann der
+Versuch auf die fremde (sie **muss** stehenbleiben). Ohne den positiven Fall
+belegt „nichts dazugekommen" nur, dass niemand hingesehen hat.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.** (Derselbe Satz wie in `docs/47`.)
+
+**Punkt 3 (b) lief gar nicht, und es sah aus wie ein leeres Ergebnis.** Der
+Wrapper setzt per `setpriv` auf den Benutzer `srvpanel` um; `HOME` bleibt dabei
+auf `/root`, und psysh will dort `.config/psysh` anlegen. Es scheitert mit
+„Writing to directory .config/psysh is not allowed" — als blosse `User Notice`.
+Danach kommt **nichts**: kein Ergebnis, kein Fehler, kein Rückgabewert, der
+auffiele. Der Punkt schreibt jetzt `HOME=/tmp srvpanel tinker` vor.
+
+> **Ein Werkzeug, das mit einer Warnung aufhört, sieht aus wie eins, das nichts
+> zu sagen hatte.**
+
+Dieselbe Sorte Fall wie in `docs/47`, wo eine Hilfsdatei unter `/root` nach dem
+`setpriv` unlesbar war — nur andersherum: dort das Lesen, hier das Schreiben.
+
+### Zwei Abonnements sind nicht zwei Mandanten
+
+Die Voraussetzung des Abnahmelaufs verlangte „ein zweites Abonnement B". Für
+Punkt 3 (a) reicht das nicht: Die Mandantenklammer hängt am **Abonnement**, die
+Anmeldung aber am **Konto** — und `Tenancy::forAccount()` gibt einem Kunden
+ausdrücklich „alle des eigenen Kundenkontos" (`accessibleSubscriptionIds()`).
+Zwei Abonnements desselben Kunden sind für das Panel **ein** Mandant.
+
+> **Zwei Abonnements sind nicht zwei Mandanten. Der Mandant ist der Kunde.**
+
+Der Aufruf auf B wäre also gelungen, und zwar zu Recht — der Lauf hätte
+ausgesehen wie ein gerissenes Kriterium 3, und der Fehler hätte in der
+Vorbereitung gelegen und nicht im Panel. **Gefunden hat es der Betreiber beim
+Aufbau des Laufs**, bevor der Punkt gefahren wurde.
+
+Für die Punkte 3 (b) und (c) genügt das zweite Abonnement weiterhin: Dort hängt
+die Trennung am Präfix und an den Rechten der Datenbank, und beide reisen mit
+dem Abonnement und nicht mit dem Kunden. Beide sind auf `cloudsrv24` gegen zwei
+Abonnements **desselben** Kunden gemessen worden und bleiben damit gültig — der
+Agent wies mit „Diese Datenbank gehört nicht zu diesem Abonnement" ab, und
+PostgreSQL und MariaDB wiesen die nachgebaute Rolle ab.
+
+Es ist die zweite Korrektur, die Punkt 3 an seinem eigenen Aufbau erzwungen hat:
+Die erste war die Wand, die man nur erreicht, indem man die davor abschaltet.
+
+### Und die Zeilenzahl war das falsche Messgerät
+
+Punkt 3 (a) sollte belegen, dass der Agent beim Aufruf einer fremden Datenbank
+nicht gefragt wurde — gemessen an der Zeilenzahl von
+`/var/log/srvpanel/agent.log` vor und nach dem Versuch. Auf `cloudsrv24` kamen
+dabei acht Zeilen dazu, **und keine davon gehörte zum Versuch**: Das Protokoll
+trägt `system.info` und `db.server.info` aus dem Hintergrund.
+
+> **Eine Zählung über einen Kanal, auf dem auch andere sprechen, misst das
+> Gespräch nicht.**
+
+Gemessen wird jetzt am **Namen**: Kommt die fremde Datenbank im ganzen Protokoll
+nicht vor, hat der Agent sie nie gesehen — unabhängig davon, wer sonst geredet
+hat und in welchem Zeitfenster. Der positive Fall davor bleibt: Ohne ihn belegt
+auch eine 0 nichts.
+
+Es ist derselbe Fehler wie eine Stufe zuvor, nur andersherum: Dort wurde an
+einer Stelle gemessen, an der **nie** etwas steht (`journalctl`), hier an einer,
+an der **immer** etwas steht.
+
+### Dritter Anlauf am selben Beleg — und diesmal war der Name zu weit gefasst
+
+Punkt 3 (a) hat sein Messgerät jetzt dreimal gewechselt, und jeder Wechsel war
+nötig:
+
+| Anlauf | Gemessen an | Warum es nicht ging |
+|---|---|---|
+| 1 | `journalctl -u srvpanel-agentd` | dort steht **nie** etwas — der Agent schreibt nach `/var/log/srvpanel/agent.log` |
+| 2 | Zeilenzahl von `agent.log` | dort steht **immer** etwas — `system.info` läuft im Zehnsekundentakt |
+| 3 | Name der fremden Datenbank | der steht auch vom **Anlegen** dort, und das ist in Ordnung |
+
+Der dritte Fehler ist der feinste: Die beiden Datenbanken des zweiten Kunden
+wurden für den Lauf über das Panel angelegt, und das geht durch den Agenten.
+Sieben Treffer, kein einziges Leck.
+
+> **Ein Name allein sagt nicht, wer ihn genannt hat. Erst die Frage nach der
+> Operation trennt „angelegt" von „ausgelesen".**
+
+Gemessen wird jetzt am Namen **innerhalb einer Konsolenoperation**. Was die drei
+Anläufe verbindet, ist dieselbe Ursache: Ein Beleg wurde formuliert, bevor
+jemand nachgesehen hat, was an der Messstelle sonst noch passiert.
+
+### P5c Schritt 9 — die drei Befunde am Panel, mit ihren Wächtern
+
+Der Abnahmelauf ist durch (`docs/48`), alle sieben Kriterien erfüllt. Von den
+vier Befunden am Panel sind drei behoben; der vierte (§3.2) wartet auf eine
+Entscheidung des Betreibers, weil er das Aussehen der Zeilentabelle ändert.
+
+**Der Wunsch wird erst zur Anzeige, wenn die Antwort da ist.** Nach der
+Zeitüberschreitung aus Punkt 4 stand die Kopfzeile auf `wert ↑`, während darunter
+die nach `id` sortierte Seite lag: Der Griff hatte seinen Zustand gesetzt und
+danach geladen. Es gibt jetzt eine Stelle, die sichert, ausführt und bei
+Fehlschlag zurücknimmt; `loadPage()` meldet dafür, ob sie durchkam.
+
+> **Eine fehlgeschlagene Anfrage darf die Beschriftung nicht so lassen, als wäre
+> sie durchgelaufen.**
+
+Betroffen waren **fünf** Griffe und nicht nur die Sortierung — Filtern, Filter
+entfernen, Vor und Zurück hingen an derselben Ursache. Der stillste war
+„Zurück": Er nahm den Versatz vom Stapel, und bei einem Fehlschlag war er fort.
+
+**Eine gescheiterte Handlung nimmt die Erfolgsmeldung der vorigen weg.** Über der
+roten Meldung „Der Vorgang hat 0 Zeilen getroffen" stand noch „Die Zeile ist
+geändert." in Grün. Auf jeder anderen Seite dieses Panels kann das nicht
+passieren — dort ist die Erfolgsmeldung ein `flash` und lebt eine Antwort lang;
+die Konsole ist die erste Fläche, die ändert und dabei stehen bleibt.
+
+> **Eine gescheiterte Handlung muss die Erfolgsmeldung der vorigen wegnehmen —
+> sonst stehen zwei Sätze über derselben Taste, und einer ist falsch.**
+
+**Und „geschätzt 1 Zeilen" stand an drei Stellen und nicht an einer.** Der
+Wächter dazu hat beim ersten Lauf ausser der Konsole noch das Protokoll
+(„1 Einträge") und die Planvorlage („1 Abonnements gebunden") gemeldet — beide
+seit P2 im Repo, beide von niemandem bemerkt. Die Einzahl ist im Betrieb der
+Normalfall und in der Entwicklung der Sonderfall.
+
+> **Ein Fehler, der an drei Stellen unabhängig gemacht wurde, ist keine
+> Unachtsamkeit, sondern eine fehlende Stelle.**
+
+Die Entscheidung über das Wort steht deshalb jetzt in `useCounted.ts`. Beide
+Wörter werden übergeben und keines abgeleitet: Im Deutschen gibt es dafür keine
+Regel — `Zeile` wird zu `Zeilen`, `Zugang` zu `Zugänge`, `Treffer` bleibt.
+
+**Drei neue Wächter, acht Eingriffe, jeder einzeln gefahren.** `ViewStateTest`,
+`AnnounceWithdrawalTest` und `CountedNounTest` stehen mit ihren Brüchen in
+`tests/waechter-brechen.sh`. Zwei Funde beim Bauen der Wächter selbst:
+
+Der erste war der Wächter über den Fehlersatz. Sein Ausdruck lautete
+`failure\.value\s*=\s*(?!null)` und meldete auch das Aufräumen
+`failure.value = null` — schlägt die Vorschau fehl, gibt `\s*` ein Zeichen zurück
+und probiert es erneut.
+
+> **Ein `\s*` vor einer Verneinung hebt sie auf.**
+
+Der zweite kam von `BreakScriptTest`: Ein Eingriff aus Schritt 8 hatte durch die
+Umbenennung seinen Griff verloren und zeigte auf einen Text, den es nicht mehr
+gab. Genau dafür gibt es ihn — er meldete es, bevor irgendetwas eingecheckt war.
+
+### Und der vierte Befund: Weissraum ist ein Wert
+
+`a\tb` stand als `a b` da, `z1\nz2` als `z1 z2`, und ein Wert mit einem
+gewöhnlichen Leerzeichen sähe genauso aus. Gemessen im Browser, im Kontext der
+echten Tabelle: **Alle drei ergaben exakt dieselben 25×16 Pixel.**
+
+> **Eine Anzeige, die drei verschiedene Werte gleich aussehen lässt, behauptet
+> etwas, das sie nicht weiss.**
+
+Nach dem Wortlaut von Kriterium 2 war das erfüllt — der Umbruch blieb innerhalb
+der Zelle und hat keine Zeile erzeugt. Das ist der Unterschied zwischen „der Lauf
+ist abgenommen" und „die Anzeige stimmt".
+
+**Es waren zwei Eigenschaften und nicht eine.** `white-space: pre-wrap` allein
+liess den Tabulator 29 px breit werden gegen 28 px für zwei Leerzeichen —
+technisch verschieden, für ein Auge dasselbe. Der Grund stand nicht in `app.css`,
+sondern in Tailwinds Reset: `tab-size: 4` auf `html`, eine Vorgabe für
+**Quelltext**, die jedes Element erbt.
+
+> **Eine Vorgabe für Quelltext, die alles erbt, gilt irgendwann für Daten.**
+
+Mit dem CSS-Ausgangswert `8` — dem Abstand, den `psql`, `mysql` und jedes
+Terminal benutzen — sind es 76 px gegen 34. Der Überlauf bei 390 px bleibt 0 am
+Dokument, gemessen in beiden Themes, mit Gegenprobe.
+
+`CellWhitespaceTest` hält die Regel, mit vier Eingriffen im Bruchskript. Und
+`BreakScriptTest` hat ein zweites Mal zugebissen: Die zwei neuen Zeilen in
+`.rows .cell` haben einem Eingriff aus Schritt 5 den Text unter den Füssen
+weggezogen.
+
+### Der Rückweg des Bruchskripts kannte `tests/` nicht
+
+Gefunden im **ersten Lauf an einem Pull Request** — genau dem, für den
+`waechter.yml` am 13. August dort angehängt wurde. Elf von zwölf Prüfungen waren
+grün, rot war der Wächterlauf, und zwar nicht an einem Eingriff, sondern an einer
+Rückstellprüfung zwei Blöcke später.
+
+`wiederherstellen()` holte `resources/ app/ agent/ packaging/ .github/ database/
+routes/ docs/ config/ bootstrap/` zurück. **`tests/` stand nicht dabei.** Ein
+Eingriff, der einen Wächter bricht, um dessen Gegenprobe zu prüfen, blieb also
+stehen — und alles danach mass einen Arbeitsbaum, den niemand hergestellt hat.
+
+> **Ein Rückweg, der eine Datei nicht kennt, die ein Eingriff ändert, ist keiner
+> — und was danach kommt, misst etwas anderes als es glaubt.**
+
+**Das Skript hatte den Fall schon einmal, und die Lösung war das Problem.** Ein
+Eingriff aus P5b half sich mit einem eigenen
+`git checkout -- tests/Feature/RemovalPathTest.php`, statt die Lücke zu melden.
+Damit gab es zwei Fassungen desselben Rückwegs, und der nächste Eingriff hat die
+falsche geerbt. Vier weitere Zeilen `git checkout -- app/` standen aus demselben
+Grund im Skript.
+
+Die Liste steht jetzt einmal als `BAEUME` da und wird von der Sauberkeitsprüfung
+und vom Rückweg gelesen. `BreakScriptTest::test_every_touched_file_lies_on_the_way_back`
+hält beide Richtungen: jede angefasste Datei liegt im Baum, und kein Block
+behilft sich selbst.
+
+**Und das Skript nimmt sich aus dem Rückweg heraus**, weil es selbst unter
+`tests/` liegt: Bash liest ein Skript während der Ausführung weiter, und wer
+einen neuen Eingriff schreibt, muss ihn fahren können, bevor er ihn committet.
+Beim Bauen dieser Zeile ist mir die eigene Änderung einmal weggeflogen — die
+Warnung über `git checkout -- resources/` gilt hier wörtlich.
+
+Zu dieser Regel gibt es **keinen Eingriff im Skript**, und das ist kein
+Versehen: Sie liesse sich nur brechen, indem man das Skript selbst ändert, und
+genau dessen Datei ist die eine, die der Rückweg auslässt. Gebrochen wurde sie
+von Hand, in vier Richtungen, alle vier rot.
+
+> **Eine Regel, deren Bruch das Werkzeug selbst beschädigt, wird von Hand
+> gebrochen — und dass sie es wurde, gehört aufgeschrieben.**

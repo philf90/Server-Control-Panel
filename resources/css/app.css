@@ -1323,6 +1323,55 @@ table.pairs {
   font-family: var(--font-mono);
   font-size: var(--text-table);
   overflow-wrap: anywhere;
+
+  /*
+   * **Weissraum bleibt stehen, weil er ein Wert ist.**
+   *
+   * Der Abnahmelauf von P5c hat es auf beiden Systemen gelesen (`docs/48 §3.2`):
+   * `a\tb` stand als `a b` da, `z1\nz2` als `z1 z2` — und ein Wert mit einem
+   * gewöhnlichen Leerzeichen sähe genauso aus. HTML fasst Weissraum zusammen,
+   * und diese Regel hatte dazu nichts gesagt.
+   *
+   * Nach dem Wortlaut von Kriterium 2 war das erfüllt: Der Umbruch blieb
+   * *innerhalb* der Zelle und hat keine Zeile erzeugt. Wer die Zelle **liest**,
+   * konnte drei verschiedene gespeicherte Werte trotzdem nicht auseinanderhalten.
+   *
+   * > **Eine Anzeige, die drei verschiedene Werte gleich aussehen lässt,
+   * > behauptet etwas, das sie nicht weiss.**
+   *
+   * Derselbe Konflikt wie bei „0 B" für eine Sicht und bei `16.008 Zeilen`: Eine
+   * Darstellung, die immer plausibel aussieht, ist deshalb noch nicht richtig.
+   *
+   * **`pre-wrap` und nicht `pre`.** `pre` nähme der Zelle den Umbruch am Rand
+   * zurück, und dann stünde die Zeile von 5710 px wieder da, gegen die die
+   * Begründung oben geschrieben ist. `pre-wrap` bricht weiter am Rand und
+   * behält nur, was im Wert steht.
+   *
+   * **Die Höhe ist gedeckelt und nicht offen.** Der Agent kürzt bei 512
+   * Zeichen; mehr als elf Zeilen kann daraus auch mit erhaltenen Umbrüchen
+   * nicht werden. Gemessen bei 390 px: Der Überlauf am Dokument bleibt 0.
+   */
+  white-space: pre-wrap;
+
+  /*
+   * **Und der Tabulator bekommt seinen Abstand zurück.**
+   *
+   * `pre-wrap` allein genügte nicht: Gemessen war `a\tb` **29 px** breit und
+   * `a  b` **28 px** — technisch verschieden, für ein Auge dasselbe. Der Grund
+   * steht nicht in dieser Datei, sondern in Tailwinds Reset, der `tab-size: 4`
+   * auf `html` setzt. Das ist eine Vorgabe für **Quelltext**, und sie wird von
+   * jedem Element geerbt, auch von einer Datenzelle.
+   *
+   * > **Eine Vorgabe für Quelltext, die alles erbt, gilt irgendwann für Daten.**
+   *
+   * `8` ist kein Geschmack, sondern der Ausgangswert von CSS und der Abstand,
+   * den `psql`, `mysql` und jedes Terminal benutzen: Ein Wert sieht hier aus wie
+   * dort. Gemessen wird daraus **48 px** gegen 28 — unverwechselbar.
+   *
+   * Gesetzt wird er hier und nicht auf `html`: Quelltextblöcke sollen ihre 4
+   * behalten.
+   */
+  tab-size: 8;
 }
 
 /*
@@ -1394,6 +1443,10 @@ table.pairs {
   font-size: var(--text-table);
   color: var(--text);
   white-space: pre-wrap;
+
+  /* Derselbe Abstand wie in der Zeilenzelle — sonst sähe der genaue Blick auf
+     einen Wert anders aus als die Übersicht, aus der er kommt. */
+  tab-size: 8;
   overflow-wrap: anywhere;
 }
 

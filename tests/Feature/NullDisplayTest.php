@@ -175,14 +175,22 @@ final class NullDisplayTest extends TestCase
             'Es gibt keine Angabenzeile zur offenen Tabelle mehr — dann prüft dieser Test nichts.',
         );
 
+        /*
+         * **Der Name hat sich geändert, die Frage nicht.** Bis zum 14. August
+         * 2026 stand hier `formatRows`; seit dem Fund „geschätzt 1 Zeilen"
+         * (`docs/48 §3.3`) entscheidet {@see counted()} auch über das Wort, und
+         * die Zahl kommt weiter aus derselben Formatierung. Gemerkt hat den
+         * Umzug dieser Wächter selbst — er war rot, bevor die Änderung
+         * eingecheckt war.
+         */
         $this->assertStringContainsString(
-            'formatRows',
+            'counted(',
             $treffer[0],
             'Die Angabenzeile nennt keine Zeilenzahl mehr — dann rechnet dieser Test an nichts nach.',
         );
 
         $this->assertMatchesRegularExpression(
-            '/geschätzt[^`\n]*\$\{formatRows/su',
+            '/geschätzt[^`\n]*\$\{counted\(/su',
             $treffer[0],
             'Die Zeilenzahl steht ohne das Wort „geschätzt" da. Sie kommt aus dem Katalog und nicht '
             .'aus einem `count(*)` (docs/46 §9); auf cloudsrv24 waren es 16.008 gegen 16384 '

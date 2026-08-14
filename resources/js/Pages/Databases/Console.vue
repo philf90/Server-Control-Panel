@@ -19,7 +19,8 @@ import { Head, Link } from '@inertiajs/vue3'
 import { computed, onMounted, ref } from 'vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Section from '../../Components/Section.vue'
-import { announce } from '../../Composables/useAnnounce'
+import { announce, dismiss } from '../../Composables/useAnnounce'
+import { counted } from '../../Composables/useCounted'
 import { ask, ConsoleError } from '../../Composables/useConsole'
 import { formatBytes } from '../../bytes'
 
@@ -262,6 +263,13 @@ const saving = ref(false)
 const failure = ref<string | null>(null)
 
 function report(error: unknown): void {
+  /*
+   * **Zuerst die grüne Meldung fort, dann die rote hin.** Sie gehört zu der
+   * Handlung davor, und diese Seite wechselt nie die Seite — ohne das stünden
+   * beide übereinander (`docs/48 §3.10`).
+   */
+  dismiss()
+
   failure.value =
     error instanceof ConsoleError
       ? error.message
@@ -416,9 +424,9 @@ function reveal(): void {
   content.value?.scrollIntoView({ block: 'start', behavior: 'smooth' })
 }
 
-async function loadPage(): Promise<void> {
+async function loadPage(): Promise<boolean> {
   if (openTable.value === null || order.value === '') {
-    return
+    return false
   }
 
   loadingTable.value = true
@@ -432,60 +440,122 @@ async function loadPage(): Promise<void> {
       offset: offset.value,
       ...(filter.value === null ? {} : { filter: filter.value }),
     })
+
+    return true
   } catch (error) {
     report(error)
+
+    return false
   } finally {
     loadingTable.value = false
   }
 }
 
-/** Nach einer Spalte sortieren; ein zweiter Klick dreht die Richtung. */
-async function sortBy(column: string): Promise<void> {
-  if (order.value === column) {
-    descending.value = !descending.value
-  } else {
-    order.value = column
-    descending.value = false
+/**
+ * Die Sicht auf die Zeilen ändern — Sortierung, Filter, Seite.
+ *
+ * **Der Wunsch wird erst zur Anzeige, wenn die Antwort da ist.** Vorher setzte
+ * jeder dieser Griffe seinen Zustand selbst und rief danach {@link loadPage()};
+ * schlug die auf halbem Weg fehl, blieb die neue Beschriftung stehen und die
+ * alten Zeilen darunter. Im Abnahmelauf von P5c auf beiden Systemen gesehen
+ * (`docs/48 §3.4`): Nach der Zeitüberschreitung aus Punkt 4 stand die Kopfzeile
+ * auf `wert ↑`, während die Tabelle die nach `id` sortierte Seite zeigte.
+ *
+ * > **Eine fehlgeschlagene Anfrage darf die Beschriftung nicht so lassen, als
+ * > wäre sie durchgelaufen.**
+ *
+ * **Der Zustand wird zurückgenommen und nicht neu geholt.** Ein zweiter Aufruf
+ * mit den alten Werten wäre eine Anfrage mehr an einen Server, der gerade eine
+ * nicht beantworten konnte — und er könnte wieder scheitern. Was auf dem
+ * Bildschirm steht, ist ohnehin noch die alte Seite; sie ist nie fortgewesen.
+ *
+ * **`cell` bleibt dabei zu.** Sie gehört zu einer Zeile der alten Seite, und
+ * ihr Wert ist nicht falsch geworden — aber wer die Sicht wechseln wollte, hat
+ * sie geschlossen, und ein wieder auftauchender Ausschnitt wäre die dritte
+ * Auskunft in einer Anzeige, die gerade zwei widersprüchliche hatte.
+ */
+async function change(mutate: () => void): Promise<void> {
+  const zuvor = {
+    order: order.value,
+    descending: descending.value,
+    offset: offset.value,
+    filter: filter.value,
+    trail: [...trail.value],
+    draft: { ...draft.value },
   }
 
-  offset.value = 0
-  trail.value = []
   cell.value = null
-  await loadPage()
-}
+  mutate()
 
-async function applyFilter(): Promise<void> {
-  const entwurf = draft.value
-
-  filter.value =
-    entwurf.column === '' ? null : { ...entwurf, value: entwurf.operator === 'empty' ? '' : entwurf.value }
-
-  offset.value = 0
-  trail.value = []
-  cell.value = null
-  await loadPage()
-}
-
-async function clearFilter(): Promise<void> {
-  draft.value = { column: '', operator: 'equals', value: '' }
-  await applyFilter()
-}
-
-async function forward(): Promise<void> {
-  if (page.value === null || !page.value.more) {
+  if (await loadPage()) {
     return
   }
 
-  trail.value.push(offset.value)
-  offset.value += page.value.rows.length
-  cell.value = null
-  await loadPage()
+  order.value = zuvor.order
+  descending.value = zuvor.descending
+  offset.value = zuvor.offset
+  filter.value = zuvor.filter
+  trail.value = zuvor.trail
+  draft.value = zuvor.draft
+}
+
+/** Nach einer Spalte sortieren; ein zweiter Klick dreht die Richtung. */
+async function sortBy(column: string): Promise<void> {
+  await change(() => {
+    if (order.value === column) {
+      descending.value = !descending.value
+    } else {
+      order.value = column
+      descending.value = false
+    }
+
+    offset.value = 0
+    trail.value = []
+  })
+}
+
+async function applyFilter(): Promise<void> {
+  await change(() => {
+    const entwurf = draft.value
+
+    filter.value =
+      entwurf.column === '' ? null : { ...entwurf, value: entwurf.operator === 'empty' ? '' : entwurf.value }
+
+    offset.value = 0
+    trail.value = []
+  })
+}
+
+async function clearFilter(): Promise<void> {
+  await change(() => {
+    draft.value = { column: '', operator: 'equals', value: '' }
+    filter.value = null
+    offset.value = 0
+    trail.value = []
+  })
+}
+
+async function forward(): Promise<void> {
+  const seite = page.value
+
+  if (seite === null || !seite.more) {
+    return
+  }
+
+  await change(() => {
+    trail.value = [...trail.value, offset.value]
+    offset.value += seite.rows.length
+  })
 }
 
 async function back(): Promise<void> {
-  offset.value = trail.value.pop() ?? 0
-  cell.value = null
-  await loadPage()
+  const zurueck = [...trail.value]
+  const ziel = zurueck.pop() ?? 0
+
+  await change(() => {
+    trail.value = zurueck
+    offset.value = ziel
+  })
 }
 
 /**
@@ -654,11 +724,6 @@ function closeTable(): void {
   failure.value = null
 }
 
-/** „unbekannt" und nicht „0" — siehe {@link TableRow.rows}. */
-function formatRows(value: number | null): string {
-  return value === null ? 'unbekannt' : value.toLocaleString('de-DE')
-}
-
 /**
  * Die vier Angaben zur offenen Tabelle — Art, Zeilen, Grösse, Schlüssel.
  *
@@ -681,9 +746,16 @@ const openFacts = computed((): string => {
 
   const angaben = [
     /*
-     * **„unbekannt Zeilen" war kein Deutsch.** `formatRows(null)` gibt das Wort
-     * „unbekannt" zurück, und ich hatte blind „ Zeilen" angehängt. Die Zahl
-     * trägt ihre Einheit, das Wort trägt seinen Satz.
+     * **„unbekannt Zeilen" war kein Deutsch.** Die Formatierung gab für `null`
+     * das Wort „unbekannt" zurück, und ich hatte blind „ Zeilen" angehängt. Die
+     * Zahl trägt ihre Einheit, das Wort trägt seinen Satz — deshalb steht der
+     * unbekannte Fall heute als eigener Satz da und nicht als Zahl mit Wort.
+     *
+     * **Und „1 Zeilen" war es genauso wenig.** {@link counted()} entscheidet
+     * über das Wort, seit der Abnahmelauf von P5c es auf einer Tabelle mit genau
+     * einer Zeile gelesen hat (`docs/48 §3.3`). Die Entscheidung steht in
+     * `useCounted.ts`, weil derselbe Fehler an drei Stellen dieses Panels
+     * unabhängig gemacht worden war.
      *
      * **Und „geschätzt" steht davor, seit es jemand nachgezählt hat.** Die Zahl
      * kommt aus dem Katalog und nicht aus einem `count(*)` — so entschieden in
@@ -699,7 +771,7 @@ const openFacts = computed((): string => {
      * eine Null über etwas, das es nicht gibt, hier eine Genauigkeit über etwas,
      * das es ungefähr gibt.
      */
-    tabelle.rows === null ? 'Zeilenzahl unbekannt' : `geschätzt ${formatRows(tabelle.rows)} Zeilen`,
+    tabelle.rows === null ? 'Zeilenzahl unbekannt' : `geschätzt ${counted(tabelle.rows, 'Zeile', 'Zeilen')}`,
   ]
 
   /*

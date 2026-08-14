@@ -78,15 +78,41 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-if ! git diff --quiet -- resources/ app/ agent/ packaging/ .github/ database/ routes/ docs/ config/; then
-  echo "resources/, app/, agent/, packaging/, .github/, database/, routes/, docs/ oder config/ hat ungesicherte" >&2
-  echo "Änderungen. Erst committen" >&2
-  echo "oder verwerfen — dieses Skript ändert dort Dateien und stellt sie über" >&2
-  echo "git wieder her." >&2
+# **Die Bäume, in denen dieses Skript arbeitet — einmal aufgeschrieben.**
+#
+# Sie standen zweimal da, für die Sauberkeitsprüfung und für den Rückweg, und
+# die beiden Listen waren nicht dieselbe: `tests/` fehlte im Rückweg. Ein
+# Eingriff aus P5b hat sich deshalb mit einem eigenen `git checkout --`
+# beholfen — und der nächste, der einen Wächter bricht, um dessen Gegenprobe
+# zu prüfen, hat den Fehler geerbt: Die Änderung blieb stehen, und **alles
+# danach mass einen Baum, den niemand hergestellt hat.** Gefunden am
+# 14. August 2026 im ersten Lauf an einem Pull Request.
+#
+# > **Ein Rückweg, der eine Datei nicht kennt, die ein Eingriff ändert, ist
+# > keiner — und was danach kommt, misst etwas anderes als es glaubt.**
+BAEUME="resources/ app/ agent/ tests/ packaging/ .github/ database/ routes/ docs/ config/ bootstrap/"
+
+# **Dieses Skript liegt selbst unter `tests/` und nimmt sich aus.**
+#
+# Zwei Gründe, und beide sind handfest. Bash liest ein Skript während der
+# Ausführung weiter; eine Datei, die sich dabei unter ihm ändert, ist eine
+# Fehlerquelle, die niemand debuggen will. Und wer hier einen neuen Eingriff
+# schreibt, muss ihn fahren können, bevor er ihn committet — genau dafür
+# steht das Skript ausserhalb der Sauberkeitsprüfung. Beim Bauen dieser Zeile
+# ist mir die eigene Änderung einmal weggeflogen; die Warnung in CLAUDE.md
+# über `git checkout -- resources/` gilt wörtlich auch hier.
+SELBST=":(exclude)tests/waechter-brechen.sh"
+
+# shellcheck disable=SC2086
+if ! git diff --quiet -- $BAEUME "$SELBST"; then
+  echo "Ungesicherte Änderungen in: $BAEUME" >&2
+  echo "Erst committen oder verwerfen — dieses Skript ändert dort Dateien und" >&2
+  echo "stellt sie über git wieder her." >&2
   exit 1
 fi
 
-wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ .github/ database/ routes/ docs/ config/ bootstrap/ 2>/dev/null; }
+# shellcheck disable=SC2086
+wiederherstellen() { git checkout -- $BAEUME "$SELBST" 2>/dev/null; }
 trap wiederherstellen EXIT INT TERM
 
 fehler=0
@@ -425,7 +451,7 @@ sed -i "s|\\\$store->series('cpu', 2, 0, 60, ' %', 0, 85.0)|\\\$store->series('c
   app/Http/Controllers/OverviewController.php
 pruefe "Schwelle im Controller weggekürzt" \
   PanelWalkthroughTest::test_a_tile_over_its_threshold_says_so failed
-git checkout -- app/ 2>/dev/null
+wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   PanelWalkthroughTest::test_a_tile_over_its_threshold_says_so passed
 
@@ -442,7 +468,7 @@ pruefe "Weiterleitung ohne Ziel" \
   RedirectTargetTest::test_no_controller_leaves_the_target_to_back failed
 pruefe "  … und man landet auf der Übersicht" \
   RedirectTargetTest::test_saving_the_theme_stays_on_the_account_page failed
-git checkout -- app/ 2>/dev/null
+wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RedirectTargetTest passed
 
 echo
@@ -469,7 +495,7 @@ open(p, 'w', encoding='utf-8').write(s)
 PY2
 pruefe "Ablesung ohne Aufloesung" \
   SeriesReadingTest::test_a_moving_curve_below_one_percent_is_not_all_zeroes failed
-git checkout -- app/ 2>/dev/null
+wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SeriesReadingTest passed
 
 echo
@@ -483,7 +509,7 @@ sed -i 's|\$min = min(min(\$a), min(\$b));|\$min = min(\$a);|' app/Support/Metri
 sed -i 's|\$max = max(max(\$a), max(\$b));|\$max = max(\$a);|' app/Support/Metrics/Store.php
 pruefe "getrennte Achsen in einem Feld" \
   PairedSeriesTest::test_the_smaller_direction_stays_flat_at_the_bottom failed
-git checkout -- app/ 2>/dev/null
+wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PairedSeriesTest passed
 
 echo
@@ -496,7 +522,7 @@ sed -i "s|\\\$store->pair('network', 2, 0, 1, 60|\\\$store->pair('network', 2, 0
   app/Http/Controllers/OverviewController.php
 pruefe "zweite Richtung ist die erste" \
   PanelWalkthroughTest::test_the_network_tile_carries_both_directions failed
-git checkout -- app/ 2>/dev/null
+wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   PanelWalkthroughTest::test_the_network_tile_carries_both_directions passed
 
@@ -5395,7 +5421,7 @@ PY2
 griff_datei tests/Feature/RemovalPathTest.php "Sicherung ohne Weg zurueck" &&
 pruefe "Sicherung ohne Weg zurueck" \
   RemovalPathTest::test_every_creating_operation_has_a_removing_one failed
-git checkout -- tests/Feature/RemovalPathTest.php
+wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RemovalPathTest passed
 
 echo
@@ -7407,8 +7433,8 @@ vorher_datei resources/js/Pages/Databases/Console.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Databases/Console.vue'
 s = open(p, encoding='utf-8').read()
-s = s.replace("`geschätzt ${formatRows(tabelle.rows)} Zeilen`",
-              "`${formatRows(tabelle.rows)} Zeilen`", 1)
+s = s.replace("`geschätzt ${counted(tabelle.rows, 'Zeile', 'Zeilen')}`",
+              "`${counted(tabelle.rows, 'Zeile', 'Zeilen')}`", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/js/Pages/Databases/Console.vue "Schätzung ohne das Wort" &&
@@ -7825,10 +7851,12 @@ vorher_datei resources/css/app.css
 python3 - <<'PY2'
 p = 'resources/css/app.css'
 s = open(p, encoding='utf-8').read()
-s = s.replace("""  font-size: var(--text-table);
-  overflow-wrap: anywhere;
-}""", """  font-size: var(--text-table);
-}""", 1)
+s = s.replace("""  overflow-wrap: anywhere;
+
+  /*
+   * **Weissraum bleibt stehen""", """
+  /*
+   * **Weissraum bleibt stehen""", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/css/app.css "Wertzelle ohne Umbruch" &&
@@ -7857,6 +7885,224 @@ pruefe "Blätterangabe mit nowrap" \
   MobileLayoutTest::test_the_pager_state_may_break failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest passed
+
+echo
+echo "── ViewStateTest: die Ladung meldet nicht mehr, ob sie durchkam ──"
+#
+# Ohne den Rückgabewert gibt es keinen Rückweg: Der Aufrufer kann nicht wissen,
+# dass sein Zustand eine Anzeige beschreibt, die es nicht gibt.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('async function loadPage(): Promise<boolean> {', 'async function loadPage(): Promise<void> {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Ladung ohne Rückmeldung" &&
+pruefe "Ladung ohne Rückmeldung" \
+  ViewStateTest::test_loading_a_page_says_whether_it_worked failed
+wiederherstellen
+
+echo
+echo "── ViewStateTest: eine gesicherte Angabe ohne Rückweg ──"
+#
+# Der Fall, der wiederkommt: Die Sicherung kennt sie, der Rückweg nicht. Alles
+# andere steht danach richtig da, und diese eine nicht.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('  draft.value = zuvor.draft\n', '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Sicherung ohne Rückweg" &&
+pruefe "Sicherung ohne Rückweg" \
+  ViewStateTest::test_every_saved_field_is_restored failed
+wiederherstellen
+
+echo
+echo "── ViewStateTest: ein Griff fasst an, was er nicht zurücknehmen kann ──"
+#
+# Eine neue Angabe der Sicht wird in einem Griff gesetzt, und die Sicherung
+# erfährt davon nichts.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+alt = "    offset.value = 0\n    trail.value = []\n  })\n}\n\nasync function applyFilter"
+neu = "    offset.value = 0\n    trail.value = []\n    openView.value = 'rows'\n  })\n}\n\nasync function applyFilter"
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Griff ohne Rückweg" &&
+pruefe "Griff ohne Rückweg" \
+  ViewStateTest::test_a_change_touches_nothing_it_cannot_take_back failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ViewStateTest passed
+
+echo
+echo "── AnnounceWithdrawalTest: der Rückweg nimmt nichts zurück ──"
+#
+# Ohne ihn baut die nächste Seite ihren eigenen — genau so ist useAnnounce
+# selbst entstanden.
+vorher_datei resources/js/Composables/useAnnounce.ts
+python3 - <<'PY2'
+p = 'resources/js/Composables/useAnnounce.ts'
+s = open(p, encoding='utf-8').read()
+s = s.replace('export function dismiss(): void {\n    message.value = null\n}',
+              'export function dismiss(): void {\n    message.value = message.value\n}', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Composables/useAnnounce.ts "Rücknahme ohne Wirkung" &&
+pruefe "Rücknahme ohne Wirkung" \
+  AnnounceWithdrawalTest::test_there_is_a_way_to_take_it_back failed
+wiederherstellen
+
+echo
+echo "── AnnounceWithdrawalTest: der Fehlersatz lässt die grüne Meldung stehen ──"
+#
+# Der Fund aus dem Abnahmelauf von P5c: Über der roten Meldung stand noch die
+# grüne der Handlung davor, und der Kunde las beide über derselben Taste.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('  dismiss()\n\n  failure.value =\n', '  failure.value =\n', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Fehler ohne Rücknahme" &&
+pruefe "Fehler ohne Rücknahme" \
+  AnnounceWithdrawalTest::test_reporting_a_failure_withdraws_the_success failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnounceWithdrawalTest passed
+
+echo
+echo "── CountedNounTest: eine Zahl klebt wieder an ihrem Plural ──"
+#
+# Der Fund aus dem Abnahmelauf von P5c, auf beiden Systemen: eine Tabelle mit
+# genau einer Zeile, und darüber die Mehrzahl.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+alt = "`geschätzt ${counted(tabelle.rows, 'Zeile', 'Zeilen')}`"
+neu = "`geschätzt ${tabelle.rows.toLocaleString('de-DE')} Zeilen`"
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Plural fest angehängt" &&
+pruefe "Plural fest angehängt" \
+  CountedNounTest::test_no_count_is_glued_to_a_plural_noun failed
+wiederherstellen
+
+echo
+echo "── CountedNounTest: das Muster findet nichts mehr ──"
+#
+# Eine leere Trefferliste liefert ein kaputtes Muster genauso zuverlässig wie
+# eine saubere Oberfläche. Ohne die Gegenprobe ist die Prüfung darüber wertlos.
+vorher_datei tests/Feature/CountedNounTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/CountedNounTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'Zeilen', 'Tabellen',", "'Tabellen',", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/CountedNounTest.php "Muster ohne Zeilen" &&
+pruefe "Muster ohne Zeilen" \
+  CountedNounTest::test_the_pattern_would_find_one failed
+wiederherstellen
+
+echo
+echo "── CountedNounTest: eine Seite trifft die Entscheidung wieder selbst ──"
+#
+# Dreimal derselbe Fehler hiess, dass die Stelle fehlte, an der er einmal
+# richtig gemacht wird. Wer sie wieder verlässt, macht ihn ein viertes Mal.
+vorher_datei resources/js/Pages/Audit/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Audit/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("import { counted } from '../../Composables/useCounted'\n", '', 1)
+alt = ":subline=\"counted(events.total, 'Eintrag', 'Eintraege')\""
+s = s.replace(alt.replace('Eintraege', 'Einträge'), ':subline="`${events.total} Zeichen`"', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Audit/Index.vue "Entscheidung wieder in der Seite" &&
+pruefe "Entscheidung wieder in der Seite" \
+  CountedNounTest::test_the_decision_lives_in_one_place failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CountedNounTest passed
+
+echo
+echo "── CellWhitespaceTest: die Zelle fasst Weissraum wieder zusammen ──"
+#
+# Der Fund aus dem Abnahmelauf von P5c: `a\tb`, `a  b` und `a b` ergaben exakt
+# dieselben 25x16 Pixel. Drei gespeicherte Werte, eine Anzeige.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '  white-space: pre-wrap;\n\n  /*\n   * **Und der Tabulator'
+neu = '  white-space: normal;\n\n  /*\n   * **Und der Tabulator'
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Zelle ohne Weissraum" &&
+pruefe "Zelle ohne Weissraum" \
+  CellWhitespaceTest::test_a_row_cell_keeps_the_whitespace_it_was_given failed
+wiederherstellen
+
+echo
+echo "── CellWhitespaceTest: der Tabulator im Quelltextabstand ──"
+#
+# Tailwinds Reset setzt `tab-size: 4` auf `html`. Damit ist `a\tb` 29px breit und
+# `a  b` 28px — verschieden, aber nicht sichtbar.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('  tab-size: 8;\n}', '  tab-size: 4;\n}', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Tabulator wie Quelltext" &&
+pruefe "Tabulator wie Quelltext" \
+  CellWhitespaceTest::test_a_tab_is_wide_enough_to_be_one failed
+wiederherstellen
+
+echo
+echo "── CellWhitespaceTest: die Einzelsicht zeigt es anders als die Übersicht ──"
+#
+# Sie ist der einzige Ort, an dem ein gekürzter Wert vollständig steht. Stünde er
+# dort anders da, hätte der Kunde zwei Darstellungen und keine Auskunft.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('  tab-size: 8;\n  overflow-wrap: anywhere;', '  overflow-wrap: anywhere;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Einzelsicht mit anderem Abstand" &&
+pruefe "Einzelsicht mit anderem Abstand" \
+  CellWhitespaceTest::test_the_single_cell_view_shows_it_the_same_way failed
+wiederherstellen
+
+echo
+echo "── CellWhitespaceTest: der Leser findet den Selektor nicht mehr ──"
+#
+# Ohne diese Gegenprobe stünde die Zustimmung der drei Prüfungen darüber auf
+# `null === null` — ein Selektor, den es nicht gibt, liefert für jede
+# Eigenschaft `null`.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('.rows .cell {', '.rows .zelle {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Selektor umbenannt" &&
+pruefe "Selektor umbenannt" \
+  CellWhitespaceTest::test_the_reader_finds_a_known_declaration failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CellWhitespaceTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

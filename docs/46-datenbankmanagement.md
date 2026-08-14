@@ -1184,6 +1184,10 @@ seinem Anlass beschriftet. Was beim Fahren herauskam, steht in §20.48.
 
 Auf `cloudsrv24`, beide Systeme, jeder Punkt mit seinem Beleg.
 
+**Gefahren seit dem 13. August 2026 gegen `v0.5.3-rc.13`.** Das Protokoll ist
+[`docs/48`](48-abnahme-p5c.md) und entsteht **während** des Laufs: Was dort
+steht, ist gemessen; was fehlt, ist nicht gefahren.
+
 ---
 
 ## 14. Wächter und ihre Brüche
@@ -1383,8 +1387,23 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 
 ```
 # Voraussetzung: ein Abonnement A mit einer MariaDB- und einer
-# PostgreSQL-Datenbank, ein zweites Abonnement B mit je einer.
+# PostgreSQL-Datenbank, ein zweites Abonnement B mit je einer —
+# UND B GEHOERT EINEM ANDEREN KUNDEN ALS A.
 # Der Lauf legt sie NICHT selbst an (docs/35).
+#
+# HIER STAND NUR „ein zweites Abonnement B", UND DAS REICHT FUER PUNKT 3 (a)
+# NICHT. Die Mandantenklammer haengt am Abonnement, die ANMELDUNG aber am
+# Konto — und `Tenancy::forAccount()` gibt einem Kunden „alle des eigenen
+# Kundenkontos" (`accessibleSubscriptionIds()`). Zwei Abonnements desselben
+# Kunden sind fuer das Panel EIN Mandant: Der Aufruf auf B gelaenge, und zwar
+# zu Recht. Der Lauf saehe aus wie ein gerissenes Kriterium 3.
+#
+# > Zwei Abonnements sind nicht zwei Mandanten. Der Mandant ist der Kunde.
+#
+# Fuer die Punkte 3 (b) und (c) genuegt das zweite ABONNEMENT: Dort haengt die
+# Trennung am Praefix und an den Rechten der Datenbank, und beide reisen mit
+# dem Abonnement und nicht mit dem Kunden. Nur (a) braucht den zweiten Kunden.
+# Gefunden am 13. August 2026 vom Betreiber beim Aufbau des Laufs.
 # Jeder Punkt wird ZWEIMAL gefahren — einmal je System.
 
 # 0  DERSELBE BESTAND AUF BEIDEN SEITEN  ← vor allem anderen
@@ -1401,8 +1420,52 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #    ERST WEGWERFEN, DANN ANLEGEN. Das `DROP` ist nicht Hygiene, sondern der
 #    Punkt: Was hier schiefging, war ein Rest aus einem früheren Lauf.
 #
+#    UND DAS `DROP` NENNT MEHR, ALS DER BLOCK ANLEGT — gefunden am 13. August
+#    2026 beim ersten Lauf dieses Punktes auf cloudsrv24. Der erste Wurf warf
+#    die sechs Tabellen weg, die er selbst anlegt; die Reste der Messrunden zu
+#    Bild 4, 5 und 6 blieben stehen, und einer davon (`umsaetze_je_ort`) gab es
+#    nur in MariaDB.
+#
+#    > Ein `DROP`, das die Tabellen nennt, die man anlegt, räumt nicht den
+#    > Bestand auf — es räumt die eigene Spur auf.
+#
+#    DER TEURERE TEIL DESSELBEN FUNDES: Drei der Reste standen auf BEIDEN
+#    Seiten, mit denselben Namen — über ihren INHALT sagte die Prüfung nichts,
+#    denn sie zählt nur die Tabellen der Fixture. Ein „identisch" wäre eine
+#    Aussage über Namen gewesen und nicht über den Bestand; die Zeile mit der
+#    Tabellenliste fand die eine unsymmetrische, eine abweichende Zeilenzahl in
+#    einem geteilten Rest wäre durchgegangen.
+#
+#    > Eine Prüfung, die eine Teilmenge zählt, sagt über den Rest nichts — und
+#    > sieht dabei aus, als sagte sie etwas über alles.
+#
+#    DESHALB IST DER BESTAND GESCHLOSSEN: Jedes Objekt, das dasteht, legt
+#    dieser Block an, und jedes Objekt der Liste steht auch in der Zählung. Die
+#    lange Kennung aus §20.11 bleibt — sie trägt die 390px-Aufnahme —, aber mit
+#    festgelegtem Inhalt statt als Rest.
+#
+#    UND EINER DER RESTE WAR EINE SICHT — `umsaetze_je_ort`, gefunden im selben
+#    Lauf. Das hat gleich dreimal zugeschlagen:
+#      - `DROP TABLE` entfernt in PostgreSQL keine Sicht, sondern bricht ab
+#        (`ERROR: … is not a table`). Mit `ON_ERROR_STOP=1` — richtig gesetzt —
+#        lief der GANZE Block nicht mehr, und weil MariaDB an derselben Stelle
+#        nur warnt, sah das Ergebnis nach einem Unterschied im Bestand aus statt
+#        nach einer Hälfte, die nie gelaufen ist.
+#      - Die Sicht gehört ÜBERHAUPT in die Fixture und nicht in die Reste: §15
+#        Punkt 6 verlangt, dass die Oberfläche eine Sicht anders begründet als
+#        eine Tabelle ohne Schlüssel („eine Sicht speichert nichts"), und §20.28
+#        hängt daran, dass eine Sicht keine Grösse bekommt. Ein Zustand, den der
+#        Lauf prüft, darf kein Rest sein.
+#      - Und sie hat die Listenabfrage auffliegen lassen (siehe unten).
+#
+#    > Ein Rest, den der Lauf braucht, ist kein Rest — er ist eine Zusage ohne
+#    > Herkunft.
+#
 #    ── PostgreSQL, als Kunde in der eigenen Datenbank ──
-     DROP TABLE IF EXISTS probe, blaettern, gross, ohne_schluessel, nur_unique, lang;
+     DROP VIEW IF EXISTS umsaetze_je_ort;
+     DROP TABLE IF EXISTS probe, blaettern, gross, ohne_schluessel, nur_unique, lang,
+                          ohne_schluessel_lang, protokoll_ohne_schluessel,
+                          bestellpositionen_archiv_2026_langer_name_zum_messen;
      CREATE TABLE probe (id int primary key, leer text, nichts text, tab text, umbruch text);
      INSERT INTO probe VALUES (1, '', NULL, e'a\tb', e'z1\nz2');
      CREATE TABLE blaettern (id int primary key, wert text);
@@ -1416,9 +1479,15 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
      INSERT INTO nur_unique VALUES (1, 'x'), (2, 'y');
      CREATE TABLE lang (id int primary key, langtext text, leer text);
      INSERT INTO lang VALUES (1, repeat('a', 5000), NULL);
+     CREATE TABLE bestellpositionen_archiv_2026_langer_name_zum_messen (id int primary key, wert text);
+     INSERT INTO bestellpositionen_archiv_2026_langer_name_zum_messen VALUES (1, 'a'), (2, 'b'), (3, 'c');
+     CREATE VIEW umsaetze_je_ort AS SELECT b AS ort, count(*) AS anzahl FROM ohne_schluessel GROUP BY b;
 #
 #    ── MariaDB, als Kunde in der eigenen Datenbank ──
-     DROP TABLE IF EXISTS probe, blaettern, gross, ohne_schluessel, nur_unique, lang;
+     DROP VIEW IF EXISTS umsaetze_je_ort;
+     DROP TABLE IF EXISTS probe, blaettern, gross, ohne_schluessel, nur_unique, lang,
+                          ohne_schluessel_lang, protokoll_ohne_schluessel,
+                          bestellpositionen_archiv_2026_langer_name_zum_messen;
      CREATE TABLE probe (id int primary key, leer text, nichts text, tab text, umbruch text);
      INSERT INTO probe VALUES (1, '', NULL, 'a\tb', 'z1\nz2');
      CREATE TABLE blaettern (id int primary key, wert text);
@@ -1432,6 +1501,9 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
      INSERT INTO nur_unique VALUES (1, 'x'), (2, 'y');
      CREATE TABLE lang (id int primary key, langtext text, leer text);
      INSERT INTO lang VALUES (1, REPEAT('a', 5000), NULL);
+     CREATE TABLE bestellpositionen_archiv_2026_langer_name_zum_messen (id int primary key, wert text);
+     INSERT INTO bestellpositionen_archiv_2026_langer_name_zum_messen VALUES (1, 'a'), (2, 'b'), (3, 'c');
+     CREATE VIEW umsaetze_je_ort AS SELECT b AS ort, count(*) AS anzahl FROM ohne_schluessel GROUP BY b;
 #
 #    DREI UNTERSCHIEDE, UND JEDER IST EINER ZU VIEL, WENN MAN IHN NICHT KENNT:
 #      - `e'a\tb'` gegen `'a\tb'` — PostgreSQL braucht das `e`, MariaDB deutet
@@ -1447,20 +1519,35 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #    UND DANN DER BELEG, DASS SIE JETZT GLEICH SIND. Beide Seiten laufen
 #    lassen, die Ausgaben nebeneinanderlegen — sie müssen ZEICHENGLEICH sein:
 #
-#      psql  -A -t -F' ' -c "SELECT 'tabellen ' || string_agg(tablename, ',' ORDER BY tablename)
-#                              FROM pg_tables WHERE schemaname = 'public'"
+#      psql -A -t -c "SELECT 'objekte ' || string_agg(c.relname || ':' ||
+#                              CASE c.relkind WHEN 'v' THEN 'v' ELSE 'r' END,
+#                              ',' ORDER BY c.relname COLLATE \"C\")
+#                         FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+#                        WHERE n.nspname = 'public' AND c.relkind IN ('r','v')"
 #      mysql --batch --skip-column-names
-#            -e "SELECT CONCAT('tabellen ', GROUP_CONCAT(TABLE_NAME ORDER BY TABLE_NAME))
+#            -e "SELECT CONCAT('objekte ', GROUP_CONCAT(CONCAT(TABLE_NAME, ':',
+#                              IF(TABLE_TYPE='VIEW','v','r')) ORDER BY TABLE_NAME))
 #                  FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()"
+#
+#    BEIDE ZEILEN FRAGEN DASSELBE, UND DER ERSTE WURF TAT DAS NICHT: `pg_tables`
+#    listet nur Tabellen, `information_schema.TABLES` listet Tabellen UND
+#    Sichten. Die Sicht war auf der PostgreSQL-Seite unsichtbar und auf der
+#    MariaDB-Seite sichtbar — die Zeile meldete einen Unterschied, den es nicht
+#    gab, und hätte einen echten genauso erzeugt.
+#
+#    > Eine Gegenprobe über einen anderen Weg als den benutzten prüft den
+#    > falschen Weg. (docs/44)
 #
 #    dann in BEIDEN dieselbe Abfrage (sie ist absichtlich in beiden Systemen
 #    dieselbe Zeichenkette):
-     SELECT 'blaettern' AS t, count(*) AS n FROM blaettern
+     SELECT 'archivtabelle' AS t, count(*) AS n FROM bestellpositionen_archiv_2026_langer_name_zum_messen
+     UNION ALL SELECT 'blaettern', count(*) FROM blaettern
      UNION ALL SELECT 'gross', count(*) FROM gross
      UNION ALL SELECT 'lang', count(*) FROM lang
      UNION ALL SELECT 'nur_unique', count(*) FROM nur_unique
      UNION ALL SELECT 'ohne_schluessel', count(*) FROM ohne_schluessel
      UNION ALL SELECT 'probe', count(*) FROM probe
+     UNION ALL SELECT 'sicht', count(*) FROM umsaetze_je_ort
      UNION ALL SELECT 'probe.leer laenge', length(leer) FROM probe
      UNION ALL SELECT 'probe.nichts', CASE WHEN nichts IS NULL THEN 1 ELSE 0 END FROM probe
      UNION ALL SELECT 'probe.tab zeichen', ascii(substr(tab, 2, 1)) FROM probe
@@ -1472,12 +1559,21 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
      ORDER BY 1;
 #
 #    erwartet, auf beiden Seiten Zeile für Zeile gleich:
-#      tabellen blaettern,gross,lang,nur_unique,ohne_schluessel,probe
+#      objekte bestellpositionen_archiv_2026_langer_name_zum_messen:r,blaettern:r,
+#              gross:r,lang:r,nur_unique:r,ohne_schluessel:r,probe:r,umsaetze_je_ort:v
+#      archivtabelle 3 / sicht 1
 #      blaettern 120 / blaettern erste 1 / blaettern letzte 120
 #      gross 3000000 / lang 1 / nur_unique 2 / ohne_schluessel 2 / probe 1
 #      lang.langtext laenge 5000 / lang.leer 1
 #      probe.leer laenge 0 / probe.nichts 1
 #      probe.tab zeichen 9 / probe.umbruch zeichen 10
+#
+#    WARUM DIE BESCHRIFTUNG `archivtabelle` HEISST UND NICHT `langer name`:
+#    Die Zeilen werden mit `ORDER BY 1` sortiert, und ob PostgreSQL und MariaDB
+#    eine Zeichenkette mit Punkt und Leerzeichen gleich einsortieren, hängt an
+#    der Kollation. Die vierzehn vorhandenen sind gemessen gleich sortiert; eine
+#    neue bekommt keinen Namen, dessen Sortierung eine offene Frage ist — sonst
+#    sähe eine Kollationsdifferenz aus wie ein Befund über den Bestand.
 #
 #    WARUM DIE ABFRAGE KEINE NULL UND KEINE LEERE ZELLE AUSGIBT: `psql -A -t`
 #    gibt beide als leeres Feld aus (§2). Eine Prüfung, die das Ergebnis über
@@ -1497,6 +1593,11 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #    hergestellte Abweichung mit Tabellenliste und Zeilenzahl.
 #    `nur_unique` gilt dabei in BEIDEN Systemen als schlüsselfähig — geprüft
 #    mit dem Prädikat aus Pg\Console::KEY_INDEX und mit COLUMN_KEY = 'PRI'.
+#
+#    NACHGEMESSEN am 13. August 2026, nach dem ersten Lauf auf cloudsrv24: Die
+#    Objektliste liefert auf beiden Systemen dieselbe Zeichenkette, samt `:v`
+#    für die Sicht; die Sicht hat auf beiden 1 Zeile; und der Rückbau
+#    (`DROP VIEW` vor `DROP TABLE`) läuft zweimal hintereinander ohne Fehler.
 
 # 1  DIE VIER WERTE  ← Kriterium 2
 #    Als Kunde von aussen in die eigene Datenbank:
@@ -1555,12 +1656,86 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #      (c) die Rechte der befristeten Rolle — die Meldung kommt vom SERVER.
 #    Jede wird EINZELN gefahren; der Beleg ist die Herkunft der Meldung.
 #
-#    (a)  Als Kunde von Abo A die Adresse einer Datenbank von Abo B aufrufen.
-#         erwartet: 403, ohne dass der Agent gefragt wurde.
+#    (a)  Als Kunde von Abo A die Adresse einer Datenbank von Abo B aufrufen —
+#         und B GEHOERT EINEM ANDEREN KUNDEN (siehe Voraussetzung oben).
+#         erwartet: 404, ohne dass der Agent gefragt wurde.
+#
+#         HIER STAND 403, UND DAS IST DIE FALSCHE ERWARTUNG. `Database` traegt
+#         `BelongsToSubscription`, und der globale Filter greift VOR der Policy:
+#         Die Adressaufloesung (`SubstituteBindings`) findet den Datensatz gar
+#         nicht erst, also antwortet Laravel mit 404 und `can:console,database`
+#         kommt nie dran. Die 403 stand hier als Vermutung, seit der Punkt
+#         geschrieben wurde — gegen den Quelltext gelesen am 13. August 2026.
+#
+#         DIE 404 IST DABEI DIE SCHAERFERE ANTWORT und kein Mangel: Eine 403
+#         sagt „das gibt es, du darfst nicht", eine 404 sagt gar nichts. Wer
+#         hier auf 403 besteht, verlangt, dass das Panel die Existenz fremder
+#         Datenbanken bestaetigt.
+#
+#         > Eine Erwartung, die niemand gegen den Code gelesen hat, ist eine
+#         > Vermutung mit Aktenzeichen.
+#
+#         UND DER ZWEITE TEIL DES BELEGS BRAUCHT EINE GEGENPROBE. „Der Agent
+#         wurde nicht gefragt" wird an SEINEM PROTOKOLL gemessen, und das ist
+#         `/var/log/srvpanel/agent.log` — NDJSON, eine Zeile `request` je
+#         Aufruf mit dem Namen der Operation (`Connection::handle()`).
+#
+#         NICHT `journalctl -u srvpanel-agentd`. Am 13. August 2026 auf
+#         cloudsrv24 gemessen: Der Aufruf liefert `-- No entries --`, und zwar
+#         AUCH DANN, wenn der Agent gerade gearbeitet hat. Wer damit belegt,
+#         dass der Agent nicht gefragt wurde, belegt gar nichts.
+#
+#         > Ein Beleg, der immer dasselbe sagt, sagt nichts — auch dann, wenn
+#         > das, was er sagt, gerade stimmt.
+#
+#         Gemessen wird am NAMEN und nicht an der Zeilenzahl:
+#           → im Browser die EIGENE Konsole von A oeffnen
+#           grep -c '"op":"db.console.tables"' /var/log/srvpanel/agent.log
+#             MUSS groesser als 0 sein — der positive Fall
+#           → im Browser die Adresse einer Datenbank von B aufrufen
+#           grep 'console' /var/log/srvpanel/agent.log | grep -c '<B-Datenbank>'
+#             MUSS 0 sein — keine KONSOLENoperation hat den Namen je genannt
+#
+#         UND DAS `grep 'console'` DAVOR GEHOERT DAZU. Der Name allein steht
+#         auch dann im Protokoll, wenn die Datenbank ueber das Panel ANGELEGT
+#         wurde — das geht durch den Agenten und ist voellig in Ordnung. Der
+#         erste Anlauf zaehlte sieben Treffer und keiner davon war ein Leck.
+#
+#         > Ein Name allein sagt nicht, wer ihn genannt hat. Erst die Frage
+#         > nach der Operation trennt „angelegt" von „ausgelesen".
+#
+#         DIE ZEILENZAHL TAUGT DAFUER NICHT, und der erste Anlauf hat es
+#         vorgefuehrt: Zwischen den beiden Messungen kamen acht Zeilen dazu,
+#         und keine davon gehoerte zum Versuch — das Protokoll traegt
+#         `system.info` und `db.server.info` aus dem Hintergrund. Wer die
+#         Differenz liest, liest den Verkehr anderer.
+#
+#         > Eine Zaehlung ueber einen Kanal, auf dem auch andere sprechen,
+#         > misst das Gespraech nicht.
+#
+#         Der Name haengt dagegen an keinem Zeitfenster: Kommt die fremde
+#         Datenbank im ganzen Protokoll nicht vor, hat der Agent sie nie
+#         gesehen — egal, wer sonst noch geredet hat. Ohne den positiven Fall
+#         davor belegt die 0 allerdings weiterhin nichts.
 #    (b)  Am Agenten vorbei an der Anwendung, mit erfundener Nutzlast:
 #           Client::call("pg.console.tables", ["prefix" => <A>, "database" =>
 #                        <B-Datenbank>, "schema" => "public"])
 #         erwartet: „Diese Datenbank gehört nicht zu diesem Abonnement."
+#
+#         GEFAHREN WIRD DAS MIT `HOME=/tmp srvpanel tinker --execute="…"`, UND
+#         DAS `HOME` GEHOERT DAZU. Der Wrapper setzt per `setpriv` auf den
+#         Benutzer `srvpanel` um, `HOME` bleibt dabei auf dem des Aufrufers
+#         (`/root`), und psysh will dort `.config/psysh` anlegen. Es scheitert
+#         mit „Writing to directory .config/psysh is not allowed" — und zwar
+#         als blosse `User Notice`: Der Aufruf gibt danach NICHTS aus, weder
+#         Ergebnis noch Fehler. Gemessen am 13. August 2026 auf cloudsrv24.
+#
+#         > Ein Werkzeug, das mit einer Warnung aufhoert, sieht aus wie eins,
+#         > das nichts zu sagen hatte.
+#
+#         Dieselbe Sorte Fall wie in `docs/47`, wo eine Hilfsdatei unter /root
+#         nach dem `setpriv` unlesbar war — nur andersherum: dort das Lesen,
+#         hier das Schreiben.
 #    (c)  An einer Rolle, die den befristeten Zugang nachbaut (CREATE ROLE …
 #         IN ROLE srvpanel_restore, <A>_owner; GRANT CONNECT ON <A-Datenbank>),
 #         über den SOCKET — den Weg, den Pg\Session::linesAs() geht:
@@ -1586,6 +1761,22 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #    Eine Tabelle mit einigen Millionen Zeilen, dann im Panel nach einer
 #    Spalte ohne Index sortieren.
 #    erwartet: Abbruch nach 5 s, und der Kunde liest den Grund.
+#
+#    DIE GROESSE GEHOERT GEMESSEN UND NICHT GERATEN, JE SYSTEM. Am 13. August
+#    2026 auf cloudsrv24: Dieselbe Tabelle `gross` mit 20 Millionen Zeilen
+#    reisst in MariaDB die Grenze und wird in PostgreSQL durchsortiert. Bei
+#    3 Millionen waren es 0,134 s (PostgreSQL) gegen 1,141 s (MariaDB) — Faktor
+#    acht. Beide Systeme kuerzen bei kleinem LIMIT mit einem Haldenverfahren
+#    ab, und wie weit das traegt, haengt am Server.
+#
+#    > „Einige Millionen Zeilen" ist keine portable Anweisung.
+#
+#    Deshalb VOR dem Klick messen und die Tabelle notfalls aufstocken:
+#      time sudo -u postgres psql -d <A-pg> -c \
+#           "SELECT id FROM gross ORDER BY wert LIMIT 51" > /dev/null
+#      time mysql <A-my> -e "SELECT id FROM gross ORDER BY wert LIMIT 51" > /dev/null
+#    Aufgestockt wird auf BEIDEN Seiten — Punkt 0 hat den Bestand geschlossen,
+#    und eine Seite allein zu vergroessern nimmt dem Lauf seine Gegenprobe.
 #    BELEG: die Meldung, wörtlich. „Fehlgeschlagen" ist eine Aussage über uns
 #           und nicht über den Server (docs/36 §17, Kriterium 6).
 #    Und danach:
@@ -1611,12 +1802,29 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #           Dieselbe Falle wie docs/36 §17 Kriterium 5.
 
 # 6  OHNE SCHLÜSSEL  ← Kriterium 5
-#      CREATE TABLE ohne_schluessel (a int, b text);
-#      INSERT INTO ohne_schluessel VALUES (1,'x'), (1,'x');
-#    Im Panel öffnen.
-#    erwartet: die Zeilen sind zu sehen, es gibt keinen Ändern-Knopf, und der
-#              Grund steht daneben — mit dem Wort „Primärschlüssel".
+#    DREI TABELLEN AUS PUNKT 0, UND ERST ZUSAMMEN PRUEFEN SIE DIE REGEL:
+#
+#      ohne_schluessel   Zeilen sichtbar, KEIN Ändern-Knopf, Beizeile
+#                        „ohne Schlüssel", Grund mit dem Wort „Primärschlüssel"
+#      nur_unique        Zeilen sichtbar, Ändern VORHANDEN, „mit Schlüssel"
+#      umsaetze_je_ort   Zeilen sichtbar, KEIN Ändern-Knopf, Grund nennt die
+#                        SICHT und nicht den Schlüssel — und KEINE Grösse
+#
 #    Der Knopf FEHLT, er ist nicht abgeblendet: AbilityReachTest.
+#
+#    WARUM ALLE DREI. `ohne_schluessel` allein belegt nur, dass ein Knopf
+#    fehlt — das täte er auch, wenn es ihn nie gäbe. `nur_unique` ist die
+#    Gegenprobe und zugleich §10 Regel 2 im Betrieb: kein Primärschlüssel, aber
+#    ein eindeutiger Index über Spalten ohne NULL. Genau dort hat §20.46 einen
+#    Widerspruch gefunden — „ohne Schlüssel" über einer änderbaren Tabelle.
+#
+#    Und die Sicht ist der dritte Fall, weil ihr Grund ein ANDERER sein muss:
+#    „leg einen Schlüssel an" wäre dort der falsche Rat. Dass dort keine Grösse
+#    steht, ist §20.28 — eine Sicht speichert nichts, der Katalog meldet 0, und
+#    „0 B" liest sich wie „leer" statt wie „gibt es nicht".
+#
+#    > Ein fehlender Knopf ist erst dann eine Auskunft, wenn daneben einer
+#    > steht, der da ist.
 
 # 7  GENAU EINE ZEILE  ← Kriterium 6
 #    In probe eine Zeile ändern.
@@ -1634,37 +1842,139 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #    erwartet: die ändernden Handlungen stehen da, mit Datenbank, Tabelle und
 #              Schlüssel. Die lesenden aus Punkt 2 NICHT.
 #    Gegenprobe, und sie ist der eigentliche Punkt:
-#      SELECT id FROM audit_events WHERE payload LIKE '%<der neue Wert>%';
+#      SELECT id FROM audit_events WHERE context LIKE '%<der neue Wert>%';
 #      → 0 Zeilen.
 #    Nach dem WERT suchen, nicht die Einträge zählen.
 #    UND DIE ENTPRELLUNG, denn sie ist die Hälfte, die still bricht:
 #    Zwanzig Seitenaufrufe hintereinander, dann
-#      SELECT count(*) FROM audit_events WHERE action LIKE 'db.console%'
+#      SELECT count(*) FROM audit_events WHERE action = 'database.console.opened'
 #        AND created_at > <Beginn>;
-#    erwartet: EINS, nicht zwanzig. Hier ist die Anzahl ausnahmsweise die
-#    Regel selbst — sonst gilt in diesem Lauf durchweg das Gegenteil.
+#    erwartet: HÖCHSTENS EINS, nicht zwanzig. Hier ist die Anzahl ausnahmsweise
+#    die Regel selbst — sonst gilt in diesem Lauf durchweg das Gegenteil.
+#    NULL ist auch richtig: Liegt der vorige Eintrag noch in der Stunde, ent-
+#    steht gar keiner — das ist die Entprellung, nur noch deutlicher.
+#
+#    UND GENAU DESHALB BRAUCHT DIESE NULL EINEN ZWEITEN ZÄHLER NEBEN SICH.
+#    Eine Entprellung, die nie gefragt wurde, liefert dieselbe 0 wie eine, die
+#    zwanzigmal abgewiesen hat. Belegt werden die zwanzig Aufrufe auf einem
+#    Kanal, den die Entprellung nicht erreicht — den Operationszeilen des
+#    Agenten:
+#      VORHER=$(grep -c '"op":"db.console.tables"' /var/log/srvpanel/agent.log)
+#      → zwanzigmal die Konsole öffnen und verlassen
+#      NACHHER=$(grep -c '"op":"db.console.tables"' /var/log/srvpanel/agent.log)
+#    Die Differenz ist ZWEI JE ÖFFNUNG und nicht eine: Der Agent schreibt je
+#    Anfrage eine `request`- und eine `result`-Zeile mit demselben Namen
+#    (`Connection.php`). Gemessen am 14. August 2026: 153 → 193 bei zwanzig
+#    Öffnungen, daneben 0 neue Protokollzeilen.
+#
+#    > Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als
+#    > Null steht. (Zum zweiten Mal in diesem Lauf, siehe Punkt 3 (a).)
+#
+#    UND DER BEGINN KOMMT AUS `UTC_TIMESTAMP()` UND NICHT AUS `NOW()`.
+#    `created_at` steht in UTC (docs/40), `NOW()` liefert die Ortszeit des
+#    Servers — auf cloudsrv24 zwei Stunden weiter. Die Grenze läge damit in der
+#    Zukunft, und die Zählung wäre 0, ohne dass eine Entprellung daran beteiligt
+#    ist. Ebenso wenig taugt ein Platzhalter im SQL: MariaDB wandelt
+#    `created_at > '<die Zeit von eben>'` STILLSCHWEIGEND um und liefert alle
+#    Zeilen — eine Zahl statt eines Fehlers.
+#
+#    ZWEI NAMEN STANDEN HIER FALSCH, gefunden am 13. August 2026 gegen das
+#    Schema: Die Spalte heisst `context` und nicht `payload`, und die Handlungen
+#    heissen `database.console.*` und nicht `db.console.*`. Der erste Fehler
+#    hätte die Gegenprobe abbrechen lassen; der zweite hätte still 0 gezählt und
+#    wie ein Erfolg ausgesehen.
+#
+#    > Eine Gegenprobe mit einem Namen, den es nicht gibt, findet nichts — und
+#    > „nichts gefunden" ist genau das, was sie beweisen soll.
+#
+#    Die Tabelle liegt in der Datenbank des PANELS (MariaDB), nicht in der des
+#    Kunden — dieser Punkt läuft also einmal und nicht zweimal.
 
 # 8b DIE UNBERÜHRTE SPALTE  ← Kriterium 6, zweite Hälfte
 #    Eine Tabelle mit einer langen Textspalte (> 512 Zeichen) und einer
-#    nullbaren Spalte, die auf NULL steht:
-#      CREATE TABLE lang (id int primary key, text text, leer text);
+#    nullbaren Spalte, die auf NULL steht — die Fixture aus Punkt 0 hat sie:
+#      CREATE TABLE lang (id int primary key, langtext text, leer text);
 #      INSERT INTO lang VALUES (1, repeat('a', 5000), NULL);
-#    Im Panel die Zeile öffnen, NUR id unverändert lassen und NUR eine dritte
-#    Spalte ändern — die beiden anderen nicht anfassen. Speichern. Dann:
-#      SELECT length(text), leer IS NULL FROM lang WHERE id = 1;
-#    erwartet: 5000 und t.
+#
+#    DIESE TABELLE HAT KEINE VIERTE SPALTE, UND OHNE DIE IST DER PUNKT NICHT
+#    FAHRBAR. Gefordert ist „NUR id unverändert lassen und NUR eine dritte
+#    Spalte ändern"; von den drei Spalten ist `id` der Schlüssel, `langtext`
+#    und `leer` sind genau die beiden, die unberührt bleiben MÜSSEN. Es bleibt
+#    nichts zum Ändern übrig. Gefunden am 14. August 2026 beim Fahren des
+#    Punktes — dieselbe Lücke wie bei Punkt 7, wo `probe` nur eine Zeile hatte.
+#
+#    > Eine Fixture und der Schritt, der sie benutzt, entstehen an zwei
+#    > Stellen — und nur einer von beiden zählt die Spalten.
+#
+#    Vor dem Punkt daher AUF BEIDEN SYSTEMEN, damit der Bestand vergleichbar
+#    bleibt (dieselbe Regel wie beim Aufstocken von `gross` in Punkt 4):
+#      ALTER TABLE lang ADD COLUMN notiz text;
+#      UPDATE lang SET notiz = 'vorher' WHERE id = 1;
+#
+#    Im Panel die Zeile öffnen und NUR `notiz` auf `nachher` setzen —
+#    `langtext` und `leer` nicht anfassen. Speichern. Dann:
+#      SELECT length(langtext), leer IS NULL, notiz FROM lang WHERE id = 1;
+#    erwartet: 5000, wahr, `nachher`.
 #    OHNE DIESEN SCHRITT IST KRITERIUM 6 HALB GEFAHREN. Er ist der einzige des
 #    Laufs, dessen Fehlschlag an der Zeile nicht zu sehen ist: Sie steht da, sie
 #    sieht richtig aus, und 4488 Zeichen sind fort.
+#
+#    ES SIND ZWEI VERSCHIEDENE FEHLSCHLÄGE, und beide hängen an der Anzeige:
+#    Die Zeilentabelle kürzt bei 512 Zeichen (§20.13). Schickt das Formular den
+#    GEKÜRZTEN Wert zurück, steht danach 512 statt 5000. Und schickt es für eine
+#    leere Anzeige den leeren String, steht in `leer` danach '' statt NULL —
+#    aus „nichts" wird „nichts drin", und das ist in SQL nicht dasselbe.
+#
 #    Und die Zelleinzelsicht ist die Gegenprobe dazu, denn ohne sie ist der
 #    ganze Wert gar nicht nachzusehen:
-#      Zelle `text` öffnen  → 5000 Zeichen, ungekürzt.
+#      Zelle `langtext` öffnen  → 5000 Zeichen, ungekürzt.
 
 # 9  DER RÜCKBAU LÄSST NICHTS LIEGEN
-#    Abo A zurückbauen.
-#      srvpanel db   → „Nichts liegengeblieben."
 #    Die Konsole legt nichts an, was sie überlebt — dieser Punkt belegt es,
-#    statt es anzunehmen.
+#    statt es anzunehmen. Er läuft in DREI Teilen, und die Reihenfolge ist der
+#    Punkt.
+#
+#    (a) VOR DEM RÜCKBAU, nach allen Konsolensitzungen des Laufs:
+#          srvpanel db
+#        erwartet: KEINE Zeile über befristete Zugänge — weder für MariaDB
+#        noch für PostgreSQL.
+#
+#        HIER STAND NUR DER RÜCKBAU, UND DAS IST DIE FALSCHE REIHENFOLGE. Der
+#        Rückbau entfernt alles mit dem Präfix des Abonnements, also auch einen
+#        Zugang, der aus einer abgebrochenen Konsolensitzung liegengeblieben
+#        wäre. Wer erst danach nachsieht, misst den Rückbau und nicht die
+#        Konsole.
+#
+#        > Ein Rückbau, der alles mitnimmt, verdeckt, was vorher liegengeblieben
+#        > war.
+#
+#    (b) DIE GEGENPROBE, denn hier ist die Entwarnung SCHWEIGEN und nicht
+#        einmal eine Null: `reportStale()` gibt nichts aus, wenn nichts da ist.
+#        Ein Rest wird von Hand gelegt, auf beiden Systemen, und muss auftauchen:
+#          MariaDB     CREATE USER '<präfix>_c00000000'@'localhost';
+#                      dazu `password_last_changed` auf über eine Stunde zurück-
+#                      setzen (`DbServerInfo::GRACE_SECONDS`), sonst gilt er als
+#                      frisch und wird zu Recht verschwiegen.
+#          PostgreSQL  CREATE ROLE <präfix>_c00000000;
+#                      ohne offene Verbindung fällt die Messung sofort auf die
+#                      Karenz zurück (`PgServerInfo::staleRoles()`) — kein
+#                      Zeitstempel nötig.
+#        erwartet: `srvpanel db` nennt beide beim Namen. Danach von Hand
+#        entfernen und die Meldung wieder verschwinden sehen.
+#
+#        > Eine Entwarnung, die aus Schweigen besteht, ist von einem kaputten
+#        > Messgerät nicht zu unterscheiden.
+#
+#    (c) DANN Abo A zurückbauen und noch einmal:
+#          srvpanel db   → „Keine Zeile ohne Abonnement."
+#
+#        DER WORTLAUT STAND HIER FALSCH: „Nichts liegengeblieben." gibt es seit
+#        `docs/45 §5` nicht mehr. Die Zeile hiess so, stand in Grün unmittelbar
+#        unter einer orangen Meldung über stehengebliebene Zugänge und las sich
+#        als Entwarnung über beides. Sie nennt jetzt ihren Umfang.
+#
+#        > Ein erwarteter Wortlaut, den niemand gegen den Code gelesen hat, ist
+#        > eine Vermutung mit Anführungszeichen.
 ```
 
 ---

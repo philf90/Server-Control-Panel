@@ -272,6 +272,34 @@ Ohne diese zweite Zahl wäre die 0 wertlos gewesen — eine Entprellung, die nie
 gefragt wurde, liefert dieselbe Null wie eine, die zwanzigmal abgewiesen hat.
 Wie es dreimal danebenging, steht in §3.11.
 
+### Punkt 8b — die unberührte Spalte · Kriterium 6, zweite Hälfte · **erfüllt**
+
+Der Punkt ist der einzige des Laufs, dessen Fehlschlag **an der Zeile nicht zu
+sehen** wäre: Sie stünde da, sie sähe richtig aus, und 4488 Zeichen wären fort.
+
+Im Panel `lang`, `id = 1`, **nur `notiz`** von `vorher` auf `nachher` — die lange
+Textspalte und die NULL-Spalte nicht angefasst:
+
+| | MariaDB | PostgreSQL |
+|---|---|---|
+| `length(langtext)` | **5000** | **5000** |
+| `leer IS NULL` | `1` | `t` |
+| `notiz` | `nachher` | `nachher` |
+
+**Die Messung trägt ihren eigenen Zeugen.** `nachher` kann nur aus dem Formular
+stammen — von Hand gesetzt wurde `vorher`. Die 5000 stehen also neben einem
+Beleg, dass gespeichert wurde, und nicht neben der Möglichkeit, dass gar nichts
+passiert ist. Nach §3.11 zweimal in Folge die Form, die hier gefehlt hat.
+
+Ausgeschlossen sind damit die beiden Fehlschläge, die an der **Anzeige** hängen:
+der bei 512 Zeichen gekürzte Wert, den das Formular zurückschickt (dann stünde
+`512` da), und der leere String für eine leere Anzeige (dann stünde `leer IS
+NULL` auf falsch — aus „nichts" wäre „nichts drin" geworden, in SQL nicht
+dasselbe).
+
+**Die Fixture musste dafür wachsen**, und das ist ein Befund über den Lauf —
+§3.12.
+
 ## 3. Die Befunde
 
 ### 3.1 Zwei Abonnements sind nicht zwei Mandanten — **Aufbau**
@@ -428,9 +456,27 @@ Der dritte ist §3.5 zum zweiten Mal, an einer anderen Stelle desselben Laufs.
 Aufgelöst hat ihn ein Zähler auf einem **anderen** Kanal — die
 Operationszeilen des Agenten —, der sich nicht entprellen lässt.
 
+### 3.12 Punkt 8b hatte keine Spalte zum Ändern — **Lauf**
+
+Der Schritt verlangt, **nur eine dritte Spalte** zu ändern und die lange
+Textspalte wie die NULL-Spalte unberührt zu lassen. `lang` hat drei Spalten:
+`id` ist der Schlüssel, `langtext` und `leer` sind genau die beiden, die
+unberührt bleiben müssen. Es blieb nichts übrig.
+
+Dieselbe Lücke wie bei Punkt 7, wo `probe` nur eine Zeile hatte — und aus
+demselben Grund: Die Fixture steht in Punkt 0, der Schritt in Punkt 8b, und
+zwischen beiden hat niemand nachgezählt.
+
+> **Eine Fixture und der Schritt, der sie benutzt, entstehen an zwei Stellen —
+> und nur einer von beiden zählt die Spalten.**
+
+Aufgestockt wurde auf **beiden** Systemen um `notiz`, wie schon `gross` in
+Punkt 4 auf beiden Seiten gewachsen ist: Eine Seite allein zu ändern nimmt dem
+Lauf seine Gegenprobe.
+
 ## 4. Was noch offen ist
 
-- **Punkt 8b** — die unberührte Spalte (Kriterium 6, zweite Hälfte)
+- **Punkt 8b** — die Zelleinzelsicht als Gegenprobe (die Messung steht)
 - **Punkt 9** — der Rückbau lässt nichts liegen
 - **Punkt 2b** — der Baum mit der Tastatur
 

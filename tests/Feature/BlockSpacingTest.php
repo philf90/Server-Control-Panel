@@ -45,24 +45,181 @@ use SplFileInfo;
 final class BlockSpacingTest extends TestCase
 {
     /**
-     * Bausteine, die unten bündig enden — sie bringen keinen Abstand mit.
+     * Bausteine, deren Luft aus ihrem Padding kommt und nicht aus einem Rand.
      *
-     * `.scrolls` hört an der Tabellenkante auf, `.pager` hat oben eine Linie und
-     * unten nichts, `.cell-value` steht auf `margin: 0`, und `.button-row`
-     * bringt in **keine** Richtung etwas mit.
+     * **Padding trennt zwei Kästen nicht — ausser der Kasten ist unsichtbar.**
+     * `.notice` und `.cell-value` haben beide reichlich Padding und zeichnen
+     * beide einen Rahmen mit Fläche; ihre Kante klebt trotzdem am Nachbarn, und
+     * das Padding schiebt nur den Inhalt nach innen. `.empty` zeichnet nichts,
+     * und dort sind die 22px oben und unten echter Abstand.
      *
-     * `.empty` steht bewusst nicht dabei — es hat `padding: 22px 0` und damit
-     * seine eigene Luft.
+     * Wer hier etwas einträgt, behauptet: Dieser Baustein hat keine sichtbare
+     * Kante. Das ist eine Aussage über `background` und `border` und keine über
+     * Geschmack.
+     *
+     * @var list<string>
      */
-    private const ENDS_FLUSH = ['scrolls', 'pager', 'cell-value', 'button-row'];
+    private const HAS_OWN_AIR = ['empty'];
 
     /**
-     * Bausteine, die oben bündig anfangen.
+     * Fugen, die noch niemand angesehen hat.
      *
-     * `.button-row` und `.sections` setzen gar keinen Rand; `.notice` hat
-     * `margin-bottom` und oben nichts.
+     * **Sie sind keine Ausnahme, sondern eine Zahl, die kleiner werden soll.**
+     * Als dieser Wächter am 14. August 2026 von zwei gepflegten Listen auf die
+     * Ableitung aus `app.css` umgestellt wurde, kamen dreissig Fugen zum
+     * Vorschein, die vorher gar nicht in seinem Blick lagen. Sie hier
+     * einzutragen ist ehrlicher als die Listen so klein zu lassen, dass sie
+     * nicht auffallen:
+     *
+     * > **Ein Loch, das man zählt, ist kein Loch mehr — es ist eine Zahl, die
+     * > kleiner werden kann.** (`CLAUDE.md`)
+     *
+     * Jede davon gehört unter die Bilderrunde aus Schritt 12: Ob zwei Bausteine
+     * zu eng stehen, entscheidet ein Blick und keine Regel. Was dabei
+     * herauskommt, ist entweder eine Nachbarschaftsregel in `app.css` oder die
+     * Erkenntnis, dass die beiden gar nicht untereinander liegen — und dann
+     * fällt der Eintrag ersatzlos weg.
+     *
+     * **Neue Fugen kommen hier nicht dazu.** Eine, die dieser Wächter findet
+     * und die nicht dasteht, ist rot; das ist der ganze Zweck der Liste.
+     *
+     * @var list<string>
      */
-    private const STARTS_FLUSH = ['button-row', 'notice', 'sections'];
+    private const OPEN_SEAMS = [
+        'arrow + label',
+        'button + button',
+        'button + button-row',
+        'button + notice',
+        'button + sections',
+        'button-row + button',
+        'button-row + form',
+        'choices + dependent',
+        'choices + label',
+        'choices + with-unit',
+        'dependent + dependent',
+        'dependent + with-unit',
+        'field + button',
+        'field + field-row',
+        'hint + field-row',
+        'hint + form',
+        'ident + ident',
+        'ident + notice',
+        'link + link',
+        'output + button-row',
+        'pager-state + button',
+        'section-note + notice',
+        'sections + button-row',
+        'sections + notice',
+        'toggle + button-row',
+        'toggle + choices',
+        'toggle + dependent',
+        'with-unit + dependent',
+    ];
+
+    /**
+     * Was `app.css` über jede Klasse sagt: Rand oben, Rand unten, Richtung.
+     *
+     * **Der sechste Fall hat diesen Wächter hierher gebracht.** Bis dahin
+     * standen zwei Listen im Quelltext, von Hand gepflegt — und `.crumbs` kam
+     * in P6 dazu, ohne dass jemand daran dachte. Die Liste, die eine Liste von
+     * Nachbarpaaren abgelöst hatte, war selbst wieder eine.
+     *
+     * > **Eine Liste, die von Hand gepflegt wird, ist beim nächsten Zuwachs
+     * > unvollständig — auch dann, wenn sie schon die Verbesserung einer
+     * > schlechteren Liste war.**
+     *
+     * Gelesen werden nur Regeln der obersten Ebene mit **einem einfachen
+     * Klassenselektor**. Ein `@media`-Block ändert Ränder erst ab einer Breite,
+     * und ein `.a .b` beschreibt eine Lage und keinen Baustein; beides gehört
+     * nicht in eine Aussage darüber, was ein Baustein von sich aus mitbringt.
+     *
+     * @return array<string, array{top: bool, bottom: bool, row: bool|null}>
+     */
+    private function stylesheet(): array
+    {
+        $css = (string) preg_replace(
+            '#/\*.*?\*/#su',
+            '',
+            (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css'),
+        );
+
+        preg_match_all('/(^|\n)([^{}@\n][^{}]*?)\{([^{}]*)\}/s', $css, $regeln, PREG_SET_ORDER);
+
+        $gesetzt = static fn (string $v): bool => ! in_array(trim($v), ['0', '0px', 'auto', ''], true);
+
+        /** @return array{0: bool, 1: bool} */
+        $kurzform = static function (string $v) use ($gesetzt): array {
+            $teile = preg_split('/\s+/', trim($v)) ?: [''];
+
+            // `margin: a`, `margin: a b` — oben und unten sind dasselbe.
+            // `margin: a b c`, `margin: a b c d` — unten steht an dritter Stelle.
+            return count($teile) <= 2
+                ? [$gesetzt($teile[0]), $gesetzt($teile[0])]
+                : [$gesetzt($teile[0]), $gesetzt($teile[2])];
+        };
+
+        $klassen = [];
+
+        foreach ($regeln as $regel) {
+            if (preg_match('/^\.([\w-]+)$/', trim($regel[2]), $name) !== 1) {
+                continue;
+            }
+
+            $k = $klassen[$name[1]] ?? ['top' => false, 'bottom' => false, 'row' => null];
+
+            if (preg_match('/(?:^|;)\s*margin\s*:\s*([^;]+)/', $regel[3], $x) === 1) {
+                [$k['top'], $k['bottom']] = $kurzform($x[1]);
+            }
+
+            if (preg_match('/margin-top\s*:\s*([^;]+)/', $regel[3], $x) === 1) {
+                $k['top'] = $gesetzt($x[1]);
+            }
+
+            if (preg_match('/margin-bottom\s*:\s*([^;]+)/', $regel[3], $x) === 1) {
+                $k['bottom'] = $gesetzt($x[1]);
+            }
+
+            // Legt dieser Baustein seine Kinder nebeneinander? Dann gibt es
+            // zwischen ihnen keine Fuge, sondern eine Lücke — und dafür ist
+            // `gap` zuständig und nicht dieser Wächter.
+            if (preg_match('/display\s*:\s*(?:inline-)?(?:flex|grid)/', $regel[3]) === 1) {
+                $k['row'] = preg_match('/flex-direction\s*:\s*column/', $regel[3]) !== 1;
+            }
+
+            $klassen[$name[1]] = $k;
+        }
+
+        return $klassen;
+    }
+
+    /**
+     * Die Bausteine, die unten bündig enden und oben bündig anfangen.
+     *
+     * Abgeleitet und nicht aufgezählt — siehe {@see self::stylesheet()}.
+     *
+     * @return array{0: list<string>, 1: list<string>}
+     */
+    private function flush(): array
+    {
+        $endet = [];
+        $faengt = [];
+
+        foreach ($this->stylesheet() as $name => $kanten) {
+            if (in_array($name, self::HAS_OWN_AIR, true)) {
+                continue;
+            }
+
+            if (! $kanten['bottom']) {
+                $endet[] = $name;
+            }
+
+            if (! $kanten['top']) {
+                $faengt[] = $name;
+            }
+        }
+
+        return [$endet, $faengt];
+    }
 
     /** @return list<string> */
     private function templates(): array
@@ -161,10 +318,56 @@ final class BlockSpacingTest extends TestCase
 
         preg_match_all('/<(\/?)([a-zA-Z][\w.-]*)([^>]*)>/s', $template, $tags, PREG_SET_ORDER);
 
+        [$endetBuendig, $faengtBuendig] = $this->flush();
+        $stil = $this->stylesheet();
+
+        /*
+         * **Der Elternteil je Tag, über einen Stapel.**
+         *
+         * Ohne ihn zählt dieser Wächter jede Knopfreihe als Fuge: Zwei Knöpfe
+         * nebeneinander sind Geschwister, und ein Rand zwischen ihnen wäre
+         * waagerecht und damit die falsche Frage. Gemessen, als die Listen auf
+         * die Ableitung umgestellt wurden: **118 von 148 Paaren** liegen
+         * nebeneinander.
+         *
+         * > **Zwei Kästen, die nebeneinander stehen, haben keine Fuge — sie
+         * > haben eine Lücke, und die macht `gap`.**
+         */
+        $stapel = [];
+        $eltern = [];
+
+        foreach ($tags as $index => $tag) {
+            if ($tag[1] === '/') {
+                array_pop($stapel);
+
+                continue;
+            }
+
+            $eltern[$index] = end($stapel) ?: '';
+
+            if (! in_array(strtolower($tag[2]), $void, true) && ! str_ends_with(rtrim($tag[3]), '/')) {
+                $stapel[] = $tag[3];
+            }
+        }
+
         $paare = [];
 
         foreach ($tags as $start => $tag) {
             if ($tag[1] === '/' || in_array(strtolower($tag[2]), $void, true) || str_ends_with(rtrim($tag[3]), '/')) {
+                continue;
+            }
+
+            $waagerecht = false;
+
+            foreach ($stil as $klasse => $kanten) {
+                if ($kanten['row'] === true && $this->hasClass($eltern[$start] ?? '', $klasse)) {
+                    $waagerecht = true;
+
+                    break;
+                }
+            }
+
+            if ($waagerecht) {
                 continue;
             }
 
@@ -194,8 +397,8 @@ final class BlockSpacingTest extends TestCase
                 continue;
             }
 
-            foreach (self::ENDS_FLUSH as $unten) {
-                foreach (self::STARTS_FLUSH as $oben) {
+            foreach ($endetBuendig as $unten) {
+                foreach ($faengtBuendig as $oben) {
                     if ($this->hasClass($tag[3], $unten) && $this->hasClass($nachbar[3], $oben)) {
                         $paare[] = [$unten, $oben];
                     }
@@ -204,6 +407,46 @@ final class BlockSpacingTest extends TestCase
         }
 
         return $paare;
+    }
+
+    /**
+     * Eine Selektorliste in ihre Glieder, an den Kommas der obersten Ebene.
+     *
+     * **`explode(',', …)` reicht dafür nicht**, und das hat beim Umbau eine
+     * Runde gekostet: `:is(.field, .hint, .error, .scrolls, .pager, .cell-value)
+     * + .button-row` ist **ein** Selektor mit fünf Kommas darin. Wer ihn an
+     * jedem Komma zerteilt, bekommt sechs Bruchstücke, von denen nur das letzte
+     * ein `+` trägt — und verliert damit fünf Nachbarschaften auf einmal.
+     *
+     * > **Ein Komma in einer Klammer trennt etwas anderes als eines
+     * > daneben.**
+     *
+     * @return list<string>
+     */
+    private function selectors(string $liste): array
+    {
+        $glieder = [];
+        $laufend = '';
+        $tiefe = 0;
+
+        foreach (str_split($liste) as $zeichen) {
+            if ($zeichen === '(') {
+                $tiefe++;
+            } elseif ($zeichen === ')') {
+                $tiefe--;
+            } elseif ($zeichen === ',' && $tiefe === 0) {
+                $glieder[] = $laufend;
+                $laufend = '';
+
+                continue;
+            }
+
+            $laufend .= $zeichen;
+        }
+
+        $glieder[] = $laufend;
+
+        return $glieder;
     }
 
     /**
@@ -219,17 +462,42 @@ final class BlockSpacingTest extends TestCase
             (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css'),
         );
 
-        preg_match_all('/([^{}]*?)\+([^{}+]*?)\{/s', $css, $regeln, PREG_SET_ORDER);
+        /*
+         * **Erst der Selektor, dann seine Glieder.**
+         *
+         * Hier stand ein Ausdruck über die ganze Selektorliste, und er hat beim
+         * ersten Zuwachs eine Nachbarschaft verloren: `.a + .b,\n.a + .c {`
+         * enthält zwei `+`, und der Ausdruck konnte nur das letzte Paar sehen —
+         * `.button-row + .sections` fiel lautlos aus der Abdeckung, in dem
+         * Moment, in dem `.button-row + .crumbs` danebengeschrieben wurde.
+         *
+         * > **Ein Ausdruck über eine Liste, der nur ein Glied trifft, meldet
+         * > nicht, dass er die anderen nicht gesehen hat.**
+         *
+         * Gemerkt hat es der Wächter selbst, weil er die drei Fugen aus seiner
+         * eigenen Geschichte namentlich nachrechnet.
+         */
+        preg_match_all('/([^{}]+)\{/s', $css, $regeln, PREG_SET_ORDER);
 
         $paare = [];
 
         foreach ($regeln as $regel) {
-            preg_match_all('/\.([\w-]+)/', $regel[1], $links);
-            preg_match_all('/\.([\w-]+)/', $regel[2], $rechts);
+            foreach ($this->selectors($regel[1]) as $selektor) {
+                if (! str_contains($selektor, '+')) {
+                    continue;
+                }
 
-            foreach ($links[1] as $a) {
-                foreach ($rechts[1] as $b) {
-                    $paare[] = [$a, $b];
+                $glieder = explode('+', $selektor);
+
+                for ($i = 1; $i < count($glieder); $i++) {
+                    preg_match_all('/\.([\w-]+)/', $glieder[$i - 1], $links);
+                    preg_match_all('/\.([\w-]+)/', $glieder[$i], $rechts);
+
+                    foreach ($links[1] as $a) {
+                        foreach ($rechts[1] as $b) {
+                            $paare[] = [$a, $b];
+                        }
+                    }
                 }
             }
         }
@@ -270,6 +538,7 @@ final class BlockSpacingTest extends TestCase
     {
         $abgedeckt = $this->covered();
         $gesehen = [];
+        $offen = [];
 
         foreach ($this->templates() as $path) {
             $template = $this->rendered((string) file_get_contents($path));
@@ -277,23 +546,64 @@ final class BlockSpacingTest extends TestCase
             foreach ($this->pairs($template) as $paar) {
                 $gesehen[implode(' + ', $paar)] = true;
 
-                $this->assertContains(
-                    $paar,
-                    $abgedeckt,
-                    sprintf(
-                        "%s setzt `.%s` unmittelbar unter `.%s`, und app.css kennt diese Nachbarschaft\n".
-                        "nicht.\n\n".
-                        '`.%s` endet bündig und `.%s` fängt bündig an — die beiden kleben dann '.
-                        'aneinander. Der Baustein gehört in den Nachbarschaftsausdruck; ein Abstand '.
-                        'auf der Seite wäre derselbe Fehler wie ein Hexwert in einer Komponente.',
-                        $this->relative($path),
-                        $paar[1],
-                        $paar[0],
-                        $paar[0],
-                        $paar[1],
-                    ),
-                );
+                if (in_array($paar, $abgedeckt, true)) {
+                    continue;
+                }
+
+                $name = implode(' + ', $paar);
+                $offen[$name] ??= [];
+                $offen[$name][$this->relative($path)] = true;
             }
+        }
+
+        foreach ($offen as $name => $wo) {
+            [$unten, $oben] = explode(' + ', $name);
+
+            $this->assertContains(
+                $name,
+                self::OPEN_SEAMS,
+                sprintf(
+                    "%s setzt `.%s` unmittelbar unter `.%s`, und app.css kennt diese Nachbarschaft\n".
+                    "nicht.\n\n".
+                    "`.%s` endet bündig und `.%s` fängt bündig an — die beiden kleben dann\n".
+                    "aneinander. Die Nachbarschaft gehört in `app.css`; ein Abstand auf der Seite\n".
+                    "wäre derselbe Fehler wie ein Hexwert in einer Komponente.\n\n".
+                    'Liegen die beiden in Wahrheit nebeneinander, fehlt ihrem Elternteil in '.
+                    '`app.css` das `display: flex` — und dann ist das hier ein Fund über das '.
+                    'Stylesheet und nicht über diese Vorlage.',
+                    implode(', ', array_keys($wo)),
+                    $oben,
+                    $unten,
+                    $unten,
+                    $oben,
+                ),
+            );
+        }
+
+        /*
+         * **Und die Sperrklinke in die andere Richtung.**
+         *
+         * Ein Eintrag in {@see self::OPEN_SEAMS}, den es nicht mehr gibt, ist
+         * dasselbe wie ein Eintrag in einer Positivliste, der ins Leere zeigt:
+         * Er sieht aus wie ein bekanntes Loch und ist keins mehr. Ohne diese
+         * Richtung wächst die Liste nie wieder nach unten, weil niemand daran
+         * denkt, sie zu kürzen.
+         *
+         * > **Ein Loch, das man zählt, ist kein Loch mehr — es ist eine Zahl,
+         * > die kleiner werden kann.** Sie kann es aber nur, wenn jemand es
+         * > merkt.
+         */
+        foreach (self::OPEN_SEAMS as $bekannt) {
+            $this->assertArrayHasKey(
+                $bekannt,
+                $offen,
+                sprintf(
+                    "`%s` steht in BlockSpacingTest::OPEN_SEAMS und kommt nicht mehr vor.\n\n".
+                    'Entweder ist die Fuge geschlossen — dann gehört die Zeile gelöscht — oder die '.
+                    'Suche findet sie nicht mehr, und dann ist der Wächter kaputt.',
+                    $bekannt,
+                ),
+            );
         }
 
         /*
@@ -345,16 +655,76 @@ final class BlockSpacingTest extends TestCase
             }
         }
 
-        foreach ([...self::ENDS_FLUSH, ...self::STARTS_FLUSH] as $baustein) {
+        $stil = $this->stylesheet();
+
+        foreach (self::HAS_OWN_AIR as $baustein) {
             $this->assertArrayHasKey(
                 $baustein,
                 $klassen,
                 sprintf(
-                    '`.%s` steht in einer der beiden Listen dieses Wächters, aber in keiner Vorlage. '.
+                    '`.%s` steht in HAS_OWN_AIR, aber in keiner Vorlage. '.
                     'Ein Baustein, den es nicht gibt, deckt nichts ab.',
                     $baustein,
                 ),
             );
+
+            $this->assertArrayHasKey(
+                $baustein,
+                $stil,
+                sprintf('`.%s` steht in HAS_OWN_AIR, und app.css kennt die Klasse nicht.', $baustein),
+            );
+
+            /*
+             * **Und die Behauptung selbst wird nachgerechnet.**
+             *
+             * Ein Eintrag hier heisst: „Dieser Baustein bringt seine Luft im
+             * Padding mit, deshalb braucht er keinen Rand." Bekommt er später
+             * doch einen Rand, ist die Ausnahme überflüssig — und sie nimmt
+             * dann einen Baustein aus dem Blick, der gar keine mehr braucht.
+             *
+             * > **Eine Ausnahme, deren Begründung weggefallen ist, sieht aus
+             * > wie eine Entscheidung und ist ein Rest.**
+             */
+            $this->assertFalse(
+                $stil[$baustein]['top'] || $stil[$baustein]['bottom'],
+                sprintf(
+                    '`.%s` steht in HAS_OWN_AIR und hat in app.css einen Rand. Dann ist die '.
+                    'Ausnahme überflüssig: Der Baustein bringt seinen Abstand ohnehin mit, und '.
+                    'die Zeile nimmt ihn nur aus dem Blick dieses Wächters.',
+                    $baustein,
+                ),
+            );
+
+            $this->assertStringContainsString(
+                'padding',
+                $this->rule($baustein),
+                sprintf(
+                    '`.%s` steht in HAS_OWN_AIR, hat aber gar kein Padding. Die Ausnahme behauptet '.
+                    'Luft, die es nicht gibt — und der Baustein klebt an seinem Nachbarn, ohne '.
+                    'dass jemand es meldet.',
+                    $baustein,
+                ),
+            );
         }
+    }
+
+    /**
+     * Die Deklarationen einer Klasse, so wie `app.css` sie schreibt.
+     *
+     * Sie werden neben {@see self::stylesheet()} gebraucht, weil dort nur
+     * Ränder und Richtung ankommen — für die Gegenprobe zu {@see
+     * self::HAS_OWN_AIR} zählt aber, ob überhaupt ein Padding dasteht.
+     */
+    private function rule(string $klasse): string
+    {
+        $css = (string) preg_replace(
+            '#/\*.*?\*/#su',
+            '',
+            (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css'),
+        );
+
+        return preg_match('/(^|\n)\.'.preg_quote($klasse, '/').'\s*\{([^{}]*)\}/s', $css, $treffer) === 1
+            ? $treffer[2]
+            : '';
     }
 }

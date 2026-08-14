@@ -7815,21 +7815,62 @@ pruefe "Meldung unter der Blätterleiste" \
 wiederherstellen
 
 echo
-echo "── BlockSpacingTest: ein Baustein der Liste, den es nicht gibt ──"
+echo "── BlockSpacingTest: die Begründung einer Ausnahme fällt weg ──"
 #
-# Der Wächter über den Wächter: Ein Name in einer der beiden Listen, den keine
-# Vorlage trägt, ist eine Zeile, die nach Abdeckung aussieht und keine ist.
-# Genau das war `pager` fünf Schritte lang.
-vorher_datei resources/js/Pages/Databases/Console.vue
+# Der Wächter über den Wächter. Hier stand ein Bruch über eine umbenannte
+# Klasse in einer Vorlage — er zeigte ins Leere, seit die beiden gepflegten
+# Listen durch die Ableitung aus app.css ersetzt sind (P6, Schritt 5d).
+#
+# `.empty` steht in HAS_OWN_AIR mit der Begründung, seine Luft komme aus dem
+# Padding. Bekommt es einen Rand, ist die Ausnahme ein Rest — und nimmt einen
+# Baustein aus dem Blick, der gar keine mehr braucht.
+vorher_datei resources/css/app.css
 python3 - <<'PY2'
-p = 'resources/js/Pages/Databases/Console.vue'
+p = 'resources/css/app.css'
 s = open(p, encoding='utf-8').read()
-s = s.replace('class="cell-value"', 'class="cell-text"', 1)
+s = s.replace('.empty {\n  margin: 0;\n  padding: 22px 0;',
+              '.empty {\n  margin: 22px 0;\n  padding: 0;', 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei resources/js/Pages/Databases/Console.vue "Baustein ohne Vorlage" &&
-pruefe "Baustein ohne Vorlage" \
+griff_datei resources/css/app.css "Ausnahme ohne Begründung" &&
+pruefe "Ausnahme ohne Begründung" \
   BlockSpacingTest::test_every_listed_block_really_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
+
+echo
+echo "── BlockSpacingTest: die sechste Fuge, und ein Baustein, den niemand einträgt ──"
+#
+# Der sechste Fall (docs/53, Befund 7): `.crumbs` kam in P6 dazu, und die Regel
+# nannte `.sections`. Der zweite Bruch ist der wichtigere — er stellt den
+# Zustand her, den die alten gepflegten Listen gar nicht sehen konnten: ein
+# neuer bündiger Baustein, den niemand eingetragen hat.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('.button-row + .crumbs {', '.button-row + .krumen {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Fuge unter dem Formular" &&
+pruefe "Fuge unter dem Formular" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
+wiederherstellen
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+open(p, 'w', encoding='utf-8').write(s + '\n.neuer-block {\n  margin: 0;\n  color: var(--text);\n}\n')
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('    <nav class="crumbs" aria-label="Pfad">',
+              '    <div class="neuer-block">x</div>\n    <nav class="crumbs" aria-label="Pfad">', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "neuer bündiger Baustein" &&
+pruefe "neuer bündiger Baustein ohne Fuge" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
 

@@ -2006,7 +2006,24 @@ tr:has(td.multiline) > td {
  * `--block-gap` und nicht die 16px von oben: Das hier ist die Fuge zwischen
  * zwei Blöcken einer Seite und nicht die zwischen zwei Zeilen eines Formulars.
  */
-.button-row + .sections {
+.button-row + .sections,
+
+/*
+ * **Und beim sechsten Mal war es wieder eine Meldung.**
+ *
+ * Der Betreiber hat es im Dateimanager gesehen: Zwischen dem Formular zum
+ * Hochladen und den Brotkrumen darunter stand nichts (`docs/53`, Befund 7).
+ * `.crumbs` ist in P6 dazugekommen und trägt nur `margin-bottom` — die Regel
+ * darüber nennt aber `.sections`, und damit greift sie hier nicht.
+ *
+ * > **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit
+ * > der nächsten Ergänzung.**
+ *
+ * Der Wächter darunter zählt seitdem nicht mehr nur die Paare, die jemand
+ * eingetragen hat, sondern leitet aus `app.css` ab, welche Bausteine überhaupt
+ * bündig sind — ein neuer kommt damit von selbst in seinen Blick.
+ */
+.button-row + .crumbs {
   margin-top: var(--block-gap);
 }
 

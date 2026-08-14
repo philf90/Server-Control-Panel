@@ -8452,6 +8452,77 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FileStagingTest passed
 
 echo
+echo "── FrontendDependencyTest: eine unbegruendete Abhaengigkeit ──"
+#
+# Dieses Projekt kam bis zum 14. August 2026 ohne jede Frontend-Abhaengigkeit
+# aus, und das war nirgends geprueft — eine Selbstverstaendlichkeit. Sobald die
+# erste Ausnahme da ist, entscheidet die Gewohnheit ueber die zweite.
+vorher_datei package.json
+python3 - <<'PY2'
+import json
+d = json.load(open('package.json', encoding='utf-8'))
+d['devDependencies']['chart.js'] = '^4.0.0'
+json.dump(d, open('package.json', 'w', encoding='utf-8'), indent=4, ensure_ascii=False)
+PY2
+pruefe "chart.js ohne Begruendung in package.json" \
+  FrontendDependencyTest::test_every_dependency_is_accounted_for failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FrontendDependencyTest passed
+
+echo
+echo "── FrontendDependencyTest: statischer Import von CodeMirror ──"
+#
+# Der ganze Unterschied zwischen 2,6 KB und 624 KB im gemeinsamen Buendel — und
+# die Datei saehe dabei genauso aus, nur die Zeile stuende woanders.
+vorher_datei resources/js/Components/CodeEditor.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/CodeEditor.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("import { onBeforeUnmount", "import { EditorView } from '@codemirror/view'\nimport { onBeforeUnmount")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "CodeMirror statisch importiert" \
+  FrontendDependencyTest::test_codemirror_is_loaded_lazily failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FrontendDependencyTest passed
+
+echo
+echo "── FrontendDependencyTest: eine Farbe aus der Bibliothek ──"
+#
+# Ein Hexwert in einer Komponente ist in diesem Projekt ein Fehler und keine
+# Ausnahme — und CodeMirrors eigene Themes waeren in einem der beiden Themes
+# vermutlich unlesbar.
+vorher_datei resources/js/Components/CodeEditor.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/CodeEditor.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("{ tag: tags.keyword, class: 'tok-keyword' },", "{ tag: tags.keyword, color: '#c678dd' },")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Hexwert im Editor" \
+  FrontendDependencyTest::test_the_editor_brings_no_colours_of_its_own failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FrontendDependencyTest passed
+
+echo
+echo "── FrontendDependencyTest: der Rueckweg ohne die Bibliothek ──"
+#
+# Laedt das Buendel nicht, haengt sonst das Speichern einer .htaccess an einer
+# Bibliothek.
+vorher_datei resources/js/Components/CodeEditor.vue
+python3 - <<'PY2'
+import re
+p = 'resources/js/Components/CodeEditor.vue'
+s = open(p, encoding='utf-8').read()
+s = re.sub(r'<textarea.*?</textarea>', '', s, flags=re.S)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "textarea-Rueckweg entfernt" \
+  FrontendDependencyTest::test_there_is_a_way_without_the_library failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FrontendDependencyTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

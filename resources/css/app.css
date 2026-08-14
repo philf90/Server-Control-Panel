@@ -1530,6 +1530,120 @@ table.pairs {
 }
 
 /*
+ * Der Editor mit Syntaxhervorhebung (P6, Schritt 6).
+ *
+ * **Hier stehen die Farben, die CodeMirror sonst selbst mitbrächte.** Die
+ * `HighlightStyle` in `CodeEditor.vue` vergibt ausschliesslich Klassennamen
+ * (`class:` statt `color:`); was daraus wird, entscheidet diese Stelle — wie
+ * bei allem anderen in diesem Panel. Ein mitgeliefertes Theme wäre der einzige
+ * Ort im ganzen System, an dem Farben an der Gestaltung vorbeikämen, und in
+ * einem der beiden Themes wäre es vermutlich unlesbar.
+ *
+ * Die Marken sind die vorhandenen. Es gibt keine eigene Farbskala für
+ * Quelltext, und das ist Absicht: Sechs neue Werte, die nur hier gelten, wären
+ * sechs Werte, die beim nächsten Themewechsel niemand mitzieht.
+ */
+.editor {
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius);
+  background: var(--control-bg);
+  overflow: hidden;
+}
+
+.editor .cm-editor {
+  font-family: var(--font-mono);
+  font-size: var(--text-table);
+  color: var(--text);
+
+  /* Dieselbe Höhe wie das `textarea` daneben — sonst springt die Seite, wenn
+     der Editor nachlädt und den Rückweg ablöst. */
+  max-height: 60dvh;
+}
+
+.editor .cm-editor.cm-focused {
+  /* Der Rahmen sitzt aussen; ein zweiter innen wäre ein doppelter Rand. */
+  outline: none;
+}
+
+.editor .cm-scroller {
+  overflow: auto;
+  font-family: inherit;
+  line-height: 1.6;
+}
+
+.editor .cm-gutters {
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-faint);
+}
+
+.editor .cm-activeLine {
+  background: var(--accent-surface);
+}
+
+.editor .cm-activeLineGutter {
+  background: var(--accent-surface);
+  color: var(--text-muted);
+}
+
+.editor .cm-selectionBackground,
+.editor .cm-content ::selection {
+  background: var(--mark-accent);
+}
+
+.editor .cm-cursor {
+  border-left-color: var(--text);
+}
+
+/*
+ * Die acht Marken.
+ *
+ * Sie tragen englische Namen wie jede Klasse in diesem Projekt und sind so
+ * knapp gehalten, wie eine Hervorhebung sein darf: Wer sieben Farben
+ * unterscheidet, liest den Quelltext nicht mehr, sondern das Bild davon.
+ */
+.editor .tok-keyword {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.editor .tok-string {
+  color: var(--ok);
+}
+
+.editor .tok-comment {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.editor .tok-number {
+  color: var(--accent-second);
+}
+
+.editor .tok-name {
+  color: var(--text-strong);
+}
+
+.editor .tok-tag {
+  color: var(--accent-second);
+}
+
+.editor .tok-operator {
+  color: var(--text-muted);
+}
+
+/*
+ * Ungültiges bekommt die Warnfarbe und keinen roten Grund.
+ *
+ * Ein Parserfehler in einer halb geschriebenen Zeile ist der Normalzustand
+ * beim Tippen; ihn wie einen Fehler des Kunden aussehen zu lassen, wäre eine
+ * Meldung, die während der Arbeit dauernd ansteht.
+ */
+.editor .tok-invalid {
+  color: var(--warn);
+}
+
+/*
  * Das Textfeld des Editors.
  *
  * Monospace und ohne Zeilenumbruch am Rand — Quelltext, dessen Zeilen umbrechen,

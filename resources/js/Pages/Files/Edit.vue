@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3'
 import { computed } from 'vue'
+import CodeEditor from '../../Components/CodeEditor.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 interface Entry {
@@ -40,12 +41,11 @@ const directory = computed(() => {
 })
 
 /*
- * Der Editor ist bis Schritt 6 ein `textarea`.
+ * Der Editor steht in `CodeEditor.vue` und wird dort nachgeladen.
  *
- * Der Betreiber hat CodeMirror 6 zugelassen (`docs/51 §3`, Entscheidung 1) —
- * die erste Frontend-Abhängigkeit dieses Projekts. Sie kommt in einem eigenen
- * Schritt, mit den drei Auflagen aus §8.1: auf diese Seite begrenzt,
- * nachgeladen, und die Farben weiter aus `app.css`.
+ * **Diese Seite ist die einzige, die ihn einbindet** — Auflage 1 aus
+ * `docs/51 §8.1`, und `FrontendDependencyTest` rechnet nach, dass es dabei
+ * bleibt. Wer nie eine Datei bearbeitet, lädt keine Zeile davon.
  */
 function save(): void {
   form.put(`/subscriptions/${props.subscription.id}/files`, { preserveScroll: true })
@@ -79,13 +79,11 @@ function back(): void {
     <form v-else @submit.prevent="save">
       <label class="field">
         <span>Inhalt</span>
-        <textarea
+        <CodeEditor
           v-model="form.content"
-          class="code"
-          rows="24"
-          spellcheck="false"
+          :filename="props.entry?.name ?? ''"
           :readonly="!props.can.edit || !(props.entry?.writable ?? false)"
-        ></textarea>
+        />
       </label>
 
       <p v-if="!(props.entry?.writable ?? false)" class="quiet">

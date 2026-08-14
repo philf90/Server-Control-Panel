@@ -12612,3 +12612,56 @@ geöffnet. Drei Eingriffe im Bruchskript, alle vier Regeln gegengeprüft.
 
 Messung bei 390px: Überlauf 0px in beiden Themes, Gegenprobe 526px, und die
 Gegenprobe belegt seit Schritt 4 zuerst, dass das Stylesheet überhaupt wirkt.
+
+### P6 Schritt 6 — der Editor, und die erste Frontend-Abhängigkeit dieses Projekts
+
+CodeMirror 6, zugelassen vom Betreiber am 14. August 2026 (`docs/51 §3`,
+Entscheidung 1). `docs/20 §4.6` hält für die Kennzahlen fest, warum es sonst
+keine gibt; beim Editor kostet die Regel am meisten, deshalb fällt sie hier und
+nur hier.
+
+**Gemessen, dass die drei Auflagen aus §8.1 auch wirken:** Das gemeinsame Bündel
+wächst um **2,6 KB** (377,1 → 379,7 KB, das ist die Komponente selbst), und
+**624 KB CodeMirror liegen in elf nachgeladenen Bündeln**. Im `app`-Bündel steht
+keine Zeile davon — geprüft nicht an der Dateigrösse, sondern an den Markern:
+`cm-editor`, `cm-content`, `codemirror` und `lezer` kommen dort nicht vor und in
+den nachgeladenen Bündeln schon.
+
+> **Eine Dateigrösse ist ein Indiz. Ein Marker, der drüben steht und hier
+> fehlt, ist eine Messung.**
+
+**Keine Farbe kommt aus der Bibliothek.** Die `HighlightStyle` vergibt
+ausschliesslich **Klassennamen** (`class:` statt `color:`); was daraus wird,
+steht in `app.css` wie alles andere. Ein mitgeliefertes Theme wäre der einzige
+Ort im ganzen System, an dem Farben an der Gestaltung vorbeikämen — und in einem
+der beiden Themes vermutlich unlesbar. Die acht Marken benutzen die vorhandenen
+Token; eine eigene Skala für Quelltext wäre ein Satz Werte, den beim nächsten
+Themewechsel niemand mitzieht.
+
+**Und es geht ohne.** Lädt das Bündel nicht, bleibt das `textarea` darunter
+stehen und funktioniert. Der Editor ist eine Verbesserung und keine
+Voraussetzung — sonst hinge das Speichern einer `.htaccess` an einer Bibliothek,
+und ein Kunde, dessen Netz sie nicht durchlässt, käme an seine Dateien nicht
+heran. Das `textarea` ist deshalb `v-show` und nicht `v-if`: Es muss im Formular
+stehen, auch wenn der Editor nie bereit wird.
+
+**`FrontendDependencyTest` macht aus der Gewohnheit eine Regel.**
+
+> **Eine Regel, die nie jemand gebrochen hat, sieht aus wie eine Regel und ist
+> eine Gewohnheit.** Sobald die erste Ausnahme da ist, entscheidet die
+> Gewohnheit über die zweite — und die zweite kommt ohne Entscheidung.
+
+Die Liste trägt je Eintrag ihren Grund, wie `EngineReachTest` es für die
+Datenbanksysteme tut. Vier Eingriffe im Bruchskript; alle sechs Regeln
+gegengeprüft, darunter der statische Import — der ganze Unterschied zwischen
+2,6 KB und 624 KB im gemeinsamen Bündel, und die Datei sähe dabei genauso aus.
+
+**Zwei eigene Fehler beim Bauen, beide vom Werkzeug und nicht vom Code.** Der
+erste Entwurf des Wächters verlangte `await import(...)` — das `await` steht
+aber am `Promise.all`, und der Wächter war rot, obwohl der Code stimmte. Und das
+Aufräumen nach den Brüchen hat mit `git checkout` mehr zurückgenommen als
+beabsichtigt: die CodeMirror-Zeilen in `package.json` und die Einbindung in
+`Edit.vue`. Genau die Falle, die `CLAUDE.md` für `git checkout -- resources/`
+festhält — sie gilt für `package.json` genauso.
+
+> **Ein Rückweg, der mehr zurücknimmt als den Eingriff, ist kein Rückweg.**

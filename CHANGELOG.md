@@ -12665,3 +12665,53 @@ beabsichtigt: die CodeMirror-Zeilen in `package.json` und die Einbindung in
 festhält — sie gilt für `package.json` genauso.
 
 > **Ein Rückweg, der mehr zurücknimmt als den Eingriff, ist kein Rückweg.**
+
+### P6 — die Zwischenabnahme wird vorgezogen, und die Messung kommt ins Repo
+
+Zwei Dinge, und beide sind eine Folge derselben Einsicht: **Kein Wächter dieses
+Projekts sagt, ob die Sandbox auf dem Zielserver funktioniert.** Sie lesen alle
+Quelltext — dass nur eine Stelle `chroot` ruft, dass die Rechteabgabe in der
+richtigen Reihenfolge steht, dass der Socket geschlossen wird. Das ist ihre
+Aufgabe und ihre Grenze.
+
+**`tests/sandbox-messen.php` misst statt zu lesen.** Framework- und
+PHPUnit-frei, braucht root (weil `chroot` und `setuid` root brauchen) und läuft
+deshalb in der CI nicht, sondern im Container und auf dem Server. Die Messungen
+aus `docs/50` standen bis hierher in Wegwerfskripten — nach der Regel dieses
+Projekts falsch: *Was man zweimal braucht, gehört ins Repo.*
+
+Sieben Abschnitte, jeder mit seiner Gegenprobe, und vier verschiedene
+Rückgabewerte. **`3` heisst „kein Befund, aber mindestens eine Messung ohne
+Gegenprobe" und ist kein Erfolg** — trifft die stumpfe Fassung nicht, ist nicht
+die Abwehr belegt, sondern der Angreifer zu langsam.
+
+Im Container: scharf 0, stumpf **759 von 30 000** beim Zugriff und **1 nach 5
+bis 68 Durchgängen** beim Rückbau.
+
+**Das Skript hat beim Schreiben zwei eigene Fehler gemeldet**, und beide sind
+genau die Sorte, für die es gebaut ist:
+
+- Eine Gegenprobe, die für den Fall „absoluter Pfad" `<wurzel>/etc/passwd`
+  las — also etwas, das es nicht gibt. Sie konnte **von Bauart wegen** nicht
+  treffen, und die Abwehr sah dadurch gut aus, ohne geprüft zu sein.
+  > **Eine Gegenprobe, die nicht treffen kann, ist keine.**
+- Eine feste Rundenzahl für einen seltenen Treffer: sechzig Durchgänge ergaben
+  mal vier Treffer und mal keinen, und im zweiten Fall meldete das Skript zu
+  Recht „ohne Messung". Ein Tor, das bei jedem zweiten Lauf sagt, es habe nichts
+  gemessen, ist kein Tor. Die Gegenprobe läuft jetzt, **bis sie trifft**, und
+  die scharfe Fassung bekommt danach mindestens ebenso viele Durchgänge.
+
+**Und die Zwischenabnahme ist von Schritt 10 auf 6b vorgezogen** (`docs/52`).
+Die Sandbox steht auf vierzehn PHP-Funktionen, deren Vorhandensein auf den
+Zielplattformen ungemessen ist (`docs/50 §8`): gemessen auf Ubuntu 24.04 mit
+PHP 8.4, während Debian 12 PHP 8.2 fährt und Ubuntu 22.04 PHP 8.1. Ein
+`disable_functions` in einer distro-`php.ini` ist keine exotische Annahme — und
+fiele eine dieser Funktionen aus, fiele die Grenze aus und nicht ein Detail.
+Die Schritte 7 bis 9 stapeln sich alle darauf.
+
+> **Drei Schritte auf einer ungeprüften Annahme zu bauen ist teurer, als sie
+> einmal zu prüfen.**
+
+Dazu kommt der Rückbau: `purgeContents()` läuft auf `cloudsrv24` gegen echte
+Abonnements, und das ist der eine Weg in P6, bei dem ein Fehler Daten kostet
+statt eine Fehlermeldung zu erzeugen.

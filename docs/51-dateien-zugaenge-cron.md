@@ -438,9 +438,21 @@ Dazu wachsen mit: `AgentOperationReachTest`, `RouteAuthorizationTest`,
 | 7 | Entpacken, Packen, Suche | über die Warteschlange |
 | 8 | SFTP: Block, Schlüssel, Prüfung der Kette | Zugang steht |
 | 9 | Cron: Datei, Wrapper, Aufzeichnung, Zeitplan | Zeitsteuerung steht |
-| 10 | Zwischenabnahme auf `cloudsrv24` | wie `docs/47` für P5c |
+| **6b** | **Zwischenabnahme auf `cloudsrv24`** | **vorgezogen — `docs/52`** |
+| 10 | ~~Zwischenabnahme~~ | vorgezogen auf 6b |
 | 11 | **Der Angriffsdurchgang**, scharf und stumpf | §4 |
 | 12 | Bilderrunde: beide Themes, 390 px, mit Messung | `docs/49 §6` Punkt 2 |
+
+**Die Zwischenabnahme ist am 14. August von Schritt 10 auf 6b vorgezogen
+worden**, und zwar aus einem benannten Grund: Die Sandbox steht auf vierzehn
+PHP-Funktionen, deren Vorhandensein auf den Zielplattformen ungemessen ist
+(`docs/50 §8`) — gemessen sind sie auf Ubuntu 24.04 mit PHP 8.4, dem
+Entwicklungscontainer. Fällt eine davon aus, fällt die Grenze aus und nicht ein
+Detail; die Schritte 7 bis 9 stapeln sich alle darauf. Der Lauf steht in
+`docs/52`, sein Kern ist `tests/sandbox-messen.php`.
+
+> **Drei Schritte auf einer ungeprüften Annahme zu bauen ist teurer, als sie
+> einmal zu prüfen.**
 
 Schritt 11 ist das Abnahmekriterium und kommt **vor** der Freigabe, nicht
 danach. Schritt 12 wird nicht abgehakt, wenn er gerade nicht geht — `docs/49 §6`

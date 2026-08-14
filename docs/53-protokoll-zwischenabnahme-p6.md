@@ -380,6 +380,131 @@ innerhalb der Sandbox als `p1132`. **Er wird nachgeholt**, zusammen mit dem
 Gegenstück, das die Leerheit ganz herausnimmt: ein leeres, root-eigenes
 Verzeichnis in der Vhost-Wurzel.
 
+### Punkt 4 nachgeholt — und Befund 4 ist damit gemessen statt gelesen
+
+```
+drwxr-xr-x 2 0 0 4096 … /var/www/vhosts/test.invalid/leer-und-root
+abgewiesen: /leer-und-root rekursiv=0 — Das Verzeichnis ist nicht leer.
+```
+
+**Das Verzeichnis ist nachweislich leer** — frisch angelegt, Linkzahl 2 —, und
+die Meldung sagt, es sei es nicht. Befund 4 stand bis hierher auf dem Lesen von
+`FilesRemove::execute()`; jetzt steht er auf einer Ausgabe, die sich selbst
+widerspricht.
+
+> **Eine Fehlermeldung, die einen von vier möglichen Gründen nennt, ist zu drei
+> Vierteln eine Behauptung** — und in diesem Lauf zu vier Vierteln falsch.
+
+**Und die Wand hält, jetzt wo sie erreicht wurde:**
+
+| Aufruf | Antwort |
+|---|---|
+| `remove /leer-und-root` rekursiv=0 | Das Verzeichnis ist nicht leer. (falsch, aber abgewiesen) |
+| `remove /leer-und-root` rekursiv=1 | Das Verzeichnis liess sich nicht vollständig entfernen. |
+| `remove /conf` rekursiv=1 | Das Verzeichnis liess sich nicht vollständig entfernen. |
+
+Beide rekursiven Aufrufe gehen an der Leerheitsprüfung vorbei in
+`Filesystem::removeTree()` und laufen dort als `p1132`. Der Kernel weist sie ab,
+und die Nachprüfung (`Entry::of($path) !== null`) merkt es. Das Verzeichnisschema
+steht danach unverändert:
+
+```
+drwxr-xr-x 2    0    0  conf
+drwxr-x--- 2 1004   33  httpdocs
+drwxr-xr-x 2    0    0  leer-und-root
+drwxr-x--- 3 1004    4  logs
+drwx------ 2 1004 1004  mail
+drwx------ 2 1004 1004  tmp
+```
+
+**Das ist die Messung, um die es in diesem Punkt ging.** Sie war beim ersten
+Anlauf nicht erreicht worden, und der Unterschied zwischen „abgewiesen" und
+„abgewiesen aus dem richtigen Grund" ist genau der, den `docs/48 §3.9` benennt.
+
+### Was dabei aufgefallen ist und nicht gemessen wurde
+
+**Ein fehlgeschlagener rekursiver Rückbau ist nicht atomar.**
+`Filesystem::removeTree()` läuft, bis der Kernel nein sagt — und das tut er erst
+an dem Eintrag, der dem Kunden nicht gehört. Bei `/conf` und `/leer-und-root`
+ist das der erste, es geschieht also nichts.
+
+Bei **`/logs`** wäre es anders: Das Verzeichnis gehört `1004:4`, sein Inhalt dem
+Kunden. Ein `remove("/logs", true)` räumte es leer und scheiterte danach am
+`rmdir`, weil die Vhost-Wurzel root gehört. Der Kunde bekäme „liess sich nicht
+vollständig entfernen" und hätte seine Protokolle verloren.
+
+> **Ein Vorgang, der scheitert, nachdem er die Hälfte getan hat, meldet einen
+> Fehlschlag und hinterlässt eine Wirkung.**
+
+Das ist **keine Grenzverletzung** — der Kunde hat nur eigene Dateien verloren —
+und deshalb hier nicht gemessen. Es gehört zu Schritt 6c dazu, wo ohnehin
+entschieden wird, wie `httpdocs` und die Geschwister abgelegt werden.
+
 ---
 
-*Die Punkte 5 bis 8 folgen, während sie gefahren werden.*
+## Punkt 5 — der Upload
+
+**Die Prüfsumme stimmt, nicht nur die Grösse.**
+
+| Sache | Wert |
+|---|---|
+| Quelle | `…/uploads/p6-gross.bin`, 64 MiB aus `/dev/urandom` |
+| `sha256` Quelle | `1d34f23bfac627793c24e48ddea54344c8c5bf828de777eae8d68941a817116c` |
+| `sha256` Ziel | **dieselbe** |
+| Grösse am Ziel | 67 108 864 Byte |
+| Eigentümer | `1004 1004` |
+
+`/dev/urandom` statt `/dev/zero` war Absicht: Über einen abgebrochenen und mit
+Nullen aufgefüllten Strom wäre die Prüfsumme sonst dieselbe wie über den ganzen.
+64 MiB gehen dabei nicht durch den Arbeitsspeicher — der Agent öffnet die Quelle
+vor dem `chroot` und schreibt den Strom im Kind weiter.
+
+**Und die drei Quellen ausserhalb des Zwischenlagers sind abgewiesen**, `/etc/shadow`
+eingeschlossen. Der dritte Fall ist der, der die Trennung belegt:
+`…/storage/app/private/imports/` ist das Zwischenlager der Datenbanksicherungen
+und nicht `Staging::ROOT`.
+
+> **Zwei Positivlisten, die auf dasselbe Verzeichnis zeigen, sind eine
+> Positivliste.** (`Files\Staging`)
+
+## Befund 5 — die Abweisung verrät, ob es die Datei gibt
+
+**Zwei Pfade, beide ausserhalb, zwei verschiedene Antworten:**
+
+```
+abgewiesen: /etc/shadow          — Pfad liegt außerhalb der erlaubten Verzeichnisse.
+abgewiesen: /root/.ssh/id_rsa    — Pfad existiert nicht.
+```
+
+Der Unterschied ist nicht die Erlaubnis, sondern die **Existenz**.
+`Guard::pathInside()` ruft zuerst `realpath()` und wirft `NOT_FOUND`, wenn das
+fehlschlägt; die Prüfung gegen die erlaubten Wurzeln kommt erst danach. Damit
+beantwortet die Fehlermeldung eine Frage, die der Aufrufer nicht stellen durfte:
+*Gibt es diese Datei?*
+
+**Das ist genau die Entscheidung aus Punkt 4, nur andersherum getroffen.** Dort
+sagt der Dateimanager `not_found` für eine Datei, die es gibt, um ihre Existenz
+nicht zu bestätigen — die schärfere Antwort. Hier sagt derselbe Quelltext
+`denied` für die Datei, die es gibt, und `not_found` für die, die es nicht gibt.
+
+> **Zwei Antworten auf dieselbe Frage in einem System, und sie widersprechen
+> sich.** Beide wurden bewusst gewählt; nur nie nebeneinander.
+
+**`Guard::pathInside()` ist nicht neu und nicht P6.** Die Bauform stammt aus P5
+(`db.dump.import`), und der Reihenfolgefehler wird seitdem ausgeliefert.
+
+**Erreichbar ist er heute nicht:** Die Quelle eines Uploads kommt im Panel aus
+dem Zwischenlager und nicht vom Aufrufer — `FileController` reicht keinen
+fremden Pfad durch. Es ist ein Orakel ohne Anschluss, und behoben gehört es
+trotzdem, weil die nächste Operation, die `pathInside()` benutzt, es anschliessen
+könnte, ohne es zu wissen.
+
+**Und eine Kleinigkeit im Vorbeigehen**: Beide Meldungen dieses Laufs schreiben
+„außerhalb" mit ß, während dieses Projekt sonst durchgehend „ss" setzt. Fünf
+Stellen in `app/` und `agent/`, zwei davon in Texten, die der Kunde sieht
+(`Guard.php`, `Acme\Dns\Rfc2136`). Ein Fall für `WordChoiceTest`, kein Fall für
+diesen Lauf.
+
+---
+
+*Die Punkte 6 bis 8 folgen, während sie gefahren werden.*

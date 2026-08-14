@@ -12845,3 +12845,20 @@ entsteht erst zur Laufzeit aus der `cdef`-Zeile. Ein `@phpstan-ignore` stünde
 als erstes im ganzen Repo; stattdessen steht der Aufruf jetzt einmal als
 `tausche()` da — was zweimal gebraucht wird, wird einmal benannt, und `316`,
 `-100` und `2` haben endlich ihre Namen.
+
+**Und ein Nachtrag, der es verdient hat, aufgeschrieben zu werden.** Der Absatz,
+der begründet, warum hier keine Unterdrückungsmarke steht, hat sie beim Namen
+genannt — mit dem Klammeraffen davor. PHPStan liest den Fliesstext eines
+Dokumentationsblocks nach Marken ab und hat sie als Anweisung genommen:
+`ignore.parseError`, ausdrücklich nicht unterdrückbar. Der Kommentar, der die
+Marke vermeidet, war die Marke.
+
+> **Ein Wort, das ein Parser als Anweisung liest, ist eine Anweisung — auch wenn
+> es im Fliesstext steht.**
+
+Dieselbe Familie wie das `%` in `crontab(5)`, das `docs/51 §10.1` für Schritt 9
+schon vorgemerkt hat, und wie das `$` in einem PCRE-Muster, das in P3 neun
+Ausdrücke betraf. Und dieselbe wie die Falle aus `CLAUDE.md`, nur andersherum:
+Dort **verschwindet** eine Marke, weil sie in einem einzeiligen Block steht;
+hier **entsteht** eine, weil sie in einem mehrzeiligen steht.
+

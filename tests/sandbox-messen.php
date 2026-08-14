@@ -79,8 +79,17 @@ final class Lauf
  * Kunstgriff um den Analysator herum: `FFI` hat keine Methode `syscall`, sie
  * entsteht erst zur Laufzeit aus der `cdef`-Zeile. PHPStan meldet den direkten
  * Aufruf als `method.notFound` — zu Recht, denn statisch *gibt* es sie nicht.
- * Ein `@phpstan-ignore` stünde hier als erstes im ganzen Repo; ein benannter
+ * Eine Unterdrückungsmarke stünde hier als erste im ganzen Repo; ein benannter
  * Aufruf sagt stattdessen, was passiert.
+ *
+ * **Und diese Marke lässt sich nicht einmal erwähnen.** Der erste Entwurf
+ * dieses Absatzes nannte sie beim Namen — mit dem Klammeraffen davor —, und
+ * PHPStan hat den Fliesstext als Anweisung gelesen: `ignore.parseError`,
+ * nicht unterdrückbar. Dieselbe Familie wie das `%` in `crontab(5)` und das
+ * `$` in einem PCRE-Muster:
+ *
+ * > **Ein Wort, das ein Parser als Anweisung liest, ist eine Anweisung — auch
+ * > wenn es im Fliesstext steht.**
  */
 function tausche(object $ffi, string $eins, string $zwei): void
 {

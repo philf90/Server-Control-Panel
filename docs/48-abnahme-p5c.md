@@ -178,6 +178,32 @@ Auch **„Zeile anlegen" fehlt** in beiden nur lesbaren Fällen, nicht nur
 „Ändern" — folgerichtig: Eine Zeile, die man danach nicht eindeutig ansprechen
 kann, sollte gar nicht erst entstehen.
 
+### Punkt 7 — genau eine Zeile · Kriterium 6 · **erfüllt**
+
+**(A) Eine Zeile ändern, und nur die.** Im Panel `blaettern`, `id = 51`,
+`wert` auf `geaendert`. Gemessen wird an einer Zahl, die alles sagt:
+
+```
+SELECT count(*) FROM blaettern WHERE wert <> 'w' || lpad(id::text, 4, '0')
+  vorher: 0 · 0      nachher: 1 · 1        (PostgreSQL · MariaDB)
+SELECT id, wert FROM blaettern WHERE wert = 'geaendert'   →  51|geaendert
+```
+
+Genau eine Zeile weicht vom Muster ab, und es ist die richtige. Hätte der
+Vorgang zwei getroffen, stünde `2` da.
+
+**Der Plan sagt hier „in `probe` eine Zeile ändern … die anderen nicht" — und
+`probe` hat nur eine Zeile.** Das ist eine Lücke zwischen Punkt 0 und Punkt 7,
+entstanden beim Festlegen der Fixture. Gefahren wurde `blaettern`.
+
+**(B) Der Gegenfall.** Beide Systeme, mit offenem Formular die Zeile von aussen
+gelöscht, dann gespeichert:
+
+> Der Vorgang hat 0 Zeilen getroffen und nicht genau eine; nichts wurde geändert.
+
+**Der Gegenfall aus dem Plan ist nicht fahrbar**, und das ist ein Befund über
+den Lauf — §3.9.
+
 ## 3. Die Befunde
 
 ### 3.1 Zwei Abonnements sind nicht zwei Mandanten — **Aufbau**
@@ -261,9 +287,53 @@ Dazu eine leere Shell-Variable (`$PGDB`), die `psql` in die Vorgabedatenbank
 schickte: Die Antwort war eine ehrliche Fehlermeldung über eine Tabelle, die es
 dort nicht gibt — und damit eine Messung an etwas anderem.
 
+### 3.9 Der Gegenfall aus Punkt 7 ist nicht fahrbar — **Lauf**
+
+Der Plan wollte den Schlüssel **mehrdeutig** machen: „von aussen den
+Schlüsselwert auf einen zweiten Datensatz duplizieren (in einer Tabelle mit
+eindeutigem Index über eine Spalte, die danach ihre Eindeutigkeit verliert)".
+
+Das geht nur, indem man den eindeutigen Index **entfernt** — und dann hat die
+Tabelle gar keinen Schlüssel mehr. `checkedKey()` weist ab, bevor eine Anweisung
+entsteht, mit „Diese Spalte gehört nicht zum Primärschlüssel". Gemessen am
+13. August 2026 auf PostgreSQL; MariaDB benutzt dieselbe geteilte Prüfung.
+
+> **Ein Gegenfall, der eine Prüfung erreichen soll, muss an den davor
+> vorbeikommen.**
+
+Solange der eindeutige Index steht, kann der Schlüssel nie zwei Zeilen treffen;
+nimmt man ihn weg, greift die frühere Wand. **Die Zählung nach dem `UPDATE` ist
+über diesen Weg überhaupt nicht erreichbar** — dasselbe Muster wie in Punkt 3,
+wo eine Wand nur durch Abschalten der davor erreichbar schien.
+
+Gefahren wurde statt dessen der Fall, der im Betrieb wirklich vorkommt: **die
+Zeile verschwindet, während jemand sie offen hat.** Dann trifft der `WHERE`-Teil
+null Zeilen, und genau dafür stehen `GET DIAGNOSTICS` und `ROW_COUNT()` im Code.
+
+**Und noch ein Nebenbefund daraus:** Die Meldung „Diese Spalte gehört nicht zum
+Primärschlüssel" ist für diese Lage irreführend — es gibt in dem Moment gar
+keinen Primärschlüssel mehr. Sie nennt das Symptom, nicht die Ursache („der
+Schlüssel dieser Tabelle hat sich geändert, die Ansicht ist veraltet"). Sehr
+selten, aber notiert.
+
+### 3.10 Eine gescheiterte Handlung lässt die vorige Erfolgsmeldung stehen — **offen**
+
+Auf dem MariaDB-Bild zu Punkt 7 (B) steht über der roten Meldung noch **„Die
+Zeile ist geändert."** in Grün — von der Handlung davor. Der Kunde drückt
+Speichern und liest gleichzeitig „geändert" und „nichts wurde geändert".
+
+`useAnnounce` räumt die Erfolgsmeldung bei einer **Navigation** ab, und die
+Konsole navigiert nie — sie arbeitet ausschliesslich über XHR. `report()` setzt
+nur `failure` und rührt die grüne Meldung nicht an.
+
+> **Eine gescheiterte Handlung muss die Erfolgsmeldung der vorigen wegnehmen —
+> sonst stehen zwei Sätze über derselben Taste, und einer ist falsch.**
+
+Dieselbe Familie wie §3.4: Zustand einer vorigen, erfolgreichen Handlung
+überlebt eine gescheiterte.
+
 ## 4. Was noch offen ist
 
-- **Punkt 7** — genau eine Zeile (Kriterium 6)
 - **Punkt 8 / 8b** — das Protokoll (Kriterium 7) und die unberührte Spalte
 - **Punkt 9** — der Rückbau lässt nichts liegen
 - **Punkt 2b** — der Baum mit der Tastatur

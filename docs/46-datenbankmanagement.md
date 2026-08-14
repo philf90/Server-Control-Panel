@@ -1842,15 +1842,29 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #    erwartet: die ändernden Handlungen stehen da, mit Datenbank, Tabelle und
 #              Schlüssel. Die lesenden aus Punkt 2 NICHT.
 #    Gegenprobe, und sie ist der eigentliche Punkt:
-#      SELECT id FROM audit_events WHERE payload LIKE '%<der neue Wert>%';
+#      SELECT id FROM audit_events WHERE context LIKE '%<der neue Wert>%';
 #      → 0 Zeilen.
 #    Nach dem WERT suchen, nicht die Einträge zählen.
 #    UND DIE ENTPRELLUNG, denn sie ist die Hälfte, die still bricht:
 #    Zwanzig Seitenaufrufe hintereinander, dann
-#      SELECT count(*) FROM audit_events WHERE action LIKE 'db.console%'
+#      SELECT count(*) FROM audit_events WHERE action = 'database.console.opened'
 #        AND created_at > <Beginn>;
-#    erwartet: EINS, nicht zwanzig. Hier ist die Anzahl ausnahmsweise die
-#    Regel selbst — sonst gilt in diesem Lauf durchweg das Gegenteil.
+#    erwartet: HÖCHSTENS EINS, nicht zwanzig. Hier ist die Anzahl ausnahmsweise
+#    die Regel selbst — sonst gilt in diesem Lauf durchweg das Gegenteil.
+#    NULL ist auch richtig: Liegt der vorige Eintrag noch in der Stunde, ent-
+#    steht gar keiner — das ist die Entprellung, nur noch deutlicher.
+#
+#    ZWEI NAMEN STANDEN HIER FALSCH, gefunden am 13. August 2026 gegen das
+#    Schema: Die Spalte heisst `context` und nicht `payload`, und die Handlungen
+#    heissen `database.console.*` und nicht `db.console.*`. Der erste Fehler
+#    hätte die Gegenprobe abbrechen lassen; der zweite hätte still 0 gezählt und
+#    wie ein Erfolg ausgesehen.
+#
+#    > Eine Gegenprobe mit einem Namen, den es nicht gibt, findet nichts — und
+#    > „nichts gefunden" ist genau das, was sie beweisen soll.
+#
+#    Die Tabelle liegt in der Datenbank des PANELS (MariaDB), nicht in der des
+#    Kunden — dieser Punkt läuft also einmal und nicht zweimal.
 
 # 8b DIE UNBERÜHRTE SPALTE  ← Kriterium 6, zweite Hälfte
 #    Eine Tabelle mit einer langen Textspalte (> 512 Zeichen) und einer

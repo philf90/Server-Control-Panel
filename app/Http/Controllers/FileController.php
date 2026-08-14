@@ -343,7 +343,11 @@ final class FileController extends Controller
             // Ohne diese Angabe behauptet eine leere Liste, es gebe nichts —
             // wo „nicht zu Ende gesucht" richtig wäre.
             'truncated' => $result['truncated'] ?? false,
-            'can' => ['edit' => $request->user()?->can('editFiles', $subscription) ?? false],
+
+            // **Kein `can` hier.** Die Trefferliste hat keine Griffe, die etwas
+            // ändern — sie führt auf die Datei, und dort steht, was man mit ihr
+            // tun kann. Eine Fahne, die niemand abfragt, ist eine Zusage ins
+            // Leere; `AbilityReachTest` prüft beide Richtungen.
         ]);
     }
 

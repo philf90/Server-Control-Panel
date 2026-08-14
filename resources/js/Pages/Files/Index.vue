@@ -330,11 +330,11 @@ function remove(entry: Entry): void {
                 und daran ändert keine Berechtigung im Panel etwas.
               -->
               <div v-if="props.can.edit && entry.writable" class="button-row">
-                <button type="button" class="button quiet" @click="startRename(entry)">Umbenennen</button>
+                <button type="button" class="button small" @click="startRename(entry)">Umbenennen</button>
                 <button
                   v-if="entry.type !== 'link'"
                   type="button"
-                  class="button quiet"
+                  class="button small"
                   @click="startChmod(entry)"
                 >
                   Rechte
@@ -342,12 +342,12 @@ function remove(entry: Entry): void {
                 <button
                   v-if="isArchive(entry)"
                   type="button"
-                  class="button quiet"
+                  class="button small"
                   @click="extract(entry)"
                 >
                   Entpacken
                 </button>
-                <button type="button" class="button quiet" @click="remove(entry)">Entfernen</button>
+                <button type="button" class="button small" @click="remove(entry)">Entfernen</button>
               </div>
               <span v-else class="quiet">—</span>
             </td>

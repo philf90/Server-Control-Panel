@@ -26,7 +26,6 @@ const props = defineProps<{
   hits: Hit[]
   visited: number
   truncated: boolean
-  can: { edit: boolean }
 }>()
 
 const begriff = ref(props.query)

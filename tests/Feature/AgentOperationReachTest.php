@@ -54,6 +54,23 @@ final class AgentOperationReachTest extends TestCase
      * @var array<string, string>
      */
     private const WITHOUT_LIFECYCLE = [
+        // **P6: der Dateimanager.** Keine dieser Operationen führt einen
+        // Bestand im Panel — eine Datei ist kein Modell dieses Systems, sie
+        // liegt auf der Platte. Ein Lebenslauf hätte nichts zu verwalten;
+        // gerufen werden alle zwölf aus `App\\Support\\Files\\Files`.
+        'files.list' => 'Liest ein Verzeichnis des Abonnements. Kein Bestand im Panel.',
+        'files.read' => 'Siehe files.list.',
+        'files.write' => 'Schreibt eine Datei des Kunden. Was auf der Platte liegt, ist der Bestand.',
+        'files.mkdir' => 'Siehe files.write.',
+        'files.remove' => 'Siehe files.write.',
+        'files.move' => 'Siehe files.write.',
+        'files.copy' => 'Siehe files.write.',
+        'files.chmod' => 'Siehe files.write.',
+        'files.upload' => 'Siehe files.write.',
+        'files.extract' => 'Siehe files.write.',
+        'files.compress' => 'Siehe files.write.',
+        'files.search' => 'Siehe files.list.',
+
         'agent.ping' => 'Fragt nur nach der Version des Agenten.',
         'system.info' => 'Liest Kennzahlen für die Übersicht.',
         'service.status' => 'Liest den Zustand einer Unit.',

@@ -211,9 +211,10 @@ final class Sandbox
      * > **Ein Deskriptor, der beim Öffnen dupliziert wird, wird beim Schliessen
      * > nicht geschlossen.**
      *
-     * Deshalb nennt der Aufrufer seine Handles. `SandboxSocketTest` hält fest,
-     * dass jede Operation, die eine Sandbox öffnet, den Socket ihrer Verbindung
-     * mitgibt — eine Zusage, die sonst niemand einlöst.
+     * Deshalb nennt der Aufrufer seine Handles.
+     * `SandboxReachTest::test_the_child_closes_what_it_inherited` hält fest,
+     * dass dieser Aufruf die erste Anweisung im Kind ist — eine Zusage, die
+     * sonst niemand einlöst.
      *
      * @param  list<Socket|resource>  $handles
      */

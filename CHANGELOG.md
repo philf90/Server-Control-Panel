@@ -12810,9 +12810,16 @@ warum die Zeile so entstand, und er trägt nicht.
 **`CountedNounTest`** — „{{ visited }} Einträge angesehen" liest sich bei genau
 eins als „1 Einträge". Das Wort steht jetzt vor der Zahl.
 
-**`GuardReachTest`** — `Sandbox.php` nannte einen `SandboxSocketTest`, den es
-nicht gibt. Ich habe im Kommentar einen Wächter versprochen und ihn dann anders
-genannt (`SandboxReachTest::test_the_child_closes_what_it_inherited`).
+**`GuardReachTest`** — `Sandbox.php` nannte einen Wächter, den es nicht gibt.
+Ich habe im Kommentar einen versprochen und ihn dann anders gebaut; gemeint war
+`SandboxReachTest::test_the_child_closes_what_it_inherited`.
+
+**Und `ChangelogTest` hat denselben Fehler ein zweites Mal gefunden — hier.**
+Dieser Absatz nannte den erfundenen Namen zuerst beim Namen, und damit stand er
+im Changelog: *„Der Changelog nennt X; eine Datei dieses Namens gibt es unter
+tests/ nicht."* Die Meldung nimmt einem auch gleich den Ausweg — ihn ohne
+Rückstriche zu schreiben wäre eine Umgehung. Der richtige Weg ist, einen Test,
+den es nie gab, nicht zu benennen.
 
 > **Ein Kommentar, der einen Test nennt, ist eine Zusage — und eine Zusage auf
 > einen Namen, den es nicht gibt, ist die Zeichenkette ohne Bezug, gegen die

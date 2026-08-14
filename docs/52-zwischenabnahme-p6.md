@@ -181,7 +181,7 @@ HOME=/tmp srvpanel tinker --execute='
   print_r($f->write($abo, "/httpdocs/p6-probe.txt", "Zeile\n"));
   var_dump($f->read($abo, "/httpdocs/p6-probe.txt")["content"]);
   print_r($f->makeDirectory($abo, "/httpdocs/p6-ordner"));
-  print_r($f->chmod($abo, "/httpdocs/p6-probe.txt", 0644));
+  print_r($f->chmod($abo, "/httpdocs/p6-probe.txt", 0600));
   print_r($f->copy($abo, "/httpdocs/p6-probe.txt", "/httpdocs/p6-kopie.txt"));
   print_r($f->move($abo, "/httpdocs/p6-kopie.txt", "/httpdocs/p6-verschoben.txt"));
 '
@@ -215,9 +215,23 @@ ls -ln /var/www/vhosts/<abo>/httpdocs/            # zwischen write und remove
 ```
 
 **Das `-n` ist Absicht**: gefragt sind die Zahlen und nicht die Namen. Ein
-`uid=0`, dessen Name zufällig danebensteht, rutscht sonst durch.
+`uid=0`, dessen Name zufällig danebensteht, rutscht sonst durch. Und ein
+`id <benutzer>` daneben, weil eine Zahl allein niemandem gehört:
+
+```bash
+id <benutzer>; ls -ln /var/www/vhosts/<abo>/httpdocs/
+```
 
 > Ein Vorgang, der als root schreibt, meldet Erfolg genauso.
+
+**Und `0600` beim `chmod` ist Absicht.** Hier stand `0644` — genau die Rechte,
+die `files.write` beim Anlegen ohnehin setzt. Der Aufruf hätte den Zustand
+gesetzt, in dem die Datei schon war, hätte Erfolg gemeldet und **nichts
+belegt**. Gemessen wird ein `chmod` nur an einem Wert, den vorher niemand
+hatte, und mit der Rechteangabe vorher und nachher daneben.
+
+> **Ein Griff, der den Zustand herstellt, in dem die Sache schon ist, meldet
+> Erfolg und misst nichts.**
 
 ### Punkt 4 — was scheitern muss
 

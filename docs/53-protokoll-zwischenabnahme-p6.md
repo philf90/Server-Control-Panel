@@ -168,4 +168,75 @@ Zwei Kleinigkeiten sind beim Nachsehen mitgegangen, beide aus derselben Familie
 
 ---
 
-*Die Punkte 3 bis 8 folgen, während sie gefahren werden.*
+## Punkt 3 — die Datei-Operationen an einem echten Abonnement
+
+Gefahren gegen `test.invalid`, Systembenutzer `p1132`.
+
+| Aufruf | Ergebnis |
+|---|---|
+| `list /` | `.ssh, conf, httpdocs, logs, mail, tmp` — die sechs aus §4.5 |
+| `list /httpdocs` | `index.html` |
+| `write /httpdocs/p6-probe.txt` | `created`, 6 Byte |
+| `read` | `string(6) "Zeile\n"` — Byte für Byte das Geschriebene |
+| `mkdir /httpdocs/p6-ordner` | angelegt, `mode` 488 = `0750` |
+| `chmod 0644` | gemeldet — **siehe Befund 2** |
+| `copy` | `copied`, 6 Byte |
+| `move` | `from: /httpdocs/p6-kopie.txt` |
+
+**Alle acht gelingen, und keine der angelegten Dateien gehört root:** Jeder
+Eintrag meldet `uid=1004 gid=1004`. Der Systembenutzer des Abonnements ist
+`p1132`; dass das dieselbe Kennung ist, sagt die Auskunft des Agenten allein
+nicht — sie wird ausserhalb der Sandbox nachgesehen.
+
+### Was `read` nebenbei belegt
+
+`var_dump` gibt `string(6)` — sechs Byte für `"Zeile\n"`. Das ist die
+Gegenprobe zu einer Klasse von Fehlern, die dieses Projekt in P5c teuer bezahlt
+hat: Ein Weg, der Inhalte über eine Textdarstellung schickt, verliert oder
+verändert sie lautlos (`mysql --batch` und die Maskierung über der Maskierung,
+`psql -A -t` und der Tabulator im Wert). Die Länge daneben ist der Unterschied
+zwischen „es kam etwas an" und „es kam genau das an".
+
+### Was dieser Punkt offen lässt
+
+Die Auskunft über `uid` und `gid` stammt vom Agenten, also vom Prüfling. Sie
+wird mit `id p1132` und `ls -ln` gegengeprüft — nicht, weil ein Betrug
+unterstellt wird, sondern weil beide Zahlen sonst aus derselben Quelle kämen.
+
+> **Eine Gegenprobe über denselben Weg wie die Messung prüft den Weg und nicht
+> die Sache.** (`docs/44`)
+
+**Und Punkt 2 ist damit praktisch beantwortet.** Diese Aufrufe sind über
+`srvpanel tinker` durch das Panel und über den Unix-Socket in den **laufenden
+Dienst** gegangen. Dass dort `pcntl_fork`, `chroot` und die Rechteabgabe
+funktionieren, steht nicht mehr auf der Auskunft von `php -v` in einer
+Root-Shell, sondern auf acht Vorgängen, die als `uid=1004` geschrieben haben.
+
+## Befund 2 — ein `chmod`, das nichts gemessen hat
+
+**`files.write` legt eine Datei mit `0644` an. Der Lauf hat danach `chmod 0644`
+verlangt.**
+
+Das ist im Ergebnis zu sehen und nur dort: Der Eintrag meldet `mode => 420`
+**vor** und **nach** dem Aufruf — 420 dezimal ist `0644`. Der Aufruf hat den
+Zustand hergestellt, in dem die Datei bereits war, Erfolg gemeldet und nichts
+belegt. Wäre `files.chmod` eine leere Methode, sähe dieser Lauf genauso aus.
+
+> **Ein Griff, der den Zustand herstellt, in dem die Sache schon ist, meldet
+> Erfolg und misst nichts.**
+
+Das ist dieselbe Familie wie der wiederkehrende Satz über die Null — nur ohne
+Zahl, an der es auffiele: Hier steht neben der Messung nicht „0", sondern ein
+gefüllter Ergebnisbaum, der nach Arbeit aussieht.
+
+**Behoben**: `docs/52` verlangt jetzt `0600` — einen Wert, den vorher niemand
+hatte — und die Rechteangabe vorher und nachher daneben. Nachgeholt wird die
+Messung im Rückbauschritt.
+
+Bemerkenswert ist, wie es hineingekommen ist: `0644` ist der Wert, den man für
+eine Webdatei hinschreibt, ohne nachzudenken. Er war nicht falsch gewählt — er
+war **gar nicht** gewählt.
+
+---
+
+*Die Punkte 4 bis 8 folgen, während sie gefahren werden.*

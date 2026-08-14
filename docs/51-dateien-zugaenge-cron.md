@@ -439,6 +439,7 @@ Dazu wachsen mit: `AgentOperationReachTest`, `RouteAuthorizationTest`,
 | 8 | SFTP: Block, Schlüssel, Prüfung der Kette | Zugang steht |
 | 9 | Cron: Datei, Wrapper, Aufzeichnung, Zeitplan | Zeitsteuerung steht |
 | **6b** | **Zwischenabnahme auf `cloudsrv24`** | **vorgezogen — `docs/52`** |
+| **6c** | **Die Gruppe, unter der abgelegt wird** | **aus Befund 3 — siehe unten** |
 | 10 | ~~Zwischenabnahme~~ | vorgezogen auf 6b |
 | 11 | **Der Angriffsdurchgang**, scharf und stumpf | §4 |
 | 12 | Bilderrunde: beide Themes, 390 px, mit Messung | `docs/49 §6` Punkt 2 |
@@ -453,6 +454,34 @@ Detail; die Schritte 7 bis 9 stapeln sich alle darauf. Der Lauf steht in
 
 > **Drei Schritte auf einer ungeprüften Annahme zu bauen ist teurer, als sie
 > einmal zu prüfen.**
+
+**Schritt 6c ist am 14. August dazugekommen**, aus Befund 3 der Zwischenabnahme
+(`docs/53`). `httpdocs` gehört `%u:www-data 0750` — der Webserver kommt über die
+Gruppe hinein. Eine Datei, die beim Anlegen des Abonnements entsteht, trägt
+deshalb `1004:33 0640`; eine Datei aus dem Dateimanager trägt `1004:1004 0644`,
+weil die Sandbox auf die Gruppe des Abonnements setzt und keine Operation sie
+danach anfasst. Lesbar ist sie für den Webserver nur über das Weltbit.
+
+**Das bricht in dem Moment, in dem ein Kunde tut, wozu das Panel einlädt**: Er
+setzt `0640` — dieselbe Angabe, die `index.html` trägt und die dort funktioniert
+— und bekommt einen 403.
+
+> **Zwei Wege, die dieselbe Datei anlegen, müssen sie gleich anlegen — sonst ist
+> die Rechteanzeige eine Auskunft über die Hälfte der Wahrheit.**
+
+**SFTP (Schritt 8) hat dasselbe Problem**, und deshalb gehört die Entscheidung
+vor beide und nicht in einen von beiden. Zwei Wege stehen zur Wahl, und der
+zweite ist der schlechtere:
+
+1. **`setgid` auf `httpdocs`** — das Verzeichnis vererbt seine Gruppe an alles,
+   was darin entsteht, ganz gleich, wer schreibt. Eine Stelle, die es
+   durchsetzt, und sie gilt auch für Wege, die es noch nicht gibt.
+2. **Ein `chgrp` nach jedem Schreibvorgang** — dieselbe Regel in acht
+   Operationen, in SFTP nochmal, und in der neunten fehlt sie.
+
+Der zweite Weg ist die Bauform, die in diesem Projekt schon dreimal
+danebengegangen ist: eine zweite Fassung derselben Regel, und die zweite ist
+die, die veraltet.
 
 Schritt 11 ist das Abnahmekriterium und kommt **vor** der Freigabe, nicht
 danach. Schritt 12 wird nicht abgehakt, wenn er gerade nicht geht — `docs/49 §6`

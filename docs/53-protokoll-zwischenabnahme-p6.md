@@ -179,7 +179,7 @@ Gefahren gegen `test.invalid`, Systembenutzer `p1132`.
 | `write /httpdocs/p6-probe.txt` | `created`, 6 Byte |
 | `read` | `string(6) "Zeile\n"` — Byte für Byte das Geschriebene |
 | `mkdir /httpdocs/p6-ordner` | angelegt, `mode` 488 = `0750` |
-| `chmod 0644` | gemeldet — **siehe Befund 2** |
+| `chmod 0600` | `vorher 644`, `nachher 600`, Rückbau meldet `mode => 384` |
 | `copy` | `copied`, 6 Byte |
 | `move` | `from: /httpdocs/p6-kopie.txt` |
 
@@ -197,14 +197,27 @@ verändert sie lautlos (`mysql --batch` und die Maskierung über der Maskierung,
 `psql -A -t` und der Tabulator im Wert). Die Länge daneben ist der Unterschied
 zwischen „es kam etwas an" und „es kam genau das an".
 
-### Was dieser Punkt offen lässt
+### Die Gegenprobe ausserhalb der Sandbox
 
-Die Auskunft über `uid` und `gid` stammt vom Agenten, also vom Prüfling. Sie
-wird mit `id p1132` und `ls -ln` gegengeprüft — nicht, weil ein Betrug
-unterstellt wird, sondern weil beide Zahlen sonst aus derselben Quelle kämen.
+Die Auskunft über `uid` und `gid` stammte vom Agenten, also vom Prüfling — und
+beide Zahlen kämen sonst aus derselben Quelle.
 
 > **Eine Gegenprobe über denselben Weg wie die Messung prüft den Weg und nicht
 > die Sache.** (`docs/44`)
+
+```
+uid=1004(p1132) gid=1004(p1132) groups=1004(p1132)
+-rw-r-----  1 1004   33  1109  index.html
+drwxr-x---  2 1004 1004  4096  p6-ordner
+-rw-r--r--  1 1004 1004     6  p6-probe.txt
+-rw-r--r--  1 1004 1004     6  p6-verschoben.txt
+```
+
+`id` bindet die 1004 an `p1132`, `ls -ln` liest die Inode als root und ausserhalb
+des Chroots. Damit ist belegt, was der Agent gesagt hat.
+
+Und der Rückbau ist vollständig: `list /httpdocs` gibt danach nur noch
+`index.html`.
 
 **Und Punkt 2 ist damit praktisch beantwortet.** Diese Aufrufe sind über
 `srvpanel tinker` durch das Panel und über den Unix-Socket in den **laufenden
@@ -236,6 +249,53 @@ Messung im Rückbauschritt.
 Bemerkenswert ist, wie es hineingekommen ist: `0644` ist der Wert, den man für
 eine Webdatei hinschreibt, ohne nachzudenken. Er war nicht falsch gewählt — er
 war **gar nicht** gewählt.
+
+## Befund 3 — der Dateimanager legt in einer anderen Gruppe ab als das Anlegen
+
+**Gefunden im `ls -ln` zu Punkt 3, und zwar an der Zeile, die nicht von diesem
+Lauf stammt.**
+
+```
+-rw-r-----  1 1004   33  index.html          ← beim Anlegen des Abos entstanden
+-rw-r--r--  1 1004 1004  p6-probe.txt        ← über den Dateimanager entstanden
+```
+
+`33` ist `www-data`. `SubscriptionProvision::TREE` setzt `httpdocs` auf
+`%u:www-data 0750` — der Webserver kommt über die **Gruppe** hinein, und
+`index.html` mit `0640` ist für ihn lesbar, für alle anderen nicht.
+
+Eine Datei aus dem Dateimanager trägt dagegen die Gruppe des Abonnements. Die
+Sandbox setzt `posix_setgid($account['gid'])`, und keine der Datei-Operationen
+fasst die Gruppe danach an. Lesbar ist so eine Datei für den Webserver nur über
+das **Weltbit** in `0644`.
+
+**Heute geht es gut, und genau das ist das Unangenehme daran.** Der Bruch tritt
+in dem Moment ein, in dem jemand tut, wozu das Panel ausdrücklich einlädt:
+
+> Ein Kunde setzt eine Datei auf `0640` — dieselben Rechte, die `index.html`
+> trägt und die für sie funktionieren — und bekommt einen 403. Zwei Dateien
+> nebeneinander, gleiche Rechteangabe, unterschiedliches Verhalten, und die
+> Erklärung steht in einer Spalte, die die Rechteanzeige des Panels gar nicht
+> zeigt.
+
+> **Zwei Wege, die dieselbe Datei anlegen, müssen sie gleich anlegen — sonst ist
+> die Rechteanzeige eine Auskunft über die Hälfte der Wahrheit.**
+
+Es ist derselbe Bau wie der Fund aus `docs/38 §17` (`Hba::ensure()` und der
+Fernzugriff): **ein zweiter Schreiber in demselben Verzeichnis, der die
+Vereinbarung des ersten nicht kennt.** Dort war es eine Zeile in `pg_hba.conf`,
+hier eine Gruppenkennung.
+
+**Und SFTP hat dasselbe Problem** (`docs/51 §12`, Schritt 9): Auch dort schreibt
+der Systembenutzer unter seiner eigenen Gruppe. Der Ort für die Entscheidung ist
+deshalb nicht der Dateimanager, sondern die Frage, wie ein Abonnement seine
+Dateien überhaupt ablegt — `setgid` auf `httpdocs` wäre die eine Antwort, ein
+`chgrp` nach jedem Schreibvorgang die andere, und die zweite ist schlechter,
+weil sie an jeder Stelle einzeln stehen müsste.
+
+**Nicht behoben in diesem Lauf.** Er prüft die Grenze, und das hier ist keine:
+Es kommt niemand irgendwohin, wo er nicht hindarf. Der Befund geht als eigener
+Punkt in `docs/51` und wird vor dem Angriffsdurchgang entschieden.
 
 ---
 

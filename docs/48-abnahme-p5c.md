@@ -119,6 +119,33 @@ SHOW PROCESSLIST | grep -c "ORDER BY wert"                                      
 
 Die zwei verschiedenen Grössen sind selbst ein Befund — §3.7.
 
+### Punkt 5 — der befristete Zugang · Kriterium 1 · **erfüllt**
+
+Nach den Punkten 1 bis 4, ohne offene Konsole:
+
+| | Ergebnis |
+|---|---|
+| `SELECT rolname FROM pg_roles WHERE rolname ~ '^x[0-9a-f]{16}_[rc][0-9a-f]{8}$'` | **leer** |
+| `SELECT user FROM mysql.user WHERE user REGEXP '^p[0-9]+_[rc][0-9a-f]{8}$'` | **leer** |
+
+**Und daneben der Nachweis, dass welche entstanden sind** — ohne ihn wäre die
+Leere nur die Leere:
+
+```
+xb5692b0b484effac_c855b3a6a      ← das `c` ist Names::KIND_CONSOLE
+x90d271df69287335_r04df71ac      ← `r` aus Zurückspielungen, vier weitere
+mysql-fa4509bd2a3cc2d6.cnf       ← fünf verschiedene Zugangsdateien
+```
+
+Der Beleg sieht je System anders aus, und das folgt aus dem Aufrufweg:
+PostgreSQL ruft `psql -U <rolle>`, der Name steht also in der Kommandozeile;
+MariaDB ruft `mysql --defaults-extra-file=…`, dort steht die **Datei**.
+
+**Zugabe über den Plan hinaus:** `/run/srvpanel/mysql-*.cnf` — keine Datei.
+Eine liegengebliebene Zugangsdatei enthält ein Passwort und wäre ein Rest, den
+Kriterium 1 dem Sinne nach genauso ausschliesst wie eine Rolle. Sie steht nicht
+im Plan, weil beim Schreiben niemand an sie gedacht hat.
+
 ## 3. Die Befunde
 
 ### 3.1 Zwei Abonnements sind nicht zwei Mandanten — **Aufbau**
@@ -204,7 +231,6 @@ dort nicht gibt — und damit eine Messung an etwas anderem.
 
 ## 4. Was noch offen ist
 
-- **Punkt 5** — der befristete Zugang (Kriterium 1)
 - **Punkt 6** — ohne Schlüssel (Kriterium 5)
 - **Punkt 7** — genau eine Zeile (Kriterium 6)
 - **Punkt 8 / 8b** — das Protokoll (Kriterium 7) und die unberührte Spalte

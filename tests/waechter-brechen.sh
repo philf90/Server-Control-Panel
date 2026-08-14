@@ -90,7 +90,16 @@ cd "$(dirname "$0")/.." || exit 1
 #
 # > **Ein Rückweg, der eine Datei nicht kennt, die ein Eingriff ändert, ist
 # > keiner — und was danach kommt, misst etwas anderes als es glaubt.**
-BAEUME="resources/ app/ agent/ tests/ packaging/ .github/ database/ routes/ docs/ config/ bootstrap/"
+# **`package.json` steht hier, weil es seit P6 eine Regel trägt.**
+# `FrontendDependencyTest` liest die Abhängigkeitsliste, und der Bruch dazu
+# schreibt eine erfundene hinein. Ohne die Datei im Rückweg blieb sie stehen —
+# und damit war der Wächter für **jede** folgende Prüfung rot, obwohl mit ihm
+# nichts war. Genau vier Prüfungen meldeten deshalb „ohne Biss", und alle vier
+# gehörten zu diesem einen Wächter.
+#
+# > **Ein Bruch, der eine Datei ausserhalb des Rückwegs anfasst, wird nicht
+# > zurückgenommen — und vergiftet jeden Lauf danach.**
+BAEUME="resources/ app/ agent/ tests/ packaging/ .github/ database/ routes/ docs/ config/ bootstrap/ package.json"
 
 # **Dieses Skript liegt selbst unter `tests/` und nimmt sich aus.**
 #

@@ -12869,3 +12869,38 @@ Ausdrücke betraf. Und dieselbe wie die Falle aus `CLAUDE.md`, nur andersherum:
 Dort **verschwindet** eine Marke, weil sie in einem einzeiligen Block steht;
 hier **entsteht** eine, weil sie in einem mehrzeiligen steht.
 
+
+### Der Bruchlauf: vier Prüfungen ohne Biss, und alle vier lagen am Rückweg
+
+Der Lauf meldete durchgehend `4 Prüfung(en) ohne Biss, davon 0 ohne Messung` —
+über drei Commits hinweg unverändert, obwohl dazwischen vierzehn rote Tests grün
+wurden. Genau diese Unveränderlichkeit war der Hinweis: Es hing an nichts, was
+ich gerade reparierte.
+
+**Es sind vier Prüfungen desselben Wächters, und der Bruch war jedes Mal in
+Ordnung.** `FrontendDependencyTest` biss viermal korrekt zu; fehlgeschlagen ist
+jedes Mal die **Rücknahme** — `… zurückgesetzt wieder grün → failed`.
+
+Der Grund steht in einer Zeile, die es seit P0 gibt: `wiederherstellen()` macht
+`git checkout -- $BAEUME`, und `BAEUME` zählt die Verzeichnisse auf, in denen
+Code liegt. **`package.json` steht nicht darunter** — es musste bis P6 auch nie,
+weil keine Regel daraus las. Der erste der vier Brüche schreibt eine erfundene
+Abhängigkeit hinein; sie blieb stehen, und damit war der Wächter für die drei
+folgenden Prüfungen rot, obwohl mit ihm nichts war.
+
+> **Ein Bruch, der eine Datei ausserhalb des Rückwegs anfasst, wird nicht
+> zurückgenommen — und vergiftet jeden Lauf danach.**
+
+Das Skript hat den Fehler dabei sauber *gemeldet* und nur falsch *einsortiert*:
+Es prüft, ob ein Eingriff etwas verändert hat (`Eingriff hat nichts geändert`),
+und es prüft, ob der Wächter danach wieder grün wird — die zweite Prüfung hat
+angeschlagen. Sie zählt nur unter „ohne Biss", wo „Rücknahme fehlgeschlagen"
+die genauere Auskunft gewesen wäre.
+
+**Und beim Nachprüfen des Fixes ist mir die Falle aus `CLAUDE.md` selbst
+passiert.** Um zu sehen, ob der erweiterte Rückweg greift, habe ich ihn von Hand
+gefahren — mitsamt `tests/`, und damit die gerade geschriebene Zeile wieder
+weggenommen. `git status` war sauber, und die Änderung war fort.
+
+> **Ein Rückweg, den man zum Prüfen selbst benutzt, nimmt auch die Prüfung
+> zurück.**

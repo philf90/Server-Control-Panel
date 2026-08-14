@@ -139,17 +139,54 @@ final class Sandbox
      * ausserhalb der Abo-Wurzel; ein `require` im Kind schlägt fehl. Das
      * Tückische daran ist nicht der Fehlschlag, sondern *wann* er kommt: Eine
      * Klasse, die nur im Fehlerfall gebraucht wird, fehlt auch nur im
-     * Fehlerfall. {@see AgentException} ist genau so eine — sie steht in
-     * jedem `catch` dieser Datei, und ohne diese Zeile fiele sie in dem
-     * Augenblick aus, in dem sie gebraucht wird.
+     * Fehlerfall.
      *
-     * > Ein Fehlerweg, der selbst fehlschlagen kann, ist kein Fehlerweg.
+     * **Diese Falle stand im Plan, und der erste Bau ist trotzdem
+     * hineingelaufen.** Hier wurde nur {@see AgentException} geladen; die
+     * gesamte Dateiverwaltung meldete daraufhin
+     * `Class "SrvPanel\Agent\Files\Entry" not found` — als `internal`, also
+     * als Fehler des Agenten und nicht als das, was es war.
      *
-     * `SandboxPreloadTest` hält fest, dass diese Liste vollständig ist.
+     * > Eine Falle, die man kennt und benennt, ist keine, in die man nicht
+     * > fällt.
+     *
+     * **Deshalb wird jetzt aufgezählt statt aufgelistet.** Das Verzeichnis
+     * `Files/` wird vollständig geladen; wer dort eine Klasse hinzufügt, muss
+     * an nichts denken. Eine handgepflegte Liste wäre genau die Sorte
+     * Zeichenkette, die auf etwas verweist, ohne dass jemand den Bezug prüft.
      */
     private static function preload(): void
     {
         class_exists(AgentException::class);
+        class_exists(Guard::class);
+        class_exists(Filesystem::class);
+        class_exists(Ops\SubscriptionProvision::class);
+
+        foreach (glob(__DIR__.'/Files/*.php') ?: [] as $file) {
+            class_exists(__NAMESPACE__.'\\Files\\'.basename($file, '.php'));
+        }
+    }
+
+    /**
+     * Und wenn doch etwas fehlt, soll es das sagen.
+     *
+     * Ein Autoloader, der im Kind als letzter drankommt und eine verständliche
+     * Meldung wirft. Ohne ihn heisst der Fehler `Class "…" not found` und
+     * landet als `internal` beim Aufrufer — richtig, und trotzdem eine
+     * Sackgasse für den, der ihn liest.
+     */
+    private static function explainMissingClasses(): void
+    {
+        spl_autoload_register(static function (string $class): void {
+            if (! str_starts_with($class, __NAMESPACE__.'\\')) {
+                return;
+            }
+
+            throw AgentException::execFailed(
+                'In der Sandbox fehlt eine Klasse — sie gehört in Sandbox::preload().',
+                ['class' => $class],
+            );
+        });
     }
 
     /**
@@ -210,6 +247,7 @@ final class Sandbox
     {
         try {
             self::closeInherited($close);
+            self::explainMissingClasses();
 
             if (! @chroot($root)) {
                 throw AgentException::execFailed('Das Chroot liess sich nicht setzen.');

@@ -128,6 +128,11 @@ final class SandboxReachTest extends TestCase
      * Begründung, so wie `EngineReachTest` es für die Datenbanksysteme tut —
      * eine Liste ohne Begründung wächst, bis sie alles enthält.
      *
+     * **Es gibt genau zwei Begründungen, und sie stehen je Eintrag dabei:**
+     * Entweder kann dort kein Kunde schreiben, oder der Aufruf läuft selbst
+     * schon in der Sandbox. Eine dritte gibt es nicht — wer eine bräuchte, hat
+     * den Baumlauf an eine Stelle geschrieben, an die er nicht gehört.
+     *
      * @var array<string, string>
      */
     private const MAY_WALK_AS_ROOT = [
@@ -139,6 +144,12 @@ final class SandboxReachTest extends TestCase
         // `/var/lib/srvpanel/dumps`, root-eigen und ausserhalb jedes
         // Abonnements. Kein Kundenpfad, kein Zeitfenster.
         'agent/src/Db/Dump.php' => 'das Dump-Verzeichnis, ausserhalb der Abonnements',
+
+        // **Die zweite Begründung:** Der Aufruf steht in der Arbeitsfunktion
+        // einer Sandbox, läuft also bereits im Chroot und ohne Rechte. Dort ist
+        // der Baumlauf das richtige Werkzeug und nicht das gefährliche — ein
+        // untergeschobener Verweis kann nur auf Eigenes zeigen.
+        'agent/src/Ops/FilesRemove.php' => 'innerhalb der Sandbox, im Chroot und ohne Rechte',
     ];
 
     /**

@@ -8339,6 +8339,63 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SandboxReachTest passed
 
 echo
+echo "── SandboxPreloadTest: die Aufzaehlung wird zur Liste ──"
+#
+# Nach dem chroot findet der Autoloader agent/src/ nicht mehr. Eine Klasse, die
+# erst im Kind gebraucht wird, fehlt erst im Kind — also erst im Fehlerfall.
+# Genau das ist beim Bau von Schritt 3 passiert: preload() lud nur
+# AgentException, und jede Datei-Operation endete mit „Class Files\Entry not
+# found", gemeldet als internal.
+vorher_datei agent/src/Sandbox.php
+python3 - <<'PY2'
+p = 'agent/src/Sandbox.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""foreach (glob(__DIR__.'/Files/*.php') ?: [] as $file) {
+            class_exists(__NAMESPACE__.'\\\\Files\\\\'.basename($file, '.php'));
+        }""", 'class_exists(Files\\Entry::class);')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "handgepflegte Liste statt Aufzaehlung" \
+  SandboxPreloadTest::test_the_files_namespace_is_enumerated failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxPreloadTest passed
+
+echo
+echo "── SandboxPreloadTest: der erklaerende Autoloader wird nicht gerufen ──"
+#
+# Der erste Entwurf dieses Waechters prueft nur, dass es die Methode gibt — und
+# blieb gruen, als der Bruch den Aufruf entfernte und die Definition
+# stehenliess. Ein Autoloader, den niemand registriert, erklaert nichts.
+vorher_datei agent/src/Sandbox.php
+python3 - <<'PY2'
+p = 'agent/src/Sandbox.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('            self::explainMissingClasses();\n', '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Aufruf entfernt, Definition bleibt" \
+  SandboxPreloadTest::test_a_missing_class_explains_itself failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxPreloadTest passed
+
+echo
+echo "── SandboxPreloadTest: der Autoloader haengt erst nach dem chroot ──"
+#
+# Zu spaet fuer genau die Klassen, die beim Einsperren gebraucht werden.
+vorher_datei agent/src/Sandbox.php
+python3 - <<'PY2'
+p = 'agent/src/Sandbox.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('            self::explainMissingClasses();\n', '')
+s = s.replace("            chdir('/');", "            chdir('/');\n            self::explainMissingClasses();")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Autoloader erst nach dem chroot registriert" \
+  SandboxPreloadTest::test_the_explanation_is_registered_before_the_chroot failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxPreloadTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

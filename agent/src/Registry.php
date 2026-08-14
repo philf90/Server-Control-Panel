@@ -35,6 +35,14 @@ use SrvPanel\Agent\Ops\DbUserRemove;
 use SrvPanel\Agent\Ops\DnsCredentialForget;
 use SrvPanel\Agent\Ops\DnsCredentialList;
 use SrvPanel\Agent\Ops\DnsCredentialStore;
+use SrvPanel\Agent\Ops\FilesChmod;
+use SrvPanel\Agent\Ops\FilesCopy;
+use SrvPanel\Agent\Ops\FilesList;
+use SrvPanel\Agent\Ops\FilesMkdir;
+use SrvPanel\Agent\Ops\FilesMove;
+use SrvPanel\Agent\Ops\FilesRead;
+use SrvPanel\Agent\Ops\FilesRemove;
+use SrvPanel\Agent\Ops\FilesWrite;
 use SrvPanel\Agent\Ops\PanelProvision;
 use SrvPanel\Agent\Ops\PanelTls;
 use SrvPanel\Agent\Ops\PanelTlsInfo;
@@ -112,6 +120,18 @@ final class Registry
         $this->register(new SubscriptionQuota);
 
         // P3 — Web und PHP.
+        // P6: der Dateimanager. Jede dieser Operationen nimmt einen Pfad vom
+        // Kunden entgegen — zulässig, weil sie ihn in einem Chroot deutet und
+        // nicht prüft (docs/51 §5).
+        $this->register(new FilesList);
+        $this->register(new FilesRead);
+        $this->register(new FilesWrite);
+        $this->register(new FilesMkdir);
+        $this->register(new FilesRemove);
+        $this->register(new FilesMove);
+        $this->register(new FilesCopy);
+        $this->register(new FilesChmod);
+
         $this->register(new WebserverDetect);
         $this->register(new WebSiteApply);
         $this->register(new WebSiteRemove);

@@ -12431,3 +12431,72 @@ Wächter: `SandboxReachTest::test_the_raw_tree_walk_is_called_only_where_no_cust
 mit einer begründeten Ausnahmeliste nach dem Muster von `EngineReachTest`, und
 `::test_the_teardown_purges_before_it_walks`, der aus der Erlaubnis eine
 Bedingung macht. Drei weitere Eingriffe im Bruchskript.
+
+### P6 Schritt 3 — die Datei-Operationen, und die Falle aus dem eigenen Plan
+
+Acht Operationen (`files.list`, `.read`, `.write`, `.mkdir`, `.remove`,
+`.move`, `.copy`, `.chmod`), alle durch die Sandbox. **Sie nehmen einen Pfad vom
+Kunden entgegen — der erste Bruch mit dem Muster aus P0 bis P5c**, und er ist
+zulässig, weil der Pfad nicht mehr geprüft, sondern im Chroot gedeutet wird.
+
+**`Workspace` trägt den Satz, der dabei am leichtesten verlorengeht.** Die
+Normalisierung dort ist *keine* Schranke: Ein `..` zu viel wäre harmlos, weil es
+im Chroot nirgendwohin führt. Sie steht da, damit die Oberfläche für dasselbe
+Verzeichnis nicht zwei Schreibweisen kennt.
+
+> **Eine Prüfung, die neben einer Schranke steht, wird für die Schranke
+> gehalten.** Deshalb steht es im Klassenkopf und nicht in einer Fussnote — wer
+> sie für die Sicherheit hält, baut die nächste Fassung ohne Sandbox.
+
+Die einzige Ausnahme ist das Nullbyte: PHP schneidet einen Pfad daran ab, und
+ein abgeschnittener Pfad bezeichnet etwas anderes als der eingegebene.
+
+**Und die Falle, die `docs/51 §5.1` als erste von vieren benennt, hat beim Bauen
+sofort zugeschlagen.** Nach dem `chroot` liegt `agent/src/` ausserhalb, der
+Autoloader findet nichts mehr — und `Sandbox::preload()` lud nur
+`AgentException`. Sämtliche acht Operationen endeten mit
+`Class "SrvPanel\Agent\Files\Entry" not found`, gemeldet als `internal`, also
+als Fehler des Agenten statt als das, was es war.
+
+> **Eine Falle, die man kennt und benennt, ist keine, in die man nicht fällt.**
+> Sie ist nur eine, deren Ursache man schneller findet.
+
+Zwei Dinge sind daraus geworden: `preload()` **zählt** `Files/` auf, statt eine
+Liste zu führen — eine handgepflegte wäre wieder eine Zeichenkette, die auf
+etwas verweist, ohne dass jemand den Bezug prüft. Und im Kind hängt ein
+Autoloader, der eine fehlende Klasse benennt und auf `preload()` zeigt, statt
+sie als `internal` durchzureichen.
+
+**Zwei Rückgabewerte, die bei erschöpfter Quota Erfolg gemeldet hätten.**
+`file_put_contents()` gibt bei voller Quota die Zahl der *geschriebenen* Bytes
+zurück und nicht `false`; `copy()` meldet ebenfalls nicht immer `false`. Wer nur
+gegen `false` prüft, speichert eine abgeschnittene `wp-config.php` und sagt
+„gespeichert". Verglichen wird deshalb mit der erwarteten Länge, und beim
+Kopieren wird die Zielgrösse nachgesehen. Das ist Punkt 12 des
+Abnahmekriteriums, und es wäre still gescheitert.
+
+**Eine Meldung sagte den falschen Grund.** Ein Schreibversuch in `conf/`
+(root-eigen, Absicht nach Entscheidung 5) endete mit „Die Datei liess sich nicht
+schreiben" — was nach einem Defekt klingt, wo es eine Rechtefrage ist. Gefragt
+wird jetzt vorher, und die Antwort heisst `denied` und nennt den Grund.
+
+Geschrieben wird über eine Nachbardatei und `rename`, damit ein Abbruch keine
+halbe `.htaccess` hinterlässt; die Rechte der ersetzten Datei überleben, sonst
+wäre ein ausführbares Skript nach dem ersten Speichern keines mehr. `chmod` weist
+Verweise ab, weil PHP kein `lchmod` hat und sonst das Ziel träfe. `files.read`
+meldet ungültiges UTF-8 als binär, statt die ganze Antwort über `json_decode()`
+unlesbar zu machen (`docs/46 §8`).
+
+Wächter: `SandboxPreloadTest`, und `SandboxReachTest` hat beim ersten Lauf
+gleich zugebissen — `FilesRemove` ruft den rohen Baumlauf und stand nicht auf
+der begründeten Liste. Er steht jetzt dort mit der **zweiten** zulässigen
+Begründung: nicht „dort schreibt kein Kunde", sondern „der Aufruf läuft selbst
+schon in der Sandbox". Eine dritte gibt es nicht.
+
+**Und einer der neuen Wächter blieb bei seinem Bruch grün**, aus demselben Grund
+wie schon zweimal in dieser Stufe: Er prüfte, dass es `explainMissingClasses()
+gibt`, nicht dass sie *gerufen* wird — der Bruch entfernte den Aufruf und liess
+die Definition stehen.
+
+> **Ein Autoloader, den niemand registriert, erklärt nichts — und ein Wächter,
+> der nur nach der Definition sieht, merkt es nicht.**

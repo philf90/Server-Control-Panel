@@ -1802,12 +1802,29 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #           Dieselbe Falle wie docs/36 §17 Kriterium 5.
 
 # 6  OHNE SCHLÜSSEL  ← Kriterium 5
-#      CREATE TABLE ohne_schluessel (a int, b text);
-#      INSERT INTO ohne_schluessel VALUES (1,'x'), (1,'x');
-#    Im Panel öffnen.
-#    erwartet: die Zeilen sind zu sehen, es gibt keinen Ändern-Knopf, und der
-#              Grund steht daneben — mit dem Wort „Primärschlüssel".
+#    DREI TABELLEN AUS PUNKT 0, UND ERST ZUSAMMEN PRUEFEN SIE DIE REGEL:
+#
+#      ohne_schluessel   Zeilen sichtbar, KEIN Ändern-Knopf, Beizeile
+#                        „ohne Schlüssel", Grund mit dem Wort „Primärschlüssel"
+#      nur_unique        Zeilen sichtbar, Ändern VORHANDEN, „mit Schlüssel"
+#      umsaetze_je_ort   Zeilen sichtbar, KEIN Ändern-Knopf, Grund nennt die
+#                        SICHT und nicht den Schlüssel — und KEINE Grösse
+#
 #    Der Knopf FEHLT, er ist nicht abgeblendet: AbilityReachTest.
+#
+#    WARUM ALLE DREI. `ohne_schluessel` allein belegt nur, dass ein Knopf
+#    fehlt — das täte er auch, wenn es ihn nie gäbe. `nur_unique` ist die
+#    Gegenprobe und zugleich §10 Regel 2 im Betrieb: kein Primärschlüssel, aber
+#    ein eindeutiger Index über Spalten ohne NULL. Genau dort hat §20.46 einen
+#    Widerspruch gefunden — „ohne Schlüssel" über einer änderbaren Tabelle.
+#
+#    Und die Sicht ist der dritte Fall, weil ihr Grund ein ANDERER sein muss:
+#    „leg einen Schlüssel an" wäre dort der falsche Rat. Dass dort keine Grösse
+#    steht, ist §20.28 — eine Sicht speichert nichts, der Katalog meldet 0, und
+#    „0 B" liest sich wie „leer" statt wie „gibt es nicht".
+#
+#    > Ein fehlender Knopf ist erst dann eine Auskunft, wenn daneben einer
+#    > steht, der da ist.
 
 # 7  GENAU EINE ZEILE  ← Kriterium 6
 #    In probe eine Zeile ändern.

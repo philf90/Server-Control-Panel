@@ -76,4 +76,46 @@ CI fahren auf allen vier Plattformen — dort gehört diese Prüfung hin.
 
 ---
 
-*Die Punkte 2 bis 8 folgen, während sie gefahren werden.*
+## Punkt 2 — die Plattform selbst
+
+**Nichts ist abgeschaltet.**
+
+| Frage | Antwort |
+|---|---|
+| PHP | `8.4.24 (cli) (built: Jul 30 2026 15:23:13) (NTS)`, Built by Ubuntu |
+| Zend Engine | `v4.4.24`, mit Zend OPcache `v8.4.24` |
+| `disable_functions` | **leer** — `no value => no value` |
+
+Damit steht die Grenze auf dieser Maschine nicht auf Wohlwollen: Die vierzehn
+Funktionen sind nicht nur vorhanden (Punkt 1, Abschnitt 1), sie sind auch nicht
+per `php.ini` gesperrt. Das ist die Hälfte, die Punkt 1 allein nicht beantwortet
+— `function_exists()` sagt `false` für eine gesperrte Funktion genauso wie für
+eine fehlende, und der Grund steht nur in der `php.ini`.
+
+### Die Frage, die dieser Punkt offen lässt
+
+**`php -v` in einer Root-Shell ist nicht zwangsläufig das PHP, unter dem der
+Agent läuft.** Beides ist hier dieselbe CLI-Fassung der Distribution, aber
+belegt ist das nicht — belegt ist, was `php` im `PATH` von root ist.
+
+Der Beleg dafür wäre die Zeile, mit der der Dienst startet:
+
+```bash
+systemctl show srvpanel-agentd -p ExecStart | head -1
+```
+
+Sie ist **nicht gefahren**. Punkt 1 hat den Agenten selbst nicht gebraucht — das
+Messskript bindet `agent/src/autoload.php` ein und läuft unter demselben `php`
+wie `php -v`. Für die Grenze im Betrieb zählt aber das PHP des Dienstes.
+
+> **Zwei Wege zu derselben Auskunft sind kein Beleg, solange nur einer gefahren
+> ist.** Derselbe Satz wie bei der Gegenprobe über den Unix-Socket in `docs/44`.
+
+Das bleibt als benannter Rest stehen und wird bei Punkt 3 mit beantwortet: Der
+läuft über `srvpanel tinker`, also über das Panel und damit über den echten
+Agenten. Gelingt dort eine Datei-Operation, ist die Frage praktisch beantwortet
+— und zwar durch den Betrieb und nicht durch eine Auskunft über ihn.
+
+---
+
+*Die Punkte 3 bis 8 folgen, während sie gefahren werden.*

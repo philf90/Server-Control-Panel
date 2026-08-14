@@ -16,6 +16,31 @@ nicht danach — was hier steht, ist gemessen; was fehlt, ist nicht gefahren.
 
 **B gehört einem anderen Kunden**, und das ist keine Feinheit — siehe §3.1.
 
+### Die sieben Kriterien aus `docs/46 §4`
+
+Abgeschlossen am 14. August 2026. **Alle sieben erfüllt**, jedes an einer
+Messung und keines an einer Zusicherung:
+
+| | Kriterium | Punkt | |
+|---|---|---|---|
+| 1 | der befristete Zugang | 5 | **erfüllt** |
+| 2 | die vier Werte kommen an | 1 | **erfüllt** |
+| 3 | keine fremde Tabelle | 3 (a)(b)(c) | **erfüllt** |
+| 4 | das Zeitlimit | 4 | **erfüllt** |
+| 5 | ohne Schlüssel wird nicht geändert | 6 | **erfüllt** |
+| 6 | genau eine Zeile, und nur ihre Spalten | 7, 8b | **erfüllt** |
+| 7 | das Protokoll | 8 | **erfüllt** |
+
+Dazu gefahren, ohne eigenes Kriterium: Punkt 0 (derselbe Bestand auf beiden
+Seiten), Punkt 2 und 2b (Blättern, Sortieren, Filtern, Tastatur) und Punkt 9
+(der Rückbau lässt nichts liegen).
+
+**Zwölf Befunde, und keinen davon ein Test** — **sieben über den Abnahmelauf
+selbst**, vier über das Panel, einer über den Aufbau. Dasselbe Verhältnis wie
+beim Fernzugriff (`docs/45`) und bei der Zwischenabnahme (`docs/47`): Die
+Mehrheit der Fehler steckt nicht im Prüfling, sondern im Prüfmittel. Die vier
+über das Panel sind offen und werden nach dem Lauf behoben (§4).
+
 ## 2. Was gefahren ist
 
 ### Punkt 0 — derselbe Bestand auf beiden Seiten
@@ -369,7 +394,7 @@ Beides ist richtig. `reltuples` steht bei einer nie analysierten Tabelle auf
 Und `geschätzt 1 Zeilen` ist §3.3 zum zweiten Mal, jetzt an einer anderen
 Tabelle.
 
-### Punkt 9 — der Rückbau lässt nichts liegen · **(a) und (b) gefahren**
+### Punkt 9 — der Rückbau lässt nichts liegen · **erfüllt**
 
 **(a) Vor dem Rückbau**, nach allen Konsolensitzungen des Laufs — sieben
 geöffnete Konsolen über zwölf Stunden, dazu die zwanzig aus Punkt 8 (d):
@@ -414,6 +439,41 @@ Verbindung sofort auf die Karenz zurückfällt. Zwei Mechanismen, ein Ergebnis.
 
 > **Eine Entwarnung, die aus Schweigen besteht, ist von einem kaputten Messgerät
 > nicht zu unterscheiden.**
+
+**(c) Der Rückbau selbst.** Zurückgebaut wurde **Abo 1131** und nicht 1130 — für
+die Frage dieses Punktes ist das gleichgültig, und der Bestand aus Punkt 0 bleibt
+damit für die Nacharbeit an den offenen Befunden stehen. `gross` allein trägt
+60 Millionen Zeilen.
+
+Gemessen wird **auf dem Server** und erst danach am Panel:
+
+| | vorher | nachher |
+|---|---|---|
+| MariaDB Datenbanken | `p1131_p5c` | — |
+| MariaDB Zugänge | `p1131_p5c@localhost` | — |
+| PostgreSQL Datenbanken | `xb5692b0b484effac_p5c` | — |
+| PostgreSQL Rollen | `xb5692b0b484effac_owner`, `xb5692b0b484effac_p5c` | — |
+
+Danach das Panel: **`2 Datenbank(en), 2 Zugang/Zugänge`** je System (von drei),
+`Keine Zeile ohne Abonnement.`, keine befristeten Zugänge.
+
+**Die Reihenfolge ist der Punkt, nicht die Gründlichkeit.** `srvpanel db` sagt
+„Im Bestand **des Panels**" — das sind seine eigenen Tabellen. Ein Rückbau, der
+die Zeilen des Panels löscht und die Datenbank auf dem Server stehen lässt,
+erzeugt **dieselbe Ausgabe** wie ein sauberer, und die Prüfung der befristeten
+Zugänge fängt das nicht: Sie sieht nur auf `[rc]`-Kennungen, und `p1131_p5c` ist
+keine.
+
+> **Eine Buchhaltung, die sich selbst befragt, bestätigt sich selbst.**
+
+Genau dieser Fehler steht in `docs/35 §11`: Zertifikate liessen sich in diesem
+System anlegen, aber nirgends löschen, und jedes zurückgebaute Abonnement liess
+seinen privaten Schlüssel liegen. Gemerkt hat es Jahre niemand, weil nichts
+danach *fragte*.
+
+**PostgreSQL hatte zwei Rollen und MariaDB einen Benutzer** — die
+Eigentümerrolle aus P5b kommt dazu. Beide sind fort; ein Rückbau, der nur die
+Zugangsrolle kennt, hätte hier eine Zeile stehengelassen.
 
 ## 3. Die Befunde
 
@@ -591,9 +651,24 @@ Lauf seine Gegenprobe.
 
 ## 4. Was noch offen ist
 
-- **Punkt 9 (c)** — der Rückbau von Abo 1130 selbst; (a) und (b) stehen
+**Der Lauf selbst ist durch.** Offen sind die vier Befunde am Panel — §3.2
+(Tabulator, Umbruch und Leerzeichen sehen gleich aus), §3.3 („geschätzt 1
+Zeilen"), §3.4 (die Kopfzeile behauptet eine Sortierung, die die Zeilen nicht
+haben) und §3.10 (eine gescheiterte Handlung lässt die vorige Erfolgsmeldung
+stehen).
 
-Und die vier offenen Befunde §3.2, §3.3, §3.4 und §3.10 werden nach `docs/46 §15`
-**gesammelt und am Ende behoben** — Weg 3, entschieden vom Betreiber: Ein Update
-mitten im Lauf machte die späteren Punkte gegen eine andere Fassung messbar als
-die frühen, und genau das hat schon in `docs/47` Verwirrung gekostet.
+Sie werden nach `docs/46 §15` **gesammelt und am Ende behoben** — Weg 3,
+entschieden vom Betreiber: Ein Update mitten im Lauf machte die späteren Punkte
+gegen eine andere Fassung messbar als die frühen, und genau das hat schon in
+`docs/47` Verwirrung gekostet.
+
+**Der Bestand aus Punkt 0 steht dafür noch**, auf `p1130_p5c` und
+`x1b311d2b6eedc3aa_p5c`: Zurückgebaut wurde für Punkt 9 das zweite Abonnement
+desselben Kunden. Wer die Fixes nachprüft, braucht Tabellen mit genau diesen
+Eigenschaften — `probe` für §3.2, `lang` und `blaettern` für den Rest — und muss
+sie nicht erst wieder einfüllen. `gross` allein trägt 60 Millionen Zeilen.
+
+**Und zwei Punkte aus `docs/42 §5` sind auch dieser Lauf nicht angegangen** —
+der `template1`-Beleg und die Frage, ob ein Zugang ohne jede Datenbank entstehen
+kann. Sie standen nie in `docs/46 §15`, und sie sind hier nicht heimlich
+miterledigt worden.

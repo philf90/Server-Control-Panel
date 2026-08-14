@@ -8844,6 +8844,71 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FrontendDependencyTest passed
 
 echo
+echo "── FileCreationTest: der Weg zum Anlegen einer Datei faellt weg ──"
+#
+# Die Fortsetzung von Befund 6, eine Ebene tiefer: files.write legt seit
+# Schritt 3 an, was es nicht gibt — es fehlte nur der Knopf.
+vorher_datei resources/js/Pages/Files/Index.vue
+sed -i 's/          Datei anlegen/          Datei erzeugen/' resources/js/Pages/Files/Index.vue
+griff_datei resources/js/Pages/Files/Index.vue "Weg zum Anlegen" &&
+pruefe "Weg zum Anlegen einer Datei" \
+  FileCreationTest::test_a_file_can_be_created_from_the_listing failed
+wiederherstellen
+
+echo
+echo "── FileCreationTest: angelegt oder gespeichert wieder an einer Absicht ──"
+#
+# Der Fehler aus P4: eine Bedingung, die an einer Absicht haengt statt an einem
+# Zustand. Der Agent sagt in seiner Antwort, ob die Datei neu entstanden ist.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$created = ($result['created'] ?? false) === true;",
+              "$created = ($data['neu'] ?? false) === true;")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/FileController.php "Absicht statt Zustand" &&
+pruefe "angelegt oder gespeichert an einer Absicht" \
+  FileCreationTest::test_creating_and_saving_are_told_apart_by_the_answer failed
+wiederherstellen
+
+echo
+echo "── FileCreationTest: ein Zielpfad fuer alle hochgeladenen Dateien ──"
+#
+# Zwanzig Dateien unter demselben Namen, neunzehnmal ueberschrieben — und der
+# Vorgang meldet zwanzig Erfolge.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$target = rtrim($data['path'], '/').'/'.$leaf;", "$target = $data['path'];")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/FileController.php "ein Zielpfad fuer alle" &&
+pruefe "ein Zielpfad fuer alle Dateien" \
+  FileCreationTest::test_every_uploaded_file_keeps_its_own_name failed
+wiederherstellen
+
+echo
+echo "── FileCreationTest: ein halb gelungener Upload meldet Erfolg ──"
+#
+# Der Gegenstand dieses Schritts. Neunzehn von zwanzig Dateien im Verzeichnis
+# und darueber eine Erfolgsmeldung.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'Von %d Dateien %s %d hochgeladen.'", "'Einige Dateien sind nicht hochgeladen.%s%s%s'")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/FileController.php "Zahl der gelungenen fehlt" &&
+pruefe "Zahl der gelungenen Dateien fehlt" \
+  FileCreationTest::test_a_partly_failed_upload_does_not_report_success failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FileCreationTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

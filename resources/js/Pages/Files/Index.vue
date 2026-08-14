@@ -111,12 +111,27 @@ function here(name: string): string {
 }
 
 const newDirectory = useForm({ path: '' })
-const upload = useForm<{ path: string; file: File | null }>({ path: '', file: null })
+
+/**
+ * Eine neue, leere Datei.
+ *
+ * **Sie geht an dieselbe Adresse wie das Speichern aus dem Editor.**
+ * `files.write` legt an, was es nicht gibt, und sagt in seiner Antwort, ob es
+ * das getan hat — der Weg danach hängt an dieser Auskunft und nicht an einem
+ * Feld im Formular.
+ *
+ * Der Inhalt ist leer und bleibt es: Wer eine Datei anlegt, will etwas
+ * hineinschreiben, und dafür ist der Editor da. Ein zweites Textfeld hier wäre
+ * eine zweite Stelle, an der man Dateiinhalte tippt.
+ */
+const newFile = useForm({ path: '', content: '' })
+
+const upload = useForm<{ path: string; files: File[] }>({ path: '', files: [] })
 const rename = useForm({ from: '', to: '' })
 const modeForm = useForm({ path: '', mode: 0 })
 
 /* Welches Formular gerade offen ist — höchstens eines. */
-const open_ = ref<'directory' | 'upload' | null>(null)
+const open_ = ref<'directory' | 'file' | 'upload' | null>(null)
 
 function submitDirectory(): void {
   newDirectory
@@ -127,13 +142,28 @@ function submitDirectory(): void {
     })
 }
 
-function submitUpload(): void {
-  const chosen = upload.file
+function submitFile(): void {
+  newFile
+    .transform((data) => ({ ...data, path: here(data.path) }))
+    .put(`/subscriptions/${props.subscription.id}/files`, {
+      preserveScroll: true,
+      onSuccess: () => { newFile.reset(); open_.value = null },
+    })
+}
 
-  if (chosen === null) return
+/**
+ * Hochladen — eine Datei oder viele.
+ *
+ * **`path` ist das Verzeichnis und nicht mehr der vollständige Pfad.** Vorher
+ * setzte diese Seite den Zielpfad aus dem Dateinamen zusammen; bei mehreren
+ * Dateien wäre das ein Pfad für alle gewesen. Wie die einzelne Datei heisst,
+ * entscheidet jetzt der Server aus ihrem Namen.
+ */
+function submitUpload(): void {
+  if (upload.files.length === 0) return
 
   upload
-    .transform((data) => ({ ...data, path: here(chosen.name) }))
+    .transform((data) => ({ ...data, path: props.path }))
     .post(`/subscriptions/${props.subscription.id}/files/upload`, {
       preserveScroll: true,
       forceFormData: true,
@@ -247,6 +277,9 @@ function remove(entry: Entry): void {
         <button type="button" class="button" @click="open_ = open_ === 'directory' ? null : 'directory'">
           Verzeichnis anlegen
         </button>
+        <button type="button" class="button" @click="open_ = open_ === 'file' ? null : 'file'">
+          Datei anlegen
+        </button>
         <button type="button" class="button primary" @click="open_ = open_ === 'upload' ? null : 'upload'">
           Datei hochladen
         </button>
@@ -267,16 +300,35 @@ function remove(entry: Entry): void {
       <button type="submit" class="button primary" :disabled="newDirectory.processing">Anlegen</button>
     </form>
 
-    <form v-if="open_ === 'upload'" class="button-row" @submit.prevent="submitUpload">
+    <!--
+      Die neue Datei entsteht leer und der Editor öffnet sich danach. Ein
+      Textfeld hier wäre eine zweite Stelle, an der man Dateiinhalte tippt —
+      und die zweite ist die, die den Editor nicht hat.
+    -->
+    <form v-if="open_ === 'file'" class="button-row" @submit.prevent="submitFile">
       <label class="field inline">
-        <span>Datei</span>
+        <span>Name der Datei</span>
+        <input v-model="newFile.path" type="text" autocomplete="off" required />
+      </label>
+      <button type="submit" class="button primary" :disabled="newFile.processing">Anlegen</button>
+    </form>
+
+    <form v-if="open_ === 'upload'" class="button-row" @submit.prevent="submitUpload">
+      <!--
+        `multiple`, und die Rückmeldung dazu steht im Controller: Was zählt, ist
+        nicht die Schleife, sondern der Fall, in dem Datei 7 von 20 die Quota
+        reisst und die anderen neunzehn schon dort liegen.
+      -->
+      <label class="field inline">
+        <span>Dateien</span>
         <input
           type="file"
+          multiple
           required
-          @change="upload.file = ($event.target as HTMLInputElement).files?.[0] ?? null"
+          @change="upload.files = Array.from(($event.target as HTMLInputElement).files ?? [])"
         />
       </label>
-      <button type="submit" class="button primary" :disabled="upload.processing || upload.file === null">
+      <button type="submit" class="button primary" :disabled="upload.processing || upload.files.length === 0">
         Hochladen
       </button>
       <!--

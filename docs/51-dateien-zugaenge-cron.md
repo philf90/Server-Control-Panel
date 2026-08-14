@@ -346,6 +346,57 @@ Dazu gehören zwei Dinge, die keine Farbe sind und mehr helfen als jede weitere:
 Editorgrund, in beiden Themes. Eine Hervorhebung, die im dunklen Theme
 verschwindet, ist schlechter als keine: Sie behauptet, etwas markiert zu haben.
 
+### 8.3 Anlegen, und mehrere auf einmal
+
+**Nachtrag vom 14. August 2026**, aus zwei Fragen des Betreibers vor dem Pull
+Request. Beides stand in §8 nicht — dort heisst es „Baum, Editor, Hochladen,
+Entpacken, Rechte, Suche".
+
+**Eine Datei anlegen war zu neun Zehnteln gebaut.** `files.write` legt an, was
+es nicht gibt, und der Agent meldet es in seiner Antwort (`created`); die Route
+steht mit ihrem `can:`, und der Controller verlangt nirgends, dass die Datei
+existiert. In der Zwischenabnahme ist `p6-probe.txt` genau so entstanden — aus
+`tinker`. Es fehlte der Knopf, und das ist Befund 6 eine Ebene tiefer:
+
+> **Eine Fähigkeit, die keine Fläche hat, ist gebaut und nicht ausgeliefert.**
+
+`LinkReachTest` konnte das nicht sehen: Er prüft Seiten, nicht Fähigkeiten.
+
+Die Datei entsteht **leer**, und danach öffnet der Editor. Ein Textfeld im
+Anlege-Formular wäre eine zweite Stelle, an der man Dateiinhalte tippt — und die
+zweite ist die, die den Editor nicht hat. Ob nach dem Schreiben der Editor oder
+die Liste kommt, entscheidet die Antwort des Agenten und **kein Feld im
+Formular**: eine Bedingung an einer Absicht statt an einem Zustand ist der
+Fehler aus P4.
+
+**Beim Hochladen mehrerer Dateien ist die Schleife die kleinere Hälfte.** Die
+grössere ist der Fall, der hier der Normalfall ist: Datei 7 von 20 reisst die
+Quota, und die anderen neunzehn liegen schon da.
+
+> **Eine fehlgeschlagene Anfrage darf die Beschriftung nicht so lassen, als
+> wäre sie durchgelaufen.** (`docs/48`)
+
+Deshalb wird je Datei übernommen und je Datei gemeldet, die Zahl der gelungenen
+steht im **ersten** Satz, und die Schleife läuft nach einem Fehler weiter — ein
+Abbruch beim ersten liesse offen, ob die restlichen an derselben Sache
+scheitern oder nie versucht wurden.
+
+**Ein Rückbau des schon Übernommenen ist ausdrücklich nicht vorgesehen.** Er
+löschte Dateien im Verzeichnis des Kunden, die genauso gut vorher dort gelegen
+haben könnten.
+
+Und ein Fund beim Bauen: Die Seite schickte bis dahin den **vollständigen**
+Zielpfad mitsamt Dateinamen. Bei mehreren Dateien wäre das ein Pfad für alle
+gewesen.
+
+> **Ein Vorgang, der zwanzigmal dieselbe Datei schreibt, meldet zwanzig
+> Erfolge.**
+
+**Was ausdrücklich nicht dazugehört: Ordner hochladen.** Der Browser liefert
+dabei eine Struktur, die angelegt werden müsste — das ist ein eigener
+Gegenstand und nicht diese Schleife. Wer viele Dateien mit Struktur hat, nimmt
+SFTP (§9) oder lädt ein Archiv hoch und entpackt es (§7).
+
 ### 8.2 Die Rechte — geführt statt geraten
 
 **Aus Befund 8 der Zwischenabnahme**, gemeldet vom Betreiber am 14. August.
@@ -545,6 +596,7 @@ Dazu wachsen mit: `AgentOperationReachTest`, `RouteAuthorizationTest`,
 | **5b** | Ein Weg zum Dateimanager, und ein Wächter dafür | **gebaut** — `LinkReachTest` |
 | **5c** | Die Rechte geführt einstellen | **gebaut** — `PermissionEditor`, §8.2 |
 | **5d** | Der Abstand, und die Regel dahinter | **gebaut** — `BlockSpacingTest` leitet ab |
+| **5e** | Eine Datei anlegen, und mehrere hochladen | **gebaut** — §8.3 |
 | **6d** | Der Editor: Breite und Hervorhebung | **gebaut** — §8.1 |
 | 6 | Editor (CodeMirror 6) | Entscheidung 1, mit ihren drei Auflagen |
 | 7 | Entpacken, Packen, Suche | über die Warteschlange |

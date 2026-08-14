@@ -9,6 +9,7 @@ use App\Support\Audit\Audit;
 use App\Support\Files\Files;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -126,11 +127,35 @@ final class FileController extends Controller
             'content' => ['present', 'string'],
         ]);
 
-        $this->attempt(fn (): array => $this->files->write($subscription, $data['path'], $data['content']));
+        $result = $this->attempt(fn (): array => $this->files->write($subscription, $data['path'], $data['content']));
+
+        /*
+         * **Angelegt oder gespeichert — entschieden am Zustand und nicht an
+         * der Absicht.**
+         *
+         * Der Agent sagt, ob es die Datei vorher gab (`created`). Dieselbe
+         * Route bedient damit beides: das Speichern aus dem Editor und das
+         * Anlegen aus der Liste, ohne dass ein Feld im Formular mitteilt, was
+         * gemeint war.
+         *
+         * Ein Flag wäre die naheliegende Zeile und der Fehler aus P4: eine
+         * Bedingung, die an einer **Absicht** hängt statt an einem **Zustand**
+         * — und beim nächsten Aufrufer stimmt sie nicht mehr.
+         */
+        $created = ($result['created'] ?? false) === true;
 
         $this->audit->record('file.written', subscriptionId: (int) $subscription->id, context: [
             'path' => $data['path'],
+            'created' => $created,
         ]);
+
+        // Wer eine Datei anlegt, will etwas hineinschreiben. Der Editor ist
+        // deshalb das Ziel — und nur dann, denn beim Speichern *aus* dem Editor
+        // wäre eine Weiterleitung dorthin ein Kreis.
+        if ($created) {
+            return to_route('files.edit', ['subscription' => $subscription->id, 'path' => $data['path']])
+                ->with('success', 'Die Datei ist angelegt.');
+        }
 
         return to_route('files.index', ['subscription' => $subscription->id, 'path' => dirname($data['path'])])
             ->with('success', 'Die Datei ist gespeichert.');
@@ -243,42 +268,126 @@ final class FileController extends Controller
      * Ein kundengewählter Name im Schreibbereich des Panels wäre ein Pfad, den
      * der Agent später als root liest.
      */
+    /**
+     * Hochladen — eine Datei oder viele.
+     *
+     * ## Der eigentliche Gegenstand ist die Rückmeldung
+     *
+     * Mehrere Dateien anzunehmen ist eine Schleife. Was daran Arbeit macht,
+     * ist der Fall, der hier der **Normalfall** ist: Datei 7 von 20 reisst die
+     * Quota, und die anderen neunzehn liegen schon da.
+     *
+     * Eine Erfolgsmeldung über einem Verzeichnis, in dem neunzehn statt zwanzig
+     * Dateien liegen, ist genau der Fehler, den `docs/48` an anderer Stelle
+     * gefunden hat:
+     *
+     * > **Eine fehlgeschlagene Anfrage darf die Beschriftung nicht so lassen,
+     * > als wäre sie durchgelaufen.**
+     *
+     * Deshalb wird **je Datei** übernommen und **je Datei** gemeldet, und die
+     * Zahl derer, die durch sind, steht im ersten Satz. Ein Abbruch beim ersten
+     * Fehler wäre die kürzere Fassung und die schlechtere: Der Kunde wüsste
+     * dann nicht, ob die restlichen an derselben Sache scheitern oder nie
+     * versucht wurden.
+     *
+     * ## Warum nicht alles oder nichts
+     *
+     * Ein Rückbau des schon Übernommenen wäre die dritte Möglichkeit, und sie
+     * ist hier falsch: Er löschte Dateien im Verzeichnis des Kunden, die
+     * genauso gut vorher dort gelegen haben könnten. Ein Vorgang, der beim
+     * Aufräumen fremde Dateien mitnimmt, ist schlimmer als einer, der die
+     * Hälfte schafft und es sagt.
+     */
     public function upload(Request $request, Subscription $subscription): RedirectResponse
     {
         $data = $request->validate([
             'path' => ['required', 'string', 'max:4096'],
-            'file' => ['required', 'file'],
+            'files' => ['required', 'array', 'min:1'],
+            'files.*' => ['required', 'file'],
         ]);
 
-        $staged = $request->file('file')->storeAs(
-            'uploads',
-            bin2hex(random_bytes(16)),
-            ['disk' => 'local'],
-        );
+        /** @var list<UploadedFile> $incoming */
+        $incoming = $request->file('files');
 
-        if ($staged === false) {
-            throw ValidationException::withMessages([
-                'file' => 'Die Datei liess sich nicht zwischenspeichern.',
-            ]);
+        $done = 0;
+        $failed = [];
+
+        foreach ($incoming as $file) {
+            $name = $file->getClientOriginalName();
+
+            /*
+             * **Der Zielpfad entsteht hier und nicht im Browser.**
+             *
+             * Bis zum Mehrfach-Upload schickte die Seite den vollständigen Pfad
+             * mitsamt Dateinamen; bei mehreren Dateien wäre das **ein** Pfad für
+             * alle gewesen — zwanzig Dateien unter demselben Namen, neunzehnmal
+             * überschrieben, und der Vorgang hätte Erfolg gemeldet.
+             *
+             * `basename()` nimmt dem Namen jeden Verzeichnisteil ab, den ein
+             * Browser mitschicken könnte. Das ist **keine** Schranke — die hält
+             * das Chroot —, sondern die Antwort auf die Frage, wie die Datei
+             * heissen soll.
+             */
+            $leaf = basename(str_replace('\\', '/', $name));
+
+            if ($leaf === '' || $leaf === '.' || $leaf === '..') {
+                $failed[$name] = 'hat keinen brauchbaren Dateinamen';
+
+                continue;
+            }
+
+            $target = rtrim($data['path'], '/').'/'.$leaf;
+
+            $staged = $file->storeAs('uploads', bin2hex(random_bytes(16)), ['disk' => 'local']);
+
+            if ($staged === false) {
+                $failed[$name] = 'liess sich nicht zwischenspeichern';
+
+                continue;
+            }
+
+            try {
+                $this->files->upload($subscription, Storage::disk('local')->path($staged), $target);
+
+                $done++;
+
+                $this->audit->record('file.uploaded', subscriptionId: (int) $subscription->id, context: [
+                    'path' => $target,
+                ]);
+            } catch (AgentException $exception) {
+                $failed[$name] = $exception->getMessage();
+            } finally {
+                // **Auch im Fehlerfall.** Ein Zwischenlager, das nur bei Erfolg
+                // aufgeräumt wird, füllt sich genau mit den Dateien, deren
+                // Übernahme scheiterte — und das sind die grossen.
+                Storage::disk('local')->delete($staged);
+            }
         }
 
-        $absolute = Storage::disk('local')->path($staged);
+        if ($failed !== []) {
+            /*
+             * **Die Zahl steht vor der Liste**, und zwar auch dann, wenn sie
+             * null ist. Ohne sie liest der Kunde drei Fehlermeldungen und weiss
+             * nicht, ob die anderen siebzehn durchgekommen sind.
+             */
+            $messages = [sprintf(
+                'Von %d Dateien %s %d hochgeladen.',
+                count($incoming),
+                $done === 1 ? 'ist' : 'sind',
+                $done,
+            )];
 
-        try {
-            $this->attempt(fn (): array => $this->files->upload($subscription, $absolute, $data['path']));
-        } finally {
-            // **Auch im Fehlerfall.** Ein Zwischenlager, das nur bei Erfolg
-            // aufgeräumt wird, füllt sich genau mit den Dateien, deren
-            // Übernahme scheiterte — und das sind die grossen.
-            Storage::disk('local')->delete($staged);
+            foreach ($failed as $name => $reason) {
+                $messages[] = sprintf('%s: %s', $name, $reason);
+            }
+
+            throw ValidationException::withMessages(['files' => $messages]);
         }
 
-        $this->audit->record('file.uploaded', subscriptionId: (int) $subscription->id, context: [
-            'path' => $data['path'],
-        ]);
-
-        return to_route('files.index', ['subscription' => $subscription->id, 'path' => dirname($data['path'])])
-            ->with('success', 'Die Datei ist hochgeladen.');
+        return to_route('files.index', ['subscription' => $subscription->id, 'path' => $data['path']])
+            ->with('success', $done === 1
+                ? 'Die Datei ist hochgeladen.'
+                : sprintf('%d Dateien sind hochgeladen.', $done));
     }
 
     /**

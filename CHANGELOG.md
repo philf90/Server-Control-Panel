@@ -13131,3 +13131,45 @@ Strg+F des Browsers nur das Sichtbare.
 `BreakScriptTest`:** einer zeigte auf eine Zeile, die durch Schritt 5d zur
 Sammelregel geworden ist, der andere fasste zwei Dateien in einem Block an und
 wurde dadurch der falschen zugeordnet.
+
+### P6 Schritt 5e — eine Datei anlegen, und mehrere hochladen
+
+**Zwei Fragen des Betreibers vor dem Pull Request**, und beides stand im Plan
+nicht: `docs/51 §8` nennt „Baum, Editor, Hochladen, Entpacken, Rechte, Suche".
+
+**Eine Datei anzulegen war zu neun Zehnteln gebaut.** `files.write` legt an, was
+es nicht gibt, und der Agent meldet es in seiner Antwort — `'created' =>
+$existing === null` steht seit Schritt 3 da. Die Route trägt ihr `can:`, der
+Controller verlangt nirgends, dass die Datei existiert; in der Zwischenabnahme
+ist `p6-probe.txt` genau so entstanden, aus `tinker`. Es fehlte der Knopf.
+
+> **Eine Fähigkeit, die keine Fläche hat, ist gebaut und nicht ausgeliefert.**
+
+Das ist Befund 6 eine Ebene tiefer, und `LinkReachTest` konnte es nicht sehen:
+Er prüft Seiten, nicht Fähigkeiten.
+
+Die Datei entsteht **leer**, danach öffnet der Editor. Ob nach dem Schreiben der
+Editor oder die Liste kommt, entscheidet die Antwort des Agenten und **kein Feld
+im Formular** — eine Bedingung an einer Absicht statt an einem Zustand ist der
+Fehler aus P4.
+
+**Beim Hochladen mehrerer Dateien ist die Schleife die kleinere Hälfte.** Die
+grössere ist der Fall, der hier der Normalfall ist: Datei 7 von 20 reisst die
+Quota, und die anderen neunzehn liegen schon da. Je Datei übernommen, je Datei
+gemeldet, die Zahl der gelungenen im **ersten** Satz — und die Schleife läuft
+nach einem Fehler weiter, weil ein Abbruch beim ersten offenliesse, ob die
+restlichen an derselben Sache scheitern oder nie versucht wurden.
+
+Ein Rückbau des schon Übernommenen ist ausdrücklich nicht vorgesehen: Er
+löschte Dateien im Verzeichnis des Kunden, die genauso gut vorher dort gelegen
+haben könnten.
+
+**Und ein Fund beim Bauen.** Die Seite schickte bis dahin den vollständigen
+Zielpfad mitsamt Dateinamen; bei mehreren Dateien wäre das **ein** Pfad für alle
+gewesen.
+
+> **Ein Vorgang, der zwanzigmal dieselbe Datei schreibt, meldet zwanzig
+> Erfolge.**
+
+Ordner hochladen gehört nicht dazu — der Browser liefert dabei eine Struktur,
+die angelegt werden müsste, und das ist ein eigener Gegenstand.

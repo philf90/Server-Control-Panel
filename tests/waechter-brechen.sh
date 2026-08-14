@@ -8761,6 +8761,68 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" InheritedGroupTest passed
 
 echo
+echo "── PermissionFormTest: die Rechte wieder als Zahl im Systemdialog ──"
+#
+# Befund 8 aus docs/53: ein window.prompt, das eine Oktalzahl verlangt, nichts
+# erklaert und einen schwarzen Systemkasten in ein helles Panel stellt.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('<PermissionEditor', '<div v-if="false" data-x', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Rechte ohne gefuehrten Baustein" &&
+pruefe "Rechte ohne gefuehrten Baustein" \
+  PermissionFormTest::test_the_mode_is_not_asked_for_in_a_browser_dialog failed
+wiederherstellen
+
+echo
+echo "── PermissionFormTest: die Erklaerung kennt den Ordner nicht mehr ──"
+#
+# Dasselbe Bit heisst bei einer Datei „ausfuehrbar" und bei einem Verzeichnis
+# „betretbar". Ein Ordner ohne x sperrt seinen Eigentuemer aus, und das sieht
+# aus wie ein Serverfehler.
+vorher_datei resources/js/Components/PermissionEditor.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/PermissionEditor.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("sätze.push('Achtung: Ohne „Ausführen\" lässt sich der Ordner nicht öffnen — auch nicht vom Eigentümer.')",
+              "sätze.push('Achtung.')")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Components/PermissionEditor.vue "Warnsatz zum Ordner" &&
+pruefe "Warnsatz zum Ordner entfernt" \
+  PermissionFormTest::test_the_explanation_knows_what_it_is_talking_about failed
+wiederherstellen
+
+echo
+echo "── PermissionFormTest: eine Vorlage mit setuid ──"
+#
+# setuid, setgid und Sticky werden nicht angeboten: Ihre Wirkung laesst sich in
+# einer Zeile nicht ehrlich erklaeren.
+vorher_datei resources/js/Components/PermissionEditor.vue
+sed -i "s/{ mode: 0o644, label: 'Übliche Datei'/{ mode: 0o4644, label: 'Übliche Datei'/" resources/js/Components/PermissionEditor.vue
+griff_datei resources/js/Components/PermissionEditor.vue "Vorlage mit setuid" &&
+pruefe "Vorlage mit setuid" \
+  PermissionFormTest::test_the_presets_stay_within_nine_bits failed
+wiederherstellen
+
+echo
+echo "── PermissionFormTest: der Webserver-Satz haengt wieder am Weltbit ──"
+#
+# Seit httpdocs setgid traegt, liest der Webserver ueber die Gruppe. Am Weltbit
+# waere der Satz die Auskunft von vor Schritt 6c — genau die Halbwahrheit aus
+# Befund 3.
+vorher_datei resources/js/Components/PermissionEditor.vue
+sed -i 's/has(3, 4)$/has(0, 4)/' resources/js/Components/PermissionEditor.vue
+griff_datei resources/js/Components/PermissionEditor.vue "Webserver-Satz am Weltbit" &&
+pruefe "Webserver-Satz am Weltbit" \
+  PermissionFormTest::test_the_sentence_about_the_webserver_follows_the_group failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PermissionFormTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

@@ -133,7 +133,7 @@ final class BlockSpacingTest extends TestCase
      * und ein `.a .b` beschreibt eine Lage und keinen Baustein; beides gehört
      * nicht in eine Aussage darüber, was ein Baustein von sich aus mitbringt.
      *
-     * @return array<string, array{top: bool, bottom: bool, row: bool|null}>
+     * @return array<string, array{top: bool, bottom: bool, row: bool|null, gap: bool}>
      */
     private function stylesheet(): array
     {
@@ -165,7 +165,7 @@ final class BlockSpacingTest extends TestCase
                 continue;
             }
 
-            $k = $klassen[$name[1]] ?? ['top' => false, 'bottom' => false, 'row' => null];
+            $k = $klassen[$name[1]] ?? ['top' => false, 'bottom' => false, 'row' => null, 'gap' => false];
 
             if (preg_match('/(?:^|;)\s*margin\s*:\s*([^;]+)/', $regel[3], $x) === 1) {
                 [$k['top'], $k['bottom']] = $kurzform($x[1]);
@@ -179,11 +179,30 @@ final class BlockSpacingTest extends TestCase
                 $k['bottom'] = $gesetzt($x[1]);
             }
 
-            // Legt dieser Baustein seine Kinder nebeneinander? Dann gibt es
-            // zwischen ihnen keine Fuge, sondern eine Lücke — und dafür ist
-            // `gap` zuständig und nicht dieser Wächter.
+            /*
+             * **Zwei Gründe, warum zwischen zwei Kindern keine Fuge ist.**
+             *
+             * Der erste: Sie liegen **nebeneinander** — ein Flexkasten in der
+             * Waagerechten. Dann gibt es senkrecht gar nichts zu trennen.
+             *
+             * Der zweite: Der Elternteil setzt selbst ein `gap`. Das hat
+             * dieser Wächter beim ersten Wurf übersehen und prompt in einem
+             * neuen Baustein gemeldet, dessen Abstände vollständig aus dem
+             * `gap` seines Elternteils kommen (`.permissions`, P6 Schritt 5c).
+             *
+             * > **Ein Abstand, der aus dem Elternteil kommt, ist genauso ein
+             * > Abstand.**
+             *
+             * Gelesen wird der **erste** Wert von `gap`: `gap: 4px 22px` heisst
+             * 4px senkrecht und 22px waagerecht, und nur der erste trennt zwei
+             * gestapelte Kinder.
+             */
             if (preg_match('/display\s*:\s*(?:inline-)?(?:flex|grid)/', $regel[3]) === 1) {
                 $k['row'] = preg_match('/flex-direction\s*:\s*column/', $regel[3]) !== 1;
+
+                if (preg_match('/(?:^|;)\s*(?:row-)?gap\s*:\s*([^;]+)/', $regel[3], $x) === 1) {
+                    $k['gap'] = $gesetzt((preg_split('/\s+/', trim($x[1])) ?: [''])[0]);
+                }
             }
 
             $klassen[$name[1]] = $k;
@@ -357,17 +376,21 @@ final class BlockSpacingTest extends TestCase
                 continue;
             }
 
-            $waagerecht = false;
+            $ohneFuge = false;
 
             foreach ($stil as $klasse => $kanten) {
-                if ($kanten['row'] === true && $this->hasClass($eltern[$start] ?? '', $klasse)) {
-                    $waagerecht = true;
+                if (! $this->hasClass($eltern[$start] ?? '', $klasse)) {
+                    continue;
+                }
+
+                if ($kanten['row'] === true || ($kanten['row'] !== null && $kanten['gap'])) {
+                    $ohneFuge = true;
 
                     break;
                 }
             }
 
-            if ($waagerecht) {
+            if ($ohneFuge) {
                 continue;
             }
 

@@ -3,6 +3,7 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import FormErrors from '../../Components/FormErrors.vue'
+import PermissionEditor from '../../Components/PermissionEditor.vue'
 import { formatBytes } from '../../bytes'
 
 interface Entry {
@@ -22,6 +23,17 @@ const props = defineProps<{
   path: string
   entries: Entry[]
   truncated: boolean
+
+  /**
+   * Welche Verzeichnisse der Webserver ausliefert.
+   *
+   * Sie kommen vom Server, weil nur er sie kennt: `httpdocs` ist der
+   * DocumentRoot der Hauptdomain, jede weitere heisst wie ihre Domain. Eine
+   * Seite, die `httpdocs` hineinschriebe, gäbe für den einen Ordner die
+   * richtige Auskunft und für den daneben wortgleich die falsche.
+   */
+  documentRoots: string[]
+
   can: { edit: boolean }
 }>()
 
@@ -139,25 +151,43 @@ function startRename(entry: Entry): void {
   rename.post(`/subscriptions/${props.subscription.id}/files/move`, { preserveScroll: true })
 }
 
+/**
+ * Welcher Eintrag gerade seine Rechte zeigt — `null`, wenn keiner.
+ *
+ * **Hier stand ein `window.prompt`.** Er verlangte eine Oktalzahl, erklärte
+ * nichts und brachte einen Systemdialog mit, der keine Farbe aus `app.css`
+ * nimmt (`docs/53`, Befund 8). Der Ersatz ist ein Bereich auf der Seite:
+ * Dieses Panel hat keine Modalen, und es bekommt auch für diesen einen Fall
+ * keine.
+ */
+const chmodFor = ref<Entry | null>(null)
+
+/**
+ * Liegt dieser Eintrag in einem Verzeichnis, das der Webserver ausliefert?
+ *
+ * Entscheidet, ob {@see PermissionEditor} den Satz über den Webserver zeigt.
+ * Ein Ordner **ist** sein DocumentRoot oder liegt darin; beides zählt.
+ */
+function served(entry: Entry): boolean {
+  return props.documentRoots.some(
+    (root) => entry.path === root || entry.path.startsWith(root + '/'),
+  )
+}
+
 function startChmod(entry: Entry): void {
-  /*
-   * Oktal eingeben und oktal anzeigen.
-   *
-   * `parseInt(x, 8)` und nicht `Number(x)`: „644" als Dezimalzahl wäre 644 und
-   * damit ausserhalb der zwölf Bits — der Agent wiese es ab, und der Kunde
-   * läse eine Meldung über eine Zahl, die er so nie gemeint hat.
-   */
-  const wanted = window.prompt(`Rechte für „${entry.name}" (oktal)`, entry.mode.toString(8).padStart(3, '0'))
+  chmodFor.value = chmodFor.value?.path === entry.path ? null : entry
 
-  if (wanted === null) return
+  if (chmodFor.value !== null) {
+    modeForm.path = entry.path
+    modeForm.mode = entry.mode & 0o777
+  }
+}
 
-  const mode = parseInt(wanted, 8)
-
-  if (Number.isNaN(mode)) return
-
-  modeForm.path = entry.path
-  modeForm.mode = mode
-  modeForm.post(`/subscriptions/${props.subscription.id}/files/chmod`, { preserveScroll: true })
+function submitChmod(): void {
+  modeForm.post(`/subscriptions/${props.subscription.id}/files/chmod`, {
+    preserveScroll: true,
+    onSuccess: () => { chmodFor.value = null },
+  })
 }
 
 /*
@@ -254,6 +284,29 @@ function remove(entry: Entry): void {
         Eine zweite Fassung derselben Zahl wäre die, die stehenbleibt.
       -->
       <span v-if="upload.progress" class="quiet">{{ upload.progress.percentage }} %</span>
+    </form>
+
+    <!--
+      **Die Rechte stehen auf der Seite und nicht in einem Systemdialog.**
+
+      Sie stehen hier oben und nicht in der Tabellenzeile: Bei 390px bricht die
+      Tabelle in Kärtchen um, und ein Formular in einer Zelle bräuchte dort
+      eine zweite Form. Der Name des Eintrags steht dabei, weil sonst nicht
+      abzulesen wäre, wessen Rechte gerade offen sind.
+    -->
+    <form v-if="chmodFor !== null" @submit.prevent="submitChmod">
+      <p class="path-line">Rechte für {{ chmodFor.name }}</p>
+
+      <PermissionEditor
+        v-model="modeForm.mode"
+        :is-directory="chmodFor.type === 'directory'"
+        :served="served(chmodFor)"
+      />
+
+      <div class="button-row">
+        <button type="submit" class="button primary" :disabled="modeForm.processing">Speichern</button>
+        <button type="button" class="button" @click="chmodFor = null">Abbrechen</button>
+      </div>
     </form>
 
     <nav class="crumbs" aria-label="Pfad">

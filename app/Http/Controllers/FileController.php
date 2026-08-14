@@ -59,6 +59,30 @@ final class FileController extends Controller
             'entries' => $listing['entries'] ?? [],
             'truncated' => $listing['truncated'] ?? false,
 
+            /*
+             * **Welche Verzeichnisse der Webserver ausliefert.**
+             *
+             * Die Rechteanzeige sagt dem Kunden, was seine Einstellung
+             * bewirkt, und der wichtigste Satz davon lautet „Der Webserver
+             * kann diese Datei ausliefern". Er stimmt nur unterhalb eines
+             * DocumentRoots — und welche das sind, weiss die Seite nicht.
+             *
+             * `httpdocs` fest hineinzuschreiben wäre die naheliegende Zeile
+             * und für jede zweite Domain falsch: Ihr DocumentRoot heisst wie
+             * sie selbst. Es käme dann eine Auskunft heraus, die für den einen
+             * Ordner stimmt und für den daneben nicht — und zwar wortgleich.
+             *
+             * > **Ein Satz, der an einer Stelle stimmt und an der nächsten
+             * > nicht, ist schlechter als kein Satz.**
+             */
+            'documentRoots' => $subscription->domains()
+                ->whereNotNull('document_root')
+                ->pluck('document_root')
+                ->map(static fn (string $root): string => '/'.$root)
+                ->unique()
+                ->values()
+                ->all(),
+
             // **Die Antwort auf „darf ich" kommt aus derselben Policy, die es
             // später abweist** — nicht aus einem `v-if` auf den Kontotyp. Eine
             // zweite Fassung der Regel wäre die, die veraltet

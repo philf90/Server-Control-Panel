@@ -1543,6 +1543,127 @@ table.pairs {
  * Quelltext, und das ist Absicht: Sechs neue Werte, die nur hier gelten, wären
  * sechs Werte, die beim nächsten Themewechsel niemand mitzieht.
  */
+/*
+ * Die Rechte eines Eintrags — geführt statt geraten (P6, Schritt 5c).
+ *
+ * Hier fragte bis zum 14. August 2026 ein `window.prompt` nach einer
+ * Oktalzahl. Der Betreiber hat es in der Zwischenabnahme gemeldet (`docs/53`,
+ * Befund 8): ein schwarzer Systemkasten mitten in einem hellen Panel, der eine
+ * Zahl verlangt, die man auswendig können muss, und nicht sagt, was sie
+ * bewirkt.
+ *
+ * > **Eine Eingabe, die eine Zahl verlangt, die man auswendig können muss, ist
+ * > keine Bedienung, sondern eine Prüfung.**
+ *
+ * Die Kästchen selbst bekommen hier **keine** eigene Gestaltung — sie tragen
+ * `.toggle`, dieselbe Klasse wie jedes andere Kästchen dieses Panels. Eine
+ * Komponente, die ihr eigenes `input` gestaltet, ist derselbe Fehler wie ein
+ * Hexwert in einer Komponente.
+ */
+.permissions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  margin-bottom: var(--block-gap);
+}
+
+/*
+ * Eine Zeile je Betroffener: Eigentümer, Gruppe, Andere.
+ *
+ * `fieldset` und `legend`, weil das drei zusammengehörige Kästchen sind und
+ * ein Vorleser sonst neunmal „Kontrollkästchen" sagt, ohne je zu nennen,
+ * wessen Rechte gemeint sind. Der Rahmen, den ein `fieldset` von sich aus
+ * mitbringt, wird abgeräumt: Die Gruppierung ist die Bedeutung, nicht der
+ * Kasten.
+ */
+.who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 22px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/*
+ * **Die Beschriftung steht über den Kästchen und nicht daneben.**
+ *
+ * Hier stand `float: left; width: 9em` — nebeneinander, wie es auf einem
+ * grossen Schirm richtig aussieht. Bei 390px bleiben davon 250px für drei
+ * Kästchen mit den Wörtern „Lesen", „Schreiben" und „Ausführen": Das dritte
+ * rutschte um und stand **unter der Beschriftung**, also dort, wo das Auge die
+ * nächste Gruppe erwartet.
+ *
+ * Die Messung war dabei `0px` — es lief nichts über, es las sich nur falsch.
+ *
+ * > **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+ * > Betrachter.** (`docs/46 §20.11`)
+ *
+ * Ab 720px steht sie wieder daneben; dort ist Platz, und drei Zeilen
+ * Beschriftung über je einer Zeile Kästchen wären dann Leerraum ohne Gewinn.
+ */
+.who > legend {
+  width: 100%;
+  padding: 0;
+  font-size: var(--text-small);
+  font-weight: 560;
+  color: var(--text-muted);
+}
+
+@media (min-width: 720px) {
+  .who > legend {
+    float: left;
+    width: 9em;
+  }
+}
+
+/* Die Kästchen stehen nebeneinander und brauchen den Abstand nach oben nicht,
+   den `.toggle` für gestapelte Schalter mitbringt. */
+.who .toggle {
+  margin-top: 0;
+}
+
+/*
+ * Die Zahl und die Buchstaben nebeneinander.
+ *
+ * Beide, und keine allein: `644` steht in jeder Anleitung im Netz,
+ * `rw-r--r--` in jedem `ls -l`. Wer die eine Schreibweise kennt, findet über
+ * sie die andere.
+ */
+.readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gap);
+}
+
+.readout input {
+  width: 5em;
+}
+
+/*
+ * Was die Einstellung bewirkt, in gewöhnlichem Deutsch.
+ *
+ * **Das ist der eigentliche Punkt dieses Bausteins**, und deshalb steht der
+ * Text in `--text` und nicht in `--text-muted`: Neun Kästchen und eine Zahl
+ * sind bequemer als ein `prompt` und erklären genauso wenig.
+ */
+.explains {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-width: 62ch;
+  font-size: var(--text-table);
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.explains li + li {
+  margin-top: 3px;
+}
+
 .editor {
   border: 1px solid var(--control-line);
   border-radius: var(--radius);

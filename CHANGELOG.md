@@ -12377,3 +12377,57 @@ grün.
 
 > **Ein Bruch, der einen Kommentar trifft, verändert nichts, was der Wächter
 > ansieht.**
+
+### P6 Schritt 2 — der Rückbau lief als root über Kundendaten, und das ist messbar teuer
+
+`Filesystem::removeInside()` und der Rückbau eines Abonnements tragen den Baum
+jetzt in der {@see Sandbox} ab: im Chroot, als der Kunde. Was übrigbleibt, nimmt
+root — und das ist unbedenklich, weil es das Schema aus §4.5 ist und die Wurzel
+`root:root 0755` gehört. **An einem Pfad, in den der Kunde nicht schreiben kann,
+ist auch nichts zu vertauschen.** Die Arbeitsteilung folgt damit den Rechten und
+nicht der Vorsicht.
+
+**Das war kein theoretisches Zeitfenster.** Der Kommentar in `Filesystem.php`
+stand seit P2 und nannte es „ein Zeitfenster, in dem ein laufender Prozess des
+Abonnements ein Verzeichnis durch einen Verweis ersetzen könnte". Gemessen am
+ausgelieferten Code, gegen einen Prozess mit `renameat2(RENAME_EXCHANGE)`:
+**In 5 von 120 Durchgängen hat der Rückbau Dateien ausserhalb des Abonnements
+gelöscht.** Über die Sandbox in denselben 120 Durchgängen null Mal.
+
+Der erste Messversuch dazu traf null Mal und belegte nichts — ein einzelner
+Durchgang bietet dem Angreifer genau einen Versuch, und das Fenster je Knoten
+ist Mikrosekunden lang. Erst die Wiederholung hat die Gegenprobe zum Feuern
+gebracht.
+
+> **Ein Angriff, der nicht trifft, misst den Angreifer und nicht die Abwehr** —
+> zum dritten Mal in dieser Stufe.
+
+**Und die zweite Hälfte des alten Kommentars war ebenfalls richtig und trotzdem
+irreführend.** „Sauber schliessen liesse sich das nur mit `openat(O_NOFOLLOW)`,
+und das gibt PHP nicht heraus" stimmt — nur hätte `openat2` es auch nicht
+geschlossen, weil PHPs Dateifunktionen Pfade nehmen und der Rückweg über
+`/proc/self/fd/N` dasselbe Rennen ein zweites Mal eröffnet (`docs/50 §4`).
+
+**Ein Zähler hat dabei gelogen, und zwar in die angenehme Richtung.**
+`purgeContents()` meldete zuerst vier abgetragene Einträge, während alle vier
+noch dastanden: Der Baumlauf war gelaufen, das abschliessende `rmdir` an der
+root-eigenen Wurzel gescheitert, und der Rückgabewert hielt sich an den Versuch
+statt an das Ergebnis. Richtiggestellt meldete er verlässlich `0` — und war
+damit als Fortschrittsangabe wertlos, weil im unveränderten Schema **kein**
+Verzeichnis an der Wurzel dem Kunden gehört. Gemeldet wird jetzt, was
+übrigbleibt; das ist eine Auskunft, denn mehr als das Schema heisst, dass etwas
+nicht geräumt wurde.
+
+> **Ein Kriterium, das nach einer Anzahl fragt, prüft nicht, was gezählt wurde.**
+
+**Eine Voraussetzung, die P6 selbst gefährdet, steht als Auflage im Code.** Der
+Rückbau beendet die Prozesse des Abonnements, und darauf ruhte bis P5c die
+Sicherheit des Baumlaufs. Ab P6 kann ein **Cronjob** dem Abonnement nach dem
+Abschuss einen neuen Prozess verschaffen — der Rückbau muss den Zeitplan
+deshalb entfernen, **bevor** er die Prozesse beendet. Schritt 9 löst das ein;
+die Sandbox macht die Reihenfolge weniger kritisch, sie ersetzt sie nicht.
+
+Wächter: `SandboxReachTest::test_the_raw_tree_walk_is_called_only_where_no_customer_writes`
+mit einer begründeten Ausnahmeliste nach dem Muster von `EngineReachTest`, und
+`::test_the_teardown_purges_before_it_walks`, der aus der Erlaubnis eine
+Bedingung macht. Drei weitere Eingriffe im Bruchskript.

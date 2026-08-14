@@ -114,6 +114,102 @@ final class SandboxReachTest extends TestCase
     }
 
     /**
+     * Der rohe Baumlauf wird nur dort gerufen, wo kein Kunde schreiben kann.
+     *
+     * **Der Anlass ist eine Messung am ausgelieferten Code.** `removeTree()`
+     * lief bis P6 als root über Verzeichnisse, die dem Kunden gehören. Gegen
+     * einen Prozess, der `renameat2(RENAME_EXCHANGE)` fährt, hat der Rückbau
+     * dabei in **5 von 120 Durchgängen** Dateien ausserhalb des Abonnements
+     * gelöscht — mit der Gegenprobe daneben, die in denselben 120 Durchgängen
+     * über die Sandbox null Mal traf.
+     *
+     * Der Baumlauf selbst ist deshalb nicht falsch; falsch ist, ihn dort zu
+     * rufen, wo jemand mitschreiben darf. Die Ausnahmen stehen hier mit ihrer
+     * Begründung, so wie `EngineReachTest` es für die Datenbanksysteme tut —
+     * eine Liste ohne Begründung wächst, bis sie alles enthält.
+     *
+     * @var array<string, string>
+     */
+    private const MAY_WALK_AS_ROOT = [
+        // Der Rest des Schemas aus §4.5, nachdem die Sandbox den Inhalt
+        // abgetragen hat: Verzeichnisse an der Wurzel, und die gehört
+        // `root:root 0755`. Der Kunde kann dort nichts ersetzen.
+        'agent/src/Ops/SubscriptionRemove.php' => 'die Wurzel selbst, nach purgeContents()',
+
+        // `/var/lib/srvpanel/dumps`, root-eigen und ausserhalb jedes
+        // Abonnements. Kein Kundenpfad, kein Zeitfenster.
+        'agent/src/Db/Dump.php' => 'das Dump-Verzeichnis, ausserhalb der Abonnements',
+    ];
+
+    /**
+     * Niemand sonst trägt einen Baum als root ab.
+     */
+    public function test_the_raw_tree_walk_is_called_only_where_no_customer_writes(): void
+    {
+        $callers = [];
+
+        /** @var SplFileInfo $file */
+        foreach (new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($this->root().'/agent/src', FilesystemIterator::SKIP_DOTS),
+        ) as $file) {
+            if (! $file->isFile() || $file->getExtension() !== 'php') {
+                continue;
+            }
+
+            $relative = str_replace($this->root().'/', '', $file->getPathname());
+
+            // Filesystem selbst ist der Baumlauf — es ruft ihn in der Sandbox.
+            if ($relative === 'agent/src/Filesystem.php') {
+                continue;
+            }
+
+            $source = $this->withoutComments((string) file_get_contents($file->getPathname()));
+
+            if (preg_match('/Filesystem::removeTree\s*\(/', $source) === 1) {
+                $callers[] = $relative;
+            }
+        }
+
+        sort($callers);
+        $allowed = array_keys(self::MAY_WALK_AS_ROOT);
+        sort($allowed);
+
+        $this->assertSame($allowed, $callers, implode("\n", [
+            'Filesystem::removeTree() wird an einer Stelle gerufen, die nicht begruendet ist.',
+            'Als root ueber einen Baum zu laufen, in den ein Kunde schreiben darf, hat in',
+            '5 von 120 gemessenen Durchgaengen Dateien ausserhalb des Abonnements geloescht.',
+            'Wer eine Stelle hinzufuegt, traegt sie in MAY_WALK_AS_ROOT ein — mit dem Grund,',
+            'warum dort niemand mitschreibt.',
+        ]));
+    }
+
+    /**
+     * Und der Rückbau räumt vorher mit der Sandbox auf.
+     *
+     * Der Nachbar der Liste oben: Ohne diesen Test wäre ein
+     * `SubscriptionRemove`, aus dem jemand `purgeContents()` entfernt, weiter
+     * eingetragen und damit erlaubt — und liefe wieder als root über
+     * `httpdocs`.
+     */
+    public function test_the_teardown_purges_before_it_walks(): void
+    {
+        $source = $this->withoutComments(
+            (string) file_get_contents($this->root().'/agent/src/Ops/SubscriptionRemove.php'),
+        );
+
+        $purge = strpos($source, 'Filesystem::purgeContents(');
+        $walk = strpos($source, 'Filesystem::removeTree(');
+
+        $this->assertIsInt($purge, 'Der Rückbau räumt nicht mehr über die Sandbox auf.');
+        $this->assertIsInt($walk, 'Der Rückbau trägt die Wurzel nicht mehr ab.');
+        $this->assertGreaterThan(
+            (int) $purge,
+            (int) $walk,
+            'Der Baumlauf als root steht vor dem Aufräumen in der Sandbox — dann läuft er über die Kundendaten.',
+        );
+    }
+
+    /**
      * Der Socket des Agenten wird im Kind geschlossen.
      *
      * **Diese Zeile hat `AgentIdentityTest` schon einmal bezahlt.** Als

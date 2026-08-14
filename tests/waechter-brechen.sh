@@ -8283,6 +8283,62 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PrivilegeDropTest passed
 
 echo
+echo "── SandboxReachTest: der Baumlauf als root ueber Kundendaten ──"
+#
+# removeTree() lief bis P6 als root ueber Verzeichnisse, die dem Kunden
+# gehoeren. Gegen einen Prozess mit renameat2(RENAME_EXCHANGE) hat der Rueckbau
+# dabei in 5 von 120 Durchgaengen Dateien ausserhalb des Abonnements geloescht;
+# ueber die Sandbox in denselben 120 Durchgaengen null Mal.
+vorher_datei agent/src/Ops/WebSiteRemove.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebSiteRemove.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('if (Filesystem::removeInside($site->logDir(), $site->subscriptionRoot(), $site->user)) {',
+              'if (Filesystem::removeTree($site->logDir()) || true) {')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Baumlauf als root an einer unbegruendeten Stelle" \
+  SandboxReachTest::test_the_raw_tree_walk_is_called_only_where_no_customer_writes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxReachTest passed
+
+echo
+echo "── SandboxReachTest: der Rueckbau raeumt nicht mehr vor ──"
+#
+# Ohne purgeContents() laeuft removeTree() als root wieder ueber httpdocs — und
+# der Eintrag in MAY_WALK_AS_ROOT erlaubt es weiterhin. Erst dieser Test macht
+# aus der Erlaubnis eine Bedingung.
+vorher_datei agent/src/Ops/SubscriptionRemove.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SubscriptionRemove.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        Filesystem::purgeContents($root, $user);\n\n', '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "purgeContents aus dem Rueckbau entfernt" \
+  SandboxReachTest::test_the_teardown_purges_before_it_walks failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxReachTest passed
+
+echo
+echo "── SandboxReachTest: aufgeraeumt wird nach dem Baumlauf ──"
+#
+# Die Reihenfolge ist die Sache: Wer zuerst als root abtraegt und danach die
+# Sandbox ruft, hat die Kundendaten bereits durchlaufen.
+vorher_datei agent/src/Ops/SubscriptionRemove.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SubscriptionRemove.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        Filesystem::purgeContents($root, $user);\n\n        Filesystem::removeTree($root);',
+              '        Filesystem::removeTree($root);\n\n        Filesystem::purgeContents($root, $user);')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Aufraeumen erst nach dem Baumlauf" \
+  SandboxReachTest::test_the_teardown_purges_before_it_walks failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxReachTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

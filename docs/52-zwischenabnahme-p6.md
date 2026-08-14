@@ -72,13 +72,31 @@ zeigt ihn. Eine Fassungsprüfung, die in der falschen Datei sucht, hat in
 
 ### Punkt 1 — die Grenze, gemessen statt gelesen
 
+**Das Skript liegt nicht auf dem Server, und das soll so bleiben.**
+`packaging/build.sh` führt eine Positivliste — `agent app bootstrap config
+database public resources/views routes vendor …` —, und `tests/` steht nicht
+darin. Ein Skript, das Benutzer anlegt, chrootet und das Dateisystem im Rennen
+belastet, gehört nicht auf jeden Kundenserver.
+
+Geholt wird es für den Lauf, und zwar **neben** den Agenten: Es bindet
+`../agent/src/autoload.php` ein, und das ist der einzige Pfad, auf den es
+angewiesen ist.
+
 ```bash
+sudo mkdir -p /opt/srvpanel/current/tests
+sudo curl -fsSL -o /opt/srvpanel/current/tests/sandbox-messen.php \
+  https://raw.githubusercontent.com/philf90/Server-Control-Panel/<tag>/tests/sandbox-messen.php
+
 sudo php /opt/srvpanel/current/tests/sandbox-messen.php
 ```
 
-**Das ist der Kern dieses Laufs.** Das Skript liegt im Repo (`tests/sandbox-messen.php`)
-und ist framework- und PHPUnit-frei; es braucht root, weil `chroot` und `setuid`
-root brauchen, und läuft deshalb in der CI nicht.
+`/opt/srvpanel/current` ist ein Verweis auf das Fassungsverzeichnis; die Datei
+liegt danach dort und geht beim nächsten Update mit. Wer sie vorher los sein
+will, löscht das Verzeichnis wieder.
+
+**Das ist der Kern dieses Laufs.** Das Skript ist framework- und PHPUnit-frei;
+es braucht root, weil `chroot` und `setuid` root brauchen, und läuft deshalb in
+der CI nicht.
 
 Es misst in sieben Abschnitten, **jeder mit seiner Gegenprobe**:
 

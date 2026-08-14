@@ -10,7 +10,7 @@ Architektur (§4), Rechtemodell (§6), Gestaltung (§7.2) und die Ausbaustufen
 Die Oberfläche folgt seit August 2026 dem Gestaltungssystem **„Kontor"**
 (Plan §7.2) — hell entworfen, keine Karten, Monospace nur für Kennungen.
 
-Stand: **P0 bis P5b abgenommen.** P5 brachte Datenbanken, Zugänge, Sicherungen,
+Stand: **P0 bis P5c abgenommen.** P5 brachte Datenbanken, Zugänge, Sicherungen,
 Zurückspielen, Fernzugriff und das Hochladen mitgebrachter Sicherungen
 (MariaDB 10.11.14, alle sieben Kriterien aus `docs/36 §17`). **P5b brachte
 PostgreSQL** — abgenommen am 11. August 2026 auf `cloudsrv24` gegen
@@ -195,7 +195,7 @@ lesbare Katalogsichten, die Namen führen, und eine Absperrung, die bei
 > für jeden lesbar" stimmte — und war trotzdem die falsche Frage, weil er einen
 > von elf Kanälen nannte und den Preis der Antwort verschwieg.
 
-Ausgeliefert wird `v0.5.3-rc.6`.
+Ausgeliefert wird `v0.5.3-rc.13`.
 
 **Und der Bildschirmfoto-Durchgang zu Schritt 4 hat zwei Fehler gefunden, die
 grün waren** (`docs/46 §20.11`). Der erste schob die Seite bei 390px um **99px**
@@ -250,9 +250,47 @@ Der Grund steht in `docs/24 §5`: `.stacks` ist für ein **Verzeichnis** gedacht
 das man Zeile für Zeile liest. Eine Tabellenliste sucht man nach *einem* Namen
 ab, und dafür ist das Kärtchen die falsche Form.
 
-**P5c ist bis Schritt 8 gebaut** — `docs/46`, das Datenbankmanagement: Tabellen
-und Struktur durchsehen, Zeilen ansehen, filtern, blättern und ändern, für beide
-Systeme. Offen ist **Schritt 9**, der Abnahmelauf nach §15 auf `cloudsrv24`. Vier Entscheidungen des Betreibers tragen ihn, und die zweite hat die
+**P5c ist abgenommen** — am 14. August 2026 auf `cloudsrv24` gegen
+`v0.5.3-rc.13`, **alle sieben Kriterien aus `docs/46 §4`**, beide Systeme. Das
+Protokoll ist **`docs/48`**. `docs/46` ist der Plan: Tabellen und Struktur
+durchsehen, Zeilen ansehen, filtern, blättern und ändern.
+
+**Der Lauf hat zwölf Befunde gebracht und keinen davon ein Test** — **sieben über
+den Abnahmelauf selbst**, vier über das Panel, einer über den Aufbau. Dasselbe
+Verhältnis wie bei `docs/45` und `docs/47`: Die Mehrheit der Fehler steckt nicht
+im Prüfling, sondern im Prüfmittel. Die vier am Panel sind behoben, jeder mit
+einem Wächter — `CellWhitespaceTest`, `CountedNounTest`, `ViewStateTest`,
+`AnnounceWithdrawalTest`.
+
+Drei davon sind derselbe Satz aus drei Richtungen:
+
+> **Eine Anzeige, die drei verschiedene Werte gleich aussehen lässt, behauptet
+> etwas, das sie nicht weiss.** `a\tb`, `a  b` und `a b` ergaben exakt dieselben
+> 25×16 Pixel. Nach dem Wortlaut von Kriterium 2 war das erfüllt — der Umbruch
+> blieb *innerhalb* der Zelle. Das ist der Unterschied zwischen „der Lauf ist
+> abgenommen" und „die Anzeige stimmt".
+
+> **Eine fehlgeschlagene Anfrage darf die Beschriftung nicht so lassen, als wäre
+> sie durchgelaufen.** Nach der Zeitüberschreitung stand die Kopfzeile auf
+> `wert ↑`, während darunter die nach `id` sortierte Seite lag. Es waren **fünf**
+> Griffe und nicht nur die Sortierung.
+
+> **Ein Fehler, der an drei Stellen unabhängig gemacht wurde, ist keine
+> Unachtsamkeit, sondern eine fehlende Stelle.** „geschätzt 1 Zeilen" stand auch
+> im Protokoll und in der Planvorlage, beide seit P2.
+
+Und zwei über die Werkzeuge, die diese Fehler finden sollten:
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.** Zweimal im selben Lauf — bei Punkt 3 (a) und bei der Entprellung, wo
+> zwanzig Konsolenöffnungen erst durch einen Zähler auf einem anderen Kanal
+> belegt waren.
+
+> **Eine Vorgabe für Quelltext, die alles erbt, gilt irgendwann für Daten.**
+> `tab-size: 4` steht in Tailwinds Reset und machte aus einem Tabulator ein
+> breiteres Leerzeichen.
+
+Vier Entscheidungen des Betreibers tragen den Plan, und die zweite hat die
 Architektur entschieden: **kein freies SQL.** Damit bekommt der Agent typisierte
 Fragen und keine Anweisung, und die erste Grenze gilt wörtlich statt dem Sinne
 nach. Der Plan fügt **keinen neuen Weg mit Rechten** hinzu — er benutzt den

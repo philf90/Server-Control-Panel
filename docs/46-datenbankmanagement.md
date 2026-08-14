@@ -1892,19 +1892,42 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 
 # 8b DIE UNBERÜHRTE SPALTE  ← Kriterium 6, zweite Hälfte
 #    Eine Tabelle mit einer langen Textspalte (> 512 Zeichen) und einer
-#    nullbaren Spalte, die auf NULL steht:
-#      CREATE TABLE lang (id int primary key, text text, leer text);
+#    nullbaren Spalte, die auf NULL steht — die Fixture aus Punkt 0 hat sie:
+#      CREATE TABLE lang (id int primary key, langtext text, leer text);
 #      INSERT INTO lang VALUES (1, repeat('a', 5000), NULL);
-#    Im Panel die Zeile öffnen, NUR id unverändert lassen und NUR eine dritte
-#    Spalte ändern — die beiden anderen nicht anfassen. Speichern. Dann:
-#      SELECT length(text), leer IS NULL FROM lang WHERE id = 1;
-#    erwartet: 5000 und t.
+#
+#    DIESE TABELLE HAT KEINE VIERTE SPALTE, UND OHNE DIE IST DER PUNKT NICHT
+#    FAHRBAR. Gefordert ist „NUR id unverändert lassen und NUR eine dritte
+#    Spalte ändern"; von den drei Spalten ist `id` der Schlüssel, `langtext`
+#    und `leer` sind genau die beiden, die unberührt bleiben MÜSSEN. Es bleibt
+#    nichts zum Ändern übrig. Gefunden am 14. August 2026 beim Fahren des
+#    Punktes — dieselbe Lücke wie bei Punkt 7, wo `probe` nur eine Zeile hatte.
+#
+#    > Eine Fixture und der Schritt, der sie benutzt, entstehen an zwei
+#    > Stellen — und nur einer von beiden zählt die Spalten.
+#
+#    Vor dem Punkt daher AUF BEIDEN SYSTEMEN, damit der Bestand vergleichbar
+#    bleibt (dieselbe Regel wie beim Aufstocken von `gross` in Punkt 4):
+#      ALTER TABLE lang ADD COLUMN notiz text;
+#      UPDATE lang SET notiz = 'vorher' WHERE id = 1;
+#
+#    Im Panel die Zeile öffnen und NUR `notiz` auf `nachher` setzen —
+#    `langtext` und `leer` nicht anfassen. Speichern. Dann:
+#      SELECT length(langtext), leer IS NULL, notiz FROM lang WHERE id = 1;
+#    erwartet: 5000, wahr, `nachher`.
 #    OHNE DIESEN SCHRITT IST KRITERIUM 6 HALB GEFAHREN. Er ist der einzige des
 #    Laufs, dessen Fehlschlag an der Zeile nicht zu sehen ist: Sie steht da, sie
 #    sieht richtig aus, und 4488 Zeichen sind fort.
+#
+#    ES SIND ZWEI VERSCHIEDENE FEHLSCHLÄGE, und beide hängen an der Anzeige:
+#    Die Zeilentabelle kürzt bei 512 Zeichen (§20.13). Schickt das Formular den
+#    GEKÜRZTEN Wert zurück, steht danach 512 statt 5000. Und schickt es für eine
+#    leere Anzeige den leeren String, steht in `leer` danach '' statt NULL —
+#    aus „nichts" wird „nichts drin", und das ist in SQL nicht dasselbe.
+#
 #    Und die Zelleinzelsicht ist die Gegenprobe dazu, denn ohne sie ist der
 #    ganze Wert gar nicht nachzusehen:
-#      Zelle `text` öffnen  → 5000 Zeichen, ungekürzt.
+#      Zelle `langtext` öffnen  → 5000 Zeichen, ungekürzt.
 
 # 9  DER RÜCKBAU LÄSST NICHTS LIEGEN
 #    Abo A zurückbauen.

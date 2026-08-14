@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import Section from '../../Components/Section.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import FormErrors from '../../Components/FormErrors.vue'
+import { counted } from '../../Composables/useCounted'
 
 interface QuotaEntry {
   key: string
@@ -134,7 +135,11 @@ function remove(): void {
 
   <PanelLayout
     :title="editing ? `Plan ${props.plan?.name}` : 'Plan anlegen'"
-    :subline="editing ? `${props.subscriptions} Abonnements gebunden` : 'Vorlage für die Kontingente eines Abonnements'"
+    :subline="
+      editing
+        ? `${counted(props.subscriptions, 'Abonnement', 'Abonnements')} gebunden`
+        : 'Vorlage für die Kontingente eines Abonnements'
+    "
   >
     <template #breadcrumb>
       <Link href="/plans" class="link">Pläne</Link>

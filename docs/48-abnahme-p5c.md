@@ -38,8 +38,9 @@ Seiten), Punkt 2 und 2b (Blättern, Sortieren, Filtern, Tastatur) und Punkt 9
 **Zwölf Befunde, und keinen davon ein Test** — **sieben über den Abnahmelauf
 selbst**, vier über das Panel, einer über den Aufbau. Dasselbe Verhältnis wie
 beim Fernzugriff (`docs/45`) und bei der Zwischenabnahme (`docs/47`): Die
-Mehrheit der Fehler steckt nicht im Prüfling, sondern im Prüfmittel. Die vier
-über das Panel sind offen und werden nach dem Lauf behoben (§4).
+Mehrheit der Fehler steckt nicht im Prüfling, sondern im Prüfmittel. **Drei der
+vier über das Panel sind behoben** (§3.3, §3.4, §3.10), der vierte wartet auf
+eine Entscheidung des Betreibers (§3.2).
 
 ## 2. Was gefahren ist
 
@@ -501,9 +502,31 @@ Vorschlag: `white-space: pre-wrap` an `.rows .cell`. Es kollidiert nicht mit
 `docs/46 §20.13` — `pre-wrap` bricht weiterhin am Rand —, macht aber Zeilen mit
 Umbrüchen höher. Entscheidung des Betreibers nach dem Lauf.
 
-### 3.3 „geschätzt 1 Zeilen" — **offen**
+### 3.3 „geschätzt 1 Zeilen" — **behoben**
 
-Einzahl mit Mehrzahlwort, hartcodiert in `openFacts`.
+Einzahl mit Mehrzahlwort, fest angehängt in `openFacts`. Die Einzahl ist im
+Betrieb der Normalfall und in der Entwicklung der Sonderfall: Beim Schreiben war
+eine Tabelle mit 16384 Zeilen offen.
+
+> **Ein Plural, der immer stimmt, stimmt nur, solange niemand eine Zeile
+> anlegt.**
+
+**Der Wächter dazu hat beim ersten Lauf drei Fundstellen gemeldet und nicht
+eine** — ausser der Konsole noch das Protokoll („1 Einträge",
+`Audit/Index.vue`) und die Planvorlage („1 Abonnements gebunden",
+`Plans/Form.vue`). Beide stehen seit P2 im Repo, beide hat niemand bemerkt.
+
+> **Ein Fehler, der an drei Stellen unabhängig gemacht wurde, ist keine
+> Unachtsamkeit, sondern eine fehlende Stelle.**
+
+Die Entscheidung steht deshalb jetzt in `resources/js/Composables/useCounted.ts`
+und nicht in der Seite, die sie gerade braucht. **Beide Wörter werden übergeben
+und keines abgeleitet** — im Deutschen gibt es dafür keine Regel: `Zeile` wird zu
+`Zeilen`, `Zugang` zu `Zugänge`, `Treffer` bleibt.
+
+Wächter: `CountedNounTest` — keine eingesetzte Zahl klebt an einem Mehrzahlwort,
+das Muster findet nachweislich eines, und mindestens drei Vorlagen holen die
+Entscheidung von der einen Stelle.
 
 ### 3.4 Die Kopfzeile behauptet eine Sortierung, die die Zeilen nicht haben — **offen**
 
@@ -518,6 +541,18 @@ Auf beiden Systemen gesehen, jeweils zusammen mit der Meldung aus Punkt 4.
 
 **Kein Test dieses Projekts kann das sehen** — es entsteht erst aus dem
 Zusammenspiel von Zeitüberschreitung und Anzeige.
+
+**Behoben.** Es gibt jetzt eine Stelle, die den Zustand der Sicht sichert, den
+Griff ausführt und bei Fehlschlag zurücknimmt (`change()` in `Console.vue`);
+`loadPage()` meldet dafür, ob sie durchkam. Das betraf **fünf** Griffe und nicht
+nur die Sortierung: Filtern, Filter entfernen, Vor und Zurück hingen an
+derselben Ursache. `back()` war dabei der stillste — er nahm den Versatz vom
+Stapel, und bei einem Fehlschlag war er fort.
+
+Wächter: `ViewStateTest` — die Ladung meldet ihr Ergebnis, was gesichert wird
+wird zurückgenommen, und kein Griff fasst etwas an, das nicht gesichert ist. Die
+dritte Prüfung ist die wichtigere: Der Fehler, der wiederkommt, ist nicht „jemand
+baut den Rückweg aus", sondern „jemand fügt eine sechste Angabe hinzu".
 
 ### 3.5 Der Beleg von Punkt 3 (a) hat dreimal das Messgerät gewechselt — **Lauf**
 
@@ -587,7 +622,7 @@ keinen Primärschlüssel mehr. Sie nennt das Symptom, nicht die Ursache („der
 Schlüssel dieser Tabelle hat sich geändert, die Ansicht ist veraltet"). Sehr
 selten, aber notiert.
 
-### 3.10 Eine gescheiterte Handlung lässt die vorige Erfolgsmeldung stehen — **offen**
+### 3.10 Eine gescheiterte Handlung lässt die vorige Erfolgsmeldung stehen — **behoben**
 
 Auf dem MariaDB-Bild zu Punkt 7 (B) steht über der roten Meldung noch **„Die
 Zeile ist geändert."** in Grün — von der Handlung davor. Der Kunde drückt
@@ -602,6 +637,20 @@ nur `failure` und rührt die grüne Meldung nicht an.
 
 Dieselbe Familie wie §3.4: Zustand einer vorigen, erfolgreichen Handlung
 überlebt eine gescheiterte.
+
+**Behoben.** `useAnnounce` hat einen Rückweg bekommen (`dismiss()`), und
+`report()` geht ihn, bevor der Fehlersatz steht. Auf jeder anderen Seite dieses
+Panels kann das nicht passieren — dort ist die Erfolgsmeldung ein `flash` und
+lebt eine Antwort lang. Die Konsole ist die erste Fläche, die ändert und dabei
+stehen bleibt.
+
+Wächter: `AnnounceWithdrawalTest` — den Rückweg gibt es, er nimmt wirklich
+zurück, und jede Stelle, die einen Fehlersatz setzt, geht ihn. **Der Wächter hat
+zuerst sich selbst gefunden:** Sein Ausdruck `failure\.value\s*=\s*(?!null)`
+meldete auch das Aufräumen `failure.value = null` — schlägt die Vorschau fehl,
+gibt `\s*` ein Zeichen zurück und probiert es erneut.
+
+> **Ein `\s*` vor einer Verneinung hebt sie auf.**
 
 ### 3.11 Punkt 8 (d) hat dreimal nicht gemessen — **Lauf**
 
@@ -651,16 +700,22 @@ Lauf seine Gegenprobe.
 
 ## 4. Was noch offen ist
 
-**Der Lauf selbst ist durch.** Offen sind die vier Befunde am Panel — §3.2
-(Tabulator, Umbruch und Leerzeichen sehen gleich aus), §3.3 („geschätzt 1
-Zeilen"), §3.4 (die Kopfzeile behauptet eine Sortierung, die die Zeilen nicht
-haben) und §3.10 (eine gescheiterte Handlung lässt die vorige Erfolgsmeldung
-stehen).
+**Der Lauf selbst ist durch, und drei der vier Befunde am Panel sind behoben** —
+§3.3, §3.4 und §3.10, jeder mit einem Wächter, der ohne den Fix zubeisst. Die
+acht Eingriffe dazu stehen in `tests/waechter-brechen.sh` und sind einzeln
+gefahren worden.
 
-Sie werden nach `docs/46 §15` **gesammelt und am Ende behoben** — Weg 3,
-entschieden vom Betreiber: Ein Update mitten im Lauf machte die späteren Punkte
-gegen eine andere Fassung messbar als die frühen, und genau das hat schon in
-`docs/47` Verwirrung gekostet.
+Offen ist **§3.2**: Tabulator, Umbruch und ein gewöhnliches Leerzeichen sehen in
+der Zelle gleich aus. Nach dem Wortlaut von Kriterium 2 ist das erfüllt; für den,
+der die Zelle liest, sind drei verschiedene gespeicherte Werte trotzdem nicht zu
+unterscheiden. Der Vorschlag ist `white-space: pre-wrap` an `.rows .cell` — er
+kollidiert nicht mit §20.13, macht aber Zeilen mit Umbrüchen höher, **und das ist
+eine Entscheidung des Betreibers und keine des Bauenden.**
+
+Behoben wurde erst **nach** dem Lauf und nicht während — Weg 3, entschieden vom
+Betreiber: Ein Update mitten im Lauf machte die späteren Punkte gegen eine andere
+Fassung messbar als die frühen, und genau das hat schon in `docs/47` Verwirrung
+gekostet.
 
 **Der Bestand aus Punkt 0 steht dafür noch**, auf `p1130_p5c` und
 `x1b311d2b6eedc3aa_p5c`: Zurückgebaut wurde für Punkt 9 das zweite Abonnement

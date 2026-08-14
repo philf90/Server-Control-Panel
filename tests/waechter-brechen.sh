@@ -7407,8 +7407,8 @@ vorher_datei resources/js/Pages/Databases/Console.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Databases/Console.vue'
 s = open(p, encoding='utf-8').read()
-s = s.replace("`geschätzt ${formatRows(tabelle.rows)} Zeilen`",
-              "`${formatRows(tabelle.rows)} Zeilen`", 1)
+s = s.replace("`geschätzt ${counted(tabelle.rows, 'Zeile', 'Zeilen')}`",
+              "`${counted(tabelle.rows, 'Zeile', 'Zeilen')}`", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/js/Pages/Databases/Console.vue "Schätzung ohne das Wort" &&
@@ -7857,6 +7857,152 @@ pruefe "Blätterangabe mit nowrap" \
   MobileLayoutTest::test_the_pager_state_may_break failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest passed
+
+echo
+echo "── ViewStateTest: die Ladung meldet nicht mehr, ob sie durchkam ──"
+#
+# Ohne den Rückgabewert gibt es keinen Rückweg: Der Aufrufer kann nicht wissen,
+# dass sein Zustand eine Anzeige beschreibt, die es nicht gibt.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('async function loadPage(): Promise<boolean> {', 'async function loadPage(): Promise<void> {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Ladung ohne Rückmeldung" &&
+pruefe "Ladung ohne Rückmeldung" \
+  ViewStateTest::test_loading_a_page_says_whether_it_worked failed
+wiederherstellen
+
+echo
+echo "── ViewStateTest: eine gesicherte Angabe ohne Rückweg ──"
+#
+# Der Fall, der wiederkommt: Die Sicherung kennt sie, der Rückweg nicht. Alles
+# andere steht danach richtig da, und diese eine nicht.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('  draft.value = zuvor.draft\n', '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Sicherung ohne Rückweg" &&
+pruefe "Sicherung ohne Rückweg" \
+  ViewStateTest::test_every_saved_field_is_restored failed
+wiederherstellen
+
+echo
+echo "── ViewStateTest: ein Griff fasst an, was er nicht zurücknehmen kann ──"
+#
+# Eine neue Angabe der Sicht wird in einem Griff gesetzt, und die Sicherung
+# erfährt davon nichts.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+alt = "    offset.value = 0\n    trail.value = []\n  })\n}\n\nasync function applyFilter"
+neu = "    offset.value = 0\n    trail.value = []\n    openView.value = 'rows'\n  })\n}\n\nasync function applyFilter"
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Griff ohne Rückweg" &&
+pruefe "Griff ohne Rückweg" \
+  ViewStateTest::test_a_change_touches_nothing_it_cannot_take_back failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ViewStateTest passed
+
+echo
+echo "── AnnounceWithdrawalTest: der Rückweg nimmt nichts zurück ──"
+#
+# Ohne ihn baut die nächste Seite ihren eigenen — genau so ist useAnnounce
+# selbst entstanden.
+vorher_datei resources/js/Composables/useAnnounce.ts
+python3 - <<'PY2'
+p = 'resources/js/Composables/useAnnounce.ts'
+s = open(p, encoding='utf-8').read()
+s = s.replace('export function dismiss(): void {\n    message.value = null\n}',
+              'export function dismiss(): void {\n    message.value = message.value\n}', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Composables/useAnnounce.ts "Rücknahme ohne Wirkung" &&
+pruefe "Rücknahme ohne Wirkung" \
+  AnnounceWithdrawalTest::test_there_is_a_way_to_take_it_back failed
+wiederherstellen
+
+echo
+echo "── AnnounceWithdrawalTest: der Fehlersatz lässt die grüne Meldung stehen ──"
+#
+# Der Fund aus dem Abnahmelauf von P5c: Über der roten Meldung stand noch die
+# grüne der Handlung davor, und der Kunde las beide über derselben Taste.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('  dismiss()\n\n  failure.value =\n', '  failure.value =\n', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Fehler ohne Rücknahme" &&
+pruefe "Fehler ohne Rücknahme" \
+  AnnounceWithdrawalTest::test_reporting_a_failure_withdraws_the_success failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnounceWithdrawalTest passed
+
+echo
+echo "── CountedNounTest: eine Zahl klebt wieder an ihrem Plural ──"
+#
+# Der Fund aus dem Abnahmelauf von P5c, auf beiden Systemen: eine Tabelle mit
+# genau einer Zeile, und darüber die Mehrzahl.
+vorher_datei resources/js/Pages/Databases/Console.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Console.vue'
+s = open(p, encoding='utf-8').read()
+alt = "`geschätzt ${counted(tabelle.rows, 'Zeile', 'Zeilen')}`"
+neu = "`geschätzt ${tabelle.rows.toLocaleString('de-DE')} Zeilen`"
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Console.vue "Plural fest angehängt" &&
+pruefe "Plural fest angehängt" \
+  CountedNounTest::test_no_count_is_glued_to_a_plural_noun failed
+wiederherstellen
+
+echo
+echo "── CountedNounTest: das Muster findet nichts mehr ──"
+#
+# Eine leere Trefferliste liefert ein kaputtes Muster genauso zuverlässig wie
+# eine saubere Oberfläche. Ohne die Gegenprobe ist die Prüfung darüber wertlos.
+vorher_datei tests/Feature/CountedNounTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/CountedNounTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'Zeilen', 'Tabellen',", "'Tabellen',", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/CountedNounTest.php "Muster ohne Zeilen" &&
+pruefe "Muster ohne Zeilen" \
+  CountedNounTest::test_the_pattern_would_find_one failed
+wiederherstellen
+
+echo
+echo "── CountedNounTest: eine Seite trifft die Entscheidung wieder selbst ──"
+#
+# Dreimal derselbe Fehler hiess, dass die Stelle fehlte, an der er einmal
+# richtig gemacht wird. Wer sie wieder verlässt, macht ihn ein viertes Mal.
+vorher_datei resources/js/Pages/Audit/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Audit/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("import { counted } from '../../Composables/useCounted'\n", '', 1)
+alt = ":subline=\"counted(events.total, 'Eintrag', 'Eintraege')\""
+s = s.replace(alt.replace('Eintraege', 'Einträge'), ':subline="`${events.total} Zeichen`"', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Audit/Index.vue "Entscheidung wieder in der Seite" &&
+pruefe "Entscheidung wieder in der Seite" \
+  CountedNounTest::test_the_decision_lives_in_one_place failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CountedNounTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

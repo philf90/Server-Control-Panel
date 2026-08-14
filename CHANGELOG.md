@@ -12037,3 +12037,59 @@ Sieben Treffer, kein einziges Leck.
 Gemessen wird jetzt am Namen **innerhalb einer Konsolenoperation**. Was die drei
 Anläufe verbindet, ist dieselbe Ursache: Ein Beleg wurde formuliert, bevor
 jemand nachgesehen hat, was an der Messstelle sonst noch passiert.
+
+### P5c Schritt 9 — die drei Befunde am Panel, mit ihren Wächtern
+
+Der Abnahmelauf ist durch (`docs/48`), alle sieben Kriterien erfüllt. Von den
+vier Befunden am Panel sind drei behoben; der vierte (§3.2) wartet auf eine
+Entscheidung des Betreibers, weil er das Aussehen der Zeilentabelle ändert.
+
+**Der Wunsch wird erst zur Anzeige, wenn die Antwort da ist.** Nach der
+Zeitüberschreitung aus Punkt 4 stand die Kopfzeile auf `wert ↑`, während darunter
+die nach `id` sortierte Seite lag: Der Griff hatte seinen Zustand gesetzt und
+danach geladen. Es gibt jetzt eine Stelle, die sichert, ausführt und bei
+Fehlschlag zurücknimmt; `loadPage()` meldet dafür, ob sie durchkam.
+
+> **Eine fehlgeschlagene Anfrage darf die Beschriftung nicht so lassen, als wäre
+> sie durchgelaufen.**
+
+Betroffen waren **fünf** Griffe und nicht nur die Sortierung — Filtern, Filter
+entfernen, Vor und Zurück hingen an derselben Ursache. Der stillste war
+„Zurück": Er nahm den Versatz vom Stapel, und bei einem Fehlschlag war er fort.
+
+**Eine gescheiterte Handlung nimmt die Erfolgsmeldung der vorigen weg.** Über der
+roten Meldung „Der Vorgang hat 0 Zeilen getroffen" stand noch „Die Zeile ist
+geändert." in Grün. Auf jeder anderen Seite dieses Panels kann das nicht
+passieren — dort ist die Erfolgsmeldung ein `flash` und lebt eine Antwort lang;
+die Konsole ist die erste Fläche, die ändert und dabei stehen bleibt.
+
+> **Eine gescheiterte Handlung muss die Erfolgsmeldung der vorigen wegnehmen —
+> sonst stehen zwei Sätze über derselben Taste, und einer ist falsch.**
+
+**Und „geschätzt 1 Zeilen" stand an drei Stellen und nicht an einer.** Der
+Wächter dazu hat beim ersten Lauf ausser der Konsole noch das Protokoll
+(„1 Einträge") und die Planvorlage („1 Abonnements gebunden") gemeldet — beide
+seit P2 im Repo, beide von niemandem bemerkt. Die Einzahl ist im Betrieb der
+Normalfall und in der Entwicklung der Sonderfall.
+
+> **Ein Fehler, der an drei Stellen unabhängig gemacht wurde, ist keine
+> Unachtsamkeit, sondern eine fehlende Stelle.**
+
+Die Entscheidung über das Wort steht deshalb jetzt in `useCounted.ts`. Beide
+Wörter werden übergeben und keines abgeleitet: Im Deutschen gibt es dafür keine
+Regel — `Zeile` wird zu `Zeilen`, `Zugang` zu `Zugänge`, `Treffer` bleibt.
+
+**Drei neue Wächter, acht Eingriffe, jeder einzeln gefahren.** `ViewStateTest`,
+`AnnounceWithdrawalTest` und `CountedNounTest` stehen mit ihren Brüchen in
+`tests/waechter-brechen.sh`. Zwei Funde beim Bauen der Wächter selbst:
+
+Der erste war der Wächter über den Fehlersatz. Sein Ausdruck lautete
+`failure\.value\s*=\s*(?!null)` und meldete auch das Aufräumen
+`failure.value = null` — schlägt die Vorschau fehl, gibt `\s*` ein Zeichen zurück
+und probiert es erneut.
+
+> **Ein `\s*` vor einer Verneinung hebt sie auf.**
+
+Der zweite kam von `BreakScriptTest`: Ein Eingriff aus Schritt 8 hatte durch die
+Umbenennung seinen Griff verloren und zeigte auf einen Text, den es nicht mehr
+gab. Genau dafür gibt es ihn — er meldete es, bevor irgendetwas eingecheckt war.

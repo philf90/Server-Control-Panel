@@ -54,3 +54,28 @@ export function announcement(): DeepReadonly<Ref<string | null>> {
 export function announce(text: string): void {
     message.value = text
 }
+
+/**
+ * Die Meldung zurücknehmen.
+ *
+ * **Weil eine gescheiterte Handlung die Erfolgsmeldung der vorigen wegnehmen
+ * muss.** Auf einer Seite, die neu lädt, erledigt das der Seitenwechsel: Der
+ * `flash` lebt eine Antwort lang, und die nächste Antwort hat ihn nicht mehr.
+ * Die Konsole aus P5c wechselt die Seite nie — sie arbeitet ausschliesslich über
+ * XHR —, und damit überlebt die grüne Meldung jede Zahl von Handlungen danach.
+ *
+ * Im Abnahmelauf von P5c gesehen (`docs/48 §3.10`): Über der roten Meldung „Der
+ * Vorgang hat 0 Zeilen getroffen" stand noch „Die Zeile ist geändert." in Grün.
+ * Der Kunde drückt einmal Speichern und liest zwei Sätze über derselben Taste,
+ * von denen einer falsch ist.
+ *
+ * > **Eine gescheiterte Handlung muss die Erfolgsmeldung der vorigen wegnehmen
+ * > — sonst stehen zwei Sätze über derselben Taste, und einer ist falsch.**
+ *
+ * **Sie nimmt zurück und meldet nicht.** Ein „das hat nicht geklappt" gehört an
+ * die Stelle des Fehlersatzes (`docs/19 §6`) und nicht an die des Erfolgs; hier
+ * bleibt schlicht nichts stehen.
+ */
+export function dismiss(): void {
+    message.value = null
+}

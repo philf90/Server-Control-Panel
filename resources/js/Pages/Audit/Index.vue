@@ -5,6 +5,7 @@ import Section from '../../Components/Section.vue'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Pager from '../../Components/Pager.vue'
+import { counted } from '../../Composables/useCounted'
 
 /*
  * Das Protokoll.
@@ -71,7 +72,7 @@ function exportUrl(): string {
 <template>
   <Head title="Protokoll" />
 
-  <PanelLayout title="Protokoll" :subline="`${events.total} Einträge`">
+  <PanelLayout title="Protokoll" :subline="counted(events.total, 'Eintrag', 'Einträge')">
     <template #actions>
       <a :href="exportUrl()" class="button">Als CSV herunterladen</a>
     </template>

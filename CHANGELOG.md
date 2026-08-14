@@ -12225,3 +12225,89 @@ bedeutet.
 
 Wächter: `EngineLabelTest` und `MobileLayoutTest::test_the_subline_can_break`,
 mit drei Eingriffen im Bruchskript.
+
+### P6 — die Messrunde kam vor dem Plan (docs/50, docs/51)
+
+P6 bricht mit dem Muster, das P0 bis P5c getragen hat: **Bis heute nimmt keine
+Agent-Operation einen Pfad entgegen — sie baut ihn.** Ein Dateimanager kann das
+nicht. Damit fällt der Schutz weg, auf dem alles bisher stand, und die Frage vor
+dem Plan war, was ihn ersetzt.
+
+**Die naheliegende Antwort ist gemessen falsch.** `docs/20 §9` schrieb für P6
+eine „Prüfung nach Auflösung von Symlinks" vor, und `Filesystem::removeInside`
+macht sie heute so: `is_link`, dann `realpath($x) === $x`, dann zugreifen. Gegen
+einen Prozess des Abonnements, der `renameat2(RENAME_EXCHANGE)` in einer
+Schleife fährt und damit Verzeichnis und Verweis **atomar** tauscht, liess
+dieses Muster **11 081 von 36 056 bestandenen Prüfungen** eine Datei ausserhalb
+der Grenze lesen. Einunddreissig Prozent.
+
+**Zwei eigene Fehlmessungen davor stehen mit in `docs/50`**, weil beide null
+Treffer meldeten und beide nichts belegt haben: ein Angreifer aus
+`unlink`/`symlink`, der den Namen zwischendurch verschwinden lässt — die Prüfung
+weist dann ab, und gemessen wird seine Ungeschicktheit —, und der Versuch, das
+Fenster über einen Baumlauf zu verbreitern, der zwar lange dauert, dessen
+Fenster *je Knoten* aber genauso kurz bleibt.
+
+> **Ein Angriff, der nicht trifft, misst den Angreifer und nicht die Abwehr.**
+
+**Der teuerste Fund hat mich zuerst glauben lassen, `openat2` sei undicht.** Es
+ist das Gegenteil: Der Systemaufruf hat kein einziges Mal ausserhalb aufgelöst,
+alle 34 947 Abweisungen waren `EXDEV`. Undicht war der Weg zurück nach PHP.
+PHPs Dateifunktionen nehmen Pfade und keine Deskriptoren; wer einen sicher
+geöffneten fd an `file_get_contents` geben will, geht über `/proc/self/fd/N` —
+und das ist eine **zweite Pfadauflösung** und damit dasselbe Rennen noch einmal.
+8 106 Ausbrüche. Derselbe Deskriptor über `read(2)` gelesen: null.
+
+> **Ein sicher geöffneter Deskriptor, der über einen Pfad wieder eingelesen
+> wird, ist kein sicher geöffneter Deskriptor.**
+
+Damit ist FFI aus dem Plan: Es schützte nur, was auch über FFI gelesen und
+geschrieben wird — also Lesen, Schreiben, Auflisten, Kopieren und Umbenennen als
+root nachgebaut. Grösste denkbare Angriffsfläche für den kleinsten Gewinn.
+
+**Was hält, ist `fork` + `chroot` + Rechteabgabe** — 0 Ausbrüche unter demselben
+Angreifer, ohne FFI und ohne neuen Eintrag auf der Positivliste (`Runner.php`
+verbietet `setpriv`, `runuser`, `su` und `sudo` ausdrücklich). Der Dateimanager
+nimmt weiter einen Pfad vom Kunden, deutet ihn aber **innerhalb eines Chroots**,
+und dort kann kein Pfad etwas ausserhalb bezeichnen.
+
+**Zwei Messungen machen daraus erst eine Schranke.** Roher `chroot(2)` als root
+bricht aus; derselbe Code nach der Rechteabgabe nicht. PHPs `chroot()` verdeckt
+das, weil es hinterher selbst `chdir("/")` macht — der erste Messversuch meldete
+deshalb fälschlich „eingesperrt" für root, und darauf darf sich nichts stützen.
+
+> **Was der Geprüfte selbst zurücknehmen kann, ist keine Schranke.** Root kann
+> `chroot` zurücknehmen. Der Abo-Benutzer kann es nicht.
+
+Und: `posix_setgroups()` gibt es in PHP nicht. Ein Kind, das nur `setgid` und
+`setuid` aufruft, behält die **Zusatzgruppen von root** und liest damit eine
+Datei mit `root:root 0640`. `posix_initgroups()` davor schliesst das.
+
+> **Ein Rechtewechsel ohne `initgroups` ist kein Rechtewechsel.**
+
+Die Null dazu hatte zuerst keinen Nachbarn: Im Container hat root eine **leere**
+Zusatzgruppenliste, und die erste Messung sah sauber aus, obwohl sie nichts
+geprüft hatte. Erst `setpriv --groups=0,4,27` am Elternprozess machte sie zu
+einer Messung.
+
+**Dazu OpenSSH 9.6 gegen das Schema aus §4.5**, mit echtem `sshd` und echter
+SFTP-Anmeldung: Das Schema hält unverändert; Wurzel dem Benutzer, Wurzel `0775`,
+`/var/www/vhosts` auf `0777` und `/var/www/vhosts` dem Benutzer werden alle vier
+abgewiesen, und die Gegenprobe verbindet wieder. OpenSSH prüft die **ganze Kette
+oberhalb** der Wurzel. Der Client erfährt den Grund nicht — er bekommt `Broken
+pipe`, die Auskunft steht nur im Serverprotokoll als `bad ownership or modes for
+chroot directory`.
+
+**Drei Punkte aus `docs/20 §9 P6` sind daraufhin gestrichen** und stehen dort
+als Streichung mit Begründung, damit sie nicht später als Vergessen gelesen
+werden: die Symlink-Prüfung (siehe oben), die FTP-Konten (Entscheidung des
+Betreibers; `proftpd-basic` gibt es in Ubuntu 24.04 ohnehin nicht mehr) und der
+SSH-Zugang mit Shell (gemessen: `internal-sftp` läuft im leeren Chroot, eine
+Shell scheitert mit `/bin/bash: No such file or directory`).
+
+**Und eine Regel dieses Projekts fällt bewusst:** Der Editor bekommt mit
+CodeMirror 6 die **erste Frontend-Abhängigkeit**, die es hier je gab. Sie bleibt
+auf eine Seite begrenzt und wird nachgeladen, die Farben kommen weiter aus
+`app.css` — und weil „keine Abhängigkeit" bisher eine Selbstverständlichkeit war
+und deshalb von nichts geprüft, bekommt die Liste mit der ersten Ausnahme ihren
+Wächter.

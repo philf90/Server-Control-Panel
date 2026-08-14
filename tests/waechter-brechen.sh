@@ -90,7 +90,16 @@ cd "$(dirname "$0")/.." || exit 1
 #
 # > **Ein Rückweg, der eine Datei nicht kennt, die ein Eingriff ändert, ist
 # > keiner — und was danach kommt, misst etwas anderes als es glaubt.**
-BAEUME="resources/ app/ agent/ tests/ packaging/ .github/ database/ routes/ docs/ config/ bootstrap/"
+# **`package.json` steht hier, weil es seit P6 eine Regel trägt.**
+# `FrontendDependencyTest` liest die Abhängigkeitsliste, und der Bruch dazu
+# schreibt eine erfundene hinein. Ohne die Datei im Rückweg blieb sie stehen —
+# und damit war der Wächter für **jede** folgende Prüfung rot, obwohl mit ihm
+# nichts war. Genau vier Prüfungen meldeten deshalb „ohne Biss", und alle vier
+# gehörten zu diesem einen Wächter.
+#
+# > **Ein Bruch, der eine Datei ausserhalb des Rückwegs anfasst, wird nicht
+# > zurückgenommen — und vergiftet jeden Lauf danach.**
+BAEUME="resources/ app/ agent/ tests/ packaging/ .github/ database/ routes/ docs/ config/ bootstrap/ package.json"
 
 # **Dieses Skript liegt selbst unter `tests/` und nimmt sich aus.**
 #
@@ -8168,6 +8177,433 @@ pruefe "System ohne Marke" \
   EngineLabelTest::test_all_of_them_show_it_the_same_way failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" EngineLabelTest passed
+
+echo
+echo "── SandboxReachTest: das chroot aus der Sandbox nehmen ──"
+#
+# Die Grenze von P6 ist keine Pruefung, sondern ein Prozess ohne Rechte in
+# einem chroot. docs/50 §3 hat gemessen, was die naheliegende Ersetzung taugt:
+# realpath()+is_link liess 11081 von 36056 bestandenen Pruefungen ausserhalb
+# der Grenze lesen. Wer das chroot herausnimmt, nimmt die Stufe heraus.
+vorher_datei agent/src/Sandbox.php
+python3 - <<'PY2'
+p = 'agent/src/Sandbox.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('if (! @chroot($root)) {', 'if (! self::confine($root)) {')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "chroot aus der Sandbox entfernt" \
+  SandboxReachTest::test_the_sandbox_uses_all_of_them failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxReachTest passed
+
+echo
+echo "── SandboxReachTest: einsperren an einer zweiten Stelle ──"
+#
+# Eine Grenze, die an zwei Stellen steht, ist keine. Die zweite Fassung ist
+# die, die veraltet — und bei einer Schranke heisst „veraltet" offen.
+vorher_datei agent/src/Filesystem.php
+python3 - <<'PY2'
+p = 'agent/src/Filesystem.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('    public static function removeTree(string $path): void\n    {\n',
+              '    public static function removeTree(string $path): void\n    {\n        chroot($path);\n')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "chroot ausserhalb der Sandbox" \
+  SandboxReachTest::test_only_the_sandbox_confines failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxReachTest passed
+
+echo
+echo "── SandboxReachTest: der Socket des Agenten bleibt im Kind offen ──"
+#
+# AgentIdentityTest hat diese Zeile schon einmal bezahlt: Einer der zwei
+# Gruende, warum docs/38 §6 den Kennungswechsel im Runner verwarf, war, dass
+# der geforkte Prozess den Socket des Agenten erbt. P6 forkt trotzdem — also
+# muss der Socket weg, bevor fremder Code im Kind laeuft.
+vorher_datei agent/src/Sandbox.php
+python3 - <<'PY2'
+p = 'agent/src/Sandbox.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        try {\n            self::closeInherited($close);\n', '        try {\n')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "closeInherited nicht mehr die erste Zeile im Kind" \
+  SandboxReachTest::test_the_child_closes_what_it_inherited failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxReachTest passed
+
+echo
+echo "── PrivilegeDropTest: initgroups faellt weg ──"
+#
+# posix_setgroups() gibt es in PHP nicht. Ein Kind, das nur setgid und setuid
+# aufruft, behaelt die Zusatzgruppen von root und liest damit eine Datei mit
+# root:root 0640 — gemessen in docs/50 §5, und im Container zuerst unsichtbar,
+# weil root dort eine leere Zusatzgruppenliste hat.
+vorher_datei agent/src/Sandbox.php
+python3 - <<'PY2'
+p = 'agent/src/Sandbox.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('posix_initgroups(', 'self::groups(')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "initgroups aus der Rechteabgabe entfernt" \
+  PrivilegeDropTest::test_the_drop_happens_in_the_only_order_that_works failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PrivilegeDropTest passed
+
+echo
+echo "── PrivilegeDropTest: setuid vor setgid ──"
+#
+# Nach setuid darf ein Prozess seine Gruppe nicht mehr wechseln. Die falsche
+# Reihenfolge laesst das setgid fehlschlagen, und zwar leise.
+vorher_datei agent/src/Sandbox.php
+python3 - <<'PY2'
+p = 'agent/src/Sandbox.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("! posix_setgid($account['gid']) || ! posix_setuid($account['uid'])",
+              "! posix_setuid($account['uid']) || ! posix_setgid($account['gid'])")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "setuid vor setgid" \
+  PrivilegeDropTest::test_the_drop_happens_in_the_only_order_that_works failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PrivilegeDropTest passed
+
+echo
+echo "── PrivilegeDropTest: der Elternprozess glaubt dem Beleg ──"
+#
+# Das Kind meldet uid und Gruppen mit. Ein Elternprozess, der sie nur
+# durchreicht, hat einen Beleg eingesammelt und nicht gelesen — und ein
+# Ergebnis, das behauptet als root gelaufen zu sein, ist ein Fehler und kein
+# Ergebnis (docs/51 §4, Punkt 13).
+vorher_datei agent/src/Sandbox.php
+python3 - <<'PY2'
+p = 'agent/src/Sandbox.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("if (($decoded['uid'] ?? 0) === 0 || in_array(0, $decoded['groups'] ?? [0], true)) {",
+              "if (in_array(0, $decoded['groups'] ?? [0], true)) {")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Elternprozess prueft die gemeldete uid nicht" \
+  PrivilegeDropTest::test_the_parent_checks_the_proof_it_gets_back failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PrivilegeDropTest passed
+
+echo
+echo "── SandboxReachTest: der Baumlauf als root ueber Kundendaten ──"
+#
+# removeTree() lief bis P6 als root ueber Verzeichnisse, die dem Kunden
+# gehoeren. Gegen einen Prozess mit renameat2(RENAME_EXCHANGE) hat der Rueckbau
+# dabei in 5 von 120 Durchgaengen Dateien ausserhalb des Abonnements geloescht;
+# ueber die Sandbox in denselben 120 Durchgaengen null Mal.
+vorher_datei agent/src/Ops/WebSiteRemove.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebSiteRemove.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('if (Filesystem::removeInside($site->logDir(), $site->subscriptionRoot(), $site->user)) {',
+              'if (Filesystem::removeTree($site->logDir()) || true) {')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Baumlauf als root an einer unbegruendeten Stelle" \
+  SandboxReachTest::test_the_raw_tree_walk_is_called_only_where_no_customer_writes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxReachTest passed
+
+echo
+echo "── SandboxReachTest: der Rueckbau raeumt nicht mehr vor ──"
+#
+# Ohne purgeContents() laeuft removeTree() als root wieder ueber httpdocs — und
+# der Eintrag in MAY_WALK_AS_ROOT erlaubt es weiterhin. Erst dieser Test macht
+# aus der Erlaubnis eine Bedingung.
+vorher_datei agent/src/Ops/SubscriptionRemove.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SubscriptionRemove.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        Filesystem::purgeContents($root, $user);\n\n', '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "purgeContents aus dem Rueckbau entfernt" \
+  SandboxReachTest::test_the_teardown_purges_before_it_walks failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxReachTest passed
+
+echo
+echo "── SandboxReachTest: aufgeraeumt wird nach dem Baumlauf ──"
+#
+# Die Reihenfolge ist die Sache: Wer zuerst als root abtraegt und danach die
+# Sandbox ruft, hat die Kundendaten bereits durchlaufen.
+vorher_datei agent/src/Ops/SubscriptionRemove.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SubscriptionRemove.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        Filesystem::purgeContents($root, $user);\n\n        Filesystem::removeTree($root);',
+              '        Filesystem::removeTree($root);\n\n        Filesystem::purgeContents($root, $user);')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Aufraeumen erst nach dem Baumlauf" \
+  SandboxReachTest::test_the_teardown_purges_before_it_walks failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxReachTest passed
+
+echo
+echo "── SandboxPreloadTest: die Aufzaehlung wird zur Liste ──"
+#
+# Nach dem chroot findet der Autoloader agent/src/ nicht mehr. Eine Klasse, die
+# erst im Kind gebraucht wird, fehlt erst im Kind — also erst im Fehlerfall.
+# Genau das ist beim Bau von Schritt 3 passiert: preload() lud nur
+# AgentException, und jede Datei-Operation endete mit „Class Files\Entry not
+# found", gemeldet als internal.
+vorher_datei agent/src/Sandbox.php
+python3 - <<'PY2'
+p = 'agent/src/Sandbox.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""foreach (glob(__DIR__.'/Files/*.php') ?: [] as $file) {
+            class_exists(__NAMESPACE__.'\\\\Files\\\\'.basename($file, '.php'));
+        }""", 'class_exists(Files\\Entry::class);')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "handgepflegte Liste statt Aufzaehlung" \
+  SandboxPreloadTest::test_the_files_namespace_is_enumerated failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxPreloadTest passed
+
+echo
+echo "── SandboxPreloadTest: der erklaerende Autoloader wird nicht gerufen ──"
+#
+# Der erste Entwurf dieses Waechters prueft nur, dass es die Methode gibt — und
+# blieb gruen, als der Bruch den Aufruf entfernte und die Definition
+# stehenliess. Ein Autoloader, den niemand registriert, erklaert nichts.
+vorher_datei agent/src/Sandbox.php
+python3 - <<'PY2'
+p = 'agent/src/Sandbox.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('            self::explainMissingClasses();\n', '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Aufruf entfernt, Definition bleibt" \
+  SandboxPreloadTest::test_a_missing_class_explains_itself failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxPreloadTest passed
+
+echo
+echo "── SandboxPreloadTest: der Autoloader haengt erst nach dem chroot ──"
+#
+# Zu spaet fuer genau die Klassen, die beim Einsperren gebraucht werden.
+vorher_datei agent/src/Sandbox.php
+python3 - <<'PY2'
+p = 'agent/src/Sandbox.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('            self::explainMissingClasses();\n', '')
+s = s.replace("            chdir('/');", "            chdir('/');\n            self::explainMissingClasses();")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Autoloader erst nach dem chroot registriert" \
+  SandboxPreloadTest::test_the_explanation_is_registered_before_the_chroot failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxPreloadTest passed
+
+echo
+echo "── FileStagingTest: die Quelle des Uploads wird nicht geprueft ──"
+#
+# files.upload liest seine Quelle als root und ausserhalb jedes Chroots — das
+# Ziel ist eingesperrt, die Quelle nicht. Ohne die Pruefung gegen das
+# Zwischenlager waere „source: /etc/shadow" ein gueltiger Aufruf.
+vorher_datei agent/src/Ops/FilesUpload.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesUpload.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("Guard::pathInside($args['source'] ?? null, [Staging::ROOT])",
+              "Guard::string($args['source'] ?? null, 'source')")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Quelle des Uploads ungeprueft" \
+  FileStagingTest::test_the_upload_confines_its_source failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FileStagingTest passed
+
+echo
+echo "── FileStagingTest: die Quelle wird erst im Kind geoeffnet ──"
+#
+# Nach dem chroot gibt es ihren Pfad nicht mehr. Der Deskriptor muss vorher
+# aufgemacht werden; die Closure nimmt ihn mit hinein.
+vorher_datei agent/src/Ops/FilesUpload.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesUpload.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $handle = @fopen($source, 'rb');\n", '')
+s = s.replace('static function () use ($handle, $path, $size): array {',
+              "static function () use ($source, $path, $size): array {\n                $handle = @fopen($source, 'rb');")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Quelle erst im Kind geoeffnet" \
+  FileStagingTest::test_the_source_is_opened_before_the_child_starts failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FileStagingTest passed
+
+echo
+echo "── FileStagingTest: beide Zwischenlager auf dasselbe Verzeichnis ──"
+#
+# Zwei Positivlisten, die auf dasselbe Verzeichnis zeigen, sind eine
+# Positivliste: db.dump.import duerfte dann jede Kundendatei einspielen und
+# files.upload jede Datenbanksicherung verteilen.
+vorher_datei agent/src/Files/Staging.php
+python3 - <<'PY2'
+p = 'agent/src/Files/Staging.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('private/uploads', 'private/imports')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Uploads und Sicherungen im selben Lager" \
+  FileStagingTest::test_the_two_stores_stay_apart failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FileStagingTest passed
+
+echo
+echo "── FrontendDependencyTest: eine unbegruendete Abhaengigkeit ──"
+#
+# Dieses Projekt kam bis zum 14. August 2026 ohne jede Frontend-Abhaengigkeit
+# aus, und das war nirgends geprueft — eine Selbstverstaendlichkeit. Sobald die
+# erste Ausnahme da ist, entscheidet die Gewohnheit ueber die zweite.
+vorher_datei package.json
+python3 - <<'PY2'
+import json
+d = json.load(open('package.json', encoding='utf-8'))
+d['devDependencies']['chart.js'] = '^4.0.0'
+json.dump(d, open('package.json', 'w', encoding='utf-8'), indent=4, ensure_ascii=False)
+PY2
+pruefe "chart.js ohne Begruendung in package.json" \
+  FrontendDependencyTest::test_every_dependency_is_accounted_for failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FrontendDependencyTest passed
+
+echo
+echo "── FrontendDependencyTest: statischer Import von CodeMirror ──"
+#
+# Der ganze Unterschied zwischen 2,6 KB und 624 KB im gemeinsamen Buendel — und
+# die Datei saehe dabei genauso aus, nur die Zeile stuende woanders.
+vorher_datei resources/js/Components/CodeEditor.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/CodeEditor.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("import { onBeforeUnmount", "import { EditorView } from '@codemirror/view'\nimport { onBeforeUnmount")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "CodeMirror statisch importiert" \
+  FrontendDependencyTest::test_codemirror_is_loaded_lazily failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FrontendDependencyTest passed
+
+echo
+echo "── FrontendDependencyTest: eine Farbe aus der Bibliothek ──"
+#
+# Ein Hexwert in einer Komponente ist in diesem Projekt ein Fehler und keine
+# Ausnahme — und CodeMirrors eigene Themes waeren in einem der beiden Themes
+# vermutlich unlesbar.
+vorher_datei resources/js/Components/CodeEditor.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/CodeEditor.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("{ tag: tags.keyword, class: 'tok-keyword' },", "{ tag: tags.keyword, color: '#c678dd' },")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Hexwert im Editor" \
+  FrontendDependencyTest::test_the_editor_brings_no_colours_of_its_own failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FrontendDependencyTest passed
+
+echo
+echo "── FrontendDependencyTest: der Rueckweg ohne die Bibliothek ──"
+#
+# Laedt das Buendel nicht, haengt sonst das Speichern einer .htaccess an einer
+# Bibliothek.
+vorher_datei resources/js/Components/CodeEditor.vue
+python3 - <<'PY2'
+import re
+p = 'resources/js/Components/CodeEditor.vue'
+s = open(p, encoding='utf-8').read()
+s = re.sub(r'<textarea.*?</textarea>', '', s, flags=re.S)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "textarea-Rueckweg entfernt" \
+  FrontendDependencyTest::test_there_is_a_way_without_the_library failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FrontendDependencyTest passed
+
+echo
+echo "── ArchiveEntryTest: array_pop statt verwerfen ──"
+#
+# Der naheliegende Weg und der falsche: array_pop macht aus `a/../../b` ein `b`
+# — also einen Eintrag, den das Archiv so nie benannt hat.
+vorher_datei agent/src/Files/Archive.php
+python3 - <<'PY2'
+p = 'agent/src/Files/Archive.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if ($part === '..') {"""
+i = s.index(alt)
+j = s.index('return null;', i) + len('return null;')
+s = s[:i] + """            if ($part === '..') {
+                array_pop($parts);
+
+                continue;""" + s[j:]
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Zip-Slip wird zurechtgebogen statt verworfen" \
+  ArchiveEntryTest::test_a_way_out_is_not_bent_into_a_way_in failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ArchiveEntryTest passed
+
+echo
+echo "── ArchiveEntryTest: der Backslash bleibt ein Namenszeichen ──"
+#
+# Ein Eintrag `..\..\x` aus einem Archiv, das auf einem anderen System
+# entstanden ist, waere sonst ein gueltiger Dateiname mit Punkten.
+vorher_datei agent/src/Files/Archive.php
+python3 - <<'PY2'
+p = 'agent/src/Files/Archive.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $name = str_replace('\\\\', '/', $name);\n", '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Backslash nicht als Trenner behandelt" \
+  ArchiveEntryTest::test_entries_that_lead_out_are_dropped failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ArchiveEntryTest passed
+
+echo
+echo "── ArchiveEntryTest: die Suche nimmt ein Muster entgegen ──"
+#
+# Ein `(a+)+b` gegen eine lange Zeile bringt den Vorgang zum Stillstand, und es
+# gibt kein Zeitlimit, das den Prozess rechtzeitig einholt.
+vorher_datei agent/src/Ops/FilesSearch.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesSearch.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('if (! str_contains($content, $needle)) {', 'if (preg_match("/".$needle."/", $content) !== 1) {')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Suche mit regulaerem Ausdruck des Kunden" \
+  ArchiveEntryTest::test_the_search_matches_literally failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ArchiveEntryTest passed
+
+echo
+echo "── ArchiveEntryTest: ein abgebrochener Suchlauf schweigt ──"
+#
+# Eine leere Ergebnisliste, die einen Abbruch verschweigt, behauptet etwas, das
+# sie nicht weiss.
+vorher_datei agent/src/Ops/FilesSearch.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesSearch.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'truncated' => $abgebrochen,", '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Abbruch des Suchlaufs verschwiegen" \
+  ArchiveEntryTest::test_a_truncated_search_says_so failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ArchiveEntryTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

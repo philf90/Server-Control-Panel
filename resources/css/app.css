@@ -1453,6 +1453,220 @@ table.pairs {
  * `overflow-wrap: anywhere` ist an dieser Stelle die vierte Fassung derselben
  * Ausnahme nach `.ident`, `.stacks td .ident` und `.section-head h2`.
  */
+/* ═══════════════════════════════════════════════════════════════════════
+   Dateimanager (P6)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/*
+ * Die Namenszelle im Dateibaum.
+ *
+ * **Sie bricht, und das ist der ganze Zweck.** Ein Dateiname darf 255 Zeichen
+ * lang sein, und `td .ident { white-space: nowrap }` — richtig für Kennungen —
+ * hat in `docs/46 §20.13` den Inhalt einer Zeilentabelle 5710px breit gemacht
+ * statt 1907: bei 390px zehn Bildschirme Rollen durch eine einzige Zelle. Die
+ * Überlaufmessung sieht davon nichts, weil der Rollbehälter tut, was er soll.
+ *
+ * > Eine Zelle, die rollen darf, hat keine Obergrenze — sie hat nur keine Zahl,
+ * > die sich beschwert.
+ *
+ * Deshalb kein `nowrap` und kein `.ident` an dieser Stelle, sondern die
+ * inzwischen fünfte Fassung derselben Ausnahme: `overflow-wrap: anywhere`.
+ * `min-width: 0` gehört hier nicht dazu — eine Tabellenzelle ist kein Flexkind.
+ */
+.cell-name {
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Die Krümelspur über der Liste.
+ *
+ * Sie ist der Baum: Ein eigener Baumbereich neben der Liste kostet bei 390px
+ * die halbe Breite, und `docs/24 §5` hält fest, wofür ein Verzeichnis gedacht
+ * ist. Die Spur umbricht, weil ein Pfad aus tiefen Verzeichnissen länger wird
+ * als eine Zeile — und ein `nowrap` über etwas, das wächst, ist keine Zusage
+ * über die Zeile, sondern eine über den Bestand.
+ */
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--gap);
+  margin-bottom: var(--block-gap);
+  font-size: var(--text-small);
+}
+
+/*
+ * Ein Krümel, der umbricht, bleibt linksbündig.
+ *
+ * **Die Zahl hat das nicht gesehen.** Der Überlauf stand bei 0px, und die
+ * Ansicht war trotzdem falsch: Ein Verzeichnisname von 56 Zeichen bricht bei
+ * 390px auf zwei Zeilen, und ein `button` zentriert seinen Text von Haus aus —
+ * der Krümel las sich als Überschrift statt als Wegstück.
+ *
+ * > Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+ * > Betrachter.
+ *
+ * `min-width: 0` gehört hier dazu und bei `.cell-name` nicht: Dies ist ein
+ * Flexkind, und ein Flexkind darf ohne sie nicht unter seine Inhaltsbreite.
+ */
+.crumbs .link {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+/*
+ * Der Pfad über dem Editor.
+ *
+ * Er steht als eigene Zeile und nicht in der Überschrift: `docs/46 §20.11` hat
+ * gemessen, was ein Bereichstitel mit einem 63 Zeichen langen Namen anrichtet
+ * — 99px Überlauf bei 390px. Ein Dateiname darf 255.
+ */
+.path-line {
+  margin: 0 0 var(--block-gap);
+  color: var(--text-muted);
+  font-size: var(--text-small);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Der Editor mit Syntaxhervorhebung (P6, Schritt 6).
+ *
+ * **Hier stehen die Farben, die CodeMirror sonst selbst mitbrächte.** Die
+ * `HighlightStyle` in `CodeEditor.vue` vergibt ausschliesslich Klassennamen
+ * (`class:` statt `color:`); was daraus wird, entscheidet diese Stelle — wie
+ * bei allem anderen in diesem Panel. Ein mitgeliefertes Theme wäre der einzige
+ * Ort im ganzen System, an dem Farben an der Gestaltung vorbeikämen, und in
+ * einem der beiden Themes wäre es vermutlich unlesbar.
+ *
+ * Die Marken sind die vorhandenen. Es gibt keine eigene Farbskala für
+ * Quelltext, und das ist Absicht: Sechs neue Werte, die nur hier gelten, wären
+ * sechs Werte, die beim nächsten Themewechsel niemand mitzieht.
+ */
+.editor {
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius);
+  background: var(--control-bg);
+  overflow: hidden;
+}
+
+.editor .cm-editor {
+  font-family: var(--font-mono);
+  font-size: var(--text-table);
+  color: var(--text);
+
+  /* Dieselbe Höhe wie das `textarea` daneben — sonst springt die Seite, wenn
+     der Editor nachlädt und den Rückweg ablöst. */
+  max-height: 60dvh;
+}
+
+.editor .cm-editor.cm-focused {
+  /* Der Rahmen sitzt aussen; ein zweiter innen wäre ein doppelter Rand. */
+  outline: none;
+}
+
+.editor .cm-scroller {
+  overflow: auto;
+  font-family: inherit;
+  line-height: 1.6;
+}
+
+.editor .cm-gutters {
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-faint);
+}
+
+.editor .cm-activeLine {
+  background: var(--accent-surface);
+}
+
+.editor .cm-activeLineGutter {
+  background: var(--accent-surface);
+  color: var(--text-muted);
+}
+
+.editor .cm-selectionBackground,
+.editor .cm-content ::selection {
+  background: var(--mark-accent);
+}
+
+.editor .cm-cursor {
+  border-left-color: var(--text);
+}
+
+/*
+ * Die acht Marken.
+ *
+ * Sie tragen englische Namen wie jede Klasse in diesem Projekt und sind so
+ * knapp gehalten, wie eine Hervorhebung sein darf: Wer sieben Farben
+ * unterscheidet, liest den Quelltext nicht mehr, sondern das Bild davon.
+ */
+.editor .tok-keyword {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.editor .tok-string {
+  color: var(--ok);
+}
+
+.editor .tok-comment {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.editor .tok-number {
+  color: var(--accent-second);
+}
+
+.editor .tok-name {
+  color: var(--text-strong);
+}
+
+.editor .tok-tag {
+  color: var(--accent-second);
+}
+
+.editor .tok-operator {
+  color: var(--text-muted);
+}
+
+/*
+ * Ungültiges bekommt die Warnfarbe und keinen roten Grund.
+ *
+ * Ein Parserfehler in einer halb geschriebenen Zeile ist der Normalzustand
+ * beim Tippen; ihn wie einen Fehler des Kunden aussehen zu lassen, wäre eine
+ * Meldung, die während der Arbeit dauernd ansteht.
+ */
+.editor .tok-invalid {
+  color: var(--warn);
+}
+
+/*
+ * Das Textfeld des Editors.
+ *
+ * Monospace und ohne Zeilenumbruch am Rand — Quelltext, dessen Zeilen umbrechen,
+ * lässt sich nicht mehr nach Zeilennummern lesen. Es rollt deshalb waagerecht,
+ * und das ist hier richtig: Der Behälter ist das Feld und nicht die Seite.
+ *
+ * `tab-size: 4` steht in Tailwinds Reset und gilt damit ohnehin; hier steht es
+ * ausdrücklich, weil `docs/48` gelernt hat, was eine geerbte Vorgabe für
+ * Quelltext anrichtet, sobald sie auf Daten trifft.
+ */
+.field textarea.code {
+  font-family: var(--font-mono);
+
+  /* **Nicht `--text-table`.** Quelltext in 14px liest sich besser, und Safari
+     zoomt beim Fokus in ein Eingabefeld unter 16px in die Seite hinein
+     (`docs/24 §3`) — der Kunde tippt danach in einer Ansicht, die er erst
+     wieder herausziehen muss. `MobileLayoutTest` besteht darauf. */
+  font-size: var(--text-input);
+  white-space: pre;
+  overflow-x: auto;
+  tab-size: 4;
+}
+
 .cell-value {
   margin: 0;
   max-height: 60dvh;

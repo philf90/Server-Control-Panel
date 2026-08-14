@@ -12225,3 +12225,682 @@ bedeutet.
 
 Wächter: `EngineLabelTest` und `MobileLayoutTest::test_the_subline_can_break`,
 mit drei Eingriffen im Bruchskript.
+
+### P6 — die Messrunde kam vor dem Plan (docs/50, docs/51)
+
+P6 bricht mit dem Muster, das P0 bis P5c getragen hat: **Bis heute nimmt keine
+Agent-Operation einen Pfad entgegen — sie baut ihn.** Ein Dateimanager kann das
+nicht. Damit fällt der Schutz weg, auf dem alles bisher stand, und die Frage vor
+dem Plan war, was ihn ersetzt.
+
+**Die naheliegende Antwort ist gemessen falsch.** `docs/20 §9` schrieb für P6
+eine „Prüfung nach Auflösung von Symlinks" vor, und `Filesystem::removeInside`
+macht sie heute so: `is_link`, dann `realpath($x) === $x`, dann zugreifen. Gegen
+einen Prozess des Abonnements, der `renameat2(RENAME_EXCHANGE)` in einer
+Schleife fährt und damit Verzeichnis und Verweis **atomar** tauscht, liess
+dieses Muster **11 081 von 36 056 bestandenen Prüfungen** eine Datei ausserhalb
+der Grenze lesen. Einunddreissig Prozent.
+
+**Zwei eigene Fehlmessungen davor stehen mit in `docs/50`**, weil beide null
+Treffer meldeten und beide nichts belegt haben: ein Angreifer aus
+`unlink`/`symlink`, der den Namen zwischendurch verschwinden lässt — die Prüfung
+weist dann ab, und gemessen wird seine Ungeschicktheit —, und der Versuch, das
+Fenster über einen Baumlauf zu verbreitern, der zwar lange dauert, dessen
+Fenster *je Knoten* aber genauso kurz bleibt.
+
+> **Ein Angriff, der nicht trifft, misst den Angreifer und nicht die Abwehr.**
+
+**Der teuerste Fund hat mich zuerst glauben lassen, `openat2` sei undicht.** Es
+ist das Gegenteil: Der Systemaufruf hat kein einziges Mal ausserhalb aufgelöst,
+alle 34 947 Abweisungen waren `EXDEV`. Undicht war der Weg zurück nach PHP.
+PHPs Dateifunktionen nehmen Pfade und keine Deskriptoren; wer einen sicher
+geöffneten fd an `file_get_contents` geben will, geht über `/proc/self/fd/N` —
+und das ist eine **zweite Pfadauflösung** und damit dasselbe Rennen noch einmal.
+8 106 Ausbrüche. Derselbe Deskriptor über `read(2)` gelesen: null.
+
+> **Ein sicher geöffneter Deskriptor, der über einen Pfad wieder eingelesen
+> wird, ist kein sicher geöffneter Deskriptor.**
+
+Damit ist FFI aus dem Plan: Es schützte nur, was auch über FFI gelesen und
+geschrieben wird — also Lesen, Schreiben, Auflisten, Kopieren und Umbenennen als
+root nachgebaut. Grösste denkbare Angriffsfläche für den kleinsten Gewinn.
+
+**Was hält, ist `fork` + `chroot` + Rechteabgabe** — 0 Ausbrüche unter demselben
+Angreifer, ohne FFI und ohne neuen Eintrag auf der Positivliste (`Runner.php`
+verbietet `setpriv`, `runuser`, `su` und `sudo` ausdrücklich). Der Dateimanager
+nimmt weiter einen Pfad vom Kunden, deutet ihn aber **innerhalb eines Chroots**,
+und dort kann kein Pfad etwas ausserhalb bezeichnen.
+
+**Zwei Messungen machen daraus erst eine Schranke.** Roher `chroot(2)` als root
+bricht aus; derselbe Code nach der Rechteabgabe nicht. PHPs `chroot()` verdeckt
+das, weil es hinterher selbst `chdir("/")` macht — der erste Messversuch meldete
+deshalb fälschlich „eingesperrt" für root, und darauf darf sich nichts stützen.
+
+> **Was der Geprüfte selbst zurücknehmen kann, ist keine Schranke.** Root kann
+> `chroot` zurücknehmen. Der Abo-Benutzer kann es nicht.
+
+Und: `posix_setgroups()` gibt es in PHP nicht. Ein Kind, das nur `setgid` und
+`setuid` aufruft, behält die **Zusatzgruppen von root** und liest damit eine
+Datei mit `root:root 0640`. `posix_initgroups()` davor schliesst das.
+
+> **Ein Rechtewechsel ohne `initgroups` ist kein Rechtewechsel.**
+
+Die Null dazu hatte zuerst keinen Nachbarn: Im Container hat root eine **leere**
+Zusatzgruppenliste, und die erste Messung sah sauber aus, obwohl sie nichts
+geprüft hatte. Erst `setpriv --groups=0,4,27` am Elternprozess machte sie zu
+einer Messung.
+
+**Dazu OpenSSH 9.6 gegen das Schema aus §4.5**, mit echtem `sshd` und echter
+SFTP-Anmeldung: Das Schema hält unverändert; Wurzel dem Benutzer, Wurzel `0775`,
+`/var/www/vhosts` auf `0777` und `/var/www/vhosts` dem Benutzer werden alle vier
+abgewiesen, und die Gegenprobe verbindet wieder. OpenSSH prüft die **ganze Kette
+oberhalb** der Wurzel. Der Client erfährt den Grund nicht — er bekommt `Broken
+pipe`, die Auskunft steht nur im Serverprotokoll als `bad ownership or modes for
+chroot directory`.
+
+**Drei Punkte aus `docs/20 §9 P6` sind daraufhin gestrichen** und stehen dort
+als Streichung mit Begründung, damit sie nicht später als Vergessen gelesen
+werden: die Symlink-Prüfung (siehe oben), die FTP-Konten (Entscheidung des
+Betreibers; `proftpd-basic` gibt es in Ubuntu 24.04 ohnehin nicht mehr) und der
+SSH-Zugang mit Shell (gemessen: `internal-sftp` läuft im leeren Chroot, eine
+Shell scheitert mit `/bin/bash: No such file or directory`).
+
+**Und eine Regel dieses Projekts fällt bewusst:** Der Editor bekommt mit
+CodeMirror 6 die **erste Frontend-Abhängigkeit**, die es hier je gab. Sie bleibt
+auf eine Seite begrenzt und wird nachgeladen, die Farben kommen weiter aus
+`app.css` — und weil „keine Abhängigkeit" bisher eine Selbstverständlichkeit war
+und deshalb von nichts geprüft, bekommt die Liste mit der ersten Ausnahme ihren
+Wächter.
+
+### P6 Schritt 1 — die Sandbox: die Grenze, die den weggefallenen Schutz ersetzt
+
+`SrvPanel\Agent\Sandbox` forkt, chrootet auf die Abo-Wurzel, gibt die Rechte an
+den Systembenutzer ab und führt erst dann die Arbeit aus. Jede Datei-Operation
+von P6 geht hindurch. Gemessen gegen den Angreifer aus `docs/50 §3` — vier
+Prozesse, `renameat2(RENAME_EXCHANGE)` — **0 Ausbrüche bei 5 805 Zugriffen**,
+während dieselbe Arbeit ausserhalb der Sandbox mit der heutigen Prüfung 371 Mal
+ausserhalb der Grenze las.
+
+Sie prüft den Pfad nicht, sie sperrt ihn ein. Ein Pfad kann im Chroot nichts
+ausserhalb bezeichnen — auch dann nicht, wenn ein Verzeichnis mitten im Vorgang
+durch einen Symlink ersetzt wird. Das ist der Unterschied zwischen einer Grenze,
+die geprüft wird, und einer, die der Kernel hält.
+
+**Ein bestehender Wächter hat einen Fehler in dieser Klasse gefunden, bevor ein
+Test dazu existierte.** `AgentIdentityTest` verwirft seit `docs/38 §6` den
+Kennungswechsel im `Runner`, und einer seiner zwei gemessenen Gründe war, dass
+*der geforkte Prozess den Socket des Agenten erbt*. P6 forkt trotzdem — und der
+erste Entwurf der Sandbox schloss den Socket nicht. Er stand als Risiko 2 im
+eigenen Plan und war im eigenen Code nicht umgesetzt.
+
+> **Ein Wächter, der eine Entscheidung festhält, hält auch ihre Begründung fest
+> — und die gilt weiter, wenn die Entscheidung fällt.**
+
+**Und der erste Versuch, ihn zu schliessen, war schlimmer als das Versäumnis.**
+Der Entwurf zählte `/proc/self/fd` auf und schloss jeden fremden Deskriptor mit
+`fclose(fopen('php://fd/N'))`. Das schliesst nichts: PHP dupliziert den
+Deskriptor beim Öffnen. Gemessen — vor und nach dem `fclose` standen dieselben
+Nummern in `/proc/self/fd`, und die ursprüngliche Datei war weiter lesbar.
+
+> **Ein Deskriptor, der beim Öffnen dupliziert wird, wird beim Schliessen nicht
+> geschlossen.** Ein Aufräumen, das aussieht wie eines und keines ist, ist
+> schlimmer als gar keines.
+
+Geschlossen wird deshalb, was der Aufrufer benennt, und nicht, was ein
+Verzeichnis auflistet.
+
+**Zwei weitere Fallen sind vorher hineingebaut worden, weil sie im Plan
+standen:** Nach dem Chroot findet der Autoloader `agent/src/` nicht mehr — und
+`AgentException` wird nur im *Fehlerfall* gebraucht, fehlte also genau dann,
+wenn sie gebraucht wird; sie wird jetzt vor dem Fork geladen. Und ein Kind, das
+durch ein Signal stirbt, ist ein Fehlschlag und keine leere Antwort — derselbe
+Fehler, der in `docs/48` „vermutlich Zeitüberschreitung" nach einer Sekunde
+Laufzeit gemeldet hat.
+
+**Die Rechteabgabe ist die Schranke und nicht ihre Zugabe.** Für root ist
+`chroot` keine: Ein roher `chroot(2)` als root bricht aus, derselbe Code nach
+`setuid` nicht (`docs/50 §5`). Dass PHPs `chroot()` hinterher selbst `chdir("/")`
+macht und dem klassischen Ausbruch damit den Hebel nimmt, ist eine Eigenheit der
+Implementierung und keine Zusage — darauf stützt sich nichts.
+
+Wächter: `SandboxReachTest` (nur eine Stelle sperrt ein — und sie tut es noch;
+der Socket wird als erstes geschlossen) und `PrivilegeDropTest` (die Reihenfolge
+`chroot → initgroups → setgid → setuid`, die Nachprüfung im Kind, und der
+Elternprozess, der den gemeldeten Beleg liest statt ihn durchzureichen). Sechs
+Eingriffe im Bruchskript.
+
+**Zwei der sechs Brüche haben zuerst nichts gebrochen**, und beide Male lag es am
+Bruch. `perl -0p` ohne `/g` ersetzt nur das **erste** Vorkommen in der ganzen
+Datei — und das stand im Dokumentationsblock, also genau in dem Teil, den
+`withoutComments()` wegwirft, bevor der Wächter liest. Der Wächter war zu Recht
+grün.
+
+> **Ein Bruch, der einen Kommentar trifft, verändert nichts, was der Wächter
+> ansieht.**
+
+### P6 Schritt 2 — der Rückbau lief als root über Kundendaten, und das ist messbar teuer
+
+`Filesystem::removeInside()` und der Rückbau eines Abonnements tragen den Baum
+jetzt in der {@see Sandbox} ab: im Chroot, als der Kunde. Was übrigbleibt, nimmt
+root — und das ist unbedenklich, weil es das Schema aus §4.5 ist und die Wurzel
+`root:root 0755` gehört. **An einem Pfad, in den der Kunde nicht schreiben kann,
+ist auch nichts zu vertauschen.** Die Arbeitsteilung folgt damit den Rechten und
+nicht der Vorsicht.
+
+**Das war kein theoretisches Zeitfenster.** Der Kommentar in `Filesystem.php`
+stand seit P2 und nannte es „ein Zeitfenster, in dem ein laufender Prozess des
+Abonnements ein Verzeichnis durch einen Verweis ersetzen könnte". Gemessen am
+ausgelieferten Code, gegen einen Prozess mit `renameat2(RENAME_EXCHANGE)`:
+**In 5 von 120 Durchgängen hat der Rückbau Dateien ausserhalb des Abonnements
+gelöscht.** Über die Sandbox in denselben 120 Durchgängen null Mal.
+
+Der erste Messversuch dazu traf null Mal und belegte nichts — ein einzelner
+Durchgang bietet dem Angreifer genau einen Versuch, und das Fenster je Knoten
+ist Mikrosekunden lang. Erst die Wiederholung hat die Gegenprobe zum Feuern
+gebracht.
+
+> **Ein Angriff, der nicht trifft, misst den Angreifer und nicht die Abwehr** —
+> zum dritten Mal in dieser Stufe.
+
+**Und die zweite Hälfte des alten Kommentars war ebenfalls richtig und trotzdem
+irreführend.** „Sauber schliessen liesse sich das nur mit `openat(O_NOFOLLOW)`,
+und das gibt PHP nicht heraus" stimmt — nur hätte `openat2` es auch nicht
+geschlossen, weil PHPs Dateifunktionen Pfade nehmen und der Rückweg über
+`/proc/self/fd/N` dasselbe Rennen ein zweites Mal eröffnet (`docs/50 §4`).
+
+**Ein Zähler hat dabei gelogen, und zwar in die angenehme Richtung.**
+`purgeContents()` meldete zuerst vier abgetragene Einträge, während alle vier
+noch dastanden: Der Baumlauf war gelaufen, das abschliessende `rmdir` an der
+root-eigenen Wurzel gescheitert, und der Rückgabewert hielt sich an den Versuch
+statt an das Ergebnis. Richtiggestellt meldete er verlässlich `0` — und war
+damit als Fortschrittsangabe wertlos, weil im unveränderten Schema **kein**
+Verzeichnis an der Wurzel dem Kunden gehört. Gemeldet wird jetzt, was
+übrigbleibt; das ist eine Auskunft, denn mehr als das Schema heisst, dass etwas
+nicht geräumt wurde.
+
+> **Ein Kriterium, das nach einer Anzahl fragt, prüft nicht, was gezählt wurde.**
+
+**Eine Voraussetzung, die P6 selbst gefährdet, steht als Auflage im Code.** Der
+Rückbau beendet die Prozesse des Abonnements, und darauf ruhte bis P5c die
+Sicherheit des Baumlaufs. Ab P6 kann ein **Cronjob** dem Abonnement nach dem
+Abschuss einen neuen Prozess verschaffen — der Rückbau muss den Zeitplan
+deshalb entfernen, **bevor** er die Prozesse beendet. Schritt 9 löst das ein;
+die Sandbox macht die Reihenfolge weniger kritisch, sie ersetzt sie nicht.
+
+Wächter: `SandboxReachTest::test_the_raw_tree_walk_is_called_only_where_no_customer_writes`
+mit einer begründeten Ausnahmeliste nach dem Muster von `EngineReachTest`, und
+`::test_the_teardown_purges_before_it_walks`, der aus der Erlaubnis eine
+Bedingung macht. Drei weitere Eingriffe im Bruchskript.
+
+### P6 Schritt 3 — die Datei-Operationen, und die Falle aus dem eigenen Plan
+
+Acht Operationen (`files.list`, `.read`, `.write`, `.mkdir`, `.remove`,
+`.move`, `.copy`, `.chmod`), alle durch die Sandbox. **Sie nehmen einen Pfad vom
+Kunden entgegen — der erste Bruch mit dem Muster aus P0 bis P5c**, und er ist
+zulässig, weil der Pfad nicht mehr geprüft, sondern im Chroot gedeutet wird.
+
+**`Workspace` trägt den Satz, der dabei am leichtesten verlorengeht.** Die
+Normalisierung dort ist *keine* Schranke: Ein `..` zu viel wäre harmlos, weil es
+im Chroot nirgendwohin führt. Sie steht da, damit die Oberfläche für dasselbe
+Verzeichnis nicht zwei Schreibweisen kennt.
+
+> **Eine Prüfung, die neben einer Schranke steht, wird für die Schranke
+> gehalten.** Deshalb steht es im Klassenkopf und nicht in einer Fussnote — wer
+> sie für die Sicherheit hält, baut die nächste Fassung ohne Sandbox.
+
+Die einzige Ausnahme ist das Nullbyte: PHP schneidet einen Pfad daran ab, und
+ein abgeschnittener Pfad bezeichnet etwas anderes als der eingegebene.
+
+**Und die Falle, die `docs/51 §5.1` als erste von vieren benennt, hat beim Bauen
+sofort zugeschlagen.** Nach dem `chroot` liegt `agent/src/` ausserhalb, der
+Autoloader findet nichts mehr — und `Sandbox::preload()` lud nur
+`AgentException`. Sämtliche acht Operationen endeten mit
+`Class "SrvPanel\Agent\Files\Entry" not found`, gemeldet als `internal`, also
+als Fehler des Agenten statt als das, was es war.
+
+> **Eine Falle, die man kennt und benennt, ist keine, in die man nicht fällt.**
+> Sie ist nur eine, deren Ursache man schneller findet.
+
+Zwei Dinge sind daraus geworden: `preload()` **zählt** `Files/` auf, statt eine
+Liste zu führen — eine handgepflegte wäre wieder eine Zeichenkette, die auf
+etwas verweist, ohne dass jemand den Bezug prüft. Und im Kind hängt ein
+Autoloader, der eine fehlende Klasse benennt und auf `preload()` zeigt, statt
+sie als `internal` durchzureichen.
+
+**Zwei Rückgabewerte, die bei erschöpfter Quota Erfolg gemeldet hätten.**
+`file_put_contents()` gibt bei voller Quota die Zahl der *geschriebenen* Bytes
+zurück und nicht `false`; `copy()` meldet ebenfalls nicht immer `false`. Wer nur
+gegen `false` prüft, speichert eine abgeschnittene `wp-config.php` und sagt
+„gespeichert". Verglichen wird deshalb mit der erwarteten Länge, und beim
+Kopieren wird die Zielgrösse nachgesehen. Das ist Punkt 12 des
+Abnahmekriteriums, und es wäre still gescheitert.
+
+**Eine Meldung sagte den falschen Grund.** Ein Schreibversuch in `conf/`
+(root-eigen, Absicht nach Entscheidung 5) endete mit „Die Datei liess sich nicht
+schreiben" — was nach einem Defekt klingt, wo es eine Rechtefrage ist. Gefragt
+wird jetzt vorher, und die Antwort heisst `denied` und nennt den Grund.
+
+Geschrieben wird über eine Nachbardatei und `rename`, damit ein Abbruch keine
+halbe `.htaccess` hinterlässt; die Rechte der ersetzten Datei überleben, sonst
+wäre ein ausführbares Skript nach dem ersten Speichern keines mehr. `chmod` weist
+Verweise ab, weil PHP kein `lchmod` hat und sonst das Ziel träfe. `files.read`
+meldet ungültiges UTF-8 als binär, statt die ganze Antwort über `json_decode()`
+unlesbar zu machen (`docs/46 §8`).
+
+Wächter: `SandboxPreloadTest`, und `SandboxReachTest` hat beim ersten Lauf
+gleich zugebissen — `FilesRemove` ruft den rohen Baumlauf und stand nicht auf
+der begründeten Liste. Er steht jetzt dort mit der **zweiten** zulässigen
+Begründung: nicht „dort schreibt kein Kunde", sondern „der Aufruf läuft selbst
+schon in der Sandbox". Eine dritte gibt es nicht.
+
+**Und einer der neuen Wächter blieb bei seinem Bruch grün**, aus demselben Grund
+wie schon zweimal in dieser Stufe: Er prüfte, dass es `explainMissingClasses()
+gibt`, nicht dass sie *gerufen* wird — der Bruch entfernte den Aufruf und liess
+die Definition stehen.
+
+> **Ein Autoloader, den niemand registriert, erklärt nichts — und ein Wächter,
+> der nur nach der Definition sieht, merkt es nicht.**
+
+### P6 Schritt 4 — die Panel-Seite: Dienstschicht, Policies, Routen, Fläche
+
+`App\Support\Files\Files` ruft die acht Operationen, `FileController` bedient
+sie, acht Routen tragen `can:`, und zwei Inertia-Seiten zeigen das Ergebnis.
+
+**Zwei Fähigkeiten und nicht eine.** `browseFiles` und `editFiles` hängen an
+`Permission::FilesRead` und `FilesWrite` — die stehen **seit P1** im
+Rechtemodell und hatten bis heute keinen Benutzer. Ein Zusatzbenutzer, der
+nachsehen darf und nichts kaputt machen kann, ist genau der Fall, für den die
+Trennung gedacht war.
+
+**In der Dienstschicht steht keine Pfadprüfung, und das ist eine Entscheidung.**
+Ein `str_contains($path, '..')` wäre die naheliegendste Zeile der Welt und
+schädlich: Sie sähe aus wie die Schranke, wäre keine — `docs/50 §3` hat
+gemessen, was Pfadprüfungen unter Nebenläufigkeit taugen — und der nächste Umbau
+verliesse sich auf sie. Der Klassenkopf sagt das, damit es niemand für ein
+Versehen hält.
+
+> **Eine Prüfung, die neben einer Schranke steht, wird für die Schranke
+> gehalten.**
+
+Aus demselben Grund gibt es im Panel **keine Liste verbotener Verzeichnisse**.
+`conf/` gehört `root:root 0755`, die Sandbox läuft als der Kunde, und damit
+weist das Dateisystem den Schreibversuch ab. Eine Liste im Panel wäre die zweite
+Durchsetzung derselben Grenze und ginge beim nächsten Schema-Zuwachs auseinander.
+
+**Kein Aufruf geht durch die Warteschlange** — dieselbe Regel wie in
+`docs/46 §12`, mit demselben Anlass: In `operations.payload` stünde sonst der
+Inhalt einer `wp-config.php`.
+
+**Und die Bilderrunde hat gefunden, was die Zahl nicht sieht.** Der Überlauf bei
+390px stand auf **0px** (Gegenprobe 526px), und die Ansicht war trotzdem falsch:
+Ein Verzeichnisname von 56 Zeichen bricht in der Krümelspur auf zwei Zeilen, und
+ein `button` zentriert seinen Text von Haus aus — der Krümel las sich als
+Überschrift statt als Wegstück.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+`.crumbs .link` bekommt `text-align: left`, `overflow-wrap: anywhere` und
+`min-width: 0`. Die dritte Angabe gehört hier dazu und bei `.cell-name` nicht,
+und das ist kein Zufall: Der Krümel ist ein Flexkind und darf ohne sie nicht
+unter seine Inhaltsbreite; eine Tabellenzelle ist keines.
+
+**Die Messung selbst war zuerst wertlos, und die Gegenprobe hat es verdeckt.**
+Der erste Lauf meldete 27px Überlauf — bei einem Stylesheet, das **nie geladen
+war**: Der `href` zeigte absolut auf `/public/...` und lief unter `file://` ins
+Leere. Der 900px-Block schlug trotzdem an, weil er ein Inline-Stil ist. Die
+Gegenprobe hat also das Messskript belegt und nicht das, worauf es ankam.
+
+> **Eine Gegenprobe, die neben dem Prüfling herläuft, prüft ihn nicht.** Sie
+> braucht selbst einen Beleg — hier: dass `.crumbs` überhaupt `display: flex`
+> hat.
+
+`.cell-name` bricht statt zu rollen, und das ist die fünfte Fassung derselben
+Ausnahme nach `.ident`, `.stacks td .ident`, `.section-head h2` und
+`.cell-value`. Ein Dateiname darf 255 Zeichen lang sein; `docs/46 §20.13` hat
+gemessen, was `nowrap` daraus macht.
+
+### P6 Schritt 5 — Hochladen, Anlegen, Umbenennen, Rechte
+
+`files.upload` und die Griffe dazu in der Liste. **Der Kern dieser Operation ist
+ein Deskriptor, der ein Chroot überlebt.**
+
+Die hochgeladene Datei liegt im Schreibbereich des Panels, also ausserhalb der
+Abo-Wurzel; das Kind der Sandbox kann sie nach dem `chroot` nicht mehr öffnen.
+Geöffnet wird sie deshalb **vorher**, und die Closure nimmt den offenen Strom
+mit hinein.
+
+> **Ein Deskriptor, der vor dem Chroot geöffnet wurde, gilt danach weiter — ein
+> Pfad, der vorher galt, nicht.**
+
+Derselbe Satz trägt schon den Rückweg der Sandbox (das Socketpaar entsteht vor
+dem `fork`). Er ist auch der Grund, warum nichts durch den Arbeitsspeicher
+wandert: Eine 500-MB-Datei als Zeichenkette im Argument spränge beides.
+Gemessen: 3 MB durchgeleitet, Grösse am Ziel identisch, Eigentümer das
+Abonnement.
+
+**Diese Operation hat zwei Pfade, und nur einer ist eingesperrt.** Das Ziel darf
+frei sein — es wird im Chroot gedeutet. Die **Quelle** dagegen wird als root und
+ausserhalb jedes Chroots gelesen; ohne Schranke wäre `source: /etc/shadow` ein
+gültiger Aufruf. Sie muss deshalb unterhalb von `Files\Staging::ROOT` liegen,
+geprüft mit `Guard::pathInside()` — dieselbe Bauform wie bei `db.dump.import`
+seit P5. Gemessen: `/etc/passwd`, ein Symlink im Zwischenlager auf
+`/etc/passwd` und ein `..` heraus werden alle drei abgewiesen.
+
+**Das Zwischenlager ist ein eigenes und nicht das der Sicherungen.** Beide sind
+Vorräte, aus denen der Agent als root liest; lägen sie im selben Verzeichnis,
+dürfte `db.dump.import` jede hochgeladene Kundendatei einspielen und
+`files.upload` jede Datenbanksicherung verteilen.
+
+> **Zwei Positivlisten, die auf dasselbe Verzeichnis zeigen, sind eine
+> Positivliste.**
+
+**Der Name im Zwischenlager kommt nicht vom Kunden**, sondern wird gewürfelt.
+Der gewünschte Name gilt erst am Ziel, und dort deutet ihn das Chroot; ein
+kundengewählter Name im Schreibbereich des Panels wäre ein Pfad, den der Agent
+später als root liest. Und aufgeräumt wird im `finally` — ein Zwischenlager, das
+nur bei Erfolg geleert wird, füllt sich genau mit den Dateien, deren Übernahme
+scheiterte, und das sind die grossen.
+
+Bei der Rechteeingabe steht `parseInt(x, 8)` und nicht `Number(x)`: „644" als
+Dezimalzahl wäre 644 und läge ausserhalb der zwölf Bits — der Agent wiese es ab,
+und der Kunde läse eine Meldung über eine Zahl, die er nie gemeint hat.
+
+Wächter: `FileStagingTest` — Panel und Agent meinen dasselbe Lager, die beiden
+Lager bleiben getrennt, die Quelle wird geprüft, und sie wird **vor** dem Fork
+geöffnet. Drei Eingriffe im Bruchskript, alle vier Regeln gegengeprüft.
+
+Messung bei 390px: Überlauf 0px in beiden Themes, Gegenprobe 526px, und die
+Gegenprobe belegt seit Schritt 4 zuerst, dass das Stylesheet überhaupt wirkt.
+
+### P6 Schritt 6 — der Editor, und die erste Frontend-Abhängigkeit dieses Projekts
+
+CodeMirror 6, zugelassen vom Betreiber am 14. August 2026 (`docs/51 §3`,
+Entscheidung 1). `docs/20 §4.6` hält für die Kennzahlen fest, warum es sonst
+keine gibt; beim Editor kostet die Regel am meisten, deshalb fällt sie hier und
+nur hier.
+
+**Gemessen, dass die drei Auflagen aus §8.1 auch wirken:** Das gemeinsame Bündel
+wächst um **2,6 KB** (377,1 → 379,7 KB, das ist die Komponente selbst), und
+**624 KB CodeMirror liegen in elf nachgeladenen Bündeln**. Im `app`-Bündel steht
+keine Zeile davon — geprüft nicht an der Dateigrösse, sondern an den Markern:
+`cm-editor`, `cm-content`, `codemirror` und `lezer` kommen dort nicht vor und in
+den nachgeladenen Bündeln schon.
+
+> **Eine Dateigrösse ist ein Indiz. Ein Marker, der drüben steht und hier
+> fehlt, ist eine Messung.**
+
+**Keine Farbe kommt aus der Bibliothek.** Die `HighlightStyle` vergibt
+ausschliesslich **Klassennamen** (`class:` statt `color:`); was daraus wird,
+steht in `app.css` wie alles andere. Ein mitgeliefertes Theme wäre der einzige
+Ort im ganzen System, an dem Farben an der Gestaltung vorbeikämen — und in einem
+der beiden Themes vermutlich unlesbar. Die acht Marken benutzen die vorhandenen
+Token; eine eigene Skala für Quelltext wäre ein Satz Werte, den beim nächsten
+Themewechsel niemand mitzieht.
+
+**Und es geht ohne.** Lädt das Bündel nicht, bleibt das `textarea` darunter
+stehen und funktioniert. Der Editor ist eine Verbesserung und keine
+Voraussetzung — sonst hinge das Speichern einer `.htaccess` an einer Bibliothek,
+und ein Kunde, dessen Netz sie nicht durchlässt, käme an seine Dateien nicht
+heran. Das `textarea` ist deshalb `v-show` und nicht `v-if`: Es muss im Formular
+stehen, auch wenn der Editor nie bereit wird.
+
+**`FrontendDependencyTest` macht aus der Gewohnheit eine Regel.**
+
+> **Eine Regel, die nie jemand gebrochen hat, sieht aus wie eine Regel und ist
+> eine Gewohnheit.** Sobald die erste Ausnahme da ist, entscheidet die
+> Gewohnheit über die zweite — und die zweite kommt ohne Entscheidung.
+
+Die Liste trägt je Eintrag ihren Grund, wie `EngineReachTest` es für die
+Datenbanksysteme tut. Vier Eingriffe im Bruchskript; alle sechs Regeln
+gegengeprüft, darunter der statische Import — der ganze Unterschied zwischen
+2,6 KB und 624 KB im gemeinsamen Bündel, und die Datei sähe dabei genauso aus.
+
+**Zwei eigene Fehler beim Bauen, beide vom Werkzeug und nicht vom Code.** Der
+erste Entwurf des Wächters verlangte `await import(...)` — das `await` steht
+aber am `Promise.all`, und der Wächter war rot, obwohl der Code stimmte. Und das
+Aufräumen nach den Brüchen hat mit `git checkout` mehr zurückgenommen als
+beabsichtigt: die CodeMirror-Zeilen in `package.json` und die Einbindung in
+`Edit.vue`. Genau die Falle, die `CLAUDE.md` für `git checkout -- resources/`
+festhält — sie gilt für `package.json` genauso.
+
+> **Ein Rückweg, der mehr zurücknimmt als den Eingriff, ist kein Rückweg.**
+
+### P6 — die Zwischenabnahme wird vorgezogen, und die Messung kommt ins Repo
+
+Zwei Dinge, und beide sind eine Folge derselben Einsicht: **Kein Wächter dieses
+Projekts sagt, ob die Sandbox auf dem Zielserver funktioniert.** Sie lesen alle
+Quelltext — dass nur eine Stelle `chroot` ruft, dass die Rechteabgabe in der
+richtigen Reihenfolge steht, dass der Socket geschlossen wird. Das ist ihre
+Aufgabe und ihre Grenze.
+
+**`tests/sandbox-messen.php` misst statt zu lesen.** Framework- und
+PHPUnit-frei, braucht root (weil `chroot` und `setuid` root brauchen) und läuft
+deshalb in der CI nicht, sondern im Container und auf dem Server. Die Messungen
+aus `docs/50` standen bis hierher in Wegwerfskripten — nach der Regel dieses
+Projekts falsch: *Was man zweimal braucht, gehört ins Repo.*
+
+Sieben Abschnitte, jeder mit seiner Gegenprobe, und vier verschiedene
+Rückgabewerte. **`3` heisst „kein Befund, aber mindestens eine Messung ohne
+Gegenprobe" und ist kein Erfolg** — trifft die stumpfe Fassung nicht, ist nicht
+die Abwehr belegt, sondern der Angreifer zu langsam.
+
+Im Container: scharf 0, stumpf **759 von 30 000** beim Zugriff und **1 nach 5
+bis 68 Durchgängen** beim Rückbau.
+
+**Das Skript hat beim Schreiben zwei eigene Fehler gemeldet**, und beide sind
+genau die Sorte, für die es gebaut ist:
+
+- Eine Gegenprobe, die für den Fall „absoluter Pfad" `<wurzel>/etc/passwd`
+  las — also etwas, das es nicht gibt. Sie konnte **von Bauart wegen** nicht
+  treffen, und die Abwehr sah dadurch gut aus, ohne geprüft zu sein.
+  > **Eine Gegenprobe, die nicht treffen kann, ist keine.**
+- Eine feste Rundenzahl für einen seltenen Treffer: sechzig Durchgänge ergaben
+  mal vier Treffer und mal keinen, und im zweiten Fall meldete das Skript zu
+  Recht „ohne Messung". Ein Tor, das bei jedem zweiten Lauf sagt, es habe nichts
+  gemessen, ist kein Tor. Die Gegenprobe läuft jetzt, **bis sie trifft**, und
+  die scharfe Fassung bekommt danach mindestens ebenso viele Durchgänge.
+
+**Und die Zwischenabnahme ist von Schritt 10 auf 6b vorgezogen** (`docs/52`).
+Die Sandbox steht auf vierzehn PHP-Funktionen, deren Vorhandensein auf den
+Zielplattformen ungemessen ist (`docs/50 §8`): gemessen auf Ubuntu 24.04 mit
+PHP 8.4, während Debian 12 PHP 8.2 fährt und Ubuntu 22.04 PHP 8.1. Ein
+`disable_functions` in einer distro-`php.ini` ist keine exotische Annahme — und
+fiele eine dieser Funktionen aus, fiele die Grenze aus und nicht ein Detail.
+Die Schritte 7 bis 9 stapeln sich alle darauf.
+
+> **Drei Schritte auf einer ungeprüften Annahme zu bauen ist teurer, als sie
+> einmal zu prüfen.**
+
+Dazu kommt der Rückbau: `purgeContents()` läuft auf `cloudsrv24` gegen echte
+Abonnements, und das ist der eine Weg in P6, bei dem ein Fehler Daten kostet
+statt eine Fehlermeldung zu erzeugen.
+
+### P6 Schritt 7 — Entpacken, Packen, Suche
+
+Drei Operationen, und keine davon bringt ein neues Programm mit. `unzip`, `zip`
+und `tar` stehen **nicht** auf der Positivliste: Jedes von ihnen bekäme einen
+Pfad des Kunden als Argument, und die Positivliste ist die Stelle, an der dieses
+Projekt entscheidet, welcher Code als root läuft. `ZipArchive` und `PharData`
+laufen im Kind der Sandbox — ohne Rechte und im Chroot.
+
+**Zip-Slip verlässt das Abonnement nicht, und das hält nicht diese Klasse.** Das
+hält das Chroot. Was `Archive::normalise()` verhindert, ist die Verlegung
+*innerhalb*: Ein Archiv, das nach `httpdocs/` entpackt wird, hat in `.ssh/`
+nichts zu suchen — nicht, weil der Kunde dort nicht schreiben dürfte, sondern
+weil er es an dieser Stelle nicht gemeint hat.
+
+Gemessen mit einem Archiv, das es ernst meint: `../../../../../../tmp/…`,
+`../.ssh/authorized_keys`, `/etc/cron.d/boese` und `..\..\windows.txt`. Alle
+vier werden übersprungen **und mit Namen gemeldet**; die zwei harmlosen Einträge
+werden entpackt.
+
+**Die Gegenprobe war zuerst wertlos.** Sie lief über `unzip` — und das weigert
+sich selbst gegen Zip-Slip, also hat sie nichts gezeigt. Der ehrliche Vergleich
+ist die Fassung, die jemand hinschreibt, der an Zip-Slip nicht gedacht hat:
+Eintrag lesen, Ziel zusammensetzen, schreiben. Die legt `/tmp/AUSGEBROCHEN.txt`
+an.
+
+> **Eine Gegenprobe, die ein fremdes Werkzeug benutzt, misst dessen Sorgfalt
+> und nicht die eigene.**
+
+**`a/../../b` wird verworfen und nicht zu `b`.** Ein `array_pop` auf die
+Bestandteile wäre der naheliegende Weg und der falsche: Er machte aus einem
+Eintrag, der hinaus will, einen gültigen — und entpackte etwas, das das Archiv
+so nie benannt hat.
+
+**Ein Eintrag, der an einem Verweis hängenbleibt, verschwand zuerst spurlos.**
+Der Symlink-Umweg (`httpdocs/bilder` → `../.ssh`) wurde korrekt geblockt, und
+der Lauf meldete „0 geschrieben, 0 übersprungen" — der Kunde hätte ein leeres
+Verzeichnis gehabt und keine Auskunft. Solche Einträge stehen jetzt als
+`redirected` in der Antwort.
+
+> **Was ein Vorgang nicht getan hat, muss er sagen** — sonst ist sein Ergebnis
+> kein Befund, sondern ein Rätsel.
+
+**Die Suche vergleicht wörtlich.** Ein regulärer Ausdruck vom Kunden wäre ein
+Weg, den Vorgang zum Stillstand zu bringen (`(a+)+b` gegen eine lange Zeile),
+und es gibt kein Zeitlimit, das den Prozess rechtzeitig einholt. `str_contains`
+kann das nicht. Ein abgebrochener Suchlauf meldet den Abbruch — eine leere
+Ergebnisliste, die ihn verschwiegе, behauptete etwas, das sie nicht weiss.
+
+**Gepackt wird als Zip und nicht als Tar**, weil `phar.readonly` auf `1` steht —
+der Voreinstellung jeder Distribution. Das umzustellen hiesse, dem Agenten das
+Schreiben von Phar-Archiven überhaupt zu erlauben, und das ist eine weitere
+Vollmacht für einen kleineren Gewinn als ein Dateiformat. Verweise werden beim
+Packen ausgelassen und gemeldet: Ein Symlink auf das eigene `.ssh` legte sonst
+den privaten Schlüssel in ein Archiv, das der Kunde vielleicht weitergibt.
+
+Wächter: `ArchiveEntryTest` mit sieben Regeln, vier Eingriffe im Bruchskript.
+**Einer der vier Brüche blieb zuerst grün** — an der Schachtelung von
+Anführungszeichen in meinem Skript, nicht am Wächter; direkt ausgeführt beisst
+er. Dasselbe Muster wie schon dreimal in dieser Stufe.
+
+### P6 — acht Befunde der CI, und keinen davon hätte der Container gefunden
+
+Der erste Lauf von `#129` war rot: PHPStan mit fünf Meldungen, die Tests mit
+vierzehn. **Acht verschiedene Wächter haben angeschlagen, und jeder zu Recht.**
+Der Entwicklungscontainer hat kein `vendor/`, also läuft dort weder PHPStan noch
+die volle Suite — das ist die Runde, mit der `CLAUDE.md` rechnet, wenn man
+`app/`, `agent/` oder `tests/` anfasst.
+
+**`SizeUnitTest`** — `Files/Index.vue` hatte seine eigene Byte-Umrechnung.
+`resources/js/bytes.ts` ist die eine Stelle, und der Wächter steht seit dem
+dritten Abnahmelauf genau dafür. Was auf der Seite bleibt, ist die Entscheidung,
+die nur sie treffen kann: Ein Verzeichnis hat keine Inhaltsgrösse, und „0 B"
+behauptete, es sei leer.
+
+**`RemovalPathTest`** — vier Operationen legen etwas ab und heissen nicht nach
+einem Verb. Der Weg zurück ist für alle `files.remove`, und das steht jetzt mit
+Begründung in `WRITES_WITHOUT_VERB`. Der Unterschied zur Lücke aus `docs/35` ist
+genau der: Dort blieb ein privater Schlüssel liegen, den *niemand* entfernen
+konnte, weil es den Griff nicht gab.
+
+**`FormErrorTest`** — beide neuen Seiten schicken Formulare ab und zeigten
+nicht, wenn sie abgewiesen werden. `docs/19 §6` habe ich im Controller zitiert
+und in den Vorlagen nicht eingelöst; ohne `<FormErrors />` steht die einzige
+Meldung am Feld, und nach der Antwort springt die Seite dorthin, wo nichts steht.
+
+**`MobileLayoutTest`** — `.field textarea.code` stand auf `--text-table` (14px).
+Safari zoomt beim Fokus in ein Eingabefeld unter 16px in die Seite hinein
+(`docs/24 §3`); der Kunde tippt danach in einer Ansicht, die er erst wieder
+herausziehen muss. Für Quelltext liest sich 14px besser — das ist der Grund,
+warum die Zeile so entstand, und er trägt nicht.
+
+**`CountedNounTest`** — „{{ visited }} Einträge angesehen" liest sich bei genau
+eins als „1 Einträge". Das Wort steht jetzt vor der Zahl.
+
+**`GuardReachTest`** — `Sandbox.php` nannte einen Wächter, den es nicht gibt.
+Ich habe im Kommentar einen versprochen und ihn dann anders gebaut; gemeint war
+`SandboxReachTest::test_the_child_closes_what_it_inherited`.
+
+**Und `ChangelogTest` hat denselben Fehler ein zweites Mal gefunden — hier.**
+Dieser Absatz nannte den erfundenen Namen zuerst beim Namen, und damit stand er
+im Changelog: *„Der Changelog nennt X; eine Datei dieses Namens gibt es unter
+tests/ nicht."* Die Meldung nimmt einem auch gleich den Ausweg — ihn ohne
+Rückstriche zu schreiben wäre eine Umgehung. Der richtige Weg ist, einen Test,
+den es nie gab, nicht zu benennen.
+
+> **Ein Kommentar, der einen Test nennt, ist eine Zusage — und eine Zusage auf
+> einen Namen, den es nicht gibt, ist die Zeichenkette ohne Bezug, gegen die
+> dieses Projekt seine Wächter baut.**
+
+**`ClassNameTest`, zweimal.** Die Marken der Syntaxhervorhebung standen nicht im
+Vokabular, und die `.cm-*`-Regeln erreichte kein Template. Zwei verschiedene
+Antworten, weil es zwei verschiedene Fälle sind:
+
+- **`cm-*` sind CodeMirrors Namen und nicht unsere.** Sie ins Vokabular dieses
+  Projekts aufzunehmen hiesse zu behaupten, wir hätten sie gewählt — und beim
+  nächsten Update stünden dort Wörter, die niemand mehr braucht. Sie stehen als
+  `FOREIGN_PREFIX` da. Gestaltet werden sie trotzdem hier; das ist Auflage 2.
+- **Erreicht wird beides zur Laufzeit**, aus der `HighlightStyle` heraus, und
+  steht in keinem Template. Sie stehen deshalb in derselben Liste wie
+  `menu-open`, mit dem Hinweis, dass `FrontendDependencyTest` die andere
+  Richtung hält: jede vergebene Marke bekommt in `app.css` eine Farbe.
+
+**Und PHPStan hat zwei Dinge in `tests/sandbox-messen.php` gefunden**, von denen
+das erste mehr ist als eine Formalie: `$rot` und `$stumm` waren `global`, und
+aus der Sicht des Hauptteils blieben beide auf `0` — die Abfragen am Ende waren
+„immer falsch". Der Analysator sah damit genau das, was auch ein Leser sieht.
+
+> **Ein Zustand, dessen Änderung man nicht sieht, ist einer, auf den man sich
+> nicht verlassen kann** — und ein Abnahmeskript, dessen Zählstand verlorengeht,
+> meldet Erfolg.
+
+Das zweite war `FFI::syscall()`, das es statisch nicht gibt: Die Methode
+entsteht erst zur Laufzeit aus der `cdef`-Zeile. Ein `@phpstan-ignore` stünde
+als erstes im ganzen Repo; stattdessen steht der Aufruf jetzt einmal als
+`tausche()` da — was zweimal gebraucht wird, wird einmal benannt, und `316`,
+`-100` und `2` haben endlich ihre Namen.
+
+**Und ein Nachtrag, der es verdient hat, aufgeschrieben zu werden.** Der Absatz,
+der begründet, warum hier keine Unterdrückungsmarke steht, hat sie beim Namen
+genannt — mit dem Klammeraffen davor. PHPStan liest den Fliesstext eines
+Dokumentationsblocks nach Marken ab und hat sie als Anweisung genommen:
+`ignore.parseError`, ausdrücklich nicht unterdrückbar. Der Kommentar, der die
+Marke vermeidet, war die Marke.
+
+> **Ein Wort, das ein Parser als Anweisung liest, ist eine Anweisung — auch wenn
+> es im Fliesstext steht.**
+
+Dieselbe Familie wie das `%` in `crontab(5)`, das `docs/51 §10.1` für Schritt 9
+schon vorgemerkt hat, und wie das `$` in einem PCRE-Muster, das in P3 neun
+Ausdrücke betraf. Und dieselbe wie die Falle aus `CLAUDE.md`, nur andersherum:
+Dort **verschwindet** eine Marke, weil sie in einem einzeiligen Block steht;
+hier **entsteht** eine, weil sie in einem mehrzeiligen steht.
+
+
+### Der Bruchlauf: vier Prüfungen ohne Biss, und alle vier lagen am Rückweg
+
+Der Lauf meldete durchgehend `4 Prüfung(en) ohne Biss, davon 0 ohne Messung` —
+über drei Commits hinweg unverändert, obwohl dazwischen vierzehn rote Tests grün
+wurden. Genau diese Unveränderlichkeit war der Hinweis: Es hing an nichts, was
+ich gerade reparierte.
+
+**Es sind vier Prüfungen desselben Wächters, und der Bruch war jedes Mal in
+Ordnung.** `FrontendDependencyTest` biss viermal korrekt zu; fehlgeschlagen ist
+jedes Mal die **Rücknahme** — `… zurückgesetzt wieder grün → failed`.
+
+Der Grund steht in einer Zeile, die es seit P0 gibt: `wiederherstellen()` macht
+`git checkout -- $BAEUME`, und `BAEUME` zählt die Verzeichnisse auf, in denen
+Code liegt. **`package.json` steht nicht darunter** — es musste bis P6 auch nie,
+weil keine Regel daraus las. Der erste der vier Brüche schreibt eine erfundene
+Abhängigkeit hinein; sie blieb stehen, und damit war der Wächter für die drei
+folgenden Prüfungen rot, obwohl mit ihm nichts war.
+
+> **Ein Bruch, der eine Datei ausserhalb des Rückwegs anfasst, wird nicht
+> zurückgenommen — und vergiftet jeden Lauf danach.**
+
+Das Skript hat den Fehler dabei sauber *gemeldet* und nur falsch *einsortiert*:
+Es prüft, ob ein Eingriff etwas verändert hat (`Eingriff hat nichts geändert`),
+und es prüft, ob der Wächter danach wieder grün wird — die zweite Prüfung hat
+angeschlagen. Sie zählt nur unter „ohne Biss", wo „Rücknahme fehlgeschlagen"
+die genauere Auskunft gewesen wäre.
+
+**Und beim Nachprüfen des Fixes ist mir die Falle aus `CLAUDE.md` selbst
+passiert.** Um zu sehen, ob der erweiterte Rückweg greift, habe ich ihn von Hand
+gefahren — mitsamt `tests/`, und damit die gerade geschriebene Zeile wieder
+weggenommen. `git status` war sauber, und die Änderung war fort.
+
+> **Ein Rückweg, den man zum Prüfen selbst benutzt, nimmt auch die Prüfung
+> zurück.**

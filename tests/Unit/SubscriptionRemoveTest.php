@@ -150,7 +150,11 @@ final class SubscriptionRemoveTest extends TestCase
 
         $this->expectException(AgentException::class);
 
-        $method->invoke(new SubscriptionRemove, $path);
+        // **Der Systembenutzer ist seit P6 der zweite Parameter.** Er wird in
+        // diesen beiden Fällen nie benutzt: Beide enden, bevor der Rückbau die
+        // Sandbox ruft — der eine an einer Schranke, der andere daran, dass es
+        // nichts zu entfernen gibt.
+        $method->invoke(new SubscriptionRemove, $path, 'p1001');
     }
 
     public function test_removing_something_that_is_gone_succeeds(): void
@@ -160,7 +164,7 @@ final class SubscriptionRemoveTest extends TestCase
         // abgebrochene Löschvorgang für immer.
         $method = new \ReflectionMethod(SubscriptionRemove::class, 'removeRoot');
 
-        $this->assertFalse($method->invoke(new SubscriptionRemove, $this->sandbox.'/gibtesnicht'));
+        $this->assertFalse($method->invoke(new SubscriptionRemove, $this->sandbox.'/gibtesnicht', 'p1001'));
     }
 
     public function test_the_operation_declares_itself_as_changing_the_system(): void

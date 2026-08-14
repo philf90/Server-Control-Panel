@@ -69,7 +69,7 @@ final class WebSiteRemove implements Op
         $context->progress(85, 'Verzeichnisse');
         $removed = [];
 
-        if (Filesystem::removeInside($site->logDir(), $site->subscriptionRoot())) {
+        if (Filesystem::removeInside($site->logDir(), $site->subscriptionRoot(), $site->user)) {
             $removed[] = $site->logDir();
         }
 
@@ -89,7 +89,7 @@ final class WebSiteRemove implements Op
                 );
             }
 
-            if (Filesystem::removeInside($documentRoot, $site->subscriptionRoot())) {
+            if (Filesystem::removeInside($documentRoot, $site->subscriptionRoot(), $site->user)) {
                 $removed[] = $documentRoot;
             }
         }

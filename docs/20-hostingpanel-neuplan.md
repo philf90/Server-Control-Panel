@@ -1150,17 +1150,34 @@ und aus einem Umbruch eine Zeile.
 
 ### P6 — Dateien, Zugänge, Cron · 3–4 Wochen · (0.7)
 
+**Der Plan dazu ist `docs/51`, die Messrunde davor `docs/50`.**
+
 - Dateimanager: Baum, Editor mit Syntaxhervorhebung, Hochladen, Entpacken,
-  Rechte, Suche — alles hart auf die Abo-Wurzel begrenzt (Prüfung nach
-  Auflösung von Symlinks)
+  Rechte, Suche — alles hart auf die Abo-Wurzel begrenzt
 - SFTP mit Chroot je Abo, Schlüsselverwaltung
-- Zusätzliche FTP-Konten mit eigenem Startverzeichnis
 - Cronjobs je Abo: laufen als Systembenutzer des Abos, Ausgabe wird
   aufgezeichnet, Zeitplan mit lesbarer Übersetzung, Ausführungsverlauf
-- SSH-Zugang je Abo optional freischaltbar (Plan-gesteuert, standardmäßig aus)
 
 **Fertig, wenn** der Angriffsdurchgang für Pfadausbruch, Symlink-Tricks und
 Cron-Befehlseinschleusung durchläuft.
+
+**Drei Punkte dieser Liste sind am 14. August 2026 gestrichen worden**, damit
+die Streichung nicht später als Vergessen gelesen wird (`docs/51 §3`):
+
+- **„Prüfung nach Auflösung von Symlinks" trägt nicht.** Gemessen in
+  `docs/50 §3`: Gegen einen Prozess des Abonnements, der
+  `renameat2(RENAME_EXCHANGE)` fährt, liess dieses Muster **11 081 von 36 056
+  bestandenen Prüfungen** ausserhalb der Grenze lesen. Die Grenze ist statt
+  dessen ein Prozess ohne Rechte in einem Chroot — sie wird nicht geprüft,
+  sondern vom Kernel gehalten.
+- **„Zusätzliche FTP-Konten" entfallen.** Entscheidung des Betreibers: FTP ist
+  das unsicherste Protokoll dieses Plans, SFTP deckt denselben Bedarf, und
+  `proftpd-basic` gibt es in Ubuntu 24.04 ohnehin nicht mehr.
+- **„SSH-Zugang optional freischaltbar" entfällt.** Gemessen in `docs/50 §6`:
+  `internal-sftp` läuft im leeren Chroot, eine Shell scheitert mit
+  `/bin/bash: No such file or directory`. Ein Shell-Zugang verlangte ein
+  **bewohnbares** Chroot je Abonnement — Shell, Bibliotheken, `/dev/null`,
+  `/etc/passwd` — und damit ein anderes Verzeichnisschema als §4.5.
 
 ### P7 — DNS · 3–4 Wochen · (0.8)
 

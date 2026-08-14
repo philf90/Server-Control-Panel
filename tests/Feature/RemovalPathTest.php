@@ -120,6 +120,23 @@ final class RemovalPathTest extends TestCase
         'db.remote.access' => 'Der Weg zurück ist dieselbe Operation mit `mode: off` — und beim `purge` nimmt packaging/scripts/postremove.sh die Datei mit, weil ein entferntes Panel keinen offenen Datenbankport hinterlassen darf.',
         'web.isolation.probe' => 'Legt ihr Prüfskript im selben Lauf ab und entfernt es im `finally`; über die Operation hinaus bleibt nichts.',
         'pg.remote.access' => 'Zwei Wege zurück, und beide sind dieselbe Operation: `mode: off` nimmt 60-srvpanel.conf mit, eine leere `rules`-Liste nimmt den Block aus pg_hba.conf. Die Datei selbst gehört der Distribution und wird nie entfernt — angefasst wird nur, was zwischen den Marken steht (docs/38 §14).',
+
+        // **P6: die Datei-Operationen des Kunden.** Sie legen ab, was der Kunde
+        // ablegen will — und der Weg zurück ist eine eigene Operation für alle
+        // vier: `files.remove`. Das ist der Unterschied zu der Lücke aus
+        // `docs/35`: Dort blieb ein privater Schlüssel liegen, den *niemand*
+        // entfernen konnte, weil es den Griff nicht gab.
+        //
+        // Und der zweite Weg zurück ist der Rückbau des Abonnements: Was in
+        // seiner Wurzel liegt, geht mit `subscription.remove` mit — seit P6
+        // über `Filesystem::purgeContents()` in der Sandbox.
+        'files.write' => 'Der Weg zurück ist `files.remove`; ausserdem nimmt der Rückbau des Abonnements alles mit.',
+        'files.mkdir' => 'Der Weg zurück ist `files.remove` mit `recursive`; ausserdem nimmt der Rückbau des Abonnements alles mit.',
+        'files.copy' => 'Der Weg zurück ist `files.remove` auf das Ziel; ausserdem nimmt der Rückbau des Abonnements alles mit.',
+        'files.move' => 'Verschiebt und legt nichts Neues an — was am Ziel steht, entfernt `files.remove`.',
+        'files.upload' => 'Der Weg zurück ist `files.remove`; das Zwischenlager räumt der Controller im `finally`.',
+        'files.extract' => 'Der Weg zurück ist `files.remove` mit `recursive` auf das Zielverzeichnis.',
+        'files.compress' => 'Der Weg zurück ist `files.remove` auf das erzeugte Archiv.',
     ];
 
     /** Was im Quelltext einer Operation bedeutet, dass sie etwas auf die Platte legt. */

@@ -46,19 +46,19 @@ final class ClassNameTest extends TestCase
     private const VOCABULARY = [
         'account', 'active', 'after', 'area', 'arrow', 'aside', 'badge', 'band', 'bar', 'blank',
         'block', 'breadcrumb', 'button', 'cell', 'check', 'choice', 'choices', 'codes',
-        'content', 'critical', 'cursor', 'danger', 'dependent', 'description',
-        'done', 'empty', 'end', 'error', 'eye', 'facts', 'field', 'filter',
+        'code', 'comment', 'content', 'critical', 'crumbs', 'cursor', 'danger', 'dependent', 'description',
+        'done', 'editor', 'empty', 'end', 'error', 'eye', 'facts', 'field', 'filter',
         'foot', 'footer', 'form', 'frame', 'full', 'grid', 'group', 'head',
-        'hint', 'icon', 'ident', 'inline', 'item', 'label', 'leaf', 'line', 'link',
+        'hint', 'icon', 'ident', 'inline', 'invalid', 'item', 'keyword', 'label', 'leaf', 'line', 'link',
         'list',
-        'log', 'long', 'mark', 'menu', 'met', 'meter', 'multiline', 'name', 'node',
+        'log', 'long', 'mark', 'menu', 'met', 'meter', 'multiline', 'name', 'node', 'number',
         'narrow', 'nav', 'neutral', 'note', 'notice', 'ok', 'on', 'op',
-        'open', 'output', 'over', 'page', 'pager', 'pair', 'paired', 'pairs', 'password',
+        'open', 'operator', 'output', 'over', 'page', 'pager', 'pair', 'paired', 'pairs', 'password', 'path',
         'postscript', 'primary', 'progress', 'quiet', 'rail', 'release',
         'reveal', 'right', 'row', 'rows', 'rules', 'running', 'scrim', 'scrolls',
         'second', 'section', 'sections', 'sheet', 'signin', 'signout', 'small',
-        'source', 'spaced', 'split', 'sr', 'stacks', 'state', 'strength', 'sub', 'subline',
-        'tasks', 'text', 'tight', 'tile', 'tiles', 'time', 'title', 'toggle',
+        'source', 'spaced', 'split', 'sr', 'stacks', 'state', 'strength', 'string', 'sub', 'subline',
+        'tag', 'tasks', 'text', 'tight', 'tile', 'tiles', 'time', 'title', 'toggle', 'tok',
         'top', 'topbar', 'tree', 'trend', 'unit', 'usage', 'value', 'version', 'warn',
         'wide', 'with',
     ];
@@ -68,6 +68,22 @@ final class ClassNameTest extends TestCase
      * Klassenname aussehen: `*.blade.php` liest sich als `.blade` und `.php`.
      */
     private const NOT_A_CLASS = ['blade', 'php', 'vue', 'css', 'md', 'html', 'de', 'js', 'ts'];
+
+    /**
+     * Klassen, die eine fremde Bibliothek vergibt.
+     *
+     * **Die Regel „Bezeichner sind englisch" ist eine Regel über *unsere*
+     * Namen.** CodeMirror setzt `cm-scroller`, `cm-activeLineGutter` und ein
+     * Dutzend weitere selbst; sie ins Vokabular dieses Projekts aufzunehmen
+     * hiesse zu behaupten, wir hätten sie gewählt — und beim nächsten Update
+     * der Bibliothek stünden dort Wörter, die niemand mehr braucht.
+     *
+     * Gestaltet werden sie trotzdem hier (`docs/51 §8.1`, Auflage 2): Die
+     * Farben kommen aus `app.css` und nicht aus einem mitgelieferten Theme.
+     *
+     * @var list<string>
+     */
+    private const FOREIGN_PREFIX = ['cm-'];
 
     /** @return list<string> */
     private function vueFiles(): array
@@ -129,6 +145,12 @@ final class ClassNameTest extends TestCase
 
         foreach ($this->stylesheets() as $name => $css) {
             foreach (array_unique($this->classesIn($css)) as $class) {
+                foreach (self::FOREIGN_PREFIX as $prefix) {
+                    if (str_starts_with($class, $prefix)) {
+                        continue 2;
+                    }
+                }
+
                 $checked++;
 
                 foreach (explode('-', $class) as $word) {
@@ -178,6 +200,18 @@ final class ClassNameTest extends TestCase
         $used = [
             // Am Wurzelelement gesetzt, aus PanelLayout.vue über `classList`.
             'menu-open',
+
+            // **CodeMirror setzt diese selbst, und die Marken vergibt die
+            // `HighlightStyle` in `CodeEditor.vue` als Zeichenkette.** In einem
+            // Template steht keine von ihnen — sie entstehen erst, wenn der
+            // Editor im Browser läuft. Dass sie trotzdem erreicht werden,
+            // hält `FrontendDependencyTest` fest: Er prüft, dass jede Marke,
+            // die dort vergeben wird, hier eine Farbe bekommt.
+            'cm-editor', 'cm-focused', 'cm-scroller', 'cm-gutters',
+            'cm-activeLine', 'cm-activeLineGutter', 'cm-selectionBackground',
+            'cm-content', 'cm-cursor',
+            'tok-keyword', 'tok-string', 'tok-comment', 'tok-number',
+            'tok-name', 'tok-tag', 'tok-operator', 'tok-invalid',
         ];
 
         foreach ($this->vueFiles() as $path) {

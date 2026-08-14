@@ -11,6 +11,7 @@ use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\DatabaseSettingsController;
 use App\Http\Controllers\DnsSettingsController;
 use App\Http\Controllers\DomainController;
+use App\Http\Controllers\FileController;
 use App\Http\Controllers\GeneralSettingsController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\MailSettingsController;
@@ -415,6 +416,69 @@ Route::middleware('auth')->group(function (): void {
      * `viewAny` lässt jedes Konto auf die Liste; was darauf steht, entscheidet
      * die Mandantenklammer.
      */
+    /*
+     * P6 — der Dateimanager.
+     *
+     * **Zwei Fähigkeiten und nicht eine.** `browseFiles` für alles Lesende,
+     * `editFiles` für jede Änderung; beide hängen an `Permission::FilesRead`
+     * und `FilesWrite`, die seit P1 im Rechtemodell stehen und bis hierher
+     * keinen Benutzer hatten. Ein Zusatzbenutzer, der nachsehen darf und nichts
+     * kaputt machen kann, ist genau der Fall, für den die Trennung gedacht war
+     * (`docs/23`).
+     *
+     * Die Routen hängen am **Abonnement** und nicht an einer Datei: Eine Datei
+     * ist kein Modell dieses Systems, sie liegt auf der Platte. Was sie
+     * bezeichnet, entscheidet der Agent im Chroot (`docs/51 §5`) — deshalb
+     * steht in keiner dieser Zeilen ein Pfadparameter mit Prüfung.
+     */
+    Route::get('/subscriptions/{subscription}/files', [FileController::class, 'index'])
+        ->middleware('can:browseFiles,subscription')
+        ->name('files.index');
+
+    Route::get('/subscriptions/{subscription}/files/edit', [FileController::class, 'read'])
+        ->middleware('can:browseFiles,subscription')
+        ->name('files.edit');
+
+    Route::put('/subscriptions/{subscription}/files', [FileController::class, 'write'])
+        ->middleware('can:editFiles,subscription')
+        ->name('files.write');
+
+    Route::post('/subscriptions/{subscription}/files/directory', [FileController::class, 'makeDirectory'])
+        ->middleware('can:editFiles,subscription')
+        ->name('files.directory');
+
+    Route::delete('/subscriptions/{subscription}/files', [FileController::class, 'remove'])
+        ->middleware('can:editFiles,subscription')
+        ->name('files.remove');
+
+    Route::post('/subscriptions/{subscription}/files/move', [FileController::class, 'move'])
+        ->middleware('can:editFiles,subscription')
+        ->name('files.move');
+
+    Route::post('/subscriptions/{subscription}/files/copy', [FileController::class, 'copy'])
+        ->middleware('can:editFiles,subscription')
+        ->name('files.copy');
+
+    Route::get('/subscriptions/{subscription}/files/search', [FileController::class, 'search'])
+        ->middleware('can:browseFiles,subscription')
+        ->name('files.search');
+
+    Route::post('/subscriptions/{subscription}/files/extract', [FileController::class, 'extract'])
+        ->middleware('can:editFiles,subscription')
+        ->name('files.extract');
+
+    Route::post('/subscriptions/{subscription}/files/compress', [FileController::class, 'compress'])
+        ->middleware('can:editFiles,subscription')
+        ->name('files.compress');
+
+    Route::post('/subscriptions/{subscription}/files/upload', [FileController::class, 'upload'])
+        ->middleware('can:editFiles,subscription')
+        ->name('files.upload');
+
+    Route::post('/subscriptions/{subscription}/files/chmod', [FileController::class, 'chmod'])
+        ->middleware('can:editFiles,subscription')
+        ->name('files.chmod');
+
     Route::get('/databases', [DatabaseController::class, 'index'])
         ->middleware('can:viewAny,'.Database::class)
         ->name('databases.index');

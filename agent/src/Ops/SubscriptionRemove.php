@@ -111,7 +111,7 @@ final class SubscriptionRemove implements Op
         $configuration = $this->removeConfiguration($context, $name, $user, $root);
 
         $context->progress(60, 'Verzeichnisse entfernen');
-        $removed = $this->removeRoot($root);
+        $removed = $this->removeRoot($root, $user);
 
         $context->progress(80, 'Systembenutzer und Gruppe entfernen');
         $account = $this->removeAccount($context, $user, $entry !== false);
@@ -341,7 +341,7 @@ final class SubscriptionRemove implements Op
      *
      * @return bool Wurde etwas entfernt?
      */
-    private function removeRoot(string $root): bool
+    private function removeRoot(string $root, string $user): bool
     {
         // Schranke 3: niemals die Wurzel aller Abonnements.
         if (rtrim($root, '/') === SubscriptionProvision::VHOSTS) {
@@ -372,6 +372,17 @@ final class SubscriptionRemove implements Op
         if ($real !== $root) {
             throw AgentException::denied('Der aufgelöste Pfad weicht ab — es wird nichts entfernt.');
         }
+
+        // **Der tiefe Teil zuerst, und zwar ohne Rechte.** Alles unterhalb der
+        // kundeneigenen Verzeichnisse ist vertauschbar; dort galt bis P6 das
+        // Zeitfenster aus `docs/50 §3` mit gemessenen 31 %. Die Sandbox trägt
+        // es im Chroot ab, als der Kunde.
+        //
+        // Was danach übrigbleibt, ist das Schema aus §4.5: Verzeichnisse, die
+        // an der Wurzel hängen, und die Wurzel gehört `root:root 0755`. Der
+        // Kunde kann dort nichts anlegen und nichts ersetzen — an diesem Rest
+        // ist nichts mehr zu vertauschen, und root darf ihn abtragen.
+        Filesystem::purgeContents($root, $user);
 
         Filesystem::removeTree($root);
 

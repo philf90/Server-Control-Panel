@@ -97,6 +97,43 @@ final class SubscriptionPolicy
     }
 
     /**
+     * Den Dateimanager öffnen — lesend.
+     *
+     * **Der Sichtbereich ist die ganze Abo-Wurzel** (`docs/51 §3`,
+     * Entscheidung 5), also derselbe Ausschnitt, den der Kunde per SFTP ohnehin
+     * sieht. Ein Panel, das weniger zeigte als der Zugang daneben, wäre eine
+     * zweite Fassung derselben Regel — und die zweite ist die, die veraltet.
+     *
+     * **Was er darin nicht ändern darf, verhindern die Dateirechte und nicht
+     * diese Methode.** `conf/` gehört `root:root 0755`; die Sandbox läuft als
+     * der Kunde, also weist das Dateisystem den Schreibversuch ab. Eine Liste
+     * verbotener Verzeichnisse im Panel wäre eine zweite Durchsetzung derselben
+     * Grenze, und sie ginge beim nächsten Schema-Zuwachs auseinander.
+     */
+    public function browseFiles(Account $account, Subscription $subscription): bool
+    {
+        return $this->useFeature($account, $subscription, Permission::FilesRead);
+    }
+
+    /**
+     * Und schreibend.
+     *
+     * **Getrennt von {@see self::browseFiles()}, weil `docs/23` es trennt.**
+     * `Permission::FilesRead` und `FilesWrite` stehen seit P1 nebeneinander im
+     * Rechtemodell und hatten bis P6 keinen Benutzer; ein Zusatzbenutzer, der
+     * nachsehen darf und nichts kaputt machen kann, ist genau der Fall, für den
+     * die Trennung gedacht war.
+     *
+     * Wer schreiben darf, darf auch lesen — die Oberfläche zeigt keinen Baum,
+     * in den man nur hineinschreiben kann.
+     */
+    public function editFiles(Account $account, Subscription $subscription): bool
+    {
+        return $this->browseFiles($account, $subscription)
+            && $this->useFeature($account, $subscription, Permission::FilesWrite);
+    }
+
+    /**
      * Eine Fachfunktion innerhalb des Abonnements.
      *
      * Der Einstieg für alles, was ab P2 dazukommt: Datenbanken, DNS, Cron,

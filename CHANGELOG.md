@@ -12500,3 +12500,62 @@ die Definition stehen.
 
 > **Ein Autoloader, den niemand registriert, erklärt nichts — und ein Wächter,
 > der nur nach der Definition sieht, merkt es nicht.**
+
+### P6 Schritt 4 — die Panel-Seite: Dienstschicht, Policies, Routen, Fläche
+
+`App\Support\Files\Files` ruft die acht Operationen, `FileController` bedient
+sie, acht Routen tragen `can:`, und zwei Inertia-Seiten zeigen das Ergebnis.
+
+**Zwei Fähigkeiten und nicht eine.** `browseFiles` und `editFiles` hängen an
+`Permission::FilesRead` und `FilesWrite` — die stehen **seit P1** im
+Rechtemodell und hatten bis heute keinen Benutzer. Ein Zusatzbenutzer, der
+nachsehen darf und nichts kaputt machen kann, ist genau der Fall, für den die
+Trennung gedacht war.
+
+**In der Dienstschicht steht keine Pfadprüfung, und das ist eine Entscheidung.**
+Ein `str_contains($path, '..')` wäre die naheliegendste Zeile der Welt und
+schädlich: Sie sähe aus wie die Schranke, wäre keine — `docs/50 §3` hat
+gemessen, was Pfadprüfungen unter Nebenläufigkeit taugen — und der nächste Umbau
+verliesse sich auf sie. Der Klassenkopf sagt das, damit es niemand für ein
+Versehen hält.
+
+> **Eine Prüfung, die neben einer Schranke steht, wird für die Schranke
+> gehalten.**
+
+Aus demselben Grund gibt es im Panel **keine Liste verbotener Verzeichnisse**.
+`conf/` gehört `root:root 0755`, die Sandbox läuft als der Kunde, und damit
+weist das Dateisystem den Schreibversuch ab. Eine Liste im Panel wäre die zweite
+Durchsetzung derselben Grenze und ginge beim nächsten Schema-Zuwachs auseinander.
+
+**Kein Aufruf geht durch die Warteschlange** — dieselbe Regel wie in
+`docs/46 §12`, mit demselben Anlass: In `operations.payload` stünde sonst der
+Inhalt einer `wp-config.php`.
+
+**Und die Bilderrunde hat gefunden, was die Zahl nicht sieht.** Der Überlauf bei
+390px stand auf **0px** (Gegenprobe 526px), und die Ansicht war trotzdem falsch:
+Ein Verzeichnisname von 56 Zeichen bricht in der Krümelspur auf zwei Zeilen, und
+ein `button` zentriert seinen Text von Haus aus — der Krümel las sich als
+Überschrift statt als Wegstück.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+`.crumbs .link` bekommt `text-align: left`, `overflow-wrap: anywhere` und
+`min-width: 0`. Die dritte Angabe gehört hier dazu und bei `.cell-name` nicht,
+und das ist kein Zufall: Der Krümel ist ein Flexkind und darf ohne sie nicht
+unter seine Inhaltsbreite; eine Tabellenzelle ist keines.
+
+**Die Messung selbst war zuerst wertlos, und die Gegenprobe hat es verdeckt.**
+Der erste Lauf meldete 27px Überlauf — bei einem Stylesheet, das **nie geladen
+war**: Der `href` zeigte absolut auf `/public/...` und lief unter `file://` ins
+Leere. Der 900px-Block schlug trotzdem an, weil er ein Inline-Stil ist. Die
+Gegenprobe hat also das Messskript belegt und nicht das, worauf es ankam.
+
+> **Eine Gegenprobe, die neben dem Prüfling herläuft, prüft ihn nicht.** Sie
+> braucht selbst einen Beleg — hier: dass `.crumbs` überhaupt `display: flex`
+> hat.
+
+`.cell-name` bricht statt zu rollen, und das ist die fünfte Fassung derselben
+Ausnahme nach `.ident`, `.stacks td .ident`, `.section-head h2` und
+`.cell-value`. Ein Dateiname darf 255 Zeichen lang sein; `docs/46 §20.13` hat
+gemessen, was `nowrap` daraus macht.

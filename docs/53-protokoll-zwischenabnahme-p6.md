@@ -297,6 +297,89 @@ weil sie an jeder Stelle einzeln stehen müsste.
 Es kommt niemand irgendwohin, wo er nicht hindarf. Der Befund geht als eigener
 Punkt in `docs/51` und wird vor dem Angriffsdurchgang entschieden.
 
+## Punkt 4 — was scheitern muss
+
+**Sechs von sechs abgewiesen**, jede mit ihrem Satz.
+
+| Aufruf | Antwort |
+|---|---|
+| `read /../../../../etc/passwd` | `AgentException`: Die Datei gibt es nicht. |
+| `read /etc/passwd` | dieselbe |
+| `read /httpdocs/../../../../etc/passwd` | dieselbe |
+| `remove /` | Die Wurzel des Abonnements wird über den Dateimanager nicht entfernt. |
+| `remove /conf` | Das Verzeichnis ist nicht leer. — **siehe Befund 4** |
+| `write /conf/gekapert.conf` | In dieses Verzeichnis darf das Abonnement nicht schreiben. |
+
+**Dass die drei Lesezugriffe `not_found` sagen und nicht `denied`, ist Absicht
+und die schärfere Antwort.** Ein `denied` bestätigt, dass es die Datei gibt;
+`docs/48 §3.6` hat denselben Schnitt für die fremde Datenbank gemacht (404 statt
+403). Im Chroot ist es ausserdem die *wahre* Antwort: `/etc/passwd` gibt es
+innerhalb der Wurzel des Abonnements tatsächlich nicht.
+
+### Der Symlink, und die Gegenprobe dazu
+
+```
+lrwxrwxrwx 1 1004 1004 11 … /httpdocs/raus -> /etc/passwd
+root:x:0:0:root:/root:/bin/bash            ← cat, ausserhalb der Sandbox
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+```
+
+`cat` liest über denselben Verweis `/etc/passwd` — der Verweis ist also
+funktionsfähig, und die Abweisung darüber ist kein Tippfehler im Pfad.
+
+```
+[index.html] =>
+[raus]       => /etc/passwd
+abgewiesen — Nur eine Datei lässt sich öffnen.
+```
+
+**Die Auflistung nennt das Ziel.** Das ist gewollt: Ein Verweis, der als
+gewöhnliche Datei angezeigt würde, wäre eine Anzeige, die etwas behauptet, das
+sie nicht weiss — und der Kunde hat den Verweis selbst gelegt, es wird ihm also
+nichts verraten.
+
+## Befund 4 — eine Fehlermeldung, die den Grund behauptet, statt ihn zu erfragen
+
+**`remove /conf` sagt „Das Verzeichnis ist nicht leer." Das ist geraten.**
+
+```php
+if (! @rmdir($path)) {
+    throw AgentException::badRequest('Das Verzeichnis ist nicht leer.', …);
+}
+```
+
+`rmdir` scheitert an `ENOTEMPTY`, `EACCES`, `EPERM` und `EBUSY`, und diese Zeile
+sagt bei allen vieren dasselbe. Hier ist es `EACCES`: `conf/` gehört
+`root:root 0755`, und zum Entfernen bräuchte man Schreibrecht auf dem
+**Elternverzeichnis** — der Vhost-Wurzel, ebenfalls `root:root 0755`. Der Kunde
+kommt an keines von beiden.
+
+Der Satz ist also nicht nur ungenau, er ist **falsch und handlungsleitend
+falsch**: Wer ihn liest, räumt `conf/` leer, um es danach löschen zu können.
+Beides darf er nicht, und das zweite erfährt er erst nach dem ersten.
+
+> **Eine Fehlermeldung, die einen von vier möglichen Gründen nennt, ist zu drei
+> Vierteln eine Behauptung.**
+
+Es ist dieselbe Familie wie `docs/44`: **Ein Wert, den nur die Dokumentation
+kennt, ist eine Vermutung mit Fussnote** — hier kennt ihn nicht einmal die
+Dokumentation, sondern nur die naheliegendste Erwartung des Schreibenden.
+
+### Und deshalb hat dieser Aufruf die Wand nicht erreicht
+
+**Der Lauf hat nicht belegt, dass `conf/` geschützt ist.** Er hat belegt, dass
+ein nicht-leeres Verzeichnis ohne `recursive` nicht entfernt wird — eine ganz
+andere Regel, die auch für `httpdocs/` gälte.
+
+> **Ein Gegenfall, der eine Prüfung erreichen soll, muss an den davor
+> vorbeikommen.** (`docs/48 §3.9`, wörtlich derselbe Fall)
+
+Der Aufruf, der die Wand wirklich erreicht, ist `remove("/conf", true)`: Er geht
+an der Leerheitsprüfung vorbei in `Filesystem::removeTree()` — und der läuft
+innerhalb der Sandbox als `p1132`. **Er wird nachgeholt**, zusammen mit dem
+Gegenstück, das die Leerheit ganz herausnimmt: ein leeres, root-eigenes
+Verzeichnis in der Vhost-Wurzel.
+
 ---
 
-*Die Punkte 4 bis 8 folgen, während sie gefahren werden.*
+*Die Punkte 5 bis 8 folgen, während sie gefahren werden.*

@@ -243,6 +243,7 @@ HOME=/tmp srvpanel tinker --execute='
   foreach ([
     ["read",   "/../../../../etc/passwd"],
     ["read",   "/etc/passwd"],
+    ["read",   "/httpdocs/../../../../etc/passwd"],
     ["remove", "/"],
   ] as [$m, $p]) {
     try { print_r($f->$m($abo, $p)); echo "DURCHGELASSEN: $m $p\n"; }
@@ -274,6 +275,32 @@ HOME=/tmp srvpanel tinker --execute='
 Das `-h` an `chown` ist nötig: Ohne es ändert `chown` das **Ziel** des Verweises
 — also `/etc/passwd`.
 
+**Und ein root-eigenes Verzeichnis, das die Leerheitsprüfung nicht abfängt.**
+`remove("/conf")` ohne `recursive` scheitert an `rmdir` und meldet „Das
+Verzeichnis ist nicht leer" — das ist eine andere Regel als die gesuchte und
+gilt für `httpdocs/` genauso. Die Wand wird erst hinter dieser Prüfung erreicht:
+
+```bash
+mkdir /var/www/vhosts/<abo>/leer-und-root      # root:root, leer
+ls -ldn /var/www/vhosts/<abo>/leer-und-root /var/www/vhosts/<abo>
+
+HOME=/tmp srvpanel tinker --execute='
+  app(App\Support\Tenancy\Tenancy::class)->allowAll();
+  $abo = App\Models\Subscription::first();
+  $f = app(App\Support\Files\Files::class);
+  foreach ([["/leer-und-root", false], ["/leer-und-root", true], ["/conf", true]] as [$p, $r]) {
+    try { $f->remove($abo, $p, $r); echo "DURCHGELASSEN: $p rekursiv=", (int) $r, "\n"; }
+    catch (Throwable $e) { echo "abgewiesen: $p rekursiv=", (int) $r, " — ", $e->getMessage(), "\n"; }
+  }
+'
+ls -ln /var/www/vhosts/<abo>/                  # beide müssen noch da sein
+```
+
+**`remove("/conf", true)` ist der scharfe Aufruf dieses Punktes**, und er kann
+etwas kaputtmachen: Hält die Grenze nicht, ist die Konfiguration des Vhosts weg.
+Genau deshalb steht er hier — ein Angriff, der nichts anrichten *könnte*, misst
+nichts. Er gehört gegen ein Wegwerf-Abonnement und nicht gegen einen Kunden.
+
 **Gegenprobe dazu, und sie gehört dazu**: Dieselbe Datei ausserhalb der Sandbox
 lesen — `cat /var/www/vhosts/<abo>/httpdocs/raus` zeigt `/etc/passwd`. Ohne sie
 wäre die Abweisung darüber kein Beleg, sondern vielleicht ein Tippfehler.
@@ -291,8 +318,18 @@ HOME=/tmp srvpanel tinker --execute='
 '
 ```
 
-Eine Datei von mindestens 50 MB, damit der Strom wirklich ein Strom ist. Die
-Grösse am Ziel muss stimmen — nicht nur die Existenz.
+Eine Datei von mindestens 50 MB, damit der Strom wirklich ein Strom ist.
+
+**Verglichen wird die Prüfsumme und nicht die Grösse.** Hier stand „die Grösse
+am Ziel muss stimmen", und das ist zu wenig: Ein Strom, der in der Mitte
+abbricht und mit Nullen weiterläuft, hat die richtige Grösse. Es ist derselbe
+Schnitt wie bei `read` in Punkt 3 — `string(6)` sagt mehr als „es kam etwas an",
+und `sha256sum` sagt mehr als „es sind 64 MB".
+
+```bash
+sha256sum /var/lib/srvpanel/storage/app/private/uploads/<datei> \
+          /var/www/vhosts/<abo>/httpdocs/hoch.bin
+```
 
 ### Punkt 6 — der Rückbau an einem echten Abonnement
 

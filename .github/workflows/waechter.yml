@@ -7,7 +7,7 @@ name: Wächter brechen
 # 1. Das Skript **ändert Dateien** im Arbeitsbaum und stellt sie über git wieder
 #    her. In einem Lauf, der nebenher ein Paket baut, wäre das ein Wettlauf um
 #    denselben Baum.
-# 2. Es fährt die Testsuite einmal je Eingriff — 364 Eingriffe, 607 Läufe. In
+# 2. Es fährt die Testsuite einmal je Eingriff — 376 Eingriffe, 623 Läufe. In
 #    `ci.yml` hinge das an einem Job, der ohnehin schon die ganze Suite fährt.
 #
 # **Und warum es ihn überhaupt gibt.** CLAUDE.md verlangt: „Ein Wächter, der nie
@@ -56,7 +56,9 @@ jobs:
     name: Jede Regel absichtlich brechen
     runs-on: ubuntu-latest
 
-    # 364 Eingriffe, 607 Testläufe, **gemessen fünf Minuten**. Die Vorgabe von
+    # 376 Eingriffe, 623 Testläufe, **gemessen 4:40** am 14. August 2026. Die
+    # Zahlen stehen hier, weil sie die Grenze darunter begründen — und sie sind
+    # nachgezogen worden, als P5c zwölf Eingriffe dazugelegt hat. Die Vorgabe von
     # sechs Stunden wäre kein Schutz, sondern eine Rechnung — und seit der Lauf
     # an jedem Pull Request hängt, blockiert eine Hängepartie nicht mehr nur
     # eine Nacht, sondern jemandes Arbeit. Dreissig ist das Sechsfache des

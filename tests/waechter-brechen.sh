@@ -7787,7 +7787,7 @@ vorher_datei resources/css/app.css
 python3 - <<'PY2'
 p = 'resources/css/app.css'
 s = open(p, encoding='utf-8').read()
-s = s.replace(".button-row + .sections {", ".button-row + .sections-x {", 1)
+s = s.replace(".button-row + .sections,", ".button-row + .sections-x,", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/css/app.css "Fuge unter der Knopfreihe" &&
@@ -7861,15 +7861,16 @@ vorher_datei resources/css/app.css
 python3 - <<'PY2'
 p = 'resources/css/app.css'
 s = open(p, encoding='utf-8').read()
-open(p, 'w', encoding='utf-8').write(s + '\n.neuer-block {\n  margin: 0;\n  color: var(--text);\n}\n')
-p = 'resources/js/Pages/Files/Index.vue'
-s = open(p, encoding='utf-8').read()
-s = s.replace('    <nav class="crumbs" aria-label="Pfad">',
-              '    <div class="neuer-block">x</div>\n    <nav class="crumbs" aria-label="Pfad">', 1)
+s = s.replace("""  gap: var(--gap);
+  margin-bottom: var(--block-gap);
+  font-size: var(--text-small);
+}""", """  gap: var(--gap);
+  font-size: var(--text-small);
+}""", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei resources/css/app.css "neuer bündiger Baustein" &&
-pruefe "neuer bündiger Baustein ohne Fuge" \
+griff_datei resources/css/app.css "Baustein wird buendig" &&
+pruefe "ein Baustein wird buendig, ohne dass jemand ihn eintraegt" \
   BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
@@ -8821,6 +8822,26 @@ pruefe "Webserver-Satz am Weltbit" \
   PermissionFormTest::test_the_sentence_about_the_webserver_follows_the_group failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PermissionFormTest passed
+
+echo
+echo "── FrontendDependencyTest: eine Marke ohne Farbe ──"
+#
+# Schritt 6d hat drei Marken dazugebracht (tok-property, tok-variable,
+# tok-punctuation). Jede muss in app.css eine Farbe bekommen — eine Marke, die
+# CodeMirror vergibt und die niemand einfaerbt, sieht aus wie gewoehnlicher
+# Text und behauptet damit, nichts erkannt zu haben.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('.editor .tok-variable {', '.editor .tok-variable-x {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Marke ohne Farbe" &&
+pruefe "Marke ohne Farbe" \
+  FrontendDependencyTest::test_the_editor_brings_no_colours_of_its_own failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FrontendDependencyTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

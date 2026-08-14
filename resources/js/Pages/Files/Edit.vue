@@ -80,7 +80,12 @@ function back(): void {
     </p>
 
     <form v-else @submit.prevent="save">
-      <label class="field">
+      <!--
+        `wide`, weil diese Seite kein Formular ist, sondern ein Editor: Die
+        Formularbreite von 540px ist für Fliesstext gedacht, und Quelltext hat
+        Zeilen von hundert Zeichen (`docs/53`, Befund 9).
+      -->
+      <label class="field wide">
         <span>Inhalt</span>
         <CodeEditor
           v-model="form.content"

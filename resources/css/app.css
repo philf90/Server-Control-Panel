@@ -1664,6 +1664,38 @@ table.pairs {
   margin-top: 3px;
 }
 
+/*
+ * Ein Feld, das keinen Fliesstext enthält, darf breiter sein (P6, Schritt 6d).
+ *
+ * `.field` steht auf `max-width: 540px`, und das ist für ein Formular richtig:
+ * Eine Zeile Fliesstext über 120 Zeichen liest sich schlecht, und ein
+ * Eingabefeld, das über den halben Schirm läuft, sieht aus wie ein Fehler.
+ *
+ * **Quelltext ist kein Fliesstext.** Zeilen von hundert Zeichen sind dort
+ * normal, und eine Seite, deren einziger Inhalt ein Editor ist, ist kein
+ * Formular. Der Betreiber hat es beim ersten Blick auf den laufenden Editor
+ * gemeldet (`docs/53`, Befund 9): Er stand in Formularbreite, während daneben
+ * zwei Drittel des Fensters leer blieben.
+ *
+ * > **Eine Vorgabe, die für Lesbarkeit gemacht ist, gilt nicht für Text, den
+ * > man nicht liest, sondern bearbeitet.**
+ */
+.field.wide {
+  /*
+   * **Eine Grenze und nicht „so viel wie da ist".**
+   *
+   * `none` wäre die naheliegende Zeile und auf einem 27-Zoll-Schirm 2528px
+   * breit — gemessen. Jenseits von etwa hundertsechzig Zeichen gewinnt man
+   * beim Lesen von Quelltext nichts mehr; man verliert nur den Weg zurück an
+   * den Zeilenanfang.
+   *
+   * 1360px sind rund 160 Zeichen in `--font-mono` bei `--text-table`. Was
+   * darüber hinausgeht — eine minifizierte Zeile zum Beispiel — rollt im
+   * Editor waagerecht und schiebt die Seite nicht.
+   */
+  max-width: 1360px;
+}
+
 .editor {
   border: 1px solid var(--control-line);
   border-radius: var(--radius);
@@ -1676,8 +1708,19 @@ table.pairs {
   font-size: var(--text-table);
   color: var(--text);
 
-  /* Dieselbe Höhe wie das `textarea` daneben — sonst springt die Seite, wenn
-     der Editor nachlädt und den Rückweg ablöst. */
+  /*
+   * **Die Höhe kommt vom Sichtfenster und nicht von einer Zeilenzahl.**
+   *
+   * Hier stand nur `max-height`, und darunter `rows="24"` am `textarea`. Ein
+   * `rows="24"` ist auf einem 27-Zoll-Schirm dasselbe wie auf einem Telefon,
+   * und beides kann nicht richtig sein — auf dem grossen Schirm bleibt der
+   * halbe Platz leer, auf dem kleinen füllt es mehr als die Seite.
+   *
+   * `min-height` und `max-height` auf denselben Wert: Der Editor ist dann
+   * genau so hoch wie der Rückweg darunter, und die Seite springt nicht, wenn
+   * das Bündel nachlädt und den einen durch den anderen ersetzt.
+   */
+  min-height: 60dvh;
   max-height: 60dvh;
 }
 
@@ -1717,11 +1760,18 @@ table.pairs {
 }
 
 /*
- * Die acht Marken.
+ * Die zehn Marken.
  *
  * Sie tragen englische Namen wie jede Klasse in diesem Projekt und sind so
  * knapp gehalten, wie eine Hervorhebung sein darf: Wer sieben Farben
  * unterscheidet, liest den Quelltext nicht mehr, sondern das Bild davon.
+ *
+ * **Zwei sind am 14. August dazugekommen, und keine davon ist eine neue
+ * Farbe** (`docs/53`, Befund 9). `.tok-property` und `.tok-variable` teilen
+ * sich ihren Ton mit einer bestehenden Marke und unterscheiden sich im
+ * Gewicht; `.tok-punctuation` ist eine Abstufung von `.tok-operator`. Der
+ * Grundsatz oben bleibt damit gültig — was dazukam, ist Unterscheidung und
+ * nicht Buntheit.
  */
 .editor .tok-keyword {
   color: var(--accent);
@@ -1749,8 +1799,96 @@ table.pairs {
   color: var(--accent-second);
 }
 
+/*
+ * Die Eigenschaft, nicht ihr Wert.
+ *
+ * In CSS sah `color` aus wie `red`, in JSON der Schlüssel wie die Zeichenkette
+ * daneben — beide lagen auf `.tok-tag`. Derselbe Ton, anderes Gewicht: Ein
+ * Schlüssel ist keine andere Art von Ding als ein Tagname, er steht nur an
+ * einer anderen Stelle.
+ */
+.editor .tok-property {
+  color: var(--accent-second);
+  font-weight: 600;
+}
+
+/*
+ * Eine Variable war vorher gar nichts.
+ *
+ * `tags.variableName` lag auf keiner Marke, und damit stand ein `$name` in PHP
+ * als gewöhnlicher Text da — genau das Zeichen, an dem man in einer
+ * `wp-config.php` entlangliest.
+ */
+.editor .tok-variable {
+  color: var(--text-strong);
+  font-style: italic;
+}
+
 .editor .tok-operator {
   color: var(--text-muted);
+}
+
+/*
+ * Klammern und Kommas ruhiger als Operatoren.
+ *
+ * Beide lagen auf derselben Marke. Ein `=` trägt Bedeutung, eine `)` trägt
+ * Struktur — und Struktur soll man sehen können, ohne sie zu lesen.
+ */
+.editor .tok-punctuation {
+  color: var(--text-faint);
+}
+
+/*
+ * Die zusammengehörige Klammer.
+ *
+ * **Der Gewinn, der keine Farbe ist.** Sie beantwortet die Frage, die man in
+ * einer Konfigurationsdatei ständig hat und die keine Einfärbung beantwortet:
+ * Wo hört dieser Block auf?
+ *
+ * Der Unterschied zwischen „passt" und „passt nicht" ist der Grund, aus dem
+ * die zweite Regel dasteht — ohne sie sähe eine unpaarige Klammer aus wie
+ * eine paarige, und dann sagt die Hervorhebung etwas, das sie nicht weiss.
+ */
+.editor .cm-matchingBracket {
+  background: var(--accent-surface);
+  outline: 1px solid var(--accent);
+}
+
+.editor .cm-nonmatchingBracket {
+  color: var(--warn);
+  outline: 1px solid var(--warn);
+}
+
+/*
+ * Die Suche im Dokument.
+ *
+ * Sie ersetzt das Strg+F des Browsers, und das ist kein Komfort: CodeMirror
+ * zeichnet lange Dateien nicht vollständig, also durchsucht der Browser nur,
+ * was gerade sichtbar ist — und meldet für den Rest „nicht gefunden".
+ *
+ * > **Eine Suche, die nur das Sichtbare durchsucht, meldet ihre Lücke nicht.**
+ */
+.editor .cm-panels {
+  background: var(--surface);
+  color: var(--text);
+  border-bottom: 1px solid var(--line);
+}
+
+.editor .cm-panel {
+  padding: 8px 10px;
+  font-size: var(--text-small);
+}
+
+.editor .cm-searchMatch {
+  background: var(--mark-accent);
+}
+
+.editor .cm-searchMatch-selected {
+  outline: 1px solid var(--accent);
+}
+
+.editor .cm-selectionMatch {
+  background: var(--accent-surface);
 }
 
 /*
@@ -1777,6 +1915,14 @@ table.pairs {
  */
 .field textarea.code {
   font-family: var(--font-mono);
+
+  /*
+   * **Dieselbe Höhe wie der Editor darüber.** Das `rows`-Attribut steht
+   * weiterhin am Element und ist der Rückfall für den Fall, dass `dvh` nicht
+   * greift; die Höhe entscheidet diese Regel. Ohne sie springt die Seite in
+   * dem Moment, in dem CodeMirror nachlädt und das `textarea` ablöst.
+   */
+  min-height: 60dvh;
 
   /* **Nicht `--text-table`.** Quelltext in 14px liest sich besser, und Safari
      zoomt beim Fokus in ein Eingabefeld unter 16px in die Seite hinein

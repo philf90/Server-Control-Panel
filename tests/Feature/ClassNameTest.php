@@ -54,13 +54,13 @@ final class ClassNameTest extends TestCase
         'log', 'long', 'mark', 'menu', 'met', 'meter', 'multiline', 'name', 'node', 'number',
         'narrow', 'nav', 'neutral', 'note', 'notice', 'ok', 'on', 'op',
         'open', 'operator', 'output', 'over', 'page', 'pager', 'pair', 'paired', 'pairs', 'password', 'path',
-        'permissions',
+        'permissions', 'property', 'punctuation',
         'postscript', 'primary', 'progress', 'quiet', 'rail', 'release',
         'readout', 'reveal', 'right', 'row', 'rows', 'rules', 'running', 'scrim', 'scrolls',
         'second', 'section', 'sections', 'sheet', 'signin', 'signout', 'small',
         'source', 'spaced', 'split', 'sr', 'stacks', 'state', 'strength', 'string', 'sub', 'subline',
         'tag', 'tasks', 'text', 'tight', 'tile', 'tiles', 'time', 'title', 'toggle', 'tok',
-        'top', 'topbar', 'tree', 'trend', 'unit', 'usage', 'value', 'version', 'warn',
+        'top', 'topbar', 'tree', 'trend', 'unit', 'usage', 'value', 'variable', 'version', 'warn',
         'wide', 'who', 'with',
     ];
 
@@ -211,8 +211,12 @@ final class ClassNameTest extends TestCase
             'cm-editor', 'cm-focused', 'cm-scroller', 'cm-gutters',
             'cm-activeLine', 'cm-activeLineGutter', 'cm-selectionBackground',
             'cm-content', 'cm-cursor',
+            'cm-matchingBracket', 'cm-nonmatchingBracket',
+            'cm-panels', 'cm-panel', 'cm-searchMatch', 'cm-searchMatch-selected',
+            'cm-selectionMatch',
             'tok-keyword', 'tok-string', 'tok-comment', 'tok-number',
             'tok-name', 'tok-tag', 'tok-operator', 'tok-invalid',
+            'tok-property', 'tok-variable', 'tok-punctuation',
         ];
 
         foreach ($this->vueFiles() as $path) {

@@ -434,6 +434,7 @@ Dazu wachsen mit: `AgentOperationReachTest`, `RouteAuthorizationTest`,
 | 3 | Datei-Operationen (`files.*`) | der Agent kann, was P6 braucht |
 | 4 | Datenmodell, Dienstschicht, Policies | Panel-Seite, alle drei Ebenen |
 | 5 | Dateimanager ohne Editor | Baum, Liste, Hochladen, Rechte |
+| **5b** | **Ein Weg zum Dateimanager, und ein Wächter dafür** | **aus Befund 6 — siehe unten** |
 | 6 | Editor (CodeMirror 6) | Entscheidung 1, mit ihren drei Auflagen |
 | 7 | Entpacken, Packen, Suche | über die Warteschlange |
 | 8 | SFTP: Block, Schlüssel, Prüfung der Kette | Zugang steht |
@@ -454,6 +455,30 @@ Detail; die Schritte 7 bis 9 stapeln sich alle darauf. Der Lauf steht in
 
 > **Drei Schritte auf einer ungeprüften Annahme zu bauen ist teurer, als sie
 > einmal zu prüfen.**
+
+**Schritt 5b ist am 14. August dazugekommen**, aus Befund 6 der Zwischenabnahme
+(`docs/53`) — gefunden durch eine Frage des Betreibers und nicht durch einen
+Test. Die elf Routen stehen, die drei Seiten liegen da, die Policy antwortet,
+und **kein Template nennt `/files`**: weder die Navigation für Kunden noch die
+für den Betreiber noch `Subscriptions/Show.vue`. Erreichbar ist der Dateimanager
+nur über die Adresszeile.
+
+> **Eine Seite, auf die nichts zeigt, ist nicht ausgeliefert — sie ist nur
+> vorhanden.**
+
+Kein vorhandener Wächter konnte das finden, weil alle die andere Richtung
+prüfen: `AbilityReachTest` sorgt dafür, dass nichts Unerlaubtes angeboten wird,
+und kommt damit am nächsten dran — er hat über *Erlaubtes, das nicht angeboten
+wird*, nichts zu sagen.
+
+Der Wächter, der dazugehört: **Jede Route mit `can:`, die eine Inertia-Seite
+rendert, wird von mindestens einem Template verlinkt** — oder steht mit
+Begründung auf einer Ausnahmeliste, wie `RouteGuard` sie für den umgekehrten
+Fall führt. Die Ausnahmen sind echt (`files.edit` wird nur aus der Liste heraus
+angesteuert), und deshalb braucht es die Liste statt einer stillen Duldung.
+
+Der Schritt gehört **vor die Bilderrunde**: Eine Seite, die niemand aufrufen
+kann, lässt sich auch nicht fotografieren.
 
 **Schritt 6c ist am 14. August dazugekommen**, aus Befund 3 der Zwischenabnahme
 (`docs/53`). `httpdocs` gehört `%u:www-data 0750` — der Webserver kommt über die

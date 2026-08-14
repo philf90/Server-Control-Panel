@@ -505,6 +505,60 @@ Stellen in `app/` und `agent/`, zwei davon in Texten, die der Kunde sieht
 (`Guard.php`, `Acme\Dns\Rfc2136`). Ein Fall für `WordChoiceTest`, kein Fall für
 diesen Lauf.
 
+## Befund 6 — der Dateimanager ist gebaut und von nirgendwo aus erreichbar
+
+**Gefunden durch eine Frage des Betreibers**, nicht durch einen Test: „Wo finde
+ich den Dateimanager?"
+
+Die elf Routen stehen in `routes/web.php`, jede mit ihrem `can:`, die drei
+Seiten liegen unter `resources/js/Pages/Files/`, die Policy antwortet, der Agent
+kann alles — und **kein einziges Vue-Template nennt `files.index` oder
+`/files`.** Nachgesehen an drei Stellen:
+
+| Ort | Enthält einen Weg zum Dateimanager |
+|---|---|
+| `PanelLayout.vue`, Navigation Kunde | nein (Übersicht, Abonnements, Domains, Datenbanken, Vorgänge, Protokoll, Mein Konto) |
+| `PanelLayout.vue`, Navigation Betreiber | nein |
+| `Subscriptions/Show.vue` | nein — dort stehen `dns`, `domains`, `edit`, `quota`, `suspend`, `resume` |
+
+Erreichbar ist er ausschliesslich, indem man `/subscriptions/<id>/files` in die
+Adresszeile tippt.
+
+**Das ist der wiederkehrende Fehler dieses Projekts, nur andersherum.** Sonst
+zeigt eine Zeichenkette auf etwas, das es nicht gibt — eine Policy ohne Route,
+ein Kommando ohne Eintrag im Startskript. Hier gibt es die Sache, und es zeigt
+nichts darauf.
+
+> **Eine Seite, auf die nichts zeigt, ist nicht ausgeliefert — sie ist nur
+> vorhanden.**
+
+Und die vorhandenen Wächter konnten es nicht finden, weil jeder von ihnen die
+andere Richtung prüft:
+
+- `RouteAuthorizationTest` — jede Route trägt `can:`. **Trägt sie.**
+- `PolicyReachTest` — jede Policy-Methode wird benutzt. **Wird sie.**
+- `InertiaPagesTest` — jede gerenderte Seite existiert als Datei. **Existiert.**
+- `AbilityReachTest` — ein Knopf, den der Betrachter nicht drücken darf, wird
+  nicht gezeigt. **Wird er nicht — es wird gar keiner gezeigt.**
+
+`AbilityReachTest` ist der, der am nächsten drankommt, und er sagt genau das
+Falsche: Er sorgt dafür, dass nichts Unerlaubtes angeboten wird, und hat über
+Erlaubtes, das nicht angeboten wird, nichts zu sagen.
+
+> **Ein Wächter, der prüft, dass nichts Verbotenes gezeigt wird, hat über das
+> Fehlende nichts gesagt.**
+
+**Der Wächter dazu** gehört zu Schritt 5 nachgereicht und lautet: Jede Route mit
+einer `can:`-Berechtigung, die eine Inertia-Seite rendert, wird von mindestens
+einem Template verlinkt — oder steht mit Begründung auf einer Ausnahmeliste, wie
+`RouteGuard` sie für den umgekehrten Fall führt. Die Ausnahmen sind echt (eine
+Seite, die nur aus einer anderen heraus angesteuert wird, etwa `files.edit`),
+und genau deshalb braucht es die Liste statt einer stillen Duldung.
+
+**Nicht in diesem Lauf behoben**, weil dieser Lauf die Grenze prüft. Er geht als
+Schritt 5b in `docs/51` und ist vor der Bilderrunde fällig — eine Seite, die
+niemand aufrufen kann, lässt sich auch nicht fotografieren.
+
 ---
 
 *Die Punkte 6 bis 8 folgen, während sie gefahren werden.*

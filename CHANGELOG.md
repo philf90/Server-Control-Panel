@@ -12093,3 +12093,33 @@ und probiert es erneut.
 Der zweite kam von `BreakScriptTest`: Ein Eingriff aus Schritt 8 hatte durch die
 Umbenennung seinen Griff verloren und zeigte auf einen Text, den es nicht mehr
 gab. Genau dafür gibt es ihn — er meldete es, bevor irgendetwas eingecheckt war.
+
+### Und der vierte Befund: Weissraum ist ein Wert
+
+`a\tb` stand als `a b` da, `z1\nz2` als `z1 z2`, und ein Wert mit einem
+gewöhnlichen Leerzeichen sähe genauso aus. Gemessen im Browser, im Kontext der
+echten Tabelle: **Alle drei ergaben exakt dieselben 25×16 Pixel.**
+
+> **Eine Anzeige, die drei verschiedene Werte gleich aussehen lässt, behauptet
+> etwas, das sie nicht weiss.**
+
+Nach dem Wortlaut von Kriterium 2 war das erfüllt — der Umbruch blieb innerhalb
+der Zelle und hat keine Zeile erzeugt. Das ist der Unterschied zwischen „der Lauf
+ist abgenommen" und „die Anzeige stimmt".
+
+**Es waren zwei Eigenschaften und nicht eine.** `white-space: pre-wrap` allein
+liess den Tabulator 29 px breit werden gegen 28 px für zwei Leerzeichen —
+technisch verschieden, für ein Auge dasselbe. Der Grund stand nicht in `app.css`,
+sondern in Tailwinds Reset: `tab-size: 4` auf `html`, eine Vorgabe für
+**Quelltext**, die jedes Element erbt.
+
+> **Eine Vorgabe für Quelltext, die alles erbt, gilt irgendwann für Daten.**
+
+Mit dem CSS-Ausgangswert `8` — dem Abstand, den `psql`, `mysql` und jedes
+Terminal benutzen — sind es 76 px gegen 34. Der Überlauf bei 390 px bleibt 0 am
+Dokument, gemessen in beiden Themes, mit Gegenprobe.
+
+`CellWhitespaceTest` hält die Regel, mit vier Eingriffen im Bruchskript. Und
+`BreakScriptTest` hat ein zweites Mal zugebissen: Die zwei neuen Zeilen in
+`.rows .cell` haben einem Eingriff aus Schritt 5 den Text unter den Füssen
+weggezogen.

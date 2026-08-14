@@ -7825,10 +7825,12 @@ vorher_datei resources/css/app.css
 python3 - <<'PY2'
 p = 'resources/css/app.css'
 s = open(p, encoding='utf-8').read()
-s = s.replace("""  font-size: var(--text-table);
-  overflow-wrap: anywhere;
-}""", """  font-size: var(--text-table);
-}""", 1)
+s = s.replace("""  overflow-wrap: anywhere;
+
+  /*
+   * **Weissraum bleibt stehen""", """
+  /*
+   * **Weissraum bleibt stehen""", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/css/app.css "Wertzelle ohne Umbruch" &&
@@ -8003,6 +8005,78 @@ pruefe "Entscheidung wieder in der Seite" \
   CountedNounTest::test_the_decision_lives_in_one_place failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CountedNounTest passed
+
+echo
+echo "── CellWhitespaceTest: die Zelle fasst Weissraum wieder zusammen ──"
+#
+# Der Fund aus dem Abnahmelauf von P5c: `a\tb`, `a  b` und `a b` ergaben exakt
+# dieselben 25x16 Pixel. Drei gespeicherte Werte, eine Anzeige.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '  white-space: pre-wrap;\n\n  /*\n   * **Und der Tabulator'
+neu = '  white-space: normal;\n\n  /*\n   * **Und der Tabulator'
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Zelle ohne Weissraum" &&
+pruefe "Zelle ohne Weissraum" \
+  CellWhitespaceTest::test_a_row_cell_keeps_the_whitespace_it_was_given failed
+wiederherstellen
+
+echo
+echo "── CellWhitespaceTest: der Tabulator im Quelltextabstand ──"
+#
+# Tailwinds Reset setzt `tab-size: 4` auf `html`. Damit ist `a\tb` 29px breit und
+# `a  b` 28px — verschieden, aber nicht sichtbar.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('  tab-size: 8;\n}', '  tab-size: 4;\n}', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Tabulator wie Quelltext" &&
+pruefe "Tabulator wie Quelltext" \
+  CellWhitespaceTest::test_a_tab_is_wide_enough_to_be_one failed
+wiederherstellen
+
+echo
+echo "── CellWhitespaceTest: die Einzelsicht zeigt es anders als die Übersicht ──"
+#
+# Sie ist der einzige Ort, an dem ein gekürzter Wert vollständig steht. Stünde er
+# dort anders da, hätte der Kunde zwei Darstellungen und keine Auskunft.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('  tab-size: 8;\n  overflow-wrap: anywhere;', '  overflow-wrap: anywhere;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Einzelsicht mit anderem Abstand" &&
+pruefe "Einzelsicht mit anderem Abstand" \
+  CellWhitespaceTest::test_the_single_cell_view_shows_it_the_same_way failed
+wiederherstellen
+
+echo
+echo "── CellWhitespaceTest: der Leser findet den Selektor nicht mehr ──"
+#
+# Ohne diese Gegenprobe stünde die Zustimmung der drei Prüfungen darüber auf
+# `null === null` — ein Selektor, den es nicht gibt, liefert für jede
+# Eigenschaft `null`.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('.rows .cell {', '.rows .zelle {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Selektor umbenannt" &&
+pruefe "Selektor umbenannt" \
+  CellWhitespaceTest::test_the_reader_finds_a_known_declaration failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CellWhitespaceTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

@@ -38,9 +38,9 @@ Seiten), Punkt 2 und 2b (Blättern, Sortieren, Filtern, Tastatur) und Punkt 9
 **Zwölf Befunde, und keinen davon ein Test** — **sieben über den Abnahmelauf
 selbst**, vier über das Panel, einer über den Aufbau. Dasselbe Verhältnis wie
 beim Fernzugriff (`docs/45`) und bei der Zwischenabnahme (`docs/47`): Die
-Mehrheit der Fehler steckt nicht im Prüfling, sondern im Prüfmittel. **Drei der
-vier über das Panel sind behoben** (§3.3, §3.4, §3.10), der vierte wartet auf
-eine Entscheidung des Betreibers (§3.2).
+Mehrheit der Fehler steckt nicht im Prüfling, sondern im Prüfmittel. **Alle vier
+über das Panel sind behoben** (§3.2, §3.3, §3.4, §3.10), jeder mit einem
+Wächter, der ohne den Fix zubeisst.
 
 ## 2. Was gefahren ist
 
@@ -488,19 +488,51 @@ Kundenkontos. Der Aufruf auf B wäre gelungen, und zwar zu Recht.
 **Gefunden hat es der Betreiber beim Aufbau**, bevor der Punkt lief. Der Plan
 verlangt jetzt einen zweiten **Kunden**.
 
-### 3.2 Tabulator, Umbruch und Leerzeichen sehen gleich aus — **offen**
+### 3.2 Tabulator, Umbruch und Leerzeichen sehen gleich aus — **behoben**
 
-`a\tb` erscheint als `a b`, `z1\nz2` als `z1 z2`, und ein Wert mit einem
-gewöhnlichen Leerzeichen erschiene genauso. HTML fasst Weissraum zusammen, und
-`.rows .cell` trifft dazu keine Entscheidung.
+`a\tb` erschien als `a b`, `z1\nz2` als `z1 z2`, und ein Wert mit einem
+gewöhnlichen Leerzeichen genauso. HTML fasst Weissraum zusammen, und
+`.rows .cell` traf dazu keine Entscheidung.
 
-Nach dem Wortlaut von Kriterium 2 ist das erfüllt — der Umbruch bleibt
-*innerhalb* der Zelle. Wer die Zelle **liest**, kann drei verschiedene
-gespeicherte Werte trotzdem nicht auseinanderhalten.
+Nach dem Wortlaut von Kriterium 2 war das erfüllt — der Umbruch blieb
+*innerhalb* der Zelle und hat keine Zeile erzeugt. Wer die Zelle **liest**,
+konnte drei verschiedene gespeicherte Werte trotzdem nicht auseinanderhalten.
 
-Vorschlag: `white-space: pre-wrap` an `.rows .cell`. Es kollidiert nicht mit
-`docs/46 §20.13` — `pre-wrap` bricht weiterhin am Rand —, macht aber Zeilen mit
-Umbrüchen höher. Entscheidung des Betreibers nach dem Lauf.
+**Gemessen am 14. August 2026 im Browser**, im Kontext der echten Tabelle und in
+beiden Themes:
+
+| Wert | vorher | nachher |
+|---|---|---|
+| `a b` (ein Leerzeichen) | 25×16 px | 25×16 px |
+| `a\tb` (Tabulator) | **25×16 px** | 76×16 px |
+| `a  b` (zwei Leerzeichen) | **25×16 px** | 34×16 px |
+| `z1\nz2` (Umbruch) | 42×16 px, **eine** Zeile | 17×37 px, **zwei** Zeilen |
+
+Drei verschiedene gespeicherte Werte ergaben **exakt dieselben Pixel**. Das ist
+der Unterschied zwischen „der Lauf ist abgenommen" und „die Anzeige stimmt".
+
+> **Eine Anzeige, die drei verschiedene Werte gleich aussehen lässt, behauptet
+> etwas, das sie nicht weiss.**
+
+**Es waren zwei Eigenschaften und nicht eine.** `white-space: pre-wrap` allein
+liess den Tabulator **29 px** breit werden gegen **28 px** für zwei
+Leerzeichen — technisch verschieden, für ein Auge dasselbe. Der Grund stand
+nicht in `app.css`, sondern in Tailwinds Reset: `tab-size: 4` auf `html`, eine
+Vorgabe für **Quelltext**, die jedes Element erbt. Mit dem CSS-Ausgangswert `8`
+sind es 76 gegen 34.
+
+> **Eine Vorgabe für Quelltext, die alles erbt, gilt irgendwann für Daten.**
+
+Dieselbe Sorte wie `td .ident { white-space: nowrap }` aus §20.13: eine Regel mit
+einer Begründung, die für das eine stimmt und für das andere nicht.
+
+Der Überlauf bei 390 px bleibt **0** am Dokument (Gegenprobe: 510), der
+Rollbehälter rollt wie gewollt, und die Höhe ist gedeckelt — der Agent kürzt bei
+512 Zeichen.
+
+Wächter: `CellWhitespaceTest` — die Zelle behält den Weissraum, der Tabulator ist
+breit genug, um einer zu sein, die Einzelsicht zeigt dasselbe wie die Übersicht,
+und der Leser findet den Selektor überhaupt.
 
 ### 3.3 „geschätzt 1 Zeilen" — **behoben**
 
@@ -700,22 +732,32 @@ Lauf seine Gegenprobe.
 
 ## 4. Was noch offen ist
 
-**Der Lauf selbst ist durch, und drei der vier Befunde am Panel sind behoben** —
-§3.3, §3.4 und §3.10, jeder mit einem Wächter, der ohne den Fix zubeisst. Die
-acht Eingriffe dazu stehen in `tests/waechter-brechen.sh` und sind einzeln
-gefahren worden.
-
-Offen ist **§3.2**: Tabulator, Umbruch und ein gewöhnliches Leerzeichen sehen in
-der Zelle gleich aus. Nach dem Wortlaut von Kriterium 2 ist das erfüllt; für den,
-der die Zelle liest, sind drei verschiedene gespeicherte Werte trotzdem nicht zu
-unterscheiden. Der Vorschlag ist `white-space: pre-wrap` an `.rows .cell` — er
-kollidiert nicht mit §20.13, macht aber Zeilen mit Umbrüchen höher, **und das ist
-eine Entscheidung des Betreibers und keine des Bauenden.**
+**Der Lauf ist durch, und alle vier Befunde am Panel sind behoben** — §3.2, §3.3,
+§3.4 und §3.10, jeder mit einem Wächter, der ohne den Fix zubeisst. Die zwölf
+Eingriffe dazu stehen in `tests/waechter-brechen.sh` und sind einzeln gefahren
+worden.
 
 Behoben wurde erst **nach** dem Lauf und nicht während — Weg 3, entschieden vom
 Betreiber: Ein Update mitten im Lauf machte die späteren Punkte gegen eine andere
 Fassung messbar als die frühen, und genau das hat schon in `docs/47` Verwirrung
 gekostet.
+
+**`BreakScriptTest` hat dabei zweimal zugebissen**, und beide Male auf einen
+Eingriff, dem die Änderung den Text unter den Füssen weggezogen hatte: einmal die
+Umbenennung von `formatRows` zu `counted`, einmal die zwei neuen Zeilen in
+`.rows .cell`. Beide Male stand die Meldung da, bevor irgendetwas eingecheckt
+war — für genau das ist er am 13. August an jeden Pull Request gehängt worden.
+
+**Was bleibt, sind die zwei Punkte aus `docs/42 §5`** — der `template1`-Beleg und
+die Frage, ob ein Zugang ohne jede Datenbank entstehen kann. Sie standen nie in
+`docs/46 §15`, und sie sind hier nicht heimlich miterledigt worden.
+
+**Und der Bestand aus Punkt 0 steht noch**, auf `p1130_p5c` und
+`x1b311d2b6eedc3aa_p5c`: Zurückgebaut wurde für Punkt 9 das zweite Abonnement
+desselben Kunden. Wer die vier Fixes am lebenden Objekt nachsieht, braucht genau
+diese Tabellen — `probe` für §3.2, `lang` für §3.3, `gross` mit seinen 60
+Millionen Zeilen für die Zeitüberschreitung hinter §3.4 und §3.10 — und muss sie
+nicht erst wieder einfüllen.
 
 **Der Bestand aus Punkt 0 steht dafür noch**, auf `p1130_p5c` und
 `x1b311d2b6eedc3aa_p5c`: Zurückgebaut wurde für Punkt 9 das zweite Abonnement

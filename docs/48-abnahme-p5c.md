@@ -831,3 +831,57 @@ sie nicht erst wieder einfüllen. `gross` allein trägt 60 Millionen Zeilen.
 der `template1`-Beleg und die Frage, ob ein Zugang ohne jede Datenbank entstehen
 kann. Sie standen nie in `docs/46 §15`, und sie sind hier nicht heimlich
 miterledigt worden.
+
+## 6. Die Systemmarke in der Konsole
+
+**Ein Wunsch des Betreibers nach der Abnahme, und ein Fund daneben.** Die Konsole
+zeigte in ihrer Beizeile den Datenbanknamen und sonst nichts. Beide Systeme
+haben dieselbe Fläche, dieselben Griffe und dieselben Meldungen — welches man
+gerade bedient, verrät nur der Name, und den liest richtig, wer die
+Präfixregeln kennt (`p1130_p5c` gegen `x1b3…_p5c`).
+
+**`engine_label` stand seit dem ersten Tag im Payload und wurde nie angezeigt.**
+Liste und Detailseite zeigten es längst, jede als neutrale Marke; die Konsole war
+die dritte Fläche und die einzige ohne.
+
+> **Eine Angabe, die eine Seite bekommt und nicht zeigt, ist entweder überflüssig
+> oder vergessen — und man sieht ihr nicht an, welches von beidem.**
+
+Die Marke ist deshalb **dieselbe Form** wie an den anderen beiden Stellen und
+keine neue: `<Badge kind="neutral">`. `PanelLayout` hat dafür einen Slot für die
+Beizeile bekommen; das Prop bleibt, weil sechzehn Seiten dort Text geben.
+
+### Und der Fund: die Beizeile bricht nicht
+
+**Gemessen bei 390 px, weil es niemand angenommen hat.** Der Name auf
+`cloudsrv24` ist 21 Zeichen lang und passt; ein Datenbankname darf **64** haben.
+
+| | Überlauf am Dokument |
+|---|---|
+| `x1b311d2b6eedc3aa_p5c` + Marke | **0 px** |
+| 61-Zeichen-Name **ohne** Marke | **59 px** |
+| 61-Zeichen-Name **mit** Marke | **59 px** |
+| Gegenprobe (900 px breiter Block) | 510 px |
+
+**Die Marke ist nicht die Ursache** — dieselben 59 px mit und ohne sie. Sie
+bricht in die nächste Zeile um und schiebt nichts. Der Fehler lag in `.subline`,
+seit es sie gibt, und trifft jede Seite mit einer langen Kennung in der
+Beizeile.
+
+> **Ein Fehler, den nur ein langer Name auslöst, wartet auf den ersten Kunden,
+> der einen hat.**
+
+Behoben mit `overflow-wrap: anywhere` — der **fünften** Fassung derselben
+Ausnahme nach `.ident`, `.stacks td .ident`, `.section-head h2` und
+`.cell-value`. `min-width: 0` gehört nicht dazu, und das ist gemessen und nicht
+geraten: Die Beizeile liegt in `.title-block` und ist kein Flexkind.
+
+**Und die Gegenprobe hat sich zuerst selbst betrogen.** Der 900-px-Block
+lieferte 0 — er stand als Flexkind im Seitenkopf, wo `width` zur Basis wird und
+schrumpft. Mit `min-width` und `flex: none` sind es 510. Ohne diesen Zwischenfall
+hätte die 0 der echten Messung nichts bedeutet.
+
+> **Eine Messung, die nie etwas anderes als Null liefern kann, ist keine.**
+
+Wächter: `EngineLabelTest` (wer die Angabe bekommt, zeigt sie — und alle in
+derselben Form) und `MobileLayoutTest::test_the_subline_can_break`.

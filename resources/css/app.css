@@ -484,10 +484,32 @@ input[type='radio'] {
   color: var(--text-muted);
 }
 
+/*
+ * Die Beizeile unter dem Seitentitel.
+ *
+ * **Sie trägt Kennungen, und Kennungen brechen nicht von selbst.** Gemessen am
+ * 14. August 2026 bei 390 px: Ein Datenbankname von 61 Zeichen schob das
+ * Dokument um **59 px** aus dem Bild. Der Name darf 64 Zeichen lang sein
+ * (`Db\Names`), und die Beizeile der Konsole zeigt ihn seit P5c.
+ *
+ * **Gefunden beim Einbauen der Systemmarke, und nicht von ihr verursacht.**
+ * Mit und ohne Marke sind es dieselben 59 px — die Marke bricht in die nächste
+ * Zeile um und schiebt nichts. Ohne den Anlass hätte es niemand gemessen: Auf
+ * `cloudsrv24` heisst die Datenbank `x1b311d2b6eedc3aa_p5c` und passt.
+ *
+ * > **Ein Fehler, den nur ein langer Name auslöst, wartet auf den ersten
+ * > Kunden, der einen hat.**
+ *
+ * Das ist die **fünfte** Fassung derselben Ausnahme nach `.ident`,
+ * `.stacks td .ident`, `.section-head h2` und `.cell-value`. `min-width: 0`
+ * steht nicht dabei und wird nicht gebraucht: Der Absatz ist kein Flexkind,
+ * sondern liegt in `.title-block` — gemessen, nicht angenommen.
+ */
 .subline {
   margin: 4px 0 0;
   font-size: var(--text-small);
   color: var(--text-muted);
+  overflow-wrap: anywhere;
 }
 
 .sections {

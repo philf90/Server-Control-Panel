@@ -12188,3 +12188,40 @@ können. Zum dritten Mal in diesem Lauf dieselbe Lücke.
 
 Der Fix sitzt in `report()` und kennt die Engine nicht; ein anderes Verhalten
 wäre technisch nicht möglich gewesen. Das ist trotzdem keine Messung.
+
+### Die Konsole nennt jetzt ihr Datenbanksystem
+
+Ein Wunsch des Betreibers nach der Abnahme. Beide Systeme haben dieselbe Fläche,
+dieselben Griffe und dieselben Meldungen — welches man gerade bedient, verriet nur
+der Datenbankname, und den liest richtig, wer die Präfixregeln kennt.
+
+**`engine_label` stand seit dem ersten Tag im Payload und wurde nie angezeigt.**
+Liste und Detailseite zeigten es längst, jede als neutrale Marke; die Konsole war
+die dritte Fläche und die einzige ohne.
+
+> **Eine Angabe, die eine Seite bekommt und nicht zeigt, ist entweder überflüssig
+> oder vergessen — und man sieht ihr nicht an, welches von beidem.**
+
+Die Marke ist deshalb dieselbe Form wie an den anderen beiden Stellen und keine
+neue. `PanelLayout` hat einen Slot für die Beizeile bekommen; das Prop bleibt,
+weil sechzehn Seiten dort Text geben.
+
+**Und die Messung dazu hat einen Fehler gefunden, den die Marke nicht verursacht
+hat.** Bei 390 px schob ein Datenbankname von 61 Zeichen das Dokument um 59 px aus
+dem Bild — mit und ohne Marke dieselben 59 px. Der Name darf 64 Zeichen lang sein;
+auf `cloudsrv24` heisst die Datenbank `x1b311d2b6eedc3aa_p5c` und passt.
+
+> **Ein Fehler, den nur ein langer Name auslöst, wartet auf den ersten Kunden, der
+> einen hat.**
+
+`.subline` bricht jetzt um — die fünfte Fassung derselben Ausnahme nach `.ident`,
+`.stacks td .ident`, `.section-head h2` und `.cell-value`. Ein `min-width: 0`
+gehört nicht dazu, und das ist gemessen: Die Beizeile ist kein Flexkind.
+
+**Die Gegenprobe hat sich dabei zuerst selbst betrogen.** Der 900-px-Block lieferte
+0, weil er als Flexkind im Seitenkopf schrumpfte; mit `min-width` und `flex: none`
+sind es 510. Ohne diesen Zwischenfall hätte die 0 der echten Messung nichts
+bedeutet.
+
+Wächter: `EngineLabelTest` und `MobileLayoutTest::test_the_subline_can_break`,
+mit drei Eingriffen im Bruchskript.

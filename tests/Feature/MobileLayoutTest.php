@@ -582,6 +582,49 @@ final class MobileLayoutTest extends TestCase
      * > **Zwei Regeln, die zusammen wirken, können auch zwei Wege zum selben
      * > Ziel sein — und welcher davon trägt, sagt nur die Messung.**
      */
+    /**
+     * Und die Beizeile unter dem Titel bricht auch.
+     *
+     * **Gemessen am 14. August 2026 beim Einbau der Systemmarke.** Bei 390 px
+     * schob ein Datenbankname von 61 Zeichen das Dokument um **59 px** aus dem
+     * Bild — der Name darf 64 lang sein (`Db\Names`), und die Konsole zeigt ihn
+     * dort seit P5c.
+     *
+     * **Die Marke war nicht die Ursache.** Mit und ohne sie waren es dieselben
+     * 59 px; sie bricht in die nächste Zeile um und schiebt nichts. Der Fehler
+     * lag in `.subline` und wartete auf den ersten Kunden mit einem langen
+     * Namen.
+     *
+     * > **Ein Fehler, den nur ein langer Name auslöst, wartet auf den ersten
+     * > Kunden, der einen hat.**
+     *
+     * Die fünfte Fassung derselben Ausnahme nach `.ident`, `.stacks td .ident`,
+     * `.section-head h2` und `.cell-value`.
+     */
+    public function test_the_subline_can_break(): void
+    {
+        [$selector, $wrap, $seen] = $this->winner('overflow-wrap', $this->selectsSubline(...));
+
+        $this->assertGreaterThanOrEqual(
+            1,
+            $seen,
+            'Es wird keine Umbruchregel gefunden, die die Beizeile erreicht — dann rechnet dieser '.
+            'Test an nichts mehr nach.',
+        );
+
+        $this->assertSame(
+            'anywhere',
+            $wrap,
+            sprintf(
+                'An der Beizeile gewinnt „%s" mit `overflow-wrap: %s`. Sie trägt Kennungen — den Namen '.
+                'einer Datenbank, eines Abonnements —, und eine Kennung hat keine Leerzeichen, an denen '.
+                'sie von selbst bräche.',
+                (string) $selector,
+                (string) $wrap,
+            ),
+        );
+    }
+
     public function test_a_field_label_can_break(): void
     {
         [$selector, $wrap, $seen] = $this->winner('overflow-wrap', $this->selectsFieldLabel(...));
@@ -985,6 +1028,23 @@ final class MobileLayoutTest extends TestCase
             ['h2'],
             ['div', '.section', '.sections', '.section-head', '.full', '.wide'],
             ['.page-head', '.tile', '.notice', '.empty'],
+        );
+    }
+
+    /**
+     * Trifft er die Beizeile unter dem Seitentitel?
+     *
+     * Sie ist ein `<p class="subline">` in `.title-block` und damit kein
+     * Flexkind — anders als die Bereichsüberschrift braucht sie kein
+     * `min-width: 0`, und dieser Test verlangt es deshalb auch nicht.
+     */
+    private function selectsSubline(string $selector): bool
+    {
+        return $this->reaches(
+            $selector,
+            ['.subline'],
+            ['div', '.title-block', '.page-head', 'main', '.content', 'p'],
+            ['.tile', '.notice', '.empty', '.sheet'],
         );
     }
 

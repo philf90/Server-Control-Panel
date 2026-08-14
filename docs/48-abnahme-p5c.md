@@ -81,6 +81,47 @@ Dass **beide Systeme dieselbe Reihenfolge** liefern, ist die Aussage dieses
 Punktes: PostgreSQL sortiert über Ausgabespalten mit Alias, MariaDB über ein
 `JSON_OBJECT` ganz ohne Alias je Spalte.
 
+### Punkt 2b — der Baum mit der Tastatur · **erfüllt**
+
+Fünf Anschläge, PostgreSQL, und nach jedem der fokussierte Knoten **und**
+`aria-expanded`:
+
+| Taste | Fokus danach | `aria-expanded` | was der Schritt prüft |
+|---|---|---|---|
+| `End` | `umsaetze_je_ort` | `false` | letzter **sichtbarer** Knoten |
+| `ArrowRight` | `umsaetze_je_ort` | **`true`** | klappt auf, Fokus **bleibt** |
+| `ArrowRight` | `umsaetze_je_ort/columns` | `—` | jetzt erst geht er hinein |
+| `ArrowLeft` | `umsaetze_je_ort` | `true` | vom Blatt zum Zweig, bleibt offen |
+| `ArrowLeft` | `umsaetze_je_ort` | **`false`** | klappt zu, Fokus **bleibt** |
+
+Die beiden `ArrowRight`-Zeilen sind der Punkt: **dieselbe Taste bedeutet auf
+einem zugeklappten Zweig etwas anderes als auf einem offenen**, und diese
+Fallunterscheidung hatte bis hierher niemand gefahren. `TreeSemanticsTest` prüft
+nur, dass ein `@keydown` am Baum *hängt*; was es tut, prüft kein Test dieses
+Projekts. Das Bild bestätigt die letzte Zeile am Dreieck: `▸`.
+
+**Gemessen wurde mit einem Mitschreiber am Baum**, weil weder ein Bild noch ein
+Blick in die Konsole reicht: Zwei der fünf Schritte lassen den Fokus
+ausdrücklich stehen, `aria-expanded` steht in keinem Pixel, und das Nachsehen in
+den Entwicklerwerkzeugen nimmt den Fokus selbst weg. Der Mitschreiber hängt
+sich an `keydown` und liest `document.activeElement` erst im nächsten
+Makrotask — nach Vues Aktualisierung des DOM.
+
+**Der `End`-Schritt ist dabei stärker ausgefallen als geplant.** Der Klick, der
+den Fokus in den Baum setzt, klappt den angeklickten Zweig auch auf; beim `End`
+waren also drei Blätter sichtbar, und „letzter **sichtbarer** Knoten" war eine
+echte Frage statt „letzte Tabelle der Liste".
+
+**Und der Mitschrieb stand doppelt da** — jede Zeile zweimal, paarweise
+identisch. Das ist kein Befund über das Panel, sondern über das Messgerät:
+`window.__spur.length` wuchs bei einem einzelnen Tastendruck der Gegenprobe um
+**2**, der Schnipsel hing also zweimal am selben Baum. Zwei Tastendrücke wären
+es nicht gewesen — ein zweites `ArrowRight` hätte den Fokus weiterbewegt und
+eine *andere* Zeile erzeugt.
+
+> **Ein Messgerät, das man zweimal einhängt, misst zweimal — und die doppelte
+> Zahl sieht aus wie ein Befund.**
+
 ### Punkt 3 — keine fremde Tabelle · Kriterium 3 · **erfüllt**
 
 Drei Wände, jede einzeln:
@@ -505,7 +546,6 @@ Lauf seine Gegenprobe.
 ## 4. Was noch offen ist
 
 - **Punkt 9** — der Rückbau lässt nichts liegen
-- **Punkt 2b** — der Baum mit der Tastatur
 
 Und die vier offenen Befunde §3.2, §3.3, §3.4 und §3.10 werden nach `docs/46 §15`
 **gesammelt und am Ende behoben** — Weg 3, entschieden vom Betreiber: Ein Update

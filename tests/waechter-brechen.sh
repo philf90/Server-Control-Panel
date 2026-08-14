@@ -8523,6 +8523,80 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FrontendDependencyTest passed
 
 echo
+echo "── ArchiveEntryTest: array_pop statt verwerfen ──"
+#
+# Der naheliegende Weg und der falsche: array_pop macht aus `a/../../b` ein `b`
+# — also einen Eintrag, den das Archiv so nie benannt hat.
+vorher_datei agent/src/Files/Archive.php
+python3 - <<'PY2'
+p = 'agent/src/Files/Archive.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if ($part === '..') {"""
+i = s.index(alt)
+j = s.index('return null;', i) + len('return null;')
+s = s[:i] + """            if ($part === '..') {
+                array_pop($parts);
+
+                continue;""" + s[j:]
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Zip-Slip wird zurechtgebogen statt verworfen" \
+  ArchiveEntryTest::test_a_way_out_is_not_bent_into_a_way_in failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ArchiveEntryTest passed
+
+echo
+echo "── ArchiveEntryTest: der Backslash bleibt ein Namenszeichen ──"
+#
+# Ein Eintrag `..\..\x` aus einem Archiv, das auf einem anderen System
+# entstanden ist, waere sonst ein gueltiger Dateiname mit Punkten.
+vorher_datei agent/src/Files/Archive.php
+python3 - <<'PY2'
+p = 'agent/src/Files/Archive.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $name = str_replace('\\\\', '/', $name);\n", '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Backslash nicht als Trenner behandelt" \
+  ArchiveEntryTest::test_entries_that_lead_out_are_dropped failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ArchiveEntryTest passed
+
+echo
+echo "── ArchiveEntryTest: die Suche nimmt ein Muster entgegen ──"
+#
+# Ein `(a+)+b` gegen eine lange Zeile bringt den Vorgang zum Stillstand, und es
+# gibt kein Zeitlimit, das den Prozess rechtzeitig einholt.
+vorher_datei agent/src/Ops/FilesSearch.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesSearch.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('if (! str_contains($content, $needle)) {', 'if (preg_match("/".$needle."/", $content) !== 1) {')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Suche mit regulaerem Ausdruck des Kunden" \
+  ArchiveEntryTest::test_the_search_matches_literally failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ArchiveEntryTest passed
+
+echo
+echo "── ArchiveEntryTest: ein abgebrochener Suchlauf schweigt ──"
+#
+# Eine leere Ergebnisliste, die einen Abbruch verschweigt, behauptet etwas, das
+# sie nicht weiss.
+vorher_datei agent/src/Ops/FilesSearch.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesSearch.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'truncated' => $abgebrochen,", '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+pruefe "Abbruch des Suchlaufs verschwiegen" \
+  ArchiveEntryTest::test_a_truncated_search_says_so failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ArchiveEntryTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

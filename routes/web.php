@@ -459,6 +459,18 @@ Route::middleware('auth')->group(function (): void {
         ->middleware('can:editFiles,subscription')
         ->name('files.copy');
 
+    Route::get('/subscriptions/{subscription}/files/search', [FileController::class, 'search'])
+        ->middleware('can:browseFiles,subscription')
+        ->name('files.search');
+
+    Route::post('/subscriptions/{subscription}/files/extract', [FileController::class, 'extract'])
+        ->middleware('can:editFiles,subscription')
+        ->name('files.extract');
+
+    Route::post('/subscriptions/{subscription}/files/compress', [FileController::class, 'compress'])
+        ->middleware('can:editFiles,subscription')
+        ->name('files.compress');
+
     Route::post('/subscriptions/{subscription}/files/upload', [FileController::class, 'upload'])
         ->middleware('can:editFiles,subscription')
         ->name('files.upload');

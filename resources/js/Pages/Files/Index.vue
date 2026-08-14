@@ -164,6 +164,33 @@ function startChmod(entry: Entry): void {
   modeForm.post(`/subscriptions/${props.subscription.id}/files/chmod`, { preserveScroll: true })
 }
 
+/*
+ * Entpacken bietet sich nur an, wo es etwas zu entpacken gibt.
+ *
+ * Am Inhalt zu erkennen wäre genauer als an der Endung — das tut der Agent
+ * auch. Für die Frage, ob ein Knopf erscheint, reicht die Endung: Ein Archiv
+ * ohne passenden Namen wird über den Griff nicht angeboten und lässt sich
+ * trotzdem entpacken, sobald es richtig heisst.
+ */
+function isArchive(entry: Entry): boolean {
+  return entry.type === 'file' && /\.(zip|tar|tar\.gz|tgz)$/i.test(entry.name)
+}
+
+function extract(entry: Entry): void {
+  router.post(`/subscriptions/${props.subscription.id}/files/extract`, {
+    path: entry.path,
+    target: props.path,
+  })
+}
+
+function search(): void {
+  const wanted = window.prompt('Wonach soll unterhalb dieses Verzeichnisses gesucht werden?')
+
+  if (wanted === null || wanted === '') return
+
+  router.get(`/subscriptions/${props.subscription.id}/files/search`, { query: wanted, path: props.path })
+}
+
 function remove(entry: Entry): void {
   const question = entry.type === 'directory'
     ? `„${entry.name}" mitsamt Inhalt entfernen?`
@@ -196,6 +223,7 @@ function remove(entry: Entry): void {
           Datei hochladen
         </button>
       </div>
+      <button type="button" class="button" @click="search">Suchen</button>
     </template>
 
     <!--
@@ -312,6 +340,14 @@ function remove(entry: Entry): void {
                   @click="startChmod(entry)"
                 >
                   Rechte
+                </button>
+                <button
+                  v-if="isArchive(entry)"
+                  type="button"
+                  class="button quiet"
+                  @click="extract(entry)"
+                >
+                  Entpacken
                 </button>
                 <button type="button" class="button quiet" @click="remove(entry)">Entfernen</button>
               </div>

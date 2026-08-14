@@ -147,6 +147,45 @@ final class Files
     }
 
     /**
+     * Ein Archiv entpacken.
+     *
+     * **Das Archiv liegt schon im Abonnement** und wird nicht mitgeschickt —
+     * deshalb steht in `operations.payload` ein Pfad und kein Inhalt, und
+     * deshalb darf dieser Vorgang über die Warteschlange laufen, obwohl die
+     * acht anderen es nicht dürfen.
+     *
+     * @return array<string, mixed>
+     */
+    public function extract(Subscription $subscription, string $path, string $target): array
+    {
+        return $this->call($subscription, 'files.extract', ['path' => $path, 'target' => $target]);
+    }
+
+    /**
+     * Einen Baum zu einem Zip packen.
+     *
+     * @return array<string, mixed>
+     */
+    public function compress(Subscription $subscription, string $path, string $target): array
+    {
+        return $this->call($subscription, 'files.compress', ['path' => $path, 'target' => $target]);
+    }
+
+    /**
+     * Nach Namen und wahlweise nach Inhalt suchen.
+     *
+     * @return array<string, mixed>
+     */
+    public function search(Subscription $subscription, string $path, string $query, bool $content): array
+    {
+        return $this->call($subscription, 'files.search', [
+            'path' => $path,
+            'query' => $query,
+            'content' => $content,
+        ]);
+    }
+
+    /**
      * Der eine Aufruf, durch den alle gehen.
      *
      * `subscription` und `user` stehen hier und nicht in den acht Methoden

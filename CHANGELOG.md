@@ -12715,3 +12715,63 @@ Die Schritte 7 bis 9 stapeln sich alle darauf.
 Dazu kommt der Rückbau: `purgeContents()` läuft auf `cloudsrv24` gegen echte
 Abonnements, und das ist der eine Weg in P6, bei dem ein Fehler Daten kostet
 statt eine Fehlermeldung zu erzeugen.
+
+### P6 Schritt 7 — Entpacken, Packen, Suche
+
+Drei Operationen, und keine davon bringt ein neues Programm mit. `unzip`, `zip`
+und `tar` stehen **nicht** auf der Positivliste: Jedes von ihnen bekäme einen
+Pfad des Kunden als Argument, und die Positivliste ist die Stelle, an der dieses
+Projekt entscheidet, welcher Code als root läuft. `ZipArchive` und `PharData`
+laufen im Kind der Sandbox — ohne Rechte und im Chroot.
+
+**Zip-Slip verlässt das Abonnement nicht, und das hält nicht diese Klasse.** Das
+hält das Chroot. Was `Archive::normalise()` verhindert, ist die Verlegung
+*innerhalb*: Ein Archiv, das nach `httpdocs/` entpackt wird, hat in `.ssh/`
+nichts zu suchen — nicht, weil der Kunde dort nicht schreiben dürfte, sondern
+weil er es an dieser Stelle nicht gemeint hat.
+
+Gemessen mit einem Archiv, das es ernst meint: `../../../../../../tmp/…`,
+`../.ssh/authorized_keys`, `/etc/cron.d/boese` und `..\..\windows.txt`. Alle
+vier werden übersprungen **und mit Namen gemeldet**; die zwei harmlosen Einträge
+werden entpackt.
+
+**Die Gegenprobe war zuerst wertlos.** Sie lief über `unzip` — und das weigert
+sich selbst gegen Zip-Slip, also hat sie nichts gezeigt. Der ehrliche Vergleich
+ist die Fassung, die jemand hinschreibt, der an Zip-Slip nicht gedacht hat:
+Eintrag lesen, Ziel zusammensetzen, schreiben. Die legt `/tmp/AUSGEBROCHEN.txt`
+an.
+
+> **Eine Gegenprobe, die ein fremdes Werkzeug benutzt, misst dessen Sorgfalt
+> und nicht die eigene.**
+
+**`a/../../b` wird verworfen und nicht zu `b`.** Ein `array_pop` auf die
+Bestandteile wäre der naheliegende Weg und der falsche: Er machte aus einem
+Eintrag, der hinaus will, einen gültigen — und entpackte etwas, das das Archiv
+so nie benannt hat.
+
+**Ein Eintrag, der an einem Verweis hängenbleibt, verschwand zuerst spurlos.**
+Der Symlink-Umweg (`httpdocs/bilder` → `../.ssh`) wurde korrekt geblockt, und
+der Lauf meldete „0 geschrieben, 0 übersprungen" — der Kunde hätte ein leeres
+Verzeichnis gehabt und keine Auskunft. Solche Einträge stehen jetzt als
+`redirected` in der Antwort.
+
+> **Was ein Vorgang nicht getan hat, muss er sagen** — sonst ist sein Ergebnis
+> kein Befund, sondern ein Rätsel.
+
+**Die Suche vergleicht wörtlich.** Ein regulärer Ausdruck vom Kunden wäre ein
+Weg, den Vorgang zum Stillstand zu bringen (`(a+)+b` gegen eine lange Zeile),
+und es gibt kein Zeitlimit, das den Prozess rechtzeitig einholt. `str_contains`
+kann das nicht. Ein abgebrochener Suchlauf meldet den Abbruch — eine leere
+Ergebnisliste, die ihn verschwiegе, behauptete etwas, das sie nicht weiss.
+
+**Gepackt wird als Zip und nicht als Tar**, weil `phar.readonly` auf `1` steht —
+der Voreinstellung jeder Distribution. Das umzustellen hiesse, dem Agenten das
+Schreiben von Phar-Archiven überhaupt zu erlauben, und das ist eine weitere
+Vollmacht für einen kleineren Gewinn als ein Dateiformat. Verweise werden beim
+Packen ausgelassen und gemeldet: Ein Symlink auf das eigene `.ssh` legte sonst
+den privaten Schlüssel in ein Archiv, das der Kunde vielleicht weitergibt.
+
+Wächter: `ArchiveEntryTest` mit sieben Regeln, vier Eingriffe im Bruchskript.
+**Einer der vier Brüche blieb zuerst grün** — an der Schachtelung von
+Anführungszeichen in meinem Skript, nicht am Wächter; direkt ausgeführt beisst
+er. Dasselbe Muster wie schon dreimal in dieser Stufe.

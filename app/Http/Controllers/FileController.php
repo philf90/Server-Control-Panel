@@ -258,6 +258,96 @@ final class FileController extends Controller
     }
 
     /**
+     * Ein Archiv entpacken.
+     *
+     * **Übersprungene und verlegte Einträge gehen als Meldung zurück.** Ein
+     * Archiv, von dem die Hälfte fehlt, ohne dass es jemand sagt, ist
+     * schlimmer als eines, das gar nicht entpackt.
+     */
+    public function extract(Request $request, Subscription $subscription): RedirectResponse
+    {
+        $data = $request->validate([
+            'path' => ['required', 'string', 'max:4096'],
+            'target' => ['required', 'string', 'max:4096'],
+        ]);
+
+        $result = $this->attempt(fn (): array => $this->files->extract($subscription, $data['path'], $data['target']));
+
+        $this->audit->record('file.extracted', subscriptionId: (int) $subscription->id, context: [
+            'path' => $data['path'],
+            'written' => $result['written'] ?? 0,
+            'skipped' => count($result['skipped'] ?? []),
+        ]);
+
+        $uebergangen = count($result['skipped'] ?? []) + count($result['redirected'] ?? []);
+
+        return to_route('files.index', ['subscription' => $subscription->id, 'path' => $data['target']])
+            ->with('success', $uebergangen === 0
+                ? sprintf('Das Archiv ist entpackt — %d Einträge.', $result['written'] ?? 0)
+                : sprintf(
+                    'Das Archiv ist entpackt — %d Einträge, %d übergangen, weil sie aus dem Zielverzeichnis herausführen.',
+                    $result['written'] ?? 0,
+                    $uebergangen,
+                ));
+    }
+
+    public function compress(Request $request, Subscription $subscription): RedirectResponse
+    {
+        $data = $request->validate([
+            'path' => ['required', 'string', 'max:4096'],
+            'target' => ['required', 'string', 'max:4096'],
+        ]);
+
+        $result = $this->attempt(fn (): array => $this->files->compress($subscription, $data['path'], $data['target']));
+
+        $this->audit->record('file.compressed', subscriptionId: (int) $subscription->id, context: [
+            'path' => $data['path'],
+            'target' => $data['target'],
+        ]);
+
+        return to_route('files.index', ['subscription' => $subscription->id, 'path' => dirname($data['target'])])
+            ->with('success', sprintf('Das Archiv ist gepackt — %d Einträge.', $result['entries'] ?? 0));
+    }
+
+    /**
+     * Suchen.
+     *
+     * Sie führt auf dieselbe Liste wie das Blättern und nicht auf eine eigene
+     * Seite: Ein Treffer ist eine Datei, und was man damit tun will, steht
+     * dort. Eine zweite Fläche mit halben Griffen wäre eine zweite Fassung
+     * derselben Liste.
+     */
+    public function search(Request $request, Subscription $subscription): Response
+    {
+        $data = $request->validate([
+            'query' => ['required', 'string', 'max:255'],
+            'path' => ['nullable', 'string', 'max:4096'],
+            'content' => ['boolean'],
+        ]);
+
+        $result = $this->attempt(fn (): array => $this->files->search(
+            $subscription,
+            $data['path'] ?? '/',
+            $data['query'],
+            (bool) ($data['content'] ?? false),
+        ));
+
+        return Inertia::render('Files/Search', [
+            'subscription' => ['id' => $subscription->id, 'name' => $subscription->name],
+            'path' => $data['path'] ?? '/',
+            'query' => $data['query'],
+            'inContent' => (bool) ($data['content'] ?? false),
+            'hits' => $result['hits'] ?? [],
+            'visited' => $result['visited'] ?? 0,
+
+            // Ohne diese Angabe behauptet eine leere Liste, es gebe nichts —
+            // wo „nicht zu Ende gesucht" richtig wäre.
+            'truncated' => $result['truncated'] ?? false,
+            'can' => ['edit' => $request->user()?->can('editFiles', $subscription) ?? false],
+        ]);
+    }
+
+    /**
      * Ein Pfad aus der Anfrage — als Zeichenkette, nicht als Prüfung.
      *
      * Die Länge ist begrenzt, damit nicht ein Megabyte Pfad durch die

@@ -204,6 +204,74 @@ gelöscht, dann gespeichert:
 **Der Gegenfall aus dem Plan ist nicht fahrbar**, und das ist ein Befund über
 den Lauf — §3.9.
 
+### Punkt 8 — das Protokoll · Kriterium 7 · **erfüllt**
+
+`audit_events` liegt in der Datenbank des Panels und nicht in der des Kunden;
+dieser Punkt läuft **einmal** und nicht je System.
+
+**(a) Was drinsteht — und was nicht.**
+
+| Aktion | Anzahl |
+|---|---|
+| `database.console.opened` | 7 |
+| `database.console.row.changed` | 4 |
+| eine lesende Handlung | **es gibt keine** |
+
+Vier ändernde Handlungen für vier Änderungen (Punkt 7 (A) auf beiden Systemen,
+dazu die beiden Vorläufe). Blättern, Sortieren, Filtern und das Ansehen einer
+Zelle — die ganze Punkt-2-Fläche — hinterlassen **keine Zeile**. Das ist die
+Entscheidung 5 aus `docs/46 §3` im Betrieb: protokolliert wird, wer *geändert*
+hat, und einmal je Stunde, wer *gesehen* hat.
+
+**(b) Und mit welcher Genauigkeit.** Der Kontext einer Änderung:
+
+```
+context    {"table":"blaettern","key":{"id":"51"}}
+target_id  29 (MariaDB) · 30 (PostgreSQL)
+```
+
+Datenbank, Tabelle und Schlüssel — die drei Angaben, die der Punkt verlangt.
+
+**(c) Die Gegenprobe, und sie ist der eigentliche Punkt.** Gesucht wird nach dem
+**Wert**, den der Kunde eingetragen hat:
+
+```
+SELECT count(*) FROM audit_events WHERE context LIKE '%geaendert%'   →  0
+```
+
+Der neue Wert steht nirgends im Protokoll. Ein Protokoll, das Werte mitschreibt,
+wäre eine zweite Kopie der Kundendaten an einer Stelle, die niemand als solche
+liest — und sie überlebt das Löschen der Zeile.
+
+**(d) Die Entprellung.** Sie ist die Hälfte, die still bricht: Ohne sie stünde
+bei jedem Betreten der Konsole eine Zeile im Protokoll, und die Konsole wird
+beim Arbeiten dutzendfach betreten.
+
+```
+letzter Eintrag zu Ziel 29   2026-08-14 06:42:08   (UTC)
+Beginn                       2026-08-14 07:26:53   (UTC_TIMESTAMP())
+        → 20× die Konsole von p1130_p5c öffnen und verlassen
+agent.log, "op":"db.console.tables"    153 → 193   (Differenz 40)
+audit_events, created_at > Beginn                    0
+```
+
+Erwartet war **höchstens 1**; gemessen ist **0**, weil der vorige Eintrag noch
+44 Minuten 45 Sekunden alt war und damit innerhalb des Fensters von einer Stunde
+lag (`DatabaseController::CONSOLE_AUDIT_SECONDS = 3600`). Zwanzig Öffnungen,
+kein einziger neuer Eintrag.
+
+**Die 40 daneben sind der Grund, dass die 0 überhaupt etwas heisst.** Der Agent
+schreibt je Anfrage **zwei** Zeilen mit demselben Operationsnamen — `request`
+beim Annehmen, `result` beim Beantworten (`agent/src/Connection.php:53` und
+`:68`). 20 Öffnungen → 20 Anfragen → 40 Zeilen, und
+`resources/js/Pages/Databases/Console.vue:1000` hat mit `onMounted(loadTables)`
+genau einen Aufrufer. Die Rechnung geht ohne Rest auf: Die zwanzig Aufrufe sind
+belegt, und *trotzdem* steht auf der Protokollseite eine Null.
+
+Ohne diese zweite Zahl wäre die 0 wertlos gewesen — eine Entprellung, die nie
+gefragt wurde, liefert dieselbe Null wie eine, die zwanzigmal abgewiesen hat.
+Wie es dreimal danebenging, steht in §3.11.
+
 ## 3. Die Befunde
 
 ### 3.1 Zwei Abonnements sind nicht zwei Mandanten — **Aufbau**
@@ -332,13 +400,41 @@ nur `failure` und rührt die grüne Meldung nicht an.
 Dieselbe Familie wie §3.4: Zustand einer vorigen, erfolgreichen Handlung
 überlebt eine gescheiterte.
 
+### 3.11 Punkt 8 (d) hat dreimal nicht gemessen — **Lauf**
+
+Dieselbe Sorte Fehlschlag wie §3.5, und wieder an einer Null:
+
+| Anlauf | was gefahren wurde | warum es nichts gemessen hat |
+|---|---|---|
+| 1 | `created_at > '<die Zeit von eben>'` | der Platzhalter blieb wörtlich stehen — **MariaDB hat ihn stillschweigend umgewandelt** und `7` geliefert |
+| 2 | `BEGINN=$(… NOW() …)` | `NOW()` ist die Ortszeit des Servers (+2), `created_at` steht in UTC — die Grenze lag zwei Stunden in der Zukunft |
+| 3 | `UTC_TIMESTAMP()`, aber ohne Beleg der zwanzig Aufrufe | `0` — und nicht zu unterscheiden von „es ist gar nichts passiert" |
+
+Der erste ist der gefährlichste, weil er **keinen Fehler** wirft: Eine Grenze,
+die keine ist, liefert alle sieben Zeilen, und sieben sieht nach einer Messung
+aus.
+
+> **Ein Platzhalter, den die Datenbank stillschweigend annimmt, liefert eine
+> Zahl statt eines Fehlers.**
+
+Der zweite ist die Kehrseite von `docs/40`: Die Anzeigezeitzone geht über
+`Clock`, das Protokoll steht in UTC — und `mysql` auf demselben Server rechnet
+in Ortszeit. Zwei Uhren, ein Vergleich.
+
+> **Eine Zeitgrenze aus einer anderen Uhr als die Spalte ist kein Filter,
+> sondern ein Zufall.**
+
+Der dritte ist §3.5 zum zweiten Mal, an einer anderen Stelle desselben Laufs.
+Aufgelöst hat ihn ein Zähler auf einem **anderen** Kanal — die
+Operationszeilen des Agenten —, der sich nicht entprellen lässt.
+
 ## 4. Was noch offen ist
 
-- **Punkt 8 / 8b** — das Protokoll (Kriterium 7) und die unberührte Spalte
+- **Punkt 8b** — die unberührte Spalte (Kriterium 6, zweite Hälfte)
 - **Punkt 9** — der Rückbau lässt nichts liegen
 - **Punkt 2b** — der Baum mit der Tastatur
 
-Und die drei offenen Befunde §3.2, §3.3 und §3.4 werden nach `docs/46 §15`
+Und die vier offenen Befunde §3.2, §3.3, §3.4 und §3.10 werden nach `docs/46 §15`
 **gesammelt und am Ende behoben** — Weg 3, entschieden vom Betreiber: Ein Update
 mitten im Lauf machte die späteren Punkte gegen eine andere Fassung messbar als
 die frühen, und genau das hat schon in `docs/47` Verwirrung gekostet.

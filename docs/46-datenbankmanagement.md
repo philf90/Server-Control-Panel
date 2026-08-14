@@ -1854,6 +1854,30 @@ erscheint nur, wo die Policy ihn erlaubt — Entscheidung 3),
 #    NULL ist auch richtig: Liegt der vorige Eintrag noch in der Stunde, ent-
 #    steht gar keiner — das ist die Entprellung, nur noch deutlicher.
 #
+#    UND GENAU DESHALB BRAUCHT DIESE NULL EINEN ZWEITEN ZÄHLER NEBEN SICH.
+#    Eine Entprellung, die nie gefragt wurde, liefert dieselbe 0 wie eine, die
+#    zwanzigmal abgewiesen hat. Belegt werden die zwanzig Aufrufe auf einem
+#    Kanal, den die Entprellung nicht erreicht — den Operationszeilen des
+#    Agenten:
+#      VORHER=$(grep -c '"op":"db.console.tables"' /var/log/srvpanel/agent.log)
+#      → zwanzigmal die Konsole öffnen und verlassen
+#      NACHHER=$(grep -c '"op":"db.console.tables"' /var/log/srvpanel/agent.log)
+#    Die Differenz ist ZWEI JE ÖFFNUNG und nicht eine: Der Agent schreibt je
+#    Anfrage eine `request`- und eine `result`-Zeile mit demselben Namen
+#    (`Connection.php`). Gemessen am 14. August 2026: 153 → 193 bei zwanzig
+#    Öffnungen, daneben 0 neue Protokollzeilen.
+#
+#    > Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als
+#    > Null steht. (Zum zweiten Mal in diesem Lauf, siehe Punkt 3 (a).)
+#
+#    UND DER BEGINN KOMMT AUS `UTC_TIMESTAMP()` UND NICHT AUS `NOW()`.
+#    `created_at` steht in UTC (docs/40), `NOW()` liefert die Ortszeit des
+#    Servers — auf cloudsrv24 zwei Stunden weiter. Die Grenze läge damit in der
+#    Zukunft, und die Zählung wäre 0, ohne dass eine Entprellung daran beteiligt
+#    ist. Ebenso wenig taugt ein Platzhalter im SQL: MariaDB wandelt
+#    `created_at > '<die Zeit von eben>'` STILLSCHWEIGEND um und liefert alle
+#    Zeilen — eine Zahl statt eines Fehlers.
+#
 #    ZWEI NAMEN STANDEN HIER FALSCH, gefunden am 13. August 2026 gegen das
 #    Schema: Die Spalte heisst `context` und nicht `payload`, und die Handlungen
 #    heissen `database.console.*` und nicht `db.console.*`. Der erste Fehler

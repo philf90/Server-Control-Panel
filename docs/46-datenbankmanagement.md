@@ -1184,6 +1184,10 @@ seinem Anlass beschriftet. Was beim Fahren herauskam, steht in §20.48.
 
 Auf `cloudsrv24`, beide Systeme, jeder Punkt mit seinem Beleg.
 
+**Gefahren seit dem 13. August 2026 gegen `v0.5.3-rc.13`.** Das Protokoll ist
+[`docs/48`](48-abnahme-p5c.md) und entsteht **während** des Laufs: Was dort
+steht, ist gemessen; was fehlt, ist nicht gefahren.
+
 ---
 
 ## 14. Wächter und ihre Brüche

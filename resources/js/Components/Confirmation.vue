@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { nextTick, ref, watch } from 'vue'
 import { useConfirmation } from '../Composables/useConfirmation'
+import { bringIntoView } from '../scroll'
 
 /*
  * Die Rückfrage vor einer Handlung, die etwas kostet — auf der Seite.
@@ -21,6 +23,21 @@ import { useConfirmation } from '../Composables/useConfirmation'
  * gilt hier.
  */
 const { pending, accept, dismiss } = useConfirmation()
+
+const block = ref<HTMLElement | null>(null)
+
+/*
+ * **Die Frage holt sich ins Bild.** Gedrückt wird der Knopf an einer Zeile weit
+ * unten, gefragt wird oben — und mit `preserveScroll` springt die Seite nicht
+ * mit. Auf einem iPhone sah das aus, als täte der Knopf nichts (`docs/55`,
+ * Befund 19); genau der Eindruck, den Befund 15 und 16 schon zweimal erzeugt
+ * haben.
+ */
+watch(pending, (offen) => {
+  if (offen !== null) {
+    void nextTick(() => bringIntoView(block.value))
+  }
+})
 </script>
 
 <template>
@@ -29,7 +46,14 @@ const { pending, accept, dismiss } = useConfirmation()
     Antwort erwartet, und der Unterschied ist für jemanden, der die Seite hört,
     der ganze Sinn dieses Blocks.
   -->
-  <div v-if="pending !== null" class="confirmation" role="alertdialog" aria-labelledby="confirmation-question">
+  <div
+    v-if="pending !== null"
+    ref="block"
+    class="confirmation"
+    role="alertdialog"
+    tabindex="-1"
+    aria-labelledby="confirmation-question"
+  >
     <p id="confirmation-question">
       <b>{{ pending.lines[0] }}</b>
       <template v-for="(zeile, index) in pending.lines.slice(1)" :key="index">

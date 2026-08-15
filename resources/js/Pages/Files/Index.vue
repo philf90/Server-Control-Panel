@@ -21,6 +21,15 @@ interface Entry {
   target: string | null
   readable: boolean
   writable: boolean
+
+  /**
+   * Gehört dieser Eintrag zum Gerüst des Abonnements?
+   *
+   * Der Server entscheidet das über `Scheme::isFixed()` und nicht diese Seite:
+   * Eine Liste hier wäre die Fassung, die beim nächsten Zuwachs des Schemas
+   * veraltet.
+   */
+  fixed: boolean
 }
 
 const props = defineProps<{
@@ -842,7 +851,7 @@ function pick(target: string): void {
                 Dateisystem und ist die zweite Bedingung: `conf/` gehört root,
                 und daran ändert keine Berechtigung im Panel etwas.
               -->
-              <div v-if="props.can.edit && entry.writable" class="button-row">
+              <div v-if="props.can.edit && entry.writable && !entry.fixed" class="button-row">
                 <button type="button" class="button small" @click="startRename(entry)">Umbenennen</button>
                 <button
                   v-if="entry.type !== 'link'"
@@ -862,6 +871,15 @@ function pick(target: string): void {
                 </button>
                 <button type="button" class="button small" @click="remove(entry)">Entfernen</button>
               </div>
+              <!--
+                **Und wo nichts geht, steht warum.** Ein blosser Strich sagt
+                „hier ist nichts", und für die sechs Verzeichnisse des Schemas
+                wäre das die falsche Auskunft: Ihr **Inhalt** lässt sich sehr
+                wohl ändern, sie selbst nicht. Der Satz ist derselbe, den der
+                Agent bei einem Versuch antworten würde — nur kommt er jetzt
+                vorher.
+              -->
+              <span v-else-if="entry.fixed" class="quiet">gehört zum Aufbau</span>
               <span v-else class="quiet">—</span>
             </td>
           </tr>

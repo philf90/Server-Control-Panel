@@ -9521,6 +9521,78 @@ pruefe "die Gruppe kommt bei initgroups nicht an" \
 wiederherstellen
 
 echo
+echo "── SchemeHandleTest: die Antwort geht an der Markierung vorbei ──"
+#
+# Der Griff bleibt stehen, nur ruft ihn niemand mehr. Genau so ist der erste
+# Bruch gegen diesen Waechter durchgekommen -- der Ausdruck fand die Zeile
+# weiter, in totem Code.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'entries' => $this->marked($listing['entries'] ?? []),",
+              "'entries' => $listing['entries'] ?? [],", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/FileController.php "Markierung umgangen" &&
+pruefe "die Antwort geht an der Markierung vorbei" \
+  SchemeHandleTest::test_the_listing_marks_the_scheme_directories failed
+wiederherstellen
+
+echo
+echo "── SchemeHandleTest: die Liste zeigt die Griffe wieder ──"
+#
+# Umbenennen, Rechte und Entfernen weist Scheme fuer die sechs Verzeichnisse
+# immer ab. Ein Knopf, der nie funktioniert, ist keine Auskunft.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("entry.writable && !entry.fixed", "entry.writable", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Griffe am Geruest" &&
+pruefe "die Liste zeigt die Griffe wieder" \
+  SchemeHandleTest::test_the_page_hides_the_handles_for_them failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SchemeHandleTest passed
+
+echo
+echo "── InViewTest: die Rueckfrage holt sich nicht mehr ins Bild ──"
+#
+# Gedrueckt wird unten, gefragt wird oben, und mit preserveScroll springt die
+# Seite nicht mit. Auf dem Telefon sah das aus wie ein kaputter Knopf.
+vorher_datei resources/js/Components/Confirmation.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/Confirmation.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("void nextTick(() => bringIntoView(block.value))", "void nextTick()", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Components/Confirmation.vue "Sprung ins Bild" &&
+pruefe "die Rueckfrage holt sich nicht ins Bild" \
+  InViewTest::test_every_block_that_speaks_brings_itself_into_view failed
+wiederherstellen
+
+echo
+echo "── InViewTest: gescrollt wird ohne Bedingung ──"
+#
+# Die Gegenrichtung. Ohne die Pruefung reisst jede Meldung die Seite herum,
+# auch die, die laengst im Bild steht.
+vorher_datei resources/js/scroll.ts
+python3 - <<'PY2'
+p = 'resources/js/scroll.ts'
+s = open(p, encoding='utf-8').read()
+s = s.replace("    if (! fullyVisible(element)) {", "    if (true) {", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/scroll.ts "Sprung ohne Bedingung" &&
+pruefe "gescrollt wird ohne Bedingung" \
+  InViewTest::test_it_only_scrolls_when_something_is_out_of_view failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InViewTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

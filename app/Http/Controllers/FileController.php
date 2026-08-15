@@ -16,7 +16,9 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Files\Scheme;
 use SrvPanel\Agent\Ops\FilesList;
+use SrvPanel\Agent\Ops\SubscriptionProvision;
 
 /**
  * Der Dateimanager.
@@ -104,6 +106,50 @@ final class FileController extends Controller
     }
 
     /**
+     * Jeder Eintrag sagt, ob er zum Gerüst des Abonnements gehört.
+     *
+     * ## Warum das in die Liste gehört
+     *
+     * `Scheme::protect()` weist Umbenennen, Rechte und Entfernen für die sechs
+     * Verzeichnisse des Schemas **immer** ab — für jeden Kunden, in jedem
+     * Zustand. Die Liste zeigte die drei Griffe trotzdem: Sie entscheidet über
+     * `writable`, und `.ssh` gehört dem Kunden mit `0700`.
+     *
+     * Gemessen im Browser am 15. August 2026 (`docs/55`, Befund 18). Zwei Zeilen
+     * über dem `v-if` in der Vorlage steht der Satz, den das verletzt: Der Knopf
+     * erscheint nur, wenn der Betrachter ihn drücken darf, und die Antwort
+     * darauf kommt aus derselben Stelle, die ihn später abweist.
+     *
+     * > **Ein Knopf, der nie funktioniert, ist keine Auskunft — er ist eine
+     * > Zusage, die das System nicht einlöst.**
+     *
+     * Bei „Entfernen" ist die Absage noch lehrreich; bei „Rechte" nicht: Der
+     * Kunde öffnet den Editor, setzt neun Kästchen, drückt Speichern — und
+     * erfährt erst dann, dass es nie ging.
+     *
+     * ## Warum `Scheme` gefragt wird und keine Liste hier steht
+     *
+     * Agent-Klassen sind aus der Anwendung autoladbar. Eine zweite Aufzählung
+     * hier wäre die Fassung, die beim nächsten Zuwachs des Schemas veraltet —
+     * derselbe Grund, aus dem `Scheme` seine Liste aus
+     * {@see SubscriptionProvision} holt statt sie
+     * abzutippen.
+     *
+     * @param  list<array<string, mixed>>  $entries
+     * @return list<array<string, mixed>>
+     */
+    private function marked(array $entries): array
+    {
+        return array_map(
+            static fn (array $entry): array => [
+                ...$entry,
+                'fixed' => Scheme::isFixed((string) ($entry['path'] ?? '')),
+            ],
+            $entries,
+        );
+    }
+
+    /**
      * Der Baum und die Liste.
      */
     public function index(Request $request, Subscription $subscription): Response
@@ -118,7 +164,7 @@ final class FileController extends Controller
                 'name' => $subscription->name,
             ],
             'path' => $listing['path'] ?? $path,
-            'entries' => $listing['entries'] ?? [],
+            'entries' => $this->marked($listing['entries'] ?? []),
             'truncated' => $listing['truncated'] ?? false,
 
             /*

@@ -1495,6 +1495,90 @@ Fragen aufwirft.
 
 ---
 
+## Befund 18 — die Griffe standen an Verzeichnissen, die sie nie annehmen
+
+Gefunden im Bild, nicht in einer Zahl: `.ssh/` trug in der Liste **Umbenennen**,
+**Rechte** und **Entfernen**. `Scheme::protect()` weist alle drei für die sechs
+Verzeichnisse des Schemas **immer** ab — für jeden Kunden, in jedem Zustand.
+Dasselbe galt für `conf`, `httpdocs`, `logs`, `mail` und `tmp`.
+
+Die Liste entschied über `can.edit && entry.writable`, und `.ssh` gehört dem
+Kunden mit `0700`. **Die zweite Schranke gab es nur im Agenten**, und im Panel
+hatte sie kein Gegenstück — zwei Zeilen über genau diesem `v-if` steht der Satz,
+den das verletzt: „Der Knopf erscheint nur, wenn der Betrachter ihn drücken
+darf."
+
+> **Ein Knopf, der nie funktioniert, ist keine Auskunft — er ist eine Zusage,
+> die das System nicht einlöst.**
+
+Bei „Entfernen" ist die Absage noch lehrreich („Sein Inhalt lässt sich ändern").
+Bei **„Rechte"** ist sie es nicht: Der Kunde öffnet den Editor, setzt neun
+Kästchen, drückt Speichern — und erfährt erst dann, dass es nie ging.
+
+**Behoben:** Der Controller markiert jeden Eintrag über `Scheme::isFixed()`; die
+Liste lässt die drei Griffe weg und schreibt an ihre Stelle „gehört zum Aufbau"
+statt eines Strichs. Ein Strich sagt „hier ist nichts", und das wäre falsch —
+der **Inhalt** dieser Verzeichnisse lässt sich sehr wohl ändern.
+
+**Keine zweite Liste:** Agent-Klassen sind aus der Anwendung autoladbar, also
+fragt das Panel `Scheme` direkt. `SchemeHandleTest` prüft beide Richtungen und
+besteht ausserdem darauf, dass der Controller die Namen **nicht** abtippt.
+
+### Zwei Brüche sind dabei durchgekommen, und beide zeigen dieselbe Lücke
+
+Der erste nahm `marked()` aus der Antwort heraus und liess die Methode stehen —
+der Wächter fand seine Zeile weiter, **in totem Code**.
+
+> **Eine Zeile, die niemand ausführt, steht im Quelltext genauso da wie eine,
+> die läuft.**
+
+Der zweite tippte die Namen mit führendem Schrägstrich ab (`'/httpdocs'`), und
+der Ausdruck suchte nach `'httpdocs'`. Beide Male war der Wächter grün für einen
+Zustand, den er verbieten soll. Er prüft jetzt die **Aufrufstelle** und beide
+Schreibweisen.
+
+## Befund 19 — die Antwort stand ausserhalb des Bildes
+
+Gemeldet vom Betreiber: „Der Browser sollte automatisch zur Marke des
+Rückfrage-Banners springen. Man muss manuell hochscrollen und übersieht es so
+leicht."
+
+Gedrückt wird an einer Zeile weit unten, gefragt wird oben (`docs/19 §6`) — und
+sichtbar geschieht nichts.
+
+> **Eine Antwort, die ausserhalb des Bildes steht, ist für den Fragenden
+> keine.**
+
+Das ist zum **dritten Mal in zwei Tagen** derselbe Eindruck: Befund 15 (der
+`prompt`, den Safari abschaltet), Befund 16 (dasselbe für `confirm`) und jetzt
+eine Antwort, die zwar da ist, aber nicht dort, wo jemand hinsieht. Dreimal
+dieselbe Erfahrung — „der Knopf tut nichts" — aus drei verschiedenen Ursachen.
+
+### Und die Fehlerzusammenfassung hatte es genauso
+
+`FormErrors` steht oben mit der Begründung, dass „die Seite nach der Antwort
+ohnehin nach oben springt". Das stimmt — **ausser bei `preserveScroll: true`**,
+und allein `Files/Index.vue` setzt es an **zehn** Griffen, weil eine Liste, die
+nach jedem Klick nach oben springt, unbrauchbar wäre.
+
+> **Eine Regel, die sich auf ein Verhalten des Frameworks stützt, gilt nur dort,
+> wo dieses Verhalten eingeschaltet ist.**
+
+Damit war die Zusammenfassung, die gegen die unsichtbare Zeile am Feld gebaut
+wurde, im Dateimanager selbst unsichtbar.
+
+**Behoben** für beide, über dieselbe Stelle (`resources/js/scroll.ts`):
+Gescrollt wird **nur**, wenn der Block wirklich ausserhalb steht — sonst risse
+jede Meldung die Seite auf einem grossen Bildschirm grundlos herum. Der Fokus
+wandert auf den **Block** und nicht auf seinen Knopf: „Entfernen" zu fokussieren
+hiesse, dass die Leertaste die Handlung auslöst, die gerade erst erfragt wurde.
+
+> **Eine Rückfrage, deren Antwort schon vorausgewählt ist, ist keine.**
+
+Wächter: `InViewTest`, drei Brüche, alle drei beissen.
+
+---
+
 ---
 
 ## Offen, klein, nicht verfolgt

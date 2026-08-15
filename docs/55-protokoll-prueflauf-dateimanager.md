@@ -382,6 +382,93 @@ Stelle, die abgelehnt hat. Kein Befund dieses Laufs.
 
 ---
 
+## Punkt 2 — angehalten: „Datei anlegen" ist kaputt
+
+`logs/p6-b.invalid` → `p1136:adm 2750`. **Punkt 1 ist damit vollständig.**
+
+Beim Anlegen von `p6-probe.txt` über den Dateimanager:
+
+```
+Das Formular wurde nicht gespeichert.
+The content field must be a string.
+```
+
+## Befund 6 — eine leere Datei lässt sich nicht anlegen
+
+**Der Griff war seit Schritt 5e gebaut und hat nie funktioniert.**
+
+Laravels globaler Middleware-Stapel enthält `ConvertEmptyStringsToNull`;
+`bootstrap/app.php` nimmt ihn nicht heraus. Das Formular schickt
+`content: ''`, daraus wird `null` — **bevor** die Prüfung läuft. `present` ist
+damit erfüllt (der Schlüssel ist da), `string` nicht.
+
+> **Eine Regel, die den leeren Wert verbietet, verbietet genau den Fall, für den
+> der Griff gebaut ist.**
+
+**Es traf beide Wege**: das Anlegen aus der Liste und das Speichern einer Datei,
+deren Inhalt jemand im Editor gelöscht hat.
+
+### Warum kein Wächter das gefunden hat
+
+`FileCreationTest` hat drei Prüfungen zu genau diesem Griff, und alle drei sind
+grün — sie lesen den **Quelltext**: dass der Knopf da ist, dass der Controller
+die Antwort des Agenten liest, dass jede hochgeladene Datei ihren Namen behält.
+Keine davon schickt eine Anfrage, und ohne Anfrage läuft keine Middleware.
+
+> **Ein Wächter, der Quelltext liest, sieht nichts, was erst zwischen Browser
+> und Controller passiert.**
+
+Das ist die vierte Stufe in Folge, in der ein Fehler nur im Browser auf einem
+echten Server sichtbar wurde — `docs/45`, `docs/48`, `docs/53` und jetzt hier.
+
+**Behoben** (`'present', 'nullable', 'string'` und `?? ''`), mit Wächter
+(`FileCreationTest::test_an_empty_file_may_be_created`) und zwei Brüchen, beide
+zubeissend. **Nachzuprüfen im Browser gegen die nächste Fassung** — hier gilt
+derselbe Satz wie in `docs/48`: Ein behobener Befund ist erst behoben, wenn er
+am selben Ort noch einmal gemessen wurde.
+
+## Befund 7 — die Meldung ist englisch
+
+`The content field must be a string.` steht unter der deutschen Zeile „Das
+Formular wurde nicht gespeichert." Es gibt **kein `lang/`-Verzeichnis** in
+diesem Repo; Laravels eingebaute Prüfmeldungen kommen damit auf Englisch.
+
+`docs/19 §4a` ist bindend: **alle Texte der Oberfläche sind deutsch.** Bisher
+ist das nie aufgefallen, weil jede Meldung, die ein Kunde zu sehen bekam, aus
+diesem Projekt stammte und von Hand geschrieben war — `ValidationException::withMessages()`
+mit eigenem Satz. Eine Regel wie `string`, `max` oder `array` formuliert Laravel
+selbst.
+
+> **Eine Sprachvorgabe, die nur für selbstgeschriebene Sätze gilt, hält, bis der
+> erste fremde Satz durchkommt.**
+
+Der Befund ist **grösser als dieser Lauf**: Er betrifft jede Prüfregel dieses
+Panels, nicht nur `content`. Er wird hier benannt und nicht nebenbei behoben —
+`WordChoiceTest` bekäme dafür eine neue Richtung, und die gehört entschieden und
+nicht improvisiert.
+
+## Befund 8 — der Dateimanager steht in keinem Menü
+
+**Vom Betreiber gemeldet, im selben Atemzug.** Er ist über
+`Abonnements → Name → Dateien` erreichbar; `Domains` und `Datenbanken` stehen
+dagegen seit P3 und P5 im Menü, sobald ein **aktives Abonnement** da ist — mit
+genau der Begründung, die hier wieder gilt:
+
+> Drei Klicks für die Sache, wegen der er das Panel überhaupt öffnet.
+
+Das ist die Fortsetzung von Befund 6 aus `docs/53` („der Dateimanager ist gebaut
+und von nirgendwo aus erreichbar"). Damals bekam er **einen** Weg; dass dieser
+Weg drei Klicks tief liegt, war damit nicht beantwortet.
+
+**Was dabei zu entscheiden ist**, und deshalb steht es hier als Befund und nicht
+als Fix: `Domains` und `Datenbanken` sind mandantengeklammerte **Listen** unter
+einer festen Adresse. Der Dateimanager ist es nicht — er hängt an *einem*
+Abonnement, weil jedes sein eigenes Chroot hat. Ein Menüpunkt braucht also eine
+Antwort auf „welches", und die ist bei einem Kunden mit drei Abonnements eine
+andere als bei einem mit einem.
+
+---
+
 ## Offen, klein, nicht verfolgt
 
 `ls /var/www/vhosts/p6-b.invalid/logs/` und der `tail` darauf haben nichts

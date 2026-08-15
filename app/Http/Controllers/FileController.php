@@ -154,12 +154,31 @@ final class FileController extends Controller
 
     public function write(Request $request, Subscription $subscription): RedirectResponse
     {
+        /*
+         * **`nullable`, und ohne das war „Datei anlegen" kaputt.**
+         *
+         * Laravels globaler Stapel enthält `ConvertEmptyStringsToNull`. Eine
+         * leere Datei schickt `content: ''`, und daraus wird `null`, **bevor**
+         * die Prüfung läuft. `present` ist damit erfüllt (der Schlüssel ist da),
+         * `string` nicht — und der Kunde liest „The content field must be a
+         * string." über einem Formular, das nur nach einem Namen gefragt hat.
+         *
+         * Gefunden im Browser am 15. August 2026 (`docs/55`, Befund 6), beim
+         * ersten Anlegen einer Datei auf einem echten Server. Es traf **beide**
+         * Wege: das Anlegen aus der Liste und das Speichern einer geleerten
+         * Datei aus dem Editor.
+         *
+         * > **Eine Regel, die den leeren Wert verbietet, verbietet genau den
+         * > Fall, für den der Griff gebaut ist.**
+         */
         $data = $request->validate([
             'path' => ['required', 'string', 'max:4096'],
-            'content' => ['present', 'string'],
+            'content' => ['present', 'nullable', 'string'],
         ]);
 
-        $result = $this->attempt(fn (): array => $this->files->write($subscription, $data['path'], $data['content']));
+        $result = $this->attempt(
+            fn (): array => $this->files->write($subscription, $data['path'], $data['content'] ?? ''),
+        );
 
         /*
          * **Angelegt oder gespeichert — entschieden am Zustand und nicht an

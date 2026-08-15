@@ -937,6 +937,66 @@ nicht bewahren.
 `docs/51 §8.2` nennt setgid ausdrücklich als das, was der Rechte-Editor **nicht**
 anbietet. Genau deshalb darf er es auch nicht löschen.
 
+## Punkt 5 — Kopieren und Verschieben mit dem Baum, zwei von drei Teilen
+
+### (a) Kopieren — erfüllt
+
+Drei Dateien in `httpdocs` angehakt, „Kopieren", im Baum `tmp` gewählt.
+
+```
+3 Einträge sind kopiert.
+
+/var/www/vhosts/p6-b.invalid/tmp/:
+-rw-r----- 1 p1136 p1136 5 Aug 15 12:46 p6-k1.txt
+-rw-r----- 1 p1136 p1136 5 Aug 15 12:46 p6-k2.txt
+-rw-r----- 1 p1136 p1136 5 Aug 15 12:46 p6-k3.txt
+```
+
+**Drei Dateien, jede unter ihrem eigenen Namen.** Der Fehler, den der
+Mehrfach-Upload einmal gemacht hat — ein vollständiger Zielpfad ist für mehrere
+Quellen *ein* Pfad für alle —, ist hier nicht zurück. Läge dort eine Datei mit
+dem Inhalt `drei`, wäre er es.
+
+Die Gruppe steht auf `p1136` statt `www-data`, und das ist **richtig**: `tmp`
+trägt kein setgid-Bit, also erbt der neue Eintrag die Gruppe des anlegenden
+Prozesses. Nur `httpdocs` vererbt `www-data`, und nur dort braucht es das.
+
+### (b) Die Gegenprobe — es wird nicht überschrieben
+
+Dieselben drei, diesmal „Verschieben", wieder nach `tmp`:
+
+```
+Das Formular wurde nicht gespeichert.
+Von 3 Einträgen sind 0 verschoben.
+```
+
+Und beide Seiten unverändert:
+
+```
+-rw-r----- 1 p1136 www-data 5 …/httpdocs/p6-k1.txt
+-rw-r----- 1 p1136 www-data 5 …/httpdocs/p6-k2.txt
+-rw-r----- 1 p1136 www-data 5 …/httpdocs/p6-k3.txt
+
+/var/www/vhosts/p6-b.invalid/tmp/:
+-rw-r----- 1 p1136 p1136 5 Aug 15 12:46 p6-k1.txt
+-rw-r----- 1 p1136 p1136 5 Aug 15 12:46 p6-k2.txt
+-rw-r----- 1 p1136 p1136 5 Aug 15 12:46 p6-k3.txt
+```
+
+**Die Null ist hier eine Messung und kein Fehler.** Sie bekommt ihre Bedeutung
+durch das `ls` daneben: drei Quellen liegen noch da, drei Ziele sind
+unangetastet, kein Inhalt ist vertauscht. Ohne die zweite Ausgabe stünde da nur
+eine Zahl, die genauso gut von einem abgestürzten Vorgang käme.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.** Derselbe Satz wie in `docs/48`, hier zum vierten Mal.
+
+Die drei Zeilen mit Namen und Grund („Am Ziel steht schon etwas.") fehlen unter
+dem Satz — **das ist Befund 12** und nicht ein neuer. Er ist behoben und wartet
+auf `rc.4`; diese Runde belegt die Zahl, die Nachprüfung belegt die Gründe.
+
+---
+
 ---
 
 ## Offen, klein, nicht verfolgt

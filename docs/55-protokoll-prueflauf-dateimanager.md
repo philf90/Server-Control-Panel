@@ -905,15 +905,10 @@ und er prüft **beide** Enden — eines ohne das andere ist eine halbe Kette.
 
 ## Befund 13 — der Rechte-Editor nimmt das geerbte setgid-Bit weg
 
-Die Frage aus Punkt 3 ist gemessen:
-
-```
-/var/www/vhosts/p6-b.invalid/httpdocs/p6-bit  p1136:www-data  755
-```
-
-Ein über den Dateimanager angelegtes Verzeichnis erbt `2750`. Nach einem
-`chmod 755` aus dem Rechte-Editor steht dort **`755`** — das Bit ist fort, und
-jede Datei, die der Kunde danach darin anlegt, trägt wieder die Gruppe des
+Die Frage aus Punkt 3 ist **im Container** gemessen, nicht auf dem Server —
+siehe die Korrektur weiter unten. Ein Unterverzeichnis von `httpdocs` erbt
+`2750`; PHPs `chmod($p, 0755)` macht daraus `755`. Das Bit ist fort, und jede
+Datei, die der Kunde danach darin anlegt, trägt wieder die Gruppe des
 Abonnements. Bei `0640` ist sie für den Webserver unerreichbar: **Befund 3 aus
 `docs/53`, eine Ebene tiefer.**
 
@@ -936,6 +931,68 @@ nicht bewahren.
 
 `docs/51 §8.2` nennt setgid ausdrücklich als das, was der Rechte-Editor **nicht**
 anbietet. Genau deshalb darf er es auch nicht löschen.
+
+### Befund 14 — der Beleg für Befund 13 traf den falschen Gegenstand
+
+Aufgefallen beim Ausschreiben von Punkt 5, an einer Zeile, die schon dreimal
+über den Bildschirm gegangen war:
+
+```
+-rwxr-xr-x 1 p1136 www-data    0 Aug 15 12:27 p6-bit
+```
+
+**`p6-bit` ist eine Datei.** Das führende `-`, die Grösse 0, ein Verweiszähler
+von 1 — und in der Liste des Panels steht der Name ohne Schrägstrich und mit
+allen drei Griffen, während `p6-fremd/` und `test2/` beides anders zeigen.
+
+Der Beleg für Befund 13 war `stat -c '%U:%G %a'`, und dessen Ausgabe
+`p1136:www-data 755` sieht für eine Datei genauso aus wie für ein Verzeichnis.
+**Der Typ stand nicht darin.**
+
+Damit belegt er nichts: Eine Datei erbt in einem setgid-Verzeichnis nur die
+**Gruppe** und nie das Bit — hier im Container gemessen, `644` in einem
+`2750`-Elternverzeichnis. Sie hatte also nie ein setgid-Bit, das ein `chmod 755`
+hätte wegnehmen können.
+
+> **Ein Formatbefehl, der den Typ nicht ausgibt, macht aus zwei Gegenständen
+> einen.** `%a` zeigt neun Bits, und die stimmen für beide.
+
+**Der Fehler selbst bleibt echt**, und er ist jetzt zum ersten Mal gemessen —
+nur eben nicht dort, wo es im Protokoll stand:
+
+```
+eltern (2750) → kind erbt 2755, datei erbt 644
+chmod($kind, 0755)         → 755      ← das Bit ist fort
+chmod($kind, 0755 | 02000) → 2755     ← und so bleibt es
+```
+
+### Und der Wächter dazu prüfte die Schreibweise einer Vermutung
+
+`SchemeProtectionTest::test_a_chmod_keeps_the_inherited_setgid_bit` las den
+**Quelltext** von `FilesChmod` — dass dort `$mode | $geerbt` steht und `$geerbt`
+nur bei Verzeichnissen gefüllt wird. Das ist richtig und war grün, während der
+einzige Beleg für die Notwendigkeit dieser Rechnung auf einer Datei stand.
+
+> **Ein Wächter, der Quelltext gegen eine ungemessene Behauptung liest, prüft
+> die Schreibweise einer Vermutung.**
+
+Er misst jetzt zuerst und liest danach: dass ein Unterverzeichnis das Bit erbt
+(sonst gäbe es nichts zu bewahren), dass eine Datei es **nicht** erbt (genau die
+Annahme, die den Beleg umgeworfen hat), dass PHPs `chmod` es nimmt (sonst wäre
+die Rechnung grundlos) und dass `| 0o2000` es zurückgibt. Vier Messungen ohne
+Chroot und ohne Rechte, dazu die beiden Quelltextprüfungen von vorher.
+
+**Und die erste Fassung dieser Messung war selbst falsch:** Sie verglich den
+ganzen Modus des Kindes gegen `2750` statt das Bit gegen `2000`. Geerbt wird das
+Bit, nicht der Modus — die neun Rechtebits kommen aus `mkdir` und der umask.
+Gefunden hat es der erste Lauf, nicht das Nachdenken.
+
+### Was das für die Nachprüfung heisst
+
+Die Nachprüfung von Befund 13 gegen `rc.4` läuft nicht über `p6-bit`. Sie
+braucht ein **Verzeichnis**, über den Dateimanager angelegt, und ein `ls -ld`
+statt eines `stat -c %a` — die Ausgabe muss den Typ zeigen, sonst wiederholt sie
+denselben Fehler.
 
 ## Punkt 5 — Kopieren und Verschieben mit dem Baum, zwei von drei Teilen
 

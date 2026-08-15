@@ -82,11 +82,15 @@ final class FilesChmod implements Op
              *
              * Der Kommentar über `Scheme::protect()` nennt diese Gefahr für
              * `httpdocs` — und sie gilt für **jedes** Verzeichnis darin.
-             * Gemessen auf `cloudsrv24` am 15. August 2026 (`docs/55`,
-             * Befund 13): Ein über den Dateimanager angelegtes
-             * `httpdocs/p6-bit` erbt `2750`; ein `chmod 755` aus dem
-             * Rechte-Editor macht daraus `755`, und jede Datei, die der Kunde
-             * danach darin anlegt, trägt wieder die Gruppe des Abonnements.
+             * Gemessen ist sie in `SchemeProtectionTest`: Ein Unterverzeichnis
+             * erbt `2750`, und PHPs `chmod($p, 0755)` macht daraus `755`. Jede
+             * Datei, die der Kunde danach darin anlegt, trägt wieder die Gruppe
+             * des Abonnements — bei `0640` ist sie für den Webserver
+             * unerreichbar.
+             *
+             * **Auf dem Server gemessen ist es nicht.** Der Versuch dazu traf
+             * eine Datei statt eines Verzeichnisses und belegte nichts
+             * (`docs/55`, Befund 13); der Nachweis steht dort offen.
              *
              * > **Eine Begründung, die für einen Fall aufgeschrieben ist, gilt
              * > oft für mehr — und wird trotzdem nur dort angewandt.**

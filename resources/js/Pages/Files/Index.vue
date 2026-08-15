@@ -7,6 +7,9 @@ import FileTree from '../../Components/FileTree.vue'
 import PermissionEditor from '../../Components/PermissionEditor.vue'
 import { counted } from '../../Composables/useCounted'
 import { formatBytes } from '../../bytes'
+import { useConfirmation } from '../../Composables/useConfirmation'
+
+const { ask } = useConfirmation()
 
 interface Entry {
   name: string
@@ -174,6 +177,16 @@ function submitUpload(): void {
 }
 
 /**
+ * Welcher Eintrag gerade umbenannt wird — `null`, wenn keiner.
+ *
+ * **Hier stand ein `window.prompt`.** Genau derselbe Ersatz wie beim
+ * Rechte-Editor (`docs/53`, Befund 8) — nur ist er dort im August gebaut worden
+ * und hier nicht, weil gemeldet war, was gemeldet war. Siehe die Notiz über
+ * {@see startPack}.
+ */
+const renameFor = ref<Entry | null>(null)
+
+/**
  * Umbenennen — der Name geht als Name und nicht als Pfad.
  *
  * **Hier stand `here(wanted)`.** Diese Seite setzte den Zielpfad selbst
@@ -183,13 +196,27 @@ function submitUpload(): void {
  * Verschiebung wie beim Hochladen mehrerer Dateien.
  */
 function startRename(entry: Entry): void {
-  const wanted = window.prompt(`Neuer Name für „${entry.name}"`, entry.name)
+  renameFor.value = renameFor.value?.path === entry.path ? null : entry
 
-  if (wanted === null || wanted === '' || wanted === entry.name) return
+  if (renameFor.value !== null) {
+    rename.path = entry.path
+    rename.name = entry.name
+  }
+}
 
-  rename.path = entry.path
-  rename.name = wanted
-  rename.post(`/subscriptions/${props.subscription.id}/files/rename`, { preserveScroll: true })
+function submitRename(): void {
+  const wanted = rename.name.trim()
+
+  if (wanted === '' || wanted === renameFor.value?.name) {
+    renameFor.value = null
+
+    return
+  }
+
+  rename.post(`/subscriptions/${props.subscription.id}/files/rename`, {
+    preserveScroll: true,
+    onSuccess: () => { renameFor.value = null },
+  })
 }
 
 /**
@@ -250,10 +277,17 @@ function extract(entry: Entry): void {
   })
 }
 
-function search(): void {
-  const wanted = window.prompt('Wonach soll unterhalb dieses Verzeichnisses gesucht werden?')
+/** Der Suchbegriff, solange das Feld offen ist — `null`, wenn es zu ist. */
+const searching = ref<string | null>(null)
 
-  if (wanted === null || wanted === '') return
+function startSearch(): void {
+  searching.value = searching.value === null ? '' : null
+}
+
+function search(): void {
+  const wanted = (searching.value ?? '').trim()
+
+  if (wanted === '') return
 
   router.get(`/subscriptions/${props.subscription.id}/files/search`, { query: wanted, path: props.path })
 }
@@ -263,11 +297,11 @@ function remove(entry: Entry): void {
     ? `„${entry.name}" mitsamt Inhalt entfernen?`
     : `„${entry.name}" entfernen?`
 
-  if (!window.confirm(question)) return
-
-  router.delete(`/subscriptions/${props.subscription.id}/files`, {
-    data: { paths: [entry.path], recursive: entry.type === 'directory' },
-    preserveScroll: true,
+  ask(question, 'Entfernen', () => {
+    router.delete(`/subscriptions/${props.subscription.id}/files`, {
+      data: { paths: [entry.path], recursive: entry.type === 'directory' },
+      preserveScroll: true,
+    })
   })
 }
 
@@ -310,6 +344,10 @@ const picking = ref<'copy' | 'move' | null>(null)
 watch(() => props.path, () => {
   selected.value = []
   picking.value = null
+  // Aus demselben Grund: Ein offenes Namensfeld über einer leeren Auswahl
+  // fragt nach dem Namen für nichts.
+  archiveName.value = null
+  renameFor.value = null
 })
 
 function toggleSelected(path: string, on: boolean): void {
@@ -357,8 +395,13 @@ const chosenRoots = computed(
  * jedem Haken ein Name; was dort *nicht* steht, ist die Zahl der Verzeichnisse
  * (deren Inhalt mitgeht) und die Frage, ob eines davon eine Domain ausliefert.
  * Beides entscheidet, ob der Klick harmlos ist.
+ *
+ * **Sie gibt die Frage zurück und stellt sie nicht selbst.** Bis zum 15. August
+ * rief sie `window.confirm` und lieferte ein `true`/`false`; die Antwort kommt
+ * jetzt erst später, über einen Rückruf. Der Name ist deshalb `bulkQuestion`
+ * und nicht mehr `confirmed` — er sagt, was die Funktion liefert.
  */
-function confirmed(verb: string): boolean {
+function bulkQuestion(verb: string): string {
   const zeilen = [`${counted(selected.value.length, 'Eintrag', 'Einträge')} ${verb}?`]
 
   const ordner = chosenDirectories.value.length
@@ -378,37 +421,66 @@ function confirmed(verb: string): boolean {
     )
   }
 
-  return window.confirm(zeilen.join('\n\n'))
+  return zeilen.join('\n\n')
 }
 
 function removeSelected(): void {
-  if (selected.value.length === 0 || !confirmed('entfernen')) return
+  if (selected.value.length === 0) return
 
-  router.delete(`/subscriptions/${props.subscription.id}/files`, {
-    data: { paths: selected.value, recursive: chosenDirectories.value.length > 0 },
-    preserveScroll: true,
-    onSuccess: () => { selected.value = [] },
+  ask(bulkQuestion('entfernen'), 'Entfernen', () => {
+    router.delete(`/subscriptions/${props.subscription.id}/files`, {
+      data: { paths: selected.value, recursive: chosenDirectories.value.length > 0 },
+      preserveScroll: true,
+      onSuccess: () => { selected.value = [] },
+    })
   })
 }
 
 /**
- * Packen — die Auswahl in **ein** Archiv.
+ * Wie das Archiv heissen soll — `null`, solange nicht gepackt wird.
  *
- * Der Name wird gefragt und nicht geraten: `auswahl.zip` neben `auswahl.zip`
- * wäre beim zweiten Mal eine Absage, und ein Zeitstempel im Namen ist eine
- * Erfindung des Panels über etwas, das der Kunde benennt.
+ * ## Warum hier kein `window.prompt` mehr steht
+ *
+ * Er stand hier, und auf dem iPhone liess sich „Als Zip packen" damit **gar
+ * nicht** bedienen (`docs/55`, Befund 15): Safari darf die Dialoge einer Seite
+ * abschalten, nachdem sie mehrere gezeigt hat, und `prompt()` gibt danach ohne
+ * jedes Zeichen `null` zurück. Der Knopf tut dann nichts — keine Meldung, kein
+ * Hinweis, kein Unterschied zu einem kaputten Knopf.
+ *
+ * > **Ein Knopf, dessen Wirkung in einem Dialog steckt, den der Browser
+ * > abschalten darf, ist ein Knopf, der nichts tut.**
+ *
+ * Entschieden war das ohnehin schon: `docs/53` Befund 8 hat den `prompt` des
+ * Rechte-Editors durch einen Bereich auf der Seite ersetzt, mit dem Satz
+ * „dieses Panel hat keine Modalen". **Drei weitere `prompt` in derselben Datei
+ * haben das überlebt**, weil gemeldet war, was gemeldet war.
+ *
+ * > **Eine Regel, die nur auf den gemeldeten Fall angewandt wird, lässt ihre
+ * > Geschwister stehen.**
  */
-function packSelected(): void {
+const archiveName = ref<string | null>(null)
+
+function startPack(): void {
   if (selected.value.length === 0) return
 
-  const name = window.prompt('Wie soll das Archiv heissen?', 'auswahl.zip')
+  // Der Name wird gefragt und nicht geraten: `auswahl.zip` neben `auswahl.zip`
+  // wäre beim zweiten Mal eine Absage, und ein Zeitstempel im Namen ist eine
+  // Erfindung des Panels über etwas, das der Kunde benennt.
+  archiveName.value = 'auswahl.zip'
+}
 
-  if (name === null || name === '') return
+function packSelected(): void {
+  const name = (archiveName.value ?? '').trim()
+
+  if (selected.value.length === 0 || name === '') return
 
   router.post(
     `/subscriptions/${props.subscription.id}/files/compress`,
     { paths: selected.value, target: here(name) },
-    { preserveScroll: true, onSuccess: () => { selected.value = [] } },
+    {
+      preserveScroll: true,
+      onSuccess: () => { selected.value = []; archiveName.value = null },
+    },
   )
 }
 
@@ -460,8 +532,22 @@ function pick(target: string): void {
           Datei hochladen
         </button>
       </div>
-      <button type="button" class="button" @click="search">Suchen</button>
+      <button type="button" class="button" @click="startSearch">Suchen</button>
     </template>
+
+    <!--
+      Auch hier stand ein `window.prompt` (`docs/55`, Befund 15). Dieselbe Form
+      wie beim Anlegen darunter: ein Feld auf der Seite, mit sichtbarer
+      Beschriftung.
+    -->
+    <form v-if="searching !== null" class="button-row" @submit.prevent="search">
+      <label class="field inline">
+        <span>Wonach unterhalb dieses Verzeichnisses gesucht wird</span>
+        <input v-model="searching" type="text" autocomplete="off" required />
+      </label>
+      <button type="submit" class="button primary">Suchen</button>
+      <button type="button" class="button" @click="searching = null">Abbrechen</button>
+    </form>
 
     <!--
       Die Beschriftung steht sichtbar dabei und nicht nur als `aria-label` —
@@ -522,7 +608,7 @@ function pick(target: string): void {
       eine zweite Form. Der Name des Eintrags steht dabei, weil sonst nicht
       abzulesen wäre, wessen Rechte gerade offen sind.
     -->
-    <form v-if="chmodFor !== null" @submit.prevent="submitChmod">
+    <form v-if="chmodFor !== null" class="block" @submit.prevent="submitChmod">
       <p class="path-line">Rechte für {{ chmodFor.name }}</p>
 
       <PermissionEditor
@@ -534,6 +620,33 @@ function pick(target: string): void {
       <div class="button-row">
         <button type="submit" class="button primary" :disabled="modeForm.processing">Speichern</button>
         <button type="button" class="button" @click="chmodFor = null">Abbrechen</button>
+      </div>
+    </form>
+
+    <!--
+      Und aus demselben Grund an derselben Stelle: ein Formular in einer Zelle
+      bräuchte bei 390px eine zweite Form. Der alte Name steht daneben, weil
+      sonst nicht abzulesen wäre, was gerade umbenannt wird.
+    -->
+    <form v-if="renameFor !== null" class="block" @submit.prevent="submitRename">
+      <!--
+        **Der alte Name steht in der Zeile darüber und nicht in der
+        Beschriftung.** Dieselbe Form wie beim Rechte-Editor — und aus dem
+        Grund, den `.field.inline > span` in `app.css` nennt: Die Beschriftung
+        eines nebenstehenden Feldes bricht nicht. Ein Dateiname darf 255 Zeichen
+        haben; als Beschriftung schob er die Seite bei 390px um 132px aus dem
+        Bild (gemessen, `docs/55` Befund 15).
+      -->
+      <p class="path-line">Umbenennen: {{ renameFor.name }}</p>
+
+      <label class="field inline">
+        <span>Neuer Name</span>
+        <input v-model="rename.name" type="text" autocomplete="off" required />
+      </label>
+
+      <div class="button-row">
+        <button type="submit" class="button primary" :disabled="rename.processing">Umbenennen</button>
+        <button type="button" class="button" @click="renameFor = null">Abbrechen</button>
       </div>
     </form>
 
@@ -581,7 +694,10 @@ function pick(target: string): void {
       der letzte Haken gesetzt wird.
     -->
     <div v-if="props.can.edit && selected.length > 0" class="selection">
-      <span v-if="picking === null">
+      <span v-if="archiveName !== null">
+        {{ counted(selected.length, 'Eintrag', 'Einträge') }} packen — wie soll das Archiv heissen?
+      </span>
+      <span v-else-if="picking === null">
         {{ counted(selected.length, 'Eintrag', 'Einträge') }} ausgewählt
       </span>
       <span v-else>
@@ -589,11 +705,26 @@ function pick(target: string): void {
         {{ picking === 'copy' ? 'kopieren' : 'verschieben' }}
       </span>
 
-      <div class="button-row">
+      <!--
+        **Das Namensfeld steht in derselben Leiste und nicht in einem Dialog.**
+        Es ist ein dritter Zustand neben „nichts vorgemerkt" und „Ziel im Baum
+        wählen"; alle drei stehen an derselben Stelle, damit die Antwort dort
+        erscheint, wo die Frage gestellt wurde.
+      -->
+      <form v-if="archiveName !== null" class="button-row" @submit.prevent="packSelected">
+        <label class="field inline">
+          <span>Name des Archivs</span>
+          <input v-model="archiveName" type="text" autocomplete="off" required />
+        </label>
+        <button type="submit" class="button small">Packen</button>
+        <button type="button" class="button small" @click="archiveName = null">Abbrechen</button>
+      </form>
+
+      <div v-else class="button-row">
         <template v-if="picking === null">
           <button type="button" class="button small" @click="picking = 'copy'">Kopieren</button>
           <button type="button" class="button small" @click="picking = 'move'">Verschieben</button>
-          <button type="button" class="button small" @click="packSelected">Als Zip packen</button>
+          <button type="button" class="button small" @click="startPack">Als Zip packen</button>
           <button type="button" class="button small danger" @click="removeSelected">Entfernen</button>
           <!--
             **„Alle auswählen" steht hier und nicht nur im Spaltenkopf.**

@@ -5,6 +5,9 @@ import Section from '../../Components/Section.vue'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import FormErrors from '../../Components/FormErrors.vue'
+import { useConfirmation } from '../../Composables/useConfirmation'
+
+const { ask } = useConfirmation()
 
 interface Certificate {
   present: boolean
@@ -87,9 +90,9 @@ function neuAusstellen(): void {
     : 'Neues Zertifikat ausstellen? nginx wird danach neu geladen, und der Browser '
       + 'warnt beim nächsten Aufruf erneut — ein selbstsigniertes Zertifikat kennt er nicht.'
 
-  if (!window.confirm(nachfrage)) return
-
-  router.post('/settings/tls')
+  ask(nachfrage, 'Ausstellen', () => {
+    router.post('/settings/tls')
+  }, false)
 }
 </script>
 

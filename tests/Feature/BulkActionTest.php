@@ -317,6 +317,72 @@ final class BulkActionTest extends TestCase
     }
 
     /**
+     * Und jede Zeile der Rückmeldung erreicht auch den Browser.
+     *
+     * ## Der Weg dazwischen war lossy, und drei Wächter sahen es nicht
+     *
+     * `report()` baut die Zahl und je Fehlschlag eine Zeile. Inertias
+     * Laravel-Anbindung bildet den Fehlerbeutel aber auf **„Feld => erste
+     * Meldung"** ab — alles nach der Zahl fiel weg, bevor die Seite es sah.
+     *
+     * Gemessen auf `cloudsrv24` (`docs/55`, Befund 12): „Von 3 Einträgen sind 2
+     * entfernt." und kein einziger Grund. Bei sechs geschützten Verzeichnissen
+     * dasselbe.
+     *
+     * **Es traf auch den Mehrfach-Upload aus Schritt 5e**, seit dem ersten Tag.
+     * `FileCreationTest::test_a_partly_failed_upload_does_not_report_success`
+     * ist grün und liest den Quelltext des Controllers.
+     *
+     * > **Eine Meldung, die der Controller schreibt, ist damit noch keine, die
+     * > jemand liest.**
+     *
+     * Geprüft werden deshalb **beide** Enden des Weges: dass die Middleware
+     * jede Meldung mitnimmt, und dass die Zusammenfassung sie wieder in Zeilen
+     * zerlegt. Eines ohne das andere ist eine halbe Kette.
+     */
+    public function test_every_reason_survives_the_way_to_the_browser(): void
+    {
+        $mittelschicht = (string) file_get_contents(
+            dirname(__DIR__, 2).'/app/Http/Middleware/HandleInertiaRequests.php',
+        );
+
+        $this->assertStringContainsString(
+            'public function resolveValidationErrors(',
+            $mittelschicht,
+            "`HandleInertiaRequests` überschreibt die Fehlerauflösung nicht mehr.\n\n".
+            'Inertias Voreinstellung nimmt je Feld nur die **erste** Meldung mit — die Gründe '.
+            'je Eintrag fallen dann weg, bevor die Seite sie sieht.',
+        );
+
+        /*
+         * **Der Variablenname steht bewusst nicht mehr in der Erwartung.** Er
+         * hiess `$meldungen` und heisst jetzt `$saetze`, weil PHPStan an
+         * `MessageBag::messages()` zu Recht Anstoss nahm — der Wächter wurde
+         * dabei rot, obwohl die Regel unverändert galt.
+         *
+         * > **Ein Wächter, der einen Variablennamen prüft, meldet jede
+         * > Umbenennung als Regelbruch.**
+         */
+        $this->assertMatchesRegularExpression(
+            '/implode\("\\\\n", \$\w+\)/',
+            $mittelschicht,
+            'Die Meldungen eines Feldes werden nicht mehr mit einem Zeilenumbruch zusammengeführt.',
+        );
+
+        $zusammenfassung = (string) file_get_contents(
+            dirname(__DIR__, 2).'/resources/js/Components/FormErrors.vue',
+        );
+
+        $this->assertStringContainsString(
+            "message.split('\\n')",
+            $zusammenfassung,
+            "`FormErrors` zerlegt die verbundenen Meldungen nicht mehr in Zeilen.\n\n".
+            'Dann steht die ganze Rückmeldung als ein Satz da, und der Zeilenumbruch, den die '.
+            'Mittelschicht setzt, ist unsichtbar.',
+        );
+    }
+
+    /**
      * Die Auswahl fällt weg, sobald man das Verzeichnis wechselt.
      *
      * **Sonst entfernt sie Einträge, die niemand mehr sieht.** Eine Auswahl, die

@@ -24,6 +24,9 @@ import { announce, dismiss } from '../../Composables/useAnnounce'
 import { counted } from '../../Composables/useCounted'
 import { ask, ConsoleError } from '../../Composables/useConsole'
 import { formatBytes } from '../../bytes'
+import { useConfirmation } from '../../Composables/useConfirmation'
+
+const { ask: askToConfirm } = useConfirmation()
 
 interface TableRow {
   schema: string
@@ -1030,14 +1033,15 @@ async function save(): Promise<void> {
 /**
  * Eine Zeile löschen.
  *
- * **Die Rückfrage steht im `confirm()` und nennt die Zeile.** Dieselbe Form wie
+ * **Die Rückfrage nennt die Zeile.** Dieselbe Form wie
  * beim Entziehen eines Zugriffs — ein Eingabefeld zum Abtippen ist für das
  * Entfernen einer ganzen Datenbank da, nicht für eine Zeile.
  */
-async function removeRow(): Promise<void> {
+function removeRow(): void {
   const formular = editing.value
+  const tabelle = openTable.value
 
-  if (formular === null || openTable.value === null || formular.mode !== 'update') {
+  if (formular === null || tabelle === null || formular.mode !== 'update') {
     return
   }
 
@@ -1045,16 +1049,29 @@ async function removeRow(): Promise<void> {
     .map(([spalte, wert]) => `${spalte} = ${wert}`)
     .join(', ')
 
-  if (!confirm(`Die Zeile mit ${bezeichnung} aus ${openTable.value} löschen? Das lässt sich nicht zurücknehmen.`)) {
-    return
-  }
+  /*
+   * **Der Name ist hier `askToConfirm`.** `ask` heisst auf dieser Seite schon
+   * der Weg zum Panel (`useConsole`), und zwei Bedeutungen unter einem Namen
+   * sind genau die Sorte Verwechslung, die sich später als Fehlermeldung
+   * meldet, die niemand versteht.
+   */
+  askToConfirm(
+    `Die Zeile mit ${bezeichnung} aus ${tabelle} löschen? Das lässt sich nicht zurücknehmen.`,
+    'Löschen',
+    () => { void wirklichLoeschen(formular, tabelle) },
+  )
+}
 
+async function wirklichLoeschen(
+  formular: { key: Record<string, unknown> },
+  tabelle: string,
+): Promise<void> {
   saving.value = true
   failure.value = null
 
   try {
     await ask<{ affected: number }>(props.database.id, 'row', {
-      table: openTable.value,
+      table: tabelle,
       mode: 'delete',
       key: formular.key,
     })

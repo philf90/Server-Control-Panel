@@ -30,8 +30,17 @@ mkdir -p "${STAGE}"
 # **`storage` steht bewusst nicht dabei.** Es gehört nicht in die Fassung,
 # sondern nach /var/lib/srvpanel/storage; das Paket legt an seiner Stelle einen
 # Verweis. Warum, steht in packaging/nfpm.yaml.
+#
+# **`lang` steht hier seit dem 15. August 2026, und sein Fehlen war ein
+# ausgelieferter Fehler.** Die deutschen Prüfmeldungen lagen im Repo, ein
+# Wächter bestätigte sie dort — und das Paket nahm sie nicht mit. Auf
+# `cloudsrv24` stand deshalb weiter „The name field must not be greater than 255
+# characters." unter einer deutschen Zeile (`docs/55`, Befund 11).
+#
+# > **Eine Datei, die ein Wächter im Repo prüft, ist damit noch nicht auf dem
+# > Server.**
 for part in \
-    agent app bootstrap config database public resources/views routes vendor artisan composer.json composer.lock
+    agent app bootstrap config database lang public resources/views routes vendor artisan composer.json composer.lock
 do
     if [ -e "${part}" ]; then
         mkdir -p "${STAGE}/$(dirname "${part}")"

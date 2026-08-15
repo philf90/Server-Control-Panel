@@ -77,7 +77,42 @@ final class FilesChmod implements Op
                 );
             }
 
-            if (! @chmod($path, $mode)) {
+            /*
+             * **Das setgid-Bit eines Verzeichnisses überlebt den Griff.**
+             *
+             * Der Kommentar über `Scheme::protect()` nennt diese Gefahr für
+             * `httpdocs` — und sie gilt für **jedes** Verzeichnis darin.
+             * Gemessen ist sie in `SchemeProtectionTest`: Ein Unterverzeichnis
+             * erbt `2750`, und PHPs `chmod($p, 0755)` macht daraus `755`. Jede
+             * Datei, die der Kunde danach darin anlegt, trägt wieder die Gruppe
+             * des Abonnements — bei `0640` ist sie für den Webserver
+             * unerreichbar.
+             *
+             * **Auf dem Server gemessen ist es nicht.** Der Versuch dazu traf
+             * eine Datei statt eines Verzeichnisses und belegte nichts
+             * (`docs/55`, Befund 13); der Nachweis steht dort offen.
+             *
+             * > **Eine Begründung, die für einen Fall aufgeschrieben ist, gilt
+             * > oft für mehr — und wird trotzdem nur dort angewandt.**
+             *
+             * `chmod(2)` setzt den Modus vollständig; GNU-`chmod` bewahrt das
+             * Bit bei Verzeichnissen von sich aus, PHPs `chmod()` nicht. Hier
+             * wird es deshalb ausdrücklich mitgeführt.
+             *
+             * **Nur bei Verzeichnissen.** Auf einer Datei bedeutet dasselbe Bit
+             * etwas anderes — Ausführung unter fremder Gruppe —, und dieses
+             * Panel setzt es dort nirgends. Was es nicht setzt, muss es auch
+             * nicht bewahren.
+             *
+             * Der Rechte-Editor bietet die neun Bits an (`docs/51 §8.2`), und
+             * genau die ändert dieser Griff. **Ein Griff, der neun Bits
+             * anbietet, darf das zehnte nicht anfassen.**
+             */
+            $geerbt = $entry['type'] === 'directory'
+                ? ($entry['mode'] & 0o2000)
+                : 0;
+
+            if (! @chmod($path, $mode | $geerbt)) {
                 throw AgentException::denied('Die Rechte liessen sich nicht setzen.');
             }
 

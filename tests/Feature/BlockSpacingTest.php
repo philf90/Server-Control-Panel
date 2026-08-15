@@ -89,6 +89,18 @@ final class BlockSpacingTest extends TestCase
      * Behälter statt als Luft (die drei). Beides sind Korrekturen an ihm selbst
      * und keine an der Gestaltung.
      *
+     * **Und am selben Abend eine siebte**, aus demselben Grund: Seit ein
+     * klassenloser Behälter seine Kante durchreicht ({@see self::transparent()}),
+     * werden **neun** Fugen sichtbar, die vorher zwischen den Rastern lagen. Keine
+     * einzige ist dabei weggefallen — die Liste wächst von 31 auf 40, weil der
+     * Wächter mehr sieht und nicht, weil die Gestaltung schlechter wurde.
+     *
+     * Ob sie zu eng stehen, entscheidet ein Blick und keine Regel. Sie gehören
+     * damit hierher und in die Bilderrunde aus Schritt 12 — nicht in `app.css`.
+     *
+     * > **Ein Loch, das man zählt, ist kein Loch mehr — es ist eine Zahl, die
+     * > kleiner werden kann.**
+     *
      * @var list<string>
      */
     private const OPEN_SEAMS = [
@@ -96,6 +108,8 @@ final class BlockSpacingTest extends TestCase
         'button + button',
         'button-row + button',
         'button-row + form',
+        'button-row + scrolls',
+        'check + cell-name',
         'choices + dependent',
         'choices + label',
         'choices + with-unit',
@@ -107,19 +121,26 @@ final class BlockSpacingTest extends TestCase
         'hint + field-row',
         'hint + form',
         'scrolls + form',
+        'scrolls + scrolls',
+        'ident + button-row',
         'ident + ident',
         'ident + notice',
+        'leaf + leaf',
         'link + link',
         'output + button-row',
         'pager-state + button',
+        'section-note + ident',
         'section-note + notice',
         'section-note + button-row',
         'section-note + cell-value',
         'section-note + scrolls',
+        'sections + scrolls',
         'sections + button-row',
+        'sections + form',
         'sections + notice',
         'toggle + button-row',
         'toggle + choices',
+        'toggle + ident',
         'toggle + dependent',
         'toggle + with-unit',
         'with-unit + dependent',
@@ -359,7 +380,7 @@ final class BlockSpacingTest extends TestCase
                 $benannt = preg_match('~(^|\s)(#|v-slot)~', $treffer[1]) === 1;
                 $tiefe[] = $benannt;
 
-                return $benannt ? '<div>' : '';
+                return $benannt ? '<div data-slot>' : '';
             },
             $ohneKommentare,
         );
@@ -398,6 +419,106 @@ final class BlockSpacingTest extends TestCase
         // `$i` steht hinter dem schliessenden Tag. Ein `</div>` dort heisst:
         // Der Vorgänger war das letzte Kind, und dann gibt es kein Geschwister.
         return isset($tags[$i]) && $tags[$i][1] !== '/' ? $i : null;
+    }
+
+    /**
+     * Das erste und das letzte Kind eines Tags.
+     *
+     * **Für die Durchsichtigkeit klassenloser Behälter** — siehe
+     * {@see self::transparent()}.
+     *
+     * @param  list<array{0: string, 1: string, 2: string, 3: string}>  $tags
+     * @param  list<string>  $void
+     * @return array{0: ?int, 1: ?int}
+     */
+    private function children(array $tags, int $index, array $void): array
+    {
+        $tiefe = 1;
+        $erstes = null;
+        $letztes = null;
+
+        for ($i = $index + 1; $i < count($tags) && $tiefe > 0; $i++) {
+            $tag = $tags[$i];
+
+            if ($tag[1] === '/') {
+                $tiefe--;
+
+                continue;
+            }
+
+            if ($tiefe === 1) {
+                $erstes ??= $i;
+                $letztes = $i;
+            }
+
+            if (! in_array(strtolower($tag[2]), $void, true) && ! str_ends_with(rtrim($tag[3]), '/')) {
+                $tiefe++;
+            }
+        }
+
+        return [$erstes, $letztes];
+    }
+
+    /**
+     * Ein klassenloser Behälter ist durchsichtig.
+     *
+     * ## Der siebte Fall derselben Fuge, und der erste unsichtbare
+     *
+     * Der Betreiber hat ihn am 15. August 2026 im Prüflauf gemeldet
+     * (`docs/55`, Befund 10): Zwischen „Speichern"/„Abbrechen" des
+     * Rechte-Editors und der Liste darunter war nichts.
+     *
+     * **Dieser Wächter konnte das nicht sehen, und zwar aus zwei Gründen
+     * gleichzeitig.** Das Formular des Rechte-Editors trug **keine Klasse** —
+     * damit passte es in keine der beiden Listen. Und sein letztes Kind, die
+     * Knopfreihe, hat **kein Geschwister**, weil es das letzte ist. Die Fuge fiel
+     * genau zwischen beide Raster.
+     *
+     * > **Ein Baustein ohne Klasse steht in keiner Liste — auch nicht in der der
+     * > Fehler.**
+     *
+     * Ein Element ohne Klasse bringt in diesem Panel nichts mit: kein Rand, kein
+     * Rahmen, keine Fläche. Es endet dort, wo sein letztes Kind endet, und fängt
+     * dort an, wo sein erstes anfängt. Genau so wird es hier behandelt.
+     *
+     * Der Behälter wird dabei **nicht** übersprungen wie ein `v-if`: Er ist da,
+     * seine Kinder sind es auch. Was durchgereicht wird, ist seine **Kante**.
+     *
+     * ## Ein Behälter bleibt undurchsichtig, und das war beim ersten Wurf falsch
+     *
+     * Der **benannte Platz** (`<template #actions>`) wird von {@see
+     * self::rendered()} zu einem Kasten gemacht, damit seine Kinder unter sich
+     * bleiben — das Layout setzt sie ganz woandershin, in die Kopfzeile der
+     * Seite. Er trägt keine Klasse, und die Durchsichtigkeit hat ihn beim ersten
+     * Wurf prompt aufgemacht: Der letzte Knopf aus `#actions` wurde wieder zum
+     * Nachbarn dessen, was im Quelltext darunter steht — drei Scheinnachbarn,
+     * dieselben drei, die der Umbau vom 15. August schon einmal beseitigt hatte.
+     *
+     * > **Zwei Dinge, die im Quelltext gleich heissen, sind im Browser nicht
+     * > dasselbe.** Der Satz stand im Kopf dieses Wächters, und ich habe ihn
+     * > eine Methode weiter unten gebrochen.
+     *
+     * Deshalb die Marke `data-slot`: Sie unterscheidet den Kasten, der etwas
+     * **verschiebt**, von dem, der nur etwas **umschliesst**.
+     *
+     * @param  list<array{0: string, 1: string, 2: string, 3: string}>  $tags
+     * @param  list<string>  $void
+     * @return array{0: string, 1: string} Attribute für die untere und die obere Kante
+     */
+    private function transparent(array $tags, int $index, array $void): array
+    {
+        $tag = $tags[$index];
+
+        if (str_contains($tag[3], 'class="') || str_contains($tag[3], 'data-slot')) {
+            return [$tag[3], $tag[3]];
+        }
+
+        [$erstes, $letztes] = $this->children($tags, $index, $void);
+
+        return [
+            $letztes !== null ? $tags[$letztes][3] : $tag[3],
+            $erstes !== null ? $tags[$erstes][3] : $tag[3],
+        ];
     }
 
     /**
@@ -500,7 +621,7 @@ final class BlockSpacingTest extends TestCase
             $naechster = $this->sibling($tags, $start, $void);
 
             while ($naechster !== null) {
-                $nachbarn[] = $tags[$naechster];
+                $nachbarn[] = $naechster;
 
                 if (preg_match('/\sv-(?:if|else-if|else)\b/', $tags[$naechster][3]) !== 1) {
                     break;
@@ -509,10 +630,14 @@ final class BlockSpacingTest extends TestCase
                 $naechster = $this->sibling($tags, $naechster, $void);
             }
 
-            foreach ($nachbarn as $nachbar) {
+            [$untenKante] = $this->transparent($tags, $start, $void);
+
+            foreach ($nachbarn as $nachbarIndex) {
+                [, $obenKante] = $this->transparent($tags, $nachbarIndex, $void);
+
                 foreach ($endetBuendig as $unten) {
                     foreach ($faengtBuendig as $oben) {
-                        if ($this->hasClass($tag[3], $unten) && $this->hasClass($nachbar[3], $oben)) {
+                        if ($this->hasClass($untenKante, $unten) && $this->hasClass($obenKante, $oben)) {
                             $paare[] = [$unten, $oben];
                         }
                     }

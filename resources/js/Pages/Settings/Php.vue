@@ -3,6 +3,9 @@ import { Head, router } from '@inertiajs/vue3'
 import { ref } from 'vue'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import { useConfirmation } from '../../Composables/useConfirmation'
+
+const { ask } = useConfirmation()
 
 interface Version {
   version: string
@@ -29,15 +32,16 @@ const props = defineProps<{
 
 const läuft = ref<string | null>(null)
 
-function starte(task: string, version: string, frage: string): void {
+function starte(task: string, version: string, frage: string, verb: string): void {
   if (läuft.value) return
-  if (!window.confirm(frage)) return
 
-  läuft.value = version
-  router.post('/operations', { task, argument: version }, {
-    onFinish: () => {
-      läuft.value = null
-    },
+  ask(frage, verb, () => {
+    läuft.value = version
+    router.post('/operations', { task, argument: version }, {
+      onFinish: () => {
+        läuft.value = null
+      },
+    })
   })
 }
 
@@ -46,6 +50,7 @@ function installieren(v: Version): void {
     'php.version.install',
     v.version,
     `PHP ${v.version} installieren?\n\nDie Pakete kommen aus deb.sury.org. Der geteilte Standard-Pool der Distribution wird danach abgeschaltet.`,
+    'Installieren',
   )
 }
 
@@ -69,6 +74,7 @@ function ergaenzen(v: Version): void {
     'php.version.install',
     v.version,
     `PHP ${v.version} ergänzen?\n\nEs fehlt: ${fehlt}\n\nLäuft der Handler dieser Version, wird er dabei neu gestartet — sonst lädt er die Erweiterung nicht.`,
+    'Ergänzen',
   )
 }
 
@@ -81,6 +87,7 @@ function entfernen(v: Version): void {
     benutzt > 0
       ? `PHP ${v.version} entfernen? ${benutzt} Domain(s) laufen darauf — der Agent wird das abweisen.`
       : `PHP ${v.version} entfernen?\n\nDie Konfiguration unter /etc/php/${v.version} bleibt liegen.`,
+    'Entfernen',
   )
 }
 

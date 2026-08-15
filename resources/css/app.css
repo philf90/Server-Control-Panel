@@ -1516,6 +1516,30 @@ table.pairs {
 }
 
 /*
+ * Ein Formular, das als eigener Block auf der Seite steht.
+ *
+ * **Der siebte Fall derselben Fuge, und der erste, den kein Wächter sehen
+ * konnte.** Der Betreiber hat ihn am 15. August im Prüflauf gemeldet: Zwischen
+ * „Speichern"/„Abbrechen" des Rechte-Editors und der Liste darunter war nichts
+ * (`docs/55`, Befund 10).
+ *
+ * `BlockSpacingTest` paart **Klassen**. Das Formular des Rechte-Editors trug
+ * keine — und sein letztes Kind, die Knopfreihe, hat kein Geschwister, weil es
+ * das letzte ist. Die Fuge fiel damit zwischen beide Raster:
+ *
+ * > **Ein Baustein ohne Klasse steht in keiner Liste — auch nicht in der der
+ * > Fehler.**
+ *
+ * `margin` oben **und** unten, nicht nur unten: Über dem Formular steht die
+ * Knopfreihe der Seite, und die endet bündig. Ein Block, der seine Luft in beide
+ * Richtungen mitbringt, braucht keine Nachbarschaftsregel — und das ist der
+ * Unterschied zu einer Liste von Nachbarn, die mit jedem Umbau wächst.
+ */
+.block {
+  margin: var(--block-gap) 0;
+}
+
+/*
  * Was ausgewählt ist, und was man damit tun kann (P6, Schritt 5h).
  *
  * **Sie trägt eine Fläche und einen Rahmen**, weil sie kommt und geht. Ein
@@ -2766,6 +2790,31 @@ tr:has(td.multiline) > td {
   .field-row > .field {
     flex-basis: 100%;
   }
+
+  /*
+   * Ein nebenstehendes Feld steht auf dem Telefon nicht mehr daneben.
+   *
+   * `.field.inline > span` trägt `white-space: nowrap`, und das ist für „Übertragen
+   * auf" richtig. Bei 390px reicht der Platz aber nur für kurze Beschriftungen:
+   * „Zum Bestätigen den Namen des Abonnements eintippen" neben seinem Eingabefeld
+   * schob die Seite um **30px** aus dem Bild (gemessen am 15. August 2026 beim
+   * Ersatz der Systemdialoge, `docs/55` Befund 15).
+   *
+   * Die Beschriftung zu kürzen wäre die Antwort für diesen einen Fall gewesen. Die
+   * nächste lange stünde wieder da, und niemand misst sie nach — der Kommentar
+   * oben verlangt es seit Monaten, und es ist nicht geschehen.
+   *
+   * > **Eine Regel, die bei jedem neuen Text eine Messung verlangt, wird bei
+   * > jedem neuen Text vergessen.**
+   *
+   * Unter 480px gilt deshalb wieder, was `.field` von sich aus tut: Beschriftung
+   * über dem Feld. `nowrap` bleibt dabei richtig — die Zeile hat jetzt die volle
+   * Breite für sich.
+   */
+  .field.inline {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 /*
@@ -3293,6 +3342,42 @@ tr:has(td.multiline) > td {
 .notice.neutral {
   background: var(--surface);
   border-color: var(--control-line);
+}
+
+/*
+ * Die Rückfrage vor einer Handlung, die etwas kostet.
+ *
+ * **Sie ist keine `.notice`**, obwohl sie so aussieht. `.notice` ist ein
+ * Flexfluss in einer Zeile — Text und Zeichen nebeneinander —, und hier stehen
+ * eine Frage und darunter zwei Knöpfe. Mit `.notice` läge die Knopfreihe neben
+ * dem Satz und bei 390px darunter, je nach Länge der Frage: eine Form, die von
+ * ihrem Text abhängt.
+ *
+ * Die Fläche ist die der Warnung, weil eine Rückfrage genau das ist: eine
+ * Ankündigung dessen, was gleich geschieht. Sie holt sich dieselben Marken und
+ * erfindet keine eigenen.
+ */
+.confirmation {
+  padding: 13px 16px;
+  margin-bottom: var(--block-gap);
+
+  font-size: var(--text-table);
+
+  background: var(--warn-surface);
+  border-left: 3px solid var(--warn);
+  border-radius: var(--radius);
+
+  /* Aus demselben Grund wie bei `.notice`: Was in einer Frage steht, kommt von
+     aussen — ein Datenbankname, ein Pfad, der Name eines Kunden. */
+  overflow-wrap: anywhere;
+}
+
+.confirmation b {
+  color: var(--text-strong);
+}
+
+.confirmation .button-row {
+  margin-top: 12px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════

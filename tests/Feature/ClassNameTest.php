@@ -46,7 +46,8 @@ final class ClassNameTest extends TestCase
     private const VOCABULARY = [
         'account', 'active', 'after', 'area', 'arrow', 'aside', 'badge', 'band', 'bar', 'blank',
         'block', 'branch', 'breadcrumb', 'button', 'cell', 'check', 'choice', 'choices', 'codes',
-        'code', 'comment', 'content', 'critical', 'crumbs', 'cursor', 'danger', 'dependent', 'description',
+        'code', 'comment', 'confirmation', 'content', 'critical', 'crumbs', 'cursor', 'danger', 'dependent',
+        'description',
         'done', 'editor', 'empty', 'end', 'error', 'explains', 'eye', 'facts', 'field', 'filter',
         'foot', 'footer', 'form', 'frame', 'full', 'grid', 'group', 'head',
         'here', 'hint', 'icon', 'ident', 'inline', 'invalid', 'item', 'keyword', 'knob', 'label', 'leaf', 'line', 'link',

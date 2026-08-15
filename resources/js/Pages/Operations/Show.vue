@@ -13,6 +13,9 @@ import Section from '../../Components/Section.vue'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import { useOperationStream } from '../../Composables/useOperationStream'
+import { useConfirmation } from '../../Composables/useConfirmation'
+
+const { ask } = useConfirmation()
 
 interface Operation {
   id: number
@@ -74,10 +77,10 @@ const rang = computed<'ok' | 'warn' | 'critical' | 'neutral'>(() => {
 const cancelRequested = ref(props.operation.cancel_requested)
 
 function cancel(): void {
-  if (!window.confirm('Diesen Vorgang abbrechen?')) return
-
-  cancelRequested.value = true
-  router.post(`/operations/${props.operation.id}/cancel`, {}, { preserveScroll: true })
+  ask('Diesen Vorgang abbrechen?', 'Abbrechen lassen', () => {
+    cancelRequested.value = true
+    router.post(`/operations/${props.operation.id}/cancel`, {}, { preserveScroll: true })
+  })
 }
 
 const box = ref<HTMLElement | null>(null)

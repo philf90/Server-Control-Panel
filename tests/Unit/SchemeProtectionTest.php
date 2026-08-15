@@ -181,4 +181,129 @@ final class SchemeProtectionTest extends TestCase
             'begonnen hat — und genau das ist der Fehler, gegen den sie gebaut wurde.',
         );
     }
+
+    /**
+     * Ein `chmod` nimmt das geerbte setgid-Bit eines Verzeichnisses nicht weg.
+     *
+     * ## Die Begründung stand da und galt nur für einen Fall
+     *
+     * `FilesChmod` erklärt über seinem `Scheme::protect()`, warum ein `chmod`
+     * des Kunden auf `httpdocs` das setgid-Bit lautlos nähme. **Dieselbe
+     * Überlegung gilt für jedes Verzeichnis darin** — und dort schützt `Scheme`
+     * ausdrücklich nicht, denn `httpdocs/bilder` ist Inhalt und kein Gerüst.
+     *
+     * > **Eine Begründung, die für einen Fall aufgeschrieben ist, gilt oft für
+     * > mehr — und wird trotzdem nur dort angewandt.**
+     *
+     * Der Rechte-Editor bietet neun Bits an (`docs/51 §8.2` nennt setgid
+     * ausdrücklich als das, was **nicht** angeboten wird). Ein Griff, der neun
+     * Bits anbietet, darf das zehnte nicht anfassen.
+     *
+     * ## Warum hier zuerst gemessen und dann gelesen wird
+     *
+     * Dieser Wächter hat zunächst **nur** den Quelltext gelesen, und die
+     * Behauptung, gegen die er ihn las, stand auf einer Messung auf
+     * `cloudsrv24`, die den falschen Gegenstand traf: `httpdocs/p6-bit` war
+     * eine **Datei** (`-rwxr-xr-x`, 0 Byte) und kein Verzeichnis. Eine Datei
+     * erbt in einem setgid-Verzeichnis nur die **Gruppe** und nie das Bit — ihr
+     * `755` nach dem `chmod` belegt also nichts (`docs/55`, Befund 13).
+     *
+     * > **Ein Wächter, der Quelltext gegen eine ungemessene Behauptung liest,
+     * > prüft die Schreibweise einer Vermutung.**
+     *
+     * Die Mechanik selbst braucht kein Chroot und keine Rechte, also wird sie
+     * hier gemessen: `chmod(2)` setzt den Modus vollständig, GNU-`chmod`
+     * bewahrt das Bit bei Verzeichnissen von sich aus, PHPs `chmod()` nicht.
+     * Erst danach wird nachgesehen, ob `FilesChmod` die gemessene Rechnung auch
+     * anstellt.
+     */
+    public function test_a_chmod_keeps_the_inherited_setgid_bit(): void
+    {
+        $eltern = sys_get_temp_dir().'/srvpanel-setgid-'.bin2hex(random_bytes(6));
+        mkdir($eltern, 0o750);
+
+        try {
+            // Erst die Vererbung: Ohne sie prüfte der Rest einen Fall, den es
+            // nicht gibt.
+            chmod($eltern, 0o2750);
+            $kind = $eltern.'/kind';
+            mkdir($kind);
+            $datei = $eltern.'/datei';
+            touch($datei);
+            clearstatcache();
+
+            // Geerbt wird **das Bit**, nicht der Modus: Die neun Rechtebits
+            // kommen aus `mkdir` und der umask. Ein Vergleich des ganzen Modus
+            // prüft hier die umask der CI und nicht die Vererbung.
+            $this->assertSame(
+                0o2000,
+                fileperms($kind) & 0o2000,
+                'Ein Unterverzeichnis erbt das setgid-Bit nicht. Dann gibt es hier nichts zu bewahren, '.
+                'und die Rechnung in `FilesChmod` wäre grundlos.',
+            );
+
+            $this->assertSame(
+                0,
+                fileperms($datei) & 0o2000,
+                "Eine **Datei** trägt in einem setgid-Verzeichnis das Bit.\n\n".
+                'Genau diese Annahme hat den Befund auf `cloudsrv24` am falschen Gegenstand gemessen: '.
+                'Erbte eine Datei es, wäre `p6-bit` ein gültiger Beleg gewesen.',
+            );
+
+            // Und der Verlust, gegen den die Rechnung gebaut ist.
+            chmod($kind, 0o755);
+            clearstatcache();
+
+            $this->assertSame(
+                0o755,
+                fileperms($kind) & 0o7777,
+                'PHPs `chmod()` bewahrt das setgid-Bit von sich aus. Dann ist die Rechnung in '.
+                '`FilesChmod` überflüssig — und diese Erwartung hier falsch.',
+            );
+
+            // Und dass die Rechnung des Griffs ihn tatsächlich aufhebt.
+            chmod($kind, 0o755 | 0o2000);
+            clearstatcache();
+
+            $this->assertSame(
+                0o2755,
+                fileperms($kind) & 0o7777,
+                'Das mitgeführte Bit kommt nicht an. Dann behebt `$mode | $geerbt` den Verlust nicht.',
+            );
+        } finally {
+            @unlink($eltern.'/datei');
+            @rmdir($eltern.'/kind');
+            @rmdir($eltern);
+        }
+
+        $quelle = (string) file_get_contents(
+            dirname(__DIR__, 2).'/agent/src/Ops/FilesChmod.php',
+        );
+
+        $this->assertMatchesRegularExpression(
+            "/\\\$geerbt = \\\$entry\\['type'\\] === 'directory'/",
+            $quelle,
+            "`files.chmod` führt das geerbte setgid-Bit nicht mehr mit.\n\n".
+            'Ein `chmod 755` auf ein Unterverzeichnis von `httpdocs` nimmt es dann weg, und jede '.
+            'Datei darin trägt danach wieder die Gruppe des Abonnements.',
+        );
+
+        $this->assertStringContainsString(
+            '@chmod($path, $mode | $geerbt)',
+            $quelle,
+            'Der Modus wird ohne das bewahrte Bit gesetzt.',
+        );
+
+        /*
+         * **Nur bei Verzeichnissen**, und das ist die Gegenrichtung derselben
+         * Regel: Auf einer Datei bedeutet dasselbe Bit die Ausführung unter
+         * fremder Gruppe. Dieses Panel setzt es dort nirgends — was es nicht
+         * setzt, muss es auch nicht bewahren.
+         */
+        $this->assertStringNotContainsString(
+            '$geerbt = $entry[\'mode\'] & 0o2000;',
+            $quelle,
+            'Das Bit wird auch auf Dateien bewahrt. Dort heisst es etwas anderes.',
+        );
+    }
 }

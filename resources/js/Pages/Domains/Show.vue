@@ -5,6 +5,9 @@ import Section from '../../Components/Section.vue'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import FormErrors from '../../Components/FormErrors.vue'
+import { useConfirmation } from '../../Composables/useConfirmation'
+
+const { ask } = useConfirmation()
 
 interface PhpOption {
   version: string
@@ -219,9 +222,9 @@ function entfernen(): void {
     ? `${props.domain.name} entfernen? Server-Block und Protokolle werden gelöscht.`
     : `${props.domain.name} entfernen? Server-Block, Protokolle und das Verzeichnis ${pfad} werden gelöscht. Es gibt keine Sicherung.`
 
-  if (!window.confirm(frage)) return
-
-  router.delete(`/domains/${props.domain.id}`)
+  ask(frage, 'Entfernen', () => {
+    router.delete(`/domains/${props.domain.id}`)
+  })
 }
 </script>
 

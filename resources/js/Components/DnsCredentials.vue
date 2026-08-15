@@ -3,6 +3,9 @@ import { router, useForm } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import EyeIcon from './EyeIcon.vue'
 import Section from './Section.vue'
+import { useConfirmation } from '../Composables/useConfirmation'
+
+const { ask } = useConfirmation()
 
 /*
  * Zugangsdaten für DNS-01 — hinterlegen, ansehen, entfernen.
@@ -127,11 +130,12 @@ function submit(): void {
  * geht es nur, indem jemand den Schlüssel wieder heraussucht.
  */
 function forget(): void {
-  if (!confirm('Die Zugangsdaten entfernen? Danach wird für diese Zonen nichts mehr über DNS-01 bestellt, bis ein neuer Schlüssel hinterlegt ist.')) {
-    return
-  }
-
-  router.delete(props.action, { preserveScroll: true })
+  ask(
+    'Die Zugangsdaten entfernen? Danach wird für diese Zonen nichts mehr über DNS-01 bestellt, '
+    + 'bis ein neuer Schlüssel hinterlegt ist.',
+    'Entfernen',
+    () => { router.delete(props.action, { preserveScroll: true }) },
+  )
 }
 
 function moment(seconds: number): string {

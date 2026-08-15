@@ -13548,3 +13548,118 @@ Fehler steckt im Prüfmittel:
 - **Zwei Zahlen mit dem falschen Wort** in einer einzigen CLI-Ausgabe („1
   Server-Blöcke", „1 … haben") — derselbe Fehler wie „geschätzt 1 Zeilen", an
   einer Stelle, an die `CountedNounTest` nicht sieht: Er liest `resources/js`.
+
+#### Der Rechte-Editor nimmt das geerbte setgid-Bit nicht mehr weg
+
+`files.chmod` nimmt neun Bits entgegen und rief `chmod()` mit genau diesen neun.
+`chmod(2)` setzt den Modus vollständig — GNU-`chmod` bewahrt das setgid-Bit bei
+Verzeichnissen von sich aus, PHPs `chmod()` nicht. Ein `chmod 755` des Kunden auf
+`httpdocs/bilder` nahm es also lautlos weg, und jede Datei, die er danach darin
+anlegte, trug wieder die Gruppe des Abonnements statt `www-data`: Befund 3 aus
+`docs/53`, eine Ebene tiefer und mit dem Kunden als Verursacher.
+
+Die Begründung dafür stand seit Schritt 6c im Quelltext — über `Scheme::protect()`
+und ausschliesslich für `httpdocs`.
+
+> **Eine Begründung, die für einen Fall aufgeschrieben ist, gilt oft für mehr —
+> und wird trotzdem nur dort angewandt.**
+
+Bewahrt wird das Bit **nur bei Verzeichnissen**. Auf einer Datei bedeutet dasselbe
+Bit etwas anderes, und dieses Panel setzt es dort nirgends; was es nicht setzt,
+muss es auch nicht bewahren.
+
+> **Ein Griff, der neun Bits anbietet, darf das zehnte nicht anfassen.**
+
+#### Und der Beleg dafür traf den falschen Gegenstand
+
+Der Nachweis auf `cloudsrv24` war ein `stat -c '%U:%G %a'` auf `httpdocs/p6-bit`
+— und das war eine **Datei**. Der Formatbefehl gibt den Typ nicht aus; für eine
+Datei sieht seine Ausgabe genauso aus wie für ein Verzeichnis. Eine Datei erbt in
+einem setgid-Verzeichnis nur die Gruppe und nie das Bit, hatte also nie eines,
+das ein `chmod 755` hätte wegnehmen können.
+
+> **Ein Formatbefehl, der den Typ nicht ausgibt, macht aus zwei Gegenständen
+> einen.**
+
+Der Wächter dazu las nur den Quelltext und war grün, während sein einziger Beleg
+nichts belegte. Er misst jetzt zuerst in einem Wegwerf-Verzeichnis — dass ein
+Unterverzeichnis das Bit erbt, dass eine Datei es nicht erbt, dass PHPs `chmod`
+es nimmt und dass `| 0o2000` es zurückgibt — und liest erst danach.
+
+> **Ein Wächter, der Quelltext gegen eine ungemessene Behauptung liest, prüft die
+> Schreibweise einer Vermutung.**
+
+#### Keine Seite fragt mehr über einen Systemdialog nach einer Eingabe
+
+Auf einem iPhone liess sich „Als Zip packen" **gar nicht** bedienen. Safari darf
+die Dialoge einer Seite abschalten, nachdem sie mehrere gezeigt hat; `prompt()`
+gibt danach ohne ein Zeichen `null` zurück, und der Knopf tut nichts — keine
+Meldung, kein Unterschied zu einem kaputten Knopf.
+
+> **Ein Knopf, dessen Wirkung in einem Dialog steckt, den der Browser abschalten
+> darf, ist ein Knopf, der nichts tut.**
+
+Entschieden war das längst: Der `window.prompt` des Rechte-Editors ist im August
+durch einen Bereich auf der Seite ersetzt worden, mit dem Satz „dieses Panel hat
+keine Modalen". Drei weitere in derselben Datei — Umbenennen, Suchen, Packen —
+und einer in `Subscriptions/Show.vue` haben das überlebt.
+
+> **Eine Regel, die nur auf den gemeldeten Fall angewandt wird, lässt ihre
+> Geschwister stehen.**
+
+Der vierte war die zweite Rückfrage vor dem **Rückbau eines Abonnements**: den
+Namen abtippen, bevor ein Verzeichnisbaum als root verschwindet. Bei
+abgeschalteten Dialogen hätte „Zurückbauen" wortlos nichts getan.
+
+#### Und `window.confirm` war nicht die harmlose Hälfte
+
+Der Absatz darüber hiess bis zur nächsten Messung anders: `confirm` stelle eine
+Ja-Nein-Frage, nehme keine Eingabe entgegen, und falle er aus, unterbleibe die
+Aktion — die sichere Richtung, also Schritt 12. Die Gegenprobe auf demselben
+iPhone hat das umgeworfen: **Auch die Rückfrage kam nicht.**
+
+Achtzehn Aktionen waren damit auf diesem Gerät tot — Sperren, Zurückziehen,
+Zurückbauen, Entfernen, Zurückspielen, einen Vorgang abbrechen, PHP oder
+PostgreSQL installieren, ein Zertifikat ausstellen.
+
+> **„Es geschieht nichts Falsches" und „es geschieht das Richtige" sind zwei
+> Sätze, und nur der zweite beschreibt ein bedienbares Panel.**
+
+`useConfirmation` hält die offene Frage, `Confirmation.vue` zeichnet sie im
+`PanelLayout` — ein Ort statt achtzehn, an derselben Stelle wie die grüne Meldung
+und die Fehlerzusammenfassung. Der zustimmende Knopf trägt das **Verb der
+Handlung** statt „OK", und zerstörende Handlungen bekommen die rote Fläche; beides
+konnte `confirm()` nicht.
+
+#### Eine Komponente, die niemand einbindet, fiel durch jedes Netz
+
+Der Bruch zu dieser Regel nahm `<Confirmation />` aus dem Layout — die Rückfrage
+wäre gebaut und nirgends sichtbar gewesen. **Kein Wächter wurde rot.**
+`ClassNameTest` prüft, dass jede Regel in `app.css` von einer Vorlage erreicht
+wird, und `.confirmation` steht in der Vorlage der Komponente selbst.
+
+> **Eine Komponente, die niemand einbindet, erfüllt jede Prüfung über ihren
+> eigenen Inhalt.**
+
+`ComponentReachTest` schliesst die Lücke. Gefährlich ist sie nicht beim Anlegen,
+sondern beim Umbauen: Eine verlorene Einbindungszeile nimmt eine Funktion mit,
+und alles andere bleibt stehen — genau so ist `RememberPageUrl` aus
+`bootstrap/app.php` verschwunden.
+
+#### Und die Behebung schob die Seite um 132px aus dem Bild
+
+Gemessen bei 390px, bevor sie ausgeliefert wurde. Die Ursache war eine
+Beschriftung mit einem **Dateinamen** darin — „Neuer Name für ⟨name⟩" neben
+seinem Feld, und `.field.inline > span` trägt `white-space: nowrap`. Dieselbe
+Klasse wie die Kennung im Fliesstext aus `docs/46 §20.11`; der Rechte-Editor
+zwanzig Zeilen weiter oben macht es seit Schritt 6 richtig.
+
+Die restlichen 30px kamen von einer Beschriftung ganz ohne Namen. Der Kommentar
+an dieser Regel verlangt seit Monaten wörtlich, dass nachmisst, wer eine längere
+Beschriftung einsetzt.
+
+> **Eine Regel, die bei jedem neuen Text eine Messung verlangt, wird bei jedem
+> neuen Text vergessen.**
+
+Unter 480px steht die Beschriftung eines `.field.inline` deshalb jetzt über dem
+Feld — panelweit, nicht nur in den drei neuen Formularen.

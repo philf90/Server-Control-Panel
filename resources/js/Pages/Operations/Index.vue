@@ -5,6 +5,9 @@ import Section from '../../Components/Section.vue'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Pager from '../../Components/Pager.vue'
+import { useConfirmation } from '../../Composables/useConfirmation'
+
+const { ask } = useConfirmation()
 
 interface Row {
   id: number
@@ -67,14 +70,22 @@ function start(task: TaskEntry): void {
   // entfernen?" und „PHP 8.1 entfernen?" sind zwei verschiedene Fragen.
   const frage = argument === null ? task.label : `${task.label}: ${argument}`
 
-  if (task.mutating && !window.confirm(`${frage}?\n\n${task.description}`)) return
+  const los = (): void => {
+    starting.value = task.key
+    router.post('/operations', { task: task.key, argument }, {
+      onFinish: () => {
+        starting.value = null
+      },
+    })
+  }
 
-  starting.value = task.key
-  router.post('/operations', { task: task.key, argument }, {
-    onFinish: () => {
-      starting.value = null
-    },
-  })
+  if (!task.mutating) {
+    los()
+
+    return
+  }
+
+  ask(`${frage}?\n\n${task.description}`, 'Ausführen', los)
 }
 </script>
 

@@ -522,7 +522,7 @@ function pick(target: string): void {
       eine zweite Form. Der Name des Eintrags steht dabei, weil sonst nicht
       abzulesen wäre, wessen Rechte gerade offen sind.
     -->
-    <form v-if="chmodFor !== null" @submit.prevent="submitChmod">
+    <form v-if="chmodFor !== null" class="block" @submit.prevent="submitChmod">
       <p class="path-line">Rechte für {{ chmodFor.name }}</p>
 
       <PermissionEditor

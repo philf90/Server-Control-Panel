@@ -1516,6 +1516,30 @@ table.pairs {
 }
 
 /*
+ * Ein Formular, das als eigener Block auf der Seite steht.
+ *
+ * **Der siebte Fall derselben Fuge, und der erste, den kein Wächter sehen
+ * konnte.** Der Betreiber hat ihn am 15. August im Prüflauf gemeldet: Zwischen
+ * „Speichern"/„Abbrechen" des Rechte-Editors und der Liste darunter war nichts
+ * (`docs/55`, Befund 10).
+ *
+ * `BlockSpacingTest` paart **Klassen**. Das Formular des Rechte-Editors trug
+ * keine — und sein letztes Kind, die Knopfreihe, hat kein Geschwister, weil es
+ * das letzte ist. Die Fuge fiel damit zwischen beide Raster:
+ *
+ * > **Ein Baustein ohne Klasse steht in keiner Liste — auch nicht in der der
+ * > Fehler.**
+ *
+ * `margin` oben **und** unten, nicht nur unten: Über dem Formular steht die
+ * Knopfreihe der Seite, und die endet bündig. Ein Block, der seine Luft in beide
+ * Richtungen mitbringt, braucht keine Nachbarschaftsregel — und das ist der
+ * Unterschied zu einer Liste von Nachbarn, die mit jedem Umbau wächst.
+ */
+.block {
+  margin: var(--block-gap) 0;
+}
+
+/*
  * Was ausgewählt ist, und was man damit tun kann (P6, Schritt 5h).
  *
  * **Sie trägt eine Fläche und einen Rahmen**, weil sie kommt und geht. Ein

@@ -614,6 +614,86 @@ einfachsten über „Umbenennen" mit einem Namen über 255 Zeichen.
 
 ---
 
+## Punkt 2 — erfüllt, und zwar von Ende zu Ende
+
+| Zustand | Eigentümer:Gruppe | Modus | Seite |
+|---|---|---|---|
+| `p6-probe.txt`, neu über den Dateimanager | `p1136:www-data` | `644` | — |
+| dieselbe, nach dem Rechte-Editor | `p1136:www-data` | `640` | **200** |
+
+**Die Gruppe ist geerbt.** Die Datei ist durch `files.write` in einem
+`httpdocs` entstanden, das seit Punkt 1 (c) setgid trägt — vor 6c hätte sie
+`p1136:p1136` getragen, wie die `index.html` daneben es bis heute Vormittag tat.
+
+**Und bei `0640` liefert nginx aus.** Kein Weltbit, kein Rückfall auf „für alle
+lesbar" — der Webserver kommt über die **Gruppe** heran. Das ist genau der Fall,
+an dem Befund 3 aus `docs/53` gescheitert ist.
+
+Zusammen mit Befund 1 sind das zwei Messungen mit einer Veränderlichen, in beide
+Richtungen:
+
+| | Gruppe | Modus | Seite |
+|---|---|---|---|
+| `index.html` (alt, vor 6c angelegt) | `p1136` | `0640` | 403 |
+| `index.html` nach `chgrp www-data` | `www-data` | `0640` | 200 |
+| `p6-probe.txt` (neu, mit setgid) | `www-data` | `0640` | 200 |
+
+Der Satz des Rechte-Editors — „Der Webserver kann diese Datei ausliefern." — ist
+damit zum ersten Mal **nachweislich** wahr.
+
+---
+
+## Befund 10 — der Abstand fehlt zum siebten Mal, und diesmal war er unsichtbar
+
+**Vom Betreiber gemeldet**, im selben Atemzug wie das Ergebnis von Punkt 2:
+Zwischen „Speichern"/„Abbrechen" des Rechte-Editors und der Liste darunter war
+nichts.
+
+Gemessen im gebauten Stylesheet: **0px**. Mit der Behebung 24px bei 390px und
+26px ab 800px — das ist `--block-gap`, derselbe Abstand wie unter jeder Meldung.
+
+### Warum `BlockSpacingTest` ihn nicht sehen konnte
+
+**Aus zwei Gründen gleichzeitig, und beide sind Löcher zwischen seinen
+Rastern.** Das Formular des Rechte-Editors trug **keine Klasse** — der Wächter
+paart Klassen, also passte es in keine der beiden Listen. Und sein letztes Kind,
+die Knopfreihe, hat **kein Geschwister**, weil es das letzte ist.
+
+> **Ein Baustein ohne Klasse steht in keiner Liste — auch nicht in der der
+> Fehler.**
+
+### Behoben an beiden Enden
+
+**Die Gestaltung:** Das Formular heisst jetzt `.block` und bringt seine Luft in
+**beide** Richtungen mit. Kein Nachbarschaftseintrag — ein Block, der oben und
+unten Abstand hat, braucht keine Liste von Nachbarn, und genau solche Listen
+sind sechsmal hintereinander unvollständig gewesen.
+
+**Der Wächter:** Ein klassenloser Behälter reicht seine **Kante** durch — er
+endet, wo sein letztes Kind endet, und fängt an, wo sein erstes anfängt. Damit
+sieht er neun Fugen mehr; die Liste wächst von 31 auf 40, und **keine einzige
+ist weggefallen**. Sie wächst, weil der Wächter mehr sieht, nicht weil die
+Gestaltung schlechter wurde.
+
+### Und der erste Wurf der Behebung hat den Satz gebrochen, der im selben Kopf steht
+
+Ein **benannter Platz** (`<template #actions>`) ist auch ein klassenloser
+Behälter — und er verschiebt seinen Inhalt in die Kopfzeile der Seite. Die
+Durchsichtigkeit hat ihn prompt aufgemacht: Der letzte Knopf aus `#actions`
+wurde wieder zum Nachbarn dessen, was im Quelltext darunter steht. **Dieselben
+drei Scheinnachbarn**, die der Umbau vom 14. August schon einmal beseitigt
+hatte.
+
+> **Zwei Dinge, die im Quelltext gleich heissen, sind im Browser nicht
+> dasselbe.** Der Satz steht im Kopf dieses Wächters, und ich habe ihn eine
+> Methode weiter unten gebrochen.
+
+Der benannte Platz trägt deshalb jetzt eine Marke und bleibt undurchsichtig. Drei
+Brüche dazu, alle zubeissend — der zweite über die Sperrklinke der Liste, die
+meldet, wenn eine bekannte Fuge verschwindet.
+
+---
+
 ## Offen, klein, nicht verfolgt
 
 `ls /var/www/vhosts/p6-b.invalid/logs/` und der `tail` darauf haben nichts

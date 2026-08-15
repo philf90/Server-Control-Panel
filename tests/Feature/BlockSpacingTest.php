@@ -623,7 +623,7 @@ final class BlockSpacingTest extends TestCase
     {
         $abgedeckt = $this->covered();
 
-        foreach ([['scrolls', 'button-row'], ['field', 'button-row'], ['button-row', 'sections']] as $muss) {
+        foreach ([['scrolls', 'button-row'], ['field', 'button-row'], ['button-row', 'sections'], ['button-row', 'split']] as $muss) {
             $this->assertContains(
                 $muss,
                 $abgedeckt,

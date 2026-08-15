@@ -652,7 +652,7 @@ Dazu wachsen mit: `AgentOperationReachTest`, `RouteAuthorizationTest`,
 | **5d** | Der Abstand, und die Regel dahinter | **gebaut** — `BlockSpacingTest` leitet ab |
 | **5e** | Eine Datei anlegen, und mehrere hochladen | **gebaut** — §8.3 |
 | **5f** | Das Gerüst des Abonnements schützen | **gebaut** — `Files\Scheme`, §8.4 |
-| **5g** | Der Baum aus §8, als Fläche und als Zielwähler | offen |
+| **5g** | Der Baum aus §8, als Fläche und als Zielwähler | **gebaut** — `files.tree`, `FileTree` |
 | **5h** | Mehrfachauswahl: entfernen, kopieren, verschieben, packen | offen |
 | **6d** | Der Editor: Breite und Hervorhebung | **gebaut** — §8.1 |
 | 6 | Editor (CodeMirror 6) | Entscheidung 1, mit ihren drei Auflagen |

@@ -59,6 +59,7 @@ final class AgentOperationReachTest extends TestCase
         // liegt auf der Platte. Ein Lebenslauf hätte nichts zu verwalten;
         // gerufen werden alle zwölf aus `App\\Support\\Files\\Files`.
         'files.list' => 'Liest ein Verzeichnis des Abonnements. Kein Bestand im Panel.',
+        'files.tree' => 'Siehe files.list — nur die Unterverzeichnisse, für den Baum.',
         'files.read' => 'Siehe files.list.',
         'files.write' => 'Schreibt eine Datei des Kunden. Was auf der Platte liegt, ist der Bestand.',
         'files.mkdir' => 'Siehe files.write.',

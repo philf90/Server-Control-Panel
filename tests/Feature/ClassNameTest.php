@@ -45,11 +45,11 @@ final class ClassNameTest extends TestCase
      */
     private const VOCABULARY = [
         'account', 'active', 'after', 'area', 'arrow', 'aside', 'badge', 'band', 'bar', 'blank',
-        'block', 'breadcrumb', 'button', 'cell', 'check', 'choice', 'choices', 'codes',
+        'block', 'branch', 'breadcrumb', 'button', 'cell', 'check', 'choice', 'choices', 'codes',
         'code', 'comment', 'content', 'critical', 'crumbs', 'cursor', 'danger', 'dependent', 'description',
         'done', 'editor', 'empty', 'end', 'error', 'explains', 'eye', 'facts', 'field', 'filter',
         'foot', 'footer', 'form', 'frame', 'full', 'grid', 'group', 'head',
-        'hint', 'icon', 'ident', 'inline', 'invalid', 'item', 'keyword', 'label', 'leaf', 'line', 'link',
+        'here', 'hint', 'icon', 'ident', 'inline', 'invalid', 'item', 'keyword', 'knob', 'label', 'leaf', 'line', 'link',
         'list',
         'log', 'long', 'mark', 'menu', 'met', 'meter', 'multiline', 'name', 'node', 'number',
         'narrow', 'nav', 'neutral', 'note', 'notice', 'ok', 'on', 'op',
@@ -60,7 +60,7 @@ final class ClassNameTest extends TestCase
         'second', 'section', 'sections', 'sheet', 'signin', 'signout', 'small',
         'source', 'spaced', 'split', 'sr', 'stacks', 'state', 'strength', 'string', 'sub', 'subline',
         'tag', 'tasks', 'text', 'tight', 'tile', 'tiles', 'time', 'title', 'toggle', 'tok',
-        'top', 'topbar', 'tree', 'trend', 'unit', 'usage', 'value', 'variable', 'version', 'warn',
+        'top', 'topbar', 'tree', 'trend', 'twig', 'unit', 'usage', 'value', 'variable', 'version', 'warn',
         'wide', 'who', 'with',
     ];
 

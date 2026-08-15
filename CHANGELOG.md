@@ -13267,3 +13267,55 @@ Ein benannter Platz wird jetzt zu einem gewöhnlichen Kasten, und welches
 Ausdrucks. **Sechs Fugen sind dadurch dazugekommen und drei weggefallen, ohne
 dass sich eine Vorlage geändert hätte** — beides Korrekturen am Wächter und
 keine an der Gestaltung.
+
+### P6 Schritt 5g — der Baum, den `docs/51 §8` seit dem ersten Tag verlangt
+
+Im Template stand seit Schritt 5 die Zeile „Die Krümel sind der Baum" — als
+Entscheidung hingeschrieben, ohne dass sie je eine war. Der Plan sagt „Baum
+links, Liste rechts", und der Betreiber hat ihn am 15. August als **Zielwähler**
+für das Kopieren und Verschieben verlangt: Man soll das Ziel sehen und nicht
+tippen.
+
+**Derselbe Baum bekommt beide Rollen.** Was sie unterscheidet, ist eine einzige
+Angabe — beim Navigieren führt ein Klick zur Liste, beim Auswählen setzt er das
+Ziel.
+
+> **Zwei Bausteine, die dasselbe zeigen, zeigen es beim nächsten Umbau
+> verschieden.**
+
+**`files.tree` ist eine eigene Operation und nicht `files.list` mit einem
+Filter.** Ein Baum braucht je Ast den Namen und die Frage, ob etwas darunter
+liegt; Grösse, Rechte, Zeitstempel und Verweisziel würde er wegwerfen. Bei einem
+Verzeichnis mit fünftausend Einträgen ist das der Unterschied zwischen einer
+Antwort und einer grossen Antwort — und ein Baum fragt oft.
+
+> **Eine Antwort, die zehnmal mehr trägt als die Frage verlangt, wird zehnmal
+> geschickt.**
+
+`children` kommt mit, damit ein Aufklapper nur dort steht, wo etwas darunter
+liegt: Einer, der sich öffnet und nichts zeigt, ist eine Zusage, die der Baum
+nicht halten kann.
+
+**Der erste Wurf hatte zwei Ebenen im Markup** und die Begründung „das reicht
+zum Navigieren". Sie ist an einem gewöhnlichen Pfad widerlegt —
+`httpdocs/wp-content/themes/mein-theme` sind vier. Die Rekursion steht jetzt in
+einem eigenen Baustein, und die Ablage bleibt oben: Zwei Ebenen mit je eigenem
+Vorrat lüden dasselbe Verzeichnis zweimal und vergässen es zu verschiedenen
+Zeiten.
+
+**Und der Wächter hat beim Einbauen zweimal zugebissen.** Der Baum hat die
+Brotkrumen in die zweite Spalte geschoben — damit gibt es `button-row + crumbs`
+nicht mehr, und die Regel dafür wäre ab sofort tot gewesen, ihr Bruch stumm.
+Dieselbe Fuge heisst jetzt zum dritten Mal anders: erst `.sections`, dann
+`.crumbs`, jetzt `.split`.
+
+**Dazu eine Lücke, die älter ist als der Baum.** Zwölf Datei-Operationen
+betraten die Sandbox, und nichts hielt fest, dass die dreizehnte es auch tut.
+
+> **Eine Grenze, die zwölfmal eingehalten wird, ist eine Gewohnheit. Erst der
+> Wächter macht sie zur Regel.**
+
+Gemessen im gebauten Stylesheet bei 390, 800 und 1440 px in beiden Themes:
+Überlauf 0, Gegenprobe 400 px. Ein Verzeichnisname von 53 Zeichen bricht, statt
+zu schieben — die fünfte Fassung derselben Ausnahme nach `.ident`,
+`.stacks td .ident`, dem Bereichstitel und `.field > span`.

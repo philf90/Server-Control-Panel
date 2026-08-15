@@ -1544,6 +1544,102 @@ table.pairs {
  * sechs Werte, die beim nächsten Themewechsel niemand mitzieht.
  */
 /*
+ * Der Verzeichnisbaum (P6, Schritt 5g).
+ *
+ * `docs/51 §8` verlangt „Baum links, Liste rechts". Bis hierher stand im
+ * Template nur „Die Krümel sind der Baum" — als Entscheidung hingeschrieben,
+ * ohne dass sie je eine war.
+ *
+ * **Bei 720px und darunter steht er über der Liste und nicht daneben.**
+ * `docs/24 §5` hat für Tabellen gemessen, was zwei Spalten auf einem Telefon
+ * anrichten; ein Baum neben einer Liste ist derselbe Fall. Die Reihenfolge ist
+ * dabei die des Quelltextes — wer auf dem Telefon ankommt, sieht zuerst, wo er
+ * ist.
+ */
+.tree {
+  min-width: 0;
+  margin-bottom: var(--block-gap);
+  font-size: var(--text-small);
+}
+
+.branch {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * **Die Einrückung sitzt am Ast und nicht am Blatt.** Ein `padding-left` an
+ * jedem Eintrag müsste die Tiefe kennen; eine Einrückung an der Verschachtelung
+ * addiert sich von selbst und stimmt in jeder Ebene.
+ */
+.branch .branch {
+  padding-left: 15px;
+  border-left: 1px solid var(--line);
+  margin-left: 8px;
+}
+
+.twig {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 0;
+}
+
+/*
+ * Der Aufklapper — und dort, wo keiner steht, ein Platzhalter derselben Breite.
+ *
+ * Ohne ihn rückt jeder Ast ohne Kinder um seine Breite nach links, und die
+ * Einrückung sagt dann etwas über den Inhalt statt über die Tiefe.
+ */
+.knob {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  line-height: 1;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+button.knob {
+  cursor: pointer;
+}
+
+button.knob:hover {
+  color: var(--text-strong);
+}
+
+/*
+ * **Ein Verzeichnisname darf 255 Zeichen lang sein**, und im Baum steht er in
+ * einem Flexkind. `overflow-wrap` allein genügt dort nicht: Ein Flexkind bleibt
+ * ohne `min-width: 0` auf seiner Inhaltsbreite stehen, und dann schiebt der
+ * Baum die Seite. Die fünfte Fassung derselben Ausnahme nach `.ident`,
+ * `.stacks td .ident`, dem Bereichstitel und `.field > span`.
+ */
+.tree .link {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+/*
+ * Wo der Betrachter gerade steht.
+ *
+ * **Kein Farbwechsel allein.** Wer die beiden Töne nicht unterscheiden kann,
+ * sieht dann keinen Unterschied; das Gewicht trägt ihn mit.
+ */
+.tree .link.here {
+  font-weight: 640;
+  color: var(--text-strong);
+}
+
+/*
  * Die Rechte eines Eintrags — geführt statt geraten (P6, Schritt 5c).
  *
  * Hier fragte bis zum 14. August 2026 ein `window.prompt` nach einer
@@ -2279,18 +2375,21 @@ tr:has(td.multiline) > td {
  * **Und beim sechsten Mal war es wieder eine Meldung.**
  *
  * Der Betreiber hat es im Dateimanager gesehen: Zwischen dem Formular zum
- * Hochladen und den Brotkrumen darunter stand nichts (`docs/53`, Befund 7).
- * `.crumbs` ist in P6 dazugekommen und trägt nur `margin-bottom` — die Regel
- * darüber nennt aber `.sections`, und damit greift sie hier nicht.
+ * Hochladen und dem, was darunter steht, war nichts (`docs/53`, Befund 7).
  *
  * > **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit
  * > der nächsten Ergänzung.**
  *
+ * **Und mit der übernächsten fiel er noch einmal**, keinen Tag später: Der
+ * Nachfolger hiess erst `.sections`, dann `.crumbs` — und seit der Baum
+ * dazugekommen ist, `.split`. Dieselbe Fuge, drei Namen.
+ *
  * Der Wächter darunter zählt seitdem nicht mehr nur die Paare, die jemand
  * eingetragen hat, sondern leitet aus `app.css` ab, welche Bausteine überhaupt
- * bündig sind — ein neuer kommt damit von selbst in seinen Blick.
+ * bündig sind. Er hat diesen dritten Namen von selbst gemeldet — und dass der
+ * zweite nicht mehr vorkommt, ebenfalls.
  */
-.button-row + .crumbs {
+.button-row + .split {
   margin-top: var(--block-gap);
 }
 

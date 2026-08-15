@@ -3,6 +3,7 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import FormErrors from '../../Components/FormErrors.vue'
+import FileTree from '../../Components/FileTree.vue'
 import PermissionEditor from '../../Components/PermissionEditor.vue'
 import { formatBytes } from '../../bytes'
 
@@ -361,6 +362,25 @@ function remove(entry: Entry): void {
       </div>
     </form>
 
+    <!--
+      **Baum links, Liste rechts** (`docs/51 §8`). Bis Schritt 5g stand hier nur
+      der Satz „Die Krümel sind der Baum" — als Entscheidung hingeschrieben,
+      ohne dass sie je eine war.
+
+      `.split` bringt den Haltepunkt und die beiden `min-width: 0` mit, die dort
+      teuer erkauft sind: Ohne sie schiebt die Seite bei 800px um 242px, und
+      zwar **nur** dort — bei 720 und 1440 ist sie sauber.
+    -->
+    <div class="split">
+      <div class="aside">
+        <FileTree
+          :subscription-id="props.subscription.id"
+          :current="props.path"
+          @open="open"
+        />
+      </div>
+
+      <div>
     <nav class="crumbs" aria-label="Pfad">
       <button type="button" class="link" @click="open('/')">Abo-Wurzel</button>
       <template v-for="crumb in crumbs" :key="crumb.path">
@@ -463,6 +483,8 @@ function remove(entry: Entry): void {
           </tr>
         </tbody>
       </table>
+        </div>
+      </div>
     </div>
   </PanelLayout>
 </template>

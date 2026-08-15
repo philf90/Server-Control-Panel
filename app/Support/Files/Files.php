@@ -62,6 +62,22 @@ final class Files
     }
 
     /**
+     * Die Unterverzeichnisse eines Verzeichnisses — für den Baum.
+     *
+     * **Eine eigene Operation und nicht `list()` mit einem Filter.** Der Baum
+     * braucht je Ast den Namen und die Frage, ob etwas darunter liegt; alles
+     * andere — Grösse, Rechte, Zeitstempel, Verweisziel — würde er wegwerfen.
+     * Bei einem Verzeichnis mit fünftausend Einträgen ist das der Unterschied
+     * zwischen einer Antwort und einer grossen Antwort, und ein Baum fragt oft.
+     *
+     * @return array<string, mixed>
+     */
+    public function tree(Subscription $subscription, string $path): array
+    {
+        return $this->call($subscription, 'files.tree', ['path' => $path]);
+    }
+
+    /**
      * Eine Datei lesen.
      *
      * @return array<string, mixed>

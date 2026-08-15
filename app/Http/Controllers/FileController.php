@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\Subscription;
 use App\Support\Audit\Audit;
 use App\Support\Files\Files;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -92,6 +93,36 @@ final class FileController extends Controller
                 'edit' => $request->user()?->can('editFiles', $subscription) ?? false,
             ],
         ]);
+    }
+
+    /**
+     * Die Unterverzeichnisse eines Verzeichnisses — für den Baum.
+     *
+     * **Der zweite Griff dieses Panels, der JSON zurückgibt** (der erste ist
+     * die Datenbankkonsole, `docs/46 §20.9`). Der Grund ist hier ein anderer:
+     * Ein Baum klappt einen Ast auf, ohne die Seite zu wechseln — eine
+     * Inertia-Antwort täte genau das und nähme dabei jeden anderen geöffneten
+     * Ast mit.
+     *
+     * **`POST`, obwohl er nur liest**, aus demselben Grund wie dort: damit alle
+     * Griffe dieser Bauart zusammenbleiben und keiner eine eigene hat, die
+     * später jemand erklären muss.
+     */
+    public function tree(Request $request, Subscription $subscription): JsonResponse
+    {
+        $path = $this->path($request->input('path', '/'));
+
+        try {
+            return response()->json($this->files->tree($subscription, $path));
+        } catch (AgentException $exception) {
+            /*
+             * **422 und nicht 500.** „Das Verzeichnis gibt es nicht" ist für
+             * den Betrachter keine Störung, sondern eine Auskunft über den Ast,
+             * den er gerade aufklappen wollte — meistens, weil ihn jemand
+             * anderes inzwischen entfernt hat.
+             */
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
     }
 
     /**

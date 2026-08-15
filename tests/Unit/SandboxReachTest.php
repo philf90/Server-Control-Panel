@@ -229,6 +229,50 @@ final class SandboxReachTest extends TestCase
      * erbt*. P6 forkt trotzdem — also muss der Socket weg, und zwar bevor
      * fremder Code im Kind läuft.
      */
+    /**
+     * Jede Datei-Operation geht durch die Sandbox.
+     *
+     * **Gefunden beim Bauen des Baums, und die Lücke ist älter als er.** Zwölf
+     * Operationen betraten die Grenze, und nichts hielt fest, dass die
+     * dreizehnte es auch tut. Ein `files.tree`, das `Workspace::run()`
+     * vergisst, liest als **root** im ganzen Dateisystem — und zwar die
+     * Operation, die von allen am häufigsten läuft, weil sie an jedem
+     * Aufklappen hängt.
+     *
+     * > **Eine Grenze, die zwölfmal eingehalten wird, ist eine Gewohnheit. Erst
+     * > der Wächter macht sie zur Regel.**
+     *
+     * Gefragt wird über das Verzeichnis und nicht über eine Liste: Wächst
+     * `agent/src/Ops/Files*.php`, wächst dieser Wächter mit.
+     */
+    public function test_every_file_operation_goes_through_the_sandbox(): void
+    {
+        $dateien = glob(dirname(__DIR__, 2).'/agent/src/Ops/Files*.php') ?: [];
+
+        $this->assertGreaterThan(
+            8,
+            count($dateien),
+            'Es werden kaum Datei-Operationen gefunden — dann sucht dieser Wächter am falschen '.
+            'Ort, und seine Zusage ist wertlos.',
+        );
+
+        foreach ($dateien as $pfad) {
+            $quelle = $this->withoutComments((string) file_get_contents($pfad));
+
+            $this->assertStringContainsString(
+                '$workspace->run(',
+                $quelle,
+                sprintf(
+                    "%s betritt die Sandbox nicht.\n\n".
+                    'Alles, was darin nicht läuft, läuft als **root** und ohne Chroot — im ganzen '.
+                    'Dateisystem und nicht im Abonnement. Die Grenze aus `docs/51 §5` ist die '.
+                    'einzige, die es gibt; eine Operation daneben hebt sie für sich auf.',
+                    basename($pfad),
+                ),
+            );
+        }
+    }
+
     public function test_the_child_closes_what_it_inherited(): void
     {
         $source = $this->withoutComments(

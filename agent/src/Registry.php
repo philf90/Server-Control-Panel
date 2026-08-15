@@ -45,6 +45,7 @@ use SrvPanel\Agent\Ops\FilesMove;
 use SrvPanel\Agent\Ops\FilesRead;
 use SrvPanel\Agent\Ops\FilesRemove;
 use SrvPanel\Agent\Ops\FilesSearch;
+use SrvPanel\Agent\Ops\FilesTree;
 use SrvPanel\Agent\Ops\FilesUpload;
 use SrvPanel\Agent\Ops\FilesWrite;
 use SrvPanel\Agent\Ops\PanelProvision;
@@ -139,6 +140,7 @@ final class Registry
         $this->register(new FilesExtract);
         $this->register(new FilesCompress);
         $this->register(new FilesSearch);
+        $this->register(new FilesTree);
 
         $this->register(new WebserverDetect);
         $this->register(new WebSiteApply);

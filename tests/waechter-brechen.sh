@@ -7849,7 +7849,7 @@ vorher_datei resources/css/app.css
 python3 - <<'PY2'
 p = 'resources/css/app.css'
 s = open(p, encoding='utf-8').read()
-s = s.replace('.button-row + .crumbs {', '.button-row + .krumen {', 1)
+s = s.replace('.button-row + .split {', '.button-row + .spalt {', 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/css/app.css "Fuge unter dem Formular" &&
@@ -9063,6 +9063,26 @@ pruefe "der Status entscheidet vor dem Rumpf" \
   PanelRequestTest::test_the_body_is_read_before_the_status_decides failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PanelRequestTest passed
+
+echo
+echo "── FilesTree: der Baum laeuft nicht in der Sandbox ──"
+#
+# Zwoelf Operationen betraten die Grenze, und nichts hielt fest, dass die
+# dreizehnte es auch tut. Ein files.tree ohne Workspace::run() liest als root im
+# ganzen Dateisystem — und zwar die Operation, die am haeufigsten laeuft.
+vorher_datei agent/src/Ops/FilesTree.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesTree.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""return $workspace->run(static function () use ($path): array {""",
+              """$lauf = static function () use ($path): array {""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/FilesTree.php "Baum ohne Sandbox" &&
+pruefe "Baum ohne Sandbox" \
+  SandboxReachTest::test_every_file_operation_goes_through_the_sandbox failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxReachTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

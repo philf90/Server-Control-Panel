@@ -64,29 +64,22 @@ use SplFileInfo;
  * denn die stehen auf jeder Seite. Von dort aus wird gelaufen, und was dabei
  * nicht besucht wird, ist nicht erreichbar.
  *
- * Die Ausnahmen stehen namentlich in {@see self::UNLINKED} und tragen ihren
- * Grund. Eine stille Duldung wäre dieselbe Lücke noch einmal.
+ * ## Und es gibt keine Ausnahmeliste
+ *
+ * Der erste Wurf hatte eine, vorsorglich und leer. **PHPStan hat sie gemeldet**,
+ * und der Befund ist richtiger als der Typ, um den es dabei ging: Eine leere
+ * Ausnahmeliste macht ihre eigene Prüfung zu einer Behauptung ohne Gegenstand —
+ * `foreach` über nichts ist immer grün.
+ *
+ * > **Eine Vorkehrung für einen Fall, den es nicht gibt, sieht aus wie eine
+ * > Entscheidung und ist eine Vermutung.**
+ *
+ * Alle zweiunddreissig Seiten dieses Panels sind erreichbar. Gibt es später eine,
+ * die es aus einem echten Grund nicht sein kann, bekommt sie ihre Liste — und
+ * dann steht ein Eintrag darin, an dem sich prüfen lässt, dass die Liste wirkt.
  */
 final class LinkReachTest extends TestCase
 {
-    /**
-     * Seiten, auf die absichtlich kein Template zeigt.
-     *
-     * **Sie ist leer, und das ist der Zustand, den dieser Wächter halten
-     * soll.** Alle zweiunddreissig Seiten dieses Panels sind von einem Template
-     * aus erreichbar; die Anmeldung und ihre Geschwister stehen nicht darunter,
-     * weil sie keine Inertia-Seite über einen Controller mit `Inertia::render`
-     * sind und deshalb gar nicht erst gefragt werden.
-     *
-     * Wer hier etwas einträgt, um Rot loszuwerden, hat den Wächter
-     * abgeschaltet und nicht bestanden. Ein Eintrag braucht einen Grund, der
-     * erklärt, **wie** jemand sonst auf die Seite kommt — nicht, warum kein
-     * Knopf dorthin führt.
-     *
-     * @var array<string, string>
-     */
-    private const UNLINKED = [];
-
     /**
      * Alle Routen aus `routes/web.php`.
      *
@@ -297,10 +290,6 @@ final class LinkReachTest extends TestCase
         $geprueft = 0;
 
         foreach ($seiten as $seite) {
-            if (array_key_exists($seite['name'], self::UNLINKED)) {
-                continue;
-            }
-
             $geprueft++;
 
             $this->assertTrue(
@@ -312,8 +301,8 @@ final class LinkReachTest extends TestCase
                     "vorhanden. Ein Link **von der Seite selbst** oder von einer anderen, die\n".
                     "genauso unerreichbar ist, zählt dabei nicht: Drei Seiten, die aufeinander\n".
                     "zeigen, sind eine Insel ohne Anleger.\n\n".
-                    'Entweder bekommt sie einen Weg von aussen, oder sie steht mit ihrem Grund '.
-                    'in LinkReachTest::UNLINKED.',
+                    'Sie braucht einen Weg von aussen — ein `:href` oder ein `router.get` in '.
+                    'einem Layout, einer Komponente oder einer Seite, die selbst erreichbar ist.',
                     $seite['name'],
                     $seite['uri'],
                     $seite['page'],
@@ -337,30 +326,5 @@ final class LinkReachTest extends TestCase
             'Ausdrücke nicht mehr — der über `routes/web.php` oder der über die '.
             'Controller-Methoden —, und seine Zusage ist wertlos.',
         );
-    }
-
-    /**
-     * Jede Ausnahme zeigt auf eine Route, die es gibt.
-     *
-     * Ohne diese Prüfung bliebe ein Eintrag stehen, dessen Route längst
-     * umbenannt ist — und deckte nichts mehr ab, während er aussieht, als
-     * täte er es. Derselbe Fehler, gegen den dieses Projekt
-     * `AgentOperationReachTest` und `PolicyReachTest` gebaut hat.
-     */
-    public function test_every_exception_names_a_route_that_exists(): void
-    {
-        $namen = array_column($this->routes(), 'name');
-
-        foreach (array_keys(self::UNLINKED) as $ausnahme) {
-            $this->assertContains(
-                $ausnahme,
-                $namen,
-                sprintf(
-                    'LinkReachTest::UNLINKED nennt die Route `%s`, und `routes/web.php` kennt sie nicht. '.
-                    'Eine Ausnahme für etwas, das es nicht gibt, deckt nichts ab.',
-                    $ausnahme,
-                ),
-            );
-        }
     }
 }

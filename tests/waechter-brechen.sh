@@ -8987,6 +8987,61 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SchemeProtectionTest passed
 
 echo
+echo "── PanelRequestTest: eine zweite Stelle ruft fetch ──"
+#
+# Der Satz stand seit P5c als Kommentar in useConsole.ts und war von nichts
+# geprueft. Als P6 den Baum bekam, brauchte der denselben Weg — der zweite
+# Aufrufer ist genau der Fall, vor dem der Kommentar warnte.
+vorher_datei resources/js/Composables/useConsole.ts
+python3 - <<'PY2'
+p = 'resources/js/Composables/useConsole.ts'
+s = open(p, encoding='utf-8').read()
+s = s.replace('return askPanel<T>(', 'void fetch("/x"); return askPanel<T>(', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Composables/useConsole.ts "zweiter fetch" &&
+pruefe "eine zweite Stelle ruft fetch" \
+  PanelRequestTest::test_only_one_place_calls_fetch failed
+wiederherstellen
+
+echo
+echo "── PanelRequestTest: eine Kopfzeile faellt weg ──"
+#
+# Ohne X-Requested-With erkennt Laravel die Anfrage nicht als eine, die keine
+# Umleitung vertraegt. Der erste Wurf dieses Waechters blieb dabei gruen — er
+# fand die Kopfzeile im eigenen Klassenkopf, wo sie erklaert wird.
+vorher_datei resources/js/Composables/usePanelRequest.ts
+python3 - <<'PY2'
+p = 'resources/js/Composables/usePanelRequest.ts'
+s = open(p, encoding='utf-8').read()
+s = s.replace("      'X-Requested-With': 'XMLHttpRequest',\n", '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Composables/usePanelRequest.ts "Kopfzeile fehlt" &&
+pruefe "eine Kopfzeile fehlt" \
+  PanelRequestTest::test_the_one_place_sends_all_three_headers failed
+wiederherstellen
+
+echo
+echo "── PanelRequestTest: der Status entscheidet vor dem Rumpf ──"
+#
+# Ein 422 traegt die Begruendung, an der zwei Abnahmekriterien aus docs/46 §4
+# hingen. Wer beim Status abbricht, wirft genau sie weg.
+vorher_datei resources/js/Composables/usePanelRequest.ts
+python3 - <<'PY2'
+p = 'resources/js/Composables/usePanelRequest.ts'
+s = open(p, encoding='utf-8').read()
+s = s.replace('  const text = await antwort.text()',
+              '  if (antwort.ok) { return (await antwort.json()) as T }\n  const text = await antwort.text()', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Composables/usePanelRequest.ts "Status vor Rumpf" &&
+pruefe "der Status entscheidet vor dem Rumpf" \
+  PanelRequestTest::test_the_body_is_read_before_the_status_decides failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PanelRequestTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

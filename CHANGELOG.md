@@ -13215,3 +13215,55 @@ blosses „darf nicht" den Lesenden mit der Frage zurücklässt, was er tun soll
 Die DocumentRoots weiterer Domains bleiben ungeschützt: Sie heissen wie ihre
 Domain und stehen in keiner festen Liste. Das Panel kennt die Namen und warnt —
 eine Warnung ist eine Auskunft und keine zweite Durchsetzung.
+
+### Der Bruchlauf: drei Prüfungen ohne Biss, und alle drei lagen am Werkzeug
+
+**Gefunden von der CI und nicht im Container**: Das Bruchskript fährt hier nicht
+— die Wächter laufen über ein Gestell ohne PHPUnit, und `waechter-brechen.sh`
+braucht das echte.
+
+**Zwei riefen den falschen Helfer.** `vorher` merkt sich `resources/css/app.css`
+und `griff` vergleicht dagegen; `vorher_datei <pfad>` und `griff_datei <pfad>`
+tun dasselbe für eine beliebige Datei. Zwei Eingriffe in
+`Subscriptions/Show.vue` und `routes/web.php` riefen `griff` — das verglich
+`app.css` mit einem Abzug von vor drei Abschnitten und meldete „Eingriff hat
+nichts geändert", obwohl beide gegriffen hatten. Die zwei Wächter darunter
+liefen nie.
+
+> **Ein Werkzeug, das die falsche Datei vergleicht, meldet nicht „ich habe die
+> falsche verglichen" — es meldet „nichts passiert".**
+
+`BreakScriptTest::test_every_intervention_checks_its_own_file` schliesst das,
+und der neue Wächter fand sofort **dreiundzwanzig weitere Abschnitte**, die
+ihren Griff gar nicht prüfen. Ohne diese Prüfung meldet ein veralteter Eingriff
+„der Wächter hält seine Regel nicht" statt „der Eingriff hat nicht gegriffen" —
+genau die Verwechslung, die diesem Skript einmal 473 gesunde Wächter als kaputt
+gemeldet hat.
+
+**Der dritte ist der interessante, und er ist der vierte Fall derselben Familie
+in `BlockSpacingTest`.** Der Eingriff, der die Fuge unter dem Formular wieder
+aufreisst, liess den Wächter grün — seit Schritt 5c steht zwischen dem Formular
+und den Brotkrumen ein `<form v-if="chmodFor !== null">` **ohne Klasse**. Im
+Quelltext ist es der Nachbar; im Browser ist es meistens gar nicht da, und dann
+berühren sich die beiden dahinter.
+
+> **Ein Wächter, der ein `v-if` für vorhanden hält, liest ein Markup, das es so
+> nie gibt.**
+
+Gesammelt werden seitdem **alle** Nachbarn, die entstehen können: das nächste
+Geschwister, und — solange dieses an einer Bedingung hängt — auch das dahinter.
+
+**Und dabei ist der Gegenfehler aufgefallen.** `<template v-if>` und
+`<template #actions>` heissen gleich und sind das Gegenteil voneinander: Die
+Kinder des einen stehen an seiner Stelle, die des anderen setzt das Layout in
+seine Kopfzeile. Beide wurden weggestrichen, und damit wurde der letzte Knopf
+aus `#actions` zum Nachbarn dessen, was im Quelltext darunter steht.
+
+> **Zwei Dinge, die im Quelltext gleich heissen, sind im Browser nicht
+> dasselbe.**
+
+Ein benannter Platz wird jetzt zu einem gewöhnlichen Kasten, und welches
+`</template>` zu welchem `<template>` gehört, entscheidet ein Stapel statt eines
+Ausdrucks. **Sechs Fugen sind dadurch dazugekommen und drei weggefallen, ohne
+dass sich eine Vorlage geändert hätte** — beides Korrekturen am Wächter und
+keine an der Gestaltung.

@@ -83,14 +83,17 @@ final class BlockSpacingTest extends TestCase
      * **Neue Fugen kommen hier nicht dazu.** Eine, die dieser Wächter findet
      * und die nicht dasteht, ist rot; das ist der ganze Zweck der Liste.
      *
+     * **Am 15. August sind sechs dazugekommen und drei weggefallen**, ohne dass
+     * sich eine Vorlage geändert hätte: Der Wächter sieht seitdem durch ein
+     * `v-if` hindurch (die sechs) und behandelt einen benannten Platz als
+     * Behälter statt als Luft (die drei). Beides sind Korrekturen an ihm selbst
+     * und keine an der Gestaltung.
+     *
      * @var list<string>
      */
     private const OPEN_SEAMS = [
         'arrow + label',
         'button + button',
-        'button + button-row',
-        'button + notice',
-        'button + sections',
         'button-row + button',
         'button-row + form',
         'choices + dependent',
@@ -99,20 +102,26 @@ final class BlockSpacingTest extends TestCase
         'dependent + dependent',
         'dependent + with-unit',
         'field + button',
+        'form + form',
         'field + field-row',
         'hint + field-row',
         'hint + form',
+        'scrolls + form',
         'ident + ident',
         'ident + notice',
         'link + link',
         'output + button-row',
         'pager-state + button',
         'section-note + notice',
+        'section-note + button-row',
+        'section-note + cell-value',
+        'section-note + scrolls',
         'sections + button-row',
         'sections + notice',
         'toggle + button-row',
         'toggle + choices',
         'toggle + dependent',
+        'toggle + with-unit',
         'with-unit + dependent',
     ];
 
@@ -311,11 +320,84 @@ final class BlockSpacingTest extends TestCase
             return '';
         }
 
-        return (string) preg_replace(
-            ['/<!--.*?-->/su', '#</?template[^>]*>#s'],
-            '',
-            $treffer[1],
+        /*
+         * **Ein benannter Platz ist ein Behälter und kein `v-if`.**
+         *
+         * Beide heissen `<template>`, und sie sind das Gegenteil voneinander:
+         * Die Kinder eines `<template v-if>` stehen an seiner Stelle, die
+         * Kinder eines `<template #actions>` stehen ganz woanders — das Layout
+         * setzt sie in seine Kopfzeile.
+         *
+         * Wer beide gleich behandelt, macht den letzten Knopf aus `#actions`
+         * zum Nachbarn dessen, was im Quelltext darunter steht. Gemessen, als
+         * dieser Wächter durch `v-if` hindurchsehen lernte: drei der neun neu
+         * gefundenen Fugen waren solche Scheinnachbarn.
+         *
+         * > **Zwei Dinge, die im Quelltext gleich heissen, sind im Browser
+         * > nicht dasselbe.**
+         *
+         * Der benannte Platz wird deshalb zu einem gewöhnlichen Kasten — dann
+         * bleiben seine Kinder unter sich.
+         */
+        $ohneKommentare = (string) preg_replace('/<!--.*?-->/su', '', $treffer[1]);
+
+        /*
+         * **Über einen Stapel und nicht über einen Ausdruck.** Welches
+         * `</template>` zu welchem `<template …>` gehört, kann ein regulärer
+         * Ausdruck nicht entscheiden — und in einem benannten Platz steht
+         * regelmässig ein `<template v-if>`.
+         */
+        $tiefe = [];
+
+        return (string) preg_replace_callback(
+            '~<template([^>]*)>|</template>~s',
+            static function (array $treffer) use (&$tiefe): string {
+                if ($treffer[0] === '</template>') {
+                    return array_pop($tiefe) === true ? '</div>' : '';
+                }
+
+                $benannt = preg_match('~(^|\s)(#|v-slot)~', $treffer[1]) === 1;
+                $tiefe[] = $benannt;
+
+                return $benannt ? '<div>' : '';
+            },
+            $ohneKommentare,
         );
+    }
+
+    /**
+     * Das nächste Geschwister eines öffnenden Tags, oder `null`.
+     *
+     * Gezählt wird über die **Verschachtelungstiefe**: vom öffnenden Tag
+     * vorwärts, bis es zu ist, und dann das nächste öffnende Tag. Das versteht
+     * auch einen Baustein mit Kindern — der alte Ausdruck las „bis zum nächsten
+     * Tag desselben Namens" und übersah damit jeden, der welche hat.
+     *
+     * @param  list<array{0: string, 1: string, 2: string, 3: string}>  $tags
+     * @param  list<string>  $void
+     */
+    private function sibling(array $tags, int $index, array $void): ?int
+    {
+        $tiefe = 1;
+        $i = $index + 1;
+
+        for (; $i < count($tags) && $tiefe > 0; $i++) {
+            $folgend = $tags[$i];
+
+            if ($folgend[1] === '/') {
+                $tiefe--;
+
+                continue;
+            }
+
+            if (! in_array(strtolower($folgend[2]), $void, true) && ! str_ends_with(rtrim($folgend[3]), '/')) {
+                $tiefe++;
+            }
+        }
+
+        // `$i` steht hinter dem schliessenden Tag. Ein `</div>` dort heisst:
+        // Der Vorgänger war das letzte Kind, und dann gibt es kein Geschwister.
+        return isset($tags[$i]) && $tags[$i][1] !== '/' ? $i : null;
     }
 
     /**
@@ -394,36 +476,45 @@ final class BlockSpacingTest extends TestCase
                 continue;
             }
 
-            $tiefe = 1;
+            /*
+             * **Ein `v-if` ist Nachbar und Luft zugleich.**
+             *
+             * Der dritte Fall derselben Familie in diesem Wächter, nach dem
+             * TypeScript-Generic und dem `<template v-else>`. Seit P6 Schritt 5c
+             * steht zwischen dem Formular und den Brotkrumen im Dateimanager ein
+             * `<form v-if="chmodFor !== null">` **ohne Klasse**. Im Quelltext ist
+             * es der Nachbar; im Browser ist es meistens gar nicht da, und dann
+             * berühren sich die beiden dahinter.
+             *
+             * Gemerkt hat es der Bruchlauf in der CI: Der Eingriff, der die Fuge
+             * wieder aufreisst, liess den Wächter grün.
+             *
+             * > **Ein Wächter, der ein `v-if` für vorhanden hält, liest ein
+             * > Markup, das es so nie gibt.**
+             *
+             * Gesammelt werden deshalb **alle** Nachbarn, die entstehen können:
+             * das nächste Geschwister, und — solange dieses an einer Bedingung
+             * hängt — auch das dahinter.
+             */
+            $nachbarn = [];
+            $naechster = $this->sibling($tags, $start, $void);
 
-            for ($i = $start + 1; $i < count($tags) && $tiefe > 0; $i++) {
-                $folgend = $tags[$i];
-                $name = strtolower($folgend[2]);
+            while ($naechster !== null) {
+                $nachbarn[] = $tags[$naechster];
 
-                if ($folgend[1] === '/') {
-                    $tiefe--;
-
-                    continue;
+                if (preg_match('/\sv-(?:if|else-if|else)\b/', $tags[$naechster][3]) !== 1) {
+                    break;
                 }
 
-                if (! in_array($name, $void, true) && ! str_ends_with(rtrim($folgend[3]), '/')) {
-                    $tiefe++;
-                }
+                $naechster = $this->sibling($tags, $naechster, $void);
             }
 
-            // `$i` steht hinter dem schliessenden Tag; das nächste öffnende
-            // Element ist das Geschwister. Ein `</div>` dort heisst: Der
-            // Vorgänger war das letzte Kind, und dann gibt es kein Paar.
-            $nachbar = $tags[$i] ?? null;
-
-            if ($nachbar === null || $nachbar[1] === '/') {
-                continue;
-            }
-
-            foreach ($endetBuendig as $unten) {
-                foreach ($faengtBuendig as $oben) {
-                    if ($this->hasClass($tag[3], $unten) && $this->hasClass($nachbar[3], $oben)) {
-                        $paare[] = [$unten, $oben];
+            foreach ($nachbarn as $nachbar) {
+                foreach ($endetBuendig as $unten) {
+                    foreach ($faengtBuendig as $oben) {
+                        if ($this->hasClass($tag[3], $unten) && $this->hasClass($nachbar[3], $oben)) {
+                            $paare[] = [$unten, $oben];
+                        }
                     }
                 }
             }

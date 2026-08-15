@@ -8234,6 +8234,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace('if (! @chroot($root)) {', 'if (! self::confine($root)) {')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Sandbox.php "chroot aus der Sandbox entfernt" &&
 pruefe "chroot aus der Sandbox entfernt" \
   SandboxReachTest::test_the_sandbox_uses_all_of_them failed
 wiederherstellen
@@ -8252,6 +8253,7 @@ s = s.replace('    public static function removeTree(string $path): void\n    {\
               '    public static function removeTree(string $path): void\n    {\n        chroot($path);\n')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Filesystem.php "chroot ausserhalb der Sandbox" &&
 pruefe "chroot ausserhalb der Sandbox" \
   SandboxReachTest::test_only_the_sandbox_confines failed
 wiederherstellen
@@ -8271,6 +8273,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace('        try {\n            self::closeInherited($close);\n', '        try {\n')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Sandbox.php "closeInherited nicht mehr die erste Zeile im Kind" &&
 pruefe "closeInherited nicht mehr die erste Zeile im Kind" \
   SandboxReachTest::test_the_child_closes_what_it_inherited failed
 wiederherstellen
@@ -8290,6 +8293,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace('posix_initgroups(', 'self::groups(')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Sandbox.php "initgroups aus der Rechteabgabe entfernt" &&
 pruefe "initgroups aus der Rechteabgabe entfernt" \
   PrivilegeDropTest::test_the_drop_happens_in_the_only_order_that_works failed
 wiederherstellen
@@ -8308,6 +8312,7 @@ s = s.replace("! posix_setgid($account['gid']) || ! posix_setuid($account['uid']
               "! posix_setuid($account['uid']) || ! posix_setgid($account['gid'])")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Sandbox.php "setuid vor setgid" &&
 pruefe "setuid vor setgid" \
   PrivilegeDropTest::test_the_drop_happens_in_the_only_order_that_works failed
 wiederherstellen
@@ -8328,6 +8333,7 @@ s = s.replace("if (($decoded['uid'] ?? 0) === 0 || in_array(0, $decoded['groups'
               "if (in_array(0, $decoded['groups'] ?? [0], true)) {")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Sandbox.php "Elternprozess prueft die gemeldete uid nicht" &&
 pruefe "Elternprozess prueft die gemeldete uid nicht" \
   PrivilegeDropTest::test_the_parent_checks_the_proof_it_gets_back failed
 wiederherstellen
@@ -8348,6 +8354,7 @@ s = s.replace('if (Filesystem::removeInside($site->logDir(), $site->subscription
               'if (Filesystem::removeTree($site->logDir()) || true) {')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Ops/WebSiteRemove.php "Baumlauf als root an einer unbegruendeten Stelle" &&
 pruefe "Baumlauf als root an einer unbegruendeten Stelle" \
   SandboxReachTest::test_the_raw_tree_walk_is_called_only_where_no_customer_writes failed
 wiederherstellen
@@ -8366,6 +8373,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace('        Filesystem::purgeContents($root, $user);\n\n', '')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Ops/SubscriptionRemove.php "purgeContents aus dem Rueckbau entfernt" &&
 pruefe "purgeContents aus dem Rueckbau entfernt" \
   SandboxReachTest::test_the_teardown_purges_before_it_walks failed
 wiederherstellen
@@ -8384,6 +8392,7 @@ s = s.replace('        Filesystem::purgeContents($root, $user);\n\n        Files
               '        Filesystem::removeTree($root);\n\n        Filesystem::purgeContents($root, $user);')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Ops/SubscriptionRemove.php "Aufraeumen erst nach dem Baumlauf" &&
 pruefe "Aufraeumen erst nach dem Baumlauf" \
   SandboxReachTest::test_the_teardown_purges_before_it_walks failed
 wiederherstellen
@@ -8406,6 +8415,7 @@ s = s.replace("""foreach (glob(__DIR__.'/Files/*.php') ?: [] as $file) {
         }""", 'class_exists(Files\\Entry::class);')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Sandbox.php "handgepflegte Liste statt Aufzaehlung" &&
 pruefe "handgepflegte Liste statt Aufzaehlung" \
   SandboxPreloadTest::test_the_files_namespace_is_enumerated failed
 wiederherstellen
@@ -8424,6 +8434,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace('            self::explainMissingClasses();\n', '')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Sandbox.php "Aufruf entfernt, Definition bleibt" &&
 pruefe "Aufruf entfernt, Definition bleibt" \
   SandboxPreloadTest::test_a_missing_class_explains_itself failed
 wiederherstellen
@@ -8441,6 +8452,7 @@ s = s.replace('            self::explainMissingClasses();\n', '')
 s = s.replace("            chdir('/');", "            chdir('/');\n            self::explainMissingClasses();")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Sandbox.php "Autoloader erst nach dem chroot registriert" &&
 pruefe "Autoloader erst nach dem chroot registriert" \
   SandboxPreloadTest::test_the_explanation_is_registered_before_the_chroot failed
 wiederherstellen
@@ -8460,6 +8472,7 @@ s = s.replace("Guard::pathInside($args['source'] ?? null, [Staging::ROOT])",
               "Guard::string($args['source'] ?? null, 'source')")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Ops/FilesUpload.php "Quelle des Uploads ungeprueft" &&
 pruefe "Quelle des Uploads ungeprueft" \
   FileStagingTest::test_the_upload_confines_its_source failed
 wiederherstellen
@@ -8479,6 +8492,7 @@ s = s.replace('static function () use ($handle, $path, $size): array {',
               "static function () use ($source, $path, $size): array {\n                $handle = @fopen($source, 'rb');")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Ops/FilesUpload.php "Quelle erst im Kind geoeffnet" &&
 pruefe "Quelle erst im Kind geoeffnet" \
   FileStagingTest::test_the_source_is_opened_before_the_child_starts failed
 wiederherstellen
@@ -8497,6 +8511,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace('private/uploads', 'private/imports')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Files/Staging.php "Uploads und Sicherungen im selben Lager" &&
 pruefe "Uploads und Sicherungen im selben Lager" \
   FileStagingTest::test_the_two_stores_stay_apart failed
 wiederherstellen
@@ -8515,6 +8530,7 @@ d = json.load(open('package.json', encoding='utf-8'))
 d['devDependencies']['chart.js'] = '^4.0.0'
 json.dump(d, open('package.json', 'w', encoding='utf-8'), indent=4, ensure_ascii=False)
 PY2
+griff_datei package.json "chart.js ohne Begruendung in package.json" &&
 pruefe "chart.js ohne Begruendung in package.json" \
   FrontendDependencyTest::test_every_dependency_is_accounted_for failed
 wiederherstellen
@@ -8532,6 +8548,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace("import { onBeforeUnmount", "import { EditorView } from '@codemirror/view'\nimport { onBeforeUnmount")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei resources/js/Components/CodeEditor.vue "CodeMirror statisch importiert" &&
 pruefe "CodeMirror statisch importiert" \
   FrontendDependencyTest::test_codemirror_is_loaded_lazily failed
 wiederherstellen
@@ -8550,6 +8567,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace("{ tag: tags.keyword, class: 'tok-keyword' },", "{ tag: tags.keyword, color: '#c678dd' },")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei resources/js/Components/CodeEditor.vue "Hexwert im Editor" &&
 pruefe "Hexwert im Editor" \
   FrontendDependencyTest::test_the_editor_brings_no_colours_of_its_own failed
 wiederherstellen
@@ -8568,6 +8586,7 @@ s = open(p, encoding='utf-8').read()
 s = re.sub(r'<textarea.*?</textarea>', '', s, flags=re.S)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei resources/js/Components/CodeEditor.vue "textarea-Rueckweg entfernt" &&
 pruefe "textarea-Rueckweg entfernt" \
   FrontendDependencyTest::test_there_is_a_way_without_the_library failed
 wiederherstellen
@@ -8591,6 +8610,7 @@ s = s[:i] + """            if ($part === '..') {
                 continue;""" + s[j:]
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Files/Archive.php "Zip-Slip wird zurechtgebogen statt verworfen" &&
 pruefe "Zip-Slip wird zurechtgebogen statt verworfen" \
   ArchiveEntryTest::test_a_way_out_is_not_bent_into_a_way_in failed
 wiederherstellen
@@ -8608,6 +8628,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace("        $name = str_replace('\\\\', '/', $name);\n", '')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Files/Archive.php "Backslash nicht als Trenner behandelt" &&
 pruefe "Backslash nicht als Trenner behandelt" \
   ArchiveEntryTest::test_entries_that_lead_out_are_dropped failed
 wiederherstellen
@@ -8625,6 +8646,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace('if (! str_contains($content, $needle)) {', 'if (preg_match("/".$needle."/", $content) !== 1) {')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Ops/FilesSearch.php "Suche mit regulaerem Ausdruck des Kunden" &&
 pruefe "Suche mit regulaerem Ausdruck des Kunden" \
   ArchiveEntryTest::test_the_search_matches_literally failed
 wiederherstellen
@@ -8642,6 +8664,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace("'truncated' => $abgebrochen,", '')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Ops/FilesSearch.php "Abbruch des Suchlaufs verschwiegen" &&
 pruefe "Abbruch des Suchlaufs verschwiegen" \
   ArchiveEntryTest::test_a_truncated_search_says_so failed
 wiederherstellen
@@ -8660,7 +8683,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace('/files`"', '/dateien`"', 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff "Weg zum Dateimanager entfernt" &&
+griff_datei resources/js/Pages/Subscriptions/Show.vue "Weg zum Dateimanager entfernt" &&
 pruefe "Weg zum Dateimanager entfernt" \
   LinkReachTest::test_every_page_is_reachable_from_a_template failed
 wiederherstellen
@@ -8679,7 +8702,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace("Route::get('/audit'", "Route::get('/protokoll'", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff "Route umgezogen" &&
+griff_datei routes/web.php "Route umgezogen" &&
 pruefe "Route umgezogen, Link steht still" \
   LinkReachTest::test_every_page_is_reachable_from_a_template failed
 wiederherstellen

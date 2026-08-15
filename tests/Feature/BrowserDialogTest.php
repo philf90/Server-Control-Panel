@@ -64,6 +64,27 @@ final class BrowserDialogTest extends TestCase
      */
     private const EXEMPT = [];
 
+    /**
+     * Die Ausnahmeliste, mit ihrem Typ statt mit ihrem Inhalt.
+     *
+     * **Sie ist leer, und eine leere Konstante hat den Typ `array{}`.** PHPStan
+     * meldet darauf „Offset string in isset() does not exist" und „Empty array
+     * passed to foreach" — beides richtig für den heutigen Inhalt und falsch für
+     * den Zweck: Die Liste steht da, damit jemand etwas einträgt.
+     *
+     * > **Ein Typ, der aus dem heutigen Inhalt geschlossen wird, verbietet den
+     * > morgigen.**
+     *
+     * @return array<string, string>
+     */
+    private function exempt(): array
+    {
+        /** @var array<string, string> $liste */
+        $liste = self::EXEMPT;
+
+        return $liste;
+    }
+
     /** @return list<string> */
     private function vueFiles(): array
     {
@@ -110,7 +131,7 @@ final class BrowserDialogTest extends TestCase
         foreach ($this->vueFiles() as $datei) {
             $kurz = substr($datei, strlen(dirname(__DIR__, 2)) + 1);
 
-            if (isset(self::EXEMPT[$kurz])) {
+            if (isset($this->exempt()[$kurz])) {
                 continue;
             }
 
@@ -225,7 +246,7 @@ final class BrowserDialogTest extends TestCase
     /** @see ValidationLanguageTest::test_every_exemption_carries_a_reason */
     public function test_every_exemption_carries_a_reason(): void
     {
-        foreach (self::EXEMPT as $datei => $grund) {
+        foreach ($this->exempt() as $datei => $grund) {
             $this->assertNotSame(
                 '',
                 trim($grund),

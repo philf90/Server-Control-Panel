@@ -11,6 +11,7 @@ use App\Support\Audit\Impersonation;
 use App\Support\Panel\Source;
 use App\Support\Passwords\Policy;
 use Illuminate\Http\Request;
+use Illuminate\Support\ViewErrorBag;
 use Inertia\Middleware;
 
 final class HandleInertiaRequests extends Middleware
@@ -54,13 +55,13 @@ final class HandleInertiaRequests extends Middleware
      * schiefging, und verschweigt was — und der Kunde kann nichts daraus
      * machen.
      *
-     * @return array<string, mixed>
+     * @return object Ein Wörterbuch `Feld => Sätze`, mit `\n` verbunden.
      */
     public function resolveValidationErrors(Request $request): object
     {
         $beutel = $request->session()->get('errors');
 
-        if ($beutel === null) {
+        if (! $beutel instanceof ViewErrorBag) {
             return (object) [];
         }
 
@@ -71,9 +72,19 @@ final class HandleInertiaRequests extends Middleware
          * nichts. Ein Zeilenumbruch trägt dieselbe Auskunft und bleibt eine
          * Zeichenkette.
          */
-        return (object) collect($beutel->getBag('default')->messages())
-            ->map(static fn (array $meldungen): string => implode("\n", $meldungen))
-            ->all();
+        $verbunden = [];
+
+        /*
+         * Von Hand statt über `collect()->map()`: Die Sammlung kennt den Typ
+         * ihrer Schlüssel hier nicht, und eine Typangabe, die das behauptet,
+         * wäre eine Behauptung über fremden Code. Eine Schleife sagt dasselbe
+         * ohne sie.
+         */
+        foreach ($beutel->getBag('default')->messages() as $feld => $meldungen) {
+            $verbunden[$feld] = implode("\n", $meldungen);
+        }
+
+        return (object) $verbunden;
     }
 
     public function share(Request $request): array

@@ -53,6 +53,27 @@ final class ComponentReachTest extends TestCase
      */
     private const WITHOUT_USER = [];
 
+    /**
+     * Die Ausnahmeliste, mit ihrem Typ statt mit ihrem Inhalt.
+     *
+     * **Sie ist leer, und eine leere Konstante hat den Typ `array{}`.** PHPStan
+     * meldet darauf „Offset string in isset() does not exist" und „Empty array
+     * passed to foreach" — beides richtig für den heutigen Inhalt und falsch für
+     * den Zweck: Die Liste steht da, damit jemand etwas einträgt.
+     *
+     * > **Ein Typ, der aus dem heutigen Inhalt geschlossen wird, verbietet den
+     * > morgigen.**
+     *
+     * @return array<string, string>
+     */
+    private function withoutUser(): array
+    {
+        /** @var array<string, string> $liste */
+        $liste = self::WITHOUT_USER;
+
+        return $liste;
+    }
+
     private function root(): string
     {
         return dirname(__DIR__, 2).'/resources/js';
@@ -129,7 +150,7 @@ final class ComponentReachTest extends TestCase
         foreach ($this->vueFiles() as $datei) {
             $kurz = substr($datei, strlen($this->root()) + 1);
 
-            if ($this->isPage($kurz) || isset(self::WITHOUT_USER[$kurz])) {
+            if ($this->isPage($kurz) || isset($this->withoutUser()[$kurz])) {
                 continue;
             }
 
@@ -198,7 +219,7 @@ final class ComponentReachTest extends TestCase
     /** @see ValidationLanguageTest::test_every_exemption_carries_a_reason */
     public function test_every_exemption_carries_a_reason(): void
     {
-        foreach (self::WITHOUT_USER as $datei => $grund) {
+        foreach ($this->withoutUser() as $datei => $grund) {
             $this->assertNotSame(
                 '',
                 trim($grund),

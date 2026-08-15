@@ -161,9 +161,11 @@ final class Workspace
      *
      * @param  callable():mixed  $work
      * @param  list<Socket|resource>  $close
+     * @param  string|null  $withGroup  Eine zusätzliche Gruppe für das Kind. Nur `files.chmod`
+     *                                  verlangt eine; die Begründung steht in {@see Sandbox}.
      */
-    public function run(callable $work, array $close = []): mixed
+    public function run(callable $work, array $close = [], ?string $withGroup = null): mixed
     {
-        return Sandbox::run($this->root, $this->user, $work, $close);
+        return Sandbox::run($this->root, $this->user, $work, $close, $withGroup);
     }
 }

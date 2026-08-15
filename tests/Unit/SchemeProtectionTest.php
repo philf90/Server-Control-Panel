@@ -306,4 +306,119 @@ final class SchemeProtectionTest extends TestCase
             'Das Bit wird auch auf Dateien bewahrt. Dort heisst es etwas anderes.',
         );
     }
+
+    /**
+     * Und derselbe `chmod` ohne Rechte braucht die Gruppe der Datei.
+     *
+     * ## Warum dieser Fall überhaupt existiert
+     *
+     * Der Fall darüber misst die Mechanik — und er lief **als root**. Root hat
+     * `CAP_FSETID`, und damit gelingt jedes `chmod` samt setgid. Auf
+     * `cloudsrv24` stand danach trotzdem `drwxr-xr-x` (`docs/55`, Befund 17):
+     * `chmod(2)` entfernt `S_ISGID` lautlos, wenn der Prozess weder diese
+     * Fähigkeit hat noch der Gruppe der Datei angehört — und meldet `true`.
+     *
+     * > **Eine Messung als root prüft nicht, was ein unprivilegierter Prozess
+     * > darf.**
+     *
+     * ## Warum er sich überspringt statt zu scheitern
+     *
+     * Er braucht beides: root (um Rechte abgeben zu können) **und** eine
+     * Gruppe, der der Testbenutzer nicht angehört. In der CI läuft PHPUnit
+     * unprivilegiert, dort geht das nicht. Ein Fehlschlag wäre dort eine
+     * Meldung über die Umgebung und nicht über den Code — und ein Wächter, der
+     * aus einem solchen Grund rot ist, wird abgeschaltet.
+     *
+     * **Übersprungen ist hier ehrlich und nicht bequem:**
+     * {@see SandboxGroupTest} prüft ohne Rechte nach, dass die
+     * Gruppe angefordert wird und bis `initgroups` durchkommt. Und `FilesChmod`
+     * sieht zur Laufzeit selbst nach, ob das Bit angekommen ist — das ist die
+     * Absicherung, die auf jedem System greift.
+     *
+     * ## Und warum sein Bruch nicht im Skript steht
+     *
+     * `tests/waechter-brechen.sh` läuft in der CI, also unprivilegiert. Ein
+     * Eingriff, der die Erwartung hier umdreht, machte diesen Fall dort nicht
+     * rot — er überspringt sich ja — und das Skript meldete „ohne Biss" für eine
+     * Regel, die in Ordnung ist. Ein Bruch, der nur am falschen Ort nicht
+     * greift, ist schlimmer als keiner: Er zieht die Aufmerksamkeit auf die
+     * falsche Stelle.
+     *
+     * Gebrochen wurde er deshalb **von Hand als root**, am 15. August 2026: mit
+     * `0o2755` statt `0o755` als Erwartung wird er rot, mit `0o755` grün. Damit
+     * ist belegt, dass er wirklich misst und sich nicht still überspringt.
+     *
+     * > **Ein Fall, der sich überspringen darf, muss anderswo belegen, dass er
+     * > es nicht immer tut.**
+     */
+    public function test_an_unprivileged_chmod_needs_the_group(): void
+    {
+        if (! function_exists('posix_geteuid') || posix_geteuid() !== 0 || ! function_exists('pcntl_fork')) {
+            $this->markTestSkipped(
+                'Rechte abgeben geht nur als root. Was diese Messung belegen soll, prüft '.
+                'SandboxGroupTest ohne Rechte nach.',
+            );
+        }
+
+        $fremd = posix_getgrnam('www-data');
+        $niemand = posix_getpwnam('nobody');
+
+        if ($fremd === false || $niemand === false) {
+            $this->markTestSkipped('Es fehlt `www-data` oder `nobody` — ohne beides gibt es keinen Fall.');
+        }
+
+        if ($fremd['gid'] === 0 || $fremd['gid'] === $niemand['gid'] || in_array('nobody', $fremd['members'], true)) {
+            $this->markTestSkipped('`nobody` gehört hier zu `www-data` — dann misst dieser Fall das Gegenteil.');
+        }
+
+        $eltern = '/tmp/srvpanel-fsetid-'.bin2hex(random_bytes(6));
+        mkdir($eltern, 0o777);
+        $kind = $eltern.'/kind';
+        mkdir($kind);
+        chgrp($kind, $fremd['gid']);
+        chown($eltern, $niemand['uid']);
+        chown($kind, $niemand['uid']);
+
+        try {
+            $messen = function (?int $mitGruppe) use ($kind, $niemand): int {
+                chmod($kind, 0o2770);
+                clearstatcache();
+
+                $pid = pcntl_fork();
+
+                if ($pid === 0) {
+                    // Genau die Reihenfolge der Sandbox: initgroups, setgid, setuid.
+                    posix_initgroups('nobody', $mitGruppe ?? $niemand['gid']);
+                    posix_setgid($niemand['gid']);
+                    posix_setuid($niemand['uid']);
+                    @chmod($kind, 0o755 | 0o2000);
+                    exit(0);
+                }
+
+                pcntl_waitpid($pid, $status);
+                clearstatcache();
+
+                return fileperms($kind) & 0o7777;
+            };
+
+            $this->assertSame(
+                0o755,
+                $messen(null),
+                "Ein unprivilegierter `chmod` behält das setgid-Bit auch ohne die Gruppe der Datei.\n\n".
+                'Dann ist die zusätzliche Gruppe in `Sandbox` überflüssig — und die Begründung dort '.
+                'beschreibt einen Kernel, den es nicht gibt.',
+            );
+
+            $this->assertSame(
+                0o2755,
+                $messen($fremd['gid']),
+                "Mit der Gruppe der Datei in den Zusatzgruppen kommt das setgid-Bit trotzdem nicht an.\n\n".
+                'Dann hilft der Griff in `Sandbox` nicht, und `files.chmod` bricht auf diesem System '.
+                'weiterhin die Gruppenvererbung.',
+            );
+        } finally {
+            @rmdir($kind);
+            @rmdir($eltern);
+        }
+    }
 }

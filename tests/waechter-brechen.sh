@@ -9486,6 +9486,41 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BrowserDialogTest passed
 
 echo
+echo "── SandboxGroupTest: files.chmod verlangt die Gruppe nicht mehr ──"
+#
+# Ohne sie raeumt der Kernel das setgid-Bit lautlos wieder ab, und chmod() gibt
+# dabei true zurueck. Der Fix war einmal ausgeliefert und hat nichts getan.
+vorher_datei agent/src/Ops/FilesChmod.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesChmod.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("}, [], SubscriptionProvision::DOCUMENT_ROOT_GROUP);", "});", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/FilesChmod.php "Gruppe beim chmod" &&
+pruefe "files.chmod verlangt die Gruppe nicht mehr" \
+  SandboxGroupTest::test_the_search_finds_the_one_that_does failed
+wiederherstellen
+
+echo
+echo "── SandboxGroupTest: die Gruppe kommt bei initgroups nicht an ──"
+#
+# Zwischen dem Griff und dem Systemaufruf liegen zwei Weitergaben. Faellt das
+# Argument unterwegs weg, laeuft alles weiter und tut wieder nichts.
+vorher_datei agent/src/Sandbox.php
+python3 - <<'PY2'
+p = 'agent/src/Sandbox.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("posix_initgroups($account['name'], $account['extra_gid'] ?? $account['gid'])",
+              "posix_initgroups($account['name'], $account['gid'])", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Sandbox.php "Gruppe vor initgroups" &&
+pruefe "die Gruppe kommt bei initgroups nicht an" \
+  SandboxGroupTest::test_the_group_reaches_initgroups failed
+wiederherstellen
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

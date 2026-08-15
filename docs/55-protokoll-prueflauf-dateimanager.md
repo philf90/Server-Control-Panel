@@ -1236,6 +1236,113 @@ falsch für den Zweck.
 
 ---
 
+## Nachprüfung gegen `v0.6.0-rc.4`
+
+### Befund 7 — erfüllt
+
+```
+Das Formular wurde nicht gespeichert.
+Das Feld query darf höchstens 255 Zeichen lang sein.
+```
+
+Eine **Laravel-Regel**, kein selbstgeschriebener Satz — genau der Fall, auf den
+seit P0 Englisch kam. Damit sind `lang/de` und `packaging/build.sh` zusammen
+belegt, und die zwei grünen Wächter im Repo haben endlich ein Gegenstück auf dem
+Server.
+
+### Befund 12 — erfüllt
+
+```
+Von 3 Einträgen sind 0 verschoben.
+/httpdocs/p6-k1.txt: Am Ziel steht schon etwas.
+/httpdocs/p6-k2.txt: Am Ziel steht schon etwas.
+/httpdocs/p6-k3.txt: Am Ziel steht schon etwas.
+```
+
+Drei Zeilen mit Pfad und Grund. Damit ist auch die Rückmeldung des
+Mehrfach-Uploads erledigt, die seit Schritt 5e stumm war.
+
+## Befund 17 — der Fix zu Befund 13 hat nichts getan, und der Wächter hat es nicht gesehen
+
+```
+vorher:     drwxr-s---  p1136 www-data     ← Bit geerbt
+nach 755:   drwxr-xr-x  p1136 www-data     ← Bit fort
+probe.txt:  p1136 p1136                    ← und die Vererbung ist tot
+```
+
+Die Rechnung `$mode | $geerbt` war richtig. **Der Kernel entfernt `S_ISGID`
+lautlos**, wenn der aufrufende Prozess weder `CAP_FSETID` hat noch der Gruppe der
+Datei angehört — und gibt dabei `true` zurück. Die Sandbox läuft als `p1136`, das
+Verzeichnis gehört `www-data`, und `p1136` ist dort kein Mitglied.
+
+> **Ein Rückgabewert `true` ist keine Zusage darüber, was geschrieben wurde.**
+
+Gemessen im Container, dreifach:
+
+```
+chmod(0755|02000) auf ein Verzeichnis der Gruppe www-data
+  als root                          → drwxr-sr-x
+  als nobody, nicht in www-data     → drwxr-xr-x   und chmod() gibt true zurück
+  als nobody, mit www-data dabei    → drwxr-sr-x
+```
+
+### Warum der Wächter grün war
+
+Er hat die Mechanik gemessen — **als root**. Root hat `CAP_FSETID`, also ging es.
+Im PR-Formular dieses Projekts steht die Zeile „Tests laufen auch als
+unprivilegiertes Konto (als root scheitern Dateirechte nicht)"; sie war abgehakt.
+
+> **Eine Messung als root prüft nicht, was ein unprivilegierter Prozess darf.**
+
+Das ist derselbe Fehler wie bei Befund 14, nur eine Ebene weiter: Dort traf der
+Beleg den falschen **Gegenstand**, hier den falschen **Aufrufer**. Beide Male sah
+die Messung vollständig aus.
+
+### Was strukturell dahintersteht
+
+**Ein Kunde kann `setgid` + Gruppe `www-data` auf seinem eigenen Verzeichnis
+nicht erhalten.** Er darf die Gruppe nur auf eine wechseln, in der er ist, und
+dann erbt sie sein eigenes Konto statt `www-data` — für nginx nutzlos. Das Bit
+muss von einem Prozess kommen, der die Gruppe hat.
+
+**Entscheidung des Betreibers (15. August):** Die Sandbox nimmt `www-data` in die
+Zusatzgruppen — **nur für `files.chmod`**. `initgroups(3)` nimmt dafür genau das
+zweite Argument; ein neuer Systemaufruf ist nicht nötig, und `posix_setgroups()`
+gibt es in PHP ohnehin nicht.
+
+Warum das nichts aufmacht: Das Kind sitzt im Chroot des Abonnements, und dort
+gehört alles mit der Gruppe `www-data` diesem Kunden. Es macht einen `chmod` und
+beendet sich; es liest nichts.
+
+Die drei anderen Wege sind verworfen worden, jeder aus einem gemessenen Grund:
+den Kunden dauerhaft in `www-data` aufzunehmen öffnet die `httpdocs` **anderer**
+Kunden (0640, Gruppe www-data); ein root-seitiges Nachziehen folgt beim
+Traversieren den Symlinks des Kunden und hat zwischen `lstat` und `chmod` ein
+Rennen, das PHP ohne `O_NOFOLLOW`/`fchmod` nicht schliessen kann; und den Griff
+für Verzeichnisse ganz zu sperren nähme jedes Verzeichnis unter `httpdocs` mit,
+denn sie tragen das Bit alle.
+
+### Und der Griff sieht jetzt selbst nach
+
+`files.chmod` liest den Modus nach dem Schreiben noch einmal und weist ab, wenn
+das Bit fehlt. Das ist die Absicherung, die auf **jedem** System greift — auch
+dort, wo es `www-data` gar nicht gibt.
+
+> **Ein Fehler, den nur eine Messung von aussen sichtbar macht, braucht einen
+> Prüfblick von innen.**
+
+Wächter: `SandboxGroupTest` (die Ausnahme bleibt bei einem Griff, und sie kommt
+bis `initgroups` durch) und
+`SchemeProtectionTest::test_an_unprivileged_chmod_needs_the_group` (die Messung,
+diesmal ohne Rechte). Der zweite überspringt sich ohne root — sein Bruch steht
+deshalb nicht im Skript, sondern ist von Hand gefahren; die Begründung steht an
+ihm.
+
+> **Ein Bruch, der nur am falschen Ort nicht greift, ist schlimmer als keiner —
+> er zieht die Aufmerksamkeit auf die falsche Stelle.**
+
+---
+
 ---
 
 ## Offen, klein, nicht verfolgt

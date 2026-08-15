@@ -1370,6 +1370,71 @@ weit wie beschrieben.
 
 ---
 
+## Punkt 6 — Packen, erfüllt
+
+### (a) Der Hauptteil
+
+```
+Length  Name
+     5  p6-k1.txt
+     5  p6-k2.txt
+     5  p6-k3.txt
+3 files
+```
+
+Drei Einträge, **jeder unter seinem eigenen Namen und ohne Pfadanteil davor**.
+Das Namensfeld stand dabei in der Auswahlleiste und nicht mehr in einem
+Systemdialog (Befund 15).
+
+### (b) Das Archiv im eigenen Ziel
+
+```
+Das Formular wurde nicht gespeichert.
+Das Archiv kann nicht in einem Verzeichnis liegen, das es selbst enthalten soll.
+```
+
+Und `test2/` ist danach **leer** — die Absage hinterlässt keine halbe Datei. Das
+ist die Hälfte, die zählt: `ZipArchive::open(CREATE)` legt sonst gern schon
+etwas an, bevor der erste Eintrag hineingeht.
+
+### (c) — nicht über die Oberfläche fahrbar, und das ist ein Fehler des Laufs
+
+`docs/54` verlangt zwei gleich heissende Einträge aus verschiedenen
+Verzeichnissen, „über die Suche erreichbar oder von Hand angelegt". **Beides geht
+nicht.** Die Suchergebnisse tragen keine Ankreuzfelder, und das ist nicht der
+Grund: Die Auswahl lebt **je Verzeichnis** und fällt beim Navigieren weg — die
+Regel aus 5h, gegen die Auswahl, die man nicht mehr sieht. Zwei gleich heissende
+Einträge liegen definitionsgemäss in verschiedenen Verzeichnissen und können
+darum nie zusammen angehakt sein.
+
+> **Ein Abnahmeschritt, der zwei Zustände gleichzeitig verlangt, die einander
+> ausschliessen, ist nicht schwer zu fahren — er ist unfahrbar.**
+
+Derselbe Fund wie `docs/46 §15 Punkt 3`, und wieder beim Ausschreiben bemerkt
+statt beim Planen.
+
+**Die Prüfung im `Packer` bleibt richtig** — sie ist Vorsorge für den Tag, an dem
+die Suche Ankreuzfelder bekommt, und `SelectionTest` deckt sie mitsamt der
+Gegenprobe ab, dass die Absage die gleichen Namen nennt und nicht das belegte
+Ziel.
+
+Gemessen wurde sie über denselben Weg wie die Oberfläche, nur ohne Browser:
+
+```
+SrvPanel\Agent\AgentException: Zwei ausgewählte Einträge heissen gleich.txt
+  — im Archiv bliebe nur einer übrig.
+
+-rw-r--r-- 1 p1136 www-data 319 auswahl.zip     ← und kein doppelt.zip daneben
+```
+
+Der Wortlaut ist der Beleg: Käme hier „Am Ziel steht schon etwas", prüfte die
+Absage das Falsche.
+
+> **Was die Oberfläche nicht erreichen kann, misst man auf dem Weg darunter —
+> und schreibt dazu, dass es dieser Weg war.**
+
+---
+
 ---
 
 ## Offen, klein, nicht verfolgt

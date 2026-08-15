@@ -499,9 +499,13 @@ unzip -l "$ABO"/httpdocs/auswahl.zip
 Verzeichnis legen wollen. Erwartet: „Das Archiv kann nicht in einem Verzeichnis
 liegen, das es selbst enthalten soll."
 
-**Die zweite:** zwei gleich heissende Einträge aus verschiedenen Verzeichnissen —
-über die Suche erreichbar oder von Hand angelegt. Erwartet: „Zwei ausgewählte
-Einträge heissen … — im Archiv bliebe nur einer übrig."
+**Die zweite:** zwei gleich heissende Einträge aus verschiedenen Verzeichnissen.
+**Über die Oberfläche geht das nicht** — die Auswahl lebt je Verzeichnis und
+fällt beim Navigieren weg, zwei gleiche Namen liegen aber immer in verschiedenen
+Verzeichnissen. Gemessen wird deshalb über `srvpanel tinker` auf demselben Weg
+darunter (`Files::compress()`); der Satz oben stand hier bis zum 15. August 2026
+und war nie fahrbar. Erwartet: „Zwei ausgewählte Einträge heissen … — im Archiv
+bliebe nur einer übrig." und **kein** Archiv daneben.
 
 ### Punkt 7 — Anlegen und der Mehrfach-Upload
 

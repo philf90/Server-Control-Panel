@@ -354,10 +354,19 @@ final class BulkActionTest extends TestCase
             'je Eintrag fallen dann weg, bevor die Seite sie sieht.',
         );
 
-        $this->assertStringContainsString(
-            'implode("\n", $meldungen)',
+        /*
+         * **Der Variablenname steht bewusst nicht mehr in der Erwartung.** Er
+         * hiess `$meldungen` und heisst jetzt `$saetze`, weil PHPStan an
+         * `MessageBag::messages()` zu Recht Anstoss nahm — der Wächter wurde
+         * dabei rot, obwohl die Regel unverändert galt.
+         *
+         * > **Ein Wächter, der einen Variablennamen prüft, meldet jede
+         * > Umbenennung als Regelbruch.**
+         */
+        $this->assertMatchesRegularExpression(
+            '/implode\("\\\\n", \$\w+\)/',
             $mittelschicht,
-            'Die Meldungen eines Feldes werden nicht mehr zusammengeführt.',
+            'Die Meldungen eines Feldes werden nicht mehr mit einem Zeilenumbruch zusammengeführt.',
         );
 
         $zusammenfassung = (string) file_get_contents(

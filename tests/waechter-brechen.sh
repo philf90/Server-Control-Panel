@@ -433,7 +433,7 @@ vorher
 printf '\n.item-grid-legacy { color: var(--text); }\n' >> resources/css/app.css
 griff "Regel ohne Nutzer" &&
 pruefe "Regel ohne Nutzer" \
-  ComponentReachTest::test_every_component_is_used_somewhere failed
+  ClassNameTest::test_every_rule_in_app_css_is_reached_by_a_template failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ClassNameTest passed
 
@@ -9445,7 +9445,7 @@ open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/js/Layouts/PanelLayout.vue "Rueckfrage aus dem Layout" &&
 pruefe "die Rueckfrage wird nirgends gezeichnet" \
-  ClassNameTest::test_every_rule_in_app_css_is_reached_by_a_template failed
+  ComponentReachTest::test_every_component_is_used_somewhere failed
 wiederherstellen
 
 echo

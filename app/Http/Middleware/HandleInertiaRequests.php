@@ -79,9 +79,22 @@ final class HandleInertiaRequests extends Middleware
          * ihrer Schlüssel hier nicht, und eine Typangabe, die das behauptet,
          * wäre eine Behauptung über fremden Code. Eine Schleife sagt dasselbe
          * ohne sie.
+         *
+         * **`toArray()` und nicht `messages()`.** `getBag()` liefert die
+         * Schnittstelle `Contracts\Support\MessageBag`, und die kennt
+         * `messages()` nicht — das ist eine Methode der konkreten Klasse
+         * dahinter. Zur Laufzeit ginge beides, weil dort immer diese Klasse
+         * steht; das ist aber eine Zusage, die die Schnittstelle nicht macht.
+         *
+         * > **Eine Methode, die es zur Laufzeit gibt, steht deshalb noch nicht
+         * > im Vertrag.**
          */
-        foreach ($beutel->getBag('default')->messages() as $feld => $meldungen) {
-            $verbunden[$feld] = implode("\n", $meldungen);
+
+        /** @var array<string, list<string>> $meldungen */
+        $meldungen = $beutel->getBag('default')->toArray();
+
+        foreach ($meldungen as $feld => $saetze) {
+            $verbunden[$feld] = implode("\n", $saetze);
         }
 
         return (object) $verbunden;

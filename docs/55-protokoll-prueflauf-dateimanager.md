@@ -1184,6 +1184,58 @@ und alles andere bleibt stehen — genau so ist `RememberPageUrl` im August aus
 
 ---
 
+## Drei Befunde über das Werkzeug, gefunden von der CI
+
+Sie gehören zu Befund 15 und 16 und stehen getrennt, weil keiner das Panel
+betrifft — alle drei betreffen die Prüfmittel.
+
+### Zwei Eingriffe im Bruchskript trugen den Namen des jeweils anderen Wächters
+
+Beim Umhängen eines Eingriffs von `ClassNameTest` auf `ComponentReachTest` hat
+ein blindes „ersetze das erste Vorkommen" in einer 9450-Zeilen-Datei den
+**falschen** Treffer erwischt: einen bestehenden Eingriff weiter oben, der eine
+verwaiste CSS-Regel anhängt. Danach nannte der alte Eingriff den neuen Wächter
+und der neue den alten — beide prüften etwas, das ihr Eingriff nicht auslöst,
+und **beide meldeten „ohne Biss"**.
+
+> **Ein „ersetze das erste Vorkommen" in einer Datei, die man nicht liest,
+> trifft nicht das, was man meint.**
+
+`BreakScriptTest::test_every_check_names_a_test_that_exists` war dabei grün, und
+zu Recht: Beide Namen gibt es. Was fehlt, ist die Zuordnung — und die kann kein
+Wächter mechanisch prüfen. **Gefunden hat es der Lauf des Bruchskripts in der
+CI**, also genau das Werkzeug, dessen ganzer Zweck das ist.
+
+### Und der Wächter zu Befund 12 hing an einem Variablennamen
+
+`BulkActionTest::test_every_reason_survives_the_way_to_the_browser` erwartete
+wörtlich `implode("\n", $meldungen)`. Als PHPStan an `MessageBag::messages()`
+Anstoss nahm und die Variable dabei `$saetze` hiess, wurde der Wächter rot —
+während die Regel unverändert galt.
+
+> **Ein Wächter, der einen Variablennamen prüft, meldet jede Umbenennung als
+> Regelbruch.**
+
+Er prüft jetzt `implode("\n", $…)`. Gegengeprüft in beide Richtungen: Ein
+Leerzeichen statt des Umbruchs macht ihn rot, eine blosse Umbenennung nicht.
+
+### Eine Methode, die es zur Laufzeit gibt, steht deshalb noch nicht im Vertrag
+
+`ViewErrorBag::getBag()` liefert die **Schnittstelle**
+`Contracts\Support\MessageBag`, und die kennt `messages()` nicht — das ist eine
+Methode der konkreten Klasse dahinter. Zur Laufzeit ginge beides, weil dort immer
+diese Klasse steht. `toArray()` steht im Vertrag und liefert dasselbe.
+
+Dazu zwei PHPStan-Meldungen an den **leeren** Ausnahmelisten der neuen Wächter:
+Eine leere Konstante hat den Typ `array{}`, und „Offset string in `isset()`" wie
+„Empty array passed to `foreach`" sind darauf richtig für den heutigen Inhalt und
+falsch für den Zweck.
+
+> **Ein Typ, der aus dem heutigen Inhalt geschlossen wird, verbietet den
+> morgigen.**
+
+---
+
 ---
 
 ## Offen, klein, nicht verfolgt

@@ -745,6 +745,7 @@ Dazu wachsen mit: `AgentOperationReachTest`, `RouteAuthorizationTest`,
 | **6b** | **Zwischenabnahme auf `cloudsrv24`** | **vorgezogen — `docs/52`** |
 | **6c** | Die Gruppe, unter der abgelegt wird | **gebaut** — setgid, `InheritedGroupTest` |
 | 10 | ~~Zwischenabnahme~~ | vorgezogen auf 6b |
+| **7b** | **Prüflauf für 5b–6d auf `cloudsrv24`** | **geschrieben — `docs/54`** |
 | 11 | **Der Angriffsdurchgang**, scharf und stumpf | §4 |
 | 12 | Bilderrunde: beide Themes, 390 px, mit Messung | `docs/49 §6` Punkt 2 |
 

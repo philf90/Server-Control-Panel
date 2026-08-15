@@ -62,9 +62,11 @@ final class SandboxGroupTest extends TestCase
     /** @return list<string> */
     private function operations(): array
     {
+        // `glob()` liefert bereits eine Liste; ein `array_values` darüber ist
+        // wirkungslos, und PHPStan sagt das auch.
         $gefunden = glob(dirname(__DIR__, 2).'/agent/src/Ops/*.php');
 
-        return $gefunden === false ? [] : array_values($gefunden);
+        return $gefunden === false ? [] : $gefunden;
     }
 
     public function test_only_the_named_operations_ask_for_an_extra_group(): void

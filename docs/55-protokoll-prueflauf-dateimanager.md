@@ -1435,6 +1435,66 @@ Absage das Falsche.
 
 ---
 
+## Punkt 7 — Anlegen und der Mehrfach-Upload, erfüllt
+
+### (a) Datei anlegen
+
+```
+-rw-r--r-- 1 p1136 www-data 4 …/httpdocs/p6-neu.txt
+```
+
+Angelegt, beschrieben, Gruppe `www-data`. **Ob danach der Editor offen stand
+oder die Liste, ist nicht festgehalten worden** — der Inhalt belegt nur, dass
+irgendwo geschrieben werden konnte. Steht als kleine offene Frage weiter unten.
+
+### (b) Drei Dateien nach `conf`, das root gehört
+
+```
+Von 3 Dateien sind 0 hochgeladen.
+IMG_4400.jpeg: In dieses Verzeichnis darf das Abonnement nicht schreiben.
+IMG_4399.jpeg: In dieses Verzeichnis darf das Abonnement nicht schreiben.
+IMG_4398.jpeg: In dieses Verzeichnis darf das Abonnement nicht schreiben.
+```
+
+**Drei Zeilen mit Namen und Grund** — und das ist der Teil, der zählt: Diese
+Zeilen hat der Controller seit Schritt 5e geschrieben, und **kein Kunde hat sie
+je gesehen** (Befund 12). Bei der Mehrfachauswahl war das schon nachgeprüft; hier
+ist die zweite Stelle belegt, an der derselbe Bruch sass.
+
+Und `conf/` enthält danach nur seinen root-eigenen `p6-b.invalid.include` —
+**nichts Neues**. Ein Upload, der abgewiesen wird und trotzdem eine Datei
+hinterlässt, wäre der Befund; die Datei entsteht hier gar nicht erst.
+
+### (c) Dieselben drei nach `httpdocs`
+
+```
+3 Dateien sind hochgeladen.
+
+-rw-r--r-- 1 p1136 www-data 3825530 IMG_4398.jpeg
+-rw-r--r-- 1 p1136 www-data 3319057 IMG_4399.jpeg
+-rw-r--r-- 1 p1136 www-data 3481087 IMG_4400.jpeg
+```
+
+**Drei Dateien, jede unter ihrem eigenen Namen**, jede mit ihrer eigenen Grösse.
+Läge dort eine, wäre der Fehler zurück, den 5e behoben hat — ein vollständiger
+Zielpfad für mehrere Quellen ist **ein** Pfad für alle, und der letzte gewönne.
+
+Die drei verschiedenen Grössen sind dabei der bessere Beleg als die drei Namen:
+Ein Fehler, der alle drei unter denselben Namen schriebe, hinterliesse **eine**
+Datei mit der Grösse der letzten.
+
+> **Drei gleiche Namen fallen auf. Drei gleiche Inhalte unter drei Namen nicht.**
+
+### Was die Liste nebenbei zeigt
+
+Angelegte und hochgeladene Dateien tragen `0644`, von Hand angelegte `0640`.
+Beides ist unbedenklich: `httpdocs` selbst steht auf `2750` und lässt keinen
+fremden Benutzer hinein, also ist `others` dort ohne Wirkung. **Kein Befund** —
+notiert, weil die Zahl in der Liste steht und sonst beim nächsten Lesen wieder
+Fragen aufwirft.
+
+---
+
 ---
 
 ## Offen, klein, nicht verfolgt

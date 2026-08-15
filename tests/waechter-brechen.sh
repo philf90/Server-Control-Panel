@@ -8068,17 +8068,55 @@ echo "── CountedNounTest: eine Seite trifft die Entscheidung wieder selbst �
 #
 # Dreimal derselbe Fehler hiess, dass die Stelle fehlte, an der er einmal
 # richtig gemacht wird. Wer sie wieder verlässt, macht ihn ein viertes Mal.
+#
+# **Dieser Eingriff hat am 15. August seinen Biss verloren, und zwar lautlos.**
+# Er nimmt *einer* Vorlage die Einbindung weg; die Untergrenze im Waechter
+# zaehlte *alle* und stand auf drei. Solange es genau drei Benutzer gab, fiel
+# sie auf zwei und der Waechter biss — mit dem Dateimanager als viertem blieben
+# drei uebrig, und der Bruchlauf meldete „ohne Biss".
+#
+# Der Waechter zaehlt seitdem nicht mehr gegen eine Zahl, und dieser Eingriff
+# baut die Form nach, die counted() ersetzt: zwei einzelne Woerter hinter einer
+# Eins. Die trifft test_no_page_decides_the_word_itself, egal wie viele andere
+# Vorlagen die Entscheidung von der richtigen Stelle holen.
 vorher_datei resources/js/Pages/Audit/Index.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Audit/Index.vue'
 s = open(p, encoding='utf-8').read()
 s = s.replace("import { counted } from '../../Composables/useCounted'\n", '', 1)
 alt = ":subline=\"counted(events.total, 'Eintrag', 'Eintraege')\""
-s = s.replace(alt.replace('Eintraege', 'Einträge'), ':subline="`${events.total} Zeichen`"', 1)
+s = s.replace(
+    alt.replace('Eintraege', 'Einträge'),
+    ':subline="`${events.total} ${events.total === 1 ? \'Eintrag\' : \'Eintraege\'}`"'.replace('Eintraege', 'Einträge'),
+    1,
+)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/js/Pages/Audit/Index.vue "Entscheidung wieder in der Seite" &&
 pruefe "Entscheidung wieder in der Seite" \
+  CountedNounTest::test_no_page_decides_the_word_itself failed
+wiederherstellen
+
+echo
+echo "── CountedNounTest: eine Vorlage bindet ein und ruft nicht mehr auf ──"
+#
+# Die andere Richtung derselben Regel, und der Fall, den ein Umbau wirklich
+# macht: Der Aufruf wird ersetzt, die Einbindung bleibt stehen. Sie sieht dann
+# aus wie eine Zusage, dass die Entscheidung von der richtigen Stelle kommt —
+# und die Seite trifft sie längst selbst.
+vorher_datei resources/js/Pages/Plans/Form.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Plans/Form.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "${counted(props.subscriptions, 'Abonnement', 'Abonnements')} gebunden",
+    '${props.subscriptions} mal gebunden',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Plans/Form.vue "Einbindung ohne Aufruf" &&
+pruefe "eine Vorlage bindet ein und ruft nicht auf" \
   CountedNounTest::test_the_decision_lives_in_one_place failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CountedNounTest passed

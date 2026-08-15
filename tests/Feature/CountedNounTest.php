@@ -168,19 +168,107 @@ final class CountedNounTest extends TestCase
             'Die Entscheidung hängt nicht mehr am Wert.',
         );
 
-        $benutzer = 0;
+        /*
+         * **Hier stand `assertGreaterThanOrEqual(3, …)`, und die Zahl ist am
+         * 15. August 2026 stumm geworden.**
+         *
+         * Der Bruch dazu nahm **einer** Vorlage die Einbindung weg; die Grenze
+         * zählte **alle**. Solange es genau drei Benutzer gab, fiel sie damit auf
+         * zwei und der Wächter biss. Der Dateimanager wurde der vierte — und
+         * seitdem blieben nach dem Bruch drei übrig. Der Wächter war grün, der
+         * Bruchlauf meldete „ohne Biss".
+         *
+         * > **Eine Untergrenze prüft eine Regel nur an ihrer Grenze — und ein
+         * > neuer Benutzer schiebt sie weg.**
+         *
+         * Das ist die Kehrseite der Falle aus `CLAUDE.md`: Dort meldete ein
+         * Zähler Rot für die Ordnung, die er durchsetzen soll. Hier meldet er
+         * Grün für ihren Bruch. Beide Male ist der Fehler derselbe — eine feste
+         * Zahl über einen Bestand, der wächst.
+         *
+         * Gezählt wird deshalb nicht mehr gegen eine Zahl, sondern gegen sich
+         * selbst: Wer einbindet, ruft auch auf, und wer aufruft, bindet ein.
+         */
+        $einbinder = [];
+        $aufrufer = [];
 
-        foreach ($this->templates() as $vorlage) {
+        foreach ($this->templates() as $pfad => $vorlage) {
             if (str_contains($vorlage, "from '../../Composables/useCounted'")) {
-                $benutzer++;
+                $einbinder[] = $pfad;
+            }
+
+            if (preg_match('/\b(?:counted|formatCount)\(/', $vorlage) === 1) {
+                $aufrufer[] = $pfad;
             }
         }
 
-        $this->assertGreaterThanOrEqual(
-            3,
-            $benutzer,
-            'Weniger als drei Vorlagen holen die Entscheidung von dort. Eine, die sie wieder selbst '.
-            'trifft, ist die vierte Fassung derselben Regel.',
+        $this->assertNotSame(
+            [],
+            $aufrufer,
+            'Keine einzige Vorlage holt die Entscheidung von dort. Dann ist `useCounted` toter Code, '.
+            'und die Regel darüber eine Zusage ins Leere.',
+        );
+
+        $this->assertSame(
+            $einbinder,
+            $aufrufer,
+            "Einbinden und Aufrufen fallen auseinander.\n\n".
+            'Eine Vorlage, die einbindet und nicht aufruft, hat die Entscheidung wieder selbst '.
+            'getroffen; eine, die aufruft und nicht einbindet, lässt sich gar nicht bauen. Beides '.
+            'ist ein Befund über dieselbe Stelle.',
+        );
+    }
+
+    /**
+     * Und keine Seite entscheidet das Wort selbst.
+     *
+     * **Das ist die Prüfung, die der Untergrenze darüber gefehlt hat.** Eine
+     * Zahl über alle Vorlagen kann nicht sehen, dass **eine** ausgeschert ist —
+     * genau das war der Bruch, den sie prüfen sollte.
+     *
+     * Gesucht wird die Form, die `counted()` ersetzt: ein Fragezeichen hinter
+     * einer `1`, und dahinter zwei Wörter. Ein Satz, der sich als Ganzes ändert,
+     * ist ausdrücklich erlaubt und kommt hier viermal vor („Das Abonnement wird"
+     * gegen „2 Abonnements werden", „seit 1 Tag" gegen „seit 3 Tagen") — eine
+     * Mengenangabe kann das nicht leisten und soll es nicht.
+     *
+     * > **Zwei einzelne Wörter hinter einer Eins sind eine Mengenangabe. Ein
+     * > halber Satz ist eine Entscheidung.**
+     */
+    public function test_no_page_decides_the_word_itself(): void
+    {
+        $muster = "/1\\s*\\)?\\s*\\?\\s*'(\\p{L}+)'\\s*:\\s*'(\\p{L}+)'/u";
+        $treffer = [];
+
+        foreach ($this->templates() as $pfad => $vorlage) {
+            if (preg_match($muster, $vorlage, $wort) === 1) {
+                $treffer[] = sprintf('%s — „%s" gegen „%s"', $pfad, $wort[1], $wort[2]);
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $treffer,
+            "Eine Vorlage entscheidet die Einzahl selbst:\n  ".implode("\n  ", $treffer)."\n\n".
+            'Das ist die nächste Fassung derselben Regel, und die nächste ist die, die beim '.
+            'Nachziehen vergessen wird. `counted()` aus `useCounted` trifft die Entscheidung.',
+        );
+
+        /*
+         * **Und die Gegenprobe**, aus demselben Grund wie oben: Eine leere Liste
+         * liefert ein kaputtes Muster genauso zuverlässig wie eine saubere
+         * Oberfläche.
+         */
+        $this->assertSame(
+            1,
+            preg_match($muster, "counted = anzahl === 1 ? 'Eintrag' : 'Einträge'"),
+            'Das Muster findet die Form nicht, gegen die es geschrieben ist.',
+        );
+
+        $this->assertSame(
+            0,
+            preg_match($muster, "anzahl === 1 ? 'Das Abonnement wird' : `\${anzahl} Abonnements werden`"),
+            'Das Muster hält einen ganzen Satz für eine Mengenangabe — den kann `counted()` nicht.',
         );
     }
 }

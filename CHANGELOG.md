@@ -13405,3 +13405,44 @@ Gemessen im gebauten Stylesheet bei 390, 720, 800 und 1440 px in beiden Themes:
 Neue Wächter: `BulkActionTest` (neun Prüfungen über die Form der Griffe) und
 `SelectionTest` (sechs über `Workspace::paths()` und `Packer::zip()`). Elf Brüche,
 alle zubeissend.
+
+### Ein Wächter, den der vorige Schritt lautlos entwaffnet hat
+
+Der Bruchlauf zu 5h meldete „1 Prüfung ohne Biss", und der Befund gehört nicht
+zu 5h, sondern zu einer Zahl, die seit P5c dastand.
+
+`CountedNounTest::test_the_decision_lives_in_one_place` verlangte, dass
+**mindestens drei** Vorlagen die Entscheidung über Einzahl und Mehrzahl aus
+`useCounted` holen. Der Bruch dazu nimmt **einer** Vorlage die Einbindung weg.
+Solange es genau drei Benutzer gab, fiel die Zahl auf zwei und der Wächter biss.
+Der Dateimanager wurde der vierte — und seitdem blieben nach dem Bruch drei
+übrig.
+
+> **Eine Untergrenze prüft eine Regel nur an ihrer Grenze — und ein neuer
+> Benutzer schiebt sie weg.**
+
+Das ist die Kehrseite der Falle, die in `CLAUDE.md` schon steht: Dort meldete ein
+Zähler **Rot** für genau die Ordnung, die er durchsetzen soll. Hier meldet er
+**Grün** für ihren Bruch. Beide Male ist der Fehler derselbe — eine feste Zahl
+über einen Bestand, der wächst. Die zweite Richtung ist die gefährlichere, weil
+sie niemanden stört.
+
+Gezählt wird jetzt gegen sich selbst statt gegen eine Zahl: Wer `useCounted`
+einbindet, ruft es auch auf, und wer es aufruft, bindet es ein. Eine Vorlage, die
+einbindet und nicht aufruft, hat die Entscheidung wieder selbst getroffen.
+
+**Und die Prüfung, die der Untergrenze von Anfang an gefehlt hat**, ist
+dazugekommen: Eine Zahl über *alle* Vorlagen kann nicht sehen, dass **eine**
+ausgeschert ist — genau das war der Bruch, den sie prüfen sollte. Gesucht wird
+jetzt die Form, die `counted()` ersetzt: ein Fragezeichen hinter einer `1`, und
+dahinter zwei einzelne Wörter.
+
+> **Zwei einzelne Wörter hinter einer Eins sind eine Mengenangabe. Ein halber
+> Satz ist eine Entscheidung.**
+
+Ein Satz, der sich als Ganzes ändert, bleibt ausdrücklich erlaubt und kommt
+viermal vor — „Das Abonnement wird" gegen „2 Abonnements werden", „seit 1 Tag"
+gegen „seit 3 Tagen". Eine Mengenangabe kann das nicht leisten und soll es nicht.
+
+Zwei Brüche dazu, beide zubeissend: eine Seite, die das Wort wieder selbst
+entscheidet, und eine, die einbindet, ohne aufzurufen.

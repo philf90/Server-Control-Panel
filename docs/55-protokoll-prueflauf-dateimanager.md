@@ -749,6 +749,59 @@ zählt nicht als erledigt.
 
 ---
 
+## Punkt 3 — der Schema-Schutz, erfüllt
+
+Acht Aufrufe, acht Absagen — und **jede mit dem Verb ihres Vorgangs**:
+
+```
+/httpdocs: … und wird nicht entfernt. Sein Inhalt lässt sich ändern.
+/logs:     … und wird nicht entfernt. …
+/conf:     … /.ssh: … /tmp: … /mail: …
+move:      … und wird nicht verschoben oder umbenannt. …
+chmod:     … und wird nicht in seinen Rechten geändert. …
+```
+
+Das ist kein Schmuck: `Scheme::protect()` bekommt das Verb vom Aufrufer, und
+eine Absage, die „wird nicht entfernt" sagt, während jemand `chmod` versucht
+hat, wäre eine Auskunft über den falschen Vorgang.
+
+**Und der zweite Satz steht in jeder Absage:** „Sein Inhalt lässt sich ändern."
+Ein blosses „darf nicht" liesse den Lesenden mit der Frage zurück, was er denn
+tun soll.
+
+### Die Gegenprobe — der eigentliche Zweck von 5f
+
+```
+total 2700
+drwxr-s--- 3 p1136 www-data     4096 Aug 15 11:51 .
+-rw-r--r-- 1 p1136 p1136         249 cve-import-vorlage.csv
+-rw-r--r-- 1 p1136 p1136     2744320 homematic-…sbk
+-rw-r----- 1 p1136 www-data     1114 index.html
+-rw-r----- 1 p1136 www-data        0 p6-probe.txt
+drwxr-x--- 2 p1136 p1136        4096 test2
+/var/www/vhosts/p6-b.invalid/httpdocs 2750
+```
+
+**Fünf Einträge, unverändert.** Nichts leergeräumt, nichts halb entfernt.
+
+Vor 5f lief `Filesystem::removeTree()` erst durch — jedes `unlink` gelang, weil
+der Inhalt dem Kunden gehört — und scheiterte dann am abschliessenden `rmdir`,
+weil die Vhost-Wurzel `root:root` gehört. Gemeldet wurde „liess sich nicht
+vollständig entfernen", und die Webseite war weg.
+
+> **Eine Absage, die erst nach der Wirkung kommt, ist keine.**
+
+### Zwei Dinge, die dieselbe Ausgabe nebenbei belegt
+
+**`drwxr-s---`** — das `s` an der Gruppenstelle ist das setgid-Bit. Punkt 1 (c)
+ist damit ein zweites Mal sichtbar, aus einer anderen Richtung.
+
+**`index.html` und `p6-probe.txt` tragen beide `www-data`**, `test2` und die
+beiden alten Dateien nicht. Das ist die gemischte Bevölkerung aus §1.1, an einem
+einzigen `ls` ablesbar: Was 6c erreicht hat, und was nicht.
+
+---
+
 ## Offen, klein, nicht verfolgt
 
 `ls /var/www/vhosts/p6-b.invalid/logs/` und der `tail` darauf haben nichts

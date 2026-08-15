@@ -286,6 +286,102 @@ Befund dieses Laufs.
 
 ---
 
+## Punkt 1 (c) — gefahren, und die Erwartung war falsch
+
+```
+Warteschlange leer nach 0s
+625  acme.certificate.issue  failed     Die Zertifizierungsstelle lehnte ab …
+624  web.site.apply          succeeded  fertig
+623  php.pool.apply          succeeded  fertig
+622  subscription.remove     succeeded  fertig
+621  acme.certificate.issue  failed     … Domain name does not end with a valid public suffix
+```
+
+| Verzeichnis | Eigentümer:Gruppe | Modus (b) | Modus (c) |
+|---|---|---|---|
+| *(Abo-Wurzel)* | `root:root` | `755` | `755` |
+| `httpdocs` | `p1136:www-data` | `750` | **`2750`** |
+| `logs` | `p1136:adm` | `750` | `750` |
+| `tmp` | `p1136:p1136` | `700` | `700` |
+| `conf` | `root:root` | `755` | `755` |
+| `.ssh` | `p1136:p1136` | `700` | `700` |
+| `mail` | `p1136:p1136` | `700` | `700` |
+
+```
+seite=200
+```
+
+**`web.site.apply` ist gelaufen und gelungen, und `httpdocs` trägt setgid.**
+Das ist die Aussage, für die Punkt 1 gebaut ist: 6c erreicht den Bestand, an
+der Stelle, an der es zählt. Die Seite liefert weiter aus.
+
+### Befund 5 — die Erwartungstabelle in `docs/54` war falsch, nicht der Server
+
+Sie sagte, `logs` werde `2750` und `tmp`/`.ssh`/`mail` würden `2700`. **Keines
+davon trifft zu, und beides ist richtig so.**
+
+`WebSiteApply` fasst genau zwei Verzeichnisse an:
+
+```php
+Filesystem::directory($documentRoot, $site->user, DOCUMENT_ROOT_GROUP, DOCUMENT_ROOT_MODE);
+Filesystem::directory($site->logDir(), $site->user, 'adm', 0o2750);
+```
+
+und `Site::logDir()` ist **`<abo>/logs/<domain>`** — ein Unterverzeichnis je
+Domain, nicht `logs` selbst:
+
+```php
+return $this->subscriptionRoot().'/logs/'.$this->domain;
+```
+
+`logs`, `tmp`, `conf`, `.ssh` und `mail` stehen ausschliesslich in
+`SubscriptionProvision::TREE` und werden beim **Anlegen** des Abonnements
+gesetzt. Ich habe die beiden Listen gelesen, als wären sie eine.
+
+> **Zwei Listen, die dasselbe Schema beschreiben, werden von zwei verschiedenen
+> Vorgängen angewandt — und nur eine davon läuft nachträglich.**
+
+### Und daraus die Grenze, die niemand aufgeschrieben hatte
+
+Für ein **bestehendes** Abonnement erreicht das setgid-Bit ausschliesslich
+`httpdocs` und `logs/<domain>`. `logs`, `tmp`, `.ssh` und `mail` behalten ihren
+alten Modus **dauerhaft**: `subscription.provision` wird von
+`SubscriptionController::store()` beim Anlegen gerufen und von keiner Stelle
+noch einmal.
+
+**Funktional ist das folgenlos**, und das steht schon in `TREE`:
+
+> Hier ändert das Bit nichts — Eigentümer und Gruppe sind dieselben —, und es
+> steht trotzdem da: Eine Regel, die für „alle Verzeichnisse des Kunden" gilt,
+> muss beim nächsten Zuwachs des Schemas nicht neu beurteilt werden.
+
+Bei `tmp`, `.ssh` und `mail` sind Eigentümer und Gruppe dasselbe; das Bit ändert
+nichts. Bei `logs` trägt zwar `adm`, aber was darin entsteht, sind die
+`logs/<domain>`-Verzeichnisse, und die setzt `WebSiteApply` selbst.
+
+**Was bleibt, ist ein Bestand in zwei Zuständen**, den nichts wieder
+zusammenführt: Ein Abonnement von vor dieser Fassung sieht dauerhaft anders aus
+als ein neues. Das ist kein Fehler und gehört trotzdem benannt — sonst rätselt
+der Nächste vor derselben `stat`-Ausgabe.
+
+### Erledigt: das leere Protokollverzeichnis
+
+Der `tail` aus Punkt 1 (a) lief auf `logs/*error*.log` und fand nichts. **Der
+Glob stand eine Ebene zu hoch:** Die Protokolle liegen unter
+`logs/<domain>/error.log`. Die offene Zeile fällt weg.
+
+### Der fehlgeschlagene ACME-Vorgang
+
+```
+Die Zertifizierungsstelle lehnte ab (rejectedIdentifier). — Cannot issue for
+"p6-b.invalid": Domain name does not end with a valid public suffix (TLD)
+```
+
+**Erwartet, und die Meldung ist gut.** Sie nennt den Namen, den Grund und die
+Stelle, die abgelehnt hat. Kein Befund dieses Laufs.
+
+---
+
 ## Offen, klein, nicht verfolgt
 
 `ls /var/www/vhosts/p6-b.invalid/logs/` und der `tail` darauf haben nichts

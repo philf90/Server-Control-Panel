@@ -274,14 +274,24 @@ Vorgang, der nie lief.
 
 **Erwartet:**
 
-| Verzeichnis | Eigentümer:Gruppe | Modus |
-|---|---|---|
-| `httpdocs` | `p1136:www-data` | `2750` |
-| `logs` | `p1136:adm` | `2750` |
-| `tmp` | `p1136:p1136` | `2700` |
-| `conf` | `root:root` | `755` |
-| `.ssh` | `p1136:p1136` | `2700` |
-| `mail` | `p1136:p1136` | `2700` |
+| Verzeichnis | Eigentümer:Gruppe | Modus | wer setzt es |
+|---|---|---|---|
+| `httpdocs` | `p1136:www-data` | **`2750`** | `WebSiteApply` — läuft jetzt |
+| `logs/p6-b.invalid` | `p1136:adm` | **`2750`** | `WebSiteApply` — läuft jetzt |
+| `logs` | `p1136:adm` | `750` *(unverändert)* | `SubscriptionProvision` |
+| `tmp` | `p1136:p1136` | `700` *(unverändert)* | `SubscriptionProvision` |
+| `conf` | `root:root` | `755` *(unverändert)* | `SubscriptionProvision` |
+| `.ssh` | `p1136:p1136` | `700` *(unverändert)* | `SubscriptionProvision` |
+| `mail` | `p1136:p1136` | `700` *(unverändert)* | `SubscriptionProvision` |
+
+**Die rechte Spalte ist der Kern, und sie hat beim ersten Fahren gefehlt.**
+`WebSiteApply` fasst genau zwei Verzeichnisse an, und `Site::logDir()` ist
+`<abo>/logs/<domain>` — ein Unterverzeichnis je Domain, **nicht** `logs`. Alles
+andere steht in `SubscriptionProvision::TREE` und wird beim **Anlegen** gesetzt;
+für ein bestehendes Abonnement läuft es nie wieder.
+
+> **Zwei Listen, die dasselbe Schema beschreiben, werden von zwei verschiedenen
+> Vorgängen angewandt — und nur eine davon läuft nachträglich.**
 
 **Und die Seite liefert weiter aus** — derselbe Statuscode wie in (a).
 

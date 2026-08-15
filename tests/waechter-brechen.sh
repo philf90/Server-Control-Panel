@@ -9085,6 +9085,252 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SandboxReachTest passed
 
 echo
+echo "── BulkActionTest: ein Griff liest die Auswahl selbst ──"
+#
+# Die Obergrenze, das min:1 und das array_unique stehen in selection(). Viermal
+# abgeschrieben waere es viermal die Gelegenheit, eines davon zu vergessen.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""        $paths = $this->selection($request, ['recursive' => ['boolean']]);""",
+              """        $data = $request->validate([
+            'paths' => ['required', 'array', 'min:1'],
+            'paths.*' => ['required', 'string', 'max:4096'],
+            'recursive' => ['boolean'],
+        ]);
+        $paths = $data['paths'];""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/FileController.php "Auswahl selbst gelesen" &&
+pruefe "ein Griff liest die Auswahl selbst" \
+  BulkActionTest::test_every_handler_reads_the_selection_in_one_place failed
+wiederherstellen
+
+echo
+echo "── BulkActionTest: ein Griff meldet nicht, was schiefging ──"
+#
+# Der Gegenstand dieses Schritts. Neunzehn von zwanzig Eintraegen verschoben und
+# darueber eine Erfolgsmeldung.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $this->report($paths, $result, 'verschoben');\n", '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/FileController.php "Rueckmeldung fehlt" &&
+pruefe "ein Griff meldet Fehlschlaege nicht" \
+  BulkActionTest::test_every_looping_handler_reports_what_failed failed
+wiederherstellen
+
+echo
+echo "── BulkActionTest: die Zahl steht hinter den Gruenden ──"
+#
+# Wer drei Meldungen liest und die Gesamtzahl erst darunter findet, hat die Frage
+# „sind die anderen durch?" schon dreimal falsch beantwortet.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""        $messages = [sprintf(
+            'Von %d Einträgen %s %d %s.',
+            count($paths),
+            $result['done'] === 1 ? 'ist' : 'sind',
+            $result['done'],
+            $verb,
+        )];
+
+        foreach ($result['failed'] as $path => $reason) {
+            $messages[] = sprintf('%s: %s', $path, $reason);
+        }""",
+              """        $messages = [];
+
+        foreach ($result['failed'] as $path => $reason) {
+            $messages[] = sprintf('%s: %s', $path, $reason);
+        }
+
+        $messages[] = sprintf(
+            'Von %d Einträgen %s %d %s.',
+            count($paths),
+            $result['done'] === 1 ? 'ist' : 'sind',
+            $result['done'],
+            $verb,
+        );""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/FileController.php "Zahl hinter den Gruenden" &&
+pruefe "die Zahl steht hinter den Gruenden" \
+  BulkActionTest::test_the_tally_stands_before_the_reasons failed
+wiederherstellen
+
+echo
+echo "── BulkActionTest: der einzelne Eintrag bekommt eine Mengenangabe ──"
+#
+# „Von 1 Eintraegen ist 0 entfernt." ist die Zahl ohne die Auskunft — und die
+# Auskunft ist bei einem Eintrag alles, was es zu sagen gibt.
+vorher_datei app/Http/Controllers/FileController.php
+sed -i 's/if (count($paths) === 1) {/if (count($paths) === 0) {/' app/Http/Controllers/FileController.php
+griff_datei app/Http/Controllers/FileController.php "Einzahl faellt weg" &&
+pruefe "der einzelne Eintrag bekommt eine Mengenangabe" \
+  BulkActionTest::test_a_single_entry_gets_its_reason_without_a_tally failed
+wiederherstellen
+
+echo
+echo "── BulkActionTest: das Ziel wird als vollstaendiger Pfad benutzt ──"
+#
+# Derselbe Fehler wie beim Mehrfach-Upload: ein Pfad fuer alle. Der letzte
+# Eintrag gewinnt, die anderen sind fort, und der Vorgang meldet Erfolg.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""            $to = $this->into($ziel, $path);
+
+            $this->files->copy($subscription, $path, $to);""",
+              """            $to = $ziel;
+
+            $this->files->copy($subscription, $path, $to);""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/FileController.php "ein Zielpfad fuer alle Eintraege" &&
+pruefe "das Ziel wird als vollstaendiger Pfad benutzt" \
+  BulkActionTest::test_the_target_of_a_batch_is_a_directory failed
+wiederherstellen
+
+echo
+echo "── BulkActionTest: umbenennen nimmt wieder einen Pfad ──"
+#
+# Ein Feld mit zwei Bedeutungen hat keine.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            'name' => ['required', 'string', 'max:255'],",
+              "            'to' => ['required', 'string', 'max:4096'],")
+s = s.replace("""        $leaf = basename(str_replace('\\\\', '/', $data['name']));""",
+              """        $leaf = $data['to'];""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/FileController.php "umbenennen nimmt einen Pfad" &&
+pruefe "umbenennen nimmt wieder einen Pfad" \
+  BulkActionTest::test_renaming_asks_for_a_name_and_not_for_a_path failed
+wiederherstellen
+
+echo
+echo "── BulkActionTest: die Seite setzt den Zielpfad wieder selbst zusammen ──"
+#
+# Die andere Haelfte derselben Regel — und die Stelle, an der der Fehler aus §8.3
+# entstanden ist.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('  rename.name = wanted', '  rename.to = here(wanted)')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Zielpfad in der Seite" &&
+pruefe "die Seite setzt den Zielpfad selbst zusammen" \
+  BulkActionTest::test_renaming_asks_for_a_name_and_not_for_a_path failed
+wiederherstellen
+
+echo
+echo "── BulkActionTest: die Auswahl ueberlebt die Navigation ──"
+#
+# Dann steht ueber der Tabelle eine Zahl, zu der kein einziger Haken gehoert —
+# und der naechste Klick auf „Entfernen" trifft Eintraege aus einem anderen
+# Ordner.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""watch(() => props.path, () => {
+  selected.value = []
+  picking.value = null
+})""",
+              """watch(() => props.path, () => {
+  picking.value = null
+})""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Auswahl ueberlebt" &&
+pruefe "die Auswahl ueberlebt die Navigation" \
+  BulkActionTest::test_the_selection_falls_away_when_the_directory_changes failed
+wiederherstellen
+
+echo
+echo "── BulkActionTest: ein Knopf zeigt auf eine Adresse, die es nicht gibt ──"
+#
+# vue-tsc faengt einen fehlenden Namen. Eine Adresse, die auf keine Route mehr
+# zeigt, faengt es nicht — der Kunde bekommt dort eine 404.
+vorher_datei resources/js/Pages/Files/Index.vue
+sed -i 's|/files/compress`|/files/archive`|' resources/js/Pages/Files/Index.vue
+griff_datei resources/js/Pages/Files/Index.vue "Adresse ohne Route" &&
+pruefe "ein Knopf zeigt auf keine Route" \
+  BulkActionTest::test_every_action_of_the_selection_reaches_a_route failed
+wiederherstellen
+
+echo
+echo "── BulkActionTest: die Route zum Kopieren heisst anders ──"
+#
+# Kopieren und Verschieben setzt die Seite zur Laufzeit zusammen; ohne die zwei
+# Zeilen im Waechter waere ausgerechnet der neue Teil der einzige ungeprueften.
+vorher_datei routes/web.php
+sed -i "s|/files/copy'|/files/duplicate'|" routes/web.php
+griff_datei routes/web.php "Route umbenannt" &&
+pruefe "die Route zum Kopieren heisst anders" \
+  BulkActionTest::test_every_action_of_the_selection_reaches_a_route failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BulkActionTest passed
+
+echo
+echo "── SelectionTest: zwei Schreibweisen desselben Pfades zaehlen zweimal ──"
+#
+# Beim zweiten Mal meldet der Agent „gibt es nicht" — mitten in einer
+# Rueckmeldung ueber siebzehn Erfolge.
+vorher_datei agent/src/Files/Workspace.php
+python3 - <<'PY2'
+p = 'agent/src/Files/Workspace.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""            if (! in_array($pfad, $paths, true)) {
+                $paths[] = $pfad;
+            }""",
+              """            $paths[] = $pfad;""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Files/Workspace.php "keine Entdopplung" &&
+pruefe "zwei Schreibweisen zaehlen zweimal" \
+  SelectionTest::test_two_spellings_of_the_same_path_count_once failed
+wiederherstellen
+
+echo
+echo "── SelectionTest: die Namen werden erst nach dem open geprueft ──"
+#
+# Dann bekommt der Kunde „liess sich nicht anlegen", raeumt das Ziel weg und
+# laeuft in denselben Fehler. Von zwei Gruenden gehoert der genannt, den der
+# naechste Versuch nicht von selbst behebt.
+vorher_datei agent/src/Files/Packer.php
+python3 - <<'PY2'
+p = 'agent/src/Files/Packer.php'
+s = open(p, encoding='utf-8').read()
+oeffnen = """        $zip = new ZipArchive;
+
+        if ($zip->open($target, ZipArchive::CREATE | ZipArchive::EXCL) !== true) {
+            throw AgentException::denied('Das Archiv liess sich nicht anlegen.');
+        }
+
+"""
+s = s.replace(oeffnen, '', 1)
+s = s.replace("        $vergeben = [];\n", "        $vergeben = [];\n\n" + oeffnen, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Files/Packer.php "Namen nach dem open" &&
+pruefe "die Namen werden nach dem open geprueft" \
+  SelectionTest::test_the_names_are_checked_before_the_archive_is_opened failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SelectionTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

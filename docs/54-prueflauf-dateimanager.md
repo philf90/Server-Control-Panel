@@ -190,6 +190,34 @@ curl -sS -k -L -o /dev/null -w 'seite=%{http_code}\n' \
 Name allein nichts beweist.** Ein `uid=0`, dessen Name zufällig danebensteht,
 rutscht sonst durch (`docs/52`, Punkt 3).
 
+**Und der Statuscode braucht einen Nachbarn, der kein Fehler ist.** Beim ersten
+Fahren stand hier `seite=403` — `httpdocs` hatte keine Indexdatei. Ein
+Vorher-Wert, der schon ein Fehlercode ist, kann den Fehler nicht anzeigen, auf
+den dieser Punkt wartet: Brechen die Rechte durch 6c, antwortet nginx **auch**
+mit 403, und die beiden Zahlen sähen gleich aus (`docs/55`, Befund 1).
+
+> **Ein Vorher-Wert, der schon ein Fehler ist, kann den Fehler nicht anzeigen,
+> auf den man wartet.**
+
+Deshalb **vor** dem Update, und mit `0644`, damit diese Messung nicht am
+Prüfling hängt:
+
+```bash
+printf '<!doctype html><title>p6</title><p>p6-b.invalid steht.\n' > "$ABO"/httpdocs/index.html
+chown p1136:p1136 "$ABO"/httpdocs/index.html
+chmod 644 "$ABO"/httpdocs/index.html
+curl -sS -k -L -o /dev/null -w 'seite=%{http_code}\n' \
+  --resolve p6-b.invalid:80:127.0.0.1 --resolve p6-b.invalid:443:127.0.0.1 \
+  http://p6-b.invalid/
+```
+
+**Erwartet: 200.** Erst dieser Wert macht (b) und (c) zu einer Messung.
+
+| Datei | Rechte | Was sie misst |
+|---|---|---|
+| `index.html` | `0644` | Kommt nginx **durch das Verzeichnis**? |
+| `p6-probe.txt` | `0640` | Trägt die Datei die **Gruppe**, über die er hereinkommt? (Punkt 2) |
+
 **(b) Update fahren, dann sofort dieselbe Messung wiederholen — ohne
 `--sites`.**
 
@@ -499,6 +527,7 @@ ABO=/var/www/vhosts/p6-b.invalid
 rm -rf "$ABO"/httpdocs/p6-fremd
 rm -f  "$ABO"/httpdocs/p6-probe.txt "$ABO"/httpdocs/p6-eins.txt \
        "$ABO"/httpdocs/p6-zwei.txt "$ABO"/httpdocs/auswahl.zip
+# index.html bleibt: sie ist der Nachbar, an dem sich jede weitere Messung misst.
 rm -rf "$ABO"/tmp/p6-*
 ls -la "$ABO"/httpdocs/ "$ABO"/tmp/
 ```

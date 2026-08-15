@@ -7,6 +7,9 @@ import FormErrors from '../../Components/FormErrors.vue'
 import Section from '../../Components/Section.vue'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import { useConfirmation } from '../../Composables/useConfirmation'
+
+const { ask } = useConfirmation()
 
 const props = defineProps<{
   subscription: {
@@ -104,8 +107,11 @@ function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
 }
 
 function suspend(): void {
-  if (!window.confirm(`${props.subscription.name} sperren? Webseiten und Zugänge sind danach aus, die Daten bleiben.`)) return
-  router.post(`/subscriptions/${props.subscription.id}/suspend`)
+  ask(
+    `${props.subscription.name} sperren? Webseiten und Zugänge sind danach aus, die Daten bleiben.`,
+    'Sperren',
+    () => { router.post(`/subscriptions/${props.subscription.id}/suspend`) },
+  )
 }
 
 function resume(): void {

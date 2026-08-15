@@ -433,7 +433,7 @@ vorher
 printf '\n.item-grid-legacy { color: var(--text); }\n' >> resources/css/app.css
 griff "Regel ohne Nutzer" &&
 pruefe "Regel ohne Nutzer" \
-  ClassNameTest::test_every_rule_in_app_css_is_reached_by_a_template failed
+  ComponentReachTest::test_every_component_is_used_somewhere failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ClassNameTest passed
 
@@ -9403,6 +9403,49 @@ PY2
 griff_datei resources/js/Pages/Files/Index.vue "prompt im Packen" &&
 pruefe "eine Seite fragt ueber einen Systemdialog" \
   BrowserDialogTest::test_no_page_asks_for_input_through_a_browser_dialog failed
+wiederherstellen
+
+echo
+echo "── BrowserDialogTest: eine Rueckfrage steht wieder in window.confirm ──"
+#
+# Die andere Haelfte derselben Regel. Sie sah lange wie die harmlose aus — ein
+# ausgefallenes confirm() gibt false, es geschieht also nichts. Auf dem iPhone
+# hiess das: achtzehn Aktionen ohne jede Wirkung.
+vorher_datei resources/js/Pages/Subscriptions/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""  ask(
+    `${props.subscription.name} sperren? Webseiten und Zugänge sind danach aus, die Daten bleiben.`,
+    'Sperren',
+    () => { router.post(`/subscriptions/${props.subscription.id}/suspend`) },
+  )""",
+"""  if (!window.confirm(`${props.subscription.name} sperren?`)) return
+  router.post(`/subscriptions/${props.subscription.id}/suspend`)""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Show.vue "confirm beim Sperren" &&
+pruefe "eine Rueckfrage steht wieder im Systemdialog" \
+  BrowserDialogTest::test_no_page_asks_for_input_through_a_browser_dialog failed
+wiederherstellen
+
+echo
+echo "── ComponentReachTest: die Rueckfrage wird nirgends gezeichnet ──"
+#
+# useConfirmation kann fragen, so viel es will — steht Confirmation.vue nicht im
+# Layout, sieht die Frage niemand, und der Knopf tut wieder nichts. Genau der
+# Zustand, den dieser ganze Umbau beseitigen sollte.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("import Confirmation from '../Components/Confirmation.vue'\n", "", 1)
+s = s.replace("      <Confirmation />\n\n", "", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Rueckfrage aus dem Layout" &&
+pruefe "die Rueckfrage wird nirgends gezeichnet" \
+  ClassNameTest::test_every_rule_in_app_css_is_reached_by_a_template failed
 wiederherstellen
 
 echo

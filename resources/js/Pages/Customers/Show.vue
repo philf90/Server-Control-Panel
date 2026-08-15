@@ -4,6 +4,9 @@ import { computed } from 'vue'
 import Section from '../../Components/Section.vue'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import { useConfirmation } from '../../Composables/useConfirmation'
+
+const { ask } = useConfirmation()
 
 const props = defineProps<{
   customer: {
@@ -46,12 +49,12 @@ const fehler = computed(() => (page.props.errors as Record<string, string> | und
  * Schaden, wird zur Gewohnheit — und Gewohnheiten schützen nicht.
  */
 function zurueckziehen(): void {
-  if (!window.confirm(
+  ask(
     `Kunde ${props.customer.number} zurückziehen? Die Konten kommen danach nicht mehr herein. `
     + 'Die Kundennummer bleibt vergeben und wird nicht neu ausgegeben.',
-  )) return
-
-  router.delete(`/customers/${props.customer.id}`)
+    'Zurückziehen',
+    () => { router.delete(`/customers/${props.customer.id}`) },
+  )
 }
 
 /*
@@ -64,15 +67,15 @@ function zurueckziehen(): void {
 function sperren(): void {
   const anzahl = props.subscriptions.filter((s) => s.status === 'active').length
 
-  if (!window.confirm(
+  ask(
     `Kunde ${props.customer.number} sperren?`
     + (anzahl > 0
       ? ` ${anzahl === 1 ? 'Das Abonnement wird' : `${anzahl} Abonnements werden`} mitgesperrt: `
         + 'Webseiten und Zugänge sind danach aus, die Daten bleiben.'
       : ' Es gibt kein aktives Abonnement, das mitgeht.'),
-  )) return
-
-  router.post(`/customers/${props.customer.id}/suspend`)
+    'Sperren',
+    () => { router.post(`/customers/${props.customer.id}/suspend`) },
+  )
 }
 
 /*

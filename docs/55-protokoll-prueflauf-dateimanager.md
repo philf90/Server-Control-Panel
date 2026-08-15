@@ -1131,6 +1131,59 @@ die drei neuen Formulare.
 
 ---
 
+## Befund 16 — keine einzige Rückfrage dieses Panels kam auf dem iPhone an
+
+Die Gegenprobe zu Befund 15 sollte die harmlose Hälfte belegen: `window.confirm`
+nimmt keine Eingabe entgegen, fällt er aus, unterbleibt die Aktion. Der Betreiber
+hat „Entfernen" gedrückt — **die Rückfrage kam nicht.**
+
+Damit sind **achtzehn** Aktionen dieses Panels auf diesem Gerät tot: Sperren,
+Entsperren, Zurückziehen, Zurückbauen, Entfernen (Domain, Plan, Datei, Zeile),
+Zurückspielen, einen Zugriff entziehen, ein Netz zurücknehmen, einen Vorgang
+abbrechen, jede ändernde Aufgabe auf der Vorgangsseite, PHP installieren und
+entfernen, PostgreSQL installieren, ein Zertifikat ausstellen, in die Sicht eines
+Kunden wechseln, DNS-Zugangsdaten entfernen.
+
+**Meine Einschätzung dazu stand eine Stunde vorher im Wächter** — `confirm` sei
+die sichere Richtung und gehöre deshalb erst in Schritt 12. Der Satz stimmte und
+war die falsche Schlussfolgerung:
+
+> **„Es geschieht nichts Falsches" und „es geschieht das Richtige" sind zwei
+> Sätze, und nur der zweite beschreibt ein bedienbares Panel.**
+
+### Behoben mit einem Ort statt achtzehn
+
+`useConfirmation` hält die offene Frage, `Confirmation.vue` zeichnet sie im
+`PanelLayout` — an derselben Stelle wie die grüne Meldung und die
+Fehlerzusammenfassung (`docs/19 §6`). **Keine Modale**: Sie steht im Fluss und
+schwebt nicht über dem Inhalt, dieselbe Entscheidung wie bei `docs/53` Befund 8.
+
+Der zustimmende Knopf trägt das **Verb der Handlung** und nicht „OK" — „Sperren",
+„Zurückspielen", „Entziehen". Zerstörende Handlungen bekommen die rote Fläche,
+die anderen die blaue; `confirm()` konnte das nicht unterscheiden.
+
+Gemessen bei 390px in beiden Themes: `dokument: 0px`, Gegenprobe mit
+900px-Block `526px`.
+
+### Und der Bruch dazu hat einen zweiten Wächter erzwungen
+
+Der Eingriff nahm `<Confirmation />` aus dem Layout — die Rückfrage wäre damit
+gebaut, aber nirgends sichtbar, also genau der Zustand, den dieser Umbau
+beseitigt. **Kein einziger Wächter wurde rot.** `ClassNameTest` prüft, dass jede
+Regel in `app.css` von einer Vorlage erreicht wird, und `.confirmation` steht in
+der Vorlage der Komponente selbst.
+
+> **Eine Komponente, die niemand einbindet, erfüllt jede Prüfung über ihren
+> eigenen Inhalt.** Die Kette „Regel → Vorlage" war vollständig, während die
+> Kette „Vorlage → Seite" gerissen war.
+
+`ComponentReachTest` prüft sie jetzt. Gefährlich ist das nicht beim Anlegen,
+sondern beim Umbauen: Eine verlorene Einbindungszeile nimmt eine Funktion mit,
+und alles andere bleibt stehen — genau so ist `RememberPageUrl` im August aus
+`bootstrap/app.php` verschwunden.
+
+---
+
 ---
 
 ## Offen, klein, nicht verfolgt

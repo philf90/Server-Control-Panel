@@ -3344,6 +3344,42 @@ tr:has(td.multiline) > td {
   border-color: var(--control-line);
 }
 
+/*
+ * Die Rückfrage vor einer Handlung, die etwas kostet.
+ *
+ * **Sie ist keine `.notice`**, obwohl sie so aussieht. `.notice` ist ein
+ * Flexfluss in einer Zeile — Text und Zeichen nebeneinander —, und hier stehen
+ * eine Frage und darunter zwei Knöpfe. Mit `.notice` läge die Knopfreihe neben
+ * dem Satz und bei 390px darunter, je nach Länge der Frage: eine Form, die von
+ * ihrem Text abhängt.
+ *
+ * Die Fläche ist die der Warnung, weil eine Rückfrage genau das ist: eine
+ * Ankündigung dessen, was gleich geschieht. Sie holt sich dieselben Marken und
+ * erfindet keine eigenen.
+ */
+.confirmation {
+  padding: 13px 16px;
+  margin-bottom: var(--block-gap);
+
+  font-size: var(--text-table);
+
+  background: var(--warn-surface);
+  border-left: 3px solid var(--warn);
+  border-radius: var(--radius);
+
+  /* Aus demselben Grund wie bei `.notice`: Was in einer Frage steht, kommt von
+     aussen — ein Datenbankname, ein Pfad, der Name eines Kunden. */
+  overflow-wrap: anywhere;
+}
+
+.confirmation b {
+  color: var(--text-strong);
+}
+
+.confirmation .button-row {
+  margin-top: 12px;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    Die Ausgabe eines Vorgangs
    ═══════════════════════════════════════════════════════════════════════ */

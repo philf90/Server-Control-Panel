@@ -35,13 +35,21 @@ use SplFileInfo;
  * > **Eine Regel, die nur auf den gemeldeten Fall angewandt wird, lässt ihre
  * > Geschwister stehen.**
  *
- * ## Warum `confirm` hier (noch) nicht steht
+ * ## Und `confirm` steht mit hier, seit er gemessen ist
  *
- * `window.confirm` stellt eine Ja-Nein-Frage und nimmt keine Eingabe entgegen;
- * fällt er aus, unterbleibt die Aktion, und das ist die sichere Richtung. Er
- * steht an über zwanzig Stellen dieses Panels, seit es sie gibt, und sein Ersatz
- * ist ein eigener Schritt (`docs/51 §12`, Schritt 12). **Benannt offen und nicht
- * als erledigt gezählt** — dieser Wächter deckt ihn ausdrücklich nicht ab.
+ * Zuerst stand hier, `window.confirm` sei die sichere Richtung: eine Ja-Nein-
+ * Frage, die bei Ausfall `false` liefert, also unterbleibt die Aktion. Das
+ * stimmt und war trotzdem die falsche Schlussfolgerung — **auf demselben iPhone
+ * kam auch keine einzige Rückfrage an** (`docs/55`, Befund 16). Achtzehn
+ * Aktionen dieses Panels taten damit nichts: Sperren, Zurückziehen, Löschen,
+ * Zurückspielen, einen Vorgang abbrechen.
+ *
+ * > **„Es geschieht nichts Falsches" und „es geschieht das Richtige" sind zwei
+ * > Sätze, und nur der zweite beschreibt ein bedienbares Panel.**
+ *
+ * Der Ersatz ist {@see BrowserDialogTest} selbst nicht — er ist
+ * `useConfirmation` mit `Confirmation.vue` im Layout, an derselben Stelle, an
+ * der auch die grüne Meldung und die Fehlerzusammenfassung stehen.
  */
 final class BrowserDialogTest extends TestCase
 {
@@ -108,7 +116,7 @@ final class BrowserDialogTest extends TestCase
 
             $quelle = $this->withoutComments((string) file_get_contents($datei));
 
-            if (preg_match('/\bprompt\s*\(/', $quelle) === 1) {
+            if (preg_match('/\b(prompt|confirm|alert)\s*\(/', $quelle) === 1) {
                 $treffer[] = $kurz;
             }
         }
@@ -117,9 +125,10 @@ final class BrowserDialogTest extends TestCase
             [],
             $treffer,
             sprintf(
-                "Diese Seiten fragen über `window.prompt` nach einer Eingabe:\n  %s\n\n".
-                "Safari darf die Dialoge einer Seite abschalten; `prompt()` gibt danach ohne jedes\n".
-                'Zeichen `null` zurück, und der Knopf tut nichts. Ein Feld auf der Seite tut es immer.',
+                "Diese Seiten benutzen einen Browserdialog:\n  %s\n\n".
+                "Safari darf die Dialoge einer Seite abschalten; danach gibt `prompt()` ohne jedes\n".
+                "Zeichen `null` zurück und `confirm()` `false`, und der Knopf tut nichts.\n\n".
+                'Auf der Seite: ein Feld für eine Eingabe, `useConfirmation()` für eine Rückfrage.',
                 implode("\n  ", $treffer),
             ),
         );
@@ -146,24 +155,35 @@ final class BrowserDialogTest extends TestCase
                 'an der falschen Stelle.', count($dateien)),
         );
 
-        $mitDialog = 0;
+        /*
+         * **Der Beleg war einmal `confirm(` selbst**, solange er noch erlaubt
+         * war. Seit er es nicht mehr ist, wäre das eine Null neben einer Null —
+         * und damit keine Messung, sondern zwei leere Listen, die einander
+         * bestätigen.
+         *
+         * Gesucht wird deshalb nach etwas, das jede Seite hat und das mit dieser
+         * Regel nichts zu tun hat: der öffnende Vorlagenblock. Verschwindet er,
+         * liest dieser Wächter keine Vue-Datei mehr, gleich was sein
+         * Dialog-Ausdruck sagt.
+         */
+        $mitVorlage = 0;
 
         foreach ($dateien as $datei) {
-            $quelle = $this->withoutComments((string) file_get_contents($datei));
-
-            if (preg_match('/\bconfirm\s*\(/', $quelle) === 1) {
-                $mitDialog++;
+            if (str_contains((string) file_get_contents($datei), '<template>')) {
+                $mitVorlage++;
             }
         }
 
-        // `confirm` ist ausdrücklich erlaubt (siehe Klassenkommentar) — er dient
-        // hier als Beleg, dass derselbe Ausdruck auf denselben Dateien sehr wohl
-        // etwas findet. Fiele auch er auf null, läse dieser Wächter nichts.
-        $this->assertGreaterThan(
-            0,
-            $mitDialog,
-            'Kein einziges `confirm(` in allen Seiten. Dann liest dieser Wächter die Dateien nicht, '.
-            'und seine leere Trefferliste oben bedeutet nichts.',
+        $this->assertGreaterThanOrEqual(
+            30,
+            $mitVorlage,
+            sprintf(
+                'Nur %d von %d gefundenen Dateien haben überhaupt einen `<template>`-Block. Dann liest '.
+                'dieser Wächter nicht, was er zu lesen glaubt, und seine leere Trefferliste oben '.
+                'bedeutet nichts.',
+                $mitVorlage,
+                count($dateien),
+            ),
         );
     }
 

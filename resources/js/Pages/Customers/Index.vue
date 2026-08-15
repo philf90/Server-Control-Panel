@@ -3,6 +3,9 @@ import { Head, Link, router } from '@inertiajs/vue3'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Pager from '../../Components/Pager.vue'
+import { useConfirmation } from '../../Composables/useConfirmation'
+
+const { ask } = useConfirmation()
 
 interface Row {
   id: number
@@ -38,8 +41,9 @@ function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
 function impersonate(row: Row): void {
   // Bestätigung vor dem Wechsel: Er ändert, in wessen Namen jede folgende
   // Aktion im Protokoll steht.
-  if (!window.confirm(`In die Sicht von ${row.name} wechseln?`)) return
-  router.post(`/customers/${row.id}/impersonate`)
+  ask(`In die Sicht von ${row.name} wechseln?`, 'Wechseln', () => {
+    router.post(`/customers/${row.id}/impersonate`)
+  }, false)
 }
 </script>
 

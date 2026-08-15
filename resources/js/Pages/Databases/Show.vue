@@ -6,6 +6,9 @@ import FormErrors from '../../Components/FormErrors.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Section from '../../Components/Section.vue'
 import { formatBytes } from '../../bytes'
+import { useConfirmation } from '../../Composables/useConfirmation'
+
+const { ask } = useConfirmation()
 
 /** Ein Netz, aus dem ein PostgreSQL-Zugang hereindarf (docs/38 §14.3). */
 interface Network {
@@ -157,9 +160,14 @@ function link(): void {
  * bleibt bestehen, nur diese Datenbank erreicht er nicht mehr.
  */
 function revoke(user: User): void {
-  if (!confirm(`${user.name} den Zugriff auf ${props.database.name} entziehen? Der Zugang bleibt bestehen und erreicht diese Datenbank danach nicht mehr.`)) return
-
-  router.put(`/databases/${props.database.id}/users/${user.id}`, { granted: false }, { preserveScroll: true })
+  ask(
+    `${user.name} den Zugriff auf ${props.database.name} entziehen? Der Zugang bleibt bestehen `
+    + 'und erreicht diese Datenbank danach nicht mehr.',
+    'Entziehen',
+    () => {
+      router.put(`/databases/${props.database.id}/users/${user.id}`, { granted: false }, { preserveScroll: true })
+    },
+  )
 }
 
 function removeUser(user: User): void {
@@ -211,9 +219,17 @@ function addNetwork(user: User): void {
  * gelesen. Dieselbe Überlegung wie bei `revoke()` darüber.
  */
 function removeNetwork(user: User, network: Network): void {
-  if (!confirm(`${network.cidr} für ${user.name} zurücknehmen? Eine Anwendung, die von dort verbindet, kommt danach nicht mehr herein.`)) return
-
-  router.delete(`/databases/${props.database.id}/users/${user.id}/networks/${network.id}`, { preserveScroll: true })
+  ask(
+    `${network.cidr} für ${user.name} zurücknehmen? Eine Anwendung, die von dort verbindet, `
+    + 'kommt danach nicht mehr herein.',
+    'Zurücknehmen',
+    () => {
+      router.delete(
+        `/databases/${props.database.id}/users/${user.id}/networks/${network.id}`,
+        { preserveScroll: true },
+      )
+    },
+  )
 }
 
 function resetPassword(user: User): void {
@@ -227,14 +243,17 @@ function exportDump(): void {
 /*
  * Das Zurückspielen überschreibt Daten und fragt deshalb nach.
  *
- * Ein `confirm()` und keine Seite mit Eingabefeld: Anders als beim Entfernen
+ * Eine Rückfrage und keine Seite mit Eingabefeld: Anders als beim Entfernen
  * der Datenbank gibt es hier einen Weg zurück — die Sicherung, die man gerade
  * einspielt, bleibt liegen. Was verlorengeht, ist der Stand von jetzt.
  */
 function restoreDump(dump: DumpRow): void {
-  if (!confirm(`Die Sicherung ${dump.name} zurückspielen? Der aktuelle Stand von ${props.database.name} wird dabei überschrieben.`)) return
-
-  router.post(`/databases/${props.database.id}/dumps/${dump.id}/restore`)
+  ask(
+    `Die Sicherung ${dump.name} zurückspielen? Der aktuelle Stand von ${props.database.name} `
+    + 'wird dabei überschrieben.',
+    'Zurückspielen',
+    () => { router.post(`/databases/${props.database.id}/dumps/${dump.id}/restore`) },
+  )
 }
 
 function removeDump(dump: DumpRow): void {

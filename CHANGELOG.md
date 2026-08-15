@@ -13611,9 +13611,40 @@ Der vierte war die zweite Rückfrage vor dem **Rückbau eines Abonnements**: den
 Namen abtippen, bevor ein Verzeichnisbaum als root verschwindet. Bei
 abgeschalteten Dialogen hätte „Zurückbauen" wortlos nichts getan.
 
-`window.confirm` bleibt und ist ausdrücklich nicht mit abgedeckt — er stellt eine
-Ja-Nein-Frage, nimmt keine Eingabe entgegen, und fällt er aus, unterbleibt die
-Aktion. **Benannt offen** für Schritt 12, an über zwanzig Stellen.
+#### Und `window.confirm` war nicht die harmlose Hälfte
+
+Der Absatz darüber hiess bis zur nächsten Messung anders: `confirm` stelle eine
+Ja-Nein-Frage, nehme keine Eingabe entgegen, und falle er aus, unterbleibe die
+Aktion — die sichere Richtung, also Schritt 12. Die Gegenprobe auf demselben
+iPhone hat das umgeworfen: **Auch die Rückfrage kam nicht.**
+
+Achtzehn Aktionen waren damit auf diesem Gerät tot — Sperren, Zurückziehen,
+Zurückbauen, Entfernen, Zurückspielen, einen Vorgang abbrechen, PHP oder
+PostgreSQL installieren, ein Zertifikat ausstellen.
+
+> **„Es geschieht nichts Falsches" und „es geschieht das Richtige" sind zwei
+> Sätze, und nur der zweite beschreibt ein bedienbares Panel.**
+
+`useConfirmation` hält die offene Frage, `Confirmation.vue` zeichnet sie im
+`PanelLayout` — ein Ort statt achtzehn, an derselben Stelle wie die grüne Meldung
+und die Fehlerzusammenfassung. Der zustimmende Knopf trägt das **Verb der
+Handlung** statt „OK", und zerstörende Handlungen bekommen die rote Fläche; beides
+konnte `confirm()` nicht.
+
+#### Eine Komponente, die niemand einbindet, fiel durch jedes Netz
+
+Der Bruch zu dieser Regel nahm `<Confirmation />` aus dem Layout — die Rückfrage
+wäre gebaut und nirgends sichtbar gewesen. **Kein Wächter wurde rot.**
+`ClassNameTest` prüft, dass jede Regel in `app.css` von einer Vorlage erreicht
+wird, und `.confirmation` steht in der Vorlage der Komponente selbst.
+
+> **Eine Komponente, die niemand einbindet, erfüllt jede Prüfung über ihren
+> eigenen Inhalt.**
+
+`ComponentReachTest` schliesst die Lücke. Gefährlich ist sie nicht beim Anlegen,
+sondern beim Umbauen: Eine verlorene Einbindungszeile nimmt eine Funktion mit,
+und alles andere bleibt stehen — genau so ist `RememberPageUrl` aus
+`bootstrap/app.php` verschwunden.
 
 #### Und die Behebung schob die Seite um 132px aus dem Bild
 

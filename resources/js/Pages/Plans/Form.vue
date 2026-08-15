@@ -5,6 +5,9 @@ import Section from '../../Components/Section.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import FormErrors from '../../Components/FormErrors.vue'
 import { counted } from '../../Composables/useCounted'
+import { useConfirmation } from '../../Composables/useConfirmation'
+
+const { ask } = useConfirmation()
 
 interface QuotaEntry {
   key: string
@@ -124,9 +127,11 @@ const removable = computed(() => props.subscriptions === 0)
 function remove(): void {
   if (!props.plan || !removable.value) return
 
-  if (!window.confirm(`Plan ${props.plan.name} löschen?`)) return
+  const plan = props.plan
 
-  router.delete(`/plans/${props.plan.id}`)
+  ask(`Plan ${plan.name} löschen?`, 'Löschen', () => {
+    router.delete(`/plans/${plan.id}`)
+  })
 }
 </script>
 

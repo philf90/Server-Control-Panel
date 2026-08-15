@@ -4,6 +4,9 @@ import { computed, ref } from 'vue'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Section from '../../Components/Section.vue'
+import { useConfirmation } from '../../Composables/useConfirmation'
+
+const { ask } = useConfirmation()
 
 /*
  * Der Datenbankserver — eine Seite zum Nachsehen.
@@ -101,23 +104,23 @@ const installiert = ref(false)
 
 function installiere(): void {
   if (installiert.value) return
-  if (
-    !window.confirm(
-      'PostgreSQL installieren?\n\nDie Pakete kommen aus der Distribution. Ein vorhandener Cluster wird benutzt und nicht umgebaut, pg_hba.conf bleibt unangetastet.',
-    )
-  ) {
-    return
-  }
-
-  installiert.value = true
-  router.post(
-    '/operations',
-    { task: 'pg.server.install' },
-    {
-      onFinish: () => {
-        installiert.value = false
-      },
+  ask(
+    'PostgreSQL installieren?\n\nDie Pakete kommen aus der Distribution. Ein vorhandener Cluster '
+    + 'wird benutzt und nicht umgebaut, pg_hba.conf bleibt unangetastet.',
+    'Installieren',
+    () => {
+      installiert.value = true
+      router.post(
+        '/operations',
+        { task: 'pg.server.install' },
+        {
+          onFinish: () => {
+            installiert.value = false
+          },
+        },
+      )
     },
+    false,
   )
 }
 

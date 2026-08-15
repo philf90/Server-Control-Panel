@@ -21,6 +21,7 @@
  * sie danebenpasst, und rutscht sonst in die zweite Zeile.
  */
 import { Link, router, usePage } from '@inertiajs/vue3'
+import Confirmation from '../Components/Confirmation.vue'
 import MarkIcon from '../Components/MarkIcon.vue'
 import NavIcon from '../Components/NavIcon.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -379,6 +380,14 @@ onBeforeUnmount(() => {
       </div>
 
       <p v-if="erfolg" class="notice ok" role="status">{{ erfolg }}</p>
+
+      <!--
+        Die Rückfrage steht an derselben Stelle wie die grüne Meldung, und aus
+        demselben Grund (`docs/19 §6`): Eine Seite spricht an einem Ort. Bis zum
+        15. August stand sie in `window.confirm` — und auf einem iPhone kam sie
+        nirgends an (`docs/55`, Befund 16).
+      -->
+      <Confirmation />
 
       <slot />
     </main>

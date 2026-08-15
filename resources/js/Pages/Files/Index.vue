@@ -7,6 +7,9 @@ import FileTree from '../../Components/FileTree.vue'
 import PermissionEditor from '../../Components/PermissionEditor.vue'
 import { counted } from '../../Composables/useCounted'
 import { formatBytes } from '../../bytes'
+import { useConfirmation } from '../../Composables/useConfirmation'
+
+const { ask } = useConfirmation()
 
 interface Entry {
   name: string
@@ -294,11 +297,11 @@ function remove(entry: Entry): void {
     ? `„${entry.name}" mitsamt Inhalt entfernen?`
     : `„${entry.name}" entfernen?`
 
-  if (!window.confirm(question)) return
-
-  router.delete(`/subscriptions/${props.subscription.id}/files`, {
-    data: { paths: [entry.path], recursive: entry.type === 'directory' },
-    preserveScroll: true,
+  ask(question, 'Entfernen', () => {
+    router.delete(`/subscriptions/${props.subscription.id}/files`, {
+      data: { paths: [entry.path], recursive: entry.type === 'directory' },
+      preserveScroll: true,
+    })
   })
 }
 
@@ -392,8 +395,13 @@ const chosenRoots = computed(
  * jedem Haken ein Name; was dort *nicht* steht, ist die Zahl der Verzeichnisse
  * (deren Inhalt mitgeht) und die Frage, ob eines davon eine Domain ausliefert.
  * Beides entscheidet, ob der Klick harmlos ist.
+ *
+ * **Sie gibt die Frage zurück und stellt sie nicht selbst.** Bis zum 15. August
+ * rief sie `window.confirm` und lieferte ein `true`/`false`; die Antwort kommt
+ * jetzt erst später, über einen Rückruf. Der Name ist deshalb `bulkQuestion`
+ * und nicht mehr `confirmed` — er sagt, was die Funktion liefert.
  */
-function confirmed(verb: string): boolean {
+function bulkQuestion(verb: string): string {
   const zeilen = [`${counted(selected.value.length, 'Eintrag', 'Einträge')} ${verb}?`]
 
   const ordner = chosenDirectories.value.length
@@ -413,16 +421,18 @@ function confirmed(verb: string): boolean {
     )
   }
 
-  return window.confirm(zeilen.join('\n\n'))
+  return zeilen.join('\n\n')
 }
 
 function removeSelected(): void {
-  if (selected.value.length === 0 || !confirmed('entfernen')) return
+  if (selected.value.length === 0) return
 
-  router.delete(`/subscriptions/${props.subscription.id}/files`, {
-    data: { paths: selected.value, recursive: chosenDirectories.value.length > 0 },
-    preserveScroll: true,
-    onSuccess: () => { selected.value = [] },
+  ask(bulkQuestion('entfernen'), 'Entfernen', () => {
+    router.delete(`/subscriptions/${props.subscription.id}/files`, {
+      data: { paths: selected.value, recursive: chosenDirectories.value.length > 0 },
+      preserveScroll: true,
+      onSuccess: () => { selected.value = [] },
+    })
   })
 }
 

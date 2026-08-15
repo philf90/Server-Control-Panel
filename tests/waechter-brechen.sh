@@ -8909,6 +8909,84 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FileCreationTest passed
 
 echo
+echo "── SchemeProtectionTest: die Liste des Schemas wird abgetippt ──"
+#
+# Sie kommt aus SubscriptionProvision::reservedDirectories() und waechst mit dem
+# Schema. Eine zweite Aufzaehlung veraltet beim naechsten Zuwachs.
+vorher_datei agent/src/Files/Scheme.php
+python3 - <<'PY2'
+p = 'agent/src/Files/Scheme.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('[SubscriptionProvision::DOCUMENT_ROOT, ...SubscriptionProvision::reservedDirectories()]',
+              "['httpdocs', 'logs', 'conf']")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Files/Scheme.php "Schema abgetippt" &&
+pruefe "Liste des Schemas abgetippt" \
+  SchemeProtectionTest::test_every_directory_of_the_scheme_is_protected failed
+wiederherstellen
+
+echo
+echo "── SchemeProtectionTest: der Schutz greift auch fuer den Inhalt ──"
+#
+# Die andere Haelfte der Regel, und ohne sie waere der Schutz schlimmer als
+# keiner: httpdocs leerzuraeumen ist genau das, was jemand vor einem neuen
+# Deploy tut.
+vorher_datei agent/src/Files/Scheme.php
+python3 - <<'PY2'
+p = 'agent/src/Files/Scheme.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("return in_array(rtrim($path, '/'), self::fixed(), true);",
+              "foreach (self::fixed() as $f) { if (str_starts_with($path, $f)) { return true; } } return false;")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Files/Scheme.php "Schutz auch fuer den Inhalt" &&
+pruefe "Schutz greift auch fuer den Inhalt" \
+  SchemeProtectionTest::test_what_lies_inside_is_not failed
+wiederherstellen
+
+echo
+echo "── SchemeProtectionTest: chmod fragt das Schema nicht ──"
+#
+# Die Operation, die man vergisst, und seit Schritt 6c die gefaehrlichste:
+# httpdocs traegt das setgid-Bit, chmod nimmt nur neun Bits entgegen — das
+# zehnte faellt lautlos weg.
+vorher_datei agent/src/Ops/FilesChmod.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesChmod.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("Scheme::protect($path, 'in seinen Rechten geändert');", '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/FilesChmod.php "chmod ohne Schema" &&
+pruefe "chmod fragt das Schema nicht" \
+  SchemeProtectionTest::test_the_operations_that_can_destroy_ask_first failed
+wiederherstellen
+
+echo
+echo "── SchemeProtectionTest: die Pruefung rutscht in die Sandbox ──"
+#
+# Dort ist sie korrekt und wirkungslos: Der Kernel weist denselben Vorgang auch
+# ab, nur nach dem Leerraeumen.
+vorher_datei agent/src/Ops/FilesRemove.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesRemove.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        Scheme::protect($path, 'entfernt');\n", '')
+s = s.replace("""        return $workspace->run(static function () use ($path, $recursive): array {
+            $entry = Entry::of($path);""",
+              """        return $workspace->run(static function () use ($path, $recursive): array {
+            Scheme::protect($path, 'entfernt');
+            $entry = Entry::of($path);""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/FilesRemove.php "Pruefung in der Sandbox" &&
+pruefe "Pruefung steht in der Sandbox" \
+  SchemeProtectionTest::test_the_check_runs_before_anything_happens failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SchemeProtectionTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

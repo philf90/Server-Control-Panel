@@ -7,6 +7,7 @@ namespace SrvPanel\Agent\Ops;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Files\Entry;
+use SrvPanel\Agent\Files\Scheme;
 use SrvPanel\Agent\Files\Workspace;
 use SrvPanel\Agent\Filesystem;
 use SrvPanel\Agent\Op;
@@ -47,6 +48,15 @@ final class FilesRemove implements Op
         if ($path === '/') {
             throw AgentException::denied('Die Wurzel des Abonnements wird über den Dateimanager nicht entfernt.');
         }
+
+        /*
+         * **Vor dem Eintritt in die Sandbox und nicht darin.** Der Kernel weist
+         * denselben Vorgang auch ab — aber erst beim abschliessenden `rmdir`,
+         * also nachdem `removeTree()` das Verzeichnis leergeräumt hat. Der
+         * Kunde bekäme „liess sich nicht vollständig entfernen" und hätte seine
+         * Webseite verloren. Die Begründung steht in {@see Scheme}.
+         */
+        Scheme::protect($path, 'entfernt');
 
         return $workspace->run(static function () use ($path, $recursive): array {
             $entry = Entry::of($path);

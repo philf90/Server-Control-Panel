@@ -346,6 +346,60 @@ Dazu gehören zwei Dinge, die keine Farbe sind und mehr helfen als jede weitere:
 Editorgrund, in beiden Themes. Eine Hervorhebung, die im dunklen Theme
 verschwindet, ist schlechter als keine: Sie behauptet, etwas markiert zu haben.
 
+### 8.4 Was dem Panel gehört und was dem Kunden
+
+**Gefunden am 14. August 2026** bei der Frage des Betreibers nach einer
+Mehrfachauswahl — und es ist ein Fehler und keine fehlende Funktion.
+
+`httpdocs`, `logs`, `tmp`, `.ssh` und `mail` **gehören dem Kunden**. Er durfte
+sie deshalb über den Dateimanager entfernen, und der Kernel wies ihn dabei erst
+ganz am Ende ab:
+
+1. `Filesystem::removeTree()` räumte das Verzeichnis leer — jedes `unlink`
+   gelang.
+2. Das abschliessende `rmdir` scheiterte, weil die Vhost-Wurzel `root:root`
+   gehört.
+3. Gemeldet wurde „Das Verzeichnis liess sich nicht vollständig entfernen."
+
+**Die Webseite war weg, und die Meldung sagte, es sei nichts passiert.** Bei
+`logs` schreibt nginx danach in einen gelöschten Inode, bei `.ssh` sperrt sich
+der Kunde aus seinem eigenen Zugang aus.
+
+> **Ein Vorgang, der scheitert, nachdem er die Hälfte getan hat, meldet einen
+> Fehlschlag und hinterlässt eine Wirkung.**
+
+Es stand in `docs/53` als benannt offen. Mit einer Mehrfachauswahl wird daraus
+ein Klick, und deshalb kommt es **vor** ihr.
+
+`Files\Scheme` weist ab, **bevor** etwas geschieht — vor dem Eintritt in die
+Sandbox und nicht darin. Die Liste kommt aus
+`SubscriptionProvision::reservedDirectories()` und wächst mit dem Schema.
+
+**Drei Operationen fragen danach**, und die dritte ist die, die man vergisst:
+
+| Operation | Warum |
+|---|---|
+| `files.remove` | der Fall oben |
+| `files.move` | ein umbenanntes `httpdocs` ist für nginx ein gelöschtes |
+| `files.chmod` | **setgid** — siehe unten |
+
+`httpdocs` trägt seit Schritt 6c das setgid-Bit, und `files.chmod` nimmt nur
+neun Bits entgegen. Ein `chmod 0750` des Kunden nähme das zehnte **lautlos** weg
+— die nächste hochgeladene Datei trüge wieder die Gruppe des Abonnements statt
+`www-data`, und Befund 3 wäre zurück, diesmal mit dem Kunden als Verursacher.
+
+**Der Inhalt ist ausdrücklich nicht geschützt.** `httpdocs` leerzuräumen ist
+genau das, was jemand vor einem neuen Deploy tut, und `.ssh/authorized_keys`
+gehört dem Kunden. Geschützt ist das Gerüst, nicht das, was darin steht — und
+die Abweisung sagt das im selben Satz, weil ein blosses „darf nicht" den
+Lesenden mit der Frage zurücklässt, was er denn tun soll.
+
+**Die DocumentRoots weiterer Domains bleiben ungeschützt.** Sie heissen wie ihre
+Domain und stehen in keiner festen Liste; der Agent müsste dafür die
+vhost-Dateien lesen. Das **Panel** kennt die Namen (seit §8.2 stehen sie in der
+Nutzlast) und warnt in der Rückfrage — eine Warnung ist eine Auskunft und keine
+zweite Durchsetzung.
+
 ### 8.3 Anlegen, und mehrere auf einmal
 
 **Nachtrag vom 14. August 2026**, aus zwei Fragen des Betreibers vor dem Pull
@@ -597,6 +651,9 @@ Dazu wachsen mit: `AgentOperationReachTest`, `RouteAuthorizationTest`,
 | **5c** | Die Rechte geführt einstellen | **gebaut** — `PermissionEditor`, §8.2 |
 | **5d** | Der Abstand, und die Regel dahinter | **gebaut** — `BlockSpacingTest` leitet ab |
 | **5e** | Eine Datei anlegen, und mehrere hochladen | **gebaut** — §8.3 |
+| **5f** | Das Gerüst des Abonnements schützen | **gebaut** — `Files\Scheme`, §8.4 |
+| **5g** | Der Baum aus §8, als Fläche und als Zielwähler | offen |
+| **5h** | Mehrfachauswahl: entfernen, kopieren, verschieben, packen | offen |
 | **6d** | Der Editor: Breite und Hervorhebung | **gebaut** — §8.1 |
 | 6 | Editor (CodeMirror 6) | Entscheidung 1, mit ihren drei Auflagen |
 | 7 | Entpacken, Packen, Suche | über die Warteschlange |

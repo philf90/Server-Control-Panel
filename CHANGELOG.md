@@ -13173,3 +13173,45 @@ gewesen.
 
 Ordner hochladen gehört nicht dazu — der Browser liefert dabei eine Struktur,
 die angelegt werden müsste, und das ist ein eigener Gegenstand.
+
+### P6 Schritt 5f — das Gerüst des Abonnements gehört dem Panel
+
+**Gefunden bei der Frage des Betreibers nach einer Mehrfachauswahl**, und es ist
+ein Fehler und keine fehlende Funktion.
+
+`httpdocs`, `logs`, `tmp`, `.ssh` und `mail` gehören dem Kunden. Er durfte sie
+deshalb über den Dateimanager entfernen — und der Kernel wies ihn dabei erst
+ganz am Ende ab: `Filesystem::removeTree()` räumte das Verzeichnis leer, jedes
+`unlink` gelang, und dann scheiterte das `rmdir`, weil die Vhost-Wurzel
+`root:root` gehört. Gemeldet wurde **„Das Verzeichnis liess sich nicht
+vollständig entfernen."**
+
+Die Webseite war weg, und die Meldung sagte, es sei nichts passiert. Bei `logs`
+schreibt nginx danach in einen gelöschten Inode, bei `.ssh` sperrt sich der
+Kunde aus seinem eigenen Zugang aus.
+
+> **Ein Vorgang, der scheitert, nachdem er die Hälfte getan hat, meldet einen
+> Fehlschlag und hinterlässt eine Wirkung.**
+
+Es stand in `docs/53` als benannt offen. Mit einer Mehrfachauswahl wird daraus
+ein Klick, und deshalb kommt der Schutz **vor** ihr.
+
+`Files\Scheme` weist ab, **bevor** etwas geschieht — vor dem Eintritt in die
+Sandbox und nicht darin. Die Liste kommt aus
+`SubscriptionProvision::reservedDirectories()` und wächst mit dem Schema; eine
+zweite Aufzählung wäre die Fassung, die beim nächsten Zuwachs veraltet.
+
+**Drei Operationen fragen danach, und die dritte ist die, die man vergisst.**
+`files.chmod` nimmt nur neun Bits entgegen, `httpdocs` trägt seit Schritt 6c das
+setgid-Bit — ein `chmod 0750` des Kunden nähme das zehnte lautlos weg, und die
+nächste hochgeladene Datei trüge wieder die falsche Gruppe. Befund 3, diesmal
+mit dem Kunden als Verursacher.
+
+**Der Inhalt ist ausdrücklich nicht geschützt.** `httpdocs` leerzuräumen ist
+genau das, was jemand vor einem neuen Deploy tut. Geschützt ist das Gerüst,
+nicht das, was darin steht — und die Abweisung sagt das im selben Satz, weil ein
+blosses „darf nicht" den Lesenden mit der Frage zurücklässt, was er tun soll.
+
+Die DocumentRoots weiterer Domains bleiben ungeschützt: Sie heissen wie ihre
+Domain und stehen in keiner festen Liste. Das Panel kennt die Namen und warnt —
+eine Warnung ist eine Auskunft und keine zweite Durchsetzung.

@@ -387,16 +387,34 @@ final class SchemeProtectionTest extends TestCase
                 $pid = pcntl_fork();
 
                 if ($pid === 0) {
-                    // Genau die Reihenfolge der Sandbox: initgroups, setgid, setuid.
-                    posix_initgroups('nobody', $mitGruppe ?? $niemand['gid']);
-                    posix_setgid($niemand['gid']);
-                    posix_setuid($niemand['uid']);
+                    /*
+                     * Genau die Reihenfolge der Sandbox: initgroups, setgid,
+                     * setuid — und **jeder Schritt geprüft**. Misslänge die
+                     * Abgabe still, liefe der `chmod` als root, behielte das
+                     * Bit und liesse diese Messung grün aussehen: derselbe
+                     * Fehler noch einmal, nur im Prüfmittel.
+                     */
+                    $gelungen = posix_initgroups('nobody', $mitGruppe ?? $niemand['gid'])
+                        && posix_setgid($niemand['gid'])
+                        && posix_setuid($niemand['uid'])
+                        && posix_geteuid() !== 0;
+
+                    if (! $gelungen) {
+                        exit(1);
+                    }
+
                     @chmod($kind, 0o755 | 0o2000);
                     exit(0);
                 }
 
                 pcntl_waitpid($pid, $status);
                 clearstatcache();
+
+                $this->assertSame(
+                    0,
+                    pcntl_wexitstatus($status),
+                    'Das Kind konnte seine Rechte nicht abgeben. Dann misst dieser Fall nichts.',
+                );
 
                 return fileperms($kind) & 0o7777;
             };

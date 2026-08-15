@@ -59,15 +59,6 @@ final class SandboxGroupTest extends TestCase
             'Der Griff macht einen `chmod` und liest nichts.',
     ];
 
-    /** @return array<string, string> */
-    private function allowed(): array
-    {
-        /** @var array<string, string> $liste */
-        $liste = self::ALLOWED;
-
-        return $liste;
-    }
-
     /** @return list<string> */
     private function operations(): array
     {
@@ -96,7 +87,13 @@ final class SandboxGroupTest extends TestCase
 
         sort($verlangen);
 
-        $unerlaubt = array_values(array_diff($verlangen, array_keys($this->allowed())));
+        /*
+         * Ohne `array_values`, und das ist Absicht: PHPStan hält das Ergebnis
+         * von `array_diff` über einer Liste schon für eine und meldet den
+         * Aufruf als wirkungslos. Für den Fall, auf den es hier ankommt — die
+         * leere Liste —, sind Schlüssel ohnehin belanglos.
+         */
+        $unerlaubt = array_diff($verlangen, array_keys(self::ALLOWED));
 
         $this->assertSame(
             [],
@@ -176,7 +173,7 @@ final class SandboxGroupTest extends TestCase
     /** @see ValidationLanguageTest::test_every_exemption_carries_a_reason */
     public function test_every_exemption_carries_a_reason(): void
     {
-        foreach ($this->allowed() as $datei => $grund) {
+        foreach (self::ALLOWED as $datei => $grund) {
             $this->assertNotSame(
                 '',
                 trim($grund),

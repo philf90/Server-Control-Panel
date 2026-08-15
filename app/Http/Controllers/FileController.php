@@ -45,6 +45,65 @@ final class FileController extends Controller
     ) {}
 
     /**
+     * Der Weg in den Dateimanager, ohne dass jemand eine Abo-Kennung kennt.
+     *
+     * ## Warum es diesen Griff gibt
+     *
+     * `Domains` und `Datenbanken` stehen im Menü, sobald ein aktives Abonnement
+     * da ist. Der Dateimanager stand dort nicht — er war über
+     * `Abonnements → Name → Dateien` erreichbar, also drei Klicks tief, und das
+     * hat der Betreiber im Prüflauf gemeldet (`docs/55`, Befund 8).
+     *
+     * **Er kann aber nicht wie die beiden anderen aussehen.** Domains und
+     * Datenbanken sind mandantengeklammerte **Listen** unter einer festen
+     * Adresse; Dateien hängen an *einem* Abonnement, weil jedes sein eigenes
+     * Chroot hat. Ein Menüpunkt braucht deshalb eine Antwort auf „welches" —
+     * und die ist bei einem Kunden mit einem Abonnement eine andere als bei
+     * einem mit dreien.
+     *
+     * **Bei genau einem geht es hinein, bei mehreren zur Auswahl.** Eine
+     * Auswahlseite auch für den Normalfall wäre ein Klick, der nie eine Frage
+     * beantwortet; ein Untermenü je Abonnement wächst mit deren Zahl ins
+     * Unlesbare.
+     *
+     * ## Was hier **nicht** steht
+     *
+     * Keine Fähigkeitsprüfung an der Route, und das ist begründet: Sie hätte
+     * kein Objekt. Gefiltert wird je Abonnement über dieselbe Policy, die die
+     * Zielseite später anwendet — nicht über eine zweite Fassung der Regel.
+     */
+    public function pick(Request $request): RedirectResponse|Response
+    {
+        $account = $request->user();
+
+        /*
+         * **Die Mandantenklammer hat schon gefiltert**, bevor diese Zeile
+         * läuft; `browseFiles` ist die zweite Frage und nicht die erste. Ein
+         * Admin sieht damit alle Abonnements — für ihn steht der Punkt aber
+         * nicht im Menü, weil „welches" bei tausend Kunden keine Auswahlliste
+         * mehr ist, sondern die Abonnementsliste, die es schon gibt.
+         */
+        $erreichbar = Subscription::query()
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (Subscription $s): bool => $account?->can('browseFiles', $s) ?? false)
+            ->values();
+
+        if ($erreichbar->count() === 1) {
+            return to_route('files.index', ['subscription' => $erreichbar->first()?->id]);
+        }
+
+        return Inertia::render('Files/Pick', [
+            'subscriptions' => $erreichbar
+                ->map(static fn (Subscription $s): array => [
+                    'id' => $s->id,
+                    'name' => $s->name,
+                ])
+                ->all(),
+        ]);
+    }
+
+    /**
      * Der Baum und die Liste.
      */
     public function index(Request $request, Subscription $subscription): Response

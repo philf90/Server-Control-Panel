@@ -113,6 +113,27 @@ const navigation = computed(() => {
                * veraltet.
                */
               { name: 'Datenbanken', href: '/databases', icon: 'databases' },
+
+              /*
+               * **Dateien an derselben Bedingung**, und aus demselben Grund wie
+               * damals bei den Domains: Der Kunde kam an seinen Dateimanager
+               * nur über Abonnements → Name des Abonnements → „Dateien". Drei
+               * Klicks für die Sache, wegen der er das Panel überhaupt öffnet.
+               *
+               * Gemeldet vom Betreiber am 15. August 2026, im Prüflauf
+               * (`docs/55`, Befund 8). Es ist die Fortsetzung von Befund 6 aus
+               * `docs/53`: Damals bekam der Dateimanager **einen** Weg; dass
+               * dieser Weg drei Klicks tief liegt, war damit nicht beantwortet.
+               *
+               * **Die Adresse ist `/files` und nicht `/subscriptions/…/files`,
+               * und das ist der Unterschied zu den beiden Punkten darüber.**
+               * Domains und Datenbanken sind mandantengeklammerte Listen unter
+               * fester Adresse; der Dateimanager hängt an *einem* Abonnement,
+               * weil jedes sein eigenes Chroot hat. `/files` beantwortet die
+               * Frage „welches" — bei genau einem führt es hinein, bei mehreren
+               * zur Auswahl.
+               */
+              { name: 'Dateien', href: '/files', icon: 'files' },
             ]
           : []),
 

@@ -65,6 +65,10 @@ final class RouteGuard
                 'kind' => self::AUTHENTICATED,
                 'reason' => 'Die Übersicht zeigt jedem Konto seine eigene Lage. Was darauf sichtbar ist, entscheidet die Mandantenklammer, nicht eine Policy an der Route.',
             ],
+            'GET files' => [
+                'kind' => self::AUTHENTICATED,
+                'reason' => 'Der Weg in den Dateimanager, ohne dass der Kunde eine Abo-Kennung kennen muss (docs/55, Befund 8). Die Route zeigt nichts und ändert nichts — sie sucht aus den Abonnements, die die Mandantenklammer ohnehin sichtbar macht, diejenigen heraus, für die browseFiles gilt, und leitet weiter oder legt sie zur Auswahl vor. Eine Policy an dieser Route hätte kein Objekt, an dem sie ansetzen könnte; geprüft wird je Abonnement, und das Ziel der Weiterleitung trägt sein eigenes can:.',
+            ],
             'POST impersonation/stop' => [
                 'kind' => self::AUTHENTICATED,
                 'reason' => 'Die Rückkehr aus „Anmelden als". Bewusst ohne Policy: Wer in fremder Sicht ist, ist in diesem Moment ein Kundenkonto und hätte die Fähigkeit impersonate nicht mehr — die Prüfung stünde ihm ausgerechnet beim Zurückkommen im Weg. Ohne laufenden Wechsel tut die Route nichts.',

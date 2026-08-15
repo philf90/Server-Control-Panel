@@ -444,8 +444,37 @@ selbst.
 
 Der Befund ist **grösser als dieser Lauf**: Er betrifft jede Prüfregel dieses
 Panels, nicht nur `content`. Er wird hier benannt und nicht nebenbei behoben —
-`WordChoiceTest` bekäme dafür eine neue Richtung, und die gehört entschieden und
-nicht improvisiert.
+**Entschieden am 15. August: jetzt, mit den anderen Fixes.** Gebaut sind
+`lang/de/validation.php` und `ValidationLanguageTest`, der die benutzten Regeln
+aus `app/` **abzählt** statt sie aufzulisten — eine Liste im Test wäre beim
+nächsten `mimes:` unvollständig, und zwar lautlos, weil eine fehlende
+Übersetzung nicht scheitert, sondern auf Englisch zurückfällt.
+
+> **Ein Rückfall, der lesbar ist, meldet sich nie.**
+
+### Und der zweite Teil des Befundes wog schwerer als der erste
+
+**`config/app.php` stand auf `'locale' => env('APP_LOCALE', 'en')`.** Die Datei
+`lang/de` hätte dagelegen und wäre nie gelesen worden.
+
+`.env.example` setzt zwar `APP_LOCALE=de` — aber die Datei, die auf dem Server
+gilt, ist `/etc/srvpanel/panel.env`, und die schreibt `PanelProvision`, **ohne
+`APP_LOCALE` zu setzen**. Auf jedem installierten Panel griff damit die
+Voreinstellung, und das Gebietsschema stand seit P0 auf Englisch.
+
+> **Eine Beispieldatei und die Datei, die gilt, sind zwei Quellen — und die
+> zweite ist die, nach der niemand sieht.**
+
+Die Voreinstellung steht jetzt auf `de`, und
+`ValidationLanguageTest::test_the_application_speaks_german` hält sie fest.
+Ohne diesen zweiten Wächter wäre die Übersetzung genau der Fehler, den dieses
+Projekt am häufigsten macht: eine Zeichenkette, die auf etwas verweist, ohne
+dass jemand den Bezug prüft.
+
+**Was benannt offen bleibt:** `attributes` ist leer. „Das Feld content muss eine
+Zeichenkette sein." ist besser als der englische Satz und noch nicht richtig.
+Es sind **106** Feldnamen; sie bekommen ihre eigene Runde, damit die Zuordnung
+vollständig ist und nicht halb.
 
 ## Befund 8 — der Dateimanager steht in keinem Menü
 
@@ -460,12 +489,30 @@ Das ist die Fortsetzung von Befund 6 aus `docs/53` („der Dateimanager ist geba
 und von nirgendwo aus erreichbar"). Damals bekam er **einen** Weg; dass dieser
 Weg drei Klicks tief liegt, war damit nicht beantwortet.
 
-**Was dabei zu entscheiden ist**, und deshalb steht es hier als Befund und nicht
-als Fix: `Domains` und `Datenbanken` sind mandantengeklammerte **Listen** unter
-einer festen Adresse. Der Dateimanager ist es nicht — er hängt an *einem*
-Abonnement, weil jedes sein eigenes Chroot hat. Ein Menüpunkt braucht also eine
-Antwort auf „welches", und die ist bei einem Kunden mit drei Abonnements eine
-andere als bei einem mit einem.
+**Die Frage, die dabei zu entscheiden war:** `Domains` und `Datenbanken` sind
+mandantengeklammerte **Listen** unter einer festen Adresse. Der Dateimanager ist
+es nicht — er hängt an *einem* Abonnement, weil jedes sein eigenes Chroot hat.
+Ein Menüpunkt braucht also eine Antwort auf „welches".
+
+**Entscheidung des Betreibers vom 15. August: direkt hinein, sonst Auswahl.**
+Gebaut als `GET /files` → `FileController::pick()`: Bei genau einem erreichbaren
+Abonnement führt der Punkt sofort in dessen Dateimanager, bei mehreren auf eine
+schmale Auswahlseite.
+
+> **Eine Frage, die nur eine mögliche Antwort hat, ist keine Frage.**
+
+Die Route trägt kein `can:` und steht mit Begründung in `RouteGuard`: Sie hätte
+kein Objekt, an dem eine Fähigkeit ansetzen könnte. Gefiltert wird je Abonnement
+über **dieselbe** Policy, die die Zielseite später anwendet — nicht über eine
+zweite Fassung der Regel.
+
+**Nur im Kundenmenü, nicht im Betreibermenü.** Für einen Admin ist „welches" bei
+tausend Kunden keine Auswahlliste mehr, sondern die Abonnementsliste, die es
+schon gibt.
+
+**Und `MobileLayoutTest` hat beim Bauen zugebissen:** Die Leerzeile der neuen
+Seite trug weder `data-column` noch `colspan` und hätte auf dem Telefon ohne
+Beschriftung dagestanden.
 
 ---
 

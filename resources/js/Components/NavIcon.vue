@@ -49,6 +49,12 @@ const PATHS: Record<string, string> = {
   // Domains: ein Globus mit Meridian und Äquator.
   domains: 'M12 3a9 9 0 100 18 9 9 0 000-18zM3 12h18M12 3c2.5 2.4 3.8 5.4 3.8 9s-1.3 6.6-3.8 9c-2.5-2.4-3.8-5.4-3.8-9S9.5 5.4 12 3z',
 
+  // Dateien: das Blatt mit der umgeknickten Ecke. Ein Ordner wäre die
+  // naheliegende Zeichnung und die falsche — der Griff führt in einen Baum aus
+  // Dateien **und** Verzeichnissen, und das Blatt ist die kleinere Einheit
+  // davon. Der Knick ist der Teil, den man auf 18px noch erkennt.
+  files: 'M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8zM14 3v5h5',
+
   // Datenbanken: der Stapel Scheiben. Das ist das eine Symbol, bei dem die
   // Verkehrsform stärker ist als jede eigene Idee — wer drei gestapelte
   // Ellipsen sieht, denkt an eine Datenbank und an nichts sonst.

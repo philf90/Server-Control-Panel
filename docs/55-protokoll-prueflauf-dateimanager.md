@@ -516,6 +516,55 @@ Beschriftung dagestanden.
 
 ---
 
+## Befund 9 — die Behebung von Befund 8 hat den Wächter von Befund 6 entwaffnet
+
+Gefunden vom Bruchlauf in der CI zu PR #131, nicht auf dem Server.
+
+`LinkReachTest` ist in Schritt 5b **genau für Befund 6 aus `docs/53`** gebaut
+worden: „Der Dateimanager ist gebaut und von nirgendwo aus erreichbar." Sein
+Bruch nimmt dem Abonnement-Bildschirm den Verweis weg und erwartet Rot.
+
+**Seit der Dateimanager ausserdem im Menü steht, gibt es einen zweiten Weg** —
+und der Bruch entfernte nur den ersten. Der Wächter war grün, und zwar zu
+Recht: Die Seite *war* erreichbar.
+
+> **Ein Bruch, der einen von zwei Wegen entfernt, prüft nicht die Erreichbarkeit
+> — er prüft, dass es den zweiten Weg gibt.**
+
+Und die Lehre darüber, die über diesen Fall hinausgeht:
+
+> **Die Behebung eines Befundes kann den Wächter eines älteren entwaffnen** —
+> ohne dass jemand eine Zeile an ihm ändert.
+
+### Und dahinter lag ein zweiter, der schwerer wiegt
+
+Der Bruch entfernte danach **beide** Wege — und der Wächter blieb **immer noch**
+grün. Der Grund steht in meinem eigenen Kommentar von heute Vormittag, in
+`PanelLayout.vue`:
+
+> Die Adresse ist `/files` und nicht `/subscriptions/…/files`
+
+`LinkReachTest` liest die **ganze** Datei — mit Absicht, denn eine Adresse steht
+genauso oft in einem `router.get(…)` wie in einem `:href`. Sie steht aber auch
+in einem Erklärtext, und der führt nirgendwohin.
+
+> **Ein Wächter, der Quelltext nach Adressen durchsucht, findet sie auch dort,
+> wo jemand über sie schreibt.**
+
+**Das hatte dieses Projekt schon einmal**, an `PanelRequestTest`: Sein erster
+Wurf fand die gesuchte Kopfzeile im eigenen Klassenkopf. Die Lösung —
+`withoutComments()` — steht dort seit Schritt 5g im Repo. Sie war da; sie stand
+nur an einer Stelle, an die beim Bauen von `LinkReachTest` niemand gesehen hat.
+
+> **Eine Lösung, die im Repo steht, ist nicht dieselbe wie eine, die angewandt
+> wird.**
+
+Behoben: `LinkReachTest` streicht jetzt Kommentare, der Bruch entfernt beide
+Wege, und beides ist gegengeprüft — vorher grün, nachher rot, danach wieder
+grün. Alle zweiunddreissig Seiten bleiben erreichbar.
+
+---
+
 ## Offen, klein, nicht verfolgt
 
 `ls /var/www/vhosts/p6-b.invalid/logs/` und der `tail` darauf haben nichts

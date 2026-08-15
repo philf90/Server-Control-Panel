@@ -1343,6 +1343,33 @@ ihm.
 
 ---
 
+## Nachprüfung gegen `v0.6.0-rc.5` — Befund 17 erfüllt
+
+```
+Ausgangszustand (von root hergestellt):
+  drwxr-s---  p1136 www-data  p6-gid
+
+nach „Rechte" → 755 im Panel:
+  drwxr-sr-x  p1136 www-data  p6-gid          ← das Bit steht noch da
+
+und die neu angelegte Datei darin:
+  -rw-r--r--  p1136 www-data  probe2.txt      ← die Gruppe wird vererbt
+```
+
+Beide Hälften. Vorher stand hier `drwxr-xr-x` und `p1136 p1136` — die zweite
+Zeile ist die, auf die es ankommt: Sie ist der Schaden, den das fehlende Bit
+anrichtet, und nicht bloss seine Anzeige.
+
+> **Ein Bit, das dasteht, ist noch keine Vererbung — gemessen wird sie an dem,
+> was danach entsteht.**
+
+Damit ist auch belegt, dass `p1136` die Gruppe `www-data` **nur innerhalb dieses
+einen Vorgangs** trägt: Der Ausgangszustand musste von root hergestellt werden,
+weil der Kunde das Bit nicht selbst setzen kann. Die Ausnahme reicht genau so
+weit wie beschrieben.
+
+---
+
 ---
 
 ## Offen, klein, nicht verfolgt

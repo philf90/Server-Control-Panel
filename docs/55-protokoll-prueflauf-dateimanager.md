@@ -126,10 +126,30 @@ Gruppe und behält `0640`:
 chgrp www-data "$ABO"/httpdocs/index.html
 ```
 
-Wird daraus ein **200**, ist die Diagnose gemessen und nicht geraten: Es lag an
-der Gruppe und an nichts sonst. Und die Datei steht danach genau so da, wie 6c
-eine neue anlegen wird — damit ist sie der stabile Nachbar, an dem sich Punkt 1
-(b) und (c) messen.
+### Gefahren, und die Diagnose ist damit gemessen
+
+```
+-rw-r----- 1 p1136 www-data 1114 …/httpdocs/index.html
+seite=200
+```
+
+| | Eigentümer:Gruppe | Modus | Seite |
+|---|---|---|---|
+| vorher | `p1136:p1136` | `0640` | **403** |
+| nachher | `p1136:www-data` | `0640` | **200** |
+
+**Eine einzige Veränderliche, und sie hat den Ausschlag gegeben.** Der Modus ist
+derselbe geblieben; getauscht wurde die Gruppe. Damit ist Befund 1 keine
+Deutung eines Symptoms mehr, sondern eine Messung — und der Weg, den 6c
+einschlägt, ist als der richtige belegt: Ein `httpdocs` mit setgid und
+`www-data` bringt neue Dateien von selbst in genau diesen Zustand.
+
+> **Zwei Zahlen, zwischen denen sich genau eine Sache geändert hat, sind eine
+> Ursache. Zwei, zwischen denen sich das Update geändert hat, sind eine
+> Vermutung.**
+
+Und die Datei steht jetzt so da, wie 6c eine neue anlegen wird — damit ist sie
+der stabile Nachbar, an dem sich Punkt 1 (b) und (c) messen.
 
 ---
 

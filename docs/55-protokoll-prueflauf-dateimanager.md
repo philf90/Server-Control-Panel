@@ -800,6 +800,40 @@ ist damit ein zweites Mal sichtbar, aus einer anderen Richtung.
 beiden alten Dateien nicht. Das ist die gemischte Bevölkerung aus §1.1, an einem
 einzigen `ls` ablesbar: Was 6c erreicht hat, und was nicht.
 
+### Die zweite Gegenprobe — der Inhalt ist frei
+
+`makeDirectory`, `write` und `remove` gelingen alle drei, und die Liste danach
+zeigt wieder fünf Einträge: `p6-inhalt` ist fort.
+
+**Ohne diese Hälfte wäre der Schutz schlimmer als keiner** — `httpdocs`
+leerzuräumen ist genau das, was jemand vor einem neuen Deploy tut.
+
+### Und ein Fund, den ich nicht gesucht habe: setgid vererbt sich nach unten
+
+Das neu angelegte `p6-inhalt` kam mit `mode 1512` zurück — dezimal für **`2750`**
+— und `gid 33`, also `www-data`. **Ein Unterverzeichnis erbt das setgid-Bit vom
+Elternverzeichnis**, nicht nur die Gruppe. Die darin geschriebene `x.txt` trug
+`420` (`0644`) und ebenfalls `gid 33`.
+
+Das ist die gute Nachricht: 6c wirkt nicht nur eine Ebene tief.
+
+**Und daraus folgt eine Frage, die niemand gestellt hat.** `FilesChmod` ruft
+`@chmod($path, $mode)` mit **neun** Bits; das ist der Systemaufruf und nicht
+GNU-`chmod`, also wird das zehnte Bit gesetzt — auf null. Stellt ein Kunde im
+Rechte-Editor ein `httpdocs/bilder` auf `0755`, fällt das geerbte setgid
+**lautlos** weg, und jede Datei, die danach darin entsteht, trägt wieder die
+Gruppe des Abonnements.
+
+`Scheme::protect()` fängt das nicht ab: Es schützt die sechs Verzeichnisse des
+Schemas und ausdrücklich **nicht** ihren Inhalt — und ein `httpdocs/bilder` ist
+Inhalt.
+
+> **Ein Bit, das man erbt, aber nicht anzeigt, verschwindet beim ersten Klick auf
+> etwas anderes.**
+
+Damit wäre Befund 3 aus `docs/53` eine Ebene tiefer zurück. **Gemessen ist das
+noch nicht** — es steht hier als Frage und nicht als Befund.
+
 ---
 
 ## Offen, klein, nicht verfolgt

@@ -9593,6 +9593,25 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" InViewTest passed
 
 echo
+echo "── ThemeTest: das Theme gilt nicht fuer die Bedienelemente ──"
+#
+# Ohne color-scheme zeichnet der Browser Ankreuzfelder nach dem System und
+# nicht nach der Seite. Auf einem iPhone mit dunklem System und hellem Panel
+# stand ein leeres Kaestchen als schwarz gefuelltes Quadrat da.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace("  color-scheme: light;\n", "", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "color-scheme im hellen Theme" &&
+pruefe "das helle Theme sagt nichts ueber die Bedienelemente" \
+  ThemeTest::test_both_themes_declare_their_color_scheme failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ThemeTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

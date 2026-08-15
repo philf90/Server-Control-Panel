@@ -203,4 +203,47 @@ final class ThemeTest extends TestCase
             'Die Wahl wird gespeichert, aber nichts wendet sie an — sichtbar erst nach einem Neuladen.',
         );
     }
+
+    /**
+     * Und das Theme gilt auch für die Bedienelemente des Browsers.
+     *
+     * ## Der Fund, der diese Prüfung erzwungen hat
+     *
+     * Ohne `color-scheme` zeichnet der Browser Ankreuzfelder, Textfelder und
+     * Rollbalken nach dem Erscheinungsbild des **Betriebssystems**. Gemessen am
+     * 15. August 2026 auf einem iPhone mit dunklem System und hellem Panel
+     * (`docs/55`, Befund 20): Ein leeres Ankreuzfeld stand als schwarz
+     * gefülltes Quadrat auf weissem Grund — der leere Zustand sah voller aus
+     * als der volle.
+     *
+     * > **Ein leeres Bedienelement, das gefüllt aussieht, sagt das Gegenteil
+     * > dessen, was es meint.**
+     *
+     * ## Warum beide Seiten geprüft werden
+     *
+     * Eine Zeile allein genügt nicht: Steht sie nur an einer Wurzel, ist genau
+     * ein Theme richtig und das andere schlechter dran als vorher — es erbt
+     * dann die Angabe des ersten.
+     */
+    public function test_both_themes_declare_their_color_scheme(): void
+    {
+        $css = (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css');
+
+        foreach ([
+            "/:root,\s*\n:root\[data-theme='light'\] \{[^}]*color-scheme: light;/" => 'hell',
+            "/:root\[data-theme='dark'\] \{[^}]*color-scheme: dark;/" => 'dunkel',
+        ] as $muster => $theme) {
+            $this->assertMatchesRegularExpression(
+                $muster,
+                $css,
+                sprintf(
+                    'Das %sle Theme sagt dem Browser nicht, wie er seine eigenen Bedienelemente '."zeichnen soll.\n\n".
+                    'Er nimmt dann das Erscheinungsbild des Betriebssystems — und auf einem Gerät, '.
+                    'dessen System anders eingestellt ist als das Panel, steht ein leeres '.
+                    'Ankreuzfeld gefüllt da.',
+                    $theme,
+                ),
+            );
+        }
+    }
 }

@@ -13740,3 +13740,23 @@ Dateimanager setzt das an zehn Griffen.
 Gescrollt wird nur, wenn der Block wirklich ausserhalb steht, und der Fokus
 wandert auf den Block statt auf seinen Knopf: „Entfernen" zu fokussieren hiesse,
 dass die Leertaste die Handlung auslöst, die gerade erst erfragt wurde.
+
+#### Das Theme gilt jetzt auch für die Bedienelemente des Browsers
+
+Auf einem iPhone mit dunkel eingestelltem System und **hell** eingestelltem Panel
+stand ein leeres Ankreuzfeld als schwarz gefülltes Quadrat auf weissem Grund —
+angehakt lila gefüllt, leer schwarz gefüllt.
+
+> **Ein leeres Bedienelement, das gefüllt aussieht, sagt das Gegenteil dessen,
+> was es meint.**
+
+Ohne `color-scheme` zeichnet der Browser Ankreuzfelder, Textfelder und Rollbalken
+nach dem Erscheinungsbild des Betriebssystems. Beide Theme-Wurzeln sagen es jetzt.
+
+Bemerkenswert ist, wie lange das durchgereicht wurde: Der Punkt stand seit dem
+Plan als „im dunklen Theme malt der Browser leere Kästchen weiss — gehört in
+Schritt 12". Gesehen wurde das Gegenteil, und die vorhergesagte Form war harmlos
+genug, um sie zu vertagen.
+
+> **Eine Vorhersage über ein Symptom prüft nicht die Ursache — sie rät nur, in
+> welcher Richtung sie sich zeigt.**

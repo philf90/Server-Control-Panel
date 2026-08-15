@@ -1579,6 +1579,53 @@ Wächter: `InViewTest`, drei Brüche, alle drei beissen.
 
 ---
 
+## Befund 20 — das leere Ankreuzfeld sah voller aus als das volle
+
+Gemessen bei 390 px im **hellen** Theme, auf einem iPhone mit **dunkel**
+eingestelltem System: Im Rechte-Editor stand ein angehaktes Kästchen lila
+gefüllt da — und ein leeres als **schwarz gefülltes Quadrat** auf weissem Grund.
+
+> **Ein leeres Bedienelement, das gefüllt aussieht, sagt das Gegenteil dessen,
+> was es meint.**
+
+Die Ursache ist die fehlende Angabe `color-scheme`. Ohne sie zeichnet der Browser
+seine **eigenen** Bedienelemente — Ankreuzfelder, Textfelder, Rollbalken — nach
+dem Erscheinungsbild des **Betriebssystems**, und das hat mit dem Theme dieser
+Seite nichts zu tun.
+
+### Und die Vorhersage hatte das falsche Vorzeichen
+
+`docs/54` hat für Punkt 8 ausdrücklich notiert, was zu erwarten sei: „Im dunklen
+Theme malt der Browser leere Ankreuzfelder weiss." Gesehen wurde das **Gegenteil**
+— schwarze Kästchen im hellen Theme —, und im dunklen Theme war nichts
+aufgefallen.
+
+Dieselbe fehlende Zeile, das andere Vorzeichen: Welches man sieht, hängt am
+System des Betrachters. Auf einem dunkel eingestellten Telefon ist das dunkle
+Theme unauffällig und das helle kaputt.
+
+> **Eine Vorhersage über ein Symptom prüft nicht die Ursache — sie rät nur, in
+> welcher Richtung sie sich zeigt.**
+
+Das ist auch der Grund, warum der Punkt bis hierher als „kein Fehler dieses
+Schrittes, gehört in Schritt 12" durchgereicht wurde: Die vorhergesagte Form war
+harmlos genug, um sie zu vertagen. Die tatsächliche ist es nicht.
+
+**Behoben:** `color-scheme: light` und `color-scheme: dark` an den beiden
+Theme-Wurzeln. Zwei Zeilen, und sie stehen dort, wo auch die Farben stehen.
+Wächter: `ThemeTest::test_both_themes_declare_their_color_scheme` — er prüft
+**beide** Wurzeln, denn eine Zeile allein macht ein Theme richtig und lässt das
+andere erben.
+
+### Was der helle Durchgang sonst gezeigt hat
+
+Die Rückfrage trägt im hellen Theme eine gebrochen-weisse Fläche mit
+dunkelgoldenem Rand und einen dunkelroten Rahmen um „Entfernen" — lesbar. Die
+Auswahlleiste bricht auch hier in Reihen statt zu stapeln. Und `.ssh/` trug noch
+alle drei Griffe, `conf/` einen Strich: der Stand **vor** Befund 18, wie erwartet.
+
+---
+
 ---
 
 ## Offen, klein, nicht verfolgt

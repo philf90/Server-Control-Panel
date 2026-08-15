@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import Bar from '../../Components/Bar.vue'
 import DnsCredentials from '../../Components/DnsCredentials.vue'
@@ -159,14 +159,18 @@ const quotaActionable = computed(() => quotaBroken.value || quotaUnknown.value)
  * Sicherungen. Ein einzelnes „Wirklich?" beantwortet man im Vorbeigehen; den
  * Namen abzutippen ist die kleinste Hürde, die eine bewusste Handlung
  * verlangt.
+ *
+ * **Hier stand ein `window.prompt`, und das war bei genau dieser Aktion am
+ * schlimmsten** (`docs/55`, Befund 15): Safari darf die Dialoge einer Seite
+ * abschalten, `prompt()` gibt danach `null` zurück — und der Knopf „Zurückbauen"
+ * hätte wortlos nichts getan. Die Richtung ist die sichere, die Auskunft ist
+ * keine.
  */
-function remove(): void {
-  const eingabe = window.prompt(
-    `Rückbau von ${props.subscription.name}: Verzeichnis, Systembenutzer und Quota werden entfernt. `
-    + 'Es gibt keine Sicherung. Zum Bestätigen den Namen eintippen:',
-  )
+const tearingDown = ref(false)
+const typedName = ref('')
 
-  if (eingabe !== props.subscription.name) return
+function remove(): void {
+  if (typedName.value !== props.subscription.name) return
 
   router.delete(`/subscriptions/${props.subscription.id}`)
 }
@@ -237,14 +241,42 @@ function remove(): void {
         @click="resume"
       >Entsperren</button>
       <button
-        v-if="props.can.delete && props.subscription.status !== 'provisioning'"
+        v-if="props.can.delete && props.subscription.status !== 'provisioning' && !tearingDown"
         type="button"
         class="button danger"
-        @click="remove"
+        @click="tearingDown = true; typedName = ''"
       >
         Zurückbauen
       </button>
     </template>
+
+    <!--
+      Die zweite Rückfrage steht auf der Seite und nicht in einem Systemdialog.
+      Der Satz nennt, was verlorengeht, **bevor** das Feld danach fragt — er ist
+      die Begründung für die Hürde und nicht ihre Beschriftung.
+    -->
+    <form v-if="tearingDown" class="block" @submit.prevent="remove">
+      <p class="notice warn">
+        Rückbau von {{ props.subscription.name }}: Verzeichnis, Systembenutzer und Quota werden
+        entfernt. Es gibt keine Sicherung.
+      </p>
+
+      <label class="field inline">
+        <span>Zum Bestätigen den Namen des Abonnements eintippen</span>
+        <input v-model="typedName" type="text" autocomplete="off" required />
+      </label>
+
+      <div class="button-row">
+        <button
+          type="submit"
+          class="button danger"
+          :disabled="typedName !== props.subscription.name"
+        >
+          Zurückbauen
+        </button>
+        <button type="button" class="button" @click="tearingDown = false">Abbrechen</button>
+      </div>
+    </form>
 
     <!--
       Die Zusammenfassung steht über allem und nicht am Feld.

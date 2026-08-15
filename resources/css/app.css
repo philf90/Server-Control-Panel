@@ -2790,6 +2790,31 @@ tr:has(td.multiline) > td {
   .field-row > .field {
     flex-basis: 100%;
   }
+
+  /*
+   * Ein nebenstehendes Feld steht auf dem Telefon nicht mehr daneben.
+   *
+   * `.field.inline > span` trägt `white-space: nowrap`, und das ist für „Übertragen
+   * auf" richtig. Bei 390px reicht der Platz aber nur für kurze Beschriftungen:
+   * „Zum Bestätigen den Namen des Abonnements eintippen" neben seinem Eingabefeld
+   * schob die Seite um **30px** aus dem Bild (gemessen am 15. August 2026 beim
+   * Ersatz der Systemdialoge, `docs/55` Befund 15).
+   *
+   * Die Beschriftung zu kürzen wäre die Antwort für diesen einen Fall gewesen. Die
+   * nächste lange stünde wieder da, und niemand misst sie nach — der Kommentar
+   * oben verlangt es seit Monaten, und es ist nicht geschehen.
+   *
+   * > **Eine Regel, die bei jedem neuen Text eine Messung verlangt, wird bei
+   * > jedem neuen Text vergessen.**
+   *
+   * Unter 480px gilt deshalb wieder, was `.field` von sich aus tut: Beschriftung
+   * über dem Feld. `nowrap` bleibt dabei richtig — die Zeile hat jetzt die volle
+   * Breite für sich.
+   */
+  .field.inline {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 /*

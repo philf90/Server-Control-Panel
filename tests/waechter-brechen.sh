@@ -9285,7 +9285,7 @@ vorher_datei resources/js/Pages/Files/Index.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Files/Index.vue'
 s = open(p, encoding='utf-8').read()
-s = s.replace('  rename.name = wanted', '  rename.to = here(wanted)')
+s = s.replace('    rename.name = entry.name', '    rename.to = here(entry.name)')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/js/Pages/Files/Index.vue "Zielpfad in der Seite" &&
@@ -9303,13 +9303,10 @@ vorher_datei resources/js/Pages/Files/Index.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Files/Index.vue'
 s = open(p, encoding='utf-8').read()
-s = s.replace("""watch(() => props.path, () => {
-  selected.value = []
-  picking.value = null
-})""",
-              """watch(() => props.path, () => {
-  picking.value = null
-})""")
+# Nur die eine Zeile, nicht der ganze Rumpf: Der Beobachter raeumt inzwischen
+# vier Zustaende auf, und ein Eingriff, der den Rumpf woertlich kennt, faellt bei
+# jedem fuenften wieder aus.
+s = s.replace("\n  selected.value = []\n", "\n", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/js/Pages/Files/Index.vue "Auswahl ueberlebt" &&
@@ -9388,6 +9385,62 @@ pruefe "die Namen werden nach dem open geprueft" \
   SelectionTest::test_the_names_are_checked_before_the_archive_is_opened failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SelectionTest passed
+
+echo
+echo "── BrowserDialogTest: eine Seite fragt wieder ueber einen Systemdialog ──"
+#
+# Der Fall vom iPhone: Safari darf die Dialoge einer Seite abschalten, und
+# `prompt()` gibt danach ohne ein Zeichen `null` zurueck. Der Knopf tut dann
+# nichts — und sieht dabei aus wie ein Knopf.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("  archiveName.value = 'auswahl.zip'",
+              "  archiveName.value = window.prompt('Wie soll das Archiv heissen?', 'auswahl.zip')", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "prompt im Packen" &&
+pruefe "eine Seite fragt ueber einen Systemdialog" \
+  BrowserDialogTest::test_no_page_asks_for_input_through_a_browser_dialog failed
+wiederherstellen
+
+echo
+echo "── BrowserDialogTest: der Ausdruck liest die Seiten gar nicht ──"
+#
+# Die Gegenprobe zum Waechter selbst. Faende er keine Datei, waere seine leere
+# Trefferliste kein Befund, sondern ein Ausdruck, der ins Leere laeuft — und
+# genau so gruen.
+vorher_datei tests/Feature/BrowserDialogTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/BrowserDialogTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$file->getExtension() === 'vue'", "$file->getExtension() === 'vuu'", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/BrowserDialogTest.php "Endung verdreht" &&
+pruefe "der Waechter liest keine Seite mehr" \
+  BrowserDialogTest::test_the_search_really_reads_the_pages failed
+wiederherstellen
+
+echo
+echo "── BrowserDialogTest: der Kommentarschnitt frisst den Code ──"
+#
+# Ein zu gieriger Ausdruck nimmt alles zwischen dem ersten und dem letzten
+# Blockkommentar mit. Der Waechter waere danach gruen, weil er fast nichts mehr
+# liest — die schlimmste Art, gruen zu sein.
+vorher_datei tests/Feature/BrowserDialogTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/BrowserDialogTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'#/\\*.*?\\*/#s'", "'#/\\*.*\\*/#s'", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/BrowserDialogTest.php "gieriger Kommentarschnitt" &&
+pruefe "der Kommentarschnitt frisst den Code" \
+  BrowserDialogTest::test_stripping_comments_keeps_the_code failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BrowserDialogTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

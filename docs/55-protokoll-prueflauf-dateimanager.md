@@ -1054,6 +1054,83 @@ auf `rc.4`; diese Runde belegt die Zahl, die Nachprüfung belegt die Gründe.
 
 ---
 
+## Befund 15 — „Als Zip packen" liess sich auf dem iPhone nicht drücken
+
+Punkt 6 hat gleich am ersten Handgriff angehalten: Die drei Dateien waren
+angehakt, und der Knopf tat nichts.
+
+Er rief `window.prompt`. **Safari darf die Dialoge einer Seite abschalten**,
+nachdem sie mehrere gezeigt hat — und der Lauf hatte in Punkt 4 einige gezeigt.
+`prompt()` gibt danach ohne ein Zeichen `null` zurück, die Funktion kehrt um,
+und auf dem Bildschirm geschieht nichts. Kein Fehler, keine Meldung, kein
+Unterschied zu einem kaputten Knopf.
+
+> **Ein Knopf, dessen Wirkung in einem Dialog steckt, den der Browser abschalten
+> darf, ist ein Knopf, der nichts tut.**
+
+### Die Regel war schon entschieden — und nur auf den gemeldeten Fall angewandt
+
+`docs/53` Befund 8 hat den `window.prompt` des Rechte-Editors durch einen
+Bereich auf der Seite ersetzt, mit der Begründung, dass ein Systemdialog keine
+Farbe aus `app.css` nimmt und dieses Panel keine Modalen hat. Der Kommentar
+dazu steht bis heute in `Files/Index.vue`.
+
+**Drei weitere `prompt` standen in derselben Datei** — Umbenennen, Suchen,
+Packen — und ein vierter in `Subscriptions/Show.vue`. Sie waren nicht gemeldet
+worden.
+
+> **Eine Regel, die nur auf den gemeldeten Fall angewandt wird, lässt ihre
+> Geschwister stehen.**
+
+Der vierte ist der unangenehmste: Er ist die zweite Rückfrage vor dem **Rückbau
+eines Abonnements** — den Namen abtippen, bevor ein Verzeichnisbaum als root
+verschwindet. Bei abgeschalteten Dialogen hätte „Zurückbauen" wortlos nichts
+getan. Die Richtung ist die sichere; eine Auskunft ist es nicht.
+
+**Behoben:** Alle vier sind Felder auf der Seite. Das Namensfeld des Archivs ist
+ein dritter Zustand der Auswahlleiste neben „nichts vorgemerkt" und „Ziel im
+Baum wählen" — die Antwort erscheint dort, wo die Frage steht. Wächter:
+`BrowserDialogTest`, drei Brüche, alle drei beissen.
+
+**`window.confirm` bleibt** und ist ausdrücklich nicht mit abgedeckt: Er stellt
+eine Ja-Nein-Frage, nimmt keine Eingabe entgegen, und fällt er aus, unterbleibt
+die Aktion. Er steht an über zwanzig Stellen dieses Panels, seit es sie gibt;
+sein Ersatz ist Schritt 12. **Benannt offen, nicht als erledigt gezählt.**
+
+### Und die Behebung hat die Seite um 132px aus dem Bild geschoben
+
+Gemessen bei 390px, bevor sie ausgeliefert wurde:
+
+```
+vor dem Fix des Fixes:  dokument: 132px
+danach:                 dokument:   0px
+Gegenprobe (900px-Block):        526px
+```
+
+**Die Ursache war eine Beschriftung mit einem Dateinamen darin.** „Neuer Name
+für ⟨name⟩" neben seinem Eingabefeld — und `.field.inline > span` trägt
+`white-space: nowrap`. Ein Dateiname darf 255 Zeichen haben.
+
+Das ist dieselbe Klasse wie die Kennung im Fliesstext aus `docs/46 §20.11` und
+der Bereichstitel mit dem Tabellennamen: **ein Bezeichner an einer Stelle, die
+für Text gebaut ist.** Der Rechte-Editor daneben macht es seit Schritt 6 richtig
+— `<p class="path-line">Rechte für …</p>` über dem Formular statt in der
+Beschriftung —, und ich habe zwanzig Zeilen tiefer die andere Form gewählt.
+
+Die restlichen **30px** kamen von einer Beschriftung ohne jeden Namen darin:
+„Zum Bestätigen den Namen des Abonnements eintippen". Der Kommentar an
+`.field.inline > span` verlangt seit Monaten wörtlich, dass „wer hier eine
+längere Beschriftung einsetzt, nachmisst".
+
+> **Eine Regel, die bei jedem neuen Text eine Messung verlangt, wird bei jedem
+> neuen Text vergessen.**
+
+Unter 480px steht die Beschriftung eines `.field.inline` jetzt über dem Feld —
+also das, was `.field` von sich aus tut. Das gilt panelweit und nicht nur für
+die drei neuen Formulare.
+
+---
+
 ---
 
 ## Offen, klein, nicht verfolgt

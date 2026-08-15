@@ -565,6 +565,55 @@ grün. Alle zweiunddreissig Seiten bleiben erreichbar.
 
 ---
 
+## Nachprüfung gegen `v0.6.0-rc.3`
+
+**Ein behobener Befund ist erst behoben, wenn er am selben Ort noch einmal
+gemessen wurde** (`docs/48`). Gefahren im Browser auf `cloudsrv24`.
+
+### Befund 8 — erfüllt
+
+„Dateien" steht in der Navigation, zwischen „Datenbanken" und „Vorgänge", mit
+dem Blatt als Zeichen. Der Klick führt **direkt** in `p6-b.invalid` — keine
+Auswahlseite, weil es nur ein Abonnement gibt. Genau das war die Entscheidung
+des Betreibers.
+
+### Befund 6 — erfüllt, und zwar in **beiden** Hälften
+
+1. **Anlegen:** „Die Datei ist angelegt.", und der **Editor** ist offen mit
+   `/httpdocs/p6-probe.txt`. Nicht die Liste — das war die zweite Zusage dieses
+   Griffs.
+2. **Speichern mit leerem Inhalt:** „Die Datei ist gespeichert.", die Datei
+   steht mit **0 B** in der Liste.
+
+Die zweite Hälfte war nicht verlangt und ist der wertvollere Beleg: Genau dieser
+Weg — eine Datei mit leerem Inhalt speichern — scheiterte vor dem Fix an
+derselben Regel wie das Anlegen. Beide sind gemessen.
+
+### Und was die Liste nebenbei zeigt
+
+`p6-probe.txt` trägt `rw-r--r--`, also **0644** — das legt `files.write` an. Die
+Mehrfachauswahl aus 5h steht da: Haken in der Kopfzeile und je Zeile, Baum
+links, Krümel oben.
+
+**Der Modus ist für Punkt 2 die Warnung, nicht das Ergebnis.** Bei `0644` liest
+nginx die Datei über das **Weltbit**, und ein `curl` gäbe 200 — unabhängig von
+der Gruppe. Das wäre wieder Befund 1: eine Messung, die aus einem anderen Grund
+das erwartete Ergebnis liefert.
+
+> **Ein Beleg, der auch ohne die geprüfte Sache zustande kommt, belegt sie
+> nicht.**
+
+Punkt 2 misst deshalb zweistufig: erst die **Gruppe** der neu angelegten Datei
+(hat das setgid-Bit gewirkt?), dann `0640` und `curl` (kommt nginx über die
+Gruppe heran?).
+
+### Befund 7 — noch nicht gemessen
+
+Steht aus. Er braucht eine Laravel-Prüfregel, die zuschlägt; im Browser am
+einfachsten über „Umbenennen" mit einem Namen über 255 Zeichen.
+
+---
+
 ## Offen, klein, nicht verfolgt
 
 `ls /var/www/vhosts/p6-b.invalid/logs/` und der `tail` darauf haben nichts

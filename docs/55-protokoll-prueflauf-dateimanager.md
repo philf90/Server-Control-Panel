@@ -153,6 +153,54 @@ der stabile Nachbar, an dem sich Punkt 1 (b) und (c) messen.
 
 ---
 
+## Punkt 1 (b) — nach dem Update, **ohne** `--sites`
+
+`srvpanel --version` → `0.6.0-rc.2`.
+
+| Verzeichnis | Eigentümer:Gruppe | uid:gid | Modus |
+|---|---|---|---|
+| *(Abo-Wurzel)* | `root:root` | `0:0` | `755` |
+| `httpdocs` | `p1136:www-data` | `1001:33` | `750` |
+| `logs` | `p1136:adm` | `1001:4` | `750` |
+| `tmp` | `p1136:p1136` | `1001:1001` | `700` |
+| `conf` | `root:root` | `0:0` | `755` |
+| `.ssh` | `p1136:p1136` | `1001:1001` | `700` |
+| `mail` | `p1136:p1136` | `1001:1001` | `700` |
+
+```
+seite=200
+```
+
+**Identisch mit (a), bis auf die Seite** — und die steht auf 200, weil die
+Gegenprobe zu Befund 1 sie dorthin gebracht hat, nicht das Update.
+
+**Damit ist `docs/54 §1.1` gemessen statt behauptet.** Kein Verzeichnis trägt
+setgid, kein Modus hat sich bewegt: `postinstall` ruft `srvpanel vhost` ohne
+`--sites`, und `WebSiteApply` läuft beim Update nicht. Hätte ich diesen Schritt
+nicht getrennt gefahren, stünde jetzt nach (c) eine veränderte Tabelle da — und
+niemand wüsste, ob das Update sie geschrieben hat oder der Aufruf danach.
+
+> **Zwei Ursachen, die man nicht trennt, sind eine Vermutung mit zwei Namen.**
+
+### Der Hinweis aus dem Update
+
+```
+Entpacken von srvpanel (0.6.0~rc.2) über (0.6.0~rc.1) ...
+dpkg: Warnung: Altes Verzeichnis »/opt/srvpanel/releases/0.6.0-rc.1«
+      kann nicht gelöscht werden: Directory not empty
+```
+
+**Erwartet und im Quelltext begründet.** dpkg entfernt beim Update nur die
+Dateien aus dem Paket; was zur Laufzeit entstand — `bootstrap/cache` — hält das
+Verzeichnis am Leben. `prune_releases()` in `postinstall.sh` räumt danach jedes
+Fassungsverzeichnis ab, das nicht `current` ist.
+
+**Das ist gelesen und nicht gemessen**, und deshalb steht es hier als offene
+Zeile und nicht als erledigt: Ob `/opt/srvpanel/releases/0.6.0-rc.1` wirklich
+fort ist, sagt nur ein Blick auf die Platte.
+
+---
+
 ## Offen, klein, nicht verfolgt
 
 `ls /var/www/vhosts/p6-b.invalid/logs/` und der `tail` darauf haben nichts

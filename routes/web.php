@@ -431,6 +431,22 @@ Route::middleware('auth')->group(function (): void {
      * bezeichnet, entscheidet der Agent im Chroot (`docs/51 §5`) — deshalb
      * steht in keiner dieser Zeilen ein Pfadparameter mit Prüfung.
      */
+    /*
+     * **Der Menüpunkt „Dateien" zeigt hierher und nicht auf ein Abonnement.**
+     *
+     * Ein Kunde kennt seine Abo-Kennung nicht und soll sie nicht kennen müssen;
+     * der Weg über `Abonnements → Name → Dateien` war drei Klicks tief
+     * (`docs/55`, Befund 8). Diese Route beantwortet die Frage „welches
+     * Abonnement" und leitet weiter — bei genau einem hinein, bei mehreren auf
+     * eine Auswahl.
+     *
+     * **Ohne `can:`, mit Begründung in `RouteGuard`**: Sie hat kein Objekt, an
+     * dem eine Fähigkeit ansetzen könnte. Gefiltert wird je Abonnement über
+     * dieselbe Policy, die das Ziel später anwendet.
+     */
+    Route::get('/files', [FileController::class, 'pick'])
+        ->name('files.pick');
+
     Route::get('/subscriptions/{subscription}/files', [FileController::class, 'index'])
         ->middleware('can:browseFiles,subscription')
         ->name('files.index');

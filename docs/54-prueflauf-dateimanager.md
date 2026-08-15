@@ -153,9 +153,24 @@ Und zwei, die zu diesem Lauf gehören:
 
 ## 5. Der Lauf
 
-Durchgehend gilt: `<abo>` ist der Verzeichnisname eines **bestehenden**
-Abonnements, `<domain>` eine seiner Domains, `<benutzer>` sein Systembenutzer.
-Der Bestand ist der Prüfling, nicht ein frisch angelegtes Abo.
+**Gefahren wird gegen `p6-b.invalid`** — Systembenutzer `p1136`, Verzeichnis
+`/var/www/vhosts/p6-b.invalid`, vom Betreiber am 15. August 2026 benannt. Der
+Bestand ist der Prüfling, nicht ein frisch angelegtes Abo.
+
+**Zwei Eigenheiten dieses Abonnements stehen in jedem Befehl unten drin, und
+beide sind keine Kosmetik:**
+
+1. **`.invalid` löst nie auf** (RFC 2606). Ein blosses
+   `curl https://p6-b.invalid/` scheitert an der Namensauflösung — und zwar mit
+   demselben Fehlschlag vor und nach dem Update, also mit einer Zahl, die nichts
+   über die Seite sagt. Deshalb steht überall `--resolve` auf `127.0.0.1` und
+   `-k`, weil ein Zertifikat für eine `.invalid`-Domain nicht gültig sein kann.
+
+   > **Eine Messung, die vorher und nachher aus demselben fremden Grund
+   > fehlschlägt, sieht aus wie ein stabiler Zustand.**
+
+2. **`Subscription::first()` ist hier falsch.** Es nimmt das erste Abo der
+   Tabelle, und das muss nicht dieses sein. Gefragt wird nach dem Namen.
 
 ### Punkt 1 — das Update, und was es an bestehenden Abonnements ändert
 
@@ -164,10 +179,50 @@ Der Bestand ist der Prüfling, nicht ein frisch angelegtes Abo.
 **(a) Vor dem Update**, gegen `rc.1`:
 
 ```bash
-ABO=/var/www/vhosts/<abo>
-stat -c '%n  %U:%G  %a' "$ABO" "$ABO"/httpdocs "$ABO"/logs "$ABO"/tmp "$ABO"/conf "$ABO"/.ssh
-curl -sS -o /dev/null -w 'seite=%{http_code}\n' https://<domain>/
+ABO=/var/www/vhosts/p6-b.invalid
+stat -c '%n  %U:%G  %u:%g  %a' "$ABO" "$ABO"/httpdocs "$ABO"/logs "$ABO"/tmp "$ABO"/conf "$ABO"/.ssh "$ABO"/mail
+curl -sS -k -L -o /dev/null -w 'seite=%{http_code}\n' \
+  --resolve p6-b.invalid:80:127.0.0.1 --resolve p6-b.invalid:443:127.0.0.1 \
+  http://p6-b.invalid/
 ```
+
+**`%u:%g` steht neben `%U:%G`, weil eine Zahl allein niemandem gehört und ein
+Name allein nichts beweist.** Ein `uid=0`, dessen Name zufällig danebensteht,
+rutscht sonst durch (`docs/52`, Punkt 3).
+
+**Und der Statuscode braucht einen Nachbarn, der kein Fehler ist.** Beim ersten
+Fahren stand hier `seite=403` — `httpdocs` hatte keine Indexdatei. Ein
+Vorher-Wert, der schon ein Fehlercode ist, kann den Fehler nicht anzeigen, auf
+den dieser Punkt wartet: Brechen die Rechte durch 6c, antwortet nginx **auch**
+mit 403, und die beiden Zahlen sähen gleich aus (`docs/55`, Befund 1).
+
+> **Ein Vorher-Wert, der schon ein Fehler ist, kann den Fehler nicht anzeigen,
+> auf den man wartet.**
+
+**Der Grund war nicht, was ich vermutet hatte.** Die Indexdatei war da — sie
+trug `p1136:p1136 0640`, also die Gruppe des Abonnements und kein Weltbit, und
+nginx kam über die Gruppe `www-data` zwar in das Verzeichnis, aber nicht an die
+Datei. **Befund 3 aus `docs/53`, live an einer Kundenseite.**
+
+Behoben wird deshalb nicht mit `0644` — das bewiese nichts über die Gruppe —,
+sondern mit der Gruppe selbst, bei unveränderten `0640`:
+
+```bash
+chgrp www-data "$ABO"/httpdocs/index.html
+ls -l "$ABO"/httpdocs/index.html
+curl -sS -k -L -o /dev/null -w 'seite=%{http_code}\n' \
+  --resolve p6-b.invalid:80:127.0.0.1 --resolve p6-b.invalid:443:127.0.0.1 \
+  http://p6-b.invalid/
+```
+
+**Erwartet: 200.** Damit ist zweierlei erledigt: Die Ursache des 403 ist
+**gemessen** statt geraten, und Punkt 1 hat einen Vorher-Wert, der kein Fehler
+ist. Die Datei steht danach genau so da, wie 6c eine neue anlegen wird.
+
+| Datei | Rechte | Was sie misst |
+|---|---|---|
+| `index.html` | `0644` | Kommt nginx **durch das Verzeichnis**? |
+| `p6-probe.txt` | `0640` | Trägt die Datei die **Gruppe**, über die er hereinkommt? (Punkt 2) |
 
 **(b) Update fahren, dann sofort dieselbe Messung wiederholen — ohne
 `--sites`.**
@@ -177,21 +232,66 @@ Vermutung mehr, sondern ein gemessener Wert.
 
 **(c) Erst jetzt den Prüfling starten:**
 
+**Der Aufruf reiht ein, er führt nicht aus** — und das ist beim ersten Fahren
+übersehen worden (`docs/55`, Befund 3). Die Ausgabe sagt es in einem Wort:
+„1 Server-Blöcke der Kundendomains **eingereiht**." Der Server-Block der
+Oberfläche entsteht unmittelbar, die der Kundendomains gehen über die
+Warteschlange.
+
+> **Eine Messung, die unmittelbar nach dem Einreihen läuft, misst den Zustand
+> davor.**
+
+Gewartet wird deshalb auf den **Vorgang** und nicht auf eine Zahl Sekunden — eine
+feste Wartezeit ist auf dem nächsten, langsameren Server wieder zu kurz:
+
 ```bash
 srvpanel vhost --sites
-stat -c '%n  %U:%G  %a' "$ABO" "$ABO"/httpdocs "$ABO"/logs "$ABO"/tmp "$ABO"/conf "$ABO"/.ssh
-curl -sS -o /dev/null -w 'seite=%{http_code}\n' https://<domain>/
+
+# Warten, bis kein web.site.apply mehr offen ist.
+HOME=/tmp srvpanel tinker --execute='
+  app(App\Support\Tenancy\Tenancy::class)->allowAll();
+  for ($i = 0; $i < 120; $i++) {
+    $offen = App\Models\Operation::whereIn("status", ["queued", "running"])->count();
+    if ($offen === 0) { echo "Warteschlange leer nach ", $i, "s\n"; break; }
+    sleep(1);
+  }
+  foreach (App\Models\Operation::latest("id")->limit(5)->get() as $o) {
+    echo $o->id, "  ", $o->type, "  ", $o->status->value, "  ", $o->message, "\n";
+  }
+'
+
+stat -c '%n  %U:%G  %u:%g  %a' "$ABO" "$ABO"/httpdocs "$ABO"/logs "$ABO"/tmp "$ABO"/conf "$ABO"/.ssh "$ABO"/mail
+curl -sS -k -L -o /dev/null -w 'seite=%{http_code}\n' \
+  --resolve p6-b.invalid:80:127.0.0.1 --resolve p6-b.invalid:443:127.0.0.1 \
+  http://p6-b.invalid/
 ```
+
+**Die Vorgangsliste steht dabei nicht zur Zierde:** Sie belegt, dass der
+`web.site.apply` wirklich gelaufen *und* gelungen ist. Ein leeres
+Warteschlangenfenster heisst sonst auch dann „fertig", wenn der Vorgang
+fehlgeschlagen ist — und die unveränderte Tabelle sähe genauso aus wie ein
+Vorgang, der nie lief.
 
 **Erwartet:**
 
-| Verzeichnis | Eigentümer:Gruppe | Modus |
-|---|---|---|
-| `httpdocs` | `<benutzer>:www-data` | `2750` |
-| `logs` | `<benutzer>:adm` | `2750` |
-| `tmp` | `<benutzer>:<gruppe>` | `2700` |
-| `conf` | `root:root` | `755` |
-| `.ssh` | `<benutzer>:<gruppe>` | `2700` |
+| Verzeichnis | Eigentümer:Gruppe | Modus | wer setzt es |
+|---|---|---|---|
+| `httpdocs` | `p1136:www-data` | **`2750`** | `WebSiteApply` — läuft jetzt |
+| `logs/p6-b.invalid` | `p1136:adm` | **`2750`** | `WebSiteApply` — läuft jetzt |
+| `logs` | `p1136:adm` | `750` *(unverändert)* | `SubscriptionProvision` |
+| `tmp` | `p1136:p1136` | `700` *(unverändert)* | `SubscriptionProvision` |
+| `conf` | `root:root` | `755` *(unverändert)* | `SubscriptionProvision` |
+| `.ssh` | `p1136:p1136` | `700` *(unverändert)* | `SubscriptionProvision` |
+| `mail` | `p1136:p1136` | `700` *(unverändert)* | `SubscriptionProvision` |
+
+**Die rechte Spalte ist der Kern, und sie hat beim ersten Fahren gefehlt.**
+`WebSiteApply` fasst genau zwei Verzeichnisse an, und `Site::logDir()` ist
+`<abo>/logs/<domain>` — ein Unterverzeichnis je Domain, **nicht** `logs`. Alles
+andere steht in `SubscriptionProvision::TREE` und wird beim **Anlegen** gesetzt;
+für ein bestehendes Abonnement läuft es nie wieder.
+
+> **Zwei Listen, die dasselbe Schema beschreiben, werden von zwei verschiedenen
+> Vorgängen angewandt — und nur eine davon läuft nachträglich.**
 
 **Und die Seite liefert weiter aus** — derselbe Statuscode wie in (a).
 
@@ -200,14 +300,29 @@ curl -sS -o /dev/null -w 'seite=%{http_code}\n' https://<domain>/
 > kaputtging. Eine Null ist erst dann eine Messung, wenn daneben etwas anderes
 > als Null steht.
 
-**Die Gegenprobe zu `.ssh`**, weil dort ein falsches Bit den Kunden aussperrt:
+**Und `.ssh` bleibt hier eine Zahl und keine Probe** — das ist eine bewusste
+Einschränkung und kein Vergessen.
 
-```bash
-ssh -o BatchMode=yes <benutzer>@<server> true; echo "rc=$?"
-```
+Der erste Entwurf dieses Punktes hatte hier ein `ssh -o BatchMode=yes
+p1136@localhost`. **Das misst nichts:** SFTP ist Schritt 8 und nicht gebaut, es
+gibt weder einen `Match`-Block noch einen hinterlegten Schlüssel. Der Aufruf
+scheiterte mit „Permission denied (publickey)" — vor und nach dem Update
+gleich, aus einem Grund, der mit dem Modus nichts zu tun hat. Genau die Falle,
+vor der §5 zwei Absätze weiter oben warnt, im selben Dokument noch einmal
+gestellt.
 
-Ein `2700` darf OpenSSH nicht stören — `safe_path()` prüft `st_mode & 022`, und
-`02000` fällt nicht darunter. Das ist nachgelesen; hier wird es gefahren.
+> **Eine Gegenprobe, die aus einem fremden Grund fehlschlägt, belegt nichts —
+> und sieht aus wie ein Befund.**
+
+Gemessen wird deshalb nur der Wert (`2700`, `p1136:p1136`). Ob OpenSSH ihn
+annimmt, ist eine Messung von Schritt 8; `safe_path()` prüft `st_mode & 022`,
+und `02000` fällt nicht darunter — das ist nachgelesen und bleibt es bis dahin.
+
+**Was sich dagegen jetzt schon ablesen lässt, und für Schritt 8 zählt:** die
+**Abo-Wurzel** aus derselben `stat`-Zeile. OpenSSH verlangt für
+`ChrootDirectory`, dass sie `root` gehört und für Gruppe und Andere nicht
+schreibbar ist. Steht dort etwas anderes als `root:root` und ein Modus ohne
+`022`, fällt Schritt 8 darüber — und zwar dann und nicht heute.
 
 ### Punkt 2 — setgid von Ende zu Ende
 
@@ -215,12 +330,14 @@ Ein `2700` darf OpenSSH nicht stören — `safe_path()` prüft `st_mode & 022`, 
 Kunde setzt `0640` — dieselbe Angabe, die die Willkommensseite daneben trägt —
 und bekommt einen 403.
 
-Im Panel, als Kunde des Abonnements: eine Datei nach `httpdocs` **hochladen**
+Im Panel, als Kunde des Abonnements: eine Datei namens `p6-probe.txt` nach `httpdocs` **hochladen**
 (nicht per `scp`, der Weg ist der Prüfling). Dann:
 
 ```bash
-stat -c '%n  %U:%G  %a' "$ABO"/httpdocs/<datei>
-curl -sS -o /dev/null -w 'vor-chmod=%{http_code}\n' https://<domain>/<datei>
+stat -c '%n  %U:%G  %u:%g  %a' "$ABO"/httpdocs/p6-probe.txt
+curl -sS -k -L -o /dev/null -w 'vor-chmod=%{http_code}\n' \
+  --resolve p6-b.invalid:80:127.0.0.1 --resolve p6-b.invalid:443:127.0.0.1 \
+  http://p6-b.invalid/p6-probe.txt
 ```
 
 **Erwartet:** Gruppe `www-data`.
@@ -228,8 +345,10 @@ curl -sS -o /dev/null -w 'vor-chmod=%{http_code}\n' https://<domain>/<datei>
 Dann im Panel über den Rechte-Editor auf **`0640`** stellen und noch einmal:
 
 ```bash
-stat -c '%n  %U:%G  %a' "$ABO"/httpdocs/<datei>
-curl -sS -o /dev/null -w 'nach-chmod=%{http_code}\n' https://<domain>/<datei>
+stat -c '%n  %U:%G  %u:%g  %a' "$ABO"/httpdocs/p6-probe.txt
+curl -sS -k -L -o /dev/null -w 'nach-chmod=%{http_code}\n' \
+  --resolve p6-b.invalid:80:127.0.0.1 --resolve p6-b.invalid:443:127.0.0.1 \
+  http://p6-b.invalid/p6-probe.txt
 ```
 
 **Erwartet: 200.** Vor 6c wäre hier 403 gekommen.
@@ -243,7 +362,7 @@ Satz. Das ist §1.1 Punkt drei, gemessen statt behauptet.
 Fällt der Server sonst nirgends darunter, lässt es sich herstellen:
 
 ```bash
-chgrp <gruppe> "$ABO"/httpdocs && chmod 2750 "$ABO"/httpdocs
+chgrp p1136 "$ABO"/httpdocs && chmod 2750 "$ABO"/httpdocs
 ```
 
 ### Punkt 3 — der Schema-Schutz an echten Verzeichnissen
@@ -251,7 +370,7 @@ chgrp <gruppe> "$ABO"/httpdocs && chmod 2750 "$ABO"/httpdocs
 ```bash
 HOME=/tmp srvpanel tinker --execute='
   app(App\Support\Tenancy\Tenancy::class)->allowAll();
-  $abo = App\Models\Subscription::first();
+  $abo = App\Models\Subscription::where("name", "p6-b.invalid")->firstOrFail();
   $f = app(App\Support\Files\Files::class);
   foreach (["/httpdocs", "/logs", "/conf", "/.ssh", "/tmp", "/mail"] as $p) {
     try { $f->remove($abo, $p, true); echo $p, ": DURCHGELASSEN\n"; }
@@ -285,7 +404,7 @@ frei:
 ```bash
 HOME=/tmp srvpanel tinker --execute='
   app(App\Support\Tenancy\Tenancy::class)->allowAll();
-  $abo = App\Models\Subscription::first();
+  $abo = App\Models\Subscription::where("name", "p6-b.invalid")->firstOrFail();
   $f = app(App\Support\Files\Files::class);
   print_r($f->makeDirectory($abo, "/httpdocs/p6-inhalt"));
   print_r($f->write($abo, "/httpdocs/p6-inhalt/x.txt", "x\n"));
@@ -301,15 +420,41 @@ leerzuräumen ist genau das, was jemand vor einem neuen Deploy tut.
 
 **Im Browser**, denn die Rückmeldung ist der Prüfling.
 
-In `/` des Abonnements: `conf` **und** zwei gewöhnliche Einträge anhaken, dann
-„Entfernen".
+**Der erste Entwurf dieses Punktes war nicht fahrbar**, und zwar gefährlich
+nicht: Er sagte „in `/` des Abonnements `conf` und zwei gewöhnliche Einträge
+anhaken". In der Abo-Wurzel gibt es **keine** gewöhnlichen Einträge — dort
+liegen ausschliesslich die sechs Verzeichnisse des Schemas. Die Auswahl hätte
+also auf `httpdocs` gezeigt, und die Zahl im ersten Satz wäre 0 gewesen statt 2.
+Der Punkt hätte nicht das gemessen, wofür er dasteht.
+
+> **Ein Schritt, der eine Teilmenge braucht, muss vorher wissen, dass es sie
+> gibt.**
+
+Gebraucht wird ein Eintrag, der **innerhalb** von `httpdocs` scheitert. Ein
+root-eigenes Unterverzeichnis mit Inhalt tut das zuverlässig: Der Kunde darf
+`p6-fremd` selbst entfernen (`httpdocs` gehört ihm), aber nicht die Datei darin.
+
+```bash
+mkdir -p "$ABO"/httpdocs/p6-fremd && echo x > "$ABO"/httpdocs/p6-fremd/x.txt
+chown -R root:root "$ABO"/httpdocs/p6-fremd && chmod 755 "$ABO"/httpdocs/p6-fremd
+touch "$ABO"/httpdocs/p6-eins.txt "$ABO"/httpdocs/p6-zwei.txt
+chown p1136:p1136 "$ABO"/httpdocs/p6-eins.txt "$ABO"/httpdocs/p6-zwei.txt
+```
+
+Dann im Dateimanager in `httpdocs`: `p6-fremd`, `p6-eins.txt` und `p6-zwei.txt`
+anhaken, „Entfernen".
 
 **Erwartet:** die Rückfrage nennt die Zahl der Verzeichnisse; danach eine
 Meldung, deren **erster Satz** die Zahl trägt — „Von 3 Einträgen sind 2
-entfernt." — und darunter je Fehlschlag eine Zeile mit dem Grund.
+entfernt." — und darunter **eine** Zeile mit Pfad und Grund.
 
-**Die Gegenprobe:** dieselbe Auswahl ohne `conf`. Dann steht dort eine
+**Die erste Gegenprobe:** zwei gewöhnliche Dateien allein. Dann steht dort eine
 Erfolgsmeldung mit der Zahl und **keine** Fehlerliste.
+
+**Die zweite, und sie prüft 5f durch die Oberfläche:** in der Abo-Wurzel **alle
+sechs** Verzeichnisse anhaken und „Entfernen". Erwartet: „Von 6 Einträgen sind 0
+entfernt.", sechs Zeilen mit demselben Satz — und danach steht der Baum
+unversehrt da (`ls "$ABO"`).
 
 > **Eine fehlgeschlagene Anfrage darf die Beschriftung nicht so lassen, als wäre
 > sie durchgelaufen.** (`docs/48 §3.5`)
@@ -416,6 +561,32 @@ es jedes Mal etwa die Hälfte bis zwei Drittel.
 Ein Fehler dieser Bauart steckt schon in diesem Dokument und ist vor dem ersten
 Lauf gefunden worden: §1.1. Er hätte Punkt 1 zu einer Messung ohne Prüfling
 gemacht.
+
+---
+
+## 6.1 Aufräumen
+
+**Das Abonnement ist ein Prüfling und kein Wegwerfartikel.** Was der Lauf
+angelegt hat, geht danach wieder fort — von Hand, weil `p6-fremd` root gehört
+und der Dateimanager es zu Recht nicht anfasst:
+
+```bash
+ABO=/var/www/vhosts/p6-b.invalid
+rm -rf "$ABO"/httpdocs/p6-fremd
+rm -f  "$ABO"/httpdocs/p6-probe.txt "$ABO"/httpdocs/p6-eins.txt \
+       "$ABO"/httpdocs/p6-zwei.txt "$ABO"/httpdocs/auswahl.zip
+# index.html bleibt: sie ist der Nachbar, an dem sich jede weitere Messung misst.
+rm -rf "$ABO"/tmp/p6-*
+ls -la "$ABO"/httpdocs/ "$ABO"/tmp/
+```
+
+**Die letzte Zeile ist die Gegenprobe und nicht Zierde.** Ein `rm`, dessen
+Muster nicht passt, schweigt — und `docs/52` hat genau dafür den Satz: Ein
+Rückbau, den niemand nachzählt, meldet Erfolg auch dann, wenn nichts geschehen
+ist.
+
+Und falls Punkt 2 die Gruppe von `httpdocs` von Hand zurückgedreht hat, stellt
+`srvpanel vhost --sites` sie wieder her.
 
 ---
 

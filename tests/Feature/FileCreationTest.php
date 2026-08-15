@@ -98,6 +98,105 @@ final class FileCreationTest extends TestCase
     }
 
     /**
+     * Eine **leere** Datei darf entstehen.
+     *
+     * ## Der Griff war gebaut und hat nie funktioniert
+     *
+     * Gefunden im Browser auf `cloudsrv24`, beim allerersten Anlegen einer
+     * Datei auf einem echten Server (`docs/55`, Befund 6). Das Formular fragt
+     * nach einem Namen, schickt `content: ''` — und der Kunde liest:
+     *
+     *     Das Formular wurde nicht gespeichert.
+     *     The content field must be a string.
+     *
+     * **Laravels globaler Stapel enthält `ConvertEmptyStringsToNull`.** Aus
+     * `''` wird `null`, **bevor** die Prüfung läuft. `present` ist damit
+     * erfüllt — der Schlüssel ist ja da —, `string` nicht.
+     *
+     * > **Eine Regel, die den leeren Wert verbietet, verbietet genau den Fall,
+     * > für den der Griff gebaut ist.**
+     *
+     * Es traf beide Wege: das Anlegen aus der Liste **und** das Speichern einer
+     * Datei, deren Inhalt jemand im Editor gelöscht hat.
+     *
+     * ## Warum kein Test das gefunden hat
+     *
+     * Die drei Wächter daneben lesen den Quelltext und prüfen die **Form** —
+     * dass der Knopf da ist, dass der Controller die Antwort des Agenten liest,
+     * dass jede Datei ihren Namen behält. Keiner davon schickt eine Anfrage,
+     * und ohne Anfrage läuft keine Middleware.
+     *
+     * > **Ein Wächter, der Quelltext liest, sieht nichts, was erst zwischen
+     * > Browser und Controller passiert.**
+     *
+     * Dieser hier liest deshalb die **Regel** und nicht das Verhalten: Er kann
+     * nicht belegen, dass es geht — aber er schlägt zu, wenn `nullable`
+     * wegfällt, und genau das war der Fehler.
+     */
+    public function test_an_empty_file_may_be_created(): void
+    {
+        $quelle = $this->controller();
+
+        $rumpf = $this->body($quelle, 'write');
+
+        $this->assertNotSame('', $rumpf, 'Den Griff `write` gibt es nicht mehr.');
+
+        $this->assertMatchesRegularExpression(
+            "/'content' => \\['present', 'nullable', 'string'\\]/",
+            $rumpf,
+            "`content` verbietet wieder den leeren Wert.\n\n".
+            "Laravels `ConvertEmptyStringsToNull` macht aus `''` ein `null`, bevor die Prüfung \n".
+            "läuft. Ohne `nullable` weist `string` es ab, und „Datei anlegen\" scheitert an \n".
+            'genau dem Fall, für den es gebaut ist.',
+        );
+
+        $this->assertStringContainsString(
+            "\$data['content'] ?? ''",
+            $rumpf,
+            'Der `null`-Fall kommt ungefiltert am Agenten an — dort ist er ein Typfehler und '.
+            'keine leere Datei.',
+        );
+    }
+
+    /**
+     * Der Rumpf einer Methode, über Klammernzählung.
+     *
+     * Dieselbe Begründung wie in {@see BulkActionTest}: Ein Ausdruck bis zur
+     * nächsten Signatur nimmt die Dokumentationsblöcke dazwischen mit und meldet
+     * dann eine Regel als erfüllt, weil sie in der Methode **daneben** steht.
+     */
+    private function body(string $source, string $method): string
+    {
+        $start = strpos($source, 'function '.$method.'(');
+
+        if ($start === false) {
+            return '';
+        }
+
+        $auf = strpos($source, '{', $start);
+
+        if ($auf === false) {
+            return '';
+        }
+
+        $tiefe = 0;
+
+        for ($i = $auf; $i < strlen($source); $i++) {
+            if ($source[$i] === '{') {
+                $tiefe++;
+            } elseif ($source[$i] === '}') {
+                $tiefe--;
+
+                if ($tiefe === 0) {
+                    return substr($source, $auf, $i - $auf + 1);
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
      * Mehrere Dateien dürfen kommen — und jede bekommt ihren eigenen Namen.
      *
      * **Der Fehler, der beinahe passiert wäre:** Die Seite schickte bis dahin

@@ -123,6 +123,44 @@ final class LinkReachTest extends TestCase
     }
 
     /**
+     * Quelltext ohne Kommentare.
+     *
+     * ## Der zweite Fall derselben Art, und der erste stand schon im Repo
+     *
+     * Dieser Wächter las die **ganze** Datei — mit Absicht, denn eine Adresse
+     * steht genauso oft in einem `router.get(…)` wie in einem `:href`. Nur:
+     * Sie steht auch in einem **Kommentar**, der erklärt, warum sie so heisst.
+     *
+     * Am 15. August 2026 hat der Fix für Befund 8 (`docs/55`) dem Menü einen
+     * Punkt „Dateien" gegeben, und die Begründung dazu nennt beide Adressen
+     * wörtlich: „Die Adresse ist `/files` und nicht `/subscriptions/…/files`".
+     * Der Bruchlauf entfernte danach **beide** Wege zum Dateimanager — und der
+     * Wächter blieb grün, weil er den Erklärtext für einen Link hielt.
+     *
+     * > **Ein Wächter, der Quelltext nach Adressen durchsucht, findet sie auch
+     * > dort, wo jemand über sie schreibt.**
+     *
+     * `PanelRequestTest` hat genau das schon einmal gehabt — sein erster Wurf
+     * fand die gesuchte Kopfzeile im eigenen Klassenkopf — und dort steht die
+     * Lösung seit P6 Schritt 5g. Sie war da; sie stand nur an einer Stelle, an
+     * die beim Bauen dieses Wächters niemand gesehen hat.
+     *
+     * > **Eine Lösung, die im Repo steht, ist nicht dieselbe wie eine, die
+     * > angewandt wird.**
+     *
+     * `://` bleibt verschont: `https://claude.ai` ist kein Kommentar, und ein
+     * Ausdruck, der jedes `//` frisst, macht daraus einen.
+     */
+    private function withoutComments(string $quelle): string
+    {
+        return (string) preg_replace(
+            ['#<!--.*?-->#su', '#/\*.*?\*/#su', '#(^|\s)//(?![^\n]*://)[^\n]*#m'],
+            ' ',
+            $quelle,
+        );
+    }
+
+    /**
      * Jede Vue-Datei mit ihrem Quelltext, abgelegt unter ihrem Seitennamen.
      *
      * Der Schlüssel ist der Name, unter dem Inertia die Seite rendert
@@ -134,6 +172,9 @@ final class LinkReachTest extends TestCase
      * **Die ganze Datei und nicht nur der `<template>`-Block.** Eine Adresse
      * steht hier genauso oft in einem `router.get(...)` im Skriptteil wie in
      * einem `:href` — beides ist ein Weg zu dieser Seite.
+     *
+     * **Aber ohne Kommentare** ({@see self::withoutComments()}): Ein Erklärtext
+     * nennt Adressen und führt nirgendwohin.
      *
      * @return array<string, string>
      */
@@ -155,7 +196,7 @@ final class LinkReachTest extends TestCase
                 ? substr($relativ, strlen('Pages/'), -strlen('.vue'))
                 : $relativ;
 
-            $dateien[$schluessel] = (string) file_get_contents($file->getPathname());
+            $dateien[$schluessel] = $this->withoutComments((string) file_get_contents($file->getPathname()));
         }
 
         return $dateien;

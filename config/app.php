@@ -95,8 +95,40 @@ return [
     |
     */
 
-    'locale' => env('APP_LOCALE', 'en'),
+    /*
+     * **`de` als Voreinstellung, und das ist eine Korrektur.**
+     *
+     * Hier stand `'en'`. `.env.example` setzt zwar `APP_LOCALE=de`, aber die
+     * Datei, die auf dem Server gilt, ist `/etc/srvpanel/panel.env` — und die
+     * schreibt `PanelProvision`, ohne `APP_LOCALE` zu setzen. Auf jedem
+     * installierten Panel griff damit diese Zeile, und das Gebietsschema stand
+     * seit P0 auf Englisch.
+     *
+     * Gemerkt hat es niemand, weil jede Meldung dieses Panels von Hand
+     * geschrieben ist. Erst als ein Formular an einer **Prüfregel** scheiterte
+     * statt an einer Absage des Agenten, kam ein Satz von Laravel durch —
+     * „The content field must be a string." (`docs/55`, Befund 7).
+     *
+     * > **Eine Beispieldatei und die Datei, die gilt, sind zwei Quellen — und
+     * > die zweite ist die, nach der niemand sieht.**
+     *
+     * Die Voreinstellung steht deshalb hier und nicht als weitere Zeile in
+     * `panel.env`: Dieses Panel ist deutsch (`docs/19 §4a`), und eine Angabe,
+     * die in jeder Installation dieselbe ist, gehört nicht in eine Datei, die
+     * je Installation entsteht.
+     */
+    'locale' => env('APP_LOCALE', 'de'),
 
+    /*
+     * **Der Rückfall bleibt Englisch, und zwar mit Absicht.** Fehlt ein
+     * Schlüssel in `lang/de`, kommt Laravels eingebauter Satz — englisch, aber
+     * lesbar. Stünde hier `de`, käme der rohe Schlüssel („validation.mimes"),
+     * und das ist die schlechtere von zwei schlechten Auskünften.
+     *
+     * Welche Regeln eine deutsche Fassung haben **müssen**, hält
+     * {@see \Tests\Feature\ValidationLanguageTest} fest — der Rückfall ist die
+     * Notbremse und nicht der Plan.
+     */
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
 
     'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),

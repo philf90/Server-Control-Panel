@@ -13446,3 +13446,105 @@ gegen „seit 3 Tagen". Eine Mengenangabe kann das nicht leisten und soll es nic
 
 Zwei Brüche dazu, beide zubeissend: eine Seite, die das Wort wieder selbst
 entscheidet, und eine, die einbindet, ohne aufzurufen.
+
+### P6 — der Prüflauf auf `cloudsrv24` findet drei Fehler, die seit P0 bzw. 5e da sind
+
+Neun Schritte waren gebaut, seit die Sandbox auf einem echten Server gemessen
+wurde (`docs/53`), und von der Panel-Seite davon hatte nichts je einen echten
+Agenten gesehen. `docs/54` ist der Lauf dazu, `docs/55` sein Protokoll.
+
+**Punkt 1 hat gehalten:** `httpdocs` bekommt das setgid-Bit auch bei einem
+bestehenden Abonnement, und die Seite liefert weiter aus. Die drei Befunde
+darunter hat kein Wächter gefunden, sondern der Browser.
+
+#### Eine leere Datei liess sich nicht anlegen
+
+Der Griff war seit Schritt 5e gebaut und hat **nie** funktioniert. Laravels
+globaler Stapel enthält `ConvertEmptyStringsToNull`; das Formular schickt
+`content: ''`, daraus wird `null`, **bevor** die Prüfung läuft. `present` ist
+damit erfüllt — der Schlüssel ist ja da —, `string` nicht.
+
+> **Eine Regel, die den leeren Wert verbietet, verbietet genau den Fall, für den
+> der Griff gebaut ist.**
+
+Es traf beide Wege: das Anlegen aus der Liste und das Speichern einer Datei,
+deren Inhalt jemand im Editor gelöscht hat.
+
+**Drei Wächter zu genau diesem Griff waren grün.** Sie lesen Quelltext — dass
+der Knopf da ist, dass der Controller die Antwort des Agenten liest, dass jede
+hochgeladene Datei ihren Namen behält. Keiner schickt eine Anfrage, und ohne
+Anfrage läuft keine Middleware.
+
+> **Ein Wächter, der Quelltext liest, sieht nichts, was erst zwischen Browser
+> und Controller passiert.**
+
+#### Das Panel lief seit P0 auf englischem Gebietsschema
+
+Unter der deutschen Zeile „Das Formular wurde nicht gespeichert." stand *The
+content field must be a string.* Es gab kein `lang/`-Verzeichnis — und die
+zweite Hälfte wog schwerer: `config/app.php` stand auf `env('APP_LOCALE',
+'en')`. Eine Übersetzung hätte dagelegen und wäre nie gelesen worden.
+
+`.env.example` setzt zwar `APP_LOCALE=de`. Die Datei, die auf dem Server gilt,
+ist aber `/etc/srvpanel/panel.env`, und die schreibt `PanelProvision` — ohne
+`APP_LOCALE`.
+
+> **Eine Beispieldatei und die Datei, die gilt, sind zwei Quellen — und die
+> zweite ist die, nach der niemand sieht.**
+
+Aufgefallen ist es nie, weil jede Meldung, die ein Kunde je sah, aus diesem
+Projekt stammte und von Hand geschrieben war. Eine Regel wie `string` oder `max`
+formuliert Laravel selbst, und die griff erst, als ein Formular an einer
+**Prüfregel** scheiterte statt an einer Absage des Agenten.
+
+`ValidationLanguageTest` zählt die benutzten Regeln aus `app/` **ab**, statt sie
+aufzulisten: Eine Liste im Test wäre beim nächsten `mimes:` unvollständig, und
+zwar lautlos, weil eine fehlende Übersetzung nicht scheitert, sondern auf
+Englisch zurückfällt.
+
+> **Ein Rückfall, der lesbar ist, meldet sich nie.**
+
+Er hat beim ersten Lauf prompt eine Regel gemeldet, die von Hand vergessen war
+(`alpha`, in der Kundenadresse). **Benannt offen:** `attributes` ist leer — „Das
+Feld content muss eine Zeichenkette sein." ist besser als der englische Satz und
+noch nicht richtig. 106 Feldnamen, eigene Runde; halb übersetzt wäre schlechter
+als klar unübersetzt.
+
+#### Der Dateimanager stand in keinem Menü
+
+Die Fortsetzung von Befund 6 aus `docs/53`: Damals bekam er **einen** Weg; dass
+dieser Weg über `Abonnements → Name → Dateien` drei Klicks tief liegt, war damit
+nicht beantwortet — dieselbe Begründung, mit der Domains und Datenbanken seit P3
+und P5 im Menü stehen.
+
+Er konnte aber nicht aussehen wie die beiden: Die sind mandantengeklammerte
+Listen unter fester Adresse, der Dateimanager hängt an *einem* Abonnement, weil
+jedes sein eigenes Chroot hat. `GET /files` beantwortet die Frage „welches" —
+bei genau einem erreichbaren Abonnement hinein, bei mehreren auf eine schmale
+Auswahl.
+
+> **Eine Frage, die nur eine mögliche Antwort hat, ist keine Frage.**
+
+Ohne `can:`, mit Begründung im `RouteGuard`: Die Route hat kein Objekt, an dem
+eine Fähigkeit ansetzen könnte; gefiltert wird je Abonnement über **dieselbe**
+Policy, die die Zielseite anwendet.
+
+#### Und vier Befunde über den Lauf selbst
+
+Dasselbe Verhältnis wie in `docs/45`, `47`, `48` und `53` — die Mehrheit der
+Fehler steckt im Prüfmittel:
+
+- **Der Vorher-Wert war schon ein Fehlercode.** `seite=403`, und brechen die
+  Rechte, antwortet nginx auch mit 403. Behoben durch die Gegenprobe selbst:
+  `chgrp www-data` bei unveränderten `0640` machte daraus 200 — damit ist die
+  Ursache gemessen und nicht gedeutet.
+- **Die Messung lief der Warteschlange davon.** `srvpanel vhost --sites` reiht
+  die Kundendomains ein und führt sie nicht aus; das `stat` unmittelbar danach
+  las den Zustand davor.
+- **Die Erwartungstabelle war falsch, nicht der Server.** `WebSiteApply` fasst
+  genau zwei Verzeichnisse an, und `Site::logDir()` ist `logs/<domain>` und nicht
+  `logs`. Alles andere steht in `SubscriptionProvision::TREE` und läuft für ein
+  bestehendes Abonnement nie wieder.
+- **Zwei Zahlen mit dem falschen Wort** in einer einzigen CLI-Ausgabe („1
+  Server-Blöcke", „1 … haben") — derselbe Fehler wie „geschätzt 1 Zeilen", an
+  einer Stelle, an die `CountedNounTest` nicht sieht: Er liest `resources/js`.

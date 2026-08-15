@@ -8709,16 +8709,37 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ArchiveEntryTest passed
 
 echo
-echo "── LinkReachTest: der Weg zu einer Seite faellt weg ──"
+echo "── LinkReachTest: **beide** Wege zu einer Seite fallen weg ──"
 #
 # Der Anlass ist Befund 6 aus `docs/53`: Der Dateimanager war vollstaendig
 # gebaut, und kein Template zeigte darauf. Erreichbar war er nur ueber die
 # Adresszeile.
+#
+# **Dieser Eingriff hat am 15. August seinen Biss verloren, und schuld war der
+# Fix von Befund 8 desselben Tages.** Er nahm dem Abonnement-Bildschirm den
+# Verweis weg — und seit der Dateimanager ausserdem im Menue steht (`/files`),
+# findet die Suche ihn weiter. Der Waechter war gruen, und zwar zu Recht: Die
+# Seite *war* erreichbar.
+#
+# > **Ein Bruch, der einen von zwei Wegen entfernt, prueft nicht die
+# > Erreichbarkeit — er prueft, dass es den zweiten Weg gibt.**
+#
+# Und die Lehre darueber: **Die Behebung eines Befundes kann den Waechter eines
+# aelteren entwaffnen.** LinkReachTest ist in Schritt 5b genau fuer Befund 6
+# gebaut worden; der Fix fuer Befund 8 hat seinen Bruch stumm gemacht, ohne eine
+# Zeile an ihm zu aendern.
 vorher_datei resources/js/Pages/Subscriptions/Show.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Subscriptions/Show.vue'
 s = open(p, encoding='utf-8').read()
 s = s.replace('/files`"', '/dateien`"', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("{ name: 'Dateien', href: '/files', icon: 'files' },",
+              "{ name: 'Dateien', href: '/dateien', icon: 'files' },", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/js/Pages/Subscriptions/Show.vue "Weg zum Dateimanager entfernt" &&

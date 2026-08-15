@@ -178,13 +178,18 @@ final class Files
     }
 
     /**
-     * Einen Baum zu einem Zip packen.
+     * Eine Auswahl zu einem Zip packen.
      *
+     * **`$paths` und nicht `$path`** — auch für einen einzelnen Eintrag. Ein
+     * zweiter Weg für den Sonderfall „genau einer" wäre die Fassung, die beim
+     * nächsten Umbau stehenbleibt; hier ist der Sonderfall eine Liste aus einem.
+     *
+     * @param  list<string>  $paths
      * @return array<string, mixed>
      */
-    public function compress(Subscription $subscription, string $path, string $target): array
+    public function compress(Subscription $subscription, array $paths, string $target): array
     {
-        return $this->call($subscription, 'files.compress', ['path' => $path, 'target' => $target]);
+        return $this->call($subscription, 'files.compress', ['paths' => $paths, 'target' => $target]);
     }
 
     /**

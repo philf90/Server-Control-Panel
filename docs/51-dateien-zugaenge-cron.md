@@ -522,6 +522,89 @@ auf „Gruppe: Lesen".
 Fassung im Panel und eine im Kopf des Lesers wäre schon eine zu viel; zwei im
 Code wären die Wiederholung des Fehlers, den dieses Projekt am häufigsten macht.
 
+### 8.5 Die Mehrfachauswahl
+
+**Gebaut als Schritt 5h**, aus der Frage des Betreibers vom 14. August 2026 und
+seinen drei Entscheidungen dazu: *Entfernen*, *Kopieren und Verschieben*, *Als
+Zip packen* — und als Zielwähler **der Baum** und kein Textfeld.
+
+Die Auswahl selbst ist ein Haken je Zeile und einer im Spaltenkopf. Was daran
+Arbeit macht, ist nichts davon.
+
+**1. Der Fall, der bis hierher einer von tausend war, ist jetzt der Normalfall.**
+Eintrag 7 von 20 scheitert, und die anderen neunzehn sind schon getan. Eine
+Erfolgsmeldung darüber ist derselbe Befund wie `docs/48 §3.5`:
+
+> **Eine fehlgeschlagene Anfrage darf die Beschriftung nicht so lassen, als wäre
+> sie durchgelaufen.**
+
+Gearbeitet wird deshalb **je Eintrag** (`FileController::each()`), gemeldet wird
+**je Eintrag**, und die Zahl der gelungenen steht im **ersten** Satz
+(`report()`). Ein Abbruch beim ersten Fehler wäre die kürzere Fassung und die
+schlechtere: Der Kunde wüsste dann nicht, ob die restlichen an derselben Sache
+scheitern oder nie versucht wurden. Ein Rückbau des schon Getanen wäre die
+dritte und die gefährlichste — er löschte Einträge, die genauso gut vorher dort
+gelegen haben könnten.
+
+**Packen ist die Ausnahme und hat deshalb keine Schleife.** Es tut **einmal**
+etwas über alle; ein Archiv mit der halben Auswahl und einer Erfolgsmeldung wäre
+schlimmer als keines.
+
+**2. Ein Ziel für viele Quellen ist ein Verzeichnis und kein Pfad.** Derselbe
+Fehler ist beim Mehrfach-Upload schon einmal gemacht worden (§8.3): Bei *einer*
+Datei ist ein vollständiger Zielpfad richtig, bei zwanzig ist es **ein** Pfad für
+alle — neunzehnmal überschrieben, und der Vorgang meldet Erfolg. Der Name am Ziel
+kommt deshalb aus der Quelle (`into()`).
+
+**Daraus folgt, dass Umbenennen ein eigener Griff wird.** Es nennt einen
+**Namen**, Verschieben ein **Verzeichnis** — und solange beide dasselbe Feld
+`to` benutzten, musste der Aufrufer wissen, welche der beiden Bedeutungen gerade
+gilt. Die Seite hat den Zielpfad dafür selbst zusammengesetzt, und genau das ist
+der Fehler aus §8.3.
+
+> **Ein Feld mit zwei Bedeutungen hat keine.**
+
+**3. Die Auswahl fällt weg, sobald das Verzeichnis wechselt.** Eine, die eine
+Navigation überlebt, ist eine Liste von Pfaden aus einem anderen Ordner — und die
+Leiste darüber sagt „3 Einträge ausgewählt", während die Tabelle darunter keinen
+einzigen Haken zeigt.
+
+**4. Die Rückfrage nennt, was der Betrachter nicht sieht:** wie viele der
+Ausgewählten Verzeichnisse sind (deren Inhalt mitgeht), und ob eines davon eine
+Domain ausliefert. Das Gerüst des Abonnements schützt der Agent (§8.4); der
+DocumentRoot einer weiteren Domain steht in keiner festen Liste, und dort
+**warnt** das Panel.
+
+**5. Zwei gleich heissende Quellen kommen nicht in ein Archiv.** `/a/notizen` und
+`/b/notizen` ergäben beide `notizen/…`; ein Zip nimmt das an, und beim Entpacken
+bleibt eines der beiden übrig.
+
+**Und ein Fund über die Messung selbst.** Der erste Wurf des Wächters dazu
+behauptete, eine zu spät geprüfte Namensgleichheit hinterlasse „eine halbe
+Datei", und prüfte das mit `assertFileDoesNotExist`. **Gemessen am 15. August:
+`ZipArchive::open()` mit `CREATE|EXCL` legt nichts an, und ein Archiv ohne
+Eintrag schreibt libzip auch beim `close()` nicht.** Die Prüfung war grün, egal
+wo die Namensprüfung stand.
+
+> **Eine Messung, die nie etwas anderes als Null liefern kann, ist keine.**
+
+Was wirklich an der Reihenfolge hängt, ist die **Begründung**: Liegt am Ziel
+schon eine Datei, scheitert `open()` mit „liess sich nicht anlegen" — der Kunde
+räumt das Ziel weg und läuft in denselben Fehler, weil seine Auswahl immer noch
+zwei gleich heissende Einträge enthält.
+
+> **Von zwei Gründen gehört der genannt, den der nächste Versuch nicht von selbst
+> behebt.**
+
+**Und der zweite Fund kam aus dem Bild und nicht aus der Zahl.** Die
+Auswahlleiste trägt sechs Knöpfe, und `.button-row` stapelt unter 480px auf volle
+Breite. Gemessen: **Leiste 390px hoch bei 390px Bildschirmbreite** — genau ein
+Telefonbildschirm, bevor die erste Zeile der Liste anfängt —, bei einem
+Dokumentüberlauf von **0px**. Umgebrochen statt gestapelt sind es 228px.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
 ---
 
 ## 9. SFTP
@@ -653,7 +736,7 @@ Dazu wachsen mit: `AgentOperationReachTest`, `RouteAuthorizationTest`,
 | **5e** | Eine Datei anlegen, und mehrere hochladen | **gebaut** — §8.3 |
 | **5f** | Das Gerüst des Abonnements schützen | **gebaut** — `Files\Scheme`, §8.4 |
 | **5g** | Der Baum aus §8, als Fläche und als Zielwähler | **gebaut** — `files.tree`, `FileTree` |
-| **5h** | Mehrfachauswahl: entfernen, kopieren, verschieben, packen | offen |
+| **5h** | Mehrfachauswahl: entfernen, kopieren, verschieben, packen | **gebaut** — `BulkActionTest`, §8.5 |
 | **6d** | Der Editor: Breite und Hervorhebung | **gebaut** — §8.1 |
 | 6 | Editor (CodeMirror 6) | Entscheidung 1, mit ihren drei Auflagen |
 | 7 | Entpacken, Packen, Suche | über die Warteschlange |

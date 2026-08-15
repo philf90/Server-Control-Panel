@@ -13319,3 +13319,89 @@ Gemessen im gebauten Stylesheet bei 390, 800 und 1440 px in beiden Themes:
 Überlauf 0, Gegenprobe 400 px. Ein Verzeichnisname von 53 Zeichen bricht, statt
 zu schieben — die fünfte Fassung derselben Ausnahme nach `.ident`,
 `.stacks td .ident`, dem Bereichstitel und `.field > span`.
+
+### P6 Schritt 5h — die Mehrfachauswahl, und zweimal derselbe alte Fehler
+
+Der Betreiber hat am 14. August gefragt, ob sich mehrere Einträge auf einmal
+anfassen lassen, und drei Aktionen ausgewählt: **Entfernen, Kopieren und
+Verschieben, Als Zip packen** — mit dem Baum als Zielwähler statt eines
+Textfelds. Die Haken je Zeile sind der kleinste Teil davon.
+
+**Der Fall, der bis hierher einer von tausend war, ist jetzt der Normalfall.**
+Eintrag 7 von 20 scheitert, und die anderen neunzehn sind schon getan. Eine
+Erfolgsmeldung darüber ist derselbe Befund wie in `docs/48 §3.5`:
+
+> **Eine fehlgeschlagene Anfrage darf die Beschriftung nicht so lassen, als wäre
+> sie durchgelaufen.**
+
+Gearbeitet wird deshalb je Eintrag, gemeldet wird je Eintrag, und die Zahl der
+gelungenen steht im ersten Satz. Ein Abbruch beim ersten Fehler wäre die kürzere
+Fassung und die schlechtere: Der Kunde wüsste nicht, ob die restlichen an
+derselben Sache scheitern oder nie versucht wurden. Ein Rückbau des schon Getanen
+wäre die dritte und die gefährlichste — er löschte Einträge, die genauso gut
+vorher dort gelegen haben könnten.
+
+**Packen hat als einziges keine Schleife.** Es tut einmal etwas über alle; ein
+Archiv mit der halben Auswahl und einer Erfolgsmeldung wäre schlimmer als keines.
+
+**Und dann derselbe Fehler wie beim Mehrfach-Upload, eine Woche später.** Bei
+*einer* Quelle ist ein vollständiger Zielpfad richtig, bei zwanzig ist es **ein**
+Pfad für alle — neunzehnmal überschrieben, und der Vorgang meldet Erfolg. Der
+Name am Ziel kommt jetzt aus der Quelle.
+
+Daraus folgt, dass **Umbenennen ein eigener Griff wird**: Es nennt einen *Namen*,
+Verschieben ein *Verzeichnis*. Solange beide dasselbe Feld `to` benutzten, musste
+der Aufrufer wissen, welche Bedeutung gerade gilt — und die Seite hat den
+Zielpfad dafür selbst zusammengesetzt.
+
+> **Ein Feld mit zwei Bedeutungen hat keine.**
+
+**Die Auswahl fällt weg, sobald das Verzeichnis wechselt.** Eine, die eine
+Navigation überlebt, ist eine Liste von Pfaden aus einem anderen Ordner — und die
+Leiste darüber sagt „3 Einträge ausgewählt", während die Tabelle darunter keinen
+einzigen Haken zeigt.
+
+**Die Rückfrage nennt, was in der Tabelle nicht steht:** wie viele der
+Ausgewählten Verzeichnisse sind, deren Inhalt mitgeht, und ob eines davon eine
+Domain ausliefert. Das Gerüst des Abonnements schützt seit 5f der Agent; der
+DocumentRoot einer weiteren Domain steht in keiner festen Liste, und dort warnt
+das Panel.
+
+**Zwei gleich heissende Quellen kommen nicht in ein Archiv.** `/a/notizen` und
+`/b/notizen` ergäben beide `notizen/…`; ein Zip nimmt das an, und beim Entpacken
+bleibt eines übrig.
+
+#### Zwei Funde über die Prüfmittel, und beide gehören zur Lehre
+
+**Der Wächter dazu konnte in seinem ersten Wurf nicht rot werden.** Er behauptete,
+eine zu spät geprüfte Namensgleichheit hinterlasse „eine halbe Datei", und prüfte
+das mit `assertFileDoesNotExist`. Gemessen: `ZipArchive::open()` mit
+`CREATE|EXCL` legt nichts an, und ein Archiv ohne Eintrag schreibt libzip auch
+beim `close()` nicht. Die Behauptung stand nur in meinem Kopf, und die Prüfung
+darüber war grün, egal wo die Namensprüfung stand.
+
+> **Eine Messung, die nie etwas anderes als Null liefern kann, ist keine.**
+
+Was wirklich an der Reihenfolge hängt, ist die Begründung: Liegt am Ziel schon
+eine Datei, scheitert `open()` mit „liess sich nicht anlegen" — der Kunde räumt
+das Ziel weg und läuft in denselben Fehler.
+
+> **Von zwei Gründen gehört der genannt, den der nächste Versuch nicht von selbst
+> behebt.**
+
+**Und der zweite Fund kam aus dem Bild und nicht aus der Zahl.** Die
+Auswahlleiste trägt sechs Knöpfe, und `.button-row` stapelt unter 480px auf volle
+Breite — richtig für drei Knöpfe, die nicht umbrechen können, und hier **390px
+hoch bei 390px Bildschirmbreite**: genau ein Telefonbildschirm, bevor die erste
+Zeile der Liste anfängt. Der Dokumentüberlauf stand dabei auf 0. Umgebrochen
+statt gestapelt sind es 228px.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+Gemessen im gebauten Stylesheet bei 390, 720, 800 und 1440 px in beiden Themes:
+Überlauf 0, Gegenprobe 400 px, Tabelleninhalt 358 px bei 390 und 1518 px bei 1440.
+
+Neue Wächter: `BulkActionTest` (neun Prüfungen über die Form der Griffe) und
+`SelectionTest` (sechs über `Workspace::paths()` und `Packer::zip()`). Elf Brüche,
+alle zubeissend.

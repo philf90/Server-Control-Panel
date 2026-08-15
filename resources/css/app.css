@@ -1516,6 +1516,56 @@ table.pairs {
 }
 
 /*
+ * Was ausgewählt ist, und was man damit tun kann (P6, Schritt 5h).
+ *
+ * **Sie trägt eine Fläche und einen Rahmen**, weil sie kommt und geht. Ein
+ * Streifen, der ohne Kante zwischen der Krümelspur und der Tabelle auftaucht,
+ * verschiebt die Liste nach unten und sieht dabei aus wie ein Teil von ihr; mit
+ * Kante ist ablesbar, dass er zur Auswahl gehört und nicht zum Verzeichnis.
+ *
+ * `display: flex` mit `gap` und **kein** Rand zwischen den Kindern: Die Zahl und
+ * die Knopfreihe stehen nebeneinander, solange die Zeile reicht, und
+ * untereinander, sobald sie es nicht mehr tut. Der Rand nach unten ist derselbe
+ * wie bei `.crumbs` und `.notice` — was über der Tabelle steht, hält denselben
+ * Abstand zu ihr.
+ */
+.selection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gap);
+  padding: 10px 14px;
+  margin-bottom: var(--block-gap);
+  font-size: var(--text-table);
+  color: var(--text-strong);
+  background: var(--accent-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+/*
+ * Das Ankreuzfeld einer Zeile.
+ *
+ * **Nicht `.toggle`.** Der bringt `margin-top: 14px` und ein `<span>` mit
+ * Beschriftung mit — beides richtig in einem Formular und falsch in einer
+ * Zelle, in der der Name schon danebensteht. Die Grösse ist trotzdem dieselbe:
+ * Ein Ankreuzfeld, das in zwei Grössen vorkommt, sieht in der zweiten aus wie
+ * ein Fehler.
+ *
+ * `flex: none` und `min-width: 0`, weil `.stacks td` unter 720px ein Flexkasten
+ * ist — ohne beides zöge sich der Haken dort in die Breite oder wüchse mit.
+ */
+.check {
+  flex: none;
+  width: 17px;
+  min-width: 0;
+  height: 17px;
+  min-height: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+/*
  * Der Pfad über dem Editor.
  *
  * Er steht als eigene Zeile und nicht in der Überschrift: `docs/46 §20.11` hat
@@ -2440,6 +2490,35 @@ tr:has(td.multiline) > td {
    */
   .button-row .badge {
     align-self: flex-start;
+  }
+
+  /*
+   * **Die Auswahlleiste stapelt nicht — sie bricht um.**
+   *
+   * Der Grund für das Stapeln steht oben: Drei gleich breite Knöpfe
+   * nebeneinander lassen bei 390px vom dritten nur noch drei Buchstaben übrig.
+   * Das gilt für eine Reihe, die **nicht** umbrechen kann; die Auswahlleiste
+   * hat sechs Knöpfe, und gestapelt sind das **390px** — genau ein
+   * Telefonbildschirm, bevor die erste Zeile der Liste anfängt.
+   *
+   * Gemessen am 15. August 2026 mit dem gebauten Stylesheet: Leiste 390px
+   * gestapelt gegen 138px umgebrochen, bei einem Dokumentüberlauf von **0px in
+   * beiden Fällen.** Die Zahl hat davon nichts gesehen.
+   *
+   * > **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+   * > Betrachter.**
+   *
+   * Die Knöpfe behalten dabei ihre Wortbreite, und `flex-wrap` aus
+   * `.button-row` schiebt sie in die nächste Zeile. Was sie nicht dürfen, ist
+   * schmaler werden als ihr Wort — deshalb kein `flex: 1`.
+   */
+  .selection .button-row {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .selection .button-row .button {
+    width: auto;
   }
 }
 

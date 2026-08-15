@@ -461,6 +461,16 @@ Route::middleware('auth')->group(function (): void {
         ->middleware('can:editFiles,subscription')
         ->name('files.remove');
 
+    /*
+     * **Umbenennen und Verschieben sind zwei Griffe, seit die Auswahl mehrere
+     * Einträge tragen kann.** Beide bewegen denselben Eintrag mit demselben
+     * `rename()` — aber der eine nennt einen **Namen** und der andere ein
+     * **Verzeichnis**, und ein Feld mit zwei Bedeutungen hat keine.
+     */
+    Route::post('/subscriptions/{subscription}/files/rename', [FileController::class, 'rename'])
+        ->middleware('can:editFiles,subscription')
+        ->name('files.rename');
+
     Route::post('/subscriptions/{subscription}/files/move', [FileController::class, 'move'])
         ->middleware('can:editFiles,subscription')
         ->name('files.move');

@@ -232,13 +232,45 @@ Vermutung mehr, sondern ein gemessener Wert.
 
 **(c) Erst jetzt den Prüfling starten:**
 
+**Der Aufruf reiht ein, er führt nicht aus** — und das ist beim ersten Fahren
+übersehen worden (`docs/55`, Befund 3). Die Ausgabe sagt es in einem Wort:
+„1 Server-Blöcke der Kundendomains **eingereiht**." Der Server-Block der
+Oberfläche entsteht unmittelbar, die der Kundendomains gehen über die
+Warteschlange.
+
+> **Eine Messung, die unmittelbar nach dem Einreihen läuft, misst den Zustand
+> davor.**
+
+Gewartet wird deshalb auf den **Vorgang** und nicht auf eine Zahl Sekunden — eine
+feste Wartezeit ist auf dem nächsten, langsameren Server wieder zu kurz:
+
 ```bash
 srvpanel vhost --sites
+
+# Warten, bis kein web.site.apply mehr offen ist.
+HOME=/tmp srvpanel tinker --execute='
+  app(App\Support\Tenancy\Tenancy::class)->allowAll();
+  for ($i = 0; $i < 120; $i++) {
+    $offen = App\Models\Operation::whereIn("status", ["queued", "running"])->count();
+    if ($offen === 0) { echo "Warteschlange leer nach ", $i, "s\n"; break; }
+    sleep(1);
+  }
+  foreach (App\Models\Operation::latest("id")->limit(5)->get() as $o) {
+    echo $o->id, "  ", $o->type, "  ", $o->status->value, "  ", $o->message, "\n";
+  }
+'
+
 stat -c '%n  %U:%G  %u:%g  %a' "$ABO" "$ABO"/httpdocs "$ABO"/logs "$ABO"/tmp "$ABO"/conf "$ABO"/.ssh "$ABO"/mail
 curl -sS -k -L -o /dev/null -w 'seite=%{http_code}\n' \
   --resolve p6-b.invalid:80:127.0.0.1 --resolve p6-b.invalid:443:127.0.0.1 \
   http://p6-b.invalid/
 ```
+
+**Die Vorgangsliste steht dabei nicht zur Zierde:** Sie belegt, dass der
+`web.site.apply` wirklich gelaufen *und* gelungen ist. Ein leeres
+Warteschlangenfenster heisst sonst auch dann „fertig", wenn der Vorgang
+fehlgeschlagen ist — und die unveränderte Tabelle sähe genauso aus wie ein
+Vorgang, der nie lief.
 
 **Erwartet:**
 

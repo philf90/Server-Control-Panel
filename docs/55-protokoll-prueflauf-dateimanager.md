@@ -201,6 +201,91 @@ fort ist, sagt nur ein Blick auf die Platte.
 
 ---
 
+## Punkt 1 (c) — der Aufruf ist gefahren, die Messung nicht
+
+```
+Server-Block der Oberfläche geschrieben: /etc/nginx/conf.d/srvpanel.conf
+  (Port 8443, Zertifikat von Let's Encrypt).
+  1 Server-Blöcke der Kundendomains eingereiht.
+  1 davon haben noch kein Zertifikat — für sie wird danach eines bestellt.
+```
+
+Die `stat`-Tabelle danach: **unverändert**. `httpdocs` weiter `750`, `logs`
+`750`, `tmp`/`.ssh`/`mail` `700`. Kein setgid.
+
+### Befund 3 — die Messung ist der Warteschlange davongelaufen
+
+**„eingereiht", nicht „geschrieben".** `srvpanel vhost --sites` legt je
+Kundendomain einen Vorgang in die Warteschlange; ausgeführt wird er vom
+Arbeiter. Das `stat` lief unmittelbar danach und hat damit den Zustand
+**davor** abgelesen.
+
+> **Eine Messung, die unmittelbar nach dem Einreihen läuft, misst den Zustand
+> davor.**
+
+Das ist die dritte Fassung derselben Familie in diesem Projekt. `docs/48` hält
+die beiden anderen fest:
+
+> Eine Frage an den Bestand, die beim Einreihen gestellt wird, kennt die anderen
+> Vorgänge derselben Reihe nicht.
+
+> Eine Reihenfolge, die erst beim Ausführen entsteht, kann beim Einreihen niemand
+> kennen.
+
+**Und der Fehler steckt in `docs/54` und nicht auf dem Server.** Der Punkt
+schreibt `srvpanel vhost --sites` und `stat` in denselben Block, als liefe das
+eine nach dem anderen. Für den Server-Block der *Oberfläche* stimmt das — der
+läuft unmittelbar —, für die Kundendomains nicht. **Zwei Hälften eines Befehls
+mit verschiedener Ausführungsart, und die Ausgabe sagt es in einem Wort, das
+man überliest.**
+
+Der Punkt bekommt deshalb ein Warten auf den Vorgang und nicht ein `sleep`:
+Eine feste Wartezeit ist beim nächsten langsameren Server wieder zu kurz.
+
+### Befund 4 — zwei Zahlen mit dem falschen Wort, in derselben Ausgabe
+
+```
+1 Server-Blöcke der Kundendomains eingereiht.
+1 davon haben noch kein Zertifikat — für sie wird danach eines bestellt.
+```
+
+**„1 Server-Blöcke" und „1 … haben".** Beides ist der Fehler aus `docs/48 §3.3`
+— „geschätzt 1 Zeilen" —, und beides steht in einem Kommando und damit an einer
+Stelle, an die `CountedNounTest` nicht sieht: Der Wächter liest
+`resources/js/**/*.vue`.
+
+> **Ein Wächter, der eine Oberfläche prüft, sagt nichts über die zweite
+> Oberfläche.** Ein Konsolenkommando ist eine.
+
+Das ist die vierte Fundstelle dieser Art nach der Konsole, dem Protokoll und der
+Planvorlage. Wieder gilt der Satz von damals:
+
+> **Ein Fehler, der an vier Stellen unabhängig gemacht wurde, ist keine
+> Unachtsamkeit, sondern eine fehlende Stelle.**
+
+### Erledigt: der dpkg-Hinweis
+
+```
+$ ls -1 /opt/srvpanel/releases/
+0.6.0-rc.2
+$ readlink -f /opt/srvpanel/current
+/opt/srvpanel/releases/0.6.0-rc.2
+```
+
+**`prune_releases()` hat abgeräumt.** Die Warnung beim Entpacken ist die
+erwartete Zwischenstufe und kein Rest. Gemessen statt gelesen; die offene Zeile
+aus (b) fällt weg.
+
+### Nebenbei, und es wird fehlschlagen
+
+„1 davon haben noch kein Zertifikat — für sie wird danach eines bestellt."
+`p6-b.invalid` ist eine **nicht auflösbare** Domain (RFC 2606); die
+ACME-Bestellung dafür kann nicht gelingen. Der fehlgeschlagene Vorgang, der
+gleich in der Liste steht, gehört zu diesem Umstand und **nicht** zu einem
+Befund dieses Laufs.
+
+---
+
 ## Offen, klein, nicht verfolgt
 
 `ls /var/www/vhosts/p6-b.invalid/logs/` und der `tail` darauf haben nichts

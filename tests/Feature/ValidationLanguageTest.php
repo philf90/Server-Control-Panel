@@ -148,6 +148,41 @@ final class ValidationLanguageTest extends TestCase
         );
     }
 
+    /**
+     * Und die Übersetzung liegt auch im Paket.
+     *
+     * ## Der Fehler, der zwischen zwei richtigen Prüfungen durchfiel
+     *
+     * `lang/de/validation.php` war da, `config/app.php` stand auf `de`, beide
+     * Wächter waren grün — und auf `cloudsrv24` kam weiter der englische Satz
+     * (`docs/55`, Befund 11). **`packaging/build.sh` führt eine Positivliste der
+     * Verzeichnisse, die ins Paket wandern, und `lang` stand nicht darin.**
+     *
+     * > **Eine Datei, die ein Wächter im Repo prüft, ist damit noch nicht auf
+     * > dem Server.**
+     *
+     * Das ist derselbe Schnitt wie bei `PackagingTest`, nur eine Ebene tiefer:
+     * Dort ruft eine systemd-Unit ein Kommando über eine Zeichenkette auf, hier
+     * lädt das Framework ein Verzeichnis über eine Konvention. Beide Male hält
+     * nichts den Bezug — ausser einem Test, der ihn nachrechnet.
+     *
+     * **Und die Liste schweigt, wenn etwas fehlt:** `build.sh` überspringt jeden
+     * Eintrag, den es nicht findet (`if [ -e … ]`). Ein Tippfehler im Namen
+     * baut also ein Paket ohne die Datei und meldet Erfolg.
+     */
+    public function test_the_translations_are_shipped(): void
+    {
+        $bau = (string) file_get_contents(dirname(__DIR__, 2).'/packaging/build.sh');
+
+        $this->assertMatchesRegularExpression(
+            '/^\s*agent app .*\blang\b/m',
+            $bau,
+            "`packaging/build.sh` nimmt `lang` nicht ins Paket.\n\n".
+            "Die Übersetzung liegt dann im Repo, jeder Wächter hier ist grün — und auf dem Server\n".
+            'formuliert Laravel weiter selbst, auf Englisch.',
+        );
+    }
+
     public function test_every_rule_in_use_has_a_german_sentence(): void
     {
         $meldungen = $this->messages();

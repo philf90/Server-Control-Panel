@@ -694,6 +694,61 @@ meldet, wenn eine bekannte Fuge verschwindet.
 
 ---
 
+## Befund 11 — die Übersetzung lag im Repo und nicht im Paket
+
+**Befund 7 war nicht behoben.** Gegen `v0.6.0-rc.3` steht unter der deutschen
+Zeile weiter:
+
+```
+Das Formular wurde nicht gespeichert.
+The name field must not be greater than 255 characters.
+```
+
+Die Regel greift — es ist `max:255` aus dem neuen `rename`, also genau der
+gesuchte Fall. Nur der Satz kommt weiter von Laravel.
+
+### Zwei richtige Prüfungen, und der Fehler dazwischen
+
+`lang/de/validation.php` liegt im Repo. `config/app.php` steht auf `de`. Beide
+Wächter sind grün. **Und `packaging/build.sh` führt eine Positivliste der
+Verzeichnisse, die ins Paket wandern:**
+
+```sh
+agent app bootstrap config database public resources/views routes vendor …
+```
+
+`lang` stand nicht darin. Die Datei hat den Server nie erreicht.
+
+> **Eine Datei, die ein Wächter im Repo prüft, ist damit noch nicht auf dem
+> Server.**
+
+Das ist derselbe Schnitt wie bei `PackagingTest` — dort ruft eine systemd-Unit
+ein Kommando über eine Zeichenkette auf —, nur eine Ebene tiefer: Hier lädt das
+Framework ein Verzeichnis über eine **Konvention**. Beide Male hält nichts den
+Bezug ausser einem Test, der ihn nachrechnet.
+
+**Und die Liste schweigt, wenn etwas fehlt.** `build.sh` überspringt jeden
+Eintrag, den es nicht findet (`if [ -e … ]`). Ein Tippfehler im Namen baut ein
+Paket ohne die Datei und meldet Erfolg — deshalb ist der neue Wächter ein Test
+über den **Text** der Liste und nicht über das Ergebnis des Baus.
+
+### Was dieser Befund über die Reihenfolge sagt
+
+Er wäre **nicht** gefunden worden, wenn ich Befund 7 im Container für erledigt
+erklärt hätte. Drei Wächter waren grün, die Datei war da, die Konfiguration
+stimmte — und der Kunde las weiter Englisch.
+
+> **Drei grüne Prüfungen über drei Stufen sagen nichts über die vierte.**
+
+Behoben: `lang` steht in der Positivliste, und
+`ValidationLanguageTest::test_the_translations_are_shipped` rechnet es nach.
+Gegengeprüft — ohne den Eintrag ist er rot.
+
+**Nachzuprüfen gegen die nächste Fassung.** Bis dahin bleibt Befund 7 offen und
+zählt nicht als erledigt.
+
+---
+
 ## Offen, klein, nicht verfolgt
 
 `ls /var/www/vhosts/p6-b.invalid/logs/` und der `tail` darauf haben nichts

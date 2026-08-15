@@ -199,19 +199,25 @@ mit 403, und die beiden Zahlen sähen gleich aus (`docs/55`, Befund 1).
 > **Ein Vorher-Wert, der schon ein Fehler ist, kann den Fehler nicht anzeigen,
 > auf den man wartet.**
 
-Deshalb **vor** dem Update, und mit `0644`, damit diese Messung nicht am
-Prüfling hängt:
+**Der Grund war nicht, was ich vermutet hatte.** Die Indexdatei war da — sie
+trug `p1136:p1136 0640`, also die Gruppe des Abonnements und kein Weltbit, und
+nginx kam über die Gruppe `www-data` zwar in das Verzeichnis, aber nicht an die
+Datei. **Befund 3 aus `docs/53`, live an einer Kundenseite.**
+
+Behoben wird deshalb nicht mit `0644` — das bewiese nichts über die Gruppe —,
+sondern mit der Gruppe selbst, bei unveränderten `0640`:
 
 ```bash
-printf '<!doctype html><title>p6</title><p>p6-b.invalid steht.\n' > "$ABO"/httpdocs/index.html
-chown p1136:p1136 "$ABO"/httpdocs/index.html
-chmod 644 "$ABO"/httpdocs/index.html
+chgrp www-data "$ABO"/httpdocs/index.html
+ls -l "$ABO"/httpdocs/index.html
 curl -sS -k -L -o /dev/null -w 'seite=%{http_code}\n' \
   --resolve p6-b.invalid:80:127.0.0.1 --resolve p6-b.invalid:443:127.0.0.1 \
   http://p6-b.invalid/
 ```
 
-**Erwartet: 200.** Erst dieser Wert macht (b) und (c) zu einer Messung.
+**Erwartet: 200.** Damit ist zweierlei erledigt: Die Ursache des 403 ist
+**gemessen** statt geraten, und Punkt 1 hat einen Vorher-Wert, der kein Fehler
+ist. Die Datei steht danach genau so da, wie 6c eine neue anlegen wird.
 
 | Datei | Rechte | Was sie misst |
 |---|---|---|

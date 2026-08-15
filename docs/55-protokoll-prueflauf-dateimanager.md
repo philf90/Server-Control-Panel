@@ -52,31 +52,90 @@ für Gruppe und Andere nicht schreibbar. Schritt 8 fällt nicht darüber.
 
 ---
 
-## Befund 1 — der Vorher-Wert der Seite ist schon ein Fehlercode
+## Befund 1 — Befund 3 aus `docs/53` steht live auf dem Server
 
-**`seite=403`, und damit misst Punkt 1 nicht, was er messen soll.**
+**Mein erster Verdacht zum `seite=403` war „keine Indexdatei". Falsch.**
+`ls -la` zeigt sie:
 
-Der Punkt vergleicht den Statuscode vor und nach dem Update. Brechen die Rechte
-durch 6c, antwortet nginx mit **403** — und das ist genau der Wert, der vorher
-schon dastand. Die beiden Zahlen wären gleich, und der Punkt meldete
-„unverändert".
+```
+drwxr-x--- 3 p1136 www-data     4096  .
+-rw-r--r-- 1 p1136 p1136         249  cve-import-vorlage.csv
+-rw-r--r-- 1 p1136 p1136     2744320  homematic-3.87.6.20260404-…sbk
+-rw-r----- 1 p1136 p1136        1114  index.html
+drwxr-x--- 2 p1136 p1136        4096  test2
+```
+
+`httpdocs` gehört `p1136:www-data` mit `750` — nginx läuft als `www-data`, ist
+in der Gruppe und **kommt durch das Verzeichnis**. Dahinter steht eine
+`index.html` mit `p1136:p1136` und `0640`: Gruppe `p1136`, kein Weltbit.
+
+**Das ist Befund 3 aus `docs/53`, wörtlich, an einer echten Kundenseite:**
+
+> Er setzt `0640` — dieselbe Angabe, die die Willkommensseite daneben trägt und
+> die dort funktioniert — und bekommt einen 403.
+
+Die beiden anderen Dateien daneben tragen `0644` und wären lesbar. Der
+Unterschied ist **nur** das Weltbit, und genau darauf stand die Auslieferung bis
+6c: nicht auf der Gruppe, sondern auf „für alle lesbar".
+
+> **Ein Schutz, der nur wirkt, solange die Datei für alle lesbar ist, ist
+> keiner — er ist die Abwesenheit einer Einstellung.**
+
+### Und der 403 verschwindet mit dem Update nicht
+
+**Nachgesehen, nicht vermutet.** `WebSiteApply` ruft
+`Filesystem::directory($site->documentRoot(), …)`, und die Methode fasst
+ausschliesslich das Verzeichnis an:
+
+```php
+chown($path, $owner);
+chgrp($path, $groupExists ? $group : $owner);
+chmod($path, $mode);
+```
+
+Kein Abstieg. Und das setgid-Bit wirkt auf **neu angelegte** Einträge, nicht auf
+vorhandene. Nach Update und `srvpanel vhost --sites` trägt `index.html` also
+weiter `p1136:p1136 0640` und antwortet weiter mit **403**.
+
+**6c repariert den Bestand nicht, sondern nur die Zukunft.** Das ist eine
+Eigenschaft und kein Fehler — aber sie war nirgends aufgeschrieben, und sie hat
+eine Folge, die der Kunde sieht: Jede Datei, die er vor dieser Fassung über den
+Dateimanager angelegt und auf `0640` gestellt hat, bleibt unerreichbar, während
+der Rechte-Editor daneben sagt, der Webserver könne sie ausliefern.
+
+Ob daraus eine einmalige Wanderung wird (`chgrp` über den Bestand) oder eine
+benannte Grenze, ist eine Entscheidung des Betreibers und kein Nebenprodukt
+dieses Laufs. **Hier wird sie gemessen, nicht behoben.**
+
+---
+
+## Befund 2 — der Vorher-Wert von Punkt 1 war schon ein Fehlercode
+
+Unabhängig von der Ursache gilt, was in `docs/54` schon steht: Ein
+Vorher-Wert von `403` kann den Fehler nicht anzeigen, auf den Punkt 1 wartet.
+Brechen die Rechte durch 6c, antwortet nginx **auch** mit 403.
 
 > **Ein Vorher-Wert, der schon ein Fehler ist, kann den Fehler nicht anzeigen,
 > auf den man wartet.**
 
-Das ist derselbe Satz, den `docs/54 §5` über `.invalid` und die Namensauflösung
-aufschreibt — dort erkannt, hier eine Zeile tiefer trotzdem gestellt. Die
-Fassung dort spricht von einem „fremden Grund"; der HTTP-Status ist keine
-fremde Ebene, sondern dieselbe, in der der Befund erwartet wird. Das macht ihn
-schlimmer, nicht besser.
+**Die Behebung ist gleichzeitig die Gegenprobe zu Befund 1.** Statt die Datei
+auf `0644` zu stellen — das bewiese nichts über die Gruppe — bekommt sie die
+Gruppe und behält `0640`:
 
-**Behoben, bevor das Update läuft:** In `httpdocs` kommt eine `index.html` mit
-`0644`. Damit trennt Punkt 1 sauber, was er trennen soll:
+```bash
+chgrp www-data "$ABO"/httpdocs/index.html
+```
 
-| Datei | Rechte | Was sie misst |
-|---|---|---|
-| `index.html` | `0644` | Kommt nginx **durch das Verzeichnis**? |
-| `p6-probe.txt` | `0640` | Trägt die Datei die **Gruppe**, über die er hereinkommt? |
+Wird daraus ein **200**, ist die Diagnose gemessen und nicht geraten: Es lag an
+der Gruppe und an nichts sonst. Und die Datei steht danach genau so da, wie 6c
+eine neue anlegen wird — damit ist sie der stabile Nachbar, an dem sich Punkt 1
+(b) und (c) messen.
 
-Die zweite ist Punkt 2 und hängt am Prüfling. Die erste darf es ausdrücklich
-nicht — sonst hätte Punkt 1 keinen Nachbarn, an dem er sich misst.
+---
+
+## Offen, klein, nicht verfolgt
+
+`ls /var/www/vhosts/p6-b.invalid/logs/` und der `tail` darauf haben nichts
+ausgegeben. Ob dort keine Protokolle liegen oder nginx woandershin schreibt, ist
+für diesen Lauf ohne Belang und bleibt **benannt offen** — nicht als erledigt
+gezählt.

@@ -1,50 +1,28 @@
+import { PanelRequestError, ask as askPanel } from './usePanelRequest'
+
 /*
- * Der Weg von der Konsole zum Panel — die einzige Stelle, die `fetch` ruft.
+ * Der Weg von der Konsole zum Panel.
  *
- * **Warum es diese Datei gibt.** Bis Schritt 4 kam jede Antwort dieses Panels
- * über Inertia, also über eine Seitennavigation. Die Konsole kann das nicht: Ihre
- * sieben Griffe geben JSON zurück (`docs/46 §20.9`), weil ein Filterwert und ein
- * Zeilenschlüssel nicht in eine Adresse gehören — dort stünden sie im
- * Zugriffsprotokoll des Webservers, in der Verlaufsliste des Browsers und in
- * jedem `Referer`.
- *
- * Damit ist sie die erste Fläche mit einem eigenen HTTP-Weg. Sie bekommt ihn
- * **einmal** und nicht je Ansicht:
+ * **Hier stand der Mechanismus selbst**, mit dem Satz darüber, dass es die
+ * einzige Stelle sei, die `fetch` ruft. Der Satz war richtig und von nichts
+ * geprüft — und als P6 den Baum bekam, brauchte der denselben Weg.
  *
  * > **Ein Mechanismus, den zwei Stellen selbst bauen, hat zwei Fassungen — und
  * > die zweite ist die, die den Kopf vergisst.**
  *
- * ## Die drei Kopfzeilen, und keine ist Zierde
- *
- * **`X-XSRF-TOKEN`** aus dem gleichnamigen Keks. Laravel legt ihn bei jeder
- * Antwort der Web-Gruppe ab; ohne ihn weist `ValidateCsrfToken` jeden der sechs
- * `POST`-Griffe mit 419 ab — und zwar **nach** der Anmeldung und ohne dass die
- * Seite etwas Falsches gemacht hätte.
- *
- * **`Accept: application/json`** sorgt dafür, dass ein Validierungsfehler als
- * JSON zurückkommt und nicht als Umleitung. Ohne ihn wäre die Antwort auf eine
- * fehlerhafte Anfrage eine 302 auf die vorige Seite, und `fetch` folgte ihr
- * stillschweigend: Die Konsole bekäme HTML und meldete „unerwartete Antwort",
- * wo eine brauchbare Begründung stand.
- *
- * **`X-Requested-With: XMLHttpRequest`** aus demselben Grund, eine Schicht
- * tiefer — daran erkennt Laravel eine Anfrage, die keine Umleitung verträgt.
+ * Er steht jetzt in {@link ./usePanelRequest}, und `PanelRequestTest` hält
+ * fest, dass es dabei bleibt. Was hier bleibt, ist das, was die Konsole
+ * ausmacht: dass ein Griff ein **kurzer Name** ist und keine Adresse.
  */
-
-/** Was ein gescheiterter Griff mitbringt: den Satz, den der Kunde liest. */
-export class ConsoleError extends Error {}
 
 /**
- * Der Wert des `XSRF-TOKEN`-Kekses.
+ * Was ein gescheiterter Griff mitbringt.
  *
- * Er ist URL-kodiert abgelegt und muss dekodiert übergeben werden — ein
- * Base64-Wert endet häufig auf `=`, und das steht im Keks als `%3D`.
+ * **Der Name bleibt**, obwohl die Klasse umgezogen ist: Fünf Stellen in
+ * `Console.vue` fangen `ConsoleError`, und ein Umbenennen wäre eine Änderung an
+ * fünf Dateien für nichts.
  */
-function csrfToken(): string {
-  const treffer = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/)
-
-  return treffer ? decodeURIComponent(treffer[1]) : ''
-}
+export { PanelRequestError as ConsoleError }
 
 /**
  * Einen Griff der Konsole aufrufen.
@@ -56,57 +34,10 @@ function csrfToken(): string {
  *
  * @throws ConsoleError mit dem Satz, den der Server oder der Agent geschickt hat
  */
-export async function ask<T>(
+export function ask<T>(
   databaseId: number,
   handle: string,
   args: Record<string, unknown> = {},
 ): Promise<T> {
-  const antwort = await fetch(`/databases/${databaseId}/console/${handle}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'X-Requested-With': 'XMLHttpRequest',
-      'X-XSRF-TOKEN': csrfToken(),
-    },
-    body: JSON.stringify(args),
-  })
-
-  /*
-   * **Erst den Rumpf lesen, dann über den Status entscheiden.** Ein 422 trägt
-   * die Begründung, an der zwei Abnahmekriterien hängen (`docs/46 §4`, Punkte 4
-   * und 6) — wer beim Status abbricht, wirft genau sie weg und zeigt
-   * „fehlgeschlagen".
-   */
-  const text = await antwort.text()
-  let inhalt: unknown = null
-
-  try {
-    inhalt = text === '' ? null : JSON.parse(text)
-  } catch {
-    inhalt = null
-  }
-
-  if (antwort.ok) {
-    return inhalt as T
-  }
-
-  const gemeldet =
-    inhalt !== null &&
-    typeof inhalt === 'object' &&
-    typeof (inhalt as { message?: unknown }).message === 'string'
-      ? (inhalt as { message: string }).message
-      : ''
-
-  if (gemeldet !== '') {
-    throw new ConsoleError(gemeldet)
-  }
-
-  /*
-   * **Der Rückfall nennt den Status und nicht „ein Fehler ist aufgetreten".**
-   * 419 heisst abgelaufene Sitzung, 403 fehlende Berechtigung, 500 ein Fehler
-   * bei uns — drei verschiedene Handlungen für den Lesenden. Ein Satz, der alle
-   * drei abdeckt, deckt keinen davon ab.
-   */
-  throw new ConsoleError(`Die Anfrage ist mit Status ${antwort.status} gescheitert.`)
+  return askPanel<T>(`/databases/${databaseId}/console/${handle}`, args)
 }

@@ -7,6 +7,7 @@ namespace SrvPanel\Agent\Ops;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\DiskQuota;
+use SrvPanel\Agent\Filesystem;
 use SrvPanel\Agent\Guard;
 use SrvPanel\Agent\Op;
 use SrvPanel\Agent\WelcomePage;
@@ -54,24 +55,89 @@ final class SubscriptionProvision implements Op
     public const DOCUMENT_ROOT = 'httpdocs';
 
     /**
+     * Die Gruppe des ausgelieferten Verzeichnisses.
+     *
+     * Sie steht hier und nicht ein zweites Mal in {@see WebSiteApply}: Bis zum
+     * 14. August 2026 standen `'www-data'` und `0750` an beiden Stellen, und
+     * eine Änderung an einer davon wäre stillschweigend die Hälfte gewesen.
+     */
+    public const DOCUMENT_ROOT_GROUP = 'www-data';
+
+    /**
+     * Und seine Rechte — **mit setgid**.
+     *
+     * ## Warum das Bit dasteht
+     *
+     * `httpdocs` gehört `<benutzer>:www-data`, und **der Webserver kommt über
+     * die Gruppe hinein**. Eine Datei, die beim Anlegen des Abonnements
+     * entsteht, trägt deshalb `p1132:www-data 0640` und ist für ihn lesbar.
+     *
+     * Eine Datei aus dem Dateimanager trug bis hierher `p1132:p1132 0644` — die
+     * Sandbox setzt auf die Gruppe des Abonnements, und keine Datei-Operation
+     * fasste sie danach an. Lesbar war sie für den Webserver **nur über das
+     * Weltbit** (`docs/53`, Befund 3).
+     *
+     * Das ging gut, bis jemand tut, wozu das Panel ausdrücklich einlädt: Er
+     * setzt `0640` — dieselbe Angabe, die die Willkommensseite daneben trägt
+     * und die dort funktioniert — und bekommt einen 403.
+     *
+     * > **Zwei Wege, die dieselbe Datei anlegen, müssen sie gleich anlegen —
+     * > sonst ist die Rechteanzeige eine Auskunft über die Hälfte der
+     * > Wahrheit.**
+     *
+     * ## Warum setgid und kein `chgrp` nach jedem Schreibvorgang
+     *
+     * Das Bit steht **einmal** am Verzeichnis und gilt für jeden, der darin
+     * etwas anlegt: der Dateimanager, SFTP, ein Entpackvorgang — und auch der
+     * Weg, den es noch nicht gibt. Ein `chgrp` müsste in zwölf Operationen
+     * stehen, in SFTP noch einmal, und in der dreizehnten fehlte es.
+     *
+     * Neue Unterverzeichnisse erben das Bit mit, also trägt es der ganze Baum.
+     *
+     * **Es vergibt keine Rechte.** setgid an einem Verzeichnis bestimmt nur,
+     * welche Gruppe neue Einträge bekommen; wer hineindarf, entscheiden
+     * weiterhin `0750` und der Eigentümer.
+     */
+    public const DOCUMENT_ROOT_MODE = 0o2750;
+
+    /**
      * Das Verzeichnisschema aus §4.5.
      *
-     * Eigentümer `null` heisst root. `%u` ist der Systembenutzer des
-     * Abonnements, `%g` seine Gruppe.
+     * `%u` ist der Systembenutzer des Abonnements, `%g` seine Gruppe.
+     *
+     * **Jedes Verzeichnis des Kunden trägt setgid** — die Begründung steht bei
+     * {@see self::DOCUMENT_ROOT_MODE}. `conf` ist ausgenommen, weil es root
+     * gehört und der Kunde dort nichts anlegt.
      *
      * @var array<string, array{0: string, 1: string, 2: int}> Pfad => [Eigentümer, Gruppe, Rechte]
      */
     private const TREE = [
-        self::DOCUMENT_ROOT => ['%u', 'www-data', 0750],
-        'logs' => ['%u', 'adm', 0750],
-        'tmp' => ['%u', '%g', 0700],
+        self::DOCUMENT_ROOT => ['%u', self::DOCUMENT_ROOT_GROUP, self::DOCUMENT_ROOT_MODE],
+
+        // Dieselbe Überlegung für die Protokolle: Sie gehören `adm`, damit ein
+        // Betreiber sie lesen kann, ohne root zu sein. Ohne setgid trüge jede
+        // Datei, die nginx dort anlegt, die Gruppe ihres Erzeugers.
+        'logs' => ['%u', 'adm', 0o2750],
+
+        // Hier ändert das Bit nichts — Eigentümer und Gruppe sind dieselben —,
+        // und es steht trotzdem da: Eine Regel, die für „alle Verzeichnisse des
+        // Kunden" gilt, muss beim nächsten Zuwachs des Schemas nicht neu
+        // beurteilt werden. Eine, die für „die mit einer fremden Gruppe" gilt,
+        // schon.
+        'tmp' => ['%u', '%g', 0o2700],
+
         'conf' => ['root', 'root', 0755],
-        '.ssh' => ['%u', '%g', 0700],
+
+        // **Auch `.ssh` mit setgid, und das ist nachgesehen und nicht geraten.**
+        // OpenSSH weist einen Zugang ab, wenn Verzeichnis oder Schlüsseldatei
+        // für Gruppe oder Andere **schreibbar** sind — `safe_path()` prüft
+        // `st_mode & 022`. Das setgid-Bit ist `02000` und fällt nicht darunter.
+        '.ssh' => ['%u', '%g', 0o2700],
 
         // §5.5: Das Schema hält den Platz für Postfix/Dovecot frei, damit die
         // Mail-Stufe später nicht das Verzeichnis eines laufenden Abonnements
         // umbauen muss.
-        'mail' => ['%u', '%g', 0700],
+        'mail' => ['%u', '%g', 0o2700],
     ];
 
     /**
@@ -272,23 +338,25 @@ final class SubscriptionProvision implements Op
         return WelcomePage::into($documentRoot, $user);
     }
 
+    /**
+     * Ein Verzeichnis des Schemas anlegen.
+     *
+     * **Hier stand eine zweite Fassung von {@see Filesystem::directory()}** —
+     * Zeile für Zeile dieselbe, bis auf den Kommentar. Aufgefallen ist sie beim
+     * Setzen des setgid-Bits: Eine Änderung an der Rechtevergabe hätte an zwei
+     * Stellen ankommen müssen, und die zweite hätte sie nicht bekommen.
+     *
+     * > **Zwei Fassungen derselben Regel sind zwei Gelegenheiten, sie
+     * > auseinanderlaufen zu lassen — und die zweite ist die, die veraltet.**
+     *
+     * Die Sonderbehandlung einer fehlenden Gruppe (`adm` gibt es auf schlanken
+     * Installationen nicht) steht dort mit derselben Begründung: Das
+     * Verzeichnis gehört dann dem Benutzer allein — enger als vorgesehen, nicht
+     * weiter.
+     */
     private function directory(string $path, string $owner, string $group, int $mode): void
     {
-        if (! is_dir($path) && ! @mkdir($path, 0700, true) && ! is_dir($path)) {
-            throw AgentException::execFailed(
-                'Verzeichnis konnte nicht angelegt werden.',
-                ['path' => $path],
-            );
-        }
-
-        // Eine Gruppe, die es nicht gibt, ist kein Grund zum Abbruch: `adm`
-        // fehlt auf schlanken Installationen. Das Verzeichnis gehört dann dem
-        // Benutzer allein — enger als vorgesehen, nicht weiter.
-        $groupExists = posix_getgrnam($group) !== false;
-
-        chown($path, $owner);
-        chgrp($path, $groupExists ? $group : $owner);
-        chmod($path, $mode);
+        Filesystem::directory($path, $owner, $group, $mode);
     }
 
     /**

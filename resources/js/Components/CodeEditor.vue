@@ -85,14 +85,21 @@ onMounted(async () => {
   if (host.value === null) return
 
   try {
-    const [{ EditorView, keymap, lineNumbers, highlightActiveLine }, { EditorState }, { HighlightStyle, syntaxHighlighting, indentUnit }, { defaultKeymap, history, historyKeymap }, { tags }] =
-      await Promise.all([
-        import('@codemirror/view'),
-        import('@codemirror/state'),
-        import('@codemirror/language'),
-        import('@codemirror/commands'),
-        import('@lezer/highlight'),
-      ])
+    const [
+      { EditorView, keymap, lineNumbers, highlightActiveLine },
+      { EditorState },
+      { HighlightStyle, syntaxHighlighting, indentUnit, bracketMatching },
+      { defaultKeymap, history, historyKeymap },
+      { search, searchKeymap, highlightSelectionMatches },
+      { tags },
+    ] = await Promise.all([
+      import('@codemirror/view'),
+      import('@codemirror/state'),
+      import('@codemirror/language'),
+      import('@codemirror/commands'),
+      import('@codemirror/search'),
+      import('@lezer/highlight'),
+    ])
 
     /*
      * Klassen statt Farben — der Punkt, an dem Auflage 2 hängt.
@@ -108,8 +115,25 @@ onMounted(async () => {
       { tag: [tags.comment, tags.lineComment, tags.blockComment], class: 'tok-comment' },
       { tag: [tags.number, tags.bool, tags.null], class: 'tok-number' },
       { tag: [tags.function(tags.variableName), tags.definition(tags.variableName)], class: 'tok-name' },
-      { tag: [tags.tagName, tags.propertyName, tags.attributeName], class: 'tok-tag' },
-      { tag: [tags.operator, tags.punctuation], class: 'tok-operator' },
+      { tag: [tags.tagName, tags.attributeName], class: 'tok-tag' },
+
+      /*
+       * **Vier Paare, die vorher gleich aussahen** (`docs/53`, Befund 9).
+       *
+       * `propertyName` lag auf derselben Marke wie `tagName`: In CSS sah die
+       * Eigenschaft `color` aus wie ihr Wert `red`, in JSON der Schlüssel wie
+       * die Zeichenkette daneben. Und `variableName` war gar nicht vergeben —
+       * ein `$name` in PHP stand als gewöhnlicher Text da.
+       *
+       * `punctuation` von `operator` zu trennen ist der billigste Gewinn von
+       * allen: Klammern und Kommas tragen keine Bedeutung und sollen ruhiger
+       * sein als ein `=` oder ein `+`.
+       */
+      { tag: [tags.propertyName, tags.definition(tags.propertyName)], class: 'tok-property' },
+      { tag: [tags.variableName, tags.local(tags.variableName)], class: 'tok-variable' },
+      { tag: tags.operator, class: 'tok-operator' },
+      { tag: [tags.punctuation, tags.bracket, tags.separator], class: 'tok-punctuation' },
+
       { tag: tags.invalid, class: 'tok-invalid' },
     ])
 
@@ -119,7 +143,28 @@ onMounted(async () => {
         lineNumbers(),
         highlightActiveLine(),
         history(),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
+
+        /*
+         * **Zwei Dinge, die keine Farbe sind und mehr helfen als jede
+         * weitere** (`docs/51 §8.1`):
+         *
+         * `bracketMatching` zeigt die zusammengehörige Klammer — die Frage,
+         * die man in einer `wp-config.php` oder einem `nginx`-Schnipsel
+         * ständig hat und die keine Einfärbung beantwortet.
+         *
+         * `search` gibt Strg+F **im Dokument** statt im Browser. Ohne das
+         * sucht der Browser in der gerenderten Seite und findet nur, was
+         * gerade sichtbar ist — CodeMirror zeichnet lange Dateien nicht
+         * vollständig, und die Suche wäre damit stillschweigend unvollständig.
+         *
+         * > **Eine Suche, die nur das Sichtbare durchsucht, meldet ihre Lücke
+         * > nicht — sie meldet „nicht gefunden".**
+         */
+        bracketMatching(),
+        search({ top: true }),
+        highlightSelectionMatches(),
+
+        keymap.of([...defaultKeymap, ...searchKeymap, ...historyKeymap]),
         syntaxHighlighting(marks),
         indentUnit.of('    '),
         EditorState.readOnly.of(props.readonly),

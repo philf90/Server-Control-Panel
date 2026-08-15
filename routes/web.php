@@ -435,6 +435,16 @@ Route::middleware('auth')->group(function (): void {
         ->middleware('can:browseFiles,subscription')
         ->name('files.index');
 
+    /*
+     * **`POST`, obwohl er nur liest.** Derselbe Schnitt wie bei den Griffen der
+     * Datenbankkonsole: Alle Wege, die JSON zurückgeben, haben eine Bauform,
+     * und ein Pfad des Kunden steht damit nie in einer Adresse — dort stünde er
+     * im Zugriffsprotokoll des Webservers und in jedem `Referer`.
+     */
+    Route::post('/subscriptions/{subscription}/files/tree', [FileController::class, 'tree'])
+        ->middleware('can:browseFiles,subscription')
+        ->name('files.tree');
+
     Route::get('/subscriptions/{subscription}/files/edit', [FileController::class, 'read'])
         ->middleware('can:browseFiles,subscription')
         ->name('files.edit');
@@ -450,6 +460,16 @@ Route::middleware('auth')->group(function (): void {
     Route::delete('/subscriptions/{subscription}/files', [FileController::class, 'remove'])
         ->middleware('can:editFiles,subscription')
         ->name('files.remove');
+
+    /*
+     * **Umbenennen und Verschieben sind zwei Griffe, seit die Auswahl mehrere
+     * Einträge tragen kann.** Beide bewegen denselben Eintrag mit demselben
+     * `rename()` — aber der eine nennt einen **Namen** und der andere ein
+     * **Verzeichnis**, und ein Feld mit zwei Bedeutungen hat keine.
+     */
+    Route::post('/subscriptions/{subscription}/files/rename', [FileController::class, 'rename'])
+        ->middleware('can:editFiles,subscription')
+        ->name('files.rename');
 
     Route::post('/subscriptions/{subscription}/files/move', [FileController::class, 'move'])
         ->middleware('can:editFiles,subscription')

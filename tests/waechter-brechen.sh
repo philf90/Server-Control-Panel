@@ -7787,7 +7787,7 @@ vorher_datei resources/css/app.css
 python3 - <<'PY2'
 p = 'resources/css/app.css'
 s = open(p, encoding='utf-8').read()
-s = s.replace(".button-row + .sections {", ".button-row + .sections-x {", 1)
+s = s.replace(".button-row + .sections,", ".button-row + .sections-x,", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/css/app.css "Fuge unter der Knopfreihe" &&
@@ -7815,21 +7815,63 @@ pruefe "Meldung unter der Blätterleiste" \
 wiederherstellen
 
 echo
-echo "── BlockSpacingTest: ein Baustein der Liste, den es nicht gibt ──"
+echo "── BlockSpacingTest: die Begründung einer Ausnahme fällt weg ──"
 #
-# Der Wächter über den Wächter: Ein Name in einer der beiden Listen, den keine
-# Vorlage trägt, ist eine Zeile, die nach Abdeckung aussieht und keine ist.
-# Genau das war `pager` fünf Schritte lang.
-vorher_datei resources/js/Pages/Databases/Console.vue
+# Der Wächter über den Wächter. Hier stand ein Bruch über eine umbenannte
+# Klasse in einer Vorlage — er zeigte ins Leere, seit die beiden gepflegten
+# Listen durch die Ableitung aus app.css ersetzt sind (P6, Schritt 5d).
+#
+# `.empty` steht in HAS_OWN_AIR mit der Begründung, seine Luft komme aus dem
+# Padding. Bekommt es einen Rand, ist die Ausnahme ein Rest — und nimmt einen
+# Baustein aus dem Blick, der gar keine mehr braucht.
+vorher_datei resources/css/app.css
 python3 - <<'PY2'
-p = 'resources/js/Pages/Databases/Console.vue'
+p = 'resources/css/app.css'
 s = open(p, encoding='utf-8').read()
-s = s.replace('class="cell-value"', 'class="cell-text"', 1)
+s = s.replace('.empty {\n  margin: 0;\n  padding: 22px 0;',
+              '.empty {\n  margin: 22px 0;\n  padding: 0;', 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei resources/js/Pages/Databases/Console.vue "Baustein ohne Vorlage" &&
-pruefe "Baustein ohne Vorlage" \
+griff_datei resources/css/app.css "Ausnahme ohne Begründung" &&
+pruefe "Ausnahme ohne Begründung" \
   BlockSpacingTest::test_every_listed_block_really_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
+
+echo
+echo "── BlockSpacingTest: die sechste Fuge, und ein Baustein, den niemand einträgt ──"
+#
+# Der sechste Fall (docs/53, Befund 7): `.crumbs` kam in P6 dazu, und die Regel
+# nannte `.sections`. Der zweite Bruch ist der wichtigere — er stellt den
+# Zustand her, den die alten gepflegten Listen gar nicht sehen konnten: ein
+# neuer bündiger Baustein, den niemand eingetragen hat.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('.button-row + .split {', '.button-row + .spalt {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Fuge unter dem Formular" &&
+pruefe "Fuge unter dem Formular" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
+wiederherstellen
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""  gap: var(--gap);
+  margin-bottom: var(--block-gap);
+  font-size: var(--text-small);
+}""", """  gap: var(--gap);
+  font-size: var(--text-small);
+}""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Baustein wird buendig" &&
+pruefe "ein Baustein wird buendig, ohne dass jemand ihn eintraegt" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
 
@@ -8026,17 +8068,55 @@ echo "── CountedNounTest: eine Seite trifft die Entscheidung wieder selbst �
 #
 # Dreimal derselbe Fehler hiess, dass die Stelle fehlte, an der er einmal
 # richtig gemacht wird. Wer sie wieder verlässt, macht ihn ein viertes Mal.
+#
+# **Dieser Eingriff hat am 15. August seinen Biss verloren, und zwar lautlos.**
+# Er nimmt *einer* Vorlage die Einbindung weg; die Untergrenze im Waechter
+# zaehlte *alle* und stand auf drei. Solange es genau drei Benutzer gab, fiel
+# sie auf zwei und der Waechter biss — mit dem Dateimanager als viertem blieben
+# drei uebrig, und der Bruchlauf meldete „ohne Biss".
+#
+# Der Waechter zaehlt seitdem nicht mehr gegen eine Zahl, und dieser Eingriff
+# baut die Form nach, die counted() ersetzt: zwei einzelne Woerter hinter einer
+# Eins. Die trifft test_no_page_decides_the_word_itself, egal wie viele andere
+# Vorlagen die Entscheidung von der richtigen Stelle holen.
 vorher_datei resources/js/Pages/Audit/Index.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Audit/Index.vue'
 s = open(p, encoding='utf-8').read()
 s = s.replace("import { counted } from '../../Composables/useCounted'\n", '', 1)
 alt = ":subline=\"counted(events.total, 'Eintrag', 'Eintraege')\""
-s = s.replace(alt.replace('Eintraege', 'Einträge'), ':subline="`${events.total} Zeichen`"', 1)
+s = s.replace(
+    alt.replace('Eintraege', 'Einträge'),
+    ':subline="`${events.total} ${events.total === 1 ? \'Eintrag\' : \'Eintraege\'}`"'.replace('Eintraege', 'Einträge'),
+    1,
+)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/js/Pages/Audit/Index.vue "Entscheidung wieder in der Seite" &&
 pruefe "Entscheidung wieder in der Seite" \
+  CountedNounTest::test_no_page_decides_the_word_itself failed
+wiederherstellen
+
+echo
+echo "── CountedNounTest: eine Vorlage bindet ein und ruft nicht mehr auf ──"
+#
+# Die andere Richtung derselben Regel, und der Fall, den ein Umbau wirklich
+# macht: Der Aufruf wird ersetzt, die Einbindung bleibt stehen. Sie sieht dann
+# aus wie eine Zusage, dass die Entscheidung von der richtigen Stelle kommt —
+# und die Seite trifft sie längst selbst.
+vorher_datei resources/js/Pages/Plans/Form.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Plans/Form.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "${counted(props.subscriptions, 'Abonnement', 'Abonnements')} gebunden",
+    '${props.subscriptions} mal gebunden',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Plans/Form.vue "Einbindung ohne Aufruf" &&
+pruefe "eine Vorlage bindet ein und ruft nicht auf" \
   CountedNounTest::test_the_decision_lives_in_one_place failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CountedNounTest passed
@@ -8192,6 +8272,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace('if (! @chroot($root)) {', 'if (! self::confine($root)) {')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Sandbox.php "chroot aus der Sandbox entfernt" &&
 pruefe "chroot aus der Sandbox entfernt" \
   SandboxReachTest::test_the_sandbox_uses_all_of_them failed
 wiederherstellen
@@ -8210,6 +8291,7 @@ s = s.replace('    public static function removeTree(string $path): void\n    {\
               '    public static function removeTree(string $path): void\n    {\n        chroot($path);\n')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Filesystem.php "chroot ausserhalb der Sandbox" &&
 pruefe "chroot ausserhalb der Sandbox" \
   SandboxReachTest::test_only_the_sandbox_confines failed
 wiederherstellen
@@ -8229,6 +8311,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace('        try {\n            self::closeInherited($close);\n', '        try {\n')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Sandbox.php "closeInherited nicht mehr die erste Zeile im Kind" &&
 pruefe "closeInherited nicht mehr die erste Zeile im Kind" \
   SandboxReachTest::test_the_child_closes_what_it_inherited failed
 wiederherstellen
@@ -8248,6 +8331,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace('posix_initgroups(', 'self::groups(')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Sandbox.php "initgroups aus der Rechteabgabe entfernt" &&
 pruefe "initgroups aus der Rechteabgabe entfernt" \
   PrivilegeDropTest::test_the_drop_happens_in_the_only_order_that_works failed
 wiederherstellen
@@ -8266,6 +8350,7 @@ s = s.replace("! posix_setgid($account['gid']) || ! posix_setuid($account['uid']
               "! posix_setuid($account['uid']) || ! posix_setgid($account['gid'])")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Sandbox.php "setuid vor setgid" &&
 pruefe "setuid vor setgid" \
   PrivilegeDropTest::test_the_drop_happens_in_the_only_order_that_works failed
 wiederherstellen
@@ -8286,6 +8371,7 @@ s = s.replace("if (($decoded['uid'] ?? 0) === 0 || in_array(0, $decoded['groups'
               "if (in_array(0, $decoded['groups'] ?? [0], true)) {")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Sandbox.php "Elternprozess prueft die gemeldete uid nicht" &&
 pruefe "Elternprozess prueft die gemeldete uid nicht" \
   PrivilegeDropTest::test_the_parent_checks_the_proof_it_gets_back failed
 wiederherstellen
@@ -8306,6 +8392,7 @@ s = s.replace('if (Filesystem::removeInside($site->logDir(), $site->subscription
               'if (Filesystem::removeTree($site->logDir()) || true) {')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Ops/WebSiteRemove.php "Baumlauf als root an einer unbegruendeten Stelle" &&
 pruefe "Baumlauf als root an einer unbegruendeten Stelle" \
   SandboxReachTest::test_the_raw_tree_walk_is_called_only_where_no_customer_writes failed
 wiederherstellen
@@ -8324,6 +8411,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace('        Filesystem::purgeContents($root, $user);\n\n', '')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Ops/SubscriptionRemove.php "purgeContents aus dem Rueckbau entfernt" &&
 pruefe "purgeContents aus dem Rueckbau entfernt" \
   SandboxReachTest::test_the_teardown_purges_before_it_walks failed
 wiederherstellen
@@ -8342,6 +8430,7 @@ s = s.replace('        Filesystem::purgeContents($root, $user);\n\n        Files
               '        Filesystem::removeTree($root);\n\n        Filesystem::purgeContents($root, $user);')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Ops/SubscriptionRemove.php "Aufraeumen erst nach dem Baumlauf" &&
 pruefe "Aufraeumen erst nach dem Baumlauf" \
   SandboxReachTest::test_the_teardown_purges_before_it_walks failed
 wiederherstellen
@@ -8364,6 +8453,7 @@ s = s.replace("""foreach (glob(__DIR__.'/Files/*.php') ?: [] as $file) {
         }""", 'class_exists(Files\\Entry::class);')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Sandbox.php "handgepflegte Liste statt Aufzaehlung" &&
 pruefe "handgepflegte Liste statt Aufzaehlung" \
   SandboxPreloadTest::test_the_files_namespace_is_enumerated failed
 wiederherstellen
@@ -8382,6 +8472,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace('            self::explainMissingClasses();\n', '')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Sandbox.php "Aufruf entfernt, Definition bleibt" &&
 pruefe "Aufruf entfernt, Definition bleibt" \
   SandboxPreloadTest::test_a_missing_class_explains_itself failed
 wiederherstellen
@@ -8399,6 +8490,7 @@ s = s.replace('            self::explainMissingClasses();\n', '')
 s = s.replace("            chdir('/');", "            chdir('/');\n            self::explainMissingClasses();")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Sandbox.php "Autoloader erst nach dem chroot registriert" &&
 pruefe "Autoloader erst nach dem chroot registriert" \
   SandboxPreloadTest::test_the_explanation_is_registered_before_the_chroot failed
 wiederherstellen
@@ -8418,6 +8510,7 @@ s = s.replace("Guard::pathInside($args['source'] ?? null, [Staging::ROOT])",
               "Guard::string($args['source'] ?? null, 'source')")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Ops/FilesUpload.php "Quelle des Uploads ungeprueft" &&
 pruefe "Quelle des Uploads ungeprueft" \
   FileStagingTest::test_the_upload_confines_its_source failed
 wiederherstellen
@@ -8437,6 +8530,7 @@ s = s.replace('static function () use ($handle, $path, $size): array {',
               "static function () use ($source, $path, $size): array {\n                $handle = @fopen($source, 'rb');")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Ops/FilesUpload.php "Quelle erst im Kind geoeffnet" &&
 pruefe "Quelle erst im Kind geoeffnet" \
   FileStagingTest::test_the_source_is_opened_before_the_child_starts failed
 wiederherstellen
@@ -8455,6 +8549,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace('private/uploads', 'private/imports')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Files/Staging.php "Uploads und Sicherungen im selben Lager" &&
 pruefe "Uploads und Sicherungen im selben Lager" \
   FileStagingTest::test_the_two_stores_stay_apart failed
 wiederherstellen
@@ -8473,6 +8568,7 @@ d = json.load(open('package.json', encoding='utf-8'))
 d['devDependencies']['chart.js'] = '^4.0.0'
 json.dump(d, open('package.json', 'w', encoding='utf-8'), indent=4, ensure_ascii=False)
 PY2
+griff_datei package.json "chart.js ohne Begruendung in package.json" &&
 pruefe "chart.js ohne Begruendung in package.json" \
   FrontendDependencyTest::test_every_dependency_is_accounted_for failed
 wiederherstellen
@@ -8490,6 +8586,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace("import { onBeforeUnmount", "import { EditorView } from '@codemirror/view'\nimport { onBeforeUnmount")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei resources/js/Components/CodeEditor.vue "CodeMirror statisch importiert" &&
 pruefe "CodeMirror statisch importiert" \
   FrontendDependencyTest::test_codemirror_is_loaded_lazily failed
 wiederherstellen
@@ -8508,6 +8605,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace("{ tag: tags.keyword, class: 'tok-keyword' },", "{ tag: tags.keyword, color: '#c678dd' },")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei resources/js/Components/CodeEditor.vue "Hexwert im Editor" &&
 pruefe "Hexwert im Editor" \
   FrontendDependencyTest::test_the_editor_brings_no_colours_of_its_own failed
 wiederherstellen
@@ -8526,6 +8624,7 @@ s = open(p, encoding='utf-8').read()
 s = re.sub(r'<textarea.*?</textarea>', '', s, flags=re.S)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei resources/js/Components/CodeEditor.vue "textarea-Rueckweg entfernt" &&
 pruefe "textarea-Rueckweg entfernt" \
   FrontendDependencyTest::test_there_is_a_way_without_the_library failed
 wiederherstellen
@@ -8549,6 +8648,7 @@ s = s[:i] + """            if ($part === '..') {
                 continue;""" + s[j:]
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Files/Archive.php "Zip-Slip wird zurechtgebogen statt verworfen" &&
 pruefe "Zip-Slip wird zurechtgebogen statt verworfen" \
   ArchiveEntryTest::test_a_way_out_is_not_bent_into_a_way_in failed
 wiederherstellen
@@ -8566,6 +8666,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace("        $name = str_replace('\\\\', '/', $name);\n", '')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Files/Archive.php "Backslash nicht als Trenner behandelt" &&
 pruefe "Backslash nicht als Trenner behandelt" \
   ArchiveEntryTest::test_entries_that_lead_out_are_dropped failed
 wiederherstellen
@@ -8583,6 +8684,7 @@ s = open(p, encoding='utf-8').read()
 s = s.replace('if (! str_contains($content, $needle)) {', 'if (preg_match("/".$needle."/", $content) !== 1) {')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Ops/FilesSearch.php "Suche mit regulaerem Ausdruck des Kunden" &&
 pruefe "Suche mit regulaerem Ausdruck des Kunden" \
   ArchiveEntryTest::test_the_search_matches_literally failed
 wiederherstellen
@@ -8600,10 +8702,671 @@ s = open(p, encoding='utf-8').read()
 s = s.replace("'truncated' => $abgebrochen,", '')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
+griff_datei agent/src/Ops/FilesSearch.php "Abbruch des Suchlaufs verschwiegen" &&
 pruefe "Abbruch des Suchlaufs verschwiegen" \
   ArchiveEntryTest::test_a_truncated_search_says_so failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ArchiveEntryTest passed
+
+echo
+echo "── LinkReachTest: der Weg zu einer Seite faellt weg ──"
+#
+# Der Anlass ist Befund 6 aus `docs/53`: Der Dateimanager war vollstaendig
+# gebaut, und kein Template zeigte darauf. Erreichbar war er nur ueber die
+# Adresszeile.
+vorher_datei resources/js/Pages/Subscriptions/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('/files`"', '/dateien`"', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Show.vue "Weg zum Dateimanager entfernt" &&
+pruefe "Weg zum Dateimanager entfernt" \
+  LinkReachTest::test_every_page_is_reachable_from_a_template failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LinkReachTest passed
+
+echo
+echo "── LinkReachTest: eine Route zieht um, der Link bleibt stehen ──"
+#
+# Der wiederkehrende Fehler dieses Projekts: eine Zeichenkette, die auf etwas
+# verweist, das umgezogen ist. Hier faellt er auf, statt eine Seite still
+# unerreichbar zu machen.
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("Route::get('/audit'", "Route::get('/protokoll'", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei routes/web.php "Route umgezogen" &&
+pruefe "Route umgezogen, Link steht still" \
+  LinkReachTest::test_every_page_is_reachable_from_a_template failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LinkReachTest passed
+
+echo
+echo "── InheritedGroupTest: httpdocs ohne setgid ──"
+#
+# Befund 3 aus docs/53: Zwei Dateien nebeneinander im selben httpdocs, die eine
+# 1004:33 (www-data) und die andere 1004:1004. Der Webserver kam an die zweite
+# nur ueber das Weltbit — wer sie auf 0640 setzt, bekommt einen 403.
+vorher_datei agent/src/Ops/SubscriptionProvision.php
+sed -i 's/DOCUMENT_ROOT_MODE = 0o2750/DOCUMENT_ROOT_MODE = 0o750/' agent/src/Ops/SubscriptionProvision.php
+griff_datei agent/src/Ops/SubscriptionProvision.php "httpdocs ohne setgid" &&
+pruefe "httpdocs ohne setgid" \
+  InheritedGroupTest::test_every_directory_of_the_customer_inherits_its_group failed
+wiederherstellen
+
+echo
+echo "── InheritedGroupTest: ein Verzeichnis des Schemas ohne setgid ──"
+#
+# Der zweite Bruch trifft eines, bei dem das Bit heute nichts aendert. Genau
+# deshalb steht es dort: Die Regel heisst „alle Verzeichnisse des Kunden" und
+# nicht „die mit einer fremden Gruppe" — sonst muesste sie bei jedem Zuwachs
+# des Schemas neu beurteilt werden.
+vorher_datei agent/src/Ops/SubscriptionProvision.php
+sed -i "s/'mail' => \['%u', '%g', 0o2700\]/'mail' => ['%u', '%g', 0o700]/" agent/src/Ops/SubscriptionProvision.php
+griff_datei agent/src/Ops/SubscriptionProvision.php "mail ohne setgid" &&
+pruefe "mail ohne setgid" \
+  InheritedGroupTest::test_every_directory_of_the_customer_inherits_its_group failed
+wiederherstellen
+
+echo
+echo "── InheritedGroupTest: die Angabe steht wieder zweimal da ──"
+#
+# Bis zum 14. August standen 'www-data' und 0750 in SubscriptionProvision::TREE
+# und noch einmal als Literal in WebSiteApply. Das setgid-Bit waere an der
+# zweiten Stelle nicht angekommen.
+vorher_datei agent/src/Ops/WebSiteApply.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebSiteApply.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                SubscriptionProvision::DOCUMENT_ROOT_GROUP,\n"
+              "                SubscriptionProvision::DOCUMENT_ROOT_MODE,",
+              "                'www-data',\n                0o750,")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/WebSiteApply.php "Angabe zweimal" &&
+pruefe "Angabe des DocumentRoots zweimal" \
+  InheritedGroupTest::test_the_document_root_is_described_in_one_place failed
+wiederherstellen
+
+echo
+echo "── InheritedGroupTest: die Angabe gilt nur beim Anlegen ──"
+#
+# Der Fehler, der beinahe passiert waere: directories() setzte Rechte nur, wenn
+# das Verzeichnis neu entstand. Das setgid-Bit haette damit kein einziges
+# bestehendes Abonnement erreicht.
+vorher_datei agent/src/Ops/WebSiteApply.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebSiteApply.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""        $entstanden = ! is_dir($site->logDir());
+
+        Filesystem::directory($site->logDir(), $site->user, 'adm', 0o2750);
+
+        if ($entstanden) {
+            $created[] = $site->logDir();
+        }""",
+              """        if (! is_dir($site->logDir())) {
+            Filesystem::directory($site->logDir(), $site->user, 'adm', 0o2750);
+            $created[] = $site->logDir();
+        }""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/WebSiteApply.php "Angabe nur beim Anlegen" &&
+pruefe "Rechte nur beim Anlegen gesetzt" \
+  InheritedGroupTest::test_the_rule_reaches_existing_subscriptions failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InheritedGroupTest passed
+
+echo
+echo "── PermissionFormTest: die Rechte wieder als Zahl im Systemdialog ──"
+#
+# Befund 8 aus docs/53: ein window.prompt, das eine Oktalzahl verlangt, nichts
+# erklaert und einen schwarzen Systemkasten in ein helles Panel stellt.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('<PermissionEditor', '<div v-if="false" data-x', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Rechte ohne gefuehrten Baustein" &&
+pruefe "Rechte ohne gefuehrten Baustein" \
+  PermissionFormTest::test_the_mode_is_not_asked_for_in_a_browser_dialog failed
+wiederherstellen
+
+echo
+echo "── PermissionFormTest: die Erklaerung kennt den Ordner nicht mehr ──"
+#
+# Dasselbe Bit heisst bei einer Datei „ausfuehrbar" und bei einem Verzeichnis
+# „betretbar". Ein Ordner ohne x sperrt seinen Eigentuemer aus, und das sieht
+# aus wie ein Serverfehler.
+vorher_datei resources/js/Components/PermissionEditor.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/PermissionEditor.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("sätze.push('Achtung: Ohne „Ausführen\" lässt sich der Ordner nicht öffnen — auch nicht vom Eigentümer.')",
+              "sätze.push('Achtung.')")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Components/PermissionEditor.vue "Warnsatz zum Ordner" &&
+pruefe "Warnsatz zum Ordner entfernt" \
+  PermissionFormTest::test_the_explanation_knows_what_it_is_talking_about failed
+wiederherstellen
+
+echo
+echo "── PermissionFormTest: eine Vorlage mit setuid ──"
+#
+# setuid, setgid und Sticky werden nicht angeboten: Ihre Wirkung laesst sich in
+# einer Zeile nicht ehrlich erklaeren.
+vorher_datei resources/js/Components/PermissionEditor.vue
+sed -i "s/{ mode: 0o644, label: 'Übliche Datei'/{ mode: 0o4644, label: 'Übliche Datei'/" resources/js/Components/PermissionEditor.vue
+griff_datei resources/js/Components/PermissionEditor.vue "Vorlage mit setuid" &&
+pruefe "Vorlage mit setuid" \
+  PermissionFormTest::test_the_presets_stay_within_nine_bits failed
+wiederherstellen
+
+echo
+echo "── PermissionFormTest: der Webserver-Satz haengt wieder am Weltbit ──"
+#
+# Seit httpdocs setgid traegt, liest der Webserver ueber die Gruppe. Am Weltbit
+# waere der Satz die Auskunft von vor Schritt 6c — genau die Halbwahrheit aus
+# Befund 3.
+vorher_datei resources/js/Components/PermissionEditor.vue
+sed -i 's/has(3, 4)$/has(0, 4)/' resources/js/Components/PermissionEditor.vue
+griff_datei resources/js/Components/PermissionEditor.vue "Webserver-Satz am Weltbit" &&
+pruefe "Webserver-Satz am Weltbit" \
+  PermissionFormTest::test_the_sentence_about_the_webserver_follows_the_group failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PermissionFormTest passed
+
+echo
+echo "── FrontendDependencyTest: eine Marke ohne Farbe ──"
+#
+# Schritt 6d hat drei Marken dazugebracht (tok-property, tok-variable,
+# tok-punctuation). Jede muss in app.css eine Farbe bekommen — eine Marke, die
+# CodeMirror vergibt und die niemand einfaerbt, sieht aus wie gewoehnlicher
+# Text und behauptet damit, nichts erkannt zu haben.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('.editor .tok-variable {', '.editor .tok-variable-x {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Marke ohne Farbe" &&
+pruefe "Marke ohne Farbe" \
+  FrontendDependencyTest::test_the_editor_brings_no_colours_of_its_own failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FrontendDependencyTest passed
+
+echo
+echo "── FileCreationTest: der Weg zum Anlegen einer Datei faellt weg ──"
+#
+# Die Fortsetzung von Befund 6, eine Ebene tiefer: files.write legt seit
+# Schritt 3 an, was es nicht gibt — es fehlte nur der Knopf.
+vorher_datei resources/js/Pages/Files/Index.vue
+sed -i 's/          Datei anlegen/          Datei erzeugen/' resources/js/Pages/Files/Index.vue
+griff_datei resources/js/Pages/Files/Index.vue "Weg zum Anlegen" &&
+pruefe "Weg zum Anlegen einer Datei" \
+  FileCreationTest::test_a_file_can_be_created_from_the_listing failed
+wiederherstellen
+
+echo
+echo "── FileCreationTest: angelegt oder gespeichert wieder an einer Absicht ──"
+#
+# Der Fehler aus P4: eine Bedingung, die an einer Absicht haengt statt an einem
+# Zustand. Der Agent sagt in seiner Antwort, ob die Datei neu entstanden ist.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$created = ($result['created'] ?? false) === true;",
+              "$created = ($data['neu'] ?? false) === true;")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/FileController.php "Absicht statt Zustand" &&
+pruefe "angelegt oder gespeichert an einer Absicht" \
+  FileCreationTest::test_creating_and_saving_are_told_apart_by_the_answer failed
+wiederherstellen
+
+echo
+echo "── FileCreationTest: ein Zielpfad fuer alle hochgeladenen Dateien ──"
+#
+# Zwanzig Dateien unter demselben Namen, neunzehnmal ueberschrieben — und der
+# Vorgang meldet zwanzig Erfolge.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$target = rtrim($data['path'], '/').'/'.$leaf;", "$target = $data['path'];")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/FileController.php "ein Zielpfad fuer alle" &&
+pruefe "ein Zielpfad fuer alle Dateien" \
+  FileCreationTest::test_every_uploaded_file_keeps_its_own_name failed
+wiederherstellen
+
+echo
+echo "── FileCreationTest: ein halb gelungener Upload meldet Erfolg ──"
+#
+# Der Gegenstand dieses Schritts. Neunzehn von zwanzig Dateien im Verzeichnis
+# und darueber eine Erfolgsmeldung.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'Von %d Dateien %s %d hochgeladen.'", "'Einige Dateien sind nicht hochgeladen.%s%s%s'")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/FileController.php "Zahl der gelungenen fehlt" &&
+pruefe "Zahl der gelungenen Dateien fehlt" \
+  FileCreationTest::test_a_partly_failed_upload_does_not_report_success failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FileCreationTest passed
+
+echo
+echo "── SchemeProtectionTest: die Liste des Schemas wird abgetippt ──"
+#
+# Sie kommt aus SubscriptionProvision::reservedDirectories() und waechst mit dem
+# Schema. Eine zweite Aufzaehlung veraltet beim naechsten Zuwachs.
+vorher_datei agent/src/Files/Scheme.php
+python3 - <<'PY2'
+p = 'agent/src/Files/Scheme.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('[SubscriptionProvision::DOCUMENT_ROOT, ...SubscriptionProvision::reservedDirectories()]',
+              "['httpdocs', 'logs', 'conf']")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Files/Scheme.php "Schema abgetippt" &&
+pruefe "Liste des Schemas abgetippt" \
+  SchemeProtectionTest::test_every_directory_of_the_scheme_is_protected failed
+wiederherstellen
+
+echo
+echo "── SchemeProtectionTest: der Schutz greift auch fuer den Inhalt ──"
+#
+# Die andere Haelfte der Regel, und ohne sie waere der Schutz schlimmer als
+# keiner: httpdocs leerzuraeumen ist genau das, was jemand vor einem neuen
+# Deploy tut.
+vorher_datei agent/src/Files/Scheme.php
+python3 - <<'PY2'
+p = 'agent/src/Files/Scheme.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("return in_array(rtrim($path, '/'), self::fixed(), true);",
+              "foreach (self::fixed() as $f) { if (str_starts_with($path, $f)) { return true; } } return false;")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Files/Scheme.php "Schutz auch fuer den Inhalt" &&
+pruefe "Schutz greift auch fuer den Inhalt" \
+  SchemeProtectionTest::test_what_lies_inside_is_not failed
+wiederherstellen
+
+echo
+echo "── SchemeProtectionTest: chmod fragt das Schema nicht ──"
+#
+# Die Operation, die man vergisst, und seit Schritt 6c die gefaehrlichste:
+# httpdocs traegt das setgid-Bit, chmod nimmt nur neun Bits entgegen — das
+# zehnte faellt lautlos weg.
+vorher_datei agent/src/Ops/FilesChmod.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesChmod.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("Scheme::protect($path, 'in seinen Rechten geändert');", '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/FilesChmod.php "chmod ohne Schema" &&
+pruefe "chmod fragt das Schema nicht" \
+  SchemeProtectionTest::test_the_operations_that_can_destroy_ask_first failed
+wiederherstellen
+
+echo
+echo "── SchemeProtectionTest: die Pruefung rutscht in die Sandbox ──"
+#
+# Dort ist sie korrekt und wirkungslos: Der Kernel weist denselben Vorgang auch
+# ab, nur nach dem Leerraeumen.
+vorher_datei agent/src/Ops/FilesRemove.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesRemove.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        Scheme::protect($path, 'entfernt');\n", '')
+s = s.replace("""        return $workspace->run(static function () use ($path, $recursive): array {
+            $entry = Entry::of($path);""",
+              """        return $workspace->run(static function () use ($path, $recursive): array {
+            Scheme::protect($path, 'entfernt');
+            $entry = Entry::of($path);""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/FilesRemove.php "Pruefung in der Sandbox" &&
+pruefe "Pruefung steht in der Sandbox" \
+  SchemeProtectionTest::test_the_check_runs_before_anything_happens failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SchemeProtectionTest passed
+
+echo
+echo "── PanelRequestTest: eine zweite Stelle ruft fetch ──"
+#
+# Der Satz stand seit P5c als Kommentar in useConsole.ts und war von nichts
+# geprueft. Als P6 den Baum bekam, brauchte der denselben Weg — der zweite
+# Aufrufer ist genau der Fall, vor dem der Kommentar warnte.
+vorher_datei resources/js/Composables/useConsole.ts
+python3 - <<'PY2'
+p = 'resources/js/Composables/useConsole.ts'
+s = open(p, encoding='utf-8').read()
+s = s.replace('return askPanel<T>(', 'void fetch("/x"); return askPanel<T>(', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Composables/useConsole.ts "zweiter fetch" &&
+pruefe "eine zweite Stelle ruft fetch" \
+  PanelRequestTest::test_only_one_place_calls_fetch failed
+wiederherstellen
+
+echo
+echo "── PanelRequestTest: eine Kopfzeile faellt weg ──"
+#
+# Ohne X-Requested-With erkennt Laravel die Anfrage nicht als eine, die keine
+# Umleitung vertraegt. Der erste Wurf dieses Waechters blieb dabei gruen — er
+# fand die Kopfzeile im eigenen Klassenkopf, wo sie erklaert wird.
+vorher_datei resources/js/Composables/usePanelRequest.ts
+python3 - <<'PY2'
+p = 'resources/js/Composables/usePanelRequest.ts'
+s = open(p, encoding='utf-8').read()
+s = s.replace("      'X-Requested-With': 'XMLHttpRequest',\n", '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Composables/usePanelRequest.ts "Kopfzeile fehlt" &&
+pruefe "eine Kopfzeile fehlt" \
+  PanelRequestTest::test_the_one_place_sends_all_three_headers failed
+wiederherstellen
+
+echo
+echo "── PanelRequestTest: der Status entscheidet vor dem Rumpf ──"
+#
+# Ein 422 traegt die Begruendung, an der zwei Abnahmekriterien aus docs/46 §4
+# hingen. Wer beim Status abbricht, wirft genau sie weg.
+vorher_datei resources/js/Composables/usePanelRequest.ts
+python3 - <<'PY2'
+p = 'resources/js/Composables/usePanelRequest.ts'
+s = open(p, encoding='utf-8').read()
+s = s.replace('  const text = await antwort.text()',
+              '  if (antwort.ok) { return (await antwort.json()) as T }\n  const text = await antwort.text()', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Composables/usePanelRequest.ts "Status vor Rumpf" &&
+pruefe "der Status entscheidet vor dem Rumpf" \
+  PanelRequestTest::test_the_body_is_read_before_the_status_decides failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PanelRequestTest passed
+
+echo
+echo "── FilesTree: der Baum laeuft nicht in der Sandbox ──"
+#
+# Zwoelf Operationen betraten die Grenze, und nichts hielt fest, dass die
+# dreizehnte es auch tut. Ein files.tree ohne Workspace::run() liest als root im
+# ganzen Dateisystem — und zwar die Operation, die am haeufigsten laeuft.
+vorher_datei agent/src/Ops/FilesTree.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesTree.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""return $workspace->run(static function () use ($path): array {""",
+              """$lauf = static function () use ($path): array {""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/FilesTree.php "Baum ohne Sandbox" &&
+pruefe "Baum ohne Sandbox" \
+  SandboxReachTest::test_every_file_operation_goes_through_the_sandbox failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxReachTest passed
+
+echo
+echo "── BulkActionTest: ein Griff liest die Auswahl selbst ──"
+#
+# Die Obergrenze, das min:1 und das array_unique stehen in selection(). Viermal
+# abgeschrieben waere es viermal die Gelegenheit, eines davon zu vergessen.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""        $paths = $this->selection($request, ['recursive' => ['boolean']]);""",
+              """        $data = $request->validate([
+            'paths' => ['required', 'array', 'min:1'],
+            'paths.*' => ['required', 'string', 'max:4096'],
+            'recursive' => ['boolean'],
+        ]);
+        $paths = $data['paths'];""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/FileController.php "Auswahl selbst gelesen" &&
+pruefe "ein Griff liest die Auswahl selbst" \
+  BulkActionTest::test_every_handler_reads_the_selection_in_one_place failed
+wiederherstellen
+
+echo
+echo "── BulkActionTest: ein Griff meldet nicht, was schiefging ──"
+#
+# Der Gegenstand dieses Schritts. Neunzehn von zwanzig Eintraegen verschoben und
+# darueber eine Erfolgsmeldung.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $this->report($paths, $result, 'verschoben');\n", '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/FileController.php "Rueckmeldung fehlt" &&
+pruefe "ein Griff meldet Fehlschlaege nicht" \
+  BulkActionTest::test_every_looping_handler_reports_what_failed failed
+wiederherstellen
+
+echo
+echo "── BulkActionTest: die Zahl steht hinter den Gruenden ──"
+#
+# Wer drei Meldungen liest und die Gesamtzahl erst darunter findet, hat die Frage
+# „sind die anderen durch?" schon dreimal falsch beantwortet.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""        $messages = [sprintf(
+            'Von %d Einträgen %s %d %s.',
+            count($paths),
+            $result['done'] === 1 ? 'ist' : 'sind',
+            $result['done'],
+            $verb,
+        )];
+
+        foreach ($result['failed'] as $path => $reason) {
+            $messages[] = sprintf('%s: %s', $path, $reason);
+        }""",
+              """        $messages = [];
+
+        foreach ($result['failed'] as $path => $reason) {
+            $messages[] = sprintf('%s: %s', $path, $reason);
+        }
+
+        $messages[] = sprintf(
+            'Von %d Einträgen %s %d %s.',
+            count($paths),
+            $result['done'] === 1 ? 'ist' : 'sind',
+            $result['done'],
+            $verb,
+        );""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/FileController.php "Zahl hinter den Gruenden" &&
+pruefe "die Zahl steht hinter den Gruenden" \
+  BulkActionTest::test_the_tally_stands_before_the_reasons failed
+wiederherstellen
+
+echo
+echo "── BulkActionTest: der einzelne Eintrag bekommt eine Mengenangabe ──"
+#
+# „Von 1 Eintraegen ist 0 entfernt." ist die Zahl ohne die Auskunft — und die
+# Auskunft ist bei einem Eintrag alles, was es zu sagen gibt.
+vorher_datei app/Http/Controllers/FileController.php
+sed -i 's/if (count($paths) === 1) {/if (count($paths) === 0) {/' app/Http/Controllers/FileController.php
+griff_datei app/Http/Controllers/FileController.php "Einzahl faellt weg" &&
+pruefe "der einzelne Eintrag bekommt eine Mengenangabe" \
+  BulkActionTest::test_a_single_entry_gets_its_reason_without_a_tally failed
+wiederherstellen
+
+echo
+echo "── BulkActionTest: das Ziel wird als vollstaendiger Pfad benutzt ──"
+#
+# Derselbe Fehler wie beim Mehrfach-Upload: ein Pfad fuer alle. Der letzte
+# Eintrag gewinnt, die anderen sind fort, und der Vorgang meldet Erfolg.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""            $to = $this->into($ziel, $path);
+
+            $this->files->copy($subscription, $path, $to);""",
+              """            $to = $ziel;
+
+            $this->files->copy($subscription, $path, $to);""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/FileController.php "ein Zielpfad fuer alle Eintraege" &&
+pruefe "das Ziel wird als vollstaendiger Pfad benutzt" \
+  BulkActionTest::test_the_target_of_a_batch_is_a_directory failed
+wiederherstellen
+
+echo
+echo "── BulkActionTest: umbenennen nimmt wieder einen Pfad ──"
+#
+# Ein Feld mit zwei Bedeutungen hat keine.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            'name' => ['required', 'string', 'max:255'],",
+              "            'to' => ['required', 'string', 'max:4096'],")
+s = s.replace("""        $leaf = basename(str_replace('\\\\', '/', $data['name']));""",
+              """        $leaf = $data['to'];""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/FileController.php "umbenennen nimmt einen Pfad" &&
+pruefe "umbenennen nimmt wieder einen Pfad" \
+  BulkActionTest::test_renaming_asks_for_a_name_and_not_for_a_path failed
+wiederherstellen
+
+echo
+echo "── BulkActionTest: die Seite setzt den Zielpfad wieder selbst zusammen ──"
+#
+# Die andere Haelfte derselben Regel — und die Stelle, an der der Fehler aus §8.3
+# entstanden ist.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('  rename.name = wanted', '  rename.to = here(wanted)')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Zielpfad in der Seite" &&
+pruefe "die Seite setzt den Zielpfad selbst zusammen" \
+  BulkActionTest::test_renaming_asks_for_a_name_and_not_for_a_path failed
+wiederherstellen
+
+echo
+echo "── BulkActionTest: die Auswahl ueberlebt die Navigation ──"
+#
+# Dann steht ueber der Tabelle eine Zahl, zu der kein einziger Haken gehoert —
+# und der naechste Klick auf „Entfernen" trifft Eintraege aus einem anderen
+# Ordner.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""watch(() => props.path, () => {
+  selected.value = []
+  picking.value = null
+})""",
+              """watch(() => props.path, () => {
+  picking.value = null
+})""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Auswahl ueberlebt" &&
+pruefe "die Auswahl ueberlebt die Navigation" \
+  BulkActionTest::test_the_selection_falls_away_when_the_directory_changes failed
+wiederherstellen
+
+echo
+echo "── BulkActionTest: ein Knopf zeigt auf eine Adresse, die es nicht gibt ──"
+#
+# vue-tsc faengt einen fehlenden Namen. Eine Adresse, die auf keine Route mehr
+# zeigt, faengt es nicht — der Kunde bekommt dort eine 404.
+vorher_datei resources/js/Pages/Files/Index.vue
+sed -i 's|/files/compress`|/files/archive`|' resources/js/Pages/Files/Index.vue
+griff_datei resources/js/Pages/Files/Index.vue "Adresse ohne Route" &&
+pruefe "ein Knopf zeigt auf keine Route" \
+  BulkActionTest::test_every_action_of_the_selection_reaches_a_route failed
+wiederherstellen
+
+echo
+echo "── BulkActionTest: die Route zum Kopieren heisst anders ──"
+#
+# Kopieren und Verschieben setzt die Seite zur Laufzeit zusammen; ohne die zwei
+# Zeilen im Waechter waere ausgerechnet der neue Teil der einzige ungeprueften.
+vorher_datei routes/web.php
+sed -i "s|/files/copy'|/files/duplicate'|" routes/web.php
+griff_datei routes/web.php "Route umbenannt" &&
+pruefe "die Route zum Kopieren heisst anders" \
+  BulkActionTest::test_every_action_of_the_selection_reaches_a_route failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BulkActionTest passed
+
+echo
+echo "── SelectionTest: zwei Schreibweisen desselben Pfades zaehlen zweimal ──"
+#
+# Beim zweiten Mal meldet der Agent „gibt es nicht" — mitten in einer
+# Rueckmeldung ueber siebzehn Erfolge.
+vorher_datei agent/src/Files/Workspace.php
+python3 - <<'PY2'
+p = 'agent/src/Files/Workspace.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""            if (! in_array($pfad, $paths, true)) {
+                $paths[] = $pfad;
+            }""",
+              """            $paths[] = $pfad;""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Files/Workspace.php "keine Entdopplung" &&
+pruefe "zwei Schreibweisen zaehlen zweimal" \
+  SelectionTest::test_two_spellings_of_the_same_path_count_once failed
+wiederherstellen
+
+echo
+echo "── SelectionTest: die Namen werden erst nach dem open geprueft ──"
+#
+# Dann bekommt der Kunde „liess sich nicht anlegen", raeumt das Ziel weg und
+# laeuft in denselben Fehler. Von zwei Gruenden gehoert der genannt, den der
+# naechste Versuch nicht von selbst behebt.
+vorher_datei agent/src/Files/Packer.php
+python3 - <<'PY2'
+p = 'agent/src/Files/Packer.php'
+s = open(p, encoding='utf-8').read()
+oeffnen = """        $zip = new ZipArchive;
+
+        if ($zip->open($target, ZipArchive::CREATE | ZipArchive::EXCL) !== true) {
+            throw AgentException::denied('Das Archiv liess sich nicht anlegen.');
+        }
+
+"""
+s = s.replace(oeffnen, '', 1)
+s = s.replace("        $vergeben = [];\n", "        $vergeben = [];\n\n" + oeffnen, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Files/Packer.php "Namen nach dem open" &&
+pruefe "die Namen werden nach dem open geprueft" \
+  SelectionTest::test_the_names_are_checked_before_the_archive_is_opened failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SelectionTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

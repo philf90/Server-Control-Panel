@@ -348,6 +348,23 @@ final class SubscriptionController extends Controller
                 'viewCustomer' => $subscription->customer !== null
                     && ($account?->can('view', $subscription->customer) ?? false),
                 'manageDns' => $account?->can('manageDns', $subscription) ?? false,
+
+                /*
+                 * **Der Weg zum Dateimanager.**
+                 *
+                 * Er hat vom 14. August 2026 bis zur Zwischenabnahme gefehlt,
+                 * und zwar vollständig: elf Routen, drei Seiten, eine Policy —
+                 * und kein Template, das darauf zeigte. Erreichbar war der
+                 * Dateimanager nur über die Adresszeile (`docs/53`, Befund 6).
+                 *
+                 * > Eine Seite, auf die nichts zeigt, ist nicht ausgeliefert —
+                 * > sie ist nur vorhanden.
+                 *
+                 * Gefragt wird `browseFiles` und nicht `editFiles`: Wer nur
+                 * lesen darf, soll trotzdem hineinsehen können. Die Seite
+                 * dahinter entscheidet über die Griffe noch einmal selbst.
+                 */
+                'browseFiles' => $account?->can('browseFiles', $subscription) ?? false,
             ],
 
             /*

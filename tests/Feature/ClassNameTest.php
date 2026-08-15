@@ -45,22 +45,23 @@ final class ClassNameTest extends TestCase
      */
     private const VOCABULARY = [
         'account', 'active', 'after', 'area', 'arrow', 'aside', 'badge', 'band', 'bar', 'blank',
-        'block', 'breadcrumb', 'button', 'cell', 'check', 'choice', 'choices', 'codes',
+        'block', 'branch', 'breadcrumb', 'button', 'cell', 'check', 'choice', 'choices', 'codes',
         'code', 'comment', 'content', 'critical', 'crumbs', 'cursor', 'danger', 'dependent', 'description',
-        'done', 'editor', 'empty', 'end', 'error', 'eye', 'facts', 'field', 'filter',
+        'done', 'editor', 'empty', 'end', 'error', 'explains', 'eye', 'facts', 'field', 'filter',
         'foot', 'footer', 'form', 'frame', 'full', 'grid', 'group', 'head',
-        'hint', 'icon', 'ident', 'inline', 'invalid', 'item', 'keyword', 'label', 'leaf', 'line', 'link',
+        'here', 'hint', 'icon', 'ident', 'inline', 'invalid', 'item', 'keyword', 'knob', 'label', 'leaf', 'line', 'link',
         'list',
         'log', 'long', 'mark', 'menu', 'met', 'meter', 'multiline', 'name', 'node', 'number',
         'narrow', 'nav', 'neutral', 'note', 'notice', 'ok', 'on', 'op',
         'open', 'operator', 'output', 'over', 'page', 'pager', 'pair', 'paired', 'pairs', 'password', 'path',
+        'permissions', 'property', 'punctuation',
         'postscript', 'primary', 'progress', 'quiet', 'rail', 'release',
-        'reveal', 'right', 'row', 'rows', 'rules', 'running', 'scrim', 'scrolls',
-        'second', 'section', 'sections', 'sheet', 'signin', 'signout', 'small',
+        'readout', 'reveal', 'right', 'row', 'rows', 'rules', 'running', 'scrim', 'scrolls',
+        'second', 'section', 'sections', 'selection', 'sheet', 'signin', 'signout', 'small',
         'source', 'spaced', 'split', 'sr', 'stacks', 'state', 'strength', 'string', 'sub', 'subline',
         'tag', 'tasks', 'text', 'tight', 'tile', 'tiles', 'time', 'title', 'toggle', 'tok',
-        'top', 'topbar', 'tree', 'trend', 'unit', 'usage', 'value', 'version', 'warn',
-        'wide', 'with',
+        'top', 'topbar', 'tree', 'trend', 'twig', 'unit', 'usage', 'value', 'variable', 'version', 'warn',
+        'wide', 'who', 'with',
     ];
 
     /**
@@ -210,8 +211,12 @@ final class ClassNameTest extends TestCase
             'cm-editor', 'cm-focused', 'cm-scroller', 'cm-gutters',
             'cm-activeLine', 'cm-activeLineGutter', 'cm-selectionBackground',
             'cm-content', 'cm-cursor',
+            'cm-matchingBracket', 'cm-nonmatchingBracket',
+            'cm-panels', 'cm-panel', 'cm-searchMatch', 'cm-searchMatch-selected',
+            'cm-selectionMatch',
             'tok-keyword', 'tok-string', 'tok-comment', 'tok-number',
             'tok-name', 'tok-tag', 'tok-operator', 'tok-invalid',
+            'tok-property', 'tok-variable', 'tok-punctuation',
         ];
 
         foreach ($this->vueFiles() as $path) {

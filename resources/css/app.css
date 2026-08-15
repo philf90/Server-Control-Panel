@@ -1516,6 +1516,56 @@ table.pairs {
 }
 
 /*
+ * Was ausgewählt ist, und was man damit tun kann (P6, Schritt 5h).
+ *
+ * **Sie trägt eine Fläche und einen Rahmen**, weil sie kommt und geht. Ein
+ * Streifen, der ohne Kante zwischen der Krümelspur und der Tabelle auftaucht,
+ * verschiebt die Liste nach unten und sieht dabei aus wie ein Teil von ihr; mit
+ * Kante ist ablesbar, dass er zur Auswahl gehört und nicht zum Verzeichnis.
+ *
+ * `display: flex` mit `gap` und **kein** Rand zwischen den Kindern: Die Zahl und
+ * die Knopfreihe stehen nebeneinander, solange die Zeile reicht, und
+ * untereinander, sobald sie es nicht mehr tut. Der Rand nach unten ist derselbe
+ * wie bei `.crumbs` und `.notice` — was über der Tabelle steht, hält denselben
+ * Abstand zu ihr.
+ */
+.selection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gap);
+  padding: 10px 14px;
+  margin-bottom: var(--block-gap);
+  font-size: var(--text-table);
+  color: var(--text-strong);
+  background: var(--accent-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+/*
+ * Das Ankreuzfeld einer Zeile.
+ *
+ * **Nicht `.toggle`.** Der bringt `margin-top: 14px` und ein `<span>` mit
+ * Beschriftung mit — beides richtig in einem Formular und falsch in einer
+ * Zelle, in der der Name schon danebensteht. Die Grösse ist trotzdem dieselbe:
+ * Ein Ankreuzfeld, das in zwei Grössen vorkommt, sieht in der zweiten aus wie
+ * ein Fehler.
+ *
+ * `flex: none` und `min-width: 0`, weil `.stacks td` unter 720px ein Flexkasten
+ * ist — ohne beides zöge sich der Haken dort in die Breite oder wüchse mit.
+ */
+.check {
+  flex: none;
+  width: 17px;
+  min-width: 0;
+  height: 17px;
+  min-height: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+/*
  * Der Pfad über dem Editor.
  *
  * Er steht als eigene Zeile und nicht in der Überschrift: `docs/46 §20.11` hat
@@ -1543,6 +1593,255 @@ table.pairs {
  * Quelltext, und das ist Absicht: Sechs neue Werte, die nur hier gelten, wären
  * sechs Werte, die beim nächsten Themewechsel niemand mitzieht.
  */
+/*
+ * Der Verzeichnisbaum (P6, Schritt 5g).
+ *
+ * `docs/51 §8` verlangt „Baum links, Liste rechts". Bis hierher stand im
+ * Template nur „Die Krümel sind der Baum" — als Entscheidung hingeschrieben,
+ * ohne dass sie je eine war.
+ *
+ * **Bei 720px und darunter steht er über der Liste und nicht daneben.**
+ * `docs/24 §5` hat für Tabellen gemessen, was zwei Spalten auf einem Telefon
+ * anrichten; ein Baum neben einer Liste ist derselbe Fall. Die Reihenfolge ist
+ * dabei die des Quelltextes — wer auf dem Telefon ankommt, sieht zuerst, wo er
+ * ist.
+ */
+.tree {
+  min-width: 0;
+  margin-bottom: var(--block-gap);
+  font-size: var(--text-small);
+}
+
+.branch {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * **Die Einrückung sitzt am Ast und nicht am Blatt.** Ein `padding-left` an
+ * jedem Eintrag müsste die Tiefe kennen; eine Einrückung an der Verschachtelung
+ * addiert sich von selbst und stimmt in jeder Ebene.
+ */
+.branch .branch {
+  padding-left: 15px;
+  border-left: 1px solid var(--line);
+  margin-left: 8px;
+}
+
+.twig {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 0;
+}
+
+/*
+ * Der Aufklapper — und dort, wo keiner steht, ein Platzhalter derselben Breite.
+ *
+ * Ohne ihn rückt jeder Ast ohne Kinder um seine Breite nach links, und die
+ * Einrückung sagt dann etwas über den Inhalt statt über die Tiefe.
+ */
+.knob {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  line-height: 1;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+button.knob {
+  cursor: pointer;
+}
+
+button.knob:hover {
+  color: var(--text-strong);
+}
+
+/*
+ * **Ein Verzeichnisname darf 255 Zeichen lang sein**, und im Baum steht er in
+ * einem Flexkind. `overflow-wrap` allein genügt dort nicht: Ein Flexkind bleibt
+ * ohne `min-width: 0` auf seiner Inhaltsbreite stehen, und dann schiebt der
+ * Baum die Seite. Die fünfte Fassung derselben Ausnahme nach `.ident`,
+ * `.stacks td .ident`, dem Bereichstitel und `.field > span`.
+ */
+.tree .link {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+/*
+ * Wo der Betrachter gerade steht.
+ *
+ * **Kein Farbwechsel allein.** Wer die beiden Töne nicht unterscheiden kann,
+ * sieht dann keinen Unterschied; das Gewicht trägt ihn mit.
+ */
+.tree .link.here {
+  font-weight: 640;
+  color: var(--text-strong);
+}
+
+/*
+ * Die Rechte eines Eintrags — geführt statt geraten (P6, Schritt 5c).
+ *
+ * Hier fragte bis zum 14. August 2026 ein `window.prompt` nach einer
+ * Oktalzahl. Der Betreiber hat es in der Zwischenabnahme gemeldet (`docs/53`,
+ * Befund 8): ein schwarzer Systemkasten mitten in einem hellen Panel, der eine
+ * Zahl verlangt, die man auswendig können muss, und nicht sagt, was sie
+ * bewirkt.
+ *
+ * > **Eine Eingabe, die eine Zahl verlangt, die man auswendig können muss, ist
+ * > keine Bedienung, sondern eine Prüfung.**
+ *
+ * Die Kästchen selbst bekommen hier **keine** eigene Gestaltung — sie tragen
+ * `.toggle`, dieselbe Klasse wie jedes andere Kästchen dieses Panels. Eine
+ * Komponente, die ihr eigenes `input` gestaltet, ist derselbe Fehler wie ein
+ * Hexwert in einer Komponente.
+ */
+.permissions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  margin-bottom: var(--block-gap);
+}
+
+/*
+ * Eine Zeile je Betroffener: Eigentümer, Gruppe, Andere.
+ *
+ * `fieldset` und `legend`, weil das drei zusammengehörige Kästchen sind und
+ * ein Vorleser sonst neunmal „Kontrollkästchen" sagt, ohne je zu nennen,
+ * wessen Rechte gemeint sind. Der Rahmen, den ein `fieldset` von sich aus
+ * mitbringt, wird abgeräumt: Die Gruppierung ist die Bedeutung, nicht der
+ * Kasten.
+ */
+.who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 22px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/*
+ * **Die Beschriftung steht über den Kästchen und nicht daneben.**
+ *
+ * Hier stand `float: left; width: 9em` — nebeneinander, wie es auf einem
+ * grossen Schirm richtig aussieht. Bei 390px bleiben davon 250px für drei
+ * Kästchen mit den Wörtern „Lesen", „Schreiben" und „Ausführen": Das dritte
+ * rutschte um und stand **unter der Beschriftung**, also dort, wo das Auge die
+ * nächste Gruppe erwartet.
+ *
+ * Die Messung war dabei `0px` — es lief nichts über, es las sich nur falsch.
+ *
+ * > **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+ * > Betrachter.** (`docs/46 §20.11`)
+ *
+ * Ab 720px steht sie wieder daneben; dort ist Platz, und drei Zeilen
+ * Beschriftung über je einer Zeile Kästchen wären dann Leerraum ohne Gewinn.
+ */
+.who > legend {
+  width: 100%;
+  padding: 0;
+  font-size: var(--text-small);
+  font-weight: 560;
+  color: var(--text-muted);
+}
+
+@media (min-width: 720px) {
+  .who > legend {
+    float: left;
+    width: 9em;
+  }
+}
+
+/* Die Kästchen stehen nebeneinander und brauchen den Abstand nach oben nicht,
+   den `.toggle` für gestapelte Schalter mitbringt. */
+.who .toggle {
+  margin-top: 0;
+}
+
+/*
+ * Die Zahl und die Buchstaben nebeneinander.
+ *
+ * Beide, und keine allein: `644` steht in jeder Anleitung im Netz,
+ * `rw-r--r--` in jedem `ls -l`. Wer die eine Schreibweise kennt, findet über
+ * sie die andere.
+ */
+.readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gap);
+}
+
+.readout input {
+  width: 5em;
+}
+
+/*
+ * Was die Einstellung bewirkt, in gewöhnlichem Deutsch.
+ *
+ * **Das ist der eigentliche Punkt dieses Bausteins**, und deshalb steht der
+ * Text in `--text` und nicht in `--text-muted`: Neun Kästchen und eine Zahl
+ * sind bequemer als ein `prompt` und erklären genauso wenig.
+ */
+.explains {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-width: 62ch;
+  font-size: var(--text-table);
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.explains li + li {
+  margin-top: 3px;
+}
+
+/*
+ * Ein Feld, das keinen Fliesstext enthält, darf breiter sein (P6, Schritt 6d).
+ *
+ * `.field` steht auf `max-width: 540px`, und das ist für ein Formular richtig:
+ * Eine Zeile Fliesstext über 120 Zeichen liest sich schlecht, und ein
+ * Eingabefeld, das über den halben Schirm läuft, sieht aus wie ein Fehler.
+ *
+ * **Quelltext ist kein Fliesstext.** Zeilen von hundert Zeichen sind dort
+ * normal, und eine Seite, deren einziger Inhalt ein Editor ist, ist kein
+ * Formular. Der Betreiber hat es beim ersten Blick auf den laufenden Editor
+ * gemeldet (`docs/53`, Befund 9): Er stand in Formularbreite, während daneben
+ * zwei Drittel des Fensters leer blieben.
+ *
+ * > **Eine Vorgabe, die für Lesbarkeit gemacht ist, gilt nicht für Text, den
+ * > man nicht liest, sondern bearbeitet.**
+ */
+.field.wide {
+  /*
+   * **Eine Grenze und nicht „so viel wie da ist".**
+   *
+   * `none` wäre die naheliegende Zeile und auf einem 27-Zoll-Schirm 2528px
+   * breit — gemessen. Jenseits von etwa hundertsechzig Zeichen gewinnt man
+   * beim Lesen von Quelltext nichts mehr; man verliert nur den Weg zurück an
+   * den Zeilenanfang.
+   *
+   * 1360px sind rund 160 Zeichen in `--font-mono` bei `--text-table`. Was
+   * darüber hinausgeht — eine minifizierte Zeile zum Beispiel — rollt im
+   * Editor waagerecht und schiebt die Seite nicht.
+   */
+  max-width: 1360px;
+}
+
 .editor {
   border: 1px solid var(--control-line);
   border-radius: var(--radius);
@@ -1555,8 +1854,19 @@ table.pairs {
   font-size: var(--text-table);
   color: var(--text);
 
-  /* Dieselbe Höhe wie das `textarea` daneben — sonst springt die Seite, wenn
-     der Editor nachlädt und den Rückweg ablöst. */
+  /*
+   * **Die Höhe kommt vom Sichtfenster und nicht von einer Zeilenzahl.**
+   *
+   * Hier stand nur `max-height`, und darunter `rows="24"` am `textarea`. Ein
+   * `rows="24"` ist auf einem 27-Zoll-Schirm dasselbe wie auf einem Telefon,
+   * und beides kann nicht richtig sein — auf dem grossen Schirm bleibt der
+   * halbe Platz leer, auf dem kleinen füllt es mehr als die Seite.
+   *
+   * `min-height` und `max-height` auf denselben Wert: Der Editor ist dann
+   * genau so hoch wie der Rückweg darunter, und die Seite springt nicht, wenn
+   * das Bündel nachlädt und den einen durch den anderen ersetzt.
+   */
+  min-height: 60dvh;
   max-height: 60dvh;
 }
 
@@ -1596,11 +1906,18 @@ table.pairs {
 }
 
 /*
- * Die acht Marken.
+ * Die zehn Marken.
  *
  * Sie tragen englische Namen wie jede Klasse in diesem Projekt und sind so
  * knapp gehalten, wie eine Hervorhebung sein darf: Wer sieben Farben
  * unterscheidet, liest den Quelltext nicht mehr, sondern das Bild davon.
+ *
+ * **Zwei sind am 14. August dazugekommen, und keine davon ist eine neue
+ * Farbe** (`docs/53`, Befund 9). `.tok-property` und `.tok-variable` teilen
+ * sich ihren Ton mit einer bestehenden Marke und unterscheiden sich im
+ * Gewicht; `.tok-punctuation` ist eine Abstufung von `.tok-operator`. Der
+ * Grundsatz oben bleibt damit gültig — was dazukam, ist Unterscheidung und
+ * nicht Buntheit.
  */
 .editor .tok-keyword {
   color: var(--accent);
@@ -1628,8 +1945,96 @@ table.pairs {
   color: var(--accent-second);
 }
 
+/*
+ * Die Eigenschaft, nicht ihr Wert.
+ *
+ * In CSS sah `color` aus wie `red`, in JSON der Schlüssel wie die Zeichenkette
+ * daneben — beide lagen auf `.tok-tag`. Derselbe Ton, anderes Gewicht: Ein
+ * Schlüssel ist keine andere Art von Ding als ein Tagname, er steht nur an
+ * einer anderen Stelle.
+ */
+.editor .tok-property {
+  color: var(--accent-second);
+  font-weight: 600;
+}
+
+/*
+ * Eine Variable war vorher gar nichts.
+ *
+ * `tags.variableName` lag auf keiner Marke, und damit stand ein `$name` in PHP
+ * als gewöhnlicher Text da — genau das Zeichen, an dem man in einer
+ * `wp-config.php` entlangliest.
+ */
+.editor .tok-variable {
+  color: var(--text-strong);
+  font-style: italic;
+}
+
 .editor .tok-operator {
   color: var(--text-muted);
+}
+
+/*
+ * Klammern und Kommas ruhiger als Operatoren.
+ *
+ * Beide lagen auf derselben Marke. Ein `=` trägt Bedeutung, eine `)` trägt
+ * Struktur — und Struktur soll man sehen können, ohne sie zu lesen.
+ */
+.editor .tok-punctuation {
+  color: var(--text-faint);
+}
+
+/*
+ * Die zusammengehörige Klammer.
+ *
+ * **Der Gewinn, der keine Farbe ist.** Sie beantwortet die Frage, die man in
+ * einer Konfigurationsdatei ständig hat und die keine Einfärbung beantwortet:
+ * Wo hört dieser Block auf?
+ *
+ * Der Unterschied zwischen „passt" und „passt nicht" ist der Grund, aus dem
+ * die zweite Regel dasteht — ohne sie sähe eine unpaarige Klammer aus wie
+ * eine paarige, und dann sagt die Hervorhebung etwas, das sie nicht weiss.
+ */
+.editor .cm-matchingBracket {
+  background: var(--accent-surface);
+  outline: 1px solid var(--accent);
+}
+
+.editor .cm-nonmatchingBracket {
+  color: var(--warn);
+  outline: 1px solid var(--warn);
+}
+
+/*
+ * Die Suche im Dokument.
+ *
+ * Sie ersetzt das Strg+F des Browsers, und das ist kein Komfort: CodeMirror
+ * zeichnet lange Dateien nicht vollständig, also durchsucht der Browser nur,
+ * was gerade sichtbar ist — und meldet für den Rest „nicht gefunden".
+ *
+ * > **Eine Suche, die nur das Sichtbare durchsucht, meldet ihre Lücke nicht.**
+ */
+.editor .cm-panels {
+  background: var(--surface);
+  color: var(--text);
+  border-bottom: 1px solid var(--line);
+}
+
+.editor .cm-panel {
+  padding: 8px 10px;
+  font-size: var(--text-small);
+}
+
+.editor .cm-searchMatch {
+  background: var(--mark-accent);
+}
+
+.editor .cm-searchMatch-selected {
+  outline: 1px solid var(--accent);
+}
+
+.editor .cm-selectionMatch {
+  background: var(--accent-surface);
 }
 
 /*
@@ -1656,6 +2061,14 @@ table.pairs {
  */
 .field textarea.code {
   font-family: var(--font-mono);
+
+  /*
+   * **Dieselbe Höhe wie der Editor darüber.** Das `rows`-Attribut steht
+   * weiterhin am Element und ist der Rückfall für den Fall, dass `dvh` nicht
+   * greift; die Höhe entscheidet diese Regel. Ohne sie springt die Seite in
+   * dem Moment, in dem CodeMirror nachlädt und das `textarea` ablöst.
+   */
+  min-height: 60dvh;
 
   /* **Nicht `--text-table`.** Quelltext in 14px liest sich besser, und Safari
      zoomt beim Fokus in ein Eingabefeld unter 16px in die Seite hinein
@@ -2006,7 +2419,27 @@ tr:has(td.multiline) > td {
  * `--block-gap` und nicht die 16px von oben: Das hier ist die Fuge zwischen
  * zwei Blöcken einer Seite und nicht die zwischen zwei Zeilen eines Formulars.
  */
-.button-row + .sections {
+.button-row + .sections,
+
+/*
+ * **Und beim sechsten Mal war es wieder eine Meldung.**
+ *
+ * Der Betreiber hat es im Dateimanager gesehen: Zwischen dem Formular zum
+ * Hochladen und dem, was darunter steht, war nichts (`docs/53`, Befund 7).
+ *
+ * > **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit
+ * > der nächsten Ergänzung.**
+ *
+ * **Und mit der übernächsten fiel er noch einmal**, keinen Tag später: Der
+ * Nachfolger hiess erst `.sections`, dann `.crumbs` — und seit der Baum
+ * dazugekommen ist, `.split`. Dieselbe Fuge, drei Namen.
+ *
+ * Der Wächter darunter zählt seitdem nicht mehr nur die Paare, die jemand
+ * eingetragen hat, sondern leitet aus `app.css` ab, welche Bausteine überhaupt
+ * bündig sind. Er hat diesen dritten Namen von selbst gemeldet — und dass der
+ * zweite nicht mehr vorkommt, ebenfalls.
+ */
+.button-row + .split {
   margin-top: var(--block-gap);
 }
 
@@ -2057,6 +2490,35 @@ tr:has(td.multiline) > td {
    */
   .button-row .badge {
     align-self: flex-start;
+  }
+
+  /*
+   * **Die Auswahlleiste stapelt nicht — sie bricht um.**
+   *
+   * Der Grund für das Stapeln steht oben: Drei gleich breite Knöpfe
+   * nebeneinander lassen bei 390px vom dritten nur noch drei Buchstaben übrig.
+   * Das gilt für eine Reihe, die **nicht** umbrechen kann; die Auswahlleiste
+   * hat sechs Knöpfe, und gestapelt sind das **390px** — genau ein
+   * Telefonbildschirm, bevor die erste Zeile der Liste anfängt.
+   *
+   * Gemessen am 15. August 2026 mit dem gebauten Stylesheet: Leiste 390px
+   * gestapelt gegen 138px umgebrochen, bei einem Dokumentüberlauf von **0px in
+   * beiden Fällen.** Die Zahl hat davon nichts gesehen.
+   *
+   * > **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+   * > Betrachter.**
+   *
+   * Die Knöpfe behalten dabei ihre Wortbreite, und `flex-wrap` aus
+   * `.button-row` schiebt sie in die nächste Zeile. Was sie nicht dürfen, ist
+   * schmaler werden als ihr Wort — deshalb kein `flex: 1`.
+   */
+  .selection .button-row {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .selection .button-row .button {
+    width: auto;
   }
 }
 

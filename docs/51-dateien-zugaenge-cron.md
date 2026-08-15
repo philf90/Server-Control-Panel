@@ -309,6 +309,302 @@ CodeMirror 6 (Entscheidung 1), und drei Auflagen dazu:
    welcher Begründung — sonst ist die zweite Abhängigkeit eine Frage der
    Gewohnheit und keine Entscheidung.
 
+**Nachtrag vom 14. August, aus Befund 9 der Zwischenabnahme** — der erste Blick
+auf den laufenden Editor. Zwei Sachen sind kein Defekt und trotzdem nicht
+fertig, und beide gehen als Schritt **6d**:
+
+**Die Breite.** Der Editor steht am Desktop in der Breite eines Formulars,
+während zwei Drittel des Fensters leer bleiben. Das ist die Vorgabe der
+Inhaltsspalte, und sie ist für Formulare richtig: Eine Zeile Fliesstext über
+120 Zeichen liest sich schlecht. **Quelltext ist kein Fliesstext.** Zeilen von
+100 Zeichen sind dort normal, und eine Seite, deren einziger Inhalt ein Editor
+ist, ist kein Formular.
+
+> **Eine Vorgabe, die für Lesbarkeit gemacht ist, gilt nicht für Text, den man
+> nicht liest, sondern bearbeitet.**
+
+Die Seite bekommt die volle Breite und der Editor eine Höhe, die sich am
+Sichtfenster orientiert statt an einer Zeilenzahl — ein `rows="24"` ist auf
+einem 27-Zoll-Schirm dasselbe wie auf einem Telefon, und das kann nicht beides
+richtig sein.
+
+**Die Hervorhebung.** Acht Marken sind der kleinste Satz, der überhaupt etwas
+zeigt. Nicht unterschieden werden bisher:
+
+| gleich eingefärbt | gehört getrennt |
+|---|---|
+| `class="x"` und `"x"` | Attributwert gegen Zeichenkette |
+| `(` und `+` | Klammer gegen Operator |
+| `color` und `red` | CSS-Eigenschaft gegen CSS-Wert |
+| `$name` und `name` | PHP-Variable gegen Bezeichner |
+
+Dazu gehören zwei Dinge, die keine Farbe sind und mehr helfen als jede weitere:
+**die zusammengehörige Klammer** und **die Suche im Dokument**. Wer eine
+`wp-config.php` öffnet, sucht darin.
+
+**Und jede neue Marke wird gerechnet, nicht geschätzt** — 4,5:1 gegen den
+Editorgrund, in beiden Themes. Eine Hervorhebung, die im dunklen Theme
+verschwindet, ist schlechter als keine: Sie behauptet, etwas markiert zu haben.
+
+### 8.4 Was dem Panel gehört und was dem Kunden
+
+**Gefunden am 14. August 2026** bei der Frage des Betreibers nach einer
+Mehrfachauswahl — und es ist ein Fehler und keine fehlende Funktion.
+
+`httpdocs`, `logs`, `tmp`, `.ssh` und `mail` **gehören dem Kunden**. Er durfte
+sie deshalb über den Dateimanager entfernen, und der Kernel wies ihn dabei erst
+ganz am Ende ab:
+
+1. `Filesystem::removeTree()` räumte das Verzeichnis leer — jedes `unlink`
+   gelang.
+2. Das abschliessende `rmdir` scheiterte, weil die Vhost-Wurzel `root:root`
+   gehört.
+3. Gemeldet wurde „Das Verzeichnis liess sich nicht vollständig entfernen."
+
+**Die Webseite war weg, und die Meldung sagte, es sei nichts passiert.** Bei
+`logs` schreibt nginx danach in einen gelöschten Inode, bei `.ssh` sperrt sich
+der Kunde aus seinem eigenen Zugang aus.
+
+> **Ein Vorgang, der scheitert, nachdem er die Hälfte getan hat, meldet einen
+> Fehlschlag und hinterlässt eine Wirkung.**
+
+Es stand in `docs/53` als benannt offen. Mit einer Mehrfachauswahl wird daraus
+ein Klick, und deshalb kommt es **vor** ihr.
+
+`Files\Scheme` weist ab, **bevor** etwas geschieht — vor dem Eintritt in die
+Sandbox und nicht darin. Die Liste kommt aus
+`SubscriptionProvision::reservedDirectories()` und wächst mit dem Schema.
+
+**Drei Operationen fragen danach**, und die dritte ist die, die man vergisst:
+
+| Operation | Warum |
+|---|---|
+| `files.remove` | der Fall oben |
+| `files.move` | ein umbenanntes `httpdocs` ist für nginx ein gelöschtes |
+| `files.chmod` | **setgid** — siehe unten |
+
+`httpdocs` trägt seit Schritt 6c das setgid-Bit, und `files.chmod` nimmt nur
+neun Bits entgegen. Ein `chmod 0750` des Kunden nähme das zehnte **lautlos** weg
+— die nächste hochgeladene Datei trüge wieder die Gruppe des Abonnements statt
+`www-data`, und Befund 3 wäre zurück, diesmal mit dem Kunden als Verursacher.
+
+**Der Inhalt ist ausdrücklich nicht geschützt.** `httpdocs` leerzuräumen ist
+genau das, was jemand vor einem neuen Deploy tut, und `.ssh/authorized_keys`
+gehört dem Kunden. Geschützt ist das Gerüst, nicht das, was darin steht — und
+die Abweisung sagt das im selben Satz, weil ein blosses „darf nicht" den
+Lesenden mit der Frage zurücklässt, was er denn tun soll.
+
+**Die DocumentRoots weiterer Domains bleiben ungeschützt.** Sie heissen wie ihre
+Domain und stehen in keiner festen Liste; der Agent müsste dafür die
+vhost-Dateien lesen. Das **Panel** kennt die Namen (seit §8.2 stehen sie in der
+Nutzlast) und warnt in der Rückfrage — eine Warnung ist eine Auskunft und keine
+zweite Durchsetzung.
+
+### 8.3 Anlegen, und mehrere auf einmal
+
+**Nachtrag vom 14. August 2026**, aus zwei Fragen des Betreibers vor dem Pull
+Request. Beides stand in §8 nicht — dort heisst es „Baum, Editor, Hochladen,
+Entpacken, Rechte, Suche".
+
+**Eine Datei anlegen war zu neun Zehnteln gebaut.** `files.write` legt an, was
+es nicht gibt, und der Agent meldet es in seiner Antwort (`created`); die Route
+steht mit ihrem `can:`, und der Controller verlangt nirgends, dass die Datei
+existiert. In der Zwischenabnahme ist `p6-probe.txt` genau so entstanden — aus
+`tinker`. Es fehlte der Knopf, und das ist Befund 6 eine Ebene tiefer:
+
+> **Eine Fähigkeit, die keine Fläche hat, ist gebaut und nicht ausgeliefert.**
+
+`LinkReachTest` konnte das nicht sehen: Er prüft Seiten, nicht Fähigkeiten.
+
+Die Datei entsteht **leer**, und danach öffnet der Editor. Ein Textfeld im
+Anlege-Formular wäre eine zweite Stelle, an der man Dateiinhalte tippt — und die
+zweite ist die, die den Editor nicht hat. Ob nach dem Schreiben der Editor oder
+die Liste kommt, entscheidet die Antwort des Agenten und **kein Feld im
+Formular**: eine Bedingung an einer Absicht statt an einem Zustand ist der
+Fehler aus P4.
+
+**Beim Hochladen mehrerer Dateien ist die Schleife die kleinere Hälfte.** Die
+grössere ist der Fall, der hier der Normalfall ist: Datei 7 von 20 reisst die
+Quota, und die anderen neunzehn liegen schon da.
+
+> **Eine fehlgeschlagene Anfrage darf die Beschriftung nicht so lassen, als
+> wäre sie durchgelaufen.** (`docs/48`)
+
+Deshalb wird je Datei übernommen und je Datei gemeldet, die Zahl der gelungenen
+steht im **ersten** Satz, und die Schleife läuft nach einem Fehler weiter — ein
+Abbruch beim ersten liesse offen, ob die restlichen an derselben Sache
+scheitern oder nie versucht wurden.
+
+**Ein Rückbau des schon Übernommenen ist ausdrücklich nicht vorgesehen.** Er
+löschte Dateien im Verzeichnis des Kunden, die genauso gut vorher dort gelegen
+haben könnten.
+
+Und ein Fund beim Bauen: Die Seite schickte bis dahin den **vollständigen**
+Zielpfad mitsamt Dateinamen. Bei mehreren Dateien wäre das ein Pfad für alle
+gewesen.
+
+> **Ein Vorgang, der zwanzigmal dieselbe Datei schreibt, meldet zwanzig
+> Erfolge.**
+
+**Was ausdrücklich nicht dazugehört: Ordner hochladen.** Der Browser liefert
+dabei eine Struktur, die angelegt werden müsste — das ist ein eigener
+Gegenstand und nicht diese Schleife. Wer viele Dateien mit Struktur hat, nimmt
+SFTP (§9) oder lädt ein Archiv hoch und entpackt es (§7).
+
+### 8.2 Die Rechte — geführt statt geraten
+
+**Aus Befund 8 der Zwischenabnahme**, gemeldet vom Betreiber am 14. August.
+Bisher fragt ein `window.prompt` nach einer Oktalzahl. Das geht aus drei
+Gründen nicht, und der dritte ist der schwerste: Es ist ein Browserdialog ohne
+Bezug zum Gestaltungssystem, es verlangt eine Zahl, die man auswendig können
+muss, und es erklärt nicht, was sie bewirkt.
+
+> **Eine Eingabe, die eine Zahl verlangt, die man auswendig können muss, ist
+> keine Bedienung, sondern eine Prüfung.**
+
+**Der Ersatz ist ein Bereich auf der Seite und kein Dialog.** Dieses Panel hat
+keine Modalen, und es soll auch für diesen einen Fall keine bekommen — eine
+zweite Bauform für Formulare ist eine zweite Fassung der Gestaltung.
+
+**Das Raster.** Drei Zeilen, drei Spalten, neun Kästchen:
+
+|  | Lesen | Schreiben | Ausführen |
+|---|---|---|---|
+| **Eigentümer** (`p1132`) | ☑ | ☑ | ☐ |
+| **Gruppe** | ☑ | ☐ | ☐ |
+| **Andere** | ☑ | ☐ | ☐ |
+
+Darunter, mitlaufend und nicht auf Knopfdruck: **`644` · `rw-r--r--`**. Beide
+Schreibweisen, weil die eine in jeder Anleitung im Netz steht und die andere in
+jedem `ls -l`. Wer die Zahl kennt, darf sie auch direkt eintippen — das Feld ist
+mit den Kästchen verbunden, in beide Richtungen. **Es ist der zweite Weg und
+nicht der erste.**
+
+**Der Satz darunter ist der eigentliche Punkt.** Er sagt in gewöhnlichem
+Deutsch, was die Einstellung für *diesen* Eintrag bedeutet:
+
+> Der Eigentümer darf lesen und ändern. Alle anderen dürfen nur lesen.
+> Der Webserver kann diese Datei ausliefern.
+
+Und er unterscheidet Datei von Verzeichnis, weil dasselbe Bit dort etwas anderes
+heisst:
+
+| Bit | bei einer Datei | bei einem Verzeichnis |
+|---|---|---|
+| `x` | ausführbar (ein Skript) | **betretbar** — ohne es sieht man den Inhalt nicht |
+| `r` | Inhalt lesbar | Namen auflistbar |
+| `w` | Inhalt änderbar | Einträge anlegen und entfernen |
+
+**Ein Verzeichnis ohne `x` ist der häufigste selbstgemachte Fehler**, und er
+sieht aus wie ein Serverfehler. Wer `755` auf `644` setzt, sperrt sich aus
+seinem eigenen Ordner aus.
+
+**Drei Vorlagen** decken ab, was Kunden tatsächlich brauchen, mit ihrem Grund
+danebengeschrieben statt nur ihrer Zahl:
+
+- **Übliche Datei (`644`)** — der Webserver liest, sonst niemand ändert.
+- **Übliches Verzeichnis (`755`)** — betretbar, Inhalt sichtbar.
+- **Nur für mich (`600` / `700`)** — Zugangsdaten, Schlüssel, Sicherungen.
+
+**Was nicht angeboten wird**, und zwar ausdrücklich: `setuid`, `setgid` und das
+Sticky-Bit. Sie erscheinen in keinem der drei Sätze oben, ihre Wirkung lässt
+sich in einer Zeile nicht ehrlich erklären, und ein `setuid` auf eine
+Kundendatei ist nichts, wozu eine Oberfläche einladen soll. Wer sie braucht,
+hat SFTP.
+
+**Und eine Abhängigkeit von Schritt 6c**: Der Satz „Der Webserver kann diese
+Datei ausliefern" ist heute nur wegen des **Weltbits** wahr (Befund 3) — die
+Gruppe einer Datei aus dem Dateimanager ist die des Abonnements und nicht
+`www-data`. Setzt 6c das gerade, ändert sich die Bedingung von „Andere: Lesen"
+auf „Gruppe: Lesen".
+
+**Der Satz wird deshalb an einer Stelle gebildet und nicht an zweien.** Eine
+Fassung im Panel und eine im Kopf des Lesers wäre schon eine zu viel; zwei im
+Code wären die Wiederholung des Fehlers, den dieses Projekt am häufigsten macht.
+
+### 8.5 Die Mehrfachauswahl
+
+**Gebaut als Schritt 5h**, aus der Frage des Betreibers vom 14. August 2026 und
+seinen drei Entscheidungen dazu: *Entfernen*, *Kopieren und Verschieben*, *Als
+Zip packen* — und als Zielwähler **der Baum** und kein Textfeld.
+
+Die Auswahl selbst ist ein Haken je Zeile und einer im Spaltenkopf. Was daran
+Arbeit macht, ist nichts davon.
+
+**1. Der Fall, der bis hierher einer von tausend war, ist jetzt der Normalfall.**
+Eintrag 7 von 20 scheitert, und die anderen neunzehn sind schon getan. Eine
+Erfolgsmeldung darüber ist derselbe Befund wie `docs/48 §3.5`:
+
+> **Eine fehlgeschlagene Anfrage darf die Beschriftung nicht so lassen, als wäre
+> sie durchgelaufen.**
+
+Gearbeitet wird deshalb **je Eintrag** (`FileController::each()`), gemeldet wird
+**je Eintrag**, und die Zahl der gelungenen steht im **ersten** Satz
+(`report()`). Ein Abbruch beim ersten Fehler wäre die kürzere Fassung und die
+schlechtere: Der Kunde wüsste dann nicht, ob die restlichen an derselben Sache
+scheitern oder nie versucht wurden. Ein Rückbau des schon Getanen wäre die
+dritte und die gefährlichste — er löschte Einträge, die genauso gut vorher dort
+gelegen haben könnten.
+
+**Packen ist die Ausnahme und hat deshalb keine Schleife.** Es tut **einmal**
+etwas über alle; ein Archiv mit der halben Auswahl und einer Erfolgsmeldung wäre
+schlimmer als keines.
+
+**2. Ein Ziel für viele Quellen ist ein Verzeichnis und kein Pfad.** Derselbe
+Fehler ist beim Mehrfach-Upload schon einmal gemacht worden (§8.3): Bei *einer*
+Datei ist ein vollständiger Zielpfad richtig, bei zwanzig ist es **ein** Pfad für
+alle — neunzehnmal überschrieben, und der Vorgang meldet Erfolg. Der Name am Ziel
+kommt deshalb aus der Quelle (`into()`).
+
+**Daraus folgt, dass Umbenennen ein eigener Griff wird.** Es nennt einen
+**Namen**, Verschieben ein **Verzeichnis** — und solange beide dasselbe Feld
+`to` benutzten, musste der Aufrufer wissen, welche der beiden Bedeutungen gerade
+gilt. Die Seite hat den Zielpfad dafür selbst zusammengesetzt, und genau das ist
+der Fehler aus §8.3.
+
+> **Ein Feld mit zwei Bedeutungen hat keine.**
+
+**3. Die Auswahl fällt weg, sobald das Verzeichnis wechselt.** Eine, die eine
+Navigation überlebt, ist eine Liste von Pfaden aus einem anderen Ordner — und die
+Leiste darüber sagt „3 Einträge ausgewählt", während die Tabelle darunter keinen
+einzigen Haken zeigt.
+
+**4. Die Rückfrage nennt, was der Betrachter nicht sieht:** wie viele der
+Ausgewählten Verzeichnisse sind (deren Inhalt mitgeht), und ob eines davon eine
+Domain ausliefert. Das Gerüst des Abonnements schützt der Agent (§8.4); der
+DocumentRoot einer weiteren Domain steht in keiner festen Liste, und dort
+**warnt** das Panel.
+
+**5. Zwei gleich heissende Quellen kommen nicht in ein Archiv.** `/a/notizen` und
+`/b/notizen` ergäben beide `notizen/…`; ein Zip nimmt das an, und beim Entpacken
+bleibt eines der beiden übrig.
+
+**Und ein Fund über die Messung selbst.** Der erste Wurf des Wächters dazu
+behauptete, eine zu spät geprüfte Namensgleichheit hinterlasse „eine halbe
+Datei", und prüfte das mit `assertFileDoesNotExist`. **Gemessen am 15. August:
+`ZipArchive::open()` mit `CREATE|EXCL` legt nichts an, und ein Archiv ohne
+Eintrag schreibt libzip auch beim `close()` nicht.** Die Prüfung war grün, egal
+wo die Namensprüfung stand.
+
+> **Eine Messung, die nie etwas anderes als Null liefern kann, ist keine.**
+
+Was wirklich an der Reihenfolge hängt, ist die **Begründung**: Liegt am Ziel
+schon eine Datei, scheitert `open()` mit „liess sich nicht anlegen" — der Kunde
+räumt das Ziel weg und läuft in denselben Fehler, weil seine Auswahl immer noch
+zwei gleich heissende Einträge enthält.
+
+> **Von zwei Gründen gehört der genannt, den der nächste Versuch nicht von selbst
+> behebt.**
+
+**Und der zweite Fund kam aus dem Bild und nicht aus der Zahl.** Die
+Auswahlleiste trägt sechs Knöpfe, und `.button-row` stapelt unter 480px auf volle
+Breite. Gemessen: **Leiste 390px hoch bei 390px Bildschirmbreite** — genau ein
+Telefonbildschirm, bevor die erste Zeile der Liste anfängt —, bei einem
+Dokumentüberlauf von **0px**. Umgebrochen statt gestapelt sind es 228px.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
 ---
 
 ## 9. SFTP
@@ -434,12 +730,22 @@ Dazu wachsen mit: `AgentOperationReachTest`, `RouteAuthorizationTest`,
 | 3 | Datei-Operationen (`files.*`) | der Agent kann, was P6 braucht |
 | 4 | Datenmodell, Dienstschicht, Policies | Panel-Seite, alle drei Ebenen |
 | 5 | Dateimanager ohne Editor | Baum, Liste, Hochladen, Rechte |
+| **5b** | Ein Weg zum Dateimanager, und ein Wächter dafür | **gebaut** — `LinkReachTest` |
+| **5c** | Die Rechte geführt einstellen | **gebaut** — `PermissionEditor`, §8.2 |
+| **5d** | Der Abstand, und die Regel dahinter | **gebaut** — `BlockSpacingTest` leitet ab |
+| **5e** | Eine Datei anlegen, und mehrere hochladen | **gebaut** — §8.3 |
+| **5f** | Das Gerüst des Abonnements schützen | **gebaut** — `Files\Scheme`, §8.4 |
+| **5g** | Der Baum aus §8, als Fläche und als Zielwähler | **gebaut** — `files.tree`, `FileTree` |
+| **5h** | Mehrfachauswahl: entfernen, kopieren, verschieben, packen | **gebaut** — `BulkActionTest`, §8.5 |
+| **6d** | Der Editor: Breite und Hervorhebung | **gebaut** — §8.1 |
 | 6 | Editor (CodeMirror 6) | Entscheidung 1, mit ihren drei Auflagen |
 | 7 | Entpacken, Packen, Suche | über die Warteschlange |
 | 8 | SFTP: Block, Schlüssel, Prüfung der Kette | Zugang steht |
 | 9 | Cron: Datei, Wrapper, Aufzeichnung, Zeitplan | Zeitsteuerung steht |
 | **6b** | **Zwischenabnahme auf `cloudsrv24`** | **vorgezogen — `docs/52`** |
+| **6c** | Die Gruppe, unter der abgelegt wird | **gebaut** — setgid, `InheritedGroupTest` |
 | 10 | ~~Zwischenabnahme~~ | vorgezogen auf 6b |
+| **7b** | **Prüflauf für 5b–6d auf `cloudsrv24`** | **geschrieben — `docs/54`** |
 | 11 | **Der Angriffsdurchgang**, scharf und stumpf | §4 |
 | 12 | Bilderrunde: beide Themes, 390 px, mit Messung | `docs/49 §6` Punkt 2 |
 
@@ -453,6 +759,84 @@ Detail; die Schritte 7 bis 9 stapeln sich alle darauf. Der Lauf steht in
 
 > **Drei Schritte auf einer ungeprüften Annahme zu bauen ist teurer, als sie
 > einmal zu prüfen.**
+
+**Schritt 5b ist am 14. August dazugekommen**, aus Befund 6 der Zwischenabnahme
+(`docs/53`) — gefunden durch eine Frage des Betreibers und nicht durch einen
+Test. Die elf Routen stehen, die drei Seiten liegen da, die Policy antwortet,
+und **kein Template nennt `/files`**: weder die Navigation für Kunden noch die
+für den Betreiber noch `Subscriptions/Show.vue`. Erreichbar ist der Dateimanager
+nur über die Adresszeile.
+
+> **Eine Seite, auf die nichts zeigt, ist nicht ausgeliefert — sie ist nur
+> vorhanden.**
+
+Kein vorhandener Wächter konnte das finden, weil alle die andere Richtung
+prüfen: `AbilityReachTest` sorgt dafür, dass nichts Unerlaubtes angeboten wird,
+und kommt damit am nächsten dran — er hat über *Erlaubtes, das nicht angeboten
+wird*, nichts zu sagen.
+
+Der Wächter, der dazugehört: **Jede Route mit `can:`, die eine Inertia-Seite
+rendert, wird von mindestens einem Template verlinkt** — oder steht mit
+Begründung auf einer Ausnahmeliste, wie `RouteGuard` sie für den umgekehrten
+Fall führt. Die Ausnahmen sind echt (`files.edit` wird nur aus der Liste heraus
+angesteuert), und deshalb braucht es die Liste statt einer stillen Duldung.
+
+Der Schritt gehört **vor die Bilderrunde**: Eine Seite, die niemand aufrufen
+kann, lässt sich auch nicht fotografieren.
+
+**Schritt 5d ist am 14. August dazugekommen**, aus Befund 7 — und er ist das
+sechste Mal derselbe Fehler. Zwischen dem Formular und der Liste darunter fehlt
+der Abstand, weil die Regel dafür an einem bestimmten Nachfolger hängt:
+
+```css
+.button-row + .sections { margin-top: var(--block-gap); }
+```
+
+Der Nachfolger heisst hier `.crumbs`, also greift sie nicht. Im selben
+Stylesheet steht darüber der Kommentar „**Und beim fünften Mal war es eine
+Meldung**" — es war wieder eine.
+
+> **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit der
+> nächsten Ergänzung.** (`docs/49 §6`)
+
+**`.button-row + .crumbs` wäre der siebte Fall und nicht die Behebung.** Die
+Regel muss sagen, was ein Block ist, statt welcher Block auf welchen folgt: ein
+Abstand zwischen Geschwistern im Inhaltsbereich (`> * + *`), einmal, und die
+nächste Ergänzung kostet nichts. Der Umbau nimmt die bestehenden Paarregeln mit
+— sie stehen sonst doppelt und addieren sich.
+
+Der Wächter dazu ist der Punkt, an dem dieser Schritt hängt: **Jede
+`X + Y`-Regel ist eine Wette darauf, dass niemand ein `Z` dazwischenschiebt.**
+Ein Test, der sie zählt und ihre Zahl nicht wachsen lässt, hätte sechsmal
+gewarnt.
+
+**Schritt 6c ist am 14. August dazugekommen**, aus Befund 3 der Zwischenabnahme
+(`docs/53`). `httpdocs` gehört `%u:www-data 0750` — der Webserver kommt über die
+Gruppe hinein. Eine Datei, die beim Anlegen des Abonnements entsteht, trägt
+deshalb `1004:33 0640`; eine Datei aus dem Dateimanager trägt `1004:1004 0644`,
+weil die Sandbox auf die Gruppe des Abonnements setzt und keine Operation sie
+danach anfasst. Lesbar ist sie für den Webserver nur über das Weltbit.
+
+**Das bricht in dem Moment, in dem ein Kunde tut, wozu das Panel einlädt**: Er
+setzt `0640` — dieselbe Angabe, die `index.html` trägt und die dort funktioniert
+— und bekommt einen 403.
+
+> **Zwei Wege, die dieselbe Datei anlegen, müssen sie gleich anlegen — sonst ist
+> die Rechteanzeige eine Auskunft über die Hälfte der Wahrheit.**
+
+**SFTP (Schritt 8) hat dasselbe Problem**, und deshalb gehört die Entscheidung
+vor beide und nicht in einen von beiden. Zwei Wege stehen zur Wahl, und der
+zweite ist der schlechtere:
+
+1. **`setgid` auf `httpdocs`** — das Verzeichnis vererbt seine Gruppe an alles,
+   was darin entsteht, ganz gleich, wer schreibt. Eine Stelle, die es
+   durchsetzt, und sie gilt auch für Wege, die es noch nicht gibt.
+2. **Ein `chgrp` nach jedem Schreibvorgang** — dieselbe Regel in acht
+   Operationen, in SFTP nochmal, und in der neunten fehlt sie.
+
+Der zweite Weg ist die Bauform, die in diesem Projekt schon dreimal
+danebengegangen ist: eine zweite Fassung derselben Regel, und die zweite ist
+die, die veraltet.
 
 Schritt 11 ist das Abnahmekriterium und kommt **vor** der Freigabe, nicht
 danach. Schritt 12 wird nicht abgehakt, wenn er gerade nicht geht — `docs/49 §6`

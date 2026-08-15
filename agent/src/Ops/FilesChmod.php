@@ -7,6 +7,7 @@ namespace SrvPanel\Agent\Ops;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Files\Entry;
+use SrvPanel\Agent\Files\Scheme;
 use SrvPanel\Agent\Files\Workspace;
 use SrvPanel\Agent\Guard;
 use SrvPanel\Agent\Op;
@@ -48,6 +49,19 @@ final class FilesChmod implements Op
         if ($mode < 0 || $mode > 0o777) {
             throw AgentException::badRequest('Unzulässige Rechte — erlaubt sind 0 bis 0777.', ['mode' => $mode]);
         }
+
+        /*
+         * **Und der Fall, der weniger offensichtlich ist als das Entfernen.**
+         *
+         * `httpdocs` trägt seit `docs/51` Schritt 6c das setgid-Bit — daran
+         * hängt, dass alles darin der Gruppe `www-data` gehört und der
+         * Webserver es lesen kann. Diese Operation nimmt nur neun Bits entgegen
+         * (`> 0o777` fliegt oben heraus), ein `chmod` des Kunden auf `httpdocs`
+         * nähme das zehnte also **lautlos** weg. Die nächste hochgeladene Datei
+         * trüge wieder die falsche Gruppe, und das ist Befund 3 aus `docs/53`
+         * noch einmal, nur mit dem Kunden als Verursacher.
+         */
+        Scheme::protect($path, 'in seinen Rechten geändert');
 
         return $workspace->run(static function () use ($path, $mode): array {
             $entry = Entry::of($path);

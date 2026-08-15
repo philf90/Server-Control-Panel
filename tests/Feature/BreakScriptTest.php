@@ -557,6 +557,83 @@ final class BreakScriptTest extends TestCase
      * > **Eine Regel, deren Bruch das Werkzeug selbst beschädigt, wird von Hand
      * > gebrochen — und dass sie es wurde, gehört aufgeschrieben.**
      */
+    /**
+     * Ein Eingriff prüft seinen eigenen Griff und nicht den einer anderen Datei.
+     *
+     * ## Zwei Helfer, die fast gleich heissen
+     *
+     * `vorher` merkt sich `resources/css/app.css`, `griff` vergleicht dagegen.
+     * `vorher_datei <pfad>` merkt sich eine beliebige Datei, `griff_datei
+     * <pfad> <name>` vergleicht dagegen. Wer sie kreuzt, bekommt keinen Fehler
+     * — sondern eine Auskunft über die falsche Datei.
+     *
+     * **Genau das ist in P6 passiert, zweimal in einem Abschnitt.** Zwei
+     * Eingriffe in `Subscriptions/Show.vue` und `routes/web.php` riefen `griff`,
+     * das `app.css` mit einem Abzug von vor drei Abschnitten verglich. Beide
+     * meldeten „Eingriff hat nichts geändert", obwohl beide gegriffen hatten —
+     * und die zwei Wächter darunter liefen nie.
+     *
+     * > **Ein Werkzeug, das die falsche Datei vergleicht, meldet nicht „ich habe
+     * > die falsche verglichen" — es meldet „nichts passiert".**
+     *
+     * Gefunden hat es die CI, nicht der Container: Hier laufen die Wächter über
+     * ein Gestell ohne PHPUnit, und dieses Skript fährt dort gar nicht.
+     */
+    public function test_every_intervention_checks_its_own_file(): void
+    {
+        $script = (string) file_get_contents($this->root().'/tests/waechter-brechen.sh');
+
+        // Die Abschnitte, an ihren Überschriften getrennt. Ein Eingriff gehört
+        // zu genau einem davon.
+        $abschnitte = preg_split('/^echo "── /m', $script) ?: [];
+
+        $geprueft = 0;
+
+        foreach ($abschnitte as $abschnitt) {
+            $mitDatei = preg_match('/^vorher_datei\s+(\S+)/m', $abschnitt, $gemerkt) === 1;
+            $mitCss = preg_match('/^vorher\(\)|^vorher$/m', $abschnitt) === 1;
+
+            if (! $mitDatei && ! $mitCss) {
+                continue;
+            }
+
+            $geprueft++;
+
+            if ($mitDatei) {
+                $this->assertMatchesRegularExpression(
+                    '/^griff_datei\s+'.preg_quote($gemerkt[1], '/').'\s/m',
+                    $abschnitt,
+                    sprintf(
+                        'Ein Abschnitt merkt sich `%s` mit `vorher_datei` und prüft den Griff
+'.
+                        'nicht mit `griff_datei %s`.
+
+'.
+                        '`griff` vergleicht `resources/css/app.css` gegen einen Abzug, den dieser
+'.
+                        'Abschnitt gar nicht gemacht hat — die Antwort lautet dann „Eingriff hat
+'.
+                        'nichts geändert", ganz gleich, was der Eingriff getan hat.',
+                        $gemerkt[1],
+                        $gemerkt[1],
+                    ),
+                );
+            }
+        }
+
+        /*
+         * **Die Untergrenze, und sie zählt Abschnitte mit einem Abzug.** Zieht
+         * die Form der Überschriften um oder heissen die Helfer anders, findet
+         * dieser Wächter null Abschnitte und ist grün.
+         */
+        $this->assertGreaterThan(
+            20,
+            $geprueft,
+            'Es werden kaum Abschnitte mit einem Abzug gefunden. Dann liest dieser Wächter das '.
+            'Skript nicht mehr, und seine Zusage ist wertlos.',
+        );
+    }
+
     public function test_every_touched_file_lies_on_the_way_back(): void
     {
         $script = (string) file_get_contents($this->root().'/tests/waechter-brechen.sh');

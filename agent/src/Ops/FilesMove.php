@@ -7,6 +7,7 @@ namespace SrvPanel\Agent\Ops;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Files\Entry;
+use SrvPanel\Agent\Files\Scheme;
 use SrvPanel\Agent\Files\Workspace;
 use SrvPanel\Agent\Op;
 
@@ -43,6 +44,12 @@ final class FilesMove implements Op
         if ($from === '/' || $to === '/') {
             throw AgentException::denied('Die Wurzel des Abonnements wird nicht verschoben.');
         }
+
+        // Dieselbe Überlegung wie beim Entfernen: Ein umbenanntes `httpdocs`
+        // ist für nginx dasselbe wie ein gelöschtes. Hier weist der Kernel
+        // zwar von sich aus ab (die Vhost-Wurzel gehört root), aber mit einer
+        // Meldung, die den Grund nicht nennt.
+        Scheme::protect($from, 'verschoben oder umbenannt');
 
         if ($from === $to) {
             throw AgentException::badRequest('Quelle und Ziel sind dasselbe.', ['path' => $from]);

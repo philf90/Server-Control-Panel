@@ -7,13 +7,16 @@ namespace App\Http\Controllers;
 use App\Models\Subscription;
 use App\Support\Audit\Audit;
 use App\Support\Files\Files;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Ops\FilesList;
 
 /**
  * Der Dateimanager.
@@ -59,6 +62,30 @@ final class FileController extends Controller
             'entries' => $listing['entries'] ?? [],
             'truncated' => $listing['truncated'] ?? false,
 
+            /*
+             * **Welche Verzeichnisse der Webserver ausliefert.**
+             *
+             * Die Rechteanzeige sagt dem Kunden, was seine Einstellung
+             * bewirkt, und der wichtigste Satz davon lautet „Der Webserver
+             * kann diese Datei ausliefern". Er stimmt nur unterhalb eines
+             * DocumentRoots — und welche das sind, weiss die Seite nicht.
+             *
+             * `httpdocs` fest hineinzuschreiben wäre die naheliegende Zeile
+             * und für jede zweite Domain falsch: Ihr DocumentRoot heisst wie
+             * sie selbst. Es käme dann eine Auskunft heraus, die für den einen
+             * Ordner stimmt und für den daneben nicht — und zwar wortgleich.
+             *
+             * > **Ein Satz, der an einer Stelle stimmt und an der nächsten
+             * > nicht, ist schlechter als kein Satz.**
+             */
+            'documentRoots' => $subscription->domains()
+                ->whereNotNull('document_root')
+                ->pluck('document_root')
+                ->map(static fn (string $root): string => '/'.$root)
+                ->unique()
+                ->values()
+                ->all(),
+
             // **Die Antwort auf „darf ich" kommt aus derselben Policy, die es
             // später abweist** — nicht aus einem `v-if` auf den Kontotyp. Eine
             // zweite Fassung der Regel wäre die, die veraltet
@@ -67,6 +94,36 @@ final class FileController extends Controller
                 'edit' => $request->user()?->can('editFiles', $subscription) ?? false,
             ],
         ]);
+    }
+
+    /**
+     * Die Unterverzeichnisse eines Verzeichnisses — für den Baum.
+     *
+     * **Der zweite Griff dieses Panels, der JSON zurückgibt** (der erste ist
+     * die Datenbankkonsole, `docs/46 §20.9`). Der Grund ist hier ein anderer:
+     * Ein Baum klappt einen Ast auf, ohne die Seite zu wechseln — eine
+     * Inertia-Antwort täte genau das und nähme dabei jeden anderen geöffneten
+     * Ast mit.
+     *
+     * **`POST`, obwohl er nur liest**, aus demselben Grund wie dort: damit alle
+     * Griffe dieser Bauart zusammenbleiben und keiner eine eigene hat, die
+     * später jemand erklären muss.
+     */
+    public function tree(Request $request, Subscription $subscription): JsonResponse
+    {
+        $path = $this->path($request->input('path', '/'));
+
+        try {
+            return response()->json($this->files->tree($subscription, $path));
+        } catch (AgentException $exception) {
+            /*
+             * **422 und nicht 500.** „Das Verzeichnis gibt es nicht" ist für
+             * den Betrachter keine Störung, sondern eine Auskunft über den Ast,
+             * den er gerade aufklappen wollte — meistens, weil ihn jemand
+             * anderes inzwischen entfernt hat.
+             */
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
     }
 
     /**
@@ -102,11 +159,35 @@ final class FileController extends Controller
             'content' => ['present', 'string'],
         ]);
 
-        $this->attempt(fn (): array => $this->files->write($subscription, $data['path'], $data['content']));
+        $result = $this->attempt(fn (): array => $this->files->write($subscription, $data['path'], $data['content']));
+
+        /*
+         * **Angelegt oder gespeichert — entschieden am Zustand und nicht an
+         * der Absicht.**
+         *
+         * Der Agent sagt, ob es die Datei vorher gab (`created`). Dieselbe
+         * Route bedient damit beides: das Speichern aus dem Editor und das
+         * Anlegen aus der Liste, ohne dass ein Feld im Formular mitteilt, was
+         * gemeint war.
+         *
+         * Ein Flag wäre die naheliegende Zeile und der Fehler aus P4: eine
+         * Bedingung, die an einer **Absicht** hängt statt an einem **Zustand**
+         * — und beim nächsten Aufrufer stimmt sie nicht mehr.
+         */
+        $created = ($result['created'] ?? false) === true;
 
         $this->audit->record('file.written', subscriptionId: (int) $subscription->id, context: [
             'path' => $data['path'],
+            'created' => $created,
         ]);
+
+        // Wer eine Datei anlegt, will etwas hineinschreiben. Der Editor ist
+        // deshalb das Ziel — und nur dann, denn beim Speichern *aus* dem Editor
+        // wäre eine Weiterleitung dorthin ein Kreis.
+        if ($created) {
+            return to_route('files.edit', ['subscription' => $subscription->id, 'path' => $data['path']])
+                ->with('success', 'Die Datei ist angelegt.');
+        }
 
         return to_route('files.index', ['subscription' => $subscription->id, 'path' => dirname($data['path'])])
             ->with('success', 'Die Datei ist gespeichert.');
@@ -126,62 +207,124 @@ final class FileController extends Controller
             ->with('success', 'Das Verzeichnis ist angelegt.');
     }
 
+    /**
+     * Entfernen — einen Eintrag oder viele.
+     *
+     * **Die Einzahl ist eine Auswahl aus einem und kein eigener Weg.** Bis
+     * Schritt 5h hatte diese Methode ein `path`; die Mehrfachauswahl hätte sie
+     * daneben um ein `paths` ergänzen können, und dann gäbe es zwei Fassungen
+     * derselben Regel — die seltener benutzte veraltet.
+     */
     public function remove(Request $request, Subscription $subscription): RedirectResponse
+    {
+        $paths = $this->selection($request, ['recursive' => ['boolean']]);
+        $recursive = $request->boolean('recursive');
+
+        $result = $this->each($paths, function (string $path) use ($subscription, $recursive): void {
+            $this->files->remove($subscription, $path, $recursive);
+
+            $this->audit->record('file.removed', subscriptionId: (int) $subscription->id, context: [
+                'path' => $path,
+                'recursive' => $recursive,
+            ]);
+        });
+
+        $this->report($paths, $result, 'entfernt');
+
+        return to_route('files.index', ['subscription' => $subscription->id, 'path' => dirname($paths[0] ?? '/')])
+            ->with('success', $result['done'] === 1
+                ? 'Der Eintrag ist entfernt.'
+                : sprintf('%d Einträge sind entfernt.', $result['done']));
+    }
+
+    /**
+     * Umbenennen.
+     *
+     * **Ein eigener Griff, seit `move` eine Auswahl verschiebt.** Beide bewegen
+     * denselben Eintrag mit demselben `rename()`, aber sie beantworten
+     * verschiedene Fragen: Umbenennen nennt einen **Namen**, Verschieben ein
+     * **Verzeichnis**. Solange beide dasselbe Feld `to` benutzten, musste der
+     * Aufrufer wissen, welche der beiden Bedeutungen gerade gilt — und die Seite
+     * hat den Pfad dafür selbst zusammengesetzt.
+     *
+     * > **Ein Feld mit zwei Bedeutungen hat keine.**
+     *
+     * Der neue Name ist deshalb ein Name: `basename()` nimmt ihm jeden
+     * Verzeichnisteil ab. Das ist **keine** Schranke — die hält das Chroot —,
+     * sondern die Antwort auf die Frage, wonach gefragt wurde.
+     */
+    public function rename(Request $request, Subscription $subscription): RedirectResponse
     {
         $data = $request->validate([
             'path' => ['required', 'string', 'max:4096'],
-            'recursive' => ['boolean'],
+            'name' => ['required', 'string', 'max:255'],
         ]);
 
-        $this->attempt(fn (): array => $this->files->remove(
-            $subscription,
-            $data['path'],
-            (bool) ($data['recursive'] ?? false),
-        ));
+        $leaf = basename(str_replace('\\', '/', $data['name']));
 
-        $this->audit->record('file.removed', subscriptionId: (int) $subscription->id, context: [
-            'path' => $data['path'],
-            'recursive' => (bool) ($data['recursive'] ?? false),
+        if ($leaf === '' || $leaf === '.' || $leaf === '..') {
+            throw ValidationException::withMessages(['name' => 'Das ist kein brauchbarer Name.']);
+        }
+
+        $to = rtrim(dirname($data['path']), '/').'/'.$leaf;
+
+        $this->attempt(fn (): array => $this->files->move($subscription, $data['path'], $to));
+
+        $this->audit->record('file.moved', subscriptionId: (int) $subscription->id, context: [
+            'from' => $data['path'],
+            'to' => $to,
         ]);
 
-        return to_route('files.index', ['subscription' => $subscription->id, 'path' => dirname($data['path'])])
-            ->with('success', 'Der Eintrag ist entfernt.');
+        return to_route('files.index', ['subscription' => $subscription->id, 'path' => dirname($to)])
+            ->with('success', 'Der Eintrag ist umbenannt.');
     }
 
     public function move(Request $request, Subscription $subscription): RedirectResponse
     {
-        $data = $request->validate([
-            'from' => ['required', 'string', 'max:4096'],
-            'to' => ['required', 'string', 'max:4096'],
-        ]);
+        $paths = $this->selection($request, ['to' => ['required', 'string', 'max:4096']]);
+        $ziel = $request->string('to')->toString();
 
-        $this->attempt(fn (): array => $this->files->move($subscription, $data['from'], $data['to']));
+        $result = $this->each($paths, function (string $path) use ($subscription, $ziel): void {
+            $to = $this->into($ziel, $path);
 
-        $this->audit->record('file.moved', subscriptionId: (int) $subscription->id, context: [
-            'from' => $data['from'],
-            'to' => $data['to'],
-        ]);
+            $this->files->move($subscription, $path, $to);
 
-        return to_route('files.index', ['subscription' => $subscription->id, 'path' => dirname($data['to'])])
-            ->with('success', 'Der Eintrag ist verschoben.');
+            $this->audit->record('file.moved', subscriptionId: (int) $subscription->id, context: [
+                'from' => $path,
+                'to' => $to,
+            ]);
+        });
+
+        $this->report($paths, $result, 'verschoben');
+
+        return to_route('files.index', ['subscription' => $subscription->id, 'path' => $ziel])
+            ->with('success', $result['done'] === 1
+                ? 'Der Eintrag ist verschoben.'
+                : sprintf('%d Einträge sind verschoben.', $result['done']));
     }
 
     public function copy(Request $request, Subscription $subscription): RedirectResponse
     {
-        $data = $request->validate([
-            'from' => ['required', 'string', 'max:4096'],
-            'to' => ['required', 'string', 'max:4096'],
-        ]);
+        $paths = $this->selection($request, ['to' => ['required', 'string', 'max:4096']]);
+        $ziel = $request->string('to')->toString();
 
-        $this->attempt(fn (): array => $this->files->copy($subscription, $data['from'], $data['to']));
+        $result = $this->each($paths, function (string $path) use ($subscription, $ziel): void {
+            $to = $this->into($ziel, $path);
 
-        $this->audit->record('file.copied', subscriptionId: (int) $subscription->id, context: [
-            'from' => $data['from'],
-            'to' => $data['to'],
-        ]);
+            $this->files->copy($subscription, $path, $to);
 
-        return to_route('files.index', ['subscription' => $subscription->id, 'path' => dirname($data['to'])])
-            ->with('success', 'Der Eintrag ist kopiert.');
+            $this->audit->record('file.copied', subscriptionId: (int) $subscription->id, context: [
+                'from' => $path,
+                'to' => $to,
+            ]);
+        });
+
+        $this->report($paths, $result, 'kopiert');
+
+        return to_route('files.index', ['subscription' => $subscription->id, 'path' => $ziel])
+            ->with('success', $result['done'] === 1
+                ? 'Der Eintrag ist kopiert.'
+                : sprintf('%d Einträge sind kopiert.', $result['done']));
     }
 
     public function chmod(Request $request, Subscription $subscription): RedirectResponse
@@ -219,42 +362,126 @@ final class FileController extends Controller
      * Ein kundengewählter Name im Schreibbereich des Panels wäre ein Pfad, den
      * der Agent später als root liest.
      */
+    /**
+     * Hochladen — eine Datei oder viele.
+     *
+     * ## Der eigentliche Gegenstand ist die Rückmeldung
+     *
+     * Mehrere Dateien anzunehmen ist eine Schleife. Was daran Arbeit macht,
+     * ist der Fall, der hier der **Normalfall** ist: Datei 7 von 20 reisst die
+     * Quota, und die anderen neunzehn liegen schon da.
+     *
+     * Eine Erfolgsmeldung über einem Verzeichnis, in dem neunzehn statt zwanzig
+     * Dateien liegen, ist genau der Fehler, den `docs/48` an anderer Stelle
+     * gefunden hat:
+     *
+     * > **Eine fehlgeschlagene Anfrage darf die Beschriftung nicht so lassen,
+     * > als wäre sie durchgelaufen.**
+     *
+     * Deshalb wird **je Datei** übernommen und **je Datei** gemeldet, und die
+     * Zahl derer, die durch sind, steht im ersten Satz. Ein Abbruch beim ersten
+     * Fehler wäre die kürzere Fassung und die schlechtere: Der Kunde wüsste
+     * dann nicht, ob die restlichen an derselben Sache scheitern oder nie
+     * versucht wurden.
+     *
+     * ## Warum nicht alles oder nichts
+     *
+     * Ein Rückbau des schon Übernommenen wäre die dritte Möglichkeit, und sie
+     * ist hier falsch: Er löschte Dateien im Verzeichnis des Kunden, die
+     * genauso gut vorher dort gelegen haben könnten. Ein Vorgang, der beim
+     * Aufräumen fremde Dateien mitnimmt, ist schlimmer als einer, der die
+     * Hälfte schafft und es sagt.
+     */
     public function upload(Request $request, Subscription $subscription): RedirectResponse
     {
         $data = $request->validate([
             'path' => ['required', 'string', 'max:4096'],
-            'file' => ['required', 'file'],
+            'files' => ['required', 'array', 'min:1'],
+            'files.*' => ['required', 'file'],
         ]);
 
-        $staged = $request->file('file')->storeAs(
-            'uploads',
-            bin2hex(random_bytes(16)),
-            ['disk' => 'local'],
-        );
+        /** @var list<UploadedFile> $incoming */
+        $incoming = $request->file('files');
 
-        if ($staged === false) {
-            throw ValidationException::withMessages([
-                'file' => 'Die Datei liess sich nicht zwischenspeichern.',
-            ]);
+        $done = 0;
+        $failed = [];
+
+        foreach ($incoming as $file) {
+            $name = $file->getClientOriginalName();
+
+            /*
+             * **Der Zielpfad entsteht hier und nicht im Browser.**
+             *
+             * Bis zum Mehrfach-Upload schickte die Seite den vollständigen Pfad
+             * mitsamt Dateinamen; bei mehreren Dateien wäre das **ein** Pfad für
+             * alle gewesen — zwanzig Dateien unter demselben Namen, neunzehnmal
+             * überschrieben, und der Vorgang hätte Erfolg gemeldet.
+             *
+             * `basename()` nimmt dem Namen jeden Verzeichnisteil ab, den ein
+             * Browser mitschicken könnte. Das ist **keine** Schranke — die hält
+             * das Chroot —, sondern die Antwort auf die Frage, wie die Datei
+             * heissen soll.
+             */
+            $leaf = basename(str_replace('\\', '/', $name));
+
+            if ($leaf === '' || $leaf === '.' || $leaf === '..') {
+                $failed[$name] = 'hat keinen brauchbaren Dateinamen';
+
+                continue;
+            }
+
+            $target = rtrim($data['path'], '/').'/'.$leaf;
+
+            $staged = $file->storeAs('uploads', bin2hex(random_bytes(16)), ['disk' => 'local']);
+
+            if ($staged === false) {
+                $failed[$name] = 'liess sich nicht zwischenspeichern';
+
+                continue;
+            }
+
+            try {
+                $this->files->upload($subscription, Storage::disk('local')->path($staged), $target);
+
+                $done++;
+
+                $this->audit->record('file.uploaded', subscriptionId: (int) $subscription->id, context: [
+                    'path' => $target,
+                ]);
+            } catch (AgentException $exception) {
+                $failed[$name] = $exception->getMessage();
+            } finally {
+                // **Auch im Fehlerfall.** Ein Zwischenlager, das nur bei Erfolg
+                // aufgeräumt wird, füllt sich genau mit den Dateien, deren
+                // Übernahme scheiterte — und das sind die grossen.
+                Storage::disk('local')->delete($staged);
+            }
         }
 
-        $absolute = Storage::disk('local')->path($staged);
+        if ($failed !== []) {
+            /*
+             * **Die Zahl steht vor der Liste**, und zwar auch dann, wenn sie
+             * null ist. Ohne sie liest der Kunde drei Fehlermeldungen und weiss
+             * nicht, ob die anderen siebzehn durchgekommen sind.
+             */
+            $messages = [sprintf(
+                'Von %d Dateien %s %d hochgeladen.',
+                count($incoming),
+                $done === 1 ? 'ist' : 'sind',
+                $done,
+            )];
 
-        try {
-            $this->attempt(fn (): array => $this->files->upload($subscription, $absolute, $data['path']));
-        } finally {
-            // **Auch im Fehlerfall.** Ein Zwischenlager, das nur bei Erfolg
-            // aufgeräumt wird, füllt sich genau mit den Dateien, deren
-            // Übernahme scheiterte — und das sind die grossen.
-            Storage::disk('local')->delete($staged);
+            foreach ($failed as $name => $reason) {
+                $messages[] = sprintf('%s: %s', $name, $reason);
+            }
+
+            throw ValidationException::withMessages(['files' => $messages]);
         }
 
-        $this->audit->record('file.uploaded', subscriptionId: (int) $subscription->id, context: [
-            'path' => $data['path'],
-        ]);
-
-        return to_route('files.index', ['subscription' => $subscription->id, 'path' => dirname($data['path'])])
-            ->with('success', 'Die Datei ist hochgeladen.');
+        return to_route('files.index', ['subscription' => $subscription->id, 'path' => $data['path']])
+            ->with('success', $done === 1
+                ? 'Die Datei ist hochgeladen.'
+                : sprintf('%d Dateien sind hochgeladen.', $done));
     }
 
     /**
@@ -291,22 +518,34 @@ final class FileController extends Controller
                 ));
     }
 
+    /**
+     * Packen — eine Auswahl in **ein** Archiv.
+     *
+     * **Hier gibt es keine Schleife**, und das ist der Unterschied zu Entfernen,
+     * Kopieren und Verschieben. Die drei tun je Eintrag dasselbe und können den
+     * einen schaffen und den nächsten nicht; Packen tut **einmal** etwas über
+     * alle. Ein Archiv, das die Hälfte der Auswahl enthält und Erfolg meldet,
+     * wäre die schlechtere Antwort — deshalb entscheidet der Agent, und zwar für
+     * alle zusammen.
+     */
     public function compress(Request $request, Subscription $subscription): RedirectResponse
     {
-        $data = $request->validate([
-            'path' => ['required', 'string', 'max:4096'],
-            'target' => ['required', 'string', 'max:4096'],
-        ]);
+        $paths = $this->selection($request, ['target' => ['required', 'string', 'max:4096']]);
+        $target = $request->string('target')->toString();
 
-        $result = $this->attempt(fn (): array => $this->files->compress($subscription, $data['path'], $data['target']));
+        $result = $this->attempt(
+            fn (): array => $this->files->compress($subscription, $paths, $target),
+        );
 
         $this->audit->record('file.compressed', subscriptionId: (int) $subscription->id, context: [
-            'path' => $data['path'],
-            'target' => $data['target'],
+            'paths' => $paths,
+            'target' => $target,
         ]);
 
-        return to_route('files.index', ['subscription' => $subscription->id, 'path' => dirname($data['target'])])
-            ->with('success', sprintf('Das Archiv ist gepackt — %d Einträge.', $result['entries'] ?? 0));
+        return to_route('files.index', ['subscription' => $subscription->id, 'path' => dirname($target)])
+            ->with('success', ($result['entries'] ?? 0) === 1
+                ? 'Das Archiv ist gepackt — ein Eintrag.'
+                : sprintf('Das Archiv ist gepackt — %d Einträge.', $result['entries'] ?? 0));
     }
 
     /**
@@ -369,6 +608,139 @@ final class FileController extends Controller
         }
 
         return $path;
+    }
+
+    /**
+     * Die Auswahl aus der Anfrage — und was der jeweilige Griff sonst braucht.
+     *
+     * **Eine Stelle und nicht vier.** Die vier Griffe der Mehrfachauswahl
+     * unterscheiden sich in einem Feld (`recursive`, `to`, `target`) und sind im
+     * Rest gleich. Viermal abgeschrieben wäre es viermal die Gelegenheit, die
+     * Obergrenze oder das `min:1` in einem davon zu vergessen.
+     *
+     * **Zurück kommen nur die Pfade.** Das zusätzliche Feld wird hier zwar
+     * mitgeprüft, aber vom Griff selbst gelesen — mit `string()` oder
+     * `boolean()`, die einen Typ zurückgeben. Ein gemeinsamer Rückgabewert mit
+     * drei wahlweisen Schlüsseln wäre an jeder Lesestelle ein „gibt es
+     * vielleicht nicht".
+     *
+     * @param  array<string, list<string>>  $extra
+     * @return list<string>
+     */
+    private function selection(Request $request, array $extra = []): array
+    {
+        /*
+         * **Die Obergrenze kommt aus dem Agenten und wird hier nicht
+         * abgeschrieben.** Sie ist die der Liste: Mehr Einträge, als eine Liste
+         * zeigt, kann niemand angehakt haben. Eine zweite Zahl an dieser Stelle
+         * wäre die, die beim nächsten Zuwachs stehenbleibt — und die Absage käme
+         * dann aus der Tiefe statt als Feldmeldung.
+         */
+        $data = $request->validate([
+            'paths' => ['required', 'array', 'min:1', 'max:'.FilesList::MAX_ENTRIES],
+            'paths.*' => ['required', 'string', 'max:4096'],
+        ] + $extra);
+
+        /** @var array<int, string> $paths */
+        $paths = $data['paths'];
+
+        /*
+         * **`array_values`, weil die Reihenfolge trägt.** Die erste Zeile der
+         * Rückmeldung nennt die Zahl, und die Weiterleitung nach dem Entfernen
+         * nimmt den ersten Pfad. Ein Schlüssel `1` ohne `0` — den ein Formular
+         * durchaus schicken kann — machte daraus einen undefinierten Zugriff.
+         *
+         * Und `array_unique`, weil derselbe Eintrag in zwei Schreibweisen
+         * zweimal angefasst würde: Beim zweiten Mal meldet der Agent „gibt es
+         * nicht", mitten in einer Rückmeldung über siebzehn Erfolge.
+         */
+        return array_values(array_unique($paths));
+    }
+
+    /**
+     * Wohin ein Eintrag beim Kopieren und Verschieben kommt.
+     *
+     * **Das Ziel ist ein Verzeichnis, der Name kommt von der Quelle.** Dieselbe
+     * Regel wie beim Hochladen, und aus demselben Grund: Bei mehreren Quellen
+     * wäre ein vollständiger Zielpfad **ein** Pfad für alle — der letzte Eintrag
+     * gewönne, die anderen wären fort, und der Vorgang meldete Erfolg.
+     */
+    private function into(string $directory, string $path): string
+    {
+        return rtrim($directory, '/').'/'.basename($path);
+    }
+
+    /**
+     * Jeden Eintrag einzeln, und was dabei schiefging festhalten.
+     *
+     * **Kein Abbruch beim ersten Fehler.** Wer zwanzig Dateien anhakt und bei der
+     * siebten in die Quota läuft, will wissen, ob die restlichen dreizehn an
+     * derselben Sache scheitern oder nie versucht wurden — und ob sie jetzt am
+     * Ziel liegen oder nicht.
+     *
+     * **Und kein Rückbau des schon Getanen.** Er löschte Einträge im Verzeichnis
+     * des Kunden, die genauso gut vorher dort gelegen haben könnten. Ein Vorgang,
+     * der beim Aufräumen fremde Dateien mitnimmt, ist schlimmer als einer, der
+     * die Hälfte schafft und es sagt.
+     *
+     * @param  list<string>  $paths
+     * @param  callable(string): void  $do
+     * @return array{done: int, failed: array<string, string>}
+     */
+    private function each(array $paths, callable $do): array
+    {
+        $done = 0;
+        $failed = [];
+
+        foreach ($paths as $path) {
+            try {
+                $do($path);
+
+                $done++;
+            } catch (AgentException $exception) {
+                $failed[$path] = $exception->getMessage();
+            }
+        }
+
+        return ['done' => $done, 'failed' => $failed];
+    }
+
+    /**
+     * Was schiefging — mit der Zahl im ersten Satz.
+     *
+     * > **Eine fehlgeschlagene Anfrage darf die Beschriftung nicht so lassen, als
+     * > wäre sie durchgelaufen.** (`docs/48 §3.5`)
+     *
+     * Bei genau einem Eintrag steht sein Grund allein da. „Von 1 Einträgen ist 0
+     * entfernt." wäre die Zahl ohne die Auskunft — und die Auskunft ist bei einem
+     * Eintrag alles, was es zu sagen gibt.
+     *
+     * @param  list<string>  $paths
+     * @param  array{done: int, failed: array<string, string>}  $result
+     */
+    private function report(array $paths, array $result, string $verb): void
+    {
+        if ($result['failed'] === []) {
+            return;
+        }
+
+        if (count($paths) === 1) {
+            throw ValidationException::withMessages(['path' => array_values($result['failed'])[0]]);
+        }
+
+        $messages = [sprintf(
+            'Von %d Einträgen %s %d %s.',
+            count($paths),
+            $result['done'] === 1 ? 'ist' : 'sind',
+            $result['done'],
+            $verb,
+        )];
+
+        foreach ($result['failed'] as $path => $reason) {
+            $messages[] = sprintf('%s: %s', $path, $reason);
+        }
+
+        throw ValidationException::withMessages(['path' => $messages]);
     }
 
     /**

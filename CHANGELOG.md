@@ -12904,3 +12904,545 @@ weggenommen. `git status` war sauber, und die Änderung war fort.
 
 > **Ein Rückweg, den man zum Prüfen selbst benutzt, nimmt auch die Prüfung
 > zurück.**
+
+### P6 — die Zwischenabnahme auf `cloudsrv24`: neun Befunde, keinen davon ein Test
+
+**Gefahren am 14. August 2026 gegen `v0.6.0-rc.1`**, nach dem Lauf aus
+`docs/52`; das Protokoll ist `docs/53`. Acht Punkte, und die Frage, wegen der er
+vorgezogen wurde, ist beantwortet: **Die Grenze aus `docs/51 §5` hält auf einem
+echten Server.** Alle sieben Abschnitte des Messskripts, jede Gegenprobe
+getroffen.
+
+**Der Befund, der in keiner Erwartung stand**: Das Zeitfenster des Angreifers
+ist auf dem Produktivsystem fast dreimal so weit wie im Entwicklungscontainer —
+2175 von 30 000 gegen 759 von 30 000. Die Richtung war erwartet, die
+Grössenordnung nicht.
+
+> **Eine Messung, die man vom Entwicklungsrechner auf den Zielserver überträgt,
+> überträgt auch ihre Grössenordnung — und die stimmt nicht.**
+
+**Drei der neun Befunde betrafen den Lauf und nicht den Prüfling**, wie in
+`docs/45`, `47` und `48`. Zwei davon waren *bekannt und aufgeschrieben*:
+`srvpanel tinker` startet ohne `HOME=/tmp` nicht (psysh scheitert am Anlegen von
+`.config/psysh`, mit einer blossen `User Notice` und Rückgabewert 0), und
+`Subscription::first()` ist ohne `Tenancy::allowAll()` schlicht `null`. Beides
+steht seit `docs/47 §2` und `docs/48 §3.8` da und stand in `docs/52` trotzdem
+falsch.
+
+> **Eine Falle, die in zwei Protokollen steht, steht deshalb noch in keinem
+> Lauf.**
+
+Dazu zwei Punkte, die gar nichts gemessen haben, bis sie wiederholt wurden. Ein
+`chmod 0644` auf eine Datei, die `files.write` ohnehin mit `0644` anlegt — der
+Aufruf stellte den Zustand her, in dem die Datei schon war, und wäre
+`files.chmod` eine leere Methode, sähe der Lauf genauso aus. Und ein
+Rückbau-Vergleich über eine Bestandsaufnahme mit **einer** Zeile: Der `diff` war
+leer, weil nichts da war, das hätte verschwinden können.
+
+> **Ein Griff, der den Zustand herstellt, in dem die Sache schon ist, meldet
+> Erfolg und misst nichts.**
+
+Wiederholt mit zwei Abonnements nebeneinander, beide befüllt, eines
+zurückgebaut: **31 Zeilen vorher, 15 weg, alle unterhalb des zurückgebauten
+Abonnements, kein `>` in beiden Vergleichen, genau ein Systembenutzer weniger
+von 39.** Das ist das Kriterium dieses Punktes — nicht „ist das Abonnement weg",
+sondern „ist der Nachbar unversehrt".
+
+**Und ein Verdacht, der sich als Rechenfehler herausstellte.** Zwischen zwei
+Messungen war ein Abonnement fort. Die Warteschlange und das Protokoll haben
+zwei getrennte, reguläre Rückbauten gezeigt, 21 Sekunden auseinander — der
+Verdacht stand auf dem Vergleich einer Shell-Zeit (Ortszeit) mit einer
+Tabellenzeit (UTC).
+
+> **Zwei Uhren in einem Protokoll sind eine Fehlerquelle und keine Auskunft.**
+
+Sechs Befunde betrafen das Panel. Fünf davon sind in den Schritten 5b bis 6d
+behoben; der sechste — dass ein fehlgeschlagener rekursiver Rückbau nicht atomar
+ist — steht benannt offen, weil er keine Grenze verletzt.
+
+### P6 Schritt 5b — der Dateimanager war von nirgendwo aus erreichbar
+
+**Gefunden durch eine Frage des Betreibers und nicht durch einen Test:** „Wo
+finde ich den Dateimanager?" Zwölf Routen mit ihrem `can:`, drei Seiten unter
+`resources/js/Pages/Files/`, eine Policy mit zwei Methoden, zwölf Operationen im
+Agenten — und **kein einziges Template nannte `/files`**. Erreichbar war er nur
+über die Adresszeile.
+
+> **Eine Seite, auf die nichts zeigt, ist nicht ausgeliefert — sie ist nur
+> vorhanden.**
+
+Kein vorhandener Wächter konnte das sehen, weil alle die andere Richtung prüfen:
+`RouteAuthorizationTest` (jede Route trägt `can:`), `PolicyReachTest` (jede
+Policy-Methode wird benutzt), `InertiaPagesTest` (jede Seite existiert als
+Datei). `AbilityReachTest` kommt am nächsten dran und sagt genau das Falsche.
+
+> **Ein Wächter, der prüft, dass nichts Verbotenes gezeigt wird, hat über das
+> Fehlende nichts gesagt.**
+
+`Subscriptions/Show.vue` bekommt den Knopf, der Controller die Antwort
+`browseFiles` im `can`-Payload. Dazu **`LinkReachTest`** — und dessen erster Wurf
+hat den eigenen Bruch überlebt: Er fragte, ob *irgendein* Template die Adresse
+nennt, und `Files/Index.vue` nennt sie selbst, für den Sprung ins
+Unterverzeichnis. Liste zeigt auf Editor, Editor zurück auf Liste, Suche auf
+Editor.
+
+> **Drei Seiten, die aufeinander zeigen, sind eine Insel ohne Anleger.**
+
+Gefragt wird jetzt nach Erreichbarkeit: Wurzeln sind die Dateien, die keine
+Seite sind — Layouts und Komponenten, denn die stehen überall.
+
+### P6 Schritt 5d — der Abstand fehlte zum sechsten Mal, und die Liste war schuld
+
+Zwischen dem Formular zum Hochladen und den Brotkrumen darunter stand nichts.
+Die Ursache ist ihre eigene Anklage: `.button-row + .sections` hängt an einem
+bestimmten Nachfolger, und der heisst hier `.crumbs`. Direkt darüber im
+Stylesheet steht der Kommentar „**Und beim fünften Mal war es eine Meldung**".
+
+**`BlockSpacingTest` gab es längst** — er ist der fünfte Anlauf und hatte die
+Frage schon richtig gestellt („endet der eine bündig, fängt der andere bündig
+an?"). Er blieb trotzdem grün: Seine zwei Listen wurden **von Hand gepflegt**,
+und `.crumbs` kam in P6 dazu, ohne eingetragen zu werden.
+
+> **Eine Liste, die von Hand gepflegt wird, ist beim nächsten Zuwachs
+> unvollständig — auch dann, wenn sie schon die Verbesserung einer schlechteren
+> Liste war.**
+
+Beide Listen werden jetzt aus `app.css` **abgeleitet**: bündig heisst kein Rand
+an der berührenden Kante. Padding zählt dabei nicht — es trennt zwei Kästen
+nicht, ausser der Kasten ist unsichtbar; dafür gibt es `HAS_OWN_AIR` mit
+nachgerechneter Begründung.
+
+Damit kamen 30 Fugen zum Vorschein, die vorher nicht im Blick lagen. Sie stehen
+als `OPEN_SEAMS` mit einer Sperrklinke in **beide** Richtungen: eine neue ist
+rot, eine geschlossene auch.
+
+> **Ein Loch, das man zählt, ist kein Loch mehr — es ist eine Zahl, die kleiner
+> werden kann.**
+
+Zwei eigene Fehler beim Umbau, beide vom Wächter selbst gemeldet. Die
+Sammelregel liess `covered()` fünf Nachbarschaften verlieren, weil ein Komma in
+einer `:is()`-Klammer etwas anderes trennt als eines daneben. Und 118 von 148
+Paaren liegen **nebeneinander** statt untereinander — die Richtung des
+Elternteils sortiert sie aus, und ein spaltenweiser Flexkasten mit `gap` trennt
+seine Kinder ohnehin schon.
+
+Gemessen im gebauten Stylesheet: 0px ohne die Regel, 24px bei 390 und 26px bei
+1440 mit ihr, Überlauf 0, Gegenprobe 400px.
+
+### P6 Schritt 6c — die Gruppe erbt jetzt vom Verzeichnis und nicht vom Erzeuger
+
+Auf `cloudsrv24` standen zwei Dateien nebeneinander im selben `httpdocs`:
+`index.html` als `1004:33` (`www-data`) und eine über den Dateimanager angelegte
+als `1004:1004`. **`httpdocs` gehört `%u:www-data`, und der Webserver kommt über
+die Gruppe hinein** — die zweite Datei war für ihn nur über das **Weltbit**
+lesbar.
+
+Das ging gut, bis jemand tut, wozu das Panel ausdrücklich einlädt: Er setzt
+`0640` — dieselbe Angabe, die die Willkommensseite daneben trägt und die dort
+funktioniert — und bekommt einen 403.
+
+> **Zwei Wege, die dieselbe Datei anlegen, müssen sie gleich anlegen — sonst ist
+> die Rechteanzeige eine Auskunft über die Hälfte der Wahrheit.**
+
+Das setgid-Bit steht **einmal** am Verzeichnis statt als `chgrp` in zwölf
+Operationen und in SFTP noch einmal. Es gilt für jeden, der darin etwas anlegt,
+auch für den Weg, den es noch nicht gibt, und neue Unterverzeichnisse erben es
+mit. Rechte vergibt es keine.
+
+Alle Verzeichnisse des Kunden tragen es, auch die, bei denen es heute nichts
+ändert — eine Regel für „die mit einer fremden Gruppe" müsste bei jedem Zuwachs
+des Schemas neu beurteilt werden. Für `.ssh` ist nachgesehen statt geraten:
+OpenSSH prüft in `safe_path()` nur `st_mode & 022`, und `02000` fällt nicht
+darunter.
+
+**Zwei Funde beim Bauen.** `WebSiteApply` nannte `'www-data'` und `0750` selbst,
+also stand die Angabe zweimal da — das Bit wäre dort nicht angekommen. Und es
+setzte Eigentümer, Gruppe und Rechte nur, wenn das Verzeichnis **neu entstand**:
+
+> **Eine Regel, die nur beim Anlegen gilt, erreicht den Bestand nie.**
+
+Dazu eine zweite Fassung von `Filesystem::directory()` in
+`SubscriptionProvision`, Zeile für Zeile dieselbe bis auf den Kommentar.
+
+### P6 Schritt 5c — die Rechte werden geführt eingestellt
+
+Der `window.prompt` nach einer Oktalzahl ist fort. Drei Dinge waren daran
+falsch, und das dritte ist das schwerste: ein Browserdialog ohne jede Verbindung
+zum Gestaltungssystem, eine Zahl, die man auswendig können muss, und keine
+Auskunft darüber, was sie bewirkt.
+
+> **Eine Eingabe, die eine Zahl verlangt, die man auswendig können muss, ist
+> keine Bedienung, sondern eine Prüfung.**
+
+An seiner Stelle steht ein Bereich auf der Seite — kein Dialog, denn dieses
+Panel hat keine Modalen. Neun Kästchen (mit `.toggle`, derselben Klasse wie
+jedes andere Kästchen des Panels), die Zahl und die Buchstaben mitlaufend
+daneben, zwei Vorlagen — und darunter der Satz, um den es eigentlich geht.
+
+Er unterscheidet Datei und Verzeichnis, weil dasselbe Bit dort etwas anderes
+heisst, und warnt vor dem häufigsten selbstgemachten Fehler: **Ein Ordner ohne
+`x` sperrt seinen Eigentümer aus, und das sieht aus wie ein Serverfehler.** Der
+Satz über den Webserver hängt am Gruppenbit und nicht mehr am Weltbit — seit
+Schritt 6c ist das die richtige Frage.
+
+Welche Verzeichnisse ausgeliefert werden, sagt der **Server**: `httpdocs` ist
+der DocumentRoot der Hauptdomain, jede weitere heisst wie ihre Domain.
+
+> **Ein Satz, der an einer Stelle stimmt und an der nächsten nicht, ist
+> schlechter als kein Satz.**
+
+`setuid`, `setgid` und das Sticky-Bit werden nicht angeboten.
+
+**Und im Bild bei 390px rutschte „Ausführen" unter die Beschriftung** und las
+sich als eigene Gruppe. Die Messung war dabei `0px`.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+### P6 Schritt 6d — der Editor bekommt Breite und Unterscheidung
+
+**Die Breite.** `.field` steht auf `max-width: 540px`, und das ist für ein
+Formular richtig. Quelltext ist kein Fliesstext.
+
+> **Eine Vorgabe, die für Lesbarkeit gemacht ist, gilt nicht für Text, den man
+> nicht liest, sondern bearbeitet.**
+
+Nicht mit `none`: Gemessen wären das auf einem 27-Zoll-Schirm 2528px, und
+jenseits von 160 Zeichen gewinnt man nichts mehr, man verliert nur den Weg
+zurück an den Zeilenanfang. Gemessen 540 → 1360 bei 1440 und 2560, unverändert
+358 bei 390. Die Höhe kommt vom Sichtfenster statt von `rows="24"` — das ist auf
+einem grossen Schirm dasselbe wie auf dem Telefon.
+
+**Die Hervorhebung.** Vier Paare sahen gleich aus: `propertyName` lag auf
+derselben Marke wie `tagName` (in CSS sah `color` aus wie `red`, in JSON der
+Schlüssel wie die Zeichenkette daneben), `variableName` war gar nicht vergeben,
+`punctuation` lag auf `operator`. Drei neue Marken, **keine davon eine neue
+Farbe** — sie teilen ihren Ton und unterscheiden sich im Gewicht.
+
+Dazu zwei Dinge, die keine Farbe sind und mehr helfen als jede weitere: die
+zusammengehörige Klammer und die Suche im Dokument. Die zweite ist kein Komfort
+— CodeMirror zeichnet lange Dateien nicht vollständig, also durchsucht das
+Strg+F des Browsers nur das Sichtbare.
+
+> **Eine Suche, die nur das Sichtbare durchsucht, meldet ihre Lücke nicht — sie
+> meldet „nicht gefunden".**
+
+**Zwei Eingriffe in `waechter-brechen.sh` griffen nicht mehr, beide gemeldet von
+`BreakScriptTest`:** einer zeigte auf eine Zeile, die durch Schritt 5d zur
+Sammelregel geworden ist, der andere fasste zwei Dateien in einem Block an und
+wurde dadurch der falschen zugeordnet.
+
+### P6 Schritt 5e — eine Datei anlegen, und mehrere hochladen
+
+**Zwei Fragen des Betreibers vor dem Pull Request**, und beides stand im Plan
+nicht: `docs/51 §8` nennt „Baum, Editor, Hochladen, Entpacken, Rechte, Suche".
+
+**Eine Datei anzulegen war zu neun Zehnteln gebaut.** `files.write` legt an, was
+es nicht gibt, und der Agent meldet es in seiner Antwort — `'created' =>
+$existing === null` steht seit Schritt 3 da. Die Route trägt ihr `can:`, der
+Controller verlangt nirgends, dass die Datei existiert; in der Zwischenabnahme
+ist `p6-probe.txt` genau so entstanden, aus `tinker`. Es fehlte der Knopf.
+
+> **Eine Fähigkeit, die keine Fläche hat, ist gebaut und nicht ausgeliefert.**
+
+Das ist Befund 6 eine Ebene tiefer, und `LinkReachTest` konnte es nicht sehen:
+Er prüft Seiten, nicht Fähigkeiten.
+
+Die Datei entsteht **leer**, danach öffnet der Editor. Ob nach dem Schreiben der
+Editor oder die Liste kommt, entscheidet die Antwort des Agenten und **kein Feld
+im Formular** — eine Bedingung an einer Absicht statt an einem Zustand ist der
+Fehler aus P4.
+
+**Beim Hochladen mehrerer Dateien ist die Schleife die kleinere Hälfte.** Die
+grössere ist der Fall, der hier der Normalfall ist: Datei 7 von 20 reisst die
+Quota, und die anderen neunzehn liegen schon da. Je Datei übernommen, je Datei
+gemeldet, die Zahl der gelungenen im **ersten** Satz — und die Schleife läuft
+nach einem Fehler weiter, weil ein Abbruch beim ersten offenliesse, ob die
+restlichen an derselben Sache scheitern oder nie versucht wurden.
+
+Ein Rückbau des schon Übernommenen ist ausdrücklich nicht vorgesehen: Er
+löschte Dateien im Verzeichnis des Kunden, die genauso gut vorher dort gelegen
+haben könnten.
+
+**Und ein Fund beim Bauen.** Die Seite schickte bis dahin den vollständigen
+Zielpfad mitsamt Dateinamen; bei mehreren Dateien wäre das **ein** Pfad für alle
+gewesen.
+
+> **Ein Vorgang, der zwanzigmal dieselbe Datei schreibt, meldet zwanzig
+> Erfolge.**
+
+Ordner hochladen gehört nicht dazu — der Browser liefert dabei eine Struktur,
+die angelegt werden müsste, und das ist ein eigener Gegenstand.
+
+### P6 Schritt 5f — das Gerüst des Abonnements gehört dem Panel
+
+**Gefunden bei der Frage des Betreibers nach einer Mehrfachauswahl**, und es ist
+ein Fehler und keine fehlende Funktion.
+
+`httpdocs`, `logs`, `tmp`, `.ssh` und `mail` gehören dem Kunden. Er durfte sie
+deshalb über den Dateimanager entfernen — und der Kernel wies ihn dabei erst
+ganz am Ende ab: `Filesystem::removeTree()` räumte das Verzeichnis leer, jedes
+`unlink` gelang, und dann scheiterte das `rmdir`, weil die Vhost-Wurzel
+`root:root` gehört. Gemeldet wurde **„Das Verzeichnis liess sich nicht
+vollständig entfernen."**
+
+Die Webseite war weg, und die Meldung sagte, es sei nichts passiert. Bei `logs`
+schreibt nginx danach in einen gelöschten Inode, bei `.ssh` sperrt sich der
+Kunde aus seinem eigenen Zugang aus.
+
+> **Ein Vorgang, der scheitert, nachdem er die Hälfte getan hat, meldet einen
+> Fehlschlag und hinterlässt eine Wirkung.**
+
+Es stand in `docs/53` als benannt offen. Mit einer Mehrfachauswahl wird daraus
+ein Klick, und deshalb kommt der Schutz **vor** ihr.
+
+`Files\Scheme` weist ab, **bevor** etwas geschieht — vor dem Eintritt in die
+Sandbox und nicht darin. Die Liste kommt aus
+`SubscriptionProvision::reservedDirectories()` und wächst mit dem Schema; eine
+zweite Aufzählung wäre die Fassung, die beim nächsten Zuwachs veraltet.
+
+**Drei Operationen fragen danach, und die dritte ist die, die man vergisst.**
+`files.chmod` nimmt nur neun Bits entgegen, `httpdocs` trägt seit Schritt 6c das
+setgid-Bit — ein `chmod 0750` des Kunden nähme das zehnte lautlos weg, und die
+nächste hochgeladene Datei trüge wieder die falsche Gruppe. Befund 3, diesmal
+mit dem Kunden als Verursacher.
+
+**Der Inhalt ist ausdrücklich nicht geschützt.** `httpdocs` leerzuräumen ist
+genau das, was jemand vor einem neuen Deploy tut. Geschützt ist das Gerüst,
+nicht das, was darin steht — und die Abweisung sagt das im selben Satz, weil ein
+blosses „darf nicht" den Lesenden mit der Frage zurücklässt, was er tun soll.
+
+Die DocumentRoots weiterer Domains bleiben ungeschützt: Sie heissen wie ihre
+Domain und stehen in keiner festen Liste. Das Panel kennt die Namen und warnt —
+eine Warnung ist eine Auskunft und keine zweite Durchsetzung.
+
+### Der Bruchlauf: drei Prüfungen ohne Biss, und alle drei lagen am Werkzeug
+
+**Gefunden von der CI und nicht im Container**: Das Bruchskript fährt hier nicht
+— die Wächter laufen über ein Gestell ohne PHPUnit, und `waechter-brechen.sh`
+braucht das echte.
+
+**Zwei riefen den falschen Helfer.** `vorher` merkt sich `resources/css/app.css`
+und `griff` vergleicht dagegen; `vorher_datei <pfad>` und `griff_datei <pfad>`
+tun dasselbe für eine beliebige Datei. Zwei Eingriffe in
+`Subscriptions/Show.vue` und `routes/web.php` riefen `griff` — das verglich
+`app.css` mit einem Abzug von vor drei Abschnitten und meldete „Eingriff hat
+nichts geändert", obwohl beide gegriffen hatten. Die zwei Wächter darunter
+liefen nie.
+
+> **Ein Werkzeug, das die falsche Datei vergleicht, meldet nicht „ich habe die
+> falsche verglichen" — es meldet „nichts passiert".**
+
+`BreakScriptTest::test_every_intervention_checks_its_own_file` schliesst das,
+und der neue Wächter fand sofort **dreiundzwanzig weitere Abschnitte**, die
+ihren Griff gar nicht prüfen. Ohne diese Prüfung meldet ein veralteter Eingriff
+„der Wächter hält seine Regel nicht" statt „der Eingriff hat nicht gegriffen" —
+genau die Verwechslung, die diesem Skript einmal 473 gesunde Wächter als kaputt
+gemeldet hat.
+
+**Der dritte ist der interessante, und er ist der vierte Fall derselben Familie
+in `BlockSpacingTest`.** Der Eingriff, der die Fuge unter dem Formular wieder
+aufreisst, liess den Wächter grün — seit Schritt 5c steht zwischen dem Formular
+und den Brotkrumen ein `<form v-if="chmodFor !== null">` **ohne Klasse**. Im
+Quelltext ist es der Nachbar; im Browser ist es meistens gar nicht da, und dann
+berühren sich die beiden dahinter.
+
+> **Ein Wächter, der ein `v-if` für vorhanden hält, liest ein Markup, das es so
+> nie gibt.**
+
+Gesammelt werden seitdem **alle** Nachbarn, die entstehen können: das nächste
+Geschwister, und — solange dieses an einer Bedingung hängt — auch das dahinter.
+
+**Und dabei ist der Gegenfehler aufgefallen.** `<template v-if>` und
+`<template #actions>` heissen gleich und sind das Gegenteil voneinander: Die
+Kinder des einen stehen an seiner Stelle, die des anderen setzt das Layout in
+seine Kopfzeile. Beide wurden weggestrichen, und damit wurde der letzte Knopf
+aus `#actions` zum Nachbarn dessen, was im Quelltext darunter steht.
+
+> **Zwei Dinge, die im Quelltext gleich heissen, sind im Browser nicht
+> dasselbe.**
+
+Ein benannter Platz wird jetzt zu einem gewöhnlichen Kasten, und welches
+`</template>` zu welchem `<template>` gehört, entscheidet ein Stapel statt eines
+Ausdrucks. **Sechs Fugen sind dadurch dazugekommen und drei weggefallen, ohne
+dass sich eine Vorlage geändert hätte** — beides Korrekturen am Wächter und
+keine an der Gestaltung.
+
+### P6 Schritt 5g — der Baum, den `docs/51 §8` seit dem ersten Tag verlangt
+
+Im Template stand seit Schritt 5 die Zeile „Die Krümel sind der Baum" — als
+Entscheidung hingeschrieben, ohne dass sie je eine war. Der Plan sagt „Baum
+links, Liste rechts", und der Betreiber hat ihn am 15. August als **Zielwähler**
+für das Kopieren und Verschieben verlangt: Man soll das Ziel sehen und nicht
+tippen.
+
+**Derselbe Baum bekommt beide Rollen.** Was sie unterscheidet, ist eine einzige
+Angabe — beim Navigieren führt ein Klick zur Liste, beim Auswählen setzt er das
+Ziel.
+
+> **Zwei Bausteine, die dasselbe zeigen, zeigen es beim nächsten Umbau
+> verschieden.**
+
+**`files.tree` ist eine eigene Operation und nicht `files.list` mit einem
+Filter.** Ein Baum braucht je Ast den Namen und die Frage, ob etwas darunter
+liegt; Grösse, Rechte, Zeitstempel und Verweisziel würde er wegwerfen. Bei einem
+Verzeichnis mit fünftausend Einträgen ist das der Unterschied zwischen einer
+Antwort und einer grossen Antwort — und ein Baum fragt oft.
+
+> **Eine Antwort, die zehnmal mehr trägt als die Frage verlangt, wird zehnmal
+> geschickt.**
+
+`children` kommt mit, damit ein Aufklapper nur dort steht, wo etwas darunter
+liegt: Einer, der sich öffnet und nichts zeigt, ist eine Zusage, die der Baum
+nicht halten kann.
+
+**Der erste Wurf hatte zwei Ebenen im Markup** und die Begründung „das reicht
+zum Navigieren". Sie ist an einem gewöhnlichen Pfad widerlegt —
+`httpdocs/wp-content/themes/mein-theme` sind vier. Die Rekursion steht jetzt in
+einem eigenen Baustein, und die Ablage bleibt oben: Zwei Ebenen mit je eigenem
+Vorrat lüden dasselbe Verzeichnis zweimal und vergässen es zu verschiedenen
+Zeiten.
+
+**Und der Wächter hat beim Einbauen zweimal zugebissen.** Der Baum hat die
+Brotkrumen in die zweite Spalte geschoben — damit gibt es `button-row + crumbs`
+nicht mehr, und die Regel dafür wäre ab sofort tot gewesen, ihr Bruch stumm.
+Dieselbe Fuge heisst jetzt zum dritten Mal anders: erst `.sections`, dann
+`.crumbs`, jetzt `.split`.
+
+**Dazu eine Lücke, die älter ist als der Baum.** Zwölf Datei-Operationen
+betraten die Sandbox, und nichts hielt fest, dass die dreizehnte es auch tut.
+
+> **Eine Grenze, die zwölfmal eingehalten wird, ist eine Gewohnheit. Erst der
+> Wächter macht sie zur Regel.**
+
+Gemessen im gebauten Stylesheet bei 390, 800 und 1440 px in beiden Themes:
+Überlauf 0, Gegenprobe 400 px. Ein Verzeichnisname von 53 Zeichen bricht, statt
+zu schieben — die fünfte Fassung derselben Ausnahme nach `.ident`,
+`.stacks td .ident`, dem Bereichstitel und `.field > span`.
+
+### P6 Schritt 5h — die Mehrfachauswahl, und zweimal derselbe alte Fehler
+
+Der Betreiber hat am 14. August gefragt, ob sich mehrere Einträge auf einmal
+anfassen lassen, und drei Aktionen ausgewählt: **Entfernen, Kopieren und
+Verschieben, Als Zip packen** — mit dem Baum als Zielwähler statt eines
+Textfelds. Die Haken je Zeile sind der kleinste Teil davon.
+
+**Der Fall, der bis hierher einer von tausend war, ist jetzt der Normalfall.**
+Eintrag 7 von 20 scheitert, und die anderen neunzehn sind schon getan. Eine
+Erfolgsmeldung darüber ist derselbe Befund wie in `docs/48 §3.5`:
+
+> **Eine fehlgeschlagene Anfrage darf die Beschriftung nicht so lassen, als wäre
+> sie durchgelaufen.**
+
+Gearbeitet wird deshalb je Eintrag, gemeldet wird je Eintrag, und die Zahl der
+gelungenen steht im ersten Satz. Ein Abbruch beim ersten Fehler wäre die kürzere
+Fassung und die schlechtere: Der Kunde wüsste nicht, ob die restlichen an
+derselben Sache scheitern oder nie versucht wurden. Ein Rückbau des schon Getanen
+wäre die dritte und die gefährlichste — er löschte Einträge, die genauso gut
+vorher dort gelegen haben könnten.
+
+**Packen hat als einziges keine Schleife.** Es tut einmal etwas über alle; ein
+Archiv mit der halben Auswahl und einer Erfolgsmeldung wäre schlimmer als keines.
+
+**Und dann derselbe Fehler wie beim Mehrfach-Upload, eine Woche später.** Bei
+*einer* Quelle ist ein vollständiger Zielpfad richtig, bei zwanzig ist es **ein**
+Pfad für alle — neunzehnmal überschrieben, und der Vorgang meldet Erfolg. Der
+Name am Ziel kommt jetzt aus der Quelle.
+
+Daraus folgt, dass **Umbenennen ein eigener Griff wird**: Es nennt einen *Namen*,
+Verschieben ein *Verzeichnis*. Solange beide dasselbe Feld `to` benutzten, musste
+der Aufrufer wissen, welche Bedeutung gerade gilt — und die Seite hat den
+Zielpfad dafür selbst zusammengesetzt.
+
+> **Ein Feld mit zwei Bedeutungen hat keine.**
+
+**Die Auswahl fällt weg, sobald das Verzeichnis wechselt.** Eine, die eine
+Navigation überlebt, ist eine Liste von Pfaden aus einem anderen Ordner — und die
+Leiste darüber sagt „3 Einträge ausgewählt", während die Tabelle darunter keinen
+einzigen Haken zeigt.
+
+**Die Rückfrage nennt, was in der Tabelle nicht steht:** wie viele der
+Ausgewählten Verzeichnisse sind, deren Inhalt mitgeht, und ob eines davon eine
+Domain ausliefert. Das Gerüst des Abonnements schützt seit 5f der Agent; der
+DocumentRoot einer weiteren Domain steht in keiner festen Liste, und dort warnt
+das Panel.
+
+**Zwei gleich heissende Quellen kommen nicht in ein Archiv.** `/a/notizen` und
+`/b/notizen` ergäben beide `notizen/…`; ein Zip nimmt das an, und beim Entpacken
+bleibt eines übrig.
+
+#### Zwei Funde über die Prüfmittel, und beide gehören zur Lehre
+
+**Der Wächter dazu konnte in seinem ersten Wurf nicht rot werden.** Er behauptete,
+eine zu spät geprüfte Namensgleichheit hinterlasse „eine halbe Datei", und prüfte
+das mit `assertFileDoesNotExist`. Gemessen: `ZipArchive::open()` mit
+`CREATE|EXCL` legt nichts an, und ein Archiv ohne Eintrag schreibt libzip auch
+beim `close()` nicht. Die Behauptung stand nur in meinem Kopf, und die Prüfung
+darüber war grün, egal wo die Namensprüfung stand.
+
+> **Eine Messung, die nie etwas anderes als Null liefern kann, ist keine.**
+
+Was wirklich an der Reihenfolge hängt, ist die Begründung: Liegt am Ziel schon
+eine Datei, scheitert `open()` mit „liess sich nicht anlegen" — der Kunde räumt
+das Ziel weg und läuft in denselben Fehler.
+
+> **Von zwei Gründen gehört der genannt, den der nächste Versuch nicht von selbst
+> behebt.**
+
+**Und der zweite Fund kam aus dem Bild und nicht aus der Zahl.** Die
+Auswahlleiste trägt sechs Knöpfe, und `.button-row` stapelt unter 480px auf volle
+Breite — richtig für drei Knöpfe, die nicht umbrechen können, und hier **390px
+hoch bei 390px Bildschirmbreite**: genau ein Telefonbildschirm, bevor die erste
+Zeile der Liste anfängt. Der Dokumentüberlauf stand dabei auf 0. Umgebrochen
+statt gestapelt sind es 228px.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+Gemessen im gebauten Stylesheet bei 390, 720, 800 und 1440 px in beiden Themes:
+Überlauf 0, Gegenprobe 400 px, Tabelleninhalt 358 px bei 390 und 1518 px bei 1440.
+
+Neue Wächter: `BulkActionTest` (neun Prüfungen über die Form der Griffe) und
+`SelectionTest` (sechs über `Workspace::paths()` und `Packer::zip()`). Elf Brüche,
+alle zubeissend.
+
+### Ein Wächter, den der vorige Schritt lautlos entwaffnet hat
+
+Der Bruchlauf zu 5h meldete „1 Prüfung ohne Biss", und der Befund gehört nicht
+zu 5h, sondern zu einer Zahl, die seit P5c dastand.
+
+`CountedNounTest::test_the_decision_lives_in_one_place` verlangte, dass
+**mindestens drei** Vorlagen die Entscheidung über Einzahl und Mehrzahl aus
+`useCounted` holen. Der Bruch dazu nimmt **einer** Vorlage die Einbindung weg.
+Solange es genau drei Benutzer gab, fiel die Zahl auf zwei und der Wächter biss.
+Der Dateimanager wurde der vierte — und seitdem blieben nach dem Bruch drei
+übrig.
+
+> **Eine Untergrenze prüft eine Regel nur an ihrer Grenze — und ein neuer
+> Benutzer schiebt sie weg.**
+
+Das ist die Kehrseite der Falle, die in `CLAUDE.md` schon steht: Dort meldete ein
+Zähler **Rot** für genau die Ordnung, die er durchsetzen soll. Hier meldet er
+**Grün** für ihren Bruch. Beide Male ist der Fehler derselbe — eine feste Zahl
+über einen Bestand, der wächst. Die zweite Richtung ist die gefährlichere, weil
+sie niemanden stört.
+
+Gezählt wird jetzt gegen sich selbst statt gegen eine Zahl: Wer `useCounted`
+einbindet, ruft es auch auf, und wer es aufruft, bindet es ein. Eine Vorlage, die
+einbindet und nicht aufruft, hat die Entscheidung wieder selbst getroffen.
+
+**Und die Prüfung, die der Untergrenze von Anfang an gefehlt hat**, ist
+dazugekommen: Eine Zahl über *alle* Vorlagen kann nicht sehen, dass **eine**
+ausgeschert ist — genau das war der Bruch, den sie prüfen sollte. Gesucht wird
+jetzt die Form, die `counted()` ersetzt: ein Fragezeichen hinter einer `1`, und
+dahinter zwei einzelne Wörter.
+
+> **Zwei einzelne Wörter hinter einer Eins sind eine Mengenangabe. Ein halber
+> Satz ist eine Entscheidung.**
+
+Ein Satz, der sich als Ganzes ändert, bleibt ausdrücklich erlaubt und kommt
+viermal vor — „Das Abonnement wird" gegen „2 Abonnements werden", „seit 1 Tag"
+gegen „seit 3 Tagen". Eine Mengenangabe kann das nicht leisten und soll es nicht.
+
+Zwei Brüche dazu, beide zubeissend: eine Seite, die das Wort wieder selbst
+entscheidet, und eine, die einbindet, ohne aufzurufen.

@@ -7,6 +7,7 @@ namespace SrvPanel\Agent\Files;
 use Socket;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Guard;
+use SrvPanel\Agent\Ops\FilesList;
 use SrvPanel\Agent\Ops\SubscriptionProvision;
 use SrvPanel\Agent\Sandbox;
 
@@ -112,6 +113,47 @@ final class Workspace
         }
 
         return '/'.implode('/', $parts);
+    }
+
+    /**
+     * Mehrere Pfade aus einem Argument — für die Mehrfachauswahl.
+     *
+     * **Die Obergrenze ist die der Liste** ({@see FilesList::MAX_ENTRIES}):
+     * Mehr Einträge, als eine Liste zeigt, kann niemand angehakt haben. Sie
+     * steht hier, damit ein Aufruf mit einer Million Pfaden abgewiesen wird,
+     * bevor die Sandbox startet — nicht als Schranke, sondern damit die
+     * Warteschlange nicht an einer Nutzlast erstickt, die ohnehin niemand
+     * gemeint hat.
+     *
+     * Doppelte fliegen heraus, und zwar **nach** der Normalisierung: `/a` und
+     * `/a/` bezeichnen dasselbe, und ein Vorgang, der es zweimal anfasst,
+     * meldet beim zweiten Mal „gibt es nicht".
+     *
+     * @return list<string>
+     */
+    public static function paths(mixed $value, string $field = 'paths'): array
+    {
+        if (! is_array($value) || $value === []) {
+            throw AgentException::badRequest(sprintf('%s muss eine nicht leere Liste sein.', $field));
+        }
+
+        if (count($value) > FilesList::MAX_ENTRIES) {
+            throw AgentException::badRequest(sprintf('%s nennt mehr Einträge als eine Liste zeigt.', $field), [
+                'max' => FilesList::MAX_ENTRIES,
+            ]);
+        }
+
+        $paths = [];
+
+        foreach (array_values($value) as $index => $einzeln) {
+            $pfad = self::path($einzeln, sprintf('%s.%d', $field, $index));
+
+            if (! in_array($pfad, $paths, true)) {
+                $paths[] = $pfad;
+            }
+        }
+
+        return $paths;
     }
 
     /**

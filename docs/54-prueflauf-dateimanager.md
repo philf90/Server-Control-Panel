@@ -1,0 +1,430 @@
+# 54 — Der Prüflauf für die Schritte 5b bis 6d
+
+**Der Lauf für `cloudsrv24`, nach Schritt 5h und vor Schritt 8.** Geschrieben am
+15. August 2026. Er prüft die **Oberfläche** des Dateimanagers auf einem echten
+Server — also genau das, was `docs/52` ausdrücklich nicht geprüft hat.
+
+Er steht wie `docs/39`, `docs/43`, `docs/47` und `docs/52` als eigenes Dokument
+da, weil er zweimal gebraucht wird: einmal beim Fahren und einmal beim
+Nachlesen, warum etwas so entschieden wurde.
+
+---
+
+## 1. Warum er jetzt kommt und nicht nach Schritt 9
+
+Seit `docs/53` (gefahren gegen `v0.6.0-rc.1`) sind **neun Schritte**
+dazugekommen: 5b, 5c, 5d, 5e, 5f, 5g, 5h, 6c und 6d. Von der Panel-Seite davon
+hat **nichts je einen echten Agenten, ein echtes Chroot oder echte Dateien
+gesehen.** Der Entwicklungscontainer hat keinen Agenten, kein nginx und kein
+systemd; alles lief gegen Attrappen, Textprüfungen und synthetische
+Markup-Seiten.
+
+Der Satz dazu steht in `docs/51 §12`, als Begründung dafür, die Zwischenabnahme
+von Schritt 10 auf 6b vorzuziehen:
+
+> **Drei Schritte auf einer ungeprüften Annahme zu bauen ist teurer, als sie
+> einmal zu prüfen.**
+
+Hier sind es neun.
+
+**Der teuerste Einzelposten ist 6c**, und er ist es aus einem Grund, der beim
+Schreiben dieses Dokuments erst klar geworden ist — siehe §1.1.
+
+**Dazu kommt 5f.** `Files\Scheme` entscheidet, was ein Kunde zerstören darf. Zu
+großzügig heißt, seine Seite ist weg; zu streng heißt, er kann vor einem Deploy
+nicht aufräumen. Geprüft ist bisher der **Text** des Quelltextes und nicht das
+Verhalten an einem Verzeichnis, das root gehört.
+
+**Und Schritt 12 ist im Container grundsätzlich nicht fahrbar.** Die
+390px-Zahlen aus den letzten Schritten stammen aus eigenen HTML-Dateien gegen
+das gebaute Stylesheet. Sie beantworten „läuft etwas über" und nicht „stimmt die
+Seite". `docs/48` und `docs/53` haben beide gezeigt, wo die Fehler liegen, die
+kein Wächter findet.
+
+### 1.1 Der Fund beim Schreiben dieses Laufs
+
+Ich habe dem Betreiber gesagt, der geänderte `WebSiteApply` laufe „beim nächsten
+vhost-Apply über bestehende Abonnements", und das klang nach: beim Update.
+**Nachgesehen: er läuft dabei gar nicht.**
+
+`packaging/scripts/postinstall.sh` ruft nach jedem Umschalten
+`srvpanel vhost --no-interaction` — **ohne `--sites`**. Das schreibt den
+Server-Block der *Oberfläche* neu und rührt die Kundendomains nicht an.
+`WebSiteApply` — und damit die neuen Eigentümer, Gruppen und Modi aus 6c —
+läuft erst, wenn eine Kundendomain das nächste Mal angewandt wird.
+
+Daraus folgen zwei Dinge, und das zweite ist das wichtigere:
+
+**Erstens ist das Update harmloser, als ich behauptet habe.** Es fasst den Baum
+bestehender Abonnements nicht an.
+
+**Zweitens misst Punkt 1 nichts, wenn der Lauf `--sites` nicht ausdrücklich
+auslöst.** Man führte das Update aus, sähe unveränderte Rechte, notierte „keine
+Auffälligkeit" — und hätte den Prüfling nie gestartet.
+
+> **Ein Abnahmeschritt, dessen Prüfling nie läuft, meldet Erfolg und misst
+> nichts.**
+
+**Und drittens, als Nebenwirkung, die dieser Lauf messen soll:** Nach dem Update
+steht auf dem Server eine **gemischte Bevölkerung**. Ein Abonnement, das vor
+dieser Fassung angelegt wurde, behält `httpdocs` in altem Modus und alter
+Gruppe, bis jemand seine Domain anwendet; ein neues bekommt `2750` und
+`www-data`. Der Satz des Rechte-Editors — „Der Webserver kann diese Datei
+ausliefern" — hängt am Gruppenbit und ist damit für das eine Abonnement wahr und
+für das andere **wortgleich falsch**. Das ist Befund 3 aus `docs/53` an einer
+neuen Stelle:
+
+> **Ein Satz, der an einer Stelle stimmt und an der nächsten nicht, ist
+> schlechter als kein Satz.**
+
+---
+
+## 2. Was er ausdrücklich nicht prüft
+
+- **Die Grenze selbst.** Sie ist in `docs/53` auf diesem Server gemessen worden.
+  Was sich seitdem daran geändert hat, ist `files.tree` — und dass es durch die
+  Sandbox geht, hält seit 5g `SandboxReachTest` fest.
+- **SFTP und Cron.** Nicht gebaut (Schritte 8 und 9).
+- **Den Angriffsdurchgang.** Das ist Schritt 11 und braucht 8 und 9.
+- **Die vierzehn PHP-Funktionen auf allen vier Plattformen.** Sie sind auf
+  **einer** gemessen (`docs/53` Punkt 2) und bleiben benannt offen.
+- **`BlockSpacingTest::OPEN_SEAMS`.** Einunddreissig Fugen, die noch niemand
+  angesehen hat. Sie gehören in Schritt 12 und nicht hierher.
+
+---
+
+## 3. Die Fassung, gegen die gefahren wird
+
+| Sache | Wert |
+|---|---|
+| Zweig | `claude/p6-dateien-zugaenge-cron-efbuvy` |
+| Stand | nach Schritt 5h |
+| Vorher installiert | `v0.6.0-rc.1` |
+| Zu bauen | `v0.6.0-rc.2` |
+| Server | `cloudsrv24` |
+
+**Der Lauf braucht ein Paket, und das braucht einen Tag auf `main`.** Freigaben
+sind annotierte Tags `v<version>` auf `main` (`CLAUDE.md`); der Freigabelauf
+baut daraus die `.deb`-Pakete. Also: PR #130 mergen, `v0.6.0-rc.2` taggen,
+dann auf dem Server `srvpanel update`.
+
+**Vor dem Lauf** prüfen, dass die Fassung wirklich umgestellt ist:
+
+```bash
+srvpanel --version
+```
+
+> Eine Fassungsprüfung, die in der falschen Datei sucht, hat in `docs/47` einen
+> halben Lauf gekostet.
+
+**Panel und Agent können dabei nicht auseinanderlaufen** — nachgesehen und nicht
+angenommen: `agent/` liegt im selben Release-Baum und im selben `.deb`,
+`packaging/build.sh` stempelt beide auf dieselbe Fassung, und
+`restart_services()` startet `srvpanel-agentd` **vor** `srvpanel-web`. Die
+Formatänderung an `files.compress` (`path` → `paths`) hat damit kein Fenster,
+in dem ein neues Panel gegen einen alten Agenten spricht.
+
+---
+
+## 4. Die Fallen, die diesen Lauf stumm scheitern lassen
+
+**Die beiden aus `tinker` stehen in `docs/47 §2`, in `docs/48 §3.8` und in
+`docs/52 §4` — und sind beim Fahren von `docs/52` trotzdem wieder passiert.**
+Deshalb stehen sie hier ein viertes Mal:
+
+1. **`HOME=/tmp` davor.** Der Wrapper setzt per `setpriv` auf den Benutzer
+   `srvpanel` um, `HOME` bleibt auf `/root`, und psysh scheitert am Anlegen von
+   `.config/psysh` mit einer blossen `User Notice` — der Code läuft dann gar
+   nicht erst, und der Rückgabewert ist 0.
+2. **`Tenancy::allowAll()` als erste Zeile.** `Subscription` trägt die Klammer
+   auf den eigenen Schlüssel; ohne sie ist `Subscription::first()` **`null`**.
+
+Und zwei, die zu diesem Lauf gehören:
+
+3. **`srvpanel vhost --sites` gehört zu Punkt 1** und nicht in die Vorbereitung.
+   Wer es vorher fährt, hat den Vorher-Zustand weggeschrieben, den er messen
+   wollte — und merkt es nicht, weil danach alles richtig aussieht.
+4. **Die Ratenbegrenzung greift beim Anmelden** (`CLAUDE.md`, §6.4): drei
+   Anmeldungen hintereinander sperren die Adresse. Für die Punkte 4 bis 8 gilt:
+   **einmal anmelden**, dann im selben Browser bleiben und nur Theme und Breite
+   umschalten.
+
+---
+
+## 5. Der Lauf
+
+Durchgehend gilt: `<abo>` ist der Verzeichnisname eines **bestehenden**
+Abonnements, `<domain>` eine seiner Domains, `<benutzer>` sein Systembenutzer.
+Der Bestand ist der Prüfling, nicht ein frisch angelegtes Abo.
+
+### Punkt 1 — das Update, und was es an bestehenden Abonnements ändert
+
+**Der einzige Punkt dieses Laufs, der etwas kaputtmachen kann, das schon läuft.**
+
+**(a) Vor dem Update**, gegen `rc.1`:
+
+```bash
+ABO=/var/www/vhosts/<abo>
+stat -c '%n  %U:%G  %a' "$ABO" "$ABO"/httpdocs "$ABO"/logs "$ABO"/tmp "$ABO"/conf "$ABO"/.ssh
+curl -sS -o /dev/null -w 'seite=%{http_code}\n' https://<domain>/
+```
+
+**(b) Update fahren, dann sofort dieselbe Messung wiederholen — ohne
+`--sites`.**
+
+**Erwartet: identisch.** Das ist die Aussage aus §1.1, und sie ist hier keine
+Vermutung mehr, sondern ein gemessener Wert.
+
+**(c) Erst jetzt den Prüfling starten:**
+
+```bash
+srvpanel vhost --sites
+stat -c '%n  %U:%G  %a' "$ABO" "$ABO"/httpdocs "$ABO"/logs "$ABO"/tmp "$ABO"/conf "$ABO"/.ssh
+curl -sS -o /dev/null -w 'seite=%{http_code}\n' https://<domain>/
+```
+
+**Erwartet:**
+
+| Verzeichnis | Eigentümer:Gruppe | Modus |
+|---|---|---|
+| `httpdocs` | `<benutzer>:www-data` | `2750` |
+| `logs` | `<benutzer>:adm` | `2750` |
+| `tmp` | `<benutzer>:<gruppe>` | `2700` |
+| `conf` | `root:root` | `755` |
+| `.ssh` | `<benutzer>:<gruppe>` | `2700` |
+
+**Und die Seite liefert weiter aus** — derselbe Statuscode wie in (a).
+
+> **Der Unterschied zwischen (b) und (c) ist die Messung.** Stünde in beiden
+> dasselbe, wäre nicht bewiesen, dass 6c wirkt, sondern nur, dass nichts
+> kaputtging. Eine Null ist erst dann eine Messung, wenn daneben etwas anderes
+> als Null steht.
+
+**Die Gegenprobe zu `.ssh`**, weil dort ein falsches Bit den Kunden aussperrt:
+
+```bash
+ssh -o BatchMode=yes <benutzer>@<server> true; echo "rc=$?"
+```
+
+Ein `2700` darf OpenSSH nicht stören — `safe_path()` prüft `st_mode & 022`, und
+`02000` fällt nicht darunter. Das ist nachgelesen; hier wird es gefahren.
+
+### Punkt 2 — setgid von Ende zu Ende
+
+**Die Behebung von Befund 3 aus `docs/53`, nie gemessen.** Der Fall dort: Der
+Kunde setzt `0640` — dieselbe Angabe, die die Willkommensseite daneben trägt —
+und bekommt einen 403.
+
+Im Panel, als Kunde des Abonnements: eine Datei nach `httpdocs` **hochladen**
+(nicht per `scp`, der Weg ist der Prüfling). Dann:
+
+```bash
+stat -c '%n  %U:%G  %a' "$ABO"/httpdocs/<datei>
+curl -sS -o /dev/null -w 'vor-chmod=%{http_code}\n' https://<domain>/<datei>
+```
+
+**Erwartet:** Gruppe `www-data`.
+
+Dann im Panel über den Rechte-Editor auf **`0640`** stellen und noch einmal:
+
+```bash
+stat -c '%n  %U:%G  %a' "$ABO"/httpdocs/<datei>
+curl -sS -o /dev/null -w 'nach-chmod=%{http_code}\n' https://<domain>/<datei>
+```
+
+**Erwartet: 200.** Vor 6c wäre hier 403 gekommen.
+
+**Die Gegenprobe, und sie ist der eigentliche Fund dieses Punktes:** Gibt es auf
+dem Server ein Abonnement, dessen Domain seit dem Update **nicht** angewandt
+wurde, dann trägt dessen `httpdocs` noch die alte Gruppe. Dieselbe Datei, dieselbe
+`0640`, dort ein **403** — und der Rechte-Editor sagt in beiden Fällen denselben
+Satz. Das ist §1.1 Punkt drei, gemessen statt behauptet.
+
+Fällt der Server sonst nirgends darunter, lässt es sich herstellen:
+
+```bash
+chgrp <gruppe> "$ABO"/httpdocs && chmod 2750 "$ABO"/httpdocs
+```
+
+### Punkt 3 — der Schema-Schutz an echten Verzeichnissen
+
+```bash
+HOME=/tmp srvpanel tinker --execute='
+  app(App\Support\Tenancy\Tenancy::class)->allowAll();
+  $abo = App\Models\Subscription::first();
+  $f = app(App\Support\Files\Files::class);
+  foreach (["/httpdocs", "/logs", "/conf", "/.ssh", "/tmp", "/mail"] as $p) {
+    try { $f->remove($abo, $p, true); echo $p, ": DURCHGELASSEN\n"; }
+    catch (SrvPanel\Agent\AgentException $e) { echo $p, ": ", $e->getMessage(), "\n"; }
+  }
+  try { $f->move($abo, "/httpdocs", "/httpdocs-alt"); echo "move: DURCHGELASSEN\n"; }
+  catch (SrvPanel\Agent\AgentException $e) { echo "move: ", $e->getMessage(), "\n"; }
+  try { $f->chmod($abo, "/httpdocs", 0750); echo "chmod: DURCHGELASSEN\n"; }
+  catch (SrvPanel\Agent\AgentException $e) { echo "chmod: ", $e->getMessage(), "\n"; }
+'
+```
+
+**Erwartet:** sechsmal, dann zweimal derselbe Satz — „Das Verzeichnis … gehört
+zum Aufbau des Abonnements und wird nicht … Sein Inhalt lässt sich ändern."
+
+**Die erste Gegenprobe ist der ganze Zweck von 5f:** Es darf nichts geschehen
+sein.
+
+```bash
+ls -la "$ABO"/httpdocs/ "$ABO"/logs/ | head -30
+stat -c '%n %a' "$ABO"/httpdocs
+```
+
+> `Filesystem::removeTree()` räumte bis 5f erst leer und scheiterte dann am
+> `rmdir`. Die Meldung sagte „liess sich nicht vollständig entfernen", und die
+> Webseite war weg. **Eine Absage, die erst nach der Wirkung kommt, ist keine.**
+
+**Die zweite Gegenprobe ist die andere Hälfte der Regel** — der Inhalt bleibt
+frei:
+
+```bash
+HOME=/tmp srvpanel tinker --execute='
+  app(App\Support\Tenancy\Tenancy::class)->allowAll();
+  $abo = App\Models\Subscription::first();
+  $f = app(App\Support\Files\Files::class);
+  print_r($f->makeDirectory($abo, "/httpdocs/p6-inhalt"));
+  print_r($f->write($abo, "/httpdocs/p6-inhalt/x.txt", "x\n"));
+  print_r($f->remove($abo, "/httpdocs/p6-inhalt", true));
+  print_r(array_column($f->list($abo, "/httpdocs")["entries"], "name"));
+'
+```
+
+**Ohne diese zweite Hälfte wäre der Schutz schlimmer als keiner:** `httpdocs`
+leerzuräumen ist genau das, was jemand vor einem neuen Deploy tut.
+
+### Punkt 4 — die Mehrfachauswahl, mit einem Fehlschlag darin
+
+**Im Browser**, denn die Rückmeldung ist der Prüfling.
+
+In `/` des Abonnements: `conf` **und** zwei gewöhnliche Einträge anhaken, dann
+„Entfernen".
+
+**Erwartet:** die Rückfrage nennt die Zahl der Verzeichnisse; danach eine
+Meldung, deren **erster Satz** die Zahl trägt — „Von 3 Einträgen sind 2
+entfernt." — und darunter je Fehlschlag eine Zeile mit dem Grund.
+
+**Die Gegenprobe:** dieselbe Auswahl ohne `conf`. Dann steht dort eine
+Erfolgsmeldung mit der Zahl und **keine** Fehlerliste.
+
+> **Eine fehlgeschlagene Anfrage darf die Beschriftung nicht so lassen, als wäre
+> sie durchgelaufen.** (`docs/48 §3.5`)
+
+**Und der Blick daneben**, weil er nicht messbar ist: Fällt die Auswahl beim
+Wechsel des Verzeichnisses weg? Anhaken, in den Baum klicken, zurück — die
+Leiste muss fort sein.
+
+### Punkt 5 — Kopieren und Verschieben mit dem Baum als Zielwähler
+
+Drei Dateien in `httpdocs` anhaken, „Kopieren", im Baum `tmp` wählen.
+
+**Erwartet:** drei Dateien in `tmp`, **jede unter ihrem eigenen Namen**.
+
+```bash
+ls -l "$ABO"/tmp/
+```
+
+> Das ist der Fehler, den der Mehrfach-Upload schon einmal gemacht hat: ein
+> vollständiger Zielpfad für mehrere Quellen ist **ein** Pfad für alle. Läge
+> dort **eine** Datei, wäre er zurück.
+
+**Die Gegenprobe:** Die Quellen liegen noch in `httpdocs`. Danach dieselben drei
+**verschieben** — dann sind sie dort fort und in `tmp` doppelt vorhanden? Nein:
+Am Ziel steht schon etwas, also muss der Vorgang je Eintrag mit genau dieser
+Begründung scheitern, und die Zahl im ersten Satz lautet 0. **Das ist eine
+Messung und kein Fehler** — sie belegt, dass nicht überschrieben wird.
+
+Danach `tmp` leeren und die drei wirklich verschieben.
+
+### Punkt 6 — Packen
+
+Drei Einträge anhaken, „Als Zip packen", Name `auswahl.zip`.
+
+```bash
+unzip -l "$ABO"/httpdocs/auswahl.zip
+```
+
+**Erwartet:** drei Einträge, jeder mit seinem eigenen Namen.
+
+**Die erste Gegenprobe:** ein **Verzeichnis** anhaken und das Archiv in dasselbe
+Verzeichnis legen wollen. Erwartet: „Das Archiv kann nicht in einem Verzeichnis
+liegen, das es selbst enthalten soll."
+
+**Die zweite:** zwei gleich heissende Einträge aus verschiedenen Verzeichnissen —
+über die Suche erreichbar oder von Hand angelegt. Erwartet: „Zwei ausgewählte
+Einträge heissen … — im Archiv bliebe nur einer übrig."
+
+### Punkt 7 — Anlegen und der Mehrfach-Upload
+
+**Datei anlegen** in `httpdocs`: Erwartet, dass danach der **Editor** offen ist
+und nicht die Liste.
+
+**Drei Dateien auf einmal hochladen** — nach `conf`, das root gehört.
+
+**Erwartet:** „Von 3 Dateien sind 0 hochgeladen." und darunter drei Zeilen mit
+Namen und Grund.
+
+**Die Gegenprobe:** dieselben drei nach `httpdocs`. Dann liegen drei Dateien da,
+**jede unter ihrem eigenen Namen**, und die Meldung nennt die Zahl.
+
+### Punkt 8 — die Bilderrunde
+
+**Einmal anmelden** (§4 Punkt 4), dann nur Theme und Breite umschalten. Bei
+**390 px** und **1440 px**, in **beiden Themes**, mit der Zahl daneben:
+
+```js
+document.documentElement.scrollWidth - document.documentElement.clientWidth
+```
+
+Angesehen werden:
+
+1. die Liste mit einem langen Dateinamen,
+2. die **Auswahlleiste** mit allen sechs Knöpfen (gemessen im Container:
+   228 px hoch bei 390 px, Überlauf 0 — hier gegen die echte Seite),
+3. der **Rechte-Editor** mit seinen neun Ankreuzfeldern,
+4. der **Baum** mit einem tiefen Pfad,
+5. der **Editor** mit einer echten Datei — Breite und Hervorhebung, die
+   Befunde 9 aus `docs/53`.
+
+**Und die Gegenprobe zur Messung selbst:** Ein absichtlich eingefügter
+900px-Block muss dort eine Zahl erzeugen. Tut er es nicht, misst nichts, und
+die Nullen bedeuten nichts.
+
+**Was hier ausserdem zu sehen sein wird und kein Fehler dieses Schrittes ist:**
+Im dunklen Theme malt der Browser leere Ankreuzfelder weiss, weil nirgends
+`color-scheme: dark` steht. Das gilt panelweit für jedes `.toggle`, seit es sie
+gibt. Es gehört in Schritt 12 und wird hier nur notiert.
+
+---
+
+## 6. Wie das Protokoll entsteht
+
+**Während des Laufs und nicht danach**, als eigenes Dokument. Jeder Punkt
+bekommt seine Zeile, sobald er gefahren ist — mit dem gemessenen Wert und nicht
+mit „ok".
+
+Und die Erwartung aus fünf Läufen: **Die Mehrheit der Befunde wird diesen Lauf
+selbst betreffen und nicht den Prüfling.** In `docs/45`, `47`, `48` und `53` war
+es jedes Mal etwa die Hälfte bis zwei Drittel.
+
+> **Ein Abnahmelauf ist Code, den niemand ausführt, bis es darauf ankommt.**
+
+Ein Fehler dieser Bauart steckt schon in diesem Dokument und ist vor dem ersten
+Lauf gefunden worden: §1.1. Er hätte Punkt 1 zu einer Messung ohne Prüfling
+gemacht.
+
+---
+
+## 7. Was danach kommt
+
+Halten die acht Punkte, gehen die Schritte 8 (SFTP) und 9 (Cron) weiter, danach
+der Angriffsdurchgang aus `docs/51 §4` und die vollständige Bilderrunde als
+Schritt 12.
+
+Hält Punkt 1 nicht, ist das kein Detailfehler: Dann schreibt `WebSiteApply`
+bestehenden Abonnements etwas, das ihre Seite nicht mehr ausliefert — und der
+Weg zurück ist eine Fassung und kein Fix.

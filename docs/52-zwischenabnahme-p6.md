@@ -72,13 +72,31 @@ zeigt ihn. Eine Fassungsprüfung, die in der falschen Datei sucht, hat in
 
 ### Punkt 1 — die Grenze, gemessen statt gelesen
 
+**Das Skript liegt nicht auf dem Server, und das soll so bleiben.**
+`packaging/build.sh` führt eine Positivliste — `agent app bootstrap config
+database public resources/views routes vendor …` —, und `tests/` steht nicht
+darin. Ein Skript, das Benutzer anlegt, chrootet und das Dateisystem im Rennen
+belastet, gehört nicht auf jeden Kundenserver.
+
+Geholt wird es für den Lauf, und zwar **neben** den Agenten: Es bindet
+`../agent/src/autoload.php` ein, und das ist der einzige Pfad, auf den es
+angewiesen ist.
+
 ```bash
+sudo mkdir -p /opt/srvpanel/current/tests
+sudo curl -fsSL -o /opt/srvpanel/current/tests/sandbox-messen.php \
+  https://raw.githubusercontent.com/philf90/Server-Control-Panel/<tag>/tests/sandbox-messen.php
+
 sudo php /opt/srvpanel/current/tests/sandbox-messen.php
 ```
 
-**Das ist der Kern dieses Laufs.** Das Skript liegt im Repo (`tests/sandbox-messen.php`)
-und ist framework- und PHPUnit-frei; es braucht root, weil `chroot` und `setuid`
-root brauchen, und läuft deshalb in der CI nicht.
+`/opt/srvpanel/current` ist ein Verweis auf das Fassungsverzeichnis; die Datei
+liegt danach dort und geht beim nächsten Update mit. Wer sie vorher los sein
+will, löscht das Verzeichnis wieder.
+
+**Das ist der Kern dieses Laufs.** Das Skript ist framework- und PHPUnit-frei;
+es braucht root, weil `chroot` und `setuid` root brauchen, und läuft deshalb in
+der CI nicht.
 
 Es misst in sieben Abschnitten, **jeder mit seiner Gegenprobe**:
 
@@ -129,52 +147,159 @@ php -r 'foreach (["pcntl_fork","posix_initgroups","posix_setgid","posix_setuid",
 **Gefragt wird die PHP-Fassung des Agenten**, nicht irgendeine — der Agent läuft
 unter der CLI-PHP der Distribution.
 
+### Zwei Fallen in `tinker`, die diesen Lauf stumm scheitern lassen
+
+**Beide sind bekannt, und beide standen hier trotzdem falsch** — gefunden beim
+Fahren von Punkt 3 am 14. August 2026. Sie stehen wörtlich in `docs/47 §2` und
+in `docs/48 §3.8`:
+
+1. **`HOME=/tmp` davor.** Der Wrapper setzt per `setpriv` auf den Benutzer
+   `srvpanel` um, `HOME` bleibt auf `/root`, und psysh scheitert am Anlegen von
+   `.config/psysh` mit einer blossen `User Notice` — dann läuft der Code gar
+   nicht erst.
+2. **`Tenancy::allowAll()` als erste Zeile.** `Subscription` trägt die Klammer
+   auf den eigenen Schlüssel; ohne sie ist `Subscription::first()` **`null`**,
+   und der nächste Aufruf stirbt an einer Methode auf `null` statt an der Sache.
+
+> **Eine Falle, die in zwei Protokollen steht, steht deshalb noch in keinem
+> Lauf.** Beide Sätze waren aufgeschrieben, beide waren gelesen, und beide sind
+> hier wieder passiert — weil das Aufschreiben in `docs/47` und das Schreiben
+> von `docs/52` zwei verschiedene Handgriffe sind.
+
 ### Punkt 3 — die acht Datei-Operationen an einem echten Abonnement
 
 Gegen ein bestehendes Abo (nicht gegen ein neues: der Bestand ist der Prüfling).
 
 ```bash
-srvpanel tinker
->>> $abo = App\Models\Subscription::first();
->>> $f = app(App\Support\Files\Files::class);
->>> $f->list($abo, '/')['entries']            # Wurzel: httpdocs, conf, logs, tmp, .ssh, mail
->>> $f->list($abo, '/httpdocs')['entries']
->>> $f->write($abo, '/httpdocs/p6-probe.txt', "Zeile\n")
->>> $f->read($abo, '/httpdocs/p6-probe.txt')['content']
->>> $f->chmod($abo, '/httpdocs/p6-probe.txt', 0644)
->>> $f->copy($abo, '/httpdocs/p6-probe.txt', '/httpdocs/p6-kopie.txt')
->>> $f->move($abo, '/httpdocs/p6-kopie.txt', '/httpdocs/p6-verschoben.txt')
->>> $f->remove($abo, '/httpdocs/p6-verschoben.txt')
->>> $f->remove($abo, '/httpdocs/p6-probe.txt')
+HOME=/tmp srvpanel tinker --execute='
+  app(App\Support\Tenancy\Tenancy::class)->allowAll();
+  $abo = App\Models\Subscription::first();
+  echo "abo=", $abo->name, " user=", $abo->system_user, "\n";
+  $f = app(App\Support\Files\Files::class);
+  print_r(array_column($f->list($abo, "/")["entries"], "name"));
+  print_r(array_column($f->list($abo, "/httpdocs")["entries"], "name"));
+  print_r($f->write($abo, "/httpdocs/p6-probe.txt", "Zeile\n"));
+  var_dump($f->read($abo, "/httpdocs/p6-probe.txt")["content"]);
+  print_r($f->makeDirectory($abo, "/httpdocs/p6-ordner"));
+  print_r($f->chmod($abo, "/httpdocs/p6-probe.txt", 0600));
+  print_r($f->copy($abo, "/httpdocs/p6-probe.txt", "/httpdocs/p6-kopie.txt"));
+  print_r($f->move($abo, "/httpdocs/p6-kopie.txt", "/httpdocs/p6-verschoben.txt"));
+'
 ```
+
+**Hier anhalten.** Dann in einer zweiten Shell `ls -ln` (siehe unten), und erst
+danach der Rückbau — mit der Auflistung als Gegenprobe:
+
+```bash
+HOME=/tmp srvpanel tinker --execute='
+  app(App\Support\Tenancy\Tenancy::class)->allowAll();
+  $abo = App\Models\Subscription::first();
+  $f = app(App\Support\Files\Files::class);
+  print_r($f->remove($abo, "/httpdocs/p6-verschoben.txt"));
+  print_r($f->remove($abo, "/httpdocs/p6-ordner", true));
+  print_r($f->remove($abo, "/httpdocs/p6-probe.txt"));
+  print_r(array_column($f->list($abo, "/httpdocs")["entries"], "name"));
+'
+```
+
+**Die letzte Zeile ist die Gegenprobe und nicht Zierde.** `remove` meldet Erfolg
+auch dann glaubhaft, wenn nichts geschehen ist — genau der Fehler, den
+`purgeContents` in dieser Stufe schon gemacht hat (meldete vier entfernt, alle
+vier lagen noch da).
 
 **Erwartet**: alle acht gelingen, und die angelegte Datei gehört dem
 Systembenutzer des Abonnements — nicht root.
 
 ```bash
-ls -l /var/www/vhosts/<abo>/httpdocs/p6-probe.txt   # zwischen write und remove
+ls -ln /var/www/vhosts/<abo>/httpdocs/            # zwischen write und remove
+```
+
+**Das `-n` ist Absicht**: gefragt sind die Zahlen und nicht die Namen. Ein
+`uid=0`, dessen Name zufällig danebensteht, rutscht sonst durch. Und ein
+`id <benutzer>` daneben, weil eine Zahl allein niemandem gehört:
+
+```bash
+id <benutzer>; ls -ln /var/www/vhosts/<abo>/httpdocs/
 ```
 
 > Ein Vorgang, der als root schreibt, meldet Erfolg genauso.
 
+**Und `0600` beim `chmod` ist Absicht.** Hier stand `0644` — genau die Rechte,
+die `files.write` beim Anlegen ohnehin setzt. Der Aufruf hätte den Zustand
+gesetzt, in dem die Datei schon war, hätte Erfolg gemeldet und **nichts
+belegt**. Gemessen wird ein `chmod` nur an einem Wert, den vorher niemand
+hatte, und mit der Rechteangabe vorher und nachher daneben.
+
+> **Ein Griff, der den Zustand herstellt, in dem die Sache schon ist, meldet
+> Erfolg und misst nichts.**
+
 ### Punkt 4 — was scheitern muss
 
 ```bash
-srvpanel tinker
->>> $f->read($abo, '/../../../../etc/passwd')     # not_found
->>> $f->read($abo, '/etc/passwd')                 # not_found
->>> $f->write($abo, '/conf/gekapert.conf', 'x')   # denied, und der Satz nennt den Grund
->>> $f->remove($abo, '/')                         # denied
+HOME=/tmp srvpanel tinker --execute='
+  app(App\Support\Tenancy\Tenancy::class)->allowAll();
+  $abo = App\Models\Subscription::first();
+  $f = app(App\Support\Files\Files::class);
+  foreach ([
+    ["read",   "/../../../../etc/passwd"],
+    ["read",   "/etc/passwd"],
+    ["read",   "/httpdocs/../../../../etc/passwd"],
+    ["remove", "/"],
+  ] as [$m, $p]) {
+    try { print_r($f->$m($abo, $p)); echo "DURCHGELASSEN: $m $p\n"; }
+    catch (Throwable $e) { echo "abgewiesen: $m $p — ", $e->getMessage(), "\n"; }
+  }
+  try { print_r($f->write($abo, "/conf/gekapert.conf", "x")); echo "DURCHGELASSEN: write /conf\n"; }
+  catch (Throwable $e) { echo "abgewiesen: write /conf — ", $e->getMessage(), "\n"; }
+'
 ```
+
+**Jede Zeile nennt den Grund.** Ein `denied` ohne Satz wäre von einem `denied`
+aus einem ganz anderen Anlass nicht zu unterscheiden.
 
 Und der Symlink, von Hand gelegt, weil der Kunde ihn per SFTP legen könnte:
 
 ```bash
 ln -s /etc/passwd /var/www/vhosts/<abo>/httpdocs/raus
-chown <benutzer>:<benutzer> /var/www/vhosts/<abo>/httpdocs/raus
-srvpanel tinker
->>> $f->read($abo, '/httpdocs/raus')              # bad_request: „Nur eine Datei lässt sich öffnen"
+chown -h <benutzer>:<benutzer> /var/www/vhosts/<abo>/httpdocs/raus
+
+HOME=/tmp srvpanel tinker --execute='
+  app(App\Support\Tenancy\Tenancy::class)->allowAll();
+  $abo = App\Models\Subscription::first();
+  $f = app(App\Support\Files\Files::class);
+  try { print_r($f->read($abo, "/httpdocs/raus")); echo "DURCHGELASSEN\n"; }
+  catch (Throwable $e) { echo "abgewiesen — ", $e->getMessage(), "\n"; }
+'
 ```
+
+Das `-h` an `chown` ist nötig: Ohne es ändert `chown` das **Ziel** des Verweises
+— also `/etc/passwd`.
+
+**Und ein root-eigenes Verzeichnis, das die Leerheitsprüfung nicht abfängt.**
+`remove("/conf")` ohne `recursive` scheitert an `rmdir` und meldet „Das
+Verzeichnis ist nicht leer" — das ist eine andere Regel als die gesuchte und
+gilt für `httpdocs/` genauso. Die Wand wird erst hinter dieser Prüfung erreicht:
+
+```bash
+mkdir /var/www/vhosts/<abo>/leer-und-root      # root:root, leer
+ls -ldn /var/www/vhosts/<abo>/leer-und-root /var/www/vhosts/<abo>
+
+HOME=/tmp srvpanel tinker --execute='
+  app(App\Support\Tenancy\Tenancy::class)->allowAll();
+  $abo = App\Models\Subscription::first();
+  $f = app(App\Support\Files\Files::class);
+  foreach ([["/leer-und-root", false], ["/leer-und-root", true], ["/conf", true]] as [$p, $r]) {
+    try { $f->remove($abo, $p, $r); echo "DURCHGELASSEN: $p rekursiv=", (int) $r, "\n"; }
+    catch (Throwable $e) { echo "abgewiesen: $p rekursiv=", (int) $r, " — ", $e->getMessage(), "\n"; }
+  }
+'
+ls -ln /var/www/vhosts/<abo>/                  # beide müssen noch da sein
+```
+
+**`remove("/conf", true)` ist der scharfe Aufruf dieses Punktes**, und er kann
+etwas kaputtmachen: Hält die Grenze nicht, ist die Konfiguration des Vhosts weg.
+Genau deshalb steht er hier — ein Angriff, der nichts anrichten *könnte*, misst
+nichts. Er gehört gegen ein Wegwerf-Abonnement und nicht gegen einen Kunden.
 
 **Gegenprobe dazu, und sie gehört dazu**: Dieselbe Datei ausserhalb der Sandbox
 lesen — `cat /var/www/vhosts/<abo>/httpdocs/raus` zeigt `/etc/passwd`. Ohne sie
@@ -183,13 +308,28 @@ wäre die Abweisung darüber kein Beleg, sondern vielleicht ein Tippfehler.
 ### Punkt 5 — der Upload
 
 ```bash
-srvpanel tinker
->>> $f->upload($abo, '/var/lib/srvpanel/storage/app/private/uploads/<datei>', '/httpdocs/hoch.bin')
->>> $f->upload($abo, '/etc/shadow', '/httpdocs/geklaut')     # denied
+HOME=/tmp srvpanel tinker --execute='
+  app(App\Support\Tenancy\Tenancy::class)->allowAll();
+  $abo = App\Models\Subscription::first();
+  $f = app(App\Support\Files\Files::class);
+  print_r($f->upload($abo, "/var/lib/srvpanel/storage/app/private/uploads/<datei>", "/httpdocs/hoch.bin"));
+  try { print_r($f->upload($abo, "/etc/shadow", "/httpdocs/geklaut")); echo "DURCHGELASSEN\n"; }
+  catch (Throwable $e) { echo "abgewiesen — ", $e->getMessage(), "\n"; }
+'
 ```
 
-Eine Datei von mindestens 50 MB, damit der Strom wirklich ein Strom ist. Die
-Grösse am Ziel muss stimmen — nicht nur die Existenz.
+Eine Datei von mindestens 50 MB, damit der Strom wirklich ein Strom ist.
+
+**Verglichen wird die Prüfsumme und nicht die Grösse.** Hier stand „die Grösse
+am Ziel muss stimmen", und das ist zu wenig: Ein Strom, der in der Mitte
+abbricht und mit Nullen weiterläuft, hat die richtige Grösse. Es ist derselbe
+Schnitt wie bei `read` in Punkt 3 — `string(6)` sagt mehr als „es kam etwas an",
+und `sha256sum` sagt mehr als „es sind 64 MB".
+
+```bash
+sha256sum /var/lib/srvpanel/storage/app/private/uploads/<datei> \
+          /var/www/vhosts/<abo>/httpdocs/hoch.bin
+```
 
 ### Punkt 6 — der Rückbau an einem echten Abonnement
 
@@ -197,20 +337,44 @@ Grösse am Ziel muss stimmen — nicht nur die Existenz.
 zurückbauen:
 
 ```bash
-srvpanel tinker
->>> # Abo anlegen, ein paar Verzeichnisse und Dateien hineinlegen
->>> # dann: zurückbauen
+HOME=/tmp srvpanel tinker --execute='
+  app(App\Support\Tenancy\Tenancy::class)->allowAll();
+  # Abo anlegen, ein paar Verzeichnisse und Dateien hineinlegen
+  # dann: zurückbauen
+'
 ```
 
 **Erwartet**: `/var/www/vhosts/<abo>` ist weg, der Systembenutzer ist weg, die
 Gruppe ist weg — und **nichts ausserhalb ist angefasst**. Vorher und nachher:
 
 ```bash
-find /var/www/vhosts -maxdepth 1 | sort > /tmp/vorher.txt
-# … Rückbau …
-find /var/www/vhosts -maxdepth 1 | sort > /tmp/nachher.txt
-diff /tmp/vorher.txt /tmp/nachher.txt      # genau eine Zeile weniger
+find /var/www/vhosts | sort > /tmp/vorher.txt
+getent passwd | cut -d: -f1 | sort > /tmp/benutzer-vorher.txt
+wc -l /tmp/vorher.txt /tmp/benutzer-vorher.txt     # KEINE der beiden Zahlen darf klein sein
+# … Wegwerf-Abo anlegen, befüllen, zurückbauen …
+find /var/www/vhosts | sort > /tmp/nachher.txt
+getent passwd | cut -d: -f1 | sort > /tmp/benutzer-nachher.txt
+diff /tmp/vorher.txt /tmp/nachher.txt
+diff /tmp/benutzer-vorher.txt /tmp/benutzer-nachher.txt
 ```
+
+**Beide `diff` müssen leer sein — und die `wc`-Zeile davor entscheidet, ob das
+etwas heisst.** Ein leerer `diff` über eine Bestandsaufnahme, die nur den Namen
+des Elternverzeichnisses enthält, ist keine Aussage über den Rückbau, sondern
+eine über den Bestand.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+**Deshalb gehören mindestens zwei Abonnements nebeneinander**, beide mit Inhalt,
+und eines bleibt stehen. Die Frage dieses Punktes lautet nicht „ist das
+Abonnement weg" — das sieht man —, sondern **„ist der Nachbar unversehrt"**, und
+die braucht einen Nachbarn. Ohne `-maxdepth` steht auch sein Inhalt in der
+Aufnahme; ein Rückbau, der eine einzelne Datei nebenan mitnimmt, fiele bei
+`-maxdepth 1` oder `2` nicht auf.
+
+Im Container hat derselbe Baumlauf in 5 von 120 Durchgängen Dateien ausserhalb
+des Abonnements zerstört (`docs/50 §3`). Genau dagegen misst dieser Punkt.
 
 ### Punkt 7 — der P5c-Bestand
 

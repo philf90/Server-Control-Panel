@@ -13663,3 +13663,41 @@ Beschriftung einsetzt.
 
 Unter 480px steht die Beschriftung eines `.field.inline` deshalb jetzt über dem
 Feld — panelweit, nicht nur in den drei neuen Formularen.
+
+#### Und der Fix für das setgid-Bit hat nichts getan
+
+Er war ausgeliefert, der Wächter war grün, und auf `cloudsrv24` stand nach einem
+`chmod 755` aus dem Rechte-Editor trotzdem `drwxr-xr-x`. Die Rechnung
+`$mode | $geerbt` war richtig: **Der Kernel entfernt `S_ISGID` lautlos**, wenn
+der aufrufende Prozess weder `CAP_FSETID` hat noch der Gruppe der Datei angehört
+— und gibt dabei `true` zurück.
+
+> **Ein Rückgabewert `true` ist keine Zusage darüber, was geschrieben wurde.**
+
+Der Wächter hat die Mechanik im Container gemessen — **als root**, und root hat
+diese Fähigkeit. Im PR-Formular dieses Projekts steht die Zeile „Tests laufen
+auch als unprivilegiertes Konto (als root scheitern Dateirechte nicht)"; sie war
+abgehakt.
+
+> **Eine Messung als root prüft nicht, was ein unprivilegierter Prozess darf.**
+
+Dahinter steht ein struktureller Befund: Ein Kunde kann `setgid` mit der Gruppe
+`www-data` auf seinem eigenen Verzeichnis **nicht erhalten**. Er darf die Gruppe
+nur auf eine wechseln, in der er ist, und dann erbt sie sein eigenes Konto — für
+nginx nutzlos.
+
+Die Sandbox nimmt `www-data` deshalb in die Zusatzgruppen, **nur für
+`files.chmod`**. `initgroups(3)` nimmt dafür genau das zweite Argument. Das Kind
+sitzt im Chroot des Abonnements, wo alles mit dieser Gruppe diesem Kunden gehört;
+es macht einen `chmod` und beendet sich. `SandboxGroupTest` besteht darauf, dass
+keine zweite Operation sich auf diese Begründung beruft.
+
+> **Eine Ausnahme mit Begründung wird zur Regel, sobald die zweite sich auf sie
+> beruft.**
+
+Und `files.chmod` liest den Modus nach dem Schreiben noch einmal: Fehlt das Bit,
+gibt es eine Absage statt eines stillen Erfolgs. Das greift auch dort, wo es
+`www-data` nicht gibt.
+
+> **Ein Fehler, den nur eine Messung von aussen sichtbar macht, braucht einen
+> Prüfblick von innen.**

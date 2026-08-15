@@ -92,11 +92,18 @@ final class Sandbox
      * @param  string  $user  Der Systembenutzer des Abonnements.
      * @param  callable():mixed  $work  Läuft im Kind, ohne Rechte, im Chroot.
      * @param  list<Socket|resource>  $close  Was das Kind geerbt hat und schliessen muss — allen voran der Socket des Agenten.
+     * @param  string|null  $withGroup  Eine zusätzliche Gruppe für das Kind — siehe {@see child()}.
      * @return mixed Was `$work` zurückgegeben hat.
      */
-    public static function run(string $root, string $user, callable $work, array $close = []): mixed
-    {
+    public static function run(
+        string $root,
+        string $user,
+        callable $work,
+        array $close = [],
+        ?string $withGroup = null,
+    ): mixed {
         $account = self::account($user);
+        $account['extra_gid'] = self::groupId($withGroup);
         self::rootDirectory($root);
         self::preload();
 
@@ -239,7 +246,7 @@ final class Sandbox
      * **Die Reihenfolge ist die Sache selbst.** `chroot` braucht root, die
      * Rechteabgabe macht es unwiderruflich. Andersherum wäre beides wertlos.
      *
-     * @param  array{uid: int, gid: int, name: string}  $account
+     * @param  array{uid: int, gid: int, name: string, extra_gid: int|null}  $account
      * @param  callable():mixed  $work
      * @param  resource  $back
      * @param  list<Socket|resource>  $close
@@ -256,11 +263,41 @@ final class Sandbox
 
             chdir('/');
 
-            // **Erst die Zusatzgruppen, dann die Kennungen.** initgroups
-            // braucht root, und nach setuid() gibt es kein Zurück. Ohne diese
-            // Zeile behält das Kind die Zusatzgruppen von root und liest damit
-            // Dateien, die `root:root 0640` gehören (gemessen, docs/50 §5).
-            if (! posix_initgroups($account['name'], $account['gid'])) {
+            /*
+             * **Erst die Zusatzgruppen, dann die Kennungen.** initgroups
+             * braucht root, und nach setuid() gibt es kein Zurück. Ohne diese
+             * Zeile behält das Kind die Zusatzgruppen von root und liest damit
+             * Dateien, die `root:root 0640` gehören (gemessen, docs/50 §5).
+             *
+             * ## Das zweite Argument, und warum es manchmal eine fremde Gruppe ist
+             *
+             * `initgroups(3)` setzt die Gruppen des Benutzers aus `/etc/group`
+             * **plus** die hier genannte. Normalerweise ist das die eigene
+             * Gruppe des Abonnements, also nichts Zusätzliches.
+             *
+             * `files.chmod` verlangt `www-data`, und der Grund ist eine
+             * Eigenheit von `chmod(2)`: **Der Kernel entfernt `S_ISGID`
+             * lautlos**, wenn der aufrufende Prozess weder `CAP_FSETID` hat
+             * noch der Gruppe der Datei angehört — und gibt dabei `true`
+             * zurück. Ein Kunde konnte das setgid-Bit seines eigenen
+             * Verzeichnisses damit nicht erhalten; jedes `chmod` aus dem
+             * Rechte-Editor nahm es weg, und die nächste Datei darin war für
+             * nginx unlesbar (gemessen auf `cloudsrv24`, `docs/55` Befund 17).
+             *
+             * > **Ein Rückgabewert `true` ist keine Zusage darüber, was
+             * > geschrieben wurde.**
+             *
+             * **Warum das nichts aufmacht.** Das Kind sitzt im Chroot des
+             * Abonnements, und dort gehört alles mit der Gruppe `www-data`
+             * diesem Kunden — die Gruppe verschafft ihm keinen fremden
+             * Zugriff. Sie gilt ausserdem nur für **diesen einen** Vorgang:
+             * Das Kind macht einen `chmod` und beendet sich.
+             *
+             * `SandboxGroupTest` besteht darauf, dass keine zweite Operation
+             * sie verlangt — die Begründung oben gilt für einen Griff, der
+             * nichts liest, und nicht als Freibrief.
+             */
+            if (! posix_initgroups($account['name'], $account['extra_gid'] ?? $account['gid'])) {
                 throw AgentException::execFailed('Die Zusatzgruppen liessen sich nicht setzen.');
             }
 
@@ -432,7 +469,35 @@ final class Sandbox
             throw AgentException::denied('Der Systembenutzer des Abonnements ist root.');
         }
 
-        return ['uid' => $entry['uid'], 'gid' => $entry['gid'], 'name' => $name];
+        return ['uid' => $entry['uid'], 'gid' => $entry['gid'], 'name' => $name, 'extra_gid' => null];
+    }
+
+    /**
+     * Die Kennung einer zusätzlichen Gruppe — oder `null`, wenn keine gefragt ist.
+     *
+     * **Ein fehlender Eintrag ist kein Fehler.** `www-data` gibt es auf einem
+     * Server ohne nginx nicht, und der Vorgang soll dort trotzdem laufen: Dann
+     * bleibt es bei der eigenen Gruppe des Abonnements, und das setgid-Bit
+     * fällt weg — was ohne Webserver niemanden stört. Ein Abbruch wäre die
+     * schlechtere Antwort auf eine Lage, die keinen Schaden anrichtet.
+     */
+    private static function groupId(?string $name): ?int
+    {
+        if ($name === null) {
+            return null;
+        }
+
+        $entry = posix_getgrnam($name);
+
+        if ($entry === false) {
+            return null;
+        }
+
+        if ($entry['gid'] === 0) {
+            throw AgentException::denied('Die zusätzliche Gruppe der Sandbox ist root.');
+        }
+
+        return $entry['gid'];
     }
 
     /**

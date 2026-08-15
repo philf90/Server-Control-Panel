@@ -63,6 +63,19 @@ final class FilesChmod implements Op
          */
         Scheme::protect($path, 'in seinen Rechten geändert');
 
+        /*
+         * **Die zusätzliche Gruppe ist der eigentliche Kern dieses Griffs.**
+         *
+         * Ohne sie rechnet die Zeile unten richtig und der Kernel räumt das
+         * Ergebnis wieder ab: `chmod(2)` entfernt `S_ISGID` lautlos, wenn der
+         * Prozess weder `CAP_FSETID` hat noch der Gruppe der Datei angehört —
+         * und meldet `true`. Gemessen auf `cloudsrv24` am 15. August 2026
+         * (`docs/55`, Befund 17), nachdem der erste Wurf dieses Fixes hier
+         * ausgeliefert war und im Container **als root** grün gemessen wurde.
+         *
+         * > **Eine Messung als root prüft nicht, was ein unprivilegierter
+         * > Prozess darf.**
+         */
         return $workspace->run(static function () use ($path, $mode): array {
             $entry = Entry::of($path);
 
@@ -88,9 +101,9 @@ final class FilesChmod implements Op
              * des Abonnements — bei `0640` ist sie für den Webserver
              * unerreichbar.
              *
-             * **Auf dem Server gemessen ist es nicht.** Der Versuch dazu traf
-             * eine Datei statt eines Verzeichnisses und belegte nichts
-             * (`docs/55`, Befund 13); der Nachweis steht dort offen.
+             * **Diese Zeile allein reicht nicht**, und der Nachweis auf
+             * `cloudsrv24` hat das gezeigt: Der Kernel nimmt das Bit hinterher
+             * wieder weg. Siehe den Absatz über der Sandbox-Gruppe weiter oben.
              *
              * > **Eine Begründung, die für einen Fall aufgeschrieben ist, gilt
              * > oft für mehr — und wird trotzdem nur dort angewandt.**
@@ -118,7 +131,23 @@ final class FilesChmod implements Op
 
             clearstatcache(true, $path);
 
-            return ['entry' => Entry::of($path)];
-        });
+            $danach = Entry::of($path);
+
+            /*
+             * **Und nachsehen, ob das Bit auch angekommen ist.** Der Kernel
+             * meldet seinen Abzug nicht; ohne diese Zeile sähe ein zweiter
+             * Fehlschlag genauso aus wie ein Erfolg. Genau daran ist der erste
+             * Wurf gescheitert — er war ausgeliefert, bevor ihn jemand auf
+             * einem echten Server gemessen hat.
+             */
+            if ($geerbt !== 0 && $danach !== null && ($danach['mode'] & 0o2000) === 0) {
+                throw AgentException::denied(
+                    'Die Rechte sind gesetzt, aber die Gruppenvererbung dieses Verzeichnisses ist '.
+                    'dabei verlorengegangen. Der Webserver liest neue Dateien darin nicht mehr.',
+                );
+            }
+
+            return ['entry' => $danach];
+        }, [], SubscriptionProvision::DOCUMENT_ROOT_GROUP);
     }
 }

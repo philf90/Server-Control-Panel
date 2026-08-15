@@ -836,6 +836,109 @@ noch nicht** — es steht hier als Frage und nicht als Befund.
 
 ---
 
+## Punkt 4 — die Mehrfachauswahl, drei von vier Zusagen erfüllt
+
+**Die Rückfrage nennt, was in der Tabelle nicht steht:**
+
+```
+3 Einträge entfernen?
+Darunter ist ein Verzeichnis — sein Inhalt geht mit.
+```
+
+Und in der Abo-Wurzel, mit allen sechs:
+
+```
+6 Einträge entfernen?
+Darunter sind 6 Verzeichnisse — ihr Inhalt geht mit.
+/httpdocs liefert eine Domain aus. Die Seite ist danach nicht mehr erreichbar.
+```
+
+**Die DocumentRoot-Warnung wirkt.** Sie ist der Teil, den der Agent nicht leisten
+kann — er müsste dafür die vhost-Dateien lesen — und das Panel weiss es.
+
+**Die Zahl steht im ersten Satz:** „Von 3 Einträgen sind 2 entfernt.", und bei
+den sechs geschützten „Von 6 Einträgen sind 0 entfernt." Der Baum stand danach
+unversehrt da — **5f durch die Oberfläche belegt**, nicht nur durch `tinker`.
+
+**Die Gegenprobe ohne Fehlschlag:** zwei gewöhnliche Dateien allein → grün, „2
+Einträge sind entfernt.", keine Fehlerliste.
+
+## Befund 12 — die Gründe je Eintrag erreichen den Browser nicht
+
+**Was fehlt, ist die Zeile darunter.** Bei drei Einträgen wie bei sechs steht nur
+der Zählsatz da — kein Pfad, kein Grund.
+
+`report()` baut die Zahl und je Fehlschlag eine Zeile, alle unter dem Feld
+`path`. **Inertias Laravel-Anbindung bildet den Fehlerbeutel auf „Feld => erste
+Meldung" ab.** Alles nach der Zahl fällt weg, bevor die Seite es sieht.
+
+> **Eine Meldung, die der Controller schreibt, ist damit noch keine, die jemand
+> liest.**
+
+### Es traf nicht nur die Mehrfachauswahl
+
+**Der Mehrfach-Upload aus Schritt 5e baut seine Rückmeldung genauso** — „Von 20
+Dateien sind 19 hochgeladen." plus je Datei eine Zeile. Die Zeilen waren **seit
+dem ersten Tag unsichtbar**. Sein Wächter
+(`FileCreationTest::test_a_partly_failed_upload_does_not_report_success`) ist
+grün und liest den Quelltext des Controllers.
+
+Das ist dieselbe Familie wie Befund 6:
+
+> **Ein Wächter, der Quelltext liest, sieht nichts, was erst zwischen Browser
+> und Controller passiert.**
+
+**Und die Zahl allein ist die schlechtere Hälfte.** Sie sagt, dass etwas
+schiefging, und verschweigt was — der Kunde kann nichts daraus machen. Bei den
+sechs geschützten Verzeichnissen wäre der Satz „gehört zum Aufbau des
+Abonnements … Sein Inhalt lässt sich ändern" genau die Auskunft gewesen, die er
+braucht.
+
+**Behoben an beiden Enden:** `HandleInertiaRequests` überschreibt
+`resolveValidationErrors()` und verbindet die Meldungen eines Feldes mit `\n`;
+`FormErrors` zerlegt sie wieder in Zeilen. Ein verschachteltes Feld wäre die
+Alternative gewesen und die schlechtere: Dann müsste **jede** Stelle, die Fehler
+liest, mit zwei Formen rechnen, und die eine, die es vergisst, zeigt gar nichts.
+
+Wächter: `BulkActionTest::test_every_reason_survives_the_way_to_the_browser`,
+und er prüft **beide** Enden — eines ohne das andere ist eine halbe Kette.
+
+## Befund 13 — der Rechte-Editor nimmt das geerbte setgid-Bit weg
+
+Die Frage aus Punkt 3 ist gemessen:
+
+```
+/var/www/vhosts/p6-b.invalid/httpdocs/p6-bit  p1136:www-data  755
+```
+
+Ein über den Dateimanager angelegtes Verzeichnis erbt `2750`. Nach einem
+`chmod 755` aus dem Rechte-Editor steht dort **`755`** — das Bit ist fort, und
+jede Datei, die der Kunde danach darin anlegt, trägt wieder die Gruppe des
+Abonnements. Bei `0640` ist sie für den Webserver unerreichbar: **Befund 3 aus
+`docs/53`, eine Ebene tiefer.**
+
+### Die Begründung stand seit 6c im Quelltext
+
+`FilesChmod` erklärt über seinem `Scheme::protect()` genau diese Gefahr — für
+`httpdocs`. Dieselbe Überlegung gilt für jedes Verzeichnis **darin**, und dort
+schützt `Scheme` ausdrücklich nicht: `httpdocs/bilder` ist Inhalt und kein
+Gerüst.
+
+> **Eine Begründung, die für einen Fall aufgeschrieben ist, gilt oft für mehr —
+> und wird trotzdem nur dort angewandt.**
+
+**Behoben:** `files.chmod` führt das setgid-Bit eines **Verzeichnisses** mit.
+Nicht bei Dateien — dort bedeutet dasselbe Bit die Ausführung unter fremder
+Gruppe, und dieses Panel setzt es nirgends. Was es nicht setzt, muss es auch
+nicht bewahren.
+
+> **Ein Griff, der neun Bits anbietet, darf das zehnte nicht anfassen.**
+
+`docs/51 §8.2` nennt setgid ausdrücklich als das, was der Rechte-Editor **nicht**
+anbietet. Genau deshalb darf er es auch nicht löschen.
+
+---
+
 ## Offen, klein, nicht verfolgt
 
 `ls /var/www/vhosts/p6-b.invalid/logs/` und der `tail` darauf haben nichts

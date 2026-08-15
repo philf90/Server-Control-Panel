@@ -39,7 +39,21 @@ const messages = computed((): string[] =>
   // dort lässt aber auch verschachtelte Sätze zu, und ein Typprädikat darauf
   // wäre gelogen. Geprüft wird deshalb zur Laufzeit.
   Object.values(page.props.errors ?? {}).flatMap((message) =>
-    typeof message === 'string' && message !== '' ? [message] : [],
+    /*
+     * **Am Zeilenumbruch geteilt**, und das ist kein Schmuck.
+     *
+     * Ein Griff, der mehrere Einträge anfasst, meldet die Zahl der gelungenen
+     * und dann je Fehlschlag eine Zeile. Bis zum 15. August 2026 kam davon nur
+     * die Zahl an: Inertias Anbindung bildete den Fehlerbeutel auf „Feld =>
+     * erste Meldung" ab (`docs/55`, Befund 12). `HandleInertiaRequests`
+     * verbindet sie jetzt mit `\n` — hier werden sie wieder zu Zeilen.
+     *
+     * > **Eine Meldung, die der Controller schreibt, ist damit noch keine, die
+     * > jemand liest.**
+     */
+    typeof message === 'string' && message !== ''
+      ? message.split('\n').filter((zeile) => zeile !== '')
+      : [],
   ),
 )
 </script>

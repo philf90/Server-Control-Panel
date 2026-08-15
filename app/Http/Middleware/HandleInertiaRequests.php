@@ -26,6 +26,56 @@ final class HandleInertiaRequests extends Middleware
      *
      * @return array<string,mixed>
      */
+    /**
+     * Alle Meldungen eines Feldes und nicht nur die erste.
+     *
+     * ## Der Fehler, den `report()` nicht sehen konnte
+     *
+     * Inertias Laravel-Anbindung bildet den Fehlerbeutel auf
+     * `Feld => erste Meldung` ab. Ein `ValidationException::withMessages([
+     * 'path' => [$zahl, $grund1, $grund2]])` kommt damit als **eine**
+     * Zeichenkette im Browser an — der Rest fällt weg, bevor die Seite ihn
+     * sieht.
+     *
+     * Gemessen auf `cloudsrv24` am 15. August 2026 (`docs/55`, Befund 12): Die
+     * Mehrfachauswahl meldete „Von 3 Einträgen sind 2 entfernt." und **keinen
+     * einzigen Grund**. Bei sechs geschützten Verzeichnissen dasselbe: die
+     * Zahl, und sechsmal Schweigen darüber, woran es lag.
+     *
+     * **Es traf nicht nur die Mehrfachauswahl.** Der Mehrfach-Upload aus
+     * Schritt 5e baut seine Rückmeldung genauso — die Zeile je Datei ist seit
+     * dem ersten Tag unsichtbar gewesen. Ihr Wächter liest den Quelltext des
+     * Controllers und konnte das nicht sehen.
+     *
+     * > **Eine Meldung, die der Controller schreibt, ist damit noch keine, die
+     * > jemand liest.**
+     *
+     * Die Zahl allein ist dabei die schlechtere Hälfte: Sie sagt, dass etwas
+     * schiefging, und verschweigt was — und der Kunde kann nichts daraus
+     * machen.
+     *
+     * @return array<string, mixed>
+     */
+    public function resolveValidationErrors(Request $request): object
+    {
+        $beutel = $request->session()->get('errors');
+
+        if ($beutel === null) {
+            return (object) [];
+        }
+
+        /*
+         * **Verbunden und nicht verschachtelt.** Ein Feld könnte auch eine
+         * Liste zurückgeben; dann müsste jede Stelle, die Fehler liest, mit
+         * beiden Formen rechnen — und die eine, die es vergisst, zeigt gar
+         * nichts. Ein Zeilenumbruch trägt dieselbe Auskunft und bleibt eine
+         * Zeichenkette.
+         */
+        return (object) collect($beutel->getBag('default')->messages())
+            ->map(static fn (array $meldungen): string => implode("\n", $meldungen))
+            ->all();
+    }
+
     public function share(Request $request): array
     {
         $account = $request->user();

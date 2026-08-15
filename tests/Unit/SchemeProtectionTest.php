@@ -181,4 +181,60 @@ final class SchemeProtectionTest extends TestCase
             'begonnen hat — und genau das ist der Fehler, gegen den sie gebaut wurde.',
         );
     }
+
+    /**
+     * Ein `chmod` nimmt das geerbte setgid-Bit eines Verzeichnisses nicht weg.
+     *
+     * ## Die Begründung stand da und galt nur für einen Fall
+     *
+     * `FilesChmod` erklärt über seinem `Scheme::protect()`, warum ein `chmod`
+     * des Kunden auf `httpdocs` das setgid-Bit lautlos nähme. **Dieselbe
+     * Überlegung gilt für jedes Verzeichnis darin** — und dort schützt `Scheme`
+     * ausdrücklich nicht, denn `httpdocs/bilder` ist Inhalt und kein Gerüst.
+     *
+     * Gemessen auf `cloudsrv24` am 15. August 2026 (`docs/55`, Befund 13): Ein
+     * über den Dateimanager angelegtes `httpdocs/p6-bit` erbt `2750`; nach
+     * einem `chmod 755` aus dem Rechte-Editor steht dort `755`. Jede Datei, die
+     * der Kunde danach darin anlegt, trägt wieder die Gruppe des Abonnements —
+     * und ist bei `0640` für den Webserver unerreichbar.
+     *
+     * > **Eine Begründung, die für einen Fall aufgeschrieben ist, gilt oft für
+     * > mehr — und wird trotzdem nur dort angewandt.**
+     *
+     * Der Rechte-Editor bietet neun Bits an (`docs/51 §8.2` nennt setgid
+     * ausdrücklich als das, was **nicht** angeboten wird). Ein Griff, der neun
+     * Bits anbietet, darf das zehnte nicht anfassen.
+     */
+    public function test_a_chmod_keeps_the_inherited_setgid_bit(): void
+    {
+        $quelle = (string) file_get_contents(
+            dirname(__DIR__, 2).'/agent/src/Ops/FilesChmod.php',
+        );
+
+        $this->assertMatchesRegularExpression(
+            "/\\\$geerbt = \\\$entry\\['type'\\] === 'directory'/",
+            $quelle,
+            "`files.chmod` führt das geerbte setgid-Bit nicht mehr mit.\n\n".
+            'Ein `chmod 755` auf ein Unterverzeichnis von `httpdocs` nimmt es dann weg, und jede '.
+            'Datei darin trägt danach wieder die Gruppe des Abonnements.',
+        );
+
+        $this->assertStringContainsString(
+            '@chmod($path, $mode | $geerbt)',
+            $quelle,
+            'Der Modus wird ohne das bewahrte Bit gesetzt.',
+        );
+
+        /*
+         * **Nur bei Verzeichnissen**, und das ist die Gegenrichtung derselben
+         * Regel: Auf einer Datei bedeutet dasselbe Bit die Ausführung unter
+         * fremder Gruppe. Dieses Panel setzt es dort nirgends — was es nicht
+         * setzt, muss es auch nicht bewahren.
+         */
+        $this->assertStringNotContainsString(
+            '$geerbt = $entry[\'mode\'] & 0o2000;',
+            $quelle,
+            'Das Bit wird auch auf Dateien bewahrt. Dort heisst es etwas anderes.',
+        );
+    }
 }

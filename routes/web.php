@@ -21,6 +21,7 @@ use App\Http\Controllers\OverviewController;
 use App\Http\Controllers\PhpSettingsController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SftpController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\SubscriptionDnsController;
 use App\Http\Controllers\TlsSettingsController;
@@ -514,6 +515,26 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/subscriptions/{subscription}/files/chmod', [FileController::class, 'chmod'])
         ->middleware('can:editFiles,subscription')
         ->name('files.chmod');
+
+    /*
+     * P6 Schritt 8 — der SFTP-Zugang (docs/51 §9).
+     *
+     * Jede Route trägt `can:manageSftp` und nicht `can:editFiles`: Wer Dateien
+     * im Panel ändern darf, darf damit noch keinen dauerhaften Zugang von
+     * aussen einrichten. Ein Schlüssel überlebt den Entzug des Panel-Zugangs,
+     * wenn niemand daran denkt.
+     */
+    Route::get('/subscriptions/{subscription}/sftp', [SftpController::class, 'show'])
+        ->middleware('can:manageSftp,subscription')
+        ->name('sftp.show');
+
+    Route::post('/subscriptions/{subscription}/sftp/keys', [SftpController::class, 'store'])
+        ->middleware('can:manageSftp,subscription')
+        ->name('sftp.keys.store');
+
+    Route::delete('/subscriptions/{subscription}/sftp/keys/{key}', [SftpController::class, 'destroy'])
+        ->middleware('can:manageSftp,subscription')
+        ->name('sftp.keys.destroy');
 
     Route::get('/databases', [DatabaseController::class, 'index'])
         ->middleware('can:viewAny,'.Database::class)

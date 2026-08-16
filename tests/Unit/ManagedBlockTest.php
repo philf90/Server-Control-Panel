@@ -379,7 +379,7 @@ final class ManagedBlockTest extends TestCase
                 continue;
             }
 
-            if (in_array($name, ['put', 'read'], true) && $locks === []) {
+            if (in_array($name, ['put', 'read', 'validated'], true) && $locks === []) {
                 $draussen[] = $name;
             }
         }

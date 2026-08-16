@@ -10,6 +10,7 @@ use SrvPanel\Agent\Filesystem;
 use SrvPanel\Agent\Op;
 use SrvPanel\Agent\PhpVersions;
 use SrvPanel\Agent\Site;
+use SrvPanel\Agent\Ssh\SshdConfig;
 
 /**
  * Baut die Systemseite eines Abonnements vollständig zurück: Prozesse,
@@ -155,7 +156,7 @@ final class SubscriptionRemove implements Op
      */
     private function removeConfiguration(Context $context, string $name, string $user, string $root): array
     {
-        $entfernt = ['sites' => [], 'pools' => [], 'logrotate' => []];
+        $entfernt = ['sites' => [], 'pools' => [], 'logrotate' => [], 'ssh_keys' => []];
 
         foreach (glob($this->confDir.'/*.conf') ?: [] as $file) {
             $inhalt = (string) @file_get_contents($file);
@@ -186,6 +187,24 @@ final class SubscriptionRemove implements Op
 
         if (is_file($rotation) && @unlink($rotation)) {
             $entfernt['logrotate'][] = $rotation;
+        }
+
+        /*
+         * **Die Schlüsseldatei des SFTP-Zugangs** (P6 Schritt 8). Sie liegt
+         * ausserhalb der Abo-Wurzel — genau deshalb kommt der Kunde nicht an sie
+         * heran —, und damit nimmt sie das Löschen des Verzeichnisses **nicht**
+         * mit. Ohne diese Zeile bliebe je zurückgebautem Abonnement ein
+         * öffentlicher Schlüssel unter /etc/srvpanel/ssh liegen.
+         *
+         * Das ist wörtlich die Lücke aus `docs/35`: Dort blieb der private
+         * Schlüssel eines Zertifikats liegen, weil `create` zuerst gebaut wurde
+         * und danach funktionierte. Wer etwas anlegt, das auf der Platte bleibt,
+         * baut den Weg zurück mit — und zwar in demselben Beitrag.
+         */
+        $keyFile = SshdConfig::keyFile($user);
+
+        if (is_file($keyFile) && @unlink($keyFile)) {
+            $entfernt['ssh_keys'][] = $keyFile;
         }
 
         $this->reload($context, $versionen, $entfernt['sites'] !== []);

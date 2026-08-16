@@ -137,6 +137,15 @@ final class RemovalPathTest extends TestCase
         'files.upload' => 'Der Weg zurück ist `files.remove`; das Zwischenlager räumt der Controller im `finally`.',
         'files.extract' => 'Der Weg zurück ist `files.remove` mit `recursive` auf das Zielverzeichnis.',
         'files.compress' => 'Der Weg zurück ist `files.remove` auf das erzeugte Archiv.',
+
+        // **P6 Schritt 8: der SFTP-Zugang.** Beide Wege zurück sind dieselbe
+        // Operation mit leerer Liste — und beide sind gebaut, nicht gedacht:
+        // `App\Support\Files\Sftp::remove()` ruft sie beim letzten Schlüssel
+        // eines Abonnements auf, und der Rückbau des Abonnements nimmt die
+        // Schlüsseldatei mit. Das ist der Unterschied zu der Lücke aus docs/35,
+        // wo ein privater Schlüssel liegenblieb, den niemand entfernen konnte.
+        'sftp.key.apply' => 'Der Weg zurück ist dieselbe Operation mit leerer `keys`-Liste: Sie entfernt /etc/srvpanel/ssh/<benutzer>, statt sie zu leeren — eine leere Datei sähe aus wie „Zugang eingerichtet, keine Schlüssel" und ist dasselbe wie „kein Zugang".',
+        'sftp.access' => 'Der Weg zurück ist dieselbe Operation mit leerer `accesses`-Liste; sie nimmt den verwalteten Block aus sshd_config. Die Datei selbst gehört OpenSSH und der Distribution und wird nie entfernt — angefasst wird nur, was zwischen den Marken steht (docs/57 §6).',
     ];
 
     /** Was im Quelltext einer Operation bedeutet, dass sie etwas auf die Platte legt. */

@@ -203,6 +203,52 @@ final class ManagedBlock
     }
 
     /**
+     * Den fertigen Text prüfen lassen, **bevor** er die Datei wird (Regel 6).
+     *
+     * ## Warum das eine eigene Regel ist und kein Zusatz
+     *
+     * Für `pg_hba.conf` gilt: schreiben, neu laden, nachsehen, bei einem Fehler
+     * zurückrollen (`docs/38 §14.2`). Der Rückweg trägt dort, weil ein Reload
+     * mit kaputter Datei folgenlos ist — der Server bedient weiter und behält
+     * die alten Regeln.
+     *
+     * **Für `sshd_config` trägt er nicht.** Gemessen am 16. August 2026
+     * (`docs/57 §5`): Ein Neuladen mit kaputter Datei **beendet den sshd**.
+     * Nach dem gescheiterten Neuladen ist kein Dienst mehr da, in den man
+     * zurückrollen könnte, und der Weg zurück führte durch dieselbe Tür.
+     *
+     * > **Ein Rückweg, der voraussetzt, dass der Dienst noch läuft, ist keiner
+     * > für den Fall, dass ihn genau dieser Vorgang beendet hat.**
+     *
+     * Die Prüfung ist hier deshalb kein Zusatz zum Rückweg — sie ist sein
+     * Ersatz. Sie läuft an einer **Nachbardatei**, und erst wenn sie durch ist,
+     * fasst {@see self::put()} das Original an.
+     *
+     * **Und sie räumt die Nachbardatei weg, auch wenn sie scheitert.** Eine
+     * liegengebliebene `sshd_config.srvpanel.candidate` wäre für den nächsten
+     * Betreiber, der das Verzeichnis ansieht, eine Datei ohne Erklärung.
+     *
+     * @param  callable(string): void  $check  wirft, wenn der Kandidat nicht taugt
+     */
+    public static function validated(string $path, string $content, callable $check): void
+    {
+        $candidate = $path.self::CANDIDATE_SUFFIX;
+
+        if (@file_put_contents($candidate, $content) === false) {
+            throw AgentException::execFailed(
+                sprintf('Der Entwurf für %s liess sich nicht ablegen.', basename($path)),
+                ['path' => $candidate],
+            );
+        }
+
+        try {
+            $check($candidate);
+        } finally {
+            @unlink($candidate);
+        }
+    }
+
+    /**
      * Den Bereich setzen — und alles ausserhalb Byte für Byte stehenlassen (Regel 4).
      *
      * **Der Bereich wandert ans Ende, immer.** Auch dann, wenn er vorher weiter
@@ -274,6 +320,9 @@ final class ManagedBlock
 
     /** Die Endung der Sperrdatei — neben der Datei, nie darauf (Regel 2). */
     private const LOCK_SUFFIX = '.srvpanel.lock';
+
+    /** Und die des Entwurfs, an dem geprüft wird, bevor das Original drankommt. */
+    private const CANDIDATE_SUFFIX = '.srvpanel.candidate';
 
     /**
      * Wie tief dieser Prozess gerade in {@see self::locked()} steckt, je Pfad.

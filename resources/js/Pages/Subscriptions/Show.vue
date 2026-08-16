@@ -74,6 +74,7 @@ const props = defineProps<{
     viewCustomer: boolean
     manageDns: boolean
     browseFiles: boolean
+    manageSftp: boolean
   }
 
   /**
@@ -236,6 +237,18 @@ function remove(): void {
         class="button"
         :href="`/subscriptions/${props.subscription.id}/files`"
       >Dateien</Link>
+
+      <!--
+        Und der SFTP-Zugang daneben, aus demselben Grund: Er gehört zu *einem*
+        Abonnement. Ein Knopf, den der Betrachter nicht drücken darf, wird nicht
+        gezeigt — die Antwort kommt aus derselben Policy, die ihn später abweist
+        (`AbilityReachTest`), und nicht aus einem `v-if` auf den Kontotyp.
+      -->
+      <Link
+        v-if="props.can.manageSftp && props.subscription.status !== 'provisioning'"
+        class="button"
+        :href="`/subscriptions/${props.subscription.id}/sftp`"
+      >SFTP-Zugang</Link>
       <button
         v-if="props.can.suspend && props.subscription.status === 'active'"
         type="button"

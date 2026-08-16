@@ -8,13 +8,13 @@ schliesst `docs/55` ab und macht Punkt 8 aus `docs/54` endlich messbar.
 
 | Befund | Fassung, in der er behoben wurde | bisher nachgeprüft |
 |---|---|---|
-| 21 — Haken am Gerüst | `v0.6.0-rc.7` | **nein** |
-| 22 — „Aktion" statt „Griffe" | `v0.6.0-rc.7` | **nein** |
-| 23 — Baum und Krümel lasen sich als eine Liste | `v0.6.0-rc.8` | nein |
-| 24 — Linie neben der Wurzel | `v0.6.0-rc.8` | nein |
-| 25 — die Aktionen nahmen die halbe Zeile | `v0.6.0-rc.8` | nein |
-| 26 — dasselbe „Entfernen" rot und grau | `v0.6.0-rc.8` | nein |
-| `docs/54` Punkt 8 — die Bilderrunde | — | **nie geliefert** |
+| 21 — Haken am Gerüst | `v0.6.0-rc.7` | **erfüllt 16.08.** |
+| 22 — „Aktion" statt „Griffe" | `v0.6.0-rc.7` | **erfüllt 16.08.** |
+| 23 — Baum und Krümel lasen sich als eine Liste | `v0.6.0-rc.8` | **erfüllt 16.08.** |
+| 24 — Linie neben der Wurzel | `v0.6.0-rc.8` | **erfüllt 16.08.** |
+| 25 — die Aktionen nahmen die halbe Zeile | `v0.6.0-rc.8` | **erfüllt 16.08.** |
+| 26 — dasselbe „Entfernen" rot und grau | `v0.6.0-rc.8` | **erfüllt 16.08.** |
+| `docs/54` Punkt 8 — die Bilderrunde | — | **erfüllt 16.08.** |
 | 27 — Kopfhaken über leerer Auswahl | `v0.6.0-rc.9` | gefunden **von** diesem Lauf |
 
 ---
@@ -711,9 +711,23 @@ Je Aufnahme:
 | 3b | Rechte-Editor, langer Name | **0** | **0** | — | — |
 | 4 | Baum, tiefer Pfad | **0** | **0** | **0** | **0** |
 | 5 | Editor | **0** | **0** | **0** | **0** |
-| 6 | Kärtchen, Aktionen offen | offen | offen | — | — |
+| 6 | Kärtchen, Aktionen offen | **0** | **0** | — | — |
 
-Gegenprobe in jeder gemessenen Zelle: **400**.
+Gegenprobe in jeder Zelle: **400**. **Vierundzwanzig Messungen, jede auf 0.**
+
+**Punkt 7 ist damit erfüllt** — und `docs/54` Punkt 8 nachgeholt, der seit dem
+15. August offenstand.
+
+**Zu #6:** Die aufgeklappte Zeile trägt „Aktionen zuklappen", „Umbenennen",
+„Rechte" und „Entfernen" über die volle Kärtchenbreite, jeden Text vollständig,
+in beiden Themes. Die Zeile darunter steht auf „Aktionen" — höchstens eine ist
+offen. Das ist die Ansicht, in der der erste Wurf kaputt war: Die Reihe stand
+neben dem Umschalter und wurde abgeschnitten, **bei einem Überlauf von 0 px**.
+Sie hat jetzt ihr Bild und ihre Zahl im Protokoll und nicht nur in einer
+Erinnerung.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.** Deshalb steht neben jeder dieser Nullen ein Bild.
 
 **Zu #1:** Der 76 Zeichen lange Dateiname bricht **innerhalb** des Kärtchens auf
 drei Zeilen und schiebt nichts. Das ist `td.cell-name` und nicht `.ident` — die
@@ -830,6 +844,49 @@ zweite Messung liefert.
 Nichts mehr — `color-scheme` ist seit rc.4 gesetzt, die leeren Ankreuzfelder im
 dunklen Theme sind behoben (`docs/55`, Befund 20). Sind sie wieder weiss, ist
 das ein Rückfall und ein Befund.
+
+---
+
+## 9a. Der Lauf im Ganzen — gefahren am 16. August 2026
+
+**Alle sieben Punkte erfüllt.** Sechs Befunde aus zwei Fassungen sind
+nachgeprüft, und `docs/54` Punkt 8 ist nachgeholt.
+
+| Punkt | Gegenstand | Ergebnis |
+|---|---|---|
+| 1 | Befund 21 — kein Haken am Gerüst | **erfüllt** |
+| 2 | Befund 22 — „Aktion" in beiden Breiten | **erfüllt** |
+| 3 | Befund 23 — Baum abgesetzt | **erfüllt** |
+| 4 | Befund 24 — die Linien | **erfüllt** |
+| 5 | Befund 25 — die Aktionen klappen zu | **erfüllt** |
+| 6 | Befund 26 — Rot heisst überall dasselbe | **erfüllt**, zehn Stellen |
+| 7 | Die Bilderrunde | **erfüllt**, 24 Messungen |
+
+**Ein Befund, und er kam von diesem Lauf:** Befund 27, der Kopfhaken über einer
+leeren Auswahl. Behoben, aber **noch nicht auf dem Server** — er braucht `rc.9`.
+
+**Vier Befunde über den Lauf selbst**, und das ist die gewohnte Mehrheit aus
+`docs/45`, `47`, `48`, `53` und `55`:
+
+1. Die Gegenprobe in §2.3 konnte ihren eigenen Gegenstand nicht sehen
+   (`ls | tail -3` an einem Namen, der mit `e` anfängt).
+2. Die Messung an `.selection` stürzte ab, weil ich die Bedingung nicht
+   dazugeschrieben hatte — die Leiste gibt es nur mit einer Auswahl.
+3. #3 lief zuerst am kurzen Dateinamen statt am langen; der Härtefall stand im
+   Dokument und ich hatte ihn nicht in den Ablauf geschrieben.
+4. Zu 3b fehlte die Zahl, weil `mess()` nicht gelaufen war.
+
+**Und zwei Beobachtungen, die keine Befunde sind, aber benannt stehen:**
+
+- Ein 76 Zeichen langer Dateiname schiebt bei 1440 px die Aktionsspalte aus dem
+  Bild (Rollen innerhalb der Tabelle, Dokumentüberlauf 0). Entscheidung aus
+  `docs/46 §20.13`, keine Folge dieses Umbaus.
+- Eine Fehlerzeile in der Konsole gehört einer Browsererweiterung und nicht
+  diesem Panel — nachgesehen: `resources/js` kennt `sendMessage`,
+  `chrome.runtime`, `onMessage` und `addListener` **nullmal**.
+
+> **Eine Meldung, die auf der eigenen Seite erscheint, ist nicht deshalb die
+> eigene.**
 
 ---
 

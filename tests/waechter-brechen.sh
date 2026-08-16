@@ -9820,6 +9820,47 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DangerRankTest passed
 
 echo
+echo "── SchemeHandleTest: der Kopfhaken steht wieder ueber dem Geruest ──"
+#
+# Dieselbe Halbheit wie Befund 21, eine Zeile hoeher: In der Abo-Wurzel gibt es
+# nichts auszuwaehlen, und der Haken blieb nach dem Klick trotzdem angehakt --
+# der Setzer schreibt eine leere Auswahl, der Leser rechnet daraus denselben
+# Wert wie vorher, und Vue schreibt das DOM deshalb nicht zurueck.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('                v-if="selectable.length > 0"\n', '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Kopfhaken ohne Bedingung" &&
+pruefe "der Kopfhaken steht wieder ueber dem Geruest" \
+  SchemeHandleTest::test_the_header_tick_is_gone_when_nothing_can_be_ticked failed
+wiederherstellen
+
+echo "── SchemeHandleTest: die Auswahlspalte faellt aus der Kopfzeile ──"
+#
+# Der naheliegende Fix waere, das v-if an das <th> zu haengen. Dann hat die
+# Kopfzeile in der Abo-Wurzel fuenf Spalten und der Rumpf sechs, denn jede Zeile
+# traegt ihr <td data-column="Auswahl"> auch leer.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '<th v-if="props.can.edit">',
+    '<th v-if="props.can.edit && selectable.length > 0">',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Spalte im Kopf fort" &&
+pruefe "die Auswahlspalte faellt aus der Kopfzeile" \
+  SchemeHandleTest::test_the_header_tick_is_gone_when_nothing_can_be_ticked failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SchemeHandleTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

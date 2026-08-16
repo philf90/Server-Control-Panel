@@ -803,8 +803,28 @@ function pick(target: string): void {
               stünde sonst „alle ausgewählt" über einer Auswahl, die den Rest
               nicht kennt.
             -->
+            <!--
+              **Und er steht nur da, wo es etwas auszuwählen gibt** (`docs/56`,
+              Befund 27). In der Abo-Wurzel liegen ausschliesslich die sechs
+              Verzeichnisse des Schemas; `selectable` ist dort leer, und der
+              Haken konnte nichts tun.
+
+              Er tat aber etwas Sichtbares: Er blieb **angehakt** stehen. Der
+              Setzer schreibt `selected = []`, der Leser rechnet daraus wieder
+              `false` — und weil der Wert sich damit nicht **ändert**, schreibt
+              Vue das DOM nicht zurück. Der Klick des Betrachters bleibt stehen,
+              und über einer leeren Auswahl steht „alles ausgewählt".
+
+              > **Ein Kästchen, das der Betrachter setzt und das Modell nicht,
+              > zeigt danach den Klick und nicht den Zustand.**
+
+              Die Zelle bleibt: `<td data-column="Auswahl">` steht in jeder
+              Zeile, auch der leeren, und eine Kopfzeile mit fünf Spalten über
+              einem Rumpf mit sechs verschiebt die ganze Tabelle.
+            -->
             <th v-if="props.can.edit">
               <input
+                v-if="selectable.length > 0"
                 v-model="allSelected"
                 type="checkbox"
                 class="check"

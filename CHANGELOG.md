@@ -13935,3 +13935,35 @@ Der zweite steckte im Bruch: Das `, false` landete hinter der schliessenden
 Klammer von `ask(…)` statt darin, und der Wächter blieb grün — zu Recht.
 
 > **Ein Bruch muss die Regel verletzen und nicht den Code zerstören.**
+
+#### Der Kopfhaken blieb angehakt über einer leeren Auswahl
+
+Gefunden beim Nachprüflauf gegen `v0.6.0-rc.8` (`docs/56`, Befund 27). In der
+Abo-Wurzel liegen ausschliesslich die sechs Verzeichnisse des Schemas; ihre
+Haken sind seit Befund 21 fort, der **Kopf**-Haken war es nicht.
+
+Er wählte auch nichts aus. Er tat aber etwas Sichtbares, und das ist der
+Befund — gemessen im Browser, unmittelbar nach dem Klick:
+
+```
+Kopfhaken angehakt: true | Auswahlleiste da: false
+```
+
+Der Setzer schreibt `selected = []`, der Leser rechnet daraus wieder `false` —
+und weil der Wert sich damit nicht **ändert**, schreibt Vue das DOM nicht
+zurück. Der Klick bleibt stehen, und über sechs nicht ausgewählten Zeilen steht
+sichtbar „alles ausgewählt".
+
+> **Ein Kästchen, das der Betrachter setzt und das Modell nicht, zeigt danach
+> den Klick und nicht den Zustand.**
+
+Das Kästchen trägt jetzt `v-if="selectable.length > 0"`. Die **Zelle** bleibt:
+Jede Zeile trägt ihr `<td data-column="Auswahl">` auch leer, und fünf Spalten im
+Kopf über sechs im Rumpf verschieben die ganze Tabelle. `SchemeHandleTest`
+prüft beides, und beide Brüche sind gefahren — der zweite, weil der erste
+ausgerechnet die Behauptung über die Zelle nicht erreicht hat.
+
+**Und die Vorhersage war falsch.** Ich hatte den harmlosen Fall für den
+wahrscheinlichen gehalten; eingetreten ist der andere.
+
+> **Ob eine Anzeige nach einem Klick stimmt, weiss man erst nach dem Klick.**

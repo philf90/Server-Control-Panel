@@ -15,6 +15,7 @@ schliesst `docs/55` ab und macht Punkt 8 aus `docs/54` endlich messbar.
 | 25 — die Aktionen nahmen die halbe Zeile | `v0.6.0-rc.8` | nein |
 | 26 — dasselbe „Entfernen" rot und grau | `v0.6.0-rc.8` | nein |
 | `docs/54` Punkt 8 — die Bilderrunde | — | **nie geliefert** |
+| 27 — Kopfhaken über leerer Auswahl | `v0.6.0-rc.9` | gefunden **von** diesem Lauf |
 
 ---
 
@@ -142,6 +143,52 @@ das Skript nichts.
 Liegt in der Abo-Wurzel ausser dem Schema noch etwas — eine selbst angelegte
 Datei —, dann **muss** die einen Haken haben. Sind alle Haken weg, ist das der
 umgekehrte Fehler, und er ist zu melden.
+
+### Gefahren am 16. August 2026 — erfüllt, mit einem Befund
+
+| Teil | Ergebnis |
+|---|---|
+| Kein Ankreuzfeld an den sechs Verzeichnissen | **erfüllt** |
+| „gehört zum Aufbau" statt eines Strichs | **erfüllt**, sechsmal |
+| „Alle auswählen" wählt nichts aus | **erfüllt** — keine Auswahlleiste erschien |
+| Überlauf | **0 px**, Gegenprobe 400 |
+
+## Befund 27 — der Kopfhaken blieb angehakt über einer leeren Auswahl
+
+Der Haken **in der Kopfzeile** stand in der Abo-Wurzel noch da, obwohl es dort
+nichts auszuwählen gibt. Das allein wäre ein Schönheitsfehler — er wählte ja
+nichts aus. Gemessen im Browser, unmittelbar nach dem Klick:
+
+```
+Kopfhaken angehakt: true | Auswahlleiste da: false
+```
+
+**Er blieb angehakt stehen.** Der Setzer schreibt `selected = []`, der Leser
+rechnet daraus wieder `false` — und weil der Wert sich damit nicht **ändert**,
+schreibt Vue das DOM nicht zurück. Der Klick des Betrachters bleibt stehen, und
+über sechs nicht ausgewählten Zeilen steht sichtbar „alles ausgewählt".
+
+> **Ein Kästchen, das der Betrachter setzt und das Modell nicht, zeigt danach
+> den Klick und nicht den Zustand.**
+
+Das ist dieselbe Halbheit wie Befund 21, eine Zeile höher: Die Zeilen-Haken
+waren fort, der Kopf-Haken nicht. Der Knopf „Alle auswählen" in der
+Auswahlleiste hatte seine Bedingung (`selected.length < selectable.length`) und
+war korrekt verschwunden — das Kästchen daneben hatte sie nie.
+
+**Und die Vorhersage war falsch.** Ich hatte geschrieben, wahrscheinlich springe
+der Haken zurück, und den ernsteren Fall nur als Möglichkeit genannt. Er war der
+eingetretene. Erschliessen liess sich das nicht — Vue schreibt ein DOM-Attribut
+nur, wenn der neue Wert vom alten abweicht, und das hängt an einer Rechnung, die
+man nachvollziehen kann, aber nicht raten sollte.
+
+> **Ob eine Anzeige nach einem Klick stimmt, weiss man erst nach dem Klick.**
+
+Behoben: Das Kästchen trägt `v-if="selectable.length > 0"`. Die **Zelle** bleibt
+— jede Zeile trägt ihr `<td data-column="Auswahl">` auch leer, und fünf Spalten
+im Kopf über sechs im Rumpf verschieben die ganze Tabelle. Der Wächter ist
+`SchemeHandleTest::test_the_header_tick_is_gone_when_nothing_can_be_ticked` und
+prüft **beides**; beide Brüche sind gefahren.
 
 ---
 

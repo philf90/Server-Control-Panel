@@ -537,6 +537,22 @@ Jedes Mal: Knopf drücken, die Rückfrage ansehen, **abbrechen**.
 **Der Grund:** Alle vier sind umkehrbar. Rot heisst in diesem Panel „lässt sich
 nicht zurücknehmen" und ist keine Betonung.
 
+#### Gefahren am 16. August 2026 — erfüllt
+
+| Seite | Knopf | zustimmender Knopf |
+|---|---|---|
+| Abonnement `p6-b.invalid` | Sperren | **blau** |
+| Kunde `K10004` | Sperren | **blau** |
+| Datenbank `p1136_test` | Entziehen | **blau** |
+| Datenbank `x51eb6f818cf493af_test` | Zurücknehmen | **blau** |
+
+Und die Sätze der Rückfragen tragen die Begründung selbst: „…die Daten bleiben",
+„Der Zugang bleibt bestehen", „Eine Anwendung, die von dort verbindet, kommt
+danach nicht mehr herein." Kein einziger sagt „ist danach fort".
+
+> **Wenn der Satz der Rückfrage sagt, dass etwas bleibt, ist der rote Knopf
+> darüber eine Behauptung, die der Satz gleich widerruft.**
+
 ### 8.3 Der eine, der rot geworden ist
 
 | Seite | Knopf | Erwartung |
@@ -559,6 +575,21 @@ Zur Gegenprobe, dass nicht versehentlich überall Rot verschwunden ist:
 
 > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
 > steht.** Ohne §8.4 sagt §8.2 nur, dass irgendwo Farbe fehlt.
+
+#### Gefahren am 16. August 2026 — zwei von vier
+
+| Seite | Knopf | Ergebnis |
+|---|---|---|
+| Abonnement | Zurückbauen | **rot** — nebenbei belegt, weil er neben „Sperren" im Kopf steht |
+| Kunde | Zurückziehen | **rot** — dito |
+| Datenbank | Datenbank entfernen | **offen** |
+| Plan | Löschen | **offen** |
+
+Die beiden ersten sind auf denselben Bildern zu sehen wie §6.2: Im Kopf der
+Abonnementseite steht „Sperren" grau **neben** „Zurückbauen" rot, und auf der
+Kundenseite „Sperren" grau neben „Zurückziehen" rot. Das ist die Gegenprobe in
+ihrer stärksten Form — zwei Ränge nebeneinander, im selben Bild, in derselben
+Leiste.
 
 ---
 

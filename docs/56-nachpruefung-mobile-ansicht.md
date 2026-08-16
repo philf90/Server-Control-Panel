@@ -706,7 +706,7 @@ Je Aufnahme:
 | # | Ansicht | 390 dunkel | 390 hell | 1440 dunkel | 1440 hell |
 |---|---|---|---|---|---|
 | 1 | Liste mit langem Dateinamen | **0** | **0** | **0** | **0** |
-| 2 | Auswahlleiste | offen | offen | offen | offen |
+| 2 | Auswahlleiste | **0** | **0** | **0** | **0** |
 | 3 | Rechte-Editor | offen | offen | offen | offen |
 | 4 | Baum, tiefer Pfad | offen | offen | offen | offen |
 | 5 | Editor | offen | offen | offen | offen |
@@ -739,6 +739,18 @@ width: 100% }`), darüber nicht — und das steht so in `docs/46 §20.13`: *Übe
 Arbeitsplatz die Aktionsspalte aus dem Bild. Das ist der Preis der Entscheidung
 von P5c und keine Folge dieses Umbaus — vor ihm war es genauso. Ob er sich
 lohnt, ist eine Frage an den Betreiber und nicht an diesen Lauf.
+
+**Zu #2:** Bei 1440 px stehen alle sechs Knöpfe in **einer** Reihe. Bei 390 px
+**bricht** die Leiste um — drei Reihen zu zwei Knöpfen — und stapelt **nicht**
+auf volle Breite. Genau dafür trägt `.selection .button-row` seine Ausnahme von
+der 480px-Regel: Sechs gestapelte Knöpfe wären 390 px hoch, also ein ganzer
+Telefonbildschirm, bevor die Liste anfängt.
+
+> **Der Grund zu stapeln gilt für eine Reihe, die nicht umbrechen kann. Eine mit
+> sechs Knöpfen kann.**
+
+„Entfernen" ist in beiden Breiten rot und die einzige rote der sechs — dieselbe
+Einteilung wie in Punkt 6, nur an einem anderen Baustein.
 
 ### Was hier zu sehen sein wird und **kein** Fehler ist
 

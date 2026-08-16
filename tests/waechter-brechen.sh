@@ -112,11 +112,30 @@ BAEUME="resources/ app/ agent/ tests/ packaging/ .github/ database/ routes/ docs
 # über `git checkout -- resources/` gilt wörtlich auch hier.
 SELBST=":(exclude)tests/waechter-brechen.sh"
 
+# **`git status` und nicht `git diff` — der Unterschied hat sechs Prüfungen
+# gekostet.** `git diff` sieht nur, was git schon kennt; eine **neue** Datei ist
+# ihm gleichgültig. Am 16. August 2026 lief das Skript deshalb über zwei
+# nagelneue Klassen an, brach sie sechsmal — und `wiederherstellen` konnte
+# keine davon zurückholen, weil `git checkout` nichts über eine unversionierte
+# Datei weiss. Die Brüche bissen alle; die Gegenproben dahinter meldeten
+# geschlossen „ohne Biss", und der Arbeitsbaum trug am Ende sechs Eingriffe
+# übereinander.
+#
+# Der Kopf dieses Skripts sagt genau das seit P4 („git checkout stellt nur
+# wieder her, was git kennt") — und die Prüfung, die es durchsetzen soll, hat
+# den Fall nicht abgedeckt.
+#
+# > **Ein Wächter über den Zustand, der eine ganze Sorte Zustand nicht sieht,
+# > gibt Entwarnung über eine Fläche, die er nicht angesehen hat.**
+#
 # shellcheck disable=SC2086
-if ! git diff --quiet -- $BAEUME "$SELBST"; then
-  echo "Ungesicherte Änderungen in: $BAEUME" >&2
+if [ -n "$(git status --porcelain -- $BAEUME "$SELBST")" ]; then
+  echo "Ungesicherte oder neue Dateien in: $BAEUME" >&2
   echo "Erst committen oder verwerfen — dieses Skript ändert dort Dateien und" >&2
-  echo "stellt sie über git wieder her." >&2
+  echo "stellt sie über git wieder her. Eine Datei, die git nicht kennt, bekommt" >&2
+  echo "es nicht zurück:" >&2
+  # shellcheck disable=SC2086
+  git status --porcelain -- $BAEUME "$SELBST" >&2
   exit 1
 fi
 
@@ -10058,6 +10077,117 @@ pruefe "ein RSA mit 1024 Bit kommt herein" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   PublicKeyTest::test_dsa_and_short_rsa_are_refused passed
+
+echo
+echo "── SshdConfigTest: der Block hört auf, ohne aufzuhören ──"
+#
+# **Gemessen (docs/57 §6):** Eine nicht eingerückte Zeile hinter einem
+# Match-Block gehört noch zu ihm, und sshd -t meldet rc=0. Ohne den
+# Abschluss fällt die nächste Zeile, die der Betreiber an SEINE Datei
+# hängt, in UNSEREN letzten Block.
+vorher_datei agent/src/Ssh/SshdConfig.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/SshdConfig.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        $lines[] = self::TERMINATOR;', '        // der Abschluss faellt weg', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/SshdConfig.php "der Abschluss Match all fehlt" &&
+pruefe "der Abschluss Match all fehlt" \
+  SshdConfigTest::test_the_block_ends_with_a_terminator failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SshdConfigTest::test_the_block_ends_with_a_terminator passed
+
+echo
+echo "── SshdConfigTest: die Schlüsseldatei liegt im Chroot ──"
+#
+# Dort schreibt der Kunde — und die Fingerabdrücke im Panel wären eine
+# Auskunft über die Hälfte der Wahrheit.
+vorher_datei agent/src/Ssh/SshdConfig.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/SshdConfig.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        return self::KEYS.'/'.$user;", "        return '/var/www/vhosts/'.$user.'/.ssh/authorized_keys';", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/SshdConfig.php "die Schlüsseldatei liegt in Reichweite des Kunden" &&
+pruefe "die Schlüsseldatei liegt in Reichweite des Kunden" \
+  SshdConfigTest::test_the_key_file_is_out_of_the_customers_reach failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SshdConfigTest::test_the_key_file_is_out_of_the_customers_reach passed
+
+echo
+echo "── SshdConfigTest: der Name geht ungeprüft in die Datei ──"
+#
+# Gemessen (docs/57 §11): Ein Zeilenumbruch schiebt PermitRootLogin yes
+# unter und ein ChrootDirectory / für einen Benutzer, den der Aufruf nicht
+# nannte. sshd -t meldet dazu rc=0.
+vorher_datei agent/src/Ssh/SshdConfig.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/SshdConfig.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("SubscriptionProvision::subscriptionName($access['name'] ?? null)", "(string) ($access['name'] ?? '')", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/SshdConfig.php "ein Zeilenumbruch im Namen macht zwei Blöcke" &&
+pruefe "ein Zeilenumbruch im Namen macht zwei Blöcke" \
+  SshdConfigTest::test_a_newline_in_a_name_never_becomes_a_second_block failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SshdConfigTest::test_a_newline_in_a_name_never_becomes_a_second_block passed
+
+echo
+echo "── ChainTest: der Eigentümer ist egal ──"
+vorher_datei agent/src/Ssh/Chain.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/Chain.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        if ($stat['uid'] !== 0) {", '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/Chain.php "ein fremder Eigentümer fällt nicht auf" &&
+pruefe "ein fremder Eigentümer fällt nicht auf" \
+  ChainTest::test_a_foreign_owner_is_named failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ChainTest::test_a_foreign_owner_is_named passed
+
+echo
+echo "── ChainTest: das Schreibrecht der Gruppe ist egal ──"
+vorher_datei agent/src/Ssh/Chain.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/Chain.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        if (($mode & 0o020) !== 0) {', '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/Chain.php "ein gruppenschreibbares Glied fällt nicht auf" &&
+pruefe "ein gruppenschreibbares Glied fällt nicht auf" \
+  ChainTest::test_a_writable_bit_is_enough_to_fail failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ChainTest::test_a_writable_bit_is_enough_to_fail passed
+
+echo
+echo "── ChainTest: die Kette fängt erst unterhalb von / an ──"
+#
+# Gemessen (docs/57 §9): Ein gruppenschreibbares / weist die Anmeldung ab,
+# und der Server meldet dabei nichts über das Chroot.
+vorher_datei agent/src/Ssh/Chain.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/Chain.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $glieder = ['/'];", '        $glieder = [];', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/Chain.php "die Kette lässt / aus" &&
+pruefe "die Kette lässt / aus" \
+  ChainTest::test_the_chain_starts_at_the_root failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ChainTest::test_the_chain_starts_at_the_root passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

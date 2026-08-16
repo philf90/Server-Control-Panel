@@ -705,7 +705,7 @@ Je Aufnahme:
 
 | # | Ansicht | 390 dunkel | 390 hell | 1440 dunkel | 1440 hell |
 |---|---|---|---|---|---|
-| 1 | Liste mit langem Dateinamen | **0** | **0** | offen | offen |
+| 1 | Liste mit langem Dateinamen | **0** | **0** | **0** | **0** |
 | 2 | Auswahlleiste | offen | offen | offen | offen |
 | 3 | Rechte-Editor | offen | offen | offen | offen |
 | 4 | Baum, tiefer Pfad | offen | offen | offen | offen |
@@ -723,6 +723,22 @@ eine Tabelle auf 5710px trieb, ohne dass die Überlaufmessung eine Zahl lieferte
 
 Und die Ankreuzfelder sind im dunklen Theme dunkel — `color-scheme` hält, was
 `docs/55` Befund 20 behoben hat.
+
+**Bei 1440 px verhält sich dieselbe Zelle anders, und das ist Absicht.** Dort
+ist die Tabelle eine Tabelle (`.scrolls > table { width: max-content }`), der
+lange Name steht auf **einer** Zeile, und die Tabelle wächst über den Behälter
+hinaus — „Geändert" und „Aktion" stehen rechts ausserhalb und sind nur durch
+Rollen **innerhalb** der Tabelle erreichbar. Der Dokumentüberlauf bleibt 0.
+
+`.cell-name` trägt `overflow-wrap: anywhere` bei jeder Breite; es greift nur,
+wenn die Zelle beschränkt ist. Unter 720 px ist sie es (`table.stacks {
+width: 100% }`), darüber nicht — und das steht so in `docs/46 §20.13`: *Über
+720px soll die Tabelle rollen dürfen, hier soll sie es nicht müssen.*
+
+**Kein Befund, aber benannt:** Ein 76 Zeichen langer Name schiebt am
+Arbeitsplatz die Aktionsspalte aus dem Bild. Das ist der Preis der Entscheidung
+von P5c und keine Folge dieses Umbaus — vor ihm war es genauso. Ob er sich
+lohnt, ist eine Frage an den Betreiber und nicht an diesen Lauf.
 
 ### Was hier zu sehen sein wird und **kein** Fehler ist
 

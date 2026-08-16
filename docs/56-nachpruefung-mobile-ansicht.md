@@ -98,23 +98,53 @@ https://<panel>/subscriptions/<ID>/files
 Die Zahlen brauchen die Entwicklerkonsole (Firefox/Chrome: F12, dann
 Responsive Design Mode auf 390px; Safari: Web Inspector).
 
-**Zuerst die Gegenprobe.** Ohne sie bedeuten alle Nullen danach nichts:
+**Einmal je Sitzung** in die Konsole, danach genügt `mess()` je Ansicht:
 
 ```js
-// 1. Ein absichtlicher Überläufer — hier MUSS eine Zahl herauskommen.
-const probe = document.createElement('div')
-probe.style.cssText = 'width:' + (window.innerWidth + 400) + 'px;height:1px'
-document.body.appendChild(probe)
-console.log('Gegenprobe:', document.documentElement.scrollWidth - document.documentElement.clientWidth)
-probe.remove()
-// 2. Erst danach der echte Wert.
-console.log('Überlauf:', document.documentElement.scrollWidth - document.documentElement.clientWidth)
+window.mess = function () {
+  // Der absichtliche Überläufer: Hier MUSS eine Zahl herauskommen.
+  const probe = document.createElement('div')
+  probe.style.cssText = 'width:' + (window.innerWidth + 400) + 'px;height:1px'
+  document.body.appendChild(probe)
+  const gegen = document.documentElement.scrollWidth - document.documentElement.clientWidth
+  probe.remove()
+
+  console.log(
+    'breite=' + window.innerWidth,
+    '| theme=' + document.documentElement.getAttribute('data-theme'),
+    '| gegenprobe=' + gegen,
+    '| ÜBERLAUF=' + (document.documentElement.scrollWidth - document.documentElement.clientWidth),
+  )
+}
 ```
 
-**Erwartet: Gegenprobe rund 400, Überlauf 0.** Steht die Gegenprobe auf 0, misst
+`window.mess` und nicht `const mess`: Ein `const` lässt sich im selben
+Konsolen-Kontext nicht noch einmal anlegen, und der überlebt jede
+Inertia-Navigation.
+
+**Erwartet: `gegenprobe=400`, `ÜBERLAUF=0`.** Steht die Gegenprobe auf 0, misst
 das Skript nichts.
 
 > **Eine Messung, die nie etwas anderes als Null liefern kann, ist keine.**
+
+**Die Zeile trägt Breite und Theme mit.** Ohne sie steht neben dem Bild eine
+Zahl, von der niemand mehr weiss, unter welchen Bedingungen sie entstanden ist —
+und zwei Zahlen für dieselbe Ansicht bei verschiedenen Breiten sehen im
+Protokoll gleich aus.
+
+### Das Theme umschalten
+
+```js
+srvpanelTheme('dark')    // oder 'light', oder 'system'
+```
+
+**Das ist der Umschalter des Panels selbst** (`app.blade.php`), nicht ein
+`data-theme` von Hand: Er setzt beide Attribute so, wie es die Einstellungsseite
+tut. Er speichert nichts — für eine Bilderrunde ist das richtig, denn er spart
+den Weg über den Server und damit eine Navigation.
+
+**Nach einem vollständigen Neuladen sind `mess` und die Themewahl fort.** Eine
+Inertia-Navigation lädt den Rahmen nicht neu; beides überlebt sie. `F5` nicht.
 
 ---
 

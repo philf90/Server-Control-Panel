@@ -771,10 +771,22 @@ dazugeschrieben.
 mit den meisten davon auf einer Seite. Das ist die stärkste Gegenprobe zu
 `docs/55` Befund 20.
 
-**Offen aus #3:** Gefahren wurde er an `IMG_4398.jpeg`. Der Härtefall ist der
-**lange** Dateiname: Der Bereichstitel trägt ihn („Rechte für …"), und ein
-Titel, der nicht umbricht, hat in `docs/46 §20.11` die Seite um 99 px
-geschoben. Bei 1440 px ist Platz; die Frage entscheidet sich bei 390 px.
+**Der Härtefall ist nachgeholt.** Gefahren war #3 zuerst an `IMG_4398.jpeg` —
+einem kurzen Namen. Der Bereichstitel trägt aber den Dateinamen („Rechte für
+…"), und ein Titel, der nicht umbricht, hat in `docs/46 §20.11` die Seite um
+99 px geschoben.
+
+Mit dem 76 Zeichen langen Namen bei 390 px: **Der Titel bricht auf zwei Zeilen
+und bleibt innerhalb der Karte.** Das ist die dritte Fassung derselben Ausnahme
+— `overflow-wrap: anywhere` **mit** `min-width: 0`, weil ein Flexkind sonst
+nicht unter seine Inhaltsbreite darf —, und
+`MobileLayoutTest::test_a_section_heading_can_break` rechnet sie seitdem nach.
+
+**Die Zahl fehlt für diese Ansicht.** Auf dem Bild stand die Konsole noch auf
+der Messung aus #2; `mess()` ist nicht gelaufen. Bricht der Titel, ist der
+Überlauf zwangsläufig 0 — aber das ist ein Schluss und keine Messung, und dieser
+Lauf unterscheidet die beiden. **Benannt offen**, zusammen mit dem dunklen
+Gegenstück.
 
 ### Was hier zu sehen sein wird und **kein** Fehler ist
 

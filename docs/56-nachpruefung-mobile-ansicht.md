@@ -708,6 +708,7 @@ Je Aufnahme:
 | 1 | Liste mit langem Dateinamen | **0** | **0** | **0** | **0** |
 | 2 | Auswahlleiste | **0** | **0** | **0** | **0** |
 | 3 | Rechte-Editor | **0** | **0** | **0** | **0** |
+| 3b | Rechte-Editor, langer Name | **0** | **0** | — | — |
 | 4 | Baum, tiefer Pfad | offen | offen | offen | offen |
 | 5 | Editor | offen | offen | offen | offen |
 | 6 | Kärtchen, Aktionen offen | offen | offen | — | — |
@@ -782,11 +783,16 @@ und bleibt innerhalb der Karte.** Das ist die dritte Fassung derselben Ausnahme
 nicht unter seine Inhaltsbreite darf —, und
 `MobileLayoutTest::test_a_section_heading_can_break` rechnet sie seitdem nach.
 
-**Die Zahl fehlt für diese Ansicht.** Auf dem Bild stand die Konsole noch auf
-der Messung aus #2; `mess()` ist nicht gelaufen. Bricht der Titel, ist der
-Überlauf zwangsläufig 0 — aber das ist ein Schluss und keine Messung, und dieser
-Lauf unterscheidet die beiden. **Benannt offen**, zusammen mit dem dunklen
-Gegenstück.
+Gemessen in beiden Themes: `gegenprobe=400`, **`ÜBERLAUF=0`**.
+
+Beim ersten Anlauf fehlte die Zahl — auf dem Bild stand die Konsole noch auf der
+Messung aus #2. Sie ist nachgeholt, und das war richtig: Dass ein brechender
+Titel keinen Überlauf erzeugt, ist ein **Schluss** und keine Messung. Dieser
+Lauf unterscheidet die beiden.
+
+Und die Höhe der Auswahlleiste ist im dunklen Theme dieselbe — 207 px. Ein
+Themewechsel ändert an dieser Stelle nichts, und das ist die Auskunft, die eine
+zweite Messung liefert.
 
 ### Was hier zu sehen sein wird und **kein** Fehler ist
 

@@ -10000,6 +10000,66 @@ pruefe "  … zurückgesetzt wieder grün" \
   ManagedBlockTest::test_a_block_without_an_end_stops_instead_of_guessing passed
 
 echo
+echo "── PublicKeyTest: die Typprüfung fällt weg ──"
+#
+# **Ohne sie kommt eine Zeile mit Optionen herein.** Gemessen (docs/57 §11):
+# Ohne ForceCommand in der Konfiguration wird ein `command="…"` aus
+# authorized_keys ausgeführt. Die zweite Wand steht — und ist kein Grund für
+# ein Loch in der ersten.
+vorher_datei agent/src/Ssh/PublicKey.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/PublicKey.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        if (! array_key_exists($type, self::TYPES)) {', '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/PublicKey.php "Typprüfung entfernt" &&
+pruefe "eine Zeile mit Optionen kommt herein" \
+  PublicKeyTest::test_a_line_with_options_in_front_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  PublicKeyTest::test_a_line_with_options_in_front_is_refused passed
+
+echo
+echo "── PublicKeyTest: Steuerzeichen gehen durch ──"
+#
+# Ein Zeilenumbruch macht aus einer Zeile zwei — und die zweite wäre ein
+# Zugang, den das Panel nicht anzeigt. Dieselbe Einschleusung wie in
+# docs/51 §10.1 für /etc/cron.d, nur mit einem anderen Ziel.
+vorher_datei agent/src/Ssh/PublicKey.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/PublicKey.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        if (preg_match('/[\\x00-\\x1F\\x7F]/', $raw) === 1) {", '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/PublicKey.php "Steuerzeichenprüfung entfernt" &&
+pruefe "ein Zeilenumbruch macht aus einer Zeile zwei" \
+  PublicKeyTest::test_a_control_character_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  PublicKeyTest::test_a_control_character_is_refused passed
+
+echo
+echo "── PublicKeyTest: die RSA-Untergrenze fällt weg ──"
+#
+# `ssh-keygen -t rsa -b 1024` legt so einen Schlüssel anstandslos an, und
+# OpenSSH nimmt ihn. Ohne die Grenze nähme ihn dieses Panel auch.
+vorher_datei agent/src/Ssh/PublicKey.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/PublicKey.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        if ($bits < self::RSA_MINIMUM) {', '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/PublicKey.php "RSA-Untergrenze entfernt" &&
+pruefe "ein RSA mit 1024 Bit kommt herein" \
+  PublicKeyTest::test_dsa_and_short_rsa_are_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  PublicKeyTest::test_dsa_and_short_rsa_are_refused passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

@@ -287,6 +287,19 @@ man nachvollziehen kann, aber nicht raten sollte.
 
 > **Ob eine Anzeige nach einem Klick stimmt, weiss man erst nach dem Klick.**
 
+### Nachgeprüft gegen `v0.6.0-rc.9`
+
+In der Abo-Wurzel steht **kein Haken mehr** — weder in der Kopfzeile noch an
+einer der sechs Zeilen; sechsmal „gehört zum Aufbau". Die Spalte selbst ist
+geblieben, Kopf und Rumpf haben weiter gleich viele.
+
+**Offen: die Gegenprobe in `httpdocs`.** Dass irgendwo ein Haken fehlt, ist die
+halbe Auskunft; die andere ist, dass er dort steht, wo er hingehört, und tut,
+was er soll.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
 Behoben: Das Kästchen trägt `v-if="selectable.length > 0"`. Die **Zelle** bleibt
 — jede Zeile trägt ihr `<td data-column="Auswahl">` auch leer, und fünf Spalten
 im Kopf über sechs im Rumpf verschieben die ganze Tabelle. Der Wächter ist

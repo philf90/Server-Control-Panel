@@ -111,6 +111,8 @@ function suspend(): void {
     `${props.subscription.name} sperren? Webseiten und Zugänge sind danach aus, die Daten bleiben.`,
     'Sperren',
     () => { router.post(`/subscriptions/${props.subscription.id}/suspend`) },
+    // Umkehrbar — der Satz der Frage sagt es selbst: „die Daten bleiben".
+    false,
   )
 }
 

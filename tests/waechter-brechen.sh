@@ -9419,6 +9419,8 @@ s = s.replace("""  ask(
     `${props.subscription.name} sperren? Webseiten und Zugänge sind danach aus, die Daten bleiben.`,
     'Sperren',
     () => { router.post(`/subscriptions/${props.subscription.id}/suspend`) },
+    // Umkehrbar — der Satz der Frage sagt es selbst: „die Daten bleiben".
+    false,
   )""",
 """  if (!window.confirm(`${props.subscription.name} sperren?`)) return
   router.post(`/subscriptions/${props.subscription.id}/suspend`)""", 1)
@@ -9646,6 +9648,176 @@ pruefe "nur der Spaltenkopf ist umbenannt" \
   SchemeHandleTest::test_the_action_column_is_called_what_the_panel_calls_it failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SchemeHandleTest passed
+
+echo
+echo "── ClassBlockTest: zwei Bausteine unter einem Namen ──"
+#
+# Genau die Lage, aus der die Linie neben der Wurzel des Dateibaums entstanden
+# ist: `.tree ul` gehoert der Datenbankkonsole, und der Dateibaum hiess
+# ebenfalls `tree`. Wer den einen Block liest, sieht den anderen nicht.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('.file-tree {\n  min-width: 0;', '.tree {\n  min-width: 0;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "der Dateibaum heisst wieder tree" &&
+pruefe "zwei Bausteine unter einem Namen" \
+  ClassBlockTest::test_no_class_is_styled_in_two_places failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ClassBlockTest passed
+
+echo
+echo "── MobileLayoutTest: die zugeklappte Reihe ist ueberall zugeklappt ──"
+#
+# Der teure Fall: Verlaesst `.button-row.folded` seinen Medienblock, ist auf der
+# breiten Flaeche jede Knopfreihe fort -- und zugeklappt sind dort alle.
+# Umbenennen, Rechte, Entpacken und Entfernen waeren unerreichbar, und die Seite
+# saehe dabei aus wie immer.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""  .button-row.folded {
+    display: none;
+  }
+""", '', 1)
+s = s.replace('.button.fold {\n  display: none;\n}', '.button.fold {\n  display: none;\n}\n\n.button-row.folded {\n  display: none;\n}', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "folded ohne Medienblock" &&
+pruefe "die zugeklappte Reihe ist ueberall zugeklappt" \
+  MobileLayoutTest::test_a_folded_row_is_only_folded_on_a_phone failed
+wiederherstellen
+
+echo
+echo "── MobileLayoutTest: der Umschalter steht auch am Arbeitsplatz ──"
+#
+# Der Umschalter ist im Grundzustand fort und wird unter 720px eingeschaltet,
+# nicht umgekehrt: Was ohne Bedingung dasteht, gilt auch dort, wo niemand
+# nachgesehen hat.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('.button.fold {\n  display: none;\n}', '.button.fold {\n  display: inline-flex;\n}', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "Umschalter ohne Bedingung sichtbar" &&
+pruefe "der Umschalter steht auch am Arbeitsplatz" \
+  MobileLayoutTest::test_a_folded_row_is_only_folded_on_a_phone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest passed
+
+echo
+echo "── LabelReachTest: die Beschriftung zeigt ins Leere ──"
+#
+# Fuer das Auge aendert das nichts. Der Block hat fuer jemanden, der die Seite
+# hoert, dann einfach keinen Namen mehr -- und nichts meldet es.
+vorher_datei resources/js/Components/FileTree.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/FileTree.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('<p id="file-tree-title"', '<p id="file-tree-heading"', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Components/FileTree.vue "Kennung umbenannt" &&
+pruefe "die Beschriftung zeigt ins Leere" \
+  LabelReachTest::test_every_labelled_by_names_an_id_that_exists failed
+wiederherstellen
+
+echo
+echo "── LabelReachTest: zwei Namen an einem Element ──"
+#
+# Wo beides steht, gewinnt aria-label, und der Vorleser sagt etwas anderes als
+# das, was auf dem Schirm steht.
+vorher_datei resources/js/Components/FileTree.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/FileTree.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '<nav class="file-tree" aria-labelledby="file-tree-title">',
+    '<nav class="file-tree" aria-labelledby="file-tree-title" aria-label="Verzeichnisse">',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Components/FileTree.vue "zweiter Name" &&
+pruefe "zwei Namen an einem Element" \
+  LabelReachTest::test_nothing_carries_two_names_at_once failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LabelReachTest passed
+
+echo
+echo "── DangerRankTest: der Zeilenknopf wird wieder grau ──"
+#
+# Genau der Fund vom 16. August: In der Dateiliste war „Entfernen" in der
+# Auswahlleiste rot und dasselbe „Entfernen" in der Zeile darunter grau --
+# gleiche Handlung, gleiche Seite, zwei Erscheinungen.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    'class="button small danger" @click="remove(entry)"',
+    'class="button small" @click="remove(entry)"',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Zeilenknopf grau" &&
+pruefe "der Zeilenknopf wird wieder grau" \
+  DangerRankTest::test_the_button_and_its_confirmation_agree failed
+wiederherstellen
+
+echo "── DangerRankTest: die Rueckfrage zum roten Knopf wird nicht rot ──"
+#
+# Die andere Richtung. Ein `false` am vierten Argument macht aus einer roten
+# Rueckfrage eine gewoehnliche -- der Knopf darueber bleibt rot, und die beiden
+# sagen Verschiedenes ueber dieselbe Handlung.
+#
+# **Der erste Anlauf dieses Bruchs hat den Code zerstoert statt die Regel zu
+# verletzen:** Das `, false` landete hinter der schliessenden Klammer von
+# `ask(...)` statt darin. Der Waechter blieb gruen, und zwar zu Recht.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """      onSuccess: () => { selected.value = [] },
+    })
+  })
+}""",
+    """      onSuccess: () => { selected.value = [] },
+    })
+  }, false)
+}""",
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "viertes Argument false" &&
+pruefe "die Rueckfrage zum roten Knopf wird nicht rot" \
+  DangerRankTest::test_the_button_and_its_confirmation_agree failed
+wiederherstellen
+
+echo "── DangerRankTest: ein roter Formularknopf verschwindet ungezaehlt ──"
+#
+# Was dieser Waechter nicht sehen kann, zaehlt er. Ohne die Zahl stuende ein
+# neuer `type="submit"` mit roter Marke lautlos ausserhalb jeder Pruefung.
+vorher_datei resources/js/Pages/Auth/TwoFactorSetup.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Auth/TwoFactorSetup.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('class="button danger"', 'class="button"', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Auth/TwoFactorSetup.vue "roter Formularknopf fort" &&
+pruefe "ein roter Formularknopf verschwindet ungezaehlt" \
+  DangerRankTest::test_the_uncovered_buttons_are_counted failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DangerRankTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

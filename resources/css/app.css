@@ -1657,11 +1657,40 @@ table.pairs {
  * anrichten; ein Baum neben einer Liste ist derselbe Fall. Die Reihenfolge ist
  * dabei die des Quelltextes — wer auf dem Telefon ankommt, sieht zuerst, wo er
  * ist.
+ *
+ * ## Warum er `file-tree` heisst und nicht `tree`
+ *
+ * Er hiess `tree`, und so heisst auch der Baum der Datenbankkonsole — dort ein
+ * `<ul role="tree">`, hier ein `<nav>`. Die Konsole erreicht ihre Ebenen über
+ * **Elementnamen** (`.tree ul`), und diese Regel griff damit auch auf den
+ * Wurzelast dieses Baums: Er bekam `padding-left: 18px` und eine senkrechte
+ * Linie **neben der Wurzel**, wo es nichts zu verbinden gibt. Gemeldet vom
+ * Betreiber am 16. August 2026 (`docs/55`, Befund 24), gemessen im Browser: die
+ * Linie lief von y=16 bis y=210 an einem Ast mit genau einem Kind.
+ *
+ * > **Zwei Bausteine unter demselben Namen sind ein Baustein, sobald eine Regel
+ * > über Elementnamen geht.**
  */
-.tree {
+.file-tree {
   min-width: 0;
   margin-bottom: var(--block-gap);
   font-size: var(--text-small);
+}
+
+/*
+ * Der Titel des Baums — sichtbar, und zugleich sein Name für den Screenreader.
+ *
+ * Unter 720px steht der Baum unmittelbar über der Krümelspur, und beide fangen
+ * mit „Abo-Wurzel" an. Ohne eine Überschrift dazwischen liest sich das als eine
+ * Liste mit einem doppelten Eintrag.
+ */
+.tree-title {
+  margin: 0 0 6px;
+  font-size: var(--text-label);
+  font-weight: 660;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 .branch {
@@ -1677,8 +1706,55 @@ table.pairs {
  */
 .branch .branch {
   padding-left: 15px;
-  border-left: 1px solid var(--line);
   margin-left: 8px;
+}
+
+/*
+ * Die Linien — am Eintrag und nicht am Ast.
+ *
+ * **Als `border-left` am Ast lief die Linie über das letzte Kind hinaus**:
+ * gemessen 12px unter der Mitte des letzten Zweiges, also ins Leere. Und sie
+ * berührte keinen einzigen Eintrag — eine senkrechte Linie neben einer Liste
+ * sagt nicht, wozu die Einträge gehören.
+ *
+ * Am Eintrag lässt sich beides sagen: Der Strich läuft durch, beim letzten nur
+ * bis zu seinem eigenen Anschluss, und der waagerechte Stummel verbindet ihn
+ * mit dem Zweig.
+ *
+ * `--twig-center` ist die halbe Höhe einer Zweigzeile — 2px Innenabstand plus
+ * die halbe Zeilenhöhe von `--text-small`. Er steht als Wert und nicht als
+ * `50%`, weil ein Zweig mit einem 255 Zeichen langen Namen zwei Zeilen hoch
+ * wird: Der Anschluss gehört dann an die **erste** Zeile und nicht in die Mitte
+ * des Ganzen.
+ */
+.branch .branch > li {
+  position: relative;
+  --twig-center: 12px;
+}
+
+.branch .branch > li::before {
+  content: '';
+  position: absolute;
+  left: -15px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--line);
+}
+
+.branch .branch > li:last-child::before {
+  bottom: auto;
+  height: var(--twig-center);
+}
+
+.branch .branch > li::after {
+  content: '';
+  position: absolute;
+  left: -15px;
+  top: var(--twig-center);
+  width: 11px;
+  height: 1px;
+  background: var(--line);
 }
 
 .twig {
@@ -1724,7 +1800,7 @@ button.knob:hover {
  * Baum die Seite. Die fünfte Fassung derselben Ausnahme nach `.ident`,
  * `.stacks td .ident`, dem Bereichstitel und `.field > span`.
  */
-.tree .link {
+.file-tree .link {
   min-width: 0;
   overflow-wrap: anywhere;
   text-align: left;
@@ -1736,9 +1812,24 @@ button.knob:hover {
  * **Kein Farbwechsel allein.** Wer die beiden Töne nicht unterscheiden kann,
  * sieht dann keinen Unterschied; das Gewicht trägt ihn mit.
  */
-.tree .link.here {
+.file-tree .link.here {
   font-weight: 640;
   color: var(--text-strong);
+}
+
+/*
+ * **Unter 720px bekommt der Baum einen Rahmen.** Daneben steht er in einer
+ * eigenen Spalte mit einer Trennlinie rechts (`.split > .aside`), und dort
+ * fragt niemand, wo er anfängt. Gestapelt endet er ohne ein Zeichen, und der
+ * erste Krümel steht 24px darunter — auf dem Telefon las sich der Krümel als
+ * weiterer Eintrag des Baums.
+ */
+@media (max-width: 720px) {
+  .file-tree {
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
 }
 
 /*
@@ -2518,6 +2609,74 @@ tr:has(td.multiline) > td {
  */
 :is(.field, .hint, .error, .scrolls, .pager, .cell-value, .button-row) + .notice {
   margin-top: var(--block-gap);
+}
+
+/*
+ * Eine Knopfreihe, die sich auf dem Telefon zusammenlegt.
+ *
+ * ## Der Fund
+ *
+ * Der Betreiber hat es am 16. August 2026 gemeldet (`docs/55`, Befund 25): In
+ * der Dateiliste nimmt die Zelle „Aktion" auf dem Telefon fast die halbe Zeile.
+ * Gemessen bei 390px mit dem gebauten Stylesheet: **Kärtchen 344px, davon 162px
+ * die vier Knöpfe** — 47 Prozent. Auf einem Bildschirm von 700px sichtbarer
+ * Höhe passen damit zwei Einträge, und ein Verzeichnis mit zwanzig Dateien ist
+ * zehn Bildschirme lang, von denen die Hälfte aus Knöpfen besteht.
+ *
+ * Der Grund ist keine Nachlässigkeit, sondern eine richtige Regel an einer
+ * neuen Stelle: `.button-row` stapelt unter 480px und zieht ihre Knöpfe auf
+ * volle Breite, damit vom dritten nicht drei Buchstaben übrigbleiben. Für eine
+ * Reihe, die **einmal** auf der Seite steht, ist das richtig; hier steht sie
+ * einmal **je Zeile**.
+ *
+ * > **Eine Regel, die für einen Baustein gilt, gilt nicht für zwanzig davon
+ * > untereinander.**
+ *
+ * ## Und nur auf dem Telefon
+ *
+ * Über 720px ist die Zeile eine Tabellenzeile und die Knöpfe stehen
+ * nebeneinander in 40px Höhe — dort gibt es nichts zu sparen, und ein Klick
+ * mehr wäre nur ein Klick mehr. Der Umschalter ist deshalb im Grundzustand
+ * fort; ihn **hier** auszublenden und nicht im Medienblock, ist Absicht: Was
+ * ohne Bedingung dasteht, gilt auch dort, wo niemand nachgesehen hat.
+ */
+.button.fold {
+  display: none;
+}
+
+/*
+ * Die Hülle um Umschalter und Reihe.
+ *
+ * **Ohne sie stand die aufgeklappte Reihe neben dem Umschalter.** Eine
+ * gestapelte Zelle ist eine Flexzeile mit `justify-content: space-between`; drei
+ * Kinder darin — Beschriftung, Umschalter, Knopfreihe — stehen nebeneinander,
+ * und die Reihe wurde am rechten Rand abgeschnitten. Der Dokumentüberlauf stand
+ * dabei auf **0px**: Eine Zelle, die schneidet, schiebt nichts.
+ *
+ * > **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+ * > Betrachter.**
+ *
+ * Über 720px ist `.fold` fort, und dann enthält die Hülle genau ein Kind: Die
+ * Spalte ist dort keine Spalte, sondern dieselbe Knopfreihe wie vorher.
+ */
+.folds {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .button.fold {
+    display: inline-flex;
+    /* Rechtsbündig wie jeder andere Wert im Kärtchen — die Beschriftung steht
+       links, die Auskunft rechts. */
+    align-self: flex-end;
+  }
+
+  .button-row.folded {
+    display: none;
+  }
 }
 
 @media (max-width: 480px) {

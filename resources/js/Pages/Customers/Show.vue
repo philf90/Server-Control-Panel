@@ -75,6 +75,9 @@ function sperren(): void {
       : ' Es gibt kein aktives Abonnement, das mitgeht.'),
     'Sperren',
     () => { router.post(`/customers/${props.customer.id}/suspend`) },
+    // Umkehrbar: „Freigeben" steht daneben, und die Daten bleiben. Rot ist in
+    // diesem Panel „lässt sich nicht zurücknehmen" und keine Betonung.
+    false,
   )
 }
 

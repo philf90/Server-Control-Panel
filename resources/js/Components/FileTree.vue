@@ -158,7 +158,25 @@ function choose(node: Node): void {
 </script>
 
 <template>
-  <nav class="tree" :aria-label="props.picking === true ? 'Ziel wählen' : 'Verzeichnisse'">
+  <nav class="file-tree" aria-labelledby="file-tree-title">
+    <!--
+      **Die Überschrift steht sichtbar da und ist zugleich der Name für den
+      Screenreader.** Vorher war sie ein `aria-label` — für das Auge gab es
+      nichts, und unter 720px steht der Baum direkt über der Krümelspur: Wer die
+      Seite auf einem Telefon öffnet, las „Abo-Wurzel" zweimal untereinander,
+      einmal als Baumwurzel und einmal als Krümel (`docs/55`, Befund 23).
+
+      > **Zwei Namen für zwei verschiedene Dinge nützen nichts, wenn keiner der
+      > beiden dasteht.**
+
+      `aria-labelledby` und nicht beides nebeneinander: Ein sichtbarer Titel und
+      ein `aria-label` sind zwei Fassungen desselben Satzes, und die zweite ist
+      die, die veraltet.
+    -->
+    <p id="file-tree-title" class="tree-title">
+      {{ props.picking === true ? 'Ziel wählen' : 'Verzeichnisse' }}
+    </p>
+
     <p v-if="fehler !== null" class="notice warn">{{ fehler }}</p>
 
     <ul class="branch">

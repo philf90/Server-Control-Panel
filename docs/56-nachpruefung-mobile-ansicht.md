@@ -80,6 +80,79 @@ sie danach als fremd. Nachsehen, dass **`p1136`** danebensteht.
 > **Eine Gegenprobe, die nach dem Namen sortiert und die letzten Zeilen nimmt,
 > prüft die Zeile, die zufällig dort steht.**
 
+### 2.6 Prüfdaten für die Datenbankkonsole
+
+**Die Datenbank `p1136_test` war leer**, und ein Baum ohne Tabellen lässt sich
+nicht aufklappen. Angelegt am 16. August 2026 gegen **MariaDB** — welches System
+eine Datenbank hält, beantwortet:
+
+```bash
+mysql -N -e "SHOW DATABASES LIKE 'p1136_test'" 2>/dev/null
+sudo -u postgres psql -lqtA -F'|' 2>/dev/null | grep '^p1136_test|'
+```
+
+```bash
+mysql --default-character-set=utf8mb4 p1136_test <<'SQL'
+CREATE TABLE kunden (
+  id       INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  name     VARCHAR(120) NOT NULL,
+  ort      VARCHAR(120) NULL,
+  notiz    TEXT NULL,
+  angelegt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX kunden_ort ON kunden (ort);
+
+CREATE TABLE bestellungen (
+  id     INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  kunde  INT UNSIGNED NOT NULL,
+  betrag DECIMAL(10,2) NOT NULL,
+  KEY bestellungen_kunde (kunde)
+);
+
+CREATE TABLE ohne_schluessel (wert VARCHAR(80));
+
+INSERT INTO kunden (name, ort, notiz) VALUES
+  ('Müller & Söhne', 'Köln',   'unberührt'),
+  ('Tab\tim Wert',   NULL,     'zwei  Leerzeichen'),
+  ('Zeile\nUmbruch', '',       NULL),
+  ('Ökonom',         'Zürich', 'schön');
+
+INSERT INTO bestellungen (kunde, betrag) VALUES (1, 19.90), (1, 250.00), (4, 7.5);
+SQL
+
+mysql --default-character-set=utf8mb4 -e "SELECT name FROM p1136_test.kunden"
+```
+
+**`--default-character-set=utf8mb4` ist keine Zierde.** Unter dem `LC_ALL=C` aus
+`Runner::ENVIRONMENT` handelt `mysql` sonst **latin1** aus; aus `ü` wird ein
+einzelnes Byte, und `json_decode()` gibt für die **ganze Zeile** `null` zurück.
+Das war der teuerste Befund aus `docs/55`. Die letzte Zeile ist die Gegenprobe:
+Dort muss „Müller & Söhne" lesbar stehen — und tat es.
+
+**Für PostgreSQL gehört ein `SET ROLE "<eigentümer>"` an den Anfang.** Ohne ihn
+gehören die Tabellen `postgres`; der befristete Zugang der Konsole sieht sie im
+Katalog und darf sie nicht lesen. MariaDB kennt keinen Tabelleneigentümer, dort
+genügt root.
+
+**Was die Werte mitbringen — und warum keiner davon Zierde ist:**
+
+| Wert | Wofür |
+|---|---|
+| `Müller & Söhne`, `Ökonom`, `Zürich` | Kodierung. *Ein Testdatensatz aus ASCII prüft keine Kodierung.* |
+| `Tab\tim Wert`, `zwei  Leerzeichen` | Weissraum — `CellWhitespaceTest`: drei verschiedene Werte dürfen nicht gleich aussehen |
+| `Zeile\nUmbruch` | Zeilenumbruch im Wert |
+| `NULL` bei `ort` und `notiz` | `NULL` gegen leere Zeichenkette — `psql -A -t` machte daraus dasselbe |
+| `''` bei `ort` | die Gegenprobe dazu |
+| `ohne_schluessel` | die Tabelle ohne Primärschlüssel |
+| `kunden_ort` | ein Index, damit „Indexe" nicht leer ist |
+
+**Sie bleiben stehen.** Ein Prüfbestand, den man für jede Runde neu anlegt, ist
+bei der übernächsten anders. Wer ihn los sein will:
+
+```bash
+mysql p1136_test -e "DROP TABLE bestellungen, kunden, ohne_schluessel"
+```
+
 ### 2.4 Genau einmal anmelden
 
 **Drei Anmeldungen hintereinander sperren die Adresse** (`CLAUDE.md` §6.4).
@@ -414,8 +487,31 @@ das war vorher kaputt — dort lief sie 12px darüber hinaus ins Leere.
 Die 142,5px an `httpdocs` sind die Gegenprobe dazu: **nicht** letzter, also läuft
 die Linie über den ganzen Unterbaum hinweg bis zu `logs`.
 
-**Offen aus diesem Punkt:** Der Blick in die Datenbankkonsole. Er ist die andere
-Richtung — dass die Umbenennung **ihr** nichts genommen hat.
+### Die andere Richtung — die Datenbankkonsole
+
+`Wurzelast: 0px` belegt, dass die Regel der Konsole den Dateibaum nicht mehr
+trifft. Es belegt **nicht**, dass sie ihren eigenen noch trifft. Gemessen an
+`p1136_test` (MariaDB), Tabelle `kunden` aufgeklappt:
+
+```
+gruppe: einzug=18px | linie=1px solid | aussen=0px
+```
+
+| Wert | Bedeutung |
+|---|---|
+| `einzug=18px` | `.tree ul` greift noch — die Ebene ist eingerückt |
+| `linie=1px solid` | und zeichnet ihre Linie |
+| `aussen=0px` | der äussere `<ul class="tree">` trägt keine; er ist die Wurzel |
+
+**Befund 24 ist damit in beide Richtungen belegt.** Die Umbenennung hat dem
+Dateibaum eine falsche Linie genommen und der Konsole keine richtige.
+
+> **Eine Regel abzuziehen ist erst dann geprüft, wenn beide Bausteine gemessen
+> sind — der, dem sie nicht mehr gilt, und der, dem sie noch gilt.**
+
+**Und der Bestand dafür musste erst entstehen: Die Datenbank war leer.** Der
+Baum hatte nichts zum Aufklappen, also gab es nichts zu messen. Die
+Prüfdaten stehen in §2.6.
 
 ---
 

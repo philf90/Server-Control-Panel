@@ -250,6 +250,41 @@ Auf 1440 px umschalten: Der Baum steht **links neben** der Liste, mit einer
 senkrechten Trennlinie rechts von sich — und **ohne** Rahmen. Der Rahmen ist
 absichtlich nur schmal da. Steht er auch breit, ist das ein Befund.
 
+### Gefahren am 16. August 2026 — erfüllt
+
+| Fall | Ergebnis |
+|---|---|
+| `httpdocs` bei 390 px | „VERZEICHNISSE", Rahmen, Krümel `Abo-Wurzel / httpdocs` **ausserhalb** |
+| **Abo-Wurzel** bei 390 px — der Fall, der den Befund ausgelöst hat | „VERZEICHNISSE", Rahmen mit „Abo-Wurzel" darin, Rahmen zu, dann „Abo-Wurzel" als Krümel — **zwei getrennte Blöcke** |
+| Zielwählen (Kopieren) | Überschrift wechselt auf **„ZIEL WÄHLEN"** |
+| 1440 px | Baum links, Trennlinie rechts, **kein** Rahmen |
+| Überlauf | **0 px** in jedem Fall, Gegenprobe 400 |
+
+**Befund 23 ist damit bestätigt** — auch in dem Fall, für den es ihn gibt: Wo
+zweimal „Abo-Wurzel" untereinandersteht, trennt jetzt eine Überschrift und ein
+Rahmen die beiden Bedeutungen.
+
+### Eine Konsolenzeile, die nicht dazugehört
+
+In der Abo-Wurzel stand einmalig:
+
+```
+Uncaught (in promise) Error: A listener indicated an asynchronous response by
+returning true, but the message channel closed before a response was received
+```
+
+**Das ist keine Zeile dieses Panels.** Der Wortlaut stammt aus Chromes
+Erweiterungs-Schnittstelle (`chrome.runtime.sendMessage`); nachgesehen und nicht
+angenommen: In `resources/js` steht **null**mal `sendMessage`, `chrome.runtime`,
+`onMessage` oder `addListener`. Sie kommt aus einer Browsererweiterung, die ein
+Skript in die Seite hängt.
+
+Notiert, weil eine Fehlerzeile in einem Abnahmelauf nicht unkommentiert bleiben
+darf — auch dann nicht, wenn sie einem anderen gehört.
+
+> **Eine Meldung, die auf der eigenen Seite erscheint, ist nicht deshalb die
+> eigene.**
+
 ---
 
 ## 6. Punkt 4 — Befund 24: die Linien des Baums

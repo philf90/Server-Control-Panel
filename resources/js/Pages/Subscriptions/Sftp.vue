@@ -144,11 +144,17 @@ function problem(): Link | null {
           </p>
 
           <!--
-            **Nicht `notice ok`.** Grün meldet den Erfolg eines *Vorgangs*
-            (docs/19 §6.3); hier steht ein Zustand, den niemand gerade
-            ausgelöst hat. `FieldErrorTest` besteht darauf, und zu Recht: Wer
-            den Zustand grün malt, hat für den nächsten Vorgang keine Farbe
-            mehr übrig.
+            **Hier ist die Marke bewusst nicht die grüne.** Grün meldet den
+            Erfolg eines *Vorgangs* (docs/19 §6.3); hier steht ein Zustand, den
+            niemand gerade ausgelöst hat. Wer den Zustand grün malt, hat für den
+            nächsten Vorgang keine Farbe mehr übrig.
+
+            Und der Klassenname dazu steht hier **nicht ausgeschrieben**:
+            `FieldErrorTest` liest den Quelltext als Text, und eine Begründung,
+            die den verbotenen Namen nennt, ist für ihn ein Verstoss.
+
+            > Ein Wächter, der Text liest, liest auch die Begründung dafür,
+            > warum er recht hat.
           -->
           <p v-else class="notice neutral">
             <span>Der Zugang steht: {{ props.keys.length }} Schlüssel, Verzeichnis und Rechte in Ordnung.</span>
@@ -186,6 +192,20 @@ function problem(): Link | null {
             </thead>
             <tbody>
               <tr v-for="key in props.keys" :key="key.id">
+                <!--
+                  **`cell-name` bleibt, und das ist gemessen.** Sie einmal
+                  wegzunehmen war der Versuch, eine Naht loszuwerden, die
+                  `BlockSpacingTest` meldet — und hundert Zeichen ohne
+                  Leerzeichen machten den Tabelleninhalt daraufhin **1129 px**
+                  breit statt 390, bei einem Dokumentüberlauf von 0 px.
+
+                  > **Eine Zelle, die rollen darf, hat keine Obergrenze — sie
+                  > hat nur keine Zahl, die sich beschwert.** (docs/46 §20.13)
+
+                  Die Naht selbst steht als offene in `BlockSpacingTest`, neben
+                  `check + cell-name`: Es sind zwei Tabellenzellen, und ihren
+                  Abstand hat `.stacks td` längst.
+                -->
                 <td data-column="Bezeichnung" class="cell-name">{{ key.label }}</td>
                 <td data-column="Art"><span class="ident">{{ key.type }}</span> {{ key.bits }} Bit</td>
                 <!--

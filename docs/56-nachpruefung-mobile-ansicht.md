@@ -707,7 +707,7 @@ Je Aufnahme:
 |---|---|---|---|---|---|
 | 1 | Liste mit langem Dateinamen | **0** | **0** | **0** | **0** |
 | 2 | Auswahlleiste | **0** | **0** | **0** | **0** |
-| 3 | Rechte-Editor | offen | offen | offen | offen |
+| 3 | Rechte-Editor | **0** | **0** | **0** | **0** |
 | 4 | Baum, tiefer Pfad | offen | offen | offen | offen |
 | 5 | Editor | offen | offen | offen | offen |
 | 6 | Kärtchen, Aktionen offen | offen | offen | — | — |
@@ -751,6 +751,30 @@ Telefonbildschirm, bevor die Liste anfängt.
 
 „Entfernen" ist in beiden Breiten rot und die einzige rote der sechs — dieselbe
 Einteilung wie in Punkt 6, nur an einem anderen Baustein.
+
+**Und die Höhe der Leiste ist nachgemessen: `.selection` misst bei 390 px
+207 px** — der ganze Block mitsamt Innenabstand und der Zeile „1 Eintrag
+ausgewählt". Die 138 px, die `app.css` nennt, meinen die **Knopfreihe** darin;
+die beiden Zahlen sind also nicht dieselbe Messung. Was sie belegt, ist der
+Unterschied, um den es geht: Gestapelt wäre allein die Reihe 390 px hoch, der
+Block also gut 460 px. 207 px ist der umgebrochene Fall.
+
+**Der Aufruf dazu ist beim ersten Versuch abgestürzt**, und das war mein Fehler:
+`document.querySelector('.selection')` gibt `null`, solange nichts ausgewählt
+ist — die Leiste existiert dann gar nicht. Ich hatte das Anhaken nicht
+dazugeschrieben.
+
+> **Eine Messung an einem Baustein, den es erst unter einer Bedingung gibt,
+> braucht die Bedingung im selben Satz.**
+
+**Zu #3:** Die neun Ankreuzfelder sind im dunklen Theme dunkel — an der Stelle
+mit den meisten davon auf einer Seite. Das ist die stärkste Gegenprobe zu
+`docs/55` Befund 20.
+
+**Offen aus #3:** Gefahren wurde er an `IMG_4398.jpeg`. Der Härtefall ist der
+**lange** Dateiname: Der Bereichstitel trägt ihn („Rechte für …"), und ein
+Titel, der nicht umbricht, hat in `docs/46 §20.11` die Seite um 99 px
+geschoben. Bei 1440 px ist Platz; die Frage entscheidet sich bei 390 px.
 
 ### Was hier zu sehen sein wird und **kein** Fehler ist
 

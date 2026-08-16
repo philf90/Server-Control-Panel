@@ -1343,6 +1343,289 @@ ihm.
 
 ---
 
+## Nachprüfung gegen `v0.6.0-rc.5` — Befund 17 erfüllt
+
+```
+Ausgangszustand (von root hergestellt):
+  drwxr-s---  p1136 www-data  p6-gid
+
+nach „Rechte" → 755 im Panel:
+  drwxr-sr-x  p1136 www-data  p6-gid          ← das Bit steht noch da
+
+und die neu angelegte Datei darin:
+  -rw-r--r--  p1136 www-data  probe2.txt      ← die Gruppe wird vererbt
+```
+
+Beide Hälften. Vorher stand hier `drwxr-xr-x` und `p1136 p1136` — die zweite
+Zeile ist die, auf die es ankommt: Sie ist der Schaden, den das fehlende Bit
+anrichtet, und nicht bloss seine Anzeige.
+
+> **Ein Bit, das dasteht, ist noch keine Vererbung — gemessen wird sie an dem,
+> was danach entsteht.**
+
+Damit ist auch belegt, dass `p1136` die Gruppe `www-data` **nur innerhalb dieses
+einen Vorgangs** trägt: Der Ausgangszustand musste von root hergestellt werden,
+weil der Kunde das Bit nicht selbst setzen kann. Die Ausnahme reicht genau so
+weit wie beschrieben.
+
+---
+
+## Punkt 6 — Packen, erfüllt
+
+### (a) Der Hauptteil
+
+```
+Length  Name
+     5  p6-k1.txt
+     5  p6-k2.txt
+     5  p6-k3.txt
+3 files
+```
+
+Drei Einträge, **jeder unter seinem eigenen Namen und ohne Pfadanteil davor**.
+Das Namensfeld stand dabei in der Auswahlleiste und nicht mehr in einem
+Systemdialog (Befund 15).
+
+### (b) Das Archiv im eigenen Ziel
+
+```
+Das Formular wurde nicht gespeichert.
+Das Archiv kann nicht in einem Verzeichnis liegen, das es selbst enthalten soll.
+```
+
+Und `test2/` ist danach **leer** — die Absage hinterlässt keine halbe Datei. Das
+ist die Hälfte, die zählt: `ZipArchive::open(CREATE)` legt sonst gern schon
+etwas an, bevor der erste Eintrag hineingeht.
+
+### (c) — nicht über die Oberfläche fahrbar, und das ist ein Fehler des Laufs
+
+`docs/54` verlangt zwei gleich heissende Einträge aus verschiedenen
+Verzeichnissen, „über die Suche erreichbar oder von Hand angelegt". **Beides geht
+nicht.** Die Suchergebnisse tragen keine Ankreuzfelder, und das ist nicht der
+Grund: Die Auswahl lebt **je Verzeichnis** und fällt beim Navigieren weg — die
+Regel aus 5h, gegen die Auswahl, die man nicht mehr sieht. Zwei gleich heissende
+Einträge liegen definitionsgemäss in verschiedenen Verzeichnissen und können
+darum nie zusammen angehakt sein.
+
+> **Ein Abnahmeschritt, der zwei Zustände gleichzeitig verlangt, die einander
+> ausschliessen, ist nicht schwer zu fahren — er ist unfahrbar.**
+
+Derselbe Fund wie `docs/46 §15 Punkt 3`, und wieder beim Ausschreiben bemerkt
+statt beim Planen.
+
+**Die Prüfung im `Packer` bleibt richtig** — sie ist Vorsorge für den Tag, an dem
+die Suche Ankreuzfelder bekommt, und `SelectionTest` deckt sie mitsamt der
+Gegenprobe ab, dass die Absage die gleichen Namen nennt und nicht das belegte
+Ziel.
+
+Gemessen wurde sie über denselben Weg wie die Oberfläche, nur ohne Browser:
+
+```
+SrvPanel\Agent\AgentException: Zwei ausgewählte Einträge heissen gleich.txt
+  — im Archiv bliebe nur einer übrig.
+
+-rw-r--r-- 1 p1136 www-data 319 auswahl.zip     ← und kein doppelt.zip daneben
+```
+
+Der Wortlaut ist der Beleg: Käme hier „Am Ziel steht schon etwas", prüfte die
+Absage das Falsche.
+
+> **Was die Oberfläche nicht erreichen kann, misst man auf dem Weg darunter —
+> und schreibt dazu, dass es dieser Weg war.**
+
+---
+
+## Punkt 7 — Anlegen und der Mehrfach-Upload, erfüllt
+
+### (a) Datei anlegen
+
+```
+-rw-r--r-- 1 p1136 www-data 4 …/httpdocs/p6-neu.txt
+```
+
+Angelegt, beschrieben, Gruppe `www-data`. **Ob danach der Editor offen stand
+oder die Liste, ist nicht festgehalten worden** — der Inhalt belegt nur, dass
+irgendwo geschrieben werden konnte. Steht als kleine offene Frage weiter unten.
+
+### (b) Drei Dateien nach `conf`, das root gehört
+
+```
+Von 3 Dateien sind 0 hochgeladen.
+IMG_4400.jpeg: In dieses Verzeichnis darf das Abonnement nicht schreiben.
+IMG_4399.jpeg: In dieses Verzeichnis darf das Abonnement nicht schreiben.
+IMG_4398.jpeg: In dieses Verzeichnis darf das Abonnement nicht schreiben.
+```
+
+**Drei Zeilen mit Namen und Grund** — und das ist der Teil, der zählt: Diese
+Zeilen hat der Controller seit Schritt 5e geschrieben, und **kein Kunde hat sie
+je gesehen** (Befund 12). Bei der Mehrfachauswahl war das schon nachgeprüft; hier
+ist die zweite Stelle belegt, an der derselbe Bruch sass.
+
+Und `conf/` enthält danach nur seinen root-eigenen `p6-b.invalid.include` —
+**nichts Neues**. Ein Upload, der abgewiesen wird und trotzdem eine Datei
+hinterlässt, wäre der Befund; die Datei entsteht hier gar nicht erst.
+
+### (c) Dieselben drei nach `httpdocs`
+
+```
+3 Dateien sind hochgeladen.
+
+-rw-r--r-- 1 p1136 www-data 3825530 IMG_4398.jpeg
+-rw-r--r-- 1 p1136 www-data 3319057 IMG_4399.jpeg
+-rw-r--r-- 1 p1136 www-data 3481087 IMG_4400.jpeg
+```
+
+**Drei Dateien, jede unter ihrem eigenen Namen**, jede mit ihrer eigenen Grösse.
+Läge dort eine, wäre der Fehler zurück, den 5e behoben hat — ein vollständiger
+Zielpfad für mehrere Quellen ist **ein** Pfad für alle, und der letzte gewönne.
+
+Die drei verschiedenen Grössen sind dabei der bessere Beleg als die drei Namen:
+Ein Fehler, der alle drei unter denselben Namen schriebe, hinterliesse **eine**
+Datei mit der Grösse der letzten.
+
+> **Drei gleiche Namen fallen auf. Drei gleiche Inhalte unter drei Namen nicht.**
+
+### Was die Liste nebenbei zeigt
+
+Angelegte und hochgeladene Dateien tragen `0644`, von Hand angelegte `0640`.
+Beides ist unbedenklich: `httpdocs` selbst steht auf `2750` und lässt keinen
+fremden Benutzer hinein, also ist `others` dort ohne Wirkung. **Kein Befund** —
+notiert, weil die Zahl in der Liste steht und sonst beim nächsten Lesen wieder
+Fragen aufwirft.
+
+---
+
+## Befund 18 — die Griffe standen an Verzeichnissen, die sie nie annehmen
+
+Gefunden im Bild, nicht in einer Zahl: `.ssh/` trug in der Liste **Umbenennen**,
+**Rechte** und **Entfernen**. `Scheme::protect()` weist alle drei für die sechs
+Verzeichnisse des Schemas **immer** ab — für jeden Kunden, in jedem Zustand.
+Dasselbe galt für `conf`, `httpdocs`, `logs`, `mail` und `tmp`.
+
+Die Liste entschied über `can.edit && entry.writable`, und `.ssh` gehört dem
+Kunden mit `0700`. **Die zweite Schranke gab es nur im Agenten**, und im Panel
+hatte sie kein Gegenstück — zwei Zeilen über genau diesem `v-if` steht der Satz,
+den das verletzt: „Der Knopf erscheint nur, wenn der Betrachter ihn drücken
+darf."
+
+> **Ein Knopf, der nie funktioniert, ist keine Auskunft — er ist eine Zusage,
+> die das System nicht einlöst.**
+
+Bei „Entfernen" ist die Absage noch lehrreich („Sein Inhalt lässt sich ändern").
+Bei **„Rechte"** ist sie es nicht: Der Kunde öffnet den Editor, setzt neun
+Kästchen, drückt Speichern — und erfährt erst dann, dass es nie ging.
+
+**Behoben:** Der Controller markiert jeden Eintrag über `Scheme::isFixed()`; die
+Liste lässt die drei Griffe weg und schreibt an ihre Stelle „gehört zum Aufbau"
+statt eines Strichs. Ein Strich sagt „hier ist nichts", und das wäre falsch —
+der **Inhalt** dieser Verzeichnisse lässt sich sehr wohl ändern.
+
+**Keine zweite Liste:** Agent-Klassen sind aus der Anwendung autoladbar, also
+fragt das Panel `Scheme` direkt. `SchemeHandleTest` prüft beide Richtungen und
+besteht ausserdem darauf, dass der Controller die Namen **nicht** abtippt.
+
+### Zwei Brüche sind dabei durchgekommen, und beide zeigen dieselbe Lücke
+
+Der erste nahm `marked()` aus der Antwort heraus und liess die Methode stehen —
+der Wächter fand seine Zeile weiter, **in totem Code**.
+
+> **Eine Zeile, die niemand ausführt, steht im Quelltext genauso da wie eine,
+> die läuft.**
+
+Der zweite tippte die Namen mit führendem Schrägstrich ab (`'/httpdocs'`), und
+der Ausdruck suchte nach `'httpdocs'`. Beide Male war der Wächter grün für einen
+Zustand, den er verbieten soll. Er prüft jetzt die **Aufrufstelle** und beide
+Schreibweisen.
+
+## Befund 19 — die Antwort stand ausserhalb des Bildes
+
+Gemeldet vom Betreiber: „Der Browser sollte automatisch zur Marke des
+Rückfrage-Banners springen. Man muss manuell hochscrollen und übersieht es so
+leicht."
+
+Gedrückt wird an einer Zeile weit unten, gefragt wird oben (`docs/19 §6`) — und
+sichtbar geschieht nichts.
+
+> **Eine Antwort, die ausserhalb des Bildes steht, ist für den Fragenden
+> keine.**
+
+Das ist zum **dritten Mal in zwei Tagen** derselbe Eindruck: Befund 15 (der
+`prompt`, den Safari abschaltet), Befund 16 (dasselbe für `confirm`) und jetzt
+eine Antwort, die zwar da ist, aber nicht dort, wo jemand hinsieht. Dreimal
+dieselbe Erfahrung — „der Knopf tut nichts" — aus drei verschiedenen Ursachen.
+
+### Und die Fehlerzusammenfassung hatte es genauso
+
+`FormErrors` steht oben mit der Begründung, dass „die Seite nach der Antwort
+ohnehin nach oben springt". Das stimmt — **ausser bei `preserveScroll: true`**,
+und allein `Files/Index.vue` setzt es an **zehn** Griffen, weil eine Liste, die
+nach jedem Klick nach oben springt, unbrauchbar wäre.
+
+> **Eine Regel, die sich auf ein Verhalten des Frameworks stützt, gilt nur dort,
+> wo dieses Verhalten eingeschaltet ist.**
+
+Damit war die Zusammenfassung, die gegen die unsichtbare Zeile am Feld gebaut
+wurde, im Dateimanager selbst unsichtbar.
+
+**Behoben** für beide, über dieselbe Stelle (`resources/js/scroll.ts`):
+Gescrollt wird **nur**, wenn der Block wirklich ausserhalb steht — sonst risse
+jede Meldung die Seite auf einem grossen Bildschirm grundlos herum. Der Fokus
+wandert auf den **Block** und nicht auf seinen Knopf: „Entfernen" zu fokussieren
+hiesse, dass die Leertaste die Handlung auslöst, die gerade erst erfragt wurde.
+
+> **Eine Rückfrage, deren Antwort schon vorausgewählt ist, ist keine.**
+
+Wächter: `InViewTest`, drei Brüche, alle drei beissen.
+
+---
+
+## Befund 20 — das leere Ankreuzfeld sah voller aus als das volle
+
+Gemessen bei 390 px im **hellen** Theme, auf einem iPhone mit **dunkel**
+eingestelltem System: Im Rechte-Editor stand ein angehaktes Kästchen lila
+gefüllt da — und ein leeres als **schwarz gefülltes Quadrat** auf weissem Grund.
+
+> **Ein leeres Bedienelement, das gefüllt aussieht, sagt das Gegenteil dessen,
+> was es meint.**
+
+Die Ursache ist die fehlende Angabe `color-scheme`. Ohne sie zeichnet der Browser
+seine **eigenen** Bedienelemente — Ankreuzfelder, Textfelder, Rollbalken — nach
+dem Erscheinungsbild des **Betriebssystems**, und das hat mit dem Theme dieser
+Seite nichts zu tun.
+
+### Und die Vorhersage hatte das falsche Vorzeichen
+
+`docs/54` hat für Punkt 8 ausdrücklich notiert, was zu erwarten sei: „Im dunklen
+Theme malt der Browser leere Ankreuzfelder weiss." Gesehen wurde das **Gegenteil**
+— schwarze Kästchen im hellen Theme —, und im dunklen Theme war nichts
+aufgefallen.
+
+Dieselbe fehlende Zeile, das andere Vorzeichen: Welches man sieht, hängt am
+System des Betrachters. Auf einem dunkel eingestellten Telefon ist das dunkle
+Theme unauffällig und das helle kaputt.
+
+> **Eine Vorhersage über ein Symptom prüft nicht die Ursache — sie rät nur, in
+> welcher Richtung sie sich zeigt.**
+
+Das ist auch der Grund, warum der Punkt bis hierher als „kein Fehler dieses
+Schrittes, gehört in Schritt 12" durchgereicht wurde: Die vorhergesagte Form war
+harmlos genug, um sie zu vertagen. Die tatsächliche ist es nicht.
+
+**Behoben:** `color-scheme: light` und `color-scheme: dark` an den beiden
+Theme-Wurzeln. Zwei Zeilen, und sie stehen dort, wo auch die Farben stehen.
+Wächter: `ThemeTest::test_both_themes_declare_their_color_scheme` — er prüft
+**beide** Wurzeln, denn eine Zeile allein macht ein Theme richtig und lässt das
+andere erben.
+
+### Was der helle Durchgang sonst gezeigt hat
+
+Die Rückfrage trägt im hellen Theme eine gebrochen-weisse Fläche mit
+dunkelgoldenem Rand und einen dunkelroten Rahmen um „Entfernen" — lesbar. Die
+Auswahlleiste bricht auch hier in Reihen statt zu stapeln. Und `.ssh/` trug noch
+alle drei Griffe, `conf/` einen Strich: der Stand **vor** Befund 18, wie erwartet.
+
+---
+
 ---
 
 ## Offen, klein, nicht verfolgt

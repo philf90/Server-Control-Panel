@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import { bringIntoView } from '../scroll'
 
 /*
  * Was an einem Formular gerade nicht stimmt — an einer Stelle, die man sieht.
@@ -56,10 +57,31 @@ const messages = computed((): string[] =>
       : [],
   ),
 )
+
+const block = ref<HTMLElement | null>(null)
+
+/*
+ * **Und die Zusammenfassung holt sich ebenfalls ins Bild.**
+ *
+ * Der Kommentar oben stützt sich darauf, dass „die Seite nach der Antwort
+ * ohnehin nach oben springt". Das stimmt — **ausser bei `preserveScroll:
+ * true`**, und allein `Files/Index.vue` setzt es an zehn Griffen, weil eine
+ * Liste, die nach jedem Klick nach oben springt, unbrauchbar wäre. Dort stand
+ * die Meldung also wieder ausserhalb des Bildes, genau wie die Zeile am Feld,
+ * gegen die diese Komponente gebaut wurde.
+ *
+ * > **Eine Regel, die sich auf ein Verhalten des Frameworks stützt, gilt nur
+ * > dort, wo dieses Verhalten eingeschaltet ist.**
+ */
+watch(() => messages.value.length, (anzahl, vorher) => {
+  if (anzahl > 0 && anzahl !== vorher) {
+    void nextTick(() => bringIntoView(block.value))
+  }
+})
 </script>
 
 <template>
-  <p v-if="messages.length > 0" class="notice critical" role="alert">
+  <p v-if="messages.length > 0" ref="block" class="notice critical" role="alert" tabindex="-1">
     <span>
       <b>Das Formular wurde nicht gespeichert.</b>
       <template v-for="(message, index) in messages" :key="index">

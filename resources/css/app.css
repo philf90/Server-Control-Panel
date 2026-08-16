@@ -54,6 +54,31 @@
  */
 :root,
 :root[data-theme='light'] {
+  /*
+   * **Das Theme gilt auch für die Bedienelemente des Browsers.**
+   *
+   * Ohne diese Zeile zeichnet der Browser Ankreuzfelder, Textfelder und
+   * Rollbalken nach dem Erscheinungsbild des **Betriebssystems** — und das hat
+   * mit dem Theme dieser Seite nichts zu tun.
+   *
+   * Gemessen am 15. August 2026 auf einem iPhone mit dunkel eingestelltem
+   * System und hell eingestelltem Panel (`docs/55`, Befund 20): Ein leeres
+   * Ankreuzfeld stand als **schwarz gefülltes Quadrat** auf weissem Grund.
+   * Angehakt sieht es lila-gefüllt aus, nicht angehakt schwarz-gefüllt — und
+   * damit sieht der leere Zustand voller aus als der volle.
+   *
+   * > **Ein leeres Bedienelement, das gefüllt aussieht, sagt das Gegenteil
+   * > dessen, was es meint.**
+   *
+   * `docs/54` hat für diesen Schritt das andere Vorzeichen erwartet — weisse
+   * Kästchen im dunklen Theme. Die Ursache ist dieselbe fehlende Zeile; welches
+   * Vorzeichen man sieht, hängt am System des Betrachters und nicht am Panel.
+   *
+   * > **Eine Vorhersage über ein Symptom prüft nicht die Ursache — sie rät nur,
+   * > in welcher Richtung sie sich zeigt.**
+   */
+  color-scheme: light;
+
   --bg: #ffffff;
 
   /* Die ruhige Fläche: das Rail, ein Kärtchen auf der schmalen Fläche, die
@@ -142,6 +167,9 @@
  * unlesbar.
  */
 :root[data-theme='dark'] {
+  /* Dieselbe Zeile mit dem anderen Wert — siehe die Begründung oben. */
+  color-scheme: dark;
+
   --bg: #0f1116;
   --surface: #14171d;
   --line: #2c313d;

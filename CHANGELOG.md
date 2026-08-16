@@ -13701,3 +13701,62 @@ gibt es eine Absage statt eines stillen Erfolgs. Das greift auch dort, wo es
 
 > **Ein Fehler, den nur eine Messung von aussen sichtbar macht, braucht einen
 > Prüfblick von innen.**
+
+#### Keine Griffe mehr an Verzeichnissen, die sie nie annehmen
+
+`.ssh/` trug in der Dateiliste **Umbenennen**, **Rechte** und **Entfernen** —
+und `Scheme::protect()` weist alle drei für die sechs Verzeichnisse des Schemas
+**immer** ab. Die Liste entschied über `writable`, und `.ssh` gehört dem Kunden
+mit `0700`; die zweite Schranke gab es nur im Agenten.
+
+> **Ein Knopf, der nie funktioniert, ist keine Auskunft — er ist eine Zusage,
+> die das System nicht einlöst.**
+
+Bei „Rechte" wog das am schwersten: Der Kunde öffnet den Editor, setzt neun
+Kästchen, drückt Speichern — und erfährt erst dann, dass es nie ging.
+
+Der Controller markiert die Einträge jetzt über `Scheme::isFixed()`, und an der
+Stelle der Griffe steht „gehört zum Aufbau" statt eines Strichs: Ein Strich sagt
+„hier ist nichts", und der **Inhalt** dieser Verzeichnisse lässt sich sehr wohl
+ändern. Keine zweite Liste — Agent-Klassen sind aus der Anwendung autoladbar.
+
+#### Und was die Seite sagt, holt sich ins Bild
+
+Gedrückt wird an einer Zeile weit unten, gefragt wird oben — und mit
+`preserveScroll: true` springt die Seite nicht mit. Auf einem Telefon sah die
+Rückfrage damit aus wie ein Knopf, der nichts tut: zum dritten Mal in zwei Tagen
+derselbe Eindruck aus einer anderen Ursache.
+
+> **Eine Antwort, die ausserhalb des Bildes steht, ist für den Fragenden
+> keine.**
+
+Dasselbe traf die Fehlerzusammenfassung. Sie steht oben, weil „die Seite nach der
+Antwort ohnehin nach oben springt" — ausser bei `preserveScroll`, und allein der
+Dateimanager setzt das an zehn Griffen.
+
+> **Eine Regel, die sich auf ein Verhalten des Frameworks stützt, gilt nur dort,
+> wo dieses Verhalten eingeschaltet ist.**
+
+Gescrollt wird nur, wenn der Block wirklich ausserhalb steht, und der Fokus
+wandert auf den Block statt auf seinen Knopf: „Entfernen" zu fokussieren hiesse,
+dass die Leertaste die Handlung auslöst, die gerade erst erfragt wurde.
+
+#### Das Theme gilt jetzt auch für die Bedienelemente des Browsers
+
+Auf einem iPhone mit dunkel eingestelltem System und **hell** eingestelltem Panel
+stand ein leeres Ankreuzfeld als schwarz gefülltes Quadrat auf weissem Grund —
+angehakt lila gefüllt, leer schwarz gefüllt.
+
+> **Ein leeres Bedienelement, das gefüllt aussieht, sagt das Gegenteil dessen,
+> was es meint.**
+
+Ohne `color-scheme` zeichnet der Browser Ankreuzfelder, Textfelder und Rollbalken
+nach dem Erscheinungsbild des Betriebssystems. Beide Theme-Wurzeln sagen es jetzt.
+
+Bemerkenswert ist, wie lange das durchgereicht wurde: Der Punkt stand seit dem
+Plan als „im dunklen Theme malt der Browser leere Kästchen weiss — gehört in
+Schritt 12". Gesehen wurde das Gegenteil, und die vorhergesagte Form war harmlos
+genug, um sie zu vertagen.
+
+> **Eine Vorhersage über ein Symptom prüft nicht die Ursache — sie rät nur, in
+> welcher Richtung sie sich zeigt.**

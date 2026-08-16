@@ -365,6 +365,11 @@ final class SubscriptionController extends Controller
                  * dahinter entscheidet über die Griffe noch einmal selbst.
                  */
                 'browseFiles' => $account?->can('browseFiles', $subscription) ?? false,
+
+                // Und der SFTP-Zugang hängt an seinem eigenen Recht: Wer
+                // Dateien im Panel ändern darf, darf damit noch keinen
+                // dauerhaften Zugang von aussen einrichten.
+                'manageSftp' => $account?->can('manageSftp', $subscription) ?? false,
             ],
 
             /*

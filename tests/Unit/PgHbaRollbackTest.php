@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\ManagedBlock;
 use SrvPanel\Agent\Ops\PgRemoteAccess;
 use SrvPanel\Agent\Pg\Hba;
 
@@ -32,7 +33,7 @@ use SrvPanel\Agent\Pg\Hba;
  *
  * **Nicht der Quelltext.** `docs/38 §18` verlangt „gegen einen echten Cluster,
  * nicht am Quelltext", und der Grund ist: Ein `assertStringContainsString` auf
- * `Hba::put($path, $before)` bestünde auch dann, wenn der Aufruf in einem Zweig
+ * `ManagedBlock::put($path, $before)` bestünde auch dann, wenn der Aufruf in einem Zweig
  * stünde, den nichts erreicht.
  *
  * **Ein Cluster steht in der CI aber nicht zur Verfügung.** Was hier deshalb
@@ -43,7 +44,7 @@ use SrvPanel\Agent\Pg\Hba;
  * `docs/38 §14.2`.
  *
  * **Der Bruch dazu** (`tests/waechter-brechen.sh`): den Rückweg durch ein
- * `log()` ersetzen — also `Hba::put($path, $before)` aus {@see
+ * `log()` ersetzen — also `ManagedBlock::put($path, $before)` aus {@see
  * PgRemoteAccess::apply()} nehmen und nur noch werfen.
  */
 final class PgHbaRollbackTest extends TestCase
@@ -166,11 +167,11 @@ final class PgHbaRollbackTest extends TestCase
         /*
          * Die Nummer wird **gerechnet und nicht getippt**: Sie muss auf die
          * Regel in der abgewiesenen Fassung zeigen, und wo die steht, hängt an
-         * {@see Hba::render()}. Eine feste Zahl hier ginge beim nächsten
+         * {@see ManagedBlock::render()}. Eine feste Zahl hier ginge beim nächsten
          * Zusatz zum Block lautlos daneben — und der Test bestünde weiter,
          * weil er dann den Zweig ohne Text prüft.
          */
-        $kandidat = explode("\n", Hba::render($this->existing(), $this->good()));
+        $kandidat = explode("\n", ManagedBlock::render($this->existing(), $this->good(), $this->path));
         $nummer = 0;
 
         foreach ($kandidat as $index => $zeile) {
@@ -312,7 +313,7 @@ final class PgHbaRollbackTest extends TestCase
         $danach = (string) file_get_contents($this->path);
 
         $this->assertTrue($ergebnis['changed'], 'Ein neuer Block ist eine Änderung.');
-        $this->assertSame($this->good(), Hba::managed($danach), 'Der Block steht nicht in der Datei.');
+        $this->assertSame($this->good(), ManagedBlock::managed($danach), 'Der Block steht nicht in der Datei.');
         $this->assertStringContainsString(Hba::RULE, $danach, 'Die Zeile für das Zurückspielen fehlt.');
         $this->assertStringContainsString(
             'host    all             +buchhaltung    10.0.0.0/8              reject',
@@ -322,7 +323,7 @@ final class PgHbaRollbackTest extends TestCase
 
         $this->assertSame(
             $vorher,
-            Hba::render($danach, []),
+            ManagedBlock::render($danach, [], $this->path),
             'Nimmt man den Block wieder heraus, steht nicht der Ausgangsstand da — irgendetwas '
             .'ausserhalb der Marken hat sich mitverändert.',
         );
@@ -351,7 +352,7 @@ final class PgHbaRollbackTest extends TestCase
 
         $this->assertGreaterThan(
             strpos($danach, '+buchhaltung'),
-            strpos($danach, Hba::BEGIN),
+            strpos($danach, ManagedBlock::BEGIN),
             'Der verwaltete Block steht über der Regel des Betreibers und hebelt sie damit aus.',
         );
     }
@@ -403,7 +404,7 @@ final class PgHbaRollbackTest extends TestCase
         $danach = (string) file_get_contents($this->path);
 
         $this->assertSame($vorher, $danach, 'Nach dem Entfernen steht nicht der Ausgangsstand da.');
-        $this->assertStringNotContainsString(Hba::BEGIN, $danach, 'Ein leerer Rumpf ist liegengeblieben.');
+        $this->assertStringNotContainsString(ManagedBlock::BEGIN, $danach, 'Ein leerer Rumpf ist liegengeblieben.');
     }
 
     /**
@@ -478,7 +479,7 @@ final class PgHbaRollbackTest extends TestCase
     {
         file_put_contents($this->path, $this->existing());
 
-        $ergebnis = Hba::locked($this->path, fn (): array => PgRemoteAccess::apply(
+        $ergebnis = ManagedBlock::locked($this->path, fn (): array => PgRemoteAccess::apply(
             $this->path,
             $this->good(),
             static function (): void {},
@@ -498,7 +499,7 @@ final class PgHbaRollbackTest extends TestCase
      */
     public function test_a_half_written_block_stops_instead_of_guessing(): void
     {
-        file_put_contents($this->path, $this->existing()."\n".Hba::BEGIN."\nhost    a   b   c   d\n");
+        file_put_contents($this->path, $this->existing()."\n".ManagedBlock::BEGIN."\nhost    a   b   c   d\n");
         $vorher = (string) file_get_contents($this->path);
 
         $this->expectException(AgentException::class);

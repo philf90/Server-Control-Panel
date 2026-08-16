@@ -112,11 +112,30 @@ BAEUME="resources/ app/ agent/ tests/ packaging/ .github/ database/ routes/ docs
 # über `git checkout -- resources/` gilt wörtlich auch hier.
 SELBST=":(exclude)tests/waechter-brechen.sh"
 
+# **`git status` und nicht `git diff` — der Unterschied hat sechs Prüfungen
+# gekostet.** `git diff` sieht nur, was git schon kennt; eine **neue** Datei ist
+# ihm gleichgültig. Am 16. August 2026 lief das Skript deshalb über zwei
+# nagelneue Klassen an, brach sie sechsmal — und `wiederherstellen` konnte
+# keine davon zurückholen, weil `git checkout` nichts über eine unversionierte
+# Datei weiss. Die Brüche bissen alle; die Gegenproben dahinter meldeten
+# geschlossen „ohne Biss", und der Arbeitsbaum trug am Ende sechs Eingriffe
+# übereinander.
+#
+# Der Kopf dieses Skripts sagt genau das seit P4 („git checkout stellt nur
+# wieder her, was git kennt") — und die Prüfung, die es durchsetzen soll, hat
+# den Fall nicht abgedeckt.
+#
+# > **Ein Wächter über den Zustand, der eine ganze Sorte Zustand nicht sieht,
+# > gibt Entwarnung über eine Fläche, die er nicht angesehen hat.**
+#
 # shellcheck disable=SC2086
-if ! git diff --quiet -- $BAEUME "$SELBST"; then
-  echo "Ungesicherte Änderungen in: $BAEUME" >&2
+if [ -n "$(git status --porcelain -- $BAEUME "$SELBST")" ]; then
+  echo "Ungesicherte oder neue Dateien in: $BAEUME" >&2
   echo "Erst committen oder verwerfen — dieses Skript ändert dort Dateien und" >&2
-  echo "stellt sie über git wieder her." >&2
+  echo "stellt sie über git wieder her. Eine Datei, die git nicht kennt, bekommt" >&2
+  echo "es nicht zurück:" >&2
+  # shellcheck disable=SC2086
+  git status --porcelain -- $BAEUME "$SELBST" >&2
   exit 1
 fi
 
@@ -6434,7 +6453,7 @@ vorher_datei agent/src/Ops/PgRemoteAccess.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/PgRemoteAccess.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace("""                Hba::put($path, $before);
+s = s.replace("""                ManagedBlock::put($path, $before);
                 $reload();
 """, """                $reload();
 """)
@@ -6483,10 +6502,10 @@ python3 - <<'PY2'
 p = 'agent/src/Ops/PgRemoteAccess.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    "return Hba::locked($path, static function () use ($path, $rules, $reload, $errors): array {",
+    "return ManagedBlock::locked($path, static function () use ($path, $rules, $reload, $errors): array {",
     "return (static function () use ($path, $rules, $reload, $errors): array {")
-s = s.replace("""            return ['rules' => Hba::managed($after), 'changed' => true];
-        });""", """            return ['rules' => Hba::managed($after), 'changed' => true];
+s = s.replace("""            return ['rules' => ManagedBlock::managed($after), 'changed' => true];
+        });""", """            return ['rules' => ManagedBlock::managed($after), 'changed' => true];
         })();""")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
@@ -6501,16 +6520,21 @@ echo "── PgHbaRollbackTest: der Block stellt sich vor den Bestand ──"
 # In pg_hba.conf entscheidet die erste passende Zeile. Steht unser Block ueber
 # einem „reject" des Betreibers, gewinnt er — und „der Bestand ist Gesetz"
 # waere eine Behauptung. Dieselbe Falle wie in docs/28 §6 fuer nginx.
-vorher_datei agent/src/Pg/Hba.php
+#
+# **Der Eingriff ist am 16. August umgezogen**, weil der Code es ist: Das
+# Setzen des Bereichs steht seit `ManagedBlock` nicht mehr in `Pg\Hba`.
+# Gemerkt hat es `BreakScriptTest` — vier Eingriffe fanden ihren Text nicht
+# mehr, und ein Eingriff, der nichts ändert, prüft nichts.
+vorher_datei agent/src/ManagedBlock.php
 python3 - <<'PY2'
-p = 'agent/src/Pg/Hba.php'
+p = 'agent/src/ManagedBlock.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
     'return $rest."\\n".self::BEGIN."\\n".implode("\\n", $lines)."\\n".self::END."\\n";',
     'return self::BEGIN."\\n".implode("\\n", $lines)."\\n".self::END."\\n\\n".$rest;')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei agent/src/Pg/Hba.php "Block über dem Bestand" &&
+griff_datei agent/src/ManagedBlock.php "Block über dem Bestand" &&
 pruefe "Block über dem Bestand" \
   PgHbaRollbackTest::test_the_block_goes_below_what_the_operator_wrote failed
 wiederherstellen
@@ -9859,6 +9883,316 @@ pruefe "die Auswahlspalte faellt aus der Kopfzeile" \
   SchemeHandleTest::test_the_header_tick_is_gone_when_nothing_can_be_ticked failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SchemeHandleTest passed
+
+echo
+echo "── ManagedBlockTest: der Verwalter einer fremden Datei schreibt selbst ──"
+#
+# Die Regel ist nicht „schreib vorsichtig", sondern „schreib gar nicht": Eine
+# zweite Schreibstelle waere eine zweite Fassung von Sperre, Ersetzung und
+# Rechteuebernahme — und die zweite ist die, die veraltet.
+vorher_datei agent/src/Pg/Hba.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Hba.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '    public static function prepend(',
+    '    public static function schnell(string $p): void { file_put_contents($p, "\\n"); }\n\n    public static function prepend(',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Hba.php "Hba schreibt selbst" &&
+pruefe "der Verwalter einer fremden Datei schreibt selbst" \
+  ManagedBlockTest::test_a_manager_of_a_foreign_file_writes_nothing_itself failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ManagedBlockTest::test_a_manager_of_a_foreign_file_writes_nothing_itself passed
+
+echo
+echo "── ManagedBlockTest: ein put() einen Schritt neben der Sperre ──"
+#
+# **Das ist der Fehler aus docs/45 in seiner allgemeinen Form.** Er sieht beim
+# Lesen richtig aus: Das Schreiben steht noch in derselben Methode, nur eben
+# hinter der schliessenden Klammer von locked(). Genau dazwischen kann sich ein
+# zweiter Prozess schieben.
+vorher_datei agent/src/Ops/PgRoleRemove.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgRoleRemove.php'
+s = open(p, encoding='utf-8').read()
+alt = '            ManagedBlock::put($path, ManagedBlock::render($content, $keep, $path));'
+s = s.replace(alt, '            $fertig = ManagedBlock::render($content, $keep, $path);')
+s = s.replace(
+    '        return $dropped;',
+    "        ManagedBlock::put($path, $fertig ?? '');\n\n        return $dropped;",
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgRoleRemove.php "put() aus der Sperre gezogen" &&
+pruefe "ein put() steht ausserhalb der Sperre" \
+  ManagedBlockTest::test_every_read_and_write_sits_under_the_lock failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ManagedBlockTest::test_every_read_and_write_sits_under_the_lock passed
+
+echo
+echo "── ManagedBlockTest: die Sperre liegt auf der Datei statt daneben ──"
+vorher_datei agent/src/ManagedBlock.php
+sed -i 's|\$lock = \$path\.self::LOCK_SUFFIX;|$lock = $path;|' agent/src/ManagedBlock.php
+griff_datei agent/src/ManagedBlock.php "Sperre auf der Datei" &&
+pruefe "die Sperre liegt auf der verwalteten Datei" \
+  ManagedBlockTest::test_the_lock_lies_beside_the_file failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ManagedBlockTest::test_the_lock_lies_beside_the_file passed
+
+echo
+echo "── ManagedBlockTest: der Zähler fehlt, und die Sperre wartet auf sich selbst ──"
+#
+# **Dieser Eingriff ist der Grund für die Frist im Wächter.** Ohne den Zähler
+# hängt der verschachtelte Aufruf — er schlägt nicht fehl, er steht. Ein
+# Wächter ohne Kindprozess und Frist meldete hier nichts, sondern hielte diesen
+# ganzen Lauf an.
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        if ((self::$held[$path] ?? 0) > 0) {', '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/ManagedBlock.php "Zähler der Sperre entfernt" &&
+pruefe "die Sperre wartet auf sich selbst" \
+  ManagedBlockTest::test_the_lock_is_reentrant failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ManagedBlockTest::test_the_lock_is_reentrant passed
+
+echo
+echo "── ManagedBlockTest: geschrieben wird in die Datei statt daneben ──"
+#
+# `file_put_contents` kürzt zuerst und schreibt dann. Ein Abbruch dazwischen
+# lässt eine leere pg_hba.conf zurück — die ist syntaktisch fehlerfrei und
+# weist jeden ab.
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $temporary = $path.'.srvpanel.'.getmypid();", '        $temporary = $path;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/ManagedBlock.php "kein Umweg über die Nachbardatei" &&
+pruefe "die Datei wird gekürzt statt ersetzt" \
+  ManagedBlockTest::test_the_file_is_replaced_and_never_truncated failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ManagedBlockTest::test_the_file_is_replaced_and_never_truncated passed
+
+echo
+echo "── ManagedBlockTest: der Bestand ausserhalb der Marken fällt weg ──"
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '        $rest = self::without($content, $path);',
+    "        $rest = self::without($content, $path);\n        $rest = '';",
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/ManagedBlock.php "Bestand fällt weg" &&
+pruefe "alles ausserhalb der Marken fällt weg" \
+  ManagedBlockTest::test_everything_outside_the_markers_stays failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ManagedBlockTest::test_everything_outside_the_markers_stays passed
+
+echo
+echo "── ManagedBlockTest: ein BEGIN ohne END wird geraten statt gemeldet ──"
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        if ($end === null) {', '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/ManagedBlock.php "BEGIN ohne END geht durch" &&
+pruefe "ein halb geschriebener Bereich wird geraten" \
+  ManagedBlockTest::test_a_block_without_an_end_stops_instead_of_guessing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ManagedBlockTest::test_a_block_without_an_end_stops_instead_of_guessing passed
+
+echo
+echo "── PublicKeyTest: die Typprüfung fällt weg ──"
+#
+# **Ohne sie kommt eine Zeile mit Optionen herein.** Gemessen (docs/57 §11):
+# Ohne ForceCommand in der Konfiguration wird ein `command="…"` aus
+# authorized_keys ausgeführt. Die zweite Wand steht — und ist kein Grund für
+# ein Loch in der ersten.
+vorher_datei agent/src/Ssh/PublicKey.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/PublicKey.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        if (! array_key_exists($type, self::TYPES)) {', '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/PublicKey.php "Typprüfung entfernt" &&
+pruefe "eine Zeile mit Optionen kommt herein" \
+  PublicKeyTest::test_a_line_with_options_in_front_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  PublicKeyTest::test_a_line_with_options_in_front_is_refused passed
+
+echo
+echo "── PublicKeyTest: Steuerzeichen gehen durch ──"
+#
+# Ein Zeilenumbruch macht aus einer Zeile zwei — und die zweite wäre ein
+# Zugang, den das Panel nicht anzeigt. Dieselbe Einschleusung wie in
+# docs/51 §10.1 für /etc/cron.d, nur mit einem anderen Ziel.
+vorher_datei agent/src/Ssh/PublicKey.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/PublicKey.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        if (preg_match('/[\\x00-\\x1F\\x7F]/', $raw) === 1) {", '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/PublicKey.php "Steuerzeichenprüfung entfernt" &&
+pruefe "ein Zeilenumbruch macht aus einer Zeile zwei" \
+  PublicKeyTest::test_a_control_character_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  PublicKeyTest::test_a_control_character_is_refused passed
+
+echo
+echo "── PublicKeyTest: die RSA-Untergrenze fällt weg ──"
+#
+# `ssh-keygen -t rsa -b 1024` legt so einen Schlüssel anstandslos an, und
+# OpenSSH nimmt ihn. Ohne die Grenze nähme ihn dieses Panel auch.
+vorher_datei agent/src/Ssh/PublicKey.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/PublicKey.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        if ($bits < self::RSA_MINIMUM) {', '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/PublicKey.php "RSA-Untergrenze entfernt" &&
+pruefe "ein RSA mit 1024 Bit kommt herein" \
+  PublicKeyTest::test_dsa_and_short_rsa_are_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  PublicKeyTest::test_dsa_and_short_rsa_are_refused passed
+
+echo
+echo "── SshdConfigTest: der Block hört auf, ohne aufzuhören ──"
+#
+# **Gemessen (docs/57 §6):** Eine nicht eingerückte Zeile hinter einem
+# Match-Block gehört noch zu ihm, und sshd -t meldet rc=0. Ohne den
+# Abschluss fällt die nächste Zeile, die der Betreiber an SEINE Datei
+# hängt, in UNSEREN letzten Block.
+vorher_datei agent/src/Ssh/SshdConfig.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/SshdConfig.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        $lines[] = self::TERMINATOR;', '        // der Abschluss faellt weg', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/SshdConfig.php "der Abschluss Match all fehlt" &&
+pruefe "der Abschluss Match all fehlt" \
+  SshdConfigTest::test_the_block_ends_with_a_terminator failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SshdConfigTest::test_the_block_ends_with_a_terminator passed
+
+echo
+echo "── SshdConfigTest: die Schlüsseldatei liegt im Chroot ──"
+#
+# Dort schreibt der Kunde — und die Fingerabdrücke im Panel wären eine
+# Auskunft über die Hälfte der Wahrheit.
+vorher_datei agent/src/Ssh/SshdConfig.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/SshdConfig.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        return self::KEYS.'/'.$user;", "        return '/var/www/vhosts/'.$user.'/.ssh/authorized_keys';", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/SshdConfig.php "die Schlüsseldatei liegt in Reichweite des Kunden" &&
+pruefe "die Schlüsseldatei liegt in Reichweite des Kunden" \
+  SshdConfigTest::test_the_key_file_is_out_of_the_customers_reach failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SshdConfigTest::test_the_key_file_is_out_of_the_customers_reach passed
+
+echo
+echo "── SshdConfigTest: der Name geht ungeprüft in die Datei ──"
+#
+# Gemessen (docs/57 §11): Ein Zeilenumbruch schiebt PermitRootLogin yes
+# unter und ein ChrootDirectory / für einen Benutzer, den der Aufruf nicht
+# nannte. sshd -t meldet dazu rc=0.
+vorher_datei agent/src/Ssh/SshdConfig.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/SshdConfig.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("SubscriptionProvision::subscriptionName($access['name'] ?? null)", "(string) ($access['name'] ?? '')", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/SshdConfig.php "ein Zeilenumbruch im Namen macht zwei Blöcke" &&
+pruefe "ein Zeilenumbruch im Namen macht zwei Blöcke" \
+  SshdConfigTest::test_a_newline_in_a_name_never_becomes_a_second_block failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SshdConfigTest::test_a_newline_in_a_name_never_becomes_a_second_block passed
+
+echo
+echo "── ChainTest: der Eigentümer ist egal ──"
+vorher_datei agent/src/Ssh/Chain.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/Chain.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        if ($stat['uid'] !== 0) {", '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/Chain.php "ein fremder Eigentümer fällt nicht auf" &&
+pruefe "ein fremder Eigentümer fällt nicht auf" \
+  ChainTest::test_a_foreign_owner_is_named failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ChainTest::test_a_foreign_owner_is_named passed
+
+echo
+echo "── ChainTest: das Schreibrecht der Gruppe ist egal ──"
+vorher_datei agent/src/Ssh/Chain.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/Chain.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        if (($mode & 0o020) !== 0) {', '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/Chain.php "ein gruppenschreibbares Glied fällt nicht auf" &&
+pruefe "ein gruppenschreibbares Glied fällt nicht auf" \
+  ChainTest::test_a_writable_bit_is_enough_to_fail failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ChainTest::test_a_writable_bit_is_enough_to_fail passed
+
+echo
+echo "── ChainTest: die Kette fängt erst unterhalb von / an ──"
+#
+# Gemessen (docs/57 §9): Ein gruppenschreibbares / weist die Anmeldung ab,
+# und der Server meldet dabei nichts über das Chroot.
+vorher_datei agent/src/Ssh/Chain.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/Chain.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $glieder = ['/'];", '        $glieder = [];', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/Chain.php "die Kette lässt / aus" &&
+pruefe "die Kette lässt / aus" \
+  ChainTest::test_the_chain_starts_at_the_root failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ChainTest::test_the_chain_starts_at_the_root passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

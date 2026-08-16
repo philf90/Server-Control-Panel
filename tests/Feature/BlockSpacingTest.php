@@ -109,6 +109,14 @@ final class BlockSpacingTest extends TestCase
         'button-row + button',
         'button-row + form',
         'button-row + scrolls',
+        // Zwei Zellen einer `.stacks`-Tabelle, keine zwei Blöcke im Fluss:
+        // Bei 390 px stapeln sie, und ihren Abstand hat `.stacks td`. Wortgleich
+        // die Nachbarschaft eine Zeile weiter unten.
+        //
+        // `cell-name` an der Zelle ist dabei nicht verhandelbar — ohne sie war
+        // der Tabelleninhalt bei hundert Zeichen ohne Leerzeichen 1129 px breit
+        // statt 390, und der Dokumentüberlauf trotzdem 0 px (docs/46 §20.13).
+        'cell-name + ident',
         'check + cell-name',
         'choices + dependent',
         'choices + label',

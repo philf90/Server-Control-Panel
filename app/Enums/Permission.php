@@ -45,7 +45,10 @@ enum Permission: string
             self::Backups => 'Sicherungen',
             self::PhpSettings => 'PHP-Einstellungen',
             self::Certificates => 'Zertifikate',
-            self::FtpAccounts => 'FTP-Konten',
+            // Der gespeicherte Wert bleibt `ftp_accounts` — P6 baut kein FTP
+            // (docs/51 §13), und SFTP tritt an seine Stelle. Eine Migration
+            // über account_subscription wäre der Preis für eine Zeichenkette.
+            self::FtpAccounts => 'SFTP-Zugang',
             self::Statistics => 'Statistik',
         };
     }

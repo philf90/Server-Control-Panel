@@ -72,6 +72,22 @@ final class AgentOperationReachTest extends TestCase
         'files.compress' => 'Siehe files.write.',
         'files.search' => 'Siehe files.list.',
 
+        /*
+         * **P6 Schritt 8: der SFTP-Zugang.** Kein Lebenslauf, und der Grund ist
+         * derselbe wie bei `pg.remote.access`: Der Dienst ruft unmittelbar auf,
+         * weil der Sollzustand beim *Ausführen* aus dem Bestand entsteht und
+         * nicht beim Einreihen.
+         *
+         * > **Eine Frage an den Bestand, die beim Einreihen gestellt wird,
+         * > kennt die anderen Vorgänge derselben Reihe nicht.**
+         *
+         * Was das Panel führt, sind die Schlüssel in `ssh_keys`; die Datei und
+         * der Block sind ihr Abbild und kein zweiter Bestand.
+         */
+        'sftp.key.apply' => 'Schreibt die Schlüsseldatei aus dem vollständigen Bestand von `ssh_keys`. App\\Support\\Files\\Sftp ruft unmittelbar auf — der Kunde soll die Meldung an seinem Formular lesen.',
+        'sftp.access' => 'Schreibt den verwalteten Block in sshd_config aus dem vollständigen Bestand. Siehe sftp.key.apply.',
+        'sftp.check' => 'Fragt nur nach: die beiden Ketten und was für den Benutzer wirklich gilt. Am Bestand des Panels ändert sich nichts.',
+
         'agent.ping' => 'Fragt nur nach der Version des Agenten.',
         'system.info' => 'Liest Kennzahlen für die Übersicht.',
         'service.status' => 'Liest den Zustand einer Unit.',

@@ -637,6 +637,23 @@ Testen berücksichtigen:
 
   > **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite
   > braucht einen Versuch.**
+- **Einen `sshd` gibt es hier auch — er ist nur nicht installiert.** Dasselbe
+  wie bei MariaDB, und derselbe Satz: `apt-get install openssh-server
+  openssh-client` holt **OpenSSH 9.6p1** aus dem Ubuntu-Archiv, dieselbe
+  Fassungsreihe, gegen die `docs/50 §6` gemessen hat. Ein Wegwerf-Dienst auf
+  einem eigenen Port mit eigener Konfigurationsdatei rührt den installierten
+  nicht an; `tests/sftp-messen.sh` fährt so 42 Messungen in einem Lauf.
+  Gemessen am 16. August 2026, als Schritt 8 von P6 anstand und „kein `sshd`"
+  in der Übergabe stand (`docs/57`).
+
+  Der teuerste Fund daraus, weil er das Vorbild aus P5b umkehrt: **Ein
+  Neuladen mit einer kaputten Datei tötet den sshd** — PostgreSQL bedient in
+  derselben Lage weiter und behält die alten Regeln. Der Rückweg „schreiben,
+  neu laden, bei einem Fehler zurückrollen" trägt hier nicht, weil nach dem
+  Neuladen kein Dienst mehr da ist, in den man zurückrollen könnte.
+
+  > **Ein Rückweg, der voraussetzt, dass der Dienst noch läuft, ist keiner für
+  > den Fall, dass ihn genau dieser Vorgang beendet hat.**
 - **PostgreSQL gibt es hier, und zwar vollständig.** `postgresql-16` ist
   installiert, Serverbinärdateien und alles. Ein
   Wegwerf-Cluster (`initdb` in den Scratchpad, `pg_ctl` auf einem eigenen Port)

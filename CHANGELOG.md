@@ -13447,6 +13447,44 @@ gegen „seit 3 Tagen". Eine Mengenangabe kann das nicht leisten und soll es nic
 Zwei Brüche dazu, beide zubeissend: eine Seite, die das Wort wieder selbst
 entscheidet, und eine, die einbindet, ohne aufzurufen.
 
+### P6 Schritt 8 — die Messrunde vor SFTP, und `ManagedBlock`
+
+`docs/50 §6` hat die Chroot-Kette gemessen und die Konfigurationssemantik nicht.
+Genau daran hängt SFTP vollständig. **`docs/57` ist die Runde dazu**, gefahren
+gegen einen echten `sshd` 9.6p1 im Container — 42 Messungen, jede mit
+Gegenprobe, als `tests/sftp-messen.sh` im Repo. Drei Befunde daraus haben den
+Entwurf geändert, bevor die erste Zeile entstand:
+
+- **Ein Neuladen mit einer kaputten Datei tötet den sshd.** PostgreSQL bedient
+  in derselben Lage weiter und behält die alten Regeln. Der Ablauf aus
+  `docs/38 §14.2` — schreiben, neu laden, bei einem Fehler zurückrollen — trägt
+  hier deshalb nicht.
+  > **Ein Rückweg, der voraussetzt, dass der Dienst noch läuft, ist keiner für
+  > den Fall, dass ihn genau dieser Vorgang beendet hat.**
+- **Ein `Match`-Block hat kein Ende, nur einen Nachfolger.** Eine nicht
+  eingerückte Zeile dahinter gehört ihm, und `sshd -t` meldet `rc=0`.
+  > **Eine Endmarke sagt, wo unser Text aufhört. Sie sagt nicht, wo seine
+  > Wirkung aufhört.**
+- **Die Schlüsseldatei hat eine zweite Kette**, die früher und mit anderem
+  Wortlaut scheitert — und `StrictModes` akzeptiert Eigentümer root *oder* den
+  Benutzer. „Nie der Kunde" ist damit unsere Regel und nicht die von OpenSSH.
+
+**`ManagedBlock` ist aus `Pg\Hba` herausgezogen.** Die Maschinerie für einen
+verwalteten Bereich in einer fremden Datei — Sperre, atomares Ersetzen,
+additives Setzen, der Abbruch bei `BEGIN` ohne `END` — war die Hälfte einer
+Klasse über `pg_hba.conf` und bekommt mit `sshd_config` einen zweiten Benutzer.
+Jede der fünf Regeln darin kommt aus einem Fehler, der schon passiert ist.
+
+**`ManagedBlockTest` ist der Wächter dazu**, mit sieben Regeln und sieben
+Brüchen in `tests/waechter-brechen.sh`. Einer davon hat die Bauart des Wächters
+bestimmt: Ohne den Zähler in `locked()` **hängt** der verschachtelte Aufruf,
+statt fehlzuschlagen. Ein Wächter, der bei einem Rückfall stehen bleibt, meldet
+nichts — er hält den ganzen Lauf an. `test_the_lock_is_reentrant` läuft deshalb
+in einem Kindprozess mit Frist und meldet nach zehn Sekunden Rot.
+
+> **Ein Bruch muss die Regel verletzen und nicht den Code zerstören — und ein
+> hängender Wächter meldet noch weniger als ein abgebrochener.**
+
 ### P6 — der Prüflauf auf `cloudsrv24` findet drei Fehler, die seit P0 bzw. 5e da sind
 
 Neun Schritte waren gebaut, seit die Sandbox auf einem echten Server gemessen

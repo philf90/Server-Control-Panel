@@ -79,6 +79,9 @@ use SrvPanel\Agent\Ops\PhpVersionList;
 use SrvPanel\Agent\Ops\PhpVersionRemove;
 use SrvPanel\Agent\Ops\ServiceAction;
 use SrvPanel\Agent\Ops\ServiceStatus;
+use SrvPanel\Agent\Ops\SftpAccess;
+use SrvPanel\Agent\Ops\SftpCheck;
+use SrvPanel\Agent\Ops\SftpKeyApply;
 use SrvPanel\Agent\Ops\SubscriptionProvision;
 use SrvPanel\Agent\Ops\SubscriptionQuota;
 use SrvPanel\Agent\Ops\SubscriptionRemove;
@@ -141,6 +144,19 @@ final class Registry
         $this->register(new FilesCompress);
         $this->register(new FilesSearch);
         $this->register(new FilesTree);
+
+        /*
+         * P6 Schritt 8 — SFTP (docs/51 §9).
+         *
+         * `sftp.key.apply` steht vor `sftp.access`, und die Reihenfolge ist
+         * dieselbe Überlegung wie bei den `remove`-Hälften weiter unten: Die
+         * Schlüsseldatei ist das, was auf der Platte bleibt. Ihr Weg zurück ist
+         * derselbe Aufruf mit leerer Liste — deshalb steht sie mit Begründung in
+         * `RemovalPathTest::WRITES_WITHOUT_VERB` und nicht als eigenes Paar.
+         */
+        $this->register(new SftpKeyApply);
+        $this->register(new SftpAccess);
+        $this->register(new SftpCheck);
 
         $this->register(new WebserverDetect);
         $this->register(new WebSiteApply);

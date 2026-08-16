@@ -110,6 +110,25 @@ final class SubscriptionPolicy
      * verbotener Verzeichnisse im Panel wäre eine zweite Durchsetzung derselben
      * Grenze, und sie ginge beim nächsten Schema-Zuwachs auseinander.
      */
+    /**
+     * Den SFTP-Zugang verwalten — Schlüssel ansehen, eintragen, entfernen.
+     *
+     * **Am Recht `FtpAccounts` und nicht an einem neuen.** Der Katalog führt es
+     * seit P0 unter diesem Wert; P6 baut ausdrücklich kein FTP (`docs/51 §13`),
+     * und SFTP ist das, was an seine Stelle tritt. Der gespeicherte Wert bleibt,
+     * die Beschriftung heisst „SFTP-Zugang" — eine Migration über
+     * `account_subscription` wäre der Preis dafür, dass eine Zeichenkette
+     * hübscher aussieht.
+     *
+     * **Und es ist nicht `FilesWrite`.** Wer Dateien im Panel ändern darf, darf
+     * damit noch lange keinen dauerhaften Zugang von aussen einrichten: Ein
+     * Schlüssel überlebt den Entzug des Panel-Zugangs, wenn niemand daran denkt.
+     */
+    public function manageSftp(Account $account, Subscription $subscription): bool
+    {
+        return $this->useFeature($account, $subscription, Permission::FtpAccounts);
+    }
+
     public function browseFiles(Account $account, Subscription $subscription): bool
     {
         return $this->useFeature($account, $subscription, Permission::FilesRead);

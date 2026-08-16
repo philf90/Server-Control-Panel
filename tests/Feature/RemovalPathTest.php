@@ -94,6 +94,7 @@ final class RemovalPathTest extends TestCase
         'pg.server.install' => 'Installiert ein Paket der Distribution. Der Weg zurück ist `apt remove postgresql` und gehört dem Betreiber: Ein `pg.server.remove` im Panel würde mit dem Paket auch jede Kundendatenbank entfernen — und zwar hinter einem Knopf, dessen Beschriftung das nicht sagt. Die Fläche schliesst `srvpanel db --postgres=off`, ohne dass Daten verschwinden.',
         'pg.dump.create' => 'Der Weg zurück ist `db.dump.remove`, und der gilt für beide Systeme: Diese Operation legt eine Datei an, und eine Datei hat kein Datenbanksystem. Ein `pg.dump.remove` wäre Zeile für Zeile dieselbe Operation (docs/38 §13).',
         'pg.dump.import' => 'Übernimmt eine mitgebrachte Datei in dieselbe Ablage — der Weg zurück ist derselbe wie bei pg.dump.create.',
+        'sftp.key.apply' => 'Der Weg zurück ist dieselbe Operation mit leerer `keys`-Liste — sie entfernt die Datei, statt sie zu leeren. Ein `sftp.key.remove` wäre eine zweite Fassung desselben Sollzustands, und die zweite ist die, die veraltet: Sie müsste wissen, welche Schlüssel danach übrig sind, und das weiss nur der Bestand. Entfernt wird die Datei ausserdem von `subscription.remove` — sie liegt ausserhalb der Abo-Wurzel, weil der Kunde nicht an sie herankommen soll, und geht deshalb beim Löschen des Verzeichnisses nicht mit.',
         'web.logrotate.apply' => 'Die Rotationsdatei eines Abonnements. Sie wird von `subscription.remove` entfernt, und zwar gesucht statt übergeben — eine eigene Operation hätte eine Liste zu führen, die nach einem abgebrochenen Lauf unvollständig ist.',
     ];
 
@@ -137,6 +138,15 @@ final class RemovalPathTest extends TestCase
         'files.upload' => 'Der Weg zurück ist `files.remove`; das Zwischenlager räumt der Controller im `finally`.',
         'files.extract' => 'Der Weg zurück ist `files.remove` mit `recursive` auf das Zielverzeichnis.',
         'files.compress' => 'Der Weg zurück ist `files.remove` auf das erzeugte Archiv.',
+
+        // **P6 Schritt 8: der SFTP-Zugang.** Beide Wege zurück sind dieselbe
+        // Operation mit leerer Liste — und beide sind gebaut, nicht gedacht:
+        // `App\Support\Files\Sftp::remove()` ruft sie beim letzten Schlüssel
+        // eines Abonnements auf, und der Rückbau des Abonnements nimmt die
+        // Schlüsseldatei mit. Das ist der Unterschied zu der Lücke aus docs/35,
+        // wo ein privater Schlüssel liegenblieb, den niemand entfernen konnte.
+        'sftp.key.apply' => 'Der Weg zurück ist dieselbe Operation mit leerer `keys`-Liste: Sie entfernt /etc/srvpanel/ssh/<benutzer>, statt sie zu leeren — eine leere Datei sähe aus wie „Zugang eingerichtet, keine Schlüssel" und ist dasselbe wie „kein Zugang".',
+        'sftp.access' => 'Der Weg zurück ist dieselbe Operation mit leerer `accesses`-Liste; sie nimmt den verwalteten Block aus sshd_config. Die Datei selbst gehört OpenSSH und der Distribution und wird nie entfernt — angefasst wird nur, was zwischen den Marken steht (docs/57 §6).',
     ];
 
     /** Was im Quelltext einer Operation bedeutet, dass sie etwas auf die Platte legt. */

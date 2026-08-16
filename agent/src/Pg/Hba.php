@@ -7,15 +7,21 @@ namespace SrvPanel\Agent\Pg;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Daemon;
 use SrvPanel\Agent\Guard;
+use SrvPanel\Agent\ManagedBlock;
 
 /**
  * `pg_hba.conf` — die eine Zeile für das Zurückspielen und der Block für den Fernzugriff.
+ *
+ * **Wie der Bereich geschrieben wird, steht seit dem 16. August 2026 in
+ * {@see ManagedBlock}** — dort, wo es auch `sshd_config` benutzt. Was hier
+ * blieb, ist das, was nur für PostgreSQL gilt: die Zeile, die Gruppenrolle, die
+ * Form einer Regel und die Prüfung eines Netzes.
  *
  * ## Zwei verwaltete Bereiche, und warum es zwei sein müssen
  *
  * Seit P5b Schritt 10 schreiben in diese Datei **zwei** Anliegen: die Zeile für
  * das Zurückspielen (`docs/38 §13.4`, unten) und der Block für den Fernzugriff
- * (`docs/38 §14`, {@see self::BEGIN}). Sie zu einem Bereich zusammenzulegen war
+ * (`docs/38 §14`, {@see ManagedBlock::BEGIN}). Sie zu einem Bereich zusammenzulegen war
  * der erste Entwurf und ist an einer Messung gescheitert — **die beiden haben
  * entgegengesetzte Platzansprüche:**
  *
@@ -50,8 +56,8 @@ use SrvPanel\Agent\Guard;
  * Zurückspielen erst Wochen später wieder läuft. Wortgleich die Lehre aus
  * P5b: **Ein Fehlerweg, der selbst fehlschlagen kann, ist kein Fehlerweg.**
  *
- * Deshalb geht **jeder** Zugriff auf diese Datei durch {@see self::locked()},
- * und jedes Schreiben durch {@see self::put()} — ein `file_put_contents` kürzt
+ * Deshalb geht **jeder** Zugriff auf diese Datei durch {@see ManagedBlock::locked()},
+ * und jedes Schreiben durch {@see ManagedBlock::put()} — ein `file_put_contents` kürzt
  * erst und schreibt dann, und ein Abbruch dazwischen liesse eine leere
  * `pg_hba.conf` zurück. Die ist syntaktisch fehlerfrei und weist jeden ab.
  *
@@ -142,14 +148,14 @@ final class Hba
      */
     public static function ensure(string $path): bool
     {
-        return self::locked($path, static function () use ($path): bool {
-            $content = self::read($path);
+        return ManagedBlock::locked($path, static function () use ($path): bool {
+            $content = ManagedBlock::read($path);
 
             if (str_contains($content, self::MARK)) {
                 return false;
             }
 
-            self::put($path, self::prepend($content));
+            ManagedBlock::put($path, self::prepend($content));
 
             return true;
         });
@@ -168,19 +174,6 @@ final class Hba
     {
         return self::MARK."\n".self::RULE."\n\n".$content;
     }
-
-    /**
-     * Der Anfang des verwalteten Blocks für den Fernzugriff.
-     *
-     * **Zwei Marken statt einer**, anders als oben — der Block hat mehrere
-     * Zeilen, und ohne Ende wüsste niemand, wo der Bestand wieder anfängt. Die
-     * Formulierung ist die aus `docs/38 §14.1` und wird von `PgHbaReachTest`
-     * gegen den Plan gehalten; wer sie ändert, ändert sie an beiden Stellen.
-     */
-    public const BEGIN = '# BEGIN srvpanel — verwaltet, nicht von Hand ändern';
-
-    /** Das Ende des Blocks. */
-    public const END = '# END srvpanel';
 
     /**
      * Die Methode, mit der sich ein Fernzugang anmeldet.
@@ -294,74 +287,6 @@ final class Hba
     }
 
     /**
-     * Den Block setzen — und alles ausserhalb Byte für Byte stehenlassen.
-     *
-     * **Additiv heisst hier: ersetzend zwischen den Marken und sonst gar
-     * nichts.** Was der Betreiber eingetragen hat, was Debian mitbringt und was
-     * {@see self::prepend()} oben hingeschrieben hat, geht unverändert durch —
-     * das ist die Zusage aus `docs/38 §14.2` Schritt 2, und sie gilt
-     * ausdrücklich auch gegenüber dem *anderen* verwalteten Bereich.
-     *
-     * **Der Block wandert ans Ende, immer.** Auch dann, wenn er vorher weiter
-     * oben stand: Dort hätte ihn jemand von Hand hingeschoben, und ein `reject`
-     * des Betreibers darunter wäre wirkungslos, ohne dass es jemandem auffällt.
-     *
-     * Eine leere Liste entfernt den Block — kein leerer Rumpf, der beim nächsten
-     * Lesen wie ein Bereich ohne Regeln aussieht.
-     *
-     * @param  list<string>  $lines
-     */
-    public static function render(string $content, array $lines): string
-    {
-        $rest = self::without($content);
-
-        if ($lines === []) {
-            return $rest;
-        }
-
-        if ($rest !== '' && ! str_ends_with($rest, "\n")) {
-            $rest .= "\n";
-        }
-
-        return $rest."\n".self::BEGIN."\n".implode("\n", $lines)."\n".self::END."\n";
-    }
-
-    /**
-     * Die Regelzeilen des Blocks, so wie sie dastehen.
-     *
-     * Für den Abgleich gegen den Bestand (`docs/38 §14.4`): `srvpanel db` liest
-     * sie und meldet, was auf eine Rolle zeigt, die es nicht mehr gibt.
-     * **Melden und nicht löschen** — `docs/36 §5`.
-     *
-     * @return list<string>
-     */
-    public static function managed(string $content): array
-    {
-        $inside = false;
-        $rules = [];
-
-        foreach (explode("\n", $content) as $line) {
-            $trimmed = trim($line);
-
-            if ($trimmed === self::BEGIN) {
-                $inside = true;
-
-                continue;
-            }
-
-            if ($trimmed === self::END) {
-                break;
-            }
-
-            if ($inside && $trimmed !== '' && ! str_starts_with($trimmed, '#')) {
-                $rules[] = $trimmed;
-            }
-        }
-
-        return $rules;
-    }
-
-    /**
      * Die Rolle, auf die eine Regelzeile zeigt — oder `null`.
      *
      * **Gelesen und nicht mitgeführt.** Was in der Datei steht, ist der
@@ -384,201 +309,6 @@ final class Hba
         $fields = preg_split('/\s+/', trim($line)) ?: [];
 
         return count($fields) >= 5 && $fields[0] === 'host' ? $fields[1] : null;
-    }
-
-    /**
-     * Diese Datei gehört für die Dauer des Aufrufs genau einem Prozess.
-     *
-     * **Ein `flock` und kein Merker im Prozess.** Der Agent gabelt je
-     * Verbindung; zwei Operationen sind zwei Prozesse, und alles, was nur im
-     * Speicher steht, sieht der andere nicht.
-     *
-     * **Die Sperre liegt neben der Datei und nicht auf ihr.** Ein `flock` auf
-     * `pg_hba.conf` selbst müsste sie zum Schreiben öffnen — und ein `fopen`
-     * mit `w` kürzt, bevor irgendjemand das Schloss geprüft hat. Die eigene
-     * Datei kostet einen Inode und nimmt diesen Fall heraus.
-     *
-     * **Gehalten wird sie über den ganzen Vorgang**, also über Schreiben,
-     * Nachladen, Nachsehen und den Rückweg. Nur so kann der Rückweg den Stand
-     * zurücklegen, den er vorgefunden hat: Dazwischen darf sich nichts
-     * geändert haben, sonst legt er einen Stand zurück, in dem die Zeile des
-     * anderen Bereichs fehlt.
-     *
-     * **Und sie ist wiedereintrittsfähig, weil sie es sein muss.** `flock`
-     * sperrt je *offener Datei* und nicht je Prozess: Ein zweites `fopen` mit
-     * `LOCK_EX` im selben Prozess wartet auf das erste und damit auf sich
-     * selbst. Gefunden am 11. August 2026 dadurch, dass die Operation gegen
-     * einen echten Cluster lief und nach zwei Minuten noch stand — die
-     * Verschachtelung war eine Zeile, die beim Lesen richtig aussah. Der
-     * Zähler unten macht aus dem inneren Aufruf einen Durchreicher.
-     *
-     * @template T
-     *
-     * @param  callable(): T  $work
-     * @return T
-     */
-    public static function locked(string $path, callable $work): mixed
-    {
-        if ((self::$held[$path] ?? 0) > 0) {
-            self::$held[$path]++;
-
-            try {
-                return $work();
-            } finally {
-                self::$held[$path]--;
-            }
-        }
-
-        $lock = $path.self::LOCK_SUFFIX;
-        $handle = @fopen($lock, 'c');
-
-        if ($handle === false) {
-            throw AgentException::execFailed('Die Sperre für pg_hba.conf liess sich nicht anlegen.', ['path' => $lock]);
-        }
-
-        try {
-            if (! flock($handle, LOCK_EX)) {
-                throw AgentException::execFailed('Die Sperre für pg_hba.conf liess sich nicht nehmen.', ['path' => $lock]);
-            }
-
-            self::$held[$path] = 1;
-
-            try {
-                return $work();
-            } finally {
-                unset(self::$held[$path]);
-                flock($handle, LOCK_UN);
-            }
-        } finally {
-            fclose($handle);
-        }
-    }
-
-    /** Die Datei lesen — mit einer Meldung, die den Pfad nennt. */
-    public static function read(string $path): string
-    {
-        $content = @file_get_contents($path);
-
-        if ($content === false) {
-            throw AgentException::execFailed('pg_hba.conf liess sich nicht lesen.', ['path' => $path]);
-        }
-
-        return $content;
-    }
-
-    /**
-     * Die Datei schreiben — ganz oder gar nicht.
-     *
-     * **Über eine Nachbardatei und `rename`, nicht über `file_put_contents`.**
-     * Das kürzt zuerst und schreibt dann; wird der Prozess dazwischen beendet,
-     * bleibt eine leere `pg_hba.conf` liegen. Die ist **fehlerfrei** — sie
-     * enthält keine falsche Zeile, `pg_hba_file_rules` meldet nichts, und der
-     * Cluster startet damit anstandslos. Er lässt nur niemanden mehr herein,
-     * auch den Agenten nicht. Ein `rename` innerhalb desselben Dateisystems
-     * ist atomar: Es gibt den alten Stand oder den neuen und nichts dazwischen.
-     *
-     * **Rechte und Eigentümer werden von der vorhandenen Datei abgenommen** und
-     * nicht gesetzt. `pg_hba.conf` gehört auf Debian `postgres:postgres` mit
-     * `0640`; eine Zahl hier wäre eine Behauptung über fremde Paketierung —
-     * dieselbe Überlegung wie bei {@see Server::hbaFile()}, wo der Pfad erfragt
-     * und nicht zusammengesetzt wird.
-     */
-    public static function put(string $path, string $content): void
-    {
-        $temporary = $path.'.srvpanel.'.getmypid();
-        $stat = @stat($path);
-
-        if (@file_put_contents($temporary, $content) === false) {
-            throw AgentException::execFailed('pg_hba.conf liess sich nicht schreiben.', ['path' => $temporary]);
-        }
-
-        try {
-            if (is_array($stat)) {
-                @chmod($temporary, $stat['mode'] & 0o7777);
-                @chown($temporary, $stat['uid']);
-                @chgrp($temporary, $stat['gid']);
-            }
-
-            if (! @rename($temporary, $path)) {
-                throw AgentException::execFailed('pg_hba.conf liess sich nicht ersetzen.', ['path' => $path]);
-            }
-        } catch (AgentException $error) {
-            @unlink($temporary);
-
-            throw $error;
-        }
-    }
-
-    /** Die Endung der Sperrdatei — neben `pg_hba.conf`, nie darauf. */
-    private const LOCK_SUFFIX = '.srvpanel.lock';
-
-    /**
-     * Wie tief dieser Prozess gerade in {@see self::locked()} steckt, je Pfad.
-     *
-     * **Nur gegen sich selbst und nie gegen einen anderen Prozess.** Was hier
-     * steht, ersetzt kein `flock` — es zählt nur mit, damit der Prozess, der
-     * die Sperre schon hat, nicht ein zweites Mal darauf wartet.
-     *
-     * @var array<string,int>
-     */
-    private static array $held = [];
-
-    /**
-     * Den Block herausnehmen — samt der Leerzeile, die ihn abgesetzt hat.
-     *
-     * **Die Leerzeile gehört dazu, sonst wächst die Datei.** {@see self::render()}
-     * setzt vor `BEGIN` genau eine; bliebe sie beim Herausnehmen liegen, käme
-     * bei jedem Lauf eine dazu, und nach fünfzig Änderungen stünde der Block
-     * fünfzig Zeilen unter dem Bestand.
-     *
-     * **Ein `BEGIN` ohne `END` ist ein Abbruch und keine Reparatur.** Wer die
-     * Endmarke von Hand entfernt hat, hat einen Zustand hinterlassen, in dem
-     * „bis wohin gehört uns das" keine Antwort hat: Weiterschreiben hiesse
-     * raten, und geraten wird an einer Datei nicht, deren Fehler beim nächsten
-     * Neustart zündet.
-     */
-    private static function without(string $content): string
-    {
-        $lines = explode("\n", $content);
-        $begin = null;
-        $end = null;
-
-        foreach ($lines as $index => $line) {
-            $trimmed = trim($line);
-
-            if ($begin === null && $trimmed === self::BEGIN) {
-                $begin = $index;
-
-                continue;
-            }
-
-            if ($begin !== null && $trimmed === self::END) {
-                $end = $index;
-
-                break;
-            }
-        }
-
-        if ($begin === null) {
-            return $content;
-        }
-
-        if ($end === null) {
-            throw AgentException::execFailed(sprintf(
-                'In pg_hba.conf steht ab Zeile %d ein "%s" ohne "%s". Wo der verwaltete Block aufhört, '
-                .'ist damit nicht zu erkennen — hier schreibt srvpanel nichts, bevor das von Hand '
-                .'geklärt ist.',
-                $begin + 1,
-                self::BEGIN,
-                self::END,
-            ));
-        }
-
-        $from = $begin > 0 && trim($lines[$begin - 1]) === '' ? $begin - 1 : $begin;
-
-        array_splice($lines, $from, $end - $from + 1);
-
-        return implode("\n", $lines);
     }
 
     /** Die Netzadresse zu einer Präfixlänge — auf den rohen Bytes, damit v4 und v6 dasselbe sind. */

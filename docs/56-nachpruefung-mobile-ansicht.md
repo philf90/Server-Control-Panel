@@ -15,7 +15,7 @@ schliesst `docs/55` ab und macht Punkt 8 aus `docs/54` endlich messbar.
 | 25 — die Aktionen nahmen die halbe Zeile | `v0.6.0-rc.8` | **erfüllt 16.08.** |
 | 26 — dasselbe „Entfernen" rot und grau | `v0.6.0-rc.8` | **erfüllt 16.08.** |
 | `docs/54` Punkt 8 — die Bilderrunde | — | **erfüllt 16.08.** |
-| 27 — Kopfhaken über leerer Auswahl | `v0.6.0-rc.9` | gefunden **von** diesem Lauf |
+| 27 — Kopfhaken über leerer Auswahl | `v0.6.0-rc.9` | **erfüllt 16.08.** (gefunden von diesem Lauf) |
 
 ---
 
@@ -293,12 +293,27 @@ In der Abo-Wurzel steht **kein Haken mehr** — weder in der Kopfzeile noch an
 einer der sechs Zeilen; sechsmal „gehört zum Aufbau". Die Spalte selbst ist
 geblieben, Kopf und Rumpf haben weiter gleich viele.
 
-**Offen: die Gegenprobe in `httpdocs`.** Dass irgendwo ein Haken fehlt, ist die
-halbe Auskunft; die andere ist, dass er dort steht, wo er hingehört, und tut,
-was er soll.
+**Und die Gegenprobe in `httpdocs` hält:** Dort steht der Haken, ein Klick wählt
+alles aus, und die Auswahlleiste meldet **„11 Einträge ausgewählt"** — genau die
+elf Einträge, die das Verzeichnis hat. Kein Schema-Verzeichnis liegt darin, also
+ist `selectable` dort die ganze Liste.
 
 > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
-> steht.**
+> steht.** Ohne diesen zweiten Blick sagt der fehlende Haken nur, dass irgendwo
+> einer fehlt.
+
+**Befund 27 ist damit bestätigt.**
+
+**Und ein Detail auf demselben Bild, das die Entscheidung von Befund 21 noch
+einmal begründet:** `p6-fremd/` gehört root, seine Aktionsspalte zeigt einen
+Strich — und angehakt ist es trotzdem. Das ist richtig so: Es gehört nicht zum
+Schema, der Kunde darf es also auswählen, und ob das Entfernen durchgeht,
+entscheidet der Kernel. Die Absage kommt danach je Eintrag mit ihrem Grund.
+
+> **Ein Haken, der bei einem fremden Verzeichnis fehlte, sähe aus wie ein
+> Anzeigefehler; eine Absage mit Grund ist eine Auskunft.** Bei den sechs
+> Verzeichnissen des Schemas gilt das nicht — dort weist der Agent **immer** ab,
+> und eine Zusage, die nie eingelöst wird, ist keine Auskunft.
 
 Behoben: Das Kästchen trägt `v-if="selectable.length > 0"`. Die **Zelle** bleibt
 — jede Zeile trägt ihr `<td data-column="Auswahl">` auch leer, und fünf Spalten

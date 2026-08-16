@@ -709,7 +709,7 @@ Je Aufnahme:
 | 2 | Auswahlleiste | **0** | **0** | **0** | **0** |
 | 3 | Rechte-Editor | **0** | **0** | **0** | **0** |
 | 3b | Rechte-Editor, langer Name | **0** | **0** | — | — |
-| 4 | Baum, tiefer Pfad | offen | offen | offen | offen |
+| 4 | Baum, tiefer Pfad | **0** | **0** | **0** | **0** |
 | 5 | Editor | offen | offen | offen | offen |
 | 6 | Kärtchen, Aktionen offen | offen | offen | — | — |
 
@@ -771,6 +771,22 @@ dazugeschrieben.
 **Zu #3:** Die neun Ankreuzfelder sind im dunklen Theme dunkel — an der Stelle
 mit den meisten davon auf einer Seite. Das ist die stärkste Gegenprobe zu
 `docs/55` Befund 20.
+
+**Zu #4:** Der Baum steht sechs Ebenen tief offen — Abo-Wurzel → `httpdocs` →
+`unter` → `tiefer` → `noch-tiefer` → `ganz-unten`. Anschlüsse und Linien
+stimmen auf jeder Ebene, und bei 1440 px hält die Spalte
+(`minmax(200px, 280px)`) den tiefsten Namen, ohne sich aufzuziehen. Das ist die
+Stelle, an der ohne `min-width: 0` an beiden Rasterkindern die Seite bei 800 px
+um 242 px schob.
+
+**Und die Krümelspur bricht.** Bei 390 px steht sie auf zwei Zeilen —
+`Abo-Wurzel / httpdocs / unter / tiefer /` und darunter
+`noch-tiefer / ganz-unten`. Genau dafür trägt `.crumbs .link` seine Ausnahme
+(`min-width: 0` **und** `overflow-wrap: anywhere`), und der Kommentar dort sagt
+den Grund: Ein Pfad aus tiefen Verzeichnissen wird länger als eine Zeile.
+
+> **Ein `nowrap` über etwas, das wächst, ist keine Zusage über die Zeile,
+> sondern eine über den Bestand.**
 
 **Der Härtefall ist nachgeholt.** Gefahren war #3 zuerst an `IMG_4398.jpeg` —
 einem kurzen Namen. Der Bereichstitel trägt aber den Dateinamen („Rechte für

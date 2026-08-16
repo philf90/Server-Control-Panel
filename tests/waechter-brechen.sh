@@ -9612,6 +9612,42 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ThemeTest passed
 
 echo
+echo "── SchemeHandleTest: das Geruest laesst sich wieder anhaken ──"
+#
+# Ueber den Haken fuehrt der Weg in die Mehrfachauswahl, und deren rote Knoepfe
+# weist Scheme genauso ab -- nur erfaehrt der Kunde es erst hinterher.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('                v-if="! entry.fixed"\n', '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Haken am Geruest" &&
+pruefe "das Geruest laesst sich wieder anhaken" \
+  SchemeHandleTest::test_they_cannot_be_ticked_either failed
+wiederherstellen
+
+echo
+echo "── SchemeHandleTest: nur der Spaltenkopf ist umbenannt ──"
+#
+# Der Kopf gilt fuer die breite Ansicht, data-column fuer die Kaertchen unter
+# 720px. Wer nur eines aendert, bekommt zwei Woerter auf einer Seite -- je
+# nachdem, wie breit sie gerade ist.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('data-column="Aktion"', 'data-column="Griffe"', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "halb umbenannt" &&
+pruefe "nur der Spaltenkopf ist umbenannt" \
+  SchemeHandleTest::test_the_action_column_is_called_what_the_panel_calls_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SchemeHandleTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

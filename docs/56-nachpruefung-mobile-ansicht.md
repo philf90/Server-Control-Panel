@@ -62,13 +62,22 @@ Punkt 7 braucht sie, und ohne sie misst die Bilderrunde den bequemen Fall.
 ABO=/var/www/vhosts/p6-b.invalid
 sudo -u p1136 touch "$ABO/httpdocs/ein-sehr-langer-dateiname-den-jemand-wirklich-so-angelegt-hat-und-der-nicht-umbricht.txt"
 sudo -u p1136 mkdir -p "$ABO/httpdocs/unter/tiefer/noch-tiefer/ganz-unten"
-ls -la "$ABO/httpdocs/" | tail -3
+ls -la "$ABO/httpdocs/ein-sehr-langer-"*
+ls -ld "$ABO/httpdocs/unter/tiefer/noch-tiefer/ganz-unten"
 ```
 
-Die letzte Zeile ist die Gegenprobe: Ein `touch`, das an den Rechten scheitert,
-schweigt nicht — aber ein `sudo -u`, das auf den falschen Benutzer geht, legt die
-Datei an und der Dateimanager zeigt sie als fremd. Nachsehen, dass `p1136`
-danebensteht.
+Die beiden letzten Zeilen sind die Gegenprobe: Ein `sudo -u`, das auf den
+falschen Benutzer geht, legt die Datei trotzdem an, und der Dateimanager zeigt
+sie danach als fremd. Nachsehen, dass **`p1136`** danebensteht.
+
+> **Hier stand `ls -la … | tail -3`, und das konnte den eigenen Gegenstand nicht
+> sehen.** `ls` sortiert nach Namen; ein Eintrag, der mit `e` anfängt, steht
+> nicht unter den letzten dreien. Belegt war damit das `mkdir` und nicht das
+> `touch` — die Datei selbst hat erst ein Bildschirmfoto des Panels gezeigt
+> (16. August, erster Lauf dieses Dokuments).
+>
+> **Eine Gegenprobe, die nach dem Namen sortiert und die letzten Zeilen nimmt,
+> prüft die Zeile, die zufällig dort steht.**
 
 ### 2.4 Genau einmal anmelden
 

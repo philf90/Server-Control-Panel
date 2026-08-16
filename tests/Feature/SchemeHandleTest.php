@@ -194,6 +194,64 @@ final class SchemeHandleTest extends TestCase
     }
 
     /**
+     * Und der Haken der Kopfzeile ist fort, wo es nichts anzuhaken gibt.
+     *
+     * ## Der Fund
+     *
+     * Gemessen am 16. August 2026 auf `cloudsrv24` (`docs/56`, Befund 27). In
+     * der **Abo-Wurzel** liegen ausschliesslich die sechs Verzeichnisse des
+     * Schemas. Ihre Haken waren seit Befund 21 fort, der **Kopf**-Haken nicht —
+     * dieselbe Halbheit wie damals, nur eine Zeile höher.
+     *
+     * Er wählte auch nichts aus; `selectable` ist dort leer. Er tat aber etwas
+     * Sichtbares, und das ist der eigentliche Befund: **Er blieb angehakt
+     * stehen.** Gemessen im Browser, unmittelbar nach dem Klick:
+     *
+     *     Kopfhaken angehakt: true | Auswahlleiste da: false
+     *
+     * Der Setzer schreibt `selected = []`, der Leser rechnet daraus wieder
+     * `false` — und weil der Wert sich damit nicht **ändert**, schreibt Vue das
+     * DOM nicht zurück. Der Klick bleibt stehen, und über einer leeren Auswahl
+     * steht „alles ausgewählt".
+     *
+     * > **Ein Kästchen, das der Betrachter setzt und das Modell nicht, zeigt
+     * > danach den Klick und nicht den Zustand.**
+     *
+     * ## Warum die Zelle bleibt und nur das Kästchen geht
+     *
+     * `<td data-column="Auswahl">` steht in **jeder** Zeile, auch der leeren
+     * eines Schema-Verzeichnisses. Eine Kopfzeile mit fünf Spalten über einem
+     * Rumpf mit sechs verschiebt die ganze Tabelle.
+     */
+    public function test_the_header_tick_is_gone_when_nothing_can_be_ticked(): void
+    {
+        $seite = $this->page();
+
+        $this->assertMatchesRegularExpression(
+            '/<input\s+v-if="selectable\.length > 0"\s+v-model="allSelected"/',
+            $seite,
+            "Der Haken der Kopfzeile steht wieder da, wo nichts auszuwählen ist.\n\n".
+            'In der Abo-Wurzel liegen nur die sechs Verzeichnisse des Schemas. Der Haken wählt dort '.
+            'nichts aus — und bleibt nach dem Klick **angehakt** stehen, weil `allSelected` seinen '.
+            'Wert nicht ändert und Vue das DOM deshalb nicht zurückschreibt.',
+        );
+
+        /*
+         * **Und die Zelle bleibt.** Ohne diese zweite Behauptung wäre der
+         * naheliegende Fix — das `v-if` an das `<th>` zu hängen — grün, und die
+         * Kopfzeile hätte in der Abo-Wurzel eine Spalte weniger als der Rumpf.
+         */
+        $this->assertStringContainsString(
+            '<th v-if="props.can.edit">',
+            $seite,
+            "Die Auswahlspalte fehlt in der Kopfzeile ganz.\n\n".
+            'Jede Zeile trägt `<td data-column=\"Auswahl\">`, auch die leere eines '.
+            'Schema-Verzeichnisses. Fünf Spalten im Kopf über sechs im Rumpf verschieben die ganze '.
+            'Tabelle.',
+        );
+    }
+
+    /**
      * Die Spalte heisst wie überall sonst im Panel.
      *
      * ## Warum das kein Geschmack ist

@@ -674,8 +674,24 @@ Testen berücksichtigen:
 
   > **Eine Messung, die nie etwas anderes als Null liefern kann, ist keine.**
 
+  **Und am 16. August ist gemessen worden, wie genau dieser Aufsatz ist: aufs
+  Pixel.** Die Kärtchenhöhen des Dateimanagers standen hier auf 236/54
+  zugeklappt und 396/214 aufgeklappt; auf `cloudsrv24` gegen `v0.6.0-rc.8`
+  ergaben dieselben Messungen **dieselben vier Zahlen** (`docs/56`, Punkt 5).
+  Eine Wegwerf-HTML-Datei mit dem echten Markup und dem gebauten Stylesheet ist
+  damit keine Näherung.
+
+  > **Ein Aufsatz, der das echte Markup und das gebaute Stylesheet benutzt, misst
+  > die echte Seite — und nicht etwas Ähnliches.**
+
   Was das **nicht** ersetzt: den Blick auf die echte Seite mit echten Daten. Der
-  braucht `artisan serve` und damit `vendor/`.
+  braucht `artisan serve` und damit `vendor/`. **Und der Blick auf das Bild, das
+  dieser Aufsatz selbst liefert** — im selben Schritt meldete er für einen
+  sichtbar kaputten Zustand einen Überlauf von 0px, weil die Zelle schnitt statt
+  zu schieben. Gefunden hat es die Aufnahme derselben Datei.
+
+  > **Dieselbe Messung kann aufs Pixel stimmen und trotzdem nichts über die
+  > Ansicht sagen.**
 - **kein nginx, kein PHP-FPM, kein Agent, kein systemd.** Operationen laufen
   gegen Attrappen. Zwei Fehler sind nur aufgefallen, weil die CI nginx *hat*
   und dieser Container nicht — Tests, die Systemzustand annehmen, gehören

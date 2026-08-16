@@ -372,10 +372,22 @@ function toggleSelected(path: string, on: boolean): void {
  * `indeterminate` zeigt, braucht einen Griff auf das DOM-Element, und die
  * Auskunft steht in der Zeile daneben ohnehin als Zahl.
  */
+/**
+ * Was sich überhaupt anhaken lässt.
+ *
+ * **Ohne diese Zeile wäre der fehlende Haken am Gerüst eine Zierde:** „Alle
+ * auswählen" nähme die sechs Verzeichnisse trotzdem mit, und der Zählsatz stünde
+ * wieder auf „0 von 6" (`docs/55`, Befund 21).
+ *
+ * > **Ein Knopf, der alles auswählt, muss dasselbe „alles" meinen wie die
+ * > Haken daneben.**
+ */
+const selectable = computed(() => props.entries.filter((entry) => ! entry.fixed))
+
 const allSelected = computed<boolean>({
-  get: () => props.entries.length > 0 && selected.value.length === props.entries.length,
+  get: () => selectable.value.length > 0 && selected.value.length === selectable.value.length,
   set: (on: boolean) => {
-    selected.value = on ? props.entries.map((entry) => entry.path) : []
+    selected.value = on ? selectable.value.map((entry) => entry.path) : []
   },
 })
 
@@ -742,7 +754,7 @@ function pick(target: string): void {
             Knopf müsste man dort zwanzig Zeilen einzeln anhaken.
           -->
           <button
-            v-if="selected.length < props.entries.length"
+            v-if="selected.length < selectable.length"
             type="button"
             class="button small"
             @click="allSelected = true"
@@ -777,7 +789,7 @@ function pick(target: string): void {
                 :aria-label="allSelected ? 'Auswahl aufheben' : 'Alle auswählen'"
               />
             </th>
-            <th>Name</th><th>Grösse</th><th>Rechte</th><th>Geändert</th><th>Griffe</th>
+            <th>Name</th><th>Grösse</th><th>Rechte</th><th>Geändert</th><th>Aktion</th>
           </tr>
         </thead>
         <tbody>
@@ -789,14 +801,26 @@ function pick(target: string): void {
 
           <tr v-for="entry in props.entries" :key="entry.path">
             <!--
-              **Der Haken steht an jeder Zeile und nicht nur an den beschreibbaren.**
-              Ob ein Eintrag sich entfernen lässt, entscheidet der Kernel — und was
-              dabei herauskommt, steht danach je Eintrag in der Rückmeldung. Ein
-              Haken, der bei `conf/` fehlt, sähe aus wie ein Anzeigefehler; eine
-              Absage mit Grund ist eine Auskunft.
+              **Der Haken steht an jeder Zeile — ausser am Gerüst.**
+
+              Ob ein Eintrag sich entfernen lässt, entscheidet sonst der Kernel,
+              und was dabei herauskommt, steht danach je Eintrag in der
+              Rückmeldung. Ein Haken, der bei `conf/` fehlt, sähe aus wie ein
+              Anzeigefehler; eine Absage mit Grund ist eine Auskunft.
+
+              **Bei den sechs Verzeichnissen des Schemas gilt das nicht** (`docs/55`,
+              Befund 21). Ein Haken dort führt in eine Mehrfachauswahl, deren
+              gefährliche Griffe — Entfernen, Verschieben — nie durchgehen; die
+              Auskunft „0 von 6" kommt dann **nach** dem Klick auf einen roten
+              Knopf. Wo die Zeile schon keine eigene Aktion mehr anbietet, bietet
+              sie auch keine über den Umweg der Auswahl an.
+
+              > **Eine Auswahl ist ein Versprechen, dass die Knöpfe darüber
+              > gelten.**
             -->
             <td v-if="props.can.edit" data-column="Auswahl">
               <input
+                v-if="! entry.fixed"
                 type="checkbox"
                 class="check"
                 :checked="selected.includes(entry.path)"
@@ -843,7 +867,7 @@ function pick(target: string): void {
             <td data-column="Rechte" class="ident quiet">{{ rights(entry.mode) }}</td>
             <td data-column="Geändert" class="quiet">{{ moment(entry.modified_at) }}</td>
 
-            <td data-column="Griffe">
+            <td data-column="Aktion">
               <!--
                 Der Knopf erscheint nur, wenn der Betrachter ihn drücken darf —
                 und die Antwort darauf kommt aus derselben Policy, die ihn

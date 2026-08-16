@@ -1626,6 +1626,61 @@ alle drei Griffe, `conf/` einen Strich: der Stand **vor** Befund 18, wie erwarte
 
 ---
 
+## Nachprüfung gegen `v0.6.0-rc.6` — alle drei erfüllt
+
+**Befund 18:** `.ssh/` und `conf/` tragen statt der Knöpfe „gehört zum Aufbau";
+eine gewöhnliche Datei trägt sie weiter.
+
+**Befund 19:** „Entfernen" springt korrekt nach oben — die Rückfrage steht im
+Bild, ohne dass jemand scrollt.
+
+**Befund 20:** Die leeren Ankreuzfelder sind umrandet statt schwarz gefüllt, die
+angehakten tragen ihr Häkchen. Der leere Zustand sieht wieder leer aus.
+
+## Befund 21 — der Haken war noch da
+
+Gemeldet vom Betreiber unmittelbar nach der Nachprüfung: Die Knöpfe an den
+sechs Verzeichnissen des Schemas waren fort, **das Ankreuzfeld nicht**. Über
+das führt der Weg in die Mehrfachauswahl, und deren gefährliche Knöpfe —
+Entfernen, Verschieben — weist `Scheme` genauso ab. Die Auskunft „von 6 sind 0
+entfernt" kommt dann **nach** dem Klick auf einen roten Knopf.
+
+> **Eine Auswahl ist ein Versprechen, dass die Knöpfe darüber gelten.**
+
+Der Fix zu Befund 18 hat also die eine Hälfte behoben und die andere stehen
+lassen — dieselbe Sorte Halbheit wie die Begründung, die nur für `httpdocs` galt.
+
+**Und die zweite Hälfte davon wäre beinahe wieder eine gewesen:** Ohne eine
+Anpassung an „Alle auswählen" nähme der Knopf die sechs trotzdem mit, und der
+fehlende Haken daneben wäre Zierde.
+
+> **Ein Knopf, der alles auswählt, muss dasselbe „alles" meinen wie die Haken
+> daneben.**
+
+**Was das kostet, und warum es sich trotzdem lohnt:** `httpdocs` selbst lässt
+sich damit nicht mehr anhaken, also auch nicht als Ganzes packen oder kopieren.
+Beides geht weiter, indem man hineingeht und den **Inhalt** auswählt — der
+Umweg ist einen Klick lang, und dafür führt kein roter Knopf mehr ins Leere.
+
+## Befund 22 — „Griffe" ist kein deutsches Fachwort
+
+Ebenfalls vom Betreiber: Die Spalte hiess „Griffe", und das Wort gibt es im
+deutschen technischen Gebrauch für eine Schaltfläche nicht.
+
+Schwerer wiegt, was beim Nachsehen herauskam: **Dieses Panel hat längst ein Wort
+dafür.** `Databases/Show.vue` und `Audit/Index.vue` schreiben seit P3 **Aktion**.
+Der Dateimanager war der einzige Ort mit einem eigenen.
+
+> **Ein zweites Wort für dieselbe Sache ist keine Geschmacksfrage — es ist eine
+> Spalte, die woanders anders heisst.**
+
+Umbenannt sind **beide** Stellen: der Spaltenkopf für die breite Ansicht und
+`data-column` für die Kärtchen unter 720px. Wer nur eine ändert, bekommt zwei
+Wörter auf einer Seite — je nachdem, wie breit sie gerade ist. Genau das ist der
+vierte Bruch gegen den Wächter, und er beisst.
+
+---
+
 ---
 
 ## Offen, klein, nicht verfolgt

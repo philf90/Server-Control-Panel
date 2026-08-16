@@ -152,6 +152,92 @@ final class SchemeHandleTest extends TestCase
     }
 
     /**
+     * Und sie lassen sich auch nicht anhaken.
+     *
+     * ## Der Nachtrag des Betreibers
+     *
+     * Die Griffe waren weg, der Haken stand noch da (`docs/55`, Befund 21). Über
+     * ihn führt der Weg in die Mehrfachauswahl — und deren gefährliche Knöpfe,
+     * **Entfernen** und **Verschieben**, weist `Scheme` genauso ab. Die Auskunft
+     * „von 6 sind 0 entfernt" kommt dann **nach** dem Klick auf einen roten
+     * Knopf.
+     *
+     * > **Eine Auswahl ist ein Versprechen, dass die Knöpfe darüber gelten.**
+     *
+     * Wo die Zeile schon keine eigene Aktion mehr anbietet, darf sie auch keine
+     * über den Umweg der Auswahl anbieten.
+     *
+     * ## Und „Alle auswählen" meint dasselbe „alles"
+     *
+     * Ohne die zweite Prüfung wäre der fehlende Haken eine Zierde: Der Knopf
+     * nähme die sechs trotzdem mit, und der Zählsatz stünde wieder auf „0 von 6".
+     */
+    public function test_they_cannot_be_ticked_either(): void
+    {
+        $seite = $this->page();
+
+        $this->assertMatchesRegularExpression(
+            '/<input\s+v-if="! entry\.fixed"\s+type="checkbox"/',
+            $seite,
+            "Die Verzeichnisse des Schemas tragen wieder einen Haken.\n\n".
+            'Über ihn führt der Weg in die Mehrfachauswahl, und deren rote Knöpfe weist `Scheme` '.
+            'genauso ab — nur erfährt der Kunde es erst hinterher.',
+        );
+
+        $this->assertStringContainsString(
+            'props.entries.filter((entry) => ! entry.fixed)',
+            $seite,
+            'Alle auswählen nimmt die Verzeichnisse des Schemas wieder mit. '.
+            'Dann ist der fehlende Haken daneben eine Zierde: Ein Knopf, der alles auswählt, muss '.
+            'dasselbe „alles" meinen wie die Haken daneben.',
+        );
+    }
+
+    /**
+     * Die Spalte heisst wie überall sonst im Panel.
+     *
+     * ## Warum das kein Geschmack ist
+     *
+     * Sie hiess „Griffe", und das Wort gibt es im deutschen technischen Gebrauch
+     * für eine Schaltfläche nicht — gemeldet vom Betreiber am 16. August 2026
+     * (`docs/55`, Befund 22). Schwerer wiegt, dass dieses Panel längst ein Wort
+     * dafür hat: `Databases/Show.vue` und `Audit/Index.vue` schreiben seit P3
+     * **Aktion**.
+     *
+     * > **Ein zweites Wort für dieselbe Sache ist keine Geschmacksfrage — es ist
+     * > eine Spalte, die woanders anders heisst.**
+     *
+     * Geprüft werden **beide** Stellen: Der Kopf trägt den Namen für die breite
+     * Ansicht, `data-column` für die Kärtchen unter 720px. Wer nur eine ändert,
+     * bekommt zwei Wörter auf einer Seite — je nachdem, wie breit sie gerade ist.
+     */
+    public function test_the_action_column_is_called_what_the_panel_calls_it(): void
+    {
+        $seite = $this->page();
+
+        foreach (['<th>Aktion</th>', 'data-column="Aktion"'] as $stelle) {
+            $this->assertStringContainsString(
+                $stelle,
+                $seite,
+                sprintf('`%s` fehlt — die Spalte heisst nicht mehr wie im Rest des Panels.', $stelle),
+            );
+        }
+
+        foreach (['<th>Griffe</th>', 'data-column="Griffe"'] as $alt) {
+            $this->assertStringNotContainsString(
+                $alt,
+                $seite,
+                sprintf(
+                    "`%s` steht wieder da.\n\n".
+                    '„Griffe" ist kein Wort des deutschen technischen Gebrauchs, und das Panel nennt '.
+                    'dieselbe Spalte anderswo „Aktion".',
+                    $alt,
+                ),
+            );
+        }
+    }
+
+    /**
      * Und die Marke trägt genau die sechs, die `Scheme` schützt.
      *
      * **Ohne diese Gegenprobe messen die drei Fälle darüber nur Schreibweisen.**

@@ -13760,3 +13760,33 @@ genug, um sie zu vertagen.
 
 > **Eine Vorhersage über ein Symptom prüft nicht die Ursache — sie rät nur, in
 > welcher Richtung sie sich zeigt.**
+
+#### Das Gerüst lässt sich auch nicht mehr anhaken
+
+Der Fix davor nahm den sechs Verzeichnissen des Schemas ihre Knöpfe und liess
+das Ankreuzfeld stehen. Über das führt der Weg in die Mehrfachauswahl, und deren
+rote Knöpfe weist `Scheme` genauso ab — die Auskunft „von 6 sind 0 entfernt"
+kommt dann nach dem Klick.
+
+> **Eine Auswahl ist ein Versprechen, dass die Knöpfe darüber gelten.**
+
+„Alle auswählen" nimmt sie ebenfalls nicht mehr mit; ohne das wäre der fehlende
+Haken daneben Zierde.
+
+> **Ein Knopf, der alles auswählt, muss dasselbe „alles" meinen wie die Haken
+> daneben.**
+
+`httpdocs` lässt sich damit nicht mehr als Ganzes packen oder kopieren — beides
+geht weiter über seinen Inhalt, und dafür führt kein roter Knopf mehr ins Leere.
+
+#### Und die Spalte heisst „Aktion" wie überall sonst
+
+Sie hiess im Dateimanager „Griffe". Das Wort gibt es im deutschen technischen
+Gebrauch für eine Schaltfläche nicht — und dieses Panel hat längst ein anderes:
+`Databases/Show.vue` und `Audit/Index.vue` schreiben seit P3 **Aktion**.
+
+> **Ein zweites Wort für dieselbe Sache ist keine Geschmacksfrage — es ist eine
+> Spalte, die woanders anders heisst.**
+
+Umbenannt sind beide Stellen: der Kopf für die breite Ansicht und `data-column`
+für die Kärtchen unter 720px.

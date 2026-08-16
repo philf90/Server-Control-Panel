@@ -562,6 +562,21 @@ danach nicht mehr herein." Kein einziger sagt „ist danach fort".
 **Nicht bestätigen.** Ein Zurückspielen überschreibt den Bestand — genau
 deshalb ist er rot. Ansehen und abbrechen.
 
+#### Gefahren am 16. August 2026 — erfüllt
+
+Der Knopf in der Sicherungszeile ist **rot** umrandet, und der zustimmende Knopf
+der Rückfrage ebenso. Beide sagen dasselbe; vorher war der eine grau und der
+andere rot.
+
+Und die Zeile daneben ist die Gegenprobe im Kleinen: **„Herunterladen" grau,
+„Zurückspielen" rot, „Entfernen" rot** — drei Knöpfe nebeneinander, zwei Ränge,
+und die Einteilung stimmt für jeden einzelnen. Herunterladen nimmt nichts weg;
+die beiden anderen tun es.
+
+Der Satz der Rückfrage trägt die Begründung wieder selbst: „Der aktuelle Stand
+von `p1136_test` wird dabei überschrieben." Das ist die Sorte Satz, nach der Rot
+richtig ist — im Gegensatz zu den vier aus §6.2, die alle mit „bleibt" enden.
+
 ### 8.4 Was gleich geblieben sein muss
 
 Zur Gegenprobe, dass nicht versehentlich überall Rot verschwunden ist:

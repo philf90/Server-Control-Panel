@@ -187,7 +187,7 @@ function problem(): Link | null {
             <thead>
               <tr>
                 <th>Bezeichnung</th><th>Art</th><th>Fingerabdruck</th>
-                <th v-if="props.can.manage">Entfernen</th>
+                <th v-if="props.can.manage">Aktion</th>
               </tr>
             </thead>
             <tbody>
@@ -218,8 +218,19 @@ function problem(): Link | null {
                   brechen lässt.
                 -->
                 <td data-column="Fingerabdruck"><span class="ident">{{ key.fingerprint }}</span></td>
-                <td v-if="props.can.manage" data-column="Entfernen">
-                  <button type="button" class="button danger" @click="entfernen(key)">Entfernen</button>
+                <!--
+                  **Die Knöpfe einer Aktionsspalte stehen in einer
+                  `.button-row`**, so wie in jeder anderen Tabelle dieses
+                  Panels. Ohne sie steht `.button` unmittelbar unter dem
+                  `.ident` der Nachbarzelle — eine Naht, die app.css nicht
+                  kennt, während `ident + button-row` längst darin steht.
+
+                  Die Form war also schon da; ich hatte sie nur nicht benutzt.
+                -->
+                <td v-if="props.can.manage" data-column="Aktion">
+                  <div class="button-row">
+                    <button type="button" class="button danger" @click="entfernen(key)">Entfernen</button>
+                  </div>
                 </td>
               </tr>
               <tr v-if="props.keys.length === 0">

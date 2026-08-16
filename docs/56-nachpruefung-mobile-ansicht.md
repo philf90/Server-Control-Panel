@@ -469,10 +469,37 @@ Knopf über die volle Kärtchenbreite und trägt seinen ganzen Text.
 Und Schritt 9 belegt die andere Richtung: Am Arbeitsplatz hat sich **nichts**
 geändert — 40 px Zeilenhöhe wie vor dem Umbau, kein zusätzlicher Klick.
 
-**Offen aus diesem Punkt:** die beiden Zahlen bei 390 px, zugeklappt und
-aufgeklappt. Aus den Bildern abgelesen ergeben sich rund 235 px gegen 395 px —
-das deckt sich mit der Vorhersage aus dem Container (236 gegen 396). Abgelesen
-ist aber nicht gemessen, und die Ersparnis ist die Kernaussage dieses Befundes.
+### Und die Zahlen bei 390 px
+
+| Zustand | Kärtchen | Zelle „Aktion" |
+|---|---|---|
+| vorher (Stand rc.6) | 344 px | 162 px |
+| **zugeklappt** | **236 px** | **54 px** |
+| aufgeklappt | 396 px | 214 px |
+| 1440 px, beide Zustände | 40 px | 40 px |
+
+Das Kärtchen schrumpft um **31 %**, die Aktionszelle um **67 %**. Die Zelle nahm
+vorher 47 % der Zeilenhöhe; jetzt sind es 23 %.
+
+**Bemerkenswert ist etwas anderes: Die Zahlen stimmen mit der Vorhersage aus dem
+Container aufs Pixel überein.** Dort gemessen wurden 236/54 und 396/214 — an
+einer Wegwerf-HTML-Datei mit dem gebauten Stylesheet aus `public/build`, ohne
+Datenbank, ohne PHP, ohne Server.
+
+> **Ein Aufsatz, der das echte Markup und das gebaute Stylesheet benutzt, misst
+> die echte Seite — und nicht etwas Ähnliches.**
+
+Das ist der Grund, warum die Vorher-Zeile in dieser Tabelle glaubwürdig ist: Sie
+stammt aus demselben Aufsatz, gegen den Stand vor dem Umbau, und ist auf dem
+Server nie gemessen worden.
+
+**Und die Kehrseite steht daneben, denn beide gehören zusammen:** Derselbe
+Aufsatz meldete für den kaputten aufgeklappten Zustand einen Überlauf von
+**0 px**. Die Zahl war exakt und blind; gefunden hat den Fehler das Bild, das
+dieselbe Datei gerendert hat.
+
+> **Dieselbe Messung kann aufs Pixel stimmen und trotzdem nichts über die
+> Ansicht sagen.**
 
 ---
 

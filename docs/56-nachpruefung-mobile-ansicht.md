@@ -1001,18 +1001,63 @@ selbst betreffen und nicht den Prüfling.** In `docs/45`, `47`, `48`, `53` und
 
 ## 11. Aufräumen
 
+**Hier stand etwas anderes, und es widersprach §2.6.** Der erste Wurf dieses
+Abschnitts entstand vor dem Lauf und wollte die lange Datei und den tiefen Pfad
+löschen. Drei Abschnitte weiter oben steht die Begründung, warum der
+Datenbank-Prüfbestand stehenbleibt — und sie gilt für die Dateien genauso.
+
+> **Ein Rückstand ist, was eine Handlung übriggelassen hat. Eine
+> Messvorrichtung ist, was die nächste Messung braucht. Ein Aufräumplan, der
+> beide gleich behandelt, baut die Vorrichtung jedes Mal neu — und beim
+> übernächsten Mal anders.**
+
+`docs/54 §6.1` hat aus genau diesem Grund `index.html` stehenlassen: „sie ist
+der Nachbar, an dem sich jede weitere Messung misst."
+
+### Was geht
+
 ```bash
 ABO=/var/www/vhosts/p6-b.invalid
-rm -f "$ABO/httpdocs/ein-sehr-langer-dateiname-den-jemand-wirklich-so-angelegt-hat-und-der-nicht-umbricht.txt"
-rm -rf "$ABO/httpdocs/unter/tiefer"
-ls -la "$ABO/httpdocs/" "$ABO/httpdocs/unter/"
+
+rm -f "$ABO/httpdocs/auswahl.zip" \
+      "$ABO/httpdocs/p6-k1.txt" "$ABO/httpdocs/p6-k2.txt" "$ABO/httpdocs/p6-k3.txt" \
+      "$ABO/httpdocs/p6-p1.txt" "$ABO/httpdocs/p6-p2.txt" "$ABO/httpdocs/p6-p3.txt" \
+      "$ABO/httpdocs/p6-neu.txt" "$ABO/httpdocs/p6-probe.txt"
+
+rm -rf "$ABO"/tmp/p6-*
+
+ls -la "$ABO/httpdocs/" "$ABO/tmp/"
 ```
 
 **Die letzte Zeile ist die Gegenprobe und nicht Zierde.** Ein `rm`, dessen
-Muster nicht passt, schweigt.
+Muster nicht passt, schweigt — `docs/52`: *Ein Rückbau, den niemand nachzählt,
+meldet Erfolg auch dann, wenn nichts geschehen ist.*
 
-`unter/` selbst bleibt — es stammt aus einem früheren Lauf und ist der Nachbar,
-an dem sich die nächste Messung misst.
+### Was bleibt, und wofür
+
+| Gegenstand | Wofür |
+|---|---|
+| `ein-sehr-langer-…txt` | Härtefall für Bereichstitel und `.cell-name` (#1, #3b) |
+| `unter/tiefer/noch-tiefer/ganz-unten` | Härtefall für Baumeinrückung und Krümelumbruch (#4) |
+| `p6-fremd/`, `p6-gid/`, `p6-bit` | Rechte-Prüflinge; Schritt 11 braucht sie |
+| `index.html`, `gleich.txt`, `test2/`, `unter/` | ältere Nachbarn, schon in `docs/54` behalten |
+| `IMG_4398/4399/4400.jpeg` | die einzigen Dateien im Megabytebereich |
+| die drei Tabellen aus §2.6 | Prüfbestand der Konsole |
+
+**Wer die lange Datei doch löscht**, legt sie beim nächsten Mal
+**zeichengenau** wieder so an — ein anderer Name ist ein anderer Härtefall.
+
+### Gefahren am 16. August 2026
+
+Gelaufen, mit der Gegenprobe. Danach stehen in `httpdocs/` genau die neun
+Gegenstände aus der Tabelle oben, und `tmp/` ist leer.
+
+**Und ein Nebenbefund: Der Rückbau aus `docs/54 §6.1` ist nie gelaufen.** Das
+`ls` aus §2.2 zeigte `p6-fremd`, `p6-probe.txt` und `auswahl.zip` noch alle —
+der Lauf endete am 15. August mit dem Abschnitt „Aufräumen", und ausgeführt
+wurde er nicht.
+
+> **Der letzte Abschnitt eines Laufs ist der, den niemand mehr fährt.**
 
 ---
 

@@ -346,6 +346,47 @@ Zur Sicherheit die **Datenbankkonsole** öffnen (`/databases/<ID>` → Konsole) 
 ihren Baum ansehen. Ihre Einrückung darf sich **nicht** verändert haben — sie
 war der eigentliche Eigentümer der alten Regel.
 
+### Gefahren am 16. August 2026 — erfüllt
+
+Gemessen bei 390 px, Baum bis in die vierte Ebene aufgeklappt:
+
+| Zweig | letzter | senkrecht | waagerecht |
+|---|---|---|---|
+| `.ssh` | nein | 24px | 11px |
+| `conf` | nein | 24px | 11px |
+| `httpdocs` | nein | **142,5px** | 11px |
+| `p6-fremd` | nein | 24px | 11px |
+| `p6-gid` | nein | 24px | 11px |
+| `test2` | nein | 24px | 11px |
+| `unter` | **ja** | **12px** | 11px |
+| `tiefer` | **ja** | **12px** | 11px |
+| `logs` | nein | 23,5px | 11px |
+| `mail` | nein | 24px | 11px |
+| `tmp` | **ja** | **12px** | 11px |
+
+```
+Wurzelast: 0px
+```
+
+Alle drei Zusagen halten: `waagerecht=11px` an **jedem** Eintrag, `senkrecht=12px`
+an **jedem** letzten, und der Wurzelast trägt keine Linie mehr.
+
+**Die 12px an `unter` sehen falsch aus und sind richtig.** `unter` ist
+aufgeklappt und trägt `tiefer` unter sich; sein `li` ist also hoch. Die Linie,
+die hier gemessen wird, gehört aber zur **Ebene der Kinder von `httpdocs`**, und
+auf dieser Ebene folgt nach `unter` nichts mehr. Sie endet deshalb an seinem
+eigenen Anschluss; der Unterbaum bekommt eine Ebene tiefer seine eigene. Genau
+das war vorher kaputt — dort lief sie 12px darüber hinaus ins Leere.
+
+> **Die Höhe eines Eintrags und die Länge seiner Linie sind zwei verschiedene
+> Sachen, sobald er Kinder hat.**
+
+Die 142,5px an `httpdocs` sind die Gegenprobe dazu: **nicht** letzter, also läuft
+die Linie über den ganzen Unterbaum hinweg bis zu `logs`.
+
+**Offen aus diesem Punkt:** Der Blick in die Datenbankkonsole. Er ist die andere
+Richtung — dass die Umbenennung **ihr** nichts genommen hat.
+
 ---
 
 ## 7. Punkt 5 — Befund 25: die Aktionen klappen zu

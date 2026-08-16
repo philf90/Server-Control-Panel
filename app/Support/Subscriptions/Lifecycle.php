@@ -12,11 +12,14 @@ use App\Models\Domain;
 use App\Models\Operation;
 use App\Models\Subscription;
 use App\Models\SystemUser;
+use App\Support\Files\Sftp;
 use App\Support\Operations\AfterOperation;
 use App\Support\Plans\Quota;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
+use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Pg\Names;
 
 /**
@@ -411,5 +414,43 @@ final class Lifecycle implements AfterOperation
             ->update(['subscription_id' => null]);
 
         $subscription->forceDelete();
+
+        /*
+         * **Und der SFTP-Block geht mit — hier und nicht im Agenten.**
+         *
+         * Die Kaskade nimmt die `ssh_keys` dieses Abonnements mit, und
+         * `subscription.remove` nimmt die Schlüsseldatei mit. Der **Block** in
+         * `sshd_config` bleibt davon unberührt: Er entsteht aus dem
+         * vollständigen Bestand, und niemand sieht ihn sich an, solange kein
+         * Kunde einen Schlüssel anfasst.
+         *
+         * Er wäre kein Zugang — den Systembenutzer gibt es nicht mehr, und ohne
+         * Schlüsseldatei käme ohnehin niemand herein. Er wäre ein **Rest**, und
+         * zwar in der Datei, in der Reste nichts verloren haben: Wer sie
+         * aufmacht, liest dort einen Zugang für ein Abonnement, das es nicht
+         * gibt, und muss erst herausfinden, dass er wirkungslos ist.
+         *
+         * > **Ein Eintrag, der auf nichts mehr zeigt, ist keine Lücke in der
+         * > Abwehr — er ist eine Lüge in der Datei, die man im Ernstfall
+         * > liest.**
+         *
+         * **Nach dem `forceDelete()` und nicht davor**, weil {@see Sftp::accesses()}
+         * den Bestand liest: Stünde die Zeile noch, schriebe der Abgleich den
+         * Block, den er gerade wegräumen soll.
+         *
+         * **Und ein Fehlschlag hier reisst den Rückbau nicht mit.** Das
+         * Abonnement ist fort, seine Dateien sind fort; ein `sshd`, der gerade
+         * nicht erreichbar ist, darf daraus keinen halb zurückgebauten Zustand
+         * machen. Was liegenbleibt, räumt der nächste Abgleich — und der läuft
+         * bei jeder Schlüsseländerung irgendeines Abonnements.
+         */
+        try {
+            app(Sftp::class)->sync();
+        } catch (AgentException $error) {
+            Log::warning('Der SFTP-Block liess sich nach dem Rückbau nicht nachziehen.', [
+                'subscription' => $subscription->name,
+                'reason' => $error->getMessage(),
+            ]);
+        }
     }
 }

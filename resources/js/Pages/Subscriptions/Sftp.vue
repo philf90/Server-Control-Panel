@@ -112,25 +112,35 @@ function problem(): Link | null {
       <section class="section">
         <div class="section-head"><h2>Lage</h2></div>
 
+        <!--
+          **Jede Meldung mit mehr als einem Kind bekommt einen Wrapper.**
+          `.notice` ist ein Flex-Behälter; ohne das umschliessende `span` wird
+          jedes `ident` darin ein eigenes Flex-Kind, und bei 390 px steht die
+          Meldung als Spalten aus fünf Zeichen da — bei einem Dokumentüberlauf
+          von 0 px. `NoticeShapeTest` besteht darauf; gefunden hat es hier die
+          Aufnahme und nicht die Zahl.
+        -->
         <p v-if="props.check.unavailable" class="notice warn">
-          Der Zustand des Zugangs lässt sich gerade nicht feststellen: {{ props.check.unavailable }}
+          <span>Der Zustand des Zugangs lässt sich gerade nicht feststellen: {{ props.check.unavailable }}</span>
         </p>
 
         <template v-else>
           <p v-if="problem()" class="notice critical">
-            <b>Der Zugang kommt so nicht zustande.</b>
-            <span class="ident">{{ problem()?.path }}</span> {{ problem()?.reason }}
-            (Eigentümer <span class="ident">{{ problem()?.owner }}</span>,
-            Rechte <span class="ident">{{ problem()?.mode }}</span>).
-            OpenSSH weist die Anmeldung dann ab, ohne dem Programm des Kunden einen Grund zu nennen.
+            <span>
+              <b>Der Zugang kommt so nicht zustande.</b>
+              <span class="ident">{{ problem()?.path }}</span> {{ problem()?.reason }}
+              (Eigentümer <span class="ident">{{ problem()?.owner }}</span>,
+              Rechte <span class="ident">{{ problem()?.mode }}</span>).
+              OpenSSH weist die Anmeldung dann ab, ohne dem Programm des Kunden einen Grund zu nennen.
+            </span>
           </p>
 
           <p v-else-if="props.keys.length === 0" class="notice neutral">
-            Es ist kein Schlüssel eingetragen — damit ist der Zugang aus. Tragen Sie unten einen ein.
+            <span>Es ist kein Schlüssel eingetragen — damit ist der Zugang aus. Tragen Sie unten einen ein.</span>
           </p>
 
           <p v-else class="notice ok">
-            Der Zugang steht: {{ props.keys.length }} Schlüssel, Verzeichnis und Rechte in Ordnung.
+            <span>Der Zugang steht: {{ props.keys.length }} Schlüssel, Verzeichnis und Rechte in Ordnung.</span>
           </p>
 
           <!--
@@ -142,10 +152,12 @@ function problem(): Link | null {
             v-if="props.check.effective?.chrootdirectory && props.check.effective.chrootdirectory !== props.check.root"
             class="notice warn"
           >
-            In <span class="ident">sshd_config</span> gilt für diesen Benutzer ein anderes
-            Verzeichnis als das des Abonnements:
-            <span class="ident">{{ props.check.effective.chrootdirectory }}</span>.
-            Eine Regel des Betreibers steht über der des Panels.
+            <span>
+              In <span class="ident">sshd_config</span> gilt für diesen Benutzer ein anderes
+              Verzeichnis als das des Abonnements:
+              <span class="ident">{{ props.check.effective.chrootdirectory }}</span>.
+              Eine Regel des Betreibers steht über der des Panels.
+            </span>
           </p>
         </template>
       </section>

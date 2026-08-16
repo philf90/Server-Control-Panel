@@ -210,6 +210,16 @@ An **beiden** Stellen **„AKTION"** steht. Nirgends „Griffe".
 > Wer nur eine der beiden ändert, bekommt zwei Wörter auf einer Seite — je
 > nachdem, wie breit sie gerade ist.
 
+### Gefahren am 16. August 2026 — erfüllt
+
+| Breite | Ergebnis |
+|---|---|
+| 1440 px, Spaltenkopf | **AKTION** |
+| 390 px, Beschriftung im Kärtchen | **AKTION** |
+| Überlauf bei 390 px | **0 px**, Gegenprobe 400 |
+
+Nirgends „Griffe". **Befund 22 ist damit bestätigt.**
+
 ---
 
 ## 5. Punkt 3 — Befund 23: der Baum ist abgesetzt

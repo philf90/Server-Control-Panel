@@ -606,6 +606,38 @@ Kundenseite „Sperren" grau neben „Zurückziehen" rot. Das ist die Gegenprobe
 ihrer stärksten Form — zwei Ränge nebeneinander, im selben Bild, in derselben
 Leiste.
 
+**Nachgereicht am selben Tag, damit vier von vier:**
+
+| Seite | Knopf | Ergebnis |
+|---|---|---|
+| Datenbank | Datenbank entfernen | **rot** — blass, weil `disabled`, solange der Name nicht abgetippt ist |
+| Plan | Löschen | **rot**, neben „Speichern" blau und „Abbrechen" grau |
+
+**Das Planformular ist die beste Gegenprobe des ganzen Punktes:** Dort stehen
+**alle drei Ränge in einer Reihe** — `.button.primary` (Speichern),
+`.button` (Abbrechen), `.button.danger` (Löschen). Wer die Einteilung falsch
+gemacht hätte, sähe es hier auf einen Blick.
+
+### Punkt 6 vollständig — erfüllt
+
+Alle sechs Fälle aus Befund 26 sind nachgeprüft, dazu die vier Gegenproben:
+
+| | Erwartung | Ergebnis |
+|---|---|---|
+| Dateiliste, „Entfernen" je Zeile | rot | **rot**, bei 390 und 1440 px |
+| Datenbank, „Zurückspielen" | rot | **rot**, Knopf und Rückfrage |
+| Abonnement, „Sperren" | nicht rot | **blau** |
+| Kunde, „Sperren" | nicht rot | **blau** |
+| Datenbank, „Zugriff entziehen" | nicht rot | **blau** |
+| Datenbank, „Zurücknehmen" | nicht rot | **blau** |
+| Abonnement, „Zurückbauen" | rot geblieben | **rot** |
+| Kunde, „Zurückziehen" | rot geblieben | **rot** |
+| Datenbank, „Datenbank entfernen" | rot geblieben | **rot** |
+| Plan, „Löschen" | rot geblieben | **rot** |
+
+**Befund 26 ist damit bestätigt.** Rot heisst in diesem Panel überall dasselbe,
+und es steht überall dort, wo es hingehört — nicht mehr und nicht weniger.
+
 ---
 
 ## 9. Punkt 7 — die Bilderrunde (`docs/54` Punkt 8)

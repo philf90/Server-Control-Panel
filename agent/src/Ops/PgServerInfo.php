@@ -6,8 +6,8 @@ namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
+use SrvPanel\Agent\ManagedBlock;
 use SrvPanel\Agent\Op;
-use SrvPanel\Agent\Pg\Hba;
 use SrvPanel\Agent\Pg\Names;
 use SrvPanel\Agent\Pg\Server;
 use SrvPanel\Agent\Pg\Session;
@@ -98,7 +98,7 @@ final class PgServerInfo implements Op
         try {
             $path = $this->server->hbaFile($context, $this->session);
 
-            return Hba::locked($path, static fn (): array => Hba::managed(Hba::read($path)));
+            return ManagedBlock::locked($path, static fn (): array => ManagedBlock::managed(ManagedBlock::read($path)));
         } catch (AgentException) {
             /*
              * **Eine unlesbare `pg_hba.conf` macht diese Auskunft nicht
@@ -109,7 +109,7 @@ final class PgServerInfo implements Op
              * er gar nicht gefragt hat.
              *
              * Der Fall, der das auslöst, ist real und nicht theoretisch: Ein
-             * `# BEGIN` ohne `# END` lässt {@see Hba::managed()} zwar durch,
+             * `# BEGIN` ohne `# END` lässt {@see ManagedBlock::managed()} zwar durch,
              * aber ein Betreiber, der die Datei gerade von Hand repariert, hat
              * sie einen Augenblick lang gar nicht.
              */

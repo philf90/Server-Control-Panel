@@ -6,6 +6,7 @@ namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
+use SrvPanel\Agent\ManagedBlock;
 use SrvPanel\Agent\Op;
 use SrvPanel\Agent\Pg\Hba;
 use SrvPanel\Agent\Pg\Names;
@@ -142,12 +143,12 @@ final class PgRoleRemove implements Op
     {
         $path = $this->server->hbaFile($context, $this->session);
 
-        $dropped = Hba::locked($path, function () use ($path, $role): array {
-            $content = Hba::read($path);
+        $dropped = ManagedBlock::locked($path, function () use ($path, $role): array {
+            $content = ManagedBlock::read($path);
             $keep = [];
             $gone = [];
 
-            foreach (Hba::managed($content) as $line) {
+            foreach (ManagedBlock::managed($content) as $line) {
                 if (Hba::roleOf($line) === $role) {
                     $gone[] = $line;
 
@@ -161,7 +162,7 @@ final class PgRoleRemove implements Op
                 return [];
             }
 
-            Hba::put($path, Hba::render($content, $keep));
+            ManagedBlock::put($path, ManagedBlock::render($content, $keep, $path));
 
             return $gone;
         });

@@ -12,6 +12,7 @@ use App\Models\Subscription;
 use App\Support\Databases\RemoteAccess;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use SrvPanel\Agent\ManagedBlock;
 use SrvPanel\Agent\Pg\Hba;
 use SrvPanel\Agent\Pg\Names as PgNames;
 use Tests\TestCase;
@@ -37,7 +38,7 @@ use Tests\TestCase;
  *
  * In dieser Datei schreiben zwei Anliegen: die Zeile für das Zurückspielen
  * ({@see Hba::MARK}, `docs/38 §13.4`) und der Block für den Fernzugriff
- * ({@see Hba::BEGIN}, §14). Ein Wächter, der nur den zweiten liest, gäbe
+ * ({@see ManagedBlock::BEGIN}, §14). Ein Wächter, der nur den zweiten liest, gäbe
  * Entwarnung über eine Fläche, die er nicht angesehen hat — wörtlich der Fund
  * aus `docs/39 §12a`, eine Stufe später:
  *
@@ -246,7 +247,7 @@ final class PgHbaReachTest extends TestCase
     {
         $bestand = "local   all             all                                     peer\n";
         $mitZeile = Hba::prepend($bestand);
-        $mitBlock = Hba::render($mitZeile, [Hba::rule('x1_a', 'x1_b', '203.0.113.5/32')]);
+        $mitBlock = ManagedBlock::render($mitZeile, [Hba::rule('x1_a', 'x1_b', '203.0.113.5/32')], 'pg_hba.conf');
 
         $this->assertStringContainsString(
             Hba::RULE,
@@ -262,7 +263,7 @@ final class PgHbaReachTest extends TestCase
 
         $this->assertNotContains(
             Hba::RULE,
-            Hba::managed($mitBlock),
+            ManagedBlock::managed($mitBlock),
             'Die Zeile für das Zurückspielen wird als Regel des Blocks gelesen — dann nähme sie der '
             .'nächste Abgleich als verwaist mit.',
         );

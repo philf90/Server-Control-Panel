@@ -9861,6 +9861,145 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SchemeHandleTest passed
 
 echo
+echo "── ManagedBlockTest: der Verwalter einer fremden Datei schreibt selbst ──"
+#
+# Die Regel ist nicht „schreib vorsichtig", sondern „schreib gar nicht": Eine
+# zweite Schreibstelle waere eine zweite Fassung von Sperre, Ersetzung und
+# Rechteuebernahme — und die zweite ist die, die veraltet.
+vorher_datei agent/src/Pg/Hba.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Hba.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '    public static function prepend(',
+    '    public static function schnell(string $p): void { file_put_contents($p, "\\n"); }\n\n    public static function prepend(',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Hba.php "Hba schreibt selbst" &&
+pruefe "der Verwalter einer fremden Datei schreibt selbst" \
+  ManagedBlockTest::test_a_manager_of_a_foreign_file_writes_nothing_itself failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ManagedBlockTest::test_a_manager_of_a_foreign_file_writes_nothing_itself passed
+
+echo
+echo "── ManagedBlockTest: ein put() einen Schritt neben der Sperre ──"
+#
+# **Das ist der Fehler aus docs/45 in seiner allgemeinen Form.** Er sieht beim
+# Lesen richtig aus: Das Schreiben steht noch in derselben Methode, nur eben
+# hinter der schliessenden Klammer von locked(). Genau dazwischen kann sich ein
+# zweiter Prozess schieben.
+vorher_datei agent/src/Ops/PgRoleRemove.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgRoleRemove.php'
+s = open(p, encoding='utf-8').read()
+alt = '            ManagedBlock::put($path, ManagedBlock::render($content, $keep, $path));'
+s = s.replace(alt, '            $fertig = ManagedBlock::render($content, $keep, $path);')
+s = s.replace(
+    '        return $dropped;',
+    "        ManagedBlock::put($path, $fertig ?? '');\n\n        return $dropped;",
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgRoleRemove.php "put() aus der Sperre gezogen" &&
+pruefe "ein put() steht ausserhalb der Sperre" \
+  ManagedBlockTest::test_every_read_and_write_sits_under_the_lock failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ManagedBlockTest::test_every_read_and_write_sits_under_the_lock passed
+
+echo
+echo "── ManagedBlockTest: die Sperre liegt auf der Datei statt daneben ──"
+vorher_datei agent/src/ManagedBlock.php
+sed -i 's|\$lock = \$path\.self::LOCK_SUFFIX;|$lock = $path;|' agent/src/ManagedBlock.php
+griff_datei agent/src/ManagedBlock.php "Sperre auf der Datei" &&
+pruefe "die Sperre liegt auf der verwalteten Datei" \
+  ManagedBlockTest::test_the_lock_lies_beside_the_file failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ManagedBlockTest::test_the_lock_lies_beside_the_file passed
+
+echo
+echo "── ManagedBlockTest: der Zähler fehlt, und die Sperre wartet auf sich selbst ──"
+#
+# **Dieser Eingriff ist der Grund für die Frist im Wächter.** Ohne den Zähler
+# hängt der verschachtelte Aufruf — er schlägt nicht fehl, er steht. Ein
+# Wächter ohne Kindprozess und Frist meldete hier nichts, sondern hielte diesen
+# ganzen Lauf an.
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        if ((self::$held[$path] ?? 0) > 0) {', '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/ManagedBlock.php "Zähler der Sperre entfernt" &&
+pruefe "die Sperre wartet auf sich selbst" \
+  ManagedBlockTest::test_the_lock_is_reentrant failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ManagedBlockTest::test_the_lock_is_reentrant passed
+
+echo
+echo "── ManagedBlockTest: geschrieben wird in die Datei statt daneben ──"
+#
+# `file_put_contents` kürzt zuerst und schreibt dann. Ein Abbruch dazwischen
+# lässt eine leere pg_hba.conf zurück — die ist syntaktisch fehlerfrei und
+# weist jeden ab.
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $temporary = $path.'.srvpanel.'.getmypid();", '        $temporary = $path;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/ManagedBlock.php "kein Umweg über die Nachbardatei" &&
+pruefe "die Datei wird gekürzt statt ersetzt" \
+  ManagedBlockTest::test_the_file_is_replaced_and_never_truncated failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ManagedBlockTest::test_the_file_is_replaced_and_never_truncated passed
+
+echo
+echo "── ManagedBlockTest: der Bestand ausserhalb der Marken fällt weg ──"
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '        $rest = self::without($content, $path);',
+    "        $rest = self::without($content, $path);\n        $rest = '';",
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/ManagedBlock.php "Bestand fällt weg" &&
+pruefe "alles ausserhalb der Marken fällt weg" \
+  ManagedBlockTest::test_everything_outside_the_markers_stays failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ManagedBlockTest::test_everything_outside_the_markers_stays passed
+
+echo
+echo "── ManagedBlockTest: ein BEGIN ohne END wird geraten statt gemeldet ──"
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        if ($end === null) {', '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/ManagedBlock.php "BEGIN ohne END geht durch" &&
+pruefe "ein halb geschriebener Bereich wird geraten" \
+  ManagedBlockTest::test_a_block_without_an_end_stops_instead_of_guessing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ManagedBlockTest::test_a_block_without_an_end_stops_instead_of_guessing passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

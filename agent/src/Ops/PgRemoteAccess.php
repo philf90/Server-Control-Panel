@@ -7,6 +7,7 @@ namespace SrvPanel\Agent\Ops;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Guard;
+use SrvPanel\Agent\ManagedBlock;
 use SrvPanel\Agent\Op;
 use SrvPanel\Agent\Pg\Hba;
 use SrvPanel\Agent\Pg\Names;
@@ -62,7 +63,7 @@ use SrvPanel\Agent\Result;
  * *anderen* Prozess die Zeile für das Zurückspielen ergänzt hat, wirft er sie
  * dabei weg. Nachgestellt am 11. August 2026, drei Wege und jeder verliert
  * etwas; die Tabelle steht bei {@see Hba}. Der Grund, warum die ganze Folge in
- * {@see Hba::locked()} läuft: **Ein Fehlerweg, der selbst fehlschlagen kann,
+ * {@see ManagedBlock::locked()} läuft: **Ein Fehlerweg, der selbst fehlschlagen kann,
  * ist kein Fehlerweg.**
  *
  * ## Was diese Operation nicht tut
@@ -256,26 +257,26 @@ final class PgRemoteAccess implements Op
      */
     public static function apply(string $path, array $rules, callable $reload, callable $errors): array
     {
-        return Hba::locked($path, static function () use ($path, $rules, $reload, $errors): array {
+        return ManagedBlock::locked($path, static function () use ($path, $rules, $reload, $errors): array {
             // 1. Die vorhandene Datei beiseitelegen.
-            $before = Hba::read($path);
+            $before = ManagedBlock::read($path);
 
             // 2. Den Block schreiben — additiv, alles ausserhalb bleibt stehen.
-            $after = Hba::render($before, $rules);
+            $after = ManagedBlock::render($before, $rules, $path);
 
             if ($after === $before) {
                 /*
                  * **Kein Reload für nichts.** Ein Signal an den Server ist
                  * billig, aber nicht umsonst — und der Vergleich steht *hinter*
-                 * {@see Hba::render()} und nicht davor: Ob sich etwas ändert,
+                 * {@see ManagedBlock::render()} und nicht davor: Ob sich etwas ändert,
                  * beantwortet die fertige Datei und nicht die Liste der Regeln.
                  * Ein Aufruf mit denselben Netzen kann trotzdem etwas ändern,
                  * wenn jemand im Block von Hand editiert hat.
                  */
-                return ['rules' => Hba::managed($after), 'changed' => false];
+                return ['rules' => ManagedBlock::managed($after), 'changed' => false];
             }
 
-            Hba::put($path, $after);
+            ManagedBlock::put($path, $after);
 
             // 3. Neu laden. Bis hierher ist eine kaputte Datei folgenlos (M16):
             //    Der Server bedient weiter und behält die alten Regeln.
@@ -285,7 +286,7 @@ final class PgRemoteAccess implements Op
             $broken = $errors();
 
             if ($broken !== []) {
-                Hba::put($path, $before);
+                ManagedBlock::put($path, $before);
                 $reload();
 
                 /*
@@ -328,7 +329,7 @@ final class PgRemoteAccess implements Op
                 );
             }
 
-            return ['rules' => Hba::managed($after), 'changed' => true];
+            return ['rules' => ManagedBlock::managed($after), 'changed' => true];
         });
     }
 

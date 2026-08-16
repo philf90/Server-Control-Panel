@@ -8,7 +8,9 @@ Beschädigung aussperrt.
 > **Ein Lauf, dessen Rückweg durch die Tür führt, die er zusperren kann, hat
 > keinen.**
 
-Das Protokoll entsteht **während** des Laufs als `docs/59` — nicht danach.
+Das Protokoll entsteht **während** des Laufs und nicht danach; es bekommt seine
+Nummer, wenn es angelegt wird. Ein Verweis auf ein Dokument, das es noch nicht
+gibt, ist ein toter Verweis — `DocLinkTest` besteht darauf.
 
 ---
 

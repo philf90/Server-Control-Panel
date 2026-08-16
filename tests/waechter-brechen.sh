@@ -6453,7 +6453,7 @@ vorher_datei agent/src/Ops/PgRemoteAccess.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/PgRemoteAccess.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace("""                Hba::put($path, $before);
+s = s.replace("""                ManagedBlock::put($path, $before);
                 $reload();
 """, """                $reload();
 """)
@@ -6502,10 +6502,10 @@ python3 - <<'PY2'
 p = 'agent/src/Ops/PgRemoteAccess.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    "return Hba::locked($path, static function () use ($path, $rules, $reload, $errors): array {",
+    "return ManagedBlock::locked($path, static function () use ($path, $rules, $reload, $errors): array {",
     "return (static function () use ($path, $rules, $reload, $errors): array {")
-s = s.replace("""            return ['rules' => Hba::managed($after), 'changed' => true];
-        });""", """            return ['rules' => Hba::managed($after), 'changed' => true];
+s = s.replace("""            return ['rules' => ManagedBlock::managed($after), 'changed' => true];
+        });""", """            return ['rules' => ManagedBlock::managed($after), 'changed' => true];
         })();""")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
@@ -6520,16 +6520,21 @@ echo "── PgHbaRollbackTest: der Block stellt sich vor den Bestand ──"
 # In pg_hba.conf entscheidet die erste passende Zeile. Steht unser Block ueber
 # einem „reject" des Betreibers, gewinnt er — und „der Bestand ist Gesetz"
 # waere eine Behauptung. Dieselbe Falle wie in docs/28 §6 fuer nginx.
-vorher_datei agent/src/Pg/Hba.php
+#
+# **Der Eingriff ist am 16. August umgezogen**, weil der Code es ist: Das
+# Setzen des Bereichs steht seit `ManagedBlock` nicht mehr in `Pg\Hba`.
+# Gemerkt hat es `BreakScriptTest` — vier Eingriffe fanden ihren Text nicht
+# mehr, und ein Eingriff, der nichts ändert, prüft nichts.
+vorher_datei agent/src/ManagedBlock.php
 python3 - <<'PY2'
-p = 'agent/src/Pg/Hba.php'
+p = 'agent/src/ManagedBlock.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
     'return $rest."\\n".self::BEGIN."\\n".implode("\\n", $lines)."\\n".self::END."\\n";',
     'return self::BEGIN."\\n".implode("\\n", $lines)."\\n".self::END."\\n\\n".$rest;')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei agent/src/Pg/Hba.php "Block über dem Bestand" &&
+griff_datei agent/src/ManagedBlock.php "Block über dem Bestand" &&
 pruefe "Block über dem Bestand" \
   PgHbaRollbackTest::test_the_block_goes_below_what_the_operator_wrote failed
 wiederherstellen

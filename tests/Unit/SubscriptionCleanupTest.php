@@ -184,7 +184,7 @@ final class SubscriptionCleanupTest extends TestCase
         $this->cleanup('beispiel.de', 'p1001');
         $zweiter = $this->cleanup('beispiel.de', 'p1001');
 
-        $this->assertSame(['sites' => [], 'pools' => [], 'logrotate' => []], $zweiter);
+        $this->assertSame(['sites' => [], 'pools' => [], 'logrotate' => [], 'ssh_keys' => []], $zweiter);
     }
 
     /**

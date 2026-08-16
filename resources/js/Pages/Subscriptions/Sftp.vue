@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3'
+import { useConfirmation } from '../../Composables/useConfirmation'
 import FormErrors from '../../Components/FormErrors.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
@@ -38,6 +39,7 @@ const props = defineProps<{
   can: { manage: boolean }
 }>()
 
+const { ask } = useConfirmation()
 const form = useForm({ label: '', key: '' })
 
 function eintragen(): void {
@@ -47,12 +49,14 @@ function eintragen(): void {
   })
 }
 
+// Kein `confirm()`: Safari darf die Dialoge einer Seite abschalten, und danach
+// tut der Knopf wortlos nichts. `BrowserDialogTest` besteht darauf.
 function entfernen(key: Key): void {
-  if (!confirm(`Den Schlüssel „${key.label}“ entfernen? Wer ihn benutzt, kommt danach nicht mehr herein.`)) {
-    return
-  }
-
-  router.delete(`/subscriptions/${props.subscription.id}/sftp/keys/${key.id}`, { preserveScroll: true })
+  ask(
+    `Den Schlüssel „${key.label}“ entfernen?\n\nWer ihn benutzt, kommt danach nicht mehr herein.`,
+    'Entfernen',
+    () => router.delete(`/subscriptions/${props.subscription.id}/sftp/keys/${key.id}`, { preserveScroll: true }),
+  )
 }
 
 // Der Befund, den das Panel zeigt, weil der Klient ihn nicht bekommt: Er sieht
@@ -139,7 +143,14 @@ function problem(): Link | null {
             <span>Es ist kein Schlüssel eingetragen — damit ist der Zugang aus. Tragen Sie unten einen ein.</span>
           </p>
 
-          <p v-else class="notice ok">
+          <!--
+            **Nicht `notice ok`.** Grün meldet den Erfolg eines *Vorgangs*
+            (docs/19 §6.3); hier steht ein Zustand, den niemand gerade
+            ausgelöst hat. `FieldErrorTest` besteht darauf, und zu Recht: Wer
+            den Zustand grün malt, hat für den nächsten Vorgang keine Farbe
+            mehr übrig.
+          -->
+          <p v-else class="notice neutral">
             <span>Der Zugang steht: {{ props.keys.length }} Schlüssel, Verzeichnis und Rechte in Ordnung.</span>
           </p>
 
@@ -177,7 +188,16 @@ function problem(): Link | null {
               <tr v-for="key in props.keys" :key="key.id">
                 <td data-column="Bezeichnung" class="cell-name">{{ key.label }}</td>
                 <td data-column="Art"><span class="ident">{{ key.type }}</span> {{ key.bits }} Bit</td>
-                <td data-column="Fingerabdruck" class="cell-name"><span class="ident">{{ key.fingerprint }}</span></td>
+                <!--
+                  `td .ident` und **nicht** `.cell-name` darum herum: Die
+                  beiden sind Alternativen (`docs/46 §20.13`), und
+                  `BlockSpacingTest` liest die Schachtelung als Naht, die es
+                  in app.css nicht gibt. Ein Fingerabdruck ist eine Kennung,
+                  also `ident` — und `.stacks td .ident` trägt seit
+                  `docs/46 §20.11` das `overflow-wrap: anywhere`, das ihn
+                  brechen lässt.
+                -->
+                <td data-column="Fingerabdruck"><span class="ident">{{ key.fingerprint }}</span></td>
                 <td v-if="props.can.manage" data-column="Entfernen">
                   <button type="button" class="button danger" @click="entfernen(key)">Entfernen</button>
                 </td>

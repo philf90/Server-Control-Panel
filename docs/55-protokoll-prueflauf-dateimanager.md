@@ -1681,6 +1681,141 @@ vierte Bruch gegen den Wächter, und er beisst.
 
 ---
 
+## Drei Befunde aus der mobilen Ansicht — gemeldet am 16. August 2026
+
+Der Betreiber hat nach der Nachprüfung von Befund 21 und 22 drei Dinge an der
+Dateiliste **auf dem Telefon** gemeldet. Sie hängen nicht am Prüflauf, sondern
+an der Ansicht; sie stehen hier, weil sie im selben Atemzug kamen und weil zwei
+davon Wächter bekommen haben.
+
+Gemessen ist alles mit dem gebauten Stylesheet aus `public/build` im
+vorinstallierten Chromium bei 390px — der Weg, den CLAUDE.md für den Fall
+beschreibt, dass `vendor/` fehlt.
+
+## Befund 23 — der Baum und die Krümelspur lasen sich als eine Liste
+
+Unter 720px steht der Baum über der Liste, und unmittelbar darunter beginnt die
+Krümelspur. Beide fangen mit **„Abo-Wurzel"** an, und zwischen ihnen stand
+nichts: kein Rahmen, keine Überschrift, 24px Abstand. Der Betreiber hat gemeldet,
+dass sich das als **eine** Liste mit einem doppelten Eintrag liest.
+
+Der Baum trug seinen Namen bis dahin ausschliesslich als `aria-label`. Für
+jemanden, der die Seite hört, war er also benannt; für das Auge gar nicht.
+
+> **Zwei Namen für zwei verschiedene Dinge nützen nichts, wenn keiner der beiden
+> dasteht.**
+
+Er hat jetzt eine sichtbare Überschrift („Verzeichnisse", beim Auswählen eines
+Ziels „Ziel wählen" — die Rolle war vorher ebenfalls unsichtbar) und unter 720px
+einen Rahmen. Daneben, ab 720px, braucht er beides nicht: Dort steht er in einer
+eigenen Spalte mit einer Trennlinie.
+
+Die Überschrift ist **zugleich** der Name für den Screenreader
+(`aria-labelledby`) und steht nicht neben dem alten `aria-label`:
+
+> **Ein sichtbarer Titel und ein `aria-label` sind zwei Fassungen desselben
+> Satzes — und die zweite ist die, die veraltet.**
+
+Der Wächter dazu ist `LabelReachTest`, mit beiden Richtungen: Jede genannte
+Kennung existiert in derselben Vorlage, und kein Element trägt zwei Namen. Der
+erste Fall ist der Verweis-Fehler, den CLAUDE.md ganz oben nennt — eine
+Zeichenkette, die auf etwas zeigt, ohne dass etwas den Bezug prüft. Er fällt
+niemandem auf, weil nichts passiert.
+
+## Befund 24 — neben der Wurzel des Baums lief eine Linie, die nichts verbindet
+
+Der Betreiber hat gefragt, ob die Linien links im Baum richtig gezeichnet
+werden. Sie wurden es nicht, und die Ursache stand in einem **anderen
+Baustein**.
+
+Gemessen im Browser bei 390px: eine senkrechte Linie von y=16 bis y=210 neben
+einem Ast mit genau **einem** Kind — der Wurzel. Dazu 18px Einzug, den niemand
+angeordnet hatte.
+
+`Databases/Console.vue` trägt seit P5c einen Baum als `<ul class="tree"
+role="tree">` und rückt seine Ebenen mit `.tree ul { border-left: … }` ein.
+`Components/FileTree.vue` nannte seinen `<nav>` **ebenfalls** `tree`. Die Regel
+der Konsole griff damit auf den Wurzelast des Dateibaums, weil der ein `<ul>`
+ist.
+
+> **Zwei Bausteine unter demselben Namen sind ein Baustein, sobald eine Regel
+> über Elementnamen geht.**
+
+Der Dateibaum heisst jetzt `file-tree`. Und beim Nachmessen kam ein zweiter
+Fehler heraus, den niemand gemeldet hatte: Die Linien der verschachtelten Äste
+liefen **12px über die Mitte des letzten Eintrags hinaus** — ins Leere — und
+berührten keinen einzigen Eintrag. Eine senkrechte Linie neben einer Liste sagt
+nicht, wozu die Einträge gehören. Sie sitzen jetzt am Eintrag statt am Ast, mit
+einem waagerechten Anschluss und ohne Überhang; gemessen: durchlaufend bei jedem
+Eintrag, 12px beim letzten, Anschluss auf der Mitte der ersten Zeile des Zweigs.
+
+**Der Wächter dazu ist `ClassBlockTest`, und sein erster Wurf war der falsche.**
+Er prüfte, ob eine Klasse in allen Vorlagen auf demselben Element sitzt — und
+lief sofort rot an `.field`, das in fünfzehn Vorlagen ein `<label>` ist und in
+zweien ein `<div>`. Das ist dort richtig: Der Aufbau innen ist derselbe.
+
+> **Ein Wächter, dessen erster Fund eine Ausnahme braucht, misst nicht das,
+> wonach gefragt wurde.**
+
+Gefragt ist, ob zwei verschiedene Dinge denselben Namen bekommen haben — und das
+steht im Stylesheet selbst, als **zwei Blöcke** unter einem Namen, 300 Zeilen
+auseinander, jeder mit einem eigenen Kommentar über einen eigenen Gegenstand.
+Gegengeprüft am Stand vor dem Fix: rot, und zwar an `.tree`.
+
+## Befund 25 — die Aktionen nahmen fast die halbe Zeile
+
+Gemessen bei 390px, vorher: **Kärtchen 344px, davon 162px die Knopfreihe** — 47
+Prozent. Ein Verzeichnis mit zwanzig Dateien ist damit zehn Bildschirme lang, von
+denen die Hälfte aus Knöpfen besteht.
+
+Die Ursache ist keine Nachlässigkeit, sondern eine richtige Regel an einer neuen
+Stelle: `.button-row` stapelt unter 480px und zieht ihre Knöpfe auf volle Breite,
+damit vom dritten nicht drei Buchstaben übrigbleiben. Für eine Reihe, die
+**einmal** auf der Seite steht, ist das richtig; hier steht sie einmal **je
+Zeile**.
+
+> **Eine Regel, die für einen Baustein gilt, gilt nicht für zwanzig davon
+> untereinander.**
+
+Unter 720px steht dort jetzt ein Umschalter „Aktionen". Gemessen nachher:
+
+| | Kärtchen | Zelle „Aktion" | Liste (2 Einträge) |
+|---|---|---|---|
+| vorher, 390px | 344px | 162px | 755px |
+| zugeklappt, 390px | **236px** | **54px** | **485px** |
+| aufgeklappt, 390px | 396px | 214px | 859px |
+| 1440px, unverändert | 40px | 40px | 124px |
+
+**Und der erste Wurf davon war kaputt, mit einem Überlauf von 0px.** Eine
+gestapelte Zelle ist eine Flexzeile mit `justify-content: space-between`; drei
+Kinder darin — Beschriftung, Umschalter, Knopfreihe — stehen nebeneinander. Die
+aufgeklappte Reihe stand also **neben** dem Umschalter und wurde am rechten Rand
+abgeschnitten: „Umbenen…", „Rechte…", „Entferne…". Die Messung sagte dazu nichts,
+weil die Zelle schneidet und nicht schiebt.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+Zum vierten Mal in diesem Projekt derselbe Satz, und zum vierten Mal hat ihn ein
+Bild gefunden und keine Zahl.
+
+**Der Wächter dazu steht in `MobileLayoutTest`, und er hütet vor allem den
+teuren Fall:** Verlässt `.button-row.folded` seinen Medienblock, ist auf der
+**breiten** Fläche jede Knopfreihe fort — und zugeklappt sind dort alle.
+Umbenennen, Rechte, Entpacken und Entfernen wären am Arbeitsplatz unerreichbar,
+und die Seite sähe dabei aus wie immer. Der Umschalter ist deshalb im
+Grundzustand `display: none` und wird unter 720px eingeschaltet, nicht umgekehrt:
+
+> **Was ohne Bedingung dasteht, gilt auch dort, wo niemand nachgesehen hat.**
+
+**Und ein Fund am Rand, gefunden beim Bau des Wächters:** Der Kommentar über
+`matchMedia('(min-width: 720px)')` in `Databases/Console.vue` schrieb seit P5c,
+`MobileLayoutTest` halte diese Zahl fest. Er tat es nicht — er suchte nach
+`@media`, und `matchMedia` fängt nicht so an. Seit diesem Schritt tut er es.
+
+> **Ein Kommentar, der einen Wächter benennt, ist keine Prüfung, dass der
+> Wächter hinsieht.**
+
 ---
 
 ## Offen, klein, nicht verfolgt

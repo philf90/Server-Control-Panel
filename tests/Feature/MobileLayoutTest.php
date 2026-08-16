@@ -71,7 +71,22 @@ final class MobileLayoutTest extends TestCase
         $found = 0;
 
         foreach ($sources as $path) {
-            preg_match_all('/@media[^{]*\(\s*(?:max|min)-width:\s*([0-9.]+px)\s*\)/', (string) file_get_contents($path), $matches);
+            /*
+             * **`matchMedia` steht mit in der Suche, und das war eine Lücke.**
+             * `Databases/Console.vue` fragt seit P5c mit
+             * `matchMedia('(min-width: 720px)')`, ob der Inhalt neben dem Baum
+             * steht — und der Kommentar darüber schrieb, dieser Wächter halte
+             * die Zahl fest. Er tat es nicht: Er suchte nach `@media`, und
+             * `matchMedia` fängt nicht so an.
+             *
+             * > **Ein Kommentar, der einen Wächter benennt, ist keine Prüfung,
+             * > dass der Wächter hinsieht.**
+             */
+            preg_match_all(
+                '/(?:@media|matchMedia)[^{]*?\(\s*(?:max|min)-width:\s*([0-9.]+px)\s*\)/',
+                (string) file_get_contents($path),
+                $matches,
+            );
 
             foreach ($matches[1] as $width) {
                 $found++;
@@ -1301,6 +1316,95 @@ final class MobileLayoutTest extends TestCase
         );
     }
 
+    /**
+     * Was sich auf dem Telefon zusammenlegt, ist auf der breiten Fläche
+     * aufgeklappt — und der Umschalter dort fort.
+     *
+     * ## Der Fund
+     *
+     * Der Betreiber hat am 16. August 2026 gemeldet, dass die Aktionen der
+     * Dateiliste auf dem Telefon zu viel Platz nehmen (`docs/55`, Befund 25).
+     * Gemessen bei 390px mit dem gebauten Stylesheet: **Kärtchen 344px, davon
+     * 162px die Knopfreihe** — 47 Prozent. Zwei Einträge je Bildschirm.
+     *
+     * ## Was hier schiefgehen kann, und warum es teuer wäre
+     *
+     * Die Zusammenlegung hängt an zwei Regeln, und **beide sind gefährlich,
+     * wenn sie ihren Medienblock verlassen**:
+     *
+     * - `.button-row.folded { display: none }` ausserhalb: Dann verschwindet
+     *   auf der **breiten** Fläche jede Knopfreihe, die gerade zugeklappt ist —
+     *   also jede. Umbenennen, Rechte, Entpacken, Entfernen wären am
+     *   Arbeitsplatz unerreichbar, und die Seite sähe dabei ordentlich aus.
+     * - `.button.fold` sichtbar ausserhalb: Dann steht neben jeder Zeile ein
+     *   Umschalter für etwas, das ohnehin dasteht.
+     *
+     * > **Eine Regel, die nur unter einer Bedingung stimmt, muss ihre Bedingung
+     * > tragen — und die Grundstellung ist die, die überall gilt.**
+     *
+     * Der Umschalter ist deshalb im Grundzustand `display: none` und wird
+     * unter 720px eingeschaltet, nicht umgekehrt: Was ohne Bedingung dasteht,
+     * gilt auch dort, wo niemand nachgesehen hat.
+     */
+    public function test_a_folded_row_is_only_folded_on_a_phone(): void
+    {
+        $css = $this->withoutComments((string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css'));
+
+        $schmal = $this->insideMediaQuery($css, 720);
+        $breit = $this->outsideMediaQueries($css);
+
+        $this->assertNotSame('', $schmal, 'Es gibt keine 720px-Abfrage mehr — dann prüft dieser Test nichts.');
+
+        $this->assertStringNotContainsString(
+            '@media',
+            $breit,
+            'Der Aufsatz lässt Medienblöcke stehen — dann sagt „ausserhalb" hier nichts.',
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/(^|\})\s*\.button\.fold\s*\{[^}]*display\s*:\s*none/s',
+            $breit,
+            "`.button.fold` ist ausserhalb der 720px-Abfrage nicht mehr abgeschaltet.\n\n".
+            'Dann steht am Arbeitsplatz neben jeder Zeile ein Umschalter für Knöpfe, die daneben '.
+            'ohnehin schon stehen. Die Grundstellung ist die, die überall gilt.',
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/\.button-row\.folded\s*\{[^}]*display\s*:\s*none/s',
+            $schmal,
+            "Unter 720px legt sich die Knopfreihe nicht mehr zusammen.\n\n".
+            'Dann nimmt sie auf dem Telefon wieder 162px von 344px Kärtchenhöhe.',
+        );
+
+        $this->assertDoesNotMatchRegularExpression(
+            '/\.button-row\.folded\s*\{[^}]*display\s*:\s*none/s',
+            $breit,
+            "`.button-row.folded` blendet die Knopfreihe **ausserhalb** der 720px-Abfrage aus.\n\n".
+            'Damit ist auf der breiten Fläche jede zugeklappte Reihe fort — und zugeklappt sind '.
+            'dort alle. Umbenennen, Rechte, Entpacken und Entfernen wären unerreichbar, und die '.
+            'Seite sähe dabei aus wie immer.',
+        );
+
+        /*
+         * **Und die Vorlage kennt den Haltepunkt nicht.** Welche Zeile
+         * aufgeklappt ist, steht in `Files/Index.vue` als Pfad; ob das
+         * Zusammenlegen überhaupt gilt, entscheidet allein `app.css`. Eine
+         * `matchMedia`-Abfrage dafür wäre eine zweite Fassung der 720 — dass
+         * eine solche Zahl, wo sie doch nötig ist, dieselbe ist, hält
+         * `test_only_the_two_breakpoints_are_used` fest.
+         */
+        $this->assertDoesNotMatchRegularExpression(
+            '/matchMedia|innerWidth/',
+            $this->withoutComments(
+                (string) file_get_contents(dirname(__DIR__, 2).'/resources/js/Pages/Files/Index.vue'),
+            ),
+            "Die Dateiliste fragt selbst nach der Breite des Fensters.\n\n".
+            'Das Zusammenlegen hängt an `app.css` und an nichts sonst. Eine Bedingung in der Vorlage '.
+            'läuft beim nächsten Umbau der Regel hinterher — und dann sind die Knöpfe entweder '.
+            'doppelt da oder gar nicht.',
+        );
+    }
+
     public function test_input_fields_use_the_zoom_safe_size(): void
     {
         /*
@@ -1560,5 +1664,46 @@ final class MobileLayoutTest extends TestCase
         }
 
         return $inhalt;
+    }
+
+    /**
+     * Was ohne jede Breitenbedingung gilt — alle `@media`-Blöcke herausgenommen.
+     *
+     * **Nicht `str_replace` mit dem Ergebnis von `insideMediaQuery`.** Das
+     * setzt die Inhalte aller Blöcke zu **einer** Zeichenkette zusammen, und
+     * die steht so nirgends im Stylesheet; der Austausch findet nichts und
+     * lässt alles stehen. Genau daran ist der erste Lauf von
+     * `test_a_folded_row_is_only_folded_on_a_phone` rot geworden — an seinem
+     * eigenen Aufsatz und nicht an einer Regel.
+     */
+    private function outsideMediaQueries(string $css): string
+    {
+        $aus = '';
+        $i = 0;
+        $länge = strlen($css);
+
+        while ($i < $länge) {
+            if (preg_match('/\G@media[^{]*\{/', $css, $treffer, 0, $i) !== 1) {
+                $aus .= $css[$i];
+                $i++;
+
+                continue;
+            }
+
+            $offen = 1;
+            $i += strlen($treffer[0]);
+
+            while ($offen > 0 && $i < $länge) {
+                $offen += match ($css[$i]) {
+                    '{' => 1,
+                    '}' => -1,
+                    default => 0,
+                };
+
+                $i++;
+            }
+        }
+
+        return $aus;
     }
 }

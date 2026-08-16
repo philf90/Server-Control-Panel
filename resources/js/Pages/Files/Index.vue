@@ -340,6 +340,25 @@ const selected = ref<string[]>([])
 const picking = ref<'copy' | 'move' | null>(null)
 
 /**
+ * Welche Zeile ihre Aktionen gerade aufgeklappt hat — auf dem Telefon.
+ *
+ * **Ein Pfad und keine Liste.** Zwanzig offene Zeilen wären zwanzigmal das
+ * Problem, das dieses Zuklappen löst (`docs/55`, Befund 25): Die Knopfreihe
+ * misst bei 390px 162px von 344px Kärtchenhöhe. Wer die nächste öffnet, hat die
+ * vorige gelesen.
+ *
+ * **Der Wert steuert nur eine Klasse.** Über 720px ist die Reihe ohne
+ * Bedingung sichtbar und der Umschalter fort — beides entscheidet `app.css`.
+ * Eine `matchMedia`-Abfrage hier wäre eine zweite Fassung des Haltepunkts, und
+ * die zweite ist die, die beim nächsten Umbau stehenbleibt.
+ */
+const unfolded = ref<string | null>(null)
+
+function toggleActions(path: string): void {
+  unfolded.value = unfolded.value === path ? null : path
+}
+
+/**
  * Beim Wechsel des Verzeichnisses fällt die Auswahl weg.
  *
  * **Sonst entfernt sie Einträge, die niemand mehr sieht.** Eine Auswahl, die
@@ -357,6 +376,9 @@ watch(() => props.path, () => {
   // fragt nach dem Namen für nichts.
   archiveName.value = null
   renameFor.value = null
+  // Und aus demselben Grund: Ein aufgeklappter Pfad zeigt nach der Navigation
+  // auf eine Zeile, die es in dieser Liste nicht gibt.
+  unfolded.value = null
 })
 
 function toggleSelected(path: string, on: boolean): void {
@@ -875,25 +897,58 @@ function pick(target: string): void {
                 Dateisystem und ist die zweite Bedingung: `conf/` gehört root,
                 und daran ändert keine Berechtigung im Panel etwas.
               -->
-              <div v-if="props.can.edit && entry.writable && !entry.fixed" class="button-row">
-                <button type="button" class="button small" @click="startRename(entry)">Umbenennen</button>
+              <!--
+                **Auf dem Telefon steht hier erst ein Umschalter.** Die vier
+                Knöpfe stapeln unter 480px auf volle Breite — richtig für eine
+                Reihe, die einmal auf der Seite steht, und teuer für eine, die
+                je Zeile dasteht: 162px von 344px Kärtchenhöhe, gemessen bei
+                390px (`docs/55`, Befund 25).
+
+                Ob er zu sehen ist, entscheidet `app.css` und nicht diese
+                Vorlage: `.fold` steht im Grundzustand auf `display: none` und
+                erscheint erst unter 720px. Eine Abfrage der Breite hier wäre
+                eine zweite Fassung des Haltepunkts.
+              -->
+              <!--
+                **Der Umschalter und seine Reihe stehen in einer eigenen
+                Hülle.** Eine gestapelte Zelle ist eine Flexzeile
+                (`justify-content: space-between`); ohne sie stünde die
+                aufgeklappte Knopfreihe **neben** dem Umschalter statt darunter
+                und wurde am rechten Rand abgeschnitten — „Umbenen…",
+                „Entferne…". Gemessen bei 390px, und die Zahl hat davon nichts
+                gesehen: Der Dokumentüberlauf stand auf 0, weil die Zelle
+                schneidet und nicht schiebt.
+              -->
+              <div v-if="props.can.edit && entry.writable && !entry.fixed" class="folds">
                 <button
-                  v-if="entry.type !== 'link'"
                   type="button"
-                  class="button small"
-                  @click="startChmod(entry)"
+                  class="button small fold"
+                  :aria-expanded="unfolded === entry.path"
+                  @click="toggleActions(entry.path)"
                 >
-                  Rechte
+                  {{ unfolded === entry.path ? 'Aktionen zuklappen' : 'Aktionen' }}
                 </button>
-                <button
-                  v-if="isArchive(entry)"
-                  type="button"
-                  class="button small"
-                  @click="extract(entry)"
-                >
-                  Entpacken
-                </button>
-                <button type="button" class="button small" @click="remove(entry)">Entfernen</button>
+
+                <div class="button-row" :class="{ folded: unfolded !== entry.path }">
+                  <button type="button" class="button small" @click="startRename(entry)">Umbenennen</button>
+                  <button
+                    v-if="entry.type !== 'link'"
+                    type="button"
+                    class="button small"
+                    @click="startChmod(entry)"
+                  >
+                    Rechte
+                  </button>
+                  <button
+                    v-if="isArchive(entry)"
+                    type="button"
+                    class="button small"
+                    @click="extract(entry)"
+                  >
+                    Entpacken
+                  </button>
+                  <button type="button" class="button small" @click="remove(entry)">Entfernen</button>
+                </div>
               </div>
               <!--
                 **Und wo nichts geht, steht warum.** Ein blosser Strich sagt

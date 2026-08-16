@@ -13790,3 +13790,108 @@ Gebrauch für eine Schaltfläche nicht — und dieses Panel hat längst ein ande
 
 Umbenannt sind beide Stellen: der Kopf für die breite Ansicht und `data-column`
 für die Kärtchen unter 720px.
+
+#### Der Baum steht in einem Kasten und trägt seinen Namen sichtbar
+
+Unter 720px steht der Verzeichnisbaum über der Liste, und unmittelbar darunter
+beginnt die Krümelspur. Beide fangen mit „Abo-Wurzel" an, und zwischen ihnen
+stand nichts — der Betreiber hat gemeldet, dass sich das auf dem Telefon als
+**eine** Liste mit einem doppelten Eintrag liest.
+
+Seinen Namen trug der Baum bis dahin ausschliesslich als `aria-label`: Wer die
+Seite hört, bekam ihn; wer sie sieht, nicht.
+
+> **Zwei Namen für zwei verschiedene Dinge nützen nichts, wenn keiner der beiden
+> dasteht.**
+
+Er hat jetzt eine sichtbare Überschrift — „Verzeichnisse", beim Auswählen eines
+Ziels „Ziel wählen", was ebenfalls unsichtbar war — und unter 720px einen
+Rahmen. Ab 720px braucht er beides nicht: Dort steht er in einer eigenen Spalte
+mit einer Trennlinie.
+
+Die Überschrift ist **zugleich** der Name für den Screenreader
+(`aria-labelledby`) und steht nicht neben dem alten `aria-label`:
+
+> **Ein sichtbarer Titel und ein `aria-label` sind zwei Fassungen desselben
+> Satzes — und die zweite ist die, die veraltet.**
+
+Neuer Wächter `LabelReachTest` mit beiden Richtungen: Jede genannte Kennung gibt
+es in derselben Vorlage, und kein Element trägt zwei Namen. Der erste Fall ist
+der Verweis-Fehler, den CLAUDE.md ganz oben nennt — er fällt niemandem auf, weil
+nichts passiert.
+
+#### Neben der Wurzel des Baums lief eine Linie, die nichts verbindet
+
+Der Betreiber hat gefragt, ob die Linien links im Baum stimmen. Sie stimmten
+nicht, und die Ursache stand in einem **anderen Baustein**: eine senkrechte
+Linie von y=16 bis y=210 neben einem Ast mit genau einem Kind, dazu 18px Einzug,
+den niemand angeordnet hatte (gemessen im Browser bei 390px).
+
+`Databases/Console.vue` trägt seit P5c einen Baum als `<ul class="tree"
+role="tree">` und rückt seine Ebenen mit `.tree ul { border-left: … }` ein.
+`Components/FileTree.vue` nannte seinen `<nav>` **ebenfalls** `tree` — und die
+Regel der Konsole griff damit auf dessen Wurzelast, weil der ein `<ul>` ist.
+
+> **Zwei Bausteine unter demselben Namen sind ein Baustein, sobald eine Regel
+> über Elementnamen geht.**
+
+Der Dateibaum heisst jetzt `file-tree`. Beim Nachmessen kam ein zweiter Fehler
+heraus, den niemand gemeldet hatte: Die Linien der verschachtelten Äste liefen
+**12px über die Mitte des letzten Eintrags hinaus** und berührten keinen
+einzigen Eintrag. Sie sitzen jetzt am Eintrag statt am Ast, mit einem
+waagerechten Anschluss und ohne Überhang.
+
+Neuer Wächter `ClassBlockTest` — und sein erster Wurf war der falsche. Er
+prüfte, ob eine Klasse überall auf demselben Element sitzt, und lief sofort rot
+an `.field`, das in fünfzehn Vorlagen ein `<label>` ist und in zweien ein
+`<div>`. Dort ist der Aufbau innen derselbe, also ist es richtig so.
+
+> **Ein Wächter, dessen erster Fund eine Ausnahme braucht, misst nicht das,
+> wonach gefragt wurde.**
+
+Gefragt ist, ob zwei verschiedene Dinge denselben Namen bekommen haben — und das
+steht im Stylesheet selbst, als zwei Blöcke unter einem Namen, jeder mit einem
+eigenen Kommentar über einen eigenen Gegenstand.
+
+#### Die Aktionen legen sich auf dem Telefon zusammen
+
+Gemessen bei 390px: Kärtchen 344px, davon **162px die Knopfreihe** — 47 Prozent.
+Ein Verzeichnis mit zwanzig Dateien war damit zehn Bildschirme lang, von denen
+die Hälfte aus Knöpfen bestand.
+
+Die Ursache ist eine richtige Regel an einer neuen Stelle: `.button-row` stapelt
+unter 480px und zieht ihre Knöpfe auf volle Breite, damit vom dritten nicht drei
+Buchstaben übrigbleiben. Für eine Reihe, die einmal auf der Seite steht, ist das
+richtig; hier steht sie einmal **je Zeile**.
+
+> **Eine Regel, die für einen Baustein gilt, gilt nicht für zwanzig davon
+> untereinander.**
+
+Unter 720px steht dort jetzt ein Umschalter „Aktionen". Gemessen: Kärtchen
+236px statt 344, Zelle 54px statt 162, die Liste aus zwei Einträgen 485px statt
+755. Über 720px ändert sich nichts — 40px Zeilenhöhe wie zuvor.
+
+**Der erste Wurf davon war kaputt, bei einem Überlauf von 0px.** Eine gestapelte
+Zelle ist eine Flexzeile mit `justify-content: space-between`; drei Kinder darin
+stehen nebeneinander, und die aufgeklappte Reihe wurde am rechten Rand
+abgeschnitten — „Umbenen…", „Rechte…", „Entferne…". Die Messung sagte nichts
+dazu, weil die Zelle schneidet und nicht schiebt.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+Der Wächter dazu (`MobileLayoutTest`) hütet vor allem den teuren Fall: Verlässt
+`.button-row.folded` seinen Medienblock, ist auf der breiten Fläche jede
+Knopfreihe fort — und zugeklappt sind dort alle. Der Umschalter ist deshalb im
+Grundzustand `display: none` und wird unter 720px eingeschaltet, nicht
+umgekehrt.
+
+> **Was ohne Bedingung dasteht, gilt auch dort, wo niemand nachgesehen hat.**
+
+**Und ein Fund am Rand:** Der Kommentar über `matchMedia('(min-width: 720px)')`
+in `Databases/Console.vue` schrieb seit P5c, `MobileLayoutTest` halte diese Zahl
+fest. Er tat es nicht — er suchte nach `@media`, und `matchMedia` fängt nicht so
+an. Seit diesem Schritt tut er es.
+
+> **Ein Kommentar, der einen Wächter benennt, ist keine Prüfung, dass der
+> Wächter hinsieht.**

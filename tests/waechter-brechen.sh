@@ -9648,6 +9648,106 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SchemeHandleTest passed
 
 echo
+echo "── ClassBlockTest: zwei Bausteine unter einem Namen ──"
+#
+# Genau die Lage, aus der die Linie neben der Wurzel des Dateibaums entstanden
+# ist: `.tree ul` gehoert der Datenbankkonsole, und der Dateibaum hiess
+# ebenfalls `tree`. Wer den einen Block liest, sieht den anderen nicht.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('.file-tree {\n  min-width: 0;', '.tree {\n  min-width: 0;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "der Dateibaum heisst wieder tree" &&
+pruefe "zwei Bausteine unter einem Namen" \
+  ClassBlockTest::test_no_class_is_styled_in_two_places failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ClassBlockTest passed
+
+echo
+echo "── MobileLayoutTest: die zugeklappte Reihe ist ueberall zugeklappt ──"
+#
+# Der teure Fall: Verlaesst `.button-row.folded` seinen Medienblock, ist auf der
+# breiten Flaeche jede Knopfreihe fort -- und zugeklappt sind dort alle.
+# Umbenennen, Rechte, Entpacken und Entfernen waeren unerreichbar, und die Seite
+# saehe dabei aus wie immer.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""  .button-row.folded {
+    display: none;
+  }
+""", '', 1)
+s = s.replace('.button.fold {\n  display: none;\n}', '.button.fold {\n  display: none;\n}\n\n.button-row.folded {\n  display: none;\n}', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "folded ohne Medienblock" &&
+pruefe "die zugeklappte Reihe ist ueberall zugeklappt" \
+  MobileLayoutTest::test_a_folded_row_is_only_folded_on_a_phone failed
+wiederherstellen
+
+echo
+echo "── MobileLayoutTest: der Umschalter steht auch am Arbeitsplatz ──"
+#
+# Der Umschalter ist im Grundzustand fort und wird unter 720px eingeschaltet,
+# nicht umgekehrt: Was ohne Bedingung dasteht, gilt auch dort, wo niemand
+# nachgesehen hat.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('.button.fold {\n  display: none;\n}', '.button.fold {\n  display: inline-flex;\n}', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "Umschalter ohne Bedingung sichtbar" &&
+pruefe "der Umschalter steht auch am Arbeitsplatz" \
+  MobileLayoutTest::test_a_folded_row_is_only_folded_on_a_phone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest passed
+
+echo
+echo "── LabelReachTest: die Beschriftung zeigt ins Leere ──"
+#
+# Fuer das Auge aendert das nichts. Der Block hat fuer jemanden, der die Seite
+# hoert, dann einfach keinen Namen mehr -- und nichts meldet es.
+vorher_datei resources/js/Components/FileTree.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/FileTree.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('<p id="file-tree-title"', '<p id="file-tree-heading"', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Components/FileTree.vue "Kennung umbenannt" &&
+pruefe "die Beschriftung zeigt ins Leere" \
+  LabelReachTest::test_every_labelled_by_names_an_id_that_exists failed
+wiederherstellen
+
+echo
+echo "── LabelReachTest: zwei Namen an einem Element ──"
+#
+# Wo beides steht, gewinnt aria-label, und der Vorleser sagt etwas anderes als
+# das, was auf dem Schirm steht.
+vorher_datei resources/js/Components/FileTree.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/FileTree.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '<nav class="file-tree" aria-labelledby="file-tree-title">',
+    '<nav class="file-tree" aria-labelledby="file-tree-title" aria-label="Verzeichnisse">',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Components/FileTree.vue "zweiter Name" &&
+pruefe "zwei Namen an einem Element" \
+  LabelReachTest::test_nothing_carries_two_names_at_once failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LabelReachTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

@@ -947,7 +947,13 @@ function pick(target: string): void {
                   >
                     Entpacken
                   </button>
-                  <button type="button" class="button small" @click="remove(entry)">Entfernen</button>
+                  <!--
+                    Rot wie das „Entfernen" der Auswahlleiste darüber. Bis zum
+                    16. August 2026 war dasselbe Wort in derselben Liste einmal
+                    rot und einmal grau, je nachdem, über welchen Weg man es
+                    auslöste.
+                  -->
+                  <button type="button" class="button small danger" @click="remove(entry)">Entfernen</button>
                 </div>
               </div>
               <!--

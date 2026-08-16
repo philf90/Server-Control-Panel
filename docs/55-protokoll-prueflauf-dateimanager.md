@@ -1816,6 +1816,78 @@ Grundzustand `display: none` und wird unter 720px eingeschaltet, nicht umgekehrt
 > **Ein Kommentar, der einen Wächter benennt, ist keine Prüfung, dass der
 > Wächter hinsieht.**
 
+## Befund 26 — dasselbe „Entfernen" war auf einer Seite rot und grau
+
+Der Betreiber hat gefragt, ob sich die Aktion-Knöpfe nach ihrer Kritikalität
+farblich unterscheiden lassen und ob es dafür schon eine Definition gibt.
+
+**Es gibt eine** — Plan §7.2, „Knöpfe — eine Form, drei Ränge": `.button`
+gewöhnlich, `.button.primary` die eine Aktion, für die man die Seite geöffnet
+hat, `.button.danger` „was sich nicht zurücknehmen lässt". Keine
+Kritikalitätsskala, sondern eine Zweiteilung, und der Plan lehnt feinere
+Abstufungen mit einem Satz ab, der trägt: *Eine Rangfolge, die man messen muss,
+ist keine.*
+
+**Sie wurde an sechs Stellen nicht eingehalten**, und eine davon stand auf
+derselben Seite zweimal: In der Dateiliste war „Entfernen" in der Auswahlleiste
+rot und dasselbe „Entfernen" in der Zeile darunter grau. Gleiche Handlung,
+gleiche Seite, zwei Erscheinungen — je nachdem, über welchen Weg man sie
+auslöste.
+
+Die Ursache darunter waren **zwei Vokabulare, die niemand aneinandergehalten
+hat.** `.danger` heisst laut Plan „unumkehrbar"; das `destructive` der
+Rückfrage, das den roten Knopf im Bestätigungsblock setzt, hiess „danach ist
+etwas anders". „Sperren" fragte rot nach und ist umkehrbar. „Zurückspielen"
+fragte rot nach, überschreibt den Bestand — und hatte einen grauen Knopf.
+
+> **Zwei Angaben über dieselbe Sache sind keine Prüfung, solange niemand sie
+> nebeneinanderlegt.**
+
+Beides heisst jetzt dasselbe. Zwei Knöpfe sind rot geworden, weil ihre Handlung
+unumkehrbar ist, und vier Rückfragen sind es **nicht** mehr, weil ihre es nicht
+ist:
+
+| Ort | Knopf | umkehrbar | Änderung |
+|---|---|---|---|
+| `Files/Index.vue` | Entfernen (je Zeile) | nein | Knopf wird rot |
+| `Databases/Show.vue` | Zurückspielen | nein | Knopf wird rot |
+| `Customers/Show.vue` | Sperren | ja | Rückfrage nicht mehr rot |
+| `Subscriptions/Show.vue` | Sperren | ja | Rückfrage nicht mehr rot |
+| `Databases/Show.vue` | Zugriff entziehen | ja | Rückfrage nicht mehr rot |
+| `Databases/Show.vue` | Zurücknehmen (Netz) | ja | Rückfrage nicht mehr rot |
+
+**Der Wächter ist `DangerRankTest`, und er stellt keine Geschmacksfrage.** „Ist
+diese Handlung kritisch?" kann kein Test beantworten; ob die beiden Stellen
+dasselbe sagen, an denen dieses Panel es ohnehin hinschreibt, sehr wohl.
+
+Drei Knöpfe kann er nicht sehen — rote `type="submit"`, die über ihr Formular
+auslösen. Zwei davon tragen die **stärkere** Rückfrage (man tippt den Namen ab)
+und sind zu Recht rot. Der dritte, „Abschalten" der Zwei-Faktor-Einrichtung, ist
+der eine Fall, in dem Regel und Aussehen auseinandergehen: umkehrbar, und
+trotzdem rot, weil er eine Absicherung wegnimmt. Er steht **benannt offen** in
+`DangerRankTest::UNCOVERED` und ist nicht stillschweigend entschieden.
+
+> **Ein Loch, das man zählt, ist kein Loch mehr — es ist eine Zahl, die kleiner
+> werden kann.**
+
+**Und der Wächter hat beim Bauen zwei eigene Fehler gefunden.** Sein Leser hielt
+ein deutsches Anführungszeichen in einem Kommentar für den Anfang einer
+Zeichenkette und verschluckte den Rest des Aufrufs — das vierte Argument war da,
+und er sah es nicht.
+
+> **Ein Leser, der Kommentare für Text hält, liest den Code nicht, den er
+> prüft.**
+
+Der zweite steckte im Bruch: Das `, false` landete hinter der schliessenden
+Klammer von `ask(...)` statt darin, der Wächter blieb grün, und zwar zu Recht.
+Derselbe Satz wie am 13. August:
+
+> **Ein Bruch muss die Regel verletzen und nicht den Code zerstören.**
+
+Und einer im Brechskript selbst, gefunden von `BreakScriptTest`: Ein Eingriff
+suchte in `Subscriptions/Show.vue` nach einem Aufruf, den dieser Schritt gerade
+um eine Zeile verlängert hatte. Er zeigt jetzt auf den neuen Wortlaut.
+
 ---
 
 ## Offen, klein, nicht verfolgt

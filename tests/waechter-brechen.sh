@@ -9419,6 +9419,8 @@ s = s.replace("""  ask(
     `${props.subscription.name} sperren? Webseiten und Zugänge sind danach aus, die Daten bleiben.`,
     'Sperren',
     () => { router.post(`/subscriptions/${props.subscription.id}/suspend`) },
+    // Umkehrbar — der Satz der Frage sagt es selbst: „die Daten bleiben".
+    false,
   )""",
 """  if (!window.confirm(`${props.subscription.name} sperren?`)) return
   router.post(`/subscriptions/${props.subscription.id}/suspend`)""", 1)
@@ -9746,6 +9748,76 @@ pruefe "zwei Namen an einem Element" \
   LabelReachTest::test_nothing_carries_two_names_at_once failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" LabelReachTest passed
+
+echo
+echo "── DangerRankTest: der Zeilenknopf wird wieder grau ──"
+#
+# Genau der Fund vom 16. August: In der Dateiliste war „Entfernen" in der
+# Auswahlleiste rot und dasselbe „Entfernen" in der Zeile darunter grau --
+# gleiche Handlung, gleiche Seite, zwei Erscheinungen.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    'class="button small danger" @click="remove(entry)"',
+    'class="button small" @click="remove(entry)"',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Zeilenknopf grau" &&
+pruefe "der Zeilenknopf wird wieder grau" \
+  DangerRankTest::test_the_button_and_its_confirmation_agree failed
+wiederherstellen
+
+echo "── DangerRankTest: die Rueckfrage zum roten Knopf wird nicht rot ──"
+#
+# Die andere Richtung. Ein `false` am vierten Argument macht aus einer roten
+# Rueckfrage eine gewoehnliche -- der Knopf darueber bleibt rot, und die beiden
+# sagen Verschiedenes ueber dieselbe Handlung.
+#
+# **Der erste Anlauf dieses Bruchs hat den Code zerstoert statt die Regel zu
+# verletzen:** Das `, false` landete hinter der schliessenden Klammer von
+# `ask(...)` statt darin. Der Waechter blieb gruen, und zwar zu Recht.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """      onSuccess: () => { selected.value = [] },
+    })
+  })
+}""",
+    """      onSuccess: () => { selected.value = [] },
+    })
+  }, false)
+}""",
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "viertes Argument false" &&
+pruefe "die Rueckfrage zum roten Knopf wird nicht rot" \
+  DangerRankTest::test_the_button_and_its_confirmation_agree failed
+wiederherstellen
+
+echo "── DangerRankTest: ein roter Formularknopf verschwindet ungezaehlt ──"
+#
+# Was dieser Waechter nicht sehen kann, zaehlt er. Ohne die Zahl stuende ein
+# neuer `type="submit"` mit roter Marke lautlos ausserhalb jeder Pruefung.
+vorher_datei resources/js/Pages/Auth/TwoFactorSetup.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Auth/TwoFactorSetup.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('class="button danger"', 'class="button"', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Auth/TwoFactorSetup.vue "roter Formularknopf fort" &&
+pruefe "ein roter Formularknopf verschwindet ungezaehlt" \
+  DangerRankTest::test_the_uncovered_buttons_are_counted failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DangerRankTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

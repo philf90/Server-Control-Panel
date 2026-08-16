@@ -167,6 +167,8 @@ function revoke(user: User): void {
     () => {
       router.put(`/databases/${props.database.id}/users/${user.id}`, { granted: false }, { preserveScroll: true })
     },
+    // Umkehrbar: derselbe Griff gibt den Zugriff wieder.
+    false,
   )
 }
 
@@ -229,6 +231,8 @@ function removeNetwork(user: User, network: Network): void {
         { preserveScroll: true },
       )
     },
+    // Umkehrbar: Das Netz lässt sich wieder eintragen.
+    false,
   )
 }
 
@@ -753,7 +757,12 @@ function size(): string {
                     <a v-if="dump.usable" :href="`/databases/${props.database.id}/dumps/${dump.id}`" class="button">
                       Herunterladen
                     </a>
-                    <button v-if="dump.usable" type="button" class="button" @click="restoreDump(dump)">
+                    <!--
+                      Rot, weil der aktuelle Stand dabei überschrieben wird —
+                      dasselbe, was die Rückfrage darüber sagt. Bis zum
+                      16. August 2026 war der Knopf grau und die Rückfrage rot.
+                    -->
+                    <button v-if="dump.usable" type="button" class="button danger" @click="restoreDump(dump)">
                       Zurückspielen
                     </button>
                     <button type="button" class="button danger" @click="removeDump(dump)">

@@ -13895,3 +13895,43 @@ an. Seit diesem Schritt tut er es.
 
 > **Ein Kommentar, der einen Wächter benennt, ist keine Prüfung, dass der
 > Wächter hinsieht.**
+
+#### Rot heisst überall dasselbe
+
+Der Betreiber hat gefragt, ob sich die Aktion-Knöpfe nach ihrer Kritikalität
+farblich unterscheiden lassen und ob es dafür eine Definition gibt. Es gibt eine
+— Plan §7.2, drei Ränge, `.button.danger` ist „was sich nicht zurücknehmen
+lässt" — und sie wurde an sechs Stellen nicht eingehalten. Eine davon stand auf
+derselben Seite zweimal: In der Dateiliste war „Entfernen" in der Auswahlleiste
+rot und dasselbe „Entfernen" in der Zeile darunter grau.
+
+Darunter lagen **zwei Vokabulare, die niemand aneinandergehalten hat.**
+`.danger` hiess „unumkehrbar", das `destructive` der Rückfrage hiess „danach ist
+etwas anders". „Sperren" fragte rot nach und ist umkehrbar; „Zurückspielen"
+fragte rot nach, überschreibt den Bestand — und hatte einen grauen Knopf.
+
+> **Zwei Angaben über dieselbe Sache sind keine Prüfung, solange niemand sie
+> nebeneinanderlegt.**
+
+Beides heisst jetzt dasselbe. Rot geworden sind das per-Zeile-„Entfernen" der
+Dateiliste und „Zurückspielen" der Datenbankseite; nicht mehr rot fragen
+„Sperren" (Kunde und Abonnement), „Zugriff entziehen" und „Zurücknehmen" eines
+Netzes — alle vier sind umkehrbar. Kein neuer Rang, kein neuer Farbwert.
+
+Neuer Wächter `DangerRankTest`. Er stellt keine Geschmacksfrage: „Ist diese
+Handlung kritisch?" kann kein Test beantworten, ob die beiden Stellen dasselbe
+sagen, an denen das Panel es ohnehin hinschreibt, sehr wohl. Drei rote
+`type="submit"` kann er nicht sehen; ihre Zahl steht als Konstante da, mit einer
+Begründung je Knopf.
+
+**Und er hat beim Bauen zwei eigene Fehler gefunden.** Sein Leser hielt ein
+deutsches Anführungszeichen in einem Kommentar für den Anfang einer
+Zeichenkette und verschluckte den Rest des Aufrufs.
+
+> **Ein Leser, der Kommentare für Text hält, liest den Code nicht, den er
+> prüft.**
+
+Der zweite steckte im Bruch: Das `, false` landete hinter der schliessenden
+Klammer von `ask(…)` statt darin, und der Wächter blieb grün — zu Recht.
+
+> **Ein Bruch muss die Regel verletzen und nicht den Code zerstören.**

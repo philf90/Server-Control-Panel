@@ -710,7 +710,7 @@ Je Aufnahme:
 | 3 | Rechte-Editor | **0** | **0** | **0** | **0** |
 | 3b | Rechte-Editor, langer Name | **0** | **0** | — | — |
 | 4 | Baum, tiefer Pfad | **0** | **0** | **0** | **0** |
-| 5 | Editor | offen | offen | offen | offen |
+| 5 | Editor | **0** | **0** | **0** | **0** |
 | 6 | Kärtchen, Aktionen offen | offen | offen | — | — |
 
 Gegenprobe in jeder gemessenen Zelle: **400**.
@@ -787,6 +787,21 @@ den Grund: Ein Pfad aus tiefen Verzeichnissen wird länger als eine Zeile.
 
 > **Ein `nowrap` über etwas, das wächst, ist keine Zusage über die Zeile,
 > sondern eine über den Bestand.**
+
+**Zu #5:** Der Editor zeigt dieselbe Datei in beiden Themes, und die
+**Hervorhebung wechselt mit** — heller Grund mit dunklem Text im hellen Theme,
+umgekehrt im dunklen. Ein mitgeliefertes CodeMirror-Theme täte das nicht; es
+bliebe stehen, wie es ist. Das ist der Beleg für `docs/51 §8.1`, Auflage 2: Die
+Farben kommen aus `app.css`.
+
+**Bei 390 px rollt der Editor waagerecht**, und das ist richtig. Zeile 5 endet
+sichtbar an `content="width=de` — die lange Zeile läuft im `cm-scroller`
+weiter, nicht auf der Seite. Ein Editor, der Quelltext umbräche, verschöbe die
+Zeilennummern gegen den Inhalt; das ist genau der Fall, in dem Rollen die
+richtige Antwort ist und Umbrechen die falsche.
+
+> **Ein Format, das für Bezeichner reicht, reicht nicht für Werte — und eines
+> für Werte reicht nicht für Quelltext.**
 
 **Der Härtefall ist nachgeholt.** Gefahren war #3 zuerst an `IMG_4398.jpeg` —
 einem kurzen Namen. Der Bereichstitel trägt aber den Dateinamen („Rechte für

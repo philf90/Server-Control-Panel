@@ -447,6 +447,33 @@ Seite abweichen — das Verhältnis nicht.
 
 **Und die Gegenprobe aus §2.5 gehört daneben**, sonst ist die 0 keine Messung.
 
+### Gefahren am 16. August 2026 — erfüllt
+
+| Schritt | Ergebnis |
+|---|---|
+| 3 — zugeklappt genau ein Knopf | **„Aktionen"** |
+| 4 — aufgeklappt erscheinen die Griffe | Umbenennen · Rechte · Entfernen |
+| **5 — jeder Text vollständig lesbar** | **erfüllt** — „Aktionen zuklappen", „Umbenennen", „Rechte", „Entfernen", nichts abgeschnitten |
+| 4b — Beschriftung wechselt | „Aktionen zuklappen" |
+| 6 — wieder zuklappen | erfüllt |
+| 7 — zweite Zeile öffnen | die erste klappt zu; **höchstens eine offen** |
+| 8 — nach der Navigation | **keine** Zeile offen |
+| 9 — bei 1440 px | **kein** Umschalter, Knöpfe nebeneinander |
+| Zahl bei 1440 px | `Kärtchen=40 Zelle=40 Überlauf=0` — **unverändert** |
+
+**Schritt 5 ist der, um den es ging**, und er hält. Genau dort war der erste Wurf
+kaputt: Die aufgeklappte Reihe stand neben dem Umschalter und wurde am rechten
+Rand abgeschnitten, bei einem Überlauf von 0 px. Auf den Bildern steht jeder
+Knopf über die volle Kärtchenbreite und trägt seinen ganzen Text.
+
+Und Schritt 9 belegt die andere Richtung: Am Arbeitsplatz hat sich **nichts**
+geändert — 40 px Zeilenhöhe wie vor dem Umbau, kein zusätzlicher Klick.
+
+**Offen aus diesem Punkt:** die beiden Zahlen bei 390 px, zugeklappt und
+aufgeklappt. Aus den Bildern abgelesen ergeben sich rund 235 px gegen 395 px —
+das deckt sich mit der Vorhersage aus dem Container (236 gegen 396). Abgelesen
+ist aber nicht gemessen, und die Ersparnis ist die Kernaussage dieses Befundes.
+
 ---
 
 ## 8. Punkt 6 — Befund 26: Rot heisst überall dasselbe

@@ -701,6 +701,29 @@ Je Aufnahme:
 - Die Gegenprobe steht bei rund 400 — sonst zählt die 0 nicht.
 - Auf keinem Bild ist Text abgeschnitten oder überlappt.
 
+### Gefahren am 16. August 2026
+
+| # | Ansicht | 390 dunkel | 390 hell | 1440 dunkel | 1440 hell |
+|---|---|---|---|---|---|
+| 1 | Liste mit langem Dateinamen | **0** | **0** | offen | offen |
+| 2 | Auswahlleiste | offen | offen | offen | offen |
+| 3 | Rechte-Editor | offen | offen | offen | offen |
+| 4 | Baum, tiefer Pfad | offen | offen | offen | offen |
+| 5 | Editor | offen | offen | offen | offen |
+| 6 | Kärtchen, Aktionen offen | offen | offen | — | — |
+
+Gegenprobe in jeder gemessenen Zelle: **400**.
+
+**Zu #1:** Der 76 Zeichen lange Dateiname bricht **innerhalb** des Kärtchens auf
+drei Zeilen und schiebt nichts. Das ist `td.cell-name` und nicht `.ident` — die
+Unterscheidung stammt aus `docs/46 §20.13`, wo `td .ident { white-space: nowrap }`
+eine Tabelle auf 5710px trieb, ohne dass die Überlaufmessung eine Zahl lieferte.
+
+> **Ein Format, das für Bezeichner reicht, reicht nicht für Werte.**
+
+Und die Ankreuzfelder sind im dunklen Theme dunkel — `color-scheme` hält, was
+`docs/55` Befund 20 behoben hat.
+
 ### Was hier zu sehen sein wird und **kein** Fehler ist
 
 Nichts mehr — `color-scheme` ist seit rc.4 gesetzt, die leeren Ankreuzfelder im

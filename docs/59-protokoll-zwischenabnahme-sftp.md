@@ -524,6 +524,44 @@ Das Verzeichnis `/etc/srvpanel/ssh` bleibt dabei stehen, und das ist richtig: Es
 gehört dem Panel und nicht einem Abonnement. Ein Rest ist die *Datei* darin, und
 die ist weg.
 
+### Phase B — geprüft wird, bevor geschrieben wird
+
+```
+sshd -t
+/etc/ssh/sshd_config: line 134: Bad configuration option: Klabautermann
+/etc/ssh/sshd_config: terminating, 1 bad configuration options
+rc=255
+sha256sum   51cf4ccced92000619455dcba9d84800a875415e2c7bbd1e5d8f428e70f55f60   (REF-B)
+```
+
+Dann im Panel den Schlüssel eingetragen:
+
+> **Das Formular wurde nicht gespeichert.**
+> Der Zugangsblock ist von sshd abgewiesen worden; an der Datei wurde nichts
+> geändert: `/etc/ssh/sshd_config.srvpanel.candidate: line 134: Bad
+> configuration option: Klabautermann`
+
+| erwartet | gemessen |
+|---|---|
+| Der Vorgang bricht ab, mit der Meldung von `sshd -t` | erfüllt, wörtlich |
+| Prüfsumme == REF-B | `51cf4ccc…5f60`, unverändert |
+| Kein `.candidate` | nur `sshd_config.srvpanel.lock`, 0 Byte |
+| `/etc/srvpanel/ssh/` bleibt leer | `total 0` |
+| Das Panel zeigt weiter „kein Schlüssel" | erfüllt |
+
+**Das ist der Kern des Punktes und er hält:** Es wird geprüft, *bevor*
+geschrieben wird. Der Ablauf aus `docs/38 §14.2` — schreiben, neu laden, bei
+einem Fehler zurückrollen — ist hier nicht kopiert worden, und das war richtig:
+Gemessen (`docs/57 §5`) beendet ein Neuladen mit kaputter Datei den `sshd`.
+
+> **Ein Rückweg, der voraussetzt, dass der Dienst noch läuft, ist keiner für den
+> Fall, dass ihn genau dieser Vorgang beendet hat.**
+
+Die Datei nennt in der Meldung den **Kandidaten** und nicht `sshd_config` —
+also genau die Datei, die geprüft wurde. Die Nachbardatei ist danach weg, die
+Sperre daneben bleibt liegen; sie sitzt bewusst neben der Datei und nicht auf
+ihr, und ist damit ein erwartetes Artefakt und kein Rest.
+
 ---
 
 ## Befunde
@@ -862,3 +900,64 @@ auslegt. Die Verzweigung steht jetzt **innerhalb** des Wickels.
 
 > **Eine Regel, die eine Ausnahme für den eigenen Fall bekommt, ist ab da
 > Auslegung.**
+
+---
+
+### Befund 11 — der rote Rand sass am falschen Ort
+
+**Phase B hat alles erfüllt und dabei einen Fehler gezeigt, der nicht auf der
+Liste stand.** Die Meldung landete am **Schlüsselfeld**: Das Textfeld war rot
+umrandet, während der Schlüssel einwandfrei war — `PublicKey::parse()` hatte ihn
+eine Zeile vorher gelesen, sonst wäre der Vorgang gar nicht bis zum Schreiben
+gekommen.
+
+> **Ein roter Rand am Feld behauptet, das Feld sei falsch. Wer ihn für einen
+> Zustand des Servers setzt, schickt den Leser dorthin, wo nichts zu ändern
+> ist.**
+
+Der Text der Zusammenfassung war dabei richtig und sogar beruhigend („an der
+Datei wurde nichts geändert"). Falsch war allein, **wohin** er zeigte —
+`docs/19 §6`, dieselbe Frage wie beim Ort einer Rückmeldung, nur eine Ebene
+tiefer: nicht *ob* am Feld, sondern *welcher* Fehler.
+
+`SftpController` fing jede `AgentException` und schrieb sie an `key`. Dabei
+trägt sie den Grund mit: `badRequest` kommt aus der Prüfung der Eingabe,
+`exec_failed`, `timeout` und `internal` sind Zustände des Servers.
+
+> **Eine Auskunft, die man hat und nicht benutzt, ist so gut wie keine.**
+
+**Behoben**: Nur `BAD_REQUEST` geht ans Feld; alles andere an die
+Zusammenfassung unter dem Schlüssel `server`, der keiner eines Feldes ist — mit
+dem Satz davor, der die Frage beantwortet, die der Leser als erste hat: „Der
+Schlüssel ist in Ordnung; der Server hat die Änderung nicht angenommen."
+
+Der Wächter ist `AgentErrorRoutingTest`, und er schneidet die **Kommentare weg**,
+bevor er liest. Ohne das liesse er sich von der Begründung überzeugen, die
+neben der Verzweigung steht und dieselbe Marke nennt — `FieldErrorTest` ist
+genau in diese Falle gelaufen, nur in die andere Richtung.
+
+> **Ein Wächter, der Text liest, liest auch die Begründung dafür, warum er recht
+> hat.**
+
+Beide Brüche sind gegengeprüft: Verzweigung entfernt → rot; Marke nur noch im
+Kommentar → rot.
+
+#### Und die offene Arbeit dazu, mit Namen
+
+**Dieselbe Form steht an vier weiteren Stellen**, und sie sind hier
+**nicht** angefasst:
+
+| Datei | Feld |
+|---|---|
+| `app/Http/Controllers/DatabaseController.php` | `cidr` (zweimal) |
+| `app/Http/Controllers/DatabaseController.php` | `host` |
+| `app/Http/Controllers/FileController.php` | `path` |
+
+Sie gehören zu P5b und zum Dateimanager, haben ihre eigenen Abnahmeläufe, und
+keine davon ist in diesem Lauf gemessen worden.
+
+> **Ein Fehler, den man an fünf Stellen gleichzeitig behebt, ist an vier davon
+> ungemessen behoben.**
+
+Der allgemeine Wächter kommt, wenn die vier gemessen sind. Bis dahin steht das
+hier — wie `docs/42 §5` — als benannte offene Arbeit und nicht als Absicht.

@@ -88,7 +88,31 @@ final class SftpController extends Controller
                 $request->user()?->email,
             );
         } catch (AgentException $error) {
-            throw ValidationException::withMessages(['key' => $error->getMessage()]);
+            /*
+             * **Nur eine abgewiesene Eingabe ist ein Fehler am Feld.**
+             * Der Fund aus Phase B von Punkt 8 (`docs/59`, Befund 11): Bei
+             * kaputter `sshd_config` brach der Vorgang richtig ab, und die
+             * Meldung landete am Schlüsselfeld — das Feld wurde rot, obwohl der
+             * Schlüssel einwandfrei war. `PublicKey::parse()` hatte ihn eine
+             * Zeile vorher gelesen.
+             *
+             * > **Ein roter Rand am Feld behauptet, das Feld sei falsch. Wer ihn
+             * > für einen Zustand des Servers setzt, schickt den Leser dorthin,
+             * > wo nichts zu ändern ist.**
+             *
+             * `badRequest` kommt aus der Prüfung der Eingabe; alles andere —
+             * `exec_failed`, `timeout`, `internal` — ist ein Zustand des Servers
+             * und gehört an die Zusammenfassung, ohne ein Feld anzufassen.
+             * Der Schlüsselname `server` ist deshalb keiner eines Feldes.
+             */
+            if ($error->errorCode === AgentException::BAD_REQUEST) {
+                throw ValidationException::withMessages(['key' => $error->getMessage()]);
+            }
+
+            throw ValidationException::withMessages([
+                'server' => 'Der Schlüssel ist in Ordnung; der Server hat die Änderung nicht '
+                    .'angenommen. '.$error->getMessage(),
+            ]);
         }
 
         $this->audit->record('sftp.key.add', subscriptionId: (int) $subscription->id, context: [

@@ -10342,6 +10342,27 @@ pruefe "  … zurückgesetzt wieder grün" \
   SftpCheckTest::test_a_token_is_not_a_path passed
 
 echo
+echo "── AgentErrorRoutingTest: ein Serverfehler macht ein Feld rot ──"
+#
+# Der Fund aus Phase B von Punkt 8 (docs/59, Befund 11): Bei kaputter
+# sshd_config brach der Vorgang richtig ab, und die Meldung landete am
+# Schlüsselfeld — rot, obwohl der Schlüssel einwandfrei war.
+vorher_datei app/Http/Controllers/SftpController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/SftpController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('            if ($error->errorCode === AgentException::BAD_REQUEST) {',
+              '            if (true) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/SftpController.php "jeder Agentenfehler geht ans Feld" &&
+pruefe "jeder Agentenfehler geht ans Feld" \
+  AgentErrorRoutingTest::test_only_a_rejected_input_becomes_a_field_error failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  AgentErrorRoutingTest::test_only_a_rejected_input_becomes_a_field_error passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

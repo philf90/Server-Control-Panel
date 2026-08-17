@@ -85,8 +85,29 @@ Festgehalten statt geradegebogen.
 
 ## 1. Die Messrunde vor dem Update
 
-**Offen.** Erwartet: 42/0, und die echte Kette `/` → `/var/www/vhosts` als
-„taugt".
+**Befund 1 — der Lauf verlangt ein Werkzeug, das die Auslieferung nicht
+mitbringt.** `/opt/srvpanel/current` enthält `agent`, `app`, `artisan`,
+`bootstrap`, `config`, `database`, `lang`, `public`, `resources`, `routes`,
+`storage`, `vendor` — **kein `tests/`**. Das Paket liefert die Anwendung aus
+und nicht die Testsuite, und das ist richtig so.
+
+`docs/58` Punkt 1 lautet `sudo bash tests/sftp-messen.sh`, ausgeführt im
+Installationsverzeichnis. Der Schritt war damit **nie fahrbar** — nicht
+„gescheitert", sondern von Anfang an unausführbar, und niemandem ist es
+aufgefallen, weil ihn bis heute niemand ausgeführt hat.
+
+> **Ein Abnahmelauf, der ein Werkzeug voraussetzt, das die Auslieferung nicht
+> enthält, ist an dieser Stelle nicht gefahren worden — er war nie fahrbar.**
+
+Dasselbe Verhältnis wie in `docs/45`, `docs/47` und `docs/48`: Die Mehrheit der
+Fehler steckt im Prüfmittel und nicht im Prüfling.
+
+**Behoben für diesen Lauf** durch Holen des Skripts aus dem öffentlichen Repo;
+das Skript hängt an keinem Pfad des Repos und läuft von überall.
+`docs/58` bekommt den Schritt nachgetragen.
+
+**Offen** bleibt die Messung selbst: 42/0, und die echte Kette `/` →
+`/var/www/vhosts` als „taugt".
 
 ## 2. Fassungen
 

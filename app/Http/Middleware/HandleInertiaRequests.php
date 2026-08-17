@@ -173,9 +173,23 @@ final class HandleInertiaRequests extends Middleware
                 'requirements' => Policy::requirements(),
             ],
 
+            /*
+             * **Jeder Schlüssel, den ein Controller schreibt, steht hier.**
+             * `error` fehlte bis zum 17. August 2026, und damit fielen sieben
+             * Meldungen aus vier Controllern lautlos aus — darunter „Zertifikat
+             * abgewiesen" und „Der Versand ist gescheitert" (`docs/59`,
+             * Befund 13). `Settings/Mail.vue` las den Schlüssel sogar und
+             * renderte ihn; getragen hat ihn niemand.
+             *
+             * > **Ein Schreiber und ein Leser machen keinen Kanal. Dazwischen
+             * > muss jemand tragen.**
+             *
+             * `FlashChannelTest` prüft beide Richtungen.
+             */
             'flash' => [
                 'notice' => fn () => $request->session()->get('notice'),
                 'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
                 'recoveryCodes' => fn () => $request->session()->get('recoveryCodes'),
             ],
         ]);

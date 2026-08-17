@@ -68,6 +68,20 @@ const erfolg = computed(
 )
 
 /*
+ * **Und derselbe Ort für das Gegenteil.** Ein `with('error', …)` erreichte bis
+ * zum 17. August 2026 niemanden: Die Mittelschicht gab den Schlüssel nicht
+ * weiter (`docs/59`, Befund 13). Im Abnahmelauf drückte der Betreiber
+ * „Entfernen", der Vorgang scheiterte richtig — und die Seite sagte nichts.
+ *
+ * `role="alert"` und nicht `status`: Hier ist etwas *nicht* geschehen, was
+ * geschehen sollte, und ein Screenreader soll die Arbeit dafür unterbrechen.
+ *
+ * Gerendert wird nur hier. `Settings/Mail.vue` hatte eine eigene Fassung —
+ * zwei Orte für dieselbe Auskunft heissen, dass einer veraltet.
+ */
+const fehler = computed(() => (page.props.flash as Record<string, string> | undefined)?.error)
+
+/*
  * Die Navigation kommt aus dem Kontotyp, nicht aus einer Rechteprüfung im
  * Menü. Das ist ausdrücklich keine Autorisierung — die sitzt an der Aktion
  * (§6.2.2). Ein Kunde, der eine Adminadresse von Hand einträgt, wird von der
@@ -380,6 +394,7 @@ onBeforeUnmount(() => {
       </div>
 
       <p v-if="erfolg" class="notice ok" role="status">{{ erfolg }}</p>
+      <p v-if="fehler" class="notice critical" role="alert"><span>{{ fehler }}</span></p>
 
       <!--
         Die Rückfrage steht an derselben Stelle wie die grüne Meldung, und aus

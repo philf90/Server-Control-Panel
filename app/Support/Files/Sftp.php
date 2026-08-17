@@ -108,14 +108,31 @@ final class Sftp
         return $row;
     }
 
-    /** Einen Schlüssel wieder wegnehmen — und die Datei sofort nachziehen. */
+    /**
+     * Einen Schlüssel wieder wegnehmen — und die Datei sofort nachziehen.
+     *
+     * **Die Reihenfolge ist dieselbe wie in {@see self::add()}, und das war sie
+     * nicht immer.** Der Fund aus Phase D von Punkt 8 (`docs/59`, Befund 12):
+     * Hier stand `write()` vor `sync()`. Bei einer kaputten `sshd_config` brach
+     * der Vorgang richtig ab — aber die Schlüsseldatei war da schon gelöscht,
+     * die Datenbank rollte die Zeile zurück, und übrig blieb ein Abonnement mit
+     * einem Schlüssel im Panel und keinem auf der Platte. Vorhergesagt und dann
+     * gemessen: `total 0`.
+     *
+     * > **Eine Transaktion rollt die Datenbank zurück und nicht die Platte.**
+     *
+     * Deshalb geht der Schritt zuerst, der scheitern **kann**: `sync()` prüft
+     * mit `sshd -t` und lädt neu, `write()` schreibt eine Datei. Scheitert der
+     * erste, ist nichts geschehen; scheitert der zweite, war der erste schon
+     * ein vollständiger Zustand.
+     */
     public function remove(Subscription $subscription, SshKey $key): void
     {
         DB::transaction(function () use ($subscription, $key): void {
             $key->delete();
 
-            $this->write($subscription);
             $this->sync();
+            $this->write($subscription);
         });
     }
 

@@ -595,6 +595,34 @@ und jetzt `Win11TestNeu` (zwölf) — genau drei Byte mehr. Die Datei trägt als
 Bezeichnung aus dem Panel und nichts sonst, und zwar nachrechenbar statt
 angesehen.
 
+### Phase D — die Vorhersage ist eingetroffen
+
+Vorher die Gegenprobe: Anmeldung mit dem gültigen Schlüssel — `Connected to
+cloudsrv24.de.` Dann die Zeile angehängt, `rc=255`, **REF-D**
+`5e7dfac2…c06ea`. Im Panel `Win11TestNeu` entfernt.
+
+| erwartet | gemessen |
+|---|---|
+| Der Vorgang bricht ab | erfüllt |
+| Prüfsumme == REF-D | `5e7dfac2…c06ea`, unverändert |
+| Kein `.candidate` | nur die Sperre, 0 Byte |
+| **Schlüsseldatei noch da** | **`total 0` — sie ist weg** |
+| Das Panel zeigt den Schlüssel weiter | erfüllt |
+
+**Vier von fünf, und die fünfte war vorhergesagt.** Sie steht als Befund 12
+unten. Zwei Dinge sind daran bemerkenswert:
+
+**Die Seite hat nicht gelogen.** Sie führte den Schlüssel weiter auf *und*
+meldete rot: „Der Zugang kommt so nicht zustande. `/etc/srvpanel/ssh/p1136` gibt
+es nicht." Die Kettenprüfung aus Punkt 6 hat den Rest gefunden, für den sie nicht
+gebaut wurde — der Bereich „Lage" ist das Netz unter dem Zustand, und er hat
+gehalten.
+
+**Und der Betreiber hat einen zweiten Fehler gemeldet, der nicht auf der Liste
+stand:** „Die Bestätigung von Entfernen hat keinen Erfolg danach." Es stand
+**keine** Meldung auf der Seite — kein Grün, kein Rot. Das ist Befund 13, und er
+ist der grössere von beiden.
+
 ---
 
 ## Befunde
@@ -994,3 +1022,103 @@ keine davon ist in diesem Lauf gemessen worden.
 
 Der allgemeine Wächter kommt, wenn die vier gemessen sind. Bis dahin steht das
 hier — wie `docs/42 §5` — als benannte offene Arbeit und nicht als Absicht.
+
+---
+
+### Befund 12 — eine Transaktion rollt die Platte nicht zurück
+
+**Vorhergesagt aus dem Quelltext, dann gemessen.** `Sftp::remove()` schrieb die
+Schlüsseldatei **vor** dem Block:
+
+```php
+$key->delete();
+$this->write($subscription);   // die Datei ist weg
+$this->sync();                 // hier bricht sshd -t ab
+```
+
+Die Datenbank rollte die Zeile zurück, die Platte nicht. Übrig blieb ein
+Abonnement mit einem Schlüssel im Panel und keinem darunter.
+
+> **Eine Transaktion rollt die Datenbank zurück und nicht die Platte.**
+
+`Sftp::add()` hatte die richtige Reihenfolge von Anfang an und **die Begründung
+dazu im Kommentar** — „erst der Block, dann die Schlüssel". `remove()` hatte
+beides nicht.
+
+> **Zwei Wege durch dieselbe Sache, und die Begründung steht nur an einem.**
+
+**Behoben**: `sync()` vor `write()`, in beiden Richtungen. Der Grund, in einem
+Satz: `sync()` prüft mit `sshd -t` und lädt neu — es gibt viele Gründe, aus denen
+es scheitert; `write()` schreibt eine Datei. Wer den unwahrscheinlichen Schritt
+zuerst macht, hat im wahrscheinlichen Fall schon etwas angefasst.
+
+Der Wächter ist `SftpWriteOrderTest`, und er prüft **beide** Methoden — der
+Fehler war nicht die falsche Reihenfolge an einer Stelle, sondern zwei
+Reihenfolgen für eine Sache. Er schneidet die Kommentare weg, aus demselben Grund
+wie `AgentErrorRoutingTest`.
+
+---
+
+### Befund 13 — sieben Meldungen, die seit P4 niemand gesehen hat
+
+**Der Betreiber hat es gemeldet, nicht gesucht:** Nach dem gescheiterten
+Entfernen stand **keine** Meldung auf der Seite. `SftpController::destroy()`
+schickt `->with('error', $error->getMessage())` — und `HandleInertiaRequests` gab
+den Schlüssel `error` nicht weiter. Getragen wurden `notice`, `success`,
+`recoveryCodes`. Die Meldung war fort, bevor sie jemand sehen konnte.
+
+Betroffen sind **sieben** Aufrufe aus vier Controllern, und zwei davon zählen:
+
+| Datei | Meldung |
+|---|---|
+| `DomainController` | „Zertifikat abgewiesen: …" |
+| `MailSettingsController` | „Der Versand ist gescheitert: …" |
+
+**Und das Bitterste steht in `Settings/Mail.vue`:** Die Seite **las**
+`flash.error` und renderte ihn in einer eigenen `notice critical`. Schreiber und
+Leser waren beide da, seit P4 — nur dazwischen trug niemand.
+
+> **Ein Schreiber und ein Leser machen keinen Kanal. Dazwischen muss jemand
+> tragen.**
+
+Das ist wörtlich das Muster aus `CLAUDE.md`, zum siebten Mal: eine Zeichenkette,
+die auf etwas verweist, ohne dass ein Typ, ein Test oder ein Werkzeug den Bezug
+prüft. Eine Policy ohne Route, ein Kommando, das im Startskript fehlt, ein
+Favicon mit null Byte — und jetzt ein `flash`-Schlüssel ohne Träger.
+
+**Behoben**: Die Mittelschicht trägt `error`, und `PanelLayout` rendert ihn an
+demselben Ort wie die grüne Meldung, mit `role="alert"` statt `status` — hier ist
+etwas *nicht* geschehen, was geschehen sollte. Die eigene Fassung in
+`Settings/Mail.vue` ist damit weggefallen: zwei Orte für dieselbe Auskunft
+heissen, dass einer veraltet.
+
+Der Wächter ist `FlashChannelTest` mit **drei** Regeln und beiden Richtungen —
+was ein Controller schreibt, wird getragen; was getragen wird, liest jemand.
+Alle drei Brüche sind gegengeprüft.
+
+#### Und zehn weitere, die hier nicht behoben sind
+
+Der Wächter hat beim ersten Lauf mehr gefunden als den Anlass:
+
+| Schlüssel | wo | wie oft |
+|---|---|---|
+| `status` | `DatabaseController`, `GeneralSettingsController` | 9 |
+| `operation` | `DomainController` | 1 |
+
+`status` trägt Sätze wie „Datenbank … angelegt.", „Die Sicherung wird erstellt."
+und „Die Anzeigezone ist jetzt …" — **keiner davon ist je auf einer Seite
+angekommen.** `operation` trägt eine Kennung statt eines Satzes und ist damit
+eine andere Frage.
+
+Sie gehören zu P5b, P5c und `docs/40`, haben ihre eigenen Abnahmeläufe, und
+keiner davon ist in diesem Lauf gemessen worden.
+
+> **Ein Fehler, den man an zehn Stellen gleichzeitig behebt, ist an neun davon
+> ungemessen behoben.**
+
+Sie stehen deshalb als **begründete Ausnahme im Wächter selbst** — wie eine Route
+im `RouteGuard` —, und die Liste kann nur kleiner werden: Ein Eintrag, der
+nirgends mehr geschrieben wird, ist ein Rest und macht den Wächter rot
+(`test_no_exception_outlives_its_reason`, gegengeprüft). Wer einen davon behebt,
+**muss** ihn streichen, und niemand kann einen neuen dazuschreiben, ohne die
+Begründung mitzuschreiben.

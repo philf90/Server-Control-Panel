@@ -10363,6 +10363,70 @@ pruefe "  … zurückgesetzt wieder grün" \
   AgentErrorRoutingTest::test_only_a_rejected_input_becomes_a_field_error passed
 
 echo
+echo "── SftpWriteOrderTest: die Schluesseldatei vor dem Block ──"
+#
+# Der Fund aus Phase D von Punkt 8 (docs/59, Befund 12): Bei kaputter
+# sshd_config brach der Vorgang richtig ab — und die Schluesseldatei war da
+# schon geloescht. Eine Transaktion rollt die Datenbank zurueck und nicht die
+# Platte. Vorhergesagt aus dem Quelltext, dann auf cloudsrv24 gemessen.
+vorher_datei app/Support/Files/Sftp.php
+python3 - <<'PY2'
+p = 'app/Support/Files/Sftp.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""            $this->sync();
+            $this->write($subscription);
+        });
+    }""", """            $this->write($subscription);
+            $this->sync();
+        });
+    }""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Files/Sftp.php "die Platte vor der Pruefung" &&
+pruefe "die Platte vor der Pruefung" \
+  SftpWriteOrderTest::test_the_block_goes_before_the_key_file failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SftpWriteOrderTest::test_the_block_goes_before_the_key_file passed
+
+echo
+echo "── FlashChannelTest: der Kanal fehlt ──"
+#
+# Der Fund aus Phase D (docs/59, Befund 13): SftpController schickte
+# with('error', …), die Mittelschicht gab den Schluessel nicht weiter, und die
+# Meldung war fort. Sieben Aufrufe aus vier Controllern, seit P4.
+vorher_datei app/Http/Middleware/HandleInertiaRequests.php
+python3 - <<'PY2'
+p = 'app/Http/Middleware/HandleInertiaRequests.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                'error' => fn () => $request->session()->get('error'),\n", '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Middleware/HandleInertiaRequests.php "ein Schluessel ohne Traeger" &&
+pruefe "ein Schluessel ohne Traeger" \
+  FlashChannelTest::test_every_written_flash_key_is_carried failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  FlashChannelTest::test_every_written_flash_key_is_carried passed
+
+echo
+echo "── FlashChannelTest: getragen und nicht gelesen ──"
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("const fehler = computed(() => (page.props.flash as Record<string, string> | undefined)?.error)",
+              'const fehler = computed(() => undefined)', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "ein Traeger ohne Leser" &&
+pruefe "ein Traeger ohne Leser" \
+  FlashChannelTest::test_every_carried_flash_key_has_a_reader failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  FlashChannelTest::test_every_carried_flash_key_has_a_reader passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

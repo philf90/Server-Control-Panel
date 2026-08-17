@@ -10278,6 +10278,29 @@ pruefe "  … zurückgesetzt wieder grün" \
   PublicKeyTest::test_a_fingerprint_is_named_as_such passed
 
 echo
+echo "── ChainTest: zwei Gruende, aneinandergehaengt zu zwei Saetzen ──"
+#
+# Der Fund aus dem Abnahmelauf (docs/59, Befund 9): Fuer ein 0777 stand auf der
+# Seite "ist fuer die Gruppe schreibbar und ist fuer alle schreibbar" — zweimal
+# dasselbe Praedikat. Die Pruefung darueber war dabei gruen, weil "schreibbar"
+# vorkam.
+vorher_datei agent/src/Ssh/Chain.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/Chain.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            $wer[] = 'für die Gruppe';", "            $gruende[] = 'ist für die Gruppe schreibbar';", 1)
+s = s.replace("            $wer[] = 'für alle';", "            $gruende[] = 'ist für alle schreibbar';", 1)
+s = s.replace("            'reason' => implode(', ', $gruende),", "            'reason' => implode(' und ', $gruende),", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/Chain.php "zwei Gründe werden zwei Sätze" &&
+pruefe "zwei Gründe werden zwei Sätze" \
+  ChainTest::test_a_reason_reads_as_one_sentence failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ChainTest::test_a_reason_reads_as_one_sentence passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

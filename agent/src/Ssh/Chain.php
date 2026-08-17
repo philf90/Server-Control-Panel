@@ -123,12 +123,27 @@ final class Chain
             $gruende[] = sprintf('gehört %s und nicht root', $owner);
         }
 
+        /*
+         * **Die beiden Schreibrechte sind ein Grund und nicht zwei.** Im
+         * Abnahmelauf stand für ein `0777` auf der Seite „ist für die Gruppe
+         * schreibbar **und ist** für alle schreibbar" (`docs/59`, Befund 9) —
+         * zweimal dasselbe Prädikat, aneinandergehängt von einem `implode`, das
+         * nichts über Sprache weiss.
+         *
+         * > **Eine Aufzählung, die aus zwei fertigen Sätzen entsteht, ist keiner.**
+         */
+        $wer = [];
+
         if (($mode & 0o020) !== 0) {
-            $gruende[] = 'ist für die Gruppe schreibbar';
+            $wer[] = 'für die Gruppe';
         }
 
         if (($mode & 0o002) !== 0) {
-            $gruende[] = 'ist für alle schreibbar';
+            $wer[] = 'für alle';
+        }
+
+        if ($wer !== []) {
+            $gruende[] = 'ist '.implode(' und ', $wer).' schreibbar';
         }
 
         return [
@@ -137,7 +152,12 @@ final class Chain
             'group' => $group,
             'mode' => sprintf('%04o', $mode),
             'ok' => $gruende === [],
-            'reason' => implode(' und ', $gruende),
+            /*
+             * Komma und nicht `und`: Bei zwei Gründen trägt jeder schon ein
+             * eigenes `und` („gehört p1136 **und** nicht root"), und ein drittes
+             * dazwischen macht aus der Aufzählung eine Kette.
+             */
+            'reason' => implode(', ', $gruende),
         ];
     }
 

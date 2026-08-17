@@ -397,6 +397,46 @@ Nachzuholen ist es ohne den Defekt wiederherzustellen: Das Protokoll ist
 historisch, der Eintrag steht noch da. `docs/58` bekommt statt `--since` einen
 Aufruf, der das Fenster nicht raten muss.
 
+### Ein Glied höher — und das Panel nennt das richtige
+
+```
+chmod 0777 /var/www/vhosts   →   drwxrwxrwx 3 root root
+```
+
+Der Klient wieder ohne Grund (`Connection reset`), und die Seite:
+
+> **Der Zugang kommt so nicht zustande.** `/var/www/vhosts` ist für die Gruppe
+> schreibbar und ist für alle schreibbar (Eigentümer root, Rechte `0777`).
+
+| erwartet | gemessen |
+|---|---|
+| Die Anmeldung scheitert ohne Grund für den Klienten | erfüllt |
+| Das Panel nennt **dieses** Glied und nicht das Abonnement darunter | erfüllt |
+| `0755` zurück | `drwxr-xr-x 3 root root` |
+
+**Das ist der Kern des Kriteriums, und er ist damit zweimal erfüllt** — einmal
+an der Wurzel des Abonnements und einmal eine Station darüber. `Chain` fängt bei
+`/` an und nennt das *erste* klemmende Glied, nicht das nächstliegende.
+
+Der Wortlaut der Meldung war dabei falsch — siehe Befund 9.
+
+### Die Zeile des Serverprotokolls, zweiter Anlauf
+
+```
+journalctl -u ssh --no-pager | grep -i 'bad ownership' | tail -5
+^C
+```
+
+**Abgebrochen.** Ohne Zeitfenster liest `journalctl` das ganze Journal, und
+`grep` gibt vor dem Ende nichts aus, weil `tail` puffert. Der Rat von hier war
+„kein `--since`", und das war die Überkorrektur des Fehlers davor: Erst war das
+Fenster zu eng, dann gab es keines mehr.
+
+> **Ein Rat, der einen Fehler nur umdreht, hat ihn nicht behoben.**
+
+Die Zeile ist damit **weiter nicht belegt** und bleibt der einzige offene Punkt
+aus 6. Sie ist ohne Eingriff nachholbar — das Journal ist historisch.
+
 ---
 
 ## Befunde
@@ -647,3 +687,35 @@ nicht der Prüfling versagt, sondern das Prüfmittel.
 
 **Behoben** in `docs/58` Punkt 4: Befehle für eine `sftp`-Sitzung stehen ohne
 Eingabeaufforderung davor, und der Hinweis dazu steht dabei.
+
+---
+
+### Befund 9 — zwei Gründe, aneinandergehängt zu zwei Sätzen
+
+Für ein `0777` stand auf der Seite:
+
+> `/var/www/vhosts` **ist für die Gruppe schreibbar und ist für alle
+> schreibbar** (Eigentümer root, Rechte 0777).
+
+Zweimal dasselbe Prädikat. `Chain::judge()` sammelt fertige Sätze in einer Liste
+und hängt sie mit `implode(' und ', …)` aneinander — ein Verfahren, das nichts
+über Sprache weiss.
+
+> **Eine Aufzählung, die aus zwei fertigen Sätzen entsteht, ist keiner.**
+
+**Und die vorhandene Prüfung war dabei grün.**
+`ChainTest::test_a_writable_bit_is_enough_to_fail` sucht `schreibbar` im Grund —
+das kommt in der kaputten Fassung zweimal vor. Derselbe Schnitt wie bei
+`docs/48`: Eine Prüfung auf *Vorkommen* sagt nichts über *Wortlaut*.
+
+**Behoben**: Die beiden Schreibrechte sind ein Grund und nicht zwei
+(`ist für die Gruppe und für alle schreibbar`), und mehrere Gründe werden mit
+Komma verbunden statt mit `und` — jeder trägt schon eines („gehört p1136 **und**
+nicht root"), und ein drittes dazwischen macht aus der Aufzählung eine Kette.
+Der Wortlaut der Meldung aus dem ersten Teil von Punkt 6 bleibt unverändert; bei
+einem einzigen Grund ändert sich nichts.
+
+Der Wächter ist `ChainTest::test_a_reason_reads_as_one_sentence` — er prüft den
+**Wortlaut** und dazu, dass kein zweites `und ist` vorkommt. Der Bruch steht im
+Bruchskript und ist von Hand gegengeprüft: `bei 0777 (fehlt: ist für die Gruppe
+und für alle schreibbar)`.

@@ -159,4 +159,45 @@ final class ChainTest extends TestCase
 
         chmod($this->base.'/tief', 0o755);
     }
+
+    /**
+     * Der Grund ist ein Satz und keine Aneinanderreihung von Sätzen.
+     *
+     * **Der Fund aus dem Abnahmelauf** (`docs/59`, Befund 9): Für ein `0777`
+     * stand auf der Seite
+     *
+     * > `/var/www/vhosts` **ist für die Gruppe schreibbar und ist für alle
+     * > schreibbar** (Eigentümer root, Rechte 0777).
+     *
+     * Zweimal dasselbe Prädikat, aneinandergehängt von einem `implode`, das
+     * nichts über Sprache weiss. Der Satz war richtig und hat sich gelesen wie
+     * ein Fehler im Programm.
+     *
+     * > **Eine Aufzählung, die aus zwei fertigen Sätzen entsteht, ist keiner.**
+     *
+     * Geprüft wird der Wortlaut und nicht nur, dass „schreibbar" vorkommt — die
+     * Prüfung darüber war bei genau diesem Fehler grün.
+     */
+    public function test_a_reason_reads_as_one_sentence(): void
+    {
+        $erwartet = [
+            0o777 => 'ist für die Gruppe und für alle schreibbar',
+            0o775 => 'ist für die Gruppe schreibbar',
+            0o757 => 'ist für alle schreibbar',
+        ];
+
+        foreach ($erwartet as $mode => $satz) {
+            chmod($this->base.'/tief', $mode);
+
+            $kette = Chain::of($this->base.'/tief');
+            $letztes = end($kette);
+
+            $this->assertStringContainsString($satz, $letztes['reason'], sprintf('bei %04o', $mode));
+
+            // Kein zweites Prädikat: Genau daran war der Fund zu erkennen.
+            $this->assertStringNotContainsString('und ist ', $letztes['reason'], sprintf('bei %04o', $mode));
+        }
+
+        chmod($this->base.'/tief', 0o755);
+    }
 }

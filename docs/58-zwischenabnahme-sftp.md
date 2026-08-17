@@ -170,14 +170,18 @@ chown p1136:p1136 /var/www/vhosts/p6-b.invalid
 |---|---|
 | Die Anmeldung scheitert; der Klient sieht nur `Broken pipe` o. ä. | |
 | **Das Panel nennt genau dieses Verzeichnis**, seinen Eigentümer und seine Rechte | |
-| `journalctl -u ssh --no-pager \| grep -i \'bad ownership\'` trägt `bad ownership or modes for chroot directory "…"` | |
+| `journalctl --since today --no-pager -g \'bad ownership\'` trägt `bad ownership or modes for chroot directory "…"` | |
 
 Zurücksetzen (`chown root:root`), Anmeldung geht wieder — die Gegenprobe.
 
-**Kein `--since` auf dem `journalctl`.** Im Lauf blieb die Zeile aus, weil
-zwischen Anmeldeversuch und Abfrage die Aufnahme der Seite lag und das Fenster
-zu eng war. Ein Zeitfenster, das an der Messung hängt statt am Ereignis, misst
-die Geschwindigkeit des Messenden; das Protokoll ist ohnehin historisch.
+**Der Aufruf hat drei Anläufe gebraucht, und jeder Fehler sah gleich aus.** Zu
+enges `--since` (die Aufnahme der Seite lag dazwischen), dann gar kein Fenster
+(unbemessen, abgebrochen), dann `-u ssh` — und der Filter war der eigentliche
+Fehler: Bei aktiver Socket-Aktivierung gehören die `sshd`-Prozesse nicht alle zu
+`ssh.service`. Ohne `-u` standen die Zeilen sofort da (Befund 14).
+
+> **Drei verschiedene Fehler am Messmittel ergeben dreimal dieselbe falsche
+> Antwort — und die sieht jedes Mal wie ein Befund über den Prüfling aus.**
 
 Und derselbe Griff eine Station weiter oben (`chmod 0777 /var/www/vhosts`, sofort
 zurück): Die Meldung heisst dann `… component "/var/www/vhosts/"`, **mit

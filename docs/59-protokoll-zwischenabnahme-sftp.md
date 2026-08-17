@@ -701,15 +701,23 @@ sie aus der Datei, die `sshd -E` schreibt, und nicht aus dem Journal.
 > **Eine Meldung, die in einer Protokolldatei steht, muss deswegen nicht im
 > Journal stehen.**
 
-Offen ist damit, ob die Zeile am Unit-Filter hängt, an der Ausgabe des
-Sitzungskindes oder ob sie das Journal überhaupt nicht erreicht. **Und die
-Antwort verschiebt eine Begründung dieses Schritts:** `docs/50 §6` und
-`SftpCheck` stehen auf dem Satz „der Grund steht nur im Serverprotokoll". Steht
-er dort nicht, ist die Kettenprüfung des Panels nicht die bequemere Quelle,
-sondern die **einzige** — das macht das Kriterium aus `docs/51 §9` wichtiger und
-eine Zeile aus `docs/58` falsch.
+**Gemessen, vierter Anlauf — und die Zeilen sind da.** Ohne den Unit-Filter:
 
-Zu messen ohne jeden Eingriff, das Journal ist historisch.
+```
+Aug 17 10:57:50 sshd[248448]: fatal: bad ownership or modes for chroot directory "/var/www/vhosts/p6-b.invalid"
+Aug 17 11:02:12 sshd[248609]: fatal: bad ownership or modes for chroot directory component "/var/www/vhosts/"
+```
+
+**Beide Wortlaute, und der zweite mit dem Schrägstrich am Ende** — genau wie
+`docs/58` es für das höhere Glied vorhergesagt hat. Dieselben zwei Zeilen stehen
+in `/var/log/auth.log`. **Punkt 6 ist damit vollständig erfüllt**, in allen drei
+Zeilen und für beide Glieder.
+
+Und die Begründung des Schritts hält: Der Grund steht im Serverprotokoll und
+nirgends beim Klienten. `docs/50 §6` und `SftpCheck` stehen weiter auf dem, worauf
+sie gebaut sind.
+
+Was nicht hielt, war **mein Aufruf** — siehe Befund 14.
 
 ---
 
@@ -1210,3 +1218,39 @@ nirgends mehr geschrieben wird, ist ein Rest und macht den Wächter rot
 (`test_no_exception_outlives_its_reason`, gegengeprüft). Wer einen davon behebt,
 **muss** ihn streichen, und niemand kann einen neuen dazuschreiben, ohne die
 Begründung mitzuschreiben.
+
+---
+
+### Befund 14 — ein Unit-Filter ist eine Annahme darüber, wer geschrieben hat
+
+Dreimal `-- No entries --` bei `journalctl -u ssh`, und im vierten Anlauf ohne
+`-u` standen die Zeilen sofort da. Der Filter war der Fehler, nicht das
+Zeitfenster und nicht das Journal.
+
+**Und das Verwirrende daran ist, warum es so lange plausibel blieb:** Derselbe
+Filter hat in Punkt 5 funktioniert. `journalctl -u ssh` zeigte dort `Accepted
+publickey`, `session opened` und `Connection reset` — Zeilen **derselben
+Verbindungen**, deren `fatal: bad ownership` er nicht zeigt.
+
+```
+systemctl is-active ssh.socket   →  active
+```
+
+Damit laufen Verbindungen über Socket-Aktivierung, und die dabei entstehenden
+`sshd`-Prozesse gehören nicht alle zu `ssh.service`. Welcher Prozess in welche
+Unit fällt, ist die Frage von **Punkt 9** — er ist genau dafür da.
+
+> **Ein Unit-Filter im Journal ist eine Annahme darüber, wer die Zeile
+> geschrieben hat.**
+
+> **Ein Filter, der einmal das Richtige zeigt, ist damit noch keine Zusage über
+> die Zeile, die man sucht.**
+
+Das ist der dritte Anlauf an derselben Zeile und der dritte Fehler daran: zu
+enges Fenster, kein Fenster, falscher Filter. Jeder davon sah nach „die Meldung
+gibt es nicht" aus.
+
+> **Drei verschiedene Fehler am Messmittel ergeben dreimal dieselbe falsche
+> Antwort — und die sieht jedes Mal wie ein Befund über den Prüfling aus.**
+
+**Behoben** in `docs/58`: Der Aufruf fragt ohne `-u` und mit bemessenem Fenster.

@@ -76,6 +76,9 @@ final class SftpAccess implements Op
      */
     public const UNITS = ['ssh.service', 'sshd.service'];
 
+    /** Das Privilegientrennungsverzeichnis, das `sshd -t` voraussetzt. */
+    public const RUNTIME = '/run/sshd';
+
     public static function name(): string
     {
         return 'sftp.access';
@@ -95,6 +98,8 @@ final class SftpAccess implements Op
         $accesses = $this->accesses($args['accesses'] ?? []);
 
         $context->progress(10, 'Zugangsblock erzeugen');
+
+        self::ensureRuntime();
 
         $written = self::apply(
             SshdConfig::FILE,
@@ -188,6 +193,67 @@ final class SftpAccess implements Op
 
             return ['changed' => true, 'reload' => $note];
         });
+    }
+
+    /**
+     * Das Verzeichnis, ohne das `sshd -t` nichts prüft.
+     *
+     * **Der Fund aus Punkt 9 des Abnahmelaufs** (`docs/59`, Befund 16). Bei
+     * angehaltenem Dienst sagte `sshd -t` auf `cloudsrv24`:
+     *
+     * ```
+     * Missing privilege separation directory: /run/sshd
+     * rc=255
+     * ```
+     *
+     * `/run/sshd` legt die Unit an (`RuntimeDirectory=sshd`), und systemd räumt
+     * es beim Anhalten wieder weg. Damit scheiterte die Prüfung des Kandidaten
+     * an der **Umgebung des Prüfers** statt am Prüfling — und das Panel meldete
+     * „Der Zugangsblock ist von sshd abgewiesen worden", was nicht stimmte.
+     *
+     * > **Eine Prüfung, die die Umgebung des Prüfers braucht, prüft nicht nur
+     * > den Prüfling.**
+     *
+     * Das trifft genau den Zustand, für den {@see self::reload()} den Zweig
+     * „läuft nicht ist kein Fehlschlag" hat: Der Zweig kam nie zum Zug, weil die
+     * Prüfung **davor** liegt und abbricht. Und es trifft auch einen Server, auf
+     * dem `sshd` noch nie lief.
+     *
+     * Gemessen am 17. August 2026 gegen OpenSSH 9.6p1, mit Gegenprobe:
+     *
+     * | `/run/sshd` | `sshd -t` |
+     * |---|---|
+     * | `0755 root:root` | `rc=0` |
+     * | fehlt | `rc=255` |
+     * | `0777` | `rc=255`, mit anderem Wortlaut |
+     *
+     * `sshd -T` gibt in beiden Fehlerfällen `rc=0` und schreibt die Warnung als
+     * Zeile dazu — {@see SftpCheck} liest zeilenweise nach Schlüsselwörtern und
+     * übergeht sie. Betroffen ist also nur die Prüfung, nicht die Auskunft.
+     *
+     * **Der Pfad ist ein Argument**, damit ein Wächter das Verhalten an einem
+     * Wegwerfverzeichnis nachrechnen kann statt an `/run`.
+     */
+    public static function ensureRuntime(string $dir = self::RUNTIME): void
+    {
+        if (! is_dir($dir) && ! @mkdir($dir, 0o755, true) && ! is_dir($dir)) {
+            throw AgentException::execFailed(
+                sprintf('%s liess sich nicht anlegen; ohne dieses Verzeichnis prüft sshd -t nichts.', $dir),
+                ['path' => $dir],
+            );
+        }
+
+        /*
+         * **Nur wenn es nötig ist.** Ein Verzeichnis des Systems bekommt keine
+         * neuen Rechte, weil wir vorbeikommen — sondern nur dann, wenn sshd es
+         * sonst abweist. Die Regel ist dieselbe wie bei der Kette:
+         * schreibbar für Gruppe oder Andere ist der Fehler.
+         */
+        $stat = @stat($dir);
+
+        if (is_array($stat) && ($stat['mode'] & 0o022) !== 0) {
+            @chmod($dir, 0o755);
+        }
     }
 
     /**

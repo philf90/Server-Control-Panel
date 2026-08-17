@@ -770,6 +770,51 @@ Aussagekraft: `4a141234…9018e` ist REF-C zum **vierten** Mal, und die
 Schlüsseldatei steht wieder auf 315 Byte, weil die Bezeichnung `Win11TestNeu3`
 genauso lang ist wie `Win11TestNeu2`.
 
+### Stufe 2b — der Zweig, diesmal haltbar, und der eigentliche Fund
+
+```
+systemctl stop ssh.socket ssh.service   →  inactive / inactive
+ss -ltnp | grep ':22'                   →  nichts. Port 22 ist zu.
+```
+
+Die bestehende root-Sitzung lebte weiter (`KillMode=process`). Dann die
+Panelaktionen — und die erste Prüfung danach sagte:
+
+```
+systemctl is-active ssh.service   →  inactive        (der Zustand hält jetzt)
+sshd -t                           →  Missing privilege separation directory: /run/sshd
+                                     rc=255
+sha256sum                         →  4a141234…9018e   (REF-C, also MIT Block)
+ls -l /etc/srvpanel/ssh/          →  total 0          (Schlüsseldatei WEG)
+journalctl … -g 'Reload'          →  -- No entries --
+```
+
+**Der Zustand hält, und das Entfernen ist gescheitert** — Prüfsumme und `ls`
+widersprechen sich: Block da, Datei weg. Das ist genau Befund 12 noch einmal
+(`rc.10` trägt die alte Reihenfolge), diesmal mit einer anderen Ursache für den
+Abbruch: `sshd -t` selbst.
+
+**Und niemand hat es gesehen.** Auf der Seite stand keine Meldung — Befund 13.
+Der anschliessende Eintrag gelang dann („Der Schlüssel ist eingetragen.",
+315 Byte, REF-C), weil der Block ja noch stand: `sftp.access` fand nichts zu
+ändern, sprang vor `sshd -t` ab und schrieb nur die Schlüsseldatei.
+
+> **Ein Vorgang, dessen Fehlschlag unsichtbar ist, sieht in jedem Protokoll wie
+> ein Erfolg aus.**
+
+Gerettet hat diese Messung nicht die Seite, sondern die zwei Zeilen daneben.
+
+### Stufe 3 — die Anmeldung weckt den Dienst
+
+```
+systemctl start ssh.socket   →  :22 horcht wieder, nur systemd
+systemctl is-active …        →  inactive / active
+```
+
+Dann von aussen: `Connected to cloudsrv24.de.` — die Anmeldung gelingt bei
+ruhendem Dienst, der Socket startet ihn, und **niemand hat neu geladen.** Damit
+ist die dritte Zeile aus `docs/58` Punkt 9 belegt.
+
 ---
 
 ## Befunde
@@ -1338,3 +1383,53 @@ Sitzung und die Anbieterkonsole verlangt.
 **Und was Punkt 9 damit ohnehin schon belegt hat:** Die Gegenprobe aus Stufe 4 —
 mit laufendem Dienst wird neu geladen, und das Journal sagt es — ist gefahren und
 grün. Es fehlt die Null daneben, nicht die Zahl.
+
+---
+
+### Befund 16 — `sshd -t` braucht eine Umgebung, die der Dienst mitbringt
+
+**Der grösste Fund von Punkt 9, und er stand in keinem Plan.** Bei angehaltenem
+Dienst:
+
+```
+sshd -t
+Missing privilege separation directory: /run/sshd
+rc=255
+```
+
+`/run/sshd` legt die Unit an (`RuntimeDirectory=sshd`), und systemd räumt es beim
+Anhalten weg. Damit scheitert die Prüfung des Kandidaten an der **Umgebung des
+Prüfers** statt am Prüfling — und das Panel meldet „Der Zugangsblock ist von sshd
+abgewiesen worden", was nicht stimmt: Der Block ist einwandfrei.
+
+> **Eine Prüfung, die die Umgebung des Prüfers braucht, prüft nicht nur den
+> Prüfling.**
+
+**Es trifft genau den Zustand, für den `SftpAccess::reload()` gebaut ist.** Der
+Zweig „läuft nicht ist kein Fehlschlag" kam nie zum Zug, weil die Prüfung *davor*
+liegt und abbricht. Und es trifft auch einen frisch aufgesetzten Server, auf dem
+`sshd` noch nie lief.
+
+Nachgemessen im Container gegen dieselbe Fassung (OpenSSH 9.6p1), mit Gegenprobe:
+
+| `/run/sshd` | `sshd -t` | `sshd -T` |
+|---|---|---|
+| `0755 root:root` | `rc=0`, still | `rc=0` |
+| fehlt | **`rc=255`** | `rc=0`, mit Warnzeile |
+| `0777` | **`rc=255`**, anderer Wortlaut | `rc=0`, mit Warnzeile |
+
+**`sshd -T` ist nicht betroffen** — es gibt `rc=0` und schreibt die Warnung als
+Zeile dazu; `SftpCheck` liest zeilenweise nach Schlüsselwörtern und übergeht sie.
+Betroffen ist die Prüfung, nicht die Auskunft. Ohne diese Gegenprobe hätte der
+Fund doppelt so gross ausgesehen, wie er ist.
+
+**Behoben**: `SftpAccess::ensureRuntime()` legt das Verzeichnis an, wenn es fehlt,
+und rückt es zurecht, wenn es für Gruppe oder Andere schreibbar ist — mit
+derselben Regel wie die Kettenprüfung. Ein taugliches Verzeichnis wird **nicht**
+angefasst; ein Verzeichnis des Systems bekommt keine neuen Rechte, weil wir
+vorbeikommen.
+
+Der Wächter ist `SftpRuntimeDirTest` mit vier Regeln — anlegen, zurechtrücken,
+in Ruhe lassen, und **die Reihenfolge**: Der Aufruf steht vor `sshd -t`. Der
+Fehler war nicht, dass das Verzeichnis fehlte, sondern dass niemand danach sah,
+bevor geprüft wurde. Beide Brüche sind gegengeprüft.

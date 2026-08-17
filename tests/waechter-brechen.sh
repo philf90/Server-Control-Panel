@@ -10427,6 +10427,45 @@ pruefe "  … zurückgesetzt wieder grün" \
   FlashChannelTest::test_every_carried_flash_key_has_a_reader passed
 
 echo
+echo "── SftpRuntimeDirTest: sshd -t ohne /run/sshd ──"
+#
+# Der Fund aus Punkt 9 (docs/59, Befund 16): Bei angehaltenem Dienst raeumt
+# systemd /run/sshd weg, und sshd -t bricht mit rc=255 ab — an der Umgebung des
+# Pruefers statt am Prueflings. Das Panel meldete "von sshd abgewiesen".
+vorher_datei agent/src/Ops/SftpAccess.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SftpAccess.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        self::ensureRuntime();\n\n', '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/SftpAccess.php "die Pruefung laeuft ohne ihre Umgebung" &&
+pruefe "die Pruefung laeuft ohne ihre Umgebung" \
+  SftpRuntimeDirTest::test_the_directory_is_ensured_before_the_check failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SftpRuntimeDirTest::test_the_directory_is_ensured_before_the_check passed
+
+echo
+echo "── SftpRuntimeDirTest: ein weltschreibbares /run/sshd bleibt ──"
+#
+# Gemessen: 0777 laesst sshd -t ebenfalls mit rc=255 scheitern, mit anderem
+# Wortlaut.
+vorher_datei agent/src/Ops/SftpAccess.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SftpAccess.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        if (is_array($stat) && ($stat['mode'] & 0o022) !== 0) {", '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/SftpAccess.php "die Rechte bleiben, wie sie sind" &&
+pruefe "die Rechte bleiben, wie sie sind" \
+  SftpRuntimeDirTest::test_a_writable_directory_is_corrected failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SftpRuntimeDirTest::test_a_writable_directory_is_corrected passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

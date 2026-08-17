@@ -146,10 +146,29 @@ final class CronFile
         return self::DIR.'/'.self::name($user);
     }
 
-    /** Die Befehlsdatei eines Jobs. */
-    public static function commandPath(int $job): string
+    /**
+     * Die Befehlsdatei eines Jobs — mit dem Systembenutzer im Namen.
+     *
+     * **Der Name trägt den Mandanten, und das ist keine Kosmetik.** Hiesse die
+     * Datei nur `1234.cmd`, gäbe es zwei Löcher: Der Weg zurück müsste raten,
+     * welche Nummern zu welchem Abonnement gehören — ein pausierter Job steht in
+     * keiner Cron-Datei und wäre damit unauffindbar —, und ein Fehler in der
+     * Nummernvergabe liesse ein Abonnement die Befehlsdatei eines anderen
+     * überschreiben. So ist beides eine Eigenschaft des Dateinamens statt einer
+     * Sorgfalt beim Aufrufen.
+     *
+     * `cron-run` braucht die Nummer deshalb nicht allein zu deuten: Es kennt
+     * seinen eigenen Benutzer ohnehin, weil es als er läuft.
+     */
+    public static function commandPath(string $user, int $job): string
     {
-        return self::COMMAND_DIR.'/'.$job.'.cmd';
+        return self::COMMAND_DIR.'/'.self::name($user).'-'.$job.'.cmd';
+    }
+
+    /** Das Muster, unter dem die Befehlsdateien eines Abonnements liegen. */
+    public static function commandGlob(string $user): string
+    {
+        return self::COMMAND_DIR.'/'.self::name($user).'-*.cmd';
     }
 
     /**

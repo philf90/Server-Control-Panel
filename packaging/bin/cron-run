@@ -64,10 +64,14 @@ case $job in
     '' | *[!0-9]*) fehler 'Die Nummer eines Jobs besteht aus Ziffern.' ;;
 esac
 
-befehlsdatei=$COMMAND_DIR/$job.cmd
-[ -r "$befehlsdatei" ] || fehler "Zu Job $job gibt es keinen Befehl."
-
 benutzer=$(id -un) || fehler 'Der eigene Benutzername war nicht zu ermitteln.'
+
+# Der Benutzer steht im Namen der Befehlsdatei, und er kommt hier aus `id` und
+# nicht aus der Cron-Zeile. Damit kann dieser Aufruf nur an den Befehl eines
+# Abonnements heran — an den desjenigen, als der er ohnehin läuft.
+befehlsdatei=$COMMAND_DIR/srvpanel-$benutzer-$job.cmd
+[ -r "$befehlsdatei" ] || fehler "Zu Job $job gibt es keinen Befehl für $benutzer."
+
 ablage=$SPOOL_DIR/$benutzer
 
 # Das Verzeichnis legt der Agent an und es gehört dem Abonnement. Fehlt es,

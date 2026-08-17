@@ -1868,3 +1868,45 @@ als einzelne Messung offen.
 
 > **Eine Anleitung mit zwei Schritten in einem Block verliert den, der weniger
 > sichtbar ist.**
+
+## C3 — Befunde 11 und 9 bestätigt
+
+**Befund 11**, Schlüssel eintragen bei kaputter `sshd_config`:
+
+> **Das Formular wurde nicht gespeichert.**
+> Der Schlüssel ist in Ordnung; der Server hat die Änderung nicht angenommen.
+> Der Zugangsblock ist von sshd abgewiesen worden; an der Datei wurde nichts
+> geändert: …
+
+| erwartet | gemessen |
+|---|---|
+| der Satz über den Schlüssel steht davor | erfüllt |
+| dahinter die Meldung von `sshd -t` | erfüllt |
+| **das Textfeld ohne roten Rand** | erfüllt |
+
+Der Rand ist der eigentliche Beleg: Im ersten Durchgang war er da, obwohl der
+Schlüssel einwandfrei war. Danach Zeile entfernt, Schlüssel eingetragen — grün.
+
+**Befund 9**, `chmod 0777 /var/www/vhosts`:
+
+> `/var/www/vhosts` **ist für die Gruppe und für alle schreibbar** (Eigentümer
+> root, Rechte `0777`).
+
+Ein Satz. Im ersten Durchgang stand dort „ist für die Gruppe schreibbar **und
+ist** für alle schreibbar".
+
+### Stand des zweiten Durchgangs
+
+| Befund | am Server bestätigt |
+|---|---|
+| 2, 3 („kein Schlüssel" als Zustand, `none`) | **ja** |
+| 4 (das Leerzeichen) | **ja** |
+| 6 (`AuthenticationMethods publickey`) | **ja** |
+| 9 (ein Satz statt zwei) | **ja** |
+| 11 (der rote Rand am richtigen Ort) | **ja** |
+| 12 (die Schlüsseldatei überlebt) | **ja** |
+| 13 (die Meldung erscheint überhaupt) | **ja** |
+| 7, 18 (die beiden Formularmeldungen) | offen |
+| 10 (das Verzeichnis, das gilt) | offen |
+| 16 (`/run/sshd`) | Block D |
+| 19 (der Menüpunkt) | Block E |

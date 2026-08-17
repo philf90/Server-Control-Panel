@@ -264,8 +264,31 @@ Beschriftung `TestWin11` aus dem Panel und nicht das `abnahme`, das
 den Kommentar statt ihn zu übernehmen — zwei Auskünfte über dasselbe wären eine
 zu viel —, und das ist hiermit an einer echten Datei gesehen.
 
-**Offen aus Punkt 4:** das Hochladen mit `p1136:www-data` (siehe Befund 8) und
-ein Bild der gefüllten Schlüsseltabelle.
+### Das Hochladen — setgid und umask zusammen
+
+```
+Uploading .ssh/p6-sftp.pub to /httpdocs/probe.txt
+-rw-r----- 1 p1136 www-data 90 Aug 17 10:52 …/httpdocs/probe.txt
+```
+
+| erwartet | gemessen |
+|---|---|
+| Eigentümer `p1136` | erfüllt |
+| Gruppe `www-data` | erfüllt — das setgid-Bit an `httpdocs` |
+| Rechte `0640` | erfüllt — `-u 0027` am `internal-sftp` |
+
+**Das ist die einzige Zeile des Laufs, die beide Mechanismen zusammen prüft.**
+Jeder allein ergibt etwas, das „irgendwie richtig" aussieht: Ohne das setgid-Bit
+gehörte die Datei der Gruppe `p1136`, und der Webserver käme nicht an sie heran.
+Ohne `-u 0027` wäre sie `0644` und für **jeden** Systembenutzer lesbar — die
+Rechnung aus `docs/53` Befund 3, hier am zweiten Weg hinein.
+
+Und der Zielpfad in der Meldung des Klienten heisst `/httpdocs/probe.txt` und
+nicht `/var/www/vhosts/p6-b.invalid/httpdocs/probe.txt`: dasselbe Chroot noch
+einmal, aus der Sicht des Programms statt aus der des Benutzers.
+
+**Punkt 4 ist damit erfüllt.** Offen bleibt allein ein Bild der gefüllten
+Schlüsseltabelle — Art, Bitzahl und Fingerabdruck in der Anzeige.
 
 ---
 

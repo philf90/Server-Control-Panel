@@ -106,8 +106,68 @@ Fehler steckt im Prüfmittel und nicht im Prüfling.
 das Skript hängt an keinem Pfad des Repos und läuft von überall.
 `docs/58` bekommt den Schritt nachgetragen.
 
-**Offen** bleibt die Messung selbst: 42/0, und die echte Kette `/` →
-`/var/www/vhosts` als „taugt".
+### Die Messung selbst: **42 wie erwartet, 0 abweichend**
+
+Gefahren am 17. August 2026 auf `cloudsrv24`, gegen das Skript aus `main`
+(`sha256 876aa368…c134`, gegengeprüft). Alle zehn Gruppen grün — der Zugang
+überhaupt (M6/M9/M10), das eigene `authorized_keys` des Kunden (M7), beide
+Ketten (M8), wo der Block stehen darf (M1/M2), das Drop-in (M3), was `sshd -t`
+sieht und was nicht (M4/M5), die Einschleusung, das Neuladen (M11/M12) und der
+Schlüssel selbst (M13).
+
+**Und die Fassung ist zeichengleich mit der im Container gemessenen:**
+
+```
+OpenSSH_9.6p1 Ubuntu-3ubuntu13.18, OpenSSL 3.0.13 30 Jan 2024
+```
+
+`docs/57` misst damit nicht eine ähnliche Fassung, sondern **dieselbe**. Die
+42 Messungen übertragen sich exakt statt nur sinngemäss — insbesondere die
+drei, die diesen Schritt tragen: Ein Neuladen mit kaputter Datei tötet den
+Dienst; ein `Match`-Block hat kein Ende, nur einen Nachfolger; die
+Schlüsseldatei hat eine zweite Kette.
+
+### `docs/50 §8` Punkt 4 — beantwortet
+
+Seit der Messrunde vor P6 offen: wem `/var/www/vhosts` auf dem laufenden
+Server gehört. Gemessen, nur gelesen und nie geändert:
+
+| Pfad | Eigentümer | Rechte | Urteil |
+|---|---|---|---|
+| `/` | root | 755 | taugt |
+| `/var` | root | 755 | taugt |
+| `/var/www` | root | 755 | taugt |
+| `/var/www/vhosts` | root | 755 | taugt |
+| `/etc/ssh` | root | 755 | taugt |
+| `/etc/ssh/sshd_config` | root | 644 | taugt |
+| `/var/www/vhosts/p6-b.invalid` | root | 755 | taugt |
+
+Die Kette trägt. Eine Abweichung hätte jeden SFTP-Zugang gekostet, und zwar
+wortlos.
+
+---
+
+## 2. Fassungen
+
+| | Wert |
+|---|---|
+| `srvpanel --version` | **0.6.0-rc.10** — wir prüfen, was wir zu prüfen glauben |
+| `sshd -V` | OpenSSH_9.6p1 Ubuntu-3ubuntu13.18, OpenSSL 3.0.13 |
+| `systemctl is-active ssh.service` | active |
+| `systemctl is-active sshd.service` | active (Alias derselben Unit) |
+| `systemctl is-enabled ssh.socket` | **enabled** |
+| `/etc/srvpanel/ssh` | gibt es noch nicht |
+| Prüfsumme `sshd_config` | `2b5a070e…6852`, unverändert seit 0c |
+
+**Beide Unitnamen melden `active`**, weil `sshd.service` ein Alias von
+`ssh.service` ist. `SftpAccess::reload()` geht seine Liste der Reihe nach durch
+und nimmt die erste, die nicht `unknown` sagt — also `ssh.service`. Das ist die
+gewollte Wahl, und sie ist hiermit gemessen statt angenommen.
+
+**Und `ssh.socket` ist eingeschaltet, während der Dienst gleichzeitig läuft.**
+Für Punkt 9 heisst das: Der Zustand „Dienst ruht" muss erst hergestellt werden,
+und das ist bei offenen Sitzungen nicht folgenlos — der Punkt bekommt seine
+eigene Vorsicht, wenn er dran ist.
 
 ## 2. Fassungen
 

@@ -85,6 +85,19 @@ const PATHS: Record<string, string> = {
   // überhaupt, und hier ist schon die ganze Gruppe eine.
   general: 'M12 20a8 8 0 100-16 8 8 0 000 16zM12 8v4l2.5 2.5',
 
+  // SFTP-Zugang: zwei Pfeile gegeneinander — die Übertragung.
+  //
+  // **Kein Schlüssel**, obwohl der Zugang an einem hängt: `dns` ist schon einer
+  // („der Bart rechts, der Griff als Ring"), und zwei Schlüssel in derselben
+  // Spalte unterscheidet im Vorbeigehen niemand — dasselbe Argument, das dort
+  // gegen einen zweiten Globus stand.
+  //
+  // Und kein zweites Blatt: `files` ist eines, und der Unterschied zwischen den
+  // beiden Punkten ist nicht *was* man sieht, sondern *wie* man herankommt. Die
+  // Richtung ist die Sache, und zwei Pfeile sind das Einzige, was sie auf 17px
+  // noch zeigt.
+  sftp: 'M9 20V5M5.5 8.5L9 5l3.5 3.5M15 4v15M18.5 15.5L15 19l-3.5-3.5',
+
   // Mein Konto: eine Person.
   account: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4.5 20a7.5 7.5 0 0115 0',
 }

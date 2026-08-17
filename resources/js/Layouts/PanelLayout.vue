@@ -149,6 +149,29 @@ const navigation = computed(() => {
                * zur Auswahl.
                */
               { name: 'Dateien', href: '/files', icon: 'files' },
+
+              /*
+               * **Und derselbe Weg für den SFTP-Zugang**, gemeldet vom
+               * Betreiber am 17. August 2026 während der Zwischenabnahme
+               * (`docs/59`, Befund 19). Er lag drei Klicks tief — Abonnements,
+               * Name, Bereich —, also genau dort, wo der Dateimanager vor
+               * `docs/55` Befund 8 lag.
+               *
+               * > **Ein Fehler, den man an einer Stelle behoben hat, ist beim
+               * > nächsten Merkmal wieder da, wenn die Behebung nicht die Regel
+               * > wurde.**
+               *
+               * `/sftp` und nicht `/subscriptions/…/sftp`, aus demselben Grund
+               * wie bei den Dateien: Der Zugang hängt an *einem* Abonnement,
+               * weil jedes sein eigenes Chroot hat. Die Adresse beantwortet die
+               * Frage „welches" — bei genau einem führt sie hinein, bei mehreren
+               * zur Auswahl.
+               *
+               * Und er steht **hinter** den Dateien: Beide führen in dasselbe
+               * Verzeichnis, der eine im Browser und der andere von aussen. Wer
+               * an seine Dateien will, findet den kürzeren Weg zuerst.
+               */
+              { name: 'SFTP-Zugang', href: '/sftp', icon: 'sftp' },
             ]
           : []),
 

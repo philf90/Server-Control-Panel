@@ -39,6 +39,53 @@ final class SftpController extends Controller
         private readonly Audit $audit,
     ) {}
 
+    /**
+     * Der Weg hinein, ohne dass der Kunde eine Abo-Kennung kennen muss.
+     *
+     * **Gemeldet vom Betreiber am 17. August 2026** während der Zwischenabnahme
+     * (`docs/59`, Befund 19): Der SFTP-Zugang lag drei Klicks tief —
+     * Abonnements, Name, Bereich —, also genau dort, wo der Dateimanager vor
+     * `docs/55` Befund 8 lag.
+     *
+     * > **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten
+     * > Merkmal wieder da, wenn die Behebung nicht die Regel wurde.**
+     *
+     * **Die Bauart ist wörtlich die von {@see FileController::pick()}**, und das
+     * ist Absicht: Es ist dieselbe Frage — ein Merkmal, das an *einem*
+     * Abonnement hängt, braucht einen Menüpunkt ohne Kennung darin. Eine zweite
+     * Antwort auf dieselbe Frage wäre die, die beim nächsten Umbau auseinander
+     * läuft.
+     *
+     * **Die Mandantenklammer hat schon gefiltert**, bevor diese Zeile läuft;
+     * `manageSftp` ist die zweite Frage und nicht die erste. Ein Admin sieht
+     * damit alle Abonnements — für ihn steht der Punkt aber nicht im Menü, weil
+     * „welches" bei tausend Kunden keine Auswahlliste mehr ist, sondern die
+     * Abonnementsliste, die es schon gibt.
+     */
+    public function pick(Request $request): RedirectResponse|Response
+    {
+        $account = $request->user();
+
+        $erreichbar = Subscription::query()
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (Subscription $s): bool => $account?->can('manageSftp', $s) ?? false)
+            ->values();
+
+        if ($erreichbar->count() === 1) {
+            return to_route('sftp.show', ['subscription' => $erreichbar->first()?->id]);
+        }
+
+        return Inertia::render('Subscriptions/SftpPick', [
+            'subscriptions' => $erreichbar
+                ->map(static fn (Subscription $s): array => [
+                    'id' => $s->id,
+                    'name' => $s->name,
+                ])
+                ->all(),
+        ]);
+    }
+
     public function show(Subscription $subscription): Response
     {
         $keys = SshKey::query()

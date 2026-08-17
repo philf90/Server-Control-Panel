@@ -33,13 +33,17 @@ Protokoll, das im Voraus geschrieben wird, hält fest, was jemand erwartet hat.
 | 11 die Wände | **erfüllt bis auf Wand 2** (bewusst offen) |
 | 12 die Bilder | offen — gehört gegen die nächste Fassung |
 
-**Achtzehn Befunde, und keinen davon hat ein Test gefunden.**
+**Neunzehn Befunde, und keinen davon hat ein Test gefunden.**
 
 | woher | Anzahl | welche |
 |---|---|---|
-| am Panel | 11 | 2, 3, 4, 6, 7, 9, 10, 11, 12, 13, 16, 18 |
+| am Panel | 12 | 2, 3, 4, 6, 7, 9, 10, 11, 12, 13, 16, 18, 19 |
 | am Prüfmittel | 4 | 5, 8, 14, 15 |
 | am Kriterium | 3 | 1, 17 — und die Hälften von Punkt 8 |
+
+**Befund 19 stammt nicht aus einem Punkt des Laufs**, sondern von der Bedienung
+während seiner Durchführung — und das ist der Fund, den kein Kriterium bestellt
+hat.
 
 Dasselbe Verhältnis wie in `docs/45`, `docs/47` und `docs/48`: Die Mehrheit steckt
 nicht im Prüfling.
@@ -1688,3 +1692,47 @@ dazu; der Bruch (Reihenfolge zurückdrehen) macht ihn rot, gegengeprüft.
 **Was ausdrücklich nicht geändert wurde:** die Meldung für `command="…"`. Sie
 nennt den störenden Anfang wörtlich, und das ist genau, was der Leser braucht. Ein
 eigener Zweig je Form wäre eine Liste, die wächst.
+
+---
+
+### Befund 19 — derselbe Umweg, ein Merkmal später
+
+**Gemeldet vom Betreiber am Ende des Laufs**, nicht von einem seiner Punkte: Der
+SFTP-Zugang war nur über das Abonnement erreichbar — Abonnements, Name, Bereich.
+Drei Klicks, und keiner davon beantwortet eine Frage.
+
+Das ist wörtlich die Lage, in der der **Dateimanager** vor `docs/55` Befund 8
+stand. Damals bekam er `/files`: einen Menüpunkt ohne Kennung darin, der bei
+genau einem erreichbaren Abonnement hineinführt und bei mehreren zur Auswahl.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+Und er ist zwölf Tage später wieder aufgetreten, im Lauf, der das nächste Merkmal
+abnimmt. Bemerkenswert daran: **Nichts hat es gemeldet.** Es gibt einen Wächter,
+der prüft, dass jeder Menüpunkt ein Zeichen trägt (`NavIconTest`), und einen, der
+prüft, dass kein Knopf ohne Recht dasteht (`AbilityReachTest`) — aber keinen für
+die Frage, ob ein Merkmal überhaupt einen Weg hat, der nicht durch eine Kennung
+führt. Die Frage ist auch schwer zu stellen: Sie hängt daran, was ein Kunde
+*sucht*, und nicht daran, was im Quelltext steht.
+
+**Gebaut**: `/sftp` → `SftpController::pick()`, wortgleich die Bauart von
+`FileController::pick()`, mit `Subscriptions/SftpPick.vue` als Zwillingsseite von
+`Files/Pick.vue`. Der Menüpunkt steht **hinter** „Dateien": Beide führen in
+dasselbe Verzeichnis, der eine im Browser und der andere von aussen, und wer an
+seine Dateien will, findet den kürzeren Weg zuerst.
+
+**Das Zeichen ist kein Schlüssel**, obwohl der Zugang an einem hängt: `dns` ist
+schon einer. Zwei Schlüssel in derselben Spalte unterscheidet im Vorbeigehen
+niemand — dasselbe Argument, das dort gegen einen zweiten Globus stand. Es sind
+zwei Pfeile gegeneinander: die Übertragung, und das Einzige, was die Richtung auf
+17 px noch zeigt.
+
+**Die Route trägt kein `can:`** und dafür eine Begründung im `RouteGuard` — sie
+hat kein Objekt, an dem eine Policy ansetzen könnte, und sucht aus den
+Abonnements, die die Mandantenklammer ohnehin sichtbar macht, diejenigen mit
+`manageSftp` heraus. Wortgleich die Lage von `GET files`.
+
+**Nachzuprüfen im nächsten Durchgang** (er kommt zu den fünf Punkten oben dazu):
+der Menüpunkt bei einem Abonnement — er muss **hineinführen** und nicht zur
+Auswahl —, die Auswahlseite bei zwei, und beide bei 390 px.

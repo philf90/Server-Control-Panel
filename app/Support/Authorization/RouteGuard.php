@@ -69,6 +69,10 @@ final class RouteGuard
                 'kind' => self::AUTHENTICATED,
                 'reason' => 'Der Weg in den Dateimanager, ohne dass der Kunde eine Abo-Kennung kennen muss (docs/55, Befund 8). Die Route zeigt nichts und ändert nichts — sie sucht aus den Abonnements, die die Mandantenklammer ohnehin sichtbar macht, diejenigen heraus, für die browseFiles gilt, und leitet weiter oder legt sie zur Auswahl vor. Eine Policy an dieser Route hätte kein Objekt, an dem sie ansetzen könnte; geprüft wird je Abonnement, und das Ziel der Weiterleitung trägt sein eigenes can:.',
             ],
+            'GET sftp' => [
+                'kind' => self::AUTHENTICATED,
+                'reason' => 'Der Weg zum SFTP-Zugang, ohne dass der Kunde eine Abo-Kennung kennen muss (docs/59, Befund 19). Wortgleich die Lage von GET files, und aus demselben Grund: Die Route zeigt nichts und ändert nichts — sie sucht aus den Abonnements, die die Mandantenklammer ohnehin sichtbar macht, diejenigen heraus, für die manageSftp gilt, und leitet weiter oder legt sie zur Auswahl vor. Eine Policy an dieser Route hätte kein Objekt, an dem sie ansetzen könnte; geprüft wird je Abonnement, und das Ziel der Weiterleitung trägt sein eigenes can:.',
+            ],
             'POST impersonation/stop' => [
                 'kind' => self::AUTHENTICATED,
                 'reason' => 'Die Rückkehr aus „Anmelden als". Bewusst ohne Policy: Wer in fremder Sicht ist, ist in diesem Moment ein Kundenkonto und hätte die Fähigkeit impersonate nicht mehr — die Prüfung stünde ihm ausgerechnet beim Zurückkommen im Weg. Ohne laufenden Wechsel tut die Route nichts.',

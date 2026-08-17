@@ -14006,7 +14006,7 @@ wahrscheinlichen gehalten; eingetreten ist der andere.
 
 > **Ob eine Anzeige nach einem Klick stimmt, weiss man erst nach dem Klick.**
 
-### P6 Schritt 8 — die Zwischenabnahme auf `cloudsrv24`: achtzehn Befunde, elf davon am Panel
+### P6 Schritt 8 — die Zwischenabnahme auf `cloudsrv24`: neunzehn Befunde, zwölf davon am Panel
 
 `docs/58` ist der Lauf, `docs/59` das Protokoll — geschrieben *während* er lief.
 Zwölf Punkte, gefahren gegen `v0.6.0-rc.10` auf einem echten Server, mit dem
@@ -14014,7 +14014,7 @@ Betreiber an der Tastatur und der Anbieterkonsole als Rückweg.
 
 **Erfüllt sind die Punkte 0 bis 8, 10 und 11** (bis auf eine bewusst offen
 gelassene Wand); Punkt 9 hängt an einem Befund und wird gegen die nächste Fassung
-nachgeprüft. **Achtzehn Befunde, und keinen davon hat ein Test gefunden:** elf am
+nachgeprüft. **Neunzehn Befunde, und keinen davon hat ein Test gefunden:** zwölf am
 Panel, vier am Prüfmittel, drei am Kriterium selbst.
 
 #### Die Sätze, die aus diesem Lauf bleiben
@@ -14158,3 +14158,27 @@ Bezeichnungen.
 Und die Länge der Schlüsseldatei folgt dabei der Bezeichnung aufs Byte, während
 die Prüfsumme der Konfiguration sich nicht bewegt — zwei Grössen, die sich
 verschieden verhalten müssen, und genau so tun.
+
+#### Und einen Menüpunkt, den der Lauf nicht bestellt hat
+
+Der SFTP-Zugang war nur über das Abonnement erreichbar — drei Klicks, und keiner
+beantwortet eine Frage. Genau die Lage, in der der Dateimanager vor `docs/55`
+Befund 8 stand.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+`/sftp` führt bei genau einem erreichbaren Abonnement hinein und bei mehreren zur
+Auswahl — wortgleich die Bauart von `/files`, bis zur Zwillingsseite
+`Subscriptions/SftpPick.vue`. Der Menüpunkt steht **hinter** „Dateien": Beide
+führen in dasselbe Verzeichnis, der eine im Browser und der andere von aussen.
+
+Das Zeichen ist **kein** Schlüssel — `dns` ist schon einer, und zwei Schlüssel in
+derselben Spalte unterscheidet im Vorbeigehen niemand. Es sind zwei Pfeile
+gegeneinander: die Übertragung.
+
+**Und keiner der 136 Wächter hätte das gefunden.** Es gibt einen für „jeder
+Menüpunkt trägt ein Zeichen" und einen für „kein Knopf ohne Recht" — keinen für
+„hat dieses Merkmal überhaupt einen Weg, der nicht durch eine Kennung führt". Die
+Frage hängt daran, was ein Kunde *sucht*, und nicht daran, was im Quelltext
+steht.

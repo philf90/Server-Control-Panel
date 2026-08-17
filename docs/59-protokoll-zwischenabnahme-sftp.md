@@ -234,9 +234,38 @@ Der Kopfteil, gegen den `docs/57 §13b` gemessen hat, ist damit nicht
 hypothetisch — er ist der Bestand dieser Maschine. Genau darum bot der Server
 `keyboard-interactive` neben dem Schlüssel an.
 
-**Offen aus Punkt 4:** die Anmeldung selbst — `pwd`, `ls`, das Hochladen mit
-`p1136:www-data`, die Gegenprobe mit einem fremden Schlüssel, und der Vergleich
-des Fingerabdrucks mit `ssh-keygen -lf`.
+### Die Anmeldung, gemessen von einem Windows-Rechner
+
+| erwartet | gemessen |
+|---|---|
+| Anmeldung gelingt | `Connected to cloudsrv24.de.` |
+| `pwd` ist `/` | `Remote working directory: /` |
+| `ls -a` zeigt die sechs Verzeichnisse | `. .. .ssh conf httpdocs logs mail tmp` |
+| **Gegenprobe:** ein fremder Schlüssel wird abgewiesen | `Permission denied (publickey).` |
+| Fingerabdruck der Datei == der aus `ssh-keygen` | `SHA256:PBMiXFViiL…RGfT8`, zeichengleich |
+
+**Die Gegenprobe scheitert an `publickey` und nicht an einem Passwort.** Damit
+ist Befund 5 in derselben Ausgabe mitbelegt: Der Weg, den sie prüft, ist der
+Weg, der geprüft werden soll.
+
+**Und `pwd` ist `/` und nicht `/var/www/vhosts/p6-b.invalid`** — das Chroot
+steht, und zwar aus der Sicht des Kunden. Die zweite Kette dazu, gemessen:
+
+| Pfad | Eigentümer | Rechte |
+|---|---|---|
+| `/` | root | 0755 |
+| `/etc` | root | 0755 |
+| `/etc/srvpanel` | root | 0755 |
+| `/etc/srvpanel/ssh` | root | 0755 |
+
+**Ein Nebenbeleg, der nicht auf der Liste stand:** Die Schlüsselzeile trägt die
+Beschriftung `TestWin11` aus dem Panel und nicht das `abnahme`, das
+`ssh-keygen -C` in die `.pub` geschrieben hat. `PublicKey::comment()` ersetzt
+den Kommentar statt ihn zu übernehmen — zwei Auskünfte über dasselbe wären eine
+zu viel —, und das ist hiermit an einer echten Datei gesehen.
+
+**Offen aus Punkt 4:** das Hochladen mit `p1136:www-data` (siehe Befund 8) und
+ein Bild der gefüllten Schlüsseltabelle.
 
 ---
 
@@ -461,3 +490,30 @@ Hälfte wäre die Regel „jede Zahl ist ein Fingerabdruck", und das ist sie nic
 **Und die Anleitung trägt mit Schuld.** Block C nannte `ssh-keygen -lf` und
 `cat` in derselben Folge. `docs/58` Punkt 4 sagt jetzt, welche der beiden
 Ausgaben ins Panel gehört.
+
+---
+
+### Befund 8 — eine Befehlsfolge, die ihre eigene Eingabeaufforderung mitbringt
+
+Der einzige Schritt aus Block D, der nicht gemessen ist, ist am Kopieren
+gescheitert:
+
+```
+sftp> sftp> put .ssh/p6-sftp.pub httpdocs/probe.txt
+Invalid command.
+```
+
+Die Anleitung hatte die Befehle **mit** `sftp> ` davor aufgeschrieben — so, wie
+sie in einer Sitzung aussehen. Mitkopiert wird die Eingabeaufforderung dann
+gleich mit, und `sftp` liest sie als Teil des Befehls.
+
+> **Eine Befehlsfolge, die zeigt, wie eine Sitzung aussieht, ist keine, die man
+> in eine Sitzung einfügen kann.**
+
+Das ist dieselbe Sorte Fehler wie Befund 7, eine Ebene höher: Dort standen zwei
+ähnliche Ausgaben untereinander und die falsche war leichter zu greifen, hier
+ist die falsche Form der Anleitung die, die richtig aussieht. Beide Male hat
+nicht der Prüfling versagt, sondern das Prüfmittel.
+
+**Behoben** in `docs/58` Punkt 4: Befehle für eine `sftp`-Sitzung stehen ohne
+Eingabeaufforderung davor, und der Hinweis dazu steht dabei.

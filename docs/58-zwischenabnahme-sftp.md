@@ -114,6 +114,17 @@ und ein leeres `-N ''` dort verschluckt wird: `"$env:USERPROFILE\..."` und
 falsche ist die kürzere — Befund 7 dieses Laufs. Sicherer ist der Weg über die
 Zwischenablage (`clip` bzw. `Set-Clipboard`).
 
+**In der Sitzung selbst** — die Befehle stehen ohne `sftp> ` davor, und das ist
+kein Schönheitsfehler: Mitkopiert liest `sftp` die Eingabeaufforderung als Teil
+des Befehls und antwortet `Invalid command.` (Befund 8 dieses Laufs).
+
+```
+pwd
+ls -a
+put p6-sftp.pub httpdocs/probe.txt
+quit
+```
+
 | erwartet | |
 |---|---|
 | Fingerabdruck im Panel == `ssh-keygen -lf p6-sftp.pub` | |

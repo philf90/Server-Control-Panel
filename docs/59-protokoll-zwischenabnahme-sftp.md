@@ -189,6 +189,57 @@ derselbe Denkfehler.
 
 ---
 
+## 4. Der erste Schlüssel
+
+**Der Block, gemessen auf `cloudsrv24` gegen `v0.6.0-rc.10`:**
+
+```
+# BEGIN srvpanel — verwaltet, nicht von Hand ändern
+Match User p1136
+    ChrootDirectory /var/www/vhosts/p6-b.invalid
+    ForceCommand internal-sftp -u 0027
+    AuthorizedKeysFile /etc/srvpanel/ssh/p1136
+    PasswordAuthentication no
+    PermitTTY no
+    AllowTcpForwarding no
+    X11Forwarding no
+Match all
+# END srvpanel
+```
+
+| erwartet | gemessen |
+|---|---|
+| Block **am Ende** der Datei | erfüllt — nichts steht dahinter |
+| letzte Zeile des Bereichs ist `Match all` | erfüllt, **innerhalb** des Bereichs und vor `# END` |
+| `sshd -t` sagt nichts | `rc=0` |
+| Schlüsseldatei `root:root 0644` | `-rw-r--r-- 1 root root 311 Aug 17 10:35 p1136` |
+| `chrootdirectory` (effektiv) | `/var/www/vhosts/p6-b.invalid` |
+| `forcecommand` (effektiv) | `internal-sftp -u 0027` |
+| `authorizedkeysfile` (effektiv) | `/etc/srvpanel/ssh/p1136` |
+| `authenticationmethods` (effektiv) | **`any`** — Befund 6, in dieser Fassung erwartet |
+
+Die 311 Byte sind die drei Kopfzeilen von `SftpKeyApply` (rund 210) plus die
+eine Schlüsselzeile mit `restrict` davor. Eine Zeile mehr, als das Panel zeigt,
+wäre hier sichtbar.
+
+**Und die Zeilen unmittelbar über dem Bereich belegen die Voraussetzung von
+Befund 6 auf dem echten Server:**
+
+```
+PasswordAuthentication yes
+PermitRootLogin yes
+```
+
+Der Kopfteil, gegen den `docs/57 §13b` gemessen hat, ist damit nicht
+hypothetisch — er ist der Bestand dieser Maschine. Genau darum bot der Server
+`keyboard-interactive` neben dem Schlüssel an.
+
+**Offen aus Punkt 4:** die Anmeldung selbst — `pwd`, `ls`, das Hochladen mit
+`p1136:www-data`, die Gegenprobe mit einem fremden Schlüssel, und der Vergleich
+des Fingerabdrucks mit `ssh-keygen -lf`.
+
+---
+
 ## Befunde
 
 ### Befund 1 — die Messrunde war nie fahrbar

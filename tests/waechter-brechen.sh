@@ -10236,6 +10236,27 @@ pruefe "  … zurückgesetzt wieder grün" \
   TemplateSpacingTest::test_the_premise_of_this_guard_holds passed
 
 echo
+echo "── SshdConfigTest: nur PasswordAuthentication no im Block ──"
+#
+# Der Fund aus dem Abnahmelauf (docs/59, Befund 6). Diese Zeile war da, und der
+# Betreiber bekam trotzdem eine Passwortabfrage: KbdInteractiveAuthentication
+# blieb auf yes, und PAM fragt dahinter nach demselben Passwort. Gemessen gegen
+# OpenSSH 9.6p1 — angeboten wurde publickey,keyboard-interactive.
+vorher_datei agent/src/Ssh/SshdConfig.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/SshdConfig.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            '    AuthenticationMethods publickey',\n", '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/SshdConfig.php "eine zweite Tür bleibt offen" &&
+pruefe "eine zweite Tür bleibt offen" \
+  SshdConfigTest::test_only_a_public_key_gets_in failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SshdConfigTest::test_only_a_public_key_gets_in passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

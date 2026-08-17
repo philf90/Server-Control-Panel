@@ -286,3 +286,88 @@ CLAUDE.md sagt über diesen Aufsatz: „misst die echte Seite — und nicht etwa
 Ähnliches." Für Bausteine, deren Gestaltung ganz in `app.css` steht, gilt der
 Satz weiter — `docs/56` Punkt 5 hat ihn aufs Pixel belegt. Für eine Komponente
 mit eigenem `scoped`-Block gilt er nicht.
+
+---
+
+### Befund 5 — die Gegenprobe darf auf einen anderen Weg zurückfallen
+
+**Gefunden am 17. August 2026, im Bild eines fehlgeschlagenen Versuchs.** Der
+Betreiber fuhr Punkt 4 unter PowerShell und hat dabei die Schreibweise der
+Eingabeaufforderung benutzt: `%USERPROFILE%` expandiert dort nicht. `sftp`
+meldete es als **Warnung** —
+
+```
+Warning: Identity file %USERPROFILE%\.ssh\p6-sftp not accessible: No such file or directory.
+```
+
+— und machte weiter. Der Server bot Passwort an, `sftp` fragte danach, und heraus
+kam `Permission denied, please try again.`
+
+**Das ist genau die Ausgabe, die Punkt 4 für die Gegenprobe erwartet.** Ein
+falscher Pfad und ein falscher Schlüssel sind im Ergebnis nicht zu
+unterscheiden — beide enden mit „Permission denied". Wer den Haken nach dem
+Ergebnis setzt, hakt einen Tippfehler als Beleg ab.
+
+> **Eine Gegenprobe, die auf einen anderen Weg zurückfallen darf, prüft den
+> falschen Weg.**
+
+Wortgleich der Satz aus `docs/44`, dort über eine Gegenprobe über den
+Unix-Socket, die einen kaputten TCP-Weg nicht sehen konnte. Hier ist es
+derselbe Fehler in der anderen Richtung: nicht ein anderer Weg zum Ziel,
+sondern ein anderes Verfahren am selben Ziel.
+
+**Behoben** in `docs/58` Punkt 4: Jeder Aufruf trägt
+`-o PreferredAuthentications=publickey -o PasswordAuthentication=no
+-o BatchMode=yes`. Damit ist ein fehlender Schlüssel ein Fehler und keine
+Warnung, und „Permission denied" kann nur noch eine Ursache haben.
+
+---
+
+### Befund 6 — `PasswordAuthentication no` schliesst eine von zwei Türen
+
+**Und dasselbe Bild trägt einen Fund über das Panel.** Der Server hat nach einem
+Passwort gefragt:
+
+```
+p1136@cloudsrv24.de's password:
+```
+
+Der Auftrag für Schritt 8 lautet: **kein Passwort, der Systembenutzer hat keines
+und bekommt keines.** Der verwaltete Block trug dazu `PasswordAuthentication no`
+— und das genügt nicht. Gemessen am 17. August 2026 gegen OpenSSH 9.6p1, mit
+einem Kopfteil in der Vorgabe der Distribution:
+
+| Block | `sshd -T` | angeboten wird |
+|---|---|---|
+| `PasswordAuthentication no` | `kbdinteractiveauthentication yes` | `publickey,keyboard-interactive` |
+| dazu `AuthenticationMethods publickey` | `authenticationmethods publickey` | `publickey` |
+| oder `KbdInteractiveAuthentication no` | `kbdinteractiveauthentication no` | `publickey` |
+
+`KbdInteractiveAuthentication` ist die zweite Tür, und über PAM fragt sie nach
+demselben Passwort. Gelingen kann es nicht — der Systembenutzer trägt `!` im
+Schattenfeld —, aber gefragt wird, und ein Wörterbuchangriff nimmt den Weg durch
+PAM statt an ihm vorbei.
+
+> **Ein Riegel, der eine von zwei Türen schliesst, ist eine Auskunft über die
+> Tür und keine über das Haus.**
+
+**Behoben** mit `AuthenticationMethods publickey` im Block — der Positivliste
+und nicht dem zweiten Riegel, aus demselben Grund, aus dem der Agent eine
+Programmliste führt und keine Sperrliste: Sie nennt, was gilt, und hält damit
+auch für eine Tür, die OpenSSH später dazubekommt. Der Wächter ist
+`SshdConfigTest::test_only_a_public_key_gets_in`, der Bruch steht im Bruchskript.
+
+**Und der eigentliche Befund liegt in der Messrunde.** `tests/sftp-messen.sh`
+setzte `PasswordAuthentication no` **und** `KbdInteractiveAuthentication no` im
+globalen Kopfteil. Damit war die Frage in 42 Messungen nie gestellt: Der Block
+konnte die Tür nicht offen lassen, weil sie schon zu war. Dazu kommt, dass
+`anmeldung()` mit `BatchMode=yes` fährt — eine Passwortabfrage wäre dort
+unsichtbar geblieben, selbst wenn sie erschienen wäre.
+
+> **Eine Messumgebung, die eine zweite Tür global zuhält, sagt nichts darüber,
+> ob der Block sie zuhält.**
+
+Die Messrunde hat dafür den Abschnitt **M6b** bekommen: zwei Fassungen des
+Blocks gegen einen Kopfteil ohne Riegel, gelesen wird, was der Server dem
+Klienten anbietet — plus die Gegenprobe, dass der gültige Schlüssel weiter
+hereinkommt. **45 Messungen, 0 abweichend.**

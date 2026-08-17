@@ -91,6 +91,24 @@ in `sshd_config` schreibt, ist ein Risiko ohne Anlass.
 Auf dem eigenen Rechner `ssh-keygen -t ed25519 -f p6-sftp -N ''`, den
 öffentlichen Teil im Panel eintragen.
 
+**Jeder Aufruf trägt diese drei Angaben** — sonst prüft er etwas anderes:
+
+```
+-o PreferredAuthentications=publickey -o PasswordAuthentication=no -o BatchMode=yes
+```
+
+Der Grund ist ein Befund dieses Laufs (`docs/59`, Befund 5). Ein Schlüsselpfad,
+den es nicht gibt, ist für `sftp` eine **Warnung**; danach fragt es nach einem
+Passwort, und heraus kommt `Permission denied` — dieselbe Ausgabe, die die
+Gegenprobe als Erfolg liest.
+
+> **Eine Gegenprobe, die auf einen anderen Weg zurückfallen darf, prüft den
+> falschen Weg.**
+
+Unter Windows kommt dazu, dass `%USERPROFILE%` in PowerShell nicht expandiert
+und ein leeres `-N ''` dort verschluckt wird: `"$env:USERPROFILE\..."` und
+`-N '""'`, oder die Eingabeaufforderung nehmen.
+
 | erwartet | |
 |---|---|
 | Fingerabdruck im Panel == `ssh-keygen -lf p6-sftp.pub` | |
@@ -100,8 +118,13 @@ Auf dem eigenen Rechner `ssh-keygen -t ed25519 -f p6-sftp -N ''`, den
 | `ls` zeigt `httpdocs`, `logs`, `conf`, `tmp`, `mail`, `.ssh` | |
 | Hochladen einer Datei nach `httpdocs/` gelingt, und sie trägt `p1136:www-data` — das setgid-Bit und `-u 0027` zusammen | |
 | **Gegenprobe:** ein *anderer* Schlüssel wird abgewiesen | |
+| `sshd -T -C user=p1136 \| grep -i authenticationmethods` sagt `publickey` | |
 
 Der letzte Punkt ist die Null neben etwas anderem als Null.
+
+Die Zeile darüber ist Befund 6 dieses Laufs: `PasswordAuthentication no` allein
+liess `keyboard-interactive` als zweite Tür offen, und über PAM fragte sie nach
+demselben Passwort.
 
 ---
 

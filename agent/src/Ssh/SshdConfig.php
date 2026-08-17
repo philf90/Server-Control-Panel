@@ -87,6 +87,32 @@ final class SshdConfig
      * Dateimanager. Ohne sie käme eine hochgeladene Datei als `0644` an und
      * wäre nur über das Weltbit lesbar.
      *
+     * **`AuthenticationMethods publickey` und nicht nur `PasswordAuthentication
+     * no`.** Der Unterschied ist am 17. August 2026 gegen OpenSSH 9.6p1
+     * gemessen worden, nachdem der Betreiber im Abnahmelauf eine
+     * Passwortabfrage bekommen hat (`docs/59`, Befund 6). Mit einem
+     * Kopfteil in der Vorgabe der Distribution:
+     *
+     * | Block | angeboten wird |
+     * |---|---|
+     * | `PasswordAuthentication no` | `publickey,keyboard-interactive` |
+     * | dazu `AuthenticationMethods publickey` | `publickey` |
+     *
+     * `PasswordAuthentication no` schliesst **eine** von zwei Türen:
+     * `KbdInteractiveAuthentication` bleibt `yes`, und über PAM fragt die
+     * zweite Tür nach demselben Passwort. Der Kunde hat keines, es kann also
+     * nicht gelingen — aber er wird gefragt, und ein Wörterbuchangriff nimmt
+     * den Weg durch PAM.
+     *
+     * > **Ein Riegel, der eine von zwei Türen schliesst, ist eine Auskunft über
+     * > die Tür und keine über das Haus.**
+     *
+     * Genommen wird die Positivliste und nicht der zweite Riegel
+     * (`KbdInteractiveAuthentication no` täte hier dasselbe, gemessen): Sie
+     * nennt, was gilt, statt aufzuzählen, was nicht gilt — dieselbe
+     * Entscheidung wie bei der Programmliste des Agenten. Eine Tür, die
+     * OpenSSH später dazubekommt, ist damit von vornherein zu.
+     *
      * @return list<string>
      */
     public static function block(string $user, string $root): array
@@ -96,6 +122,7 @@ final class SshdConfig
             '    ChrootDirectory '.$root,
             '    ForceCommand internal-sftp -u 0027',
             '    AuthorizedKeysFile '.self::keyFile($user),
+            '    AuthenticationMethods publickey',
             '    PasswordAuthentication no',
             '    PermitTTY no',
             '    AllowTcpForwarding no',

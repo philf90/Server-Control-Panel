@@ -115,6 +115,7 @@ Match User $1
     ChrootDirectory $2
     ForceCommand internal-sftp -u 0027
     AuthorizedKeysFile $KEYS/$1
+    AuthenticationMethods publickey
     PasswordAuthentication no
     PermitTTY no
     AllowTcpForwarding no
@@ -155,6 +156,52 @@ kopf; block "$ABO" "$ROOT" >> "$CONF"; daemon_start
 messung "Benutzer ohne Passwort (!), UsePAM yes, Schlüssel" an "$(anmeldung)"
 messung "nologin als Shell + ForceCommand internal-sftp" an "$(anmeldung)"
 messung "AuthorizedKeysFile absolut, ausserhalb des Chroots" an "$(anmeldung)"
+
+# ------------------------------------------------------------------------ M6b
+#
+# **Die blinde Stelle dieses Skripts, gefunden am 17. August 2026.** Der
+# Kopfteil oben setzt `PasswordAuthentication no` UND
+# `KbdInteractiveAuthentication no` — global. Damit war 42 Messungen lang nie
+# gefragt, ob der *Block* die Tür zuhält. Auf cloudsrv24 gilt die Vorgabe der
+# Distribution, und der Betreiber bekam im Abnahmelauf eine Passwortabfrage.
+#
+# > **Eine Messumgebung, die eine zweite Tür global zuhält, sagt nichts darüber,
+# > ob der Block sie zuhält.**
+#
+# Gemessen wird gegen einen Kopfteil OHNE beide Zeilen. `anmeldung()` taugt
+# dafür nicht: `BatchMode=yes` unterdrückt jede Abfrage, und genau die ist die
+# Frage. Gelesen wird, was der Server dem Klienten anbietet.
+titel "Was neben dem Schlüssel angeboten wird (M6b)"
+angebot() { # konfigurationszeilen
+  local f="$BASE/angebot.conf"
+  { echo "Port $PORT"; echo "ListenAddress 127.0.0.1"; echo "HostKey $BASE/host_ed25519"
+    echo "PidFile $PIDF"; echo "LogLevel VERBOSE"; echo "UsePAM yes"
+    echo "Subsystem sftp internal-sftp"; cat; } > "$f"
+  chmod 0644 "$f"
+  daemon_stop; : > "$LOG"; "$SSHD" -f "$f" -E "$LOG" >/dev/null 2>&1; sleep 0.5
+  timeout 15 ssh -v -p "$PORT" -i "$BASE/fremd" -o StrictHostKeyChecking=no \
+    -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes \
+    -o NumberOfPasswordPrompts=1 "$ABO@127.0.0.1" true </dev/null 2>&1 |
+    grep -oE 'Authentications that can continue: [a-z,-]+' | tail -1 | cut -d' ' -f5
+  daemon_stop
+}
+messung "nur PasswordAuthentication no im Block" publickey,keyboard-interactive \
+  "$(angebot <<EOF
+Match User $ABO
+    ChrootDirectory $ROOT
+    ForceCommand internal-sftp -u 0027
+    AuthorizedKeysFile $KEYS/$ABO
+    PasswordAuthentication no
+Match all
+EOF
+)"
+messung "  … mit AuthenticationMethods publickey" publickey \
+  "$(angebot <<EOF
+$(block "$ABO" "$ROOT")
+EOF
+)"
+kopf; block "$ABO" "$ROOT" >> "$CONF"; daemon_start
+messung "Gegenprobe: der gültige Schlüssel kommt weiter herein" an "$(anmeldung)"
 
 # ------------------------------------------------------------------------- M7
 titel "Der Kunde legt sich selbst einen Schlüssel hin (M7)"

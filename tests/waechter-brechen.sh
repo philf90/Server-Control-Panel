@@ -10611,6 +10611,30 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   ServerZoneSourceTest::test_the_display_timezone_does_not_drive_the_schedule passed
 
+echo "── CronOutputEncodingTest: die Ausgabe geht ungeprueft in die Antwort ──"
+#
+# Connection::send() kodiert ohne JSON_INVALID_UTF8_SUBSTITUTE. Gemessen am
+# 17. August 2026: Ein einziges ungueltiges Byte laesst json_encode false
+# zurueckgeben — dann ist nicht das Feld unlesbar, sondern die ganze Antwort.
+# Die Ausgabe eines Cronjobs sind beliebige Bytes; ohne die Bereinigung ist das
+# kein Randfall, sondern der Normalfall in Wartestellung.
+vorher_datei agent/src/Ops/CronRuns.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/CronRuns.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if (mb_check_encoding($bytes, 'UTF-8')) {
+            return [$bytes, false];
+        }
+
+        return [mb_convert_encoding($bytes, 'UTF-8', 'UTF-8'), true];"""
+assert s.count(alt) == 1, 'Zielblock nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        return [$bytes, false];'))
+PY2
+griff_datei agent/src/Ops/CronRuns.php "Ausgabe ungeprueft in die Antwort" &&
+pruefe "Ausgabe ungeprueft in die Antwort" CronOutputEncodingTest failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronOutputEncodingTest passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

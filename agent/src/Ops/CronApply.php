@@ -60,8 +60,24 @@ final class CronApply implements Op
     /** Wie lang ein Befehl werden darf. */
     public const COMMAND_MAX = 8192;
 
-    /** Wo die Aufzeichnungen liegen — je Abonnement ein Verzeichnis. */
-    public const SPOOL_DIR = '/var/lib/srvpanel/cron';
+    /**
+     * Wo die Aufzeichnungen liegen — je Abonnement ein Verzeichnis.
+     *
+     * **Unter `/var/spool` und nicht unter `/var/lib/srvpanel`**, und das ist
+     * kein Geschmack. `/var/lib/srvpanel` liefert das Paket als `0750
+     * srvpanel:srvpanel` aus; `cron-run` läuft als der Abo-Benutzer und käme
+     * dort nicht einmal hindurch. Die Alternative wäre gewesen, dem
+     * Zustandsverzeichnis des Panels ein `o+x` zu geben — also die Rechte des
+     * Panels aufzuweichen, damit ein Fremder an einem Unterverzeichnis vorbei
+     * darf.
+     *
+     * > **Wer ein Verzeichnis öffnet, damit ein anderer durchkommt, öffnet es
+     * > für alle, die vorbeikommen.**
+     *
+     * `/var/spool` ist der Ort, den es für genau diesen Zweck gibt: eine Ablage,
+     * die entsteht, eingesammelt wird und wieder verschwindet.
+     */
+    public const SPOOL_DIR = '/var/spool/srvpanel/cron';
 
     public static function name(): string
     {

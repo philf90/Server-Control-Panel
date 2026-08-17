@@ -123,6 +123,14 @@ contents:
   - src: ./packaging/systemd/srvpanel-tls.timer
     dst: /lib/systemd/system/srvpanel-tls.timer
 
+  # Und dasselbe für die Läufe der Cronjobs. Ohne die .timer-Datei stünde die
+  # Ablage unter /var/spool/srvpanel/cron voll und im Panel bliebe die Liste
+  # leer — beides ohne Fehlermeldung.
+  - src: ./packaging/systemd/srvpanel-cron.service
+    dst: /lib/systemd/system/srvpanel-cron.service
+  - src: ./packaging/systemd/srvpanel-cron.timer
+    dst: /lib/systemd/system/srvpanel-cron.timer
+
   - src: ./packaging/bin/php
     dst: /opt/srvpanel/bin/php
     file_info:
@@ -154,10 +162,41 @@ contents:
     dst: /etc/logrotate.d/srvpanel
     type: config|noreplace
 
+  # Der Wrapper, den jede Cron-Zeile aufruft. Er läuft als der Abo-Benutzer und
+  # muss deshalb für alle ausführbar sein; schreibbar ist er für niemanden ausser
+  # root — er ist die Stelle, die den Befehl des Kunden startet.
+  - src: ./packaging/bin/cron-run
+    dst: /usr/lib/srvpanel/cron-run
+    file_info:
+      mode: 0755
+      owner: root
+      group: root
+
   - dst: /etc/srvpanel/tls
     type: dir
     file_info:
       mode: 0755
+  # Die Befehle der Cronjobs. `0751` und nicht `0750`: cron-run läuft als der
+  # Kunde und muss das Verzeichnis durchschreiten, um an seine Datei zu kommen —
+  # auflisten soll es niemand, sonst wären die Jobnummern aller Abonnements
+  # sichtbar. Gemessen am Ende-zu-Ende-Lauf: Mit 0750 startet cron den Wrapper
+  # jede Minute, und es entsteht keine einzige Aufzeichnung.
+  - dst: /etc/srvpanel/cron
+    type: dir
+    file_info:
+      mode: 0751
+      owner: root
+      group: root
+
+  # Die Ablage der Aufzeichnungen. Unter /var/spool und nicht unter
+  # /var/lib/srvpanel: Letzteres ist 0750 srvpanel:srvpanel, und der
+  # Abo-Benutzer käme dort nicht einmal hindurch.
+  - dst: /var/spool/srvpanel/cron
+    type: dir
+    file_info:
+      mode: 0755
+      owner: root
+      group: root
   - dst: /var/lib/srvpanel
     type: dir
     file_info:

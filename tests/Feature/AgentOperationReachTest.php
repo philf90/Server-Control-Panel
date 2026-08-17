@@ -88,6 +88,20 @@ final class AgentOperationReachTest extends TestCase
         'sftp.access' => 'Schreibt den verwalteten Block in sshd_config aus dem vollständigen Bestand. Siehe sftp.key.apply.',
         'sftp.check' => 'Fragt nur nach: die beiden Ketten und was für den Benutzer wirklich gilt. Am Bestand des Panels ändert sich nichts.',
 
+        /*
+         * **P6 Schritt 9: Cron.** Kein Lebenslauf, und der Grund ist derselbe
+         * wie bei SFTP: Der Sollzustand entsteht beim *Ausführen* aus dem
+         * Bestand und nicht beim Einreihen. Was das Panel führt, sind die Jobs
+         * in `cron_jobs`; die Datei unter /etc/cron.d ist ihr Abbild.
+         *
+         * `cron.runs` steht hier trotz `mutating() === true`: Es verändert die
+         * Ablage auf der Platte, aber es *ist* der Vorgang, der den Bestand im
+         * Panel entstehen lässt — ein Lebenslauf darüber hätte nichts zu
+         * verwalten, was nicht er selbst schreibt.
+         */
+        'cron.apply' => 'Schreibt Cron-Datei und Befehle aus dem vollständigen Bestand von `cron_jobs`. App\\Support\\Cron\\Cron ruft unmittelbar auf — der Kunde soll die Meldung an seinem Formular lesen.',
+        'cron.runs' => 'Sammelt die Aufzeichnungen von cron-run ein und leert die Ablage. Gerufen aus App\\Support\\Cron\\Cron::ingest() über srvpanel:cron-runs.',
+
         'agent.ping' => 'Fragt nur nach der Version des Agenten.',
         'system.info' => 'Liest Kennzahlen für die Übersicht.',
         'service.status' => 'Liest den Zustand einer Unit.',

@@ -38,7 +38,7 @@ set -u
 
 RUNNER_NAME=cron-run
 COMMAND_DIR=${SRVPANEL_CRON_COMMANDS:-/etc/srvpanel/cron}
-SPOOL_DIR=${SRVPANEL_CRON_SPOOL:-/var/lib/srvpanel/cron}
+SPOOL_DIR=${SRVPANEL_CRON_SPOOL:-/var/spool/srvpanel/cron}
 
 # Entscheidung 1 des Betreibers (docs/60 §12): Sperre je Job, Grenze 60 Minuten.
 LIMIT=${SRVPANEL_CRON_LIMIT:-3600}

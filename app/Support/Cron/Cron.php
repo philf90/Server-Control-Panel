@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Support\Cron;
 
+use App\Enums\CronRunStatus;
 use App\Models\CronJob;
+use App\Models\CronRun;
 use App\Models\Subscription;
 use App\Support\Files\Sftp;
+use App\Support\Tenancy\Tenancy;
 use Illuminate\Support\Facades\DB;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
@@ -60,6 +63,7 @@ final class Cron
 {
     public function __construct(
         private readonly Client $agent,
+        private readonly Tenancy $tenancy,
     ) {}
 
     /**
@@ -204,6 +208,226 @@ final class Cron
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * Die aufgezeichneten Läufe einsammeln und einpflegen.
+     *
+     * ## Die Prüfung, die der Agent nicht treffen kann
+     *
+     * Die Ablage unter `/var/spool/srvpanel/cron/<benutzer>` gehört dem
+     * Abonnement — anders könnte `cron-run` als der Kunde nicht darin schreiben.
+     * **Damit kann der Kunde darin auch alles andere schreiben**, insbesondere
+     * eine Aufzeichnung mit einer *fremden* Jobnummer.
+     *
+     * > **Ein Verzeichnis, in das der Geprüfte schreiben darf, liefert keine
+     * > Auskunft — es liefert eine Behauptung.**
+     *
+     * Der Agent kennt den Bestand des Panels nicht und kann die Nummer nicht
+     * zuordnen; er prüft nur die Form. Hier wird sie zugeordnet: Ein Lauf wird
+     * nur eingepflegt, wenn sein Job zu dem Abonnement gehört, unter dessen
+     * Namen er ankam. Alles andere wird verworfen und nicht etwa einem fremden
+     * Job zugeschrieben.
+     *
+     * ## Beschnitten wird beim Einpflegen
+     *
+     * `docs/51 §6`: Ein Job, der jede Minute läuft, soll die Tabelle nicht bis
+     * zum nächsten Aufräumen füllen dürfen. Deshalb steht der Schnitt hier und
+     * nicht in einem Tageslauf — und er läuft je Job, dessen Läufe sich gerade
+     * geändert haben, statt über den ganzen Bestand.
+     *
+     * @param  list<Subscription>|null  $subscriptions  null heisst „alle mit Jobs"
+     * @return array{taken: int, stored: int, remaining: int}
+     *
+     * @throws AgentException
+     */
+    public function ingest(?array $subscriptions = null): array
+    {
+        $subscriptions ??= $this->withJobs();
+
+        if ($subscriptions === []) {
+            return ['taken' => 0, 'stored' => 0, 'remaining' => 0];
+        }
+
+        /** @var array<string,Subscription> $byUser */
+        $byUser = [];
+
+        foreach ($subscriptions as $subscription) {
+            $user = (string) $subscription->system_user;
+
+            if ($user !== '') {
+                $byUser[$user] = $subscription;
+            }
+        }
+
+        if ($byUser === []) {
+            return ['taken' => 0, 'stored' => 0, 'remaining' => 0];
+        }
+
+        $answer = $this->agent->call('cron.runs', ['users' => array_keys($byUser)]);
+
+        $runs = $answer['runs'] ?? [];
+        $stored = 0;
+
+        if (is_array($runs) && $runs !== []) {
+            $stored = $this->store($runs, $byUser);
+        }
+
+        return [
+            'taken' => is_int($answer['taken'] ?? null) ? $answer['taken'] : 0,
+            'stored' => $stored,
+            'remaining' => is_int($answer['remaining'] ?? null) ? $answer['remaining'] : 0,
+        ];
+    }
+
+    /**
+     * Die gemeldeten Läufe einpflegen — jeder gegen seinen Job geprüft.
+     *
+     * @param  array<int,mixed>  $runs
+     * @param  array<string,Subscription>  $byUser
+     */
+    private function store(array $runs, array $byUser): int
+    {
+        /*
+         * Die Jobs einmal holen statt je Lauf: Ein Abonnement kann fünfhundert
+         * Läufe auf einmal mitbringen, und fünfhundert Einzelabfragen für zehn
+         * Jobs wären eine Abfrage je Zeile.
+         */
+        $jobs = CronJob::query()
+            ->whereIn('subscription_id', array_map(
+                static fn (Subscription $s): int => (int) $s->id,
+                array_values($byUser),
+            ))
+            ->get()
+            ->keyBy(static fn (CronJob $job): int => (int) $job->id);
+
+        $stored = 0;
+        $touched = [];
+
+        DB::transaction(function () use ($runs, $byUser, $jobs, &$stored, &$touched): void {
+            foreach ($runs as $run) {
+                if (! is_array($run)) {
+                    continue;
+                }
+
+                $user = is_string($run['user'] ?? null) ? $run['user'] : '';
+                $subscription = $byUser[$user] ?? null;
+                $job = $jobs->get((int) ($run['job'] ?? 0));
+
+                // Der Kern der Prüfung: Die Nummer muss zu **diesem**
+                // Abonnement gehören. Eine fremde wird verworfen, nicht
+                // umgehängt.
+                if (! $subscription instanceof Subscription
+                    || ! $job instanceof CronJob
+                    || (int) $job->subscription_id !== (int) $subscription->id) {
+                    continue;
+                }
+
+                $status = CronRunStatus::tryFromStored($run['status'] ?? null);
+
+                if (! $status instanceof CronRunStatus) {
+                    continue;
+                }
+
+                $output = is_string($run['output'] ?? null) ? $run['output'] : '';
+                $truncated = ($run['truncated'] ?? false) === true;
+
+                /*
+                 * **Die zweite Wand gegen zu lange Ausgabe.** `cron-run` kappt,
+                 * der Agent kappt — und hier wird noch einmal gekappt, weil die
+                 * Spalte auf dem Server eine Grenze hat und diese Tests gegen
+                 * SQLite laufen, wo sie keine hat (`docs/48`).
+                 */
+                if (strlen($output) > CronRun::OUTPUT_MAX) {
+                    $output = substr($output, 0, CronRun::OUTPUT_MAX);
+                    $truncated = true;
+                }
+
+                CronRun::query()->create([
+                    'cron_job_id' => (int) $job->id,
+                    'subscription_id' => (int) $subscription->id,
+                    'started_at' => $run['started'] ?? null,
+                    'duration_ms' => max(0, (int) ($run['duration_ms'] ?? 0)),
+                    'exit_code' => is_int($run['exit'] ?? null) ? $run['exit'] : null,
+                    'status' => $status,
+                    'output' => $output === '' ? null : $output,
+                    'truncated' => $truncated,
+                ]);
+
+                $touched[(int) $job->id] = true;
+                $stored++;
+            }
+
+            foreach (array_keys($touched) as $jobId) {
+                $this->trim($jobId);
+            }
+        });
+
+        return $stored;
+    }
+
+    /**
+     * Die Läufe eines Jobs auf {@see CronRun::KEEP_PER_JOB} beschneiden.
+     *
+     * Gelöscht wird über die Nummern der zu **behaltenden** Zeilen und nicht
+     * über einen Zeitpunkt: Zwei Läufe können auf dieselbe Sekunde fallen — ein
+     * Minutenjob und ein übersprungener Lauf desselben Jobs tun das regelmässig —,
+     * und ein Schnitt nach `started_at` nähme dann entweder beide mit oder
+     * keinen.
+     */
+    private function trim(int $jobId): void
+    {
+        $keep = CronRun::query()
+            ->where('cron_job_id', $jobId)
+            ->orderByDesc('started_at')
+            ->orderByDesc('id')
+            ->limit(CronRun::KEEP_PER_JOB)
+            ->pluck('id')
+            ->all();
+
+        if (count($keep) < CronRun::KEEP_PER_JOB) {
+            return;
+        }
+
+        CronRun::query()
+            ->where('cron_job_id', $jobId)
+            ->whereNotIn('id', $keep)
+            ->delete();
+    }
+
+    /**
+     * Die Abonnements, für die es überhaupt Jobs gibt.
+     *
+     * **Hier wird die Mandantenklammer geöffnet, und diesmal mit Grund.** Der
+     * Einsammler läuft aus einem Zeitgeber ohne angemeldetes Konto; ohne
+     * Ausnahme sähe er nach der dritten Grenze *nichts* und pflegte nie etwas
+     * ein. Das ist dieselbe Begründung wie bei {@see Sftp::accesses()} — nur
+     * dass sie dort für das Schreiben gilt und hier für einen Lauf ohne
+     * Betrachter.
+     *
+     * @return list<Subscription>
+     */
+    private function withJobs(): array
+    {
+        /** @var list<Subscription> $subscriptions */
+        $subscriptions = [];
+
+        $this->tenancy->withoutRestriction(function () use (&$subscriptions): void {
+            $ids = CronJob::query()->distinct()->pluck('subscription_id')->all();
+
+            if ($ids === []) {
+                return;
+            }
+
+            $subscriptions = Subscription::query()
+                ->whereIn('id', $ids)
+                ->whereNotNull('system_user')
+                ->orderBy('id')
+                ->get()
+                ->all();
+        });
+
+        return $subscriptions;
     }
 
     /**

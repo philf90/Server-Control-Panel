@@ -160,6 +160,7 @@ restart_services() {
     # führte die Messung sofort aus und stellte den Takt trotzdem nicht an.
     systemctl enable --now srvpanel-usage.timer >/dev/null 2>&1 || true
     systemctl enable --now srvpanel-tls.timer >/dev/null 2>&1 || true
+    systemctl enable --now srvpanel-cron.timer >/dev/null 2>&1 || true
 }
 
 # Zurück auf die vorige Fassung: Symlink umlegen, Dienste mit ihr starten.

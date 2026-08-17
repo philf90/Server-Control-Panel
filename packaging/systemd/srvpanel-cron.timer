@@ -1,0 +1,27 @@
+[Unit]
+Description=SrvPanel — die Läufe der Cronjobs einsammeln
+Documentation=https://repo.cloudsrv24.de/
+
+[Timer]
+# Zwei Minuten nach dem Start und danach alle fünf Minuten. Der Versatz nach dem
+# Booten ist derselbe Gedanke wie bei srvpanel-usage.timer: In den ersten
+# Minuten fährt der Server hoch, und ein Einsammeln, das auf einen noch nicht
+# laufenden Agenten trifft, ist eine Fehlermeldung ohne Anlass.
+#
+# **Fünf Minuten und nicht fünfzehn.** Der Agent bringt je Aufruf höchstens 500
+# Läufe mit; ein Kunde mit zehn Minutenjobs erzeugt 50 in fünf Minuten und 150
+# in fünfzehn. Der Abstand ist an der Deckelung gewählt und nicht am Gefühl —
+# und was trotzdem liegen bleibt, meldet das Kommando als „wartet noch".
+OnBootSec=2min
+OnUnitActiveSec=5min
+
+# Ein Server, der über Nacht aus war, sammelt nach dem Einschalten einmal nach,
+# statt bis zum nächsten Fünfminutenschlag zu warten.
+Persistent=true
+
+# 30 Sekunden Streuung. Auf einem einzelnen Server bedeutungslos, auf zwanzig
+# gleichzeitig eingerichteten nicht.
+RandomizedDelaySec=30
+
+[Install]
+WantedBy=timers.target

@@ -10195,6 +10195,47 @@ pruefe "  … zurückgesetzt wieder grün" \
   ChainTest::test_the_chain_starts_at_the_root passed
 
 echo
+echo "── TemplateSpacingTest: ein Zeilenumbruch als Leerzeichen ──"
+#
+# Der Fund aus dem Abnahmelauf des SFTP-Zugangs (docs/59, Befund 4). Vues
+# Vorgabe `whitespace: condense` entfernt einen Textknoten zwischen zwei
+# Elementen, wenn er nur aus Weissraum mit Zeilenumbruch besteht — auf der
+# Seite stand daraufhin `zustande./etc/srvpanel/ssh` ohne Trennung.
+vorher_datei resources/js/Pages/Subscriptions/Sftp.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Sftp.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("zustande.</b>{{ ' ' }}", "zustande.</b>", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Sftp.vue "das Leerzeichen bleibt dem Umbruch überlassen" &&
+pruefe "das Leerzeichen bleibt dem Umbruch überlassen" \
+  TemplateSpacingTest::test_no_prose_relies_on_a_line_break_for_a_space failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  TemplateSpacingTest::test_no_prose_relies_on_a_line_break_for_a_space passed
+
+echo
+echo "── TemplateSpacingTest: die Voraussetzung zieht still um ──"
+#
+# Der Wächter fragt nur dort, wo der Behälter Fliesstext ist. Wird `.hint` zu
+# einer Flexbox, ist sein Inhalt keiner mehr — und der Wächter prüfte ab da
+# eine andere Anwendung, ohne es zu melden.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace(".hint {\n  margin: 6px 0 0;", ".hint {\n  display: flex;\n  margin: 6px 0 0;", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Fliesstext, der keiner mehr ist" &&
+pruefe "Fliesstext, der keiner mehr ist" \
+  TemplateSpacingTest::test_the_premise_of_this_guard_holds failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  TemplateSpacingTest::test_the_premise_of_this_guard_holds passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

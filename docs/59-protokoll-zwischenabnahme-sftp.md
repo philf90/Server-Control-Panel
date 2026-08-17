@@ -169,10 +169,6 @@ Für Punkt 9 heisst das: Der Zustand „Dienst ruht" muss erst hergestellt werde
 und das ist bei offenen Sitzungen nicht folgenlos — der Punkt bekommt seine
 eigene Vorsicht, wenn er dran ist.
 
-## 2. Fassungen
-
-**Offen.**
-
 ---
 
 ## 3. Ohne Schlüssel ist der Zugang aus — und die Datei unberührt
@@ -248,6 +244,45 @@ wenn er einen Zeilenumbruch enthält — und im Quelltext stand `</b>` und
 > **Ein Leerzeichen, das im Quelltext als Zeilenumbruch dasteht, ist für den
 > Übersetzer keines.**
 
-**Behoben** mit einem ausdrücklichen `{{ ' ' }}`. **Offen:** ein Wächter dafür.
-Die Regel trifft jede Meldung, die aus Elementen zusammengesetzt ist, und keine
-der drei Fassungen dieses Fehlers wäre einem Test aufgefallen — nur dem Bild.
+**Behoben** mit einem ausdrücklichen `{{ ' ' }}`, und **der Wächter steht**:
+`TemplateSpacingTest`, mit beiden Brüchen in `tests/waechter-brechen.sh`.
+
+Gemessen wurde dafür am Übersetzer selbst (`@vue/compiler-dom`, 17. August
+2026) statt geschlossen: `</b>\n<span>` erzeugt **keinen** Textknoten zwischen
+den beiden Elementen, `</b>{{ ' ' }}\n<span>` einen.
+
+**Und der Wächter fragt nicht überall — das ist seine eigentliche Arbeit.** Im
+ganzen Baum stehen **22** Stellen, an denen zwei Elemente nur ein Zeilenumbruch
+trennt; **21 davon sind folgenlos**, weil der Behälter eine Flexbox ist und der
+Abstand aus `gap` kommt — Beschriftung und Feld in `.field`, die zwei Zweige
+eines `v-if`/`v-else`, gestapelte Hinweise in `.toggle > span`.
+
+> **Eine Regel, die einundzwanzigmal Fehlalarm gibt, wird beim ersten Aufräumen
+> abgeschaltet.**
+
+Gefragt wird deshalb in den Meldungsklassen — `.hint`, `.empty`,
+`.section-note`, `.error` und dem `span` in einem `.notice` —, und der Wächter
+**misst diese Voraussetzung nach**: Bekäme eine davon `display: flex`, wird er
+rot statt still.
+
+### Ein Fund über das Messmittel, nicht über das Panel
+
+Beim Bau des Wächters sah `<p class="usage">` auf der Abonnementseite nach
+demselben Fehler aus: `<strong>1.024 MB</strong>` und `<span>von 10.240 MB</span>`
+ohne Textknoten dazwischen. Der Aufsatz aus CLAUDE.md — echtes Markup plus
+`public/build/assets/*.css` im Chromium — hat es **bestätigt**: `1.024 MBvon
+10.240 MB`, gemessen und fotografiert.
+
+Es war trotzdem falsch. `.usage` steht in einem `<style scoped>`-Block der
+Komponente und ist dort `display: flex`. Vite übersetzt das zu
+`.usage[data-v-1ecda25a]`, und handgeschriebenes Markup ohne dieses Attribut
+trifft die Regel nie. **105 solcher Selektoren aus 19 Komponenten** stehen im
+gebauten Stylesheet und gelten in diesem Aufsatz allesamt nicht.
+
+> **Ein Aufsatz, der das gebaute Stylesheet benutzt, hat noch nicht die Regeln,
+> die an ein Attribut gebunden sind, das nur der Übersetzer setzt.**
+
+CLAUDE.md sagt über diesen Aufsatz: „misst die echte Seite — und nicht etwas
+Ähnliches." Für Bausteine, deren Gestaltung ganz in `app.css` steht, gilt der
+Satz weiter — `docs/56` Punkt 5 hat ihn aufs Pixel belegt. Für eine Komponente
+mit eigenem `scoped`-Block gilt er nicht.

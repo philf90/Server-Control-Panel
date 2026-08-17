@@ -276,11 +276,30 @@ heran — und das Löschen des Verzeichnisses nimmt sie darum nicht mit.
 
 | | erwartet |
 |---|---|
-| Fremde Abo-Kennung in `/subscriptions/<fremd>/sftp` | 403 |
+| Fremde Abo-Kennung in `/subscriptions/<fremd>/sftp` | **404** — die Mandantenklammer antwortet vor der Policy |
+| Sichtbares Abonnement, Benutzer ohne `ftp_accounts` | 403 — und im Menü steht kein Weg dorthin |
 | Ein privater Schlüssel im Formular | Feldmeldung „Das ist ein **privater** Schlüssel" |
 | `command="/usr/bin/id" ssh-ed25519 …` | Feldmeldung, und nichts landet in der Datei |
 | Ein Zeilenumbruch mit einem zweiten Schlüssel dahinter | Feldmeldung; die Datei bekommt **eine** Zeile |
 | RSA mit 1024 Bit | Feldmeldung mit der Zahl |
+
+**Zwei Wände und nicht eine** (Befund 17 aus `docs/59`). Der Mandantenscope am
+Modell klammert die Abfrage, bevor `can:manageSftp` läuft — eine fremde Kennung
+endet als 404, nicht als 403, und das ist die bessere Antwort: Ein 403 bestätigt
+die Existenz. Wer nur die Policy prüft, prüft die hintere Wand und protokolliert
+die richtige Antwort als Abweichung.
+
+**Und nach jeder abgewiesenen Eingabe zwei Zeilen**, die mehr sagen als die
+Meldung:
+
+```bash
+sha256sum /etc/ssh/sshd_config
+wc -l /etc/srvpanel/ssh/<benutzer>
+```
+
+> **Eine abgewiesene Eingabe, die nichts geschrieben hat, ist eine Wand. Eine,
+> die mit einer Meldung antwortet und trotzdem schreibt, ist eine Tür mit
+> Aufschrift.**
 
 ---
 

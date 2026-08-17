@@ -895,6 +895,48 @@ einen Beleg erzeugt. Beides ist mehr als eine Messung ohne Erwartung.
 
 ---
 
+## 11. Die Wände
+
+### Wand 1 — die Mandantenklammer, und sie antwortet vor der Policy
+
+Dieselbe Adresse zweimal: `/subscriptions/137/sftp`.
+
+| als | gemessen |
+|---|---|
+| Admin | die Seite (unbeschränkt über `forAccount()`) |
+| zweiter Kunde, ohne Abonnement | **`404 Not Found`** |
+
+**Und die Antwort ist 404 und nicht 403** — das ist Befund 17. Die 404-Seite nennt
+das Abonnement nicht, nennt keinen Grund und bestätigt damit nicht einmal, dass
+die Kennung existiert.
+
+### Wand 2 — offen, mit Namen
+
+Die Policy kommt nur zum Zug, wenn das Abonnement **sichtbar** ist und das Recht
+fehlt: ein Zusatzbenutzer desselben Kunden ohne `ftp_accounts`. Der Betreiber hat
+den Umweg abgewählt, und das ist eine Entscheidung und kein Versehen.
+
+**Offen bleibt damit:**
+
+- `403` statt `404`, wenn das Abonnement sichtbar ist und `manageSftp` verneint
+- die Kehrseite aus `AbilityReachTest`: dass ein solcher Benutzer den Weg dorthin
+  **nicht gezeigt** bekommt
+
+Beides trägt bis dahin der Wächter allein — geprüft ist die Regel, nicht der
+laufende Server.
+
+### Eine Beobachtung, die keinen Fix in diesem Wurf bekommt
+
+Die 404-Seite ist Laravels eigene: weisse Fläche, `404 | Not Found`, kein Menü,
+kein Weg zurück. Für einen **angemeldeten** Kunden, der sich vertippt hat, ist das
+eine Sackgasse ohne Ausgang.
+
+Das gilt für jede 404 dieses Panels und nicht für den SFTP-Zugang; es ist in
+diesem Lauf nicht gemessen worden und gehört nicht in diesen Zweig. Festgehalten,
+damit es nicht aus Gewohnheit übersehen wird.
+
+---
+
 ## Befunde
 
 ### Befund 1 — die Messrunde war nie fahrbar
@@ -1511,3 +1553,26 @@ Der Wächter ist `SftpRuntimeDirTest` mit vier Regeln — anlegen, zurechtrücke
 in Ruhe lassen, und **die Reihenfolge**: Der Aufruf steht vor `sshd -t`. Der
 Fehler war nicht, dass das Verzeichnis fehlte, sondern dass niemand danach sah,
 bevor geprüft wurde. Beide Brüche sind gegengeprüft.
+
+---
+
+### Befund 17 — die vordere Wand antwortet zuerst, und der Lauf kannte nur die hintere
+
+`docs/58` Punkt 11 verlangt für eine fremde Abo-Kennung **403**. Gemessen wurde
+**404**, und das ist richtig so.
+
+`Subscription` trägt einen globalen Mandantenscope
+({@see App\Models\Subscription}, `booted()`): Ohne Berechtigung klammert er die
+Abfrage auf `whereRaw('0 = 1')`. Die Route-Bindung findet damit nichts und wirft
+404 — **bevor** `can:manageSftp` überhaupt läuft.
+
+> **Eine Wand, die vor der anderen steht, antwortet zuerst — und eine Prüfung,
+> die nur die hintere kennt, prüft die falsche.**
+
+Und die Reihenfolge ist die bessere: Ein `403` sagt „das gibt es, du darfst
+nicht"; ein `404` sagt nichts. Für eine Kennung, die durchprobiert werden kann,
+ist das der Unterschied zwischen einer Auskunft und keiner.
+
+**Der Fehler war also nicht im Code, sondern im Kriterium** — und er hätte eine
+richtige Antwort als Abweichung protokolliert. `docs/58` nennt jetzt beide Wände
+getrennt, mit der Antwort, die zu jeder gehört.

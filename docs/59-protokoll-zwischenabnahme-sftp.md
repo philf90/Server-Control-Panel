@@ -1799,3 +1799,52 @@ grüne Erfolgsmeldung.
 
 Befund 4 — das Leerzeichen — ist hier **nicht** zu sehen: Er braucht die rote
 Meldung, und die gibt es in diesem Zustand zu Recht nicht. Er kommt in Block C.
+
+## C — der Fehlerweg (Befunde 12 und 13 bestätigt)
+
+Kaputte Zeile angehängt (`rc=255`, **REF-D′** `1fcf2ef5…42a2d`), dann im Panel
+den Schlüssel entfernt:
+
+> Der Zugangsblock ist von sshd abgewiesen worden; an der Datei wurde nichts
+> geändert: `/etc/ssh/sshd_config.srvpanel.candidate: line 134: Bad configuration
+> option: Klabautermann`
+
+| erwartet | gemessen |
+|---|---|
+| Eine rote Meldung erscheint überhaupt | **erfüllt** — Befund 13 |
+| Prüfsumme == REF-D′ | `1fcf2ef5…42a2d`, unverändert |
+| Kein `.candidate` | nur die Sperre, 0 Byte |
+| **Die Schlüsseldatei ist noch da** | **`total 4`, 315 Byte — Befund 12** |
+| Die Tabelle zeigt den Schlüssel weiter | erfüllt |
+
+**Die vierte Zeile ist der Beleg, auf den es hier ankommt.** Im ersten Durchgang
+stand an genau dieser Stelle `total 0`: Die Datei war gelöscht, die Datenbankzeile
+zurückgerollt, und der Zugang tot, während die Seite den Schlüssel weiter
+aufführte. Jetzt geht `sync()` vor `write()`, der Abbruch kommt vor dem ersten
+Schreibzugriff, und nichts ist geschehen.
+
+**Und die beiden Befunde hatten sich gegenseitig gedeckt:** Der Rest war
+unsichtbar, weil die Meldung fehlte, und die fehlende Meldung fiel nicht auf, weil
+der Rest keinen Lärm machte. Beide sind jetzt einzeln belegt.
+
+### Zwei Erwartungen dieses Blocks waren falsch gestellt
+
+Die Anleitung verlangte auf **dieser** Meldung zwei Dinge, die dort nicht
+hingehören:
+
+- **den Satz „Der Schlüssel ist in Ordnung; der Server hat die Änderung nicht
+  angenommen."** Er steht in `store()` — beim *Eintragen*. Hier wurde *entfernt*,
+  und dabei trägt niemand einen Schlüssel ein, über dessen Zustand man etwas sagen
+  könnte. `destroy()` gibt die Meldung des Agenten unverändert weiter, und das ist
+  richtig.
+- **das Leerzeichen aus Befund 4.** Das betrifft die rote Meldung unter „Lage",
+  die aus mehreren Elementen zusammengesetzt ist — nicht diese hier, die eine
+  einzige Einsetzung ist und gar keine Lücke haben kann.
+
+> **Eine Erwartung, die einen Satz an einer Stelle verlangt, an der er nicht
+> entstehen kann, prüft nicht den Code — sie prüft, ob der Prüfer weiss, welchen
+> Weg er gerade geht.**
+
+Dasselbe Muster wie bei Befund 8 und 15: eine Anweisung, die ein Ergebnis
+erwartet, das der Code in diesem Zustand nicht erzeugen kann. **Befund 11 und
+Befund 4 sind damit weiter ungeprüft** und bekommen ihren eigenen Block.

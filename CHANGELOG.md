@@ -14006,16 +14006,25 @@ wahrscheinlichen gehalten; eingetreten ist der andere.
 
 > **Ob eine Anzeige nach einem Klick stimmt, weiss man erst nach dem Klick.**
 
-### P6 Schritt 8 — die Zwischenabnahme auf `cloudsrv24`: neunzehn Befunde, zwölf davon am Panel
+### P6 Schritt 8 — die Zwischenabnahme auf `cloudsrv24`: zweiundzwanzig Befunde, fünfzehn davon am Panel
 
 `docs/58` ist der Lauf, `docs/59` das Protokoll — geschrieben *während* er lief.
-Zwölf Punkte, gefahren gegen `v0.6.0-rc.10` auf einem echten Server, mit dem
-Betreiber an der Tastatur und der Anbieterkonsole als Rückweg.
+Dreizehn Punkte, gefahren auf einem echten Server, mit dem Betreiber an der
+Tastatur und der Anbieterkonsole als Rückweg. Er hat **zwei Durchgänge** gebraucht:
+den ersten gegen `v0.6.0-rc.10` bis Punkt 11, den zweiten gegen `v0.6.0-rc.11` für
+die elf Korrekturen daraus und für die Bilder.
 
-**Erfüllt sind die Punkte 0 bis 8, 10 und 11** (bis auf eine bewusst offen
-gelassene Wand); Punkt 9 hängt an einem Befund und wird gegen die nächste Fassung
-nachgeprüft. **Neunzehn Befunde, und keinen davon hat ein Test gefunden:** zwölf am
-Panel, vier am Prüfmittel, drei am Kriterium selbst.
+**Alle Punkte sind erfüllt** bis auf eine bewusst offen gelassene Wand aus Punkt 11
+(ein Zusatzbenutzer ohne `ftp_accounts`, dem Betreiber zu viel Umweg für die
+Aussage, die sie trägt). **Zweiundzwanzig Befunde, und keinen davon hat ein Test
+gefunden:** fünfzehn am Panel, fünf am Prüfmittel, zwei am Kriterium selbst.
+
+**Die erste Aufteilung dieser Zahlen war selbst falsch gezählt** — sie führte zwölf
+am Panel neben einer Liste mit dreizehn Nummern, weil die unnummerierten Hälften
+von Punkt 8 als dritter Eintrag beim Kriterium mitliefen.
+
+> **Eine Zahl neben einer Liste ist eine zweite Fassung derselben Auskunft — und
+> die zweite ist die, die nicht stimmt.**
 
 #### Die Sätze, die aus diesem Lauf bleiben
 
@@ -14182,3 +14191,59 @@ Menüpunkt trägt ein Zeichen" und einen für „kein Knopf ohne Recht" — kein
 „hat dieses Merkmal überhaupt einen Weg, der nicht durch eine Kennung führt". Die
 Frage hängt daran, was ein Kunde *sucht*, und nicht daran, was im Quelltext
 steht.
+
+#### Der zweite Durchgang gegen `v0.6.0-rc.11` — und drei Befunde, die er selbst gebracht hat
+
+Dreizehn Befunde am Panel sind auf dem Server bestätigt (2, 3, 4, 6, 7, 9, 10, 11,
+12, 13, 16, 18, 19), Punkt 9 ist zu Ende gefahren, und Punkt 12 — die Bilder —
+steht mit vier Lagen da: 390 px und 1440 px, beide Themes, **Dokumentüberlauf 0 px
+in jeder**. Die Gegenprobe bei 390 px ergab **510 px, auf das Pixel der Wert aus der
+Containermessung vom 16. August**; der Aufsatz aus `docs/56` Punkt 5 stimmt also
+auch für diese Seite und mit echten Daten.
+
+**Befund 20 — eine Meldung trägt keine Auszeichnung.** Acht Meldungen aus
+`PublicKey` und eine aus `PgServerInstall` waren in Markdown geschrieben; im Panel
+stand `**.pub**` als Zeichenfolge im Satz. Sie sind auf deutsche Anführungszeichen
+umgestellt, und `MessageMarkupTest` liest seitdem jede Meldung des Agenten.
+
+> **Eine Auszeichnung, die kein Leser übersetzt, ist Text — und zwar falscher.**
+
+Der teuerste Teil daran war nicht der Fehler, sondern das Übersehen: Die Zeichen
+standen in **vier** Aufnahmen, jede zu einer anderen Frage angesehen.
+
+> **Ein Bild, das man auf eine Frage hin ansieht, beantwortet die Frage — und
+> verdeckt alles, was daneben steht.**
+
+**Befund 21 — der Satz über den ruhenden Dienst wurde gebaut und weggeworfen.**
+`sftp.access` baut „ssh.service ist inactive — die neue Datei gilt ab der nächsten
+Verbindung", `sync()` gibt ihn zurück, und `add()` und `remove()` liessen den
+Rückgabewert fallen. `docs/58` Punkt 9 verlangt genau diesen Satz. Dieselbe Form wie
+Befund 13, eine Ebene weiter: dort fehlte der Träger zwischen Controller und Seite,
+hier zwischen Agent und Controller.
+
+> **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie keine.**
+
+**Befund 22 — eine Gegenprobe mit fester Grösse gilt nur unterhalb ihrer Grösse.**
+Der Prüfkörper der Überlaufmessung war ein Block von 900 px. Bei 390 px erzeugt er
+die erwarteten 510; bei 1440 px passt er hinein, und die Antwort ist `0` — derselbe
+Wert, den eine kaputte Messung liefert. Er gehört an das Fenster gebunden
+(`clientWidth + 200`); die berichtigte Vorschrift steht in `docs/58 §12`.
+
+> **Eine Gegenprobe, deren Ausschlag von der Breite abhängt, ist bei der grösseren
+> Breite keine.**
+
+Dazu eine Erwartung, die falsch gestellt war und nichts mit dem Panel zu tun hatte:
+`roller: 0` bei 390 px ist richtig. Die Schlüsseltabelle ist dort ein Stapel
+Kärtchen und keine Tabelle; gerollt wird erst bei 1440 px, und dort um 230 px.
+
+> **Eine Erwartung an eine Zahl, die eine Umschaltung im Layout überspringt, misst
+> zwei verschiedene Bausteine mit einem Maß.**
+
+**Und die Bilder haben gezeigt, was keine der acht Zahlen enthält:** die Meldung
+unter „Lage" liest sich als Fliesstext und bricht über zwei Zeilen (Befund 4, jetzt
+im Bild und nicht nur im Wortlaut), die Schlüsseltabelle trägt bei 390 px jede
+Zellenbeschriftung, und der Fingerabdruck bricht **innerhalb** des Wertes statt die
+Seite zu schieben.
+
+> **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt. Keines
+> von beiden ersetzt das andere.**

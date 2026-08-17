@@ -319,6 +319,27 @@ Dokumentüberlauf von 0 px.
 > **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
 > Betrachter.**
 
+**Und der Prüfkörper der Gegenprobe hängt an der Breite** — nachgetragen am
+17. August aus Befund 22 (`docs/59`, Block F). Ein festgeschriebener Block von
+900 px erzeugt bei 390 px die erwarteten 510, bei 1440 px aber `0`, also genau den
+Wert, den auch eine kaputte Messung liefert. Er gehört an das Fenster gebunden:
+
+```js
+const p = document.createElement('div')
+p.style.width = (document.documentElement.clientWidth + 200) + 'px'
+p.style.height = '1px'
+document.body.append(p)
+// scrollWidth - clientWidth lesen, dann p.remove()
+```
+
+> **Eine Gegenprobe, deren Ausschlag von der Breite abhängt, ist bei der grösseren
+> Breite keine.**
+
+**Und `roller` darf bei 390 px `0` sein.** Die Schlüsseltabelle steht dort als
+Stapel Kärtchen und nicht als Tabelle; gerollt wird erst bei 1440 px. Eine
+Erwartung „grösser als 0" an beiden Breiten misst zwei verschiedene Bausteine mit
+einem Maß.
+
 ---
 
 ## 13. Was dieser Lauf ausdrücklich **nicht** prüft

@@ -15,7 +15,12 @@ Protokoll, das im Voraus geschrieben wird, hält fest, was jemand erwartet hat.
 
 ---
 
-## Stand — 17. August 2026, nach Punkt 11
+## Stand — 17. August 2026, der Lauf ist durch
+
+Der Lauf hat **zwei Durchgänge** gebraucht: den ersten gegen `v0.6.0-rc.10` bis
+Punkt 11, den zweiten gegen `v0.6.0-rc.11` für die elf Korrekturen daraus und für
+Punkt 12. Die Blöcke A bis F weiter unten sind der zweite; der abschliessende
+Stand steht am Ende dieses Dokuments.
 
 | Punkt | Zustand |
 |---|---|
@@ -31,15 +36,19 @@ Protokoll, das im Voraus geschrieben wird, hält fest, was jemand erwartet hat.
 | 9 `reload` bei ruhendem Dienst | **zwei von vier Zeilen**; der Rest hängt an Befund 16 |
 | 10 der Rückbau | **erfüllt**, alle vier Zeilen |
 | 11 die Wände | **erfüllt bis auf Wand 2** (bewusst offen) |
-| 12 die Bilder | offen — gehört gegen die nächste Fassung |
+| 12 die Bilder | **erfüllt** im zweiten Durchgang (Block F) |
 
-**Neunzehn Befunde, und keinen davon hat ein Test gefunden.**
+Die drei Zeilen mit einem Vorbehalt — die Wortlaute aus Punkt 3, die zwei
+fehlenden Zeilen aus Punkt 9 — sind im zweiten Durchgang nachgeholt und stehen
+dort als erfüllt.
+
+**Zweiundzwanzig Befunde, und keinen davon hat ein Test gefunden.**
 
 | woher | Anzahl | welche |
 |---|---|---|
-| am Panel | 12 | 2, 3, 4, 6, 7, 9, 10, 11, 12, 13, 16, 18, 19 |
-| am Prüfmittel | 4 | 5, 8, 14, 15 |
-| am Kriterium | 3 | 1, 17 — und die Hälften von Punkt 8 |
+| am Panel | 15 | 2, 3, 4, 6, 7, 9, 10, 11, 12, 13, 16, 18, 19, 20, 21 |
+| am Prüfmittel | 5 | 5, 8, 14, 15, 22 |
+| am Kriterium | 2 | 1, 17 — dazu die Hälften von Punkt 8, die keine Nummer haben |
 
 **Befund 19 stammt nicht aus einem Punkt des Laufs**, sondern von der Bedienung
 während seiner Durchführung — und das ist der Fund, den kein Kriterium bestellt
@@ -48,23 +57,32 @@ hat.
 Dasselbe Verhältnis wie in `docs/45`, `docs/47` und `docs/48`: Die Mehrheit steckt
 nicht im Prüfling.
 
-**Elf Korrekturen liegen im Zweig und keine davon auf dem Server.** Gegen die
-nächste Fassung nachzuprüfen sind deshalb in einem Durchgang:
+**Elf Korrekturen lagen nach dem ersten Durchgang im Zweig und keine davon auf
+dem Server.** Sie sind als `v0.6.0-rc.11` ausgeliefert und in einem zweiten
+Durchgang nachgeprüft worden — die Blöcke A bis F:
 
 1. **Punkt 12**, die Bilder — 390 px und 1440 px, beide Themes, mit Messung und
-   Gegenprobe
+   Gegenprobe → Block F
 2. die **Wortlaute aus Punkt 3** (Befunde 2, 3, 4) — „kein Schlüssel" als Zustand,
-   `none` nicht als fremde Angabe, das Leerzeichen
+   `none` nicht als fremde Angabe, das Leerzeichen → Blöcke B und C2, im Bild
+   nochmals in F
 3. **Punkt 9** zu Ende (Befund 16) — jetzt kann die Kundenaktion bei ruhendem
-   Dienst durchlaufen
+   Dienst durchlaufen → Block D
 4. **die Fehlermeldung selbst** (Befund 13) — sie hat es in `rc.10` nicht gegeben,
-   und ohne sie sah in Phase 2b ein Fehlschlag wie ein Erfolg aus
-5. `sshd -T -C user=… | grep authenticationmethods` → `publickey` (Befund 6)
+   und ohne sie sah in Phase 2b ein Fehlschlag wie ein Erfolg aus → Block C
+5. `sshd -T -C user=… | grep authenticationmethods` → `publickey` (Befund 6) →
+   Block A
+
+**Und der zweite Durchgang hat zwei neue Befunde gebracht** — 20 und 21 —, deren
+Behebung wieder im Zweig liegt. Sie brauchen keinen dritten Durchgang, sondern
+vier Zeilen gegen die nächste Fassung; sie stehen unten im abschliessenden Stand.
 
 **Neue Wächter aus diesem Lauf:** `TemplateSpacingTest`, `AgentErrorRoutingTest`,
 `FlashChannelTest`, `SftpWriteOrderTest`, `SftpRuntimeDirTest`, `SftpCheckTest` —
-dazu neue Regeln in `SshdConfigTest`, `ChainTest` und `PublicKeyTest`. Jeder Bruch
-steht in `tests/waechter-brechen.sh` und ist einzeln gefahren.
+und aus dem zweiten Durchgang `MessageMarkupTest` (Befund 20) und `SftpNoteTest`
+(Befund 21) — dazu neue Regeln in `SshdConfigTest`, `ChainTest` und
+`PublicKeyTest`. Jeder Bruch steht in `tests/waechter-brechen.sh` und ist einzeln
+gefahren.
 
 ---
 
@@ -2101,3 +2119,146 @@ und **21** (der Satz über den ruhenden Dienst): Beide sind in diesem Durchgang
 auf den Server.
 
 Was fehlt, ist **Punkt 12** — die Bilder.
+
+---
+
+## F — Punkt 12, die Bilder (erfüllt)
+
+Gefahren auf `cloudsrv24` gegen `v0.6.0-rc.11`, auf der Seite eines Abonnements
+mit einem eingetragenen Schlüssel, in beiden Themes und bei beiden Breiten. Das
+Thema wurde über `window.srvpanelTheme('dark')` umgeschaltet, die Breite über das
+Fenster; gemessen wurde nach jedem Umschalten neu.
+
+| Breite / Thema | Messung | Gegenprobe |
+|---|---|---|
+| 390 px hell | `{"dokument":0,"roller":[0]}` | `510` |
+| 390 px dunkel | `{"dokument":0,"roller":[0]}` | `510` |
+| 1440 px dunkel | `{"dokument":0,"roller":[230]}` | `0` |
+| 1440 px hell | `{"dokument":0,"roller":[230]}` | `0` |
+
+**Das Dokument schiebt in keiner der vier Lagen** — und das ist die Aussage, die
+Punkt 12 verlangt. Die 510 px bei 390 px sind **auf das Pixel der Wert, den
+`docs/58 §12` aus der Containermessung vom 16. August vorhergesagt hat**; der
+Aufsatz aus `docs/56` Punkt 5 stimmt also auch für diese Seite und mit echten
+Daten.
+
+### Zwei Zahlen dieses Blocks bedeuten etwas anderes als meine Erwartung
+
+**Erstens: `roller: [0]` bei 390 px ist richtig und nicht auffällig.** Meine
+Anweisung hatte dort einen Wert **grösser als 0** erwartet — „der Rollbehälter
+darf rollen". Er darf, aber er braucht es nicht: Bei 390 px ist die
+Schlüsseltabelle keine Tabelle, sondern ein Stapel Kärtchen (`.stacks`, `docs/24
+§5`), und ein Stapel ist so breit wie seine Spalte. Erst bei 1440 px steht die
+Tabelle als Tabelle da, und dort rollt der Behälter um **230 px** — genau das,
+wofür er gebaut ist.
+
+> **Eine Erwartung an eine Zahl, die eine Umschaltung im Layout überspringt,
+> misst zwei verschiedene Bausteine mit einem Maß.**
+
+**Zweitens: die Gegenprobe bei 1440 px beweist nichts.** Sie schiebt einen Block
+von 900 px in die Seite und liest den Überlauf; bei 390 px ergibt das 510, bei
+1440 px passt der Block hinein, und die Antwort ist zwangsläufig `0`. Damit ist
+die Messung nur an der schmalen Breite als arbeitsfähig belegt — an der breiten
+steht dieselbe Null wie im Befund, den sie ausschliessen soll.
+
+Für Punkt 12 macht das nichts aus: Die Frage dieses Punktes stellt sich bei
+390 px, dort ist die Gegenprobe gefahren und dort hat sie ausgeschlagen. Als
+Bauart des Prüfmittels ist es trotzdem ein Fehler, und er steht als Befund 22 da
+— er wird jede künftige Bilderrunde treffen, `docs/46` Schritt 12 als nächste.
+
+### Befund 22 — eine Gegenprobe mit fester Grösse gilt nur unterhalb ihrer Grösse
+
+**Gemessen:** `900px`-Block bei 390 px → Gegenprobe `510`. Derselbe Block bei
+1440 px → Gegenprobe `0`, also derselbe Wert, den eine kaputte Messung liefern
+würde.
+
+Das ist die vierte Fassung eines Satzes, der in diesem Projekt seit `v0.4.0-rc.4`
+wandert — und diesmal hängt er nicht an der Messstelle, sondern an der **Grösse
+des Prüfkörpers**:
+
+> **Eine Gegenprobe, deren Ausschlag von der Breite abhängt, ist bei der
+> grösseren Breite keine.**
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht** — und ob etwas anderes dort stehen *kann*, entscheidet nicht die Seite,
+> sondern der Prüfkörper.
+
+Der Prüfkörper gehört deshalb an die Breite gebunden statt festgeschrieben:
+`clientWidth + 200` statt `900px`. Dann schlägt er bei jeder Breite aus, und die
+Null daneben bedeutet an jeder Breite dasselbe. **Behoben ist das in diesem Wurf
+nicht** — die Messvorschrift steht in `docs/58 §12` und wird von keinem Wächter
+gelesen; sie wird mit `docs/46` Schritt 12 nachgezogen, wo dieselbe Messung für
+die nächste Seite fällig ist.
+
+### Was die Bilder zeigen, und die Zahl nicht
+
+Drei Dinge, die keinen Überlauf erzeugen und deshalb in keiner der acht Zahlen
+stehen:
+
+1. **Die Meldung unter „Lage" liest sich als Fliesstext** und bricht bei 390 px
+   über zwei Zeilen. Das ist der Zustand, dessen Gegenteil `docs/58 §12`
+   ausdrücklich benennt — die Spalten aus fünf Zeichen bei einem Dokumentüberlauf
+   von 0 px. Befund 4 (das fehlende Leerzeichen) ist damit **im Bild** bestätigt
+   und nicht nur im Wortlaut.
+2. **Die Schlüsseltabelle steht bei 390 px als Kärtchen** mit den Beschriftungen
+   `BEZEICHNUNG`, `ART`, `FINGERABDRUCK`, `AKTION`. Jede Zelle trägt ihren Namen;
+   das ist die Regel aus `MobileLayoutTest`, hier als Bild.
+3. **Der Fingerabdruck bricht innerhalb des Wertes** (`…VXw7` / `J2Kz6h…`) statt
+   die Seite zu schieben. Das ist die dritte Fassung der Ausnahme aus `docs/46
+   §20.11` — `overflow-wrap: anywhere` mit `min-width: 0` — an einer Stelle, an
+   der sie zum ersten Mal einen echten Wert trifft und nicht eine Kennung.
+
+> **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
+> Keines von beiden ersetzt das andere.**
+
+---
+
+## Stand — der Lauf ist durch
+
+**Alle dreizehn Punkte aus `docs/58` sind gefahren**, zwölf davon erfüllt und
+einer — Wand 2 aus Punkt 11 — **bewusst offen mit Namen** (ein Zusatzbenutzer ohne
+`ftp_accounts` war dem Betreiber zu viel Umweg für die Aussage, die er trägt).
+
+| Punkt | Zustand |
+|---|---|
+| 0–8, 10 | **erfüllt** im ersten Durchgang gegen `rc.10` |
+| 9 `reload` bei ruhendem Dienst | **erfüllt** im zweiten Durchgang gegen `rc.11` (Block D) |
+| 11 die Wände | **erfüllt bis auf Wand 2** (bewusst offen) |
+| 12 die Bilder | **erfüllt** — Block F, vier Lagen, Dokumentüberlauf 0 px |
+
+**Zweiundzwanzig Befunde, und keinen davon hat ein Test gefunden.**
+
+| woher | Anzahl | welche |
+|---|---|---|
+| am Panel | 15 | 2, 3, 4, 6, 7, 9, 10, 11, 12, 13, 16, 18, 19, 20, 21 |
+| am Prüfmittel | 5 | 5, 8, 14, 15, 22 |
+| am Kriterium | 2 | 1, 17 — dazu die Hälften von Punkt 8, die keine Nummer haben |
+
+**Die Aufteilung im Stand oben war falsch gezählt** und ist beim Abschluss
+berichtigt worden: Sie führte 12 am Panel und 3 am Kriterium, während die Liste
+in derselben Zeile 13 Nummern nannte — die Hälften von Punkt 8 waren als dritter
+Eintrag mitgezählt, obwohl sie keine Nummer haben. Zusammen mit 20 und 21 sind es
+15 am Panel.
+
+> **Eine Zahl neben einer Liste ist eine zweite Fassung derselben Auskunft — und
+> die zweite ist die, die nicht stimmt.** Derselbe Satz wie bei den beiden Listen
+> aus `docs/48`, nur ein Dokument später und in eigener Sache.
+
+**Dreizehn Befunde am Panel sind am Server gegen `rc.11` bestätigt** — 2, 3, 4, 6,
+7, 9, 10, 11, 12, 13, 16, 18, 19.
+
+**Was nach diesem Lauf offen bleibt** (kein eigener Durchgang, vier Zeilen gegen
+die nächste Fassung):
+
+1. **Befund 20** — die Auszeichnung in den Meldungen. Behoben im Zweig; auf dem
+   Server sichtbar wird es mit der nächsten Fassung. Nachzuprüfen ist eine
+   abgewiesene Eingabe: In der Meldung darf kein `**` und kein Rückwärtsstrich
+   stehen.
+2. **Befund 21** — der Satz über den ruhenden Dienst. Behoben im Zweig. Nachzuprüfen
+   ist eine Eintragung bei `systemctl stop ssh.service`: Die Erfolgsmeldung muss
+   „die neue Datei gilt ab der nächsten Verbindung" tragen.
+3. **Wand 2 aus Punkt 11** — ein Zusatzbenutzer ohne `ftp_accounts` auf der
+   SFTP-Seite eines Abonnements, das ihm gehört. Der Weg dorthin ist beschrieben,
+   die Messung nicht gefahren.
+4. **Befund 22** — der Prüfkörper der Gegenprobe an die Breite gebunden. Fällig
+   mit `docs/46` Schritt 12.

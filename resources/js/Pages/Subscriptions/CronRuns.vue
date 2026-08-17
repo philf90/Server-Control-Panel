@@ -44,6 +44,26 @@ function dauer(ms: number): string {
   <Head :title="`Läufe — ${props.job.label}`" />
 
   <PanelLayout title="Läufe" :subline="`${props.job.label} — ${props.subscription.name}`">
+    <!--
+      **Der Weg zurück steht oben und nicht unten.**
+
+      Hier stand ein `<p>` mit „Zurück zu den Cronjobs" unter dem Bereichshinweis
+      — die einzige Seite dieses Merkmals, die eine Ebene tiefer liegt, und die
+      einzige ohne Brotkrume. Sechzehn andere Seiten führen den Weg zurück im
+      `#breadcrumb`-Platz; `Domains/Logs.vue` ist der gleiche Fall (Liste ·
+      Gegenstand).
+
+      Gefunden hat es `BlockSpacingTest`, nachdem seine Tiefenzählung berichtigt
+      war: `.section-note` bringt keinen Rand nach unten mit, und der Absatz
+      darunter klebte daran.
+    -->
+    <template #breadcrumb>
+      <Link href="/cron" class="link">Cronjobs</Link> ·
+      <Link :href="`/subscriptions/${props.subscription.id}/cron`" class="link">
+        {{ props.subscription.name }}
+      </Link>
+    </template>
+
     <div class="sections">
       <section class="section">
         <div class="section-head"><h2>Der Job</h2></div>
@@ -63,12 +83,6 @@ function dauer(ms: number): string {
         <p class="section-note">
           Aufgehoben werden die letzten {{ props.keep }} Läufe je Job; ältere fallen beim
           Einpflegen weg. Die Ausgabe wird bei 64 KB gekappt.
-        </p>
-
-        <p>
-          <Link :href="`/subscriptions/${props.subscription.id}/cron`" class="link">
-            Zurück zu den Cronjobs
-          </Link>
         </p>
       </section>
 

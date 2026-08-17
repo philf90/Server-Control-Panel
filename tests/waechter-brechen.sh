@@ -7900,6 +7900,81 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
 
 echo
+echo "── BlockSpacingTest: <Link> gilt wieder als leeres Element ──"
+#
+# P6 Schritt 9. Die Tiefenzählung hielt Inertias `<Link>` für ein `<link>` —
+# das öffnende Tag erhöhte die Tiefe nicht, das schliessende senkte sie, und
+# alles dahinter bekam den falschen Elternteil.
+#
+# **Der Eingriff macht den Wächter nicht blind, sondern falschsichtig.** Er
+# meldet danach `sections + scrolls` in `Domains/Show.vue` — zwei Bausteine, die
+# dort ineinander liegen und nicht nebeneinander. Genau das ist der Biss: Die
+# Sperrklinke über OPEN_SEAMS schlägt in beide Richtungen an, und eine Fuge, die
+# es nicht gibt, ist so rot wie eine, die niemand eingetragen hat.
+vorher_datei tests/Feature/BlockSpacingTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/BlockSpacingTest.php'
+s = open(p, encoding='utf-8').read()
+alt = 'in_array($tag[2], $void, true)'
+assert s.count(alt) == 3, 'Der Eingriff trifft nicht mehr drei Stellen: %d' % s.count(alt)
+s = s.replace(alt, 'in_array(strtolower($tag[2]), $void, true)')
+s = s.replace('in_array($folgend[2], $void, true)', 'in_array(strtolower($folgend[2]), $void, true)', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/BlockSpacingTest.php "Link als leeres Element" &&
+pruefe "Link als leeres Element" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
+wiederherstellen
+
+echo
+echo "── BlockSpacingTest: die Regel der Vorlage fällt weg ──"
+#
+# Die zweite Korrektur aus Schritt 9: Die Kanten werden je **Element** gefragt
+# und die `<style>`-Blöcke der Vorlage mitgelesen. `Domains/Show.vue` schliesst
+# seine Fuge mit `.footer-row` an einem `class="button-row footer-row"` — zwei
+# Klassen an einem Element, und nur die zweite bringt den Rand mit.
+#
+# Ohne diese Zeile klebt die Knopfreihe wieder an den Bereichen darüber, und
+# der Wächter muss `sections + button-row` melden.
+vorher_datei resources/js/Pages/Domains/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = '.footer-row {\n  margin-top: var(--block-gap);\n}'
+assert s.count(alt) == 1, 'Die Regel steht nicht mehr genau einmal da: %d' % s.count(alt)
+s = s.replace(alt, '.footer-row {\n  padding-top: 0;\n}', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Domains/Show.vue "Regel der Vorlage faellt weg" &&
+pruefe "Regel der Vorlage faellt weg" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
+wiederherstellen
+
+echo
+echo "── BlockSpacingTest: eine Tabellenzelle wird wieder ein Block ──"
+#
+# Die dritte Korrektur aus Schritt 9. Zwei Zellen einer `.stacks`-Tabelle sind
+# keine zwei Blöcke im Fluss — ihren Abstand macht `.stacks td`. Drei Fälle
+# derselben Familie standen als Ausnahme in OPEN_SEAMS, bevor daraus eine Regel
+# wurde.
+#
+# Nimmt man `td` aus der Liste, kommen sie alle drei zurück.
+vorher_datei tests/Feature/BlockSpacingTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/BlockSpacingTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "TABLE_PARTS = ['td', 'th',"
+assert s.count(alt) == 1, 'Die Liste steht nicht mehr da: %d' % s.count(alt)
+s = s.replace(alt, "TABLE_PARTS = ['th',", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/BlockSpacingTest.php "Tabellenzelle als Block" &&
+pruefe "Tabellenzelle als Block" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
+
+echo
 echo "── MobileLayoutTest: eine Wertzelle, die nicht brechen darf ──"
 #
 # Die Messung war grün und die Ansicht kaputt: Eine bei 512 Zeichen gekürzte

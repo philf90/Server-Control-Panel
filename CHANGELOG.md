@@ -14413,6 +14413,65 @@ die *andere* `&&`-Zeile derselben Datei traf.
 > **Ein Bruch, dessen Sitz man mit einem Muster prüft, das auch anderswo passt,
 > prüft nicht den Bruch, sondern das Muster.**
 
+**Und `BlockSpacingTest` hat drei Fehler bekommen, die er selbst hatte — die
+Liste seiner offenen Fugen fällt von 42 auf 35, ohne dass sich eine einzige
+Regel in `app.css` geändert hätte.** Aufgefallen sind sie, weil er für die
+Cron-Seiten `sections + section` meldete: eine Fuge zwischen einem Behälter und
+seinem eigenen Kind, die es im Browser nicht geben kann.
+
+1. **`<Link>` galt als leeres HTML-Element.** Die Liste der leeren Elemente
+   wurde mit `strtolower()` verglichen, und Inertias Komponente heisst
+   kleingeschrieben wie das `<link>` im Dokumentkopf. Das öffnende Tag erhöhte
+   die Tiefe nicht, das schliessende senkte sie — die Zählung kippte um eins,
+   und alles dahinter bekam den falschen Elternteil.
+
+   > **Zwei Dinge, die im Quelltext gleich heissen, sind im Browser nicht
+   > dasselbe** — und `strtolower()` macht aus dem einen das andere.
+
+   > **Ein Wächter mit einem Zählfehler meldet nicht zu viel, sondern das
+   > Falsche — und schweigt über das Richtige.** Elf Seiten mit `link + link`
+   > und zwei mit `link + ident` lagen ausserhalb seines Blicks, während er
+   > Fugen meldete, die es nicht gab.
+
+2. **Die Kanten wurden je Klasse gefragt und nicht je Element** — und die
+   `<style>`-Blöcke der Vorlagen gar nicht gelesen. Neunzehn Vorlagen haben
+   einen, fünf davon setzen genau das, wonach dieser Wächter fragt:
+   `.form-top`, `.footer-row`, `.spaced`, `.postscript`, `.after-tiles`. Ein
+   `class="button-row footer-row"` galt damit als bündig, obwohl die zweite
+   Klasse den Rand mitbringt.
+
+   > **Ein Wächter, der eine Regel nicht liest, meldet nicht „ungeprüft" — er
+   > meldet „verletzt".**
+
+   > **Zwei Klassen an einem Element sind keine zwei Elemente.**
+
+3. **Zwei Zellen einer Tabelle sind keine zwei Blöcke im Fluss.** Ein `<td>`
+   ohne Klasse reichte die Kante seines Kindes durch, und dann stand `.badge`
+   aus der einen Zelle über `.button-row` aus der nächsten. `cell-name + ident`
+   stand dafür seit dem 14. August als Ausnahme da; mit `cell-name + cell-name`
+   und `badge + button-row` waren es drei, und damit galt der Satz aus dem Kopf
+   dieses Wächters gegen ihn selbst:
+
+   > **Eine Liste von Nachbarn, die wächst, ist keine Regel — sie ist eine
+   > Aufzählung der Fälle, die schon jemand gesehen hat.**
+
+Fünf der sieben gestrichenen Fugen waren seit jeher geschlossen, zwei sind nie
+welche gewesen. Jede ist einzeln nachgesehen worden, bevor sie fiel — an der
+Vorlage, die sie schliesst, und an der Regel, die das tut.
+
+> **Eine Zahl, die kleiner wird, weil der Zähler richtig zählt, ist keine
+> Verbesserung — sie ist die Berichtigung einer Behauptung.**
+
+Drei neue Brüche in `tests/waechter-brechen.sh` halten die drei Korrekturen
+fest, und jeder ist daraufhin angesehen worden, **wofür** er zubeisst und nicht
+nur **dass** er es tut.
+
+**Der eine echte Fund daraus steht auf der Läufe-Seite.** Sie lag eine Ebene
+tiefer als die anderen beiden und war die einzige ohne Brotkrume; der Weg
+zurück stand als Absatz unter dem Bereichshinweis, und `.section-note` bringt
+keinen Rand nach unten mit. Er steht jetzt im `#breadcrumb`-Platz, wie auf den
+sechzehn anderen Seiten, die einen haben.
+
 **Was offen bleibt und benannt ist:** Welcher Cron-Dienst auf den vier
 Zielplattformen installiert und **aktiv** ist, ist weiter ungemessen. `docs/50 §7`
 hat nur das Archiv geprüft, und `systemd-cron` liest `/etc/cron.d` mit einer

@@ -10,7 +10,11 @@ Architektur (§4), Rechtemodell (§6), Gestaltung (§7.2) und die Ausbaustufen
 Die Oberfläche folgt seit August 2026 dem Gestaltungssystem **„Kontor"**
 (Plan §7.2) — hell entworfen, keine Karten, Monospace nur für Kennungen.
 
-Stand: **P0 bis P5c abgenommen.** P5 brachte Datenbanken, Zugänge, Sicherungen,
+Stand: **P0 bis P5c abgenommen; P6 läuft.** Aus P6 ist **Schritt 8 (SFTP)
+abgenommen** — am 17. August 2026 auf `cloudsrv24`, `docs/58` ist der Lauf,
+**`docs/59`** das Protokoll; die Zusammenfassung steht weiter unten.
+
+P5 brachte Datenbanken, Zugänge, Sicherungen,
 Zurückspielen, Fernzugriff und das Hochladen mitgebrachter Sicherungen
 (MariaDB 10.11.14, alle sieben Kriterien aus `docs/36 §17`). **P5b brachte
 PostgreSQL** — abgenommen am 11. August 2026 auf `cloudsrv24` gegen
@@ -195,7 +199,8 @@ lesbare Katalogsichten, die Namen führen, und eine Absperrung, die bei
 > für jeden lesbar" stimmte — und war trotzdem die falsche Frage, weil er einen
 > von elf Kanälen nannte und den Preis der Antwort verschwieg.
 
-Ausgeliefert wird `v0.5.3-rc.14`.
+Ausgeliefert wurde für P5c `v0.5.3-rc.14`; der Stand von P6 ist
+`v0.6.0-rc.11`.
 
 **Und der Bildschirmfoto-Durchgang zu Schritt 4 hat zwei Fehler gefunden, die
 grün waren** (`docs/46 §20.11`). Der erste schob die Seite bei 390px um **99px**
@@ -346,6 +351,70 @@ Abstand, der aus der Reihenfolge der Seite abgeleitet war und mit der nächsten
 Ergänzung fiel, und ein `<select>`, das abschneidet statt umzubrechen. Das ist
 der Grund für die Regel weiter unten, und `v0.4.0-rc.4` ist mit dem
 Umbruchfehler ausgeliefert worden, weil sie einen Tag zu früh kam.
+
+---
+
+## P6 Schritt 8 — der SFTP-Zugang, abgenommen am 17. August 2026
+
+Der Lauf ist `docs/58`, das Protokoll **`docs/59`**, gefahren auf `cloudsrv24` in
+**zwei Durchgängen**: der erste gegen `v0.6.0-rc.10` bis Punkt 11, der zweite
+gegen `v0.6.0-rc.11` für die elf Korrekturen daraus und für die Bilder. Alle
+dreizehn Punkte erfüllt bis auf eine bewusst offen gelassene Wand (ein
+Zusatzbenutzer ohne `ftp_accounts`). Die Grundlagen stehen in `docs/50` (die
+Messungen zu OpenSSH) und `docs/57` (die Übergabe).
+
+**Zweiundzwanzig Befunde, und keinen davon hat ein Test gefunden** — fünfzehn am
+Panel, fünf am Prüfmittel, zwei am Kriterium. Dasselbe Verhältnis wie in
+`docs/45`, `docs/47` und `docs/48`: Die Mehrheit steckt nicht im Prüfling.
+
+**Was daraus über SFTP hinausgilt.**
+
+Der erste Satz kehrt das Vorbild aus P5b um: Dort trägt „schreiben, neu laden, bei
+einem Fehler zurückrollen", weil PostgreSQL mit einer kaputten Datei weiterbedient
+— **der sshd stirbt daran**. Der Satz dazu steht unten unter „Diese Umgebung",
+an der Stelle, an der er gemessen wurde; er wird hier nicht wiederholt, weil zwei
+Fassungen derselben Regel auseinanderlaufen.
+
+Der zweite ist der teuerste Fehler dieses Laufs, und er war kein Fehler im Code,
+sondern im Hinsehen: Neun Meldungen des Agenten standen in Markdown, `**.pub**`
+also wörtlich im Satz — und ich habe darüber in **vier** Aufnahmen hinweggelesen,
+weil jede zu einer anderen Frage angesehen wurde.
+
+> **Ein Bild, das man auf eine Frage hin ansieht, beantwortet die Frage — und
+> verdeckt alles, was daneben steht.**
+
+Der dritte trifft jede künftige Überlaufmessung. Der Prüfkörper der Gegenprobe
+war ein fester Block von 900px: bei 390px die erwarteten 510, bei 1440px eine
+`0` — also derselbe Wert, den auch eine kaputte Messung liefert. Er gehört an das
+Fenster gebunden (`clientWidth + 200`), und die berichtigte Vorschrift steht in
+`docs/58 §12`.
+
+> **Eine Gegenprobe, deren Ausschlag von der Breite abhängt, ist bei der grösseren
+> Breite keine.**
+
+Und zwei über Auskünfte, die es gab und die niemand trug — **zweimal derselbe
+Fehler in einem Lauf, an zwei Übergängen desselben Weges** (Agent → Controller,
+Controller → Seite):
+
+> **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+> keine.**
+
+> **Ein roter Rand am Feld behauptet, das Feld sei falsch. Wer ihn für einen
+> Zustand des Servers setzt, schickt den Leser dorthin, wo nichts zu ändern
+> ist.**
+
+**Und der Menüpunkt, den kein Kriterium bestellt hat.** Der SFTP-Zugang lag drei
+Klicks tief — genau dort, wo der Dateimanager vor `docs/55` Befund 8 lag. Gemeldet
+hat es der Betreiber während des Laufs; keiner der 136 Wächter hätte es gefunden,
+weil die Frage daran hängt, was ein Kunde *sucht*.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+**Was offen bleibt und benannt ist:** Wand 2 aus Punkt 11, die vier Zeilen zu den
+Befunden 20 und 21 gegen die nächste Fassung, und Befund 22 — der Prüfkörper hat
+**keinen Wächter**, weil die Messvorschrift in einem Dokument steht und kein Test
+sie liest. Wer sie anfasst, fängt bei `docs/59` an und nicht bei null.
 
 ---
 
@@ -552,6 +621,19 @@ das Update**: Die Form einer befristeten Kennung ist von `r` auf `[rc]`
 erweitert worden und gilt rückwirkend nicht — ein Kundenzugang, der heute
 `<präfix>_c` plus acht Hexziffern heisst, verschwindet ab dieser Fassung aus der
 Zugangsliste seiner Datenbank und wird gleichzeitig als Rest gemeldet.
+
+Und aus P6, der Reihe nach: **`49` die Übergabe an P6** · **`50` die Messrunde
+davor** — was die Systeme wirklich tun, gemessen statt nachgelesen · **`51` der
+Plan** (Dateien, Zugänge, Cron; **§4 ist der Angriffsdurchgang**, und der ist
+Schritt 11) · **`52`/`53`** die Zwischenabnahme von P6 mit ihrem Protokoll ·
+**`54`/`55`** der Prüflauf des Dateimanagers mit seinem Protokoll — dort ist
+Befund 8 der Menüpunkt, der in Schritt 8 als Befund 19 wiederkam · **`56` die
+Nachprüfung der mobilen Ansicht**, deren Punkt 5 belegt hat, dass der Messaufsatz
+dieses Containers aufs Pixel stimmt · **`57` die Messrunde vor Schritt 8** ·
+**`58` der Lauf für den SFTP-Zugang** — dreizehn Punkte, mit der berichtigten
+Messvorschrift in §12 — und **`59` das Protokoll dazu**: zweiundzwanzig Befunde
+mit ihren Lehren, die beiden Durchgänge Punkt für Punkt und am Ende, was offen
+bleibt.
 
 **Der Lauf ist gefahren — am 12. August 2026, gegen `0.5.3-rc.1` und ab Punkt 7
 gegen `0.5.3-rc.2`.** Sechs Kriterien erfüllt, das siebte (das Protokoll) benannt

@@ -292,6 +292,55 @@ Schlüsseltabelle — Art, Bitzahl und Fingerabdruck in der Anzeige.
 
 ---
 
+## 5. Der Kunde legt sich selbst einen Schlüssel hin
+
+Über den gewonnenen Zugang hochgeladen, mit dem fremden Schlüssel darin:
+
+```
+Uploading .ssh/p6-fremd.pub to /.ssh/authorized_keys
+-rw-r----- 1 p1136 p1136 93 Aug 17 10:55 …/.ssh/authorized_keys
+```
+
+| erwartet | gemessen |
+|---|---|
+| Die Anmeldung mit diesem zweiten Schlüssel scheitert | `Permission denied (publickey).` |
+| Die Datei ist wirklich da | 93 Byte, `p1136:p1136` — **die Null neben etwas anderem als Null** |
+| Im Panel steht er nicht | die Tabelle zeigt weiterhin nur `TestWin11` |
+
+**Ohne die zweite Zeile hätte der Punkt nichts geprüft.** Ein fehlender
+Schlüssel funktioniert auch nicht; die Aussage entsteht erst daraus, dass die
+Datei existiert, lesbar ist und trotzdem nicht gilt. `AuthorizedKeysFile`
+**ersetzt** die Vorgabe, es ergänzt sie nicht (`docs/57 §4`) — hier auf einem
+echten Server statt im Container.
+
+### Zwei Belege, die nicht auf der Liste standen
+
+**1. Im Chroot gibt es keine Namen.** `ls -l .ssh` über SFTP zeigt
+
+```
+-rw-****** ? 1001 1001 93 Aug 17 10:55 .ssh/authorized_keys
+```
+
+Eigentümer und Gruppe stehen als Zahlen da, weil es im Chroot kein
+`/etc/passwd` gibt, aus dem `p1136` aufzulösen wäre. Das ist ein Beleg für das
+Chroot, den kein Kriterium verlangt hat: Der Kunde sieht nicht nur einen
+beschnittenen Baum, er sieht auch die Namensauflösung nicht mehr.
+
+**2. Das Protokoll des Servers nennt denselben Fingerabdruck wie das Panel.**
+
+```
+Accepted publickey for p1136 … ED25519 SHA256:PBMiXFViiL6KV95VXw7J2Kz6hRcCuhXPDzMXrmRGfT8
+Connection reset by authenticating user p1136 … [preauth]
+```
+
+Damit steht die Fingerabdruckliste des Panels gegen eine **dritte** Quelle:
+`ssh-keygen -lf` auf dem Klienten, `ssh-keygen -lf` auf der Schlüsseldatei, und
+der `sshd` selbst im Augenblick der Anmeldung. Die abgewiesene Anmeldung steht
+zwei Zeilen darunter als `[preauth]` — kein `Accepted` mit einem anderen
+Fingerabdruck, sondern gar keines.
+
+---
+
 ## Befunde
 
 ### Befund 1 — die Messrunde war nie fahrbar

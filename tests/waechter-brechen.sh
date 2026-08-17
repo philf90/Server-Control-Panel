@@ -10530,6 +10530,87 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   SftpNoteTest::test_the_answer_is_carried_from_the_agent_to_the_page passed
 
+echo "── CronOccurrenceTest: Monatstag UND Wochentag statt ODER ──"
+#
+# crontab(5): Sind beide Felder gesetzt, gilt ein Tag, wenn *eines von beiden*
+# passt. Das ist die einzige Stelle der Syntax, an der die Verknuepfung wechselt
+# — eine Rechnung mit UND ist an elf Zwoelfteln aller Zeitplaene richtig und an
+# diesem einen still falsch.
+vorher_datei app/Support/Cron/Occurrence.php
+python3 - <<'PY2'
+p = 'app/Support/Cron/Occurrence.php'
+s = open(p, encoding='utf-8').read()
+alt = '            return $dom || $dow;'
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '            return $dom && $dow;'))
+PY2
+griff_datei app/Support/Cron/Occurrence.php "Monatstag UND Wochentag" &&
+pruefe "Monatstag UND Wochentag" \
+  CronOccurrenceTest::test_day_of_month_and_weekday_are_joined_with_or failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronOccurrenceTest::test_day_of_month_and_weekday_are_joined_with_or passed
+
+echo
+echo "── CronOccurrenceTest: Sonntag als 7 wird nicht angeglichen ──"
+#
+# cron nimmt fuer Sonntag 0 und 7. Faellt die Angleichung weg, ist ein Zeitplan
+# mit 7 nie faellig — und das sieht in der Liste aus wie "laeuft nicht mehr".
+vorher_datei app/Support/Cron/Occurrence.php
+python3 - <<'PY2'
+p = 'app/Support/Cron/Occurrence.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (in_array(7, $dows, true)) {\n            $dows[] = 0;\n        }\n"
+assert s.count(alt) == 1, 'Zielblock nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, ''))
+PY2
+griff_datei app/Support/Cron/Occurrence.php "Sonntag als 7" &&
+pruefe "Sonntag als 7" CronOccurrenceTest failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronOccurrenceTest passed
+
+echo
+echo "── ServerZoneSourceTest: eine zweite Stelle liest /etc/localtime ──"
+#
+# Es gibt drei Zeitzonen in diesem Panel — UTC beim Speichern, die Anzeigezone
+# in Clock, die Zone der Maschine in ServerZone. Eine vierte Antwort ist die
+# Verwechslung, und sie faellt in diesem Container nie auf: Hier sagen
+# /etc/localtime und die Vorgabe von PHP beide UTC.
+vorher_datei app/Support/Cron/Cron.php
+python3 - <<'PY2'
+p = 'app/Support/Cron/Cron.php'
+s = open(p, encoding='utf-8').read()
+alt = '        private readonly Client $agent,'
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt + ' // liest /etc/localtime selbst'))
+PY2
+griff_datei app/Support/Cron/Cron.php "zweite Stelle liest die Zone" &&
+pruefe "zweite Stelle liest die Zone" \
+  ServerZoneSourceTest::test_only_one_class_reads_the_machine_timezone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ServerZoneSourceTest::test_only_one_class_reads_the_machine_timezone passed
+
+echo
+echo "── ServerZoneSourceTest: der Zeitplan rechnet in der Anzeigezone ──"
+#
+# Der Fehler aus docs/60 §11, eine Ebene hoeher: Wer die fuenf Felder in der
+# Anzeigezone deutet, zeigt eine Zeile und findet sie nicht.
+vorher_datei app/Support/Cron/Occurrence.php
+python3 - <<'PY2'
+p = 'app/Support/Cron/Occurrence.php'
+s = open(p, encoding='utf-8').read()
+alt = '$zone = ServerZone::current();'
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '$zone = Clock::timezone();'))
+PY2
+griff_datei app/Support/Cron/Occurrence.php "Zeitplan in der Anzeigezone" &&
+pruefe "Zeitplan in der Anzeigezone" \
+  ServerZoneSourceTest::test_the_display_timezone_does_not_drive_the_schedule failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ServerZoneSourceTest::test_the_display_timezone_does_not_drive_the_schedule passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

@@ -10257,6 +10257,27 @@ pruefe "  … zurückgesetzt wieder grün" \
   SshdConfigTest::test_only_a_public_key_gets_in passed
 
 echo
+echo "── PublicKeyTest: der Fingerabdruck als unbekannter Typ ──"
+#
+# Der Fund aus dem Abnahmelauf (docs/59, Befund 7): Der Betreiber hat die
+# Ausgabe von `ssh-keygen -lf` eingetragen. Der allgemeine Satz nannte
+# daraufhin „256" als das, womit die Zeile anfängt — richtig und unbrauchbar.
+vorher_datei agent/src/Ssh/PublicKey.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/PublicKey.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        if (ctype_digit($type) && str_contains($raw, 'SHA256:')) {",
+              '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/PublicKey.php "der Fingerabdruck heisst unbekannter Typ" &&
+pruefe "der Fingerabdruck heisst unbekannter Typ" \
+  PublicKeyTest::test_a_fingerprint_is_named_as_such failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  PublicKeyTest::test_a_fingerprint_is_named_as_such passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

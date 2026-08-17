@@ -139,7 +139,7 @@ final class PublicKey
          * > unterscheidet, weist das ab, was sie erlaubt.**
          */
         if (! array_key_exists($type, self::TYPES)) {
-            throw AgentException::badRequest(self::whyNot($type));
+            throw AgentException::badRequest(self::whyNot($type, $raw));
         }
 
         $material = $fields[1] ?? '';
@@ -242,13 +242,31 @@ final class PublicKey
     /**
      * Warum dieser Typ nicht hereinkommt — mit dem Grund und nicht nur mit dem Nein.
      *
-     * Die drei Fälle sehen für den Kunden völlig verschieden aus: Er hat den
-     * privaten Schlüssel erwischt, er hat einen alten Typ, oder er hat eine
-     * Zeile mit Optionen davor. Ein einziger Satz für alle drei schickte ihn
-     * dreimal in die falsche Richtung.
+     * Die Fälle sehen für den Kunden völlig verschieden aus: Er hat den privaten
+     * Schlüssel erwischt, er hat den Fingerabdruck erwischt, er hat einen alten
+     * Typ, oder er hat eine Zeile mit Optionen davor. Ein einziger Satz für alle
+     * schickte ihn in die falsche Richtung.
      */
-    private static function whyNot(string $type): string
+    private static function whyNot(string $type, string $raw = ''): string
     {
+        /*
+         * **Der Fingerabdruck sieht aus wie ein Schlüssel und ist keiner.** Im
+         * Abnahmelauf hat der Betreiber die Ausgabe von `ssh-keygen -lf`
+         * eingetragen (`docs/59`, Befund 7) — `256 SHA256:… (ED25519)`. Der
+         * allgemeine Satz nannte daraufhin „256" als das, womit die Zeile
+         * anfängt, und zählte die erlaubten Typen auf: richtig, und für diesen
+         * Fall unbrauchbar. Es sind zwei Zeilen, die im Terminal direkt
+         * untereinander stehen, und die falsche ist die kürzere.
+         *
+         * > **Ein Satz, der beschreibt, was dasteht, hilft dem nicht, der die
+         * > falsche von zwei ähnlichen Zeilen kopiert hat.**
+         */
+        if (ctype_digit($type) && str_contains($raw, 'SHA256:')) {
+            return 'Das ist der **Fingerabdruck** eines Schlüssels, wie ihn `ssh-keygen -l` ausgibt — '
+                .'nicht der Schlüssel selbst. Gebraucht wird der Inhalt der Datei `.pub`; er fängt mit '
+                .'`ssh-ed25519` an und ist deutlich länger.';
+        }
+
         if (str_starts_with($type, '-----BEGIN')) {
             return 'Das ist ein **privater** Schlüssel. Hierher gehört die Datei mit der Endung '
                 .'`.pub` — der private bleibt auf Ihrem Rechner und wird nirgends hochgeladen.';

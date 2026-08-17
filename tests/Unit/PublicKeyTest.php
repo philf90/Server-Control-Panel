@@ -125,6 +125,30 @@ final class PublicKeyTest extends TestCase
         $this->assertRefused('-----BEGIN OPENSSH PRIVATE KEY-----', 'privater');
     }
 
+    /**
+     * Der Fingerabdruck wird als solcher benannt.
+     *
+     * **Warum das eine eigene Regel ist.** Im Abnahmelauf hat der Betreiber die
+     * Ausgabe von `ssh-keygen -lf` eingetragen (`docs/59`, Befund 7). Der
+     * allgemeine Satz war dabei sachlich richtig — „die Zeile fängt mit „256"
+     * an" — und hat nicht geholfen: Die beiden Zeilen stehen im Terminal
+     * untereinander, und die falsche ist die kürzere.
+     *
+     * > **Ein Satz, der beschreibt, was dasteht, hilft dem nicht, der die
+     * > falsche von zwei ähnlichen Zeilen kopiert hat.**
+     */
+    public function test_a_fingerprint_is_named_as_such(): void
+    {
+        $this->assertRefused(
+            '256 SHA256:PBMiXFViiL6KV95VXw7J2Kz6hRcCuhXPDzMXrmRGfT8 abnahme (ED25519)',
+            'Fingerabdruck',
+        );
+
+        // Und eine Zahl allein bleibt der allgemeine Fall: Ohne `SHA256:` ist
+        // nicht zu sagen, was der Kunde vor sich hat.
+        $this->assertRefused('256 irgendwas', 'Schlüsseltyp');
+    }
+
     /** Abgeschaltete und zu kurze Schlüssel — mit dem Grund, nicht nur mit dem Nein. */
     public function test_dsa_and_short_rsa_are_refused(): void
     {

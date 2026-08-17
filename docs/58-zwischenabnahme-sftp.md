@@ -109,6 +109,11 @@ Unter Windows kommt dazu, dass `%USERPROFILE%` in PowerShell nicht expandiert
 und ein leeres `-N ''` dort verschluckt wird: `"$env:USERPROFILE\..."` und
 `-N '""'`, oder die Eingabeaufforderung nehmen.
 
+**Ins Panel gehört die Ausgabe von `cat p6-sftp.pub` und nicht die von
+`ssh-keygen -lf`.** Die beiden stehen im Terminal untereinander, und die
+falsche ist die kürzere — Befund 7 dieses Laufs. Sicherer ist der Weg über die
+Zwischenablage (`clip` bzw. `Set-Clipboard`).
+
 | erwartet | |
 |---|---|
 | Fingerabdruck im Panel == `ssh-keygen -lf p6-sftp.pub` | |

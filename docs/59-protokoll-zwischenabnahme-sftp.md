@@ -371,3 +371,42 @@ Die Messrunde hat dafür den Abschnitt **M6b** bekommen: zwei Fassungen des
 Blocks gegen einen Kopfteil ohne Riegel, gelesen wird, was der Server dem
 Klienten anbietet — plus die Gegenprobe, dass der gültige Schlüssel weiter
 hereinkommt. **45 Messungen, 0 abweichend.**
+
+---
+
+### Befund 7 — der Fingerabdruck sieht aus wie ein Schlüssel
+
+**Punkt 4, erster Versuch.** Eingetragen wurde die Ausgabe von `ssh-keygen -lf`:
+
+```
+256 SHA256:PBMiXFViiL6KV95VXw7J2Kz6hRcCuhXPDzMXrmRGfT8 abnahme (ED25519)
+```
+
+**Die Abweisung hat funktioniert, und das ist der eigentliche Beleg dieses
+Punktes.** Nichts wurde geschrieben, die Meldung stand oben in der
+Zusammenfassung, das Feld war rot, und der Satz benannte die Stelle: „Die Zeile
+fängt nicht mit einem Schlüsseltyp an, sondern mit „256"."
+
+**Geholfen hat er trotzdem nicht.** Die beiden Zeilen stehen im Terminal
+direkt untereinander — `ssh-keygen -lf` gibt den Fingerabdruck aus, `cat`
+den Schlüssel —, und die falsche ist die kürzere. Ein Satz, der beschreibt,
+*was* dasteht, richtet den nicht, der aus zwei ähnlichen Zeilen die falsche
+erwischt hat; er braucht den Satz, der sagt, *welche* er hat.
+
+> **Ein Satz, der beschreibt, was dasteht, hilft dem nicht, der die falsche von
+> zwei ähnlichen Zeilen kopiert hat.**
+
+`whyNot()` hatte drei solche Fälle — privater Schlüssel, `ssh-dss`,
+Hardware-Token — und dieser ist der vierte. Er ist der wahrscheinlichste von
+allen vier, weil ihn der Ablauf des Punktes selbst herbeiführt: Wer den
+Fingerabdruck notieren soll, hat ihn eine Zeile später vor sich.
+
+**Behoben**: Eine Zeile, die mit einer Zahl anfängt und `SHA256:` enthält, wird
+als Fingerabdruck benannt. Der Wächter ist
+`PublicKeyTest::test_a_fingerprint_is_named_as_such`, mit der Gegenprobe, dass
+eine Zahl **ohne** `SHA256:` beim allgemeinen Satz bleibt — ohne die zweite
+Hälfte wäre die Regel „jede Zahl ist ein Fingerabdruck", und das ist sie nicht.
+
+**Und die Anleitung trägt mit Schuld.** Block C nannte `ssh-keygen -lf` und
+`cat` in derselben Folge. `docs/58` Punkt 4 sagt jetzt, welche der beiden
+Ausgaben ins Panel gehört.

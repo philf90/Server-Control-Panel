@@ -1736,3 +1736,66 @@ Abonnements, die die Mandantenklammer ohnehin sichtbar macht, diejenigen mit
 **Nachzuprüfen im nächsten Durchgang** (er kommt zu den fünf Punkten oben dazu):
 der Menüpunkt bei einem Abonnement — er muss **hineinführen** und nicht zur
 Auswahl —, die Auswahlseite bei zwei, und beide bei 390 px.
+
+---
+
+# Der zweite Durchgang — gegen `v0.6.0-rc.11`
+
+Elf Korrekturen lagen im Zweig, als der erste Durchgang sie fand; hier werden sie
+am Server nachgeprüft. `main` steht auf `7434f01` (PR #139), das Paket ist am
+17. August 2026 eingespielt.
+
+## A — Fassung und Ausgangszustand
+
+| | gemessen |
+|---|---|
+| `srvpanel --version` | **0.6.0-rc.11** |
+| Prüfsumme `sshd_config` | `8e5c38ed…27aed` — **REF-C′** |
+| Schlüsseldatei | 315 Byte |
+| `sshd -t` | `rc=0` |
+
+**REF-C′ ersetzt REF-C.** Die Datei hat sich beim ersten Schlüsselvorgang nach
+dem Update geändert, weil der Block jetzt `AuthenticationMethods publickey`
+trägt — und `sshd -T -C user=p1136` sagt es auch: **Befund 6 ist am Server
+bestätigt.**
+
+### Eine Nebenbeobachtung, die den Lauf beinahe stört
+
+```
+sh: 0: getcwd() failed: No such file or directory
+```
+
+Zweimal, vor jeder Ausgabe. Die Sitzung steht in `/opt/srvpanel/current`, und das
+Update hat den Verweis auf ein neues Fassungsverzeichnis gelegt: Das
+Arbeitsverzeichnis der Shell zeigt auf ein Verzeichnis, das es nicht mehr gibt.
+
+Für die Messungen hier folgenlos — aber nicht für alles: Ein Programm, das sein
+Arbeitsverzeichnis braucht, scheitert daran mit einer Meldung, die nach etwas
+anderem aussieht.
+
+> **Ein Update, das das Verzeichnis unter einer offenen Sitzung austauscht,
+> hinterlässt eine Shell, die auf nichts steht.**
+
+Gehört nicht in diesen Zweig; festgehalten, weil es die nächste Fehlersuche
+kosten kann. Der Griff dagegen ist `cd /opt/srvpanel/current`.
+
+## B — die Wortlaute (Befunde 2 und 3)
+
+Schlüssel entfernt, Seite angesehen:
+
+> Es ist kein Schlüssel eingetragen — damit ist der Zugang aus. Tragen Sie unten
+> einen ein.
+
+| erwartet | gemessen |
+|---|---|
+| grau, und der Satz benennt den **Zustand** | erfüllt |
+| keine rote Meldung über die fehlende Schlüsseldatei | erfüllt |
+| keine orange Meldung über „ein anderes Verzeichnis … `none`" | erfüllt |
+
+**Befunde 2 und 3 sind behoben und am Server bestätigt.** Im ersten Durchgang
+stand hier rot „Der Zugang kommt so nicht zustande" für ein Abonnement, an dem
+nur noch niemand etwas eingerichtet hatte — und daneben, nach einem Rückbau, die
+grüne Erfolgsmeldung.
+
+Befund 4 — das Leerzeichen — ist hier **nicht** zu sehen: Er braucht die rote
+Meldung, und die gibt es in diesem Zustand zu Recht nicht. Er kommt in Block C.

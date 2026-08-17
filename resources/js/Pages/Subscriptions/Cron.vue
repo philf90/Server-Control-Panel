@@ -53,8 +53,8 @@ const form = useForm({
  */
 const vorlagen = [
   { name: 'jede Minute', felder: { minute: '*', hour: '*', day_of_month: '*', month: '*', day_of_week: '*' } },
-  { name: 'stündlich zur Minute 0', felder: { minute: '0', hour: '*', day_of_month: '*', month: '*', day_of_week: '*' } },
-  { name: 'täglich um 03:15', felder: { minute: '15', hour: '3', day_of_month: '*', month: '*', day_of_week: '*' } },
+  { name: 'jede Stunde zur Minute 0', felder: { minute: '0', hour: '*', day_of_month: '*', month: '*', day_of_week: '*' } },
+  { name: 'jeden Tag um 03:15', felder: { minute: '15', hour: '3', day_of_month: '*', month: '*', day_of_week: '*' } },
   { name: 'montags bis freitags um 09:00', felder: { minute: '0', hour: '9', day_of_month: '*', month: '*', day_of_week: '1-5' } },
   { name: 'sonntags um 04:00', felder: { minute: '0', hour: '4', day_of_month: '*', month: '*', day_of_week: '0' } },
   { name: 'am 1. jedes Monats um 05:00', felder: { minute: '0', hour: '5', day_of_month: '1', month: '*', day_of_week: '*' } },

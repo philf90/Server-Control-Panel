@@ -10660,6 +10660,65 @@ pruefe "Cron-Datei bleibt liegen" SubscriptionCleanupTest failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SubscriptionCleanupTest passed
 
+echo "── CronScheduleFormTest: die Schnellwahl sagt etwas anderes, als sie tut ──"
+#
+# Auf dem Knopf steht der Satz, und derselbe Knopf stellt die fuenf Felder ein.
+# Das ist eine Behauptung ueber zwei Dinge, die auseinanderlaufen koennen —
+# dieser Waechter haelt die Beschriftung gegen Spoken. Beim ersten Lauf hat er
+# drei echte Abweichungen gefunden.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+alt = "{ name: 'jeden Tag um 03:15',"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "{ name: 'jeden Tag um 3 Uhr 15',"))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Schnellwahl sagt etwas anderes" &&
+pruefe "Schnellwahl sagt etwas anderes" \
+  CronScheduleFormTest::test_every_quick_choice_says_what_it_sets failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronScheduleFormTest::test_every_quick_choice_says_what_it_sets passed
+
+echo
+echo "── CronPageReachTest: der Menuepunkt verschwindet ──"
+#
+# Er hat beim Dateimanager (docs/55 Befund 8) und bei SFTP (docs/59 Befund 19)
+# je einen Abnahmelauf gekostet, und beide Male fand ihn kein einziger Waechter.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = "              { name: 'Cronjobs', href: '/cron', icon: 'cron' },\n"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, ''))
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Menuepunkt verschwindet" &&
+pruefe "Menuepunkt verschwindet" CronPageReachTest failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronPageReachTest passed
+
+echo
+echo "── CronPageReachTest: eine Route verliert ihr can: ──"
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+alt = """    Route::delete('/subscriptions/{subscription}/cron/{job}', [CronController::class, 'destroy'])
+        ->middleware('can:manageCron,subscription')
+        ->name('cron.destroy');"""
+assert s.count(alt) == 1, 'Zielblock nicht eindeutig — der Bruch waere blind'
+neu = """    Route::delete('/subscriptions/{subscription}/cron/{job}', [CronController::class, 'destroy'])
+        ->name('cron.destroy');"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu))
+PY2
+griff_datei routes/web.php "Route ohne can:" &&
+pruefe "Route ohne can:" CronPageReachTest::test_every_cron_route_is_guarded failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronPageReachTest::test_every_cron_route_is_guarded passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

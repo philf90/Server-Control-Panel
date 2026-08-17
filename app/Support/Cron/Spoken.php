@@ -124,7 +124,17 @@ final class Spoken
         if ($hour === '*') {
             $m = self::plainNumber($minute);
 
-            return $m === null ? null : sprintf('jede Stunde zur Minute %02d', $m);
+            /*
+             * **`%d` und nicht `%02d`.** „zur Minute 00" liest sich wie eine
+             * Uhrzeit, und genau das ist es nicht — es ist eine Minute innerhalb
+             * jeder Stunde. Die führende Null gehört zur Uhrzeit unten, wo sie
+             * `03:15` von `3:15` unterscheidet.
+             *
+             * Gefunden hat das `CronScheduleFormTest` beim ersten Lauf: Auf dem
+             * Knopf der Schnellwahl stand „zur Minute 0", und diese Zeile machte
+             * „zur Minute 00" daraus.
+             */
+            return $m === null ? null : sprintf('jede Stunde zur Minute %d', $m);
         }
 
         $m = self::plainNumber($minute);

@@ -439,6 +439,42 @@ aus 6. Sie ist ohne Eingriff nachholbar — das Journal ist historisch.
 
 ---
 
+## 7. Der Bestand ist Gesetz
+
+Eingefügt **oberhalb** von `# BEGIN srvpanel` (Zeilen 134–136, die Marke steht
+auf 138), damit der Eingriff nicht dort steht, wo das Panel selbst schreibt:
+
+```
+Match User p1136
+    ChrootDirectory /var/www
+Match all
+
+# BEGIN srvpanel — verwaltet, nicht von Hand ändern
+```
+
+| erwartet | gemessen |
+|---|---|
+| `sshd -t` | `rc=0` |
+| `sshd -T -C user=p1136` zeigt `/var/www` | erfüllt — der erste passende Block gewinnt |
+| Das Panel **meldet** die Abweichung | erfüllt, orange, mit `/var/www` im Text |
+| Es rollt nichts zurück | erfüllt |
+| Nach dem Entfernen ist der Befund weg | erfüllt |
+| Die Datei ist zeichengleich zurück | `4a141234…9018e` == `4a141234…9018e` |
+
+**Die letzte Zeile ist die, die den Punkt zu einem Beleg macht.** „Sieht wieder
+richtig aus" wäre keiner; zwei gleiche Prüfsummen sind einer.
+
+**Und Punkt 7 braucht keinen Reload — das ist der Grund, warum er gefahrlos
+ist.** `sshd -T` liest die Datei jedes Mal frisch, das Panel fragt genauso; ein
+laufender `sshd` hat seine Konfiguration beim Start geparst und gibt sie an jede
+Verbindung weiter. Eine Anmeldung als Prüfung wäre hier also die falsche Messung
+gewesen — sie hätte noch den alten Stand getroffen.
+
+> **Was `sshd -T` sagt, ist der Inhalt der Datei. Was gilt, ist der Inhalt des
+> Speichers.**
+
+---
+
 ## Befunde
 
 ### Befund 1 — die Messrunde war nie fahrbar
@@ -719,3 +755,59 @@ Der Wächter ist `ChainTest::test_a_reason_reads_as_one_sentence` — er prüft 
 **Wortlaut** und dazu, dass kein zweites `und ist` vorkommt. Der Bruch steht im
 Bruchskript und ist von Hand gegengeprüft: `bei 0777 (fehlt: ist für die Gruppe
 und für alle schreibbar)`.
+
+---
+
+### Befund 10 — die Zusage galt für ein Verzeichnis, das niemand benutzt
+
+**Gefunden von Punkt 7, der etwas anderes prüfen wollte.** Während
+`sshd -T -C user=p1136` `/var/www` sagte, stand auf der Seite:
+
+> Der Zugang steht: 1 Schlüssel, **Verzeichnis und Rechte in Ordnung**.
+
+Der Satz war wahr — über `/var/www/vhosts/p6-b.invalid`. `SftpCheck` liess die
+Kette über die Wurzel des Abonnements laufen und fragte danach getrennt, was
+gilt; die beiden Antworten standen nebeneinander, ohne dass die erste von der
+zweiten wusste.
+
+> **Eine Kette, die am Sollzustand hängt, sagt nichts über den Zugang, der
+> gerade nicht ihm folgt.**
+
+Gefährlich ist der umgekehrte Fall: Ein Eintrag des Betreibers auf ein
+Verzeichnis mit falschen Rechten, und die Seite hätte „in Ordnung" gemeldet,
+während niemand hereinkommt — wörtlich die Lage, für die es diese Seite gibt.
+
+**Behoben in zwei Schritten.** Der Agent fragt jetzt **zuerst**, was gilt, und
+beurteilt dann *dieses* Verzeichnis; die Antwort nennt es als `checked_root`.
+Und die Seite nennt es im Satz, wenn es nicht das des Abonnements ist:
+„Geprüft ist `/var/www` — das Verzeichnis, das gilt."
+
+**Ein Fall dabei, der beim Beheben aufgefallen ist und nie im Lauf vorkam:**
+OpenSSH lässt in `ChrootDirectory` die Marken `%h`, `%u` und `%%` zu, und
+`sshd -T` gibt sie **unaufgelöst** aus. Ein `Chain::of('%h/sftp')` hätte „gibt
+es nicht" gemeldet — eine falsche Aussage statt einer fehlenden, und das ist die
+schlechtere der beiden.
+
+> **Ein Pfad mit einer Marke darin ist kein Pfad, und ein Urteil darüber ist
+> keines.**
+
+Der Wächter ist `SftpCheckTest` mit drei Regeln — was gilt, wird beurteilt;
+`none` und leer bleiben beim Abonnement; eine Marke wird kein Pfad, **mit** der
+Gegenprobe, dass ein gewöhnlicher absoluter Pfad weiterhin beurteilt wird. Ohne
+sie hiesse „alles fällt zurück" auch, dass nie etwas geprüft wird. Beide Brüche
+stehen im Bruchskript und sind von Hand gegengeprüft.
+
+**Gemessen ist die neue Meldung auch**, mit dem längsten Pfad, den sie tragen
+kann (`/srv/sftp-chroots/` plus 63 Zeichen): Dokumentüberlauf **0px** bei 390px
+und 1440px, Gegenprobe 510px — und auf dem Bild bricht die Kennung mitten im
+Namen, statt die Seite zu schieben.
+
+**Und die Form der Meldung hat der Wächter entschieden, nicht ich.** Der erste
+Entwurf hatte zwei `span` mit `v-if`/`v-else`; `NoticeShapeTest` verlangt ein
+*attributfreies* `span` als einziges Kind und wurde rot. Zu Recht: Zwei `span`
+sind für einen Leser des Quelltexts zwei Flexkinder, und eine Regel, die
+„die schliessen sich ja aus" gelten liesse, wäre eine, die man von Fall zu Fall
+auslegt. Die Verzweigung steht jetzt **innerhalb** des Wickels.
+
+> **Eine Regel, die eine Ausnahme für den eigenen Fall bekommt, ist ab da
+> Auslegung.**

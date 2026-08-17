@@ -10301,6 +10301,47 @@ pruefe "  … zurückgesetzt wieder grün" \
   ChainTest::test_a_reason_reads_as_one_sentence passed
 
 echo
+echo "── SftpCheckTest: die Kette haengt am Sollzustand ──"
+#
+# Der Fund aus Punkt 7 des Abnahmelaufs (docs/59, Befund 10): Der Betreiber
+# setzte ChrootDirectory /var/www oberhalb des Bereichs, sshd -T sagte /var/www,
+# und die Seite schrieb "Verzeichnis und Rechte in Ordnung" — wahr ueber die
+# Wurzel des Abonnements, gelesen ueber das Verzeichnis, das gilt.
+vorher_datei agent/src/Ops/SftpCheck.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SftpCheck.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        return $wirksam;', '        return $root;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/SftpCheck.php "geprüft wird der Sollzustand" &&
+pruefe "geprüft wird der Sollzustand" \
+  SftpCheckTest::test_an_override_is_the_directory_that_gets_judged failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SftpCheckTest::test_an_override_is_the_directory_that_gets_judged passed
+
+echo
+echo "── SftpCheckTest: eine Marke wird fuer einen Pfad gehalten ──"
+#
+# sshd -T gibt %h und %u unaufgeloest aus. Ein Chain::of('%h/sftp') meldet
+# "gibt es nicht" — eine falsche Aussage statt einer fehlenden.
+vorher_datei agent/src/Ops/SftpCheck.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SftpCheck.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        if (! str_starts_with($wirksam, '/') || str_contains($wirksam, '%')) {",
+              '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/SftpCheck.php "eine Marke gilt als Pfad" &&
+pruefe "eine Marke gilt als Pfad" \
+  SftpCheckTest::test_a_token_is_not_a_path failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SftpCheckTest::test_a_token_is_not_a_path passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

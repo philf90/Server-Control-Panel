@@ -25,6 +25,7 @@ interface Link {
 interface Check {
   unavailable?: string
   root?: string
+  checked_root?: string
   key_file?: string
   has_keys?: boolean
   chroot_problem?: Link | null
@@ -176,8 +177,31 @@ function problem(): Link | null {
             > Ein Wächter, der Text liest, liest auch die Begründung dafür,
             > warum er recht hat.
           -->
+          <!--
+            **Und der Satz nennt das Verzeichnis, wenn es nicht das des
+            Abonnements ist** (`docs/59`, Befund 10). Im Lauf stand hier
+            „Verzeichnis und Rechte in Ordnung", während `sshd -T` `/var/www`
+            nannte — wahr über das eine Verzeichnis, gelesen über das andere.
+
+            > **Ein Satz ohne Gegenstand bekommt den, den der Leser erwartet.**
+          -->
+          <!--
+            **Ein Wickel und die Verzweigung darin, nicht zwei Wickel.**
+            `NoticeShapeTest` verlangt ein *attributfreies* `span` als einziges
+            Kind, und das zu Recht: Zwei `span` mit `v-if`/`v-else` sind für
+            einen Leser des Quelltexts zwei Flexkinder, und die Regel wäre
+            danach eine, die man von Fall zu Fall auslegt.
+          -->
           <p v-else class="notice neutral">
-            <span>Der Zugang steht: {{ props.keys.length }} Schlüssel, Verzeichnis und Rechte in Ordnung.</span>
+            <span>
+              <template v-if="props.check.checked_root && props.check.checked_root !== props.check.root">
+                Der Zugang steht: {{ props.keys.length }} Schlüssel. Geprüft ist{{ ' ' }}
+                <span class="ident">{{ props.check.checked_root }}</span> — das Verzeichnis, das gilt.
+              </template>
+              <template v-else>
+                Der Zugang steht: {{ props.keys.length }} Schlüssel, Verzeichnis und Rechte in Ordnung.
+              </template>
+            </span>
           </p>
 
           <!--

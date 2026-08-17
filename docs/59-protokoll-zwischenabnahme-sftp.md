@@ -475,6 +475,57 @@ gewesen — sie hätte noch den alten Stand getroffen.
 
 ---
 
+## 8. Die kaputte Datei
+
+**Der Punkt hat zwei Hälften bekommen, und das ist eine Änderung am Lauf.** Beim
+Vorbereiten stand die Frage, welcher Vorgang überhaupt in `sshd_config`
+schreibt — und das ist nicht jeder: `sftp.access` schreibt nur, wenn sich der
+**Block** ändert, und der nennt Benutzer und Wurzel, nicht die Schlüssel. Ein
+*zweiter* Schlüssel an einem Abonnement, das schon einen hat, ändert ihn nicht;
+`sshd -t` läuft dann nie, und der Vorgang geht durch — zu Recht, denn die Datei
+wurde nicht angefasst.
+
+> **Ein Kriterium, das einen Abbruch erwartet, muss sagen, was sich ändern muss,
+> damit überhaupt geschrieben wird.**
+
+Der Block ändert sich bei genau zwei Anlässen: **erster Schlüssel** eines
+Abonnements und **letzter Schlüssel weg**. Auf `cloudsrv24` gibt es nur ein
+Abonnement, also werden beide Zustände der Reihe nach hergestellt statt an zwei
+Abonnements gemessen.
+
+### Phase A — der Rückbau, und er ist zeichengleich
+
+Im Panel den Schlüssel entfernt, bei heiler Datei:
+
+```
+sshd -t                 rc=0
+ls -l /etc/srvpanel/ssh/    total 0
+tail -6 sshd_config     … PermitRootLogin yes          (kein Block mehr)
+sha256sum               2b5a070ed8513f847086e21be1eb50fa1fca79c65782b2b85ef2b0dbcdf56852
+```
+
+| erwartet | gemessen |
+|---|---|
+| Schlüsseldatei **weg**, nicht leer | `total 0` |
+| Block aus `sshd_config` verschwunden | erfüllt, samt `# BEGIN` und `# END` |
+| `sshd -t` still | `rc=0` |
+| Prüfsumme == der Wert aus 0c | **`2b5a070e…6852`, zeichengleich** |
+
+**Die letzte Zeile war nicht bestellt.** Sie ist der Wert von *vor der ersten
+Benutzung*: Was das Panel geschrieben hat, hat es restlos zurückgenommen — nicht
+„sieht wieder aus wie vorher", sondern Byte für Byte dasselbe. Damit ist die
+erste Hälfte von **Punkt 10** vorweg belegt, und zwar besser als der Punkt
+verlangt.
+
+> **Ein Rückbau, der eine Prüfsumme trifft, ist einer. Alles andere ist eine
+> Ähnlichkeit.**
+
+Das Verzeichnis `/etc/srvpanel/ssh` bleibt dabei stehen, und das ist richtig: Es
+gehört dem Panel und nicht einem Abonnement. Ein Rest ist die *Datei* darin, und
+die ist weg.
+
+---
+
 ## Befunde
 
 ### Befund 1 — die Messrunde war nie fahrbar

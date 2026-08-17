@@ -138,7 +138,7 @@ final class PublicKey
          */
         if (preg_match('/[\x00-\x1F\x7F]/', $raw) === 1) {
             throw AgentException::badRequest(
-                'In dem Schlüssel steht ein Steuerzeichen. Kopieren Sie die Datei `.pub` als eine '
+                'In dem Schlüssel steht ein Steuerzeichen. Kopieren Sie die Datei „.pub" als eine '
                 .'einzige Zeile — ein Zeilenumbruch darin würde aus einem Zugang zwei machen.',
             );
         }
@@ -167,7 +167,7 @@ final class PublicKey
         if (! is_string($blob) || $blob === '' || base64_encode($blob) !== $material) {
             throw AgentException::badRequest(
                 'Nach dem Typ steht kein lesbarer Schlüssel. Erwartet wird die Zeile aus der Datei '
-                .'`.pub`, also `'.$type.' AAAA…` — nicht der private Schlüssel und keine Datei mit '
+                .'„.pub", also „'.$type.' AAAA…" — nicht der private Schlüssel und keine Datei mit '
                 .'mehreren Zeilen.',
             );
         }
@@ -281,28 +281,28 @@ final class PublicKey
          * > falsche von zwei ähnlichen Zeilen kopiert hat.**
          */
         if (ctype_digit($type) && str_contains($raw, 'SHA256:')) {
-            return 'Das ist der **Fingerabdruck** eines Schlüssels, wie ihn `ssh-keygen -l` ausgibt — '
-                .'nicht der Schlüssel selbst. Gebraucht wird der Inhalt der Datei `.pub`; er fängt mit '
-                .'`ssh-ed25519` an und ist deutlich länger.';
+            return 'Das ist der Fingerabdruck eines Schlüssels, wie ihn „ssh-keygen -l" ausgibt — '
+                .'nicht der Schlüssel selbst. Gebraucht wird der Inhalt der Datei „.pub"; er fängt mit '
+                .'„ssh-ed25519" an und ist deutlich länger.';
         }
 
         if (str_starts_with($type, '-----BEGIN')) {
-            return 'Das ist ein **privater** Schlüssel. Hierher gehört die Datei mit der Endung '
-                .'`.pub` — der private bleibt auf Ihrem Rechner und wird nirgends hochgeladen.';
+            return 'Das ist ein privater Schlüssel. Hierher gehört die Datei mit der Endung '
+                .'„.pub" — der private bleibt auf Ihrem Rechner und wird nirgends hochgeladen.';
         }
 
         if ($type === 'ssh-dss') {
-            return 'DSA-Schlüssel (`ssh-dss`) hat OpenSSH mit Fassung 7.0 abgeschaltet; ein Zugang '
-                .'damit käme nicht zustande. Erzeugen Sie einen neuen: `ssh-keygen -t ed25519`.';
+            return 'DSA-Schlüssel („ssh-dss") hat OpenSSH mit Fassung 7.0 abgeschaltet; ein Zugang '
+                .'damit käme nicht zustande. Erzeugen Sie einen neuen: ssh-keygen -t ed25519';
         }
 
         if (str_starts_with($type, 'sk-')) {
-            return 'Schlüssel von Hardware-Token (`sk-…`) nimmt dieses Panel noch nicht an.';
+            return 'Schlüssel von Hardware-Token („sk-…") nimmt dieses Panel noch nicht an.';
         }
 
         return sprintf(
             'Die Zeile fängt nicht mit einem Schlüsseltyp an, sondern mit „%s". Erwartet wird die '
-            .'Zeile aus Ihrer `.pub`-Datei, unverändert und ohne etwas davor — angenommen werden %s.',
+            .'Zeile aus Ihrer „.pub"-Datei, unverändert und ohne etwas davor — angenommen werden %s.',
             mb_substr($type, 0, 30),
             implode(', ', array_keys(self::TYPES)),
         );
@@ -343,7 +343,7 @@ final class PublicKey
         if ($bits < self::RSA_MINIMUM) {
             throw AgentException::badRequest(sprintf(
                 'Der RSA-Schlüssel hat %d Bit; angenommen werden ab %d. Erzeugen Sie einen neuen: '
-                .'`ssh-keygen -t ed25519` — der ist kürzer und stärker.',
+                .'ssh-keygen -t ed25519 — der ist kürzer und stärker.',
                 $bits,
                 self::RSA_MINIMUM,
             ));

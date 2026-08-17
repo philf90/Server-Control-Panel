@@ -10489,6 +10489,27 @@ pruefe "  … zurückgesetzt wieder grün" \
   PublicKeyTest::test_a_private_key_is_named_as_such passed
 
 echo
+echo "── MessageMarkupTest: eine Meldung in Markdown ──"
+#
+# Der Fund aus dem zweiten Durchgang (docs/59, Befund 20): Auf der Seite standen
+# die Sternchen und die Schraegstrichzeichen als Zeichen im Satz. Niemand
+# uebersetzt sie, und das Panel soll sie auch nicht uebersetzen — eine Meldung,
+# die HTML erzeugt, ist eine Meldung, in der Kundeneingaben stehen.
+vorher_datei agent/src/Ssh/PublicKey.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/PublicKey.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('Das ist ein privater Schlüssel', 'Das ist ein **privater** Schlüssel', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/PublicKey.php "eine Meldung in Markdown" &&
+pruefe "eine Meldung in Markdown" \
+  MessageMarkupTest::test_no_german_message_carries_markup failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  MessageMarkupTest::test_no_german_message_carries_markup passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

@@ -1906,7 +1906,68 @@ ist** für alle schreibbar".
 | 11 (der rote Rand am richtigen Ort) | **ja** |
 | 12 (die Schlüsseldatei überlebt) | **ja** |
 | 13 (die Meldung erscheint überhaupt) | **ja** |
-| 7, 18 (die beiden Formularmeldungen) | offen |
+| 7, 18 (die beiden Formularmeldungen) | **ja** — und mit Befund 20 |
 | 10 (das Verzeichnis, das gilt) | offen |
 | 16 (`/run/sshd`) | Block D |
 | 19 (der Menüpunkt) | Block E |
+
+## C4 — Befunde 7 und 18 bestätigt, und ein neuer daneben
+
+**Befund 7**, die Ausgabe von `ssh-keygen -lf` eingetragen:
+
+> Das ist der Fingerabdruck eines Schlüssels, wie ihn `ssh-keygen -l` ausgibt —
+> nicht der Schlüssel selbst.
+
+**Befund 18**, der mehrzeilige private Schlüssel:
+
+> Das ist ein privater Schlüssel. Hierher gehört die Datei mit der Endung `.pub`.
+
+Beide erscheinen, beide benennen den Fall. Im ersten Durchgang hiess der erste
+„unbekannter Typ" und der zweite „In dem Schlüssel steht ein Steuerzeichen".
+
+---
+
+### Befund 20 — die Auszeichnung stand als Zeichen im Satz
+
+**Auf beiden Bildern von C4 steht die Markdown-Syntax da**, wörtlich:
+
+```
+Das ist der **Fingerabdruck** eines Schlüssels, wie ihn `ssh-keygen -l` ausgibt
+Das ist ein **privater** Schlüssel. Hierher gehört die Datei mit der Endung `.pub`
+```
+
+Die Meldungen des Agenten sind in Markdown geschrieben, und niemand übersetzt sie.
+Das Panel zeigt sie als Text, und **das ist richtig so**: Eine Meldung, die HTML
+erzeugt, ist eine Meldung, in der Kundeneingaben stehen — der Typname kommt aus
+dem Formular.
+
+> **Eine Auszeichnung, die niemand übersetzt, ist ein Zeichen im Satz.**
+
+**Der teuerste Teil ist nicht der Fehler, sondern wie er überlebt hat.** Er stand
+in **vier** Aufnahmen dieses Laufs — zum ersten Mal in Punkt 11 des ersten
+Durchgangs, bei der Meldung über `command="…"` —, und ich habe ihn viermal
+gelesen, ohne ihn zu sehen. Jedes Mal war die Frage „steht der richtige Satz
+da?", und die Antwort war ja.
+
+> **Ein Bild, das man auf eine Frage hin ansieht, beantwortet die Frage — und
+> verdeckt alles, was daneben steht.**
+
+Das ist die genaue Umkehrung der Lehre aus `docs/46 §20.11`. Dort hiess es: Ein
+Bild zeigt, dass etwas fehlt, und die Zahl sagt, ob die Seite schiebt. Hier war
+das Bild da, vollständig und scharf — und die Frage war die falsche.
+
+**Behoben**: Neun Meldungen in `PublicKey` und eine in `PgServerInstall` tragen
+jetzt deutsche Anführungszeichen statt Sternchen und Schrägstrichzeichen — die
+Form, die die Meldungen dieses Panels ohnehin für Bezeichner benutzen
+(„…fängt nicht mit einem Schlüsseltyp an, sondern mit „%s"").
+
+Der Wächter ist `MessageMarkupTest`: Jede Zeichenkette unterhalb von `agent/src`
+mit einem Umlaut darin trägt keine Auszeichnung. **Der Umlaut ist absichtlich ein
+grober Marker** — er trifft deutsche Sätze und weder SQL noch einen Ausdruck. Ein
+Bruchstück ohne Umlaut kann durchfallen; dafür hat der Wächter keine Fehlalarme,
+und die kosten mehr.
+
+> **Ein Wächter, der bei jedem SQL-Bezeichner meckert, wird abgeschaltet.**
+
+Kommentare sind ausgenommen: Dort **gehört** die Auszeichnung hin — sie ist für
+den Leser des Quelltexts geschrieben und erreicht niemanden sonst.

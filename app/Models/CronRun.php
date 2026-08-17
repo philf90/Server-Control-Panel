@@ -6,6 +6,8 @@ namespace App\Models;
 
 use App\Enums\CronRunStatus;
 use App\Models\Concerns\BelongsToSubscription;
+use Database\Factories\CronRunFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -44,6 +46,9 @@ use Illuminate\Support\Carbon;
 class CronRun extends Model
 {
     use BelongsToSubscription;
+
+    /** @use HasFactory<CronRunFactory> */
+    use HasFactory;
 
     /**
      * Wie viele Läufe je Job aufgehoben werden.

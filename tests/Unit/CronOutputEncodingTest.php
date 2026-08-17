@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use SrvPanel\Agent\Ops\CronRuns;
 
@@ -49,9 +50,8 @@ final class CronOutputEncodingTest extends TestCase
 
     /**
      * Der Kern: Was aus {@see CronRuns::encodable()} kommt, geht durch `json_encode`.
-     *
-     * @dataProvider outputs
      */
+    #[DataProvider('outputs')]
     public function test_the_output_survives_the_encoder(string $bytes, bool $expectedLossy): void
     {
         [$text, $lossy] = CronRuns::encodable($bytes);

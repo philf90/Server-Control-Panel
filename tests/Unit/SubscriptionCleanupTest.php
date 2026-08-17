@@ -92,8 +92,33 @@ final class SubscriptionCleanupTest extends TestCase
             static function (array $frame): void {},
         );
 
+        $op = $this->op();
+
         /** @var array<string, list<string>> $result */
-        $result = $method->invoke($this->op(), $context, $name, $user, '/var/www/vhosts/'.$name);
+        $result = $method->invoke($op, $context, $name, $user, '/var/www/vhosts/'.$name);
+
+        /*
+         * **Und der Spool-Abtrag, den `execute()` gesondert ruft.** Er steht
+         * dort und nicht in `removeConfiguration()`, weil er ein Baumlauf als
+         * root über ein kundenschreibbares Verzeichnis ist und deshalb *nach*
+         * dem Aufräumen in der Sandbox laufen muss
+         * (`SandboxReachTest::test_the_teardown_purges_before_it_walks`).
+         *
+         * Dieser Helfer bildet damit nach, was `execute()` tut. Täte er es
+         * nicht, prüfte der Test einen Rückbau, den es so nicht gibt — und die
+         * Ablage bliebe unbemerkt liegen.
+         *
+         * > **Ein Test, der einen Vorgang in Teilen ruft, prüft die Teile und
+         * > nicht den Vorgang — er muss die Reihenfolge selbst herstellen.**
+         */
+        $spool = new ReflectionMethod(SubscriptionRemove::class, 'removeCronSpool');
+
+        /** @var string|null $entfernt */
+        $entfernt = $spool->invoke($op, $user);
+
+        if ($entfernt !== null) {
+            $result['cron'][] = $entfernt;
+        }
 
         return $result;
     }

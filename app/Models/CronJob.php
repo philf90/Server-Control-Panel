@@ -5,7 +5,12 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToSubscription;
+use App\Support\Cron\Occurrence;
+use App\Support\Cron\ServerZone;
+use Database\Factories\CronJobFactory;
+use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -55,6 +60,9 @@ class CronJob extends Model
 {
     use BelongsToSubscription;
 
+    /** @use HasFactory<CronJobFactory> */
+    use HasFactory;
+
     /** @var list<string> */
     protected $fillable = [
         'subscription_id', 'label', 'command',
@@ -78,6 +86,29 @@ class CronJob extends Model
     public function runs(): HasMany
     {
         return $this->hasMany(CronRun::class);
+    }
+
+    /**
+     * Die nächste Fälligkeit neu rechnen — aus dem Zeitplan, der gerade gilt.
+     *
+     * **Warum das hier steht und nicht an den beiden Aufrufstellen.** Es stand
+     * dort, zweimal, und beide Male mit einer Typumwandlung, die PHPStan zu
+     * Recht beanstandet hat: {@see Occurrence::next()} gibt ein
+     * `DateTimeImmutable` zurück, diese Spalte ist auf `datetime` gegossen und
+     * damit ein {@see Carbon}.
+     *
+     * Zwei Stellen, die dasselbe umrechnen, sind eine zu viel — und die zweite
+     * ist die, die beim nächsten Feld vergessen wird.
+     *
+     * **Gerechnet wird in der Zeit der Maschine** ({@see ServerZone}) und
+     * gespeichert in UTC; {@see Occurrence} besorgt beides. Hier steht nur die
+     * Umwandlung in den Typ, den Eloquent für diese Spalte führt.
+     */
+    public function refreshNextDue(): void
+    {
+        $next = Occurrence::next($this->schedule());
+
+        $this->next_due = $next instanceof DateTimeImmutable ? Carbon::instance($next) : null;
     }
 
     /**

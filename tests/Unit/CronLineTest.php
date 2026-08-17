@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Cron\CronFile;
@@ -114,9 +115,8 @@ final class CronLineTest extends TestCase
      *
      * Das ist die Schranke aus {@see Schedule}, hier von der Seite der Zeile aus
      * gesehen: Nicht „wird geprüft", sondern „diese Eingabe wird abgewiesen".
-     *
-     * @dataProvider brokenFields
      */
+    #[DataProvider('brokenFields')]
     public function test_a_field_that_could_break_the_line_is_refused(string $minute): void
     {
         $this->expectException(AgentException::class);
@@ -151,9 +151,8 @@ final class CronLineTest extends TestCase
      * **Und das ist der stumme Fall.** Von den vier Arten, auf die cron eine
      * Datei liegen lässt, ist diese die einzige ohne Protokolleintrag (`docs/60
      * §5`) — sie sähe im Panel aus wie „läuft".
-     *
-     * @dataProvider brokenNames
      */
+    #[DataProvider('brokenNames')]
     public function test_a_name_cron_would_skip_is_refused(string $user): void
     {
         $this->expectException(AgentException::class);

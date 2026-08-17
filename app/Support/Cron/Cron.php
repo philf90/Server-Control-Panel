@@ -94,7 +94,7 @@ final class Cron
             $job->fill($attributes);
             $job->subscription_id = (int) $subscription->id;
             $job->active = (bool) ($attributes['active'] ?? true);
-            $job->next_due = Occurrence::next($job->schedule());
+            $job->refreshNextDue();
             $job->save();
 
             $this->apply($subscription);
@@ -122,7 +122,7 @@ final class Cron
         /** @var CronJob $updated */
         $updated = DB::transaction(function () use ($job, $attributes): CronJob {
             $job->fill($attributes);
-            $job->next_due = Occurrence::next($job->schedule());
+            $job->refreshNextDue();
             $job->save();
 
             $this->apply($job->subscription ?? Subscription::query()->findOrFail($job->subscription_id));

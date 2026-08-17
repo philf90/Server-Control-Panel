@@ -118,6 +118,12 @@ final class SubscriptionRemove implements Op
         $context->progress(60, 'Verzeichnisse entfernen');
         $removed = $this->removeRoot($root, $user);
 
+        $spool = $this->removeCronSpool($user);
+
+        if ($spool !== null) {
+            $configuration['cron'][] = $spool;
+        }
+
         $context->progress(80, 'Systembenutzer und Gruppe entfernen');
         $account = $this->removeAccount($context, $user, $entry !== false);
 
@@ -242,20 +248,6 @@ final class SubscriptionRemove implements Op
             if (@unlink($command)) {
                 $entfernt['cron'][] = $command;
             }
-        }
-
-        /*
-         * Die Ablage geht als Baum, weil `cron-run` dort schreibt und niemand
-         * weiss, was noch darin liegt: Aufzeichnungen, Sperrdateien, und was ein
-         * Kunde sonst hineingelegt hat — es ist sein Verzeichnis gewesen.
-         * {@see Filesystem::removeTree()} ist dieselbe Stelle, die auch die
-         * Abo-Wurzel abräumt.
-         */
-        $spool = $this->cronSpoolDir.'/'.$user;
-
-        if (is_dir($spool)) {
-            Filesystem::removeTree($spool);
-            $entfernt['cron'][] = $spool;
         }
 
         $this->reload($context, $versionen, $entfernt['sites'] !== []);
@@ -539,5 +531,44 @@ final class SubscriptionRemove implements Op
         }
 
         return $found;
+    }
+
+    /**
+     * Die Ablage der Cron-Aufzeichnungen — als Baum, und **nach** dem Aufräumen
+     * in der Sandbox.
+     *
+     * ## Warum sie nicht bei den anderen Cron-Resten steht
+     *
+     * Datei und Befehle sind einzelne `unlink`; dies hier ist ein Baumlauf als
+     * root über ein Verzeichnis, in das der **Kunde** schreiben durfte — genau
+     * die Form, für die `SandboxReachTest::test_the_teardown_purges_before_it_walks`
+     * eine Reihenfolge vorschreibt: Erst räumt die Sandbox als der Kunde auf,
+     * dann geht root über den Rest.
+     *
+     * Der erste Entwurf hatte den Abtrag zu den anderen Cron-Resten gestellt,
+     * also **vor** {@see Filesystem::purgeContents()}. Der Wächter hat das
+     * gefunden. Er prüft die Reihenfolge über die Fundstellen im Quelltext und
+     * kann nicht wissen, dass es hier ein anderer Baum ist — aber die Regel
+     * dahinter gilt trotzdem, denn dieses Verzeichnis gehört dem Kunden.
+     *
+     * > **Ein Wächter, der eine Reihenfolge über den Quelltext prüft, kann nicht
+     * > zwischen zwei Bäumen unterscheiden — die Regel dahinter aber schon, und
+     * > hier trifft sie zu.**
+     *
+     * {@see Filesystem::removeTree()} steigt keinem Symlink nach; das ist die
+     * Eigenschaft, auf die es hier ankommt, denn was in der Ablage liegt, hat
+     * zuletzt der Kunde bestimmt.
+     */
+    private function removeCronSpool(string $user): ?string
+    {
+        $spool = $this->cronSpoolDir.'/'.$user;
+
+        if (! is_dir($spool)) {
+            return null;
+        }
+
+        Filesystem::removeTree($spool);
+
+        return $spool;
     }
 }

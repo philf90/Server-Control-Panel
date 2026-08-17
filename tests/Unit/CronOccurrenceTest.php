@@ -7,6 +7,7 @@ namespace Tests\Unit;
 use App\Support\Cron\Occurrence;
 use DateTimeImmutable;
 use DateTimeZone;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -37,9 +38,8 @@ final class CronOccurrenceTest extends TestCase
 
     /**
      * @param  array<string,string>  $schedule
-     *
-     * @dataProvider schedules
      */
+    #[DataProvider('schedules')]
     public function test_the_next_occurrence_is_computed(array $schedule, ?string $expected): void
     {
         $next = Occurrence::next($schedule, new DateTimeImmutable(self::NOW, new DateTimeZone('UTC')));
@@ -99,8 +99,9 @@ final class CronOccurrenceTest extends TestCase
 
         $next = Occurrence::next($schedule, new DateTimeImmutable(self::NOW, new DateTimeZone('UTC')));
 
-        self::assertSame('2026-08-14 00:00', $next?->format('Y-m-d H:i'));
-        self::assertNotSame('2026-11-13 00:00', $next?->format('Y-m-d H:i'));
+        self::assertNotNull($next, 'Dieser Zeitplan ist fällig — sonst prüfen die beiden Zeilen darunter nichts.');
+        self::assertSame('2026-08-14 00:00', $next->format('Y-m-d H:i'));
+        self::assertNotSame('2026-11-13 00:00', $next->format('Y-m-d H:i'));
     }
 
     /** Die Fälligkeit kommt in UTC zurück — so, wie dieses Panel speichert. */

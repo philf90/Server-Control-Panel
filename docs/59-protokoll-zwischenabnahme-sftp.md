@@ -2336,11 +2336,19 @@ Dann die Eintragung im Panel, bei ruhendem Dienst und geschlossenem Port:
 lassen musste, weil der Satz entstand und niemand ihn trug.
 
 Die Gegenprobe — dieselbe Seite nach `systemctl start ssh.socket`, Schlüssel wieder
-entfernt — zeigt **„Der Schlüssel ist entfernt."** und nichts weiter. Der Zusatz ist
-also an einen Zustand gebunden und keine Verzierung. **Ein `is-active` im Augenblick
-des Entfernens fehlt dazu**, und ohne ihn ist die Bindung erschlossen und nicht
-gemessen; der Schluss stützt sich darauf, dass der Socket wieder horchte und eine
-Anmeldung den Dienst weckt (Block D).
+entfernt — zeigt **„Der Schlüssel ist entfernt."** und nichts weiter, und
+`systemctl is-active ssh.service` sagt danach **`active`**. Der Zusatz ist also an
+einen Zustand gebunden und keine Verzierung.
+
+**Und die fehlende Auskunft ist hier der bessere Beleg als die Zustandsabfrage.**
+Ein `is-active` nach dem Entfernen sagt, wie es jetzt steht, und nicht, wie es im
+Augenblick des Vorgangs stand. Die leere Meldung sagt beides: `spokenNote()` gibt
+nur dann `null` zurück, wenn `reloaded === true` ist — der Fall „gescheitert" bricht
+den Vorgang mit einer Fehlermeldung ab, „nichts zu ändern" kann es nicht sein, weil
+der Block sich geändert hat, und „keine sshd-Unit" wäre ein Satz, der dastünde.
+
+> **Eine Auskunft, die nur auf einem Weg entstehen kann, belegt den Weg — und ihr
+> Fehlen belegt den anderen.**
 
 ### Befund 23 — ein Zeitfenster, das vor dem Aufbau des Zustands beginnt
 
@@ -2374,17 +2382,15 @@ einschliesst und alles andere ausschliesst.
 **Für Befund 21 ändert das nichts, und zwar aus einem Grund, der die Prüfung selbst
 überflüssig macht:** Der Satz „ssh.service ist inactive" entsteht in
 `SftpAccess::reload()` in dem Zweig, der **vor** dem `systemctl reload` zurückgibt.
-Steht der Satz auf der Seite, ist kein Reload versucht worden.
-
-> **Wenn die Auskunft nur auf einem Weg entstehen kann, ist sie der Beleg für den
-> Weg.**
+Steht der Satz auf der Seite, ist kein Reload versucht worden — dieselbe Regel wie
+bei der Gegenprobe in N2, nur andersherum gelesen.
 
 ### Stand des Nachlaufs
 
 | | Zustand |
 |---|---|
 | Befund 20 | **am Server bestätigt** (N1) |
-| Befund 21 | **am Server bestätigt** (N2), Gegenprobe erschlossen statt gemessen |
+| Befund 21 | **am Server bestätigt** (N2), mit Gegenprobe bei laufendem Dienst |
 | Befund 23 | neu, am Prüfmittel, benannt und nicht behoben |
 
 **Offen bleiben damit drei Punkte**, alle mit Namen und Fälligkeit: Wand 2 aus

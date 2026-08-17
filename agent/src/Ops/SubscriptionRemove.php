@@ -6,6 +6,7 @@ namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Cron\CronFile;
 use SrvPanel\Agent\Filesystem;
 use SrvPanel\Agent\Op;
 use SrvPanel\Agent\PhpVersions;
@@ -65,6 +66,9 @@ final class SubscriptionRemove implements Op
         private readonly string $confDir = Site::CONF_DIR,
         private readonly string $logrotateDir = WebLogrotate::DIRECTORY,
         private readonly string $phpRoot = PhpVersions::PHP_ROOT,
+        private readonly string $cronDir = CronFile::DIR,
+        private readonly string $cronCommandDir = CronFile::COMMAND_DIR,
+        private readonly string $cronSpoolDir = CronApply::SPOOL_DIR,
     ) {}
 
     public static function name(): string
@@ -156,7 +160,7 @@ final class SubscriptionRemove implements Op
      */
     private function removeConfiguration(Context $context, string $name, string $user, string $root): array
     {
-        $entfernt = ['sites' => [], 'pools' => [], 'logrotate' => [], 'ssh_keys' => []];
+        $entfernt = ['sites' => [], 'pools' => [], 'logrotate' => [], 'ssh_keys' => [], 'cron' => []];
 
         foreach (glob($this->confDir.'/*.conf') ?: [] as $file) {
             $inhalt = (string) @file_get_contents($file);
@@ -205,6 +209,53 @@ final class SubscriptionRemove implements Op
 
         if (is_file($keyFile) && @unlink($keyFile)) {
             $entfernt['ssh_keys'][] = $keyFile;
+        }
+
+        /*
+         * **Die Zeitsteuerung** (P6 Schritt 9), und sie hinterlässt gleich drei
+         * Dinge ausserhalb der Abo-Wurzel: die Datei unter `/etc/cron.d`, je Job
+         * eine Befehlsdatei unter `/etc/srvpanel/cron`, und die Ablage der
+         * Aufzeichnungen unter `/var/spool/srvpanel/cron`.
+         *
+         * **Die Cron-Datei zuerst**, und die Reihenfolge ist hier nicht
+         * gleichgültig: Solange sie steht, startet cron jede Minute einen
+         * Wrapper. Nähme man ihm erst den Befehl weg, liefe bis zum Ende dieser
+         * Operation ein Job, der im Sekundentakt „Zu Job 1234 gibt es keinen
+         * Befehl" ins Protokoll schreibt — für ein Abonnement, das es nicht mehr
+         * gibt.
+         *
+         * > **Beim Abbauen geht zuerst weg, was noch etwas auslöst.**
+         *
+         * Der Rückbau eines Abonnements ist zugleich der Fall, den `docs/60 §9`
+         * gemessen hat: Ein Benutzername, den es nicht mehr gibt, lässt cron die
+         * **ganze** Datei verwerfen. Bliebe sie liegen, wäre das für diesen
+         * Kunden folgenlos — er ist weg —, aber die Datei stünde für immer als
+         * Fehlerzeile im Protokoll des Servers.
+         */
+        $cronFile = $this->cronDir.'/'.CronFile::name($user);
+
+        if (is_file($cronFile) && @unlink($cronFile)) {
+            $entfernt['cron'][] = $cronFile;
+        }
+
+        foreach (glob($this->cronCommandDir.'/'.CronFile::name($user).'-*.cmd') ?: [] as $command) {
+            if (@unlink($command)) {
+                $entfernt['cron'][] = $command;
+            }
+        }
+
+        /*
+         * Die Ablage geht als Baum, weil `cron-run` dort schreibt und niemand
+         * weiss, was noch darin liegt: Aufzeichnungen, Sperrdateien, und was ein
+         * Kunde sonst hineingelegt hat — es ist sein Verzeichnis gewesen.
+         * {@see Filesystem::removeTree()} ist dieselbe Stelle, die auch die
+         * Abo-Wurzel abräumt.
+         */
+        $spool = $this->cronSpoolDir.'/'.$user;
+
+        if (is_dir($spool)) {
+            Filesystem::removeTree($spool);
+            $entfernt['cron'][] = $spool;
         }
 
         $this->reload($context, $versionen, $entfernt['sites'] !== []);

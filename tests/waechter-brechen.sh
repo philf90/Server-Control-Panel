@@ -10635,6 +10635,31 @@ pruefe "Ausgabe ungeprueft in die Antwort" CronOutputEncodingTest failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronOutputEncodingTest passed
 
+echo "── SubscriptionCleanupTest: die Cron-Datei bleibt beim Rueckbau liegen ──"
+#
+# docs/35: Wer etwas anlegt, das auf der Platte bleibt, baut den Weg zurueck mit.
+# Die Zeitsteuerung hinterlaesst drei Dinge ausserhalb der Abo-Wurzel — Datei,
+# Befehle, Ablage —, und keines davon nimmt das Loeschen des Verzeichnisses mit.
+# Bliebe die Datei liegen, schriebe cron fuer immer "Syntax error" ins
+# Protokoll: Den Benutzer, den sie nennt, gibt es dann nicht mehr.
+vorher_datei agent/src/Ops/SubscriptionRemove.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SubscriptionRemove.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $cronFile = $this->cronDir.'/'.CronFile::name($user);
+
+        if (is_file($cronFile) && @unlink($cronFile)) {
+            $entfernt['cron'][] = $cronFile;
+        }
+"""
+assert s.count(alt) == 1, 'Zielblock nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, ''))
+PY2
+griff_datei agent/src/Ops/SubscriptionRemove.php "Cron-Datei bleibt liegen" &&
+pruefe "Cron-Datei bleibt liegen" SubscriptionCleanupTest failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SubscriptionCleanupTest passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

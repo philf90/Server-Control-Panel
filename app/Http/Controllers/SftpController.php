@@ -128,7 +128,7 @@ final class SftpController extends Controller
         ]);
 
         try {
-            $key = $this->sftp->add(
+            $ergebnis = $this->sftp->add(
                 $subscription,
                 $data['key'],
                 $data['label'],
@@ -163,12 +163,12 @@ final class SftpController extends Controller
         }
 
         $this->audit->record('sftp.key.add', subscriptionId: (int) $subscription->id, context: [
-            'fingerprint' => $key->fingerprint,
-            'type' => $key->type,
+            'fingerprint' => $ergebnis['key']->fingerprint,
+            'type' => $ergebnis['key']->type,
         ]);
 
         return to_route('sftp.show', ['subscription' => $subscription->id])
-            ->with('success', 'Der Schlüssel ist eingetragen.');
+            ->with('success', self::spoken('Der Schlüssel ist eingetragen.', $ergebnis['note']));
     }
 
     public function destroy(Subscription $subscription, SshKey $key): RedirectResponse
@@ -183,7 +183,7 @@ final class SftpController extends Controller
         abort_unless((int) $key->subscription_id === (int) $subscription->id, 404);
 
         try {
-            $this->sftp->remove($subscription, $key);
+            $note = $this->sftp->remove($subscription, $key);
         } catch (AgentException $error) {
             return to_route('sftp.show', ['subscription' => $subscription->id])
                 ->with('error', $error->getMessage());
@@ -194,7 +194,24 @@ final class SftpController extends Controller
         ]);
 
         return to_route('sftp.show', ['subscription' => $subscription->id])
-            ->with('success', 'Der Schlüssel ist entfernt.');
+            ->with('success', self::spoken('Der Schlüssel ist entfernt.', $note));
+    }
+
+    /**
+     * Die Erfolgsmeldung, und dahinter die Auskunft des Agenten, wenn es eine gibt.
+     *
+     * **Der Fund** (`docs/59`, Befund 21): `sftp.access` baut den Satz
+     * „ssh.service ist inactive — die neue Datei gilt ab der nächsten Verbindung",
+     * und niemand trug ihn. `docs/58` Punkt 9 verlangt ihn ausdrücklich; ohne ihn
+     * liest der Kunde „eingetragen" und weiss nicht, dass sein laufender Zugang
+     * noch den alten Stand benutzt.
+     *
+     * > **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+     * > keine.**
+     */
+    private static function spoken(string $success, ?string $note): string
+    {
+        return $note === null ? $success : $success.' '.$note.'.';
     }
 
     /**

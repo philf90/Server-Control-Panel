@@ -115,7 +115,7 @@ final class PgServerInstall implements Op
             'no_cluster' => throw AgentException::denied(
                 'PostgreSQL ist installiert, aber es gibt keinen Cluster. Nach einer frischen Installation '
                 .'legt das Paket einen an — es hat also jemand einen entfernt. Anlegen lässt er sich mit '
-                .'`pg_createcluster <fassung> main --start`, und wer das tut, sollte wissen, warum der alte '
+                .'„pg_createcluster <fassung> main --start", und wer das tut, sollte wissen, warum der alte '
                 .'fort ist.',
             ),
             'ambiguous' => throw AgentException::denied((string) $before['reason']),

@@ -2262,3 +2262,139 @@ die nächste Fassung):
    die Messung nicht gefahren.
 4. **Befund 22** — der Prüfkörper der Gegenprobe an die Breite gebunden. Fällig
    mit `docs/46` Schritt 12.
+
+---
+
+## Der Nachlauf — 17. August 2026, gegen `v0.6.0-rc.12`
+
+Kein dritter Durchgang, sondern die vier Zeilen aus der Liste oben: die Befunde 20
+und 21 waren **aus dem Quelltext belegt und nicht gemessen**, und genau das ändert
+sich hier.
+
+### N0 — Fassung und Ausgangszustand
+
+| | erwartet | gemessen |
+|---|---|---|
+| `srvpanel --version` | `0.6.0-rc.12` | **`0.6.0-rc.12`** |
+| Prüfsumme `sshd_config` | REF-C′ | **`8e5c38ed…27aed`** — zeichengleich |
+| `sshd -t` | `rc=0` | **`rc=0`** |
+
+Die Prüfsumme ist hier der eigentliche Wert: Diese Fassung ändert Meldungen und das
+Weiterreichen einer Auskunft, **am verwalteten Block nichts** — und das steht jetzt
+als Messung da und nicht als Behauptung.
+
+**Zwei `sh: 0: getcwd() failed`-Zeilen daneben sind kein Befund.** Die Sitzung stand
+in `/opt/srvpanel/current`, und `prune_releases` im `postinst` räumt beim Update
+jedes Verzeichnis unter `/opt/srvpanel/releases` ab, das nicht die laufende Fassung
+ist — absichtlich, mit dem Rückweg unter `/opt/srvpanel/rollback` aus harten
+Verweisen. Die Shell hält damit ein gelöschtes Arbeitsverzeichnis; die Messungen
+laufen über absolute Pfade.
+
+> **Eine Warnung, die vom Standort des Aufrufers kommt, sagt nichts über den
+> Aufgerufenen.**
+
+### N1 — Befund 20 ist am Server bestätigt
+
+Eingegeben wurde die Ausgabe von `ssh-keygen -l` (auf einem Windows-Rechner:
+`ssh-keygen -l -f "$env:USERPROFILE\.ssh\p6-sftp.pub"`).
+
+| erwartet | gemessen |
+|---|---|
+| Die Eingabe wird abgewiesen | erfüllt — „Das Formular wurde nicht gespeichert." |
+| Die Begründung erklärt den Fingerabdruck | zeichengleich mit `PublicKey::whyNot()` |
+| **Keine Auszeichnung im Satz** | erfüllt — `„ssh-keygen -l"`, `„.pub"`, `„ssh-ed25519"` in deutschen Anführungszeichen, kein `**`, kein Rückstrich |
+| Der Satz steht oben in der Zusammenfassung | erfüllt |
+| Das Feld ist rot | erfüllt — und hier **richtig**: Eine abgewiesene Eingabe *ist* ein Fehler am Feld; Befund 11 betraf den anderen Fall |
+
+**Und weil Befund 20 in vier Aufnahmen übersehen wurde, ist diese ganz gelesen
+worden** und nicht nur an der Meldung: Fassung `0.6.0-rc.12` im Kopf, der Menüpunkt
+„SFTP-Zugang" mit den zwei Pfeilen hinter „Dateien" (Befund 19), die Lage als
+Fliesstext mit richtigem Zählnumerus (Befund 4), der Hinweis unter dem Feld ohne
+Auszeichnung, und die Schlüsseltabelle in ihrem Rollbehälter wie in Block F
+gemessen.
+
+Eine Nebenbeobachtung, die belegt, dass die Erkennung an der **Form** hängt und
+nicht am Bestand: Der eingefügte Fingerabdruck war der des Schlüssels, der schon
+eingetragen war. Abgewiesen wurde er mit der Begründung über die Form — und nicht
+mit „gibt es schon".
+
+### N2 — Befund 21 ist am Server bestätigt
+
+```
+systemctl stop ssh.socket ssh.service   →  inactive / nichts horcht
+```
+
+Dann die Eintragung im Panel, bei ruhendem Dienst und geschlossenem Port:
+
+| erwartet | gemessen |
+|---|---|
+| Der Vorgang läuft durch | erfüllt |
+| Der Satz über den ruhenden Dienst | **„Der Schlüssel ist eingetragen. ssh.service ist inactive — die neue Datei gilt ab der nächsten Verbindung."** |
+| `ssh.service` bleibt `inactive` | erfüllt |
+
+**Damit ist die vierte Zeile von `docs/58` Punkt 9 belegt** — die, die Block D offen
+lassen musste, weil der Satz entstand und niemand ihn trug.
+
+Die Gegenprobe — dieselbe Seite nach `systemctl start ssh.socket`, Schlüssel wieder
+entfernt — zeigt **„Der Schlüssel ist entfernt."** und nichts weiter, und
+`systemctl is-active ssh.service` sagt danach **`active`**. Der Zusatz ist also an
+einen Zustand gebunden und keine Verzierung.
+
+**Und die fehlende Auskunft ist hier der bessere Beleg als die Zustandsabfrage.**
+Ein `is-active` nach dem Entfernen sagt, wie es jetzt steht, und nicht, wie es im
+Augenblick des Vorgangs stand. Die leere Meldung sagt beides: `spokenNote()` gibt
+nur dann `null` zurück, wenn `reloaded === true` ist — der Fall „gescheitert" bricht
+den Vorgang mit einer Fehlermeldung ab, „nichts zu ändern" kann es nicht sein, weil
+der Block sich geändert hat, und „keine sshd-Unit" wäre ein Satz, der dastünde.
+
+> **Eine Auskunft, die nur auf einem Weg entstehen kann, belegt den Weg — und ihr
+> Fehlen belegt den anderen.**
+
+### Befund 23 — ein Zeitfenster, das vor dem Aufbau des Zustands beginnt
+
+Die Prüfung „keine `Reload`-Zeile im Journal" ist **nicht auswertbar** gefahren
+worden. Gemessen:
+
+```
+journalctl --since "-3 min" | grep -i reload
+Aug 17 15:23:46 systemd[1]: Reloading ssh.service – OpenBSD Secure Shell server...
+Aug 17 15:23:46 systemd[1]: Reloaded ssh.service – OpenBSD Secure Shell server.
+```
+
+Nach dem Wortlaut der Vorschrift wäre das ein Fehlschlag. Es ist keiner, und der
+Beleg steckt in derselben Ausgabe: **Ein `reload` auf eine inaktive Unit gibt es
+nicht** — systemd lehnt den Auftrag ab, statt „Reloaded" zu melden. Die beiden
+Zeilen müssen also aus einer Aktion **vor** dem Anhalten stammen, und die gab es:
+das Entfernen des vorigen Schlüssels bei laufendem Dienst.
+
+Das Fenster von drei Minuten war zu weit gewählt und hat den Aufbau des Zustands
+mitgemessen. Richtig ist ein Stempel **unmittelbar vor** der Panelaktion
+(`date -u +%Y-%m-%d\ %H:%M:%S` und `journalctl --since "<stempel>"`).
+
+> **Ein Zeitfenster, das vor dem Aufbau des Zustands beginnt, misst den Aufbau
+> mit.**
+
+Das ist der **dritte** Fehlgriff am Journal in diesem Lauf nach den drei aus
+Befund 14 — und derselbe Kern: Die Frage lautet „hat *diese* Aktion geschrieben",
+und ein Filter über Zeit oder Unit beantwortet sie nur, wenn er genau diese Aktion
+einschliesst und alles andere ausschliesst.
+
+**Für Befund 21 ändert das nichts, und zwar aus einem Grund, der die Prüfung selbst
+überflüssig macht:** Der Satz „ssh.service ist inactive" entsteht in
+`SftpAccess::reload()` in dem Zweig, der **vor** dem `systemctl reload` zurückgibt.
+Steht der Satz auf der Seite, ist kein Reload versucht worden — dieselbe Regel wie
+bei der Gegenprobe in N2, nur andersherum gelesen.
+
+### Stand des Nachlaufs
+
+| | Zustand |
+|---|---|
+| Befund 20 | **am Server bestätigt** (N1) |
+| Befund 21 | **am Server bestätigt** (N2), mit Gegenprobe bei laufendem Dienst |
+| Befund 23 | neu, am Prüfmittel, benannt und nicht behoben |
+
+**Offen bleiben damit drei Punkte**, alle mit Namen und Fälligkeit: Wand 2 aus
+Punkt 11, Befund 22 (der Prüfkörper an die Breite gebunden, fällig mit `docs/46`
+Schritt 12) und Befund 23 (der Zeitstempel in der Vorschrift, fällig beim nächsten
+Journalbeleg). **Dreiundzwanzig Befunde, und keinen davon hat ein Test gefunden:**
+fünfzehn am Panel, sechs am Prüfmittel, zwei am Kriterium.

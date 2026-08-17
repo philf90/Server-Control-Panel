@@ -44,18 +44,26 @@ enum CronRunStatus: string
     }
 
     /**
-     * Der Ton, in dem die Marke gezeichnet wird.
+     * Die Spielart der Marke, in der ein Zustand gezeichnet wird.
      *
-     * Die Farben stehen in `resources/css/app.css` und nicht hier — hier steht
-     * nur, welche Bedeutung ein Zustand hat. Ein Hexwert an dieser Stelle wäre
-     * derselbe Fehler wie einer in einer Komponente.
+     * **Die Werte sind die von `.badge` in `resources/css/app.css`** und keine
+     * eigene Sprache: `ok`, `warn`, `critical`, `neutral`. Der erste Entwurf
+     * hier hiess `good`/`bad`/`muted` — lesbar, und es gab keine einzige
+     * CSS-Regel dazu. Die Marken wären farblos geblieben, und nichts hätte es
+     * gemeldet ausser einem Blick auf die Seite.
+     *
+     * > **Ein Name, den man sich ausdenkt, weil er treffender klingt, zeigt auf
+     * > nichts — und sieht im Quelltext genauso aus wie einer, der trifft.**
+     *
+     * Die Farben selbst stehen ausschliesslich in `app.css`; hier steht nur,
+     * welche Bedeutung ein Zustand hat.
      */
     public function tone(): string
     {
         return match ($this) {
-            self::Ok => 'good',
-            self::Failed, self::Timeout => 'bad',
-            self::Skipped => 'muted',
+            self::Ok => 'ok',
+            self::Failed, self::Timeout => 'critical',
+            self::Skipped => 'neutral',
         };
     }
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\AuditController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\Auth\TwoFactorSetupController;
+use App\Http\Controllers\CronController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\DatabaseSettingsController;
@@ -546,6 +547,36 @@ Route::middleware('auth')->group(function (): void {
     Route::delete('/subscriptions/{subscription}/sftp/keys/{key}', [SftpController::class, 'destroy'])
         ->middleware('can:manageSftp,subscription')
         ->name('sftp.keys.destroy');
+
+    /*
+     * **Die Zeitsteuerung** (P6 Schritt 9). `/cron` ohne Kennung, aus demselben
+     * Grund wie `/files` und `/sftp`: Das Merkmal hängt an *einem* Abonnement,
+     * und die Adresse beantwortet die Frage „welches" — bei genau einem führt
+     * sie hinein, bei mehreren zur Auswahl. Dies ist das dritte Merkmal mit
+     * dieser Frage; die Antwort ist inzwischen die Regel und keine Entdeckung.
+     */
+    Route::get('/cron', [CronController::class, 'pick'])
+        ->name('cron.pick');
+
+    Route::get('/subscriptions/{subscription}/cron', [CronController::class, 'show'])
+        ->middleware('can:manageCron,subscription')
+        ->name('cron.show');
+
+    Route::post('/subscriptions/{subscription}/cron', [CronController::class, 'store'])
+        ->middleware('can:manageCron,subscription')
+        ->name('cron.store');
+
+    Route::put('/subscriptions/{subscription}/cron/{job}', [CronController::class, 'update'])
+        ->middleware('can:manageCron,subscription')
+        ->name('cron.update');
+
+    Route::delete('/subscriptions/{subscription}/cron/{job}', [CronController::class, 'destroy'])
+        ->middleware('can:manageCron,subscription')
+        ->name('cron.destroy');
+
+    Route::get('/subscriptions/{subscription}/cron/{job}/runs', [CronController::class, 'runs'])
+        ->middleware('can:manageCron,subscription')
+        ->name('cron.runs');
 
     Route::get('/databases', [DatabaseController::class, 'index'])
         ->middleware('can:viewAny,'.Database::class)

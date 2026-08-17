@@ -1848,3 +1848,23 @@ hingehören:
 Dasselbe Muster wie bei Befund 8 und 15: eine Anweisung, die ein Ergebnis
 erwartet, das der Code in diesem Zustand nicht erzeugen kann. **Befund 11 und
 Befund 4 sind damit weiter ungeprüft** und bekommen ihren eigenen Block.
+
+## C2 — Befund 4 bestätigt, Befund 11 übersprungen
+
+Zeile entfernt (Prüfsumme wieder **REF-C′**), Schlüssel entfernt, wieder
+eingetragen, dann die Wurzel dem Benutzer gegeben:
+
+> **Der Zugang kommt so nicht zustande.** `/var/www/vhosts/p6-b.invalid` gehört
+> p1136 und nicht root (Eigentümer `p1136`, Rechte `0755`).
+
+**Zwischen `zustande.` und dem Pfad steht ein Leerzeichen.** Im ersten Durchgang
+stand dort `zustande./etc/srvpanel/ssh` — **Befund 4 ist behoben und am Server
+bestätigt.** Danach `chown root:root` zurück, Prüfsumme unverändert `8e5c38ed…27aed`.
+
+**Befund 11 ist dabei übersprungen worden.** Der Schlüssel wurde bei *heiler*
+Datei wieder eingetragen; der Weg über `store()` mit kaputter `sshd_config` — der
+einzige, auf dem die Feldmeldung entsteht — ist nicht gegangen worden. Er bleibt
+als einzelne Messung offen.
+
+> **Eine Anleitung mit zwei Schritten in einem Block verliert den, der weniger
+> sichtbar ist.**

@@ -112,15 +112,36 @@ function dauer(ms: number): string {
 
                 <td data-column="Ausgabe">
                   <!--
-                    **`.output` scrollt selbst und bricht um.** `docs/48` hat
-                    gemessen, was eine Zelle anrichtet, die rollen darf und keine
-                    Obergrenze hat: 5710 px Inhalt bei einem Dokumentüberlauf von
-                    0 px — zehn Bildschirme Rollen durch eine einzige Zelle.
+                    **Ein `div` im `.output`, und das ist keine Verzierung.**
+                    Hier stand `<pre class="output">` mit einem Kommentar
+                    darüber, `.output` rolle selbst und breche um. Das war
+                    schlicht falsch: In `app.css` trägt **`.output > div`** die
+                    Regeln `white-space: pre-wrap` und `word-break: break-word`,
+                    der Behälter selbst nur `overflow-y`. Ohne das innere `div`
+                    gilt `white-space: pre`, und eine Ausgabezeile ohne
+                    Leerzeichen schiebt die ganze Seite.
+
+                    Gemessen mit dem Aufsatz aus `docs/58 §12`: Mit `pre`
+                    steht `white-space: pre`, mit dem inneren `div`
+                    `pre-wrap`/`break-word` — der Unterschied ist belegt.
+
+                    > **Ein Kommentar, der eine Eigenschaft behauptet, prüft sie
+                    > nicht — er macht nur unwahrscheinlicher, dass jemand
+                    > nachsieht.**
+
+                    **Was damit noch nicht behoben ist:** Die Zelle bleibt
+                    3163 px breit, weil `table-layout: auto` sie auf ihre
+                    Inhaltsbreite zieht und `pre-wrap` erst an einer *begrenzten*
+                    Breite umbricht. Der Dokumentüberlauf ist 0 px, weil
+                    `.scrolls` das aufnimmt — genau der Fall aus `docs/48`:
 
                     > **Eine Zelle, die rollen darf, hat keine Obergrenze — sie
                     > hat nur keine Zahl, die sich beschwert.**
+
+                    Das gehört als Regel nach `app.css` und nicht hierher; es ist
+                    als offener Punkt benannt.
                   -->
-                  <pre v-if="run.output" class="output">{{ run.output }}</pre>
+                  <div v-if="run.output" class="output"><div>{{ run.output }}</div></div>
                   <span v-else class="quiet">keine Ausgabe</span>
 
                   <span v-if="run.truncated" class="quiet">

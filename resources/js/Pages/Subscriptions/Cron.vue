@@ -342,7 +342,20 @@ function entfernen(job: Job): void {
           </fieldset>
 
           <div class="field">
-            <label class="check">
+            <!--
+              **`toggle` und nicht `check`.** Hier stand `class="check"` am
+              `<label>` — und `.check` ist in `app.css` die Klasse des
+              **Kästchens selbst**: `flex: none`, 17×17 px. Das Label bekam damit
+              17 px Breite, und die Beschriftung stand wortweise untereinander
+              am Seitenende.
+
+              Der Dokumentüberlauf war dabei **0 px**. Gefunden hat es die
+              Aufnahme bei 390 px und nicht die Zahl.
+
+              > **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur
+              > einen Betrachter.**
+            -->
+            <label class="toggle">
               <input v-model="form.active" type="checkbox">
               <span>Aktiv — der Job läuft nach seinem Zeitplan</span>
             </label>

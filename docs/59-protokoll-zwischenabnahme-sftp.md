@@ -562,6 +562,39 @@ also genau die Datei, die geprüft wurde. Die Nachbardatei ist danach weg, die
 Sperre daneben bleibt liegen; sie sitzt bewusst neben der Datei und nicht auf
 ihr, und ist damit ein erwartetes Artefakt und kein Rest.
 
+### Phase C — und der Block ist eine reine Funktion des Sollzustands
+
+Zeile entfernt, Schlüssel eingetragen (Bezeichnung `Win11TestNeu`):
+
+| | gemessen |
+|---|---|
+| `sshd -t` nach dem Entfernen | `rc=0` |
+| Prüfsumme direkt danach | `2b5a070e…6852` — **REF-A** |
+| Der Vorgang im Panel | „Der Schlüssel ist eingetragen." |
+| `sshd -t` danach | `rc=0` |
+| Schlüsseldatei | `-rw-r--r-- 1 root root 314 … p1136` |
+| Prüfsumme mit Block | `4a141234…9018e` — **REF-C** |
+
+**Zwei Zahlen sind dabei mehr als eine Bestätigung.**
+
+**REF-C ist zeichengleich mit der Sicherung von vor Punkt 7** (`4a141234…9018e`).
+Der Weg dorthin führte über einen entfernten Block, eine kaputte Datei, einen
+abgebrochenen Vorgang und einen neuen Schlüssel mit anderer Bezeichnung — und die
+Datei ist Byte für Byte dieselbe wie Stunden vorher.
+
+> **Ein verwalteter Bereich, der aus demselben Sollzustand zweimal dieselbe Datei
+> erzeugt, ist eine Funktion. Alles andere ist ein Verlauf.**
+
+Zusammen mit REF-A aus Phase A stehen damit **zwei** Zustände als exakte Werte
+da: ohne Zugang `2b5a070e…6852`, mit einem Zugang `4a141234…9018e`, jeder zweimal
+getroffen.
+
+**Und die 314 Byte gegen die 311 aus Punkt 4** sind die dritte Bestätigung,
+diesmal für den Inhalt: Die Bezeichnung hiess vorher `TestWin11` (neun Zeichen)
+und jetzt `Win11TestNeu` (zwölf) — genau drei Byte mehr. Die Datei trägt also die
+Bezeichnung aus dem Panel und nichts sonst, und zwar nachrechenbar statt
+angesehen.
+
 ---
 
 ## Befunde

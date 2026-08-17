@@ -19,9 +19,18 @@ Protokoll, das im Voraus geschrieben wird, hält fest, was jemand erwartet hat.
 
 | | Zustand |
 |---|---|
-| 0a Konsole beim Anbieter offen **und benutzt** | **offen — nachgefragt** |
-| 0b zweite root-Sitzung offen | **offen — nachgefragt** |
+| 0a Konsole beim Anbieter offen **und benutzt** | **erledigt** |
+| 0b zweite root-Sitzung offen | **erledigt** |
 | 0c `sshd_config` gesichert, Prüfsumme notiert | **erledigt** |
+
+**0a:** netcup-Konsole („Bildschirm"), `cloudsrv24 tty1`, als root angemeldet,
+`asd` getippt, `-bash: asd: command not found` gesehen. Ein lokaler Bildschirm
+und keine SSH-Sitzung — also ein Weg hinein, der nicht durch die Tür führt, die
+dieser Lauf zusperren kann. Ubuntu 24.04.4 LTS, Kernel 6.8.0-137-generic,
+Konsolenzeit Mo 17. Aug 09:00 CEST 2026.
+
+**0b:** Eine zweite root-Sitzung über SSH ist offen und bleibt es (Angabe des
+Betreibers).
 
 **0c, gemessen am 16. August 2026 auf `cloudsrv24`:**
 
@@ -41,6 +50,27 @@ root-Eingabeaufforderung; ob es die Konsole des Anbieters oder eine
 SSH-Sitzung ist, geht daraus nicht hervor, und ob eine **zweite** Sitzung offen
 bleibt, ebenfalls nicht. Nachgefragt statt angenommen — der ganze Punkt 0
 besteht daraus, das nicht zu tun.
+
+### Ein Befund aus Punkt 0, den niemand gesucht hat
+
+Die Konsolenaufnahme zeigt im Kundenbereich den Hinweis **„Neustart
+erforderlich"**. Das ist für diesen Lauf keine Nebensache:
+
+| | |
+|---|---|
+| kaputte Datei + **Reload** | der sshd terminiert (`docs/57 §5`) |
+| kaputte Datei + **Neustart** | der Dienst kommt gar nicht hoch (`docs/38`, M17) |
+
+Punkt 8 stellt absichtlich für einen Augenblick einen Zustand her, in dem
+`sshd_config` eine unsinnige Zeile trägt. Ein Neustart in genau diesem Fenster
+— ausgelöst von einem Paketlauf, einem Wartungsfenster des Anbieters oder
+versehentlich — macht aus einem geprüften Zustand einen Ausschluss.
+
+> **Ein ausstehender Neustart ist eine geladene Waffe, die auf den Zeitpunkt
+> wartet, an dem jemand anders abdrückt.**
+
+**Auflage für den Rest des Laufs:** kein Neustart, und vor jedem Neustart, der
+sich nicht vermeiden lässt, muss `sshd -t` still sein.
 
 ---
 

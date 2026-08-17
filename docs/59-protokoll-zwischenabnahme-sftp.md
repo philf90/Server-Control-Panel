@@ -657,6 +657,60 @@ Kunde, der gerade aufgeräumt hat, liest, dass er etwas kaputt gemacht hat.
 Nach der Korrektur steht dort „Es ist kein Schlüssel eingetragen — damit ist der
 Zugang aus." Nachzuprüfen gegen die nächste Fassung, zusammen mit Punkt 3.
 
+### Phase E, zweite Hälfte — und Punkt 8 ist erfüllt
+
+Schlüssel wieder eingetragen (Bezeichnung `Win11TestNeu2`):
+
+| | gemessen |
+|---|---|
+| Der Vorgang | „Der Schlüssel ist eingetragen." |
+| Die Lage | „Der Zugang steht: 1 Schlüssel, Verzeichnis und Rechte in Ordnung." |
+| `sshd -t` | `rc=0` |
+| Schlüsseldatei | `315` Byte |
+| Der Block | am Ende, `Match all` als letzte Zeile des Bereichs |
+| Prüfsumme | `4a141234…9018e` — **REF-C zum dritten Mal** |
+| Anmeldung | `Connected to cloudsrv24.de.` |
+
+**Zwei Zahlen, die sich unabhängig voneinander bewegen, und beide stimmen.** Die
+Bezeichnung hiess `Win11TestNeu2` statt `Win11TestNeu` — ein Zeichen mehr, und
+die Schlüsseldatei wuchs von 314 auf **315** Byte. Die Prüfsumme von
+`sshd_config` blieb dabei **gleich**, weil der Block die Bezeichnung nicht kennt:
+Er nennt Benutzer und Wurzel.
+
+> **Zwei Grössen, die sich verschieden verhalten müssen, und genau so tun — das
+> ist mehr als eine Bestätigung, das ist die Bauart.**
+
+**Damit sind alle vier Zeilen von Punkt 8 aus `docs/58` erfüllt**, in beiden
+Richtungen des Blocks, mit fünf Prüfsummen unterwegs und je einem Vorgänger, gegen
+den jede steht. Dazu die zwei Befunde 12 und 13, die keiner davon verlangt hat.
+
+### Die Zeile aus Punkt 6, dritter Anlauf — sie ist nicht da
+
+```
+journalctl -u ssh --since today --no-pager -g 'bad ownership'
+-- No entries --
+```
+
+**Das ist keine Zeitfensterfrage mehr.** Der erste Anlauf war zu eng (`2 min`),
+der zweite hatte kein Fenster und musste abgebrochen werden; dieser ist bemessen,
+läuft durch und sagt: heute keine solche Zeile.
+
+`tests/sftp-messen.sh` findet dieselbe Meldung dagegen zuverlässig — dort liest
+sie aus der Datei, die `sshd -E` schreibt, und nicht aus dem Journal.
+
+> **Eine Meldung, die in einer Protokolldatei steht, muss deswegen nicht im
+> Journal stehen.**
+
+Offen ist damit, ob die Zeile am Unit-Filter hängt, an der Ausgabe des
+Sitzungskindes oder ob sie das Journal überhaupt nicht erreicht. **Und die
+Antwort verschiebt eine Begründung dieses Schritts:** `docs/50 §6` und
+`SftpCheck` stehen auf dem Satz „der Grund steht nur im Serverprotokoll". Steht
+er dort nicht, ist die Kettenprüfung des Panels nicht die bequemere Quelle,
+sondern die **einzige** — das macht das Kriterium aus `docs/51 §9` wichtiger und
+eine Zeile aus `docs/58` falsch.
+
+Zu messen ohne jeden Eingriff, das Journal ist historisch.
+
 ---
 
 ## Befunde

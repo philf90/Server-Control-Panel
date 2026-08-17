@@ -623,6 +623,40 @@ stand:** „Die Bestätigung von Entfernen hat keinen Erfolg danach." Es stand
 **keine** Meldung auf der Seite — kein Grün, kein Rot. Das ist Befund 13, und er
 ist der grössere von beiden.
 
+### Phase E — der Rückbau, und ein alter Befund als Bestätigung
+
+Zeile entfernt (`rc=0`, Prüfsumme **REF-C** `4a141234…9018e`), dann im Panel den
+Schlüssel entfernt — und diesmal ging es durch:
+
+| | gemessen |
+|---|---|
+| Der Vorgang | „Der Schlüssel ist entfernt." |
+| `sshd -t` | `rc=0` |
+| `/etc/srvpanel/ssh/` | `total 0` |
+| Prüfsumme | `2b5a070e…6852` — **REF-A** |
+
+**Der Zustand „kein Zugang" ist damit viermal derselbe Wert**: bei 0c, in Phase A,
+vor dem Eintragen in Phase C und jetzt. Zwischen dem ersten und dem letzten liegen
+ein Block, zwei kaputte Dateien, zwei abgebrochene Vorgänge und ein Schlüssel mit
+zwei verschiedenen Bezeichnungen.
+
+**Und die Seite hat dabei Befund 2 und 3 noch einmal vorgeführt** — beide sind im
+Zweig behoben, aber nicht in `rc.10`: Neben der grünen Meldung „Der Schlüssel ist
+entfernt." stand rot „Der Zugang kommt so nicht zustande.
+`/etc/srvpanel/ssh/p1136` gibt es nicht" und orange „gilt ein anderes Verzeichnis
+… `none`".
+
+Das ist kein neuer Fund, sondern die beste Begründung für die alten: **Der
+Erfolgsfall und die Fehlermeldung standen gleichzeitig auf derselben Seite.** Ein
+Kunde, der gerade aufgeräumt hat, liest, dass er etwas kaputt gemacht hat.
+
+> **Ein Zustand, in dem noch nichts eingerichtet ist, sieht für eine Prüfung
+> genauso aus wie einer, in dem etwas kaputt ist — und nur der Code kennt den
+> Unterschied.**
+
+Nach der Korrektur steht dort „Es ist kein Schlüssel eingetragen — damit ist der
+Zugang aus." Nachzuprüfen gegen die nächste Fassung, zusammen mit Punkt 3.
+
 ---
 
 ## Befunde

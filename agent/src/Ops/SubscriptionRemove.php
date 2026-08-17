@@ -6,6 +6,7 @@ namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Cron\CronFile;
 use SrvPanel\Agent\Filesystem;
 use SrvPanel\Agent\Op;
 use SrvPanel\Agent\PhpVersions;
@@ -65,6 +66,9 @@ final class SubscriptionRemove implements Op
         private readonly string $confDir = Site::CONF_DIR,
         private readonly string $logrotateDir = WebLogrotate::DIRECTORY,
         private readonly string $phpRoot = PhpVersions::PHP_ROOT,
+        private readonly string $cronDir = CronFile::DIR,
+        private readonly string $cronCommandDir = CronFile::COMMAND_DIR,
+        private readonly string $cronSpoolDir = CronApply::SPOOL_DIR,
     ) {}
 
     public static function name(): string
@@ -114,6 +118,12 @@ final class SubscriptionRemove implements Op
         $context->progress(60, 'Verzeichnisse entfernen');
         $removed = $this->removeRoot($root, $user);
 
+        $spool = $this->removeCronSpool($user);
+
+        if ($spool !== null) {
+            $configuration['cron'][] = $spool;
+        }
+
         $context->progress(80, 'Systembenutzer und Gruppe entfernen');
         $account = $this->removeAccount($context, $user, $entry !== false);
 
@@ -156,7 +166,7 @@ final class SubscriptionRemove implements Op
      */
     private function removeConfiguration(Context $context, string $name, string $user, string $root): array
     {
-        $entfernt = ['sites' => [], 'pools' => [], 'logrotate' => [], 'ssh_keys' => []];
+        $entfernt = ['sites' => [], 'pools' => [], 'logrotate' => [], 'ssh_keys' => [], 'cron' => []];
 
         foreach (glob($this->confDir.'/*.conf') ?: [] as $file) {
             $inhalt = (string) @file_get_contents($file);
@@ -205,6 +215,39 @@ final class SubscriptionRemove implements Op
 
         if (is_file($keyFile) && @unlink($keyFile)) {
             $entfernt['ssh_keys'][] = $keyFile;
+        }
+
+        /*
+         * **Die Zeitsteuerung** (P6 Schritt 9), und sie hinterlässt gleich drei
+         * Dinge ausserhalb der Abo-Wurzel: die Datei unter `/etc/cron.d`, je Job
+         * eine Befehlsdatei unter `/etc/srvpanel/cron`, und die Ablage der
+         * Aufzeichnungen unter `/var/spool/srvpanel/cron`.
+         *
+         * **Die Cron-Datei zuerst**, und die Reihenfolge ist hier nicht
+         * gleichgültig: Solange sie steht, startet cron jede Minute einen
+         * Wrapper. Nähme man ihm erst den Befehl weg, liefe bis zum Ende dieser
+         * Operation ein Job, der im Sekundentakt „Zu Job 1234 gibt es keinen
+         * Befehl" ins Protokoll schreibt — für ein Abonnement, das es nicht mehr
+         * gibt.
+         *
+         * > **Beim Abbauen geht zuerst weg, was noch etwas auslöst.**
+         *
+         * Der Rückbau eines Abonnements ist zugleich der Fall, den `docs/60 §9`
+         * gemessen hat: Ein Benutzername, den es nicht mehr gibt, lässt cron die
+         * **ganze** Datei verwerfen. Bliebe sie liegen, wäre das für diesen
+         * Kunden folgenlos — er ist weg —, aber die Datei stünde für immer als
+         * Fehlerzeile im Protokoll des Servers.
+         */
+        $cronFile = $this->cronDir.'/'.CronFile::name($user);
+
+        if (is_file($cronFile) && @unlink($cronFile)) {
+            $entfernt['cron'][] = $cronFile;
+        }
+
+        foreach (glob($this->cronCommandDir.'/'.CronFile::name($user).'-*.cmd') ?: [] as $command) {
+            if (@unlink($command)) {
+                $entfernt['cron'][] = $command;
+            }
         }
 
         $this->reload($context, $versionen, $entfernt['sites'] !== []);
@@ -488,5 +531,44 @@ final class SubscriptionRemove implements Op
         }
 
         return $found;
+    }
+
+    /**
+     * Die Ablage der Cron-Aufzeichnungen — als Baum, und **nach** dem Aufräumen
+     * in der Sandbox.
+     *
+     * ## Warum sie nicht bei den anderen Cron-Resten steht
+     *
+     * Datei und Befehle sind einzelne `unlink`; dies hier ist ein Baumlauf als
+     * root über ein Verzeichnis, in das der **Kunde** schreiben durfte — genau
+     * die Form, für die `SandboxReachTest::test_the_teardown_purges_before_it_walks`
+     * eine Reihenfolge vorschreibt: Erst räumt die Sandbox als der Kunde auf,
+     * dann geht root über den Rest.
+     *
+     * Der erste Entwurf hatte den Abtrag zu den anderen Cron-Resten gestellt,
+     * also **vor** {@see Filesystem::purgeContents()}. Der Wächter hat das
+     * gefunden. Er prüft die Reihenfolge über die Fundstellen im Quelltext und
+     * kann nicht wissen, dass es hier ein anderer Baum ist — aber die Regel
+     * dahinter gilt trotzdem, denn dieses Verzeichnis gehört dem Kunden.
+     *
+     * > **Ein Wächter, der eine Reihenfolge über den Quelltext prüft, kann nicht
+     * > zwischen zwei Bäumen unterscheiden — die Regel dahinter aber schon, und
+     * > hier trifft sie zu.**
+     *
+     * {@see Filesystem::removeTree()} steigt keinem Symlink nach; das ist die
+     * Eigenschaft, auf die es hier ankommt, denn was in der Ablage liegt, hat
+     * zuletzt der Kunde bestimmt.
+     */
+    private function removeCronSpool(string $user): ?string
+    {
+        $spool = $this->cronSpoolDir.'/'.$user;
+
+        if (! is_dir($spool)) {
+            return null;
+        }
+
+        Filesystem::removeTree($spool);
+
+        return $spool;
     }
 }

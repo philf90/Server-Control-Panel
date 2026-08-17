@@ -11,6 +11,8 @@ use SrvPanel\Agent\Ops\AcmeCertificateRemove;
 use SrvPanel\Agent\Ops\AgentPing;
 use SrvPanel\Agent\Ops\CertificateUpload;
 use SrvPanel\Agent\Ops\ConfigValidate;
+use SrvPanel\Agent\Ops\CronApply;
+use SrvPanel\Agent\Ops\CronRuns;
 use SrvPanel\Agent\Ops\DbConsoleCell;
 use SrvPanel\Agent\Ops\DbConsoleColumns;
 use SrvPanel\Agent\Ops\DbConsoleIndexes;
@@ -157,6 +159,17 @@ final class Registry
         $this->register(new SftpKeyApply);
         $this->register(new SftpAccess);
         $this->register(new SftpCheck);
+
+        /*
+         * P6 Schritt 9 — Cron (docs/51 §10).
+         *
+         * `cron.apply` steht vor `cron.runs`, und die Reihenfolge ist dieselbe
+         * Überlegung wie bei SFTP: Was auf der Platte bleibt, kommt zuerst. Der
+         * Weg zurück ist auch hier derselbe Aufruf — ein Abonnement ohne aktive
+         * Jobs bekommt keine leere Datei, sondern gar keine.
+         */
+        $this->register(new CronApply);
+        $this->register(new CronRuns);
 
         $this->register(new WebserverDetect);
         $this->register(new WebSiteApply);

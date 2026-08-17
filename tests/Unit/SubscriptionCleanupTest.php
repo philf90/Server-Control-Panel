@@ -39,6 +39,9 @@ final class SubscriptionCleanupTest extends TestCase
 
         mkdir($this->sandbox.'/nginx', 0o755, true);
         mkdir($this->sandbox.'/logrotate', 0o755, true);
+        mkdir($this->sandbox.'/cron.d', 0o755, true);
+        mkdir($this->sandbox.'/cron-commands', 0o751, true);
+        mkdir($this->sandbox.'/cron-spool', 0o755, true);
 
         foreach (PhpVersions::CATALOG as $version) {
             mkdir(PhpVersions::poolDir($version, $this->sandbox.'/php'), 0o755, true);
@@ -67,6 +70,9 @@ final class SubscriptionCleanupTest extends TestCase
             $this->sandbox.'/nginx',
             $this->sandbox.'/logrotate',
             $this->sandbox.'/php',
+            $this->sandbox.'/cron.d',
+            $this->sandbox.'/cron-commands',
+            $this->sandbox.'/cron-spool',
         );
     }
 
@@ -86,8 +92,33 @@ final class SubscriptionCleanupTest extends TestCase
             static function (array $frame): void {},
         );
 
+        $op = $this->op();
+
         /** @var array<string, list<string>> $result */
-        $result = $method->invoke($this->op(), $context, $name, $user, '/var/www/vhosts/'.$name);
+        $result = $method->invoke($op, $context, $name, $user, '/var/www/vhosts/'.$name);
+
+        /*
+         * **Und der Spool-Abtrag, den `execute()` gesondert ruft.** Er steht
+         * dort und nicht in `removeConfiguration()`, weil er ein Baumlauf als
+         * root über ein kundenschreibbares Verzeichnis ist und deshalb *nach*
+         * dem Aufräumen in der Sandbox laufen muss
+         * (`SandboxReachTest::test_the_teardown_purges_before_it_walks`).
+         *
+         * Dieser Helfer bildet damit nach, was `execute()` tut. Täte er es
+         * nicht, prüfte der Test einen Rückbau, den es so nicht gibt — und die
+         * Ablage bliebe unbemerkt liegen.
+         *
+         * > **Ein Test, der einen Vorgang in Teilen ruft, prüft die Teile und
+         * > nicht den Vorgang — er muss die Reihenfolge selbst herstellen.**
+         */
+        $spool = new ReflectionMethod(SubscriptionRemove::class, 'removeCronSpool');
+
+        /** @var string|null $entfernt */
+        $entfernt = $spool->invoke($op, $user);
+
+        if ($entfernt !== null) {
+            $result['cron'][] = $entfernt;
+        }
 
         return $result;
     }
@@ -112,6 +143,18 @@ final class SubscriptionCleanupTest extends TestCase
 
         file_put_contents(PhpVersions::poolFile($version, $user, $this->sandbox.'/php'), "[{$user}]\n");
         file_put_contents($this->sandbox.'/logrotate/srvpanel-'.$name, "# rotation\n");
+
+        /*
+         * Die drei Spuren, die P6 Schritt 9 ausserhalb der Abo-Wurzel
+         * hinterlässt. Sie stehen hier und nicht in einem eigenen Aufbau, weil
+         * die Frage aus §8.7 eine einzige ist: Bleibt *irgendetwas* zurück?
+         */
+        file_put_contents($this->sandbox.'/cron.d/srvpanel-'.$user, "MAILTO=\"\"\n");
+        file_put_contents($this->sandbox.'/cron-commands/srvpanel-'.$user.'-1.cmd', "echo eins\n");
+        file_put_contents($this->sandbox.'/cron-commands/srvpanel-'.$user.'-2.cmd', "echo zwei\n");
+        mkdir($this->sandbox.'/cron-spool/'.$user, 0o750, true);
+        file_put_contents($this->sandbox.'/cron-spool/'.$user.'/1.4711.run', "{}\n\nAusgabe\n");
+        file_put_contents($this->sandbox.'/cron-spool/'.$user.'/1.lock', '');
     }
 
     public function test_nothing_of_the_subscription_is_left_behind(): void
@@ -128,6 +171,23 @@ final class SubscriptionCleanupTest extends TestCase
         $this->assertSame([], glob($this->sandbox.'/nginx/*.conf') ?: []);
         $this->assertSame([], glob($this->sandbox.'/php/*/fpm/pool.d/*.conf') ?: []);
         $this->assertSame([], glob($this->sandbox.'/logrotate/*') ?: []);
+
+        /*
+         * **Die Zeitsteuerung, und sie hinterlässt drei Dinge statt einem.**
+         * Die Datei unter /etc/cron.d, je Job eine Befehlsdatei, und die Ablage
+         * der Aufzeichnungen — alle drei ausserhalb der Abo-Wurzel, also nimmt
+         * sie das Löschen des Verzeichnisses nicht mit.
+         *
+         * > **Wer etwas anlegt, das auf der Platte bleibt, baut den Weg zurück
+         * > mit.**
+         *
+         * Die Ablage geht als Baum: In ihr liegen Aufzeichnungen und
+         * Sperrdateien, und ein `unlink` auf das Verzeichnis täte nichts.
+         */
+        $this->assertCount(4, $removed['cron']);
+        $this->assertSame([], glob($this->sandbox.'/cron.d/*') ?: []);
+        $this->assertSame([], glob($this->sandbox.'/cron-commands/*') ?: []);
+        $this->assertSame([], glob($this->sandbox.'/cron-spool/*') ?: []);
     }
 
     /**
@@ -150,6 +210,25 @@ final class SubscriptionCleanupTest extends TestCase
         $this->assertFileExists($this->sandbox.'/nginx/noch-eins.de.conf');
         $this->assertFileExists(PhpVersions::poolFile('8.3', 'p1002', $this->sandbox.'/php'));
         $this->assertFileExists($this->sandbox.'/logrotate/srvpanel-anderes.de');
+
+        /*
+         * **Und die Zeitsteuerung des anderen bleibt vollständig.** Der Name des
+         * Systembenutzers steht in allen drei Pfaden — genau dafür steht er
+         * darin. Ein Muster wie `srvpanel-*` statt `srvpanel-p1001-*` sähe in
+         * jedem Test mit einem Abonnement richtig aus und nähme beim zweiten die
+         * Befehle des Nachbarn mit.
+         *
+         * > **Ein Aufräumen, das zu viel nimmt, fällt erst beim zweiten Kunden
+         * > auf — und dann bei ihm.**
+         */
+        $this->assertFileExists($this->sandbox.'/cron.d/srvpanel-p1002');
+        $this->assertFileExists($this->sandbox.'/cron-commands/srvpanel-p1002-1.cmd');
+        $this->assertFileExists($this->sandbox.'/cron-commands/srvpanel-p1002-2.cmd');
+        $this->assertDirectoryExists($this->sandbox.'/cron-spool/p1002');
+
+        $this->assertFileDoesNotExist($this->sandbox.'/cron.d/srvpanel-p1001');
+        $this->assertFileDoesNotExist($this->sandbox.'/cron-commands/srvpanel-p1001-1.cmd');
+        $this->assertDirectoryDoesNotExist($this->sandbox.'/cron-spool/p1001');
     }
 
     /**
@@ -184,7 +263,7 @@ final class SubscriptionCleanupTest extends TestCase
         $this->cleanup('beispiel.de', 'p1001');
         $zweiter = $this->cleanup('beispiel.de', 'p1001');
 
-        $this->assertSame(['sites' => [], 'pools' => [], 'logrotate' => [], 'ssh_keys' => []], $zweiter);
+        $this->assertSame(['sites' => [], 'pools' => [], 'logrotate' => [], 'ssh_keys' => [], 'cron' => []], $zweiter);
     }
 
     /**

@@ -34,7 +34,7 @@ case "${COMMAND}" in
 esac
 
 case "${COMMAND}" in
-    setup|update|metrics|usage|tls|dns|db|vhost|acceptance|acceptance-web|acceptance-db|admin|version)
+    setup|update|metrics|usage|cron-runs|tls|dns|db|vhost|acceptance|acceptance-web|acceptance-db|admin|version)
         shift
         set -- "srvpanel:${COMMAND}" "$@"
         ;;

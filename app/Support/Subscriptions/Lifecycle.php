@@ -12,6 +12,7 @@ use App\Models\Domain;
 use App\Models\Operation;
 use App\Models\Subscription;
 use App\Models\SystemUser;
+use App\Support\Cron\Cron;
 use App\Support\Files\Sftp;
 use App\Support\Operations\AfterOperation;
 use App\Support\Plans\Quota;
@@ -289,15 +290,28 @@ final class Lifecycle implements AfterOperation
                     'suspended_at' => null,
                 ])->save(),
 
-                'subscription.suspend' => $subscription->forceFill([
+                /*
+                 * **Sperren und Fortsetzen ziehen den Zeitplan nach**
+                 * (Entscheidung 3 des Betreibers, `docs/60 §12`). Ein gesperrtes
+                 * Abonnement soll keine Rechenzeit mehr verbrauchen — und bei
+                 * einer Sperre wegen Missbrauch ist genau das der Anlass der
+                 * Sperre.
+                 *
+                 * **Nach dem `save()` und nicht davor**, denn
+                 * {@see Cron::desired()} liest den Zustand: Stünde er noch auf
+                 * `Active`, schriebe der Abgleich die Zeilen, die er gerade
+                 * wegräumen soll. Dieselbe Reihenfolge und derselbe Grund wie
+                 * beim SFTP-Block in {@see self::withdraw()}.
+                 */
+                'subscription.suspend' => $this->syncCron($subscription->forceFill([
                     'status' => SubscriptionStatus::Suspended,
                     'suspended_at' => now(),
-                ])->save(),
+                ])),
 
-                'subscription.resume' => $subscription->forceFill([
+                'subscription.resume' => $this->syncCron($subscription->forceFill([
                     'status' => SubscriptionStatus::Active,
                     'suspended_at' => null,
-                ])->save(),
+                ])),
 
                 // Der Rückbau ist durch: Verzeichnis weg, Konto weg. Die Zeile
                 // geht mit — der Systembenutzer bleibt trotzdem verbraucht, er
@@ -449,6 +463,42 @@ final class Lifecycle implements AfterOperation
         } catch (AgentException $error) {
             Log::warning('Der SFTP-Block liess sich nach dem Rückbau nicht nachziehen.', [
                 'subscription' => $subscription->name,
+                'reason' => $error->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Den Zustand speichern und den Zeitplan darauf nachziehen.
+     *
+     * **Ein Fehlschlag hier reisst den Vorgang nicht mit**, und das ist dieselbe
+     * Abwägung wie beim SFTP-Block in {@see self::withdraw()}: Die Sperre selbst
+     * ist geglückt, der Agent hat sie ausgeführt, und der Zustand steht in der
+     * Zeile. Daraus einen gescheiterten Vorgang zu machen hiesse, dem Betreiber
+     * „Sperren fehlgeschlagen" zu melden, obwohl gesperrt ist.
+     *
+     * **Aber es bleibt nicht still.** `docs/44` hat vorgeführt, was ein
+     * schweigendes `catch` anrichtet — aus „nicht erreichbar" wurde „der
+     * Betreiber bietet es nicht an". Und die Folge ist hier nicht harmlos: Bis
+     * zum nächsten Abgleich laufen die Cronjobs eines gesperrten Abonnements
+     * weiter.
+     *
+     * > **Ein Rest, der Rechenzeit verbraucht, ist teurer als einer, der nur
+     * > herumliegt.**
+     *
+     * Was liegenbleibt, räumt der nächste `apply` dieses Abonnements — und der
+     * kommt bei jeder Änderung an einem seiner Jobs.
+     */
+    private function syncCron(Subscription $subscription): void
+    {
+        $subscription->save();
+
+        try {
+            app(Cron::class)->apply($subscription);
+        } catch (AgentException $error) {
+            Log::warning('Der Zeitplan liess sich nach dem Wechsel des Zustands nicht nachziehen.', [
+                'subscription' => $subscription->name,
+                'status' => $subscription->status->value,
                 'reason' => $error->getMessage(),
             ]);
         }

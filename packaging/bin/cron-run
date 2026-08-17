@@ -1,0 +1,184 @@
+#!/bin/sh
+#
+# cron-run — führt den Befehl eines Cronjobs aus und zeichnet auf, was er tat.
+#
+# Aufgerufen wird es aus /etc/cron.d/srvpanel-<benutzer> als der Systembenutzer
+# des Abonnements, mit der Nummer des Jobs als einzigem Argument:
+#
+#     15 3 * * *	p1001	/usr/lib/srvpanel/cron-run 1234
+#
+# ## Warum der Befehl nicht in der Cron-Zeile steht
+#
+# Gemessen (docs/60 §7): Ein Zeilenumbruch im Befehl macht aus einer Zeile zwei,
+# und die zweite darf sich ihr Benutzerfeld selbst aussuchen — root. Der
+# Prüfkörper hat genau das getan, und die von ihm erzeugte Datei gehörte root.
+# Deshalb steht in der Cron-Zeile nur eine Nummer; der Befehl liegt daneben in
+# /etc/srvpanel/cron/<nummer>.cmd und geht hier als *ein Argument* an die Shell.
+# Ein Zeilenumbruch darin ist damit ein Zeichen wie jedes andere.
+#
+# Und das erledigt zugleich das Prozentzeichen: In einer Cron-Zeile beendet ein
+# unmaskiertes % den Befehl und schiebt den Rest der Standardeingabe zu
+# (gemessen, docs/60 §6). In einer Datei hat es keine Bedeutung, die es
+# verlieren könnte — `date +%Y` läuft hier so, wie der Kunde es geschrieben hat.
+#
+# ## Warum es sh ist und nicht PHP
+#
+# Ein Job, der jede Minute läuft, ruft dieses Skript 1440 Mal am Tag auf. Ein
+# PHP-Start je Aufruf wäre der grösste Posten des ganzen Merkmals — für eine
+# Aufgabe, die aus einem Sperren, einem Aufruf und einem Schreiben besteht.
+#
+# ## Was es nicht tut
+#
+# Es räumt nicht auf und es spricht nicht mit der Datenbank. Der Agent sammelt
+# die Ergebnisse ein (cron.runs) und beschneidet auf 50 Läufe je Job. Ein
+# Wrapper, der die Datenbank kennte, wäre ein zweiter Weg mit Rechten neben dem
+# Agenten — und die dritte Grenze dieses Projekts sagt, dass es den nicht gibt.
+#
+set -u
+
+RUNNER_NAME=cron-run
+COMMAND_DIR=${SRVPANEL_CRON_COMMANDS:-/etc/srvpanel/cron}
+SPOOL_DIR=${SRVPANEL_CRON_SPOOL:-/var/spool/srvpanel/cron}
+
+# Entscheidung 1 des Betreibers (docs/60 §12): Sperre je Job, Grenze 60 Minuten.
+LIMIT=${SRVPANEL_CRON_LIMIT:-3600}
+
+# Entscheidung 4 aus docs/51 §3: je Lauf 64 KB, und Gekapptes wird als gekappt
+# gekennzeichnet. Eine Anzeige, die eine abgeschnittene Ausgabe wie eine
+# vollständige aussehen lässt, behauptet etwas, das sie nicht weiss.
+MAX_BYTES=${SRVPANEL_CRON_MAX_BYTES:-65536}
+
+fehler() {
+    echo "$RUNNER_NAME: $1" >&2
+    exit 2
+}
+
+[ $# -eq 1 ] || fehler 'Aufruf: cron-run <nummer>'
+
+job=$1
+
+# Die Nummer kommt aus einer Datei, die der Agent geschrieben hat — geprüft wird
+# sie trotzdem. Sie wird gleich zu einem Pfad, und ein `..` darin führte in ein
+# anderes Verzeichnis.
+case $job in
+    '' | *[!0-9]*) fehler 'Die Nummer eines Jobs besteht aus Ziffern.' ;;
+esac
+
+benutzer=$(id -un) || fehler 'Der eigene Benutzername war nicht zu ermitteln.'
+
+# Der Benutzer steht im Namen der Befehlsdatei, und er kommt hier aus `id` und
+# nicht aus der Cron-Zeile. Damit kann dieser Aufruf nur an den Befehl eines
+# Abonnements heran — an den desjenigen, als der er ohnehin läuft.
+befehlsdatei=$COMMAND_DIR/srvpanel-$benutzer-$job.cmd
+[ -r "$befehlsdatei" ] || fehler "Zu Job $job gibt es keinen Befehl für $benutzer."
+
+ablage=$SPOOL_DIR/$benutzer
+
+# Das Verzeichnis legt der Agent an und es gehört dem Abonnement. Fehlt es,
+# wurde der Job von Hand eingetragen oder der Rückbau war unvollständig — beides
+# ist ein Fall für eine Meldung und nicht für ein `mkdir -p`, das die Rechte
+# raten müsste.
+[ -d "$ablage" ] || fehler "Für $benutzer gibt es kein Verzeichnis unter $SPOOL_DIR."
+
+lauf=$ablage/$job.$$
+sperre=$ablage/$job.lock
+
+# Der Zeitstempel in UTC — das Panel speichert in UTC und rechnet erst beim
+# Anzeigen um (docs/40). Ein Wrapper, der Ortszeit schriebe, verschöbe jede
+# Anzeige um den Versatz des Servers.
+beginn=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+
+# Millisekunden, wo es sie gibt. `%3N` ist GNU-coreutils und auf allen vier
+# Zielplattformen da; wo es fehlt, gibt date die Angabe wörtlich zurück, und
+# dann wird auf Sekunden zurückgefallen. Ohne das stünde bei jedem Job, der
+# unter einer Sekunde bleibt, „0 ms" — und das sieht aus wie „gar nicht
+# gelaufen".
+jetzt_ms() {
+    _ms=$(date -u '+%s%3N' 2>/dev/null)
+    case $_ms in
+        '' | *[!0-9]*) echo $(( $(date -u '+%s') * 1000 )) ;;
+        *) echo "$_ms" ;;
+    esac
+}
+
+beginn_ms=$(jetzt_ms)
+
+# ---------------------------------------------------------------------------
+# Die Sperre. `flock -n` gibt sofort auf, statt zu warten: Ein wartender Lauf
+# wäre bei einem Minutenjob eine Schlange, die nie kürzer wird.
+#
+# Der übersprungene Lauf wird **aufgezeichnet** und nicht verschwiegen. Eine
+# Reihe ausgefallener Läufe sähe sonst aus wie eine Reihe, die es nie gab —
+# derselbe Satz wie über die gekappte Ausgabe, nur über die Zeit.
+# ---------------------------------------------------------------------------
+aufzeichnen() {
+    # Kopf als JSON, dann eine Leerzeile, dann die rohe Ausgabe. Der Kopf wird
+    # hier erzeugt und ist damit gültiges JSON; die Ausgabe wird **nicht**
+    # hineingelegt. docs/46 §8 hat gemessen, was eine ungültige UTF-8-Folge
+    # anrichtet: Sie macht über json_decode() die ganze Antwort unlesbar, nicht
+    # nur das eine Feld. Getrennt kann der Agent den Kopf lesen und die Ausgabe
+    # als Bytes behandeln.
+    printf '{"job":%s,"started":"%s","duration_ms":%s,"exit":%s,"status":"%s","truncated":%s,"bytes":%s}\n\n' \
+        "$job" "$beginn" "$1" "$2" "$3" "$4" "$5" > "$lauf.teil"
+}
+
+fertigstellen() {
+    # Erst vollständig schreiben, dann umbenennen: Der Agent darf nie eine halbe
+    # Aufzeichnung einsammeln. Dieselbe Überlegung wie beim Schreiben der
+    # Cron-Datei selbst.
+    mv "$lauf.teil" "$lauf.run" 2>/dev/null || rm -f "$lauf.teil"
+}
+
+exec 9>"$sperre" 2>/dev/null || fehler "Die Sperre für Job $job liess sich nicht anlegen."
+
+if ! flock -n 9; then
+    aufzeichnen 0 0 skipped false 0
+    fertigstellen
+    exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Der Lauf selbst.
+#
+# Der Befehl geht als **ein** Argument an die Shell. `$(cat …)` statt `.`, damit
+# die Datei nicht als Skript im aktuellen Prozess läuft — sie soll ein Befehl
+# sein und keine Erweiterung dieses Wrappers.
+#
+# `timeout -k` schickt nach der Frist erst TERM und zehn Sekunden später KILL:
+# Ein Programm, das aufräumen will, bekommt Gelegenheit dazu, und eines, das sich
+# festgefressen hat, geht trotzdem.
+# ---------------------------------------------------------------------------
+befehl=$(cat "$befehlsdatei") || fehler "Der Befehl zu Job $job war nicht zu lesen."
+
+timeout -k 10 "$LIMIT" /bin/sh -c "$befehl" > "$lauf.aus" 2>&1
+rueckgabe=$?
+
+dauer=$(( $(jetzt_ms) - beginn_ms ))
+
+# 124 ist die Auskunft von timeout(1), dass die Frist abgelaufen ist. Sie als
+# gewöhnlichen Rückgabewert zu führen hiesse, dem Kunden „der Befehl endete mit
+# 124" zu sagen, wo „er lief zu lange" gemeint ist.
+if [ "$rueckgabe" -eq 124 ] || [ "$rueckgabe" -eq 137 ]; then
+    status=timeout
+elif [ "$rueckgabe" -eq 0 ]; then
+    status=ok
+else
+    status=failed
+fi
+
+groesse=$(wc -c < "$lauf.aus" 2>/dev/null || echo 0)
+gekappt=false
+
+if [ "$groesse" -gt "$MAX_BYTES" ]; then
+    dd if="$lauf.aus" of="$lauf.aus.kurz" bs=1 count="$MAX_BYTES" 2>/dev/null
+    mv "$lauf.aus.kurz" "$lauf.aus" 2>/dev/null
+    gekappt=true
+    groesse=$MAX_BYTES
+fi
+
+aufzeichnen "$dauer" "$rueckgabe" "$status" "$gekappt" "$groesse"
+cat "$lauf.aus" >> "$lauf.teil" 2>/dev/null
+rm -f "$lauf.aus"
+fertigstellen
+
+exit 0

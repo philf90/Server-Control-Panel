@@ -130,7 +130,23 @@ enum Quota: string
             self::Databases => 'Über beide Datenbanksysteme zusammen. Der zugehörige Zugang zählt nicht getrennt.',
             self::DatabaseMb => 'Über alle Datenbanken des Abonnements zusammen, in beiden Systemen. Gemessen, nicht erzwungen — keiner der beiden Server kennt eine Obergrenze je Datenbank, und ihre Daten liegen ausserhalb der Dateisystem-Quota.',
             self::FtpAccounts => 'Zusätzliche FTP-Konten. Der Systembenutzer des Abonnements zählt nicht mit.',
-            self::CronJobs => 'Einträge in der Crontab des Systembenutzers.',
+            /*
+             * **Hier stand „Einträge in der Crontab des Systembenutzers", und
+             * das beschrieb etwas, das dieses Panel nicht baut.** Der Satz
+             * stammt aus P1, als es für Cron noch keinen Plan gab; `docs/51 §10`
+             * hat sich danach ausdrücklich **gegen** `crontab -u` entschieden
+             * und für eine verwaltete Datei je Abonnement unter `/etc/cron.d`.
+             *
+             * Der Unterschied ist keiner der Wortwahl: Eine Crontab gehört dem
+             * Benutzer und ist von ihm änderbar, diese Datei gehört root und
+             * wird bei jeder Änderung neu geschrieben. Ein Kunde, der nach dem
+             * alten Satz `crontab -e` versuchte, bekäme eine zweite
+             * Zeitsteuerung, die das Panel weder kennt noch anzeigt.
+             *
+             * > **Eine Beschreibung, die eine Bauart nennt, die es nicht gibt,
+             * > ist eine Anleitung zum Danebengreifen.**
+             */
+            self::CronJobs => 'Zeitgesteuerte Befehle je Abonnement. Sie laufen als der Systembenutzer, und ihr Zeitplan gilt in der Zeit des Servers.',
             self::FpmProcesses => 'Obergrenze des PHP-FPM-Pools (pm.max_children). Bestimmt, wie viele Anfragen gleichzeitig laufen.',
             self::PhpVersions => 'Welche Handler in den vhost-Vorlagen ausgewählt werden dürfen.',
             self::PhpMemoryMb => 'Obergrenze für memory_limit je Domain. Ein Skript darüber bricht mit einem Speicherfehler ab.',

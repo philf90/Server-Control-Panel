@@ -229,7 +229,7 @@ function entfernen(job: Job): void {
                     <Link :href="`/subscriptions/${props.subscription.id}/cron/${job.id}/runs`" class="link">
                       Läufe
                     </Link>
-                    <button type="button" class="button quiet" @click="bearbeiten(job)">Ändern</button>
+                    <button type="button" class="button" @click="bearbeiten(job)">Ändern</button>
                     <button type="button" class="button danger" @click="entfernen(job)">Entfernen</button>
                   </div>
                 </td>
@@ -294,7 +294,7 @@ function entfernen(job: Job): void {
                 v-for="vorlage in vorlagen"
                 :key="vorlage.name"
                 type="button"
-                class="button quiet"
+                class="button"
                 @click="vorlageWaehlen(vorlage.felder)"
               >
                 {{ vorlage.name }}
@@ -362,10 +362,10 @@ function entfernen(job: Job): void {
           </div>
 
           <div class="button-row">
-            <button type="submit" class="button" :disabled="form.processing || (voll && bearbeitet === null)">
+            <button type="submit" class="button primary" :disabled="form.processing || (voll && bearbeitet === null)">
               {{ bearbeitet === null ? 'Anlegen' : 'Speichern' }}
             </button>
-            <button v-if="bearbeitet !== null" type="button" class="button quiet" @click="abbrechen">
+            <button v-if="bearbeitet !== null" type="button" class="button" @click="abbrechen">
               Abbrechen
             </button>
           </div>

@@ -341,6 +341,64 @@ Fingerabdruck, sondern gar keines.
 
 ---
 
+## 6. Die Ablehnung wird sichtbar — das Kriterium aus `docs/51 §9`
+
+**Der Defekt gesetzt:**
+
+```
+chown p1136:p1136 /var/www/vhosts/p6-b.invalid
+drwxr-xr-x 8 p1136 p1136 4096 Aug 14 21:49 /var/www/vhosts/p6-b.invalid
+```
+
+**Was der Kunde sieht:**
+
+```
+client_loop: send disconnect: Connection reset
+Connection closed
+```
+
+**Kein Grund. Das ist der ganze Anlass für dieses Kriterium** — und es ist hier
+zum ersten Mal am echten Server gesehen statt aus `docs/50 §6` zitiert.
+
+**Was das Panel sagt:**
+
+> **Der Zugang kommt so nicht zustande.** `/var/www/vhosts/p6-b.invalid` gehört
+> p1136 und nicht root (Eigentümer `p1136`, Rechte `0755`). OpenSSH weist die
+> Anmeldung dann ab, ohne dem Programm des Kunden einen Grund zu nennen.
+
+| erwartet | gemessen |
+|---|---|
+| Die Anmeldung scheitert, der Klient nennt keinen Grund | erfüllt |
+| Das Panel nennt **genau dieses Verzeichnis** | erfüllt, mit Pfad, Eigentümer und Rechten |
+| `journalctl` trägt `bad ownership or modes …` | **nicht belegt**, siehe unten |
+
+**Und ein Nebenbeleg:** Die orange Meldung aus Punkt 3 („in `sshd_config` gilt
+ein anderes Verzeichnis: `none`") ist **weg**, ohne dass jemand sie
+weggeschaltet hat. Sie hing am Zustand und nicht an einer Absicht — genau die
+Unterscheidung, an der `docs/45` gescheitert war.
+
+### Die eine Zeile, die fehlt
+
+```
+journalctl -u ssh --since '2 min ago' | grep -i 'bad ownership' | tail -3
+(keine Ausgabe)
+```
+
+Die Meldung des Servers ist damit **nicht belegt**, und das ist keine Kleinigkeit:
+Sie ist die Quelle, aus der die Auskunft des Panels stammen soll. Die
+wahrscheinlichste Erklärung ist das Zeitfenster — zwischen dem Anmeldeversuch
+und diesem Aufruf lagen die Aufnahme der Seite und ein Wechsel des Rechners,
+und `--since '2 min ago'` ist dafür zu eng.
+
+> **Ein Zeitfenster, das an der Messung hängt statt am Ereignis, misst die
+> Geschwindigkeit des Messenden.**
+
+Nachzuholen ist es ohne den Defekt wiederherzustellen: Das Protokoll ist
+historisch, der Eintrag steht noch da. `docs/58` bekommt statt `--since` einen
+Aufruf, der das Fenster nicht raten muss.
+
+---
+
 ## Befunde
 
 ### Befund 1 — die Messrunde war nie fahrbar

@@ -721,6 +721,57 @@ Was nicht hielt, war **mein Aufruf** — siehe Befund 14.
 
 ---
 
+## 9. Was `reload` tut, wenn nichts läuft
+
+### Stufe 0 — die Anordnung, gemessen statt aus `docs/57 §13` zitiert
+
+```
+ss -ltnp | grep ':22'
+LISTEN 0 4096 0.0.0.0:22 users:(("sshd",pid=194168,fd=3),("systemd",pid=1,fd=246))
+LISTEN 0 4096    [::]:22 users:(("sshd",pid=194168,fd=4),("systemd",pid=1,fd=250))
+
+systemctl is-active ssh.service ssh.socket   →  active / active
+systemctl show -p KillMode --value           →  process
+```
+
+**Beide halten denselben Horchsocket.** Das ist Socket-Aktivierung mit
+`Accept=no`: systemd hat ihn angelegt, `ssh.service` hat ihn übernommen und
+bedient alle Verbindungen — ein `sshd` und nicht einer je Verbindung. `docs/58`
+Punkt 9 hat das als Frage geführt; hier steht es als Messung.
+
+### Stufe 1 — anhalten, und der Port bleibt offen
+
+```
+systemctl stop ssh.service
+Stopping 'ssh.service', but its triggering units are still active: ssh.socket
+
+systemctl is-active ssh.service ssh.socket   →  inactive / active
+ss -ltnp | grep ':22'   →  nur noch users:(("systemd",pid=1,…))
+```
+
+Der gewollte Zustand, und systemd sagt selbst, warum er nicht folgenlos ist:
+**die auslösende Unit läuft weiter.**
+
+### Stufe 2 — und hier hat der Lauf sich selbst überholt
+
+| gemessen | |
+|---|---|
+| `systemctl is-active ssh.service` | **`active`** |
+| Journal | **vier** `Reloading ssh.service` (12:12:47, 12:13:23) |
+| Prüfsumme, Schlüsseldatei, `sshd -t` | `4a141234…9018e`, 315 Byte, `rc=0` |
+
+**Der Zustand war weg, bevor die Panelaktion lief.** Gemessen wurde damit der
+Zweig „Dienst läuft" — also die Gegenprobe aus Stufe 4, ohne dass jemand sie
+angefordert hätte. Der Zweig „Dienst läuft nicht", um den es in diesem Punkt
+geht, ist **nicht** gefahren. Das ist Befund 15.
+
+Die Werte selbst sind dabei in Ordnung, und zwei davon sind Wiederholungen mit
+Aussagekraft: `4a141234…9018e` ist REF-C zum **vierten** Mal, und die
+Schlüsseldatei steht wieder auf 315 Byte, weil die Bezeichnung `Win11TestNeu3`
+genauso lang ist wie `Win11TestNeu2`.
+
+---
+
 ## Befunde
 
 ### Befund 1 — die Messrunde war nie fahrbar
@@ -1254,3 +1305,36 @@ gibt es nicht" aus.
 > Antwort — und die sieht jedes Mal wie ein Befund über den Prüfling aus.**
 
 **Behoben** in `docs/58`: Der Aufruf fragt ohne `-u` und mit bemessenem Fenster.
+
+---
+
+### Befund 15 — ein Zustand, den ein öffentlicher Server nicht hält
+
+`ssh.service` war `inactive`, als Stufe 1 endete, und `active`, als die
+Panelaktion in Stufe 2 lief. Dazwischen lagen ein paar Klicks im Browser.
+
+**Wer ihn geweckt hat, ist nicht belegt** — und es ist auch nicht die
+interessante Frage. Auf einem Server mit öffentlicher Adresse genügt *irgendeine*
+Verbindung auf Port 22: die Überwachung des Anbieters, ein Wörterbuchangriff, ein
+Scanner. Der Socket horcht weiter, und die erste Verbindung startet den Dienst.
+
+> **Ein Zustand, den ein Fremder von aussen beenden kann, lässt sich nicht
+> messen, indem man ihn herstellt und dann arbeitet.**
+
+Damit ist die Anleitung zu Punkt 9 falsch gebaut, und zwar zweimal: Sie hat den
+Zustand hergestellt und danach eine Handlung im Browser verlangt (Sekunden bis
+Minuten), und sie hat aus `is-active` einmal gelesen, statt bei jeder Messung
+mitzulesen. Die zweite Hälfte hat sie gerettet — ohne das `is-active` neben der
+Prüfsumme hätten die vier `Reload`-Zeilen wie ein Fehler des Panels ausgesehen.
+
+> **Eine Messung, die den Zustand nicht neben dem Ergebnis mitschreibt, kann
+> nicht unterscheiden, ob der Prüfling falsch war oder die Lage anders.**
+
+**Der Weg, der bleibt:** den Socket mit anhalten. Dann ist Port 22 zu, niemand
+kann den Dienst wecken, und der Zustand hält, solange man ihn braucht. Der Preis
+ist ein Fenster ohne neue SSH-Verbindungen — genau das, wofür Punkt 0 die zweite
+Sitzung und die Anbieterkonsole verlangt.
+
+**Und was Punkt 9 damit ohnehin schon belegt hat:** Die Gegenprobe aus Stufe 4 —
+mit laufendem Dienst wird neu geladen, und das Journal sagt es — ist gefahren und
+grün. Es fehlt die Null daneben, nicht die Zahl.

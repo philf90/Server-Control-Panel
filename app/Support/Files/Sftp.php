@@ -66,16 +66,27 @@ final class Sftp
      * Formulierung im Formular wäre die, die beim nächsten Mal auseinanderläuft.
      * Dieselbe Entscheidung wie bei `Hba::cidr()` in P5b.
      *
+     * **Und der Rückgabewert trägt die Auskunft des Agenten mit** (`docs/59`,
+     * Befund 21). `sftp.access` sagt, ob neu geladen wurde — und wenn nicht,
+     * warum: „ssh.service ist inactive — die neue Datei gilt ab der nächsten
+     * Verbindung". Der Satz entstand, und niemand trug ihn; das ist dieselbe
+     * Form wie Befund 13, nur eine Ebene weiter.
+     *
+     * > **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+     * > keine.**
+     *
+     * @return array{key: SshKey, note: ?string}
+     *
      * @throws AgentException wenn der Schlüssel nicht taugt oder das Schreiben scheitert
      */
-    public function add(Subscription $subscription, string $key, string $label, ?string $by = null): SshKey
+    public function add(Subscription $subscription, string $key, string $label, ?string $by = null): array
     {
         // Vor der Transaktion: Ein untauglicher Schlüssel soll gar nicht erst
         // eine aufmachen, und die Meldung ist dieselbe.
         $parsed = PublicKey::parse($key);
 
-        /** @var SshKey $row */
-        $row = DB::transaction(function () use ($subscription, $parsed, $label, $by): SshKey {
+        /** @var array{key: SshKey, note: ?string} $ergebnis */
+        $ergebnis = DB::transaction(function () use ($subscription, $parsed, $label, $by): array {
             /** @var SshKey $row */
             $row = SshKey::query()->updateOrCreate(
                 [
@@ -99,13 +110,43 @@ final class Sftp
              * ebenfalls kein Zugang, aber sie enthält Kundendaten. Von zwei
              * Resten ist der leere der bessere.
              */
-            $this->sync();
+            $note = self::spokenNote($this->sync());
             $this->write($subscription);
 
-            return $row;
+            return ['key' => $row, 'note' => $note];
         });
 
-        return $row;
+        return $ergebnis;
+    }
+
+    /**
+     * Was von der Antwort des Agenten der Kunde lesen soll — oder `null`.
+     *
+     * **Drei Fälle, und nur einer davon ist eine Auskunft.** „neu geladen" ist
+     * das Erwartete und sagt nichts; „nichts zu ändern" beschreibt einen Vorgang,
+     * den der Kunde nicht angefordert hat. Was zählt, ist der Fall, in dem der
+     * Dienst ruht: Dann gilt die Datei erst ab der nächsten Verbindung, und das
+     * ist ein Unterschied, den der Kunde merkt.
+     *
+     * Als reine Funktion, damit ein Wächter sie ohne Agenten liest.
+     *
+     * @param  array<string,mixed>  $answer
+     */
+    public static function spokenNote(array $answer): ?string
+    {
+        $reload = $answer['reload'] ?? null;
+
+        if (! is_array($reload) || ($reload['reloaded'] ?? null) === true) {
+            return null;
+        }
+
+        $note = $reload['note'] ?? null;
+
+        if (! is_string($note) || $note === '' || $note === 'nichts zu ändern') {
+            return null;
+        }
+
+        return $note;
     }
 
     /**
@@ -126,14 +167,19 @@ final class Sftp
      * erste, ist nichts geschehen; scheitert der zweite, war der erste schon
      * ein vollständiger Zustand.
      */
-    public function remove(Subscription $subscription, SshKey $key): void
+    public function remove(Subscription $subscription, SshKey $key): ?string
     {
-        DB::transaction(function () use ($subscription, $key): void {
+        /** @var string|null $note */
+        $note = DB::transaction(function () use ($subscription, $key): ?string {
             $key->delete();
 
-            $this->sync();
+            $note = self::spokenNote($this->sync());
             $this->write($subscription);
+
+            return $note;
         });
+
+        return $note;
     }
 
     /**

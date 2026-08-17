@@ -10373,13 +10373,13 @@ vorher_datei app/Support/Files/Sftp.php
 python3 - <<'PY2'
 p = 'app/Support/Files/Sftp.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace("""            $this->sync();
+s = s.replace("""            $note = self::spokenNote($this->sync());
             $this->write($subscription);
-        });
-    }""", """            $this->write($subscription);
-            $this->sync();
-        });
-    }""", 1)
+
+            return $note;""", """            $this->write($subscription);
+            $note = self::spokenNote($this->sync());
+
+            return $note;""", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei app/Support/Files/Sftp.php "die Platte vor der Pruefung" &&
@@ -10508,6 +10508,27 @@ pruefe "eine Meldung in Markdown" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   MessageMarkupTest::test_no_german_message_carries_markup passed
+
+echo
+echo "── SftpNoteTest: die Auskunft des Agenten wird weggeworfen ──"
+#
+# Der Fund aus Punkt 9 (docs/59, Befund 21): SftpAccess baut den Satz ueber den
+# ruhenden Dienst, sync() gibt ihn zurueck, und add()/remove() warfen ihn weg.
+# docs/58 Punkt 9 verlangt ihn als eine der vier Zeilen.
+vorher_datei app/Support/Files/Sftp.php
+python3 - <<'PY2'
+p = 'app/Support/Files/Sftp.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('            $note = self::spokenNote($this->sync());',
+              '            $this->sync();\n            $note = null;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Files/Sftp.php "die Auskunft wird weggeworfen" &&
+pruefe "die Auskunft wird weggeworfen" \
+  SftpNoteTest::test_the_answer_is_carried_from_the_agent_to_the_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SftpNoteTest::test_the_answer_is_carried_from_the_agent_to_the_page passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

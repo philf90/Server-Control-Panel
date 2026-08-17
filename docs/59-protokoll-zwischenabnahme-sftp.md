@@ -1908,7 +1908,7 @@ ist** für alle schreibbar".
 | 13 (die Meldung erscheint überhaupt) | **ja** |
 | 7, 18 (die beiden Formularmeldungen) | **ja** — und mit Befund 20 |
 | 10 (das Verzeichnis, das gilt) | **ja** |
-| 16 (`/run/sshd`) | Block D |
+| 16 (`/run/sshd`) | **ja** |
 | 19 (der Menüpunkt) | Block E |
 
 ## C4 — Befunde 7 und 18 bestätigt, und ein neuer daneben
@@ -1986,3 +1986,88 @@ also über ein Verzeichnis, das in diesem Augenblick niemand benutzt.
 Die Kette hängt jetzt an dem, was gilt, und der Satz nennt es. **Zehn von zwölf
 Korrekturen sind damit am Server bestätigt**; offen sind 16 (Block D) und 19
 (Block E) — und Befund 20, dessen Behebung erst mit der nächsten Fassung kommt.
+
+## D — Punkt 9 ist vollständig (Befund 16 bestätigt)
+
+```
+systemctl stop ssh.socket ssh.service   →  inactive / inactive
+ss -ltnp | grep ':22'                   →  nichts
+sshd -t                                 →  rc=255   (erwartet: die Shell hat kein /run/sshd)
+```
+
+Dann die Panelaktionen, bei ruhendem Dienst und geschlossenem Port:
+
+| erwartet | gemessen |
+|---|---|
+| Der Vorgang **läuft durch** | erfüllt — Prüfsumme `8e5c38ed…27aed`, Datei 316 Byte |
+| `ssh.service` bleibt `inactive` | erfüllt |
+| **`/run/sshd` existiert** | `drwxr-xr-x 2 root root 40 Aug 17 14:09` |
+| keine `Reload`-Zeile | `-- No entries --` |
+| danach horcht der Socket wieder | nur `systemd`, `ssh.service` weiter `inactive` |
+| die Anmeldung gelingt und weckt den Dienst | `Connected`, danach `active` |
+
+**Befund 16 ist behoben und am Server bestätigt.** Das Verzeichnis, das systemd
+beim Anhalten wegräumt, legt der Agent wieder an — und `sshd -t` prüft damit den
+Kandidaten statt an seiner eigenen Umgebung zu scheitern. Im ersten Durchgang
+brach das Entfernen hier ab, mit „von sshd abgewiesen" für einen einwandfreien
+Block.
+
+**Und `sshd -t` in der Shell sagt weiter `rc=255`.** Das ist kein Widerspruch,
+sondern die Trennung: Der Agent stellt seine Umgebung her, die Shell nicht.
+
+> **Damit sind alle vier Zeilen von `docs/58` Punkt 9 belegt** — bis auf den
+> Satz, den die vierte verlangt. Der ist Befund 21.
+
+---
+
+### Befund 21 — der Satz über den ruhenden Dienst wurde gebaut und weggeworfen
+
+`docs/58` Punkt 9 verlangt vier Dinge, und das vierte ist: **die Antwort sagt
+„gilt ab der nächsten Verbindung"**. `SftpAccess::reload()` baut diesen Satz
+wörtlich —
+
+```
+ssh.service ist inactive — die neue Datei gilt ab der nächsten Verbindung
+```
+
+— `Sftp::sync()` gibt ihn zurück, und `add()` und `remove()` warfen den
+Rückgabewert weg. Auf der Seite stand „Der Schlüssel ist eingetragen." und sonst
+nichts.
+
+> **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+> keine.**
+
+**Dieselbe Form wie Befund 13, eine Ebene weiter:** Dort fehlte der Träger
+zwischen Controller und Seite, hier zwischen Agent und Controller. Zweimal
+derselbe Fehler in einem Lauf, an zwei Übergängen desselben Weges.
+
+Vorhergesagt war er — in der Anleitung zu Punkt 9 stand er als Erwartung, bevor
+der Punkt lief. **Gemessen ist er nicht**: Block D hat keine Aufnahme der Seite
+verlangt, und ohne sie ist „der Satz stand nicht da" eine Aussage über meine
+Anleitung und nicht über den Server.
+
+> **Ein Befund aus dem Quelltext ist ein Befund. Er ist nur kein Messwert.**
+
+**Behoben**: `sync()`s Antwort geht durch `Sftp::spokenNote()` — eine reine
+Funktion, die von drei Fällen genau einen für eine Auskunft hält: „neu geladen"
+ist das Erwartete und sagt nichts, „nichts zu ändern" beschreibt einen Vorgang,
+den niemand angefordert hat, und der ruhende Dienst ist der Unterschied, den der
+Kunde merkt. Der Controller hängt den Satz an die Erfolgsmeldung.
+
+Der Wächter ist `SftpNoteTest` mit drei Regeln — die Textprüfung („der
+Rückgabewert wird nicht weggeworfen", beide Wege) läuft ohne Framework, die
+beiden Verhaltensprüfungen in der CI.
+
+### Und der Wächter über die Brüche hat zugebissen
+
+Die Änderung an `Sftp::remove()` hat dem **Bruch zu Befund 12** die Textstelle
+unter den Füssen weggezogen: Er suchte `$this->sync();` als eigene Zeile, und die
+gibt es nicht mehr.
+
+`BreakScriptTest::test_every_intervention_still_grips_its_file` hat es gemeldet,
+bevor irgendetwas gepusht war. **Genau dieser Fall war beim PR vorhergesagt** — im
+vorigen Wurf waren es vier veraltete Eingriffe, die auf Code zeigten, der nach
+`ManagedBlock` gezogen war.
+
+> **Ein Eingriff, der nichts ändert, prüft nichts — und sieht dabei aus, als wäre
+> die Regel abgesichert.**

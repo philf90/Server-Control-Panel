@@ -175,6 +175,79 @@ eigene Vorsicht, wenn er dran ist.
 
 ---
 
+## 3. Ohne Schlüssel ist der Zugang aus — und die Datei unberührt
+
+**Die Hauptaussage hält.**
+
+| | gemessen |
+|---|---|
+| `sha256sum /etc/ssh/sshd_config` | `2b5a070e…6852` — **unverändert gegenüber 0c** |
+| `/etc/srvpanel/ssh` | gibt es nicht |
+
+Das blosse Ansehen der Seite schreibt nicht in `sshd_config`. Das war die
+eigentliche Frage dieses Punktes, und sie ist beantwortet.
+
+**Der Wortlaut der Seite hält nicht.** Sie meldet den Zustand „noch nichts
+eingerichtet" als Defekt — drei Befunde, alle in derselben Fläche, alle
+derselbe Denkfehler.
+
+---
+
 ## Befunde
 
-Noch keine.
+### Befund 1 — die Messrunde war nie fahrbar
+
+Siehe Punkt 1. `docs/58` verlangt ein Werkzeug, das die Auslieferung nicht
+mitbringt.
+
+### Befund 2 — „kein Schlüssel" wird als Defekt gemeldet
+
+Die Seite schrieb rot: *„Der Zugang kommt so nicht zustande. /etc/srvpanel/ssh
+gibt es nicht (Eigentümer ?, Rechte ?)"* — für ein Abonnement, an dem nur noch
+niemand etwas eingerichtet hatte.
+
+Die Ursache ist die Reihenfolge zweier Zweige: Der Defekt wurde zuerst geprüft,
+und ohne Schlüssel gibt es die Schlüsseldatei nicht, also meldet `Chain` „gibt
+es nicht". Erwartet war „Es ist kein Schlüssel eingetragen — damit ist der
+Zugang aus."
+
+> **Ein Zustand, in dem noch nichts eingerichtet ist, sieht für eine Prüfung
+> genauso aus wie einer, in dem etwas kaputt ist — und nur der Code kennt den
+> Unterschied.**
+
+**Der Satz stand schon da.** `SftpCheck` trägt ihn im Kopf: *„Und ‚keine
+Schlüsseldatei' ist ein Zustand und kein Defekt."* Er stand in der Klasse, die
+die Auskunft *erzeugt*, und nicht in der, die sie *anzeigt*.
+
+**Behoben:** Ohne Schlüssel wird der Zustand gemeldet; die Ketten werden ab dem
+ersten Schlüssel beurteilt und nicht davor.
+
+### Befund 3 — `none` wird für eine fremde Angabe gehalten
+
+Daneben stand: *„In sshd_config gilt für diesen Benutzer ein anderes
+Verzeichnis als das des Abonnements: **none**. Eine Regel des Betreibers steht
+über der des Panels."* Auf einem Server, auf dem schlicht noch kein Block
+existierte.
+
+`sshd -T` schreibt `chrootdirectory none`, wenn nichts gesetzt ist. Die Prüfung
+sah nur auf „ungleich der Abo-Wurzel".
+
+> **Ein Platzhalter für „nichts" ist ein Wert, und eine Prüfung, die nur auf
+> „ungleich" sieht, hält ihn für eine Aussage.**
+
+**Behoben:** `none` zählt nicht als fremde Angabe, und die Meldung gilt erst ab
+dem ersten Schlüssel — ohne Block gibt es nichts, was überschrieben sein könnte.
+
+### Befund 4 — ein fehlendes Leerzeichen, und Vue ist schuld
+
+Auf der Seite stand `zustande./etc/srvpanel/ssh` ohne Trennung. Vues Vorgabe
+`whitespace: 'condense'` **entfernt** einen Textknoten zwischen zwei Elementen,
+wenn er einen Zeilenumbruch enthält — und im Quelltext stand `</b>` und
+`<span class="ident">` auf zwei Zeilen.
+
+> **Ein Leerzeichen, das im Quelltext als Zeilenumbruch dasteht, ist für den
+> Übersetzer keines.**
+
+**Behoben** mit einem ausdrücklichen `{{ ' ' }}`. **Offen:** ein Wächter dafür.
+Die Regel trifft jede Meldung, die aus Elementen zusammengesetzt ist, und keine
+der drei Fassungen dieses Fehlers wäre einem Test aufgefallen — nur dem Bild.

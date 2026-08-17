@@ -134,6 +134,35 @@ final class SshdConfigTest extends TestCase
     }
 
     /**
+     * Ein Schlüssel und sonst nichts — als Positivliste.
+     *
+     * **Warum das nicht dieselbe Prüfung wie die darüber ist.** Dort steht
+     * `PasswordAuthentication no`, und die Zeile war da, als der Betreiber im
+     * Abnahmelauf eine Passwortabfrage bekam (`docs/59`, Befund 6). Gemessen
+     * gegen OpenSSH 9.6p1 mit einem Kopfteil in der Vorgabe der Distribution:
+     * Der Server bot `publickey,keyboard-interactive` an, weil
+     * `KbdInteractiveAuthentication` unberührt auf `yes` stand und PAM dahinter
+     * nach demselben Passwort fragt.
+     *
+     * > **Ein Riegel, der eine von zwei Türen schliesst, ist eine Auskunft über
+     * > die Tür und keine über das Haus.**
+     *
+     * Geprüft wird deshalb die Positivliste und nicht der zweite Riegel: Sie
+     * hält auch für eine Tür, die es heute noch nicht gibt.
+     */
+    public function test_only_a_public_key_gets_in(): void
+    {
+        $block = SshdConfig::block('p1136', '/var/www/vhosts/p6-b.invalid');
+
+        $this->assertContains(
+            '    AuthenticationMethods publickey',
+            $block,
+            'Ohne diese Zeile bleibt neben dem Schlüssel eine zweite Tür offen — '.
+            'gemessen: der Server bietet dann keyboard-interactive mit an.',
+        );
+    }
+
+    /**
      * Der Pfad wird gebaut und nicht angenommen.
      *
      * Wortgleich die wichtigste Entscheidung aus `SubscriptionProvision`: Eine

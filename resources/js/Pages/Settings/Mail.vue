@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router, useForm, usePage } from '@inertiajs/vue3'
+import { Head, router, useForm } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import Section from '../../Components/Section.vue'
 import EyeIcon from '../../Components/EyeIcon.vue'
@@ -24,9 +24,6 @@ const props = defineProps<{
   encryptions: Encryption[]
   usable: boolean
 }>()
-
-const page = usePage()
-const flash = computed(() => page.props.flash as Record<string, string> | undefined)
 
 /*
  * Das Passwortfeld ist leer, auch wenn eines hinterlegt ist.
@@ -74,10 +71,6 @@ function test(): void {
   <Head title="Mailversand" />
 
   <PanelLayout title="Mailversand" subline="SMTP-Relay für Nachrichten des Panels">
-    <p v-if="flash?.error" class="notice critical">
-      <span>{{ flash.error }}</span>
-    </p>
-
     <p v-if="!props.usable" class="notice warn">
       <span>
         Noch kein Relay hinterlegt. Bis dahin verschickt das Panel nichts —

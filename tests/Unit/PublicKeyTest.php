@@ -119,10 +119,53 @@ final class PublicKeyTest extends TestCase
         $this->assertRefused(self::ED25519."\x00".self::ED25519, 'Nullbyte');
     }
 
-    /** Der private Schlüssel wird als solcher benannt und nicht als „unbekannter Typ". */
+    /**
+     * Der private Schlüssel wird als solcher benannt und nicht als „unbekannter Typ".
+     *
+     * **Und zwar auch mit Zeilenumbrüchen darin** — das ist Befund 18 aus dem
+     * Abnahmelauf (`docs/59`). Die Prüfung stand hinter der auf Steuerzeichen,
+     * und ein eingefügter privater Schlüssel hat *immer* Umbrüche: Der Kunde
+     * bekam „In dem Schlüssel steht ein Steuerzeichen", und der Satz für seinen
+     * Fall war unerreichbar. Der Fall darüber — eine einzige Zeile — ist der
+     * einzige, den es je erreicht hat, und den tippt niemand von Hand.
+     *
+     * > **Eine Meldung, die hinter einer allgemeineren Prüfung steht, ist keine
+     * > Meldung — sie ist ein Kommentar.**
+     */
     public function test_a_private_key_is_named_as_such(): void
     {
         $this->assertRefused('-----BEGIN OPENSSH PRIVATE KEY-----', 'privater');
+
+        // So, wie er aus einer Datei kommt: mehrere Zeilen.
+        $this->assertRefused(
+            "-----BEGIN OPENSSH PRIVATE KEY-----\nAAAEBZ+V8vcM1dDG8UvkfDpo2Mt1RVpt85yj\n"
+            ."OXs9ymN4TgDUyLeu96wdDToSJvsUBC45OAAAAB2Fib\n-----END OPENSSH PRIVATE KEY-----",
+            'privater',
+        );
+    }
+
+    /**
+     * Der Fingerabdruck wird als solcher benannt.
+     *
+     * **Warum das eine eigene Regel ist.** Im Abnahmelauf hat der Betreiber die
+     * Ausgabe von `ssh-keygen -lf` eingetragen (`docs/59`, Befund 7). Der
+     * allgemeine Satz war dabei sachlich richtig — „die Zeile fängt mit „256"
+     * an" — und hat nicht geholfen: Die beiden Zeilen stehen im Terminal
+     * untereinander, und die falsche ist die kürzere.
+     *
+     * > **Ein Satz, der beschreibt, was dasteht, hilft dem nicht, der die
+     * > falsche von zwei ähnlichen Zeilen kopiert hat.**
+     */
+    public function test_a_fingerprint_is_named_as_such(): void
+    {
+        $this->assertRefused(
+            '256 SHA256:PBMiXFViiL6KV95VXw7J2Kz6hRcCuhXPDzMXrmRGfT8 abnahme (ED25519)',
+            'Fingerabdruck',
+        );
+
+        // Und eine Zahl allein bleibt der allgemeine Fall: Ohne `SHA256:` ist
+        // nicht zu sagen, was der Kunde vor sich hat.
+        $this->assertRefused('256 irgendwas', 'Schlüsseltyp');
     }
 
     /** Abgeschaltete und zu kurze Schlüssel — mit dem Grund, nicht nur mit dem Nein. */

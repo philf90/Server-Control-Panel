@@ -10195,6 +10195,300 @@ pruefe "  … zurückgesetzt wieder grün" \
   ChainTest::test_the_chain_starts_at_the_root passed
 
 echo
+echo "── TemplateSpacingTest: ein Zeilenumbruch als Leerzeichen ──"
+#
+# Der Fund aus dem Abnahmelauf des SFTP-Zugangs (docs/59, Befund 4). Vues
+# Vorgabe `whitespace: condense` entfernt einen Textknoten zwischen zwei
+# Elementen, wenn er nur aus Weissraum mit Zeilenumbruch besteht — auf der
+# Seite stand daraufhin `zustande./etc/srvpanel/ssh` ohne Trennung.
+vorher_datei resources/js/Pages/Subscriptions/Sftp.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Sftp.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("zustande.</b>{{ ' ' }}", "zustande.</b>", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Sftp.vue "das Leerzeichen bleibt dem Umbruch überlassen" &&
+pruefe "das Leerzeichen bleibt dem Umbruch überlassen" \
+  TemplateSpacingTest::test_no_prose_relies_on_a_line_break_for_a_space failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  TemplateSpacingTest::test_no_prose_relies_on_a_line_break_for_a_space passed
+
+echo
+echo "── TemplateSpacingTest: die Voraussetzung zieht still um ──"
+#
+# Der Wächter fragt nur dort, wo der Behälter Fliesstext ist. Wird `.hint` zu
+# einer Flexbox, ist sein Inhalt keiner mehr — und der Wächter prüfte ab da
+# eine andere Anwendung, ohne es zu melden.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace(".hint {\n  margin: 6px 0 0;", ".hint {\n  display: flex;\n  margin: 6px 0 0;", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Fliesstext, der keiner mehr ist" &&
+pruefe "Fliesstext, der keiner mehr ist" \
+  TemplateSpacingTest::test_the_premise_of_this_guard_holds failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  TemplateSpacingTest::test_the_premise_of_this_guard_holds passed
+
+echo
+echo "── SshdConfigTest: nur PasswordAuthentication no im Block ──"
+#
+# Der Fund aus dem Abnahmelauf (docs/59, Befund 6). Diese Zeile war da, und der
+# Betreiber bekam trotzdem eine Passwortabfrage: KbdInteractiveAuthentication
+# blieb auf yes, und PAM fragt dahinter nach demselben Passwort. Gemessen gegen
+# OpenSSH 9.6p1 — angeboten wurde publickey,keyboard-interactive.
+vorher_datei agent/src/Ssh/SshdConfig.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/SshdConfig.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            '    AuthenticationMethods publickey',\n", '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/SshdConfig.php "eine zweite Tür bleibt offen" &&
+pruefe "eine zweite Tür bleibt offen" \
+  SshdConfigTest::test_only_a_public_key_gets_in failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SshdConfigTest::test_only_a_public_key_gets_in passed
+
+echo
+echo "── PublicKeyTest: der Fingerabdruck als unbekannter Typ ──"
+#
+# Der Fund aus dem Abnahmelauf (docs/59, Befund 7): Der Betreiber hat die
+# Ausgabe von `ssh-keygen -lf` eingetragen. Der allgemeine Satz nannte
+# daraufhin „256" als das, womit die Zeile anfängt — richtig und unbrauchbar.
+vorher_datei agent/src/Ssh/PublicKey.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/PublicKey.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        if (ctype_digit($type) && str_contains($raw, 'SHA256:')) {",
+              '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/PublicKey.php "der Fingerabdruck heisst unbekannter Typ" &&
+pruefe "der Fingerabdruck heisst unbekannter Typ" \
+  PublicKeyTest::test_a_fingerprint_is_named_as_such failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  PublicKeyTest::test_a_fingerprint_is_named_as_such passed
+
+echo
+echo "── ChainTest: zwei Gruende, aneinandergehaengt zu zwei Saetzen ──"
+#
+# Der Fund aus dem Abnahmelauf (docs/59, Befund 9): Fuer ein 0777 stand auf der
+# Seite "ist fuer die Gruppe schreibbar und ist fuer alle schreibbar" — zweimal
+# dasselbe Praedikat. Die Pruefung darueber war dabei gruen, weil "schreibbar"
+# vorkam.
+vorher_datei agent/src/Ssh/Chain.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/Chain.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            $wer[] = 'für die Gruppe';", "            $gruende[] = 'ist für die Gruppe schreibbar';", 1)
+s = s.replace("            $wer[] = 'für alle';", "            $gruende[] = 'ist für alle schreibbar';", 1)
+s = s.replace("            'reason' => implode(', ', $gruende),", "            'reason' => implode(' und ', $gruende),", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/Chain.php "zwei Gründe werden zwei Sätze" &&
+pruefe "zwei Gründe werden zwei Sätze" \
+  ChainTest::test_a_reason_reads_as_one_sentence failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ChainTest::test_a_reason_reads_as_one_sentence passed
+
+echo
+echo "── SftpCheckTest: die Kette haengt am Sollzustand ──"
+#
+# Der Fund aus Punkt 7 des Abnahmelaufs (docs/59, Befund 10): Der Betreiber
+# setzte ChrootDirectory /var/www oberhalb des Bereichs, sshd -T sagte /var/www,
+# und die Seite schrieb "Verzeichnis und Rechte in Ordnung" — wahr ueber die
+# Wurzel des Abonnements, gelesen ueber das Verzeichnis, das gilt.
+vorher_datei agent/src/Ops/SftpCheck.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SftpCheck.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        return $wirksam;', '        return $root;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/SftpCheck.php "geprüft wird der Sollzustand" &&
+pruefe "geprüft wird der Sollzustand" \
+  SftpCheckTest::test_an_override_is_the_directory_that_gets_judged failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SftpCheckTest::test_an_override_is_the_directory_that_gets_judged passed
+
+echo
+echo "── SftpCheckTest: eine Marke wird fuer einen Pfad gehalten ──"
+#
+# sshd -T gibt %h und %u unaufgeloest aus. Ein Chain::of('%h/sftp') meldet
+# "gibt es nicht" — eine falsche Aussage statt einer fehlenden.
+vorher_datei agent/src/Ops/SftpCheck.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SftpCheck.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        if (! str_starts_with($wirksam, '/') || str_contains($wirksam, '%')) {",
+              '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/SftpCheck.php "eine Marke gilt als Pfad" &&
+pruefe "eine Marke gilt als Pfad" \
+  SftpCheckTest::test_a_token_is_not_a_path failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SftpCheckTest::test_a_token_is_not_a_path passed
+
+echo
+echo "── AgentErrorRoutingTest: ein Serverfehler macht ein Feld rot ──"
+#
+# Der Fund aus Phase B von Punkt 8 (docs/59, Befund 11): Bei kaputter
+# sshd_config brach der Vorgang richtig ab, und die Meldung landete am
+# Schlüsselfeld — rot, obwohl der Schlüssel einwandfrei war.
+vorher_datei app/Http/Controllers/SftpController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/SftpController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('            if ($error->errorCode === AgentException::BAD_REQUEST) {',
+              '            if (true) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/SftpController.php "jeder Agentenfehler geht ans Feld" &&
+pruefe "jeder Agentenfehler geht ans Feld" \
+  AgentErrorRoutingTest::test_only_a_rejected_input_becomes_a_field_error failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  AgentErrorRoutingTest::test_only_a_rejected_input_becomes_a_field_error passed
+
+echo
+echo "── SftpWriteOrderTest: die Schluesseldatei vor dem Block ──"
+#
+# Der Fund aus Phase D von Punkt 8 (docs/59, Befund 12): Bei kaputter
+# sshd_config brach der Vorgang richtig ab — und die Schluesseldatei war da
+# schon geloescht. Eine Transaktion rollt die Datenbank zurueck und nicht die
+# Platte. Vorhergesagt aus dem Quelltext, dann auf cloudsrv24 gemessen.
+vorher_datei app/Support/Files/Sftp.php
+python3 - <<'PY2'
+p = 'app/Support/Files/Sftp.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""            $this->sync();
+            $this->write($subscription);
+        });
+    }""", """            $this->write($subscription);
+            $this->sync();
+        });
+    }""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Files/Sftp.php "die Platte vor der Pruefung" &&
+pruefe "die Platte vor der Pruefung" \
+  SftpWriteOrderTest::test_the_block_goes_before_the_key_file failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SftpWriteOrderTest::test_the_block_goes_before_the_key_file passed
+
+echo
+echo "── FlashChannelTest: der Kanal fehlt ──"
+#
+# Der Fund aus Phase D (docs/59, Befund 13): SftpController schickte
+# with('error', …), die Mittelschicht gab den Schluessel nicht weiter, und die
+# Meldung war fort. Sieben Aufrufe aus vier Controllern, seit P4.
+vorher_datei app/Http/Middleware/HandleInertiaRequests.php
+python3 - <<'PY2'
+p = 'app/Http/Middleware/HandleInertiaRequests.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                'error' => fn () => $request->session()->get('error'),\n", '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Middleware/HandleInertiaRequests.php "ein Schluessel ohne Traeger" &&
+pruefe "ein Schluessel ohne Traeger" \
+  FlashChannelTest::test_every_written_flash_key_is_carried failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  FlashChannelTest::test_every_written_flash_key_is_carried passed
+
+echo
+echo "── FlashChannelTest: getragen und nicht gelesen ──"
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("const fehler = computed(() => (page.props.flash as Record<string, string> | undefined)?.error)",
+              'const fehler = computed(() => undefined)', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "ein Traeger ohne Leser" &&
+pruefe "ein Traeger ohne Leser" \
+  FlashChannelTest::test_every_carried_flash_key_has_a_reader failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  FlashChannelTest::test_every_carried_flash_key_has_a_reader passed
+
+echo
+echo "── SftpRuntimeDirTest: sshd -t ohne /run/sshd ──"
+#
+# Der Fund aus Punkt 9 (docs/59, Befund 16): Bei angehaltenem Dienst raeumt
+# systemd /run/sshd weg, und sshd -t bricht mit rc=255 ab — an der Umgebung des
+# Pruefers statt am Prueflings. Das Panel meldete "von sshd abgewiesen".
+vorher_datei agent/src/Ops/SftpAccess.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SftpAccess.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        self::ensureRuntime();\n\n', '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/SftpAccess.php "die Pruefung laeuft ohne ihre Umgebung" &&
+pruefe "die Pruefung laeuft ohne ihre Umgebung" \
+  SftpRuntimeDirTest::test_the_directory_is_ensured_before_the_check failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SftpRuntimeDirTest::test_the_directory_is_ensured_before_the_check passed
+
+echo
+echo "── SftpRuntimeDirTest: ein weltschreibbares /run/sshd bleibt ──"
+#
+# Gemessen: 0777 laesst sshd -t ebenfalls mit rc=255 scheitern, mit anderem
+# Wortlaut.
+vorher_datei agent/src/Ops/SftpAccess.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SftpAccess.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        if (is_array($stat) && ($stat['mode'] & 0o022) !== 0) {", '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/SftpAccess.php "die Rechte bleiben, wie sie sind" &&
+pruefe "die Rechte bleiben, wie sie sind" \
+  SftpRuntimeDirTest::test_a_writable_directory_is_corrected failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SftpRuntimeDirTest::test_a_writable_directory_is_corrected passed
+
+echo
+echo "── PublicKeyTest: der private Schluessel hinter der Steuerzeichenpruefung ──"
+#
+# Der Fund aus Punkt 11 (docs/59, Befund 18): Ein eingefuegter privater
+# Schluessel hat immer Zeilenumbrueche, also fing ihn die Steuerzeichenpruefung
+# ab — und der Satz, der genau seinen Fall benennt, war unerreichbar.
+vorher_datei agent/src/Ssh/PublicKey.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/PublicKey.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""        if (str_starts_with($raw, '-----BEGIN')) {
+            throw AgentException::badRequest(self::whyNot('-----BEGIN', $raw));
+        }
+""", '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/PublicKey.php "die engere Erkennung steht hinten" &&
+pruefe "die engere Erkennung steht hinten" \
+  PublicKeyTest::test_a_private_key_is_named_as_such failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  PublicKeyTest::test_a_private_key_is_named_as_such passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

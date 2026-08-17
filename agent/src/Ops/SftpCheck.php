@@ -66,12 +66,24 @@ final class SftpCheck implements Op
         $root = SubscriptionProvision::VHOSTS.'/'.$name;
         $keyFile = SshdConfig::keyFile($user);
 
-        $context->progress(30, 'Kette prüfen');
-        $chroot = Chain::of($root);
-        $keys = Chain::of($keyFile);
-
-        $context->progress(70, 'nachsehen, was gilt');
+        /*
+         * **Was gilt, wird zuerst gefragt — die Kette hängt daran.**
+         * Im Abnahmelauf stand auf der Seite „Verzeichnis und Rechte in
+         * Ordnung", während `sshd -T` `/var/www` nannte (`docs/59`, Befund 10):
+         * Beurteilt worden war die Wurzel des Abonnements, in Betrieb war eine
+         * andere. Der Satz war über das falsche Verzeichnis wahr.
+         *
+         * > **Eine Kette, die am Sollzustand hängt, sagt nichts über den
+         * > Zugang, der gerade nicht ihm folgt.**
+         */
+        $context->progress(40, 'nachsehen, was gilt');
         $effective = $this->effective($context, $user);
+
+        $checked = self::applied($root, $effective);
+
+        $context->progress(70, 'Kette prüfen');
+        $chroot = Chain::of($checked);
+        $keys = Chain::of($keyFile);
 
         $context->progress(100, 'fertig');
 
@@ -79,6 +91,13 @@ final class SftpCheck implements Op
             'user' => $user,
             'root' => $root,
             'key_file' => $keyFile,
+
+            /*
+             * Welches Verzeichnis beurteilt worden ist. Es steht getrennt von
+             * `root` da, weil die beiden auseinanderfallen können — und wer sie
+             * zusammenwirft, baut den Befund von oben wieder ein.
+             */
+            'checked_root' => $checked,
 
             'chroot_chain' => $chroot,
             'chroot_problem' => Chain::firstProblem($chroot),
@@ -96,6 +115,39 @@ final class SftpCheck implements Op
 
             'effective' => $effective,
         ];
+    }
+
+    /**
+     * Das Verzeichnis, das wirklich gilt — oder die Wurzel des Abonnements.
+     *
+     * **Drei Fälle, und nur einer ist ein anderes Verzeichnis.** `sshd -T`
+     * schreibt `none`, wenn nichts gesetzt ist; das ist die Abwesenheit einer
+     * Angabe und keine andere. Und OpenSSH lässt in `ChrootDirectory` die Marken
+     * `%h`, `%u` und `%%` zu, die `sshd -T` **unaufgelöst** ausgibt — eine
+     * Kettenprüfung auf `%h/sftp` meldete „gibt es nicht" und wäre damit eine
+     * falsche Aussage statt einer fehlenden.
+     *
+     * > **Ein Pfad mit einer Marke darin ist kein Pfad, und ein Urteil darüber
+     * > ist keines.**
+     *
+     * **Als reine Funktion**, damit ein Wächter sie ohne Server liest —
+     * dieselbe Bauart wie {@see SshdConfig::render()}.
+     *
+     * @param  array<string,string>  $effective
+     */
+    public static function applied(string $root, array $effective): string
+    {
+        $wirksam = $effective['chrootdirectory'] ?? '';
+
+        if ($wirksam === '' || $wirksam === 'none') {
+            return $root;
+        }
+
+        if (! str_starts_with($wirksam, '/') || str_contains($wirksam, '%')) {
+            return $root;
+        }
+
+        return $wirksam;
     }
 
     /**

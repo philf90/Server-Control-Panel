@@ -25,6 +25,7 @@ interface Link {
 interface Check {
   unavailable?: string
   root?: string
+  checked_root?: string
   key_file?: string
   has_keys?: boolean
   chroot_problem?: Link | null
@@ -129,18 +130,38 @@ function problem(): Link | null {
         </p>
 
         <template v-else>
-          <p v-if="problem()" class="notice critical">
+          <!--
+            **Die Reihenfolge ist der Befund aus dem Lauf.** Hier stand der
+            Defekt zuerst, und ohne Schlüssel gibt es die Schlüsseldatei nicht
+            — also meldete `Chain` „gibt es nicht", und die Seite schrieb rot
+            „Der Zugang kommt so nicht zustande" für ein Abonnement, an dem
+            nur noch niemand etwas eingerichtet hatte.
+
+            > **Ein Zustand, in dem noch nichts eingerichtet ist, sieht für
+            > eine Prüfung genauso aus wie einer, in dem etwas kaputt ist — und
+            > nur der Code kennt den Unterschied.**
+
+            Ohne Schlüssel gibt es keinen Zugang, den etwas klemmen könnte. Die
+            Ketten werden ab dem ersten Schlüssel beurteilt und nicht davor.
+          -->
+          <p v-if="props.keys.length === 0" class="notice neutral">
+            <span>Es ist kein Schlüssel eingetragen — damit ist der Zugang aus. Tragen Sie unten einen ein.</span>
+          </p>
+
+          <p v-else-if="problem()" class="notice critical">
             <span>
-              <b>Der Zugang kommt so nicht zustande.</b>
+              <!--
+                `{{ ' ' }}` und nicht ein Zeilenumbruch: Vues Vorgabe
+                `whitespace: 'condense'` entfernt einen Textknoten zwischen zwei
+                Elementen, wenn er einen Umbruch enthält. Im Lauf stand deshalb
+                „zustande./etc/srvpanel/ssh" ohne Leerzeichen.
+              -->
+              <b>Der Zugang kommt so nicht zustande.</b>{{ ' ' }}
               <span class="ident">{{ problem()?.path }}</span> {{ problem()?.reason }}
               (Eigentümer <span class="ident">{{ problem()?.owner }}</span>,
               Rechte <span class="ident">{{ problem()?.mode }}</span>).
               OpenSSH weist die Anmeldung dann ab, ohne dem Programm des Kunden einen Grund zu nennen.
             </span>
-          </p>
-
-          <p v-else-if="props.keys.length === 0" class="notice neutral">
-            <span>Es ist kein Schlüssel eingetragen — damit ist der Zugang aus. Tragen Sie unten einen ein.</span>
           </p>
 
           <!--
@@ -156,8 +177,31 @@ function problem(): Link | null {
             > Ein Wächter, der Text liest, liest auch die Begründung dafür,
             > warum er recht hat.
           -->
+          <!--
+            **Und der Satz nennt das Verzeichnis, wenn es nicht das des
+            Abonnements ist** (`docs/59`, Befund 10). Im Lauf stand hier
+            „Verzeichnis und Rechte in Ordnung", während `sshd -T` `/var/www`
+            nannte — wahr über das eine Verzeichnis, gelesen über das andere.
+
+            > **Ein Satz ohne Gegenstand bekommt den, den der Leser erwartet.**
+          -->
+          <!--
+            **Ein Wickel und die Verzweigung darin, nicht zwei Wickel.**
+            `NoticeShapeTest` verlangt ein *attributfreies* `span` als einziges
+            Kind, und das zu Recht: Zwei `span` mit `v-if`/`v-else` sind für
+            einen Leser des Quelltexts zwei Flexkinder, und die Regel wäre
+            danach eine, die man von Fall zu Fall auslegt.
+          -->
           <p v-else class="notice neutral">
-            <span>Der Zugang steht: {{ props.keys.length }} Schlüssel, Verzeichnis und Rechte in Ordnung.</span>
+            <span>
+              <template v-if="props.check.checked_root && props.check.checked_root !== props.check.root">
+                Der Zugang steht: {{ props.keys.length }} Schlüssel. Geprüft ist{{ ' ' }}
+                <span class="ident">{{ props.check.checked_root }}</span> — das Verzeichnis, das gilt.
+              </template>
+              <template v-else>
+                Der Zugang steht: {{ props.keys.length }} Schlüssel, Verzeichnis und Rechte in Ordnung.
+              </template>
+            </span>
           </p>
 
           <!--
@@ -165,8 +209,26 @@ function problem(): Link | null {
             Der erste passende Match-Block gewinnt, und ein Eintrag des
             Betreibers weiter oben schlägt unseren — zu Recht, aber sichtbar.
           -->
+          <!--
+            **`none` ist die Abwesenheit einer Angabe und keine andere Angabe.**
+            `sshd -T` schreibt `chrootdirectory none`, wenn nichts gesetzt ist;
+            im Lauf stand daraufhin „gilt ein anderes Verzeichnis: none. Eine
+            Regel des Betreibers steht über der des Panels" — für einen Server,
+            auf dem schlicht noch kein Block existierte.
+
+            > **Ein Platzhalter für „nichts" ist ein Wert, und eine Prüfung, die
+            > nur auf „ungleich" sieht, hält ihn für eine Aussage.**
+
+            Und ohne Schlüssel gibt es keinen Block, der überschrieben sein
+            könnte — deshalb zählt diese Meldung erst ab dem ersten.
+          -->
           <p
-            v-if="props.check.effective?.chrootdirectory && props.check.effective.chrootdirectory !== props.check.root"
+            v-if="
+              props.keys.length > 0 &&
+              props.check.effective?.chrootdirectory &&
+              props.check.effective.chrootdirectory !== 'none' &&
+              props.check.effective.chrootdirectory !== props.check.root
+            "
             class="notice warn"
           >
             <span>

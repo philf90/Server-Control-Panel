@@ -369,6 +369,41 @@ Beides gehört auf `cloudsrv24`, und bis dahin ist es keine Zusage.
 
 ---
 
+## 13b. Nachtrag vom 17. August — die blinde Stelle dieser Runde
+
+**Diese Runde hat vierzig Messungen lang eine Frage nicht gestellt, weil ihr
+Kopfteil die Antwort vorweggenommen hat.** Aufgefallen ist es im Abnahmelauf
+(`docs/59`, Befund 6): Der Betreiber bekam auf `cloudsrv24` eine
+Passwortabfrage für einen Systembenutzer, der keines hat und keines bekommt.
+
+Der Kopfteil des Messskripts setzte `PasswordAuthentication no` **und**
+`KbdInteractiveAuthentication no` global. Der verwaltete Block trug nur die
+erste Zeile — und konnte die Tür nicht offen lassen, weil sie schon zu war.
+Dazu fährt `anmeldung()` mit `BatchMode=yes`: Eine Abfrage wäre auch dann
+unsichtbar geblieben, wenn sie erschienen wäre.
+
+> **Eine Messumgebung, die eine zweite Tür global zuhält, sagt nichts darüber,
+> ob der Block sie zuhält.**
+
+Nachgemessen gegen dieselbe Fassung (OpenSSH 9.6p1), mit einem Kopfteil in der
+Vorgabe der Distribution — gelesen wird, was der Server dem Klienten anbietet:
+
+| Block | `sshd -T` | angeboten wird |
+|---|---|---|
+| `PasswordAuthentication no` | `kbdinteractiveauthentication yes` | `publickey,keyboard-interactive` |
+| dazu `AuthenticationMethods publickey` | `authenticationmethods publickey` | `publickey` |
+| oder `KbdInteractiveAuthentication no` | `kbdinteractiveauthentication no` | `publickey` |
+
+`KbdInteractiveAuthentication` ist die zweite Tür, und über PAM fragt sie nach
+demselben Passwort. Gelingen kann es nicht — `!` im Schattenfeld —, aber gefragt
+wird, und ein Wörterbuchangriff nimmt den Weg durch PAM statt an ihm vorbei.
+
+**Der Block trägt seit dem 17. August `AuthenticationMethods publickey`**, die
+Positivliste und nicht den zweiten Riegel: Sie nennt, was gilt, und hält damit
+auch für eine Tür, die OpenSSH später dazubekommt. Das Skript hat den Abschnitt
+**M6b** bekommen, mit der Gegenprobe, dass der gültige Schlüssel weiterhin
+hereinkommt — **45 Messungen, 0 abweichend.**
+
 ## 14. Was diese Runde am Plan ändert
 
 1. **`sftp.access` prüft vor dem Schreiben** (§5), an einer Nachbardatei, und

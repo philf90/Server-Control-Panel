@@ -91,6 +91,40 @@ in `sshd_config` schreibt, ist ein Risiko ohne Anlass.
 Auf dem eigenen Rechner `ssh-keygen -t ed25519 -f p6-sftp -N ''`, den
 öffentlichen Teil im Panel eintragen.
 
+**Jeder Aufruf trägt diese drei Angaben** — sonst prüft er etwas anderes:
+
+```
+-o PreferredAuthentications=publickey -o PasswordAuthentication=no -o BatchMode=yes
+```
+
+Der Grund ist ein Befund dieses Laufs (`docs/59`, Befund 5). Ein Schlüsselpfad,
+den es nicht gibt, ist für `sftp` eine **Warnung**; danach fragt es nach einem
+Passwort, und heraus kommt `Permission denied` — dieselbe Ausgabe, die die
+Gegenprobe als Erfolg liest.
+
+> **Eine Gegenprobe, die auf einen anderen Weg zurückfallen darf, prüft den
+> falschen Weg.**
+
+Unter Windows kommt dazu, dass `%USERPROFILE%` in PowerShell nicht expandiert
+und ein leeres `-N ''` dort verschluckt wird: `"$env:USERPROFILE\..."` und
+`-N '""'`, oder die Eingabeaufforderung nehmen.
+
+**Ins Panel gehört die Ausgabe von `cat p6-sftp.pub` und nicht die von
+`ssh-keygen -lf`.** Die beiden stehen im Terminal untereinander, und die
+falsche ist die kürzere — Befund 7 dieses Laufs. Sicherer ist der Weg über die
+Zwischenablage (`clip` bzw. `Set-Clipboard`).
+
+**In der Sitzung selbst** — die Befehle stehen ohne `sftp> ` davor, und das ist
+kein Schönheitsfehler: Mitkopiert liest `sftp` die Eingabeaufforderung als Teil
+des Befehls und antwortet `Invalid command.` (Befund 8 dieses Laufs).
+
+```
+pwd
+ls -a
+put p6-sftp.pub httpdocs/probe.txt
+quit
+```
+
 | erwartet | |
 |---|---|
 | Fingerabdruck im Panel == `ssh-keygen -lf p6-sftp.pub` | |
@@ -100,8 +134,13 @@ Auf dem eigenen Rechner `ssh-keygen -t ed25519 -f p6-sftp -N ''`, den
 | `ls` zeigt `httpdocs`, `logs`, `conf`, `tmp`, `mail`, `.ssh` | |
 | Hochladen einer Datei nach `httpdocs/` gelingt, und sie trägt `p1136:www-data` — das setgid-Bit und `-u 0027` zusammen | |
 | **Gegenprobe:** ein *anderer* Schlüssel wird abgewiesen | |
+| `sshd -T -C user=p1136 \| grep -i authenticationmethods` sagt `publickey` | |
 
 Der letzte Punkt ist die Null neben etwas anderem als Null.
+
+Die Zeile darüber ist Befund 6 dieses Laufs: `PasswordAuthentication no` allein
+liess `keyboard-interactive` als zweite Tür offen, und über PAM fragte sie nach
+demselben Passwort.
 
 ---
 
@@ -131,9 +170,18 @@ chown p1136:p1136 /var/www/vhosts/p6-b.invalid
 |---|---|
 | Die Anmeldung scheitert; der Klient sieht nur `Broken pipe` o. ä. | |
 | **Das Panel nennt genau dieses Verzeichnis**, seinen Eigentümer und seine Rechte | |
-| `journalctl -u ssh` trägt `bad ownership or modes for chroot directory "…"` | |
+| `journalctl --since today --no-pager -g \'bad ownership\'` trägt `bad ownership or modes for chroot directory "…"` | |
 
 Zurücksetzen (`chown root:root`), Anmeldung geht wieder — die Gegenprobe.
+
+**Der Aufruf hat drei Anläufe gebraucht, und jeder Fehler sah gleich aus.** Zu
+enges `--since` (die Aufnahme der Seite lag dazwischen), dann gar kein Fenster
+(unbemessen, abgebrochen), dann `-u ssh` — und der Filter war der eigentliche
+Fehler: Bei aktiver Socket-Aktivierung gehören die `sshd`-Prozesse nicht alle zu
+`ssh.service`. Ohne `-u` standen die Zeilen sofort da (Befund 14).
+
+> **Drei verschiedene Fehler am Messmittel ergeben dreimal dieselbe falsche
+> Antwort — und die sieht jedes Mal wie ein Befund über den Prüfling aus.**
 
 Und derselbe Griff eine Station weiter oben (`chmod 0777 /var/www/vhosts`, sofort
 zurück): Die Meldung heisst dann `… component "/var/www/vhosts/"`, **mit
@@ -228,11 +276,30 @@ heran — und das Löschen des Verzeichnisses nimmt sie darum nicht mit.
 
 | | erwartet |
 |---|---|
-| Fremde Abo-Kennung in `/subscriptions/<fremd>/sftp` | 403 |
+| Fremde Abo-Kennung in `/subscriptions/<fremd>/sftp` | **404** — die Mandantenklammer antwortet vor der Policy |
+| Sichtbares Abonnement, Benutzer ohne `ftp_accounts` | 403 — und im Menü steht kein Weg dorthin |
 | Ein privater Schlüssel im Formular | Feldmeldung „Das ist ein **privater** Schlüssel" |
 | `command="/usr/bin/id" ssh-ed25519 …` | Feldmeldung, und nichts landet in der Datei |
 | Ein Zeilenumbruch mit einem zweiten Schlüssel dahinter | Feldmeldung; die Datei bekommt **eine** Zeile |
 | RSA mit 1024 Bit | Feldmeldung mit der Zahl |
+
+**Zwei Wände und nicht eine** (Befund 17 aus `docs/59`). Der Mandantenscope am
+Modell klammert die Abfrage, bevor `can:manageSftp` läuft — eine fremde Kennung
+endet als 404, nicht als 403, und das ist die bessere Antwort: Ein 403 bestätigt
+die Existenz. Wer nur die Policy prüft, prüft die hintere Wand und protokolliert
+die richtige Antwort als Abweichung.
+
+**Und nach jeder abgewiesenen Eingabe zwei Zeilen**, die mehr sagen als die
+Meldung:
+
+```bash
+sha256sum /etc/ssh/sshd_config
+wc -l /etc/srvpanel/ssh/<benutzer>
+```
+
+> **Eine abgewiesene Eingabe, die nichts geschrieben hat, ist eine Wand. Eine,
+> die mit einer Meldung antwortet und trotzdem schreibt, ist eine Tür mit
+> Aufschrift.**
 
 ---
 

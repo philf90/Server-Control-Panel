@@ -39,6 +39,53 @@ final class SftpController extends Controller
         private readonly Audit $audit,
     ) {}
 
+    /**
+     * Der Weg hinein, ohne dass der Kunde eine Abo-Kennung kennen muss.
+     *
+     * **Gemeldet vom Betreiber am 17. August 2026** während der Zwischenabnahme
+     * (`docs/59`, Befund 19): Der SFTP-Zugang lag drei Klicks tief —
+     * Abonnements, Name, Bereich —, also genau dort, wo der Dateimanager vor
+     * `docs/55` Befund 8 lag.
+     *
+     * > **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten
+     * > Merkmal wieder da, wenn die Behebung nicht die Regel wurde.**
+     *
+     * **Die Bauart ist wörtlich die von {@see FileController::pick()}**, und das
+     * ist Absicht: Es ist dieselbe Frage — ein Merkmal, das an *einem*
+     * Abonnement hängt, braucht einen Menüpunkt ohne Kennung darin. Eine zweite
+     * Antwort auf dieselbe Frage wäre die, die beim nächsten Umbau auseinander
+     * läuft.
+     *
+     * **Die Mandantenklammer hat schon gefiltert**, bevor diese Zeile läuft;
+     * `manageSftp` ist die zweite Frage und nicht die erste. Ein Admin sieht
+     * damit alle Abonnements — für ihn steht der Punkt aber nicht im Menü, weil
+     * „welches" bei tausend Kunden keine Auswahlliste mehr ist, sondern die
+     * Abonnementsliste, die es schon gibt.
+     */
+    public function pick(Request $request): RedirectResponse|Response
+    {
+        $account = $request->user();
+
+        $erreichbar = Subscription::query()
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (Subscription $s): bool => $account?->can('manageSftp', $s) ?? false)
+            ->values();
+
+        if ($erreichbar->count() === 1) {
+            return to_route('sftp.show', ['subscription' => $erreichbar->first()?->id]);
+        }
+
+        return Inertia::render('Subscriptions/SftpPick', [
+            'subscriptions' => $erreichbar
+                ->map(static fn (Subscription $s): array => [
+                    'id' => $s->id,
+                    'name' => $s->name,
+                ])
+                ->all(),
+        ]);
+    }
+
     public function show(Subscription $subscription): Response
     {
         $keys = SshKey::query()
@@ -88,7 +135,31 @@ final class SftpController extends Controller
                 $request->user()?->email,
             );
         } catch (AgentException $error) {
-            throw ValidationException::withMessages(['key' => $error->getMessage()]);
+            /*
+             * **Nur eine abgewiesene Eingabe ist ein Fehler am Feld.**
+             * Der Fund aus Phase B von Punkt 8 (`docs/59`, Befund 11): Bei
+             * kaputter `sshd_config` brach der Vorgang richtig ab, und die
+             * Meldung landete am Schlüsselfeld — das Feld wurde rot, obwohl der
+             * Schlüssel einwandfrei war. `PublicKey::parse()` hatte ihn eine
+             * Zeile vorher gelesen.
+             *
+             * > **Ein roter Rand am Feld behauptet, das Feld sei falsch. Wer ihn
+             * > für einen Zustand des Servers setzt, schickt den Leser dorthin,
+             * > wo nichts zu ändern ist.**
+             *
+             * `badRequest` kommt aus der Prüfung der Eingabe; alles andere —
+             * `exec_failed`, `timeout`, `internal` — ist ein Zustand des Servers
+             * und gehört an die Zusammenfassung, ohne ein Feld anzufassen.
+             * Der Schlüsselname `server` ist deshalb keiner eines Feldes.
+             */
+            if ($error->errorCode === AgentException::BAD_REQUEST) {
+                throw ValidationException::withMessages(['key' => $error->getMessage()]);
+            }
+
+            throw ValidationException::withMessages([
+                'server' => 'Der Schlüssel ist in Ordnung; der Server hat die Änderung nicht '
+                    .'angenommen. '.$error->getMessage(),
+            ]);
         }
 
         $this->audit->record('sftp.key.add', subscriptionId: (int) $subscription->id, context: [

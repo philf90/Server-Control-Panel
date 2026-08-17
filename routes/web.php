@@ -524,6 +524,17 @@ Route::middleware('auth')->group(function (): void {
      * aussen einrichten. Ein Schlüssel überlebt den Entzug des Panel-Zugangs,
      * wenn niemand daran denkt.
      */
+    /*
+     * **Der Menüpunkt, damit der Kunde keine Abo-Kennung kennen muss**
+     * (`docs/59`, Befund 19). Ohne `can:` und mit einer Begründung im
+     * `RouteGuard`: Diese Route hat kein Objekt, an dem eine Policy ansetzen
+     * könnte — sie sucht aus den Abonnements, die die Mandantenklammer ohnehin
+     * sichtbar macht, diejenigen mit `manageSftp` heraus. Wortgleich die
+     * Überlegung zu `GET files`.
+     */
+    Route::get('/sftp', [SftpController::class, 'pick'])
+        ->name('sftp.pick');
+
     Route::get('/subscriptions/{subscription}/sftp', [SftpController::class, 'show'])
         ->middleware('can:manageSftp,subscription')
         ->name('sftp.show');

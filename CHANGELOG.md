@@ -14005,3 +14005,180 @@ ausgerechnet die Behauptung über die Zelle nicht erreicht hat.
 wahrscheinlichen gehalten; eingetreten ist der andere.
 
 > **Ob eine Anzeige nach einem Klick stimmt, weiss man erst nach dem Klick.**
+
+### P6 Schritt 8 — die Zwischenabnahme auf `cloudsrv24`: neunzehn Befunde, zwölf davon am Panel
+
+`docs/58` ist der Lauf, `docs/59` das Protokoll — geschrieben *während* er lief.
+Zwölf Punkte, gefahren gegen `v0.6.0-rc.10` auf einem echten Server, mit dem
+Betreiber an der Tastatur und der Anbieterkonsole als Rückweg.
+
+**Erfüllt sind die Punkte 0 bis 8, 10 und 11** (bis auf eine bewusst offen
+gelassene Wand); Punkt 9 hängt an einem Befund und wird gegen die nächste Fassung
+nachgeprüft. **Neunzehn Befunde, und keinen davon hat ein Test gefunden:** zwölf am
+Panel, vier am Prüfmittel, drei am Kriterium selbst.
+
+#### Die Sätze, die aus diesem Lauf bleiben
+
+> **Ein Riegel, der eine von zwei Türen schliesst, ist eine Auskunft über die Tür
+> und keine über das Haus.**
+
+`PasswordAuthentication no` im verwalteten Block liess `keyboard-interactive`
+offen; über PAM fragte die zweite Tür nach demselben Passwort. Gemessen: Der Server
+bot `publickey,keyboard-interactive` an. Der Block trägt jetzt
+`AuthenticationMethods publickey` — die Positivliste und nicht den zweiten Riegel,
+aus demselben Grund, aus dem der Agent eine Programmliste führt.
+
+**Und der eigentliche Befund lag im Prüfmittel:** `tests/sftp-messen.sh` setzte
+beide Riegel *global*, also war die Frage in 42 Messungen nie gestellt. Der neue
+Abschnitt M6b misst gegen einen Kopfteil ohne Riegel — 45 wie erwartet, 0
+abweichend.
+
+> **Eine Prüfung, die die Umgebung des Prüfers braucht, prüft nicht nur den
+> Prüfling.**
+
+Bei angehaltenem Dienst räumt systemd `/run/sshd` weg, und `sshd -t` bricht mit
+`rc=255` ab — an der Umgebung, nicht am Kandidaten. Das Panel meldete „von sshd
+abgewiesen" für einen einwandfreien Block, und es traf genau den Zustand, für den
+`SftpAccess::reload()` seinen Zweig „läuft nicht ist kein Fehlschlag" hat: Der
+Zweig kam nie zum Zug, weil die Prüfung davor liegt. `SftpAccess::ensureRuntime()`
+legt das Verzeichnis an und rückt es zurecht, wenn es für Gruppe oder Andere
+schreibbar ist. `sshd -T` ist nicht betroffen — gemessen, mit Gegenprobe.
+
+> **Eine Transaktion rollt die Datenbank zurück und nicht die Platte.**
+
+`Sftp::remove()` schrieb die Schlüsseldatei **vor** dem Block. Bei einem Abbruch
+war sie gelöscht, die Zeile kam zurück — ein Abonnement mit einem Schlüssel im
+Panel und keinem darunter. Vorhergesagt aus dem Quelltext, dann auf dem Server
+gemessen. Jetzt geht in beiden Richtungen der Schritt zuerst, der scheitern kann;
+`SftpWriteOrderTest` prüft **beide** Methoden, denn der Fehler war nicht die
+falsche Reihenfolge an einer Stelle, sondern zwei Reihenfolgen für eine Sache.
+
+> **Ein Schreiber und ein Leser machen keinen Kanal. Dazwischen muss jemand
+> tragen.**
+
+`HandleInertiaRequests` gab den `flash`-Schlüssel `error` nicht weiter. Sieben
+Aufrufe aus vier Controllern fielen damit lautlos aus, darunter „Zertifikat
+abgewiesen" und „Der Versand ist gescheitert" — und `Settings/Mail.vue` **las**
+ihn und renderte ihn. Schreiber und Leser waren seit P4 da, nur dazwischen trug
+niemand. `PanelLayout` rendert ihn jetzt an demselben Ort wie die grüne Meldung,
+mit `role="alert"`; die zweite Fassung in `Settings/Mail.vue` fällt weg.
+`FlashChannelTest` prüft beide Richtungen — und hat zehn weitere Stellen gefunden
+(`status` neunmal, `operation` einmal), die als begründete Ausnahme im Wächter
+stehen und nur kleiner werden können.
+
+> **Eine Meldung, die hinter einer allgemeineren Prüfung steht, ist keine Meldung
+> — sie ist ein Kommentar.**
+
+Der Satz für einen eingefügten privaten Schlüssel war unerreichbar: Die Prüfung
+auf Steuerzeichen stand davor, und ein privater Schlüssel hat immer
+Zeilenumbrüche. Erreichbar war er nur für eine einzige Zeile mit `-----BEGIN`, und
+die tippt niemand. **Der Wächter dazu war grün, weil er genau diese Fassung
+prüfte.**
+
+> **Ein Prüfdatum, das der Code mag, prüft den Code nicht.**
+
+> **Eine Kette, die am Sollzustand hängt, sagt nichts über den Zugang, der gerade
+> nicht ihm folgt.**
+
+Punkt 7 trug ein `ChrootDirectory` des Betreibers oberhalb des Bereichs ein;
+`sshd -T` sagte `/var/www`, und die Seite schrieb „Verzeichnis und Rechte in
+Ordnung" — wahr über die Wurzel des Abonnements, also über ein Verzeichnis, das
+niemand benutzt. `SftpCheck` fragt jetzt **zuerst**, was gilt, und beurteilt
+dieses; die Seite nennt es. Dabei fiel ein Fall auf, der im Lauf nie vorkam:
+OpenSSH lässt `%h` und `%u` in `ChrootDirectory` zu, und `sshd -T` gibt sie
+unaufgelöst aus.
+
+> **Ein Pfad mit einer Marke darin ist kein Pfad, und ein Urteil darüber ist
+> keines.**
+
+> **Ein roter Rand am Feld behauptet, das Feld sei falsch.**
+
+`SftpController` schrieb jede `AgentException` an das Schlüsselfeld — auch die,
+die von `sshd -t` kommt. `AgentException` trägt den Grund mit; nur `BAD_REQUEST`
+geht jetzt ans Feld. `AgentErrorRoutingTest` schneidet dabei die Kommentare weg,
+bevor er liest: Ein Wächter, der Text liest, liest auch die Begründung dafür,
+warum er recht hat.
+
+> **Ein Leerzeichen, das im Quelltext als Zeilenumbruch dasteht, ist für den
+> Übersetzer keines.**
+
+Vues `whitespace: 'condense'` entfernt den Textknoten, und auf der Seite stand
+`zustande./etc/srvpanel/ssh`. `TemplateSpacingTest` prüft die Meldungsklassen —
+und **misst seine eigene Voraussetzung nach**, weil von 22 solchen Lücken im Baum
+21 folgenlos sind.
+
+Dazu: der Zustand „noch nichts eingerichtet" wird nicht mehr als Defekt gemeldet
+(`none` ist die Abwesenheit einer Angabe), ein Grund aus zwei Schreibrechten ist
+ein Satz und keine Aneinanderreihung (`ChainTest`), und die Ausgabe von
+`ssh-keygen -l` wird als Fingerabdruck benannt statt als unbekannter Typ.
+
+#### Und vier Befunde über das Messen selbst
+
+- **Eine Gegenprobe, die auf einen anderen Weg zurückfallen darf, prüft den
+  falschen Weg.** Ein fehlender Schlüsselpfad ist für `sftp` eine Warnung; danach
+  fragt es nach einem Passwort, und `Permission denied` sieht wie der erwartete
+  Erfolg der Gegenprobe aus.
+- **Ein Unit-Filter im Journal ist eine Annahme darüber, wer die Zeile geschrieben
+  hat.** Drei Anläufe, drei verschiedene Fehler am Messmittel, dreimal dieselbe
+  falsche Antwort — und die sah jedes Mal wie ein Befund über den Prüfling aus.
+- **Ein Zustand, den ein Fremder von aussen beenden kann, lässt sich nicht messen,
+  indem man ihn herstellt und dann arbeitet.** `ssh.socket` weckt den Dienst bei
+  der ersten Verbindung, und auf einer öffentlichen Adresse genügt ein Scanner.
+- **Eine Regel, die an ein Attribut gebunden ist, das nur der Übersetzer setzt,
+  fehlt in jedem Aufsatz, der das Markup selbst schreibt.** Der
+  Überlauf-Messaufsatz aus `CLAUDE.md` benutzt das gebaute Stylesheet und hat
+  damit **keinen** der 105 `scoped`-Selektoren aus 19 Komponenten — beinahe ein
+  Fehlbefund auf der Abonnementseite.
+
+#### Und drei am Kriterium
+
+`docs/58` verlangte für eine fremde Abo-Kennung `403`; gemessen wurde `404`, weil
+der Mandantenscope am Modell vor der Policy antwortet — und das ist die bessere
+Antwort, denn ein `403` bestätigt die Existenz.
+
+> **Eine Wand, die vor der anderen steht, antwortet zuerst — und eine Prüfung,
+> die nur die hintere kennt, prüft die falsche.**
+
+Dazu: Punkt 1 verlangte `tests/sftp-messen.sh` im Auslieferungsverzeichnis, und
+das Paket liefert kein `tests/` — der Schritt war nie fahrbar. Und Punkt 8 fragte
+nach einem Abbruch, ohne zu sagen, was sich ändern muss, damit überhaupt
+geschrieben wird: `sftp.access` schreibt nur bei einer Änderung am Block, und ein
+zweiter Schlüssel ändert ihn nicht.
+
+#### Was der Lauf nebenbei belegt hat
+
+Fünf Prüfsummen von `sshd_config`, jede mehrfach getroffen: der Zustand ohne
+Zugang **viermal** zeichengleich, der mit einem Zugang **viermal**, quer über
+zwei kaputte Dateien, zwei abgebrochene Vorgänge und drei verschiedene
+Bezeichnungen.
+
+> **Ein verwalteter Bereich, der aus demselben Sollzustand zweimal dieselbe Datei
+> erzeugt, ist eine Funktion. Alles andere ist ein Verlauf.**
+
+Und die Länge der Schlüsseldatei folgt dabei der Bezeichnung aufs Byte, während
+die Prüfsumme der Konfiguration sich nicht bewegt — zwei Grössen, die sich
+verschieden verhalten müssen, und genau so tun.
+
+#### Und einen Menüpunkt, den der Lauf nicht bestellt hat
+
+Der SFTP-Zugang war nur über das Abonnement erreichbar — drei Klicks, und keiner
+beantwortet eine Frage. Genau die Lage, in der der Dateimanager vor `docs/55`
+Befund 8 stand.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+`/sftp` führt bei genau einem erreichbaren Abonnement hinein und bei mehreren zur
+Auswahl — wortgleich die Bauart von `/files`, bis zur Zwillingsseite
+`Subscriptions/SftpPick.vue`. Der Menüpunkt steht **hinter** „Dateien": Beide
+führen in dasselbe Verzeichnis, der eine im Browser und der andere von aussen.
+
+Das Zeichen ist **kein** Schlüssel — `dns` ist schon einer, und zwei Schlüssel in
+derselben Spalte unterscheidet im Vorbeigehen niemand. Es sind zwei Pfeile
+gegeneinander: die Übertragung.
+
+**Und keiner der 136 Wächter hätte das gefunden.** Es gibt einen für „jeder
+Menüpunkt trägt ein Zeichen" und einen für „kein Knopf ohne Recht" — keinen für
+„hat dieses Merkmal überhaupt einen Weg, der nicht durch eine Kennung führt". Die
+Frage hängt daran, was ein Kunde *sucht*, und nicht daran, was im Quelltext
+steht.

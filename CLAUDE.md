@@ -701,6 +701,18 @@ Testen berücksichtigen:
   > **Ein Aufsatz, der das echte Markup und das gebaute Stylesheet benutzt, misst
   > die echte Seite — und nicht etwas Ähnliches.**
 
+  **Mit einer Grenze, die am 17. August fast einen Fehlbefund gekostet hätte:
+  `<style scoped>` gilt in diesem Aufsatz nicht.** Vite übersetzt so eine Regel
+  zu `.usage[data-v-1ecda25a]`, und handgeschriebenes Markup ohne dieses
+  Attribut trifft sie nie — **105 Selektoren aus 19 Komponenten** stehen so im
+  gebauten Stylesheet. Gemessen und fotografiert war „`1.024 MBvon 10.240 MB`"
+  auf der Abonnementseite; in Wahrheit ist `.usage` eine Flexbox mit `gap`
+  (`docs/59`). Wer eine Komponente mit eigenem Block misst, nimmt ihre Regeln
+  dazu oder setzt das Attribut.
+
+  > **Eine Regel, die an ein Attribut gebunden ist, das nur der Übersetzer
+  > setzt, fehlt in jedem Aufsatz, der das Markup selbst schreibt.**
+
   Was das **nicht** ersetzt: den Blick auf die echte Seite mit echten Daten. Der
   braucht `artisan serve` und damit `vendor/`. **Und der Blick auf das Bild, das
   dieser Aufsatz selbst liefert** — im selben Schritt meldete er für einen

@@ -1907,7 +1907,7 @@ ist** für alle schreibbar".
 | 12 (die Schlüsseldatei überlebt) | **ja** |
 | 13 (die Meldung erscheint überhaupt) | **ja** |
 | 7, 18 (die beiden Formularmeldungen) | **ja** — und mit Befund 20 |
-| 10 (das Verzeichnis, das gilt) | offen |
+| 10 (das Verzeichnis, das gilt) | **ja** |
 | 16 (`/run/sshd`) | Block D |
 | 19 (der Menüpunkt) | Block E |
 
@@ -1971,3 +1971,18 @@ und die kosten mehr.
 
 Kommentare sind ausgenommen: Dort **gehört** die Auszeichnung hin — sie ist für
 den Leser des Quelltexts geschrieben und erreicht niemanden sonst.
+
+## C5 — Befund 10 bestätigt
+
+Der Eingriff aus Punkt 7 noch einmal, oberhalb des verwalteten Bereichs:
+
+> Der Zugang steht: 1 Schlüssel. **Geprüft ist `/var/www`** — das Verzeichnis,
+> das gilt.
+
+Dazu die orange Meldung über die Abweichung. Im ersten Durchgang stand hier
+„Verzeichnis und Rechte in Ordnung" — wahr über `/var/www/vhosts/p6-b.invalid`,
+also über ein Verzeichnis, das in diesem Augenblick niemand benutzt.
+
+Die Kette hängt jetzt an dem, was gilt, und der Satz nennt es. **Zehn von zwölf
+Korrekturen sind damit am Server bestätigt**; offen sind 16 (Block D) und 19
+(Block E) — und Befund 20, dessen Behebung erst mit der nächsten Fassung kommt.

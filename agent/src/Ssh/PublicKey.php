@@ -111,6 +111,25 @@ final class PublicKey
         }
 
         /*
+         * **Der private Schlüssel wird zuerst erkannt, und das ist ein Befund
+         * aus dem Abnahmelauf** (`docs/59`, Befund 18). Er stand vorher hinter
+         * der Steuerzeichenprüfung — und ein eingefügter privater Schlüssel hat
+         * *immer* Zeilenumbrüche. Also bekam der Kunde „In dem Schlüssel steht
+         * ein Steuerzeichen", und der Satz, der genau seinen Fall benennt, war
+         * unerreichbar.
+         *
+         * > **Eine Meldung, die hinter einer allgemeineren Prüfung steht, ist
+         * > keine Meldung — sie ist ein Kommentar.**
+         *
+         * Abgewiesen wird er in beiden Fassungen; verschieden ist nur, was er
+         * darüber erfährt. Die Reihenfolge geht deshalb von der **engsten**
+         * Erkennung zur weitesten und nicht umgekehrt.
+         */
+        if (str_starts_with($raw, '-----BEGIN')) {
+            throw AgentException::badRequest(self::whyNot('-----BEGIN', $raw));
+        }
+
+        /*
          * **Steuerzeichen fliegen raus, bevor irgendetwas zerlegt wird.** Ein
          * `\n` machte aus einer Zeile zwei, und die zweite wäre ein Zugang, den
          * das Panel nicht anzeigt. Geprüft wird auf *jedes* Steuerzeichen und

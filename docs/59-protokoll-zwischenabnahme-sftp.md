@@ -935,6 +935,31 @@ Das gilt für jede 404 dieses Panels und nicht für den SFTP-Zugang; es ist in
 diesem Lauf nicht gemessen worden und gehört nicht in diesen Zweig. Festgehalten,
 damit es nicht aus Gewohnheit übersehen wird.
 
+### Die vier Eingaben — alle abgewiesen, und keine hat geschrieben
+
+| Eingabe | Meldung |
+|---|---|
+| privater Schlüssel (mehrzeilig) | „In dem Schlüssel steht ein Steuerzeichen…" |
+| `command="/usr/bin/id" ssh-ed25519 …` | „…fängt nicht mit einem Schlüsseltyp an, sondern mit „command="/usr/bin/id""" |
+| zwei Schlüssel, durch Umbruch getrennt | „In dem Schlüssel steht ein Steuerzeichen…" |
+| RSA mit 1024 Bit | „Der RSA-Schlüssel hat **1024 Bit**; angenommen werden ab 2048…" |
+
+**Und die zwei Zeilen, die mehr sagen als die vier Meldungen:**
+
+```
+sha256sum /etc/ssh/sshd_config   →  4a141234…9018e   (unverändert, REF-C)
+wc -l /etc/srvpanel/ssh/p1136    →  4                (drei Kopfzeilen, ein Schlüssel)
+```
+
+> **Eine abgewiesene Eingabe, die nichts geschrieben hat, ist eine Wand. Eine,
+> die mit einer Meldung antwortet und trotzdem schreibt, ist eine Tür mit
+> Aufschrift.**
+
+Vier Wände. Und die vierte nennt die Zahl, wie das Kriterium es verlangt.
+
+**Punkt 11 ist damit erfüllt, bis auf Wand 2** — und der erste Eintrag der Tabelle
+ist Befund 18.
+
 ---
 
 ## Befunde
@@ -1576,3 +1601,41 @@ ist das der Unterschied zwischen einer Auskunft und keiner.
 **Der Fehler war also nicht im Code, sondern im Kriterium** — und er hätte eine
 richtige Antwort als Abweichung protokolliert. `docs/58` nennt jetzt beide Wände
 getrennt, mit der Antwort, die zu jeder gehört.
+
+---
+
+### Befund 18 — eine Meldung, die nie erscheint, weil eine allgemeinere davor steht
+
+Die vier Eingaben aus Punkt 11 haben **zwei identische Meldungen** erzeugt: der
+private Schlüssel und die zwei aneinandergehängten Schlüssel. Beide bekamen „In
+dem Schlüssel steht ein Steuerzeichen."
+
+Für den zweiten Fall ist das der richtige Satz. Für den ersten gibt es einen
+eigenen, sorgfältig geschriebenen:
+
+> Das ist ein **privater** Schlüssel. Hierher gehört die Datei mit der Endung
+> `.pub` — der private bleibt auf Ihrem Rechner und wird nirgends hochgeladen.
+
+**Er war unerreichbar.** Die Prüfung auf Steuerzeichen stand davor, und ein
+eingefügter privater Schlüssel hat *immer* Zeilenumbrüche. Erreichbar war der Satz
+nur für eine **einzige Zeile**, die mit `-----BEGIN` anfängt — und die tippt
+niemand von Hand.
+
+> **Eine Meldung, die hinter einer allgemeineren Prüfung steht, ist keine Meldung
+> — sie ist ein Kommentar.**
+
+Bemerkenswert ist, wie lange das gehalten hat: Der Wächter dazu gab es seit dem
+ersten Tag, und er war **grün** — er prüfte genau die eine Fassung, die den Zweig
+erreicht. Ein Testdatensatz aus einer Zeile hat einen Fall geprüft, den es in der
+Praxis nicht gibt.
+
+> **Ein Prüfdatum, das der Code mag, prüft den Code nicht.**
+
+**Behoben** durch Umstellen der Reihenfolge: von der **engsten** Erkennung zur
+weitesten. Abgewiesen wird der private Schlüssel in beiden Fassungen — verschieden
+ist nur, was der Kunde erfährt. Der Wächter trägt jetzt den mehrzeiligen Fall
+dazu; der Bruch (Reihenfolge zurückdrehen) macht ihn rot, gegengeprüft.
+
+**Was ausdrücklich nicht geändert wurde:** die Meldung für `command="…"`. Sie
+nennt den störenden Anfang wörtlich, und das ist genau, was der Leser braucht. Ein
+eigener Zweig je Form wäre eine Liste, die wächst.

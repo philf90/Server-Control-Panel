@@ -10466,6 +10466,29 @@ pruefe "  … zurückgesetzt wieder grün" \
   SftpRuntimeDirTest::test_a_writable_directory_is_corrected passed
 
 echo
+echo "── PublicKeyTest: der private Schluessel hinter der Steuerzeichenpruefung ──"
+#
+# Der Fund aus Punkt 11 (docs/59, Befund 18): Ein eingefuegter privater
+# Schluessel hat immer Zeilenumbrueche, also fing ihn die Steuerzeichenpruefung
+# ab — und der Satz, der genau seinen Fall benennt, war unerreichbar.
+vorher_datei agent/src/Ssh/PublicKey.php
+python3 - <<'PY2'
+p = 'agent/src/Ssh/PublicKey.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""        if (str_starts_with($raw, '-----BEGIN')) {
+            throw AgentException::badRequest(self::whyNot('-----BEGIN', $raw));
+        }
+""", '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ssh/PublicKey.php "die engere Erkennung steht hinten" &&
+pruefe "die engere Erkennung steht hinten" \
+  PublicKeyTest::test_a_private_key_is_named_as_such failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  PublicKeyTest::test_a_private_key_is_named_as_such passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

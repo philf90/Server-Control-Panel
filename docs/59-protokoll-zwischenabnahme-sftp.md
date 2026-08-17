@@ -817,6 +817,84 @@ ist die dritte Zeile aus `docs/58` Punkt 9 belegt.
 
 ---
 
+## 10. Der Rückbau — und die Reste, die keine sind
+
+Gefahren mit einem **zweiten** Abonnement (`p6-c.invalid`, `p1137`), damit
+`p6-b.invalid` für Punkt 11 stehenbleibt. Damit hat der Lauf zum ersten Mal
+**zwei Blöcke in einer Datei** gesehen.
+
+### Stufe 1 — zwei Blöcke, ein Abschluss
+
+```
+Match User p1136 … (p6-b.invalid)
+Match User p1137 … (p6-c.invalid)
+Match all
+# END srvpanel
+```
+
+| erwartet | gemessen |
+|---|---|
+| Zwei `Match User`-Blöcke im Bereich | erfüllt |
+| Nach Benutzernamen sortiert | `p1136` vor `p1137` |
+| **Ein einziges** `Match all`, am Ende des Bereichs | erfüllt |
+| Zwei Schlüsseldateien, `root:root 0644` | 315 und 321 Byte |
+| `sshd -t` | `rc=0` |
+
+Prüfsumme mit zwei Blöcken: `257e0479…65f94` (**REF-2**).
+
+**Und die Byte-Arithmetik stimmt zum dritten Mal:** `Win11TestGegenprobe` ist
+sechs Zeichen länger als `Win11TestNeu4`, die Datei sechs Byte grösser.
+
+### Stufe 2 — jeder Schlüssel gilt nur für seinen Zugang
+
+| | gemessen |
+|---|---|
+| `p6-fremd` gegen `p1137` | `Connected`, `pwd` ist `/` |
+| **derselbe Schlüssel gegen `p1136`** | `Permission denied (publickey).` |
+
+Das ist die Mandantentrennung auf der Ebene von OpenSSH, und sie ist hier zum
+ersten Mal mit zwei echten Zugängen gemessen statt mit einem und einer Absage.
+
+### Stufe 3 — der Rückbau lässt nichts liegen
+
+| erwartet | gemessen |
+|---|---|
+| Der zweite Block ist fort | nur noch `p1136`, dann `Match all` |
+| Prüfsumme wieder **REF-C** | `4a141234…9018e`, zeichengleich |
+| Verzeichnis unter `/var/www/vhosts` fort | nur `p6-b.invalid` |
+| Systembenutzer fort | `id: 'p1137': no such user`, `grep -c` = 0 |
+| `/etc/srvpanel/ssh/` ohne Rest | **`total 4`, nur `p1136`** |
+| `sshd -t` | `rc=0` |
+
+**Punkt 10 ist damit vollständig erfüllt**, alle vier Zeilen aus `docs/58`.
+
+### Und die Vorhersage war falsch
+
+Ich hatte vorhergesagt, dass die Schlüsseldatei `p1137` liegenbleibt: Der Rückbau
+rufe nur `Sftp::sync()`, und das schreibe den Block, nicht die Datei.
+
+**Sie ist weg, und zwar weil es gebaut wurde.** `SubscriptionRemove` entfernt sie
+— mit einem Kommentar, der `docs/35` wörtlich zitiert: „Sie liegt ausserhalb der
+Abo-Wurzel … und damit nimmt sie das Löschen des Verzeichnisses **nicht** mit."
+
+**Der Grund für den Fehlschluss ist der Lehrsatz.** Ich habe an drei Stellen
+gesucht — `Lifecycle::withdraw()`, `SftpAccess`, `SftpKeyApply` — und alle drei
+gehören zum *Merkmal* SFTP. Der Rückbau von Dateien gehört aber zum *Handelnden*,
+und der ist der Agent: `SubscriptionRemove`. Die erste Grenze aus `CLAUDE.md` sagt
+genau das, und ich habe an ihr vorbeigesucht.
+
+> **Wer einen Rückbau beim Merkmal sucht, findet ihn nicht — er steht beim
+> Handelnden.**
+
+> **Eine Vorhersage aus dem Quelltext ist so gut wie die Suche, auf der sie
+> beruht — und eine falsche Vorhersage, die man vorher ausspricht, kostet nichts
+> und belegt etwas.**
+
+Bei Befund 12 hat dasselbe Verfahren einen echten Fehler gefunden; hier hat es
+einen Beleg erzeugt. Beides ist mehr als eine Messung ohne Erwartung.
+
+---
+
 ## Befunde
 
 ### Befund 1 — die Messrunde war nie fahrbar

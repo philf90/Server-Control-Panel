@@ -15,6 +15,55 @@ Protokoll, das im Voraus geschrieben wird, hält fest, was jemand erwartet hat.
 
 ---
 
+## Stand — 17. August 2026, nach Punkt 11
+
+| Punkt | Zustand |
+|---|---|
+| 0 der zweite Weg hinein | **erfüllt**, 0a und 0b nachgefragt statt angenommen |
+| 1 die Messrunde | **erfüllt** — 42/0, dieselbe OpenSSH-Fassung wie `docs/57` |
+| 2 Fassungen | **erfüllt**, `ssh.socket` als Messung statt als Vermutung |
+| 3 ohne Schlüssel ist der Zugang aus | **erfüllt** in der Hauptaussage; die Wortlaute nachzuprüfen |
+| 4 der erste Schlüssel | **erfüllt**, alle acht Zeilen |
+| 5 der Kunde legt sich selbst einen hin | **erfüllt**, mit drei Quellen für einen Fingerabdruck |
+| 6 die Ablehnung wird sichtbar | **erfüllt**, alle drei Zeilen, beide Glieder |
+| 7 der Bestand ist Gesetz | **erfüllt**, Rückbau zeichengleich |
+| 8 die kaputte Datei | **erfüllt**, in beiden Richtungen des Blocks |
+| 9 `reload` bei ruhendem Dienst | **zwei von vier Zeilen**; der Rest hängt an Befund 16 |
+| 10 der Rückbau | **erfüllt**, alle vier Zeilen |
+| 11 die Wände | **erfüllt bis auf Wand 2** (bewusst offen) |
+| 12 die Bilder | offen — gehört gegen die nächste Fassung |
+
+**Achtzehn Befunde, und keinen davon hat ein Test gefunden.**
+
+| woher | Anzahl | welche |
+|---|---|---|
+| am Panel | 11 | 2, 3, 4, 6, 7, 9, 10, 11, 12, 13, 16, 18 |
+| am Prüfmittel | 4 | 5, 8, 14, 15 |
+| am Kriterium | 3 | 1, 17 — und die Hälften von Punkt 8 |
+
+Dasselbe Verhältnis wie in `docs/45`, `docs/47` und `docs/48`: Die Mehrheit steckt
+nicht im Prüfling.
+
+**Elf Korrekturen liegen im Zweig und keine davon auf dem Server.** Gegen die
+nächste Fassung nachzuprüfen sind deshalb in einem Durchgang:
+
+1. **Punkt 12**, die Bilder — 390 px und 1440 px, beide Themes, mit Messung und
+   Gegenprobe
+2. die **Wortlaute aus Punkt 3** (Befunde 2, 3, 4) — „kein Schlüssel" als Zustand,
+   `none` nicht als fremde Angabe, das Leerzeichen
+3. **Punkt 9** zu Ende (Befund 16) — jetzt kann die Kundenaktion bei ruhendem
+   Dienst durchlaufen
+4. **die Fehlermeldung selbst** (Befund 13) — sie hat es in `rc.10` nicht gegeben,
+   und ohne sie sah in Phase 2b ein Fehlschlag wie ein Erfolg aus
+5. `sshd -T -C user=… | grep authenticationmethods` → `publickey` (Befund 6)
+
+**Neue Wächter aus diesem Lauf:** `TemplateSpacingTest`, `AgentErrorRoutingTest`,
+`FlashChannelTest`, `SftpWriteOrderTest`, `SftpRuntimeDirTest`, `SftpCheckTest` —
+dazu neue Regeln in `SshdConfigTest`, `ChainTest` und `PublicKeyTest`. Jeder Bruch
+steht in `tests/waechter-brechen.sh` und ist einzeln gefahren.
+
+---
+
 ## 0. Der zweite Weg hinein
 
 | | Zustand |

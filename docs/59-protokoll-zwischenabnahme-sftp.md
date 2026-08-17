@@ -1909,7 +1909,7 @@ ist** für alle schreibbar".
 | 7, 18 (die beiden Formularmeldungen) | **ja** — und mit Befund 20 |
 | 10 (das Verzeichnis, das gilt) | **ja** |
 | 16 (`/run/sshd`) | **ja** |
-| 19 (der Menüpunkt) | Block E |
+| 19 (der Menüpunkt) | **ja** |
 
 ## C4 — Befunde 7 und 18 bestätigt, und ein neuer daneben
 
@@ -2071,3 +2071,33 @@ vorigen Wurf waren es vier veraltete Eingriffe, die auf Code zeigten, der nach
 
 > **Ein Eingriff, der nichts ändert, prüft nichts — und sieht dabei aus, als wäre
 > die Regel abgesichert.**
+
+## E — der Menüpunkt (Befund 19 bestätigt)
+
+Gefahren in der Sicht des Kunden über „Anmelden als".
+
+| erwartet | gemessen |
+|---|---|
+| Im Menü unter „Konto", **hinter** „Dateien": „SFTP-Zugang" | erfüllt, mit den zwei Pfeilen als Zeichen |
+| Ein Klick führt **direkt** auf die Seite des Abonnements | erfüllt — keine Auswahlliste |
+| In der Adminsicht steht der Punkt **nicht** im Menü | erfüllt |
+
+Die Reihenfolge im Kundenmenü ist damit: Abonnements, Domains, Datenbanken,
+Dateien, SFTP-Zugang, Vorgänge, Protokoll, Mein Konto. Wer an seine Dateien will,
+findet den kürzeren Weg zuerst.
+
+**Und eine Beobachtung dazu:** Die Abonnementseite trägt oben rechts schon einen
+Knopf „SFTP-Zugang" neben „Dateien". Es gibt den Weg also zweimal — und das ist
+richtig so: Der Knopf steht im Zusammenhang *dieses* Abonnements, der Menüpunkt
+beantwortet die Frage „wo ist das überhaupt". Beide führen an dieselbe Stelle, und
+keiner der beiden ist eine zweite Fassung des anderen.
+
+### Stand nach Block E
+
+**Dreizehn Befunde am Panel sind am Server bestätigt** — 2, 3, 4, 6, 7, 9, 10, 11,
+12, 13, 16, 18, 19. Offen bleiben allein **20** (die Auszeichnung in den Meldungen)
+und **21** (der Satz über den ruhenden Dienst): Beide sind in diesem Durchgang
+*gefunden* worden, ihre Behebung liegt im Zweig und kommt mit der nächsten Fassung
+auf den Server.
+
+Was fehlt, ist **Punkt 12** — die Bilder.

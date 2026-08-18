@@ -15073,3 +15073,63 @@ Gefunden hat das die CI und nicht das Gestell im Container: Es reichte die
 gegen die Zahl der Werte — dieselbe Lehre wie bei den `final`-Methoden der
 Basisklasse, nur an einer anderen Strenge. Im ganzen Repo ist danach kein
 zweiter Fall gefunden worden.
+
+### Punkt 12 ist vollständig gemessen — und der Prüfkörper hat zweimal danebengetroffen
+
+Am 18. August 2026 auf `cloudsrv24` gegen `v0.6.0-rc.17`, durch die echte Route:
+Abonnement mit 64 MB Grenze und 128 KB Luft, ein Prüfkörper von 700 KB, ein
+Zeichen geändert, gespeichert.
+
+| | |
+|---|---|
+| Erfolgsmeldung | keine |
+| die Begründung | „Die Datei wurde nicht vollständig geschrieben — vermutlich ist das Kontingent erschöpft." |
+| wo sie steht | oben in der Zusammenfassung, das Feld bleibt unrot |
+| bei 390 px | `0` Überlauf, Gegenprobe `200` |
+| Grenze zurück auf den Plan | „Die Datei ist gespeichert." |
+
+Damit ist die Kette vom Formular bis zum Kontingent und zurück belegt — dieselbe
+Meldung, die am selben Tag noch unerreichbar war.
+
+**Zweimal hat der Prüfkörper seine Wand verfehlt, und beide Male sah es nach
+einem Ergebnis aus.** Der erste war 1,5 MB gross und starb an der 1-MiB-Grenze
+des Agentenprotokolls, bevor das Kontingent ihn sah. Die zweite Messung bei
+390 px lief auf der Seite **ohne** die Meldung: null Überlauf, und der
+Gegenstand fehlte.
+
+> **Ein Prüfkörper, der die Seite ohne den Gegenstand misst, misst die Seite und
+> nicht den Gegenstand.**
+
+**Und die Untergrenze des Panels hat den Aufbau umgedreht.** `Quota::minimum()`
+lässt für Speicherplatz nichts unter 64 MB zu, aus gutem Grund. Der Prüfkörper
+senkt deshalb nicht die Grenze auf den Bestand, sondern führt den Bestand an die
+Grenze heran. Was `tests/quota-messen.php` mit 1 MB misst, ist über die
+Oberfläche erst ab 64 MB erreichbar — der Prüfstand ruft `DiskQuota::apply()`
+unmittelbar und kommt an der Prüfung des Formulars vorbei. Die berichtigte
+Vorschrift samt ihrer drei Fallen steht in `docs/61 §8.2`.
+
+### `FilesWrite::MAX_BYTES` ist unerreichbar — und deutscher Text reisst die Grenze bei 620 KB
+
+Gefunden beim Bau von Punkt 12, ohne Bezug zum Angriff. Drei Grenzen
+widersprechen sich: `FilesRead::MAX_BYTES` und `FilesWrite::MAX_BYTES` stehen
+auf 2 MiB, `Connection::REQUEST_MAX` auf **1 MiB**. Die dritte steht vor den
+beiden anderen.
+
+> **Ein Wert, der grösser ist als der Weg dorthin, ist keine Grenze.**
+
+**Und es ist schlimmer als der Faktor 2**, weil die Anfrage JSON ist. Gemessen
+mit `json_encode`: reiner ASCII-Text 1,00, Text mit Zeilenumbrüchen 1,02,
+Quelltext mit Tabs und Anführungszeichen 1,24, **deutscher Text mit Umlauten
+1,71** — jedes Zeichen ausserhalb von ASCII wird zu `\uXXXX`, aus einem `ü`
+(2 Byte) werden 6.
+
+Für den Kunden heisst das: Eine Datei zwischen 1 und 2 MiB öffnet sich im
+Editor, lässt sich bearbeiten und **nie** speichern; bei deutschem Text beginnt
+das schon bei gut 620 KB. Er liest „Anfrage überschreitet 1 MiB." — einen Satz
+über ein Socket, das er nicht kennt — und seine Arbeit ist weg.
+
+**Die Behebung ist bewusst nicht Teil dieses Beitrags**, weil sie eine für
+Kunden sichtbare Grenze verschiebt. Der Weg wäre, die **kodierte** Länge zu
+prüfen statt der rohen und `FilesRead::MAX_BYTES` daran zu binden: Was sich
+öffnen lässt, muss sich speichern lassen. Der Befund steht als `docs/62`
+Punkt 12b.

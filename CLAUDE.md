@@ -655,8 +655,8 @@ und nicht „welche Wand hat ihn gehalten?".
 
 **Der Durchgang läuft seit dem 18. August, und das Protokoll ist `docs/62`.**
 Dreizehn der fünfzehn Punkte sind auf `cloudsrv24` gemessen — die Punkte 5, 7
-und 8 gegen `4fe2e10`, Punkt 12 gegen `2389c82` —, zwei ganz und einer halb
-stehen dort einzeln als offen —
+und 8 gegen `4fe2e10`, Punkt 12 in beiden Hälften und als einziger **durch die
+echte Route** gegen `v0.6.0-rc.17` —, zwei stehen dort einzeln als offen —
 ein Protokoll ohne seine Lücken liest sich wie eine Abnahme. Die Frage aus §1
 ist beantwortet: **Nicht die Normalisierung hält, sondern das Chroot** (stumpf-A
 hält weiter, stumpf-B bricht 3 von 3 aus).
@@ -706,6 +706,23 @@ dort stand er — im anderen Zweig.
 
 > **Ein Wächter, der einen Satz sucht statt seiner Erreichbarkeit, ist grün,
 > sobald der Satz irgendwo steht.**
+
+**Und derselbe Punkt hat seinen Prüfkörper zweimal verfehlt** — beide Male sah
+es nach einem Ergebnis aus: einmal starb er an der 1-MiB-Grenze des Protokolls,
+bevor das Kontingent ihn sah, einmal lief die Messung bei 390 px auf der Seite
+**ohne** die Meldung.
+
+> **Ein Prüfkörper, der die Seite ohne den Gegenstand misst, misst die Seite und
+> nicht den Gegenstand.**
+
+**Daneben fiel ein Fehler heraus, der mit dem Angriff nichts zu tun hat:**
+`FilesRead::MAX_BYTES` und `FilesWrite::MAX_BYTES` stehen auf 2 MiB,
+`Connection::REQUEST_MAX` auf 1 MiB — und weil die Anfrage JSON ist, reisst
+deutscher Text die Grenze schon bei 620 KB (gemessener Faktor 1,71, `ü` wird zu
+`\uXXXX`). Eine solche Datei öffnet sich im Editor und lässt sich nie speichern.
+Er steht als `docs/62` Punkt 12b, die Behebung ist nicht entschieden.
+
+> **Ein Wert, der grösser ist als der Weg dorthin, ist keine Grenze.**
 
 **Der Lauf ist gefahren — am 12. August 2026, gegen `0.5.3-rc.1` und ab Punkt 7
 gegen `0.5.3-rc.2`.** Sechs Kriterien erfüllt, das siebte (das Protokoll) benannt

@@ -567,10 +567,23 @@ Dateien.
 
 ### 8.2 Die zweite Hälfte: dass die Seite es sagt
 
-Die braucht den Browser und ist durch kein Skript zu ersetzen. Angemeldet als
-der Kunde des Wegwerf-Abonnements, dessen Grenze auf 1 MB steht:
+Die braucht den Browser und ist durch kein Skript zu ersetzen.
 
-1. **Im Dateimanager** eine Datei öffnen, sie mit gut 2 MB Inhalt füllen und
+**Der Prüfkörper ist am 18. August zweimal verfehlt worden**, und die
+Berichtigung steht hier, damit es nicht ein drittes Mal passiert:
+
+| Falle | warum |
+|---|---|
+| Grenze unter 64 MB | `Quota::minimum()` lässt das Formular nicht zu — der Bestand wird an die Grenze herangeführt, nicht die Grenze an den Bestand |
+| Prüfkörper über 1 MiB | `Connection::REQUEST_MAX` weist die Anfrage ab, bevor das Kontingent sie sieht |
+| deutscher Text im Prüfkörper | `json_encode` bläht ihn um bis zu 1,71 auf — 620 KB reichen schon für den Abbruch |
+
+Ein Prüfkörper aus reinem ASCII von **700 KB** und **128 KB** Luft unter der
+Grenze treffen zuverlässig.
+
+Angemeldet als der Kunde des Wegwerf-Abonnements:
+
+1. **Im Dateimanager** die 700-KB-Datei öffnen, ein Zeichen ändern und
    speichern.
 2. Erwartet: **keine Erfolgsmeldung**, sondern der Satz „Die Datei wurde nur
    unvollständig geschrieben — vermutlich ist das Kontingent erschöpft."
@@ -579,7 +592,17 @@ der Kunde des Wegwerf-Abonnements, dessen Grenze auf 1 MB steht:
    Eingabe sei falsch — sie ist es nicht.
 4. **Bei 390 px messen**, mit dem Aufsatz aus `docs/58 §12`:
    `scrollWidth - clientWidth` am Dokument, und dazu die Gegenprobe, dass ein
-   Prüfkörper an das Fenster gebunden ist und nicht 900 px fest.
+   Prüfkörper an das Fenster gebunden ist und nicht 900 px fest. **Gemessen wird
+   die Seite, auf der die Meldung steht** — also nach dem Speichern und ohne
+   dazwischen neu zu laden. Der erste Anlauf mass die Seite davor und fand
+   folgerichtig nichts.
+
+   > **Ein Prüfkörper, der die Seite ohne den Gegenstand misst, misst die Seite
+   > und nicht den Gegenstand.**
+
+5. **Die Gegenprobe nach oben:** die Abweichung beim Kontingent wieder
+   entfernen, dieselbe Datei noch einmal speichern — sie muss gelingen. Ein
+   Fehlschlag, der mit der Grenze verschwindet, hing an ihr.
 
 Der vierte Schritt steht hier, weil `docs/48` genau ihn gebraucht hätte: Dort
 schob die endlich lesbare Begründung die Seite um 110 px aus dem Bild, und der

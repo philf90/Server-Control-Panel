@@ -215,16 +215,29 @@ if ($fehler !== null) {
     );
 
     meldung(
-        'der Fehlerweg kennt den Umfang des Verlusts',
-        is_int($geschrieben) && is_int($erwartet) && $erwartet === strlen($inhalt),
-        'ohne beide Zahlen ist „unvollständig" eine Vermutung',
+        'der Fehlerweg nennt die erwartete Länge',
+        $erwartet === strlen($inhalt),
+        'ohne sie ist „unvollständig" eine Vermutung',
     );
 
-    if (is_int($geschrieben) && $geschrieben > 0) {
-        hinweis('welcher Zweig', 'kurze Zahl — der Quelltext hat recht');
-    } elseif ($geschrieben === 0) {
-        hinweis('welcher Zweig', 'false — der Quelltext nimmt den anderen Fall an');
-    }
+    /*
+     * **Und eine unbekannte Zahl heisst `null`.** Der erste Wurf dieses Skripts
+     * verlangte hier zwei ganze Zahlen — also etwas, das PHP nicht hergibt:
+     * `file_put_contents` kennt bei einem kurzen Schreibvorgang die Zahl und
+     * gibt `false` zurück. Eine `0` an dieser Stelle behauptete „nichts
+     * geschrieben"; das ist eine Auskunft, die niemand hat.
+     */
+    meldung(
+        'eine unbekannte Zahl steht als null da und nicht als 0',
+        $geschrieben === null || is_int($geschrieben),
+        'eine 0 behauptet „nichts geschrieben"',
+    );
+
+    hinweis('welcher Zweig', match (true) {
+        is_int($geschrieben) && $geschrieben > 0 => 'kurze Zahl',
+        $geschrieben === null => 'false — PHP wirft die Zahl weg',
+        default => 'unerwartet: '.var_export($geschrieben, true),
+    });
 }
 
 /*

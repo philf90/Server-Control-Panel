@@ -654,8 +654,9 @@ und nicht „welche Wand hat ihn gehalten?".
 > beiden etwas.**
 
 **Der Durchgang läuft seit dem 18. August, und das Protokoll ist `docs/62`.**
-Zwölf der fünfzehn Punkte sind auf `cloudsrv24` gemessen — die Punkte 5, 7 und 8
-gegen `4fe2e10` —, drei stehen dort einzeln als offen —
+Dreizehn der fünfzehn Punkte sind auf `cloudsrv24` gemessen — die Punkte 5, 7
+und 8 gegen `4fe2e10`, Punkt 12 gegen `2389c82` —, zwei ganz und einer halb
+stehen dort einzeln als offen —
 ein Protokoll ohne seine Lücken liest sich wie eine Abnahme. Die Frage aus §1
 ist beantwortet: **Nicht die Normalisierung hält, sondern das Chroot** (stumpf-A
 hält weiter, stumpf-B bricht 3 von 3 aus).
@@ -688,6 +689,23 @@ Schritte hinauf **innerhalb** der Wurzel des Abonnements.
 
 > **Ein Prüfkörper, dessen Ziel von der Tiefe des Ordners abhängt, misst den
 > Ordner und nicht die Grenze.**
+
+**Und Punkt 12 hat den teuersten Satz dieses Abschnitts geliefert.** Im
+Quelltext stand seit P6, `file_put_contents` melde bei voller Quota die Zahl der
+geschriebenen Bytes; gemessen wird **`false`** — PHP wandelt den kurzen
+Schreibvorgang selbst in einen Fehlschlag um und wirft die Zahl weg. Die Meldung
+hing an einer Verzweigung nach genau diesem Wert, also war die, die das
+Kontingent nennt, **unerreichbar**, und der Kunde las „Die Datei liess sich
+nicht schreiben".
+
+> **Zwei Meldungen für denselben Fall laufen auseinander — und die falsche ist
+> die, die man bekommt.**
+
+Der frisch gebaute Wächter war dabei grün: Er suchte den Satz im Quelltext, und
+dort stand er — im anderen Zweig.
+
+> **Ein Wächter, der einen Satz sucht statt seiner Erreichbarkeit, ist grün,
+> sobald der Satz irgendwo steht.**
 
 **Der Lauf ist gefahren — am 12. August 2026, gegen `0.5.3-rc.1` und ab Punkt 7
 gegen `0.5.3-rc.2`.** Sechs Kriterien erfüllt, das siebte (das Protokoll) benannt

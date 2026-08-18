@@ -15,10 +15,19 @@ use Tests\Support\WithoutPhpComments;
  * Quota, `docs/51 §4`), und bis zum 18. August 2026 hat sie nichts geschützt.
  *
  * Bei erschöpftem Kontingent gibt der Kernel `EDQUOT` — aber erst, nachdem er
- * geschrieben hat, was noch passte. `file_put_contents` und
- * `stream_copy_to_stream` melden dann die **Zahl der geschriebenen Bytes** und
- * nicht `false`. Wer nur auf `false` prüft, meldet dem Kunden „gespeichert" für
- * eine Datei, von der die Hälfte fehlt — und die Hälfte ist hier eine halbe
+ * geschrieben hat, was noch passte. Was der PHP-Aufruf daraus macht, hängt vom
+ * Aufruf ab, und **das war hier bis zum 18. August 2026 falsch aufgeschrieben:**
+ *
+ * | Aufruf | bei einem kurzen Schreibvorgang |
+ * |---|---|
+ * | `file_put_contents` | **`false`** — PHP warnt „Only X of Y bytes written" und wirft die Zahl weg |
+ * | `stream_copy_to_stream` | die Zahl der kopierten Bytes |
+ *
+ * Gemessen auf `cloudsrv24` mit `tests/quota-messen.php`; hier stand vorher für
+ * beide „die Zahl". Der Vergleich gegen die erwartete Länge fängt trotzdem
+ * beide Fälle: `false !== 2097152` ist ebenso wahr wie `1048576 !== 2097152`.
+ * Wer dagegen nur auf `false` prüft, meldet dem Kunden „gespeichert" für eine
+ * Datei, von der die Hälfte fehlt — und die Hälfte ist hier eine halbe
  * `wp-config.php`.
  *
  * > **Ein Fehlerweg, der selbst fehlschlagen kann, ist kein Fehlerweg.**
@@ -34,6 +43,20 @@ use Tests\Support\WithoutPhpComments;
  * Schaden anrichtet: `$written === false` liest sich harmloser als
  * `$written !== $size` und ist in neun von zehn Fällen dasselbe. Der zehnte ist
  * der, um den es geht.
+ *
+ * **Und dieser Wächter war am 18. August selbst grün, während die Meldung nicht
+ * ankam.** Er suchte den Satz „Kontingent erschöpft" im Quelltext — und der
+ * stand dort, in einem von **zwei** Zweigen. Gemessen auf `cloudsrv24`: PHPs
+ * `file_put_contents` gibt bei voller Quota `false` zurück und nicht die Zahl
+ * der geschriebenen Bytes, also lief immer der andere Zweig, und der Kunde las
+ * „Die Datei liess sich nicht schreiben". Der Satz war da und unerreichbar.
+ *
+ * > **Ein Wächter, der einen Satz sucht statt seiner Erreichbarkeit, ist grün,
+ * > sobald der Satz irgendwo steht.**
+ *
+ * Deshalb prüft er seitdem, dass es für einen kurzen Schreibvorgang **eine**
+ * Meldung gibt und nicht zwei. Zwei Zweige für denselben Fall laufen
+ * auseinander, und die falsche ist die, die man bekommt.
  */
 final class ShortWriteTest extends TestCase
 {
@@ -46,6 +69,13 @@ final class ShortWriteTest extends TestCase
      * `files.upload` das Hochladen — dieselbe Regel, zwei Stellen. Ein Wächter,
      * der nur die eine prüft, sagt über das Merkmal nichts aus, sondern nur
      * über seinen Anlass.
+     *
+     * **Und `Files\Packer` steht bewusst nicht dabei.** Er schreibt auch, aber
+     * seine Frage lautet anders: `ZipArchive::close()` gibt einen echten
+     * Wahrheitswert zurück, es gibt dort keine Zahl, die kurz sein könnte. Die
+     * anderen drei Regeln erfüllt er (eine Meldung, sie nennt das Kontingent,
+     * der Rest fliegt vor dem Wurf) — wer ihn hier einträgt, sucht eine Zeile,
+     * die es aus gutem Grund nicht gibt.
      *
      * @return array<string, array{string, string}>
      */
@@ -125,6 +155,47 @@ final class ShortWriteTest extends TestCase
             (int) $wurf,
             (int) $weg,
             sprintf('%s wirft, bevor es den Rest wegraeumt — die Zeile danach laeuft nie.', $datei),
+        );
+    }
+
+    /**
+     * Für einen kurzen Schreibvorgang gibt es **eine** Meldung.
+     *
+     * **Das ist der Fall, den es vorher nicht gab, und er hätte den Fehler
+     * gefunden.** Steht die Meldung in einem Bedingungsausdruck, hängt sie an
+     * einer Annahme über den Rückgabewert — und wenn die Annahme falsch ist,
+     * bekommt der Kunde den Zweig, den niemand gemeint hat. Der erste Ausdruck
+     * von `execFailed` muss deshalb unmittelbar eine Zeichenkette sein.
+     */
+    #[DataProvider('operations')]
+    public function test_there_is_one_message_and_not_two(string $datei): void
+    {
+        $this->assertMatchesRegularExpression(
+            "/execFailed\(\s*'/",
+            $this->source($datei),
+            implode("\n", [
+                sprintf('In %s haengt die Meldung an einer Bedingung.', $datei),
+                'Zwei Meldungen fuer denselben Fall laufen auseinander — und die',
+                'falsche ist die, die man bekommt (gemessen am 18. August 2026).',
+            ]),
+        );
+    }
+
+    /**
+     * Eine unbekannte Zahl heisst `null` und nicht `0`.
+     *
+     * Bei `false` weiss dieser Weg nicht, wie viel angekommen ist — PHP kennt
+     * die Zahl und gibt sie nicht heraus. Eine `0` im Protokoll behauptete
+     * „nichts geschrieben", und das ist eine Auskunft, die niemand hat.
+     * Dieselbe Form wie überall sonst hier: `null` heisst „nicht gemessen".
+     */
+    #[DataProvider('operations')]
+    public function test_an_unknown_count_is_null(string $datei): void
+    {
+        $this->assertStringContainsString(
+            '$written === false ? null : $written',
+            $this->source($datei),
+            sprintf('%s meldet eine 0, wo es die Zahl nicht kennt.', $datei),
         );
     }
 

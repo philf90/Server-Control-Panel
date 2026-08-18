@@ -8895,6 +8895,48 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FrontendDependencyTest passed
 
 echo
+echo "── ShortWriteTest: die Meldung hängt wieder an einer Bedingung ──"
+#
+# Genau die Lage vom 18. August: Zwei Meldungen, verzweigt nach `$written ===
+# false` — und weil `file_put_contents` bei voller Quota `false` liefert, lief
+# immer der Zweig, der das Kontingent nicht nennt. Der Satz stand im Quelltext
+# und war unerreichbar.
+vorher_datei agent/src/Ops/FilesWrite.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesWrite.php'
+s = open(p, encoding='utf-8').read()
+alt = "                    'Die Datei wurde nicht vollständig geschrieben — vermutlich ist das Kontingent erschöpft.',"
+neu = """                    $written === false
+                        ? 'Die Datei liess sich nicht schreiben.'
+                        : 'Die Datei wurde nicht vollständig geschrieben — vermutlich ist das Kontingent erschöpft.',"""
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/FilesWrite.php "zwei Meldungen für denselben Fall" &&
+pruefe "zwei Meldungen für denselben Fall" \
+  ShortWriteTest::test_there_is_one_message_and_not_two failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ShortWriteTest passed
+
+echo
+echo "── ShortWriteTest: die unbekannte Zahl wird als 0 gemeldet ──"
+#
+# `false` heisst „PHP kennt die Zahl und gibt sie nicht heraus". Eine 0 im
+# Protokoll behauptet „nichts geschrieben" — eine Auskunft, die niemand hat.
+vorher_datei agent/src/Ops/FilesWrite.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesWrite.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('$written === false ? null : $written', '$written === false ? 0 : $written', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/FilesWrite.php "unbekannte Zahl als 0 gemeldet" &&
+pruefe "unbekannte Zahl als 0 gemeldet" \
+  ShortWriteTest::test_an_unknown_count_is_null failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ShortWriteTest passed
+
+echo
 echo "── ShortWriteTest: files.write prüft nur auf false ──"
 #
 # Bei voller Quota meldet der Aufruf die Zahl der geschriebenen Bytes und nicht
@@ -8923,7 +8965,7 @@ python3 - <<'PY2'
 p = 'agent/src/Ops/FilesUpload.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    'Die Datei wurde nur unvollständig übernommen — vermutlich ist das Kontingent erschöpft.',
+    'Die Datei wurde nicht vollständig übernommen — vermutlich ist das Kontingent erschöpft.',
     'Die Datei liess sich nicht übernehmen.',
     1,
 )

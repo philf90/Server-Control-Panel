@@ -6,7 +6,8 @@ gemessen waren — nicht vorher, denn ein Verweis auf ein Dokument ohne Inhalt i
 ein toter Verweis.
 
 **Es ist unvollständig, und das steht in §3.** Von den zwölf Angriffen und drei
-Belegen aus `docs/51 §4` sind zwölf gemessen; drei sind offen. Ein Protokoll,
+Belegen aus `docs/51 §4` sind dreizehn gemessen; zwei ganz und einer halb
+offen. Ein Protokoll,
 das seine Lücken nicht nennt, liest sich wie eine Abnahme.
 
 | | |
@@ -142,6 +143,56 @@ Zwei Abonnements ergeben zwei Kennungen — eine Konstante sähe gleich aus.
 **Halb offen:** Dass `1001` die Kennung von `p1136` ist, sagt `id` und nicht das
 Protokoll. „Nicht null" ist die eine Hälfte von Punkt 13.
 
+### Punkt 12 — die volle Quota
+
+**Erste Hälfte erfüllt, und der Lauf hat einen Befund gebracht.** Gemessen am
+18. August 2026 auf `cloudsrv24` gegen `2389c82` mit `tests/quota-messen.php`;
+Gerät `/dev/vda3`, `repquota` liest 18 Zeilen, also läuft die Quota dort
+inzwischen — auf dieser Frage stand der Punkt seit `docs/41`.
+
+| | |
+|---|---|
+| 1 MB Grenze, 2 MiB geschrieben | der Vorgang **schlägt fehl** (`exec_failed`) |
+| kein halb geschriebener Rest | ja |
+| die Zieldatei entsteht gar nicht erst | ja |
+| Gegenprobe unter 64 MB | gelingt, 2097152 von 2097152 Byte |
+
+**Der Befund:** Die Meldung lautete „Die Datei liess sich nicht schreiben." — und
+nannte das Kontingent **nicht**. Der Kunde liest einen Defekt des Servers, wo er
+Platz schaffen müsste.
+
+Die Ursache ist der Satz, wegen dem dieses Skript gebaut wurde. Im Quelltext
+stand seit P6, `file_put_contents` melde bei voller Quota die Zahl der
+geschriebenen Bytes; **gemessen wird `false`.** PHP wandelt einen kurzen
+Schreibvorgang selbst in einen Fehlschlag um — es warnt „Only X of Y bytes
+written, possibly out of free disk space" und wirft die Zahl weg. Damit lief
+immer der Zweig, der das Kontingent nicht nennt, und der andere war
+**unerreichbar**.
+
+> **Wissen aus zweiter Hand sieht aus wie Wissen.**
+
+> **Zwei Meldungen für denselben Fall laufen auseinander — und die falsche ist
+> die, die man bekommt.**
+
+Der Vergleich selbst war richtig und hat gehalten: `false !== 2097152` ist ebenso
+wahr wie eine kurze Zahl. **Der Vorgang hat nie Erfolg gemeldet** — es ging
+allein um die Begründung.
+
+**Und der Wächter dazu war grün.** `ShortWriteTest` suchte den Satz „Kontingent
+erschöpft" im Quelltext, und der stand dort — in einem von zwei Zweigen.
+
+> **Ein Wächter, der einen Satz sucht statt seiner Erreichbarkeit, ist grün,
+> sobald der Satz irgendwo steht.**
+
+Behoben mit einer Meldung statt zwei, und `written` steht bei unbekannter Zahl
+als `null` da statt als `0` — eine `0` behauptete „nichts geschrieben", und das
+weiss dieser Weg nicht. `stream_copy_to_stream` in `files.upload` liefert die
+Zahl wirklich; dieser Weg hatte immer nur eine Meldung und war deshalb nicht
+betroffen.
+
+**Offen bleibt die zweite Hälfte** — dass die Seite es sagt, an der richtigen
+Stelle und ohne bei 390 px zu schieben (`docs/61 §8.2`).
+
 ### Punkt 15 — ein gültiger Vorgang gelingt
 
 **Erfüllt**, in jedem Lauf und vor allen Nullen: Abschnitt 3 liest eine gültige
@@ -235,7 +286,7 @@ ein Protokoll ohne seine Lücken sich wie eine Abnahme liest.
 | # | offen, weil |
 |---|---|
 | 11 | Mandantenübergriff über alle 22 Routen — braucht zwei Wegwerf-Abonnements und das echte Panel |
-| 12 | volle Quota — Fehlerweg des Vorgangs |
+| 12 (zweite Hälfte) | dass die **Seite** den Fehlschlag sagt; der Weg der Operation ist gemessen |
 | 9, 10 (scharf) | die Einschleusung durch das **echte Panel**; gemessen ist bisher der Prüfkörper daneben |
 
 **Die Punkte 5, 7 und 8 sind am 18. August dazugekommen** und stehen oben in §1.

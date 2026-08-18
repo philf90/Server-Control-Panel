@@ -15019,3 +15019,40 @@ das Ubuntu-Archiv trotzdem, wie bei MariaDB und beim `sshd`.
 vergleichen gegen die erwartete Länge und nicht gegen `false`, beide nennen das
 Kontingent, und beide räumen den Rest weg, **bevor** sie werfen — eine Zeile
 nach dem `throw` läuft nie. Drei Brüche im Bruchskript, alle drei beissen.
+
+### Die Meldung zur vollen Quota war unerreichbar — der erste Lauf des neuen Prüfstands hat sie gefunden
+
+Am 18. August 2026 auf `cloudsrv24` gegen `2389c82`: 1 MB Grenze, 2 MiB
+geschrieben, der Vorgang schlägt fehl — und meldet **„Die Datei liess sich nicht
+schreiben."** Ohne ein Wort über das Kontingent. Der Kunde liest einen Defekt
+des Servers, wo er Platz schaffen müsste.
+
+Die Ursache ist genau der Satz, wegen dem der Prüfstand gebaut wurde. Im
+Quelltext stand seit P6, `file_put_contents` melde bei voller Quota die Zahl der
+geschriebenen Bytes; **gemessen wird `false`.** PHP wandelt einen kurzen
+Schreibvorgang selbst in einen Fehlschlag um — es warnt „Only X of Y bytes
+written, possibly out of free disk space" und wirft die Zahl weg. Die Meldung
+hing an einer Verzweigung nach `$written === false`, also lief immer der Zweig
+ohne das Kontingent, und der andere war nie erreichbar.
+
+> **Zwei Meldungen für denselben Fall laufen auseinander — und die falsche ist
+> die, die man bekommt.**
+
+**Der Vergleich selbst war richtig und hat gehalten:** `false !== 2097152` ist
+ebenso wahr wie eine kurze Zahl. Der Vorgang hat nie Erfolg gemeldet, es ging
+allein um die Begründung. Es gibt jetzt **eine** Meldung statt zwei, und
+`written` steht bei unbekannter Zahl als `null` da statt als `0` — eine `0`
+behauptete „nichts geschrieben", und das weiss dieser Weg nicht.
+
+`files.upload` war nicht betroffen: `stream_copy_to_stream` liefert die Zahl
+wirklich, und dieser Weg hatte immer nur eine Meldung.
+
+**Und `ShortWriteTest` war dabei grün.** Er suchte den Satz „Kontingent
+erschöpft" im Quelltext — und der stand dort, in einem von zwei Zweigen.
+
+> **Ein Wächter, der einen Satz sucht statt seiner Erreichbarkeit, ist grün,
+> sobald der Satz irgendwo steht.**
+
+Er prüft seitdem, dass der erste Ausdruck von `execFailed` unmittelbar eine
+Zeichenkette ist und keine Bedingung. Zwei weitere Brüche im Bruchskript, beide
+beissen.

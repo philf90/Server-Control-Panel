@@ -15265,3 +15265,35 @@ Liste, damit die lesenden ihren Gegenstand noch vorfinden; jede Zeile trägt ein
 Spalte `Nebenwirkung`; und der Lauf warnt namentlich, bevor er beginnt. Was sich
 **nicht** beheben lässt und deshalb dasteht: Für eine löschende Route heisst
 „durchgelassen" wörtlich „hat gelöscht".
+
+### Punkt 9 und 10 sind durch das echte Formular gemessen — Schritt 11 ist vollständig
+
+Am 18. August 2026 auf `cloudsrv24` gegen `v0.6.0-rc.17`: zwei Cronjobs im
+Minutentakt, angelegt über das Formular des Kunden, einer davon mit einem
+echten Zeilenumbruch und einer zweiten Zeile `* * * * * root touch
+/tmp/uebernommen`.
+
+Die Datei unter `/etc/cron.d` trägt **zwei** Zeilen, eine je Job, Benutzerfeld
+`p1136`; das Wort `root` kommt in ihr nicht vor, und kein Zeichen des
+Kundentexts steht darin. `/tmp/uebernommen` gibt es nicht. `/tmp/prozent.txt`
+enthält `2026` — vierstellig, das `%` wurde also nicht abgeschnitten.
+
+**Die Gegenprobe ist die eigentliche Aussage:** Der eingeschleuste Text steht
+wörtlich in `/etc/srvpanel/cron/srvpanel-p1136-4.cmd`, der Zeilenumbruch als `$`
+sichtbar. Damit ist ausgeschlossen, dass er einfach nie ankam.
+
+> **Ein Text, der nirgends ankommt, sieht aus wie ein Text, der unschädlich
+> gemacht wurde.**
+
+Die Wand ist dabei eine **Bauart und keine Prüfung**: Die Zeile in
+`/etc/cron.d` enthält ausschliesslich Zeitplan, Systembenutzer und
+`/usr/lib/srvpanel/cron-run <id>`; der Befehl des Kunden steht in einer eigenen
+Datei und wird als Argument übergeben. Er kann nicht in ein Feld geraten, in dem
+crontab einen Benutzer erwartet. Deshalb prüft das Formular ihn auch nur als
+`required|string|max:8192`, ohne Verbot von Zeilenumbrüchen — folgerichtig und
+nicht nachlässig. Dasselbe erklärt Punkt 10: Das `%`-Verhalten gilt für das
+Befehlsfeld einer crontab-Zeile, und dort steht kein Kundentext.
+
+**Damit sind alle fünfzehn Punkte des Abnahmekriteriums gemessen.** Offen
+bleiben zwei einzelne Zeilen innerhalb von Punkt 11 und die Reste aus
+`docs/62 §3`; P6 ist deshalb noch nicht abgenommen.

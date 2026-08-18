@@ -654,9 +654,10 @@ und nicht „welche Wand hat ihn gehalten?".
 > beiden etwas.**
 
 **Der Durchgang läuft seit dem 18. August, und das Protokoll ist `docs/62`.**
-Vierzehn der fünfzehn Punkte sind auf `cloudsrv24` gemessen — die Punkte 5, 7
-und 8 gegen `4fe2e10`, die Punkte 11 und 12 **durch die echte Route** gegen
-`v0.6.0-rc.17` —, einer steht dort einzeln als offen —
+**Alle fünfzehn Punkte sind auf `cloudsrv24` gemessen** — die Punkte 5, 7 und 8
+gegen `4fe2e10`, die Punkte 9 bis 12 **durch das echte Formular** gegen
+`v0.6.0-rc.17`. Offen sind nur noch zwei einzelne Zeilen aus Punkt 11 und die
+Reste, die dort einzeln benannt stehen —
 ein Protokoll ohne seine Lücken liest sich wie eine Abnahme. Die Frage aus §1
 ist beantwortet: **Nicht die Normalisierung hält, sondern das Chroot** (stumpf-A
 hält weiter, stumpf-B bricht 3 von 3 aus).

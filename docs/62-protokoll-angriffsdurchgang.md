@@ -6,7 +6,8 @@ gemessen waren — nicht vorher, denn ein Verweis auf ein Dokument ohne Inhalt i
 ein toter Verweis.
 
 **Es ist unvollständig, und das steht in §3.** Von den zwölf Angriffen und drei
-Belegen aus `docs/51 §4` sind vierzehn gemessen; einer ist offen. Ein Protokoll,
+Belegen aus `docs/51 §4` sind **alle fünfzehn gemessen**; offen sind zwei Zeilen
+innerhalb von Punkt 11 und die Reste in §3. Ein Protokoll,
 das seine Lücken nicht nennt, liest sich wie eine Abnahme.
 
 | | |
@@ -141,6 +142,55 @@ Zwei Abonnements ergeben zwei Kennungen — eine Konstante sähe gleich aus.
 
 **Halb offen:** Dass `1001` die Kennung von `p1136` ist, sagt `id` und nicht das
 Protokoll. „Nicht null" ist die eine Hälfte von Punkt 13.
+
+### Punkt 9 und 10 — die Einschleusung durch das echte Formular
+
+**Erfüllt**, gemessen am 18. August 2026 auf `cloudsrv24` gegen `v0.6.0-rc.17`.
+Zwei Cronjobs im Minutentakt, angelegt über das Formular des Kunden; abgelesen
+wurde die Platte und nicht die Oberfläche.
+
+**Die Cron-Datei** (`/etc/cron.d/srvpanel-p1136`, `cat -A`):
+
+```
+# Von srvpanel verwaltet. Änderungen werden beim nächsten Speichern überschrieben.$
+MAILTO=""$
+PATH=/usr/local/bin:/usr/bin:/bin$
+* * * * *^Ip1136^I/usr/lib/srvpanel/cron-run 4$
+* * * * *^Ip1136^I/usr/lib/srvpanel/cron-run 5$
+```
+
+| | |
+|---|---|
+| Zeilen mit Benutzerfeld | **zwei** — eine je Job, keine dritte |
+| Benutzerfeld | `p1136`, `root` kommt in der Datei **nicht vor** |
+| Kundentext in der Cron-Datei | **kein Zeichen** |
+| `/tmp/uebernommen` | gibt es nicht |
+| `/tmp/prozent.txt` | `2026` — vierstellig, das `%` wurde nicht abgeschnitten |
+
+**Und die Gegenprobe ist die eigentliche Aussage.** Der eingeschleuste Text
+steht **wörtlich** in der Befehlsdatei, der Zeilenumbruch als `$` sichtbar:
+
+```
+--- /etc/srvpanel/cron/srvpanel-p1136-4.cmd
+echo eins$
+* * * * * root touch /tmp/uebernommen$
+```
+
+Damit ist ausgeschlossen, dass er einfach nie ankam.
+
+> **Ein Text, der nirgends ankommt, sieht aus wie ein Text, der unschädlich
+> gemacht wurde.**
+
+**Warum die Wand hier trägt**, und das ist eine Bauart und keine Prüfung: Die
+Zeile in `/etc/cron.d` enthält ausschliesslich den Zeitplan, den Systembenutzer
+und `/usr/lib/srvpanel/cron-run <id>`. Der Befehl des Kunden steht in einer
+eigenen Datei und wird als **Argument** übergeben — er kann nicht in ein Feld
+geraten, in dem crontab einen Benutzer erwartet. Das Formular prüft ihn deshalb
+nur als `required|string|max:8192`, ohne Verbot von Zeilenumbrüchen; das ist
+folgerichtig und nicht nachlässig.
+
+Dasselbe erklärt Punkt 10: Das `%`-Verhalten von crontab gilt für das
+**Befehlsfeld einer crontab-Zeile**, und dort steht kein Kundentext.
 
 ### Punkt 11 — der Mandantenübergriff
 
@@ -397,12 +447,11 @@ davor (Abschnitte 4, 4b, 4c) sahen aus wie „hält".
 
 ## 3. Was offen ist
 
-**Einer von fünfzehn Punkten ist ungemessen.** Sie stehen hier einzeln, weil
+**Kein Punkt ist mehr ungemessen.** Sie stehen hier einzeln, weil
 ein Protokoll ohne seine Lücken sich wie eine Abnahme liest.
 
-| # | offen, weil |
-|---|---|
-| 9, 10 (scharf) | die Einschleusung durch das **echte Panel**; gemessen ist bisher der Prüfkörper daneben |
+**Alle fünfzehn Punkte sind gemessen.** Offen sind nur noch zwei einzelne
+Zeilen innerhalb von Punkt 11 und die Reste weiter unten.
 
 **Zu Punkt 11 bleiben zwei der 22 Zeilen offen** und stehen oben benannt:
 `DELETE /sftp/keys/{key}` (kein Schlüssel vorhanden) und `GET /cron/{job}/runs`

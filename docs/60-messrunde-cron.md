@@ -368,10 +368,10 @@ sie am Ende als eigene Zeilen — sie sind eine Aussage über cron und keine üb
 den Lauf.
 
 **Gegengeprüft am 18. August im Entwicklungscontainer, neben einem laufenden
-cron:** 31 wie erwartet, 1 abweichend — die damals noch falsche `CRON_TZ`-Zeile.
-Dass daraus mit der berichtigten Erwartung 32 zu 0 wird, ist bis zum nächsten
-vollständigen Lauf eine **Rechnung und keine Messung**; sie steht hier als
-solche. Dazu einzeln gemessen: Das
+cron:** erst 31 wie erwartet und 1 abweichend — die damals noch falsche
+`CRON_TZ`-Zeile —, danach mit beiden berichtigten Erwartungen **32 zu 0** und
+Rückgabewert 0. Die zweite Zahl stand hier eine Stunde lang ausdrücklich als
+Rechnung, bis der vollständige Lauf sie belegt hatte. Dazu einzeln gemessen: Das
 Binary enthält die Zeichenkette `CRON_TZ` nicht, `crontab(5)` kennt sie nicht,
 und eine Datei mit `CRON_TZ=UTC` wird trotzdem fehlerfrei geladen — 0
 Fehlerzeilen, beide Prüfdateien in `load_user()`.

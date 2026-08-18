@@ -14697,6 +14697,16 @@ Die Erwartungen bilden seitdem ab, was gemessen ist; eine Abweichung heisst
 verschwinden, druckt das Skript sie am Ende als eigene Zeilen — sie sind eine
 Aussage über cron und keine über den Lauf.
 
+**Gegengeprüft im Container, neben einem laufenden cron:** erst 31 zu 1, dann —
+mit beiden berichtigten Erwartungen — **32 zu 0** und Rückgabewert 0. Beide
+Läufe fuhren aus einer Kopie im Scratchpad, nachdem der erste dadurch
+verunreinigt worden war, dass ich das Skript **während** seines Laufs geändert
+hatte: 34 Messzeilen bei 32 Aufrufen, weil bash nach dem Neuschreiben ab einem
+veralteten Byte-Offset weiterlas.
+
+> **Ein Skript, das läuft, ist eine Datei, die gelesen wird — wer sie ändert,
+> ändert den Lauf.**
+
 **Zu `CRON_TZ` ist dabei die offene Hälfte nachgemessen worden:** Die
 Zeichenkette steht weder im Binary noch in `crontab(5)` — sie stammt aus cronie.
 Eine Datei mit `CRON_TZ=UTC` wird trotzdem **fehlerfrei geladen** (0

@@ -66,6 +66,60 @@ final class TenancySweepTest extends TestCase
     }
 
     /**
+     * Der Lauf prüft seine eigenen Zweitkennungen, bevor er misst.
+     *
+     * **Am 19. August 2026 lief er mit `eigenJob: 4`** — einer Kennung aus der
+     * Messung der Punkte 9 und 10, die auf dem *fremden* Abonnement lag. Drei
+     * der 22 Zeilen meldeten daraufhin „BLIEB HÄNGEN", und das liest sich wie
+     * ein Befund am Panel. Es war einer an dem, was dem Lauf übergeben wurde.
+     *
+     * > **Eine Kennung, die man von einer Messung in die nächste mitnimmt,
+     * > trägt ihr Abonnement nicht mit.**
+     *
+     * Gefangen hat es die Gegenprobe — aber erst *nach* dem Lauf und in einer
+     * Form, die nach einem Fund am Prüfling aussah. Der Vorflug sagt es vorher
+     * und benennt die Kennung.
+     *
+     * **Geprüft wird nur die eigene Seite**, und das ist kein Versehen: Die
+     * fremde liesse sich nur prüfen, indem man die Wand umgeht, die der Lauf
+     * messen soll. Sie muss auch nicht — `{subscription}` wird vor `{job}` und
+     * `{key}` aufgelöst (die Route trägt kein `scopeBindings()`), der 404 kommt
+     * also aus der Mandantenklammer, bevor die Zweitkennung an der Reihe ist.
+     */
+    public function test_the_sweep_checks_its_own_identifiers_first(): void
+    {
+        $quelltext = (string) file_get_contents(dirname(__DIR__, 2).'/tests/mandant-messen.js');
+
+        foreach (['eigenJob', 'eigenKey'] as $kennung) {
+            $this->assertMatchesRegularExpression(
+                '/vorflug\(.+, '.$kennung.', /',
+                $quelltext,
+                implode("\n", [
+                    sprintf('Der Lauf prueft %s nicht, bevor er misst.', $kennung),
+                    'Eine Kennung, die nicht auf dem eigenen Abonnement liegt, macht aus',
+                    'einem Fehler am Messmittel einen scheinbaren Befund am Panel.',
+                ]),
+            );
+        }
+
+        // **Und der Vorflug darf die fremde Seite nicht anfassen.** Wer sie
+        // prueft, umgeht genau die Wand, die dieser Lauf messen soll — und ein
+        // Vorflug, der durchkommt, waere selbst der Uebergriff.
+        $vorflug = (string) strstr($quelltext, 'const vorflug =');
+        $vorflug = (string) strstr($vorflug, 'const zweiter =', true);
+
+        $this->assertNotSame('', $vorflug, 'Den Vorflug gibt es nicht mehr.');
+
+        foreach (['fremdJob', 'fremdKey', '${fremd}'] as $verboten) {
+            $this->assertStringNotContainsString(
+                $verboten,
+                $vorflug,
+                sprintf('Der Vorflug fasst „%s" an — damit umgeht er die Wand, die er messen soll.', $verboten),
+            );
+        }
+    }
+
+    /**
      * Die Routen mit `{subscription}` aus `routes/web.php` — Merkmal für
      * Merkmal, damit der Ausdruck nicht versehentlich das halbe Panel einsammelt.
      *

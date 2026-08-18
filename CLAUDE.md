@@ -656,8 +656,8 @@ und nicht „welche Wand hat ihn gehalten?".
 **Der Durchgang läuft seit dem 18. August, und das Protokoll ist `docs/62`.**
 **Alle fünfzehn Punkte sind auf `cloudsrv24` gemessen** — die Punkte 5, 7 und 8
 gegen `4fe2e10`, die Punkte 9 bis 12 **durch das echte Formular** gegen
-`v0.6.0-rc.17`. Offen sind nur noch zwei einzelne Zeilen aus Punkt 11 und die
-Reste, die dort einzeln benannt stehen —
+`v0.6.0-rc.17`, **Punkt 11 seit dem 19. August in allen 22 Zeilen**. Offen sind
+nur noch die Reste, die dort einzeln benannt stehen —
 ein Protokoll ohne seine Lücken liest sich wie eine Abnahme. Die Frage aus §1
 ist beantwortet: **Nicht die Normalisierung hält, sondern das Chroot** (stumpf-A
 hält weiter, stumpf-B bricht 3 von 3 aus).
@@ -736,6 +736,20 @@ sagte.
 
 > **Ein Statuscode nach einer gefolgten Weiterleitung gehört einer anderen
 > Anfrage.**
+
+**Und der fünfte Fehler von Punkt 11 steckte nicht im Skript, sondern in dem,
+was ich ihm übergeben habe.** Der Lauf bekam `eigenJob: 4` — die Kennung aus der
+Messung der Punkte 9 und 10, und die lag auf dem **fremden** Abonnement:
+`/etc/cron.d/srvpanel-p1136` gehört zu 137, nicht zu 140 (das läuft als
+`p1139`). Drei der 22 Zeilen meldeten „BLIEB HÄNGEN", und das liest sich wie ein
+Befund am Panel.
+
+> **Eine Kennung, die man von einer Messung in die nächste mitnimmt, trägt ihr
+> Abonnement nicht mit.**
+
+Gefangen hat es die Gegenprobe — aber erst danach. `mandant-messen.js` hat
+seitdem einen **Vorflug**, der die eigenen Zweitkennungen vorher liest und die
+fremde Seite dabei nicht anfasst; `TenancySweepTest` prüft beide Richtungen.
 
 **Daneben fiel ein Fehler heraus, der mit dem Angriff nichts zu tun hat:**
 `FilesRead::MAX_BYTES` und `FilesWrite::MAX_BYTES` stehen auf 2 MiB,

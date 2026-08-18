@@ -8995,6 +8995,44 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TenancySweepTest passed
 
 echo
+echo "── TenancySweepTest: der Vorflug prüft die eigene Kennung nicht ──"
+#
+# Der Fehler vom 19. August: Der Lauf bekam `eigenJob: 4`, eine Kennung vom
+# *fremden* Abonnement. Drei Zeilen meldeten „BLIEB HÄNGEN" — und das liest sich
+# wie ein Befund am Panel statt wie einer am Messmittel.
+vorher_datei tests/mandant-messen.js
+python3 - <<'PY2'
+p = 'tests/mandant-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace("  await vorflug('/cron', 'jobs', eigenJob, 'eigenJob')\n", '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/mandant-messen.js "Vorflug ohne die eigene Kennung" &&
+pruefe "Vorflug ohne die eigene Kennung" \
+  TenancySweepTest::test_the_sweep_checks_its_own_identifiers_first failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TenancySweepTest passed
+
+echo
+echo "── TenancySweepTest: der Vorflug fasst die fremde Seite an ──"
+#
+# Ein Vorflug über das fremde Abonnement umgeht genau die Wand, die dieser Lauf
+# messen soll — und käme er durch, wäre er selbst der Übergriff.
+vorher_datei tests/mandant-messen.js
+python3 - <<'PY2'
+p = 'tests/mandant-messen.js'
+s = open(p, encoding='utf-8').read()
+alt = "  await vorflug('/cron', 'jobs', eigenJob, 'eigenJob')\n"
+s = s.replace(alt, alt + "  await vorflug('/cron', 'jobs', fremdJob, 'fremdJob')\n", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/mandant-messen.js "Vorflug über die fremde Seite" &&
+pruefe "Vorflug über die fremde Seite" \
+  TenancySweepTest::test_the_sweep_checks_its_own_identifiers_first failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TenancySweepTest passed
+
+echo
 echo "── ShortWriteTest: files.write prüft nur auf false ──"
 #
 # Bei voller Quota meldet der Aufruf die Zahl der geschriebenen Bytes und nicht

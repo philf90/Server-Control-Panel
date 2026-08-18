@@ -6,9 +6,9 @@ gemessen waren — nicht vorher, denn ein Verweis auf ein Dokument ohne Inhalt i
 ein toter Verweis.
 
 **Es ist unvollständig, und das steht in §3.** Von den zwölf Angriffen und drei
-Belegen aus `docs/51 §4` sind **alle fünfzehn gemessen**; offen sind zwei Zeilen
-innerhalb von Punkt 11 und die Reste in §3. Ein Protokoll,
-das seine Lücken nicht nennt, liest sich wie eine Abnahme.
+Belegen aus `docs/51 §4` sind **alle fünfzehn gemessen**, Punkt 11 seit dem
+19. August in allen 22 Zeilen; offen sind nur noch die Reste in §3. Ein
+Protokoll, das seine Lücken nicht nennt, liest sich wie eine Abnahme.
 
 | | |
 |---|---|
@@ -149,6 +149,12 @@ Protokoll. „Nicht null" ist die eine Hälfte von Punkt 13.
 Zwei Cronjobs im Minutentakt, angelegt über das Formular des Kunden; abgelesen
 wurde die Platte und nicht die Oberfläche.
 
+**Auf Abonnement 137** — der Systembenutzer `p1136` gehört dorthin, nicht zu 140.
+Für diesen Punkt ist das gleichgültig, gemessen werden das Benutzerfeld und die
+Trennung von Zeitplan und Befehl. Es steht hier trotzdem, weil die Angabe einen
+Tag später gefehlt hat: Punkt 11 lief mit `eigenJob: 4` gegen Abonnement 140,
+und diese Kennung gab es dort nie.
+
 **Die Cron-Datei** (`/etc/cron.d/srvpanel-p1136`, `cat -A`):
 
 ```
@@ -194,15 +200,23 @@ Dasselbe erklärt Punkt 10: Das `%`-Verhalten von crontab gilt für das
 
 ### Punkt 11 — der Mandantenübergriff
 
-**Erfüllt**, gemessen am 18. August 2026 auf `cloudsrv24` gegen `v0.6.0-rc.17`
-mit `tests/mandant-messen.js`, angemeldet als der Kunde von Abonnement 140,
-aufgerufen wurde 137.
+**Erfüllt in allen 22 Zeilen**, gemessen am 18. und 19. August 2026 auf
+`cloudsrv24` gegen `v0.6.0-rc.17` mit `tests/mandant-messen.js`, angemeldet als
+der Kunde von Abonnement 140, aufgerufen wurde 137.
 
 | | |
 |---|---|
 | fremde Kennung, alle 22 Routen | **404**, kein einziger 2xx |
 | Grund | die Mandantenklammer — nicht auffindbar |
-| Gegenprobe: eigene Kennung | 20 von 22 kamen durch |
+| Gegenprobe: eigene Kennung | **22 von 22** kamen durch |
+| `uebergriffe` / `haengen` | 0 / 0 |
+
+**Es hat fünf Anläufe gebraucht, und die vier davor sind nicht weggeworfen** —
+sie stehen unten mit ihren Fehlern. Der fünfte ist der, dessen Zahlen hier
+stehen, und er unterscheidet sich in einem Punkt von allen davor: Jede der vier
+Zweitkennungen (`eigenJob 6`, `fremdJob 7`, `eigenKey 18`, `fremdKey 16`) war
+vorher an der Abo-Kennung *auf ihrer eigenen Seite* abgelesen und nicht aus
+einer früheren Messung übernommen.
 
 **Das Kriterium ist berichtigt worden, bevor der Lauf fuhr.** `docs/51 §4`
 verlangt „403 …, und zwar aus der Policy und nicht aus einem 404". Der Code
@@ -214,12 +228,15 @@ Ein 403 bestätigt die Existenz, ein 404 nicht.
 > **Ein Kriterium, das eine Zahl vorschreibt, prüft die Zahl und nicht die
 > Wand.**
 
-**Offen bleiben zwei Zeilen**, beide benannt: `DELETE /sftp/keys/{key}` (es gibt
-keinen Schlüssel, also kam auch die eigene Kennung nicht durch) und beim
-gemessenen Lauf `GET /cron/{job}/runs` — dazu unten.
+**Die beiden zuletzt offenen Zeilen sind zu.** `DELETE /sftp/keys/{key}` gab für
+die eigene Kennung 405 nach der Weiterleitung auf `/subscriptions/140/sftp` —
+dieselbe Form wie die Zeilen 3 und 5: Die Löschung hat stattgefunden, und die
+gefolgte Weiterleitung landete danach mit `DELETE` auf einer Nur-GET-Adresse.
+`GET /cron/{job}/runs` gab 200.
 
-**Drei Anläufe, drei Fehler, alle im Messmittel.** Dasselbe Verhältnis wie in
-`docs/45`, `docs/47`, `docs/48` und `docs/59`.
+**Fünf Anläufe, fünf Fehler, keiner im Panel** — vier im Skript, einer in dem,
+was ihm übergeben wurde. Dasselbe Verhältnis wie in `docs/45`, `docs/47`,
+`docs/48` und `docs/59`.
 
 | # | Fehler | was er geschönt hätte |
 |---|---|---|
@@ -252,6 +269,26 @@ Liste (damit die lesenden ihren Gegenstand noch vorfinden), jede Zeile trägt
 eine Spalte `Nebenwirkung`, und der Lauf warnt namentlich, bevor er beginnt. Was
 sich **nicht** beheben lässt: Für eine löschende Route heisst „durchgelassen"
 wörtlich „hat gelöscht". Anders ist ihre Erreichbarkeit nicht zu belegen.
+
+**Und der fünfte Fehler dieses Laufs steckte nicht im Skript, sondern in dem,
+was ich ihm übergeben habe.** Der zweite Durchgang lief mit `eigenJob: 4` — der
+Kennung aus der Messung der Punkte 9 und 10 (`docs/62`, oben). Drei Zeilen
+meldeten daraufhin „BLIEB HÄNGEN": 18, 19 und 21, also genau die drei mit
+`{job}`. Die Ursache stand in derselben Datei: Die Cron-Datei jener Messung
+heisst `/etc/cron.d/srvpanel-p1136`, und **`p1136` ist der Systembenutzer von
+Abonnement 137**, nicht von 140 (140 läuft als `p1139`; beides am 19. August an
+`subscription.system_user` neben `subscription.id` abgelesen). Job 4 lag also
+auf dem *fremden* Abonnement, und `eigenJob` zeigte ins Leere.
+
+> **Eine Kennung, die man von einer Messung in die nächste mitnimmt, trägt ihr
+> Abonnement nicht mit.**
+
+Dass daraus kein falsches Grün wurde, ist allein das Verdienst der Gegenprobe:
+Ohne sie hätte die Zeile „fremd 404" gemeldet und wie eine gehaltene Wand
+ausgesehen. Für die Wand selbst war der Griff folgenlos — die Route trägt kein
+`scopeBindings()`, also wird `{subscription}` vor `{key}` und `{job}` aufgelöst,
+und der 404 fliegt aus der Mandantenklammer, bevor die Zweitkennung überhaupt
+angefasst wird.
 
 ### Punkt 12 — die volle Quota
 
@@ -450,13 +487,10 @@ davor (Abschnitte 4, 4b, 4c) sahen aus wie „hält".
 **Kein Punkt ist mehr ungemessen.** Sie stehen hier einzeln, weil
 ein Protokoll ohne seine Lücken sich wie eine Abnahme liest.
 
-**Alle fünfzehn Punkte sind gemessen.** Offen sind nur noch zwei einzelne
-Zeilen innerhalb von Punkt 11 und die Reste weiter unten.
-
-**Zu Punkt 11 bleiben zwei der 22 Zeilen offen** und stehen oben benannt:
-`DELETE /sftp/keys/{key}` (kein Schlüssel vorhanden) und `GET /cron/{job}/runs`
-(der Job war beim gemessenen Lauf schon gelöscht — mit der berichtigten
-Reihenfolge fällt das weg).
+**Alle fünfzehn Punkte sind gemessen, und Punkt 11 in allen 22 Zeilen.** Die
+beiden zuletzt offenen — `DELETE /sftp/keys/{key}` und `GET /cron/{job}/runs` —
+sind am 19. August geschlossen worden, nachdem für beide ein echter Gegenstand
+auf dem eigenen Abonnement lag. Offen sind nur noch die Reste weiter unten.
 
 **Die Punkte 5, 7, 8 und 12 sind am 18. August dazugekommen** und stehen oben in
 §1. Punkt 12 ist als einziger **durch die echte Route** gemessen, in beiden

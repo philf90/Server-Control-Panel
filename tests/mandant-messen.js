@@ -89,6 +89,11 @@
  * Parameter kommen, und der Lauf sagt das dann auch:
  *
  *     await mandantMessen({ eigen: 2, fremd: 1, eigenJob: 7, fremdJob: 3 })
+ *
+ * **Die eigenen Zweitkennungen werden vorher geprüft** — siehe `vorflug()`
+ * weiter unten. Eine Kennung, die man von einer Messung in die nächste
+ * mitnimmt, trägt ihr Abonnement nicht mit, und ohne diese Prüfung sieht der
+ * Fehler wie ein Befund am Panel aus.
  */
 
 async function mandantMessen ({ eigen, fremd, eigenJob, fremdJob, eigenKey, fremdKey }) {
@@ -135,6 +140,58 @@ async function mandantMessen ({ eigen, fremd, eigenJob, fremdJob, eigenKey, frem
     ['DELETE', '/sftp/keys/{key}', 'key', 'zerstoert'],
     ['DELETE', '/cron/{job}', 'job', 'zerstoert'],
   ]
+
+  /**
+   * **Der Vorflug: Liegen die eigenen Zweitkennungen überhaupt auf EIGEN?**
+   *
+   * Am 19. August lief dieser Lauf mit `eigenJob: 4` — einer Kennung aus der
+   * Messung der Punkte 9 und 10, die auf dem **fremden** Abonnement lag. Drei
+   * Zeilen meldeten daraufhin „BLIEB HÄNGEN", und das liest sich zunächst wie
+   * ein Befund am Panel. Es war einer an dem, was diesem Lauf übergeben wurde.
+   *
+   * > **Eine Kennung, die man von einer Messung in die nächste mitnimmt, trägt
+   * > ihr Abonnement nicht mit.**
+   *
+   * Geprüft wird nur die **eigene** Seite. Die fremde lässt sich nicht prüfen,
+   * ohne die Wand zu umgehen, die dieser Lauf messen soll — und sie muss auch
+   * nicht: Die Route trägt kein `scopeBindings()`, `{subscription}` wird vor
+   * `{job}` und `{key}` aufgelöst, und der 404 fliegt aus der Mandantenklammer,
+   * bevor die Zweitkennung angefasst wird.
+   *
+   * Der Vorflug liest die Seite als HTML und nicht über eine Inertia-Anfrage:
+   * `X-Inertia` erzeugt hier einen 409, und das war Fehler 1 dieses Werkzeugs.
+   */
+  const vorflug = async (pfad, ablage, kennung, name) => {
+    if (kennung == null) return
+
+    const antwort = await fetch(`/subscriptions/${eigen}${pfad}`, { credentials: 'same-origin' })
+    const treffer = (await antwort.text()).match(/data-page="([^"]+)"/)
+
+    if (!treffer) {
+      throw new Error(
+        `Der Vorflug kann ${pfad} nicht lesen (Status ${antwort.status}). Ohne ihn misst `
+        + 'der Lauf eine Kennung, von der niemand weiss, ob es sie gibt.'
+      )
+    }
+
+    // Die Ablage steht HTML-maskiert im Attribut; ein textarea entmaskiert sie
+    // vollständig, ohne dass hier eine zweite Fassung der Regeln entsteht.
+    const roh = document.createElement('textarea')
+    roh.innerHTML = treffer[1]
+
+    const vorhanden = (JSON.parse(roh.value).props[ablage] || []).map((e) => e.id)
+
+    if (!vorhanden.includes(kennung)) {
+      throw new Error(
+        `${name}: ${kennung} liegt nicht auf Abonnement ${eigen} — dort gibt es `
+        + `${vorhanden.length ? vorhanden.join(', ') : 'keine'}. Eine Kennung, die man von einer `
+        + 'Messung in die nächste mitnimmt, trägt ihr Abonnement nicht mit.'
+      )
+    }
+  }
+
+  await vorflug('/cron', 'jobs', eigenJob, 'eigenJob')
+  await vorflug('/sftp', 'keys', eigenKey, 'eigenKey')
 
   const zweiter = (art, eigenesAbo) => {
     if (art === 'job') return (eigenesAbo ? eigenJob : fremdJob) ?? null

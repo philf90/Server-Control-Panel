@@ -15297,3 +15297,37 @@ Befehlsfeld einer crontab-Zeile, und dort steht kein Kundentext.
 **Damit sind alle fünfzehn Punkte des Abnahmekriteriums gemessen.** Offen
 bleiben zwei einzelne Zeilen innerhalb von Punkt 11 und die Reste aus
 `docs/62 §3`; P6 ist deshalb noch nicht abgenommen.
+
+### Punkt 11 ist in allen 22 Zeilen gemessen — und der letzte Fehler steckte nicht im Skript
+
+Die beiden zuletzt offenen Zeilen sind zu, gemessen am 19. August 2026 auf
+`cloudsrv24` gegen `v0.6.0-rc.17`: **22 von 22 fremden Aufrufen gehalten, 22 von
+22 Gegenproben durchgelassen**, `uebergriffe: 0`, `haengen: 0`.
+`DELETE /sftp/keys/{key}` gab für die eigene Kennung 405 nach der Weiterleitung
+auf die Übersichtsseite — dieselbe Form wie `PUT /files` und `DELETE /files`,
+also hat die Löschung stattgefunden; `GET /cron/{job}/runs` gab 200.
+
+**Der Anlauf davor hat drei Zeilen als „BLIEB HÄNGEN" gemeldet, und die Ursache
+lag nicht im Panel und nicht im Skript, sondern in dem, was ihm übergeben
+wurde.** Er lief mit `eigenJob: 4` — der Kennung aus der Messung der Punkte 9
+und 10. Deren Cron-Datei heisst `/etc/cron.d/srvpanel-p1136`, und `p1136` ist
+der Systembenutzer von Abonnement **137**, nicht von 140 (das läuft als
+`p1139`). Die Kennung zeigte also auf das fremde Abonnement, und die drei Zeilen
+mit `{job}` konnten ihre Gegenprobe nicht bestehen.
+
+> **Eine Kennung, die man von einer Messung in die nächste mitnimmt, trägt ihr
+> Abonnement nicht mit.**
+
+Gefangen hat es die Gegenprobe, aber erst nach dem Lauf und in einer Form, die
+nach einem Fund am Prüfling aussah. `tests/mandant-messen.js` hat deshalb einen
+**Vorflug**: Er liest vor der ersten Messung die Seiten `/cron` und `/sftp` des
+eigenen Abonnements und bricht mit Namen und Kennung ab, wenn `eigenJob` oder
+`eigenKey` dort nicht steht. Die **fremde** Seite fasst er nicht an — sie liesse
+sich nur prüfen, indem man die Wand umgeht, die der Lauf messen soll, und sie
+muss auch nicht: Die Routen tragen kein `scopeBindings()`, `{subscription}` wird
+vor `{job}` und `{key}` aufgelöst, der 404 kommt also aus der Mandantenklammer,
+bevor die Zweitkennung an der Reihe ist.
+
+`TenancySweepTest::test_the_sweep_checks_its_own_identifiers_first` prüft beide
+Richtungen — dass der Vorflug die eigenen Kennungen liest und dass er die fremde
+Seite nicht berührt. Beide Brüche stehen in `tests/waechter-brechen.sh`.

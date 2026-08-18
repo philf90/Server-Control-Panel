@@ -15177,3 +15177,123 @@ einen Versuch und nicht den Lauf. Debian war nie betroffen, weil
 
 Die Wiederholungen bleiben stehen: Sie kosten nichts und fangen den einzelnen
 ausgefallenen Rechner ab, den auch die Vorgabeliste enthalten kann.
+
+### Punkt 11 bekommt sein Messwerkzeug — und das Kriterium eine berichtigte Erwartung
+
+`docs/51 §4` verlangt für den Mandantenübergriff „**403** in allen 22, und zwar
+aus der Policy und nicht aus einem 404, das zufällig dasselbe verbirgt". Am
+Quelltext gelesen, bevor der Lauf fuhr: Der Code kann das nicht liefern.
+
+`ApplyTenancy` setzt `Tenancy::forAccount()`, und das klammert die Abfragen
+eines Kunden auf seine eigenen Abonnements — **vor** der Policy. Ein fremdes
+Abonnement ist damit schon bei der Auflösung von `{subscription}` unauffindbar,
+und das ergibt einen 404, bevor `can:browseFiles` überhaupt gefragt wird.
+
+Das ist die stärkere Antwort und nicht die schwächere: Ein 403 bestätigt die
+Existenz des fremden Abonnements, ein 404 nicht.
+
+> **Ein Kriterium, das eine Zahl vorschreibt, prüft die Zahl und nicht die
+> Wand.**
+
+Dasselbe ist in diesem Projekt schon zweimal passiert — `docs/38 §3` beim
+Kriterium für PostgreSQL, `docs/47 §15` beim Planschritt, der nicht fahrbar war.
+Das Kriterium lautet jetzt: **kein 2xx, und der Grund ist benennbar.**
+
+**`tests/mandant-messen.js`** ist der Lauf, und er läuft in der Konsole des
+Browsers statt als Test — dieselbe Begründung wie bei `srvpanel:acceptance-web`:
+Ein Test läuft gegen SQLite, einen erfundenen Agenten und eine Sitzung, die es
+so nicht gibt. Hier zählt die echte Route mit der echten Sitzung des echten
+Kunden, und die hat der Betreiber schon offen.
+
+**Er verändert nichts, und das ist keine Vorsicht, sondern die Messung selbst.**
+Der Rumpf wird weggelassen; jede verändernde Route scheitert damit an ihrer
+eigenen Prüfung — `422`. Genau dieser 422 ist der Beleg, dass die Autorisierung
+die eigene Kennung durchgelassen hat. Ohne diese Gegenprobe misst die Reihe eine
+Anmeldung, die nichts darf, und nicht eine Klammer, die trennt.
+
+**`TenancySweepTest` hält beide Listen gegeneinander.** Die 22 Routen stehen ein
+zweites Mal im Lauf, und zwei Listen, die dasselbe meinen, laufen auseinander —
+hier unbemerkt: Eine neue Route, die im Lauf fehlt, wird nicht gemessen, und er
+meldet trotzdem „alle gehalten".
+
+> **Ein Lauf, der zählt, was er kennt, misst sein Gedächtnis.**
+
+Drei Brüche im Bruchskript, und der dritte richtet den Wächter gegen sich
+selbst: Läuft sein Ausdruck über `routes/web.php` ins Leere, verglichen sich
+zwei leere Listen zu „gleich". Die Untergrenze zählt deshalb mit.
+
+### Punkt 11 ist gemessen — und der Lauf hat zweimal einen Cronjob gelöscht
+
+Am 18. August 2026 auf `cloudsrv24` gegen `v0.6.0-rc.17`: angemeldet als der
+Kunde von Abonnement 140, aufgerufen wurde 137. **Alle 22 Routen mit der fremden
+Kennung antworten mit 404, kein einziger 2xx.** Die Gegenprobe mit der eigenen
+Kennung kam in 20 von 22 Zeilen durch; die beiden übrigen stehen benannt offen.
+
+Das Kriterium ist dabei berichtigt worden, bevor der Lauf fuhr — `ApplyTenancy`
+klammert vor der Policy, ein fremdes Abonnement ist deshalb schon für die
+Auflösung von `{subscription}` unauffindbar. Ein 403 bestätigt die Existenz, ein
+404 nicht.
+
+**Drei Anläufe brauchte das Messmittel, und alle drei Fehler steckten in ihm:**
+eine `X-Inertia`-Kopfzeile, die `409` statt `200` erzeugte und damit die
+Auflösung statt der Policy belegte; ein `redirect: 'manual'`, das aus jeder
+Weiterleitung eine `0` machte, die ein Netzwerkfehler nicht von einem Erfolg
+unterscheidbar macht; und eine Spalte `eindeutig`, die `ja` meldete, während ihre
+Gegenprobe daneben „BLIEB HÄNGEN" sagte.
+
+> **Ein Statuscode nach einer gefolgten Weiterleitung gehört einer anderen
+> Anfrage.**
+
+> **Eine Spalte, die etwas behauptet, das sie nicht geprüft hat, ist schlimmer
+> als keine.**
+
+**Der vierte Fehler hat Daten gekostet.** Der Kopf des Skripts behauptete, der
+Lauf verändere nichts: Er lasse den Rumpf weg, also scheitere jede verändernde
+Route an ihrer eigenen Prüfung. Für zwanzig Routen stimmt das. `DELETE
+/cron/{job}` und `DELETE /sftp/keys/{key}` prüfen aber keinen Rumpf — sie
+löschen.
+
+> **Ein Vorgang, der nichts entgegennimmt, hat nichts, woran er scheitern kann.**
+
+Zweimal ist so ein Cronjob verschwunden, und beim ersten Mal sah es aus, als sei
+er „nicht gespeichert worden": Der `GET …/runs` danach fand ihn nicht mehr, und
+dessen 404 las sich wie eine gehaltene Grenze. Geklärt hat es erst der Blick in
+`CronController::destroy`.
+
+Behoben in drei Teilen — die beiden löschenden Routen stehen am **Ende** der
+Liste, damit die lesenden ihren Gegenstand noch vorfinden; jede Zeile trägt eine
+Spalte `Nebenwirkung`; und der Lauf warnt namentlich, bevor er beginnt. Was sich
+**nicht** beheben lässt und deshalb dasteht: Für eine löschende Route heisst
+„durchgelassen" wörtlich „hat gelöscht".
+
+### Punkt 9 und 10 sind durch das echte Formular gemessen — Schritt 11 ist vollständig
+
+Am 18. August 2026 auf `cloudsrv24` gegen `v0.6.0-rc.17`: zwei Cronjobs im
+Minutentakt, angelegt über das Formular des Kunden, einer davon mit einem
+echten Zeilenumbruch und einer zweiten Zeile `* * * * * root touch
+/tmp/uebernommen`.
+
+Die Datei unter `/etc/cron.d` trägt **zwei** Zeilen, eine je Job, Benutzerfeld
+`p1136`; das Wort `root` kommt in ihr nicht vor, und kein Zeichen des
+Kundentexts steht darin. `/tmp/uebernommen` gibt es nicht. `/tmp/prozent.txt`
+enthält `2026` — vierstellig, das `%` wurde also nicht abgeschnitten.
+
+**Die Gegenprobe ist die eigentliche Aussage:** Der eingeschleuste Text steht
+wörtlich in `/etc/srvpanel/cron/srvpanel-p1136-4.cmd`, der Zeilenumbruch als `$`
+sichtbar. Damit ist ausgeschlossen, dass er einfach nie ankam.
+
+> **Ein Text, der nirgends ankommt, sieht aus wie ein Text, der unschädlich
+> gemacht wurde.**
+
+Die Wand ist dabei eine **Bauart und keine Prüfung**: Die Zeile in
+`/etc/cron.d` enthält ausschliesslich Zeitplan, Systembenutzer und
+`/usr/lib/srvpanel/cron-run <id>`; der Befehl des Kunden steht in einer eigenen
+Datei und wird als Argument übergeben. Er kann nicht in ein Feld geraten, in dem
+crontab einen Benutzer erwartet. Deshalb prüft das Formular ihn auch nur als
+`required|string|max:8192`, ohne Verbot von Zeilenumbrüchen — folgerichtig und
+nicht nachlässig. Dasselbe erklärt Punkt 10: Das `%`-Verhalten gilt für das
+Befehlsfeld einer crontab-Zeile, und dort steht kein Kundentext.
+
+**Damit sind alle fünfzehn Punkte des Abnahmekriteriums gemessen.** Offen
+bleiben zwei einzelne Zeilen innerhalb von Punkt 11 und die Reste aus
+`docs/62 §3`; P6 ist deshalb noch nicht abgenommen.

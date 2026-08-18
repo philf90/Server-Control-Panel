@@ -484,6 +484,94 @@ Zeile der Form
 Datei landet, macht das `%`-Verhalten von crontab gegenstandslos — aber genau
 diese Art Schluss hat `docs/44` teuer gemacht.
 
+### 7.1 Die Befehlsfolge
+
+**Schritt 1 — zwei Jobs anlegen, beide im Minutentakt** (`* * * * *`), über das
+Formular des Kunden und nicht über die Datenbank:
+
+| Bezeichnung | Befehl |
+|---|---|
+| `Punkt 9` | `echo eins` ⏎ `* * * * * root touch /tmp/uebernommen` |
+| `Punkt 10` | `date +%Y > /tmp/prozent.txt` |
+
+Der Zeilenumbruch bei Punkt 9 ist **ein echter**, kein `\n` als Text. Das
+Formular nimmt ihn an — `command` wird nur als `required|string|max:8192`
+geprüft, ohne Verbot von Zeilenumbrüchen. Das ist folgerichtig und nicht
+nachlässig: Der Befehl landet nie in einer crontab-Zeile.
+
+**Schritt 2 — anderthalb Minuten warten**, damit beide Jobs mindestens einmal
+gelaufen sind.
+
+**Schritt 3 — die Platte lesen** (`<BENUTZER>` ist der Systembenutzer des
+Abonnements):
+
+```bash
+sudo -i bash -s <<'ENDE'
+BENUTZER=<BENUTZER>
+
+echo "=== die Cron-Datei — hier darf kein Kundentext stehen ==="
+cat -A "/etc/cron.d/srvpanel-$BENUTZER" | sed 's/\$$//'
+
+echo
+echo "=== wie viele Zeilen tragen ein Benutzerfeld? ==="
+grep -cE "^[^#]*\s($BENUTZER|root)\s" "/etc/cron.d/srvpanel-$BENUTZER"
+
+echo
+echo "=== steht irgendwo root? ==="
+grep -n 'root' "/etc/cron.d/srvpanel-$BENUTZER" || echo "  nein"
+
+echo
+echo "=== die Befehlsdateien — hier gehört der Kundentext hin ==="
+ls -l /etc/srvpanel/cron/srvpanel-$BENUTZER-*.cmd
+for f in /etc/srvpanel/cron/srvpanel-$BENUTZER-*.cmd; do
+  echo "--- $f"
+  cat -A "$f" | sed 's/\$$//'
+done
+
+echo
+echo "=== was der Angriff erreicht hat ==="
+ls -l /tmp/uebernommen 2>&1 | head -1
+echo "--- und was Punkt 10 geschrieben hat ---"
+ls -l /tmp/prozent.txt 2>&1 | head -1
+cat /tmp/prozent.txt 2>/dev/null
+ENDE
+```
+
+**Wie das zu lesen ist:**
+
+| | erfüllt |
+|---|---|
+| Zeilen mit Benutzerfeld | **zwei** — eine je Job, keine dritte |
+| Benutzerfeld | `<BENUTZER>`, **nie** `root` |
+| Kundentext in der Cron-Datei | **kein Zeichen** |
+| `/tmp/uebernommen` | gibt es nicht |
+| `/tmp/prozent.txt` | enthält die Jahreszahl, vierstellig |
+
+**Und die Gegenprobe, ohne die das alles nichts sagt:** Die `.cmd`-Datei von
+Punkt 9 muss den eingeschleusten Text **wörtlich** enthalten, Zeilenumbruch
+eingeschlossen (`cat -A` zeigt ihn als `$`). Sonst ist nicht unterscheidbar, ob
+der Text unschädlich gemacht wurde oder ob er nie ankam.
+
+> **Ein Text, der nirgends ankommt, sieht aus wie ein Text, der unschädlich
+> gemacht wurde.**
+
+Dieselbe Gegenprobe noch einmal sichtbar: Auf der Läufe-Seite von Job 9 steht
+die Ausgabe `eins` und darunter der Fehler der zweiten Zeile — `sh` versucht sie
+auszuführen und scheitert. Das belegt, dass der ganze Text angekommen ist und
+**als der Kunde** lief, nicht als `root`.
+
+**Was Punkt 10 dabei zusätzlich belegt:** `/tmp/prozent.txt` mit vier Ziffern
+zeigt, dass das `%` nicht abgeschnitten wurde. In einer echten crontab-Zeile
+macht crontab daraus einen Zeilenumbruch und schickt den Rest an die
+Standardeingabe — gemessen in `docs/60 §13`. Hier steht der Befehl in einer
+eigenen Datei und wird als Argument übergeben, also greift die Regel nicht mehr.
+
+**Aufräumen:** beide Jobs im Panel entfernen, dann
+
+```bash
+sudo rm -f /tmp/prozent.txt /tmp/uebernommen
+```
+
 > **Ein Wert, den nur die Dokumentation kennt, ist eine Vermutung mit Fussnote.**
 
 Die **stumpfe** Fassung für diese beiden ist eine dritte und eigene: `CronFile`
@@ -508,13 +596,55 @@ der 22 Routen mit `{subscription}` die Kennung von Abonnement 2 einsetzen:
 …/cron/<JOB>/runs
 ```
 
-Erwartet scharf: **403 in allen 22**, und zwar aus der Policy und nicht aus einem
-404, das zufällig dasselbe verbirgt. Erwartet stumpf-B: unverändert 403 — die
-Mandantenklammer ist **nicht** eine der beiden Wände aus §1, und dass sie in
-beiden Bauten hält, ist der Beleg dafür, dass hier nichts vermischt wurde.
+**Die Erwartung „403 in allen 22" ist beim Ausschreiben berichtigt worden**, und
+zwar am Quelltext, bevor der Lauf fuhr. `docs/51 §4` verlangt „403 …, und zwar
+aus der Policy und nicht aus einem 404, das zufällig dasselbe verbirgt". Der
+Code kann das nicht liefern:
 
-Die eigene Kennung in derselben Route muss **gelingen**; sonst misst die Reihe
-403er, die es auch ohne Klammer gäbe.
+```
+ApplyTenancy → Tenancy::forAccount() → restrictTo(accessibleSubscriptionIds)
+```
+
+Die Klammer sitzt **vor** der Policy. Für einen Kunden ist ein fremdes
+Abonnement schon bei der Auflösung von `{subscription}` unauffindbar — das
+ergibt einen **404**, bevor `can:browseFiles` gefragt wird.
+
+Das ist die stärkere Antwort und nicht die schwächere: Ein 403 bestätigt die
+Existenz des fremden Abonnements, ein 404 nicht.
+
+> **Ein Kriterium, das eine Zahl vorschreibt, prüft die Zahl und nicht die
+> Wand.**
+
+**Gemessen wird deshalb: kein 2xx, und der Grund ist benennbar** — 404 aus der
+Klammer oder 403 aus der Policy. Erwartet stumpf-B: unverändert, die
+Mandantenklammer ist **nicht** eine der beiden Wände aus §1.
+
+**Die eigene Kennung in derselben Route muss durchkommen**, sonst misst die
+Reihe eine Anmeldung, die nichts darf, und nicht eine Klammer, die trennt.
+Sichtbar wird das an einem `422`: Der Rumpf wird weggelassen, also scheitert
+jede verändernde Route an ihrer eigenen Prüfung — **nachdem** die Autorisierung
+sie durchgelassen hat. Das ist zugleich der Grund, warum der Lauf nichts
+verändert.
+
+**Gefahren wird er als `tests/mandant-messen.js`** in der Konsole des Browsers,
+angemeldet als der Kunde von EIGEN:
+
+```js
+await mandantMessen({ eigen: <EIGEN>, fremd: <FREMD> })
+```
+
+**Vier der 22 Routen tragen einen zweiten Parameter** (`{job}`, `{key}`). Ohne
+eine echte Kennung dafür kann der 404 auch von dessen Auflösung kommen, und der
+Lauf schreibt das in seine Spalte `eindeutig`. Wer sie eindeutig will, gibt
+echte mit:
+
+```js
+await mandantMessen({ eigen: <EIGEN>, fremd: <FREMD>, eigenJob: <ID>, fremdJob: <ID> })
+```
+
+`TenancySweepTest` hält die Routenliste des Laufs gegen `routes/web.php` — eine
+Route, die der Lauf nicht kennt, wird nicht gemessen, und er meldete trotzdem
+„alle gehalten".
 
 **Punkt 12 — die volle Quota.** Das Kontingent des Wegwerf-Abonnements klein
 setzen, dann eine Datei schreiben, die nicht mehr hineinpasst.

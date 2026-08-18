@@ -14975,3 +14975,47 @@ vorbeikommt, stand dabei **nach** dem Umschalten.
 
 > **Eine Vorprüfung, die hinter dem Schritt steht, den sie absichern soll, ist
 > keine.**
+
+### Punkt 12 bekommt einen Prüfstand — und die Regel, an der er hängt, ihren ersten Wächter
+
+Die volle Quota war bis hierher der einzige Punkt des Abnahmekriteriums, dessen
+Grundlage **nur behauptet** war. In `FilesWrite` und `FilesUpload` steht seit P6,
+`file_put_contents` und `stream_copy_to_stream` gäben bei erschöpftem Kontingent
+die Zahl der geschriebenen Bytes zurück und nicht `false` — und auf diesem Satz
+beruht die ganze Prüfung: Wer nur auf `false` prüft, meldet dem Kunden
+„gespeichert" für eine Datei, von der die Hälfte fehlt.
+
+> **Wissen aus zweiter Hand sieht aus wie Wissen.**
+
+**`tests/quota-messen.php`** misst es. Vier Abschnitte: ob auf diesem
+Dateisystem überhaupt eine Quota läuft, ein Wegwerf-Abonnement mit 1 MB Grenze,
+2 MiB dagegen schreiben — und die Gegenprobe, dass unter 64 MB derselbe Vorgang
+vollständig durchgeht. Ohne die letzte sähe ein Fehlschlag genauso aus, wenn der
+Pfad falsch wäre.
+
+Der Lauf druckt, was der Aufruf **wirklich** zurückgegeben hat, und prüft zwei
+Dinge mit, die in keinem Kriterium stehen: dass die Begründung das Kontingent
+nennt (sonst sucht der Kunde den Fehler bei sich) und dass **kein halb
+geschriebener Rest liegenbleibt** — die Nachbardatei heisst `.srvpanel-<hex>`,
+beginnt mit einem Punkt und taucht in keiner Auflistung auf.
+
+**Abschnitt 1 ist ein Riegel und kein Kriterium.** Läuft die Quota nicht, endet
+der Lauf mit Rückgabewert 2 und **ohne Befund** — ein Schreibvorgang, den nichts
+begrenzt, sagt über den Fehlerweg nichts. Gefragt wird der Leseversuch und nicht
+die Optionszeile (`docs/41 §2.3`).
+
+**Und der Riegel ist beim ersten Wurf selbst umgefallen.** Ohne das Paket
+`quota` wirft `Runner` „repquota ist auf diesem System nicht installiert", und
+der Lauf endete mit einem Stapelabzug statt mit seinem eigenen Satz.
+
+> **Ein Riegel, der selbst umfällt, ist keiner.**
+
+Gemessen wurden danach beide Zweige: fehlendes Programm und laufendes Programm
+ohne eingeschaltete Quota. Der Entwicklungscontainer bleibt für diesen Punkt
+nicht messbar — `/` ist ohne `usrquota` eingehängt —, und das Paket `quota` holt
+das Ubuntu-Archiv trotzdem, wie bei MariaDB und beim `sshd`.
+
+**`ShortWriteTest` ist der Wächter**, den es dafür nie gab: Beide Wege
+vergleichen gegen die erwartete Länge und nicht gegen `false`, beide nennen das
+Kontingent, und beide räumen den Rest weg, **bevor** sie werfen — eine Zeile
+nach dem `throw` läuft nie. Drei Brüche im Bruchskript, alle drei beissen.

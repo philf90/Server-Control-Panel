@@ -54,6 +54,31 @@ WS=agent/src/Files/Workspace.php
 CF=agent/src/Cron/CronFile.php
 CA=agent/src/Ops/CronApply.php
 
+# **Dieses Skript ist nicht für den Einzeldownload gebaut, und das sagt es.**
+#
+# Es arbeitet mit `git status` und `git checkout` in dem Baum, der über ihm
+# liegt — aus `/root/stumpf.sh` heisst das `cd /`. Am 18. August ist genau das
+# passiert: Ein `curl` holte die HTML-Seite statt des Rohtexts, und der Aufruf
+# lief in `/`. Beides muss hier auffallen und nicht in einer Meldung von git,
+# die von etwas anderem spricht.
+#
+# > **Ein Skript, das seinen Arbeitsbaum nicht prüft, arbeitet im falschen.**
+#
+# `cron-messen.sh` darf einzeln heruntergeladen werden — es fasst nur seine
+# eigenen Wegwerf-Verzeichnisse an. Dieses hier fasst den Quelltext an.
+for datei in "$WS" "$CF" "$CA"; do
+  [ -f "$datei" ] || {
+    echo "Hier ist kein Checkout dieses Projekts: $datei fehlt (Arbeitsverzeichnis: $(pwd))." >&2
+    echo "Dieses Skript läuft nur aus einem git clone heraus, nicht als einzelne Datei." >&2
+    exit 2
+  }
+done
+
+git rev-parse --show-toplevel >/dev/null 2>&1 || {
+  echo "Hier ist kein git-Baum (Arbeitsverzeichnis: $(pwd)) — der Rückweg dieses Skripts braucht einen." >&2
+  exit 2
+}
+
 # **Der Rückweg wirft weg, was nicht eingecheckt ist.** `--zurueck` und der
 # Trockenlauf setzen diese drei Dateien über `git checkout --` zurück; liegt
 # darin noch nicht festgeschriebene Arbeit, ist sie danach fort. Dieselbe Falle

@@ -14700,6 +14700,18 @@ bei nicht eingecheckter Arbeit in den drei Dateien, denn sein Rückweg führt ü
 > **Ein Rückweg, der über `git checkout` führt, ist für alles ein Rückweg, was
 > dort steht — nicht nur für den eigenen Eingriff.**
 
+**Und es prüft, ob es überhaupt im richtigen Baum steht.** Am 18. August lief
+`sudo bash /root/stumpf.sh a` gegen eine HTML-Seite, die ein `curl` statt des
+Rohtexts geholt hatte — und selbst mit dem richtigen Inhalt wäre es falsch
+gelaufen: Das Skript wechselt in das Verzeichnis über sich und arbeitet dort mit
+`git status` und `git checkout`. Aus `/root` heisst das `/`.
+
+> **Ein Skript, das seinen Arbeitsbaum nicht prüft, arbeitet im falschen.**
+
+`cron-messen.sh` darf einzeln geholt werden, weil es nur seine eigenen
+Wegwerf-Verzeichnisse anfasst. Dieses hier fasst den Quelltext an und besteht
+deshalb auf einem Checkout.
+
 **Und der erste Anlauf hat die ganze Testsuite umgebracht.** Die Hilfsmethode,
 die `tests/stumpf.sh` aufruft, hiess `run()` — und
 `PHPUnit\Framework\TestCase::run()` ist `final`. Das bricht beim **Laden** der

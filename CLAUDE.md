@@ -654,7 +654,8 @@ und nicht „welche Wand hat ihn gehalten?".
 > beiden etwas.**
 
 **Der Durchgang läuft seit dem 18. August, und das Protokoll ist `docs/62`.**
-Zwölf der fünfzehn Punkte sind gemessen, drei stehen dort einzeln als offen —
+Zwölf der fünfzehn Punkte sind auf `cloudsrv24` gemessen — die Punkte 5, 7 und 8
+gegen `4fe2e10` —, drei stehen dort einzeln als offen —
 ein Protokoll ohne seine Lücken liest sich wie eine Abnahme. Die Frage aus §1
 ist beantwortet: **Nicht die Normalisierung hält, sondern das Chroot** (stumpf-A
 hält weiter, stumpf-B bricht 3 von 3 aus).

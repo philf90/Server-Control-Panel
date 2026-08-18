@@ -15056,3 +15056,20 @@ erschöpft" im Quelltext — und der stand dort, in einem von zwei Zweigen.
 Er prüft seitdem, dass der erste Ausdruck von `execFailed` unmittelbar eine
 Zeichenkette ist und keine Bedingung. Zwei weitere Brüche im Bruchskript, beide
 beissen.
+
+**Und eine CI-Runde hat er auch gekostet, an einer Stelle ohne jede Behauptung.**
+Sein Datenlieferant gab zwei Werte, und drei der fünf Methoden nahmen nur den
+ersten entgegen. PHPUnit meldet dafür je Methode eine Warnung und endet mit
+Rückgabewert 1 — im Log stand „2040 passed", kein einziger Fehlschlag, und
+darunter der rote Lauf. Der einzige Unterschied zum grünen Lauf davor waren drei
+Warnungen mehr (36 → 39). Der Lieferant gibt jetzt einen Wert je Fall, der
+Vergleichsausdruck steht daneben in einer eigenen Methode.
+
+> **Ein Lauf, der „alle bestanden" meldet und trotzdem scheitert, hat seinen
+> Grund neben der Zusammenfassung stehen und nicht darin.**
+
+Gefunden hat das die CI und nicht das Gestell im Container: Es reichte die
+überzähligen Werte wortlos weiter. Es prüft seitdem `getNumberOfParameters()`
+gegen die Zahl der Werte — dieselbe Lehre wie bei den `final`-Methoden der
+Basisklasse, nur an einer anderen Strenge. Im ganzen Repo ist danach kein
+zweiter Fall gefunden worden.

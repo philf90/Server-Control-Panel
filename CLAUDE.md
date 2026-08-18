@@ -1003,6 +1003,17 @@ Testen berücksichtigen:
   > **Eine Attrappe, die weniger verbietet als das Original, sagt Ja zu Code,
   > den das Original ablehnt.**
 
+  **Und dasselbe noch einmal am 18. August, an einer anderen Strenge: der Zahl
+  der Werte eines Datenlieferanten.** `invokeArgs()` reicht überzählige Werte
+  wortlos weiter; PHPUnit meldet je Methode eine Warnung und endet mit
+  Rückgabewert **1**, ohne dass eine einzige Behauptung gebrochen ist. Im Log
+  steht dann „2040 passed" und darunter der Fehlschlag — die Zahl der Warnungen
+  ist das einzige, was sich ändert (36 → 39). Das Gestell prüft seitdem
+  `getNumberOfParameters()` gegen die Zahl der Werte.
+
+  > **Ein Lauf, der „alle bestanden" meldet und trotzdem scheitert, hat seinen
+  > Grund neben der Zusammenfassung stehen und nicht darin.**
+
   **Und die Liste der Wächter zählt sich selbst ab.** Am 13. August stand dort
   eine handverlesene — dreizehn von 136 —, und drei Wächter, die eine
   Umbenennung gemeldet hätten, waren nicht darunter; sie liefen erst in der CI.

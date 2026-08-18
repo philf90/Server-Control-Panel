@@ -77,23 +77,45 @@ final class ShortWriteTest extends TestCase
      * der Rest fliegt vor dem Wurf) — wer ihn hier einträgt, sucht eine Zeile,
      * die es aus gutem Grund nicht gibt.
      *
-     * @return array<string, array{string, string}>
+     * **Der Lieferant gibt genau einen Wert je Fall**, und der Vergleichsausdruck
+     * steht daneben in {@see expected()}. Der erste Entwurf lieferte beide und
+     * liess drei der fünf Methoden nur den ersten entgegennehmen — PHPUnit
+     * meldet dafür je Methode eine Warnung, und der Lauf endet mit
+     * Rückgabewert 1, obwohl keine Behauptung gebrochen ist. Gefunden hat es
+     * die CI, nicht das Gestell im Container: Es reichte die überzähligen Werte
+     * wortlos weiter.
+     *
+     * > **Eine Attrappe, die weniger verbietet als das Original, sagt Ja zu
+     * > Code, den das Original ablehnt.**
+     *
+     * @return array<string, array{string}>
      */
     public static function operations(): array
     {
         return [
-            'files.write' => ['FilesWrite.php', 'strlen($content)'],
-            'files.upload' => ['FilesUpload.php', '$size'],
+            'files.write' => ['FilesWrite.php'],
+            'files.upload' => ['FilesUpload.php'],
         ];
+    }
+
+    /** Womit die geschriebene Länge in dieser Operation verglichen wird. */
+    private function expected(string $datei): string
+    {
+        return match ($datei) {
+            'FilesWrite.php' => 'strlen($content)',
+            'FilesUpload.php' => '$size',
+            default => throw new \LogicException('Unbekannte Operation: '.$datei),
+        };
     }
 
     /**
      * Verglichen wird mit der erwarteten Länge — nicht mit `false`.
      */
     #[DataProvider('operations')]
-    public function test_a_short_write_is_a_failure(string $datei, string $erwartet): void
+    public function test_a_short_write_is_a_failure(string $datei): void
     {
         $quelltext = $this->source($datei);
+        $erwartet = $this->expected($datei);
 
         $this->assertStringContainsString(
             '$written !== '.$erwartet,
@@ -138,10 +160,10 @@ final class ShortWriteTest extends TestCase
      * auftaucht. Der Kunde sähe ein volles Kontingent und keine Dateien.
      */
     #[DataProvider('operations')]
-    public function test_the_half_written_file_is_removed(string $datei, string $erwartet): void
+    public function test_the_half_written_file_is_removed(string $datei): void
     {
         $quelltext = $this->source($datei);
-        $vergleich = strpos($quelltext, '$written !== '.$erwartet);
+        $vergleich = strpos($quelltext, '$written !== '.$this->expected($datei));
 
         $this->assertIsInt($vergleich, sprintf('In %s gibt es den Vergleich nicht mehr.', $datei));
 

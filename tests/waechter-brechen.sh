@@ -8557,6 +8557,28 @@ griff_datei agent/src/Context.php "zwei Konten in einer Anfrage" &&
 pruefe "zwei Konten in einer Anfrage" \
   SandboxCredentialsTest::test_two_accounts_in_one_request_are_refused failed
 wiederherstellen
+
+echo
+echo "── SandboxCredentialsTest: der Rückbau meldet nicht mehr ──"
+#
+# Der Teil, den der erste Wurf von docs/61 §0a ausgelassen hat: removeInside und
+# purgeContents gehen genauso durch die Sandbox wie die dreizehn files.*, und sie
+# sind der Baumlauf, gegen den Punkt 6 des Abnahmekriteriums antritt. Aufgefallen
+# auf cloudsrv24 an einem subscription.remove mit NULL in der Spalte ran_as.
+vorher_datei agent/src/Filesystem.php
+python3 - <<'PY2'
+p = 'agent/src/Filesystem.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($ranAs !== null) {\n            $context?->recordRanAs($ranAs);\n        }\n\n"
+assert s.count(alt) == 2, 'Der Eingriff trifft nicht mehr zwei Stellen: %d' % s.count(alt)
+s = s.replace(alt, '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Filesystem.php "Rueckbau meldet nicht" &&
+pruefe "Rueckbau meldet nicht" \
+  SandboxCredentialsTest::test_the_teardown_reports_too failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxCredentialsTest passed
 pruefe "  … zurückgesetzt wieder grün" SandboxCredentialsTest passed
 
 echo
@@ -8630,7 +8652,7 @@ vorher_datei agent/src/Ops/WebSiteRemove.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/WebSiteRemove.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace('if (Filesystem::removeInside($site->logDir(), $site->subscriptionRoot(), $site->user)) {',
+s = s.replace('if (Filesystem::removeInside($site->logDir(), $site->subscriptionRoot(), $site->user, [], $context)) {',
               'if (Filesystem::removeTree($site->logDir()) || true) {')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
@@ -8650,7 +8672,7 @@ vorher_datei agent/src/Ops/SubscriptionRemove.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/SubscriptionRemove.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace('        Filesystem::purgeContents($root, $user);\n\n', '')
+s = s.replace('        Filesystem::purgeContents($root, $user, [], $context);\n\n', '')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei agent/src/Ops/SubscriptionRemove.php "purgeContents aus dem Rueckbau entfernt" &&
@@ -8668,8 +8690,8 @@ vorher_datei agent/src/Ops/SubscriptionRemove.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/SubscriptionRemove.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace('        Filesystem::purgeContents($root, $user);\n\n        Filesystem::removeTree($root);',
-              '        Filesystem::removeTree($root);\n\n        Filesystem::purgeContents($root, $user);')
+s = s.replace('        Filesystem::purgeContents($root, $user, [], $context);\n\n        Filesystem::removeTree($root);',
+              '        Filesystem::removeTree($root);\n\n        Filesystem::purgeContents($root, $user, [], $context);')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei agent/src/Ops/SubscriptionRemove.php "Aufraeumen erst nach dem Baumlauf" &&

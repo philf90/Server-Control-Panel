@@ -14585,15 +14585,26 @@ Anfrage sind ein Fehler** und kein Sonderfall — liefe ein Vorgang zweimal unte
 verschiedenen Kennungen, wäre die Frage „unter wem lief er?" nicht mehr
 beantwortbar, und das ist die einzige Frage, die dieser Beleg hat.
 
-**Wächter:** `SandboxCredentialsTest` (sechs Fälle, fünf Brüche). Der wichtigste
+**Und der erste Wurf war auf `files.*` zugeschnitten — auch das war zu eng.**
+`Filesystem::removeInside()` und `Filesystem::purgeContents()` gehen genauso durch
+die Sandbox, und sie sind der **Baumlauf**, gegen den Punkt 6 des
+Abnahmekriteriums antritt. Aufgefallen ist es auf `cloudsrv24` an einer Liste von
+acht Vorgängen: `subscription.remove` stand darin, und in der Spalte `ran_as`
+stand `NULL` — obwohl der Vorgang durch die Sandbox gelaufen war.
+
+> **Ein Kriterium, das „jeder" sagt, meint nicht „jeder aus der Liste, an die ich
+> beim Bauen gedacht habe".**
+
+**Wächter:** `SandboxCredentialsTest` (sieben Fälle, sechs Brüche). Der wichtigste
 Bruch ist der harmloseste: eine Operation, die den Beleg *selbst* in ihr Ergebnis
 schreibt. Sie sieht richtig aus und macht die Regel wieder zu einer, die
 dreizehnmal befolgt werden muss.
 
-**Und `BreakScriptTest` hat dabei zwei eigene Eingriffe gefangen.** Die
-Signatur von `Workspace::run()` hat einen Parameter bekommen, und damit fanden
-zwei ältere Brüche ihren Text in `FilesRemove` und `FilesTree` nicht mehr — sie
-hätten ab jetzt nichts mehr geändert und wären grün geblieben.
+**Und `BreakScriptTest` hat dabei fünf eigene Eingriffe gefangen.** Die
+Signaturen von `Workspace::run()`, `Filesystem::removeInside()` und
+`Filesystem::purgeContents()` haben je einen Parameter bekommen, und damit fanden
+fünf ältere Brüche ihren Text nicht mehr — sie hätten ab jetzt nichts mehr
+geändert und wären grün geblieben.
 
 > **Ein Eingriff, der nichts ändert, prüft nichts — und sieht dabei aus, als
 > wäre die Regel abgesichert.**

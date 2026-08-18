@@ -113,9 +113,10 @@ final class Filesystem
      * schreiben kann, ist auch nichts zu vertauschen.
      *
      * @param  list<\Socket|resource>  $close  Was das Kind der Sandbox geerbt hat.
+     * @param  Context|null  $context  Nimmt den Beleg entgegen, unter wem gelaufen wurde.
      * @return bool Wurde etwas entfernt?
      */
-    public static function removeInside(string $path, string $subscriptionRoot, string $user, array $close = []): bool
+    public static function removeInside(string $path, string $subscriptionRoot, string $user, array $close = [], ?Context $context = null): bool
     {
         $root = rtrim($subscriptionRoot, '/');
         $target = rtrim($path, '/');
@@ -145,7 +146,11 @@ final class Filesystem
 
         $removed = Sandbox::run($root, $user, static function () use ($relative): bool {
             return self::removeRelative($relative);
-        }, $close);
+        }, $close, null, $ranAs);
+
+        if ($ranAs !== null) {
+            $context?->recordRanAs($ranAs);
+        }
 
         // Was die Sandbox stehenlassen musste, weil ihr das Schreibrecht am
         // übergeordneten Verzeichnis fehlt. Nur direkt an der Wurzel, und nur
@@ -189,9 +194,10 @@ final class Filesystem
      * hat die Sandbox etwas nicht geräumt.
      *
      * @param  list<\Socket|resource>  $close
+     * @param  Context|null  $context  Nimmt den Beleg entgegen, unter wem gelaufen wurde.
      * @return int Wie viele Einträge unmittelbar unterhalb der Wurzel übrig sind.
      */
-    public static function purgeContents(string $subscriptionRoot, string $user, array $close = []): int
+    public static function purgeContents(string $subscriptionRoot, string $user, array $close = [], ?Context $context = null): int
     {
         $root = rtrim($subscriptionRoot, '/');
 
@@ -219,7 +225,11 @@ final class Filesystem
             clearstatcache();
 
             return max(0, count(scandir('/') ?: []) - 2);
-        }, $close);
+        }, $close, null, $ranAs);
+
+        if ($ranAs !== null) {
+            $context?->recordRanAs($ranAs);
+        }
 
         return is_int($result) ? $result : 0;
     }

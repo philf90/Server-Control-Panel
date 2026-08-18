@@ -14512,6 +14512,48 @@ nicht überstanden hätte** — zwei davon hätten ein falsches Grün erzeugt:
    > **Ein Kommentar, der eine Rechteangabe nennt, ist eine Behauptung über die
    > Platte und keine über die Absicht.**
 
+### `srvpanel tinker` führte seinen Code wortlos nicht aus — ein Hindernis, das niemand gezählt hat
+
+Der Wrapper wechselt mit `setpriv` auf den Benutzer `srvpanel` und **lässt die
+Umgebung stehen**: `HOME` zeigte danach weiter auf das des Aufrufers, also auf
+`/root`. Für alles, was nichts ablegt, fällt das nie auf; `srvpanel tinker` legt
+ab. psysh will sein Verzeichnis unter `HOME` anlegen, darf es nicht, meldet das
+als Notiz — und führt den übergebenen Code **gar nicht mehr aus**, bei
+Rückgabewert 0 und ohne eine Zeile Ausgabe.
+
+> **Ein Befehl, der schweigt, sieht aus wie einer, der nichts gefunden hat.**
+
+Gemeldet hat es der Betreiber am 18. August beim Ablesen des Belegs aus
+`docs/61 §0a`, und zwar ausdrücklich als etwas, das in mehreren Sitzungen davor
+schon im Weg stand, ohne dass es jemand aufgeschrieben hätte. Das ist der
+eigentliche Befund und nicht der eine Befehl:
+
+> **Ein Hindernis, das man jedes Mal umgeht, ist keins, das man gelöst hat — es
+> ist eins, das niemand zählt.**
+
+Der Wrapper setzt jetzt `HOME=/var/lib/srvpanel`; das Paket liefert dieses
+Verzeichnis als `0750 srvpanel:srvpanel` aus, und es ist das einzige, das diesem
+Benutzer gehört und bei einem Update nicht ersetzt wird.
+
+**Behoben ist das Symptom damit nicht**, und das steht hier, damit niemand es für
+erledigt hält: Nach dem Setzen nennt die Meldung den absoluten Pfad statt eines
+relativen — `HOME` wird also beachtet —, und schreiben darf psysh dort trotzdem
+nicht. Woran das auf `cloudsrv24` liegt, ist offen.
+
+**Der Abnahmelauf hängt seitdem nicht mehr daran.** `docs/61 §0a` liest den Beleg
+über SQL aus `operations.result` statt über `tinker`: Das umgeht auch die
+Mandantenklammer von Natur aus, die den ersten Befehl bereits stumm gemacht
+hatte, bevor psysh überhaupt zum Zug kam.
+
+> **Zwischen der Frage und der Antwort gehören so wenige Schichten wie möglich —
+> und keine, die bei einem Fehler schweigt.**
+
+**Wächter:** `PackagingTest::test_the_wrapper_sets_a_home_the_service_user_may_write`.
+Er prüft nicht, *dass* `HOME` gesetzt ist, sondern dass es auf ein Verzeichnis
+zeigt, das `nfpm.yaml` dem Benutzer `srvpanel` gibt — ein `HOME`, das man nicht
+schreiben kann, ist keins. Vier Brüche gefahren, zwei davon stehen in
+`tests/waechter-brechen.sh`.
+
 ### Punkt 13 und 14 des Abnahmekriteriums sind jetzt messbar — und der erste Entwurf war falsch
 
 `docs/51 §4` verlangt, dass **jeder** Datei-Vorgang meldet, unter welcher `uid`
@@ -14543,15 +14585,54 @@ Anfrage sind ein Fehler** und kein Sonderfall — liefe ein Vorgang zweimal unte
 verschiedenen Kennungen, wäre die Frage „unter wem lief er?" nicht mehr
 beantwortbar, und das ist die einzige Frage, die dieser Beleg hat.
 
-**Wächter:** `SandboxCredentialsTest` (sechs Fälle, fünf Brüche). Der wichtigste
+**Und die Antwort allein war nicht genug — gemessen auf `cloudsrv24`.** Der
+Beleg stand in der Antwort des Agenten, und für `files.*` hebt die niemand auf:
+`App\Support\Files\Files` ruft den Agenten unmittelbar auf, ohne Vorgang und ohne
+Zeile in `operations`. Nach dem Öffnen des Dateimanagers stand dort **keine neue
+Zeile** — richtig so, denn eine Verzeichnisliste wartet nicht auf einen Arbeiter.
+
+Der Beleg entstand also, wurde weitergereicht, und war nirgends. Dieselbe Lehre
+wie eine Ebene tiefer, wo die Sandbox ihn erhoben und verworfen hatte — zum
+zweiten Mal in derselben Kette:
+
+> **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+> keine.**
+
+`Connection` schreibt ihn deshalb zusätzlich in das Protokoll des Agenten, je
+Anfrage und für jede Operation: dauerhaft, ohne Datenbank, ohne psysh und ohne
+Mandantenklammer. `docs/61 §0a` liest ihn dort.
+
+**Und der dritte Anlauf des Ableseschritts ist an einem Herzschlag gescheitert.**
+`grep '"kind":"result"' … | tail -8` gab auf `cloudsrv24` acht Zeilen
+`system.info` zurück und sonst nichts: Der Kennzahlen-Sammler fragt den Agenten
+alle zehn Sekunden, also decken acht Ergebniszeilen achtzig Sekunden ab.
+
+> **Ein `tail` über ein Protokoll mit Herzschlag misst den Herzschlag.**
+
+Der Schritt filtert seitdem auf die Operation — **und führt die Gegenprobe
+daneben**, denn genau dieser Filter nimmt die Zeilen weg, an denen zu sehen ist,
+dass das Feld nicht überall steht.
+
+**Und der erste Wurf war auf `files.*` zugeschnitten — auch das war zu eng.**
+`Filesystem::removeInside()` und `Filesystem::purgeContents()` gehen genauso durch
+die Sandbox, und sie sind der **Baumlauf**, gegen den Punkt 6 des
+Abnahmekriteriums antritt. Aufgefallen ist es auf `cloudsrv24` an einer Liste von
+acht Vorgängen: `subscription.remove` stand darin, und in der Spalte `ran_as`
+stand `NULL` — obwohl der Vorgang durch die Sandbox gelaufen war.
+
+> **Ein Kriterium, das „jeder" sagt, meint nicht „jeder aus der Liste, an die ich
+> beim Bauen gedacht habe".**
+
+**Wächter:** `SandboxCredentialsTest` (sieben Fälle, sechs Brüche). Der wichtigste
 Bruch ist der harmloseste: eine Operation, die den Beleg *selbst* in ihr Ergebnis
 schreibt. Sie sieht richtig aus und macht die Regel wieder zu einer, die
 dreizehnmal befolgt werden muss.
 
-**Und `BreakScriptTest` hat dabei zwei eigene Eingriffe gefangen.** Die
-Signatur von `Workspace::run()` hat einen Parameter bekommen, und damit fanden
-zwei ältere Brüche ihren Text in `FilesRemove` und `FilesTree` nicht mehr — sie
-hätten ab jetzt nichts mehr geändert und wären grün geblieben.
+**Und `BreakScriptTest` hat dabei fünf eigene Eingriffe gefangen.** Die
+Signaturen von `Workspace::run()`, `Filesystem::removeInside()` und
+`Filesystem::purgeContents()` haben je einen Parameter bekommen, und damit fanden
+fünf ältere Brüche ihren Text nicht mehr — sie hätten ab jetzt nichts mehr
+geändert und wären grün geblieben.
 
 > **Ein Eingriff, der nichts ändert, prüft nichts — und sieht dabei aus, als
 > wäre die Regel abgesichert.**
@@ -14575,7 +14656,82 @@ die die Schranke abschaltet, wäre ein dauerhaftes Loch im ausgelieferten Code,
 und der Abnahmelauf hätte es selbst hineingebaut.
 
 **Was offen bleibt und benannt ist:** Welcher Cron-Dienst auf den vier
-Zielplattformen installiert und **aktiv** ist, ist weiter ungemessen. `docs/50 §7`
-hat nur das Archiv geprüft, und `systemd-cron` liest `/etc/cron.d` mit einer
-anderen Umsetzung. Der Punkt gehört als erster in den Abnahmelauf, vor jeden
-anderen — `tests/cron-messen.sh` läuft dort unverändert.
+Zielplattformen installiert und **aktiv** ist, war ungemessen — `docs/50 §7` hatte
+nur das Archiv geprüft, und `systemd-cron` liest `/etc/cron.d` mit einer anderen
+Umsetzung.
+
+### Der erste Lauf von `tests/cron-messen.sh` auf `cloudsrv24` hat nichts gemessen — und das Skript hat es nicht gesagt
+
+Am Ende stand „15 Messungen wie erwartet, 17 abweichend". Die richtige Lesart
+steht in der **ersten** Zeile: `Gegenprobe: eine gültige Datei läuft — nein
+(erwartet: ja)`. Kein Job ist gelaufen; damit sind alle fünfzehn „wie erwartet"
+Fälle, in denen *nichts* laufen sollte, erfüllt von einem cron, der überhaupt
+nicht lief.
+
+> **Fünfzehn Nullen sind keine fünfzehn Messungen.**
+
+**Die Ursache, gemessen und nicht geschlossen:** Vixie-cron nimmt ein `flock` auf
+`/run/crond.pid` und stirbt sofort, wenn es die Sperre nicht bekommt — „can't
+lock /var/run/crond.pid, otherpid may be N". Auf `cloudsrv24` hält
+`cron.service` sie. Der Namensraum des Skripts deckte `/etc/cron.d`,
+`/etc/crontab`, `/var/spool/cron/crontabs` und `/etc/localtime` ab, aber nicht
+`/run`.
+
+**Dieser Entwicklungscontainer hat keinen laufenden cron.** Genau deshalb lief
+das Skript hier durch und dort nicht:
+
+> **Ein Messmittel, das nur dort läuft, wo der Prüfling fehlt, misst nicht den
+> Prüfling.**
+
+**Und der Entwurf des Skripts hat dabei seine eigene Schwäche gezeigt.**
+`docs/60` hatte zwei Erwartungen bewusst falsch stehen lassen, damit die beiden
+Funde der Messrunde bei jedem Lauf auffallen — „eine Erwartung, die nicht
+eintrifft, soll auffallen". Der Preis dafür ist genau hier fällig geworden: Ein
+Lauf, der **immer** mit zwei Abweichungen und Rückgabewert 1 endet, lässt sich
+von einem kaputten nicht unterscheiden.
+
+> **Ein Rot, das immer dasteht, ist keins mehr.**
+
+Die Erwartungen bilden seitdem ab, was gemessen ist; eine Abweichung heisst
+„diese Maschine verhält sich anders als die vermessene". Damit die Funde nicht
+verschwinden, druckt das Skript sie am Ende als eigene Zeilen — sie sind eine
+Aussage über cron und keine über den Lauf.
+
+**Gegengeprüft im Container, neben einem laufenden cron:** erst 31 zu 1, dann —
+mit beiden berichtigten Erwartungen — **32 zu 0** und Rückgabewert 0. Beide
+Läufe fuhren aus einer Kopie im Scratchpad, nachdem der erste dadurch
+verunreinigt worden war, dass ich das Skript **während** seines Laufs geändert
+hatte: 34 Messzeilen bei 32 Aufrufen, weil bash nach dem Neuschreiben ab einem
+veralteten Byte-Offset weiterlas.
+
+> **Ein Skript, das läuft, ist eine Datei, die gelesen wird — wer sie ändert,
+> ändert den Lauf.**
+
+**Zu `CRON_TZ` ist dabei die offene Hälfte nachgemessen worden:** Die
+Zeichenkette steht weder im Binary noch in `crontab(5)` — sie stammt aus cronie.
+Eine Datei mit `CRON_TZ=UTC` wird trotzdem **fehlerfrei geladen** (0
+Fehlerzeilen, beide Prüfdateien in `load_user()`). Eine Zeile, die nichts
+bewirkt, ist eine Sache; eine, die die Datei mitnimmt, wäre eine andere.
+
+Drei Behebungen, jede einzeln gemessen:
+
+1. **Die Sperrdatei kommt in den Namensraum** — `mount --bind` einer
+   Wegwerfdatei über `/run/crond.pid`. Gemessen: Der eigene cron startet neben
+   dem laufenden (516 Zeilen Diagnose, „cron started"), und der laufende merkt
+   nichts davon. Einen Schalter für einen anderen Pfad gibt es nicht.
+2. **`daemon_start` hält den Lauf an**, wenn der Dienst nach dem Start nicht
+   lebt, und zeigt seine Meldung. Vorher wartete das Skript danach zwanzig
+   Minuten und lieferte Zahlen.
+3. **Der Filter über die Ausgabe kannte `DEATH` und `can't lock` nicht.** Der
+   Grund stand wörtlich in `$LOG`, und die Zeile „was cron dazu gesagt hat"
+   blieb trotzdem leer.
+
+   > **Ein Filter über die Ausgabe des Prüflings zeigt die Fehler, an die sein
+   > Erbauer gedacht hat.**
+
+**Für `cloudsrv24` ist das am 18. August gemessen:** `cron 3.0pl1-184ubuntu2`,
+`cron.service` aktiv und enabled, kein `cronie` und kein `systemd-cron` —
+zeichengleich die Fassung, gegen die `docs/60` gemessen hat. Die zweiunddreissig
+Messungen dort gelten damit für diese Maschine, statt für sie angenommen zu
+werden. **Drei Plattformen bleiben offen**; eine Maschine ist kein Beleg über
+vier.

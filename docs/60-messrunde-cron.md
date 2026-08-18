@@ -348,9 +348,33 @@ braucht, steht in §12 Punkt 3: dass der Zeitplan als Serverzeit beschriftet ist
 
 **Zweiunddreissig Messungen, dreissig wie erwartet, zwei abweichend** — und beide
 Abweichungen sind die Funde: die 10000-Zeilen-Grenze, die für `/etc/cron.d` nicht
-gilt (§5), und `CRON_TZ`, das es nicht gibt. Das Skript endet deshalb mit
-Rückgabewert 1, und das ist kein Fehlschlag des Messmittels, sondern seine
+gilt (§5), und `CRON_TZ`, das es nicht gibt. Das Skript endete deshalb mit
+Rückgabewert 1, und das war kein Fehlschlag des Messmittels, sondern seine
 Aufgabe: Eine Erwartung, die nicht eintrifft, soll auffallen.
+
+### Und genau das ist am 18. August teuer geworden
+
+Der erste Lauf auf `cloudsrv24` endete mit „15 Messungen wie erwartet, 17
+abweichend" — und **gemessen war nichts**: cron war beim Start an der Sperrdatei
+gestorben, und alle fünfzehn „wie erwartet" waren Fälle, in denen nichts laufen
+sollte. Ein Lauf, der ohnehin **immer** rot endet, sagt in dieser Lage nichts.
+
+> **Ein Rot, das immer dasteht, ist keins mehr.**
+
+Die beiden Erwartungen bilden seitdem ab, was **gemessen** ist. Eine Abweichung
+heisst damit „diese Maschine verhält sich anders als die vermessene", und ein
+sauberer Lauf endet mit 0. Damit die Funde nicht verschwinden, druckt das Skript
+sie am Ende als eigene Zeilen — sie sind eine Aussage über cron und keine über
+den Lauf.
+
+**Gegengeprüft am 18. August im Entwicklungscontainer, neben einem laufenden
+cron:** erst 31 wie erwartet und 1 abweichend — die damals noch falsche
+`CRON_TZ`-Zeile —, danach mit beiden berichtigten Erwartungen **32 zu 0** und
+Rückgabewert 0. Die zweite Zahl stand hier eine Stunde lang ausdrücklich als
+Rechnung, bis der vollständige Lauf sie belegt hatte. Dazu einzeln gemessen: Das
+Binary enthält die Zeichenkette `CRON_TZ` nicht, `crontab(5)` kennt sie nicht,
+und eine Datei mit `CRON_TZ=UTC` wird trotzdem fehlerfrei geladen — 0
+Fehlerzeilen, beide Prüfdateien in `load_user()`.
 
 ---
 
@@ -421,17 +445,38 @@ keine zweite Darstellung des Zeitplans; eine zweite wäre die, die veraltet.
 
 ## 13. Was hier nicht messbar war und auf `cloudsrv24` gehört
 
-**Frage 9 aus der Übergabe ist offen und bleibt es hier:** Welcher Cron-Dienst
-ist auf den vier Zielplattformen **installiert und aktiv**? `docs/50 §7` hat das
-Archiv geprüft und ausdrücklich festgehalten, dass damit nichts über den
-laufenden Dienst gesagt ist. Dieser Container hat gar keinen laufenden — der hier
-gemessene ist ein Wegwerf-Dienst im eigenen Namensraum.
+**Frage 9 aus der Übergabe war offen und ist hier nicht messbar gewesen:**
+Welcher Cron-Dienst ist auf den vier Zielplattformen **installiert und aktiv**?
+`docs/50 §7` hat das Archiv geprüft und ausdrücklich festgehalten, dass damit
+nichts über den laufenden Dienst gesagt ist. Dieser Container hat gar keinen
+laufenden — der hier gemessene ist ein Wegwerf-Dienst im eigenen Namensraum.
 
 Das ist kein Nebenpunkt: Debian und Ubuntu liefern `cron` vor, aber ein Server
 kann `cronie` oder `systemd-cron` tragen, und **`systemd-cron` liest
 `/etc/cron.d` mit einer anderen Umsetzung**. Der Punkt gehört als erster in den
 Abnahmelauf von Schritt 9, vor jeden anderen — er entscheidet, ob die Bauart
 überhaupt trägt.
+
+### Für `cloudsrv24` ist er am 18. August beantwortet
+
+Gemessen am Server und nicht am Archiv:
+
+| | |
+|---|---|
+| Paket | `cron 3.0pl1-184ubuntu2` (dazu `cron-daemon-common`) |
+| Unit | `cron.service` — `loaded active running`, `enabled` |
+| `cronie`, `bcron`, `systemd-cron` | nicht installiert |
+| `srvpanel-cron.service` | `inactive dead` — richtig, sie ist oneshot und hängt an ihrem Timer |
+
+**Das ist zeichengleich die Fassung, gegen die dieses Dokument gemessen hat.**
+Die zweiunddreissig Messungen hier gelten damit für diese Maschine, statt für sie
+angenommen zu werden — der Unterschied, um den es in `docs/44` ging.
+
+> **Ein Wert, den nur die Dokumentation kennt, ist eine Vermutung mit Fussnote.**
+
+**Drei Plattformen bleiben offen**, und der Satz oben gilt für sie unverändert:
+Debian 12, Debian 13 und die zweite Ubuntu-Reihe sind weiter ungemessen. Eine
+Maschine ist kein Beleg über vier.
 
 Ebenfalls offen und ausdrücklich benannt:
 

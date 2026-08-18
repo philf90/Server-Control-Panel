@@ -67,18 +67,78 @@ Der Beleg hängt deshalb nicht am Vorgang, sondern an der **Anfrage**:
 |---|---|
 | `Sandbox::parent()` | erhebt und **prüft** ihn wie bisher, und reicht ihn zusätzlich heraus |
 | `Files\Workspace::run()` | nimmt den `Context` entgegen und meldet ihm, unter wem gelaufen wurde |
-| `Connection` | hängt ihn **einmal** an die Antwort, nachdem die Operation fertig ist |
+| `Connection` | hängt ihn an die Antwort **und** schreibt ihn ins Protokoll, nachdem die Operation fertig ist |
 
 Damit kann keine Operation ihn verlieren, auch keine künftige. Im Ergebnis steht
-er als `ran_as`, und weil das Panel das Ergebnis des Agenten unverändert in
-`operations.result` ablegt, liest der Lauf ihn dort:
+er als `ran_as` — in der Antwort **und** im Protokoll des Agenten. Der Lauf
+liest ihn dort, und nicht in der Datenbank:
 
 ```bash
-srvpanel tinker --execute='dump(App\Models\Operation::latest("id")->first()->result["ran_as"]);'
+# Ein Datei-Vorgang auslösen: im Panel den Dateimanager eines Abonnements
+# öffnen. Danach — und **mit** dem Filter auf `files.`, siehe unten:
+sudo grep '"op":"files\.' /var/log/srvpanel/agent.log | tail -8
+
+# Und die Gegenprobe daneben: eine Operation, die nicht durch die Sandbox
+# geht. Ohne sie steht die Zahl allein da.
+sudo grep '"op":"system.info"' /var/log/srvpanel/agent.log | tail -1
 ```
 
-Erwartet: `['uid' => <uid des abos>, 'groups' => [<gid des abos>]]` — und **nie**
-eine 0. Der Wächter dazu ist `SandboxCredentialsTest`, mit fünf Brüchen in
+Erwartet: bei jedem `files.*` ein `"ran_as":{"uid":…,"groups":[…]}` mit der
+Kennung des Abonnements — und **nie** eine 0. In der Zeile der Gegenprobe fehlt
+das Feld ganz.
+
+**Die Gegenprobe gehört dazu und ist nicht Beifang.** Der Filter auf `files.`
+nimmt genau die Zeilen weg, an denen man sieht, dass das Feld nicht überall
+steht — und eine Angabe, die überall gleich aussieht, sagt nichts darüber, dass
+sie gemessen wurde.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+**Das Protokoll und nicht die Datenbank — das ist ein Befund vom 18. August,
+und es ist der zweite Anlauf.** Hier stand zuerst ein `dump(…)` über
+`srvpanel tinker`, dann eine SQL-Abfrage auf `operations.result`. Beide waren
+falsch, und jede aus einem eigenen Grund:
+
+1. **`srvpanel tinker` schwieg.** Zwei Ursachen übereinander: `Operation` trägt
+   `BelongsToSubscription`, und ohne angemeldetes Konto klammert die
+   Mandantenklammer auf `whereRaw('0 = 1')` — und psysh führt seinen Code gar
+   nicht aus, wenn es sein Verzeichnis unter `HOME` nicht anlegen darf. Der
+   Wrapper setzt seit dem 18. August `HOME=/var/lib/srvpanel`; auf
+   `cloudsrv24` gehört dieses Verzeichnis aber `root:root 0755` statt
+   `srvpanel:srvpanel 0750`, und damit hilft das dort nicht.
+2. **`operations.result` enthält für `files.*` nichts** — und zwar aus einem
+   guten Grund: `App\Support\Files\Files` ruft den Agenten unmittelbar auf,
+   ohne Vorgang und ohne Zeile in der Datenbank. Eine Verzeichnisliste wartet
+   nicht auf einen Arbeiter. Gemessen: Nach dem Öffnen des Dateimanagers stand
+   in `operations` **keine neue Zeile**.
+
+Der Beleg entstand also, wurde weitergereicht — und war nirgends. Dieselbe
+Lehre wie eine Ebene tiefer, wo die Sandbox ihn erhoben und verworfen hatte:
+
+> **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+> keine.**
+
+Er steht deshalb seit dem 18. August auch im Protokoll des Agenten, je Anfrage
+und für jede Operation: dauerhaft, ohne Datenbank, ohne psysh und ohne
+Mandantenklammer.
+
+> **Zwischen der Frage und der Antwort gehören so wenige Schichten wie möglich
+> — und keine, die bei einem Fehler schweigt.**
+
+**Und der Filter ist nicht Bequemlichkeit, sondern Bedingung.** Der erste
+Entwurf hier las `grep '"kind":"result"' … | tail -8`, und auf `cloudsrv24`
+kamen acht Zeilen `system.info` zurück und sonst nichts: Der
+Kennzahlen-Sammler fragt den Agenten **alle zehn Sekunden**, also decken acht
+Ergebniszeilen achtzig Sekunden ab. Was der Dateimanager davor geschrieben
+hatte, war längst darüber hinaus.
+
+> **Ein `tail` über ein Protokoll mit Herzschlag misst den Herzschlag.**
+
+Dasselbe gilt für jede andere Stelle dieses Laufs, die in dieses Protokoll
+sieht: erst auf die Operation filtern, dann `tail`.
+
+Der Wächter dazu ist `SandboxCredentialsTest`, mit fünf Brüchen in
 `tests/waechter-brechen.sh`; der wichtigste davon ist der harmloseste: eine
 Operation, die den Beleg *selbst* in ihr Ergebnis schreibt. Sie sieht richtig aus
 und macht die Regel wieder zu einer, die dreizehnmal befolgt werden muss.

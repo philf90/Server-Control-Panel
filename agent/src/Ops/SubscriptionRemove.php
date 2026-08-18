@@ -116,7 +116,7 @@ final class SubscriptionRemove implements Op
         $configuration = $this->removeConfiguration($context, $name, $user, $root);
 
         $context->progress(60, 'Verzeichnisse entfernen');
-        $removed = $this->removeRoot($root, $user);
+        $removed = $this->removeRoot($root, $user, $context);
 
         $spool = $this->removeCronSpool($user);
 
@@ -403,7 +403,7 @@ final class SubscriptionRemove implements Op
      *
      * @return bool Wurde etwas entfernt?
      */
-    private function removeRoot(string $root, string $user): bool
+    private function removeRoot(string $root, string $user, Context $context): bool
     {
         // Schranke 3: niemals die Wurzel aller Abonnements.
         if (rtrim($root, '/') === SubscriptionProvision::VHOSTS) {
@@ -444,7 +444,7 @@ final class SubscriptionRemove implements Op
         // an der Wurzel hängen, und die Wurzel gehört `root:root 0755`. Der
         // Kunde kann dort nichts anlegen und nichts ersetzen — an diesem Rest
         // ist nichts mehr zu vertauschen, und root darf ihn abtragen.
-        Filesystem::purgeContents($root, $user);
+        Filesystem::purgeContents($root, $user, [], $context);
 
         Filesystem::removeTree($root);
 

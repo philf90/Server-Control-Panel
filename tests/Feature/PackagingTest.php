@@ -759,6 +759,84 @@ final class PackagingTest extends TestCase
     }
 
     /**
+     * Der Wrapper setzt ein HOME, das der Benutzer `srvpanel` schreiben darf.
+     *
+     * ## Ein Fehlschlag, der aussieht wie ein leeres Ergebnis
+     *
+     * `setpriv` wechselt die Kennung und lässt die Umgebung stehen: HOME zeigt
+     * danach weiter auf das des Aufrufers, also auf `/root`. Für alles, was
+     * nichts ablegt, fällt das nie auf — `srvpanel tinker` legt ab. psysh will
+     * sein Verzeichnis unter HOME anlegen, darf es nicht, meldet es als Notiz
+     * und **führt den übergebenen Code gar nicht mehr aus**.
+     *
+     * Der Aufruf endet dabei mit Rückgabewert 0 und ohne eine Zeile Ausgabe.
+     *
+     * > **Ein Befehl, der schweigt, sieht aus wie einer, der nichts gefunden
+     * > hat.**
+     *
+     * Gemeldet vom Betreiber am 18. August 2026 beim Ablesen des Belegs aus
+     * `docs/61 §0a` — und ausdrücklich als etwas, das in mehreren Sitzungen
+     * davor schon im Weg stand, ohne dass es jemand aufgeschrieben hätte. Das
+     * ist der Grund für diesen Wächter und nicht der eine Befehl:
+     *
+     * > **Ein Hindernis, das man jedes Mal umgeht, ist keins, das man gelöst
+     * > hat — es ist eins, das niemand zählt.**
+     *
+     * ## Und das Verzeichnis wird nachgerechnet
+     *
+     * Ein HOME, das der Benutzer nicht schreiben darf, ist keins. Geprüft wird
+     * deshalb nicht, *dass* HOME gesetzt ist, sondern dass es auf ein
+     * Verzeichnis zeigt, das `nfpm.yaml` diesem Benutzer gibt.
+     */
+    public function test_the_wrapper_sets_a_home_the_service_user_may_write(): void
+    {
+        $wrapper = (string) file_get_contents(dirname(__DIR__, 2).'/packaging/bin/srvpanel');
+
+        if (preg_match('/^HOME=(\S+)$/m', $wrapper, $treffer) !== 1) {
+            $this->fail(
+                'packaging/bin/srvpanel setzt kein HOME. Nach dem setpriv zeigt es dann auf das '.
+                'Verzeichnis des Aufrufers, und `srvpanel tinker` führt seinen Code wortlos nicht aus.'
+            );
+        }
+
+        $home = $treffer[1];
+
+        $this->assertStringContainsString(
+            'export HOME',
+            $wrapper,
+            'HOME wird gesetzt, aber nicht exportiert — dann sieht PHP es nicht.',
+        );
+
+        // Und es steht vor dem exec, nicht dahinter: Was nach einem `exec`
+        // steht, läuft nie.
+        $this->assertLessThan(
+            (int) strpos($wrapper, 'exec setpriv'),
+            (int) strpos($wrapper, 'HOME='),
+            'HOME wird erst nach dem exec gesetzt — also nie.',
+        );
+
+        $nfpm = (string) file_get_contents(dirname(__DIR__, 2).'/packaging/nfpm.yaml');
+
+        if (preg_match('/- dst: '.preg_quote($home, '/').'\n(.*?)(?=\n  - |\n[a-z])/s', $nfpm, $eintrag) !== 1) {
+            $this->fail(sprintf(
+                'Der Wrapper setzt HOME auf „%s", und nfpm.yaml liefert dieses Verzeichnis nicht aus. '.
+                'Ein HOME, das es nicht gibt, ist dasselbe wie keins.',
+                $home,
+            ));
+        }
+
+        $this->assertStringContainsString(
+            'owner: srvpanel',
+            $eintrag[1],
+            sprintf(
+                'Der Wrapper setzt HOME auf „%s", und dieses Verzeichnis gehört nicht dem Benutzer '.
+                'srvpanel. Dann darf er dort genauso wenig schreiben wie in /root.',
+                $home,
+            ),
+        );
+    }
+
+    /**
      * Die Kurznamen, die `packaging/bin/srvpanel` auf `srvpanel:` abbildet.
      *
      * Gelesen wird der `case`-Zweig selbst und nicht mit einem Muster über die

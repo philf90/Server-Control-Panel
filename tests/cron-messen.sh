@@ -111,6 +111,25 @@ daemon_start() {
   /usr/sbin/cron -f -x sch,pars,load,misc >> "$LOG" 2>&1 &
   CRONPID=$!
   sleep 1
+
+  # **Ein Dienst, der nicht läuft, macht aus jeder Erwartung „nein" ein Grün.**
+  #
+  # Am 18. August auf `cloudsrv24` genau so passiert: cron starb beim Start an
+  # der Sperrdatei, das Skript wartete danach zwanzig Minuten und meldete am
+  # Ende „15 Messungen wie erwartet, 17 abweichend". Die fünfzehn waren
+  # sämtlich Fälle, in denen *nichts* laufen sollte — erfüllt von einem cron,
+  # der gar nicht lief.
+  #
+  # > **Fünfzehn Nullen sind keine fünfzehn Messungen.**
+  #
+  # Der Lauf hält deshalb hier an und nicht am Ende. Die Meldung des Dienstes
+  # steht dabei, denn sie sagt schon, was fehlt.
+  if ! kill -0 "$CRONPID" 2>/dev/null; then
+    echo
+    echo "cron ist nach dem Start sofort gestorben. Was er dazu gesagt hat:"
+    sed 's/^/  /' "$LOG"
+    exit 1
+  fi
 }
 
 daemon_lebt() { [ -n "$CRONPID" ] && kill -0 "$CRONPID" 2>/dev/null && echo ja || echo nein; }
@@ -147,6 +166,27 @@ aufbau() {
   mount --bind "$SPOOL" /var/spool/cron/crontabs
   : > "$BASE/crontab-leer"
   mount --bind "$BASE/crontab-leer" /etc/crontab
+
+  # **Und die Sperrdatei, ohne die auf einem echten Server nichts läuft.**
+  #
+  # Vixie-cron nimmt ein `flock` auf `/run/crond.pid` und stirbt sofort, wenn
+  # es die Sperre nicht bekommt: „can't lock /var/run/crond.pid, otherpid may
+  # be N". In diesem Entwicklungscontainer läuft kein cron, also war die
+  # Sperre frei und das Skript lief — auf `cloudsrv24` hält `cron.service` sie,
+  # und der Wegwerf-Dienst starb nach einer Sekunde.
+  #
+  # > **Ein Messmittel, das nur dort läuft, wo der Prüfling fehlt, misst nicht
+  # > den Prüfling.**
+  #
+  # Gemessen am 18. August 2026: Mit dieser Zeile startet der eigene cron auch
+  # neben einem laufenden, und der laufende merkt nichts davon — die Bindung
+  # gilt nur in diesem Namensraum.
+  #
+  # `-p` oder ein Schalter für einen anderen Pfad gibt es nicht; die
+  # Aufrufhilfe kennt nur `-x`.
+  : > "$BASE/crond.pid"
+  [ -e /run/crond.pid ] || : > /run/crond.pid
+  mount --bind "$BASE/crond.pid" /run/crond.pid
 }
 
 # Eine Zeile, wie sie der Plan vorsieht: fünf Felder, Benutzer, Befehl.
@@ -332,7 +372,25 @@ messung "kaputte Zeile: die gute Zeile daneben läuft" nein "$(marker kaputt_zwe
 messung "ohne Zeilenumbruch am Ende: läuft" nein "$(marker kein_zeilenende)"
 messung "unbekannter Benutzer: seine Zeile läuft" nein "$(marker benutzer_unbekannt)"
 messung "unbekannter Benutzer: die gute Zeile daneben läuft" nein "$(marker benutzer_zweite)"
-messung "10001 Zeilen: die eine Jobzeile läuft" nein "$(marker zeilenzahl)"
+# **Erwartet wird `ja`, und das ist der Fund.** Im Binary steht „crontab must
+# not be longer than 10000 lines, this crontab file will be ignored"; die Grenze
+# gilt dem, was `crontab(1)` entgegennimmt, und **nicht** dem, was in
+# `/etc/cron.d` liegt. Eine Datei mit 10001 Zeilen wird dort gelesen und
+# ausgeführt (`docs/60 §5`).
+#
+# **Hier stand `nein`, und zwar mit Absicht.** `docs/60` hat die Erwartung
+# stehen lassen, damit der Fund bei jedem Lauf auffällt — „eine Erwartung, die
+# nicht eintrifft, soll auffallen". Der Preis dafür ist am 18. August auf
+# `cloudsrv24` sichtbar geworden: Ein Lauf, der **immer** mit zwei Abweichungen
+# und Rückgabewert 1 endet, lässt sich von einem kaputten nicht unterscheiden.
+# Dort war cron gar nicht gestartet, und die Meldung sah aus wie die gewohnte.
+#
+# > **Ein Rot, das immer dasteht, ist keins mehr.**
+#
+# Die Erwartung bildet deshalb ab, was **gemessen** ist: Eine Abweichung heisst
+# jetzt „diese Maschine verhält sich anders als die vermessene". Damit der Fund
+# trotzdem nicht verschwindet, steht er unten als eigene Zeile in der Ausgabe.
+messung "10001 Zeilen: die eine Jobzeile läuft (Grenze gilt hier nicht)" ja "$(marker zeilenzahl)"
 messung "Prozent: der Rest kommt als Standardeingabe an" "hallo-welt" "$(inhalt prozent_stdin)"
 messung "Prozent maskiert (\\%): bleibt im Befehl" "A%B" "$(inhalt prozent_maskiert)"
 messung "Einschleusung: die harmlose Zeile läuft" ja "$(marker einschleusung_harmlos)"
@@ -355,7 +413,14 @@ notiz  "was cron zur Post sagt" "$(grep -icE 'mail|sendmail' "$LOG" || echo 0) Z
 messung "cron lebt nach alldem noch" ja "$(daemon_lebt)"
 
 titel "Runde 1 — was cron dazu gesagt hat"
-grep -E 'ERROR|error|Syntax|Missing|orphan|bad ' "$LOG" | sed 's/^/  /' | sort -u | head -20
+# **`DEATH` und `can't lock` stehen hier, weil sie am 18. August gefehlt haben.**
+# Der Grund, warum der Lauf auf `cloudsrv24` nichts mass, stand wörtlich in
+# `$LOG` — und dieser Filter zeigte ihn nicht, weil sein Muster ihn nicht kannte.
+#
+# > **Ein Filter über die Ausgabe des Prüflings zeigt die Fehler, an die sein
+# > Erbauer gedacht hat.**
+grep -E "ERROR|error|Syntax|Missing|orphan|bad |DEATH|can't lock" "$LOG" \
+  | sed 's/^/  /' | sort -u | head -20
 
 # ===========================================================================
 titel "Runde 2 — Frage 1: wann gilt eine neue Datei?"
@@ -436,7 +501,17 @@ notiz "warte auf $ziel_h:$ziel_m Ortszeit (= $zutc_h:$zutc_m UTC)" "$(date '+%H:
 sleep 230
 messung "Zeitplan gilt in der Zeit der Maschine" ja "$(marker tz_lokal)"
 messung "Gegenprobe: dieselbe Stunde in UTC gelesen läuft nicht" nein "$(marker tz_utc)"
-messung "CRON_TZ=UTC verschiebt den Zeitplan" ja "$(marker tz_crontz)"
+# **Erwartet wird `nein`, aus demselben Grund wie bei der Zeilenzahl oben.**
+# `CRON_TZ` gibt es in diesem cron nicht: Weder das Binary noch `crontab(5)`
+# kennen die Zeichenkette (gemessen am 18. August), sie stammt aus cronie. Sie
+# wird wie `MAILTO` als gewöhnliche Umgebungsvariable gelesen — und landet damit
+# in der Umgebung des Jobs, ohne den Zeitplan zu verschieben.
+#
+# **Und die Datei bleibt gültig**, auch mit dieser Zeile darin: gemessen, 0
+# Fehlerzeilen, beide Prüfdateien geladen. Das ist die Hälfte, die für das Panel
+# zählt — eine Zeile, die nichts bewirkt, wäre eine Sache; eine, die die Datei
+# mitnimmt, eine andere.
+messung "CRON_TZ=UTC verschiebt den Zeitplan (gibt es hier nicht)" nein "$(marker tz_crontz)"
 umount /etc/localtime
 
 # ===========================================================================
@@ -521,4 +596,12 @@ titel "Ergebnis"
 # ===========================================================================
 printf '  %s Messungen wie erwartet, %s abweichend\n' "$ok" "$fehl"
 printf '  Was mit "--" beginnt, ist eine Zahl ohne Erwartung und kein Fehlschlag.\n'
+printf '\n'
+printf '  Die beiden Funde dieser Messrunde stehen in den Erwartungen und fallen\n'
+printf '  deshalb nicht mehr als Abweichung auf — sie gelten weiter:\n'
+printf '    * Die 10000-Zeilen-Grenze schützt /etc/cron.d nicht.\n'
+printf '    * CRON_TZ gibt es in diesem cron nicht; es wird als gewöhnliche\n'
+printf '      Umgebungsvariable gelesen und verschiebt den Zeitplan nicht.\n'
+printf '  Eine Abweichung oben heisst: diese Maschine verhaelt sich anders als die\n'
+printf '  in docs/60 vermessene.\n'
 [ "$fehl" = 0 ] || exit 1

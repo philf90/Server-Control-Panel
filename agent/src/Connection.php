@@ -87,7 +87,37 @@ final class Connection
             }
 
             $this->send(['type' => 'result', 'ok' => true, 'id' => $id, 'data' => $data]);
-            $this->journal->write('result', ['ok' => true, 'op' => $request['op']]);
+
+            /*
+             * **Und derselbe Beleg noch einmal ins Protokoll — das ist keine
+             * Doppelung, sondern der Unterschied zwischen einer Auskunft und
+             * einer Aufzeichnung.**
+             *
+             * Die Antwort oben geht an den Aufrufer, und was der damit macht,
+             * entscheidet er. Für die Vorgänge über die Warteschlange ist das
+             * `operations.result`; für `files.*` ist es **nichts**:
+             * `Files\Files` ruft den Agenten unmittelbar auf, ohne Vorgang und
+             * ohne Zeile in der Datenbank — richtig so, denn eine
+             * Verzeichnisliste wartet nicht auf einen Arbeiter.
+             *
+             * Genau daran ist `docs/61 §0a` beim ersten Anlauf gescheitert: Der
+             * Beleg entstand, wurde weitergereicht — und war beim Ablesen auf
+             * `cloudsrv24` nirgends. Dieselbe Lehre wie eine Ebene tiefer, wo
+             * die Sandbox ihn erhoben und verworfen hatte:
+             *
+             * > **Eine Auskunft, die entsteht und die niemand weitergibt, ist so
+             * > gut wie keine.**
+             *
+             * Im Protokoll steht sie je Anfrage, für jede Operation, dauerhaft
+             * und lesbar ohne Datenbank. `uid` und Gruppen sind keine
+             * Geheimnisse; was hier nicht hingehört, filtert
+             * {@see self::redactArgs()} an der Anfrage.
+             */
+            $this->journal->write('result', array_filter([
+                'ok' => true,
+                'op' => $request['op'],
+                Context::RAN_AS => $ranAs,
+            ], static fn (mixed $wert): bool => $wert !== null));
         } catch (AgentException $error) {
             $this->send(['type' => 'result', 'ok' => false, 'id' => $id, 'error' => $error->toArray()]);
             $this->journal->write('result', ['ok' => false, 'error' => $error->toArray()]);

@@ -150,11 +150,16 @@ final class SubscriptionRemoveTest extends TestCase
 
         $this->expectException(AgentException::class);
 
-        // **Der Systembenutzer ist seit P6 der zweite Parameter.** Er wird in
-        // diesen beiden Fällen nie benutzt: Beide enden, bevor der Rückbau die
-        // Sandbox ruft — der eine an einer Schranke, der andere daran, dass es
-        // nichts zu entfernen gibt.
-        $method->invoke(new SubscriptionRemove, $path, 'p1001');
+        // **Der Systembenutzer ist seit P6 der zweite Parameter, der Context
+        // seit dem 18. August der dritte.** Beide werden in diesen Fällen nie
+        // benutzt: Sie enden, bevor der Rückbau die Sandbox ruft — der eine an
+        // einer Schranke, der andere daran, dass es nichts zu entfernen gibt.
+        //
+        // Der Context steht trotzdem als Pflichtangabe da und nicht mit einem
+        // Vorgabewert: Er nimmt den Beleg entgegen, unter wem der Baumlauf lief
+        // (`docs/51 §4`, Punkt 13 und 14), und ein Parameter, den man
+        // weglassen kann, wird irgendwo weggelassen.
+        $method->invoke(new SubscriptionRemove, $path, 'p1001', $this->context());
     }
 
     public function test_removing_something_that_is_gone_succeeds(): void
@@ -164,7 +169,7 @@ final class SubscriptionRemoveTest extends TestCase
         // abgebrochene Löschvorgang für immer.
         $method = new \ReflectionMethod(SubscriptionRemove::class, 'removeRoot');
 
-        $this->assertFalse($method->invoke(new SubscriptionRemove, $this->sandbox.'/gibtesnicht', 'p1001'));
+        $this->assertFalse($method->invoke(new SubscriptionRemove, $this->sandbox.'/gibtesnicht', 'p1001', $this->context()));
     }
 
     public function test_the_operation_declares_itself_as_changing_the_system(): void

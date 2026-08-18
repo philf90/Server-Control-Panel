@@ -132,6 +132,56 @@ final class SandboxCredentialsTest extends TestCase
     }
 
     /**
+     * Auch der Rückbau meldet, unter wem er lief.
+     *
+     * ## Der Teil, den der erste Wurf ausgelassen hat
+     *
+     * `§0a` war auf `files.*` zugeschnitten, weil dort `Files\Workspace`
+     * sitzt. `Filesystem::removeInside()` und `Filesystem::purgeContents()` gehen
+     * aber genauso durch die Sandbox — und sie sind der **Baumlauf**, gegen den
+     * Punkt 6 des Abnahmekriteriums antritt (`docs/51 §4`): vier Prozesse,
+     * `RENAME_EXCHANGE`, gegen einen laufenden Rückbau.
+     *
+     * Aufgefallen ist es auf `cloudsrv24`, an einer Liste von acht Vorgängen, in
+     * der `subscription.remove` stand und in der Spalte `ran_as` ein `NULL`.
+     * Richtig war das nicht — der Vorgang **ist** durch die Sandbox gelaufen.
+     *
+     * > **Ein Kriterium, das „jeder" sagt, meint nicht „jeder aus der Liste, an
+     * > die ich beim Bauen gedacht habe".**
+     */
+    public function test_the_teardown_reports_too(): void
+    {
+        $source = $this->read('agent/src/Filesystem.php');
+
+        $laeufe = substr_count($source, 'Sandbox::run(');
+
+        $this->assertGreaterThanOrEqual(
+            2,
+            $laeufe,
+            'In Filesystem wird die Sandbox kaum noch benutzt — dann prüft dieser Wächter nichts.',
+        );
+
+        $this->assertSame(
+            $laeufe,
+            substr_count($source, '$context?->recordRanAs($ranAs);'),
+            'Nicht jeder Sandbox-Lauf des Rückbaus meldet, unter wem er lief.',
+        );
+
+        // Und die Aufrufer reichen ihn durch — sonst nimmt der Beleg den
+        // Umweg über einen Parameter, der immer null ist.
+        foreach ([
+            'agent/src/Ops/SubscriptionRemove.php' => 'Filesystem::purgeContents($root, $user, [], $context);',
+            'agent/src/Ops/WebSiteRemove.php' => '$site->user, [], $context)',
+        ] as $datei => $erwartet) {
+            $this->assertStringContainsString(
+                $erwartet,
+                $this->read($datei),
+                sprintf('%s reicht den Context nicht an den Rückbau durch.', $datei),
+            );
+        }
+    }
+
+    /**
      * Angehängt wird an genau einer Stelle, und keine Operation baut ihn selbst.
      *
      * **Das ist die eigentliche Aussage dieses Wächters.** Eine Operation, die
@@ -140,10 +190,29 @@ final class SandboxCredentialsTest extends TestCase
      */
     public function test_the_answer_carries_it_once_and_no_operation_builds_it(): void
     {
+        $connection = $this->read('agent/src/Connection.php');
+
         $this->assertSame(
-            1,
-            substr_count($this->read('agent/src/Connection.php'), 'Context::RAN_AS'),
-            'Der Beleg wird nicht mehr genau einmal an die Antwort gehängt.',
+            2,
+            substr_count($connection, 'Context::RAN_AS'),
+            'Der Beleg steht nicht mehr genau zweimal in Connection: einmal in der Antwort, '.
+            'einmal im Protokoll.',
+        );
+
+        /*
+         * **Die Antwort allein genügt nicht, und das ist auf `cloudsrv24`
+         * gemessen worden.** `Files\Files` ruft den Agenten unmittelbar auf,
+         * ohne Vorgang und ohne Zeile in der Datenbank — für `files.*` hebt
+         * also niemand die Antwort auf. Der Beleg war da und nirgends.
+         *
+         * > **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut
+         * > wie keine.** Zum zweiten Mal, eine Schicht höher.
+         */
+        $this->assertStringContainsString(
+            "\$this->journal->write('result', array_filter([",
+            $connection,
+            'Das Protokoll führt den Beleg nicht mehr — dann ist er für jede Operation weg, '.
+            'die kein Vorgang in der Warteschlange ist.',
         );
 
         foreach (glob(dirname(__DIR__, 2).'/agent/src/Ops/*.php') ?: [] as $path) {

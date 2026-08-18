@@ -40,6 +40,31 @@ case "${COMMAND}" in
         ;;
 esac
 
+# **Ein HOME, das der Benutzer srvpanel auch schreiben darf.**
+#
+# `setpriv` wechselt die Kennung und lässt die Umgebung stehen — HOME zeigt
+# danach weiter auf das des Aufrufers, also auf /root. Für alles, was nichts
+# ablegt, fällt das nicht auf; `srvpanel tinker` legt ab. psysh will sein
+# Verzeichnis unter HOME anlegen, darf es nicht, meldet „Writing to directory
+# .config/psysh is not allowed" — und führt den übergebenen Code **gar nicht
+# mehr aus**.
+#
+# Das Tückische ist nicht der Fehlschlag, sondern seine Form: Der Aufruf endet
+# mit Rückgabewert 0 und ohne eine Zeile Ausgabe. Wer damit etwas abfragt, liest
+# die leere Antwort als „nichts gefunden".
+#
+# > **Ein Befehl, der schweigt, sieht aus wie einer, der nichts gefunden hat.**
+#
+# Gemeldet vom Betreiber am 18. August 2026, beim Ablesen des Belegs aus
+# docs/61 §0a — und ausdrücklich als etwas, das in mehreren Sitzungen davor
+# schon im Weg stand, ohne dass es jemand aufgeschrieben hätte.
+#
+# /var/lib/srvpanel liefert das Paket als 0750 srvpanel:srvpanel aus; es ist das
+# einzige Verzeichnis, das diesem Benutzer gehört und nicht bei jedem Update
+# ersetzt wird.
+HOME=/var/lib/srvpanel
+export HOME
+
 if [ "$(id -u)" = "0" ]; then
     exec setpriv --reuid=srvpanel --regid=srvpanel --init-groups \
         /opt/srvpanel/bin/php /opt/srvpanel/current/artisan "$@"

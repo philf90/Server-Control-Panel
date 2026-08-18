@@ -14512,6 +14512,48 @@ nicht überstanden hätte** — zwei davon hätten ein falsches Grün erzeugt:
    > **Ein Kommentar, der eine Rechteangabe nennt, ist eine Behauptung über die
    > Platte und keine über die Absicht.**
 
+### `srvpanel tinker` führte seinen Code wortlos nicht aus — ein Hindernis, das niemand gezählt hat
+
+Der Wrapper wechselt mit `setpriv` auf den Benutzer `srvpanel` und **lässt die
+Umgebung stehen**: `HOME` zeigte danach weiter auf das des Aufrufers, also auf
+`/root`. Für alles, was nichts ablegt, fällt das nie auf; `srvpanel tinker` legt
+ab. psysh will sein Verzeichnis unter `HOME` anlegen, darf es nicht, meldet das
+als Notiz — und führt den übergebenen Code **gar nicht mehr aus**, bei
+Rückgabewert 0 und ohne eine Zeile Ausgabe.
+
+> **Ein Befehl, der schweigt, sieht aus wie einer, der nichts gefunden hat.**
+
+Gemeldet hat es der Betreiber am 18. August beim Ablesen des Belegs aus
+`docs/61 §0a`, und zwar ausdrücklich als etwas, das in mehreren Sitzungen davor
+schon im Weg stand, ohne dass es jemand aufgeschrieben hätte. Das ist der
+eigentliche Befund und nicht der eine Befehl:
+
+> **Ein Hindernis, das man jedes Mal umgeht, ist keins, das man gelöst hat — es
+> ist eins, das niemand zählt.**
+
+Der Wrapper setzt jetzt `HOME=/var/lib/srvpanel`; das Paket liefert dieses
+Verzeichnis als `0750 srvpanel:srvpanel` aus, und es ist das einzige, das diesem
+Benutzer gehört und bei einem Update nicht ersetzt wird.
+
+**Behoben ist das Symptom damit nicht**, und das steht hier, damit niemand es für
+erledigt hält: Nach dem Setzen nennt die Meldung den absoluten Pfad statt eines
+relativen — `HOME` wird also beachtet —, und schreiben darf psysh dort trotzdem
+nicht. Woran das auf `cloudsrv24` liegt, ist offen.
+
+**Der Abnahmelauf hängt seitdem nicht mehr daran.** `docs/61 §0a` liest den Beleg
+über SQL aus `operations.result` statt über `tinker`: Das umgeht auch die
+Mandantenklammer von Natur aus, die den ersten Befehl bereits stumm gemacht
+hatte, bevor psysh überhaupt zum Zug kam.
+
+> **Zwischen der Frage und der Antwort gehören so wenige Schichten wie möglich —
+> und keine, die bei einem Fehler schweigt.**
+
+**Wächter:** `PackagingTest::test_the_wrapper_sets_a_home_the_service_user_may_write`.
+Er prüft nicht, *dass* `HOME` gesetzt ist, sondern dass es auf ein Verzeichnis
+zeigt, das `nfpm.yaml` dem Benutzer `srvpanel` gibt — ein `HOME`, das man nicht
+schreiben kann, ist keins. Vier Brüche gefahren, zwei davon stehen in
+`tests/waechter-brechen.sh`.
+
 ### Punkt 13 und 14 des Abnahmekriteriums sind jetzt messbar — und der erste Entwurf war falsch
 
 `docs/51 §4` verlangt, dass **jeder** Datei-Vorgang meldet, unter welcher `uid`

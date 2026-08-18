@@ -74,11 +74,46 @@ er als `ran_as`, und weil das Panel das Ergebnis des Agenten unverändert in
 `operations.result` ablegt, liest der Lauf ihn dort:
 
 ```bash
-srvpanel tinker --execute='dump(App\Models\Operation::latest("id")->first()->result["ran_as"]);'
+sudo sh -c '
+set -a; . /etc/srvpanel/panel.env; set +a
+MYSQL_PWD="$DB_PASSWORD" mysql -u"$DB_USERNAME" "$DB_DATABASE" --table -e "
+  SELECT id, type, JSON_EXTRACT(result, \"\$.ran_as\") AS ran_as
+  FROM operations ORDER BY id DESC LIMIT 8;"'
 ```
 
-Erwartet: `['uid' => <uid des abos>, 'groups' => [<gid des abos>]]` — und **nie**
-eine 0. Der Wächter dazu ist `SandboxCredentialsTest`, mit fünf Brüchen in
+Erwartet: bei jedem `files.*` ein `{"uid": …, "groups": [...]}` — und **nie**
+eine 0 —, bei allem, was nicht durch die Sandbox geht, `NULL`. Die `NULL`s sind
+nicht Beifang, sondern der Nachbar, der die Zahl bedeutungsvoll macht.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+**Warum SQL und nicht `srvpanel tinker` — das ist ein Befund vom 18. August.**
+Hier stand zuerst ein `dump(...)` über `srvpanel tinker --execute`, und auf
+`cloudsrv24` kam **gar keine Ausgabe**. Zwei Ursachen übereinander:
+
+1. **Die Mandantenklammer.** `Operation` trägt `BelongsToSubscription`, und ohne
+   angemeldetes Konto steht sie im Grundzustand `whereRaw('0 = 1')`. Ein
+   `first()` gibt `null`, der Zugriff darauf bricht ab.
+2. **psysh führt den Code nicht aus, wenn es sein Verzeichnis nicht anlegen
+   darf.** Der Aufruf endet dabei mit Rückgabewert 0 und ohne eine Zeile
+   Ausgabe. Der Wrapper setzt seit dem 18. August `HOME=/var/lib/srvpanel`
+   (`PackagingTest::test_the_wrapper_sets_a_home_the_service_user_may_write`) —
+   **und das allein hat es nicht behoben**: Die Meldung nennt danach den
+   absoluten Pfad statt eines relativen, und schreiben darf psysh dort weiter
+   nicht. Woran das auf dieser Maschine liegt, ist offen und gehört zu 0a.
+
+> **Ein Befehl, der schweigt, sieht aus wie einer, der nichts gefunden hat.**
+
+Ein Abnahmelauf hat für so einen Befehl keine Verwendung. Der Weg über SQL
+liest die Spalte, in der die Antwort steht, umgeht die Klammer von Natur aus —
+es ist SQL und kein Eloquent — und braucht weder HOME noch psysh. `MYSQL_PWD`
+hält das Passwort aus der Prozessliste heraus.
+
+> **Zwischen der Frage und der Antwort gehören so wenige Schichten wie möglich
+> — und keine, die bei einem Fehler schweigt.**
+
+Der Wächter dazu ist `SandboxCredentialsTest`, mit fünf Brüchen in
 `tests/waechter-brechen.sh`; der wichtigste davon ist der harmloseste: eine
 Operation, die den Beleg *selbst* in ihr Ergebnis schreibt. Sie sieht richtig aus
 und macht die Regel wieder zu einer, die dreizehnmal befolgt werden muss.

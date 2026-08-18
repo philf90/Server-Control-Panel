@@ -1270,6 +1270,52 @@ pruefe "Kommando fehlt im Wrapper" \
 wiederherstellen
 
 echo
+echo "── PackagingTest: der Wrapper setzt kein HOME ──"
+#
+# `setpriv` wechselt die Kennung und lässt die Umgebung stehen: HOME zeigt
+# danach auf /root, und der Benutzer srvpanel darf dort nicht schreiben. psysh
+# legt sein Verzeichnis unter HOME an, darf es nicht — und führt den Code aus
+# `srvpanel tinker --execute` **gar nicht mehr aus**, bei Rückgabewert 0 und
+# ohne eine Zeile Ausgabe.
+#
+# Gemeldet vom Betreiber am 18. August 2026, und ausdrücklich als etwas, das in
+# mehreren Sitzungen davor schon im Weg stand.
+vorher_datei packaging/bin/srvpanel
+python3 - <<'PY2'
+p = 'packaging/bin/srvpanel'
+s = open(p, encoding='utf-8').read()
+alt = 'HOME=/var/lib/srvpanel\nexport HOME\n\n'
+assert s.count(alt) == 1, 'Die Zielzeilen stehen nicht genau einmal da: %d' % s.count(alt)
+s = s.replace(alt, '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei packaging/bin/srvpanel "Wrapper ohne HOME" &&
+pruefe "Wrapper ohne HOME" \
+  PackagingTest::test_the_wrapper_sets_a_home_the_service_user_may_write failed
+wiederherstellen
+
+echo
+echo "── PackagingTest: HOME zeigt auf ein Verzeichnis, das root gehört ──"
+#
+# Der Eingriff, der am harmlosesten aussieht: HOME *ist* gesetzt, es gibt das
+# Verzeichnis, und der Benutzer darf trotzdem nicht hinein. Ein HOME, das man
+# nicht schreiben kann, ist keins.
+vorher_datei packaging/bin/srvpanel
+python3 - <<'PY2'
+p = 'packaging/bin/srvpanel'
+s = open(p, encoding='utf-8').read()
+alt = 'HOME=/var/lib/srvpanel'
+assert s.count(alt) == 1, 'Die Zielzeile steht nicht genau einmal da: %d' % s.count(alt)
+s = s.replace(alt, 'HOME=/var/www/vhosts', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei packaging/bin/srvpanel "HOME gehoert root" &&
+pruefe "HOME gehoert root" \
+  PackagingTest::test_the_wrapper_sets_a_home_the_service_user_may_write failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PackagingTest passed
+
+echo
 echo "── PackagingTest: install.sh zeigt auf einen Kanal ohne Freigabe ──"
 #
 # Genau der Zustand, der die Erstinstallation kaputtgemacht hat: Vorgabe

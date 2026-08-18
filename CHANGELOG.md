@@ -14585,6 +14585,23 @@ Anfrage sind ein Fehler** und kein Sonderfall — liefe ein Vorgang zweimal unte
 verschiedenen Kennungen, wäre die Frage „unter wem lief er?" nicht mehr
 beantwortbar, und das ist die einzige Frage, die dieser Beleg hat.
 
+**Und die Antwort allein war nicht genug — gemessen auf `cloudsrv24`.** Der
+Beleg stand in der Antwort des Agenten, und für `files.*` hebt die niemand auf:
+`App\Support\Files\Files` ruft den Agenten unmittelbar auf, ohne Vorgang und ohne
+Zeile in `operations`. Nach dem Öffnen des Dateimanagers stand dort **keine neue
+Zeile** — richtig so, denn eine Verzeichnisliste wartet nicht auf einen Arbeiter.
+
+Der Beleg entstand also, wurde weitergereicht, und war nirgends. Dieselbe Lehre
+wie eine Ebene tiefer, wo die Sandbox ihn erhoben und verworfen hatte — zum
+zweiten Mal in derselben Kette:
+
+> **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+> keine.**
+
+`Connection` schreibt ihn deshalb zusätzlich in das Protokoll des Agenten, je
+Anfrage und für jede Operation: dauerhaft, ohne Datenbank, ohne psysh und ohne
+Mandantenklammer. `docs/61 §0a` liest ihn dort.
+
 **Und der erste Wurf war auf `files.*` zugeschnitten — auch das war zu eng.**
 `Filesystem::removeInside()` und `Filesystem::purgeContents()` gehen genauso durch
 die Sandbox, und sie sind der **Baumlauf**, gegen den Punkt 6 des

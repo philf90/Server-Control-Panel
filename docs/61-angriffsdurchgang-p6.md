@@ -67,48 +67,53 @@ Der Beleg hängt deshalb nicht am Vorgang, sondern an der **Anfrage**:
 |---|---|
 | `Sandbox::parent()` | erhebt und **prüft** ihn wie bisher, und reicht ihn zusätzlich heraus |
 | `Files\Workspace::run()` | nimmt den `Context` entgegen und meldet ihm, unter wem gelaufen wurde |
-| `Connection` | hängt ihn **einmal** an die Antwort, nachdem die Operation fertig ist |
+| `Connection` | hängt ihn an die Antwort **und** schreibt ihn ins Protokoll, nachdem die Operation fertig ist |
 
 Damit kann keine Operation ihn verlieren, auch keine künftige. Im Ergebnis steht
-er als `ran_as`, und weil das Panel das Ergebnis des Agenten unverändert in
-`operations.result` ablegt, liest der Lauf ihn dort:
+er als `ran_as` — in der Antwort **und** im Protokoll des Agenten. Der Lauf
+liest ihn dort, und nicht in der Datenbank:
 
 ```bash
-sudo sh -c '
-set -a; . /etc/srvpanel/panel.env; set +a
-MYSQL_PWD="$DB_PASSWORD" mysql -u"$DB_USERNAME" "$DB_DATABASE" --table -e "
-  SELECT id, type, JSON_EXTRACT(result, \"\$.ran_as\") AS ran_as
-  FROM operations ORDER BY id DESC LIMIT 8;"'
+# Ein Datei-Vorgang auslösen: im Panel den Dateimanager eines Abonnements
+# öffnen. Danach die letzten Ergebniszeilen des Agenten ansehen:
+sudo grep '"kind":"result"' /var/log/srvpanel/agent.log | tail -8
 ```
 
-Erwartet: bei jedem `files.*` ein `{"uid": …, "groups": [...]}` — und **nie**
-eine 0 —, bei allem, was nicht durch die Sandbox geht, `NULL`. Die `NULL`s sind
-nicht Beifang, sondern der Nachbar, der die Zahl bedeutungsvoll macht.
+Erwartet: bei jedem `files.*` ein `{"uid": …, "groups": [...]}` mit der Kennung
+des Abonnements — und **nie** eine 0. Bei allem, was nicht durch die Sandbox
+geht, fehlt das Feld ganz; das ist nicht Beifang, sondern der Nachbar, der die Zahl
+bedeutungsvoll macht.
 
 > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
 > steht.**
 
-**Warum SQL und nicht `srvpanel tinker` — das ist ein Befund vom 18. August.**
-Hier stand zuerst ein `dump(...)` über `srvpanel tinker --execute`, und auf
-`cloudsrv24` kam **gar keine Ausgabe**. Zwei Ursachen übereinander:
+**Das Protokoll und nicht die Datenbank — das ist ein Befund vom 18. August,
+und es ist der zweite Anlauf.** Hier stand zuerst ein `dump(…)` über
+`srvpanel tinker`, dann eine SQL-Abfrage auf `operations.result`. Beide waren
+falsch, und jede aus einem eigenen Grund:
 
-1. **Die Mandantenklammer.** `Operation` trägt `BelongsToSubscription`, und ohne
-   angemeldetes Konto steht sie im Grundzustand `whereRaw('0 = 1')`. Ein
-   `first()` gibt `null`, der Zugriff darauf bricht ab.
-2. **psysh führt den Code nicht aus, wenn es sein Verzeichnis nicht anlegen
-   darf.** Der Aufruf endet dabei mit Rückgabewert 0 und ohne eine Zeile
-   Ausgabe. Der Wrapper setzt seit dem 18. August `HOME=/var/lib/srvpanel`
-   (`PackagingTest::test_the_wrapper_sets_a_home_the_service_user_may_write`) —
-   **und das allein hat es nicht behoben**: Die Meldung nennt danach den
-   absoluten Pfad statt eines relativen, und schreiben darf psysh dort weiter
-   nicht. Woran das auf dieser Maschine liegt, ist offen und gehört zu 0a.
+1. **`srvpanel tinker` schwieg.** Zwei Ursachen übereinander: `Operation` trägt
+   `BelongsToSubscription`, und ohne angemeldetes Konto klammert die
+   Mandantenklammer auf `whereRaw('0 = 1')` — und psysh führt seinen Code gar
+   nicht aus, wenn es sein Verzeichnis unter `HOME` nicht anlegen darf. Der
+   Wrapper setzt seit dem 18. August `HOME=/var/lib/srvpanel`; auf
+   `cloudsrv24` gehört dieses Verzeichnis aber `root:root 0755` statt
+   `srvpanel:srvpanel 0750`, und damit hilft das dort nicht.
+2. **`operations.result` enthält für `files.*` nichts** — und zwar aus einem
+   guten Grund: `App\Support\Files\Files` ruft den Agenten unmittelbar auf,
+   ohne Vorgang und ohne Zeile in der Datenbank. Eine Verzeichnisliste wartet
+   nicht auf einen Arbeiter. Gemessen: Nach dem Öffnen des Dateimanagers stand
+   in `operations` **keine neue Zeile**.
 
-> **Ein Befehl, der schweigt, sieht aus wie einer, der nichts gefunden hat.**
+Der Beleg entstand also, wurde weitergereicht — und war nirgends. Dieselbe
+Lehre wie eine Ebene tiefer, wo die Sandbox ihn erhoben und verworfen hatte:
 
-Ein Abnahmelauf hat für so einen Befehl keine Verwendung. Der Weg über SQL
-liest die Spalte, in der die Antwort steht, umgeht die Klammer von Natur aus —
-es ist SQL und kein Eloquent — und braucht weder HOME noch psysh. `MYSQL_PWD`
-hält das Passwort aus der Prozessliste heraus.
+> **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+> keine.**
+
+Er steht deshalb seit dem 18. August auch im Protokoll des Agenten, je Anfrage
+und für jede Operation: dauerhaft, ohne Datenbank, ohne psysh und ohne
+Mandantenklammer.
 
 > **Zwischen der Frage und der Antwort gehören so wenige Schichten wie möglich
 > — und keine, die bei einem Fehler schweigt.**

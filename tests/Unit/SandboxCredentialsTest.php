@@ -190,10 +190,29 @@ final class SandboxCredentialsTest extends TestCase
      */
     public function test_the_answer_carries_it_once_and_no_operation_builds_it(): void
     {
+        $connection = $this->read('agent/src/Connection.php');
+
         $this->assertSame(
-            1,
-            substr_count($this->read('agent/src/Connection.php'), 'Context::RAN_AS'),
-            'Der Beleg wird nicht mehr genau einmal an die Antwort gehängt.',
+            2,
+            substr_count($connection, 'Context::RAN_AS'),
+            'Der Beleg steht nicht mehr genau zweimal in Connection: einmal in der Antwort, '.
+            'einmal im Protokoll.',
+        );
+
+        /*
+         * **Die Antwort allein genügt nicht, und das ist auf `cloudsrv24`
+         * gemessen worden.** `Files\Files` ruft den Agenten unmittelbar auf,
+         * ohne Vorgang und ohne Zeile in der Datenbank — für `files.*` hebt
+         * also niemand die Antwort auf. Der Beleg war da und nirgends.
+         *
+         * > **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut
+         * > wie keine.** Zum zweiten Mal, eine Schicht höher.
+         */
+        $this->assertStringContainsString(
+            "\$this->journal->write('result', array_filter([",
+            $connection,
+            'Das Protokoll führt den Beleg nicht mehr — dann ist er für jede Operation weg, '.
+            'die kein Vorgang in der Warteschlange ist.',
         );
 
         foreach (glob(dirname(__DIR__, 2).'/agent/src/Ops/*.php') ?: [] as $path) {

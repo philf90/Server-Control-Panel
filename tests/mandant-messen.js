@@ -34,6 +34,20 @@
  * sie durchgelassen hat. Das ist zugleich der Grund, warum dieser Lauf nichts
  * verändert: Er kommt nie bis zur Handlung.
  *
+ * **Zwei Kopfzeilen sind nach dem ersten Lauf herausgeflogen, und beide hätten
+ * das Ergebnis geschönt** (18. August 2026, `docs/62`):
+ *
+ * | war | ergab | warum das zu wenig ist |
+ * |---|---|---|
+ * | `X-Inertia: true` | `409` auf jede GET-Route | `HandleInertiaRequests` liegt in der `web`-Gruppe, also **vor** dem `can:` der Route — ein 409 belegt die Auflösung, nicht die Policy |
+ * | `redirect: 'manual'` | `0` auf jede verändernde Route | eine undurchsichtige Weiterleitung; ein Netzwerkfehler sieht genauso aus |
+ *
+ * > **Ein Messwert, den auch ein Fehlschlag erzeugt, ist keiner.**
+ *
+ * Ohne die beiden antwortet das Panel, wie es einem `fetch` antwortet: `200`
+ * auf die lesenden Routen, `422` auf die verändernden. Beides ist eindeutig und
+ * beides liegt **hinter** der Autorisierung.
+ *
  * So wird er benutzt — in der Konsole des Browsers, angemeldet als der Kunde
  * von EIGEN, mit den beiden Kennungen aus der Abonnementliste:
  *
@@ -106,10 +120,8 @@ async function mandantMessen ({ eigen, fremd, eigenJob, fremdJob, eigenKey, frem
       headers: {
         'X-XSRF-TOKEN': token,
         'X-Requested-With': 'XMLHttpRequest',
-        'X-Inertia': 'true',
-        Accept: 'application/json, text/html',
+        Accept: 'application/json',
       },
-      redirect: 'manual',
       credentials: 'same-origin',
     })
 

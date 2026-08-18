@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent\Files;
 
+use FilesystemIterator;
 use PharData;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use SplFileInfo;
 use SrvPanel\Agent\AgentException;
 use ZipArchive;
 
@@ -42,7 +46,7 @@ final class Archive
     /**
      * Ein Archiv entpacken. Läuft **ausschliesslich** innerhalb der Sandbox.
      *
-     * @return array{entries: int, bytes: int, skipped: list<string>, written: int, redirected: list<string>}
+     * @return array{entries: int, bytes: int, skipped: list<string>, unnamed: int, written: int, redirected: list<string>}
      */
     public static function extract(string $archive, string $target): array
     {
@@ -54,11 +58,11 @@ final class Archive
             throw AgentException::denied('In dieses Verzeichnis darf das Abonnement nicht schreiben.');
         }
 
-        $names = self::names($archive);
+        ['names' => $names, 'unnamed' => $unnamed] = self::names($archive);
 
-        if (count($names) > self::MAX_ENTRIES) {
+        if (count($names) + $unnamed > self::MAX_ENTRIES) {
             throw AgentException::badRequest('Das Archiv hat mehr Einträge als erlaubt.', [
-                'entries' => count($names),
+                'entries' => count($names) + $unnamed,
                 'max' => self::MAX_ENTRIES,
             ]);
         }
@@ -89,7 +93,7 @@ final class Archive
 
         // Erst nach der Zählung auspacken: Ein Archiv, das an Eintrag 19 999
         // die Grenze reisst, soll gar nicht erst angefangen haben.
-        return ['entries' => $entries, 'bytes' => $bytes, 'skipped' => $skipped]
+        return ['entries' => $entries, 'bytes' => $bytes, 'skipped' => $skipped, 'unnamed' => $unnamed]
             + self::unpack($archive, $target, $names, $skipped);
     }
 
@@ -145,7 +149,29 @@ final class Archive
     /**
      * Die Einträge mit ihrer ausgepackten Grösse.
      *
-     * @return array<string, int>
+     * **`PharData` zählt anders, als es aufzählt — und das hat ein ganzes
+     * Merkmal gekostet.** Die Schleife `foreach (new PharData($archive) as
+     * $file)` läuft über die **oberste Ebene** und über sonst nichts. Ein
+     * gewöhnliches Tar mit `oben.txt`, `dir/mitte.txt` und `dir/sub/tief.txt`
+     * ergab damit zwei Namen statt fünf: `oben.txt` wurde geschrieben, `dir`
+     * landete unter „verlegt", und die beiden Dateien darunter verschwanden
+     * spurlos — samt ihrer Grösse, mit der die Obergrenze rechnet.
+     *
+     * Gemessen am 18. August 2026 beim Bau der Punkte 7 und 8 des
+     * Angriffsdurchgangs (`docs/62`); Zip war nie betroffen, weil `ZipArchive`
+     * über den **Index** aufzählt und keine Ebenen kennt.
+     *
+     * > **Eine Aufzählung, die Ebenen hat, zählt nicht dasselbe wie eine, die
+     * > keine hat.**
+     *
+     * Und die zweite Hälfte derselben Messung: Ein Eintrag, der nach `..`
+     * hinausführt, taucht in **keiner** Aufzählung auf — `count($phar)` kennt
+     * ihn, der Iterator nicht. Er wird deshalb nicht erraten, sondern gezählt:
+     * `unnamed` ist die Zahl der Einträge, die das Archiv hat und die sich
+     * nicht benennen lassen. Sie zu verschweigen hiesse, einem Kunden „0
+     * übersprungen" für ein Archiv zu melden, dem etwas fehlt.
+     *
+     * @return array{names: array<string, int>, unnamed: int}
      */
     private static function names(string $archive): array
     {
@@ -168,16 +194,27 @@ final class Archive
 
             $zip->close();
 
-            return $names;
+            return ['names' => $names, 'unnamed' => 0];
         }
 
+        $phar = new PharData($archive);
+        $root = 'phar://'.$archive;
         $names = [];
 
-        foreach (new PharData($archive) as $file) {
-            $names[$file->getFilename()] = (int) $file->getSize();
+        /** @var SplFileInfo $file */
+        foreach (new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST,
+        ) as $file) {
+            $relative = substr($file->getPathname(), strlen($root) + 1);
+
+            // Verzeichnisse tragen den Schrägstrich am Ende — dieselbe Form,
+            // in der `ZipArchive` sie liefert. `unpack()` erkennt sie daran
+            // und legt sie an, statt einen Strom darauf zu öffnen.
+            $names[$file->isDir() ? $relative.'/' : $relative] = $file->isDir() ? 0 : (int) $file->getSize();
         }
 
-        return $names;
+        return ['names' => $names, 'unnamed' => max(0, count($phar) - count($names))];
     }
 
     /**
@@ -232,9 +269,17 @@ final class Archive
                 continue;
             }
 
-            $stream = @fopen($phar[(string) $name]->getPathname(), 'rb');
+            // **Ein Verzeichnis ist kein Strom.** Bis zur Berichtigung der
+            // Aufzählung gab es in einem Tar für diese Datei gar keine
+            // Verzeichnisse — jeder Name kam von der obersten Ebene und wurde
+            // als Datei behandelt. Ein `fopen` auf ein Verzeichnis im Phar
+            // schlägt fehl, und der Eintrag landete unter „verlegt": die
+            // Meldung, die dem Kunden sagte, dass etwas nicht stimmt, ohne zu
+            // sagen, was.
+            $directory = str_ends_with((string) $name, '/');
+            $stream = $directory ? null : @fopen($phar[(string) $name]->getPathname(), 'rb');
 
-            if (self::place($stream ?: null, $target, $relative, false)) {
+            if (self::place($stream ?: null, $target, $relative, $directory)) {
                 $written++;
             } else {
                 $verlegt[] = (string) $name;

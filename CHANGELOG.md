@@ -14886,3 +14886,76 @@ Zahlen weichen erwartbar ab: die Wartezeit bis zum ersten Lauf (19 s statt 51 s,
 
 Damit steht `docs/60` nicht mehr auf einem Wegwerf-Dienst im Container.
 **Drei Plattformen bleiben offen**; eine Maschine ist kein Beleg über vier.
+
+### Ein Tar mit einem Unterverzeichnis kam nur zur Hälfte an — gefunden vom Prüfstand für einen ganz anderen Punkt
+
+Beim Bau der Punkte 7 und 8 des Angriffsdurchgangs (die bösartigen Archive) ist
+ein Fehler herausgefallen, der mit dem Angriff nichts zu tun hat und **jedes
+Tar** dieses Panels betraf: `Archive::names()` zählte es mit
+`foreach (new PharData($archive) as $file)` auf, und diese Schleife läuft über
+die **oberste Ebene** und über sonst nichts.
+
+Gemessen an einem gewöhnlichen Archiv mit `oben.txt`, `dir/mitte.txt` und
+`dir/sub/tief.txt`: `entries: 2` statt 5, `bytes: 2` statt 6, `oben.txt`
+geschrieben, `dir` unter „verlegt" — und die beiden Dateien darunter spurlos
+verschwunden. Zip war nie betroffen, weil `ZipArchive` über den **Index**
+aufzählt und keine Ebenen kennt.
+
+> **Eine Aufzählung, die Ebenen hat, zählt nicht dasselbe wie eine, die keine
+> hat.**
+
+Aufgezählt wird jetzt rekursiv; Verzeichnisse tragen den Schrägstrich am Ende,
+in derselben Form, in der `ZipArchive` sie liefert, und `unpack()` legt sie an,
+statt einen Strom darauf zu öffnen.
+
+**Und die zweite Hälfte derselben Messung:** Ein Eintrag, der mit `..` beginnt,
+taucht in **keiner** Aufzählung auf — `count($phar)` kennt ihn, der Iterator
+nicht. Für ein solches Archiv meldete der Vorgang „1 Eintrag, 1 geschrieben,
+0 übersprungen", also dem Kunden gegenüber, dass nichts fehle. Die Differenz
+steht jetzt als `unnamed` im Ergebnis, geht durch `files.extract` und zählt in
+der Meldung des Panels mit.
+
+> **Eine Zahl ohne Namen ist eine magere Auskunft. Keine Auskunft ist die
+> Behauptung, es fehle nichts.**
+
+Der Wächter dazu ist `ArchiveDepthTest` — vier Fälle, drei Brüche im
+Bruchskript. **Er baut seine Archive Byte für Byte selbst**, und zwar aus zwei
+Gründen: `PharData` kann keinen Eintrag schreiben, der mit `..` beginnt, und ein
+Archiv aus dem Prüfling prüfte den Prüfling gegen sich. Kein Wächter dieses
+Repos hätte den Fehler finden können, weil keiner je ein Archiv gebaut hat.
+
+### Die Punkte 5, 7 und 8 des Angriffsdurchgangs sind gemessen — und der Prüfkörper von Punkt 7 verfehlte sein Ziel
+
+Drei der sechs offenen Punkte aus `docs/62 §3` stehen jetzt im Prüfstand.
+
+**Punkt 5 — durch einen Verweis hinaus schreiben.** Er war offen mit der
+Begründung „der Prüfstand liest nur, er schreibt nicht". Abschnitt 4c legt einen
+Verweis auf `/etc/shadow` und schreibt hinein; gemessen wird die Prüfsumme davor
+und danach.
+
+**Die Gegenprobe geht dabei nie auf `/etc/shadow`**, und das ist eine
+Entscheidung: Eine Gegenprobe muss treffen, und dieselbe hier hiesse, die
+Kennwortdatei der Maschine zu überschreiben, auf der der Abnahmelauf fährt. Sie
+nimmt einen zweiten Verweis auf eine Wegwerfdatei ausserhalb der Wurzel —
+dieselbe Form des Angriffs, ein anderes Ziel.
+
+**Punkt 7 und 8 — die bösartigen Archive.** Abschnitt 4d baut sie, entpackt sie
+über den Weg der Operation und prüft je Archiv zweierlei: dass nichts ausserhalb
+der Wurzel landet und dass der harmlose Eintrag daneben **drinnen** ankommt. Ein
+Archiv, das gar nicht entpackt wird, sähe sonst aus wie eine gehaltene Grenze.
+
+**Und die Vorschrift aus `docs/61 §6` war nicht fahrbar.** Sie schrieb
+`../../../../` — vier Schritte hinauf. Vom Zielverzeichnis des Prüfstands aus
+landet das bei `/var/www/vhosts/<ABO>/tmp/…`, also **innerhalb** der Wurzel des
+Abonnements: Die Gegenprobe legt nichts ausserhalb an, und ein Ausbruch wäre
+keiner. Zwölf Schritte reichen von jeder Tiefe, weil `..` an der Wurzel die
+Wurzel bleibt.
+
+> **Ein Prüfkörper, dessen Ziel von der Tiefe des Ordners abhängt, misst den
+> Ordner und nicht die Grenze.**
+
+Gemeldet hat das der Prüfstand selbst — als „OHNE MESSUNG", weil er eine
+Gegenprobe ohne Treffer seit `docs/50 §3` nicht als Erfolg zählt. Und beim
+vierten Mal in derselben Datei wieder dieselbe Falle: Der erste Wurf von 4d
+reichte den Pfad der Maschine in die Sandbox, wo er anders heisst. Diesmal war
+es ein Absturz und kein falsches Grün.

@@ -411,10 +411,12 @@ Gebaut werden zwei bösartige Archive, **ausserhalb** des Panels:
 ```bash
 mkdir -p /tmp/boes && cd /tmp/boes
 echo 'getroffen' > nutzlast
-# 7: relativer Ausbruch
-tar --transform 's|nutzlast|../../../../tmp/getroffen-relativ|' -cf raus-relativ.tar nutzlast
+echo 'brav' > beweis
+# 7: relativer Ausbruch — zwölf Schritte hinauf, nicht vier (siehe unten)
+hinauf=$(printf '../%.0s' $(seq 12))
+tar --transform "s|^nutzlast\$|${hinauf}tmp/getroffen-relativ|" -cf raus-relativ.tar nutzlast beweis
 # 8: absoluter Pfad
-tar -P -cf raus-absolut.tar --transform 's|nutzlast|/tmp/getroffen-absolut|' nutzlast
+tar -P --transform 's|^nutzlast$|/tmp/getroffen-absolut|' -cf raus-absolut.tar nutzlast beweis
 ```
 
 Beide hochladen und über `POST /subscriptions/<ABO>/files/extract` entpacken.
@@ -425,9 +427,29 @@ Beide hochladen und über `POST /subscriptions/<ABO>/files/extract` entpacken.
 | 8 | nichts ausserhalb der Wurzel; `/tmp/getroffen-absolut` gibt es nicht | Datei liegt da |
 
 **Die Gegenprobe je Punkt ist der Nachweis, dass das Archiv überhaupt etwas
-enthält**, das ankommen kann: `tar -tvf` davor, und nach dem scharfen Lauf muss
-die Nutzlast **innerhalb** der Wurzel liegen. Ein Archiv, dessen Eintrag gar
-nicht entpackt wird, erzeugt dieselbe Abwesenheit wie eine gehaltene Grenze.
+enthält**, das ankommen kann: der Eintrag `beweis` muss nach dem scharfen Lauf
+**innerhalb** der Wurzel liegen, und derselbe Tarball, von `tar -xPf` selbst
+entpackt, muss die Nutzlast **ausserhalb** anlegen. Ein Archiv, dessen Eintrag
+gar nicht entpackt wird, erzeugt dieselbe Abwesenheit wie eine gehaltene Grenze.
+
+**Zwölf Schritte hinauf und nicht vier — das ist eine Berichtigung dieser
+Vorschrift vom 18. August.** Der erste Wortlaut schrieb `../../../../`, und das
+reicht nur von einem flachen Zielverzeichnis aus. Wird nach
+`/var/www/vhosts/<ABO>/httpdocs/boes/ziel` entpackt, landen vier Schritte bei
+`/var/www/vhosts/<ABO>/tmp/…` — **innerhalb** der Wurzel des Abonnements. Die
+Gegenprobe legt dann nichts ausserhalb an, und ein Ausbruch wäre keiner.
+Gemeldet hat es der Prüfstand selbst, mit „OHNE MESSUNG".
+
+> **Ein Prüfkörper, dessen Ziel von der Tiefe des Ordners abhängt, misst den
+> Ordner und nicht die Grenze.**
+
+`..` an der Wurzel bleibt die Wurzel; zwölf Schritte reichen deshalb von jeder
+Tiefe, die hier vorkommt.
+
+**Und der Bau dieser beiden Punkte hat einen Fehler gefunden, der mit dem
+Angriff nichts zu tun hat** — `Archive::names()` zählte ein Tar nur an der
+Oberfläche auf, und jedes Archiv mit einem Unterverzeichnis verlor alles
+darunter. Er steht in `docs/62 §2`, der Wächter dazu ist `ArchiveDepthTest`.
 
 ---
 

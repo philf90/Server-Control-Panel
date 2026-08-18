@@ -74,6 +74,12 @@ final class FilesExtract implements Op
             // Archiv unvollständig ausgepackt wurde.
             'skipped' => $result['skipped'],
 
+            // Und die, die das Archiv zählt und nicht benennt — in einem Tar
+            // sieht der Aufzähler einen Eintrag mit `..` am Anfang gar nicht.
+            // Eine Zahl ohne Namen ist eine magere Auskunft; keine Auskunft
+            // wäre die Behauptung, es fehle nichts.
+            'unnamed' => $result['unnamed'],
+
             // Und die, die an einem Verweis im Weg hängengeblieben sind. Sie
             // standen zuerst in keiner der beiden Listen — der Lauf meldete
             // „0 geschrieben, 0 übersprungen", und das ist keine Auskunft,

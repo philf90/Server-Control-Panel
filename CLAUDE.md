@@ -654,7 +654,7 @@ und nicht „welche Wand hat ihn gehalten?".
 > beiden etwas.**
 
 **Der Durchgang läuft seit dem 18. August, und das Protokoll ist `docs/62`.**
-Neun der fünfzehn Punkte sind gemessen, sechs stehen dort einzeln als offen —
+Zwölf der fünfzehn Punkte sind gemessen, drei stehen dort einzeln als offen —
 ein Protokoll ohne seine Lücken liest sich wie eine Abnahme. Die Frage aus §1
 ist beantwortet: **Nicht die Normalisierung hält, sondern das Chroot** (stumpf-A
 hält weiter, stumpf-B bricht 3 von 3 aus).
@@ -666,6 +666,27 @@ der Prüfstand dort nicht vorbeikam. `stumpf.sh --pruefen` meldete dabei zu Rech
 
 > **Ein Nachweis, dass der Eingriff wirkt, sagt nichts darüber, dass der
 > Prüfkörper dort vorbeikommt.**
+
+**Und der Bau der Punkte 7 und 8 hat einen Fehler gefunden, der mit dem Angriff
+nichts zu tun hat.** `Archive::names()` zählte ein Tar über `foreach (new
+PharData(…))` auf — also nur die oberste Ebene. Jedes Archiv mit einem
+Unterverzeichnis verlor alles darunter, still, seit es das Merkmal gibt; Zip war
+nie betroffen, weil `ZipArchive` über den Index aufzählt.
+
+> **Eine Aufzählung, die Ebenen hat, zählt nicht dasselbe wie eine, die keine
+> hat.**
+
+**Kein Wächter dieses Repos hätte ihn finden können, weil keiner je ein Archiv
+gebaut hat.** `ArchiveDepthTest` baut seine jetzt Byte für Byte selbst — auch
+deshalb, weil `PharData` keinen Eintrag mit `..` schreiben kann und weil ein
+Archiv aus dem Prüfling den Prüfling gegen sich prüfte.
+
+Und einer über den Prüfkörper von Punkt 7, dessen Vorschrift in `docs/61 §6`
+`../../../../` lautete: Vom Zielverzeichnis des Prüfstands aus landen vier
+Schritte hinauf **innerhalb** der Wurzel des Abonnements.
+
+> **Ein Prüfkörper, dessen Ziel von der Tiefe des Ordners abhängt, misst den
+> Ordner und nicht die Grenze.**
 
 **Der Lauf ist gefahren — am 12. August 2026, gegen `0.5.3-rc.1` und ab Punkt 7
 gegen `0.5.3-rc.2`.** Sechs Kriterien erfüllt, das siebte (das Protokoll) benannt

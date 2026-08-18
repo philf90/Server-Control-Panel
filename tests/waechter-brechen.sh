@@ -8895,6 +8895,77 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FrontendDependencyTest passed
 
 echo
+echo "── ArchiveDepthTest: ein Tar wird nur an der Oberfläche aufgezählt ──"
+#
+# Der Fehler, aus dem dieser Wächter entstand: `foreach (new PharData(…))` läuft
+# über die oberste Ebene. Ein Tar mit `dir/sub/tief.txt` verlor alles darunter,
+# ohne dass es jemand sagte — gefunden hat es der Bau von docs/62, kein Test.
+vorher_datei agent/src/Files/Archive.php
+python3 - <<'PY2'
+p = 'agent/src/Files/Archive.php'
+s = open(p, encoding='utf-8').read()
+alt = """        foreach (new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST,
+        ) as $file) {"""
+s = s.replace(alt, """        foreach (new PharData($archive) as $file) {""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Files/Archive.php "Tar nur an der Oberfläche aufgezählt" &&
+pruefe "Tar nur an der Oberfläche aufgezählt" \
+  ArchiveDepthTest::test_a_nested_tar_arrives_completely failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ArchiveDepthTest passed
+
+echo
+echo "── ArchiveDepthTest: die unbenennbaren Einträge werden verschwiegen ──"
+#
+# `count($phar)` kennt einen Eintrag mit `..` am Anfang, der Iterator nicht.
+# Ohne die Differenz meldet der Vorgang „0 übersprungen" für ein Archiv, dem
+# etwas fehlt.
+vorher_datei agent/src/Files/Archive.php
+python3 - <<'PY2'
+p = 'agent/src/Files/Archive.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "return ['names' => $names, 'unnamed' => max(0, count($phar) - count($names))];",
+    "return ['names' => $names, 'unnamed' => 0];",
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Files/Archive.php "fehlende Einträge nicht gezählt" &&
+pruefe "fehlende Einträge nicht gezählt" \
+  ArchiveDepthTest::test_an_entry_that_cannot_be_named_is_counted failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ArchiveDepthTest passed
+
+echo
+echo "── ArchiveDepthTest: ein Verzeichnis im Tar wird als Datei behandelt ──"
+#
+# Solange die Aufzählung nur die oberste Ebene sah, gab es in einem Tar für
+# diese Datei keine Verzeichnisse. Ein `fopen` darauf schlägt fehl, und der
+# Eintrag landet unter „verlegt" statt angelegt zu werden.
+vorher_datei agent/src/Files/Archive.php
+python3 - <<'PY2'
+p = 'agent/src/Files/Archive.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $directory = str_ends_with((string) $name, '/');
+            $stream = $directory ? null : @fopen($phar[(string) $name]->getPathname(), 'rb');
+
+            if (self::place($stream ?: null, $target, $relative, $directory)) {"""
+s = s.replace(alt, """            $stream = @fopen($phar[(string) $name]->getPathname(), 'rb');
+
+            if (self::place($stream ?: null, $target, $relative, false)) {""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Files/Archive.php "Verzeichnis im Tar als Datei behandelt" &&
+pruefe "Verzeichnis im Tar als Datei behandelt" \
+  ArchiveDepthTest::test_a_nested_tar_arrives_completely failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ArchiveDepthTest passed
+
+echo
 echo "── ArchiveEntryTest: array_pop statt verwerfen ──"
 #
 # Der naheliegende Weg und der falsche: array_pop macht aus `a/../../b` ein `b`

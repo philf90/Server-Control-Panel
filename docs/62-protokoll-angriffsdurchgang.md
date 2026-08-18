@@ -13,7 +13,7 @@ das seine Lücken nicht nennt, liest sich wie eine Abnahme.
 |---|---|
 | Maschine | `cloudsrv24` |
 | Panel | `v0.6.0-rc.15` |
-| Prüfstand | `main` ab `9cbf55f` (Klon unter `/root/srvpanel-abnahme`) |
+| Prüfstand | `main` ab `9cbf55f`, für die Punkte 5, 7 und 8 ab `4fe2e10` (Klon unter `/root/srvpanel-abnahme`) |
 | PHP | 8.4.24, alle vierzehn Funktionen der Sandbox vorhanden |
 | Kernel | Linux 6.8.0-138-generic |
 
@@ -60,7 +60,7 @@ Schreiben sind zwei Fragen, und gemessen war nur die erste.
 
 | | |
 |---|---|
-| `/etc/shadow` davor / danach | `79069c39eae4…` / `79069c39eae4…` — unverändert |
+| `/etc/shadow` davor / danach | `225a48073778…` / `225a48073778…` — unverändert |
 | Wegwerfziel ausserhalb, scharf | `unberührt` |
 | dasselbe Ziel, ohne Sandbox | `stumpf durchgekommen` |
 
@@ -74,14 +74,14 @@ Angriffs, ein anderes Ziel. `/etc/shadow` selbst wird nur gemessen.
 
 **Erfüllt**, seit Abschnitt 4d. Je Archiv drei Zahlen:
 
-| Archiv | ausserhalb | `beweis` drinnen | `unnamed` | ohne Sandbox (`tar -xPf`) |
-|---|---|---|---|---|
-| `../` davor | nichts | ja | 1 | Datei liegt ausserhalb |
-| absoluter Pfad | nichts | ja | 1 | Datei liegt ausserhalb |
+| Archiv | ausserhalb | `beweis` drinnen | entpackt | `unnamed` | ohne Sandbox (`tar -xPf`) |
+|---|---|---|---|---|---|
+| `../` davor | nichts | ja | 1 | 1 | Datei liegt ausserhalb |
+| absoluter Pfad | nichts | ja | 1 | 1 | Datei liegt ausserhalb |
 
 Die dritte Spalte ist die Gegenprobe nach innen: Ein Archiv, das gar nicht
 entpackt wird, erzeugt dieselbe Abwesenheit wie eine gehaltene Grenze. Die
-fünfte ist die nach aussen.
+letzte ist die nach aussen.
 
 **Die Vorschrift aus `docs/61 §6` war dabei nicht fahrbar** und ist berichtigt.
 Sie schrieb `../../../../` — vier Schritte hinauf, was nur von einem flachen
@@ -146,6 +146,34 @@ Protokoll. „Nicht null" ist die eine Hälfte von Punkt 13.
 
 **Erfüllt**, in jedem Lauf und vor allen Nullen: Abschnitt 3 liest eine gültige
 Datei („innen") unter `uid=1002`, Gruppe 1002.
+
+### Der Lauf vom 18. August, 14:34 — und was er nebenbei bestätigt hat
+
+Die Punkte 5, 7 und 8 sind auf `cloudsrv24` gegen `4fe2e10` gemessen worden,
+und derselbe Aufruf fährt **alle** Abschnitte. Damit sind die früher gemessenen
+Punkte ein zweites Mal belegt, mit anderen Zahlen an denselben Stellen:
+
+| | erster Lauf | 18. August, 14:34 |
+|---|---|---|
+| Rennen, Treffer ausserhalb (30 000 Runden) | scharf 0, stumpf 6407 / 4409 / 5646 | scharf **0**, stumpf **5114** |
+| Rückbau | scharf 0 von 60, stumpf nach 12 / 1 / 25 | scharf **0 von 60**, stumpf **1 nach 5** |
+| Bau | scharf | scharf (`ja / ja`) |
+
+**Die stumpfen Zahlen sind jedes Mal andere, und die Null bleibt Null** — genau
+das macht sie zu einer Messung und nicht zu einer Abwesenheit.
+
+Vor dem Lauf hat `stumpf.sh --zurueck` gemeldet `stumpf-a scharf`,
+`stumpf-b scharf`: Es lag nichts von einem früheren Durchgang herum. Rückgabewert
+des Prüfstands: **0**, keine Zeile „OHNE MESSUNG".
+
+**Und der erste Anlauf hat nichts gemessen** — er brach mit
+`pathspec 'main' did not match any file(s)` ab, weil der Klon vom August keinen
+lokalen Zweig `main` hatte und die Befehlsfolge einen erwartete. Die Prüfung, ob
+der Prüfkörper überhaupt vorbeikommt, stand eine Zeile zu spät: **nach** dem
+Umschalten statt davor.
+
+> **Eine Vorprüfung, die hinter dem Schritt steht, den sie absichern soll, ist
+> keine.**
 
 ---
 

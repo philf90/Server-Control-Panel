@@ -14959,3 +14959,19 @@ Gegenprobe ohne Treffer seit `docs/50 §3` nicht als Erfolg zählt. Und beim
 vierten Mal in derselben Datei wieder dieselbe Falle: Der erste Wurf von 4d
 reichte den Pfad der Maschine in die Sandbox, wo er anders heisst. Diesmal war
 es ein Absturz und kein falsches Grün.
+
+**Gemessen ist beides auf `cloudsrv24`**, am 18. August gegen `4fe2e10`:
+`/etc/shadow` prüfsummengleich vor und nach dem Schreibversuch
+(`225a48073778…`), beide Archive `haelt` mit `beweis` drinnen und `unnamed=1`,
+Rückgabewert 0 und keine Zeile „OHNE MESSUNG". Derselbe Aufruf hat die früher
+gemessenen Punkte bestätigt, mit anderen stumpfen Zahlen an denselben Stellen
+(Rennen 5114 statt 6407/4409/5646, Rückbau 1 nach 5 statt nach 12/1/25) — und
+mit derselben Null.
+
+**Der erste Anlauf dieses Laufs hat nichts gemessen.** Die Befehlsfolge erwartete
+einen lokalen Zweig `main`, den der Klon vom August nicht hatte, und brach ab,
+bevor der Prüfstand startete. Die Prüfung, ob der Prüfkörper überhaupt
+vorbeikommt, stand dabei **nach** dem Umschalten.
+
+> **Eine Vorprüfung, die hinter dem Schritt steht, den sie absichern soll, ist
+> keine.**

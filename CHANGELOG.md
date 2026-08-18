@@ -15159,8 +15159,21 @@ worden — das Symptom passte nicht zum Mittel. Am Abend passte es.
 
 > **Eine Wiederholung heilt eine abgewiesene Verbindung und nicht eine langsame.**
 
-**Und der Spiegel selbst bleibt eine offene Frage.** Der Workflow hält seit
-Juli fest, dass er „auf Verdacht und nicht auf Beleg" dasteht und die Messung
-ihm nie einen Vorteil nachgewiesen hat. Drei Ausfälle sind ein Anlass, das zu
-prüfen — aber kein Beleg dafür, dass der Vorgabespiegel besser wäre. Das wäre
-zu messen, und dieser Beitrag misst es nicht.
+**Und dann hat der nächste Lauf die Frage beantwortet.** Mit den drei
+Wiederholungen kam derselbe Fehlschlag zurück, Zeile für Zeile: `Unable to
+connect`, apt endet mit 100. Damit war belegt, was vorher Verdacht war — der
+Rechner ist nicht langsam, er ist weg, und gegen ein Nein hilft kein drittes
+Fragen.
+
+> **Ein Spiegel ist ein Rechner. Der Vorgabename ist eine Liste.**
+
+`azure.archive.ubuntu.com` ist deshalb aus beiden Startbefehlen heraus. Der
+Workflow hielt seit Juli fest, dass er „auf Verdacht und nicht auf Beleg"
+dasteht und die Messung ihm nie einen Zeitvorteil nachgewiesen hat; jetzt kommt
+zu dem fehlenden Vorteil ein belegter Nachteil. `archive.ubuntu.com` löst auf
+einen wechselnden Satz Adressen auf — ein ausgefallener Rechner darin kostet
+einen Versuch und nicht den Lauf. Debian war nie betroffen, weil
+`deb.debian.org` genau das schon ist.
+
+Die Wiederholungen bleiben stehen: Sie kosten nichts und fangen den einzelnen
+ausgefallenen Rechner ab, den auch die Vorgabeliste enthalten kann.

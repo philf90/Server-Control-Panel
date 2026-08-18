@@ -14472,6 +14472,64 @@ zurück stand als Absatz unter dem Bereichshinweis, und `.section-note` bringt
 keinen Rand nach unten mit. Er steht jetzt im `#breadcrumb`-Platz, wie auf den
 sechzehn anderen Seiten, die einen haben.
 
+### P6 Schritt 11 vorbereitet — `docs/61`, und vier Vorarbeiten, die der Plan nicht kannte
+
+Der Angriffsdurchgang ist das Abnahmekriterium von P6 (`docs/51 §4`): zwölf
+Angriffe und drei Belege, gefahren gegen ein echtes Abonnement und **zweimal** —
+scharf und gegen ein Panel, dem die Schranke genommen wurde. Der Lauf steht
+jetzt als `docs/61` ausgeschrieben, mit pastefähigen Befehlen.
+
+**Beim Ausschreiben sind vier Dinge am Quelltext gefunden worden, die der Lauf
+nicht überstanden hätte** — zwei davon hätten ein falsches Grün erzeugt:
+
+1. **Die Punkte 13 und 14 des Kriteriums sind von aussen nicht ablesbar.** Das
+   Kind der Sandbox erhebt `uid` und `groups` und schickt beides zurück;
+   `Sandbox::parent()` prüft sie und gibt dann nur `value` weiter. Was da ist,
+   ist eine Prüfung und kein Beleg — und eine Prüfung im Agenten kann nur
+   zeigen, dass sie nicht angeschlagen hat.
+
+   > **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+   > keine.**
+
+2. **Die Punkte 1 und 2 werden nicht abgewiesen, sondern normalisiert.**
+   `Files\Workspace::path()` popt bei `..` das vorige Glied; aus
+   `../../etc/passwd` wird `/etc/passwd`, und das bezeichnet im Chroot die Datei
+   des Abonnements. Erwartet ist also kein Fehler, sondern ein harmloser Erfolg.
+   Ein Lauf, der hier auf eine Fehlermeldung wartet, meldet einen Fehlbefund
+   über eine Abwehr, die tut, was sie soll.
+
+3. **Der Angreifer zu Punkt 6 hängt an FFI.** Ohne `FFI` fällt
+   `tests/sandbox-messen.php` von `renameat2(RENAME_EXCHANGE)` auf
+   `unlink`/`symlink` zurück — und der schwache Angreifer traf in `docs/50 §3`
+   in 20 000 Runden **null Mal**. Dieselbe Null wie eine gehaltene Grenze.
+
+4. **Ein Kommentar nannte den Wert des Plans statt den der Platte.**
+   `CronFile::COMMAND_DIR` trug „je Job eine Datei, `root:root 0640`" — gebaut
+   ist `root:<gruppe des abos> 0640`, weil `cron-run` als der Kunde läuft und an
+   eine Datei `root:root 0640` nicht herankommt. Berichtigt, bevor ein
+   Abnahmelauf ihn abliest.
+
+   > **Ein Kommentar, der eine Rechteangabe nennt, ist eine Behauptung über die
+   > Platte und keine über die Absicht.**
+
+**Und die Entscheidung, die `docs/61 §1` trägt:** Zwischen einem Pfad aus dem
+Formular und einer Datei stehen **zwei** Wände — die Normalisierung in
+`Workspace::path()` (eine Prüfung, in PHP geschrieben) und `chroot` plus
+`setuid` in der Sandbox (eine Schranke, vom Kernel gehalten). Die stumpfe
+Fassung wird deshalb in zwei Spielarten gebaut und nimmt sie **einzeln** weg.
+
+> **Eine Gegenprobe, die zwei Wände zugleich wegnimmt, sagt über keine von
+> beiden etwas.**
+
+Das ist zugleich der Punkt, an dem `tests/sandbox-messen.php` nicht ausreicht:
+Seine stumpfe Fassung ist derselbe Zugriff ohne Sandbox, also an beiden Wänden
+vorbei. Als Gegenprobe für die Sandbox ist das richtig; für den
+Angriffsdurchgang ist es zu grob.
+
+Und die stumpfe Fassung ist ein **Bau** und kein Schalter: Eine Umgebungsvariable,
+die die Schranke abschaltet, wäre ein dauerhaftes Loch im ausgelieferten Code,
+und der Abnahmelauf hätte es selbst hineingebaut.
+
 **Was offen bleibt und benannt ist:** Welcher Cron-Dienst auf den vier
 Zielplattformen installiert und **aktiv** ist, ist weiter ungemessen. `docs/50 §7`
 hat nur das Archiv geprüft, und `systemd-cron` liest `/etc/cron.d` mit einer

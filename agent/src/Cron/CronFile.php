@@ -63,7 +63,20 @@ final class CronFile
     /** Wo die Dateien liegen. */
     public const DIR = '/etc/cron.d';
 
-    /** Wo die Befehle liegen — je Job eine Datei, `root:root 0640`. */
+    /**
+     * Wo die Befehle liegen — je Job eine Datei, `root:<gruppe des abos> 0640`.
+     *
+     * **`docs/51 §10` schreibt `root:root 0640` vor, und das trägt nicht.**
+     * `cron-run` läuft als der Kunde; mit `root:root 0640` kommt es an die
+     * eigene Befehlsdatei nicht heran. Die Begründung im ganzen steht an der
+     * Stelle, die die Rechte setzt — `Ops\CronApply::writeCommand()`.
+     *
+     * Hier stand bis zum 18. August der Wert aus dem Plan, nicht der gebaute —
+     * und ein Abnahmelauf, der ihn abliest, prüft die falsche Zahl.
+     *
+     * > **Ein Kommentar, der eine Rechteangabe nennt, ist eine Behauptung über
+     * > die Platte und keine über die Absicht.**
+     */
     public const COMMAND_DIR = '/etc/srvpanel/cron';
 
     /** Der Wrapper, der den Befehl als Argument an die Shell gibt. */

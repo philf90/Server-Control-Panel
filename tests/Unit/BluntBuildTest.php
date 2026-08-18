@@ -47,7 +47,7 @@ final class BluntBuildTest extends TestCase
      */
     public function test_every_blunt_build_still_finds_and_removes_its_wall(): void
     {
-        [$code, $ausgabe] = $this->run('--trocken');
+        [$code, $ausgabe] = $this->skript('--trocken');
 
         $this->assertSame(0, $code, "tests/stumpf.sh --trocken meldet einen Fehlschlag:\n".$ausgabe);
 
@@ -71,7 +71,7 @@ final class BluntBuildTest extends TestCase
      */
     public function test_the_walls_stand_in_a_clean_tree(): void
     {
-        [$code, $ausgabe] = $this->run('--pruefen');
+        [$code, $ausgabe] = $this->skript('--pruefen');
 
         $this->assertSame(0, $code, "tests/stumpf.sh --pruefen meldet einen Fehlschlag:\n".$ausgabe);
 
@@ -118,8 +118,18 @@ final class BluntBuildTest extends TestCase
         }
     }
 
-    /** @return array{0: int, 1: string} */
-    private function run(string $argument): array
+    /**
+     * `tests/stumpf.sh` aufrufen.
+     *
+     * **Sie hiess `run()`, und das hat die ganze Suite umgebracht.**
+     * `PHPUnit\Framework\TestCase::run()` ist `final`; die Überschreibung bricht
+     * beim **Laden** der Klasse, nicht beim Ausführen — `php artisan test` endete
+     * mit Rückgabewert 255, bevor ein einziger Test lief. Das ist der fünfte Fall
+     * dieser Art in diesem Projekt; `InheritedNameTest` fängt ihn seitdem ab.
+     *
+     * @return array{0: int, 1: string}
+     */
+    private function skript(string $argument): array
     {
         $wurzel = dirname(__DIR__, 2);
 

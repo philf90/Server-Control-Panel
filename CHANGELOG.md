@@ -14700,6 +14700,22 @@ bei nicht eingecheckter Arbeit in den drei Dateien, denn sein Rückweg führt ü
 > **Ein Rückweg, der über `git checkout` führt, ist für alles ein Rückweg, was
 > dort steht — nicht nur für den eigenen Eingriff.**
 
+**Und der erste Anlauf hat die ganze Testsuite umgebracht.** Die Hilfsmethode,
+die `tests/stumpf.sh` aufruft, hiess `run()` — und
+`PHPUnit\Framework\TestCase::run()` ist `final`. Das bricht beim **Laden** der
+Klasse: `php artisan test` endete mit Rückgabewert 255, bevor ein einziger Test
+lief. Der fünfte Fall dieser Art in diesem Projekt.
+
+**Den Wächter dafür gibt es seit dem vierten Mal, und er kam nicht dazu.**
+`InheritedNameTest` ist selbst ein Test; der fatale Fehler tötet den Läufer, ehe
+der erste Fall startet. Gefangen hat es PHPStan, in einem eigenen Job.
+
+> **Ein Wächter, der im selben Lauf steckt wie der Fehler, den er melden soll,
+> kommt nicht dazu.**
+
+Die Grenze steht jetzt in seinem Kopf — wer ihn für die einzige Absicherung
+hält, hält eine für zwei.
+
 **Wächter:** `BluntBuildTest` — fährt den Trockenlauf in der CI, damit kein
 Eingriff still verwaist, prüft dass im sauberen Baum alle drei Wände stehen, und
 besteht darauf, dass kein Schalter in `Sandbox` oder `Workspace` die Schranke zur

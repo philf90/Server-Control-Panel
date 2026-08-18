@@ -14656,7 +14656,13 @@ die die Schranke abschaltet, wäre ein dauerhaftes Loch im ausgelieferten Code,
 und der Abnahmelauf hätte es selbst hineingebaut.
 
 **Was offen bleibt und benannt ist:** Welcher Cron-Dienst auf den vier
-Zielplattformen installiert und **aktiv** ist, ist weiter ungemessen. `docs/50 §7`
-hat nur das Archiv geprüft, und `systemd-cron` liest `/etc/cron.d` mit einer
-anderen Umsetzung. Der Punkt gehört als erster in den Abnahmelauf, vor jeden
-anderen — `tests/cron-messen.sh` läuft dort unverändert.
+Zielplattformen installiert und **aktiv** ist, war ungemessen — `docs/50 §7` hatte
+nur das Archiv geprüft, und `systemd-cron` liest `/etc/cron.d` mit einer anderen
+Umsetzung.
+
+**Für `cloudsrv24` ist das am 18. August gemessen:** `cron 3.0pl1-184ubuntu2`,
+`cron.service` aktiv und enabled, kein `cronie` und kein `systemd-cron` —
+zeichengleich die Fassung, gegen die `docs/60` gemessen hat. Die zweiunddreissig
+Messungen dort gelten damit für diese Maschine, statt für sie angenommen zu
+werden. **Drei Plattformen bleiben offen**; eine Maschine ist kein Beleg über
+vier.

@@ -421,17 +421,38 @@ keine zweite Darstellung des Zeitplans; eine zweite wäre die, die veraltet.
 
 ## 13. Was hier nicht messbar war und auf `cloudsrv24` gehört
 
-**Frage 9 aus der Übergabe ist offen und bleibt es hier:** Welcher Cron-Dienst
-ist auf den vier Zielplattformen **installiert und aktiv**? `docs/50 §7` hat das
-Archiv geprüft und ausdrücklich festgehalten, dass damit nichts über den
-laufenden Dienst gesagt ist. Dieser Container hat gar keinen laufenden — der hier
-gemessene ist ein Wegwerf-Dienst im eigenen Namensraum.
+**Frage 9 aus der Übergabe war offen und ist hier nicht messbar gewesen:**
+Welcher Cron-Dienst ist auf den vier Zielplattformen **installiert und aktiv**?
+`docs/50 §7` hat das Archiv geprüft und ausdrücklich festgehalten, dass damit
+nichts über den laufenden Dienst gesagt ist. Dieser Container hat gar keinen
+laufenden — der hier gemessene ist ein Wegwerf-Dienst im eigenen Namensraum.
 
 Das ist kein Nebenpunkt: Debian und Ubuntu liefern `cron` vor, aber ein Server
 kann `cronie` oder `systemd-cron` tragen, und **`systemd-cron` liest
 `/etc/cron.d` mit einer anderen Umsetzung**. Der Punkt gehört als erster in den
 Abnahmelauf von Schritt 9, vor jeden anderen — er entscheidet, ob die Bauart
 überhaupt trägt.
+
+### Für `cloudsrv24` ist er am 18. August beantwortet
+
+Gemessen am Server und nicht am Archiv:
+
+| | |
+|---|---|
+| Paket | `cron 3.0pl1-184ubuntu2` (dazu `cron-daemon-common`) |
+| Unit | `cron.service` — `loaded active running`, `enabled` |
+| `cronie`, `bcron`, `systemd-cron` | nicht installiert |
+| `srvpanel-cron.service` | `inactive dead` — richtig, sie ist oneshot und hängt an ihrem Timer |
+
+**Das ist zeichengleich die Fassung, gegen die dieses Dokument gemessen hat.**
+Die zweiunddreissig Messungen hier gelten damit für diese Maschine, statt für sie
+angenommen zu werden — der Unterschied, um den es in `docs/44` ging.
+
+> **Ein Wert, den nur die Dokumentation kennt, ist eine Vermutung mit Fussnote.**
+
+**Drei Plattformen bleiben offen**, und der Satz oben gilt für sie unverändert:
+Debian 12, Debian 13 und die zweite Ubuntu-Reihe sind weiter ungemessen. Eine
+Maschine ist kein Beleg über vier.
 
 Ebenfalls offen und ausdrücklich benannt:
 

@@ -8995,6 +8995,78 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TenancySweepTest passed
 
 echo
+echo "── TransportLimitTest: files.write erklärt wieder mehr als die Leitung trägt ──"
+#
+# Befund 12b: 2 MiB erklärt, 1 MiB Anfragegrenze. Eine Datei dazwischen öffnete
+# sich im Editor und liess sich nie speichern.
+vorher_datei agent/src/Ops/FilesWrite.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesWrite.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('public const MAX_BYTES = Connection::CONTENT_MAX;', 'public const MAX_BYTES = 2 * 1024 * 1024;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/FilesWrite.php "Schreibgrenze über der Leitung" &&
+pruefe "Schreibgrenze über der Leitung" \
+  TransportLimitTest::test_no_declared_limit_exceeds_the_transport failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TransportLimitTest passed
+
+echo
+echo "── TransportLimitTest: der Editor öffnet mehr, als sich speichern lässt ──"
+#
+# Eine Falle mit Speicherknopf: Die Datei erscheint, die Änderung entsteht, und
+# erst das Speichern sagt nein — nach der Arbeit statt davor.
+vorher_datei agent/src/Ops/FilesRead.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesRead.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('public const MAX_BYTES = Connection::CONTENT_MAX;', 'public const MAX_BYTES = 2 * 1024 * 1024;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/FilesRead.php "Lesegrenze über der Schreibgrenze" &&
+pruefe "Lesegrenze über der Schreibgrenze" \
+  TransportLimitTest::test_what_opens_can_be_written_back failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TransportLimitTest passed
+
+echo
+echo "── TransportLimitTest: für die Hülle der Anfrage bleibt nichts ──"
+#
+# Der Abzug in CONTENT_MAX ist eine hingeschriebene Zahl. Der Wächter baut die
+# Zeile, die daraus entsteht, und misst nach — sonst glaubt er sie nur.
+vorher_datei agent/src/Connection.php
+python3 - <<'PY2'
+p = 'agent/src/Connection.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('public const CONTENT_MAX = self::REQUEST_MAX - 65536;', 'public const CONTENT_MAX = self::REQUEST_MAX - 1;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Connection.php "Hülle ohne Platz" &&
+pruefe "Hülle ohne Platz" \
+  TransportLimitTest::test_a_full_payload_still_fits_into_one_request failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TransportLimitTest passed
+
+echo
+echo "── TransportLimitTest: der Klient misst die Zeile nicht, bevor er sie schickt ──"
+#
+# Ohne diese Prüfung meldet der Agent den Fehlschlag — und spricht dabei vom
+# Protokoll statt von der Datei des Kunden.
+vorher_datei agent/src/Client.php
+python3 - <<'PY2'
+p = 'agent/src/Client.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('if (strlen($json) > Connection::REQUEST_MAX) {', 'if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Client.php "Klient misst die Zeile nicht" &&
+pruefe "Klient misst die Zeile nicht" \
+  TransportLimitTest::test_the_client_measures_the_encoded_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TransportLimitTest passed
+
+echo
 echo "── TenancySweepTest: der Vorflug prüft die eigene Kennung nicht ──"
 #
 # Der Fehler vom 19. August: Der Lauf bekam `eigenJob: 4`, eine Kennung vom

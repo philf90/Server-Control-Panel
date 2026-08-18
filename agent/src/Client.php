@@ -33,6 +33,22 @@ final class Client
     private const POLL_SECONDS = 1;
 
     /**
+     * Wie eine Anfrage kodiert wird — an **einer** Stelle.
+     *
+     * Die Fahnen entscheiden über die Grösse der Zeile, und die Grösse
+     * entscheidet, ob der Auftrag überhaupt ankommt. Stünden sie zweimal da —
+     * einmal zum Kodieren, einmal zum Messen —, misst die eine Fassung
+     * irgendwann eine Zeile, die die andere anders schreibt.
+     *
+     * `JSON_UNESCAPED_UNICODE` ist dabei der teure Teil: Ohne die Fahne wird
+     * jedes `ü` zu `\u00fc`, und deutscher Text wächst um zwei Drittel. Mit ihr
+     * kostet er nichts. Genau diese Fahne ist beim Ausschreiben von `docs/62`
+     * übersehen worden, und der dort genannte Faktor 1,71 gehört deshalb zu
+     * einem Weg, den dieser Klient nicht geht.
+     */
+    private const JSON = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
+
+    /**
      * Führt eine Operation aus und gibt die Nutzdaten zurück.
      *
      * @param  array<string,mixed>  $args
@@ -58,10 +74,37 @@ final class Client
             'args' => (object) $args,
         ];
 
-        $json = json_encode($request, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $json = json_encode($request, self::JSON);
 
         if ($json === false) {
             throw AgentException::badRequest('Anfrage ließ sich nicht kodieren.');
+        }
+
+        /*
+         * **Die Grenze wird hier gemessen und nicht drüben geraten.** Der
+         * Agent bricht ab, sobald die Zeile {@see Connection::REQUEST_MAX}
+         * überschreitet — aber erst, nachdem sie über den Socket gelaufen ist,
+         * und seine Meldung spricht dann vom Protokoll statt von der Datei.
+         *
+         * Wie viel eine Datei als JSON misst, hängt davon ab, was maskiert
+         * werden muss: gemessen am 19. August 2026 deutsche Prosa 1,02×, PHP
+         * mit Zeichenketten 1,12×, Steuerzeichen 6×; Umlaute kosten nichts,
+         * weil `JSON_UNESCAPED_UNICODE` sie stehen lässt. Ein Faktor taugt
+         * dafür nicht — die kodierte Zeile liegt hier fertig vor, also wird an
+         * ihr gemessen.
+         *
+         * > **Ein Wert, der grösser ist als der Weg dorthin, ist keine
+         * > Grenze.**
+         */
+        if (strlen($json) > Connection::REQUEST_MAX) {
+            throw AgentException::badRequest(
+                'Der Inhalt ist zu gross für einen Auftrag an den Agenten.',
+                [
+                    'bytes' => strlen($json),
+                    'request_max' => Connection::REQUEST_MAX,
+                    'content_max' => Connection::CONTENT_MAX,
+                ],
+            );
         }
 
         socket_write($connection, $json."\n");

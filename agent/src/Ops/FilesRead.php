@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Connection;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Files\Entry;
 use SrvPanel\Agent\Files\Workspace;
@@ -29,8 +30,23 @@ use SrvPanel\Agent\Op;
  */
 final class FilesRead implements Op
 {
-    /** Was der Editor höchstens öffnet. */
-    public const MAX_BYTES = 2 * 1024 * 1024;
+    /**
+     * Was der Editor höchstens öffnet.
+     *
+     * **Dieselbe Zahl wie beim Schreiben, und zwar aus einem Grund.** Ein
+     * Editor, der mehr öffnet, als sich zurückschreiben lässt, ist eine Falle
+     * mit Speicherknopf: Die Datei erscheint, die Änderung entsteht, und erst
+     * das Speichern sagt nein. Bis zum 19. August 2026 lag genau dort die
+     * Spanne zwischen 1 und 2 MiB.
+     *
+     * > **Was sich öffnen lässt, muss sich auch schliessen lassen.**
+     *
+     * Die Antwort geht **nicht** durch dieselbe Grenze — sie ist NDJSON und
+     * nicht gedeckelt. Diese Zahl steht hier also nicht, weil das Lesen sie
+     * bräuchte, sondern damit das Lesen nicht mehr verspricht als das
+     * Schreiben halten kann.
+     */
+    public const MAX_BYTES = Connection::CONTENT_MAX;
 
     public static function name(): string
     {

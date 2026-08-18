@@ -18,7 +18,36 @@ use Throwable;
  */
 final class Connection
 {
-    private const REQUEST_MAX = 1048576; // 1 MiB
+    /** Was eine Anfrage höchstens misst — eine JSON-Zeile, alles zusammen. */
+    public const REQUEST_MAX = 1048576; // 1 MiB
+
+    /**
+     * Was davon für den Inhalt einer Datei bleibt.
+     *
+     * **Diese Konstante ist am 19. August 2026 entstanden, weil zwei Grenzen
+     * dasselbe meinten und auseinanderliefen.** `FilesWrite::MAX_BYTES` stand
+     * auf 2 MiB und war unerreichbar: Der Weg dorthin führt durch genau eine
+     * JSON-Zeile, und die ist bei 1 MiB zu Ende. Eine Datei zwischen den beiden
+     * Zahlen öffnete sich im Editor und liess sich nie speichern — der Kunde
+     * bekam „Anfrage überschreitet 1 MiB", also eine Auskunft über das
+     * Protokoll statt über seine Datei.
+     *
+     * > **Ein Wert, der grösser ist als der Weg dorthin, ist keine Grenze.**
+     *
+     * Der Abzug ist der Platz für die Hülle: `v`, `id`, `op`, `actor`,
+     * `subscription`, `user` und der Pfad. 64 KiB sind grosszügig gerechnet und
+     * bewusst nicht knapp — eine Hülle, die knapp passt, passt beim nächsten
+     * Feld nicht mehr.
+     *
+     * **Sie ist die optimistische Obergrenze und nicht die genaue.** Wie viel
+     * eine Datei als JSON misst, hängt davon ab, was maskiert werden muss;
+     * gemessen mit den Fahnen, die {@see Client::JSON} führt: deutsche Prosa
+     * 1,02×, PHP mit Zeichenketten 1,12×, Steuerzeichen 6×. Umlaute kosten
+     * **nichts** — `JSON_UNESCAPED_UNICODE` lässt sie als UTF-8 stehen. Die
+     * genaue Prüfung sitzt deshalb in {@see Client::call()} und rechnet an der
+     * kodierten Zeile statt an einem geschätzten Faktor.
+     */
+    public const CONTENT_MAX = self::REQUEST_MAX - 65536;
 
     public function __construct(
         private readonly Socket $socket,
@@ -148,7 +177,9 @@ final class Connection
     {
         while (! str_contains($sofar, "\n")) {
             if (strlen($sofar) > self::REQUEST_MAX) {
-                throw AgentException::badRequest('Anfrage überschreitet 1 MiB.');
+                throw AgentException::badRequest('Anfrage überschreitet 1 MiB.', [
+                    'request_max' => self::REQUEST_MAX,
+                ]);
             }
 
             $chunk = @socket_read($this->socket, 65536, PHP_BINARY_READ);

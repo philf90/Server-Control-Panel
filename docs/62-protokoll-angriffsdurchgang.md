@@ -374,28 +374,46 @@ Die dritte steht vor den beiden anderen, also ist die zweite eine Behauptung.
 
 > **Ein Wert, der grösser ist als der Weg dorthin, ist keine Grenze.**
 
-**Und es ist schlimmer als der Faktor 2**, weil die Anfrage JSON ist. Gemessen:
+**Was der Kunde davon merkt:** Eine Datei zwischen 1 und 2 MiB öffnet sich im
+Editor, lässt sich bearbeiten und **nie** speichern. Er bekommt „Anfrage
+überschreitet 1 MiB." — eine Auskunft über das Protokoll statt über seine Datei
+— und verliert seine Arbeit.
+
+**Behoben am 19. August 2026.** `Connection::CONTENT_MAX` ist die eine Zahl, an
+der beide Grenzen hängen (`REQUEST_MAX` minus 64 KiB für die Hülle = 960 KiB);
+`FilesWrite` und `FilesRead` führen sie statt einer eigenen, und `Client::call()`
+misst die **fertig kodierte Zeile**, bevor sie über den Socket geht. Was sich
+öffnen lässt, lässt sich damit auch zurückschreiben, und eine Datei, deren
+Maskierung sie dennoch über die Grenze hebt, wird abgewiesen, bevor sie
+unterwegs ist. `TransportLimitTest` rechnet alle vier Zusagen nach.
+
+#### Die Begründung dieses Befundes war beim ersten Ausschreiben falsch
+
+Hier stand, deutscher Text wachse als JSON um den Faktor **1,71**, weil aus
+einem `ü` die sechs Zeichen `\u00fc` würden — schon eine 620-KB-Datei reisse
+also die Grenze. Das gilt für `json_encode` mit seinen Voreinstellungen.
+**`Client::call()` setzt seit dem 11. August `JSON_UNESCAPED_UNICODE`**, und
+damit bleibt ein `ü` ein `ü`. Nachgemessen am 19. August 2026 mit den Fahnen,
+die der Klient wirklich führt:
 
 | Inhalt | roh | als JSON | Faktor |
 |---|---|---|---|
-| reiner ASCII-Text | 100 000 | 100 002 | 1,00 |
-| Text mit Zeilenumbrüchen | 99 970 | 101 510 | 1,02 |
-| Quelltext mit Tabs und Anführungszeichen | 92 500 | 115 002 | 1,24 |
-| deutscher Text mit Umlauten | 119 000 | 203 002 | **1,71** |
+| deutsche Prosa | 840 000 | 860 000 | **1,02** |
+| nur Umlaute | 1 400 000 | 1 400 000 | **1,00** |
+| PHP mit Zeichenketten | 720 000 | 810 000 | 1,12 |
+| ASCII ohne Umbruch | 700 000 | 700 000 | 1,00 |
+| lauter Steuerzeichen | 400 000 | 2 400 000 | 6,00 |
 
-`json_encode` maskiert jedes Zeichen ausserhalb von ASCII als `\uXXXX` — aus
-einem `ü` (2 Byte) werden 6. **Schon eine 620-KB-Datei mit deutschem Text reisst
-die Grenze**, obwohl ihr Inhalt weit darunter liegt.
+Der Schluss bleibt derselbe — 2 MiB passen auch als reines ASCII nicht durch
+1 MiB —, aber die Zahl war eine andere und die Dringlichkeit auch: Nicht jede
+deutsche Datei ab 620 KB war betroffen, sondern jede Datei ab 1 MiB.
 
-**Was der Kunde davon merkt:** Eine Datei zwischen 1 und 2 MiB öffnet sich im
-Editor, lässt sich bearbeiten und **nie** speichern; bei deutschem Text beginnt
-das schon bei gut einem halben Megabyte. Er bekommt „Anfrage überschreitet
-1 MiB." und verliert seine Arbeit.
+> **Ein Faktor, der an anderen Fahnen gemessen wurde, gehört zu einer anderen
+> Leitung.**
 
-**Offen** — die Behebung ist nicht entschieden, weil sie eine sichtbare Grenze
-verschiebt. Der Weg wäre, die **kodierte** Länge zu prüfen statt der rohen und
-`FilesRead::MAX_BYTES` daran zu binden: Was sich öffnen lässt, muss sich
-speichern lassen.
+Deshalb steht in `TransportLimitTest` kein Faktor. Er baut die volle Zeile und
+misst sie; die Fahnen stehen als `Client::JSON` an genau einer Stelle, und der
+Wächter besteht darauf, dass es dabei bleibt.
 
 ### Punkt 15 — ein gültiger Vorgang gelingt
 
@@ -499,8 +517,9 @@ Prüfstand geht den Weg der Operation, nicht den durch die Route. Für 7 und 8
 hiesse das `POST /subscriptions/<ABO>/files/extract` mit einem hochgeladenen
 Archiv.
 
-**Dazu Punkt 12b** (`FilesWrite::MAX_BYTES` unerreichbar) — gemessen und
-benannt, die Behebung nicht entschieden.
+**Punkt 12b ist behoben** (`FilesWrite::MAX_BYTES` war unerreichbar), und dabei
+ist die Begründung des Befundes berichtigt worden — der Faktor 1,71 war an
+anderen JSON-Fahnen gemessen als denen des Klienten. Beides steht oben.
 
 Dazu die halbe Hälfte von Punkt 13 (`id p1136`), und aus `docs/61 §0`:
 `/var/lib/srvpanel` gehört auf dieser Maschine `root:root 0755` statt

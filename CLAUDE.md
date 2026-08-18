@@ -752,13 +752,33 @@ seitdem einen **Vorflug**, der die eigenen Zweitkennungen vorher liest und die
 fremde Seite dabei nicht anfasst; `TenancySweepTest` prüft beide Richtungen.
 
 **Daneben fiel ein Fehler heraus, der mit dem Angriff nichts zu tun hat:**
-`FilesRead::MAX_BYTES` und `FilesWrite::MAX_BYTES` stehen auf 2 MiB,
-`Connection::REQUEST_MAX` auf 1 MiB — und weil die Anfrage JSON ist, reisst
-deutscher Text die Grenze schon bei 620 KB (gemessener Faktor 1,71, `ü` wird zu
-`\uXXXX`). Eine solche Datei öffnet sich im Editor und lässt sich nie speichern.
-Er steht als `docs/62` Punkt 12b, die Behebung ist nicht entschieden.
+`FilesRead::MAX_BYTES` und `FilesWrite::MAX_BYTES` standen auf 2 MiB,
+`Connection::REQUEST_MAX` auf 1 MiB — und der Inhalt einer Datei reist als Feld
+*in* dieser einen Zeile. Die Hälfte der erklärten Grenze war nie zu erreichen;
+eine Datei dazwischen öffnete sich im Editor und liess sich nie speichern, mit
+einer Meldung über das Protokoll statt über die Datei.
 
 > **Ein Wert, der grösser ist als der Weg dorthin, ist keine Grenze.**
+
+**Behoben am 19. August** (`docs/62` Punkt 12b): `Connection::CONTENT_MAX` ist
+die eine Zahl, an der beide Grenzen hängen, und `Client::call()` misst die
+fertig kodierte Zeile, bevor sie über den Socket geht. `TransportLimitTest`
+rechnet die Hüllengrösse nach, statt sie zu glauben.
+
+**Und die Begründung dieses Befundes war beim ersten Ausschreiben falsch.** Sie
+lautete, deutscher Text wachse als JSON um 1,71× und reisse die Grenze schon bei
+620 KB, weil aus `ü` sechs Zeichen `\u00fc` würden. Das gilt für `json_encode`
+mit seinen Voreinstellungen — und `Client::call()` setzt seit dem 11. August
+`JSON_UNESCAPED_UNICODE`. Nachgemessen mit den Fahnen, die er wirklich führt:
+deutsche Prosa **1,02×**, Umlaute **1,00×**, PHP mit Zeichenketten 1,12×,
+Steuerzeichen 6×.
+
+> **Ein Faktor, der an anderen Fahnen gemessen wurde, gehört zu einer anderen
+> Leitung.**
+
+Der Schluss stimmte trotzdem, die Zahl nicht — und ein Wächter, der einen Faktor
+führt, hätte den Irrtum bloss festgeschrieben. `TransportLimitTest` baut deshalb
+die volle Zeile und misst sie.
 
 **Der Lauf ist gefahren — am 12. August 2026, gegen `0.5.3-rc.1` und ab Punkt 7
 gegen `0.5.3-rc.2`.** Sechs Kriterien erfüllt, das siebte (das Protokoll) benannt

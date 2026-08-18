@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Connection;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Files\Entry;
 use SrvPanel\Agent\Files\Workspace;
@@ -23,14 +24,28 @@ use SrvPanel\Agent\Op;
  * **Die volle Quota ist ein Fehler und keine Erfolgsmeldung.** Das ist Punkt 12
  * des Abnahmekriteriums (`docs/51 §4`), und es steht hier, weil die Sandbox als
  * der Kunde läuft: Sein Kontingent greift von selbst, und der einzige Weg, es
- * zu verschweigen, wäre ein ungeprüfter Rückgabewert. `file_put_contents` gibt
- * bei voller Quota die Zahl der *geschriebenen* Bytes zurück und nicht `false`
- * — wer nur auf `false` prüft, meldet Erfolg für eine abgeschnittene Datei.
+ * zu verschweigen, wäre ein ungeprüfter Rückgabewert.
+ *
+ * **Und welcher Rückgabewert das ist, stand hier bis zum 18. August falsch.**
+ * Gemessen auf `cloudsrv24`: `file_put_contents` gibt bei voller Quota `false`
+ * zurück — PHP wandelt den kurzen Schreibvorgang selbst in einen Fehlschlag um
+ * und wirft die Zahl der geschriebenen Bytes weg. Der Vergleich unten steht
+ * deshalb gegen die *erwartete Länge* und nicht gegen `false`: Er fängt beide
+ * Fälle, und welcher davon eintritt, muss er nicht wissen.
  */
 final class FilesWrite implements Op
 {
-    /** Was über diesen Weg höchstens hineingeht. Grösseres kommt als Upload. */
-    public const MAX_BYTES = 2 * 1024 * 1024;
+    /**
+     * Was über diesen Weg höchstens hineingeht. Grösseres kommt als Upload.
+     *
+     * **Sie ist an den Weg gebunden und keine eigene Zahl mehr.** Bis zum
+     * 19. August 2026 standen hier 2 MiB — hinter einer Anfragegrenze von
+     * 1 MiB. Eine Datei dazwischen öffnete sich im Editor und liess sich nie
+     * speichern; die Meldung sprach vom Protokoll und nicht von der Datei.
+     *
+     * > **Ein Wert, der grösser ist als der Weg dorthin, ist keine Grenze.**
+     */
+    public const MAX_BYTES = Connection::CONTENT_MAX;
 
     public static function name(): string
     {

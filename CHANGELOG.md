@@ -15331,3 +15331,44 @@ bevor die Zweitkennung an der Reihe ist.
 `TenancySweepTest::test_the_sweep_checks_its_own_identifiers_first` prüft beide
 Richtungen — dass der Vorflug die eigenen Kennungen liest und dass er die fremde
 Seite nicht berührt. Beide Brüche stehen in `tests/waechter-brechen.sh`.
+
+### Eine Datei zwischen 1 und 2 MiB öffnete sich und liess sich nie speichern
+
+**Befund 12b aus `docs/62` ist behoben.** `FilesRead::MAX_BYTES` und
+`FilesWrite::MAX_BYTES` standen auf 2 MiB, `Connection::REQUEST_MAX` auf 1 MiB —
+und der Inhalt einer Datei reist als Feld *in* dieser einen JSON-Zeile. Die
+Hälfte der erklärten Grenze war damit nie zu erreichen: Eine Datei dazwischen
+öffnete sich im Editor, liess sich bearbeiten und beim Speichern kam „Anfrage
+überschreitet 1 MiB" — eine Auskunft über das Protokoll und nicht über die
+Datei, und die Arbeit war weg.
+
+> **Ein Wert, der grösser ist als der Weg dorthin, ist keine Grenze.**
+
+`Connection::CONTENT_MAX` ist jetzt die eine Zahl, an der beide Grenzen hängen
+(`REQUEST_MAX` minus 64 KiB für die Hülle = 960 KiB). `FilesWrite` und
+`FilesRead` führen sie, statt jeweils eine eigene zu erklären — was sich öffnen
+lässt, lässt sich damit auch zurückschreiben. Und `Client::call()` misst die
+**fertig kodierte Zeile**, bevor sie über den Socket geht: Eine Datei, deren
+Maskierung sie doch über die Grenze hebt, wird abgewiesen, bevor sie unterwegs
+ist, und die Meldung spricht von ihr und nicht vom Protokoll.
+
+**Die Begründung des Befundes war beim ersten Ausschreiben falsch.** Sie
+lautete, deutscher Text wachse als JSON um den Faktor 1,71 und reisse die Grenze
+schon bei 620 KB, weil aus einem `ü` die sechs Zeichen `\u00fc` würden. Das gilt
+für `json_encode` mit seinen Voreinstellungen — `Client::call()` setzt seit dem
+11. August `JSON_UNESCAPED_UNICODE`. Nachgemessen mit den Fahnen, die er wirklich
+führt: deutsche Prosa 1,02×, nur Umlaute 1,00×, PHP mit Zeichenketten 1,12×,
+ASCII 1,00×, lauter Steuerzeichen 6,00×.
+
+> **Ein Faktor, der an anderen Fahnen gemessen wurde, gehört zu einer anderen
+> Leitung.**
+
+Der Schluss stimmte trotzdem — 2 MiB passen auch als reines ASCII nicht durch
+1 MiB —, aber die Zahl war eine andere und die Dringlichkeit auch: betroffen war
+nicht jede deutsche Datei ab 620 KB, sondern jede Datei ab 1 MiB. Ein Wächter,
+der einen Faktor führte, hätte den Irrtum bloss festgeschrieben.
+`TransportLimitTest` baut deshalb die volle Zeile — lange Namen, tiefer Pfad,
+Inhalt in voller Höhe — und misst sie gegen `REQUEST_MAX`. Er prüft ausserdem,
+dass die Kodierfahnen nur an einer Stelle stehen: Zwei Fassungen davon messen
+irgendwann eine Zeile, die die andere anders schreibt. Alle vier Brüche stehen
+in `tests/waechter-brechen.sh` und beissen.

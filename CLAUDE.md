@@ -856,6 +856,24 @@ Testen berücksichtigen:
     ein eigener Regelsatz; wer dort alles anschaltet, bekommt Meldungen zu
     Stellen, die Pint in Ruhe lässt (`) {}` an einem leeren Konstruktor zum
     Beispiel).
+  - **`phpstan.phar` gibt es genauso, und zwar von derselben Stelle.** Oben
+    stand neun Monate lang „nachinstallieren geht auch nicht", und das war eine
+    Aussage über `composer install` — nicht über PHPStan. `curl -sSL -o
+    phpstan.phar
+    https://github.com/phpstan/phpstan/releases/latest/download/phpstan.phar`
+    holt ihn, gemessen am 17. August 2026 (2.2.8). Die Auslieferungsdateien der
+    GitHub-Releases kommen nicht über `codeload.github.com`, und genau die
+    sperrt der Proxy.
+
+    **Die Projektdatei `phpstan.neon` taugt dafür nicht** — sie bindet larastan
+    ein, und ohne `vendor/` bricht der Lauf mit „is missing or is not readable"
+    ab. Eine dreizeilige Wegwerfdatei im Scratchpad (`level: 6`,
+    `treatPhpDocTypesAsCertain: false`) und `-c` darauf genügt.
+
+    > **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite
+    > braucht einen Versuch.** Derselbe Satz wie bei MariaDB und beim `sshd` —
+    > diesmal an einem Werkzeug, das in dieser Datei als unerreichbar geführt
+    > wurde.
   - **PHPStan taugt nur für `agent/`.** Ohne `vendor/` fehlt larastan, und
     jedes `Model::query()` und jede Spalte gilt als undefiniert — hunderte
     Meldungen, die nichts bedeuten. Unterhalb von `agent/` gibt es kein
@@ -871,6 +889,14 @@ Testen berücksichtigen:
     `function.impossibleType` heraus: ein `in_array($x, self::LEER, true)`
     gegen eine leere Konstante. Genau der hat eine CI-Runde gekostet, und die
     Gegenprobe zeigt, dass er lokal auffindbar gewesen wäre.
+
+    **Und diese Filterung braucht ihre eigene Gegenprobe.** „Nach dem Filter
+    steht nichts mehr da" sieht genauso aus, ob PHPStan die Datei sauber fand
+    oder sie gar nicht erst gelesen hat. Ein absichtlich falscher Typ muss dort
+    eine Zeile erzeugen — sonst misst der Lauf nichts:
+
+    > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als
+    > Null steht.**
 
     **Und `tests/Support/` gehört in denselben Lauf wie `agent/src`.** Die
     Testdoppel dort hängen am Agenten und nicht am Framework, also läuft Stufe 6

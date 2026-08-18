@@ -1,0 +1,366 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers;
+
+use App\Models\CronJob;
+use App\Models\CronRun;
+use App\Models\Subscription;
+use App\Support\Audit\Audit;
+use App\Support\Cron\Cron;
+use App\Support\Cron\ServerZone;
+use App\Support\Cron\Spoken;
+use App\Support\Plans\Quota;
+use App\Support\Time\Clock;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Inertia\Response;
+use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Cron\Schedule;
+
+/**
+ * Die Zeitsteuerung eines Abonnements.
+ *
+ * **Hier steht keine Zeitplanprüfung.** Sie steht in {@see Schedule::parse()},
+ * also an der Stelle, die die Zeile später auch schreibt; eine zweite hier sähe
+ * aus wie die Schranke, wäre keine, und liefe beim nächsten Umbau auseinander.
+ * Dieselbe Aufteilung wie bei {@see SftpController} und dem Schlüssel.
+ * Validiert wird, was eine Validierung ist: dass etwas geschickt wurde, wie lang
+ * es sein darf, und ob das Kontingent noch etwas hergibt.
+ *
+ * **Die Fehlerwege sind die aus `docs/59`.** Was der Agent als `BAD_REQUEST`
+ * abweist, ist eine Sache des Feldes und bekommt eine Feldmeldung. Alles andere
+ * — `exec_failed`, `timeout`, `internal` — ist ein Zustand des **Servers** und
+ * gehört an die Zusammenfassung unter `server`:
+ *
+ * > **Ein roter Rand am Feld behauptet, das Feld sei falsch. Wer ihn für einen
+ * > Zustand des Servers setzt, schickt den Leser dorthin, wo nichts zu ändern
+ * > ist.**
+ *
+ * **Und die Auskunft des Agenten wird weitergegeben.** `cron.apply` sagt, dass
+ * bis zu 60 Sekunden vergehen, bevor cron die Datei liest (`docs/60 §4`) —
+ * gemessen, nicht geschätzt. `docs/59` hat zweimal denselben Fehler an zwei
+ * Übergängen desselben Weges vorgeführt:
+ *
+ * > **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+ * > keine.**
+ */
+final class CronController extends Controller
+{
+    /** Wie lang eine Beschriftung werden darf. */
+    private const LABEL_MAX = 120;
+
+    public function __construct(
+        private readonly Cron $cron,
+        private readonly Audit $audit,
+    ) {}
+
+    /**
+     * Der Weg hinein, ohne dass der Kunde eine Abo-Kennung kennen muss.
+     *
+     * **Die Bauart ist wörtlich die von {@see SftpController::pick()}**, und das
+     * ist Absicht: Es ist dieselbe Frage. Ein Merkmal, das an *einem* Abonnement
+     * hängt, braucht einen Menüpunkt ohne Kennung darin — sonst liegt es drei
+     * Klicks tief, und das war `docs/55` Befund 8 und `docs/59` Befund 19.
+     *
+     * > **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten
+     * > Merkmal wieder da, wenn die Behebung nicht die Regel wurde.**
+     *
+     * Dies ist das dritte Merkmal mit dieser Frage, und deshalb ist es hier
+     * keine Entdeckung mehr, sondern eine Abschrift.
+     */
+    public function pick(Request $request): RedirectResponse|Response
+    {
+        $account = $request->user();
+
+        $erreichbar = Subscription::query()
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (Subscription $s): bool => $account?->can('manageCron', $s) ?? false)
+            ->values();
+
+        if ($erreichbar->count() === 1) {
+            return to_route('cron.show', ['subscription' => $erreichbar->first()?->id]);
+        }
+
+        return Inertia::render('Subscriptions/CronPick', [
+            'subscriptions' => $erreichbar
+                ->map(static fn (Subscription $s): array => ['id' => $s->id, 'name' => $s->name])
+                ->all(),
+        ]);
+    }
+
+    public function show(Subscription $subscription): Response
+    {
+        $jobs = CronJob::query()
+            ->where('subscription_id', (int) $subscription->id)
+            ->orderBy('label')
+            ->get();
+
+        $limit = $subscription->quota(Quota::CronJobs->value);
+
+        return Inertia::render('Subscriptions/Cron', [
+            'subscription' => [
+                'id' => (int) $subscription->id,
+                'name' => $subscription->name,
+                'system_user' => $subscription->system_user,
+                'usable' => $subscription->usable(),
+            ],
+            'jobs' => $jobs->map(fn (CronJob $job): array => $this->job($job))->all(),
+            'quota' => ['used' => $jobs->count(), 'limit' => $limit],
+
+            /*
+             * **Die Zone der Maschine steht auf der Seite**, und zwar als Wert
+             * und nicht als Satz im Template. cron rechnet in ihr, das Panel
+             * zeigt sonst alles in der Anzeigezone (`docs/40`) — gemessen
+             * (`docs/60 §11`), und `CRON_TZ` gibt es nicht, mit dem man das
+             * angleichen könnte.
+             *
+             * > **Zwei Zeiten auf einer Seite, von denen nur eine beschriftet
+             * > ist, sind eine Falle mit Erklärung daneben.**
+             */
+            'server_zone' => ServerZone::name(),
+            'display_zone' => Clock::zone(),
+
+            'can' => ['manage' => true],
+        ]);
+    }
+
+    /**
+     * Die Läufe eines Jobs — eine eigene Seite, weil die Ausgabe lang ist.
+     *
+     * **Und sie sammelt nicht selbst ein.** Das tut `srvpanel:cron-runs` über
+     * seinen Zeitgeber. Eine Seite, die beim Aufruf einsammelte, zeigte nur dann
+     * etwas, wenn jemand hinsieht — und die Ablage liefe voll, solange niemand
+     * hinsieht.
+     */
+    public function runs(Subscription $subscription, CronJob $job): Response
+    {
+        $this->belongsTo($job, $subscription);
+
+        $runs = CronRun::query()
+            ->where('cron_job_id', (int) $job->id)
+            ->orderByDesc('started_at')
+            ->orderByDesc('id')
+            ->limit(CronRun::KEEP_PER_JOB)
+            ->get();
+
+        return Inertia::render('Subscriptions/CronRuns', [
+            'subscription' => ['id' => (int) $subscription->id, 'name' => $subscription->name],
+            'job' => $this->job($job),
+            'runs' => $runs->map(static fn (CronRun $run): array => [
+                'id' => (int) $run->id,
+                'started_at' => Clock::display($run->started_at),
+                'duration_ms' => (int) $run->duration_ms,
+                'exit_code' => $run->exit_code,
+                'status' => $run->status->value,
+                'status_label' => $run->status->label(),
+                'tone' => $run->status->tone(),
+                'output' => $run->output,
+                'truncated' => (bool) $run->truncated,
+            ])->all(),
+            'keep' => CronRun::KEEP_PER_JOB,
+        ]);
+    }
+
+    public function store(Request $request, Subscription $subscription): RedirectResponse
+    {
+        $data = $this->validated($request);
+
+        $this->withinQuota($subscription);
+
+        try {
+            $job = $this->cron->create($subscription, $data);
+        } catch (AgentException $error) {
+            throw $this->asValidation($error);
+        }
+
+        $this->audit->record('cron.job.add', subscriptionId: (int) $subscription->id, context: [
+            'job' => $job->label,
+            'schedule' => Schedule::line($job->schedule()),
+        ]);
+
+        return to_route('cron.show', ['subscription' => $subscription->id])
+            ->with('success', $this->saved());
+    }
+
+    public function update(Request $request, Subscription $subscription, CronJob $job): RedirectResponse
+    {
+        $this->belongsTo($job, $subscription);
+
+        $data = $this->validated($request);
+
+        try {
+            $this->cron->update($job, $data);
+        } catch (AgentException $error) {
+            throw $this->asValidation($error);
+        }
+
+        $this->audit->record('cron.job.change', subscriptionId: (int) $subscription->id, context: [
+            'job' => $job->label,
+            'schedule' => Schedule::line($job->schedule()),
+        ]);
+
+        return to_route('cron.show', ['subscription' => $subscription->id])
+            ->with('success', $this->saved());
+    }
+
+    public function destroy(Subscription $subscription, CronJob $job): RedirectResponse
+    {
+        $this->belongsTo($job, $subscription);
+
+        $label = (string) $job->label;
+
+        try {
+            $this->cron->remove($job);
+        } catch (AgentException $error) {
+            throw $this->asValidation($error);
+        }
+
+        $this->audit->record('cron.job.remove', subscriptionId: (int) $subscription->id, context: [
+            'job' => $label,
+        ]);
+
+        return to_route('cron.show', ['subscription' => $subscription->id])
+            ->with('success', 'Der Cronjob ist entfernt.');
+    }
+
+    /**
+     * Ein Job, wie ihn die Seite braucht.
+     *
+     * `next_due` geht über {@see Clock} wie jeder Zeitstempel; der **Zeitplan**
+     * geht nicht darüber, denn er ist Serverzeit. Die beiden dürfen nicht durch
+     * dieselbe Umrechnung — wer das verwechselt, zeigt eine Zeile und findet sie
+     * nicht.
+     *
+     * @return array<string,mixed>
+     */
+    private function job(CronJob $job): array
+    {
+        $schedule = $job->schedule();
+
+        return [
+            'id' => (int) $job->id,
+            'label' => $job->label,
+            'command' => $job->command,
+            'active' => (bool) $job->active,
+            'schedule' => $schedule,
+            'expression' => Schedule::line($schedule),
+            'spoken' => Spoken::schedule($schedule),
+            'next_due' => $job->next_due === null ? null : Clock::display($job->next_due),
+        ];
+    }
+
+    /**
+     * Was validiert wird — und was ausdrücklich nicht.
+     *
+     * Die fünf Felder bekommen hier nur eine Längengrenze und die Auskunft, dass
+     * sie da sein müssen. Ihre **Form** prüft {@see Schedule::parse()} im
+     * Agenten; käme sie hier noch einmal, gäbe es zwei Regeln für dieselbe Sache.
+     *
+     * @return array<string,mixed>
+     */
+    private function validated(Request $request): array
+    {
+        /** @var array<string,mixed> $data */
+        $data = $request->validate([
+            'label' => ['required', 'string', 'max:'.self::LABEL_MAX],
+            'command' => ['required', 'string', 'max:8192'],
+            'active' => ['sometimes', 'boolean'],
+            ...array_fill_keys(
+                array_map(static fn (string $f): string => $f, Schedule::FIELDS),
+                ['required', 'string', 'max:192'],
+            ),
+        ]);
+
+        return $data;
+    }
+
+    /**
+     * Das Kontingent des Plans — geprüft, bevor der Agent etwas tut.
+     *
+     * Gemessen (`docs/60 §5`): Die 10000-Zeilen-Grenze von cron greift für
+     * `/etc/cron.d` **nicht**. Es gibt also ausserhalb dieses Kontingents keine
+     * Obergrenze, und die Wand im Agenten (`CronApply::MAX_JOBS`) ist eine
+     * Notbremse und keine Regel für Kunden.
+     */
+    private function withinQuota(Subscription $subscription): void
+    {
+        $limit = $subscription->quota(Quota::CronJobs->value);
+
+        if ($limit === null) {
+            return;
+        }
+
+        $vorhanden = CronJob::query()->where('subscription_id', (int) $subscription->id)->count();
+
+        if ($vorhanden < $limit) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'label' => sprintf(
+                'Dieser Plan erlaubt %d Cronjob%s. Entfernen Sie einen, um einen neuen anzulegen.',
+                $limit,
+                $limit === 1 ? '' : 's',
+            ),
+        ]);
+    }
+
+    /**
+     * Ein Job gehört zu diesem Abonnement — oder es gibt ihn hier nicht.
+     *
+     * **Die Mandantenklammer hat schon gefiltert**, bevor diese Zeile läuft;
+     * dies fängt den Fall, dass ein Admin — für den die Klammer offen ist — eine
+     * fremde Jobnummer in eine Adresse dieses Abonnements schreibt.
+     */
+    private function belongsTo(CronJob $job, Subscription $subscription): void
+    {
+        abort_unless((int) $job->subscription_id === (int) $subscription->id, 404);
+    }
+
+    /**
+     * Aus einem Fehlschlag des Agenten die Meldung, die der Kunde lesen soll.
+     *
+     * `BAD_REQUEST` ist eine Sache der Eingabe und bekommt das Feld, das der
+     * Agent nennt; alles andere ist ein Zustand des Servers und steht unter
+     * `server` in der Zusammenfassung — ohne dass ein Feld rot wird.
+     */
+    private function asValidation(AgentException $error): ValidationException
+    {
+        if ($error->errorCode !== AgentException::BAD_REQUEST) {
+            return ValidationException::withMessages([
+                'server' => 'Der Zeitplan ist in Ordnung; der Server hat die Änderung nicht '
+                    .'angenommen. '.$error->getMessage(),
+            ]);
+        }
+
+        /*
+         * Der Agent nennt das Feld, an dem es lag — dann wird genau dieses rot
+         * und nicht das erstbeste. Nennt er keines, ist der Befehl die einzige
+         * Eingabe, die übrig bleibt.
+         */
+        $field = $error->details['field'] ?? null;
+
+        return ValidationException::withMessages([
+            is_string($field) && in_array($field, Schedule::FIELDS, true) ? $field : 'command' => $error->getMessage(),
+        ]);
+    }
+
+    /**
+     * Der Satz, der nach dem Speichern oben steht.
+     *
+     * **Er nennt die Wartezeit**, weil sie gemessen ist und der Kunde sie sonst
+     * für einen Fehler hält: Wer einen Minutenjob anlegt und nach zwanzig
+     * Sekunden nachsieht, findet nichts.
+     *
+     * > **„Gespeichert" ist nicht „gilt".**
+     */
+    private function saved(): string
+    {
+        return 'Der Cronjob ist gespeichert. Bis er gilt, kann es eine Minute dauern.';
+    }
+}

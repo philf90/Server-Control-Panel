@@ -14247,3 +14247,233 @@ Seite zu schieben.
 
 > **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt. Keines
 > von beiden ersetzt das andere.**
+
+
+### P6 Schritt 9 — Cron: die Messrunde hat zwei Annahmen umgeworfen, und drei Rechteangaben des Plans waren nicht lauffähig
+
+`docs/60` ist die Messrunde, `tests/cron-messen.sh` ihr Werkzeug: zweiunddreissig
+Messungen gegen einen Wegwerf-cron in einem eigenen Mount-Namensraum, **dreissig
+wie erwartet, zwei abweichend** — und beide Abweichungen sind die Funde. Das
+Skript endet deshalb mit Rückgabewert 1; eine Erwartung, die nicht eintrifft,
+soll auffallen.
+
+**Gemessen wurde, weil `docs/51 §10` auf drei Sätzen stand, die aus `crontab(5)`
+stammten und aus keiner Messung.** Alle drei stimmen: Die Einschleusung über
+einen Zeilenumbruch funktioniert — der Prüfkörper hat eine Datei angelegt, und
+sie gehörte `root` —, das `%` schneidet den Befehl ab und schiebt den Rest der
+Standardeingabe zu, und der Entwurf mit `cron-run` plus `.cmd`-Datei macht beides
+wirkungslos. Belegt in derselben Runde mit derselben Nutzlast; sonst wäre die
+Abwehr ein Beleg für nichts.
+
+**Der teuerste Fund dreht die Bauart „eine Datei je Abonnement" von einem Vorteil
+in ein Risiko.**
+
+> **Eine Datei je Abonnement begrenzt den Schaden auf einen Kunden — und
+> garantiert ihn dann für alle seine Jobs.**
+
+Eine einzige kaputte Zeile lässt cron die **ganze** Datei verwerfen, und ein
+Benutzername, den es nicht mehr gibt, ebenso — beides nur ins Protokoll. Im Panel
+stünden zehn aktive Jobs, von denen keiner läuft. Der zweite Fall ist kein
+Laborfall: Es ist der Zustand, den ein halb zurückgebautes Abonnement
+hinterlässt. Ein `cron -t` gibt es nicht, also prüft `CronApply` jede Zeile,
+jeden Dateinamen und die Existenz des Systembenutzers, **bevor** es schreibt.
+
+**`CRON_TZ` gibt es in diesem cron nicht.** Es wird wie `MAILTO` als gewöhnliche
+Umgebungsvariable gelesen und an den Job durchgereicht — es verschöbe also nicht
+den Zeitplan, sondern nur die Uhr, auf die der Job selbst sieht. Von zwei
+Wirkungen die verwirrendere. Damit ist entschieden: Der Zeitplan ist Serverzeit,
+und die Seite sagt es.
+
+**Die Ablehnung wegen des Dateinamens ist die einzige der vier, die cron stumm
+ausführt** — `INSECURE MODE`, `WRONG FILE OWNER` und `Syntax error` stehen im
+Protokoll, ein Punkt oder ein Plus im Namen nicht.
+
+> **Eine Ablehnung ohne Meldung ist von einem Nichtvorhandensein nicht zu
+> unterscheiden.**
+
+**Und die 10000-Zeilen-Grenze schützt `/etc/cron.d` nicht** — eine Datei mit
+10002 Zeilen lief. `Quota::CronJobs` ist damit die einzige Obergrenze, die es
+gibt; die Wand im Agenten ist eine Notbremse.
+
+Zwei Entwarnungen daneben, beide gemessen statt gehofft. **cron überlebt eine
+kaputte Datei** — es verwirft sie und bedient alle anderen weiter. Das kehrt das
+Vorbild aus `docs/59` um, wo ein Neuladen den sshd tötet, und ist der Grund,
+warum hier kein Rückrollweg gebaut wird. Und **die Zeitumstellung tut in beiden
+Richtungen das Richtige**: Ein Job in der ausgefallenen Spanne wird im Augenblick
+des Sprungs nachgeholt, einer in der doppelten Spanne läuft genau einmal.
+
+> **Ein Job, der in der Nacht der Umstellung zweimal läuft, ist ein
+> Kundenschaden, den niemand meldet: Er passiert einmal im Jahr und sieht aus wie
+> ein Zufall.**
+
+**Drei Rechteangaben des Plans waren nicht lauffähig**, und keine davon fand ein
+Nachdenken. `docs/51 §10` schreibt für die Befehlsdatei `root:root 0640` vor —
+`cron-run` läuft als der Kunde und kommt damit nicht heran; cron startete den
+Wrapper brav jede Minute, und es entstand keine einzige Aufzeichnung. Dasselbe
+eine Ebene höher mit `0750` auf `/etc/srvpanel/cron`, wo das `x` zum
+Durchschreiten fehlte. Und die Ablage musste von `/var/lib/srvpanel/cron` nach
+`/var/spool/srvpanel/cron` umziehen: Das Paket liefert `/var/lib/srvpanel` als
+`0750 srvpanel:srvpanel` aus.
+
+> **Eine Rechteangabe im Plan ist eine Absicht. Ob sie läuft, sagt erst der
+> Lauf.**
+
+> **Wer ein Verzeichnis öffnet, damit ein anderer durchkommt, öffnet es für alle,
+> die vorbeikommen.**
+
+**Die dritte Zeitzone dieses Panels, und sie war keine Absicht.** Es gibt jetzt
+UTC beim Speichern, die Anzeigezone in `Clock` — und die Zone der Maschine, nach
+der cron feuert. `date_default_timezone_get()` beantwortet die dritte Frage
+nicht: Es liefert `config('app.timezone')`, und das steht fest auf `UTC`. Im
+Entwicklungscontainer sagen beide `UTC`, und genau deshalb fiele der Fehler dort
+nie auf. `App\Support\Cron\ServerZone` ist die eine Stelle, die `/etc/localtime`
+liest.
+
+> **Eine Zeitzone aus der Konfiguration der Anwendung ist eine Angabe über die
+> Anwendung und keine über die Uhr, nach der der Server handelt.**
+
+**`Occurrence` rechnet die nächste Fälligkeit**, und die Falle darin ist die
+ODER-Verknüpfung: Sind Tag des Monats und Wochentag beide gesetzt, gilt ein Tag,
+wenn *eines von beiden* passt. Das ist die einzige Stelle der ganzen Syntax, an
+der die Verknüpfung wechselt.
+
+> **Eine Sonderregel, die nur bei einer von zwölf Kombinationen greift, wird von
+> jedem Test gefunden, der sie prüft — und von keinem anderen.**
+
+**`Connection::send()` kodiert ohne `JSON_INVALID_UTF8_SUBSTITUTE`**, und ein
+einziges ungültiges Byte lässt `json_encode` `false` zurückgeben. Für `cron.runs`
+ist das kein Randfall, sondern der Normalfall in Wartestellung: Die Ausgabe eines
+Cronjobs sind beliebige Bytes. Bereinigt wird deshalb in der Operation, gekappt
+**vor** der Prüfung — der Schnitt selbst kann eine gültige Folge zerteilen —, und
+der Verlust wird als `output_lossy` gemeldet.
+
+> **Eine ungültige Folge in einem Feld nimmt die ganze Antwort mit, nicht nur
+> sich selbst.**
+
+Das Netz eine Ebene tiefer ist bewusst **nicht** eingezogen: `Connection` zu
+ändern wäre ein Eingriff in gemeinsamen Code und würde Fehler anderswo verdecken.
+`CronOutputEncodingTest` hält die Annahme gegen die Quelle und meldet sich, wenn
+sie nicht mehr stimmt.
+
+**Die vier Entscheidungen des Betreibers** (`docs/60 §12`): Sperre je Job mit
+einer Grenze von 60 Minuten, Fehlschläge nur im Panel, Jobs eines gesperrten
+Abonnements pausieren, Zeitplan als fünf Felder mit Vorlagen. Ein übersprungener
+Lauf wird **aufgezeichnet** und nicht verschwiegen — eine Reihe ausgefallener
+Läufe sähe sonst aus wie eine Reihe, die es nie gab.
+
+Das Pausieren sitzt an genau einer Stelle: `Cron::desired()` verknüpft `active`
+mit `usable()`. Die Spalte selbst bleibt unangetastet.
+
+> **Ein Zustand, der einen anderen überschreibt, um ihn auszudrücken, verliert
+> den ersten.**
+
+**Der Weg zurück ist mitgebaut.** `subscription.remove` nimmt Cron-Datei,
+Befehlsdateien und Ablage mit — die Cron-Datei zuerst, denn solange sie steht,
+startet cron jede Minute einen Wrapper.
+
+> **Beim Abbauen geht zuerst weg, was noch etwas auslöst.**
+
+**Die Oberfläche.** `/cron` ohne Abo-Kennung — das dritte Merkmal mit dieser
+Frage nach dem Dateimanager (`docs/55` Befund 8) und SFTP (`docs/59` Befund 19),
+und damit keine Entdeckung mehr, sondern die Regel. `App\Support\Cron\Spoken`
+übersetzt den Zeitplan in einen Satz und gibt `null` zurück, sobald er nicht
+sicher ist; dann steht der Ausdruck da.
+
+> **Eine Übersetzung, die nur meistens stimmt, ist schlimmer als keine — sie wird
+> geglaubt.**
+
+**Was der erste CI-Lauf gefunden hat**, weil dieser Code PHPUnit und PHPStan nie
+gesehen hatte: PHPUnit 12 kennt `@dataProvider` nicht mehr (dieses Projekt
+schreibt `#[DataProvider]`), die Umwandlung von `DateTimeImmutable` nach `Carbon`
+fehlte an zwei Stellen — sie steht jetzt einmal als `CronJob::refreshNextDue()`
+—, der Baumlauf über die Cron-Ablage stand vor dem Aufräumen in der Sandbox, und
+zwei Zeichenketten zeigten ins Leere: `packaging/bin/srvpanel` kannte `cron-runs`
+nicht, `preremove.sh` hielt `srvpanel-cron.timer` nicht an.
+
+Grün war die Datenlieferanten-Sache lokal, weil das Wegwerf-Gestell den Docblock
+las — es prüfte eine Schreibweise, die es im Projekt nicht gibt.
+
+> **Ein Gestell, das die Regeln des echten Läufers nachbaut, prüft nur die
+> Regeln, an die sein Erbauer gedacht hat.**
+
+**Wächter:** `CronLineTest` (in eine Cron-Zeile kommt kein Kundentext, geprüft an
+der erzeugten Zeichenkette), `CronOccurrenceTest` (die ODER-Regel, mit drei
+Fällen nebeneinander), `ServerZoneSourceTest` (nur eine Stelle liest
+`/etc/localtime`, und der Zeitplan rechnet nicht in der Anzeigezone),
+`CronOutputEncodingTest` (die Ausgabe reisst die Antwort nicht mit),
+`CronScheduleFormTest`, `CronPageReachTest` — dazu `SubscriptionCleanupTest` um
+die drei Cron-Spuren erweitert. Jeder Bruch steht in
+`tests/waechter-brechen.sh`, jeder mit einer Behauptung über die Eindeutigkeit
+seiner Zielzeile davor.
+
+Der Grund dafür ist ein eigener Fehler: Beim ersten Versuch scheiterte ein `sed`
+an den Sonderzeichen, und die Kontrolle meldete trotzdem Erfolg, weil ihr Muster
+die *andere* `&&`-Zeile derselben Datei traf.
+
+> **Ein Bruch, dessen Sitz man mit einem Muster prüft, das auch anderswo passt,
+> prüft nicht den Bruch, sondern das Muster.**
+
+**Und `BlockSpacingTest` hat drei Fehler bekommen, die er selbst hatte — die
+Liste seiner offenen Fugen fällt von 42 auf 35, ohne dass sich eine einzige
+Regel in `app.css` geändert hätte.** Aufgefallen sind sie, weil er für die
+Cron-Seiten `sections + section` meldete: eine Fuge zwischen einem Behälter und
+seinem eigenen Kind, die es im Browser nicht geben kann.
+
+1. **`<Link>` galt als leeres HTML-Element.** Die Liste der leeren Elemente
+   wurde mit `strtolower()` verglichen, und Inertias Komponente heisst
+   kleingeschrieben wie das `<link>` im Dokumentkopf. Das öffnende Tag erhöhte
+   die Tiefe nicht, das schliessende senkte sie — die Zählung kippte um eins,
+   und alles dahinter bekam den falschen Elternteil.
+
+   > **Zwei Dinge, die im Quelltext gleich heissen, sind im Browser nicht
+   > dasselbe** — und `strtolower()` macht aus dem einen das andere.
+
+   > **Ein Wächter mit einem Zählfehler meldet nicht zu viel, sondern das
+   > Falsche — und schweigt über das Richtige.** Elf Seiten mit `link + link`
+   > und zwei mit `link + ident` lagen ausserhalb seines Blicks, während er
+   > Fugen meldete, die es nicht gab.
+
+2. **Die Kanten wurden je Klasse gefragt und nicht je Element** — und die
+   `<style>`-Blöcke der Vorlagen gar nicht gelesen. Neunzehn Vorlagen haben
+   einen, fünf davon setzen genau das, wonach dieser Wächter fragt:
+   `.form-top`, `.footer-row`, `.spaced`, `.postscript`, `.after-tiles`. Ein
+   `class="button-row footer-row"` galt damit als bündig, obwohl die zweite
+   Klasse den Rand mitbringt.
+
+   > **Ein Wächter, der eine Regel nicht liest, meldet nicht „ungeprüft" — er
+   > meldet „verletzt".**
+
+   > **Zwei Klassen an einem Element sind keine zwei Elemente.**
+
+3. **Zwei Zellen einer Tabelle sind keine zwei Blöcke im Fluss.** Ein `<td>`
+   ohne Klasse reichte die Kante seines Kindes durch, und dann stand `.badge`
+   aus der einen Zelle über `.button-row` aus der nächsten. `cell-name + ident`
+   stand dafür seit dem 14. August als Ausnahme da; mit `cell-name + cell-name`
+   und `badge + button-row` waren es drei, und damit galt der Satz aus dem Kopf
+   dieses Wächters gegen ihn selbst:
+
+   > **Eine Liste von Nachbarn, die wächst, ist keine Regel — sie ist eine
+   > Aufzählung der Fälle, die schon jemand gesehen hat.**
+
+Fünf der sieben gestrichenen Fugen waren seit jeher geschlossen, zwei sind nie
+welche gewesen. Jede ist einzeln nachgesehen worden, bevor sie fiel — an der
+Vorlage, die sie schliesst, und an der Regel, die das tut.
+
+> **Eine Zahl, die kleiner wird, weil der Zähler richtig zählt, ist keine
+> Verbesserung — sie ist die Berichtigung einer Behauptung.**
+
+Drei neue Brüche in `tests/waechter-brechen.sh` halten die drei Korrekturen
+fest, und jeder ist daraufhin angesehen worden, **wofür** er zubeisst und nicht
+nur **dass** er es tut.
+
+**Der eine echte Fund daraus steht auf der Läufe-Seite.** Sie lag eine Ebene
+tiefer als die anderen beiden und war die einzige ohne Brotkrume; der Weg
+zurück stand als Absatz unter dem Bereichshinweis, und `.section-note` bringt
+keinen Rand nach unten mit. Er steht jetzt im `#breadcrumb`-Platz, wie auf den
+sechzehn anderen Seiten, die einen haben.
+
+**Was offen bleibt und benannt ist:** Welcher Cron-Dienst auf den vier
+Zielplattformen installiert und **aktiv** ist, ist weiter ungemessen. `docs/50 §7`
+hat nur das Archiv geprüft, und `systemd-cron` liest `/etc/cron.d` mit einer
+anderen Umsetzung. Der Punkt gehört als erster in den Abnahmelauf, vor jeden
+anderen — `tests/cron-messen.sh` läuft dort unverändert.

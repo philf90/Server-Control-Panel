@@ -97,6 +97,7 @@ const PATHS: Record<string, string> = {
   // Richtung ist die Sache, und zwei Pfeile sind das Einzige, was sie auf 17px
   // noch zeigt.
   sftp: 'M9 20V5M5.5 8.5L9 5l3.5 3.5M15 4v15M18.5 15.5L15 19l-3.5-3.5',
+  cron: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M12 7v5l3.5 2',
 
   // Mein Konto: eine Person.
   account: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4.5 20a7.5 7.5 0 0115 0',

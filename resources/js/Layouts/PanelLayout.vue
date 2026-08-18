@@ -172,6 +172,21 @@ const navigation = computed(() => {
                * an seine Dateien will, findet den kürzeren Weg zuerst.
                */
               { name: 'SFTP-Zugang', href: '/sftp', icon: 'sftp' },
+
+              /*
+               * **Und derselbe Weg für die Cronjobs** (P6 Schritt 9). Das ist
+               * das dritte Merkmal mit dieser Frage, und damit ist der Weg keine
+               * Entdeckung mehr, sondern die Regel:
+               *
+               * > **Ein Fehler, den man an einer Stelle behoben hat, ist beim
+               * > nächsten Merkmal wieder da, wenn die Behebung nicht die Regel
+               * > wurde.**
+               *
+               * `/cron` ohne Kennung, weil die Zeitsteuerung an *einem*
+               * Abonnement hängt — bei genau einem führt die Adresse hinein, bei
+               * mehreren zur Auswahl.
+               */
+              { name: 'Cronjobs', href: '/cron', icon: 'cron' },
             ]
           : []),
 

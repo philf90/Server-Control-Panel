@@ -62,6 +62,35 @@ final class BlockSpacingTest extends TestCase
     private const HAS_OWN_AIR = ['empty'];
 
     /**
+     * Was eine Tabelle selbst anordnet.
+     *
+     * ## Drei Fälle einer Familie, und der dritte macht daraus eine Regel
+     *
+     * Zwei Zellen einer `.stacks`-Tabelle sind keine zwei Blöcke im Fluss: Bei
+     * 390 px stapeln sie, und ihren Abstand hat `.stacks td` — eine
+     * Nachfahrenregel, die {@see self::stylesheet()} bewusst nicht liest, weil
+     * sie eine Lage beschreibt und keinen Baustein.
+     *
+     * Sichtbar werden diese Scheinfugen durch {@see self::transparent()}: Ein
+     * `<td>` ohne Klasse reicht die Kante seines Kindes durch, und dann steht
+     * `.badge` aus der einen Zelle unmittelbar über `.button-row` aus der
+     * nächsten. Für einen klassenlosen `<div>` ist das richtig; für eine Zelle
+     * nicht, denn die Zelle ist kein durchsichtiger Behälter — sie ist der Ort,
+     * an dem die Tabelle den Abstand macht.
+     *
+     * `cell-name + ident` stand dafür seit dem 14. August in
+     * {@see self::OPEN_SEAMS}, mit einer Begründung, die genau das sagte. Am
+     * 17. August kamen `cell-name + cell-name` und `badge + button-row` dazu —
+     * und damit ist die Grenze erreicht, die im Kopf dieser Klasse steht:
+     *
+     * > **Eine Liste von Nachbarn, die wächst, ist keine Regel — sie ist eine
+     * > Aufzählung der Fälle, die schon jemand gesehen hat.**
+     *
+     * @var list<string>
+     */
+    private const TABLE_PARTS = ['td', 'th', 'tr', 'thead', 'tbody', 'tfoot', 'caption', 'colgroup'];
+
+    /**
      * Fugen, die noch niemand angesehen hat.
      *
      * **Sie sind keine Ausnahme, sondern eine Zahl, die kleiner werden soll.**
@@ -101,6 +130,29 @@ final class BlockSpacingTest extends TestCase
      * > **Ein Loch, das man zählt, ist kein Loch mehr — es ist eine Zahl, die
      * > kleiner werden kann.**
      *
+     * ## Am 17. August ist sie es geworden: von 42 auf 35
+     *
+     * Und wieder ohne eine einzige Änderung an der Gestaltung. Drei Korrekturen
+     * an diesem Wächter, jede mit ihrer eigenen Begründung an Ort und Stelle:
+     *
+     * 1. **Die Tiefenzählung** hielt `<Link>` für ein leeres HTML-Element
+     *    ({@see self::pairs()}). Sie kippte um eins, und alles dahinter bekam den
+     *    falschen Elternteil — `sections + scrolls` und ein Teil von
+     *    `sections + notice` waren Scheinnachbarn.
+     * 2. **Die Kanten** wurden je Klasse gefragt statt je Element, und die Regeln
+     *    der Vorlage selbst wurden gar nicht gelesen ({@see self::flushClasses()},
+     *    {@see self::stylesheet()}). `output + button-row`,
+     *    `sections + button-row` und `with-unit + dependent` waren seit jeher
+     *    geschlossen — von `.footer-row`, `.form-top`, `.postscript` und `.hint`.
+     * 3. **Die Tabelle** ordnet ihre Zellen selbst an ({@see self::TABLE_PARTS}).
+     *    `cell-name + ident` und `check + cell-name` waren nie Fugen.
+     *
+     * Fünf der sieben waren also nie offen, und zwei waren es nie gewesen. Keine
+     * einzige ist durch eine neue Regel in `app.css` geschlossen worden.
+     *
+     * > **Eine Zahl, die kleiner wird, weil der Zähler richtig zählt, ist keine
+     * > Verbesserung — sie ist die Berichtigung einer Behauptung.**
+     *
      * @var list<string>
      */
     private const OPEN_SEAMS = [
@@ -109,15 +161,21 @@ final class BlockSpacingTest extends TestCase
         'button-row + button',
         'button-row + form',
         'button-row + scrolls',
-        // Zwei Zellen einer `.stacks`-Tabelle, keine zwei Blöcke im Fluss:
-        // Bei 390 px stapeln sie, und ihren Abstand hat `.stacks td`. Wortgleich
-        // die Nachbarschaft eine Zeile weiter unten.
-        //
-        // `cell-name` an der Zelle ist dabei nicht verhandelbar — ohne sie war
-        // der Tabelleninhalt bei hundert Zeichen ohne Leerzeichen 1129 px breit
-        // statt 390, und der Dokumentüberlauf trotzdem 0 px (docs/46 §20.13).
-        'cell-name + ident',
-        'check + cell-name',
+        /*
+         * **Eine Brotkrume ist kein Block.** `<Link class="link">Kunden</Link> ·
+         * <span class="ident">…</span>` steht in `Customers/Show.vue` und
+         * `Operations/Show.vue` in einer Zeile, getrennt von einem Mittelpunkt;
+         * zwei Blöcke im Fluss sind das nicht, und ein Abstand dazwischen wäre
+         * an dieser Stelle falsch.
+         *
+         * **Gesehen wurde sie erst am 17. August**, und zwar durch die Korrektur
+         * eine Ebene tiefer: Solange `<Link>` als leeres HTML-Element galt, kippte
+         * die Tiefenzählung, und dieser Nachbar entstand in der Zählung gar nicht.
+         *
+         * > **Ein Wächter mit einem Zählfehler meldet nicht zu viel, sondern das
+         * > Falsche — und schweigt über das Richtige.**
+         */
+        'link + ident',
         'choices + dependent',
         'choices + label',
         'choices + with-unit',
@@ -135,23 +193,18 @@ final class BlockSpacingTest extends TestCase
         'ident + notice',
         'leaf + leaf',
         'link + link',
-        'output + button-row',
         'pager-state + button',
         'section-note + ident',
         'section-note + notice',
         'section-note + button-row',
         'section-note + cell-value',
         'section-note + scrolls',
-        'sections + scrolls',
-        'sections + button-row',
         'sections + form',
-        'sections + notice',
         'toggle + button-row',
         'toggle + choices',
         'toggle + ident',
         'toggle + dependent',
         'toggle + with-unit',
-        'with-unit + dependent',
     ];
 
     /**
@@ -171,15 +224,38 @@ final class BlockSpacingTest extends TestCase
      * und ein `.a .b` beschreibt eine Lage und keinen Baustein; beides gehört
      * nicht in eine Aussage darüber, was ein Baustein von sich aus mitbringt.
      *
+     * ## Und was die Vorlage selbst dazu sagt
+     *
+     * **Ein `<style scoped>` in einer Seite ist kein Sonderfall, sondern der
+     * Normalfall für einmalige Abstände.** Neunzehn Vorlagen haben einen, und
+     * fünf davon setzen genau das, wonach dieser Wächter fragt: `.form-top`,
+     * `.footer-row`, `.spaced`, `.postscript`, `.after-tiles` — alle mit
+     * `margin-top: var(--block-gap)` oder `var(--gap)`, alle einmalig, alle
+     * unsichtbar für einen Wächter, der nur `app.css` liest.
+     *
+     * Bis zum 17. August war er genau das, und damit hielt er jeden dieser
+     * Bausteine für bündig. Gefunden hat es P6 Schritt 9, nachdem die
+     * Tiefenzählung berichtigt war: `Domains/Show.vue` setzt zwei `.sections`
+     * untereinander, und zwischen ihnen steht seit jeher `.form-top`.
+     *
+     * > **Ein Wächter, der eine Regel nicht liest, meldet nicht „ungeprüft" — er
+     * > meldet „verletzt".**
+     *
+     * Die Regeln der Vorlage kommen deshalb **hinter** `app.css` in denselben
+     * Durchlauf. Das ist die Kaskade und keine Ersetzung: Ein `scoped`-Block, der
+     * nur `padding` setzt, lässt die Ränder aus `app.css` stehen. Und er gilt nur
+     * für diese eine Vorlage — deshalb wird er hier durchgereicht und nicht
+     * gesammelt.
+     *
+     * @param  string  $scoped  Die `<style>`-Blöcke der Vorlage, oder leer.
      * @return array<string, array{top: bool, bottom: bool, row: bool|null, gap: bool}>
      */
-    private function stylesheet(): array
+    private function stylesheet(string $scoped = ''): array
     {
-        $css = (string) preg_replace(
-            '#/\*.*?\*/#su',
-            '',
-            (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css'),
-        );
+        $ohneKommentare = static fn (string $css): string => (string) preg_replace('#/\*.*?\*/#su', '', $css);
+
+        $css = $ohneKommentare((string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css'))
+            ."\n".$ohneKommentare($scoped);
 
         preg_match_all('/(^|\n)([^{}@\n][^{}]*?)\{([^{}]*)\}/s', $css, $regeln, PREG_SET_ORDER);
 
@@ -250,32 +326,70 @@ final class BlockSpacingTest extends TestCase
     }
 
     /**
-     * Die Bausteine, die unten bündig enden und oben bündig anfangen.
+     * Die Klassen, unter denen ein Element an dieser Kante bündig ist — oder keine.
      *
-     * Abgeleitet und nicht aufgezählt — siehe {@see self::stylesheet()}.
+     * ## Die Frage gilt dem Element und nicht der Klasse
      *
-     * @return array{0: list<string>, 1: list<string>}
+     * **Der zweite Fehler, den P6 Schritt 9 an diesem Wächter gefunden hat.**
+     * Vorher standen hier zwei Listen von Klassennamen, und jedes Element wurde
+     * gegen beide gehalten: Trug es `class="sections form-top"`, so war
+     * `sections` bündig, und die Fuge wurde gemeldet — obwohl `form-top`
+     * daneben einen Rand mitbringt und das Element damit gar nicht bündig ist.
+     *
+     * > **Zwei Klassen an einem Element sind keine zwei Elemente.** Im Browser
+     * > gewinnt die eine, die einen Rand setzt; in einer Liste von Klassennamen
+     * > kommt diese Information nicht vor.
+     *
+     * Deshalb wird hier zuerst gefragt, ob **irgendeine** Klasse des Elements
+     * einen Rand an dieser Kante setzt. Erst wenn keine das tut, ist das Element
+     * bündig — und dann werden die Klassen zurückgegeben, unter denen es in der
+     * Meldung erscheinen soll.
+     *
+     * ## Was ein Baustein ist, steht in `app.css` — und nur dort
+     *
+     * Die Regeln der Vorlage entscheiden mit, **ob** ein Element bündig ist; sie
+     * entscheiden nicht, **was** ein Baustein ist. Eine Klasse, die es nur in
+     * einem `scoped`-Block gibt, ist ein einmaliger Griff und kein Baustein des
+     * Gestaltungssystems — `.sr` in `PasswordFields.vue` etwa ist eine Spanne
+     * für Vorleseprogramme, die überhaupt keinen Kasten zeichnet.
+     *
+     * Beim ersten Wurf dieser Korrektur zählten die `scoped`-Klassen mit, und
+     * prompt stand `check + sr` als Fuge da — zwei Zeichen nebeneinander in
+     * einem Listeneintrag.
+     *
+     * > **Eine Regel, die eine Kante verschiebt, macht aus ihrem Element noch
+     * > keinen Baustein.**
+     *
+     * @param  array<string, array{top: bool, bottom: bool, row: bool|null, gap: bool}>  $stil
+     * @param  list<string>  $bausteine  Die Klassennamen aus `app.css`.
+     * @param  'top'|'bottom'  $kante
+     * @return list<string>
      */
-    private function flush(): array
+    private function flushClasses(string $attributes, array $stil, array $bausteine, string $kante): array
     {
-        $endet = [];
-        $faengt = [];
+        if (preg_match('/class="([^"]*)"/', $attributes, $treffer) !== 1) {
+            return [];
+        }
 
-        foreach ($this->stylesheet() as $name => $kanten) {
-            if (in_array($name, self::HAS_OWN_AIR, true)) {
-                continue;
+        $namen = [];
+
+        foreach (preg_split('/\s+/', trim($treffer[1])) ?: [] as $klasse) {
+            // Ein Baustein, dessen Luft im Padding steckt, ist nicht bündig —
+            // auch wenn `app.css` an ihm keinen Rand stehen hat.
+            if (in_array($klasse, self::HAS_OWN_AIR, true)) {
+                return [];
             }
 
-            if (! $kanten['bottom']) {
-                $endet[] = $name;
+            if (isset($stil[$klasse]) && $stil[$klasse][$kante]) {
+                return [];
             }
 
-            if (! $kanten['top']) {
-                $faengt[] = $name;
+            if (in_array($klasse, $bausteine, true)) {
+                $namen[] = $klasse;
             }
         }
 
-        return [$endet, $faengt];
+        return $namen;
     }
 
     /** @return list<string> */
@@ -300,6 +414,19 @@ final class BlockSpacingTest extends TestCase
     private function relative(string $path): string
     {
         return str_replace(dirname(__DIR__, 2).'/', '', $path);
+    }
+
+    /**
+     * Die `<style>`-Blöcke einer Vorlage.
+     *
+     * Gelesen wird auch ein Block **ohne** `scoped`: Er gilt dann global, und
+     * damit erst recht für die Vorlage, in der er steht.
+     */
+    private function scoped(string $source): string
+    {
+        preg_match_all('#<style[^>]*>(.*?)</style>#su', $source, $treffer);
+
+        return implode("\n", $treffer[1]);
     }
 
     /**
@@ -419,7 +546,7 @@ final class BlockSpacingTest extends TestCase
                 continue;
             }
 
-            if (! in_array(strtolower($folgend[2]), $void, true) && ! str_ends_with(rtrim($folgend[3]), '/')) {
+            if (! in_array($folgend[2], $void, true) && ! str_ends_with(rtrim($folgend[3]), '/')) {
                 $tiefe++;
             }
         }
@@ -459,7 +586,7 @@ final class BlockSpacingTest extends TestCase
                 $letztes = $i;
             }
 
-            if (! in_array(strtolower($tag[2]), $void, true) && ! str_ends_with(rtrim($tag[3]), '/')) {
+            if (! in_array($tag[2], $void, true) && ! str_ends_with(rtrim($tag[3]), '/')) {
                 $tiefe++;
             }
         }
@@ -540,16 +667,38 @@ final class BlockSpacingTest extends TestCase
      * nicht in die Tiefe; ohne das käme der Zähler nie zurück auf null, und die
      * Suche endete stumm am Dateiende.
      *
+     * @param  string  $scoped  Die `<style>`-Blöcke der Vorlage — siehe {@see self::stylesheet()}.
      * @return list<array{0: string, 1: string}>
      */
-    private function pairs(string $template): array
+    private function pairs(string $template, string $scoped = ''): array
     {
+        /*
+         * **Die leeren HTML-Elemente — und `link` ist hier eine Falle.**
+         *
+         * Verglichen wird **ohne** `strtolower()`, und das ist der Unterschied
+         * zwischen `<link>` und Inertias `<Link>`. Bis zum 17. August stand hier
+         * ein `strtolower()`, und damit galt jede `<Link>`-Komponente als leeres
+         * Element: Das öffnende Tag erhöhte die Tiefe nicht, das schliessende
+         * `</Link>` senkte sie — die Zählung kippte um eins, und alles dahinter
+         * bekam den falschen Elternteil.
+         *
+         * Gefunden hat es P6 Schritt 9: Der Wächter meldete für zwei Seiten
+         * `.section` als Geschwister von `.sections`, obwohl beide sauber
+         * verschachtelt waren. Sichtbar wurde es erst, als die Tiefenzählung
+         * Schritt für Schritt mitgeschrieben wurde — `<Link>` ging von 3 auf 3.
+         *
+         * > **Zwei Dinge, die im Quelltext gleich heissen, sind im Browser nicht
+         * > dasselbe** — und `strtolower()` macht aus dem einen das andere.
+         *
+         * HTML-Elemente stehen in diesen Vorlagen klein, Komponenten gross; ein
+         * genauer Vergleich trennt sie ohne eine zweite Liste.
+         */
         $void = ['input', 'br', 'hr', 'img', 'meta', 'link', 'source', 'area', 'col'];
 
         preg_match_all('/<(\/?)([a-zA-Z][\w.-]*)([^>]*)>/s', $template, $tags, PREG_SET_ORDER);
 
-        [$endetBuendig, $faengtBuendig] = $this->flush();
-        $stil = $this->stylesheet();
+        $stil = $this->stylesheet($scoped);
+        $bausteine = array_keys($this->stylesheet());
 
         /*
          * **Der Elternteil je Tag, über einen Stapel.**
@@ -575,7 +724,7 @@ final class BlockSpacingTest extends TestCase
 
             $eltern[$index] = end($stapel) ?: '';
 
-            if (! in_array(strtolower($tag[2]), $void, true) && ! str_ends_with(rtrim($tag[3]), '/')) {
+            if (! in_array($tag[2], $void, true) && ! str_ends_with(rtrim($tag[3]), '/')) {
                 $stapel[] = $tag[3];
             }
         }
@@ -583,7 +732,12 @@ final class BlockSpacingTest extends TestCase
         $paare = [];
 
         foreach ($tags as $start => $tag) {
-            if ($tag[1] === '/' || in_array(strtolower($tag[2]), $void, true) || str_ends_with(rtrim($tag[3]), '/')) {
+            if ($tag[1] === '/' || in_array($tag[2], $void, true) || str_ends_with(rtrim($tag[3]), '/')) {
+                continue;
+            }
+
+            // Zwei Zellen nebeneinander ordnet die Tabelle — siehe self::TABLE_PARTS.
+            if (in_array($tag[2], self::TABLE_PARTS, true)) {
                 continue;
             }
 
@@ -639,15 +793,18 @@ final class BlockSpacingTest extends TestCase
             }
 
             [$untenKante] = $this->transparent($tags, $start, $void);
+            $untenBuendig = $this->flushClasses($untenKante, $stil, $bausteine, 'bottom');
+
+            if ($untenBuendig === []) {
+                continue;
+            }
 
             foreach ($nachbarn as $nachbarIndex) {
                 [, $obenKante] = $this->transparent($tags, $nachbarIndex, $void);
 
-                foreach ($endetBuendig as $unten) {
-                    foreach ($faengtBuendig as $oben) {
-                        if ($this->hasClass($untenKante, $unten) && $this->hasClass($obenKante, $oben)) {
-                            $paare[] = [$unten, $oben];
-                        }
+                foreach ($untenBuendig as $unten) {
+                    foreach ($this->flushClasses($obenKante, $stil, $bausteine, 'top') as $oben) {
+                        $paare[] = [$unten, $oben];
                     }
                 }
             }
@@ -788,9 +945,9 @@ final class BlockSpacingTest extends TestCase
         $offen = [];
 
         foreach ($this->templates() as $path) {
-            $template = $this->rendered((string) file_get_contents($path));
+            $quelle = (string) file_get_contents($path);
 
-            foreach ($this->pairs($template) as $paar) {
+            foreach ($this->pairs($this->rendered($quelle), $this->scoped($quelle)) as $paar) {
                 $gesehen[implode(' + ', $paar)] = true;
 
                 if (in_array($paar, $abgedeckt, true)) {

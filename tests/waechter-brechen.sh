@@ -7900,6 +7900,81 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
 
 echo
+echo "── BlockSpacingTest: <Link> gilt wieder als leeres Element ──"
+#
+# P6 Schritt 9. Die Tiefenzählung hielt Inertias `<Link>` für ein `<link>` —
+# das öffnende Tag erhöhte die Tiefe nicht, das schliessende senkte sie, und
+# alles dahinter bekam den falschen Elternteil.
+#
+# **Der Eingriff macht den Wächter nicht blind, sondern falschsichtig.** Er
+# meldet danach `sections + scrolls` in `Domains/Show.vue` — zwei Bausteine, die
+# dort ineinander liegen und nicht nebeneinander. Genau das ist der Biss: Die
+# Sperrklinke über OPEN_SEAMS schlägt in beide Richtungen an, und eine Fuge, die
+# es nicht gibt, ist so rot wie eine, die niemand eingetragen hat.
+vorher_datei tests/Feature/BlockSpacingTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/BlockSpacingTest.php'
+s = open(p, encoding='utf-8').read()
+alt = 'in_array($tag[2], $void, true)'
+assert s.count(alt) == 3, 'Der Eingriff trifft nicht mehr drei Stellen: %d' % s.count(alt)
+s = s.replace(alt, 'in_array(strtolower($tag[2]), $void, true)')
+s = s.replace('in_array($folgend[2], $void, true)', 'in_array(strtolower($folgend[2]), $void, true)', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/BlockSpacingTest.php "Link als leeres Element" &&
+pruefe "Link als leeres Element" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
+wiederherstellen
+
+echo
+echo "── BlockSpacingTest: die Regel der Vorlage fällt weg ──"
+#
+# Die zweite Korrektur aus Schritt 9: Die Kanten werden je **Element** gefragt
+# und die `<style>`-Blöcke der Vorlage mitgelesen. `Domains/Show.vue` schliesst
+# seine Fuge mit `.footer-row` an einem `class="button-row footer-row"` — zwei
+# Klassen an einem Element, und nur die zweite bringt den Rand mit.
+#
+# Ohne diese Zeile klebt die Knopfreihe wieder an den Bereichen darüber, und
+# der Wächter muss `sections + button-row` melden.
+vorher_datei resources/js/Pages/Domains/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = '.footer-row {\n  margin-top: var(--block-gap);\n}'
+assert s.count(alt) == 1, 'Die Regel steht nicht mehr genau einmal da: %d' % s.count(alt)
+s = s.replace(alt, '.footer-row {\n  padding-top: 0;\n}', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Domains/Show.vue "Regel der Vorlage faellt weg" &&
+pruefe "Regel der Vorlage faellt weg" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
+wiederherstellen
+
+echo
+echo "── BlockSpacingTest: eine Tabellenzelle wird wieder ein Block ──"
+#
+# Die dritte Korrektur aus Schritt 9. Zwei Zellen einer `.stacks`-Tabelle sind
+# keine zwei Blöcke im Fluss — ihren Abstand macht `.stacks td`. Drei Fälle
+# derselben Familie standen als Ausnahme in OPEN_SEAMS, bevor daraus eine Regel
+# wurde.
+#
+# Nimmt man `td` aus der Liste, kommen sie alle drei zurück.
+vorher_datei tests/Feature/BlockSpacingTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/BlockSpacingTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "TABLE_PARTS = ['td', 'th',"
+assert s.count(alt) == 1, 'Die Liste steht nicht mehr da: %d' % s.count(alt)
+s = s.replace(alt, "TABLE_PARTS = ['th',", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/BlockSpacingTest.php "Tabellenzelle als Block" &&
+pruefe "Tabellenzelle als Block" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
+
+echo
 echo "── MobileLayoutTest: eine Wertzelle, die nicht brechen darf ──"
 #
 # Die Messung war grün und die Ansicht kaputt: Eine bei 512 Zeichen gekürzte
@@ -10659,6 +10734,65 @@ griff_datei agent/src/Ops/SubscriptionRemove.php "Cron-Datei bleibt liegen" &&
 pruefe "Cron-Datei bleibt liegen" SubscriptionCleanupTest failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SubscriptionCleanupTest passed
+
+echo "── CronScheduleFormTest: die Schnellwahl sagt etwas anderes, als sie tut ──"
+#
+# Auf dem Knopf steht der Satz, und derselbe Knopf stellt die fuenf Felder ein.
+# Das ist eine Behauptung ueber zwei Dinge, die auseinanderlaufen koennen —
+# dieser Waechter haelt die Beschriftung gegen Spoken. Beim ersten Lauf hat er
+# drei echte Abweichungen gefunden.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+alt = "{ name: 'jeden Tag um 03:15',"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "{ name: 'jeden Tag um 3 Uhr 15',"))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Schnellwahl sagt etwas anderes" &&
+pruefe "Schnellwahl sagt etwas anderes" \
+  CronScheduleFormTest::test_every_quick_choice_says_what_it_sets failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronScheduleFormTest::test_every_quick_choice_says_what_it_sets passed
+
+echo
+echo "── CronPageReachTest: der Menuepunkt verschwindet ──"
+#
+# Er hat beim Dateimanager (docs/55 Befund 8) und bei SFTP (docs/59 Befund 19)
+# je einen Abnahmelauf gekostet, und beide Male fand ihn kein einziger Waechter.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = "              { name: 'Cronjobs', href: '/cron', icon: 'cron' },\n"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, ''))
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Menuepunkt verschwindet" &&
+pruefe "Menuepunkt verschwindet" CronPageReachTest failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronPageReachTest passed
+
+echo
+echo "── CronPageReachTest: eine Route verliert ihr can: ──"
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+alt = """    Route::delete('/subscriptions/{subscription}/cron/{job}', [CronController::class, 'destroy'])
+        ->middleware('can:manageCron,subscription')
+        ->name('cron.destroy');"""
+assert s.count(alt) == 1, 'Zielblock nicht eindeutig — der Bruch waere blind'
+neu = """    Route::delete('/subscriptions/{subscription}/cron/{job}', [CronController::class, 'destroy'])
+        ->name('cron.destroy');"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu))
+PY2
+griff_datei routes/web.php "Route ohne can:" &&
+pruefe "Route ohne can:" CronPageReachTest::test_every_cron_route_is_guarded failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronPageReachTest::test_every_cron_route_is_guarded passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

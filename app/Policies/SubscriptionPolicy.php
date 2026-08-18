@@ -129,6 +129,27 @@ final class SubscriptionPolicy
         return $this->useFeature($account, $subscription, Permission::FtpAccounts);
     }
 
+    /**
+     * Die Zeitsteuerung verwalten — Jobs ansehen, anlegen, ändern, entfernen.
+     *
+     * **Am Recht `Cron`**, das der Katalog seit P0 führt. Es gibt hier nichts
+     * abzuleiten: Ein Cronjob ist eine eigene Fähigkeit und keine Spielart des
+     * Dateizugriffs.
+     *
+     * **Und es ist ausdrücklich nicht `FilesWrite`**, aus demselben Grund, aus
+     * dem es bei {@see self::manageSftp()} nicht `FilesWrite` ist — nur schärfer:
+     * Wer eine Datei schreiben darf, hat damit noch nicht die Erlaubnis, sie
+     * jede Minute **ausführen** zu lassen. Ein Cronjob überlebt den Entzug des
+     * Panel-Zugangs, wenn niemand daran denkt.
+     *
+     * > **Etwas ablegen zu dürfen ist nicht dasselbe, wie es ausführen zu
+     * > lassen.**
+     */
+    public function manageCron(Account $account, Subscription $subscription): bool
+    {
+        return $this->useFeature($account, $subscription, Permission::Cron);
+    }
+
     public function browseFiles(Account $account, Subscription $subscription): bool
     {
         return $this->useFeature($account, $subscription, Permission::FilesRead);

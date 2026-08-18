@@ -14613,6 +14613,18 @@ Der Schritt filtert seitdem auf die Operation — **und führt die Gegenprobe
 daneben**, denn genau dieser Filter nimmt die Zeilen weg, an denen zu sehen ist,
 dass das Feld nicht überall steht.
 
+**Gemessen auf `cloudsrv24` gegen `v0.6.0-rc.15`:** `files.tree` und
+`files.list` melden `{"uid":1001,"groups":[1001]}`, `subscription.remove` meldet
+`{"uid":1002,"groups":[1002]}`, und die Gegenprobe `system.info` trägt das Feld
+gar nicht. Zwei Abonnements ergeben zwei Kennungen — eine Konstante sähe in
+beiden Zeilen gleich aus. Punkt 13 und 14 des Abnahmekriteriums sind damit zum
+ersten Mal ablesbar; sie waren es seit P6 Schritt 1 nicht.
+
+Offen bleibt die zweite Hälfte von Punkt 13: dass `1001` die Kennung von `p1136`
+ist, sagt `id` und nicht das Protokoll.
+
+> **Eine Zahl, die nicht null ist, belegt nur, dass sie nicht null ist.**
+
 **Und der erste Wurf war auf `files.*` zugeschnitten — auch das war zu eng.**
 `Filesystem::removeInside()` und `Filesystem::purgeContents()` gehen genauso durch
 die Sandbox, und sie sind der **Baumlauf**, gegen den Punkt 6 des

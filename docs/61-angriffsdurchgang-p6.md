@@ -126,6 +126,34 @@ Mandantenklammer.
 > **Zwischen der Frage und der Antwort gehören so wenige Schichten wie möglich
 > — und keine, die bei einem Fehler schweigt.**
 
+#### Gemessen auf `cloudsrv24` am 18. August, gegen `v0.6.0-rc.15`
+
+Vier Datei-Vorgänge aus dem Dateimanager, dazu ein Rückbau und die Gegenprobe:
+
+| Operation | `ran_as` |
+|---|---|
+| `files.tree`, `files.list` (Abo `p6-b.invalid`, Benutzer `p1136`) | `{"uid":1001,"groups":[1001]}` |
+| `subscription.remove` (Benutzer `p1138`) | `{"uid":1002,"groups":[1002]}` |
+| `system.info` | **kein Feld** |
+
+**Damit sind Punkt 13 und 14 zum ersten Mal ablesbar.** Sie waren es seit P6
+Schritt 1 nicht, weil die Sandbox die Zahlen erhob, prüfte und wieder verwarf.
+
+Drei Dinge machen daraus eine Messung und nicht eine Zahl:
+
+1. **Die Gegenprobe trägt das Feld gar nicht.** Eine Angabe, die überall gleich
+   aussieht, sagt nichts darüber, dass sie erhoben wurde.
+2. **Zwei Abonnements ergeben zwei Kennungen** — 1001 und 1002. Eine Konstante
+   sähe in beiden Zeilen gleich aus.
+3. **Der Rückbau meldet mit.** Er ist der Baumlauf, gegen den Punkt 6 antritt;
+   ohne diesen Beleg wäre dessen Null später nicht zu deuten.
+
+**Was hier noch offen ist:** dass `1001` die Kennung von `p1136` ist und `1002`
+die von `p1138`, sagt `id <benutzer>` und nicht dieses Protokoll. „Nicht null"
+ist die eine Hälfte von Punkt 13; „die des Abonnements" ist die andere.
+
+> **Eine Zahl, die nicht null ist, belegt nur, dass sie nicht null ist.**
+
 **Und der Filter ist nicht Bequemlichkeit, sondern Bedingung.** Der erste
 Entwurf hier las `grep '"kind":"result"' … | tail -8`, und auf `cloudsrv24`
 kamen acht Zeilen `system.info` zurück und sonst nichts: Der

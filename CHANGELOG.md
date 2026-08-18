@@ -14512,6 +14512,50 @@ nicht überstanden hätte** — zwei davon hätten ein falsches Grün erzeugt:
    > **Ein Kommentar, der eine Rechteangabe nennt, ist eine Behauptung über die
    > Platte und keine über die Absicht.**
 
+### Punkt 13 und 14 des Abnahmekriteriums sind jetzt messbar — und der erste Entwurf war falsch
+
+`docs/51 §4` verlangt, dass **jeder** Datei-Vorgang meldet, unter welcher `uid`
+und mit welchen Gruppen er lief. Das Kind der Sandbox erhob beides seit P6
+Schritt 1 und schickte es durch das Socketpaar zurück; `Sandbox::parent()`
+prüfte es — und warf die Zahlen dann weg. Was da war, war eine Prüfung und kein
+Beleg, und eine Prüfung im Agenten kann von aussen nur zeigen, dass sie nicht
+angeschlagen hat.
+
+**Der naheliegende Bau war der falsche.** Der Beleg gehörte scheinbar an das
+Ergebnis der Sandbox, angehängt in `Files\Workspace::run()` — eine Stelle für
+alle dreizehn Datei-Operationen, also genau die Bauform, die dieses Projekt
+sonst verlangt. Gemessen trägt sie nicht: `files.list` und `files.extract` bauen
+aus dem Ergebnis ein **frisches** Feld-Array und geben nur einzelne Werte daraus
+weiter. Elf von dreizehn hätten gemeldet, zwei nicht, und keiner hätte es gesagt.
+
+> **Ein Beleg, den die Zwischenstelle weiterreichen muss, ist bei der ersten
+> Zwischenstelle weg, die ihn nicht kennt.**
+
+Er hängt deshalb nicht am Vorgang, sondern an der **Anfrage**: `Sandbox::parent()`
+reicht ihn heraus (und prüft ihn weiterhin), `Workspace::run()` meldet ihn dem
+`Context`, und `Connection` hängt ihn **einmal** an die Antwort, nachdem die
+Operation fertig ist. Dort kann keine ihn mehr verlieren, auch keine künftige.
+Im Ergebnis steht er als `ran_as` und landet unverändert in
+`operations.result`.
+
+Dazu die Regel, die vorher nirgends stand: **Zwei verschiedene Konten in einer
+Anfrage sind ein Fehler** und kein Sonderfall — liefe ein Vorgang zweimal unter
+verschiedenen Kennungen, wäre die Frage „unter wem lief er?" nicht mehr
+beantwortbar, und das ist die einzige Frage, die dieser Beleg hat.
+
+**Wächter:** `SandboxCredentialsTest` (sechs Fälle, fünf Brüche). Der wichtigste
+Bruch ist der harmloseste: eine Operation, die den Beleg *selbst* in ihr Ergebnis
+schreibt. Sie sieht richtig aus und macht die Regel wieder zu einer, die
+dreizehnmal befolgt werden muss.
+
+**Und `BreakScriptTest` hat dabei zwei eigene Eingriffe gefangen.** Die
+Signatur von `Workspace::run()` hat einen Parameter bekommen, und damit fanden
+zwei ältere Brüche ihren Text in `FilesRemove` und `FilesTree` nicht mehr — sie
+hätten ab jetzt nichts mehr geändert und wären grün geblieben.
+
+> **Ein Eingriff, der nichts ändert, prüft nichts — und sieht dabei aus, als
+> wäre die Regel abgesichert.**
+
 **Und die Entscheidung, die `docs/61 §1` trägt:** Zwischen einem Pfad aus dem
 Formular und einer Datei stehen **zwei** Wände — die Normalisierung in
 `Workspace::path()` (eine Prüfung, in PHP geschrieben) und `chroot` plus

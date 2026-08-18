@@ -59,7 +59,7 @@ final class FilesTree implements Op
         $workspace = Workspace::fromArgs($args);
         $path = Workspace::path($args['path'] ?? '/');
 
-        return $workspace->run(static function () use ($path): array {
+        return $workspace->run($context, static function () use ($path): array {
             if (! is_dir($path)) {
                 throw is_file($path) || is_link($path)
                     ? AgentException::badRequest('Das ist kein Verzeichnis.', ['path' => $path])

@@ -20,11 +20,12 @@ Verweis auf ein Dokument, das es noch nicht gibt, ist ein toter Verweis, und
 
 Sie sind beim Ausschreiben dieses Dokuments gefunden worden, am Quelltext und
 nicht am Plan. Jede einzelne würde den Lauf entweder anhalten oder — schlimmer —
-ein falsches Grün erzeugen.
+ein falsches Grün erzeugen. **0a und 0d sind gebaut, 0b und 0c sind Hinweise an
+den, der den Lauf fährt.**
 
 > **Ein Abnahmelauf ist Code, den niemand ausführt, bis es darauf ankommt.**
 
-### 0a. Punkt 13 und 14 sind von aussen gar nicht messbar
+### 0a. Punkt 13 und 14 waren von aussen gar nicht messbar — **gebaut am 18. August**
 
 `docs/51 §4` verlangt: „Jeder Datei-Vorgang meldet die `uid`, unter der er lief"
 und „meldet seine Zusatzgruppen". Das Kind der Sandbox **erhebt** beides und
@@ -49,10 +50,38 @@ zeigen, dass sie **nicht angeschlagen hat**. Der Lauf soll aber die Zahl sehen,
 und zwar je Vorgang, weil Punkt 15 gerade davon lebt, dass neben den Nullen
 etwas anderes als Null steht.
 
-**Zu tun, vor dem Lauf:** Die beiden Werte gehören in das Ergebnis jeder
-`files.*`-Operation — nicht als Zierde, sondern weil ein Kriterium sie verlangt.
-Der Ort ist `Sandbox::parent()` (die Stelle, die sie heute verwirft) und
-`Files\Workspace::run()`, das sie durchreicht.
+**Gebaut, und der erste Entwurf war falsch.** Naheliegend war, den Beleg in
+`Files\Workspace::run()` an das Ergebnis der Sandbox zu hängen: eine Stelle für
+alle dreizehn Datei-Operationen, und damit die Bauform, die dieses Projekt
+überall verlangt. Gemessen trägt sie nicht — `files.list` und `files.extract`
+bauen aus dem Ergebnis ein **frisches** Feld-Array und geben nur einzelne Werte
+daraus weiter. Elf von dreizehn hätten gemeldet, zwei nicht, und keiner hätte es
+gesagt.
+
+> **Ein Beleg, den die Zwischenstelle weiterreichen muss, ist bei der ersten
+> Zwischenstelle weg, die ihn nicht kennt.**
+
+Der Beleg hängt deshalb nicht am Vorgang, sondern an der **Anfrage**:
+
+| Stelle | Aufgabe |
+|---|---|
+| `Sandbox::parent()` | erhebt und **prüft** ihn wie bisher, und reicht ihn zusätzlich heraus |
+| `Files\Workspace::run()` | nimmt den `Context` entgegen und meldet ihm, unter wem gelaufen wurde |
+| `Connection` | hängt ihn **einmal** an die Antwort, nachdem die Operation fertig ist |
+
+Damit kann keine Operation ihn verlieren, auch keine künftige. Im Ergebnis steht
+er als `ran_as`, und weil das Panel das Ergebnis des Agenten unverändert in
+`operations.result` ablegt, liest der Lauf ihn dort:
+
+```bash
+srvpanel tinker --execute='dump(App\Models\Operation::latest("id")->first()->result["ran_as"]);'
+```
+
+Erwartet: `['uid' => <uid des abos>, 'groups' => [<gid des abos>]]` — und **nie**
+eine 0. Der Wächter dazu ist `SandboxCredentialsTest`, mit fünf Brüchen in
+`tests/waechter-brechen.sh`; der wichtigste davon ist der harmloseste: eine
+Operation, die den Beleg *selbst* in ihr Ergebnis schreibt. Sie sieht richtig aus
+und macht die Regel wieder zu einer, die dreizehnmal befolgt werden muss.
 
 ### 0b. Punkt 1 und 2 werden nicht „abgewiesen", sondern normalisiert
 
@@ -381,9 +410,11 @@ weil gar nichts lief.
 | 14 | Jeder Datei-Vorgang meldet seine Zusatzgruppen | nur die des Abos, nie 0 |
 | 15 | Ein **gültiger** Vorgang derselben Art gelingt | Datei gelesen und geschrieben, Inhalt stimmt |
 
-13 und 14 sind heute nicht ablesbar — siehe 0a. **Ohne die Vorarbeit dort ist
-dieser Abschnitt nicht fahrbar**, und der Lauf darf ihn nicht als erfüllt
-abhaken.
+13 und 14 sind seit dem 18. August ablesbar (0a): Das Ergebnis jeder
+`files.*`-Operation trägt `ran_as`, und das Panel legt es unverändert in
+`operations.result` ab. Abgelesen wird es je Vorgang und nicht einmal am Ende —
+eine Grenze, die alles abweist, weil der Agent seit Punkt 4 gar nicht mehr
+antwortet, meldet dieselben Nullen wie eine, die hält.
 
 Punkt 15 ist der Nachbar der Nullen darüber und wird **nach jedem** Abschnitt
 wiederholt, nicht einmal am Ende: Eine Grenze, die alles abweist, weil der Agent

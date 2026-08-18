@@ -65,6 +65,27 @@ final class Connection
 
             $data = $op->execute($request['args'], $context);
 
+            /*
+             * **Der Beleg der Sandbox wird hier angehängt und nicht in der
+             * Operation.** `docs/51 §4` verlangt in Punkt 13 und 14, dass jeder
+             * Datei-Vorgang meldet, unter welcher `uid` und mit welchen Gruppen
+             * er lief; die Begründung für diesen Ort steht in
+             * {@see Context::recordRanAs()}.
+             *
+             * Kurz: Zwei der dreizehn Datei-Operationen bauen aus dem Ergebnis
+             * der Sandbox ein frisches Feld-Array. Ein Beleg, den sie
+             * weiterreichen müssten, wäre bei ihnen verschwunden — und bei der
+             * nächsten Operation, die ihr Ergebnis umbaut, wieder.
+             *
+             * > **Ein Beleg, den die Zwischenstelle weiterreichen muss, ist bei
+             * > der ersten Zwischenstelle weg, die ihn nicht kennt.**
+             */
+            $ranAs = $context->ranAs();
+
+            if ($ranAs !== null) {
+                $data[Context::RAN_AS] = $ranAs;
+            }
+
             $this->send(['type' => 'result', 'ok' => true, 'id' => $id, 'data' => $data]);
             $this->journal->write('result', ['ok' => true, 'op' => $request['op']]);
         } catch (AgentException $error) {

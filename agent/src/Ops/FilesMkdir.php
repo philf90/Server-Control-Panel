@@ -38,7 +38,7 @@ final class FilesMkdir implements Op
             throw AgentException::badRequest('Die Wurzel des Abonnements gibt es schon.');
         }
 
-        return $workspace->run(static function () use ($path): array {
+        return $workspace->run($context, static function () use ($path): array {
             if (Entry::of($path) !== null) {
                 throw AgentException::badRequest('Dort steht schon etwas.', ['path' => $path]);
             }

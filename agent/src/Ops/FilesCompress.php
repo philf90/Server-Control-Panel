@@ -76,7 +76,7 @@ final class FilesCompress implements Op
 
         $context->progress(10, 'packen');
 
-        $result = $workspace->run(static function () use ($sources, $target): array {
+        $result = $workspace->run($context, static function () use ($sources, $target): array {
             foreach ($sources as $source) {
                 if (Entry::of($source) === null) {
                     throw new AgentException(AgentException::NOT_FOUND, 'Die Quelle gibt es nicht.', ['path' => $source]);

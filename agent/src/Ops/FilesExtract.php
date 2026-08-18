@@ -46,7 +46,7 @@ final class FilesExtract implements Op
 
         $context->progress(10, 'Archiv prüfen');
 
-        $result = $workspace->run(static function () use ($path, $target): array {
+        $result = $workspace->run($context, static function () use ($path, $target): array {
             $entry = Entry::of($path);
 
             if ($entry === null) {

@@ -93,6 +93,7 @@ final class Sandbox
      * @param  callable():mixed  $work  Läuft im Kind, ohne Rechte, im Chroot.
      * @param  list<Socket|resource>  $close  Was das Kind geerbt hat und schliessen muss — allen voran der Socket des Agenten.
      * @param  string|null  $withGroup  Eine zusätzliche Gruppe für das Kind — siehe {@see child()}.
+     * @param  array{uid: int, groups: list<int>}|null  $ranAs  Wird gesetzt: unter welchen Kennungen das Kind wirklich lief.
      * @return mixed Was `$work` zurückgegeben hat.
      */
     public static function run(
@@ -101,6 +102,7 @@ final class Sandbox
         callable $work,
         array $close = [],
         ?string $withGroup = null,
+        ?array &$ranAs = null,
     ): mixed {
         $account = self::account($user);
         $account['extra_gid'] = self::groupId($withGroup);
@@ -111,6 +113,8 @@ final class Sandbox
         // Nach dem chroot kann das Kind keine Datei ausserhalb mehr öffnen —
         // auch keine für sein Ergebnis. Ein Deskriptor, der vorher da war,
         // bleibt gültig; ein Pfad, der vorher galt, nicht.
+        $ranAs = null;
+
         $pair = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
 
         if ($pair === false) {
@@ -136,7 +140,7 @@ final class Sandbox
 
         fclose($childSide);
 
-        return self::parent($pid, $parentSide);
+        return self::parent($pid, $parentSide, $ranAs);
     }
 
     /**
@@ -361,8 +365,11 @@ final class Sandbox
      * > Ein Fehlerweg, der selbst fehlschlagen kann, ist kein Fehlerweg.
      *
      * @param  resource  $side
+     * @param  array{uid: int, groups: list<int>}|null  $ranAs
+     *
+     * @param-out array{uid: int, groups: list<int>} $ranAs
      */
-    private static function parent(int $pid, $side): mixed
+    private static function parent(int $pid, $side, ?array &$ranAs): mixed
     {
         stream_set_blocking($side, false);
 
@@ -442,6 +449,32 @@ final class Sandbox
         if (($decoded['uid'] ?? 0) === 0 || in_array(0, $decoded['groups'] ?? [0], true)) {
             throw AgentException::execFailed('Die Sandbox meldet Rechte, die sie nicht haben darf.');
         }
+
+        /*
+         * **Und er wird weitergereicht, nicht nur geprüft.**
+         *
+         * Bis zum 18. August endete der Beleg hier: Die Prüfung darüber schlug
+         * an oder schlug nicht an, und die Zahlen fielen weg. `docs/51 §4`
+         * verlangt aber in Punkt 13 und 14, dass **jeder Datei-Vorgang** meldet,
+         * unter welcher `uid` und mit welchen Gruppen er lief — und eine
+         * Prüfung, die im Agenten sitzt, kann von aussen nur zeigen, dass sie
+         * nicht angeschlagen hat.
+         *
+         * Der Unterschied ist der zwischen „nichts ist schiefgegangen" und
+         * „so lief es". Punkt 15 des Kriteriums lebt genau davon: Die Nullen der
+         * abgewiesenen Angriffe bedeuten erst etwas, wenn daneben eine Zahl
+         * steht, die belegt, dass überhaupt jemand gelaufen ist.
+         *
+         * Gefunden beim Ausschreiben des Abnahmelaufs (`docs/61 §0a`) und nicht
+         * im Betrieb — der Lauf wäre an dieser Stelle stehengeblieben.
+         *
+         * > **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut
+         * > wie keine.**
+         */
+        $ranAs = [
+            'uid' => (int) $decoded['uid'],
+            'groups' => array_values(array_map(intval(...), (array) ($decoded['groups'] ?? []))),
+        ];
 
         return $decoded['value'] ?? null;
     }

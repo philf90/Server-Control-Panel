@@ -54,7 +54,7 @@ final class FilesWrite implements Op
             ]);
         }
 
-        return $workspace->run(static function () use ($path, $content): array {
+        return $workspace->run($context, static function () use ($path, $content): array {
             $existing = Entry::of($path);
 
             if ($existing !== null && $existing['type'] === 'directory') {

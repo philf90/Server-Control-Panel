@@ -52,7 +52,7 @@ final class FilesCopy implements Op
             ]);
         }
 
-        $result = $workspace->run(static function () use ($from, $to): array {
+        $result = $workspace->run($context, static function () use ($from, $to): array {
             if (Entry::of($from) === null) {
                 throw new AgentException(AgentException::NOT_FOUND, 'Die Quelle gibt es nicht.', ['from' => $from]);
             }

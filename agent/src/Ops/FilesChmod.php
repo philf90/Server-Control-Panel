@@ -76,7 +76,7 @@ final class FilesChmod implements Op
          * > **Eine Messung als root prüft nicht, was ein unprivilegierter
          * > Prozess darf.**
          */
-        return $workspace->run(static function () use ($path, $mode): array {
+        return $workspace->run($context, static function () use ($path, $mode): array {
             $entry = Entry::of($path);
 
             if ($entry === null) {

@@ -15177,3 +15177,47 @@ einen Versuch und nicht den Lauf. Debian war nie betroffen, weil
 
 Die Wiederholungen bleiben stehen: Sie kosten nichts und fangen den einzelnen
 ausgefallenen Rechner ab, den auch die Vorgabeliste enthalten kann.
+
+### Punkt 11 bekommt sein Messwerkzeug — und das Kriterium eine berichtigte Erwartung
+
+`docs/51 §4` verlangt für den Mandantenübergriff „**403** in allen 22, und zwar
+aus der Policy und nicht aus einem 404, das zufällig dasselbe verbirgt". Am
+Quelltext gelesen, bevor der Lauf fuhr: Der Code kann das nicht liefern.
+
+`ApplyTenancy` setzt `Tenancy::forAccount()`, und das klammert die Abfragen
+eines Kunden auf seine eigenen Abonnements — **vor** der Policy. Ein fremdes
+Abonnement ist damit schon bei der Auflösung von `{subscription}` unauffindbar,
+und das ergibt einen 404, bevor `can:browseFiles` überhaupt gefragt wird.
+
+Das ist die stärkere Antwort und nicht die schwächere: Ein 403 bestätigt die
+Existenz des fremden Abonnements, ein 404 nicht.
+
+> **Ein Kriterium, das eine Zahl vorschreibt, prüft die Zahl und nicht die
+> Wand.**
+
+Dasselbe ist in diesem Projekt schon zweimal passiert — `docs/38 §3` beim
+Kriterium für PostgreSQL, `docs/47 §15` beim Planschritt, der nicht fahrbar war.
+Das Kriterium lautet jetzt: **kein 2xx, und der Grund ist benennbar.**
+
+**`tests/mandant-messen.js`** ist der Lauf, und er läuft in der Konsole des
+Browsers statt als Test — dieselbe Begründung wie bei `srvpanel:acceptance-web`:
+Ein Test läuft gegen SQLite, einen erfundenen Agenten und eine Sitzung, die es
+so nicht gibt. Hier zählt die echte Route mit der echten Sitzung des echten
+Kunden, und die hat der Betreiber schon offen.
+
+**Er verändert nichts, und das ist keine Vorsicht, sondern die Messung selbst.**
+Der Rumpf wird weggelassen; jede verändernde Route scheitert damit an ihrer
+eigenen Prüfung — `422`. Genau dieser 422 ist der Beleg, dass die Autorisierung
+die eigene Kennung durchgelassen hat. Ohne diese Gegenprobe misst die Reihe eine
+Anmeldung, die nichts darf, und nicht eine Klammer, die trennt.
+
+**`TenancySweepTest` hält beide Listen gegeneinander.** Die 22 Routen stehen ein
+zweites Mal im Lauf, und zwei Listen, die dasselbe meinen, laufen auseinander —
+hier unbemerkt: Eine neue Route, die im Lauf fehlt, wird nicht gemessen, und er
+meldet trotzdem „alle gehalten".
+
+> **Ein Lauf, der zählt, was er kennt, misst sein Gedächtnis.**
+
+Drei Brüche im Bruchskript, und der dritte richtet den Wächter gegen sich
+selbst: Läuft sein Ausdruck über `routes/web.php` ins Leere, verglichen sich
+zwei leere Listen zu „gleich". Die Untergrenze zählt deshalb mit.

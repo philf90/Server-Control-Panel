@@ -8937,6 +8937,64 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ShortWriteTest passed
 
 echo
+echo "── TenancySweepTest: eine Route fehlt im Mandantenlauf ──"
+#
+# Eine Route, die der Lauf nicht kennt, wird nicht gemessen — und er meldet
+# trotzdem „alle gehalten". Punkt 11 des Abnahmekriteriums zählt Routen.
+vorher_datei tests/mandant-messen.js
+python3 - <<'PY2'
+p = 'tests/mandant-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace("    ['POST', '/files/chmod'],\n", '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/mandant-messen.js "Route fehlt im Mandantenlauf" &&
+pruefe "Route fehlt im Mandantenlauf" \
+  TenancySweepTest::test_the_sweep_covers_every_subscription_route failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TenancySweepTest passed
+
+echo
+echo "── TenancySweepTest: eine Route, die es nicht gibt ──"
+#
+# Ein Aufruf ins Leere antwortet mit 404 und sieht aus wie eine gehaltene
+# Grenze.
+vorher_datei tests/mandant-messen.js
+python3 - <<'PY2'
+p = 'tests/mandant-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "    ['GET', '/files'],\n",
+    "    ['GET', '/files'],\n    ['GET', '/files/gibtsnicht'],\n",
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/mandant-messen.js "Route im Lauf, die es nicht gibt" &&
+pruefe "Route im Lauf, die es nicht gibt" \
+  TenancySweepTest::test_the_sweep_covers_every_subscription_route failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TenancySweepTest passed
+
+echo
+echo "── TenancySweepTest: der Ausdruck über routes/web.php trifft nichts ──"
+#
+# Der Wächter gegen sich selbst: Läuft sein Ausdruck ins Leere, verglichen sich
+# zwei leere Listen zu „gleich" — grün, ohne etwas gesehen zu haben.
+vorher_datei tests/Unit/TenancySweepTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/TenancySweepTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('/subscriptions/\\{subscription\\}', '/abos/\\{subscription\\}', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Unit/TenancySweepTest.php "Ausdruck trifft keine Route mehr" &&
+pruefe "Ausdruck trifft keine Route mehr" \
+  TenancySweepTest::test_the_sweep_covers_every_subscription_route failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TenancySweepTest passed
+
+echo
 echo "── ShortWriteTest: files.write prüft nur auf false ──"
 #
 # Bei voller Quota meldet der Aufruf die Zahl der geschriebenen Bytes und nicht

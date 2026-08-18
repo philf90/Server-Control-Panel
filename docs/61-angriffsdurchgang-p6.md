@@ -508,13 +508,55 @@ der 22 Routen mit `{subscription}` die Kennung von Abonnement 2 einsetzen:
 …/cron/<JOB>/runs
 ```
 
-Erwartet scharf: **403 in allen 22**, und zwar aus der Policy und nicht aus einem
-404, das zufällig dasselbe verbirgt. Erwartet stumpf-B: unverändert 403 — die
-Mandantenklammer ist **nicht** eine der beiden Wände aus §1, und dass sie in
-beiden Bauten hält, ist der Beleg dafür, dass hier nichts vermischt wurde.
+**Die Erwartung „403 in allen 22" ist beim Ausschreiben berichtigt worden**, und
+zwar am Quelltext, bevor der Lauf fuhr. `docs/51 §4` verlangt „403 …, und zwar
+aus der Policy und nicht aus einem 404, das zufällig dasselbe verbirgt". Der
+Code kann das nicht liefern:
 
-Die eigene Kennung in derselben Route muss **gelingen**; sonst misst die Reihe
-403er, die es auch ohne Klammer gäbe.
+```
+ApplyTenancy → Tenancy::forAccount() → restrictTo(accessibleSubscriptionIds)
+```
+
+Die Klammer sitzt **vor** der Policy. Für einen Kunden ist ein fremdes
+Abonnement schon bei der Auflösung von `{subscription}` unauffindbar — das
+ergibt einen **404**, bevor `can:browseFiles` gefragt wird.
+
+Das ist die stärkere Antwort und nicht die schwächere: Ein 403 bestätigt die
+Existenz des fremden Abonnements, ein 404 nicht.
+
+> **Ein Kriterium, das eine Zahl vorschreibt, prüft die Zahl und nicht die
+> Wand.**
+
+**Gemessen wird deshalb: kein 2xx, und der Grund ist benennbar** — 404 aus der
+Klammer oder 403 aus der Policy. Erwartet stumpf-B: unverändert, die
+Mandantenklammer ist **nicht** eine der beiden Wände aus §1.
+
+**Die eigene Kennung in derselben Route muss durchkommen**, sonst misst die
+Reihe eine Anmeldung, die nichts darf, und nicht eine Klammer, die trennt.
+Sichtbar wird das an einem `422`: Der Rumpf wird weggelassen, also scheitert
+jede verändernde Route an ihrer eigenen Prüfung — **nachdem** die Autorisierung
+sie durchgelassen hat. Das ist zugleich der Grund, warum der Lauf nichts
+verändert.
+
+**Gefahren wird er als `tests/mandant-messen.js`** in der Konsole des Browsers,
+angemeldet als der Kunde von EIGEN:
+
+```js
+await mandantMessen({ eigen: <EIGEN>, fremd: <FREMD> })
+```
+
+**Vier der 22 Routen tragen einen zweiten Parameter** (`{job}`, `{key}`). Ohne
+eine echte Kennung dafür kann der 404 auch von dessen Auflösung kommen, und der
+Lauf schreibt das in seine Spalte `eindeutig`. Wer sie eindeutig will, gibt
+echte mit:
+
+```js
+await mandantMessen({ eigen: <EIGEN>, fremd: <FREMD>, eigenJob: <ID>, fremdJob: <ID> })
+```
+
+`TenancySweepTest` hält die Routenliste des Laufs gegen `routes/web.php` — eine
+Route, die der Lauf nicht kennt, wird nicht gemessen, und er meldete trotzdem
+„alle gehalten".
 
 **Punkt 12 — die volle Quota.** Das Kontingent des Wegwerf-Abonnements klein
 setzen, dann eine Datei schreiben, die nicht mehr hineinpasst.

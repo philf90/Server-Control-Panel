@@ -75,14 +75,22 @@ liest ihn dort, und nicht in der Datenbank:
 
 ```bash
 # Ein Datei-Vorgang auslösen: im Panel den Dateimanager eines Abonnements
-# öffnen. Danach die letzten Ergebniszeilen des Agenten ansehen:
-sudo grep '"kind":"result"' /var/log/srvpanel/agent.log | tail -8
+# öffnen. Danach — und **mit** dem Filter auf `files.`, siehe unten:
+sudo grep '"op":"files\.' /var/log/srvpanel/agent.log | tail -8
+
+# Und die Gegenprobe daneben: eine Operation, die nicht durch die Sandbox
+# geht. Ohne sie steht die Zahl allein da.
+sudo grep '"op":"system.info"' /var/log/srvpanel/agent.log | tail -1
 ```
 
-Erwartet: bei jedem `files.*` ein `{"uid": …, "groups": [...]}` mit der Kennung
-des Abonnements — und **nie** eine 0. Bei allem, was nicht durch die Sandbox
-geht, fehlt das Feld ganz; das ist nicht Beifang, sondern der Nachbar, der die Zahl
-bedeutungsvoll macht.
+Erwartet: bei jedem `files.*` ein `"ran_as":{"uid":…,"groups":[…]}` mit der
+Kennung des Abonnements — und **nie** eine 0. In der Zeile der Gegenprobe fehlt
+das Feld ganz.
+
+**Die Gegenprobe gehört dazu und ist nicht Beifang.** Der Filter auf `files.`
+nimmt genau die Zeilen weg, an denen man sieht, dass das Feld nicht überall
+steht — und eine Angabe, die überall gleich aussieht, sagt nichts darüber, dass
+sie gemessen wurde.
 
 > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
 > steht.**
@@ -117,6 +125,18 @@ Mandantenklammer.
 
 > **Zwischen der Frage und der Antwort gehören so wenige Schichten wie möglich
 > — und keine, die bei einem Fehler schweigt.**
+
+**Und der Filter ist nicht Bequemlichkeit, sondern Bedingung.** Der erste
+Entwurf hier las `grep '"kind":"result"' … | tail -8`, und auf `cloudsrv24`
+kamen acht Zeilen `system.info` zurück und sonst nichts: Der
+Kennzahlen-Sammler fragt den Agenten **alle zehn Sekunden**, also decken acht
+Ergebniszeilen achtzig Sekunden ab. Was der Dateimanager davor geschrieben
+hatte, war längst darüber hinaus.
+
+> **Ein `tail` über ein Protokoll mit Herzschlag misst den Herzschlag.**
+
+Dasselbe gilt für jede andere Stelle dieses Laufs, die in dieses Protokoll
+sieht: erst auf die Operation filtern, dann `tail`.
 
 Der Wächter dazu ist `SandboxCredentialsTest`, mit fünf Brüchen in
 `tests/waechter-brechen.sh`; der wichtigste davon ist der harmloseste: eine

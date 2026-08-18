@@ -14602,6 +14602,17 @@ zweiten Mal in derselben Kette:
 Anfrage und für jede Operation: dauerhaft, ohne Datenbank, ohne psysh und ohne
 Mandantenklammer. `docs/61 §0a` liest ihn dort.
 
+**Und der dritte Anlauf des Ableseschritts ist an einem Herzschlag gescheitert.**
+`grep '"kind":"result"' … | tail -8` gab auf `cloudsrv24` acht Zeilen
+`system.info` zurück und sonst nichts: Der Kennzahlen-Sammler fragt den Agenten
+alle zehn Sekunden, also decken acht Ergebniszeilen achtzig Sekunden ab.
+
+> **Ein `tail` über ein Protokoll mit Herzschlag misst den Herzschlag.**
+
+Der Schritt filtert seitdem auf die Operation — **und führt die Gegenprobe
+daneben**, denn genau dieser Filter nimmt die Zeilen weg, an denen zu sehen ist,
+dass das Feld nicht überall steht.
+
 **Und der erste Wurf war auf `files.*` zugeschnitten — auch das war zu eng.**
 `Filesystem::removeInside()` und `Filesystem::purgeContents()` gehen genauso durch
 die Sandbox, und sie sind der **Baumlauf**, gegen den Punkt 6 des

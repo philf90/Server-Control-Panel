@@ -457,7 +457,7 @@ kann `cronie` oder `systemd-cron` tragen, und **`systemd-cron` liest
 Abnahmelauf von Schritt 9, vor jeden anderen — er entscheidet, ob die Bauart
 überhaupt trägt.
 
-### Für `cloudsrv24` ist er am 18. August beantwortet
+### Für `cloudsrv24` ist er am 18. August beantwortet — und die ganze Runde dazu
 
 Gemessen am Server und nicht am Archiv:
 
@@ -477,6 +477,41 @@ angenommen zu werden — der Unterschied, um den es in `docs/44` ging.
 **Drei Plattformen bleiben offen**, und der Satz oben gilt für sie unverändert:
 Debian 12, Debian 13 und die zweite Ubuntu-Reihe sind weiter ungemessen. Eine
 Maschine ist kein Beleg über vier.
+
+#### Und die zweiunddreissig Messungen sind dort gefahren worden
+
+`tests/cron-messen.sh` lief am 18. August auf `cloudsrv24`, ab 11:20 Ortszeit
+(CEST), und endete mit **32 Messungen wie erwartet, 0 abweichend**. Damit steht
+dieses Dokument nicht mehr auf einem Wegwerf-Dienst im Entwicklungscontainer,
+sondern auf der Maschine, für die es geschrieben ist.
+
+Deckungsgleich mit dem Container, Wert für Wert:
+
+| | Container | `cloudsrv24` |
+|---|---|---|
+| Shell, die cron benutzt | `/usr/bin/dash` | `/usr/bin/dash` |
+| Anzahl Umgebungsvariablen | 7 | 7 |
+| `PATH` | `/usr/local/bin:/usr/bin:/bin` | dasselbe |
+| Job in der ausgefallenen Spanne | lief | lief |
+| Läufe in der doppelten Spanne | **1** | **1** |
+| 10001 Zeilen: Jobzeile läuft | ja | ja |
+| `CRON_TZ=UTC` verschiebt den Zeitplan | nein | nein |
+| Einschleusung in der rohen Datei: zweite Zeile als `root` | läuft | läuft |
+| Entwurf mit `.cmd`: zweite Zeile wird zum Zeitplan | nein | nein |
+
+**Zwei Zahlen weichen ab, und zwar erwartbar:** Die Wartezeit bis zum ersten
+Lauf war im Container 51 s (neue Datei) und 60 s (geänderte), auf `cloudsrv24`
+**19 s** und **61 s**. Sie hängt davon ab, wo in der Minute die Datei landet;
+die Aussage „bis zu 60 Sekunden, und `gespeichert` ist nicht `gilt`" trägt in
+beiden Läufen.
+
+> **Eine Zahl, die vom Zeitpunkt abhängt, ist keine Konstante — die Aussage
+> darüber schon.**
+
+**Der Lauf davor, am selben Tag, hat nichts gemessen** und es nicht gesagt: cron
+war an der Sperrdatei gestorben, und die Meldung lautete „15 Messungen wie
+erwartet, 17 abweichend". Was das Skript seitdem anders macht, steht in
+§13 weiter unten und in `tests/cron-messen.sh` selbst.
 
 Ebenfalls offen und ausdrücklich benannt:
 

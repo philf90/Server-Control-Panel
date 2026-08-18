@@ -14731,7 +14731,17 @@ Drei Behebungen, jede einzeln gemessen:
 
 **Für `cloudsrv24` ist das am 18. August gemessen:** `cron 3.0pl1-184ubuntu2`,
 `cron.service` aktiv und enabled, kein `cronie` und kein `systemd-cron` —
-zeichengleich die Fassung, gegen die `docs/60` gemessen hat. Die zweiunddreissig
-Messungen dort gelten damit für diese Maschine, statt für sie angenommen zu
-werden. **Drei Plattformen bleiben offen**; eine Maschine ist kein Beleg über
-vier.
+zeichengleich die Fassung, gegen die `docs/60` gemessen hat.
+
+**Und die zweiunddreissig Messungen sind dort selbst gefahren worden**: `32 wie
+erwartet, 0 abweichend`, Wert für Wert deckungsgleich mit dem Container — Shell,
+Umgebungsvariablen, `PATH`, der Lauf in der ausgefallenen Spanne und, für
+Sicherungen der wichtigste, **genau ein Lauf in der doppelten Spanne**. Zwei
+Zahlen weichen erwartbar ab: die Wartezeit bis zum ersten Lauf (19 s statt 51 s,
+61 s statt 60 s), denn sie hängt davon ab, wo in der Minute die Datei landet.
+
+> **Eine Zahl, die vom Zeitpunkt abhängt, ist keine Konstante — die Aussage
+> darüber schon.**
+
+Damit steht `docs/60` nicht mehr auf einem Wegwerf-Dienst im Container.
+**Drei Plattformen bleiben offen**; eine Maschine ist kein Beleg über vier.

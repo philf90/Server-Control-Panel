@@ -14700,6 +14700,17 @@ bei nicht eingecheckter Arbeit in den drei Dateien, denn sein Rückweg führt ü
 > **Ein Rückweg, der über `git checkout` führt, ist für alles ein Rückweg, was
 > dort steht — nicht nur für den eigenen Eingriff.**
 
+**Der Durchgang läuft, und `docs/62` ist das Protokoll.** Neun der fünfzehn
+Punkte sind auf `cloudsrv24` gegen `v0.6.0-rc.15` gemessen: die beiden
+Pfad-Angriffe mit der Antwort auf die Frage „welche Wand hält" (das Chroot, nicht
+die Normalisierung), die beiden Symlink-Punkte, das Rennen mit **0 von 30 000**
+gegen 6407/4409/5646 in der stumpfen Fassung, der Rückbau mit 0 von 60, die
+Cron-Einschleusung, `ran_as` und der gültige Vorgang.
+
+**Sechs Punkte stehen dort einzeln als offen** — Punkt 5, 7, 8, 11, 12 und die
+scharfe Hälfte von 9/10. Ein Protokoll ohne seine Lücken liest sich wie eine
+Abnahme, und P6 ist damit nicht abgenommen.
+
 **Und die drei Läufe auf `cloudsrv24` haben nichts gemessen — dreimal dieselbe
 Ausgabe.** Die Eingriffe treffen `Files\Workspace`; Abschnitt 4 von
 `tests/sandbox-messen.php` ruft aber `Sandbox::run()` unmittelbar auf und kommt

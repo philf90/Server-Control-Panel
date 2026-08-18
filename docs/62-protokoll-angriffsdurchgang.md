@@ -1,0 +1,150 @@
+# 62 — Das Protokoll des Angriffsdurchgangs (P6, Schritt 11)
+
+Der Lauf steht in `docs/61`. Dieses Protokoll entsteht **während** er gefahren
+wird, und es ist am 18. August 2026 angelegt worden, als die ersten Punkte
+gemessen waren — nicht vorher, denn ein Verweis auf ein Dokument ohne Inhalt ist
+ein toter Verweis.
+
+**Es ist unvollständig, und das steht in §3.** Von den zwölf Angriffen und drei
+Belegen aus `docs/51 §4` sind neun gemessen; sechs sind offen. Ein Protokoll,
+das seine Lücken nicht nennt, liest sich wie eine Abnahme.
+
+| | |
+|---|---|
+| Maschine | `cloudsrv24` |
+| Panel | `v0.6.0-rc.15` |
+| Prüfstand | `main` ab `9cbf55f` (Klon unter `/root/srvpanel-abnahme`) |
+| PHP | 8.4.24, alle vierzehn Funktionen der Sandbox vorhanden |
+| Kernel | Linux 6.8.0-138-generic |
+
+---
+
+## 1. Was gemessen ist
+
+### Punkt 1 und 2 — `..` und der absolute Pfad
+
+**Erfüllt, und zwar anders als der Plan es schrieb.** `docs/51 §4` verlangte
+„abgewiesen"; gemessen wird ein harmloser Erfolg. `Files\Workspace::path()`
+normalisiert, statt zurückzuweisen — die Begründung steht in `docs/61 §0b`.
+
+Der Weg der Operation (Abschnitt 4b des Prüfstands), in drei Bauten:
+
+| Bau | Normalisierung / eigener Prozess | Ergebnis |
+|---|---|---|
+| scharf | ja / ja | dreimal `haelt` |
+| stumpf-A (ohne Normalisierung) | nein / ja | dreimal `haelt` |
+| stumpf-B (ohne Chroot) | ja / nein | **AUSBRUCH, 3 von 3** |
+
+**Die mittlere Zeile ist die Aussage dieses Punktes.** Dass der Angriff auch
+ohne die Normalisierung nichts erreicht, ist der Beleg dafür, dass nicht sie ihn
+hält, sondern das Chroot. Wer nur scharf misst, kann die beiden Wände nicht
+auseinanderhalten.
+
+> **Eine Gegenprobe, die zwei Wände zugleich wegnimmt, sagt über keine von
+> beiden etwas.**
+
+### Punkt 3 und 4 — Symlink lesen, Symlink auflisten
+
+**Erfüllt.** Abschnitt 4 des Prüfstands, jeder Fall mit seiner Gegenprobe: Der
+scharfe Zugriff liefert nichts, der stumpfe (derselbe Zugriff ohne Sandbox, als
+root) liefert den Inhalt. Fünf Zeilen, alle `haelt`.
+
+Mitgemessen und nicht im Kriterium: `conf/` (`root:root 0640`) bleibt für den
+Kunden unlesbar — dort hält nicht das Chroot, sondern das Dateisystem.
+
+### Punkt 6 — der Tausch während des Vorgangs
+
+**Erfüllt.** Der Angreifer aus `docs/50 §3`, vier Prozesse, `renameat2` mit
+`RENAME_EXCHANGE` — die Zeile „Tauschverfahren: renameat2(RENAME_EXCHANGE),
+atomar" steht in allen drei Läufen, also ist FFI da und der Angreifer der
+scharfe.
+
+| | scharf | stumpf |
+|---|---|---|
+| Treffer ausserhalb, 30 000 Runden | **0** | 6407 / 4409 / 5646 |
+
+Drei Läufe, drei verschiedene stumpfe Zahlen — und die Null bleibt Null.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+**Und der Rückbau dazu** (Abschnitt 6): 0 von 60 Durchgängen treffen etwas
+ausserhalb; die stumpfe Fassung trifft nach 12, 1 und 25 Durchgängen.
+
+### Punkt 9 und 10 — die Einschleusung in die Cron-Zeile
+
+**Erfüllt, gemessen im Cron-Lauf** (`docs/60 §13`, 18. August, 32 zu 0):
+
+| | |
+|---|---|
+| rohe Zeile mit eingeschleustem `root` | **läuft** — der Angriff ist gut gezielt |
+| dieselbe Einschleusung in der Bauart des Panels (`.cmd`) | **läuft nicht** |
+| `%` im Befehl | bleibt stehen, der Befehl wird nicht abgeschnitten |
+
+Die erste Zeile ist die Gegenprobe: Ohne sie wäre die zweite kein Beleg.
+
+**Offen bleibt die scharfe Hälfte durch das echte Panel** — siehe §3.
+
+### Punkt 13 und 14 — unter wem der Vorgang lief
+
+**Erfüllt, seit `v0.6.0-rc.15`.** Abgelesen im Protokoll des Agenten:
+
+| Operation | `ran_as` |
+|---|---|
+| `files.tree`, `files.list` (Benutzer `p1136`) | `{"uid":1001,"groups":[1001]}` |
+| `subscription.remove` (Benutzer `p1138`) | `{"uid":1002,"groups":[1002]}` |
+| `system.info` (Gegenprobe) | **kein Feld** |
+
+Zwei Abonnements ergeben zwei Kennungen — eine Konstante sähe gleich aus.
+
+**Halb offen:** Dass `1001` die Kennung von `p1136` ist, sagt `id` und nicht das
+Protokoll. „Nicht null" ist die eine Hälfte von Punkt 13.
+
+### Punkt 15 — ein gültiger Vorgang gelingt
+
+**Erfüllt**, in jedem Lauf und vor allen Nullen: Abschnitt 3 liest eine gültige
+Datei („innen") unter `uid=1002`, Gruppe 1002.
+
+---
+
+## 2. Was der Lauf über sich selbst gelernt hat
+
+**Die ersten drei Läufe haben nichts gemessen, und sie sahen aus wie eine
+Messung.** `stumpf.sh a` und `b` patchen `Files\Workspace`; Abschnitt 4 des
+Prüfstands ruft `Sandbox::run()` unmittelbar auf und kommt dort nie vorbei. Die
+drei Logs waren Zeile für Zeile identisch.
+
+`stumpf.sh --pruefen` meldete dabei zu Recht „ist stumpf" — es hatte die Wand
+geöffnet und nachgewiesen, dass sie offen ist. Nur ging niemand hindurch.
+
+> **Ein Nachweis, dass der Eingriff wirkt, sagt nichts darüber, dass der
+> Prüfkörper dort vorbeikommt.**
+
+Daraus sind vier Änderungen entstanden, alle in `9cbf55f`:
+
+1. Abschnitt **4b** nimmt den Weg einer echten Operation.
+2. Der Prüfstand **nennt den Bau**, aus dem er kommt — erkannt am Verhalten.
+   Drei Läufe, die das nicht tun, sind ein Log dreimal.
+3. **`stumpf-c` ist weggefallen**: Durch die Cron-Wand geht kein Prüfkörper.
+4. Ein Wächter hält den Bezug fest, damit das nicht wiederkommt.
+
+---
+
+## 3. Was offen ist
+
+**Sechs von fünfzehn Punkten sind ungemessen.** Sie stehen hier einzeln, weil
+ein Protokoll ohne seine Lücken sich wie eine Abnahme liest.
+
+| # | offen, weil |
+|---|---|
+| 5 | Symlink auf `/etc/shadow` **überschreiben** — der Prüfstand liest nur, er schreibt nicht |
+| 7, 8 | Archive mit `../` und mit absolutem Pfad — im Prüfstand nicht gebaut |
+| 11 | Mandantenübergriff über alle 22 Routen — braucht zwei Wegwerf-Abonnements und das echte Panel |
+| 12 | volle Quota — Fehlerweg des Vorgangs |
+| 9, 10 (scharf) | die Einschleusung durch das **echte Panel**; gemessen ist bisher der Prüfkörper daneben |
+
+Dazu die halbe Hälfte von Punkt 13 (`id p1136`), und aus `docs/61 §0`:
+`/var/lib/srvpanel` gehört auf dieser Maschine `root:root 0755` statt
+`srvpanel:srvpanel 0750`, wie `nfpm.yaml` es deklariert.
+
+**Damit ist P6 nicht abgenommen**, und `v0.6.0` kommt danach und nicht davor.

@@ -633,7 +633,25 @@ dieses Containers aufs Pixel stimmt · **`57` die Messrunde vor Schritt 8** ·
 **`58` der Lauf für den SFTP-Zugang** — dreizehn Punkte, mit der berichtigten
 Messvorschrift in §12 — und **`59` das Protokoll dazu**: zweiundzwanzig Befunde
 mit ihren Lehren, die beiden Durchgänge Punkt für Punkt und am Ende, was offen
-bleibt.
+bleibt · **`60` die Messrunde vor Schritt 9** (Cron), zweiunddreissig Messungen
+gegen einen Wegwerf-cron im Container · und **`61` der Angriffsdurchgang** —
+Schritt 11 und damit das Abnahmekriterium der ganzen Stufe.
+
+**`61 §0` ist der Teil, der vor dem Lauf gelesen wird und nicht währenddessen:**
+vier Vorarbeiten, gefunden beim Ausschreiben am Quelltext. Zwei davon würden ein
+falsches Grün erzeugen — die Punkte 13 und 14 des Kriteriums sind von aussen gar
+nicht ablesbar, weil `Sandbox::parent()` `uid` und `groups` prüft und dann
+verwirft, und der Angreifer zu Punkt 6 fällt ohne FFI auf ein Verfahren zurück,
+das in `docs/50 §3` in 20 000 Runden null Mal traf.
+
+Und **§1 ist die Lehre, die über diesen Lauf hinausgeht:** Zwischen einem Pfad
+aus dem Formular und einer Datei stehen **zwei** Wände — die Normalisierung in
+`Workspace::path()` und das `chroot`+`setuid` der Sandbox. Eine stumpfe Fassung,
+die an beiden zugleich vorbeigreift, beantwortet „hätte der Angriff getroffen?"
+und nicht „welche Wand hat ihn gehalten?".
+
+> **Eine Gegenprobe, die zwei Wände zugleich wegnimmt, sagt über keine von
+> beiden etwas.**
 
 **Der Lauf ist gefahren — am 12. August 2026, gegen `0.5.3-rc.1` und ab Punkt 7
 gegen `0.5.3-rc.2`.** Sechs Kriterien erfüllt, das siebte (das Protokoll) benannt

@@ -14472,6 +14472,108 @@ zurück stand als Absatz unter dem Bereichshinweis, und `.section-note` bringt
 keinen Rand nach unten mit. Er steht jetzt im `#breadcrumb`-Platz, wie auf den
 sechzehn anderen Seiten, die einen haben.
 
+### P6 Schritt 11 vorbereitet — `docs/61`, und vier Vorarbeiten, die der Plan nicht kannte
+
+Der Angriffsdurchgang ist das Abnahmekriterium von P6 (`docs/51 §4`): zwölf
+Angriffe und drei Belege, gefahren gegen ein echtes Abonnement und **zweimal** —
+scharf und gegen ein Panel, dem die Schranke genommen wurde. Der Lauf steht
+jetzt als `docs/61` ausgeschrieben, mit pastefähigen Befehlen.
+
+**Beim Ausschreiben sind vier Dinge am Quelltext gefunden worden, die der Lauf
+nicht überstanden hätte** — zwei davon hätten ein falsches Grün erzeugt:
+
+1. **Die Punkte 13 und 14 des Kriteriums sind von aussen nicht ablesbar.** Das
+   Kind der Sandbox erhebt `uid` und `groups` und schickt beides zurück;
+   `Sandbox::parent()` prüft sie und gibt dann nur `value` weiter. Was da ist,
+   ist eine Prüfung und kein Beleg — und eine Prüfung im Agenten kann nur
+   zeigen, dass sie nicht angeschlagen hat.
+
+   > **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+   > keine.**
+
+2. **Die Punkte 1 und 2 werden nicht abgewiesen, sondern normalisiert.**
+   `Files\Workspace::path()` popt bei `..` das vorige Glied; aus
+   `../../etc/passwd` wird `/etc/passwd`, und das bezeichnet im Chroot die Datei
+   des Abonnements. Erwartet ist also kein Fehler, sondern ein harmloser Erfolg.
+   Ein Lauf, der hier auf eine Fehlermeldung wartet, meldet einen Fehlbefund
+   über eine Abwehr, die tut, was sie soll.
+
+3. **Der Angreifer zu Punkt 6 hängt an FFI.** Ohne `FFI` fällt
+   `tests/sandbox-messen.php` von `renameat2(RENAME_EXCHANGE)` auf
+   `unlink`/`symlink` zurück — und der schwache Angreifer traf in `docs/50 §3`
+   in 20 000 Runden **null Mal**. Dieselbe Null wie eine gehaltene Grenze.
+
+4. **Ein Kommentar nannte den Wert des Plans statt den der Platte.**
+   `CronFile::COMMAND_DIR` trug „je Job eine Datei, `root:root 0640`" — gebaut
+   ist `root:<gruppe des abos> 0640`, weil `cron-run` als der Kunde läuft und an
+   eine Datei `root:root 0640` nicht herankommt. Berichtigt, bevor ein
+   Abnahmelauf ihn abliest.
+
+   > **Ein Kommentar, der eine Rechteangabe nennt, ist eine Behauptung über die
+   > Platte und keine über die Absicht.**
+
+### Punkt 13 und 14 des Abnahmekriteriums sind jetzt messbar — und der erste Entwurf war falsch
+
+`docs/51 §4` verlangt, dass **jeder** Datei-Vorgang meldet, unter welcher `uid`
+und mit welchen Gruppen er lief. Das Kind der Sandbox erhob beides seit P6
+Schritt 1 und schickte es durch das Socketpaar zurück; `Sandbox::parent()`
+prüfte es — und warf die Zahlen dann weg. Was da war, war eine Prüfung und kein
+Beleg, und eine Prüfung im Agenten kann von aussen nur zeigen, dass sie nicht
+angeschlagen hat.
+
+**Der naheliegende Bau war der falsche.** Der Beleg gehörte scheinbar an das
+Ergebnis der Sandbox, angehängt in `Files\Workspace::run()` — eine Stelle für
+alle dreizehn Datei-Operationen, also genau die Bauform, die dieses Projekt
+sonst verlangt. Gemessen trägt sie nicht: `files.list` und `files.extract` bauen
+aus dem Ergebnis ein **frisches** Feld-Array und geben nur einzelne Werte daraus
+weiter. Elf von dreizehn hätten gemeldet, zwei nicht, und keiner hätte es gesagt.
+
+> **Ein Beleg, den die Zwischenstelle weiterreichen muss, ist bei der ersten
+> Zwischenstelle weg, die ihn nicht kennt.**
+
+Er hängt deshalb nicht am Vorgang, sondern an der **Anfrage**: `Sandbox::parent()`
+reicht ihn heraus (und prüft ihn weiterhin), `Workspace::run()` meldet ihn dem
+`Context`, und `Connection` hängt ihn **einmal** an die Antwort, nachdem die
+Operation fertig ist. Dort kann keine ihn mehr verlieren, auch keine künftige.
+Im Ergebnis steht er als `ran_as` und landet unverändert in
+`operations.result`.
+
+Dazu die Regel, die vorher nirgends stand: **Zwei verschiedene Konten in einer
+Anfrage sind ein Fehler** und kein Sonderfall — liefe ein Vorgang zweimal unter
+verschiedenen Kennungen, wäre die Frage „unter wem lief er?" nicht mehr
+beantwortbar, und das ist die einzige Frage, die dieser Beleg hat.
+
+**Wächter:** `SandboxCredentialsTest` (sechs Fälle, fünf Brüche). Der wichtigste
+Bruch ist der harmloseste: eine Operation, die den Beleg *selbst* in ihr Ergebnis
+schreibt. Sie sieht richtig aus und macht die Regel wieder zu einer, die
+dreizehnmal befolgt werden muss.
+
+**Und `BreakScriptTest` hat dabei zwei eigene Eingriffe gefangen.** Die
+Signatur von `Workspace::run()` hat einen Parameter bekommen, und damit fanden
+zwei ältere Brüche ihren Text in `FilesRemove` und `FilesTree` nicht mehr — sie
+hätten ab jetzt nichts mehr geändert und wären grün geblieben.
+
+> **Ein Eingriff, der nichts ändert, prüft nichts — und sieht dabei aus, als
+> wäre die Regel abgesichert.**
+
+**Und die Entscheidung, die `docs/61 §1` trägt:** Zwischen einem Pfad aus dem
+Formular und einer Datei stehen **zwei** Wände — die Normalisierung in
+`Workspace::path()` (eine Prüfung, in PHP geschrieben) und `chroot` plus
+`setuid` in der Sandbox (eine Schranke, vom Kernel gehalten). Die stumpfe
+Fassung wird deshalb in zwei Spielarten gebaut und nimmt sie **einzeln** weg.
+
+> **Eine Gegenprobe, die zwei Wände zugleich wegnimmt, sagt über keine von
+> beiden etwas.**
+
+Das ist zugleich der Punkt, an dem `tests/sandbox-messen.php` nicht ausreicht:
+Seine stumpfe Fassung ist derselbe Zugriff ohne Sandbox, also an beiden Wänden
+vorbei. Als Gegenprobe für die Sandbox ist das richtig; für den
+Angriffsdurchgang ist es zu grob.
+
+Und die stumpfe Fassung ist ein **Bau** und kein Schalter: Eine Umgebungsvariable,
+die die Schranke abschaltet, wäre ein dauerhaftes Loch im ausgelieferten Code,
+und der Abnahmelauf hätte es selbst hineingebaut.
+
 **Was offen bleibt und benannt ist:** Welcher Cron-Dienst auf den vier
 Zielplattformen installiert und **aktiv** ist, ist weiter ungemessen. `docs/50 §7`
 hat nur das Archiv geprüft, und `systemd-cron` liest `/etc/cron.d` mit einer

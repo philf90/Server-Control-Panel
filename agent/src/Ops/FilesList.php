@@ -44,7 +44,7 @@ final class FilesList implements Op
         $workspace = Workspace::fromArgs($args);
         $path = Workspace::path($args['path'] ?? '/');
 
-        $result = $workspace->run(static function () use ($path): array {
+        $result = $workspace->run($context, static function () use ($path): array {
             if (! is_dir($path)) {
                 throw is_file($path) || is_link($path)
                     ? AgentException::badRequest('Das ist kein Verzeichnis.', ['path' => $path])

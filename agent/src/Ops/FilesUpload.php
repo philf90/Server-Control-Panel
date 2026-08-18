@@ -76,7 +76,7 @@ final class FilesUpload implements Op
         }
 
         try {
-            $result = $workspace->run(static function () use ($handle, $path, $size): array {
+            $result = $workspace->run($context, static function () use ($handle, $path, $size): array {
                 $directory = dirname($path);
 
                 if (! is_dir($directory)) {

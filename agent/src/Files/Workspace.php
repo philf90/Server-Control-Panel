@@ -6,6 +6,7 @@ namespace SrvPanel\Agent\Files;
 
 use Socket;
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Guard;
 use SrvPanel\Agent\Ops\FilesList;
 use SrvPanel\Agent\Ops\SubscriptionProvision;
@@ -157,15 +158,38 @@ final class Workspace
     }
 
     /**
+    /**
      * Die Arbeit im Chroot ausführen, ohne Rechte.
+     *
+     * ## Und festhalten, unter wem sie lief
+     *
+     * `docs/51 §4` verlangt in Punkt 13 und 14, dass jeder Datei-Vorgang seine
+     * `uid` und seine Zusatzgruppen meldet. Bis zum 18. August tat das keiner:
+     * Die Sandbox erhob beides, prüfte es und verwarf es ({@see Sandbox}).
+     *
+     * **Der Beleg wird hier erhoben und nicht hier angehängt.** Die Begründung
+     * für die Trennung steht in {@see Context::recordRanAs()} — kurz: Zwei der
+     * dreizehn Operationen bauen aus dem Ergebnis der Sandbox ein frisches
+     * Feld-Array, und ein Beleg, den sie weiterreichen müssten, wäre bei ihnen
+     * verschwunden.
+     *
+     * Der {@see Context} ist deshalb kein Beiwerk an dieser Methode, sondern
+     * ihr zweiter Gegenstand: Sie führt die Arbeit aus **und** sagt der
+     * Anfrage, unter wem.
      *
      * @param  callable():mixed  $work
      * @param  list<Socket|resource>  $close
      * @param  string|null  $withGroup  Eine zusätzliche Gruppe für das Kind. Nur `files.chmod`
      *                                  verlangt eine; die Begründung steht in {@see Sandbox}.
      */
-    public function run(callable $work, array $close = [], ?string $withGroup = null): mixed
+    public function run(Context $context, callable $work, array $close = [], ?string $withGroup = null): mixed
     {
-        return Sandbox::run($this->root, $this->user, $work, $close, $withGroup);
+        $value = Sandbox::run($this->root, $this->user, $work, $close, $withGroup, $ranAs);
+
+        if ($ranAs !== null) {
+            $context->recordRanAs($ranAs);
+        }
+
+        return $value;
     }
 }

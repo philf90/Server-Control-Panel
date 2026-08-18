@@ -47,7 +47,7 @@ final class FilesRead implements Op
         $workspace = Workspace::fromArgs($args);
         $path = Workspace::path($args['path'] ?? null);
 
-        return $workspace->run(static function () use ($path): array {
+        return $workspace->run($context, static function () use ($path): array {
             $entry = Entry::of($path);
 
             if ($entry === null) {

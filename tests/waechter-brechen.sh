@@ -8417,6 +8417,103 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SandboxReachTest passed
 
 echo
+echo "── SandboxCredentialsTest: der Beleg fällt wieder unter den Tisch ──"
+#
+# docs/61 §0a. Das Kind der Sandbox erhebt uid und Gruppen und schickt beides
+# zurück; parent() prüfte sie und warf sie dann weg. Punkt 13 und 14 des
+# Abnahmekriteriums waren damit von aussen gar nicht messbar — gefunden hat es
+# kein Test, sondern das Ausschreiben des Laufs.
+vorher_datei agent/src/Sandbox.php
+python3 - <<'PY2'
+p = 'agent/src/Sandbox.php'
+s = open(p, encoding='utf-8').read()
+alt = 'return self::parent($pid, $parentSide, $ranAs);'
+assert s.count(alt) == 1, 'Die Zielzeile steht nicht genau einmal da: %d' % s.count(alt)
+s = s.replace(alt, 'return self::parent($pid, $parentSide, $vergessen);', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Sandbox.php "Beleg verlaesst die Sandbox nicht" &&
+pruefe "Beleg verlaesst die Sandbox nicht" \
+  SandboxCredentialsTest::test_the_sandbox_hands_the_credentials_out failed
+wiederherstellen
+
+echo
+echo "── SandboxCredentialsTest: eine Operation reicht den Context nicht durch ──"
+#
+# Zwölf melden, eine nicht — und keine sagt es. Genau die Bauart, wegen der der
+# Beleg nicht am Ergebnis der Operation hängt, sondern an der Anfrage.
+vorher_datei agent/src/Ops/FilesRead.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesRead.php'
+s = open(p, encoding='utf-8').read()
+alt = '$workspace->run($context, '
+assert s.count(alt) == 1, 'Die Zielzeile steht nicht genau einmal da: %d' % s.count(alt)
+s = s.replace(alt, '$workspace->run(', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/FilesRead.php "Operation ohne Context" &&
+pruefe "Operation ohne Context" \
+  SandboxCredentialsTest::test_every_file_operation_passes_the_request_along failed
+wiederherstellen
+
+echo
+echo "── SandboxCredentialsTest: die Antwort trägt ihn nicht mehr ──"
+vorher_datei agent/src/Connection.php
+python3 - <<'PY2'
+p = 'agent/src/Connection.php'
+s = open(p, encoding='utf-8').read()
+alt = '$data[Context::RAN_AS] = $ranAs;'
+assert s.count(alt) == 1, 'Die Zielzeile steht nicht genau einmal da: %d' % s.count(alt)
+s = s.replace(alt, '$data = $data;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Connection.php "Antwort ohne Beleg" &&
+pruefe "Antwort ohne Beleg" \
+  SandboxCredentialsTest::test_the_answer_carries_it_once_and_no_operation_builds_it failed
+wiederherstellen
+
+echo
+echo "── SandboxCredentialsTest: eine Operation baut ihn selbst ──"
+#
+# Der Eingriff, der am harmlosesten aussieht. Eine Operation, die den Beleg
+# selbst in ihr Ergebnis schreibt, ist richtig — und macht die Regel wieder zu
+# einer, die dreizehnmal befolgt werden muss.
+vorher_datei agent/src/Ops/FilesRead.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesRead.php'
+s = open(p, encoding='utf-8').read()
+alt = '    public function execute('
+assert s.count(alt) == 1, 'Die Zielzeile steht nicht genau einmal da: %d' % s.count(alt)
+s = s.replace(alt, "    public const RAN_AS = 'ran_as';\n\n" + alt, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/FilesRead.php "Operation baut den Beleg selbst" &&
+pruefe "Operation baut den Beleg selbst" \
+  SandboxCredentialsTest::test_the_answer_carries_it_once_and_no_operation_builds_it failed
+wiederherstellen
+
+echo
+echo "── SandboxCredentialsTest: zwei Konten in einer Anfrage ──"
+#
+# Ein Vorgang gehört zu einem Abonnement. Liefe er zweimal unter verschiedenen
+# Kennungen, wäre die Frage „unter wem lief er?" nicht mehr beantwortbar — und
+# das ist die einzige Frage, die dieser Beleg hat.
+vorher_datei agent/src/Context.php
+python3 - <<'PY2'
+p = 'agent/src/Context.php'
+s = open(p, encoding='utf-8').read()
+alt = 'if ($this->ranAs !== null && $this->ranAs !== $ranAs) {'
+assert s.count(alt) == 1, 'Die Zielzeile steht nicht genau einmal da: %d' % s.count(alt)
+s = s.replace(alt, 'if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Context.php "zwei Konten in einer Anfrage" &&
+pruefe "zwei Konten in einer Anfrage" \
+  SandboxCredentialsTest::test_two_accounts_in_one_request_are_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SandboxCredentialsTest passed
+
+echo
 echo "── PrivilegeDropTest: initgroups faellt weg ──"
 #
 # posix_setgroups() gibt es in PHP nicht. Ein Kind, das nur setgid und setuid
@@ -9154,9 +9251,9 @@ python3 - <<'PY2'
 p = 'agent/src/Ops/FilesRemove.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace("        Scheme::protect($path, 'entfernt');\n", '')
-s = s.replace("""        return $workspace->run(static function () use ($path, $recursive): array {
+s = s.replace("""        return $workspace->run($context, static function () use ($path, $recursive): array {
             $entry = Entry::of($path);""",
-              """        return $workspace->run(static function () use ($path, $recursive): array {
+              """        return $workspace->run($context, static function () use ($path, $recursive): array {
             Scheme::protect($path, 'entfernt');
             $entry = Entry::of($path);""")
 open(p, 'w', encoding='utf-8').write(s)
@@ -9232,7 +9329,7 @@ vorher_datei agent/src/Ops/FilesTree.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/FilesTree.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace("""return $workspace->run(static function () use ($path): array {""",
+s = s.replace("""return $workspace->run($context, static function () use ($path): array {""",
               """$lauf = static function () use ($path): array {""", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2

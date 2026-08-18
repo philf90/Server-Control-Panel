@@ -63,7 +63,7 @@ final class FilesSearch implements Op
             throw AgentException::badRequest('Ohne Suchbegriff gibt es nichts zu suchen.');
         }
 
-        return $workspace->run(static function () use ($path, $needle, $inContent): array {
+        return $workspace->run($context, static function () use ($path, $needle, $inContent): array {
             if (! is_dir($path)) {
                 throw new AgentException(AgentException::NOT_FOUND, 'Das Verzeichnis gibt es nicht.', ['path' => $path]);
             }

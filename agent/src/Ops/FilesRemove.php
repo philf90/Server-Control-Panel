@@ -58,7 +58,7 @@ final class FilesRemove implements Op
          */
         Scheme::protect($path, 'entfernt');
 
-        return $workspace->run(static function () use ($path, $recursive): array {
+        return $workspace->run($context, static function () use ($path, $recursive): array {
             $entry = Entry::of($path);
 
             if ($entry === null) {

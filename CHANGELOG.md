@@ -14683,6 +14683,26 @@ das Skript hier durch und dort nicht:
 > **Ein Messmittel, das nur dort läuft, wo der Prüfling fehlt, misst nicht den
 > Prüfling.**
 
+**Und der Entwurf des Skripts hat dabei seine eigene Schwäche gezeigt.**
+`docs/60` hatte zwei Erwartungen bewusst falsch stehen lassen, damit die beiden
+Funde der Messrunde bei jedem Lauf auffallen — „eine Erwartung, die nicht
+eintrifft, soll auffallen". Der Preis dafür ist genau hier fällig geworden: Ein
+Lauf, der **immer** mit zwei Abweichungen und Rückgabewert 1 endet, lässt sich
+von einem kaputten nicht unterscheiden.
+
+> **Ein Rot, das immer dasteht, ist keins mehr.**
+
+Die Erwartungen bilden seitdem ab, was gemessen ist; eine Abweichung heisst
+„diese Maschine verhält sich anders als die vermessene". Damit die Funde nicht
+verschwinden, druckt das Skript sie am Ende als eigene Zeilen — sie sind eine
+Aussage über cron und keine über den Lauf.
+
+**Zu `CRON_TZ` ist dabei die offene Hälfte nachgemessen worden:** Die
+Zeichenkette steht weder im Binary noch in `crontab(5)` — sie stammt aus cronie.
+Eine Datei mit `CRON_TZ=UTC` wird trotzdem **fehlerfrei geladen** (0
+Fehlerzeilen, beide Prüfdateien in `load_user()`). Eine Zeile, die nichts
+bewirkt, ist eine Sache; eine, die die Datei mitnimmt, wäre eine andere.
+
 Drei Behebungen, jede einzeln gemessen:
 
 1. **Die Sperrdatei kommt in den Namensraum** — `mount --bind` einer

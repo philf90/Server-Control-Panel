@@ -378,16 +378,18 @@ messung "unbekannter Benutzer: die gute Zeile daneben läuft" nein "$(marker ben
 # `/etc/cron.d` liegt. Eine Datei mit 10001 Zeilen wird dort gelesen und
 # ausgeführt (`docs/60 §5`).
 #
-# **Hier stand `nein`, und zwar bis zum 18. August** — die Erwartung sagte das
-# Gegenteil dessen, was derselbe Prüfkörper gemessen und was `docs/60` daraus
-# als Fund aufgeschrieben hatte. Jeder künftige Lauf hätte den Fund als
-# Abweichung gemeldet, auf jeder Maschine, für immer.
+# **Hier stand `nein`, und zwar mit Absicht.** `docs/60` hat die Erwartung
+# stehen lassen, damit der Fund bei jedem Lauf auffällt — „eine Erwartung, die
+# nicht eintrifft, soll auffallen". Der Preis dafür ist am 18. August auf
+# `cloudsrv24` sichtbar geworden: Ein Lauf, der **immer** mit zwei Abweichungen
+# und Rückgabewert 1 endet, lässt sich von einem kaputten nicht unterscheiden.
+# Dort war cron gar nicht gestartet, und die Meldung sah aus wie die gewohnte.
 #
-# > **Ein Prüfkörper, dessen Erwartung der eigenen Messung widerspricht, meldet
-# > den Befund als Fehler.**
+# > **Ein Rot, das immer dasteht, ist keins mehr.**
 #
-# Damit ist `Quota::CronJobs` die einzige Obergrenze, die es gibt — und das ist
-# die Aussage, die dieser Prüfkörper festhält.
+# Die Erwartung bildet deshalb ab, was **gemessen** ist: Eine Abweichung heisst
+# jetzt „diese Maschine verhält sich anders als die vermessene". Damit der Fund
+# trotzdem nicht verschwindet, steht er unten als eigene Zeile in der Ausgabe.
 messung "10001 Zeilen: die eine Jobzeile läuft (Grenze gilt hier nicht)" ja "$(marker zeilenzahl)"
 messung "Prozent: der Rest kommt als Standardeingabe an" "hallo-welt" "$(inhalt prozent_stdin)"
 messung "Prozent maskiert (\\%): bleibt im Befehl" "A%B" "$(inhalt prozent_maskiert)"
@@ -499,7 +501,17 @@ notiz "warte auf $ziel_h:$ziel_m Ortszeit (= $zutc_h:$zutc_m UTC)" "$(date '+%H:
 sleep 230
 messung "Zeitplan gilt in der Zeit der Maschine" ja "$(marker tz_lokal)"
 messung "Gegenprobe: dieselbe Stunde in UTC gelesen läuft nicht" nein "$(marker tz_utc)"
-messung "CRON_TZ=UTC verschiebt den Zeitplan" ja "$(marker tz_crontz)"
+# **Erwartet wird `nein`, aus demselben Grund wie bei der Zeilenzahl oben.**
+# `CRON_TZ` gibt es in diesem cron nicht: Weder das Binary noch `crontab(5)`
+# kennen die Zeichenkette (gemessen am 18. August), sie stammt aus cronie. Sie
+# wird wie `MAILTO` als gewöhnliche Umgebungsvariable gelesen — und landet damit
+# in der Umgebung des Jobs, ohne den Zeitplan zu verschieben.
+#
+# **Und die Datei bleibt gültig**, auch mit dieser Zeile darin: gemessen, 0
+# Fehlerzeilen, beide Prüfdateien geladen. Das ist die Hälfte, die für das Panel
+# zählt — eine Zeile, die nichts bewirkt, wäre eine Sache; eine, die die Datei
+# mitnimmt, eine andere.
+messung "CRON_TZ=UTC verschiebt den Zeitplan (gibt es hier nicht)" nein "$(marker tz_crontz)"
 umount /etc/localtime
 
 # ===========================================================================
@@ -584,4 +596,12 @@ titel "Ergebnis"
 # ===========================================================================
 printf '  %s Messungen wie erwartet, %s abweichend\n' "$ok" "$fehl"
 printf '  Was mit "--" beginnt, ist eine Zahl ohne Erwartung und kein Fehlschlag.\n'
+printf '\n'
+printf '  Die beiden Funde dieser Messrunde stehen in den Erwartungen und fallen\n'
+printf '  deshalb nicht mehr als Abweichung auf — sie gelten weiter:\n'
+printf '    * Die 10000-Zeilen-Grenze schützt /etc/cron.d nicht.\n'
+printf '    * CRON_TZ gibt es in diesem cron nicht; es wird als gewöhnliche\n'
+printf '      Umgebungsvariable gelesen und verschiebt den Zeitplan nicht.\n'
+printf '  Eine Abweichung oben heisst: diese Maschine verhaelt sich anders als die\n'
+printf '  in docs/60 vermessene.\n'
 [ "$fehl" = 0 ] || exit 1

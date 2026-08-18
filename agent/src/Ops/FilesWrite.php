@@ -79,18 +79,33 @@ final class FilesWrite implements Op
             $temporary = $directory.'/.srvpanel-'.bin2hex(random_bytes(8));
             $written = @file_put_contents($temporary, $content);
 
-            // Der Vergleich mit der erwarteten Länge und nicht mit `false`:
-            // Bei voller Quota schreibt PHP, was noch passt, und meldet die
-            // Zahl. Ohne diese Zeile hiesse „Kontingent erschöpft" hier
+            // **Der Vergleich mit der erwarteten Länge und nicht mit `false`.**
+            // Ohne diese Zeile hiesse „Kontingent erschöpft" hier
             // „gespeichert" (docs/51 §4, Punkt 12).
+            //
+            // **Und eine Meldung und nicht zwei.** Hier standen zwei, verzweigt
+            // nach `$written === false`, mit der Begründung, PHP melde bei
+            // voller Quota die Zahl der geschriebenen Bytes. Am 18. August 2026
+            // auf `cloudsrv24` gemessen: Es meldet **`false`**. PHP wandelt
+            // einen kurzen Schreibvorgang selbst in einen Fehlschlag um — es
+            // warnt „Only X of Y bytes written, possibly out of free disk
+            // space" und gibt `false` zurück. Damit war die Meldung, die das
+            // Kontingent nennt, für diesen Weg **unerreichbar**, und der Kunde
+            // las „Die Datei liess sich nicht schreiben" — was nach einem
+            // Defekt des Servers klingt, wo er Platz schaffen müsste.
+            //
+            // > **Zwei Meldungen für denselben Fall laufen auseinander — und
+            // > die falsche ist die, die man bekommt.**
             if ($written !== strlen($content)) {
                 @unlink($temporary);
 
                 throw AgentException::execFailed(
-                    $written === false
-                        ? 'Die Datei liess sich nicht schreiben.'
-                        : 'Die Datei wurde nur unvollständig geschrieben — vermutlich ist das Kontingent erschöpft.',
-                    ['written' => $written === false ? 0 : $written, 'expected' => strlen($content)],
+                    'Die Datei wurde nicht vollständig geschrieben — vermutlich ist das Kontingent erschöpft.',
+                    // **`null` und nicht `0`.** Bei `false` weiss dieser Weg
+                    // nicht, wie viel ankam — PHP kennt die Zahl und gibt sie
+                    // nicht heraus. Eine `0` behauptete „nichts geschrieben",
+                    // und das ist eine Auskunft, die niemand hat.
+                    ['written' => $written === false ? null : $written, 'expected' => strlen($content)],
                 );
             }
 

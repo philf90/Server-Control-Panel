@@ -530,6 +530,64 @@ Fehler gehabt, die aneinanderhingen.
 
 > **Ein Fehlerweg, der selbst fehlschlagen kann, ist kein Fehlerweg.**
 
+### 8.1 Die erste Hälfte: der Weg der Operation
+
+`tests/quota-messen.php` misst sie, und zwar in vier Schritten:
+
+```bash
+sudo php tests/quota-messen.php
+```
+
+| Abschnitt | was er beantwortet |
+|---|---|
+| 1 | Läuft auf diesem Dateisystem überhaupt eine Quota? |
+| 2 | Ein Wegwerf-Abonnement `quota-messung.probe` mit 1 MB Grenze |
+| 3 | 2 MiB schreiben — der Vorgang muss scheitern |
+| 4 | Gegenprobe: unter 64 MB gelingt derselbe Vorgang vollständig |
+
+**Abschnitt 1 ist ein Riegel und kein Kriterium.** Läuft die Quota nicht, endet
+der Lauf mit Rückgabewert **2** und ohne Befund. Das ist richtig so: Ein
+Schreibvorgang, den nichts begrenzt, sagt über den Fehlerweg des Panels nichts.
+Wer diesen Ausgang für ein „bestanden" nimmt, hat Punkt 12 nicht gemessen,
+sondern übersprungen. Gefragt wird dabei der **Leseversuch** und nicht die
+Optionszeile — `docs/41 §2.3`.
+
+**Und Abschnitt 3 druckt eine Zahl, die es vorher nicht gab:** was
+`file_put_contents` bei erschöpftem Kontingent wirklich zurückgibt. Der
+Quelltext behauptet seit P6, es sei die Zahl der geschriebenen Bytes und nicht
+`false`; darauf beruht die ganze Prüfung, und gemessen war es nie.
+
+> **Wissen aus zweiter Hand sieht aus wie Wissen.**
+
+Mitgemessen und nicht im Kriterium: dass **kein halb geschriebener Rest**
+liegenbleibt. Die Nachbardatei heisst `.srvpanel-<hex>`, beginnt also mit einem
+Punkt und taucht in keiner Auflistung auf — bliebe sie liegen, frässe jeder
+Fehlversuch dauerhaft am Kontingent, und der Kunde sähe ein volles Konto ohne
+Dateien.
+
+### 8.2 Die zweite Hälfte: dass die Seite es sagt
+
+Die braucht den Browser und ist durch kein Skript zu ersetzen. Angemeldet als
+der Kunde des Wegwerf-Abonnements, dessen Grenze auf 1 MB steht:
+
+1. **Im Dateimanager** eine Datei öffnen, sie mit gut 2 MB Inhalt füllen und
+   speichern.
+2. Erwartet: **keine Erfolgsmeldung**, sondern der Satz „Die Datei wurde nur
+   unvollständig geschrieben — vermutlich ist das Kontingent erschöpft."
+3. **Wo er steht, gehört zum Kriterium** (`docs/19 §6`): oben in der
+   Zusammenfassung, nicht als roter Rand am Feld. Ein roter Rand behauptet, die
+   Eingabe sei falsch — sie ist es nicht.
+4. **Bei 390 px messen**, mit dem Aufsatz aus `docs/58 §12`:
+   `scrollWidth - clientWidth` am Dokument, und dazu die Gegenprobe, dass ein
+   Prüfkörper an das Fenster gebunden ist und nicht 900 px fest.
+
+Der vierte Schritt steht hier, weil `docs/48` genau ihn gebraucht hätte: Dort
+schob die endlich lesbare Begründung die Seite um 110 px aus dem Bild, und der
+Fix am Rückbau erzeugte einen zweiten Rest.
+
+> **Je wichtiger die Begründung, desto länger ist sie.** „Datei nicht gefunden"
+> passte immer.
+
 ---
 
 ## 9. Die drei Belege (Punkte 13 bis 15)

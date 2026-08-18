@@ -14975,3 +14975,101 @@ vorbeikommt, stand dabei **nach** dem Umschalten.
 
 > **Eine Vorprüfung, die hinter dem Schritt steht, den sie absichern soll, ist
 > keine.**
+
+### Punkt 12 bekommt einen Prüfstand — und die Regel, an der er hängt, ihren ersten Wächter
+
+Die volle Quota war bis hierher der einzige Punkt des Abnahmekriteriums, dessen
+Grundlage **nur behauptet** war. In `FilesWrite` und `FilesUpload` steht seit P6,
+`file_put_contents` und `stream_copy_to_stream` gäben bei erschöpftem Kontingent
+die Zahl der geschriebenen Bytes zurück und nicht `false` — und auf diesem Satz
+beruht die ganze Prüfung: Wer nur auf `false` prüft, meldet dem Kunden
+„gespeichert" für eine Datei, von der die Hälfte fehlt.
+
+> **Wissen aus zweiter Hand sieht aus wie Wissen.**
+
+**`tests/quota-messen.php`** misst es. Vier Abschnitte: ob auf diesem
+Dateisystem überhaupt eine Quota läuft, ein Wegwerf-Abonnement mit 1 MB Grenze,
+2 MiB dagegen schreiben — und die Gegenprobe, dass unter 64 MB derselbe Vorgang
+vollständig durchgeht. Ohne die letzte sähe ein Fehlschlag genauso aus, wenn der
+Pfad falsch wäre.
+
+Der Lauf druckt, was der Aufruf **wirklich** zurückgegeben hat, und prüft zwei
+Dinge mit, die in keinem Kriterium stehen: dass die Begründung das Kontingent
+nennt (sonst sucht der Kunde den Fehler bei sich) und dass **kein halb
+geschriebener Rest liegenbleibt** — die Nachbardatei heisst `.srvpanel-<hex>`,
+beginnt mit einem Punkt und taucht in keiner Auflistung auf.
+
+**Abschnitt 1 ist ein Riegel und kein Kriterium.** Läuft die Quota nicht, endet
+der Lauf mit Rückgabewert 2 und **ohne Befund** — ein Schreibvorgang, den nichts
+begrenzt, sagt über den Fehlerweg nichts. Gefragt wird der Leseversuch und nicht
+die Optionszeile (`docs/41 §2.3`).
+
+**Und der Riegel ist beim ersten Wurf selbst umgefallen.** Ohne das Paket
+`quota` wirft `Runner` „repquota ist auf diesem System nicht installiert", und
+der Lauf endete mit einem Stapelabzug statt mit seinem eigenen Satz.
+
+> **Ein Riegel, der selbst umfällt, ist keiner.**
+
+Gemessen wurden danach beide Zweige: fehlendes Programm und laufendes Programm
+ohne eingeschaltete Quota. Der Entwicklungscontainer bleibt für diesen Punkt
+nicht messbar — `/` ist ohne `usrquota` eingehängt —, und das Paket `quota` holt
+das Ubuntu-Archiv trotzdem, wie bei MariaDB und beim `sshd`.
+
+**`ShortWriteTest` ist der Wächter**, den es dafür nie gab: Beide Wege
+vergleichen gegen die erwartete Länge und nicht gegen `false`, beide nennen das
+Kontingent, und beide räumen den Rest weg, **bevor** sie werfen — eine Zeile
+nach dem `throw` läuft nie. Drei Brüche im Bruchskript, alle drei beissen.
+
+### Die Meldung zur vollen Quota war unerreichbar — der erste Lauf des neuen Prüfstands hat sie gefunden
+
+Am 18. August 2026 auf `cloudsrv24` gegen `2389c82`: 1 MB Grenze, 2 MiB
+geschrieben, der Vorgang schlägt fehl — und meldet **„Die Datei liess sich nicht
+schreiben."** Ohne ein Wort über das Kontingent. Der Kunde liest einen Defekt
+des Servers, wo er Platz schaffen müsste.
+
+Die Ursache ist genau der Satz, wegen dem der Prüfstand gebaut wurde. Im
+Quelltext stand seit P6, `file_put_contents` melde bei voller Quota die Zahl der
+geschriebenen Bytes; **gemessen wird `false`.** PHP wandelt einen kurzen
+Schreibvorgang selbst in einen Fehlschlag um — es warnt „Only X of Y bytes
+written, possibly out of free disk space" und wirft die Zahl weg. Die Meldung
+hing an einer Verzweigung nach `$written === false`, also lief immer der Zweig
+ohne das Kontingent, und der andere war nie erreichbar.
+
+> **Zwei Meldungen für denselben Fall laufen auseinander — und die falsche ist
+> die, die man bekommt.**
+
+**Der Vergleich selbst war richtig und hat gehalten:** `false !== 2097152` ist
+ebenso wahr wie eine kurze Zahl. Der Vorgang hat nie Erfolg gemeldet, es ging
+allein um die Begründung. Es gibt jetzt **eine** Meldung statt zwei, und
+`written` steht bei unbekannter Zahl als `null` da statt als `0` — eine `0`
+behauptete „nichts geschrieben", und das weiss dieser Weg nicht.
+
+`files.upload` war nicht betroffen: `stream_copy_to_stream` liefert die Zahl
+wirklich, und dieser Weg hatte immer nur eine Meldung.
+
+**Und `ShortWriteTest` war dabei grün.** Er suchte den Satz „Kontingent
+erschöpft" im Quelltext — und der stand dort, in einem von zwei Zweigen.
+
+> **Ein Wächter, der einen Satz sucht statt seiner Erreichbarkeit, ist grün,
+> sobald der Satz irgendwo steht.**
+
+Er prüft seitdem, dass der erste Ausdruck von `execFailed` unmittelbar eine
+Zeichenkette ist und keine Bedingung. Zwei weitere Brüche im Bruchskript, beide
+beissen.
+
+**Und eine CI-Runde hat er auch gekostet, an einer Stelle ohne jede Behauptung.**
+Sein Datenlieferant gab zwei Werte, und drei der fünf Methoden nahmen nur den
+ersten entgegen. PHPUnit meldet dafür je Methode eine Warnung und endet mit
+Rückgabewert 1 — im Log stand „2040 passed", kein einziger Fehlschlag, und
+darunter der rote Lauf. Der einzige Unterschied zum grünen Lauf davor waren drei
+Warnungen mehr (36 → 39). Der Lieferant gibt jetzt einen Wert je Fall, der
+Vergleichsausdruck steht daneben in einer eigenen Methode.
+
+> **Ein Lauf, der „alle bestanden" meldet und trotzdem scheitert, hat seinen
+> Grund neben der Zusammenfassung stehen und nicht darin.**
+
+Gefunden hat das die CI und nicht das Gestell im Container: Es reichte die
+überzähligen Werte wortlos weiter. Es prüft seitdem `getNumberOfParameters()`
+gegen die Zahl der Werte — dieselbe Lehre wie bei den `final`-Methoden der
+Basisklasse, nur an einer anderen Strenge. Im ganzen Repo ist danach kein
+zweiter Fall gefunden worden.

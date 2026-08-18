@@ -8895,6 +8895,111 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FrontendDependencyTest passed
 
 echo
+echo "── ShortWriteTest: die Meldung hängt wieder an einer Bedingung ──"
+#
+# Genau die Lage vom 18. August: Zwei Meldungen, verzweigt nach `$written ===
+# false` — und weil `file_put_contents` bei voller Quota `false` liefert, lief
+# immer der Zweig, der das Kontingent nicht nennt. Der Satz stand im Quelltext
+# und war unerreichbar.
+vorher_datei agent/src/Ops/FilesWrite.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesWrite.php'
+s = open(p, encoding='utf-8').read()
+alt = "                    'Die Datei wurde nicht vollständig geschrieben — vermutlich ist das Kontingent erschöpft.',"
+neu = """                    $written === false
+                        ? 'Die Datei liess sich nicht schreiben.'
+                        : 'Die Datei wurde nicht vollständig geschrieben — vermutlich ist das Kontingent erschöpft.',"""
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/FilesWrite.php "zwei Meldungen für denselben Fall" &&
+pruefe "zwei Meldungen für denselben Fall" \
+  ShortWriteTest::test_there_is_one_message_and_not_two failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ShortWriteTest passed
+
+echo
+echo "── ShortWriteTest: die unbekannte Zahl wird als 0 gemeldet ──"
+#
+# `false` heisst „PHP kennt die Zahl und gibt sie nicht heraus". Eine 0 im
+# Protokoll behauptet „nichts geschrieben" — eine Auskunft, die niemand hat.
+vorher_datei agent/src/Ops/FilesWrite.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesWrite.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('$written === false ? null : $written', '$written === false ? 0 : $written', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/FilesWrite.php "unbekannte Zahl als 0 gemeldet" &&
+pruefe "unbekannte Zahl als 0 gemeldet" \
+  ShortWriteTest::test_an_unknown_count_is_null failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ShortWriteTest passed
+
+echo
+echo "── ShortWriteTest: files.write prüft nur auf false ──"
+#
+# Bei voller Quota meldet der Aufruf die Zahl der geschriebenen Bytes und nicht
+# false. Wer nur auf false prüft, meldet dem Kunden „gespeichert" für eine
+# Datei, von der die Hälfte fehlt — Punkt 12 des Abnahmekriteriums.
+vorher_datei agent/src/Ops/FilesWrite.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesWrite.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('if ($written !== strlen($content)) {', 'if ($written === false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/FilesWrite.php "kurzer Schreibvorgang gilt als Erfolg" &&
+pruefe "kurzer Schreibvorgang gilt als Erfolg" \
+  ShortWriteTest::test_a_short_write_is_a_failure failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ShortWriteTest passed
+
+echo
+echo "── ShortWriteTest: die Begründung nennt das Kontingent nicht ──"
+#
+# „Die Datei liess sich nicht übernehmen" klingt nach einem Defekt des Servers.
+# Der Kunde meldet einen Ausfall, wo er Platz schaffen müsste.
+vorher_datei agent/src/Ops/FilesUpload.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesUpload.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    'Die Datei wurde nicht vollständig übernommen — vermutlich ist das Kontingent erschöpft.',
+    'Die Datei liess sich nicht übernehmen.',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/FilesUpload.php "Begründung ohne das Kontingent" &&
+pruefe "Begründung ohne das Kontingent" \
+  ShortWriteTest::test_the_reason_names_the_allowance failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ShortWriteTest passed
+
+echo
+echo "── ShortWriteTest: der halbe Rest bleibt liegen ──"
+#
+# Wird erst geworfen und dann aufgeräumt, läuft die zweite Zeile nie: Jeder
+# Fehlversuch frisst dauerhaft am Kontingent, unter einem Namen mit Punkt davor,
+# den keine Auflistung zeigt.
+vorher_datei agent/src/Ops/FilesWrite.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesWrite.php'
+s = open(p, encoding='utf-8').read()
+alt = """                @unlink($temporary);
+
+                throw AgentException::execFailed("""
+s = s.replace(alt, """                throw AgentException::execFailed(""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/FilesWrite.php "Rest wird nach dem Wurf weggeräumt" &&
+pruefe "Rest wird nach dem Wurf weggeräumt" \
+  ShortWriteTest::test_the_half_written_file_is_removed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ShortWriteTest passed
+
+echo
 echo "── ArchiveDepthTest: ein Tar wird nur an der Oberfläche aufgezählt ──"
 #
 # Der Fehler, aus dem dieser Wächter entstand: `foreach (new PharData(…))` läuft

@@ -110,16 +110,22 @@ final class FilesUpload implements Op
                 @fclose($target);
 
                 // **Verglichen wird mit der erwarteten Länge und nicht mit
-                // `false`.** Bei erschöpfter Quota bricht der Strom ab und
-                // meldet die Zahl der geschriebenen Bytes; ohne diesen
-                // Vergleich hiesse „Kontingent voll" hier „hochgeladen"
-                // (`docs/51 §4`, Punkt 12).
+                // `false`.** Ohne diesen Vergleich hiesse „Kontingent voll"
+                // hier „hochgeladen" (`docs/51 §4`, Punkt 12).
+                //
+                // Dieser Weg hatte immer nur **eine** Meldung, und deshalb war
+                // er von dem Fehler nicht betroffen, den `files.write` am
+                // 18. August 2026 gezeigt hat: Dort standen zwei, und die
+                // erreichbare nannte das Kontingent nicht.
                 if ($written !== $size) {
                     @unlink($temporary);
 
                     throw AgentException::execFailed(
-                        'Die Datei wurde nur unvollständig übernommen — vermutlich ist das Kontingent erschöpft.',
-                        ['written' => $written === false ? 0 : $written, 'expected' => $size],
+                        'Die Datei wurde nicht vollständig übernommen — vermutlich ist das Kontingent erschöpft.',
+                        // `null` und nicht `0`: Bei `false` ist die Zahl der
+                        // angekommenen Bytes unbekannt, und eine `0` behauptete
+                        // etwas, das niemand weiss.
+                        ['written' => $written === false ? null : $written, 'expected' => $size],
                     );
                 }
 

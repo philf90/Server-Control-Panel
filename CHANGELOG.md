@@ -14660,6 +14660,45 @@ Zielplattformen installiert und **aktiv** ist, war ungemessen — `docs/50 §7` 
 nur das Archiv geprüft, und `systemd-cron` liest `/etc/cron.d` mit einer anderen
 Umsetzung.
 
+### Der erste Lauf von `tests/cron-messen.sh` auf `cloudsrv24` hat nichts gemessen — und das Skript hat es nicht gesagt
+
+Am Ende stand „15 Messungen wie erwartet, 17 abweichend". Die richtige Lesart
+steht in der **ersten** Zeile: `Gegenprobe: eine gültige Datei läuft — nein
+(erwartet: ja)`. Kein Job ist gelaufen; damit sind alle fünfzehn „wie erwartet"
+Fälle, in denen *nichts* laufen sollte, erfüllt von einem cron, der überhaupt
+nicht lief.
+
+> **Fünfzehn Nullen sind keine fünfzehn Messungen.**
+
+**Die Ursache, gemessen und nicht geschlossen:** Vixie-cron nimmt ein `flock` auf
+`/run/crond.pid` und stirbt sofort, wenn es die Sperre nicht bekommt — „can't
+lock /var/run/crond.pid, otherpid may be N". Auf `cloudsrv24` hält
+`cron.service` sie. Der Namensraum des Skripts deckte `/etc/cron.d`,
+`/etc/crontab`, `/var/spool/cron/crontabs` und `/etc/localtime` ab, aber nicht
+`/run`.
+
+**Dieser Entwicklungscontainer hat keinen laufenden cron.** Genau deshalb lief
+das Skript hier durch und dort nicht:
+
+> **Ein Messmittel, das nur dort läuft, wo der Prüfling fehlt, misst nicht den
+> Prüfling.**
+
+Drei Behebungen, jede einzeln gemessen:
+
+1. **Die Sperrdatei kommt in den Namensraum** — `mount --bind` einer
+   Wegwerfdatei über `/run/crond.pid`. Gemessen: Der eigene cron startet neben
+   dem laufenden (516 Zeilen Diagnose, „cron started"), und der laufende merkt
+   nichts davon. Einen Schalter für einen anderen Pfad gibt es nicht.
+2. **`daemon_start` hält den Lauf an**, wenn der Dienst nach dem Start nicht
+   lebt, und zeigt seine Meldung. Vorher wartete das Skript danach zwanzig
+   Minuten und lieferte Zahlen.
+3. **Der Filter über die Ausgabe kannte `DEATH` und `can't lock` nicht.** Der
+   Grund stand wörtlich in `$LOG`, und die Zeile „was cron dazu gesagt hat"
+   blieb trotzdem leer.
+
+   > **Ein Filter über die Ausgabe des Prüflings zeigt die Fehler, an die sein
+   > Erbauer gedacht hat.**
+
 **Für `cloudsrv24` ist das am 18. August gemessen:** `cron 3.0pl1-184ubuntu2`,
 `cron.service` aktiv und enabled, kein `cronie` und kein `systemd-cron` —
 zeichengleich die Fassung, gegen die `docs/60` gemessen hat. Die zweiunddreissig

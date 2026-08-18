@@ -111,6 +111,25 @@ daemon_start() {
   /usr/sbin/cron -f -x sch,pars,load,misc >> "$LOG" 2>&1 &
   CRONPID=$!
   sleep 1
+
+  # **Ein Dienst, der nicht läuft, macht aus jeder Erwartung „nein" ein Grün.**
+  #
+  # Am 18. August auf `cloudsrv24` genau so passiert: cron starb beim Start an
+  # der Sperrdatei, das Skript wartete danach zwanzig Minuten und meldete am
+  # Ende „15 Messungen wie erwartet, 17 abweichend". Die fünfzehn waren
+  # sämtlich Fälle, in denen *nichts* laufen sollte — erfüllt von einem cron,
+  # der gar nicht lief.
+  #
+  # > **Fünfzehn Nullen sind keine fünfzehn Messungen.**
+  #
+  # Der Lauf hält deshalb hier an und nicht am Ende. Die Meldung des Dienstes
+  # steht dabei, denn sie sagt schon, was fehlt.
+  if ! kill -0 "$CRONPID" 2>/dev/null; then
+    echo
+    echo "cron ist nach dem Start sofort gestorben. Was er dazu gesagt hat:"
+    sed 's/^/  /' "$LOG"
+    exit 1
+  fi
 }
 
 daemon_lebt() { [ -n "$CRONPID" ] && kill -0 "$CRONPID" 2>/dev/null && echo ja || echo nein; }
@@ -147,6 +166,27 @@ aufbau() {
   mount --bind "$SPOOL" /var/spool/cron/crontabs
   : > "$BASE/crontab-leer"
   mount --bind "$BASE/crontab-leer" /etc/crontab
+
+  # **Und die Sperrdatei, ohne die auf einem echten Server nichts läuft.**
+  #
+  # Vixie-cron nimmt ein `flock` auf `/run/crond.pid` und stirbt sofort, wenn
+  # es die Sperre nicht bekommt: „can't lock /var/run/crond.pid, otherpid may
+  # be N". In diesem Entwicklungscontainer läuft kein cron, also war die
+  # Sperre frei und das Skript lief — auf `cloudsrv24` hält `cron.service` sie,
+  # und der Wegwerf-Dienst starb nach einer Sekunde.
+  #
+  # > **Ein Messmittel, das nur dort läuft, wo der Prüfling fehlt, misst nicht
+  # > den Prüfling.**
+  #
+  # Gemessen am 18. August 2026: Mit dieser Zeile startet der eigene cron auch
+  # neben einem laufenden, und der laufende merkt nichts davon — die Bindung
+  # gilt nur in diesem Namensraum.
+  #
+  # `-p` oder ein Schalter für einen anderen Pfad gibt es nicht; die
+  # Aufrufhilfe kennt nur `-x`.
+  : > "$BASE/crond.pid"
+  [ -e /run/crond.pid ] || : > /run/crond.pid
+  mount --bind "$BASE/crond.pid" /run/crond.pid
 }
 
 # Eine Zeile, wie sie der Plan vorsieht: fünf Felder, Benutzer, Befehl.
@@ -355,7 +395,14 @@ notiz  "was cron zur Post sagt" "$(grep -icE 'mail|sendmail' "$LOG" || echo 0) Z
 messung "cron lebt nach alldem noch" ja "$(daemon_lebt)"
 
 titel "Runde 1 — was cron dazu gesagt hat"
-grep -E 'ERROR|error|Syntax|Missing|orphan|bad ' "$LOG" | sed 's/^/  /' | sort -u | head -20
+# **`DEATH` und `can't lock` stehen hier, weil sie am 18. August gefehlt haben.**
+# Der Grund, warum der Lauf auf `cloudsrv24` nichts mass, stand wörtlich in
+# `$LOG` — und dieser Filter zeigte ihn nicht, weil sein Muster ihn nicht kannte.
+#
+# > **Ein Filter über die Ausgabe des Prüflings zeigt die Fehler, an die sein
+# > Erbauer gedacht hat.**
+grep -E "ERROR|error|Syntax|Missing|orphan|bad |DEATH|can't lock" "$LOG" \
+  | sed 's/^/  /' | sort -u | head -20
 
 # ===========================================================================
 titel "Runde 2 — Frage 1: wann gilt eine neue Datei?"

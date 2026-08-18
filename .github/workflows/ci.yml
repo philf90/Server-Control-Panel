@@ -204,13 +204,36 @@ jobs:
       #
       # > **Ein Grenzwert, dessen Abstand zur Messung niemand kennt, ist ein
       # > Fehlschlag mit Verzögerung.**
+      # **Der Spiegel fällt aus, und apt versucht es genau einmal.** Am
+      # 18. August 2026 zweimal an einem Tag: mittags blieb der Download bei
+      # `libicu70` stehen, abends nahm `azure.archive.ubuntu.com` gar keine
+      # Verbindung mehr an (`Unable to connect … [IP: 52.161.185.214 80]`) und
+      # `apt-get` endete mit 100. Zusammen mit dem gerissenen Fenster vom
+      # 11. August ist das der dritte Ausfall derselben Quelle.
+      #
+      # `Acquire::Retries` steht deshalb als apt-Konfiguration **im Container**
+      # und nicht als `-o` am Aufruf: Der Aufruf, der scheitert, ist der des
+      # Installers (`nftables`, `fail2ban`, `mariadb-server`), und den schreibt
+      # dieser Workflow nicht.
+      #
+      # **Was das nicht behebt:** eine Verbindung, die noch tröpfelt. Dagegen
+      # hilft keine Wiederholung, weil apts Zeitgrenze nie zuschlägt — das war
+      # der Fehler vom Mittag, und er bleibt offen.
+      #
+      # > **Eine Wiederholung heilt eine abgewiesene Verbindung und nicht eine
+      # > langsame.**
+      #
+      # Und wer hier weitergeht, liest den Absatz oben: Der Azure-Spiegel steht
+      # auf Verdacht und nicht auf Beleg — die Messung hat ihm nie einen Vorteil
+      # nachgewiesen. Drei Ausfälle sind ein Anlass, ihn zu prüfen, aber kein
+      # Beleg dafür, dass der Vorgabespiegel besser wäre; das wäre zu messen.
       - name: Container mit systemd starten
         run: |
           docker run -d --name target --privileged \
             --tmpfs /run --tmpfs /run/lock -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host \
             -v "${PWD}/dist:/packages:ro" \
             ${{ matrix.image }} /bin/sh -c \
-            'export DEBIAN_FRONTEND=noninteractive; set -x; sed -i "s|//archive.ubuntu.com|//azure.archive.ubuntu.com|g" /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null; apt-get update && apt-get install -y systemd systemd-sysv && exec /sbin/init'
+            'export DEBIAN_FRONTEND=noninteractive; set -x; sed -i "s|//archive.ubuntu.com|//azure.archive.ubuntu.com|g" /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null; printf "Acquire::Retries \"3\";\n" > /etc/apt/apt.conf.d/80-retries; apt-get update && apt-get install -y systemd systemd-sysv && exec /sbin/init'
           # **Ohne die Prüfung danach endet ein Zeitüberschreiten stumm.** Die
           # Schleife lief ab, der Schritt galt als geglückt — das `| head -1`
           # gab den Rückgabewert von `head` zurück und nicht den von `docker
@@ -669,7 +692,7 @@ jobs:
             --tmpfs /run --tmpfs /run/lock -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host \
             -v "${PWD}/dist:/packages:ro" \
             ${{ matrix.image }} /bin/sh -c \
-            'export DEBIAN_FRONTEND=noninteractive; set -x; sed -i "s|//archive.ubuntu.com|//azure.archive.ubuntu.com|g" /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null; apt-get update && apt-get install -y systemd systemd-sysv && exec /sbin/init'
+            'export DEBIAN_FRONTEND=noninteractive; set -x; sed -i "s|//archive.ubuntu.com|//azure.archive.ubuntu.com|g" /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null; printf "Acquire::Retries \"3\";\n" > /etc/apt/apt.conf.d/80-retries; apt-get update && apt-get install -y systemd systemd-sysv && exec /sbin/init'
           # Dieselbe Prüfung wie oben, und hier fehlte sie ganz: Ein
           # Zeitüberschreiten war vollständig unsichtbar. Dasselbe Fenster und
           # dieselbe Messung wie dort — die Begründung steht beim ersten Lauf.

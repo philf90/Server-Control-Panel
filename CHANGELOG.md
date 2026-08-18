@@ -15133,3 +15133,34 @@ Kunden sichtbare Grenze verschiebt. Der Weg wäre, die **kodierte** Länge zu
 prüfen statt der rohen und `FilesRead::MAX_BYTES` daran zu binden: Was sich
 öffnen lässt, muss sich speichern lassen. Der Befund steht als `docs/62`
 Punkt 12b.
+
+### Der Ubuntu-Spiegel ist heute zweimal ausgefallen — apt versuchte es genau einmal
+
+Am 18. August 2026 sind die beiden Ubuntu-Installationsläufe der CI zweimal an
+derselben Quelle gescheitert, mit zwei verschiedenen Symptomen:
+
+| | |
+|---|---|
+| mittags | der Download blieb bei `libicu70` stehen; `systemd` kam in 600 s nicht hoch |
+| abends | `Unable to connect to azure.archive.ubuntu.com:80 [IP: 52.161.185.214]`, `apt-get` endete mit 100 |
+
+Zusammen mit dem gerissenen Fenster vom 11. August ist das der dritte Ausfall
+derselben Quelle. Debian war nie betroffen — `deb.debian.org` ist ein CDN.
+
+`Acquire::Retries "3"` steht jetzt als apt-Konfiguration **im Zielcontainer**
+und nicht als `-o` am Aufruf: Der Aufruf, der scheitert, ist der des Installers
+(`nftables`, `fail2ban`, `mariadb-server`, `whois`), und den schreibt der
+Workflow nicht.
+
+**Was das ausdrücklich nicht behebt**, und deshalb steht es im Workflow: eine
+Verbindung, die noch tröpfelt. Dagegen hilft keine Wiederholung, weil apts
+Zeitgrenze nie zuschlägt. Genau deshalb ist die Absicherung mittags **abgelehnt**
+worden — das Symptom passte nicht zum Mittel. Am Abend passte es.
+
+> **Eine Wiederholung heilt eine abgewiesene Verbindung und nicht eine langsame.**
+
+**Und der Spiegel selbst bleibt eine offene Frage.** Der Workflow hält seit
+Juli fest, dass er „auf Verdacht und nicht auf Beleg" dasteht und die Messung
+ihm nie einen Vorteil nachgewiesen hat. Drei Ausfälle sind ein Anlass, das zu
+prüfen — aber kein Beleg dafür, dass der Vorgabespiegel besser wäre. Das wäre
+zu messen, und dieser Beitrag misst es nicht.

@@ -126,6 +126,34 @@ Mandantenklammer.
 > **Zwischen der Frage und der Antwort gehören so wenige Schichten wie möglich
 > — und keine, die bei einem Fehler schweigt.**
 
+#### Gemessen auf `cloudsrv24` am 18. August, gegen `v0.6.0-rc.15`
+
+Vier Datei-Vorgänge aus dem Dateimanager, dazu ein Rückbau und die Gegenprobe:
+
+| Operation | `ran_as` |
+|---|---|
+| `files.tree`, `files.list` (Abo `p6-b.invalid`, Benutzer `p1136`) | `{"uid":1001,"groups":[1001]}` |
+| `subscription.remove` (Benutzer `p1138`) | `{"uid":1002,"groups":[1002]}` |
+| `system.info` | **kein Feld** |
+
+**Damit sind Punkt 13 und 14 zum ersten Mal ablesbar.** Sie waren es seit P6
+Schritt 1 nicht, weil die Sandbox die Zahlen erhob, prüfte und wieder verwarf.
+
+Drei Dinge machen daraus eine Messung und nicht eine Zahl:
+
+1. **Die Gegenprobe trägt das Feld gar nicht.** Eine Angabe, die überall gleich
+   aussieht, sagt nichts darüber, dass sie erhoben wurde.
+2. **Zwei Abonnements ergeben zwei Kennungen** — 1001 und 1002. Eine Konstante
+   sähe in beiden Zeilen gleich aus.
+3. **Der Rückbau meldet mit.** Er ist der Baumlauf, gegen den Punkt 6 antritt;
+   ohne diesen Beleg wäre dessen Null später nicht zu deuten.
+
+**Was hier noch offen ist:** dass `1001` die Kennung von `p1136` ist und `1002`
+die von `p1138`, sagt `id <benutzer>` und nicht dieses Protokoll. „Nicht null"
+ist die eine Hälfte von Punkt 13; „die des Abonnements" ist die andere.
+
+> **Eine Zahl, die nicht null ist, belegt nur, dass sie nicht null ist.**
+
 **Und der Filter ist nicht Bequemlichkeit, sondern Bedingung.** Der erste
 Entwurf hier las `grep '"kind":"result"' … | tail -8`, und auf `cloudsrv24`
 kamen acht Zeilen `system.info` zurück und sonst nichts: Der
@@ -239,27 +267,50 @@ die Schranke abschaltet, wäre ein dauerhaftes Loch im ausgelieferten Code, und
 der Lauf hätte es selbst hineingebaut. Die stumpfe Fassung ist ein **Bau**, kein
 Zustand.
 
-**Die drei Eingriffe stehen hier als Beschreibung und nicht als Patchdatei.**
-Ein Patch gegen eine Fassung, die es noch nicht gibt, veraltet zwischen dem
-Schreiben dieses Dokuments und dem Lauf — und ein Patch, der nicht mehr
-anwendbar ist, wird von Hand nachgebessert, und dann weiss niemand mehr, was
-wirklich entfernt wurde. Jeder Eingriff ist **eine** Änderung an **einer**
-Stelle:
+**Sie stehen als Skript da: `tests/stumpf.sh`** — gebaut am 18. August, gegen
+`v0.6.0-rc.15`, und jeder Eingriff weist nach, dass er gewirkt hat.
 
 | Bau | Eingriff | Datei |
 |---|---|---|
-| stumpf-A | `path()` gibt `Guard::string($value, $field)` unverändert zurück — Zerlegung und Normalisierung entfallen | `agent/src/Files/Workspace.php` |
-| stumpf-B | `run()` ruft `$work()` direkt auf statt `Sandbox::run(…)` | `agent/src/Files/Workspace.php` |
-| stumpf-C | `render()` setzt den Befehl in die Zeile statt `RUNNER` mit der Kennung | `agent/src/Cron/CronFile.php` |
+| stumpf-A | `path()` gibt den Pfad unverändert zurück — Zerlegung und Normalisierung entfallen | `agent/src/Files/Workspace.php` |
+| stumpf-B | `run()` ruft `$work()` unmittelbar auf statt `Sandbox::run(…)` | `agent/src/Files/Workspace.php` |
+| stumpf-C | der Befehl des Kunden steht wieder in der Cron-Zeile | `agent/src/Ops/CronApply.php` **und** `agent/src/Cron/CronFile.php` |
+
+**stumpf-C braucht zwei Stellen, und das ist beim Bauen aufgefallen.** Dieses
+Dokument beschrieb ihn als einen Eingriff an `render()` — dorthin kommt der
+Befehl aber nie: `CronApply` bildet die Jobs vorher auf `['id', 'schedule']` ab
+und streift ihn ab. Ein Eingriff nur an `render()` hätte **nichts bewirkt** und
+im Durchgang wie eine haltende Abwehr ausgesehen.
+
+> **Ein Eingriff, der die Stelle nicht erreicht, sieht aus wie eine Wand, die
+> hält.**
 
 ```bash
-# Auf dem Bau-Rechner, nicht auf cloudsrv24.
-git switch --detach v0.6.0-rc.NN          # die Fassung, die scharf geprüft wird
-$EDITOR agent/src/Files/Workspace.php     # der eine Eingriff aus der Tabelle
-git diff > /tmp/stumpf-a.patch            # in das Protokoll, wörtlich
-# Bauen wie sonst, aber mit einer Fassung, die man nicht verwechseln kann:
-#   Version: 0.6.0-rc.NN+stumpf-a
+# Auf dem Bau-Rechner, nicht auf cloudsrv24 — und auf einem losen HEAD.
+git switch --detach v0.6.0-rc.15
+sh tests/stumpf.sh --pruefen      # erwartet: dreimal „scharf"
+sh tests/stumpf.sh a              # eingreifen, und nachweisen dass es wirkt
+git diff > /tmp/stumpf-a.patch    # in das Protokoll, wörtlich
+# Bauen wie sonst, mit einer Fassung, die man nicht verwechseln kann:
+#   Version: 0.6.0-rc.15+stumpf-a
+sh tests/stumpf.sh --zurueck      # danach
 ```
+
+**Jeder Eingriff prüft sich selbst.** `sh tests/stumpf.sh a` wendet ihn an und
+misst danach am laufenden Code nach, dass die Wand weg ist — `path()` gibt dann
+`/../../../../etc/passwd` zurück statt `/etc/passwd`. Ohne diesen Nachweis
+lieferte ein wirkungsloser Eingriff im Durchgang „kein Treffer", also dieselbe
+Ausgabe wie eine haltende Abwehr, und der ganze Lauf wäre wertlos.
+
+> **Eine Gegenprobe, die nicht treffen kann, ist keine.**
+
+**Und `--pruefen` gehört davor**, nicht bloss dazu: Es zeigt, dass die Wand
+vorher überhaupt stand. Gemessen ist ausserdem, dass jeder Eingriff **die
+anderen beiden scharf lässt** — sonst wäre die Trennung aus §1 nur behauptet.
+
+Der Wächter dazu ist `BluntBuildTest`: Er fährt den Trockenlauf in der CI, damit
+ein Eingriff nicht still verwaist, wenn der Code umzieht. Drei Brüche, jeder
+gefahren.
 
 **Der Diff gehört wörtlich ins Protokoll.** Ein Lauf, der „die Schranke war
 entfernt" behauptet, ohne zu zeigen was entfernt wurde, ist eine Behauptung über

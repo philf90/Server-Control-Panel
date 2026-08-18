@@ -940,6 +940,15 @@ Testen berücksichtigen:
   gehört dazu; und was Laravels `Tests\TestCase` erbt — `DesignTokensTest`,
   `WordChoiceTest` — bleibt Sache der CI.
 
+  **Und die Attrappe muss die `final`-Methoden der echten Basisklasse tragen.**
+  Ohne sie meldet das Gestell Grün für eine Klasse, die `php artisan test` mit
+  Rückgabewert 255 tötet, bevor ein einziger Test läuft — am 18. August genau so
+  passiert, mit einer Hilfsmethode namens `run()`. Mindestens `run()`, `count()`,
+  `matches()` und `toString()` gehören als `final` in den Stub.
+
+  > **Eine Attrappe, die weniger verbietet als das Original, sagt Ja zu Code,
+  > den das Original ablehnt.**
+
   **Und die Liste der Wächter zählt sich selbst ab.** Am 13. August stand dort
   eine handverlesene — dreizehn von 136 —, und drei Wächter, die eine
   Umbenennung gemeldet hätten, waren nicht darunter; sie liefen erst in der CI.

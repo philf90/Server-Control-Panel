@@ -25,10 +25,29 @@ use Tests\Support\InheritedNames;
  *   3. `name()` in `DnsPacketTest`, eine Hilfsmethode für das Drahtformat. Auch
  *      hier `final`, auch hier ein fataler Fehler statt einer Meldung.
  *
+ *   4. `run()` in `BluntBuildTest`, eine Hilfsmethode, die `tests/stumpf.sh`
+ *      aufruft. Dort ist sie `final` — und `php artisan test` endete mit
+ *      Rückgabewert 255, bevor ein einziger Test lief.
+ *
  * Nach dem zweiten Mal stand die Regel in CLAUDE.md: „Wer in einer abgeleiteten
  * Klasse eine private Hilfsmethode einzieht, sieht vorher in der Basisklasse
  * nach." Beim dritten Mal habe ich sie gelesen und bin trotzdem hineingelaufen.
  * **Ein Satz in einer Datei ist kein Wächter.**
+ *
+ * ## Und beim vierten Mal war der Wächter da und kam nicht dazu
+ *
+ * Das ist die Grenze dieses Tests, und sie gehört hierher, weil sie sonst
+ * niemandem auffällt: Der Fehler tötet den Testläufer beim **Laden** der
+ * Klassen — vor dem ersten Testfall, also auch vor diesem. Er kann melden, was
+ * andere Läufe kaputt machen würden, aber nicht, was den eigenen Lauf schon
+ * umgebracht hat.
+ *
+ * > **Ein Wächter, der im selben Lauf steckt wie der Fehler, den er melden
+ * > soll, kommt nicht dazu.**
+ *
+ * Gefangen hat den vierten Fall **PHPStan** (`method.childReturnType`), und
+ * zwar in einem eigenen Job. Wer diesen Wächter für die einzige Absicherung
+ * hält, hält eine für zwei.
  *
  * Wie hier gesucht wird, ohne dabei selbst abzustürzen, steht in
  * {@see InheritedNames}.

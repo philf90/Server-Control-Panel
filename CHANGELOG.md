@@ -14613,6 +14613,18 @@ Der Schritt filtert seitdem auf die Operation — **und führt die Gegenprobe
 daneben**, denn genau dieser Filter nimmt die Zeilen weg, an denen zu sehen ist,
 dass das Feld nicht überall steht.
 
+**Gemessen auf `cloudsrv24` gegen `v0.6.0-rc.15`:** `files.tree` und
+`files.list` melden `{"uid":1001,"groups":[1001]}`, `subscription.remove` meldet
+`{"uid":1002,"groups":[1002]}`, und die Gegenprobe `system.info` trägt das Feld
+gar nicht. Zwei Abonnements ergeben zwei Kennungen — eine Konstante sähe in
+beiden Zeilen gleich aus. Punkt 13 und 14 des Abnahmekriteriums sind damit zum
+ersten Mal ablesbar; sie waren es seit P6 Schritt 1 nicht.
+
+Offen bleibt die zweite Hälfte von Punkt 13: dass `1001` die Kennung von `p1136`
+ist, sagt `id` und nicht das Protokoll.
+
+> **Eine Zahl, die nicht null ist, belegt nur, dass sie nicht null ist.**
+
 **Und der erste Wurf war auf `files.*` zugeschnitten — auch das war zu eng.**
 `Filesystem::removeInside()` und `Filesystem::purgeContents()` gehen genauso durch
 die Sandbox, und sie sind der **Baumlauf**, gegen den Punkt 6 des
@@ -14654,6 +14666,60 @@ Angriffsdurchgang ist es zu grob.
 Und die stumpfe Fassung ist ein **Bau** und kein Schalter: Eine Umgebungsvariable,
 die die Schranke abschaltet, wäre ein dauerhaftes Loch im ausgelieferten Code,
 und der Abnahmelauf hätte es selbst hineingebaut.
+
+### Die stumpfen Fassungen für den Angriffsdurchgang — `tests/stumpf.sh`
+
+Das Abnahmekriterium von P6 verlangt den Durchgang **zweimal**: scharf und gegen
+ein Panel, dem die Schranke genommen wurde. Ohne die zweite Hälfte belegt die
+erste nichts.
+
+Es sind **drei** Fassungen und nicht eine, weil zwischen einem Pfad aus dem
+Formular und einer Datei zwei Wände stehen — die Normalisierung in
+`Workspace::path()` und `chroot` plus `setuid` in der Sandbox. Dazu die
+Cron-Wand.
+
+> **Eine Gegenprobe, die zwei Wände zugleich wegnimmt, sagt über keine von
+> beiden etwas.**
+
+**Beim Bauen hat sich `docs/61 §2` als unvollständig erwiesen:** stumpf-C war
+dort als ein Eingriff an `render()` beschrieben — dorthin kommt der Befehl aber
+nie, weil `CronApply` die Jobs vorher auf `['id', 'schedule']` abbildet. Der
+Eingriff hätte nichts bewirkt und im Durchgang wie eine haltende Abwehr
+ausgesehen.
+
+> **Ein Eingriff, der die Stelle nicht erreicht, sieht aus wie eine Wand, die
+> hält.**
+
+Jeder Eingriff weist deshalb nach, dass er gewirkt hat: `sh tests/stumpf.sh a`
+misst danach am laufenden Code, dass `path()` den Pfad nicht mehr normalisiert.
+Gemessen ist ausserdem, dass jeder Eingriff die **anderen beiden scharf lässt**
+— sonst wäre die Trennung nur behauptet. Und das Skript verweigert den Dienst
+bei nicht eingecheckter Arbeit in den drei Dateien, denn sein Rückweg führt über
+`git checkout --`.
+
+> **Ein Rückweg, der über `git checkout` führt, ist für alles ein Rückweg, was
+> dort steht — nicht nur für den eigenen Eingriff.**
+
+**Und der erste Anlauf hat die ganze Testsuite umgebracht.** Die Hilfsmethode,
+die `tests/stumpf.sh` aufruft, hiess `run()` — und
+`PHPUnit\Framework\TestCase::run()` ist `final`. Das bricht beim **Laden** der
+Klasse: `php artisan test` endete mit Rückgabewert 255, bevor ein einziger Test
+lief. Der fünfte Fall dieser Art in diesem Projekt.
+
+**Den Wächter dafür gibt es seit dem vierten Mal, und er kam nicht dazu.**
+`InheritedNameTest` ist selbst ein Test; der fatale Fehler tötet den Läufer, ehe
+der erste Fall startet. Gefangen hat es PHPStan, in einem eigenen Job.
+
+> **Ein Wächter, der im selben Lauf steckt wie der Fehler, den er melden soll,
+> kommt nicht dazu.**
+
+Die Grenze steht jetzt in seinem Kopf — wer ihn für die einzige Absicherung
+hält, hält eine für zwei.
+
+**Wächter:** `BluntBuildTest` — fährt den Trockenlauf in der CI, damit kein
+Eingriff still verwaist, prüft dass im sauberen Baum alle drei Wände stehen, und
+besteht darauf, dass kein Schalter in `Sandbox` oder `Workspace` die Schranke zur
+Laufzeit abschaltet. Drei Brüche, jeder gefahren.
 
 **Was offen bleibt und benannt ist:** Welcher Cron-Dienst auf den vier
 Zielplattformen installiert und **aktiv** ist, war ungemessen — `docs/50 §7` hatte
@@ -14731,7 +14797,17 @@ Drei Behebungen, jede einzeln gemessen:
 
 **Für `cloudsrv24` ist das am 18. August gemessen:** `cron 3.0pl1-184ubuntu2`,
 `cron.service` aktiv und enabled, kein `cronie` und kein `systemd-cron` —
-zeichengleich die Fassung, gegen die `docs/60` gemessen hat. Die zweiunddreissig
-Messungen dort gelten damit für diese Maschine, statt für sie angenommen zu
-werden. **Drei Plattformen bleiben offen**; eine Maschine ist kein Beleg über
-vier.
+zeichengleich die Fassung, gegen die `docs/60` gemessen hat.
+
+**Und die zweiunddreissig Messungen sind dort selbst gefahren worden**: `32 wie
+erwartet, 0 abweichend`, Wert für Wert deckungsgleich mit dem Container — Shell,
+Umgebungsvariablen, `PATH`, der Lauf in der ausgefallenen Spanne und, für
+Sicherungen der wichtigste, **genau ein Lauf in der doppelten Spanne**. Zwei
+Zahlen weichen erwartbar ab: die Wartezeit bis zum ersten Lauf (19 s statt 51 s,
+61 s statt 60 s), denn sie hängt davon ab, wo in der Minute die Datei landet.
+
+> **Eine Zahl, die vom Zeitpunkt abhängt, ist keine Konstante — die Aussage
+> darüber schon.**
+
+Damit steht `docs/60` nicht mehr auf einem Wegwerf-Dienst im Container.
+**Drei Plattformen bleiben offen**; eine Maschine ist kein Beleg über vier.

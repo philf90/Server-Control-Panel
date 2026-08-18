@@ -35,8 +35,12 @@ declare(strict_types=1);
 require __DIR__.'/../agent/src/autoload.php';
 
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Files\Workspace;
 use SrvPanel\Agent\Filesystem;
+use SrvPanel\Agent\Journal;
 use SrvPanel\Agent\Ops\SubscriptionProvision;
+use SrvPanel\Agent\Runner;
 use SrvPanel\Agent\Sandbox;
 
 const ABO = 'sandbox-messung.probe';
@@ -238,6 +242,126 @@ foreach ([
 
 // `conf/` gehört root — hier hält kein Chroot, sondern das Dateisystem.
 befund('conf/ (root:root 0640) lesen', $scharf('/conf/nur-root.conf') === null, $stumpf($wurzel.'/conf/nur-root.conf') !== null);
+
+// ─────────────────────────────────────────────────────────────────────────
+echo "\n4b. Welche der beiden Wände hält? — der Weg einer echten Operation\n\n";
+
+/*
+ * **Abschnitt 4 nimmt eine Abkürzung, und deshalb beantwortet er diese Frage
+ * nicht.** Er ruft {@see Sandbox::run()} unmittelbar auf und reicht rohe Pfade
+ * hinein. Eine `files.*`-Operation tut etwas anderes: Sie schickt den Pfad
+ * zuerst durch {@see Workspace::path()} und die Arbeit dann durch
+ * {@see Workspace::run()}. Zwischen Formular und Datei stehen also **zwei**
+ * Wände — eine Prüfung in PHP und eine Schranke vom Kernel.
+ *
+ * **Am 18. August hat das eine ganze Messung gekostet.** Auf `cloudsrv24`
+ * liefen `tests/stumpf.sh a` und `b` und danach dieser Prüfstand — und die
+ * Ausgabe war dreimal Zeile für Zeile dieselbe. Die Eingriffe treffen
+ * `Workspace`, und Abschnitt 4 kommt dort nicht vorbei. `stumpf.sh --pruefen`
+ * meldete dabei völlig zu Recht „ist stumpf": Es hatte die Wand geöffnet und
+ * nachgewiesen, dass sie offen ist.
+ *
+ * > **Ein Nachweis, dass der Eingriff wirkt, sagt nichts darüber, dass der
+ * > Prüfkörper dort vorbeikommt.**
+ *
+ * Dieser Abschnitt geht den Weg der Operation. Damit unterscheiden sich die
+ * drei Bauten:
+ *
+ * | Bau | erwartet |
+ * |---|---|
+ * | scharf | hält |
+ * | stumpf-A (ohne Normalisierung, mit Chroot) | **hält weiter** — A ist keine Schranke |
+ * | stumpf-B (mit Normalisierung, ohne Chroot) | **bricht aus** — B trägt |
+ *
+ * Die mittlere Zeile ist die eigentliche Aussage: Dass der Angriff auch ohne
+ * die Normalisierung nichts erreicht, ist der Beleg dafür, dass nicht sie ihn
+ * hält. Wer nur scharf misst, kann beide Wände nicht auseinanderhalten.
+ */
+
+$journal = new Journal('/dev/null');
+$kontext = new Context(new Runner($journal), $journal, static fn (array $zeile): null => null);
+$arbeitsplatz = Workspace::fromArgs(['subscription' => ABO, 'user' => NUTZER]);
+
+/*
+ * **Der Bau sagt sich selbst an, und das ist kein Schmuck.** Drei Läufe, deren
+ * Ausgabe gleich aussieht, sind nicht auseinanderzuhalten — genau das ist am
+ * 18. August passiert, mit drei Logs, in denen nichts stand, aus welchem Bau
+ * sie kamen.
+ *
+ * > **Drei Läufe, die nicht sagen, aus welchem Bau sie kommen, sind ein Log
+ * > dreimal.**
+ *
+ * Erkannt wird am Verhalten und nicht am Quelltext: Normalisiert `path()` noch?
+ * Und läuft die Arbeit in einem eigenen Prozess, also hinter einem `fork`?
+ */
+$normalisiert = Workspace::path('/a/../b') === '/b';
+$eigenerProzess = $arbeitsplatz->run($kontext, static fn (): int => getmypid()) !== getmypid();
+
+$bau = match (true) {
+    $normalisiert && $eigenerProzess => 'scharf',
+    ! $normalisiert && $eigenerProzess => 'stumpf-A (ohne Normalisierung)',
+    $normalisiert && ! $eigenerProzess => 'stumpf-B (ohne Chroot)',
+    default => 'stumpf-A+B (beide Wände weg)',
+};
+
+printf("  %-46s %s\n", 'Bau', $bau);
+printf("  %-46s %s / %s\n", '  Normalisierung / eigener Prozess',
+    $normalisiert ? 'ja' : 'nein', $eigenerProzess ? 'ja' : 'nein');
+
+$durchOperation = static function (string $roh) use ($arbeitsplatz, $kontext): ?string {
+    try {
+        $pfad = Workspace::path($roh);
+    } catch (Throwable) {
+        return null;
+    }
+
+    return $arbeitsplatz->run($kontext, static function () use ($pfad): ?string {
+        $inhalt = @file_get_contents($pfad);
+
+        return $inhalt === false ? null : trim($inhalt);
+    });
+};
+
+$ausgebrochen = 0;
+
+/*
+ * **Je Fall sein eigener Pfad, sobald das Chroot fehlt** — dieselbe Falle wie
+ * in Abschnitt 4, und beim ersten Wurf dieses Abschnitts prompt wieder
+ * hineingelaufen: Ohne Chroot bezeichnet `/httpdocs/raus` nicht mehr den
+ * Symlink des Abonnements, sondern einen Pfad an der Wurzel des Systems, den es
+ * nicht gibt. Die Zeile las sich als „hält" und war ein Prüfkörper, der sein
+ * Ziel verfehlt.
+ *
+ * > **Eine Gegenprobe, die nicht treffen kann, ist keine.**
+ *
+ * Die beiden Pfad-Angriffe brauchen keine zweite Fassung: `..` und der absolute
+ * Pfad ergeben nach der Normalisierung ohnehin `/etc/passwd`, und das ist ohne
+ * Chroot die echte Datei.
+ */
+foreach ([
+    ['..-Ausbruch über die Operation', '/../../../../etc/passwd', null],
+    ['absoluter Pfad über die Operation', '/etc/passwd', null],
+    ['Symlink auf /etc/passwd über die Operation', '/httpdocs/raus', $wurzel.'/httpdocs/raus'],
+] as [$was, $roh, $ohneChroot]) {
+    $inhalt = $durchOperation($eigenerProzess ? $roh : ($ohneChroot ?? $roh));
+    $traf = $inhalt !== null && str_contains($inhalt, 'root:');
+
+    if ($traf) {
+        $ausgebrochen++;
+    }
+
+    printf("  %-46s %s\n", $was, $traf ? 'AUSBRUCH' : 'haelt');
+}
+
+/*
+ * **Und die Erwartung hängt am Bau.** Ein Ausbruch ist hier kein Fehler,
+ * sondern in stumpf-B der Beleg; sein Ausbleiben wäre dort der Befund.
+ */
+match (true) {
+    $bau === 'scharf' => meldung('scharf: kein Ausbruch', $ausgebrochen === 0),
+    str_starts_with($bau, 'stumpf-A ') => meldung('stumpf-A: hält weiter, A ist keine Schranke', $ausgebrochen === 0),
+    default => meldung('stumpf-B: bricht aus, B trägt', $ausgebrochen > 0, sprintf('%d von 3', $ausgebrochen)),
+};
 
 // ─────────────────────────────────────────────────────────────────────────
 echo "\n5. Das Rennen — der Angreifer aus docs/50 §3\n\n";

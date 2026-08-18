@@ -14700,6 +14700,58 @@ bei nicht eingecheckter Arbeit in den drei Dateien, denn sein Rückweg führt ü
 > **Ein Rückweg, der über `git checkout` führt, ist für alles ein Rückweg, was
 > dort steht — nicht nur für den eigenen Eingriff.**
 
+**Und die drei Läufe auf `cloudsrv24` haben nichts gemessen — dreimal dieselbe
+Ausgabe.** Die Eingriffe treffen `Files\Workspace`; Abschnitt 4 von
+`tests/sandbox-messen.php` ruft aber `Sandbox::run()` unmittelbar auf und kommt
+dort nie vorbei. `stumpf.sh --pruefen` meldete dabei völlig zu Recht „ist
+stumpf" — es hatte die Wand geöffnet und nachgewiesen, dass sie offen ist. Nur
+ging niemand hindurch.
+
+> **Ein Nachweis, dass der Eingriff wirkt, sagt nichts darüber, dass der
+> Prüfkörper dort vorbeikommt.**
+
+Der Prüfstand hat deshalb einen Abschnitt **4b** bekommen, der den Weg einer
+echten Operation nimmt — `Workspace::path()`, dann `Workspace::run()`. Damit
+unterscheiden sich die Bauten, und erst das beantwortet die Frage aus
+`docs/61 §1`:
+
+| Bau | gemessen |
+|---|---|
+| scharf | hält |
+| stumpf-A (ohne Normalisierung) | **hält weiter** — A ist keine Schranke |
+| stumpf-B (ohne Chroot) | **bricht 3 von 3 aus** — B trägt |
+
+Die mittlere Zeile ist die Aussage: Dass der Angriff auch ohne die
+Normalisierung nichts erreicht, ist der Beleg dafür, dass nicht sie ihn hält.
+
+**Drei Dinge sind beim Bauen dieses Abschnitts noch aufgefallen**, alle von
+einer Gegenprobe und keines vom Nachdenken:
+
+1. **Der Symlink-Prüfkörper konnte in stumpf-B nicht treffen** — ohne Chroot
+   bezeichnet `/httpdocs/raus` nicht mehr dieselbe Datei. Die Zeile las sich als
+   „hält" und war ein Prüfkörper, der sein Ziel verfehlt. Er bekommt jetzt je
+   Bau seinen eigenen Pfad, wie Abschnitt 4 es schon tat.
+2. **`stumpf-c` ist ersatzlos weggefallen.** Es nahm die Cron-Wand weg, und
+   dort geht kein Prüfkörper vorbei: `cron-messen.sh` ruft kein PHP auf, sondern
+   legt Cron-Dateien von Hand. Die Cron-Wand ist ohne ihn beidseitig gemessen.
+
+   > **Ein Eingriff ohne Prüfkörper, der ihn benutzt, ist eine Wand, die man
+   > wegnimmt, ohne dass jemand hindurchgeht.**
+3. **Der Prüfstand sagt jetzt, aus welchem Bau er kommt** — erkannt am
+   Verhalten, nicht am Quelltext. Die drei Logs vom 18. August waren nicht
+   auseinanderzuhalten.
+
+   > **Drei Läufe, die nicht sagen, aus welchem Bau sie kommen, sind ein Log
+   > dreimal.**
+
+**Und der neue Wächter dazu war im ersten Wurf grün, obwohl er hätte rot sein
+müssen:** Er suchte `Workspace::path(` irgendwo in der Datei, und die
+Zeichenkette steht auch in der Bauerkennung. Er prüft jetzt die Zeile des
+Prüfkörpers.
+
+> **Ein Wächter, der einen Namen sucht statt seiner Verwendung, ist grün,
+> sobald der Name irgendwo sonst steht.**
+
 **Und es prüft, ob es überhaupt im richtigen Baum steht.** Am 18. August lief
 `sudo bash /root/stumpf.sh a` gegen eine HTML-Seite, die ein `curl` statt des
 Rohtexts geholt hatte — und selbst mit dem richtigen Inhalt wäre es falsch

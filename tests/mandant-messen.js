@@ -44,9 +44,26 @@
  *
  * > **Ein Messwert, den auch ein Fehlschlag erzeugt, ist keiner.**
  *
- * Ohne die beiden antwortet das Panel, wie es einem `fetch` antwortet: `200`
- * auf die lesenden Routen, `422` auf die verändernden. Beides ist eindeutig und
- * beides liegt **hinter** der Autorisierung.
+ * **Und der zweite Lauf hat zwei weitere Fehler dieses Werkzeugs gezeigt** —
+ * beide in der Gegenprobe, keiner im Prüfling:
+ *
+ * 1. **`fetch` folgt einer Weiterleitung von selbst**, und bei `PUT` und
+ *    `DELETE` behält es dabei die Methode; nur aus `POST` macht der Standard
+ *    ein `GET`. Vier Zeilen meldeten `405` — nicht weil die Route die Methode
+ *    verböte (dann hätte auch die fremde Kennung 405 gegeben statt 404),
+ *    sondern weil die *Zielseite* der Weiterleitung kein PUT annimmt. Seitdem
+ *    steht in jeder Zeile, ob umgeleitet wurde und wohin.
+ * 2. **Die Spalte `eindeutig` behauptete etwas, das sie nicht geprüft hatte.**
+ *    Sie sah nur nach, ob eine fremde Zweitkennung mitgegeben war, und meldete
+ *    „ja" für eine Zeile, deren eigene Seite hängenblieb. Eindeutig ist eine
+ *    Zeile erst, wenn ihre Gegenprobe durchkam.
+ *
+ * > **Eine Spalte, die etwas behauptet, das sie nicht geprüft hat, ist
+ * > schlimmer als keine.**
+ *
+ * Das ist der dritte Anlauf dieses Werkzeugs, und alle drei Fehler steckten in
+ * ihm und nicht im Panel — dasselbe Verhältnis wie in `docs/45`, `docs/47`,
+ * `docs/48` und `docs/59`.
  *
  * So wird er benutzt — in der Konsole des Browsers, angemeldet als der Kunde
  * von EIGEN, mit den beiden Kennungen aus der Abonnementliste:
@@ -125,7 +142,19 @@ async function mandantMessen ({ eigen, fremd, eigenJob, fremdJob, eigenKey, frem
       credentials: 'same-origin',
     })
 
-    return antwort.status
+    // **Der Status allein sagt nicht, wessen Status es ist.** `fetch` folgt
+    // einer Weiterleitung von sich aus, und bei PUT und DELETE behält es dabei
+    // die Methode — nur aus POST macht der Standard ein GET. Der Code stammt
+    // dann von der *Zielseite* und nicht vom Vorgang: Ein `405` heisst „das
+    // Ziel nimmt PUT nicht an", nicht „die Route verbietet PUT".
+    //
+    // > **Ein Statuscode nach einer gefolgten Weiterleitung gehört einer
+    // > anderen Anfrage.**
+    return {
+      status: antwort.status,
+      umgeleitet: antwort.redirected,
+      ziel: antwort.redirected ? new URL(antwort.url).pathname : null,
+    }
   }
 
   const zeilen = []
@@ -138,23 +167,40 @@ async function mandantMessen ({ eigen, fremd, eigenJob, fremdJob, eigenKey, frem
       return `/subscriptions/${abo}${pfad}`
     }
 
-    const fremdCode = await anfrage(methode, bauen(fremd, false))
-    const eigenCode = await anfrage(methode, bauen(eigen, true))
+    const fremdAntwort = await anfrage(methode, bauen(fremd, false))
+    const eigenAntwort = await anfrage(methode, bauen(eigen, true))
+
+    const fremdCode = fremdAntwort.status
+    const eigenCode = eigenAntwort.status
 
     // **Ein 2xx auf die fremde Kennung ist der Übergriff.** Alles andere hält
     // — aber der Grund gehört daneben, sonst ist es eine Zahl ohne Ursache.
-    const uebergriff = fremdCode >= 200 && fremdCode < 300
+    // Eine gefolgte Weiterleitung zählt dabei nicht als Durchkommen: Der Code
+    // stammt dann von der Zielseite.
+    const uebergriff = fremdCode >= 200 && fremdCode < 300 && !fremdAntwort.umgeleitet
     const durchgelassen = !(eigenCode === 403 || eigenCode === 404)
+
+    // **Eindeutig ist eine Zeile erst, wenn ihre Gegenprobe durchkam.** Der
+    // erste Wurf prüfte nur, ob eine fremde Zweitkennung mitgegeben wurde — und
+    // meldete deshalb „ja" für eine Zeile, deren eigene Seite hängenblieb. Eine
+    // Spalte, die etwas behauptet, das sie nicht geprüft hat, ist schlimmer als
+    // keine.
+    const eindeutig = durchgelassen
+      ? 'ja'
+      : art
+        ? 'nein — die eigene Kennung kam auch nicht durch'
+        : 'nein — die Gegenprobe fehlt'
 
     zeilen.push({
       Route: `${methode} ${muster}`,
       fremd: fremdCode,
       eigen: eigenCode,
+      'eigen umgeleitet': eigenAntwort.umgeleitet ? `→ ${eigenAntwort.ziel}` : 'nein',
       Grund: fremdCode === 404 ? 'Klammer (nicht auffindbar)'
         : fremdCode === 403 ? 'Policy'
           : uebergriff ? 'ÜBERGRIFF' : `unerwartet ${fremdCode}`,
       Gegenprobe: durchgelassen ? 'durchgelassen' : 'BLIEB HÄNGEN',
-      eindeutig: art && zweiter(art, false) === null ? 'nein — ohne echten 2. Parameter' : 'ja',
+      eindeutig,
     })
   }
 

@@ -267,27 +267,50 @@ die Schranke abschaltet, wäre ein dauerhaftes Loch im ausgelieferten Code, und
 der Lauf hätte es selbst hineingebaut. Die stumpfe Fassung ist ein **Bau**, kein
 Zustand.
 
-**Die drei Eingriffe stehen hier als Beschreibung und nicht als Patchdatei.**
-Ein Patch gegen eine Fassung, die es noch nicht gibt, veraltet zwischen dem
-Schreiben dieses Dokuments und dem Lauf — und ein Patch, der nicht mehr
-anwendbar ist, wird von Hand nachgebessert, und dann weiss niemand mehr, was
-wirklich entfernt wurde. Jeder Eingriff ist **eine** Änderung an **einer**
-Stelle:
+**Sie stehen als Skript da: `tests/stumpf.sh`** — gebaut am 18. August, gegen
+`v0.6.0-rc.15`, und jeder Eingriff weist nach, dass er gewirkt hat.
 
 | Bau | Eingriff | Datei |
 |---|---|---|
-| stumpf-A | `path()` gibt `Guard::string($value, $field)` unverändert zurück — Zerlegung und Normalisierung entfallen | `agent/src/Files/Workspace.php` |
-| stumpf-B | `run()` ruft `$work()` direkt auf statt `Sandbox::run(…)` | `agent/src/Files/Workspace.php` |
-| stumpf-C | `render()` setzt den Befehl in die Zeile statt `RUNNER` mit der Kennung | `agent/src/Cron/CronFile.php` |
+| stumpf-A | `path()` gibt den Pfad unverändert zurück — Zerlegung und Normalisierung entfallen | `agent/src/Files/Workspace.php` |
+| stumpf-B | `run()` ruft `$work()` unmittelbar auf statt `Sandbox::run(…)` | `agent/src/Files/Workspace.php` |
+| stumpf-C | der Befehl des Kunden steht wieder in der Cron-Zeile | `agent/src/Ops/CronApply.php` **und** `agent/src/Cron/CronFile.php` |
+
+**stumpf-C braucht zwei Stellen, und das ist beim Bauen aufgefallen.** Dieses
+Dokument beschrieb ihn als einen Eingriff an `render()` — dorthin kommt der
+Befehl aber nie: `CronApply` bildet die Jobs vorher auf `['id', 'schedule']` ab
+und streift ihn ab. Ein Eingriff nur an `render()` hätte **nichts bewirkt** und
+im Durchgang wie eine haltende Abwehr ausgesehen.
+
+> **Ein Eingriff, der die Stelle nicht erreicht, sieht aus wie eine Wand, die
+> hält.**
 
 ```bash
-# Auf dem Bau-Rechner, nicht auf cloudsrv24.
-git switch --detach v0.6.0-rc.NN          # die Fassung, die scharf geprüft wird
-$EDITOR agent/src/Files/Workspace.php     # der eine Eingriff aus der Tabelle
-git diff > /tmp/stumpf-a.patch            # in das Protokoll, wörtlich
-# Bauen wie sonst, aber mit einer Fassung, die man nicht verwechseln kann:
-#   Version: 0.6.0-rc.NN+stumpf-a
+# Auf dem Bau-Rechner, nicht auf cloudsrv24 — und auf einem losen HEAD.
+git switch --detach v0.6.0-rc.15
+sh tests/stumpf.sh --pruefen      # erwartet: dreimal „scharf"
+sh tests/stumpf.sh a              # eingreifen, und nachweisen dass es wirkt
+git diff > /tmp/stumpf-a.patch    # in das Protokoll, wörtlich
+# Bauen wie sonst, mit einer Fassung, die man nicht verwechseln kann:
+#   Version: 0.6.0-rc.15+stumpf-a
+sh tests/stumpf.sh --zurueck      # danach
 ```
+
+**Jeder Eingriff prüft sich selbst.** `sh tests/stumpf.sh a` wendet ihn an und
+misst danach am laufenden Code nach, dass die Wand weg ist — `path()` gibt dann
+`/../../../../etc/passwd` zurück statt `/etc/passwd`. Ohne diesen Nachweis
+lieferte ein wirkungsloser Eingriff im Durchgang „kein Treffer", also dieselbe
+Ausgabe wie eine haltende Abwehr, und der ganze Lauf wäre wertlos.
+
+> **Eine Gegenprobe, die nicht treffen kann, ist keine.**
+
+**Und `--pruefen` gehört davor**, nicht bloss dazu: Es zeigt, dass die Wand
+vorher überhaupt stand. Gemessen ist ausserdem, dass jeder Eingriff **die
+anderen beiden scharf lässt** — sonst wäre die Trennung aus §1 nur behauptet.
+
+Der Wächter dazu ist `BluntBuildTest`: Er fährt den Trockenlauf in der CI, damit
+ein Eingriff nicht still verwaist, wenn der Code umzieht. Drei Brüche, jeder
+gefahren.
 
 **Der Diff gehört wörtlich ins Protokoll.** Ein Lauf, der „die Schranke war
 entfernt" behauptet, ohne zu zeigen was entfernt wurde, ist eine Behauptung über

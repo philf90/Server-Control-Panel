@@ -14667,6 +14667,44 @@ Und die stumpfe Fassung ist ein **Bau** und kein Schalter: Eine Umgebungsvariabl
 die die Schranke abschaltet, wäre ein dauerhaftes Loch im ausgelieferten Code,
 und der Abnahmelauf hätte es selbst hineingebaut.
 
+### Die stumpfen Fassungen für den Angriffsdurchgang — `tests/stumpf.sh`
+
+Das Abnahmekriterium von P6 verlangt den Durchgang **zweimal**: scharf und gegen
+ein Panel, dem die Schranke genommen wurde. Ohne die zweite Hälfte belegt die
+erste nichts.
+
+Es sind **drei** Fassungen und nicht eine, weil zwischen einem Pfad aus dem
+Formular und einer Datei zwei Wände stehen — die Normalisierung in
+`Workspace::path()` und `chroot` plus `setuid` in der Sandbox. Dazu die
+Cron-Wand.
+
+> **Eine Gegenprobe, die zwei Wände zugleich wegnimmt, sagt über keine von
+> beiden etwas.**
+
+**Beim Bauen hat sich `docs/61 §2` als unvollständig erwiesen:** stumpf-C war
+dort als ein Eingriff an `render()` beschrieben — dorthin kommt der Befehl aber
+nie, weil `CronApply` die Jobs vorher auf `['id', 'schedule']` abbildet. Der
+Eingriff hätte nichts bewirkt und im Durchgang wie eine haltende Abwehr
+ausgesehen.
+
+> **Ein Eingriff, der die Stelle nicht erreicht, sieht aus wie eine Wand, die
+> hält.**
+
+Jeder Eingriff weist deshalb nach, dass er gewirkt hat: `sh tests/stumpf.sh a`
+misst danach am laufenden Code, dass `path()` den Pfad nicht mehr normalisiert.
+Gemessen ist ausserdem, dass jeder Eingriff die **anderen beiden scharf lässt**
+— sonst wäre die Trennung nur behauptet. Und das Skript verweigert den Dienst
+bei nicht eingecheckter Arbeit in den drei Dateien, denn sein Rückweg führt über
+`git checkout --`.
+
+> **Ein Rückweg, der über `git checkout` führt, ist für alles ein Rückweg, was
+> dort steht — nicht nur für den eigenen Eingriff.**
+
+**Wächter:** `BluntBuildTest` — fährt den Trockenlauf in der CI, damit kein
+Eingriff still verwaist, prüft dass im sauberen Baum alle drei Wände stehen, und
+besteht darauf, dass kein Schalter in `Sandbox` oder `Workspace` die Schranke zur
+Laufzeit abschaltet. Drei Brüche, jeder gefahren.
+
 **Was offen bleibt und benannt ist:** Welcher Cron-Dienst auf den vier
 Zielplattformen installiert und **aktiv** ist, war ungemessen — `docs/50 §7` hatte
 nur das Archiv geprüft, und `systemd-cron` liest `/etc/cron.d` mit einer anderen

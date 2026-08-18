@@ -45,13 +45,81 @@ final class BluntBuildTest extends TestCase
      * Wand danach weg ist, und setzt zurück. Ein Eingriff, der die Stelle nicht
      * mehr trifft, sähe im Durchgang aus wie eine Wand, die hält.
      */
+    /**
+     * Die stumpfen Fassungen, die es gibt.
+     *
+     * **`c` stand hier und ist am 18. August ersatzlos weggefallen** — die
+     * Begründung steht in `tests/stumpf.sh`. Kurz: Durch die Cron-Wand ging kein
+     * Prüfkörper, weil `cron-messen.sh` kein PHP aufruft.
+     *
+     * @var list<string>
+     */
+    private const SPIELARTEN = ['a', 'b'];
+
+    /**
+     * Jede stumpfe Fassung hat einen Prüfkörper, der durch die Stelle geht.
+     *
+     * ## Der teuerste Fehler dieses Abnahmelaufs, und er kostete drei Läufe
+     *
+     * Am 18. August liefen auf `cloudsrv24` `stumpf.sh a`, `stumpf.sh b` und
+     * dazwischen der Prüfstand — und die Ausgabe war dreimal Zeile für Zeile
+     * dieselbe. Die Eingriffe treffen `Files\Workspace`; Abschnitt 4 von
+     * `sandbox-messen.php` ruft aber `Sandbox::run()` unmittelbar auf und kommt
+     * dort nie vorbei.
+     *
+     * `stumpf.sh --pruefen` meldete dabei zu Recht „ist stumpf": Es hatte die
+     * Wand geöffnet und nachgewiesen, dass sie offen ist. Nur ging niemand
+     * hindurch.
+     *
+     * > **Ein Nachweis, dass der Eingriff wirkt, sagt nichts darüber, dass der
+     * > Prüfkörper dort vorbeikommt.**
+     *
+     * Geprüft wird deshalb der Bezug: Was `stumpf.sh` anfasst, muss der
+     * Prüfstand aufrufen. Das ist dieselbe Fehlerklasse, gegen die dieses
+     * Projekt `AgentOperationReachTest` und `PolicyReachTest` hat — eine
+     * Zeichenkette, die auf etwas zeigt, ohne dass jemand den Bezug prüft.
+     */
+    public function test_every_blunt_build_has_a_probe_that_walks_through_it(): void
+    {
+        $stand = (string) file_get_contents(dirname(__DIR__, 2).'/tests/sandbox-messen.php');
+
+        /*
+         * **Geprüft wird die Zeile des Prüfkörpers und nicht der blosse Name.**
+         * Der erste Wurf suchte `Workspace::path(` irgendwo in der Datei — und
+         * die Zeichenkette steht auch in der Bauerkennung. Der Bruch, der dem
+         * Prüfkörper die Normalisierung wegnahm, liess den Wächter grün.
+         *
+         * > **Ein Wächter, der einen Namen sucht statt seiner Verwendung, ist
+         * > grün, sobald der Name irgendwo sonst steht.**
+         */
+        foreach ([
+            '$pfad = Workspace::path($roh);' => 'die Normalisierung (stumpf-a)',
+            'return $arbeitsplatz->run($kontext,' => 'die Sandbox über den Arbeitsplatz (stumpf-b)',
+        ] as $aufruf => $was) {
+            $this->assertStringContainsString($aufruf, $stand, sprintf(
+                'tests/sandbox-messen.php ruft „%s" nicht mehr auf — dann geht kein Prüfkörper '.
+                'durch %s, und der Eingriff sähe aus wie eine Wand, die hält.',
+                $aufruf,
+                $was,
+            ));
+        }
+
+        // Und die Gegenrichtung: Der Prüfstand sagt, aus welchem Bau er kommt.
+        // Drei Läufe, die das nicht tun, sind ein Log dreimal.
+        $this->assertStringContainsString(
+            "'Bau', \$bau)",
+            $stand,
+            'Der Prüfstand nennt den Bau nicht mehr, aus dem er kommt.',
+        );
+    }
+
     public function test_every_blunt_build_still_finds_and_removes_its_wall(): void
     {
         [$code, $ausgabe] = $this->skript('--trocken');
 
         $this->assertSame(0, $code, "tests/stumpf.sh --trocken meldet einen Fehlschlag:\n".$ausgabe);
 
-        foreach (['a', 'b', 'c'] as $spielart) {
+        foreach (self::SPIELARTEN as $spielart) {
             $this->assertStringContainsString(
                 $spielart.': Zielstellen gefunden',
                 $ausgabe,
@@ -78,7 +146,7 @@ final class BluntBuildTest extends TestCase
         // Gezählt wird nicht das Wort — es steht auch in der Zeile, die die
         // Erwartung ansagt, und in der Übersicht darüber. Geprüft wird die
         // Zusage je Spielart.
-        foreach (['a', 'b', 'c'] as $spielart) {
+        foreach (self::SPIELARTEN as $spielart) {
             $this->assertStringContainsString(
                 $spielart.' ist scharf',
                 $ausgabe,

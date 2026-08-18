@@ -51,8 +51,48 @@ set -eu
 cd "$(dirname "$0")/.."
 
 WS=agent/src/Files/Workspace.php
-CF=agent/src/Cron/CronFile.php
-CA=agent/src/Ops/CronApply.php
+
+# **stumpf-c gab es hier, und es ist am 18. August ersatzlos weggefallen.**
+#
+# Es nahm die Cron-Wand weg — zwei Stellen in `CronFile::render()` und
+# `CronApply`. Nur geht dort kein Prüfkörper vorbei: `tests/cron-messen.sh`
+# ruft kein PHP auf, sondern legt Cron-Dateien von Hand. Der Eingriff wäre
+# angewendet worden, hätte nachgewiesen dass er wirkt, und nichts gemessen —
+# dieselbe Falle, die am selben Tag die beiden anderen Läufe wertlos gemacht
+# hat.
+#
+# > **Ein Eingriff ohne Prüfkörper, der ihn benutzt, ist eine Wand, die man
+# > wegnimmt, ohne dass jemand hindurchgeht.**
+#
+# Die Cron-Wand ist ohne ihn beidseitig gemessen: `cron-messen.sh` legt eine
+# rohe Zeile mit eingeschleustem `root` (läuft) neben eine im Entwurf des
+# Panels (läuft nicht), und die scharfe Hälfte von Punkt 9 und 10 geht im
+# Durchgang ohnehin durch das echte Panel.
+
+# **Dieses Skript ist nicht für den Einzeldownload gebaut, und das sagt es.**
+#
+# Es arbeitet mit `git status` und `git checkout` in dem Baum, der über ihm
+# liegt — aus `/root/stumpf.sh` heisst das `cd /`. Am 18. August ist genau das
+# passiert: Ein `curl` holte die HTML-Seite statt des Rohtexts, und der Aufruf
+# lief in `/`. Beides muss hier auffallen und nicht in einer Meldung von git,
+# die von etwas anderem spricht.
+#
+# > **Ein Skript, das seinen Arbeitsbaum nicht prüft, arbeitet im falschen.**
+#
+# `cron-messen.sh` darf einzeln heruntergeladen werden — es fasst nur seine
+# eigenen Wegwerf-Verzeichnisse an. Dieses hier fasst den Quelltext an.
+for datei in "$WS"; do
+  [ -f "$datei" ] || {
+    echo "Hier ist kein Checkout dieses Projekts: $datei fehlt (Arbeitsverzeichnis: $(pwd))." >&2
+    echo "Dieses Skript läuft nur aus einem git clone heraus, nicht als einzelne Datei." >&2
+    exit 2
+  }
+done
+
+git rev-parse --show-toplevel >/dev/null 2>&1 || {
+  echo "Hier ist kein git-Baum (Arbeitsverzeichnis: $(pwd)) — der Rückweg dieses Skripts braucht einen." >&2
+  exit 2
+}
 
 # **Der Rückweg wirft weg, was nicht eingecheckt ist.** `--zurueck` und der
 # Trockenlauf setzen diese drei Dateien über `git checkout --` zurück; liegt
@@ -63,7 +103,7 @@ CA=agent/src/Ops/CronApply.php
 # > **Ein Rückweg, der über `git checkout` führt, ist für alles ein Rückweg,
 # > was dort steht — nicht nur für den eigenen Eingriff.**
 sauber_oder_ende() {
-  schmutz=$(git status --porcelain -- "$WS" "$CF" "$CA")
+  schmutz=$(git status --porcelain -- "$WS")
 
   if [ -n "$schmutz" ]; then
     echo "In diesen Dateien liegt nicht eingecheckte Arbeit:" >&2
@@ -127,22 +167,9 @@ pruefe_b() {
   echo "$ergebnis"
 }
 
-pruefe_c() {
-  ergebnis=$(php_lauf '
-    $zeile = SrvPanel\Agent\Cron\CronFile::render("p1000", [[
-      "id" => 7,
-      "schedule" => ["minute" => "*", "hour" => "*", "day_of_month" => "*", "month" => "*", "day_of_week" => "*"],
-      "command" => "harmlos\n* * * * *\troot\ttouch /tmp/uebernommen",
-    ]]);
-    echo str_contains($zeile, "root\ttouch") ? "stumpf" : (str_contains($zeile, "cron-run 7") ? "scharf" : "unklar");
-  ')
-  echo "$ergebnis"
-}
-
 lage() {
   printf '  %-9s %s\n' "stumpf-a" "$(pruefe_a)"
   printf '  %-9s %s\n' "stumpf-b" "$(pruefe_b)"
-  printf '  %-9s %s\n' "stumpf-c" "$(pruefe_c)"
 }
 
 erwarte() {
@@ -179,54 +206,38 @@ b)
   erwarte b stumpf
   ;;
 
-c)
-  # **Zwei Stellen und nicht eine**, und das ist beim Bauen aufgefallen:
-  # `CronApply` streift den Befehl ab, bevor `render()` ihn sähe. Ein Eingriff
-  # nur an `render()` hätte nichts bewirkt — und im Durchgang wie eine haltende
-  # Abwehr ausgesehen.
-  #
-  # > **Ein Eingriff, der die Stelle nicht erreicht, sieht aus wie eine Wand,
-  # > die hält.**
-  ersetze "$CA" "                static fn (array \$job): array => ['id' => \$job['id'], 'schedule' => \$job['schedule']]," \
-                "                static fn (array \$job): array => ['id' => \$job['id'], 'schedule' => \$job['schedule'], 'command' => \$job['command']], // stumpf-c"
-  ersetze "$CF" "                self::RUNNER.' '.\$job['id']," \
-                "                \$job['command'] ?? self::RUNNER.' '.\$job['id'], // stumpf-c"
-  erwarte c stumpf
-  ;;
-
 --trocken)
   sauber_oder_ende
   # **Prüft die Zielstellen, ohne einzugreifen.** `--pruefen` sieht sie nicht:
   # Es misst, ob die Wände stehen, und nicht, ob dieses Skript sie noch findet.
-  # Zieht der Code um, meldete es weiter dreimal „scharf" — und der Eingriff
+  # Zieht der Code um, meldete es weiter zweimal „scharf" — und der Eingriff
   # fiele erst im Lauf auf, wo er teuer ist.
   #
   # > **Ein Eintrag, den der Ausdruck nie erreicht, sieht aus wie eine Abdeckung
   # > und ist eine Lücke.**
-  for v in a b c; do
-    if (ausgabe=$(sh "$0" "$v" 2>&1); git checkout -- "$WS" "$CF" "$CA"; [ -n "$ausgabe" ] && echo "$ausgabe" | grep -q 'ist stumpf'); then
+  for v in a b; do
+    if (ausgabe=$(sh "$0" "$v" 2>&1); git checkout -- "$WS"; [ -n "$ausgabe" ] && echo "$ausgabe" | grep -q 'ist stumpf'); then
       gut "$v: Zielstellen gefunden, Eingriff wirkt"
     else
       rot "$v: Zielstelle fehlt oder der Eingriff wirkt nicht"
     fi
   done
-  git checkout -- "$WS" "$CF" "$CA"
+  git checkout -- "$WS"
   ;;
 
 --pruefen|'')
   echo "Die Lage im Arbeitsbaum:"
   lage
   echo
-  echo "Erwartet vor einem Eingriff: dreimal „scharf\"."
+  echo "Erwartet vor einem Eingriff: zweimal „scharf\"."
   erwarte a scharf
   erwarte b scharf
-  erwarte c scharf
   ;;
 
 --zurueck)
   # Hier **nicht** die Sauberkeitsprüfung: Der Zweck dieses Zweigs ist gerade,
   # einen Eingriff zurückzunehmen, und der macht den Baum schmutzig.
-  git checkout -- "$WS" "$CF" "$CA"
+  git checkout -- "$WS"
   echo "Zurückgesetzt. Die Lage:"
   lage
   ;;

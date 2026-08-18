@@ -653,6 +653,20 @@ und nicht „welche Wand hat ihn gehalten?".
 > **Eine Gegenprobe, die zwei Wände zugleich wegnimmt, sagt über keine von
 > beiden etwas.**
 
+**Der Durchgang läuft seit dem 18. August, und das Protokoll ist `docs/62`.**
+Neun der fünfzehn Punkte sind gemessen, sechs stehen dort einzeln als offen —
+ein Protokoll ohne seine Lücken liest sich wie eine Abnahme. Die Frage aus §1
+ist beantwortet: **Nicht die Normalisierung hält, sondern das Chroot** (stumpf-A
+hält weiter, stumpf-B bricht 3 von 3 aus).
+
+Und der teuerste Fund des Laufs steckte im Prüfmittel: Die ersten drei Läufe
+waren Zeile für Zeile identisch, weil die Eingriffe `Files\Workspace` treffen und
+der Prüfstand dort nicht vorbeikam. `stumpf.sh --pruefen` meldete dabei zu Recht
+„ist stumpf".
+
+> **Ein Nachweis, dass der Eingriff wirkt, sagt nichts darüber, dass der
+> Prüfkörper dort vorbeikommt.**
+
 **Der Lauf ist gefahren — am 12. August 2026, gegen `0.5.3-rc.1` und ab Punkt 7
 gegen `0.5.3-rc.2`.** Sechs Kriterien erfüllt, das siebte (das Protokoll) benannt
 offen, **sechs Befunde und keinen davon ein Test.** Drei betrafen den Code, drei

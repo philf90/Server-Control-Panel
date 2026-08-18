@@ -654,9 +654,9 @@ und nicht „welche Wand hat ihn gehalten?".
 > beiden etwas.**
 
 **Der Durchgang läuft seit dem 18. August, und das Protokoll ist `docs/62`.**
-Dreizehn der fünfzehn Punkte sind auf `cloudsrv24` gemessen — die Punkte 5, 7
-und 8 gegen `4fe2e10`, Punkt 12 in beiden Hälften und als einziger **durch die
-echte Route** gegen `v0.6.0-rc.17` —, zwei stehen dort einzeln als offen —
+Vierzehn der fünfzehn Punkte sind auf `cloudsrv24` gemessen — die Punkte 5, 7
+und 8 gegen `4fe2e10`, die Punkte 11 und 12 **durch die echte Route** gegen
+`v0.6.0-rc.17` —, einer steht dort einzeln als offen —
 ein Protokoll ohne seine Lücken liest sich wie eine Abnahme. Die Frage aus §1
 ist beantwortet: **Nicht die Normalisierung hält, sondern das Chroot** (stumpf-A
 hält weiter, stumpf-B bricht 3 von 3 aus).
@@ -714,6 +714,27 @@ bevor das Kontingent ihn sah, einmal lief die Messung bei 390 px auf der Seite
 
 > **Ein Prüfkörper, der die Seite ohne den Gegenstand misst, misst die Seite und
 > nicht den Gegenstand.**
+
+**Und Punkt 11 hat vier Fehler des Messmittels gebraucht, bis er lesbar war** —
+alle vier in ihm und keiner im Panel. Der teuerste hat Daten gekostet: Der Kopf
+des Skripts behauptete, der Lauf verändere nichts, weil der Rumpf weggelassen
+wird und jede verändernde Route damit an ihrer Prüfung scheitert. `DELETE
+/cron/{job}` prüft aber keinen Rumpf — es löscht. Zweimal ist so ein Cronjob
+verschwunden, und beim ersten Mal sah es aus, als sei er „nicht gespeichert
+worden".
+
+> **Ein Vorgang, der nichts entgegennimmt, hat nichts, woran er scheitern
+> kann.**
+
+Für eine löschende Route heisst „durchgelassen" wörtlich „hat gelöscht"; anders
+ist ihre Erreichbarkeit nicht zu belegen. Die drei anderen: eine
+`X-Inertia`-Kopfzeile, die den 409 vor der Policy erzeugte; ein
+`redirect: 'manual'`, das jede Weiterleitung zu einer `0` machte; und eine
+Spalte, die „eindeutig" meldete, während die Gegenprobe daneben „BLIEB HÄNGEN"
+sagte.
+
+> **Ein Statuscode nach einer gefolgten Weiterleitung gehört einer anderen
+> Anfrage.**
 
 **Daneben fiel ein Fehler heraus, der mit dem Angriff nichts zu tun hat:**
 `FilesRead::MAX_BYTES` und `FilesWrite::MAX_BYTES` stehen auf 2 MiB,

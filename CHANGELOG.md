@@ -15221,3 +15221,47 @@ meldet trotzdem „alle gehalten".
 Drei Brüche im Bruchskript, und der dritte richtet den Wächter gegen sich
 selbst: Läuft sein Ausdruck über `routes/web.php` ins Leere, verglichen sich
 zwei leere Listen zu „gleich". Die Untergrenze zählt deshalb mit.
+
+### Punkt 11 ist gemessen — und der Lauf hat zweimal einen Cronjob gelöscht
+
+Am 18. August 2026 auf `cloudsrv24` gegen `v0.6.0-rc.17`: angemeldet als der
+Kunde von Abonnement 140, aufgerufen wurde 137. **Alle 22 Routen mit der fremden
+Kennung antworten mit 404, kein einziger 2xx.** Die Gegenprobe mit der eigenen
+Kennung kam in 20 von 22 Zeilen durch; die beiden übrigen stehen benannt offen.
+
+Das Kriterium ist dabei berichtigt worden, bevor der Lauf fuhr — `ApplyTenancy`
+klammert vor der Policy, ein fremdes Abonnement ist deshalb schon für die
+Auflösung von `{subscription}` unauffindbar. Ein 403 bestätigt die Existenz, ein
+404 nicht.
+
+**Drei Anläufe brauchte das Messmittel, und alle drei Fehler steckten in ihm:**
+eine `X-Inertia`-Kopfzeile, die `409` statt `200` erzeugte und damit die
+Auflösung statt der Policy belegte; ein `redirect: 'manual'`, das aus jeder
+Weiterleitung eine `0` machte, die ein Netzwerkfehler nicht von einem Erfolg
+unterscheidbar macht; und eine Spalte `eindeutig`, die `ja` meldete, während ihre
+Gegenprobe daneben „BLIEB HÄNGEN" sagte.
+
+> **Ein Statuscode nach einer gefolgten Weiterleitung gehört einer anderen
+> Anfrage.**
+
+> **Eine Spalte, die etwas behauptet, das sie nicht geprüft hat, ist schlimmer
+> als keine.**
+
+**Der vierte Fehler hat Daten gekostet.** Der Kopf des Skripts behauptete, der
+Lauf verändere nichts: Er lasse den Rumpf weg, also scheitere jede verändernde
+Route an ihrer eigenen Prüfung. Für zwanzig Routen stimmt das. `DELETE
+/cron/{job}` und `DELETE /sftp/keys/{key}` prüfen aber keinen Rumpf — sie
+löschen.
+
+> **Ein Vorgang, der nichts entgegennimmt, hat nichts, woran er scheitern kann.**
+
+Zweimal ist so ein Cronjob verschwunden, und beim ersten Mal sah es aus, als sei
+er „nicht gespeichert worden": Der `GET …/runs` danach fand ihn nicht mehr, und
+dessen 404 las sich wie eine gehaltene Grenze. Geklärt hat es erst der Blick in
+`CronController::destroy`.
+
+Behoben in drei Teilen — die beiden löschenden Routen stehen am **Ende** der
+Liste, damit die lesenden ihren Gegenstand noch vorfinden; jede Zeile trägt eine
+Spalte `Nebenwirkung`; und der Lauf warnt namentlich, bevor er beginnt. Was sich
+**nicht** beheben lässt und deshalb dasteht: Für eine löschende Route heisst
+„durchgelassen" wörtlich „hat gelöscht".

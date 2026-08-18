@@ -6,7 +6,7 @@ gemessen waren — nicht vorher, denn ein Verweis auf ein Dokument ohne Inhalt i
 ein toter Verweis.
 
 **Es ist unvollständig, und das steht in §3.** Von den zwölf Angriffen und drei
-Belegen aus `docs/51 §4` sind dreizehn gemessen; zwei sind offen. Ein Protokoll,
+Belegen aus `docs/51 §4` sind vierzehn gemessen; einer ist offen. Ein Protokoll,
 das seine Lücken nicht nennt, liest sich wie eine Abnahme.
 
 | | |
@@ -141,6 +141,67 @@ Zwei Abonnements ergeben zwei Kennungen — eine Konstante sähe gleich aus.
 
 **Halb offen:** Dass `1001` die Kennung von `p1136` ist, sagt `id` und nicht das
 Protokoll. „Nicht null" ist die eine Hälfte von Punkt 13.
+
+### Punkt 11 — der Mandantenübergriff
+
+**Erfüllt**, gemessen am 18. August 2026 auf `cloudsrv24` gegen `v0.6.0-rc.17`
+mit `tests/mandant-messen.js`, angemeldet als der Kunde von Abonnement 140,
+aufgerufen wurde 137.
+
+| | |
+|---|---|
+| fremde Kennung, alle 22 Routen | **404**, kein einziger 2xx |
+| Grund | die Mandantenklammer — nicht auffindbar |
+| Gegenprobe: eigene Kennung | 20 von 22 kamen durch |
+
+**Das Kriterium ist berichtigt worden, bevor der Lauf fuhr.** `docs/51 §4`
+verlangt „403 …, und zwar aus der Policy und nicht aus einem 404". Der Code
+liefert das nicht: `ApplyTenancy` klammert die Abfragen auf die Abonnements des
+Kontos, **bevor** die Policy gefragt wird — ein fremdes Abonnement ist schon für
+die Auflösung von `{subscription}` unauffindbar. Das ist die stärkere Antwort:
+Ein 403 bestätigt die Existenz, ein 404 nicht.
+
+> **Ein Kriterium, das eine Zahl vorschreibt, prüft die Zahl und nicht die
+> Wand.**
+
+**Offen bleiben zwei Zeilen**, beide benannt: `DELETE /sftp/keys/{key}` (es gibt
+keinen Schlüssel, also kam auch die eigene Kennung nicht durch) und beim
+gemessenen Lauf `GET /cron/{job}/runs` — dazu unten.
+
+**Drei Anläufe, drei Fehler, alle im Messmittel.** Dasselbe Verhältnis wie in
+`docs/45`, `docs/47`, `docs/48` und `docs/59`.
+
+| # | Fehler | was er geschönt hätte |
+|---|---|---|
+| 1 | `X-Inertia: true` mitgeschickt | `409` auf jede GET-Route; `HandleInertiaRequests` liegt vor dem `can:`, der 409 belegt die Auflösung und nicht die Policy |
+| 2 | `redirect: 'manual'` | `0` auf jede verändernde Route — eine undurchsichtige Weiterleitung, die ein Netzwerkfehler nicht von einem Erfolg unterscheidbar macht |
+| 3 | `eindeutig` sah nur auf die fremde Zweitkennung | eine Zeile meldete `ja`, während ihre Gegenprobe „BLIEB HÄNGEN" sagte — ein Widerspruch in derselben Zeile |
+
+> **Ein Statuscode nach einer gefolgten Weiterleitung gehört einer anderen
+> Anfrage.**
+
+> **Eine Spalte, die etwas behauptet, das sie nicht geprüft hat, ist schlimmer
+> als keine.**
+
+**Und der vierte Fehler hat Daten gekostet.** Der Kopf des Skripts behauptete,
+der Lauf verändere nichts — er lasse den Rumpf weg, also scheitere jede
+verändernde Route an ihrer eigenen Prüfung. Für zwanzig Routen stimmt das. Für
+`DELETE /cron/{job}` und `DELETE /sftp/keys/{key}` nicht: Sie prüfen keinen
+Rumpf, sie löschen.
+
+> **Ein Vorgang, der nichts entgegennimmt, hat nichts, woran er scheitern
+> kann.**
+
+Der Lauf hat auf `cloudsrv24` **zweimal einen Cronjob gelöscht**, und beim ersten
+Mal sah es aus, als sei er „nicht gespeichert worden" — der `GET …/runs` danach
+fand ihn nicht mehr, und dessen 404 las sich wie eine gehaltene Grenze. Erst der
+Blick in `CronController::destroy` hat es geklärt.
+
+Behoben in drei Teilen: Die beiden löschenden Routen stehen am **Ende** der
+Liste (damit die lesenden ihren Gegenstand noch vorfinden), jede Zeile trägt
+eine Spalte `Nebenwirkung`, und der Lauf warnt namentlich, bevor er beginnt. Was
+sich **nicht** beheben lässt: Für eine löschende Route heisst „durchgelassen"
+wörtlich „hat gelöscht". Anders ist ihre Erreichbarkeit nicht zu belegen.
 
 ### Punkt 12 — die volle Quota
 
@@ -336,13 +397,17 @@ davor (Abschnitte 4, 4b, 4c) sahen aus wie „hält".
 
 ## 3. Was offen ist
 
-**Zwei von fünfzehn Punkten sind ungemessen.** Sie stehen hier einzeln, weil
+**Einer von fünfzehn Punkten ist ungemessen.** Sie stehen hier einzeln, weil
 ein Protokoll ohne seine Lücken sich wie eine Abnahme liest.
 
 | # | offen, weil |
 |---|---|
-| 11 | Mandantenübergriff über alle 22 Routen — braucht zwei Wegwerf-Abonnements und das echte Panel |
 | 9, 10 (scharf) | die Einschleusung durch das **echte Panel**; gemessen ist bisher der Prüfkörper daneben |
+
+**Zu Punkt 11 bleiben zwei der 22 Zeilen offen** und stehen oben benannt:
+`DELETE /sftp/keys/{key}` (kein Schlüssel vorhanden) und `GET /cron/{job}/runs`
+(der Job war beim gemessenen Lauf schon gelöscht — mit der berichtigten
+Reihenfolge fällt das weg).
 
 **Die Punkte 5, 7, 8 und 12 sind am 18. August dazugekommen** und stehen oben in
 §1. Punkt 12 ist als einziger **durch die echte Route** gemessen, in beiden

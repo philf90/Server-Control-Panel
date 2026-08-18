@@ -31,8 +31,22 @@
  * *eigenen* Kennung muss in den Controller kommen. Sichtbar wird das an einem
  * `422`: Der Rumpf wird absichtlich weggelassen, also scheitert jede
  * verändernde Route an ihrer eigenen Prüfung — **nachdem** die Autorisierung
- * sie durchgelassen hat. Das ist zugleich der Grund, warum dieser Lauf nichts
- * verändert: Er kommt nie bis zur Handlung.
+ * sie durchgelassen hat.
+ *
+ * **Für zwei der 22 Routen stimmt das nicht, und hier stand das Gegenteil.**
+ * Der Kopf behauptete, der Lauf verändere nichts. Am 18. August 2026 hat er auf
+ * `cloudsrv24` zweimal einen Cronjob gelöscht, und beim ersten Mal sah es
+ * aus, als sei er „nicht gespeichert worden".
+ *
+ * > **Ein Vorgang, der nichts entgegennimmt, hat nichts, woran er scheitern
+ * > kann.**
+ *
+ * `CronController::destroy` und `SftpController::destroy` prüfen keinen Rumpf —
+ * sie löschen und leiten weiter. Für eine löschende Route heisst
+ * „durchgelassen" **wörtlich** „hat gelöscht"; anders ist ihre Erreichbarkeit
+ * nicht zu belegen. Die beiden stehen deshalb am Ende der Liste (damit die
+ * lesenden ihren Gegenstand noch vorfinden), tragen die Spalte
+ * `Nebenwirkung`, und der Lauf warnt davor, bevor er beginnt.
  *
  * **Zwei Kopfzeilen sind nach dem ersten Lauf herausgeflogen, und beide hätten
  * das Ergebnis geschönt** (18. August 2026, `docs/62`):
@@ -109,12 +123,17 @@ async function mandantMessen ({ eigen, fremd, eigenJob, fremdJob, eigenKey, frem
     ['POST', '/files/chmod'],
     ['GET', '/sftp'],
     ['POST', '/sftp/keys'],
-    ['DELETE', '/sftp/keys/{key}', 'key'],
     ['GET', '/cron'],
     ['POST', '/cron'],
     ['PUT', '/cron/{job}', 'job'],
-    ['DELETE', '/cron/{job}', 'job'],
     ['GET', '/cron/{job}/runs', 'job'],
+
+    // **Die beiden zerstörenden zuletzt**, damit die lesenden ihren Gegenstand
+    // noch vorfinden. Beim ersten Wurf stand `DELETE /cron/{job}` davor — der
+    // Job war weg, bevor `…/runs` ihn ansah, und dessen 404 sah aus wie eine
+    // gehaltene Grenze.
+    ['DELETE', '/sftp/keys/{key}', 'key', 'zerstoert'],
+    ['DELETE', '/cron/{job}', 'job', 'zerstoert'],
   ]
 
   const zweiter = (art, eigenesAbo) => {
@@ -157,9 +176,21 @@ async function mandantMessen ({ eigen, fremd, eigenJob, fremdJob, eigenKey, frem
     }
   }
 
+  // **Zwei der 22 Routen zerstören ihren Gegenstand, und das lässt sich nicht
+  // vermeiden.** Ein Vorgang, der nichts entgegennimmt, hat nichts, woran er
+  // scheitern kann: `CronController::destroy` prüft keinen Rumpf, es löscht und
+  // leitet weiter. Für eine Route, die löscht, heisst „durchgelassen" wörtlich
+  // „hat gelöscht" — anders ist ihre Erreichbarkeit nicht zu belegen.
+  console.warn(
+    'ACHTUNG: Dieser Lauf löscht auf dem eigenen Abonnement den Cronjob '
+    + `${eigenJob ?? '(keiner angegeben)'} und den SFTP-Schlüssel `
+    + `${eigenKey ?? '(keiner angegeben)'}. Beides sind Wegwerf-Gegenstände für `
+    + 'genau diese Messung — die Gegenprobe einer löschenden Route ist die Löschung.'
+  )
+
   const zeilen = []
 
-  for (const [methode, muster, art] of routen) {
+  for (const [methode, muster, art, zerstoert] of routen) {
     const bauen = (abo, eigenesAbo) => {
       const zweit = zweiter(art, eigenesAbo)
       const pfad = muster.replace(/\{(job|key)\}/, String(zweit ?? 999999))
@@ -201,6 +232,7 @@ async function mandantMessen ({ eigen, fremd, eigenJob, fremdJob, eigenKey, frem
           : uebergriff ? 'ÜBERGRIFF' : `unerwartet ${fremdCode}`,
       Gegenprobe: durchgelassen ? 'durchgelassen' : 'BLIEB HÄNGEN',
       eindeutig,
+      Nebenwirkung: zerstoert ? 'die eigene Kennung ist jetzt gelöscht' : 'keine',
     })
   }
 

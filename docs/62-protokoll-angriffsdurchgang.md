@@ -6,8 +6,7 @@ gemessen waren — nicht vorher, denn ein Verweis auf ein Dokument ohne Inhalt i
 ein toter Verweis.
 
 **Es ist unvollständig, und das steht in §3.** Von den zwölf Angriffen und drei
-Belegen aus `docs/51 §4` sind dreizehn gemessen; zwei ganz und einer halb
-offen. Ein Protokoll,
+Belegen aus `docs/51 §4` sind dreizehn gemessen; zwei sind offen. Ein Protokoll,
 das seine Lücken nicht nennt, liest sich wie eine Abnahme.
 
 | | |
@@ -145,10 +144,10 @@ Protokoll. „Nicht null" ist die eine Hälfte von Punkt 13.
 
 ### Punkt 12 — die volle Quota
 
-**Erste Hälfte erfüllt, und der Lauf hat einen Befund gebracht.** Gemessen am
-18. August 2026 auf `cloudsrv24` gegen `2389c82` mit `tests/quota-messen.php`;
-Gerät `/dev/vda3`, `repquota` liest 18 Zeilen, also läuft die Quota dort
-inzwischen — auf dieser Frage stand der Punkt seit `docs/41`.
+**Erfüllt, in beiden Hälften**, gemessen am 18. August 2026 auf `cloudsrv24`
+gegen `2389c82` (Weg der Operation) und `v0.6.0-rc.17` (durch das Panel).
+
+**Die erste Hälfte** — `tests/quota-messen.php`, Gerät `/dev/vda3`:
 
 | | |
 |---|---|
@@ -157,41 +156,98 @@ inzwischen — auf dieser Frage stand der Punkt seit `docs/41`.
 | die Zieldatei entsteht gar nicht erst | ja |
 | Gegenprobe unter 64 MB | gelingt, 2097152 von 2097152 Byte |
 
-**Der Befund:** Die Meldung lautete „Die Datei liess sich nicht schreiben." — und
-nannte das Kontingent **nicht**. Der Kunde liest einen Defekt des Servers, wo er
-Platz schaffen müsste.
-
-Die Ursache ist der Satz, wegen dem dieses Skript gebaut wurde. Im Quelltext
-stand seit P6, `file_put_contents` melde bei voller Quota die Zahl der
-geschriebenen Bytes; **gemessen wird `false`.** PHP wandelt einen kurzen
-Schreibvorgang selbst in einen Fehlschlag um — es warnt „Only X of Y bytes
-written, possibly out of free disk space" und wirft die Zahl weg. Damit lief
-immer der Zweig, der das Kontingent nicht nennt, und der andere war
-**unerreichbar**.
+**Der Befund daraus:** Die Meldung lautete „Die Datei liess sich nicht
+schreiben." und nannte das Kontingent **nicht**. Im Quelltext stand seit P6,
+`file_put_contents` melde bei voller Quota die Zahl der geschriebenen Bytes;
+gemessen wird **`false`** — PHP wandelt den kurzen Schreibvorgang selbst in einen
+Fehlschlag um und wirft die Zahl weg. Die Meldung hing an einer Verzweigung nach
+genau diesem Wert, also war die richtige **unerreichbar**.
 
 > **Wissen aus zweiter Hand sieht aus wie Wissen.**
 
 > **Zwei Meldungen für denselben Fall laufen auseinander — und die falsche ist
 > die, die man bekommt.**
 
-Der Vergleich selbst war richtig und hat gehalten: `false !== 2097152` ist ebenso
-wahr wie eine kurze Zahl. **Der Vorgang hat nie Erfolg gemeldet** — es ging
-allein um die Begründung.
+Der Vergleich selbst hat gehalten: `false !== 2097152` ist ebenso wahr wie eine
+kurze Zahl. **Der Vorgang hat nie Erfolg gemeldet** — es ging allein um die
+Begründung. Behoben mit einer Meldung statt zwei; `ShortWriteTest` ist der
+Wächter, und er war beim Fund selbst grün, weil er den Satz im Quelltext suchte
+statt seiner Erreichbarkeit.
 
-**Und der Wächter dazu war grün.** `ShortWriteTest` suchte den Satz „Kontingent
-erschöpft" im Quelltext, und der stand dort — in einem von zwei Zweigen.
+**Die zweite Hälfte** — durch das echte Panel, Abonnement `p6-b.invalid`,
+Benutzer `p1136`, Grenze 64 MB mit 128 KB Luft, Prüfkörper 700 KB:
 
-> **Ein Wächter, der einen Satz sucht statt seiner Erreichbarkeit, ist grün,
-> sobald der Satz irgendwo steht.**
+| | gemessen |
+|---|---|
+| Erfolgsmeldung | keine |
+| die Begründung | „Die Datei wurde nicht vollständig geschrieben — vermutlich ist das Kontingent erschöpft." |
+| wo sie steht | oben in der Zusammenfassung, das Feld bleibt unrot |
+| bei 390 px, `scrollWidth − clientWidth` | **0** |
+| Gegenprobe (Fenster + 200 px) | **200** |
+| Gegenprobe nach oben: Grenze zurück auf den Plan | „Die Datei ist gespeichert." |
 
-Behoben mit einer Meldung statt zwei, und `written` steht bei unbekannter Zahl
-als `null` da statt als `0` — eine `0` behauptete „nichts geschrieben", und das
-weiss dieser Weg nicht. `stream_copy_to_stream` in `files.upload` liefert die
-Zahl wirklich; dieser Weg hatte immer nur eine Meldung und war deshalb nicht
-betroffen.
+Die Meldung bricht innerhalb ihres Kastens auf drei Zeilen um. Das ist die
+Stelle, an der `docs/48` einmal 110 px verloren hat, als die Begründung endlich
+lesbar wurde.
 
-**Offen bleibt die zweite Hälfte** — dass die Seite es sagt, an der richtigen
-Stelle und ohne bei 390 px zu schieben (`docs/61 §8.2`).
+**Der Lauf hat dabei zweimal seinen Prüfkörper verfehlt**, und beide Male sah es
+nach einem Ergebnis aus:
+
+1. Der erste Prüfkörper war 1,5 MB gross und starb an der **1-MiB-Grenze des
+   Agentenprotokolls**, bevor er das Kontingent erreichte. Die Seite meldete
+   „Anfrage überschreitet 1 MiB." — ein Satz über ein Socket, das der Kunde nicht
+   kennt.
+2. Die Messung bei 390 px lief auf der Seite **ohne** die Meldung. Null Überlauf,
+   und der Gegenstand fehlte.
+
+> **Ein Prüfkörper, der die Seite ohne den Gegenstand misst, misst die Seite und
+> nicht den Gegenstand.**
+
+**Und die Untergrenze des Panels hat den Aufbau umgedreht.** `Quota::minimum()`
+lässt für Speicherplatz nichts unter **64 MB** zu — mit gutem Grund, ein
+Abonnement mit weniger ist kein enges, sondern ein kaputtes. Der Prüfkörper
+senkt deshalb nicht die Grenze auf den Bestand, sondern führt den Bestand an die
+Grenze heran. Was `tests/quota-messen.php` mit 1 MB misst, ist über die
+Oberfläche erst ab 64 MB erreichbar: Der Prüfstand ruft `DiskQuota::apply()`
+unmittelbar und kommt an der Prüfung des Formulars vorbei.
+
+### Punkt 12b — `FilesWrite::MAX_BYTES` ist unerreichbar
+
+**Kein Angriff, gefunden beim Bau von Punkt 12.** Drei Grenzen widersprechen
+sich:
+
+| | Wert | |
+|---|---|---|
+| `FilesRead::MAX_BYTES` | 2 MiB | so gross darf eine Datei sein, um sich zu **öffnen** |
+| `FilesWrite::MAX_BYTES` | 2 MiB | so gross darf ein Inhalt sein, um sich zu **speichern** |
+| `Connection::REQUEST_MAX` | **1 MiB** | so gross darf eine Anfrage an den Agenten sein |
+
+Die dritte steht vor den beiden anderen, also ist die zweite eine Behauptung.
+
+> **Ein Wert, der grösser ist als der Weg dorthin, ist keine Grenze.**
+
+**Und es ist schlimmer als der Faktor 2**, weil die Anfrage JSON ist. Gemessen:
+
+| Inhalt | roh | als JSON | Faktor |
+|---|---|---|---|
+| reiner ASCII-Text | 100 000 | 100 002 | 1,00 |
+| Text mit Zeilenumbrüchen | 99 970 | 101 510 | 1,02 |
+| Quelltext mit Tabs und Anführungszeichen | 92 500 | 115 002 | 1,24 |
+| deutscher Text mit Umlauten | 119 000 | 203 002 | **1,71** |
+
+`json_encode` maskiert jedes Zeichen ausserhalb von ASCII als `\uXXXX` — aus
+einem `ü` (2 Byte) werden 6. **Schon eine 620-KB-Datei mit deutschem Text reisst
+die Grenze**, obwohl ihr Inhalt weit darunter liegt.
+
+**Was der Kunde davon merkt:** Eine Datei zwischen 1 und 2 MiB öffnet sich im
+Editor, lässt sich bearbeiten und **nie** speichern; bei deutschem Text beginnt
+das schon bei gut einem halben Megabyte. Er bekommt „Anfrage überschreitet
+1 MiB." und verliert seine Arbeit.
+
+**Offen** — die Behebung ist nicht entschieden, weil sie eine sichtbare Grenze
+verschiebt. Der Weg wäre, die **kodierte** Länge zu prüfen statt der rohen und
+`FilesRead::MAX_BYTES` daran zu binden: Was sich öffnen lässt, muss sich
+speichern lassen.
 
 ### Punkt 15 — ein gültiger Vorgang gelingt
 
@@ -280,19 +336,23 @@ davor (Abschnitte 4, 4b, 4c) sahen aus wie „hält".
 
 ## 3. Was offen ist
 
-**Drei von fünfzehn Punkten sind ungemessen.** Sie stehen hier einzeln, weil
+**Zwei von fünfzehn Punkten sind ungemessen.** Sie stehen hier einzeln, weil
 ein Protokoll ohne seine Lücken sich wie eine Abnahme liest.
 
 | # | offen, weil |
 |---|---|
 | 11 | Mandantenübergriff über alle 22 Routen — braucht zwei Wegwerf-Abonnements und das echte Panel |
-| 12 (zweite Hälfte) | dass die **Seite** den Fehlschlag sagt; der Weg der Operation ist gemessen |
 | 9, 10 (scharf) | die Einschleusung durch das **echte Panel**; gemessen ist bisher der Prüfkörper daneben |
 
-**Die Punkte 5, 7 und 8 sind am 18. August dazugekommen** und stehen oben in §1.
-Was an ihnen offen bleibt, ist dasselbe wie bei 9 und 10: Der Prüfstand geht den
-Weg der Operation, nicht den durch die Route. Für 7 und 8 heisst das den Weg
-über `POST /subscriptions/<ABO>/files/extract` mit einem hochgeladenen Archiv.
+**Die Punkte 5, 7, 8 und 12 sind am 18. August dazugekommen** und stehen oben in
+§1. Punkt 12 ist als einziger **durch die echte Route** gemessen, in beiden
+Hälften. Was an 5, 7 und 8 offen bleibt, ist dasselbe wie bei 9 und 10: Der
+Prüfstand geht den Weg der Operation, nicht den durch die Route. Für 7 und 8
+hiesse das `POST /subscriptions/<ABO>/files/extract` mit einem hochgeladenen
+Archiv.
+
+**Dazu Punkt 12b** (`FilesWrite::MAX_BYTES` unerreichbar) — gemessen und
+benannt, die Behebung nicht entschieden.
 
 Dazu die halbe Hälfte von Punkt 13 (`id p1136`), und aus `docs/61 §0`:
 `/var/lib/srvpanel` gehört auf dieser Maschine `root:root 0755` statt

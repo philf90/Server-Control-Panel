@@ -6,7 +6,7 @@ gemessen waren — nicht vorher, denn ein Verweis auf ein Dokument ohne Inhalt i
 ein toter Verweis.
 
 **Es ist unvollständig, und das steht in §3.** Von den zwölf Angriffen und drei
-Belegen aus `docs/51 §4` sind neun gemessen; sechs sind offen. Ein Protokoll,
+Belegen aus `docs/51 §4` sind zwölf gemessen; drei sind offen. Ein Protokoll,
 das seine Lücken nicht nennt, liest sich wie eine Abnahme.
 
 | | |
@@ -51,6 +51,48 @@ root) liefert den Inhalt. Fünf Zeilen, alle `haelt`.
 
 Mitgemessen und nicht im Kriterium: `conf/` (`root:root 0640`) bleibt für den
 Kunden unlesbar — dort hält nicht das Chroot, sondern das Dateisystem.
+
+### Punkt 5 — durch einen Verweis hinaus schreiben
+
+**Erfüllt**, seit Abschnitt 4c des Prüfstands. Er stand bis zum 18. August offen
+mit der Begründung „der Prüfstand liest nur, er schreibt nicht" — Lesen und
+Schreiben sind zwei Fragen, und gemessen war nur die erste.
+
+| | |
+|---|---|
+| `/etc/shadow` davor / danach | `79069c39eae4…` / `79069c39eae4…` — unverändert |
+| Wegwerfziel ausserhalb, scharf | `unberührt` |
+| dasselbe Ziel, ohne Sandbox | `stumpf durchgekommen` |
+
+**Die Gegenprobe geht nie auf `/etc/shadow`**, und das ist eine Entscheidung und
+kein Versehen: Sie müsste treffen, und das hiesse, die Kennwortdatei der
+Maschine zu überschreiben, auf der der Lauf fährt. Sie nimmt deshalb einen
+zweiten Verweis auf eine Wegwerfdatei ausserhalb der Wurzel — dieselbe Form des
+Angriffs, ein anderes Ziel. `/etc/shadow` selbst wird nur gemessen.
+
+### Punkt 7 und 8 — die bösartigen Archive
+
+**Erfüllt**, seit Abschnitt 4d. Je Archiv drei Zahlen:
+
+| Archiv | ausserhalb | `beweis` drinnen | `unnamed` | ohne Sandbox (`tar -xPf`) |
+|---|---|---|---|---|
+| `../` davor | nichts | ja | 1 | Datei liegt ausserhalb |
+| absoluter Pfad | nichts | ja | 1 | Datei liegt ausserhalb |
+
+Die dritte Spalte ist die Gegenprobe nach innen: Ein Archiv, das gar nicht
+entpackt wird, erzeugt dieselbe Abwesenheit wie eine gehaltene Grenze. Die
+fünfte ist die nach aussen.
+
+**Die Vorschrift aus `docs/61 §6` war dabei nicht fahrbar** und ist berichtigt.
+Sie schrieb `../../../../` — vier Schritte hinauf, was nur von einem flachen
+Zielverzeichnis aus reicht. Vom Zielverzeichnis des Prüfstands
+(`/var/www/vhosts/<ABO>/httpdocs/boes/ziel`) landen vier Schritte bei
+`/var/www/vhosts/<ABO>/tmp/…`, also **innerhalb** der Wurzel des Abonnements.
+
+> **Ein Prüfkörper, dessen Ziel von der Tiefe des Ordners abhängt, misst den
+> Ordner und nicht die Grenze.**
+
+Gemeldet hat es der Prüfstand selbst, mit „OHNE MESSUNG".
 
 ### Punkt 6 — der Tausch während des Vorgangs
 
@@ -128,20 +170,50 @@ Daraus sind vier Änderungen entstanden, alle in `9cbf55f`:
 3. **`stumpf-c` ist weggefallen**: Durch die Cron-Wand geht kein Prüfkörper.
 4. Ein Wächter hält den Bezug fest, damit das nicht wiederkommt.
 
+**Und der Bau der Punkte 7 und 8 hat einen Fehler gefunden, der mit dem Angriff
+nichts zu tun hat.** `Archive::names()` zählte ein Tar mit `foreach (new
+PharData($archive) as $file)` auf, und diese Schleife läuft über die **oberste
+Ebene**. Ein gewöhnliches Archiv mit `oben.txt`, `dir/mitte.txt` und
+`dir/sub/tief.txt` ergab `entries: 2` statt 5: `oben.txt` wurde geschrieben,
+`dir` landete unter „verlegt", und die beiden Dateien darunter verschwanden
+spurlos. Kein Ausbruch — ein Merkmal, das für jedes Tar mit einem
+Unterverzeichnis das Falsche tat, seit es das Merkmal gibt.
+
+> **Eine Aufzählung, die Ebenen hat, zählt nicht dasselbe wie eine, die keine
+> hat.**
+
+Zip war nie betroffen (`ZipArchive` zählt über den Index auf). Der Wächter dazu
+ist `ArchiveDepthTest`; er baut seine Archive Byte für Byte selbst, weil
+`PharData` keinen Eintrag mit `..` schreiben kann und weil ein Archiv aus dem
+Prüfling den Prüfling gegen sich prüfte.
+
+**Und kein Wächter dieses Repos hätte ihn finden können**, weil keiner je ein
+Archiv gebaut hat. Gefunden hat ihn ein Prüfstand für eine andere Frage — zum
+dritten Mal in diesem Lauf ist der Befund dort entstanden, wo niemand gesucht
+hat.
+
+**Zum vierten Mal dieselbe Falle mit dem Pfad im Chroot.** Der erste Wurf von 4d
+reichte den Pfad der Maschine in die Sandbox hinein, wo dasselbe Verzeichnis
+anders heisst. Diesmal war es ein Absturz und kein falsches Grün — die drei Male
+davor (Abschnitte 4, 4b, 4c) sahen aus wie „hält".
+
 ---
 
 ## 3. Was offen ist
 
-**Sechs von fünfzehn Punkten sind ungemessen.** Sie stehen hier einzeln, weil
+**Drei von fünfzehn Punkten sind ungemessen.** Sie stehen hier einzeln, weil
 ein Protokoll ohne seine Lücken sich wie eine Abnahme liest.
 
 | # | offen, weil |
 |---|---|
-| 5 | Symlink auf `/etc/shadow` **überschreiben** — der Prüfstand liest nur, er schreibt nicht |
-| 7, 8 | Archive mit `../` und mit absolutem Pfad — im Prüfstand nicht gebaut |
 | 11 | Mandantenübergriff über alle 22 Routen — braucht zwei Wegwerf-Abonnements und das echte Panel |
 | 12 | volle Quota — Fehlerweg des Vorgangs |
 | 9, 10 (scharf) | die Einschleusung durch das **echte Panel**; gemessen ist bisher der Prüfkörper daneben |
+
+**Die Punkte 5, 7 und 8 sind am 18. August dazugekommen** und stehen oben in §1.
+Was an ihnen offen bleibt, ist dasselbe wie bei 9 und 10: Der Prüfstand geht den
+Weg der Operation, nicht den durch die Route. Für 7 und 8 heisst das den Weg
+über `POST /subscriptions/<ABO>/files/extract` mit einem hochgeladenen Archiv.
 
 Dazu die halbe Hälfte von Punkt 13 (`id p1136`), und aus `docs/61 §0`:
 `/var/lib/srvpanel` gehört auf dieser Maschine `root:root 0755` statt

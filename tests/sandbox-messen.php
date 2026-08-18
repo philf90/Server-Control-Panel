@@ -36,6 +36,7 @@ require __DIR__.'/../agent/src/autoload.php';
 
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Files\Archive;
 use SrvPanel\Agent\Files\Workspace;
 use SrvPanel\Agent\Filesystem;
 use SrvPanel\Agent\Journal;
@@ -362,6 +363,181 @@ match (true) {
     str_starts_with($bau, 'stumpf-A ') => meldung('stumpf-A: hält weiter, A ist keine Schranke', $ausgebrochen === 0),
     default => meldung('stumpf-B: bricht aus, B trägt', $ausgebrochen > 0, sprintf('%d von 3', $ausgebrochen)),
 };
+
+// ─────────────────────────────────────────────────────────────────────────
+echo "\n4c. Durch einen Verweis hinaus SCHREIBEN (Punkt 5)\n\n";
+
+/*
+ * **Lesen und Schreiben sind zwei Fragen, und bis hierher war nur die erste
+ * gemessen.** Abschnitt 4 liest durch einen Symlink; Punkt 5 des Kriteriums
+ * (`docs/61 §4`) legt einen Verweis auf `/etc/shadow` und **schreibt** hinein.
+ * Im Protokoll stand er bis zum 18. August als offen, mit genau dieser
+ * Begründung: „der Prüfstand liest nur, er schreibt nicht".
+ *
+ * **Die Gegenprobe geht nie auf `/etc/shadow`, und das ist eine Entscheidung
+ * und kein Versehen.** Eine Gegenprobe muss treffen — dieselbe hier hiesse, die
+ * Kennwortdatei der Maschine zu überschreiben, auf der der Abnahmelauf fährt.
+ * Sie nimmt deshalb einen zweiten Verweis auf eine Wegwerfdatei ausserhalb der
+ * Wurzel: **dieselbe Form des Angriffs, ein anderes Ziel.** Was sie belegt, ist
+ * genau das, was sie belegen muss — dass ein Schreibvorgang durch einen Verweis
+ * ausserhalb der Wurzel landen *kann*, wenn ihn nichts hält.
+ *
+ * `/etc/shadow` selbst wird nur **gemessen**: Prüfsumme davor, Prüfsumme
+ * danach.
+ */
+$opfer = $aussen.'/opfer.txt';
+file_put_contents($opfer, "unberührt\n");
+symlink('/etc/shadow', $wurzel.'/httpdocs/raus-shadow');
+symlink($opfer, $wurzel.'/httpdocs/raus-opfer');
+exec('chown -h '.NUTZER.':'.NUTZER.' '.escapeshellarg($wurzel.'/httpdocs/raus-shadow').' '.escapeshellarg($wurzel.'/httpdocs/raus-opfer'));
+
+$schattenVorher = (string) @hash_file('sha256', '/etc/shadow');
+
+/*
+ * **Der Schreibweg der Operation, ohne den Vorgang selbst.** {@see FilesWrite}
+ * schreibt daneben und benennt um; hier zählt allein, wo die Bytes landen.
+ */
+$schreibeDurchOperation = static function (string $roh, string $inhalt) use ($arbeitsplatz, $kontext): bool {
+    try {
+        $pfad = Workspace::path($roh);
+    } catch (Throwable) {
+        return false;
+    }
+
+    return (bool) $arbeitsplatz->run($kontext, static function () use ($pfad, $inhalt): bool {
+        return @file_put_contents($pfad, $inhalt) === strlen($inhalt);
+    });
+};
+
+/*
+ * **Ohne Chroot bezeichnet `/httpdocs/raus-shadow` nichts** — dieselbe Falle
+ * wie in 4 und 4b. Hier wird sie **nicht** durch einen zweiten Pfad behoben:
+ * Der zweite Pfad wäre in stumpf-B ein Schreibzugriff auf `/etc/shadow` als
+ * root, und den führt dieses Skript nicht aus, in keinem Bau.
+ */
+$schreibeDurchOperation('/httpdocs/raus-shadow', "ausgebrochen\n");
+
+$schattenNachher = (string) @hash_file('sha256', '/etc/shadow');
+
+meldung(
+    '/etc/shadow unverändert',
+    $schattenVorher !== '' && $schattenVorher === $schattenNachher,
+    substr($schattenVorher, 0, 12).' → '.substr($schattenNachher, 0, 12),
+);
+
+// Und die Gegenprobe: derselbe Angriff auf ein Wegwerfziel, einmal durch die
+// Sandbox und einmal ohne. Ohne die zweite Zeile wäre die erste kein Beleg.
+$scharfGeschrieben = $schreibeDurchOperation(
+    $eigenerProzess ? '/httpdocs/raus-opfer' : $wurzel.'/httpdocs/raus-opfer',
+    "durchgekommen\n",
+);
+$nachScharf = trim((string) @file_get_contents($opfer));
+
+file_put_contents($wurzel.'/httpdocs/raus-opfer', "stumpf durchgekommen\n");
+$nachStumpf = trim((string) @file_get_contents($opfer));
+
+befund(
+    'Schreiben durch einen Verweis hinaus',
+    $nachScharf === 'unberührt',
+    $nachStumpf === 'stumpf durchgekommen',
+    sprintf('scharf „%s", stumpf „%s"', $nachScharf, $nachStumpf),
+);
+
+unset($scharfGeschrieben);
+
+// ─────────────────────────────────────────────────────────────────────────
+echo "\n4d. Die bösartigen Archive (Punkte 7 und 8)\n\n";
+
+/*
+ * **Zwei Archive, gebaut wie in `docs/61 §6`** — eines mit `../` davor, eines
+ * mit absolutem Pfad. Jedes trägt neben der Nutzlast einen harmlosen Eintrag
+ * `beweis`: Ohne ihn sähe ein Archiv, das gar nicht entpackt wurde, genauso aus
+ * wie eine gehaltene Grenze.
+ *
+ * **Und hier hat der Bau dieses Abschnitts einen Fehler gefunden, der mit dem
+ * Angriff nichts zu tun hat** (`docs/62 §2`): `Archive::names()` zählte ein Tar
+ * mit `foreach (new PharData(…))` auf — also nur die oberste Ebene. Ein
+ * gewöhnliches Archiv mit einem Unterverzeichnis verlor alles darunter, still.
+ * Der Wächter dazu ist `ArchiveDepthTest`.
+ */
+$boes = $wurzel.'/httpdocs/boes';
+mkdir($boes, 0o755, true);
+file_put_contents($boes.'/nutzlast', "getroffen\n");
+file_put_contents($boes.'/beweis', "brav\n");
+
+$bauen = static function (string $befehl) use ($boes): void {
+    exec('cd '.escapeshellarg($boes).' && '.$befehl.' 2>/dev/null');
+};
+/*
+ * **Zwölf Ebenen und nicht vier, und das ist eine Berichtigung von `docs/61
+ * §6`.** Die Vorschrift dort schrieb `../../../../` — vier Schritte hinauf. Vom
+ * Zielverzeichnis dieses Prüfstands aus
+ * (`/var/www/vhosts/<abo>/httpdocs/boes/ziel`) landet das bei
+ * `/var/www/vhosts/<abo>/tmp/…`, also **innerhalb** der Wurzel des
+ * Abonnements. Der Prüfkörper verfehlt sein Ziel, und zwar in beide Richtungen:
+ * Die Gegenprobe legt nichts ausserhalb an, und ein Ausbruch wäre keiner.
+ *
+ * Gemeldet hat es dieser Prüfstand selbst — als „OHNE MESSUNG", weil er eine
+ * Gegenprobe ohne Treffer nicht als Erfolg zählt.
+ *
+ * Zwölf Schritte reichen von jeder Tiefe, die hier vorkommt: `..` an der Wurzel
+ * bleibt die Wurzel.
+ *
+ * > **Ein Prüfkörper, dessen Ziel von der Tiefe des Ordners abhängt, misst den
+ * > Ordner und nicht die Grenze.**
+ */
+$hinauf = str_repeat('../', 12);
+$bauen("tar --transform 's|^nutzlast$|".$hinauf."tmp/getroffen-relativ|' -cf raus-relativ.tar nutzlast beweis");
+$bauen("tar -P --transform 's|^nutzlast$|/tmp/getroffen-absolut|' -cf raus-absolut.tar nutzlast beweis");
+exec('chown -R '.NUTZER.':'.NUTZER.' '.escapeshellarg($boes));
+
+foreach ([
+    ['Archiv mit ../ davor', 'raus-relativ.tar', '/tmp/getroffen-relativ'],
+    ['Archiv mit absolutem Pfad', 'raus-absolut.tar', '/tmp/getroffen-absolut'],
+] as [$was, $datei, $draussen]) {
+    @unlink($draussen);
+    exec('rm -rf '.escapeshellarg($boes.'/ziel'));
+    mkdir($boes.'/ziel', 0o755, true);
+    exec('chown '.NUTZER.':'.NUTZER.' '.escapeshellarg($boes.'/ziel'));
+
+    // **Innerhalb des Chroots heisst dasselbe Verzeichnis anders**, und der
+    // erste Wurf dieses Abschnitts ist genau daran gestorben: Er reichte den
+    // Pfad der Maschine hinein, und die Sandbox meldete „Das Zielverzeichnis
+    // gibt es nicht". Dieselbe Falle wie in 4, 4b und 4c — hier zum vierten
+    // Mal, und diesmal als Absturz statt als falsches Grün.
+    $innen = $eigenerProzess ? '/httpdocs/boes' : $boes;
+
+    $ergebnis = $arbeitsplatz->run($kontext, static function () use ($innen, $datei): array {
+        return Archive::extract($innen.'/'.$datei, $innen.'/ziel');
+    });
+
+    $scharfDraussen = file_exists($draussen);
+    $beweisDrin = file_exists($boes.'/ziel/beweis');
+
+    // Die Gegenprobe: dasselbe Archiv, entpackt von `tar` selbst und mit `-P`,
+    // also ohne dessen eigene Sicherung. Sie muss die Datei ausserhalb anlegen
+    // — sonst ist das Archiv harmlos und die Null darüber bedeutet nichts.
+    @unlink($draussen);
+    exec('cd '.escapeshellarg($boes.'/ziel').' && tar -xPf '.escapeshellarg($boes.'/'.$datei).' 2>/dev/null');
+    $stumpfDraussen = file_exists($draussen);
+    @unlink($draussen);
+
+    befund(
+        $was,
+        ! $scharfDraussen && $beweisDrin,
+        $stumpfDraussen,
+        sprintf(
+            'entpackt %d, ungenannt %d, %s',
+            $ergebnis['written'],
+            $ergebnis['unnamed'],
+            $beweisDrin ? 'beweis liegt drin' : 'BEWEIS FEHLT — nichts entpackt',
+        ),
+    );
+
+    // **Die Zahl gehört zum Befund.** Ein Eintrag, der übersprungen wird, ohne
+    // dass ihn jemand zählt, ist für den Kunden ein Archiv ohne Auskunft.
+    meldung($was.': der fehlende Eintrag ist gezählt', $ergebnis['unnamed'] >= 1, sprintf('ungenannt=%d', $ergebnis['unnamed']));
+}
 
 // ─────────────────────────────────────────────────────────────────────────
 echo "\n5. Das Rennen — der Angreifer aus docs/50 §3\n\n";

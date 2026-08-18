@@ -630,7 +630,14 @@ final class FileController extends Controller
             'skipped' => count($result['skipped'] ?? []),
         ]);
 
-        $uebergangen = count($result['skipped'] ?? []) + count($result['redirected'] ?? []);
+        // **`unnamed` zählt mit, und es hat keinen Namen.** In einem Tar gibt
+        // es Einträge, die der Aufzähler nicht sieht — ein `..` am Anfang lässt
+        // `PharData` sie zählen und nicht benennen (`Archive::names()`). Sie
+        // gehören in dieselbe Zahl wie die übersprungenen: Was fehlt, fehlt,
+        // auch wenn niemand sagen kann, wie es hiess.
+        $uebergangen = count($result['skipped'] ?? [])
+            + count($result['redirected'] ?? [])
+            + (int) ($result['unnamed'] ?? 0);
 
         return to_route('files.index', ['subscription' => $subscription->id, 'path' => $data['target']])
             ->with('success', $uebergangen === 0

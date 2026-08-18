@@ -372,7 +372,23 @@ messung "kaputte Zeile: die gute Zeile daneben läuft" nein "$(marker kaputt_zwe
 messung "ohne Zeilenumbruch am Ende: läuft" nein "$(marker kein_zeilenende)"
 messung "unbekannter Benutzer: seine Zeile läuft" nein "$(marker benutzer_unbekannt)"
 messung "unbekannter Benutzer: die gute Zeile daneben läuft" nein "$(marker benutzer_zweite)"
-messung "10001 Zeilen: die eine Jobzeile läuft" nein "$(marker zeilenzahl)"
+# **Erwartet wird `ja`, und das ist der Fund.** Im Binary steht „crontab must
+# not be longer than 10000 lines, this crontab file will be ignored"; die Grenze
+# gilt dem, was `crontab(1)` entgegennimmt, und **nicht** dem, was in
+# `/etc/cron.d` liegt. Eine Datei mit 10001 Zeilen wird dort gelesen und
+# ausgeführt (`docs/60 §5`).
+#
+# **Hier stand `nein`, und zwar bis zum 18. August** — die Erwartung sagte das
+# Gegenteil dessen, was derselbe Prüfkörper gemessen und was `docs/60` daraus
+# als Fund aufgeschrieben hatte. Jeder künftige Lauf hätte den Fund als
+# Abweichung gemeldet, auf jeder Maschine, für immer.
+#
+# > **Ein Prüfkörper, dessen Erwartung der eigenen Messung widerspricht, meldet
+# > den Befund als Fehler.**
+#
+# Damit ist `Quota::CronJobs` die einzige Obergrenze, die es gibt — und das ist
+# die Aussage, die dieser Prüfkörper festhält.
+messung "10001 Zeilen: die eine Jobzeile läuft (Grenze gilt hier nicht)" ja "$(marker zeilenzahl)"
 messung "Prozent: der Rest kommt als Standardeingabe an" "hallo-welt" "$(inhalt prozent_stdin)"
 messung "Prozent maskiert (\\%): bleibt im Befehl" "A%B" "$(inhalt prozent_maskiert)"
 messung "Einschleusung: die harmlose Zeile läuft" ja "$(marker einschleusung_harmlos)"

@@ -5,7 +5,7 @@ Laufs; es ist am 19. August 2026 angelegt worden, als die ersten beiden
 Ansichten gemessen waren.
 
 **Es ist unvollständig, und das steht in §3.** Von den neun Ansichten sind
-**fünf** aufgenommen und vollständig gemessen, von den zwanzig Zuständen ist
+**sechs** aufgenommen und vollständig gemessen, von den zwanzig Zuständen ist
 einer aufgenommen und keiner gemessen. Zwei Befunde am Panel stehen offen. Ein Protokoll, das seine Lücken nicht
 nennt, liest sich wie eine Abnahme.
 
@@ -212,6 +212,66 @@ Seite, dasselbe Messmittel, ein anderes Fenster, und der Eintrag ist weg.
 demselben Grund: `SftpController::pick()` leitet bei genau einem erreichbaren
 Abonnement durch.
 
+### Ansicht 6 — SFTP-Zugang (`/subscriptions/140/sftp`)
+
+**Die Seite schiebt in keiner Lage — und sie hat einen Fehler, den keine Zahl
+erzeugt.**
+
+| Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` |
+|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | `thead` 342 · `tr` 314 | leer |
+| 390 dunkel | 0 | **200/200** | `thead` 342 · `tr` 314 | leer |
+| 1440 hell | 0 | **200/200** | **leer** | `.scrolls` 217 |
+| 1440 dunkel | 0 | **200/200** | **leer** | `.scrolls` 217 |
+
+**Der Eintrag unter `rollt` ist der gewollte.** Die Schlüsseltabelle steht bei
+1440 px in der linken Hälfte von `.sections`, und ein `SHA256:`-Fingerabdruck
+passt dort nicht neben Bezeichnung, Art und Aktion. `.scrolls` ist genau dafür
+da, `darf` steht auf `true`, und `dokument` bleibt 0 — die Zelle rollt, die
+Seite nicht.
+
+`thead` steht als `div.frame > main.content > div.sections:2 > section.section:3
+> div.scrolls:2 > table.stacks > thead` da.
+
+#### Befund 3 — der Knopf „Eintragen" klebt am Satz darüber
+
+**Gemeldet vom Betreiber beim Ansehen des Bildes.** Zwischen „…ed25519, ECDSA
+und RSA ab 2048 Bit." und dem Knopf steht nichts.
+
+`Subscriptions/Sftp.vue` setzt den Erklärsatz als `.section-note`, und der hat
+`margin: 10px 0 0` — oben Luft, unten keine. Der Abstand müsste also von der
+Knopfreihe kommen, und die holt ihn aus einer Aufzählung:
+
+```css
+:is(.field, .hint, .error, .scrolls, .pager, .cell-value) + .button-row {
+  margin-top: 16px;
+}
+```
+
+`.section-note` steht nicht darin. **Das ist derselbe Fehler wie Befund 2 an
+Ansicht 4**, nur in die andere Richtung: Dort fehlte der Nachbar *hinter* der
+Knopfreihe, hier der *davor*. Zwei Funde derselben Bauart in einem Lauf, und
+der Kommentar neben der Regel nennt den Grund seit P5c selbst:
+
+> **Eine Regel, die eine Liste von Nachbarn führt, ist eine Liste, die wächst —
+> der Grund steht nicht in ihr, sondern daneben.**
+
+Die Liste ist seit P4 dreimal verlängert worden (`.hint`, dann `.scrolls`,
+`.pager`, `.cell-value`, dann die Gegenrichtung mit `.sections` und `.split`).
+Jedes Mal hat ein Bild sie verlängert, und jedes Mal blieb der nächste Fall
+offen. **Die Behebung sollte deshalb nicht der sechste Eintrag sein**, sondern
+die Frage umdrehen: Ein Baustein, der bündig endet, bringt seinen Abstand nach
+unten selbst mit — dann braucht die Knopfreihe keine Liste ihrer Vorgänger.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+Derselbe Satz steht seit `docs/59` Befund 19 im Projekt, dort über einen
+Menüpunkt. Hier trifft er einen Abstand.
+
+**Nicht behoben.** Er kommt zu den beiden Befunden an Ansicht 4 und wird mit
+ihnen gegen die nächste Fassung nachgeprüft.
+
 ---
 
 ## 2. Was dieser Lauf über sein eigenes Prüfmittel gelernt hat
@@ -329,8 +389,10 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
 
 ## 3. Was offen ist
 
-- **Vier der neun Ansichten** — 6 bis 9.
-- **Die beiden Befunde an Ansicht 4** — beheben und nachmessen.
+- **Drei der neun Ansichten** — 7 bis 9.
+- **Drei Befunde am Panel** — zwei an Ansicht 4, einer an Ansicht 6. Beheben
+  und nachmessen. Der dritte und der zweite sind derselbe Fehler in zwei
+  Richtungen; die Behebung sollte die Regel treffen und nicht den Einzelfall.
 - **Neunzehn der zwanzig Zustände** aus `docs/63 §3`. Gemessen ist einer:
   „Läufe ohne Läufe" (Job C, angelegt und vor dem ersten Lauf aufgenommen) —
   **aber ohne Messzeile und bei Arbeitsplatzbreite**, also noch nicht

@@ -281,6 +281,41 @@ Danach **hineinklicken** — die Krümelleiste trägt den Namen dann in voller
 Länge, und das ist die Stelle, an der `docs/46 §20.11` schon einmal 99 px aus
 dem Bild geschoben hat.
 
+### 2.3b — 520 Dateien für den Zustand „gekürzt" (root nötig)
+
+**Ein Suchwort allein erzeugt diesen Zustand nicht.** `FilesSearch` bricht ab,
+wenn eine von zwei Zahlen erreicht ist: 50 000 angesehene Einträge
+(`MAX_VISITED`) oder **500 Treffer** (`MAX_HITS`). Das Abonnement hat rund
+zwanzig Einträge; der Zustand ist ohne Vorbereitung unerreichbar.
+
+**520 und nicht 500.** Die Abfrage steht am Kopf der Schleife, *bevor* der
+nächste Eintrag gezählt wird: Bei genau 500 passenden Dateien ist die Liste zu
+Ende, bevor jemand den Abbruch bemerkt, und `truncated` bliebe `false`. Es
+braucht mindestens einen Eintrag mehr, und zwanzig Reserve kosten nichts.
+
+> **Eine Grenze, die beim Betreten des nächsten Eintrags geprüft wird, braucht
+> einen nächsten Eintrag.**
+
+Der einzige zweite Griff dieses Laufs, der root braucht — wie §2.4, und aus
+demselben Grund ausdrücklich gekennzeichnet: 520 Dateien durch das Panel
+anzulegen sind 520 Formulare.
+
+```
+mkdir -p /var/www/vhosts/p6-abnahme.invalid/httpdocs/viele && for i in $(seq -w 1 520); do : > /var/www/vhosts/p6-abnahme.invalid/httpdocs/viele/treffer-$i.txt; done && chown -R "p1139:$(id -gn p1139)" /var/www/vhosts/p6-abnahme.invalid/httpdocs/viele && chmod 750 /var/www/vhosts/p6-abnahme.invalid/httpdocs/viele && chmod 640 /var/www/vhosts/p6-abnahme.invalid/httpdocs/viele/*.txt && ls /var/www/vhosts/p6-abnahme.invalid/httpdocs/viele | wc -l
+```
+
+Erwartet: `520`.
+
+Gesucht wird dann nach `treffer` — die Adresse dazu:
+`/subscriptions/140/files/search?path=%2F&query=treffer`
+
+**Und danach wieder weg**, damit der Bestand für die zweite Runde derselbe ist
+wie in §2.1:
+
+```
+rm -rf /var/www/vhosts/p6-abnahme.invalid/httpdocs/viele
+```
+
 ### 2.4 — Eine Datei, die dem Kunden nicht gehört (root nötig)
 
 Für den Zustand „nur lesbar" im Editor. `conf/` gehört `root:root 0755` — der

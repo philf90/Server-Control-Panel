@@ -584,6 +584,7 @@ zusätzlich im zweiten Theme dazu.
 | Suche — gekürzt (500 Treffer) | 1440 hell **und** dunkel | 0 | **200/200** | **leer** | dieselbe |
 | SFTP — ohne Schlüssel | 390 hell **und** dunkel | 0 | **200/200** | `thead` 358 · `tr` 330 | — |
 | SFTP — ohne Schlüssel | 1440 hell **und** dunkel | 0 | **200/200** | **leer** (`rollt` leer) | — |
+| Läufe — ohne Läufe (Job C) | 390 hell **und** dunkel | 0 | **200/200** | `thead` 318 · `tr` 290 | — |
 
 **Zur Mehrfachauswahl.** Zwei Einträge angekreuzt, die Auswahlleiste offen mit
 sechs Knöpfen, und im Baum daneben steht das lange Verzeichnis aus `docs/63
@@ -708,6 +709,13 @@ gebaut wurden: `gross.bin` (3 MiB) die Schwelle aus `FilesRead::MAX_BYTES`,
 `mb_check_encoding()`. **Die Grösse entscheidet den zweiten Fall nicht** — das
 war der Grund, ihn nicht als grosse Zufallsdatei zu bauen, und die Aufnahme
 belegt es.
+
+**Zu „ohne Läufe".** Der Zustand stand seit dem Beginn dieses Laufs als
+aufgenommen, aber unbrauchbar in §3: Das Bild war bei Arbeitsplatzbreite
+entstanden und trug keine Messzeile. Jetzt liegt er bei 390 px in beiden Themes
+vor. **Ein Bild ohne seine Zahl ist kein halber Zustand, sondern keiner** — die
+Frage dieses Schritts ist, ob die Seite bei 390 px schiebt, und die beantwortet
+nur die Zahl.
 
 **Zum nur lesbaren Zustand.** Hier taucht zum ersten Mal in diesem Lauf der
 Rollbehälter des Editors auf — `.cm-scroller` mit 189 px unter `rollt`,
@@ -927,10 +935,16 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
 ## 3. Was offen ist
 
 - **Zehn Befunde am Panel** — zwei an Ansicht 4, einer an Ansicht 6, drei an
-  Ansicht 8, zwei an Ansicht 9, zwei an Zuständen. Beheben und nachmessen. Sie fallen in **zwei**
-  Gruppen: 2, 3 und 4 sind fehlende Nachbarpaare, 7 und 8 sind die fehlende
-  senkrechte Polsterung an `td`. Beide Male trifft die Behebung die Regel und
-  nicht den Einzelfall.
+  Ansicht 8, zwei an Ansicht 9, zwei an Zuständen. Beheben und nachmessen.
+
+  Sie fallen in **drei** Gruppen und drei Einzelfälle:
+
+  | Gruppe | Befunde | eine Regel |
+  |---|---|---|
+  | fehlende Nachbarpaare | 2, 3, **4** (zwei Fundstellen) | ein Baustein, der bündig endet, bringt seinen Abstand selbst mit |
+  | fehlende Polsterung an `td` | 7, 8 | `padding: 8px 14px 8px 0`, im Container gemessen |
+  | Wirkung ausserhalb des Bildes | 10 | jeder Griff, der einen Bereich öffnet, holt ihn ins Bild |
+  | einzeln | 1 (Kästchen), 5 (Codestück), 6 (Dichtestufe), 9 (Ausrichtung) | — |
 - **Die Zahlen zu Befund 8 auf `cloudsrv24` gegenprüfen.** Im Container ist der
   Eingriff gemessen (einzeilige Zeilen bleiben bei 48 px); auf dem Server steht
   er noch aus und gehört in die zweite Runde.
@@ -939,10 +953,9 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
 - **Die Runde danach noch einmal.** Befund 6 ändert die Dichtestufe `customer`,
   und in der stehen alle Aufnahmen dieses Laufs. Erst zu Ende messen, dann alles
   in einer Fassung beheben, dann neu fahren.
-- **Achtzehn der einundzwanzig Zustände** aus `docs/63 §3`. Gemessen ist einer:
-  „Lauf mit Ausgabe, aufgeklappt" (Job A) — er steckt in den vier Lagen von
-  Ansicht 9. Aufgenommen, aber ohne Messzeile ist „Läufe ohne Läufe" (Job C, vor
-  dem ersten Lauf) — und zwar bei Arbeitsplatzbreite statt bei 390 px, also noch
-  nicht protokollfähig.
+- **Drei der einundzwanzig Zustände** aus `docs/63 §3`: das Formular „Ändern"
+  offen, das ausgeschöpfte Kontingent und „ohne Jobs" (auf 137). Alles andere
+  ist gemessen — siehe §1b. „Zugang gestört" und „Abonnement nicht benutzbar"
+  bleiben ungemessen, weil sie ausdrücklich nicht hergestellt werden.
 
 **Damit ist Schritt 12 nicht abgeschlossen**, und P6 ist nicht abgenommen.

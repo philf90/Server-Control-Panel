@@ -580,6 +580,8 @@ zusätzlich im zweiten Theme dazu.
 | Editor — nur lesbar (`/conf/hinweis.txt`) | 390 hell **und** dunkel | 0 | **200/200** | leer (`rollt`: `.cm-scroller` 189) | — |
 | Suche — kein Treffer | 390 hell **und** dunkel | 0 | **200/200** | `thead` 166 · `tr` 138 | — |
 | Suche — kein Treffer | 1440 hell **und** dunkel | 0 | **200/200** | `input` 24 · *(LastPass 489)* | — |
+| Suche — gekürzt (500 Treffer) | 390 hell **und** dunkel | 0 | **200/200** | `thead` 166 · `tr` 138 · *(LastPass 489)* | **Befund 4**, zweite Fundstelle |
+| Suche — gekürzt (500 Treffer) | 1440 hell **und** dunkel | 0 | **200/200** | **leer** | dieselbe |
 
 **Zur Mehrfachauswahl.** Zwei Einträge angekreuzt, die Auswahlleiste offen mit
 sechs Knöpfen, und im Baum daneben steht das lange Verzeichnis aus `docs/63
@@ -720,6 +722,39 @@ aus `can.edit` **und** `entry.writable`; `app.css` zeichnet einen abgeschalteten
 Knopf mit `opacity: 0.5`. Kein Befund — festgehalten, weil ein farbiger Knopf
 unter dem Satz „lässt sich lesen und nicht ändern" genau die Stelle ist, an der
 `AbilityReachTest` sonst zuschlägt.
+
+### Befund 4 hat eine zweite Fundstelle — und der Prüfkörper hat gehalten
+
+**Der Zustand „gekürzt" ist erreicht**, und `docs/63 §2.3b` hat dabei genau
+getan, wofür die Zahl 520 gewählt wurde: Die Seite meldet **„angesehene
+Einträge: 515"** und darunter den Abbruch. Der Suchlauf ist also bei 500
+Treffern stehen geblieben, **bevor** er alle 520 Dateien gesehen hatte — mit 500
+Dateien wäre die Liste vorher zu Ende gewesen und `truncated` `false`
+geblieben.
+
+> **Ein Prüfkörper, der die Grenze nur erreicht, belegt sie nicht — er muss
+> darüber hinausgehen.**
+
+**Und der Betreiber hat am Bild gesehen, was `dokument: 0` nicht zeigt:** Die
+gelbe Meldung klebt am Satz „Gesucht unter / — angesehene Einträge: 515."
+darüber. `Files/Search.vue` setzt dort
+
+```html
+<p class="quiet">Gesucht unter …</p>
+<p v-if="props.truncated" class="notice warn">…</p>
+```
+
+— und das ist **derselbe Fall wie Befund 4** auf der Cronseite: ein `<p>` vor
+einer `.notice`. `.notice` trägt `margin-bottom` und keinen Rand nach oben, ein
+`<p>` hat durch Tailwinds Reset gar keinen, und die Paarliste kennt weder das
+eine noch das andere.
+
+**Deshalb keine neue Nummer.** Es ist eine zweite Fundstelle desselben Fehlers,
+und die Behebung ist dieselbe. Sie ist hier festgehalten, damit die
+Nachprüfung **beide** Stellen ansieht — eine Behebung, die nur dort geprüft
+wird, wo der Fehler zuerst auffiel, ist keine Regel, sondern ein Pflaster.
+
+Der Kasten in der Mitte bei 390 px ist Befund 1 und schon bekannt.
 
 ### Ein Eingabefeld steht unter `schiebt` und ist keiner
 

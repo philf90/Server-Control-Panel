@@ -8995,6 +8995,90 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TenancySweepTest passed
 
 echo
+echo "── CronIngestTest: das Einpflegen läuft wieder unter der Mandantenklammer ──"
+#
+# Der Befund vom 19. August: srvpanel-cron.service hat kein angemeldetes Konto,
+# die Klammer verweigert dann alles, und CronJob::query() fand keinen einzigen
+# Job. Der Einsammler meldete „88 eingesammelt, 0 eingepflegt" — und die 88
+# waren fort, weil cron.runs löscht, was es herausgegeben hat.
+vorher_datei app/Support/Cron/Cron.php
+python3 - <<'PY2'
+p = 'app/Support/Cron/Cron.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    'return $this->tenancy->withoutRestriction(fn (): int => $this->storeUnrestricted($runs, $byUser));',
+    'return $this->storeUnrestricted($runs, $byUser);',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Cron/Cron.php "Einpflegen unter der Klammer" &&
+pruefe "Einpflegen unter der Klammer" \
+  CronIngestTest::test_a_run_arrives_without_an_authenticated_account failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronIngestTest passed
+
+echo
+echo "── CronIngestTest: eine fremde Jobnummer wird geglaubt ──"
+#
+# Die Ablage gehört dem Abonnement — was darin steht, ist eine Behauptung des
+# Kunden. Ohne diese Prüfung hängt ein selbst geschriebener Lauf an einem
+# fremden Job.
+vorher_datei app/Support/Cron/Cron.php
+python3 - <<'PY2'
+p = 'app/Support/Cron/Cron.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '|| (int) $job->subscription_id !== (int) $subscription->id) {',
+    ') {',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Cron/Cron.php "fremde Jobnummer geglaubt" &&
+pruefe "fremde Jobnummer geglaubt" \
+  CronIngestTest::test_a_run_that_names_a_foreign_job_is_dropped failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronIngestTest passed
+
+echo
+echo "── TimerRearmTest: der Cron-Timer verliert seinen Kalender ──"
+#
+# Gemessen auf cloudsrv24: „active", NEXT auf „-", letzter Lauf 22 Stunden her.
+# Ein rein monotoner Timer kann seinen nächsten Termin verlieren und meldet
+# dabei keinen Fehler.
+vorher_datei packaging/systemd/srvpanel-cron.timer
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-cron.timer'
+s = open(p, encoding='utf-8').read()
+s = s.replace('OnCalendar=*:0/5', 'OnUnitActiveSec=5min', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei packaging/systemd/srvpanel-cron.timer "Timer ohne Kalender" &&
+pruefe "Timer ohne Kalender" \
+  TimerRearmTest::test_a_repeating_timer_is_bound_to_the_clock failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimerRearmTest passed
+
+echo
+echo "── TimerRearmTest: Persistent ohne Kalender ──"
+#
+# Die Einstellung wirkt nur auf Kalender-Timer. Rein monoton steht sie da und
+# tut nichts — eine Notiz, die sich wie eine Zusage liest.
+vorher_datei packaging/systemd/srvpanel-usage.timer
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-usage.timer'
+s = open(p, encoding='utf-8').read()
+s = s.replace('OnCalendar=*:0/15', 'OnUnitActiveSec=15min', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei packaging/systemd/srvpanel-usage.timer "Persistent ohne Kalender" &&
+pruefe "Persistent ohne Kalender" \
+  TimerRearmTest::test_persistent_is_only_claimed_where_it_works failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimerRearmTest passed
+
+echo
 echo "── OverflowProbeTest: der Prüfkörper bekommt wieder eine feste Breite ──"
 #
 # Befund 22 aus docs/59: Ein Block von 900px schlägt bei 390px aus und bei

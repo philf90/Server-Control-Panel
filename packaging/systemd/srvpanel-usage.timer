@@ -8,7 +8,13 @@ Documentation=https://repo.cloudsrv24.de/
 # und eine Messung, die dabei auf einen noch nicht laufenden Agenten trifft,
 # ist eine Fehlermeldung ohne Anlass.
 OnBootSec=5min
-OnUnitActiveSec=15min
+
+# Dieselbe Behebung wie in `srvpanel-cron.timer` und aus demselben Grund: Ein
+# Sockel, der an der letzten Aktivierung hängt, kann die Kette verlieren und
+# dann `active` bleiben, ohne je wieder einen Termin zu haben. Hier ist es nie
+# aufgefallen — was nichts über die Bauart sagt, sondern nur darüber, dass
+# niemand hingesehen hat.
+OnCalendar=*:0/15
 
 # Ein Server, der über Nacht ausgeschaltet war, misst nach dem Einschalten
 # einmal nach, statt bis zum nächsten Viertelstundenschlag mit Werten von

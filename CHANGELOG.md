@@ -15416,3 +15416,71 @@ Brüche stehen in `tests/waechter-brechen.sh` und beissen.
 Themes und bei beiden Breiten, die Zustände, die das Layout ändern, die
 Vorbereitung der Daten auf dem Zielserver und die Fallen, die diesen Lauf schon
 gekostet haben.
+
+### Cron-Läufe kamen nie in der Datenbank an — zwei Fehler, gefunden beim Vorbereiten
+
+**Gemeldet vom Betreiber am 19. August 2026:** Die Läufe-Seite blieb leer,
+obwohl zwei Cronjobs im Minutentakt liefen. Auf `cloudsrv24` lagen 88
+Aufzeichnungen unter `/var/spool/srvpanel/cron/p1139/`, cron hatte sie
+ordentlich erzeugt, und der Wrapper hatte alles richtig gemacht. Es waren zwei
+voneinander unabhängige Fehler, und **keinen davon hätte ein Test finden können,
+weil es keinen gab.**
+
+**Der erste: die Mandantenklammer im Einsammler.** `srvpanel-cron.service` läuft
+als Systemdienst **ohne angemeldetes Konto**, und die dritte Grenze dieses
+Projekts verweigert in diesem Zustand alles. `Cron::store()` fragte `CronJob`
+ohne Ausnahme, fand deshalb keinen einzigen Job, und jeder gemeldete Lauf lief
+in ein `continue`. Von Hand angestossen meldete das Kommando:
+
+    88 Lauf/Läufe eingesammelt, 0 eingepflegt, 0 wartet/warten noch.
+
+**Und die 88 waren damit fort.** `cron.runs` löscht, was es herausgegeben hat —
+„höchstens einmal", und das ist eine bewusste Entscheidung für den Fall, dass
+eine Antwort unterwegs verlorengeht. Hier kam sie an. Verloren ging trotzdem
+jeder Lauf, seit es das Merkmal gibt.
+
+`Cron::withJobs()` nimmt dieselbe Ausnahme und hat sie seit dem ersten Wurf; im
+Einpflegen fehlte sie.
+
+> **Zwei Stellen, die dieselbe Ausnahme brauchen, und nur eine hat sie: Die
+> andere fällt nicht auf, weil sie leise das Richtige tut — nämlich nichts.**
+
+Die Wand ist dabei nicht die Klammer, sondern die Prüfung je Lauf: Eine
+gemeldete Jobnummer muss zu dem Abonnement gehören, unter dessen Namen sie
+ankam. Die Ablage gehört dem Kunden, was darin steht ist eine Behauptung — und
+die Klammer könnte das gar nicht entscheiden, weil hier kein Konto fragt.
+
+**Der zweite: der Timer war „active" und hatte keinen Termin.**
+`systemctl is-active srvpanel-cron.timer` sagte `active`, `NEXT` stand auf `-`,
+und der letzte Lauf lag **22 Stunden** zurück. Die Unit trug allein
+`OnBootSec=2min` und `OnUnitActiveSec=5min` — beide monoton. Reisst die Kette
+einmal, liegt der eine Sockel in der Vergangenheit und der andere hat keine
+Vorgeschichte, an die er anknüpfen könnte.
+
+> **Ein Dienst, der „active" meldet und keinen nächsten Termin hat, ist
+> abgeschaltet und sieht aus wie eingeschaltet.**
+
+Beide Timer mit monotonen Sockeln — `srvpanel-cron` und `srvpanel-usage` —
+tragen jetzt zusätzlich `OnCalendar`. Das rechnet gegen die Wanduhr und braucht
+keine Vorgeschichte. **Erst damit bedeutet `Persistent=true` überhaupt etwas:**
+Die Einstellung wirkt ausschliesslich auf Kalender-Timer und stand in beiden
+Units als Notiz, die sich wie eine Zusage liest.
+
+> **Eine Einstellung, die für diese Bauart keine Bedeutung hat, liest sich wie
+> eine Zusage und ist eine Notiz.**
+
+**Warum es dafür keine Wächter gab.** `SrvPanel\Agent\Client` ist `final` und
+lässt sich in keinem Test ersetzen; jeder Weg, der über ihn führt, war ungeprüft
+— und kein einziger Test dieses Repos hat je einen Cron-Lauf eingepflegt.
+
+> **Eine Klasse, die sich nicht ersetzen lässt, hat keinen Test — und der Weg
+> dahinter auch nicht.**
+
+`Cron::record()` ist die Naht, die das auflöst: Sie trennt „die Läufe holen"
+(braucht den Agenten) von „die Läufe einpflegen" (braucht ihn nicht), und der
+Fehler sass im zweiten Teil. `CronIngestTest` fährt darüber — mit einer
+Gegenprobe **vor** allen anderen Fällen, die belegt, dass die Klammer in dieser
+Lage überhaupt geschlossen ist. Ohne sie prüften die Fälle eine andere
+Anwendung als die auf dem Server. `TimerRearmTest` zählt die Timer-Units selbst
+ab, statt eine Liste zu führen. Alle vier Brüche stehen in
+`tests/waechter-brechen.sh`.

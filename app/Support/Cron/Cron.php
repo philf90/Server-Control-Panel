@@ -281,12 +281,85 @@ final class Cron
     }
 
     /**
+     * Gemeldete Läufe einpflegen, ohne den Agenten zu fragen.
+     *
+     * **Diese Naht gibt es, damit die Regel einen Wächter haben kann.**
+     * {@see Client} ist `final` und lässt sich in keinem Test ersetzen; jeder
+     * Weg, der über ihn führt, ist damit ungeprüft. Bis zum 19. August 2026 galt
+     * das für das Einpflegen von Cron-Läufen vollständig — **kein einziger Test
+     * dieses Repos hat je einen Lauf eingepflegt**, und deshalb ist zwei Wochen
+     * lang niemandem aufgefallen, dass die Mandantenklammer alle verwarf.
+     *
+     * > **Eine Klasse, die sich nicht ersetzen lässt, hat keinen Test — und der
+     * > Weg dahinter auch nicht.**
+     *
+     * Getrennt sind zwei Dinge, die auch fachlich zwei sind: „die Läufe holen"
+     * braucht den Agenten, „die Läufe einpflegen" braucht ihn nicht. Der Fehler
+     * sass im zweiten Teil.
+     *
+     * @param  array<int,mixed>  $runs
+     */
+    public function record(array $runs): int
+    {
+        if ($runs === []) {
+            return 0;
+        }
+
+        /** @var array<string,Subscription> $byUser */
+        $byUser = [];
+
+        foreach ($this->withJobs() as $subscription) {
+            $user = (string) $subscription->system_user;
+
+            if ($user !== '') {
+                $byUser[$user] = $subscription;
+            }
+        }
+
+        return $byUser === [] ? 0 : $this->store($runs, $byUser);
+    }
+
+    /**
      * Die gemeldeten Läufe einpflegen — jeder gegen seinen Job geprüft.
      *
      * @param  array<int,mixed>  $runs
      * @param  array<string,Subscription>  $byUser
      */
     private function store(array $runs, array $byUser): int
+    {
+        /*
+         * **Ohne Mandantenklammer, und das ist der Kern dieser Methode.**
+         * Dieser Weg läuft aus `srvpanel-cron.service` — einem Systemdienst
+         * ohne angemeldetes Konto. Die Klammer verweigert im Grundzustand alles
+         * (`Tenancy`, dritte Grenze), also fand `CronJob::query()` hier bis zum
+         * 19. August 2026 **keinen einzigen Job**, jeder Lauf lief in das
+         * `continue` unten, und das Kommando meldete „88 eingesammelt, 0
+         * eingepflegt".
+         *
+         * Schlimmer als eine leere Seite: `cron.runs` löscht, was es
+         * herausgegeben hat („höchstens einmal", siehe dort). Die 88 Läufe
+         * waren damit fort — jedes Mal, seit es das Merkmal gibt.
+         *
+         * > **Zwei Stellen, die dieselbe Ausnahme brauchen, und nur eine hat
+         * > sie: Die andere fällt nicht auf, weil sie leise das Richtige tut —
+         * > nämlich nichts.**
+         *
+         * {@see self::withJobs()} nimmt dieselbe Ausnahme und hat sie seit dem
+         * ersten Wurf; hier fehlte sie. **Die Wand ist nicht die Klammer**,
+         * sondern die Prüfung unten: Eine gemeldete Jobnummer muss zu dem
+         * Abonnement gehören, unter dessen Namen sie ankam. Die Klammer könnte
+         * das gar nicht leisten — sie kennt kein Konto, das hier fragte.
+         */
+        return $this->tenancy->withoutRestriction(fn (): int => $this->storeUnrestricted($runs, $byUser));
+    }
+
+    /**
+     * Das Einpflegen selbst — ohne Klammer, mit der Prüfung je Lauf.
+     *
+     * @param  array<int,mixed>  $runs
+     * @param  array<string,Subscription>  $byUser
+     */
+    private function storeUnrestricted(array $runs, array $byUser): int
     {
         /*
          * Die Jobs einmal holen statt je Lauf: Ein Abonnement kann fünfhundert

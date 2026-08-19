@@ -651,6 +651,37 @@ Und **`63` die Bilderrunde** — Schritt 12: die neun Ansichten, ihre Zustände,
 das Messmittel mit seiner Gegenprobe und die Fallen, die diesen Lauf schon
 gekostet haben.
 
+**Und die Vorbereitung dieses Schritts hat zwei Fehler gefunden, die kein Test
+finden konnte, weil es keinen gab** (19. August 2026, gemeldet vom Betreiber:
+„es werden keine Läufe angezeigt"). Beide betreffen die Zeitsteuerung, beide
+sind still, und beide sind behoben.
+
+Der erste ist die dritte Grenze an einer Stelle, an der sie nichts schützt:
+`srvpanel-cron.service` läuft **ohne angemeldetes Konto**, und `Cron::store()`
+fragte `CronJob` ohne `withoutRestriction()`. Der Einsammler meldete „88
+eingesammelt, **0 eingepflegt**" — und die 88 waren fort, weil `cron.runs`
+löscht, was es herausgegeben hat.
+
+> **Zwei Stellen, die dieselbe Ausnahme brauchen, und nur eine hat sie: Die
+> andere fällt nicht auf, weil sie leise das Richtige tut — nämlich nichts.**
+
+Der zweite: `srvpanel-cron.timer` meldete `active`, `NEXT` stand auf `-`, und
+der letzte Lauf lag **22 Stunden** zurück. Ein Timer mit ausschliesslich
+monotonen Sockeln (`OnBootSec`, `OnUnitActiveSec`) kann seinen nächsten Termin
+verlieren; `Persistent=true` half nicht, weil es allein auf `OnCalendar` wirkt
+und dort als Notiz stand, die sich wie eine Zusage liest. Zwei der drei Timer
+waren so gebaut.
+
+> **Ein Dienst, der „active" meldet und keinen nächsten Termin hat, ist
+> abgeschaltet und sieht aus wie eingeschaltet.**
+
+Und die Ursache dafür, dass beides wochenlang unbemerkt blieb:
+
+> **Eine Klasse, die sich nicht ersetzen lässt, hat keinen Test — und der Weg
+> dahinter auch nicht.** `SrvPanel\Agent\Client` ist `final`; alles hinter ihm
+> war ungeprüft. `Cron::record()` ist die Naht, `CronIngestTest` und
+> `TimerRearmTest` sind die Wächter.
+
 **`61 §0` ist der Teil, der vor dem Lauf gelesen wird und nicht währenddessen:**
 vier Vorarbeiten, gefunden beim Ausschreiben am Quelltext. Zwei davon würden ein
 falsches Grün erzeugen — die Punkte 13 und 14 des Kriteriums sind von aussen gar

@@ -9244,6 +9244,41 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
 
 echo
+echo "── OverflowProbeTest: ein Fund nennt nur noch seine Bauart ──"
+#
+# „div" stand in der Bilderrunde viermal in vier Ansichten und zeigte nirgendwo
+# hin. Eine Zahl, die nicht sagt, welche, zwingt zum Suchen.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace('      pfad: pfad(element),\n', '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/bilder-messen.js "Fund ohne Ort" &&
+pruefe "Fund ohne Ort" \
+  OverflowProbeTest::test_a_finding_names_where_it_is failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
+echo "── OverflowProbeTest: ein Fund zeigt sein Markup nicht mehr ──"
+#
+# Der Weg allein zeigt zwar auf ein Element, sagt aber nicht, was drinsteht.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace('      anfang: element.outerHTML.slice(0, 120),\n', '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/bilder-messen.js "Fund ohne Markup" &&
+pruefe "Fund ohne Markup" \
+  OverflowProbeTest::test_a_finding_names_where_it_is failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
 echo "── TransportLimitTest: files.write erklärt wieder mehr als die Leitung trägt ──"
 #
 # Befund 12b: 2 MiB erklärt, 1 MiB Anfragegrenze. Eine Datei dazwischen öffnete

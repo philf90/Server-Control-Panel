@@ -100,6 +100,14 @@ Lagen sind die ersten Messungen nach dem Laden. Bei Ansicht 2 war derselbe Wert
 ein Rest; hier ist er keiner. Dieselbe Zahl auf zwei Seiten, einmal als Rest und
 einmal nicht — das ist noch nicht erklärt und steht in §3.
 
+**Und die Erklärung von Ansicht 2 trägt hier nicht.** Dort war es die rechte
+Hälfte von `.split`; `Files/Search.vue` hat kein `.split`, sondern eine
+Knopfreihe, einen Satz und eine Tabelle in `.scrolls`. Die Zahl ist also
+dieselbe, der Kasten kann es nicht sein — und die Messung konnte das nicht
+sagen, weil ein Element ohne Klasse bei ihr nur `div` heisst. **Sie nennt seit
+dem 19. August `pfad` und `anfang`** (`docs/63 §1`); die Zeile wird damit
+nachgeholt.
+
 #### Befund 1 — die Checkbox trägt die Regel eines Textfeldes
 
 **Gemeldet vom Betreiber beim Ansehen des Bildes**, nicht von einer Zahl: Bei
@@ -226,7 +234,11 @@ Die Datei ist vier Zeilen lang und passt.
 - **Der `div` mit 468 px.** Bei Ansicht 4 steht er auch frisch geladen, bei
   Ansicht 2 nur nach einem Breitenwechsel. Dieselbe Zahl auf zwei Seiten mit
   zwei verschiedenen Ursachen ist unwahrscheinlich; welcher Kasten es ist, ist
-  nicht ermittelt.
+  nicht ermittelt. **Die Messung kann die Frage seit dem 19. August
+  beantworten** — `pfad` und `anfang` stehen neben jedem Fund —, gemessen ist
+  sie noch nicht. Dass die Zahl sich mit der Fensterbreite nicht ändert, passt
+  zu keinem Kasten dieser Seiten; ein von aussen eingesetztes Element ist damit
+  nicht ausgeschlossen.
 - **Neunzehn der zwanzig Zustände** aus `docs/63 §3`. Gemessen ist einer:
   „Läufe ohne Läufe" (Job C, angelegt und vor dem ersten Lauf aufgenommen) —
   **aber ohne Messzeile und bei Arbeitsplatzbreite**, also noch nicht

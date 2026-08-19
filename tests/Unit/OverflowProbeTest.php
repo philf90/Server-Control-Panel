@@ -136,4 +136,38 @@ final class OverflowProbeTest extends TestCase
             'Die Messung sieht nur an genannten Stellen nach — dann misst sie das Erinnerungsvermoegen.',
         );
     }
+
+    /**
+     * Ein Fund nennt seinen Ort und nicht bloss seine Bauart.
+     *
+     * **Was schiefging.** Bis zum 19. August 2026 stand als Kennzeichen nur
+     * `Marke.Klassen` da. Für einen Baustein mit Klasse genügt das — für ein
+     * `div` ohne jede Klasse heisst die Zeile dann `div`, und genau diese Zeile
+     * stand in der Bilderrunde viermal in vier Ansichten, ohne irgendwohin zu
+     * zeigen. Vier Messungen, und keine sagte, welches Element gemeint war.
+     *
+     * > **Eine Zahl, die nicht sagt, welche, zwingt zum Suchen.**
+     *
+     * Geprüft wird deshalb beides: der Weg von `body` herab und die ersten
+     * Zeichen des Markups. Der Weg allein reicht nicht — `div > div > div`
+     * zeigt zwar auf ein Element, sagt aber nicht, was drinsteht.
+     */
+    public function test_a_finding_names_where_it_is(): void
+    {
+        $ergebnis = (string) strstr($this->source(), 'roller.push({');
+
+        $this->assertNotSame('', $ergebnis, 'Die Messung sammelt keine Funde mehr ein.');
+
+        $this->assertStringContainsString(
+            'pfad: pfad(element)',
+            $ergebnis,
+            'Ein Fund nennt seinen Weg nicht — ein Element ohne Klasse heisst dann nur „div".',
+        );
+
+        $this->assertStringContainsString(
+            'anfang: element.outerHTML',
+            $ergebnis,
+            'Ein Fund zeigt sein Markup nicht — dann sagt der Weg zwar wo, aber nicht was.',
+        );
+    }
 }

@@ -48,6 +48,17 @@
  *
  * > **Eine Prüfung, die nur nachsieht, woran man gerade denkt, prüft das
  * > Erinnerungsvermögen.**
+ *
+ * ---
+ *
+ * **Und jeder Fund nennt seinen Ort, nicht seine Bauart.** Bis zum 19. August
+ * stand als Kennzeichen nur `Marke.Klassen` da. Für einen Baustein mit Klasse
+ * genügt das; ein `div` ohne jede Klasse heisst dann aber `div`, und dieselbe
+ * Zeile stand in der Bilderrunde viermal in vier Ansichten, ohne dass sie
+ * irgendwohin zeigte. Der Ort ist deshalb der Weg von `body` herab und die
+ * ersten Zeichen des Markups.
+ *
+ * > **Eine Zahl, die nicht sagt, welche, zwingt zum Suchen.**
  */
 
 function bilderMessen () {
@@ -72,6 +83,28 @@ function bilderMessen () {
     return { ausschlag: nachher - vorher, erwartet: 200 }
   }
 
+  /*
+   * Der Weg von `body` herab, damit ein Fund ohne Klasse auffindbar ist. Je
+   * Stufe die Marke, die erste Klasse (mehr macht die Zeile unlesbar) und der
+   * Platz unter den Geschwistern derselben Marke.
+   */
+  const pfad = (element) => {
+    const stufen = []
+
+    for (let n = element; n && n !== document.body; n = n.parentElement) {
+      const marke = n.tagName.toLowerCase()
+      const klasse = typeof n.className === 'string' && n.className.trim() !== ''
+        ? '.' + n.className.trim().split(/\s+/)[0]
+        : ''
+      const gleiche = [...(n.parentElement?.children ?? [])].filter((k) => k.tagName === n.tagName)
+
+      stufen.unshift(marke + klasse + (gleiche.length > 1 ? `:${gleiche.indexOf(n) + 1}` : ''))
+    }
+
+    // `body` selbst und alles darüber hätte sonst einen leeren Weg.
+    return stufen.join(' > ') || element.tagName.toLowerCase()
+  }
+
   const roller = []
 
   for (const element of document.querySelectorAll('*')) {
@@ -90,6 +123,8 @@ function bilderMessen () {
       wo: element.tagName.toLowerCase() + (element.className && typeof element.className === 'string'
         ? '.' + element.className.trim().split(/\s+/).join('.')
         : ''),
+      pfad: pfad(element),
+      anfang: element.outerHTML.slice(0, 120),
       ueberlauf,
       darf: stil === 'auto' || stil === 'scroll',
     })

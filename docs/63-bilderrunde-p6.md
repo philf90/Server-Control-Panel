@@ -32,6 +32,19 @@ Es gibt zurück:
 | `schiebt` | jedes Element, das überläuft **ohne** `overflow-x` zu haben. Der Fund. |
 | `rollt` | jedes Element, das überläuft **und** rollen darf. Erwartet und in Ordnung. |
 
+Jeder Eintrag in `schiebt` und `rollt` nennt vier Dinge: `wo` (Marke und
+Klassen), `pfad` (der Weg von `body` herab), `anfang` (die ersten 120 Zeichen
+des Markups) und `ueberlauf`.
+
+**`pfad` und `anfang` gibt es seit dem 19. August**, und zwar wegen dieses
+Laufs: In den Ansichten 2 bis 4 stand viermal die Zeile `div` mit 468 px, und
+sie zeigte nirgendwo hin — ein Element ohne Klasse heisst unter `wo` eben nur
+`div`. Vier Messungen, und keine sagte, welches Element gemeint war.
+
+> **Eine Zahl, die nicht sagt, welche, zwingt zum Suchen.**
+
+`OverflowProbeTest::test_a_finding_names_where_it_is` hält beides fest.
+
 **Warum die Gegenprobe an `scrollWidth` hängt und nicht an einer Zahl.** Befund
 22 aus `docs/59`: Ein fester Block von 900 px schlägt bei 390 px aus und bei
 1440 px nicht — dort steht dann dieselbe `0` wie bei einer kaputten Messung.

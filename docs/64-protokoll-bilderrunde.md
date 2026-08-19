@@ -567,6 +567,8 @@ zusätzlich im zweiten Theme dazu.
 | Dateimanager — Mehrfachauswahl | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | — |
 | Dateimanager — nach dem Verschieben | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | — |
 | Dateimanager — langer Name in den Krümeln | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | — |
+| Dateimanager — Ziel im Baum wählen | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | — |
+| Dateimanager — Packen, Namensfeld offen | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | **Befund 9** |
 
 **Zur Mehrfachauswahl.** Zwei Einträge angekreuzt, die Auswahlleiste offen mit
 sechs Knöpfen, und im Baum daneben steht das lange Verzeichnis aus `docs/63
@@ -589,6 +591,51 @@ führt: den langen Verzeichnisnamen in den Krümeln. Er steht dort über zwei Ze
 umgebrochen, `dokument` bleibt 0. **Das ist die Stelle aus `docs/46 §20.11`**,
 und sie ist die dritte Fassung derselben Ausnahme — hier mit einem Namen von 54
 Zeichen statt der 63, an denen sie damals brach.
+
+**Der offene Zielbaum ist nachgereicht** und damit der Zustand, der oben noch
+fehlte: „Ziel im Baum wählen — 1 Eintrag verschieben", der Baum darüber
+aufgeklappt, `dokument` 0.
+
+### Befund 9 — der Knopf „Packen" steht 14 px zu hoch (390 px)
+
+Gemeldet vom Betreiber am Bild. Im Namensfeld-Zustand der Auswahlleiste steht
+der Knopf „Packen" neben dem Eingabefeld, aber nicht auf dessen Höhe.
+
+**Die Ursache steht in einer Regel, die für sechs Knöpfe geschrieben wurde:**
+
+```css
+@media (max-width: 480px) {
+  .selection .button-row { flex-direction: row; align-items: center; }
+}
+```
+
+Sie stammt aus `docs/55` Befund 15 und ist dort richtig: Die Auswahlleiste soll
+umbrechen statt zu stapeln, und sechs gleich hohe Knöpfe zentriert man. Im
+Packen-Zustand steht in derselben Reihe aber ein `.field.inline`, und das ist
+unter 480 px **eine Spalte** — Beschriftung über dem Feld. `align-items: center`
+zentriert den Knopf dann gegen die ganze Gruppe aus Beschriftung *und* Feld, und
+das Feld sitzt unten.
+
+> **Eine Ausrichtung, die für gleich hohe Geschwister gilt, sagt nichts über
+> eine Reihe, in der eines zwei Zeilen hoch ist.**
+
+**Gemessen im Container** (echtes Markup, gebautes Stylesheet, `customer`,
+390 px), dieselbe Seite einmal ohne und einmal mit `align-items: flex-end`:
+
+| | ohne | mit |
+|---|---|---|
+| Mitte des Eingabefeldes | 94 px | 94 px |
+| Mitte des Knopfes | 80 px | **94 px** |
+| Versatz | **−14 px** | **0 px** |
+| Reine Knopfreihe, sechs Knöpfe, Oberkanten | 182 · 182 · 236 · 236 · 290 · 290 | **unverändert** |
+
+Die letzte Zeile ist die Gegenprobe: Der Eingriff bewegt die Leiste in ihrem
+gewöhnlichen Zustand um **kein Pixel**, weil gleich hohe Geschwister unter
+`center` und `flex-end` dieselbe Lage haben.
+
+> **Ein Eingriff, der nur den kaputten Fall bewegt, ist an der richtigen Stelle.**
+
+**Nicht behoben** — er kommt zu den anderen acht.
 
 **Und eine Randnotiz aus dem `anfang`:** In der Kopfzeile steht ein Attribut
 `wfd-id="id8"`, das dieses Panel nicht schreibt — wieder eine Erweiterung, die
@@ -712,8 +759,8 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
 
 ## 3. Was offen ist
 
-- **Acht Befunde am Panel** — zwei an Ansicht 4, einer an Ansicht 6, drei an
-  Ansicht 8, zwei an Ansicht 9. Beheben und nachmessen. Sie fallen in **zwei**
+- **Neun Befunde am Panel** — zwei an Ansicht 4, einer an Ansicht 6, drei an
+  Ansicht 8, zwei an Ansicht 9, einer an einem Zustand. Beheben und nachmessen. Sie fallen in **zwei**
   Gruppen: 2, 3 und 4 sind fehlende Nachbarpaare, 7 und 8 sind die fehlende
   senkrechte Polsterung an `td`. Beide Male trifft die Behebung die Regel und
   nicht den Einzelfall.

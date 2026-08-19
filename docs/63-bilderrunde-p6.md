@@ -398,7 +398,18 @@ oder Grau —, kommt er zusätzlich im zweiten Theme dazu.
    > **Eine Messung nach einem Wechsel der Breite misst auch, was von vorher
    > übrig ist.**
 
-3. `bilderMessen()` in der Konsole, Ergebnis notieren.
+3. In der Konsole — **flach ausgegeben und nicht als Objekt**:
+
+   ```
+   JSON.stringify(bilderMessen())
+   ```
+
+   Die Konsole klappt ein Objekt ein, und `gegenprobe: {…}` sieht neben einem
+   `dokument: 0` aus wie eine Messung. Am 19. August sind so für eine ganze
+   Ansicht vier Gegenproben ins Protokoll geraten, die niemand gesehen hatte.
+
+   > **Eine Zahl, die man aus einem eingeklappten Objekt abschreibt, hat man
+   > nicht gemessen.**
 4. Bild aufnehmen — **die ganze Seite**, nicht nur den sichtbaren Ausschnitt.
 5. Thema umschalten und ab 3 wiederholen:
    ```

@@ -4,8 +4,9 @@ Die Vorschrift steht in `docs/63`. Dieses Protokoll entsteht **während** des
 Laufs; es ist am 19. August 2026 angelegt worden, als die ersten beiden
 Ansichten gemessen waren.
 
-**Es ist unvollständig, und das steht in §3.** Von den neun Ansichten sind zwei
-gemessen, von den zwanzig Zuständen einer. Ein Protokoll, das seine Lücken nicht
+**Es ist unvollständig, und das steht in §3.** Von den neun Ansichten sind drei
+aufgenommen und keine vollständig gemessen, von den zwanzig Zuständen ist einer
+aufgenommen und keiner gemessen. Ein Protokoll, das seine Lücken nicht
 nennt, liest sich wie eine Abnahme.
 
 | | |
@@ -22,14 +23,25 @@ nennt, liest sich wie eine Abnahme.
 
 ### Ansicht 1 — Dateien, Auswahl (`/files`)
 
-**Erfüllt** in allen vier Lagen.
+**Noch nicht erfüllt** — die Gegenprobe fehlt, siehe unten.
 
 | Lage | `dokument` | Gegenprobe | `schiebt` |
 |---|---|---|---|
-| 390 dunkel | 0 | 200/200 | 2 Einträge — siehe unten |
-| 390 hell | 0 | 200/200 | 2 Einträge |
-| 1440 hell | 0 | 200/200 | **leer** |
-| 1440 dunkel | 0 | 200/200 | **leer** |
+| 390 dunkel | 0 | **nicht abgelesen** | 2 Einträge — siehe unten |
+| 390 hell | 0 | **nicht abgelesen** | 2 Einträge |
+| 1440 hell | 0 | **nicht abgelesen** | leer |
+| 1440 dunkel | 0 | **nicht abgelesen** | leer |
+
+**Hier stand zuerst viermal `200/200`, und niemand hatte es gesehen.** Die
+Konsole klappt ein Objekt ein; neben `dokument: 0` stand `gegenprobe: {…}`, und
+ich habe den erwarteten Wert eingetragen statt den abgelesenen.
+
+> **Eine Zahl, die man aus einem eingeklappten Objekt abschreibt, hat man nicht
+> gemessen.**
+
+Ohne die Gegenprobe ist `dokument: 0` keine Aussage, sondern zwei mögliche —
+genau das, wogegen sie gebaut ist. Die Ansicht wird nachgemessen; `docs/63 §4`
+verlangt seitdem `JSON.stringify(bilderMessen())`.
 
 **Die Seite ist in der Kundensicht nicht zu erreichen, und das ist kein
 Fehler.** `FileController::pick()` leitet durch, wenn genau **ein** Abonnement
@@ -48,10 +60,14 @@ Dasselbe gilt für Ansicht 5 (`/sftp`) und 7 (`/cron`).
 
 | Lage | `dokument` | Gegenprobe | `schiebt` |
 |---|---|---|---|
-| 390 dunkel | 0 | 200/200 | `thead` 350 · `tr` 322 · `div` 468 |
-| 390 hell | 0 | 200/200 | dieselben drei |
-| 1440 hell | 0 | 200/200 | `div` 468 |
-| 1440 dunkel | 0 | 200/200 | `div` 468 |
+| 390 dunkel | 0 | **200/200** (abgelesen) | `thead` 350 · `tr` 322 · `div` 468 |
+| 390 hell | 0 | nicht abgelesen | dieselben drei |
+| 1440 hell | 0 | **200/200** (abgelesen) | `div` 468 |
+| 1440 dunkel | 0 | nicht abgelesen | `div` 468 |
+
+Die beiden abgelesenen Werte stammen aus dem ausgeschriebenen Ausdruck über
+`gegenprobe`, `schiebt` und `rollt`; die Themawechsel dazwischen ändern die
+Geometrie nicht, gemessen sind sie trotzdem nicht.
 
 **`thead` und `tr` sind der Mechanismus und kein Fehler.** `.stacks thead` steht
 in `app.css` auf `position: absolute; width: 1px; height: 1px; overflow: hidden;
@@ -110,9 +126,30 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
 
 ---
 
+### Ansicht 3 — Editor (`/subscriptions/140/files/edit?path=/httpdocs/klein.txt`)
+
+**Noch nicht erfüllt** — dieselbe Lücke wie bei Ansicht 1.
+
+| Lage | `dokument` | Gegenprobe | `schiebt` |
+|---|---|---|---|
+| 1440 dunkel | 0 | nicht abgelesen | leer |
+| 1440 hell | 0 | nicht abgelesen | leer |
+| 390 hell | 0 | nicht abgelesen | leer |
+| 390 dunkel | 0 | nicht abgelesen | leer |
+
+**`schiebt` ist in allen vier Lagen leer** — kein `.stacks thead`, weil diese
+Ansicht keine Tabelle trägt, und kein Rest, weil je Breite neu geladen wurde.
+Der Rollbehälter des Editors (`.cm-scroller`) taucht nicht unter `rollt` auf:
+Die Datei ist vier Zeilen lang und passt.
+
+---
+
 ## 3. Was offen ist
 
-- **Sieben der neun Ansichten** — 3 bis 9.
+- **Die Gegenprobe für die Ansichten 1 und 3 und für zwei Lagen von Ansicht 2.**
+  Zwölf Konsolenzeilen, keine neuen Bilder — die Aufnahmen bleiben gültig, es
+  fehlt allein die Zahl daneben.
+- **Sechs der neun Ansichten** — 4 bis 9.
 - **Neunzehn der zwanzig Zustände** aus `docs/63 §3`. Gemessen ist einer:
   „Läufe ohne Läufe" (Job C, angelegt und vor dem ersten Lauf aufgenommen) —
   **aber ohne Messzeile und bei Arbeitsplatzbreite**, also noch nicht

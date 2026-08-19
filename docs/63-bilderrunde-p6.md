@@ -175,20 +175,40 @@ $text = "eins`nzwei`ndrei`n# eine Zeile mit Umlauten: Gr" + [char]0xFC + [char]0
 
 **Die Gegenprobe, bevor hochgeladen wird.** Zwei Zeilen, und sie beantworten
 genau die Frage, an der die Falle oben hängt — welche Datei ist gültiges UTF-8
-und welche nicht:
+und welche nicht.
+
+**Gelesen wird über `[IO.File]`, aus demselben Grund wie geschrieben.** Der
+erste Entwurf griff hier zu `Get-Content -AsByteStream`; den Schalter gibt es
+erst ab PowerShell 7, und auf Windows PowerShell 5.1 heisst er `-Encoding Byte`.
+Der Unterschied stand als Fussnote **hinter** dem Befehl, und der Befehl davor
+war der falsche — genau die Bauart, an der `docs/59` Befund 7 schon einmal
+gescheitert ist.
+
+> **Ein Hinweis hinter dem Befehl hilft dem nicht, der den Befehl schon kopiert
+> hat.**
+
+`[IO.File]::ReadAllBytes` gibt es in beiden Fassungen, und es ist derselbe Weg,
+über den die Dateien entstanden sind.
 
 ```
-Get-Content "$HOME\srvpanel-bilder\klein.txt" -AsByteStream -TotalCount 8 | ForEach-Object { "{0:X2}" -f $_ }
+(([IO.File]::ReadAllBytes("$HOME\srvpanel-bilder\klein.txt"))[0..7] | ForEach-Object { "{0:X2}" -f $_ }) -join ' '
+```
+
+Erwartet — `eins` gefolgt von einem Zeilenvorschub, **kein** `FF FE` davor:
+
+```
+65 69 6E 73 0A 7A 77 65
 ```
 
 ```
-Get-Content "$HOME\srvpanel-bilder\binaer.dat" -AsByteStream -TotalCount 31 | ForEach-Object { "{0:X2}" -f $_ }
+([IO.File]::ReadAllBytes("$HOME\srvpanel-bilder\binaer.dat") | ForEach-Object { "{0:X2}" -f $_ }) -join ' '
 ```
 
-Erwartet: `klein.txt` beginnt mit `65 69 6E 73` (`eins`) und **nicht** mit
-`FF FE`; `binaer.dat` trägt an Stelle 27 bis 30 die Folge `FF FE 00 01`. In
-Windows PowerShell 5.1 heisst der Schalter `-Encoding Byte` statt
-`-AsByteStream`.
+Erwartet — 31 Byte, die letzten fünf sind der Kern der Sache:
+
+```
+44 69 65 73 20 69 73 74 20 6B 65 69 6E 65 20 54 65 78 74 64 61 74 65 69 3A 20 FF FE 00 01 0A
+```
 
 **Für den SFTP-Schlüssel** (§2.5) liegt `ssh-keygen` seit Windows 10 bei. Die
 Passphrase-Abfrage bleibt leer — zweimal Eingabe drücken; `-N` mit leerer

@@ -5,8 +5,8 @@ Laufs; es ist am 19. August 2026 angelegt worden, als die ersten beiden
 Ansichten gemessen waren.
 
 **Es ist unvollständig, und das steht in §3.** Von den neun Ansichten sind drei
-aufgenommen und keine vollständig gemessen, von den zwanzig Zuständen ist einer
-aufgenommen und keiner gemessen. Ein Protokoll, das seine Lücken nicht
+aufgenommen und **eine** vollständig gemessen, von den zwanzig Zuständen ist
+einer aufgenommen und keiner gemessen. Ein Protokoll, das seine Lücken nicht
 nennt, liest sich wie eine Abnahme.
 
 | | |
@@ -139,14 +139,18 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
 
 ### Ansicht 3 — Editor (`/subscriptions/140/files/edit?path=/httpdocs/klein.txt`)
 
-**Noch nicht erfüllt** — dieselbe Lücke wie bei Ansicht 1.
+**Erfüllt — und die erste Ansicht, die in allen vier Lagen vollständig gemessen
+ist.**
 
-| Lage | `dokument` | Gegenprobe | `schiebt` |
-|---|---|---|---|
-| 1440 dunkel | 0 | nicht abgelesen | leer |
-| 1440 hell | 0 | nicht abgelesen | leer |
-| 390 hell | 0 | nicht abgelesen | leer |
-| 390 dunkel | 0 | nicht abgelesen | leer |
+| Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` |
+|---|---|---|---|---|
+| 1440 hell | 0 | **200/200** | leer | leer |
+| 1440 dunkel | 0 | **200/200** | leer | leer |
+| 390 hell | 0 | **200/200** | leer | leer |
+| 390 dunkel | 0 | **200/200** | leer | leer |
+
+**Vier Lagen, vier gültige Gegenproben, kein einziger Eintrag.** Je Breite wurde
+neu geladen; die Themawechsel ändern hier keine einzige Zahl.
 
 **`schiebt` ist in allen vier Lagen leer** — kein `.stacks thead`, weil diese
 Ansicht keine Tabelle trägt, und kein Rest, weil je Breite neu geladen wurde.
@@ -157,9 +161,9 @@ Die Datei ist vier Zeilen lang und passt.
 
 ## 3. Was offen ist
 
-- **Sechs Gegenproben**: Ansicht 1 bei 1440 (beide Themes), Ansicht 2 in den
-  beiden dunklen Lagen, Ansicht 3 in allen vieren. Keine neuen Bilder — die
-  Aufnahmen bleiben gültig, es fehlt allein die Zahl daneben.
+- **Vier Gegenproben**: Ansicht 1 bei 1440 (beide Themes) und Ansicht 2 in den
+  beiden dunklen Lagen. Keine neuen Bilder — die Aufnahmen bleiben gültig, es
+  fehlt allein die Zahl daneben.
 - **Sechs der neun Ansichten** — 4 bis 9.
 - **Neunzehn der zwanzig Zustände** aus `docs/63 §3`. Gemessen ist einer:
   „Läufe ohne Läufe" (Job C, angelegt und vor dem ersten Lauf aufgenommen) —

@@ -578,6 +578,8 @@ zusätzlich im zweiten Theme dazu.
 | Editor — „zu gross" (`gross.bin`) | 390 hell **und** dunkel | 0 | **200/200** | **leer** | — |
 | Editor — „binär" (`binaer.dat`) | 390 hell **und** dunkel | 0 | **200/200** | **leer** | — |
 | Editor — nur lesbar (`/conf/hinweis.txt`) | 390 hell **und** dunkel | 0 | **200/200** | leer (`rollt`: `.cm-scroller` 189) | — |
+| Suche — kein Treffer | 390 hell **und** dunkel | 0 | **200/200** | `thead` 166 · `tr` 138 | — |
+| Suche — kein Treffer | 1440 hell **und** dunkel | 0 | **200/200** | `input` 24 · *(LastPass 489)* | — |
 
 **Zur Mehrfachauswahl.** Zwei Einträge angekreuzt, die Auswahlleiste offen mit
 sechs Knöpfen, und im Baum daneben steht das lange Verzeichnis aus `docs/63
@@ -718,6 +720,33 @@ aus `can.edit` **und** `entry.writable`; `app.css` zeichnet einen abgeschalteten
 Knopf mit `opacity: 0.5`. Kein Befund — festgehalten, weil ein farbiger Knopf
 unter dem Satz „lässt sich lesen und nicht ändern" genau die Stelle ist, an der
 `AbilityReachTest` sonst zuschlägt.
+
+### Ein Eingabefeld steht unter `schiebt` und ist keiner
+
+Bei 1440 px meldet die Suchseite einen neuen Eintrag: `input` mit 24 px, Weg
+`div.frame > main.content > form.button-row > label.field:1 > input`, `anfang`
+`<input type="search" autocomplete="off" required>`. Der Suchbegriff
+`zeichenkettediesnichtgibt` ist breiter als das Feld.
+
+**Das ist kein Fund.** Ein Textfeld rollt seinen Inhalt von sich aus, ohne dazu
+`overflow-x: auto` zu tragen — der Wert steht auf `clip`, und damit landet es
+in `schiebt` statt in `rollt`. Die Seite schiebt dabei nicht: `dokument` bleibt
+0, und bei 390 px fehlt der Eintrag ganz, weil das Feld dort die volle Breite
+hat und der Begriff hineinpasst.
+
+> **Ein Behälter, der von sich aus rollt, sagt es der Messung nicht — sie kennt
+> nur `overflow-x`.**
+
+Die Liste `schiebt` hat damit ihre dritte Sorte gewollter Einträge, nach
+`.stacks thead` und der Meldezeile der Erweiterung. Sie bleibt, was sie seit der
+ersten Messung ist:
+
+> **Eine Liste, die auch das Gewollte nennt, ist ein Hinweis und kein Urteil.**
+
+**Und die Fremdzeile ist zurück** — bei 1440 mit 489 px, bei 390 nicht. Dasselbe
+Fenster, dieselbe Seite, zwei Breiten: Die Erweiterung setzt ihre Meldezeile,
+wann sie will. Das ist der Grund, aus dem `docs/63 §6` für die **zweite** Runde
+ein Fenster ohne Erweiterungen verlangt.
 
 **Und eine Randnotiz aus dem `anfang`:** In der Kopfzeile steht ein Attribut
 `wfd-id="id8"`, das dieses Panel nicht schreibt — wieder eine Erweiterung, die

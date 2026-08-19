@@ -514,6 +514,14 @@ Und die Falle aus `docs/59`, die vier Aufnahmen überlebt hat:
   > nicht — es wiederholt sie.**
 
   Im Browser schaltet `window.srvpanelTheme('light' | 'dark')`.
+- **Ein Eingabefeld mit langem Inhalt steht unter `schiebt` und ist keiner.**
+  Ein Textfeld rollt seinen Inhalt von sich aus, ohne `overflow-x: auto` zu
+  tragen — der berechnete Wert ist `clip`, und damit fällt es auf die falsche
+  Seite der Einteilung. Am 19. August auf der Suchseite bei 1440 px gemessen:
+  `input` mit 24 px, `dokument` 0.
+
+  > **Ein Behälter, der von sich aus rollt, sagt es der Messung nicht — sie
+  > kennt nur `overflow-x`.**
 - **Gemessen wird in einem Fenster ohne Erweiterungen.** Eine Erweiterung
   schreibt in *jedes* Dokument, und was sie hineinschreibt, misst diese Messung
   mit. In diesem Lauf war es LastPass: eine verborgene Meldezeile

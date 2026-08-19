@@ -117,6 +117,95 @@ alles unterhalb der obersten Ebene verloren hat.
 printf 'oben\n' > ~/srvpanel-bilder/paket/oben.txt && printf 'tief\n' > ~/srvpanel-bilder/paket/unterordner/tief.txt && tar -cf ~/srvpanel-bilder/paket.tar -C ~/srvpanel-bilder/paket .
 ```
 
+### 2.1b — Dieselben vier Dateien auf einem Windows-Rechner
+
+**Die Fassung für PowerShell, und sie ist nicht bloss eine Übersetzung.** Auf
+Windows gibt es eine Falle, die es auf dem Mac nicht gibt und die genau diese
+Vorbereitung trifft: *PowerShell rät die Kodierung.* `Out-File` schreibt in
+Windows PowerShell 5.1 **UTF-16LE mit BOM**, `Set-Content` schreibt **ANSI**
+(Windows-1252). Gemessen am 19. August 2026:
+
+| womit geschrieben | die Bytes von „Grüße" | gültiges UTF-8? |
+|---|---|---|
+| UTF-8 ohne BOM (gewollt) | `47 72 c3 bc c3 9f 65` | **ja** |
+| `Out-File` (PS 5.1) | `ff fe 47 00 72 00 fc 00 …` | nein |
+| `Set-Content` (PS 5.1) | `47 72 fc df 65` | nein |
+
+Beide gescheiterten Fassungen sind für `FilesRead` **binär** — die eine beginnt
+sogar mit denselben `ff fe`, mit denen `binaer.dat` absichtlich anfängt. Wer
+`klein.txt` so erzeugt, bekommt zweimal denselben Zustand und merkt es erst auf
+dem Bild.
+
+> **Ein Werkzeug, das eine Kodierung errät, erzeugt einen Prüfkörper für einen
+> anderen Zustand.**
+
+Deshalb steht unten überall `[IO.File]`: Diese .NET-Aufrufe schreiben genau die
+Bytes, die dastehen, und fragen keine Voreinstellung.
+
+```
+New-Item -ItemType Directory -Force -Path "$HOME\srvpanel-bilder\paket\unterordner" | Out-Null
+```
+
+**`gross.bin`** — 3 MiB. Der Inhalt ist gleichgültig, allein die Grösse zählt:
+
+```
+$b = New-Object byte[] 3MB; (New-Object Random).NextBytes($b); [IO.File]::WriteAllBytes("$HOME\srvpanel-bilder\gross.bin", $b)
+```
+
+**`binaer.dat`** — 31 Byte, davon vier, die es in UTF-8 nie gibt:
+
+```
+$kopf = [Text.Encoding]::ASCII.GetBytes("Dies ist keine Textdatei: "); $roh = $kopf + [byte[]](0xFF,0xFE,0x00,0x01,0x0A); [IO.File]::WriteAllBytes("$HOME\srvpanel-bilder\binaer.dat", [byte[]]$roh)
+```
+
+**`klein.txt`** — UTF-8 ohne BOM, mit Zeilenvorschub statt CRLF. Die Umlaute
+stehen als Zeichencode und nicht als Buchstabe: Ein `ü`, das durch eine Konsole
+mit der falschen Codepage gelaufen ist, sieht im Skript richtig aus und liegt
+falsch in der Datei.
+
+```
+$text = "eins`nzwei`ndrei`n# eine Zeile mit Umlauten: Gr" + [char]0xFC + [char]0xDF + "e aus K" + [char]0xF6 + "ln`n"; [IO.File]::WriteAllText("$HOME\srvpanel-bilder\klein.txt", $text, (New-Object Text.UTF8Encoding $false))
+```
+
+**`paket.tar`** — `tar.exe` liegt seit Windows 10 (1803) bei und ist bsdtar:
+
+```
+[IO.File]::WriteAllText("$HOME\srvpanel-bilder\paket\oben.txt", "oben`n", (New-Object Text.UTF8Encoding $false)); [IO.File]::WriteAllText("$HOME\srvpanel-bilder\paket\unterordner\tief.txt", "tief`n", (New-Object Text.UTF8Encoding $false)); tar -cf "$HOME\srvpanel-bilder\paket.tar" -C "$HOME\srvpanel-bilder\paket" .
+```
+
+**Die Gegenprobe, bevor hochgeladen wird.** Zwei Zeilen, und sie beantworten
+genau die Frage, an der die Falle oben hängt — welche Datei ist gültiges UTF-8
+und welche nicht:
+
+```
+Get-Content "$HOME\srvpanel-bilder\klein.txt" -AsByteStream -TotalCount 8 | ForEach-Object { "{0:X2}" -f $_ }
+```
+
+```
+Get-Content "$HOME\srvpanel-bilder\binaer.dat" -AsByteStream -TotalCount 31 | ForEach-Object { "{0:X2}" -f $_ }
+```
+
+Erwartet: `klein.txt` beginnt mit `65 69 6E 73` (`eins`) und **nicht** mit
+`FF FE`; `binaer.dat` trägt an Stelle 27 bis 30 die Folge `FF FE 00 01`. In
+Windows PowerShell 5.1 heisst der Schalter `-Encoding Byte` statt
+`-AsByteStream`.
+
+**Für den SFTP-Schlüssel** (§2.5) liegt `ssh-keygen` seit Windows 10 bei. Die
+Passphrase-Abfrage bleibt leer — zweimal Eingabe drücken; `-N` mit leerer
+Zeichenkette ist auf PowerShell je nach Fassung anders zu maskieren und lohnt
+den Ärger nicht:
+
+```
+ssh-keygen -t ed25519 -C punkt11-gegenprobe-140 -f "$HOME\srvpanel-bilder\gegen140"
+```
+
+```
+Get-Content "$HOME\srvpanel-bilder\gegen140.pub" | Set-Clipboard
+```
+
+**§2.4 bleibt unverändert.** Der Befehl läuft über SSH auf dem Server und ist
+damit derselbe; `ssh` bringt Windows seit Fassung 1809 mit.
+
 ### 2.2 — Die vier Dateien hochladen
 
 Im Dateimanager von 140 nach `/httpdocs`, über **Hochladen**. Alle vier auf

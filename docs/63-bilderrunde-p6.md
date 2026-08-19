@@ -404,6 +404,7 @@ oder Grau —, kommt er zusätzlich im zweiten Theme dazu.
 | Cron | ohne Jobs | vor 2.3 aufnehmen |
 | Cron | Kontingent voll | zehn Jobs anlegen |
 | Cron | Formular „Ändern" offen | „Ändern" drücken |
+| Cron | Zeitplan als Ausdruck (Experte) | das Kästchen „Den Zeitplan als Ausdruck eingeben" ankreuzen |
 | Cron | Abonnement nicht benutzbar | — nur wenn es zutrifft |
 | Läufe | Lauf mit Ausgabe, aufgeklappt | Job A |
 | Läufe | Lauf mit Rückgabewert ≠ 0 | Job B |
@@ -532,11 +533,43 @@ Und die Falle aus `docs/59`, die vier Aufnahmen überlebt hat:
 
 ---
 
+## 6b. Die Experteneingabe — was ausser dem Bild zu prüfen ist
+
+**Gebaut am 19. August 2026 auf Bestellung des Betreibers** (`docs/64`,
+Wunsch 1). Sie ändert die Ansicht, die dieser Schritt prüft, und ist deshalb
+Teil der **zweiten** Runde — nicht der ersten.
+
+Das Bild allein genügt hier nicht: Der Ausdruck ist eine Sicht auf die fünf
+Felder, und ob er das wirklich ist, sieht man ihm nicht an. Fünf Griffe, alle in
+der Kundensicht auf Abonnement 140, alle ohne Speichern ausser dem letzten:
+
+| | Griff | erwartet |
+|---|---|---|
+| 1 | Kästchen ankreuzen | Im Feld steht `* * * * *` — was vorher in den fünf Feldern stand |
+| 2 | `*/15 9-17 * * 1-5` eintragen, Kästchen abwählen | Die fünf Felder tragen `*/15`, `9-17`, `*`, `*`, `1-5` |
+| 3 | Bei angekreuztem Kästchen auf „montags bis freitags um 09:00" drücken | Im Feld steht `0 9 * * 1-5` — die Schnellwahl wirkt auch hier |
+| 4 | `* * *` eintragen und anlegen | Abweisung, und der Satz steht **oben** in der Zusammenfassung; das Feld ist nur `aria-invalid` |
+| 5 | `*/15 * * * *` eintragen und anlegen | Der Job steht in der Liste mit genau diesem Ausdruck |
+
+**Griff 2 ist der eigentliche Punkt.** Schriebe der Ausdruck nicht zurück, hätte
+die Seite zwei Wahrheiten über denselben Zeitplan — und gespeichert würde die
+alte. Griff 4 belegt die andere Hälfte: Über die Form eines Zeitplans urteilt
+nur der Server, und zwar an derselben Stelle wie beim geführten Weg.
+
+Und ein Blick, den keine Zahl liefert: **Nach Griff 5 muss in der Liste stehen,
+was eingetippt wurde** — nicht etwas, das ihm ähnlich sieht.
+
+> **Ein Feld, das den Wert eines anderen anzeigt, ist erst dann eine Sicht, wenn
+> es ihn auch setzt — sonst ist es eine Kopie mit Verspätung.**
+
+---
+
 ## 7. Wann der Schritt fertig ist
 
 Wenn für **alle neun Ansichten** in **allen vier Lagen** eine Zeile mit
 `dokument: 0` und gültiger Gegenprobe vorliegt, jede Aufnahme dazu abgelegt ist,
-jeder Zustand aus §3 einmal gemessen wurde — und jeder Fund entweder behoben und
-nachgemessen oder im Protokoll benannt ist.
+jeder Zustand aus §3 einmal gemessen wurde, die fünf Griffe aus §6b gefahren
+sind — und jeder Fund entweder behoben und nachgemessen oder im Protokoll
+benannt ist.
 
 **Ein Protokoll ohne seine Lücken liest sich wie eine Abnahme.**

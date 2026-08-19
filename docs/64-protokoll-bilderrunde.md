@@ -411,16 +411,30 @@ Der Betreiber wünscht neben den fünf getrennten Feldern eine Eingabe des ganze
 Ausdrucks, mit einem Umschalter „Einfach / Experte".
 
 **Das ist kein Befund, sondern ein Merkmal**, und es steht in keinem
-Abnahmekriterium von P6 (`docs/51`, `docs/61`). Es ist hier festgehalten, damit
-es nicht verlorengeht — **gebaut wird es nicht in diesem Schritt.** Die
-Bilderrunde ist der letzte Schritt vor der Abnahme; ein neues Eingabefeld darin
-hiesse, die Ansicht zu ändern, die gerade geprüft wird.
+Abnahmekriterium von P6 (`docs/51`, `docs/61`).
 
-Zwei Dinge, die vor dem Bauen zu entscheiden sind: Ob der Umschalter den
-eingegebenen Ausdruck in die fünf Felder zurückschreibt (sonst hat die Seite
-zwei Wahrheiten), und ob die Prüfung des freien Ausdrucks dieselbe ist wie die
-der Felder — `docs/60` hat gemessen, was dieser cron annimmt, und der freie Weg
-darf nicht mehr durchlassen als der geführte.
+Hier stand zuerst, es werde in diesem Schritt nicht gebaut — die Bilderrunde sei
+der letzte Schritt vor der Abnahme, und ein neues Eingabefeld darin ändere die
+Ansicht, die gerade geprüft wird. **Der Betreiber hat anders entschieden, und
+sein Einwand trägt:** Die Runde ist wegen Befund 6 ohnehin ein zweites Mal zu
+fahren, also kostet das Merkmal keine zusätzliche Runde. Gebaut am 19. August;
+gefahren wird es mit der zweiten Runde und einem neuen `rc`.
+
+**Beide Vorfragen sind beantwortet.** Der Ausdruck schreibt in die fünf Felder
+zurück — er ist eine `computed`-Sicht mit Setzer und kein zweiter Wert —, und
+über die Form eines Zeitplans urteilt weiter nur `Schedule::parse()` im Agenten:
+Das Formular schickt kein neues Feld, und im Browser wird nichts beurteilt.
+
+> **Eine Zusammenfügung darf doppelt stehen, eine Regel nicht.**
+
+`CronScheduleFormTest::test_the_free_expression_is_a_view_on_the_five_fields` ist
+der Wächter dazu, drei Brüche im Bruchskript. Die fünf Griffe, mit denen das auf
+dem Server zu belegen ist, stehen als **`docs/63 §6b`** — das Bild allein sieht
+einer Sicht nicht an, ob sie eine ist.
+
+Im Container gemessen (echtes Chromium, gebautes Stylesheet, Dichtestufe
+`customer`, 390 px): `dokument 0`, Gegenprobe `200/200`, `schiebt` leer, beide
+Themes. Auf `cloudsrv24` steht die Messung aus.
 
 ---
 
@@ -544,8 +558,8 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
   Ansicht 8. Beheben und nachmessen. **Die Befunde 2, 3 und 4 sind derselbe
   Fehler an drei Stellen**; die Behebung trifft die Regel und nicht den
   Einzelfall.
-- **Wunsch 1** — die Experteneingabe für den Zeitplan. Kein Befund, kein
-  Abnahmekriterium, nicht Teil dieses Schritts.
+- **Wunsch 1 ist gebaut** und auf `cloudsrv24` noch nicht gefahren: die fünf
+  Griffe aus `docs/63 §6b` und der Zustand „Zeitplan als Ausdruck" aus §3.
 - **Die Runde danach noch einmal.** Befund 6 ändert die Dichtestufe `customer`,
   und in der stehen alle Aufnahmen dieses Laufs. Erst zu Ende messen, dann alles
   in einer Fassung beheben, dann neu fahren.

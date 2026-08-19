@@ -573,6 +573,8 @@ zusätzlich im zweiten Theme dazu.
 | Dateimanager — Datei anlegen | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | — |
 | Dateimanager — Datei hochladen | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | — |
 | Dateimanager — Suchen | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | — |
+| Dateimanager — Rechte an einer Zeile | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | **Befund 10** |
+| Dateimanager — Umbenennen an einer Zeile | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | **Befund 10** |
 
 **Zur Mehrfachauswahl.** Zwei Einträge angekreuzt, die Auswahlleiste offen mit
 sechs Knöpfen, und im Baum daneben steht das lange Verzeichnis aus `docs/63
@@ -645,15 +647,46 @@ gewöhnlichen Zustand um **kein Pixel**, weil gleich hohe Geschwister unter
 Datei anlegen, Datei hochladen, Suchen. Alle vier stehen als Feld über der
 Schaltfläche, alle vier mit `dokument: 0`.
 
-**Zwei aus der Liste in `docs/63 §3` sind damit nicht erledigt** — „Rechte" und
-„Umbenennen" hängen nicht an der Kopfleiste, sondern an einer **Zeile** der
-Liste (`Files/Index.vue`, `chmodFor` und `renameFor`). Sie werden über die
-Aktionsspalte eines Eintrags geöffnet und sind ein eigener Griff. Die Zählung
-„die vier Formulare" war meine, und sie war falsch: Es sind sechs Griffe an zwei
-verschiedenen Orten.
+**„Rechte" und „Umbenennen" sind die beiden anderen**, und sie hängen nicht an
+der Kopfleiste, sondern an einer **Zeile** der Liste (`Files/Index.vue`,
+`chmodFor` und `renameFor`). Die Zählung „die vier Formulare" war meine, und sie
+war falsch: Es sind sechs Griffe an zwei verschiedenen Orten.
 
 > **Eine Aufzählung, die zwei Orte in einen Satz zieht, lässt den zweiten
 > weg.**
+
+Beide sind gemessen, beide ohne Überlauf — und beide tragen denselben Fehler, den
+keine Zahl zeigt.
+
+### Befund 10 — der geöffnete Bereich steht ausserhalb des Bildes (390 px)
+
+Gemeldet vom Betreiber: Wer bei 390 px in einer Zeile weit unten „Rechte" oder
+„Umbenennen" drückt, sieht **nichts geschehen**. Der Bereich öffnet sich am Kopf
+der Seite; man muss von Hand hinaufrollen, um ihn zu finden.
+
+**Für diesen Fehler gibt es in diesem Repo bereits die Behebung** — sie ist bloss
+nur an einer Stelle angeschlossen. `resources/js/scroll.ts` steht seit dem
+15. August genau deswegen da, und sein Kopf beschreibt denselben Vorgang: Der
+Betreiber drückte auf einem iPhone „Entfernen" an einer Zeile weit unten, die
+Rückfrage erschien oben, und sichtbar geschah gar nichts.
+
+> **Eine Antwort, die ausserhalb des Bildes steht, ist für den Fragenden
+> keine.**
+
+`bringIntoView()` löst das, und `useConfirmation` ruft es. `startChmod()` und
+`startRename()` in `Files/Index.vue` setzen nur ihre Referenz und rollen nicht.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+Derselbe Satz wie bei `docs/59` Befund 19 (der Menüpunkt) — und diesmal ist die
+Regel sogar als Funktion vorhanden. **Die Behebung ist deshalb nicht ein Aufruf
+an zwei Stellen, sondern ein Wächter darüber**, dass jeder Griff, der einen
+Bereich am Seitenkopf öffnet, ihn auch ins Bild holt. Betroffen sind mindestens
+`startChmod`, `startRename` — und zu prüfen sind `startPack` und die beiden
+Zielwahlen (`picking`), die dieselbe Bauart haben.
+
+**Nicht behoben.**
 
 **Und eine Randnotiz aus dem `anfang`:** In der Kopfzeile steht ein Attribut
 `wfd-id="id8"`, das dieses Panel nicht schreibt — wieder eine Erweiterung, die
@@ -777,8 +810,8 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
 
 ## 3. Was offen ist
 
-- **Neun Befunde am Panel** — zwei an Ansicht 4, einer an Ansicht 6, drei an
-  Ansicht 8, zwei an Ansicht 9, einer an einem Zustand. Beheben und nachmessen. Sie fallen in **zwei**
+- **Zehn Befunde am Panel** — zwei an Ansicht 4, einer an Ansicht 6, drei an
+  Ansicht 8, zwei an Ansicht 9, zwei an Zuständen. Beheben und nachmessen. Sie fallen in **zwei**
   Gruppen: 2, 3 und 4 sind fehlende Nachbarpaare, 7 und 8 sind die fehlende
   senkrechte Polsterung an `td`. Beide Male trifft die Behebung die Regel und
   nicht den Einzelfall.

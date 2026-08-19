@@ -5,7 +5,7 @@ Laufs; es ist am 19. August 2026 angelegt worden, als die ersten beiden
 Ansichten gemessen waren.
 
 **Es ist unvollständig, und das steht in §3.** Von den neun Ansichten sind
-**acht** aufgenommen und vollständig gemessen, von den zwanzig Zuständen ist
+**alle neun** aufgenommen und in vier Lagen gemessen, von den zwanzig Zuständen ist
 einer aufgenommen und keiner gemessen. Zwei Befunde am Panel stehen offen. Ein Protokoll, das seine Lücken nicht
 nennt, liest sich wie eine Abnahme.
 
@@ -436,6 +436,50 @@ Im Container gemessen (echtes Chromium, gebautes Stylesheet, Dichtestufe
 `customer`, 390 px): `dokument 0`, Gegenprobe `200/200`, `schiebt` leer, beide
 Themes. Auf `cloudsrv24` steht die Messung aus.
 
+### Ansicht 9 — Läufe (`/subscriptions/140/cron/8/runs`)
+
+**Teil 1: Job A, mit Ausgabe.** Die Seite schiebt in keiner Lage — und der
+Betreiber hat wieder einen Abstand gesehen, den keine Zahl erzeugt.
+
+| Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` |
+|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | `thead` 304 · `tr` 276 | leer |
+| 390 dunkel | 0 | **200/200** | `thead` 304 · `tr` 276 | leer |
+| 1440 hell | 0 | **200/200** | **leer** | `.scrolls` 19 |
+| 1440 dunkel | 0 | **200/200** | **leer** | `.scrolls` 19 |
+
+Die 19 px bei 1440 sind die Laufliste in der rechten Hälfte von `.sections` —
+knapp, aber gewollt, `darf: true`.
+
+**Der Zustand „Lauf mit Ausgabe, aufgeklappt" ist damit mitgemessen**: Die
+Aufnahmen zeigen die Ausgabekästen von Job A, und die vier Zeilen oben sind an
+genau diesem Zustand entstanden.
+
+#### Befund 7 — der Ausgabekasten stösst an die Trennlinie (1440 px)
+
+`.output` trägt `margin-top: 14px` und **keinen** Rand nach unten. Die Zelle
+darunter hat auch keinen: `td` steht auf `padding: 0 14px 0 0` und holt seine
+Höhe aus `height: var(--row-height)` — für eine einzeilige Zelle richtig, für
+einen Block darin nicht. Der Kasten endet also genau dort, wo die
+`border-bottom` der Zeile anfängt.
+
+**Der vierte Fund derselben Familie in diesem Lauf.** Befund 2, 3 und 4 waren
+fehlende Nachbarpaare; dieser ist ein einseitig gesetzter Rand — dieselbe Frage,
+nur an einem einzelnen Baustein statt zwischen zweien:
+
+> **Eine Regel über den Nachbarn davor sagt nichts über den danach.**
+
+Der Satz steht seit P5c neben der Paarliste in `app.css`. Dass er hier zum
+vierten Mal zutrifft, ist kein Zufall: `margin-top: 14px` ist eine Aussage über
+das, was über dem Kasten steht, und über das, was darunter kommt, hat nie jemand
+etwas gesagt.
+
+**Damit gehört Befund 7 in dieselbe Behebung wie 2, 3 und 4** — vier Stellen,
+eine Regel: Ein Baustein, der bündig endet, bringt seinen Abstand selbst mit,
+und zwar in beide Richtungen.
+
+**Nicht behoben.**
+
 ---
 
 ## 2. Was dieser Lauf über sein eigenes Prüfmittel gelernt hat
@@ -553,19 +597,20 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
 
 ## 3. Was offen ist
 
-- **Eine der neun Ansichten** — 9.
-- **Sechs Befunde am Panel** — zwei an Ansicht 4, einer an Ansicht 6, drei an
-  Ansicht 8. Beheben und nachmessen. **Die Befunde 2, 3 und 4 sind derselbe
-  Fehler an drei Stellen**; die Behebung trifft die Regel und nicht den
-  Einzelfall.
+- **Sieben Befunde am Panel** — zwei an Ansicht 4, einer an Ansicht 6, drei an
+  Ansicht 8, einer an Ansicht 9. Beheben und nachmessen. **Die Befunde 2, 3, 4
+  und 7 sind derselbe Fehler an vier Stellen**; die Behebung trifft die Regel und
+  nicht den Einzelfall.
 - **Wunsch 1 ist gebaut** und auf `cloudsrv24` noch nicht gefahren: die fünf
   Griffe aus `docs/63 §6b` und der Zustand „Zeitplan als Ausdruck" aus §3.
 - **Die Runde danach noch einmal.** Befund 6 ändert die Dichtestufe `customer`,
   und in der stehen alle Aufnahmen dieses Laufs. Erst zu Ende messen, dann alles
   in einer Fassung beheben, dann neu fahren.
-- **Neunzehn der zwanzig Zustände** aus `docs/63 §3`. Gemessen ist einer:
-  „Läufe ohne Läufe" (Job C, angelegt und vor dem ersten Lauf aufgenommen) —
-  **aber ohne Messzeile und bei Arbeitsplatzbreite**, also noch nicht
-  protokollfähig.
+- **Achtzehn der einundzwanzig Zustände** aus `docs/63 §3`. Gemessen ist einer:
+  „Lauf mit Ausgabe, aufgeklappt" (Job A) — er steckt in den vier Lagen von
+  Ansicht 9. Aufgenommen, aber ohne Messzeile ist „Läufe ohne Läufe" (Job C, vor
+  dem ersten Lauf) — und zwar bei Arbeitsplatzbreite statt bei 390 px, also noch
+  nicht protokollfähig. Offen ist ausserdem „Lauf mit Rückgabewert ≠ 0" (Job B),
+  der zu Ansicht 9 gehört.
 
 **Damit ist Schritt 12 nicht abgeschlossen**, und P6 ist nicht abgenommen.

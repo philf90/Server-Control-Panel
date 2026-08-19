@@ -5,7 +5,7 @@ Laufs; es ist am 19. August 2026 angelegt worden, als die ersten beiden
 Ansichten gemessen waren.
 
 **Es ist unvollständig, und das steht in §3.** Von den neun Ansichten sind
-**sieben** aufgenommen und vollständig gemessen, von den zwanzig Zuständen ist
+**acht** aufgenommen und vollständig gemessen, von den zwanzig Zuständen ist
 einer aufgenommen und keiner gemessen. Zwei Befunde am Panel stehen offen. Ein Protokoll, das seine Lücken nicht
 nennt, liest sich wie eine Abnahme.
 
@@ -294,6 +294,109 @@ Die beiden 1440er Lagen sind frisch geladen gemessen. Auch hier gilt der Grund
 aus Ansicht 1: `CronController::pick()` leitet bei genau einem erreichbaren
 Abonnement durch, gemessen wird deshalb als Administrator.
 
+### Ansicht 8 — Cronjobs (`/subscriptions/140/cron`)
+
+**Die Seite schiebt in keiner Lage — und der Betreiber hat vier Dinge am Bild
+gesehen, von denen kein einziges eine Zahl erzeugt.**
+
+| Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` |
+|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | `thead` 484 · `tr` 456 | leer |
+| 390 dunkel | 0 | **200/200** | `thead` 484 · `tr` 456 | leer |
+| 1440 hell | 0 | **200/200** | **leer** | `.scrolls` 191 |
+| 1440 dunkel | 0 | **200/200** | **leer** | `.scrolls` 191 |
+
+Der Roller bei 1440 ist die Jobliste mit ihren fünf Spalten in der rechten
+Hälfte von `.sections` — gewollt, `darf: true`. Die 484 px bei 390 sind
+`.stacks thead` mit fünf Überschriften, also der Mechanismus.
+
+**Aufgenommen in der Kundensicht**, und das ist für die Befunde 5 und 6 wichtig:
+Dort gilt `:root[data-density='customer']` mit `--block-gap: 34px` und
+`--bereich-gap: 38px 52px`, in der Verwaltungssicht 26px und 30px/44px.
+
+#### Befund 4 — die Meldung klebt am Satz darüber (390 px)
+
+Im Bereich „Zeitplan und Zeitzone" steht `<p>Cronjobs laufen als p1139 …</p>`
+und direkt darunter `<p class="notice neutral">`. `.notice` trägt
+`margin-bottom: var(--block-gap)` und **keinen** Rand nach oben; ein `<p>` hat
+durch Tailwinds Reset gar keinen. Zwischen beiden steht also nichts ausser der
+Polsterung der Meldung.
+
+Die Paarliste kennt den Fall nicht:
+
+```css
+:is(.field, .hint, .error, .scrolls, .pager, .cell-value, .button-row) + .notice
+```
+
+**Das ist der dritte Fund derselben Bauart in diesem Lauf** — Befund 2 (nach der
+Knopfreihe), Befund 3 (vor der Knopfreihe), jetzt vor der Meldung. Drei Stellen,
+drei Listen, dreimal derselbe Grund.
+
+> **Ein Fehler, der an drei Stellen unabhängig gemacht wurde, ist keine
+> Unachtsamkeit, sondern eine fehlende Stelle.**
+
+Der Satz steht seit `docs/48` im Projekt, dort über „geschätzt 1 Zeilen". Er gilt
+hier wörtlich: **Die Behebung ist nicht der nächste Listeneintrag, sondern die
+Umkehrung der Frage.** Ein Baustein, der bündig endet, bringt seinen Abstand nach
+unten selbst mit; dann braucht weder `.button-row` noch `.notice` eine Liste
+ihrer Vorgänger. Was das an Wächtern kostet, ist beim Beheben zu klären —
+`ClassReachTest` und `DesignTokensTest` hängen an diesen Regeln.
+
+#### Befund 5 — die Cron-Schreibweise bricht mitten im Ausdruck (390 px)
+
+Unter den Zeitplanfeldern steht der Hinweis „Erlaubt sind `*`, Zahlen, Spannen
+(`9-17`), Listen (`1,4`) und Schritte (`*/15`) … Ergibt: `* * * * *`". Jedes
+dieser Stücke ist ein `.ident`, und `.ident` trägt seit `docs/46 §20.11`
+`overflow-wrap: anywhere` — **absichtlich**, weil eine Kennung sonst die Seite
+schiebt. Bei 390 px bricht damit auch ein vierstelliges `*/15`.
+
+**Das ist keine Nachlässigkeit, sondern eine Regel an der falschen Stelle**, und
+zwar dieselbe Verwechslung wie in P5c:
+
+> **Ein Format, das für Bezeichner reicht, reicht nicht für Werte.**
+
+Hier andersherum: Ein Format für **lange** Kennungen (`/usr/local/bin:/usr/bin:/bin`,
+ein Dumppfad, ein Fingerabdruck) reicht nicht für **kurze Literale**, die als
+Ganzes gelesen werden. `*/15` sagt nur als `*/15` etwas; über zwei Zeilen sagt es
+nichts.
+
+Der Betreiber wünscht sie ausserdem sichtbar als Code ausgezeichnet. Beides
+zusammen ist ein eigener Baustein — ein Codestück, das nicht bricht — und nicht
+eine Ausnahme an `.ident`; die Ausnahme wäre die vierte an derselben Klasse
+(`.ident`, `.stacks td .ident`, der Bereichstitel aus `docs/46 §20.11`).
+**Er braucht eine Grenze in der Länge**, sonst ist er der alte Fehler unter
+neuem Namen, und dazu einen Wächter.
+
+#### Befund 6 — die Abstände zwischen den Bereichen sind zu gross (1440 px)
+
+Gemeldet vom Betreiber; es ist eine Angabe über die Gestaltung und keine über
+einen Bruch. Die Zahlen dazu stehen oben: In der Kundensicht ist `--block-gap`
+34px statt 26 und `--bereich-gap` 38px/52px statt 30/44. Die Seite trägt vier
+Bereiche untereinander, und die Summe fällt hier zum ersten Mal auf, weil keine
+andere Ansicht dieses Laufs so viele hat.
+
+**Nicht behoben, und die Zahl gehört vor die Änderung.** Eine Dichtestufe ist
+eine Achse über alle Seiten (`docs/24`); wer sie hier verstellt, verstellt sie
+überall. Zu klären ist deshalb erst, ob der Befund der Stufe gilt oder dieser
+Seite.
+
+#### Wunsch 1 — eine Experteneingabe für den Zeitplan
+
+Der Betreiber wünscht neben den fünf getrennten Feldern eine Eingabe des ganzen
+Ausdrucks, mit einem Umschalter „Einfach / Experte".
+
+**Das ist kein Befund, sondern ein Merkmal**, und es steht in keinem
+Abnahmekriterium von P6 (`docs/51`, `docs/61`). Es ist hier festgehalten, damit
+es nicht verlorengeht — **gebaut wird es nicht in diesem Schritt.** Die
+Bilderrunde ist der letzte Schritt vor der Abnahme; ein neues Eingabefeld darin
+hiesse, die Ansicht zu ändern, die gerade geprüft wird.
+
+Zwei Dinge, die vor dem Bauen zu entscheiden sind: Ob der Umschalter den
+eingegebenen Ausdruck in die fünf Felder zurückschreibt (sonst hat die Seite
+zwei Wahrheiten), und ob die Prüfung des freien Ausdrucks dieselbe ist wie die
+der Felder — `docs/60` hat gemessen, was dieser cron annimmt, und der freie Weg
+darf nicht mehr durchlassen als der geführte.
+
 ---
 
 ## 2. Was dieser Lauf über sein eigenes Prüfmittel gelernt hat
@@ -411,10 +514,13 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
 
 ## 3. Was offen ist
 
-- **Zwei der neun Ansichten** — 8 und 9.
-- **Drei Befunde am Panel** — zwei an Ansicht 4, einer an Ansicht 6. Beheben
-  und nachmessen. Der dritte und der zweite sind derselbe Fehler in zwei
-  Richtungen; die Behebung sollte die Regel treffen und nicht den Einzelfall.
+- **Eine der neun Ansichten** — 9.
+- **Sechs Befunde am Panel** — zwei an Ansicht 4, einer an Ansicht 6, drei an
+  Ansicht 8. Beheben und nachmessen. **Die Befunde 2, 3 und 4 sind derselbe
+  Fehler an drei Stellen**; die Behebung trifft die Regel und nicht den
+  Einzelfall.
+- **Wunsch 1** — die Experteneingabe für den Zeitplan. Kein Befund, kein
+  Abnahmekriterium, nicht Teil dieses Schritts.
 - **Neunzehn der zwanzig Zustände** aus `docs/63 §3`. Gemessen ist einer:
   „Läufe ohne Läufe" (Job C, angelegt und vor dem ersten Lauf aufgenommen) —
   **aber ohne Messzeile und bei Arbeitsplatzbreite**, also noch nicht

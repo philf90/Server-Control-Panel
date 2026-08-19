@@ -392,7 +392,8 @@ oder Grau —, kommt er zusätzlich im zweiten Theme dazu.
 | Dateimanager | Mehrfachauswahl mit Auswahlleiste | zwei Einträge ankreuzen |
 | Dateimanager | Ziel im Baum wählen | „Verschieben" drücken |
 | Dateimanager | Packen, mit Namensfeld | „Packen" drücken |
-| Dateimanager | die vier Formulare | Verzeichnis, Datei, Hochladen, Rechte, Umbenennen |
+| Dateimanager | die vier Formulare der Kopfleiste | Verzeichnis anlegen, Datei anlegen, Hochladen, Suchen |
+| Dateimanager | die zwei Formulare an einer Zeile | „Rechte" und „Umbenennen" in der Aktionsspalte eines Eintrags |
 | Dateimanager | der lange Verzeichnisname in den Krümeln | in 2.1 angelegt — **hier ist `docs/46 §20.11` gebrochen** |
 | Editor | „zu gross" | `gross.bin` öffnen |
 | Editor | „binär" | `binaer.dat` öffnen |

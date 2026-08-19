@@ -569,6 +569,10 @@ zusätzlich im zweiten Theme dazu.
 | Dateimanager — langer Name in den Krümeln | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | — |
 | Dateimanager — Ziel im Baum wählen | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | — |
 | Dateimanager — Packen, Namensfeld offen | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | **Befund 9** |
+| Dateimanager — Verzeichnis anlegen | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | — |
+| Dateimanager — Datei anlegen | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | — |
+| Dateimanager — Datei hochladen | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | — |
+| Dateimanager — Suchen | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | — |
 
 **Zur Mehrfachauswahl.** Zwei Einträge angekreuzt, die Auswahlleiste offen mit
 sechs Knöpfen, und im Baum daneben steht das lange Verzeichnis aus `docs/63
@@ -636,6 +640,20 @@ gewöhnlichen Zustand um **kein Pixel**, weil gleich hohe Geschwister unter
 > **Ein Eingriff, der nur den kaputten Fall bewegt, ist an der richtigen Stelle.**
 
 **Nicht behoben** — er kommt zu den anderen acht.
+
+**Zu den Formularen der Kopfleiste.** Vier sind gemessen: Verzeichnis anlegen,
+Datei anlegen, Datei hochladen, Suchen. Alle vier stehen als Feld über der
+Schaltfläche, alle vier mit `dokument: 0`.
+
+**Zwei aus der Liste in `docs/63 §3` sind damit nicht erledigt** — „Rechte" und
+„Umbenennen" hängen nicht an der Kopfleiste, sondern an einer **Zeile** der
+Liste (`Files/Index.vue`, `chmodFor` und `renameFor`). Sie werden über die
+Aktionsspalte eines Eintrags geöffnet und sind ein eigener Griff. Die Zählung
+„die vier Formulare" war meine, und sie war falsch: Es sind sechs Griffe an zwei
+verschiedenen Orten.
+
+> **Eine Aufzählung, die zwei Orte in einen Satz zieht, lässt den zweiten
+> weg.**
 
 **Und eine Randnotiz aus dem `anfang`:** In der Kopfzeile steht ein Attribut
 `wfd-id="id8"`, das dieses Panel nicht schreibt — wieder eine Erweiterung, die

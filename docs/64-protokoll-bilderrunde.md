@@ -565,6 +565,8 @@ zusätzlich im zweiten Theme dazu.
 | Zustand | Lage | `dokument` | Gegenprobe | `schiebt` | Fund |
 |---|---|---|---|---|---|
 | Dateimanager — Mehrfachauswahl | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | — |
+| Dateimanager — nach dem Verschieben | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | — |
+| Dateimanager — langer Name in den Krümeln | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | — |
 
 **Zur Mehrfachauswahl.** Zwei Einträge angekreuzt, die Auswahlleiste offen mit
 sechs Knöpfen, und im Baum daneben steht das lange Verzeichnis aus `docs/63
@@ -574,6 +576,19 @@ gebrochen war.
 
 Die 367 px sind `.stacks thead` mit seiner Ankreuzspalte; der Mechanismus, nicht
 der Fund.
+
+**Zum Verschieben.** Aufgenommen ist der Zustand **nach** dem Vorgang: die
+Meldung „Der Eintrag ist verschoben." und darunter der Baum mit dem Zielordner.
+**Der Griff selbst — die Auswahl des Ziels im Baum — steht noch aus**; er ist ein
+eigener Zustand aus `docs/63 §3` und wird von dieser Aufnahme nicht gezeigt. Ein
+Protokoll, das einen Zustand behauptet, den sein Bild nicht trägt, ist derselbe
+Fehler wie eine Zahl ohne Gegenprobe.
+
+**Und dieselbe Aufnahme trägt einen zweiten Zustand mit**, den die Liste einzeln
+führt: den langen Verzeichnisnamen in den Krümeln. Er steht dort über zwei Zeilen
+umgebrochen, `dokument` bleibt 0. **Das ist die Stelle aus `docs/46 §20.11`**,
+und sie ist die dritte Fassung derselben Ausnahme — hier mit einem Namen von 54
+Zeichen statt der 63, an denen sie damals brach.
 
 **Und eine Randnotiz aus dem `anfang`:** In der Kopfzeile steht ein Attribut
 `wfd-id="id8"`, das dieses Panel nicht schreibt — wieder eine Erweiterung, die

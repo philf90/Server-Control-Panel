@@ -15469,6 +15469,17 @@ Units als Notiz, die sich wie eine Zusage liest.
 > **Eine Einstellung, die für diese Bauart keine Bedeutung hat, liest sich wie
 > eine Zusage und ist eine Notiz.**
 
+**Beide Behebungen sind auf dem echten Server nachgemessen** — `cloudsrv24`
+gegen `v0.6.0-rc.18`, mit zwei Cronjobs im Minutentakt. Die Läufe-Seite zeigt
+für den einen `erfolgreich` mit 5 bis 7 ms und der Ausgabe des Befehls, für den
+anderen `fehlgeschlagen` mit **Rückgabewert 3** und „keine Ausgabe". Vorher war
+sie leer, während die Ablage sich füllte und wieder geleert wurde.
+
+Nebenbei belegt das die Zeitrechnung dieser Ansicht: `BEGONNEN 12:55:01` neben
+einer Ausgabe, die `Mi 19. Aug 12:55:01 CEST` nennt, geht nur auf, wenn
+`cron-run` in UTC schreibt und das Panel in der Anzeigezone liest — `docs/40`
+trägt also auch hier.
+
 **Dass die geänderte Unit auch ankommt, ist gemessen und nicht angenommen.** Das
 Paket ruft für die Timer `systemctl enable --now`, und das ist bei einem bereits
 aktiven Timer wirkungslos — die Frage war also, ob der neue Sockel erst beim

@@ -8995,6 +8995,78 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TenancySweepTest passed
 
 echo
+echo "── OverflowProbeTest: der Prüfkörper bekommt wieder eine feste Breite ──"
+#
+# Befund 22 aus docs/59: Ein Block von 900px schlägt bei 390px aus und bei
+# 1440px nicht — dort steht dann dieselbe Null, die auch eine kaputte Messung
+# liefert.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace('width:${wurzel.scrollWidth + 200}px', 'width:900px', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/bilder-messen.js "Prüfkörper mit fester Breite" &&
+pruefe "Prüfkörper mit fester Breite" \
+  OverflowProbeTest::test_the_probe_has_no_fixed_width failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
+echo "── OverflowProbeTest: die Gegenprobe fällt aus dem Ergebnis ──"
+#
+# Eine Messung, die auch ohne Gegenprobe ein Ergebnis liefert, wird irgendwann
+# ohne sie gefahren — und „dokument: 0" ohne sie ist keine Aussage.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace('    gegenprobe: gegenprobe(),\n', '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/bilder-messen.js "Messung ohne Gegenprobe" &&
+pruefe "Messung ohne Gegenprobe" \
+  OverflowProbeTest::test_the_counter_check_is_part_of_the_result failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
+echo "── OverflowProbeTest: der erwartete Ausschlag steht nicht daneben ──"
+#
+# Ohne die erwartete Zahl ist jedes Ergebnis plausibel — auch eine 0.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace('return { ausschlag: nachher - vorher, erwartet: 200 }', 'return { ausschlag: nachher - vorher }', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/bilder-messen.js "Gegenprobe ohne Erwartung" &&
+pruefe "Gegenprobe ohne Erwartung" \
+  OverflowProbeTest::test_the_counter_check_is_part_of_the_result failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
+echo "── OverflowProbeTest: gemessen wird nur noch eine Liste von Selektoren ──"
+#
+# Eine Liste nennt, woran man beim Schreiben gerade dachte. Der Fund von P5c
+# Schritt 5 steckte in einer Textzelle, der von Schritt 4 in einem Bereichstitel.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace("document.querySelectorAll('*')", "document.querySelectorAll('.scrolls')", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/bilder-messen.js "Messung nur an genannten Stellen" &&
+pruefe "Messung nur an genannten Stellen" \
+  OverflowProbeTest::test_every_element_is_measured failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
 echo "── TransportLimitTest: files.write erklärt wieder mehr als die Leitung trägt ──"
 #
 # Befund 12b: 2 MiB erklärt, 1 MiB Anfragegrenze. Eine Datei dazwischen öffnete

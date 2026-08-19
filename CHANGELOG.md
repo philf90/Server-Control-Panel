@@ -15372,3 +15372,47 @@ Inhalt in voller Höhe — und misst sie gegen `REQUEST_MAX`. Er prüft ausserde
 dass die Kodierfahnen nur an einer Stelle stehen: Zwei Fassungen davon messen
 irgendwann eine Zeile, die die andere anders schreibt. Alle vier Brüche stehen
 in `tests/waechter-brechen.sh` und beissen.
+
+### Der Prüfkörper der Überlaufmessung hat einen Wächter — und war doppelt zu kurz
+
+**Befund 22 aus `docs/59` ist geschlossen.** Die Messvorschrift für
+`scrollWidth − clientWidth` stand in einem Dokument, und kein Test liest ein
+Dokument — also genau der Fehler, der in diesem Projekt am häufigsten
+wiederkehrt: eine Regel, die auf etwas verweist, ohne dass ein Typ, ein Test
+oder ein Werkzeug den Bezug prüft. Sie steht jetzt als `tests/bilder-messen.js`
+im Repo, und `OverflowProbeTest` liest sie.
+
+**Dabei hat sich die berichtigte Fassung selbst als zu kurz erwiesen.** Der
+erste Prüfkörper war ein fester Block von 900 px: Bei 390 px schlug er mit 510
+aus, bei 1440 px mit `0` — also mit demselben Wert, den auch eine kaputte
+Messung liefert. `docs/58 §12` band ihn daraufhin an `clientWidth + 200`. Gegen
+echtes Chromium gemessen fällt **auch das** auf `0` zurück, sobald die Seite
+schon schiebt: Der Prüfkörper ist dann nicht mehr das Breiteste — und das ist
+ausgerechnet die kaputte Seite, auf der die Messung ihre Arbeitsfähigkeit am
+nötigsten belegen müsste.
+
+> **Ein Prüfkörper, der nur auf der heilen Seite ausschlägt, belegt die Messung
+> dort, wo sie niemand braucht.**
+
+Gebunden an `scrollWidth + 200` schlägt er in allen vier Lagen mit `200/200`
+aus, heil wie kaputt und bei beiden Breiten.
+
+**Zwei weitere Regeln sind dazugekommen**, beide aus Fehlern dieses Projekts.
+Die Gegenprobe steht **im** Ergebnis und ist kein eigener Aufruf — eine Messung,
+die auch ohne sie ein Ergebnis liefert, wird irgendwann ohne sie gefahren, und
+`dokument: 0` ohne Gegenprobe ist keine Aussage, sondern zwei mögliche. Und
+gemessen wird **jedes** Element statt einer Liste von Selektoren: Der Fund von
+P5c Schritt 5 steckte in einer Textzelle, der von Schritt 4 in einem
+Bereichstitel, und beide hätten in keiner Liste gestanden.
+
+> **Eine Prüfung, die nur nachsieht, woran man gerade denkt, prüft das
+> Erinnerungsvermögen.**
+
+Neben dem Überlauf nennt die Messung jetzt auch, **wer** ihn verursacht, und
+trennt dabei die Elemente, die rollen dürfen, von denen, die schieben. Alle vier
+Brüche stehen in `tests/waechter-brechen.sh` und beissen.
+
+`docs/63` ist die Vorschrift für Schritt 12 selbst: neun Ansichten in beiden
+Themes und bei beiden Breiten, die Zustände, die das Layout ändern, die
+Vorbereitung der Daten auf dem Zielserver und die Fallen, die diesen Lauf schon
+gekostet haben.

@@ -411,10 +411,20 @@ weil die Frage daran hängt, was ein Kunde *sucht*.
 > **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
 > wieder da, wenn die Behebung nicht die Regel wurde.**
 
-**Was offen bleibt und benannt ist:** Wand 2 aus Punkt 11, die vier Zeilen zu den
-Befunden 20 und 21 gegen die nächste Fassung, und Befund 22 — der Prüfkörper hat
-**keinen Wächter**, weil die Messvorschrift in einem Dokument steht und kein Test
-sie liest. Wer sie anfasst, fängt bei `docs/59` an und nicht bei null.
+**Was offen bleibt und benannt ist:** Wand 2 aus Punkt 11 und die vier Zeilen zu
+den Befunden 20 und 21 gegen die nächste Fassung. Wer sie anfasst, fängt bei
+`docs/59` an und nicht bei null.
+
+**Befund 22 ist am 19. August geschlossen** — die Messvorschrift steht als
+`tests/bilder-messen.js` im Repo, und `OverflowProbeTest` liest sie. Dabei hat
+sich die berichtigte Fassung aus `docs/58 §12` selbst als zu kurz erwiesen: Ein
+Prüfkörper von `clientWidth + 200` fällt auf einer Seite, die **schon** schiebt,
+wieder auf `0` zurück, weil er dann nicht mehr das Breiteste ist. Gegen
+`scrollWidth + 200` gemessen schlägt er in allen vier Lagen mit `200/200` aus,
+heil wie kaputt (im Container gegen echtes Chromium gemessen).
+
+> **Ein Prüfkörper, der nur auf der heilen Seite ausschlägt, belegt die Messung
+> dort, wo sie niemand braucht.**
 
 ---
 
@@ -636,6 +646,10 @@ mit ihren Lehren, die beiden Durchgänge Punkt für Punkt und am Ende, was offen
 bleibt · **`60` die Messrunde vor Schritt 9** (Cron), zweiunddreissig Messungen
 gegen einen Wegwerf-cron im Container · und **`61` der Angriffsdurchgang** —
 Schritt 11 und damit das Abnahmekriterium der ganzen Stufe.
+
+Und **`63` die Bilderrunde** — Schritt 12: die neun Ansichten, ihre Zustände,
+das Messmittel mit seiner Gegenprobe und die Fallen, die diesen Lauf schon
+gekostet haben.
 
 **`61 §0` ist der Teil, der vor dem Lauf gelesen wird und nicht währenddessen:**
 vier Vorarbeiten, gefunden beim Ausschreiben am Quelltext. Zwei davon würden ein

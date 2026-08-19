@@ -59,7 +59,25 @@
  * ersten Zeichen des Markups.
  *
  * > **Eine Zahl, die nicht sagt, welche, zwingt zum Suchen.**
+ *
+ * ---
+ *
+ * **Jede Zeile nennt den Stand des Messmittels, das sie erzeugt hat.** Dieses
+ * Skript lebt in der Konsole und verschwindet bei jedem Neuladen — es kommt
+ * also aus der Zwischenablage zurück, und die altert nicht sichtbar. Am
+ * 19. August ist genau das passiert: Die Messung kam mit den alten Feldern
+ * wieder, und der Ausdruck sah aus wie ein Ergebnis.
+ *
+ * > **Ein Werkzeug, das nach jedem Neuladen aus der Zwischenablage kommt, ist
+ * > so alt wie die Zwischenablage und sagt es nicht.**
+ *
+ * Der Stand steht deshalb im Ergebnis, neben Breite und Thema und aus demselben
+ * Grund: damit keine Zeile ihre Herkunft verliert. Wer dieses Skript ändert,
+ * setzt ihn auf das Datum der Änderung.
  */
+
+/** Der Tag, an dem dieses Messmittel zuletzt geändert wurde. */
+const STAND = '2026-08-19'
 
 function bilderMessen () {
   const wurzel = document.documentElement
@@ -131,6 +149,7 @@ function bilderMessen () {
   }
 
   return {
+    stand: STAND,
     breite: wurzel.clientWidth,
     thema: wurzel.getAttribute('data-theme') ?? '(System)',
     dokument: wurzel.scrollWidth - wurzel.clientWidth,

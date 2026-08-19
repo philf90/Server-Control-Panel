@@ -170,4 +170,39 @@ final class OverflowProbeTest extends TestCase
             'Ein Fund zeigt sein Markup nicht — dann sagt der Weg zwar wo, aber nicht was.',
         );
     }
+
+    /**
+     * Jede Messung nennt den Stand des Messmittels, das sie erzeugt hat.
+     *
+     * **Was schiefging.** Dieses Skript lebt in der Konsole und verschwindet bei
+     * jedem Neuladen — es kommt also aus der Zwischenablage zurück. Am
+     * 19. August 2026 kam es mit den Feldern von vorgestern wieder, während die
+     * Frage, die es beantworten sollte, gerade an den neuen hing. Der Ausdruck
+     * sah dabei aus wie ein Ergebnis: eine Zahl, ein Fund, keine Fehlermeldung.
+     *
+     * > **Ein Werkzeug, das nach jedem Neuladen aus der Zwischenablage kommt,
+     * > ist so alt wie die Zwischenablage und sagt es nicht.**
+     *
+     * Geprüft wird deshalb dasselbe wie bei `breite` und `thema`: dass die
+     * Herkunft im Ergebnis steht. Ob der Stand gepflegt ist, kann kein Test
+     * sagen — dass er dasteht, schon.
+     */
+    public function test_a_reading_names_the_instrument(): void
+    {
+        $quelltext = $this->source();
+
+        $this->assertMatchesRegularExpression(
+            "/const STAND = '\\d{4}-\\d{2}-\\d{2}'/",
+            $quelltext,
+            'Das Messmittel fuehrt keinen Stand — dann traegt keine Zeile ihre Herkunft.',
+        );
+
+        $ergebnis = (string) strstr($quelltext, '  return {');
+
+        $this->assertStringContainsString(
+            'stand: STAND',
+            $ergebnis,
+            'Der Stand steht nicht im Ergebnis — dann sieht eine alte Messung aus wie eine neue.',
+        );
+    }
 }

@@ -9279,6 +9279,41 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
 
 echo
+echo "── OverflowProbeTest: die Messung nennt ihren Stand nicht mehr ──"
+#
+# Das Skript lebt in der Konsole und kommt nach jedem Neuladen aus der
+# Zwischenablage zurück. Ohne Stand sieht eine alte Messung aus wie eine neue.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace('    stand: STAND,\n', '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/bilder-messen.js "Messung ohne Stand" &&
+pruefe "Messung ohne Stand" \
+  OverflowProbeTest::test_a_reading_names_the_instrument failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
+echo "── OverflowProbeTest: der Stand ist kein Datum mehr ──"
+#
+# „neu" altert nicht. Ein Stand, der kein Datum ist, sagt nichts über das Alter.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace("const STAND = '2026-08-19'", "const STAND = 'neu'", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/bilder-messen.js "Stand ohne Datum" &&
+pruefe "Stand ohne Datum" \
+  OverflowProbeTest::test_a_reading_names_the_instrument failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
 echo "── TransportLimitTest: files.write erklärt wieder mehr als die Leitung trägt ──"
 #
 # Befund 12b: 2 MiB erklärt, 1 MiB Anfragegrenze. Eine Datei dazwischen öffnete

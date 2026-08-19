@@ -26,6 +26,7 @@ Es gibt zurück:
 
 | Feld | was es bedeutet |
 |---|---|
+| `stand` | der Tag, an dem das Messmittel zuletzt geändert wurde |
 | `breite` / `thema` | die Lage, an der gemessen wurde — damit keine Zeile ihre Herkunft verliert |
 | `dokument` | `scrollWidth − clientWidth` der Seite. **Das ist die Zahl, um die es geht: sie muss 0 sein.** |
 | `gegenprobe` | `{ ausschlag, erwartet: 200 }` — beide Zahlen müssen gleich sein |
@@ -44,6 +45,20 @@ sie zeigte nirgendwo hin — ein Element ohne Klasse heisst unter `wo` eben nur
 > **Eine Zahl, die nicht sagt, welche, zwingt zum Suchen.**
 
 `OverflowProbeTest::test_a_finding_names_where_it_is` hält beides fest.
+
+**Und `stand` steht seit demselben Tag daneben, aus einem Grund, der diesen
+Lauf schon gekostet hat.** Das Skript lebt in der Konsole und verschwindet bei
+jedem Neuladen — es kommt also nach jeder Aufnahme aus der Zwischenablage
+zurück. Am 19. August kam es mit den Feldern von vorgestern wieder, während
+die Frage, die es beantworten sollte, gerade an den neuen hing; der Ausdruck
+sah dabei aus wie ein Ergebnis.
+
+> **Ein Werkzeug, das nach jedem Neuladen aus der Zwischenablage kommt, ist so
+> alt wie die Zwischenablage und sagt es nicht.**
+
+**Das Skript wird deshalb nach jedem Neuladen frisch aus dem Zweig geholt**,
+nicht aus der Zwischenablage der vorigen Aufnahme, und `stand` gehört in jede
+Zeile des Protokolls.
 
 **Warum die Gegenprobe an `scrollWidth` hängt und nicht an einer Zahl.** Befund
 22 aus `docs/59`: Ein fester Block von 900 px schlägt bei 390 px aus und bei

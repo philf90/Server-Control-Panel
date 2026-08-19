@@ -13,7 +13,23 @@ Documentation=https://repo.cloudsrv24.de/
 # in fünfzehn. Der Abstand ist an der Deckelung gewählt und nicht am Gefühl —
 # und was trotzdem liegen bleibt, meldet das Kommando als „wartet noch".
 OnBootSec=2min
-OnUnitActiveSec=5min
+
+# **Wall-clock und nicht monoton, und das ist eine Behebung vom 19. August
+# 2026.** Vorher stand hier allein `OnUnitActiveSec=5min`. Dieser Sockel hängt
+# an der letzten Aktivierung des Dienstes: Reisst die Kette einmal — ein
+# `daemon-reload` beim Paketwechsel, ein Neustart der Unit —, kann der Timer
+# `active` bleiben, ohne je wieder einen Termin zu haben. Auf `cloudsrv24`
+# gemessen: `systemctl is-active` sagte `active`, `NEXT` stand auf `-`, und der
+# letzte Lauf lag **22 Stunden** zurück. In der Zwischenzeit sammelte niemand
+# die Läufe ein, und niemand hat es gemeldet.
+#
+#   Ein Dienst, der „active" meldet und keinen nächsten Termin hat, ist
+#   abgeschaltet und sieht aus wie eingeschaltet.
+#
+# `OnCalendar` rechnet gegen die Uhr und braucht keine Vorgeschichte. Erst damit
+# bedeutet `Persistent=true` unten überhaupt etwas — für einen rein monotonen
+# Timer ist es wirkungslos.
+OnCalendar=*:0/5
 
 # Ein Server, der über Nacht aus war, sammelt nach dem Einschalten einmal nach,
 # statt bis zum nächsten Fünfminutenschlag zu warten.

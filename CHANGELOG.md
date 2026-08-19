@@ -15297,3 +15297,258 @@ Befehlsfeld einer crontab-Zeile, und dort steht kein Kundentext.
 **Damit sind alle fünfzehn Punkte des Abnahmekriteriums gemessen.** Offen
 bleiben zwei einzelne Zeilen innerhalb von Punkt 11 und die Reste aus
 `docs/62 §3`; P6 ist deshalb noch nicht abgenommen.
+
+### Punkt 11 ist in allen 22 Zeilen gemessen — und der letzte Fehler steckte nicht im Skript
+
+Die beiden zuletzt offenen Zeilen sind zu, gemessen am 19. August 2026 auf
+`cloudsrv24` gegen `v0.6.0-rc.17`: **22 von 22 fremden Aufrufen gehalten, 22 von
+22 Gegenproben durchgelassen**, `uebergriffe: 0`, `haengen: 0`.
+`DELETE /sftp/keys/{key}` gab für die eigene Kennung 405 nach der Weiterleitung
+auf die Übersichtsseite — dieselbe Form wie `PUT /files` und `DELETE /files`,
+also hat die Löschung stattgefunden; `GET /cron/{job}/runs` gab 200.
+
+**Der Anlauf davor hat drei Zeilen als „BLIEB HÄNGEN" gemeldet, und die Ursache
+lag nicht im Panel und nicht im Skript, sondern in dem, was ihm übergeben
+wurde.** Er lief mit `eigenJob: 4` — der Kennung aus der Messung der Punkte 9
+und 10. Deren Cron-Datei heisst `/etc/cron.d/srvpanel-p1136`, und `p1136` ist
+der Systembenutzer von Abonnement **137**, nicht von 140 (das läuft als
+`p1139`). Die Kennung zeigte also auf das fremde Abonnement, und die drei Zeilen
+mit `{job}` konnten ihre Gegenprobe nicht bestehen.
+
+> **Eine Kennung, die man von einer Messung in die nächste mitnimmt, trägt ihr
+> Abonnement nicht mit.**
+
+Gefangen hat es die Gegenprobe, aber erst nach dem Lauf und in einer Form, die
+nach einem Fund am Prüfling aussah. `tests/mandant-messen.js` hat deshalb einen
+**Vorflug**: Er liest vor der ersten Messung die Seiten `/cron` und `/sftp` des
+eigenen Abonnements und bricht mit Namen und Kennung ab, wenn `eigenJob` oder
+`eigenKey` dort nicht steht. Die **fremde** Seite fasst er nicht an — sie liesse
+sich nur prüfen, indem man die Wand umgeht, die der Lauf messen soll, und sie
+muss auch nicht: Die Routen tragen kein `scopeBindings()`, `{subscription}` wird
+vor `{job}` und `{key}` aufgelöst, der 404 kommt also aus der Mandantenklammer,
+bevor die Zweitkennung an der Reihe ist.
+
+`TenancySweepTest::test_the_sweep_checks_its_own_identifiers_first` prüft beide
+Richtungen — dass der Vorflug die eigenen Kennungen liest und dass er die fremde
+Seite nicht berührt. Beide Brüche stehen in `tests/waechter-brechen.sh`.
+
+### Eine Datei zwischen 1 und 2 MiB öffnete sich und liess sich nie speichern
+
+**Befund 12b aus `docs/62` ist behoben.** `FilesRead::MAX_BYTES` und
+`FilesWrite::MAX_BYTES` standen auf 2 MiB, `Connection::REQUEST_MAX` auf 1 MiB —
+und der Inhalt einer Datei reist als Feld *in* dieser einen JSON-Zeile. Die
+Hälfte der erklärten Grenze war damit nie zu erreichen: Eine Datei dazwischen
+öffnete sich im Editor, liess sich bearbeiten und beim Speichern kam „Anfrage
+überschreitet 1 MiB" — eine Auskunft über das Protokoll und nicht über die
+Datei, und die Arbeit war weg.
+
+> **Ein Wert, der grösser ist als der Weg dorthin, ist keine Grenze.**
+
+`Connection::CONTENT_MAX` ist jetzt die eine Zahl, an der beide Grenzen hängen
+(`REQUEST_MAX` minus 64 KiB für die Hülle = 960 KiB). `FilesWrite` und
+`FilesRead` führen sie, statt jeweils eine eigene zu erklären — was sich öffnen
+lässt, lässt sich damit auch zurückschreiben. Und `Client::call()` misst die
+**fertig kodierte Zeile**, bevor sie über den Socket geht: Eine Datei, deren
+Maskierung sie doch über die Grenze hebt, wird abgewiesen, bevor sie unterwegs
+ist, und die Meldung spricht von ihr und nicht vom Protokoll.
+
+**Die Begründung des Befundes war beim ersten Ausschreiben falsch.** Sie
+lautete, deutscher Text wachse als JSON um den Faktor 1,71 und reisse die Grenze
+schon bei 620 KB, weil aus einem `ü` die sechs Zeichen `\u00fc` würden. Das gilt
+für `json_encode` mit seinen Voreinstellungen — `Client::call()` setzt seit dem
+11. August `JSON_UNESCAPED_UNICODE`. Nachgemessen mit den Fahnen, die er wirklich
+führt: deutsche Prosa 1,02×, nur Umlaute 1,00×, PHP mit Zeichenketten 1,12×,
+ASCII 1,00×, lauter Steuerzeichen 6,00×.
+
+> **Ein Faktor, der an anderen Fahnen gemessen wurde, gehört zu einer anderen
+> Leitung.**
+
+Der Schluss stimmte trotzdem — 2 MiB passen auch als reines ASCII nicht durch
+1 MiB —, aber die Zahl war eine andere und die Dringlichkeit auch: betroffen war
+nicht jede deutsche Datei ab 620 KB, sondern jede Datei ab 1 MiB. Ein Wächter,
+der einen Faktor führte, hätte den Irrtum bloss festgeschrieben.
+`TransportLimitTest` baut deshalb die volle Zeile — lange Namen, tiefer Pfad,
+Inhalt in voller Höhe — und misst sie gegen `REQUEST_MAX`. Er prüft ausserdem,
+dass die Kodierfahnen nur an einer Stelle stehen: Zwei Fassungen davon messen
+irgendwann eine Zeile, die die andere anders schreibt. Alle vier Brüche stehen
+in `tests/waechter-brechen.sh` und beissen.
+
+### Der Prüfkörper der Überlaufmessung hat einen Wächter — und war doppelt zu kurz
+
+**Befund 22 aus `docs/59` ist geschlossen.** Die Messvorschrift für
+`scrollWidth − clientWidth` stand in einem Dokument, und kein Test liest ein
+Dokument — also genau der Fehler, der in diesem Projekt am häufigsten
+wiederkehrt: eine Regel, die auf etwas verweist, ohne dass ein Typ, ein Test
+oder ein Werkzeug den Bezug prüft. Sie steht jetzt als `tests/bilder-messen.js`
+im Repo, und `OverflowProbeTest` liest sie.
+
+**Dabei hat sich die berichtigte Fassung selbst als zu kurz erwiesen.** Der
+erste Prüfkörper war ein fester Block von 900 px: Bei 390 px schlug er mit 510
+aus, bei 1440 px mit `0` — also mit demselben Wert, den auch eine kaputte
+Messung liefert. `docs/58 §12` band ihn daraufhin an `clientWidth + 200`. Gegen
+echtes Chromium gemessen fällt **auch das** auf `0` zurück, sobald die Seite
+schon schiebt: Der Prüfkörper ist dann nicht mehr das Breiteste — und das ist
+ausgerechnet die kaputte Seite, auf der die Messung ihre Arbeitsfähigkeit am
+nötigsten belegen müsste.
+
+> **Ein Prüfkörper, der nur auf der heilen Seite ausschlägt, belegt die Messung
+> dort, wo sie niemand braucht.**
+
+Gebunden an `scrollWidth + 200` schlägt er in allen vier Lagen mit `200/200`
+aus, heil wie kaputt und bei beiden Breiten.
+
+**Zwei weitere Regeln sind dazugekommen**, beide aus Fehlern dieses Projekts.
+Die Gegenprobe steht **im** Ergebnis und ist kein eigener Aufruf — eine Messung,
+die auch ohne sie ein Ergebnis liefert, wird irgendwann ohne sie gefahren, und
+`dokument: 0` ohne Gegenprobe ist keine Aussage, sondern zwei mögliche. Und
+gemessen wird **jedes** Element statt einer Liste von Selektoren: Der Fund von
+P5c Schritt 5 steckte in einer Textzelle, der von Schritt 4 in einem
+Bereichstitel, und beide hätten in keiner Liste gestanden.
+
+> **Eine Prüfung, die nur nachsieht, woran man gerade denkt, prüft das
+> Erinnerungsvermögen.**
+
+Neben dem Überlauf nennt die Messung jetzt auch, **wer** ihn verursacht, und
+trennt dabei die Elemente, die rollen dürfen, von denen, die schieben. Alle vier
+Brüche stehen in `tests/waechter-brechen.sh` und beissen.
+
+`docs/63` ist die Vorschrift für Schritt 12 selbst: neun Ansichten in beiden
+Themes und bei beiden Breiten, die Zustände, die das Layout ändern, die
+Vorbereitung der Daten auf dem Zielserver und die Fallen, die diesen Lauf schon
+gekostet haben.
+
+### Cron-Läufe kamen nie in der Datenbank an — zwei Fehler, gefunden beim Vorbereiten
+
+**Gemeldet vom Betreiber am 19. August 2026:** Die Läufe-Seite blieb leer,
+obwohl zwei Cronjobs im Minutentakt liefen. Auf `cloudsrv24` lagen 88
+Aufzeichnungen unter `/var/spool/srvpanel/cron/p1139/`, cron hatte sie
+ordentlich erzeugt, und der Wrapper hatte alles richtig gemacht. Es waren zwei
+voneinander unabhängige Fehler, und **keinen davon hätte ein Test finden können,
+weil es keinen gab.**
+
+**Der erste: die Mandantenklammer im Einsammler.** `srvpanel-cron.service` läuft
+als Systemdienst **ohne angemeldetes Konto**, und die dritte Grenze dieses
+Projekts verweigert in diesem Zustand alles. `Cron::store()` fragte `CronJob`
+ohne Ausnahme, fand deshalb keinen einzigen Job, und jeder gemeldete Lauf lief
+in ein `continue`. Von Hand angestossen meldete das Kommando:
+
+    88 Lauf/Läufe eingesammelt, 0 eingepflegt, 0 wartet/warten noch.
+
+**Und die 88 waren damit fort.** `cron.runs` löscht, was es herausgegeben hat —
+„höchstens einmal", und das ist eine bewusste Entscheidung für den Fall, dass
+eine Antwort unterwegs verlorengeht. Hier kam sie an. Verloren ging trotzdem
+jeder Lauf, seit es das Merkmal gibt.
+
+`Cron::withJobs()` nimmt dieselbe Ausnahme und hat sie seit dem ersten Wurf; im
+Einpflegen fehlte sie.
+
+> **Zwei Stellen, die dieselbe Ausnahme brauchen, und nur eine hat sie: Die
+> andere fällt nicht auf, weil sie leise das Richtige tut — nämlich nichts.**
+
+Die Wand ist dabei nicht die Klammer, sondern die Prüfung je Lauf: Eine
+gemeldete Jobnummer muss zu dem Abonnement gehören, unter dessen Namen sie
+ankam. Die Ablage gehört dem Kunden, was darin steht ist eine Behauptung — und
+die Klammer könnte das gar nicht entscheiden, weil hier kein Konto fragt.
+
+**Der zweite: der Timer war „active" und hatte keinen Termin.**
+`systemctl is-active srvpanel-cron.timer` sagte `active`, `NEXT` stand auf `-`,
+und der letzte Lauf lag **22 Stunden** zurück. Die Unit trug allein
+`OnBootSec=2min` und `OnUnitActiveSec=5min` — beide monoton. Reisst die Kette
+einmal, liegt der eine Sockel in der Vergangenheit und der andere hat keine
+Vorgeschichte, an die er anknüpfen könnte.
+
+> **Ein Dienst, der „active" meldet und keinen nächsten Termin hat, ist
+> abgeschaltet und sieht aus wie eingeschaltet.**
+
+Beide Timer mit monotonen Sockeln — `srvpanel-cron` und `srvpanel-usage` —
+tragen jetzt zusätzlich `OnCalendar`. Das rechnet gegen die Wanduhr und braucht
+keine Vorgeschichte. **Erst damit bedeutet `Persistent=true` überhaupt etwas:**
+Die Einstellung wirkt ausschliesslich auf Kalender-Timer und stand in beiden
+Units als Notiz, die sich wie eine Zusage liest.
+
+> **Eine Einstellung, die für diese Bauart keine Bedeutung hat, liest sich wie
+> eine Zusage und ist eine Notiz.**
+
+**Warum es dafür keine Wächter gab.** `SrvPanel\Agent\Client` ist `final` und
+lässt sich in keinem Test ersetzen; jeder Weg, der über ihn führt, war ungeprüft
+— und kein einziger Test dieses Repos hat je einen Cron-Lauf eingepflegt.
+
+> **Eine Klasse, die sich nicht ersetzen lässt, hat keinen Test — und der Weg
+> dahinter auch nicht.**
+
+`Cron::record()` ist die Naht, die das auflöst: Sie trennt „die Läufe holen"
+(braucht den Agenten) von „die Läufe einpflegen" (braucht ihn nicht), und der
+Fehler sass im zweiten Teil. `CronIngestTest` fährt darüber — mit einer
+Gegenprobe **vor** allen anderen Fällen, die belegt, dass die Klammer in dieser
+Lage überhaupt geschlossen ist. Ohne sie prüften die Fälle eine andere
+Anwendung als die auf dem Server. `TimerRearmTest` zählt die Timer-Units selbst
+ab, statt eine Liste zu führen. Alle vier Brüche stehen in
+`tests/waechter-brechen.sh`.
+
+### `run()` gehört der Basisklasse — zum fünften Mal, und jetzt mit Wächter
+
+**Der erste Lauf der CI über den Beitrag oben ist an einer privaten
+Hilfsmethode gescheitert, die `run()` hiess.** `PHPUnit\Framework\TestCase::run()`
+ist `final`; der Fehler schlägt beim **Laden** der Klasse zu, nicht beim
+Ausführen. `php artisan test` endete mit Rückgabewert 255, bevor ein einziger
+Test lief, der Bruchlauf brach an derselben Zeile ab, und PHPStan meldete fünf
+Folgefehler auf einer Zeile. `php -l` sieht davon nichts.
+
+Das ist die fünfte Fassung desselben Fehlers, nach `count()`, `configure()`,
+`for()` und `matches()`. Die Regel stand seit P5 in `CLAUDE.md` — sie hat den
+vierten Fall gefangen und den fünften nicht.
+
+> **Eine Regel, an die man sich erinnern muss, ist keine Regel, sondern eine
+> Gewohnheit.**
+
+`BaseMethodClashTest` spiegelt jetzt die `final`-Methoden der Basisklasse —
+gefragt und nicht abgeschrieben, weil PHPUnit mit jeder Fassung mehr Methoden
+`final` macht — und sucht ihre Namen als Deklaration unter `tests/Unit`,
+`tests/Feature` und `tests/Support`.
+
+**Zwei Eigenheiten hat dieser Wächter.** Sein Ausdruck ist am Zeilenanfang
+verankert: Ohne den träfe er auch die Zeichenkette
+`'public function run(Context $context, …'`, mit der `SandboxCredentialsTest`
+etwas über den Quelltext des Agenten behauptet — und ein Wächter, der beim
+ersten Lauf einen Fehler erfindet, wird abgeschaltet und nicht befolgt. Und
+seine Regel lässt sich **nicht** absichtlich brechen: Eine echte Kollision tötet
+den Lauf, bevor irgendein Wächter rot werden kann. Gebrochen werden deshalb
+seine drei Teile — der Anker, die Aufzählung der Dateien und die Spiegelung der
+Basisklasse —, und jeder Bruch beisst auf seiner eigenen Methode.
+
+**Dazu zwei leere Behauptungen in `TimerRearmTest`.** Die Zweige „trifft nicht
+zu" trugen `assertTrue(true, …)`; PHPStan sagt zu Recht, dass das immer wahr
+ist. Ein Fall ohne Behauptung ist ein Fall, der nichts prüft — die Bedingung
+steht jetzt als Ausdruck da (`! A || B`) statt als früher Rücksprung.
+
+**Und dieser Wächter ist beim ersten Lauf selbst rot gewesen.** Er sammelte
+alles unter `tests/Unit`, `tests/Feature` und `tests/Support` ein und meldete
+daraufhin drei Attrappen mit eigenem Konstruktor — `ScriptedDnsCredentials`,
+`ScriptedExchange`, `ScriptedLookup`. `TestCase::__construct()` ist tatsächlich
+`final`, aber diese drei erben gar nicht davon: Sie sind eigenständige Doppel
+für Schnittstellen der Anwendung und liegen nur im selben Verzeichnis.
+
+> **Ein Wächter, der seinen Geltungsbereich am Ordner festmacht, prüft den
+> Ordner und nicht die Regel.**
+
+Im Bereich liegt eine Datei jetzt, wenn sie eine Klasse deklariert, die von
+etwas auf `TestCase` erbt — oder einen Trait, denn der wird in einen Testfall
+hineingezogen und verdrängt dort die geerbte Methode. Von 275 Dateien bleiben
+268 im Bereich und genau die sieben eigenständigen Doppel draussen.
+
+**Warum es lokal grün war:** Die Attrappe der Basisklasse im Gestell dieses
+Containers hatte `__construct` nicht als `final`. Zum dritten Mal derselbe Satz —
+*eine Attrappe, die weniger verbietet als das Original, sagt Ja zu Code, den das
+Original ablehnt.* Mit dem nachgezogenen Stub bildet der Container den
+CI-Fehlschlag Zeile für Zeile nach.
+
+**Dazu zwei Kleinigkeiten am Prüfmittel.** `docs/63` nannte im Voraus die Nummer,
+die sein Protokoll einmal tragen soll — ein Dokument, das es noch nicht gibt.
+`DocLinkTest` besteht zu Recht darauf, dass ein Verweis auf etwas Vorhandenes
+zeigt; die Nummer wird vergeben, wenn das Protokoll entsteht. Und
+`tests/waechter-brechen.sh` meldete „5 Prüfung(en) ohne Biss", ohne eine davon
+zu nennen; die fünf Zeilen standen zwischen sechshundert anderen.
+
+> **Eine Zahl, die nicht sagt, welche, zwingt zum Suchen.**
+
+Der Lauf schreibt die Namen jetzt am Ende noch einmal untereinander.

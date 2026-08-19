@@ -411,10 +411,20 @@ weil die Frage daran hängt, was ein Kunde *sucht*.
 > **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
 > wieder da, wenn die Behebung nicht die Regel wurde.**
 
-**Was offen bleibt und benannt ist:** Wand 2 aus Punkt 11, die vier Zeilen zu den
-Befunden 20 und 21 gegen die nächste Fassung, und Befund 22 — der Prüfkörper hat
-**keinen Wächter**, weil die Messvorschrift in einem Dokument steht und kein Test
-sie liest. Wer sie anfasst, fängt bei `docs/59` an und nicht bei null.
+**Was offen bleibt und benannt ist:** Wand 2 aus Punkt 11 und die vier Zeilen zu
+den Befunden 20 und 21 gegen die nächste Fassung. Wer sie anfasst, fängt bei
+`docs/59` an und nicht bei null.
+
+**Befund 22 ist am 19. August geschlossen** — die Messvorschrift steht als
+`tests/bilder-messen.js` im Repo, und `OverflowProbeTest` liest sie. Dabei hat
+sich die berichtigte Fassung aus `docs/58 §12` selbst als zu kurz erwiesen: Ein
+Prüfkörper von `clientWidth + 200` fällt auf einer Seite, die **schon** schiebt,
+wieder auf `0` zurück, weil er dann nicht mehr das Breiteste ist. Gegen
+`scrollWidth + 200` gemessen schlägt er in allen vier Lagen mit `200/200` aus,
+heil wie kaputt (im Container gegen echtes Chromium gemessen).
+
+> **Ein Prüfkörper, der nur auf der heilen Seite ausschlägt, belegt die Messung
+> dort, wo sie niemand braucht.**
 
 ---
 
@@ -637,6 +647,41 @@ bleibt · **`60` die Messrunde vor Schritt 9** (Cron), zweiunddreissig Messungen
 gegen einen Wegwerf-cron im Container · und **`61` der Angriffsdurchgang** —
 Schritt 11 und damit das Abnahmekriterium der ganzen Stufe.
 
+Und **`63` die Bilderrunde** — Schritt 12: die neun Ansichten, ihre Zustände,
+das Messmittel mit seiner Gegenprobe und die Fallen, die diesen Lauf schon
+gekostet haben.
+
+**Und die Vorbereitung dieses Schritts hat zwei Fehler gefunden, die kein Test
+finden konnte, weil es keinen gab** (19. August 2026, gemeldet vom Betreiber:
+„es werden keine Läufe angezeigt"). Beide betreffen die Zeitsteuerung, beide
+sind still, und beide sind behoben.
+
+Der erste ist die dritte Grenze an einer Stelle, an der sie nichts schützt:
+`srvpanel-cron.service` läuft **ohne angemeldetes Konto**, und `Cron::store()`
+fragte `CronJob` ohne `withoutRestriction()`. Der Einsammler meldete „88
+eingesammelt, **0 eingepflegt**" — und die 88 waren fort, weil `cron.runs`
+löscht, was es herausgegeben hat.
+
+> **Zwei Stellen, die dieselbe Ausnahme brauchen, und nur eine hat sie: Die
+> andere fällt nicht auf, weil sie leise das Richtige tut — nämlich nichts.**
+
+Der zweite: `srvpanel-cron.timer` meldete `active`, `NEXT` stand auf `-`, und
+der letzte Lauf lag **22 Stunden** zurück. Ein Timer mit ausschliesslich
+monotonen Sockeln (`OnBootSec`, `OnUnitActiveSec`) kann seinen nächsten Termin
+verlieren; `Persistent=true` half nicht, weil es allein auf `OnCalendar` wirkt
+und dort als Notiz stand, die sich wie eine Zusage liest. Zwei der drei Timer
+waren so gebaut.
+
+> **Ein Dienst, der „active" meldet und keinen nächsten Termin hat, ist
+> abgeschaltet und sieht aus wie eingeschaltet.**
+
+Und die Ursache dafür, dass beides wochenlang unbemerkt blieb:
+
+> **Eine Klasse, die sich nicht ersetzen lässt, hat keinen Test — und der Weg
+> dahinter auch nicht.** `SrvPanel\Agent\Client` ist `final`; alles hinter ihm
+> war ungeprüft. `Cron::record()` ist die Naht, `CronIngestTest` und
+> `TimerRearmTest` sind die Wächter.
+
 **`61 §0` ist der Teil, der vor dem Lauf gelesen wird und nicht währenddessen:**
 vier Vorarbeiten, gefunden beim Ausschreiben am Quelltext. Zwei davon würden ein
 falsches Grün erzeugen — die Punkte 13 und 14 des Kriteriums sind von aussen gar
@@ -656,8 +701,8 @@ und nicht „welche Wand hat ihn gehalten?".
 **Der Durchgang läuft seit dem 18. August, und das Protokoll ist `docs/62`.**
 **Alle fünfzehn Punkte sind auf `cloudsrv24` gemessen** — die Punkte 5, 7 und 8
 gegen `4fe2e10`, die Punkte 9 bis 12 **durch das echte Formular** gegen
-`v0.6.0-rc.17`. Offen sind nur noch zwei einzelne Zeilen aus Punkt 11 und die
-Reste, die dort einzeln benannt stehen —
+`v0.6.0-rc.17`, **Punkt 11 seit dem 19. August in allen 22 Zeilen**. Offen sind
+nur noch die Reste, die dort einzeln benannt stehen —
 ein Protokoll ohne seine Lücken liest sich wie eine Abnahme. Die Frage aus §1
 ist beantwortet: **Nicht die Normalisierung hält, sondern das Chroot** (stumpf-A
 hält weiter, stumpf-B bricht 3 von 3 aus).
@@ -737,14 +782,48 @@ sagte.
 > **Ein Statuscode nach einer gefolgten Weiterleitung gehört einer anderen
 > Anfrage.**
 
+**Und der fünfte Fehler von Punkt 11 steckte nicht im Skript, sondern in dem,
+was ich ihm übergeben habe.** Der Lauf bekam `eigenJob: 4` — die Kennung aus der
+Messung der Punkte 9 und 10, und die lag auf dem **fremden** Abonnement:
+`/etc/cron.d/srvpanel-p1136` gehört zu 137, nicht zu 140 (das läuft als
+`p1139`). Drei der 22 Zeilen meldeten „BLIEB HÄNGEN", und das liest sich wie ein
+Befund am Panel.
+
+> **Eine Kennung, die man von einer Messung in die nächste mitnimmt, trägt ihr
+> Abonnement nicht mit.**
+
+Gefangen hat es die Gegenprobe — aber erst danach. `mandant-messen.js` hat
+seitdem einen **Vorflug**, der die eigenen Zweitkennungen vorher liest und die
+fremde Seite dabei nicht anfasst; `TenancySweepTest` prüft beide Richtungen.
+
 **Daneben fiel ein Fehler heraus, der mit dem Angriff nichts zu tun hat:**
-`FilesRead::MAX_BYTES` und `FilesWrite::MAX_BYTES` stehen auf 2 MiB,
-`Connection::REQUEST_MAX` auf 1 MiB — und weil die Anfrage JSON ist, reisst
-deutscher Text die Grenze schon bei 620 KB (gemessener Faktor 1,71, `ü` wird zu
-`\uXXXX`). Eine solche Datei öffnet sich im Editor und lässt sich nie speichern.
-Er steht als `docs/62` Punkt 12b, die Behebung ist nicht entschieden.
+`FilesRead::MAX_BYTES` und `FilesWrite::MAX_BYTES` standen auf 2 MiB,
+`Connection::REQUEST_MAX` auf 1 MiB — und der Inhalt einer Datei reist als Feld
+*in* dieser einen Zeile. Die Hälfte der erklärten Grenze war nie zu erreichen;
+eine Datei dazwischen öffnete sich im Editor und liess sich nie speichern, mit
+einer Meldung über das Protokoll statt über die Datei.
 
 > **Ein Wert, der grösser ist als der Weg dorthin, ist keine Grenze.**
+
+**Behoben am 19. August** (`docs/62` Punkt 12b): `Connection::CONTENT_MAX` ist
+die eine Zahl, an der beide Grenzen hängen, und `Client::call()` misst die
+fertig kodierte Zeile, bevor sie über den Socket geht. `TransportLimitTest`
+rechnet die Hüllengrösse nach, statt sie zu glauben.
+
+**Und die Begründung dieses Befundes war beim ersten Ausschreiben falsch.** Sie
+lautete, deutscher Text wachse als JSON um 1,71× und reisse die Grenze schon bei
+620 KB, weil aus `ü` sechs Zeichen `\u00fc` würden. Das gilt für `json_encode`
+mit seinen Voreinstellungen — und `Client::call()` setzt seit dem 11. August
+`JSON_UNESCAPED_UNICODE`. Nachgemessen mit den Fahnen, die er wirklich führt:
+deutsche Prosa **1,02×**, Umlaute **1,00×**, PHP mit Zeichenketten 1,12×,
+Steuerzeichen 6×.
+
+> **Ein Faktor, der an anderen Fahnen gemessen wurde, gehört zu einer anderen
+> Leitung.**
+
+Der Schluss stimmte trotzdem, die Zahl nicht — und ein Wächter, der einen Faktor
+führt, hätte den Irrtum bloss festgeschrieben. `TransportLimitTest` baut deshalb
+die volle Zeile und misst sie.
 
 **Der Lauf ist gefahren — am 12. August 2026, gegen `0.5.3-rc.1` und ab Punkt 7
 gegen `0.5.3-rc.2`.** Sechs Kriterien erfüllt, das siebte (das Protokoll) benannt
@@ -1097,7 +1176,7 @@ Testen berücksichtigen:
   erst in der CI. Marken stehen auf einer eigenen Zeile; `/** @return
   list<string> */` allein geht, mit Text davor nicht.
 
-  **Und eine zweite, die inzwischen viermal zugeschlagen hat: ein Name, der
+  **Und eine zweite, die inzwischen fünfmal zugeschlagen hat: ein Name, der
   der Basisklasse gehört.** `count()` in einem PHPUnit-Testfall (dort `final`),
   `configure()` in einem Artisan-Kommando (dort `protected`), und in P5 gleich
   zweimal: `for()` in einer `Factory` und `matches()` wieder in einem Testfall
@@ -1113,6 +1192,25 @@ Testen berücksichtigen:
   Testfall auch eine abgeleitete Klasse ist.** Wer in einer abgeleiteten Klasse
   eine private Hilfsmethode einzieht, sieht vorher in der Basisklasse nach; ein
   Testfall zählt dazu.
+
+  **Und am 19. August 2026 hat sie ein fünftes Mal zugeschlagen** — `run()` als
+  private Hilfsmethode in einem frisch gebauten Feature-Test. Drei CI-Zweige
+  fielen daran, und der Bruchlauf meldete korrekt „Der Testaufruf liefert nichts
+  Lesbares". Seitdem gibt es **`BaseMethodClashTest`** dafür: Er spiegelt die
+  `final`-Methoden von `PHPUnit\Framework\TestCase` und sucht ihre Namen als
+  Deklaration unter `tests/Unit`, `tests/Feature` und `tests/Support`.
+
+  > **Eine Regel, an die man sich erinnern muss, ist keine Regel, sondern eine
+  > Gewohnheit.**
+
+  Zwei Dinge daran sind lehrreich. Erstens ist der Wächter **hier fahrbar** —
+  er erbt nur von `TestCase` und läuft im Gestell —, während der Fehler selbst
+  in einem Feature-Test steckte, den das Gestell nicht laden kann: Der Wächter
+  greift genau dort, wo die anderen Mittel nicht hinkommen. Zweitens lässt sich
+  seine Regel **nicht** absichtlich brechen — eine echte Kollision tötet den
+  Lauf beim Laden, bevor irgendein Wächter rot werden kann. Gebrochen werden
+  deshalb seine Teile: der Anker des Ausdrucks, die Aufzählung der Dateien und
+  die Spiegelung der Basisklasse.
 - **Der Hostname ist kurz.** `php_uname('n')` liefert nicht den vollen Namen —
   dafür gibt es `SrvPanel\Agent\Names::fqdn()` (oder `host()`, wenn ein Name
   gebraucht wird und `null` nicht taugt), und die ist die *einzige* Stelle, die

@@ -151,6 +151,15 @@ fehler=0
 # Vermischung 473 gesunde Waechter als kaputt gemeldet.
 stumm=0
 
+# **Die Namen der Fehlschläge, nicht nur ihre Zahl.** Am 19. August meldete
+# dieser Lauf „5 Prüfung(en) ohne Biss" und nannte keine davon; die fünf Zeilen
+# standen irgendwo zwischen sechshundert anderen, und das Suchen hat mehr
+# gekostet als das Beheben.
+#
+# > **Eine Zahl, die nicht sagt, welche, zwingt zum Suchen.**
+gefallen=""
+
+
 # Vor jedem Eingriff merken, wie die Datei aussah — danach prüfen, dass sie
 # anders aussieht.
 #
@@ -262,6 +271,8 @@ pruefe() {
 
   printf '  FEHLT  %-56s %s (erwartet: %s)\n' "$name" "$ergebnis" "$erwartung"
   fehler=$((fehler + 1))
+  gefallen="$gefallen  $name — $ergebnis (erwartet: $erwartung)
+"
 
   case "$ergebnis" in
     'kein Test'|'unlesbar') stumm=$((stumm + 1)) ;;
@@ -8995,6 +9006,354 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TenancySweepTest passed
 
 echo
+echo "── BaseMethodClashTest: der Ausdruck verliert seinen Anker ──"
+#
+# **Die Regel selbst lässt sich nicht brechen, und das ist ihr Wesen.** Eine
+# Methode, die einen final-Namen der Basisklasse trägt, tötet den ganzen Lauf
+# beim Laden — der Prüfling käme gar nicht erst dazu, rot zu werden. Gebrochen
+# werden deshalb die Teile des Wächters, und jeder einzeln.
+#
+# Ohne den Anker am Zeilenanfang trifft der Ausdruck auch eine Zeichenkette:
+# SandboxCredentialsTest führt „public function run(Context …" als Behauptung
+# über fremden Quelltext. Ein Wächter, der beim ersten Lauf einen Fehler
+# erfindet, wird abgeschaltet und nicht befolgt.
+vorher_datei tests/Unit/BaseMethodClashTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/BaseMethodClashTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'/^\\s*(?:(?:final|", "'/(?:(?:final|", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Unit/BaseMethodClashTest.php "Ausdruck ohne Anker" &&
+pruefe "Ausdruck ohne Anker" \
+  BaseMethodClashTest::test_no_test_declares_a_name_the_base_class_owns failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BaseMethodClashTest passed
+
+echo
+echo "── BaseMethodClashTest: die Aufzählung der Dateien läuft ins Leere ──"
+#
+# Ohne Untergrenze verglichen sich zwei leere Listen zu „keine Kollision" — grün,
+# ohne eine einzige Zeile gelesen zu haben.
+vorher_datei tests/Unit/BaseMethodClashTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/BaseMethodClashTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("foreach (['Unit', 'Feature', 'Support'] as $ordner)", "foreach (['Einheit'] as $ordner)", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Unit/BaseMethodClashTest.php "Aufzählung ins Leere" &&
+pruefe "Aufzählung ins Leere" \
+  BaseMethodClashTest::test_no_test_declares_a_name_the_base_class_owns failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BaseMethodClashTest passed
+
+echo
+echo "── BaseMethodClashTest: die Basisklasse hat angeblich nichts final ──"
+#
+# Findet die Spiegelung nichts, prüft der Fall darunter jede Datei gegen eine
+# leere Liste.
+vorher_datei tests/Unit/BaseMethodClashTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/BaseMethodClashTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('if ($methode->isFinal() && ! $methode->isPrivate()) {', 'if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Unit/BaseMethodClashTest.php "Spiegelung ohne final-Methoden" &&
+pruefe "Spiegelung ohne final-Methoden" \
+  BaseMethodClashTest::test_the_base_class_really_has_final_methods failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BaseMethodClashTest passed
+
+echo
+echo "── BaseMethodClashTest: der Geltungsbereich nimmt wieder alles ──"
+#
+# **Genau der Fehler, mit dem dieser Wächter in die CI gegangen ist.** Der erste
+# Wurf sammelte alles unter tests/Unit, tests/Feature und tests/Support ein und
+# meldete daraufhin drei Attrappen, die einen eigenen Konstruktor haben —
+# ScriptedDnsCredentials, ScriptedExchange, ScriptedLookup. TestCase::__construct()
+# ist tatsächlich final, aber diese drei erben gar nicht davon.
+vorher_datei tests/Unit/BaseMethodClashTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/BaseMethodClashTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('if ($istTestfall || $istTrait) {', 'if (true) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Unit/BaseMethodClashTest.php "Geltungsbereich nimmt alles" &&
+pruefe "Geltungsbereich nimmt alles" \
+  BaseMethodClashTest::test_no_test_declares_a_name_the_base_class_owns failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BaseMethodClashTest passed
+
+echo
+echo "── CronIngestTest: das Einpflegen läuft wieder unter der Mandantenklammer ──"
+#
+# Der Befund vom 19. August: srvpanel-cron.service hat kein angemeldetes Konto,
+# die Klammer verweigert dann alles, und CronJob::query() fand keinen einzigen
+# Job. Der Einsammler meldete „88 eingesammelt, 0 eingepflegt" — und die 88
+# waren fort, weil cron.runs löscht, was es herausgegeben hat.
+vorher_datei app/Support/Cron/Cron.php
+python3 - <<'PY2'
+p = 'app/Support/Cron/Cron.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    'return $this->tenancy->withoutRestriction(fn (): int => $this->storeUnrestricted($runs, $byUser));',
+    'return $this->storeUnrestricted($runs, $byUser);',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Cron/Cron.php "Einpflegen unter der Klammer" &&
+pruefe "Einpflegen unter der Klammer" \
+  CronIngestTest::test_a_run_arrives_without_an_authenticated_account failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronIngestTest passed
+
+echo
+echo "── CronIngestTest: eine fremde Jobnummer wird geglaubt ──"
+#
+# Die Ablage gehört dem Abonnement — was darin steht, ist eine Behauptung des
+# Kunden. Ohne diese Prüfung hängt ein selbst geschriebener Lauf an einem
+# fremden Job.
+vorher_datei app/Support/Cron/Cron.php
+python3 - <<'PY2'
+p = 'app/Support/Cron/Cron.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '|| (int) $job->subscription_id !== (int) $subscription->id) {',
+    ') {',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Cron/Cron.php "fremde Jobnummer geglaubt" &&
+pruefe "fremde Jobnummer geglaubt" \
+  CronIngestTest::test_a_run_that_names_a_foreign_job_is_dropped failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronIngestTest passed
+
+echo
+echo "── TimerRearmTest: der Cron-Timer verliert seinen Kalender ──"
+#
+# Gemessen auf cloudsrv24: „active", NEXT auf „-", letzter Lauf 22 Stunden her.
+# Ein rein monotoner Timer kann seinen nächsten Termin verlieren und meldet
+# dabei keinen Fehler.
+vorher_datei packaging/systemd/srvpanel-cron.timer
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-cron.timer'
+s = open(p, encoding='utf-8').read()
+s = s.replace('OnCalendar=*:0/5', 'OnUnitActiveSec=5min', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei packaging/systemd/srvpanel-cron.timer "Timer ohne Kalender" &&
+pruefe "Timer ohne Kalender" \
+  TimerRearmTest::test_a_repeating_timer_is_bound_to_the_clock failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimerRearmTest passed
+
+echo
+echo "── TimerRearmTest: Persistent ohne Kalender ──"
+#
+# Die Einstellung wirkt nur auf Kalender-Timer. Rein monoton steht sie da und
+# tut nichts — eine Notiz, die sich wie eine Zusage liest.
+vorher_datei packaging/systemd/srvpanel-usage.timer
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-usage.timer'
+s = open(p, encoding='utf-8').read()
+s = s.replace('OnCalendar=*:0/15', 'OnUnitActiveSec=15min', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei packaging/systemd/srvpanel-usage.timer "Persistent ohne Kalender" &&
+pruefe "Persistent ohne Kalender" \
+  TimerRearmTest::test_persistent_is_only_claimed_where_it_works failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimerRearmTest passed
+
+echo
+echo "── OverflowProbeTest: der Prüfkörper bekommt wieder eine feste Breite ──"
+#
+# Befund 22 aus docs/59: Ein Block von 900px schlägt bei 390px aus und bei
+# 1440px nicht — dort steht dann dieselbe Null, die auch eine kaputte Messung
+# liefert.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace('width:${wurzel.scrollWidth + 200}px', 'width:900px', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/bilder-messen.js "Prüfkörper mit fester Breite" &&
+pruefe "Prüfkörper mit fester Breite" \
+  OverflowProbeTest::test_the_probe_has_no_fixed_width failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
+echo "── OverflowProbeTest: die Gegenprobe fällt aus dem Ergebnis ──"
+#
+# Eine Messung, die auch ohne Gegenprobe ein Ergebnis liefert, wird irgendwann
+# ohne sie gefahren — und „dokument: 0" ohne sie ist keine Aussage.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace('    gegenprobe: gegenprobe(),\n', '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/bilder-messen.js "Messung ohne Gegenprobe" &&
+pruefe "Messung ohne Gegenprobe" \
+  OverflowProbeTest::test_the_counter_check_is_part_of_the_result failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
+echo "── OverflowProbeTest: der erwartete Ausschlag steht nicht daneben ──"
+#
+# Ohne die erwartete Zahl ist jedes Ergebnis plausibel — auch eine 0.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace('return { ausschlag: nachher - vorher, erwartet: 200 }', 'return { ausschlag: nachher - vorher }', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/bilder-messen.js "Gegenprobe ohne Erwartung" &&
+pruefe "Gegenprobe ohne Erwartung" \
+  OverflowProbeTest::test_the_counter_check_is_part_of_the_result failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
+echo "── OverflowProbeTest: gemessen wird nur noch eine Liste von Selektoren ──"
+#
+# Eine Liste nennt, woran man beim Schreiben gerade dachte. Der Fund von P5c
+# Schritt 5 steckte in einer Textzelle, der von Schritt 4 in einem Bereichstitel.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace("document.querySelectorAll('*')", "document.querySelectorAll('.scrolls')", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/bilder-messen.js "Messung nur an genannten Stellen" &&
+pruefe "Messung nur an genannten Stellen" \
+  OverflowProbeTest::test_every_element_is_measured failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
+echo "── TransportLimitTest: files.write erklärt wieder mehr als die Leitung trägt ──"
+#
+# Befund 12b: 2 MiB erklärt, 1 MiB Anfragegrenze. Eine Datei dazwischen öffnete
+# sich im Editor und liess sich nie speichern.
+vorher_datei agent/src/Ops/FilesWrite.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesWrite.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('public const MAX_BYTES = Connection::CONTENT_MAX;', 'public const MAX_BYTES = 2 * 1024 * 1024;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/FilesWrite.php "Schreibgrenze über der Leitung" &&
+pruefe "Schreibgrenze über der Leitung" \
+  TransportLimitTest::test_no_declared_limit_exceeds_the_transport failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TransportLimitTest passed
+
+echo
+echo "── TransportLimitTest: der Editor öffnet mehr, als sich speichern lässt ──"
+#
+# Eine Falle mit Speicherknopf: Die Datei erscheint, die Änderung entsteht, und
+# erst das Speichern sagt nein — nach der Arbeit statt davor.
+vorher_datei agent/src/Ops/FilesRead.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesRead.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('public const MAX_BYTES = Connection::CONTENT_MAX;', 'public const MAX_BYTES = 2 * 1024 * 1024;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/FilesRead.php "Lesegrenze über der Schreibgrenze" &&
+pruefe "Lesegrenze über der Schreibgrenze" \
+  TransportLimitTest::test_what_opens_can_be_written_back failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TransportLimitTest passed
+
+echo
+echo "── TransportLimitTest: für die Hülle der Anfrage bleibt nichts ──"
+#
+# Der Abzug in CONTENT_MAX ist eine hingeschriebene Zahl. Der Wächter baut die
+# Zeile, die daraus entsteht, und misst nach — sonst glaubt er sie nur.
+vorher_datei agent/src/Connection.php
+python3 - <<'PY2'
+p = 'agent/src/Connection.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('public const CONTENT_MAX = self::REQUEST_MAX - 65536;', 'public const CONTENT_MAX = self::REQUEST_MAX - 1;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Connection.php "Hülle ohne Platz" &&
+pruefe "Hülle ohne Platz" \
+  TransportLimitTest::test_a_full_payload_still_fits_into_one_request failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TransportLimitTest passed
+
+echo
+echo "── TransportLimitTest: der Klient misst die Zeile nicht, bevor er sie schickt ──"
+#
+# Ohne diese Prüfung meldet der Agent den Fehlschlag — und spricht dabei vom
+# Protokoll statt von der Datei des Kunden.
+vorher_datei agent/src/Client.php
+python3 - <<'PY2'
+p = 'agent/src/Client.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('if (strlen($json) > Connection::REQUEST_MAX) {', 'if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Client.php "Klient misst die Zeile nicht" &&
+pruefe "Klient misst die Zeile nicht" \
+  TransportLimitTest::test_the_client_measures_the_encoded_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TransportLimitTest passed
+
+echo
+echo "── TenancySweepTest: der Vorflug prüft die eigene Kennung nicht ──"
+#
+# Der Fehler vom 19. August: Der Lauf bekam `eigenJob: 4`, eine Kennung vom
+# *fremden* Abonnement. Drei Zeilen meldeten „BLIEB HÄNGEN" — und das liest sich
+# wie ein Befund am Panel statt wie einer am Messmittel.
+vorher_datei tests/mandant-messen.js
+python3 - <<'PY2'
+p = 'tests/mandant-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace("  await vorflug('/cron', 'jobs', eigenJob, 'eigenJob')\n", '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/mandant-messen.js "Vorflug ohne die eigene Kennung" &&
+pruefe "Vorflug ohne die eigene Kennung" \
+  TenancySweepTest::test_the_sweep_checks_its_own_identifiers_first failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TenancySweepTest passed
+
+echo
+echo "── TenancySweepTest: der Vorflug fasst die fremde Seite an ──"
+#
+# Ein Vorflug über das fremde Abonnement umgeht genau die Wand, die dieser Lauf
+# messen soll — und käme er durch, wäre er selbst der Übergriff.
+vorher_datei tests/mandant-messen.js
+python3 - <<'PY2'
+p = 'tests/mandant-messen.js'
+s = open(p, encoding='utf-8').read()
+alt = "  await vorflug('/cron', 'jobs', eigenJob, 'eigenJob')\n"
+s = s.replace(alt, alt + "  await vorflug('/cron', 'jobs', fremdJob, 'fremdJob')\n", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/mandant-messen.js "Vorflug über die fremde Seite" &&
+pruefe "Vorflug über die fremde Seite" \
+  TenancySweepTest::test_the_sweep_checks_its_own_identifiers_first failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TenancySweepTest passed
+
+echo
 echo "── ShortWriteTest: files.write prüft nur auf false ──"
 #
 # Bei voller Quota meldet der Aufruf die Zahl der geschriebenen Bytes und nicht
@@ -11204,8 +11563,10 @@ elif [ "$stumm" -eq "$fehler" ]; then
   # denen keiner ist.
   echo "$fehler Prüfung(en) ohne Messung — dieses Skript hat nichts gemessen," >&2
   echo "und über die Wächter ist damit nichts gesagt." >&2
+  printf '%s' "$gefallen" >&2
 else
   echo "$fehler Prüfung(en) ohne Biss, davon $stumm ohne Messung." >&2
+  printf '%s' "$gefallen" >&2
   echo "Die übrigen sind Wächter, die ihre Regel nicht halten." >&2
 fi
 

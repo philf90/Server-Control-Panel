@@ -16,6 +16,16 @@ nennt, liest sich wie eine Abnahme.
 | Abonnement | 140 (`p6-abnahme.invalid`, Systembenutzer `p1139`) |
 | Messmittel | `tests/bilder-messen.js` |
 | Breiten | 390 × 844 und 1440 × 900, Geräteansicht |
+| Dichte | **`customer`** in jeder Aufnahme — siehe unten |
+
+**Jede Aufnahme dieses Laufs entsteht in der Kundensicht, und damit in der
+Dichtestufe `customer`.** `app.blade.php` setzt sie an einer einzigen Stelle:
+`auth()->user()?->isAdmin() === false ? 'customer' : config(…)`. Beim Wechsel in
+die Sicht eines Kunden ist der angemeldete Benutzer der Kunde — auch wenn ein
+Administrator ihn ausgelöst hat —, also gilt `customer`. Auch die drei
+Auswahlseiten, die es nur mit zwei Abonnements gibt, sind so aufgenommen.
+
+Das steht hier, weil Befund 6 genau diese Stufe ändert.
 
 ---
 
@@ -375,10 +385,25 @@ einen Bruch. Die Zahlen dazu stehen oben: In der Kundensicht ist `--block-gap`
 Bereiche untereinander, und die Summe fällt hier zum ersten Mal auf, weil keine
 andere Ansicht dieses Laufs so viele hat.
 
-**Nicht behoben, und die Zahl gehört vor die Änderung.** Eine Dichtestufe ist
-eine Achse über alle Seiten (`docs/24`); wer sie hier verstellt, verstellt sie
-überall. Zu klären ist deshalb erst, ob der Befund der Stufe gilt oder dieser
-Seite.
+**Entschieden am 19. August: Der Befund gilt der Dichtestufe `customer`**, nicht
+dieser Seite. Damit ändert die Behebung `--block-gap` und `--bereich-gap` in
+`:root[data-density='customer']` — und damit **jede Kundenseite dieses Panels**.
+
+**Und damit jede Aufnahme dieses Laufs.** Alle acht gemessenen Ansichten stehen
+in dieser Stufe (siehe Kopf). Eine Änderung an den beiden Abständen ist eine
+Änderung des Grundrisses; die Bilder zeigen danach etwas anderes, und die
+Messungen sind an einem anderen Layout entstanden.
+
+> **Ein Befund an einer Stellschraube, die alle Seiten teilen, macht die
+> Aufnahmen aller Seiten ungültig — auch die, an denen niemand etwas
+> auszusetzen hatte.**
+
+**Daraus folgt die Reihenfolge, und sie ist nicht die naheliegende.** Zuerst wird
+der Lauf **zu Ende gemessen** — Ansicht 9 und die zwanzig Zustände —, damit jeder
+Befund bekannt ist. Dann werden alle Befunde **in einer Fassung** behoben. Dann
+wird die Runde **neu gefahren**. Wer stattdessen jetzt behebt, misst ab der
+nächsten Ansicht ein anderes Layout als in den acht davor und hat am Ende zwei
+halbe Läufe.
 
 #### Wunsch 1 — eine Experteneingabe für den Zeitplan
 
@@ -521,6 +546,9 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
   Einzelfall.
 - **Wunsch 1** — die Experteneingabe für den Zeitplan. Kein Befund, kein
   Abnahmekriterium, nicht Teil dieses Schritts.
+- **Die Runde danach noch einmal.** Befund 6 ändert die Dichtestufe `customer`,
+  und in der stehen alle Aufnahmen dieses Laufs. Erst zu Ende messen, dann alles
+  in einer Fassung beheben, dann neu fahren.
 - **Neunzehn der zwanzig Zustände** aus `docs/63 §3`. Gemessen ist einer:
   „Läufe ohne Läufe" (Job C, angelegt und vor dem ersten Lauf aufgenommen) —
   **aber ohne Messzeile und bei Arbeitsplatzbreite**, also noch nicht

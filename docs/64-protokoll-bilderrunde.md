@@ -550,6 +550,36 @@ Runde ist ohnehin zweimal zu fahren.
 
 **Nicht behoben.**
 
+## 1b. Die Zustände
+
+**Dieser Durchgang ist eine Fehlersuche und kein Protokoll.** Nach der Behebung
+ändern sich `--block-gap`, `--bereich-gap` und die Polsterung jeder
+Tabellenzelle; die Zahlen hier gelten danach nicht mehr. Ihr Zweck ist, alle
+Befunde zu kennen, **bevor** eine Fassung gebaut wird — die belastbaren Zeilen
+entstehen in der zweiten Runde.
+
+Gemessen wird je Zustand einmal bei 390 px. Das Thema wechselt die Farbe und
+nicht die Geometrie; wo ein Zustand einen eigenen Kontrast mitbringt, kommt er
+zusätzlich im zweiten Theme dazu.
+
+| Zustand | Lage | `dokument` | Gegenprobe | `schiebt` | Fund |
+|---|---|---|---|---|---|
+| Dateimanager — Mehrfachauswahl | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | — |
+
+**Zur Mehrfachauswahl.** Zwei Einträge angekreuzt, die Auswahlleiste offen mit
+sechs Knöpfen, und im Baum daneben steht das lange Verzeichnis aus `docs/63
+§2.3` über acht Zeilen umgebrochen. `dokument` bleibt 0 — der Umbruch aus
+`docs/46 §20.11` trägt hier also, und er trägt an der Stelle, an der er zuletzt
+gebrochen war.
+
+Die 367 px sind `.stacks thead` mit seiner Ankreuzspalte; der Mechanismus, nicht
+der Fund.
+
+**Und eine Randnotiz aus dem `anfang`:** In der Kopfzeile steht ein Attribut
+`wfd-id="id8"`, das dieses Panel nicht schreibt — wieder eine Erweiterung, die
+ins Dokument fasst. Hier ohne Folge für die Geometrie; benannt, weil dieselbe
+Sorte Element vier Ansichten lang wie ein Befund aussah (§2).
+
 ---
 
 ## 2. Was dieser Lauf über sein eigenes Prüfmittel gelernt hat

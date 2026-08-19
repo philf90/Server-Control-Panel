@@ -575,6 +575,8 @@ zusätzlich im zweiten Theme dazu.
 | Dateimanager — Suchen | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | — |
 | Dateimanager — Rechte an einer Zeile | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | **Befund 10** |
 | Dateimanager — Umbenennen an einer Zeile | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | **Befund 10** |
+| Editor — „zu gross" (`gross.bin`) | 390 hell **und** dunkel | 0 | **200/200** | **leer** | — |
+| Editor — „binär" (`binaer.dat`) | 390 hell **und** dunkel | 0 | **200/200** | **leer** | — |
 
 **Zur Mehrfachauswahl.** Zwei Einträge angekreuzt, die Auswahlleiste offen mit
 sechs Knöpfen, und im Baum daneben steht das lange Verzeichnis aus `docs/63
@@ -687,6 +689,18 @@ Bereich am Seitenkopf öffnet, ihn auch ins Bild holt. Betroffen sind mindestens
 Zielwahlen (`picking`), die dieselbe Bauart haben.
 
 **Nicht behoben.**
+
+**Zu den beiden Editor-Zuständen.** Beide tragen eine gelbe Meldung und sind
+deshalb in beiden Themes aufgenommen; die Zahlen sind in allen vier Aufnahmen
+gleich. **`schiebt` ist vollständig leer** — kein `.stacks thead`, weil diese
+Ansicht keine Tabelle hat, und sonst nichts. Dieselbe Lage wie bei Ansicht 3.
+
+Die beiden Prüfkörper aus `docs/63 §2.1` haben damit ausgelöst, wofür sie
+gebaut wurden: `gross.bin` (3 MiB) die Schwelle aus `FilesRead::MAX_BYTES`,
+`binaer.dat` (31 Byte, davon vier, die es in UTF-8 nie gibt) die Prüfung
+`mb_check_encoding()`. **Die Grösse entscheidet den zweiten Fall nicht** — das
+war der Grund, ihn nicht als grosse Zufallsdatei zu bauen, und die Aufnahme
+belegt es.
 
 **Und eine Randnotiz aus dem `anfang`:** In der Kopfzeile steht ein Attribut
 `wfd-id="id8"`, das dieses Panel nicht schreibt — wieder eine Erweiterung, die

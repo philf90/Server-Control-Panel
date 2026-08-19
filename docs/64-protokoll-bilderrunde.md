@@ -474,9 +474,79 @@ vierten Mal zutrifft, ist kein Zufall: `margin-top: 14px` ist eine Aussage über
 das, was über dem Kasten steht, und über das, was darunter kommt, hat nie jemand
 etwas gesagt.
 
-**Damit gehört Befund 7 in dieselbe Behebung wie 2, 3 und 4** — vier Stellen,
-eine Regel: Ein Baustein, der bündig endet, bringt seinen Abstand selbst mit,
-und zwar in beide Richtungen.
+**Nicht behoben** — und die Ursache steht bei Befund 8, mit dem er sich eine
+teilt.
+
+#### Teil 2 — Job B, mit Rückgabewert 3
+
+| Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` |
+|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | `thead` 304 · `tr` 276 | leer |
+| 390 dunkel | 0 | **200/200** | `thead` 304 · `tr` 276 | leer |
+| 1440 hell | 0 | **200/200** | **leer** | **leer** |
+| 1440 dunkel | 0 | **200/200** | **leer** | **leer** |
+
+**Bei 1440 rollt hier nichts** — anders als bei Job A, wo die Laufliste um 19 px
+überlief. Der Unterschied ist die Ausgabespalte: Job B hat keine, dort steht
+„keine Ausgabe", und damit passt die Tabelle in ihre Hälfte. Der Zustand „Lauf
+mit Rückgabewert ≠ 0" ist damit gemessen.
+
+#### Befund 8 — die Marke stösst an die Linie darüber, der Rückgabewert an die darunter (1440 px)
+
+Eine Zeile von Job B trägt in der Ergebnisspalte zwei Zeilen: die Marke
+„fehlgeschlagen" und darunter „Rückgabewert 3" (`td .quiet` mit
+`display: block; margin-top: 3px`). Oben und unten steht nichts zwischen ihnen
+und der Trennlinie.
+
+**Befund 7 und 8 haben dieselbe Ursache, und sie steht in einer Zeile:**
+
+```css
+td {
+  padding: 0 14px 0 0;
+  height: var(--row-height);
+}
+```
+
+Der senkrechte Rhythmus einer Tabellenzeile kommt hier **allein aus `height`**.
+Das trägt, solange der Inhalt einzeilig ist und in die Höhe passt: Die Zeile ist
+höher als ihr Text, und der Rest sieht aus wie Polsterung. Sobald der Inhalt
+höher wird — ein Ausgabekasten, zwei Textzeilen —, ist die Höhe wirkungslos, und
+was dann übrig bleibt, ist die Polsterung, die es nie gab.
+
+> **Eine Höhe ist keine Polsterung. Sie sieht nur so aus, solange der Inhalt
+> hineinpasst.**
+
+Der Kommentar neben `td .quiet` benennt den Fall sogar — „eine zweite Textzeile
+in der Zelle wächst darüber hinaus, und das ist hier gewollt" —, zieht daraus
+aber keinen Schluss über den Abstand.
+
+**Der Vorschlag ist gemessen, nicht gerechnet.** `td` bekommt einen senkrechten
+Rand: `padding: 8px 14px 8px 0`. Im Container gegen echtes Chromium, echtes
+Markup, gebautes Stylesheet, Dichtestufe `customer` bei 1440 px — dieselbe
+Tabelle einmal ohne und einmal mit dem Eingriff, im selben Dokument, damit nur
+die eine Zeile CSS sich unterscheidet:
+
+| | ohne | mit |
+|---|---|---|
+| Zeile mit einer Textzeile — Höhe | **48 px** | **48 px** |
+| Zeile mit Ausgabekasten — Höhe | 89 px | 105 px |
+| … Abstand des Kastens zur Linie darunter | **0 px** | **8 px** |
+| Zeile mit Marke und Rückgabewert — Marke zur Linie darüber | **1 px** | **9 px** |
+| … Rückgabewert zur Linie darunter | **1 px** | **9 px** |
+
+**Die erste Zeile ist der Punkt.** Einzeilige Zeilen wachsen nicht — `height`
+wirkt an einer Tabellenzelle als Mindestmass, und Textzeile plus Polsterung
+bleiben darunter. Der Eingriff kostet also nichts, wo nichts fehlt.
+
+**Die zweite und dritte sind die Befunde selbst, in Zahlen.** `0 px` und `1 px`
+— beides ist genau das, was der Betreiber am Bild gesehen hat, und keine der
+zwölf Messzeilen dieses Laufs hat es je genannt.
+
+> **Ein Abstand, der fehlt, überläuft nicht — er sieht nur falsch aus.**
+
+**Und es ist ein Eingriff wie Befund 6:** Er trifft jede Tabelle dieses Panels
+und damit jede Aufnahme der Runde. Er ändert nichts an der Reihenfolge — die
+Runde ist ohnehin zweimal zu fahren.
 
 **Nicht behoben.**
 
@@ -597,10 +667,14 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
 
 ## 3. Was offen ist
 
-- **Sieben Befunde am Panel** — zwei an Ansicht 4, einer an Ansicht 6, drei an
-  Ansicht 8, einer an Ansicht 9. Beheben und nachmessen. **Die Befunde 2, 3, 4
-  und 7 sind derselbe Fehler an vier Stellen**; die Behebung trifft die Regel und
+- **Acht Befunde am Panel** — zwei an Ansicht 4, einer an Ansicht 6, drei an
+  Ansicht 8, zwei an Ansicht 9. Beheben und nachmessen. Sie fallen in **zwei**
+  Gruppen: 2, 3 und 4 sind fehlende Nachbarpaare, 7 und 8 sind die fehlende
+  senkrechte Polsterung an `td`. Beide Male trifft die Behebung die Regel und
   nicht den Einzelfall.
+- **Die Zahlen zu Befund 8 auf `cloudsrv24` gegenprüfen.** Im Container ist der
+  Eingriff gemessen (einzeilige Zeilen bleiben bei 48 px); auf dem Server steht
+  er noch aus und gehört in die zweite Runde.
 - **Wunsch 1 ist gebaut** und auf `cloudsrv24` noch nicht gefahren: die fünf
   Griffe aus `docs/63 §6b` und der Zustand „Zeitplan als Ausdruck" aus §3.
 - **Die Runde danach noch einmal.** Befund 6 ändert die Dichtestufe `customer`,
@@ -610,7 +684,6 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
   „Lauf mit Ausgabe, aufgeklappt" (Job A) — er steckt in den vier Lagen von
   Ansicht 9. Aufgenommen, aber ohne Messzeile ist „Läufe ohne Läufe" (Job C, vor
   dem ersten Lauf) — und zwar bei Arbeitsplatzbreite statt bei 390 px, also noch
-  nicht protokollfähig. Offen ist ausserdem „Lauf mit Rückgabewert ≠ 0" (Job B),
-  der zu Ansicht 9 gehört.
+  nicht protokollfähig.
 
 **Damit ist Schritt 12 nicht abgeschlossen**, und P6 ist nicht abgenommen.

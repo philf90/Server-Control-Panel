@@ -280,12 +280,31 @@ Zwei Jobs auf `/subscriptions/140/cron`:
 | A | `* * * * *` | `echo eins; date` | nach zwei Minuten hat er Läufe mit Ausgabe |
 | B | `0 3 * * *` | `exit 3` | die Zeile mit Rückgabewert ≠ 0 |
 
-**B einmal von Hand über „Läuft" auslösen** — sonst gibt es die fehlgeschlagene
-Zeile nicht. **Und die Ansicht „ohne Läufe" vorher aufnehmen**, gleich nach dem
-Anlegen von B: Danach ist sie nicht mehr herzustellen, ohne den Job zu löschen.
+**Es gibt keinen Auslöser — und das ist der Grund für die Reihenfolge unten.**
+Unter `/cron` liegen sechs Routen, und keine führt einen Job aus; „Läufe" in der
+Aktionsspalte ist ein Link auf die Aufzeichnung. Der fehlgeschlagene Lauf
+entsteht deshalb über den Zeitplan:
+
+1. **Zuerst das Bild „ohne Läufe" aufnehmen** — solange B noch keinen hat.
+   Danach ist der Zustand nicht mehr herzustellen, ohne den Job zu löschen.
+2. Bei B auf **Ändern**, Zeitplan auf `* * * * *`, speichern.
+3. **Zwei Minuten warten.** cron liest seine Dateien einmal je Minute neu; der
+   Hinweis dazu steht auf der Seite selbst.
+4. Bei B auf **Läufe** — dort steht jetzt der Lauf mit Rückgabewert 3.
+5. Bei B auf **Ändern**, Zeitplan zurück auf `0 3 * * *`, speichern.
+
+Schritt 5 kostet die Aufzeichnung nichts: `Cron::update()` macht `fill()` und
+`save()` auf derselben Zeile, die Kennung des Jobs bleibt, und die Läufe hängen
+an ihr.
 
 Zuletzt **A auf inaktiv** stellen, damit die Liste beide Zustände nebeneinander
 zeigt.
+
+**Notiert, gehört aber nicht zu diesem Schritt:** Dass ein Kunde seinen frisch
+angelegten Cronjob nur prüfen kann, indem er den Zeitplan verstellt und wieder
+zurückstellt, ist eine Lücke. Der Plan von P6 verlangt „Jetzt ausführen" nicht,
+und dieser Schritt baut es nicht — es steht hier, weil es die Stelle ist, an der
+ein Kunde als Erstes danach greift.
 
 ### 2.7 — Zwei Blicke vor dem Start
 

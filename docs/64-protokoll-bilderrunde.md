@@ -5,7 +5,7 @@ Laufs; es ist am 19. August 2026 angelegt worden, als die ersten beiden
 Ansichten gemessen waren.
 
 **Es ist unvollständig, und das steht in §3.** Von den neun Ansichten sind
-**vier** aufgenommen und vollständig gemessen, von den zwanzig Zuständen ist
+**fünf** aufgenommen und vollständig gemessen, von den zwanzig Zuständen ist
 einer aufgenommen und keiner gemessen. Zwei Befunde am Panel stehen offen. Ein Protokoll, das seine Lücken nicht
 nennt, liest sich wie eine Abnahme.
 
@@ -100,6 +100,28 @@ gemessenen 350 px sind die Breite dieser Überschriften.
 **Der `div` mit 468 px ist die Meldezeile von LastPass** — nicht `.split`, wie
 hier zuerst stand, und überhaupt nichts aus diesem Bau. §2 hat die Zeile.
 
+### Ansicht 3 — Editor (`/subscriptions/140/files/edit?path=/httpdocs/klein.txt`)
+
+**Erfüllt — und die erste Ansicht, die in allen vier Lagen vollständig gemessen
+ist.**
+
+| Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` |
+|---|---|---|---|---|
+| 1440 hell | 0 | **200/200** | leer | leer |
+| 1440 dunkel | 0 | **200/200** | leer | leer |
+| 390 hell | 0 | **200/200** | leer | leer |
+| 390 dunkel | 0 | **200/200** | leer | leer |
+
+**Vier Lagen, vier gültige Gegenproben, kein einziger Eintrag.** Je Breite wurde
+neu geladen; die Themawechsel ändern hier keine einzige Zahl.
+
+**`schiebt` ist in allen vier Lagen leer** — kein `.stacks thead`, weil diese
+Ansicht keine Tabelle trägt, und kein Rest, weil je Breite neu geladen wurde.
+Der Rollbehälter des Editors (`.cm-scroller`) taucht nicht unter `rollt` auf:
+Die Datei ist vier Zeilen lang und passt.
+
+---
+
 ### Ansicht 4 — Suche (`/subscriptions/140/files/search?query=eins`)
 
 **Gemessen in allen vier Lagen, und die Seite schiebt nicht — aber sie hat zwei
@@ -163,7 +185,32 @@ trägt:
 Fassung im Browser nachgeprüft — so wie `docs/48 §4` es für P5c gehalten hat.
 Eine Fassung je Befund kostet mehr Runden, als der Lauf wert ist.
 
----
+### Ansicht 5 — SFTP, Auswahl (`/sftp`)
+
+**Erfüllt** in allen vier Lagen — und die erste Ansicht ohne einen einzigen
+fremden Eintrag.
+
+| Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` |
+|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | `thead` 119 · `tr` 91 | leer |
+| 390 dunkel | 0 | **200/200** | `thead` 119 · `tr` 91 | leer |
+| 1440 hell | 0 | **200/200** | **leer** | leer |
+| 1440 dunkel | 0 | **200/200** | **leer** | leer |
+
+`thead` steht als `div.frame > main.content > div.scrolls:2 > table.stacks >
+thead` da — dieselbe Tabelle mit einer Spaltenüberschrift wie bei Ansicht 1,
+dieselben 119 px, und ohne das `.split` des Dateimanagers, das es hier nicht
+gibt. Die beiden 1440er Lagen sind frisch geladen gemessen.
+
+**Und die Meldezeile der Erweiterung fehlt** — in keiner der vier Lagen steht
+sie. Damit ist §2 nicht nur erklärt, sondern gegengeprobt: Dieselbe Bauart von
+Seite, dasselbe Messmittel, ein anderes Fenster, und der Eintrag ist weg.
+
+> **Ein Fund, der mit dem Fenster verschwindet, gehörte dem Fenster.**
+
+**Wie Ansicht 1 ist die Seite in der Kundensicht nicht zu erreichen**, aus
+demselben Grund: `SftpController::pick()` leitet bei genau einem erreichbaren
+Abonnement durch.
 
 ---
 
@@ -280,31 +327,9 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
 
 ---
 
-### Ansicht 3 — Editor (`/subscriptions/140/files/edit?path=/httpdocs/klein.txt`)
-
-**Erfüllt — und die erste Ansicht, die in allen vier Lagen vollständig gemessen
-ist.**
-
-| Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` |
-|---|---|---|---|---|
-| 1440 hell | 0 | **200/200** | leer | leer |
-| 1440 dunkel | 0 | **200/200** | leer | leer |
-| 390 hell | 0 | **200/200** | leer | leer |
-| 390 dunkel | 0 | **200/200** | leer | leer |
-
-**Vier Lagen, vier gültige Gegenproben, kein einziger Eintrag.** Je Breite wurde
-neu geladen; die Themawechsel ändern hier keine einzige Zahl.
-
-**`schiebt` ist in allen vier Lagen leer** — kein `.stacks thead`, weil diese
-Ansicht keine Tabelle trägt, und kein Rest, weil je Breite neu geladen wurde.
-Der Rollbehälter des Editors (`.cm-scroller`) taucht nicht unter `rollt` auf:
-Die Datei ist vier Zeilen lang und passt.
-
----
-
 ## 3. Was offen ist
 
-- **Fünf der neun Ansichten** — 5 bis 9.
+- **Vier der neun Ansichten** — 6 bis 9.
 - **Die beiden Befunde an Ansicht 4** — beheben und nachmessen.
 - **Neunzehn der zwanzig Zustände** aus `docs/63 §3`. Gemessen ist einer:
   „Läufe ohne Läufe" (Job C, angelegt und vor dem ersten Lauf aufgenommen) —

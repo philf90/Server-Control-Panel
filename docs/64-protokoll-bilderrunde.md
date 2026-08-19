@@ -5,8 +5,8 @@ Laufs; es ist am 19. August 2026 angelegt worden, als die ersten beiden
 Ansichten gemessen waren.
 
 **Es ist unvollständig, und das steht in §3.** Von den neun Ansichten sind drei
-aufgenommen und **eine** vollständig gemessen, von den zwanzig Zuständen ist
-einer aufgenommen und keiner gemessen. Ein Protokoll, das seine Lücken nicht
+aufgenommen und **zwei** vollständig gemessen, von den zwanzig Zuständen ist
+einer aufgenommen und keiner gemessen. Zwei Befunde am Panel stehen offen. Ein Protokoll, das seine Lücken nicht
 nennt, liest sich wie eine Abnahme.
 
 | | |
@@ -82,6 +82,63 @@ gemessenen 350 px sind die Breite dieser Überschriften.
 **Der `div` mit 468 px ist die rechte Hälfte von `.split`**
 (`Files/Index.vue:722`, Baum links, Liste rechts) — und er ist ein Fund am
 **Prüfmittel**, nicht am Panel.
+
+### Ansicht 4 — Suche (`/subscriptions/140/files/search?query=eins`)
+
+**Gemessen in allen vier Lagen, und die Seite schiebt nicht — aber sie hat zwei
+Fehler, die keine Zahl erzeugen.**
+
+| Lage | `dokument` | Gegenprobe | `schiebt` |
+|---|---|---|---|
+| 1440 dunkel | 0 | 200/200 | `div` 468 |
+| 1440 hell | 0 | 200/200 | `div` 468 |
+| 390 hell | 0 | 200/200 | `thead` 157 · `tr` 129 · `div` 468 |
+| 390 dunkel | 0 | 200/200 | `thead` 157 · `tr` 129 · `div` 468 |
+
+**Der `div` mit 468 px steht hier auch frisch geladen** — die beiden 1440er
+Lagen sind die ersten Messungen nach dem Laden. Bei Ansicht 2 war derselbe Wert
+ein Rest; hier ist er keiner. Dieselbe Zahl auf zwei Seiten, einmal als Rest und
+einmal nicht — das ist noch nicht erklärt und steht in §3.
+
+#### Befund 1 — die Checkbox trägt die Regel eines Textfeldes
+
+**Gemeldet vom Betreiber beim Ansehen des Bildes**, nicht von einer Zahl: Bei
+390 px steht zwischen „auch im Inhalt" und dem Knopf ein grosser leerer Kasten
+in der Mitte.
+
+`Files/Search.vue` gibt der Checkbox `class="field inline"`. Damit greift
+
+```css
+.field input, .field select, .field textarea, .with-unit input {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 9px 12px;
+}
+```
+
+— eine Regel, die für Textfelder gedacht ist. Der Baustein für ein Kästchen ist
+`.toggle`, und er setzt ausdrücklich `width: 17px; min-width: 0; height: 17px;
+min-height: 0`, um genau das zurückzunehmen. Fünf andere Seiten benutzen ihn.
+
+> **Ein Baustein, der die Regel eines anderen erbt, sieht aus wie der andere.**
+
+#### Befund 2 — der Abstand zum Satz unter dem Formular
+
+Zwischen der Knopfreihe und „Gesucht unter …" steht nichts. Die Abstände sind
+als Paare gesetzt — `.button-row + .notice`, `+ .sections`, `+ .split` —, und
+`p.quiet` ist keines davon.
+
+Der Kommentar in `app.css` sagt neben dieser Regel selbst, was daran nicht
+trägt:
+
+> **Eine Liste von Nachbarn, die wächst, ist keine Regel — sie ist eine
+> Aufzählung der Fälle, die schon jemand gesehen hat.**
+
+**Beide Befunde sind nicht behoben.** Sie werden gesammelt und gegen die nächste
+Fassung im Browser nachgeprüft — so wie `docs/48 §4` es für P5c gehalten hat.
+Eine Fassung je Befund kostet mehr Runden, als der Lauf wert ist.
+
+---
 
 ---
 
@@ -164,7 +221,12 @@ Die Datei ist vier Zeilen lang und passt.
 - **Vier Gegenproben**: Ansicht 1 bei 1440 (beide Themes) und Ansicht 2 in den
   beiden dunklen Lagen. Keine neuen Bilder — die Aufnahmen bleiben gültig, es
   fehlt allein die Zahl daneben.
-- **Sechs der neun Ansichten** — 4 bis 9.
+- **Fünf der neun Ansichten** — 5 bis 9.
+- **Die beiden Befunde an Ansicht 4** — beheben und nachmessen.
+- **Der `div` mit 468 px.** Bei Ansicht 4 steht er auch frisch geladen, bei
+  Ansicht 2 nur nach einem Breitenwechsel. Dieselbe Zahl auf zwei Seiten mit
+  zwei verschiedenen Ursachen ist unwahrscheinlich; welcher Kasten es ist, ist
+  nicht ermittelt.
 - **Neunzehn der zwanzig Zustände** aus `docs/63 §3`. Gemessen ist einer:
   „Läufe ohne Läufe" (Job C, angelegt und vor dem ersten Lauf aufgenommen) —
   **aber ohne Messzeile und bei Arbeitsplatzbreite**, also noch nicht

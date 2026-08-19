@@ -15520,3 +15520,35 @@ Basisklasse —, und jeder Bruch beisst auf seiner eigenen Methode.
 zu" trugen `assertTrue(true, …)`; PHPStan sagt zu Recht, dass das immer wahr
 ist. Ein Fall ohne Behauptung ist ein Fall, der nichts prüft — die Bedingung
 steht jetzt als Ausdruck da (`! A || B`) statt als früher Rücksprung.
+
+**Und dieser Wächter ist beim ersten Lauf selbst rot gewesen.** Er sammelte
+alles unter `tests/Unit`, `tests/Feature` und `tests/Support` ein und meldete
+daraufhin drei Attrappen mit eigenem Konstruktor — `ScriptedDnsCredentials`,
+`ScriptedExchange`, `ScriptedLookup`. `TestCase::__construct()` ist tatsächlich
+`final`, aber diese drei erben gar nicht davon: Sie sind eigenständige Doppel
+für Schnittstellen der Anwendung und liegen nur im selben Verzeichnis.
+
+> **Ein Wächter, der seinen Geltungsbereich am Ordner festmacht, prüft den
+> Ordner und nicht die Regel.**
+
+Im Bereich liegt eine Datei jetzt, wenn sie eine Klasse deklariert, die von
+etwas auf `TestCase` erbt — oder einen Trait, denn der wird in einen Testfall
+hineingezogen und verdrängt dort die geerbte Methode. Von 275 Dateien bleiben
+268 im Bereich und genau die sieben eigenständigen Doppel draussen.
+
+**Warum es lokal grün war:** Die Attrappe der Basisklasse im Gestell dieses
+Containers hatte `__construct` nicht als `final`. Zum dritten Mal derselbe Satz —
+*eine Attrappe, die weniger verbietet als das Original, sagt Ja zu Code, den das
+Original ablehnt.* Mit dem nachgezogenen Stub bildet der Container den
+CI-Fehlschlag Zeile für Zeile nach.
+
+**Dazu zwei Kleinigkeiten am Prüfmittel.** `docs/63` nannte im Voraus die Nummer,
+die sein Protokoll einmal tragen soll — ein Dokument, das es noch nicht gibt.
+`DocLinkTest` besteht zu Recht darauf, dass ein Verweis auf etwas Vorhandenes
+zeigt; die Nummer wird vergeben, wenn das Protokoll entsteht. Und
+`tests/waechter-brechen.sh` meldete „5 Prüfung(en) ohne Biss", ohne eine davon
+zu nennen; die fünf Zeilen standen zwischen sechshundert anderen.
+
+> **Eine Zahl, die nicht sagt, welche, zwingt zum Suchen.**
+
+Der Lauf schreibt die Namen jetzt am Ende noch einmal untereinander.

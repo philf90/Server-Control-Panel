@@ -5,7 +5,10 @@ Ansicht: Schiebt die Seite bei 390 px aus dem Bild, und sieht sie in beiden
 Themes so aus, wie sie gemeint ist?
 
 Dieses Dokument ist die Vorschrift. Das Protokoll entsteht **während** des
-Laufs und nicht danach — es wird `docs/64`.
+Laufs und nicht danach; es bekommt die nächste freie Nummer unter `docs/`,
+sobald der erste Punkt gemessen ist. Vorher steht hier keine — ein Verweis auf
+ein Dokument, das es nicht gibt, ist ein toter Verweis, und `DocLinkTest`
+besteht zu Recht darauf.
 
 > **Schritt 12 wird nicht abgehakt, wenn er gerade nicht geht.** `docs/49 §6`
 > hält fest, was das einmal gekostet hat: `v0.4.0-rc.4` ist mit einem

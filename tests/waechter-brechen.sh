@@ -151,6 +151,15 @@ fehler=0
 # Vermischung 473 gesunde Waechter als kaputt gemeldet.
 stumm=0
 
+# **Die Namen der Fehlschläge, nicht nur ihre Zahl.** Am 19. August meldete
+# dieser Lauf „5 Prüfung(en) ohne Biss" und nannte keine davon; die fünf Zeilen
+# standen irgendwo zwischen sechshundert anderen, und das Suchen hat mehr
+# gekostet als das Beheben.
+#
+# > **Eine Zahl, die nicht sagt, welche, zwingt zum Suchen.**
+gefallen=""
+
+
 # Vor jedem Eingriff merken, wie die Datei aussah — danach prüfen, dass sie
 # anders aussieht.
 #
@@ -262,6 +271,8 @@ pruefe() {
 
   printf '  FEHLT  %-56s %s (erwartet: %s)\n' "$name" "$ergebnis" "$erwartung"
   fehler=$((fehler + 1))
+  gefallen="$gefallen  $name — $ergebnis (erwartet: $erwartung)
+"
 
   case "$ergebnis" in
     'kein Test'|'unlesbar') stumm=$((stumm + 1)) ;;
@@ -9056,6 +9067,27 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BaseMethodClashTest passed
 
 echo
+echo "── BaseMethodClashTest: der Geltungsbereich nimmt wieder alles ──"
+#
+# **Genau der Fehler, mit dem dieser Wächter in die CI gegangen ist.** Der erste
+# Wurf sammelte alles unter tests/Unit, tests/Feature und tests/Support ein und
+# meldete daraufhin drei Attrappen, die einen eigenen Konstruktor haben —
+# ScriptedDnsCredentials, ScriptedExchange, ScriptedLookup. TestCase::__construct()
+# ist tatsächlich final, aber diese drei erben gar nicht davon.
+vorher_datei tests/Unit/BaseMethodClashTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/BaseMethodClashTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('if ($istTestfall || $istTrait) {', 'if (true) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Unit/BaseMethodClashTest.php "Geltungsbereich nimmt alles" &&
+pruefe "Geltungsbereich nimmt alles" \
+  BaseMethodClashTest::test_no_test_declares_a_name_the_base_class_owns failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BaseMethodClashTest passed
+
+echo
 echo "── CronIngestTest: das Einpflegen läuft wieder unter der Mandantenklammer ──"
 #
 # Der Befund vom 19. August: srvpanel-cron.service hat kein angemeldetes Konto,
@@ -11531,8 +11563,10 @@ elif [ "$stumm" -eq "$fehler" ]; then
   # denen keiner ist.
   echo "$fehler Prüfung(en) ohne Messung — dieses Skript hat nichts gemessen," >&2
   echo "und über die Wächter ist damit nichts gesagt." >&2
+  printf '%s' "$gefallen" >&2
 else
   echo "$fehler Prüfung(en) ohne Biss, davon $stumm ohne Messung." >&2
+  printf '%s' "$gefallen" >&2
   echo "Die übrigen sind Wächter, die ihre Regel nicht halten." >&2
 fi
 

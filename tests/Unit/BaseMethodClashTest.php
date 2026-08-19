@@ -137,7 +137,23 @@ final class BaseMethodClashTest extends TestCase
     }
 
     /**
-     * Jede Datei, die zu einem Testfall wird oder in einen hineingezogen wird.
+     * Jede Datei, für die die Regel überhaupt gilt.
+     *
+     * **Und das sind nicht alle unter `tests/`.** Der erste Wurf hat schlicht
+     * `Unit`, `Feature` und `Support` eingesammelt und daraufhin drei Attrappen
+     * gemeldet, die einen eigenen Konstruktor haben —
+     * `ScriptedDnsCredentials`, `ScriptedExchange`, `ScriptedLookup`.
+     * `TestCase::__construct()` ist tatsächlich `final`, aber diese drei erben
+     * gar nicht davon: Sie sind eigenständige Doppel für Schnittstellen der
+     * Anwendung und liegen nur zufällig im selben Verzeichnis.
+     *
+     * > **Ein Wächter, der seinen Geltungsbereich am Ordner festmacht, prüft
+     * > den Ordner und nicht die Regel.**
+     *
+     * Im Bereich liegt eine Datei, wenn sie eine Klasse deklariert, die von
+     * etwas auf `TestCase` erbt — oder einen **Trait**: Der wird in einen
+     * Testfall hineingezogen, und eine Trait-Methode verdrängt die geerbte, was
+     * bei einer `final`-Methode denselben fatalen Fehler gibt.
      *
      * @return list<string>
      */
@@ -148,7 +164,14 @@ final class BaseMethodClashTest extends TestCase
 
         foreach (['Unit', 'Feature', 'Support'] as $ordner) {
             foreach (glob($wurzel.'/'.$ordner.'/*.php') ?: [] as $pfad) {
-                $dateien[] = $pfad;
+                $quelltext = (string) file_get_contents($pfad);
+
+                $istTestfall = preg_match('/\bclass\s+\w+\s+extends\s+\S*TestCase\b/', $quelltext) === 1;
+                $istTrait = preg_match('/^\s*trait\s+\w+/m', $quelltext) === 1;
+
+                if ($istTestfall || $istTrait) {
+                    $dateien[] = $pfad;
+                }
             }
         }
 

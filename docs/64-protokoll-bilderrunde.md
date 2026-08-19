@@ -585,6 +585,7 @@ zusätzlich im zweiten Theme dazu.
 | SFTP — ohne Schlüssel | 390 hell **und** dunkel | 0 | **200/200** | `thead` 358 · `tr` 330 | — |
 | SFTP — ohne Schlüssel | 1440 hell **und** dunkel | 0 | **200/200** | **leer** (`rollt` leer) | — |
 | Läufe — ohne Läufe (Job C) | 390 hell **und** dunkel | 0 | **200/200** | `thead` 318 · `tr` 290 | — |
+| Cron — Formular „Ändern" offen | 390 dunkel | 0 | **200/200** | `thead` 511 · `tr` 483 | **Befund 10**, zweite Fundstelle |
 
 **Zur Mehrfachauswahl.** Zwei Einträge angekreuzt, die Auswahlleiste offen mit
 sechs Knöpfen, und im Baum daneben steht das lange Verzeichnis aus `docs/63
@@ -732,6 +733,47 @@ aus `can.edit` **und** `entry.writable`; `app.css` zeichnet einen abgeschalteten
 Knopf mit `opacity: 0.5`. Kein Befund — festgehalten, weil ein farbiger Knopf
 unter dem Satz „lässt sich lesen und nicht ändern" genau die Stelle ist, an der
 `AbilityReachTest` sonst zuschlägt.
+
+### Befund 10 gilt auch für die Cronseite — und zwar nach unten
+
+Der Zustand „Job ändern" ist gemessen und schiebt nicht. Der Betreiber hat dabei
+denselben Satz gesagt wie beim Dateimanager: **Beim Druck auf „Ändern" hat man
+das Gefühl, es passiert nichts.**
+
+`bearbeiten(job)` in `Cron.vue` setzt `bearbeitet` und füllt das Formular — der
+Abschnitt heisst danach „Job ändern" statt „Job anlegen" —, aber er steht
+**unterhalb** der Jobliste, und bei 390 px ist das ausserhalb des Bildes.
+
+**Dieselbe Regel, die andere Richtung.** Bei `startChmod` und `startRename`
+öffnete sich der Bereich oben, hier unten; für den Bedienenden ist es dasselbe.
+Das ist der Beleg dafür, dass die Behebung nicht „nach oben rollen" heissen
+darf, sondern **den geöffneten Bereich ins Bild holen** — genau das, was
+`bringIntoView()` seit dem 15. August tut und was `fullyVisible()` dort in beide
+Richtungen prüft.
+
+> **Eine Behebung, die die Richtung nennt statt das Ziel, ist beim nächsten Fall
+> die Hälfte wert.**
+
+Damit stehen für Befund 10 vier Griffe fest — `startChmod`, `startRename`,
+`bearbeiten` — und `startPack` sowie die beiden Zielwahlen sind zu prüfen.
+
+### Eine Zahl, die sich zwischen zwei Messungen derselben Seite ändert
+
+`.stacks thead` steht auf der Cronseite bei Ansicht 8 mit **484** px und hier
+mit **511** px — dieselbe Seite, dieselbe Breite, dieselben fünf
+Spaltenüberschriften. Der Unterschied von 27 px ist **nicht erklärt.**
+
+Eine Vermutung, und sie ist ausdrücklich nur eine: Die erste Messung könnte
+gelaufen sein, bevor die Schriftart geladen war — Textmasse hängen daran, und
+`bilderMessen()` fragt nichts ab, was das Laden abwartet.
+
+**Für das Kriterium dieses Schritts ist es gleichgültig** (`dokument` ist beide
+Male 0, und `.stacks thead` ist ohnehin der Mechanismus und kein Fund). Für die
+**zweite Runde** gehört die Frage geklärt, sonst steht dort wieder eine Zahl, die
+sich beim nächsten Ansehen ändert.
+
+> **Zwei verschiedene Zahlen für denselben Gegenstand sind ein Befund am
+> Messmittel, bis eine von beiden erklärt ist.**
 
 ### Ohne Schlüssel rollt die Schlüsseltabelle nicht mehr — und das erklärt Ansicht 6
 
@@ -943,8 +985,10 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
   |---|---|---|
   | fehlende Nachbarpaare | 2, 3, **4** (zwei Fundstellen) | ein Baustein, der bündig endet, bringt seinen Abstand selbst mit |
   | fehlende Polsterung an `td` | 7, 8 | `padding: 8px 14px 8px 0`, im Container gemessen |
-  | Wirkung ausserhalb des Bildes | 10 | jeder Griff, der einen Bereich öffnet, holt ihn ins Bild |
+  | Wirkung ausserhalb des Bildes | **10** (zwei Fundstellen, beide Richtungen) | jeder Griff, der einen Bereich öffnet, holt ihn ins Bild |
   | einzeln | 1 (Kästchen), 5 (Codestück), 6 (Dichtestufe), 9 (Ausrichtung) | — |
+- **Die 27 px an `.stacks thead` der Cronseite** — 484 gegen 511 bei zwei
+  Messungen derselben Seite. Vor der zweiten Runde klären.
 - **Die Zahlen zu Befund 8 auf `cloudsrv24` gegenprüfen.** Im Container ist der
   Eingriff gemessen (einzeilige Zeilen bleiben bei 48 px); auf dem Server steht
   er noch aus und gehört in die zweite Runde.
@@ -953,8 +997,8 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
 - **Die Runde danach noch einmal.** Befund 6 ändert die Dichtestufe `customer`,
   und in der stehen alle Aufnahmen dieses Laufs. Erst zu Ende messen, dann alles
   in einer Fassung beheben, dann neu fahren.
-- **Drei der einundzwanzig Zustände** aus `docs/63 §3`: das Formular „Ändern"
-  offen, das ausgeschöpfte Kontingent und „ohne Jobs" (auf 137). Alles andere
+- **Zwei der einundzwanzig Zustände** aus `docs/63 §3`: das ausgeschöpfte
+  Kontingent und „ohne Jobs" (auf 137). Alles andere
   ist gemessen — siehe §1b. „Zugang gestört" und „Abonnement nicht benutzbar"
   bleiben ungemessen, weil sie ausdrücklich nicht hergestellt werden.
 

@@ -501,6 +501,23 @@ Und die Falle aus `docs/59`, die vier Aufnahmen überlebt hat:
 - **Die Läufe-Seite braucht Läufe.** Ein Job im Minutentakt liefert sie nach
   zwei Minuten; vorher zeigt sie ihren leeren Zustand, und der ist ein eigenes
   Bild und kein Ersatz.
+- **Gemessen wird in einem Fenster ohne Erweiterungen.** Eine Erweiterung
+  schreibt in *jedes* Dokument, und was sie hineinschreibt, misst diese Messung
+  mit. In diesem Lauf war es LastPass: eine verborgene Meldezeile
+  (`lp-menu-live-region`, 1 px breit, `clip: rect(…)`), die in `schiebt` als
+  `div` mit 468 px steht — auf jeder Seite gleich breit, weil sie zu keiner
+  gehört. Sie hat vier Ansichten lang wie ein Fund am Panel ausgesehen.
+
+  > **Eine Messung am Dokument misst auch, was der Browser hineingeschrieben
+  > hat.**
+
+  > **Ein Kasten, der auf jeder Seite gleich breit ist, gehört zu keiner von
+  > ihnen.**
+
+  Ein privates Fenster mit abgeschalteten Erweiterungen oder ein frisches Profil
+  genügt. Wo das nicht geht, wird jeder Eintrag an seinem `anfang` beurteilt —
+  ein Element, dessen Markup keine Klasse dieses Projekts trägt, ist keines
+  davon.
 
 ---
 

@@ -23,15 +23,22 @@ nennt, liest sich wie eine Abnahme.
 
 ### Ansicht 1 — Dateien, Auswahl (`/files`)
 
-**Zur Hälfte gemessen** — die beiden 390er Lagen vollständig, die beiden
-1440er ohne Gegenprobe.
+**Erfüllt** in allen vier Lagen. Die beiden 1440er Lagen sind am 19. August
+nachgemessen worden; ihre Gegenprobe fehlte.
 
 | Lage | `dokument` | Gegenprobe | `schiebt` |
 |---|---|---|---|
-| 390 hell | 0 | **200/200** | `thead` 119 · `tr` 91 |
-| 390 dunkel | 0 | **200/200** | `thead` 119 · `tr` 91 |
-| 1440 hell | 0 | nicht abgelesen | leer |
-| 1440 dunkel | 0 | nicht abgelesen | leer |
+| 390 hell | 0 | **200/200** | `thead` 119 · `tr` 91 · *(LastPass)* |
+| 390 dunkel | 0 | **200/200** | `thead` 119 · `tr` 91 · *(LastPass)* |
+| 1440 hell | 0 | **200/200** | *(LastPass)* |
+| 1440 dunkel | 0 | **200/200** | *(LastPass)* |
+
+**Die vier Zeilen des Nachlaufs sind ohne Neuladen zwischen den Breiten
+entstanden**, also gegen `docs/63 §4`. Für das Ergebnis trägt das hier nicht:
+`dokument` ist in allen vier Lagen 0, die Gegenprobe schlägt in allen vier mit
+200/200 aus, und die einzigen Einträge in `schiebt` sind der Mechanismus
+`.stacks thead` und die Meldezeile von LastPass (§2). Der erste Wert bei 1440
+stammt aus der frisch geladenen Seite.
 
 `thead` und `tr` sind `.stacks thead`, der Mechanismus aus `app.css` — hier mit
 119 px, weil diese Tabelle nur eine Spaltenüberschrift trägt. Beide Themes
@@ -79,9 +86,8 @@ clip-path: inset(50%)` — absichtlich aus dem Bild genommen, damit der
 Screenreader die Spaltenüberschriften in der Vorlesereihenfolge behält. Die
 gemessenen 350 px sind die Breite dieser Überschriften.
 
-**Der `div` mit 468 px ist die rechte Hälfte von `.split`**
-(`Files/Index.vue:722`, Baum links, Liste rechts) — und er ist ein Fund am
-**Prüfmittel**, nicht am Panel.
+**Der `div` mit 468 px ist die Meldezeile von LastPass** — nicht `.split`, wie
+hier zuerst stand, und überhaupt nichts aus diesem Bau. §2 hat die Zeile.
 
 ### Ansicht 4 — Suche (`/subscriptions/140/files/search?query=eins`)
 
@@ -100,13 +106,13 @@ Lagen sind die ersten Messungen nach dem Laden. Bei Ansicht 2 war derselbe Wert
 ein Rest; hier ist er keiner. Dieselbe Zahl auf zwei Seiten, einmal als Rest und
 einmal nicht — das ist noch nicht erklärt und steht in §3.
 
-**Und die Erklärung von Ansicht 2 trägt hier nicht.** Dort war es die rechte
-Hälfte von `.split`; `Files/Search.vue` hat kein `.split`, sondern eine
-Knopfreihe, einen Satz und eine Tabelle in `.scrolls`. Die Zahl ist also
-dieselbe, der Kasten kann es nicht sein — und die Messung konnte das nicht
-sagen, weil ein Element ohne Klasse bei ihr nur `div` heisst. **Sie nennt seit
-dem 19. August `pfad` und `anfang`** (`docs/63 §1`); die Zeile wird damit
-nachgeholt.
+**Und die Erklärung von Ansicht 2 trug hier nicht.** Dort hiess es, es sei die
+rechte Hälfte von `.split`; `Files/Search.vue` hat aber gar kein `.split`. Die
+Zahl war dieselbe, der Kasten konnte es nicht sein — und die Messung konnte das
+nicht sagen, weil ein Element ohne Klasse bei ihr nur `div` heisst.
+
+**Aufgelöst am 19. August, und es ist kein Fund am Panel** — es ist die
+Meldezeile von LastPass. §2 hat die Zeile und die Lehre daraus.
 
 #### Befund 1 — die Checkbox trägt die Regel eines Textfeldes
 
@@ -152,6 +158,52 @@ Eine Fassung je Befund kostet mehr Runden, als der Lauf wert ist.
 
 ## 2. Was dieser Lauf über sein eigenes Prüfmittel gelernt hat
 
+### Der `div` mit 468 px gehörte nicht zur Seite — er gehörte zum Browser
+
+**Vier Ansichten lang stand in `schiebt` eine Zeile `div` mit 468 px**, und drei
+Erklärungsversuche daneben: erst ein Rest eines Breitenwechsels, dann die rechte
+Hälfte von `.split`, dann die Feststellung, dass es die auf der Suchseite gar
+nicht gibt. Am 19. August hat die um `pfad` und `anfang` erweiterte Messung die
+Frage in einer Zeile beantwortet:
+
+```
+"pfad": "div:3",  "ueberlauf": 468,
+"anfang": "<div id=\"lp-menu-live-region\" role=\"status\" aria-live=\"polite\"
+           aria-atomic=\"true\" aria-relevant=\"all\" style=\"clip: rect(…"
+```
+
+`lp-menu-live-region` ist **LastPass**. Die Erweiterung setzt in jedes Dokument
+eine verborgene Meldezeile — 1 px breit, `clip: rect(…)`, also `overflow`
+versteckt und damit `darf: false`. Damit stimmt alles, was vorher unerklärlich
+war: Die Zahl ändert sich mit der Fensterbreite nicht, weil sie die Textbreite
+in einem 1-px-Kasten ist. Sie steht auf drei verschiedenen Seiten gleich, weil
+sie zu keiner davon gehört. Und sie kommt und geht, weil die Erweiterung sie
+nicht beim Laden setzt, sondern wenn sie die Seite angesehen hat — deshalb war
+sie bei Ansicht 2 frisch geladen weg und nach einem Breitenwechsel da.
+
+**Das Panel hat damit nie geschoben, und keine Zahl war falsch.** `dokument`
+stand in jeder dieser Lagen auf 0. Falsch war die Zuordnung: Zwei Absätze in
+diesem Protokoll haben einen fremden Kasten dem eigenen Bau zugeschrieben, und
+einer davon nannte sogar eine Zeilennummer.
+
+> **Eine Messung am Dokument misst auch, was der Browser hineingeschrieben hat.**
+
+> **Ein Kasten, der auf jeder Seite gleich breit ist, gehört zu keiner von
+> ihnen.**
+
+Der Preis dafür war klein, weil `dokument` unbeeindruckt blieb — aber er wäre es
+nicht gewesen, wenn die Meldezeile breiter als das Fenster gewesen wäre: Dann
+hätte die Runde einen Fehler am Panel gemeldet, den es nicht gibt, und ihn
+gesucht. `docs/63 §6` verlangt seitdem ein Fenster ohne Erweiterungen.
+
+**Und die Ursache dafür, dass es vier Ansichten gedauert hat, war nicht die
+Erweiterung.** Sie war, dass `wo` aus Marke und Klassen bestand: Ein
+eingesetztes Element hat keine Klasse dieses Projekts, heisst also `div` — und
+`div` sieht aus wie etwas Eigenes.
+
+> **Eine Zahl, die nicht sagt, welche, zwingt zum Suchen.**
+
+
 ### Eine Messung nach einem Breitenwechsel trägt Reste mit
 
 Die vier Lagen oben sind so entstanden, wie `docs/63 §4` es zuerst vorschrieb:
@@ -180,12 +232,23 @@ bei 390. Ansicht 2 zeigt frisch geladen nur noch `.stacks thead` mit seinem
 | nach Wechsel von 1440, ohne Neuladen | `thead` 350 · `tr` 322 · **`div` 468** |
 | frisch geladen | `thead` 350 · `tr` 322 |
 
-**Was dort übrig blieb, ist damit benannt und nicht erklärt.** `.split` ist
-reines CSS — `display: block` unter 720 px, darüber ein Grid mit `min-width: 0`
-auf beiden Kindern —, und in `Files/Index.vue` gibt es keine Breitenabfrage in
-JavaScript. Warum ein Breitenwechsel ohne Neuladen dort 468 px hinterlässt, ist
-nicht untersucht; für diesen Lauf genügt, dass ein Neuladen es beseitigt und
-dass `docs/63 §4` es seitdem verlangt.
+**Und die Erklärung dafür ist inzwischen eine andere, als hier zuerst stand.**
+Der Eintrag war kein Rest des Layouts: Es war die Meldezeile von LastPass, die
+beim Laden noch nicht dasteht und nach einer Weile im Dokument erscheint. Was
+zwischen den beiden Messungen lag, war also nicht der Breitenwechsel, sondern
+die Zeit.
+
+**Damit hat dieser Abschnitt seine Beweislage verloren, und die Regel steht
+trotzdem.** Ein Neuladen nach dem Breitenwechsel ist billig, und die Fälle, die
+es abfängt — eine Komponente, die ihre Breite beim Aufbau einmal liest —, gibt
+es wirklich; belegt hat dieser Lauf sie nicht. Der Satz darüber bleibt richtig
+und ist hier bloss nicht bewiesen worden:
+
+> **Eine Messung nach einem Wechsel der Breite misst auch, was von vorher übrig
+> ist.**
+
+> **Ein Unterschied zwischen zwei Messungen gehört nicht dem, was man dazwischen
+> getan hat, solange man nicht weiss, was sonst noch dazwischen lag.**
 
 **Kein Fund am Panel.** In keinem der beiden Zustände hat die Seite geschoben.
 
@@ -226,19 +289,11 @@ Die Datei ist vier Zeilen lang und passt.
 
 ## 3. Was offen ist
 
-- **Vier Gegenproben**: Ansicht 1 bei 1440 (beide Themes) und Ansicht 2 in den
-  beiden dunklen Lagen. Keine neuen Bilder — die Aufnahmen bleiben gültig, es
-  fehlt allein die Zahl daneben.
+- **Zwei Gegenproben**: Ansicht 2 in den beiden dunklen Lagen. Keine neuen
+  Bilder — die Aufnahmen bleiben gültig, es fehlt allein die Zahl daneben.
+  Ansicht 1 ist am 19. August nachgemessen und vollständig.
 - **Fünf der neun Ansichten** — 5 bis 9.
 - **Die beiden Befunde an Ansicht 4** — beheben und nachmessen.
-- **Der `div` mit 468 px.** Bei Ansicht 4 steht er auch frisch geladen, bei
-  Ansicht 2 nur nach einem Breitenwechsel. Dieselbe Zahl auf zwei Seiten mit
-  zwei verschiedenen Ursachen ist unwahrscheinlich; welcher Kasten es ist, ist
-  nicht ermittelt. **Die Messung kann die Frage seit dem 19. August
-  beantworten** — `pfad` und `anfang` stehen neben jedem Fund —, gemessen ist
-  sie noch nicht. Dass die Zahl sich mit der Fensterbreite nicht ändert, passt
-  zu keinem Kasten dieser Seiten; ein von aussen eingesetztes Element ist damit
-  nicht ausgeschlossen.
 - **Neunzehn der zwanzig Zustände** aus `docs/63 §3`. Gemessen ist einer:
   „Läufe ohne Läufe" (Job C, angelegt und vor dem ersten Lauf aufgenommen) —
   **aber ohne Messzeile und bei Arbeitsplatzbreite**, also noch nicht

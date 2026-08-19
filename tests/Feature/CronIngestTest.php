@@ -10,7 +10,6 @@ use App\Models\Subscription;
 use App\Support\Cron\Cron;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use SrvPanel\Agent\Client;
 use Tests\TestCase;
 
 /**
@@ -37,7 +36,7 @@ use Tests\TestCase;
  * > **Zwei Stellen, die dieselbe Ausnahme brauchen, und nur eine hat sie: Die
  * > andere fällt nicht auf, weil sie leise das Richtige tut — nämlich nichts.**
  *
- * **Warum es diesen Test vorher nicht gab.** {@see Client} ist
+ * **Warum es diesen Test vorher nicht gab.** `SrvPanel\Agent\Client` ist
  * `final` und lässt sich nicht ersetzen; alles hinter ihm war ungeprüft.
  * {@see Cron::record()} ist die Naht, die das auflöst — sie pflegt ein, ohne zu
  * fragen.
@@ -85,7 +84,7 @@ final class CronIngestTest extends TestCase
         $subscription = Subscription::factory()->create(['system_user' => 'p1139']);
         $job = CronJob::factory()->create(['subscription_id' => $subscription->id]);
 
-        $stored = app(Cron::class)->record([$this->run('p1139', (int) $job->id)]);
+        $stored = app(Cron::class)->record([$this->aufzeichnung('p1139', (int) $job->id)]);
 
         $this->assertSame(1, $stored, 'Der Lauf wurde nicht eingepflegt — genau der Befund vom 19. August 2026.');
 
@@ -114,7 +113,7 @@ final class CronIngestTest extends TestCase
 
         // Der Lauf kommt unter dem Namen von „eigen" an und nennt den Job von
         // „fremd" — genau das, was ein Kunde in seine Ablage schreiben könnte.
-        $stored = app(Cron::class)->record([$this->run('p1000', (int) $fremderJob->id)]);
+        $stored = app(Cron::class)->record([$this->aufzeichnung('p1000', (int) $fremderJob->id)]);
 
         $this->assertSame(0, $stored, 'Eine fremde Jobnummer wurde eingepflegt.');
 
@@ -128,9 +127,19 @@ final class CronIngestTest extends TestCase
     /**
      * Ein Lauf, wie ihn `cron-run` aufzeichnet.
      *
+     * **Diese Methode hiess bis zum 19. August 2026 `run()`** — und `run()`
+     * gehört `PHPUnit\Framework\TestCase` und ist dort `final`. Der Fehler
+     * schlägt beim **Laden** der Klasse zu, nicht beim Ausführen: `php artisan
+     * test` endete mit Rückgabewert 255, bevor ein einziger Test lief, und der
+     * Bruchlauf brach an derselben Zeile ab. `php -l` sieht davon nichts.
+     *
+     * Das ist die **fünfte** Fassung desselben Fehlers in diesem Repo, nach
+     * `count()`, `configure()`, `for()` und `matches()`. Seitdem gibt es
+     * `Tests\Unit\BaseMethodClashTest` dafür.
+     *
      * @return array<string, mixed>
      */
-    private function run(string $user, int $job): array
+    private function aufzeichnung(string $user, int $job): array
     {
         return [
             'user' => $user,

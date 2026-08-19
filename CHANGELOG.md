@@ -15484,3 +15484,39 @@ Lage überhaupt geschlossen ist. Ohne sie prüften die Fälle eine andere
 Anwendung als die auf dem Server. `TimerRearmTest` zählt die Timer-Units selbst
 ab, statt eine Liste zu führen. Alle vier Brüche stehen in
 `tests/waechter-brechen.sh`.
+
+### `run()` gehört der Basisklasse — zum fünften Mal, und jetzt mit Wächter
+
+**Der erste Lauf der CI über den Beitrag oben ist an einer privaten
+Hilfsmethode gescheitert, die `run()` hiess.** `PHPUnit\Framework\TestCase::run()`
+ist `final`; der Fehler schlägt beim **Laden** der Klasse zu, nicht beim
+Ausführen. `php artisan test` endete mit Rückgabewert 255, bevor ein einziger
+Test lief, der Bruchlauf brach an derselben Zeile ab, und PHPStan meldete fünf
+Folgefehler auf einer Zeile. `php -l` sieht davon nichts.
+
+Das ist die fünfte Fassung desselben Fehlers, nach `count()`, `configure()`,
+`for()` und `matches()`. Die Regel stand seit P5 in `CLAUDE.md` — sie hat den
+vierten Fall gefangen und den fünften nicht.
+
+> **Eine Regel, an die man sich erinnern muss, ist keine Regel, sondern eine
+> Gewohnheit.**
+
+`BaseMethodClashTest` spiegelt jetzt die `final`-Methoden der Basisklasse —
+gefragt und nicht abgeschrieben, weil PHPUnit mit jeder Fassung mehr Methoden
+`final` macht — und sucht ihre Namen als Deklaration unter `tests/Unit`,
+`tests/Feature` und `tests/Support`.
+
+**Zwei Eigenheiten hat dieser Wächter.** Sein Ausdruck ist am Zeilenanfang
+verankert: Ohne den träfe er auch die Zeichenkette
+`'public function run(Context $context, …'`, mit der `SandboxCredentialsTest`
+etwas über den Quelltext des Agenten behauptet — und ein Wächter, der beim
+ersten Lauf einen Fehler erfindet, wird abgeschaltet und nicht befolgt. Und
+seine Regel lässt sich **nicht** absichtlich brechen: Eine echte Kollision tötet
+den Lauf, bevor irgendein Wächter rot werden kann. Gebrochen werden deshalb
+seine drei Teile — der Anker, die Aufzählung der Dateien und die Spiegelung der
+Basisklasse —, und jeder Bruch beisst auf seiner eigenen Methode.
+
+**Dazu zwei leere Behauptungen in `TimerRearmTest`.** Die Zweige „trifft nicht
+zu" trugen `assertTrue(true, …)`; PHPStan sagt zu Recht, dass das immer wahr
+ist. Ein Fall ohne Behauptung ist ein Fall, der nichts prüft — die Bedingung
+steht jetzt als Ausdruck da (`! A || B`) statt als früher Rücksprung.

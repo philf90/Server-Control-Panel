@@ -8995,6 +8995,67 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TenancySweepTest passed
 
 echo
+echo "── BaseMethodClashTest: der Ausdruck verliert seinen Anker ──"
+#
+# **Die Regel selbst lässt sich nicht brechen, und das ist ihr Wesen.** Eine
+# Methode, die einen final-Namen der Basisklasse trägt, tötet den ganzen Lauf
+# beim Laden — der Prüfling käme gar nicht erst dazu, rot zu werden. Gebrochen
+# werden deshalb die Teile des Wächters, und jeder einzeln.
+#
+# Ohne den Anker am Zeilenanfang trifft der Ausdruck auch eine Zeichenkette:
+# SandboxCredentialsTest führt „public function run(Context …" als Behauptung
+# über fremden Quelltext. Ein Wächter, der beim ersten Lauf einen Fehler
+# erfindet, wird abgeschaltet und nicht befolgt.
+vorher_datei tests/Unit/BaseMethodClashTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/BaseMethodClashTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'/^\\s*(?:(?:final|", "'/(?:(?:final|", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Unit/BaseMethodClashTest.php "Ausdruck ohne Anker" &&
+pruefe "Ausdruck ohne Anker" \
+  BaseMethodClashTest::test_no_test_declares_a_name_the_base_class_owns failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BaseMethodClashTest passed
+
+echo
+echo "── BaseMethodClashTest: die Aufzählung der Dateien läuft ins Leere ──"
+#
+# Ohne Untergrenze verglichen sich zwei leere Listen zu „keine Kollision" — grün,
+# ohne eine einzige Zeile gelesen zu haben.
+vorher_datei tests/Unit/BaseMethodClashTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/BaseMethodClashTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("foreach (['Unit', 'Feature', 'Support'] as $ordner)", "foreach (['Einheit'] as $ordner)", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Unit/BaseMethodClashTest.php "Aufzählung ins Leere" &&
+pruefe "Aufzählung ins Leere" \
+  BaseMethodClashTest::test_no_test_declares_a_name_the_base_class_owns failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BaseMethodClashTest passed
+
+echo
+echo "── BaseMethodClashTest: die Basisklasse hat angeblich nichts final ──"
+#
+# Findet die Spiegelung nichts, prüft der Fall darunter jede Datei gegen eine
+# leere Liste.
+vorher_datei tests/Unit/BaseMethodClashTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/BaseMethodClashTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('if ($methode->isFinal() && ! $methode->isPrivate()) {', 'if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Unit/BaseMethodClashTest.php "Spiegelung ohne final-Methoden" &&
+pruefe "Spiegelung ohne final-Methoden" \
+  BaseMethodClashTest::test_the_base_class_really_has_final_methods failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BaseMethodClashTest passed
+
+echo
 echo "── CronIngestTest: das Einpflegen läuft wieder unter der Mandantenklammer ──"
 #
 # Der Befund vom 19. August: srvpanel-cron.service hat kein angemeldetes Konto,

@@ -1176,7 +1176,7 @@ Testen berücksichtigen:
   erst in der CI. Marken stehen auf einer eigenen Zeile; `/** @return
   list<string> */` allein geht, mit Text davor nicht.
 
-  **Und eine zweite, die inzwischen viermal zugeschlagen hat: ein Name, der
+  **Und eine zweite, die inzwischen fünfmal zugeschlagen hat: ein Name, der
   der Basisklasse gehört.** `count()` in einem PHPUnit-Testfall (dort `final`),
   `configure()` in einem Artisan-Kommando (dort `protected`), und in P5 gleich
   zweimal: `for()` in einer `Factory` und `matches()` wieder in einem Testfall
@@ -1192,6 +1192,25 @@ Testen berücksichtigen:
   Testfall auch eine abgeleitete Klasse ist.** Wer in einer abgeleiteten Klasse
   eine private Hilfsmethode einzieht, sieht vorher in der Basisklasse nach; ein
   Testfall zählt dazu.
+
+  **Und am 19. August 2026 hat sie ein fünftes Mal zugeschlagen** — `run()` als
+  private Hilfsmethode in einem frisch gebauten Feature-Test. Drei CI-Zweige
+  fielen daran, und der Bruchlauf meldete korrekt „Der Testaufruf liefert nichts
+  Lesbares". Seitdem gibt es **`BaseMethodClashTest`** dafür: Er spiegelt die
+  `final`-Methoden von `PHPUnit\Framework\TestCase` und sucht ihre Namen als
+  Deklaration unter `tests/Unit`, `tests/Feature` und `tests/Support`.
+
+  > **Eine Regel, an die man sich erinnern muss, ist keine Regel, sondern eine
+  > Gewohnheit.**
+
+  Zwei Dinge daran sind lehrreich. Erstens ist der Wächter **hier fahrbar** —
+  er erbt nur von `TestCase` und läuft im Gestell —, während der Fehler selbst
+  in einem Feature-Test steckte, den das Gestell nicht laden kann: Der Wächter
+  greift genau dort, wo die anderen Mittel nicht hinkommen. Zweitens lässt sich
+  seine Regel **nicht** absichtlich brechen — eine echte Kollision tötet den
+  Lauf beim Laden, bevor irgendein Wächter rot werden kann. Gebrochen werden
+  deshalb seine Teile: der Anker des Ausdrucks, die Aufzählung der Dateien und
+  die Spiegelung der Basisklasse.
 - **Der Hostname ist kurz.** `php_uname('n')` liefert nicht den vollen Namen —
   dafür gibt es `SrvPanel\Agent\Names::fqdn()` (oder `host()`, wenn ein Name
   gebraucht wird und `null` nicht taugt), und die ist die *einzige* Stelle, die

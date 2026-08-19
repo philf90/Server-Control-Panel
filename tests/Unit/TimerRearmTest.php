@@ -107,15 +107,12 @@ final class TimerRearmTest extends TestCase
     {
         $unit = (string) file_get_contents($pfad);
 
-        if (! str_contains($unit, 'OnUnitActiveSec=')) {
-            $this->assertTrue(true, 'Ohne diesen Sockel stellt sich die Frage nicht.');
-
-            return;
-        }
-
-        $this->assertStringContainsString(
-            'OnCalendar=',
-            $unit,
+        // **Die Bedingung als Ausdruck und nicht als früher Rücksprung.** Ein
+        // `assertTrue(true)` im Zweig „trifft nicht zu" ist keine Behauptung —
+        // PHPStan sagt zu Recht, dass es immer wahr ist, und ein Fall ohne
+        // Behauptung ist ein Fall, der nichts prüft.
+        $this->assertTrue(
+            ! str_contains($unit, 'OnUnitActiveSec=') || str_contains($unit, 'OnCalendar='),
             sprintf('%s haengt allein an der letzten Aktivierung seines Dienstes.', basename($pfad)),
         );
     }
@@ -128,15 +125,8 @@ final class TimerRearmTest extends TestCase
     {
         $unit = (string) file_get_contents($pfad);
 
-        if (! str_contains($unit, 'Persistent=true')) {
-            $this->assertTrue(true, 'Ohne die Zusage stellt sich die Frage nicht.');
-
-            return;
-        }
-
-        $this->assertStringContainsString(
-            'OnCalendar=',
-            $unit,
+        $this->assertTrue(
+            ! str_contains($unit, 'Persistent=true') || str_contains($unit, 'OnCalendar='),
             implode("\n", [
                 sprintf('%s verspricht Persistent=true ohne OnCalendar.', basename($pfad)),
                 'Die Einstellung wirkt nur auf Kalender-Timer; hier steht sie da und',

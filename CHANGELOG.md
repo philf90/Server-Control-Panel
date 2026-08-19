@@ -15469,6 +15469,15 @@ Units als Notiz, die sich wie eine Zusage liest.
 > **Eine Einstellung, die für diese Bauart keine Bedeutung hat, liest sich wie
 > eine Zusage und ist eine Notiz.**
 
+**Dass die geänderte Unit auch ankommt, ist gemessen und nicht angenommen.** Das
+Paket ruft für die Timer `systemctl enable --now`, und das ist bei einem bereits
+aktiven Timer wirkungslos — die Frage war also, ob der neue Sockel erst beim
+nächsten Neustart gilt. Auf `cloudsrv24` gegen `v0.6.0-rc.18`: Schon **vor**
+einem `systemctl restart` stand `NEXT` auf `12:55:00`, einem glatten
+Fünf-Minuten-Schlag der Wanduhr, und der letzte Lauf lag 36 Sekunden zurück
+statt 22 Stunden. Das `daemon-reload` im Postinstall genügt; ein zusätzlicher
+Neustart der Timer wäre eine Zeile ohne Wirkung.
+
 **Warum es dafür keine Wächter gab.** `SrvPanel\Agent\Client` ist `final` und
 lässt sich in keinem Test ersetzen; jeder Weg, der über ihn führt, war ungeprüft
 — und kein einziger Test dieses Repos hat je einen Cron-Lauf eingepflegt.

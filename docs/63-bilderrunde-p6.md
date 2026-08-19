@@ -288,8 +288,14 @@ entsteht deshalb über den Zeitplan:
 1. **Zuerst das Bild „ohne Läufe" aufnehmen** — solange B noch keinen hat.
    Danach ist der Zustand nicht mehr herzustellen, ohne den Job zu löschen.
 2. Bei B auf **Ändern**, Zeitplan auf `* * * * *`, speichern.
-3. **Zwei Minuten warten.** cron liest seine Dateien einmal je Minute neu; der
-   Hinweis dazu steht auf der Seite selbst.
+3. **Sechs Minuten warten.** Zwei Fristen liegen hintereinander, und nur die
+   erste steht auf der Cron-Seite: cron liest seine Dateien einmal je Minute
+   neu, und der Lauf erscheint erst, wenn `srvpanel-cron.timer` ihn eingesammelt
+   hat — alle fünf Minuten, mit bis zu 30 Sekunden Streuung. Die Läufe-Seite
+   sagt es selbst: „Läufe werden alle fünf Minuten eingesammelt."
+
+   > **Zwei Fristen hintereinander sind nicht die längere von beiden, sondern
+   > ihre Summe.**
 4. Bei B auf **Läufe** — dort steht jetzt der Lauf mit Rückgabewert 3.
 5. Bei B auf **Ändern**, Zeitplan zurück auf `0 3 * * *`, speichern.
 

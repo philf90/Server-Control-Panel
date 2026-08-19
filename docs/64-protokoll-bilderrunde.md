@@ -5,7 +5,7 @@ Laufs; es ist am 19. August 2026 angelegt worden, als die ersten beiden
 Ansichten gemessen waren.
 
 **Es ist unvollständig, und das steht in §3.** Von den neun Ansichten sind
-**sechs** aufgenommen und vollständig gemessen, von den zwanzig Zuständen ist
+**sieben** aufgenommen und vollständig gemessen, von den zwanzig Zuständen ist
 einer aufgenommen und keiner gemessen. Zwei Befunde am Panel stehen offen. Ein Protokoll, das seine Lücken nicht
 nennt, liest sich wie eine Abnahme.
 
@@ -272,6 +272,28 @@ Menüpunkt. Hier trifft er einen Abstand.
 **Nicht behoben.** Er kommt zu den beiden Befunden an Ansicht 4 und wird mit
 ihnen gegen die nächste Fassung nachgeprüft.
 
+### Ansicht 7 — Cron, Auswahl (`/cron`)
+
+**Erfüllt** in allen vier Lagen, ohne einen einzigen fremden Eintrag.
+
+| Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` |
+|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | `thead` 119 · `tr` 91 | leer |
+| 390 dunkel | 0 | **200/200** | `thead` 119 · `tr` 91 | leer |
+| 1440 hell | 0 | **200/200** | **leer** | leer |
+| 1440 dunkel | 0 | **200/200** | **leer** | leer |
+
+**Zeile für Zeile dieselben Zahlen wie Ansicht 1 und 5** — auch derselbe Weg:
+`div.frame > main.content > div.scrolls:2 > table.stacks > thead`. Das ist kein
+Zufall und auch keine überflüssige Messung: Die drei Auswahlseiten sind
+derselbe Baustein mit einer anderen Überschrift, und **dass sie sich gleich
+messen, ist der Beleg dafür.** Wären es drei Zahlen, stünde dort eine
+Sonderbehandlung, von der niemand weiss.
+
+Die beiden 1440er Lagen sind frisch geladen gemessen. Auch hier gilt der Grund
+aus Ansicht 1: `CronController::pick()` leitet bei genau einem erreichbaren
+Abonnement durch, gemessen wird deshalb als Administrator.
+
 ---
 
 ## 2. Was dieser Lauf über sein eigenes Prüfmittel gelernt hat
@@ -389,7 +411,7 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
 
 ## 3. Was offen ist
 
-- **Drei der neun Ansichten** — 7 bis 9.
+- **Zwei der neun Ansichten** — 8 und 9.
 - **Drei Befunde am Panel** — zwei an Ansicht 4, einer an Ansicht 6. Beheben
   und nachmessen. Der dritte und der zweite sind derselbe Fehler in zwei
   Richtungen; die Behebung sollte die Regel treffen und nicht den Einzelfall.

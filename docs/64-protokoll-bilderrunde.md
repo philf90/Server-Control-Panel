@@ -577,6 +577,7 @@ zusätzlich im zweiten Theme dazu.
 | Dateimanager — Umbenennen an einer Zeile | 390 dunkel | 0 | **200/200** | `thead` 367 · `tr` 339 | **Befund 10** |
 | Editor — „zu gross" (`gross.bin`) | 390 hell **und** dunkel | 0 | **200/200** | **leer** | — |
 | Editor — „binär" (`binaer.dat`) | 390 hell **und** dunkel | 0 | **200/200** | **leer** | — |
+| Editor — nur lesbar (`/conf/hinweis.txt`) | 390 hell **und** dunkel | 0 | **200/200** | leer (`rollt`: `.cm-scroller` 189) | — |
 
 **Zur Mehrfachauswahl.** Zwei Einträge angekreuzt, die Auswahlleiste offen mit
 sechs Knöpfen, und im Baum daneben steht das lange Verzeichnis aus `docs/63
@@ -701,6 +702,22 @@ gebaut wurden: `gross.bin` (3 MiB) die Schwelle aus `FilesRead::MAX_BYTES`,
 `mb_check_encoding()`. **Die Grösse entscheidet den zweiten Fall nicht** — das
 war der Grund, ihn nicht als grosse Zufallsdatei zu bauen, und die Aufnahme
 belegt es.
+
+**Zum nur lesbaren Zustand.** Hier taucht zum ersten Mal in diesem Lauf der
+Rollbehälter des Editors auf — `.cm-scroller` mit 189 px unter `rollt`,
+`darf: true`. `docs/63 §6` führt ihn als erwartet, und die Zeile belegt jetzt,
+dass er auch wirklich erscheint: Bei Ansicht 3 war er leer, weil die Datei dort
+vier Zeilen hat und passt.
+
+> **Ein erwarteter Roller, der nie auftaucht, ist nicht geprüft — er ist
+> unbeobachtet.**
+
+**Nachgesehen, weil das Bild die Frage aufwarf: Der Knopf „Speichern" ist
+abgeschaltet und nicht bloss wirkungslos.** `Files/Edit.vue` setzt `:disabled`
+aus `can.edit` **und** `entry.writable`; `app.css` zeichnet einen abgeschalteten
+Knopf mit `opacity: 0.5`. Kein Befund — festgehalten, weil ein farbiger Knopf
+unter dem Satz „lässt sich lesen und nicht ändern" genau die Stelle ist, an der
+`AbilityReachTest` sonst zuschlägt.
 
 **Und eine Randnotiz aus dem `anfang`:** In der Kopfzeile steht ein Attribut
 `wfd-id="id8"`, das dieses Panel nicht schreibt — wieder eine Erweiterung, die

@@ -4,8 +4,8 @@ Die Vorschrift steht in `docs/63`. Dieses Protokoll entsteht **während** des
 Laufs; es ist am 19. August 2026 angelegt worden, als die ersten beiden
 Ansichten gemessen waren.
 
-**Es ist unvollständig, und das steht in §3.** Von den neun Ansichten sind drei
-aufgenommen und **zwei** vollständig gemessen, von den zwanzig Zuständen ist
+**Es ist unvollständig, und das steht in §3.** Von den neun Ansichten sind
+**vier** aufgenommen und vollständig gemessen, von den zwanzig Zuständen ist
 einer aufgenommen und keiner gemessen. Zwei Befunde am Panel stehen offen. Ein Protokoll, das seine Lücken nicht
 nennt, liest sich wie eine Abnahme.
 
@@ -76,9 +76,20 @@ ihre Zahlen stehen unten in §2 als das, was sie waren.
 | Lage | `dokument` | Gegenprobe | `schiebt` |
 |---|---|---|---|
 | 390 hell | 0 | **200/200** | `thead` 350 · `tr` 322 |
-| 390 dunkel | 0 | nicht abgelesen | — |
+| 390 dunkel | 0 | **200/200** | `thead` 350 · `tr` 322 · *(LastPass)* |
 | 1440 hell | 0 | **200/200** | **leer** |
-| 1440 dunkel | 0 | nicht abgelesen | — |
+| 1440 dunkel | 0 | **200/200** | *(LastPass)* |
+
+**Die beiden dunklen Lagen sind am 19. August nachgemessen worden**, mit der
+Messung, die `pfad` und `anfang` führt. `thead` und `tr` stehen dort als
+`div:1 > div.frame > main.content > div.split:2 > div:2 > div.scrolls >
+table.stacks > thead` — der Mechanismus `.stacks thead` mit seinen
+Spaltenüberschriften, benannt statt vermutet.
+
+**Und sie belegen nebenbei, dass der Breitenwechsel nichts hinterlässt.** Sie
+sind ohne Neuladen zwischen 1440 und 390 entstanden und liefern bei 390 exakt
+die Zahlen der frisch geladenen hellen Lage — 350 und 322, `dokument` 0. Der
+einzige zusätzliche Eintrag ist die Fremdzeile aus §2.
 
 **`thead` und `tr` sind der Mechanismus und kein Fehler.** `.stacks thead` steht
 in `app.css` auf `position: absolute; width: 1px; height: 1px; overflow: hidden;
@@ -238,10 +249,14 @@ beim Laden noch nicht dasteht und nach einer Weile im Dokument erscheint. Was
 zwischen den beiden Messungen lag, war also nicht der Breitenwechsel, sondern
 die Zeit.
 
-**Damit hat dieser Abschnitt seine Beweislage verloren, und die Regel steht
-trotzdem.** Ein Neuladen nach dem Breitenwechsel ist billig, und die Fälle, die
-es abfängt — eine Komponente, die ihre Breite beim Aufbau einmal liest —, gibt
-es wirklich; belegt hat dieser Lauf sie nicht. Der Satz darüber bleibt richtig
+**Damit hat dieser Abschnitt seine Beweislage verloren, und die Gegenprobe hat
+sie widerlegt.** Die beiden dunklen Lagen von Ansicht 2 sind ohne Neuladen
+zwischen den Breiten entstanden und liefern bei 390 exakt die Zahlen der frisch
+geladenen hellen Lage. Ein Rest war da nie.
+
+**Die Regel steht trotzdem.** Ein Neuladen nach dem Breitenwechsel ist billig,
+und die Fälle, die es abfängt — eine Komponente, die ihre Breite beim Aufbau
+einmal liest —, gibt es wirklich; auf diesen Seiten gibt es sie nur nicht. Der Satz darüber bleibt richtig
 und ist hier bloss nicht bewiesen worden:
 
 > **Eine Messung nach einem Wechsel der Breite misst auch, was von vorher übrig
@@ -289,15 +304,11 @@ Die Datei ist vier Zeilen lang und passt.
 
 ## 3. Was offen ist
 
-- **Zwei Gegenproben**: Ansicht 2 in den beiden dunklen Lagen. Keine neuen
-  Bilder — die Aufnahmen bleiben gültig, es fehlt allein die Zahl daneben.
-  Ansicht 1 ist am 19. August nachgemessen und vollständig.
 - **Fünf der neun Ansichten** — 5 bis 9.
 - **Die beiden Befunde an Ansicht 4** — beheben und nachmessen.
 - **Neunzehn der zwanzig Zustände** aus `docs/63 §3`. Gemessen ist einer:
   „Läufe ohne Läufe" (Job C, angelegt und vor dem ersten Lauf aufgenommen) —
   **aber ohne Messzeile und bei Arbeitsplatzbreite**, also noch nicht
   protokollfähig.
-- **Die beiden 1440er Lagen von Ansicht 2** mit Neuladen, siehe §2.
 
 **Damit ist Schritt 12 nicht abgeschlossen**, und P6 ist nicht abgenommen.

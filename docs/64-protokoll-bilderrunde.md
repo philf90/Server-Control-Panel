@@ -582,6 +582,8 @@ zusätzlich im zweiten Theme dazu.
 | Suche — kein Treffer | 1440 hell **und** dunkel | 0 | **200/200** | `input` 24 · *(LastPass 489)* | — |
 | Suche — gekürzt (500 Treffer) | 390 hell **und** dunkel | 0 | **200/200** | `thead` 166 · `tr` 138 · *(LastPass 489)* | **Befund 4**, zweite Fundstelle |
 | Suche — gekürzt (500 Treffer) | 1440 hell **und** dunkel | 0 | **200/200** | **leer** | dieselbe |
+| SFTP — ohne Schlüssel | 390 hell **und** dunkel | 0 | **200/200** | `thead` 358 · `tr` 330 | — |
+| SFTP — ohne Schlüssel | 1440 hell **und** dunkel | 0 | **200/200** | **leer** (`rollt` leer) | — |
 
 **Zur Mehrfachauswahl.** Zwei Einträge angekreuzt, die Auswahlleiste offen mit
 sechs Knöpfen, und im Baum daneben steht das lange Verzeichnis aus `docs/63
@@ -722,6 +724,25 @@ aus `can.edit` **und** `entry.writable`; `app.css` zeichnet einen abgeschalteten
 Knopf mit `opacity: 0.5`. Kein Befund — festgehalten, weil ein farbiger Knopf
 unter dem Satz „lässt sich lesen und nicht ändern" genau die Stelle ist, an der
 `AbilityReachTest` sonst zuschlägt.
+
+### Ohne Schlüssel rollt die Schlüsseltabelle nicht mehr — und das erklärt Ansicht 6
+
+Bei 1440 px ist hier **`rollt` leer**. Ansicht 6 hatte an derselben Stelle
+`.scrolls` mit 217 px, und die Erklärung dort lautete: Ein
+`SHA256:`-Fingerabdruck passt in der halben `.sections`-Spalte nicht neben
+Bezeichnung, Art und Aktion.
+
+**Dieser Zustand belegt sie.** Ohne Schlüssel steht in der Tabelle nur „Kein
+Schlüssel eingetragen.", der Fingerabdruck fehlt — und der Roller verschwindet
+mit ihm. Dieselbe Seite, dieselbe Breite, ein Datensatz weniger.
+
+> **Eine Erklärung, die man an einem zweiten Zustand nachrechnen kann, ist keine
+> Vermutung mehr.**
+
+Und die Meldung „Es ist kein Schlüssel eingetragen" steht hier **mit** Abstand
+nach oben: Sie folgt unmittelbar auf einen `.section-head`, und der bringt seinen
+Rand mit. Befund 4 trifft sie deshalb nicht — was zugleich zeigt, woran er
+hängt: nicht an `.notice`, sondern an dem, was davorsteht.
 
 ### Befund 4 hat eine zweite Fundstelle — und der Prüfkörper hat gehalten
 

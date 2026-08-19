@@ -23,14 +23,19 @@ nennt, liest sich wie eine Abnahme.
 
 ### Ansicht 1 — Dateien, Auswahl (`/files`)
 
-**Noch nicht erfüllt** — die Gegenprobe fehlt, siehe unten.
+**Zur Hälfte gemessen** — die beiden 390er Lagen vollständig, die beiden
+1440er ohne Gegenprobe.
 
 | Lage | `dokument` | Gegenprobe | `schiebt` |
 |---|---|---|---|
-| 390 dunkel | 0 | **nicht abgelesen** | 2 Einträge — siehe unten |
-| 390 hell | 0 | **nicht abgelesen** | 2 Einträge |
-| 1440 hell | 0 | **nicht abgelesen** | leer |
-| 1440 dunkel | 0 | **nicht abgelesen** | leer |
+| 390 hell | 0 | **200/200** | `thead` 119 · `tr` 91 |
+| 390 dunkel | 0 | **200/200** | `thead` 119 · `tr` 91 |
+| 1440 hell | 0 | nicht abgelesen | leer |
+| 1440 dunkel | 0 | nicht abgelesen | leer |
+
+`thead` und `tr` sind `.stacks thead`, der Mechanismus aus `app.css` — hier mit
+119 px, weil diese Tabelle nur eine Spaltenüberschrift trägt. Beide Themes
+liefern **dieselben** Zahlen; die Geometrie hängt nicht am Thema.
 
 **Hier stand zuerst viermal `200/200`, und niemand hatte es gesehen.** Die
 Konsole klappt ein Objekt ein; neben `dokument: 0` stand `gegenprobe: {…}`, und
@@ -58,16 +63,15 @@ Dasselbe gilt für Ansicht 5 (`/sftp`) und 7 (`/cron`).
 
 **Erfüllt** in allen vier Lagen.
 
+**Nachgemessen mit Neuladen je Breite.** Die erste Runde entstand ohne, und
+ihre Zahlen stehen unten in §2 als das, was sie waren.
+
 | Lage | `dokument` | Gegenprobe | `schiebt` |
 |---|---|---|---|
-| 390 dunkel | 0 | **200/200** (abgelesen) | `thead` 350 · `tr` 322 · `div` 468 |
-| 390 hell | 0 | nicht abgelesen | dieselben drei |
-| 1440 hell | 0 | **200/200** (abgelesen) | `div` 468 |
-| 1440 dunkel | 0 | nicht abgelesen | `div` 468 |
-
-Die beiden abgelesenen Werte stammen aus dem ausgeschriebenen Ausdruck über
-`gegenprobe`, `schiebt` und `rollt`; die Themawechsel dazwischen ändern die
-Geometrie nicht, gemessen sind sie trotzdem nicht.
+| 390 hell | 0 | **200/200** | `thead` 350 · `tr` 322 |
+| 390 dunkel | 0 | nicht abgelesen | — |
+| 1440 hell | 0 | **200/200** | **leer** |
+| 1440 dunkel | 0 | nicht abgelesen | — |
 
 **`thead` und `tr` sind der Mechanismus und kein Fehler.** `.stacks thead` steht
 in `app.css` auf `position: absolute; width: 1px; height: 1px; overflow: hidden;
@@ -102,16 +106,23 @@ Die Gegenprobe: Dieselbe Seite bei 1440 **frisch geladen**, mit einem Ausdruck
 > **Eine Messung nach einem Wechsel der Breite misst auch, was von vorher übrig
 > ist.**
 
-**Was dort übrig bleibt, ist nicht geklärt.** `.split` ist reines CSS —
-`display: block` unter 720 px, darüber ein Grid mit `min-width: 0` auf beiden
-Kindern —, und in `Files/Index.vue` gibt es keine Breitenabfrage in JavaScript.
-Geklärt ist allein, dass es übrig bleibt und dass ein Neuladen es beseitigt.
-`docs/63 §4` verlangt es seitdem nach **jedem** Breitenwechsel.
+**Nachgemessen, und der Eintrag ist vollständig verschwunden** — bei 1440 *und*
+bei 390. Ansicht 2 zeigt frisch geladen nur noch `.stacks thead` mit seinem
+`tr`, und bei 1440 gar nichts.
 
-**Offen:** die beiden 1440er Lagen von Ansicht 2 mit Neuladen nachmessen. Das
-Kriterium hängt nicht daran — `dokument` stand in beiden Zuständen auf 0 —,
-aber eine Zahl, deren Herkunft man kennt, ist eine andere Auskunft als eine,
-deren Herkunft man vermutet.
+| Ansicht 2, 390 px | `schiebt` |
+|---|---|
+| nach Wechsel von 1440, ohne Neuladen | `thead` 350 · `tr` 322 · **`div` 468** |
+| frisch geladen | `thead` 350 · `tr` 322 |
+
+**Was dort übrig blieb, ist damit benannt und nicht erklärt.** `.split` ist
+reines CSS — `display: block` unter 720 px, darüber ein Grid mit `min-width: 0`
+auf beiden Kindern —, und in `Files/Index.vue` gibt es keine Breitenabfrage in
+JavaScript. Warum ein Breitenwechsel ohne Neuladen dort 468 px hinterlässt, ist
+nicht untersucht; für diesen Lauf genügt, dass ein Neuladen es beseitigt und
+dass `docs/63 §4` es seitdem verlangt.
+
+**Kein Fund am Panel.** In keinem der beiden Zustände hat die Seite geschoben.
 
 ### `schiebt` ist ein Hinweis und kein Urteil
 
@@ -146,9 +157,9 @@ Die Datei ist vier Zeilen lang und passt.
 
 ## 3. Was offen ist
 
-- **Die Gegenprobe für die Ansichten 1 und 3 und für zwei Lagen von Ansicht 2.**
-  Zwölf Konsolenzeilen, keine neuen Bilder — die Aufnahmen bleiben gültig, es
-  fehlt allein die Zahl daneben.
+- **Sechs Gegenproben**: Ansicht 1 bei 1440 (beide Themes), Ansicht 2 in den
+  beiden dunklen Lagen, Ansicht 3 in allen vieren. Keine neuen Bilder — die
+  Aufnahmen bleiben gültig, es fehlt allein die Zahl daneben.
 - **Sechs der neun Ansichten** — 4 bis 9.
 - **Neunzehn der zwanzig Zustände** aus `docs/63 §3`. Gemessen ist einer:
   „Läufe ohne Läufe" (Job C, angelegt und vor dem ersten Lauf aufgenommen) —

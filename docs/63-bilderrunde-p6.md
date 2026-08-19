@@ -54,33 +54,141 @@ Vorschrift in einem Dokument, und kein Test liest ein Dokument.
 
 ## 2. Vorbereitung auf `cloudsrv24`
 
-Ohne diese Daten zeigen die Hälfte der Ansichten ihren leeren Zustand, und der
-ist nicht der, um den es geht.
+Ohne diese Daten zeigen die halben Ansichten ihren leeren Zustand, und der ist
+nicht der, um den es geht. Gemessen wird auf Abonnement **140**
+(`p6-abnahme.invalid`, Systembenutzer `p1139`,
+Wurzel `/var/www/vhosts/p6-abnahme.invalid`).
 
-**2.1 — Dateien.** Im Dateimanager des Abonnements anlegen:
+**Fast alles entsteht durch das Panel** — das ist kein Umweg, sondern der Weg,
+den der Kunde geht: Wer die Dateien als root hinlegt, prüft nebenbei nicht, ob
+sie auf dem echten Weg überhaupt entstehen können, und vergisst dabei zweimal
+von drei Malen den Eigentümer. Nur eine Datei braucht root, und die ist
+ausdrücklich gekennzeichnet.
 
-- ein Verzeichnis mit **einem sehr langen Namen** (63 Zeichen sind erlaubt, und
-  genau daran ist `docs/46 §20.11` gescheitert):
-  `sehr-langes-verzeichnis-fuer-die-messung-der-umbrueche-1234567`
-- darin eine Datei `klein.txt` mit ein paar Zeilen Text
-- eine Datei `gross.bin` **über 960 KiB** — für den Zustand „zu gross":
-  über den Hochladen-Knopf, oder im Terminal
-  `dd if=/dev/urandom of=/var/www/vhosts/<domain>/httpdocs/gross.bin bs=1M count=2`
-  und danach `chown` auf den Systembenutzer des Abonnements
-- eine Datei `binaer.dat` mit ungültigem UTF-8 — für den Zustand „binär":
-  `printf '\xff\xfe\x00\x01' > …/httpdocs/binaer.dat`
-- ein Archiv `paket.tar` mit einem Unterverzeichnis (für Entpacken)
+### 2.0 — Welche Fassung läuft?
 
-**2.2 — SFTP.** Ein Schlüssel eingetragen. Der aus Punkt 11 auf 137 („Wand 137",
-Kennung 16) liegt noch; für das eigene Abonnement einen neuen:
-`pbcopy < ~/srvpanel-punkt11/gegen140.pub`.
+**Vorher klären, denn eine Zahl unten hängt daran.** `FilesRead::MAX_BYTES` —
+die Schwelle für den Zustand „zu gross" — stand bis `v0.6.0-rc.17` auf **2 MiB**
+und liegt seit der Behebung von Befund 12b auf **960 KiB**
+(`Connection::CONTENT_MAX`). Die Prüfkörper unten sind so gewählt, dass sie unter
+**beiden** Fassungen dasselbe auslösen; wer sie ändert, prüft das nach.
 
-**2.3 — Cron.** Zwei Jobs, davon einer mit **Läufen**, sonst ist `CronRuns` leer:
+**Und die Bilder gehören auf eine Fassung mit der Behebung.** Auf `rc.17` öffnet
+der Editor eine Datei von 1,5 MB und kann sie nie speichern — das ist genau der
+Fehler, den die Runde zeigen soll, und er wäre auf den Bildern als Zustand
+verewigt statt behoben.
 
-- Job A: `* * * * *` mit `echo eins; date` — nach zwei Minuten hat er Läufe
-- Job B: `0 3 * * *` mit einem Befehl, der fehlschlägt (`exit 3`) — für die Zeile
-  mit Rückgabewert; einmal von Hand über „Läuft" auslösen
-- Job A danach **auf inaktiv** stellen, damit die Liste beide Zustände zeigt
+### 2.1 — Vier Dateien, auf dem Mac erzeugt
+
+```
+mkdir -p ~/srvpanel-bilder/paket/unterordner && cd ~/srvpanel-bilder
+```
+
+**`gross.bin` — löst „Die Datei ist zu gross" im Editor aus.** 3 MiB: über
+beiden Schwellen, und klein genug, dass die Quota es nicht merkt.
+
+```
+dd if=/dev/urandom of=~/srvpanel-bilder/gross.bin bs=1m count=3
+```
+
+**`binaer.dat` — löst „Die Datei ist nicht lesbar" (binär) aus.** Nicht die
+*Grösse* entscheidet das, sondern `mb_check_encoding($content, 'UTF-8')` in
+`FilesRead`. `\377` und `\376` sind Bytes, die in UTF-8 **nie** vorkommen; 31
+Byte genügen, eine grosse Zufallsdatei ist dafür nicht nötig.
+
+```
+printf 'Dies ist keine Textdatei: \377\376\000\001\n' > ~/srvpanel-bilder/binaer.dat
+```
+
+**`klein.txt` — die Datei, an der der Editor in seinem gewöhnlichen Zustand
+gezeigt wird.**
+
+```
+printf 'eins\nzwei\ndrei\n# eine Zeile mit Umlauten: Grüße aus Köln\n' > ~/srvpanel-bilder/klein.txt
+```
+
+**`paket.tar` — bringt den Knopf „Entpacken" in seine Zeile.** Er erscheint an
+der **Endung** (`isArchive()` in `Index.vue` prüft `.zip|.tar|.tar.gz|.tgz`); der
+Agent erkennt das Archiv später am Inhalt. Das Unterverzeichnis ist Absicht: Ein
+Tar mit Ebenen ist genau der Fall, an dem `Archive::names()` bis zum 18. August
+alles unterhalb der obersten Ebene verloren hat.
+
+```
+printf 'oben\n' > ~/srvpanel-bilder/paket/oben.txt && printf 'tief\n' > ~/srvpanel-bilder/paket/unterordner/tief.txt && tar -cf ~/srvpanel-bilder/paket.tar -C ~/srvpanel-bilder/paket .
+```
+
+### 2.2 — Die vier Dateien hochladen
+
+Im Dateimanager von 140 nach `/httpdocs`, über **Hochladen**. Alle vier auf
+einmal — das zeigt nebenbei den Fortschrittsbalken.
+
+Der Weg über das Panel ist hier auch der sichere: `httpdocs` gehört
+`p1139:www-data` mit gesetztem setgid-Bit. Eine Datei, die root dort hinlegt,
+gehört danach `root:www-data`, und der Kunde kann sie nicht bearbeiten — der
+Editor stünde dann für **alle vier** auf „nur lesbar".
+
+### 2.3 — Ein Verzeichnis mit dem längsten erlaubten Namen
+
+Über **Verzeichnis anlegen**, in `/httpdocs`. Das Panel lässt `max:255` zu, also
+wird auch 255 genommen: Halten die Krümel und die Liste das aus, halten sie
+alles.
+
+```
+sehr-langer-verzeichnisname-zum-messen-der-umbrueche-sehr-langer-verzeichnisname-zum-messen-der-umbrueche-sehr-langer-verzeichnisname-zum-messen-der-umbrueche-sehr-langer-verzeichnisname-zum-messen-der-umbrueche-sehr-langer-verzeichnisname-zum-messen-der-
+```
+
+Danach **hineinklicken** — die Krümelleiste trägt den Namen dann in voller
+Länge, und das ist die Stelle, an der `docs/46 §20.11` schon einmal 99 px aus
+dem Bild geschoben hat.
+
+### 2.4 — Eine Datei, die dem Kunden nicht gehört (root nötig)
+
+Für den Zustand „nur lesbar" im Editor. `conf/` gehört `root:root 0755` — der
+Kunde darf hinein sehen und nichts ändern. Per SSH auf `cloudsrv24`:
+
+```
+printf 'Diese Datei gehört root. Der Kunde darf sie lesen und nicht ändern.\n' > /var/www/vhosts/p6-abnahme.invalid/conf/hinweis.txt
+```
+
+Nichts weiter — **kein `chown`.** Dass sie root gehört, ist der Zweck.
+
+### 2.5 — SFTP
+
+Ein Schlüssel auf 140. Das Paar von Punkt 11 liegt noch auf dem Mac:
+
+```
+pbcopy < ~/srvpanel-punkt11/gegen140.pub
+```
+
+Auf `/subscriptions/140/sftp` einfügen, Bezeichnung **Punkt 11 Gegenprobe**.
+
+### 2.6 — Cron
+
+Zwei Jobs auf `/subscriptions/140/cron`:
+
+| | Zeitplan | Befehl | wofür |
+|---|---|---|---|
+| A | `* * * * *` | `echo eins; date` | nach zwei Minuten hat er Läufe mit Ausgabe |
+| B | `0 3 * * *` | `exit 3` | die Zeile mit Rückgabewert ≠ 0 |
+
+**B einmal von Hand über „Läuft" auslösen** — sonst gibt es die fehlgeschlagene
+Zeile nicht. **Und die Ansicht „ohne Läufe" vorher aufnehmen**, gleich nach dem
+Anlegen von B: Danach ist sie nicht mehr herzustellen, ohne den Job zu löschen.
+
+Zuletzt **A auf inaktiv** stellen, damit die Liste beide Zustände nebeneinander
+zeigt.
+
+### 2.7 — Zwei Blicke vor dem Start
+
+- **Der Platz.** Die Übersicht des Abonnements zeigt die Belegung. 3 MiB müssen
+  hineinpassen; ist das Kontingent knapp, schlägt das Hochladen fehl und sieht
+  aus wie ein Fehler des Dateimanagers.
+- **Abonnement 137.** Für Punkt 12 ist dort das Kontingent auf 64 MB gesetzt und
+  mit Fülldaten bis auf 128 KB ausgereizt worden (`docs/62`). Die Grenze ist
+  danach zurückgestellt; ob die Fülldaten noch liegen, ist nicht festgehalten.
+  137 wird hier nur auf den drei Auswahlseiten sichtbar und nirgends
+  beschrieben — es schadet also nicht, gehört aber gesehen, bevor es als Befund
+  gemeldet wird.
 
 ---
 

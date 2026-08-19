@@ -501,6 +501,17 @@ Und die Falle aus `docs/59`, die vier Aufnahmen überlebt hat:
 - **Die Läufe-Seite braucht Läufe.** Ein Job im Minutentakt liefert sie nach
   zwei Minuten; vorher zeigt sie ihren leeren Zustand, und der ist ein eigenes
   Bild und kein Ersatz.
+- **`thema` ist eine Abschrift und keine Prüfung.** Das Feld liest
+  `data-theme` wörtlich; die gültigen Werte sind `light` und `dark`. Steht dort
+  etwas anderes, greift keine Themeregel — und die Messung meldet den falschen
+  Wert brav zurück, als hätte sie ihn festgestellt. Am 19. August im
+  Prüfaufbau des Containers genau so passiert: eine helle Seite mit dem Etikett
+  „dunkel".
+
+  > **Ein Feld, das die Lage aus dem Dokument abschreibt, bestätigt die Lage
+  > nicht — es wiederholt sie.**
+
+  Im Browser schaltet `window.srvpanelTheme('light' | 'dark')`.
 - **Gemessen wird in einem Fenster ohne Erweiterungen.** Eine Erweiterung
   schreibt in *jedes* Dokument, und was sie hineinschreibt, misst diese Messung
   mit. In diesem Lauf war es LastPass: eine verborgene Meldezeile

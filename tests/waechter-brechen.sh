@@ -9172,6 +9172,60 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimerRearmTest passed
 
 echo
+echo "── CronScheduleFormTest: der Ausdruck wird ein eigener Wert ──"
+#
+# Wunsch 1 aus docs/64: Die Expertenansicht gibt es nur, weil sie zurückschreibt.
+# Ein eigenes Feld daneben wäre eine zweite Fassung desselben Zeitplans.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("  active: true,\n})", "  active: true,\n  expression: '',\n})", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Ausdruck als eigener Wert" &&
+pruefe "Ausdruck als eigener Wert" \
+  CronScheduleFormTest::test_the_free_expression_is_a_view_on_the_five_fields failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronScheduleFormTest passed
+
+echo
+echo "── CronScheduleFormTest: der Setzer lässt ein Feld aus ──"
+#
+# Ein Feld, das beim Umschalten seinen alten Wert behält, macht aus dem
+# Ausdruck im Feld eine Behauptung über etwas anderes als das Gespeicherte.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("    form.month = teile[3] ?? ''\n", '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Setzer ohne Monat" &&
+pruefe "Setzer ohne Monat" \
+  CronScheduleFormTest::test_the_free_expression_is_a_view_on_the_five_fields failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronScheduleFormTest passed
+
+echo
+echo "── CronScheduleFormTest: der Ausdruck ist keine berechnete Sicht mehr ──"
+#
+# Ohne `computed` mit Setzer ist er ein gespeicherter Wert, und die fünf Felder
+# erfahren von einer Eingabe nichts.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('const freierAusdruck = computed({', 'const freierAusdruck = ref({', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Ausdruck ohne Sicht" &&
+pruefe "Ausdruck ohne Sicht" \
+  CronScheduleFormTest::test_the_free_expression_is_a_view_on_the_five_fields failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronScheduleFormTest passed
+
+echo
 echo "── OverflowProbeTest: der Prüfkörper bekommt wieder eine feste Breite ──"
 #
 # Befund 22 aus docs/59: Ein Block von 900px schlägt bei 390px aus und bei

@@ -15572,3 +15572,62 @@ zu nennen; die fünf Zeilen standen zwischen sechshundert anderen.
 > **Eine Zahl, die nicht sagt, welche, zwingt zum Suchen.**
 
 Der Lauf schreibt die Namen jetzt am Ende noch einmal untereinander.
+
+### Der Zeitplan lässt sich als Ausdruck eingeben — und bleibt eine Wahrheit
+
+Bestellt vom Betreiber am 19. August 2026 beim Ansehen von Ansicht 8 der
+Bilderrunde (`docs/64`, Wunsch 1): neben den fünf getrennten Feldern eine Eingabe
+des ganzen Ausdrucks, mit einem Schalter dazwischen.
+
+**Die Bedingung dafür war die erste Frage, und sie ist beantwortet: Der Ausdruck
+schreibt in die fünf Felder zurück.** Er ist eine `computed`-Sicht mit Setzer und
+kein eigener Wert; das Formular schickt weiter genau `label`, `command`, die fünf
+Zeitplanfelder und `active`. Der Server bekommt kein neues Feld, `validated()`
+bleibt unverändert, und `Schedule::parse()` im Agenten bleibt die einzige Stelle,
+die über die Form eines Zeitplans urteilt.
+
+> **Eine Zusammenfügung darf doppelt stehen, eine Regel nicht.**
+
+Derselbe Grund, aus dem die Schnellwahl seit P6 die Felder füllt, statt sich zu
+merken, dass „täglich" gewählt wurde. Die Schnellwahl wirkt deshalb auch in der
+Expertenansicht: Sie setzt die fünf Felder, und der Ausdruck ist eine Sicht auf
+genau die.
+
+**Was bei zu wenigen oder zu vielen Stücken passiert, ist Absicht.** Fehlende
+Felder werden leer, überzählige landen im letzten — und beides weist der Server
+ab, mit dem Satz, den er auch sonst schreibt. Im Browser zu urteilen hiesse, die
+Regel zweimal zu führen, und der Kunde bekäme je nach Weg eine andere Antwort.
+
+> **Eine Eingabe, die stillschweigend etwas wegwirft, macht aus einem Fehler des
+> Benutzers ein Rätsel.**
+
+**Ein Kästchen und kein neuer Baustein.** Ein Umschalter mit zwei beschrifteten
+Hälften wäre eine neue Klasse in `app.css`, eine neue Regel und ein neuer Wächter
+— für einen Zustand, der zwei Werte hat. `.toggle` steht auf dieser Seite schon,
+seine Geometrie ist bei 390 px gemessen, und ein Kästchen *ist* ein Schalter
+zwischen zwei Zuständen.
+
+In der Expertenansicht gibt es die fünf Felder nicht, also kann keines von ihnen
+rot werden. Das eine Feld trägt `aria-invalid`, sobald der Server an
+irgendeinem der fünf etwas auszusetzen hatte; der Satz dazu steht wie überall
+oben in der Zusammenfassung (`docs/19 §6`).
+
+`CronScheduleFormTest::test_the_free_expression_is_a_view_on_the_five_fields`
+hält beide Hälften fest: dass das Formular kein sechstes Feld schickt, und dass
+der Setzer **jedes** der fünf schreibt. Liesse er eines aus, behielte es beim
+Umschalten seinen alten Wert, und der Ausdruck im Feld sagte etwas anderes als
+das Gespeicherte. Drei Brüche dazu im Bruchskript, alle drei gegengeprüft.
+
+**Gemessen im Container gegen echtes Chromium**, echtes Markup und gebautes
+Stylesheet, in der Dichtestufe `customer` bei 390 px: `dokument 0`, Gegenprobe
+`200/200`, `schiebt` leer — in beiden Themes. Auf `cloudsrv24` steht die Messung
+noch aus; sie gehört in die zweite Runde der Bilder, die ohnehin fällig ist.
+
+**Und die Messung dazu hat sich beim ersten Anlauf selbst hereingelegt.** Der
+Prüfaufbau setzte `data-theme="dunkel"` — die Werte heissen `light` und `dark`,
+und keine Regel griff. `bilderMessen()` meldete trotzdem brav `"thema":"dunkel"`,
+weil es das Attribut abschreibt: eine helle Seite mit dem Etikett „dunkel", und
+die Zeile sah aus wie eine Messung.
+
+> **Ein Feld, das die Lage aus dem Dokument abschreibt, bestätigt die Lage nicht
+> — es wiederholt sie.**

@@ -118,6 +118,58 @@ final class CronScheduleFormTest extends TestCase
     }
 
     /**
+     * Der freie Ausdruck ist eine Sicht auf die fünf Felder und kein zweiter Wert.
+     *
+     * **Die Bedingung, unter der es die Expertenansicht überhaupt gibt.** Der
+     * Betreiber hat sie am 19. August 2026 bestellt (`docs/64`, Wunsch 1), und
+     * die erste Frage davor war, ob der Umschalter zurückschreibt. Täte er es
+     * nicht, hätte die Seite zwei Wahrheiten über denselben Zeitplan — und die
+     * zweite ist die, die veraltet. Derselbe Grund, aus dem die Schnellwahl die
+     * Felder füllt, statt sich zu merken, dass „täglich" gewählt wurde.
+     *
+     * > **Eine Zusammenfügung darf doppelt stehen, eine Regel nicht.**
+     *
+     * Geprüft wird beides, was dafür stimmen muss: Das Formular schickt kein
+     * sechstes Feld, und der Setzer schreibt **jedes** der fünf. Schriebe er
+     * eines nicht, behielte es beim Umschalten seinen alten Wert — und der
+     * Ausdruck im Feld sagte etwas anderes als das, was gespeichert wird.
+     */
+    public function test_the_free_expression_is_a_view_on_the_five_fields(): void
+    {
+        $quelle = $this->source();
+
+        $this->assertSame(
+            array_merge(['label', 'command'], Schedule::FIELDS, ['active']),
+            $this->formKeys(),
+            'Das Formular schickt andere Felder als die fünf des Zeitplans plus Beschriftung, '.
+            'Befehl und Zustand. Ein eigener Wert für den Ausdruck waere eine zweite Fassung '.
+            'desselben Zeitplans.',
+        );
+
+        $this->assertSame(
+            1,
+            preg_match('/const freierAusdruck = computed\(\{(.+?)\n\}\)/s', $quelle, $block),
+            'Den freien Ausdruck gibt es nicht mehr als berechnete Sicht — dann ist er ein Wert.',
+        );
+
+        $setzer = (string) strstr($block[1], 'set:');
+
+        $this->assertNotSame('', $setzer, 'Der freie Ausdruck schreibt nichts zurück.');
+
+        foreach (Schedule::FIELDS as $feld) {
+            $this->assertMatchesRegularExpression(
+                '/form\.'.preg_quote($feld, '/').'\s*=/',
+                $setzer,
+                sprintf(
+                    'Der Setzer schreibt „%s" nicht. Beim Umschalten behielte das Feld seinen '.
+                    'alten Wert, und der Ausdruck sagte etwas anderes als das Gespeicherte.',
+                    $feld,
+                ),
+            );
+        }
+    }
+
+    /**
      * Im Browser wird nicht übersetzt.
      *
      * Der Gegenprobe-Teil der Regel aus dem Klassenkopf: Fände sich hier eine
@@ -145,6 +197,22 @@ final class CronScheduleFormTest extends TestCase
                 self::PAGE,
             ));
         }
+    }
+
+    /**
+     * Die Felder, die das Formular an den Server schickt — aus `useForm`.
+     *
+     * @return list<string>
+     */
+    private function formKeys(): array
+    {
+        if (preg_match('/const form = useForm\(\{(.+?)\n\}\)/s', $this->source(), $block) !== 1) {
+            return [];
+        }
+
+        preg_match_all('/^\s{2}(\w+):/m', $block[1], $treffer);
+
+        return $treffer[1];
     }
 
     /**

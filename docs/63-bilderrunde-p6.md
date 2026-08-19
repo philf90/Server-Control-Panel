@@ -5,9 +5,9 @@ Ansicht: Schiebt die Seite bei 390 px aus dem Bild, und sieht sie in beiden
 Themes so aus, wie sie gemeint ist?
 
 Dieses Dokument ist die Vorschrift. Das Protokoll entsteht **während** des
-Laufs und nicht danach; es bekommt die nächste freie Nummer unter `docs/`,
-sobald der erste Punkt gemessen ist. Vorher steht hier keine — ein Verweis auf
-ein Dokument, das es nicht gibt, ist ein toter Verweis, und `DocLinkTest`
+Laufs und nicht danach; es ist `docs/64` und angelegt worden, als die ersten
+beiden Ansichten gemessen waren. Vorher stand hier keine Nummer — ein Verweis
+auf ein Dokument, das es nicht gibt, ist ein toter Verweis, und `DocLinkTest`
 besteht zu Recht darauf.
 
 > **Schritt 12 wird nicht abgehakt, wenn er gerade nicht geht.** `docs/49 §6`
@@ -385,10 +385,19 @@ oder Grau —, kommt er zusätzlich im zweiten Theme dazu.
 
 ## 4. Der Ablauf je Aufnahme
 
-1. Adresse aufrufen, **neu laden** (⌘R) — nach einer Inertia-Navigation trägt
-   die Seite Zustand aus der vorigen.
-2. Breite einstellen. In den Entwicklerwerkzeugen die Geräteansicht auf
-   **390 × 844** und **1440 × 900**.
+1. Breite einstellen. In den Entwicklerwerkzeugen die Geräteansicht auf
+   **390 × 844** oder **1440 × 900**.
+2. Adresse aufrufen und **neu laden** (⌘R) — **nach jedem Wechsel der Breite,
+   nicht nur einmal je Ansicht.**
+
+   Am 19. August gemessen: Dieselbe Seite bei 1440 meldet nach einem Wechsel
+   von 390 einen Überlauf von 468 px in einem Element, den sie frisch geladen
+   nicht hat. Was davon übrig bleibt, ist nicht geklärt — geklärt ist, dass es
+   übrig bleibt.
+
+   > **Eine Messung nach einem Wechsel der Breite misst auch, was von vorher
+   > übrig ist.**
+
 3. `bilderMessen()` in der Konsole, Ergebnis notieren.
 4. Bild aufnehmen — **die ganze Seite**, nicht nur den sichtbaren Ausschnitt.
 5. Thema umschalten und ab 3 wiederholen:
@@ -406,11 +415,22 @@ mit; das ist kein grosser Unterschied und war schon zweimal genau der.
 
 ## 5. Was ein Fund ist
 
-- `dokument` grösser als 0 — die Seite schiebt.
-- ein Eintrag in `schiebt` — irgendetwas läuft über, ohne rollen zu dürfen.
+- `dokument` grösser als 0 — die Seite schiebt. **Das ist das Kriterium.**
 - `gegenprobe.ausschlag` ungleich `erwartet` — **dann ist die ganze Zeile
   ungültig** und wird nicht als Messung notiert.
 - **und alles, was auf dem Bild falsch aussieht, ohne eine Zahl zu erzeugen.**
+
+**`schiebt` ist ein Hinweis und kein Urteil.** Der erste Entwurf zählte jeden
+Eintrag als Fund; die erste Messung hat gezeigt, dass das nicht trägt. Bei
+390 px steht dort regelmässig `thead` mit rund 350 px — das ist `.stacks thead`
+aus `app.css`, absichtlich mit `position: absolute; width: 1px; overflow:
+hidden; clip-path: inset(50%)` aus dem Bild genommen, damit der Screenreader die
+Spaltenüberschriften behält. Ein Mechanismus, kein Fehler.
+
+> **Eine Liste, die auch das Gewollte nennt, ist ein Hinweis und kein Urteil.**
+
+Jeder Eintrag wird deshalb einzeln beurteilt und im Protokoll benannt: gewollt
+oder Fund. Ungeprüft stehen lassen gilt nicht — dann wäre die Spalte Zierde.
 
 Der letzte Punkt ist der wichtigste und hat in P5c zwei Fehler gebracht, die
 vollständig grün waren:

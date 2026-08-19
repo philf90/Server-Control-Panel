@@ -649,7 +649,18 @@ Schritt 11 und damit das Abnahmekriterium der ganzen Stufe.
 
 Und **`63` die Bilderrunde** — Schritt 12: die neun Ansichten, ihre Zustände,
 das Messmittel mit seiner Gegenprobe und die Fallen, die diesen Lauf schon
-gekostet haben.
+gekostet haben — mit **`64`** als Protokoll dazu, angelegt am 19. August nach
+den ersten beiden Ansichten.
+
+**Und die erste Messung hat zwei Fehler in dieser Vorschrift gefunden**, beide
+am Prüfmittel: `schiebt` war als Kriterium gedacht und meldet bei jeder Tabelle
+das gewollte `.stacks thead` (`Eine Liste, die auch das Gewollte nennt, ist ein
+Hinweis und kein Urteil`), und eine Messung nach einem Breitenwechsel **ohne
+Neuladen** trägt Reste mit — derselbe Überlauf von 468 px bei 390 und 1440, den
+dieselbe Seite frisch geladen nicht hat.
+
+> **Eine Messung nach einem Wechsel der Breite misst auch, was von vorher übrig
+> ist.**
 
 **Und die Vorbereitung dieses Schritts hat zwei Fehler gefunden, die kein Test
 finden konnte, weil es keinen gab** (19. August 2026, gemeldet vom Betreiber:

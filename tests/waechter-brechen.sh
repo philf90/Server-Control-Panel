@@ -12089,6 +12089,81 @@ pruefe "  … zurückgesetzt wieder grün" \
   AttributeNameTest::test_every_name_belongs_to_a_field passed
 
 echo
+echo "── ActionIconTest: ein Knopf verliert sein Wort ──"
+#
+# Die Form, nach der der Betreiber gefragt hat und die zwoelf Pixel billiger
+# waere: nur Zeichen. NavIcon.vue schreibt in seinem eigenen Kopf, dass sie
+# keine Bedeutung allein tragen.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<ActionIcon name="search" />\n        <span>Suchen</span>'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<ActionIcon name="search" />', 1))
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Knopf ohne Wort" &&
+pruefe "Knopf ohne Wort" ActionIconTest::test_every_icon_has_a_word_beside_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActionIconTest::test_every_icon_has_a_word_beside_it passed
+
+echo
+echo "── ActionIconTest: ein Name ohne Zeichnung ──"
+#
+# Die Komponente zeichnet dann nichts — kein Fehler, keine Meldung, nur ein
+# Knopf ohne sein Zeichen.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<ActionIcon name="upload" />'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<ActionIcon name="uploads" />', 1))
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Name ohne Zeichnung" &&
+pruefe "Name ohne Zeichnung" ActionIconTest::test_every_requested_icon_is_drawn failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActionIconTest::test_every_requested_icon_is_drawn passed
+
+echo
+echo "── ActionIconTest: zwei Strichstaerken in einem Satz ──"
+#
+# Gemischte Zeichnungen sehen nebeneinander nach zwei Saetzen aus, und der Blick
+# liest daraus eine Bedeutung, die es nicht gibt.
+vorher_datei resources/js/Components/ActionIcon.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/ActionIcon.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'stroke-width="1.6"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'stroke-width="2"', 1))
+PY2
+griff_datei resources/js/Components/ActionIcon.vue "zwei Strichstaerken" &&
+pruefe "zwei Strichstaerken" ActionIconTest::test_the_icons_are_one_set failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActionIconTest::test_the_icons_are_one_set passed
+
+echo
+echo "── ActionIconTest: das Verb faellt aus dem zugaenglichen Namen ──"
+#
+# `display: none` nimmt es auch der Vorlesesoftware. Der Knopf hiesse dann
+# „Verzeichnis" statt „Verzeichnis anlegen" — also genau das Halbe, das
+# sichtbar dasteht.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = "  .page-head .verb {\n    position: absolute;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "  .page-head .verb {\n    display: none;\n    position: absolute;"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/css/app.css "Verb ohne Namen" &&
+pruefe "Verb ohne Namen" ActionIconTest::test_the_hidden_verb_still_has_a_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActionIconTest::test_the_hidden_verb_still_has_a_name passed
+
+echo
 echo "── FileSearchTest: die Trefferseite schickt weniger als die Leiste ──"
 #
 # Genau der Fund, der diesen Waechter ausgeloest hat — nur andersherum: Bis zum

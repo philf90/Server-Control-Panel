@@ -3369,3 +3369,114 @@ machte ein Kommentar den Wächter grün, hier rot.
   dass jeder sie fragen wird, sobald die Leiste da ist; das ist eine Vermutung
   und bleibt eine, bis jemand fragt.
 
+---
+
+## 12. Gebaut — die Kopfleiste des Dateimanagers auf dem Telefon
+
+**Gemeldet vom Betreiber am 20. August 2026**, mit einem Bild von `cloudsrv24`:
+Die vier Knöpfe stehen bei 390 px gestapelt und nehmen **225 px** ein — vier
+Zeilen, bevor eine einzige Datei zu sehen ist. Die Frage war, ob sich daraus
+Zeichen nebeneinander machen lassen.
+
+### 12.1 Sechs Formen, gemessen
+
+Echtes Markup, gebautes Stylesheet, 390 px, nur der Seitenkopf. `dokument` in
+allen Fällen 0, Gegenprobe 200/200.
+
+| Form | Höhe | Zeilen | |
+|---|---|---|---|
+| heute, gestapelt | 225 px | 4 | |
+| nur umbrechen, gleiche Wörter | 215 px | 3 | −10 |
+| Zeichen **neben** dem Wort | 215 px | 3 | −10 |
+| ein Wort je Knopf, umbrechend | 161 px | 2 | −64 |
+| **Zeichen über dem Wort** | **119 px** | **1** | **−106** |
+| nur Zeichen | 107 px | 1 | −118 |
+
+Zwei Zahlen tragen die Entscheidung.
+
+> **Ein Zeichen, das neben seinem Wort steht, kostet die Breite des Wortes noch
+> einmal. Erst über dem Wort kostet es nichts.**
+
+Und die Form, nach der gefragt war — reine Zeichen — spart **zwölf Pixel** mehr
+und kostet die Beschriftung. Das schliesst eine Regel aus, die dieses Projekt
+zweimal aufgeschrieben hat: `NavIcon.vue` in seinem eigenen Kopf („Sie tragen
+keine Bedeutung allein … WCAG 1.1.1") und der Befund des Betreibers vom
+7. August an der Domainauswahl. Entschieden hat der Betreiber gegen die zwölf
+Pixel.
+
+### 12.2 Was gebaut ist
+
+`ActionIcon.vue` ist ein **zweiter geschlossener Satz** neben `NavIcon` — vier
+Zeichnungen, dasselbe 24er-Raster, dieselbe Strichstärke, keine Fläche. Er ist
+nicht Teil von `NavIcon`, weil `NavIconTest` dessen Satz eins zu eins gegen die
+Menüpunkte hält; eine Zeichnung für einen Knopf wäre dort eine Waise.
+
+Das **Plus** in den beiden Anlegen-Zeichnungen trägt das Verb mit. Sichtbar
+steht auf der schmalen Fläche nur das Objekt („Verzeichnis", „Datei"); der Rest
+des Satzes steht als `.verb` daneben und ist **nicht** `display: none` —
+
+> **Ein Wort, das man aus dem Bild nimmt, nimmt man auch aus dem Namen, wenn man
+> `display: none` dafür benutzt.**
+
+— sondern aus dem Bild geklippt. Der Knopf heisst damit überall „Verzeichnis
+anlegen", und WCAG 2.5.3 ist erfüllt, weil der sichtbare Text darin vorkommt.
+
+### 12.3 Zwei Fehler beim Bauen, beide von der Messung gefunden
+
+**Die Schwelle stand zuerst auf 480 px** — dort, wo `.button-row` ohnehin
+stapelt. Gemessen ergab das eine Kante: **480 px → 120 px, 481 px → 215 px.**
+Über der Schwelle kommen die vollen Wörter zurück, und die passen erst ab rund
+690 px Inhaltsbreite in eine Zeile.
+
+> **Eine Schwelle, hinter der es schlechter wird als davor, steht an der
+> falschen Stelle.**
+
+Sie steht jetzt auf 720 px — dem Haltepunkt, den dieses Stylesheet ohnehin führt.
+
+**Und der Suchknopf wechselte sein Wort.** „Zuklappen", solange die Leiste offen
+ist — dieselbe Form wie „Aktionen zuklappen" in der Tabelle darunter. In einer
+Reihe aus vier Knöpfen, die gerade eben passt, kostet das eine Zeile: Der
+Seitenkopf sprang beim Öffnen von 120 px auf **188 px**.
+
+> **Ein Wort, das sich ändert, ändert auch die Breite — in einer Reihe, die
+> gerade eben passt, ist das eine Zeile.**
+
+Er ist ausserdem der einzige der vier Griffe, der sein Wort wechseln würde;
+„Verzeichnis anlegen" tut es auch nicht. Den Zustand trägt `aria-expanded`.
+
+### 12.4 Das Band, in dem es gilt
+
+| Fenster | Kopfhöhe | Zeilen |
+|---|---|---|
+| 320 px | 188 px | 2 |
+| 360 px | 188 px | 2 |
+| **375 px** | **120 px** | **1** |
+| 390–720 px | 120 px | 1 |
+| über 720 px | unverändert | |
+
+Unter 375 px bricht die Reihe in zwei — immer noch 37 px besser als heute, und
+ohne Überlauf. Über 720 px ändert sich **nichts**: Alle neuen Regeln stehen in
+`@media (max-width: 720px)`, ausser der einen, die das Zeichen dort ausblendet.
+
+### 12.5 Was ein bestehender Wächter dabei gemeldet hat
+
+`FileCreationTest` suchte „Datei anlegen" im Quelltext und fand es nicht mehr —
+dort steht jetzt `Datei<span class="verb"> anlegen</span>`. Der Knopf ist
+unverändert da; nur seine Auszeichnung war neu.
+
+> **Ein Wächter, der eine Schreibweise liest, verliert das Feld beim Umschreiben
+> — nicht beim Löschen.**
+
+Derselbe Satz wie bei `AttributeNameTest` am selben Tag. Er liest jetzt, was der
+Leser sieht, statt was im Markup steht.
+
+### 12.6 Was offen bleibt
+
+- **Der Blick auf die echte Seite**, zusammen mit dem Herunterladen aus Wunsch 2
+  und der Suchleiste aus Wunsch 3.
+- **Unter 375 px** stehen zwei Zeilen. Ob das jemanden betrifft, ist eine Frage
+  an die Wirklichkeit und keine an das Stylesheet.
+- Die anderen Seiten dieses Panels haben dieselben gestapelten Knopfreihen. Ob
+  die Form dort auch trägt, ist **nicht gemessen** — sie hat hier vier Knöpfe
+  mit kurzen Objekten, und das ist nicht überall so.
+

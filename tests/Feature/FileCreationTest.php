@@ -30,11 +30,29 @@ use PHPUnit\Framework\TestCase;
  */
 final class FileCreationTest extends TestCase
 {
+    /**
+     * Die Dateiliste — ohne die Marken, die ihre Beschriftungen zerschneiden.
+     *
+     * **Warum das nötig wurde.** Seit dem 20. August steht auf der schmalen
+     * Fläche nur das Objekt auf dem Knopf und das Verb in einem `<span
+     * class="verb">` daneben — sichtbar erst ab 720 px, für die Vorlesesoftware
+     * immer (`docs/64 §12`). Im Quelltext steht damit
+     * `Datei<span class="verb"> anlegen</span>`, und die Suche nach „Datei
+     * anlegen" ging ins Leere, obwohl der Knopf unverändert dasteht.
+     *
+     * > **Ein Wächter, der eine Schreibweise liest, verliert das Feld beim
+     * > Umschreiben — nicht beim Löschen.**
+     *
+     * Gefragt ist hier die **Beschriftung**, nicht ihre Auszeichnung; also wird
+     * gelesen, was der Leser sieht.
+     */
     private function listing(): string
     {
-        return (string) file_get_contents(
+        $quelle = (string) file_get_contents(
             dirname(__DIR__, 2).'/resources/js/Pages/Files/Index.vue',
         );
+
+        return (string) preg_replace('/<\/?span[^>]*>/', '', $quelle);
     }
 
     private function controller(): string

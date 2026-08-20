@@ -3,6 +3,7 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3'
 import { computed, nextTick, ref, watch } from 'vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import FormErrors from '../../Components/FormErrors.vue'
+import ActionIcon from '../../Components/ActionIcon.vue'
 import FileTree from '../../Components/FileTree.vue'
 import PermissionEditor from '../../Components/PermissionEditor.vue'
 import { counted } from '../../Composables/useCounted'
@@ -390,10 +391,21 @@ const inContent = ref(false)
 /*
  * Nur für die schmale Fläche: dort öffnet ein Knopf die Leiste.
  *
- * **Ein „Abbrechen" gibt es nicht mehr.** Der Knopf schaltet in beide
- * Richtungen und sagt, in welcher — dieselbe Form wie „Aktionen zuklappen" in
- * der Tabelle darunter. Ein zweiter Knopf im Formular wäre ein zweiter Weg
- * zurück für einen Zustand, den es auf der breiten Fläche gar nicht gibt.
+ * **Sein Wort wechselt nicht, und das ist gemessen.** Der erste Anlauf schrieb
+ * „Zuklappen", solange die Leiste offen ist — dieselbe Form wie „Aktionen
+ * zuklappen" in der Tabelle darunter. In der Kopfleiste kostet das eine Zeile:
+ * Das längere Wort sprengt die Reihe aus vier Knöpfen, und der Seitenkopf
+ * sprang beim Öffnen von 120 px auf 188 px (`docs/64 §12`).
+ *
+ * Es ist ausserdem der einzige der vier Griffe, der sein Wort wechseln würde —
+ * „Verzeichnis anlegen" tut es auch nicht. Den Zustand trägt `aria-expanded`,
+ * und sichtbar ist er ohnehin: Die Leiste steht unmittelbar darunter.
+ *
+ * > **Ein Wort, das sich ändert, ändert auch die Breite — in einer Reihe, die
+ * > gerade eben passt, ist das eine Zeile.**
+ *
+ * Ein „Abbrechen" im Formular gibt es nicht: Die drei Geschwister in dieser
+ * Leiste haben auch keines, und sie schliessen sich über denselben Knopf.
  */
 function startSearch(): void {
   searchOpen.value = !searchOpen.value
@@ -674,15 +686,32 @@ function pick(target: string): void {
       umbrechende Zeile und nicht im Seitentitel.
     -->
     <template #actions>
+      <!--
+        **Unter 480 px steht das Zeichen über dem Wort, und das Verb geht in
+        die Zeichnung.** Gestapelt sind diese vier Knöpfe dort 225 px hoch —
+        vier Zeilen, bevor eine einzige Datei zu sehen ist. Als eine Reihe mit
+        Zeichen sind es 119 px (`docs/64 §12`).
+
+        Das Verb steht als `.verb` weiter im Markup: Ab 480 px ist es sichtbar,
+        darunter liest es nur die Vorlesesoftware — der Knopf heisst also
+        überall „Verzeichnis anlegen". Reine Zeichen hätten zwölf Pixel mehr
+        gespart und wären ein Regelbruch gewesen:
+
+        > **Sie tragen keine Bedeutung allein.** (`NavIcon.vue`, und der Befund
+        > des Betreibers vom 7. August an der Domainauswahl.)
+      -->
       <div v-if="props.can.edit" class="button-row">
         <button type="button" class="button" @click="open_ = open_ === 'directory' ? null : 'directory'">
-          Verzeichnis anlegen
+          <ActionIcon name="directory" />
+          <span>Verzeichnis<span class="verb"> anlegen</span></span>
         </button>
         <button type="button" class="button" @click="open_ = open_ === 'file' ? null : 'file'">
-          Datei anlegen
+          <ActionIcon name="file" />
+          <span>Datei<span class="verb"> anlegen</span></span>
         </button>
         <button type="button" class="button primary" @click="open_ = open_ === 'upload' ? null : 'upload'">
-          Datei hochladen
+          <ActionIcon name="upload" />
+          <span><span class="verb">Datei </span>Hochladen</span>
         </button>
       </div>
       <!--
@@ -697,7 +726,8 @@ function pick(target: string): void {
         aria-controls="dateisuche"
         @click="startSearch"
       >
-        {{ searchOpen ? 'Suche zuklappen' : 'Suchen' }}
+        <ActionIcon name="search" />
+        <span>Suchen</span>
       </button>
     </template>
 

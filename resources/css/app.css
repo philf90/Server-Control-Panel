@@ -2911,6 +2911,80 @@ p:not([class]) {
   }
 }
 
+@media (max-width: 720px) {
+  /*
+   * **Die Kopfleiste des Dateimanagers stapelt auch nicht — sie steht als eine
+   * Reihe, Zeichen über Wort.**
+   *
+   * Der Grund für das Stapeln steht oben und gilt weiter: Drei gleich breite
+   * Knöpfe **nebeneinander** lassen bei 390 px vom dritten drei Buchstaben
+   * übrig. Er gilt für Knöpfe, deren Wort in einer Zeile stehen muss. Hier
+   * steht es unter dem Zeichen, und damit braucht ein Knopf nur die Breite
+   * seines längsten Wortes.
+   *
+   * Gemessen am 20. August bei 390 px, Höhe des Seitenkopfs (`docs/64 §12`):
+   *
+   *   heute, gestapelt                       225px   vier Zeilen
+   *   umbrechen, gleiche Wörter              215px   drei Zeilen
+   *   Zeichen **neben** dem Wort             215px   drei Zeilen
+   *   ein Wort je Knopf, umbrechend          161px   zwei Zeilen
+   *   Zeichen **über** dem Wort              119px   eine Zeile
+   *   nur Zeichen                            107px   eine Zeile
+   *
+   * Zwei Zahlen daraus tragen die Entscheidung. **Ein Zeichen neben dem Wort
+   * spart nichts** — es frisst genau, was das kürzere Wort einbringt. Und
+   * **reine Zeichen sparen zwölf Pixel mehr** und kosten die Beschriftung; das
+   * ist der Tausch, den `NavIcon.vue` und der Befund vom 7. August ausschliessen.
+   *
+   * > **Ein Zeichen, das neben seinem Wort steht, kostet die Breite des Wortes
+   * > noch einmal. Erst über dem Wort kostet es nichts.**
+   */
+  .page-head > .button-row {
+    /*
+     * Die ganze Zeile statt der rechten Hälfte. `.page-head` verteilt mit
+     * `space-between`, und die Knopfreihe stand damit neben dem Titelblock in
+     * einer Spalte von rund 180 px — daher die vier Zeilen.
+     */
+    flex-basis: 100%;
+  }
+
+  .page-head .button-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .page-head .button-row .button {
+    /*
+     * `flex: 1 1 0` und nicht `auto`: Vier gleich breite Knöpfe lesen sich als
+     * eine Leiste, vier verschieden breite als vier Einzelstücke.
+     */
+    flex: 1 1 0;
+    width: auto;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 6px;
+    font-size: var(--text-small);
+  }
+
+  /*
+   * Das Verb bleibt im Dokument und verlässt nur das Bild.
+   *
+   * **Nicht `display: none`.** Das nähme es auch aus dem zugänglichen Namen,
+   * und der Knopf hiesse für die Vorlesesoftware „Verzeichnis" — also genau das
+   * Halbe, das hier sichtbar steht. So heisst er überall „Verzeichnis anlegen",
+   * und WCAG 2.5.3 ist erfüllt, weil der sichtbare Text darin vorkommt.
+   */
+  .page-head .verb {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
 @media (max-width: 480px) {
   .button-row {
     flex-direction: column;
@@ -3168,6 +3242,23 @@ p:not([class]) {
  * zugleich greifen — bei `max-width: 720px` neben `min-width: 720px` wäre das
  * genau 720 px, und dort stünde weder Leiste noch Knopf.
  */
+/*
+ * Die Zeichen der Kopfleiste stehen nur auf der schmalen Fläche.
+ *
+ * Ab 720 px hat das Wort Platz, und ein Zeichen daneben spart dort gemessen
+ * nichts (`docs/64 §12`). Es steht trotzdem im Markup: Zwei Fassungen der
+ * Knopfreihe wären zwei Stellen, an denen jemand einen Knopf vergisst.
+ */
+.action-icon {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .action-icon {
+    display: block;
+  }
+}
+
 /*
  * `.button.search-toggle` und nicht `.search-toggle`: `ButtonStyleTest` liest
  * die bekannten Knopfklassen aus diesem Stylesheet, statt sie aufzuzählen —

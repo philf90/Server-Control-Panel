@@ -16249,3 +16249,66 @@ den er noch nie gesehen hatte.
 
 Fünf neue Brüche im Bruchskript, alle von Hand gegengeprüft.
 
+### P6 — die Kopfleiste des Dateimanagers auf dem Telefon
+
+**Gemeldet vom Betreiber am 20. August 2026** mit einem Bild von `cloudsrv24`:
+Die vier Knöpfe stehen bei 390 px gestapelt und nehmen **225 px** ein — vier
+Zeilen, bevor eine einzige Datei zu sehen ist. Gefragt war, ob sich daraus
+Zeichen nebeneinander machen lassen.
+
+Sechs Formen gemessen. Das Ergebnis hat zwei Formen ausgeschlossen, die
+naheliegend aussahen:
+
+    heute, gestapelt                 225px   vier Zeilen
+    Zeichen **neben** dem Wort       215px   drei Zeilen
+    Zeichen **über** dem Wort        119px   eine Zeile
+    nur Zeichen                      107px   eine Zeile
+
+> **Ein Zeichen, das neben seinem Wort steht, kostet die Breite des Wortes noch
+> einmal. Erst über dem Wort kostet es nichts.**
+
+Reine Zeichen sparen zwölf Pixel mehr und kosten die Beschriftung — das
+schliesst eine Regel aus, die dieses Projekt zweimal aufgeschrieben hat
+(`NavIcon.vue` in seinem eigenen Kopf, und der Befund vom 7. August an der
+Domainauswahl). Gebaut ist deshalb **Zeichen über dem Wort**: eine Reihe,
+120 px statt 225.
+
+`ActionIcon.vue` ist ein zweiter geschlossener Satz neben `NavIcon` — vier
+Zeichnungen, dasselbe Raster, dieselbe Strichstärke. Er gehört nicht zu
+`NavIcon`, weil dessen Satz eins zu eins gegen die Menüpunkte gehalten wird.
+
+Auf der schmalen Fläche steht sichtbar nur das Objekt („Verzeichnis", „Datei");
+das Verb steht als `.verb` daneben und wird aus dem **Bild** genommen, nicht aus
+dem Dokument:
+
+> **Ein Wort, das man aus dem Bild nimmt, nimmt man auch aus dem Namen, wenn man
+> `display: none` dafür benutzt.**
+
+Der Knopf heisst damit überall „Verzeichnis anlegen".
+
+**Zwei Fehler beim Bauen, beide von der Messung gefunden.** Die Schwelle stand
+zuerst auf 480 px und erzeugte eine Kante — 480 px ergab 120 px, **481 px ergab
+215 px**, weil dort die vollen Wörter zurückkommen und erst ab rund 690 px in
+eine Zeile passen.
+
+> **Eine Schwelle, hinter der es schlechter wird als davor, steht an der
+> falschen Stelle.**
+
+Und der Suchknopf wechselte sein Wort auf „Zuklappen", was die Reihe in zwei
+Zeilen brach (120 px → 188 px).
+
+> **Ein Wort, das sich ändert, ändert auch die Breite — in einer Reihe, die
+> gerade eben passt, ist das eine Zeile.**
+
+Eine Reihe steht ab 375 px; darunter sind es zwei, immer noch 37 px besser als
+heute. Über 720 px ändert sich nichts.
+
+**Und `FileCreationTest` hat gemeldet, dass „Datei anlegen" fehlt** — dort steht
+jetzt `Datei<span class="verb"> anlegen</span>`. Der Knopf ist unverändert da;
+nur seine Auszeichnung war neu.
+
+> **Ein Wächter, der eine Schreibweise liest, verliert das Feld beim
+> Umschreiben — nicht beim Löschen.**
+
+Vier neue Brüche im Bruchskript, alle von Hand gegengeprüft.
+

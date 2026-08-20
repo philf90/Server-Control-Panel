@@ -1975,6 +1975,32 @@ mitgemessen worden und stehen dort: **„ohne Schlüssel"** (Ansicht 6),
 | Dateimanager — „Datei anlegen" offen | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
 | Dateimanager — „Datei hochladen" offen | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
 | Dateimanager — „Suchen" offen | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
+| Dateimanager — „Rechte" an einer Zeile | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
+| Dateimanager — „Umbenennen" an einer Zeile | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
+
+#### Befund 10 ist auf dem echten Server bestätigt
+
+Beide Formulare wurden von einer Zeile **weit unten** in der Liste geöffnet —
+das ist die Bedingung, unter der der Fehler auftrat, und ohne sie misst man eine
+Lage, die gar nicht scheitern kann.
+
+| Griff | `oben` | `unten` | Fenster | ganz im Bild |
+|---|---|---|---|---|
+| Rechte | **117** | 727 | 844 | **ja** |
+| Umbenennen | **307** | 536 | 844 | **ja** |
+
+Vor der Behebung öffnete sich der Bereich am Kopf der Seite, während der Griff
+weit unten sass — sichtbar war nichts, und es sah aus, als täte der Knopf nichts.
+`bringIntoView` holt ihn jetzt ins Bild, und zwar ganz: `oben` ist in beiden
+Fällen deutlich positiv, `unten` bleibt unter der Fensterhöhe.
+
+**Das ist die vierte Behebung dieser Runde mit einer Zahl statt eines
+Eindrucks** — nach 17 × 17 (Befund 1), 217 → 215 (Befund 6) und 0 statt −14
+(Befund 9).
+
+Die Formulare sind dabei unterschiedlich hoch: „Rechte" trägt neun Kästchen,
+ein Oktalfeld, zwei Vorlagenknöpfe und vier Sätze Erklärung und misst 610 px;
+„Umbenennen" hat ein Feld und zwei Knöpfe und misst 229. Beide passen.
 
 **Damit sind alle vier Formulare der Kopfleiste gemessen.** Drei stehen bei
 `476 – 602`, „Suchen" bei `476 – 656` — 54 px höher, weil es als einziges zwei

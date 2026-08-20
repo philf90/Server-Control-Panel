@@ -776,8 +776,42 @@ Richtungen prüft.
 > **Eine Behebung, die die Richtung nennt statt das Ziel, ist beim nächsten Fall
 > die Hälfte wert.**
 
-Damit stehen für Befund 10 vier Griffe fest — `startChmod`, `startRename`,
-`bearbeiten` — und `startPack` sowie die beiden Zielwahlen sind zu prüfen.
+Damit stehen für Befund 10 drei Griffe fest: `startChmod`, `startRename`,
+`bearbeiten`.
+
+### Behoben am 19. August
+
+Alle drei holen ihren Bereich jetzt ins Bild. `startPack` und die beiden
+Zielwahlen brauchen es **nicht**, und das ist kein Übersehen: Ihr Bereich ist
+die Auswahlleiste, in der der gedrückte Knopf selbst steht — sie ist damit
+immer im Bild, und `fullyVisible()` liesse den Aufruf ohnehin wirkungslos.
+
+**`RevealTest` erkennt den Fall am Argument.** Ein Griff, der einen Gegenstand
+mitbekommt, steht in einer Schleife und damit an einer Zeile; ein Umschalter der
+Seite kommt ohne Argument aus. Eine Näherung, keine Herleitung — sie trifft die
+drei bekannten Fälle und lässt die Umschalter in Ruhe.
+
+**Und sie hat neunzehn Griffe derselben Bauart in der Datenbankkonsole
+gefunden.** Keiner davon ist untersucht: Die Konsole gehört zu P5c, und ob ihre
+Bereiche bei 390 px ausserhalb des Bildes aufgehen, hat niemand gemessen. Sie
+stehen einzeln in `RevealTest::UNEXAMINED` — **als Zahl, die kleiner werden
+kann, und nicht als Befund.**
+
+> **Was man beim Beheben nebenbei findet, ist noch kein Fehler — aber es ist
+> auch keine Ruhe.**
+
+**Der zweite Fall des Wächters kam aus dem Beheben selbst:** `bringIntoView()`
+setzt am Ende den Fokus, und ohne `tabindex="-1"` nimmt ein `div`, `form` oder
+`section` ihn nicht an. Der Sprung geschieht, der Tastaturweg bleibt zu.
+
+> **Ein Aufruf, der stillschweigend nichts tut, sieht aus wie einer, der gewirkt
+> hat.**
+
+**Und der Wächter hat beim ersten Anlauf `FormErrors.vue` zu Unrecht gemeldet** —
+sein Ausdruck war `<[^>]*ref="block"[^>]*tabindex="-1"`, und das Tag dort beginnt
+mit `<p v-if="messages.length > 0"`.
+
+> **Ein Ausdruck, der bei `>` aufhört, hört mitten in einem Attribut auf.**
 
 ### Zum Kontingent: der Roller wächst mit dem längsten Wert, nicht mit der Zeilenzahl
 
@@ -1117,8 +1151,10 @@ meldete — die Sperrklinke hat den Wächter gegen sich selbst verteidigt.
 
 ## 3. Was offen ist
 
-- **Acht von elf Befunden am Panel** stehen offen. Behoben sind **11**
-  (`.quiet`, §2b) sowie **7 und 8** (Polsterung an `td`).
+- **Sieben von elf Befunden am Panel** stehen offen. Behoben sind **11**
+  (`.quiet`, §2b), **7 und 8** (Polsterung an `td`) und **10** (ins Bild holen).
+- **Neunzehn Griffe in der Datenbankkonsole**, gefunden beim Beheben von
+  Befund 10 und nicht untersucht. Sie stehen in `RevealTest::UNEXAMINED`.
 
   Sie fallen in **drei** Gruppen und drei Einzelfälle:
 
@@ -1126,7 +1162,7 @@ meldete — die Sperrklinke hat den Wächter gegen sich selbst verteidigt.
   |---|---|---|
   | fehlende Nachbarpaare | 2, 3, **4** (zwei Fundstellen) | ein Baustein, der bündig endet, bringt seinen Abstand selbst mit |
   | **behoben** | **7, 8** — `padding: 6px 14px` an `td` | über beide Dichtestufen gemessen |
-  | Wirkung ausserhalb des Bildes | **10** (zwei Fundstellen, beide Richtungen) | jeder Griff, der einen Bereich öffnet, holt ihn ins Bild |
+  | **behoben** | **10** (zwei Fundstellen, beide Richtungen) — `RevealTest` | jeder Griff, der einen Bereich öffnet, holt ihn ins Bild |
   | einzeln | 1 (Kästchen), 5 (Codestück), 6 (Dichtestufe), 9 (Ausrichtung) | — |
   | **behoben** | **11** (`.quiet`) — `StandaloneClassTest` | am 19. August, im Container nachgemessen |
 - **Die 27 px an `.stacks thead` der Cronseite** — vier Messungen, 484 · 511 ·

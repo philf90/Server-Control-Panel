@@ -9172,6 +9172,65 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimerRearmTest passed
 
 echo
+echo "── RevealTest: ein Griff an einer Zeile holt seinen Bereich nicht ins Bild ──"
+#
+# Befund 10 aus docs/64: „Rechte" an einer Zeile weit unten oeffnet einen
+# Bereich am Kopf der Seite. Bei 390px sieht man nichts geschehen.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    'watch(chmodFor, (offen) => {\n  if (offen !== null) {\n    void nextTick(() => bringIntoView(chmodBlock.value))\n  }\n})\n\n',
+    '',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Griff ohne Sprung" &&
+pruefe "Griff ohne Sprung" \
+  RevealTest::test_every_per_item_handle_reveals_its_block failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RevealTest passed
+
+echo
+echo "── RevealTest: der Bereich kann den Fokus nicht annehmen ──"
+#
+# `bringIntoView()` setzt am Ende den Fokus. Ohne `tabindex="-1"` tut das an
+# einer `section` nichts — die Seite springt, der Tastaturweg bleibt zu.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('<section ref="formBlock" class="section" tabindex="-1">', '<section ref="formBlock" class="section">', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Bereich ohne Fokus" &&
+pruefe "Bereich ohne Fokus" \
+  RevealTest::test_a_revealed_block_can_take_the_focus failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RevealTest passed
+
+echo
+echo "── RevealTest: ein veralteter Eintrag in der Liste der Ungeprüften ──"
+vorher_datei tests/Unit/RevealTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/RevealTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        'Pages/Databases/Console.vue toggle expanded',",
+    "        'Pages/Databases/Console.vue toggle expanded',\n        'Pages/Files/Index.vue gibtEsNicht wasAuchImmer',",
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Unit/RevealTest.php "veralteter Eintrag bei den Ungeprüften" &&
+pruefe "veralteter Eintrag bei den Ungeprüften" \
+  RevealTest::test_every_per_item_handle_reveals_its_block failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RevealTest passed
+
+echo
 echo "── TableStyleTest: die Zelle verliert ihre senkrechte Polsterung ──"
 #
 # Befunde 7 und 8 aus docs/64: Ohne sie kommt der senkrechte Rhythmus allein aus

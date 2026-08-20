@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3'
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import FormErrors from '../../Components/FormErrors.vue'
 import FileTree from '../../Components/FileTree.vue'
@@ -8,6 +8,7 @@ import PermissionEditor from '../../Components/PermissionEditor.vue'
 import { counted } from '../../Composables/useCounted'
 import { formatBytes } from '../../bytes'
 import { useConfirmation } from '../../Composables/useConfirmation'
+import { bringIntoView } from '../../scroll'
 
 const { ask } = useConfirmation()
 
@@ -259,6 +260,42 @@ function startChmod(entry: Entry): void {
     modeForm.mode = entry.mode & 0o777
   }
 }
+
+const chmodBlock = ref<HTMLElement | null>(null)
+const renameBlock = ref<HTMLElement | null>(null)
+
+/*
+ * **Ein Bereich, der aufgeht, holt sich ins Bild.**
+ *
+ * Beide Bereiche stehen am Kopf der Seite; gedrückt wird „Rechte" oder
+ * „Umbenennen" an einer Zeile weit unten. Bei 390px ist die Wirkung damit
+ * ausserhalb des Bildes, und der Betreiber hat genau das gemeldet (`docs/64`,
+ * Befund 10): *Man hat das Gefühl, es passiert nichts.*
+ *
+ * > **Ein Bedienelement, dessen Wirkung ausserhalb des Bildes erscheint, sieht
+ * > aus wie eines ohne Wirkung.**
+ *
+ * Die Behebung dafür liegt seit dem 15. August in diesem Repo — `scroll.ts`
+ * gibt es wegen desselben Vorgangs am Knopf „Entfernen". Sie war nur an eine
+ * einzige Stelle angeschlossen.
+ *
+ * > **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten
+ * > Merkmal wieder da, wenn die Behebung nicht die Regel wurde.**
+ *
+ * `bringIntoView` rollt nur, wenn der Block nicht ohnehin ganz zu sehen ist —
+ * auf einer breiten Fläche geschieht deshalb nichts.
+ */
+watch(chmodFor, (offen) => {
+  if (offen !== null) {
+    void nextTick(() => bringIntoView(chmodBlock.value))
+  }
+})
+
+watch(renameFor, (offen) => {
+  if (offen !== null) {
+    void nextTick(() => bringIntoView(renameBlock.value))
+  }
+})
 
 function submitChmod(): void {
   modeForm.post(`/subscriptions/${props.subscription.id}/files/chmod`, {
@@ -651,7 +688,7 @@ function pick(target: string): void {
       eine zweite Form. Der Name des Eintrags steht dabei, weil sonst nicht
       abzulesen wäre, wessen Rechte gerade offen sind.
     -->
-    <form v-if="chmodFor !== null" class="block" @submit.prevent="submitChmod">
+    <form v-if="chmodFor !== null" ref="chmodBlock" class="block" tabindex="-1" @submit.prevent="submitChmod">
       <p class="path-line">Rechte für {{ chmodFor.name }}</p>
 
       <PermissionEditor
@@ -671,7 +708,7 @@ function pick(target: string): void {
       bräuchte bei 390px eine zweite Form. Der alte Name steht daneben, weil
       sonst nicht abzulesen wäre, was gerade umbenannt wird.
     -->
-    <form v-if="renameFor !== null" class="block" @submit.prevent="submitRename">
+    <form v-if="renameFor !== null" ref="renameBlock" class="block" tabindex="-1" @submit.prevent="submitRename">
       <!--
         **Der alte Name steht in der Zeile darüber und nicht in der
         Beschriftung.** Dieselbe Form wie beim Rechte-Editor — und aus dem

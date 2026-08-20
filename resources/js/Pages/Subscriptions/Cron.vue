@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { Head, Link, router, useForm } from '@inertiajs/vue3'
 import { useConfirmation } from '../../Composables/useConfirmation'
 import FormErrors from '../../Components/FormErrors.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import { bringIntoView } from '../../scroll'
 
 interface Job {
   id: number
@@ -149,6 +150,30 @@ function bearbeiten(job: Job): void {
   Object.assign(form, job.schedule)
   form.clearErrors()
 }
+
+const formBlock = ref<HTMLElement | null>(null)
+
+/*
+ * **Der Bereich, der aufgeht, holt sich ins Bild** — hier nach *unten*.
+ *
+ * „Ändern" steht in der Jobliste, das Formular darunter. Bei 390px ist es
+ * ausserhalb des Bildes, und der Betreiber hat denselben Satz gesagt wie beim
+ * Dateimanager (`docs/64`, Befund 10): *Man hat das Gefühl, es passiert
+ * nichts.* Dort ging der Bereich oben auf, hier unten — für den Bedienenden
+ * ist es dasselbe.
+ *
+ * > **Eine Behebung, die die Richtung nennt statt das Ziel, ist beim nächsten
+ * > Fall die Hälfte wert.**
+ *
+ * `fullyVisible()` in `scroll.ts` prüft beide Ränder; „ins Bild holen" ist
+ * deshalb schon die richtige Beschreibung und „nach oben rollen" wäre die
+ * falsche gewesen.
+ */
+watch(bearbeitet, (offen) => {
+  if (offen !== null) {
+    void nextTick(() => bringIntoView(formBlock.value))
+  }
+})
 
 function abbrechen(): void {
   bearbeitet.value = null
@@ -301,7 +326,7 @@ function entfernen(job: Job): void {
         </div>
       </section>
 
-      <section class="section">
+      <section ref="formBlock" class="section" tabindex="-1">
         <div class="section-head">
           <h2>{{ bearbeitet === null ? 'Job anlegen' : 'Job ändern' }}</h2>
         </div>

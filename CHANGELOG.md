@@ -15714,3 +15714,57 @@ bei 1440px auffielen.
 `TableStyleTest::test_a_cell_has_vertical_padding_below_the_measured_ceiling`
 hält beide Enden fest: grösser als 0 und höchstens 6. Zwei Brüche im
 Bruchskript, beide gegengeprüft.
+
+### Ein Griff an einer Zeile holt seinen Bereich ins Bild
+
+Befund 10 aus der Bilderrunde (`docs/64`), vom Betreiber zweimal gemeldet: Wer
+bei 390 px in einer Zeile weit unten „Rechte" oder „Umbenennen" drückt, sieht
+**nichts geschehen** — der Bereich geht am Kopf der Seite auf. Auf der Cronseite
+dasselbe nach unten: „Ändern" steht in der Liste, das Formular darunter.
+
+> **Ein Bedienelement, dessen Wirkung ausserhalb des Bildes erscheint, sieht aus
+> wie eines ohne Wirkung.**
+
+**Die Behebung lag seit dem 15. August im Repo.** `resources/js/scroll.ts` gibt
+es wegen desselben Vorgangs am Knopf „Entfernen"; `bringIntoView()` löst es, und
+`useConfirmation` rief es. Sonst niemand.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+`startChmod`, `startRename` und `bearbeiten` holen ihren Bereich jetzt ins Bild.
+Dass beide Richtungen vorkommen — im Dateimanager nach oben, auf der Cronseite
+nach unten —, ist der Grund, dass die Regel „ins Bild holen" heisst und nicht
+„nach oben rollen": `fullyVisible()` prüft beide Ränder.
+
+**`RevealTest` erkennt den Fall am Argument.** Ein Griff, der einen Gegenstand
+mitbekommt — `startChmod(entry)`, `bearbeiten(job)` —, steht in einer Schleife
+und damit an einer Zeile; sein Bereich steht ausserhalb. Ein Umschalter der
+Seite kommt ohne Argument aus (`picking = 'copy'`, `menuOpen = !menuOpen`), und
+dort wäre ein Sprung falsch. Eine Näherung, keine Herleitung — aber eine, die
+die drei bekannten Fälle trifft und die Umschalter in Ruhe lässt.
+
+**Sie hat neunzehn Griffe derselben Bauart in der Datenbankkonsole gefunden**,
+und keiner davon ist untersucht: Die Konsole gehört zu P5c, ihre Bereiche stehen
+in derselben Spalte wie der Baum, und ob sie bei 390 px ausserhalb des Bildes
+aufgehen, hat niemand gemessen. Sie stehen einzeln in `RevealTest::UNEXAMINED`
+mit ihrem Grund — als Zahl, die kleiner werden kann, und nicht als Behauptung.
+
+**Der zweite Fall des Wächters ist ein Fund über den Wächter selbst.**
+`bringIntoView()` setzt am Ende den Fokus; ohne `tabindex="-1"` nimmt ein `div`,
+`form` oder `section` ihn nicht an. Der Sprung geschieht, der Tastaturweg
+bleibt zu — nicht zu sehen, solange man eine Maus benutzt.
+
+> **Ein Aufruf, der stillschweigend nichts tut, sieht aus wie einer, der gewirkt
+> hat.**
+
+**Und der Wächter hat beim ersten Anlauf `FormErrors.vue` zu Unrecht gemeldet.**
+Sein Ausdruck lautete `<[^>]*ref="block"[^>]*tabindex="-1"` — und das Tag dort
+beginnt mit `<p v-if="messages.length > 0"`. Das `>` im Ausdruck beendete die
+Zeichenklasse mitten im Attribut.
+
+> **Ein Ausdruck, der bei `>` aufhört, hört mitten in einem Attribut auf.**
+
+Gesucht wird seitdem ab der Angabe rückwärts bis zum `<` und vorwärts bis zum
+ersten `>`, das nicht in Anführungszeichen steht. Drei Brüche im Bruchskript,
+alle drei gegengeprüft.

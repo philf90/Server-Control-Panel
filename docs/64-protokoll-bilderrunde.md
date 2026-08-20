@@ -1984,6 +1984,47 @@ mitgemessen worden und stehen dort: **„ohne Schlüssel"** (Ansicht 6),
 | Cron — Formular „Ändern" offen | 390 dunkel | 0 | **200/200** | `thead` **484** · `tr` **456** |
 | Cron — Zeitplan als Ausdruck | 390 dunkel | 0 | **200/200** | `thead` **484** · `tr` **456** |
 | Cron — ohne Läufe (`/cron/16/runs`) | 390 dunkel | 0 | **200/200** | `thead` **304** · `tr` **276** |
+| Suche — gekürzt (500 Treffer) | 390 dunkel | 0 | **200/200** | `thead` **157** · `tr` **129** |
+
+#### Gekürzt — Befund 4 an seiner zweiten Stelle, und eine Zahl aus dem ersten Lauf fehlt
+
+Die 520 Dateien sind neu angelegt worden; die Seite meldet **„angesehene
+Einträge: 515"** und darunter „Der Suchlauf ist nicht zu Ende gelaufen." Der Lauf
+ist also bei 500 Treffern stehen geblieben, **bevor** er alle 520 gesehen hatte —
+genau wofür die Zahl 520 gewählt wurde.
+
+> **Ein Prüfkörper, der die Grenze nur erreicht, belegt sie nicht — er muss
+> darüber hinausgehen.**
+
+**Befund 4 ist damit an beiden Stellen bestätigt.** Im ersten Lauf klebte die
+gelbe Meldung am Satz darüber; jetzt steht die Fuge dazwischen. Die erste Stelle
+war die Cronseite (Ansicht 8), diese hier die zweite.
+
+**Und eine Zahl des ersten Laufs lässt sich nicht wiederherstellen.** Dort stand
+dieser Zustand auf `thead` **166** · `tr` **138**, jetzt auf **157** · **129** —
+neun Pixel weniger. Bemerkenswert daran ist, womit die neue Zahl übereinstimmt:
+Sie ist **exakt** die des Zustands „kein Treffer" derselben Seite. Beide tragen
+dieselbe Kopfzeile („Datei", „Fundstelle"), also ist das die stimmige Lesart.
+
+Im ersten Lauf war sie es nicht: dort 157 ohne Treffer und 166 mit gekürzter
+Liste, bei unveränderter Kopfzeile.
+
+**Damit stehen zwei nicht wiederherstellbare Abweichungen aus dem ersten Lauf
+nebeneinander, beide an `.stacks thead`, beide nach oben:**
+
+| | erster Lauf | zweiter Lauf | Differenz |
+|---|---|---|---|
+| Cron, zwei Zustände | 511 | 484 | +27 |
+| Suche, gekürzt | 166 | 157 | +9 |
+
+**Ob sie eine gemeinsame Ursache haben, ist unbekannt, und hier steht keine.**
+Dieser Abschnitt hat für die erste Abweichung zwei Vermutungen verbraucht, und
+beide waren falsch. Festgehalten wird, was gilt: Die Zahlen des zweiten Laufs
+sind untereinander stimmig, die des ersten sind es an zwei Stellen nicht, und
+`dokument` war in jedem einzelnen Fall 0.
+
+> **Zwei Abweichungen, die sich nicht wiederherstellen lassen, sind zusammen
+> nicht mehr wert als einzeln — nur auffälliger.**
 
 #### Und das Formular „Ändern" schliesst die 27 px
 

@@ -2073,3 +2073,108 @@ davon verbraucht, und beide waren falsch.
 **Für das Kriterium ist es die ganze Zeit gleichgültig gewesen** (`dokument` ist
 in jeder Lage 0, `.stacks thead` ist der Mechanismus). Geklärt wurde das
 Vertrauen in das Messmittel und nicht der Zustand des Panels.
+
+---
+
+## 5. Wunsch 2 — Schlüssel im Panel erzeugen, eintragen und herunterladen
+
+**Bestellt vom Betreiber am 20. August 2026**, während der zweiten Bilderrunde.
+Heute kann das Panel einen öffentlichen Schlüssel nur **entgegennehmen**; wer
+keinen hat, braucht eine Kommandozeile und `ssh-keygen`. Das ist für einen
+Kunden, der über SFTP an seine Dateien will, die falsche Voraussetzung.
+
+Dies ist ein Vorschlag und kein Plan. Was hier steht, ist die Frage, die vor dem
+Plan beantwortet gehört, und die Messungen, die sie beantworten.
+
+### 5.1 Die eine Frage: Wo entsteht der private Schlüssel
+
+Alles andere folgt daraus. Es gibt zwei Wege.
+
+**Weg A — im Browser.** `crypto.subtle.generateKey` erzeugt das Paar auf dem
+Gerät des Kunden. Das Panel bekommt **nur den öffentlichen Teil**, auf demselben
+Weg wie heute die Eingabe von Hand. Der private Teil wird im Browser zum
+Herunterladen angeboten und verlässt ihn nie.
+
+**Weg B — im Agenten.** `ssh-keygen` erzeugt das Paar auf dem Server, der Agent
+gibt beide Teile zurück, das Panel reicht den privaten einmal an den Kunden
+durch und vergisst ihn.
+
+### 5.2 Was gegen Weg B spricht, steht im Quelltext und nicht in einer Meinung
+
+Ein privater Schlüssel, der auf Weg B entsteht, reist durch zwei Einrichtungen
+dieses Panels, die **beide auf die Platte schreiben** — und zwar nicht als
+Versehen, sondern ihrer Bauart nach:
+
+| Stelle | was sie tut | Beleg |
+|---|---|---|
+| Die Sitzung | `SESSION_DRIVER=database` — eine Flash-Meldung liegt in der Tabelle `sessions` | `config/session.php`, `.env.example` |
+| Der Vorgang | `operations.payload` und `operations.result` sind JSON-Spalten; die Antwort des Agenten wird gespeichert | Migration `2026_08_02_120100` |
+
+Wer also `->with('schluessel', …)` schreibt, legt einen privaten Schlüssel in
+die Datenbank. Und wer ihn über eine gewöhnliche Agent-Operation holt, ebenso —
+in `operations.result`, wo er das Zurückbauen des Abonnements überlebt
+(`2026_08_07_100100`).
+
+Beides ist umgehbar, aber nur, indem man den Schlüssel **an genau den
+Mechanismen vorbeiführt, auf denen dieses Panel sonst überall besteht**. Eine
+Ausnahme von der dritten Grenze, eine Ausnahme vom Vorgangsprotokoll, und beide
+für das empfindlichste Datum des ganzen Merkmals.
+
+> **Ein privater Schlüssel, den der Server nie hatte, kann er nicht verlieren.**
+
+Dazu kommt eine Eigenschaft von Weg B, die den Ablauf verbiegt: Zwischen dem
+Erzeugen und dem Herunterladen liegt ein zweiter Aufruf, und dazwischen **muss
+der Schlüssel irgendwo liegen**. Es sei denn, die Antwort auf das Erzeugen ist
+selbst die Datei — dann kann sie aber die Seite nicht aktualisieren.
+
+> **Ein Datum, das zwischen zwei Anfragen überleben muss, wird gespeichert —
+> die Frage ist nur, wo.**
+
+### 5.3 Vorschlag: Weg A, mit Weg B als benanntem Rückfall
+
+Der Ablauf auf der Seite `SFTP-Zugang`, neben „Schlüssel eintragen":
+
+1. **„Schlüssel erzeugen"** — ein Feld für die Bezeichnung, ein Knopf.
+2. **Vor** dem Erzeugen steht der Satz, dass der private Teil **einmal** gezeigt
+   wird und danach fort ist. Nicht danach.
+3. Nach dem Erzeugen: der private Teil in einem Feld, ein Knopf „Herunterladen"
+   (`Blob` und `<a download>`, ohne Weg über den Server), und der öffentliche
+   Teil geht auf demselben Weg an den Server wie eine Eingabe von Hand.
+4. Der Fingerabdruck steht danach in der Schlüsseltabelle — dieselbe Zeile, die
+   es heute schon gibt, mit demselben Rückweg über „Entfernen".
+
+**Was das Panel dabei niemals tut:** den privaten Teil senden, protokollieren,
+in eine Flash-Meldung legen oder ein zweites Mal zeigen.
+
+### 5.4 Was vor dem Plan gemessen gehört
+
+Drei Fragen, und die dritte ist die, an der Weg A scheitern kann:
+
+| | Frage | wie |
+|---|---|---|
+| 1 | Kann der Browser Ed25519? | `crypto.subtle.generateKey({name:'Ed25519'}, true, ['sign'])` in der Konsole — eine Zeile |
+| 2 | Lässt sich der **öffentliche** Teil ins OpenSSH-Format bringen? | 32 rohe Bytes in die Drahtform `ssh-ed25519`; gegen `ssh-keygen -l` gegengeprüft |
+| 3 | Nimmt OpenSSH den **privaten** Teil, wie ihn WebCrypto ausgibt? | WebCrypto gibt PKCS#8; OpenSSH schreibt sein eigenes Format. Ob es PKCS#8 auch **liest**, ist die Frage |
+
+**Punkt 3 entscheidet den Weg.** Liest OpenSSH es, ist Weg A ein kurzer Weg.
+Liest es das nicht, muss der Browser das OpenSSH-Format selbst schreiben — ein
+Containerformat von Hand, und das ist kein Nachmittag.
+
+> **Wissen aus zweiter Hand sieht aus wie Wissen.** Der Satz steht seit `docs/37`
+> im Projekt; für Punkt 3 gilt er wörtlich, und deshalb steht hier keine
+> Antwort.
+
+**Und gemessen werden kann Punkt 3 nicht in diesem Container**, denn dafür
+müsste ein privater Schlüssel entstehen. Die Regel dagegen ist älter als dieses
+Merkmal und gilt auch für einen Wegwerfschlüssel zu einer Formatfrage. Der Ort
+für diese Messung ist `cloudsrv24` mit einem Schlüssel, der danach gelöscht
+wird — oder ein anderer Rechner des Betreibers.
+
+### 5.5 Was dieser Vorschlag ausdrücklich nicht löst
+
+- **RSA und ECDSA.** Der Vorschlag deckt Ed25519. Das Formular nimmt heute auch
+  RSA ab 2048 Bit und ECDSA an; erzeugt würde nur eine Art, und das gehört
+  gesagt statt stillschweigend eingeschränkt.
+- **Den Verlust.** Wer den privaten Teil verliert, erzeugt einen neuen und
+  entfernt den alten. Ein zweites Herunterladen darf es nicht geben — sonst läge
+  er doch irgendwo.

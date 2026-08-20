@@ -586,6 +586,8 @@ zusätzlich im zweiten Theme dazu.
 | SFTP — ohne Schlüssel | 1440 hell **und** dunkel | 0 | **200/200** | **leer** (`rollt` leer) | — |
 | Läufe — ohne Läufe (Job C) | 390 hell **und** dunkel | 0 | **200/200** | `thead` 318 · `tr` 290 | — |
 | Cron — Formular „Ändern" offen | 390 dunkel | 0 | **200/200** | `thead` 511 · `tr` 483 | **Befund 10**, zweite Fundstelle |
+| Cron — Kontingent voll (10 von 10) | 390 hell **und** dunkel | 0 | **200/200** | `thead` 511 · `tr` 483 | — |
+| Cron — Kontingent voll (10 von 10) | 1440 hell **und** dunkel | 0 | **200/200** | **leer** (`rollt`: `.scrolls` 298) | — |
 
 **Zur Mehrfachauswahl.** Zwei Einträge angekreuzt, die Auswahlleiste offen mit
 sechs Knöpfen, und im Baum daneben steht das lange Verzeichnis aus `docs/63
@@ -757,15 +759,37 @@ Richtungen prüft.
 Damit stehen für Befund 10 vier Griffe fest — `startChmod`, `startRename`,
 `bearbeiten` — und `startPack` sowie die beiden Zielwahlen sind zu prüfen.
 
+### Zum Kontingent: der Roller wächst mit dem längsten Wert, nicht mit der Zeilenzahl
+
+Bei 1440 px rollt die Jobliste hier um **298** px; bei Ansicht 8 mit drei Jobs
+waren es **191**. Zehn Zeilen statt drei — aber die Zahl hängt nicht daran. Sie
+hängt an der Spalte „Zeitplan": Dort steht jetzt „am 1. jedes Monats um 05:00"
+statt „jede Minute", und die Tabelle wird so breit wie ihre breiteste Zelle.
+
+> **Eine Tabelle wird nicht von der Zahl ihrer Zeilen breit, sondern von einem
+> einzigen Wert darin.**
+
+Dasselbe Muster wie bei der Schlüsseltabelle (§1b, SFTP ohne Schlüssel): Der
+Roller kommt und geht mit dem Inhalt, nicht mit dem Bestand.
+
 ### Eine Zahl, die sich zwischen zwei Messungen derselben Seite ändert
 
-`.stacks thead` steht auf der Cronseite bei Ansicht 8 mit **484** px und hier
-mit **511** px — dieselbe Seite, dieselbe Breite, dieselben fünf
-Spaltenüberschriften. Der Unterschied von 27 px ist **nicht erklärt.**
+`.stacks thead` steht auf der Cronseite bei Ansicht 8 mit **484** px, bei „Job
+ändern" mit **511** und beim vollen Kontingent wieder mit **511** — dieselbe
+Seite, dieselbe Breite, dieselben fünf Spaltenüberschriften. Der Unterschied von
+27 px ist **nicht erklärt.**
+
+**Mit dem dritten Messwert ist die 484 der Ausreisser** und keine Schwankung:
+Zwei spätere, voneinander unabhängige Messungen liefern beide 511. Und die 484
+war die **erste** Messung dieser Seite in dieser Sitzung.
 
 Eine Vermutung, und sie ist ausdrücklich nur eine: Die erste Messung könnte
 gelaufen sein, bevor die Schriftart geladen war — Textmasse hängen daran, und
-`bilderMessen()` fragt nichts ab, was das Laden abwartet.
+`bilderMessen()` fragt nichts ab, was das Laden abwartet. Der dritte Wert passt
+dazu, beweist es aber nicht.
+
+> **Ein dritter Messwert macht aus zwei widersprüchlichen einen Ausreisser und
+> eine Regel — oder aus beiden ein Rätsel. Er kostet dasselbe.**
 
 **Für das Kriterium dieses Schritts ist es gleichgültig** (`dokument` ist beide
 Male 0, und `.stacks thead` ist ohnehin der Mechanismus und kein Fund). Für die
@@ -987,8 +1011,9 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
   | fehlende Polsterung an `td` | 7, 8 | `padding: 8px 14px 8px 0`, im Container gemessen |
   | Wirkung ausserhalb des Bildes | **10** (zwei Fundstellen, beide Richtungen) | jeder Griff, der einen Bereich öffnet, holt ihn ins Bild |
   | einzeln | 1 (Kästchen), 5 (Codestück), 6 (Dichtestufe), 9 (Ausrichtung) | — |
-- **Die 27 px an `.stacks thead` der Cronseite** — 484 gegen 511 bei zwei
-  Messungen derselben Seite. Vor der zweiten Runde klären.
+- **Die 27 px an `.stacks thead` der Cronseite** — 484 bei der ersten Messung,
+  511 bei den beiden späteren. Vor der zweiten Runde klären; die Vermutung
+  „Schriftart noch nicht geladen" ist zu prüfen, nicht zu glauben.
 - **Die Zahlen zu Befund 8 auf `cloudsrv24` gegenprüfen.** Im Container ist der
   Eingriff gemessen (einzeilige Zeilen bleiben bei 48 px); auf dem Server steht
   er noch aus und gehört in die zweite Runde.
@@ -997,8 +1022,7 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
 - **Die Runde danach noch einmal.** Befund 6 ändert die Dichtestufe `customer`,
   und in der stehen alle Aufnahmen dieses Laufs. Erst zu Ende messen, dann alles
   in einer Fassung beheben, dann neu fahren.
-- **Zwei der einundzwanzig Zustände** aus `docs/63 §3`: das ausgeschöpfte
-  Kontingent und „ohne Jobs" (auf 137). Alles andere
+- **Ein Zustand** aus `docs/63 §3`: „ohne Jobs" (auf 137). Alles andere
   ist gemessen — siehe §1b. „Zugang gestört" und „Abonnement nicht benutzbar"
   bleiben ungemessen, weil sie ausdrücklich nicht hergestellt werden.
 

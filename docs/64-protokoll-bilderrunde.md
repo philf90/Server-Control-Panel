@@ -1972,6 +1972,19 @@ mitgemessen worden und stehen dort: **„ohne Schlüssel"** (Ansicht 6),
 | Dateimanager — Verschieben, Zielbaum offen | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
 | Dateimanager — Packen, mit Namensfeld | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
 
+**Befund 9 ist auf den Pixel bestätigt.** Der Versatz zwischen der Unterkante
+des Knopfes „Packen" und der des Namensfeldes:
+
+```json
+{"versatz":0}
+```
+
+Im Container waren es vorher **−14** — der Knopf stand um genau diesen Betrag zu
+hoch, weil `.selection .button-row` bei ≤ 480 px auf `align-items: center` stand
+statt auf `flex-end`. Damit ist die dritte Behebung dieser Runde mit einer Zahl
+belegt und nicht nur mit einem Eindruck: 17 × 17 (Befund 1), 217 → 215
+(Befund 6), 0 statt −14 (Befund 9).
+
 #### Mehrfachauswahl — und die Kopfzeile wächst um genau ein Kästchen
 
 Aufgenommen unter `/httpdocs` mit drei angekreuzten Einträgen; die Auswahlleiste

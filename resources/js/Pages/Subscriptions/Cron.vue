@@ -253,6 +253,32 @@ function entfernen(job: Job): void {
   <PanelLayout title="Cronjobs" :subline="props.subscription.name">
     <FormErrors />
 
+    <!--
+      **Der Grund steht dort, wo man es versucht — nicht dort, wo es scheitert.**
+
+      Diese Meldung stand im Bereich „Job anlegen", also unmittelbar über dem
+      Formular, auf das sie sich bezieht. Bei 1440 px ist das richtig und alles
+      im Bild. Bei 390 px stapeln sich die drei Bereiche, und die Jobliste
+      dazwischen ist zehn Kärtchen hoch: Gemessen lag die Meldung dann **3566 px**
+      von der Oberkante entfernt, auf einer Seite von 3795 px — vier Bildschirme
+      weit unten, an einer Stelle, die nur erreicht, wer ohnehin schon rollt
+      (`docs/64`, Befund 12; gemeldet vom Betreiber).
+
+      > **Eine Auskunft, die erklärt, warum etwas nicht geht, gehört dorthin, wo
+      > man es versucht — nicht dorthin, wo es scheitert.**
+
+      Der Bezug geht dabei nicht verloren, weil der Satz die Handlung nennt:
+      „um einen neuen anzulegen". Gemessen steht die Meldung jetzt bei 18 px.
+    -->
+    <p v-if="voll && bearbeitet === null" class="notice warn">
+      <span>
+        Das Kontingent dieses Plans ist ausgeschöpft
+        <template v-if="props.quota.limit !== null">
+          ({{ props.quota.used }} von {{ props.quota.limit }})</template>.
+        Entfernen Sie einen Job, um einen neuen anzulegen.
+      </span>
+    </p>
+
     <div class="sections">
       <section class="section">
         <div class="section-head"><h2>Zeitplan und Zeitzone</h2></div>
@@ -375,13 +401,6 @@ function entfernen(job: Job): void {
           <h2>{{ bearbeitet === null ? 'Job anlegen' : 'Job ändern' }}</h2>
         </div>
 
-        <p v-if="voll && bearbeitet === null" class="notice warn">
-          <span>
-            Das Kontingent dieses Plans ist ausgeschöpft. Entfernen Sie einen Job,
-            um einen neuen anzulegen.
-          </span>
-        </p>
-
         <form class="form" @submit.prevent="speichern">
           <div class="field">
             <label for="label">Beschriftung</label>
@@ -410,27 +429,58 @@ function entfernen(job: Job): void {
             </p>
           </div>
 
-          <fieldset class="field">
-            <legend>Schnellwahl</legend>
-            <!--
-              Die Beschriftung ist der Satz: Was der Knopf sagt, ist das, was er
-              einstellt. Damit braucht die Schnellwahl keine eigene Übersetzung.
-            -->
-            <div class="button-row">
-              <button
-                v-for="vorlage in vorlagen"
-                :key="vorlage.name"
-                type="button"
-                class="button"
-                @click="vorlageWaehlen(vorlage.felder)"
-              >
-                {{ vorlage.name }}
-              </button>
-            </div>
-          </fieldset>
+          <!--
+            **Ein Bereich für den Zeitplan und nicht zwei.**
 
-          <fieldset class="field">
+            Die Schnellwahl stand bis zum 20. August als eigene Gruppe neben dem
+            Zeitplan. Bei 1440 px ergab das vier Gruppen als 2×2 — und weil die
+            Schnellwahl sechs Knöpfe hoch ist und der Zeitplan mit fünf Feldern
+            und Erklärung mehr als doppelt so hoch, blieb unter ihr eine grosse
+            leere Fläche. Die vier Gruppen lasen sich nicht als ein Formular,
+            sondern als vier Kästen (`docs/64`, Befund 14; gemeldet vom
+            Betreiber).
+
+            Gemessen im Container gegen das gebaute Stylesheet, bei 1140 px
+            Inhaltsbreite — die tote Fläche in Tausend Pixeln²:
+
+              vier Gruppen, 2×2      134k   Formular 741 px
+              Schnellwahl im Zeitplan 34k   Formular 774 px
+
+            Was bleibt, sind 34k unter „Beschriftung": Der Hinweis unter
+            „Befehl" ist zwei Zeilen hoch. Das ist der Rest, den zwei Felder
+            nebeneinander immer haben.
+
+            **Und die Zusammenlegung ist nicht bloss die ruhigere Anordnung, sie
+            ist die richtige.** Die Schnellwahl *stellt den Zeitplan ein* — sie
+            füllt genau die fünf Felder darunter. Eine eigene Gruppe daneben
+            behauptete, sie sei etwas anderes.
+
+            `wide` steht schon in `app.css` (für den Editor) und ist hier
+            dasselbe: eine Gruppe, für die die Lesebreite eines Formulars nicht
+            die richtige Grenze ist.
+          -->
+          <fieldset class="field wide">
             <legend>Zeitplan (Serverzeit)</legend>
+
+            <div class="field wide">
+              <span class="label">Schnellwahl</span>
+              <!--
+                Die Beschriftung ist der Satz: Was der Knopf sagt, ist das, was
+                er einstellt. Damit braucht die Schnellwahl keine eigene
+                Übersetzung.
+              -->
+              <div class="button-row">
+                <button
+                  v-for="vorlage in vorlagen"
+                  :key="vorlage.name"
+                  type="button"
+                  class="button"
+                  @click="vorlageWaehlen(vorlage.felder)"
+                >
+                  {{ vorlage.name }}
+                </button>
+              </div>
+            </div>
 
             <!--
               **Der Umschalter steht über beiden Ansichten und nicht in einer.**

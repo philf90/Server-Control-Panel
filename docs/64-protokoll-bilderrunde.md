@@ -2912,3 +2912,111 @@ Cronseite, und sie ist die einzige Gruppe, die eine gemessene Entscheidung
 braucht. Sie gehört **in `Cron.vue`** behoben und nicht in `app.css`; sonst wird
 die dritte volle Runde fällig (§7.4).
 
+---
+
+## 9. Gebaut — Befunde 12 und 14
+
+Gebaut am 20. August 2026, als vierte und letzte Gruppe der Reihenfolge aus
+§7.4. Beide Befunde haben keine Zahl aus dem Abnahmelauf — sie sind vom
+Betreiber am Bild gemeldet worden. Die Zahlen unten sind deshalb **beim
+Beheben** entstanden, im Container gegen das gebaute Stylesheet.
+
+### 9.1 Wie gemessen wurde
+
+Der Aufsatz aus `CLAUDE.md`: das echte Markup aus `Cron.vue`, das gebaute
+Stylesheet aus `public/build`, gerendert im vorinstallierten Chromium. Die
+Inhaltsbreite ist gerechnet und nicht geschätzt — `PanelLayout` ist ein Raster
+aus `236px 1fr` mit `26px 32px` Polster, also **1140 px** bei 1440 und
+**358 px** bei 390.
+
+Zwei Vorsichtsmassnahmen:
+
+- **`<style scoped>` gilt in diesem Aufsatz nicht** (`docs/59`). `Cron.vue` hat
+  keinen — nachgesehen, nicht angenommen.
+- **Jede Messung trägt ihre Gegenprobe.** Der Prüfkörper ist an
+  `scrollWidth + 200` gebunden und schlägt in allen Lagen mit `200` aus; ein
+  `dokument: 0` daneben ist damit eine Messung und keine Null.
+
+Gemessen wurde ausserdem eine Grösse, die dieses Repo bisher nicht kannte: die
+**tote Fläche**. Für jede Reihe der Flexverteilung `.form` ist das die Summe aus
+`(Unterkante der Reihe − Unterkante der Gruppe) × Breite der Gruppe`, in
+Tausend Pixeln². Sie beziffert genau das, was der Betreiber gesehen hat: den
+Platz, der leer bleibt, weil eine Gruppe neben einer höheren steht.
+
+### 9.2 Befund 12 — die Meldung stand vier Bildschirme zu tief
+
+Gemessen an der ganzen Seite bei 390 px, mit zehn Jobs in der Liste:
+
+| Ort der Meldung | Abstand von der Oberkante | im ersten Bild |
+|---|---|---|
+| im Bereich „Job anlegen" (bisher) | **3566 px** | nein |
+| vor `.sections` (jetzt) | **18 px** | ja |
+
+Die Seite ist 3795 px hoch — die Meldung stand also bei **94 %**. Vier
+Bildschirme.
+
+**Der Einwand aus Befund 12 ist gewogen und beantwortet.** Dort steht: „Eine
+Behebung, die sie nur nach oben schiebt, nimmt ihr den Bezug." Der Bezug hängt
+aber nicht am Ort, sondern am Satz — „Entfernen Sie einen Job, **um einen neuen
+anzulegen**" nennt die Handlung. Dazu nennt die Meldung jetzt die Zahl
+(„10 von 10"), und der Griff „Job anlegen" aus Befund 13 steht in der Kopfzeile
+der Liste, also unmittelbar darunter.
+
+Was der Wächter davon hält, ist der **Ort** und nicht der Bezug: Der Bezug ist
+eine Frage an einen Leser.
+
+### 9.3 Befund 14 — vier Kästen werden drei Gruppen
+
+Gemessen bei 1440 px, Inhaltsbreite 1140 px:
+
+| Anordnung | Reihen | tote Fläche | Höhe des Formulars |
+|---|---|---|---|
+| vier Gruppen als 2×2 (bisher) | 4 | **134k** | 741 px |
+| Schnellwahl im Zeitplan (jetzt) | 4 | **34k** | 774 px |
+| beide Gruppen je über die volle Zeile | 5 | 34k | 799 px |
+
+Die 34k, die bleiben, stehen unter „Beschriftung": Der Hinweis unter „Befehl"
+ist zwei Zeilen hoch. Das ist der Rest, den zwei Felder nebeneinander immer
+haben — 33k davon lassen sich ausrechnen (`(172 − 102) × 477`).
+
+**Zwei Fassungen sind gemessen worden, die nicht gebaut wurden**, und die eine
+davon ist die lehrreiche: Dieselbe Zusammenlegung **ohne** `wide` ergibt
+**193k** — mehr als der Ausgangszustand. Der Zeitplan bleibt dann in den 540 px
+von `.field`, wird dadurch 524 px hoch, und der Schalter „Aktiv" rutscht neben
+ihn.
+
+> **Eine Umgruppierung, die die Breite nicht mitnimmt, verschiebt die leere
+> Fläche, statt sie zu schliessen.**
+
+**Und die Zusammenlegung ist nicht nur die ruhigere Anordnung, sondern die
+richtige.** Die Schnellwahl stellt den Zeitplan ein — sie füllt genau die fünf
+Felder darunter, und `CronScheduleFormTest` rechnet für jede Vorlage nach, dass
+ihre Beschriftung das auch sagt.
+
+> **Zwei Gruppen, von denen die eine nur die andere füllt, sind eine.**
+
+`wide` ist keine neue Marke: `.field.wide` steht seit `docs/53` Befund 9 in
+`app.css`, für den Editor. Ihr Kommentar nennt jetzt beide Fälle. **Damit ist
+keine Regel angefasst worden, die über diese Seite hinausgeht** — die dritte
+volle Bilderrunde aus §7.4 bleibt erspart.
+
+### 9.4 Ein Artefakt des Messmittels, benannt statt verschwiegen
+
+Der Auszug aus `Cron.vue` streicht die Vue-Direktiven; damit fällt auch das
+`v-if` von „Abbrechen" weg, und die Knopfreihe ist bei 390 px 98 statt 44 px
+hoch. Das ist eine Eigenschaft des Auszugs und keine der Seite — bei 1440 px
+passen beide Knöpfe in eine Zeile, und dort stehen in beiden Fassungen 38 px.
+
+> **Ein Auszug, der Bedingungen wegwirft, zeigt alle Zweige zugleich.**
+
+### 9.5 Damit ist die Reihenfolge aus §7.4 abgearbeitet
+
+Vier Gruppen, siebzehn Befunde behoben, jeder mit einem Wächter und jeder
+Wächter von Hand gebrochen. Als Nächstes stehen die beiden Wünsche an —
+**Wunsch 2** (Schlüssel erzeugen, §5.4 zuerst messen; die dritte Messung kann
+nur der Betreiber machen) und **Wunsch 3** (Suchleiste, §6.3 zuerst messen).
+
+**Was ausdrücklich offen bleibt**, unverändert aus §7.4: die vollständige
+Umkehrung der Abstandsregel (`* + *`), die neunzehn ungeprüften Griffe in
+`Databases/Console.vue` und die 57 Felder ohne `id` und `name`.
+

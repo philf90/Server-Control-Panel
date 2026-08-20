@@ -16072,3 +16072,50 @@ führt. Sie kommen jetzt aus `trans('validation.attributes.'.$feld)`.
 Vier neue Brüche im Bruchskript, alle von Hand gegengeprüft; ein bestehender ist
 mit dem Formular umgezogen.
 
+### P6 Schritt 12 — Befunde 12 und 14: die Cronseite
+
+**Beide vom Betreiber am Bild gemeldet** (`docs/64`, Befunde 12 und 14), beide
+ohne Zahl aus dem Abnahmelauf. Die Zahlen sind beim Beheben entstanden, im
+Container gegen das gebaute Stylesheet.
+
+**Befund 12 — die Auskunft über das volle Kontingent.** Sie stand im Bereich
+„Job anlegen", also unmittelbar über dem Formular, auf das sie sich bezieht.
+Bei 1440 px ist das richtig. Bei 390 px stapeln sich die drei Bereiche, und die
+Jobliste dazwischen ist zehn Kärtchen hoch: gemessen **3566 px** von der
+Oberkante auf einer Seite von 3795 px — vier Bildschirme, also an einer Stelle,
+die nur erreicht, wer ohnehin schon rollt. Jetzt steht sie vor den Bereichen,
+gemessen bei **18 px**, und nennt die Zahl dazu („10 von 10").
+
+> **Eine Auskunft, die erklärt, warum etwas nicht geht, gehört dorthin, wo man
+> es versucht — nicht dorthin, wo es scheitert.**
+
+Der Bezug hängt nicht am Ort, sondern am Satz: „Entfernen Sie einen Job, um
+einen neuen anzulegen." Der Griff „Job anlegen" steht seit Befund 13 in der
+Kopfzeile der Liste, also unmittelbar darunter.
+
+**Befund 14 — vier Kästen werden drei Gruppen.** Bei 1440 px lagen
+Beschriftung / Befehl und darunter Schnellwahl / Zeitplan als 2×2 nebeneinander.
+Die Schnellwahl ist sechs Knöpfe hoch, der Zeitplan mehr als doppelt so hoch —
+unter ihr blieb eine grosse leere Fläche. Die Schnellwahl steht jetzt **im**
+Zeitplan, denn sie stellt ihn ein: Sie füllt genau die fünf Felder darunter.
+
+> **Zwei Gruppen, von denen die eine nur die andere füllt, sind eine.**
+
+Gemessen als tote Fläche in Tausend Pixeln² bei 1140 px Inhaltsbreite:
+**134k** vorher, **34k** nachher. Was bleibt, ist der Rest, den zwei Felder
+nebeneinander immer haben — der Hinweis unter „Befehl" ist zwei Zeilen hoch.
+
+**Und eine Fassung, die gemessen und verworfen wurde, ist die lehrreiche:**
+dieselbe Zusammenlegung **ohne** die volle Breite ergibt **193k** — mehr als
+der Ausgangszustand. Der Zeitplan bleibt dann in den 540 px von `.field` und
+wird 524 px hoch, und der Schalter „Aktiv" rutscht neben ihn.
+
+> **Eine Umgruppierung, die die Breite nicht mitnimmt, verschiebt die leere
+> Fläche, statt sie zu schliessen.**
+
+`.field.wide` gibt es seit `docs/53` Befund 9 für den Editor; ihr Kommentar
+nennt jetzt beide Fälle. **Keine Regel, die über diese Seite hinausgeht, ist
+angefasst worden** — damit bleibt eine dritte volle Bilderrunde erspart.
+
+Zwei Brüche im Bruchskript, beide von Hand gegengeprüft.
+

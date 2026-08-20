@@ -2081,6 +2081,17 @@ button.knob:hover {
  *
  * > **Eine Vorgabe, die für Lesbarkeit gemacht ist, gilt nicht für Text, den
  * > man nicht liest, sondern bearbeitet.**
+ *
+ * ## Der zweite Fall, seit dem 20. August: eine Gruppe statt eines Textes
+ *
+ * `Cron.vue` trägt die Marke am Zeitplan. Der Grund ist ein anderer und die
+ * Regel dieselbe: Dort stehen fünf Felder nebeneinander plus sechs Knöpfe der
+ * Schnellwahl, und in 540px passen davon zwei. Als eigene Gruppe neben dem
+ * Zeitplan hinterliess die Schnellwahl bei 1440px eine leere Fläche von 134k
+ * Pixeln² (`docs/64`, Befund 14).
+ *
+ * > **Die Lesebreite eines Formulars ist eine Grenze für Zeilen — nicht für
+ * > Gruppen, die aus mehreren Spalten bestehen.**
  */
 .field.wide {
   /*

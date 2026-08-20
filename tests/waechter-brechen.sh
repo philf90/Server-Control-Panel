@@ -12089,6 +12089,55 @@ pruefe "  … zurückgesetzt wieder grün" \
   AttributeNameTest::test_every_name_belongs_to_a_field passed
 
 echo
+echo "── CronPageReachTest: die Meldung rutscht zurueck in den Formularbereich ──"
+#
+# Befund 12: Bei 390 px lag sie dort 3566 px von der Oberkante entfernt, auf
+# einer Seite von 3795 px — vier Bildschirme weit unten.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+alt = '    <p v-if="voll && bearbeitet === null" class="notice warn">'
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+i = s.index(alt)
+j = s.index('</p>', i) + 4
+block = s[i:j]
+s = s[:i] + s[j:]
+anker = '        <form class="form" @submit.prevent="speichern">'
+assert s.count(anker) == 1, 'Anker nicht eindeutig — der Bruch waere blind'
+s = s.replace(anker, block + '\n\n' + anker, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Meldung wieder im Formular" &&
+pruefe "Meldung wieder im Formular" \
+  CronPageReachTest::test_the_full_quota_is_said_before_the_list failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronPageReachTest::test_the_full_quota_is_said_before_the_list passed
+
+echo
+echo "── CronPageReachTest: die Zeitplangruppe verliert ihre Breite ──"
+#
+# Befund 14: In 540 px passen von fuenf Feldern zwei, und die Schnellwahl
+# bricht auf drei Reihen — genau die Anordnung, die als vier Kaesten gelesen
+# wurde.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<fieldset class="field wide">\n            <legend>Zeitplan (Serverzeit)</legend>'
+assert s.count(alt) == 1, 'Zielblock nicht eindeutig — der Bruch waere blind'
+neu = '<fieldset class="field">\n            <legend>Zeitplan (Serverzeit)</legend>'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Zeitplangruppe ohne wide" &&
+pruefe "Zeitplangruppe ohne wide" \
+  CronPageReachTest::test_the_quick_choice_belongs_to_the_schedule failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronPageReachTest::test_the_quick_choice_belongs_to_the_schedule passed
+
+echo
 echo "── AttributeNameTest: die Namen fehlen am Aufruf ──"
 #
 # Die Schluessel aus Quotas::rules() entstehen erst beim Ausfuehren; ihre Namen

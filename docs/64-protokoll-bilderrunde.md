@@ -1977,6 +1977,30 @@ mitgemessen worden und stehen dort: **„ohne Schlüssel"** (Ansicht 6),
 | Dateimanager — „Suchen" offen | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
 | Dateimanager — „Rechte" an einer Zeile | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
 | Dateimanager — „Umbenennen" an einer Zeile | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
+| Dateimanager — langer Name in den Krümeln | 390 dunkel | 0 | **200/200** | `thead` **350** · `tr` **322** |
+
+#### Der lange Verzeichnisname in den Krümeln — und eine Zahl, die eine Erklärung prüft
+
+Der Name steht in der Krümelzeile unter „Abo-Wurzel / httpdocs /" und bricht dort
+über **fünf Zeilen**. `dokument` bleibt 0.
+
+Damit ist der Prüfkörper aus `docs/46 §20.11` an **beiden** Stellen gemessen: im
+Baum (acht Zeilen, Ansicht 2) und im Fliesstext der Krümel. Die zweite ist die
+gefährlichere — in P4 hat ein Bezeichner im Fliesstext einmal 83 px aus dem Bild
+geschoben, und daraus ist die Regel entstanden.
+
+**Und die Tabelle steht hier auf 350 · 322 statt auf 367 · 339.** Das ist keine
+Abweichung, sondern die Bestätigung der Erklärung von vorhin: In diesem
+Verzeichnis liegt nichts ausser dem Weg eine Ebene höher, es gibt also keinen
+auswählbaren Eintrag — und ohne einen solchen trägt die Kopfzeile kein
+„Alle auswählen"-Kästchen. Genau die 17 px, die bei der Mehrfachauswahl
+dazukamen, fehlen hier wieder.
+
+> **Eine Erklärung, die an einer dritten Messung dieselbe Zahl vorhersagt, ist
+> keine Erzählung mehr.**
+
+**Damit sind alle Zustände des Dateimanagers gemessen** — sieben Lagen, alle mit
+`dokument: 0` und gültiger Gegenprobe.
 
 #### Befund 10 ist auf dem echten Server bestätigt
 

@@ -16012,3 +16012,63 @@ verschwindet**; die Regel steht als Frage in `CLAUDE.md`.
 > als Zusage.**
 
 Drei Brüche im Bruchskript, alle von Hand gegengeprüft.
+
+### P6 Schritt 12 — Befunde 15 und 16: die Rückmeldungen sprachen englisch
+
+**Gefunden in der zweiten Bilderrunde** (`docs/64`, Befunde 15 und 16).
+`lang/de/validation.php` führte `'attributes' => []`. Ist diese Liste leer,
+setzt Laravel den **Bezeichner** ein — und der ist englisch, weil er das sein
+soll (`docs/19 §4a`). Auf jeder Seite dieses Panels stand seither „Das Feld day
+of week ist erforderlich": deutscher Satzbau mit englischen Wörtern darin.
+Sichtbar wurde es an den mehrwortigen Feldern (`current password`, `postal
+code`, `private key`, `plan id`), und die einwortigen waren derselbe Fehler.
+
+Die Liste trägt jetzt **85** Namen. Drei Bezeichner bedeuten an zwei Orten
+Verschiedenes — `to`, `host`, `mode`; die Liste trägt den häufigeren Fall, der
+andere seinen Namen als dritten Wert am Aufruf.
+
+**Die Kontingente bekommen ihre Namen aus derselben Aufzählung wie ihre
+Regeln.** `Quotas::names()` baut sie aus `Quota::cases()` und
+`Feature::cases()`; `PlanController` und `SubscriptionController` reichen sie
+weiter. Eine Abschrift in der Sprachdatei wäre die zweite Liste gewesen, und die
+zweite ist die, die beim nächsten Kontingent vergessen wird.
+
+**Kein Wächter konnte das finden**, denn dieses Wort steht in keiner Datei:
+
+> **Ein Wort, das erst beim Ausführen entsteht, steht in keiner Datei — und kein
+> Wächter, der Dateien liest, findet es.**
+
+`AttributeNameTest` prüft deshalb nicht den Text, sondern die
+**Vollständigkeit** — und die Gegenrichtung gleich mit: Ein Name ohne Feld ist
+Pflege, die nirgends wirkt.
+
+**Und der frisch gebaute Wächter war blind genau dort, wo der Befund gefunden
+wurde.** Er stand grün, während die fünf Felder der Cronseite keinen einzigen
+deutschen Namen hatten — `...array_fill_keys(Schedule::FIELDS, …)` schreibt die
+Schlüssel nicht in den Quelltext, sondern erzeugt sie beim Ausführen. Dieselbe
+Blindstelle lag über `Quotas::rules()` und `Quotas::overrideRules()`.
+
+> **Ein Wächter, der einen Ausdruck nicht auflösen kann, hat nicht wenig
+> gemessen — er hat an dieser Stelle gar nicht gemessen.**
+
+Ein Spread auf der obersten Ebene eines Regelblocks ist seitdem eines von
+beidem: aufgelöst oder am Aufruf benannt. Ein dritter Fall ist Rot.
+
+**Befund 16 — die Meldung der Experteneingabe.** „`* * *` eintragen und anlegen"
+wurde richtig abgewiesen, und die Meldung nannte zwei Felder, die in dieser
+Ansicht **eingeklappt** sind. Geprüft wird weiter derselbe Zeitplan aus fünf
+Feldern auf dem Server; die Meldung geht in dieser Ansicht an `expression` und
+nennt die Stelle im Ausdruck.
+
+> **Eine Sicht auf eine Sache ist noch keine Sicht auf ihre Fehlermeldungen.**
+
+Das Formular trägt dafür `experte` mit — nicht als Ausnahme, sondern als
+begründeter Eintrag in `CronScheduleFormTest::VIEW_FIELDS`, mit einer
+Sperrklinke daneben: Ein Feld des Zeitplans in dieser Liste ist Rot. Die Namen
+der fünf Stellen standen im ersten Anlauf als eigene Konstante im Controller —
+dieselben fünf Wörter ein zweites Mal neben der Sprachdatei, die sie ohnehin
+führt. Sie kommen jetzt aus `trans('validation.attributes.'.$feld)`.
+
+Vier neue Brüche im Bruchskript, alle von Hand gegengeprüft; ein bestehender ist
+mit dem Formular umgezogen.
+

@@ -41,6 +41,26 @@ final class CronScheduleFormTest extends TestCase
     private const PAGE = 'resources/js/Pages/Subscriptions/Cron.vue';
 
     /**
+     * Felder, die das Formular mitschickt, ohne zum Zeitplan zu gehören.
+     *
+     * **Die Liste ist die Ausnahme zur Regel darunter und keine Umgehung.** Wer
+     * hier etwas einträgt, sagt damit: Dieses Feld beschreibt, *wie* der
+     * Zeitplan gerade bedient wird, und nicht, *was* in ihm steht. Ein Feld, das
+     * einen Zeitplanwert trägt, gehört nicht hierher — es wäre die zweite
+     * Fassung, gegen die der Wächter steht.
+     *
+     * Der Grund für die Form: Ein blosses `array_diff` liesse jedes künftige
+     * Feld durch, weil niemand es begründen müsste.
+     *
+     * @var array<string,string>
+     */
+    private const VIEW_FIELDS = [
+        'experte' => 'Sagt, in welcher Ansicht die fünf Felder gerade bedient werden. Der Server '.
+            'prüft davon unabhängig denselben Zeitplan; er richtet nur seine Meldung an eine Stelle '.
+            'im Ausdruck statt an ein eingeklapptes Feld (docs/64, Befund 16).',
+    ];
+
+    /**
      * Jede Vorlage stellt ein, was ihre Beschriftung sagt.
      *
      * Die Umkehrung ist gleich mitgeprüft: Gäbe {@see Spoken} für eine Vorlage
@@ -130,20 +150,43 @@ final class CronScheduleFormTest extends TestCase
      * > **Eine Zusammenfügung darf doppelt stehen, eine Regel nicht.**
      *
      * Geprüft wird beides, was dafür stimmen muss: Das Formular schickt kein
-     * sechstes Feld, und der Setzer schreibt **jedes** der fünf. Schriebe er
-     * eines nicht, behielte es beim Umschalten seinen alten Wert — und der
-     * Ausdruck im Feld sagte etwas anderes als das, was gespeichert wird.
+     * Feld über die fünf hinaus, das einen Zeitplan trägt, und der Setzer
+     * schreibt **jedes** der fünf. Schriebe er eines nicht, behielte es beim
+     * Umschalten seinen alten Wert — und der Ausdruck im Feld sagte etwas
+     * anderes als das, was gespeichert wird.
+     *
+     * **Ein Feld, das keinen Zeitplan trägt, darf trotzdem mitreisen** — es
+     * steht dann mit seiner Begründung in {@see self::VIEW_FIELDS}. `experte`
+     * ist der erste Fall: Er sagt, *wie* die fünf Felder gerade bedient werden.
      */
     public function test_the_free_expression_is_a_view_on_the_five_fields(): void
     {
         $quelle = $this->source();
 
+        foreach (self::VIEW_FIELDS as $feld => $grund) {
+            $this->assertNotContains($feld, Schedule::FIELDS, sprintf(
+                'Das Sichtfeld „%s" ist zugleich ein Feld des Zeitplans. Dann ist die Ausnahme '.
+                'keine Ausnahme mehr, sondern ein zweiter Speicherort.',
+                $feld,
+            ));
+
+            $this->assertNotSame('', trim($grund), sprintf(
+                'Das Sichtfeld „%s" steht ohne Begründung da.',
+                $feld,
+            ));
+        }
+
         $this->assertSame(
-            array_merge(['label', 'command'], Schedule::FIELDS, ['active']),
+            array_merge(
+                ['label', 'command'],
+                Schedule::FIELDS,
+                ['active'],
+                array_keys(self::VIEW_FIELDS),
+            ),
             $this->formKeys(),
             'Das Formular schickt andere Felder als die fünf des Zeitplans plus Beschriftung, '.
-            'Befehl und Zustand. Ein eigener Wert für den Ausdruck waere eine zweite Fassung '.
-            'desselben Zeitplans.',
+            'Befehl, Zustand und die begründeten Sichtfelder aus VIEW_FIELDS. Ein eigener Wert '.
+            'für den Ausdruck waere eine zweite Fassung desselben Zeitplans.',
         );
 
         $this->assertSame(
@@ -167,6 +210,93 @@ final class CronScheduleFormTest extends TestCase
                 ),
             );
         }
+    }
+
+    /**
+     * In der Experteneingabe nennt die Meldung die Stelle im Ausdruck.
+     *
+     * ## Der Fund
+     *
+     * Griff 4 der Abnahme (`docs/63 §6b`): `* * *` eintragen und anlegen. Der
+     * Server hat abgewiesen — richtig —, und die Meldung lautete „Das Feld
+     * month ist erforderlich. Das Feld day of week ist erforderlich."
+     *
+     * Beide Felder waren in diesem Zustand **eingeklappt**. Wer der Meldung
+     * folgt, sucht etwas, das er nicht sehen kann (`docs/64`, Befund 16).
+     *
+     * > **Eine Meldung, die ein Feld nennt, das gerade nicht zu sehen ist, ist
+     * > keine Auskunft — sie ist eine Suchaufgabe.**
+     *
+     * ## Was sich dadurch **nicht** ändert
+     *
+     * Geprüft wird weiter der Zeitplan aus fünf Feldern, und zwar auf dem
+     * Server. Die Experteneingabe bleibt eine Sicht; sie bekommt keinen eigenen
+     * Prüfweg und keinen eigenen Speicherort. Der Unterschied liegt allein
+     * darin, **wie die Antwort benannt wird**.
+     *
+     * > **Eine Sicht auf eine Sache ist noch keine Sicht auf ihre
+     * > Fehlermeldungen.**
+     */
+    public function test_the_expert_input_gets_an_answer_it_can_use(): void
+    {
+        $quelle = $this->source();
+
+        $this->assertMatchesRegularExpression(
+            '/experte:\s*false/',
+            $quelle,
+            'Das Formular trägt `experte` nicht mit. Ohne diesen Wert weiss der Server nicht, '.
+            'welche Ansicht offen ist — und benennt Felder, die eingeklappt sind (docs/64, '.
+            'Befund 16).',
+        );
+
+        $controller = (string) file_get_contents(
+            dirname(__DIR__, 2).'/app/Http/Controllers/CronController.php',
+        );
+
+        $this->assertStringContainsString(
+            "boolean('experte')",
+            $controller,
+            'Der Controller fragt nicht nach der Ansicht. Dann geht seine Meldung an die fünf '.
+            'Felder, gleich ob sie zu sehen sind.',
+        );
+
+        $this->assertStringContainsString(
+            'Im Ausdruck fehlt der %d. Teil (%s).',
+            $controller,
+            'Die Meldung für die Experteneingabe nennt keine Stelle im Ausdruck. Ein Feldname '.
+            'hilft dort nicht: Das Feld ist eingeklappt.',
+        );
+
+        /*
+         * **Die Namen der fünf Stellen gehören nicht in die Sprachdatei.**
+         * Dort benennen sie ein Feld; hier benennen sie eine Stelle in einer
+         * Zeichenkette, und das ist etwas anderes.
+         */
+        /*
+         * **Und das eine sichtbare Feld wird markiert.** Der Server legt seine
+         * Meldung unter `expression` ab; stünde der Name nicht in
+         * `zeitplanFalsch`, bliebe der Ausdruck unmarkiert — ausgerechnet dann,
+         * wenn die Meldung von ihm handelt.
+         */
+        $this->assertMatchesRegularExpression(
+            "/const zeitplanFalsch = computed\(\s*\(\) => \[[^\]]*'expression'/",
+            $quelle,
+            'Das Ausdrucksfeld wird nicht rot, wenn der Server den Ausdruck bemängelt. '.
+            'Die Meldung steht dann oben und zeigt auf nichts.',
+        );
+
+        /*
+         * **Und die Namen kommen aus der einen Liste.** Der erste Anlauf trug
+         * sie als eigene Konstante im Controller — dieselben fünf Wörter ein
+         * zweites Mal, direkt neben der Sprachdatei, die sie ohnehin führt.
+         */
+        $this->assertStringContainsString(
+            "trans('validation.attributes.'.\$feld)",
+            $controller,
+            'Die fünf Teile des Ausdrucks holen ihre Namen nicht aus lang/de/validation.php. '.
+            'Eine eigene Liste dort wäre die zweite Fassung derselben Wörter — und ohne Namen '.
+            'liest sich die Meldung als „Im Ausdruck fehlt der 4. Teil".',
+        );
     }
 
     /**

@@ -163,6 +163,11 @@ final class AuditController extends Controller
             'result' => ['sometimes', 'nullable', 'string', 'max:32'],
             'ip' => ['sometimes', 'nullable', 'string', 'max:45'],
             'subscription_id' => ['sometimes', 'nullable', 'integer'],
+        ], [], [
+            // `to` heisst in der gemeinsamen Liste „Ziel" — das ist der Fall
+            // beim Verschieben einer Datei und der häufigere. Hier ist es das
+            // Ende eines Zeitraums (docs/64, Befund 15).
+            'to' => 'Bis',
         ]);
 
         return array_filter($validated, static fn ($value): bool => $value !== null && $value !== '');

@@ -9450,7 +9450,7 @@ vorher_datei resources/js/Pages/Subscriptions/Cron.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Subscriptions/Cron.vue'
 s = open(p, encoding='utf-8').read()
-s = s.replace("  active: true,\n})", "  active: true,\n  expression: '',\n})", 1)
+s = s.replace("  experte: false,\n})", "  experte: false,\n  expression: '',\n})", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/js/Pages/Subscriptions/Cron.vue "Ausdruck als eigener Wert" &&
@@ -12046,6 +12046,129 @@ pruefe "Griff zum Formular fehlt" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   CronPageReachTest::test_the_job_list_leads_to_the_form passed
+
+echo
+echo "── AttributeNameTest: ein Feld verliert seinen deutschen Namen ──"
+#
+# Befund 15: Ohne Eintrag setzt Laravel den Feldnamen selbst ein, mit
+# Unterstrichen als Leerzeichen — „Das Feld day of week ist erforderlich".
+vorher_datei lang/de/validation.php
+python3 - <<'PY2'
+p = 'lang/de/validation.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'day_of_week' => 'Wochentag',\n"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei lang/de/validation.php "Feld ohne deutschen Namen" &&
+pruefe "Feld ohne deutschen Namen" \
+  AttributeNameTest::test_every_validated_field_has_a_german_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  AttributeNameTest::test_every_validated_field_has_a_german_name passed
+
+echo
+echo "── AttributeNameTest: ein Name ohne Feld ──"
+#
+# Die Gegenrichtung. Ein Eintrag, den keine Regel mehr braucht, ist harmlos —
+# und genau deshalb bleibt er stehen, bis niemand mehr weiss, ob er wirkt.
+vorher_datei lang/de/validation.php
+python3 - <<'PY2'
+p = 'lang/de/validation.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'action' => 'Aktion',\n"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+neu = alt + "        'gibt_es_nicht' => 'Nichts',\n"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei lang/de/validation.php "Name ohne Feld" &&
+pruefe "Name ohne Feld" \
+  AttributeNameTest::test_every_name_belongs_to_a_field failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  AttributeNameTest::test_every_name_belongs_to_a_field passed
+
+echo
+echo "── AttributeNameTest: die Namen fehlen am Aufruf ──"
+#
+# Die Schluessel aus Quotas::rules() entstehen erst beim Ausfuehren; ihre Namen
+# koennen deshalb nicht in der Sprachdatei stehen. Bleibt der dritte Wert weg,
+# liest der Betreiber „Das Feld quotas.disk mb muss vorhanden sein".
+vorher_datei app/Http/Controllers/PlanController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/PlanController.php'
+s = open(p, encoding='utf-8').read()
+alt = "        ], [], Quotas::names());"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        ]);", 1))
+PY2
+griff_datei app/Http/Controllers/PlanController.php "Namen fehlen am Aufruf" &&
+pruefe "Namen fehlen am Aufruf" \
+  AttributeNameTest::test_no_rule_block_hides_its_fields failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  AttributeNameTest::test_no_rule_block_hides_its_fields passed
+
+echo
+echo "── AttributeNameTest: ein Spread, den niemand aufloest ──"
+#
+# Genau die Lage, in der die fuenf Cronfelder monatelang gruen waren: Der
+# Waechter sah den Ausdruck nicht und hat an dieser Stelle nichts gemessen.
+vorher_datei app/Http/Controllers/CronController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/CronController.php'
+s = open(p, encoding='utf-8').read()
+alt = "            ...array_fill_keys(Schedule::FIELDS, ['required', 'string', 'max:192']),\n"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            ...NochNichtBenannt::rules(),\n", 1))
+PY2
+griff_datei app/Http/Controllers/CronController.php "Spread ohne Aufloesung" &&
+pruefe "Spread ohne Aufloesung" \
+  AttributeNameTest::test_no_rule_block_hides_its_fields failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  AttributeNameTest::test_no_rule_block_hides_its_fields passed
+
+echo
+echo "── CronScheduleFormTest: die Experteneingabe bekommt wieder Feldnamen ──"
+#
+# Befund 16: `* * *` eintragen und anlegen ergab „Das Feld Monat ist
+# erforderlich" — und dieses Feld ist in der Expertenansicht eingeklappt.
+vorher_datei app/Http/Controllers/CronController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/CronController.php'
+s = open(p, encoding='utf-8').read()
+alt = "boolean('experte')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "boolean('gibt_es_nicht')", 1))
+PY2
+griff_datei app/Http/Controllers/CronController.php "Meldung ohne Ansicht" &&
+pruefe "Meldung ohne Ansicht" \
+  CronScheduleFormTest::test_the_expert_input_gets_an_answer_it_can_use failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronScheduleFormTest::test_the_expert_input_gets_an_answer_it_can_use passed
+
+echo
+echo "── CronScheduleFormTest: VIEW_FIELDS deckt ein Feld des Zeitplans ──"
+#
+# Die Sperrklinke der Ausnahmeliste. Wer dort ein Zeitplanfeld einträgt, hat
+# keine Ausnahme gemacht, sondern die Regel abgeschaltet.
+vorher_datei tests/Unit/CronScheduleFormTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/CronScheduleFormTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'experte' => 'Sagt, in welcher Ansicht"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        'minute' => 'Sagt, in welcher Ansicht"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Unit/CronScheduleFormTest.php "VIEW_FIELDS deckt ein Zeitplanfeld" &&
+pruefe "VIEW_FIELDS deckt ein Zeitplanfeld" \
+  CronScheduleFormTest::test_the_free_expression_is_a_view_on_the_five_fields failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronScheduleFormTest::test_the_free_expression_is_a_view_on_the_five_fields passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

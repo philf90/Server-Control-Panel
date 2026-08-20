@@ -2351,13 +2351,25 @@ gedacht.
 
 | | Zahl |
 |---|---|
-| Feldnamen in Validierungsregeln | **95** |
-| davon mehrwortig, also unübersehbar englisch | **23** |
+| Feldnamen in Validierungsregeln | **85** |
+| davon mehrwortig, also unübersehbar englisch | **21** |
 
 Darunter `current password`, `first name`, `postal code`, `private key`,
 `shared secret`, `login email`, `plan id`. Die einwortigen fallen weniger auf
 und sind derselbe Fehler: „Das Feld **label** ist erforderlich", „Das Feld
 **command** ist erforderlich".
+
+**Die Zahl stand hier zuerst auf 95 und 23, und sie war falsch.** Der Ausdruck
+der ersten Messung nahm jeden Schlüssel, dessen Wert nach einer Regel aussah —
+und zählte damit die `$casts` der Modelle mit (`duration_ms`, `exit_code`,
+`truncated`).
+
+> **Ein Ausdruck, der die Form trifft, trifft noch nicht den Ort.**
+
+Gezählt am Ort — `->validate([…])`, `Validator::make(…, […])` und
+`rules(): array` — waren es **80**. Die fünf, die dann noch dazukamen, sind der
+zweite Irrtum dieser Messung, und der ist der teurere; er steht beim Bau von
+Befund 15 weiter unten.
 
 **Und kein Wächter konnte das finden.** `WordChoiceTest` liest die Zeichenketten
 im Quelltext und die Vorlagen. Dieses Wort steht in keiner von beiden — es
@@ -2714,7 +2726,7 @@ mit Zeilennummer. Das Fenster ohne Erweiterungen hat sie alle entfernt und dabei
 | 12 | Die Auskunft über das volle Kontingent liegt bei 390 px hinter zehn Kärtchen | eine Seite |
 | 13 | Kein Weg zum Formular „Job anlegen" ausser Scrollen | eine Seite |
 | 14 | Der Bereich „Job anlegen" steht bei 1440 px als vier Kästen da | eine Seite |
-| 15 | **Jede Rückmeldung des Panels nennt einen englischen Feldnamen** | 95 Felder, 23 mehrwortig |
+| 15 | **Jede Rückmeldung des Panels nennt einen englischen Feldnamen** | 85 Felder, 21 mehrwortig |
 | 16 | In der Experteneingabe zeigt die Meldung auf eingeklappte Felder | eine Seite |
 | 17 | **Zwei Elemente tragen `id="app"`** — `@inertia` statt `@inertiaHead` | jede Seite |
 | 18 | Der Zielbaum wird nicht ins Bild geholt (98 px angeschnitten) | eine Seite |
@@ -2769,7 +2781,7 @@ zum vierten und fünften Mal gemacht.
 > dem nächsten Merkmal kostet sie zweimal.**
 
 **3. Befunde 15 und 16 — die Rückmeldungen.** Beide hängen an derselben Leitung.
-15 ist mechanisch (95 Namen in `lang/de/validation.php`) und hat die grösste
+15 ist mechanisch (85 Namen in `lang/de/validation.php`) und hat die grösste
 Reichweite von allen; 16 fährt mit, weil die Experteneingabe ihre Meldung
 umlenken muss.
 
@@ -2797,3 +2809,106 @@ Container trifft die echte Seite aufs Pixel.
   (`RevealTest::UNEXAMINED`) — sie gehören zu Schritt 2 der Regel, aber die
   Konsole ist keine der neun Ansichten und braucht ihre eigene Messung,
 - die 57 Felder ohne `id` und `name` — heute folgt daraus nichts.
+
+---
+
+## 8. Gebaut — Befunde 15 und 16
+
+Gebaut am 20. August 2026, in der Reihenfolge aus §7.4 an dritter Stelle.
+
+### 8.1 Befund 15 — die Namen
+
+`lang/de/validation.php` trägt jetzt **85** Namen unter `attributes`. Drei
+Bezeichner bedeuten an zwei Orten Verschiedenes; die Liste trägt den häufigeren
+Fall, der andere seinen Namen als dritten Wert am Aufruf:
+
+| Bezeichner | in der Liste | am Aufruf |
+|---|---|---|
+| `to` | Empfänger (Testmail) | `Bis` in `AuditController` |
+| `host` | Rechner | `Erreichbar von` in `DatabaseController` |
+| `mode` | Rechte | `Art der Änderung` in `DatabaseController` |
+
+**Und die Kontingente bekommen ihre Namen aus der Aufzählung, aus der auch ihre
+Regeln kommen.** `Quotas::names()` baut sie aus `Quota::cases()` und
+`Feature::cases()`; `PlanController` und `SubscriptionController` reichen sie als
+dritten Wert weiter. Eine Abschrift in der Sprachdatei wäre die zweite Liste
+gewesen — und die zweite ist die, die beim nächsten Kontingent vergessen wird.
+
+### 8.2 Der teuerste Fund beim Bauen: der Wächter war blind, wo der Befund war
+
+`AttributeNameTest` stand grün — und die fünf Felder, an denen Befund 15
+überhaupt gefunden wurde, hatten **keinen einzigen deutschen Namen**. Der
+Wortlaut des Befundes ist „Das Feld **day of week** ist erforderlich"; genau
+dieses Feld sah der Wächter nicht.
+
+Der Grund steht in `CronController`:
+
+```php
+...array_fill_keys(Schedule::FIELDS, ['required', 'string', 'max:192']),
+```
+
+Der Ausdruck liest die Schlüssel auf der obersten Ebene eines Regelblocks. `minute`,
+`hour`, `day_of_month`, `month` und `day_of_week` stehen dort **nicht** — sie
+entstehen erst beim Ausführen aus einer Konstanten.
+
+> **Ein Wächter, der einen Ausdruck nicht auflösen kann, hat nicht wenig gemessen
+> — er hat an dieser Stelle gar nicht gemessen.**
+
+Das ist derselbe Satz wie „Eine Null ist nur dann eine Messung, wenn daneben
+etwas anderes als Null steht", nur eine Ebene tiefer: Hier fehlt nicht der
+Ausschlag, sondern der Prüfkörper.
+
+**Dieselbe Blindstelle lag über zwei weiteren Aufrufen**, und dort geht es um
+mehr Felder als fünf: `...Quotas::rules()` in `PlanController` und
+`...Quotas::overrideRules()` in `SubscriptionController` erzeugen je einen
+Schlüssel pro Kontingent und Merkmal. Sie waren aus demselben Grund unsichtbar,
+und ihre Meldung lautete „Das Feld **quotas.disk mb** muss vorhanden sein".
+
+`test_no_rule_block_hides_its_fields` schliesst die Lücke als Regel und nicht als
+Einzelfall: Ein Spread auf der obersten Ebene eines Regelblocks ist ab jetzt
+eines von beidem — aufgelöst (`RESOLVED_SPREADS`) oder am Aufruf benannt
+(`NAMED_AT_CALL_SITE`). Ein dritter Fall ist Rot. Beide Richtungen sind von Hand
+gegengeprüft: Fehlt `Quotas::names()` am Aufruf, beisst er; steht dort ein
+Ausdruck, den er nicht kennt, ebenfalls.
+
+### 8.3 Befund 16 — die Meldung der Experteneingabe
+
+`experte` reist als Feld des Formulars mit. Der Server prüft davon unabhängig
+denselben Zeitplan aus fünf Feldern — er **benennt** nur anders: In der
+Expertenansicht geht die Meldung an `expression` und nennt die Stelle im
+Ausdruck („Im Ausdruck fehlt der 4. Teil (Monat).") statt eines Feldes, das
+eingeklappt ist.
+
+> **Eine Sicht auf eine Sache ist noch keine Sicht auf ihre Fehlermeldungen.**
+
+Zwei Dinge, die dabei aufgefallen sind:
+
+**Der bestehende Wächter hat das sechste Feld sofort gemeldet.**
+`test_the_free_expression_is_a_view_on_the_five_fields` bestand darauf, dass das
+Formular **genau** die fünf Felder plus Beschriftung, Befehl und Zustand
+schickt. Das ist die Regel, die es die Expertenansicht überhaupt erst geben
+lässt. `experte` steht deshalb nicht als Ausnahme da, sondern in
+`VIEW_FIELDS` — mit Begründung, und mit einer Sperrklinke daneben: Ein Feld des
+Zeitplans in dieser Liste ist Rot.
+
+**Und die Namen der fünf Stellen kamen im ersten Anlauf als eigene Konstante.**
+`PART_NAMES` im Controller — dieselben fünf Wörter ein zweites Mal, direkt neben
+der Sprachdatei, die sie ohnehin führt. Sie kommen jetzt aus
+`trans('validation.attributes.'.$feld)`.
+
+> **Zwei Listen, die dasselbe meinen, laufen auseinander — und keine von beiden
+> ist der Ort, an dem man nachsieht.**
+
+### 8.4 Was dabei nachgetragen wurde
+
+Das rot markierte Feld: `zeitplanFalsch` kannte nur die fünf Feldnamen. Seit der
+Server seine Meldung unter `expression` ablegt, wäre das eine sichtbare Feld
+ausgerechnet dann unmarkiert geblieben, wenn die Meldung von ihm handelt.
+
+### 8.5 Was offen bleibt
+
+Nichts aus 15 und 16. Als Nächstes stehen **Befunde 12 und 14** an — die
+Cronseite, und sie ist die einzige Gruppe, die eine gemessene Entscheidung
+braucht. Sie gehört **in `Cron.vue`** behoben und nicht in `app.css`; sonst wird
+die dritte volle Runde fällig (§7.4).
+

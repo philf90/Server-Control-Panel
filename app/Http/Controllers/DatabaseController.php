@@ -740,6 +740,11 @@ final class DatabaseController extends Controller
             // subscriptionName()` im Abonnementformular). Geprüft wird unten,
             // mit der Regel des Agenten und einer lesbaren Meldung.
             'host' => ['nullable', 'string'],
+        ], [], [
+            // `host` heisst in der gemeinsamen Liste „Server" — das ist der
+            // Mailserver. Hier steht am Feld „Erreichbar von" (docs/64,
+            // Befund 15).
+            'host' => 'Erreichbar von',
         ]);
 
         $subscription = $database->subscription;
@@ -1308,6 +1313,11 @@ final class DatabaseController extends Controller
             'mode' => ['required', 'in:insert,update,delete'],
             'key' => ['required_unless:mode,insert', 'array'],
             'values' => ['required_unless:mode,delete', 'array'],
+        ], [], [
+            // `mode` heisst in der gemeinsamen Liste „Rechte" — das sind die
+            // Dateirechte. Hier ist es die Art der Änderung (docs/64,
+            // Befund 15).
+            'mode' => 'Art der Änderung',
         ]);
 
         $mode = (string) $validated['mode'];

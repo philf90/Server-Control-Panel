@@ -493,6 +493,19 @@ Aufräumen abgeschaltet.* Passiert bei `MobileLayoutTest`, bei
 Optik-Reworks. Die Untergrenze zählt seitdem überall mit, wo die Regel stehen
 *darf*; der Befund kommt weiter nur von dort, wo sie stehen *soll*.
 
+**Und die Falle daneben, gefunden am 20. August beim Bau von Befund 15.** Ein
+frisch gebauter Wächter stand grün — und genau die fünf Felder, an denen der
+Befund überhaupt entdeckt worden war, sah er nicht: Sie entstehen aus
+`...array_fill_keys(Schedule::FIELDS, …)` und stehen nirgends im Quelltext.
+
+> **Ein Wächter, der einen Ausdruck nicht auflösen kann, hat nicht wenig
+> gemessen — er hat an dieser Stelle gar nicht gemessen.**
+
+Das ist „Eine Null ist nur dann eine Messung" eine Ebene tiefer: Es fehlt nicht
+der Ausschlag, sondern der Prüfkörper. Wer einen Wächter über eine Aufzählung
+baut, prüft ihn deshalb an dem Fall, der ihn ausgelöst hat — und macht ihn rot,
+wo er nicht hinsehen kann, statt ihn dort schweigen zu lassen.
+
 **Und ein zweites Muster, das der Umbau aus `docs/35` freigelegt hat: eine
 Ressource, die sich anlegen, aber nirgends löschen lässt.** Zertifikate konnte
 dieses System bestellen, hochladen und erneuern — ein `remove` gab es weder im

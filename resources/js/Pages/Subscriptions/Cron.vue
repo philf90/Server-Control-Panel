@@ -39,6 +39,31 @@ const form = useForm({
   month: '*',
   day_of_week: '*',
   active: true,
+
+  /*
+   * **Welche Ansicht offen ist, muss der Server wissen.**
+   *
+   * Nicht, weil er den Zeitplan anders prüfte — er prüft dieselben fünf
+   * Felder. Sondern weil er seine Meldung sonst an Felder richtet, die in
+   * dieser Ansicht **eingeklappt** sind: Wer `* * *` in ein Feld tippt und
+   * „Das Feld Monat ist erforderlich" liest, sucht ein Feld, das er nicht
+   * sieht (`docs/64`, Befund 16).
+   *
+   * > **Eine Sicht auf eine Sache ist noch keine Sicht auf ihre
+   * > Fehlermeldungen.**
+   *
+   * Ein zweiter Speicherort für den Zeitplan ist das nicht: `experte` sagt,
+   * *wie* die fünf Felder gerade bedient werden, und nicht, *was* in ihnen
+   * steht.
+   *
+   * **Ein Kästchen und kein neuer Baustein.** Ein Umschalter mit zwei
+   * beschrifteten Hälften wäre eine neue Klasse in `app.css`, eine neue Regel
+   * und ein neuer Wächter — für einen Zustand, der zwei Werte hat. `.toggle`
+   * steht auf dieser Seite schon (der Schalter „Aktiv"), seine Geometrie ist
+   * bei 390 px gemessen, und ein Kästchen *ist* ein Schalter zwischen zwei
+   * Zuständen.
+   */
+  experte: false,
 })
 
 /**
@@ -83,17 +108,6 @@ const ausdruck = computed(
 )
 
 /**
- * Der Umschalter auf die Eingabe des ganzen Ausdrucks.
- *
- * **Ein Kästchen und kein neuer Baustein.** Ein Umschalter mit zwei
- * beschrifteten Hälften wäre eine neue Klasse in `app.css`, eine neue Regel und
- * ein neuer Wächter — für einen Zustand, der zwei Werte hat. `.toggle` steht auf
- * dieser Seite schon (der Schalter „Aktiv"), seine Geometrie ist bei 390 px
- * gemessen, und ein Kästchen *ist* ein Schalter zwischen zwei Zuständen.
- */
-const experte = ref(false)
-
-/**
  * Der ganze Ausdruck als **Sicht** auf die fünf Felder — nicht als zweiter Wert.
  *
  * **Das ist die Bedingung, unter der es dieses Feld gibt.** Ein eigener
@@ -134,9 +148,15 @@ const freierAusdruck = computed({
  * ihnen rot werden. Der Satz dazu steht ohnehin oben in der Zusammenfassung
  * (`docs/19 §6`); das eine Feld trägt nur `aria-invalid`, damit die
  * Vorlesesoftware es findet.
+ *
+ * **`expression` gehört dazu, seit der Server die Ansicht kennt.** Er benennt
+ * in dieser Ansicht nicht mehr die eingeklappten Felder, sondern die Stelle im
+ * Ausdruck (`docs/64`, Befund 16) — und legt seine Meldung unter genau diesen
+ * Namen. Stünde er hier nicht, bliebe das eine sichtbare Feld unmarkiert, und
+ * zwar ausgerechnet dann, wenn die Meldung von ihm handelt.
  */
 const zeitplanFalsch = computed(
-  () => ['minute', 'hour', 'day_of_month', 'month', 'day_of_week']
+  () => ['minute', 'hour', 'day_of_month', 'month', 'day_of_week', 'expression']
     .some((feld) => Boolean(form.errors[feld as 'minute'])),
 )
 
@@ -422,12 +442,12 @@ function entfernen(job: Job): void {
             -->
             <div class="field">
               <label class="toggle">
-                <input v-model="experte" type="checkbox">
+                <input v-model="form.experte" type="checkbox">
                 <span>Den Zeitplan als Ausdruck eingeben</span>
               </label>
             </div>
 
-            <div v-if="experte" class="field">
+            <div v-if="form.experte" class="field">
               <label for="expression">Ausdruck</label>
               <input
                 id="expression"
@@ -473,7 +493,7 @@ function entfernen(job: Job): void {
               (<span class="ident literal">9-17</span>), Listen (<span class="ident literal">1,4</span>)
               und Schritte (<span class="ident literal">*/15</span>). Der Wochentag zählt von 0
               (Sonntag) bis 7 (auch Sonntag).
-              <template v-if="experte">
+              <template v-if="form.experte">
                 Fünf Felder, durch Leerzeichen getrennt: Minute, Stunde, Tag des Monats,
                 Monat, Wochentag.
               </template>

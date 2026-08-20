@@ -1972,6 +1972,19 @@ mitgemessen worden und stehen dort: **„ohne Schlüssel"** (Ansicht 6),
 | Dateimanager — Verschieben, Zielbaum offen | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
 | Dateimanager — Packen, mit Namensfeld | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
 | Dateimanager — „Verzeichnis anlegen" offen | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
+| Dateimanager — „Datei anlegen" offen | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
+
+**Beide Kopfleistenformulare stehen ganz im Bild**, mit der berichtigten Zeile
+gemessen und in beiden Fällen derselbe Wert:
+
+```json
+{"oben":476,"unten":602,"fenster":844,"ganzImBild":true}
+```
+
+Oberkante 476, Unterkante 602, Fenster 844 — 242 px Luft nach unten. **Befund 18
+gilt für die Kopfleiste nicht**, und das ist damit gemessen statt vermutet. Der
+Unterschied zum Zielbaum ist die Richtung: Die Kopfleiste steht **unter** ihrem
+Griff, der Zielbaum **über** seinem.
 
 **Befund 9 ist auf den Pixel bestätigt.** Der Versatz zwischen der Unterkante
 des Knopfes „Packen" und der des Namensfeldes:

@@ -1577,15 +1577,106 @@ Gemessen im Container waren es 1 → 7 px.
 
 ### 4.3 Die fünf Griffe der Experteneingabe
 
-*(noch nichts gefahren — die Vorschrift steht in `docs/63 §6b`)*
+Gefahren am 20. August auf `cloudsrv24` gegen `rc.19`, Kundensicht auf
+Abonnement 140, bei 390 px. Für Griff 4 und 5 ist **Job J gelöscht** worden.
 
 | | Griff | erwartet | gemessen |
 |---|---|---|---|
-| 1 | Kästchen ankreuzen | Feld zeigt `* * * * *` | — |
-| 2 | `*/15 9-17 * * 1-5`, Kästchen ab | fünf Felder tragen die Teile | — |
-| 3 | Schnellwahl bei angekreuztem Kästchen | Feld zeigt `0 9 * * 1-5` | — |
-| 4 | `* * *` anlegen | Abweisung, Satz oben | — |
-| 5 | `*/15 * * * *` anlegen | Job steht mit genau diesem Ausdruck | — |
+| 1 | Kästchen ankreuzen | Feld zeigt `* * * * *` | **`* * * * *`** ✓ |
+| 2 | `*/15 9-17 * * 1-5`, Kästchen ab | fünf Felder tragen die Teile | **`*/15` · `9-17` · `*` · `*` · `1-5`** ✓ |
+| 3 | Schnellwahl bei angekreuztem Kästchen | Feld zeigt `0 9 * * 1-5` | **`0 9 * * 1-5`** ✓ |
+| 4 | `* * *` anlegen | Abweisung, Satz oben | abgewiesen, Satz oben ✓ — **aber Befund 15 und 16** |
+| 5 | `*/15 * * * *` anlegen | Job steht mit genau diesem Ausdruck | Job „X", Zeitplan **`*/15 * * * *`** ✓ |
+
+**Wunsch 1 trägt.** Griff 2 ist der eigentliche Punkt gewesen, und er sitzt: Der
+Ausdruck schreibt in die fünf Felder zurück, es gibt also nicht zwei Wahrheiten
+über denselben Zeitplan. Griff 3 zeigt, dass die Schnellwahl in beiden Ansichten
+wirkt, und Griff 5, dass in der Liste steht, was getippt wurde — nicht etwas,
+das ihm ähnlich sieht.
+
+Griff 4 hat die Abweisung geliefert, die er sollte: Über die Form eines
+Zeitplans urteilt der Server, und die Meldung steht oben in der Zusammenfassung.
+**Was in ihr steht, ist der Befund.**
+
+#### Befund 15 — jede Rückmeldung dieses Panels nennt einen englischen Feldnamen
+
+Die Meldung zu Griff 4 lautet wörtlich:
+
+> Das Formular wurde nicht gespeichert.
+> Das Feld **month** ist erforderlich.
+> Das Feld **day of week** ist erforderlich.
+
+Deutscher Satzbau, englische Wörter darin. Die Ursache steht in
+`lang/de/validation.php`:
+
+```php
+'attributes' => [],
+```
+
+Ist diese Liste leer, setzt Laravel den **Feldnamen** ein und macht aus
+`day_of_week` das Wort „day of week". Die Namen sind englisch, weil sie
+Bezeichner sind und sein sollen (`docs/19 §4a`) — sie waren nie als Anzeige
+gedacht.
+
+**Das ist keine Eigenheit der Cronseite.** Gemessen über `app/`:
+
+| | Zahl |
+|---|---|
+| Feldnamen in Validierungsregeln | **95** |
+| davon mehrwortig, also unübersehbar englisch | **23** |
+
+Darunter `current password`, `first name`, `postal code`, `private key`,
+`shared secret`, `login email`, `plan id`. Die einwortigen fallen weniger auf
+und sind derselbe Fehler: „Das Feld **label** ist erforderlich", „Das Feld
+**command** ist erforderlich".
+
+**Und kein Wächter konnte das finden.** `WordChoiceTest` liest die Zeichenketten
+im Quelltext und die Vorlagen. Dieses Wort steht in keiner von beiden — es
+entsteht erst beim Ausführen, aus einem Bezeichner.
+
+> **Ein Wort, das erst beim Ausführen entsteht, steht in keiner Datei — und kein
+> Wächter, der Dateien liest, findet es.**
+
+Das ist die Umkehrung des Fehlers, der dieses Projekt trägt: Sonst ist es eine
+Zeichenkette, die auf etwas verweist, ohne dass der Bezug geprüft wird. Hier ist
+es ein Bezeichner, der zu einer Anzeige wird, ohne dass jemand ihn dafür
+vorgesehen hat.
+
+**Es steht seit P0 so da** und ist durch jeden Abnahmelauf dieses Projekts
+gegangen. Gefunden hat es der erste Griff, der eine Abweisung **absichtlich**
+herbeigeführt hat.
+
+> **Ein Fehlerweg, den nie jemand ausgelöst hat, ist ungeprüft — auch wenn die
+> Seite darüber hundertmal fotografiert wurde.**
+
+#### Befund 16 — in der Experteneingabe zeigt die Meldung auf Felder, die es dort nicht gibt
+
+Derselbe Griff, der zweite Fehler darin. Getippt war `* * *` in **ein** Feld —
+„Ausdruck". Die Meldung nennt zwei andere, „month" und „day of week", und beide
+sind in diesem Zustand **nicht auf der Seite**: Das Kästchen ist angekreuzt, die
+fünf Felder sind eingeklappt.
+
+Wer der Meldung folgt, sucht etwas, das er nicht sehen kann. Richtig wäre ein
+Satz über den Ausdruck selbst — er hat drei Teile und braucht fünf.
+
+**Das ist dieselbe Familie wie `docs/59`:**
+
+> **Ein roter Rand am Feld behauptet, das Feld sei falsch. Wer ihn für einen
+> Zustand des Servers setzt, schickt den Leser dorthin, wo nichts zu ändern
+> ist.**
+
+Und hier eine Stufe weiter:
+
+> **Eine Meldung, die ein Feld nennt, das gerade nicht zu sehen ist, ist keine
+> Auskunft — sie ist eine Suchaufgabe.**
+
+**Der Bau von Wunsch 1 hat das nicht bedacht,** und das war absehbar: Die
+Experteneingabe ist eine Sicht auf die fünf Felder — die Prüfung ist es nicht.
+Sie urteilt weiter über die fünf, und ihre Antwort geht an fünf Empfänger, von
+denen vier eingeklappt sind. Genau deshalb steht in `docs/63 §6b` überhaupt ein
+Griff 4.
+
+> **Eine Sicht auf eine Sache ist noch keine Sicht auf ihre Fehlermeldungen.**
 
 ### 4.4 Die offene Frage aus der ersten Runde — beantwortet am 20. August
 

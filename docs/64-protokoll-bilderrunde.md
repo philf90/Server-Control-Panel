@@ -1332,7 +1332,7 @@ Zeile hier nicht als gemessen.
 | # | Ansicht | 390 hell | 390 dunkel | 1440 hell | 1440 dunkel |
 |---|---|---|---|---|---|
 | 1 | Dateien, Auswahl | **0** | **0** | **0** | **0** |
-| 2 | Dateimanager | — | — | — | — |
+| 2 | Dateimanager | **0** | **0** | **0** | **0** |
 | 3 | Editor | — | — | — | — |
 | 4 | Suche | — | — | — | — |
 | 5 | SFTP, Auswahl | — | — | — | — |
@@ -1377,6 +1377,45 @@ dieselben Zahlen — die Geometrie hängt nicht am Thema.
 **Und die Quittung der Dichtestufe fehlt hier folgerichtig**: Bei 1440 px rollt
 nichts, weil die Seite zwei Zeilen Inhalt hat. Was der engere Spaltenabstand
 schenkt, ist nur an einer Tabelle abzulesen, die überläuft.
+
+#### Ansicht 2 — Dateimanager (`/subscriptions/140/files`)
+
+| Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` |
+|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | `thead` **350** · `tr` **322** | leer |
+| 390 dunkel | 0 | **200/200** | `thead` **350** · `tr` **322** | leer |
+| 1440 hell | 0 | **200/200** | **leer** | leer |
+| 1440 dunkel | 0 | **200/200** | **leer** | leer |
+
+Dieselben Zahlen wie im ersten Lauf, und wieder ohne einen einzigen
+Fremdeintrag. Bei 1440 px rollt nichts — die Quittung der Dichtestufe ist hier
+also erneut nicht ablesbar, wie schon bei Ansicht 1 und 9 Teil 2.
+
+**Und der Prüfkörper aus `docs/46 §20.11` liegt im Bestand und ist im Bild.**
+Der lange Verzeichnisname steht im Baum und bricht dort über acht Zeilen — genau
+das, wofür `overflow-wrap: anywhere` dasteht. `dokument` ist trotzdem 0. Die
+Regel, die im ersten Lauf von P5c 99 px Überlauf verhindert hat, hält auf dem
+echten Server.
+
+> **Ein Prüfkörper, der im Bestand liegen bleibt, misst bei jeder Runde mit —
+> und das ist der Grund, ihn nicht aufzuräumen.**
+
+#### Was die Bilder nebenbei zeigen: sieben Meldungen im Register „Issues"
+
+**Bei 1440 px steht in den Entwicklerwerkzeugen `7 Issues`, bei 390 px `No
+Issues`** — auf allen bisher gemessenen Ansichten stand dort nichts. Das ist
+keine Zahl aus `bilderMessen()` und kein Fund; es ist eine Auskunft, die der
+Browser von sich aus anbietet und die dieser Lauf bisher nicht gelesen hat.
+
+Was dort steht, ist unbekannt. Es kann eine Abkündigung sein, eine Sache mit
+Formularfeldern, ein Bild ohne Grösse — oder nichts, was zählt. Aufgeschrieben
+wird es, weil es sonst niemandem mehr auffällt.
+
+> **Eine Auskunft, die man nicht liest, ist nicht dasselbe wie eine, die es
+> nicht gibt.**
+
+**Nächster Griff:** das Register „Issues" bei 1440 px einmal aufklappen und die
+sieben Zeilen abschreiben. Kostet keine Aufnahme.
 
 #### Ansicht 8 — Cronjobs, gemessen am 20. August gegen `rc.19`
 

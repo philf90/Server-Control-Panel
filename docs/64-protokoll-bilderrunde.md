@@ -1264,15 +1264,22 @@ meldete — die Sperrklinke hat den Wächter gegen sich selbst verteidigt.
 - **Neunzehn Griffe in der Datenbankkonsole**, gefunden beim Beheben von
   Befund 10 und nicht untersucht. Sie stehen in `RevealTest::UNEXAMINED`.
 
-  Sie fallen in **drei** Gruppen und drei Einzelfälle:
+  Was über sie bekannt ist, ist ausschliesslich dies: Sie öffnen einen Bereich,
+  und ob der dabei im Bild landet, hat niemand angesehen. Die Konsole gehört
+  nicht zu den neun Ansichten dieses Schritts, deshalb bleiben sie hier stehen
+  statt geraten zu werden.
 
-  | Gruppe | Befunde | eine Regel |
-  |---|---|---|
-  | **behoben** | **2, 3, 4** (zwei Fundstellen) — `BlockSpacingTest` | `.section-note` mit eigenem Rand, drei Fugen um `.quiet`, der Absatz ohne Klasse |
-  | **behoben** | **7, 8** — `padding: 6px 14px` an `td` | über beide Dichtestufen gemessen |
-  | **behoben** | **10** (zwei Fundstellen, beide Richtungen) — `RevealTest` | jeder Griff, der einen Bereich öffnet, holt ihn ins Bild |
-  | **behoben** | **1** (Kästchen → `.toggle`), **5** (`.ident.literal`), **6** (Dichtestufe), **9** (`flex-end`) | jeder mit gemessener Zahl |
-  | **behoben** | **11** (`.quiet`) — `StandaloneClassTest` | am 19. August, im Container nachgemessen |
+  > **Ein Eintrag auf einer Ausnahmeliste ist kein Befund und keine
+  > Unbedenklichkeit — er ist eine offene Frage mit einem Namen.**
+
+  **Hier stand bis zum 20. August eine Tabelle über die elf Befunde**, eingerückt
+  unter diesem Punkt und eingeleitet mit „Sie fallen in drei Gruppen". Gemeint
+  waren die Befunde, gelesen wurden die neunzehn Griffe — und damit sah eine
+  offene Frage aus wie fünfmal „behoben". Die Tabelle steht jetzt oben, wo sie
+  hingehört.
+
+  > **Eine Tabelle unter der falschen Überschrift beantwortet die falsche
+  > Frage — und zwar zuversichtlich.**
 - **Die 27 px an `.stacks thead` der Cronseite** — vier Messungen, 484 · 511 ·
   511 · 484, und weder die Reihenfolge noch der Bestand der Tabelle erklärt sie.
   Vor der zweiten Runde klären, mit dem Messmittel und nicht mit einer
@@ -1289,3 +1296,75 @@ meldete — die Sperrklinke hat den Wächter gegen sich selbst verteidigt.
   bleiben ungemessen, weil sie ausdrücklich nicht hergestellt werden.
 
 **Damit ist Schritt 12 nicht abgeschlossen**, und P6 ist nicht abgenommen.
+
+---
+
+## 4. Die zweite Runde — gegen `v0.6.0-rc.19`
+
+**Angelegt am 20. August 2026, bevor eine Zahl darinsteht.** `rc.19` ist auf
+`cloudsrv24` installiert; der Tag steht auf `2d751df`, dem Merge von PR #154.
+
+Diese Runde ist keine Wiederholung der ersten. Sie hat drei Aufgaben, und die
+dritte ist die, an der die Stufe hängt:
+
+1. **Die elf Behebungen auf dem echten Server gegenprüfen.** Gemessen sind sie
+   im Container. Was dort aufs Pixel stimmt, stimmt hier aufs Pixel — aber nur,
+   solange es dieselbe Seite ist, und das ist eine Behauptung über echte Daten.
+2. **Die Experteneingabe fahren**, Bild und fünf Griffe (`docs/63 §6b`).
+3. **Und alles noch einmal messen, was die erste Runde gemessen hat** — denn
+   Befund 6 hat die Dichtestufe `customer` verändert, und in der stehen
+   sämtliche Aufnahmen des ersten Laufs. Jede Zahl von dort ist damit die Zahl
+   einer Fassung, die es nicht mehr gibt.
+
+   > **Eine Behebung, die an der Achse ansetzt, macht jede Messung daneben
+   > ungültig — auch die, die nichts mit ihr zu tun hatte.**
+
+**Was diese Runde anders macht als die erste:** Sie wird in einem Fenster
+**ohne Erweiterungen** gefahren. Die erste hat 468 px falschen Überlaufs
+gekostet, zweimal falsch erklärt, bis der Ort im Fund die Ursache nannte —
+`lp-menu-live-region`, ein Kasten des Browsers und nicht der Seite.
+
+### 4.1 Die neun Ansichten
+
+*(noch nichts gemessen)*
+
+| # | Ansicht | 390 hell | 390 dunkel | 1440 hell | 1440 dunkel |
+|---|---|---|---|---|---|
+| 1 | Dateien, Auswahl | — | — | — | — |
+| 2 | Dateimanager | — | — | — | — |
+| 3 | Editor | — | — | — | — |
+| 4 | Suche | — | — | — | — |
+| 5 | SFTP, Auswahl | — | — | — | — |
+| 6 | SFTP-Zugang | — | — | — | — |
+| 7 | Cron, Auswahl | — | — | — | — |
+| 8 | Cronjobs | — | — | — | — |
+| 9 | Läufe | — | — | — | — |
+
+### 4.2 Die Zustände
+
+*(noch nichts gemessen — die Liste steht in `docs/63 §3`)*
+
+### 4.3 Die fünf Griffe der Experteneingabe
+
+*(noch nichts gefahren — die Vorschrift steht in `docs/63 §6b`)*
+
+| | Griff | erwartet | gemessen |
+|---|---|---|---|
+| 1 | Kästchen ankreuzen | Feld zeigt `* * * * *` | — |
+| 2 | `*/15 9-17 * * 1-5`, Kästchen ab | fünf Felder tragen die Teile | — |
+| 3 | Schnellwahl bei angekreuztem Kästchen | Feld zeigt `0 9 * * 1-5` | — |
+| 4 | `* * *` anlegen | Abweisung, Satz oben | — |
+| 5 | `*/15 * * * *` anlegen | Job steht mit genau diesem Ausdruck | — |
+
+### 4.4 Die offene Frage aus der ersten Runde
+
+**Die 27 px an `.stacks thead` der Cronseite** (484 · 511 · 511 · 484). Sie
+gehört mit dem Messmittel beantwortet und nicht mit einer Überlegung: Der Fund
+nennt seit dem 19. August seinen Ort und seinen Anfang, und die vier Lagen der
+Ansicht 8 sagen, ob die Zahl an der Breite, am Thema oder am Bestand hängt.
+
+Die Vermutung aus dem ersten Lauf — die Schrift — ist eine Vermutung geblieben
+und wird hier nicht als Erklärung geführt.
+
+> **Eine Zahl, die viermal gemessen wurde und zweimal verschieden ausfiel, hat
+> keine Erklärung, sondern zwei Messreihen.**

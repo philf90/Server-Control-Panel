@@ -1574,7 +1574,7 @@ Gemessen im Container waren es 1 → 7 px.
 | 4 | `* * *` anlegen | Abweisung, Satz oben | — |
 | 5 | `*/15 * * * *` anlegen | Job steht mit genau diesem Ausdruck | — |
 
-### 4.4 Die offene Frage aus der ersten Runde — gefahren am 20. August
+### 4.4 Die offene Frage aus der ersten Runde — beantwortet am 20. August
 
 **Die 27 px an `.stacks thead` der Cronseite.** Der Prüfschritt ist gefahren,
 dreimal bei 390 px auf `/subscriptions/140/cron`:
@@ -1586,37 +1586,66 @@ dreimal bei 390 px auf `/subscriptions/140/cron`:
 | c | „Abbrechen" gedrückt | 484 · 456 |
 
 **Kein einziges Mal 511.** Damit sind drei Kandidaten gemessen und erledigt: der
-Bestand der Tabelle (Ansicht 8 mit zehn Jobs ergibt 484), der Klick, das
-geöffnete Formular. Die Begründung dazu und der Irrtum, der dazwischen lag,
-stehen in §4.1.
+Bestand der Tabelle, der Klick, das geöffnete Formular. Die Begründung und der
+Irrtum, der dazwischen lag, stehen in §4.1.
 
-**Was bleibt: die Schrift** — der Kandidat aus dem ersten Lauf, den ich
-zwischendurch für unwahrscheinlich erklärt habe. Er passt zur Grössenordnung:
-484 → 511 sind 5,6 %, 456 → 483 sind 5,9 %.
+#### Der vierte Kandidat fällt im Quelltext, nicht auf dem Server
 
-Der Prüfschritt dafür misst **zweimal an derselben Ladung**, sofort und nach dem
-Eintreffen der Schrift. Bei 390 px, in die Konsole, **vor** dem Neuladen
-einzufügen — er misst beim nächsten Laden von selbst:
+Übrig war die Schrift — die Vermutung aus dem ersten Lauf, und die einzige, die
+zur Grössenordnung passte (5,6 % und 5,9 %). Sie ist **unmöglich**, und das
+steht in `app.css`:
+
+```css
+--font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+--font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+```
+
+Kein `@font-face`, keine `.woff`, kein Verweis auf eine Schriftquelle — dieses
+Panel lädt keine Schrift, es benutzt die des Systems. Es gibt also nichts, was
+„noch nicht geladen" sein könnte; `document.fonts` ist leer und
+`document.fonts.ready` sofort erfüllt.
+
+**Und hier stand vorher ein Prüfschritt, der nicht laufen konnte.** Er lautete,
+man solle vor dem Neuladen ein `addEventListener('load', …)` in die Konsole
+einfügen — der stirbt aber mit dem Seitenkontext, den das Neuladen wegwirft. Er
+hätte nie gemessen und dabei ausgesehen, als sei nichts zu finden.
+
+> **Ein Messmittel, das ein Neuladen überleben soll, überlebt es nicht — es wird
+> mitentfernt und meldet das nicht.**
+
+Derselbe Satz steht als Falle schon in `docs/63 §2`, dort über das Werkzeug aus
+der Zwischenablage. Er gilt für die Messung genauso wie für das Gemessene.
+
+#### Die Gegenprobe zum Quelltext, eine Zeile, ohne Neuladen
+
+Ein Wert, den nur die Datei kennt, ist eine Vermutung mit Fussnote. In der
+Konsole:
 
 ```js
-addEventListener('load', () => {
-  const sofort = bilderMessen().schiebt.map((r) => r.wo + ' ' + r.ueberlauf).join(' | ')
-  document.fonts.ready.then(() => {
-    const fertig = bilderMessen().schiebt.map((r) => r.wo + ' ' + r.ueberlauf).join(' | ')
-    console.log(JSON.stringify({ sofort, fertig, schriften: document.fonts.size }))
-  })
+JSON.stringify({
+  schriften: document.fonts.size,
+  status: document.fonts.status,
+  familie: getComputedStyle(document.querySelector('table.stacks th')).fontFamily,
 })
 ```
 
-Stehen dort zwei verschiedene Zahlen, ist die Frage beantwortet und der Fund
-gehört ins Messmittel: **Gemessen wird nach `document.fonts.ready`, nicht
-vorher.** Stehen zweimal dieselben, ist auch die Schrift erledigt — und dann ist
-die ehrliche Auskunft, dass die 511 aus dem ersten Lauf **unerklärt** bleibt und
-gegen `rc.19` nicht reproduzierbar ist.
+Erwartet: `schriften: 0`, `status: "loaded"`, und eine Familie, die mit
+`system-ui` beginnt. Steht dort etwas anderes, ist die Annahme falsch und die
+Frage wieder offen.
+
+#### Was damit gilt
+
+Vier benannte Kandidaten, vier erledigt. Die 511 aus dem ersten Lauf ist gegen
+`rc.19` in fünf Messungen nicht ein einziges Mal wieder aufgetreten und hat
+keine Erklärung mehr, die jemand benennen könnte.
 
 > **Eine Zahl, die sich nicht wieder herstellen lässt, ist kein Befund mehr —
 > sie ist eine Notiz darüber, dass einmal etwas anderes gemessen wurde.**
 
+Sie bleibt genau so stehen: als Notiz, nicht als offener Punkt. Was sie **nicht**
+bekommt, ist eine fünfte Vermutung — dieser Abschnitt hat in zwei Tagen zwei
+davon verbraucht, und beide waren falsch.
+
 **Für das Kriterium ist es die ganze Zeit gleichgültig gewesen** (`dokument` ist
-in jeder Lage 0, `.stacks thead` ist der Mechanismus). Was hier geklärt wird,
-ist das Vertrauen in das Messmittel und nicht der Zustand des Panels.
+in jeder Lage 0, `.stacks thead` ist der Mechanismus). Geklärt wurde das
+Vertrauen in das Messmittel und nicht der Zustand des Panels.

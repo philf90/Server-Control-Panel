@@ -1629,9 +1629,18 @@ JSON.stringify({
 })
 ```
 
-Erwartet: `schriften: 0`, `status: "loaded"`, und eine Familie, die mit
-`system-ui` beginnt. Steht dort etwas anderes, ist die Annahme falsch und die
-Frage wieder offen.
+**Gefahren am 20. August auf `cloudsrv24`, gegen `rc.19`:**
+
+```json
+{"schriften":0,"status":"loaded","familie":"system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"}
+```
+
+Null Schriften im Dokument, der Ladezustand sofort `loaded`, und die Familie ist
+Wort für Wort der Stapel aus `app.css`. Der Browser bestätigt, was die Datei
+sagt.
+
+> **Ein Wert, den nur die Datei kennt, ist eine Vermutung mit Fussnote — eine
+> Zeile in der Konsole macht daraus eine Messung.**
 
 #### Was damit gilt
 

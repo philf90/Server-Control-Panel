@@ -1013,10 +1013,63 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
 
 ---
 
+## 2b. Befund 11 — `.quiet` gilt nur in einer Tabelle
+
+**Gefunden beim Vorbereiten der Behebung**, nicht in einem Bild. Für die
+Nachbarpaare (Befunde 2, 3, 4) war zu klären, welche Bausteine überhaupt
+beteiligt sind — einer davon ist `.quiet`. In `app.css` steht dazu:
+
+```css
+td.quiet { … }
+td .quiet { … }
+```
+
+**Und sonst nichts.** Ausserhalb einer Tabellenzelle greift die Klasse nicht.
+
+**Gemessen im Container** (gebautes Stylesheet, echtes Chromium, Dichtestufe
+`customer`):
+
+| | Farbe | entspricht |
+|---|---|---|
+| `<p>` ohne Klasse | `rgb(58, 63, 73)` | `--text` |
+| **`<p class="quiet">`** | **`rgb(58, 63, 73)`** | **`--text`** — kein Unterschied |
+| `<td class="quiet">` | `rgb(92, 100, 112)` | `--text-muted` |
+
+**Das steht auf Bildern dieses Laufs, und ich habe es viermal übersehen.** Auf
+der Suchseite ist „Gesucht unter / — angesehene Einträge: 20." ein
+`<p class="quiet">`; im Editor ist „Diese Datei gehört nicht dem Abonnement —
+sie lässt sich lesen und nicht ändern." einer. Beide sollen leise sein und sind
+es nicht.
+
+> **Ein Bild, das man auf eine Frage hin ansieht, beantwortet die Frage — und
+> verdeckt alles, was daneben steht.**
+
+Derselbe Satz wie in `docs/59`, dort über neun Meldungen in Markdown. Hier war
+die Frage „schiebt die Seite?", und die Farbe eines Absatzes stand daneben.
+
+**Und `ClassReachTest` ist dabei grün**, zu Recht nach seinem Wortlaut: Die
+Klasse `.quiet` **kommt** in `app.css` vor. Dass sie nur als Nachfahrenregel
+vorkommt, prüft er nicht.
+
+> **Eine Klasse, die es nur als Nachfahrenregel gibt, ist ausserhalb ihres
+> Vorfahren ein Wunsch.**
+
+**Umfang:** 151 Stellen in 30 Vorlagen tragen `class="quiet"`. Die Mehrzahl
+steht in einer Zelle und ist in Ordnung; wie viele es nicht tun, ist zu zählen,
+bevor die Regel geschrieben wird — eine Klasse, die plötzlich überall wirkt,
+ändert auch dort etwas, wo bisher niemand etwas vermisst hat.
+
+**Der Wächter dazu gehört zur Behebung**: Er muss den Unterschied zwischen einer
+eigenständigen Regel und einer Nachfahrenregel kennen, sonst fängt er den
+nächsten Fall so wenig wie diesen.
+
+---
+
 ## 3. Was offen ist
 
-- **Zehn Befunde am Panel** — zwei an Ansicht 4, einer an Ansicht 6, drei an
-  Ansicht 8, zwei an Ansicht 9, zwei an Zuständen. Beheben und nachmessen.
+- **Elf Befunde am Panel** — zwei an Ansicht 4, einer an Ansicht 6, drei an
+  Ansicht 8, zwei an Ansicht 9, zwei an Zuständen, einer beim Vorbereiten der
+  Behebung (§2b). Beheben und nachmessen.
 
   Sie fallen in **drei** Gruppen und drei Einzelfälle:
 
@@ -1025,7 +1078,7 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
   | fehlende Nachbarpaare | 2, 3, **4** (zwei Fundstellen) | ein Baustein, der bündig endet, bringt seinen Abstand selbst mit |
   | fehlende Polsterung an `td` | 7, 8 | `padding: 8px 14px 8px 0`, im Container gemessen |
   | Wirkung ausserhalb des Bildes | **10** (zwei Fundstellen, beide Richtungen) | jeder Griff, der einen Bereich öffnet, holt ihn ins Bild |
-  | einzeln | 1 (Kästchen), 5 (Codestück), 6 (Dichtestufe), 9 (Ausrichtung) | — |
+  | einzeln | 1 (Kästchen), 5 (Codestück), 6 (Dichtestufe), 9 (Ausrichtung), **11** (`.quiet`) | — |
 - **Die 27 px an `.stacks thead` der Cronseite** — vier Messungen, 484 · 511 ·
   511 · 484, und weder die Reihenfolge noch der Bestand der Tabelle erklärt sie.
   Vor der zweiten Runde klären, mit dem Messmittel und nicht mit einer

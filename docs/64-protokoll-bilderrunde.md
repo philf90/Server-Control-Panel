@@ -1362,7 +1362,7 @@ die Zeitzone steht mit Abstand unter dem Satz darüber, und `*/15` bricht im
 Erklärungstext nicht mehr (Befund 5). Die Dichtestufe aus Befund 6 trägt: Die
 Bereiche stehen enger als im ersten Lauf.
 
-#### Die 27 px sind keine Eigenschaft des Bestands — und der einzige Kandidat, der bleibt, ist der Weg zur Seite
+#### Die 27 px: drei Kandidaten gemessen, drei erledigt — und meine Folgerung dazwischen war falsch
 
 Die offene Frage aus §2 lautete: `.stacks thead` misst auf derselben Seite
 **484** oder **511**, und weder Reihenfolge noch Bestand erklären es. Die
@@ -1377,22 +1377,48 @@ Messwerte des ersten Laufs:
 
 **Und jetzt derselbe Zustand „Kontingent voll" frisch geladen: 484 · 456.**
 
-Damit fällt die letzte Erklärung, die am Zustand hing. Zehn Jobs ergeben einmal
-511 und einmal 484 — der Unterschied liegt nicht darin, *was* auf der Seite
-steht, sondern darin, *wie sie dorthin gekommen ist*: Die beiden 511er sind die
-beiden Lagen, die durch einen Klick entstanden sind und nicht durch ein
-Neuladen. Beide Male sind es exakt 27 px, an `thead` wie an `tr`.
+Damit fällt die letzte Erklärung, die am Zustand hing: Zehn Jobs ergeben einmal
+511 und einmal 484. Was die beiden 511er gemeinsam hatten, war, dass sie ohne
+Neuladen entstanden sind — durch einen Klick.
 
-> **Eine Zahl, die nur nach einem Klick auftritt, ist eine Aussage über den
-> Klick und nicht über die Seite.**
+**Diese Vermutung ist am selben Tag gemessen und widerlegt worden.** Der
+Prüfschritt aus §4.4, dreimal bei 390 px auf derselben Seite:
 
-Das ist derselbe Fund wie beim Breitenwechsel aus §2, eine Stufe allgemeiner:
-Nicht nur ein Wechsel der Breite trägt Reste mit, sondern **jede** Lage, die
-ohne Neuladen entstanden ist.
+| | Handgriff | `thead` · `tr` |
+|---|---|---|
+| a | frisch geladen | 484 · 456 |
+| b | „Ändern" gedrückt, **kein** Neuladen | **484 · 456** |
+| c | „Abbrechen" gedrückt | **484 · 456** |
 
-**Das ist eine Vermutung mit vier Messwerten und noch keine Erklärung** — warum
-eine Kopfzeile aus fünf Wörtern nach einem Klick 27 px breiter misst, ist offen.
-Der Prüfschritt dafür steht in §4.4 und kostet drei Messungen.
+Der Klick erzeugt die 27 px nicht. Das offene Formular auch nicht.
+
+**Damit steht die Zahl auf fünf Messungen 484 gegen `rc.19` und auf keiner
+einzigen 511** — und drei benannte Kandidaten sind erledigt: der Bestand, der
+Klick, das geöffnete Formular. Übrig ist der, der von Anfang an dastand und den
+ich zwischendurch für unwahrscheinlich erklärt habe: **die Schrift.** 484 → 511
+ist ein Zuwachs von 5,6 %, 456 → 483 einer von 5,9 % — die Grössenordnung, die
+zwischen einer Ersatzschrift und der geladenen liegt. Bewiesen ist auch das
+nicht; der Prüfschritt dafür steht in §4.4.
+
+#### Und der Fehler dabei war meiner, zum zweiten Mal in derselben Runde
+
+Ich habe „der Klick ist die Ursache" auf fünf Messwerte gestützt und als
+Richtung ausgegeben. Drei weitere haben sie umgeworfen. Das ist derselbe Fehler
+wie beim `div` mit 468 px, der in diesem Lauf **zweimal** falsch erklärt wurde,
+bevor der Ort im Fund die Ursache nannte.
+
+Und das Bittere daran: Der Satz dagegen steht seit dem ersten Lauf in genau
+diesem Dokument, ein paar Abschnitte weiter oben.
+
+> **Eine Erklärung, die zum dritten Messwert passt, ist keine — sie ist eine
+> Erklärung für drei Messwerte.**
+
+> **Ein Satz, den man selbst aufgeschrieben hat, schützt nicht davor, denselben
+> Fehler noch einmal zu machen — er macht ihn nur teurer zu übersehen.**
+
+Richtig gewesen wäre, was §4.4 ohnehin vorsah: erst messen, dann benennen. Die
+Tabelle war die Messung; der Satz darunter war eine Vermutung im Gewand einer
+Folgerung.
 
 **Für das Kriterium bleibt es gleichgültig** — `dokument` ist in allen Lagen 0,
 und `.stacks thead` ist der Mechanismus und kein Fund. Für das *Messmittel* ist
@@ -1548,29 +1574,49 @@ Gemessen im Container waren es 1 → 7 px.
 | 4 | `* * *` anlegen | Abweisung, Satz oben | — |
 | 5 | `*/15 * * * *` anlegen | Job steht mit genau diesem Ausdruck | — |
 
-### 4.4 Die offene Frage aus der ersten Runde
+### 4.4 Die offene Frage aus der ersten Runde — gefahren am 20. August
 
-**Die 27 px an `.stacks thead` der Cronseite.** Der Stand nach Ansicht 8 steht
-in §4.1: Der Bestand erklärt sie nicht — derselbe Zustand „Kontingent voll"
-misst frisch geladen 484 und nach zehn Klicks 511. Was bleibt, ist der Weg zur
-Seite.
+**Die 27 px an `.stacks thead` der Cronseite.** Der Prüfschritt ist gefahren,
+dreimal bei 390 px auf `/subscriptions/140/cron`:
 
-**Der Prüfschritt dafür, drei Messungen bei 390 px in einem Theme:**
-
-| | Handgriff | was er beantwortet |
+| | Handgriff | `thead` · `tr` |
 |---|---|---|
-| a | Seite neu laden, messen | der Ausgangswert — erwartet 484 |
-| b | „Ändern" an einem Job drücken, **ohne** Neuladen messen | tritt die 511 nach einem Klick auf? |
-| c | „Abbrechen" drücken, wieder messen | geht sie mit dem Formular wieder weg — oder bleibt sie? |
+| a | Seite neu geladen | 484 · 456 |
+| b | „Ändern" gedrückt, **kein** Neuladen | 484 · 456 |
+| c | „Abbrechen" gedrückt | 484 · 456 |
 
-Bleibt die Zahl in (c) bei 511, ist der Klick die Ursache und nicht das
-geöffnete Formular; fällt sie auf 484 zurück, hängt sie am Formular. Beides ist
-ein Befund am Messmittel und keiner am Panel — aber ein benannter statt eines
-offenen.
+**Kein einziges Mal 511.** Damit sind drei Kandidaten gemessen und erledigt: der
+Bestand der Tabelle (Ansicht 8 mit zehn Jobs ergibt 484), der Klick, das
+geöffnete Formular. Die Begründung dazu und der Irrtum, der dazwischen lag,
+stehen in §4.1.
 
-> **Zwei verschiedene Zahlen für denselben Gegenstand sind ein Befund am
-> Messmittel, bis eine von beiden erklärt ist.**
+**Was bleibt: die Schrift** — der Kandidat aus dem ersten Lauf, den ich
+zwischendurch für unwahrscheinlich erklärt habe. Er passt zur Grössenordnung:
+484 → 511 sind 5,6 %, 456 → 483 sind 5,9 %.
 
-Die Vermutung aus dem ersten Lauf — die Schrift sei noch nicht geladen gewesen —
-wird damit unwahrscheinlicher, aber nicht widerlegt: Ein Klick lädt keine
-Schrift nach. Sie steht weiter als Vermutung da und nicht als Erklärung.
+Der Prüfschritt dafür misst **zweimal an derselben Ladung**, sofort und nach dem
+Eintreffen der Schrift. Bei 390 px, in die Konsole, **vor** dem Neuladen
+einzufügen — er misst beim nächsten Laden von selbst:
+
+```js
+addEventListener('load', () => {
+  const sofort = bilderMessen().schiebt.map((r) => r.wo + ' ' + r.ueberlauf).join(' | ')
+  document.fonts.ready.then(() => {
+    const fertig = bilderMessen().schiebt.map((r) => r.wo + ' ' + r.ueberlauf).join(' | ')
+    console.log(JSON.stringify({ sofort, fertig, schriften: document.fonts.size }))
+  })
+})
+```
+
+Stehen dort zwei verschiedene Zahlen, ist die Frage beantwortet und der Fund
+gehört ins Messmittel: **Gemessen wird nach `document.fonts.ready`, nicht
+vorher.** Stehen zweimal dieselben, ist auch die Schrift erledigt — und dann ist
+die ehrliche Auskunft, dass die 511 aus dem ersten Lauf **unerklärt** bleibt und
+gegen `rc.19` nicht reproduzierbar ist.
+
+> **Eine Zahl, die sich nicht wieder herstellen lässt, ist kein Befund mehr —
+> sie ist eine Notiz darüber, dass einmal etwas anderes gemessen wurde.**
+
+**Für das Kriterium ist es die ganze Zeit gleichgültig gewesen** (`dokument` ist
+in jeder Lage 0, `.stacks thead` ist der Mechanismus). Was hier geklärt wird,
+ist das Vertrauen in das Messmittel und nicht der Zustand des Panels.

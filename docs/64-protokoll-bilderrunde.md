@@ -1326,7 +1326,8 @@ gekostet, zweimal falsch erklärt, bis der Ort im Fund die Ursache nannte —
 
 ### 4.1 Die neun Ansichten
 
-*(noch nichts gemessen)*
+`dokument` ist überall 0, die Gegenprobe überall 200/200 — sonst stünde die
+Zeile hier nicht als gemessen.
 
 | # | Ansicht | 390 hell | 390 dunkel | 1440 hell | 1440 dunkel |
 |---|---|---|---|---|---|
@@ -1337,8 +1338,133 @@ gekostet, zweimal falsch erklärt, bis der Ort im Fund die Ursache nannte —
 | 5 | SFTP, Auswahl | — | — | — | — |
 | 6 | SFTP-Zugang | — | — | — | — |
 | 7 | Cron, Auswahl | — | — | — | — |
-| 8 | Cronjobs | — | — | — | — |
+| 8 | Cronjobs | **0** | **0** | **0** | **0** |
 | 9 | Läufe | — | — | — | — |
+
+#### Ansicht 8 — Cronjobs, gemessen am 20. August gegen `rc.19`
+
+Aufgenommen in der Kundensicht auf Abonnement 140, **mit vollem Kontingent**
+(10 von 10 Jobs) — die Seite stand nach dem ersten Lauf so da.
+
+| Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` |
+|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | `thead` **484** · `tr` **456** | leer |
+| 390 dunkel | 0 | **200/200** | `thead` **484** · `tr` **456** | leer |
+| 1440 hell | 0 | **200/200** | leer | `.scrolls` 248, `darf: true` |
+| 1440 dunkel | 0 | **200/200** | leer | `.scrolls` 250, `darf: true` |
+
+Der Roller bei 1440 ist die Jobliste in der rechten Hälfte von `.sections`,
+gewollt. Dass er zwischen den Themes um 2 px auseinandergeht (248 gegen 250),
+ist die Schriftlage und kein Fund — er darf rollen.
+
+**Die vier Fugen aus den Befunden 2, 3 und 4 sind im Bild da**, die Meldung über
+die Zeitzone steht mit Abstand unter dem Satz darüber, und `*/15` bricht im
+Erklärungstext nicht mehr (Befund 5). Die Dichtestufe aus Befund 6 trägt: Die
+Bereiche stehen enger als im ersten Lauf.
+
+#### Die 27 px sind keine Eigenschaft des Bestands — und der einzige Kandidat, der bleibt, ist der Weg zur Seite
+
+Die offene Frage aus §2 lautete: `.stacks thead` misst auf derselben Seite
+**484** oder **511**, und weder Reihenfolge noch Bestand erklären es. Die
+Messwerte des ersten Laufs:
+
+| Zustand | Jobs | `thead` · `tr` | wie die Seite entstand |
+|---|---|---|---|
+| Ansicht 8 | 3 | 484 · 456 | frisch geladen |
+| Abonnement 137 | 0 | 484 · 456 | frisch geladen |
+| Formular „Ändern" offen | 3 | **511 · 483** | Knopf gedrückt, **kein** Neuladen |
+| Kontingent voll | 10 | **511 · 483** | zehn Jobs angelegt, **kein** Neuladen |
+
+**Und jetzt derselbe Zustand „Kontingent voll" frisch geladen: 484 · 456.**
+
+Damit fällt die letzte Erklärung, die am Zustand hing. Zehn Jobs ergeben einmal
+511 und einmal 484 — der Unterschied liegt nicht darin, *was* auf der Seite
+steht, sondern darin, *wie sie dorthin gekommen ist*: Die beiden 511er sind die
+beiden Lagen, die durch einen Klick entstanden sind und nicht durch ein
+Neuladen. Beide Male sind es exakt 27 px, an `thead` wie an `tr`.
+
+> **Eine Zahl, die nur nach einem Klick auftritt, ist eine Aussage über den
+> Klick und nicht über die Seite.**
+
+Das ist derselbe Fund wie beim Breitenwechsel aus §2, eine Stufe allgemeiner:
+Nicht nur ein Wechsel der Breite trägt Reste mit, sondern **jede** Lage, die
+ohne Neuladen entstanden ist.
+
+**Das ist eine Vermutung mit vier Messwerten und noch keine Erklärung** — warum
+eine Kopfzeile aus fünf Wörtern nach einem Klick 27 px breiter misst, ist offen.
+Der Prüfschritt dafür steht in §4.4 und kostet drei Messungen.
+
+**Für das Kriterium bleibt es gleichgültig** — `dokument` ist in allen Lagen 0,
+und `.stacks thead` ist der Mechanismus und kein Fund. Für das *Messmittel* ist
+es das nicht.
+
+#### Befund 12 — die Auskunft über das volle Kontingent steht dort, wo niemand hinkommt (390 px)
+
+Gemeldet vom Betreiber am Bild. `dokument` ist 0, es gibt nichts zu messen.
+
+Die Meldung „Das Kontingent dieses Plans ist ausgeschöpft" steht **im Bereich
+„Job anlegen"**, also im dritten von drei Bereichen. Bei 1440 px ist das
+richtig: Der Bereich liegt unter der Jobliste und die Meldung oben in ihm, beides
+im Bild. Bei 390 px stapeln sich die drei Bereiche, die Jobliste dazwischen ist
+zehn Kärtchen hoch — und die Meldung liegt damit **hinter der ganzen Liste**.
+
+Wer wissen will, warum er keinen Job anlegen kann, erfährt es an der Stelle, an
+der er es nicht mehr braucht: Er ist dort erst, wenn er ohnehin schon scrollt.
+
+> **Eine Auskunft, die erklärt, warum etwas nicht geht, gehört dorthin, wo man
+> es versucht — nicht dorthin, wo es scheitert.**
+
+Bemerkenswert daran ist die Bauart: Die Meldung sitzt **richtig** — direkt über
+dem Formular, auf das sie sich bezieht. Falsch ist nicht ihr Ort im Bereich,
+sondern dass der Bereich bei 390 px unerreichbar weit unten liegt. Eine
+Behebung, die sie nur nach oben schiebt, nimmt ihr den Bezug.
+
+#### Befund 13 — es gibt bei 390 px keinen Weg zum Formular ausser Scrollen
+
+Gemeldet vom Betreiber, ebenfalls ohne Zahl. Der Bereich „Job anlegen" ist bei
+390 px nur zu erreichen, indem man an zehn Kärtchen vorbeirollt. Einen Griff, der
+dorthin führt, gibt es nicht.
+
+**Das ist dieselbe Familie wie Befund 10 und wie `docs/55` Befund 8**, und damit
+das dritte Mal:
+
+| | wo | was fehlte |
+|---|---|---|
+| `docs/55` Befund 8 | Dateimanager | der Menüpunkt lag drei Klicks tief |
+| `docs/59` Befund 19 | SFTP-Zugang | derselbe Fehler, dasselbe Merkmal |
+| `docs/64` Befund 10 | Rechte, Umbenennen, Cron ändern | der geöffnete Bereich stand ausserhalb des Bildes |
+| **Befund 13** | Cron, Job anlegen | der Bereich ist da und niemand findet ihn |
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+Der Satz steht seit `docs/59` im Projekt. Er ist hier zum zweiten Mal
+zugeschlagen, und das heisst: **Die Behebung ist diesmal die Regel und nicht die
+Stelle.** `RevealTest` prüft bisher nur den umgekehrten Weg — ein Griff, der
+einen Bereich öffnet, holt ihn ins Bild. Dass ein Bereich, den man *nicht*
+öffnen muss, überhaupt erreichbar ist, prüft nichts.
+
+#### Befund 14 — der Bereich „Job anlegen" steht bei 1440 px lose da
+
+Gemeldet vom Betreiber. Vier Gruppen liegen als 2×2 nebeneinander:
+Beschriftung / Befehl, darunter Schnellwahl / Zeitplan. Die Schnellwahl ist
+sechs Knöpfe hoch, der Zeitplan mit fünf Feldern und Erklärung deutlich höher —
+unter der Schnellwahl steht damit eine grosse leere Fläche, und die vier Gruppen
+lesen sich nicht als ein Formular, sondern als vier Kästen.
+
+Das ist kein Überlauf und kein Kontrastfehler; es ist die Anordnung selbst. Eine
+Zahl gibt es nicht — nur einen Betrachter.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+**Was hier noch nicht entschieden ist:** wie die Anordnung stattdessen aussieht.
+Das gehört gemessen und nicht geraten — der Aufsatz im Container trifft die
+echte Seite aufs Pixel, und die Frage „welche von zwei Anordnungen ist ruhiger"
+lässt sich an Höhen und Fugen zeigen. Entschieden wird sie beim Beheben, nicht
+hier.
+
+---
 
 ### 4.2 Die Zustände
 
@@ -1358,13 +1484,27 @@ gekostet, zweimal falsch erklärt, bis der Ort im Fund die Ursache nannte —
 
 ### 4.4 Die offene Frage aus der ersten Runde
 
-**Die 27 px an `.stacks thead` der Cronseite** (484 · 511 · 511 · 484). Sie
-gehört mit dem Messmittel beantwortet und nicht mit einer Überlegung: Der Fund
-nennt seit dem 19. August seinen Ort und seinen Anfang, und die vier Lagen der
-Ansicht 8 sagen, ob die Zahl an der Breite, am Thema oder am Bestand hängt.
+**Die 27 px an `.stacks thead` der Cronseite.** Der Stand nach Ansicht 8 steht
+in §4.1: Der Bestand erklärt sie nicht — derselbe Zustand „Kontingent voll"
+misst frisch geladen 484 und nach zehn Klicks 511. Was bleibt, ist der Weg zur
+Seite.
 
-Die Vermutung aus dem ersten Lauf — die Schrift — ist eine Vermutung geblieben
-und wird hier nicht als Erklärung geführt.
+**Der Prüfschritt dafür, drei Messungen bei 390 px in einem Theme:**
 
-> **Eine Zahl, die viermal gemessen wurde und zweimal verschieden ausfiel, hat
-> keine Erklärung, sondern zwei Messreihen.**
+| | Handgriff | was er beantwortet |
+|---|---|---|
+| a | Seite neu laden, messen | der Ausgangswert — erwartet 484 |
+| b | „Ändern" an einem Job drücken, **ohne** Neuladen messen | tritt die 511 nach einem Klick auf? |
+| c | „Abbrechen" drücken, wieder messen | geht sie mit dem Formular wieder weg — oder bleibt sie? |
+
+Bleibt die Zahl in (c) bei 511, ist der Klick die Ursache und nicht das
+geöffnete Formular; fällt sie auf 484 zurück, hängt sie am Formular. Beides ist
+ein Befund am Messmittel und keiner am Panel — aber ein benannter statt eines
+offenen.
+
+> **Zwei verschiedene Zahlen für denselben Gegenstand sind ein Befund am
+> Messmittel, bis eine von beiden erklärt ist.**
+
+Die Vermutung aus dem ersten Lauf — die Schrift sei noch nicht geladen gewesen —
+wird damit unwahrscheinlicher, aber nicht widerlegt: Ein Klick lädt keine
+Schrift nach. Sie steht weiter als Vermutung da und nicht als Erklärung.

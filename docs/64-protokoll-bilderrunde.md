@@ -1054,22 +1054,58 @@ vorkommt, prüft er nicht.
 > **Eine Klasse, die es nur als Nachfahrenregel gibt, ist ausserhalb ihres
 > Vorfahren ein Wunsch.**
 
-**Umfang:** 151 Stellen in 30 Vorlagen tragen `class="quiet"`. Die Mehrzahl
-steht in einer Zelle und ist in Ordnung; wie viele es nicht tun, ist zu zählen,
-bevor die Regel geschrieben wird — eine Klasse, die plötzlich überall wirkt,
-ändert auch dort etwas, wo bisher niemand etwas vermisst hat.
+**Umfang: 161 Stellen, davon fünf ausserhalb einer Zelle.** Gezählt über die
+Vorlagen und danach einzeln nachgesehen:
 
-**Der Wächter dazu gehört zur Behebung**: Er muss den Unterschied zwischen einer
-eigenständigen Regel und einer Nachfahrenregel kennen, sonst fängt er den
-nächsten Fall so wenig wie diesen.
+| Stelle | was dort steht |
+|---|---|
+| `Files/Search.vue:61` | „Gesucht unter … — angesehene Einträge: 20." |
+| `Files/Edit.vue:97` | „Diese Datei gehört nicht dem Abonnement …" |
+| `Files/Index.vue:643` | die Fortschrittszahl beim Hochladen |
+| `Files/Index.vue:726` | der Trenner `/` in den Krümeln |
+| `Components/PermissionEditor.vue:235` | `rw-r--r--` neben dem Oktalfeld |
+
+**Die letzte steht auf dem Bild des Zustands „Rechte" aus §1b**, die erste auf
+dem der Suche, die zweite auf dem des Editors. Drei von fünf lagen offen vor mir.
+
+**Und die Zählung selbst brauchte eine Gegenprobe.** Das Skript, das den Weg zu
+jeder Stelle mitzählt, hat **zwei** Stellen als „ausserhalb" gemeldet, die in
+Wahrheit in einer Zelle stehen: Sein Stapel war vorher aus dem Tritt geraten.
+Von Hand nachgesehen blieben fünf statt sieben.
+
+> **Eine Zählung, die einen Weg mitführt, ist nur so gut wie ihr Weg — und der
+> bricht bei einem Zeichen, das niemand erwartet.**
+
+### Behoben am 19. August
+
+Die Farbe steht jetzt einmal als `.quiet`; `td .quiet` behält nur, was wirklich
+zur Zelle gehört. Nach der Änderung im Container gemessen: `<p class="quiet">`
+trägt `--text-muted`, die Zelle ist unverändert, ein Absatz ohne Klasse
+ebenfalls.
+
+**`StandaloneClassTest` ist der Wächter dazu**: Jede Klasse, die eine Vorlage
+benutzt und die `app.css` kennt, braucht eine freistehende Regel — acht dürfen
+ausdrücklich anders sein und nennen ihren Zusammenhang. Drei Brüche im
+Bruchskript, alle drei gegengeprüft.
+
+**Beim ersten Anlauf war der Wächter blind**, und der Fehler lohnt die Notiz: Er
+zählte **jede** Verbindung eines Selektors statt nur der ersten und hielt damit
+`.split > .aside` für eine freistehende Regel von `.aside`. Ein Wächter gegen
+Nachfahrenregeln, der Nachfahrenregeln für freistehend hält, prüft das Gegenteil
+von dem, wofür er da ist.
+
+> **Ein Wächter, der die Sorte Fehler nicht kennt, gegen die er gebaut wurde,
+> ist grün.**
+
+Aufgefallen ist es sofort, weil `.aside` als erster Eintrag der Liste rot
+meldete — die Sperrklinke hat den Wächter gegen sich selbst verteidigt.
 
 ---
 
 ## 3. Was offen ist
 
-- **Elf Befunde am Panel** — zwei an Ansicht 4, einer an Ansicht 6, drei an
-  Ansicht 8, zwei an Ansicht 9, zwei an Zuständen, einer beim Vorbereiten der
-  Behebung (§2b). Beheben und nachmessen.
+- **Zehn von elf Befunden am Panel** — Befund 11 ist behoben (§2b), die anderen
+  zehn stehen offen. Beheben und nachmessen.
 
   Sie fallen in **drei** Gruppen und drei Einzelfälle:
 
@@ -1078,7 +1114,8 @@ nächsten Fall so wenig wie diesen.
   | fehlende Nachbarpaare | 2, 3, **4** (zwei Fundstellen) | ein Baustein, der bündig endet, bringt seinen Abstand selbst mit |
   | fehlende Polsterung an `td` | 7, 8 | `padding: 8px 14px 8px 0`, im Container gemessen |
   | Wirkung ausserhalb des Bildes | **10** (zwei Fundstellen, beide Richtungen) | jeder Griff, der einen Bereich öffnet, holt ihn ins Bild |
-  | einzeln | 1 (Kästchen), 5 (Codestück), 6 (Dichtestufe), 9 (Ausrichtung), **11** (`.quiet`) | — |
+  | einzeln | 1 (Kästchen), 5 (Codestück), 6 (Dichtestufe), 9 (Ausrichtung) | — |
+  | **behoben** | **11** (`.quiet`) — `StandaloneClassTest` | am 19. August, im Container nachgemessen |
 - **Die 27 px an `.stacks thead` der Cronseite** — vier Messungen, 484 · 511 ·
   511 · 484, und weder die Reihenfolge noch der Bestand der Tabelle erklärt sie.
   Vor der zweiten Runde klären, mit dem Messmittel und nicht mit einer

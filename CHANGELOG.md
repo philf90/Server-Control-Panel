@@ -15631,3 +15631,50 @@ die Zeile sah aus wie eine Messung.
 
 > **Ein Feld, das die Lage aus dem Dokument abschreibt, bestätigt die Lage nicht
 > — es wiederholt sie.**
+
+### Leiser Text gilt jetzt überall, nicht nur in einer Tabelle
+
+Gefunden beim Vorbereiten der Behebungen aus der Bilderrunde (`docs/64`,
+Befund 11), nicht auf einem Bild. Für die Abstandsfragen war zu klären, welche
+Bausteine überhaupt beteiligt sind — einer davon ist `.quiet`. In `app.css`
+stand dazu `td.quiet` und `td .quiet`, und sonst nichts.
+
+**Gemessen im Container gegen das gebaute Stylesheet:** `<p class="quiet">` hatte
+exakt die Farbe eines Absatzes ohne Klasse (`--text`, `rgb(58,63,73)`), während
+`<td class="quiet">` `--text-muted` trug (`rgb(92,100,112)`). Ausserhalb einer
+Zelle tat die Klasse nichts.
+
+**Fünf Stellen im Panel baten seit Monaten vergeblich darum**, gezählt über die
+Vorlagen und einzeln von Hand nachgesehen: der Satz „Gesucht unter …" auf der
+Suchseite, der Satz „Diese Datei gehört nicht dem Abonnement …" im Editor, die
+Fortschrittszahl beim Hochladen, der Trenner in den Krümeln und die symbolische
+Schreibweise neben dem Oktalfeld. Zwei davon stehen auf Bildern dieses Laufs.
+
+> **Ein Bild, das man auf eine Frage hin ansieht, beantwortet die Frage — und
+> verdeckt alles, was daneben steht.**
+
+Die Farbe steht jetzt einmal als `.quiet`; `td .quiet` behält nur noch, was
+wirklich zur Zelle gehört (`display: block`, `margin-top: 3px`). Nach der
+Änderung gemessen: `<p class="quiet">` trägt `--text-muted`, die Zelle ist
+unverändert.
+
+**`ClassReachTest` war dabei grün, und zu Recht** — er fragt, ob die Klasse in
+`app.css` **vorkommt**. Sie kam vor.
+
+> **Zwei Fragen, die sich gleich anhören, prüfen verschiedene Dinge — und die
+> ungestellte ist die, an der es scheitert.**
+
+`StandaloneClassTest` stellt die andere: Jede Klasse, die eine Vorlage benutzt
+und die `app.css` kennt, braucht eine **freistehende** Regel — eine, deren erste
+Verbindung nur aus Klassen besteht. Acht Klassen dürfen ausdrücklich anders
+sein, und jede nennt ihren Zusammenhang: `.right` ohne Zelle ist nichts,
+`.pairs` ohne Tabelle ist nichts. Die Liste hat eine Sperrklinke in beide
+Richtungen, damit sie auch wieder kürzer werden kann.
+
+**Ein Detail, das den Wächter beim ersten Anlauf blind gemacht hätte:** Er zählt
+nur die **erste** Verbindung eines Selektors. Wer jede zählt, hält `.split >
+.aside` für eine freistehende Regel von `.aside` — und findet damit genau die
+Sorte Fehler nicht, für die es ihn gibt. Aufgefallen ist es, weil `.aside` als
+erster Eintrag der Liste sofort rot meldete.
+
+Drei Brüche im Bruchskript, alle drei gegengeprüft.

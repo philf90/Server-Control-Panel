@@ -9172,6 +9172,63 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimerRearmTest passed
 
 echo
+echo "── StandaloneClassTest: leiser Text gilt wieder nur in einer Tabelle ──"
+#
+# Befund 11 aus docs/64: `.quiet` stand als `td.quiet` und `td .quiet` da, und
+# fuenf Stellen ausserhalb einer Zelle baten vergeblich darum.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('\n.quiet {\n  color: var(--text-muted);\n}', '\ntd.quiet {\n  color: var(--text-muted);\n}', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "leiser Text nur in der Zelle" &&
+pruefe "leiser Text nur in der Zelle" \
+  StandaloneClassTest::test_quiet_is_not_bound_to_a_table failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" StandaloneClassTest passed
+
+echo
+echo "── StandaloneClassTest: eine gebundene Klasse ohne Begründung ──"
+#
+# `.right` gibt es nur als `td.right`. Fehlt der Eintrag, ist es ein Fund.
+vorher_datei tests/Unit/StandaloneClassTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/StandaloneClassTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        'right' => 'eine rechtsbündige Zelle',\n", '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Unit/StandaloneClassTest.php "gebundene Klasse ohne Begründung" &&
+pruefe "gebundene Klasse ohne Begründung" \
+  StandaloneClassTest::test_every_used_class_has_a_standalone_rule failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" StandaloneClassTest passed
+
+echo
+echo "── StandaloneClassTest: ein veralteter Eintrag in der Liste ──"
+#
+# Die Sperrklinke: Ein Eintrag, der eine freistehende Regel hat, sieht aus wie
+# eine bekannte Einschränkung und ist keine mehr.
+vorher_datei tests/Unit/StandaloneClassTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/StandaloneClassTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        'right' => 'eine rechtsbündige Zelle',",
+    "        'right' => 'eine rechtsbündige Zelle',\n        'notice' => 'nur zum Ausprobieren',",
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Unit/StandaloneClassTest.php "veralteter Eintrag" &&
+pruefe "veralteter Eintrag" \
+  StandaloneClassTest::test_every_used_class_has_a_standalone_rule failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" StandaloneClassTest passed
+
+echo
 echo "── CronScheduleFormTest: der Ausdruck wird ein eigener Wert ──"
 #
 # Wunsch 1 aus docs/64: Die Expertenansicht gibt es nur, weil sie zurückschreibt.

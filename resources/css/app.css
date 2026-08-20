@@ -826,7 +826,28 @@ td.name {
   font-weight: 580;
 }
 
-td.quiet {
+/*
+ * Leiser Text — überall, nicht nur in einer Tabelle.
+ *
+ * **Hier stand `td.quiet`, und daneben `td .quiet`. Sonst nichts.** Ausserhalb
+ * einer Zelle tat die Klasse nichts, und fünf Stellen im Panel baten seit
+ * Monaten vergeblich darum: der Satz „Gesucht unter …" auf der Suchseite, der
+ * Satz „Diese Datei gehört nicht dem Abonnement …" im Editor, die
+ * Fortschrittszahl beim Hochladen, der Trenner in den Krümeln und die
+ * symbolische Schreibweise neben dem Oktalfeld.
+ *
+ * Gemessen am 19. August 2026 gegen das gebaute Stylesheet: `<p class="quiet">`
+ * hatte exakt die Farbe eines Absatzes ohne Klasse (`--text`), während
+ * `<td class="quiet">` `--text-muted` trug.
+ *
+ * > **Eine Klasse, die es nur als Nachfahrenregel gibt, ist ausserhalb ihres
+ * > Vorfahren ein Wunsch.**
+ *
+ * `ClassReachTest` war dabei grün und zu Recht: Die Klasse *kommt* in dieser
+ * Datei vor. Dass sie nur unter einem Vorfahren vorkommt, hat er nie gefragt —
+ * `StandaloneClassTest` fragt es seitdem.
+ */
+.quiet {
   color: var(--text-muted);
 }
 
@@ -845,7 +866,6 @@ td.quiet {
 td .quiet {
   display: block;
   margin-top: 3px;
-  color: var(--text-muted);
 }
 
 th.right,

@@ -636,7 +636,13 @@ input[type='radio'] {
    Zeilenlänge — Fläche ausnutzen heisst nicht, einen Satz über 1900px zu
    ziehen. */
 .section-note {
-  margin: 10px 0 0;
+  /*
+   * **Oben 10px, unten der Blockabstand.** Der Rand nach unten fehlte, und der
+   * Knopf „Eintragen" klebte am Satz darüber (`docs/64`, Befund 3). Er steht
+   * hier und nicht als Nachbarschaftsregel, weil er eine Aussage über **diesen
+   * Baustein** ist: Ein Erklärsatz lässt unter sich Luft, gleich was folgt.
+   */
+  margin: 10px 0 var(--block-gap);
   font-size: var(--text-small);
   color: var(--text-muted);
   max-width: 64ch;
@@ -2588,7 +2594,7 @@ tr:has(td.multiline) > td {
  * überlebt. Gefunden hat ihn kein Wächter und keine Messung: Nichts lief über,
  * nichts war abgeschnitten, es sah nur gedrängt aus.
  */
-:is(.field, .hint, .error, .scrolls, .pager, .cell-value) + .button-row {
+:is(.field, .hint, .error, .scrolls, .pager, .cell-value, .quiet, .section-note) + .button-row {
   margin-top: 16px;
 }
 
@@ -2658,8 +2664,87 @@ tr:has(td.multiline) > td {
  * sichtbar schief zwischen ihre Nachbarn. Gemessen 26/26 bei 1200px und 24/24
  * bei 390px.
  */
-:is(.field, .hint, .error, .scrolls, .pager, .cell-value, .button-row) + .notice {
+/*
+ * **Ein Absatz im Blockfluss ist ein Baustein wie jeder andere.**
+ *
+ * ## Drei Fugen, ein Grund
+ *
+ * Die Bilderrunde von P6 hat drei Stellen gefunden, an denen etwas an einem
+ * Satz klebte (`docs/64`, Befunde 2, 3 und 4):
+ *
+ * - der Knopf „Eintragen" am Erklärsatz darüber (SFTP),
+ * - „Gesucht unter …" an der Knopfreihe darüber (Suche),
+ * - die Meldung „Der Zeitplan gilt …" am Satz darüber (Cron), und dieselbe
+ *   Meldung an „Gesucht unter …" (Suche).
+ *
+ * **Alle drei haben auf einer Seite einen Absatz.** Ein Absatz hat durch
+ * Tailwinds Reset gar keinen Rand — er endet bündig und fängt bündig an, und
+ * damit ist er genau die Sorte Nachbar, für die es die Paare oben gibt. Er stand
+ * nur in keiner ihrer Listen, weil er keine Klasse trägt.
+ *
+ * > **Eine Liste von Nachbarn, die wächst, ist keine Regel — sie ist eine
+ * > Aufzählung der Fälle, die schon jemand gesehen hat.**
+ *
+ * Hier steht deshalb keine vierte Aufzählung von Nachbarn, sondern eine Aussage
+ * über **den Absatz**: Er bringt seine Luft nach unten selbst mit, und was vor
+ * ihm bündig endet, gibt ihm die nach oben.
+ *
+ * ## Warum nicht jeder Absatz
+ *
+ * `.notice`, `.hint`, `.path-line` und `.breadcrumb` sind ebenfalls Absätze und
+ * bringen ihre Ränder schon mit; ein zweiter wäre doppelt. Gemeint ist der
+ * Absatz **ohne** eigene Form — der Fliesstext einer Seite — und `.quiet`, der
+ * seit dem 19. August ein eigener Baustein ist und keinen Rand hat.
+ *
+ * ## Und warum ohne Einschränkung auf den Elternteil
+ *
+ * Der erste Anlauf schrieb `.content > p` und `.section > p`. Gemessen war er,
+ * und für drei der vier Fugen stimmte er — **die vierte lag in einem `<form>`
+ * ohne Klasse.** Der Erklärsatz über dem Knopf „Eintragen" ist ein Kind dieses
+ * Formulars, und keine der beiden Einschränkungen erreichte ihn.
+ *
+ * > **Eine Regel über einen Baustein, die am Elternteil hängt, gilt für den
+ * > Baustein nur dort, wo jemand an den Elternteil gedacht hat.**
+ *
+ * ## Warum nicht `* + *`
+ *
+ * Die vollständige Umkehrung — jeder Block im Fluss holt sich seinen Rand nach
+ * oben — wäre die eigentliche Antwort und **ist hier bewusst nicht getan**: Sie
+ * beträfe jeden Baustein auf jeder Seite, und die Bilderrunde hat für so einen
+ * Eingriff keine Messung. Sie gehört in einen eigenen Durchgang mit eigenen
+ * Aufnahmen.
+ *
+ * > **Eine Regel, die man nicht messen kann, wird nicht mit einer anderen
+ * > zusammen eingeführt.**
+ *
+ * Gemessen im Container gegen das gebaute Stylesheet: die drei Fugen von 0 px
+ * auf den Blockabstand, und die Seiten daneben unverändert.
+ */
+:is(.field, .hint, .error, .scrolls, .pager, .cell-value, .button-row, .section-note) + .notice,
+.button-row + .quiet,
+.quiet + .notice,
+.quiet + .scrolls {
   margin-top: var(--block-gap);
+}
+
+/*
+ * **Der Absatz ohne Klasse.** Auf der Cronseite steht „Cronjobs laufen als
+ * p1139 …" als schlichtes `<p>`, und darunter klebte die Meldung über die
+ * Zeitzone (`docs/64`, Befund 4). Ein Absatz hat durch Tailwinds Reset gar
+ * keinen Rand; er lässt jetzt unter sich Luft, gleich was folgt.
+ *
+ * `:not([class])` und nicht `p`: `.notice`, `.hint`, `.quiet`, `.section-note`
+ * und `.path-line` sind ebenfalls Absätze und bringen ihre Ränder mit — ein
+ * zweiter wäre doppelt.
+ *
+ * Diese Regel ist die einzige der drei, die `BlockSpacingTest` **nicht** sieht:
+ * Er kennt Bausteine an ihrer Klasse, und ein Absatz ohne Klasse hat keine.
+ *
+ * > **Ein Wächter, der Bausteine an ihrer Klasse kennt, sieht den Baustein
+ * > ohne Klasse nicht.**
+ */
+p:not([class]) {
+  margin-bottom: var(--block-gap);
 }
 
 /*

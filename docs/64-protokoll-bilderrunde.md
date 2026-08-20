@@ -1151,8 +1151,18 @@ meldete — die Sperrklinke hat den Wächter gegen sich selbst verteidigt.
 
 ## 3. Was offen ist
 
-- **Sieben von elf Befunden am Panel** stehen offen. Behoben sind **11**
-  (`.quiet`, §2b), **7 und 8** (Polsterung an `td`) und **10** (ins Bild holen).
+- **Vier von elf Befunden am Panel** stehen offen: **1** (Kästchen), **5**
+  (Codestück), **6** (Dichtestufe) und **9** (Ausrichtung). Behoben sind **11**
+  (`.quiet`, §2b), **7 und 8** (Polsterung an `td`), **10** (ins Bild holen) und
+  **2, 3, 4** (die Fugen um einen Satz).
+- **Die vollständige Umkehrung der Abstandsregel** — jeder Block holt sich
+  seinen Rand nach oben selbst — ist **nicht** getan. Ein erster Anlauf hat
+  beim Messen Fugen mitgedeckt, die niemand angesehen hatte
+  (`button-row + scrolls`, `scrolls + scrolls`). Sie gehört in einen eigenen
+  Durchgang mit eigenen Aufnahmen.
+
+  > **Eine Regel, die mehr deckt als das Gemessene, ändert mehr als das
+  > Gemessene.**
 - **Neunzehn Griffe in der Datenbankkonsole**, gefunden beim Beheben von
   Befund 10 und nicht untersucht. Sie stehen in `RevealTest::UNEXAMINED`.
 
@@ -1160,7 +1170,7 @@ meldete — die Sperrklinke hat den Wächter gegen sich selbst verteidigt.
 
   | Gruppe | Befunde | eine Regel |
   |---|---|---|
-  | fehlende Nachbarpaare | 2, 3, **4** (zwei Fundstellen) | ein Baustein, der bündig endet, bringt seinen Abstand selbst mit |
+  | **behoben** | **2, 3, 4** (zwei Fundstellen) — `BlockSpacingTest` | `.section-note` mit eigenem Rand, drei Fugen um `.quiet`, der Absatz ohne Klasse |
   | **behoben** | **7, 8** — `padding: 6px 14px` an `td` | über beide Dichtestufen gemessen |
   | **behoben** | **10** (zwei Fundstellen, beide Richtungen) — `RevealTest` | jeder Griff, der einen Bereich öffnet, holt ihn ins Bild |
   | einzeln | 1 (Kästchen), 5 (Codestück), 6 (Dichtestufe), 9 (Ausrichtung) | — |

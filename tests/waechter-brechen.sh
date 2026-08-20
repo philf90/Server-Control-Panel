@@ -9172,6 +9172,59 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimerRearmTest passed
 
 echo
+echo "── BlockSpacingTest: der Erklärsatz verliert seinen Rand nach unten ──"
+#
+# Befund 3 aus docs/64: Der Knopf „Eintragen" klebte am Satz darueber.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('  margin: 10px 0 var(--block-gap);', '  margin: 10px 0 0;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Erklärsatz ohne Rand" &&
+pruefe "Erklärsatz ohne Rand" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
+
+echo
+echo "── BlockSpacingTest: die drei Fugen um den leisen Satz fallen weg ──"
+#
+# Befunde 2 und 4 aus docs/64: „Gesucht unter …" klebte an der Knopfreihe
+# darueber und die gelbe Meldung an ihm.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('.button-row + .quiet,\n.quiet + .notice,\n.quiet + .scrolls {', '.nichts-davon {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Fugen um den leisen Satz" &&
+pruefe "Fugen um den leisen Satz" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
+
+echo
+echo "── BlockSpacingTest: der Absatz ohne Klasse verliert seinen Rand ──"
+#
+# Befund 4 auf der Cronseite. Diesen Baustein sieht der Wächter darunter nicht —
+# er kennt Bausteine an ihrer Klasse, und ein Absatz ohne Klasse hat keine.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('p:not([class]) {\n  margin-bottom: var(--block-gap);\n}', 'p:not([class]) {\n  margin-bottom: 0;\n}', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Absatz ohne Rand" &&
+pruefe "Absatz ohne Rand" \
+  BlockSpacingTest::test_a_paragraph_without_a_class_leaves_air_below failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
+
+echo
 echo "── RevealTest: ein Griff an einer Zeile holt seinen Bereich nicht ins Bild ──"
 #
 # Befund 10 aus docs/64: „Rechte" an einer Zeile weit unten oeffnet einen

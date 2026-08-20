@@ -15768,3 +15768,80 @@ Zeichenklasse mitten im Attribut.
 Gesucht wird seitdem ab der Angabe rückwärts bis zum `<` und vorwärts bis zum
 ersten `>`, das nicht in Anführungszeichen steht. Drei Brüche im Bruchskript,
 alle drei gegengeprüft.
+
+### Vier Fugen um einen Satz — und was dabei über den Wächter klar wurde
+
+Befunde 2, 3 und 4 aus der Bilderrunde (`docs/64`), alle drei vom Betreiber auf
+einem Bild gesehen: der Knopf „Eintragen" am Erklärsatz darüber (SFTP),
+„Gesucht unter …" an der Knopfreihe darüber und die gelbe Meldung an ihm
+(Suche), die Meldung über die Zeitzone am Satz darüber (Cron).
+
+**Alle drei haben auf einer Seite einen Absatz** — und ein Absatz hat durch
+Tailwinds Reset gar keinen Rand. Er endet bündig und fängt bündig an, ist also
+genau die Sorte Nachbar, für die es die Paarregeln gibt; er stand nur in keiner
+ihrer Listen.
+
+**Drei Eingriffe, und der erste trägt fünf Fugen auf einmal:**
+
+- `.section-note` bekommt seinen Rand nach unten in der **eigenen** Regel
+  (`margin: 10px 0 var(--block-gap)`). Das ist eine Aussage über den Baustein
+  und keine über seine Nachbarn — und es hat neben Befund 3 vier weitere Fugen
+  geschlossen, die seit Monaten als bekannt in `BlockSpacingTest::OPEN_SEAMS`
+  standen (`+ ident`, `+ notice`, `+ cell-value`, `+ scrolls`).
+- `.button-row + .quiet`, `.quiet + .notice`, `.quiet + .scrolls` decken die
+  drei gemessenen Fugen um den leisen Satz.
+- `p:not([class])` lässt unter sich Luft.
+
+**Gemessen im Container gegen das gebaute Stylesheet**, dieselben Bausteine
+einmal mit und einmal ohne die Regeln:
+
+| Fuge | ohne | mit |
+|---|---|---|
+| Knopfreihe → „Gesucht unter …" | **0** | 34 |
+| „Gesucht unter …" → Meldung | **0** | 34 |
+| Satz → Meldung (Cron) | **0** | 34 |
+| Erklärsatz → Knopfreihe (SFTP) | **0** | 34 |
+| Meldung → Erklärsatz (Cron) | 34 | 34 |
+
+Die letzte Zeile ist die Gegenprobe: Dort war schon Luft, und es sind nicht 68
+geworden — angrenzende Ränder fallen zusammen.
+
+**Und was hier bewusst nicht geschehen ist.** Die vollständige Umkehrung — jeder
+Block im Fluss holt sich seinen Rand nach oben selbst — wäre die eigentliche
+Antwort auf *„eine Liste von Nachbarn, die wächst, ist keine Regel"*. Ein erster
+Anlauf in diese Richtung hat beim Messen prompt Fugen mitgedeckt, die niemand
+angesehen hatte: `button-row + scrolls` und `scrolls + scrolls` standen
+plötzlich auf 34px.
+
+> **Eine Regel, die mehr deckt als das Gemessene, ändert mehr als das
+> Gemessene.**
+
+Sie ist deshalb auf die drei gemessenen Fälle verengt, und die Umkehrung gehört
+in einen eigenen Durchgang mit eigenen Aufnahmen.
+
+**Der Wächter hat dabei seine eigene Grenze gezeigt.** `BlockSpacingTest` kennt
+Bausteine an ihrer **Klasse** — und der Absatz auf der Cronseite hat keine. Der
+Bruch „Rand auf null" liess ihn deshalb grün.
+
+> **Ein Wächter, der Bausteine an ihrer Klasse kennt, sieht den Baustein ohne
+> Klasse nicht.**
+
+`test_a_paragraph_without_a_class_leaves_air_below` ist die Zusage, die dort
+einspringt. **Ihr erster Ausdruck war grün, als der Rand auf `0` stand**:
+`margin-bottom\s*:\s*(?!0[;\s}])[^;]+` — `\s*` tritt zurück, bis die Vorausschau
+auf das Leerzeichen statt auf die Null zeigt.
+
+> **Eine Vorausschau hinter `\s*` prüft nicht, was dort steht, sondern was
+> daneben passt.**
+
+Gelesen wird jetzt der Wert und dann angesehen. Drei Brüche im Bruchskript, alle
+drei gegengeprüft.
+
+**Und sieben Fugen sind neu sichtbar geworden, ohne neu zu sein.** Seit `.quiet`
+eine freistehende Regel hat (Befund 11), ist es für diesen Wächter ein Baustein
+— und die Nachbarschaften waren schon vorher da. Drei davon sind die gemessenen
+Fugen; die anderen stehen mit ihrem Grund in `OPEN_SEAMS`: `.quiet` ist meistens
+gar kein Block, sondern ein `<span>` in einer Zelle, neben einer Marke, hinter
+einem Verweis.
+
+> **Ein Baustein, den man auch inline benutzt, erzeugt Fugen, die keine sind.**

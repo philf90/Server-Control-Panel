@@ -2664,3 +2664,136 @@ gibt und die jeder stellen wird, sobald die Leiste da ist.
 
 **Entschieden ist hier nichts.** Der Vorschlag steht, das Risiko steht dabei,
 und gebaut wird nach der Runde.
+
+---
+
+## 7. Bilanz der zweiten Runde
+
+**Gemessen am 20. August 2026 auf `cloudsrv24` gegen `v0.6.0-rc.19`**, in einem
+Fenster ohne Erweiterungen.
+
+| | Zahl |
+|---|---|
+| Ansichten in je vier Lagen | 9 × 4 = **36** |
+| Zustände | **16** |
+| Griffe der Experteneingabe | **5** |
+| Lagen mit `dokument > 0` | **0** |
+| Gegenproben, die nicht `200/200` ergaben | **0** |
+| Fremdeinträge in `schiebt` | **0** |
+
+**Jeder Eintrag unter `schiebt` ist `.stacks thead` mit seinem `tr`**, also der
+Mechanismus aus `app.css`. **Jeder Eintrag unter `rollt` trägt `darf: true`** —
+einschliesslich `.cm-scroller`, der niemandem hier gehört.
+
+### 7.1 Was die Runde belegt hat
+
+**Vier Behebungen der ersten Runde stehen mit einer Zahl da**, nicht mit einem
+Eindruck:
+
+| Befund | Behebung | gemessen auf `cloudsrv24` |
+|---|---|---|
+| 1 | Kästchen als `.toggle` | **17 × 17**, Leiste **171** — dieselben drei Zahlen wie im Container |
+| 6 | Dichtestufe eine Sprosse tiefer | **217 → 215** und **19 → 17**, das erste **vorhergesagt** |
+| 9 | `align-items: flex-end` | Versatz **0** statt −14 |
+| 10 | `bringIntoView` an drei Griffen | `oben` 117 und 307, beide ganz im Bild |
+
+**Die übrigen sieben sind im Bild bestätigt** — die vier Fugen (2, 3, 4, an
+beiden Stellen), das Literal (5), die Polsterung (7, 8) und der leise Text (11).
+
+**Und der Fremdeintrag ist verschwunden.** Im ersten Lauf trugen sieben von neun
+Ansichten einen Kasten der Erweiterung LastPass — zweimal falsch erklärt, einmal
+mit Zeilennummer. Das Fenster ohne Erweiterungen hat sie alle entfernt und dabei
+**keine einzige Zahl der Seite verändert.**
+
+### 7.2 Was die Runde gefunden hat
+
+**Sieben Befunde, und keinen davon hat ein Test gefunden:**
+
+| # | Befund | Reichweite |
+|---|---|---|
+| 12 | Die Auskunft über das volle Kontingent liegt bei 390 px hinter zehn Kärtchen | eine Seite |
+| 13 | Kein Weg zum Formular „Job anlegen" ausser Scrollen | eine Seite |
+| 14 | Der Bereich „Job anlegen" steht bei 1440 px als vier Kästen da | eine Seite |
+| 15 | **Jede Rückmeldung des Panels nennt einen englischen Feldnamen** | 95 Felder, 23 mehrwortig |
+| 16 | In der Experteneingabe zeigt die Meldung auf eingeklappte Felder | eine Seite |
+| 17 | **Zwei Elemente tragen `id="app"`** — `@inertia` statt `@inertiaHead` | jede Seite |
+| 18 | Der Zielbaum wird nicht ins Bild geholt (98 px angeschnitten) | eine Seite |
+
+Dazu eine Beobachtung, die **kein** Befund ist: 57 Felder ohne `id` und ohne
+`name` (§4.2).
+
+### 7.3 Was die Runde über sich selbst gelernt hat
+
+**Vier Pannen am Messmittel, und kein einziger davon war ein Fehler des
+Panels:** der Kasten mit 468 px (zweimal falsch erklärt), die 27 px am Klick,
+das Kriterium `imBild`, der Selektor aus dem Gedächtnis.
+
+Dasselbe Verhältnis wie in `docs/45`, `47`, `48` und `59` — nur nicht über einen
+Lauf verteilt, sondern über einen Nachmittag.
+
+> **Ein Messmittel, das aus dem Gedächtnis geschrieben wird, ist eine Vermutung
+> mit Klammern.**
+
+**Und zwei Zahlen des ersten Laufs lassen sich nicht wiederherstellen** (511
+gegen 484, 166 gegen 157). Beide an `.stacks thead`, beide nach oben, beide ohne
+Erklärung. Sie stehen als Notiz da.
+
+### 7.4 Die Reihenfolge fürs Bauen
+
+**Keine dieser Behebungen rührt eine Marke an, die über eine Seite hinausgeht.**
+Befund 6 hat das getan und damit sämtliche Messwerte des ersten Laufs entwertet;
+hier ist das nicht der Fall. **Eine dritte volle Runde ist deshalb nicht nötig**
+— es genügt, die berührten Stellen einzeln nachzumessen.
+
+> **Das gilt nur, solange es gilt.** Wird Befund 14 in `app.css` behoben statt in
+> `Cron.vue`, ändert sich die Form **jedes** Formulars, und dann ist die dritte
+> Runde fällig. Wer ihn anfasst, hält ihn auf der Seite.
+
+**Vorgeschlagene Reihenfolge, und der Grund steht dabei:**
+
+**1. Befund 17 — `@inertiaHead`.** Eine Zeile, ein Wächter über
+`app.blade.php`. Zuerst, weil er einen **stillen** Zustand beendet: Die
+Anwendung hängt heute im Element, das in den Kopf gehört, und die nächste Zeile,
+die jemand vor `</head>` schreibt, landet im Rumpf. Der billigste Griff mit dem
+grössten Rückbau an Risiko.
+
+**2. Befunde 13 und 18 — die Regel statt der Stelle.** `RevealTest` prüft heute
+nur Griffe **an einer Zeile**. Er muss jeden Griff prüfen, der etwas öffnet oder
+etwas Entferntes betrifft.
+
+Der Grund für Platz 2 ist **Wunsch 2 und 3**: Beide bringen neue Griffe mit — ein
+„Schlüssel erzeugen" und eine Suchleiste. Ohne die Regel wird derselbe Fehler
+zum vierten und fünften Mal gemacht.
+
+> **Eine Regel, die man vor dem nächsten Merkmal aufstellt, kostet einmal. Nach
+> dem nächsten Merkmal kostet sie zweimal.**
+
+**3. Befunde 15 und 16 — die Rückmeldungen.** Beide hängen an derselben Leitung.
+15 ist mechanisch (95 Namen in `lang/de/validation.php`) und hat die grösste
+Reichweite von allen; 16 fährt mit, weil die Experteneingabe ihre Meldung
+umlenken muss.
+
+Der Wächter dazu ist der interessante Teil: Er muss ein Wort prüfen, das **in
+keiner Datei steht**, sondern erst beim Ausführen entsteht. Also nicht der Text,
+sondern die Vollständigkeit der Liste gegen die Menge der validierten Felder.
+
+**4. Befunde 12 und 14 — die Cronseite.** Zuletzt, weil sie als einzige eine
+Entscheidung brauchen und nicht nur eine Behebung: wohin die Auskunft über das
+Kontingent gehört, und wie der Bereich „Job anlegen" stattdessen aussieht. Beides
+gehört **gemessen** und nicht am Schreibtisch entschieden — der Aufsatz im
+Container trifft die echte Seite aufs Pixel.
+
+**Danach die Wünsche**, in dieser Reihenfolge:
+
+- **Wunsch 2** (Schlüssel erzeugen) — die drei Messungen aus §5.4 zuerst, und die
+  dritte kann nur der Betreiber machen.
+- **Wunsch 3** (Suchleiste) — die zwei Messungen aus §6.3 zuerst.
+
+**Und was ausdrücklich nicht in dieser Fassung gebaut wird:**
+
+- die vollständige Umkehrung der Abstandsregel (`* + *`) — ein eigener Durchgang
+  mit eigenen Aufnahmen,
+- die neunzehn ungeprüften Griffe in `Databases/Console.vue`
+  (`RevealTest::UNEXAMINED`) — sie gehören zu Schritt 2 der Regel, aber die
+  Konsole ist keine der neun Ansichten und braucht ihre eigene Messung,
+- die 57 Felder ohne `id` und `name` — heute folgt daraus nichts.

@@ -3612,3 +3612,44 @@ sich vom Rückweg aus. Ein Eingriff darauf bliebe stehen.
 Beide sind stattdessen von Hand gefahren: `lang/` aus `BAEUME` genommen →
 `BreakScriptTest` rot; zurück → grün.
 
+### 13.6 Der zweite Lauf: von vier auf eine — und ein dritter Blindfleck
+
+Nach der Behebung meldete der Lauf noch **eine** Prüfung ohne Biss:
+`FileCreationTest: der Weg zum Anlegen einer Datei faellt weg`, mit dem
+Vermerk „Eingriff hat nichts geändert".
+
+Der Eingriff ist ein `sed -i 's/          Datei anlegen/…/'`, und die
+Beschriftung heisst seit der neuen Kopfleiste
+`Datei<span class="verb"> anlegen</span>`. Das Muster traf nichts mehr.
+
+**Und `BreakScriptTest` hat auch das nicht gemeldet** — er liest nur
+Python-Blöcke. **Sechsundzwanzig** Eingriffe dieses Skripts sind ein `sed -i`,
+und die waren für jede seiner Fragen unsichtbar.
+
+> **Ein Wächter, der eine Form von Eingriff liest, sagt über die andere Form
+> nichts.**
+
+Das ist derselbe Satz wie in §13.3, nur eine Ebene höher: Dort war es eine
+Schreibweise innerhalb der Python-Blöcke, hier eine ganze Bauart daneben.
+
+Gelesen werden jetzt **elf von sechsundzwanzig** `sed`-Eingriffen. Zwölf haben
+ein Muster statt eines Textes auf der linken Seite (`^`, `$`, `.*`), drei eine
+Adressform — beide bleiben aussen vor und sind **gezählt**:
+
+> **Ein Loch, das man zählt, ist kein Loch mehr — es ist eine Zahl, die kleiner
+> werden kann.**
+
+**Der erste Anlauf dieses Ausdrucks war wieder ein Fehlalarm.** Er las aus
+`sed -i '0,/class="sections"/s//class="unwrapped"/'` den Dateinamen
+`/s//class=` und meldete zwei Befunde über eine Datei, die es nicht gibt. Der
+Ausdruck nimmt seitdem nur die eindeutige Form.
+
+**Und die Gegenprobe dazu ist beim ersten Versuch danebengegangen** — ich habe
+ein `sed`-Ziel umbenannt, das viermal in `app.css` steht, und nur die erste
+Stelle geändert. Der Wächter fand die anderen drei und schwieg zu Recht.
+
+> **Ein Prüfkörper, den es mehrfach gibt, misst nicht, ob der Wächter hinsieht
+> — nur, ob er zählen kann.**
+
+Belegt ist er an einem Ziel, das genau einmal vorkommt.
+

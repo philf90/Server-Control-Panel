@@ -10189,8 +10189,23 @@ echo "── FileCreationTest: der Weg zum Anlegen einer Datei faellt weg ──
 #
 # Die Fortsetzung von Befund 6, eine Ebene tiefer: files.write legt seit
 # Schritt 3 an, was es nicht gibt — es fehlte nur der Knopf.
+#
+# **Der Eingriff war ein `sed -i` und ist am 20. August still geworden**: Die
+# Beschriftung heisst seit der neuen Kopfleiste
+# `Datei<span class="verb"> anlegen</span>`, und das Muster traf nichts mehr.
+# `BreakScriptTest` hat es nicht gemeldet, weil er nur Python-Bloecke liest —
+# siebenundzwanzig Eingriffe dieses Skripts sind `sed`. Er liest sie seitdem
+# mit; dieser hier ist zu einem Python-Block geworden, weil ein `sed`-Muster
+# ueber Marken hinweg unlesbar wird.
 vorher_datei resources/js/Pages/Files/Index.vue
-sed -i 's/          Datei anlegen/          Datei erzeugen/' resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<span>Datei<span class="verb"> anlegen</span></span>'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '<span>Datei<span class="verb"> erzeugen</span></span>'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
 griff_datei resources/js/Pages/Files/Index.vue "Weg zum Anlegen" &&
 pruefe "Weg zum Anlegen einer Datei" \
   FileCreationTest::test_a_file_can_be_created_from_the_listing failed

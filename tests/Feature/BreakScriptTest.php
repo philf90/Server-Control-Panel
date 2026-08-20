@@ -172,6 +172,61 @@ final class BreakScriptTest extends TestCase
             }
         }
 
+        /*
+         * **Und die Eingriffe, die `sed` benutzen.** Hier standen nur die
+         * Python-Blöcke — sechsundzwanzig Eingriffe dieses Skripts sind aber
+         * ein `sed -i`, und die waren für jede Frage dieses Wächters
+         * unsichtbar: ob ihr Griff noch greift, und ob ihre Datei im Rückweg
+         * liegt.
+         *
+         * Am 20. August ist genau daran ein Lauf gescheitert. Die Beschriftung
+         * „Datei anlegen" wurde zu `Datei<span class="verb"> anlegen</span>`,
+         * das `sed`-Muster traf nichts mehr, und `griff_datei` meldete
+         * „Eingriff hat nichts geändert" — während dieser Wächter grün stand.
+         *
+         * > **Ein Wächter, der eine Form von Eingriff liest, sagt über die
+         * > andere Form nichts.**
+         *
+         * Gelesen wird die linke Hälfte eines `sed -i 's|…|…|' DATEI`.
+         *
+         * **Zwei Formen bleiben aussen vor, und beide sind gezählt.** Ein
+         * Ausdruck mit einer Adresse davor (`0,/…/s//…/`) oder einer anderen
+         * Bauart — davon gibt es **drei** — und eine linke Hälfte, die ein
+         * Muster ist statt eines Textes (`^`, `$`, `.*`, `\(`) — davon
+         * **zwölf**. Ein Muster liesse sich in einer Datei nicht suchen, und
+         * ein Fehlalarm wäre schlimmer als eine Lücke.
+         *
+         * Gelesen werden damit **elf von sechsundzwanzig**; die fünfzehn
+         * anderen sind gezählt und nicht verschwiegen.
+         *
+         * > **Ein Loch, das man zählt, ist kein Loch mehr — es ist eine Zahl,
+         * > die kleiner werden kann.**
+         *
+         * > **Ein Wächter, der Fehlalarm gibt, wird abgeschaltet.**
+         *
+         * Der erste Anlauf hier war zu gierig und las aus `0,/class="sections"/s//…/`
+         * den Dateinamen `/s//class=`. Das ist die Sorte Fund, die einen
+         * Wächter unglaubwürdig macht, bevor er einmal genützt hat.
+         */
+        preg_match_all('/^sed -i ([\'"])s(.)(.*?)\\2(.*?)\\2[a-z]*\\1 *\\\\?\n?\s*([^\s\'"]+)/m', $script, $seds, PREG_SET_ORDER);
+
+        foreach ($seds as $sed) {
+            $datei = trim($sed[5]);
+            $suche = $sed[3];
+
+            if (! str_contains($datei, '/')) {
+                continue;
+            }
+
+            // Ein Muster mit Sonderzeichen ist kein Text — es zu suchen wäre ein
+            // Fehlalarm, und ein Wächter, der Fehlalarm gibt, wird abgeschaltet.
+            if (preg_match('/[\\^$*\\[\\]\\\\]|\\.\\*/', $suche) === 1) {
+                continue;
+            }
+
+            $found[] = ['file' => $datei, 'needle' => $suche];
+        }
+
         return $found;
     }
 

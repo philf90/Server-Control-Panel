@@ -66,6 +66,7 @@ final class StandaloneClassTest extends TestCase
         'narrow' => 'ein .field in einer .field-row',
         'pairs' => 'eine Tabelle aus Bezeichnung und Wert',
         'right' => 'eine rechtsbündige Zelle',
+        'short' => 'ein .code, dessen Inhalt eine bekannte Länge hat',
     ];
 
     /** Wo das Stylesheet steht. */

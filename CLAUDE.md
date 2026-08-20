@@ -506,6 +506,15 @@ der Ausschlag, sondern der Prüfkörper. Wer einen Wächter über eine Aufzählu
 baut, prüft ihn deshalb an dem Fall, der ihn ausgelöst hat — und macht ihn rot,
 wo er nicht hinsehen kann, statt ihn dort schweigen zu lassen.
 
+**Und ein Ausdruck, den dieses Repo an einem Tag zweimal falsch geschrieben
+hat:** `\.value\s*=` trifft auch `===`, denn `=` ist dessen erstes Zeichen.
+`RevealTest` hat damit vier Löcher erfunden, die es nie gab, und `PrivateKeyTest`
+eine Stunde später drei Zuweisungen gezählt, wo eine steht. Die Abgrenzung
+lautet `(?<![=!<>])=(?!=)`.
+
+> **Ein Ausdruck, der eine Zuweisung sucht, findet jeden Vergleich mit, solange
+> er das Gleichheitszeichen nicht abgrenzt.**
+
 **Und ein zweites Muster, das der Umbau aus `docs/35` freigelegt hat: eine
 Ressource, die sich anlegen, aber nirgends löschen lässt.** Zertifikate konnte
 dieses System bestellen, hochladen und erneuern — ein `remove` gab es weder im

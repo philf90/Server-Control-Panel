@@ -59,7 +59,7 @@ final class ClassNameTest extends TestCase
         'permissions', 'property', 'punctuation',
         'postscript', 'primary', 'progress', 'quiet', 'rail', 'release',
         'readout', 'reveal', 'right', 'row', 'rows', 'rules', 'running', 'scrim', 'scrolls',
-        'second', 'section', 'sections', 'selection', 'sheet', 'signin', 'signout', 'small',
+        'second', 'section', 'sections', 'selection', 'sheet', 'short', 'signin', 'signout', 'small',
         'source', 'spaced', 'split', 'sr', 'stacks', 'state', 'strength', 'string', 'sub', 'subline',
         'tag', 'tasks', 'text', 'tight', 'tile', 'tiles', 'time', 'title', 'toggle', 'tok',
         'top', 'topbar', 'tree', 'trend', 'twig', 'unit', 'usage', 'value', 'variable', 'version', 'warn',

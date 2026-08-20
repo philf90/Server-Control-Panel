@@ -2590,6 +2590,8 @@ Drei Fragen, und die dritte ist die, an der Weg A scheitern kann:
 Liest es das nicht, muss der Browser das OpenSSH-Format selbst schreiben — ein
 Containerformat von Hand, und das ist kein Nachmittag.
 
+**Alle drei sind am 20. August gemessen; die Antworten stehen in §5.6.**
+
 > **Wissen aus zweiter Hand sieht aus wie Wissen.** Der Satz steht seit `docs/37`
 > im Projekt; für Punkt 3 gilt er wörtlich, und deshalb steht hier keine
 > Antwort.
@@ -2600,6 +2602,16 @@ Merkmal und gilt auch für einen Wegwerfschlüssel zu einer Formatfrage. Der Ort
 für diese Messung ist `cloudsrv24` mit einem Schlüssel, der danach gelöscht
 wird — oder ein anderer Rechner des Betreibers.
 
+**Dieser Absatz war eine Auslegung und keine Ansage, und der Betreiber hat sie
+am 20. August aufgehoben.** Der Satz „Privates Schlüsselmaterial wird in diesem
+Container nie erzeugt" steht in `CLAUDE.md` unter *Ablauf*, also bei den
+Freigaben — er handelt von Signaturschlüsseln. Ein Wegwerfpaar zu einer
+Formatfrage gibt Zugang zu nichts. Gemessen wurde hier, mit Chromium 141 und
+OpenSSH 9.6p1, und alles Schlüsselmaterial ist danach gelöscht worden.
+
+> **Eine Regel, die man ausweitet, gehört als Auslegung gekennzeichnet — sonst
+> liest sie sich beim nächsten Mal wie die Regel selbst.**
+
 ### 5.5 Was dieser Vorschlag ausdrücklich nicht löst
 
 - **RSA und ECDSA.** Der Vorschlag deckt Ed25519. Das Formular nimmt heute auch
@@ -2608,6 +2620,58 @@ wird — oder ein anderer Rechner des Betreibers.
 - **Den Verlust.** Wer den privaten Teil verliert, erzeugt einen neuen und
   entfernt den alten. Ein zweites Herunterladen darf es nicht geben — sonst läge
   er doch irgendwo.
+
+### 5.6 Gemessen am 20. August — und Punkt 3 fällt negativ aus
+
+Chromium 141 und OpenSSH 9.6p1, beides im Container. Jede Messung mit ihrer
+Gegenprobe; das Skript steht als `tests/schluessel-messen.mjs` im Repo und misst
+**den ausgelieferten Baustein**, nicht eine Abschrift.
+
+| | Frage | Ergebnis |
+|---|---|---|
+| 1 | Kann der Browser Ed25519? | **ja** — `crypto.subtle.generateKey({name:'Ed25519'})` |
+| 2 | Öffentlicher Teil im OpenSSH-Format? | **ja** — `ssh-keygen -l` liest ihn und nennt `(ED25519)` |
+| 3 | Nimmt OpenSSH den privaten Teil als PKCS#8? | **nein**, in keiner der drei Formen |
+
+Die drei Versuche zu Punkt 3, wörtlich:
+
+    ssh-keygen -y -f …            Load key: invalid format
+    ssh-keygen -l -f …            is not a key file
+    ssh-keygen -i -m PKCS8 -f …   not a recognised public key format
+
+**Und die Falle, die eine Runde gekostet hat, steckte nicht in OpenSSH.** Der
+erste Versuch zu Punkt 1 lief über `about:blank` und meldete
+`crypto.subtle → undefined`. Das sieht aus wie „der Browser kann kein Ed25519"
+und heisst „es gibt hier keinen sicheren Kontext". Das Panel wird über HTTPS
+ausgeliefert, also trifft es niemanden — aber es hätte den ganzen Weg A
+umgeworfen.
+
+> **Ein Merkmal, das nur im sicheren Kontext existiert, fehlt daneben nicht mit
+> einer Meldung, sondern als `undefined`.**
+
+**Der Rückfall trägt, und er ist kürzer als befürchtet.** Der Container
+`openssh-key-v1` ist reine Serialisierung — Längenangaben, Zeichenketten, eine
+Auffüllung, **kein Stück Kryptographie**. Gemessen:
+
+| | |
+|---|---|
+| `ssh-keygen -y` liest die selbst geschriebene Datei | ja |
+| … und leitet genau den passenden öffentlichen Teil ab | ja |
+| Gegenprobe: **ein** Byte verdreht | abgewiesen (`error in libcrypto`) |
+| Anmeldung über SFTP an einem Wegwerf-`sshd` | **gelungen** |
+| Gegenprobe: ein anderer gültiger Schlüssel, nicht eingetragen | abgewiesen |
+
+Die Anmeldung ist der Beleg, auf den es ankommt: `ssh-keygen -y` sagt, dass die
+Datei lesbar ist; erst der `sshd` sagt, dass ein Kunde damit an seine Dateien
+kommt.
+
+**Und der Rand, an dem so eine Serialisierung still bricht, ist die
+Auffüllung.** Sie hängt an der Länge der Bemerkung, und im ausgerichteten Fall
+kommt **nichts** dazu. Gemessen sind alle acht Restklassen, jede zweimal, dazu
+die leere Bemerkung — sechzehn Dateien, sechzehnmal lesbar und passend.
+
+> **Ein Rand, der von der Länge einer Beschriftung abhängt, ist keiner, den man
+> an einem Beispiel prüft.**
 
 ---
 
@@ -3019,4 +3083,140 @@ nur der Betreiber machen) und **Wunsch 3** (Suchleiste, §6.3 zuerst messen).
 **Was ausdrücklich offen bleibt**, unverändert aus §7.4: die vollständige
 Umkehrung der Abstandsregel (`* + *`), die neunzehn ungeprüften Griffe in
 `Databases/Console.vue` und die 57 Felder ohne `id` und `name`.
+
+---
+
+## 10. Gebaut — Wunsch 2: Schlüssel im Panel erzeugen
+
+Gebaut am 20. August 2026, nach den Messungen aus §5.6. Zwei Entscheidungen des
+Betreibers tragen es: Punkt 3 durfte **hier** gemessen werden (ein Wegwerfpaar
+zu einer Formatfrage gibt Zugang zu nichts), und erzeugt wird **nur Ed25519** —
+entgegengenommen wird weiterhin alles, was heute geht.
+
+### 10.1 Wo die Handlung steht
+
+Die Frage aus `CLAUDE.md`, gestellt vor dem Merkmal und nicht danach: **Wo sucht
+jemand das?** Dort, wo er nach einem Schlüssel gefragt wird — also im Bereich
+„Schlüssel eintragen", neben dem Feld, in das er ihn sonst einfügt. Kein eigener
+Bereich darunter: Wer keinen Schlüssel hat, merkt es genau hier.
+
+Damit ist es zugleich die Antwort auf Befund 14 der Cronseite: eine Gruppe statt
+zweier, weil die zweite nur die erste füllt.
+
+### 10.2 Der Ablauf
+
+1. Ein Satz **vor** dem Knopf: Der private Teil entsteht auf dem Gerät und wird
+   **einmal** angeboten. Danach gelesen wäre er eine Feststellung.
+2. „Schlüssel erzeugen" erzeugt, füllt das Feld mit dem öffentlichen Teil und
+   schickt ihn auf demselben Weg wie eine Eingabe von Hand.
+3. **Erst nach `onSuccess`** erscheint der private Teil. Wer ihn sähe, ohne dass
+   der öffentliche angekommen ist, hielte einen Schlüssel für ein Schloss, das
+   es nicht gibt.
+4. Der Bereich holt sich ins Bild — über `watch` und nicht über den Klick, denn
+   dazwischen liegt eine Antwort des Servers.
+5. „Herunterladen" über `Blob` und `<a download>`; der Weg über den Server
+   existiert nicht.
+
+Kann der Browser kein Ed25519, steht dort statt des Knopfes der Satz, wie man
+den Schlüssel auf dem eigenen Rechner erzeugt. Kein roter Rand an einem Feld:
+Das Feld ist nicht falsch, der Browser kann es nicht.
+
+### 10.3 Gemessen an der Ansicht
+
+Echtes Markup aus `Sftp.vue`, gebautes Stylesheet, vier Lagen:
+
+| Lage | `dokument` | Gegenprobe | Schlüsselfeld |
+|---|---|---|---|
+| 390 hell | 0 | **200** | 358×236 |
+| 390 dunkel | 0 | **200** | 358×236 |
+| 1440 hell | 0 | **200** | 1140×223 |
+| 1440 dunkel | 0 | **200** | 1140×223 |
+
+**Zwei Fassungen der Höhe, und die erste war falsch.** `.code` bringt die
+Editorhöhe von 60dvh mit — bei 844 px Fenster sind das 506 px für einen Inhalt
+von neun Zeilen, also ein Kasten, der zu zwei Dritteln leer ist. Dieselbe leere
+Fläche wie in Befund 14, an einer anderen Stelle.
+
+> **Eine Höhe, die für unbekannte Länge gemacht ist, ist für bekannte falsch.**
+
+**Und die erste Fassung rollte in sich selbst.** `.code` steht auf
+`white-space: pre`; bei 390 px waren das gemessen **330 px** waagerechtes Rollen
+im Kasten, bei einem `dokument` von 0. Genau der Fall aus `docs/48`: eine Zelle,
+die rollen darf, hat keine Zahl, die sich beschwert. Ein erzeugter Schlüssel
+wird nicht Zeile für Zeile gelesen, sondern als Ganzes genommen — er darf
+brechen.
+
+> **Ein Feld, dessen Inhalt man als Ganzes nimmt, braucht keine Spalten.**
+
+### 10.4 Was der Wächter hält — und was er nicht halten kann
+
+`PrivateKeyTest` hält die eine Zusage, die dieses Merkmal trägt:
+
+- Der Baustein kennt **kein** Transportmittel — kein `fetch`, kein `router.`,
+  kein `sendBeacon`. Das ist die stärkste Fassung, weil sie an keiner
+  Schreibweise hängt.
+- Auf der Seite steht der private Teil auf keiner Zeile, die etwas verschickt —
+  **zeilenweise**, denn die Datei *muss* `form.post` enthalten.
+- Das Formular trägt genau zwei Felder.
+- Er wird genau einmal gesetzt.
+- Die Messung bindet **den ausgelieferten Baustein** ein und keine Abschrift.
+
+**Zwei der fünf Eingriffe im Bruchskript sind beim ersten Versuch durchgegangen,
+und beide trafen genau das, was der Wächter halten soll.**
+
+Der erste: `form.key = privaterTeil.value` — eine **Zuweisung**, kein Versand.
+Die Liste führte nur `form.post`, `form.put`, `form.patch`; der Schlüssel reist
+eine Zeile später mit, und dort steht er nicht mehr.
+
+> **Ein Wächter, der auf den Versand sieht, verpasst das Einpacken.**
+
+Der zweite: Die Einbindung zeigte auf eine Abschrift, und der Wächter blieb
+grün — weil der Kopf der Messdatei den Baustein ohnehin im Text nennt.
+
+> **Ein Wächter, der einen Satz sucht statt seiner Erreichbarkeit, ist grün,
+> sobald der Satz irgendwo steht.**
+
+Derselbe Satz steht seit `docs/62` im Projekt.
+
+### 10.5 Der Nebenfund: `RevealTest` sah ein Drittel seiner Griffe nicht
+
+Der neue Knopf heisst `@click="erzeugen"` — **ohne Klammern**. Der Wächter
+suchte `@click="name("`, also nur Griffe mit einem Wert, und ging an ihm vorbei.
+Neunundzwanzig solcher Griffe gibt es in `resources/js`.
+
+> **Ein Wächter, der einen Ausdruck nicht auflösen kann, hat nicht wenig
+> gemessen — er hat an dieser Stelle gar nicht gemessen.**
+
+Derselbe Satz wie bei Befund 15, zwei Stunden später und an einer anderen Datei.
+Erweitert hat der Wächter dann vier Dinge gefunden:
+
+| | was |
+|---|---|
+| `PasswordFields.vue generate touched` | eine offene Frage — steht in `UNEXAMINED`, ungemessen |
+| `Files/Index.vue startSearch searching` | derselbe Bereich, unter einem zweiten Namen; einmal erfasst, einmal nicht |
+| `Files/Index.vue startPack archiveName` | steht an seinem Platz |
+| `Operations/Show.vue cancel cancelRequested` | steht an seinem Platz |
+
+**Und vier der neunzehn gezählten Löcher gab es nie.** Zwei entstanden daraus,
+dass der Ausdruck `openTable.value === null` für eine Zuweisung hielt — `=` ist
+auch das erste Zeichen von `===`. Zwei weitere setzen ihren Wert nur auf `null`,
+machen also zu und öffnen nichts.
+
+> **Eine Zahl, die offene Fragen zählt, zählt auch die erfundenen mit.**
+
+Dieselbe Zeile habe ich eine Stunde später in `PrivateKeyTest` noch einmal
+geschrieben, und dort hat sie drei Zuweisungen gezählt, wo eine steht.
+
+> **Ein Ausdruck, der eine Zuweisung sucht, findet jeden Vergleich mit, solange
+> er das Gleichheitszeichen nicht abgrenzt.**
+
+### 10.6 Was offen bleibt
+
+- **Der Download ist nicht im Container geprüft.** `Blob` und `<a download>`
+  brauchen die laufende Seite. Er gehört in den nächsten Lauf auf `cloudsrv24`.
+- **RSA und ECDSA werden nicht erzeugt** — Entscheidung des Betreibers,
+  entgegengenommen werden sie weiter.
+- **`PasswordFields.vue generate touched`** ist ungemessen und steht als offene
+  Frage in `RevealTest::UNEXAMINED`.
+- **Wunsch 3** (die Suchleiste) — die zwei Messungen aus §6.3 zuerst.
 

@@ -2347,6 +2347,35 @@ button.knob:hover {
   tab-size: 4;
 }
 
+/*
+ * Ein Quelltextfeld, dessen Inhalt eine bekannte Länge hat.
+ *
+ * `.code` bringt die Editorhöhe von 60dvh mit, und das ist dort richtig: Eine
+ * Datei, die man bearbeitet, hat keine Länge, die jemand vorher kennt. Ein
+ * erzeugter Ed25519-Schlüssel hat sie — neun Zeilen. In der Editorhöhe stünde
+ * er in einem Kasten, der zu zwei Dritteln leer ist, und das ist dieselbe leere
+ * Fläche, die auf der Cronseite Befund 14 war.
+ *
+ * > **Eine Höhe, die für unbekannte Länge gemacht ist, ist für bekannte
+ * > falsch.**
+ */
+.field textarea.code.short {
+  min-height: 0;
+
+  /*
+   * **Und die Zeilen dürfen brechen.** `.code` steht auf `white-space: pre`,
+   * damit Quelltext Spalte für Spalte stimmt. Ein erzeugter Schlüssel wird
+   * nicht gelesen, sondern als Ganzes genommen — kopiert oder heruntergeladen.
+   * Seine Zeilen sind 70 Zeichen lang, und bei 390 px rollte der Kasten
+   * gemessen um **330 px** in sich selbst. Der Umbruch ist dabei nur
+   * Darstellung; kopiert wird der Wert mit seinen echten Zeilenenden.
+   *
+   * > **Ein Feld, dessen Inhalt man als Ganzes nimmt, braucht keine Spalten.**
+   */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .cell-value {
   margin: 0;
   max-height: 60dvh;

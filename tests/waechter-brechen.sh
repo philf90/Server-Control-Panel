@@ -12089,6 +12089,96 @@ pruefe "  … zurückgesetzt wieder grün" \
   AttributeNameTest::test_every_name_belongs_to_a_field passed
 
 echo
+echo "── PrivateKeyTest: der private Teil wandert ins Formular ──"
+#
+# Der Bruch, um den es geht, ist eine Zeile und sieht aus wie eine
+# Verbesserung: „damit der Server den Fingerabdruck gleich mitrechnet".
+# Danach liegt der Schluessel in sessions und in operations (docs/64 §5.2).
+vorher_datei resources/js/Pages/Subscriptions/Sftp.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Sftp.vue'
+s = open(p, encoding='utf-8').read()
+alt = "        privaterTeil.value = paar.privateKey"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        form.key = privaterTeil.value ?? ''\n" + alt, 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Sftp.vue "privater Teil im Formular" &&
+pruefe "privater Teil im Formular" \
+  PrivateKeyTest::test_the_private_part_never_shares_a_line_with_a_transport failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  PrivateKeyTest::test_the_private_part_never_shares_a_line_with_a_transport passed
+
+echo
+echo "── PrivateKeyTest: der Baustein bekommt einen Weg nach draussen ──"
+vorher_datei resources/js/ssh/openssh.ts
+python3 - <<'PY2'
+p = 'resources/js/ssh/openssh.ts'
+s = open(p, encoding='utf-8').read()
+alt = "export async function canGenerate(): Promise<boolean> {"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt + "\n  void fetch('/telemetry')\n", 1))
+PY2
+griff_datei resources/js/ssh/openssh.ts "Baustein mit Ausgang" &&
+pruefe "Baustein mit Ausgang" PrivateKeyTest::test_the_module_has_no_way_out failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PrivateKeyTest::test_the_module_has_no_way_out passed
+
+echo
+echo "── PrivateKeyTest: ein drittes Feld im Formular ──"
+vorher_datei resources/js/Pages/Subscriptions/Sftp.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Sftp.vue'
+s = open(p, encoding='utf-8').read()
+alt = "const form = useForm({ label: '', key: '' })"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+neu = "const form = useForm({ label: '', key: '', privat: '' })"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Sftp.vue "drittes Feld im Formular" &&
+pruefe "drittes Feld im Formular" PrivateKeyTest::test_the_form_carries_only_the_public_parts failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PrivateKeyTest::test_the_form_carries_only_the_public_parts passed
+
+echo
+echo "── PrivateKeyTest: die Messung zeigt auf eine Abschrift ──"
+#
+# Der Kopf der Messung nennt den Baustein ohnehin im Text. Ein Waechter, der
+# den Pfad irgendwo sucht, bleibt hier gruen — geprueft wird die Einbindung.
+vorher_datei tests/schluessel-messen.mjs
+python3 - <<'PY2'
+p = 'tests/schluessel-messen.mjs'
+s = open(p, encoding='utf-8').read()
+alt = "await import(join(wurzel, 'resources/js/ssh/openssh.ts'))"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+neu = "await import(join(wurzel, 'resources/js/ssh/abschrift.ts'))"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/schluessel-messen.mjs "Messung auf einer Abschrift" &&
+pruefe "Messung auf einer Abschrift" PrivateKeyTest::test_the_measurement_holds_the_shipped_module failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PrivateKeyTest::test_the_measurement_holds_the_shipped_module passed
+
+echo
+echo "── RevealTest: ein Griff ohne Klammern holt seinen Bereich nicht ──"
+#
+# Bis zum 20. August sah dieser Waechter nur Griffe mit Klammern. Ein
+# `@click="erzeugen"` fiel heraus — und davon gibt es 29 in resources/js.
+vorher_datei resources/js/Pages/Subscriptions/Sftp.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Sftp.vue'
+s = open(p, encoding='utf-8').read()
+alt = "watch(privaterTeil, (wert) => {"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+neu = "watch(erzeugt, (wert) => {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Sftp.vue "Griff ohne Klammern" &&
+pruefe "Griff ohne Klammern" RevealTest::test_every_per_item_handle_reveals_its_block failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RevealTest::test_every_per_item_handle_reveals_its_block passed
+
+echo
 echo "── CronPageReachTest: die Meldung rutscht zurueck in den Formularbereich ──"
 #
 # Befund 12: Bei 390 px lag sie dort 3566 px von der Oberkante entfernt, auf

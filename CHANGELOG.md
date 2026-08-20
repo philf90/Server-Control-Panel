@@ -16119,3 +16119,69 @@ angefasst worden** — damit bleibt eine dritte volle Bilderrunde erspart.
 
 Zwei Brüche im Bruchskript, beide von Hand gegengeprüft.
 
+### P6 — Schlüssel im Panel erzeugen (Wunsch 2)
+
+**Bestellt vom Betreiber am 20. August 2026** (`docs/64 §5`). Bis dahin konnte
+das Panel einen öffentlichen Schlüssel nur entgegennehmen; wer keinen hatte,
+brauchte eine Kommandozeile. Für einen Kunden, der über SFTP an seine Dateien
+will, ist das die falsche Voraussetzung.
+
+**Der private Teil entsteht im Browser und geht nie an den Server.** Das ist
+keine Vorsichtsmassnahme, sondern folgt aus dem Quelltext: Ein Schlüssel, der
+über den Server liefe, käme durch die Sitzung (`SESSION_DRIVER=database`) und
+durch den Vorgang (`operations.payload`, `operations.result`) — beide schreiben
+auf die Platte, und die Vorgangsantwort überlebt sogar das Zurückbauen des
+Abonnements.
+
+> **Ein privater Schlüssel, den der Server nie hatte, kann er nicht verlieren.**
+
+**Drei Fragen standen vor dem Bauen, und die dritte hat den Weg entschieden.**
+Gemessen gegen Chromium 141 und OpenSSH 9.6p1:
+
+    1  Kann der Browser Ed25519?                      ja
+    2  Öffentlicher Teil im OpenSSH-Format?           ja
+    3  Nimmt OpenSSH den privaten Teil als PKCS#8?    nein
+
+`crypto.subtle` gibt PKCS#8 aus, und `ssh-keygen` liest das in keiner der drei
+Formen. Der Browser schreibt deshalb den Container `openssh-key-v1` selbst — das
+ist reine Serialisierung und kein Stück Kryptographie. Belegt ist er nicht nur
+über `ssh-keygen -y`, sondern über eine **Anmeldung an einem laufenden `sshd`**;
+die Gegenprobe mit einem anderen gültigen Schlüssel wird abgewiesen.
+
+**Die Falle steckte dabei nicht in OpenSSH.** Der erste Versuch lief ohne
+sicheren Kontext und meldete `crypto.subtle → undefined` — das sieht aus wie
+„der Browser kann kein Ed25519" und heisst etwas anderes.
+
+> **Ein Merkmal, das nur im sicheren Kontext existiert, fehlt daneben nicht mit
+> einer Meldung, sondern als `undefined`.**
+
+**Und der Rand, an dem so eine Serialisierung still bricht, ist die
+Auffüllung** — sie hängt an der Länge der Bemerkung, und im ausgerichteten Fall
+kommt nichts dazu. Gemessen sind alle acht Restklassen, jede zweimal, dazu die
+leere Bemerkung.
+
+`tests/schluessel-messen.mjs` fährt diese Messung gegen **den ausgelieferten
+Baustein** und nicht gegen eine Abschrift. `PrivateKeyTest` hält die Zusage:
+kein Transportmittel im Baustein, der private Teil auf keiner Zeile, die etwas
+verschickt, genau zwei Felder im Formular, genau einmal gezeigt.
+
+**Zwei der fünf Brüche sind beim ersten Versuch durchgegangen**, und beide
+trafen genau das, was der Wächter halten soll: ein `form.key =
+privaterTeil.value` (eine Zuweisung, kein Versand) und eine Messung, die auf
+eine Abschrift zeigte, während der Wächter den Pfad im Kopfkommentar fand.
+
+> **Ein Wächter, der auf den Versand sieht, verpasst das Einpacken.**
+
+**Nebenbei hat `RevealTest` ein Drittel seiner Griffe nicht gesehen.** Er suchte
+`@click="name("` — Griffe ohne Klammern fielen heraus, und davon gibt es
+neunundzwanzig. Erweitert hat er eine offene Frage gefunden, einen Bereich, der
+unter einem zweiten Namen nicht erfasst war, zwei Bereiche an ihrem Platz — und
+**vier gezählte Löcher, die es nie gab**: zwei, weil `===` für eine Zuweisung
+gehalten wurde, zwei, weil ein Wert nur auf `null` gesetzt wird und damit
+zumacht.
+
+> **Eine Zahl, die offene Fragen zählt, zählt auch die erfundenen mit.**
+
+Erzeugt wird **nur Ed25519** (Entscheidung des Betreibers); entgegengenommen
+werden weiterhin auch RSA und ECDSA.
+

@@ -1331,7 +1331,7 @@ Zeile hier nicht als gemessen.
 
 | # | Ansicht | 390 hell | 390 dunkel | 1440 hell | 1440 dunkel |
 |---|---|---|---|---|---|
-| 1 | Dateien, Auswahl | — | — | — | — |
+| 1 | Dateien, Auswahl | **0** | **0** | **0** | **0** |
 | 2 | Dateimanager | — | — | — | — |
 | 3 | Editor | — | — | — | — |
 | 4 | Suche | — | — | — | — |
@@ -1340,6 +1340,43 @@ Zeile hier nicht als gemessen.
 | 7 | Cron, Auswahl | — | — | — | — |
 | 8 | Cronjobs | **0** | **0** | **0** | **0** |
 | 9 | Läufe | **0** | **0** | **0** | **0** |
+
+#### Ansicht 1 — Dateien, Auswahl (`/files`)
+
+| Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` |
+|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | `thead` **119** · `tr` **91** | leer |
+| 390 dunkel | 0 | **200/200** | `thead` **119** · `tr` **91** | leer |
+| 1440 hell | 0 | **200/200** | **leer** | leer |
+| 1440 dunkel | 0 | **200/200** | **leer** | leer |
+
+#### Der Fremdeintrag ist weg — alle vier, und das schliesst die 468 px
+
+Im ersten Lauf trug **jede** der vier Lagen dieser Ansicht einen Eintrag der
+Erweiterung LastPass in `schiebt`, und bei 1440 px war er der einzige. Jetzt
+steht dort nichts mehr: bei 390 px nur noch `.stacks thead` und sein `tr`, bei
+1440 px beide Listen leer.
+
+Damit ist der teuerste Irrtum dieses Laufs **gemessen** erledigt und nicht nur
+begründet. Der `div` mit 468 px ist in diesem Protokoll zweimal falsch erklärt
+worden — erst als Rest eines Breitenwechsels, dann als rechte Hälfte von
+`.split`, mit Zeilennummer. Beide Male war die Erklärung plausibel, und beide
+Male gehörte der Kasten gar nicht zur Seite.
+
+> **Eine Messung am Dokument misst auch, was der Browser hineingeschrieben
+> hat.**
+
+Die Vorschrift „gemessen wird in einem Fenster ohne Erweiterungen" (`docs/63
+§5`) steht seit dem ersten Lauf da. Dies ist der Beleg, dass sie wirkt: vier
+Lagen, vier Einträge weniger, sonst dieselbe Seite.
+
+**Die 119 px sind der Mechanismus**, hier so niedrig, weil diese Tabelle nur
+eine einzige Spaltenüberschrift trägt („Abonnement"). Beide Themes liefern
+dieselben Zahlen — die Geometrie hängt nicht am Thema.
+
+**Und die Quittung der Dichtestufe fehlt hier folgerichtig**: Bei 1440 px rollt
+nichts, weil die Seite zwei Zeilen Inhalt hat. Was der engere Spaltenabstand
+schenkt, ist nur an einer Tabelle abzulesen, die überläuft.
 
 #### Ansicht 8 — Cronjobs, gemessen am 20. August gegen `rc.19`
 

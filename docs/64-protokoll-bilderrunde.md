@@ -1334,7 +1334,7 @@ Zeile hier nicht als gemessen.
 | 1 | Dateien, Auswahl | **0** | **0** | **0** | **0** |
 | 2 | Dateimanager | **0** | **0** | **0** | **0** |
 | 3 | Editor | **0** | **0** | **0** | **0** |
-| 4 | Suche | — | — | — | — |
+| 4 | Suche | — | **0** | — | — |
 | 5 | SFTP, Auswahl | — | — | — | — |
 | 6 | SFTP-Zugang | — | — | — | — |
 | 7 | Cron, Auswahl | — | — | — | — |
@@ -1511,6 +1511,69 @@ deshalb fehlt auch der Mechanismus, der sonst überall in `schiebt` steht.
 
 Die Datei trägt eine Zeile mit Umlauten („Grüsse aus Köln"), und sie steht
 richtig da — die Kodierung reist unverändert durch Agent, Panel und Editor.
+
+#### Ansicht 4 — Suche (`/subscriptions/140/files/search?path=%2F&query=eins`)
+
+| Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` |
+|---|---|---|---|---|
+| 390 dunkel | 0 | **200/200** | `thead` **157** · `tr` **129** | leer |
+
+Die drei anderen Lagen stehen aus.
+
+**Der `div` mit 468 px ist weg** — und das ist die Lage, auf die es ankommt.
+Bei Ansicht 2 war er ein Rest des Breitenwechsels, hier stand er **frisch
+geladen** da, und genau daran ist die zweite Erklärung („die rechte Hälfte von
+`.split`") zerbrochen: `Files/Search.vue` hat gar kein `.split`. Im Fenster ohne
+Erweiterungen ist er nicht mehr da. Damit hält die dritte Erklärung auch dort,
+wo die beiden ersten gescheitert sind.
+
+**Befund 1 ist auf dem echten Server bestätigt, auf den Pixel.** Gemessen bei
+390 px:
+
+```json
+{"kaestchen":[17,17],"leiste":171,"klasse":"toggle"}
+```
+
+Im Container waren es **17 × 17** und **171** — dieselben drei Zahlen. Vorher
+war das Kästchen **390 × 44** und die Leiste **207**.
+
+> **Ein Aufsatz, der das echte Markup und das gebaute Stylesheet benutzt, misst
+> die echte Seite — und nicht etwas Ähnliches.**
+
+Der Satz steht seit `docs/56` im Projekt und hat hier zum zweiten Mal geliefert.
+
+#### Eine Beobachtung, die kein Befund ist: 57 Felder ohne `id` und ohne `name`
+
+Das Register „Issues" meldet auf dieser Seite genau einen Eintrag, und dieser
+gehört wirklich der Seite: *„A form field element should have an id or name
+attribute."* Gemeint ist das Kästchen „auch im Inhalt".
+
+**Es ist nicht durch die Behebung von Befund 1 entstanden.** Die Fassung davor
+hatte dasselbe `<input v-model="imInhalt" type="checkbox" />`; getauscht wurde
+nur das Label darum.
+
+Gemessen über alle Vorlagen: **57 Felder** in rund zwei Dutzend Dateien tragen
+weder `id` noch `name`.
+
+**Und trotzdem wird das hier nicht als Befund geführt**, denn es folgt daraus
+nichts, was das Panel heute falsch machen würde:
+
+| Frage | Antwort |
+|---|---|
+| Kommt der Wert an? | Ja — die Formulare senden über Inertia mit `v-model`, nicht als HTML-Formular. `name` trägt hier nichts. |
+| Hat das Feld eine Beschriftung? | Ja — es steht **in** seinem `<label>`, und das verbindet ohne `for`/`id`. |
+| Zeigt eine Fehlermeldung darauf? | Nein — keine Zusammenfassung im Panel verlinkt ein Feld; es gibt kein `href="#feld"` und kein `aria-describedby`. |
+
+Was der Browser meldet, ist eine Sache des Ausfüllhelfers und der
+Formularwiederherstellung, nicht der Richtigkeit.
+
+> **Eine Meldung des Browsers ist ein Hinweis auf eine Gewohnheit, nicht auf
+> einen Fehler — welche von beiden es ist, entscheidet die Frage, was davon
+> abhängt.**
+
+**Der Grund, es dennoch aufzuschreiben:** Sobald eine Fehlerzusammenfassung
+einmal auf ihr Feld zeigen soll — und `docs/19 §6` liegt nicht weit davon
+entfernt —, sind es 57 Stellen und nicht eine. Wer das baut, fängt hier an.
 
 #### Ansicht 8 — Cronjobs, gemessen am 20. August gegen `rc.19`
 

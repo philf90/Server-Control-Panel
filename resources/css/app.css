@@ -3142,6 +3142,89 @@ p:not([class]) {
 }
 
 /*
+ * Die Suchleiste des Dateimanagers — Wunsch 3 (`docs/64 §6`).
+ *
+ * **Auf der breiten Fläche steht sie immer, darunter öffnet ein Knopf sie.**
+ * Der Unterschied steht hier und nicht im Skript: Eine Abfrage der
+ * Fensterbreite in `Index.vue` wäre dieselbe Schwelle ein zweites Mal.
+ *
+ * **Warum eine eigene Zeile und nicht in der Kopfzeile.** Gemessen am
+ * 20. August, Höhe des Seitenkopfs gegenüber dem blossen Knopf:
+ *
+ *   Fenster   Kopfzeile   eigene Zeile
+ *   1280px    +101px      +72px
+ *   1440px     +53px      +72px
+ *   1728px      +2px      +72px
+ *
+ * Neben den drei Knöpfen ist die Leiste erst ab 1728 px umsonst, und nur ohne
+ * sichtbaren Ort und ohne Kästchen. Als eigene Zeile kostet sie gleichmässig
+ * eine Zeile — an den häufigen Breiten also weniger.
+ *
+ * > **Ein Preis, den man für eine Form gemessen hat, gilt nicht für die
+ * > nächste.**
+ *
+ * Die breite Fläche ist die Vorgabe und steht deshalb ohne Media Query da; nur
+ * die schmale weicht ab. So gibt es keine Breite, bei der beide Regeln
+ * zugleich greifen — bei `max-width: 720px` neben `min-width: 720px` wäre das
+ * genau 720 px, und dort stünde weder Leiste noch Knopf.
+ */
+/*
+ * `.button.search-toggle` und nicht `.search-toggle`: `ButtonStyleTest` liest
+ * die bekannten Knopfklassen aus diesem Stylesheet, statt sie aufzuzählen —
+ * eine Aufzählung dort wäre der zweite Ort für dieselbe Liste. Wer eine
+ * Knopfvariante ohne `.button.` davor schreibt, steht in seiner Liste als
+ * unbekannt.
+ */
+.button.search-toggle {
+  display: none;
+}
+
+/*
+ * **Hier stand eine Regel, die das Feld wachsen liess, und sie tat nichts.**
+ *
+ * `.field` steht auf `max-width: 540px` — mit einer gemessenen Begründung, die
+ * ein paar Zeilen weiter oben steht. Ein `flex-grow` darunter wird an dieser
+ * Grenze abgeschnitten: Bei 1440 px blieb das Feld auf denselben 540 px, mit
+ * Regel wie ohne.
+ *
+ * Bei 390 px hat sie dagegen geschadet. Sie lautete `flex: 1 1 240px`, und eine
+ * Flex-Grundgrösse gilt für die **Hauptachse** — in einer Reihe ist das die
+ * Breite, in einer Spalte die Höhe. Dort steht die Leiste als Spalte, und das
+ * Feld wurde 240 px hoch: gemessen 358×240 statt 358×73, mit einer leeren
+ * Fläche zwischen Eingabe und Kästchen.
+ *
+ * > **Eine Flex-Grundgrösse ist eine Breite oder eine Höhe, je nachdem, wie die
+ * > Reihe gerade steht.**
+ *
+ * Aufgefallen ist es an der Zahl: Ein kurzer und ein langer Pfad ergaben
+ * **exakt dieselbe** Höhe von 738 px. Eine Regel, die überall dasselbe misst,
+ * misst nicht den Inhalt.
+ */
+
+/*
+ * **Und der Ort darf brechen.** `.field.inline > span` trägt `nowrap`, mit
+ * Absicht und mit einer Messung dahinter — für „Übertragen auf" ist das
+ * richtig. Hier steht ein Pfad in der Beschriftung, und der ist beliebig lang:
+ * Der ungünstige Fall dieser Runde war 78 Zeichen.
+ *
+ * > **Ein `nowrap` über einer Beschriftung, die einen Pfad enthält, ist eine
+ * > Zusage über den Bestand und nicht über die Zeile.**
+ */
+.search .field.inline > span {
+  white-space: normal;
+}
+
+@media (max-width: 720px) {
+  .search:not(.open) {
+    display: none;
+  }
+
+  .button.search-toggle {
+    display: inline-flex;
+  }
+}
+
+/*
  * Die Beschriftung eines nebenstehenden Feldes bricht nicht.
  *
  * Ohne diese Zeile stand „Übertragen auf" neben dem Löschknopf zweizeilig und

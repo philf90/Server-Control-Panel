@@ -16185,3 +16185,67 @@ zumacht.
 Erzeugt wird **nur Ed25519** (Entscheidung des Betreibers); entgegengenommen
 werden weiterhin auch RSA und ECDSA.
 
+### P6 — eine Suchleiste im Dateimanager (Wunsch 3)
+
+**Vorgeschlagen vom Betreiber am 20. August 2026** (`docs/64 §6`): statt eines
+Knopfes, der ein Formular aufklappt, eine Suchleiste, die immer da ist. Der
+Grund liegt in den Messwerten der Bilderrunde — die vier Griffe der Kopfleiste
+sind gleich gebaut, aber „Verzeichnis anlegen" tut man selten und einmal,
+suchen oft und beiläufig.
+
+> **Gleich gebaute Griffe für ungleich häufige Handgriffe kosten den häufigen
+> mehr, als sie dem seltenen sparen.**
+
+**Ab 720 px steht die Leiste als eigene Zeile unter dem Seitenkopf, darunter
+bleibt der Knopf.** Die Form ist gemessen und nicht gewählt: Neben den drei
+Knöpfen ist die Leiste erst ab 1728 px Fensterbreite umsonst und kostet an den
+häufigen Breiten +101 px (1280) und +53 px (1440); als eigene Zeile kostet sie
+gleichmässig eine Zeile. Bei 390 px ist eine Leiste ohnehin keine — dort stapelt
+alles in voller Breite, und sie nähme dauerhaft 141 px.
+
+Die Schwelle steht **nur in `app.css`**: Die breite Fläche ist die Vorgabe, die
+schmale weicht ab. Damit gibt es keine Breite, an der beide Regeln zugleich
+greifen.
+
+**Die Leiste nennt das Verzeichnis, in dem sie sucht** — sichtbar und nicht im
+Platzhalter. Eine Leiste, die immer da ist, sieht sonst aus, als suchte sie
+überall; wer in einem tiefen Verzeichnis steht, sucht dann am Bestand vorbei und
+schliesst daraus, die Datei gebe es nicht.
+
+> **Eine Auskunft im Platzhalter ist genau so lange da, wie man sie nicht
+> braucht.**
+
+**Und die Kopfleiste kann jetzt auch im Inhalt suchen.** Sie schickte bisher nur
+`query` und `path`; die Trefferseite konnte `content` immer. Wer von der
+Kopfleiste suchte, erfuhr erst auf der Trefferseite, dass es die Möglichkeit
+gibt. `FileSearchTest` hält beide Eingaben seitdem gegeneinander.
+
+> **Zwei Eingaben für dieselbe Sache sind eine Sicht und eine Kopie — und die
+> Kopie ist die, die weniger kann.**
+
+Der Suchbegriff war bisher zugleich der Schalter (`string | null`). Das trug,
+solange das Feld nur auf Knopfdruck erschien; auf der breiten Fläche gibt es
+kein „zu" mehr, das ein `null` bedeuten könnte.
+
+**Zwei Regeln in `app.css` haben dabei nicht getan, was sie sollten.** Die erste
+war schädlich: `flex: 1 1 240px` machte das Feld bei 390 px **240 px hoch**, weil
+eine Flex-Grundgrösse für die Hauptachse gilt und die Leiste dort als Spalte
+steht.
+
+> **Eine Flex-Grundgrösse ist eine Breite oder eine Höhe, je nachdem, wie die
+> Reihe gerade steht.**
+
+Aufgefallen ist es an der Zahl: Ein kurzer und ein langer Pfad ergaben exakt
+dieselbe Höhe. Die zweite Fassung wurde von `.field { max-width: 540px }`
+weggeschnitten und ist wieder raus.
+
+**`RevealTest` verlor den Griff, als der Schalter von `v-if` auf `:class`
+wechselte** — nicht, weil er in Ordnung war, sondern weil das Mittel gewechselt
+hatte. Erweitert um `v-show` und `:class` hat er sofort einen Griff gefunden,
+den er noch nie gesehen hatte.
+
+> **Ein Wächter, der ein Mittel prüft statt einer Wirkung, hört auf zu messen,
+> sobald jemand das Mittel wechselt.**
+
+Fünf neue Brüche im Bruchskript, alle von Hand gegengeprüft.
+

@@ -12089,6 +12089,99 @@ pruefe "  … zurückgesetzt wieder grün" \
   AttributeNameTest::test_every_name_belongs_to_a_field passed
 
 echo
+echo "── FileSearchTest: die Trefferseite schickt weniger als die Leiste ──"
+#
+# Genau der Fund, der diesen Waechter ausgeloest hat — nur andersherum: Bis zum
+# 20. August konnte die Kopfleiste kein `content` schicken, die Trefferseite
+# schon. Gefunden hat es keine Pruefung, sondern eine Messung zu etwas anderem.
+vorher_datei resources/js/Pages/Files/Search.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Search.vue'
+s = open(p, encoding='utf-8').read()
+alt = "    content: imInhalt.value,\n"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Pages/Files/Search.vue "zwei Suchen, zwei Werte" &&
+pruefe "zwei Suchen, zwei Werte" FileSearchTest::test_both_inputs_send_the_same_values failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FileSearchTest::test_both_inputs_send_the_same_values passed
+
+echo
+echo "── FileSearchTest: die Leiste verschweigt ihren Geltungsbereich ──"
+#
+# Eine Leiste, die immer da ist, sieht aus, als suchte sie ueberall. Wer in
+# einem tiefen Verzeichnis steht, sucht dann am Bestand vorbei und schliesst
+# daraus, die Datei gebe es nicht (docs/64 §6.1).
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<span>Suchen in <span class="ident">{{ props.path }}</span></span>'
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<span>Suchen</span>', 1))
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Leiste ohne Geltungsbereich" &&
+pruefe "Leiste ohne Geltungsbereich" FileSearchTest::test_the_bar_names_the_directory_it_searches failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FileSearchTest::test_the_bar_names_the_directory_it_searches passed
+
+echo
+echo "── FileSearchTest: aria-controls zeigt ins Leere ──"
+#
+# Die Fehlerklasse, die dieses Repo am haeufigsten getroffen hat: eine
+# Zeichenkette, die auf etwas verweist, ohne dass der Bezug geprueft wird.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<form id="dateisuche"'
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<form id="dateisuche-alt"', 1))
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "aria-controls ins Leere" &&
+pruefe "aria-controls ins Leere" FileSearchTest::test_the_toggle_points_at_the_bar failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FileSearchTest::test_the_toggle_points_at_the_bar passed
+
+echo
+echo "── FileSearchTest: die Schwelle faellt weg ──"
+#
+# Ohne sie steht die Leiste auch bei 390 px — dort kostet sie gemessen 141 px
+# und ist keine Leiste, weil alles in voller Breite stapelt.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = "  .search:not(.open) {\n    display: none;\n  }\n\n"
+assert s.count(alt) == 1, 'Zielblock nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/css/app.css "Suchleiste ohne Schwelle" &&
+pruefe "Suchleiste ohne Schwelle" FileSearchTest::test_the_threshold_lives_in_the_stylesheet failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FileSearchTest::test_the_threshold_lives_in_the_stylesheet passed
+
+echo
+echo "── RevealTest: ein Schalter ueber :class statt v-if ──"
+#
+# Die Suchleiste erscheint ueber eine Regel in app.css und nicht ueber das
+# Markup. Bis zum 20. August sah dieser Waechter nur `v-if` — und verlor den
+# Griff in dem Moment, in dem jemand das Mittel wechselte.
+vorher_datei tests/Unit/RevealTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/RevealTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "            || preg_match('/:class=\"\\{[^\"]*\\b'.$name.'\\b/', $markup) === 1;"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            || false;", 1))
+PY2
+griff_datei tests/Unit/RevealTest.php "Schalter ueber :class" &&
+pruefe "Schalter ueber :class" RevealTest::test_every_per_item_handle_reveals_its_block failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RevealTest::test_every_per_item_handle_reveals_its_block passed
+
+echo
 echo "── PrivateKeyTest: der private Teil wandert ins Formular ──"
 #
 # Der Bruch, um den es geht, ist eine Zeile und sieht aus wie eine

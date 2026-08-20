@@ -515,6 +515,20 @@ lautet `(?<![=!<>])=(?!=)`.
 > **Ein Ausdruck, der eine Zuweisung sucht, findet jeden Vergleich mit, solange
 > er das Gleichheitszeichen nicht abgrenzt.**
 
+**Und zwei Sätze über Messmittel, beide am 20. August bezahlt.** Der erste, weil
+eine Regel bei 390 px ein Feld 240 px *hoch* machte, statt es breit zu machen:
+
+> **Eine Flex-Grundgrösse ist eine Breite oder eine Höhe, je nachdem, wie die
+> Reihe gerade steht.**
+
+Aufgefallen ist das nicht am Bild, sondern daran, dass zwei verschiedene Inhalte
+dieselbe Zahl ergaben. Der zweite, weil der Aufsatz nach einem `npm run build`
+auf ein Stylesheet zeigte, das es nicht mehr gab — und weitermass:
+
+> **Ein Aufsatz, der auf ein gebautes Stylesheet zeigt, zeigt nach dem nächsten
+> Bau ins Leere — und misst weiter.** Wer eine Wegwerfseite baut, baut sie im
+> selben Schritt wie die Messung.
+
 **Und ein zweites Muster, das der Umbau aus `docs/35` freigelegt hat: eine
 Ressource, die sich anlegen, aber nirgends löschen lässt.** Zertifikate konnte
 dieses System bestellen, hochladen und erneuern — ein `remove` gab es weder im

@@ -351,19 +351,64 @@ function extract(entry: Entry): void {
   })
 }
 
-/** Der Suchbegriff, solange das Feld offen ist — `null`, wenn es zu ist. */
-const searching = ref<string | null>(null)
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Die Suche — Wunsch 3 des Betreibers (`docs/64 §6`)
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * **Bis hierher war der Suchbegriff zugleich der Schalter.** `searching` war
+ * `string | null`: `null` hiess „zu", alles andere war der Begriff. Das trug,
+ * solange das Feld nur auf Knopfdruck erschien. Auf der breiten Fläche steht es
+ * jetzt immer — und dort gibt es kein „zu", das ein `null` bedeuten könnte.
+ *
+ * > **Ein Wert, der zugleich ein Zustand ist, verliert den Zustand in dem
+ * > Moment, in dem es ihn nicht mehr gibt.**
+ *
+ * Ab 720 px steht die Leiste als eigene Zeile unter dem Seitenkopf, darunter
+ * bleibt der Knopf. Der Unterschied steht in `app.css` und nicht hier: Eine
+ * Abfrage der Fensterbreite im Skript wäre eine zweite Fassung der Schwelle,
+ * und die zweite ist die, die beim nächsten Umbau abweicht.
+ *
+ * **Warum nicht überall die Leiste.** Gemessen am 20. August: Bei 390 px kostet
+ * sie dauerhaft 141 px, und der Seitenkopf nähme damit mehr als die Hälfte des
+ * Fensters ein, bevor eine einzige Datei zu sehen ist. Bei 390 px ist die
+ * Leiste ausserdem keine — dort stapelt alles in voller Breite.
+ */
+const query = ref('')
+const searchOpen = ref(false)
 
+/*
+ * **Und die Suche kann jetzt auch im Inhalt suchen.** Die Trefferseite konnte
+ * das immer; die Kopfleiste schickte nur `query` und `path`. Wer von hier aus
+ * suchte, erfuhr erst auf der Trefferseite, dass es die Möglichkeit gibt.
+ *
+ * > **Zwei Eingaben für dieselbe Sache sind eine Sicht und eine Kopie — und die
+ * > Kopie ist die, die weniger kann.**
+ */
+const inContent = ref(false)
+
+/*
+ * Nur für die schmale Fläche: dort öffnet ein Knopf die Leiste.
+ *
+ * **Ein „Abbrechen" gibt es nicht mehr.** Der Knopf schaltet in beide
+ * Richtungen und sagt, in welcher — dieselbe Form wie „Aktionen zuklappen" in
+ * der Tabelle darunter. Ein zweiter Knopf im Formular wäre ein zweiter Weg
+ * zurück für einen Zustand, den es auf der breiten Fläche gar nicht gibt.
+ */
 function startSearch(): void {
-  searching.value = searching.value === null ? '' : null
+  searchOpen.value = !searchOpen.value
 }
 
 function search(): void {
-  const wanted = (searching.value ?? '').trim()
+  const wanted = query.value.trim()
 
   if (wanted === '') return
 
-  router.get(`/subscriptions/${props.subscription.id}/files/search`, { query: wanted, path: props.path })
+  router.get(`/subscriptions/${props.subscription.id}/files/search`, {
+    query: wanted,
+    path: props.path,
+    content: inContent.value,
+  })
 }
 
 function remove(entry: Entry): void {
@@ -640,7 +685,20 @@ function pick(target: string): void {
           Datei hochladen
         </button>
       </div>
-      <button type="button" class="button" @click="startSearch">Suchen</button>
+      <!--
+        Der Knopf gibt es nur auf der schmalen Fläche — darüber steht die
+        Leiste ohnehin. `app.css` blendet ihn aus; ein `v-if` an der
+        Fensterbreite wäre die Schwelle ein zweites Mal.
+      -->
+      <button
+        type="button"
+        class="button search-toggle"
+        :aria-expanded="searchOpen"
+        aria-controls="dateisuche"
+        @click="startSearch"
+      >
+        {{ searchOpen ? 'Suche zuklappen' : 'Suchen' }}
+      </button>
     </template>
 
     <!--
@@ -648,13 +706,31 @@ function pick(target: string): void {
       wie beim Anlegen darunter: ein Feld auf der Seite, mit sichtbarer
       Beschriftung.
     -->
-    <form v-if="searching !== null" class="button-row" @submit.prevent="search">
+    <!--
+      **Der Ort steht als Kennung daneben und nicht in der Beschriftung.**
+      `.field.inline > span` trägt `white-space: nowrap` — mit Absicht, und der
+      Kommentar dort verlangt eine Messung, wenn jemand eine längere
+      Beschriftung einsetzt. Ein Pfad ist beliebig lang; als `.ident` bricht er,
+      bevor er die Seite schiebt.
+
+      **Und er steht überhaupt da, weil eine Leiste, die immer da ist, aussieht,
+      als suchte sie überall** (`docs/64 §6.1`). Wer in einem tiefen Verzeichnis
+      steht und das nicht sieht, sucht am Bestand vorbei und schliesst daraus,
+      die Datei gebe es nicht. Ein Platzhalter täte es nicht:
+
+      > **Eine Auskunft im Platzhalter ist genau so lange da, wie man sie nicht
+      > braucht.**
+    -->
+    <form id="dateisuche" class="button-row search" :class="{ open: searchOpen }" @submit.prevent="search">
       <label class="field inline">
-        <span>Wonach unterhalb dieses Verzeichnisses gesucht wird</span>
-        <input v-model="searching" type="text" autocomplete="off" required />
+        <span>Suchen in <span class="ident">{{ props.path }}</span></span>
+        <input v-model="query" type="search" autocomplete="off" required />
+      </label>
+      <label class="toggle">
+        <input v-model="inContent" type="checkbox" />
+        <span>auch im Inhalt</span>
       </label>
       <button type="submit" class="button primary">Suchen</button>
-      <button type="button" class="button" @click="searching = null">Abbrechen</button>
     </form>
 
     <!--

@@ -2741,6 +2741,45 @@ gibt und die jeder stellen wird, sobald die Leiste da ist.
 **Entschieden ist hier nichts.** Der Vorschlag steht, das Risiko steht dabei,
 und gebaut wird nach der Runde.
 
+### 6.4 Gemessen am 20. August — und die Zahl aus §6.2 war die einer anderen Form
+
+**Messung 1: die Höhe des Seitenkopfs.** Echtes Markup, gebautes Stylesheet,
+Inhaltsbreite = Fenster − 300 (Rail 236 + Polster 2 × 32).
+
+| Fenster | heute (zu) | Leiste in der Kopfzeile | Leiste als eigene Zeile |
+|---|---|---|---|
+| 390 px | 331 px | 458 px (+127) | 472 px (+141) |
+| 1280 px | 115 px | 216 px (**+101**) | 187 px (+72) |
+| 1440 px | 115 px | 168 px (**+53**) | 187 px (+72) |
+| 1728 px | 115 px | 117 px (+2) | 187 px (+72) |
+
+**Der erste Durchgang hat +2 px bei 1440 gemeldet, und die Zahl war richtig —
+für Form A.** Die trägt keine sichtbare Beschriftung, den Ort im Platzhalter und
+kein Kästchen. Beide Entscheidungen des Betreibers kosten Breite, und zusammen
+passt die Leiste nicht mehr neben die drei Knöpfe: Umsonst ist sie erst ab
+1728 px.
+
+> **Ein Preis, den man für eine Form gemessen hat, gilt nicht für die nächste.**
+
+Der zweite Fehler war grober: Der erste Durchgang setzte die Inhaltsbreite gleich
+der Fensterbreite und übersah damit das Rail. 300 px sind bei diesen Zahlen der
+Unterschied zwischen „passt" und „passt nicht".
+
+> **Eine Messung am Fenster misst nicht die Fläche, auf der gezeichnet wird.**
+
+**Messung 2: die beiden Eingaben.** Sie sagen heute **nicht** dasselbe:
+
+| | Beschriftung | schickt |
+|---|---|---|
+| Kopfleiste | „Wonach unterhalb dieses Verzeichnisses gesucht wird" | `query`, `path` |
+| Trefferseite | „Suchbegriff" + Kästchen „auch im Inhalt" | `query`, `path`, `content` |
+
+Wer von der Kopfleiste sucht, kann also **nie** im Inhalt suchen — und erfährt
+erst auf der Trefferseite, dass es die Möglichkeit gibt.
+
+> **Zwei Eingaben für dieselbe Sache sind eine Sicht und eine Kopie — und die
+> Kopie ist die, die weniger kann.**
+
 ---
 
 ## 7. Bilanz der zweiten Runde
@@ -3219,4 +3258,114 @@ geschrieben, und dort hat sie drei Zuweisungen gezählt, wo eine steht.
 - **`PasswordFields.vue generate touched`** ist ungemessen und steht als offene
   Frage in `RevealTest::UNEXAMINED`.
 - **Wunsch 3** (die Suchleiste) — die zwei Messungen aus §6.3 zuerst.
+
+---
+
+## 11. Gebaut — Wunsch 3: die Suchleiste
+
+Gebaut am 20. August 2026. Zwei Entscheidungen des Betreibers tragen es: **die
+Leiste als eigene Zeile ab 720 px**, darunter bleibt der Knopf — und **die
+Kopfleiste bekommt das Kästchen „auch im Inhalt"**.
+
+### 11.1 Was die Form entschieden hat
+
+Nicht der Geschmack, sondern §6.4: Neben den drei Knöpfen ist die Leiste erst ab
+1728 px umsonst und kostet an den häufigen Breiten +101 px (1280) und +53 px
+(1440). Als eigene Zeile kostet sie gleichmässig eine Zeile — an genau diesen
+Breiten also weniger. Bei 390 px ist eine Leiste ohnehin keine: Dort stapelt
+alles in voller Breite.
+
+Die Schwelle steht **nur in `app.css`**. Die breite Fläche ist die Vorgabe, die
+schmale weicht ab — so gibt es keine Breite, an der beide Regeln zugleich
+greifen. Bei `max-width: 720px` neben `min-width: 720px` wäre das genau 720 px,
+und dort stünde weder Leiste noch Knopf.
+
+### 11.2 Gemessen an der fertigen Ansicht
+
+Sechzehn Lagen, zwei Pfadlängen; der ungünstige Fall ist 78 Zeichen.
+
+| Pfad | Zustand | 390 px | 720 px | 1280 px | 1440 px |
+|---|---|---|---|---|---|
+| kurz | zu | 331 px | 169 px | 187 px | 187 px |
+| kurz | offen | 527 px | 237 px | 187 px | 187 px |
+| lang | zu | 331 px | 169 px | 208 px | 208 px |
+| lang | offen | 569 px | 310 px | 208 px | 208 px |
+
+`dokument` ist in allen sechzehn Lagen **0**, die Gegenprobe **200/200**. Bei
+390 px und 720 px ist der geschlossene Zustand auf das Pixel der heutige — dort
+ändert sich nichts. Der geöffnete ist mit 527 px sogar **acht Pixel kürzer als
+heute** (535 px), obwohl er den Ort und das Kästchen dazubekommen hat.
+
+### 11.3 Zwei Regeln, die ich geschrieben habe und die nicht taten, was sie sollten
+
+**Die erste war schädlich.** `.search .field.inline { flex: 1 1 240px }` sollte
+das Feld den freien Platz nehmen lassen. Eine Flex-Grundgrösse gilt für die
+**Hauptachse** — in einer Reihe ist das die Breite, bei 390 px steht die Leiste
+aber als Spalte, und das Feld wurde **240 px hoch**: gemessen 358×240 statt
+358×73, mit einer leeren Fläche zwischen Eingabe und Kästchen.
+
+> **Eine Flex-Grundgrösse ist eine Breite oder eine Höhe, je nachdem, wie die
+> Reihe gerade steht.**
+
+Aufgefallen ist es nicht am Bild, sondern an der Zahl: Ein kurzer und ein langer
+Pfad ergaben **exakt dieselbe** Höhe von 738 px.
+
+> **Eine Regel, die für zwei verschiedene Inhalte dasselbe misst, misst nicht
+> den Inhalt.**
+
+**Die zweite tat gar nichts.** Die berichtigte Fassung (`flex-grow: 1;
+min-width: 240px`) wurde bei 1440 px von `.field { max-width: 540px }`
+weggeschnitten — einer Regel mit gemessener Begründung, die zwei Bildschirme
+weiter oben steht. Mit Regel wie ohne blieb das Feld auf 540 px. Sie ist wieder
+raus; an ihrer Stelle steht, warum.
+
+### 11.4 Und eine Messung, die eine Stunde lang das Falsche gemessen hat
+
+Nach einem `npm run build` heisst die gebaute CSS-Datei anders. Der Prüfstand
+zeigte auf die alte, fand sie nicht — und meldete Zahlen, die nach „kein Stil"
+aussahen: `label.field.inline 319×17`, `align=normal`.
+
+> **Ein Aufsatz, der auf ein gebautes Stylesheet zeigt, zeigt nach dem nächsten
+> Bau ins Leere — und misst weiter.**
+
+Der Prüfstand baut seine Seiten seitdem in einem Schritt mit der Messung und
+besteht darauf, dass es **genau ein** Stylesheet gibt.
+
+### 11.5 Was die Wächter dabei gefunden haben
+
+`ButtonStyleTest` und `BlockSpacingTest` haben beide zugebissen, und beide zu
+Recht: Die Knopfklasse hiess `.search-toggle` statt `.button.search-toggle`.
+`ButtonStyleTest` **liest** die bekannten Knopfvarianten aus `app.css`, statt
+sie aufzuzählen — die Regel richtig zu schreiben, macht sie ihm bekannt. Eine
+Zeile in einer Liste im Test wäre der zweite Ort für dieselbe Sache gewesen.
+
+`RevealTest` hat den Griff verloren, als der Schalter von `v-if` auf `:class`
+wechselte — nicht, weil er in Ordnung war, sondern weil das Mittel gewechselt
+hatte.
+
+> **Ein Wächter, der ein Mittel prüft statt einer Wirkung, hört auf zu messen,
+> sobald jemand das Mittel wechselt.**
+
+Erweitert um `v-show` und `:class` hat er sofort einen Griff gefunden, den er
+noch nie gesehen hatte: `toggleActions` im Dateimanager klappt seine Knopfreihe
+über eine Klasse auf.
+
+**Und der neue Wächter war beim ersten Lauf rot wegen eines Wortes in meinem
+eigenen Kommentar.** `FileSearchTest` verbietet `matchMedia` in `Index.vue` —
+und dort steht die Begründung, warum es *kein* `matchMedia` gibt. Dasselbe
+Missverständnis wie bei `RootElementTest` am selben Tag, nur andersherum: Dort
+machte ein Kommentar den Wächter grün, hier rot.
+
+> **Ein Wächter, der eine Datei liest, liest auch, was jemand über sie
+> geschrieben hat.**
+
+### 11.6 Was offen bleibt
+
+- **Der Blick auf die echte Seite.** Gemessen und fotografiert ist der
+  Aufsatz — echtes Markup, gebautes Stylesheet, aufs Pixel (`docs/56`). Die
+  laufende Seite mit echten Daten gehört in den nächsten Lauf auf `cloudsrv24`,
+  zusammen mit dem Herunterladen aus Wunsch 2.
+- **Die Suche im ganzen Abonnement** gibt es weiterhin nicht. §6.2 hat vermutet,
+  dass jeder sie fragen wird, sobald die Leiste da ist; das ist eine Vermutung
+  und bleibt eine, bis jemand fragt.
 

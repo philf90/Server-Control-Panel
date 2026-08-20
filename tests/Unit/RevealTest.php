@@ -117,9 +117,12 @@ final class RevealTest extends TestCase
         'Layouts/PanelLayout.vue @click menuOpen' => 'Das Menü geht unmittelbar unter seinem Knopf auf — es ist die Kopfleiste selbst.',
         'Pages/Files/Index.vue @click open_' => 'Die vier Formulare der Kopfleiste stehen unter ihren Knöpfen. Gemessen am 20. August '.
             'bei 390 px: oben 476, unten 602 (bei „Suchen" 656), Fenster 844 — ganz im Bild.',
-        'Pages/Files/Index.vue startSearch searching' => 'Dasselbe Formular wie in der Zeile darüber und dieselbe Messung — „Suchen" ist der '.
-            'einzige der vier Griffe, der als Funktion geschrieben ist. Aufgefallen ist die Doppelung erst, als dieser Wächter am '.
-            '20. August auch Griffe ohne Klammern las: Derselbe Bereich war unter dem einen Namen erfasst und unter dem anderen nicht.',
+        'Pages/Files/Index.vue startSearch searchOpen' => 'Die Suchleiste steht auf der breiten Fläche ohnehin; den Knopf gibt es nur '.
+            'unter 720 px, und dort tritt die Leiste unmittelbar an seine Stelle. Der Griff erscheint hier überhaupt noch, weil er '.
+            'unter demselben Namen schon einmal übersehen wurde — er stand als Funktion da, während die drei Geschwister Zuweisungen sind.',
+        'Pages/Files/Index.vue toggleActions unfolded' => 'Die Knopfreihe klappt **innerhalb derselben Zeile** auf, unmittelbar unter ihrem '.
+            'Griff — sie ist der Zweck dieser Zeile und nicht ein Bereich woanders. Aufgefallen ist der Griff erst, als dieser Wächter '.
+            'am 20. August auch `:class`-Schalter las; über `v-if` erscheint hier nichts.',
         'Pages/Files/Index.vue startPack archiveName' => 'Das Formular geht **innerhalb** der Auswahlleiste auf, an der Stelle des Knopfes: '.
             'Die Leiste trägt die Frage („wie soll das Archiv heissen?") und darunter das Feld. Gemessen in der Bilderrunde vom '.
             '20. August, Zustand „Packen".',
@@ -302,7 +305,7 @@ final class RevealTest extends TestCase
                     continue;
                 }
 
-                if (preg_match('/v-if="[^"]*\b'.preg_quote($ref, '/').'\b/', $markup) !== 1) {
+                if (! $this->reveals($markup, $ref)) {
                     continue;
                 }
 
@@ -370,7 +373,7 @@ final class RevealTest extends TestCase
                 }
 
                 foreach (array_keys($oeffnend) as $ref) {
-                    if (preg_match('/v-if="[^"]*\b'.preg_quote($ref, '/').'\b/', $markup) !== 1) {
+                    if (! $this->reveals($markup, $ref)) {
                         continue;
                     }
 
@@ -383,6 +386,28 @@ final class RevealTest extends TestCase
         }
 
         return $gefunden;
+    }
+
+    /**
+     * Ob dieser Wert im Markup etwas erscheinen lässt.
+     *
+     * **Zwei Mittel und nicht eines.** Bis zum 20. August stand hier nur
+     * `v-if`. Dann bekam die Suchleiste des Dateimanagers ihren Schalter als
+     * `:class="{ open: searchOpen }"` — sichtbar wird sie über eine Regel in
+     * `app.css`, nicht über das Markup —, und der Griff verschwand aus dem
+     * Blick dieses Wächters. Nicht, weil er in Ordnung war, sondern weil das
+     * Mittel gewechselt hatte.
+     *
+     * > **Ein Wächter, der ein Mittel prüft statt einer Wirkung, hört auf zu
+     * > messen, sobald jemand das Mittel wechselt.**
+     */
+    private function reveals(string $markup, string $ref): bool
+    {
+        $name = preg_quote($ref, '/');
+
+        return preg_match('/v-if="[^"]*\b'.$name.'\b/', $markup) === 1
+            || preg_match('/v-show="[^"]*\b'.$name.'\b/', $markup) === 1
+            || preg_match('/:class="\{[^"]*\b'.$name.'\b/', $markup) === 1;
     }
 
     /**

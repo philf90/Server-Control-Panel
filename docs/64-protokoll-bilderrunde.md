@@ -1971,6 +1971,7 @@ mitgemessen worden und stehen dort: **„ohne Schlüssel"** (Ansicht 6),
 | Dateimanager — Mehrfachauswahl | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
 | Dateimanager — Verschieben, Zielbaum offen | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
 | Dateimanager — Packen, mit Namensfeld | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
+| Dateimanager — „Verzeichnis anlegen" offen | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
 
 **Befund 9 ist auf den Pixel bestätigt.** Der Versatz zwischen der Unterkante
 des Knopfes „Packen" und der des Namensfeldes:
@@ -2088,6 +2089,40 @@ gerade steht, und das ist eine Messung und keine Folgerung.
 
 > **Aus einer fehlenden Ursache folgt keine Wirkung — nur die Möglichkeit
 > einer.**
+
+#### Und die vierte Panne am Messmittel in dieser Runde, diesmal ein Selektor
+
+Für die Kopfleiste lautete die Zeile
+`document.querySelector('.block[tabindex="-1"], form[tabindex="-1"], .selection')`.
+Sie hat `"nicht gefunden"` geliefert, und zwar zu Recht: Die vier Formulare der
+Kopfleiste tragen **kein** `tabindex="-1"` — das haben nur die beiden Formulare
+an einer Zeile, weil `bringIntoView` sie anspringen muss. Sie sind
+`<form class="button-row">`. Und `.selection` gibt es nur, solange Einträge
+angekreuzt sind.
+
+Der Selektor war aus dem Gedächtnis geschrieben statt aus der Vorlage.
+
+> **Ein Messmittel, das aus dem Gedächtnis geschrieben wird, ist eine Vermutung
+> mit Klammern.**
+
+**Das ist die vierte Panne dieser Art in dieser Runde**, und alle vier gehen auf
+dieselbe Ungeduld zurück: der Kasten mit 468 px (zweimal falsch erklärt), die
+27 px am Klick, das Kriterium `imBild`, jetzt der Selektor. Kein einziger davon
+war ein Fehler des Panels.
+
+Dasselbe Verhältnis wie in `docs/45`, `docs/47`, `docs/48` und `docs/59`: **Die
+Mehrheit der Fehler steckt nicht im Prüfling.** Nur steht es diesmal nicht über
+einen Lauf verteilt da, sondern über einen Nachmittag.
+
+Die berichtigte Zeile fragt nach dem offenen Formular selbst — von den vieren
+ist immer höchstens eines im Dokument, weil jedes an einem eigenen `v-if`
+hängt:
+
+```js
+(() => { const f = document.querySelector('form.button-row'), r = f?.getBoundingClientRect()
+  return JSON.stringify(r ? { oben: Math.round(r.top), unten: Math.round(r.bottom),
+    fenster: window.innerHeight, ganzImBild: r.top >= 0 && r.bottom <= window.innerHeight } : 'nicht gefunden') })()
+```
 
 ### 4.3 Die fünf Griffe der Experteneingabe
 

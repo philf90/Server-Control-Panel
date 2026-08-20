@@ -15917,3 +15917,442 @@ auf ihre Zusage.
 
 Er liest jetzt zuerst das eigene Tag. Sechs Brüche im Bruchskript, alle
 gegengeprüft.
+
+### P6 Schritt 12 — Befund 17: das Panel hatte zwei Wurzelelemente, und es lief nur durch Glück
+
+**Gefunden in der zweiten Bilderrunde** (`docs/64`, Befund 17), und zwar nicht
+durch Nachdenken: Eine Gegenprobe zu einer Zahl, die sich als Sitzungsrest
+entpuppte, hat `doppelteKennung: ["app"]` gemeldet.
+
+`resources/views/app.blade.php` rief **`@inertia` zweimal** — einmal im Kopf und
+einmal im Rumpf. In den Kopf gehört `@inertiaHead`; die beiden sehen sich
+ähnlich und tun Entgegengesetztes. Die eine setzt Kopfzeilen, die andere das
+Wurzelelement der Anwendung.
+
+**Die Folge war grösser als eine doppelte Kennung.** Ein `<div>` ist im `<head>`
+nicht erlaubt: Der Parser schliesst den Kopf an dieser Stelle und beginnt den
+Rumpf. Die Anwendung hing damit in dem Element, das nie eines sein sollte —
+`getElementById` liefert das erste —, und das `<div>` aus dem Rumpf, also das
+gemeinte, blieb leer stehen.
+
+**Aufgefallen ist es in neun Monaten nicht**, weil die falsche Zeile die
+**letzte** vor `</head>` war. Stünde nach ihr noch ein `<link>` oder ein
+`<meta>`, läge das im Rumpf und wäre wirkungslos — Favicon, Manifest,
+Farbschema.
+
+> **Ein Fehler, der nur deshalb nichts kaputt macht, weil er an der letzten
+> Stelle steht, ist kein kleiner Fehler — er ist einer mit Glück.**
+
+**Zwei Wächter, und der zweite ist der stärkere.** `Tests\Unit\RootElementTest`
+liest die Vorlage: `@inertia` genau einmal und im Rumpf, `@inertiaHead` im Kopf.
+`Tests\Feature\RootElementTest` zählt, was beim Kunden ankommt — genau ein
+`id="app"`, auf einer Seite mit und einer ohne Anmeldung.
+
+> **Ein Wächter über die Absicht findet, was jemand falsch geschrieben hat. Ein
+> Wächter über das Ergebnis findet auch, was niemand geschrieben hat.**
+
+Niemand hat „zwei Wurzelelemente" geschrieben. Geschrieben wurde eine falsche
+Direktive; das zweite Element war die Folge. Ein Wächter, der nur nach Ursachen
+sucht, kennt immer nur die Ursachen, an die jemand gedacht hat.
+
+**Und der Wächter über die Vorlage hat beim ersten Lauf sich selbst gefangen:**
+Er fand drei `@inertia` statt einem — zwei davon in dem Kommentar, der über der
+Zeile erklärt, warum sie dort steht.
+
+> **Ein Wächter, der den Quelltext liest, liest auch, was über ihn geschrieben
+> steht.**
+
+Er entfernt Blade-Kommentare jetzt vorher, und zwar durch Leerzeichen gleicher
+Länge — er vergleicht Stellen mit der von `</head>`. Zwei Brüche im
+Bruchskript, beide von Hand gegengeprüft.
+
+### P6 Schritt 12 — Befunde 13 und 18: die Regel statt der Stelle, beim dritten Anlauf
+
+**Befund 18 — der Zielbaum.** „Verschieben" und „Kopieren" stehen in der
+Auswahlleiste, die zur Liste gehört; der Baum, den man danach benutzen soll, ist
+die **erste** Hälfte von `.split` und liegt bei 390 px darüber. Gemessen:
+`oben: -98` — abgeschnitten waren „Abo-Wurzel", `.ssh`, `conf` und `httpdocs`,
+also gerade die Ziele, die man von dort aus meint.
+
+**Und `RevealTest` hat ihn nicht gefunden, obwohl er gegen genau diesen Fehler
+gebaut ist.** Sein Ausdruck suchte `@click="funktion(argument)"`. Der Griff hier
+ist eine **Zuweisung** — `@click="picking = 'move'"` — und fiel heraus.
+
+> **Ein Wächter, der eine Sorte Griff prüft, sagt über die andere Sorte nichts —
+> und die zweite Sorte fällt niemandem auf, weil der Wächter grün ist.**
+
+Der Wächter hat einen dritten Arm bekommen. **Schliessende Zuweisungen bleiben
+draussen** (`= null`, `= false`, `= []`, `= ''`): Wer etwas zumacht, soll nicht
+springen — das ist keine Ausnahme, sondern ausserhalb der Regel. Von den
+verbleibenden vier ist einer verdrahtet und drei stehen in der neuen Liste
+`IN_PLACE` **mit ihrem Grund** — getrennt von `UNEXAMINED`, weil „angesehen und
+in Ordnung" und „niemand hat hingesehen" nicht dasselbe sind. Die Sperrklinke
+gilt jetzt für beide Listen.
+
+**Und `bringIntoView` hat dabei eine Regel dazubekommen**, die über diesen Fall
+hinausgeht: Ist der Block **höher als das Fenster**, wird sein Anfang
+angesteuert und nicht seine Mitte.
+
+> **Etwas zu zentrieren, das nicht hineinpasst, schneidet oben ab.**
+
+**Befund 13 — der Weg zum Formular.** Der Bereich „Job anlegen" der Cronseite
+ist der dritte von drei; dazwischen liegt die Jobliste mit bis zu zehn
+Kärtchen. Die Kopfzeile der Liste trägt jetzt einen Griff dorthin — dort, wo man
+nach „noch einem" sucht, und nicht dort, wo man ihn schliesslich findet. Er
+setzt `bearbeitet` zurück, denn wer ihn drückt, meint anlegen.
+
+**Das ist der dritte Fall dieser Art** — nach dem Menüpunkt des Dateimanagers
+(`docs/55`) und dem des SFTP-Zugangs (`docs/59`). Gemeldet haben alle drei
+Menschen und kein Wächter, und das bleibt so: „Erreichbar" hängt daran, was ein
+Kunde erwartet, und keine Eigenschaft des Quelltextes bildet es ab. Der neue
+Fall in `CronPageReachTest` hält nur fest, **dass der Griff nicht wieder
+verschwindet**; die Regel steht als Frage in `CLAUDE.md`.
+
+> **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
+> als Zusage.**
+
+Drei Brüche im Bruchskript, alle von Hand gegengeprüft.
+
+### P6 Schritt 12 — Befunde 15 und 16: die Rückmeldungen sprachen englisch
+
+**Gefunden in der zweiten Bilderrunde** (`docs/64`, Befunde 15 und 16).
+`lang/de/validation.php` führte `'attributes' => []`. Ist diese Liste leer,
+setzt Laravel den **Bezeichner** ein — und der ist englisch, weil er das sein
+soll (`docs/19 §4a`). Auf jeder Seite dieses Panels stand seither „Das Feld day
+of week ist erforderlich": deutscher Satzbau mit englischen Wörtern darin.
+Sichtbar wurde es an den mehrwortigen Feldern (`current password`, `postal
+code`, `private key`, `plan id`), und die einwortigen waren derselbe Fehler.
+
+Die Liste trägt jetzt **85** Namen. Drei Bezeichner bedeuten an zwei Orten
+Verschiedenes — `to`, `host`, `mode`; die Liste trägt den häufigeren Fall, der
+andere seinen Namen als dritten Wert am Aufruf.
+
+**Die Kontingente bekommen ihre Namen aus derselben Aufzählung wie ihre
+Regeln.** `Quotas::names()` baut sie aus `Quota::cases()` und
+`Feature::cases()`; `PlanController` und `SubscriptionController` reichen sie
+weiter. Eine Abschrift in der Sprachdatei wäre die zweite Liste gewesen, und die
+zweite ist die, die beim nächsten Kontingent vergessen wird.
+
+**Kein Wächter konnte das finden**, denn dieses Wort steht in keiner Datei:
+
+> **Ein Wort, das erst beim Ausführen entsteht, steht in keiner Datei — und kein
+> Wächter, der Dateien liest, findet es.**
+
+`AttributeNameTest` prüft deshalb nicht den Text, sondern die
+**Vollständigkeit** — und die Gegenrichtung gleich mit: Ein Name ohne Feld ist
+Pflege, die nirgends wirkt.
+
+**Und der frisch gebaute Wächter war blind genau dort, wo der Befund gefunden
+wurde.** Er stand grün, während die fünf Felder der Cronseite keinen einzigen
+deutschen Namen hatten — `...array_fill_keys(Schedule::FIELDS, …)` schreibt die
+Schlüssel nicht in den Quelltext, sondern erzeugt sie beim Ausführen. Dieselbe
+Blindstelle lag über `Quotas::rules()` und `Quotas::overrideRules()`.
+
+> **Ein Wächter, der einen Ausdruck nicht auflösen kann, hat nicht wenig
+> gemessen — er hat an dieser Stelle gar nicht gemessen.**
+
+Ein Spread auf der obersten Ebene eines Regelblocks ist seitdem eines von
+beidem: aufgelöst oder am Aufruf benannt. Ein dritter Fall ist Rot.
+
+**Befund 16 — die Meldung der Experteneingabe.** „`* * *` eintragen und anlegen"
+wurde richtig abgewiesen, und die Meldung nannte zwei Felder, die in dieser
+Ansicht **eingeklappt** sind. Geprüft wird weiter derselbe Zeitplan aus fünf
+Feldern auf dem Server; die Meldung geht in dieser Ansicht an `expression` und
+nennt die Stelle im Ausdruck.
+
+> **Eine Sicht auf eine Sache ist noch keine Sicht auf ihre Fehlermeldungen.**
+
+Das Formular trägt dafür `experte` mit — nicht als Ausnahme, sondern als
+begründeter Eintrag in `CronScheduleFormTest::VIEW_FIELDS`, mit einer
+Sperrklinke daneben: Ein Feld des Zeitplans in dieser Liste ist Rot. Die Namen
+der fünf Stellen standen im ersten Anlauf als eigene Konstante im Controller —
+dieselben fünf Wörter ein zweites Mal neben der Sprachdatei, die sie ohnehin
+führt. Sie kommen jetzt aus `trans('validation.attributes.'.$feld)`.
+
+Vier neue Brüche im Bruchskript, alle von Hand gegengeprüft; ein bestehender ist
+mit dem Formular umgezogen.
+
+### P6 Schritt 12 — Befunde 12 und 14: die Cronseite
+
+**Beide vom Betreiber am Bild gemeldet** (`docs/64`, Befunde 12 und 14), beide
+ohne Zahl aus dem Abnahmelauf. Die Zahlen sind beim Beheben entstanden, im
+Container gegen das gebaute Stylesheet.
+
+**Befund 12 — die Auskunft über das volle Kontingent.** Sie stand im Bereich
+„Job anlegen", also unmittelbar über dem Formular, auf das sie sich bezieht.
+Bei 1440 px ist das richtig. Bei 390 px stapeln sich die drei Bereiche, und die
+Jobliste dazwischen ist zehn Kärtchen hoch: gemessen **3566 px** von der
+Oberkante auf einer Seite von 3795 px — vier Bildschirme, also an einer Stelle,
+die nur erreicht, wer ohnehin schon rollt. Jetzt steht sie vor den Bereichen,
+gemessen bei **18 px**, und nennt die Zahl dazu („10 von 10").
+
+> **Eine Auskunft, die erklärt, warum etwas nicht geht, gehört dorthin, wo man
+> es versucht — nicht dorthin, wo es scheitert.**
+
+Der Bezug hängt nicht am Ort, sondern am Satz: „Entfernen Sie einen Job, um
+einen neuen anzulegen." Der Griff „Job anlegen" steht seit Befund 13 in der
+Kopfzeile der Liste, also unmittelbar darunter.
+
+**Befund 14 — vier Kästen werden drei Gruppen.** Bei 1440 px lagen
+Beschriftung / Befehl und darunter Schnellwahl / Zeitplan als 2×2 nebeneinander.
+Die Schnellwahl ist sechs Knöpfe hoch, der Zeitplan mehr als doppelt so hoch —
+unter ihr blieb eine grosse leere Fläche. Die Schnellwahl steht jetzt **im**
+Zeitplan, denn sie stellt ihn ein: Sie füllt genau die fünf Felder darunter.
+
+> **Zwei Gruppen, von denen die eine nur die andere füllt, sind eine.**
+
+Gemessen als tote Fläche in Tausend Pixeln² bei 1140 px Inhaltsbreite:
+**134k** vorher, **34k** nachher. Was bleibt, ist der Rest, den zwei Felder
+nebeneinander immer haben — der Hinweis unter „Befehl" ist zwei Zeilen hoch.
+
+**Und eine Fassung, die gemessen und verworfen wurde, ist die lehrreiche:**
+dieselbe Zusammenlegung **ohne** die volle Breite ergibt **193k** — mehr als
+der Ausgangszustand. Der Zeitplan bleibt dann in den 540 px von `.field` und
+wird 524 px hoch, und der Schalter „Aktiv" rutscht neben ihn.
+
+> **Eine Umgruppierung, die die Breite nicht mitnimmt, verschiebt die leere
+> Fläche, statt sie zu schliessen.**
+
+`.field.wide` gibt es seit `docs/53` Befund 9 für den Editor; ihr Kommentar
+nennt jetzt beide Fälle. **Keine Regel, die über diese Seite hinausgeht, ist
+angefasst worden** — damit bleibt eine dritte volle Bilderrunde erspart.
+
+Zwei Brüche im Bruchskript, beide von Hand gegengeprüft.
+
+### P6 — Schlüssel im Panel erzeugen (Wunsch 2)
+
+**Bestellt vom Betreiber am 20. August 2026** (`docs/64 §5`). Bis dahin konnte
+das Panel einen öffentlichen Schlüssel nur entgegennehmen; wer keinen hatte,
+brauchte eine Kommandozeile. Für einen Kunden, der über SFTP an seine Dateien
+will, ist das die falsche Voraussetzung.
+
+**Der private Teil entsteht im Browser und geht nie an den Server.** Das ist
+keine Vorsichtsmassnahme, sondern folgt aus dem Quelltext: Ein Schlüssel, der
+über den Server liefe, käme durch die Sitzung (`SESSION_DRIVER=database`) und
+durch den Vorgang (`operations.payload`, `operations.result`) — beide schreiben
+auf die Platte, und die Vorgangsantwort überlebt sogar das Zurückbauen des
+Abonnements.
+
+> **Ein privater Schlüssel, den der Server nie hatte, kann er nicht verlieren.**
+
+**Drei Fragen standen vor dem Bauen, und die dritte hat den Weg entschieden.**
+Gemessen gegen Chromium 141 und OpenSSH 9.6p1:
+
+    1  Kann der Browser Ed25519?                      ja
+    2  Öffentlicher Teil im OpenSSH-Format?           ja
+    3  Nimmt OpenSSH den privaten Teil als PKCS#8?    nein
+
+`crypto.subtle` gibt PKCS#8 aus, und `ssh-keygen` liest das in keiner der drei
+Formen. Der Browser schreibt deshalb den Container `openssh-key-v1` selbst — das
+ist reine Serialisierung und kein Stück Kryptographie. Belegt ist er nicht nur
+über `ssh-keygen -y`, sondern über eine **Anmeldung an einem laufenden `sshd`**;
+die Gegenprobe mit einem anderen gültigen Schlüssel wird abgewiesen.
+
+**Die Falle steckte dabei nicht in OpenSSH.** Der erste Versuch lief ohne
+sicheren Kontext und meldete `crypto.subtle → undefined` — das sieht aus wie
+„der Browser kann kein Ed25519" und heisst etwas anderes.
+
+> **Ein Merkmal, das nur im sicheren Kontext existiert, fehlt daneben nicht mit
+> einer Meldung, sondern als `undefined`.**
+
+**Und der Rand, an dem so eine Serialisierung still bricht, ist die
+Auffüllung** — sie hängt an der Länge der Bemerkung, und im ausgerichteten Fall
+kommt nichts dazu. Gemessen sind alle acht Restklassen, jede zweimal, dazu die
+leere Bemerkung.
+
+`tests/schluessel-messen.mjs` fährt diese Messung gegen **den ausgelieferten
+Baustein** und nicht gegen eine Abschrift. `PrivateKeyTest` hält die Zusage:
+kein Transportmittel im Baustein, der private Teil auf keiner Zeile, die etwas
+verschickt, genau zwei Felder im Formular, genau einmal gezeigt.
+
+**Zwei der fünf Brüche sind beim ersten Versuch durchgegangen**, und beide
+trafen genau das, was der Wächter halten soll: ein `form.key =
+privaterTeil.value` (eine Zuweisung, kein Versand) und eine Messung, die auf
+eine Abschrift zeigte, während der Wächter den Pfad im Kopfkommentar fand.
+
+> **Ein Wächter, der auf den Versand sieht, verpasst das Einpacken.**
+
+**Nebenbei hat `RevealTest` ein Drittel seiner Griffe nicht gesehen.** Er suchte
+`@click="name("` — Griffe ohne Klammern fielen heraus, und davon gibt es
+neunundzwanzig. Erweitert hat er eine offene Frage gefunden, einen Bereich, der
+unter einem zweiten Namen nicht erfasst war, zwei Bereiche an ihrem Platz — und
+**vier gezählte Löcher, die es nie gab**: zwei, weil `===` für eine Zuweisung
+gehalten wurde, zwei, weil ein Wert nur auf `null` gesetzt wird und damit
+zumacht.
+
+> **Eine Zahl, die offene Fragen zählt, zählt auch die erfundenen mit.**
+
+Erzeugt wird **nur Ed25519** (Entscheidung des Betreibers); entgegengenommen
+werden weiterhin auch RSA und ECDSA.
+
+### P6 — eine Suchleiste im Dateimanager (Wunsch 3)
+
+**Vorgeschlagen vom Betreiber am 20. August 2026** (`docs/64 §6`): statt eines
+Knopfes, der ein Formular aufklappt, eine Suchleiste, die immer da ist. Der
+Grund liegt in den Messwerten der Bilderrunde — die vier Griffe der Kopfleiste
+sind gleich gebaut, aber „Verzeichnis anlegen" tut man selten und einmal,
+suchen oft und beiläufig.
+
+> **Gleich gebaute Griffe für ungleich häufige Handgriffe kosten den häufigen
+> mehr, als sie dem seltenen sparen.**
+
+**Ab 720 px steht die Leiste als eigene Zeile unter dem Seitenkopf, darunter
+bleibt der Knopf.** Die Form ist gemessen und nicht gewählt: Neben den drei
+Knöpfen ist die Leiste erst ab 1728 px Fensterbreite umsonst und kostet an den
+häufigen Breiten +101 px (1280) und +53 px (1440); als eigene Zeile kostet sie
+gleichmässig eine Zeile. Bei 390 px ist eine Leiste ohnehin keine — dort stapelt
+alles in voller Breite, und sie nähme dauerhaft 141 px.
+
+Die Schwelle steht **nur in `app.css`**: Die breite Fläche ist die Vorgabe, die
+schmale weicht ab. Damit gibt es keine Breite, an der beide Regeln zugleich
+greifen.
+
+**Die Leiste nennt das Verzeichnis, in dem sie sucht** — sichtbar und nicht im
+Platzhalter. Eine Leiste, die immer da ist, sieht sonst aus, als suchte sie
+überall; wer in einem tiefen Verzeichnis steht, sucht dann am Bestand vorbei und
+schliesst daraus, die Datei gebe es nicht.
+
+> **Eine Auskunft im Platzhalter ist genau so lange da, wie man sie nicht
+> braucht.**
+
+**Und die Kopfleiste kann jetzt auch im Inhalt suchen.** Sie schickte bisher nur
+`query` und `path`; die Trefferseite konnte `content` immer. Wer von der
+Kopfleiste suchte, erfuhr erst auf der Trefferseite, dass es die Möglichkeit
+gibt. `FileSearchTest` hält beide Eingaben seitdem gegeneinander.
+
+> **Zwei Eingaben für dieselbe Sache sind eine Sicht und eine Kopie — und die
+> Kopie ist die, die weniger kann.**
+
+Der Suchbegriff war bisher zugleich der Schalter (`string | null`). Das trug,
+solange das Feld nur auf Knopfdruck erschien; auf der breiten Fläche gibt es
+kein „zu" mehr, das ein `null` bedeuten könnte.
+
+**Zwei Regeln in `app.css` haben dabei nicht getan, was sie sollten.** Die erste
+war schädlich: `flex: 1 1 240px` machte das Feld bei 390 px **240 px hoch**, weil
+eine Flex-Grundgrösse für die Hauptachse gilt und die Leiste dort als Spalte
+steht.
+
+> **Eine Flex-Grundgrösse ist eine Breite oder eine Höhe, je nachdem, wie die
+> Reihe gerade steht.**
+
+Aufgefallen ist es an der Zahl: Ein kurzer und ein langer Pfad ergaben exakt
+dieselbe Höhe. Die zweite Fassung wurde von `.field { max-width: 540px }`
+weggeschnitten und ist wieder raus.
+
+**`RevealTest` verlor den Griff, als der Schalter von `v-if` auf `:class`
+wechselte** — nicht, weil er in Ordnung war, sondern weil das Mittel gewechselt
+hatte. Erweitert um `v-show` und `:class` hat er sofort einen Griff gefunden,
+den er noch nie gesehen hatte.
+
+> **Ein Wächter, der ein Mittel prüft statt einer Wirkung, hört auf zu messen,
+> sobald jemand das Mittel wechselt.**
+
+Fünf neue Brüche im Bruchskript, alle von Hand gegengeprüft.
+
+### P6 — die Kopfleiste des Dateimanagers auf dem Telefon
+
+**Gemeldet vom Betreiber am 20. August 2026** mit einem Bild von `cloudsrv24`:
+Die vier Knöpfe stehen bei 390 px gestapelt und nehmen **225 px** ein — vier
+Zeilen, bevor eine einzige Datei zu sehen ist. Gefragt war, ob sich daraus
+Zeichen nebeneinander machen lassen.
+
+Sechs Formen gemessen. Das Ergebnis hat zwei Formen ausgeschlossen, die
+naheliegend aussahen:
+
+    heute, gestapelt                 225px   vier Zeilen
+    Zeichen **neben** dem Wort       215px   drei Zeilen
+    Zeichen **über** dem Wort        119px   eine Zeile
+    nur Zeichen                      107px   eine Zeile
+
+> **Ein Zeichen, das neben seinem Wort steht, kostet die Breite des Wortes noch
+> einmal. Erst über dem Wort kostet es nichts.**
+
+Reine Zeichen sparen zwölf Pixel mehr und kosten die Beschriftung — das
+schliesst eine Regel aus, die dieses Projekt zweimal aufgeschrieben hat
+(`NavIcon.vue` in seinem eigenen Kopf, und der Befund vom 7. August an der
+Domainauswahl). Gebaut ist deshalb **Zeichen über dem Wort**: eine Reihe,
+120 px statt 225.
+
+`ActionIcon.vue` ist ein zweiter geschlossener Satz neben `NavIcon` — vier
+Zeichnungen, dasselbe Raster, dieselbe Strichstärke. Er gehört nicht zu
+`NavIcon`, weil dessen Satz eins zu eins gegen die Menüpunkte gehalten wird.
+
+Auf der schmalen Fläche steht sichtbar nur das Objekt („Verzeichnis", „Datei");
+das Verb steht als `.verb` daneben und wird aus dem **Bild** genommen, nicht aus
+dem Dokument:
+
+> **Ein Wort, das man aus dem Bild nimmt, nimmt man auch aus dem Namen, wenn man
+> `display: none` dafür benutzt.**
+
+Der Knopf heisst damit überall „Verzeichnis anlegen".
+
+**Zwei Fehler beim Bauen, beide von der Messung gefunden.** Die Schwelle stand
+zuerst auf 480 px und erzeugte eine Kante — 480 px ergab 120 px, **481 px ergab
+215 px**, weil dort die vollen Wörter zurückkommen und erst ab rund 690 px in
+eine Zeile passen.
+
+> **Eine Schwelle, hinter der es schlechter wird als davor, steht an der
+> falschen Stelle.**
+
+Und der Suchknopf wechselte sein Wort auf „Zuklappen", was die Reihe in zwei
+Zeilen brach (120 px → 188 px).
+
+> **Ein Wort, das sich ändert, ändert auch die Breite — in einer Reihe, die
+> gerade eben passt, ist das eine Zeile.**
+
+Eine Reihe steht ab 375 px; darunter sind es zwei, immer noch 37 px besser als
+heute. Über 720 px ändert sich nichts.
+
+**Und `FileCreationTest` hat gemeldet, dass „Datei anlegen" fehlt** — dort steht
+jetzt `Datei<span class="verb"> anlegen</span>`. Der Knopf ist unverändert da;
+nur seine Auszeichnung war neu.
+
+> **Ein Wächter, der eine Schreibweise liest, verliert das Feld beim
+> Umschreiben — nicht beim Löschen.**
+
+**Die Regel gilt für jeden Seitenkopf, nicht nur für den Dateimanager.**
+`.page-head .button-row` trifft sechzehn Seiten; der Kommentar darüber nannte
+eine. Nachgemessen bei 390 px, vorher gegen nachher: Abonnement 263 → 161 px,
+Kunde 209 → 161 px, zwei Knöpfe 117 → 107 px, ein Kopf mit Formular unverändert
+188 px. Kein Knopf schneidet ab.
+
+> **Ein Kommentar, der eine Seite nennt, und ein Selektor, der alle trifft — der
+> Kommentar ist der Fehler, nicht der Selektor.**
+
+Vier neue Brüche im Bruchskript, alle von Hand gegengeprüft.
+
+### P6 — Befund 18 war wirkungslos, und drei Wächter haben es nicht gesehen
+
+**Gefunden vom vollen Lauf des Bruchskripts**, nachdem alle achtzehn Eingriffe
+einzeln von Hand gebissen hatten.
+
+`Files/Index.vue` trug die Zeile `})})`: Die schliessende Klammer des einen
+`watch` war an die des nächsten gerutscht, und `const asideBlock` samt
+`watch(picking, …)` stand damit **innerhalb** eines Rückrufs. Der Wächter wurde
+erst registriert, wenn jemand etwas umbenannte; `ref="asideBlock"` zeigte auf
+nichts. Befund 18 war von seinem ersten Tag an wirkungslos.
+
+**Nichts davon war rot** — es ist gültiges JavaScript, `vue-tsc` und
+`npm run build` liefen durch, und jeder Wächter fand jedes Wort, das er suchte.
+
+> **Ein Wächter, der Wörter liest, sieht keine Klammern.**
+
+`RevealTest` zählt seitdem die Klammertiefe jedes `watch(` in `<script setup>`.
+
+**Derselbe Fehler versteckte einen zweiten.** `RevealTest` fragte, ob die
+**Datei** irgendwo `bringIntoView` enthält; in dieser Datei stehen drei solche
+Wächter, und einer genügte für alle drei.
+
+> **Ein Wächter, der die Datei fragt statt die Stelle, wird mit jeder zweiten
+> Stelle stumpfer.**
+
+**Und `BreakScriptTest` sah ein Zehntel seines Gegenstands nicht.** Er liest den
+gesuchten Text aus dem `s.replace("…")`-Aufruf; 52 von 562 Blöcken halten ihn in
+einer Variablen. Deshalb blieb unbemerkt, dass zwei Eingriffe
+`lang/de/validation.php` brechen, das nicht im Rückweg lag — die Datei blieb
+kaputt stehen und vergiftete die Gegenproben dahinter. `lang/` steht jetzt in
+`BAEUME`, und der Wächter löst einfache Zuweisungen auf.
+
+> **Ein Wächter, der eine Schreibweise liest, sieht die andere nicht — und
+> meldet für sie „alles in Ordnung".**
+

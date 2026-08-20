@@ -39,6 +39,31 @@ const form = useForm({
   month: '*',
   day_of_week: '*',
   active: true,
+
+  /*
+   * **Welche Ansicht offen ist, muss der Server wissen.**
+   *
+   * Nicht, weil er den Zeitplan anders prüfte — er prüft dieselben fünf
+   * Felder. Sondern weil er seine Meldung sonst an Felder richtet, die in
+   * dieser Ansicht **eingeklappt** sind: Wer `* * *` in ein Feld tippt und
+   * „Das Feld Monat ist erforderlich" liest, sucht ein Feld, das er nicht
+   * sieht (`docs/64`, Befund 16).
+   *
+   * > **Eine Sicht auf eine Sache ist noch keine Sicht auf ihre
+   * > Fehlermeldungen.**
+   *
+   * Ein zweiter Speicherort für den Zeitplan ist das nicht: `experte` sagt,
+   * *wie* die fünf Felder gerade bedient werden, und nicht, *was* in ihnen
+   * steht.
+   *
+   * **Ein Kästchen und kein neuer Baustein.** Ein Umschalter mit zwei
+   * beschrifteten Hälften wäre eine neue Klasse in `app.css`, eine neue Regel
+   * und ein neuer Wächter — für einen Zustand, der zwei Werte hat. `.toggle`
+   * steht auf dieser Seite schon (der Schalter „Aktiv"), seine Geometrie ist
+   * bei 390 px gemessen, und ein Kästchen *ist* ein Schalter zwischen zwei
+   * Zuständen.
+   */
+  experte: false,
 })
 
 /**
@@ -83,17 +108,6 @@ const ausdruck = computed(
 )
 
 /**
- * Der Umschalter auf die Eingabe des ganzen Ausdrucks.
- *
- * **Ein Kästchen und kein neuer Baustein.** Ein Umschalter mit zwei
- * beschrifteten Hälften wäre eine neue Klasse in `app.css`, eine neue Regel und
- * ein neuer Wächter — für einen Zustand, der zwei Werte hat. `.toggle` steht auf
- * dieser Seite schon (der Schalter „Aktiv"), seine Geometrie ist bei 390 px
- * gemessen, und ein Kästchen *ist* ein Schalter zwischen zwei Zuständen.
- */
-const experte = ref(false)
-
-/**
  * Der ganze Ausdruck als **Sicht** auf die fünf Felder — nicht als zweiter Wert.
  *
  * **Das ist die Bedingung, unter der es dieses Feld gibt.** Ein eigener
@@ -134,9 +148,15 @@ const freierAusdruck = computed({
  * ihnen rot werden. Der Satz dazu steht ohnehin oben in der Zusammenfassung
  * (`docs/19 §6`); das eine Feld trägt nur `aria-invalid`, damit die
  * Vorlesesoftware es findet.
+ *
+ * **`expression` gehört dazu, seit der Server die Ansicht kennt.** Er benennt
+ * in dieser Ansicht nicht mehr die eingeklappten Felder, sondern die Stelle im
+ * Ausdruck (`docs/64`, Befund 16) — und legt seine Meldung unter genau diesen
+ * Namen. Stünde er hier nicht, bliebe das eine sichtbare Feld unmarkiert, und
+ * zwar ausgerechnet dann, wenn die Meldung von ihm handelt.
  */
 const zeitplanFalsch = computed(
-  () => ['minute', 'hour', 'day_of_month', 'month', 'day_of_week']
+  () => ['minute', 'hour', 'day_of_month', 'month', 'day_of_week', 'expression']
     .some((feld) => Boolean(form.errors[feld as 'minute'])),
 )
 
@@ -152,6 +172,29 @@ function bearbeiten(job: Job): void {
 }
 
 const formBlock = ref<HTMLElement | null>(null)
+
+/**
+ * Zum Formular gehen — und dabei sicherstellen, dass es zum Anlegen dasteht.
+ *
+ * **Der Bereich „Job anlegen" war bei 390 px nur durch Rollen zu erreichen**
+ * (`docs/64`, Befund 13): Er ist der dritte von drei Bereichen, und dazwischen
+ * liegt die Jobliste mit bis zu zehn Kärtchen. Wer einen Job anlegen wollte,
+ * musste an ihnen vorbei — und nichts sagte ihm, dass dort etwas ist.
+ *
+ * **Der Griff steht in der Kopfzeile der Jobliste**, also dort, wo man nach
+ * „noch einer" sucht, und nicht dort, wo man ihn schliesslich findet.
+ *
+ * `bearbeitet` wird zurückgesetzt: Wer „Job anlegen" drückt, meint anlegen,
+ * auch wenn gerade ein anderer Job im Formular steht.
+ *
+ * Bei 1440 px steht das Formular ohnehin im Bild; `bringIntoView` rollt dann
+ * nicht, sondern setzt nur den Fokus — für den Tastaturweg genau richtig.
+ */
+function zumFormular(): void {
+  bearbeitet.value = null
+
+  void nextTick(() => bringIntoView(formBlock.value))
+}
 
 /*
  * **Der Bereich, der aufgeht, holt sich ins Bild** — hier nach *unten*.
@@ -209,6 +252,32 @@ function entfernen(job: Job): void {
 
   <PanelLayout title="Cronjobs" :subline="props.subscription.name">
     <FormErrors />
+
+    <!--
+      **Der Grund steht dort, wo man es versucht — nicht dort, wo es scheitert.**
+
+      Diese Meldung stand im Bereich „Job anlegen", also unmittelbar über dem
+      Formular, auf das sie sich bezieht. Bei 1440 px ist das richtig und alles
+      im Bild. Bei 390 px stapeln sich die drei Bereiche, und die Jobliste
+      dazwischen ist zehn Kärtchen hoch: Gemessen lag die Meldung dann **3566 px**
+      von der Oberkante entfernt, auf einer Seite von 3795 px — vier Bildschirme
+      weit unten, an einer Stelle, die nur erreicht, wer ohnehin schon rollt
+      (`docs/64`, Befund 12; gemeldet vom Betreiber).
+
+      > **Eine Auskunft, die erklärt, warum etwas nicht geht, gehört dorthin, wo
+      > man es versucht — nicht dorthin, wo es scheitert.**
+
+      Der Bezug geht dabei nicht verloren, weil der Satz die Handlung nennt:
+      „um einen neuen anzulegen". Gemessen steht die Meldung jetzt bei 18 px.
+    -->
+    <p v-if="voll && bearbeitet === null" class="notice warn">
+      <span>
+        Das Kontingent dieses Plans ist ausgeschöpft
+        <template v-if="props.quota.limit !== null">
+          ({{ props.quota.used }} von {{ props.quota.limit }})</template>.
+        Entfernen Sie einen Job, um einen neuen anzulegen.
+      </span>
+    </p>
 
     <div class="sections">
       <section class="section">
@@ -268,6 +337,7 @@ function entfernen(job: Job): void {
             {{ props.quota.used }}
             <template v-if="props.quota.limit !== null">von {{ props.quota.limit }}</template>
           </span>
+          <button type="button" class="button small" @click="zumFormular">Job anlegen</button>
         </div>
 
         <div class="scrolls">
@@ -331,13 +401,6 @@ function entfernen(job: Job): void {
           <h2>{{ bearbeitet === null ? 'Job anlegen' : 'Job ändern' }}</h2>
         </div>
 
-        <p v-if="voll && bearbeitet === null" class="notice warn">
-          <span>
-            Das Kontingent dieses Plans ist ausgeschöpft. Entfernen Sie einen Job,
-            um einen neuen anzulegen.
-          </span>
-        </p>
-
         <form class="form" @submit.prevent="speichern">
           <div class="field">
             <label for="label">Beschriftung</label>
@@ -366,27 +429,58 @@ function entfernen(job: Job): void {
             </p>
           </div>
 
-          <fieldset class="field">
-            <legend>Schnellwahl</legend>
-            <!--
-              Die Beschriftung ist der Satz: Was der Knopf sagt, ist das, was er
-              einstellt. Damit braucht die Schnellwahl keine eigene Übersetzung.
-            -->
-            <div class="button-row">
-              <button
-                v-for="vorlage in vorlagen"
-                :key="vorlage.name"
-                type="button"
-                class="button"
-                @click="vorlageWaehlen(vorlage.felder)"
-              >
-                {{ vorlage.name }}
-              </button>
-            </div>
-          </fieldset>
+          <!--
+            **Ein Bereich für den Zeitplan und nicht zwei.**
 
-          <fieldset class="field">
+            Die Schnellwahl stand bis zum 20. August als eigene Gruppe neben dem
+            Zeitplan. Bei 1440 px ergab das vier Gruppen als 2×2 — und weil die
+            Schnellwahl sechs Knöpfe hoch ist und der Zeitplan mit fünf Feldern
+            und Erklärung mehr als doppelt so hoch, blieb unter ihr eine grosse
+            leere Fläche. Die vier Gruppen lasen sich nicht als ein Formular,
+            sondern als vier Kästen (`docs/64`, Befund 14; gemeldet vom
+            Betreiber).
+
+            Gemessen im Container gegen das gebaute Stylesheet, bei 1140 px
+            Inhaltsbreite — die tote Fläche in Tausend Pixeln²:
+
+              vier Gruppen, 2×2      134k   Formular 741 px
+              Schnellwahl im Zeitplan 34k   Formular 774 px
+
+            Was bleibt, sind 34k unter „Beschriftung": Der Hinweis unter
+            „Befehl" ist zwei Zeilen hoch. Das ist der Rest, den zwei Felder
+            nebeneinander immer haben.
+
+            **Und die Zusammenlegung ist nicht bloss die ruhigere Anordnung, sie
+            ist die richtige.** Die Schnellwahl *stellt den Zeitplan ein* — sie
+            füllt genau die fünf Felder darunter. Eine eigene Gruppe daneben
+            behauptete, sie sei etwas anderes.
+
+            `wide` steht schon in `app.css` (für den Editor) und ist hier
+            dasselbe: eine Gruppe, für die die Lesebreite eines Formulars nicht
+            die richtige Grenze ist.
+          -->
+          <fieldset class="field wide">
             <legend>Zeitplan (Serverzeit)</legend>
+
+            <div class="field wide">
+              <span class="label">Schnellwahl</span>
+              <!--
+                Die Beschriftung ist der Satz: Was der Knopf sagt, ist das, was
+                er einstellt. Damit braucht die Schnellwahl keine eigene
+                Übersetzung.
+              -->
+              <div class="button-row">
+                <button
+                  v-for="vorlage in vorlagen"
+                  :key="vorlage.name"
+                  type="button"
+                  class="button"
+                  @click="vorlageWaehlen(vorlage.felder)"
+                >
+                  {{ vorlage.name }}
+                </button>
+              </div>
+            </div>
 
             <!--
               **Der Umschalter steht über beiden Ansichten und nicht in einer.**
@@ -398,12 +492,12 @@ function entfernen(job: Job): void {
             -->
             <div class="field">
               <label class="toggle">
-                <input v-model="experte" type="checkbox">
+                <input v-model="form.experte" type="checkbox">
                 <span>Den Zeitplan als Ausdruck eingeben</span>
               </label>
             </div>
 
-            <div v-if="experte" class="field">
+            <div v-if="form.experte" class="field">
               <label for="expression">Ausdruck</label>
               <input
                 id="expression"
@@ -449,7 +543,7 @@ function entfernen(job: Job): void {
               (<span class="ident literal">9-17</span>), Listen (<span class="ident literal">1,4</span>)
               und Schritte (<span class="ident literal">*/15</span>). Der Wochentag zählt von 0
               (Sonntag) bis 7 (auch Sonntag).
-              <template v-if="experte">
+              <template v-if="form.experte">
                 Fünf Felder, durch Leerzeichen getrennt: Minute, Stunde, Tag des Monats,
                 Monat, Wochentag.
               </template>

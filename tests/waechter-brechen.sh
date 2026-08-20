@@ -99,7 +99,15 @@ cd "$(dirname "$0")/.." || exit 1
 #
 # > **Ein Bruch, der eine Datei ausserhalb des Rückwegs anfasst, wird nicht
 # > zurückgenommen — und vergiftet jeden Lauf danach.**
-BAEUME="resources/ app/ agent/ tests/ packaging/ .github/ database/ routes/ docs/ config/ bootstrap/ package.json"
+#
+# `lang/` kam am 20. August dazu, und der Anlass ist genau dieser Satz. Zwei
+# Eingriffe zu `AttributeNameTest` brechen `lang/de/validation.php` — die Liste
+# der deutschen Feldnamen ist eine Regel wie jede andere. Sie standen ausserhalb
+# des Rückwegs, blieben nach dem Bruch stehen, und beide Gegenproben meldeten
+# „nicht wieder grün". Der Wächter darüber war dabei **grün**: Er liest die
+# Zeichenkette aus dem `s.replace(...)`-Aufruf, und diese beiden Blöcke halten
+# sie in einer Variablen. Zweiundfünfzig Blöcke tun das.
+BAEUME="resources/ app/ agent/ tests/ packaging/ .github/ database/ routes/ docs/ config/ bootstrap/ lang/ package.json"
 
 # **Dieses Skript liegt selbst unter `tests/` und nimmt sich aus.**
 #
@@ -9450,7 +9458,7 @@ vorher_datei resources/js/Pages/Subscriptions/Cron.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Subscriptions/Cron.vue'
 s = open(p, encoding='utf-8').read()
-s = s.replace("  active: true,\n})", "  active: true,\n  expression: '',\n})", 1)
+s = s.replace("  experte: false,\n})", "  experte: false,\n  expression: '',\n})", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/js/Pages/Subscriptions/Cron.vue "Ausdruck als eigener Wert" &&
@@ -10181,8 +10189,23 @@ echo "── FileCreationTest: der Weg zum Anlegen einer Datei faellt weg ──
 #
 # Die Fortsetzung von Befund 6, eine Ebene tiefer: files.write legt seit
 # Schritt 3 an, was es nicht gibt — es fehlte nur der Knopf.
+#
+# **Der Eingriff war ein `sed -i` und ist am 20. August still geworden**: Die
+# Beschriftung heisst seit der neuen Kopfleiste
+# `Datei<span class="verb"> anlegen</span>`, und das Muster traf nichts mehr.
+# `BreakScriptTest` hat es nicht gemeldet, weil er nur Python-Bloecke liest —
+# siebenundzwanzig Eingriffe dieses Skripts sind `sed`. Er liest sie seitdem
+# mit; dieser hier ist zu einem Python-Block geworden, weil ein `sed`-Muster
+# ueber Marken hinweg unlesbar wird.
 vorher_datei resources/js/Pages/Files/Index.vue
-sed -i 's/          Datei anlegen/          Datei erzeugen/' resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<span>Datei<span class="verb"> anlegen</span></span>'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '<span>Datei<span class="verb"> erzeugen</span></span>'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
 griff_datei resources/js/Pages/Files/Index.vue "Weg zum Anlegen" &&
 pruefe "Weg zum Anlegen einer Datei" \
   FileCreationTest::test_a_file_can_be_created_from_the_listing failed
@@ -11945,6 +11968,564 @@ pruefe "Route ohne can:" CronPageReachTest::test_every_cron_route_is_guarded fai
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   CronPageReachTest::test_every_cron_route_is_guarded passed
+
+echo
+echo "── RootElementTest: @inertia im Kopf statt @inertiaHead ──"
+#
+# Befund 17 aus docs/64, woertlich wiederhergestellt: Die Direktive setzt ein
+# <div>, im <head> ist das nicht erlaubt, und das Dokument traegt danach zwei
+# Elemente mit id="app".
+vorher_datei resources/views/app.blade.php
+python3 - <<'PY2'
+p = 'resources/views/app.blade.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('    @inertiaHead\n</head>', '    @inertia\n</head>', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/views/app.blade.php "zwei Wurzelelemente" &&
+pruefe "zwei Wurzelelemente" \
+  RootElementTest::test_the_root_element_is_set_once_and_in_the_body failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  RootElementTest::test_the_root_element_is_set_once_and_in_the_body passed
+
+echo
+echo "── RootElementTest: der Kopf verliert seine Direktive ──"
+#
+# Zehn Seiten binden die <Head>-Komponente ein. Ohne @inertiaHead gibt es
+# keinen Ort, an dem ihre Ausgabe landen koennte — heute faellt das nicht auf,
+# weil ohne serverseitiges Rendern nichts ausgegeben wird.
+vorher_datei resources/views/app.blade.php
+python3 - <<'PY2'
+p = 'resources/views/app.blade.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('    @inertiaHead\n</head>', '</head>', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/views/app.blade.php "Kopf ohne Direktive" &&
+pruefe "Kopf ohne Direktive" \
+  RootElementTest::test_the_head_carries_its_own_directive failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  RootElementTest::test_the_head_carries_its_own_directive passed
+
+echo
+echo "── RevealTest: der Zielbaum verliert seine Verdrahtung ──"
+#
+# Befund 18: „Verschieben" steht in der Auswahlleiste, der Baum ist die erste
+# Haelfte von .split und liegt bei 390 px darueber. Der Griff ist eine
+# Zuweisung — @click="picking = 'move'" — und faellt aus dem alten Ausdruck
+# heraus; genau deshalb ist der Befund durch diesen Waechter hindurchgegangen.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("bringIntoView(asideBlock.value)", "asideBlock.value", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Zielbaum ohne Verdrahtung" &&
+pruefe "Zielbaum ohne Verdrahtung" \
+  RevealTest::test_every_per_item_handle_reveals_its_block failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  RevealTest::test_every_per_item_handle_reveals_its_block passed
+
+echo
+echo "── RevealTest: ein veralteter Eintrag in IN_PLACE ──"
+#
+# Die Sperrklinke gilt fuer beide Listen. Ein Eintrag, dessen Griff es nicht
+# mehr gibt, ist eine Erlaubnis fuer nichts — und er verdeckt, dass die Suche
+# ihn vielleicht nur nicht mehr findet.
+vorher_datei tests/Unit/RevealTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/RevealTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'Layouts/PanelLayout.vue @click menuOpen' =>",
+              "'Layouts/PanelLayout.vue @click gibtEsNicht' =>", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Unit/RevealTest.php "veralteter Eintrag in IN_PLACE" &&
+pruefe "veralteter Eintrag in IN_PLACE" \
+  RevealTest::test_every_per_item_handle_reveals_its_block failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  RevealTest::test_every_per_item_handle_reveals_its_block passed
+
+echo
+echo "── CronPageReachTest: der Griff zum Formular verschwindet ──"
+#
+# Befund 13: Der Bereich „Job anlegen" ist der dritte von drei; dazwischen
+# liegen bis zu zehn Kaertchen. Ohne Griff findet ihn bei 390 px niemand.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('          <button type="button" class="button small" @click="zumFormular">Job anlegen</button>\n', '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Griff zum Formular fehlt" &&
+pruefe "Griff zum Formular fehlt" \
+  CronPageReachTest::test_the_job_list_leads_to_the_form failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronPageReachTest::test_the_job_list_leads_to_the_form passed
+
+echo
+echo "── AttributeNameTest: ein Feld verliert seinen deutschen Namen ──"
+#
+# Befund 15: Ohne Eintrag setzt Laravel den Feldnamen selbst ein, mit
+# Unterstrichen als Leerzeichen — „Das Feld day of week ist erforderlich".
+vorher_datei lang/de/validation.php
+python3 - <<'PY2'
+p = 'lang/de/validation.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'day_of_week' => 'Wochentag',\n"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei lang/de/validation.php "Feld ohne deutschen Namen" &&
+pruefe "Feld ohne deutschen Namen" \
+  AttributeNameTest::test_every_validated_field_has_a_german_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  AttributeNameTest::test_every_validated_field_has_a_german_name passed
+
+echo
+echo "── AttributeNameTest: ein Name ohne Feld ──"
+#
+# Die Gegenrichtung. Ein Eintrag, den keine Regel mehr braucht, ist harmlos —
+# und genau deshalb bleibt er stehen, bis niemand mehr weiss, ob er wirkt.
+vorher_datei lang/de/validation.php
+python3 - <<'PY2'
+p = 'lang/de/validation.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'action' => 'Aktion',\n"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+neu = alt + "        'gibt_es_nicht' => 'Nichts',\n"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei lang/de/validation.php "Name ohne Feld" &&
+pruefe "Name ohne Feld" \
+  AttributeNameTest::test_every_name_belongs_to_a_field failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  AttributeNameTest::test_every_name_belongs_to_a_field passed
+
+echo
+echo "── RevealTest: ein watch rutscht eine Ebene tiefer ──"
+#
+# Der Fehler, wie er wirklich dastand: `})})` am Ende. Die Klammer des einen
+# Waechters war an die des naechsten gerutscht, und `watch(picking, …)` wurde
+# damit erst registriert, wenn jemand etwas umbenannte. Befund 18 war von
+# seinem ersten Tag an wirkungslos — und `vue-tsc` schwieg, weil es gueltiges
+# JavaScript ist.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = "    void nextTick(() => bringIntoView(renameBlock.value))\n  }\n})"
+assert s.count(alt) == 1, 'Zielblock nicht eindeutig — der Bruch waere blind'
+zweiter = "    void nextTick(() => bringIntoView(asideBlock.value))\n  }\n})"
+assert s.count(zweiter) == 1, 'Zweiter Zielblock nicht eindeutig'
+s = s.replace(alt, alt[:-2], 1)
+s = s.replace(zweiter, zweiter + '})', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "watch eine Ebene tiefer" &&
+pruefe "watch eine Ebene tiefer" \
+  RevealTest::test_every_watch_is_registered_at_the_top_level failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  RevealTest::test_every_watch_is_registered_at_the_top_level passed
+
+echo
+echo "── ActionIconTest: ein Knopf verliert sein Wort ──"
+#
+# Die Form, nach der der Betreiber gefragt hat und die zwoelf Pixel billiger
+# waere: nur Zeichen. NavIcon.vue schreibt in seinem eigenen Kopf, dass sie
+# keine Bedeutung allein tragen.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<ActionIcon name="search" />\n        <span>Suchen</span>'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<ActionIcon name="search" />', 1))
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Knopf ohne Wort" &&
+pruefe "Knopf ohne Wort" ActionIconTest::test_every_icon_has_a_word_beside_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActionIconTest::test_every_icon_has_a_word_beside_it passed
+
+echo
+echo "── ActionIconTest: ein Name ohne Zeichnung ──"
+#
+# Die Komponente zeichnet dann nichts — kein Fehler, keine Meldung, nur ein
+# Knopf ohne sein Zeichen.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<ActionIcon name="upload" />'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<ActionIcon name="uploads" />', 1))
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Name ohne Zeichnung" &&
+pruefe "Name ohne Zeichnung" ActionIconTest::test_every_requested_icon_is_drawn failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActionIconTest::test_every_requested_icon_is_drawn passed
+
+echo
+echo "── ActionIconTest: zwei Strichstaerken in einem Satz ──"
+#
+# Gemischte Zeichnungen sehen nebeneinander nach zwei Saetzen aus, und der Blick
+# liest daraus eine Bedeutung, die es nicht gibt.
+vorher_datei resources/js/Components/ActionIcon.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/ActionIcon.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'stroke-width="1.6"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'stroke-width="2"', 1))
+PY2
+griff_datei resources/js/Components/ActionIcon.vue "zwei Strichstaerken" &&
+pruefe "zwei Strichstaerken" ActionIconTest::test_the_icons_are_one_set failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActionIconTest::test_the_icons_are_one_set passed
+
+echo
+echo "── ActionIconTest: das Verb faellt aus dem zugaenglichen Namen ──"
+#
+# `display: none` nimmt es auch der Vorlesesoftware. Der Knopf hiesse dann
+# „Verzeichnis" statt „Verzeichnis anlegen" — also genau das Halbe, das
+# sichtbar dasteht.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = "  .page-head .verb {\n    position: absolute;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "  .page-head .verb {\n    display: none;\n    position: absolute;"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/css/app.css "Verb ohne Namen" &&
+pruefe "Verb ohne Namen" ActionIconTest::test_the_hidden_verb_still_has_a_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActionIconTest::test_the_hidden_verb_still_has_a_name passed
+
+echo
+echo "── FileSearchTest: die Trefferseite schickt weniger als die Leiste ──"
+#
+# Genau der Fund, der diesen Waechter ausgeloest hat — nur andersherum: Bis zum
+# 20. August konnte die Kopfleiste kein `content` schicken, die Trefferseite
+# schon. Gefunden hat es keine Pruefung, sondern eine Messung zu etwas anderem.
+vorher_datei resources/js/Pages/Files/Search.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Search.vue'
+s = open(p, encoding='utf-8').read()
+alt = "    content: imInhalt.value,\n"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Pages/Files/Search.vue "zwei Suchen, zwei Werte" &&
+pruefe "zwei Suchen, zwei Werte" FileSearchTest::test_both_inputs_send_the_same_values failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FileSearchTest::test_both_inputs_send_the_same_values passed
+
+echo
+echo "── FileSearchTest: die Leiste verschweigt ihren Geltungsbereich ──"
+#
+# Eine Leiste, die immer da ist, sieht aus, als suchte sie ueberall. Wer in
+# einem tiefen Verzeichnis steht, sucht dann am Bestand vorbei und schliesst
+# daraus, die Datei gebe es nicht (docs/64 §6.1).
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<span>Suchen in <span class="ident">{{ props.path }}</span></span>'
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<span>Suchen</span>', 1))
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Leiste ohne Geltungsbereich" &&
+pruefe "Leiste ohne Geltungsbereich" FileSearchTest::test_the_bar_names_the_directory_it_searches failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FileSearchTest::test_the_bar_names_the_directory_it_searches passed
+
+echo
+echo "── FileSearchTest: aria-controls zeigt ins Leere ──"
+#
+# Die Fehlerklasse, die dieses Repo am haeufigsten getroffen hat: eine
+# Zeichenkette, die auf etwas verweist, ohne dass der Bezug geprueft wird.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<form id="dateisuche"'
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<form id="dateisuche-alt"', 1))
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "aria-controls ins Leere" &&
+pruefe "aria-controls ins Leere" FileSearchTest::test_the_toggle_points_at_the_bar failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FileSearchTest::test_the_toggle_points_at_the_bar passed
+
+echo
+echo "── FileSearchTest: die Schwelle faellt weg ──"
+#
+# Ohne sie steht die Leiste auch bei 390 px — dort kostet sie gemessen 141 px
+# und ist keine Leiste, weil alles in voller Breite stapelt.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = "  .search:not(.open) {\n    display: none;\n  }\n\n"
+assert s.count(alt) == 1, 'Zielblock nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/css/app.css "Suchleiste ohne Schwelle" &&
+pruefe "Suchleiste ohne Schwelle" FileSearchTest::test_the_threshold_lives_in_the_stylesheet failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FileSearchTest::test_the_threshold_lives_in_the_stylesheet passed
+
+echo
+echo "── RevealTest: ein Schalter ueber :class statt v-if ──"
+#
+# Die Suchleiste erscheint ueber eine Regel in app.css und nicht ueber das
+# Markup. Bis zum 20. August sah dieser Waechter nur `v-if` — und verlor den
+# Griff in dem Moment, in dem jemand das Mittel wechselte.
+vorher_datei tests/Unit/RevealTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/RevealTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "            || preg_match('/:class=\"\\{[^\"]*\\b'.$name.'\\b/', $markup) === 1;"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            || false;", 1))
+PY2
+griff_datei tests/Unit/RevealTest.php "Schalter ueber :class" &&
+pruefe "Schalter ueber :class" RevealTest::test_every_per_item_handle_reveals_its_block failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RevealTest::test_every_per_item_handle_reveals_its_block passed
+
+echo
+echo "── PrivateKeyTest: der private Teil wandert ins Formular ──"
+#
+# Der Bruch, um den es geht, ist eine Zeile und sieht aus wie eine
+# Verbesserung: „damit der Server den Fingerabdruck gleich mitrechnet".
+# Danach liegt der Schluessel in sessions und in operations (docs/64 §5.2).
+vorher_datei resources/js/Pages/Subscriptions/Sftp.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Sftp.vue'
+s = open(p, encoding='utf-8').read()
+alt = "        privaterTeil.value = paar.privateKey"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        form.key = privaterTeil.value ?? ''\n" + alt, 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Sftp.vue "privater Teil im Formular" &&
+pruefe "privater Teil im Formular" \
+  PrivateKeyTest::test_the_private_part_never_shares_a_line_with_a_transport failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  PrivateKeyTest::test_the_private_part_never_shares_a_line_with_a_transport passed
+
+echo
+echo "── PrivateKeyTest: der Baustein bekommt einen Weg nach draussen ──"
+vorher_datei resources/js/ssh/openssh.ts
+python3 - <<'PY2'
+p = 'resources/js/ssh/openssh.ts'
+s = open(p, encoding='utf-8').read()
+alt = "export async function canGenerate(): Promise<boolean> {"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt + "\n  void fetch('/telemetry')\n", 1))
+PY2
+griff_datei resources/js/ssh/openssh.ts "Baustein mit Ausgang" &&
+pruefe "Baustein mit Ausgang" PrivateKeyTest::test_the_module_has_no_way_out failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PrivateKeyTest::test_the_module_has_no_way_out passed
+
+echo
+echo "── PrivateKeyTest: ein drittes Feld im Formular ──"
+vorher_datei resources/js/Pages/Subscriptions/Sftp.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Sftp.vue'
+s = open(p, encoding='utf-8').read()
+alt = "const form = useForm({ label: '', key: '' })"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+neu = "const form = useForm({ label: '', key: '', privat: '' })"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Sftp.vue "drittes Feld im Formular" &&
+pruefe "drittes Feld im Formular" PrivateKeyTest::test_the_form_carries_only_the_public_parts failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PrivateKeyTest::test_the_form_carries_only_the_public_parts passed
+
+echo
+echo "── PrivateKeyTest: die Messung zeigt auf eine Abschrift ──"
+#
+# Der Kopf der Messung nennt den Baustein ohnehin im Text. Ein Waechter, der
+# den Pfad irgendwo sucht, bleibt hier gruen — geprueft wird die Einbindung.
+vorher_datei tests/schluessel-messen.mjs
+python3 - <<'PY2'
+p = 'tests/schluessel-messen.mjs'
+s = open(p, encoding='utf-8').read()
+alt = "await import(join(wurzel, 'resources/js/ssh/openssh.ts'))"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+neu = "await import(join(wurzel, 'resources/js/ssh/abschrift.ts'))"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/schluessel-messen.mjs "Messung auf einer Abschrift" &&
+pruefe "Messung auf einer Abschrift" PrivateKeyTest::test_the_measurement_holds_the_shipped_module failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PrivateKeyTest::test_the_measurement_holds_the_shipped_module passed
+
+echo
+echo "── RevealTest: ein Griff ohne Klammern holt seinen Bereich nicht ──"
+#
+# Bis zum 20. August sah dieser Waechter nur Griffe mit Klammern. Ein
+# `@click="erzeugen"` fiel heraus — und davon gibt es 29 in resources/js.
+vorher_datei resources/js/Pages/Subscriptions/Sftp.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Sftp.vue'
+s = open(p, encoding='utf-8').read()
+alt = "watch(privaterTeil, (wert) => {"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+neu = "watch(erzeugt, (wert) => {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Sftp.vue "Griff ohne Klammern" &&
+pruefe "Griff ohne Klammern" RevealTest::test_every_per_item_handle_reveals_its_block failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RevealTest::test_every_per_item_handle_reveals_its_block passed
+
+echo
+echo "── CronPageReachTest: die Meldung rutscht zurueck in den Formularbereich ──"
+#
+# Befund 12: Bei 390 px lag sie dort 3566 px von der Oberkante entfernt, auf
+# einer Seite von 3795 px — vier Bildschirme weit unten.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+alt = '    <p v-if="voll && bearbeitet === null" class="notice warn">'
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+i = s.index(alt)
+j = s.index('</p>', i) + 4
+block = s[i:j]
+s = s[:i] + s[j:]
+anker = '        <form class="form" @submit.prevent="speichern">'
+assert s.count(anker) == 1, 'Anker nicht eindeutig — der Bruch waere blind'
+s = s.replace(anker, block + '\n\n' + anker, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Meldung wieder im Formular" &&
+pruefe "Meldung wieder im Formular" \
+  CronPageReachTest::test_the_full_quota_is_said_before_the_list failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronPageReachTest::test_the_full_quota_is_said_before_the_list passed
+
+echo
+echo "── CronPageReachTest: die Zeitplangruppe verliert ihre Breite ──"
+#
+# Befund 14: In 540 px passen von fuenf Feldern zwei, und die Schnellwahl
+# bricht auf drei Reihen — genau die Anordnung, die als vier Kaesten gelesen
+# wurde.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<fieldset class="field wide">\n            <legend>Zeitplan (Serverzeit)</legend>'
+assert s.count(alt) == 1, 'Zielblock nicht eindeutig — der Bruch waere blind'
+neu = '<fieldset class="field">\n            <legend>Zeitplan (Serverzeit)</legend>'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Zeitplangruppe ohne wide" &&
+pruefe "Zeitplangruppe ohne wide" \
+  CronPageReachTest::test_the_quick_choice_belongs_to_the_schedule failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronPageReachTest::test_the_quick_choice_belongs_to_the_schedule passed
+
+echo
+echo "── AttributeNameTest: die Namen fehlen am Aufruf ──"
+#
+# Die Schluessel aus Quotas::rules() entstehen erst beim Ausfuehren; ihre Namen
+# koennen deshalb nicht in der Sprachdatei stehen. Bleibt der dritte Wert weg,
+# liest der Betreiber „Das Feld quotas.disk mb muss vorhanden sein".
+vorher_datei app/Http/Controllers/PlanController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/PlanController.php'
+s = open(p, encoding='utf-8').read()
+alt = "        ], [], Quotas::names());"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        ]);", 1))
+PY2
+griff_datei app/Http/Controllers/PlanController.php "Namen fehlen am Aufruf" &&
+pruefe "Namen fehlen am Aufruf" \
+  AttributeNameTest::test_no_rule_block_hides_its_fields failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  AttributeNameTest::test_no_rule_block_hides_its_fields passed
+
+echo
+echo "── AttributeNameTest: ein Spread, den niemand aufloest ──"
+#
+# Genau die Lage, in der die fuenf Cronfelder monatelang gruen waren: Der
+# Waechter sah den Ausdruck nicht und hat an dieser Stelle nichts gemessen.
+vorher_datei app/Http/Controllers/CronController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/CronController.php'
+s = open(p, encoding='utf-8').read()
+alt = "            ...array_fill_keys(Schedule::FIELDS, ['required', 'string', 'max:192']),\n"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            ...NochNichtBenannt::rules(),\n", 1))
+PY2
+griff_datei app/Http/Controllers/CronController.php "Spread ohne Aufloesung" &&
+pruefe "Spread ohne Aufloesung" \
+  AttributeNameTest::test_no_rule_block_hides_its_fields failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  AttributeNameTest::test_no_rule_block_hides_its_fields passed
+
+echo
+echo "── CronScheduleFormTest: die Experteneingabe bekommt wieder Feldnamen ──"
+#
+# Befund 16: `* * *` eintragen und anlegen ergab „Das Feld Monat ist
+# erforderlich" — und dieses Feld ist in der Expertenansicht eingeklappt.
+vorher_datei app/Http/Controllers/CronController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/CronController.php'
+s = open(p, encoding='utf-8').read()
+alt = "boolean('experte')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "boolean('gibt_es_nicht')", 1))
+PY2
+griff_datei app/Http/Controllers/CronController.php "Meldung ohne Ansicht" &&
+pruefe "Meldung ohne Ansicht" \
+  CronScheduleFormTest::test_the_expert_input_gets_an_answer_it_can_use failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronScheduleFormTest::test_the_expert_input_gets_an_answer_it_can_use passed
+
+echo
+echo "── CronScheduleFormTest: VIEW_FIELDS deckt ein Feld des Zeitplans ──"
+#
+# Die Sperrklinke der Ausnahmeliste. Wer dort ein Zeitplanfeld einträgt, hat
+# keine Ausnahme gemacht, sondern die Regel abgeschaltet.
+vorher_datei tests/Unit/CronScheduleFormTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/CronScheduleFormTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'experte' => 'Sagt, in welcher Ansicht"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        'minute' => 'Sagt, in welcher Ansicht"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Unit/CronScheduleFormTest.php "VIEW_FIELDS deckt ein Zeitplanfeld" &&
+pruefe "VIEW_FIELDS deckt ein Zeitplanfeld" \
+  CronScheduleFormTest::test_the_free_expression_is_a_view_on_the_five_fields failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronScheduleFormTest::test_the_free_expression_is_a_view_on_the_five_fields passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

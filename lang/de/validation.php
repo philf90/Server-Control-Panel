@@ -119,5 +119,122 @@ return [
      * bekommen. Solange hier nichts steht, setzt Laravel den Namen aus dem Code
      * ein.
      */
-    'attributes' => [],
+    /*
+     * **Die Namen der Felder, wie sie in einer Meldung erscheinen.**
+     *
+     * Hier stand bis zum 20. August ein leeres Feld — und damit setzte Laravel
+     * den **Bezeichner** ein. „Das Feld day of week ist erforderlich":
+     * deutscher Satzbau, englische Wörter darin (`docs/64`, Befund 15).
+     *
+     * Die Bezeichner sind englisch, weil sie das sein sollen (`docs/19 §4a`).
+     * Sie waren nie als Anzeige gedacht — und niemand hat je entschieden, dass
+     * sie eine werden.
+     *
+     * > **Ein Wort, das erst beim Ausführen entsteht, steht in keiner Datei —
+     * > und kein Wächter, der Dateien liest, findet es.**
+     *
+     * **Der Name ist der, der am Feld steht.** Wo die Oberfläche eine
+     * Beschriftung hat, ist sie hier übernommen; „Straße und Hausnummer" heisst
+     * in der Meldung genauso wie im Formular.
+     *
+     * **Und drei Namen bedeuten an zwei Orten Verschiedenes**, was diese Liste
+     * allein nicht auflösen kann: `to` ist das Ziel einer Verschiebung und das
+     * Ende eines Zeitraums, `host` ein Mailserver und die Herkunft eines
+     * Datenbankzugangs, `mode` sind Dateirechte und die Art einer Änderung in
+     * der Konsole. Hier steht der häufigere Fall; der andere übergibt seinen
+     * Namen an Ort und Stelle als dritten Wert an `validate()`.
+     *
+     * > **Eine Liste, die einen Namen einmal vergibt, trägt keine zwei
+     * > Bedeutungen — sie trägt die häufigere und einen Ausweg.**
+     *
+     * Vollständigkeit prüft `AttributeNameTest`: Jedes validierte Feld steht
+     * hier, und jeder Eintrag hier wird validiert.
+     */
+    'attributes' => [
+        'action' => 'Aktion',
+        'active' => 'Aktiv',
+        'algorithm' => 'Verfahren',
+        'api_key' => 'API-Schlüssel',
+        'api_password' => 'API-Passwort',
+        'argument' => 'Argument',
+        'certificate' => 'Zertifikat',
+        'cidr' => 'Netz',
+        'city' => 'Ort',
+        'code' => 'Code',
+        'collation' => 'Sortierung',
+        'column' => 'Spalte',
+        'command' => 'Befehl',
+        'contact' => 'Kontaktadresse',
+        'content' => 'Inhalt',
+        'country' => 'Land',
+        'current_password' => 'Aktuelles Passwort',
+        'customer_id' => 'Kunde',
+        'customer_number' => 'Kundennummer',
+        'day_of_month' => 'Tag des Monats',
+        'day_of_week' => 'Wochentag',
+        'description' => 'Beschreibung',
+        'direction' => 'Richtung',
+        'directory' => 'Verzeichnis',
+        'dump' => 'Sicherung',
+        'email' => 'E-Mail-Adresse',
+        'encryption' => 'Verschlüsselung',
+        'engine' => 'Datenbanksystem',
+        'files' => 'Dateien',
+        'files.*' => 'Datei',
+        'filter' => 'Filter',
+        'filter.column' => 'Spalte des Filters',
+        'filter.operator' => 'Vergleich des Filters',
+        'filter.value' => 'Wert des Filters',
+        'first_name' => 'Vorname',
+        'from' => 'Von',
+        'from_address' => 'Absenderadresse',
+        'from_name' => 'Anzeigename des Absenders',
+        'granted' => 'Rechte',
+        'host' => 'Server',
+        'hour' => 'Stunde',
+        'ip' => 'IP-Adresse',
+        'is_default' => 'Standardplan',
+        'key' => 'Schlüssel',
+        'key_name' => 'Schlüsselname',
+        'label' => 'Bezeichnung',
+        'last_name' => 'Nachname',
+        'login_email' => 'Anmeldeadresse',
+        'minute' => 'Minute',
+        'mode' => 'Rechte',
+        'month' => 'Monat',
+        'name' => 'Name',
+        'notes' => 'Notizen',
+        'offset' => 'Versatz',
+        'order' => 'Sortierung',
+        'password' => 'Passwort',
+        'password_clear' => 'Passwort im Klartext',
+        'path' => 'Pfad',
+        'paths' => 'Pfade',
+        'paths.*' => 'Pfad',
+        'phone' => 'Telefon',
+        'plan_id' => 'Plan',
+        'port' => 'Port',
+        'postal_code' => 'Postleitzahl',
+        'private_key' => 'Privater Schlüssel',
+        'provider' => 'Anbieter',
+        'query' => 'Suchbegriff',
+        'remember' => 'Angemeldet bleiben',
+        'result' => 'Ergebnis',
+        'secret' => 'Geheimnis',
+        'server' => 'Nameserver',
+        'shared_secret' => 'Gemeinsames Geheimnis',
+        'street' => 'Straße und Hausnummer',
+        'subscription_id' => 'Abonnement',
+        'table' => 'Tabelle',
+        'target' => 'Ziel',
+        'task' => 'Aufgabe',
+        'theme' => 'Darstellung',
+        'timezone' => 'Zeitzone',
+        'to' => 'Ziel',
+        'token' => 'Token',
+        'user_label' => 'Benutzername',
+        'username' => 'Benutzername',
+        'values' => 'Werte',
+        'zones' => 'Zonen',
+    ],
 ];

@@ -120,7 +120,34 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="manifest" href="/site.webmanifest">
     @vite('resources/js/app.ts')
-    @inertia
+    {{--
+        **`@inertiaHead` und nicht `@inertia` — die beiden sehen sich ähnlich
+        und tun Entgegengesetztes.**
+
+        Hier stand bis zum 20. August `@inertia`. Die Direktive setzt das
+        Wurzelelement der Anwendung, also ein `<div>`; im Kopf ist das nicht
+        erlaubt, und der Parser schliesst ihn an dieser Stelle. Das Dokument
+        trug damit **zwei** Elemente mit `id="app"`, die Anwendung hing in dem
+        aus dem Kopf, und das gemeinte aus dem Rumpf blieb leer stehen
+        (`docs/64`, Befund 17).
+
+        **Aufgefallen ist es nie**, weil diese Zeile die letzte vor `</head>`
+        ist. Stünde nach ihr noch ein `<link>` oder ein `<meta>`, läge das im
+        Rumpf und wäre wirkungslos — Favicon, Manifest, Farbschema.
+
+        > **Ein Fehler, der nur deshalb nichts kaputt macht, weil er an der
+        > letzten Stelle steht, ist kein kleiner Fehler — er ist einer mit
+        > Glück.**
+
+        `@inertiaHead` gehört hierher, weil zehn Seiten die `<Head>`-Komponente
+        einbinden. Ohne Serverseitiges Rendern gibt sie nichts aus; sie ist der
+        Ort, an dem es ankäme, sobald es eingeschaltet wird.
+
+        Geprüft von tests/Unit/RootElementTest.php (die Vorlage) und
+        tests/Feature/RootElementTest.php (das Ergebnis — genau eine Kennung
+        `app` im ausgelieferten Dokument).
+    --}}
+    @inertiaHead
 </head>
 <body>
 @inertia

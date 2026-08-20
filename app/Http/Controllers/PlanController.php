@@ -258,7 +258,7 @@ final class PlanController extends Controller
             'description' => ['nullable', 'string', 'max:1000'],
             'is_default' => ['required', 'boolean'],
             ...Quotas::rules(),
-        ]);
+        ], [], Quotas::names());
     }
 
     /**

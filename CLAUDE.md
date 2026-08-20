@@ -411,6 +411,23 @@ weil die Frage daran hängt, was ein Kunde *sucht*.
 > **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
 > wieder da, wenn die Behebung nicht die Regel wurde.**
 
+**Zum dritten Mal am 20. August**, beim Bereich „Job anlegen" der Cronseite: Er
+ist der dritte von drei Bereichen, dazwischen liegen bis zu zehn Kärtchen, und
+bei 390 px fand ihn niemand (`docs/64`, Befund 13). Gemeldet hat es wieder der
+Betreiber.
+
+**Dreimal derselbe Fehler heisst: Es fehlt kein Wächter, sondern eine Frage.**
+Ein Test kann „erreichbar" nicht halten — das hängt daran, was ein Kunde
+erwartet, und keine Eigenschaft des Quelltextes bildet es ab. Deshalb steht die
+Regel hier und nicht in `tests/`:
+
+> **Vor jedem neuen Merkmal: Wo sucht jemand diese Handlung, und steht sie
+> dort?** Nicht „ist sie erreichbar" — erreichbar ist alles, was man findet,
+> wenn man lange genug rollt.
+
+> **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
+> als Zusage.**
+
 **Was offen bleibt und benannt ist:** Wand 2 aus Punkt 11 und die vier Zeilen zu
 den Befunden 20 und 21 gegen die nächste Fassung. Wer sie anfasst, fängt bei
 `docs/59` an und nicht bei null.
@@ -475,6 +492,62 @@ Aufräumen abgeschaltet.* Passiert bei `MobileLayoutTest`, bei
 `DesignTokensTest::test_every_step_of_the_scale_is_used` und bei drei Tests des
 Optik-Reworks. Die Untergrenze zählt seitdem überall mit, wo die Regel stehen
 *darf*; der Befund kommt weiter nur von dort, wo sie stehen *soll*.
+
+**Und die Falle daneben, gefunden am 20. August beim Bau von Befund 15.** Ein
+frisch gebauter Wächter stand grün — und genau die fünf Felder, an denen der
+Befund überhaupt entdeckt worden war, sah er nicht: Sie entstehen aus
+`...array_fill_keys(Schedule::FIELDS, …)` und stehen nirgends im Quelltext.
+
+> **Ein Wächter, der einen Ausdruck nicht auflösen kann, hat nicht wenig
+> gemessen — er hat an dieser Stelle gar nicht gemessen.**
+
+Das ist „Eine Null ist nur dann eine Messung" eine Ebene tiefer: Es fehlt nicht
+der Ausschlag, sondern der Prüfkörper. Wer einen Wächter über eine Aufzählung
+baut, prüft ihn deshalb an dem Fall, der ihn ausgelöst hat — und macht ihn rot,
+wo er nicht hinsehen kann, statt ihn dort schweigen zu lassen.
+
+**Und ein Ausdruck, den dieses Repo an einem Tag zweimal falsch geschrieben
+hat:** `\.value\s*=` trifft auch `===`, denn `=` ist dessen erstes Zeichen.
+`RevealTest` hat damit vier Löcher erfunden, die es nie gab, und `PrivateKeyTest`
+eine Stunde später drei Zuweisungen gezählt, wo eine steht. Die Abgrenzung
+lautet `(?<![=!<>])=(?!=)`.
+
+> **Ein Ausdruck, der eine Zuweisung sucht, findet jeden Vergleich mit, solange
+> er das Gleichheitszeichen nicht abgrenzt.**
+
+**Und die teuerste Falle dieses Tages: ein Fehler, den kein Wächter sehen
+kann, weil er in den Klammern steht.** `})})` in einer `.vue` — die
+schliessende Klammer des einen `watch` war an die des nächsten gerutscht, und
+ein `watch` samt seinem `ref` stand damit **innerhalb** eines Rückrufs. Er wurde
+nie registriert; das Merkmal war von seinem ersten Tag an wirkungslos. `vue-tsc`
+und `npm run build` liefen durch, und jeder Wächter fand jedes Wort, das er
+suchte.
+
+> **Ein Wächter, der Wörter liest, sieht keine Klammern.**
+
+> **Ein Fehler, der in einer Funktion sitzt, wird vom Typprüfer entschuldigt —
+> die Funktion läuft ja später.** Der Typprüfer meldete ihn erst, als die
+> Klammer richtig sass.
+
+Gefunden hat ihn der **volle** Lauf des Bruchskripts, nachdem jeder einzelne
+Eingriff von Hand gebissen hatte.
+
+> **Ein Eingriff, der einzeln beisst, beisst nicht unbedingt im Lauf** — er
+> steht dort neben anderen, und die verändern seinen Gegenstand.
+
+**Und zwei Sätze über Messmittel, beide am 20. August bezahlt.** Der erste, weil
+eine Regel bei 390 px ein Feld 240 px *hoch* machte, statt es breit zu machen:
+
+> **Eine Flex-Grundgrösse ist eine Breite oder eine Höhe, je nachdem, wie die
+> Reihe gerade steht.**
+
+Aufgefallen ist das nicht am Bild, sondern daran, dass zwei verschiedene Inhalte
+dieselbe Zahl ergaben. Der zweite, weil der Aufsatz nach einem `npm run build`
+auf ein Stylesheet zeigte, das es nicht mehr gab — und weitermass:
+
+> **Ein Aufsatz, der auf ein gebautes Stylesheet zeigt, zeigt nach dem nächsten
+> Bau ins Leere — und misst weiter.** Wer eine Wegwerfseite baut, baut sie im
+> selben Schritt wie die Messung.
 
 **Und ein zweites Muster, das der Umbau aus `docs/35` freigelegt hat: eine
 Ressource, die sich anlegen, aber nirgends löschen lässt.** Zertifikate konnte

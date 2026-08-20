@@ -483,7 +483,7 @@ final class SubscriptionController extends Controller
         $data = $request->validate([
             'plan_id' => ['required', Rule::exists('plans', 'id')],
             ...Quotas::overrideRules(),
-        ]);
+        ], [], Quotas::names());
 
         $before = $subscription->quota(Quota::DiskMb->value);
 

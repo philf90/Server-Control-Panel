@@ -44,7 +44,8 @@ final class ClassNameTest extends TestCase
      * die in CSS und HTML zu Hause ist (`nav`, `sr`, `sub`, `op`).
      */
     private const VOCABULARY = [
-        'account', 'active', 'after', 'area', 'arrow', 'aside', 'badge', 'band', 'bar', 'blank',
+        'account', 'action', 'active', 'after', 'area', 'arrow', 'aside', 'badge', 'band', 'bar',
+        'blank',
         'block', 'branch', 'breadcrumb', 'button', 'cell', 'check', 'choice', 'choices', 'codes',
         'code', 'comment', 'confirmation', 'content', 'critical', 'crumbs', 'cursor', 'danger', 'dependent',
         'description',
@@ -59,10 +60,12 @@ final class ClassNameTest extends TestCase
         'permissions', 'property', 'punctuation',
         'postscript', 'primary', 'progress', 'quiet', 'rail', 'release',
         'readout', 'reveal', 'right', 'row', 'rows', 'rules', 'running', 'scrim', 'scrolls',
-        'second', 'section', 'sections', 'selection', 'sheet', 'signin', 'signout', 'small',
+        'search', 'second', 'section', 'sections', 'selection', 'sheet', 'short', 'signin', 'signout',
+        'small',
         'source', 'spaced', 'split', 'sr', 'stacks', 'state', 'strength', 'string', 'sub', 'subline',
         'tag', 'tasks', 'text', 'tight', 'tile', 'tiles', 'time', 'title', 'toggle', 'tok',
-        'top', 'topbar', 'tree', 'trend', 'twig', 'unit', 'usage', 'value', 'variable', 'version', 'warn',
+        'top', 'topbar', 'tree', 'trend', 'twig', 'unit', 'usage', 'value', 'variable', 'verb',
+        'version', 'warn',
         'wide', 'who', 'with',
     ];
 

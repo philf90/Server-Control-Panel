@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { nextTick, onMounted, ref, watch } from 'vue'
 import { Head, router, useForm } from '@inertiajs/vue3'
 import { useConfirmation } from '../../Composables/useConfirmation'
 import FormErrors from '../../Components/FormErrors.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import { bringIntoView } from '../../scroll'
+import { canGenerate, generate } from '../../ssh/openssh'
 
 interface Key {
   id: number
@@ -48,6 +51,129 @@ function eintragen(): void {
     preserveScroll: true,
     onSuccess: () => form.reset(),
   })
+}
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Einen Schlüssel erzeugen — Wunsch 2 des Betreibers (`docs/64 §5`)
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * **Wo sucht jemand diese Handlung?** Dort, wo er nach einem Schlüssel gefragt
+ * wird — also in diesem Bereich, neben dem Feld, in das er ihn sonst einfügt.
+ * Nicht in einem eigenen Bereich darunter: Wer keinen Schlüssel hat, merkt es
+ * genau hier, und die Antwort gehört an dieselbe Stelle wie die Frage.
+ *
+ * Das ist die Frage aus `CLAUDE.md`, gestellt vor dem Merkmal und nicht danach
+ * — dreimal hat ihr Fehlen einen Abnahmelauf gekostet (`docs/55` Befund 8,
+ * `docs/59` Befund 19, `docs/64` Befund 13).
+ *
+ * **Der private Teil entsteht im Browser und geht nie an den Server.** Warum
+ * das keine Vorsichtsmassnahme, sondern die Bauart ist, steht in
+ * `resources/js/ssh/openssh.ts`.
+ */
+
+/** Ob dieser Browser es kann — `null`, solange die Frage noch läuft. */
+const kannErzeugen = ref<boolean | null>(null)
+
+onMounted(async () => { kannErzeugen.value = await canGenerate() })
+
+/**
+ * Der private Teil, einmal und nur hier.
+ *
+ * **Er steht in einem `ref` und in keinem Formular.** Eine Flash-Meldung läge
+ * in der Tabelle `sessions`, eine Vorgangsantwort in `operations.result`
+ * (`docs/64 §5.2`) — beide schreiben auf die Platte, und beide überleben mehr,
+ * als einem lieb ist.
+ */
+const privaterTeil = ref<string | null>(null)
+const dateiname = ref('id_ed25519')
+const erzeugt = ref(false)
+const erzeugtBlock = ref<HTMLElement | null>(null)
+
+/** Eine Meldung über den Browser — kein Feldfehler, also auch kein roter Rand. */
+const fehler = ref<string | null>(null)
+
+/**
+ * Erzeugen und im selben Zug eintragen.
+ *
+ * **Warum nicht erst erzeugen und dann eintragen lassen.** Der private Teil
+ * wird genau einmal gezeigt; wer ihn sieht, ohne dass der öffentliche beim
+ * Server angekommen ist, hält einen Schlüssel für ein Schloss, das es nicht
+ * gibt. Gezeigt wird er deshalb erst nach `onSuccess`.
+ *
+ * `preserveState` hält die Komponente am Leben, sonst wäre `privaterTeil` nach
+ * der Antwort fort.
+ */
+async function erzeugen(): Promise<void> {
+  if (erzeugt.value || kannErzeugen.value !== true) {
+    return
+  }
+
+  erzeugt.value = true
+
+  try {
+    const paar = await generate(bemerkung())
+
+    form.key = paar.publicKey
+
+    form.post(`/subscriptions/${props.subscription.id}/sftp/keys`, {
+      preserveScroll: true,
+      preserveState: true,
+      onSuccess: () => {
+        privaterTeil.value = paar.privateKey
+        form.reset()
+      },
+      onError: () => { erzeugt.value = false },
+      onFinish: () => { if (privaterTeil.value === null) { erzeugt.value = false } },
+    })
+  } catch {
+    erzeugt.value = false
+    fehler.value = 'Der Schlüssel liess sich in diesem Browser nicht erzeugen.'
+  }
+}
+
+/**
+ * Die Bemerkung im Schlüssel — sie steht später in `authorized_keys`.
+ *
+ * Sie ist keine Kennung und wird von niemandem geprüft; sie hilft dem Kunden,
+ * seine eigenen Dateien auseinanderzuhalten. Alles, was die Zeile zerreissen
+ * könnte, fällt heraus.
+ */
+function bemerkung(): string {
+  const roh = `${form.label} ${props.subscription.system_user ?? ''}`.trim()
+
+  return roh.replace(/\s+/g, ' ').slice(0, 100)
+}
+
+/*
+ * **Der Bereich holt sich ins Bild, sobald es ihn gibt.**
+ *
+ * Er hängt am Zustand und nicht am Klick: Zwischen dem Druck auf „Schlüssel
+ * erzeugen" und dem Erscheinen liegt eine Antwort des Servers, und ohne sie
+ * gibt es nichts zu zeigen. Bei 390 px steht der Bereich sonst unterhalb des
+ * Formulars — also ausserhalb des Bildes, und der Kunde sieht den einzigen
+ * Moment nicht, in dem sein privater Schlüssel dasteht.
+ */
+watch(privaterTeil, (wert) => {
+  if (wert !== null) {
+    void nextTick(() => bringIntoView(erzeugtBlock.value))
+  }
+})
+
+/** Die Datei anbieten, ohne dass sie über den Server geht. */
+function herunterladen(): void {
+  if (privaterTeil.value === null) {
+    return
+  }
+
+  const url = URL.createObjectURL(new Blob([privaterTeil.value], { type: 'application/octet-stream' }))
+  const a = document.createElement('a')
+
+  a.href = url
+  a.download = dateiname.value
+  a.click()
+
+  URL.revokeObjectURL(url)
 }
 
 // Kein `confirm()`: Safari darf die Dialoge einer Seite abschalten, und danach
@@ -329,10 +455,80 @@ function problem(): Link | null {
             Angenommen werden ed25519, ECDSA und RSA ab 2048 Bit.
           </p>
 
+          <!--
+            **Der Satz steht vor dem Knopf und nicht nach dem Erzeugen.**
+            Danach gelesen ist er eine Feststellung; davor gelesen ist er die
+            Auskunft, die man braucht, um sich vorzubereiten. Derselbe
+            Unterschied wie bei Befund 12 der Cronseite.
+          -->
+          <p v-if="kannErzeugen === true" class="notice neutral">
+            <span>
+              Haben Sie keinen Schlüssel, erzeugt ihn dieser Browser — der private Teil
+              entsteht auf Ihrem Gerät und wird <b>einmal</b> zum Herunterladen angeboten.
+              Danach kennt ihn niemand mehr, auch dieses Panel nicht. Wer ihn verliert,
+              erzeugt einen neuen und entfernt den alten.
+            </span>
+          </p>
+
+          <!--
+            Ein Browser ohne Ed25519 in WebCrypto. Kein roter Rand an einem
+            Feld: Das Feld ist nicht falsch, der Browser kann es nicht.
+
+            > **Ein roter Rand am Feld behauptet, das Feld sei falsch.**
+          -->
+          <p v-else-if="kannErzeugen === false" class="notice neutral">
+            <span>
+              Dieser Browser kann keine Schlüssel erzeugen. Fügen Sie oben einen ein —
+              erzeugen lässt er sich auf Ihrem Rechner mit
+              <span class="ident">ssh-keygen -t ed25519</span>.
+            </span>
+          </p>
+
+          <p v-if="fehler !== null" class="notice critical"><span>{{ fehler }}</span></p>
+
           <div class="button-row">
             <button type="submit" class="button primary" :disabled="form.processing">Eintragen</button>
+            <button
+              v-if="kannErzeugen === true"
+              type="button"
+              class="button"
+              :disabled="form.processing || erzeugt"
+              @click="erzeugen"
+            >
+              Schlüssel erzeugen
+            </button>
           </div>
         </form>
+
+        <!--
+          **Der private Teil, einmal.** Er steht erst hier, wenn der öffentliche
+          beim Server angekommen ist — sonst hielte der Kunde einen Schlüssel
+          für ein Schloss, das es nicht gibt.
+        -->
+        <div v-if="privaterTeil !== null" ref="erzeugtBlock" class="block" tabindex="-1">
+          <p class="notice warn">
+            <span>
+              Das ist Ihr <b>privater</b> Schlüssel. Er wird hier zum einzigen Mal gezeigt:
+              Laden Sie ihn herunter oder kopieren Sie ihn jetzt. Geben Sie ihn niemandem —
+              wer ihn hat, kommt an Ihre Dateien.
+            </span>
+          </p>
+
+          <label class="field wide">
+            <span>Privater Schlüssel</span>
+            <textarea :value="privaterTeil" rows="9" readonly spellcheck="false" class="code short" />
+          </label>
+
+          <p class="section-note">
+            Auf Ihrem Rechner gehört er nach <span class="ident">~/.ssh/{{ dateiname }}</span>
+            und braucht dort die Rechte <span class="ident">600</span>. Danach meldet
+            <span class="ident">sftp</span> sich damit an.
+          </p>
+
+          <div class="button-row">
+            <button type="button" class="button primary" @click="herunterladen">Herunterladen</button>
+          </div>
+        </div>
       </section>
     </div>
   </PanelLayout>

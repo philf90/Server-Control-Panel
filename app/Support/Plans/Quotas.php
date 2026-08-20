@@ -106,6 +106,51 @@ final class Quotas
     }
 
     /**
+     * Die deutschen Namen zu den Feldern aus {@see self::rules()} und
+     * {@see self::overrideRules()}.
+     *
+     * **Warum nicht in `lang/de/validation.php`.** Diese Feldnamen entstehen
+     * erst beim Ausführen, aus {@see Quota::cases()} und {@see Feature::cases()}
+     * — eine Abschrift in der Sprachdatei wäre eine zweite Liste, und die
+     * zweite ist die, die beim nächsten Kontingent vergessen wird. Der Name
+     * kommt deshalb aus derselben Aufzählung wie die Regel selbst; das ist
+     * dieselbe Aufteilung, aus der diese Klasse überhaupt entstanden ist.
+     *
+     * Ohne sie liest der Betreiber „Das Feld quotas.disk mb muss vorhanden
+     * sein" (`docs/64`, Befund 15).
+     *
+     * @return array<string,string>
+     */
+    public static function names(): array
+    {
+        $names = [
+            'quotas' => 'Kontingente',
+            'features' => 'Merkmale',
+            'overrides' => 'Übersteuerungen',
+        ];
+
+        foreach (Quota::cases() as $quota) {
+            // Beide Präfixe, weil beide Regelsätze dieselben Kontingente
+            // benennen — am Plan `quotas.`, am Abonnement `overrides.`.
+            foreach (['quotas.', 'overrides.'] as $prefix) {
+                $names[$prefix.$quota->value] = $quota->label();
+
+                if ($quota->isSelection()) {
+                    // Der Eintrag für die einzelne Auswahl. Ohne ihn steht dort
+                    // „Das Feld quotas.php versions.0 …".
+                    $names[$prefix.$quota->value.'.*'] = $quota->label();
+                }
+            }
+        }
+
+        foreach (Feature::cases() as $feature) {
+            $names['features.'.$feature->value] = $feature->label();
+        }
+
+        return $names;
+    }
+
+    /**
      * Aus einer Formulareingabe die Übersteuerungen eines Abonnements.
      *
      * **Was fehlt, bleibt weg.** Das ist der Unterschied zu

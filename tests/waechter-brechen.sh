@@ -11947,6 +11947,46 @@ pruefe "  … zurückgesetzt wieder grün" \
   CronPageReachTest::test_every_cron_route_is_guarded passed
 
 echo
+echo "── RootElementTest: @inertia im Kopf statt @inertiaHead ──"
+#
+# Befund 17 aus docs/64, woertlich wiederhergestellt: Die Direktive setzt ein
+# <div>, im <head> ist das nicht erlaubt, und das Dokument traegt danach zwei
+# Elemente mit id="app".
+vorher_datei resources/views/app.blade.php
+python3 - <<'PY2'
+p = 'resources/views/app.blade.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('    @inertiaHead\n</head>', '    @inertia\n</head>', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/views/app.blade.php "zwei Wurzelelemente" &&
+pruefe "zwei Wurzelelemente" \
+  RootElementTest::test_the_root_element_is_set_once_and_in_the_body failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  RootElementTest::test_the_root_element_is_set_once_and_in_the_body passed
+
+echo
+echo "── RootElementTest: der Kopf verliert seine Direktive ──"
+#
+# Zehn Seiten binden die <Head>-Komponente ein. Ohne @inertiaHead gibt es
+# keinen Ort, an dem ihre Ausgabe landen koennte — heute faellt das nicht auf,
+# weil ohne serverseitiges Rendern nichts ausgegeben wird.
+vorher_datei resources/views/app.blade.php
+python3 - <<'PY2'
+p = 'resources/views/app.blade.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('    @inertiaHead\n</head>', '</head>', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/views/app.blade.php "Kopf ohne Direktive" &&
+pruefe "Kopf ohne Direktive" \
+  RootElementTest::test_the_head_carries_its_own_directive failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  RootElementTest::test_the_head_carries_its_own_directive passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

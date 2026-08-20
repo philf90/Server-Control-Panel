@@ -15917,3 +15917,51 @@ auf ihre Zusage.
 
 Er liest jetzt zuerst das eigene Tag. Sechs Brüche im Bruchskript, alle
 gegengeprüft.
+
+### P6 Schritt 12 — Befund 17: das Panel hatte zwei Wurzelelemente, und es lief nur durch Glück
+
+**Gefunden in der zweiten Bilderrunde** (`docs/64`, Befund 17), und zwar nicht
+durch Nachdenken: Eine Gegenprobe zu einer Zahl, die sich als Sitzungsrest
+entpuppte, hat `doppelteKennung: ["app"]` gemeldet.
+
+`resources/views/app.blade.php` rief **`@inertia` zweimal** — einmal im Kopf und
+einmal im Rumpf. In den Kopf gehört `@inertiaHead`; die beiden sehen sich
+ähnlich und tun Entgegengesetztes. Die eine setzt Kopfzeilen, die andere das
+Wurzelelement der Anwendung.
+
+**Die Folge war grösser als eine doppelte Kennung.** Ein `<div>` ist im `<head>`
+nicht erlaubt: Der Parser schliesst den Kopf an dieser Stelle und beginnt den
+Rumpf. Die Anwendung hing damit in dem Element, das nie eines sein sollte —
+`getElementById` liefert das erste —, und das `<div>` aus dem Rumpf, also das
+gemeinte, blieb leer stehen.
+
+**Aufgefallen ist es in neun Monaten nicht**, weil die falsche Zeile die
+**letzte** vor `</head>` war. Stünde nach ihr noch ein `<link>` oder ein
+`<meta>`, läge das im Rumpf und wäre wirkungslos — Favicon, Manifest,
+Farbschema.
+
+> **Ein Fehler, der nur deshalb nichts kaputt macht, weil er an der letzten
+> Stelle steht, ist kein kleiner Fehler — er ist einer mit Glück.**
+
+**Zwei Wächter, und der zweite ist der stärkere.** `Tests\Unit\RootElementTest`
+liest die Vorlage: `@inertia` genau einmal und im Rumpf, `@inertiaHead` im Kopf.
+`Tests\Feature\RootElementTest` zählt, was beim Kunden ankommt — genau ein
+`id="app"`, auf einer Seite mit und einer ohne Anmeldung.
+
+> **Ein Wächter über die Absicht findet, was jemand falsch geschrieben hat. Ein
+> Wächter über das Ergebnis findet auch, was niemand geschrieben hat.**
+
+Niemand hat „zwei Wurzelelemente" geschrieben. Geschrieben wurde eine falsche
+Direktive; das zweite Element war die Folge. Ein Wächter, der nur nach Ursachen
+sucht, kennt immer nur die Ursachen, an die jemand gedacht hat.
+
+**Und der Wächter über die Vorlage hat beim ersten Lauf sich selbst gefangen:**
+Er fand drei `@inertia` statt einem — zwei davon in dem Kommentar, der über der
+Zeile erklärt, warum sie dort steht.
+
+> **Ein Wächter, der den Quelltext liest, liest auch, was über ihn geschrieben
+> steht.**
+
+Er entfernt Blade-Kommentare jetzt vorher, und zwar durch Leerzeichen gleicher
+Länge — er vergleicht Stellen mit der von `</head>`. Zwei Brüche im
+Bruchskript, beide von Hand gegengeprüft.

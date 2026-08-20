@@ -1339,7 +1339,7 @@ Zeile hier nicht als gemessen.
 | 6 | SFTP-Zugang | — | — | — | — |
 | 7 | Cron, Auswahl | — | — | — | — |
 | 8 | Cronjobs | **0** | **0** | **0** | **0** |
-| 9 | Läufe | — | — | — | — |
+| 9 | Läufe | **0** | **0** | **0** | **0** |
 
 #### Ansicht 8 — Cronjobs, gemessen am 20. August gegen `rc.19`
 
@@ -1463,6 +1463,42 @@ Das gehört gemessen und nicht geraten — der Aufsatz im Container trifft die
 echte Seite aufs Pixel, und die Frage „welche von zwei Anordnungen ist ruhiger"
 lässt sich an Höhen und Fugen zeigen. Entschieden wird sie beim Beheben, nicht
 hier.
+
+#### Ansicht 9 — Läufe, Teil 1: Job A mit Ausgabe (`/subscriptions/140/cron/8/runs`)
+
+| Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` |
+|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | `thead` **304** · `tr` **276** | leer |
+| 390 dunkel | 0 | **200/200** | `thead` **304** · `tr` **276** | leer |
+| 1440 hell | 0 | **200/200** | leer | `.scrolls` **17**, `darf: true` |
+| 1440 dunkel | 0 | **200/200** | leer | `.scrolls` **17**, `darf: true` |
+
+**Die Befunde 7 und 8 sind im Bild erledigt.** Der Ausgabekasten hat unten Luft
+zur Trennlinie, die Marke „erfolgreich" steht frei zwischen den Linien. Beide
+hingen an derselben Zeile — `td` ohne senkrechte Polsterung —, und beide sind
+mit `padding: 6px 14px` weg.
+
+#### Die 2 px am Roller sind die Dichtestufe, und zwar auf den Pixel ausgerechnet
+
+Im ersten Lauf rollte dieselbe Laufliste bei 1440 px um **19** px, jetzt um
+**17**. Zwei Pixel weniger, in beiden Themes, bei unverändertem Inhalt.
+
+Das ist **Befund 6**, und die Rechnung geht auf: `.sections` ist eine Flexbox
+mit `gap: var(--bereich-gap)`, und die Dichtestufe `customer` ist von
+`38px 52px` auf `34px 48px` gegangen — der **Spaltenabstand** also um 4 px
+kleiner. Beide Bereiche dieser Seite sind gewöhnliche `.section` mit
+`flex: 1 1 var(--bereich-min)`, teilen sich den frei gewordenen Platz also zu
+gleichen Teilen: **2 px je Spalte.** Genau um diese 2 px rollt die Tabelle
+weniger.
+
+> **Eine Marke, die für den senkrechten Abstand geändert wurde, taucht waagerecht
+> wieder auf — und die Zahl sagt, ob sie angekommen ist.**
+
+Das ist kein Fund, sondern eine Quittung: Ohne diese 2 px wäre offen, ob die
+Dichtestufe auf dem Server überhaupt greift. Bei 390 px ist sie folgerichtig
+**nicht** zu sehen — dort steht nur ein Bereich je Reihe, und ein Spaltenabstand
+ohne zweite Spalte wirkt nicht. `thead` 304 und `tr` 276 stehen deshalb
+unverändert.
 
 ---
 

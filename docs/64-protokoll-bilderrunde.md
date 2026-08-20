@@ -1978,6 +1978,9 @@ mitgemessen worden und stehen dort: **„ohne Schlüssel"** (Ansicht 6),
 | Dateimanager — „Rechte" an einer Zeile | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
 | Dateimanager — „Umbenennen" an einer Zeile | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
 | Dateimanager — langer Name in den Krümeln | 390 dunkel | 0 | **200/200** | `thead` **350** · `tr` **322** |
+| Editor — „zu gross" (`gross.bin`) | 390 dunkel | 0 | **200/200** | leer |
+| Editor — „binär" (`binaer.dat`) | 390 dunkel | 0 | **200/200** | leer |
+| Editor — nur lesbar (`/conf/hinweis.txt`) | 390 dunkel | 0 | **200/200** | leer, `rollt`: `.cm-scroller` **189** |
 
 #### Der lange Verzeichnisname in den Krümeln — und eine Zahl, die eine Erklärung prüft
 
@@ -2001,6 +2004,31 @@ dazukamen, fehlen hier wieder.
 
 **Damit sind alle Zustände des Dateimanagers gemessen** — sieben Lagen, alle mit
 `dokument: 0` und gültiger Gegenprobe.
+
+#### Die drei Editor-Zustände — und der erste fremde Roller dieser Runde
+
+„Zu gross" und „binär" zeigen beide nur eine Meldung und kein Feld; `schiebt`
+und `rollt` sind leer. Der dritte ist der interessante.
+
+**Bei der nur lesbaren Datei rollt `.cm-scroller` um 189 px**, mit `darf: true`.
+Das ist der Rollbehälter von CodeMirror — der erste Eintrag dieser Runde, der
+keinem Baustein aus `app.css` gehört. Bei Ansicht 3 (`klein.txt`) war `rollt`
+leer; der Unterschied ist die Zeile selbst: „Diese Datei gehört root. Der Kunde
+darf sie …" ist länger als das Feld breit ist.
+
+Dass die Messung ihn richtig einordnet, liegt daran, dass sie nach dem
+**berechneten Stil** fragt und nicht nach einer Liste bekannter Klassen. Ein
+Behälter mit `overflow-x: auto` darf rollen, gleich wer ihn gebaut hat.
+
+> **Eine Messung, die nach der Eigenschaft fragt statt nach dem Namen, kennt
+> auch, was sie nicht kennt.**
+
+**Und der Knopf „Speichern" steht dort abgeschaltet und nicht nur blass.**
+`Files/Edit.vue` bindet ihn an
+`!props.can.edit || !(props.entry?.writable ?? false)`. Der Satz daneben —
+„sie lässt sich lesen und nicht ändern" — und der Zustand des Knopfes sagen
+dasselbe. Nachgesehen, weil ein Knopf, der etwas verspricht, das er nicht kann,
+genau die Sorte Fehler wäre, die dieser Lauf sucht.
 
 #### Befund 10 ist auf dem echten Server bestätigt
 

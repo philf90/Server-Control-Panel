@@ -1500,6 +1500,36 @@ Dichtestufe auf dem Server überhaupt greift. Bei 390 px ist sie folgerichtig
 ohne zweite Spalte wirkt nicht. `thead` 304 und `tr` 276 stehen deshalb
 unverändert.
 
+#### Ansicht 9 — Teil 2: Job B mit Rückgabewert 3 (`/subscriptions/140/cron/9/runs`)
+
+| Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` |
+|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | `thead` **304** · `tr` **276** | leer |
+| 390 dunkel | 0 | **200/200** | `thead` **304** · `tr` **276** | leer |
+| 1440 hell | 0 | **200/200** | leer | **leer** |
+| 1440 dunkel | 0 | **200/200** | leer | **leer** |
+
+**Vier Zeilen, die dem ersten Lauf aufs Wort gleichen** — dort standen dieselben
+304 · 276 und dieselben zwei leeren Lagen. Dass bei 1440 px nichts rollt, ist
+der Unterschied zu Job A: Job B hat keine Ausgabe, in der Spalte steht „keine
+Ausgabe", und damit passt die Tabelle in ihre Hälfte.
+
+**Und die Quittung aus Teil 1 kann hier gar nicht erscheinen.** Die 2 px, die
+der engere Spaltenabstand jeder Hälfte schenkt, sind nur an einer Tabelle
+abzulesen, die überläuft. Diese läuft nicht über — sie hat vorher wie nachher
+Platz.
+
+> **Eine Änderung, die man an einem Überlauf misst, ist dort unsichtbar, wo
+> nichts überläuft — und das ist kein Gegenbeweis.**
+
+**Damit belegt an dieser Seite keine einzige Zahl die Behebung von Befund 8.**
+Der Beleg ist das Bild: Die Marke „fehlgeschlagen" steht frei zwischen den
+Linien statt an der oberen zu kleben, und „Rückgabewert 3" hat nach unten Luft.
+Gemessen im Container waren es 1 → 7 px.
+
+> **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
+> Keines von beiden ersetzt das andere.**
+
 ---
 
 ### 4.2 Die Zustände

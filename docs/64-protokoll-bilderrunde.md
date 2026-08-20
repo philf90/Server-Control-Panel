@@ -1336,7 +1336,7 @@ Zeile hier nicht als gemessen.
 | 3 | Editor | **0** | **0** | **0** | **0** |
 | 4 | Suche | **0** | **0** | **0** | **0** |
 | 5 | SFTP, Auswahl | **0** | **0** | **0** | **0** |
-| 6 | SFTP-Zugang | — | — | — | — |
+| 6 | SFTP-Zugang | **0**¹ | **0**¹ | **0**¹ | **0**¹ |
 | 7 | Cron, Auswahl | — | — | — | — |
 | 8 | Cronjobs | **0** | **0** | **0** | **0** |
 | 9 | Läufe | **0** | **0** | **0** | **0** |
@@ -1606,6 +1606,51 @@ Dateimanagers.
 
 **Fünf Ansichten ohne einen einzigen Fremdeintrag.** Im ersten Lauf war das eine
 Auszeichnung dieser einen Seite; in dieser Runde ist es der Normalfall.
+
+#### Ansicht 6 — SFTP-Zugang (`/subscriptions/140/sftp`), **ohne Schlüssel**
+
+| Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` |
+|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | `thead` **342** · `tr` **314** | leer |
+| 390 dunkel | 0 | **200/200** | `thead` **342** · `tr` **314** | leer |
+| 1440 hell | 0 | **200/200** | leer | **leer** |
+| 1440 dunkel | 0 | **200/200** | leer | **leer** |
+
+¹ **Gemessen ist hier nicht der Grundzustand, sondern der Zustand „ohne
+Schlüssel".** Im Bestand steht „Kein Schlüssel eingetragen"; die Schlüsseltabelle
+hat eine Kopfzeile und keine Zeile. Der Grundzustand mit Schlüssel ist in dieser
+Runde **nicht** gemessen.
+
+Bei 390 px ändert das nichts — `thead` 342 und `tr` 314 sind die
+Spaltenüberschriften und stehen unverändert. Bei 1440 px ändert es alles.
+
+#### Meine Vorhersage von 215 px ist nicht bestätigt, und auch nicht widerlegt
+
+Vor der Messung stand hier: Der Roller müsste von **217** auf rund **215** px
+gehen, weil der engere Spaltenabstand der Dichtestufe jeder Hälfte 2 px
+schenkt — dieselbe Rechnung, die bei Ansicht 9 Teil 1 aufging.
+
+Gemessen ist stattdessen: **`rollt` ist leer.**
+
+Das ist kein Gegenbeweis, sondern ein anderer Gegenstand. Die 217 px des ersten
+Laufs entstanden an einem `SHA256:`-Fingerabdruck, der neben Bezeichnung, Art
+und Aktion keinen Platz hat. Ohne Schlüssel gibt es keinen Fingerabdruck, und
+eine Tabelle aus vier Überschriften passt in ihre Hälfte.
+
+Das Protokoll kennt den Satz dazu schon aus dem ersten Lauf (§1b): **Der Roller
+kommt und geht mit dem Inhalt, nicht mit dem Bestand.** Hier ist er gegangen.
+
+> **Eine Vorhersage, die einen anderen Zustand antrifft als den vorhergesagten,
+> ist weder bestätigt noch widerlegt — sie ist ungeprüft, und das ist ein
+> dritter Ausgang.**
+
+**Damit steht die Rechnung von Ansicht 9 weiter auf einer einzigen Messung.**
+Sie zu prüfen kostet einen Schlüssel: Wird einer eingetragen, ist der
+Grundzustand da, und bei 1440 px muss dort eine Zahl nahe 215 stehen.
+
+**Und das Register meldet hier zwei Einträge**, beide der Sorte aus Ansicht 4:
+die Felder „Bezeichnung" und „Öffentlicher Schlüssel" tragen weder `id` noch
+`name`. Zwei der 57 — dieselbe Beobachtung, kein neuer Fund.
 
 #### Ansicht 8 — Cronjobs, gemessen am 20. August gegen `rc.19`
 

@@ -1150,6 +1150,17 @@ Testen berücksichtigen:
   > **Eine Prüfung, die nur nachsieht, woran man gerade denkt, prüft das
   > Erinnerungsvermögen.**
 
+  **Und derselbe Satz noch einmal am 20. August, an `BreakScriptTest`.** Der
+  Wächter über die Wächter läuft hier — er erbt nur von `TestCase`. Gefahren
+  worden sind die 46 Fälle der Wächter, die in der Bilderrunde **entstanden**
+  sind; dass eine erweiterte Regel in `app.css` einem **bestehenden** Eingriff
+  seinen Text wegnimmt, hat erst die CI gemeldet. Wer eine Regel anfasst, fährt
+  `BreakScriptTest` mit, und zwar unabhängig davon, ob dabei ein Wächter
+  entstanden ist.
+
+  > **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
+  > gefahren — man denkt an das Gebaute und nicht an das Berührte.**
+
   **Was das Gestell nicht kann, zählt es nach Art** statt es „übersprungen" zu
   nennen: fehlende Klassen, `setUp()`, Datenlieferanten, `use App\`. Gemessen
   468 grün, 1 rot, 263 solcher Löcher. Der Grund für die Aufzählung ist ein

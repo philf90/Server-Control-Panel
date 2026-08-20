@@ -7882,12 +7882,22 @@ echo "── BlockSpacingTest: eine Meldung unter der Blätterleiste ──"
 # Der fünfte Fall, und er hat die Frage dieses Wächters umgestellt: nicht mehr
 # „wo steht eine Knopfreihe?", sondern „welche zwei bündigen Bausteine stehen
 # aneinander?"
+#
+# **Der Eingriff ist am 20. August umgezogen, und zwar nicht freiwillig.** Die
+# Bilderrunde hat der Liste `.section-note` hinzugefügt und drei Zeilen mit
+# `.quiet` daruntergesetzt; damit endete der gegriffene Text nicht mehr auf
+# ` {`, sondern auf `,` — und der Eingriff fand seinen Text nicht mehr. Gegriffen
+# wird deshalb jetzt nur noch das Stück um `.pager`, das die Regel trägt, und
+# nicht ihr Anfang und ihr Ende.
+#
+# > **Ein Eingriff, der die ganze Zeile greift, zieht mit jedem Eintrag um, der
+# > dazukommt.**
 vorher_datei resources/css/app.css
 python3 - <<'PY2'
 p = 'resources/css/app.css'
 s = open(p, encoding='utf-8').read()
-s = s.replace(":is(.field, .hint, .error, .scrolls, .pager, .cell-value, .button-row) + .notice {",
-              ":is(.field, .hint, .error, .scrolls, .cell-value, .button-row) + .notice {", 1)
+s = s.replace(".pager, .cell-value, .button-row, .section-note) + .notice,",
+              ".cell-value, .button-row, .section-note) + .notice,", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/css/app.css "Meldung unter der Blätterleiste" &&

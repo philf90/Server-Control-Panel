@@ -1058,6 +1058,34 @@ das, was es sein soll.
 Das Kriterium ist seitdem `dokument: 0` mit gültiger Gegenprobe; jeder Eintrag
 in `schiebt` wird einzeln beurteilt und hier benannt.
 
+### Ein Eingriff des Bruchskripts ist mit seiner Regel umgezogen
+
+**Gefunden hat es die CI, und hier wäre es zu finden gewesen.** Die Behebung der
+Befunde 7 und 8 hat der Liste vor `+ .notice` einen Eintrag hinzugefügt und drei
+Zeilen mit `.quiet` daruntergesetzt. Der Eingriff aus `tests/waechter-brechen.sh`
+griff aber die **ganze Zeile** — vom `:is(` bis zum ` {` — und fand seinen Text
+danach nicht mehr. Beide roten Läufe des ersten Anlaufs sind dieser eine
+Fehlschlag: `BreakScriptTest::test_every_intervention_still_grips_its_file`, bei
+2075 grünen Fällen daneben.
+
+> **Ein Eingriff, der die ganze Zeile greift, zieht mit jedem Eintrag um, der
+> dazukommt.**
+
+Gegriffen wird jetzt nur noch das Stück um `.pager` — das ist der Teil, der die
+Regel trägt. Nachgemessen: heil `4 grün / 0 rot`, mit dem Eingriff
+`3 grün / 1 rot`, und die rote Zeile nennt `test_every_seam_between_two_flush_blocks_is_covered`
+— genau den Fall, auf den der Eingriff zeigt.
+
+**Und der zweite Teil der Lehre ist teurer als der erste:** `BreakScriptTest`
+erbt von `PHPUnit\Framework\TestCase` und läuft damit **in diesem Container**,
+im framework-freien Gestell. Ich habe die 46 Fälle der neuen und geänderten
+Wächter gefahren und den Wächter über die Wächter nicht — weil ich an die
+Regeln gedacht habe, die ich gebaut hatte, und nicht an die, die ich unterwegs
+verändert habe.
+
+> **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
+> gefahren — man denkt an das Gebaute und nicht an das Berührte.**
+
 ---
 
 ## 2b. Befund 11 — `.quiet` gilt nur in einer Tabelle

@@ -1973,6 +1973,7 @@ mitgemessen worden und stehen dort: **„ohne Schlüssel"** (Ansicht 6),
 | Dateimanager — Packen, mit Namensfeld | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
 | Dateimanager — „Verzeichnis anlegen" offen | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
 | Dateimanager — „Datei anlegen" offen | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
+| Dateimanager — „Datei hochladen" offen | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
 
 **Beide Kopfleistenformulare stehen ganz im Bild**, mit der berichtigten Zeile
 gemessen und in beiden Fällen derselbe Wert:
@@ -1985,6 +1986,21 @@ Oberkante 476, Unterkante 602, Fenster 844 — 242 px Luft nach unten. **Befund 
 gilt für die Kopfleiste nicht**, und das ist damit gemessen statt vermutet. Der
 Unterschied zum Zielbaum ist die Richtung: Die Kopfleiste steht **unter** ihrem
 Griff, der Zielbaum **über** seinem.
+
+**Und das Hochladen beantwortet eine Frage, die keine unserer Regeln stellen
+kann.** Das Feld ist ein `<input type="file">`; seinen Knopf und dessen
+Beschriftung — hier „Dateien auswählen · Keine ausgewählt" — zeichnet der
+Browser selbst, in seiner Sprache und in seiner Breite. `app.css` erreicht davon
+nichts.
+
+Gemessen bleibt er bei 390 px innerhalb der Feldbreite, `dokument` ist 0.
+
+> **Ein Bedienelement, das der Browser zeichnet, hält sich an keine Marke — dass
+> es passt, ist eine Messung und keine Zusage.**
+
+Wörtlich heisst das: Diese Zeile gilt für Chromium in dieser Fassung und in
+dieser Sprache. Ein Browser mit einer längeren Beschriftung ist ein anderer
+Messwert, und niemand im Panel kann ihn kürzen.
 
 **Befund 9 ist auf den Pixel bestätigt.** Der Versatz zwischen der Unterkante
 des Knopfes „Packen" und der des Namensfeldes:

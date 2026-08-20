@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { Head, Link, router, useForm } from '@inertiajs/vue3'
 import { useConfirmation } from '../../Composables/useConfirmation'
 import FormErrors from '../../Components/FormErrors.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import { bringIntoView } from '../../scroll'
 
 interface Job {
   id: number
@@ -81,6 +82,64 @@ const ausdruck = computed(
   () => `${form.minute} ${form.hour} ${form.day_of_month} ${form.month} ${form.day_of_week}`,
 )
 
+/**
+ * Der Umschalter auf die Eingabe des ganzen Ausdrucks.
+ *
+ * **Ein Kästchen und kein neuer Baustein.** Ein Umschalter mit zwei
+ * beschrifteten Hälften wäre eine neue Klasse in `app.css`, eine neue Regel und
+ * ein neuer Wächter — für einen Zustand, der zwei Werte hat. `.toggle` steht auf
+ * dieser Seite schon (der Schalter „Aktiv"), seine Geometrie ist bei 390 px
+ * gemessen, und ein Kästchen *ist* ein Schalter zwischen zwei Zuständen.
+ */
+const experte = ref(false)
+
+/**
+ * Der ganze Ausdruck als **Sicht** auf die fünf Felder — nicht als zweiter Wert.
+ *
+ * **Das ist die Bedingung, unter der es dieses Feld gibt.** Ein eigener
+ * Speicherwert „Ausdruck" neben den Feldern wäre eine zweite Fassung desselben
+ * Zeitplans, und die zweite ist die, die veraltet — derselbe Grund, aus dem die
+ * Schnellwahl die Felder füllt, statt sich zu merken, dass „täglich" gewählt
+ * wurde. Gespeichert wird weiter, was in den fünf Feldern steht; der Server
+ * bekommt kein neues Feld und braucht keine zweite Prüfung.
+ *
+ * > **Eine Zusammenfügung darf doppelt stehen, eine Regel nicht.**
+ *
+ * **Was bei zu wenigen oder zu vielen Stücken passiert, ist Absicht.** Fehlende
+ * Felder werden leer, überzählige landen im letzten — und beides weist der
+ * Server ab, mit dem Satz, den er auch sonst schreibt. Die Alternative wäre,
+ * hier zu urteilen: Dann stünde die Regel zweimal da, und der Kunde bekäme je
+ * nach Weg eine andere Antwort.
+ *
+ * > **Eine Eingabe, die stillschweigend etwas wegwirft, macht aus einem Fehler
+ * > des Benutzers ein Rätsel.**
+ */
+const freierAusdruck = computed({
+  get: (): string => ausdruck.value,
+  set: (wert: string): void => {
+    const teile = wert.trim() === '' ? [] : wert.trim().split(/\s+/)
+
+    form.minute = teile[0] ?? ''
+    form.hour = teile[1] ?? ''
+    form.day_of_month = teile[2] ?? ''
+    form.month = teile[3] ?? ''
+    form.day_of_week = teile.slice(4).join(' ')
+  },
+})
+
+/**
+ * Ob der Server an *irgendeinem* der fünf Felder etwas auszusetzen hatte.
+ *
+ * In der Expertenansicht gibt es die fünf Felder nicht, also kann keines von
+ * ihnen rot werden. Der Satz dazu steht ohnehin oben in der Zusammenfassung
+ * (`docs/19 §6`); das eine Feld trägt nur `aria-invalid`, damit die
+ * Vorlesesoftware es findet.
+ */
+const zeitplanFalsch = computed(
+  () => ['minute', 'hour', 'day_of_month', 'month', 'day_of_week']
+    .some((feld) => Boolean(form.errors[feld as 'minute'])),
+)
+
 const voll = computed(() => props.quota.limit !== null && props.quota.used >= props.quota.limit)
 
 function bearbeiten(job: Job): void {
@@ -91,6 +150,30 @@ function bearbeiten(job: Job): void {
   Object.assign(form, job.schedule)
   form.clearErrors()
 }
+
+const formBlock = ref<HTMLElement | null>(null)
+
+/*
+ * **Der Bereich, der aufgeht, holt sich ins Bild** — hier nach *unten*.
+ *
+ * „Ändern" steht in der Jobliste, das Formular darunter. Bei 390px ist es
+ * ausserhalb des Bildes, und der Betreiber hat denselben Satz gesagt wie beim
+ * Dateimanager (`docs/64`, Befund 10): *Man hat das Gefühl, es passiert
+ * nichts.* Dort ging der Bereich oben auf, hier unten — für den Bedienenden
+ * ist es dasselbe.
+ *
+ * > **Eine Behebung, die die Richtung nennt statt das Ziel, ist beim nächsten
+ * > Fall die Hälfte wert.**
+ *
+ * `fullyVisible()` in `scroll.ts` prüft beide Ränder; „ins Bild holen" ist
+ * deshalb schon die richtige Beschreibung und „nach oben rollen" wäre die
+ * falsche gewesen.
+ */
+watch(bearbeitet, (offen) => {
+  if (offen !== null) {
+    void nextTick(() => bringIntoView(formBlock.value))
+  }
+})
 
 function abbrechen(): void {
   bearbeitet.value = null
@@ -243,7 +326,7 @@ function entfernen(job: Job): void {
         </div>
       </section>
 
-      <section class="section">
+      <section ref="formBlock" class="section" tabindex="-1">
         <div class="section-head">
           <h2>{{ bearbeitet === null ? 'Job anlegen' : 'Job ändern' }}</h2>
         </div>
@@ -305,7 +388,35 @@ function entfernen(job: Job): void {
           <fieldset class="field">
             <legend>Zeitplan (Serverzeit)</legend>
 
-            <div class="field-row">
+            <!--
+              **Der Umschalter steht über beiden Ansichten und nicht in einer.**
+              Wer ihn sucht, sucht ihn dort, wo der Zeitplan anfängt — und er
+              gehört zu beiden Zuständen gleichermassen.
+
+              Die Schnellwahl darüber wirkt in beiden: Sie füllt die fünf
+              Felder, und der freie Ausdruck ist eine Sicht auf genau die.
+            -->
+            <div class="field">
+              <label class="toggle">
+                <input v-model="experte" type="checkbox">
+                <span>Den Zeitplan als Ausdruck eingeben</span>
+              </label>
+            </div>
+
+            <div v-if="experte" class="field">
+              <label for="expression">Ausdruck</label>
+              <input
+                id="expression"
+                v-model="freierAusdruck"
+                type="text"
+                class="ident"
+                spellcheck="false"
+                placeholder="*/15 * * * *"
+                :aria-invalid="zeitplanFalsch ? 'true' : undefined"
+              >
+            </div>
+
+            <div v-else class="field-row">
               <div class="field">
                 <label for="minute">Minute</label>
                 <input id="minute" v-model="form.minute" type="text" class="ident"
@@ -334,10 +445,17 @@ function entfernen(job: Job): void {
             </div>
 
             <p class="hint">
-              Erlaubt sind <span class="ident">*</span>, Zahlen, Spannen
-              (<span class="ident">9-17</span>), Listen (<span class="ident">1,4</span>)
-              und Schritte (<span class="ident">*/15</span>). Der Wochentag zählt von 0
-              (Sonntag) bis 7 (auch Sonntag). Ergibt: <span class="ident">{{ ausdruck }}</span>
+              Erlaubt sind <span class="ident literal">*</span>, Zahlen, Spannen
+              (<span class="ident literal">9-17</span>), Listen (<span class="ident literal">1,4</span>)
+              und Schritte (<span class="ident literal">*/15</span>). Der Wochentag zählt von 0
+              (Sonntag) bis 7 (auch Sonntag).
+              <template v-if="experte">
+                Fünf Felder, durch Leerzeichen getrennt: Minute, Stunde, Tag des Monats,
+                Monat, Wochentag.
+              </template>
+              <template v-else>
+                Ergibt: <span class="ident">{{ ausdruck }}</span>
+              </template>
             </p>
           </fieldset>
 

@@ -291,13 +291,29 @@
   --block-gap: 26px;
 }
 
+/*
+ * Die Kundenfläche liegt **eine** Stufe über der Verwaltung, nicht zwei.
+ *
+ * **Der Betreiber hat die Abstände auf der Cronseite als zu gross gemeldet**
+ * (`docs/64`, Befund 6) und entschieden, dass der Befund der Dichtestufe gilt
+ * und nicht der Seite. Sie war bei den beiden Fugenmassen zwei Schritte von
+ * der Verwaltung entfernt — 34 gegen 26 und 38/52 gegen 30/44 —, während
+ * `--gap` und `--row-height` je einen Schritt auseinanderliegen.
+ *
+ * > **Eine Achse, deren Sprossen verschieden weit auseinanderliegen, ist keine
+ * > Achse, sondern eine Sammlung von Werten.**
+ *
+ * Vier Pixel weniger in jeder Richtung bringen sie in denselben Abstand wie
+ * die übrigen Marken. Die Zahlen sind eine Entscheidung und keine Messung; was
+ * gemessen ist, steht in `docs/64`: wie hoch die Cronseite dadurch wird.
+ */
 :root[data-density='customer'] {
   --row-height: 48px;
   --gap: 18px;
-  --bereich-gap: 38px 52px;
+  --bereich-gap: 34px 48px;
   --bereich-min: 460px;
   --kachel-min: 250px;
-  --block-gap: 34px;
+  --block-gap: 30px;
 }
 
 /*
@@ -636,7 +652,13 @@ input[type='radio'] {
    Zeilenlänge — Fläche ausnutzen heisst nicht, einen Satz über 1900px zu
    ziehen. */
 .section-note {
-  margin: 10px 0 0;
+  /*
+   * **Oben 10px, unten der Blockabstand.** Der Rand nach unten fehlte, und der
+   * Knopf „Eintragen" klebte am Satz darüber (`docs/64`, Befund 3). Er steht
+   * hier und nicht als Nachbarschaftsregel, weil er eine Aussage über **diesen
+   * Baustein** ist: Ein Erklärsatz lässt unter sich Luft, gleich was folgt.
+   */
+  margin: 10px 0 var(--block-gap);
   font-size: var(--text-small);
   color: var(--text-muted);
   max-width: 64ch;
@@ -806,7 +828,38 @@ th {
 }
 
 td {
-  padding: 0 14px 0 0;
+  /*
+   * **Senkrechte Polsterung, und 6px sind gemessen und nicht gewählt.**
+   *
+   * Hier stand `padding: 0 14px 0 0`. Der senkrechte Rhythmus einer Zeile kam
+   * allein aus `height` — das trägt, solange der Inhalt einzeilig ist und
+   * hineinpasst: Die Zeile ist höher als ihr Text, und der Rest sieht aus wie
+   * Polsterung. Sobald der Inhalt höher wird, ist die Höhe wirkungslos, und
+   * übrig bleibt die Polsterung, die es nie gab.
+   *
+   * > **Eine Höhe ist keine Polsterung. Sie sieht nur so aus, solange der
+   * > Inhalt hineinpasst.**
+   *
+   * Der Betreiber hat es zweimal auf einem Bild gesehen (`docs/64`, Befunde 7
+   * und 8): Der Ausgabekasten eines Laufs stiess an die Trennlinie darunter
+   * (0px), die Marke „fehlgeschlagen" an die darüber (1px).
+   *
+   * **Warum 6 und nicht 8.** Der erste Vorschlag lautete 8px, gemessen — aber
+   * nur in der Dichtestufe `customer` mit ihren 48px Zeilenhöhe. In `admin`
+   * mit 40px wächst eine einzeilige Zeile damit auf 43px, und dann bestimmt
+   * nicht mehr die Dichtestufe die Zeilenhöhe, sondern die Polsterung.
+   *
+   * > **Eine Messung an einer Dichtestufe ist keine über die Achse.**
+   *
+   * Gemessen im Container gegen das gebaute Stylesheet, beide Stufen, je 0 bis
+   * 8px: Bis **6px** bleibt die einzeilige Zeile bei 40 bzw. 48; ab 7px wächst
+   * die admin-Zeile. `TableStyleTest` hält die Obergrenze fest.
+   *
+   * Auf schmaler Fläche gilt das nicht: Dort setzt `.stacks td` seine eigene
+   * Polsterung und `height: auto`.
+   */
+  padding: 6px 14px;
+  padding-left: 0;
 
   /* Hier liest die Tabelle die Dichtestufe. Der einzige Ort im Panel, an dem
      das geschieht — und deshalb der, den `TableStyleTest` prüft. */
@@ -826,8 +879,69 @@ td.name {
   font-weight: 580;
 }
 
-td.quiet {
+/*
+ * Leiser Text — überall, nicht nur in einer Tabelle.
+ *
+ * **Hier stand `td.quiet`, und daneben `td .quiet`. Sonst nichts.** Ausserhalb
+ * einer Zelle tat die Klasse nichts, und fünf Stellen im Panel baten seit
+ * Monaten vergeblich darum: der Satz „Gesucht unter …" auf der Suchseite, der
+ * Satz „Diese Datei gehört nicht dem Abonnement …" im Editor, die
+ * Fortschrittszahl beim Hochladen, der Trenner in den Krümeln und die
+ * symbolische Schreibweise neben dem Oktalfeld.
+ *
+ * Gemessen am 19. August 2026 gegen das gebaute Stylesheet: `<p class="quiet">`
+ * hatte exakt die Farbe eines Absatzes ohne Klasse (`--text`), während
+ * `<td class="quiet">` `--text-muted` trug.
+ *
+ * > **Eine Klasse, die es nur als Nachfahrenregel gibt, ist ausserhalb ihres
+ * > Vorfahren ein Wunsch.**
+ *
+ * `ClassReachTest` war dabei grün und zu Recht: Die Klasse *kommt* in dieser
+ * Datei vor. Dass sie nur unter einem Vorfahren vorkommt, hat er nie gefragt —
+ * `StandaloneClassTest` fragt es seitdem.
+ */
+.quiet {
   color: var(--text-muted);
+}
+
+/*
+ * **Ein kurzes Literal im Fliesstext — als Code erkennbar und ohne Umbruch.**
+ *
+ * `.ident` trägt seit `docs/46 §20.11` `overflow-wrap: anywhere`, und das ist
+ * für Kennungen richtig: Ohne es schob ein Bereichstitel die Seite bei 390 px
+ * um 99 px aus dem Bild. Für ein Literal von vier Zeichen ist es falsch — ein
+ * Schrittausdruck sagt nur als Ganzes etwas, über zwei Zeilen sagt er nichts.
+ *
+ * (Der Ausdruck steht hier absichtlich nicht wörtlich: Er enthält die Folge,
+ * die einen CSS-Kommentar beendet — beim ersten Anlauf hat sie genau das
+ * getan, und die Regel darunter stand plötzlich im Nirgendwo.
+ *
+ * > **Ein Kommentar, der sein Beispiel wörtlich nennt, endet manchmal dort.**)
+ *
+ * > **Ein Format für lange Kennungen reicht nicht für kurze Literale.**
+ *
+ * Gemeldet vom Betreiber an der Cronseite (`docs/64`, Befund 5), zusammen mit
+ * dem Wunsch, die Schreibweise als Code auszuzeichnen.
+ *
+ * ## Die Grenze steht nicht hier, sondern im Wächter
+ *
+ * `white-space: nowrap` an einem Wert, der wachsen kann, ist genau der Fehler,
+ * gegen den `.ident` gebaut wurde. CSS kann die Länge nicht begrenzen — der
+ * Wächter kann es: **In einem `.literal` steht kein `{{ }}`.** Was hier
+ * dazwischen steht, ist im Quelltext nachzulesen und nicht in einer Eingabe.
+ *
+ * > **Eine Zusage, die das Stylesheet nicht geben kann, gibt der Wächter — oder
+ * > niemand.**
+ *
+ * Deshalb trägt auf der Cronseite die Aufzählung der erlaubten Zeichen diese
+ * Klasse, und `Ergibt: {{ ausdruck }}` daneben ausdrücklich nicht: Dort stehen
+ * fünf Felder mit je 192 erlaubten Zeichen.
+ */
+.ident.literal {
+  padding: 1px 5px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  white-space: nowrap;
 }
 
 /*
@@ -845,7 +959,6 @@ td.quiet {
 td .quiet {
   display: block;
   margin-top: 3px;
-  color: var(--text-muted);
 }
 
 th.right,
@@ -2537,7 +2650,7 @@ tr:has(td.multiline) > td {
  * überlebt. Gefunden hat ihn kein Wächter und keine Messung: Nichts lief über,
  * nichts war abgeschnitten, es sah nur gedrängt aus.
  */
-:is(.field, .hint, .error, .scrolls, .pager, .cell-value) + .button-row {
+:is(.field, .hint, .error, .scrolls, .pager, .cell-value, .quiet, .section-note) + .button-row {
   margin-top: 16px;
 }
 
@@ -2607,8 +2720,87 @@ tr:has(td.multiline) > td {
  * sichtbar schief zwischen ihre Nachbarn. Gemessen 26/26 bei 1200px und 24/24
  * bei 390px.
  */
-:is(.field, .hint, .error, .scrolls, .pager, .cell-value, .button-row) + .notice {
+/*
+ * **Ein Absatz im Blockfluss ist ein Baustein wie jeder andere.**
+ *
+ * ## Drei Fugen, ein Grund
+ *
+ * Die Bilderrunde von P6 hat drei Stellen gefunden, an denen etwas an einem
+ * Satz klebte (`docs/64`, Befunde 2, 3 und 4):
+ *
+ * - der Knopf „Eintragen" am Erklärsatz darüber (SFTP),
+ * - „Gesucht unter …" an der Knopfreihe darüber (Suche),
+ * - die Meldung „Der Zeitplan gilt …" am Satz darüber (Cron), und dieselbe
+ *   Meldung an „Gesucht unter …" (Suche).
+ *
+ * **Alle drei haben auf einer Seite einen Absatz.** Ein Absatz hat durch
+ * Tailwinds Reset gar keinen Rand — er endet bündig und fängt bündig an, und
+ * damit ist er genau die Sorte Nachbar, für die es die Paare oben gibt. Er stand
+ * nur in keiner ihrer Listen, weil er keine Klasse trägt.
+ *
+ * > **Eine Liste von Nachbarn, die wächst, ist keine Regel — sie ist eine
+ * > Aufzählung der Fälle, die schon jemand gesehen hat.**
+ *
+ * Hier steht deshalb keine vierte Aufzählung von Nachbarn, sondern eine Aussage
+ * über **den Absatz**: Er bringt seine Luft nach unten selbst mit, und was vor
+ * ihm bündig endet, gibt ihm die nach oben.
+ *
+ * ## Warum nicht jeder Absatz
+ *
+ * `.notice`, `.hint`, `.path-line` und `.breadcrumb` sind ebenfalls Absätze und
+ * bringen ihre Ränder schon mit; ein zweiter wäre doppelt. Gemeint ist der
+ * Absatz **ohne** eigene Form — der Fliesstext einer Seite — und `.quiet`, der
+ * seit dem 19. August ein eigener Baustein ist und keinen Rand hat.
+ *
+ * ## Und warum ohne Einschränkung auf den Elternteil
+ *
+ * Der erste Anlauf schrieb `.content > p` und `.section > p`. Gemessen war er,
+ * und für drei der vier Fugen stimmte er — **die vierte lag in einem `<form>`
+ * ohne Klasse.** Der Erklärsatz über dem Knopf „Eintragen" ist ein Kind dieses
+ * Formulars, und keine der beiden Einschränkungen erreichte ihn.
+ *
+ * > **Eine Regel über einen Baustein, die am Elternteil hängt, gilt für den
+ * > Baustein nur dort, wo jemand an den Elternteil gedacht hat.**
+ *
+ * ## Warum nicht `* + *`
+ *
+ * Die vollständige Umkehrung — jeder Block im Fluss holt sich seinen Rand nach
+ * oben — wäre die eigentliche Antwort und **ist hier bewusst nicht getan**: Sie
+ * beträfe jeden Baustein auf jeder Seite, und die Bilderrunde hat für so einen
+ * Eingriff keine Messung. Sie gehört in einen eigenen Durchgang mit eigenen
+ * Aufnahmen.
+ *
+ * > **Eine Regel, die man nicht messen kann, wird nicht mit einer anderen
+ * > zusammen eingeführt.**
+ *
+ * Gemessen im Container gegen das gebaute Stylesheet: die drei Fugen von 0 px
+ * auf den Blockabstand, und die Seiten daneben unverändert.
+ */
+:is(.field, .hint, .error, .scrolls, .pager, .cell-value, .button-row, .section-note) + .notice,
+.button-row + .quiet,
+.quiet + .notice,
+.quiet + .scrolls {
   margin-top: var(--block-gap);
+}
+
+/*
+ * **Der Absatz ohne Klasse.** Auf der Cronseite steht „Cronjobs laufen als
+ * p1139 …" als schlichtes `<p>`, und darunter klebte die Meldung über die
+ * Zeitzone (`docs/64`, Befund 4). Ein Absatz hat durch Tailwinds Reset gar
+ * keinen Rand; er lässt jetzt unter sich Luft, gleich was folgt.
+ *
+ * `:not([class])` und nicht `p`: `.notice`, `.hint`, `.quiet`, `.section-note`
+ * und `.path-line` sind ebenfalls Absätze und bringen ihre Ränder mit — ein
+ * zweiter wäre doppelt.
+ *
+ * Diese Regel ist die einzige der drei, die `BlockSpacingTest` **nicht** sieht:
+ * Er kennt Bausteine an ihrer Klasse, und ein Absatz ohne Klasse hat keine.
+ *
+ * > **Ein Wächter, der Bausteine an ihrer Klasse kennt, sieht den Baustein
+ * > ohne Klasse nicht.**
+ */
+p:not([class]) {
+  margin-bottom: var(--block-gap);
 }
 
 /*
@@ -2725,7 +2917,24 @@ tr:has(td.multiline) > td {
    */
   .selection .button-row {
     flex-direction: row;
-    align-items: center;
+
+    /*
+     * **`flex-end` und nicht `center`.** Die Regel war für sechs gleich hohe
+     * Knöpfe geschrieben (`docs/55`, Befund 15) und sagt nichts über eine
+     * Reihe, in der eines ihrer Kinder zwei Zeilen hoch ist: Im Zustand
+     * „Packen" steht dort ein `.field.inline`, und das ist unter 480 px eine
+     * Spalte — Beschriftung über dem Feld. Zentriert lag der Knopf „Packen"
+     * damit 14 px über der Mitte seines Eingabefeldes (`docs/64`, Befund 9).
+     *
+     * > **Eine Ausrichtung, die für gleich hohe Geschwister gilt, sagt nichts
+     * > über eine Reihe, in der eines zwei Zeilen hoch ist.**
+     *
+     * Gemessen im Container: Versatz von −14 px auf 0 — und die gewöhnliche
+     * Leiste mit sechs Knöpfen steht in beiden Fällen auf denselben drei
+     * Zeilen, weil gleich hohe Geschwister unter `center` und `flex-end`
+     * dieselbe Lage haben.
+     */
+    align-items: flex-end;
   }
 
   .selection .button-row .button {

@@ -160,7 +160,6 @@ final class BlockSpacingTest extends TestCase
         'button + button',
         'button-row + button',
         'button-row + form',
-        'button-row + scrolls',
         /*
          * **Eine Brotkrume ist kein Block.** `<Link class="link">Kunden</Link> ·
          * <span class="ident">…</span>` steht in `Customers/Show.vue` und
@@ -187,18 +186,51 @@ final class BlockSpacingTest extends TestCase
         'hint + field-row',
         'hint + form',
         'scrolls + form',
-        'scrolls + scrolls',
         'ident + button-row',
         'ident + ident',
         'ident + notice',
+        /*
+         * ## Sechs Fugen, die dieser Wächter am 19. August zum ersten Mal sah
+         *
+         * `.quiet` gab es in `app.css` bis dahin nur als `td.quiet` und
+         * `td .quiet` — ausserhalb einer Zelle war die Klasse wirkungslos
+         * (`docs/64`, Befund 11). Seit sie eine freistehende Regel hat, ist sie
+         * für diesen Wächter ein Baustein, und **die Nachbarschaften waren
+         * schon vorher da.** Drei davon sind echte Fugen und in `app.css`
+         * gedeckt (`.button-row + .quiet`, `.quiet + .notice`,
+         * `.quiet + .scrolls`); die hier stehenden sind es nicht, und alle aus
+         * demselben Grund:
+         *
+         * **`.quiet` ist meistens gar kein Block.** Es ist ein `<span>` in
+         * einer Zelle, neben einer Marke, hinter einem Verweis, im
+         * Ausgabekasten, neben einem Feld — dort ordnet die Zelle an oder der
+         * Text fliesst, und eine Fuge gibt es nicht.
+         *
+         * > **Ein Baustein, den man auch inline benutzt, erzeugt Fugen, die
+         * > keine sind.**
+         *
+         * `quiet + quiet` steht in vier Vorlagen und jedes Mal in einer Zelle,
+         * wo `td .quiet` mit `display: block` und `margin-top: 3px` den Abstand
+         * macht — dieselbe Sorte Scheinfuge wie `cell-name + ident` darüber.
+         */
+        'output + quiet',
+        'badge + quiet',
+        'folds + quiet',
+        'quiet + ident',
+        'link + quiet',
+        'field + quiet',
+        'quiet + quiet',
+        /*
+         * **Zwei Fugen, die nie zu diesem Lauf gehörten.** Sie standen schon
+         * vorher hier; die Umstellung hat sie kurz gedeckt und dann wieder
+         * freigegeben, weil die Regel darüber auf die drei gemessenen Fälle
+         * verengt wurde.
+         */
+        'scrolls + scrolls',
+        'button-row + scrolls',
         'leaf + leaf',
         'link + link',
         'pager-state + button',
-        'section-note + ident',
-        'section-note + notice',
-        'section-note + button-row',
-        'section-note + cell-value',
-        'section-note + scrolls',
         'sections + form',
         'toggle + button-row',
         'toggle + choices',
@@ -907,6 +939,62 @@ final class BlockSpacingTest extends TestCase
         }
 
         return $paare;
+    }
+
+    /**
+     * Der Absatz ohne Klasse lässt unter sich Luft.
+     *
+     * **Diesen einen Baustein sieht der Wächter darunter nicht.** Er kennt
+     * Bausteine an ihrer Klasse, und ein Absatz ohne Klasse hat keine — die
+     * Fuge auf der Cronseite („Cronjobs laufen als p1139 …" über der Meldung
+     * zur Zeitzone, `docs/64` Befund 4) ist für ihn unsichtbar.
+     *
+     * > **Ein Wächter, der Bausteine an ihrer Klasse kennt, sieht den Baustein
+     * > ohne Klasse nicht.**
+     *
+     * Deshalb hier eine eigene Zusage: Die Regel gibt es, und sie setzt einen
+     * Wert. Das ist weniger, als der Wächter darunter kann — aber es ist mehr
+     * als nichts, und es ist genau das, was ohne sie stillschweigend
+     * verschwände.
+     */
+    public function test_a_paragraph_without_a_class_leaves_air_below(): void
+    {
+        $css = (string) preg_replace(
+            '#/\*.*?\*/#su',
+            '',
+            (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css'),
+        );
+
+        $this->assertSame(
+            1,
+            preg_match('/p:not\(\[class\]\)\s*\{([^{}]*)\}/s', $css, $regel),
+            'In app.css gibt es keine Regel für `p:not([class])` mehr. Ein Absatz ohne Klasse hat '.
+            'durch Tailwinds Reset gar keinen Rand — was unter ihm steht, klebt an ihm.',
+        );
+
+        /*
+         * **Der Wert wird geholt und dann angesehen, nicht in den Ausdruck
+         * geschrieben.** Der erste Anlauf lautete
+         * `margin-bottom\s*:\s*(?!0[;\s}])[^;]+` — und er war grün, als der
+         * Rand auf `0` stand: `\s*` tritt zurück, bis die Vorausschau auf das
+         * Leerzeichen statt auf die Null zeigt, und dann trifft sie.
+         *
+         * > **Eine Vorausschau hinter `\s*` prüft nicht, was dort steht,
+         * > sondern was daneben passt.**
+         */
+        $this->assertSame(
+            1,
+            preg_match('/margin-bottom\s*:([^;]+)/', $regel[1], $wert),
+            'Die Regel für `p:not([class])` nennt keinen Rand nach unten.',
+        );
+
+        $this->assertNotContains(
+            trim($wert[1]),
+            ['0', '0px'],
+            "Die Regel für `p:not([class])` setzt den Rand nach unten auf null.\n\n".
+            'Auf der Cronseite steht „Cronjobs laufen als p1139 …" als schlichtes `<p>`, und die '.
+            'Meldung über die Zeitzone klebte daran (docs/64, Befund 4).',
+        );
     }
 
     public function test_the_rule_still_lists_what_it_used_to(): void

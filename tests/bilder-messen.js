@@ -48,7 +48,36 @@
  *
  * > **Eine Prüfung, die nur nachsieht, woran man gerade denkt, prüft das
  * > Erinnerungsvermögen.**
+ *
+ * ---
+ *
+ * **Und jeder Fund nennt seinen Ort, nicht seine Bauart.** Bis zum 19. August
+ * stand als Kennzeichen nur `Marke.Klassen` da. Für einen Baustein mit Klasse
+ * genügt das; ein `div` ohne jede Klasse heisst dann aber `div`, und dieselbe
+ * Zeile stand in der Bilderrunde viermal in vier Ansichten, ohne dass sie
+ * irgendwohin zeigte. Der Ort ist deshalb der Weg von `body` herab und die
+ * ersten Zeichen des Markups.
+ *
+ * > **Eine Zahl, die nicht sagt, welche, zwingt zum Suchen.**
+ *
+ * ---
+ *
+ * **Jede Zeile nennt den Stand des Messmittels, das sie erzeugt hat.** Dieses
+ * Skript lebt in der Konsole und verschwindet bei jedem Neuladen — es kommt
+ * also aus der Zwischenablage zurück, und die altert nicht sichtbar. Am
+ * 19. August ist genau das passiert: Die Messung kam mit den alten Feldern
+ * wieder, und der Ausdruck sah aus wie ein Ergebnis.
+ *
+ * > **Ein Werkzeug, das nach jedem Neuladen aus der Zwischenablage kommt, ist
+ * > so alt wie die Zwischenablage und sagt es nicht.**
+ *
+ * Der Stand steht deshalb im Ergebnis, neben Breite und Thema und aus demselben
+ * Grund: damit keine Zeile ihre Herkunft verliert. Wer dieses Skript ändert,
+ * setzt ihn auf das Datum der Änderung.
  */
+
+/** Der Tag, an dem dieses Messmittel zuletzt geändert wurde. */
+const STAND = '2026-08-19'
 
 function bilderMessen () {
   const wurzel = document.documentElement
@@ -72,6 +101,28 @@ function bilderMessen () {
     return { ausschlag: nachher - vorher, erwartet: 200 }
   }
 
+  /*
+   * Der Weg von `body` herab, damit ein Fund ohne Klasse auffindbar ist. Je
+   * Stufe die Marke, die erste Klasse (mehr macht die Zeile unlesbar) und der
+   * Platz unter den Geschwistern derselben Marke.
+   */
+  const pfad = (element) => {
+    const stufen = []
+
+    for (let n = element; n && n !== document.body; n = n.parentElement) {
+      const marke = n.tagName.toLowerCase()
+      const klasse = typeof n.className === 'string' && n.className.trim() !== ''
+        ? '.' + n.className.trim().split(/\s+/)[0]
+        : ''
+      const gleiche = [...(n.parentElement?.children ?? [])].filter((k) => k.tagName === n.tagName)
+
+      stufen.unshift(marke + klasse + (gleiche.length > 1 ? `:${gleiche.indexOf(n) + 1}` : ''))
+    }
+
+    // `body` selbst und alles darüber hätte sonst einen leeren Weg.
+    return stufen.join(' > ') || element.tagName.toLowerCase()
+  }
+
   const roller = []
 
   for (const element of document.querySelectorAll('*')) {
@@ -90,12 +141,15 @@ function bilderMessen () {
       wo: element.tagName.toLowerCase() + (element.className && typeof element.className === 'string'
         ? '.' + element.className.trim().split(/\s+/).join('.')
         : ''),
+      pfad: pfad(element),
+      anfang: element.outerHTML.slice(0, 120),
       ueberlauf,
       darf: stil === 'auto' || stil === 'scroll',
     })
   }
 
   return {
+    stand: STAND,
     breite: wurzel.clientWidth,
     thema: wurzel.getAttribute('data-theme') ?? '(System)',
     dokument: wurzel.scrollWidth - wurzel.clientWidth,

@@ -136,4 +136,73 @@ final class OverflowProbeTest extends TestCase
             'Die Messung sieht nur an genannten Stellen nach — dann misst sie das Erinnerungsvermoegen.',
         );
     }
+
+    /**
+     * Ein Fund nennt seinen Ort und nicht bloss seine Bauart.
+     *
+     * **Was schiefging.** Bis zum 19. August 2026 stand als Kennzeichen nur
+     * `Marke.Klassen` da. Für einen Baustein mit Klasse genügt das — für ein
+     * `div` ohne jede Klasse heisst die Zeile dann `div`, und genau diese Zeile
+     * stand in der Bilderrunde viermal in vier Ansichten, ohne irgendwohin zu
+     * zeigen. Vier Messungen, und keine sagte, welches Element gemeint war.
+     *
+     * > **Eine Zahl, die nicht sagt, welche, zwingt zum Suchen.**
+     *
+     * Geprüft wird deshalb beides: der Weg von `body` herab und die ersten
+     * Zeichen des Markups. Der Weg allein reicht nicht — `div > div > div`
+     * zeigt zwar auf ein Element, sagt aber nicht, was drinsteht.
+     */
+    public function test_a_finding_names_where_it_is(): void
+    {
+        $ergebnis = (string) strstr($this->source(), 'roller.push({');
+
+        $this->assertNotSame('', $ergebnis, 'Die Messung sammelt keine Funde mehr ein.');
+
+        $this->assertStringContainsString(
+            'pfad: pfad(element)',
+            $ergebnis,
+            'Ein Fund nennt seinen Weg nicht — ein Element ohne Klasse heisst dann nur „div".',
+        );
+
+        $this->assertStringContainsString(
+            'anfang: element.outerHTML',
+            $ergebnis,
+            'Ein Fund zeigt sein Markup nicht — dann sagt der Weg zwar wo, aber nicht was.',
+        );
+    }
+
+    /**
+     * Jede Messung nennt den Stand des Messmittels, das sie erzeugt hat.
+     *
+     * **Was schiefging.** Dieses Skript lebt in der Konsole und verschwindet bei
+     * jedem Neuladen — es kommt also aus der Zwischenablage zurück. Am
+     * 19. August 2026 kam es mit den Feldern von vorgestern wieder, während die
+     * Frage, die es beantworten sollte, gerade an den neuen hing. Der Ausdruck
+     * sah dabei aus wie ein Ergebnis: eine Zahl, ein Fund, keine Fehlermeldung.
+     *
+     * > **Ein Werkzeug, das nach jedem Neuladen aus der Zwischenablage kommt,
+     * > ist so alt wie die Zwischenablage und sagt es nicht.**
+     *
+     * Geprüft wird deshalb dasselbe wie bei `breite` und `thema`: dass die
+     * Herkunft im Ergebnis steht. Ob der Stand gepflegt ist, kann kein Test
+     * sagen — dass er dasteht, schon.
+     */
+    public function test_a_reading_names_the_instrument(): void
+    {
+        $quelltext = $this->source();
+
+        $this->assertMatchesRegularExpression(
+            "/const STAND = '\\d{4}-\\d{2}-\\d{2}'/",
+            $quelltext,
+            'Das Messmittel fuehrt keinen Stand — dann traegt keine Zeile ihre Herkunft.',
+        );
+
+        $ergebnis = (string) strstr($quelltext, '  return {');
+
+        $this->assertStringContainsString(
+            'stand: STAND',
+            $ergebnis,
+            'Der Stand steht nicht im Ergebnis — dann sieht eine alte Messung aus wie eine neue.',
+        );
+    }
 }

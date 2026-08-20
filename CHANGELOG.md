@@ -15469,6 +15469,26 @@ Units als Notiz, die sich wie eine Zusage liest.
 > **Eine Einstellung, die für diese Bauart keine Bedeutung hat, liest sich wie
 > eine Zusage und ist eine Notiz.**
 
+**Beide Behebungen sind auf dem echten Server nachgemessen** — `cloudsrv24`
+gegen `v0.6.0-rc.18`, mit zwei Cronjobs im Minutentakt. Die Läufe-Seite zeigt
+für den einen `erfolgreich` mit 5 bis 7 ms und der Ausgabe des Befehls, für den
+anderen `fehlgeschlagen` mit **Rückgabewert 3** und „keine Ausgabe". Vorher war
+sie leer, während die Ablage sich füllte und wieder geleert wurde.
+
+Nebenbei belegt das die Zeitrechnung dieser Ansicht: `BEGONNEN 12:55:01` neben
+einer Ausgabe, die `Mi 19. Aug 12:55:01 CEST` nennt, geht nur auf, wenn
+`cron-run` in UTC schreibt und das Panel in der Anzeigezone liest — `docs/40`
+trägt also auch hier.
+
+**Dass die geänderte Unit auch ankommt, ist gemessen und nicht angenommen.** Das
+Paket ruft für die Timer `systemctl enable --now`, und das ist bei einem bereits
+aktiven Timer wirkungslos — die Frage war also, ob der neue Sockel erst beim
+nächsten Neustart gilt. Auf `cloudsrv24` gegen `v0.6.0-rc.18`: Schon **vor**
+einem `systemctl restart` stand `NEXT` auf `12:55:00`, einem glatten
+Fünf-Minuten-Schlag der Wanduhr, und der letzte Lauf lag 36 Sekunden zurück
+statt 22 Stunden. Das `daemon-reload` im Postinstall genügt; ein zusätzlicher
+Neustart der Timer wäre eine Zeile ohne Wirkung.
+
 **Warum es dafür keine Wächter gab.** `SrvPanel\Agent\Client` ist `final` und
 lässt sich in keinem Test ersetzen; jeder Weg, der über ihn führt, war ungeprüft
 — und kein einziger Test dieses Repos hat je einen Cron-Lauf eingepflegt.
@@ -15552,3 +15572,348 @@ zu nennen; die fünf Zeilen standen zwischen sechshundert anderen.
 > **Eine Zahl, die nicht sagt, welche, zwingt zum Suchen.**
 
 Der Lauf schreibt die Namen jetzt am Ende noch einmal untereinander.
+
+### Der Zeitplan lässt sich als Ausdruck eingeben — und bleibt eine Wahrheit
+
+Bestellt vom Betreiber am 19. August 2026 beim Ansehen von Ansicht 8 der
+Bilderrunde (`docs/64`, Wunsch 1): neben den fünf getrennten Feldern eine Eingabe
+des ganzen Ausdrucks, mit einem Schalter dazwischen.
+
+**Die Bedingung dafür war die erste Frage, und sie ist beantwortet: Der Ausdruck
+schreibt in die fünf Felder zurück.** Er ist eine `computed`-Sicht mit Setzer und
+kein eigener Wert; das Formular schickt weiter genau `label`, `command`, die fünf
+Zeitplanfelder und `active`. Der Server bekommt kein neues Feld, `validated()`
+bleibt unverändert, und `Schedule::parse()` im Agenten bleibt die einzige Stelle,
+die über die Form eines Zeitplans urteilt.
+
+> **Eine Zusammenfügung darf doppelt stehen, eine Regel nicht.**
+
+Derselbe Grund, aus dem die Schnellwahl seit P6 die Felder füllt, statt sich zu
+merken, dass „täglich" gewählt wurde. Die Schnellwahl wirkt deshalb auch in der
+Expertenansicht: Sie setzt die fünf Felder, und der Ausdruck ist eine Sicht auf
+genau die.
+
+**Was bei zu wenigen oder zu vielen Stücken passiert, ist Absicht.** Fehlende
+Felder werden leer, überzählige landen im letzten — und beides weist der Server
+ab, mit dem Satz, den er auch sonst schreibt. Im Browser zu urteilen hiesse, die
+Regel zweimal zu führen, und der Kunde bekäme je nach Weg eine andere Antwort.
+
+> **Eine Eingabe, die stillschweigend etwas wegwirft, macht aus einem Fehler des
+> Benutzers ein Rätsel.**
+
+**Ein Kästchen und kein neuer Baustein.** Ein Umschalter mit zwei beschrifteten
+Hälften wäre eine neue Klasse in `app.css`, eine neue Regel und ein neuer Wächter
+— für einen Zustand, der zwei Werte hat. `.toggle` steht auf dieser Seite schon,
+seine Geometrie ist bei 390 px gemessen, und ein Kästchen *ist* ein Schalter
+zwischen zwei Zuständen.
+
+In der Expertenansicht gibt es die fünf Felder nicht, also kann keines von ihnen
+rot werden. Das eine Feld trägt `aria-invalid`, sobald der Server an
+irgendeinem der fünf etwas auszusetzen hatte; der Satz dazu steht wie überall
+oben in der Zusammenfassung (`docs/19 §6`).
+
+`CronScheduleFormTest::test_the_free_expression_is_a_view_on_the_five_fields`
+hält beide Hälften fest: dass das Formular kein sechstes Feld schickt, und dass
+der Setzer **jedes** der fünf schreibt. Liesse er eines aus, behielte es beim
+Umschalten seinen alten Wert, und der Ausdruck im Feld sagte etwas anderes als
+das Gespeicherte. Drei Brüche dazu im Bruchskript, alle drei gegengeprüft.
+
+**Gemessen im Container gegen echtes Chromium**, echtes Markup und gebautes
+Stylesheet, in der Dichtestufe `customer` bei 390 px: `dokument 0`, Gegenprobe
+`200/200`, `schiebt` leer — in beiden Themes. Auf `cloudsrv24` steht die Messung
+noch aus; sie gehört in die zweite Runde der Bilder, die ohnehin fällig ist.
+
+**Und die Messung dazu hat sich beim ersten Anlauf selbst hereingelegt.** Der
+Prüfaufbau setzte `data-theme="dunkel"` — die Werte heissen `light` und `dark`,
+und keine Regel griff. `bilderMessen()` meldete trotzdem brav `"thema":"dunkel"`,
+weil es das Attribut abschreibt: eine helle Seite mit dem Etikett „dunkel", und
+die Zeile sah aus wie eine Messung.
+
+> **Ein Feld, das die Lage aus dem Dokument abschreibt, bestätigt die Lage nicht
+> — es wiederholt sie.**
+
+### Leiser Text gilt jetzt überall, nicht nur in einer Tabelle
+
+Gefunden beim Vorbereiten der Behebungen aus der Bilderrunde (`docs/64`,
+Befund 11), nicht auf einem Bild. Für die Abstandsfragen war zu klären, welche
+Bausteine überhaupt beteiligt sind — einer davon ist `.quiet`. In `app.css`
+stand dazu `td.quiet` und `td .quiet`, und sonst nichts.
+
+**Gemessen im Container gegen das gebaute Stylesheet:** `<p class="quiet">` hatte
+exakt die Farbe eines Absatzes ohne Klasse (`--text`, `rgb(58,63,73)`), während
+`<td class="quiet">` `--text-muted` trug (`rgb(92,100,112)`). Ausserhalb einer
+Zelle tat die Klasse nichts.
+
+**Fünf Stellen im Panel baten seit Monaten vergeblich darum**, gezählt über die
+Vorlagen und einzeln von Hand nachgesehen: der Satz „Gesucht unter …" auf der
+Suchseite, der Satz „Diese Datei gehört nicht dem Abonnement …" im Editor, die
+Fortschrittszahl beim Hochladen, der Trenner in den Krümeln und die symbolische
+Schreibweise neben dem Oktalfeld. Zwei davon stehen auf Bildern dieses Laufs.
+
+> **Ein Bild, das man auf eine Frage hin ansieht, beantwortet die Frage — und
+> verdeckt alles, was daneben steht.**
+
+Die Farbe steht jetzt einmal als `.quiet`; `td .quiet` behält nur noch, was
+wirklich zur Zelle gehört (`display: block`, `margin-top: 3px`). Nach der
+Änderung gemessen: `<p class="quiet">` trägt `--text-muted`, die Zelle ist
+unverändert.
+
+**`ClassReachTest` war dabei grün, und zu Recht** — er fragt, ob die Klasse in
+`app.css` **vorkommt**. Sie kam vor.
+
+> **Zwei Fragen, die sich gleich anhören, prüfen verschiedene Dinge — und die
+> ungestellte ist die, an der es scheitert.**
+
+`StandaloneClassTest` stellt die andere: Jede Klasse, die eine Vorlage benutzt
+und die `app.css` kennt, braucht eine **freistehende** Regel — eine, deren erste
+Verbindung nur aus Klassen besteht. Acht Klassen dürfen ausdrücklich anders
+sein, und jede nennt ihren Zusammenhang: `.right` ohne Zelle ist nichts,
+`.pairs` ohne Tabelle ist nichts. Die Liste hat eine Sperrklinke in beide
+Richtungen, damit sie auch wieder kürzer werden kann.
+
+**Ein Detail, das den Wächter beim ersten Anlauf blind gemacht hätte:** Er zählt
+nur die **erste** Verbindung eines Selektors. Wer jede zählt, hält `.split >
+.aside` für eine freistehende Regel von `.aside` — und findet damit genau die
+Sorte Fehler nicht, für die es ihn gibt. Aufgefallen ist es, weil `.aside` als
+erster Eintrag der Liste sofort rot meldete.
+
+Drei Brüche im Bruchskript, alle drei gegengeprüft.
+
+### Eine Tabellenzelle hat wieder senkrechte Polsterung
+
+Befunde 7 und 8 aus der Bilderrunde (`docs/64`), beide vom Betreiber auf einem
+Bild gesehen: Der Ausgabekasten eines Cronlaufs stiess an die Trennlinie
+darunter, die Marke „fehlgeschlagen" an die darüber.
+
+`td` stand auf `padding: 0 14px 0 0`, und der senkrechte Rhythmus einer Zeile
+kam allein aus `height: var(--row-height)`. Das trägt, solange der Inhalt
+einzeilig ist und hineinpasst: Die Zeile ist höher als ihr Text, und der Rest
+sieht aus wie Polsterung. Sobald der Inhalt höher wird — ein Ausgabekasten, zwei
+Textzeilen —, ist die Höhe wirkungslos, und übrig bleibt die Polsterung, die es
+nie gab.
+
+> **Eine Höhe ist keine Polsterung. Sie sieht nur so aus, solange der Inhalt
+> hineinpasst.**
+
+**Der erste Vorschlag war 8px, und er war falsch.** Gemessen war er — aber nur
+in der Dichtestufe `customer` mit ihren 48px Zeilenhöhe, wo nichts wächst. In
+`admin` mit 40px wächst eine **einzeilige** Zeile damit auf 43px, und dann
+bestimmt die Polsterung die Zeilenhöhe statt der Dichtestufe.
+
+> **Eine Messung an einer Dichtestufe ist keine über die Achse.**
+
+Nachgemessen über beide Stufen und alle Werte von 0 bis 8px, im Container gegen
+das gebaute Stylesheet: Bis **6px** bleibt die einzeilige Zeile bei 40 bzw. 48;
+ab 7px wächst die admin-Zeile. Es sind deshalb 6px, und der Kasten steht nun
+6px von der Linie, die Marke 7px.
+
+Auf schmaler Fläche ändert sich nichts: Dort setzt `.stacks td` seine eigene
+Polsterung und `height: auto` — was zugleich erklärt, warum beide Befunde nur
+bei 1440px auffielen.
+
+`TableStyleTest::test_a_cell_has_vertical_padding_below_the_measured_ceiling`
+hält beide Enden fest: grösser als 0 und höchstens 6. Zwei Brüche im
+Bruchskript, beide gegengeprüft.
+
+### Ein Griff an einer Zeile holt seinen Bereich ins Bild
+
+Befund 10 aus der Bilderrunde (`docs/64`), vom Betreiber zweimal gemeldet: Wer
+bei 390 px in einer Zeile weit unten „Rechte" oder „Umbenennen" drückt, sieht
+**nichts geschehen** — der Bereich geht am Kopf der Seite auf. Auf der Cronseite
+dasselbe nach unten: „Ändern" steht in der Liste, das Formular darunter.
+
+> **Ein Bedienelement, dessen Wirkung ausserhalb des Bildes erscheint, sieht aus
+> wie eines ohne Wirkung.**
+
+**Die Behebung lag seit dem 15. August im Repo.** `resources/js/scroll.ts` gibt
+es wegen desselben Vorgangs am Knopf „Entfernen"; `bringIntoView()` löst es, und
+`useConfirmation` rief es. Sonst niemand.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+`startChmod`, `startRename` und `bearbeiten` holen ihren Bereich jetzt ins Bild.
+Dass beide Richtungen vorkommen — im Dateimanager nach oben, auf der Cronseite
+nach unten —, ist der Grund, dass die Regel „ins Bild holen" heisst und nicht
+„nach oben rollen": `fullyVisible()` prüft beide Ränder.
+
+**`RevealTest` erkennt den Fall am Argument.** Ein Griff, der einen Gegenstand
+mitbekommt — `startChmod(entry)`, `bearbeiten(job)` —, steht in einer Schleife
+und damit an einer Zeile; sein Bereich steht ausserhalb. Ein Umschalter der
+Seite kommt ohne Argument aus (`picking = 'copy'`, `menuOpen = !menuOpen`), und
+dort wäre ein Sprung falsch. Eine Näherung, keine Herleitung — aber eine, die
+die drei bekannten Fälle trifft und die Umschalter in Ruhe lässt.
+
+**Sie hat neunzehn Griffe derselben Bauart in der Datenbankkonsole gefunden**,
+und keiner davon ist untersucht: Die Konsole gehört zu P5c, ihre Bereiche stehen
+in derselben Spalte wie der Baum, und ob sie bei 390 px ausserhalb des Bildes
+aufgehen, hat niemand gemessen. Sie stehen einzeln in `RevealTest::UNEXAMINED`
+mit ihrem Grund — als Zahl, die kleiner werden kann, und nicht als Behauptung.
+
+**Der zweite Fall des Wächters ist ein Fund über den Wächter selbst.**
+`bringIntoView()` setzt am Ende den Fokus; ohne `tabindex="-1"` nimmt ein `div`,
+`form` oder `section` ihn nicht an. Der Sprung geschieht, der Tastaturweg
+bleibt zu — nicht zu sehen, solange man eine Maus benutzt.
+
+> **Ein Aufruf, der stillschweigend nichts tut, sieht aus wie einer, der gewirkt
+> hat.**
+
+**Und der Wächter hat beim ersten Anlauf `FormErrors.vue` zu Unrecht gemeldet.**
+Sein Ausdruck lautete `<[^>]*ref="block"[^>]*tabindex="-1"` — und das Tag dort
+beginnt mit `<p v-if="messages.length > 0"`. Das `>` im Ausdruck beendete die
+Zeichenklasse mitten im Attribut.
+
+> **Ein Ausdruck, der bei `>` aufhört, hört mitten in einem Attribut auf.**
+
+Gesucht wird seitdem ab der Angabe rückwärts bis zum `<` und vorwärts bis zum
+ersten `>`, das nicht in Anführungszeichen steht. Drei Brüche im Bruchskript,
+alle drei gegengeprüft.
+
+### Vier Fugen um einen Satz — und was dabei über den Wächter klar wurde
+
+Befunde 2, 3 und 4 aus der Bilderrunde (`docs/64`), alle drei vom Betreiber auf
+einem Bild gesehen: der Knopf „Eintragen" am Erklärsatz darüber (SFTP),
+„Gesucht unter …" an der Knopfreihe darüber und die gelbe Meldung an ihm
+(Suche), die Meldung über die Zeitzone am Satz darüber (Cron).
+
+**Alle drei haben auf einer Seite einen Absatz** — und ein Absatz hat durch
+Tailwinds Reset gar keinen Rand. Er endet bündig und fängt bündig an, ist also
+genau die Sorte Nachbar, für die es die Paarregeln gibt; er stand nur in keiner
+ihrer Listen.
+
+**Drei Eingriffe, und der erste trägt fünf Fugen auf einmal:**
+
+- `.section-note` bekommt seinen Rand nach unten in der **eigenen** Regel
+  (`margin: 10px 0 var(--block-gap)`). Das ist eine Aussage über den Baustein
+  und keine über seine Nachbarn — und es hat neben Befund 3 vier weitere Fugen
+  geschlossen, die seit Monaten als bekannt in `BlockSpacingTest::OPEN_SEAMS`
+  standen (`+ ident`, `+ notice`, `+ cell-value`, `+ scrolls`).
+- `.button-row + .quiet`, `.quiet + .notice`, `.quiet + .scrolls` decken die
+  drei gemessenen Fugen um den leisen Satz.
+- `p:not([class])` lässt unter sich Luft.
+
+**Gemessen im Container gegen das gebaute Stylesheet**, dieselben Bausteine
+einmal mit und einmal ohne die Regeln:
+
+| Fuge | ohne | mit |
+|---|---|---|
+| Knopfreihe → „Gesucht unter …" | **0** | 34 |
+| „Gesucht unter …" → Meldung | **0** | 34 |
+| Satz → Meldung (Cron) | **0** | 34 |
+| Erklärsatz → Knopfreihe (SFTP) | **0** | 34 |
+| Meldung → Erklärsatz (Cron) | 34 | 34 |
+
+Die letzte Zeile ist die Gegenprobe: Dort war schon Luft, und es sind nicht 68
+geworden — angrenzende Ränder fallen zusammen.
+
+**Und was hier bewusst nicht geschehen ist.** Die vollständige Umkehrung — jeder
+Block im Fluss holt sich seinen Rand nach oben selbst — wäre die eigentliche
+Antwort auf *„eine Liste von Nachbarn, die wächst, ist keine Regel"*. Ein erster
+Anlauf in diese Richtung hat beim Messen prompt Fugen mitgedeckt, die niemand
+angesehen hatte: `button-row + scrolls` und `scrolls + scrolls` standen
+plötzlich auf 34px.
+
+> **Eine Regel, die mehr deckt als das Gemessene, ändert mehr als das
+> Gemessene.**
+
+Sie ist deshalb auf die drei gemessenen Fälle verengt, und die Umkehrung gehört
+in einen eigenen Durchgang mit eigenen Aufnahmen.
+
+**Der Wächter hat dabei seine eigene Grenze gezeigt.** `BlockSpacingTest` kennt
+Bausteine an ihrer **Klasse** — und der Absatz auf der Cronseite hat keine. Der
+Bruch „Rand auf null" liess ihn deshalb grün.
+
+> **Ein Wächter, der Bausteine an ihrer Klasse kennt, sieht den Baustein ohne
+> Klasse nicht.**
+
+`test_a_paragraph_without_a_class_leaves_air_below` ist die Zusage, die dort
+einspringt. **Ihr erster Ausdruck war grün, als der Rand auf `0` stand**:
+`margin-bottom\s*:\s*(?!0[;\s}])[^;]+` — `\s*` tritt zurück, bis die Vorausschau
+auf das Leerzeichen statt auf die Null zeigt.
+
+> **Eine Vorausschau hinter `\s*` prüft nicht, was dort steht, sondern was
+> daneben passt.**
+
+Gelesen wird jetzt der Wert und dann angesehen. Drei Brüche im Bruchskript, alle
+drei gegengeprüft.
+
+**Und sieben Fugen sind neu sichtbar geworden, ohne neu zu sein.** Seit `.quiet`
+eine freistehende Regel hat (Befund 11), ist es für diesen Wächter ein Baustein
+— und die Nachbarschaften waren schon vorher da. Drei davon sind die gemessenen
+Fugen; die anderen stehen mit ihrem Grund in `OPEN_SEAMS`: `.quiet` ist meistens
+gar kein Block, sondern ein `<span>` in einer Zelle, neben einer Marke, hinter
+einem Verweis.
+
+> **Ein Baustein, den man auch inline benutzt, erzeugt Fugen, die keine sind.**
+
+### Die letzten vier Befunde der Bilderrunde
+
+**Befund 1 — das Kästchen trug die Regel eines Textfeldes.** `Files/Search.vue`
+gab „auch im Inhalt" ein `class="field inline"`, und `.field input { width: 100% }`
+ist eine Regel für Textfelder. Gemessen im Container bei 390 px: **390 × 44 px**
+statt 17 × 17, und die Suchleiste 207 px hoch statt 171.
+
+> **Ein Baustein, der die Regel eines anderen erbt, sieht aus wie der andere.**
+
+Der Dokumentüberlauf war dabei **0 px** — es gab nichts zu messen, nur etwas zu
+sehen. `LiteralTest::test_a_checkbox_is_not_dressed_as_a_field` liest seitdem
+die Vorlage und braucht kein Bild.
+
+**Befund 9 — der Knopf „Packen" stand 14 px zu hoch.**
+`.selection .button-row { align-items: center }` war für sechs gleich hohe
+Knöpfe geschrieben und sagt nichts über eine Reihe, in der eines ihrer Kinder
+zwei Zeilen hoch ist. `flex-end` bringt den Versatz auf 0 und lässt die
+gewöhnliche Leiste um kein Pixel wandern — beides gemessen.
+
+**Befund 6 — die Abstände der Dichtestufe `customer`.** Der Betreiber hat
+entschieden, dass der Befund der Stufe gilt und nicht der Cronseite. Sie war bei
+den beiden Fugenmassen **zwei** Schritte von der Verwaltung entfernt (34 gegen
+26, 38/52 gegen 30/44), während `--gap` und `--row-height` je einen Schritt
+auseinanderliegen.
+
+> **Eine Achse, deren Sprossen verschieden weit auseinanderliegen, ist keine
+> Achse, sondern eine Sammlung von Werten.**
+
+Vier Pixel weniger in jeder Richtung: `--block-gap: 30px`,
+`--bereich-gap: 34px 48px`. Gemessen an einem Aufbau aus drei Bereichen:
+401 px hoch statt 385. Die Zahlen sind eine Entscheidung, die Höhe ist die
+Messung.
+
+**Befund 5 — die Cron-Schreibweise brach mitten im Ausdruck.** `.ident` trägt
+`overflow-wrap: anywhere`, und das ist für Kennungen richtig; für ein Literal
+von vier Zeichen ist es falsch.
+
+> **Ein Format für lange Kennungen reicht nicht für kurze Literale.**
+
+`.ident.literal` zeichnet es als Code aus und hält es zusammen. **Die Grenze
+steht nicht im Stylesheet, sondern im Wächter:** In einem `.literal` steht kein
+`{{ }}` und höchstens zwölf Zeichen — `Ergibt: {{ ausdruck }}` daneben trägt die
+Klasse ausdrücklich nicht, denn dort stehen fünf Felder mit je 192 erlaubten
+Zeichen.
+
+> **Eine Zusage, die das Stylesheet nicht geben kann, gibt der Wächter — oder
+> niemand.**
+
+`MobileLayoutTest` verbietet `nowrap` an `.ident` ausserhalb einer Tabelle und
+hat den Eingriff prompt gemeldet; die Ausnahme steht dort jetzt mit dem Verweis
+auf ihre Zusage.
+
+**Drei Fehler in den neuen Wächtern, alle drei beim Bauen gefunden:**
+
+- Der Kommentar zu `.ident.literal` nannte sein Beispiel wörtlich — und dessen
+  Zeichenfolge **beendet einen CSS-Kommentar**. Die Regel darunter stand
+  plötzlich im Nirgendwo.
+
+  > **Ein Kommentar, der sein Beispiel wörtlich nennt, endet manchmal dort.**
+- Der Ankreuz-Wächter suchte rückwärts bis zum nächsten `<label>` und meldete
+  die Datenbankkonsole: Dort steht das Kästchen in einem `<span class="toggle">`
+  **innerhalb** eines `<label class="field">`.
+
+  > **Ein Wächter, der bis zum Vorfahren sucht, überspringt den Nachbarn.**
+- Und danach fand er die Dateiliste, weil dort `class="check"` **hinter**
+  `type="checkbox"` steht.
+
+  > **Eine Suche rückwärts findet nicht, was rechts davon steht.**
+
+Er liest jetzt zuerst das eigene Tag. Sechs Brüche im Bruchskript, alle
+gegengeprüft.

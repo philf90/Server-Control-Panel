@@ -649,7 +649,18 @@ Schritt 11 und damit das Abnahmekriterium der ganzen Stufe.
 
 Und **`63` die Bilderrunde** — Schritt 12: die neun Ansichten, ihre Zustände,
 das Messmittel mit seiner Gegenprobe und die Fallen, die diesen Lauf schon
-gekostet haben.
+gekostet haben — mit **`64`** als Protokoll dazu, angelegt am 19. August nach
+den ersten beiden Ansichten.
+
+**Und die erste Messung hat zwei Fehler in dieser Vorschrift gefunden**, beide
+am Prüfmittel: `schiebt` war als Kriterium gedacht und meldet bei jeder Tabelle
+das gewollte `.stacks thead` (`Eine Liste, die auch das Gewollte nennt, ist ein
+Hinweis und kein Urteil`), und eine Messung nach einem Breitenwechsel **ohne
+Neuladen** trägt Reste mit — derselbe Überlauf von 468 px bei 390 und 1440, den
+dieselbe Seite frisch geladen nicht hat.
+
+> **Eine Messung nach einem Wechsel der Breite misst auch, was von vorher übrig
+> ist.**
 
 **Und die Vorbereitung dieses Schritts hat zwei Fehler gefunden, die kein Test
 finden konnte, weil es keinen gab** (19. August 2026, gemeldet vom Betreiber:
@@ -1138,6 +1149,29 @@ Testen berücksichtigen:
 
   > **Eine Prüfung, die nur nachsieht, woran man gerade denkt, prüft das
   > Erinnerungsvermögen.**
+
+  **Und derselbe Satz noch einmal am 20. August, an `BreakScriptTest`.** Der
+  Wächter über die Wächter läuft hier — er erbt nur von `TestCase`. Gefahren
+  worden sind die 46 Fälle der Wächter, die in der Bilderrunde **entstanden**
+  sind; dass eine erweiterte Regel in `app.css` einem **bestehenden** Eingriff
+  seinen Text wegnimmt, hat erst die CI gemeldet. Wer eine Regel anfasst, fährt
+  `BreakScriptTest` mit, und zwar unabhängig davon, ob dabei ein Wächter
+  entstanden ist.
+
+  > **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
+  > gefahren — man denkt an das Gebaute und nicht an das Berührte.**
+
+  **Und ein einzelner Eingriff des Bruchskripts lässt sich hier ebenfalls
+  fahren.** `tests/waechter-brechen.sh` als Ganzes braucht `vendor/bin/phpunit`
+  und läuft nicht — der einzelne Eingriff schon: Datei sichern, den
+  Python-Block von Hand anwenden, den Wächter im Gestell fahren, Datei
+  zurückholen. Am 20. August hat genau das einen Wächter überführt, der
+  **wirkungslos** war, obwohl der Eingriff die Datei nachweislich veränderte
+  (`docs/64 §2`). Wer einen Eingriff schreibt oder den Wächter dahinter anfasst,
+  belegt ihn so, statt ihn ungeprüft zu pushen.
+
+  > **„Das Bruchskript läuft hier nicht" ist keine Ausrede, sondern ein
+  > Handgriff mehr.**
 
   **Was das Gestell nicht kann, zählt es nach Art** statt es „übersprungen" zu
   nennen: fehlende Klassen, `setUp()`, Datenlieferanten, `use App\`. Gemessen

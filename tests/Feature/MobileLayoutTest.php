@@ -1497,7 +1497,27 @@ final class MobileLayoutTest extends TestCase
 
                 $rules++;
 
-                if (preg_match('/white-space:\s*nowrap/', $rule[2]) === 1) {
+                /*
+                 * **`.ident.literal` ist die eine Ausnahme, und sie hat ihren
+                 * eigenen Wächter.**
+                 *
+                 * Der Satz oben — eine Kennung darf ausserhalb einer Tabelle
+                 * brechen — gilt für Kennungen, die wachsen können: ein Pfad,
+                 * ein Fingerabdruck, ein Dumpname. Ein Literal von vier
+                 * Zeichen im Fliesstext ist das Gegenteil: Es sagt nur als
+                 * Ganzes etwas (`docs/64`, Befund 5).
+                 *
+                 * > **Ein Format für lange Kennungen reicht nicht für kurze
+                 * > Literale.**
+                 *
+                 * Was diese Ausnahme trägt, kann CSS nicht zusagen: dass da
+                 * wirklich etwas Kurzes steht. {@see LiteralTest} sagt es zu —
+                 * kein `{{ }}` und höchstens zwölf Zeichen.
+                 *
+                 * > **Eine Zusage, die das Stylesheet nicht geben kann, gibt
+                 * > der Wächter — oder niemand.**
+                 */
+                if (preg_match('/white-space:\s*nowrap/', $rule[2]) === 1 && $selector !== '.ident.literal') {
                     $this->assertMatchesRegularExpression(
                         '/(^|[\s,>.])(td|th)\b/',
                         $selector,

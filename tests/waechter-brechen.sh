@@ -7882,12 +7882,22 @@ echo "── BlockSpacingTest: eine Meldung unter der Blätterleiste ──"
 # Der fünfte Fall, und er hat die Frage dieses Wächters umgestellt: nicht mehr
 # „wo steht eine Knopfreihe?", sondern „welche zwei bündigen Bausteine stehen
 # aneinander?"
+#
+# **Der Eingriff ist am 20. August umgezogen, und zwar nicht freiwillig.** Die
+# Bilderrunde hat der Liste `.section-note` hinzugefügt und drei Zeilen mit
+# `.quiet` daruntergesetzt; damit endete der gegriffene Text nicht mehr auf
+# ` {`, sondern auf `,` — und der Eingriff fand seinen Text nicht mehr. Gegriffen
+# wird deshalb jetzt nur noch das Stück um `.pager`, das die Regel trägt, und
+# nicht ihr Anfang und ihr Ende.
+#
+# > **Ein Eingriff, der die ganze Zeile greift, zieht mit jedem Eintrag um, der
+# > dazukommt.**
 vorher_datei resources/css/app.css
 python3 - <<'PY2'
 p = 'resources/css/app.css'
 s = open(p, encoding='utf-8').read()
-s = s.replace(":is(.field, .hint, .error, .scrolls, .pager, .cell-value, .button-row) + .notice {",
-              ":is(.field, .hint, .error, .scrolls, .cell-value, .button-row) + .notice {", 1)
+s = s.replace(".pager, .cell-value, .button-row, .section-note) + .notice,",
+              ".cell-value, .button-row, .section-note) + .notice,", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/css/app.css "Meldung unter der Blätterleiste" &&
@@ -9172,6 +9182,320 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimerRearmTest passed
 
 echo
+echo "── LiteralTest: eine Einsetzung in einem Literal ──"
+#
+# Befund 5 aus docs/64: `.literal` haelt den Inhalt vom Umbruch ab. Was aus
+# einer Eingabe kommt, kann beliebig lang werden und schiebt dann die Seite.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('<span class="ident">{{ ausdruck }}</span>', '<span class="ident literal">{{ ausdruck }}</span>', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Einsetzung im Literal" &&
+pruefe "Einsetzung im Literal" \
+  LiteralTest::test_a_literal_is_short_and_written_out failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LiteralTest passed
+
+echo
+echo "── LiteralTest: ein zu langes Literal ──"
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('<span class="ident literal">9-17</span>', '<span class="ident literal">/usr/local/bin:/usr/bin:/bin</span>', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "zu langes Literal" &&
+pruefe "zu langes Literal" \
+  LiteralTest::test_a_literal_is_short_and_written_out failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LiteralTest passed
+
+echo
+echo "── LiteralTest: das Ankreuzfeld trägt wieder die Regel eines Textfeldes ──"
+#
+# Befund 1 aus docs/64: Bei 390px wurde daraus ein Kasten von 390x44 px, und der
+# Dokumentueberlauf blieb dabei 0.
+vorher_datei resources/js/Pages/Files/Search.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Search.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '<label class="toggle">\n        <input v-model="imInhalt" type="checkbox" />\n        <span>auch im Inhalt</span>\n      </label>',
+    '<label class="field inline">\n        <span>auch im Inhalt</span>\n        <input v-model="imInhalt" type="checkbox" />\n      </label>',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Search.vue "Ankreuzfeld als Textfeld" &&
+pruefe "Ankreuzfeld als Textfeld" \
+  LiteralTest::test_a_checkbox_is_not_dressed_as_a_field failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LiteralTest passed
+
+echo
+echo "── BlockSpacingTest: der Erklärsatz verliert seinen Rand nach unten ──"
+#
+# Befund 3 aus docs/64: Der Knopf „Eintragen" klebte am Satz darueber.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('  margin: 10px 0 var(--block-gap);', '  margin: 10px 0 0;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Erklärsatz ohne Rand" &&
+pruefe "Erklärsatz ohne Rand" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
+
+echo
+echo "── BlockSpacingTest: die drei Fugen um den leisen Satz fallen weg ──"
+#
+# Befunde 2 und 4 aus docs/64: „Gesucht unter …" klebte an der Knopfreihe
+# darueber und die gelbe Meldung an ihm.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('.button-row + .quiet,\n.quiet + .notice,\n.quiet + .scrolls {', '.nichts-davon {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Fugen um den leisen Satz" &&
+pruefe "Fugen um den leisen Satz" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
+
+echo
+echo "── BlockSpacingTest: der Absatz ohne Klasse verliert seinen Rand ──"
+#
+# Befund 4 auf der Cronseite. Diesen Baustein sieht der Wächter darunter nicht —
+# er kennt Bausteine an ihrer Klasse, und ein Absatz ohne Klasse hat keine.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('p:not([class]) {\n  margin-bottom: var(--block-gap);\n}', 'p:not([class]) {\n  margin-bottom: 0;\n}', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Absatz ohne Rand" &&
+pruefe "Absatz ohne Rand" \
+  BlockSpacingTest::test_a_paragraph_without_a_class_leaves_air_below failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
+
+echo
+echo "── RevealTest: ein Griff an einer Zeile holt seinen Bereich nicht ins Bild ──"
+#
+# Befund 10 aus docs/64: „Rechte" an einer Zeile weit unten oeffnet einen
+# Bereich am Kopf der Seite. Bei 390px sieht man nichts geschehen.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    'watch(chmodFor, (offen) => {\n  if (offen !== null) {\n    void nextTick(() => bringIntoView(chmodBlock.value))\n  }\n})\n\n',
+    '',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Griff ohne Sprung" &&
+pruefe "Griff ohne Sprung" \
+  RevealTest::test_every_per_item_handle_reveals_its_block failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RevealTest passed
+
+echo
+echo "── RevealTest: der Bereich kann den Fokus nicht annehmen ──"
+#
+# `bringIntoView()` setzt am Ende den Fokus. Ohne `tabindex="-1"` tut das an
+# einer `section` nichts — die Seite springt, der Tastaturweg bleibt zu.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('<section ref="formBlock" class="section" tabindex="-1">', '<section ref="formBlock" class="section">', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Bereich ohne Fokus" &&
+pruefe "Bereich ohne Fokus" \
+  RevealTest::test_a_revealed_block_can_take_the_focus failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RevealTest passed
+
+echo
+echo "── RevealTest: ein veralteter Eintrag in der Liste der Ungeprüften ──"
+vorher_datei tests/Unit/RevealTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/RevealTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        'Pages/Databases/Console.vue toggle expanded',",
+    "        'Pages/Databases/Console.vue toggle expanded',\n        'Pages/Files/Index.vue gibtEsNicht wasAuchImmer',",
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Unit/RevealTest.php "veralteter Eintrag bei den Ungeprüften" &&
+pruefe "veralteter Eintrag bei den Ungeprüften" \
+  RevealTest::test_every_per_item_handle_reveals_its_block failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RevealTest passed
+
+echo
+echo "── TableStyleTest: die Zelle verliert ihre senkrechte Polsterung ──"
+#
+# Befunde 7 und 8 aus docs/64: Ohne sie kommt der senkrechte Rhythmus allein aus
+# `height`, und der wirkt nur, solange der Inhalt hineinpasst.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('  padding: 6px 14px;\n  padding-left: 0;', '  padding: 0 14px 0 0;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Zelle ohne senkrechte Polsterung" &&
+pruefe "Zelle ohne senkrechte Polsterung" \
+  TableStyleTest::test_a_cell_has_vertical_padding_below_the_measured_ceiling failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TableStyleTest passed
+
+echo
+echo "── TableStyleTest: die Polsterung überschreitet die gemessene Grenze ──"
+#
+# Ab 7px waechst eine einzeilige Zeile in der Dichtestufe `admin` ueber ihre
+# 40px hinaus — dann bestimmt die Polsterung die Zeilenhoehe statt der Stufe.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('  padding: 6px 14px;', '  padding: 8px 14px;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Polsterung über der Grenze" &&
+pruefe "Polsterung über der Grenze" \
+  TableStyleTest::test_a_cell_has_vertical_padding_below_the_measured_ceiling failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TableStyleTest passed
+
+echo
+echo "── StandaloneClassTest: leiser Text gilt wieder nur in einer Tabelle ──"
+#
+# Befund 11 aus docs/64: `.quiet` stand als `td.quiet` und `td .quiet` da, und
+# fuenf Stellen ausserhalb einer Zelle baten vergeblich darum.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('\n.quiet {\n  color: var(--text-muted);\n}', '\ntd.quiet {\n  color: var(--text-muted);\n}', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "leiser Text nur in der Zelle" &&
+pruefe "leiser Text nur in der Zelle" \
+  StandaloneClassTest::test_quiet_is_not_bound_to_a_table failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" StandaloneClassTest passed
+
+echo
+echo "── StandaloneClassTest: eine gebundene Klasse ohne Begründung ──"
+#
+# `.right` gibt es nur als `td.right`. Fehlt der Eintrag, ist es ein Fund.
+vorher_datei tests/Unit/StandaloneClassTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/StandaloneClassTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        'right' => 'eine rechtsbündige Zelle',\n", '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Unit/StandaloneClassTest.php "gebundene Klasse ohne Begründung" &&
+pruefe "gebundene Klasse ohne Begründung" \
+  StandaloneClassTest::test_every_used_class_has_a_standalone_rule failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" StandaloneClassTest passed
+
+echo
+echo "── StandaloneClassTest: ein veralteter Eintrag in der Liste ──"
+#
+# Die Sperrklinke: Ein Eintrag, der eine freistehende Regel hat, sieht aus wie
+# eine bekannte Einschränkung und ist keine mehr.
+vorher_datei tests/Unit/StandaloneClassTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/StandaloneClassTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        'right' => 'eine rechtsbündige Zelle',",
+    "        'right' => 'eine rechtsbündige Zelle',\n        'notice' => 'nur zum Ausprobieren',",
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Unit/StandaloneClassTest.php "veralteter Eintrag" &&
+pruefe "veralteter Eintrag" \
+  StandaloneClassTest::test_every_used_class_has_a_standalone_rule failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" StandaloneClassTest passed
+
+echo
+echo "── CronScheduleFormTest: der Ausdruck wird ein eigener Wert ──"
+#
+# Wunsch 1 aus docs/64: Die Expertenansicht gibt es nur, weil sie zurückschreibt.
+# Ein eigenes Feld daneben wäre eine zweite Fassung desselben Zeitplans.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("  active: true,\n})", "  active: true,\n  expression: '',\n})", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Ausdruck als eigener Wert" &&
+pruefe "Ausdruck als eigener Wert" \
+  CronScheduleFormTest::test_the_free_expression_is_a_view_on_the_five_fields failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronScheduleFormTest passed
+
+echo
+echo "── CronScheduleFormTest: der Setzer lässt ein Feld aus ──"
+#
+# Ein Feld, das beim Umschalten seinen alten Wert behält, macht aus dem
+# Ausdruck im Feld eine Behauptung über etwas anderes als das Gespeicherte.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("    form.month = teile[3] ?? ''\n", '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Setzer ohne Monat" &&
+pruefe "Setzer ohne Monat" \
+  CronScheduleFormTest::test_the_free_expression_is_a_view_on_the_five_fields failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronScheduleFormTest passed
+
+echo
+echo "── CronScheduleFormTest: der Ausdruck ist keine berechnete Sicht mehr ──"
+#
+# Ohne `computed` mit Setzer ist er ein gespeicherter Wert, und die fünf Felder
+# erfahren von einer Eingabe nichts.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('const freierAusdruck = computed({', 'const freierAusdruck = ref({', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Ausdruck ohne Sicht" &&
+pruefe "Ausdruck ohne Sicht" \
+  CronScheduleFormTest::test_the_free_expression_is_a_view_on_the_five_fields failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronScheduleFormTest passed
+
+echo
 echo "── OverflowProbeTest: der Prüfkörper bekommt wieder eine feste Breite ──"
 #
 # Befund 22 aus docs/59: Ein Block von 900px schlägt bei 390px aus und bei
@@ -9240,6 +9564,76 @@ PY2
 griff_datei tests/bilder-messen.js "Messung nur an genannten Stellen" &&
 pruefe "Messung nur an genannten Stellen" \
   OverflowProbeTest::test_every_element_is_measured failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
+echo "── OverflowProbeTest: ein Fund nennt nur noch seine Bauart ──"
+#
+# „div" stand in der Bilderrunde viermal in vier Ansichten und zeigte nirgendwo
+# hin. Eine Zahl, die nicht sagt, welche, zwingt zum Suchen.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace('      pfad: pfad(element),\n', '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/bilder-messen.js "Fund ohne Ort" &&
+pruefe "Fund ohne Ort" \
+  OverflowProbeTest::test_a_finding_names_where_it_is failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
+echo "── OverflowProbeTest: ein Fund zeigt sein Markup nicht mehr ──"
+#
+# Der Weg allein zeigt zwar auf ein Element, sagt aber nicht, was drinsteht.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace('      anfang: element.outerHTML.slice(0, 120),\n', '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/bilder-messen.js "Fund ohne Markup" &&
+pruefe "Fund ohne Markup" \
+  OverflowProbeTest::test_a_finding_names_where_it_is failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
+echo "── OverflowProbeTest: die Messung nennt ihren Stand nicht mehr ──"
+#
+# Das Skript lebt in der Konsole und kommt nach jedem Neuladen aus der
+# Zwischenablage zurück. Ohne Stand sieht eine alte Messung aus wie eine neue.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace('    stand: STAND,\n', '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/bilder-messen.js "Messung ohne Stand" &&
+pruefe "Messung ohne Stand" \
+  OverflowProbeTest::test_a_reading_names_the_instrument failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
+echo "── OverflowProbeTest: der Stand ist kein Datum mehr ──"
+#
+# „neu" altert nicht. Ein Stand, der kein Datum ist, sagt nichts über das Alter.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace("const STAND = '2026-08-19'", "const STAND = 'neu'", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/bilder-messen.js "Stand ohne Datum" &&
+pruefe "Stand ohne Datum" \
+  OverflowProbeTest::test_a_reading_names_the_instrument failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
 

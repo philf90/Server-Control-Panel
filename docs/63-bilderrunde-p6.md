@@ -5,9 +5,9 @@ Ansicht: Schiebt die Seite bei 390 px aus dem Bild, und sieht sie in beiden
 Themes so aus, wie sie gemeint ist?
 
 Dieses Dokument ist die Vorschrift. Das Protokoll entsteht **während** des
-Laufs und nicht danach; es bekommt die nächste freie Nummer unter `docs/`,
-sobald der erste Punkt gemessen ist. Vorher steht hier keine — ein Verweis auf
-ein Dokument, das es nicht gibt, ist ein toter Verweis, und `DocLinkTest`
+Laufs und nicht danach; es ist `docs/64` und angelegt worden, als die ersten
+beiden Ansichten gemessen waren. Vorher stand hier keine Nummer — ein Verweis
+auf ein Dokument, das es nicht gibt, ist ein toter Verweis, und `DocLinkTest`
 besteht zu Recht darauf.
 
 > **Schritt 12 wird nicht abgehakt, wenn er gerade nicht geht.** `docs/49 §6`
@@ -26,11 +26,39 @@ Es gibt zurück:
 
 | Feld | was es bedeutet |
 |---|---|
+| `stand` | der Tag, an dem das Messmittel zuletzt geändert wurde |
 | `breite` / `thema` | die Lage, an der gemessen wurde — damit keine Zeile ihre Herkunft verliert |
 | `dokument` | `scrollWidth − clientWidth` der Seite. **Das ist die Zahl, um die es geht: sie muss 0 sein.** |
 | `gegenprobe` | `{ ausschlag, erwartet: 200 }` — beide Zahlen müssen gleich sein |
 | `schiebt` | jedes Element, das überläuft **ohne** `overflow-x` zu haben. Der Fund. |
 | `rollt` | jedes Element, das überläuft **und** rollen darf. Erwartet und in Ordnung. |
+
+Jeder Eintrag in `schiebt` und `rollt` nennt vier Dinge: `wo` (Marke und
+Klassen), `pfad` (der Weg von `body` herab), `anfang` (die ersten 120 Zeichen
+des Markups) und `ueberlauf`.
+
+**`pfad` und `anfang` gibt es seit dem 19. August**, und zwar wegen dieses
+Laufs: In den Ansichten 2 bis 4 stand viermal die Zeile `div` mit 468 px, und
+sie zeigte nirgendwo hin — ein Element ohne Klasse heisst unter `wo` eben nur
+`div`. Vier Messungen, und keine sagte, welches Element gemeint war.
+
+> **Eine Zahl, die nicht sagt, welche, zwingt zum Suchen.**
+
+`OverflowProbeTest::test_a_finding_names_where_it_is` hält beides fest.
+
+**Und `stand` steht seit demselben Tag daneben, aus einem Grund, der diesen
+Lauf schon gekostet hat.** Das Skript lebt in der Konsole und verschwindet bei
+jedem Neuladen — es kommt also nach jeder Aufnahme aus der Zwischenablage
+zurück. Am 19. August kam es mit den Feldern von vorgestern wieder, während
+die Frage, die es beantworten sollte, gerade an den neuen hing; der Ausdruck
+sah dabei aus wie ein Ergebnis.
+
+> **Ein Werkzeug, das nach jedem Neuladen aus der Zwischenablage kommt, ist so
+> alt wie die Zwischenablage und sagt es nicht.**
+
+**Das Skript wird deshalb nach jedem Neuladen frisch aus dem Zweig geholt**,
+nicht aus der Zwischenablage der vorigen Aufnahme, und `stand` gehört in jede
+Zeile des Protokolls.
 
 **Warum die Gegenprobe an `scrollWidth` hängt und nicht an einer Zahl.** Befund
 22 aus `docs/59`: Ein fester Block von 900 px schlägt bei 390 px aus und bei
@@ -253,6 +281,41 @@ Danach **hineinklicken** — die Krümelleiste trägt den Namen dann in voller
 Länge, und das ist die Stelle, an der `docs/46 §20.11` schon einmal 99 px aus
 dem Bild geschoben hat.
 
+### 2.3b — 520 Dateien für den Zustand „gekürzt" (root nötig)
+
+**Ein Suchwort allein erzeugt diesen Zustand nicht.** `FilesSearch` bricht ab,
+wenn eine von zwei Zahlen erreicht ist: 50 000 angesehene Einträge
+(`MAX_VISITED`) oder **500 Treffer** (`MAX_HITS`). Das Abonnement hat rund
+zwanzig Einträge; der Zustand ist ohne Vorbereitung unerreichbar.
+
+**520 und nicht 500.** Die Abfrage steht am Kopf der Schleife, *bevor* der
+nächste Eintrag gezählt wird: Bei genau 500 passenden Dateien ist die Liste zu
+Ende, bevor jemand den Abbruch bemerkt, und `truncated` bliebe `false`. Es
+braucht mindestens einen Eintrag mehr, und zwanzig Reserve kosten nichts.
+
+> **Eine Grenze, die beim Betreten des nächsten Eintrags geprüft wird, braucht
+> einen nächsten Eintrag.**
+
+Der einzige zweite Griff dieses Laufs, der root braucht — wie §2.4, und aus
+demselben Grund ausdrücklich gekennzeichnet: 520 Dateien durch das Panel
+anzulegen sind 520 Formulare.
+
+```
+mkdir -p /var/www/vhosts/p6-abnahme.invalid/httpdocs/viele && for i in $(seq -w 1 520); do : > /var/www/vhosts/p6-abnahme.invalid/httpdocs/viele/treffer-$i.txt; done && chown -R "p1139:$(id -gn p1139)" /var/www/vhosts/p6-abnahme.invalid/httpdocs/viele && chmod 750 /var/www/vhosts/p6-abnahme.invalid/httpdocs/viele && chmod 640 /var/www/vhosts/p6-abnahme.invalid/httpdocs/viele/*.txt && ls /var/www/vhosts/p6-abnahme.invalid/httpdocs/viele | wc -l
+```
+
+Erwartet: `520`.
+
+Gesucht wird dann nach `treffer` — die Adresse dazu:
+`/subscriptions/140/files/search?path=%2F&query=treffer`
+
+**Und danach wieder weg**, damit der Bestand für die zweite Runde derselbe ist
+wie in §2.1:
+
+```
+rm -rf /var/www/vhosts/p6-abnahme.invalid/httpdocs/viele
+```
+
 ### 2.4 — Eine Datei, die dem Kunden nicht gehört (root nötig)
 
 Für den Zustand „nur lesbar" im Editor. `conf/` gehört `root:root 0755` — der
@@ -364,7 +427,8 @@ oder Grau —, kommt er zusätzlich im zweiten Theme dazu.
 | Dateimanager | Mehrfachauswahl mit Auswahlleiste | zwei Einträge ankreuzen |
 | Dateimanager | Ziel im Baum wählen | „Verschieben" drücken |
 | Dateimanager | Packen, mit Namensfeld | „Packen" drücken |
-| Dateimanager | die vier Formulare | Verzeichnis, Datei, Hochladen, Rechte, Umbenennen |
+| Dateimanager | die vier Formulare der Kopfleiste | Verzeichnis anlegen, Datei anlegen, Hochladen, Suchen |
+| Dateimanager | die zwei Formulare an einer Zeile | „Rechte" und „Umbenennen" in der Aktionsspalte eines Eintrags |
 | Dateimanager | der lange Verzeichnisname in den Krümeln | in 2.1 angelegt — **hier ist `docs/46 §20.11` gebrochen** |
 | Editor | „zu gross" | `gross.bin` öffnen |
 | Editor | „binär" | `binaer.dat` öffnen |
@@ -376,6 +440,7 @@ oder Grau —, kommt er zusätzlich im zweiten Theme dazu.
 | Cron | ohne Jobs | vor 2.3 aufnehmen |
 | Cron | Kontingent voll | zehn Jobs anlegen |
 | Cron | Formular „Ändern" offen | „Ändern" drücken |
+| Cron | Zeitplan als Ausdruck (Experte) | das Kästchen „Den Zeitplan als Ausdruck eingeben" ankreuzen |
 | Cron | Abonnement nicht benutzbar | — nur wenn es zutrifft |
 | Läufe | Lauf mit Ausgabe, aufgeklappt | Job A |
 | Läufe | Lauf mit Rückgabewert ≠ 0 | Job B |
@@ -385,11 +450,31 @@ oder Grau —, kommt er zusätzlich im zweiten Theme dazu.
 
 ## 4. Der Ablauf je Aufnahme
 
-1. Adresse aufrufen, **neu laden** (⌘R) — nach einer Inertia-Navigation trägt
-   die Seite Zustand aus der vorigen.
-2. Breite einstellen. In den Entwicklerwerkzeugen die Geräteansicht auf
-   **390 × 844** und **1440 × 900**.
-3. `bilderMessen()` in der Konsole, Ergebnis notieren.
+1. Breite einstellen. In den Entwicklerwerkzeugen die Geräteansicht auf
+   **390 × 844** oder **1440 × 900**.
+2. Adresse aufrufen und **neu laden** (⌘R) — **nach jedem Wechsel der Breite,
+   nicht nur einmal je Ansicht.**
+
+   Am 19. August gemessen: Dieselbe Seite bei 1440 meldet nach einem Wechsel
+   von 390 einen Überlauf von 468 px in einem Element, den sie frisch geladen
+   nicht hat. Was davon übrig bleibt, ist nicht geklärt — geklärt ist, dass es
+   übrig bleibt.
+
+   > **Eine Messung nach einem Wechsel der Breite misst auch, was von vorher
+   > übrig ist.**
+
+3. In der Konsole — **flach ausgegeben und nicht als Objekt**:
+
+   ```
+   JSON.stringify(bilderMessen())
+   ```
+
+   Die Konsole klappt ein Objekt ein, und `gegenprobe: {…}` sieht neben einem
+   `dokument: 0` aus wie eine Messung. Am 19. August sind so für eine ganze
+   Ansicht vier Gegenproben ins Protokoll geraten, die niemand gesehen hatte.
+
+   > **Eine Zahl, die man aus einem eingeklappten Objekt abschreibt, hat man
+   > nicht gemessen.**
 4. Bild aufnehmen — **die ganze Seite**, nicht nur den sichtbaren Ausschnitt.
 5. Thema umschalten und ab 3 wiederholen:
    ```
@@ -406,11 +491,22 @@ mit; das ist kein grosser Unterschied und war schon zweimal genau der.
 
 ## 5. Was ein Fund ist
 
-- `dokument` grösser als 0 — die Seite schiebt.
-- ein Eintrag in `schiebt` — irgendetwas läuft über, ohne rollen zu dürfen.
+- `dokument` grösser als 0 — die Seite schiebt. **Das ist das Kriterium.**
 - `gegenprobe.ausschlag` ungleich `erwartet` — **dann ist die ganze Zeile
   ungültig** und wird nicht als Messung notiert.
 - **und alles, was auf dem Bild falsch aussieht, ohne eine Zahl zu erzeugen.**
+
+**`schiebt` ist ein Hinweis und kein Urteil.** Der erste Entwurf zählte jeden
+Eintrag als Fund; die erste Messung hat gezeigt, dass das nicht trägt. Bei
+390 px steht dort regelmässig `thead` mit rund 350 px — das ist `.stacks thead`
+aus `app.css`, absichtlich mit `position: absolute; width: 1px; overflow:
+hidden; clip-path: inset(50%)` aus dem Bild genommen, damit der Screenreader die
+Spaltenüberschriften behält. Ein Mechanismus, kein Fehler.
+
+> **Eine Liste, die auch das Gewollte nennt, ist ein Hinweis und kein Urteil.**
+
+Jeder Eintrag wird deshalb einzeln beurteilt und im Protokoll benannt: gewollt
+oder Fund. Ungeprüft stehen lassen gilt nicht — dann wäre die Spalte Zierde.
 
 Der letzte Punkt ist der wichtigste und hat in P5c zwei Fehler gebracht, die
 vollständig grün waren:
@@ -442,6 +538,73 @@ Und die Falle aus `docs/59`, die vier Aufnahmen überlebt hat:
 - **Die Läufe-Seite braucht Läufe.** Ein Job im Minutentakt liefert sie nach
   zwei Minuten; vorher zeigt sie ihren leeren Zustand, und der ist ein eigenes
   Bild und kein Ersatz.
+- **`thema` ist eine Abschrift und keine Prüfung.** Das Feld liest
+  `data-theme` wörtlich; die gültigen Werte sind `light` und `dark`. Steht dort
+  etwas anderes, greift keine Themeregel — und die Messung meldet den falschen
+  Wert brav zurück, als hätte sie ihn festgestellt. Am 19. August im
+  Prüfaufbau des Containers genau so passiert: eine helle Seite mit dem Etikett
+  „dunkel".
+
+  > **Ein Feld, das die Lage aus dem Dokument abschreibt, bestätigt die Lage
+  > nicht — es wiederholt sie.**
+
+  Im Browser schaltet `window.srvpanelTheme('light' | 'dark')`.
+- **Ein Eingabefeld mit langem Inhalt steht unter `schiebt` und ist keiner.**
+  Ein Textfeld rollt seinen Inhalt von sich aus, ohne `overflow-x: auto` zu
+  tragen — der berechnete Wert ist `clip`, und damit fällt es auf die falsche
+  Seite der Einteilung. Am 19. August auf der Suchseite bei 1440 px gemessen:
+  `input` mit 24 px, `dokument` 0.
+
+  > **Ein Behälter, der von sich aus rollt, sagt es der Messung nicht — sie
+  > kennt nur `overflow-x`.**
+- **Gemessen wird in einem Fenster ohne Erweiterungen.** Eine Erweiterung
+  schreibt in *jedes* Dokument, und was sie hineinschreibt, misst diese Messung
+  mit. In diesem Lauf war es LastPass: eine verborgene Meldezeile
+  (`lp-menu-live-region`, 1 px breit, `clip: rect(…)`), die in `schiebt` als
+  `div` mit 468 px steht — auf jeder Seite gleich breit, weil sie zu keiner
+  gehört. Sie hat vier Ansichten lang wie ein Fund am Panel ausgesehen.
+
+  > **Eine Messung am Dokument misst auch, was der Browser hineingeschrieben
+  > hat.**
+
+  > **Ein Kasten, der auf jeder Seite gleich breit ist, gehört zu keiner von
+  > ihnen.**
+
+  Ein privates Fenster mit abgeschalteten Erweiterungen oder ein frisches Profil
+  genügt. Wo das nicht geht, wird jeder Eintrag an seinem `anfang` beurteilt —
+  ein Element, dessen Markup keine Klasse dieses Projekts trägt, ist keines
+  davon.
+
+---
+
+## 6b. Die Experteneingabe — was ausser dem Bild zu prüfen ist
+
+**Gebaut am 19. August 2026 auf Bestellung des Betreibers** (`docs/64`,
+Wunsch 1). Sie ändert die Ansicht, die dieser Schritt prüft, und ist deshalb
+Teil der **zweiten** Runde — nicht der ersten.
+
+Das Bild allein genügt hier nicht: Der Ausdruck ist eine Sicht auf die fünf
+Felder, und ob er das wirklich ist, sieht man ihm nicht an. Fünf Griffe, alle in
+der Kundensicht auf Abonnement 140, alle ohne Speichern ausser dem letzten:
+
+| | Griff | erwartet |
+|---|---|---|
+| 1 | Kästchen ankreuzen | Im Feld steht `* * * * *` — was vorher in den fünf Feldern stand |
+| 2 | `*/15 9-17 * * 1-5` eintragen, Kästchen abwählen | Die fünf Felder tragen `*/15`, `9-17`, `*`, `*`, `1-5` |
+| 3 | Bei angekreuztem Kästchen auf „montags bis freitags um 09:00" drücken | Im Feld steht `0 9 * * 1-5` — die Schnellwahl wirkt auch hier |
+| 4 | `* * *` eintragen und anlegen | Abweisung, und der Satz steht **oben** in der Zusammenfassung; das Feld ist nur `aria-invalid` |
+| 5 | `*/15 * * * *` eintragen und anlegen | Der Job steht in der Liste mit genau diesem Ausdruck |
+
+**Griff 2 ist der eigentliche Punkt.** Schriebe der Ausdruck nicht zurück, hätte
+die Seite zwei Wahrheiten über denselben Zeitplan — und gespeichert würde die
+alte. Griff 4 belegt die andere Hälfte: Über die Form eines Zeitplans urteilt
+nur der Server, und zwar an derselben Stelle wie beim geführten Weg.
+
+Und ein Blick, den keine Zahl liefert: **Nach Griff 5 muss in der Liste stehen,
+was eingetippt wurde** — nicht etwas, das ihm ähnlich sieht.
+
+> **Ein Feld, das den Wert eines anderen anzeigt, ist erst dann eine Sicht, wenn
+> es ihn auch setzt — sonst ist es eine Kopie mit Verspätung.**
 
 ---
 
@@ -449,7 +612,8 @@ Und die Falle aus `docs/59`, die vier Aufnahmen überlebt hat:
 
 Wenn für **alle neun Ansichten** in **allen vier Lagen** eine Zeile mit
 `dokument: 0` und gültiger Gegenprobe vorliegt, jede Aufnahme dazu abgelegt ist,
-jeder Zustand aus §3 einmal gemessen wurde — und jeder Fund entweder behoben und
-nachgemessen oder im Protokoll benannt ist.
+jeder Zustand aus §3 einmal gemessen wurde, die fünf Griffe aus §6b gefahren
+sind — und jeder Fund entweder behoben und nachgemessen oder im Protokoll
+benannt ist.
 
 **Ein Protokoll ohne seine Lücken liest sich wie eine Abnahme.**

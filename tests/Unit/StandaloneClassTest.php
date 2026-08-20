@@ -171,6 +171,17 @@ final class StandaloneClassTest extends TestCase
     /**
      * Jeder Selektor der Datei, einzeln.
      *
+     * **Das Komma trennt nur ausserhalb von Klammern.** `explode(',', …)` riss
+     * eine `:is(…)`-Liste auseinander, und aus
+     * `:is(.field, .quiet, .section-note) + .button-row` wurde unter anderem das
+     * Bruchstück `.quiet` — ein Selektor, den es nicht gibt und der aussieht wie
+     * eine freistehende Regel. Genau daran ist der Eingriff des Bruchskripts am
+     * 20. August wirkungslos geblieben: `.quiet` blieb freistehend, obwohl seine
+     * einzige echte Regel zu `td.quiet` geworden war.
+     *
+     * > **Ein Trennzeichen, das innerhalb einer Klammer trennt, erfindet
+     * > Selektoren.**
+     *
      * @return list<string>
      */
     private function selectors(): array
@@ -186,12 +197,8 @@ final class StandaloneClassTest extends TestCase
                 continue;
             }
 
-            foreach (explode(',', $kopf) as $teil) {
-                $teil = trim($teil);
-
-                if ($teil !== '') {
-                    $selektoren[] = $teil;
-                }
+            foreach ($this->splitOutsideParentheses($kopf) as $teil) {
+                $selektoren[] = $teil;
             }
         }
 
@@ -199,12 +206,53 @@ final class StandaloneClassTest extends TestCase
     }
 
     /**
+     * Eine Selektorliste am Komma trennen, aber nicht innerhalb von Klammern.
+     *
+     * @return list<string>
+     */
+    private function splitOutsideParentheses(string $kopf): array
+    {
+        $stuecke = [];
+        $akku = '';
+        $tiefe = 0;
+
+        foreach (str_split($kopf) as $zeichen) {
+            if ($zeichen === '(') {
+                $tiefe++;
+            } elseif ($zeichen === ')') {
+                $tiefe--;
+            }
+
+            if ($zeichen === ',' && $tiefe === 0) {
+                $stuecke[] = $akku;
+                $akku = '';
+
+                continue;
+            }
+
+            $akku .= $zeichen;
+        }
+
+        $stuecke[] = $akku;
+
+        return array_values(array_filter(array_map('trim', $stuecke), static fn (string $t): bool => $t !== ''));
+    }
+
+    /**
      * Klassen mit einer freistehenden Regel.
      *
      * **Freistehend heisst: Die erste Verbindung des Selektors besteht nur aus
-     * Klassen.** `td.quiet` ist es nicht — dort muss das Element eine Zelle
-     * sein. `td .quiet` erst recht nicht. `.notice` ist es, `.button-row +
-     * .notice` auch, denn dort steht `.notice` für sich.
+     * Klassen, und was folgt, liegt in ihrem eigenen Baum.** `td.quiet` ist es
+     * nicht — dort muss das Element eine Zelle sein. `td .quiet` erst recht
+     * nicht. `.notice` ist es, `.rows td` auch, und `.bar.over > i` ebenfalls:
+     * Beide gestalten, was **unter** der Klasse steht, und das reist mit ihr.
+     *
+     * **Ein Geschwisterkombinator tut das nicht.** In `.quiet + .notice` wird
+     * `.notice` gestaltet; `.quiet` ist nur die Bedingung dafür und bekommt
+     * selbst nichts. Diese Zeile als Regel für `.quiet` zu zählen hat den
+     * Eingriff des Bruchskripts am 20. August wirkungslos gemacht.
+     *
+     * > **Eine Regel, die den Nachbarn gestaltet, gestaltet nicht die Klasse.**
      *
      * @return array<string,true>
      */
@@ -221,13 +269,17 @@ final class StandaloneClassTest extends TestCase
              * freistehende und fände genau den Fall nicht, für den es diesen
              * Wächter gibt.
              */
-            $erste = preg_split('/\s*[>+~]\s*|\s+/', $sel) ?: [];
+            [$erste, $kombinator] = $this->firstConnection($sel);
 
-            if ($erste === [] || preg_match('/^[A-Za-z]/', $erste[0]) === 1) {
+            if ($erste === '' || preg_match('/^[A-Za-z]/', $erste) === 1) {
                 continue;
             }
 
-            preg_match_all('/\.([-\w]+)/', $erste[0], $klassen);
+            if ($kombinator === '+' || $kombinator === '~') {
+                continue;
+            }
+
+            preg_match_all('/\.([-\w]+)/', $erste, $klassen);
 
             foreach ($klassen[1] as $klasse) {
                 $gefunden[$klasse] = true;
@@ -235,6 +287,57 @@ final class StandaloneClassTest extends TestCase
         }
 
         return $gefunden;
+    }
+
+    /**
+     * Die erste Verbindung eines Selektors und der Kombinator dahinter.
+     *
+     * Geklammertes bleibt beisammen: In `:is(.field, .hint) + .button-row` ist
+     * die erste Verbindung das ganze `:is(…)` und der Kombinator ein `+`. Wer
+     * am ersten Leerzeichen schneidet, hört mitten in der Klammer auf.
+     *
+     * @return array{0: string, 1: string} die Verbindung und `>`, `+`, `~`,
+     *                                     ein Leerzeichen oder `''`
+     */
+    private function firstConnection(string $sel): array
+    {
+        $sel = trim($sel);
+        $laenge = strlen($sel);
+        $tiefe = 0;
+        $ende = $laenge;
+
+        for ($i = 0; $i < $laenge; $i++) {
+            $zeichen = $sel[$i];
+
+            if ($zeichen === '(') {
+                $tiefe++;
+
+                continue;
+            }
+
+            if ($zeichen === ')') {
+                $tiefe--;
+
+                continue;
+            }
+
+            if ($tiefe === 0 && ($zeichen === ' ' || $zeichen === '>' || $zeichen === '+' || $zeichen === '~')) {
+                $ende = $i;
+
+                break;
+            }
+        }
+
+        $erste = substr($sel, 0, $ende);
+        $rest = ltrim(substr($sel, $ende));
+
+        if ($rest === '') {
+            return [$erste, ''];
+        }
+
+        $kombinator = $rest[0];
+
+        return [$erste, in_array($kombinator, ['>', '+', '~'], true) ? $kombinator : ' '];
     }
 
     /**

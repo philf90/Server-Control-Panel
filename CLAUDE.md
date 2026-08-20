@@ -1161,6 +1161,18 @@ Testen berücksichtigen:
   > **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
   > gefahren — man denkt an das Gebaute und nicht an das Berührte.**
 
+  **Und ein einzelner Eingriff des Bruchskripts lässt sich hier ebenfalls
+  fahren.** `tests/waechter-brechen.sh` als Ganzes braucht `vendor/bin/phpunit`
+  und läuft nicht — der einzelne Eingriff schon: Datei sichern, den
+  Python-Block von Hand anwenden, den Wächter im Gestell fahren, Datei
+  zurückholen. Am 20. August hat genau das einen Wächter überführt, der
+  **wirkungslos** war, obwohl der Eingriff die Datei nachweislich veränderte
+  (`docs/64 §2`). Wer einen Eingriff schreibt oder den Wächter dahinter anfasst,
+  belegt ihn so, statt ihn ungeprüft zu pushen.
+
+  > **„Das Bruchskript läuft hier nicht" ist keine Ausrede, sondern ein
+  > Handgriff mehr.**
+
   **Was das Gestell nicht kann, zählt es nach Art** statt es „übersprungen" zu
   nennen: fehlende Klassen, `setUp()`, Datenlieferanten, `use App\`. Gemessen
   468 grün, 1 rot, 263 solcher Löcher. Der Grund für die Aufzählung ist ein

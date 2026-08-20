@@ -1086,6 +1086,67 @@ verändert habe.
 > **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
 > gefahren — man denkt an das Gebaute und nicht an das Berührte.**
 
+### Und der Eingriff daneben war wirkungslos — der neue Wächter war blind
+
+**Derselbe Lauf, eine Stufe tiefer.** Der Bruchlauf meldete
+`1 Prüfung(en) ohne Biss, davon 0 ohne Messung` — der Eingriff „leiser Text nur
+in der Zelle" veränderte `app.css` also wirklich, und `StandaloneClassTest`
+blieb trotzdem grün. Das ist der Fall, den dieses Repo am meisten fürchtet: eine
+Regel mit einem Wächter, der nichts hält.
+
+**Zwei Fehler steckten übereinander, und beide im Wächter.**
+
+Der erste ist ein Trennzeichen. `selectors()` zerlegte jeden Selektorkopf mit
+`explode(',', …)` — auch **innerhalb** einer Klammer. Aus
+
+```
+:is(.field, .hint, .error, .scrolls, .pager, .cell-value, .quiet, .section-note) + .button-row
+```
+
+wurden dabei acht Bruchstücke, darunter das nackte `.quiet`. Das sieht aus wie
+eine freistehende Regel und ist keine — es ist ein Stück aus der Mitte einer
+Liste.
+
+> **Ein Trennzeichen, das innerhalb einer Klammer trennt, erfindet Selektoren.**
+
+Der zweite ist der Kombinator. Auch mit heiler Klammer stand `.quiet` noch in
+`.quiet + .notice` und `.quiet + .scrolls` als **erste** Verbindung da, und die
+zählte der Wächter. Gestaltet wird dort aber `.notice` beziehungsweise
+`.scrolls`; `.quiet` ist nur die Bedingung und bekommt selbst nichts.
+
+> **Eine Regel, die den Nachbarn gestaltet, gestaltet nicht die Klasse.**
+
+Beides ist behoben: Das Komma trennt nur noch ausserhalb von Klammern
+(`splitOutsideParentheses()`), und eine erste Verbindung vor `+` oder `~` zählt
+nicht mehr (`firstConnection()`, klammerfest — wer am ersten Leerzeichen
+schneidet, hört mitten in `:is(.field, .hint)` auf).
+
+**Gemessen an beiden Enden, weil eine schärfere Regel auch zu scharf sein kann:**
+
+| | Klassen mit freistehender Regel | `quiet` |
+|---|---|---|
+| heil, alte Rechnung | 91 | freistehend |
+| heil, neue Rechnung | **91** | freistehend |
+| mit dem Eingriff, neue Rechnung | 90 | **fehlt** |
+
+Keine Klasse kommt dazu, keine fällt weg — die neue Rechnung urteilt über die
+heile Datei genau wie die alte und beisst nur dort, wo sie soll. Vier Klassen
+hätte eine naheliegendere Verschärfung mitgenommen (`over`, `rows`, `running`,
+`tight`): Sie stehen als `.bar.over > i`, `.rows td`, `.badge.running::before`
+da und gestalten, was **unter** ihnen liegt — das reist mit dem Element und ist
+sehr wohl eine eigene Regel. Der Unterschied liegt nicht darin, ob ein
+Kombinator folgt, sondern **welcher**.
+
+**Warum das nicht vorher auffiel.** Der Eingriff stand im Bruchskript, und das
+braucht `vendor/bin/phpunit` — hier nicht vorhanden. Also ist er ungeprüft
+gepusht worden. Nötig gewesen wäre er nicht: Ein Eingriff lässt sich von Hand
+anwenden, der Wächter im Gestell fahren, die Datei zurückholen. Genau so ist er
+jetzt belegt — heil `2 grün / 0 rot`, mit dem Eingriff `0 grün / 2 rot`,
+zurückgesetzt wieder `2 grün / 0 rot`.
+
+> **Ein Wächter, der nie rot war, ist kein Wächter — und „das Bruchskript läuft
+> hier nicht" ist keine Ausrede, sondern ein Handgriff mehr.**
+
 ---
 
 ## 2b. Befund 11 — `.quiet` gilt nur in einer Tabelle

@@ -2913,8 +2913,28 @@ p:not([class]) {
 
 @media (max-width: 720px) {
   /*
-   * **Die Kopfleiste des Dateimanagers stapelt auch nicht — sie steht als eine
-   * Reihe, Zeichen über Wort.**
+   * **Die Kopfleiste einer Seite stapelt nicht — sie steht als eine Reihe.**
+   *
+   * **Der Kommentar hiess zuerst „die Kopfleiste des Dateimanagers", und der
+   * Selektor tat nie, was er sagte.** `.page-head .button-row` trifft jeden
+   * Seitenkopf dieses Panels — sechzehn Seiten haben einen. Gemessen wurde die
+   * Regel an einer, beschrieben als gälte sie dort, und gegolten hat sie
+   * überall.
+   *
+   * > **Ein Kommentar, der eine Seite nennt, und ein Selektor, der alle trifft
+   * > — der Kommentar ist der Fehler, nicht der Selektor.**
+   *
+   * Nachgemessen am 20. August bei 390 px, Höhe des Seitenkopfs, vorher gegen
+   * nachher; kein Knopf schneidet ab, `dokument` überall 0:
+   *
+   *   Abonnement (Marke + vier Knöpfe)      263px → 161px
+   *   Kunde (Marke + drei Knöpfe)           209px → 161px
+   *   zwei Knöpfe                           117px → 107px
+   *   Kopf mit Formular und Auswahlfeld     188px → 188px
+   *
+   * Sie trägt also überall, und der letzte Fall zeigt, wo sie nichts tut: Ein
+   * Formular im Kopf bleibt, wie es war. Was dem Dateimanager gehört, sind
+   * allein die Zeichen und das `.verb` — beides opt-in.
    *
    * Der Grund für das Stapeln steht oben und gilt weiter: Drei gleich breite
    * Knöpfe **nebeneinander** lassen bei 390 px vom dritten drei Buchstaben

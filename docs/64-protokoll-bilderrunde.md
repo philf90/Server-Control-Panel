@@ -3480,3 +3480,34 @@ Leser sieht, statt was im Markup steht.
   die Form dort auch trägt, ist **nicht gemessen** — sie hat hier vier Knöpfe
   mit kurzen Objekten, und das ist nicht überall so.
 
+### 12.7 Nachgetragen — die Regel gilt für jeden Seitenkopf, nicht für diesen
+
+Beim Weiterarbeiten nachgesehen und **nicht** gemeldet bekommen: Der Kommentar
+über der neuen Regel hiess „die Kopfleiste des Dateimanagers". Der Selektor
+lautet `.page-head .button-row` und trifft **sechzehn Seiten**.
+
+> **Ein Kommentar, der eine Seite nennt, und ein Selektor, der alle trifft — der
+> Kommentar ist der Fehler, nicht der Selektor.**
+
+Der Bericht an den Betreiber sagte „über 720 px ändert sich nichts", und das
+stimmt; er sagte nicht, dass sich **darunter auf jeder Seite** etwas ändert. Das
+ist eine Auslassung und kein Irrtum, und sie wäre erst auf einem Bild
+aufgefallen, das niemand vorhatte aufzunehmen.
+
+Nachgemessen bei 390 px, Höhe des Seitenkopfs, vorher gegen nachher. Kein Knopf
+schneidet ab, `dokument` überall 0, Gegenprobe 200/200:
+
+| Kopf | vorher | nachher | |
+|---|---|---|---|
+| Abonnement (Marke + vier Knöpfe) | 263 px | **161 px** | −102 |
+| Kunde (Marke + drei Knöpfe) | 209 px | **161 px** | −48 |
+| zwei Knöpfe | 117 px | 107 px | −10 |
+| Kopf mit Formular und Auswahlfeld | 188 px | 188 px | — |
+
+Die Regel trägt also überall, und der letzte Fall zeigt, wo sie nichts tut: Ein
+Formular im Kopf bleibt, wie es war. Dem Dateimanager gehören allein die Zeichen
+und das `.verb`; beides ist opt-in und steht nur dort, wo es verlangt wird.
+
+**Das ändert nichts am Ergebnis und hätte den Bericht geändert.** Deshalb steht
+es hier und nicht nur im Kommentar.
+

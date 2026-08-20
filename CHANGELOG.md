@@ -16310,5 +16310,14 @@ nur seine Auszeichnung war neu.
 > **Ein Wächter, der eine Schreibweise liest, verliert das Feld beim
 > Umschreiben — nicht beim Löschen.**
 
+**Die Regel gilt für jeden Seitenkopf, nicht nur für den Dateimanager.**
+`.page-head .button-row` trifft sechzehn Seiten; der Kommentar darüber nannte
+eine. Nachgemessen bei 390 px, vorher gegen nachher: Abonnement 263 → 161 px,
+Kunde 209 → 161 px, zwei Knöpfe 117 → 107 px, ein Kopf mit Formular unverändert
+188 px. Kein Knopf schneidet ab.
+
+> **Ein Kommentar, der eine Seite nennt, und ein Selektor, der alle trifft — der
+> Kommentar ist der Fehler, nicht der Selektor.**
+
 Vier neue Brüche im Bruchskript, alle von Hand gegengeprüft.
 

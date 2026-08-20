@@ -1357,6 +1357,19 @@ Der Roller bei 1440 ist die Jobliste in der rechten Hälfte von `.sections`,
 gewollt. Dass er zwischen den Themes um 2 px auseinandergeht (248 gegen 250),
 ist die Schriftlage und kein Fund — er darf rollen.
 
+**Der Bestand dieser Aufnahme hat am 20. August aufgehört zu existieren.** Für
+Griff 4 und 5 der Experteneingabe musste ein Platz frei werden; **Job J ist
+gelöscht**, und anschliessend legt Griff 5 einen neuen mit `*/15 * * * *` an. Wer
+Ansicht 8 später noch einmal aufruft, sieht also nicht mehr dieselbe Seite —
+zwischendurch 9 von 10 und **ohne** die Meldung über das volle Kontingent, danach
+wieder 10 von 10 mit einem anderen Job darin.
+
+Die vier Zeilen oben gelten für den Zustand, unter dem sie entstanden sind, und
+das ist der Grund, dass er hier steht.
+
+> **Eine Messung ohne ihren Bestand ist beim nächsten Ansehen nicht falsch —
+> sie ist unvergleichbar.**
+
 **Die vier Fugen aus den Befunden 2, 3 und 4 sind im Bild da**, die Meldung über
 die Zeitzone steht mit Abstand unter dem Satz darüber, und `*/15` bricht im
 Erklärungstext nicht mehr (Befund 5). Die Dichtestufe aus Befund 6 trägt: Die

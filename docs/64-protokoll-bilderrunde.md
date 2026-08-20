@@ -1337,7 +1337,7 @@ Zeile hier nicht als gemessen.
 | 4 | Suche | **0** | **0** | **0** | **0** |
 | 5 | SFTP, Auswahl | **0** | **0** | **0** | **0** |
 | 6 | SFTP-Zugang | **0** | **0** | **0** | **0** |
-| 7 | Cron, Auswahl | — | — | — | — |
+| 7 | Cron, Auswahl | **0** | **0** | **0** | **0** |
 | 8 | Cronjobs | **0** | **0** | **0** | **0** |
 | 9 | Läufe | **0** | **0** | **0** | **0** |
 
@@ -1685,6 +1685,50 @@ oben: 215.**
 **Und das Register meldet hier zwei Einträge**, beide der Sorte aus Ansicht 4:
 die Felder „Bezeichnung" und „Öffentlicher Schlüssel" tragen weder `id` noch
 `name`. Zwei der 57 — dieselbe Beobachtung, kein neuer Fund.
+
+#### Ansicht 7 — Cron, Auswahl (`/cron`)
+
+| Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` |
+|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | `thead` **119** · `tr` **91** | leer |
+| 390 dunkel | 0 | **200/200** | `thead` **119** · `tr` **91** | leer |
+| 1440 hell | 0 | **200/200** | leer | leer |
+| 1440 dunkel | 0 | **200/200** | leer | leer |
+
+Dieselben vier Zeilen wie Ansicht 1 und Ansicht 5 — drei Controller, drei
+Vorlagen, dieselben Zahlen. Dass sie gleich aussehen **sollen**, ist der Grund,
+alle drei zu messen und nicht eine.
+
+#### Damit sind die neun Ansichten vollständig
+
+| # | Ansicht | 390 | 1440 |
+|---|---|---|---|
+| 1 | Dateien, Auswahl | `thead` 119 · `tr` 91 | — |
+| 2 | Dateimanager | `thead` 350 · `tr` 322 | — |
+| 3 | Editor | — | — |
+| 4 | Suche | `thead` 157 · `tr` 129 | — |
+| 5 | SFTP, Auswahl | `thead` 119 · `tr` 91 | — |
+| 6 | SFTP-Zugang | `thead` 342 · `tr` 314 | `.scrolls` **215** |
+| 7 | Cron, Auswahl | `thead` 119 · `tr` 91 | — |
+| 8 | Cronjobs | `thead` 484 · `tr` 456 | `.scrolls` 248 / 250 |
+| 9 | Läufe (Job A) | `thead` 304 · `tr` 276 | `.scrolls` **17** |
+| 9 | Läufe (Job B) | `thead` 304 · `tr` 276 | — |
+
+**Sechsunddreissig Lagen, sechsunddreissig mal `dokument: 0`, sechsunddreissig
+gültige Gegenproben.** Jeder Eintrag unter `schiebt` ist `.stacks thead` mit
+seinem `tr`, also der Mechanismus aus `app.css`; jeder Eintrag unter `rollt`
+trägt `darf: true`.
+
+**Und kein einziger Fremdeintrag.** Im ersten Lauf trugen sieben von neun
+Ansichten einen Kasten der Erweiterung LastPass, zweimal falsch erklärt und
+einmal mit Zeilennummer. Das Fenster ohne Erweiterungen hat sie alle entfernt,
+ohne eine einzige Zahl der Seite zu ändern.
+
+**Die Behebungen der ersten Runde sind auf dem Server angekommen**, und zwei
+davon mit einer Zahl: das Kästchen aus Befund 1 mit `17 × 17` und `171`
+(Container: dieselben drei Zahlen), und die Dichtestufe aus Befund 6 an zwei
+Rollern — 19 → 17 bei Ansicht 9 und **217 → 215** bei Ansicht 6, letzteres
+vorhergesagt, bevor es gemessen war.
 
 #### Ansicht 8 — Cronjobs, gemessen am 20. August gegen `rc.19`
 

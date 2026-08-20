@@ -1333,7 +1333,7 @@ Zeile hier nicht als gemessen.
 |---|---|---|---|---|---|
 | 1 | Dateien, Auswahl | **0** | **0** | **0** | **0** |
 | 2 | Dateimanager | **0** | **0** | **0** | **0** |
-| 3 | Editor | — | — | — | — |
+| 3 | Editor | **0** | **0** | **0** | **0** |
 | 4 | Suche | — | — | — | — |
 | 5 | SFTP, Auswahl | — | — | — | — |
 | 6 | SFTP-Zugang | — | — | — | — |
@@ -1453,16 +1453,64 @@ geklärt**.
 > **Eine Kennung, die es im Quelltext einmal gibt und im Dokument zweimal, ist
 > nicht dort entstanden, wo man sie sucht.**
 
-**Der nächste Griff benennt beide**, eine Zeile bei 1440 px, ohne Neuladen:
+**Gemessen, und die Ursache steht im Quelltext.** Die beiden Elemente:
 
-```js
-JSON.stringify([...document.querySelectorAll('[id="app"]')]
-  .map((e) => e.tagName + ' | ' + (e.className || '—') + ' | ' + e.outerHTML.slice(0, 100)))
+```
+DIV | — | <div id="app" data-v-app=""><!----><div data-v-7b870e66="" class="frame">…
+DIV | — | <div id="app"></div>
 ```
 
-Erst danach steht fest, ob es das Panel ist, das Gerüst oder etwas, das der
-Browser hinzufügt. Bis dahin ist es ein Fund ohne Ursache und wird auch so
-geführt.
+Eines trägt die ganze Anwendung, das andere ist **leer**. Und
+`resources/views/app.blade.php` hat `@inertia` **zweimal**:
+
+```blade
+    @vite('resources/js/app.ts')
+    @inertia          {{-- Zeile 123, im <head> --}}
+</head>
+<body>
+@inertia              {{-- Zeile 126, im <body> --}}
+</body>
+```
+
+**In den Kopf gehört `@inertiaHead`, nicht `@inertia`.** Die beiden Direktiven
+sehen sich ähnlich und tun Entgegengesetztes: Die eine setzt Kopfzeilen, die
+andere das Wurzelelement der Anwendung.
+
+**Und die Folge ist grösser als eine doppelte Kennung.** Ein `<div>` ist im
+`<head>` nicht erlaubt; der Parser schliesst den Kopf an dieser Stelle und
+beginnt den Rumpf. Die Anwendung hängt damit in dem Element, das nie eines sein
+sollte — `getElementById` liefert das erste, und das ist das aus dem Kopf. Das
+`<div>` aus dem Rumpf, also das gemeinte, bleibt leer stehen.
+
+**Es funktioniert trotzdem, und zwar durch Zufall:** Die falsche Zeile ist die
+**letzte** vor `</head>`. Stünde nach ihr noch ein `<link>` oder ein `<meta>`,
+läge das im Rumpf und wäre wirkungslos — Favicon, Manifest, Farbschema.
+
+> **Ein Fehler, der nur deshalb nichts kaputt macht, weil er an der letzten
+> Stelle steht, ist kein kleiner Fehler — er ist einer mit Glück.**
+
+**Und `<Head>` wird wirklich gebraucht:** Zehn Seiten binden die Komponente ein
+(`Databases/Show.vue`, `Console.vue`, `Plans/Form.vue` und weitere). Die
+Direktive im Kopf ist also nicht überflüssig, sondern **falsch geschrieben**.
+
+**Kein Wächter sieht auf diese Datei** — `ThemeTest` und `IconTest` lesen sie,
+aber für andere Fragen. Die Behebung bekommt einen.
+
+#### Ansicht 3 — Editor (`/subscriptions/140/files/edit?path=/httpdocs/klein.txt`)
+
+| Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` |
+|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | leer | leer |
+| 390 dunkel | 0 | **200/200** | leer | leer |
+| 1440 hell | 0 | **200/200** | leer | leer |
+| 1440 dunkel | 0 | **200/200** | leer | leer |
+
+**Vier Lagen, vier gültige Gegenproben, kein einziger Eintrag** — Wort für Wort
+dasselbe Bild wie im ersten Lauf. Diese Seite hat keine `.stacks`-Tabelle,
+deshalb fehlt auch der Mechanismus, der sonst überall in `schiebt` steht.
+
+Die Datei trägt eine Zeile mit Umlauten („Grüsse aus Köln"), und sie steht
+richtig da — die Kodierung reist unverändert durch Agent, Panel und Editor.
 
 #### Ansicht 8 — Cronjobs, gemessen am 20. August gegen `rc.19`
 

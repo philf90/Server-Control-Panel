@@ -1974,6 +1974,12 @@ mitgemessen worden und stehen dort: **„ohne Schlüssel"** (Ansicht 6),
 | Dateimanager — „Verzeichnis anlegen" offen | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
 | Dateimanager — „Datei anlegen" offen | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
 | Dateimanager — „Datei hochladen" offen | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
+| Dateimanager — „Suchen" offen | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
+
+**Damit sind alle vier Formulare der Kopfleiste gemessen.** Drei stehen bei
+`476 – 602`, „Suchen" bei `476 – 656` — 54 px höher, weil es als einziges zwei
+Knöpfe trägt („Suchen" und „Abbrechen"). Alle vier ganz im Bild, alle vier ohne
+Überlauf, und die Tabelle darunter bleibt in jedem Fall bei 367 · 339.
 
 **Beide Kopfleistenformulare stehen ganz im Bild**, mit der berichtigten Zeile
 gemessen und in beiden Fällen derselbe Wert:
@@ -2445,3 +2451,71 @@ wird — oder ein anderer Rechner des Betreibers.
 - **Den Verlust.** Wer den privaten Teil verliert, erzeugt einen neuen und
   entfernt den alten. Ein zweites Herunterladen darf es nicht geben — sonst läge
   er doch irgendwo.
+
+---
+
+## 6. Wunsch 3 — eine ständige Suchleiste im Dateimanager
+
+**Vorgeschlagen vom Betreiber am 20. August 2026**, beim Messen des vierten
+Kopfleistenformulars: statt eines Knopfes, der ein Formular aufklappt, eine
+Suchleiste, die immer da ist.
+
+**Der Grund liegt in den Messwerten dieser Runde.** Die vier Griffe der
+Kopfleiste sind gleich gebaut — Knopf, Formular, absenden. Für „Verzeichnis
+anlegen" und „Datei anlegen" passt das: Man tut es selten und einmal. Suchen tut
+man oft und beiläufig, und dafür sind zwei Klicks bis zum Feld einer zu viel.
+
+> **Gleich gebaute Griffe für ungleich häufige Handgriffe kosten den häufigen
+> mehr, als sie dem seltenen sparen.**
+
+### 6.1 Das eine Risiko, und es ist kein kleines
+
+Das heutige Formular trägt einen Satz über dem Feld: „Wonach **unterhalb dieses
+Verzeichnisses** gesucht wird." Der Satz ist die halbe Auskunft — die Suche gilt
+nicht dem Abonnement, sondern dem Verzeichnis, in dem man gerade steht.
+
+Eine ständige Leiste hat für diesen Satz keinen Platz. Und sie sieht aus wie
+etwas, das überall sucht.
+
+> **Eine Leiste, die immer da ist, sieht aus, als suchte sie überall.**
+
+Wer im Wurzelverzeichnis steht, bekommt dasselbe Ergebnis wie heute. Wer in
+`/httpdocs/irgendwo/tief` steht und die Leiste für global hält, sucht am Bestand
+vorbei und schliesst daraus, die Datei gebe es nicht. Das ist schlimmer als ein
+Klick zu viel.
+
+### 6.2 Drei Formen, und was jede kostet
+
+| | Form | trägt den Geltungsbereich | Platz bei 390 px |
+|---|---|---|---|
+| A | Feld mit dem Ort im Platzhalter — `In /httpdocs suchen …` | im Platzhalter, also nur solange leer | eine Zeile statt eines Knopfes |
+| B | Feld mit einer Marke daneben, die den Ort nennt und ihn auf die Wurzel umstellen lässt | sichtbar, immer | eine Zeile plus Marke |
+| C | Knopf bleibt, öffnet aber ein Feld **an Ort und Stelle** statt eines Formulars darunter | wie heute | wie heute |
+
+**A ist die einfachste und die gefährlichste**: Sobald jemand tippt, ist der
+Platzhalter fort — und mit ihm die einzige Stelle, an der der Ort stand.
+
+> **Eine Auskunft im Platzhalter ist genau so lange da, wie man sie nicht
+> braucht.**
+
+**B löst das Risiko und kostet die Marke.** Sie ist zugleich die Stelle, an der
+„im ganzen Abonnement suchen" hingehört — eine Frage, die es heute gar nicht
+gibt und die jeder stellen wird, sobald die Leiste da ist.
+
+### 6.3 Was vor dem Bauen gemessen gehört
+
+1. **Die Höhe der Kopfleiste bei 390 px.** Heute sind es vier Knöpfe
+   untereinander; eine Leiste ersetzt einen davon und bringt ein Feld mit
+   `--tap`-Höhe mit. Ob die Kopfleiste dadurch wächst oder schrumpft, ist eine
+   Messung im Container und keine Schätzung.
+2. **Der Weg von der Leiste zur Trefferseite.** Die Seite „Suche" (Ansicht 4)
+   hat ein **eigenes** Feld. Zwei Felder für dieselbe Sache müssen dasselbe
+   sagen — sonst steht in der Leiste ein Wort und auf der Trefferseite ein
+   anderes. Derselbe Fehler wie bei Wunsch 1, nur zwischen zwei Seiten statt
+   innerhalb einer.
+
+> **Zwei Eingaben für dieselbe Sache sind eine Sicht und eine Kopie — welche
+> von beiden, entscheidet, wer sie schreibt.**
+
+**Entschieden ist hier nichts.** Der Vorschlag steht, das Risiko steht dabei,
+und gebaut wird nach der Runde.

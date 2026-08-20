@@ -515,6 +515,26 @@ lautet `(?<![=!<>])=(?!=)`.
 > **Ein Ausdruck, der eine Zuweisung sucht, findet jeden Vergleich mit, solange
 > er das Gleichheitszeichen nicht abgrenzt.**
 
+**Und die teuerste Falle dieses Tages: ein Fehler, den kein Wächter sehen
+kann, weil er in den Klammern steht.** `})})` in einer `.vue` — die
+schliessende Klammer des einen `watch` war an die des nächsten gerutscht, und
+ein `watch` samt seinem `ref` stand damit **innerhalb** eines Rückrufs. Er wurde
+nie registriert; das Merkmal war von seinem ersten Tag an wirkungslos. `vue-tsc`
+und `npm run build` liefen durch, und jeder Wächter fand jedes Wort, das er
+suchte.
+
+> **Ein Wächter, der Wörter liest, sieht keine Klammern.**
+
+> **Ein Fehler, der in einer Funktion sitzt, wird vom Typprüfer entschuldigt —
+> die Funktion läuft ja später.** Der Typprüfer meldete ihn erst, als die
+> Klammer richtig sass.
+
+Gefunden hat ihn der **volle** Lauf des Bruchskripts, nachdem jeder einzelne
+Eingriff von Hand gebissen hatte.
+
+> **Ein Eingriff, der einzeln beisst, beisst nicht unbedingt im Lauf** — er
+> steht dort neben anderen, und die verändern seinen Gegenstand.
+
 **Und zwei Sätze über Messmittel, beide am 20. August bezahlt.** Der erste, weil
 eine Regel bei 390 px ein Feld 240 px *hoch* machte, statt es breit zu machen:
 

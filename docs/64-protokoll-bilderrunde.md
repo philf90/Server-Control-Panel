@@ -3511,3 +3511,104 @@ und das `.verb`; beides ist opt-in und steht nur dort, wo es verlangt wird.
 **Das ändert nichts am Ergebnis und hätte den Bericht geändert.** Deshalb steht
 es hier und nicht nur im Kommentar.
 
+---
+
+## 13. Der volle Bruchlauf hat vier Löcher gefunden — eines davon im Code
+
+Gefahren am 20. August in der CI, nachdem der PR offen war. **CI grün,
+„Wächter brechen" rot:** vier Prüfungen ohne Biss. Alle achtzehn Eingriffe
+waren vorher **einzeln von Hand** gefahren worden und bissen.
+
+> **Ein Eingriff, der einzeln beisst, beisst nicht unbedingt im Lauf** — er
+> steht dort neben anderen, und die verändern seinen Gegenstand.
+
+### 13.1 Befund 18 war seit seinem ersten Tag wirkungslos
+
+`Files/Index.vue` trug die Zeile `})})`. Die schliessende Klammer des
+`renameFor`-Wächters war an die des `picking`-Wächters gerutscht; damit standen
+`const asideBlock` und `watch(picking, …)` **innerhalb** des
+`renameFor`-Rückrufs. Der Wächter wurde erst registriert, wenn jemand etwas
+umbenannte, und `ref="asideBlock"` zeigte auf nichts.
+
+**Nichts davon war rot.** Es ist gültiges JavaScript: `vue-tsc` und
+`npm run build` liefen durch — gegengeprüft am Stand von `557a934`, die
+Fehlerliste war leer. Jeder Wächter fand jedes Wort, das er suchte.
+
+> **Ein Wächter, der Wörter liest, sieht keine Klammern.**
+
+Der Typprüfer meldete es, **sobald** die Klammer richtig sass: `picking` wurde
+dann vor seiner Deklaration benutzt.
+
+> **Ein Fehler, der in einer Funktion sitzt, wird vom Typprüfer entschuldigt —
+> die Funktion läuft ja später.**
+
+`RevealTest::test_every_watch_is_registered_at_the_top_level` zählt seitdem die
+Klammertiefe jedes `watch(` in `<script setup>`, an Zeichenketten und
+Kommentaren vorbei.
+
+### 13.2 Und derselbe Fehler versteckte einen zweiten
+
+Der Eingriff zu Befund 18 biss nicht mehr, weil `RevealTest` fragte, ob die
+**Datei** irgendwo `bringIntoView` enthält. In `Files/Index.vue` stehen drei
+solche Wächter; einer genügte, um alle drei für verdrahtet zu erklären.
+
+> **Ein Wächter, der die Datei fragt statt die Stelle, wird mit jeder zweiten
+> Stelle stumpfer.**
+
+Von Hand geprüft hatte ich ihn, als es die anderen beiden noch nicht gab.
+Gefragt wird jetzt der Rumpf genau dieses `watch` — und damit beisst auch der
+Eingriff auf `renameBlock`, der vorher stumm war.
+
+### 13.3 Zwei Eingriffe lagen ausserhalb des Rückwegs
+
+Meine beiden Eingriffe zu `AttributeNameTest` brechen `lang/de/validation.php`.
+`BAEUME` kannte `lang/` nicht — die Datei blieb nach dem Bruch kaputt stehen,
+und beide Gegenproben meldeten „nicht wieder grün". Genau der Satz, den das
+Skript in seinem eigenen Kopf führt:
+
+> **Ein Bruch, der eine Datei ausserhalb des Rückwegs anfasst, wird nicht
+> zurückgenommen — und vergiftet jeden Lauf danach.**
+
+**Der Wächter darüber war dabei grün**, und das ist der eigentliche Fund:
+`BreakScriptTest` liest den gesuchten Text aus dem `s.replace("…")`-Aufruf.
+**52 von 562 Blöcken** halten ihn in einer Variablen — und die waren für ihn
+nicht vorhanden, weder für die Frage nach dem Rückweg noch für die, ob ihr
+Griff noch greift.
+
+> **Ein Wächter, der eine Schreibweise liest, sieht die andere nicht — und
+> meldet für sie „alles in Ordnung".**
+
+Aufgelöst kommen jetzt 562 Blöcke an; vier bleiben unlesbar, weil sie ihren Text
+erst umformen. Der erste Anlauf der Auflösung hat dabei prompt einen
+**Fehlalarm** erzeugt — er löste `alt.replace('Eintraege', 'Einträge')` zu `alt`
+auf und meldete einen lebenden Eingriff als tot.
+
+> **Ein Wächter, der Fehlalarm gibt, wird abgeschaltet.**
+
+Aus den 52 neu sichtbaren Blöcken kam danach **kein** weiterer toter Eingriff.
+
+### 13.4 Und ich habe beim Prüfen eigene Arbeit weggeworfen
+
+Um den Rückweg zu belegen, habe ich `git checkout -- $BAEUME` von Hand
+abgesetzt — mit drei ungespeicherten Dateien im Baum. `CLAUDE.md` warnt davor
+wörtlich („`git checkout -- resources/` wirft eigene Arbeit weg"), und das
+Bruchskript weigert sich bei schmutzigem `resources/` genau deshalb.
+
+> **Eine Regel, die man kennt, schützt nicht vor dem Handgriff, den man
+> nebenbei macht.**
+
+Die drei Änderungen sind neu geschrieben; verloren ist nur Zeit.
+
+### 13.5 Was daraus für den nächsten Lauf gilt
+
+Zwei der vier Regeln lassen sich **nicht** durch einen Eingriff belegen, und das
+gehört gesagt statt verschwiegen: Der Eintrag `lang/` in `BAEUME` und die
+Auflösung der Variablen stehen beide *im Bruchskript selbst* — und das nimmt
+sich vom Rückweg aus. Ein Eingriff darauf bliebe stehen.
+
+> **Was den Prüfstand prüft, kann der Prüfstand nicht mit seinen eigenen Mitteln
+> brechen.**
+
+Beide sind stattdessen von Hand gefahren: `lang/` aus `BAEUME` genommen →
+`BreakScriptTest` rot; zurück → grün.
+

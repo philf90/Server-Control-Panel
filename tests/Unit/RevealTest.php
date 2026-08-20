@@ -315,11 +315,7 @@ final class RevealTest extends TestCase
                     continue;
                 }
 
-                $gefunden[] = [
-                    $name,
-                    preg_match('/watch\(\s*'.preg_quote($ref, '/').'\b/', $skript) === 1
-                        && str_contains($skript, 'bringIntoView'),
-                ];
+                $gefunden[] = [$name, $this->wired($skript, $ref)];
             }
 
             /*
@@ -377,15 +373,171 @@ final class RevealTest extends TestCase
                         continue;
                     }
 
-                    $verdrahtet = preg_match('/watch\(\s*'.preg_quote($ref, '/').'\b/', $skript) === 1
-                        && str_contains($skript, 'bringIntoView');
-
-                    $gefunden[] = [$kurz.' '.$funktion.' '.$ref, $verdrahtet];
+                    $gefunden[] = [$kurz.' '.$funktion.' '.$ref, $this->wired($skript, $ref)];
                 }
             }
         }
 
         return $gefunden;
+    }
+
+    /**
+     * Jeder `watch` steht auf der obersten Ebene von `<script setup>`.
+     *
+     * ## Der Fund
+     *
+     * `Files/Index.vue` trug seit dem 20. August die Zeile `})})` — die Klammer
+     * des `renameFor`-Wächters war an die des `picking`-Wächters gerutscht.
+     * Damit standen `const asideBlock` und `watch(picking, …)` **innerhalb** des
+     * `renameFor`-Rückrufs: Der Wächter wurde erst registriert, wenn jemand
+     * etwas umbenannte, und `ref="asideBlock"` zeigte auf nichts.
+     *
+     * Befund 18 war damit von seinem ersten Tag an wirkungslos.
+     *
+     * ## Warum nichts davon rot war
+     *
+     * Es ist gültiges JavaScript. `vue-tsc` und `npm run build` liefen durch —
+     * gegengeprüft am Stand von damals, die Fehlerliste war **leer**. Jeder
+     * Wächter dieses Repos fand jedes Wort, das er suchte: `watch`,
+     * `bringIntoView`, `ref="asideBlock"`, `tabindex="-1"`. Sie standen alle da,
+     * nur eine Ebene tiefer.
+     *
+     * > **Ein Wächter, der Wörter liest, sieht keine Klammern.**
+     *
+     * Der Typprüfer hat es gemeldet, **sobald** die Klammer richtig sass:
+     * `picking` wurde dann vor seiner Deklaration benutzt. Verschachtelt war das
+     * in Ordnung, weil der Rückruf später läuft.
+     *
+     * > **Ein Fehler, der in einer Funktion sitzt, wird vom Typprüfer
+     * > entschuldigt — die Funktion läuft ja später.**
+     */
+    public function test_every_watch_is_registered_at_the_top_level(): void
+    {
+        $tief = [];
+        $gesehen = 0;
+
+        foreach ($this->vueFiles(dirname(__DIR__, 2).'/resources/js') as $pfad) {
+            if (preg_match('/<script setup[^>]*>(.*?)<\/script>/s', (string) file_get_contents($pfad), $s) !== 1) {
+                continue;
+            }
+
+            foreach ($this->watchDepths($s[1]) as $zeile => $tiefe) {
+                $gesehen++;
+
+                if ($tiefe !== 0) {
+                    $tief[] = sprintf('%s: Zeile %d, Ebene %d', basename($pfad), $zeile, $tiefe);
+                }
+            }
+        }
+
+        // Eine Null ist nur dann eine Messung, wenn daneben etwas anderes steht.
+        $this->assertGreaterThanOrEqual(5, $gesehen, sprintf(
+            'Es werden nur %d `watch` gefunden — dann prüft dieser Wächter nichts.',
+            $gesehen,
+        ));
+
+        $this->assertSame([], $tief, sprintf(
+            "Diese `watch` stehen nicht auf der obersten Ebene:\n  %s\n\n".
+            'Ein `watch` innerhalb eines Rückrufs wird erst registriert, wenn dieser Rückruf '.
+            'läuft — bis dahin geschieht nichts, und es sieht aus wie ein Wächter, den es gibt.',
+            implode("\n  ", $tief),
+        ));
+    }
+
+    /**
+     * Die Klammertiefe jedes `watch(` im Skript, je Zeilennummer.
+     *
+     * Gezählt wird über `{` und `}` ausserhalb von Zeichenketten, Vorlagen und
+     * Kommentaren — ein `{` in einem Kommentar wäre sonst eine Ebene, die es
+     * nicht gibt.
+     *
+     * @return array<int,int>
+     */
+    private function watchDepths(string $skript): array
+    {
+        $tiefe = 0;
+        $zeile = 1;
+        $gefunden = [];
+        $laenge = strlen($skript);
+
+        for ($i = 0; $i < $laenge; $i++) {
+            $c = $skript[$i];
+            $rest = substr($skript, $i);
+
+            if ($c === "\n") {
+                $zeile++;
+
+                continue;
+            }
+
+            if (str_starts_with($rest, '//')) {
+                $i += strcspn($rest, "\n") - 1;
+
+                continue;
+            }
+
+            if (str_starts_with($rest, '/*')) {
+                $ende = strpos($skript, '*/', $i + 2);
+                $zeile += substr_count(substr($skript, $i, ($ende === false ? $laenge : $ende) - $i), "\n");
+                $i = $ende === false ? $laenge : $ende + 1;
+
+                continue;
+            }
+
+            if ($c === "'" || $c === '"' || $c === '`') {
+                $j = $i + 1;
+
+                while ($j < $laenge && $skript[$j] !== $c) {
+                    $j += ($skript[$j] === '\\') ? 2 : 1;
+                }
+
+                $zeile += substr_count(substr($skript, $i, $j - $i), "\n");
+                $i = $j;
+
+                continue;
+            }
+
+            if ($c === '{') {
+                $tiefe++;
+            } elseif ($c === '}') {
+                $tiefe--;
+            } elseif (str_starts_with($rest, 'watch(') || str_starts_with($rest, 'watchEffect(')) {
+                $gefunden[$zeile] = $tiefe;
+            }
+        }
+
+        return $gefunden;
+    }
+
+    /**
+     * Ob **dieser** Wert seinen Bereich ins Bild holt.
+     *
+     * ## Warum das nicht dateiweise geht
+     *
+     * Hier stand `str_contains($skript, 'bringIntoView')` — eine Frage an die
+     * **ganze Datei**. In `Files/Index.vue` stehen drei solche Wächter
+     * (`chmodBlock`, `renameBlock`, `asideBlock`), und damit genügte **einer**
+     * von ihnen, um alle drei für verdrahtet zu erklären.
+     *
+     * Aufgefallen ist es am 20. August im vollen Lauf des Bruchskripts: Der
+     * Eingriff, der `bringIntoView(asideBlock.value)` entfernt, biss nicht mehr
+     * — die beiden anderen Aufrufe standen ja noch da. Von Hand geprüft hatte
+     * ich ihn, als es diese anderen beiden noch nicht gab.
+     *
+     * > **Ein Wächter, der die Datei fragt statt die Stelle, wird mit jeder
+     * > zweiten Stelle stumpfer.**
+     *
+     * Gefragt wird deshalb der Rumpf genau dieses `watch`.
+     */
+    private function wired(string $skript, string $ref): bool
+    {
+        $muster = '/watch\(\s*'.preg_quote($ref, '/').'\b.*?\n\}\)/s';
+
+        if (preg_match($muster, $skript, $rumpf) !== 1) {
+            return false;
+        }
+
+        return str_contains($rumpf[0], 'bringIntoView');
     }
 
     /**

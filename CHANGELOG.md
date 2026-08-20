@@ -16321,3 +16321,38 @@ Kunde 209 → 161 px, zwei Knöpfe 117 → 107 px, ein Kopf mit Formular unverä
 
 Vier neue Brüche im Bruchskript, alle von Hand gegengeprüft.
 
+### P6 — Befund 18 war wirkungslos, und drei Wächter haben es nicht gesehen
+
+**Gefunden vom vollen Lauf des Bruchskripts**, nachdem alle achtzehn Eingriffe
+einzeln von Hand gebissen hatten.
+
+`Files/Index.vue` trug die Zeile `})})`: Die schliessende Klammer des einen
+`watch` war an die des nächsten gerutscht, und `const asideBlock` samt
+`watch(picking, …)` stand damit **innerhalb** eines Rückrufs. Der Wächter wurde
+erst registriert, wenn jemand etwas umbenannte; `ref="asideBlock"` zeigte auf
+nichts. Befund 18 war von seinem ersten Tag an wirkungslos.
+
+**Nichts davon war rot** — es ist gültiges JavaScript, `vue-tsc` und
+`npm run build` liefen durch, und jeder Wächter fand jedes Wort, das er suchte.
+
+> **Ein Wächter, der Wörter liest, sieht keine Klammern.**
+
+`RevealTest` zählt seitdem die Klammertiefe jedes `watch(` in `<script setup>`.
+
+**Derselbe Fehler versteckte einen zweiten.** `RevealTest` fragte, ob die
+**Datei** irgendwo `bringIntoView` enthält; in dieser Datei stehen drei solche
+Wächter, und einer genügte für alle drei.
+
+> **Ein Wächter, der die Datei fragt statt die Stelle, wird mit jeder zweiten
+> Stelle stumpfer.**
+
+**Und `BreakScriptTest` sah ein Zehntel seines Gegenstands nicht.** Er liest den
+gesuchten Text aus dem `s.replace("…")`-Aufruf; 52 von 562 Blöcken halten ihn in
+einer Variablen. Deshalb blieb unbemerkt, dass zwei Eingriffe
+`lang/de/validation.php` brechen, das nicht im Rückweg lag — die Datei blieb
+kaputt stehen und vergiftete die Gegenproben dahinter. `lang/` steht jetzt in
+`BAEUME`, und der Wächter löst einfache Zuweisungen auf.
+
+> **Ein Wächter, der eine Schreibweise liest, sieht die andere nicht — und
+> meldet für sie „alles in Ordnung".**
+

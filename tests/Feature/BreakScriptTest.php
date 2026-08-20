@@ -103,12 +103,66 @@ final class BreakScriptTest extends TestCase
              * — sonst risse die einfache Alternative das erste `"` eines
              * `"""`-Blocks an sich und läse ihn als leere Zeichenkette.
              */
-            preg_match_all('/s\.replace\(\s*("""(.*?)"""|"((?:[^"\\\\]|\\\\.)*)"|\'((?:[^\'\\\\]|\\\\.)*)\')/s', $block, $needles, PREG_SET_ORDER);
+            /*
+             * **Und die Blöcke, die ihre Zeichenkette in einer Variablen
+             * halten.** Hier stand nur der Ausdruck darunter, und der liest
+             * ausschliesslich `s.replace("…", …)`. Zweiundfünfzig von 562
+             * Blöcken schreiben aber
+             *
+             *     alt = "…"
+             *     s.replace(alt, "", 1)
+             *
+             * — und die waren für diesen Wächter **nicht vorhanden**: weder für
+             * die Frage, ob ihr Griff noch greift, noch für die, ob ihre Datei
+             * im Rückweg liegt. Am 20. August ist genau daran ein Lauf
+             * gescheitert: Zwei Eingriffe brachen `lang/de/validation.php`, das
+             * ausserhalb des Rückwegs lag, blieben stehen und vergifteten die
+             * Gegenproben dahinter. Dieser Wächter war grün.
+             *
+             * > **Ein Wächter, der eine Schreibweise liest, sieht die andere
+             * > nicht — und meldet für sie „alles in Ordnung".**
+             *
+             * Aufgelöst wird **nur der blosse Name**. Steht dort
+             * `alt.replace('Eintraege', 'Einträge')` — und ein Eingriff tut das,
+             * um die Umlaute aus dem Shell-Skript herauszuhalten —, dann ist der
+             * gesuchte Text nicht der zugewiesene. Der erste Anlauf hier hat
+             * genau diesen Eingriff als tot gemeldet, obwohl er greift.
+             *
+             * > **Ein Wächter, der Fehlalarm gibt, wird abgeschaltet.**
+             *
+             * Was sich erst zusammensetzt (`alt + neu`, `%`-Formatierung, eine
+             * Umformung), bleibt damit unlesbar und zählt weiter als nicht
+             * vorhanden — eine Lücke, die jetzt wenigstens klein und benannt ist.
+             */
+            $variablen = [];
+
+            preg_match_all(
+                '/^(\w+) = ("""(.*?)"""|"((?:[^"\\\\]|\\\\.)*)"|\'((?:[^\'\\\\]|\\\\.)*)\')$/ms',
+                $block,
+                $zuweisungen,
+                PREG_SET_ORDER,
+            );
+
+            foreach ($zuweisungen as $zuweisung) {
+                $wert = ($zuweisung[3] ?? '') !== ''
+                    ? $zuweisung[3]
+                    : ((($zuweisung[4] ?? '') !== '') ? $zuweisung[4] : ($zuweisung[5] ?? ''));
+
+                if ($wert !== '') {
+                    $variablen[$zuweisung[1]] = $wert;
+                }
+            }
+
+            preg_match_all('/s\.replace\(\s*("""(.*?)"""|"((?:[^"\\\\]|\\\\.)*)"|\'((?:[^\'\\\\]|\\\\.)*)\'|(\w+)\s*(?=[,)]))/s', $block, $needles, PREG_SET_ORDER);
 
             foreach ($needles as $needle) {
                 $raw = ($needle[2] ?? '') !== ''
                     ? $needle[2]
                     : ((($needle[3] ?? '') !== '') ? $needle[3] : ($needle[4] ?? ''));
+
+                if ($raw === '' && ($needle[5] ?? '') !== '') {
+                    $raw = $variablen[$needle[5]] ?? '';
+                }
 
                 if ($raw === '') {
                     continue;

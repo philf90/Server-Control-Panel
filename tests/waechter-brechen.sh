@@ -99,7 +99,15 @@ cd "$(dirname "$0")/.." || exit 1
 #
 # > **Ein Bruch, der eine Datei ausserhalb des Rückwegs anfasst, wird nicht
 # > zurückgenommen — und vergiftet jeden Lauf danach.**
-BAEUME="resources/ app/ agent/ tests/ packaging/ .github/ database/ routes/ docs/ config/ bootstrap/ package.json"
+#
+# `lang/` kam am 20. August dazu, und der Anlass ist genau dieser Satz. Zwei
+# Eingriffe zu `AttributeNameTest` brechen `lang/de/validation.php` — die Liste
+# der deutschen Feldnamen ist eine Regel wie jede andere. Sie standen ausserhalb
+# des Rückwegs, blieben nach dem Bruch stehen, und beide Gegenproben meldeten
+# „nicht wieder grün". Der Wächter darüber war dabei **grün**: Er liest die
+# Zeichenkette aus dem `s.replace(...)`-Aufruf, und diese beiden Blöcke halten
+# sie in einer Variablen. Zweiundfünfzig Blöcke tun das.
+BAEUME="resources/ app/ agent/ tests/ packaging/ .github/ database/ routes/ docs/ config/ bootstrap/ lang/ package.json"
 
 # **Dieses Skript liegt selbst unter `tests/` und nimmt sich aus.**
 #
@@ -12087,6 +12095,33 @@ pruefe "Name ohne Feld" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   AttributeNameTest::test_every_name_belongs_to_a_field passed
+
+echo
+echo "── RevealTest: ein watch rutscht eine Ebene tiefer ──"
+#
+# Der Fehler, wie er wirklich dastand: `})})` am Ende. Die Klammer des einen
+# Waechters war an die des naechsten gerutscht, und `watch(picking, …)` wurde
+# damit erst registriert, wenn jemand etwas umbenannte. Befund 18 war von
+# seinem ersten Tag an wirkungslos — und `vue-tsc` schwieg, weil es gueltiges
+# JavaScript ist.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = "    void nextTick(() => bringIntoView(renameBlock.value))\n  }\n})"
+assert s.count(alt) == 1, 'Zielblock nicht eindeutig — der Bruch waere blind'
+zweiter = "    void nextTick(() => bringIntoView(asideBlock.value))\n  }\n})"
+assert s.count(zweiter) == 1, 'Zweiter Zielblock nicht eindeutig'
+s = s.replace(alt, alt[:-2], 1)
+s = s.replace(zweiter, zweiter + '})', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "watch eine Ebene tiefer" &&
+pruefe "watch eine Ebene tiefer" \
+  RevealTest::test_every_watch_is_registered_at_the_top_level failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  RevealTest::test_every_watch_is_registered_at_the_top_level passed
 
 echo
 echo "── ActionIconTest: ein Knopf verliert sein Wort ──"

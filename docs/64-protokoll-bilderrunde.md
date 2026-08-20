@@ -1335,7 +1335,7 @@ Zeile hier nicht als gemessen.
 | 2 | Dateimanager | **0** | **0** | **0** | **0** |
 | 3 | Editor | **0** | **0** | **0** | **0** |
 | 4 | Suche | **0** | **0** | **0** | **0** |
-| 5 | SFTP, Auswahl | — | — | — | — |
+| 5 | SFTP, Auswahl | **0** | **0** | **0** | **0** |
 | 6 | SFTP-Zugang | — | — | — | — |
 | 7 | Cron, Auswahl | — | — | — | — |
 | 8 | Cronjobs | **0** | **0** | **0** | **0** |
@@ -1590,6 +1590,22 @@ Formularwiederherstellung, nicht der Richtigkeit.
 **Der Grund, es dennoch aufzuschreiben:** Sobald eine Fehlerzusammenfassung
 einmal auf ihr Feld zeigen soll — und `docs/19 §6` liegt nicht weit davon
 entfernt —, sind es 57 Stellen und nicht eine. Wer das baut, fängt hier an.
+
+#### Ansicht 5 — SFTP, Auswahl (`/sftp`)
+
+| Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` |
+|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | `thead` **119** · `tr` **91** | leer |
+| 390 dunkel | 0 | **200/200** | `thead` **119** · `tr` **91** | leer |
+| 1440 hell | 0 | **200/200** | leer | leer |
+| 1440 dunkel | 0 | **200/200** | leer | leer |
+
+Zahl für Zahl dieselbe Ansicht wie im ersten Lauf und wie Ansicht 1 — es ist
+dieselbe Tabelle mit einer Spaltenüberschrift, nur ohne das `.split` des
+Dateimanagers.
+
+**Fünf Ansichten ohne einen einzigen Fremdeintrag.** Im ersten Lauf war das eine
+Auszeichnung dieser einen Seite; in dieser Runde ist es der Normalfall.
 
 #### Ansicht 8 — Cronjobs, gemessen am 20. August gegen `rc.19`
 

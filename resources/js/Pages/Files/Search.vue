@@ -51,9 +51,22 @@ function suchen(): void {
         <span>Suchbegriff</span>
         <input v-model="begriff" type="search" autocomplete="off" required />
       </label>
-      <label class="field inline">
-        <span>auch im Inhalt</span>
+      <!--
+        **`toggle` und nicht `field inline`.** Hier stand ein `.field`, und
+        `.field input` gibt jedem Feld volle Breite und `--tap` Höhe — für ein
+        Textfeld richtig, für ein Kästchen nicht. Bei 390 px stand daraus ein
+        grosser leerer Kasten mitten in der Leiste (`docs/64`, Befund 1); der
+        Dokumentüberlauf war dabei **0 px**.
+
+        > **Ein Baustein, der die Regel eines anderen erbt, sieht aus wie der
+        > andere.**
+
+        `.toggle` nimmt beides ausdrücklich zurück und ist die Form, die fünf
+        andere Seiten für ein Kästchen benutzen.
+      -->
+      <label class="toggle">
         <input v-model="imInhalt" type="checkbox" />
+        <span>auch im Inhalt</span>
       </label>
       <button type="submit" class="button primary">Suchen</button>
     </form>

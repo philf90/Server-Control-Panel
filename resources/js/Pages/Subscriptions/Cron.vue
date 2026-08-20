@@ -445,9 +445,9 @@ function entfernen(job: Job): void {
             </div>
 
             <p class="hint">
-              Erlaubt sind <span class="ident">*</span>, Zahlen, Spannen
-              (<span class="ident">9-17</span>), Listen (<span class="ident">1,4</span>)
-              und Schritte (<span class="ident">*/15</span>). Der Wochentag zählt von 0
+              Erlaubt sind <span class="ident literal">*</span>, Zahlen, Spannen
+              (<span class="ident literal">9-17</span>), Listen (<span class="ident literal">1,4</span>)
+              und Schritte (<span class="ident literal">*/15</span>). Der Wochentag zählt von 0
               (Sonntag) bis 7 (auch Sonntag).
               <template v-if="experte">
                 Fünf Felder, durch Leerzeichen getrennt: Minute, Stunde, Tag des Monats,

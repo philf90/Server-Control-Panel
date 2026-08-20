@@ -1151,10 +1151,19 @@ meldete — die Sperrklinke hat den Wächter gegen sich selbst verteidigt.
 
 ## 3. Was offen ist
 
-- **Vier von elf Befunden am Panel** stehen offen: **1** (Kästchen), **5**
-  (Codestück), **6** (Dichtestufe) und **9** (Ausrichtung). Behoben sind **11**
-  (`.quiet`, §2b), **7 und 8** (Polsterung an `td`), **10** (ins Bild holen) und
-  **2, 3, 4** (die Fugen um einen Satz).
+- **Alle elf Befunde sind behoben** und im Container gemessen. Was aussteht,
+  ist die Gegenprobe auf `cloudsrv24` — sie ist die zweite Runde.
+
+  | Befund | Behebung | gemessen |
+  |---|---|---|
+  | 1 | Kästchen als `.toggle` | 390×44 → 17×17 px, Leiste 207 → 171 |
+  | 2, 3, 4 | `.section-note` mit eigenem Rand, drei Fugen um `.quiet`, Absatz ohne Klasse | vier Fugen 0 → 34 px |
+  | 5 | `.ident.literal` mit Wächter über Länge und Inhalt | — |
+  | 6 | Dichtestufe eine Sprosse tiefer | drei Bereiche 401 → 385 px |
+  | 7, 8 | `padding: 6px 14px` an `td` | Zeile bleibt 40/48, Kasten 0 → 6, Marke 1 → 7 |
+  | 9 | `align-items: flex-end` | Versatz −14 → 0 px |
+  | 10 | `bringIntoView` an drei Griffen | — |
+  | 11 | `.quiet` als freistehende Regel | `--text` → `--text-muted` |
 - **Die vollständige Umkehrung der Abstandsregel** — jeder Block holt sich
   seinen Rand nach oben selbst — ist **nicht** getan. Ein erster Anlauf hat
   beim Messen Fugen mitgedeckt, die niemand angesehen hatte
@@ -1173,7 +1182,7 @@ meldete — die Sperrklinke hat den Wächter gegen sich selbst verteidigt.
   | **behoben** | **2, 3, 4** (zwei Fundstellen) — `BlockSpacingTest` | `.section-note` mit eigenem Rand, drei Fugen um `.quiet`, der Absatz ohne Klasse |
   | **behoben** | **7, 8** — `padding: 6px 14px` an `td` | über beide Dichtestufen gemessen |
   | **behoben** | **10** (zwei Fundstellen, beide Richtungen) — `RevealTest` | jeder Griff, der einen Bereich öffnet, holt ihn ins Bild |
-  | einzeln | 1 (Kästchen), 5 (Codestück), 6 (Dichtestufe), 9 (Ausrichtung) | — |
+  | **behoben** | **1** (Kästchen → `.toggle`), **5** (`.ident.literal`), **6** (Dichtestufe), **9** (`flex-end`) | jeder mit gemessener Zahl |
   | **behoben** | **11** (`.quiet`) — `StandaloneClassTest` | am 19. August, im Container nachgemessen |
 - **Die 27 px an `.stacks thead` der Cronseite** — vier Messungen, 484 · 511 ·
   511 · 484, und weder die Reihenfolge noch der Bestand der Tabelle erklärt sie.

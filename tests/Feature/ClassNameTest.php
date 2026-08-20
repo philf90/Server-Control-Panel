@@ -52,6 +52,7 @@ final class ClassNameTest extends TestCase
         'fold', 'folded', 'folds', 'foot', 'footer', 'form', 'frame', 'full', 'grid', 'group', 'head',
         'here', 'hint', 'icon', 'ident', 'inline', 'invalid', 'item', 'keyword', 'knob', 'label', 'leaf', 'line', 'link',
         'list',
+        'literal',
         'log', 'long', 'mark', 'menu', 'met', 'meter', 'multiline', 'name', 'node', 'number',
         'narrow', 'nav', 'neutral', 'note', 'notice', 'ok', 'on', 'op',
         'open', 'operator', 'output', 'over', 'page', 'pager', 'pair', 'paired', 'pairs', 'password', 'path',

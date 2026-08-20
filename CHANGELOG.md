@@ -15845,3 +15845,75 @@ gar kein Block, sondern ein `<span>` in einer Zelle, neben einer Marke, hinter
 einem Verweis.
 
 > **Ein Baustein, den man auch inline benutzt, erzeugt Fugen, die keine sind.**
+
+### Die letzten vier Befunde der Bilderrunde
+
+**Befund 1 — das Kästchen trug die Regel eines Textfeldes.** `Files/Search.vue`
+gab „auch im Inhalt" ein `class="field inline"`, und `.field input { width: 100% }`
+ist eine Regel für Textfelder. Gemessen im Container bei 390 px: **390 × 44 px**
+statt 17 × 17, und die Suchleiste 207 px hoch statt 171.
+
+> **Ein Baustein, der die Regel eines anderen erbt, sieht aus wie der andere.**
+
+Der Dokumentüberlauf war dabei **0 px** — es gab nichts zu messen, nur etwas zu
+sehen. `LiteralTest::test_a_checkbox_is_not_dressed_as_a_field` liest seitdem
+die Vorlage und braucht kein Bild.
+
+**Befund 9 — der Knopf „Packen" stand 14 px zu hoch.**
+`.selection .button-row { align-items: center }` war für sechs gleich hohe
+Knöpfe geschrieben und sagt nichts über eine Reihe, in der eines ihrer Kinder
+zwei Zeilen hoch ist. `flex-end` bringt den Versatz auf 0 und lässt die
+gewöhnliche Leiste um kein Pixel wandern — beides gemessen.
+
+**Befund 6 — die Abstände der Dichtestufe `customer`.** Der Betreiber hat
+entschieden, dass der Befund der Stufe gilt und nicht der Cronseite. Sie war bei
+den beiden Fugenmassen **zwei** Schritte von der Verwaltung entfernt (34 gegen
+26, 38/52 gegen 30/44), während `--gap` und `--row-height` je einen Schritt
+auseinanderliegen.
+
+> **Eine Achse, deren Sprossen verschieden weit auseinanderliegen, ist keine
+> Achse, sondern eine Sammlung von Werten.**
+
+Vier Pixel weniger in jeder Richtung: `--block-gap: 30px`,
+`--bereich-gap: 34px 48px`. Gemessen an einem Aufbau aus drei Bereichen:
+401 px hoch statt 385. Die Zahlen sind eine Entscheidung, die Höhe ist die
+Messung.
+
+**Befund 5 — die Cron-Schreibweise brach mitten im Ausdruck.** `.ident` trägt
+`overflow-wrap: anywhere`, und das ist für Kennungen richtig; für ein Literal
+von vier Zeichen ist es falsch.
+
+> **Ein Format für lange Kennungen reicht nicht für kurze Literale.**
+
+`.ident.literal` zeichnet es als Code aus und hält es zusammen. **Die Grenze
+steht nicht im Stylesheet, sondern im Wächter:** In einem `.literal` steht kein
+`{{ }}` und höchstens zwölf Zeichen — `Ergibt: {{ ausdruck }}` daneben trägt die
+Klasse ausdrücklich nicht, denn dort stehen fünf Felder mit je 192 erlaubten
+Zeichen.
+
+> **Eine Zusage, die das Stylesheet nicht geben kann, gibt der Wächter — oder
+> niemand.**
+
+`MobileLayoutTest` verbietet `nowrap` an `.ident` ausserhalb einer Tabelle und
+hat den Eingriff prompt gemeldet; die Ausnahme steht dort jetzt mit dem Verweis
+auf ihre Zusage.
+
+**Drei Fehler in den neuen Wächtern, alle drei beim Bauen gefunden:**
+
+- Der Kommentar zu `.ident.literal` nannte sein Beispiel wörtlich — und dessen
+  Zeichenfolge **beendet einen CSS-Kommentar**. Die Regel darunter stand
+  plötzlich im Nirgendwo.
+
+  > **Ein Kommentar, der sein Beispiel wörtlich nennt, endet manchmal dort.**
+- Der Ankreuz-Wächter suchte rückwärts bis zum nächsten `<label>` und meldete
+  die Datenbankkonsole: Dort steht das Kästchen in einem `<span class="toggle">`
+  **innerhalb** eines `<label class="field">`.
+
+  > **Ein Wächter, der bis zum Vorfahren sucht, überspringt den Nachbarn.**
+- Und danach fand er die Dateiliste, weil dort `class="check"` **hinter**
+  `type="checkbox"` steht.
+
+  > **Eine Suche rückwärts findet nicht, was rechts davon steht.**
+
+Er liest jetzt zuerst das eigene Tag. Sechs Brüche im Bruchskript, alle
+gegengeprüft.

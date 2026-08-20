@@ -9172,6 +9172,61 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimerRearmTest passed
 
 echo
+echo "── LiteralTest: eine Einsetzung in einem Literal ──"
+#
+# Befund 5 aus docs/64: `.literal` haelt den Inhalt vom Umbruch ab. Was aus
+# einer Eingabe kommt, kann beliebig lang werden und schiebt dann die Seite.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('<span class="ident">{{ ausdruck }}</span>', '<span class="ident literal">{{ ausdruck }}</span>', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Einsetzung im Literal" &&
+pruefe "Einsetzung im Literal" \
+  LiteralTest::test_a_literal_is_short_and_written_out failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LiteralTest passed
+
+echo
+echo "── LiteralTest: ein zu langes Literal ──"
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('<span class="ident literal">9-17</span>', '<span class="ident literal">/usr/local/bin:/usr/bin:/bin</span>', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "zu langes Literal" &&
+pruefe "zu langes Literal" \
+  LiteralTest::test_a_literal_is_short_and_written_out failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LiteralTest passed
+
+echo
+echo "── LiteralTest: das Ankreuzfeld trägt wieder die Regel eines Textfeldes ──"
+#
+# Befund 1 aus docs/64: Bei 390px wurde daraus ein Kasten von 390x44 px, und der
+# Dokumentueberlauf blieb dabei 0.
+vorher_datei resources/js/Pages/Files/Search.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Search.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '<label class="toggle">\n        <input v-model="imInhalt" type="checkbox" />\n        <span>auch im Inhalt</span>\n      </label>',
+    '<label class="field inline">\n        <span>auch im Inhalt</span>\n        <input v-model="imInhalt" type="checkbox" />\n      </label>',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Search.vue "Ankreuzfeld als Textfeld" &&
+pruefe "Ankreuzfeld als Textfeld" \
+  LiteralTest::test_a_checkbox_is_not_dressed_as_a_field failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LiteralTest passed
+
+echo
 echo "── BlockSpacingTest: der Erklärsatz verliert seinen Rand nach unten ──"
 #
 # Befund 3 aus docs/64: Der Knopf „Eintragen" klebte am Satz darueber.

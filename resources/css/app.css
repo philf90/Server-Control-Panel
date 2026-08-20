@@ -291,13 +291,29 @@
   --block-gap: 26px;
 }
 
+/*
+ * Die Kundenfläche liegt **eine** Stufe über der Verwaltung, nicht zwei.
+ *
+ * **Der Betreiber hat die Abstände auf der Cronseite als zu gross gemeldet**
+ * (`docs/64`, Befund 6) und entschieden, dass der Befund der Dichtestufe gilt
+ * und nicht der Seite. Sie war bei den beiden Fugenmassen zwei Schritte von
+ * der Verwaltung entfernt — 34 gegen 26 und 38/52 gegen 30/44 —, während
+ * `--gap` und `--row-height` je einen Schritt auseinanderliegen.
+ *
+ * > **Eine Achse, deren Sprossen verschieden weit auseinanderliegen, ist keine
+ * > Achse, sondern eine Sammlung von Werten.**
+ *
+ * Vier Pixel weniger in jeder Richtung bringen sie in denselben Abstand wie
+ * die übrigen Marken. Die Zahlen sind eine Entscheidung und keine Messung; was
+ * gemessen ist, steht in `docs/64`: wie hoch die Cronseite dadurch wird.
+ */
 :root[data-density='customer'] {
   --row-height: 48px;
   --gap: 18px;
-  --bereich-gap: 38px 52px;
+  --bereich-gap: 34px 48px;
   --bereich-min: 460px;
   --kachel-min: 250px;
-  --block-gap: 34px;
+  --block-gap: 30px;
 }
 
 /*
@@ -886,6 +902,46 @@ td.name {
  */
 .quiet {
   color: var(--text-muted);
+}
+
+/*
+ * **Ein kurzes Literal im Fliesstext — als Code erkennbar und ohne Umbruch.**
+ *
+ * `.ident` trägt seit `docs/46 §20.11` `overflow-wrap: anywhere`, und das ist
+ * für Kennungen richtig: Ohne es schob ein Bereichstitel die Seite bei 390 px
+ * um 99 px aus dem Bild. Für ein Literal von vier Zeichen ist es falsch — ein
+ * Schrittausdruck sagt nur als Ganzes etwas, über zwei Zeilen sagt er nichts.
+ *
+ * (Der Ausdruck steht hier absichtlich nicht wörtlich: Er enthält die Folge,
+ * die einen CSS-Kommentar beendet — beim ersten Anlauf hat sie genau das
+ * getan, und die Regel darunter stand plötzlich im Nirgendwo.
+ *
+ * > **Ein Kommentar, der sein Beispiel wörtlich nennt, endet manchmal dort.**)
+ *
+ * > **Ein Format für lange Kennungen reicht nicht für kurze Literale.**
+ *
+ * Gemeldet vom Betreiber an der Cronseite (`docs/64`, Befund 5), zusammen mit
+ * dem Wunsch, die Schreibweise als Code auszuzeichnen.
+ *
+ * ## Die Grenze steht nicht hier, sondern im Wächter
+ *
+ * `white-space: nowrap` an einem Wert, der wachsen kann, ist genau der Fehler,
+ * gegen den `.ident` gebaut wurde. CSS kann die Länge nicht begrenzen — der
+ * Wächter kann es: **In einem `.literal` steht kein `{{ }}`.** Was hier
+ * dazwischen steht, ist im Quelltext nachzulesen und nicht in einer Eingabe.
+ *
+ * > **Eine Zusage, die das Stylesheet nicht geben kann, gibt der Wächter — oder
+ * > niemand.**
+ *
+ * Deshalb trägt auf der Cronseite die Aufzählung der erlaubten Zeichen diese
+ * Klasse, und `Ergibt: {{ ausdruck }}` daneben ausdrücklich nicht: Dort stehen
+ * fünf Felder mit je 192 erlaubten Zeichen.
+ */
+.ident.literal {
+  padding: 1px 5px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  white-space: nowrap;
 }
 
 /*
@@ -2861,7 +2917,24 @@ p:not([class]) {
    */
   .selection .button-row {
     flex-direction: row;
-    align-items: center;
+
+    /*
+     * **`flex-end` und nicht `center`.** Die Regel war für sechs gleich hohe
+     * Knöpfe geschrieben (`docs/55`, Befund 15) und sagt nichts über eine
+     * Reihe, in der eines ihrer Kinder zwei Zeilen hoch ist: Im Zustand
+     * „Packen" steht dort ein `.field.inline`, und das ist unter 480 px eine
+     * Spalte — Beschriftung über dem Feld. Zentriert lag der Knopf „Packen"
+     * damit 14 px über der Mitte seines Eingabefeldes (`docs/64`, Befund 9).
+     *
+     * > **Eine Ausrichtung, die für gleich hohe Geschwister gilt, sagt nichts
+     * > über eine Reihe, in der eines zwei Zeilen hoch ist.**
+     *
+     * Gemessen im Container: Versatz von −14 px auf 0 — und die gewöhnliche
+     * Leiste mit sechs Knöpfen steht in beiden Fällen auf denselben drei
+     * Zeilen, weil gleich hohe Geschwister unter `center` und `flex-end`
+     * dieselbe Lage haben.
+     */
+    align-items: flex-end;
   }
 
   .selection .button-row .button {

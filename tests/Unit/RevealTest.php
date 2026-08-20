@@ -79,6 +79,28 @@ final class RevealTest extends TestCase
     ];
 
     /**
+     * Griffe, deren Bereich **neben ihnen** aufgeht — angesehen und in Ordnung.
+     *
+     * **Das ist nicht dieselbe Liste wie {@see self::UNEXAMINED}, und der
+     * Unterschied ist der Punkt.** Dort steht, was niemand gemessen hat; hier
+     * steht, was gemessen wurde und keinen Sprung braucht. Beides in einen Topf
+     * zu werfen hiesse, eine offene Frage wie eine beantwortete aussehen zu
+     * lassen — der Fehler, der in `docs/64 §3` schon einmal eine Tabelle unter
+     * die falsche Überschrift gebracht hat.
+     *
+     * > **Eine Ausnahme ohne Grund ist eine Lücke mit Erlaubnis.**
+     *
+     * @var array<string,string>
+     */
+    private const IN_PLACE = [
+        'Layouts/PanelLayout.vue @click menuOpen' => 'Das Menü geht unmittelbar unter seinem Knopf auf — es ist die Kopfleiste selbst.',
+        'Pages/Files/Index.vue @click open_' => 'Die vier Formulare der Kopfleiste stehen unter ihren Knöpfen. Gemessen am 20. August '.
+            'bei 390 px: oben 476, unten 602 (bei „Suchen" 656), Fenster 844 — ganz im Bild.',
+        'Pages/Subscriptions/Show.vue @click tearingDown' => 'Das Formular tritt an die Stelle des Knopfes: Der Knopf trägt `v-if="… && !tearingDown"`, '.
+            'das Formular steht direkt dahinter.',
+    ];
+
+    /**
      * Jeder Griff an einer Zeile holt seinen Bereich ins Bild — oder steht in der Liste.
      */
     public function test_every_per_item_handle_reveals_its_block(): void
@@ -97,7 +119,7 @@ final class RevealTest extends TestCase
 
             $this->assertContains(
                 $name,
-                self::UNEXAMINED,
+                array_merge(self::UNEXAMINED, array_keys(self::IN_PLACE)),
                 sprintf(
                     "%s öffnet einen Bereich, der über ein `v-if` erscheint, und holt ihn nicht\n".
                     "ins Bild.\n\n".
@@ -116,17 +138,30 @@ final class RevealTest extends TestCase
          * **Die Sperrklinke.** Ein Eintrag, den es nicht mehr gibt, sieht aus
          * wie ein bekanntes Loch und ist keins.
          */
-        foreach (self::UNEXAMINED as $bekannt) {
-            $this->assertContains(
-                $bekannt,
-                $gesehen,
-                sprintf(
-                    "`%s` steht in RevealTest::UNEXAMINED und kommt nicht mehr vor.\n\n".
-                    'Entweder ist der Griff verschwunden oder umgebaut — dann gehört die Zeile '.
-                    'gelöscht — oder die Suche findet ihn nicht mehr, und dann ist der Wächter kaputt.',
+        /*
+         * **Die Sperrklinke gilt für beide Listen.** Ein Eintrag, dessen Griff
+         * es nicht mehr gibt, ist eine Erlaubnis für nichts — und er verdeckt,
+         * dass die Suche ihn vielleicht nur nicht mehr findet.
+         */
+        $listen = [
+            'UNEXAMINED' => self::UNEXAMINED,
+            'IN_PLACE' => array_keys(self::IN_PLACE),
+        ];
+
+        foreach ($listen as $wo => $liste) {
+            foreach ($liste as $bekannt) {
+                $this->assertContains(
                     $bekannt,
-                ),
-            );
+                    $gesehen,
+                    sprintf(
+                        "`%s` steht in RevealTest::%s und kommt nicht mehr vor.\n\n".
+                        'Entweder ist der Griff verschwunden oder umgebaut — dann gehört die Zeile '.
+                        'gelöscht — oder die Suche findet ihn nicht mehr, und dann ist der Wächter kaputt.',
+                        $bekannt,
+                        $wo,
+                    ),
+                );
+            }
         }
 
         $this->assertGreaterThanOrEqual(
@@ -209,6 +244,47 @@ final class RevealTest extends TestCase
             $skript = $s[1];
             $markup = (string) preg_replace('/<!--.*?-->/s', ' ', $t[1]);
             $kurz = $this->relative($datei);
+
+            /*
+             * **Der dritte Arm: eine Zuweisung statt eines Aufrufs.**
+             *
+             * `@click="picking = 'move'"` ist kein Funktionsaufruf und fiel aus
+             * dem Ausdruck darunter heraus — deshalb ist Befund 18 durch diesen
+             * Wächter hindurchgegangen, obwohl er gegen genau diesen Fehler
+             * gebaut wurde.
+             *
+             * > **Ein Wächter, der eine Sorte Griff prüft, sagt über die andere
+             * > Sorte nichts — und die zweite Sorte fällt niemandem auf, weil
+             * > der Wächter grün ist.**
+             *
+             * **Schliessende Zuweisungen bleiben draussen.** Wer `= null`,
+             * `= false`, `= []` oder `= ''` schreibt, macht etwas zu; dort ins
+             * Bild zu springen wäre falsch. Das ist keine Ausnahme, sondern
+             * ausserhalb der Regel.
+             */
+            preg_match_all('/@click="(\w+)\s*=\s*([^"]+)"/', $markup, $zuweisungen, PREG_SET_ORDER);
+
+            foreach ($zuweisungen as [, $ref, $wert]) {
+                if (preg_match("/^(null|false|\[\]|'')\s*;?\s*$/", trim($wert)) === 1) {
+                    continue;
+                }
+
+                if (preg_match('/v-if="[^"]*\b'.preg_quote($ref, '/').'\b/', $markup) !== 1) {
+                    continue;
+                }
+
+                $name = $kurz.' @click '.$ref;
+
+                if (in_array($name, array_column($gefunden, 0), true)) {
+                    continue;
+                }
+
+                $gefunden[] = [
+                    $name,
+                    preg_match('/watch\(\s*'.preg_quote($ref, '/').'\b/', $skript) === 1
+                        && str_contains($skript, 'bringIntoView'),
+                ];
+            }
 
             preg_match_all('/@click="(\w+)\([^)]/', $markup, $rufe);
 

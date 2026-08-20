@@ -153,6 +153,29 @@ function bearbeiten(job: Job): void {
 
 const formBlock = ref<HTMLElement | null>(null)
 
+/**
+ * Zum Formular gehen — und dabei sicherstellen, dass es zum Anlegen dasteht.
+ *
+ * **Der Bereich „Job anlegen" war bei 390 px nur durch Rollen zu erreichen**
+ * (`docs/64`, Befund 13): Er ist der dritte von drei Bereichen, und dazwischen
+ * liegt die Jobliste mit bis zu zehn Kärtchen. Wer einen Job anlegen wollte,
+ * musste an ihnen vorbei — und nichts sagte ihm, dass dort etwas ist.
+ *
+ * **Der Griff steht in der Kopfzeile der Jobliste**, also dort, wo man nach
+ * „noch einer" sucht, und nicht dort, wo man ihn schliesslich findet.
+ *
+ * `bearbeitet` wird zurückgesetzt: Wer „Job anlegen" drückt, meint anlegen,
+ * auch wenn gerade ein anderer Job im Formular steht.
+ *
+ * Bei 1440 px steht das Formular ohnehin im Bild; `bringIntoView` rollt dann
+ * nicht, sondern setzt nur den Fokus — für den Tastaturweg genau richtig.
+ */
+function zumFormular(): void {
+  bearbeitet.value = null
+
+  void nextTick(() => bringIntoView(formBlock.value))
+}
+
 /*
  * **Der Bereich, der aufgeht, holt sich ins Bild** — hier nach *unten*.
  *
@@ -268,6 +291,7 @@ function entfernen(job: Job): void {
             {{ props.quota.used }}
             <template v-if="props.quota.limit !== null">von {{ props.quota.limit }}</template>
           </span>
+          <button type="button" class="button small" @click="zumFormular">Job anlegen</button>
         </div>
 
         <div class="scrolls">

@@ -15965,3 +15965,50 @@ Zeile erklärt, warum sie dort steht.
 Er entfernt Blade-Kommentare jetzt vorher, und zwar durch Leerzeichen gleicher
 Länge — er vergleicht Stellen mit der von `</head>`. Zwei Brüche im
 Bruchskript, beide von Hand gegengeprüft.
+
+### P6 Schritt 12 — Befunde 13 und 18: die Regel statt der Stelle, beim dritten Anlauf
+
+**Befund 18 — der Zielbaum.** „Verschieben" und „Kopieren" stehen in der
+Auswahlleiste, die zur Liste gehört; der Baum, den man danach benutzen soll, ist
+die **erste** Hälfte von `.split` und liegt bei 390 px darüber. Gemessen:
+`oben: -98` — abgeschnitten waren „Abo-Wurzel", `.ssh`, `conf` und `httpdocs`,
+also gerade die Ziele, die man von dort aus meint.
+
+**Und `RevealTest` hat ihn nicht gefunden, obwohl er gegen genau diesen Fehler
+gebaut ist.** Sein Ausdruck suchte `@click="funktion(argument)"`. Der Griff hier
+ist eine **Zuweisung** — `@click="picking = 'move'"` — und fiel heraus.
+
+> **Ein Wächter, der eine Sorte Griff prüft, sagt über die andere Sorte nichts —
+> und die zweite Sorte fällt niemandem auf, weil der Wächter grün ist.**
+
+Der Wächter hat einen dritten Arm bekommen. **Schliessende Zuweisungen bleiben
+draussen** (`= null`, `= false`, `= []`, `= ''`): Wer etwas zumacht, soll nicht
+springen — das ist keine Ausnahme, sondern ausserhalb der Regel. Von den
+verbleibenden vier ist einer verdrahtet und drei stehen in der neuen Liste
+`IN_PLACE` **mit ihrem Grund** — getrennt von `UNEXAMINED`, weil „angesehen und
+in Ordnung" und „niemand hat hingesehen" nicht dasselbe sind. Die Sperrklinke
+gilt jetzt für beide Listen.
+
+**Und `bringIntoView` hat dabei eine Regel dazubekommen**, die über diesen Fall
+hinausgeht: Ist der Block **höher als das Fenster**, wird sein Anfang
+angesteuert und nicht seine Mitte.
+
+> **Etwas zu zentrieren, das nicht hineinpasst, schneidet oben ab.**
+
+**Befund 13 — der Weg zum Formular.** Der Bereich „Job anlegen" der Cronseite
+ist der dritte von drei; dazwischen liegt die Jobliste mit bis zu zehn
+Kärtchen. Die Kopfzeile der Liste trägt jetzt einen Griff dorthin — dort, wo man
+nach „noch einem" sucht, und nicht dort, wo man ihn schliesslich findet. Er
+setzt `bearbeitet` zurück, denn wer ihn drückt, meint anlegen.
+
+**Das ist der dritte Fall dieser Art** — nach dem Menüpunkt des Dateimanagers
+(`docs/55`) und dem des SFTP-Zugangs (`docs/59`). Gemeldet haben alle drei
+Menschen und kein Wächter, und das bleibt so: „Erreichbar" hängt daran, was ein
+Kunde erwartet, und keine Eigenschaft des Quelltextes bildet es ab. Der neue
+Fall in `CronPageReachTest` hält nur fest, **dass der Griff nicht wieder
+verschwindet**; die Regel steht als Frage in `CLAUDE.md`.
+
+> **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
+> als Zusage.**
+
+Drei Brüche im Bruchskript, alle von Hand gegengeprüft.

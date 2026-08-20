@@ -411,6 +411,23 @@ weil die Frage daran hängt, was ein Kunde *sucht*.
 > **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
 > wieder da, wenn die Behebung nicht die Regel wurde.**
 
+**Zum dritten Mal am 20. August**, beim Bereich „Job anlegen" der Cronseite: Er
+ist der dritte von drei Bereichen, dazwischen liegen bis zu zehn Kärtchen, und
+bei 390 px fand ihn niemand (`docs/64`, Befund 13). Gemeldet hat es wieder der
+Betreiber.
+
+**Dreimal derselbe Fehler heisst: Es fehlt kein Wächter, sondern eine Frage.**
+Ein Test kann „erreichbar" nicht halten — das hängt daran, was ein Kunde
+erwartet, und keine Eigenschaft des Quelltextes bildet es ab. Deshalb steht die
+Regel hier und nicht in `tests/`:
+
+> **Vor jedem neuen Merkmal: Wo sucht jemand diese Handlung, und steht sie
+> dort?** Nicht „ist sie erreichbar" — erreichbar ist alles, was man findet,
+> wenn man lange genug rollt.
+
+> **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
+> als Zusage.**
+
 **Was offen bleibt und benannt ist:** Wand 2 aus Punkt 11 und die vier Zeilen zu
 den Befunden 20 und 21 gegen die nächste Fassung. Wer sie anfasst, fängt bei
 `docs/59` an und nicht bei null.

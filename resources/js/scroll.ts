@@ -54,9 +54,26 @@ export function bringIntoView(element: HTMLElement | null): void {
     }
 
     if (! fullyVisible(element)) {
-        // `block: 'center'` und nicht `'start'`: Bei einer kurzen Meldung stünde
-        // sie sonst unter der Kopfleiste, die auf dem Telefon mitläuft.
-        element.scrollIntoView({ block: 'center' })
+        /*
+         * `center` für das Kurze, `start` für das Hohe.
+         *
+         * `block: 'center'` und nicht `'start'`: Bei einer kurzen Meldung stünde
+         * sie sonst unter der Kopfleiste, die auf dem Telefon mitläuft.
+         *
+         * **Für einen Block, der höher ist als das Fenster, ist genau das
+         * falsch.** Zentrieren heisst dort: Die Mitte kommt ins Bild und der
+         * Anfang liegt darüber — bei einem Verzeichnisbaum also die Wurzel und
+         * die ersten Einträge, und die sind meistens das Ziel. Gemessen am
+         * 20. August: `oben: -98` beim Zielbaum des Dateimanagers, und die
+         * abgeschnittenen 98 px trugen „Abo-Wurzel", `.ssh`, `conf` und
+         * `httpdocs` (`docs/64`, Befund 18).
+         *
+         * > **Etwas zu zentrieren, das nicht hineinpasst, schneidet oben ab.**
+         */
+        const höhe = window.innerHeight || document.documentElement.clientHeight
+        const zuHoch = element.getBoundingClientRect().height > höhe
+
+        element.scrollIntoView({ block: zuHoch ? 'start' : 'center' })
     }
 
     element.focus({ preventScroll: true })

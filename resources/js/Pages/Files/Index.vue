@@ -295,7 +295,35 @@ watch(renameFor, (offen) => {
   if (offen !== null) {
     void nextTick(() => bringIntoView(renameBlock.value))
   }
-})
+
+
+/*
+ * **Der Zielbaum ist der dritte Griff dieser Art — und der erste, der nach
+ * oben zeigt.**
+ *
+ * „Verschieben" und „Kopieren" stehen in der Auswahlleiste, und die gehört zur
+ * Liste. Der Baum, den man danach benutzen soll, ist die **erste** Hälfte von
+ * `.split`, bei 390 px also der obere Stapel. Wer den Knopf drückt, soll etwas
+ * benutzen, das über ihm liegt.
+ *
+ * Gemessen am 20. August (`docs/64`, Befund 18): `oben: -98` — abgeschnitten
+ * waren die Wurzel, `.ssh`, `conf` und `httpdocs`, also gerade die Ziele, die
+ * man von hier aus meint.
+ *
+ * **Warum das nicht schon vorher auffiel:** `RevealTest` fand Griffe der Form
+ * `@click="funktion(argument)"`. Dieser hier ist eine Zuweisung —
+ * `@click="picking = 'move'"` — und fiel aus dem Ausdruck heraus.
+ *
+ * > **Ein Wächter, der eine Sorte Griff prüft, sagt über die andere Sorte
+ * > nichts.**
+ */
+const asideBlock = ref<HTMLElement | null>(null)
+
+watch(picking, (an) => {
+  if (an !== null) {
+    void nextTick(() => bringIntoView(asideBlock.value))
+  }
+})})
 
 function submitChmod(): void {
   modeForm.post(`/subscriptions/${props.subscription.id}/files/chmod`, {
@@ -740,7 +768,7 @@ function pick(target: string): void {
       zwar **nur** dort — bei 720 und 1440 ist sie sauber.
     -->
     <div class="split">
-      <div class="aside">
+      <div ref="asideBlock" class="aside" tabindex="-1">
         <!--
           **Derselbe Baum in zwei Rollen.** Beim Navigieren führt ein Klick zur
           Liste, beim Auswählen setzt er das Ziel — der Unterschied ist eine

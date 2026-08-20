@@ -11987,6 +11987,67 @@ pruefe "  … zurückgesetzt wieder grün" \
   RootElementTest::test_the_head_carries_its_own_directive passed
 
 echo
+echo "── RevealTest: der Zielbaum verliert seine Verdrahtung ──"
+#
+# Befund 18: „Verschieben" steht in der Auswahlleiste, der Baum ist die erste
+# Haelfte von .split und liegt bei 390 px darueber. Der Griff ist eine
+# Zuweisung — @click="picking = 'move'" — und faellt aus dem alten Ausdruck
+# heraus; genau deshalb ist der Befund durch diesen Waechter hindurchgegangen.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("bringIntoView(asideBlock.value)", "asideBlock.value", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Zielbaum ohne Verdrahtung" &&
+pruefe "Zielbaum ohne Verdrahtung" \
+  RevealTest::test_every_per_item_handle_reveals_its_block failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  RevealTest::test_every_per_item_handle_reveals_its_block passed
+
+echo
+echo "── RevealTest: ein veralteter Eintrag in IN_PLACE ──"
+#
+# Die Sperrklinke gilt fuer beide Listen. Ein Eintrag, dessen Griff es nicht
+# mehr gibt, ist eine Erlaubnis fuer nichts — und er verdeckt, dass die Suche
+# ihn vielleicht nur nicht mehr findet.
+vorher_datei tests/Unit/RevealTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/RevealTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'Layouts/PanelLayout.vue @click menuOpen' =>",
+              "'Layouts/PanelLayout.vue @click gibtEsNicht' =>", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Unit/RevealTest.php "veralteter Eintrag in IN_PLACE" &&
+pruefe "veralteter Eintrag in IN_PLACE" \
+  RevealTest::test_every_per_item_handle_reveals_its_block failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  RevealTest::test_every_per_item_handle_reveals_its_block passed
+
+echo
+echo "── CronPageReachTest: der Griff zum Formular verschwindet ──"
+#
+# Befund 13: Der Bereich „Job anlegen" ist der dritte von drei; dazwischen
+# liegen bis zu zehn Kaertchen. Ohne Griff findet ihn bei 390 px niemand.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('          <button type="button" class="button small" @click="zumFormular">Job anlegen</button>\n', '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Griff zum Formular fehlt" &&
+pruefe "Griff zum Formular fehlt" \
+  CronPageReachTest::test_the_job_list_leads_to_the_form failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronPageReachTest::test_the_job_list_leads_to_the_form passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

@@ -1414,8 +1414,55 @@ wird es, weil es sonst niemandem mehr auffällt.
 > **Eine Auskunft, die man nicht liest, ist nicht dasselbe wie eine, die es
 > nicht gibt.**
 
-**Nächster Griff:** das Register „Issues" bei 1440 px einmal aufklappen und die
-sieben Zeilen abschreiben. Kostet keine Aufnahme.
+**Und gemessen am 20. August ist es weder das eine noch das andere: Das Register
+sammelt über die Sitzung.** Auf der frisch geladenen Seite steht `No Issues`,
+bei sonst gleicher Lage und gleicher Breite. Die sieben gehörten also zu allem,
+was vorher in diesem Fenster passiert ist, und nicht zu dieser Ansicht.
+
+> **Eine Zahl, die sich über die Sitzung ansammelt, gehört nicht zu der Seite,
+> auf der man sie abliest.**
+
+Das ist der dritte Fund derselben Bauart in dieser Runde — nach dem Kasten der
+Erweiterung und dem Rest des Breitenwechsels. Alle drei stehen im Bild neben der
+Seite und sehen aus, als gehörten sie dazu.
+
+#### Befund 17 — zwei Elemente tragen die Kennung `app`
+
+Die Gegenprobe zu den sieben Meldungen hat etwas anderes gefunden. Gemessen bei
+1440 px auf `/subscriptions/140/files`:
+
+```json
+{"ohneNamen":[],"labelInsLeere":[],"doppelteKennung":["app"],"knopfOhneTyp":0}
+```
+
+Die ersten beiden Listen sind leer und die vierte 0 — jedes Eingabefeld hat
+`id` oder `name`, keine Beschriftung zeigt ins Leere, kein Knopf in einem
+Formular ist ohne `type`. **Die dritte nicht:** Mindestens zwei Elemente tragen
+`id="app"`.
+
+Eine Kennung ist im Dokument einmalig, sonst ist sie keine. Was daran hängt,
+sucht sich das erste Element und findet je nach Weg ein anderes:
+`document.getElementById`, ein `label[for]`, ein `aria-labelledby`, ein
+Sprungziel `#app`.
+
+**Im Quelltext gibt es sie genau einmal.** `resources/views/app.blade.php` hat
+im Rumpf nur `@inertia`, und die Direktive setzt das eine `<div id="app">`; in
+keiner `.vue`-Vorlage steht `id="app"`. Woher das zweite kommt, ist **nicht
+geklärt**.
+
+> **Eine Kennung, die es im Quelltext einmal gibt und im Dokument zweimal, ist
+> nicht dort entstanden, wo man sie sucht.**
+
+**Der nächste Griff benennt beide**, eine Zeile bei 1440 px, ohne Neuladen:
+
+```js
+JSON.stringify([...document.querySelectorAll('[id="app"]')]
+  .map((e) => e.tagName + ' | ' + (e.className || '—') + ' | ' + e.outerHTML.slice(0, 100)))
+```
+
+Erst danach steht fest, ob es das Panel ist, das Gerüst oder etwas, das der
+Browser hinzufügt. Bis dahin ist es ein Fund ohne Ursache und wird auch so
+geführt.
 
 #### Ansicht 8 — Cronjobs, gemessen am 20. August gegen `rc.19`
 

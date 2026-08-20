@@ -588,6 +588,13 @@ zusätzlich im zweiten Theme dazu.
 | Cron — Formular „Ändern" offen | 390 dunkel | 0 | **200/200** | `thead` 511 · `tr` 483 | **Befund 10**, zweite Fundstelle |
 | Cron — Kontingent voll (10 von 10) | 390 hell **und** dunkel | 0 | **200/200** | `thead` 511 · `tr` 483 | — |
 | Cron — Kontingent voll (10 von 10) | 1440 hell **und** dunkel | 0 | **200/200** | **leer** (`rollt`: `.scrolls` 298) | — |
+| Cron — ohne Jobs (Abonnement 137) | 390 hell **und** dunkel | 0 | **200/200** | `thead` 484 · `tr` 456 | — |
+| Cron — ohne Jobs (Abonnement 137) | 1440 hell **und** dunkel | 0 | **200/200** | **leer** (`rollt` leer) | — |
+
+**Damit sind alle Zustände gemessen**, die sich herstellen lassen. Zwei bleiben
+ungemessen und sind es absichtlich: „Zugang gestört" und „Abonnement nicht
+benutzbar" werden nur aufgenommen, wenn sie ohnehin eintreten — sie
+herzustellen hiesse, einen Server kaputtzumachen, um ein Bild zu bekommen.
 
 **Zur Mehrfachauswahl.** Zwei Einträge angekreuzt, die Auswahlleiste offen mit
 sechs Knöpfen, und im Baum daneben steht das lange Verzeichnis aus `docs/63
@@ -779,17 +786,25 @@ Roller kommt und geht mit dem Inhalt, nicht mit dem Bestand.
 Seite, dieselbe Breite, dieselben fünf Spaltenüberschriften. Der Unterschied von
 27 px ist **nicht erklärt.**
 
-**Mit dem dritten Messwert ist die 484 der Ausreisser** und keine Schwankung:
-Zwei spätere, voneinander unabhängige Messungen liefern beide 511. Und die 484
-war die **erste** Messung dieser Seite in dieser Sitzung.
+**Hier stand nach dem dritten Messwert, die 484 sei der Ausreisser.** Der vierte
+hat das widerlegt: Abonnement 137 **ohne einen einzigen Job** liefert wieder
+**484**. Die Werte stehen damit auf 484 · 511 · 511 · 484, und die
+naheliegendste Erklärung — die Zahl hänge am Bestand der Tabelle — trägt auch
+nicht: Bei Ansicht 8 lagen drei Jobs und es waren 484, beim Formular „Ändern"
+lagen dieselben drei und es waren 511.
 
-Eine Vermutung, und sie ist ausdrücklich nur eine: Die erste Messung könnte
-gelaufen sein, bevor die Schriftart geladen war — Textmasse hängen daran, und
-`bilderMessen()` fragt nichts ab, was das Laden abwartet. Der dritte Wert passt
-dazu, beweist es aber nicht.
+> **Eine Erklärung, die zum dritten Messwert passt, ist keine — sie ist eine
+> Erklärung für drei Messwerte.**
 
-> **Ein dritter Messwert macht aus zwei widersprüchlichen einen Ausreisser und
-> eine Regel — oder aus beiden ein Rätsel. Er kostet dasselbe.**
+Was **feststeht**: Der Wert gehört zu `.stacks thead`, also zum Mechanismus aus
+`app.css` und nicht zu einem Fund; `dokument` ist in allen vier Fällen 0; und
+die Frage berührt das Kriterium dieses Schritts nicht.
+
+Was **offen bleibt**: warum dieselbe Kopfzeile aus fünf Wörtern zwei
+verschiedene Breiten hat. Die Vermutung „Schriftart noch nicht geladen" steht
+weiter da und ist weiter unbewiesen; der vierte Wert schwächt sie eher, weil
+zwischen den Messungen viel Zeit lag. Vor der zweiten Runde zu klären — mit dem
+Messmittel, nicht mit einer Überlegung.
 
 **Für das Kriterium dieses Schritts ist es gleichgültig** (`dokument` ist beide
 Male 0, und `.stacks thead` ist ohnehin der Mechanismus und kein Fund). Für die
@@ -1011,9 +1026,10 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
   | fehlende Polsterung an `td` | 7, 8 | `padding: 8px 14px 8px 0`, im Container gemessen |
   | Wirkung ausserhalb des Bildes | **10** (zwei Fundstellen, beide Richtungen) | jeder Griff, der einen Bereich öffnet, holt ihn ins Bild |
   | einzeln | 1 (Kästchen), 5 (Codestück), 6 (Dichtestufe), 9 (Ausrichtung) | — |
-- **Die 27 px an `.stacks thead` der Cronseite** — 484 bei der ersten Messung,
-  511 bei den beiden späteren. Vor der zweiten Runde klären; die Vermutung
-  „Schriftart noch nicht geladen" ist zu prüfen, nicht zu glauben.
+- **Die 27 px an `.stacks thead` der Cronseite** — vier Messungen, 484 · 511 ·
+  511 · 484, und weder die Reihenfolge noch der Bestand der Tabelle erklärt sie.
+  Vor der zweiten Runde klären, mit dem Messmittel und nicht mit einer
+  Überlegung.
 - **Die Zahlen zu Befund 8 auf `cloudsrv24` gegenprüfen.** Im Container ist der
   Eingriff gemessen (einzeilige Zeilen bleiben bei 48 px); auf dem Server steht
   er noch aus und gehört in die zweite Runde.
@@ -1022,7 +1038,7 @@ in `schiebt` wird einzeln beurteilt und hier benannt.
 - **Die Runde danach noch einmal.** Befund 6 ändert die Dichtestufe `customer`,
   und in der stehen alle Aufnahmen dieses Laufs. Erst zu Ende messen, dann alles
   in einer Fassung beheben, dann neu fahren.
-- **Ein Zustand** aus `docs/63 §3`: „ohne Jobs" (auf 137). Alles andere
+- **Kein Zustand mehr** — alle herstellbaren sind gemessen (§1b). Alles andere
   ist gemessen — siehe §1b. „Zugang gestört" und „Abonnement nicht benutzbar"
   bleiben ungemessen, weil sie ausdrücklich nicht hergestellt werden.
 

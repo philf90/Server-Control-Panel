@@ -1970,6 +1970,7 @@ mitgemessen worden und stehen dort: **„ohne Schlüssel"** (Ansicht 6),
 |---|---|---|---|---|
 | Dateimanager — Mehrfachauswahl | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
 | Dateimanager — Verschieben, Zielbaum offen | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
+| Dateimanager — Packen, mit Namensfeld | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
 
 #### Mehrfachauswahl — und die Kopfzeile wächst um genau ein Kästchen
 
@@ -1997,7 +1998,7 @@ Der offene Zielbaum ändert an der Tabelle nichts: `thead` 367 und `tr` 339 wie
 bei der Mehrfachauswahl, `dokument` 0. Der lange Verzeichnisname steht auch im
 Zielbaum und bricht dort über zehn Zeilen, ohne zu schieben.
 
-#### Befund 18 — der Zielbaum wird nicht ins Bild geholt
+#### Befund 18 — der Zielbaum wird nicht ins Bild geholt (abgeschwächt durch die Messung)
 
 **Belegt im Quelltext, noch nicht am Bild gemessen.**
 
@@ -2039,8 +2040,41 @@ Zufall mehr.
     fenster: window.innerHeight, imBild: r.bottom > 0 && r.top < window.innerHeight } : 'nicht gefunden') })()
 ```
 
-Steht dort `imBild: false` oder ein deutlich negatives `oben`, ist der Befund
-gemessen statt hergeleitet.
+**Gemessen am 20. August:**
+
+```json
+{"oben":-98,"unten":315,"fenster":844,"imBild":true}
+```
+
+**Und das nimmt dem Befund die Hälfte.** Der Zielbaum ist **nicht** ausserhalb
+des Bildes — sein unteres Ende steht bei 315 px, gut sichtbar. Abgeschnitten
+sind die oberen **98 px**, und darin liegen die Wurzel „Abo-Wurzel" sowie
+`.ssh`, `conf` und `httpdocs`.
+
+Was bleibt, ist kleiner als hergeleitet und immer noch ein Fehler: Wer eine
+Datei ins Wurzelverzeichnis oder nach `conf` verschieben will, muss nach oben
+rollen, um das Ziel überhaupt zu sehen — und nichts sagt ihm, dass dort noch
+etwas steht. Wer sie nach `logs`, `mail` oder `tmp` verschiebt, merkt nichts.
+
+**Der zweite Teil des Fundes betrifft mein eigenes Messmittel.** `imBild` stand
+auf `true`, obwohl 98 px fehlen — weil die Bedingung `r.bottom > 0 && r.top <
+innerHeight` lautet und damit jedes Element für sichtbar hält, von dem ein
+Pixel im Fenster steht.
+
+> **Ein Prüfkriterium, das „teilweise sichtbar" als „im Bild" zählt,
+> beantwortet eine andere Frage als die gestellte.**
+
+Für Befund 10 war die Frage richtig gestellt — dort stand der ganze Block
+unterhalb des Fensters. Für einen Block, der oben angeschnitten wird, taugt sie
+nicht. Wer das nachprüft, fragt nach `oben >= 0`.
+
+**Und meine Herleitung war zu stark.** Aus „es gibt kein `bringIntoView`" und
+„`.aside` steht oben" folgt nicht „ausserhalb des Bildes" — es folgt nur, dass
+niemand dafür sorgt. Wie viel davon zu sehen ist, hängt daran, wo die Seite
+gerade steht, und das ist eine Messung und keine Folgerung.
+
+> **Aus einer fehlenden Ursache folgt keine Wirkung — nur die Möglichkeit
+> einer.**
 
 ### 4.3 Die fünf Griffe der Experteneingabe
 

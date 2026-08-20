@@ -1981,6 +1981,32 @@ mitgemessen worden und stehen dort: **„ohne Schlüssel"** (Ansicht 6),
 | Editor — „zu gross" (`gross.bin`) | 390 dunkel | 0 | **200/200** | leer |
 | Editor — „binär" (`binaer.dat`) | 390 dunkel | 0 | **200/200** | leer |
 | Editor — nur lesbar (`/conf/hinweis.txt`) | 390 dunkel | 0 | **200/200** | leer, `rollt`: `.cm-scroller` **189** |
+| Cron — Formular „Ändern" offen | 390 dunkel | 0 | **200/200** | `thead` **484** · `tr` **456** |
+| Cron — Zeitplan als Ausdruck | 390 dunkel | 0 | **200/200** | `thead` **484** · `tr` **456** |
+| Cron — ohne Läufe (`/cron/16/runs`) | 390 dunkel | 0 | **200/200** | `thead` **304** · `tr` **276** |
+
+#### Und das Formular „Ändern" schliesst die 27 px
+
+**Im ersten Lauf hat genau dieser Zustand 511 · 483 geliefert.** Er ist einer der
+beiden, die den Verdacht auf den Klick gebracht haben. Jetzt liefert er
+**484 · 456** — dieselben Zahlen wie die Seite ohne geöffnetes Formular.
+
+Damit steht die Bilanz auf **sechs Messungen 484 gegen `rc.19`**, davon zwei in
+genau den Zuständen, die im ersten Lauf 511 ergaben („Kontingent voll" und
+„Ändern offen"). Kein benannter Kandidat ist übrig, und keiner der vier war es:
+nicht der Bestand, nicht der Klick, nicht das Formular, nicht die Schrift.
+
+Die 511 aus dem ersten Lauf bleibt damit **unerklärt und nicht herstellbar**.
+Sie steht als Notiz da und nicht als offener Punkt — so, wie §4.4 es vorsieht.
+
+**Der Zustand „Zeitplan als Ausdruck" ist nebenbei die sechste Bestätigung für
+Wunsch 1.** Bearbeitet wird ein Job mit „am 1. jedes Monats um 05:00", und im
+Ausdrucksfeld steht `0 5 1 * *` — die Sicht liest die fünf Felder auch dann
+richtig, wenn sie nicht leer sind, sondern aus einem gespeicherten Job kommen.
+
+**„Ohne Läufe"** zeigt den Satz „Für diesen Job ist noch kein Lauf aufgezeichnet.
+Läufe werden alle fünf Minuten eingesammelt." Die Zahlen sind die der Laufseite
+(304 · 276) — dieselbe Kopfzeile, kein Eintrag darunter.
 
 #### Der lange Verzeichnisname in den Krümeln — und eine Zahl, die eine Erklärung prüft
 

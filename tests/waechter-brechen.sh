@@ -9172,6 +9172,42 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimerRearmTest passed
 
 echo
+echo "── TableStyleTest: die Zelle verliert ihre senkrechte Polsterung ──"
+#
+# Befunde 7 und 8 aus docs/64: Ohne sie kommt der senkrechte Rhythmus allein aus
+# `height`, und der wirkt nur, solange der Inhalt hineinpasst.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('  padding: 6px 14px;\n  padding-left: 0;', '  padding: 0 14px 0 0;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Zelle ohne senkrechte Polsterung" &&
+pruefe "Zelle ohne senkrechte Polsterung" \
+  TableStyleTest::test_a_cell_has_vertical_padding_below_the_measured_ceiling failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TableStyleTest passed
+
+echo
+echo "── TableStyleTest: die Polsterung überschreitet die gemessene Grenze ──"
+#
+# Ab 7px waechst eine einzeilige Zeile in der Dichtestufe `admin` ueber ihre
+# 40px hinaus — dann bestimmt die Polsterung die Zeilenhoehe statt der Stufe.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('  padding: 6px 14px;', '  padding: 8px 14px;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Polsterung über der Grenze" &&
+pruefe "Polsterung über der Grenze" \
+  TableStyleTest::test_a_cell_has_vertical_padding_below_the_measured_ceiling failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TableStyleTest passed
+
+echo
 echo "── StandaloneClassTest: leiser Text gilt wieder nur in einer Tabelle ──"
 #
 # Befund 11 aus docs/64: `.quiet` stand als `td.quiet` und `td .quiet` da, und

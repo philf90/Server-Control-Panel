@@ -139,6 +139,93 @@ final class TableStyleTest extends TestCase
     }
 
     /**
+     * Eine Zelle hat senkrechte Polsterung, und sie bleibt unter der Obergrenze.
+     *
+     * ## Der Fund
+     *
+     * `td` stand auf `padding: 0 14px 0 0`, und der senkrechte Rhythmus kam
+     * allein aus `height: var(--row-height)`. Das trägt, solange der Inhalt
+     * einzeilig ist: Die Zeile ist höher als ihr Text, und der Rest sieht aus
+     * wie Polsterung. Sobald der Inhalt höher wird — ein Ausgabekasten, zwei
+     * Textzeilen —, ist die Höhe wirkungslos.
+     *
+     * > **Eine Höhe ist keine Polsterung. Sie sieht nur so aus, solange der
+     * > Inhalt hineinpasst.**
+     *
+     * Zweimal auf einem Bild gesehen (`docs/64`, Befunde 7 und 8): 0px zwischen
+     * Ausgabekasten und Trennlinie, 1px zwischen Marke und Linie darüber.
+     *
+     * ## Und warum hier eine Obergrenze steht
+     *
+     * Der erste Vorschlag war 8px — gemessen, aber nur in der Dichtestufe
+     * `customer` mit ihren 48px. In `admin` mit 40px wächst eine **einzeilige**
+     * Zeile damit auf 43px, und dann bestimmt die Polsterung die Zeilenhöhe
+     * statt der Dichtestufe.
+     *
+     * > **Eine Messung an einer Dichtestufe ist keine über die Achse.**
+     *
+     * Gemessen im Container gegen das gebaute Stylesheet, beide Stufen, 0 bis
+     * 8px: bis 6px bleibt die Zeile bei 40 bzw. 48, ab 7px wächst die
+     * admin-Zeile. Die Zahl unten ist deshalb keine Vorliebe, sondern das
+     * Ergebnis.
+     */
+    public function test_a_cell_has_vertical_padding_below_the_measured_ceiling(): void
+    {
+        $obergrenze = 6;
+        $css = (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css');
+        $css = (string) preg_replace('#/\*.*?\*/#su', '', $css);
+
+        $this->assertSame(
+            1,
+            preg_match('/(^|\})\s*td\s*\{([^{}]*)\}/s', $css, $regel),
+            'In app.css gibt es keine Regel für `td` mehr.',
+        );
+
+        $this->assertSame(
+            1,
+            preg_match('/(^|[;\s])padding\s*:\s*(\d+)px/', $regel[2], $polster),
+            implode('
+', [
+                'Die Regel für `td` setzt kein `padding` mit einem senkrechten Wert.',
+                '',
+                'Ohne ihn kommt der senkrechte Rhythmus allein aus `height`, und der wirkt nur,',
+                'solange der Inhalt einer Zelle in die Zeilenhöhe passt. Ein Ausgabekasten oder',
+                'eine zweite Textzeile stossen dann an die Trennlinie (docs/64, Befunde 7 und 8).',
+            ]),
+        );
+
+        $wert = (int) $polster[2];
+
+        $this->assertGreaterThan(
+            0,
+            $wert,
+            'Die senkrechte Polsterung einer Zelle steht auf 0 — das ist der Zustand vor der '.
+            'Behebung von docs/64, Befunde 7 und 8.',
+        );
+
+        $this->assertLessThanOrEqual(
+            $obergrenze,
+            $wert,
+            sprintf(
+                'Die senkrechte Polsterung einer Zelle steht auf %dpx, gemessen sind höchstens %dpx.
+
+'.
+                'Darüber wächst eine **einzeilige** Zeile in der Dichtestufe `admin` über ihre
+'.
+                '40px hinaus, und dann bestimmt nicht mehr die Dichtestufe die Zeilenhöhe,
+'.
+                'sondern die Polsterung.
+
+'.
+                'Wer die Zahl erhöhen will, misst vorher beide Stufen — eine Messung an einer '.
+                'Dichtestufe ist keine über die Achse.',
+                $wert,
+                $obergrenze,
+            ),
+        );
+    }
+
+    /**
      * Die Zeilenhöhe kommt aus der Marke, die die Dichte umschaltet.
      *
      * Ohne diese Prüfung ist `--row-height` eine Marke, die gesetzt wird und

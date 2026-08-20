@@ -15678,3 +15678,39 @@ Sorte Fehler nicht, für die es ihn gibt. Aufgefallen ist es, weil `.aside` als
 erster Eintrag der Liste sofort rot meldete.
 
 Drei Brüche im Bruchskript, alle drei gegengeprüft.
+
+### Eine Tabellenzelle hat wieder senkrechte Polsterung
+
+Befunde 7 und 8 aus der Bilderrunde (`docs/64`), beide vom Betreiber auf einem
+Bild gesehen: Der Ausgabekasten eines Cronlaufs stiess an die Trennlinie
+darunter, die Marke „fehlgeschlagen" an die darüber.
+
+`td` stand auf `padding: 0 14px 0 0`, und der senkrechte Rhythmus einer Zeile
+kam allein aus `height: var(--row-height)`. Das trägt, solange der Inhalt
+einzeilig ist und hineinpasst: Die Zeile ist höher als ihr Text, und der Rest
+sieht aus wie Polsterung. Sobald der Inhalt höher wird — ein Ausgabekasten, zwei
+Textzeilen —, ist die Höhe wirkungslos, und übrig bleibt die Polsterung, die es
+nie gab.
+
+> **Eine Höhe ist keine Polsterung. Sie sieht nur so aus, solange der Inhalt
+> hineinpasst.**
+
+**Der erste Vorschlag war 8px, und er war falsch.** Gemessen war er — aber nur
+in der Dichtestufe `customer` mit ihren 48px Zeilenhöhe, wo nichts wächst. In
+`admin` mit 40px wächst eine **einzeilige** Zeile damit auf 43px, und dann
+bestimmt die Polsterung die Zeilenhöhe statt der Dichtestufe.
+
+> **Eine Messung an einer Dichtestufe ist keine über die Achse.**
+
+Nachgemessen über beide Stufen und alle Werte von 0 bis 8px, im Container gegen
+das gebaute Stylesheet: Bis **6px** bleibt die einzeilige Zeile bei 40 bzw. 48;
+ab 7px wächst die admin-Zeile. Es sind deshalb 6px, und der Kasten steht nun
+6px von der Linie, die Marke 7px.
+
+Auf schmaler Fläche ändert sich nichts: Dort setzt `.stacks td` seine eigene
+Polsterung und `height: auto` — was zugleich erklärt, warum beide Befunde nur
+bei 1440px auffielen.
+
+`TableStyleTest::test_a_cell_has_vertical_padding_below_the_measured_ceiling`
+hält beide Enden fest: grösser als 0 und höchstens 6. Zwei Brüche im
+Bruchskript, beide gegengeprüft.

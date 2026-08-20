@@ -520,27 +520,40 @@ Der Kommentar neben `td .quiet` benennt den Fall sogar — „eine zweite Textze
 in der Zelle wächst darüber hinaus, und das ist hier gewollt" —, zieht daraus
 aber keinen Schluss über den Abstand.
 
-**Der Vorschlag ist gemessen, nicht gerechnet.** `td` bekommt einen senkrechten
-Rand: `padding: 8px 14px 8px 0`. Im Container gegen echtes Chromium, echtes
-Markup, gebautes Stylesheet, Dichtestufe `customer` bei 1440 px — dieselbe
-Tabelle einmal ohne und einmal mit dem Eingriff, im selben Dokument, damit nur
-die eine Zeile CSS sich unterscheidet:
+**Der erste Vorschlag lautete `padding: 8px 14px 8px 0` — und er war falsch.**
+Gemessen war er, aber nur in der Dichtestufe `customer` mit ihren 48 px
+Zeilenhöhe. Dort wächst nichts. In `admin` mit 40 px wächst eine **einzeilige**
+Zeile damit auf **43 px**, und dann bestimmt nicht mehr die Dichtestufe die
+Zeilenhöhe, sondern die Polsterung.
 
-| | ohne | mit |
-|---|---|---|
-| Zeile mit einer Textzeile — Höhe | **48 px** | **48 px** |
-| Zeile mit Ausgabekasten — Höhe | 89 px | 105 px |
-| … Abstand des Kastens zur Linie darunter | **0 px** | **8 px** |
-| Zeile mit Marke und Rückgabewert — Marke zur Linie darüber | **1 px** | **9 px** |
-| … Rückgabewert zur Linie darunter | **1 px** | **9 px** |
+> **Eine Messung an einer Dichtestufe ist keine über die Achse.**
 
-**Die erste Zeile ist der Punkt.** Einzeilige Zeilen wachsen nicht — `height`
-wirkt an einer Tabellenzelle als Mindestmass, und Textzeile plus Polsterung
-bleiben darunter. Der Eingriff kostet also nichts, wo nichts fehlt.
+**Nachgemessen über beide Stufen und alle Werte von 0 bis 8 px**, im Container
+gegen das gebaute Stylesheet, dieselbe Tabelle im selben Dokument:
 
-**Die zweite und dritte sind die Befunde selbst, in Zahlen.** `0 px` und `1 px`
-— beides ist genau das, was der Betreiber am Bild gesehen hat, und keine der
-zwölf Messzeilen dieses Laufs hat es je genannt.
+| Polsterung | Zeile `admin` | Zeile `customer` | Kasten → Linie | Marke → Linie |
+|---|---|---|---|---|
+| **0** (vorher) | 40 | 48 | **0** | **1** |
+| 4 | 40 | 48 | 4 | 5 |
+| 5 | 40 | 48 | 5 | 6 |
+| **6** | **40** | **48** | **6** | **7** |
+| 7 | **41** | 48 | 7 | 8 |
+| 8 | **43** | 48 | 8 | 9 |
+
+**6 px ist der grösste Wert, bei dem keine der beiden Stufen ihre Zeilenhöhe
+verliert** — das ist keine Vorliebe, sondern das Ergebnis der Messung.
+
+### Behoben am 19. August
+
+`td` trägt `padding: 6px 14px` mit `padding-left: 0`. Gegen das **gebaute**
+Stylesheet nachgemessen: `admin` 40 px, `customer` 48 px, Kasten 6 px von der
+Linie, Marke 7 px. Auf schmaler Fläche ändert sich nichts, weil `.stacks td`
+dort seine eigene Polsterung und `height: auto` setzt — was zugleich erklärt,
+warum beide Befunde nur bei 1440 px auffielen.
+
+`TableStyleTest::test_a_cell_has_vertical_padding_below_the_measured_ceiling`
+hält beide Enden fest: Die Polsterung ist grösser als 0 und höchstens 6. Zwei
+Brüche im Bruchskript, beide gegengeprüft.
 
 > **Ein Abstand, der fehlt, überläuft nicht — er sieht nur falsch aus.**
 
@@ -1104,15 +1117,15 @@ meldete — die Sperrklinke hat den Wächter gegen sich selbst verteidigt.
 
 ## 3. Was offen ist
 
-- **Zehn von elf Befunden am Panel** — Befund 11 ist behoben (§2b), die anderen
-  zehn stehen offen. Beheben und nachmessen.
+- **Acht von elf Befunden am Panel** stehen offen. Behoben sind **11**
+  (`.quiet`, §2b) sowie **7 und 8** (Polsterung an `td`).
 
   Sie fallen in **drei** Gruppen und drei Einzelfälle:
 
   | Gruppe | Befunde | eine Regel |
   |---|---|---|
   | fehlende Nachbarpaare | 2, 3, **4** (zwei Fundstellen) | ein Baustein, der bündig endet, bringt seinen Abstand selbst mit |
-  | fehlende Polsterung an `td` | 7, 8 | `padding: 8px 14px 8px 0`, im Container gemessen |
+  | **behoben** | **7, 8** — `padding: 6px 14px` an `td` | über beide Dichtestufen gemessen |
   | Wirkung ausserhalb des Bildes | **10** (zwei Fundstellen, beide Richtungen) | jeder Griff, der einen Bereich öffnet, holt ihn ins Bild |
   | einzeln | 1 (Kästchen), 5 (Codestück), 6 (Dichtestufe), 9 (Ausrichtung) | — |
   | **behoben** | **11** (`.quiet`) — `StandaloneClassTest` | am 19. August, im Container nachgemessen |
@@ -1120,9 +1133,8 @@ meldete — die Sperrklinke hat den Wächter gegen sich selbst verteidigt.
   511 · 484, und weder die Reihenfolge noch der Bestand der Tabelle erklärt sie.
   Vor der zweiten Runde klären, mit dem Messmittel und nicht mit einer
   Überlegung.
-- **Die Zahlen zu Befund 8 auf `cloudsrv24` gegenprüfen.** Im Container ist der
-  Eingriff gemessen (einzeilige Zeilen bleiben bei 48 px); auf dem Server steht
-  er noch aus und gehört in die zweite Runde.
+- **Die Behebungen auf `cloudsrv24` gegenprüfen.** Im Container sind sie
+  gemessen; auf dem Server stehen sie aus und gehören in die zweite Runde.
 - **Wunsch 1 ist gebaut** und auf `cloudsrv24` noch nicht gefahren: die fünf
   Griffe aus `docs/63 §6b` und der Zustand „Zeitplan als Ausdruck" aus §3.
 - **Die Runde danach noch einmal.** Befund 6 ändert die Dichtestufe `customer`,

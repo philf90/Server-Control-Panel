@@ -806,7 +806,38 @@ th {
 }
 
 td {
-  padding: 0 14px 0 0;
+  /*
+   * **Senkrechte Polsterung, und 6px sind gemessen und nicht gewählt.**
+   *
+   * Hier stand `padding: 0 14px 0 0`. Der senkrechte Rhythmus einer Zeile kam
+   * allein aus `height` — das trägt, solange der Inhalt einzeilig ist und
+   * hineinpasst: Die Zeile ist höher als ihr Text, und der Rest sieht aus wie
+   * Polsterung. Sobald der Inhalt höher wird, ist die Höhe wirkungslos, und
+   * übrig bleibt die Polsterung, die es nie gab.
+   *
+   * > **Eine Höhe ist keine Polsterung. Sie sieht nur so aus, solange der
+   * > Inhalt hineinpasst.**
+   *
+   * Der Betreiber hat es zweimal auf einem Bild gesehen (`docs/64`, Befunde 7
+   * und 8): Der Ausgabekasten eines Laufs stiess an die Trennlinie darunter
+   * (0px), die Marke „fehlgeschlagen" an die darüber (1px).
+   *
+   * **Warum 6 und nicht 8.** Der erste Vorschlag lautete 8px, gemessen — aber
+   * nur in der Dichtestufe `customer` mit ihren 48px Zeilenhöhe. In `admin`
+   * mit 40px wächst eine einzeilige Zeile damit auf 43px, und dann bestimmt
+   * nicht mehr die Dichtestufe die Zeilenhöhe, sondern die Polsterung.
+   *
+   * > **Eine Messung an einer Dichtestufe ist keine über die Achse.**
+   *
+   * Gemessen im Container gegen das gebaute Stylesheet, beide Stufen, je 0 bis
+   * 8px: Bis **6px** bleibt die einzeilige Zeile bei 40 bzw. 48; ab 7px wächst
+   * die admin-Zeile. `TableStyleTest` hält die Obergrenze fest.
+   *
+   * Auf schmaler Fläche gilt das nicht: Dort setzt `.stacks td` seine eigene
+   * Polsterung und `height: auto`.
+   */
+  padding: 6px 14px;
+  padding-left: 0;
 
   /* Hier liest die Tabelle die Dichtestufe. Der einzige Ort im Panel, an dem
      das geschieht — und deshalb der, den `TableStyleTest` prüft. */

@@ -1969,6 +1969,7 @@ mitgemessen worden und stehen dort: **„ohne Schlüssel"** (Ansicht 6),
 | Zustand | Lage | `dokument` | Gegenprobe | `schiebt` |
 |---|---|---|---|---|
 | Dateimanager — Mehrfachauswahl | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
+| Dateimanager — Verschieben, Zielbaum offen | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
 
 #### Mehrfachauswahl — und die Kopfzeile wächst um genau ein Kästchen
 
@@ -1989,6 +1990,57 @@ ganz anderen Grund — und sie stimmt.
 
 > **Eine Zahl, die an zwei unabhängigen Stellen dieselbe ist, ist keine
 > Übereinstimmung mehr, sondern eine Grösse.**
+
+#### Verschieben — dieselben Zahlen, und ein Befund daneben
+
+Der offene Zielbaum ändert an der Tabelle nichts: `thead` 367 und `tr` 339 wie
+bei der Mehrfachauswahl, `dokument` 0. Der lange Verzeichnisname steht auch im
+Zielbaum und bricht dort über zehn Zeilen, ohne zu schieben.
+
+#### Befund 18 — der Zielbaum wird nicht ins Bild geholt
+
+**Belegt im Quelltext, noch nicht am Bild gemessen.**
+
+`bringIntoView` hängt in `Files/Index.vue` an genau zwei Stellen: `chmodBlock`
+und `renameBlock`. Der Zielbaum, den „Verschieben" und „Kopieren" öffnen, hat
+keinen solchen Griff.
+
+Und er steht **oberhalb**: `.split > .aside` ist die erste Hälfte, bei 390 px
+also der obere Stapel. Der Knopf „Verschieben" sitzt in der Auswahlleiste, und
+die gehört zur Liste — dem unteren Stapel. Wer ihn drückt, soll als Nächstes
+etwas benutzen, das über ihm liegt, und die Seite bewegt sich nicht.
+
+**Das ist der dritte Fall derselben Familie in dieser Runde:**
+
+| | wo | was fehlt |
+|---|---|---|
+| Befund 10 | Rechte, Umbenennen, Cron ändern | **behoben** |
+| Befund 13 | Cron, „Job anlegen" | der Bereich ist da und niemand findet ihn |
+| **Befund 18** | Dateimanager, Zielbaum | der Griff öffnet etwas oberhalb seiner selbst |
+
+**Und `RevealTest` konnte ihn nicht finden.** Der Wächter prüft die Griffe **an
+einer Zeile** — „Rechte", „Umbenennen". „Verschieben" steht in der
+Auswahlleiste und ist kein Zeilengriff, fällt also aus seinem Ausdruck heraus.
+
+> **Ein Wächter, der eine Sorte Griff prüft, sagt über die andere Sorte
+> nichts — und die zweite Sorte fällt niemandem auf, weil der Wächter grün
+> ist.**
+
+Damit gilt der Satz aus Befund 13 zum zweiten Mal in derselben Runde: Die
+Behebung muss die Regel werden und nicht die Stelle. Drei Fälle sind kein
+Zufall mehr.
+
+**Die Messung dazu fehlt und kostet eine Zeile.** Direkt nach dem Drücken von
+„Verschieben", ohne zu scrollen:
+
+```js
+(() => { const b = document.querySelector('.aside'), r = b?.getBoundingClientRect()
+  return JSON.stringify(r ? { oben: Math.round(r.top), unten: Math.round(r.bottom),
+    fenster: window.innerHeight, imBild: r.bottom > 0 && r.top < window.innerHeight } : 'nicht gefunden') })()
+```
+
+Steht dort `imBild: false` oder ein deutlich negatives `oben`, ist der Befund
+gemessen statt hergeleitet.
 
 ### 4.3 Die fünf Griffe der Experteneingabe
 

@@ -1962,7 +1962,33 @@ Gemessen im Container waren es 1 → 7 px.
 
 ### 4.2 Die Zustände
 
-*(noch nichts gemessen — die Liste steht in `docs/63 §3`)*
+Die Liste steht in `docs/63 §3`. Drei sind bei den Ansichten nebenbei
+mitgemessen worden und stehen dort: **„ohne Schlüssel"** (Ansicht 6),
+**„kein Treffer"** (Ansicht 4) und **„Kontingent voll"** (Ansicht 8).
+
+| Zustand | Lage | `dokument` | Gegenprobe | `schiebt` |
+|---|---|---|---|---|
+| Dateimanager — Mehrfachauswahl | 390 dunkel | 0 | **200/200** | `thead` **367** · `tr` **339** |
+
+#### Mehrfachauswahl — und die Kopfzeile wächst um genau ein Kästchen
+
+Aufgenommen unter `/httpdocs` mit drei angekreuzten Einträgen; die Auswahlleiste
+trägt sechs Knöpfe („Kopieren", „Verschieben", „Als Zip packen", „Entfernen",
+„Alle auswählen", „Auswahl aufheben") und bricht bei 390 px über vier Zeilen.
+`dokument` bleibt 0.
+
+**367 gegen 350 bei Ansicht 2** — dieselbe Tabelle, 17 px mehr. Das ist die
+Spalte, die es im Wurzelverzeichnis nicht gibt: Dort gehört jeder Eintrag zum
+Aufbau und ist nicht auswählbar, also trägt die Kopfzeile kein Kästchen. Unter
+`/httpdocs` gibt es auswählbare Einträge, und `<th>` bekommt das
+„Alle auswählen"-Kästchen.
+
+**17 px ist genau die Breite, die Befund 1 auf dieser Seite gemessen hat.** Die
+Zahl taucht hier zum zweiten Mal auf, an einer ganz anderen Stelle und aus einem
+ganz anderen Grund — und sie stimmt.
+
+> **Eine Zahl, die an zwei unabhängigen Stellen dieselbe ist, ist keine
+> Übereinstimmung mehr, sondern eine Grösse.**
 
 ### 4.3 Die fünf Griffe der Experteneingabe
 

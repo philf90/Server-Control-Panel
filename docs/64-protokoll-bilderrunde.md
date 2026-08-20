@@ -1334,7 +1334,7 @@ Zeile hier nicht als gemessen.
 | 1 | Dateien, Auswahl | **0** | **0** | **0** | **0** |
 | 2 | Dateimanager | **0** | **0** | **0** | **0** |
 | 3 | Editor | **0** | **0** | **0** | **0** |
-| 4 | Suche | — | **0** | — | — |
+| 4 | Suche | **0** | **0** | **0** | **0** |
 | 5 | SFTP, Auswahl | — | — | — | — |
 | 6 | SFTP-Zugang | — | — | — | — |
 | 7 | Cron, Auswahl | — | — | — | — |
@@ -1516,9 +1516,25 @@ richtig da — die Kodierung reist unverändert durch Agent, Panel und Editor.
 
 | Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` |
 |---|---|---|---|---|
+| 390 hell | 0 | **200/200** | `thead` **157** · `tr` **129** | leer |
 | 390 dunkel | 0 | **200/200** | `thead` **157** · `tr` **129** | leer |
+| 1440 hell | 0 | **200/200** | leer | leer |
+| 1440 dunkel | 0 | **200/200** | leer | leer |
 
-Die drei anderen Lagen stehen aus.
+**Aufgenommen im Zustand „kein Treffer".** `?query=eins` unter `/` findet in
+diesem Bestand nichts mehr — 20 angesehene Einträge, „Nichts gefunden". Die
+Zahlen stimmen trotzdem mit dem ersten Lauf überein, weil die Kopfzeile
+(„Datei", „Fundstelle") dieselbe ist, ob darunter Zeilen stehen oder nicht.
+
+**Und genau darin liegt eine Grenze dieser Messung.** Was hier gemessen ist, ist
+die Geometrie der leeren Tabelle. Eine Trefferliste trägt Pfade in der Spalte
+„Datei", und die Breite einer Tabelle hängt an ihrem längsten Wert und nicht an
+ihrer Zeilenzahl — der Satz steht seit dem Kontingent in diesem Protokoll. Der
+Zustand „gekürzt" aus `docs/63 §3` ist die Lage, die das prüft, und er ist in
+dieser Runde noch nicht gefahren.
+
+> **Zwei Zustände, die dieselbe Zahl liefern, sind nicht derselbe Zustand — sie
+> haben nur dieselbe Kopfzeile.**
 
 **Der `div` mit 468 px ist weg** — und das ist die Lage, auf die es ankommt.
 Bei Ansicht 2 war er ein Rest des Breitenwechsels, hier stand er **frisch

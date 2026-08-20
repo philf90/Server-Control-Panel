@@ -1336,7 +1336,7 @@ Zeile hier nicht als gemessen.
 | 3 | Editor | **0** | **0** | **0** | **0** |
 | 4 | Suche | **0** | **0** | **0** | **0** |
 | 5 | SFTP, Auswahl | **0** | **0** | **0** | **0** |
-| 6 | SFTP-Zugang | **0**¹ | **0**¹ | **0**¹ | **0**¹ |
+| 6 | SFTP-Zugang | **0** | **0** | **0** | **0** |
 | 7 | Cron, Auswahl | — | — | — | — |
 | 8 | Cronjobs | **0** | **0** | **0** | **0** |
 | 9 | Läufe | **0** | **0** | **0** | **0** |
@@ -1624,7 +1624,41 @@ Runde **nicht** gemessen.
 Bei 390 px ändert das nichts — `thead` 342 und `tr` 314 sind die
 Spaltenüberschriften und stehen unverändert. Bei 1440 px ändert es alles.
 
-#### Meine Vorhersage von 215 px ist nicht bestätigt, und auch nicht widerlegt
+#### Der Grundzustand, mit Schlüssel — und die Vorhersage steht auf dem Pixel
+
+Nachgeholt am selben Tag: ein Schlüssel eingetragen („test", `ssh-ed25519`
+256 Bit), dann dieselben vier Lagen.
+
+| Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` |
+|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | `thead` **342** · `tr` **314** | leer |
+| 390 dunkel | 0 | **200/200** | `thead` **342** · `tr` **314** | leer |
+| 1440 hell | 0 | **200/200** | leer | `.scrolls` **215**, `darf: true` |
+| 1440 dunkel | 0 | **200/200** | leer | `.scrolls` **215**, `darf: true` |
+
+**Im ersten Lauf waren es 217. Vorhergesagt waren „rund 215". Gemessen sind
+215.**
+
+Die Rechnung dahinter, aufgestellt an Ansicht 9 Teil 1 und hier zum zweiten Mal
+geprüft: `.sections` ist eine Flexbox mit `gap: var(--bereich-gap)`; die
+Dichtestufe `customer` ist von `38px 52px` auf `34px 48px` gegangen, der
+Spaltenabstand also um 4 px kleiner. Zwei gewöhnliche `.section` mit gleicher
+Basis teilen sich den frei gewordenen Platz — 2 px je Spalte, und um genau die
+rollt eine überlaufende Tabelle weniger.
+
+**Was diese zweite Messung wert ist, liegt an ihrer Grösse.** Bei Ansicht 9
+ging es um 19 → 17 px; zwei Pixel Unterschied bei zwei Pixeln Erwartung sind
+schwer von einem Zufall zu trennen. Hier sind es 217 → 215 an einer Zahl, die
+zehnmal so gross ist, und die Vorhersage stand **vor** der Messung im Protokoll.
+
+> **Eine Rechnung, die vor der Messung aufgeschrieben wird, ist eine Prüfung.
+> Dieselbe Rechnung danach ist eine Erklärung.**
+
+Das ist der Unterschied zu den beiden Irrtümern dieses Laufs — dem Kasten mit
+468 px und den 27 px am Klick. Beide waren Erklärungen für Messwerte, die schon
+dastanden. Diese hier war eine Behauptung über eine Zahl, die es noch nicht gab.
+
+#### Der Zwischenstand davor: ohne Schlüssel war die Vorhersage nicht prüfbar
 
 Vor der Messung stand hier: Der Roller müsste von **217** auf rund **215** px
 gehen, weil der engere Spaltenabstand der Dichtestufe jeder Hälfte 2 px
@@ -1644,9 +1678,9 @@ kommt und geht mit dem Inhalt, nicht mit dem Bestand.** Hier ist er gegangen.
 > ist weder bestätigt noch widerlegt — sie ist ungeprüft, und das ist ein
 > dritter Ausgang.**
 
-**Damit steht die Rechnung von Ansicht 9 weiter auf einer einzigen Messung.**
-Sie zu prüfen kostet einen Schlüssel: Wird einer eingetragen, ist der
-Grundzustand da, und bei 1440 px muss dort eine Zahl nahe 215 stehen.
+Der Satz steht hier, weil er der Grund war, den Grundzustand nachzuholen statt
+den Zwischenstand als Antwort zu nehmen. **Nachgeholt ist er, und die Zahl steht
+oben: 215.**
 
 **Und das Register meldet hier zwei Einträge**, beide der Sorte aus Ansicht 4:
 die Felder „Bezeichnung" und „Öffentlicher Schlüssel" tragen weder `id` noch

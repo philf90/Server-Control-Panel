@@ -741,6 +741,36 @@ Folge mit diesem Satz.
 
 *(Ein Protokoll ohne seine Lücken liest sich wie eine Abnahme.)*
 
+**Behoben am 21. August, nach dem Lauf** — jeder Befund mit seinem Wächter und
+seinem Bruch, jeder Bruch von Hand gefahren:
+
+| | Befund | behoben durch | Wächter |
+|---|---|---|---|
+| 1 | `/var/lib/srvpanel` gehörte root | `postinstall.sh` legt den Elternteil an | `PackagingTest` |
+| 2 | Geisterzeilen in `schiebt` | Filter über die Vorlesetechnik, Zahl daneben | `OverflowProbeTest` |
+| 3 | Beschriftung ≠ Name | elf Namen am Aufruf, zwei begründete Ausnahmen | `AttributeLabelTest` |
+| 4 | „`oben ≈ 18`" | Kriterium in `docs/65` berichtigt | — |
+| 5 | jede Suche abgewiesen | `1`/`0` am Absender, `in:0,1` am Empfänger | `QueryBooleanTest` |
+| 6 | Hinweis nur für Unix | zweiter Satz für Windows | `PrivateKeyTest` |
+| 7 | Protokoll ohne Gegenstand | `details` in Ablage, Seite und Export; fünf Ziele | `AuditContextTest` |
+| 8 | „`schiebt` nennt den Prüfkörper" | Kriterium in `docs/65` berichtigt | — |
+
+Dazu **Wunsch 4** (§4.5) und ein Wächter, der über ihn hinausgeht: 
+`TopLevelSetupTest` zählt Klammern statt Wörter zu lesen.
+
+**Was auf die nächste Fassung wartet:**
+
+- **Punkt 9 ist nicht neu gemessen.** Er stand auf Befund 5 und ist behoben; der
+  Beleg fehlt, bis eine Fassung mit dem Fix auf dem Server läuft.
+- **Die Entprellung der Vorschau ist nicht gemessen.** `vorschauAnfragen` ist der
+  Zähler; die Zahl daneben fehlt.
+- **Die Vorschau selbst ist im Browser nicht gesehen worden** — der Container hat
+  kein `vendor/`.
+- **Die neue Spalte „Einzelheiten" auf `/audit` ist bei 390 px nicht gemessen.**
+  Eine sechste Spalte in einer Kärtchentabelle sollte nichts schieben; sollte
+  ist keine Messung.
+- **Wie die drei Zeitpunkte bei 390 px umbrechen** (§4.7).
+
 Aus `docs/65 §12` schon vor dem Lauf benannt:
 
 - `PasswordFields.vue generate touched` — ungemessen.

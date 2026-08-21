@@ -376,6 +376,26 @@ final class ServiceDirectoryTest extends TestCase
 
         $this->assertStringContainsString('750 srvpanel:srvpanel', $danach,
             'Nach dem Neustart prueft der Workflow die Rechte am Schreibbereich nicht mehr.');
+
+        /*
+         * **Und er wartet, statt zu rennen** (`docs/67`, Befund 5). Die Unit
+         * ist `Type=simple`: `systemctl restart` kehrt zurück, sobald der
+         * Prozess läuft — nicht, wenn er seinen Socket gebunden hat. Ein
+         * Schritt, der sofort misst, ist beim nächsten Lauf eine andere
+         * Prüfung; auf `cloudsrv24` fehlte `agent.sock` genau deshalb, und
+         * zwei Sekunden später war er da.
+         *
+         * > **Eine Prüfung, die vom Zeitpunkt abhängt, ist beim nächsten Lauf
+         * > eine andere.**
+         */
+        $this->assertStringContainsString('test -S /run/srvpanel/agent.sock', $danach,
+            'Der Schritt wartet nicht darauf, dass der Agent seinen Socket gebunden hat. Bei '.
+            '`Type=simple` misst er dann den Start und nicht das Ergebnis — und ist mal gruen, '.
+            'mal rot, ohne dass sich etwas geaendert haette.');
+
+        $this->assertStringContainsString('test -S /run/srvpanel/fpm.sock', $danach,
+            'Der Schritt prueft nicht mehr, ob der Socket von PHP-FPM den Neustart ueberlebt '.
+            'hat — und genau das war Befund 4.');
     }
 
     /**

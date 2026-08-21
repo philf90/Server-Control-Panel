@@ -16704,3 +16704,39 @@ zerstört man eine, zahlt die andere für sie mit. Und die Reihenfolgeprüfung l
 zu.
 
 > **Eine Untergrenze über zwei Quellen fängt den Ausfall einer von beiden nicht.**
+
+### P6 — die Prüfung des Agentenneustarts rannte gegen seinen Start
+
+**Gefunden am 21. August auf `cloudsrv24`** beim Nachmessen des vorigen Befundes
+(`docs/67`, Befund 5). Nach `systemctl restart srvpanel-agentd` fehlte
+`agent.sock`, und `/health` gab 503 — es sah nach einem zweiten Fehler aus und
+war keiner.
+
+`srvpanel-agentd.service` ist **`Type=simple`**: `systemctl restart` kehrt
+zurück, sobald der Prozess *läuft* — nicht, wenn er seinen Socket gebunden hat.
+Dazwischen liegen ein PHP-Start, das Lesen der Konfiguration, `unlink` und
+`bind`. Zwei Sekunden später war alles da.
+
+> **Eine Prüfung, die vom Zeitpunkt abhängt, ist beim nächsten Lauf eine
+> andere.**
+
+**Derselbe Wettlauf steckte im CI-Schritt** „Ein Neustart des Agenten nimmt
+nichts mit", der einen Beitrag vorher entstanden ist: `restart`, `is-active`,
+`stat`, `curl`, ohne einen Augenblick dazwischen. Bei `Type=simple` sagt
+`is-active` sofort „aktiv". Dass er auf vier Plattformen grün war, ist kein
+Beleg für Verlässlichkeit, sondern für die Laufzeiten von `docker exec`.
+
+> **Ein Lauf, der aus Glück grün ist, ist beim nächsten Mal aus Pech rot — und
+> beide Male hat sich nichts geändert.**
+
+Der Schritt **wartet** jetzt auf `/run/srvpanel/agent.sock`, mit einer Frist von
+30 Sekunden und einem Blick ins Journal, wenn sie reisst. Dazu prüft er
+ausdrücklich, dass **`fpm.sock`** den Neustart überlebt hat — ohne diese Zeile
+fiele ein Rückfall in den vorigen Befund nicht auf.
+
+**Und der vorige Befund ist damit belegt**, gegen `v0.6.0-rc.23`: Nach dem
+Neustart liegen `agent.sock` neu gebunden und `fpm.sock` unangetastet
+nebeneinander, `/health` meldet `"ready":true` — ohne dass jemand
+`srvpanel-web` anfassen musste.
+
+Zwei neue Brüche.

@@ -12352,6 +12352,47 @@ pruefe "  … zurückgesetzt wieder grün" \
   ServiceDirectoryTest::test_the_run_that_actually_runs_checks_the_restart passed
 
 echo
+echo "── ServiceDirectoryTest: der Schritt rennt wieder gegen den Start ──"
+#
+# Befund 5 aus docs/67: Die Unit ist Type=simple. `systemctl restart` kehrt
+# zurueck, sobald der Prozess laeuft -- nicht, wenn er seinen Socket gebunden
+# hat. Ein Schritt, der sofort misst, ist mal gruen und mal rot.
+vorher_datei .github/workflows/ci.yml
+python3 - <<'PY2'
+p = '.github/workflows/ci.yml'
+s = open(p, encoding='utf-8').read()
+alt = 'docker exec target test -S /run/srvpanel/agent.sock'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'true', 1))
+PY2
+griff_datei .github/workflows/ci.yml "Schritt ohne Warten" &&
+pruefe "Schritt ohne Warten" \
+  ServiceDirectoryTest::test_the_run_that_actually_runs_checks_the_restart failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ServiceDirectoryTest::test_the_run_that_actually_runs_checks_the_restart passed
+
+echo
+echo "── ServiceDirectoryTest: niemand fragt nach dem Socket von PHP-FPM ──"
+#
+# Genau Befund 4: Er lag im Laufzeitverzeichnis des Agenten und wurde beim
+# Stoppen mitgenommen. Ohne diese Zeile faellt ein Rueckfall nicht auf.
+vorher_datei .github/workflows/ci.yml
+python3 - <<'PY2'
+p = '.github/workflows/ci.yml'
+s = open(p, encoding='utf-8').read()
+alt = 'docker exec target test -S /run/srvpanel/fpm.sock'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'true', 1))
+PY2
+griff_datei .github/workflows/ci.yml "kein Blick auf fpm.sock" &&
+pruefe "kein Blick auf fpm.sock" \
+  ServiceDirectoryTest::test_the_run_that_actually_runs_checks_the_restart failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ServiceDirectoryTest::test_the_run_that_actually_runs_checks_the_restart passed
+
+echo
 echo "── ServiceDirectoryTest: die Auslese von nfpm.yaml laeuft ins Leere ──"
 #
 # Ohne diesen Eingriff waere nicht belegt, dass je Quelle gezaehlt wird: Eine

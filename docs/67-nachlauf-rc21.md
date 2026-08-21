@@ -214,6 +214,19 @@ Rechnerneustart; und ein liegengebliebener `agent.sock` hält den Agenten nicht
 auf, weil `Daemon::listen()` ihn vor dem Binden entfernt und das Verzeichnis
 notfalls selbst anlegt.
 
+**Nachgeprüft auf `cloudsrv24` gegen `v0.6.0-rc.23`:**
+
+    systemctl restart srvpanel-agentd
+    sleep 2
+    ls -l /run/srvpanel/
+      srw-rw---- root     srvpanel   agent.sock     ← neu gebunden
+      -rw-r--r-- root     root       fpm.pid
+      srw-rw---- srvpanel www-data   fpm.sock       ← hat den Neustart überlebt
+    curl .../health
+      {"ready":true,"app":"0.6.0-rc.23","agent":"reachable"}
+
+Kein Anfassen von `srvpanel-web` nötig. **Befund 4 ist belegt.**
+
 **Der Wächter dazu fragt nicht nach dem Namen, sondern nach dem Nachbarn:**
 Schreibt irgendetwas ausserhalb der Unit in ihr Laufzeitverzeichnis, muss
 `RuntimeDirectoryPreserve` gesetzt sein. Wer es für sich allein hat, darf es
@@ -228,6 +241,36 @@ gewesen, ohne dass es einen Nachbarn gibt.
 > aus dem falschen Grund grün.**
 
 Erkannt wird sie jetzt daran, dass die Unit sie in ihrem `ExecStart` nennt.
+
+### Befund 5 — meine eigene Prüfung rannte gegen den Start
+
+**Beim ersten Nachmessen von Befund 4 fehlte `agent.sock`, und `/health` gab
+503.** Es sah nach einem zweiten Fehler aus und war keiner:
+`srvpanel-agentd.service` ist **`Type=simple`**. `systemctl restart` kehrt
+zurück, sobald der Prozess *läuft* — nicht, wenn er seinen Socket gebunden hat.
+Dazwischen liegen ein PHP-Start, das Lesen der Konfiguration, `unlink` und
+`bind`. Zwei Sekunden später war alles da.
+
+> **Eine Prüfung, die vom Zeitpunkt abhängt, ist beim nächsten Lauf eine
+> andere.**
+
+**Und derselbe Wettlauf steckte in dem Schritt, den ich einen Beitrag vorher in
+die CI gesetzt hatte** — `restart`, `is-active`, `stat`, `curl`, ohne einen
+Augenblick dazwischen. Bei `Type=simple` sagt `is-active` sofort „aktiv". Dass
+er auf vier Plattformen grün war, ist kein Beleg für Verlässlichkeit, sondern
+für die Laufzeiten von `docker exec`.
+
+> **Ein Lauf, der aus Glück grün ist, ist beim nächsten Mal aus Pech rot — und
+> beide Male hat sich nichts geändert.**
+
+**Behoben:** Der Schritt **wartet** auf `/run/srvpanel/agent.sock`, mit einer
+Frist von 30 Sekunden und einem Blick ins Journal, wenn sie reisst — ein echtes
+Nichtstarten bleibt damit rot und wird nicht zur Geduldsprobe. Dazu prüft er
+jetzt ausdrücklich, dass **`fpm.sock`** den Neustart überlebt hat; das ist
+Befund 4, und ohne diese Zeile fiele ein Rückfall nicht auf.
+
+Beides steht auch in `packaging/testbed.sh` — der Fassung, die niemand fährt
+(Befund 3). Solange es zwei gibt, laufen sie wenigstens nicht auseinander.
 
 ### Was ich beim Suchen falsch gemacht habe
 

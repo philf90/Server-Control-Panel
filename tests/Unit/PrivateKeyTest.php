@@ -189,6 +189,53 @@ final class PrivateKeyTest extends TestCase
      * wird. Eine Messung gegen eine Abschrift wäre eine Messung an etwas
      * anderem als dem, was ausgeliefert wird.
      */
+    /**
+     * Der Hinweis unter dem Schlüssel nennt beide Systeme.
+     *
+     * **Befund 6 aus `docs/66`.** Hier stand nur der Unix-Weg —
+     * `~/.ssh/id_ed25519` und die Rechte `600`. Auf Windows stimmt daran kein
+     * Teil: Der Ort heisst `%USERPROFILE%\.ssh`, `600` gibt es nicht, und ohne
+     * `icacls … /inheritance:r /grant:r` bricht OpenSSH mit
+     * `UNPROTECTED PRIVATE KEY FILE` ab. Ein Kunde, der den Satz befolgt, landet
+     * bei einer Meldung, die nach einem kaputten Schlüssel aussieht und eine der
+     * Dateirechte ist.
+     *
+     * > **Ein Hinweis, der ein Betriebssystem voraussetzt, ist auf dem anderen
+     * > kein unvollständiger Hinweis, sondern ein falscher.**
+     *
+     * **Warum das hier steht und nicht in einem eigenen Wächter.** Es ist
+     * derselbe Block derselben Seite und derselbe Augenblick im Ablauf des
+     * Kunden: Er hat gerade eine Datei bekommen und weiss nicht, wohin damit.
+     * Aufgefallen ist der Fehler nicht am Quelltext, sondern daran, dass der
+     * Betreiber für genau diesen Schritt eine zweite, andere Anleitung brauchte
+     * (`docs/65 §8b`).
+     */
+    public function test_the_hint_names_both_systems(): void
+    {
+        $hinweis = $this->hint();
+
+        $this->assertNotSame('', $hinweis, 'Der Hinweis unter dem privaten Schlüssel ist fort — dann prüft dieser Wächter nichts.');
+
+        foreach (['~/.ssh' => 'Unix', '%USERPROFILE%' => 'Windows', 'icacls' => 'die Rechte unter Windows'] as $stueck => $wofuer) {
+            $this->assertStringContainsString($stueck, $hinweis, sprintf(
+                'Der Hinweis nennt „%s" nicht — dann gilt er für %s nicht. Wer ihn dort befolgt, '.
+                'bekommt UNPROTECTED PRIVATE KEY FILE und hält das für einen kaputten Schlüssel.',
+                $stueck,
+                $wofuer,
+            ));
+        }
+    }
+
+    /** Der Hinweis unter dem Feld mit dem privaten Schlüssel. */
+    private function hint(): string
+    {
+        if (preg_match('/<p class="section-note">\s*Auf Ihrem Rechner(.+?)<\/p>/s', $this->read(self::PAGE), $t) !== 1) {
+            return '';
+        }
+
+        return $t[1];
+    }
+
     public function test_the_measurement_holds_the_shipped_module(): void
     {
         $messung = $this->read(self::MEASUREMENT);

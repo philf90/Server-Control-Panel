@@ -12265,6 +12265,25 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ActionIconTest::test_the_hidden_verb_still_has_a_name passed
 
 echo
+echo "── PrivateKeyTest: der Hinweis kennt wieder nur Unix ──"
+#
+# Befund 6 aus docs/66: Auf Windows stimmt dann kein Teil des Satzes, und die
+# Folge ist UNPROTECTED PRIVATE KEY FILE -- eine Meldung, die nach einem
+# kaputten Schluessel aussieht und eine der Dateirechte ist.
+vorher_datei resources/js/Pages/Subscriptions/Sftp.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Sftp.vue'
+s = open(p, encoding='utf-8').read()
+alt = '%USERPROFILE%'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '~', 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Sftp.vue "Hinweis nur fuer Unix" &&
+pruefe "Hinweis nur fuer Unix" PrivateKeyTest::test_the_hint_names_both_systems failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PrivateKeyTest::test_the_hint_names_both_systems passed
+
+echo
 echo "── OverflowProbeTest: der Filter fragt nur nach overflow ──"
 #
 # Dann naehme er die halbe Messung mit -- jeder Rollbehaelter faellt darunter.

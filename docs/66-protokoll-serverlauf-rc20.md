@@ -229,11 +229,72 @@ und die gemessene Antwort ist die stärkere von beiden.
 
 **Sie trennt allerdings zwei Fälle nicht**, und das gehört benannt: `/` sieht
 gleich aus, ob der `chroot` auf die Wurzel dieses Abonnements zeigt oder
-irgendwo anders hin. Ein `ls` in derselben Sitzung entscheidet es, und ohne das
-belegt Punkt 8 die Anmeldung, nicht die Einsperrung.
+irgendwo anders hin.
 
 > **Ein Pfad, der in jedem Gefängnis gleich heisst, sagt nichts darüber, in
 > welchem man sitzt.**
+
+**Nachgereicht, und damit entschieden:**
+
+    sftp> ls
+    conf     httpdocs     logs     mail     tmp
+
+Das sind die Verzeichnisse dieses Abonnements. `.ssh` fehlt in der Aufzählung,
+weil `ls` ohne `-a` keine Punktdateien zeigt — im Baum des Dateimanagers steht
+es. **Punkt 8 belegt damit nicht nur die Anmeldung, sondern die Einsperrung.**
+
+**Die drei Gegenproben zum Umgang mit dem privaten Teil:**
+
+| | |
+|---|---|
+| steht er in einer Erfolgsmeldung? | nein — er steht in einem eigenen Block mit `notice warn` |
+| überlebt er ein Neuladen? | **nein**, der Block ist fort, der Schlüssel bleibt in der Tabelle |
+| steht er unter „Vorgänge"? | nein — dort steht zur Schlüsselerzeugung **überhaupt nichts** |
+
+**Der Aufsatz bei 390 px, hell und dunkel dieselben Zahlen:**
+
+    dokument: 0     gegenprobe: 200/200     rollt: []
+    schiebt: [ thead 342, thead > tr 314 ]
+
+`dokument: 0` — die Seite schiebt nicht. Die beiden Einträge unter `schiebt`
+sind der bereits festgehaltene **Befund 2**: `.stacks thead` ist im
+Kärtchenmodus mit Absicht weggeblendet und meldet trotzdem einen Überlauf. Das
+ist ein Fehler der Liste, nicht der Seite.
+
+### Punkt 8, die Gegenprobe zur Gegenprobe — „nirgends" ist keine Antwort
+
+Der Betreiber hat die dritte Zeile der Tabelle oben gemeldet: *„in den
+Operations wird die Key Erstellung nicht angezeigt"*. Das Kriterium lautete
+„der private Teil taucht dort nicht auf", und das ist erfüllt — aber die
+Beobachtung ist die stärkere: Dort steht **gar nichts**, auch nicht die
+Erzeugung selbst.
+
+Der Quelltext sagt, warum, und es ist richtig so. `SftpController::store` ruft
+den Agenten unmittelbar (`sftp.key.apply`) statt über einen Vorgang mit
+Lebenslauf, und hält die Handlung im **Protokoll** fest:
+
+```php
+$this->audit->record('sftp.key.add', subscriptionId: …, context: [
+    'fingerprint' => $ergebnis['key']->fingerprint,
+    'type' => $ergebnis['key']->type,
+]);
+```
+
+Die beiden Listen bedeuten Verschiedenes: **„Vorgänge" ist, was der Agent im
+Auftrag eines Lebenslaufs getan hat; „Protokoll" ist, was ein Mensch veranlasst
+hat.** Ein Schlüssel gehört in die zweite. Und der Zusammenhang trägt nur
+Fingerabdruck und Art — kein Schlüsselmaterial, auch kein öffentliches.
+
+**Damit ist der Punkt aber noch nicht zu Ende gemessen.** „Es steht nicht unter
+Vorgänge" ist erst dann eine gute Nachricht, wenn es unter Protokoll steht;
+sonst hiesse es, eine Handlung, die einem Fremden Zugang zu allen Dateien gibt,
+hinterlässt nirgends eine Spur.
+
+> **„Es steht nicht dort" ist erst in Ordnung, wenn es woanders steht.**
+
+**Offen:** `/audit` (Menüpunkt „Protokoll") aufrufen und die Zeile
+`sftp.key.add` mit dem Fingerabdruck `SHA256:Sn3W6HvtgEGjDuvTnuZvc7Zys8zk1…`
+belegen.
 
 ### Befund 6 — der Hinweis unter dem privaten Schlüssel kennt nur Unix
 

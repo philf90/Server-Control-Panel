@@ -725,6 +725,12 @@ das Messmittel mit seiner Gegenprobe und die Fallen, die diesen Lauf schon
 gekostet haben — mit **`64`** als Protokoll dazu, angelegt am 19. August nach
 den ersten beiden Ansichten.
 
+Und **`65` der Serverlauf zu `v0.6.0-rc.20`** — die elf Punkte, mit denen die
+sieben Befunde der zweiten Runde und die drei Wünsche auf einem echten Server
+geprüft werden, samt den drei Dingen, die der Aufsatz im Container
+grundsätzlich nicht kann (ein Herunterladen, `<style scoped>`, echte Daten) —
+mit **`66`** als Protokoll dazu.
+
 **Und die erste Messung hat zwei Fehler in dieser Vorschrift gefunden**, beide
 am Prüfmittel: `schiebt` war als Kriterium gedacht und meldet bei jeder Tabelle
 das gewollte `.stacks thead` (`Eine Liste, die auch das Gewollte nennt, ist ein

@@ -17,7 +17,7 @@ vorigen Laufs.
 
 | | Rahmen | |
 |---|---|---|
-| Fassung | `v0.6.0-rc.21` | |
+| Fassung | `v0.6.0-rc.21`, ab Befund 1 **`v0.6.0-rc.22`** | |
 | Server | `cloudsrv24` | |
 | Abonnement | 140, `p6-abnahme.invalid`, Systembenutzer `p1139` | |
 | Messmittel | `tests/bilder-messen.js`, Stand **2026-08-21** | mit `versteckt` |
@@ -91,6 +91,19 @@ rekursiv auf root nach, war falsch; wodurch die Verzeichnisse zusätzlich
 Rettungsversuch schon überschrieben.
 
 > **Was man beim Aufräumen misst, ist nicht mehr das, was kaputt war.**
+
+**Nachgeprüft auf `cloudsrv24` gegen `v0.6.0-rc.22`**, mit demselben Griff, der
+es umgeworfen hat:
+
+    750 srvpanel:srvpanel      750 srvpanel:srvpanel
+    700 srvpanel:srvpanel  →   700 srvpanel:srvpanel
+              systemctl restart srvpanel-agentd
+
+Vorher und nachher identisch. **Befund 1 ist damit nicht nur behoben, sondern
+belegt** — und zwar an der Stelle, an der er entstanden ist, nicht nur in der
+CI.
+
+> **Eine Behebung ist keine Messung.**
 
 **Behoben:** Die beiden Direktiven sind aus der Unit. Der Agent braucht sie
 nicht — er liest weder `$STATE_DIRECTORY` noch `$LOGS_DIRECTORY`, sondern trägt

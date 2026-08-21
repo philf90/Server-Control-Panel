@@ -525,4 +525,7 @@ Dazu die halbe Hälfte von Punkt 13 (`id p1136`), und aus `docs/61 §0`:
 `/var/lib/srvpanel` gehört auf dieser Maschine `root:root 0755` statt
 `srvpanel:srvpanel 0750`, wie `nfpm.yaml` es deklariert.
 
-**Damit ist P6 nicht abgenommen**, und `v0.6.0` kommt danach und nicht davor.
+**Damit war P6 nach diesem Lauf noch nicht abgenommen** — die Punkte 5, 7, 8 und
+13 waren über den Weg der Operation belegt, nicht durch die echte Route. Das hat
+der Abschlusslauf `docs/68`/`docs/69` nachgeholt: **P6 ist am 21. August 2026
+abgenommen**, gegen `v0.6.0-rc.24`.

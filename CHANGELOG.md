@@ -16572,3 +16572,57 @@ Namen werden je Datei gesammelt und nicht je Methode.
 
 > **Ein Wächter, der eine Menge vergleicht, findet das Fehlende und nicht das
 > Vertauschte.**
+
+### P6 — das Protokoll nannte die Art der Handlung und nie ihren Gegenstand
+
+**Befund 7 aus `docs/66`**, gefunden in der Gegenprobe zu Punkt 8. Auf `/audit`
+stand nach dem Eintragen eines SSH-Schlüssels:
+
+    AKTION   sftp.key.add
+    ZIEL     —
+
+Der Fingerabdruck war aufgezeichnet — `context: ['fingerprint' => …]` — und
+durch keine Oberfläche zu erreichen: `toArrayRow()` legte acht Felder auf die
+Seite und `context` war keines davon, `Audit/Index.vue` hatte fünf Spalten, und
+der Export baute seine Zeile aus derselben Ablage.
+
+**Das galt für die ganze Stufe.** Ausgezählt über `app/`: 19 Aufrufe mit
+`target:`, **18 mit `context:` und ohne** — und alle achtzehn sind P6 oder
+Anmeldevorgänge. Bei den Anmeldungen ist es richtig, dort gibt es kein Ziel. Bei
+den anderen fünfzehn gab es eines, und `Audit::record()` hat den Parameter seit
+P0; die früheren Stufen benutzen ihn (`plan.created`, `domain.created`,
+`operation.started`).
+
+Was das Protokoll damit sagte: `file.removed` — nicht welche Datei.
+`file.chmod` — nicht welche und nicht worauf. `sftp.key.remove` — nicht welcher
+Schlüssel.
+
+> **Ein Protokoll, das die Art der Handlung nennt und nicht ihren Gegenstand,
+> beantwortet die Frage, die niemand stellt.**
+
+> **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht von
+> einem zu unterscheiden, das es nicht gibt.**
+
+**Behoben an drei Stellen und mit einem Satz.** `AuditQuery::details()` baut aus
+dem Zusammenhang eine lesbare Zeile — `job: Nachtlauf · schedule: 15 3 * * *` —,
+und Liste wie Export lesen dieselbe. Der Satz entsteht dort und nicht auf der
+Seite, aus demselben Grund, aus dem beide Wege schon durch dieselbe Sichtbarkeit
+gehen: Zwei Formulierungen laufen auseinander. Er ist bei 200 Zeichen gedeckelt
+und **sagt es dann**.
+
+> **Kein stiller Deckel: Wer die Sicht begrenzt, nennt es dazu.**
+
+Dazu tragen die fünf Handlungen mit einem Modell jetzt ihr Ziel — die drei
+`cron.job.*` und die beiden `sftp.key.*`. Bei `cron.job.remove` steht es auch
+dann drin, wenn es die Zeile nicht mehr gibt: `$job` ist nach dem Entfernen noch
+im Speicher, und seine Kennung ist genau das, wonach jemand später sucht.
+
+`AuditContextTest` hält alle vier Teile. **Sein Wächter über den Deckel war beim
+ersten Anlauf grün**, als der Bruch die Ansage aus dem Code nahm — das Wort
+„gekürzt" stand noch in der Erklärung darüber. Er liest seitdem den Rumpf der
+Methode und nicht die Datei.
+
+> **Ein Wächter, der einen Satz sucht statt seiner Erreichbarkeit, ist grün,
+> sobald der Satz irgendwo steht.**
+
+Vier neue Brüche.

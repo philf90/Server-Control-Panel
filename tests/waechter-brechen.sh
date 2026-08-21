@@ -12265,6 +12265,83 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ActionIconTest::test_the_hidden_verb_still_has_a_name passed
 
 echo
+echo "── AuditContextTest: der Zusammenhang erreicht die Ablage nicht ──"
+#
+# Befund 7 aus docs/66: context wurde geschrieben und von keiner Oberflaeche
+# gelesen. Das Protokoll sagte ueber die ganze Stufe P6 die Art der Handlung
+# und nie ihren Gegenstand.
+vorher_datei app/Support/Audit/AuditQuery.php
+python3 - <<'PY2'
+p = 'app/Support/Audit/AuditQuery.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'details' => self::details($event->context),\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Audit/AuditQuery.php "Zusammenhang ohne Ablage" &&
+pruefe "Zusammenhang ohne Ablage" AuditContextTest::test_the_row_carries_the_context failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AuditContextTest::test_the_row_carries_the_context passed
+
+echo
+echo "── AuditContextTest: der Export laesst den Zusammenhang weg ──"
+#
+# Der Export ist der Beleg, den jemand aufhebt. Steht der Zusammenhang nur auf
+# der Seite, ist die Datei ausgerechnet dort aermer, wo man sie spaeter liest.
+vorher_datei app/Http/Controllers/AuditController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AuditController.php'
+s = open(p, encoding='utf-8').read()
+alt = "                    $row['details'],\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/AuditController.php "Export ohne Zusammenhang" &&
+pruefe "Export ohne Zusammenhang" AuditContextTest::test_the_export_carries_it_too failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AuditContextTest::test_the_export_carries_it_too passed
+
+echo
+echo "── AuditContextTest: der Deckel sagt nicht mehr, dass er deckelt ──"
+#
+# Ein Satz, der aussieht wie der ganze Zusammenhang und es nicht ist, waere die
+# schlechtere Antwort auf dieselbe Grenze. Dieser Eingriff hat beim ersten Mal
+# NICHT gebissen: Der Waechter suchte das Wort in der ganzen Datei, und dort
+# stand es noch -- in der Erklaerung darueber.
+vorher_datei app/Support/Audit/AuditQuery.php
+python3 - <<'PY2'
+p = 'app/Support/Audit/AuditQuery.php'
+s = open(p, encoding='utf-8').read()
+alt = "' … (gekürzt)'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "''", 1))
+PY2
+griff_datei app/Support/Audit/AuditQuery.php "Deckel ohne Ansage" &&
+pruefe "Deckel ohne Ansage" AuditContextTest::test_the_cap_says_that_it_capped failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AuditContextTest::test_the_cap_says_that_it_capped passed
+
+echo
+echo "── AuditContextTest: eine P6-Handlung nennt ihr Ziel nicht ──"
+#
+# Die Spalte Ziel gab es die ganze Zeit, und record() hat den Parameter seit P0.
+# P6 hat ihn nicht benutzt -- keine Entscheidung, nur eine andere Woche.
+vorher_datei app/Http/Controllers/SftpController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/SftpController.php'
+s = open(p, encoding='utf-8').read()
+alt = "record('sftp.key.add', target: $ergebnis['key'], "
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "record('sftp.key.add', ", 1))
+PY2
+griff_datei app/Http/Controllers/SftpController.php "Handlung ohne Ziel" &&
+pruefe "Handlung ohne Ziel" \
+  AuditContextTest::test_every_action_with_a_model_names_it_as_the_target failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  AuditContextTest::test_every_action_with_a_model_names_it_as_the_target passed
+
+echo
 echo "── AttributeLabelTest: die Cronseite heisst wieder Bezeichnung ──"
 #
 # Der Befund selbst (docs/66, Befund 3): Auf der Seite steht "Beschriftung",

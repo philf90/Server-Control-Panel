@@ -289,7 +289,7 @@ final class CronController extends Controller
             throw $this->asValidation($error);
         }
 
-        $this->audit->record('cron.job.add', subscriptionId: (int) $subscription->id, context: [
+        $this->audit->record('cron.job.add', target: $job, subscriptionId: (int) $subscription->id, context: [
             'job' => $job->label,
             'schedule' => Schedule::line($job->schedule()),
         ]);
@@ -310,7 +310,7 @@ final class CronController extends Controller
             throw $this->asValidation($error);
         }
 
-        $this->audit->record('cron.job.change', subscriptionId: (int) $subscription->id, context: [
+        $this->audit->record('cron.job.change', target: $job, subscriptionId: (int) $subscription->id, context: [
             'job' => $job->label,
             'schedule' => Schedule::line($job->schedule()),
         ]);
@@ -331,7 +331,13 @@ final class CronController extends Controller
             throw $this->asValidation($error);
         }
 
-        $this->audit->record('cron.job.remove', subscriptionId: (int) $subscription->id, context: [
+        /*
+         * **Das Ziel steht auch dann drin, wenn es die Zeile nicht mehr gibt**
+         * (`docs/66`, Befund 7). `$job` ist nach dem Entfernen noch im
+         * Speicher, und seine Kennung ist genau das, wonach jemand später
+         * sucht: „welcher Job war das".
+         */
+        $this->audit->record('cron.job.remove', target: $job, subscriptionId: (int) $subscription->id, context: [
             'job' => $label,
         ]);
 

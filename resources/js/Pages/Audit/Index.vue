@@ -26,6 +26,7 @@ interface Row {
   acting_as_account_id: number | null
   subscription_id: number | null
   target: string | null
+  details: string | null
   ip_address: string | null
 }
 
@@ -99,7 +100,8 @@ function exportUrl(): string {
           <table class="stacks">
             <thead>
               <tr>
-                <th>Zeitpunkt</th><th>Aktion</th><th>Ergebnis</th><th>Ziel</th><th>IP</th>
+                <th>Zeitpunkt</th><th>Aktion</th><th>Ergebnis</th><th>Ziel</th>
+                <th>Einzelheiten</th><th>IP</th>
               </tr>
             </thead>
             <tbody>
@@ -110,10 +112,22 @@ function exportUrl(): string {
                   <Badge :kind="rang(row.result)">{{ row.result_label }}</Badge>
                 </td>
                 <td data-column="Ziel" class="quiet">{{ row.target ?? '—' }}</td>
+
+                <!--
+                  **Der Zusammenhang** (`docs/66`, Befund 7). Bis zum 21. August
+                  wurde er geschrieben und nirgends gelesen: Das Protokoll sagte
+                  über P6 die Art der Handlung und nie ihren Gegenstand —
+                  `file.removed` ohne die Datei, `sftp.key.remove` ohne den
+                  Schlüssel.
+
+                  Den Satz baut `AuditQuery`, damit Liste und Export denselben
+                  lesen. Hier steht keine Zusammensetzung.
+                -->
+                <td data-column="Einzelheiten" class="quiet">{{ row.details ?? '—' }}</td>
                 <td data-column="IP" class="ident quiet">{{ row.ip_address ?? '—' }}</td>
               </tr>
               <tr v-if="events.data.length === 0">
-                <td colspan="5" class="quiet">Keine Einträge für diese Auswahl.</td>
+                <td colspan="6" class="quiet">Keine Einträge für diese Auswahl.</td>
               </tr>
             </tbody>
           </table>

@@ -162,7 +162,7 @@ final class SftpController extends Controller
             ]);
         }
 
-        $this->audit->record('sftp.key.add', subscriptionId: (int) $subscription->id, context: [
+        $this->audit->record('sftp.key.add', target: $ergebnis['key'], subscriptionId: (int) $subscription->id, context: [
             'fingerprint' => $ergebnis['key']->fingerprint,
             'type' => $ergebnis['key']->type,
         ]);
@@ -189,7 +189,7 @@ final class SftpController extends Controller
                 ->with('error', $error->getMessage());
         }
 
-        $this->audit->record('sftp.key.remove', subscriptionId: (int) $subscription->id, context: [
+        $this->audit->record('sftp.key.remove', target: $key, subscriptionId: (int) $subscription->id, context: [
             'fingerprint' => $key->fingerprint,
         ]);
 

@@ -900,6 +900,34 @@ vergleicht diesen Eindruck mit der tatsächlichen Verschachtelung. Gemessen sind
 200. Die Schlusstiefe jeder Datei zählt mit — sie fiele als Erste auf, wenn ein
 regulärer Ausdruck diesen Wächter selbst in die Irre führte.
 
+### 4.6a Und der Wurf davor war falsch gebaut — gefunden vom Durchlauf
+
+Die Route war zuerst ein `GET`, und der Zeitplan reiste in der Adresse. Das
+verstösst gegen eine Regel, die dieses Panel seit P5c hat und die
+`usePanelRequest.ts` in seinem eigenen Kopf trägt: **Es gibt genau eine Stelle
+mit einem `fetch`**, sie schickt immer `POST`, und ein Wert des Kunden landet
+nie in einer Adresse — dort stünde er im Zugriffsprotokoll des Webservers, in
+der Verlaufsliste des Browsers und in jedem `Referer`.
+
+Gefunden hat es nicht das Nachdenken beim Bauen, sondern der Durchlauf **aller**
+Wächter am Ende: `PanelRequestTest` meldete zwei Dateien statt einer.
+
+> **Ein Mechanismus, den zwei Stellen selbst bauen, hat zwei Fassungen — und die
+> zweite ist die, die eine der drei Kopfzeilen vergisst.**
+
+Im selben Durchlauf fiel der zweite Fehler desselben Wurfs auf: `cron/preview`
+stand nicht in `tests/mandant-messen.js`, dem Prüfstand der Mandantenklammer aus
+`docs/62` Punkt 11. Eine Route, die der Lauf nicht kennt, wird nicht gemessen —
+und er meldet trotzdem „alle gehalten".
+
+**Beide Wächter gab es vorher, und beide haben zugebissen.** Das ist der Fall,
+für den die Gewohnheit dieses Projekts gebaut ist — und zugleich die
+Erinnerung daran, dass ein einzeln geprüfter Bau nicht dasselbe ist wie ein
+Durchlauf:
+
+> **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
+> gefahren — man denkt an das Gebaute und nicht an das Berührte.**
+
 ### 4.7 Was hier nicht gemessen ist
 
 - **Die Entprellung im Browser.** `vorschauAnfragen` ist der Zähler dafür; die

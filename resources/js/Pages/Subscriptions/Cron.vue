@@ -4,6 +4,10 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3'
 import { useConfirmation } from '../../Composables/useConfirmation'
 import FormErrors from '../../Components/FormErrors.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+// `ask` heisst hier schon die Rückfrage aus `useConfirmation` — zwei Dinge mit
+// demselben Namen in einer Datei sind eine Verwechslung, die der Übersetzer nur
+// beim ersten Mal meldet.
+import { ask as askPanel } from '../../Composables/usePanelRequest'
 import { bringIntoView } from '../../scroll'
 
 interface Job {
@@ -202,32 +206,36 @@ let vorschauTimer: ReturnType<typeof setTimeout> | undefined
  */
 let vorschauLauf = 0
 
+/**
+ * Die Vorschau holen.
+ *
+ * **Über `ask()` und nicht mit einem eigenen `fetch`.** Der erste Wurf baute
+ * sich den Aufruf selbst — genau der Fall, vor dem `usePanelRequest.ts` in
+ * seinem eigenen Kopf warnt, und `PanelRequestTest` hat ihn überführt.
+ *
+ * > **Ein Mechanismus, den zwei Stellen selbst bauen, hat zwei Fassungen — und
+ * > die zweite ist die, die eine der drei Kopfzeilen vergisst.**
+ *
+ * Damit reist der Zeitplan im Rumpf und nicht in der Adresse: Er ist eine
+ * Eingabe des Kunden, und die stünde dort im Zugriffsprotokoll des Webservers,
+ * in der Verlaufsliste des Browsers und in jedem `Referer`.
+ */
 async function vorschauHolen(): Promise<void> {
   const lauf = ++vorschauLauf
-  const ziel = new URL(
-    `/subscriptions/${props.subscription.id}/cron/preview`,
-    window.location.origin,
-  )
-
-  ziel.searchParams.set('minute', form.minute)
-  ziel.searchParams.set('hour', form.hour)
-  ziel.searchParams.set('day_of_month', form.day_of_month)
-  ziel.searchParams.set('month', form.month)
-  ziel.searchParams.set('day_of_week', form.day_of_week)
 
   vorschauAnfragen.value++
 
   try {
-    const antwort = await fetch(ziel, {
-      headers: { Accept: 'application/json' },
-      credentials: 'same-origin',
-    })
-
-    if (!antwort.ok) {
-      throw new Error(String(antwort.status))
-    }
-
-    const daten = await antwort.json() as { spoken: string | null; next: string[] }
+    const daten = await askPanel<{ spoken: string | null; next: string[] }>(
+      `/subscriptions/${props.subscription.id}/cron/preview`,
+      {
+        minute: form.minute,
+        hour: form.hour,
+        day_of_month: form.day_of_month,
+        month: form.month,
+        day_of_week: form.day_of_week,
+      },
+    )
 
     if (lauf === vorschauLauf) {
       vorschau.value = daten

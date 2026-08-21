@@ -194,6 +194,10 @@ final class CronController extends Controller
      * Protokoll — sie rechnet. Deshalb steht sie auch nicht im Protokoll: Ein
      * Eintrag je Tastendruck wäre eine Datenhaltung über die Bedienung.
      *
+     * **Dass sie trotzdem ein `POST` ist**, hat denselben Grund wie bei den
+     * Griffen der Konsole: Der Zeitplan ist eine Eingabe des Kunden, und eine
+     * Eingabe des Kunden gehört nicht in eine Adresse.
+     *
      * **Die Zeitpunkte gehen durch {@see Clock}.** Der Zeitplan gilt in
      * Serverzeit, die Anzeige in der Zone des Lesers — genau der Unterschied,
      * den der Kasten oben auf der Seite erklärt. Wer ihn hier vergisst, zeigt
@@ -204,7 +208,7 @@ final class CronController extends Controller
         $felder = [];
 
         foreach (Schedule::FIELDS as $feld) {
-            $wert = $request->query($feld);
+            $wert = $request->input($feld);
             $felder[$feld] = is_string($wert) ? $wert : '';
         }
 

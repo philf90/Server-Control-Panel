@@ -12502,10 +12502,31 @@ open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
 PY2
 griff_datei app/Http/Controllers/CronController.php "Vorschau im Protokoll" &&
 pruefe "Vorschau im Protokoll" \
-  CronPreviewTest::test_the_preview_route_reads_and_changes_nothing failed
+  CronPreviewTest::test_the_preview_route_computes_and_changes_nothing failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
-  CronPreviewTest::test_the_preview_route_reads_and_changes_nothing passed
+  CronPreviewTest::test_the_preview_route_computes_and_changes_nothing passed
+
+echo
+echo "── CronPreviewTest: die Vorschau baut sich ihren Aufruf selbst ──"
+#
+# Genau der Fall, vor dem usePanelRequest.ts in seinem eigenen Kopf warnt --
+# und den der erste Wurf von Wunsch 4 gemacht hat. Gefunden hat es nicht das
+# Nachdenken, sondern der Durchlauf aller Waechter.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+alt = "await askPanel<{ spoken: string | null; next: string[] }>("
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "await fetch("
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "eigener Aufruf" &&
+pruefe "eigener Aufruf" CronPreviewTest::test_the_preview_uses_the_one_http_path failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronPreviewTest::test_the_preview_uses_the_one_http_path passed
 
 echo
 echo "── CronPreviewTest: die Vorschau rechnet nicht in die Anzeigezone ──"

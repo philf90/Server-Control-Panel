@@ -37,24 +37,30 @@ final class CronPreviewTest extends TestCase
     private const CONTROLLER = 'app/Http/Controllers/CronController.php';
 
     /**
-     * Die Vorschau liest und ändert nichts.
+     * Die Vorschau rechnet und ändert nichts.
      *
-     * **Eine lesende Route ist kein Freibrief.** Sie trägt dieselbe Fähigkeit
-     * wie die Seite, auf der getippt wird — sonst wäre sie ein zweiter Weg an
-     * der Policy vorbei. Dass sie an einem fremden Zeitplan heute nichts
-     * preisgäbe, ist eine Eigenschaft von heute und keine Zusage.
+     * **Sie ist kein Freibrief, nur weil sie nichts ändert.** Sie trägt
+     * dieselbe Fähigkeit wie die Seite, auf der getippt wird — sonst wäre sie
+     * ein zweiter Weg an der Policy vorbei. Dass sie an einem fremden Zeitplan
+     * heute nichts preisgäbe, ist eine Eigenschaft von heute und keine Zusage.
+     *
+     * **`POST`, obwohl sie nichts ändert.** Das ist die Bauform aller
+     * JSON-Griffe dieses Panels: Ein Wert des Kunden landet nie in einer
+     * Adresse — dort stünde er im Zugriffsprotokoll des Webservers, in der
+     * Verlaufsliste des Browsers und in jedem `Referer`. Der erste Wurf war ein
+     * `GET`, und `PanelRequestTest` hat ihn überführt.
      */
-    public function test_the_preview_route_reads_and_changes_nothing(): void
+    public function test_the_preview_route_computes_and_changes_nothing(): void
     {
         $routen = $this->read('routes/web.php');
 
         $this->assertMatchesRegularExpression(
-            "/Route::get\('\/subscriptions\/\{subscription\}\/cron\/preview',".
+            "/Route::post\('\/subscriptions\/\{subscription\}\/cron\/preview',".
             "\s*\[CronController::class, 'preview'\]\)\s*\n\s*->middleware\('can:manageCron,subscription'\)/",
             $routen,
-            'Die Vorschau ist keine GET-Route mehr oder trägt nicht mehr `can:manageCron`. Eine '.
-            'Route, die rechnet, aber nicht fragt, wer fragt, ist ein zweiter Weg an der Policy '.
-            'vorbei.',
+            'Die Vorschau ist keine POST-Route mehr oder trägt nicht mehr `can:manageCron`. Als '.
+            '`GET` stünde der Zeitplan des Kunden in der Adresse; ohne die Klammer wäre sie ein '.
+            'zweiter Weg an der Policy vorbei.',
         );
 
         $rumpf = $this->methodBody('preview');
@@ -197,6 +203,35 @@ final class CronPreviewTest extends TestCase
             substr_count($quelle, 'lauf === vorschauLauf'),
             'Die Nummer wird nicht mehr an beiden Ausgängen geprüft — im Erfolgs- und im '.
             'Fehlerfall. Fehlt sie an einem, gewinnt dort die überholte Antwort.',
+        );
+    }
+
+    /**
+     * Die Vorschau nimmt den einen HTTP-Weg dieses Panels.
+     *
+     * **Der erste Wurf baute sich den Aufruf selbst** — genau der Fall, vor dem
+     * `usePanelRequest.ts` in seinem eigenen Kopf warnt. `PanelRequestTest` hat
+     * ihn überführt, und zwar erst beim Durchlauf aller Wächter.
+     *
+     * > **Ein Mechanismus, den zwei Stellen selbst bauen, hat zwei Fassungen —
+     * > und die zweite ist die, die eine der drei Kopfzeilen vergisst.**
+     */
+    public function test_the_preview_uses_the_one_http_path(): void
+    {
+        $quelle = $this->read(self::PAGE);
+
+        $this->assertStringContainsString(
+            "from '../../Composables/usePanelRequest'",
+            $quelle,
+            'Die Seite holt die Vorschau nicht mehr über `usePanelRequest`. Dann baut sie sich '.
+            'den Aufruf selbst — mit ihrer eigenen Fassung der drei Kopfzeilen.',
+        );
+
+        $this->assertStringNotContainsString(
+            'fetch(',
+            $quelle,
+            'Die Seite ruft `fetch` selbst auf. Es soll genau eine Stelle im Panel geben, die das '.
+            'tut.',
         );
     }
 

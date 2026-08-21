@@ -16626,3 +16626,26 @@ Methode und nicht die Datei.
 > sobald der Satz irgendwo steht.**
 
 Vier neue Brüche.
+
+### P6 — die Vorschau baute sich ihren HTTP-Weg selbst
+
+Der erste Wurf von Wunsch 4 war ein `GET` mit einem eigenen `fetch` in
+`Cron.vue`. Beides ist falsch, und beides hat der Durchlauf **aller** Wächter
+gemeldet — nicht das Nachdenken beim Bauen.
+
+`usePanelRequest.ts` trägt die Regel in seinem eigenen Kopf: Es gibt genau eine
+Stelle mit einem `fetch`, sie schickt immer `POST`, und ein Wert des Kunden
+landet nie in einer Adresse — dort stünde er im Zugriffsprotokoll des
+Webservers, in der Verlaufsliste des Browsers und in jedem `Referer`. Ein
+Zeitplan ist eine Eingabe des Kunden.
+
+> **Ein Mechanismus, den zwei Stellen selbst bauen, hat zwei Fassungen — und die
+> zweite ist die, die eine der drei Kopfzeilen vergisst.**
+
+Der zweite Fund desselben Durchlaufs: `cron/preview` stand nicht in
+`tests/mandant-messen.js`, dem Prüfstand der Mandantenklammer. Eine Route, die
+der Lauf nicht kennt, wird nicht gemessen — und er meldet trotzdem „alle
+gehalten".
+
+> **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
+> gefahren — man denkt an das Gebaute und nicht an das Berührte.**

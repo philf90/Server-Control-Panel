@@ -30,7 +30,7 @@ tragen.
 | # | Punkt | erwartet | gemessen | |
 |---|---|---|---|---|
 | 0 | Die Fassung | `0.6.0-rc.24` | `0.6.0-rc.24` / `0.6.0~rc.24` | **erfüllt** |
-| 1 | Die Archive durch die echte Route | nichts ausserhalb, `beweis` drinnen | — | **offen** |
+| 1 | Die Archive durch die echte Route | nichts ausserhalb, `beweis` drinnen | nichts ausserhalb, `beweis` drinnen, Gegenprobe trifft | **erfüllt** |
 | 2 | Durch einen Verweis hinaus schreiben | Ziel unverändert, Gegenprobe schreibt | — | **offen** |
 | 3 | Die Umbruchregel auf zwei weiteren Seiten | `dokument: 0`, `schiebt` nur `.stacks thead` | — | **offen** |
 | 4 | `id` am Vorgang | `ran_as.uid` = `id -u p1139` | — | **offen** |
@@ -71,6 +71,66 @@ Für den Lauf ändert das nichts und für seine Lesart einiges:
 
 Genau deshalb vergleicht Punkt 4 `id` und `ran_as` **im selben Augenblick** und
 nicht gegen eine Zahl aus `docs/62`.
+
+---
+
+## 1b. Punkt 1 — die beiden Archive durch die echte Route
+
+**Gemessen am 21. August 2026 auf `cloudsrv24` gegen `v0.6.0-rc.24`**, angemeldet
+als Kunde des Abonnements 140. Der Weg war der echte: Panel → `can:editFiles` →
+`FileController::extract()` → `Workspace::path()` → Sandbox. In `docs/62` ging
+derselbe Angriff über den Weg der Operation; hier steht die **erste** der beiden
+Wände aus `docs/61 §1` mit im Bild.
+
+### Der Prüfkörper war scharf
+
+Die Auflistung der Archive zeigte den Ausbruchspfad in den Mitgliedsnamen:
+
+    raus-relativ.tar   ../../…/../tmp/getroffen-relativ   +  beweis
+    raus-absolut.tar   /tmp/getroffen-absolut             +  beweis
+
+`tar` warnte beim Bauen selbst mit `Removing leading '../' / '/' from member
+names` — das ist der Beleg, dass die Namen aus dem Verzeichnis herausführen, und
+nicht das Gegenteil.
+
+### Die Messung
+
+**Je Archiv im Panel „Aktionen → Entpacken", angemeldet als Kunde.** Zweimal
+dieselbe Meldung, wörtlich:
+
+> Das Archiv ist entpackt — 1 Einträge, 1 übergangen, weil sie aus dem
+> Zielverzeichnis herausführen.
+
+Danach auf dem Server:
+
+| | erwartet | gemessen |
+|---|---|---|
+| `/tmp/getroffen-relativ` | nicht da | **No such file or directory** |
+| `/tmp/getroffen-absolut` | nicht da | **No such file or directory** |
+| `find $WURZEL -name 'getroffen*'` | keine Zeile | **keine Zeile** |
+| in `ziel` | `beweis` liegt da | **`beweis`** + die zwei `.tar` |
+
+### Die zwei Gegenproben
+
+**Nach innen:** `beweis` ist in `ziel` gelandet — das Archiv hat also etwas
+abgeliefert, und die Abwesenheit der `getroffen`-Dateien ist eine Wand und kein
+leeres Archiv.
+
+**Nach aussen:** *(folgt — `tar -xPf` desselben Tarballs legt die Nutzlast
+ausserhalb an; erst danach ist belegt, dass sie hätte treffen können.)*
+
+> **Ein Angriff, der nicht trifft, misst den Angreifer und nicht die Abwehr.**
+
+### Ein Nebenbeleg, den kein Kriterium bestellt hat
+
+`beweis` trägt `p1139 www-data`, die zwei `.tar` tragen `p1139 p1139`. Der
+Unterschied ist keine Abweichung: Die Archive hat `install -g p1139` von Hand
+hingelegt, **`beweis` hat die Sandbox geschrieben** — und die erbt die Gruppe
+`www-data` vom setgid-Bit auf `httpdocs` (Schritt 6c, `docs/51 §8.4`).
+
+> **Das Entpacken legt eine Datei an wie jeder andere Weg des Panels** — mit der
+> Gruppe des Verzeichnisses, nicht der des Erzeugers. Genau das war der Sinn von
+> Befund 3 der Zwischenabnahme.
 
 ---
 

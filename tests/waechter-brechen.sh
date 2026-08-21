@@ -12265,6 +12265,92 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ActionIconTest::test_the_hidden_verb_still_has_a_name passed
 
 echo
+echo "── ServiceDirectoryTest: der Agent beansprucht wieder /var/lib/srvpanel ──"
+#
+# Der Fehler, der rc21 umgeworfen hat (docs/67, Befund 1): StateDirectory= in
+# einer Unit, die als root laeuft, zieht den Modus bei jedem Start auf 0755 --
+# gegen fuenf Stellen im Projekt, die 0750 srvpanel:srvpanel sagen.
+vorher_datei packaging/systemd/srvpanel-agentd.service
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-agentd.service'
+s = open(p, encoding='utf-8').read()
+alt = 'RuntimeDirectory=srvpanel\nRuntimeDirectoryMode=0755\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = alt + 'StateDirectory=srvpanel\n'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei packaging/systemd/srvpanel-agentd.service "zwei Herren ueber ein Verzeichnis" &&
+pruefe "zwei Herren ueber ein Verzeichnis" \
+  ServiceDirectoryTest::test_no_unit_claims_a_directory_the_packaging_owns_differently failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ServiceDirectoryTest::test_no_unit_claims_a_directory_the_packaging_owns_differently passed
+
+echo
+echo "── ServiceDirectoryTest: die Auslese von nfpm.yaml laeuft ins Leere ──"
+#
+# Ohne diesen Eingriff waere nicht belegt, dass je Quelle gezaehlt wird: Eine
+# Untergrenze ueber die vereinigte Menge haelt auch dann, wenn eine der beiden
+# Quellen blind ist -- die andere zahlt fuer sie mit.
+vorher_datei packaging/nfpm.yaml
+python3 - <<'PY2'
+p = 'packaging/nfpm.yaml'
+s = open(p, encoding='utf-8').read()
+alt = '    type: dir\n'
+assert s.count(alt) > 3, 'Zielform nicht gefunden — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '    type: verzeichnis\n'))
+PY2
+griff_datei packaging/nfpm.yaml "nfpm unlesbar" &&
+pruefe "nfpm unlesbar" \
+  ServiceDirectoryTest::test_no_unit_claims_a_directory_the_packaging_owns_differently failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ServiceDirectoryTest::test_no_unit_claims_a_directory_the_packaging_owns_differently passed
+
+echo
+echo "── ServiceDirectoryTest: der Pruefstand misst wieder nach dem Entfernen ──"
+#
+# Genau die Stelle, an der vier gruene Installationslaeufe den Fehler
+# durchgelassen haben: gemessen wurde, als der Agent nicht mehr lief.
+vorher_datei packaging/testbed.sh
+python3 - <<'PY2'
+p = 'packaging/testbed.sh'
+s = open(p, encoding='utf-8').read()
+alt = 'note "Rechte am Schreibbereich, bei laufenden Diensten"\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+anfang = s.index(alt)
+ende = s.index('note "… und nach einem Neustart des Agenten"')
+block = s[anfang:ende]
+open(p, 'w', encoding='utf-8').write(s[:anfang] + s[ende:] + '\n' + block)
+PY2
+griff_datei packaging/testbed.sh "Messung nach dem Entfernen" &&
+pruefe "Messung nach dem Entfernen" \
+  ServiceDirectoryTest::test_the_testbed_measures_while_the_services_run failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ServiceDirectoryTest::test_the_testbed_measures_while_the_services_run passed
+
+echo
+echo "── ServiceDirectoryTest: der Pruefstand startet den Agenten nicht neu ──"
+#
+# Ohne den Neustart misst der Lauf den Zustand vor dem ersten Start -- und
+# genau der war heil.
+vorher_datei packaging/testbed.sh
+python3 - <<'PY2'
+p = 'packaging/testbed.sh'
+s = open(p, encoding='utf-8').read()
+alt = 'docker exec "${NAME}" systemctl restart srvpanel-agentd.service'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'true', 1))
+PY2
+griff_datei packaging/testbed.sh "kein Neustart im Pruefstand" &&
+pruefe "kein Neustart im Pruefstand" \
+  ServiceDirectoryTest::test_the_testbed_measures_while_the_services_run failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ServiceDirectoryTest::test_the_testbed_measures_while_the_services_run passed
+
+echo
 echo "── AuditContextTest: der Zusammenhang erreicht die Ablage nicht ──"
 #
 # Befund 7 aus docs/66: context wurde geschrieben und von keiner Oberflaeche

@@ -16649,3 +16649,58 @@ gehalten".
 
 > **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
 > gefahren — man denkt an das Gebaute und nicht an das Berührte.**
+
+### P6 — `StateDirectory=` in einer root-Unit warf den Schreibbereich um
+
+**Gefunden am 21. August auf `cloudsrv24`**, unmittelbar nach dem Einspielen von
+`v0.6.0-rc.21` (`docs/67`, Befund 1). Jede Seite gab einen 500er, die
+Anmeldeseite eingeschlossen:
+
+    There is no existing directory at ".../storage/logs"
+    and it could not be created: Permission denied
+
+Die Anwendung kam nicht einmal an ihr eigenes Protokoll, `laravel.log` blieb
+deshalb leer, und der erste Blick ging ins Leere.
+
+**Die Ursache stand in einer Unit und nicht im Panel.**
+`srvpanel-agentd.service` läuft als root und trug `StateDirectory=srvpanel` und
+`LogsDirectory=srvpanel`. Das heisst für systemd „dieses Verzeichnis gehört
+diesem Dienst" — und systemd zieht dann bei **jedem Start** den Modus auf
+`StateDirectoryMode` nach, dessen Vorgabe `0755` ist. Fünf Stellen im Projekt
+sagen etwas anderes: `nfpm.yaml`, `postinstall.sh`, `testbed.sh` und
+`PackagingTest` verlangen `0750 srvpanel:srvpanel`.
+
+Gemessen: vor `systemctl restart srvpanel-agentd` stand es auf `750`, danach auf
+`755`.
+
+> **Ein Verzeichnis, dessen Rechte an zwei Stellen festgelegt werden, hat die
+> Rechte der Stelle, die zuletzt läuft.**
+
+Der Agent braucht beide Angaben nicht — er liest weder `$STATE_DIRECTORY` noch
+`$LOGS_DIRECTORY`, sondern trägt seine Pfade absolut, und `postinstall.sh` legt
+die Verzeichnisse mit dem gewollten Eigentümer an. `RuntimeDirectory` bleibt:
+`/run` ist ein tmpfs, und `0755` steht dort ausdrücklich statt als Vorgabe.
+
+**Und vier grüne Installationsläufe haben es durchgelassen.** `testbed.sh` prüfte
+den Eigentümer **hinter** `apt-get remove srvpanel` — zu dem einen Zeitpunkt, an
+dem der Agent nicht mehr läuft und nie wieder startet.
+
+> **Eine Prüfung, die zum falschen Zeitpunkt misst, misst einen Zustand, den es
+> im Betrieb nie gibt.**
+
+Der Prüfstand misst jetzt bei laufenden Diensten, **nach einem Neustart des
+Agenten** und wie bisher nach dem Entfernen.
+
+`ServiceDirectoryTest` braucht keinen Zeitpunkt: Er rechnet für jede
+`StateDirectory`/`LogsDirectory`/`CacheDirectory`/`ConfigurationDirectory` einer
+Unit Pfad, Modus und Eigentümer aus und hält sie gegen `nfpm.yaml` und
+`postinstall.sh`. Zwei widersprüchliche Absichten sind schon vor dem ersten
+Start ein Fehler. Vier neue Brüche.
+
+**Der Wächter selbst hatte dabei zwei Löcher, und beide fand erst der
+Gegenbruch:** Die Untergrenze stand über der vereinigten Menge beider Quellen —
+zerstört man eine, zahlt die andere für sie mit. Und die Reihenfolgeprüfung las
+`strpos`, also das erste Vorkommen; die zweite Messung deckte die verschobene
+zu.
+
+> **Eine Untergrenze über zwei Quellen fängt den Ausfall einer von beiden nicht.**

@@ -34,7 +34,7 @@ dem, was er über den Prüfling **oder über das Prüfmittel** sagt.
 | 1 | Ein Wurzelelement | `1` | **`[1, 1]`** | erfüllt |
 | 2 | Rückmeldungen deutsch | keine Bezeichner | | |
 | 3 | Meldung der Experteneingabe | „Im Ausdruck fehlt der 4. Teil (Monat)." | **wörtlich so, dazu der 5. Teil (Wochentag)**; `aria-invalid="true"` | erfüllt, hell und dunkel |
-| 4 | Kontingentauskunft oben | `oben` ≈ 18 | | |
+| 4 | Kontingentauskunft oben | ~~`oben` ≈ 18~~ → **über den Bereichen** | `oben: 294` von 3795 px Seitenhöhe, Text nennt „(10 von 10)" | erfüllt; das Kriterium war falsch (Befund 4) |
 | 5 | „Job anlegen" bei 1440 px | Zeitplan in voller Breite | `fieldset.field wide` **1124×325**, Schnellwahl darin **1124×64**; `schiebt: []` | erfüllt, hell und dunkel |
 | 6 | Griff zum Formular | springt, Formular leer | „Job anlegen" steht in der Kopfzeile | Sprung noch offen |
 | 7 | Zielbaum im Bild | `oben` ≥ 0 | | |
@@ -103,6 +103,52 @@ seitdem `stat -c "%a %U:%G"` gegen `750 srvpanel:srvpanel`, und
 
 **Der Lauf war dadurch nicht blockiert:** Die Kennungen kommen auch ohne psysh,
 direkt aus der Datenbank.
+
+### Befund 4 — mein erwarteter Wert gehörte zu einer anderen Seite
+
+**Gemessen bei 390 px, hell und dunkel, dieselben Zahlen:**
+
+    dokument: 0        gegenprobe: 200/200
+    kontingent.oben:   294
+    kontingent.text:   "Das Kontingent dieses Plans ist ausgeschöpft (10 von 10).
+                        Entfernen Sie einen Job, um einen neuen anzulegen."
+
+`docs/65` erwartete **18**. Die Zahl stammt aus dem Aufsatz im Container — und
+der Aufsatz hat keine Kundensicht-Leiste, keine Kopfzeile und keine Beizeile
+über den Bereichen. Auf der echten Seite stehen darüber:
+
+    das Band „Sie arbeiten in der Sicht dieses Kunden …"
+    die Kopfzeile „☰ Cronjobs"
+    die Beizeile „p6-abnahme.invalid"
+
+**Die Meldung steht genau dort, wo sie hingehört** — als erstes Element über den
+Bereichen, unmittelbar vor „Zeitplan und Zeitzone". Die 294 px sind das, was
+über ihr steht, und nicht das, was zwischen ihr und dem Seitenkopf liegt.
+
+> **Ein Wert, der an einer anderen Seite gemessen wurde, gehört zu einer anderen
+> Seite.**
+
+**Der Vergleich, auf den es ankommt, geht trotzdem auf.** Vorher stand die
+Meldung bei **3566 px** auf einer Seite von 3795 — also bei 94 % und damit
+hinter vier Bildschirmen. Jetzt steht sie bei 294 von 3795, im **ersten**
+Bildschirm (Fenster 844 px).
+
+| | vorher | jetzt |
+|---|---|---|
+| Abstand von oben | 3566 px | **294 px** |
+| Anteil der Seitenhöhe | 94 % | **8 %** |
+| im ersten Bildschirm? | nein | **ja** |
+
+**Was daraus für den Rest des Laufs folgt:** Jede Zahl in `docs/65`, die aus dem
+Aufsatz stammt, gilt für eine Seite ohne Band und ohne Kopfzeile. Betroffen ist
+noch **Punkt 10** („`kopf.hoehe` rund 120") — dort ist der Seitenkopf selbst
+gemessen und nicht sein Abstand von oben, also trägt die Zahl; die Prüfung
+bleibt trotzdem `zeilen: 1` und nicht die Höhe.
+
+`docs/65` ist entsprechend berichtigt: Das Kriterium ist **„über den
+Bereichen"** und keine Pixelzahl.
+
+---
 
 ### Punkt 5 im Wortlaut — Befund 14 ist behoben
 

@@ -227,10 +227,21 @@ JSON.stringify({
 
 | | erwartet |
 |---|---|
-| `kontingent.oben` | **18** (vorher 3566) |
+| `kontingent.oben` | **weit unter der halben Seitenhöhe** und im ersten Bildschirm — vorher 3566 von 3795 px |
 | `kontingent.text` | enthält die Zahl, z. B. „(10 von 10)" |
 | `dokument` | `0` |
 | `gegenprobe.ausschlag` | `200` |
+
+**Keine feste Pixelzahl.** Hier stand „18", gemessen am Aufsatz im Container —
+und der hat kein Band „Sie arbeiten in der Sicht dieses Kunden", keine
+Kopfzeile und keine Beizeile. Auf dem Server waren es **294**, und die Meldung
+stand trotzdem genau richtig (Befund 4 in `docs/66`).
+
+> **Ein Wert, der an einer anderen Seite gemessen wurde, gehört zu einer
+> anderen Seite.**
+
+Geprüft wird deshalb der **Ort**: Die Meldung steht **über** den Bereichen,
+also vor „Zeitplan und Zeitzone" — und nicht im Bereich „Job anlegen".
 
 **`nicht gefunden` ist kein Erfolg**, sondern eine kaputte Messung — dann steht
 die Meldung nicht da, obwohl das Kontingent voll ist.

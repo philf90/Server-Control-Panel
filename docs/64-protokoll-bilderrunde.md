@@ -1295,7 +1295,10 @@ meldete — die Sperrklinke hat den Wächter gegen sich selbst verteidigt.
   ist gemessen — siehe §1b. „Zugang gestört" und „Abonnement nicht benutzbar"
   bleiben ungemessen, weil sie ausdrücklich nicht hergestellt werden.
 
-**Damit ist Schritt 12 nicht abgeschlossen**, und P6 ist nicht abgenommen.
+**Damit war Schritt 12 nach diesem Lauf noch nicht abgeschlossen.** Die zweite
+Runde hat ihn zu Ende gemessen, und der Abschlusslauf `docs/68`/`docs/69` hat die
+vier letzten Reste geschlossen: **P6 ist am 21. August 2026 abgenommen**, gegen
+`v0.6.0-rc.24`.
 
 ---
 

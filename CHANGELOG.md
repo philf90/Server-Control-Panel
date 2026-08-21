@@ -16780,3 +16780,37 @@ nachgemessen statt aus ihr zitiert.
 `MobileLayoutTest::test_a_stacked_cell_can_break_a_long_value` rechnet die
 Kaskade nach: nicht ob die Zeile dasteht, sondern welche Regel an einer
 gestapelten Zelle gewinnt. Zwei neue Brüche.
+
+### P6 ist abgenommen — der Angriffsdurchgang und der Abschlusslauf durch die echte Route
+
+**Abgenommen am 21. August 2026 auf `cloudsrv24` gegen `v0.6.0-rc.24`** — alle
+fünfzehn Kriterien aus `docs/51 §4`, jeder Angriff scharf abgewiesen und stumpf
+durchgekommen. Der Angriffsdurchgang steht in `docs/62`, der Abschlusslauf, der
+seine vier letzten Reste **durch die echte Route** statt über den Weg der
+Operation belegt hat, in `docs/68` (der Lauf) und `docs/69` (das Protokoll mit
+der Kriterientabelle).
+
+Was der Abschlusslauf geschlossen hat: die bösartigen Archive (Kriterium 7, 8)
+und das Schreiben durch einen Verweis (Kriterium 5) durch `POST …/files/extract`
+und `PUT …/files` — damit steht die erste der beiden Wände aus `docs/61 §1` (die
+Normalisierung in `Workspace::path()`) mit im Bild, die der Prüfstand übersprang;
+`id` am Vorgang (Kriterium 13), gemessen als `ran_as.uid` = `id -u` = 1002 im
+selben Augenblick; die Umbruchregel aus Befund 6 (`docs/67`) auf `/files` und
+`/cron` nachgemessen (`schiebt` leer in beiden Themes); und die Rechte an
+`/var/lib/srvpanel`, die über einen Neustart hinweg `750 srvpanel:srvpanel`
+bleiben.
+
+> **Eine Wand, die man auf einem Weg prüft, den niemand geht, ist auf dem Weg,
+> den alle gehen, ungeprüft.**
+
+Zwei Befunde des Laufs steckten im Prüfmittel, keiner im Panel: ein `fetch`, der
+der Weiterleitung einer abgewiesenen Route folgte und in `ERR_TOO_MANY_REDIRECTS`
+lief (der Inertia-Router tut das nicht), und eine Shell-Variable, die eine
+Terminalsitzung nicht überlebte und aus einem richtigen Befehl lautlos einen
+falschen machte.
+
+**Offen und benannt bleiben** (kein Kriterium, `docs/68 §9`): Wand 2 aus Punkt 11
+und Befund 23 aus `docs/59`. `DocLinkTest` hat den Lauf eröffnet — `docs/68`
+nannte `docs/69`, bevor es das gab —, und das ist die vertraute Lehre aus einer
+neuen Richtung: **eine abgeschnittene Liste, die man als vollständige liest, ist
+keine Messung, sondern ihre Verkleidung.**

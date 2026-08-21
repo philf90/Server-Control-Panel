@@ -377,21 +377,56 @@ behauptet hat, es gebe ihn nicht.
 
 ---
 
-## 3. Was offen bleibt
+## 3. Die Abnahme — die fünfzehn Kriterien mit ihren gemessenen Werten
 
-*(Ein Protokoll ohne seine Lücken liest sich wie eine Abnahme. Hier steht am
-Ende, was der Lauf nicht geschlossen hat — heute ist das alles.)*
+*(Wie `docs/42` für P5b: jedes Kriterium aus `docs/51 §4`, sein gemessener Wert,
+und wo er steht. „echte Route" markiert, was **dieser** Lauf über den Weg der
+Operation hinaus belegt hat.)*
 
-Benannt und **nicht** Gegenstand dieses Laufs (`docs/68 §9`): Wand 2 aus Punkt
-11 und Befund 23 aus `docs/59`, die neunzehn Griffe in `RevealTest::UNEXAMINED`,
-die vollständige Umkehrung der Abstandsregel.
+| # | Angriff | scharf (gemessen) | stumpf (Gegenprobe) | Fundstelle |
+|---|---|---|---|---|
+| 1 | `..` in jedem Pfadfeld | dreimal `haelt` (normalisiert) | ohne Chroot: Ausbruch 3/3 | `docs/62 §1` |
+| 2 | absoluter Pfad | wie 1 — `haelt` | ohne Chroot: Ausbruch 3/3 | `docs/62 §1` |
+| 3 | Symlink lesen | leer, fünf Zeilen `haelt` | ohne Sandbox: Inhalt | `docs/62 §1` |
+| 4 | Symlink auflisten | leer | ohne Sandbox: Verzeichnis | `docs/62 §1` |
+| 5 | Symlink überschreiben | Ziel **unberührt** | ohne Sandbox: durchgekommen | `docs/62 §1` · **echte Route `docs/69 §1c`** |
+| 6 | Der Tausch (Rennen) | **0 Treffer** / 30 000 Runden | stumpf: 6407 / 4409 / 5646 | `docs/62 §1` |
+| 7 | Archiv `../` entpacken | nichts ausserhalb, `beweis` drinnen | `tar -xPf`: Datei ausserhalb | `docs/62 §1` · **echte Route `docs/69 §1b`** |
+| 8 | Archiv absoluter Pfad | nichts ausserhalb, `beweis` drinnen | `tar -xPf`: Datei ausserhalb | `docs/62 §1` · **echte Route `docs/69 §1b`** |
+| 9 | Cron: Zeilenumbruch | Panel-Bauart läuft **nicht** | rohe Zeile läuft | `docs/62 §1` |
+| 10 | Cron: `%` im Befehl | bleibt stehen, nicht abgeschnitten | — | `docs/62 §1` |
+| 11 | Mandantenübergriff | **404 in allen 22**, kein 2xx | eigene Kennung: 22/22 durch | `docs/62 §1` |
+| 12 | Quota voll | keine Erfolgsmeldung | unter 64 MB: gelingt, 2097152/2097152 | `docs/62 §1` |
+| 13 | `uid` je Vorgang | `p1136`→1001, `p1138`→1002, `p1139`→**1002** | ausserhalb kein `ran_as` | `docs/62 §1` · **`id` `docs/69 §1d`** |
+| 14 | Zusatzgruppen | nur die des Abos (`[1001]`/`[1002]`) | ausserhalb kein `ran_as` | `docs/62 §1` |
+| 15 | gültiger Vorgang gelingt | Datei innen unter `uid=1002` | — | `docs/62 §1` |
+
+**Das inhaltliche Kriterium — jeder Angriff scharf abgewiesen, stumpf
+durchgekommen — ist damit belegt, und die Punkte 5, 7, 8 und 13 zusätzlich durch
+die echte Route.** Was `docs/62 §3` als Rest führte, ist geschlossen.
+
+**Ausdrücklich offen und benannt** (kein Kriterium dieses Laufs, `docs/68 §9`):
+
+- **Wand 2 aus Punkt 11** (`docs/59`) — ein Zusatzbenutzer ohne `ftp_accounts`.
+- **Befund 23** (`docs/59`) — der Zeitstempel in der Messvorschrift, fällig beim
+  nächsten Journalbeleg.
+- **Die neunzehn Griffe** in `RevealTest::UNEXAMINED` und **die Umkehrung der
+  Abstandsregel** — beide gehören nicht zu P6 (`docs/51 §13`, `docs/64 §3`).
+
+> **Ein Protokoll ohne seine Lücken liest sich wie eine Abnahme.** Diese sind
+> benannt und bleiben offen.
 
 ---
 
-## 4. Wann P6 abgenommen ist
+## 4. P6 ist abgenommen
 
-Die Bedingung steht in `docs/68 §10` und wird hier nicht zweimal geschrieben —
-zwei Fassungen derselben Regel laufen auseinander, und die zweite ist die, die
-veraltet.
+Alle fünf Punkte dieses Laufs sind erfüllt (§1g), jede Messung trägt ihre
+Gegenprobe, jeder Fund liegt im Prüfmittel und nicht im Panel, und die fünfzehn
+Kriterien aus `docs/51 §4` stehen oben mit ihren gemessenen Werten. **Damit ist
+das Abnahmekriterium von P6 nachweisbar erfüllt** (Plan §8, §9) — gemessen auf
+`cloudsrv24` gegen `v0.6.0-rc.24`, nicht geschätzt.
 
-**Heute ist sie nicht erfüllt.**
+**Abgenommen am 21. August 2026.**
+
+Die vier Stellen, die bis heute das Gegenteil sagten, sind nachgeführt:
+`docs/62 §3`, `docs/64 §3`, der Kopf von `CLAUDE.md` und der `CHANGELOG.md`.

@@ -10,9 +10,14 @@ Architektur (§4), Rechtemodell (§6), Gestaltung (§7.2) und die Ausbaustufen
 Die Oberfläche folgt seit August 2026 dem Gestaltungssystem **„Kontor"**
 (Plan §7.2) — hell entworfen, keine Karten, Monospace nur für Kennungen.
 
-Stand: **P0 bis P5c abgenommen; P6 läuft.** Aus P6 ist **Schritt 8 (SFTP)
-abgenommen** — am 17. August 2026 auf `cloudsrv24`, `docs/58` ist der Lauf,
-**`docs/59`** das Protokoll; die Zusammenfassung steht weiter unten.
+Stand: **P0 bis P6 abgenommen.** P6 ist am **21. August 2026** auf `cloudsrv24`
+gegen `v0.6.0-rc.24` abgenommen — der Angriffsdurchgang (`docs/62`) und der
+Abschlusslauf, der seine vier letzten Reste durch die echte Route belegt hat
+(`docs/68` der Lauf, **`docs/69`** das Protokoll mit der Tabelle der fünfzehn
+Kriterien). Aus P6 war **Schritt 8 (SFTP)** schon am 17. August abgenommen —
+`docs/58` der Lauf, **`docs/59`** das Protokoll; beide Zusammenfassungen stehen
+weiter unten. **Offen und benannt bleiben** Wand 2 aus Punkt 11 und Befund 23
+(`docs/59`), beide kein Kriterium.
 
 P5 brachte Datenbanken, Zugänge, Sicherungen,
 Zurückspielen, Fernzugriff und das Hochladen mitgebrachter Sicherungen

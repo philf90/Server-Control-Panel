@@ -41,7 +41,7 @@ dem, was er über den Prüfling **oder über das Prüfmittel** sagt.
 | 8 | Schlüssel erzeugen und anmelden | Anmeldung gelingt, Fremdschlüssel abgewiesen | Fingerabdruck stimmt überein, `sftp` verbindet, Fremdschlüssel `Permission denied (publickey)` | erfüllt (1440 px hell; Reste in §3) |
 | 9 | Suchleiste | ab 720 px da, Pfad sichtbar, Inhalt übertragen | Leiste und Pfad ja; **jede Suche wird abgewiesen** | **nicht erfüllt — Befund 5** |
 | 10 | Kopfleiste am Telefon | eine Zeile, vier ganze Wörter | `zeilen: 1`, `hoehe: 120`, alle vier Sätze vollständig | erfüllt, hell und dunkel |
-| 11 | Gegenprobe des Laufs | `dokument` ≫ 0 | | |
+| 11 | Gegenprobe des Laufs | `dokument` ≫ 0 | **`2610`** — genau `3000 − 390` | erfüllt; die zweite Hälfte des Kriteriums war falsch (Befund 8) |
 
 ---
 
@@ -664,6 +664,76 @@ von denen dreizehn keine sind.
 **Der Lauf ist dadurch nicht blockiert.** Punkt 2 ist damit *teilweise*
 erfüllt: Die Meldungen sind deutsch — aber eine von zweien nennt ein Feld,
 das auf der Seite anders heisst.
+
+---
+
+### Punkt 11 — der Lauf hat gemessen, und das Kriterium war zur Hälfte falsch
+
+Der 3000-px-Block auf `/files`, 390 px, dunkel:
+
+    dokument: 2610     gegenprobe: 200/200
+    schiebt: [ html 2610, body 2610, thead 119, thead > tr 91 ]
+
+**`3000 − 390 = 2610`.** Der Aufsatz trifft den erwarteten Wert nicht ungefähr,
+sondern auf das Pixel — und derselbe Aufsatz hat in diesem Lauf sieben Mal `0`
+gemeldet. Diese Nullen sind damit Messungen und keine Ausfälle.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.** Hier steht 2610 daneben.
+
+### Befund 8 — der Prüfkörper taucht in `schiebt` nicht auf, und das ist richtig
+
+`docs/65 §11` verlangte zweierlei: `dokument ≫ 0` **und** „`schiebt` nennt den
+eingesetzten `div`". Das erste stimmt, das zweite ist unerfüllbar.
+
+`schiebt` sammelt Elemente mit `scrollWidth − clientWidth > 0` — also solche,
+in denen etwas **überläuft**. Der eingesetzte Block ist 3000 px breit und
+enthält nichts; sein `scrollWidth` ist sein `clientWidth`. Er läuft nicht über,
+er **lässt überlaufen**, und aufgeführt sind darum seine Vorfahren `html` und
+`body`, beide mit exakt 2610.
+
+> **Ein Prüfkörper, der die Seite schiebt, schiebt nicht sich selbst — er steht
+> in der Liste seiner Vorfahren.**
+
+Das ist dieselbe Art Fehler wie bei Punkt 4, wo ich 18 px erwartete und 294
+richtig waren: **nicht der Prüfling war falsch, sondern mein Satz darüber.**
+Zwei von elf Kriterien dieses Laufs, und beide hätten als „nicht erfüllt"
+durchgehen können, wenn niemand nachgerechnet hätte.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
+**Nebenbei zum dritten Mal Befund 2:** `thead` und `thead > tr` stehen auch hier
+in `schiebt` (119 und 91), diesmal auf der Abonnementwahl. Der Fehler der Liste
+ist nicht an eine Seite gebunden.
+
+---
+
+## 2b. Der Lauf im Ganzen
+
+**Elf Punkte, zehn erfüllt, einer nicht** (Punkt 9, Befund 5) — und **acht
+Befunde**:
+
+| | Befund | wo |
+|---|---|---|
+| 1 | *(siehe oben)* | |
+| 2 | `.stacks thead` steht in `schiebt`, obwohl weggeblendet | Prüfmittel |
+| 3 | neun Beschriftungen, die nicht heissen wie ihr Feld | Panel |
+| 4 | „`oben ≈ 18`" war das falsche Kriterium | Kriterium |
+| 5 | jede Suche im Dateimanager wird abgewiesen | **Panel** |
+| 6 | der Hinweis unter dem privaten Schlüssel kennt nur Unix | Panel |
+| 7 | das Protokoll von P6 nennt die Art und nie den Gegenstand | **Panel** |
+| 8 | „`schiebt` nennt den Prüfkörper" ist unerfüllbar | Kriterium |
+
+**Drei von acht stecken im Prüfmittel oder im Kriterium** — weniger als in
+`docs/45`, `docs/48` und `docs/59`, wo es die Mehrheit war. Der Grund ist kein
+besseres Auge: `tests/bilder-messen.js` liegt seit dem 19. August als geprüfte
+Vorschrift im Repo, statt in jedem Lauf neu geschrieben zu werden.
+
+> **Ein Messmittel, das man aufhebt, macht die Fehler von letztem Mal nicht
+> noch einmal.**
+
+**Und keinen der acht hat ein Test gefunden.** Das ist der fünfte Lauf in
+Folge mit diesem Satz.
 
 ---
 

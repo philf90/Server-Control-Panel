@@ -37,7 +37,7 @@ die Kästen, die nur für die Vorlesesoftware da sind und deshalb nicht mehr in
 | 2 | Vorschau auf der Cronseite | Satz und drei Fälligkeiten | Satz da, drei Fälligkeiten, Zone umgerechnet; `*/15` ohne Satz mit drei Zeitpunkten | **erfüllt** |
 | 3 | Entprellung | deutlich unter 20 Anfragen, mindestens 1 | **1** zügig gegen **20** langsam | **erfüllt** |
 | 4 | `/audit` bei 390 px | `dokument: 0` | `dokument: 0`, aber `schiebt` voll | **nicht erfüllt — Befund 6** |
-| 5 | Eine Protokollzeile nennt ihr Stück | `job: … · schedule: …` | | |
+| 5 | Eine Protokollzeile nennt ihr Stück | `job: … · schedule: …` | Ziel **und** Einzelheiten da; Einzelheiten auch rückwirkend | **erfüllt** |
 
 ---
 
@@ -175,6 +175,62 @@ die Konsole mit zeigte — die Zahl selbst hätte ich als Ergebnis genommen.
 
 Die berichtigte Fassung merkt sich das echte `fetch` unter einem eigenen Namen
 und überlebt damit mehrfaches Einfügen.
+
+## 1d. Punkt 5 — das Protokoll nennt jetzt den Gegenstand
+
+**Gemessen am 21. August auf `/audit`**, Filter `cron.`, 1440 px:
+
+| Zeit | Aktion | Ziel | Einzelheiten |
+|---|---|---|---|
+| 14:25:54 | `cron.job.add` | `CronJob#21` | `job: Y · schedule: */15 * * * *` |
+| 14:22:48 | `cron.job.remove` | `CronJob#15` | `job: H` |
+| 08:37:51 | `cron.job.add` | **`—`** | `job: Z · schedule: 0 5 1 * *` |
+| 20.08. 12:02 | `cron.job.add` | **`—`** | `job: X · schedule: */15 * * * *` |
+
+**Die beiden Hälften von Befund 7 trennen sich hier von selbst**, und das ist
+der Teil, den ich nicht vorhergesehen hatte:
+
+**Die Einzelheiten stehen auch bei den alten Einträgen** — vom 20. August, lange
+vor der Behebung. Der `context` wurde die ganze Zeit geschrieben; es hat ihn nur
+niemand gelesen. Die Behebung macht **rückwirkend** lesbar, was immer schon
+dastand.
+
+> **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht von
+> einem zu unterscheiden, das es nicht gibt** — und wenn es dann jemand liest,
+> war es die ganze Zeit da.
+
+**Das Ziel dagegen bleibt bei den alten Einträgen `—`.** Es wurde nie
+aufgezeichnet, und das lässt sich nicht nachholen. Der Unterschied zwischen
+„ungelesen" und „ungeschrieben" ist hier als Zeitachse zu sehen.
+
+Und `cron.job.remove` mit `CronJob#15 · job: H` zeigt den Fall, für den man ein
+Protokoll überhaupt aufschlägt: **Die Kennung steht da, obwohl es die Zeile
+nicht mehr gibt.**
+
+---
+
+## 1e. Der Lauf im Ganzen
+
+**Fünf Punkte, vier erfüllt, einer nicht** — und **sechs Befunde**, von denen
+drei erst durch diesen Lauf entstanden sind:
+
+| # | Punkt | |
+|---|---|---|
+| 1 | Suche ohne und mit Häkchen | **erfüllt** |
+| 2 | Vorschau auf der Cronseite | **erfüllt** (alle drei Teilschritte) |
+| 3 | Entprellung | **erfüllt** — 1 gegen 20 |
+| 4 | `/audit` bei 390 px | **nicht erfüllt — Befund 6**, behoben, wartet auf eine Fassung |
+| 5 | Protokollzeile nennt ihr Stück | **erfüllt** |
+
+**Was dieser Lauf über sich selbst sagt:** Von den sechs Befunden stecken
+**drei im Prüfmittel oder in meiner eigenen Anweisung** — der doppelt eingefügte
+Zähler (Punkt 3), der Wettlauf gegen den Dienststart (Befund 5), und der
+Aufsatz aus der Zwischenablage (Punkt 1). Zwei weitere sind Folgen von
+Behebungen aus dem vorigen Lauf: Befund 6 kommt aus der Spalte, die Befund 7
+behoben hat, und Befund 4 kam aus der Gegenprobe zu Befund 1.
+
+> **Eine Behebung ist eine Änderung, und jede Änderung ist ein neuer Anlass zu
+> messen.**
 
 ---
 

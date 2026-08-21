@@ -376,3 +376,132 @@ Keine Fragen an den Betreiber, aber Punkte für den Plan:
 
 > **Eine Ausbaustufe gilt erst als fertig, wenn ihr Abnahmekriterium
 > nachweisbar erfüllt ist — gemessen auf einem echten Server, nicht geschätzt.**
+
+---
+
+## 13. Die Entscheidungen des Betreibers
+
+Getroffen am 21. August 2026, alle elf. Sie sind die Grundlage des Plans; wo
+dieser Abschnitt und meine Einschätzungen weiter oben auseinandergehen, gilt
+dieser Abschnitt.
+
+| # | Frage | Entscheidung |
+|---|---|---|
+| 1 | Zuschnitt | **Nur die HTTP-API** |
+| 1a | Ausgang des Agenten | **Benannte Ausnahme in `Curl` für die Rückschleife** |
+| 3 | Backend | **`gmysql` auf der Panel-MariaDB** |
+| 5 | Nameserver | **Nur `cloudsrv24`; AXFR und NOTIFY fallen aus P7** |
+| 6 | Zonenvorlage | **A/AAAA für `@` und `www`, Platzhalter `*`, CAA für Let's Encrypt** |
+| 7 | DNSSEC | **Aus, je Zone einschaltbar, zweistufig** |
+| 8 | Externer DNS | **Je Domain; eine geführte Zone bleibt stehen** |
+| 9 | Kundenrechte | **SOA, NS am Apex und DNSSEC gesperrt; alles andere erlaubt** |
+| 9a | NS-Namen der Vorlage | **`ns1` und `ns2`, beide auf `cloudsrv24`** |
+| 10 | Vorrang | **Die lokale Zone — und die hinterlegten Zugangsdaten werden als wirkungslos angezeigt** |
+
+### Was an diesen Entscheidungen beim Bauen teuer wird
+
+**Zu 1 und 1a.** Die Ausnahme in `Curl` ist der einzige Riss in einer Zusage,
+die bisher ohne Ausnahme galt. Sie gehört deshalb eng gefasst — eine Adresse auf
+`127.0.0.1` oder `::1`, nichts sonst, kein Name, der sich auflösen lässt —, mit
+einem eigenen Wächter und einem Bruch. Ein Name wie `localhost` gehört
+ausdrücklich **nicht** dazu: Er kommt aus einer Auflösung, und eine Auflösung ist
+etwas, das jemand ändern kann.
+
+> **Eine Ausnahme ohne Wächter ist keine Ausnahme, sondern der neue Normalfall.**
+
+**Zu 3.** Der Nameserver hängt damit an der Panel-Datenbank. Das ist die
+gewählte Seite eines Abwägens und keine Nebensache: Ist MariaDB weg, ist die
+Zone weg — und anders als das Panel ist ein Nameserverausfall etwas, das Dritte
+sehen. Das gehört in den Plan als benanntes Risiko und in P8 als eigener Punkt.
+
+**Zu 5.** AXFR und NOTIFY aus `docs/20 §9` fallen damit aus P7 und gehören in
+den Abschnitt „Was P7 ausdrücklich **nicht** wird". Der Plan gilt trotzdem als
+erfüllt — aber die Stelle in `docs/20`, die beides führt, wird nachgeführt und
+nicht stillschweigend übergangen.
+
+**Zu 6.** Der Platzhalter `*` ist bequem und hat zwei Kanten, die in die
+Oberfläche gehören: Ein Tippfehler löst damit auf, statt zu scheitern, und ein
+später gesetzter echter Eintrag für eine Subdomain wird vom Platzhalter
+verdeckt, wenn ihn jemand vergisst. Das CAA hat eine dritte: **Wechselt die
+Zertifizierungsstelle, muss das Panel es mitziehen** — ein CAA, das die eigene CA
+nicht mehr nennt, nimmt dem Kunden die Erneuerung, und zwar erst in sechzig
+Tagen.
+
+> **Ein Eintrag, den das Panel setzt und nicht mitzieht, ist eine Zusage mit
+> Ablaufdatum.**
+
+**Zu 7.** Zweistufig heisst: signieren, DS anzeigen, und **erst nach der
+Bestätigung des Kunden** gilt die Zone als vollständig übergeben. Die Stufe
+dazwischen ist ein eigener Zustand und keine Meldung — ein Hinweis, den jemand
+weggeklickt hat, ist kein Zustand.
+
+**Zu 9.** Die Regel lautet **NS am Apex gesperrt, NS darunter erlaubt** — nicht
+„NS gesperrt". Der Unterschied ist eine Zeile im Code und der ganze Fall
+„Unterzone delegieren".
+
+Und die A/AAAA des Panels sind änderbar, **mit Kennzeichen**: Das Panel darf
+einen vom Kunden geänderten Eintrag beim nächsten Anfassen der Zone nicht still
+zurücksetzen. Das ist `certificate_pinned_at` aus `docs/34 §11` noch einmal, mit
+demselben Grund — eine Kundenentscheidung, die die Automatik unbemerkt
+zurücknimmt, ist schlimmer als eine, die sie gar nicht erst zulässt. Es ist der
+teuerste Teil dieser Entscheidung und bekommt einen eigenen Schritt im Plan.
+
+**Zu 10.** „Wirkungslos angezeigt" ist eine Anzeige und damit etwas, das gebaut
+werden muss — sonst ist es dasselbe wie Verschweigen:
+
+> **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht von
+> einem zu unterscheiden, das es nicht gibt.**
+
+---
+
+## 14. Was noch am Server zu messen ist
+
+Zwei Fragen bleiben offen, weil dieser Container sie nicht beantworten kann. Sie
+gehören **vor** den Plan, nicht in den Abnahmelauf.
+
+### 14.1 Die PowerDNS-Fassung auf Debian 12 und 13
+
+Ubuntu ist gemessen (22.04 → 4.5.3, 24.04 → 4.8.3), Debian nicht: Der Proxy
+dieses Containers gibt für `deb.debian.org` einen 403. Auf je einem Debian 12
+und einem Debian 13:
+
+```bash
+apt-cache policy pdns-server pdns-backend-mysql pdns-tools
+```
+
+**Erwartet:** eine Kandidatenfassung je Paket. **Gegenprobe:** Kommt bei allen
+dreien `(none)` als Kandidat, ist nicht die Fassung alt, sondern die
+Paketquelle fehlt — dann sagt `apt-cache policy` ohne Argument, welche Quellen
+konfiguriert sind.
+
+**Wozu die Zahl gebraucht wird:** Fällt eine Zielplattform unter das, was die
+API für DNSSEC braucht, ist das eine Planentscheidung. Eine Mindestfassung
+gehört dann in den Quelltext und in eine CI-Messung gegen den laufenden Dienst —
+so, wie `Server::MIN_VERSION` für PostgreSQL seit P5b geprüft wird, und nicht
+als Zeile in einer Dokumentation.
+
+### 14.2 Port 53 und `systemd-resolved` auf `cloudsrv24`
+
+```bash
+ss -lnup 'sport = :53'; ss -lntp 'sport = :53'
+systemctl is-active systemd-resolved
+resolvectl status 2>/dev/null | head -20
+ip -brief address
+```
+
+**Erwartet:** `systemd-resolved` hält `127.0.0.53:53`, die öffentlichen Adressen
+des Servers sind frei. **Gegenprobe:** Antwortet `ss` mit gar nichts, ist
+entweder nichts an Port 53 — dann ist die Frage beantwortet — oder `ss` läuft
+ohne die Rechte, die es für die Spalte `users:` braucht; das unterscheidet ein
+Lauf als `root`.
+
+**Wozu:** PowerDNS bindet dann ausdrücklich an die öffentlichen Adressen statt
+an `0.0.0.0`, und der Auflöser des Systems bleibt unangetastet. Ihn anzufassen
+wäre ein Eingriff, dessen Fehlschlag den ganzen Server von der Namensauflösung
+trennt — und das ist genau die Art von Rückweg, die es nicht gibt:
+
+> **Ein Rückweg, der voraussetzt, dass der Dienst noch läuft, ist keiner für den
+> Fall, dass ihn genau dieser Vorgang beendet hat.**
+
+Die Adressen aus `ip -brief address` werden ausserdem für die Zonenvorlage
+gebraucht (A/AAAA für `@`, `www` und `*`) und für die beiden NS-Namen.

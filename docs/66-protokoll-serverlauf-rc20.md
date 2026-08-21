@@ -292,9 +292,81 @@ hinterlässt nirgends eine Spur.
 
 > **„Es steht nicht dort" ist erst in Ordnung, wenn es woanders steht.**
 
-**Offen:** `/audit` (Menüpunkt „Protokoll") aufrufen und die Zeile
-`sftp.key.add` mit dem Fingerabdruck `SHA256:Sn3W6HvtgEGjDuvTnuZvc7Zys8zk1…`
-belegen.
+**Gemessen, und die Spur ist da** — `/audit` bei 390 px:
+
+    ZEITPUNKT  2026-08-21 10:16:52
+    AKTION     sftp.key.add
+    ERGEBNIS   erfolgreich
+    ZIEL       —
+    IP         94.31.74.201
+
+**Punkt 8 ist damit vollständig erfüllt.** Und die Gegenprobe hat, wie so oft in
+diesem Projekt, mehr gefunden als sie sollte — siehe Befund 7.
+
+### Befund 7 — das Protokoll von P6 sagt die Art und nie das Stück
+
+**Die Zeile oben trägt `ZIEL —`, und der Fingerabdruck steht nirgends.** Er ist
+aufgezeichnet:
+
+```php
+$this->audit->record('sftp.key.add', subscriptionId: …, context: [
+    'fingerprint' => …, 'type' => …,
+]);
+```
+
+Nur führt aus dem `context` kein Weg hinaus. `AuditQuery::toArrayRow()` legt
+acht Felder auf die Seite und `context` ist keines davon; `Audit/Index.vue` hat
+fünf Spalten (`Zeitpunkt`, `Aktion`, `Ergebnis`, `Ziel`, `IP`); und der
+CSV-Export baut seine Zeile aus derselben Ablage. Der Wert steht in der
+Datenbank und ist durch keine Oberfläche zu erreichen.
+
+**`Ziel` bliebe der Ausweg — und genau den nimmt P6 nicht.** `Audit::record()`
+hat seit P0 einen Parameter `?Model $target`, und die früheren Stufen benutzen
+ihn: `$audit->success('plan.created', $plan, …)`,
+`'domain.created', $domain`, `'operation.started', $operation`. Ausgezählt über
+`app/`:
+
+| | |
+|---|---|
+| Aufrufe mit `target:` | **19** |
+| Aufrufe mit `context:` und ohne `target:` | **18** |
+| Aufrufe mit keinem von beidem | 7 |
+
+**Und alle achtzehn der mittleren Zeile sind P6 oder Anmeldevorgänge** — die
+drei `cron.job.*`, die zehn `file.*`, die beiden `sftp.key.*`, dazu
+`auth.login.failed`, `auth.login.throttled`, `auth.session.expired`. Bei den
+Anmeldungen ist es richtig: Dort gibt es kein Ziel. Bei den anderen fünfzehn
+gibt es eines, und es steht ein Modell dafür bereit.
+
+Was das Protokoll dieses Panels also über P6 sagt: `file.removed` — nicht
+welche Datei. `file.chmod` — nicht welche und nicht worauf. `sftp.key.remove` —
+nicht welcher Schlüssel. Für einen SSH-Schlüssel, der Zugang zu allen Dateien
+eines Abonnements gibt, ist „welcher" die einzige Frage, für die man ein
+Protokoll aufschlägt.
+
+> **Ein Protokoll, das die Art der Handlung nennt und nicht ihren Gegenstand,
+> beantwortet die Frage, die niemand stellt.**
+
+Und die Form des Fehlers ist die bekannte: **kein Entwurf, sondern eine
+Gewohnheit, die beim neuesten Code ausgesetzt hat.** P0 bis P5 übergeben ein
+Ziel, P6 übergibt einen `context` und niemand rendert ihn. Dazwischen liegt
+keine Entscheidung, nur eine andere Woche.
+
+> **Eine Gewohnheit, die kein Wächter hält, endet an der Datei, in der niemand
+> mehr hinsieht.**
+
+**Zu tun nach dem Lauf**, drei Teile:
+
+1. Die fünfzehn P6-Aufrufe bekommen ihr `target` (`$job`, `$key`; bei den
+   `file.*` gibt es kein Modell — dort trägt der Pfad die Auskunft und muss
+   sichtbar werden).
+2. Eine Spalte für den Zusammenhang, in Liste **und** Export. Ohne die zweite
+   ist der Beleg, den jemand aufhebt, weiter der ärmere.
+3. Ein Wächter: **Wer `context` übergibt, übergibt ein `target` — oder der
+   Zusammenhang ist sichtbar.** Und die Gegenprobe dazu ist der Grund, warum
+   dieser Befund überhaupt gefunden wurde: Ein Feld, das geschrieben und nie
+   gelesen wird, ist von aussen nicht von einem unterscheidbar, das es nicht
+   gibt.
 
 ### Befund 6 — der Hinweis unter dem privaten Schlüssel kennt nur Unix
 

@@ -288,12 +288,40 @@ nächsten Fälligkeiten aus `Occurrence::next()`, in der Anzeigezone des Lesers
 Anfängers eindeutiger als jede Prosa — und braucht **keine** Übersetzungsregel,
 also auch keine zweite Fassung davon.
 
-### 4.3 Was vor dem Bauen entschieden gehört
+### 4.3 Entschieden am 20. August
 
-1. **Eine Anfrage je Tipppause** — akzeptabel? Sie ist lesend, ohne Agenten,
-   und trägt dieselbe Policy wie die Seite. Aber sie ist neu.
-2. **Gebaut wird nach dem Lauf.** Mitten im Lauf zu ändern hiesse, die Punkte 2
-   bis 6 gegen zwei verschiedene Fassungen zu messen.
+**Weg B**, und gebaut wird **nach dem Lauf** — beides vom Betreiber bestätigt.
+Mitten im Lauf zu ändern hiesse, die Punkte 2 bis 6 gegen zwei verschiedene
+Fassungen zu messen.
 
 > **Eine Messung, die zur Hälfte gegen eine andere Fassung lief, ist keine.**
+
+### 4.4 Was beim Bauen zu beachten ist
+
+Aufgeschrieben, solange es frisch ist — nicht, wenn der Lauf vorbei ist und die
+Gründe verblasst sind.
+
+- **Die Route ist lesend und trägt dieselbe Policy wie die Seite.** Kein Agent,
+  kein Vorgang, keine Zeile im Protokoll — sie rechnet nur.
+- **Sie prüft die fünf Felder nicht ein zweites Mal.** `Schedule::parse()` ist
+  die Schranke; taugt eine Eingabe nicht, ist die Antwort schlicht „noch kein
+  gültiger Zeitplan" und keine Fehlermeldung. Eine zweite Prüfung hier wäre
+  dieselbe Regel ein zweites Mal.
+- **Die Zeitpunkte gehen durch `Clock`.** Der Zeitplan gilt in Serverzeit, die
+  Anzeige in der Zone des Lesers — genau der Unterschied, den der Kasten oben
+  auf der Seite erklärt. Wer ihn hier vergisst, zeigt zwei Wahrheiten auf
+  derselben Seite.
+- **Entprellt, und der Wert gehört gemessen.** `docs/48` hat einmal zwanzig
+  Konsolenöffnungen gebraucht, bis eine Entprellung überhaupt als solche
+  belegt war:
+
+  > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+  > steht.**
+
+- **Die Anzeige ist keine Eingabe.** Kein Feld, kein `v-model`, nichts, was
+  jemand für einen Griff halten kann.
+- **Und der bestehende Wächter bleibt, wie er ist.** Die Seite übersetzt weiter
+  nicht selbst — sie zeigt nur, was der Server ihr sagt. Kommt beim Bauen die
+  Versuchung auf, „nur die einfachen Fälle" im Browser zu rechnen, ist das
+  Weg A mit anderem Namen.
 

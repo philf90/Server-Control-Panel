@@ -445,6 +445,115 @@ heil wie kaputt (im Container gegen echtes Chromium gemessen).
 
 ---
 
+## Der Serverlauf zu `v0.6.0-rc.20` — 21. August 2026
+
+Der Lauf ist `docs/65`, das Protokoll **`docs/66`**, gefahren auf `cloudsrv24`.
+**Elf Punkte, zehn erfüllt, acht Befunde** — und **drei** davon stecken im
+Prüfmittel oder im Kriterium statt im Prüfling. Das ist deutlich weniger als in
+`docs/45`, `docs/48` und `docs/59`, wo es die Mehrheit war, und der Grund ist
+kein besseres Auge:
+
+> **Ein Messmittel, das man aufhebt, macht die Fehler von letztem Mal nicht noch
+> einmal.** `tests/bilder-messen.js` liegt seit dem 19. August als geprüfte
+> Vorschrift im Repo, statt in jedem Lauf neu geschrieben zu werden.
+
+**Alle acht sind behoben** (`docs/66 §3`), jeder mit Wächter und Bruch. Was
+darüber hinaus gilt:
+
+**Der teuerste war eine Zeile, die es seit P6 Schritt 5 gibt.** `router.get`
+legt seine Werte in die **Adresse**, und dort ist alles eine Zeichenkette: Aus
+`false` wird das Wort `"false"`, und Laravels Regel `boolean` nimmt
+`true, false, 1, 0, "1", "0"` — kein Wort. Die Suche im Dateimanager ist damit
+an keinem Tag durchgekommen, in **beiden** Zuständen des Kästchens. Der
+Gegenbeleg stand in derselben Datei: `recursive` trägt dieselbe Regel und
+funktioniert, weil es im Rumpf eines `DELETE` reist.
+
+> **Dieselbe Regel über einem Wert, der einmal als JSON und einmal als
+> Zeichenkette reist, gilt nur einmal.**
+
+> **Ein Fehler, den man am auffälligen Fall entdeckt, ist selten auf den
+> auffälligen Fall beschränkt.** Gemeldet war „das Kästchen bleibt nicht
+> angehakt"; getroffen hat es jede Suche.
+
+`FileSearchTest` war dabei grün — er vergleicht die **Schlüssel**, die beide
+Seiten schicken, und beide schickten denselben kaputten Wert.
+
+> **Zwei Eingaben, die dasselbe schicken, schicken auch denselben Fehler.**
+
+**Der grösste betraf das Protokoll der ganzen Stufe.** `context` wurde
+geschrieben und von keiner Oberfläche gelesen — weder von `toArrayRow()` noch
+von den fünf Spalten der Seite noch vom Export. Ausgezählt über `app/`: 19
+Aufrufe mit `target:`, **18 mit `context:` und ohne**, und alle achtzehn sind P6
+oder Anmeldevorgänge. `file.removed` ohne die Datei, `sftp.key.remove` ohne den
+Schlüssel.
+
+> **Ein Protokoll, das die Art der Handlung nennt und nicht ihren Gegenstand,
+> beantwortet die Frage, die niemand stellt.**
+
+> **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht von
+> einem zu unterscheiden, das es nicht gibt.**
+
+**Und einer über die Behebung des vorigen Befundes.** Die 85 deutschen Namen aus
+`docs/64` Befund 15 waren vollständig — und nie gegen die sichtbare
+Beschriftung ihrer Seite gehalten. Auf der Cronseite las der Kunde „Das Feld
+Bezeichnung ist erforderlich" und suchte ein Feld, das dort „Beschriftung"
+heisst. Nachgemessen: 68 Paare, **fünfzehn** Abweichungen.
+
+> **Ein Wächter über die Vollständigkeit sagt nichts über die Richtigkeit.**
+
+**Zwei meiner elf Kriterien waren falsch, nicht der Prüfling** — Punkt 4 (ich
+erwartete 18 px, richtig waren 294) und Punkt 11 (ein leerer 3000-px-Block
+taucht nie in `schiebt` auf; er läuft nicht über, er lässt überlaufen, und
+aufgeführt sind seine Vorfahren).
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
+**Und zwei Sätze über Gegenproben, beide an Punkt 8 bezahlt.** Ohne
+`IdentitiesOnly=yes` ist `-i` nur ein Vorschlag: OpenSSH bietet zusätzlich die
+Schlüssel des Agenten an, und die Anmeldung kann mit einem ganz anderen
+gelingen, während die Gegenprobe daneben trotzdem scheitert.
+
+> **Ein Schlüssel, der nur vorgeschlagen wird, belegt keine Anmeldung — es kann
+> jeder andere gewesen sein.**
+
+> **Eine Gegenprobe, die an einer anderen Hürde scheitert als der gemeinten, hat
+> die gemeinte nicht geprüft.** `BatchMode=yes` kann die Frage nach dem
+> Rechnerschlüssel nicht beantworten; läuft die Gegenprobe zuerst, endet sie mit
+> `Host key verification failed` und nicht mit `Permission denied`.
+
+**Und einer über Hinweise:** Der Satz unter dem privaten Schlüssel nannte
+`~/.ssh` und die Rechte `600`. Auf Windows stimmt daran kein Teil.
+
+> **Ein Hinweis, der ein Betriebssystem voraussetzt, ist auf dem anderen kein
+> unvollständiger Hinweis, sondern ein falscher.**
+
+**Wunsch 4 ist gebaut** (`docs/66 §4.5`): Die Cronseite zeigt beim Tippen, in
+welchem Rhythmus der Job laufen wird und wann er das nächste Mal fällig ist.
+Sie übersetzt weiterhin nicht selbst — sie fragt `cron.preview`, und den Satz
+baut `Spoken`, die Fälligkeiten `Occurrence`. Zwei Dinge daraus:
+
+> **Zwei Antworten, die beide stimmen, ergeben zusammen eine falsche Anzeige,
+> wenn die Reihenfolge fehlt.** Zwei Anfragen können sich überholen; jede trägt
+> deshalb eine Nummer, geprüft an **beiden** Ausgängen.
+
+Und ein Wächter, der über Wunsch 4 hinausgeht: **`TopLevelSetupTest` zählt
+Klammern, statt Wörter zu lesen.** Was am linken Rand einer `.vue` steht, sieht
+nach oberster Ebene aus; er vergleicht diesen Eindruck mit der tatsächlichen
+Verschachtelung und fängt damit den `})})`-Fehler vom 20. August, den `vue-tsc`
+und jeder wortlesende Wächter durchgelassen haben. 61 Dateien, 515 Erklärungen
+am Rand.
+
+**Der erste Wurf von Wunsch 4 war trotzdem falsch gebaut, und zwei bestehende
+Wächter haben es gefunden — beim Durchlauf am Ende und nicht beim Bauen.** Die
+Route war ein `GET` mit einem eigenen `fetch`; `PanelRequestTest` meldete zwei
+Dateien statt einer, `TenancySweepTest`, dass `cron/preview` nicht im Prüfstand
+der Mandantenklammer steht.
+
+> **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
+> gefahren — man denkt an das Gebaute und nicht an das Berührte.**
+
+---
+
 ## Die eine Gewohnheit, die dieses Projekt trägt
 
 **Für jede Regel gibt es einen Wächter, und der Wächter wird gegengeprüft.**
@@ -724,6 +833,12 @@ Und **`63` die Bilderrunde** — Schritt 12: die neun Ansichten, ihre Zustände,
 das Messmittel mit seiner Gegenprobe und die Fallen, die diesen Lauf schon
 gekostet haben — mit **`64`** als Protokoll dazu, angelegt am 19. August nach
 den ersten beiden Ansichten.
+
+Und **`65` der Serverlauf zu `v0.6.0-rc.20`** — die elf Punkte, mit denen die
+sieben Befunde der zweiten Runde und die drei Wünsche auf einem echten Server
+geprüft werden, samt den drei Dingen, die der Aufsatz im Container
+grundsätzlich nicht kann (ein Herunterladen, `<style scoped>`, echte Daten) —
+mit **`66`** als Protokoll dazu.
 
 **Und die erste Messung hat zwei Fehler in dieser Vorschrift gefunden**, beide
 am Prüfmittel: `schiebt` war als Kriterium gedacht und meldet bei jeder Tabelle

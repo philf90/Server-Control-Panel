@@ -9636,8 +9636,17 @@ vorher_datei tests/bilder-messen.js
 python3 - <<'PY2'
 p = 'tests/bilder-messen.js'
 s = open(p, encoding='utf-8').read()
-s = s.replace("const STAND = '2026-08-19'", "const STAND = 'neu'", 1)
-open(p, 'w', encoding='utf-8').write(s)
+# Das volle Datum steht hier nicht: Der Eingriff soll den naechsten Stand
+# ueberleben. Am 21. August tat er es nicht -- BreakScriptTest hat gemeldet,
+# dass er seinen Text nicht mehr findet, und das war richtig.
+#
+# Ein regulaerer Ausdruck waere die naheliegende Antwort und die falsche:
+# interventions() liest s.replace(...) und zugewiesene Zeichenketten, keine
+# re.subn -- der Eingriff waere date-unabhaengig und fuer den Waechter
+# unsichtbar geworden.
+alt = "const STAND = '20"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "const STAND = 'neu", 1))
 PY2
 griff_datei tests/bilder-messen.js "Stand ohne Datum" &&
 pruefe "Stand ohne Datum" \
@@ -12139,6 +12148,48 @@ pruefe "  … zurückgesetzt wieder grün" \
   RevealTest::test_every_watch_is_registered_at_the_top_level passed
 
 echo
+echo "── PackagingTest: der Elternteil faellt wieder nebenbei an ──"
+#
+# `install -d` setzt Modus und Eigentuemer nur auf die letzte Ebene. Ohne die
+# ausdrueckliche Zeile ist /var/lib/srvpanel danach 0755 root:root, und der
+# Dienst kann unter seinem eigenen HOME nichts anlegen — gefunden auf
+# cloudsrv24 bei der Vorbereitung des Laufs zu rc20.
+vorher_datei packaging/scripts/postinstall.sh
+python3 - <<'PY2'
+p = 'packaging/scripts/postinstall.sh'
+s = open(p, encoding='utf-8').read()
+alt = "    install -d -o srvpanel -g srvpanel -m 0750 /var/lib/srvpanel\n"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei packaging/scripts/postinstall.sh "Elternteil ohne Eigentuemer" &&
+pruefe "Elternteil ohne Eigentuemer" \
+  PackagingTest::test_the_data_directory_belongs_to_the_service failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  PackagingTest::test_the_data_directory_belongs_to_the_service passed
+
+echo
+echo "── PackagingTest: der Pruefstand fragt nur, ob es da ist ──"
+#
+# Genau die Luecke, die den Fehler durchgelassen hat: Vorhanden war das
+# Verzeichnis die ganze Zeit.
+vorher_datei packaging/testbed.sh
+python3 - <<'PY2'
+p = 'packaging/testbed.sh'
+s = open(p, encoding='utf-8').read()
+alt = 'docker exec "${NAME}" sh -c \'[ "$(stat -c "%a %U:%G" /var/lib/srvpanel)" = "750 srvpanel:srvpanel" ]\''
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'true', 1))
+PY2
+griff_datei packaging/testbed.sh "Pruefstand ohne Eigentuemerfrage" &&
+pruefe "Pruefstand ohne Eigentuemerfrage" \
+  PackagingTest::test_the_data_directory_belongs_to_the_service failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  PackagingTest::test_the_data_directory_belongs_to_the_service passed
+
+echo
 echo "── ActionIconTest: ein Knopf verliert sein Wort ──"
 #
 # Die Form, nach der der Betreiber gefragt hat und die zwoelf Pixel billiger
@@ -12214,6 +12265,411 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ActionIconTest::test_the_hidden_verb_still_has_a_name passed
 
 echo
+echo "── AuditContextTest: der Zusammenhang erreicht die Ablage nicht ──"
+#
+# Befund 7 aus docs/66: context wurde geschrieben und von keiner Oberflaeche
+# gelesen. Das Protokoll sagte ueber die ganze Stufe P6 die Art der Handlung
+# und nie ihren Gegenstand.
+vorher_datei app/Support/Audit/AuditQuery.php
+python3 - <<'PY2'
+p = 'app/Support/Audit/AuditQuery.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'details' => self::details($event->context),\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Audit/AuditQuery.php "Zusammenhang ohne Ablage" &&
+pruefe "Zusammenhang ohne Ablage" AuditContextTest::test_the_row_carries_the_context failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AuditContextTest::test_the_row_carries_the_context passed
+
+echo
+echo "── AuditContextTest: der Export laesst den Zusammenhang weg ──"
+#
+# Der Export ist der Beleg, den jemand aufhebt. Steht der Zusammenhang nur auf
+# der Seite, ist die Datei ausgerechnet dort aermer, wo man sie spaeter liest.
+vorher_datei app/Http/Controllers/AuditController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AuditController.php'
+s = open(p, encoding='utf-8').read()
+alt = "                    $row['details'],\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/AuditController.php "Export ohne Zusammenhang" &&
+pruefe "Export ohne Zusammenhang" AuditContextTest::test_the_export_carries_it_too failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AuditContextTest::test_the_export_carries_it_too passed
+
+echo
+echo "── AuditContextTest: der Deckel sagt nicht mehr, dass er deckelt ──"
+#
+# Ein Satz, der aussieht wie der ganze Zusammenhang und es nicht ist, waere die
+# schlechtere Antwort auf dieselbe Grenze. Dieser Eingriff hat beim ersten Mal
+# NICHT gebissen: Der Waechter suchte das Wort in der ganzen Datei, und dort
+# stand es noch -- in der Erklaerung darueber.
+vorher_datei app/Support/Audit/AuditQuery.php
+python3 - <<'PY2'
+p = 'app/Support/Audit/AuditQuery.php'
+s = open(p, encoding='utf-8').read()
+alt = "' … (gekürzt)'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "''", 1))
+PY2
+griff_datei app/Support/Audit/AuditQuery.php "Deckel ohne Ansage" &&
+pruefe "Deckel ohne Ansage" AuditContextTest::test_the_cap_says_that_it_capped failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AuditContextTest::test_the_cap_says_that_it_capped passed
+
+echo
+echo "── AuditContextTest: eine P6-Handlung nennt ihr Ziel nicht ──"
+#
+# Die Spalte Ziel gab es die ganze Zeit, und record() hat den Parameter seit P0.
+# P6 hat ihn nicht benutzt -- keine Entscheidung, nur eine andere Woche.
+vorher_datei app/Http/Controllers/SftpController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/SftpController.php'
+s = open(p, encoding='utf-8').read()
+alt = "record('sftp.key.add', target: $ergebnis['key'], "
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "record('sftp.key.add', ", 1))
+PY2
+griff_datei app/Http/Controllers/SftpController.php "Handlung ohne Ziel" &&
+pruefe "Handlung ohne Ziel" \
+  AuditContextTest::test_every_action_with_a_model_names_it_as_the_target failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  AuditContextTest::test_every_action_with_a_model_names_it_as_the_target passed
+
+echo
+echo "── AttributeLabelTest: die Cronseite heisst wieder Bezeichnung ──"
+#
+# Der Befund selbst (docs/66, Befund 3): Auf der Seite steht "Beschriftung",
+# in der Meldung stand "Bezeichnung" -- ein Feld, das es dort nicht gibt.
+vorher_datei app/Http/Controllers/CronController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/CronController.php'
+s = open(p, encoding='utf-8').read()
+alt = "private const NAMEN = ['label' => 'Beschriftung'];"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'private const NAMEN = [];', 1))
+PY2
+griff_datei app/Http/Controllers/CronController.php "Name gegen die Seite" &&
+pruefe "Name gegen die Seite" \
+  AttributeLabelTest::test_every_label_matches_the_name_the_server_uses failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  AttributeLabelTest::test_every_label_matches_the_name_the_server_uses passed
+
+echo
+echo "── AttributeLabelTest: eine Ausnahme zeigt ins Leere ──"
+#
+# Eine Ausnahme fuer eine Seite, die umbenannt wurde, ist ein Loch mit einer
+# Begruendung daneben.
+vorher_datei tests/Unit/AttributeLabelTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/AttributeLabelTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'Domains/Show.vue:certificate'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'Domains/Weg.vue:certificate'", 1))
+PY2
+griff_datei tests/Unit/AttributeLabelTest.php "Ausnahme ohne Ziel" &&
+pruefe "Ausnahme ohne Ziel" \
+  AttributeLabelTest::test_every_exception_still_points_somewhere failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  AttributeLabelTest::test_every_exception_still_points_somewhere passed
+
+echo
+echo "── PrivateKeyTest: der Hinweis kennt wieder nur Unix ──"
+#
+# Befund 6 aus docs/66: Auf Windows stimmt dann kein Teil des Satzes, und die
+# Folge ist UNPROTECTED PRIVATE KEY FILE -- eine Meldung, die nach einem
+# kaputten Schluessel aussieht und eine der Dateirechte ist.
+vorher_datei resources/js/Pages/Subscriptions/Sftp.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Sftp.vue'
+s = open(p, encoding='utf-8').read()
+alt = '%USERPROFILE%'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '~', 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Sftp.vue "Hinweis nur fuer Unix" &&
+pruefe "Hinweis nur fuer Unix" PrivateKeyTest::test_the_hint_names_both_systems failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PrivateKeyTest::test_the_hint_names_both_systems passed
+
+echo
+echo "── OverflowProbeTest: der Filter fragt nur nach overflow ──"
+#
+# Dann naehme er die halbe Messung mit -- jeder Rollbehaelter faellt darunter.
+# Verlangt sind beide Merkmale zusammen: geklippt UND auf einen Punkt gezogen.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+alt = "      const geklippt = stil.clipPath !== 'none' || (stil.clip !== 'auto' && stil.clip !== '')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '      const geklippt = true', 1))
+PY2
+griff_datei tests/bilder-messen.js "Filter ohne Klippung" &&
+pruefe "Filter ohne Klippung" \
+  OverflowProbeTest::test_a_screen_reader_label_is_counted_and_not_listed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  OverflowProbeTest::test_a_screen_reader_label_is_counted_and_not_listed passed
+
+echo
+echo "── OverflowProbeTest: der Filter sieht nicht bei den Vorfahren nach ──"
+#
+# Bei `.stacks thead` traegt nur der Kopf die Klippung; das `tr` darin ist
+# 1 px breit, weil sein Behaelter es ist, und bliebe als Geisterzeile stehen.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+anfang = s.index('const nurFuerVorlesen')
+ende = s.index('const roller')
+teil = s[anfang:ende]
+alt = 'for (let n = element; n && n !== document.body; n = n.parentElement) {'
+assert teil.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s[:anfang] + teil.replace(alt, 'for (const n of [element]) {', 1) + s[ende:]
+)
+PY2
+griff_datei tests/bilder-messen.js "Filter ohne Vorfahren" &&
+pruefe "Filter ohne Vorfahren" \
+  OverflowProbeTest::test_a_screen_reader_label_is_counted_and_not_listed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  OverflowProbeTest::test_a_screen_reader_label_is_counted_and_not_listed passed
+
+echo
+echo "── OverflowProbeTest: die uebersprungenen Kaesten werden verschwiegen ──"
+#
+# Eine kurze Liste liest sich dann wie eine heile Seite.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+alt = '    rollt: roller.filter((r) => r.darf),\n    versteckt,\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '    rollt: roller.filter((r) => r.darf),\n'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/bilder-messen.js "Zahl verschwiegen" &&
+pruefe "Zahl verschwiegen" \
+  OverflowProbeTest::test_a_screen_reader_label_is_counted_and_not_listed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  OverflowProbeTest::test_a_screen_reader_label_is_counted_and_not_listed passed
+
+echo
+echo "── TopLevelSetupTest: die Klammern eines watch rutschen zusammen ──"
+#
+# Genau der Fehler vom 20. August: `})})` statt `})\n})`. Ein watch samt seinem
+# ref steht dann innerhalb eines Rueckrufs, wird nie registriert, und das
+# Merkmal ist von seinem ersten Tag an wirkungslos. vue-tsc laeuft durch.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+alt = "  { immediate: true },\n)\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "  { immediate: true },\n", 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "watch im Rueckruf" &&
+pruefe "watch im Rueckruf" \
+  TopLevelSetupTest::test_every_declaration_at_the_margin_is_top_level failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  TopLevelSetupTest::test_every_declaration_at_the_margin_is_top_level passed
+
+echo
+echo "── CronPreviewTest: die Vorschau schreibt ins Protokoll ──"
+#
+# Ein Eintrag je Tastendruck waere eine Datenhaltung ueber die Bedienung --
+# genau das, wogegen Entscheidung 4 aus docs/46 argumentiert.
+vorher_datei app/Http/Controllers/CronController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/CronController.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return response()->json([\n            'spoken' => Spoken::schedule($schedule),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        $this->audit->record('cron.preview');\n" + alt
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Http/Controllers/CronController.php "Vorschau im Protokoll" &&
+pruefe "Vorschau im Protokoll" \
+  CronPreviewTest::test_the_preview_route_computes_and_changes_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronPreviewTest::test_the_preview_route_computes_and_changes_nothing passed
+
+echo
+echo "── CronPreviewTest: die Vorschau baut sich ihren Aufruf selbst ──"
+#
+# Genau der Fall, vor dem usePanelRequest.ts in seinem eigenen Kopf warnt --
+# und den der erste Wurf von Wunsch 4 gemacht hat. Gefunden hat es nicht das
+# Nachdenken, sondern der Durchlauf aller Waechter.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+alt = "await askPanel<{ spoken: string | null; next: string[] }>("
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "await fetch("
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "eigener Aufruf" &&
+pruefe "eigener Aufruf" CronPreviewTest::test_the_preview_uses_the_one_http_path failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronPreviewTest::test_the_preview_uses_the_one_http_path passed
+
+echo
+echo "── CronPreviewTest: die Vorschau rechnet nicht in die Anzeigezone ──"
+#
+# Dann stehen auf einer Seite zwei Zeiten, von denen nur eine beschriftet ist.
+vorher_datei app/Http/Controllers/CronController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/CronController.php'
+s = open(p, encoding='utf-8').read()
+alt = 'Clock::display(Carbon::instance($zeit))'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "Carbon::instance($zeit)->format('Y-m-d H:i:s')"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Http/Controllers/CronController.php "Vorschau ohne Anzeigezone" &&
+pruefe "Vorschau ohne Anzeigezone" \
+  CronPreviewTest::test_the_times_go_through_the_display_zone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronPreviewTest::test_the_times_go_through_the_display_zone passed
+
+echo
+echo "── CronPreviewTest: die Entprellung raeumt den alten Zeitgeber nicht ab ──"
+#
+# Dann sammeln sich die Anfragen, statt sich abzuloesen -- und die Entprellung
+# ist keine, obwohl das Wort dasteht.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+alt = '    clearTimeout(vorschauTimer)\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Entprellung ohne Abraeumen" &&
+pruefe "Entprellung ohne Abraeumen" \
+  CronPreviewTest::test_the_preview_is_debounced_and_countable failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronPreviewTest::test_the_preview_is_debounced_and_countable passed
+
+echo
+echo "── CronPreviewTest: eine ueberholte Antwort gewinnt wieder ──"
+#
+# Zwei Antworten, die beide stimmen, ergeben zusammen eine falsche Anzeige,
+# wenn die Reihenfolge fehlt -- und zwar still.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+alt = "    if (lauf === vorschauLauf) {\n      vorschau.value = { spoken: null, next: [] }\n    }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "    vorschau.value = { spoken: null, next: [] }"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "ueberholte Antwort gewinnt" &&
+pruefe "ueberholte Antwort gewinnt" \
+  CronPreviewTest::test_a_late_answer_cannot_overwrite_a_newer_one failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronPreviewTest::test_a_late_answer_cannot_overwrite_a_newer_one passed
+
+echo
+echo "── CronPreviewTest: aus der Anzeige wird ein Griff ──"
+#
+# Bestellt war ausdruecklich "keine zusaetzliche Eingabe, nur eine Anzeige".
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'Läuft {{ vorschau.spoken }}.'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<input v-model="form.minute">', 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Anzeige mit Griff" &&
+pruefe "Anzeige mit Griff" \
+  CronPreviewTest::test_the_preview_is_a_display_and_not_an_input failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronPreviewTest::test_the_preview_is_a_display_and_not_an_input passed
+
+echo
+echo "── QueryBooleanTest: eine GET-Route prueft wieder mit boolean ──"
+#
+# Der Fund selbst (docs/66, Befund 5): Der Wert reist in der Adresse und ist
+# dort eine Zeichenkette; `boolean` nimmt kein Wort und weist beide Zustaende
+# des Kaestchens ab. Die Suche war damit seit P6 Schritt 5 unerreichbar.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+alt = "'content' => ['sometimes', 'in:0,1'],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'content' => ['boolean'],", 1))
+PY2
+griff_datei app/Http/Controllers/FileController.php "boolean an einer GET-Route" &&
+pruefe "boolean an einer GET-Route" \
+  QueryBooleanTest::test_no_get_route_validates_with_the_boolean_rule failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  QueryBooleanTest::test_no_get_route_validates_with_the_boolean_rule passed
+
+echo
+echo "── QueryBooleanTest: die Leiste schickt wieder einen Wahrheitswert ──"
+#
+# Die andere Haelfte desselben Fehlers. Ein Waechter nur am Empfaenger liesse
+# den Absender frei, und umgekehrt — deshalb steht beides.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'content: inContent.value ? 1 : 0,'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'content: inContent.value,', 1))
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Wahrheitswert in der Adresse" &&
+pruefe "Wahrheitswert in der Adresse" \
+  QueryBooleanTest::test_the_search_sends_one_and_zero failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  QueryBooleanTest::test_the_search_sends_one_and_zero passed
+
+echo
+echo "── QueryBooleanTest: die Auslese der GET-Routen laeuft ins Leere ──"
+#
+# Ohne diesen Eingriff waere nicht belegt, dass die Untergrenze etwas haelt:
+# Ein Waechter, der keine Route mehr findet, meldet sonst dasselbe Gruen wie
+# einer, der keine Falle findet.
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+assert s.count('Route::get(') > 30, 'Zielform nicht gefunden — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace('Route::get(', 'Route::any('))
+PY2
+griff_datei routes/web.php "GET-Routen unauffindbar" &&
+pruefe "GET-Routen unauffindbar" \
+  QueryBooleanTest::test_no_get_route_validates_with_the_boolean_rule failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  QueryBooleanTest::test_no_get_route_validates_with_the_boolean_rule passed
+
+echo
 echo "── FileSearchTest: die Trefferseite schickt weniger als die Leiste ──"
 #
 # Genau der Fund, der diesen Waechter ausgeloest hat — nur andersherum: Bis zum
@@ -12223,7 +12679,7 @@ vorher_datei resources/js/Pages/Files/Search.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Files/Search.vue'
 s = open(p, encoding='utf-8').read()
-alt = "    content: imInhalt.value,\n"
+alt = "    content: imInhalt.value ? 1 : 0,\n"
 assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
 PY2

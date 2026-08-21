@@ -236,6 +236,17 @@ final class DatabaseController extends Controller
             // Ein Zugang gleich dazu — der Normalfall. Ohne ihn ist eine
             // Datenbank ein Schema, in das niemand hineinkommt.
             'user_label' => ['nullable', 'string', 'regex:/^[a-z][a-z0-9_]{0,15}$/D'],
+        ], [], [
+            /*
+             * **Der Name muss heissen wie das Feld auf der Seite** (`docs/66`, Befund 3).
+             * Die Liste in `lang/de/validation.php` trägt den Namen, der über alle Seiten
+             * passt; wo eine Seite ein anderes Wort benutzt, steht es hier. Sonst sucht der
+             * Leser ein Feld, das er nicht sieht.
+             *
+             * > **Ein Wächter über die Vollständigkeit sagt nichts über die Richtigkeit.**
+             */
+            'label' => 'Name',
+            'engine' => 'System',
         ]);
 
         try {
@@ -745,6 +756,16 @@ final class DatabaseController extends Controller
             // Mailserver. Hier steht am Feld „Erreichbar von" (docs/64,
             // Befund 15).
             'host' => 'Erreichbar von',
+        ], [], [
+            /*
+             * **Der Name muss heissen wie das Feld auf der Seite** (`docs/66`, Befund 3).
+             * Die Liste in `lang/de/validation.php` trägt den Namen, der über alle Seiten
+             * passt; wo eine Seite ein anderes Wort benutzt, steht es hier. Sonst sucht der
+             * Leser ein Feld, das er nicht sieht.
+             *
+             * > **Ein Wächter über die Vollständigkeit sagt nichts über die Richtigkeit.**
+             */
+            'label' => 'Weiterer Zugang',
         ]);
 
         $subscription = $database->subscription;

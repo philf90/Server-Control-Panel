@@ -74,6 +74,26 @@ select_php() {
 # hier aufzuzählen ist stumpf, aber die Alternative wäre ein Panel, das beim
 # ersten Schreibversuch mit „directory does not exist" abbricht.
 create_storage() {
+    # **Der Elternteil ausdrücklich, und das ist gemessen.**
+    #
+    # `install -d` setzt Modus und Eigentümer **nur auf die letzte Ebene**;
+    # fehlende Elternverzeichnisse entstehen mit 0755 und gehören dem
+    # Aufrufer, also root. Ohne diese Zeile war `/var/lib/srvpanel` danach
+    # `0755 root:root` statt `0750 srvpanel:srvpanel` — obwohl nfpm es genau so
+    # ausliefert.
+    #
+    # Die Folge war lange still: Der Dienst schreibt in `storage/`, und das
+    # gehört ihm. Erst `srvpanel tinker` fiel darüber, weil psysh sein
+    # `.config` unter HOME anlegen will und nicht darf — mit einer Warnung und
+    # **ohne den übergebenen Code auszuführen**.
+    #
+    # > **Ein Befehl, der schweigt, sieht aus wie einer, der nichts gefunden
+    # > hat.**
+    #
+    # `install -d` auf ein vorhandenes Verzeichnis setzt Modus und Eigentümer
+    # nach — die Zeile richtet bestehende Installationen also mit.
+    install -d -o srvpanel -g srvpanel -m 0750 /var/lib/srvpanel
+
     # 0700, nicht 0750: Hier stand vorher ein `chmod -R go-rwx` auf den
     # Schreibbereich in der Fassung, und diese Absicht zieht mit um. Es liest
     # ohnehin nur der Dienst selbst — nginx bedient public/, nicht storage/.

@@ -4,6 +4,10 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3'
 import { useConfirmation } from '../../Composables/useConfirmation'
 import FormErrors from '../../Components/FormErrors.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+// `ask` heisst hier schon die Rückfrage aus `useConfirmation` — zwei Dinge mit
+// demselben Namen in einer Datei sind eine Verwechslung, die der Übersetzer nur
+// beim ersten Mal meldet.
+import { ask as askPanel } from '../../Composables/usePanelRequest'
 import { bringIntoView } from '../../scroll'
 
 interface Job {
@@ -158,6 +162,104 @@ const freierAusdruck = computed({
 const zeitplanFalsch = computed(
   () => ['minute', 'hour', 'day_of_month', 'month', 'day_of_week', 'expression']
     .some((feld) => Boolean(form.errors[feld as 'minute'])),
+)
+
+/**
+ * Was der Server zu den fünf Feldern sagt — Wunsch 4 (`docs/66 §4`).
+ *
+ * **Die Seite übersetzt weiterhin nicht selbst.** Sie fragt. Den Satz baut
+ * `App\Support\Cron\Spoken`, die Fälligkeiten `App\Support\Cron\Occurrence`,
+ * beides hinter `cron.preview`; hier steht keine einzige Regel über Zeitpläne.
+ *
+ * > **Eine Zusammenfügung darf doppelt stehen, eine Regel nicht.**
+ *
+ * **Und es ist eine Anzeige, keine Eingabe.** Kein `v-model`, kein Feld, nichts,
+ * was jemand für einen Griff halten kann.
+ */
+const vorschau = ref<{ spoken: string | null; next: string[] }>({ spoken: null, next: [] })
+
+/**
+ * Wie viele Anfragen die Vorschau bisher gestellt hat.
+ *
+ * **Damit die Entprellung messbar ist und nicht behauptet.** `docs/48` hat
+ * einmal zwanzig Konsolenöffnungen gebraucht, bis eine Entprellung überhaupt
+ * als solche belegt war — weil daneben keine Zahl stand, die etwas anderes als
+ * Null hätte sein können.
+ *
+ * > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+ * > steht.**
+ */
+const vorschauAnfragen = ref(0)
+
+/** Wie lange nach dem letzten Tastendruck gewartet wird. */
+const VORSCHAU_PAUSE = 300
+
+let vorschauTimer: ReturnType<typeof setTimeout> | undefined
+
+/**
+ * Welcher Lauf der jüngste ist.
+ *
+ * **Eine frühere Anfrage darf eine spätere Antwort nicht überschreiben.** Zwei
+ * Anfragen können sich überholen; ohne diese Zählung stünde dann das Ergebnis
+ * zu einem Zeitplan da, den niemand mehr eingetippt hat — und zwar still, weil
+ * beide Antworten für sich richtig sind.
+ */
+let vorschauLauf = 0
+
+/**
+ * Die Vorschau holen.
+ *
+ * **Über `ask()` und nicht mit einem eigenen `fetch`.** Der erste Wurf baute
+ * sich den Aufruf selbst — genau der Fall, vor dem `usePanelRequest.ts` in
+ * seinem eigenen Kopf warnt, und `PanelRequestTest` hat ihn überführt.
+ *
+ * > **Ein Mechanismus, den zwei Stellen selbst bauen, hat zwei Fassungen — und
+ * > die zweite ist die, die eine der drei Kopfzeilen vergisst.**
+ *
+ * Damit reist der Zeitplan im Rumpf und nicht in der Adresse: Er ist eine
+ * Eingabe des Kunden, und die stünde dort im Zugriffsprotokoll des Webservers,
+ * in der Verlaufsliste des Browsers und in jedem `Referer`.
+ */
+async function vorschauHolen(): Promise<void> {
+  const lauf = ++vorschauLauf
+
+  vorschauAnfragen.value++
+
+  try {
+    const daten = await askPanel<{ spoken: string | null; next: string[] }>(
+      `/subscriptions/${props.subscription.id}/cron/preview`,
+      {
+        minute: form.minute,
+        hour: form.hour,
+        day_of_month: form.day_of_month,
+        month: form.month,
+        day_of_week: form.day_of_week,
+      },
+    )
+
+    if (lauf === vorschauLauf) {
+      vorschau.value = daten
+    }
+  } catch {
+    /*
+     * **Leer und nicht rot.** Eine Vorschau, die nicht kommt, ist kein Fehler
+     * des Kunden: Er tippt weiter, und beim Absenden sagt der Server, was
+     * gilt. Ein roter Rand hier schickte ihn dorthin, wo nichts zu ändern ist
+     * (`docs/59`, Befund 11).
+     */
+    if (lauf === vorschauLauf) {
+      vorschau.value = { spoken: null, next: [] }
+    }
+  }
+}
+
+watch(
+  () => [form.minute, form.hour, form.day_of_month, form.month, form.day_of_week].join(' '),
+  () => {
+    clearTimeout(vorschauTimer)
+    vorschauTimer = setTimeout(() => { void vorschauHolen() }, VORSCHAU_PAUSE)
+  },
+  { immediate: true },
 )
 
 const voll = computed(() => props.quota.limit !== null && props.quota.used >= props.quota.limit)
@@ -537,6 +639,27 @@ function entfernen(job: Job): void {
                        :aria-invalid="form.errors.day_of_week ? 'true' : undefined">
               </div>
             </div>
+
+            <!--
+              **Die Umrechnung während des Tippens** — Wunsch 4 des Betreibers
+              (`docs/66 §4`). Sie steht unter den Feldern und nicht darüber: Sie
+              antwortet auf das, was gerade eingetippt wurde, und eine Antwort
+              über der Frage liest sich wie eine Vorgabe.
+
+              **Der Satz kann fehlen und die Zeitpunkte trotzdem stehen.**
+              `Spoken` gibt `null` für alles zurück, was sich nicht sicher
+              übersetzen lässt — für „am 3. Tag jedes zweiten Monats" also.
+              Die Fälligkeiten kennt `Occurrence` auch dann, und sie sind die
+              eindeutigere Auskunft: Sie brauchen keine Übersetzungsregel.
+            -->
+            <p v-if="vorschau.spoken !== null" class="hint">
+              Läuft {{ vorschau.spoken }}.
+            </p>
+
+            <p v-if="vorschau.next.length > 0" class="hint">
+              Nächste Fälligkeiten ({{ props.display_zone }}):
+              {{ vorschau.next.join(' · ') }}
+            </p>
 
             <p class="hint">
               Erlaubt sind <span class="ident literal">*</span>, Zahlen, Spannen

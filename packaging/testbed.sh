@@ -87,4 +87,15 @@ docker exec "${NAME}" sh -c 'DEBIAN_FRONTEND=noninteractive apt-get remove -y -q
 docker exec "${NAME}" sh -c '! systemctl is-active --quiet srvpanel-agentd.service'
 docker exec "${NAME}" test -d /var/lib/srvpanel
 
+# **Und wem es gehört, nicht nur dass es da ist.**
+#
+# Hier stand nur `test -d`, und genau das hat den Fehler durchgelassen:
+# `/var/lib/srvpanel` war `0755 root:root` statt `0750 srvpanel:srvpanel`, weil
+# `install -d` fehlende Elternverzeichnisse dem Aufrufer gibt. Vorhanden war es
+# die ganze Zeit.
+#
+# > **Eine Prüfung, die nur nachsieht, dass etwas da ist, sagt nichts darüber,
+# > wem es gehört.**
+docker exec "${NAME}" sh -c '[ "$(stat -c "%a %U:%G" /var/lib/srvpanel)" = "750 srvpanel:srvpanel" ]'
+
 note "Durchgelaufen."

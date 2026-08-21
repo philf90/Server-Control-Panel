@@ -519,9 +519,22 @@ function problem(): Link | null {
             <textarea :value="privaterTeil" rows="9" readonly spellcheck="false" class="code short" />
           </label>
 
+          <!--
+            **Beide Systeme, und das war ein Fund** (`docs/66`, Befund 6). Hier
+            stand nur der Unix-Weg. Auf Windows stimmt daran kein Teil: Der Ort
+            heisst anders, `600` gibt es nicht, und ohne `icacls` bricht OpenSSH
+            mit `UNPROTECTED PRIVATE KEY FILE` ab — einer Meldung, die nach
+            einem kaputten Schlüssel aussieht und eine der Dateirechte ist.
+
+            > **Ein Hinweis, der ein Betriebssystem voraussetzt, ist auf dem
+            > anderen kein unvollständiger Hinweis, sondern ein falscher.**
+          -->
           <p class="section-note">
             Auf Ihrem Rechner gehört er nach <span class="ident">~/.ssh/{{ dateiname }}</span>
-            und braucht dort die Rechte <span class="ident">600</span>. Danach meldet
+            und braucht dort die Rechte <span class="ident">600</span>. Unter Windows
+            liegt er in <span class="ident">%USERPROFILE%\.ssh</span>, und die Rechte
+            setzt dort <span class="ident">icacls</span> und nicht
+            <span class="ident">chmod</span>. Danach meldet
             <span class="ident">sftp</span> sich damit an.
           </p>
 

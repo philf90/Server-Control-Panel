@@ -205,4 +205,87 @@ final class OverflowProbeTest extends TestCase
             'Der Stand steht nicht im Ergebnis — dann sieht eine alte Messung aus wie eine neue.',
         );
     }
+
+    /**
+     * Eine Beschriftung nur für die Vorlesesoftware wird gezählt, nicht gelistet.
+     *
+     * **Befund 2 aus `docs/66`.** Die übliche Technik dafür ist
+     * `width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%)`; ein
+     * solcher Kasten hat **immer** `scrollWidth > clientWidth`, und `hidden`
+     * steht nicht in der Liste der erlaubten Roller. Gemessen im echten
+     * Chromium gegen das gebaute Stylesheet, vorher und nachher:
+     *
+     *     vorher:   schiebt: [span.sr 42, span.sr 42, thead 379, tr 351, div 287]
+     *     nachher:  schiebt: [div 287]   versteckt: 4
+     *
+     * > **Eine Liste, die auch das Gewollte nennt, ist ein Hinweis und kein
+     * > Urteil.**
+     *
+     * ## Drei Eigenschaften, ohne die der Filter falsch wäre
+     *
+     * **Beide Merkmale zusammen.** Ein Filter über `overflow: hidden` allein
+     * nähme die halbe Messung mit — jeder Rollbehälter fiele darunter.
+     *
+     * **Die Vorfahren gehören dazu.** Bei `.stacks thead` trägt der Kopf die
+     * Klippung; das `tr` darin ist 1 px breit, weil sein Behälter es ist, und
+     * klippt selbst nicht. Ohne den Weg nach oben bliebe die halbe Geisterzeile
+     * stehen.
+     *
+     * **Und die Zahl steht daneben.** Eine Messung, die etwas weglässt, sagt
+     * wie viel — sonst liest sich eine kurze Liste wie eine heile Seite.
+     *
+     * > **Kein stiller Deckel: Wer die Sicht begrenzt, nennt die Zahl dazu.**
+     */
+    public function test_a_screen_reader_label_is_counted_and_not_listed(): void
+    {
+        $quelltext = $this->source();
+
+        /*
+         * **Gelesen wird der Filter selbst und nicht die ganze Datei.** Stünde
+         * `clipPath` irgendwo sonst — in einer Erklärung zum Beispiel —, wäre
+         * dieser Wächter grün für einen Filter, der es gar nicht prüft. Das ist
+         * derselbe Fehler wie bei `docs/62` Punkt 12b, wo ein Wächter einen
+         * Satz suchte statt seiner Erreichbarkeit.
+         */
+        $filter = $this->between($quelltext, 'const nurFuerVorlesen', 'const roller');
+
+        $this->assertNotSame('', $filter, 'Der Filter fuer versteckte Beschriftungen ist fort — dann prueft dieser Waechter nichts.');
+
+        foreach ([
+            "clipPath !== 'none'" => 'Der Filter fragt nicht mehr nach der Klippung.',
+            'clientWidth <= 1' => 'Der Filter fragt nicht mehr nach der Breite.',
+            'clientHeight <= 1' => 'Der Filter fragt nicht mehr nach der Hoehe.',
+        ] as $merkmal => $satz) {
+            $this->assertStringContainsString($merkmal, $filter, $satz.
+                ' Verlangt sind beide Merkmale zusammen — geklippt **und** auf einen Punkt '.
+                'zusammengezogen. Ueber `overflow: hidden` allein naehme er die halbe Messung mit.');
+        }
+
+        $this->assertStringContainsString(
+            'parentElement',
+            $filter,
+            'Der Filter sieht nicht mehr bei den Vorfahren nach. Bei `.stacks thead` traegt nur der '.
+            'Kopf die Klippung, und das `tr` darin bliebe als Geisterzeile stehen.',
+        );
+
+        $this->assertStringContainsString(
+            'versteckt,',
+            (string) strstr($quelltext, '  return {'),
+            'Die Zahl der uebersprungenen Kaesten steht nicht mehr im Ergebnis. Dann liest sich '.
+            'eine kurze Liste wie eine heile Seite.',
+        );
+    }
+
+    /** Das Stück zwischen zwei Marken — leer, wenn eine davon fehlt. */
+    private function between(string $quelle, string $von, string $bis): string
+    {
+        $anfang = strpos($quelle, $von);
+        $ende = $anfang === false ? false : strpos($quelle, $bis, $anfang);
+
+        if ($anfang === false || $ende === false) {
+            return '';
+        }
+
+        return substr($quelle, $anfang, $ende - $anfang);
+    }
 }

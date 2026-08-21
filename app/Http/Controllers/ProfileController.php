@@ -75,6 +75,16 @@ final class ProfileController extends Controller
                 Rule::unique('accounts', 'email')->ignore($account->id),
             ],
             'current_password' => ['required', 'string'],
+        ], [], [
+            /*
+             * **Der Name muss heissen wie das Feld auf der Seite** (`docs/66`, Befund 3).
+             * Die Liste in `lang/de/validation.php` trägt den Namen, der über alle Seiten
+             * passt; wo eine Seite ein anderes Wort benutzt, steht es hier. Sonst sucht der
+             * Leser ein Feld, das er nicht sieht.
+             *
+             * > **Ein Wächter über die Vollständigkeit sagt nichts über die Richtigkeit.**
+             */
+            'email' => 'Anmeldeadresse',
         ]);
 
         $this->confirmPassword($account, $data['current_password']);

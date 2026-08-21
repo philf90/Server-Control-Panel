@@ -77,7 +77,7 @@
  */
 
 /** Der Tag, an dem dieses Messmittel zuletzt geändert wurde. */
-const STAND = '2026-08-19'
+const STAND = '2026-08-21'
 
 function bilderMessen () {
   const wurzel = document.documentElement
@@ -123,12 +123,60 @@ function bilderMessen () {
     return stufen.join(' > ') || element.tagName.toLowerCase()
   }
 
+  /*
+   * Ein Kasten, der nur für die Vorlesesoftware da ist — und alles darin.
+   *
+   * **Das ist Befund 2 aus `docs/66`.** Die übliche Technik dafür ist
+   * `width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%)`; ein
+   * solcher Kasten hat **immer** `scrollWidth > clientWidth`, und `hidden`
+   * steht nicht in der Liste der erlaubten Roller. Auf jeder Seite mit
+   * Passwortfeldern standen so fünf Geisterzeilen in `schiebt`, auf jeder mit
+   * einer Kärtchentabelle zwei — und wer sie dreimal überliest, überliest beim
+   * vierten Mal den echten Fund.
+   *
+   * > **Eine Liste, die auch das Gewollte nennt, ist ein Hinweis und kein
+   * > Urteil.**
+   *
+   * **Die Vorfahren gehören dazu.** Bei `.stacks thead` trägt der Kopf die
+   * Klippung, und in `schiebt` stand trotzdem auch das `tr` darin: Es ist
+   * 1 px breit, weil sein Behälter es ist, klippt aber selbst nicht.
+   *
+   * **Eng gefasst, und zwar mit Absicht.** Ein Filter über `overflow: hidden`
+   * allein nähme die halbe Messung mit; verlangt sind beide Merkmale
+   * zusammen — geklippt **und** auf einen Punkt zusammengezogen.
+   */
+  const nurFuerVorlesen = (element) => {
+    for (let n = element; n && n !== document.body; n = n.parentElement) {
+      const stil = getComputedStyle(n)
+      const geklippt = stil.clipPath !== 'none' || (stil.clip !== 'auto' && stil.clip !== '')
+
+      if (geklippt && n.clientWidth <= 1 && n.clientHeight <= 1) {
+        return true
+      }
+    }
+
+    return false
+  }
+
   const roller = []
+
+  /*
+   * **Gezählt und nicht verschwiegen.** Eine Messung, die etwas weglässt, sagt
+   * daneben, wie viel — sonst liest sich eine kurze Liste wie eine heile Seite.
+   *
+   * > **Kein stiller Deckel: Wer die Sicht begrenzt, nennt die Zahl dazu.**
+   */
+  let versteckt = 0
 
   for (const element of document.querySelectorAll('*')) {
     const ueberlauf = element.scrollWidth - element.clientWidth
 
     if (ueberlauf <= 0) {
+      continue
+    }
+
+    if (nurFuerVorlesen(element)) {
+      versteckt++
       continue
     }
 
@@ -156,5 +204,6 @@ function bilderMessen () {
     gegenprobe: gegenprobe(),
     schiebt: roller.filter((r) => !r.darf),
     rollt: roller.filter((r) => r.darf),
+    versteckt,
   }
 }

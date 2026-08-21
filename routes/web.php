@@ -562,6 +562,28 @@ Route::middleware('auth')->group(function (): void {
         ->middleware('can:manageCron,subscription')
         ->name('cron.show');
 
+    /*
+     * **Die Umrechnung während des Tippens** (Wunsch 4, `docs/66 §4`). Sie
+     * rechnet nur — kein Agent, kein Vorgang, keine Zeile im Protokoll — und
+     * trägt dieselbe Fähigkeit wie die Seite, auf der getippt wird. Eine Route
+     * ohne diese Klammer verriete an fremden Zeitplänen zwar nichts, wäre aber
+     * ein zweiter Weg an der Policy vorbei; dass sie hier nichts preisgibt, ist
+     * eine Eigenschaft von heute und keine Zusage.
+     *
+     * **`POST`, obwohl sie nichts ändert**, und das ist keine Nachlässigkeit,
+     * sondern die Bauform aller JSON-Griffe dieses Panels
+     * ({@see \App\Http\Controllers\DatabaseController::consoleRows()} und
+     * `usePanelRequest.ts`): Ein Wert des Kunden landet nie in einer Adresse —
+     * dort stünde er im Zugriffsprotokoll des Webservers, in der Verlaufsliste
+     * des Browsers und in jedem `Referer`. Der erste Wurf war ein `GET`, und
+     * `PanelRequestTest` hat ihn überführt.
+     *
+     * **Vor `{job}/runs`**, weil `preview` sonst wie eine Jobkennung aussähe.
+     */
+    Route::post('/subscriptions/{subscription}/cron/preview', [CronController::class, 'preview'])
+        ->middleware('can:manageCron,subscription')
+        ->name('cron.preview');
+
     Route::post('/subscriptions/{subscription}/cron', [CronController::class, 'store'])
         ->middleware('can:manageCron,subscription')
         ->name('cron.store');

@@ -9,10 +9,13 @@ use App\Models\CronRun;
 use App\Models\Subscription;
 use App\Support\Audit\Audit;
 use App\Support\Cron\Cron;
+use App\Support\Cron\Occurrence;
 use App\Support\Cron\ServerZone;
 use App\Support\Cron\Spoken;
 use App\Support\Plans\Quota;
 use App\Support\Time\Clock;
+use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -53,6 +56,36 @@ final class CronController extends Controller
 {
     /** Wie lang eine Beschriftung werden darf. */
     private const LABEL_MAX = 120;
+
+    /**
+     * Wie viele Fälligkeiten die Vorschau nennt.
+     *
+     * **Drei, weil zwei den Abstand nicht zeigen.** „Am 21. um 03:15, am 22. um
+     * 03:15" liest sich wie täglich und wie alle 24 Stunden gleichermassen; die
+     * dritte Zeile entscheidet die Frage. Mehr ist Fliesstext: Bei einem Plan,
+     * der alle fünf Minuten läuft, stünden zehn Zeilen da, die alle dasselbe
+     * sagen.
+     */
+    private const PREVIEW_RUNS = 3;
+
+    /**
+     * Namen, die auf dieser Seite anders heissen als in der allgemeinen Liste.
+     *
+     * **`docs/66`, Befund 3.** `label` heisst auf zwei anderen Seiten
+     * „Bezeichnung" und hier „Beschriftung"; die Liste in
+     * `lang/de/validation.php` trägt den häufigeren Fall. Stünde er auch hier,
+     * läse der Kunde „Das Feld Bezeichnung ist erforderlich" und suchte auf
+     * dieser Seite ein Feld, das es nicht gibt.
+     *
+     * > **Ein Wächter über die Vollständigkeit sagt nichts über die
+     * > Richtigkeit.**
+     *
+     * **Einmal und für beide Wege.** Die Regeln stehen schon aus diesem Grund
+     * nur einmal da; zwei Namenslisten liefen genauso auseinander.
+     *
+     * @var array<string,string>
+     */
+    private const NAMEN = ['label' => 'Beschriftung'];
 
     public function __construct(
         private readonly Cron $cron,
@@ -131,6 +164,87 @@ final class CronController extends Controller
     }
 
     /**
+     * Die Umrechnung während des Tippens — Wunsch 4 des Betreibers (`docs/66 §4`).
+     *
+     * ## Warum der Server das rechnet und nicht der Browser
+     *
+     * > Die reine Cron-Schreibweise kann für unerfahrene Nutzer mehr Hindernis
+     * > als Hilfsmittel sein.
+     *
+     * Den Satz dazu baut {@see Spoken::schedule()}, die Fälligkeiten
+     * {@see Occurrence::next()}. Beides in TypeScript nachzubauen hiesse,
+     * dieselbe Regel in zwei Sprachen zu pflegen — und die zweite ist die, die
+     * von der ersten abweicht.
+     *
+     * > **Eine Zusammenfügung darf doppelt stehen, eine Regel nicht.**
+     *
+     * `CronScheduleFormTest::test_the_page_does_not_translate_on_its_own` hält
+     * die Seite darauf fest; diese Route ist der Weg, den sie stattdessen
+     * nimmt.
+     *
+     * ## Und warum hier nichts geprüft wird
+     *
+     * {@see Schedule::parse()} ist die Schranke, dieselbe wie beim Speichern.
+     * Taugt eine Eingabe nicht, ist die Antwort schlicht „noch kein gültiger
+     * Zeitplan" und **keine Fehlermeldung**: Wer beim dritten Zeichen einer
+     * Spanne rot wird, wird bei jeder Spanne rot. Der Satz zum Fehler steht
+     * beim Absenden, an der Stelle, an der er hingehört (`docs/19 §6`).
+     *
+     * **Sie ändert nichts.** Kein Agent, kein Vorgang, keine Zeile im
+     * Protokoll — sie rechnet. Deshalb steht sie auch nicht im Protokoll: Ein
+     * Eintrag je Tastendruck wäre eine Datenhaltung über die Bedienung.
+     *
+     * **Dass sie trotzdem ein `POST` ist**, hat denselben Grund wie bei den
+     * Griffen der Konsole: Der Zeitplan ist eine Eingabe des Kunden, und eine
+     * Eingabe des Kunden gehört nicht in eine Adresse.
+     *
+     * **Die Zeitpunkte gehen durch {@see Clock}.** Der Zeitplan gilt in
+     * Serverzeit, die Anzeige in der Zone des Lesers — genau der Unterschied,
+     * den der Kasten oben auf der Seite erklärt. Wer ihn hier vergisst, zeigt
+     * zwei Wahrheiten auf derselben Seite.
+     */
+    public function preview(Request $request, Subscription $subscription): JsonResponse
+    {
+        $felder = [];
+
+        foreach (Schedule::FIELDS as $feld) {
+            $wert = $request->input($feld);
+            $felder[$feld] = is_string($wert) ? $wert : '';
+        }
+
+        try {
+            $schedule = Schedule::parse($felder);
+        } catch (AgentException) {
+            return response()->json(['spoken' => null, 'next' => []]);
+        }
+
+        /*
+         * **Nacheinander und nicht in einem Rutsch.** `Occurrence::next()`
+         * beantwortet „was kommt nach diesem Zeitpunkt"; die Kette entsteht,
+         * indem man die Antwort wieder hineingibt. Bricht sie ab — `0 0 30 2 *`
+         * gibt es —, ist die Liste kürzer und nicht falsch.
+         */
+        $naechste = [];
+        $nach = null;
+
+        for ($i = 0; $i < self::PREVIEW_RUNS; $i++) {
+            $zeit = Occurrence::next($schedule, $nach);
+
+            if ($zeit === null) {
+                break;
+            }
+
+            $naechste[] = Clock::display(Carbon::instance($zeit));
+            $nach = $zeit;
+        }
+
+        return response()->json([
+            'spoken' => Spoken::schedule($schedule),
+            'next' => $naechste,
+        ]);
+    }
+
+    /**
      * Die Läufe eines Jobs — eine eigene Seite, weil die Ausgabe lang ist.
      *
      * **Und sie sammelt nicht selbst ein.** Das tut `srvpanel:cron-runs` über
@@ -179,7 +293,7 @@ final class CronController extends Controller
             throw $this->asValidation($error);
         }
 
-        $this->audit->record('cron.job.add', subscriptionId: (int) $subscription->id, context: [
+        $this->audit->record('cron.job.add', target: $job, subscriptionId: (int) $subscription->id, context: [
             'job' => $job->label,
             'schedule' => Schedule::line($job->schedule()),
         ]);
@@ -200,7 +314,7 @@ final class CronController extends Controller
             throw $this->asValidation($error);
         }
 
-        $this->audit->record('cron.job.change', subscriptionId: (int) $subscription->id, context: [
+        $this->audit->record('cron.job.change', target: $job, subscriptionId: (int) $subscription->id, context: [
             'job' => $job->label,
             'schedule' => Schedule::line($job->schedule()),
         ]);
@@ -221,7 +335,13 @@ final class CronController extends Controller
             throw $this->asValidation($error);
         }
 
-        $this->audit->record('cron.job.remove', subscriptionId: (int) $subscription->id, context: [
+        /*
+         * **Das Ziel steht auch dann drin, wenn es die Zeile nicht mehr gibt**
+         * (`docs/66`, Befund 7). `$job` ist nach dem Entfernen noch im
+         * Speicher, und seine Kennung ist genau das, wonach jemand später
+         * sucht: „welcher Job war das".
+         */
+        $this->audit->record('cron.job.remove', target: $job, subscriptionId: (int) $subscription->id, context: [
             'job' => $label,
         ]);
 
@@ -280,7 +400,7 @@ final class CronController extends Controller
 
         if (! $request->boolean('experte')) {
             /** @var array<string,mixed> $data */
-            $data = $request->validate($regeln);
+            $data = $request->validate($regeln, [], self::NAMEN);
 
             return $data;
         }
@@ -300,7 +420,7 @@ final class CronController extends Controller
          * Die Meldung nennt deshalb die **Stelle im Ausdruck**. Sie geht an
          * `expression`, weil das der Name des Feldes ist, in dem sie steht.
          */
-        $pruefung = Validator::make($request->all(), $regeln);
+        $pruefung = Validator::make($request->all(), $regeln, [], self::NAMEN);
 
         if ($pruefung->fails()) {
             $fehler = $pruefung->errors();

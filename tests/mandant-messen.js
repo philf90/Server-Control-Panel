@@ -132,6 +132,7 @@ async function mandantMessen ({ eigen, fremd, eigenJob, fremdJob, eigenKey, frem
     ['POST', '/cron'],
     ['PUT', '/cron/{job}', 'job'],
     ['GET', '/cron/{job}/runs', 'job'],
+    ['POST', '/cron/preview'],
 
     // **Die beiden zerstörenden zuletzt**, damit die lesenden ihren Gegenstand
     // noch vorfinden. Beim ersten Wurf stand `DELETE /cron/{job}` davor — der

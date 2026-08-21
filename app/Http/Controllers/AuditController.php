@@ -79,7 +79,7 @@ final class AuditController extends Controller
 
             fputcsv($handle, [
                 'Zeitpunkt (UTC)', 'Aktion', 'Ergebnis', 'Konto', 'Im Kontext von',
-                'Abonnement', 'Ziel', 'IP',
+                'Abonnement', 'Ziel', 'Einzelheiten', 'IP',
             ]);
 
             $written = 0;
@@ -112,6 +112,16 @@ final class AuditController extends Controller
                     $row['acting_as_account_id'],
                     $row['subscription_id'],
                     $row['target'],
+
+                    /*
+                     * **Der Zusammenhang gehört in den Beleg, den jemand
+                     * aufhebt** (`docs/66`, Befund 7). Stünde er nur auf der
+                     * Seite, wäre der Export ausgerechnet dort ärmer, wo man
+                     * ihn Jahre später liest — und aus „eine Datei wurde
+                     * gelöscht" würde nie „welche".
+                     */
+                    $row['details'],
+
                     $row['ip_address'],
                 ]));
 

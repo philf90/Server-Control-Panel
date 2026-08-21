@@ -16356,3 +16356,296 @@ kaputt stehen und vergiftete die Gegenproben dahinter. `lang/` steht jetzt in
 > **Ein Wächter, der eine Schreibweise liest, sieht die andere nicht — und
 > meldet für sie „alles in Ordnung".**
 
+### P6 — `/var/lib/srvpanel` gehörte root, und `srvpanel tinker` führte nichts mehr aus
+
+**Gefunden am 20. August auf `cloudsrv24`**, in der Vorbereitung des Serverlaufs
+zu `v0.6.0-rc.20` und damit vor dem ersten Prüfpunkt. Der Aufruf endete mit
+„Writing to directory /var/lib/srvpanel/.config/psysh is not allowed" und
+**ohne eine Zeile Ausgabe** — der übergebene Code lief nicht.
+
+Gemessen stand das Verzeichnis auf **`0755 root:root`**, obwohl `nfpm.yaml` es
+als `0750 srvpanel:srvpanel` ausliefert. Die Ursache ist eine Eigenschaft von
+`install -d`, nachgemessen statt nachgelesen:
+
+    install -d -m 0700 a/b/c   →   a 755, a/b 755, a/b/c 700
+
+**Modus und Eigentümer gelten nur für die letzte Ebene.** `create_storage()`
+legt `/var/lib/srvpanel/storage` an; der Elternteil fiel nebenbei an und gehörte
+dem Aufrufer.
+
+> **Ein Verzeichnis, das nebenbei entsteht, gehört dem, der zufällig da war.**
+
+Aufgefallen ist es lange nicht, weil der Dienst in `storage/` schreibt und das
+ihm gehört. Der Fehlschlag hat dabei genau die Form, vor der
+`packaging/bin/srvpanel` in seinem eigenen Kommentar warnt:
+
+> **Ein Befehl, der schweigt, sieht aus wie einer, der nichts gefunden hat.**
+
+**Und `packaging/testbed.sh` sah daneben**: Er fragte `test -d
+/var/lib/srvpanel`. Vorhanden war es die ganze Zeit.
+
+> **Eine Prüfung, die nur nachsieht, dass etwas da ist, sagt nichts darüber, wem
+> es gehört.**
+
+`create_storage()` legt den Elternteil jetzt ausdrücklich an — `install -d`
+zieht Modus und Eigentümer auch bei einem vorhandenen Verzeichnis nach, die
+Zeile richtet bestehende Installationen also mit. Der Prüfstand vergleicht
+`stat -c "%a %U:%G"` gegen den erwarteten Wert, und
+`PackagingTest::test_the_data_directory_belongs_to_the_service` hält beides.
+Zwei neue Brüche im Bruchskript.
+
+
+### P6 — die Suche im Dateimanager ist seit ihrem ersten Tag abgewiesen worden
+
+**Gefunden am 21. August auf `cloudsrv24`**, bei Punkt 9 des Serverlaufs zu
+`v0.6.0-rc.20` (`docs/66`, Befund 5). Der Betreiber meldete „das Feld bleibt
+nicht angehakt"; auf dem Bild stand darüber:
+
+> Das Feld Inhalt muss wahr oder falsch sein.
+
+Beide Eingaben schickten `content: <ref>.value` durch `router.get` — und
+`router.get` legt seine Werte in die **Adresse**. Nachgemessen gegen das
+ausgelieferte `@inertiajs/core`:
+
+    false -> …/files/search?query=x&path=%2F&content=false
+    true  -> …/files/search?query=x&path=%2F&content=true
+
+Laravels Regel `boolean` nimmt `true, false, 1, 0, "1", "0"` — und kein Wort.
+Sie weist also **beide** Zustände ab: Die Suche im Dateimanager ist seit P6
+Schritt 5 an keinem Tag durchgekommen, nicht nur die im Inhalt.
+
+> **Dieselbe Regel über einem Wert, der einmal als JSON und einmal als
+> Zeichenkette reist, gilt nur einmal.**
+
+Der Gegenbeleg stand in derselben Datei: `recursive` trägt dieselbe Regel und
+funktioniert, weil es im Rumpf eines `DELETE` reist und dort ein echter
+Wahrheitswert bleibt. Aufgefallen ist es erst jetzt, weil man `Search.vue`
+bisher nur erreichte, indem man schon gesucht hatte — Wunsch 3 hat die Leiste
+dorthin gestellt, wo jemand sie drückt.
+
+> **Ein Fehler, den man am auffälligen Fall entdeckt, ist selten auf den
+> auffälligen Fall beschränkt.**
+
+Behoben an **beiden** Enden: Die Seiten schicken `1`/`0`, und die Route prüft
+mit `in:0,1` statt `boolean` — eine GET-Route bekommt ihre Werte aus der
+Adresse, und dort ist alles eine Zeichenkette.
+
+**`FileSearchTest::test_both_inputs_send_the_same_values` war dabei grün.** Er
+vergleicht die Schlüssel, die beide Seiten schicken, und beide schickten
+denselben kaputten Wert.
+
+> **Zwei Eingaben, die dasselbe schicken, schicken auch denselben Fehler.**
+
+`QueryBooleanTest` prüft deshalb beide Richtungen: keine GET-Route benutzt
+`boolean`, und die Suche schickt `1`/`0`. Gemessen sind 43 Methoden hinter
+GET-Routen, von denen genau **eine** überhaupt Eingaben prüft — die Untergrenze
+steht auf dieser Eins, damit eine Null nicht als „keine Falle gefunden"
+durchgeht. Drei neue Brüche im Bruchskript, einer davon gegen die Auslese
+selbst.
+
+### P6 — die Umrechnung während des Tippens, und ein Wächter, der Klammern zählt
+
+**Wunsch 4 des Betreibers**, bestellt am 20. August beim Messen von Punkt 5:
+
+> Bitte eine Live-Umrechnung einbauen und anzeigen, die sofort anzeigt, in
+> welchem Rhythmus der anzulegende Job läuft. Keine zusätzliche Eingabe, nur
+> eine Anzeige.
+
+**Die Seite übersetzt weiterhin nicht selbst — sie fragt.** `Cron.vue` durfte
+das noch nie, und `CronScheduleFormTest` hält es: Den Satz baut `Spoken` auf dem
+Server, die Fälligkeiten `Occurrence`. Beides in TypeScript nachzubauen hiesse,
+dieselbe Regel in zwei Sprachen zu pflegen.
+
+> **Eine Zusammenfügung darf doppelt stehen, eine Regel nicht.**
+
+`GET /subscriptions/{subscription}/cron/preview` trägt dieselbe Fähigkeit wie
+die Seite und gibt `{ spoken, next }` zurück — den Satz und die **drei** nächsten
+Fälligkeiten, durch `Clock` in die Anzeigezone. Drei und nicht zwei: „am 22. um
+03:15, am 23. um 03:15" liest sich wie täglich und wie alle 24 Stunden
+gleichermassen.
+
+`Schedule::parse()` bleibt die einzige Schranke. Eine unfertige Eingabe bekommt
+keine Fehlermeldung, sondern eine leere Antwort — wer beim dritten Zeichen einer
+Spanne rot wird, wird bei jeder Spanne rot.
+
+**Gemessen im Container ohne Framework**, gegen die echten Klassen:
+`0 9 * * 1-5` springt vom Freitag auf den Montag; ein Plan alle fünfzehn Minuten
+bekommt **keinen Satz** und trotzdem drei Zeitpunkte; der 30. Februar bekommt
+gar keinen; Unsinn wird abgewiesen. Der dritte Fall ist der Grund für die
+Fälligkeiten: Sie brauchen keine Übersetzungsregel und gibt es deshalb auch
+dort, wo `Spoken` schweigt.
+
+**Beim Bauen dazugekommen und im Plan nicht vorgesehen:** Zwei Anfragen können
+sich überholen. Jede trägt jetzt eine Nummer, geprüft an **beiden** Ausgängen.
+
+> **Zwei Antworten, die beide stimmen, ergeben zusammen eine falsche Anzeige,
+> wenn die Reihenfolge fehlt.**
+
+**Und ein Wächter, der über diesen Wunsch hinausgeht.** Am 20. August hatte
+`})})` einen `watch` samt seinem `ref` in einen Rückruf verschoben; er wurde nie
+registriert, das Merkmal war von seinem ersten Tag an wirkungslos, und `vue-tsc`
+wie `npm run build` liefen durch.
+
+> **Ein Wächter, der Wörter liest, sieht keine Klammern.**
+
+`TopLevelSetupTest` liest deshalb keine Wörter, sondern **zählt Klammern**: Was
+am linken Rand einer `.vue` steht, sieht nach oberster Ebene aus — er vergleicht
+diesen Eindruck mit der tatsächlichen Verschachtelung. Gemessen sind 61 Dateien
+mit 515 Erklärungen am Rand.
+
+### P6 — das Messmittel meldete auf jeder Seite Geisterzeilen
+
+**Befund 2 aus `docs/66`.** `tests/bilder-messen.js` führte in `schiebt` jede
+Beschriftung auf, die nur für die Vorlesesoftware da ist. Die übliche Technik
+dafür ist `width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%)` —
+ein solcher Kasten hat **immer** `scrollWidth > clientWidth`, und `hidden` steht
+nicht in der Liste der erlaubten Roller.
+
+Gemessen im echten Chromium gegen das gebaute Stylesheet, vorher und nachher:
+
+    vorher:   schiebt: [span.sr 42, span.sr 42, thead 379, tr 351, div 287]
+    nachher:  schiebt: [div 287]     versteckt: 4
+
+Vier von fünf Zeilen waren gewollt. Wer sie dreimal überliest, überliest beim
+vierten Mal den echten Fund.
+
+> **Eine Liste, die auch das Gewollte nennt, ist ein Hinweis und kein Urteil.**
+
+Drei Eigenschaften des Filters, ohne die er falsch wäre: **beide Merkmale
+zusammen** (über `overflow: hidden` allein fiele jeder Rollbehälter darunter),
+**die Vorfahren dazu** (bei `.stacks thead` trägt nur der Kopf die Klippung; das
+`tr` darin ist 1 px breit, weil sein Behälter es ist) und **die Zahl daneben** —
+`versteckt` steht im Ergebnis, damit sich eine kurze Liste nicht wie eine heile
+Seite liest.
+
+> **Kein stiller Deckel: Wer die Sicht begrenzt, nennt die Zahl dazu.**
+
+**Und der Stand des Messmittels hat dabei einen alten Eingriff gebrochen.** Er
+suchte `const STAND = '2026-08-19'` wörtlich; `BreakScriptTest` hat es gemeldet,
+bevor die CI es tat. Ein regulärer Ausdruck wäre die naheliegende Antwort und
+die falsche gewesen: `interventions()` liest `s.replace(…)` und zugewiesene
+Zeichenketten, kein `re.subn` — der Eingriff wäre datumsunabhängig **und für den
+Wächter unsichtbar** geworden.
+
+> **Ein Eingriff, den der Wächter über die Eingriffe nicht lesen kann, ist
+> genauso gut wie keiner — nur meldet niemand es.**
+
+### P6 — die Fehlermeldung nannte Felder, die auf der Seite anders heissen
+
+**Befund 3 aus `docs/66`.** Auf `/subscriptions/140/cron` stand nach einem leer
+abgeschickten Formular:
+
+> Das Feld **Bezeichnung** ist erforderlich.
+
+Auf dieser Seite heisst das Feld **Beschriftung**. „Bezeichnung" kommt dort
+nirgends vor — der Kunde sucht ein Feld, das er nicht sieht.
+
+Das war ein Fehler in der Behebung des vorigen Befundes: Die 85 deutschen Namen
+waren vollständig eingetragen, aber nie gegen die sichtbare Beschriftung ihrer
+Seite gehalten. `AttributeNameTest` zählt, dass jedes Feld einen Namen **hat**;
+über den Namen selbst sagt er nichts.
+
+> **Ein Wächter über die Vollständigkeit sagt nichts über die Richtigkeit.**
+
+**Nachgemessen über alle Seiten:** 68 Paare aus Beschriftung und Feld, davon
+**fünfzehn** Abweichungen — mehr als die neun, die der Lauf gefunden hatte,
+weil die Messung dort nur `v-model="form.…"` kannte und nicht `konto.…`,
+`newFile.…`, `userForm.…`.
+
+Elf sind behoben, jede am Aufruf und nicht in der allgemeinen Liste: Ein Feld
+heisst nicht überall gleich. `label` heisst „Name" (neue Datenbank),
+„Weiterer Zugang" (zweiter Zugang) und „Beschriftung" (Cronjob); `path` heisst
+im selben Dateimanager „Name der Datei" und „Name des Verzeichnisses", in zwei
+Formularen, die zwei verschiedene Vorgänge bedienen. Dazu `directory` →
+„Zertifizierungsstelle" (bisher „Verzeichnis", was in den Dateimanager
+geschickt hätte), `email` → „Anmeldeadresse", `notes` → „Vermerk",
+`postal_code` → „PLZ", `engine` → „System", `from_address` → „Adresse".
+
+Zwei bleiben mit Begründung stehen: „Ausgeliefert wird" ist ein Satzanfang und
+kein Name, und „Erreichbar von — für {{ … }}" trägt einen eingesetzten Wert.
+
+`AttributeLabelTest` hält beides. Er vergleicht die Beschriftung gegen eine
+**Menge** — den allgemeinen Namen und jeden, den die Steuerung dieser Seite am
+Aufruf setzt — mit zwei Sieben (Enthaltensein ohne Rücksicht auf die
+Grossschreibung; begründete Ausnahmen). Die Grenze steht in seinem Kopf: Die
+Namen werden je Datei gesammelt und nicht je Methode.
+
+> **Ein Wächter, der eine Menge vergleicht, findet das Fehlende und nicht das
+> Vertauschte.**
+
+### P6 — das Protokoll nannte die Art der Handlung und nie ihren Gegenstand
+
+**Befund 7 aus `docs/66`**, gefunden in der Gegenprobe zu Punkt 8. Auf `/audit`
+stand nach dem Eintragen eines SSH-Schlüssels:
+
+    AKTION   sftp.key.add
+    ZIEL     —
+
+Der Fingerabdruck war aufgezeichnet — `context: ['fingerprint' => …]` — und
+durch keine Oberfläche zu erreichen: `toArrayRow()` legte acht Felder auf die
+Seite und `context` war keines davon, `Audit/Index.vue` hatte fünf Spalten, und
+der Export baute seine Zeile aus derselben Ablage.
+
+**Das galt für die ganze Stufe.** Ausgezählt über `app/`: 19 Aufrufe mit
+`target:`, **18 mit `context:` und ohne** — und alle achtzehn sind P6 oder
+Anmeldevorgänge. Bei den Anmeldungen ist es richtig, dort gibt es kein Ziel. Bei
+den anderen fünfzehn gab es eines, und `Audit::record()` hat den Parameter seit
+P0; die früheren Stufen benutzen ihn (`plan.created`, `domain.created`,
+`operation.started`).
+
+Was das Protokoll damit sagte: `file.removed` — nicht welche Datei.
+`file.chmod` — nicht welche und nicht worauf. `sftp.key.remove` — nicht welcher
+Schlüssel.
+
+> **Ein Protokoll, das die Art der Handlung nennt und nicht ihren Gegenstand,
+> beantwortet die Frage, die niemand stellt.**
+
+> **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht von
+> einem zu unterscheiden, das es nicht gibt.**
+
+**Behoben an drei Stellen und mit einem Satz.** `AuditQuery::details()` baut aus
+dem Zusammenhang eine lesbare Zeile — `job: Nachtlauf · schedule: 15 3 * * *` —,
+und Liste wie Export lesen dieselbe. Der Satz entsteht dort und nicht auf der
+Seite, aus demselben Grund, aus dem beide Wege schon durch dieselbe Sichtbarkeit
+gehen: Zwei Formulierungen laufen auseinander. Er ist bei 200 Zeichen gedeckelt
+und **sagt es dann**.
+
+> **Kein stiller Deckel: Wer die Sicht begrenzt, nennt es dazu.**
+
+Dazu tragen die fünf Handlungen mit einem Modell jetzt ihr Ziel — die drei
+`cron.job.*` und die beiden `sftp.key.*`. Bei `cron.job.remove` steht es auch
+dann drin, wenn es die Zeile nicht mehr gibt: `$job` ist nach dem Entfernen noch
+im Speicher, und seine Kennung ist genau das, wonach jemand später sucht.
+
+`AuditContextTest` hält alle vier Teile. **Sein Wächter über den Deckel war beim
+ersten Anlauf grün**, als der Bruch die Ansage aus dem Code nahm — das Wort
+„gekürzt" stand noch in der Erklärung darüber. Er liest seitdem den Rumpf der
+Methode und nicht die Datei.
+
+> **Ein Wächter, der einen Satz sucht statt seiner Erreichbarkeit, ist grün,
+> sobald der Satz irgendwo steht.**
+
+Vier neue Brüche.
+
+### P6 — die Vorschau baute sich ihren HTTP-Weg selbst
+
+Der erste Wurf von Wunsch 4 war ein `GET` mit einem eigenen `fetch` in
+`Cron.vue`. Beides ist falsch, und beides hat der Durchlauf **aller** Wächter
+gemeldet — nicht das Nachdenken beim Bauen.
+
+`usePanelRequest.ts` trägt die Regel in seinem eigenen Kopf: Es gibt genau eine
+Stelle mit einem `fetch`, sie schickt immer `POST`, und ein Wert des Kunden
+landet nie in einer Adresse — dort stünde er im Zugriffsprotokoll des
+Webservers, in der Verlaufsliste des Browsers und in jedem `Referer`. Ein
+Zeitplan ist eine Eingabe des Kunden.
+
+> **Ein Mechanismus, den zwei Stellen selbst bauen, hat zwei Fassungen — und die
+> zweite ist die, die eine der drei Kopfzeilen vergisst.**
+
+Der zweite Fund desselben Durchlaufs: `cron/preview` stand nicht in
+`tests/mandant-messen.js`, dem Prüfstand der Mandantenklammer. Eine Route, die
+der Lauf nicht kennt, wird nicht gemessen — und er meldet trotzdem „alle
+gehalten".
+
+> **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
+> gefahren — man denkt an das Gebaute und nicht an das Berührte.**

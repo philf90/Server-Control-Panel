@@ -279,6 +279,14 @@ final class FileController extends Controller
         $data = $request->validate([
             'path' => ['required', 'string', 'max:4096'],
             'content' => ['present', 'nullable', 'string'],
+        ], [], [
+            /*
+             * **Der Name muss heissen wie das Feld auf der Seite** (`docs/66`,
+             * Befund 3). Siehe `makeDirectory()`: `path` heisst auf derselben
+             * Seite zweimal etwas anderes, und welches gemeint ist, weiss
+             * allein der Vorgang, der die Eingabe entgegennimmt.
+             */
+            'path' => 'Name der Datei',
         ]);
 
         $result = $this->attempt(
@@ -319,7 +327,18 @@ final class FileController extends Controller
 
     public function makeDirectory(Request $request, Subscription $subscription): RedirectResponse
     {
-        $data = $request->validate(['path' => ['required', 'string', 'max:4096']]);
+        /*
+         * **Der Name muss heissen wie das Feld auf der Seite** (`docs/66`,
+         * Befund 3). `path` heisst auf derselben Seite zweimal etwas anderes —
+         * im einen Formular „Name der Datei", im anderen „Name des
+         * Verzeichnisses". Die Liste kann nur eines tragen; welches gemeint
+         * ist, weiss allein der Vorgang, der die Eingabe entgegennimmt.
+         */
+        $data = $request->validate(
+            ['path' => ['required', 'string', 'max:4096']],
+            [],
+            ['path' => 'Name des Verzeichnisses'],
+        );
 
         $this->attempt(fn (): array => $this->files->makeDirectory($subscription, $data['path']));
 
@@ -692,7 +711,19 @@ final class FileController extends Controller
         $data = $request->validate([
             'query' => ['required', 'string', 'max:255'],
             'path' => ['nullable', 'string', 'max:4096'],
-            'content' => ['boolean'],
+            /*
+             * **`in:0,1` und nicht `boolean`** (`docs/66`, Befund 5). Dieser
+             * Wert reist in der Adresse, und dort ist alles eine Zeichenkette:
+             * Aus `false` wird `"false"`, und `boolean` nimmt
+             * `true, false, 1, 0, "1", "0"` — kein Wort. Die Suche war damit
+             * seit P6 Schritt 5 in **beiden** Zuständen des Kästchens
+             * unerreichbar.
+             *
+             * Der Gegenbeleg steht in derselben Datei: `recursive` trägt
+             * dieselbe Regel und funktioniert, weil es im Rumpf eines `DELETE`
+             * reist und dort ein echter Wahrheitswert bleibt.
+             */
+            'content' => ['sometimes', 'in:0,1'],
         ]);
 
         $result = $this->attempt(fn (): array => $this->files->search(

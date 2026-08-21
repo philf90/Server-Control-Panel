@@ -28,6 +28,15 @@ use Illuminate\Database\Eloquent\Builder;
 final class AuditQuery
 {
     /**
+     * Wie lang der Satz zum Zusammenhang höchstens wird.
+     *
+     * Zweihundert Zeichen tragen jeden Fall, den dieses Panel schreibt — der
+     * längste ist eine Liste von Pfaden, und die ist danach als gekürzt
+     * gekennzeichnet.
+     */
+    public const DETAILS_MAX = 200;
+
+    /**
      * Was dieses Konto sehen darf.
      *
      * `AuditEvent` trägt keine Mandantenklammer — ein Protokoll muss auch
@@ -188,6 +197,87 @@ final class AuditQuery
                 ? class_basename($event->target_type).'#'.$event->target_id
                 : null,
             'ip_address' => $event->ip_address,
+
+            /*
+             * **Der Zusammenhang, und zwar hier gebaut** (`docs/66`, Befund 7).
+             *
+             * Bis zum 21. August wurde `context` geschrieben und von keiner
+             * Oberfläche gelesen: weder von dieser Ablage noch von den fünf
+             * Spalten der Seite noch vom Export. Das Protokoll sagte damit über
+             * die ganze Stufe P6 die **Art** der Handlung und nie ihren
+             * Gegenstand — `file.removed` ohne die Datei, `sftp.key.remove`
+             * ohne den Schlüssel. Für einen Schlüssel, der Zugang zu allen
+             * Dateien eines Abonnements gibt, ist „welcher" die einzige Frage,
+             * für die man ein Protokoll aufschlägt.
+             *
+             * > **Ein Protokoll, das die Art der Handlung nennt und nicht ihren
+             * > Gegenstand, beantwortet die Frage, die niemand stellt.**
+             *
+             * **Der Satz entsteht hier und nicht auf der Seite**, aus demselben
+             * Grund wie die Sichtbarkeit: Liste und Export gehen durch dieselbe
+             * Abbildung, und zwei Formulierungen laufen auseinander.
+             */
+            'details' => self::details($event->context),
         ];
+    }
+
+    /**
+     * Der Zusammenhang eines Eintrags als ein lesbarer Satz.
+     *
+     * **Gedeckelt, aber nicht stillschweigend.** Ein `paths` mit dreissig
+     * Einträgen machte die Zeile unlesbar; ein Satz, der aussieht wie der ganze
+     * Zusammenhang und es nicht ist, wäre die schlechtere Antwort auf dieselbe
+     * Grenze. Deshalb steht am Ende, dass gekürzt wurde.
+     *
+     * > **Kein stiller Deckel: Wer die Sicht begrenzt, nennt es dazu.**
+     *
+     * @param  array<string, mixed>|null  $context
+     */
+    private static function details(?array $context): ?string
+    {
+        if ($context === null || $context === []) {
+            return null;
+        }
+
+        $stuecke = [];
+
+        foreach ($context as $name => $wert) {
+            $stuecke[] = $name.': '.self::plain($wert);
+        }
+
+        $satz = implode(' · ', $stuecke);
+
+        return mb_strlen($satz) > self::DETAILS_MAX
+            ? mb_substr($satz, 0, self::DETAILS_MAX).' … (gekürzt)'
+            : $satz;
+    }
+
+    /**
+     * Ein Wert aus dem Zusammenhang als Text.
+     *
+     * **Wahrheitswerte als Wort und nicht als `1`.** Im Protokoll steht
+     * `recursive: ja`, weil `recursive: 1` beim Lesen nach einer Anzahl
+     * aussieht.
+     */
+    private static function plain(mixed $wert): string
+    {
+        if (is_bool($wert)) {
+            return $wert ? 'ja' : 'nein';
+        }
+
+        if ($wert === null) {
+            return '—';
+        }
+
+        if (is_array($wert)) {
+            return implode(', ', array_map(self::plain(...), $wert));
+        }
+
+        if (is_scalar($wert)) {
+            return (string) $wert;
+        }
+
+        // Nichts von alledem — dann lieber roh als gar nicht.
+        return (string) json_encode($wert, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 }

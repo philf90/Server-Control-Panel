@@ -31,11 +31,19 @@ const props = defineProps<{
 const begriff = ref(props.query)
 const imInhalt = ref(props.inContent)
 
+/*
+ * **`1` und `0`, nicht `true` und `false`** (`docs/66`, Befund 5).
+ * `router.get` legt die Werte in die Adresse, und eine Adresse kennt keine
+ * Wahrheitswerte: `false` reist als das Wort `"false"`. Laravels Regel
+ * `boolean` nimmt `true, false, 1, 0, "1", "0"` — und kein Wort. Die Suche
+ * ist deshalb seit P6 Schritt 5 an keinem Tag durchgekommen, in beiden
+ * Zuständen des Kästchens.
+ */
 function suchen(): void {
   router.get(`/subscriptions/${props.subscription.id}/files/search`, {
     query: begriff.value,
     path: props.path,
-    content: imInhalt.value,
+    content: imInhalt.value ? 1 : 0,
   })
 }
 </script>

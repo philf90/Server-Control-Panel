@@ -171,6 +171,17 @@ final class CustomerController extends Controller
             // spätestens die erste Rechnungsvorlage müsste raten.
             'country' => ['nullable', 'string', 'size:2', 'alpha'],
             'notes' => ['nullable', 'string', 'max:5000'],
+        ], [], [
+            /*
+             * **Der Name muss heissen wie das Feld auf der Seite** (`docs/66`, Befund 3).
+             * Die Liste in `lang/de/validation.php` trägt den Namen, der über alle Seiten
+             * passt; wo eine Seite ein anderes Wort benutzt, steht es hier. Sonst sucht der
+             * Leser ein Feld, das er nicht sieht.
+             *
+             * > **Ein Wächter über die Vollständigkeit sagt nichts über die Richtigkeit.**
+             */
+            'postal_code' => 'PLZ',
+            'notes' => 'Vermerk',
         ]);
 
         $before = $customer->only(array_keys($data));

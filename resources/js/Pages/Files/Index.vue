@@ -391,7 +391,9 @@ function search(): void {
   router.get(`/subscriptions/${props.subscription.id}/files/search`, {
     query: wanted,
     path: props.path,
-    content: inContent.value,
+    // `1`/`0` und nicht `true`/`false` — siehe `Search.vue` und `docs/66`,
+    // Befund 5. Ein Wahrheitswert in einer Adresse wird zum Wort.
+    content: inContent.value ? 1 : 0,
   })
 }
 

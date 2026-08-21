@@ -69,6 +69,17 @@ final class MailSettingsController extends Controller
 
             'from_address' => ['required', 'email', 'max:255'],
             'from_name' => ['required', 'string', 'max:255'],
+        ], [], [
+            /*
+             * **Der Name muss heissen wie das Feld auf der Seite** (`docs/66`, Befund 3).
+             * Die Liste in `lang/de/validation.php` trägt den Namen, der über alle Seiten
+             * passt; wo eine Seite ein anderes Wort benutzt, steht es hier. Sonst sucht der
+             * Leser ein Feld, das er nicht sieht.
+             *
+             * > **Ein Wächter über die Vollständigkeit sagt nichts über die Richtigkeit.**
+             */
+            'from_address' => 'Adresse',
+            'password_clear' => 'Hinterlegtes Passwort entfernen',
         ]);
 
         $current = $settings->mail();

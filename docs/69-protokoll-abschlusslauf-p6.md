@@ -33,7 +33,7 @@ tragen.
 | 1 | Die Archive durch die echte Route | nichts ausserhalb, `beweis` drinnen | nichts ausserhalb, `beweis` drinnen, Gegenprobe trifft | **erfüllt** |
 | 2 | Durch einen Verweis hinaus schreiben | Ziel unverändert, Gegenprobe schreibt | Ziel unberührt, `beweis`=`DURCHGEKOMMEN`, Agent sah beide | **erfüllt** |
 | 3 | Die Umbruchregel auf zwei weiteren Seiten | `dokument: 0`, `schiebt` nur `.stacks thead` | — | **offen** |
-| 4 | `id` am Vorgang | `ran_as.uid` = `id -u p1139` | — | **offen** |
+| 4 | `id` am Vorgang | `ran_as.uid` = `id -u p1139` | 1002 = 1002, groups 1002; ausserhalb kein `ran_as` | **erfüllt** |
 | 5 | Die Rechte an `/var/lib/srvpanel` | `750 srvpanel:srvpanel`, auch nach dem Neustart | — | **offen** |
 
 ---
@@ -213,6 +213,34 @@ keiner.
 
 > **Eine Variable, die eine Sitzung nicht überlebt, macht aus einem richtigen
 > Befehl einen falschen — lautlos.**
+
+---
+
+## 1d. Punkt 4 — `id` am Vorgang
+
+**Gemessen am 21. August 2026 auf `cloudsrv24` gegen `v0.6.0-rc.24`**, teils schon
+in Punkt 2 mitgelesen. Die halbe Hälfte von Kriterium 13: nicht „`uid` ist nicht
+0", sondern „`uid` ist **die des Abonnements**".
+
+| | erwartet | gemessen |
+|---|---|---|
+| `id -u p1139` / `id -G p1139` | eine Zahl > 0 | **1002 / 1002** |
+| `ran_as` der `files.*`-Vorgänge | dieselbe Zahl | **`{"uid":1002,"groups":[1002]}`** |
+| `system.`/`service.`-Vorgänge mit `ran_as` | keiner | **0** |
+
+**Die dritte Zeile ist die Gegenprobe.** Wäre `ran_as` ein Feld, das jeder
+Vorgang mitschreibt, sähe es aus wie eine Messung. Dass die Vorgänge **ausserhalb**
+des Chroots es nicht tragen — `Connection` setzt es nur, wenn die Sandbox eine
+Kennung gemeldet hat —, macht die 1002 zum Beleg.
+
+> **Ein Feld, das überall gleich dasteht, belegt nicht, dass jemand es gefüllt
+> hat.**
+
+**Und die Zahl schliesst den Faden aus Punkt 0:** Dort war `p1139 = 1002`
+dieselbe Kennung, die in `docs/62` `p1138` trug. Hier ist sie im selben Augenblick
+gemessen — `id` und `ran_as` nebeneinander — und nicht gegen eine Zahl von
+vorgestern gehalten. Ob `p1138` fort ist, ändert daran nichts: Der Vorgang meldet
+die Kennung, die `id` **jetzt** für `p1139` nennt.
 
 ---
 

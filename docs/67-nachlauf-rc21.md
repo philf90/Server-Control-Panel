@@ -17,7 +17,7 @@ vorigen Laufs.
 
 | | Rahmen | |
 |---|---|---|
-| Fassung | `v0.6.0-rc.21`, ab Befund 1 **`v0.6.0-rc.22`** | |
+| Fassung | `v0.6.0-rc.21`, ab Befund 1 **`v0.6.0-rc.22`**, ab Befund 4 `v0.6.0-rc.23`, Punkt 4 **`v0.6.0-rc.24`** | |
 | Server | `cloudsrv24` | |
 | Abonnement | 140, `p6-abnahme.invalid`, Systembenutzer `p1139` | |
 | Messmittel | `tests/bilder-messen.js`, Stand **2026-08-21** | mit `versteckt` |
@@ -36,7 +36,7 @@ die Kästen, die nur für die Vorlesesoftware da sind und deshalb nicht mehr in
 | 1 | Suche ohne und mit Häkchen | beide Male eine Trefferliste | `content=0` und `content=1`, beide Male Treffer, Häkchen bleibt | **erfüllt** |
 | 2 | Vorschau auf der Cronseite | Satz und drei Fälligkeiten | Satz da, drei Fälligkeiten, Zone umgerechnet; `*/15` ohne Satz mit drei Zeitpunkten | **erfüllt** |
 | 3 | Entprellung | deutlich unter 20 Anfragen, mindestens 1 | **1** zügig gegen **20** langsam | **erfüllt** |
-| 4 | `/audit` bei 390 px | `dokument: 0` | `dokument: 0`, aber `schiebt` voll | **nicht erfüllt — Befund 6** |
+| 4 | `/audit` bei 390 px | `dokument: 0` und `schiebt` leer | zuerst `schiebt` voll (Befund 6); gegen rc24 `schiebt: []` in beiden Themes | **erfüllt — nachgeholt** |
 | 5 | Eine Protokollzeile nennt ihr Stück | `job: … · schedule: …` | Ziel **und** Einzelheiten da; Einzelheiten auch rückwirkend | **erfüllt** |
 
 ---
@@ -209,17 +209,63 @@ nicht mehr gibt.**
 
 ---
 
-## 1e. Der Lauf im Ganzen
+## 1e. Punkt 4 — nachgeholt gegen `v0.6.0-rc.24`
 
-**Fünf Punkte, vier erfüllt, einer nicht** — und **sechs Befunde**, von denen
-drei erst durch diesen Lauf entstanden sind:
+**Gemessen am 21. August auf `cloudsrv24` gegen `v0.6.0-rc.24`**, `/audit` bei
+390 px, `tests/bilder-messen.js` Stand `2026-08-21`, beide Themes:
+
+| | dunkel | hell |
+|---|---|---|
+| `stand` | `2026-08-21` | `2026-08-21` |
+| `breite` | 390 | 390 |
+| `dokument` | **0** | **0** |
+| `gegenprobe` | **200 / 200** | **200 / 200** |
+| `schiebt` | **`[]`** | **`[]`** |
+| `rollt` | `[]` | `[]` |
+| `versteckt` | 2 | 2 |
+
+**`schiebt` ist leer** — die gute Dutzend Einträge aus Befund 6 (`table.stacks`
+145, `tbody` 145, `td.quiet` 150–160) sind fort. Die eine Regel an `.stacks td`
+trägt also das, wofür es vorher fünf Ausnahmen für fünf bestimmte Inhalte gab.
+
+**Drei Zahlen daneben machen die Null erst zu einer Messung:**
+
+- **`gegenprobe: 200/200`.** Der Prüfkörper hängt an `scrollWidth + 200` und
+  schlägt deshalb auf der heilen Seite genauso aus wie auf der kaputten. Ohne
+  ihn wäre `schiebt: []` nicht von einem Skript zu unterscheiden, das nichts
+  gemessen hat.
+- **`versteckt: 2`.** Kein Fund, sondern die beiden Kästen für die
+  Vorlesesoftware, die seit Befund 2 aus `schiebt` heraus und in ihre eigene
+  Zahl gewandert sind. Ein stiller Deckel wäre es erst, wenn sie ungezählt
+  verschwänden.
+- **`dokument: 0`.** Für sich allein hätte das nichts gesagt — es stand auch im
+  ersten Anlauf so da, während die Kärtchen 145 px überliefen. Der
+  Rollbehälter fing es auf.
+
+> **Dieselbe Null bedeutet zweimal etwas anderes, je nachdem, was daneben
+> steht.**
+
+**Dass beide Themes bis auf `thema` Zeichen für Zeichen dasselbe melden, ist
+das erwartete Ergebnis und kein Zufall:** Die Regel steht im ≤720-px-Block von
+`app.css` und hängt an keiner Farbe. Ein Unterschied zwischen hell und dunkel
+wäre hier der eigentliche Fund gewesen.
+
+**Damit ist Befund 6 auf einem echten Server belegt** und nicht nur behoben —
+und der Nachlauf hat kein offenes Kriterium mehr.
+
+---
+
+## 1f. Der Lauf im Ganzen
+
+**Fünf Punkte, alle fünf erfüllt** — Punkt 4 erst im zweiten Anlauf — und
+**sechs Befunde**, von denen drei erst durch diesen Lauf entstanden sind:
 
 | # | Punkt | |
 |---|---|---|
 | 1 | Suche ohne und mit Häkchen | **erfüllt** |
 | 2 | Vorschau auf der Cronseite | **erfüllt** (alle drei Teilschritte) |
 | 3 | Entprellung | **erfüllt** — 1 gegen 20 |
-| 4 | `/audit` bei 390 px | **nicht erfüllt — Befund 6**, behoben, wartet auf eine Fassung |
+| 4 | `/audit` bei 390 px | **erfüllt** — im ersten Anlauf Befund 6, gegen rc24 nachgeholt |
 | 5 | Protokollzeile nennt ihr Stück | **erfüllt** |
 
 **Was dieser Lauf über sich selbst sagt:** Von den sechs Befunden stecken
@@ -491,7 +537,8 @@ Kaskade nach — nicht das Vorhandensein der Zeile, sondern welche Regel an eine
 gestapelten Zelle **gewinnt**. Zwei Brüche: die Regel weg, und `break-word`
 statt `anywhere`.
 
-**Punkt 4 ist damit nicht erfüllt** und wartet auf eine Fassung mit dem Fix.
+**Punkt 4 war damit im ersten Anlauf nicht erfüllt.** Nachgeholt ist er gegen
+`v0.6.0-rc.24` — die Messung steht in §1e.
 
 ### Befund 5 — meine eigene Prüfung rannte gegen den Start
 
@@ -549,3 +596,24 @@ aktiven. Der Befehl führte von einem 500er zu „File not Found".
 ## 3. Was offen bleibt
 
 *(Ein Protokoll ohne seine Lücken liest sich wie eine Abnahme.)*
+
+**Kein Punkt dieses Laufs.** Alle fünf sind gemessen, der letzte gegen
+`v0.6.0-rc.24`. Was offen bleibt, sind zwei Dinge daneben:
+
+**1. Die zweite Fassung des Prüfstands — eine Entscheidung des Betreibers.**
+`packaging/testbed.sh` und die eingebaute Fassung in `.github/workflows/ci.yml`
+sagen dasselbe, und nur die zweite läuft (Befund 3). Der Schritt aus Befund 5
+steht in beiden, damit sie wenigstens nicht auseinanderlaufen — aber das ist
+Pflege und keine Lösung. Ob die CI das Skript künftig *aufruft*, ist ein Umbau
+am Workflow; ich habe ihn nicht von mir aus gemacht.
+
+> **Zwei Fassungen derselben Prüfung, die man gleich hält, sind kein Zustand,
+> sondern eine Aufgabe, die sich wiederholt.**
+
+**2. Der Bestand auf `cloudsrv24`, den dieser Lauf hinterlassen hat.** Der
+Testjob `Y` läuft alle 15 Minuten weiter, und das Kontingent des Abonnements
+140 steht bei 8 von 10. Beides ist Aufräumen und kein Befund — es steht hier,
+weil ein Rest, den niemand aufschreibt, beim nächsten Lauf als Messwert
+auftaucht.
+
+> **Ein Prüfkörper, den man stehen lässt, ist beim nächsten Lauf Bestand.**

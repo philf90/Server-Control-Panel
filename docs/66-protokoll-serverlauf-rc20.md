@@ -40,7 +40,7 @@ dem, was er über den Prüfling **oder über das Prüfmittel** sagt.
 | 7 | Zielbaum im Bild | `oben` ≥ 0 | | |
 | 8 | Schlüssel erzeugen und anmelden | Anmeldung gelingt, Fremdschlüssel abgewiesen | | |
 | 9 | Suchleiste | ab 720 px da, Pfad sichtbar, Inhalt übertragen | | |
-| 10 | Kopfleiste am Telefon | eine Zeile, vier ganze Wörter | | |
+| 10 | Kopfleiste am Telefon | eine Zeile, vier ganze Wörter | `zeilen: 1`, `hoehe: 120`, alle vier Sätze vollständig | erfüllt, hell und dunkel |
 | 11 | Gegenprobe des Laufs | `dokument` ≫ 0 | | |
 
 ---
@@ -103,6 +103,56 @@ seitdem `stat -c "%a %U:%G"` gegen `750 srvpanel:srvpanel`, und
 
 **Der Lauf war dadurch nicht blockiert:** Die Kennungen kommen auch ohne psysh,
 direkt aus der Datenbank.
+
+### Punkt 10 — die Kopfleiste, und der Aufsatz trifft aufs Pixel
+
+Bei 390 px, **hell und dunkel dieselben Zahlen:**
+
+    dokument: 0     gegenprobe: 200/200     rollt: []
+    kopf: { hoehe: 120, zeilen: 1,
+            knoepfe: ["Verzeichnis anlegen", "Datei anlegen",
+                      "Datei Hochladen", "Suchen"] }
+
+**Eine Zeile statt vier**, und **120 px** — genau der Wert aus dem Aufsatz im
+Container. Das ist kein Zufall und die Bestätigung dessen, was in Befund 4 als
+Vorhersage stand: `kopf.hoehe` misst den Seitenkopf **selbst** und nicht seinen
+Abstand von oben. Band und Kopfzeile darüber verschieben ihn, machen ihn aber
+nicht höher.
+
+> **Eine Höhe überlebt den Umzug, ein Abstand nicht.**
+
+**Und die vier Sätze stehen vollständig da**, obwohl sichtbar nur „Verzeichnis /
+Datei / Hochladen / Suchen" auf den Knöpfen steht. Das Verb ist aus dem **Bild**
+genommen und nicht aus dem Dokument — der Knopf heisst für die Vorlesesoftware
+weiterhin „Verzeichnis anlegen".
+
+### Befund 2 bestätigt und erweitert — jetzt sind es auch die Verben
+
+Dieselbe Messung meldet unter `schiebt`:
+
+    span.verb   überlauf 46   <span class="verb"> anlegen</span>
+    span.verb   überlauf 46   <span class="verb"> anlegen</span>
+    span.verb   überlauf 30   <span class="verb">Datei </span>
+
+bei `dokument: 0`. `.verb` ist unter 720 px nach derselben Technik gebaut wie
+`.sr`: 1 px breit, geklippt. Der Prüfkörper meldet jeden so gebauten Kasten.
+
+**Damit ist Befund 2 nicht mehr eine Eigenheit einer Komponente, sondern eine
+Klasse** — und sie **wächst**: `.verb` habe ich am 20. August selbst
+hinzugefügt. Ohne Filter steht in `schiebt` bald mehr Gewolltes als Fund.
+
+> **Eine Liste, die auch das Gewollte nennt, ist ein Hinweis und kein Urteil —
+> und sie wird mit jedem neuen Merkmal unbrauchbarer.**
+
+**Nebenbei ist es der Beleg für die richtige Bauart:** Ein Wort mit
+`display: none` hätte `scrollWidth 0` und stünde gar nicht in der Liste. Dass
+die drei `span.verb` dort auftauchen, zeigt, dass sie im Dokument **sind** — und
+genau das verlangt WCAG 2.5.3 für den zugänglichen Namen.
+
+> **Dasselbe Messmittel, das hier falsch meldet, belegt an derselben Stelle das
+> Richtige.**
+
+---
 
 ### Punkt 6 — der Griff springt, und das Formular ist leer
 

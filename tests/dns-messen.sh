@@ -35,10 +35,10 @@ code() { curl -s --noproxy '*' --max-time 15 -o /dev/null -w '%{http_code}' -H "
 
 # Eine Frage an den Nameserver — ohne dig, weil das Programm sonst auf die
 # Positivliste des Agenten und als Abhängigkeit ins Paket müsste (`Resolver`).
-# $1 Name · $2 Typ als Zahl · $3 „do" setzt das DNSSEC-Bit
+# $1 Name · $2 Typ als Zahl · $3 „dnssec" setzt das DO-Bit der Anfrage
 frage() {
   php -r '
-    $name = $argv[1]; $typ = (int) $argv[2]; $do = ($argv[3] ?? "") === "do"; $port = (int) $argv[4];
+    $name = $argv[1]; $typ = (int) $argv[2]; $do = ($argv[3] ?? "") === "dnssec"; $port = (int) $argv[4];
     $s = @stream_socket_client("udp://127.0.0.1:$port", $e, $m, 3);
     if (! $s) { echo "KEINE VERBINDUNG\n"; exit(1); }
     $ar = $do ? 1 : 0;
@@ -162,8 +162,8 @@ zeile "Schlüssel und DS" "$(a "$B/zones/$ZONE./cryptokeys" | php -r '
   if (! is_array($j) || $j === []) { echo "KEINE\n"; exit; }
   foreach ($j as $k) { printf("%s %s · DS-2 %s\n", $k["keytype"], $k["algorithm"], substr($k["ds"][1] ?? "-", 0, 24)); }
 ')"
-zeile "DNSKEY wird ausgeliefert" "$(frage "$ZONE" 48 do)"
-zeile "A-Satz trägt jetzt eine Signatur" "$(frage "www.$ZONE" 1 do)"
+zeile "DNSKEY wird ausgeliefert" "$(frage "$ZONE" 48 dnssec)"
+zeile "A-Satz trägt jetzt eine Signatur" "$(frage "www.$ZONE" 1 dnssec)"
 
 echo
 echo "Hinweis: 'dnssec:false' wirkt im Bestand sofort, in der Auslieferung erst"

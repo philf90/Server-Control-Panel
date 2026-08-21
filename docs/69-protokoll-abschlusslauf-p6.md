@@ -32,9 +32,9 @@ tragen.
 | 0 | Die Fassung | `0.6.0-rc.24` | `0.6.0-rc.24` / `0.6.0~rc.24` | **erfüllt** |
 | 1 | Die Archive durch die echte Route | nichts ausserhalb, `beweis` drinnen | nichts ausserhalb, `beweis` drinnen, Gegenprobe trifft | **erfüllt** |
 | 2 | Durch einen Verweis hinaus schreiben | Ziel unverändert, Gegenprobe schreibt | Ziel unberührt, `beweis`=`DURCHGEKOMMEN`, Agent sah beide | **erfüllt** |
-| 3 | Die Umbruchregel auf zwei weiteren Seiten | `dokument: 0`, `schiebt` nur `.stacks thead` | — | **offen** |
+| 3 | Die Umbruchregel auf zwei weiteren Seiten | `dokument: 0`, `schiebt` leer | `schiebt: []` in allen vier Lagen, Bruch in der Zelle | **erfüllt** |
 | 4 | `id` am Vorgang | `ran_as.uid` = `id -u p1139` | 1002 = 1002, groups 1002; ausserhalb kein `ran_as` | **erfüllt** |
-| 5 | Die Rechte an `/var/lib/srvpanel` | `750 srvpanel:srvpanel`, auch nach dem Neustart | — | **offen** |
+| 5 | Die Rechte an `/var/lib/srvpanel` | `750 srvpanel:srvpanel`, auch nach dem Neustart | `750 srvpanel:srvpanel`, vor und nach dem Neustart gleich | **erfüllt** |
 
 ---
 
@@ -241,6 +241,84 @@ dieselbe Kennung, die in `docs/62` `p1138` trug. Hier ist sie im selben Augenbli
 gemessen — `id` und `ran_as` nebeneinander — und nicht gegen eine Zahl von
 vorgestern gehalten. Ob `p1138` fort ist, ändert daran nichts: Der Vorgang meldet
 die Kennung, die `id` **jetzt** für `p1139` nennt.
+
+---
+
+## 1e. Punkt 3 — die Umbruchregel auf zwei weiteren Seiten
+
+**Gemessen am 21. August 2026 auf `cloudsrv24` gegen `v0.6.0-rc.24`**, `/files`
+und `/cron` bei 390 px, `tests/bilder-messen.js` Stand `2026-08-21`, je Seite
+beide Themes. Der Prüfkörper ist ein Name ohne Bruchstelle: die Datei
+`SHA256-Sn3W6HvtgEGjDuvTnuZvc7Zys8zk1ndfoNv9EADbKjs.txt` in `boes` und ein
+Cronjob mit derselben Zeichenkette als Beschriftung.
+
+| Seite | Theme | `dokument` | `gegenprobe` | `schiebt` | `versteckt` |
+|---|---|---|---|---|---|
+| Dateien | dunkel | **0** | **200/200** | **`[]`** | 5 |
+| Dateien | hell | **0** | **200/200** | **`[]`** | 5 |
+| Cron | hell | **0** | **200/200** | **`[]`** | 3 |
+| Cron | dunkel | **0** | **200/200** | **`[]`** | 3 |
+
+**`schiebt` ist in allen vier Lagen leer** — nichts läuft über, obwohl auf beiden
+Seiten ein Name aus 44 ununterbrochenen Zeichen steht. Die Regel an `.stacks td`
+trägt also nicht nur auf `/audit`, sondern auf jeder gestapelten Tabelle.
+
+**Und das Bild sagt, was die Zahl nicht sagt** (`docs/63 §5.3`): Auf der Cronseite
+bricht `SHA256-Sn3W6…` **innerhalb seiner Zelle** über drei Zeilen, und die
+Beschriftung „BESCHRIFTUNG" links bleibt ganz. Kein Bruch mitten in einem kurzen
+Wort — der Preis der Regel wird nicht fällig.
+
+> **Eine Regel, die auf einer Seite gemessen und auf sechzehn wirksam ist, ist
+> auf fünfzehn eine Vermutung** — hier auf zweien davon nachgemessen und bestätigt.
+
+`versteckt` (5 auf `/files`, 3 auf `/cron`) zählt die Kästen für die
+Vorlesesoftware und ist kein Fund.
+
+---
+
+## 1f. Punkt 5 — die Rechte an `/var/lib/srvpanel`
+
+**Gemessen am 21. August 2026 auf `cloudsrv24` gegen `v0.6.0-rc.24`**, bei
+laufenden Diensten und über einen Neustart hinweg:
+
+| | vor dem Neustart | nach dem Neustart |
+|---|---|---|
+| `/var/lib/srvpanel` | **`750 srvpanel:srvpanel`** | **`750 srvpanel:srvpanel`** |
+| `/var/lib/srvpanel/storage` | `700 srvpanel:srvpanel` | `700 srvpanel:srvpanel` |
+| `/var/log/srvpanel` | **`750 srvpanel:srvpanel`** | **`750 srvpanel:srvpanel`** |
+
+Beide Dienste `active`, und der Modus stand **vor und nach** dem Neustart gleich.
+Vorher zog systemd ihn bei jedem Start auf `755 root:root` (`StateDirectory=` in
+einer root-Unit, Befund 1 aus `docs/67`); jetzt nicht mehr.
+
+> **Eine Prüfung, die zum falschen Zeitpunkt misst, misst einen Zustand, den es
+> im Betrieb nie gibt** — deshalb der Neustart und nicht ein blosses `stat`.
+
+**Damit ist der Rest aus `docs/61 §0` und `docs/62 §3` auf dem Server
+geschlossen** und nicht nur behoben.
+
+---
+
+## 1g. Der Lauf im Ganzen
+
+**Fünf Punkte, alle fünf erfüllt** — und die Rahmenprüfung (Punkt 0) dazu.
+
+| # | Punkt | |
+|---|---|---|
+| 0 | Die Fassung | **erfüllt** — `v0.6.0-rc.24` |
+| 1 | Die Archive durch die echte Route | **erfüllt** — nichts ausserhalb, Gegenprobe trifft |
+| 2 | Durch einen Verweis hinaus schreiben | **erfüllt** — Ziel unberührt, Agent sah beide |
+| 3 | Die Umbruchregel auf zwei weiteren Seiten | **erfüllt** — `schiebt: []` in vier Lagen |
+| 4 | `id` am Vorgang | **erfüllt** — 1002 = 1002, ausserhalb kein `ran_as` |
+| 5 | Die Rechte an `/var/lib/srvpanel` | **erfüllt** — `750`, auch nach dem Neustart |
+
+**Was dieser Lauf über sich selbst sagt:** Zwei seiner Befunde stecken im
+Prüfmittel, nicht im Panel — der `fetch`, der der Weiterleitung folgte, und die
+Variable, die eine Terminalsitzung nicht überlebte (beide in Punkt 2). Kein Panel-
+Befund; alle fünf Wände hielten beim ersten scharfen Versuch.
+
+**Damit ist das Abnahmekriterium von P6 durch die echte Route belegt**, und die
+vier Reste aus `docs/68 §0` sind geschlossen.
 
 ---
 

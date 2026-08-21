@@ -33,7 +33,7 @@ dem, was er über den Prüfling **oder über das Prüfmittel** sagt.
 |---|---|---|---|---|
 | 1 | Ein Wurzelelement | `1` | **`[1, 1]`** | erfüllt |
 | 2 | Rückmeldungen deutsch | keine Bezeichner | | |
-| 3 | Meldung der Experteneingabe | „Im Ausdruck fehlt der 4. Teil (Monat)." | | |
+| 3 | Meldung der Experteneingabe | „Im Ausdruck fehlt der 4. Teil (Monat)." | **wörtlich so, dazu der 5. Teil (Wochentag)**; `aria-invalid="true"` | erfüllt, hell und dunkel |
 | 4 | Kontingentauskunft oben | `oben` ≈ 18 | | |
 | 5 | „Job anlegen" bei 1440 px | Zeitplan in voller Breite | | |
 | 6 | Griff zum Formular | springt, Formular leer | „Job anlegen" steht in der Kopfzeile | Sprung noch offen |
@@ -103,6 +103,31 @@ seitdem `stat -c "%a %U:%G"` gegen `750 srvpanel:srvpanel`, und
 
 **Der Lauf war dadurch nicht blockiert:** Die Kennungen kommen auch ohne psysh,
 direkt aus der Datenbank.
+
+### Punkt 3 im Wortlaut — Befund 16 ist behoben
+
+Bei 390 px, `* * *` in der Experteneingabe, **hell und dunkel**:
+
+> Das Formular wurde nicht gespeichert.
+> Im Ausdruck fehlt der 4. Teil (Monat).
+> Im Ausdruck fehlt der 5. Teil (Wochentag).
+
+`document.querySelector('#expression').getAttribute('aria-invalid')` → `"true"`
+in beiden Themen.
+
+**Kein „Das Feld Monat ist erforderlich".** Die Meldung nennt die Stelle im
+Ausdruck, und das eine sichtbare Feld ist markiert — die eingeklappten Felder
+werden nicht mehr benannt.
+
+> **Eine Sicht auf eine Sache ist noch keine Sicht auf ihre Fehlermeldungen.**
+
+Bemerkenswert daneben: **Punkt 2 und Punkt 3 stehen in derselben
+Zusammenfassung, und nur einer von beiden hat ein falsches Wort.** „Befehl"
+stimmt, „Bezeichnung" nicht (Befund 3) — die Meldungen des Ausdrucks bauen ihre
+Namen zur Laufzeit aus derselben Liste und treffen trotzdem, weil sie die
+**Stelle** nennen und nicht das Feld.
+
+---
 
 ### Befund 2 — das Messmittel meldet jede versteckte Beschriftung
 

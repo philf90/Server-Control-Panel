@@ -36,7 +36,7 @@ dem, was er über den Prüfling **oder über das Prüfmittel** sagt.
 | 3 | Meldung der Experteneingabe | „Im Ausdruck fehlt der 4. Teil (Monat)." | **wörtlich so, dazu der 5. Teil (Wochentag)**; `aria-invalid="true"` | erfüllt, hell und dunkel |
 | 4 | Kontingentauskunft oben | ~~`oben` ≈ 18~~ → **über den Bereichen** | `oben: 294` von 3795 px Seitenhöhe, Text nennt „(10 von 10)" | erfüllt; das Kriterium war falsch (Befund 4) |
 | 5 | „Job anlegen" bei 1440 px | Zeitplan in voller Breite | `fieldset.field wide` **1124×325**, Schnellwahl darin **1124×64**; `schiebt: []` | erfüllt, hell und dunkel |
-| 6 | Griff zum Formular | springt, Formular leer | „Job anlegen" steht in der Kopfzeile | Sprung noch offen |
+| 6 | Griff zum Formular | springt, Formular leer | Knopf da, Sprung erfolgt, Beschriftung und Befehl **leer** | erfüllt |
 | 7 | Zielbaum im Bild | `oben` ≥ 0 | | |
 | 8 | Schlüssel erzeugen und anmelden | Anmeldung gelingt, Fremdschlüssel abgewiesen | | |
 | 9 | Suchleiste | ab 720 px da, Pfad sichtbar, Inhalt übertragen | | |
@@ -103,6 +103,28 @@ seitdem `stat -c "%a %U:%G"` gegen `750 srvpanel:srvpanel`, und
 
 **Der Lauf war dadurch nicht blockiert:** Die Kennungen kommen auch ohne psysh,
 direkt aus der Datenbank.
+
+### Punkt 6 — der Griff springt, und das Formular ist leer
+
+Bei 390 px: „Job anlegen" steht in der Kopfzeile des Bereichs „Jobs", der Druck
+springt zum Formular, und dort stehen **Beschriftung und Befehl leer**. Der
+zweite Teil ist der wichtigere — der Griff setzt `bearbeitet` zurück, sonst
+stünde nach einem vorherigen „Ändern" ein fremder Job im Formular.
+
+**Und der Bestand ist danach wieder hergestellt:** Dieselbe Messung meldet
+`kontingent: "nicht gefunden"`. Das ist hier **richtig** — die Übersteuerung aus
+Punkt 4 ist zurückgenommen, das Kontingent also nicht mehr voll, und die Meldung
+gehört fort. In Punkt 4 wäre derselbe Wert ein Befund gewesen.
+
+> **Derselbe Messwert bedeutet in zwei Zuständen zwei verschiedene Dinge.**
+
+**Eine Beobachtung nebenbei, ungemessen:** Die Schnellwahl steht bei 390 px als
+**sechs** volle Zeilen untereinander. Anders als die Kopfleiste tragen diese
+Knöpfe **Sätze** („montags bis freitags um 09:00") und keine Objektnamen — die
+Form „Zeichen über Wort" aus `docs/64 §12` trägt hier also nicht. Ob es stört,
+ist nicht gemessen und steht hier als Frage, nicht als Befund.
+
+---
 
 ### Befund 4 — mein erwarteter Wert gehörte zu einer anderen Seite
 

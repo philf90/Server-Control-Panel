@@ -12139,6 +12139,48 @@ pruefe "  … zurückgesetzt wieder grün" \
   RevealTest::test_every_watch_is_registered_at_the_top_level passed
 
 echo
+echo "── PackagingTest: der Elternteil faellt wieder nebenbei an ──"
+#
+# `install -d` setzt Modus und Eigentuemer nur auf die letzte Ebene. Ohne die
+# ausdrueckliche Zeile ist /var/lib/srvpanel danach 0755 root:root, und der
+# Dienst kann unter seinem eigenen HOME nichts anlegen — gefunden auf
+# cloudsrv24 bei der Vorbereitung des Laufs zu rc20.
+vorher_datei packaging/scripts/postinstall.sh
+python3 - <<'PY2'
+p = 'packaging/scripts/postinstall.sh'
+s = open(p, encoding='utf-8').read()
+alt = "    install -d -o srvpanel -g srvpanel -m 0750 /var/lib/srvpanel\n"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei packaging/scripts/postinstall.sh "Elternteil ohne Eigentuemer" &&
+pruefe "Elternteil ohne Eigentuemer" \
+  PackagingTest::test_the_data_directory_belongs_to_the_service failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  PackagingTest::test_the_data_directory_belongs_to_the_service passed
+
+echo
+echo "── PackagingTest: der Pruefstand fragt nur, ob es da ist ──"
+#
+# Genau die Luecke, die den Fehler durchgelassen hat: Vorhanden war das
+# Verzeichnis die ganze Zeit.
+vorher_datei packaging/testbed.sh
+python3 - <<'PY2'
+p = 'packaging/testbed.sh'
+s = open(p, encoding='utf-8').read()
+alt = 'docker exec "${NAME}" sh -c \'[ "$(stat -c "%a %U:%G" /var/lib/srvpanel)" = "750 srvpanel:srvpanel" ]\''
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'true', 1))
+PY2
+griff_datei packaging/testbed.sh "Pruefstand ohne Eigentuemerfrage" &&
+pruefe "Pruefstand ohne Eigentuemerfrage" \
+  PackagingTest::test_the_data_directory_belongs_to_the_service failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  PackagingTest::test_the_data_directory_belongs_to_the_service passed
+
+echo
 echo "── ActionIconTest: ein Knopf verliert sein Wort ──"
 #
 # Die Form, nach der der Betreiber gefragt hat und die zwoelf Pixel billiger

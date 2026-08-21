@@ -16356,3 +16356,41 @@ kaputt stehen und vergiftete die Gegenproben dahinter. `lang/` steht jetzt in
 > **Ein Wächter, der eine Schreibweise liest, sieht die andere nicht — und
 > meldet für sie „alles in Ordnung".**
 
+### P6 — `/var/lib/srvpanel` gehörte root, und `srvpanel tinker` führte nichts mehr aus
+
+**Gefunden am 20. August auf `cloudsrv24`**, in der Vorbereitung des Serverlaufs
+zu `v0.6.0-rc.20` und damit vor dem ersten Prüfpunkt. Der Aufruf endete mit
+„Writing to directory /var/lib/srvpanel/.config/psysh is not allowed" und
+**ohne eine Zeile Ausgabe** — der übergebene Code lief nicht.
+
+Gemessen stand das Verzeichnis auf **`0755 root:root`**, obwohl `nfpm.yaml` es
+als `0750 srvpanel:srvpanel` ausliefert. Die Ursache ist eine Eigenschaft von
+`install -d`, nachgemessen statt nachgelesen:
+
+    install -d -m 0700 a/b/c   →   a 755, a/b 755, a/b/c 700
+
+**Modus und Eigentümer gelten nur für die letzte Ebene.** `create_storage()`
+legt `/var/lib/srvpanel/storage` an; der Elternteil fiel nebenbei an und gehörte
+dem Aufrufer.
+
+> **Ein Verzeichnis, das nebenbei entsteht, gehört dem, der zufällig da war.**
+
+Aufgefallen ist es lange nicht, weil der Dienst in `storage/` schreibt und das
+ihm gehört. Der Fehlschlag hat dabei genau die Form, vor der
+`packaging/bin/srvpanel` in seinem eigenen Kommentar warnt:
+
+> **Ein Befehl, der schweigt, sieht aus wie einer, der nichts gefunden hat.**
+
+**Und `packaging/testbed.sh` sah daneben**: Er fragte `test -d
+/var/lib/srvpanel`. Vorhanden war es die ganze Zeit.
+
+> **Eine Prüfung, die nur nachsieht, dass etwas da ist, sagt nichts darüber, wem
+> es gehört.**
+
+`create_storage()` legt den Elternteil jetzt ausdrücklich an — `install -d`
+zieht Modus und Eigentümer auch bei einem vorhandenen Verzeichnis nach, die
+Zeile richtet bestehende Installationen also mit. Der Prüfstand vergleicht
+`stat -c "%a %U:%G"` gegen den erwarteten Wert, und
+`PackagingTest::test_the_data_directory_belongs_to_the_service` hält beides.
+Zwei neue Brüche im Bruchskript.
+

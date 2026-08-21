@@ -624,6 +624,82 @@ final class PackagingTest extends TestCase
         $this->assertDoesNotMatchRegularExpression('/^\s*-\s*srvpanel\s*$/m', $helper);
     }
 
+    /**
+     * Das Datenverzeichnis gehört dem Dienst — und `install -d` macht das nicht
+     * von allein.
+     *
+     * ## Der Fund
+     *
+     * Auf `cloudsrv24` stand `/var/lib/srvpanel` nach der Installation von
+     * `v0.6.0-rc.20` auf **`0755 root:root`** statt `0750 srvpanel:srvpanel`,
+     * obwohl `nfpm.yaml` es genau so ausliefert.
+     *
+     * Die Ursache ist eine Eigenschaft von `install -d`, die man kennen muss:
+     * **Modus und Eigentümer gelten nur für die letzte Ebene.** Fehlende
+     * Elternverzeichnisse entstehen mit 0755 und gehören dem Aufrufer — hier
+     * root. `create_storage()` legt `/var/lib/srvpanel/storage` an, und der
+     * Elternteil fiel dabei nebenbei an.
+     *
+     * ## Warum es niemandem auffiel
+     *
+     * Der Dienst schreibt in `storage/`, und das gehört ihm. Gestolpert ist
+     * erst `srvpanel tinker`: psysh legt sein `.config` unter HOME an, durfte
+     * nicht — und **führte den übergebenen Code nicht mehr aus**, mit einer
+     * Warnung und Rückgabewert 0.
+     *
+     * > **Ein Befehl, der schweigt, sieht aus wie einer, der nichts gefunden
+     * > hat.**
+     *
+     * Und `packaging/testbed.sh` fragte `test -d`. Vorhanden war das
+     * Verzeichnis die ganze Zeit.
+     *
+     * > **Eine Prüfung, die nur nachsieht, dass etwas da ist, sagt nichts
+     * > darüber, wem es gehört.**
+     */
+    public function test_the_data_directory_belongs_to_the_service(): void
+    {
+        $postinstall = (string) file_get_contents(
+            dirname(__DIR__, 2).'/packaging/scripts/postinstall.sh',
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/install -d -o srvpanel -g srvpanel -m 0750 \/var\/lib\/srvpanel$/m',
+            $postinstall,
+            'Das postinstall legt `/var/lib/srvpanel` nicht ausdrücklich an. `install -d` auf das '.
+            'Unterverzeichnis erzeugt den Elternteil dann als 0755 root:root, und der Dienst kann '.
+            'unter seinem eigenen HOME nichts anlegen.',
+        );
+
+        /*
+         * **Die Reihenfolge zählt.** Nach `storage` wäre die Zeile ein
+         * Nachbessern und kein Anlegen — sie stünde dann hinter dem Aufruf, der
+         * den Elternteil erzeugt hat. Das wirkt zwar auch, hängt aber daran,
+         * dass `install -d` einen vorhandenen Ordner nachzieht.
+         */
+        $eltern = strpos($postinstall, 'install -d -o srvpanel -g srvpanel -m 0750 /var/lib/srvpanel');
+        $kind = strpos($postinstall, 'install -d -o srvpanel -g srvpanel -m 0700 /var/lib/srvpanel/storage');
+
+        $this->assertIsInt($eltern);
+        $this->assertIsInt($kind);
+        $this->assertLessThan($kind, $eltern, 'Der Elternteil wird nach dem Schreibbereich angelegt.');
+
+        $testbed = (string) file_get_contents(dirname(__DIR__, 2).'/packaging/testbed.sh');
+
+        $this->assertStringContainsString(
+            'stat -c "%a %U:%G" /var/lib/srvpanel',
+            $testbed,
+            'Der Prüfstand fragt nicht, wem `/var/lib/srvpanel` gehört. Ein `test -d` hätte den '.
+            'Fehler nicht gefunden — vorhanden war es.',
+        );
+
+        $this->assertStringContainsString(
+            '750 srvpanel:srvpanel',
+            $testbed,
+            'Der Prüfstand nennt den erwarteten Eigentümer nicht. Eine Prüfung ohne erwarteten Wert '.
+            'ist eine Ausgabe.',
+        );
+    }
+
     public function test_the_build_produces_both_packages(): void
     {
         $build = (string) file_get_contents(dirname(__DIR__, 2).'/packaging/build.sh');

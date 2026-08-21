@@ -40,23 +40,29 @@ Der Lauf braucht ein Abonnement mit SFTP-Zugang und Cronjobs. Diese Zeile
 druckt die Kennungen — sie ändert nichts:
 
 ```bash
-srvpanel tinker --execute="
-\$rows = \App\Models\Subscription::withoutGlobalScope('tenancy')->orderBy('id')->get();
-foreach (\$rows as \$s) {
-    echo str_pad((string) \$s->id, 5), \$s->name, '   (', \$s->system_user ?? '—', ')', PHP_EOL;
-}"
+wert() { sed -n "s/^$1=//p" /etc/srvpanel/panel.env | tail -1 | sed 's/^"//;s/"$//'; }
+
+MYSQL_PWD="$(wert DB_PASSWORD)" mysql --default-character-set=utf8mb4 \
+  -h "$(wert DB_HOST)" -P "$(wert DB_PORT)" -u "$(wert DB_USERNAME)" \
+  "$(wert DB_DATABASE)" \
+  -e "SELECT id, name, system_user FROM subscriptions ORDER BY id;"
 ```
 
-**Ohne `HOME=/tmp` davor.** In `docs/35` und `docs/46` steht es so, und das ist
-überholt: Seit dem 18. August setzt der Wrapper `HOME=/var/lib/srvpanel` selbst
-— ein Wert davor wird überschrieben. Der Grund steht in `packaging/bin/srvpanel`
-und ist lehrreich, weil er still war:
+**Warum SQL und nicht `srvpanel tinker`.** Der naheliegende Weg wäre
+`srvpanel tinker --execute="…"`. Er ist am 20. August auf `cloudsrv24`
+gescheitert, und zwar in der Form, vor der `packaging/bin/srvpanel` in seinem
+eigenen Kommentar warnt: eine Warnung, kein Ergebnis, Rückgabewert 0 (Befund 1
+in `docs/66`). Behoben ist die Ursache, aber ein Plan hängt sich nicht an einen
+Weg, der schon einmal still war.
 
-> **Ein Befehl, der schweigt, sieht aus wie einer, der nichts gefunden hat.**
+> **Ein Abnahmelauf, der eine ungeprüfte Annahme als Anweisung führt, prüft sie
+> nicht — er führt sie aus.**
 
-Kommt hier **keine Zeile** zurück, ist das also ein Befund und keine leere
-Datenbank. `srvpanel` läuft nach `setpriv` als Benutzer `srvpanel` und kann
-nichts unter `/root` lesen — legen Sie Hilfsdateien für diesen Lauf woanders ab.
+Drei Dinge an dieser Abfrage mit Absicht: `--default-character-set=utf8mb4`,
+weil `mysql` sonst latin1 aushandeln kann und aus einem `ü` ein einzelnes Byte
+macht (`docs/47`); `MYSQL_PWD` statt `-p…`, damit das Passwort nicht in `ps`
+steht; und kein Eloquent, also **keine Mandantenklammer** — es kommen alle
+Abonnements.
 
 Die Kennung des Abonnements, mit dem gearbeitet wird, kommt in eine Variable —
 sie wird unten in jedem Befehl gebraucht:

@@ -12265,6 +12265,46 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ActionIconTest::test_the_hidden_verb_still_has_a_name passed
 
 echo
+echo "── AttributeLabelTest: die Cronseite heisst wieder Bezeichnung ──"
+#
+# Der Befund selbst (docs/66, Befund 3): Auf der Seite steht "Beschriftung",
+# in der Meldung stand "Bezeichnung" -- ein Feld, das es dort nicht gibt.
+vorher_datei app/Http/Controllers/CronController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/CronController.php'
+s = open(p, encoding='utf-8').read()
+alt = "private const NAMEN = ['label' => 'Beschriftung'];"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'private const NAMEN = [];', 1))
+PY2
+griff_datei app/Http/Controllers/CronController.php "Name gegen die Seite" &&
+pruefe "Name gegen die Seite" \
+  AttributeLabelTest::test_every_label_matches_the_name_the_server_uses failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  AttributeLabelTest::test_every_label_matches_the_name_the_server_uses passed
+
+echo
+echo "── AttributeLabelTest: eine Ausnahme zeigt ins Leere ──"
+#
+# Eine Ausnahme fuer eine Seite, die umbenannt wurde, ist ein Loch mit einer
+# Begruendung daneben.
+vorher_datei tests/Unit/AttributeLabelTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/AttributeLabelTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'Domains/Show.vue:certificate'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'Domains/Weg.vue:certificate'", 1))
+PY2
+griff_datei tests/Unit/AttributeLabelTest.php "Ausnahme ohne Ziel" &&
+pruefe "Ausnahme ohne Ziel" \
+  AttributeLabelTest::test_every_exception_still_points_somewhere failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  AttributeLabelTest::test_every_exception_still_points_somewhere passed
+
+echo
 echo "── PrivateKeyTest: der Hinweis kennt wieder nur Unix ──"
 #
 # Befund 6 aus docs/66: Auf Windows stimmt dann kein Teil des Satzes, und die

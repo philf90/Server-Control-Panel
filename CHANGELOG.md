@@ -16529,3 +16529,46 @@ Wächter unsichtbar** geworden.
 
 > **Ein Eingriff, den der Wächter über die Eingriffe nicht lesen kann, ist
 > genauso gut wie keiner — nur meldet niemand es.**
+
+### P6 — die Fehlermeldung nannte Felder, die auf der Seite anders heissen
+
+**Befund 3 aus `docs/66`.** Auf `/subscriptions/140/cron` stand nach einem leer
+abgeschickten Formular:
+
+> Das Feld **Bezeichnung** ist erforderlich.
+
+Auf dieser Seite heisst das Feld **Beschriftung**. „Bezeichnung" kommt dort
+nirgends vor — der Kunde sucht ein Feld, das er nicht sieht.
+
+Das war ein Fehler in der Behebung des vorigen Befundes: Die 85 deutschen Namen
+waren vollständig eingetragen, aber nie gegen die sichtbare Beschriftung ihrer
+Seite gehalten. `AttributeNameTest` zählt, dass jedes Feld einen Namen **hat**;
+über den Namen selbst sagt er nichts.
+
+> **Ein Wächter über die Vollständigkeit sagt nichts über die Richtigkeit.**
+
+**Nachgemessen über alle Seiten:** 68 Paare aus Beschriftung und Feld, davon
+**fünfzehn** Abweichungen — mehr als die neun, die der Lauf gefunden hatte,
+weil die Messung dort nur `v-model="form.…"` kannte und nicht `konto.…`,
+`newFile.…`, `userForm.…`.
+
+Elf sind behoben, jede am Aufruf und nicht in der allgemeinen Liste: Ein Feld
+heisst nicht überall gleich. `label` heisst „Name" (neue Datenbank),
+„Weiterer Zugang" (zweiter Zugang) und „Beschriftung" (Cronjob); `path` heisst
+im selben Dateimanager „Name der Datei" und „Name des Verzeichnisses", in zwei
+Formularen, die zwei verschiedene Vorgänge bedienen. Dazu `directory` →
+„Zertifizierungsstelle" (bisher „Verzeichnis", was in den Dateimanager
+geschickt hätte), `email` → „Anmeldeadresse", `notes` → „Vermerk",
+`postal_code` → „PLZ", `engine` → „System", `from_address` → „Adresse".
+
+Zwei bleiben mit Begründung stehen: „Ausgeliefert wird" ist ein Satzanfang und
+kein Name, und „Erreichbar von — für {{ … }}" trägt einen eingesetzten Wert.
+
+`AttributeLabelTest` hält beides. Er vergleicht die Beschriftung gegen eine
+**Menge** — den allgemeinen Namen und jeden, den die Steuerung dieser Seite am
+Aufruf setzt — mit zwei Sieben (Enthaltensein ohne Rücksicht auf die
+Grossschreibung; begründete Ausnahmen). Die Grenze steht in seinem Kopf: Die
+Namen werden je Datei gesammelt und nicht je Methode.
+
+> **Ein Wächter, der eine Menge vergleicht, findet das Fehlende und nicht das
+> Vertauschte.**

@@ -68,6 +68,25 @@ final class CronController extends Controller
      */
     private const PREVIEW_RUNS = 3;
 
+    /**
+     * Namen, die auf dieser Seite anders heissen als in der allgemeinen Liste.
+     *
+     * **`docs/66`, Befund 3.** `label` heisst auf zwei anderen Seiten
+     * „Bezeichnung" und hier „Beschriftung"; die Liste in
+     * `lang/de/validation.php` trägt den häufigeren Fall. Stünde er auch hier,
+     * läse der Kunde „Das Feld Bezeichnung ist erforderlich" und suchte auf
+     * dieser Seite ein Feld, das es nicht gibt.
+     *
+     * > **Ein Wächter über die Vollständigkeit sagt nichts über die
+     * > Richtigkeit.**
+     *
+     * **Einmal und für beide Wege.** Die Regeln stehen schon aus diesem Grund
+     * nur einmal da; zwei Namenslisten liefen genauso auseinander.
+     *
+     * @var array<string,string>
+     */
+    private const NAMEN = ['label' => 'Beschriftung'];
+
     public function __construct(
         private readonly Cron $cron,
         private readonly Audit $audit,
@@ -371,7 +390,7 @@ final class CronController extends Controller
 
         if (! $request->boolean('experte')) {
             /** @var array<string,mixed> $data */
-            $data = $request->validate($regeln);
+            $data = $request->validate($regeln, [], self::NAMEN);
 
             return $data;
         }
@@ -391,7 +410,7 @@ final class CronController extends Controller
          * Die Meldung nennt deshalb die **Stelle im Ausdruck**. Sie geht an
          * `expression`, weil das der Name des Feldes ist, in dem sie steht.
          */
-        $pruefung = Validator::make($request->all(), $regeln);
+        $pruefung = Validator::make($request->all(), $regeln, [], self::NAMEN);
 
         if ($pruefung->fails()) {
             $fehler = $pruefung->errors();

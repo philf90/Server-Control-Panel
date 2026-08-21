@@ -120,6 +120,14 @@ final class TlsSettingsController extends Controller
         $data = $request->validate([
             'contact' => ['required', 'email', 'max:255'],
             'directory' => ['required', Rule::in(Directories::keys())],
+        ], [], [
+            /*
+             * **Der Name muss heissen wie das Feld auf der Seite** (`docs/66`,
+             * Befund 3). „Das Feld Verzeichnis ist ungültig" schickte den Leser
+             * in den Dateimanager; auf der Seite heisst dieses Feld
+             * „Zertifizierungsstelle", und das ist es auch.
+             */
+            'directory' => 'Zertifizierungsstelle',
         ]);
 
         $settings->update([

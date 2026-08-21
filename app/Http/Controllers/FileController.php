@@ -692,7 +692,19 @@ final class FileController extends Controller
         $data = $request->validate([
             'query' => ['required', 'string', 'max:255'],
             'path' => ['nullable', 'string', 'max:4096'],
-            'content' => ['boolean'],
+            /*
+             * **`in:0,1` und nicht `boolean`** (`docs/66`, Befund 5). Dieser
+             * Wert reist in der Adresse, und dort ist alles eine Zeichenkette:
+             * Aus `false` wird `"false"`, und `boolean` nimmt
+             * `true, false, 1, 0, "1", "0"` — kein Wort. Die Suche war damit
+             * seit P6 Schritt 5 in **beiden** Zuständen des Kästchens
+             * unerreichbar.
+             *
+             * Der Gegenbeleg steht in derselben Datei: `recursive` trägt
+             * dieselbe Regel und funktioniert, weil es im Rumpf eines `DELETE`
+             * reist und dort ein echter Wahrheitswert bleibt.
+             */
+            'content' => ['sometimes', 'in:0,1'],
         ]);
 
         $result = $this->attempt(fn (): array => $this->files->search(

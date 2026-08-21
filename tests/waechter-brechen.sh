@@ -12256,6 +12256,67 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ActionIconTest::test_the_hidden_verb_still_has_a_name passed
 
 echo
+echo "── QueryBooleanTest: eine GET-Route prueft wieder mit boolean ──"
+#
+# Der Fund selbst (docs/66, Befund 5): Der Wert reist in der Adresse und ist
+# dort eine Zeichenkette; `boolean` nimmt kein Wort und weist beide Zustaende
+# des Kaestchens ab. Die Suche war damit seit P6 Schritt 5 unerreichbar.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+alt = "'content' => ['sometimes', 'in:0,1'],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'content' => ['boolean'],", 1))
+PY2
+griff_datei app/Http/Controllers/FileController.php "boolean an einer GET-Route" &&
+pruefe "boolean an einer GET-Route" \
+  QueryBooleanTest::test_no_get_route_validates_with_the_boolean_rule failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  QueryBooleanTest::test_no_get_route_validates_with_the_boolean_rule passed
+
+echo
+echo "── QueryBooleanTest: die Leiste schickt wieder einen Wahrheitswert ──"
+#
+# Die andere Haelfte desselben Fehlers. Ein Waechter nur am Empfaenger liesse
+# den Absender frei, und umgekehrt — deshalb steht beides.
+vorher_datei resources/js/Pages/Files/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Files/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'content: inContent.value ? 1 : 0,'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'content: inContent.value,', 1))
+PY2
+griff_datei resources/js/Pages/Files/Index.vue "Wahrheitswert in der Adresse" &&
+pruefe "Wahrheitswert in der Adresse" \
+  QueryBooleanTest::test_the_search_sends_one_and_zero failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  QueryBooleanTest::test_the_search_sends_one_and_zero passed
+
+echo
+echo "── QueryBooleanTest: die Auslese der GET-Routen laeuft ins Leere ──"
+#
+# Ohne diesen Eingriff waere nicht belegt, dass die Untergrenze etwas haelt:
+# Ein Waechter, der keine Route mehr findet, meldet sonst dasselbe Gruen wie
+# einer, der keine Falle findet.
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+assert s.count('Route::get(') > 30, 'Zielform nicht gefunden — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace('Route::get(', 'Route::any('))
+PY2
+griff_datei routes/web.php "GET-Routen unauffindbar" &&
+pruefe "GET-Routen unauffindbar" \
+  QueryBooleanTest::test_no_get_route_validates_with_the_boolean_rule failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  QueryBooleanTest::test_no_get_route_validates_with_the_boolean_rule passed
+
+echo
 echo "── FileSearchTest: die Trefferseite schickt weniger als die Leiste ──"
 #
 # Genau der Fund, der diesen Waechter ausgeloest hat — nur andersherum: Bis zum
@@ -12265,7 +12326,7 @@ vorher_datei resources/js/Pages/Files/Search.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Files/Search.vue'
 s = open(p, encoding='utf-8').read()
-alt = "    content: imInhalt.value,\n"
+alt = "    content: imInhalt.value ? 1 : 0,\n"
 assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
 PY2

@@ -16394,3 +16394,51 @@ Zeile richtet bestehende Installationen also mit. Der Prüfstand vergleicht
 `PackagingTest::test_the_data_directory_belongs_to_the_service` hält beides.
 Zwei neue Brüche im Bruchskript.
 
+
+### P6 — die Suche im Dateimanager ist seit ihrem ersten Tag abgewiesen worden
+
+**Gefunden am 21. August auf `cloudsrv24`**, bei Punkt 9 des Serverlaufs zu
+`v0.6.0-rc.20` (`docs/66`, Befund 5). Der Betreiber meldete „das Feld bleibt
+nicht angehakt"; auf dem Bild stand darüber:
+
+> Das Feld Inhalt muss wahr oder falsch sein.
+
+Beide Eingaben schickten `content: <ref>.value` durch `router.get` — und
+`router.get` legt seine Werte in die **Adresse**. Nachgemessen gegen das
+ausgelieferte `@inertiajs/core`:
+
+    false -> …/files/search?query=x&path=%2F&content=false
+    true  -> …/files/search?query=x&path=%2F&content=true
+
+Laravels Regel `boolean` nimmt `true, false, 1, 0, "1", "0"` — und kein Wort.
+Sie weist also **beide** Zustände ab: Die Suche im Dateimanager ist seit P6
+Schritt 5 an keinem Tag durchgekommen, nicht nur die im Inhalt.
+
+> **Dieselbe Regel über einem Wert, der einmal als JSON und einmal als
+> Zeichenkette reist, gilt nur einmal.**
+
+Der Gegenbeleg stand in derselben Datei: `recursive` trägt dieselbe Regel und
+funktioniert, weil es im Rumpf eines `DELETE` reist und dort ein echter
+Wahrheitswert bleibt. Aufgefallen ist es erst jetzt, weil man `Search.vue`
+bisher nur erreichte, indem man schon gesucht hatte — Wunsch 3 hat die Leiste
+dorthin gestellt, wo jemand sie drückt.
+
+> **Ein Fehler, den man am auffälligen Fall entdeckt, ist selten auf den
+> auffälligen Fall beschränkt.**
+
+Behoben an **beiden** Enden: Die Seiten schicken `1`/`0`, und die Route prüft
+mit `in:0,1` statt `boolean` — eine GET-Route bekommt ihre Werte aus der
+Adresse, und dort ist alles eine Zeichenkette.
+
+**`FileSearchTest::test_both_inputs_send_the_same_values` war dabei grün.** Er
+vergleicht die Schlüssel, die beide Seiten schicken, und beide schickten
+denselben kaputten Wert.
+
+> **Zwei Eingaben, die dasselbe schicken, schicken auch denselben Fehler.**
+
+`QueryBooleanTest` prüft deshalb beide Richtungen: keine GET-Route benutzt
+`boolean`, und die Suche schickt `1`/`0`. Gemessen sind 43 Methoden hinter
+GET-Routen, von denen genau **eine** überhaupt Eingaben prüft — die Untergrenze
+steht auf dieser Eins, damit eine Null nicht als „keine Falle gefunden"
+durchgeht. Drei neue Brüche im Bruchskript, einer davon gegen die Auslese
+selbst.

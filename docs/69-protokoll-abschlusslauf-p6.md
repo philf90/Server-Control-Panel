@@ -13,9 +13,9 @@
 | | | |
 |---|---|---|
 | Lauf | **`docs/68`** | fünf Punkte plus die Rahmenprüfung |
-| Fassung | *(Punkt 0 trägt sie hier ein)* | |
+| Fassung | **`0.6.0-rc.24`** | gemessen, Punkt 0 |
 | Server | `cloudsrv24` | |
-| Abonnement | 140, `p6-abnahme.invalid`, Systembenutzer `p1139` | |
+| Abonnement | 140, `p6-abnahme.invalid`, Systembenutzer `p1139` = **uid 1002** | |
 | Messmittel | `tests/bilder-messen.js`, Stand 2026-08-21 | für Punkt 3 |
 
 **Wofür es diesen Lauf gibt** steht in `docs/68 §0`: P6 ist gebaut und sein
@@ -29,12 +29,48 @@ tragen.
 
 | # | Punkt | erwartet | gemessen | |
 |---|---|---|---|---|
-| 0 | Die Fassung | `0.6.0-rc.24` | — | **offen** |
+| 0 | Die Fassung | `0.6.0-rc.24` | `0.6.0-rc.24` / `0.6.0~rc.24` | **erfüllt** |
 | 1 | Die Archive durch die echte Route | nichts ausserhalb, `beweis` drinnen | — | **offen** |
 | 2 | Durch einen Verweis hinaus schreiben | Ziel unverändert, Gegenprobe schreibt | — | **offen** |
 | 3 | Die Umbruchregel auf zwei weiteren Seiten | `dokument: 0`, `schiebt` nur `.stacks thead` | — | **offen** |
 | 4 | `id` am Vorgang | `ran_as.uid` = `id -u p1139` | — | **offen** |
 | 5 | Die Rechte an `/var/lib/srvpanel` | `750 srvpanel:srvpanel`, auch nach dem Neustart | — | **offen** |
+
+---
+
+## 1a. Punkt 0 — welche Fassung läuft
+
+**Gemessen am 21. August 2026 auf `cloudsrv24`:**
+
+    srvpanel --version          0.6.0-rc.24
+    dpkg -l srvpanel | tail -1  ii  srvpanel  0.6.0~rc.24  amd64
+
+**Die beiden Schreibweisen sind dieselbe Fassung.** `dpkg` verlangt eine
+Ordnung, in der `rc` **vor** der Freigabe steht, und `-` trennt dort schon die
+Paketrevision ab; die Tilde ist das Zeichen, das kleiner sortiert als das
+Nichts. `0.6.0~rc.24` liegt damit vor `0.6.0`, `0.6.0-rc.24` läge dahinter.
+
+Und die Namen des Abonnements:
+
+    /var/www/vhosts/p6-abnahme.invalid — uid=1002(p1139) gid=1002(p1139) groups=1002(p1139)
+
+### Und eine Zahl, die schon hier etwas über Punkt 4 sagt
+
+**`p1139` trägt `uid 1002` — und in `docs/62` trug `p1138` dieselbe 1002.**
+
+Dort war sie der Beleg dafür, dass zwei Abonnements zwei Kennungen ergeben:
+`p1136` → 1001, `p1138` → 1002. Heute gehört die 1002 einem anderen Namen. Ob
+`p1138` weg ist und die Kennung nachrückte oder ob es sie doppelt gibt, ist
+**nicht gemessen** und steht in Punkt 4.
+
+Für den Lauf ändert das nichts und für seine Lesart einiges:
+
+> **Eine Kennung, die einen Namen belegt hat, belegt ihn nicht auf Dauer** —
+> ein `uid`, den man aus einem alten Protokoll mitnimmt, gehört einem
+> Abonnement von damals.
+
+Genau deshalb vergleicht Punkt 4 `id` und `ran_as` **im selben Augenblick** und
+nicht gegen eine Zahl aus `docs/62`.
 
 ---
 

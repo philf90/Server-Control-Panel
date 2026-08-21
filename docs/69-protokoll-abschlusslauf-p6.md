@@ -116,10 +116,18 @@ Danach auf dem Server:
 abgeliefert, und die Abwesenheit der `getroffen`-Dateien ist eine Wand und kein
 leeres Archiv.
 
-**Nach aussen:** *(folgt — `tar -xPf` desselben Tarballs legt die Nutzlast
-ausserhalb an; erst danach ist belegt, dass sie hätte treffen können.)*
+**Nach aussen:** Dieselben Tarballs von `tar -xPf` entpackt legten
+`/tmp/getroffen-relativ` und `/tmp/getroffen-absolut` an (je 10 Byte,
+`root:root`). Was das Panel abgewiesen hat, schreibt `tar` ohne die Sandbox —
+der Angriff trifft also, sobald die Wand fehlt.
 
 > **Ein Angriff, der nicht trifft, misst den Angreifer und nicht die Abwehr.**
+> Dieser trifft — nur nicht durch das Panel.
+
+Beide Treffer sind sofort wieder entfernt worden (`rm`, `ls` meldet danach
+`No such file or directory`), damit sie in Punkt 2 nicht als Bestand mitmessen.
+
+> **Ein Prüfkörper, den man stehen lässt, ist beim nächsten Lauf Bestand.**
 
 ### Ein Nebenbeleg, den kein Kriterium bestellt hat
 

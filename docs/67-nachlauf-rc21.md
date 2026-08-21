@@ -17,7 +17,7 @@ vorigen Laufs.
 
 | | Rahmen | |
 |---|---|---|
-| Fassung | `v0.6.0-rc.21` | |
+| Fassung | `v0.6.0-rc.21`, ab Befund 1 **`v0.6.0-rc.22`** | |
 | Server | `cloudsrv24` | |
 | Abonnement | 140, `p6-abnahme.invalid`, Systembenutzer `p1139` | |
 | Messmittel | `tests/bilder-messen.js`, Stand **2026-08-21** | mit `versteckt` |
@@ -33,7 +33,7 @@ die Kästen, die nur für die Vorlesesoftware da sind und deshalb nicht mehr in
 
 | # | Punkt | erwartet | gemessen | |
 |---|---|---|---|---|
-| 1 | Suche ohne und mit Häkchen | beide Male eine Trefferliste | | |
+| 1 | Suche ohne und mit Häkchen | beide Male eine Trefferliste | *(vor dem Lauf: 502, siehe Befund 4)* | |
 | 2 | Vorschau auf der Cronseite | Satz und drei Fälligkeiten | | |
 | 3 | Entprellung | deutlich unter 20 Anfragen, mindestens 1 | | |
 | 4 | `/audit` bei 390 px | `dokument: 0` | | |
@@ -92,6 +92,19 @@ Rettungsversuch schon überschrieben.
 
 > **Was man beim Aufräumen misst, ist nicht mehr das, was kaputt war.**
 
+**Nachgeprüft auf `cloudsrv24` gegen `v0.6.0-rc.22`**, mit demselben Griff, der
+es umgeworfen hat:
+
+    750 srvpanel:srvpanel      750 srvpanel:srvpanel
+    700 srvpanel:srvpanel  →   700 srvpanel:srvpanel
+              systemctl restart srvpanel-agentd
+
+Vorher und nachher identisch. **Befund 1 ist damit nicht nur behoben, sondern
+belegt** — und zwar an der Stelle, an der er entstanden ist, nicht nur in der
+CI.
+
+> **Eine Behebung ist keine Messung.**
+
 **Behoben:** Die beiden Direktiven sind aus der Unit. Der Agent braucht sie
 nicht — er liest weder `$STATE_DIRECTORY` noch `$LOGS_DIRECTORY`, sondern trägt
 seine Pfade absolut (`Config::$logFile`, `Dump::ROOT`, `Staging::ROOT`), und
@@ -144,6 +157,77 @@ Kommentar** fand — in dem Satz, der erklärt, dass die Prüfung früher dort s
 
 > **Ein Wächter, der eine Datei liest, liest auch, was jemand über sie
 > geschrieben hat.**
+
+### Befund 3 — der Prüfstand im Repo läuft in der CI gar nicht
+
+`packaging/testbed.sh` wird im Workflow **nur geshellcheckt**. Die vier
+Installationsläufe tragen eine **eigene, eingebaute Fassung** derselben Schritte
+(`.github/workflows/ci.yml`, Zeilen 325–529). Meine Verbesserung an Befund 2
+ging damit in die Fassung, die niemand ausführt — und `PackagingTest` prüft
+ebenfalls gegen sie.
+
+> **Zwei Fassungen derselben Prüfung, und nur eine läuft — die andere ist eine
+> Zusage ohne Deckung.**
+
+**Behoben, soweit es ohne Umbau geht:** Der Schritt „Ein Neustart des Agenten
+nimmt nichts mit" steht jetzt im **Workflow**, also in der laufenden Fassung,
+und `ServiceDirectoryTest::test_the_run_that_actually_runs_checks_the_restart`
+hält ihn dort fest.
+
+**Offen und eine Entscheidung des Betreibers:** ob die CI künftig
+`packaging/testbed.sh` *aufrufen* soll, statt eine zweite Fassung zu pflegen.
+Das ist ein Umbau am Workflow und keine Fehlerbehebung; ich habe ihn nicht von
+mir aus gemacht.
+
+### Befund 4 — ein Neustart des Agenten nahm den Socket von PHP-FPM mit
+
+**Gesehen am 21. August nach dem Einspielen von `v0.6.0-rc.22`**, ausgelöst
+durch meine eigene Gegenprobe zu Befund 1. nginx meldete **502 Bad Gateway**,
+und beide Dienste meldeten dabei `active`:
+
+    srvpanel-web      active (running) seit 13:39:57   idle: 3, Requests: 2
+    srvpanel-agentd   active (running) seit 13:40:11
+    /run/srvpanel     drwxr-xr-x root root   Aug 21 13:40
+
+**Die Ursache:**
+
+    # packaging/etc/fpm.conf
+    listen = /run/srvpanel/fpm.sock
+    pid    = /run/srvpanel/fpm.pid
+
+`/run/srvpanel` ist das `RuntimeDirectory` von **`srvpanel-agentd`**, und
+systemds Vorgabe `RuntimeDirectoryPreserve=no` löscht es beim **Stoppen** der
+Unit mitsamt Inhalt. Ein `systemctl restart srvpanel-agentd` heisst also:
+
+1. Agent stoppt → `/run/srvpanel` fällt weg, **`fpm.sock` mit**
+2. Agent startet → das Verzeichnis entsteht neu und leer (Zeitstempel 13:40)
+3. PHP-FPM läuft weiter und legt seinen Socket **nicht** neu an
+4. nginx findet nichts mehr → 502
+
+> **Ein Verzeichnis, das einem Dienst gehört, nimmt beim Neustart mit, was ein
+> anderer hineingelegt hat.**
+
+**Behoben mit `RuntimeDirectoryPreserve=yes`.** Gefahrlos, und beides ist
+nachgesehen statt angenommen: `/run` ist ein tmpfs, die Zusage von
+`Credentials::DIRECTORY` („überlebt keinen Neustart") gilt weiter für den
+Rechnerneustart; und ein liegengebliebener `agent.sock` hält den Agenten nicht
+auf, weil `Daemon::listen()` ihn vor dem Binden entfernt und das Verzeichnis
+notfalls selbst anlegt.
+
+**Der Wächter dazu fragt nicht nach dem Namen, sondern nach dem Nachbarn:**
+Schreibt irgendetwas ausserhalb der Unit in ihr Laufzeitverzeichnis, muss
+`RuntimeDirectoryPreserve` gesetzt sein. Wer es für sich allein hat, darf es
+weiter räumen lassen.
+
+**Und die Gegenprobe hat einen Fehler im Wächter gefunden**, bevor er
+ausgeliefert war: Er zählte `agent.json` als fremden Schreiber — die eigene
+Konfigurationsdatei des Dienstes, der das Verzeichnis anmeldet. Er wäre rot
+gewesen, ohne dass es einen Nachbarn gibt.
+
+> **Ein Wächter, der aus dem falschen Grund rot ist, wird beim nächsten Umbau
+> aus dem falschen Grund grün.**
+
+Erkannt wird sie jetzt daran, dass die Unit sie in ihrem `ExecStart` nennt.
 
 ### Was ich beim Suchen falsch gemacht habe
 

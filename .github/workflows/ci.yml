@@ -512,6 +512,36 @@ jobs:
           docker exec target curl -fsS -k https://127.0.0.1:8443/health
           echo
 
+      # **Der Neustart des Agenten ist der Griff, der zweimal etwas umgeworfen
+      # hat** (`docs/67`, Befunde 1 und 4) — und beide Male hat es kein Lauf
+      # gemeldet, weil dieser Schritt fehlte.
+      #
+      # Befund 1: `StateDirectory=` in der Unit des Agenten zog `/var/lib/srvpanel`
+      # bei jedem Start auf `0755` zurück, gegen fünf Stellen, die `0750
+      # srvpanel:srvpanel` sagen. Befund 4: `/run/srvpanel` ist das
+      # `RuntimeDirectory` derselben Unit, und darin liegt auch `fpm.sock` —
+      # beim Stoppen nahm systemd ihn mit, nginx antwortete mit 502, und beide
+      # Dienste meldeten dabei `active`.
+      #
+      # > **Ein Dienst, der sich neu starten lässt, muss sich neu starten
+      # > lassen, ohne einen anderen mitzunehmen.**
+      - name: Ein Neustart des Agenten nimmt nichts mit
+        run: |
+          docker exec target systemctl restart srvpanel-agentd.service
+          docker exec target systemctl is-active srvpanel-agentd.service
+
+          rechte="$(docker exec target stat -c '%a %U:%G' /var/lib/srvpanel)"
+          if [ "${rechte}" != "750 srvpanel:srvpanel" ]; then
+            echo "::error::Nach dem Neustart steht /var/lib/srvpanel auf ${rechte} — eine Unit nimmt das Verzeichnis für sich in Anspruch."
+            exit 1
+          fi
+          echo "Rechte gehalten: ${rechte}"
+
+          # Der eigentliche Beleg: Die Oberfläche antwortet **danach** noch.
+          # Ohne diese Zeile sähe ein weggeräumter fpm.sock aus wie Erfolg.
+          docker exec target curl -fsS -k https://127.0.0.1:8443/health
+          echo
+
       - name: Ein zweiter Lauf der Ersteinrichtung ändert nichts
         # Wiederholbarkeit ist keine Kür: Wer nach einem Fehlschlag noch einmal
         # einrichtet, darf dabei nicht den Schlüssel wechseln — sonst ist die

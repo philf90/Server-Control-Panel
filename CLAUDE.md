@@ -457,8 +457,18 @@ kein besseres Auge:
 > einmal.** `tests/bilder-messen.js` liegt seit dem 19. August als geprüfte
 > Vorschrift im Repo, statt in jedem Lauf neu geschrieben zu werden.
 
-**Alle acht sind behoben** (`docs/66 §3`), jeder mit Wächter und Bruch. Was
-darüber hinaus gilt:
+**Alle acht sind behoben** (`docs/66 §3`), jeder mit Wächter und Bruch — und
+**am 21. August auf dem Server nachgesehen**, weil das zweierlei ist: Der
+Nachlauf `docs/67` hat aus den Behebungen drei weitere Befunde gezogen, darunter
+zwei Ausfälle des Panels (500 und 502), die es ohne die Behebungen nicht gäbe.
+
+> **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+> jemand ihn behoben hat.**
+
+> **Eine Behebung ist eine Änderung, und jede Änderung ist ein neuer Anlass zu
+> messen.**
+
+Was darüber hinaus gilt:
 
 **Der teuerste war eine Zeile, die es seit P6 Schritt 5 gibt.** `router.get`
 legt seine Werte in die **Adresse**, und dort ist alles eine Zeichenkette: Aus
@@ -838,7 +848,11 @@ Und **`65` der Serverlauf zu `v0.6.0-rc.20`** — die elf Punkte, mit denen die
 sieben Befunde der zweiten Runde und die drei Wünsche auf einem echten Server
 geprüft werden, samt den drei Dingen, die der Aufsatz im Container
 grundsätzlich nicht kann (ein Herunterladen, `<style scoped>`, echte Daten) —
-mit **`66`** als Protokoll dazu.
+mit **`66`** als Protokoll dazu — und **`67` der Nachlauf zu `v0.6.0-rc.21`**:
+fünf Punkte, die nachsehen, ob die acht Behebungen aus `docs/66` auf dem Server
+auch wirken. Alle fünf erfüllt, Punkt 4 erst gegen `v0.6.0-rc.24`; sechs
+Befunde, drei davon am Prüfmittel oder an meiner eigenen Anweisung. In §3 steht,
+was offen bleibt.
 
 **Und die erste Messung hat zwei Fehler in dieser Vorschrift gefunden**, beide
 am Prüfmittel: `schiebt` war als Kriterium gedacht und meldet bei jeder Tabelle

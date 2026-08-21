@@ -35,7 +35,7 @@ die Kästen, die nur für die Vorlesesoftware da sind und deshalb nicht mehr in
 |---|---|---|---|---|
 | 1 | Suche ohne und mit Häkchen | beide Male eine Trefferliste | `content=0` und `content=1`, beide Male Treffer, Häkchen bleibt | **erfüllt** |
 | 2 | Vorschau auf der Cronseite | Satz und drei Fälligkeiten | Satz da, drei Fälligkeiten, Zone umgerechnet; `*/15` ohne Satz mit drei Zeitpunkten | **erfüllt** |
-| 3 | Entprellung | deutlich unter 20 Anfragen, mindestens 1 | | |
+| 3 | Entprellung | deutlich unter 20 Anfragen, mindestens 1 | **1** zügig gegen **20** langsam | **erfüllt** |
 | 4 | `/audit` bei 390 px | `dokument: 0` | | |
 | 5 | Eine Protokollzeile nennt ihr Stück | `job: … · schedule: …` | | |
 
@@ -137,6 +137,44 @@ Damit ist die Zusage aus dem Code gemessen und nicht mehr behauptet: Wer beim
 dritten Zeichen einer Spanne rot wird, wird bei jeder Spanne rot — also wird
 hier niemand rot. Den Satz zum Fehler gibt es beim Absenden, und dort nennt er
 das Feld „Minute" so, wie es auf der Seite heisst.
+
+## 1c. Punkt 3 — die Entprellung, und warum eine Zahl allein nicht reicht
+
+**Gemessen am 21. August** über einen Zähler um `fetch`, der nur Aufrufe an
+`/cron/preview` mitzählt:
+
+| | Anfragen |
+|---|---|
+| zwanzig Anschläge, **zügig** getippt | **1** |
+| zwanzig Anschläge, **langsam** getippt (über 300 ms Abstand) | **20** |
+
+**Die erste Zahl allein wäre nichts gewesen.** Eine `1` entsteht auf zwei Wegen,
+die im Ergebnis gleich aussehen: zwanzig Anschläge, die die Entprellung
+zusammenfasst — oder ein einziges Eingabeereignis, etwa ein Einfügen. Erst die
+20 daneben entscheidet es: Jeder Anschlag löst aus, also war die 1 die
+Entprellung und kein Zufall.
+
+> **Eine Zahl, die bei zwanzig Anschlägen und bei einem Einfügen dieselbe ist,
+> misst nicht die Entprellung.**
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.** Hier bekommt die Eins ihre Bedeutung durch die Zwanzig.
+
+`vorschauAnfragen` — der Zähler, der beim Bauen von Wunsch 4 ausdrücklich dafür
+eingebaut wurde, dass die Entprellung messbar ist statt behauptet — hat genau
+dafür getaugt.
+
+### Und ein Fehler in meiner Messanweisung
+
+Der erste Anlauf war unbrauchbar: Der Griff um `fetch` stand **zweimal** in der
+Konsole, weil Chrome ein erneutes `const` erlaubt. Der zweite Griff lag über dem
+ersten, und jede Anfrage zählte doppelt. Aufgefallen ist es nur, weil das Bild
+die Konsole mit zeigte — die Zahl selbst hätte ich als Ergebnis genommen.
+
+> **Ein Messmittel, das man zweimal einfügt, misst zweimal.**
+
+Die berichtigte Fassung merkt sich das echte `fetch` unter einem eigenen Namen
+und überlebt damit mehrfaches Einfügen.
 
 ---
 

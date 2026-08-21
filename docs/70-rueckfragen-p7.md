@@ -5,10 +5,9 @@ Angelegt am 21. August 2026, unmittelbar nach der Abnahme von P6
 beantwortet sein müssen, jede mit ihrer Messgrundlage und meiner Einschätzung
 daneben — damit entschieden und nicht recherchiert werden muss.
 
-**Die Messrunde selbst kommt als eigenes Dokument** und wird erst nach den
-Antworten gefahren; Frage 1 entscheidet, was daran überhaupt zu messen ist. Sie
-bekommt die nächste freie Nummer — hier steht sie noch nicht, weil ein Verweis
-auf ein Dokument, das es nicht gibt, `DocLinkTest` rot macht.
+**Die Messrunde selbst ist `docs/71`** und ist am selben Tag gefahren worden,
+nachdem die Antworten da waren; Frage 1 entscheidet, was daran überhaupt zu
+messen ist.
 
 Was hier als *gemessen* steht, ist heute im Container gegen ein Wegwerf-PowerDNS
 gefahren worden — Fassung **4.8.3**, `gsqlite3`-Backend, API auf
@@ -368,8 +367,8 @@ Keine Fragen an den Betreiber, aber Punkte für den Plan:
 
 1. Der Betreiber beantwortet die zehn Fragen — **Frage 1 zuerst**, sie
    entscheidet den Zuschnitt.
-2. Die Messrunde wird als eigenes Dokument angelegt und gegen ein echtes
-   PowerDNS gefahren, in dem Umfang, den die Antworten setzen. Der Wegwerf-Dienst dafür steht in diesem
+2. Die Messrunde `docs/71` wird gegen ein echtes PowerDNS gefahren, in dem
+   Umfang, den die Antworten setzen. Der Wegwerf-Dienst dafür steht in diesem
    Container und ist heute gefahren worden.
 3. Erst danach der Plan mit dem neu gefassten Abnahmekriterium, den Schritten,
    den Risiken und dem Abschnitt „Was P7 ausdrücklich **nicht** wird".

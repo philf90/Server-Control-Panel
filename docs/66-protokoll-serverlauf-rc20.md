@@ -39,7 +39,7 @@ dem, was er über den Prüfling **oder über das Prüfmittel** sagt.
 | 6 | Griff zum Formular | springt, Formular leer | Knopf da, Sprung erfolgt, Beschriftung und Befehl **leer** | erfüllt |
 | 7 | Zielbaum im Bild | `oben` ≥ 0 | | |
 | 8 | Schlüssel erzeugen und anmelden | Anmeldung gelingt, Fremdschlüssel abgewiesen | | |
-| 9 | Suchleiste | ab 720 px da, Pfad sichtbar, Inhalt übertragen | | |
+| 9 | Suchleiste | ab 720 px da, Pfad sichtbar, Inhalt übertragen | Leiste und Pfad ja; **„auch im Inhalt" wird abgewiesen** | **nicht erfüllt — Befund 5** |
 | 10 | Kopfleiste am Telefon | eine Zeile, vier ganze Wörter | `zeilen: 1`, `hoehe: 120`, alle vier Sätze vollständig | erfüllt, hell und dunkel |
 | 11 | Gegenprobe des Laufs | `dokument` ≫ 0 | | |
 
@@ -103,6 +103,66 @@ seitdem `stat -c "%a %U:%G"` gegen `750 srvpanel:srvpanel`, und
 
 **Der Lauf war dadurch nicht blockiert:** Die Kennungen kommen auch ohne psysh,
 direkt aus der Datenbank.
+
+### Befund 5 — „auch im Inhalt" ist noch nie durchgekommen
+
+**Gesehen bei 1440 px**, Suchbegriff eingetragen, Kästchen angekreuzt, „Suchen":
+
+> Das Formular wurde nicht gespeichert.
+> **Das Feld Inhalt muss wahr oder falsch sein.**
+
+Und das Kästchen bleibt danach leer.
+
+**Die Ursache ist eine Zeile, die auf beiden Seiten gleich falsch ist:**
+
+    router.get(…/files/search, { query, path, content: inContent.value })
+
+`router.get` legt die Werte in die **Adresse**, und eine Adresse kennt keine
+Wahrheitswerte — `false` wird dort zur Zeichenkette `"false"`. Laravels Regel
+`boolean` nimmt `true, false, 1, 0, "1", "0"` und **nicht** `"true"`/`"false"`
+(nachgemessen). Die Regel weist also ab, was der Browser schickt.
+
+> **Dieselbe Regel über einem Wert, der einmal als JSON und einmal als
+> Zeichenkette reist, gilt nur einmal.**
+
+Der Gegenbeleg steht in derselben Datei: `recursive` trägt dieselbe Regel und
+funktioniert — es reist im **Rumpf** eines `DELETE` und bleibt dort ein echter
+Wahrheitswert.
+
+**Das ist älter als heute.** `Search.vue` schickt seit P6 Schritt 5 dieselbe
+Zeile; ich habe sie beim Bau von Wunsch 3 nach `Index.vue` übernommen. Was
+heute neu ist, ist nicht der Fehler, sondern dass ihn jemand ausgelöst hat.
+
+**Und mein Wächter von heute konnte ihn nicht finden.**
+`FileSearchTest::test_both_inputs_send_the_same_values` vergleicht die
+**Schlüssel**, die beide Seiten schicken — und beide schicken denselben kaputten
+Wert.
+
+> **Zwei Eingaben, die dasselbe schicken, schicken auch denselben Fehler.**
+
+**Zu tun nach dem Lauf:** Der Sender wählt eine Form, die die Regel kennt —
+`content: inContent.value ? 1 : 0` auf **beiden** Seiten. Dazu ein Wächter, der
+nicht die Schlüssel vergleicht, sondern fragt: Kommt an einer GET-Route ein
+Wert an, dessen Regel `boolean` heisst und der als `true`/`false` gesendet wird?
+
+**Offen und vom Betreiber zu messen:** Scheitert auch eine Suche **ohne**
+Häkchen? Dann trifft es jede Suche und nicht nur die im Inhalt.
+
+### Zwei Beobachtungen aus derselben Messung, beide keine Befunde
+
+**`kopf.zeilen: 2` bei 1440 px.** Der vierte Knopf ist der `.search-toggle`, und
+der steht dort auf `display: none`. Ein solches Element meldet `top: 0`, und die
+Menge der Oberkanten hat damit zwei Werte. Der Ausdruck aus `docs/65` taugt für
+390 px und nicht für 1440.
+
+> **Eine Kante, die es nicht gibt, ist trotzdem eine Zahl.**
+
+**Der Pfad in der Leiste bricht bei 1440 px über sieben Zeilen.** Das ist der
+ungünstige Fall dieses Laufs — ein Verzeichnisname von rund 300 Zeichen —, und
+`dokument` ist dabei **0**: Er bricht, statt zu schieben. Genau dafür trägt er
+`.ident`. Schön ist es nicht; gemessen ist es in Ordnung.
+
+---
 
 ### Punkt 10 — die Kopfleiste, und der Aufsatz trifft aufs Pixel
 

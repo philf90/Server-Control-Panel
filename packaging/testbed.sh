@@ -82,6 +82,35 @@ note "Oberfläche antwortet"
 docker exec "${NAME}" curl -fsS -k https://127.0.0.1:8443/health
 echo
 
+# **Wem der Schreibbereich gehört — im Betrieb und nicht im Ruhezustand.**
+#
+# Diese Prüfung stand bis zum 21. August **nach** `apt-get remove`, also zu dem
+# einen Zeitpunkt, an dem `srvpanel-agentd` nicht mehr läuft. Genau dort war
+# `0750 srvpanel:srvpanel` zu sehen — und im Betrieb nie: `StateDirectory=`
+# in der Unit des Agenten zog den Modus bei jedem Start auf `0755` zurück
+# (`docs/67`, Befund 1). Vier grüne Installationsläufe haben das durchgelassen.
+#
+# > **Eine Prüfung, die zum falschen Zeitpunkt misst, misst einen Zustand, den
+# > es im Betrieb nie gibt.**
+#
+# Gemessen wird deshalb hier — bei laufenden Diensten — **und** noch einmal
+# nach einem Neustart des Agenten, denn das ist der Griff, der es umwarf.
+note "Rechte am Schreibbereich, bei laufenden Diensten"
+rechte="$(docker exec "${NAME}" stat -c '%a %U:%G' /var/lib/srvpanel)"
+[ "${rechte}" = "750 srvpanel:srvpanel" ] || fail "/var/lib/srvpanel steht auf ${rechte}, erwartet 750 srvpanel:srvpanel"
+echo "  ${rechte}"
+
+note "… und nach einem Neustart des Agenten"
+docker exec "${NAME}" systemctl restart srvpanel-agentd.service
+docker exec "${NAME}" systemctl is-active srvpanel-agentd.service
+rechte="$(docker exec "${NAME}" stat -c '%a %U:%G' /var/lib/srvpanel)"
+[ "${rechte}" = "750 srvpanel:srvpanel" ] || fail "Nach dem Neustart steht /var/lib/srvpanel auf ${rechte} — eine Unit nimmt das Verzeichnis für sich in Anspruch"
+echo "  ${rechte}"
+
+note "Die Oberfläche antwortet auch danach"
+docker exec "${NAME}" curl -fsS -k https://127.0.0.1:8443/health
+echo
+
 note "Entfernen hinterlässt keine Dienste, aber die Daten"
 docker exec "${NAME}" sh -c 'DEBIAN_FRONTEND=noninteractive apt-get remove -y -qq srvpanel >/dev/null'
 docker exec "${NAME}" sh -c '! systemctl is-active --quiet srvpanel-agentd.service'
@@ -89,13 +118,17 @@ docker exec "${NAME}" test -d /var/lib/srvpanel
 
 # **Und wem es gehört, nicht nur dass es da ist.**
 #
-# Hier stand nur `test -d`, und genau das hat den Fehler durchgelassen:
+# Hier stand nur `test -d`, und genau das hat einen Fehler durchgelassen:
 # `/var/lib/srvpanel` war `0755 root:root` statt `0750 srvpanel:srvpanel`, weil
 # `install -d` fehlende Elternverzeichnisse dem Aufrufer gibt. Vorhanden war es
 # die ganze Zeit.
 #
 # > **Eine Prüfung, die nur nachsieht, dass etwas da ist, sagt nichts darüber,
 # > wem es gehört.**
+#
+# **Der Eigentümer wird jetzt oben geprüft, bei laufenden Diensten.** Hier
+# bleibt er als zweite Messung stehen — nach dem Entfernen muss er derselbe
+# sein, sonst nimmt das Entfernen die Daten in Geiselhaft.
 docker exec "${NAME}" sh -c '[ "$(stat -c "%a %U:%G" /var/lib/srvpanel)" = "750 srvpanel:srvpanel" ]'
 
 note "Durchgelaufen."

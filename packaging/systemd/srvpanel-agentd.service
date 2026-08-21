@@ -47,10 +47,33 @@ MemoryDenyWriteExecute=yes
 RestrictRealtime=yes
 SystemCallArchitectures=native
 
+# **Nur `RuntimeDirectory`, und das ist ein Befund** (`docs/67`, Befund 1).
+#
+# Hier standen zusätzlich `LogsDirectory=srvpanel` und
+# `StateDirectory=srvpanel`. Beide sagen systemd: „dieses Verzeichnis gehört
+# diesem Dienst" — und systemd zieht dann bei **jedem Start** den Modus auf
+# `StateDirectoryMode` nach, dessen Vorgabe `0755` ist. Dieser Dienst läuft als
+# root; `/var/lib/srvpanel` gehört aber dem Panel und ist als
+# `0750 srvpanel:srvpanel` ausgeliefert.
+#
+# Gemessen auf `cloudsrv24` am 21. August 2026: vor `systemctl restart
+# srvpanel-agentd` stand es auf `750`, danach auf `755`. Fünf Stellen im
+# Projekt behaupteten `0750` — `nfpm.yaml`, `postinstall.sh`, `testbed.sh` und
+# `PackagingTest` —, und diese eine Zeile hob es jedes Mal wieder auf.
+#
+# > **Ein Verzeichnis, dessen Rechte an zwei Stellen festgelegt werden, hat die
+# > Rechte der Stelle, die zuletzt läuft.**
+#
+# Der Agent braucht die beiden Angaben nicht: Er liest weder `$STATE_DIRECTORY`
+# noch `$LOGS_DIRECTORY`, sondern trägt seine Pfade absolut
+# (`Config::$logFile`, `Dump::ROOT`, `Staging::ROOT`), und `postinstall.sh`
+# legt beide Verzeichnisse mit dem gewollten Eigentümer an.
+#
+# `RuntimeDirectory` bleibt, weil es das Gegenteil ist: `/run` ist ein tmpfs
+# und nach jedem Neustart leer, den Socket legt niemand sonst an, und `0755`
+# steht hier ausdrücklich daneben statt als Vorgabe.
 RuntimeDirectory=srvpanel
 RuntimeDirectoryMode=0755
-LogsDirectory=srvpanel
-StateDirectory=srvpanel
 
 MemoryMax=512M
 TasksMax=128

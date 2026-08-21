@@ -72,8 +72,37 @@ SystemCallArchitectures=native
 # `RuntimeDirectory` bleibt, weil es das Gegenteil ist: `/run` ist ein tmpfs
 # und nach jedem Neustart leer, den Socket legt niemand sonst an, und `0755`
 # steht hier ausdrücklich daneben statt als Vorgabe.
+# **`Preserve=yes`, und das ist Befund 4 aus `docs/67`.**
+#
+# In `/run/srvpanel` liegt nicht nur `agent.sock`, sondern auch der Socket und
+# die PID-Datei von PHP-FPM (`packaging/etc/fpm.conf`) — nginx spricht über
+# `fastcgi_pass unix:/run/srvpanel/fpm.sock`. Das Verzeichnis ist aber nur
+# **hier** als `RuntimeDirectory` angemeldet, und systemds Vorgabe
+# `RuntimeDirectoryPreserve=no` löscht es beim **Stoppen** dieser Unit mitsamt
+# Inhalt.
+#
+# Ein `systemctl restart srvpanel-agentd` nahm damit `fpm.sock` mit. PHP-FPM
+# läuft weiter und legt seinen Socket nicht neu an — nginx findet nichts mehr
+# und antwortet mit **502**, während beide Dienste `active` melden. Gemessen
+# auf `cloudsrv24` am 21. August 2026, ausgelöst durch die Gegenprobe zu
+# Befund 1.
+#
+# > **Ein Verzeichnis, das einem Dienst gehört, nimmt beim Neustart mit, was
+# > ein anderer hineingelegt hat.**
+#
+# **Warum das gefahrlos ist.** `/run` ist ein tmpfs: Der Inhalt überlebt keinen
+# Rechnerneustart, und genau darauf beruht die Begründung von
+# {@see \SrvPanel\Agent\Db\Credentials::DIRECTORY} — ein Passwort, das nach
+# einem Absturz auf der Platte liegt, ist ein Passwort auf der Platte. Diese
+# Zusage bleibt; erhalten bleibt das Verzeichnis nur über den Neustart eines
+# Dienstes hinweg.
+#
+# Und ein liegengebliebener `agent.sock` hält den Agenten nicht auf:
+# `Daemon::listen()` entfernt ihn vor dem Binden und legt das Verzeichnis
+# notfalls selbst an.
 RuntimeDirectory=srvpanel
 RuntimeDirectoryMode=0755
+RuntimeDirectoryPreserve=yes
 
 MemoryMax=512M
 TasksMax=128

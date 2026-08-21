@@ -12287,6 +12287,71 @@ pruefe "  … zurückgesetzt wieder grün" \
   ServiceDirectoryTest::test_no_unit_claims_a_directory_the_packaging_owns_differently passed
 
 echo
+echo "── ServiceDirectoryTest: das Laufzeitverzeichnis wird wieder geraeumt ──"
+#
+# Befund 4 aus docs/67: In /run/srvpanel liegt auch fpm.sock. Ohne Preserve
+# nimmt ein Neustart des Agenten ihn mit -- nginx antwortet mit 502, waehrend
+# beide Dienste `active` melden.
+vorher_datei packaging/systemd/srvpanel-agentd.service
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-agentd.service'
+s = open(p, encoding='utf-8').read()
+alt = 'RuntimeDirectoryPreserve=yes\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei packaging/systemd/srvpanel-agentd.service "Laufzeitverzeichnis wird geraeumt" &&
+pruefe "Laufzeitverzeichnis wird geraeumt" \
+  ServiceDirectoryTest::test_a_shared_runtime_directory_survives_a_restart failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ServiceDirectoryTest::test_a_shared_runtime_directory_survives_a_restart passed
+
+echo
+echo "── ServiceDirectoryTest: der Workflow startet den Agenten nicht neu ──"
+#
+# packaging/testbed.sh wird in der CI nur geshellcheckt. Was wirklich laeuft,
+# steht im Workflow -- und dort muss der Griff stehen, der zweimal etwas
+# umgeworfen hat.
+vorher_datei .github/workflows/ci.yml
+python3 - <<'PY2'
+p = '.github/workflows/ci.yml'
+s = open(p, encoding='utf-8').read()
+alt = 'docker exec target systemctl restart srvpanel-agentd.service'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'true', 1))
+PY2
+griff_datei .github/workflows/ci.yml "Workflow ohne Neustart" &&
+pruefe "Workflow ohne Neustart" \
+  ServiceDirectoryTest::test_the_run_that_actually_runs_checks_the_restart failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ServiceDirectoryTest::test_the_run_that_actually_runs_checks_the_restart passed
+
+echo
+echo "── ServiceDirectoryTest: nach dem Neustart fragt niemand die Oberflaeche ──"
+#
+# Ohne diese Frage sieht ein weggeraeumter fpm.sock aus wie Erfolg: Beide
+# Dienste melden `active`, und niemand klopft an.
+vorher_datei .github/workflows/ci.yml
+python3 - <<'PY2'
+p = '.github/workflows/ci.yml'
+s = open(p, encoding='utf-8').read()
+anfang = s.index('systemctl restart srvpanel-agentd.service')
+ende = s.index('Ein zweiter Lauf der Ersteinrichtung')
+teil = s[anfang:ende]
+alt = 'docker exec target curl -fsS -k https://127.0.0.1:8443/health'
+assert teil.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s[:anfang] + teil.replace(alt, 'true', 1) + s[ende:])
+PY2
+griff_datei .github/workflows/ci.yml "Neustart ohne Nachfrage" &&
+pruefe "Neustart ohne Nachfrage" \
+  ServiceDirectoryTest::test_the_run_that_actually_runs_checks_the_restart failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ServiceDirectoryTest::test_the_run_that_actually_runs_checks_the_restart passed
+
+echo
 echo "── ServiceDirectoryTest: die Auslese von nfpm.yaml laeuft ins Leere ──"
 #
 # Ohne diesen Eingriff waere nicht belegt, dass je Quelle gezaehlt wird: Eine

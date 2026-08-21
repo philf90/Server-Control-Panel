@@ -34,7 +34,7 @@ die Kästen, die nur für die Vorlesesoftware da sind und deshalb nicht mehr in
 | # | Punkt | erwartet | gemessen | |
 |---|---|---|---|---|
 | 1 | Suche ohne und mit Häkchen | beide Male eine Trefferliste | `content=0` und `content=1`, beide Male Treffer, Häkchen bleibt | **erfüllt** |
-| 2 | Vorschau auf der Cronseite | Satz und drei Fälligkeiten | | |
+| 2 | Vorschau auf der Cronseite | Satz und drei Fälligkeiten | Satz da, drei Fälligkeiten, Zone umgerechnet; `*/15` ohne Satz mit drei Zeitpunkten | **erfüllt** |
 | 3 | Entprellung | deutlich unter 20 Anfragen, mindestens 1 | | |
 | 4 | `/audit` bei 390 px | `dokument: 0` | | |
 | 5 | Eine Protokollzeile nennt ihr Stück | `job: … · schedule: …` | | |
@@ -80,6 +80,58 @@ Für die weiteren Punkte gilt deshalb: Fenster **ohne Erweiterungen**. Nicht
 weil es hier etwas verfälscht hätte — `dokument` war 0 —, sondern weil die
 nächste fremde Einhängung vielleicht nicht geklippt ist und dann wie ein Fund
 aussieht.
+
+## 1b. Punkt 2 — die Vorschau während des Tippens
+
+**Gemessen am 21. August, 1440 px, hell, im Inkognito-Fenster ohne
+Erweiterungen.** Die Messung ist zum ersten Mal in diesem Lauf vollständig
+sauber: `stand: 2026-08-21`, `versteckt: 0`, `schiebt: []`, `dokument: 0`,
+`gegenprobe: 200/200`. `rollt` nennt allein die Jobtabelle
+(`div.scrolls`, 248 px, `darf: true`).
+
+**Nebenbei damit erledigt: die fremde Ansagefläche aus Punkt 1.** Im
+Inkognito-Fenster ist `div#lp-menu-live-region` schlicht nicht mehr da. Sie kam
+von einer Erweiterung und nicht von diesem Panel.
+
+**a) `15 3 * * *`**
+
+    Läuft jeden Tag um 03:15.
+    Nächste Fälligkeiten (Europe/Berlin):
+      2026-08-22 05:15:00 · 2026-08-23 05:15:00 · 2026-08-24 05:15:00
+
+Drei Zeitpunkte, wie vorgesehen — zwei lesen sich wie „täglich" und wie „alle
+24 Stunden" gleichermassen. **Und die Umrechnung steht zum ersten Mal als
+Zahl da:** 03:15 Serverzeit (UTC) sind 05:15 in der Anzeigezone. Genau der
+Unterschied, den der Kasten oben auf der Seite erklärt.
+
+**b) `*/15 * * * *`**
+
+    (kein Satz)
+    Nächste Fälligkeiten (Europe/Berlin):
+      2026-08-21 14:30:00 · 14:45:00 · 15:00:00
+
+**Das ist der wichtigste Teilschritt des ganzen Wunsches.** Der häufigste
+Zeitplan überhaupt bekommt keine Prosa, weil `Spoken` nur übersetzt, was sie
+sicher übersetzen kann — und trotzdem eine eindeutige Antwort. Die Entscheidung
+für Weg B (`docs/66 §4.2`) hing genau daran:
+
+> **Die Fälligkeiten sind der eigentliche Gewinn.** Sie brauchen keine
+> Übersetzungsregel, also gibt es sie auch für die Fälle, für die es keinen
+> Satz gibt.
+
+**c) Ein unbrauchbarer Zeitplan** — abgesendet:
+
+> Das Formular wurde nicht gespeichert.
+> Das Feld **„Minute"** des Zeitplans enthält unerlaubte Zeichen.
+
+Die Meldung nennt das Feld so, wie es auf der Seite heisst. **Das belegt
+nebenbei Befund 3 aus `docs/66`** an einer zweiten Stelle.
+
+**Offen und benannt:** Ob die Vorschau **während des Tippens** stillschweigend
+verschwindet — ohne roten Rand und ohne Satz —, ist auf den Bildern nicht zu
+sehen; sie zeigen den Zustand nach dem Absenden. Das ist eine Zusage im Code
+(„wer beim dritten Zeichen einer Spanne rot wird, wird bei jeder Spanne rot"),
+und eine Zusage ist keine Messung.
 
 ---
 

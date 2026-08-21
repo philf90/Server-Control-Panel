@@ -33,11 +33,53 @@ die Kästen, die nur für die Vorlesesoftware da sind und deshalb nicht mehr in
 
 | # | Punkt | erwartet | gemessen | |
 |---|---|---|---|---|
-| 1 | Suche ohne und mit Häkchen | beide Male eine Trefferliste | *(vor dem Lauf: 502, siehe Befund 4)* | |
+| 1 | Suche ohne und mit Häkchen | beide Male eine Trefferliste | `content=0` und `content=1`, beide Male Treffer, Häkchen bleibt | **erfüllt** |
 | 2 | Vorschau auf der Cronseite | Satz und drei Fälligkeiten | | |
 | 3 | Entprellung | deutlich unter 20 Anfragen, mindestens 1 | | |
 | 4 | `/audit` bei 390 px | `dokument: 0` | | |
 | 5 | Eine Protokollzeile nennt ihr Stück | `job: … · schedule: …` | | |
+
+---
+
+## 1a. Punkt 1 — der nachgeholte Punkt des rc20-Laufs
+
+**Gemessen am 21. August auf `cloudsrv24` gegen `v0.6.0-rc.23`**, 1440 px, hell.
+Die Adresse sagt es unmissverständlich:
+
+    …/files/search?content=0&path=%2F&query=conf     ← ohne Häkchen
+    …/files/search?content=1&path=%2F&query=conf     ← mit Häkchen
+
+`0` und `1` statt `false` und `true`. Beide Male kommt die Trefferliste
+(„Gesucht unter / — angesehene Einträge: 18", ein Treffer `/conf` im Namen),
+**das Kästchen bleibt angehakt**, die Leiste nennt das Verzeichnis, und
+`dokument: 0`.
+
+**Damit ist Befund 5 aus `docs/66` auf einem echten Server belegt** — die Suche,
+die seit P6 Schritt 5 an keinem einzigen Tag durchgekommen war, in beiden
+Zuständen des Kästchens.
+
+### Zwei Beobachtungen am Messmittel, beide ohne Einfluss auf das Ergebnis
+
+**Der Aufsatz war der alte.** Die Ausgabe trug `"stand":"2026-08-19"`, und das
+Feld `versteckt` fehlte; aktuell ist `2026-08-21`. Genau dafür gibt es diesen
+Stand.
+
+> **Ein Werkzeug, das nach jedem Neuladen aus der Zwischenablage kommt, ist so
+> alt wie die Zwischenablage und sagt es nicht.**
+
+**Und die eine Zeile in `schiebt` gehörte nicht uns.**
+`div#lp-menu-live-region` mit `aria-live="polite"` und `clip: rect(…)`,
+Überlauf 468 px — dieses Element kommt im Quelltext dieses Projekts **nirgends**
+vor. Bauart und Präfix deuten auf eine Browser-Erweiterung, die in jede Seite
+eine versteckte Ansagefläche einhängt.
+
+> **Ein Messmittel, das im Browser des Betreibers läuft, misst auch, was der
+> Browser dazutut.**
+
+Für die weiteren Punkte gilt deshalb: Fenster **ohne Erweiterungen**. Nicht
+weil es hier etwas verfälscht hätte — `dokument` war 0 —, sondern weil die
+nächste fremde Einhängung vielleicht nicht geklippt ist und dann wie ein Fund
+aussieht.
 
 ---
 

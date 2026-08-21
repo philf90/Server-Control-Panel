@@ -37,7 +37,7 @@ dem, was er über den Prüfling **oder über das Prüfmittel** sagt.
 | 4 | Kontingentauskunft oben | ~~`oben` ≈ 18~~ → **über den Bereichen** | `oben: 294` von 3795 px Seitenhöhe, Text nennt „(10 von 10)" | erfüllt; das Kriterium war falsch (Befund 4) |
 | 5 | „Job anlegen" bei 1440 px | Zeitplan in voller Breite | `fieldset.field wide` **1124×325**, Schnellwahl darin **1124×64**; `schiebt: []` | erfüllt, hell und dunkel |
 | 6 | Griff zum Formular | springt, Formular leer | Knopf da, Sprung erfolgt, Beschriftung und Befehl **leer** | erfüllt |
-| 7 | Zielbaum im Bild | `oben` ≥ 0 | | |
+| 7 | Zielbaum im Bild | `oben` ≥ 0 | `oben: 216`, `unten: 629`, `fenster: 844` | erfüllt — und ganz drin |
 | 8 | Schlüssel erzeugen und anmelden | Anmeldung gelingt, Fremdschlüssel abgewiesen | | |
 | 9 | Suchleiste | ab 720 px da, Pfad sichtbar, Inhalt übertragen | Leiste und Pfad ja; **jede Suche wird abgewiesen** | **nicht erfüllt — Befund 5** |
 | 10 | Kopfleiste am Telefon | eine Zeile, vier ganze Wörter | `zeilen: 1`, `hoehe: 120`, alle vier Sätze vollständig | erfüllt, hell und dunkel |
@@ -181,6 +181,31 @@ ungünstige Fall dieses Laufs — ein Verzeichnisname von rund 300 Zeichen —, 
 `.ident`. Schön ist es nicht; gemessen ist es in Ordnung.
 
 ---
+
+### Punkt 7 — der Zielbaum, und was diese Messung nicht sagt
+
+Bei 390 px, hell, zwei Einträge angekreuzt, „Verschieben":
+
+    { oben: 216, unten: 629, fenster: 844 }
+
+`oben ≥ 0` ist das Kriterium, und 216 erfüllt es. **Befund 18 ist behoben.**
+
+Der Baum ist dabei sogar **ganz** im Bild: 629 < 844. Genau das ist die Grenze
+dieser Messung, und sie gehört benannt — dieser Baum ist 413 px hoch, weil das
+Abonnement sechs Einträge unter der Wurzel hat. Ein Abonnement mit dreissig
+Verzeichnissen misst hier etwas anderes, und ob die Zentrierung dann oben
+abschneidet, ist **nicht** gemessen. Das Kriterium ist deshalb `oben ≥ 0` und
+nicht `unten ≤ fenster`: Der überzählige Baum darf rollen, er darf nur nicht
+oben verschwinden.
+
+> **Ein Prüfkörper, der in das Fenster passt, sagt nichts über den, der es
+> nicht tut.**
+
+**Und eine Beobachtung nebenbei, die kein Kriterium bestellt hat.** Der
+Verzeichnisname aus §0.2 — rund 300 Zeichen — bricht im Baum über neun Zeilen,
+ohne die Seite zu schieben. Das ist dieselbe Ausnahme wie bei `.ident` und
+`.stacks td .ident` und beim Bereichstitel aus `docs/46 §20.11`, hier zum
+vierten Mal und diesmal von Anfang an richtig.
 
 ### Punkt 10 — die Kopfleiste, und der Aufsatz trifft aufs Pixel
 

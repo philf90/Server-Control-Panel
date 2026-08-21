@@ -9636,8 +9636,17 @@ vorher_datei tests/bilder-messen.js
 python3 - <<'PY2'
 p = 'tests/bilder-messen.js'
 s = open(p, encoding='utf-8').read()
-s = s.replace("const STAND = '2026-08-19'", "const STAND = 'neu'", 1)
-open(p, 'w', encoding='utf-8').write(s)
+# Das volle Datum steht hier nicht: Der Eingriff soll den naechsten Stand
+# ueberleben. Am 21. August tat er es nicht -- BreakScriptTest hat gemeldet,
+# dass er seinen Text nicht mehr findet, und das war richtig.
+#
+# Ein regulaerer Ausdruck waere die naheliegende Antwort und die falsche:
+# interventions() liest s.replace(...) und zugewiesene Zeichenketten, keine
+# re.subn -- der Eingriff waere date-unabhaengig und fuer den Waechter
+# unsichtbar geworden.
+alt = "const STAND = '20"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "const STAND = 'neu", 1))
 PY2
 griff_datei tests/bilder-messen.js "Stand ohne Datum" &&
 pruefe "Stand ohne Datum" \
@@ -12254,6 +12263,71 @@ griff_datei resources/css/app.css "Verb ohne Namen" &&
 pruefe "Verb ohne Namen" ActionIconTest::test_the_hidden_verb_still_has_a_name failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ActionIconTest::test_the_hidden_verb_still_has_a_name passed
+
+echo
+echo "── OverflowProbeTest: der Filter fragt nur nach overflow ──"
+#
+# Dann naehme er die halbe Messung mit -- jeder Rollbehaelter faellt darunter.
+# Verlangt sind beide Merkmale zusammen: geklippt UND auf einen Punkt gezogen.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+alt = "      const geklippt = stil.clipPath !== 'none' || (stil.clip !== 'auto' && stil.clip !== '')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '      const geklippt = true', 1))
+PY2
+griff_datei tests/bilder-messen.js "Filter ohne Klippung" &&
+pruefe "Filter ohne Klippung" \
+  OverflowProbeTest::test_a_screen_reader_label_is_counted_and_not_listed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  OverflowProbeTest::test_a_screen_reader_label_is_counted_and_not_listed passed
+
+echo
+echo "── OverflowProbeTest: der Filter sieht nicht bei den Vorfahren nach ──"
+#
+# Bei `.stacks thead` traegt nur der Kopf die Klippung; das `tr` darin ist
+# 1 px breit, weil sein Behaelter es ist, und bliebe als Geisterzeile stehen.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+anfang = s.index('const nurFuerVorlesen')
+ende = s.index('const roller')
+teil = s[anfang:ende]
+alt = 'for (let n = element; n && n !== document.body; n = n.parentElement) {'
+assert teil.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s[:anfang] + teil.replace(alt, 'for (const n of [element]) {', 1) + s[ende:]
+)
+PY2
+griff_datei tests/bilder-messen.js "Filter ohne Vorfahren" &&
+pruefe "Filter ohne Vorfahren" \
+  OverflowProbeTest::test_a_screen_reader_label_is_counted_and_not_listed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  OverflowProbeTest::test_a_screen_reader_label_is_counted_and_not_listed passed
+
+echo
+echo "── OverflowProbeTest: die uebersprungenen Kaesten werden verschwiegen ──"
+#
+# Eine kurze Liste liest sich dann wie eine heile Seite.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+alt = '    rollt: roller.filter((r) => r.darf),\n    versteckt,\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '    rollt: roller.filter((r) => r.darf),\n'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/bilder-messen.js "Zahl verschwiegen" &&
+pruefe "Zahl verschwiegen" \
+  OverflowProbeTest::test_a_screen_reader_label_is_counted_and_not_listed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  OverflowProbeTest::test_a_screen_reader_label_is_counted_and_not_listed passed
 
 echo
 echo "── TopLevelSetupTest: die Klammern eines watch rutschen zusammen ──"

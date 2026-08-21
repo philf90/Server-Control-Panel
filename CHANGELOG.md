@@ -16442,3 +16442,90 @@ GET-Routen, von denen genau **eine** überhaupt Eingaben prüft — die Untergre
 steht auf dieser Eins, damit eine Null nicht als „keine Falle gefunden"
 durchgeht. Drei neue Brüche im Bruchskript, einer davon gegen die Auslese
 selbst.
+
+### P6 — die Umrechnung während des Tippens, und ein Wächter, der Klammern zählt
+
+**Wunsch 4 des Betreibers**, bestellt am 20. August beim Messen von Punkt 5:
+
+> Bitte eine Live-Umrechnung einbauen und anzeigen, die sofort anzeigt, in
+> welchem Rhythmus der anzulegende Job läuft. Keine zusätzliche Eingabe, nur
+> eine Anzeige.
+
+**Die Seite übersetzt weiterhin nicht selbst — sie fragt.** `Cron.vue` durfte
+das noch nie, und `CronScheduleFormTest` hält es: Den Satz baut `Spoken` auf dem
+Server, die Fälligkeiten `Occurrence`. Beides in TypeScript nachzubauen hiesse,
+dieselbe Regel in zwei Sprachen zu pflegen.
+
+> **Eine Zusammenfügung darf doppelt stehen, eine Regel nicht.**
+
+`GET /subscriptions/{subscription}/cron/preview` trägt dieselbe Fähigkeit wie
+die Seite und gibt `{ spoken, next }` zurück — den Satz und die **drei** nächsten
+Fälligkeiten, durch `Clock` in die Anzeigezone. Drei und nicht zwei: „am 22. um
+03:15, am 23. um 03:15" liest sich wie täglich und wie alle 24 Stunden
+gleichermassen.
+
+`Schedule::parse()` bleibt die einzige Schranke. Eine unfertige Eingabe bekommt
+keine Fehlermeldung, sondern eine leere Antwort — wer beim dritten Zeichen einer
+Spanne rot wird, wird bei jeder Spanne rot.
+
+**Gemessen im Container ohne Framework**, gegen die echten Klassen:
+`0 9 * * 1-5` springt vom Freitag auf den Montag; ein Plan alle fünfzehn Minuten
+bekommt **keinen Satz** und trotzdem drei Zeitpunkte; der 30. Februar bekommt
+gar keinen; Unsinn wird abgewiesen. Der dritte Fall ist der Grund für die
+Fälligkeiten: Sie brauchen keine Übersetzungsregel und gibt es deshalb auch
+dort, wo `Spoken` schweigt.
+
+**Beim Bauen dazugekommen und im Plan nicht vorgesehen:** Zwei Anfragen können
+sich überholen. Jede trägt jetzt eine Nummer, geprüft an **beiden** Ausgängen.
+
+> **Zwei Antworten, die beide stimmen, ergeben zusammen eine falsche Anzeige,
+> wenn die Reihenfolge fehlt.**
+
+**Und ein Wächter, der über diesen Wunsch hinausgeht.** Am 20. August hatte
+`})})` einen `watch` samt seinem `ref` in einen Rückruf verschoben; er wurde nie
+registriert, das Merkmal war von seinem ersten Tag an wirkungslos, und `vue-tsc`
+wie `npm run build` liefen durch.
+
+> **Ein Wächter, der Wörter liest, sieht keine Klammern.**
+
+`TopLevelSetupTest` liest deshalb keine Wörter, sondern **zählt Klammern**: Was
+am linken Rand einer `.vue` steht, sieht nach oberster Ebene aus — er vergleicht
+diesen Eindruck mit der tatsächlichen Verschachtelung. Gemessen sind 61 Dateien
+mit 515 Erklärungen am Rand.
+
+### P6 — das Messmittel meldete auf jeder Seite Geisterzeilen
+
+**Befund 2 aus `docs/66`.** `tests/bilder-messen.js` führte in `schiebt` jede
+Beschriftung auf, die nur für die Vorlesesoftware da ist. Die übliche Technik
+dafür ist `width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%)` —
+ein solcher Kasten hat **immer** `scrollWidth > clientWidth`, und `hidden` steht
+nicht in der Liste der erlaubten Roller.
+
+Gemessen im echten Chromium gegen das gebaute Stylesheet, vorher und nachher:
+
+    vorher:   schiebt: [span.sr 42, span.sr 42, thead 379, tr 351, div 287]
+    nachher:  schiebt: [div 287]     versteckt: 4
+
+Vier von fünf Zeilen waren gewollt. Wer sie dreimal überliest, überliest beim
+vierten Mal den echten Fund.
+
+> **Eine Liste, die auch das Gewollte nennt, ist ein Hinweis und kein Urteil.**
+
+Drei Eigenschaften des Filters, ohne die er falsch wäre: **beide Merkmale
+zusammen** (über `overflow: hidden` allein fiele jeder Rollbehälter darunter),
+**die Vorfahren dazu** (bei `.stacks thead` trägt nur der Kopf die Klippung; das
+`tr` darin ist 1 px breit, weil sein Behälter es ist) und **die Zahl daneben** —
+`versteckt` steht im Ergebnis, damit sich eine kurze Liste nicht wie eine heile
+Seite liest.
+
+> **Kein stiller Deckel: Wer die Sicht begrenzt, nennt die Zahl dazu.**
+
+**Und der Stand des Messmittels hat dabei einen alten Eingriff gebrochen.** Er
+suchte `const STAND = '2026-08-19'` wörtlich; `BreakScriptTest` hat es gemeldet,
+bevor die CI es tat. Ein regulärer Ausdruck wäre die naheliegende Antwort und
+die falsche gewesen: `interventions()` liest `s.replace(…)` und zugewiesene
+Zeichenketten, kein `re.subn` — der Eingriff wäre datumsunabhängig **und für den
+Wächter unsichtbar** geworden.
+
+> **Ein Eingriff, den der Wächter über die Eingriffe nicht lesen kann, ist
+> genauso gut wie keiner — nur meldet niemand es.**

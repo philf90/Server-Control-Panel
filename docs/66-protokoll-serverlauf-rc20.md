@@ -35,7 +35,7 @@ dem, was er über den Prüfling **oder über das Prüfmittel** sagt.
 | 2 | Rückmeldungen deutsch | keine Bezeichner | | |
 | 3 | Meldung der Experteneingabe | „Im Ausdruck fehlt der 4. Teil (Monat)." | **wörtlich so, dazu der 5. Teil (Wochentag)**; `aria-invalid="true"` | erfüllt, hell und dunkel |
 | 4 | Kontingentauskunft oben | `oben` ≈ 18 | | |
-| 5 | „Job anlegen" bei 1440 px | Zeitplan in voller Breite | | |
+| 5 | „Job anlegen" bei 1440 px | Zeitplan in voller Breite | `fieldset.field wide` **1124×325**, Schnellwahl darin **1124×64**; `schiebt: []` | erfüllt, hell und dunkel |
 | 6 | Griff zum Formular | springt, Formular leer | „Job anlegen" steht in der Kopfzeile | Sprung noch offen |
 | 7 | Zielbaum im Bild | `oben` ≥ 0 | | |
 | 8 | Schlüssel erzeugen und anmelden | Anmeldung gelingt, Fremdschlüssel abgewiesen | | |
@@ -103,6 +103,29 @@ seitdem `stat -c "%a %U:%G"` gegen `750 srvpanel:srvpanel`, und
 
 **Der Lauf war dadurch nicht blockiert:** Die Kennungen kommen auch ohne psysh,
 direkt aus der Datenbank.
+
+### Punkt 5 im Wortlaut — Befund 14 ist behoben
+
+Bei 1440 px (Inhaltsbreite 1124), **hell und dunkel**, dieselben Zahlen:
+
+    dokument: 0        gegenprobe: 200/200        schiebt: []
+    rollt:    div.scrolls  überlauf 250  darf: true   (die Jobtabelle, gewollt)
+    gruppen:  fieldset.field wide  1124x325
+              div.field wide       1124x64      ← die Schnellwahl, **darin**
+              div.field-row        1124x87
+
+**`schiebt` ist leer** — auf dieser Seite schiebt bei 1440 px gar nichts, und
+der einzige Roller ist der gewollte Behälter der Jobtabelle.
+
+Die Zeitplangruppe hat **1124 px**, also die volle Inhaltsbreite und nicht die
+540 px eines `.field`. Die Schnellwahl steht **innerhalb** von ihr. Damit ist
+die Fassung gebaut, die im Container 34k tote Fläche gemessen hat — und nicht
+die, die 193k ergeben hätte.
+
+> **Eine Umgruppierung, die die Breite nicht mitnimmt, verschiebt die leere
+> Fläche nur.**
+
+---
 
 ### Punkt 3 im Wortlaut — Befund 16 ist behoben
 
@@ -223,3 +246,54 @@ Aus `docs/65 §12` schon vor dem Lauf benannt:
 - Die Suche im ganzen Abonnement gibt es nicht.
 - Die gestapelten Knopfreihen der anderen Seiten sind nicht gemessen.
 - RSA und ECDSA werden nicht erzeugt.
+
+---
+
+## 4. Wunsch 4 — die Umrechnung während des Tippens
+
+**Bestellt vom Betreiber am 20. August**, beim Messen von Punkt 5: Beim Anlegen
+soll sofort dastehen, **in welchem Rhythmus** der Job laufen wird. Keine
+zusätzliche Eingabe, nur eine Anzeige.
+
+> Die reine Cron-Schreibweise kann für unerfahrene Nutzer mehr Hindernis als
+> Hilfsmittel sein.
+
+### 4.1 Der Wunsch trifft auf eine Regel, die dieses Projekt hat
+
+`Cron.vue` übersetzt **mit Absicht** nicht im Browser, und
+`CronScheduleFormTest::test_the_page_does_not_translate_on_its_own` hält es:
+Den Satz baut `App\Support\Cron\Spoken` auf dem Server, und ihn ein zweites
+Mal in TypeScript zu bauen hiesse, dieselbe Regel in zwei Sprachen zu pflegen.
+
+> **Eine Zusammenfügung darf doppelt stehen, eine Regel nicht.**
+
+Die Schnellwahl ist die Ausnahme, und sie ist begründet: Dort **ist** die
+Beschriftung der Satz, und der Wächter hält sie gegen `Spoken`.
+
+### 4.2 Drei Wege, und nur einer hat keine zweite Fassung
+
+| | Weg | zweite Fassung? | Kosten |
+|---|---|---|---|
+| A | `Spoken` in TypeScript nachbauen | **ja** | keine Anfrage, aber zwei Regeln, die auseinanderlaufen |
+| B | Der Server antwortet auf die fünf Felder | nein | eine Anfrage je Tipppause |
+| C | Nur die Schnellwahl trägt den Satz (heute) | nein | wer von Hand tippt, bekommt nichts |
+
+**Vorgeschlagen ist B.** Eine lesende Route, die die fünf Felder entgegennimmt
+und `{ spoken, next }` zurückgibt — den Satz aus `Spoken::schedule()` und die
+nächsten Fälligkeiten aus `Occurrence::next()`, in der Anzeigezone des Lesers
+(`Clock`). Entprellt, damit nicht jeder Tastendruck fragt.
+
+**Und die Fälligkeiten sind der eigentliche Gewinn.** „Läuft als Nächstes am
+21.08.2026 um 03:15, dann am 22.08. um 03:15" beantwortet die Frage eines
+Anfängers eindeutiger als jede Prosa — und braucht **keine** Übersetzungsregel,
+also auch keine zweite Fassung davon.
+
+### 4.3 Was vor dem Bauen entschieden gehört
+
+1. **Eine Anfrage je Tipppause** — akzeptabel? Sie ist lesend, ohne Agenten,
+   und trägt dieselbe Policy wie die Seite. Aber sie ist neu.
+2. **Gebaut wird nach dem Lauf.** Mitten im Lauf zu ändern hiesse, die Punkte 2
+   bis 6 gegen zwei verschiedene Fassungen zu messen.
+
+> **Eine Messung, die zur Hälfte gegen eine andere Fassung lief, ist keine.**
+

@@ -16740,3 +16740,43 @@ nebeneinander, `/health` meldet `"ready":true` — ohne dass jemand
 `srvpanel-web` anfassen musste.
 
 Zwei neue Brüche.
+
+### P6 — lange Kennungen sprengten die Kärtchen auf dem Telefon
+
+**Gefunden am 21. August auf `cloudsrv24`** bei Punkt 4 des Nachlaufs
+(`docs/67`, Befund 6). Auf `/audit` bei 390 px meldete `schiebt` ein gutes
+Dutzend Einträge — die Tabelle 145 px über die Breite, einzelne Zellen 150–160 —
+während `dokument` bei **0** blieb: Der Rollbehälter fing es auf.
+
+> **Eine Zelle, die rollen darf, hat keine Obergrenze — sie hat nur keine Zahl,
+> die sich beschwert.**
+
+Die Spalte „Einzelheiten" — die Behebung des vorigen Befundes — trägt Sätze wie
+`Fingerprint: SHA256:Sn3W6HvtgEGjDuvTnuZvc7Zys8zk1ndfoNv9EADbKjs`, also lange
+Kennungen ohne ein einziges Leerzeichen.
+
+**Die Ursache:** `.stacks td` ist im Kärtchenmodus eine Flexzeile, und der Wert
+ist ein **anonymes** Flexkind — nicht ansprechbar, sein automatisches
+Mindestmass folgt der Mindestinhaltsbreite. Die Ausnahme dafür gab es nur für
+`.stacks td .ident`.
+
+**Behoben mit einer Regel an `.stacks td` statt einer sechsten Ausnahme.**
+Dieselbe Ausnahme stand vorher fünfmal im Stylesheet — `.ident`,
+`.stacks td .ident`, `.section-head h2`, `.cell-value`, `.subline` —, jede für
+einen bestimmten Inhalt, der zu lang war. Die sechste hätte `class="ident"` auf
+eine Zelle gesetzt, die keine Kennung enthält: Monospace für einen Satz.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+Gemessen im echten Chromium gegen das gebaute Stylesheet, 390 px: `normal` und
+`break-word` ergeben **Pixel für Pixel dasselbe** (64/64/65/79), nur `anywhere`
+ergibt eine leere Liste. Der Unterschied steht in der Spezifikation und ist hier
+nachgemessen statt aus ihr zitiert.
+
+> **Zwei Werte, von denen einer richtig aussieht und nichts tut, sind schlimmer
+> als ein fehlender.**
+
+`MobileLayoutTest::test_a_stacked_cell_can_break_a_long_value` rechnet die
+Kaskade nach: nicht ob die Zeile dasteht, sondern welche Regel an einer
+gestapelten Zelle gewinnt. Zwei neue Brüche.

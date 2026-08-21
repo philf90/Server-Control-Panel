@@ -36,7 +36,7 @@ die Kästen, die nur für die Vorlesesoftware da sind und deshalb nicht mehr in
 | 1 | Suche ohne und mit Häkchen | beide Male eine Trefferliste | `content=0` und `content=1`, beide Male Treffer, Häkchen bleibt | **erfüllt** |
 | 2 | Vorschau auf der Cronseite | Satz und drei Fälligkeiten | Satz da, drei Fälligkeiten, Zone umgerechnet; `*/15` ohne Satz mit drei Zeitpunkten | **erfüllt** |
 | 3 | Entprellung | deutlich unter 20 Anfragen, mindestens 1 | **1** zügig gegen **20** langsam | **erfüllt** |
-| 4 | `/audit` bei 390 px | `dokument: 0` | | |
+| 4 | `/audit` bei 390 px | `dokument: 0` | `dokument: 0`, aber `schiebt` voll | **nicht erfüllt — Befund 6** |
 | 5 | Eine Protokollzeile nennt ihr Stück | `job: … · schedule: …` | | |
 
 ---
@@ -378,6 +378,64 @@ gewesen, ohne dass es einen Nachbarn gibt.
 > aus dem falschen Grund grün.**
 
 Erkannt wird sie jetzt daran, dass die Unit sie in ihrem `ExecStart` nennt.
+
+### Befund 6 — die Spalte „Einzelheiten" schiebt die Kärtchen auseinander
+
+**Gesehen bei 390 px auf `/audit`, hell und dunkel dieselben Zahlen.**
+`dokument: 0`, `gegenprobe: 200/200`, `versteckt: 2` — und `schiebt` mit einem
+guten Dutzend Einträgen:
+
+    table.stacks   überlauf 145
+    tbody          überlauf 145
+    tr:6, tr:10, tr:20, …
+    td.quiet:5     überlauf 150–160
+       „Fingerprint: SHA256:Sn3W6HvtgEGjDuvTnuZvc7Zys8zk1ndfoNv9EADbKjs"
+
+**Die Spalte „Einzelheiten" ist meine Behebung von Befund 7** aus `docs/66` —
+und sie bringt lange Kennungen ohne ein einziges Leerzeichen in einen
+Kärtchenmodus, der sie nicht brechen kann.
+
+**`dokument` bleibt dabei 0**, weil der Rollbehälter es auffängt. Der Fund ist
+also nur in `schiebt` zu sehen; die Seite meldet sich nicht. Genau dieser Satz
+steht seit `docs/46 §20.13` im Projekt:
+
+> **Eine Zelle, die rollen darf, hat keine Obergrenze — sie hat nur keine Zahl,
+> die sich beschwert.**
+
+**Die Ursache** steht in `app.css`: `.stacks td` ist im Kärtchenmodus eine
+Flexzeile (Beschriftung links, Wert rechts). Der Wert ist ein **anonymes**
+Flexkind — nicht ansprechbar, und sein automatisches Mindestmass folgt der
+Mindestinhaltsbreite. Die Ausnahme dafür gab es nur für `.stacks td .ident`
+und `.stacks td.ident`; meine Zelle trägt `quiet`.
+
+**Behoben mit einer Regel an `.stacks td` statt einer sechsten Ausnahme.**
+Dieselbe Ausnahme gab es vorher fünfmal — `.ident`, `.stacks td .ident`,
+`.section-head h2`, `.cell-value`, `.subline` —, jede für einen *bestimmten*
+Inhalt, der zu lang war. Die sechste hätte `class="ident"` auf eine Zelle
+gesetzt, die keine Kennung enthält: Monospace für einen Satz.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+**Gemessen im echten Chromium gegen das gebaute Stylesheet, 390 px:**
+
+    normal        schiebt: [table.stacks 64, tbody 64, tr 65, td.quiet 79]
+    break-word    schiebt: [table.stacks 64, tbody 64, tr 65, td.quiet 79]
+    anywhere      schiebt: []
+
+**`break-word` verhält sich Pixel für Pixel wie gar keine Regel.** Nur
+`anywhere` verkleinert die Mindestinhaltsbreite — der Unterschied steht in der
+Spezifikation und ist hier nachgemessen, statt aus ihr zitiert zu werden.
+
+> **Zwei Werte, von denen einer richtig aussieht und nichts tut, sind schlimmer
+> als ein fehlender.**
+
+`MobileLayoutTest::test_a_stacked_cell_can_break_a_long_value` rechnet die
+Kaskade nach — nicht das Vorhandensein der Zeile, sondern welche Regel an einer
+gestapelten Zelle **gewinnt**. Zwei Brüche: die Regel weg, und `break-word`
+statt `anywhere`.
+
+**Punkt 4 ist damit nicht erfüllt** und wartet auf eine Fassung mit dem Fix.
 
 ### Befund 5 — meine eigene Prüfung rannte gegen den Start
 

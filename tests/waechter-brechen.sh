@@ -12287,6 +12287,50 @@ pruefe "  … zurückgesetzt wieder grün" \
   ServiceDirectoryTest::test_no_unit_claims_a_directory_the_packaging_owns_differently passed
 
 echo
+echo "── MobileLayoutTest: eine gestapelte Zelle kann nicht mehr brechen ──"
+#
+# Befund 6 aus docs/67: Die Spalte Einzelheiten traegt einen Fingerabdruck
+# ohne Leerzeichen und drueckte die Tabelle 145 px ueber die Breite -- bei
+# dokument 0, weil der Rollbehaelter es auffing.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = "     */\n    overflow-wrap: anywhere;\n  }\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "     */\n  }\n", 1))
+PY2
+griff_datei resources/css/app.css "Zelle ohne Umbruch" &&
+pruefe "Zelle ohne Umbruch" \
+  MobileLayoutTest::test_a_stacked_cell_can_break_a_long_value failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  MobileLayoutTest::test_a_stacked_cell_can_break_a_long_value passed
+
+echo
+echo "── MobileLayoutTest: break-word statt anywhere ──"
+#
+# Sieht richtig aus und wirkt nicht: `break-word` laesst die
+# Mindestinhaltsbreite unberuehrt, und ein Flexkind darf nicht darunter.
+# Gemessen im echten Chromium -- normal und break-word ergeben Pixel fuer
+# Pixel dasselbe (64/64/65/79), nur anywhere ergibt eine leere Liste.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = "     */\n    overflow-wrap: anywhere;\n  }\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "     */\n    overflow-wrap: break-word;\n  }\n"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/css/app.css "break-word statt anywhere" &&
+pruefe "break-word statt anywhere" \
+  MobileLayoutTest::test_a_stacked_cell_can_break_a_long_value failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  MobileLayoutTest::test_a_stacked_cell_can_break_a_long_value passed
+
+echo
 echo "── ServiceDirectoryTest: das Laufzeitverzeichnis wird wieder geraeumt ──"
 #
 # Befund 4 aus docs/67: In /run/srvpanel liegt auch fpm.sock. Ohne Preserve

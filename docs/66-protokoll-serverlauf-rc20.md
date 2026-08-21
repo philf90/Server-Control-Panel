@@ -38,7 +38,7 @@ dem, was er über den Prüfling **oder über das Prüfmittel** sagt.
 | 5 | „Job anlegen" bei 1440 px | Zeitplan in voller Breite | `fieldset.field wide` **1124×325**, Schnellwahl darin **1124×64**; `schiebt: []` | erfüllt, hell und dunkel |
 | 6 | Griff zum Formular | springt, Formular leer | Knopf da, Sprung erfolgt, Beschriftung und Befehl **leer** | erfüllt |
 | 7 | Zielbaum im Bild | `oben` ≥ 0 | `oben: 216`, `unten: 629`, `fenster: 844` | erfüllt — und ganz drin |
-| 8 | Schlüssel erzeugen und anmelden | Anmeldung gelingt, Fremdschlüssel abgewiesen | | |
+| 8 | Schlüssel erzeugen und anmelden | Anmeldung gelingt, Fremdschlüssel abgewiesen | Fingerabdruck stimmt überein, `sftp` verbindet, Fremdschlüssel `Permission denied (publickey)` | erfüllt (1440 px hell; Reste in §3) |
 | 9 | Suchleiste | ab 720 px da, Pfad sichtbar, Inhalt übertragen | Leiste und Pfad ja; **jede Suche wird abgewiesen** | **nicht erfüllt — Befund 5** |
 | 10 | Kopfleiste am Telefon | eine Zeile, vier ganze Wörter | `zeilen: 1`, `hoehe: 120`, alle vier Sätze vollständig | erfüllt, hell und dunkel |
 | 11 | Gegenprobe des Laufs | `dokument` ≫ 0 | | |
@@ -181,6 +181,83 @@ ungünstige Fall dieses Laufs — ein Verzeichnisname von rund 300 Zeichen —, 
 `.ident`. Schön ist es nicht; gemessen ist es in Ordnung.
 
 ---
+
+### Punkt 8 — der Schlüssel aus dem Browser meldet sich an
+
+**Der Punkt, für den es diesen Lauf vor allem gibt.** Gemessen am 21. August auf
+einem Windows-Rechner, PowerShell, `OpenSSH_for_Windows_9.5p2`.
+
+**Im Panel** (1440 px, hell): Bezeichnung `Testschlüssel rc20`, „Schlüssel
+erzeugen". Der Satz über den privaten Teil steht **vor** der Knopfreihe, die
+Zeile erscheint in der Tabelle, und der private Teil erscheint erst danach
+darunter. Der Knopf „Schlüssel erzeugen" ist danach abgeblendet
+(`:disabled="form.processing || erzeugt"`) — ein zweiter Klick kann den ersten
+Schlüssel nicht mehr verdrängen.
+
+**Auf dem Rechner, in dieser Reihenfolge:**
+
+    ssh-keygen -y -f $k
+      ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMEyXSAasImCYVLbe4lZZhwiF1kQs4gCHHv6olASrOz/
+      Testschlüssel rc20 p1139
+
+    ssh-keygen -l -f $k
+      256 SHA256:Sn3W6HvtgEGjDuvTnuZvc7Zys8zk1ndfoNv9EADbKjs Testschlüssel rc20 p1139 (ED25519)
+
+    sftp -o IdentitiesOnly=yes -i $k -P 22 p1139@cloudsrv24.de
+      Connected to cloudsrv24.de.
+      sftp> pwd
+      Remote working directory: /
+
+**Und die Gegenprobe danach:**
+
+    sftp -o BatchMode=yes -o IdentitiesOnly=yes -i "$env:TEMP\fremd" …
+      p1139@cloudsrv24.de: Permission denied (publickey).
+
+Der Fingerabdruck `SHA256:Sn3W6HvtgEGjDuvTnuZvc7Zys8zk1…` steht **zeichengleich**
+in der Panel-Tabelle. Damit ist die Kette geschlossen: Was der Browser erzeugt
+hat, liest OpenSSH, es ist derselbe Schlüssel, den der Server kennt, und ein
+anderer kommt nicht durch.
+
+**Der Aufsatz derselben Seite:** `dokument: 0`, `gegenprobe: 200/200`,
+`schiebt: []`; `rollt` nennt allein die Schlüsseltabelle
+(`div.scrolls`, `ueberlauf: 232`, `darf: true`) — die darf rollen.
+
+**`pwd` meldet `/`, und mein Kriterium sagte „das Verzeichnis des
+Abonnements".** Beides ist dasselbe: Innerhalb des `chroot` **ist** die Wurzel
+des Abonnements `/`. Das Kriterium war unpräzise formuliert, nicht verfehlt —
+und die gemessene Antwort ist die stärkere von beiden.
+
+**Sie trennt allerdings zwei Fälle nicht**, und das gehört benannt: `/` sieht
+gleich aus, ob der `chroot` auf die Wurzel dieses Abonnements zeigt oder
+irgendwo anders hin. Ein `ls` in derselben Sitzung entscheidet es, und ohne das
+belegt Punkt 8 die Anmeldung, nicht die Einsperrung.
+
+> **Ein Pfad, der in jedem Gefängnis gleich heisst, sagt nichts darüber, in
+> welchem man sitzt.**
+
+### Befund 6 — der Hinweis unter dem privaten Schlüssel kennt nur Unix
+
+Unter dem Feld steht:
+
+> Auf Ihrem Rechner gehört er nach `~/.ssh/id_ed25519` und braucht dort die
+> Rechte `600`. Danach meldet `sftp` sich damit an.
+
+Auf Windows stimmt daran **kein einziger Teil**: Der Ort heisst
+`%USERPROFILE%\.ssh`, `600` gibt es nicht, und ohne
+`icacls … /inheritance:r /grant:r` bricht OpenSSH mit
+`UNPROTECTED PRIVATE KEY FILE` ab. Ein Kunde, der den Satz befolgt, landet bei
+einer Fehlermeldung, die nach einem kaputten Schlüssel aussieht und eine der
+Dateirechte ist.
+
+Aufgefallen ist es nicht am Quelltext, sondern daran, dass ich dem Betreiber
+für genau diesen Schritt eine zweite, andere Anleitung schreiben musste
+(`docs/65 §8b`).
+
+> **Ein Hinweis, der ein Betriebssystem voraussetzt, ist auf dem anderen kein
+> unvollständiger Hinweis, sondern ein falscher.**
+
+**Klein und billig zu beheben** — eine zweite Zeile für Windows unter derselben
+Notiz. Entscheidung des Betreibers, ob sie in diese Stufe gehört.
 
 ### Punkt 7 — der Zielbaum, und was diese Messung nicht sagt
 

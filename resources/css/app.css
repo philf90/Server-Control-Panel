@@ -1137,6 +1137,43 @@ table.pairs {
     padding: 5px 0;
     border: 0;
     text-align: right;
+
+    /*
+     * **Der Wert darf brechen — hier und nicht je Spalte** (`docs/67`,
+     * Befund 6).
+     *
+     * Eine gestapelte Zelle ist eine Flexzeile: Beschriftung links
+     * (`::before`, `flex: none`), Wert rechts. Der Wert ist ein **anonymes**
+     * Flexkind und damit nicht ansprechbar; sein automatisches Mindestmass
+     * folgt der Mindestinhaltsbreite. `overflow-wrap: anywhere` verkleinert
+     * genau die — anders als `break-word`, das die Mindestbreite unberührt
+     * lässt — und vererbt sich in das anonyme Kind hinein.
+     *
+     * **Der Anlass:** Die Spalte „Einzelheiten" auf `/audit` trägt seit
+     * `docs/66` Befund 7 Sätze wie
+     * `Fingerprint: SHA256:Sn3W6HvtgEGjDuvTnuZvc7Zys8zk1ndfoNv9EADbKjs`. Bei
+     * 390 px drückte das die Tabelle 145 px über die Breite — sichtbar **nur**
+     * in `schiebt`, denn `dokument` blieb 0: Der Rollbehälter fing es auf.
+     *
+     * > **Eine Zelle, die rollen darf, hat keine Obergrenze — sie hat nur
+     * > keine Zahl, die sich beschwert.**
+     *
+     * **Und warum die Regel hier steht und nicht als sechste Ausnahme.**
+     * Dieselbe Ausnahme gab es bereits fünfmal: `.ident`,
+     * `.stacks td .ident`, `.section-head h2`, `.cell-value`, `.subline`.
+     * Jede kam, weil ein *bestimmter* Inhalt zu lang war. Die sechste hätte
+     * `class="ident"` auf eine Zelle gesetzt, die keine Kennung enthält —
+     * Monospace für einen Satz.
+     *
+     * > **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten
+     * > Merkmal wieder da, wenn die Behebung nicht die Regel wurde.**
+     *
+     * Gemessen im echten Chromium gegen das gebaute Stylesheet, 390 px:
+     * vorher `schiebt: [table.stacks 64, tbody 64, tr 65, td.quiet 79]`,
+     * nachher `schiebt: []` — bei unverändertem `dokument: 0`,
+     * `versteckt: 2` und `gegenprobe: 200/200`.
+     */
+    overflow-wrap: anywhere;
   }
 
   .stacks td::before {

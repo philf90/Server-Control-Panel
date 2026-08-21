@@ -528,7 +528,40 @@ jobs:
       - name: Ein Neustart des Agenten nimmt nichts mit
         run: |
           docker exec target systemctl restart srvpanel-agentd.service
+
+          # **Warten statt rennen** (`docs/67`, Befund 5). Die Unit ist
+          # `Type=simple`: `systemctl restart` kehrt zurück, sobald der Prozess
+          # *läuft* — nicht, wenn er seinen Socket gebunden hat. Dazwischen
+          # liegen ein PHP-Start, das Lesen der Konfiguration, `unlink` und
+          # `bind`. Wer sofort misst, misst den Start und nicht das Ergebnis;
+          # auf `cloudsrv24` fehlte `agent.sock` genau deshalb, und zwei
+          # Sekunden später war er da.
+          #
+          # > **Eine Prüfung, die vom Zeitpunkt abhängt, ist beim nächsten Lauf
+          # > eine andere.**
+          #
+          # Die Frist macht daraus keine Geduldsprobe: Bindet der Agent nach
+          # 30 Sekunden nicht, ist das ein Fehlschlag und kein langsamer Start.
+          bereit=0
+          for _ in $(seq 1 30); do
+            if docker exec target test -S /run/srvpanel/agent.sock; then
+              bereit=1
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "${bereit}" != 1 ]; then
+            echo "::error::Der Agent hat seinen Socket nach 30 s nicht gebunden."
+            docker exec target journalctl -u srvpanel-agentd --no-pager | tail -n 30
+            exit 1
+          fi
+
           docker exec target systemctl is-active srvpanel-agentd.service
+
+          # Der Socket von PHP-FPM muss den Neustart überlebt haben — er liegt
+          # im selben Verzeichnis und gehört einem anderen Dienst.
+          docker exec target test -S /run/srvpanel/fpm.sock
 
           rechte="$(docker exec target stat -c '%a %U:%G' /var/lib/srvpanel)"
           if [ "${rechte}" != "750 srvpanel:srvpanel" ]; then

@@ -425,6 +425,59 @@ final class MobileLayoutTest extends TestCase
      * nicht aus. Was sich ausschliesst, ist `max-content` und ein Kärtchen —
      * und das ist eine Frage an die Kaskade, nicht an das Markup.
      */
+    /**
+     * Eine gestapelte Zelle kann einen langen Wert brechen.
+     *
+     * ## Der Fund
+     *
+     * `docs/67`, Befund 6. Die Spalte „Einzelheiten" auf `/audit` trägt seit
+     * `docs/66` Befund 7 Sätze wie
+     * `Fingerprint: SHA256:Sn3W6HvtgEGjDuvTnuZvc7Zys8zk1ndfoNv9EADbKjs`. Bei
+     * 390 px drückte das die Tabelle 145 px über die Breite — und `dokument`
+     * blieb dabei **0**, weil der Rollbehälter es auffing.
+     *
+     * > **Eine Zelle, die rollen darf, hat keine Obergrenze — sie hat nur
+     * > keine Zahl, die sich beschwert.**
+     *
+     * ## Warum die Regel an `td` hängt und nicht am Inhalt
+     *
+     * Eine gestapelte Zelle ist eine Flexzeile: Beschriftung links, Wert
+     * rechts. Der Wert ist ein **anonymes** Flexkind — nicht ansprechbar, und
+     * sein automatisches Mindestmass folgt der Mindestinhaltsbreite.
+     * `overflow-wrap: anywhere` verkleinert genau die und vererbt sich hinein.
+     *
+     * Dieselbe Ausnahme gab es vorher fünfmal, je einmal für einen Inhalt, der
+     * zu lang war. Die sechste hätte `class="ident"` auf eine Zelle gesetzt,
+     * die keine Kennung enthält.
+     *
+     * > **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten
+     * > Merkmal wieder da, wenn die Behebung nicht die Regel wurde.**
+     */
+    public function test_a_stacked_cell_can_break_a_long_value(): void
+    {
+        [$selector, $value, $seen] = $this->winner('overflow-wrap', $this->selectsStackedCell(...));
+
+        $this->assertGreaterThanOrEqual(
+            1,
+            $seen,
+            'Unter 720px erreicht keine `overflow-wrap`-Regel eine gestapelte Zelle — dann kann '.
+            'ein langer Wert ohne Leerzeichen nicht brechen, und dieser Test rechnet an nichts nach.',
+        );
+
+        $this->assertSame(
+            'anywhere',
+            $value,
+            sprintf(
+                'Unter 720px gewinnt „%s" mit `overflow-wrap: %s` an einer gestapelten Zelle. '.
+                'Gebraucht wird `anywhere`: Nur das verkleinert die Mindestinhaltsbreite, und nur '.
+                'dann darf das anonyme Flexkind mit dem Wert unter seine Inhaltsbreite. Mit '.
+                '`break-word` bleibt der Überlauf — gemessen (docs/67, Befund 6).',
+                $selector,
+                $value ?? '(nichts)',
+            ),
+        );
+    }
+
     public function test_a_stacked_table_has_no_width_of_its_own(): void
     {
         [$selector, $value, $seen] = $this->winner('width', $this->selectsStackedTable(...));
@@ -1021,6 +1074,22 @@ final class MobileLayoutTest extends TestCase
      * Form still weitergeht, meldet Grün für genau den Fall, den er nicht
      * geprüft hat.
      */
+    /**
+     * Trifft er die Zelle einer gestapelten Tabelle — und nicht ihren Inhalt?
+     *
+     * Rechts muss `td` stehen. Eine Regel an `.stacks td .ident` beantwortet
+     * eine andere Frage: Sie gilt nur, wenn der Wert eine Kennung ist.
+     */
+    private function selectsStackedCell(string $selector): bool
+    {
+        return $this->reaches(
+            $selector,
+            ['td', '.stacks td'],
+            ['table', '.stacks', 'div', '.scrolls', 'tbody', 'tr'],
+            ['.ident', '.multiline', '.pairs', 'thead'],
+        );
+    }
+
     private function selectsStackedTable(string $selector): bool
     {
         // Rechts muss die Tabelle selbst stehen — nicht ihre Zellen, nicht ihr

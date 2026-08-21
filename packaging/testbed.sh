@@ -102,7 +102,28 @@ echo "  ${rechte}"
 
 note "… und nach einem Neustart des Agenten"
 docker exec "${NAME}" systemctl restart srvpanel-agentd.service
+
+# **Warten statt rennen** (`docs/67`, Befund 5). Die Unit ist `Type=simple`:
+# `systemctl restart` kehrt zurück, sobald der Prozess läuft — nicht, wenn er
+# seinen Socket gebunden hat. Wer sofort misst, misst den Start.
+#
+# > **Eine Prüfung, die vom Zeitpunkt abhängt, ist beim nächsten Lauf eine
+# > andere.**
+bereit=0
+for _ in $(seq 1 30); do
+    if docker exec "${NAME}" test -S /run/srvpanel/agent.sock; then
+        bereit=1
+        break
+    fi
+    sleep 1
+done
+[ "${bereit}" = 1 ] || fail "Der Agent hat seinen Socket nach 30 s nicht gebunden."
+
 docker exec "${NAME}" systemctl is-active srvpanel-agentd.service
+
+# Der Socket von PHP-FPM liegt im selben Verzeichnis und gehört einem anderen
+# Dienst — er muss den Neustart überlebt haben.
+docker exec "${NAME}" test -S /run/srvpanel/fpm.sock
 rechte="$(docker exec "${NAME}" stat -c '%a %U:%G' /var/lib/srvpanel)"
 [ "${rechte}" = "750 srvpanel:srvpanel" ] || fail "Nach dem Neustart steht /var/lib/srvpanel auf ${rechte} — eine Unit nimmt das Verzeichnis für sich in Anspruch"
 echo "  ${rechte}"

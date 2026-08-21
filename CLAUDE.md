@@ -854,6 +854,13 @@ auch wirken. Alle fünf erfüllt, Punkt 4 erst gegen `v0.6.0-rc.24`; sechs
 Befunde, drei davon am Prüfmittel oder an meiner eigenen Anweisung. In §3 steht,
 was offen bleibt.
 
+Und **`68` der Abschlusslauf für P6** — die vier Reste, die zwischen dem
+gemessenen Abnahmekriterium und der Abnahme stehen: die Punkte 5, 7 und 8 des
+Angriffsdurchgangs **durch die echte Route** statt über den Weg der Operation,
+die Umbruchregel aus `docs/67` Befund 6 auf zwei weiteren Seiten, und `id` am
+Vorgang. §9 sagt, was er ausdrücklich nicht prüft, §10, wann P6 abgenommen ist —
+und nennt die vier Stellen, die heute noch das Gegenteil sagen.
+
 **Und die erste Messung hat zwei Fehler in dieser Vorschrift gefunden**, beide
 am Prüfmittel: `schiebt` war als Kriterium gedacht und meldet bei jeder Tabelle
 das gewollte `.stacks thead` (`Eine Liste, die auch das Gewollte nennt, ist ein

@@ -1151,6 +1151,30 @@ Testen berücksichtigen:
 
   > **Ein Rückweg, der voraussetzt, dass der Dienst noch läuft, ist keiner für
   > den Fall, dass ihn genau dieser Vorgang beendet hat.**
+- **PowerDNS gibt es hier auch — es ist nur nicht installiert.** Derselbe Satz
+  wie bei MariaDB, beim `sshd` und bei PHPStan, und diesmal stand „ungemessen"
+  ausdrücklich in der Übergabe. `apt-get update && apt-get install -y
+  pdns-server pdns-backend-sqlite3 pdns-backend-mysql pdns-tools` holt
+  **4.8.3-4build3** aus `noble/universe` — dieselbe Fassung, die Ubuntu 24.04
+  ausliefert. Zwei Wegwerf-Instanzen auf eigenen Ports, eine je Backend, rühren
+  nichts an. Gemessen am 21. August 2026 (`docs/71 §2`).
+
+  Drei Handgriffe, die Zeit gekostet haben: **`apt-get update` zuerst** (sonst
+  404 auf drei Dateien aus einem veralteten Index); **der Sockelpfad muss kurz
+  sein**, wie bei PostgreSQL, also `socket-dir=/tmp/pd` und die Daten im
+  Scratchpad; und **`--config-name=mysql` sucht `pdns-mysql.conf`**, nicht
+  `pdns--mysql.conf` — der Bindestrich steht schon drin, und ein Lauf mit
+  `--config-name=-mysql` meldet „no backends configured for querying", was nach
+  einem Fehler in der Konfiguration aussieht und einer im Aufruf ist.
+
+  Die Messvorschrift liegt als **`tests/dns-messen.sh`** daneben, mit einer
+  Gegenprobe je Messung. Ihr erster Lauf hat einen Fehler in ihr selbst
+  gefunden: Die Atomaritätsprobe fragte den Nameserver nach einem Namen, den es
+  nicht geben durfte — und bekam die Antwort des Platzhalters aus derselben
+  Zonenvorlage.
+
+  > **Eine Gegenprobe, die ein Platzhalter beantwortet, hat den Gegenstand nicht
+  > gefragt.**
 - **PostgreSQL gibt es hier, und zwar vollständig.** `postgresql-16` ist
   installiert, Serverbinärdateien und alles. Ein
   Wegwerf-Cluster (`initdb` in den Scratchpad, `pg_ctl` auf einem eigenen Port)

@@ -13220,6 +13220,76 @@ pruefe "  … zurückgesetzt wieder grün" \
   CronScheduleFormTest::test_the_free_expression_is_a_view_on_the_five_fields passed
 
 echo
+echo "── LoopbackExceptionTest: die Ausnahme von „nach draussen nur https“ ──"
+#
+# **Vier Eingriffe, weil die Regel vier Teile hat** — und weil der dritte
+# gezeigt hat, dass drei nicht genügen. Die Fassung mit dem Portvergleich weist
+# `127.0.0.1.angreifer.invalid` zufällig ab; erst der Präfixvergleich **ohne**
+# Port lässt ihn durch, und das ist der Fall, für den dieser Wächter beworben
+# ist.
+#
+# > **Ein Eingriff, der irgendetwas rot macht, belegt nicht die Regel, für die
+# > er dasteht.**
+
+vorher_datei agent/src/Acme/Curl.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Curl.php'
+s = open(p, encoding='utf-8').read()
+alt = """        return strtolower((string) ($parts['scheme'] ?? '')) === 'http'
+            && in_array($parts['host'] ?? '', self::LOOPBACK, true)
+            && ($parts['port'] ?? null) === $this->loopbackPort;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        return str_starts_with($url, 'http://127.0.0.1') || str_starts_with($url, 'http://[::1]');"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Acme/Curl.php "Präfixvergleich ohne Port" &&
+pruefe "Präfixvergleich ohne Port" \
+  LoopbackExceptionTest::test_the_exception_is_exactly_as_wide_as_it_says failed
+wiederherstellen
+
+vorher_datei agent/src/Acme/Curl.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Curl.php'
+s = open(p, encoding='utf-8').read()
+alt = "public const LOOPBACK = ['127.0.0.1', '[::1]'];"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "public const LOOPBACK = ['127.0.0.1', '::1'];", 1))
+PY2
+griff_datei agent/src/Acme/Curl.php "IPv6 ohne die Klammern, die parse_url liefert" &&
+pruefe "IPv6 ohne die Klammern, die parse_url liefert" \
+  LoopbackExceptionTest::test_the_list_holds_addresses_and_no_names failed
+wiederherstellen
+
+vorher_datei agent/src/Acme/Curl.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Curl.php'
+s = open(p, encoding='utf-8').read()
+alt = "public function __construct(private readonly ?int $loopbackPort = null) {}"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "public function __construct(private readonly ?int $loopbackPort = 8081) {}"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Acme/Curl.php "die Ausnahme gilt ohne Zutun" &&
+pruefe "die Ausnahme gilt ohne Zutun" \
+  LoopbackExceptionTest::test_without_the_port_no_plain_text_is_permitted failed
+wiederherstellen
+
+vorher_datei agent/src/Acme/Curl.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Curl.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (str_starts_with($url, 'https://')) {\n            return true;\n        }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        if (false) {\n            return true;\n        }", 1))
+PY2
+griff_datei agent/src/Acme/Curl.php "https geht nicht mehr durch" &&
+pruefe "https geht nicht mehr durch" \
+  LoopbackExceptionTest::test_the_exception_is_exactly_as_wide_as_it_says failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  LoopbackExceptionTest::test_the_exception_is_exactly_as_wide_as_it_says passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

@@ -127,11 +127,16 @@ für Weg B (`docs/66 §4.2`) hing genau daran:
 Die Meldung nennt das Feld so, wie es auf der Seite heisst. **Das belegt
 nebenbei Befund 3 aus `docs/66`** an einer zweiten Stelle.
 
-**Offen und benannt:** Ob die Vorschau **während des Tippens** stillschweigend
-verschwindet — ohne roten Rand und ohne Satz —, ist auf den Bildern nicht zu
-sehen; sie zeigen den Zustand nach dem Absenden. Das ist eine Zusage im Code
-(„wer beim dritten Zeichen einer Spanne rot wird, wird bei jeder Spanne rot"),
-und eine Zusage ist keine Messung.
+**Und die Vorschau während des Tippens ist nachgereicht** — sie kam als
+Nebenprodukt der Messung zu Punkt 3. Mit `12345678901234567890` im Minutenfeld
+sind Satz **und** Fälligkeiten verschwunden; stehen bleiben nur der feste
+Hinweis auf die erlaubten Zeichen und die Zeile „Ergibt: …". **Kein roter Rand,
+keine Meldung.**
+
+Damit ist die Zusage aus dem Code gemessen und nicht mehr behauptet: Wer beim
+dritten Zeichen einer Spanne rot wird, wird bei jeder Spanne rot — also wird
+hier niemand rot. Den Satz zum Fehler gibt es beim Absenden, und dort nennt er
+das Feld „Minute" so, wie es auf der Seite heisst.
 
 ---
 

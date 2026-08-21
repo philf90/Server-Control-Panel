@@ -378,23 +378,85 @@ Der Fingerabdruck aus der letzten Zeile **muss** mit dem in der Panel-Tabelle
 Ausgabe von §0.2 in Klammern:
 
 ```bash
-sftp -i ~/.ssh/srvpanel-rc20 -P 22 p1139@cloudsrv24.de
+sftp -o IdentitiesOnly=yes -i ~/.ssh/srvpanel-rc20 -P 22 p1139@cloudsrv24.de
 ```
 
 (`p1139` durch den Systembenutzer Ihres Abonnements ersetzen.)
 
 Erwartet: eine Sitzung, `pwd` zeigt das Verzeichnis des Abonnements.
 
+**`IdentitiesOnly=yes` ist nicht schmückendes Beiwerk.** Ohne diese Angabe ist
+`-i` ein *Vorschlag*: OpenSSH bietet zusätzlich die Schlüssel des Agenten und
+die üblichen Namen unter `~/.ssh` an. Die Anmeldung gelingt dann womöglich mit
+einem ganz anderen Schlüssel, und die Gegenprobe wird davon sogar **falsch
+grün** — der fremde Schlüssel scheitert, der danebenliegende echte kommt durch,
+und die Meldung sieht aus wie ein Erfolg.
+
+> **Ein Schlüssel, der nur vorgeschlagen wird, belegt keine Anmeldung — es kann
+> jeder andere gewesen sein.**
+
 **Und die Gegenprobe, ohne die die Anmeldung nichts belegt:**
 
 ```bash
 ssh-keygen -q -t ed25519 -f /tmp/fremd -N '' -C fremd
-sftp -o BatchMode=yes -i /tmp/fremd -P 22 p1139@cloudsrv24.de
+sftp -o BatchMode=yes -o IdentitiesOnly=yes -i /tmp/fremd -P 22 p1139@cloudsrv24.de
 rm -f /tmp/fremd /tmp/fremd.pub
 ```
 
 Erwartet: `Permission denied (publickey…)`. Kommt der fremde Schlüssel durch,
 ist nicht der neue Schlüssel gut, sondern die Tür offen.
+
+**Die Reihenfolge ist Teil der Messung:** erst die echte Anmeldung, dann die
+Gegenprobe. Beim ersten Verbinden fragt OpenSSH nach dem Rechnerschlüssel, und
+`BatchMode=yes` kann nicht antworten — die Gegenprobe endete dann mit
+`Host key verification failed`, und das ist **nicht** dasselbe wie
+`Permission denied (publickey)`.
+
+> **Eine Gegenprobe, die an einer anderen Hürde scheitert als der gemeinten,
+> hat die gemeinte nicht geprüft.**
+
+### 8b. Dieselben Schritte auf Windows
+
+Windows 10 und 11 bringen den OpenSSH-Klienten mit; alles Folgende in einer
+**PowerShell** (keine Administratorrechte nötig).
+
+```powershell
+ssh -V                      # muss eine Fassung nennen, z. B. OpenSSH_for_Windows_9.5
+
+New-Item -ItemType Directory -Force "$env:USERPROFILE\.ssh" | Out-Null
+$k = "$env:USERPROFILE\.ssh\srvpanel-rc20"
+Move-Item "$env:USERPROFILE\Downloads\id_ed25519" $k -Force
+
+# Das Gegenstück zu `chmod 600`: Vererbung weg, nur der eigene Benutzer bleibt.
+icacls $k /inheritance:r /grant:r "$($env:USERNAME):(F)"
+
+ssh-keygen -y -f $k         # liest OpenSSH die Datei?
+ssh-keygen -l -f $k         # derselbe Fingerabdruck wie im Panel?
+
+sftp -o IdentitiesOnly=yes -i $k -P 22 p1139@cloudsrv24.de
+```
+
+**Die Gegenprobe, nach der echten Anmeldung:**
+
+```powershell
+ssh-keygen -q -t ed25519 -f "$env:TEMP\fremd" -N '""' -C fremd
+sftp -o BatchMode=yes -o IdentitiesOnly=yes -i "$env:TEMP\fremd" -P 22 p1139@cloudsrv24.de
+Remove-Item "$env:TEMP\fremd", "$env:TEMP\fremd.pub" -Force
+```
+
+Vier Dinge, die auf Windows anders sind und je einen Fehlschlag kosten können:
+
+- **`icacls` ist Pflicht, nicht Kosmetik.** Ohne sie bricht OpenSSH mit
+  `UNPROTECTED PRIVATE KEY FILE` ab. Das sieht aus wie ein Fehler des Panels
+  und ist einer der Dateirechte.
+- **Die Datei nicht in einem Editor öffnen und speichern.** Sie enthält
+  ausschliesslich `\n`; ein Editor, der `\r\n` daraus macht oder eine
+  Bytemarke voranstellt, macht sie unlesbar — und die Meldung lautet dann
+  `invalid format`, was wie ein Fehler beim Erzeugen aussieht.
+- **Lädt man zweimal herunter**, heisst die zweite Datei
+  `id_ed25519 (1)` — dann zeigt `Move-Item` auf die falsche.
+- **`-N '""'`** ist die PowerShell-Schreibweise für eine leere Passphrase.
+  Fragt `ssh-keygen` trotzdem, genügt zweimal Enter.
 
 **Was das Panel dabei niemals tut** — bitte gegenprüfen:
 

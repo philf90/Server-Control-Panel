@@ -39,7 +39,7 @@ dem, was er über den Prüfling **oder über das Prüfmittel** sagt.
 | 6 | Griff zum Formular | springt, Formular leer | Knopf da, Sprung erfolgt, Beschriftung und Befehl **leer** | erfüllt |
 | 7 | Zielbaum im Bild | `oben` ≥ 0 | | |
 | 8 | Schlüssel erzeugen und anmelden | Anmeldung gelingt, Fremdschlüssel abgewiesen | | |
-| 9 | Suchleiste | ab 720 px da, Pfad sichtbar, Inhalt übertragen | Leiste und Pfad ja; **„auch im Inhalt" wird abgewiesen** | **nicht erfüllt — Befund 5** |
+| 9 | Suchleiste | ab 720 px da, Pfad sichtbar, Inhalt übertragen | Leiste und Pfad ja; **jede Suche wird abgewiesen** | **nicht erfüllt — Befund 5** |
 | 10 | Kopfleiste am Telefon | eine Zeile, vier ganze Wörter | `zeilen: 1`, `hoehe: 120`, alle vier Sätze vollständig | erfüllt, hell und dunkel |
 | 11 | Gegenprobe des Laufs | `dokument` ≫ 0 | | |
 
@@ -145,8 +145,26 @@ Wert.
 nicht die Schlüssel vergleicht, sondern fragt: Kommt an einer GET-Route ein
 Wert an, dessen Regel `boolean` heisst und der als `true`/`false` gesendet wird?
 
-**Offen und vom Betreiber zu messen:** Scheitert auch eine Suche **ohne**
-Häkchen? Dann trifft es jede Suche und nicht nur die im Inhalt.
+**Und es trifft jede Suche, nicht nur die im Inhalt** — nachgemessen im
+Container gegen `mergeDataIntoQueryString` aus dem ausgelieferten
+`@inertiajs/core`:
+
+    false -> …/files/search?query=x&path=%2F&content=false   Rumpf: {}
+    true  -> …/files/search?query=x&path=%2F&content=true    Rumpf: {}
+
+Beide Zustände reisen als Wort, und die Regel nimmt weder das eine noch das
+andere. Die Frage, die hier als „vom Betreiber zu messen" stand, ist damit
+beantwortet, ohne dass er sie stellen musste: **Die Suche im Dateimanager ist
+seit P6 Schritt 5 an keinem einzigen Tag durchgekommen.** Was der Betreiber
+gesehen hat, war nicht das Kästchen — es war die Suche.
+
+> **Ein Fehler, den man am auffälligen Fall entdeckt, ist selten auf den
+> auffälligen Fall beschränkt.**
+
+Der Grund, warum das niemandem auffiel: Bis heute gab es **keinen** Weg zur
+Suche, den man versehentlich benutzt — `Search.vue` erreicht man nur, indem man
+schon gesucht hat. Wunsch 3 hat die Leiste an die Stelle gestellt, an der
+jemand sie drückt.
 
 ### Zwei Beobachtungen aus derselben Messung, beide keine Befunde
 

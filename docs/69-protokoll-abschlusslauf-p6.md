@@ -31,7 +31,7 @@ tragen.
 |---|---|---|---|---|
 | 0 | Die Fassung | `0.6.0-rc.24` | `0.6.0-rc.24` / `0.6.0~rc.24` | **erfüllt** |
 | 1 | Die Archive durch die echte Route | nichts ausserhalb, `beweis` drinnen | nichts ausserhalb, `beweis` drinnen, Gegenprobe trifft | **erfüllt** |
-| 2 | Durch einen Verweis hinaus schreiben | Ziel unverändert, Gegenprobe schreibt | — | **offen** |
+| 2 | Durch einen Verweis hinaus schreiben | Ziel unverändert, Gegenprobe schreibt | Ziel unberührt, `beweis`=`DURCHGEKOMMEN`, Agent sah beide | **erfüllt** |
 | 3 | Die Umbruchregel auf zwei weiteren Seiten | `dokument: 0`, `schiebt` nur `.stacks thead` | — | **offen** |
 | 4 | `id` am Vorgang | `ran_as.uid` = `id -u p1139` | — | **offen** |
 | 5 | Die Rechte an `/var/lib/srvpanel` | `750 srvpanel:srvpanel`, auch nach dem Neustart | — | **offen** |
@@ -139,6 +139,80 @@ hingelegt, **`beweis` hat die Sandbox geschrieben** — und die erbt die Gruppe
 > **Das Entpacken legt eine Datei an wie jeder andere Weg des Panels** — mit der
 > Gruppe des Verzeichnisses, nicht der des Erzeugers. Genau das war der Sinn von
 > Befund 3 der Zwischenabnahme.
+
+---
+
+## 1c. Punkt 2 — durch einen Verweis hinaus schreiben
+
+**Gemessen am 21. August 2026 auf `cloudsrv24` gegen `v0.6.0-rc.24`.** Kriterium
+5, in `docs/62` über den Weg der Operation geprüft, hier durch die **echte
+Route** `PUT /subscriptions/140/files`.
+
+### Der Aufbau
+
+Ein Verweis `httpdocs/boes/durchgang → /tmp/ausserhalb-ziel`, angelegt als root,
+Eigentümer `p1139`. Das Ziel trägt `0666` — **Absicht**: Wäre es für den Kunden
+nicht schreibbar, scheiterte der Versuch an den Dateirechten und nicht an der
+Grenze, und der Lauf hielte ein `EACCES` für eine Wand.
+
+Prüfsumme vor dem Versuch: `bb499d4b…a51b`.
+
+### Die erste Wand: der Editor öffnet den Verweis gar nicht
+
+Der Aufruf `…/files/edit?path=/httpdocs/boes/durchgang` als Kunde ergab:
+
+> Das Formular wurde nicht gespeichert. Nur eine Datei lässt sich öffnen.
+
+`read()` nimmt nur reguläre Dateien — der Editor ist für einen Angreifer eine
+Sackgasse. **Aber der Editor ist nur ein Formular; die Wand, die zählt, steht
+hinter `PUT`.**
+
+### Die Messung durch die Route
+
+Zwei Schreibversuche aus der Konsole der Kundensitzung, `redirect: 'manual'`:
+
+    /httpdocs/boes/durchgang    -> status 0 (opaqueredirect)
+    /httpdocs/boes/ziel/beweis  -> status 0 (opaqueredirect)
+
+**Der Status ist undurchsichtig und nicht das Urteil** — die Route antwortet auf
+einen Schreibvorgang mit einer Weiterleitung, und die ist bei `manual` opak. Das
+Urteil steht auf der Platte und im Protokoll des Agenten:
+
+| | erwartet | gemessen |
+|---|---|---|
+| `/tmp/ausserhalb-ziel` | Prüfsumme wie vorher | **`bb499d…a51b`, unverändert** |
+| `ziel/beweis` | `DURCHGEKOMMEN` | **`DURCHGEKOMMEN`** (überschrieb `brav`) |
+| `agent.log`, `files.write` | erreicht den Agenten | **mehrere Zeilen, `ran_as.uid 1002`** |
+
+**Die dritte Zeile trennt „abgewiesen" von „nie angekommen".** Der Schreibversuch
+auf den Verweis stand als `files.write` im Protokoll des Agenten — er kam also
+bis zur Sandbox und wurde **dort** gehalten, nicht von einer Hürde davor. Und die
+Gegenprobe innen schrieb `DURCHGEKOMMEN`, also war die Abwesenheit aussen eine
+Wand und kein toter Weg.
+
+> **Ein Fehlerweg, der selbst fehlschlagen kann, ist kein Fehlerweg.** Die
+> Auskunft „aussen unverändert" ist erst dann eine Messung, wenn „innen
+> geschrieben" daneben steht.
+
+### Und ein Befund am Prüfmittel, kein Panelfehler
+
+Der **erste** Anlauf benutzte `redirect: 'follow'`, und `fetch` geriet mit der
+Weiterleitung der abgewiesenen Route in `net::ERR_TOO_MANY_REDIRECTS` — kein
+Status, keine Messung. Der echte Kundenweg (Inertia-Router) behandelt dieselbe
+Weiterleitung über das Inertia-Protokoll und läuft nicht hinein; der rohe
+`fetch` war der Sonderfall.
+
+> **Eine Sonde, die der Weiterleitung folgt, misst die Weiterleitung und nicht
+> den Vorgang.** Für eine schreibende Route zählt die Platte, nicht der Status —
+> dieselbe Lehre wie bei `mandant-messen.js`.
+
+Dazu ein zweiter, kleinerer: `cat "$WURZEL/…"` lief zwischenzeitlich in einem
+**frischen** Mac-Terminal, in dem `$WURZEL` leer war — der Pfad wurde ohne
+Präfix falsch, und die Meldung „No such file" sah aus wie ein Fund. Sie war
+keiner.
+
+> **Eine Variable, die eine Sitzung nicht überlebt, macht aus einem richtigen
+> Befehl einen falschen — lautlos.**
 
 ---
 

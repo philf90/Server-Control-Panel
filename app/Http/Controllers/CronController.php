@@ -9,10 +9,13 @@ use App\Models\CronRun;
 use App\Models\Subscription;
 use App\Support\Audit\Audit;
 use App\Support\Cron\Cron;
+use App\Support\Cron\Occurrence;
 use App\Support\Cron\ServerZone;
 use App\Support\Cron\Spoken;
 use App\Support\Plans\Quota;
 use App\Support\Time\Clock;
+use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -53,6 +56,17 @@ final class CronController extends Controller
 {
     /** Wie lang eine Beschriftung werden darf. */
     private const LABEL_MAX = 120;
+
+    /**
+     * Wie viele Fälligkeiten die Vorschau nennt.
+     *
+     * **Drei, weil zwei den Abstand nicht zeigen.** „Am 21. um 03:15, am 22. um
+     * 03:15" liest sich wie täglich und wie alle 24 Stunden gleichermassen; die
+     * dritte Zeile entscheidet die Frage. Mehr ist Fliesstext: Bei einem Plan,
+     * der alle fünf Minuten läuft, stünden zehn Zeilen da, die alle dasselbe
+     * sagen.
+     */
+    private const PREVIEW_RUNS = 3;
 
     public function __construct(
         private readonly Cron $cron,
@@ -127,6 +141,83 @@ final class CronController extends Controller
             'display_zone' => Clock::zone(),
 
             'can' => ['manage' => true],
+        ]);
+    }
+
+    /**
+     * Die Umrechnung während des Tippens — Wunsch 4 des Betreibers (`docs/66 §4`).
+     *
+     * ## Warum der Server das rechnet und nicht der Browser
+     *
+     * > Die reine Cron-Schreibweise kann für unerfahrene Nutzer mehr Hindernis
+     * > als Hilfsmittel sein.
+     *
+     * Den Satz dazu baut {@see Spoken::schedule()}, die Fälligkeiten
+     * {@see Occurrence::next()}. Beides in TypeScript nachzubauen hiesse,
+     * dieselbe Regel in zwei Sprachen zu pflegen — und die zweite ist die, die
+     * von der ersten abweicht.
+     *
+     * > **Eine Zusammenfügung darf doppelt stehen, eine Regel nicht.**
+     *
+     * `CronScheduleFormTest::test_the_page_does_not_translate_on_its_own` hält
+     * die Seite darauf fest; diese Route ist der Weg, den sie stattdessen
+     * nimmt.
+     *
+     * ## Und warum hier nichts geprüft wird
+     *
+     * {@see Schedule::parse()} ist die Schranke, dieselbe wie beim Speichern.
+     * Taugt eine Eingabe nicht, ist die Antwort schlicht „noch kein gültiger
+     * Zeitplan" und **keine Fehlermeldung**: Wer beim dritten Zeichen einer
+     * Spanne rot wird, wird bei jeder Spanne rot. Der Satz zum Fehler steht
+     * beim Absenden, an der Stelle, an der er hingehört (`docs/19 §6`).
+     *
+     * **Sie ändert nichts.** Kein Agent, kein Vorgang, keine Zeile im
+     * Protokoll — sie rechnet. Deshalb steht sie auch nicht im Protokoll: Ein
+     * Eintrag je Tastendruck wäre eine Datenhaltung über die Bedienung.
+     *
+     * **Die Zeitpunkte gehen durch {@see Clock}.** Der Zeitplan gilt in
+     * Serverzeit, die Anzeige in der Zone des Lesers — genau der Unterschied,
+     * den der Kasten oben auf der Seite erklärt. Wer ihn hier vergisst, zeigt
+     * zwei Wahrheiten auf derselben Seite.
+     */
+    public function preview(Request $request, Subscription $subscription): JsonResponse
+    {
+        $felder = [];
+
+        foreach (Schedule::FIELDS as $feld) {
+            $wert = $request->query($feld);
+            $felder[$feld] = is_string($wert) ? $wert : '';
+        }
+
+        try {
+            $schedule = Schedule::parse($felder);
+        } catch (AgentException) {
+            return response()->json(['spoken' => null, 'next' => []]);
+        }
+
+        /*
+         * **Nacheinander und nicht in einem Rutsch.** `Occurrence::next()`
+         * beantwortet „was kommt nach diesem Zeitpunkt"; die Kette entsteht,
+         * indem man die Antwort wieder hineingibt. Bricht sie ab — `0 0 30 2 *`
+         * gibt es —, ist die Liste kürzer und nicht falsch.
+         */
+        $naechste = [];
+        $nach = null;
+
+        for ($i = 0; $i < self::PREVIEW_RUNS; $i++) {
+            $zeit = Occurrence::next($schedule, $nach);
+
+            if ($zeit === null) {
+                break;
+            }
+
+            $naechste[] = Clock::display(Carbon::instance($zeit));
+            $nach = $zeit;
+        }
+
+        return response()->json([
+            'spoken' => Spoken::schedule($schedule),
+            'next' => $naechste,
         ]);
     }
 

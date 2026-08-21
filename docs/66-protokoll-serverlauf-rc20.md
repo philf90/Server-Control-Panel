@@ -826,3 +826,88 @@ Gründe verblasst sind.
   Versuchung auf, „nur die einfachen Fälle" im Browser zu rechnen, ist das
   Weg A mit anderem Namen.
 
+
+### 4.5 Gebaut am 21. August
+
+**Weg B, wie entschieden.** Die Route ist `GET
+/subscriptions/{subscription}/cron/preview`, sie trägt `can:manageCron` wie die
+Seite, sie nimmt die fünf Felder aus der Adresse und gibt `{ spoken, next }`
+zurück. `Schedule::parse()` ist die einzige Schranke — taugt eine Eingabe nicht,
+lautet die Antwort `{ spoken: null, next: [] }` und **keine Fehlermeldung**: Wer
+beim dritten Zeichen einer Spanne rot wird, wird bei jeder Spanne rot.
+
+**Gemessen im Container**, ohne Framework, gegen die echten Klassen:
+
+    15 3 * * *     → „jeden Tag um 03:15"
+                     2026-08-22 03:15 · 2026-08-23 03:15 · 2026-08-24 03:15
+
+    0 9 * * 1-5    → „montags bis freitags um 09:00"
+                     2026-08-21 09:00 · 2026-08-24 09:00 · 2026-08-25 09:00
+
+    */15 * * * *   → (kein Satz)
+                     2026-08-21 09:00 · 09:15 · 09:30
+
+    0 0 30 2 *     → (kein Satz), keine Fälligkeit
+
+    quatsch * * * * → abgewiesen von Schedule::parse()
+
+Die zweite Zeile ist der Beleg, dass gerechnet und nicht geraten wird: Der
+21. August ist ein Freitag, und die nächste Fälligkeit nach ihm ist **Montag**.
+
+**Und der dritte Fall ist der wichtigste.** `*/15 * * * *` ist der häufigste
+Zeitplan überhaupt, und `Spoken` gibt dafür `null` zurück — die Klasse
+übersetzt nur, was sie sicher übersetzen kann. Genau hier trägt die
+Entscheidung aus §4.2:
+
+> **Die Fälligkeiten sind der eigentliche Gewinn.** Sie brauchen keine
+> Übersetzungsregel, also gibt es sie auch für die Fälle, für die es keinen
+> Satz gibt.
+
+**Drei Zeitpunkte und nicht zwei.** „Am 22. um 03:15, am 23. um 03:15" liest
+sich wie täglich und wie alle 24 Stunden gleichermassen; die dritte Zeile
+entscheidet die Frage.
+
+**Vier Eigenschaften, ohne die aus der Anfrage etwas anderes würde**, jede mit
+ihrem Wächter in `CronPreviewTest` und ihrem Bruch:
+
+| | |
+|---|---|
+| sie ändert nichts | kein Agent, kein Vorgang, keine Zeile im Protokoll |
+| sie ist keine Eingabe | kein `v-model`, kein Feld in den beiden Absätzen |
+| sie fragt nicht bei jedem Tastendruck | 300 ms Pause, und `vorschauAnfragen` zählt mit |
+| eine überholte Antwort gewinnt nicht | jede Anfrage trägt eine Nummer, geprüft an **beiden** Ausgängen |
+
+Der letzte Punkt stand in `docs/66 §4.4` nicht und ist beim Bauen dazugekommen:
+Zwei Anfragen können sich überholen, und dann stünde still das Ergebnis zu
+einem Zeitplan da, den niemand mehr eingetippt hat.
+
+> **Zwei Antworten, die beide stimmen, ergeben zusammen eine falsche Anzeige,
+> wenn die Reihenfolge fehlt.**
+
+### 4.6 Und ein Wächter, der über Wunsch 4 hinausgeht
+
+Beim Bauen stand die Frage im Raum, ob der neue `watch` überhaupt registriert
+wird — genau der Fehler vom 20. August, als `})})` einen `watch` samt seinem
+`ref` in einen Rückruf verschoben hatte. `vue-tsc` und `npm run build` liefen
+damals durch, und jeder Wächter fand jedes Wort, das er suchte.
+
+> **Ein Wächter, der Wörter liest, sieht keine Klammern.**
+
+`TopLevelSetupTest` liest deshalb keine Wörter, sondern **zählt Klammern**: Was
+in einer `.vue` am linken Rand steht, sieht nach oberster Ebene aus; er
+vergleicht diesen Eindruck mit der tatsächlichen Verschachtelung. Gemessen sind
+**61 Dateien mit 515 Erklärungen am Rand**; die Untergrenzen stehen bei 30 und
+200. Die Schlusstiefe jeder Datei zählt mit — sie fiele als Erste auf, wenn ein
+regulärer Ausdruck diesen Wächter selbst in die Irre führte.
+
+### 4.7 Was hier nicht gemessen ist
+
+- **Die Entprellung im Browser.** `vorschauAnfragen` ist der Zähler dafür; die
+  Zahl daneben fehlt noch. Zwanzig Tastendrücke müssen deutlich weniger als
+  zwanzig Anfragen ergeben — und mindestens eine, sonst misst der Zähler nichts.
+- **Wie die drei Zeitpunkte bei 390 px umbrechen.** Sie stehen in einem
+  `.hint`-Absatz und brechen an den Leerzeichen; das trennt womöglich Datum von
+  Uhrzeit. Ein `nowrap` wäre die naheliegende Antwort und ist es nicht
+  automatisch: Die Entscheidung gehört an ein Bild und nicht an eine Vermutung.
+- **Die Route selbst.** Sie ist im Container nicht aufrufbar (kein `vendor/`);
+  gemessen ist die Kette dahinter, nicht der Weg dorthin.

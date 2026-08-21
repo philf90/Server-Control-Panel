@@ -12256,6 +12256,128 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ActionIconTest::test_the_hidden_verb_still_has_a_name passed
 
 echo
+echo "── TopLevelSetupTest: die Klammern eines watch rutschen zusammen ──"
+#
+# Genau der Fehler vom 20. August: `})})` statt `})\n})`. Ein watch samt seinem
+# ref steht dann innerhalb eines Rueckrufs, wird nie registriert, und das
+# Merkmal ist von seinem ersten Tag an wirkungslos. vue-tsc laeuft durch.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+alt = "  { immediate: true },\n)\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "  { immediate: true },\n", 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "watch im Rueckruf" &&
+pruefe "watch im Rueckruf" \
+  TopLevelSetupTest::test_every_declaration_at_the_margin_is_top_level failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  TopLevelSetupTest::test_every_declaration_at_the_margin_is_top_level passed
+
+echo
+echo "── CronPreviewTest: die Vorschau schreibt ins Protokoll ──"
+#
+# Ein Eintrag je Tastendruck waere eine Datenhaltung ueber die Bedienung --
+# genau das, wogegen Entscheidung 4 aus docs/46 argumentiert.
+vorher_datei app/Http/Controllers/CronController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/CronController.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return response()->json([\n            'spoken' => Spoken::schedule($schedule),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        $this->audit->record('cron.preview');\n" + alt
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Http/Controllers/CronController.php "Vorschau im Protokoll" &&
+pruefe "Vorschau im Protokoll" \
+  CronPreviewTest::test_the_preview_route_reads_and_changes_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronPreviewTest::test_the_preview_route_reads_and_changes_nothing passed
+
+echo
+echo "── CronPreviewTest: die Vorschau rechnet nicht in die Anzeigezone ──"
+#
+# Dann stehen auf einer Seite zwei Zeiten, von denen nur eine beschriftet ist.
+vorher_datei app/Http/Controllers/CronController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/CronController.php'
+s = open(p, encoding='utf-8').read()
+alt = 'Clock::display(Carbon::instance($zeit))'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "Carbon::instance($zeit)->format('Y-m-d H:i:s')"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Http/Controllers/CronController.php "Vorschau ohne Anzeigezone" &&
+pruefe "Vorschau ohne Anzeigezone" \
+  CronPreviewTest::test_the_times_go_through_the_display_zone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronPreviewTest::test_the_times_go_through_the_display_zone passed
+
+echo
+echo "── CronPreviewTest: die Entprellung raeumt den alten Zeitgeber nicht ab ──"
+#
+# Dann sammeln sich die Anfragen, statt sich abzuloesen -- und die Entprellung
+# ist keine, obwohl das Wort dasteht.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+alt = '    clearTimeout(vorschauTimer)\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Entprellung ohne Abraeumen" &&
+pruefe "Entprellung ohne Abraeumen" \
+  CronPreviewTest::test_the_preview_is_debounced_and_countable failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronPreviewTest::test_the_preview_is_debounced_and_countable passed
+
+echo
+echo "── CronPreviewTest: eine ueberholte Antwort gewinnt wieder ──"
+#
+# Zwei Antworten, die beide stimmen, ergeben zusammen eine falsche Anzeige,
+# wenn die Reihenfolge fehlt -- und zwar still.
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+alt = "    if (lauf === vorschauLauf) {\n      vorschau.value = { spoken: null, next: [] }\n    }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "    vorschau.value = { spoken: null, next: [] }"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "ueberholte Antwort gewinnt" &&
+pruefe "ueberholte Antwort gewinnt" \
+  CronPreviewTest::test_a_late_answer_cannot_overwrite_a_newer_one failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronPreviewTest::test_a_late_answer_cannot_overwrite_a_newer_one passed
+
+echo
+echo "── CronPreviewTest: aus der Anzeige wird ein Griff ──"
+#
+# Bestellt war ausdruecklich "keine zusaetzliche Eingabe, nur eine Anzeige".
+vorher_datei resources/js/Pages/Subscriptions/Cron.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Cron.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'Läuft {{ vorschau.spoken }}.'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<input v-model="form.minute">', 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Cron.vue "Anzeige mit Griff" &&
+pruefe "Anzeige mit Griff" \
+  CronPreviewTest::test_the_preview_is_a_display_and_not_an_input failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CronPreviewTest::test_the_preview_is_a_display_and_not_an_input passed
+
+echo
 echo "── QueryBooleanTest: eine GET-Route prueft wieder mit boolean ──"
 #
 # Der Fund selbst (docs/66, Befund 5): Der Wert reist in der Adresse und ist

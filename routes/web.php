@@ -562,6 +562,20 @@ Route::middleware('auth')->group(function (): void {
         ->middleware('can:manageCron,subscription')
         ->name('cron.show');
 
+    /*
+     * **Die Umrechnung während des Tippens** (Wunsch 4, `docs/66 §4`). Sie
+     * liest und rechnet — kein Agent, kein Vorgang, keine Zeile im Protokoll —
+     * und trägt dieselbe Fähigkeit wie die Seite, auf der getippt wird. Eine
+     * lesende Route ohne diese Klammer verriete an fremden Zeitplänen zwar
+     * nichts, wäre aber ein zweiter Weg an der Policy vorbei; dass sie hier
+     * nichts preisgibt, ist eine Eigenschaft von heute und keine Zusage.
+     *
+     * **Vor `{job}/runs`**, weil `preview` sonst wie eine Jobkennung aussähe.
+     */
+    Route::get('/subscriptions/{subscription}/cron/preview', [CronController::class, 'preview'])
+        ->middleware('can:manageCron,subscription')
+        ->name('cron.preview');
+
     Route::post('/subscriptions/{subscription}/cron', [CronController::class, 'store'])
         ->middleware('can:manageCron,subscription')
         ->name('cron.store');

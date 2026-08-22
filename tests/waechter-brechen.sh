@@ -14522,6 +14522,121 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DnsHealthTest passed
 
 echo
+echo "── IdentListTest / DisabledStateTest: die drei Befunde der Bilderrunde ──"
+#
+# **Zwei Befunde, eine Ursache** (`docs/76`): Eine IPv6 brach bei 390 px mitten
+# im Hextet, und zwei Namen standen durch ein Leerzeichen getrennt nebeneinander.
+# Beide entstehen dort, wo `.ident` gilt — Monospace UND overflow-wrap: anywhere.
+
+vorher_datei resources/js/Pages/Domains/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<td data-column="Gefunden" class="ident">\n                  <Idents :values="satz.found" />'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '<td data-column="Gefunden" class="ident">\n                  {{ satz.found.join(\', \') }}'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Domains/Show.vue "eine Kennungsliste wieder mit join geklebt" &&
+pruefe "eine Kennungsliste wieder mit join geklebt" \
+  IdentListTest::test_no_ident_glues_a_list_with_join failed
+wiederherstellen
+
+# **Die Gegenprobe zum Bestand:** Steht `<Idents>` nirgends mehr, ist die Regel
+# eine Verbotstafel vor einer leeren Strasse.
+
+vorher_datei tests/Unit/IdentListTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/IdentListTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "substr_count($vorlage, '<Idents')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "substr_count($vorlage, '<IdentsX')", 1))
+PY2
+griff_datei tests/Unit/IdentListTest.php "die Komponente wird nirgends benutzt" &&
+pruefe "die Komponente wird nirgends benutzt" \
+  IdentListTest::test_the_component_is_actually_used failed
+wiederherstellen
+
+vorher_datei tests/Unit/IdentListTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/IdentListTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/^<template>$(.*?)^<\\/template>$/ms'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/^<templateX>$(.*?)^<\\/templateX>$/ms'", 1))
+PY2
+griff_datei tests/Unit/IdentListTest.php "die Vorlagen werden nicht mehr gelesen" &&
+pruefe "die Vorlagen werden nicht mehr gelesen" \
+  IdentListTest::test_there_are_templates_to_check failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" IdentListTest passed
+
+# **Befund 3:** Ein Kaestchen, das nicht klickt und aussieht, als taete es das.
+# Gemeldet vom Betreiber, gefunden von keinem Messmittel.
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.toggle:has(input:disabled) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.toggle:has(input:aus) {', 1))
+PY2
+griff_datei resources/css/app.css "der Schalter kennt keinen Aus-Zustand mehr" &&
+pruefe "der Schalter kennt keinen Aus-Zustand mehr" \
+  DisabledStateTest::test_every_wrapper_shows_that_it_is_off failed
+wiederherstellen
+
+# **Die Gegenprobe zum Stylesheet-Leser.** Einer, der immer `true` gibt, waere
+# fuer immer gruen — und niemandem faellt es auf.
+
+vorher_datei tests/Unit/DisabledStateTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DisabledStateTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return false;\n    }\n\n    /**\n     * Jeder Selektor in `app.css`"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        return true;\n    }\n\n    /**\n     * Jeder Selektor in `app.css`"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Unit/DisabledStateTest.php "der Stylesheet-Leser sagt immer ja" &&
+pruefe "der Stylesheet-Leser sagt immer ja" \
+  DisabledStateTest::test_the_stylesheet_reader_can_say_no failed
+wiederherstellen
+
+vorher_datei tests/Unit/DisabledStateTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DisabledStateTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/^<label\\\\b[^>]*\\\\bclass=\"([^\"]+)\"/s'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/^<labelX\\\\b[^>]*\\\\bclass=\"([^\"]+)\"/s'", 1))
+PY2
+griff_datei tests/Unit/DisabledStateTest.php "der Aufzaehler findet keine Huelle mehr" &&
+pruefe "der Aufzaehler findet keine Huelle mehr" \
+  DisabledStateTest::test_there_are_wrappers_to_check failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DisabledStateTest passed
+
+# **Und die dritte Ursache aus Befund 3: der Grund, der wie eine Fussnote
+# aussieht.** `.obstacle` faerbt ihn ab; ohne die Regel steht er in derselben
+# Farbe wie die zwei erklaerenden Hinweise darueber.
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.obstacle {\n  color: var(--warn);\n}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.obstacleX {\n  color: var(--warn);\n}', 1))
+PY2
+griff_datei resources/css/app.css "der Hinderungsgrund verliert seine Farbe" &&
+pruefe "der Hinderungsgrund verliert seine Farbe" \
+  ClassReachTest::test_every_class_in_a_template_points_at_a_rule failed
+wiederherstellen
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

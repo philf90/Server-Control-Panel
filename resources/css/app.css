@@ -3554,6 +3554,62 @@ p:not([class]) {
 }
 
 /*
+ * Ein Schalter, den man nicht umlegen kann, sieht aus wie einer.
+ *
+ * **Befund 3 der Bilderrunde** (`docs/76`), gemeldet vom Betreiber: „Das
+ * Kästchen ‚Als Platzhalter bestellen' lässt sich gerade gar nicht anklicken."
+ * Dass es das nicht tut, war richtig — ein Platzhalter geht nur über DNS-01,
+ * und dafür fehlten die Zugangsdaten. Der Fehler war die Anzeige: `.toggle`
+ * setzt `cursor: pointer` **unbedingt**, die Beschriftung stand in voller
+ * `--text-strong`-Farbe, und blass war allein das Kästchen, weil der Browser
+ * es blass rendert.
+ *
+ * > **Ein Bedienelement, das nicht bedienbar ist und trotzdem den Zeigefinger
+ * > zeigt, sagt dem Kunden, er habe falsch geklickt.**
+ *
+ * **Dieselbe Datei kannte die Lösung** — für Felder, ein paar hundert Zeilen
+ * weiter oben (`.field input:disabled`): gedämpfte Schrift, gestrichelter
+ * Rand, `cursor: default`. Sie war für das eine aufgeschrieben und für das
+ * andere nicht.
+ *
+ * > **Eine Regel, die für ein Feld gilt, gilt nicht für den Schalter daneben,
+ * > bloss weil sie dieselbe ist.**
+ *
+ * `:has()` und nicht eine Klasse an der Vorlage: Der Zustand steht am
+ * `input`, und wer ihn dort setzt, soll ihn nicht zweimal schreiben müssen.
+ * Eine zweite Fassung wäre die, die veraltet.
+ */
+.toggle:has(input:disabled) {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+/*
+ * Und der Grund steht abgesetzt.
+ *
+ * **Er stand als dritter `.hint` unter dem Kästchen**, in derselben Grösse und
+ * Farbe wie die zwei erklärenden davor — und las sich damit als weitere
+ * Erklärung statt als Sperre. Der Betreiber hat ihn übersehen.
+ *
+ * > **Ein Grund, der aussieht wie eine Fussnote, wird gelesen wie eine.**
+ *
+ * Die Farbe ist `--warn` und nicht `--critical`: Es ist nichts kaputt, es
+ * fehlt etwas. Und sie steht neben der gedämpften Beschriftung — der einzige
+ * Satz in dieser Zeile, der nicht blass ist, ist der, der erklärt warum.
+ *
+ * **Freistehend und nicht als `.toggle .obstacle`.** Der erste Wurf band sie an
+ * den Schalter, und `StandaloneClassTest` hat zugebissen: Eine Klasse, die es
+ * nur unter einem Vorfahren gibt, tut ausserhalb davon nichts — und wer sie
+ * dort verwendet, bekommt keinen Fehler, sondern ein Nichts.
+ *
+ * > **Eine Klasse, die es nur als Nachfahrenregel gibt, ist ausserhalb ihres
+ * > Vorfahren ein Wunsch.**
+ */
+.obstacle {
+  color: var(--warn);
+}
+
+/*
  * Was von einem Schalter abhängt, steht unter ihm und eingerückt.
  *
  * Die Einrückung ist die ganze Auskunft: Sie sagt, dass dieses Feld nur etwas

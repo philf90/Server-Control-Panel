@@ -17978,3 +17978,71 @@ stellte jede der bis zu `Page::SIZE` Zeilen ihre eigene Abfrage. `hasOne` und
 nicht `hasMany`, weil `Dns::store()` je Domain genau eine Zeile schreibt — eine
 Beziehung, die eine Liste verspricht, die nie länger als eins wird, ist eine
 falsche Auskunft über die Tabelle.
+
+### Die drei Befunde der Bilderrunde
+
+Alle drei aus `docs/76`, und **keinen davon hat eine Zahl gefunden** — sie
+traten in Lagen auf, die vollständig grün gemessen waren (`dokument: 0`,
+`schiebt: []`, Gegenprobe `200/200`).
+
+**Befund 1 und 2 haben dieselbe Ursache.** `2a0a:4cc0:c1:ebd1:b82d:51ff:fe72:3083`
+brach bei 390 px nach `51ff:f` — also **mitten im Hextet**; wer das liest, sieht
+`f` und `e72` als zwei gültige Gruppen und zählt acht, wo sieben stehen. Und
+`*.cloudlab24.de cloudlab24.de` standen als zwei Namen nebeneinander, getrennt
+nur durch ein Leerzeichen, beide mit Punkten darin.
+
+> **Ein Umbruch ohne bevorzugte Stelle bricht dort, wo es passt, und nicht dort,
+> wo man liest.**
+
+`Idents.vue` ist die eine Stelle: ein Komma zwischen den Werten, eine
+Umbruchgelegenheit nach jedem `:` und `.` **innerhalb** eines Wertes — und
+**nie hinter dem letzten**. Der erste Wurf setzte sie überall, und im Bild fiel
+damit die schliessende Klammer eines Satzes allein auf die nächste Zeile.
+
+> **Eine Umbruchgelegenheit am Ende eines Wertes gehört nicht mehr dem Wert.**
+
+**Beim Beheben kamen vier Fundstellen dazu**, die der Befund nicht genannt
+hatte: `Settings/Php.vue` und `Settings/Tls.vue`, zwei davon mit Domainnamen und
+IP-Adressen.
+
+> **Ein Befund, den man an der Fundstelle behebt, ist an den anderen
+> Fundstellen nicht behoben.**
+
+**Befund 3 hat kein Messmittel finden können.** Das Kästchen „Als Platzhalter
+bestellen" liess sich nicht anklicken — richtigerweise, denn ein Platzhalter
+geht nur über DNS-01 und die Zugangsdaten fehlten. Der Fehler war die Anzeige:
+`.toggle` setzte `cursor: pointer` unbedingt, die Beschriftung stand in voller
+Farbe, und der Hinderungsgrund war der dritte `.hint` in derselben Grösse wie
+die zwei erklärenden davor.
+
+> **Ein Bedienelement, das nicht bedienbar ist und trotzdem den Zeigefinger
+> zeigt, sagt dem Kunden, er habe falsch geklickt.**
+
+Die Lösung stand seit Monaten in derselben Datei — für Felder
+(`.field input:disabled`), mit eigener Begründung im Kommentar.
+
+> **Eine Regel, die für ein Feld gilt, gilt nicht für den Schalter daneben,
+> bloss weil sie dieselbe ist.**
+
+Derselbe Satz stand am selben Tag über `SettingsWriterReachTest`.
+
+**Die Wächter.** `IdentListTest` verbietet ein `join()` **innerhalb** eines
+`.ident` — dort, wo Monospace und `overflow-wrap: anywhere` zusammenkommen; ein
+`join()` in einer Aufzählung im Fliesstext bleibt erlaubt.
+`DisabledStateTest` zählt aus den Vorlagen auf, welche Hüllen ein `<label>`
+trägt, und verlangt für jede eine Regel in `app.css`, die `disabled` kennt.
+
+**Und der erste Wurf von `IdentListTest` fing den Fall nicht, der ihn ausgelöst
+hatte:** Er suchte Klasse und `join()` in derselben Zeile, die Fundstelle stand
+über zwei. Der Bruch änderte die Datei nachweislich, und der Wächter blieb grün.
+
+> **Ein Wächter, der den Fall nicht fängt, der ihn ausgelöst hat, ist keiner.**
+
+**Vier bestehende Wächter haben die Behebung abgefangen**, jeder zu Recht:
+`NoticeChildrenTest` und `NoticeShapeTest` (die neue Komponente stand als
+zweites Flexkind neben Text in einer Meldung — genau die Regel vom selben
+Vormittag), `StandaloneClassTest` (`.obstacle` gab es nur unter `.toggle`) und
+`ClassNameTest` (das Wort fehlte im Vokabular).
+
+> **Eine Behebung ist eine Änderung, und jede Änderung ist ein neuer Anlass zu
+> messen.**

@@ -97,9 +97,9 @@ Browser zuerst dort trennt und `anywhere` nur noch der Rückfall für den Fall
 ist, dass auch das nicht reicht. Das ist keine neue Regel, sondern eine
 Verfeinerung der bestehenden.
 
-**Nicht behoben.** Er wird mit den übrigen Funden am Ende des Laufs behoben und
-danach nachgemessen — eine Behebung mitten im Lauf kostet eine Fassung und macht
-jedes Bild davor zu einem Andenken.
+**Behoben am 22. August**, nach dem Lauf und nicht mittendrin: Eine Behebung
+zwischen zwei Lagen kostet eine Fassung und macht jedes Bild davor zu einem
+Andenken. `Idents.vue` ist die Stelle, `IdentListTest` der Wächter.
 
 **In beiden Themes gleich** (390/hell und 390/dunkel, je `dokument: 0`). Damit
 ist er eine Eigenschaft der Geometrie und nicht der Farbe — erwartet, aber jetzt
@@ -148,7 +148,14 @@ steht. Betroffen sind die drei Stellen oben, dazu `Settings/General.vue` (132,
 136) und `Components/DnsCredentials.vue` (207). `Cron.vue` und `Tile.vue`
 benutzen `join(' ')` für einen Cron-Ausdruck und einen SVG-Pfad — die bleiben.
 
-**Nicht behoben**, aus demselben Grund wie Befund 1.
+**Behoben**, an derselben Stelle wie Befund 1 — es ist dieselbe Ursache. Beim
+Beheben kamen **vier weitere Fundstellen** dazu, die der erste Durchgang
+übersehen hatte: `Settings/Php.vue` (zweimal) und `Settings/Tls.vue` (zweimal,
+mit Domainnamen und IP-Adressen). Sie standen nicht in der Datei, in der der
+Befund entdeckt worden war.
+
+> **Ein Befund, den man an der Fundstelle behebt, ist an den anderen
+> Fundstellen nicht behoben.**
 
 ### Befund 3 — ein Kästchen, das nicht klickt und aussieht, als täte es das
 
@@ -195,6 +202,12 @@ schon hat — gedämpfte Schrift, `cursor: default`. Und der Hinderungsgrund
 gehört von den erklärenden `.hint` abgesetzt, damit er als Sperre und nicht als
 Fussnote liest. Ein Wächter darüber, dass ein abschaltbares Bedienelement einen
 sichtbaren Aus-Zustand hat, gehört dazu.
+
+**Behoben am 22. August.** `.toggle:has(input:disabled)` bekommt, was
+`.field input:disabled` seit Monaten hat — gedämpfte Schrift und
+`cursor: default`; der Hinderungsgrund steht als `.obstacle` in `--warn` und
+damit als einziger nicht blasser Satz der Zeile. `DisabledStateTest` ist der
+Wächter, und er zählt die Hüllen aus den Vorlagen auf, statt sie aufzuschreiben.
 
 **Der Betreiber hat entschieden, dass er gebaut wird** — am 22. August, im Lauf:
 „Wir haben einen Befund, der nachträglich gebaut bzw. korrigiert werden muss,
@@ -377,6 +390,32 @@ Alle vier Lagen `dokument: 0`, Gegenprobe `200/200`, `schiebt` und `rollt` leer;
 
 ---
 
+## 2b. Was das Beheben gekostet hat
+
+**Vier bestehende Wächter haben die Behebung abgefangen**, jeder zu Recht:
+
+| Wächter | was er fand |
+|---|---|
+| `NoticeChildrenTest` | `<Idents>` neben Text in einer `.notice` — genau die Regel von heute Vormittag |
+| `NoticeShapeTest` | dieselbe Meldung, zwei Flexkinder statt einem |
+| `StandaloneClassTest` | `.obstacle` gab es nur als `.toggle .obstacle` |
+| `ClassNameTest` | `obstacle` stand nicht im Vokabular |
+
+> **Eine Behebung ist eine Änderung, und jede Änderung ist ein neuer Anlass zu
+> messen.** Der Satz steht seit `docs/66` in `CLAUDE.md`; hier hat er sich
+> viermal an einem Nachmittag bezahlt gemacht.
+
+**Und der erste Wächter zu Befund 1 fing den Fall nicht, der ihn ausgelöst
+hatte.** Er suchte `class="…ident…"` und `.join(` in **derselben** Zeile; die
+Fundstelle stand über zwei. Der Bruch dazu änderte die Datei nachweislich — und
+der Wächter blieb grün.
+
+> **Ein Wächter, der den Fall nicht fängt, der ihn ausgelöst hat, ist keiner.**
+
+Er liest seitdem den **Inhalt** des Elements, mit gezählter Tiefe.
+
+---
+
 ## 2a. Der Stand nach dem Lauf
 
 **Sechzehn von sechzehn Lagen gemessen. Kein `dokument` ungleich `0`, keine
@@ -423,8 +462,12 @@ Frage an den Betreiber und kein Fehler.
 
 ## 4. Was offen ist
 
-- **Die drei Befunde sind nicht behoben.** Sie kommen zusammen dran, mit je
-  einem Wächter und einem Bruch, und werden danach nachgemessen.
+- **Die drei Behebungen sind auf dem Server nicht nachgesehen.** Sie sind im
+  Aufsatz gemessen (`dokument: 0` in allen Lagen, und die IPv6 bricht jetzt nach
+  dem Doppelpunkt statt im Hextet) — das ist etwas anderes.
+
+  > **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+  > jemand ihn behoben hat.**
 - **Die Marke „ungeprüft" ist nicht aufgenommen**, und sie ist **flüchtig**:
   `srvpanel-dns.timer` läuft alle 15 Minuten, also ist jede Domain spätestens
   nach einer Viertelstunde geprüft. Den Zustand gibt es nur im Fenster zwischen

@@ -29,10 +29,10 @@ ungültig und keine Messung.
 | 2 | Einstellungen → Allgemein | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ |
 | 2 | Einstellungen → Allgemein | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ |
 | 2 | Einstellungen → Allgemein | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ |
-| 3 | Domainliste `/domains` | 390 | hell | — | — | — | offen |
-| 3 | Domainliste `/domains` | 390 | dunkel | — | — | — | offen |
-| 3 | Domainliste `/domains` | 1440 | hell | — | — | — | offen |
-| 3 | Domainliste `/domains` | 1440 | dunkel | — | — | — | offen |
+| 3 | Domainliste `/domains` | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Beobachtung) |
+| 3 | Domainliste `/domains` | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Beobachtung) |
+| 3 | Domainliste `/domains` | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Beobachtung) |
+| 3 | Domainliste `/domains` | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Beobachtung) |
 | 4 | Abonnement, „Domains" | 390 | hell | — | — | — | offen |
 | 4 | Abonnement, „Domains" | 390 | dunkel | — | — | — | offen |
 | 4 | Abonnement, „Domains" | 1440 | hell | — | — | — | offen |
@@ -50,6 +50,7 @@ einzeln benannt.
 | 1 / 1440 / hell | keiner | — |
 | 1 / 1440 / dunkel | keiner | — |
 | 2 / alle vier | keiner | — |
+| 3 / alle vier | keiner | — |
 
 **`rollt` ist bei 390 px leer, und das ist richtig.** Die Tabellen stehen dort
 als Kärtchen; ein Rollbehälter ist gar nicht aktiv. `docs/63 §6` hält das als
@@ -281,6 +282,42 @@ unterscheiden sich auf den ersten Blick, und die Zeile bricht am Leerzeichen in
 zwei. Die Inkonsistenz bleibt und wird mitbehoben; die *Verwechslungsgefahr*
 gibt es nur dort, wo zwei gleichartige Namen nebeneinanderstehen.
 
+### Ansicht 3 — kein Fund, aber eine Spalte ohne Auskunft
+
+Alle vier Lagen `dokument: 0`, Gegenprobe `200/200`, `schiebt` und `rollt` leer.
+`versteckt: 2` bei 390 px (die beiden `.stacks thead` der Liste), `0` bei 1440.
+
+**Die neue Spalte trägt.** Sechs Spalten statt fünf bei 1440 px, ohne dass
+etwas schiebt; bei 390 px sechs Zeilen je Kärtchen, DNS vor Zustand. Die beiden
+Marken stehen nebeneinander und sind auseinanderzuhalten.
+
+**Und trotzdem sagt sie an diesem Tag nichts.** Alle vier Domains tragen
+„nachsehen":
+
+| Domain | warum |
+|---|---|
+| `cloudlab24.de` | **allein wegen des CAA aus §2.2 dieser Vorschrift** |
+| `cloudlab24.ipv64.de` | `A` zeigt woandershin, `AAAA` fehlt |
+| `p6-abnahme.invalid` | `.invalid`, nie gefragt |
+| `p6-b.invalid` | `.invalid`, nie gefragt |
+
+Die Spalte ist damit **richtig und nutzlos zugleich**: Sie sagt viermal
+dasselbe, und wer sie so zum ersten Mal sieht, hält sie für Zierde.
+
+> **Eine Spalte, in der alle Zeilen dasselbe sagen, belegt nicht, dass sie
+> unterscheiden kann.**
+
+Der Prüfkörper, den `docs/75 §3` verlangt — „alle drei Marken nebeneinander" —,
+ist damit **nicht** erfüllt. Er wird es, sobald das CAA weg ist: Dann fällt
+`cloudlab24.de` auf „in Ordnung", und eine grüne Marke steht neben drei gelben.
+„ungeprüft" braucht zusätzlich eine frisch angelegte Domain.
+
+**Bemerkenswert daran ist der Grund.** Der Zustand, den §2.2 zum Prüfen
+*hergestellt* hat, hat einen anderen Prüfkörper *verdeckt* — und beide stehen
+in derselben Vorschrift.
+
+> **Ein hergestellter Zustand ist auch ein weggenommener.**
+
 ---
 
 ## 3. Beobachtungen ohne Fund
@@ -298,12 +335,20 @@ Frage an den Betreiber und kein Fehler.
 
 ## 4. Was offen ist
 
-- **Acht der sechzehn Lagen** — die Ansichten 1 und 2 sind vollständig, 3 und 4
-  stehen aus.
-- **Die Konsole ist nicht gelesen worden.** Die Entwicklerwerkzeuge zählten in
-  den Aufnahmen zu Ansicht 2 zwölf Fehler und fünfunddreissig Warnungen; ein
-  Teil davon kommt sichtbar aus einer Browsererweiterung (`background.js`,
-  `[AppIntegration]`). Ob **eine** davon aus dem Panel stammt, ist ungeprüft.
+- **Vier der sechzehn Lagen** — die Ansichten 1 bis 3 sind vollständig, 4 steht
+  aus.
+- **Die Domainliste mit mehr als einer Marke.** Solange das CAA aus §2.2 steht,
+  sagen alle vier Zeilen „nachsehen". Der Zustand „in Ordnung" entsteht, sobald
+  es weg ist und `cloudlab24.de` neu geprüft wurde; „ungeprüft" braucht eine
+  frisch angelegte Domain. Beides gehört nachgeholt, sonst ist die Spalte
+  gemessen und nicht belegt.
+- **Die Konsole ist nicht gelesen worden.** In den Aufnahmen zu Ansicht 2
+  zählten die Entwicklerwerkzeuge zwölf Fehler und fünfunddreissig Warnungen;
+  ein Teil kommt sichtbar aus einer Browsererweiterung (`background.js`,
+  `[AppIntegration]`). Auf Ansicht 3 steht dagegen **ein** Fehler und „No
+  Issues" — die hohen Zahlen hingen also an jener Seite oder an dem, was sich
+  bis dahin angesammelt hatte. Ob **einer** davon aus dem Panel stammt, ist
+  ungeprüft.
 
   > **Ein Fehler in der Konsole erzeugt keinen Überlauf und steht auf keinem
   > Bild.** Er ist der dritte Kanal neben Zahl und Betrachter, und dieser Lauf

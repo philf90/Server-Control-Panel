@@ -17758,3 +17758,34 @@ würden beim Umbau ihr sichtbares Format ändern — das braucht eigene Aufnahme
 Der zweite Fall des Wächters ist zugleich seine Gegenprobe: Trifft der Ausdruck
 nichts mehr, findet er null statt fünf und wird rot, statt „alles in Ordnung"
 zu melden. Beide Brüche stehen im Skript und beissen einzeln.
+
+### „Nicht gefragt" ist nicht dasselbe wie „ohne Antwort"
+
+Befund 1 der Zwischenabnahme (`docs/74`). Der Bericht meldete
+`2 geprüft, 2 ohne Antwort`, und um zu wissen, ob der Agent gescheitert war oder
+die Zonen wirklich schweigen, musste jemand ins Protokoll des Agenten sehen.
+
+**Die Unterscheidung gab es die ganze Zeit.** `Measurement` sagt in seiner
+Beschreibung, `null` heisse „die Messung hat nicht stattgefunden" — und genau
+das ist etwas anderes als eine Antwort ohne Sätze. `Survey` warf die Auskunft
+weg, `Sweep` konnte sie nicht mehr haben.
+
+> **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+> keine.**
+
+`Survey::of()` führt die ungefragten Namen jetzt als `unasked` mit, `Sweep`
+zählt sie getrennt, und die Meldung nennt beide Zahlen. Die Reihenfolge ist Teil
+der Regel: Wurde ein Name nicht gefragt, ist die leere Nameserverliste damit
+erklärt — sie zusätzlich als „ohne Antwort" zu zählen hiesse, denselben Vorgang
+zweimal zu melden.
+
+> **Ein Fehlerweg, der sich vom Normalfall nicht unterscheiden lässt, ist keine
+> Auskunft, sondern eine Vermutung.**
+
+Auf der Domainseite steht die Unterscheidung ebenfalls: „Für *diese Namen* hat
+die Prüfung gar nicht stattgefunden — das liegt an diesem Server und nicht an
+der Zone" statt der bisherigen Sammelmeldung.
+
+**Und das Doppel in `DnsSweepTest` konnte den mittleren Fall gar nicht
+darstellen:** Sein `silent` gab `null` zurück und war damit in Wahrheit der
+ungefragte. Es kennt jetzt drei Ausgänge, und ein Fall unterscheidet sie.

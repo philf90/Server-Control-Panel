@@ -14089,9 +14089,11 @@ vorher_datei app/Support/Dns/Sweep.php
 python3 - <<'PY2'
 p = 'app/Support/Dns/Sweep.php'
 s = open(p, encoding='utf-8').read()
-alt = '            if ($this->wasSilent($findings)) {\n                $silent++;\n            }\n'
+# Seit dem 22. August steht der stumme Fall im `elseif` hinter dem ungefragten
+# (docs/74, Befund 1); der Eingriff nimmt jetzt diesen Zweig weg.
+alt = '            } elseif ($this->wasSilent($findings)) {\n                $silent++;\n            }'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '            }', 1))
 PY2
 griff_datei app/Support/Dns/Sweep.php "eine stumme Zone wird nicht gezaehlt" &&
 pruefe "eine stumme Zone wird nicht gezaehlt" \
@@ -14206,6 +14208,57 @@ pruefe "der Ausdruck trifft nichts mehr" \
   DisplayTimeZoneTest::test_every_counted_place_still_exists failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DisplayTimeZoneTest passed
+
+echo
+echo "── Der ungefragte Name: nicht gefragt ist nicht dasselbe wie ohne Antwort ──"
+#
+# Befund 1 der Zwischenabnahme (docs/74). Measurement sagt in seiner
+# Beschreibung, `null` heisse „die Messung hat nicht stattgefunden" — die
+# Auskunft entstand und wurde verworfen, bevor sie jemand lesen konnte. Im
+# Bericht sah ein gescheiterter Agentenaufruf danach genauso aus wie eine Zone,
+# die wirklich schweigt.
+
+vorher_datei app/Support/Dns/Survey.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Survey.php'
+s = open(p, encoding='utf-8').read()
+alt = "                $unasked[] = (string) $name;\n\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Dns/Survey.php "der ungefragte Name wird verschwiegen" &&
+pruefe "der ungefragte Name wird verschwiegen" \
+  DnsSurveyTest::test_a_name_that_could_not_be_asked_is_named failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Survey.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Survey.php'
+s = open(p, encoding='utf-8').read()
+alt = "            $answer = $this->measurement->of((string) $name, $queries);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            $answer = $this->measurement->of((string) $name, $queries);\n            $unasked[] = (string) $name;"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Survey.php "jeder Name gilt als ungefragt" &&
+pruefe "jeder Name gilt als ungefragt" \
+  DnsSurveyTest::test_a_zone_that_answers_is_not_counted_as_unasked failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Sweep.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Sweep.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if ($this->wasUnasked($findings)) {\n                $unasked++;\n            } elseif ($this->wasSilent($findings)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            if ($this->wasSilent($findings)) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Sweep.php "nicht gefragt zaehlt wieder als stumm" &&
+pruefe "nicht gefragt zaehlt wieder als stumm" \
+  DnsSweepTest::test_a_name_that_could_not_be_asked_is_not_a_silent_zone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DnsSurveyTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

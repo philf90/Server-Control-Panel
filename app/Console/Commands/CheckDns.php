@@ -47,13 +47,22 @@ final class CheckDns extends Command
          * Domains länger als gedacht.
          */
         $this->info(sprintf(
-            '%d Domain/Domains fällig, %d geprüft, %d ohne Antwort, %d wartet/warten noch (%s s).',
+            '%d Domain/Domains fällig, %d geprüft, %d ohne Antwort, %d nicht gefragt, %d wartet/warten noch (%s s).',
             $bericht['due'],
             $bericht['checked'],
             $bericht['silent'],
+            $bericht['unasked'],
             $bericht['left'],
             number_format($bericht['seconds'], 1, ',', ''),
         ));
+
+        /*
+         * **„Nicht gefragt" steht immer da und nicht nur, wenn es vorkommt.**
+         * Es ist die Zahl, an der man merkt, dass der Fehler bei uns liegt und
+         * nicht in der Zone — und eine Zahl, die nur im Fehlerfall erscheint,
+         * fehlt genau dann, wenn jemand die Meldungen zweier Läufe
+         * nebeneinanderlegt.
+         */
 
         /*
          * **Ein Fehlschlag beendet den Lauf nicht und wird trotzdem gemeldet.**

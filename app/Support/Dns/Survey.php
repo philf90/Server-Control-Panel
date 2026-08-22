@@ -39,7 +39,7 @@ final class Survey
      * @param  list<string>  $names  Die Namen, die nginx bedient
      * @param  list<string>  $addresses  Die Adressen dieses Servers
      * @param  string|null  $ca  Unsere CAA-Kennung; `null` heisst „unbekannt"
-     * @return array{nameservers: list<string>, records: list<array<string, mixed>>, authorities: list<array<string, mixed>>}
+     * @return array{nameservers: list<string>, unasked: list<string>, records: list<array<string, mixed>>, authorities: list<array<string, mixed>>}
      */
     public function of(array $names, array $addresses, ?string $ca): array
     {
@@ -48,6 +48,24 @@ final class Survey
         $nameservers = [];
         $measured = [];
         $authorities = [];
+
+        /*
+         * **Die Namen, für die die Messung nicht stattgefunden hat.**
+         *
+         * {@see Measurement} sagt es in seiner Beschreibung: `null` heisst „die
+         * Messung hat nicht stattgefunden", und das ist etwas anderes als eine
+         * Antwort ohne Sätze. Die Unterscheidung entstand hier — und wurde
+         * verworfen, bevor sie jemand lesen konnte.
+         *
+         * In der Zwischenabnahme hat das einen Schritt gekostet
+         * (`docs/74`, Befund 1): Der Bericht meldete „2 ohne Antwort", und um
+         * zu wissen, ob der Agent gescheitert war oder die Zonen wirklich
+         * schweigen, musste jemand ins Protokoll des Agenten sehen.
+         *
+         * > **Eine Auskunft, die entsteht und die niemand weitergibt, ist so
+         * > gut wie keine.**
+         */
+        $unasked = [];
 
         foreach ($this->queries($names, $desired) as $name => $queries) {
             $answer = $this->measurement->of((string) $name, $queries);
@@ -58,6 +76,8 @@ final class Survey
              * da — und die der Domain daneben so, wie sie gemessen wurden.
              */
             if ($answer === null) {
+                $unasked[] = (string) $name;
+
                 continue;
             }
 
@@ -78,6 +98,7 @@ final class Survey
 
         return [
             'nameservers' => $nameservers,
+            'unasked' => $unasked,
             'authorities' => $authorities,
             'records' => array_map(
                 static fn (array $entry): array => [

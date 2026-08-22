@@ -76,7 +76,7 @@ final class Sweep
      * > Die andere fällt nicht auf, weil sie leise das Richtige tut — nämlich
      * > nichts.**
      *
-     * @return array{due: int, checked: int, silent: int, failed: int, left: int, seconds: float}
+     * @return array{due: int, checked: int, silent: int, unasked: int, failed: int, left: int, seconds: float}
      */
     public function run(): array
     {
@@ -96,7 +96,7 @@ final class Sweep
         return $report;
     }
 
-    /** @return array{due: int, checked: int, silent: int, failed: int, left: int, seconds: float} */
+    /** @return array{due: int, checked: int, silent: int, unasked: int, failed: int, left: int, seconds: float} */
     private function go(): array
     {
         $started = microtime(true);
@@ -104,6 +104,7 @@ final class Sweep
 
         $checked = 0;
         $silent = 0;
+        $unasked = 0;
         $failed = 0;
         $done = 0;
 
@@ -133,12 +134,31 @@ final class Sweep
 
             $checked++;
 
-            // **Stumm ist kein Fehlschlag und wird trotzdem gezählt.** Eine
-            // Domain, deren Zone niemand beantwortet, hat ein gültiges
-            // Ergebnis — es lautet „nicht erreichbar". Die Zahl steht in der
-            // Meldung, weil ein Lauf, in dem plötzlich alle stumm sind, nichts
-            // über die Domains sagt und alles über diesen Server.
-            if ($this->wasSilent($findings)) {
+            /*
+             * **Drei Ausgänge, und zwei davon sahen bis zum 22. August 2026
+             * gleich aus.**
+             *
+             * „Nicht gefragt" heisst: Der Aufruf an den Agenten hat nicht
+             * stattgefunden — er ist gescheitert, oder der Name liegt
+             * ausserhalb seiner Zone. „Ohne Antwort" heisst: Er hat
+             * stattgefunden, und kein Nameserver hat geantwortet. Das erste ist
+             * ein Fehler bei uns, das zweite eine Auskunft über die Zone.
+             *
+             * Vorher zählte beides als „ohne Antwort", weil beides zu einer
+             * leeren Nameserverliste führt. In der Zwischenabnahme hat das
+             * einen Schritt gekostet (`docs/74`, Befund 1).
+             *
+             * > **Ein Fehlerweg, der sich vom Normalfall nicht unterscheiden
+             * > lässt, ist keine Auskunft, sondern eine Vermutung.**
+             *
+             * **Die Reihenfolge ist Teil der Regel.** Wurde ein Name nicht
+             * gefragt, ist die leere Liste damit erklärt — sie dann auch noch
+             * als „ohne Antwort" zu zählen, hiesse denselben Vorgang zweimal
+             * melden.
+             */
+            if ($this->wasUnasked($findings)) {
+                $unasked++;
+            } elseif ($this->wasSilent($findings)) {
                 $silent++;
             }
         }
@@ -147,6 +167,7 @@ final class Sweep
             'due' => $candidates->count(),
             'checked' => $checked,
             'silent' => $silent,
+            'unasked' => $unasked,
             'failed' => $failed,
             'left' => max(0, $candidates->count() - $done),
             'seconds' => round(microtime(true) - $started, 1),
@@ -190,6 +211,18 @@ final class Sweep
     }
 
     /**
+     * Ist für diese Domain mindestens eine Frage gar nicht gestellt worden?
+     *
+     * @param  array<string, mixed>  $findings
+     */
+    private function wasUnasked(array $findings): bool
+    {
+        $inner = $findings['findings'] ?? null;
+
+        return is_array($inner) && ($inner['unasked'] ?? []) !== [];
+    }
+
+    /**
      * Hat für diese Domain überhaupt jemand geantwortet?
      *
      * @param  array<string, mixed>  $findings
@@ -201,9 +234,9 @@ final class Sweep
         return ! is_array($inner) || ($inner['nameservers'] ?? []) === [];
     }
 
-    /** @return array{due: int, checked: int, silent: int, failed: int, left: int, seconds: float} */
+    /** @return array{due: int, checked: int, silent: int, unasked: int, failed: int, left: int, seconds: float} */
     private static function nothing(): array
     {
-        return ['due' => 0, 'checked' => 0, 'silent' => 0, 'failed' => 0, 'left' => 0, 'seconds' => 0.0];
+        return ['due' => 0, 'checked' => 0, 'silent' => 0, 'unasked' => 0, 'failed' => 0, 'left' => 0, 'seconds' => 0.0];
     }
 }

@@ -17520,3 +17520,70 @@ Ein Fehlschlag ist ein Aufruf, der nicht stattgefunden hat; eine stumme Zone
 ist ein gültiger Befund mit dem Namen „nicht erreichbar". Und
 `DomainDnsCheck::$fillable` trug als einziges der achtzehn Modelle keine
 `@var list<string>`-Angabe.
+
+### Zwei Wächter lasen die Datei und meinten die Klasse
+
+`BaseMethodClashTest` und `InheritedNameTest` haben am 22. August 2026 drei
+Fehlbefunde gemeldet: `DnsCheckTest`, `DnsSurveyTest` und `DnsSweepTest`
+erklärten angeblich `__construct()`, einen Namen, der `PHPUnit\Framework\TestCase`
+gehört und `final` ist. Ihre Meldung sagt, was das bedeutet — `php artisan test`
+endet mit 255, bevor ein einziger Test läuft. Im selben Lauf liefen **2295 Tests
+durch**.
+
+Der Grund: Keines der drei `__construct()` gehört der Testklasse. Zwei stehen in
+einem Doppel, das neben seinem Testfall in derselben Datei liegt, eines in einer
+anonymen Klasse innerhalb einer Methode. Beide Wächter lesen den Text einer
+Datei und schlagen jede Funktion darin der Klasse zu, die dort erbt.
+
+> **Ein Wächter, der aus dem falschen Grund rot ist, wird beim nächsten Umbau
+> aus dem falschen Grund grün.**
+
+**Das ist die zweite Hälfte einer Berichtigung, die schon einmal halb gemacht
+wurde.** `BaseMethodClashTest` hat beim ersten Wurf alles unter `tests/Support`
+eingesammelt und drei Attrappen gemeldet, die gar nicht von `TestCase` erben.
+Die Behebung damals grenzte den **Dateisatz** ein, und ihr Satz steht bis heute
+im Quelltext: „Ein Wächter, der seinen Geltungsbereich am Ordner festmacht,
+prüft den Ordner und nicht die Regel." Eine Ebene tiefer galt er weiter.
+
+> **Ein Wächter, der seinen Geltungsbereich an der Datei festmacht, prüft die
+> Datei und nicht die Klasse.**
+
+`InheritedNames::declarations()` verfolgt jetzt die Klammertiefe und sammelt nur,
+was wirklich auf der Klasse landet: die Methoden einer **benannten Klasse mit
+`extends`** und die eines **Traits**. Eine zweite Klasse ohne `extends`, eine
+anonyme Klasse, ein Interface und ein Enum stehen für sich. Gemessen: 293 Dateien
+im Bereich, 2656 Erklärungen.
+
+**Und `BaseMethodClashTest` fragt jetzt dieselbe Stelle**, statt einen zweiten
+Ausdruck über dieselbe Frage zu führen. Zwei Fassungen derselben Regel waren der
+Grund, warum derselbe Fehler zweimal behoben werden musste.
+
+**Vier Prüfkörper, und zwei davon haben zuerst nichts gemessen.** Die acht neuen
+Fälle in `BaseMethodClashTest::quellen()` sind einzeln gegen die kaputten
+Fassungen gefahren worden. Zwei blieben dabei grün: der Fall zu `Foo::class` und
+der zur Einsetzung in einer Zeichenkette. Der zweite liess sich retten — die
+zweite Methode gehört in **dieselbe** Klasse, sonst fällt sie ohnehin nicht ins
+Gewicht, und danach hat er zugebissen. Der erste nicht:
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+Die `::class`-Wache ist nicht brechbar, weil zwei andere Prüfungen ihren Fall
+schon abfangen — hinter `::class` steht nie ein Name, und folgt bis zur nächsten
+Klammer eine echte Erklärung, überschreibt deren `T_CLASS` das Vorgemerkte. Sie
+bleibt trotzdem, und **dass sie keinen Bruch hat, steht als Satz an ihr**.
+
+> **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
+> als Zusage.**
+
+**Ein Eingriff ist dabei entfallen.** „Ausdruck ohne Anker" nahm das `^` aus dem
+regulären Ausdruck, den es nicht mehr gibt. Die Regel dahinter gilt weiter —
+eine Zeichenkette ist kein Quelltext — und hat ihren Fall; einen Bruch dazu gibt
+es nicht mehr, weil die Zusage jetzt im Tokenizer steckt und nicht in einer Zeile
+dieses Repos.
+
+**Und der Prüfkörper hat selbst einen Wächter geweckt, zweimal.** Die
+Beispielklasse hiess zuerst `…Test`; `GuardReachTest` sammelt jeden solchen Namen
+aus dem Quelltext und verlangt einen Wächter dazu. Nach der Umbenennung stand der
+alte Name noch im erklärenden Absatz — und wurde wieder gemeldet. Er
+unterscheidet Erklärung und Erwähnung nicht, und das ist richtig so.

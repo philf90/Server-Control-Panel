@@ -9024,29 +9024,22 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TenancySweepTest passed
 
 echo
-echo "── BaseMethodClashTest: der Ausdruck verliert seinen Anker ──"
+# **Der Eingriff „Ausdruck ohne Anker" ist am 22. August 2026 entfallen**, und
+# zwar mit seinem Gegenstand. Er hat den Anker `^` aus einem regulären Ausdruck
+# in BaseMethodClashTest genommen, damit dieser auch die Zeichenkette
+# „public function run(Context …" aus SandboxCredentialsTest als Erklärung
+# liest. Diesen Ausdruck gibt es nicht mehr: Gelesen wird über
+# InheritedNames::declarations() und damit über token_get_all(), und der weiss,
+# was Zeichenkette ist.
 #
-# **Die Regel selbst lässt sich nicht brechen, und das ist ihr Wesen.** Eine
-# Methode, die einen final-Namen der Basisklasse trägt, tötet den ganzen Lauf
-# beim Laden — der Prüfling käme gar nicht erst dazu, rot zu werden. Gebrochen
-# werden deshalb die Teile des Wächters, und jeder einzeln.
+# Die Regel gilt weiter und hat ihren Fall — „eine Zeichenkette ist kein
+# Quelltext" in BaseMethodClashTest::quellen(). Einen Bruch dazu gibt es nicht,
+# weil es nichts mehr zu brechen gibt: Die Zusage steckt im Tokenizer und nicht
+# in einer Zeile dieses Repos.
 #
-# Ohne den Anker am Zeilenanfang trifft der Ausdruck auch eine Zeichenkette:
-# SandboxCredentialsTest führt „public function run(Context …" als Behauptung
-# über fremden Quelltext. Ein Wächter, der beim ersten Lauf einen Fehler
-# erfindet, wird abgeschaltet und nicht befolgt.
-vorher_datei tests/Unit/BaseMethodClashTest.php
-python3 - <<'PY2'
-p = 'tests/Unit/BaseMethodClashTest.php'
-s = open(p, encoding='utf-8').read()
-s = s.replace("'/^\\s*(?:(?:final|", "'/(?:(?:final|", 1)
-open(p, 'w', encoding='utf-8').write(s)
-PY2
-griff_datei tests/Unit/BaseMethodClashTest.php "Ausdruck ohne Anker" &&
-pruefe "Ausdruck ohne Anker" \
-  BaseMethodClashTest::test_no_test_declares_a_name_the_base_class_owns failed
-wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" BaseMethodClashTest passed
+#   Ist die Regel weggefallen, geht der Eingriff mit ihr — und wenn nur ihre
+#   Mechanik weggefallen ist, geht er trotzdem, denn er brach die Mechanik.
+
 
 echo
 echo "── BaseMethodClashTest: die Aufzählung der Dateien läuft ins Leere ──"
@@ -14092,6 +14085,62 @@ pruefe "was liegen bleibt, wird verschwiegen" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   DnsSweepTest::test_it_measures_without_a_logged_in_account passed
+
+echo
+echo "── BaseMethodClashTest: der Leser sieht die Klasse und nicht die Datei ──"
+#
+# Am 22. August 2026 hat dieser Wächter drei Fehlbefunde erzeugt: ein Doppel
+# neben seinem Testfall in derselben Datei und eine anonyme Klasse in einer
+# Methode, jedes mit einem eigenen __construct(). Jeder Befund behauptete,
+# php artisan test ende mit 255 — im selben Lauf liefen 2295 Tests durch.
+#
+#   Ein Wächter, der seinen Geltungsbereich an der Datei festmacht, prüft die
+#   Datei und nicht die Klasse.
+
+vorher_datei tests/Support/InheritedNames.php
+python3 - <<'PY2'
+p = 'tests/Support/InheritedNames.php'
+s = open(p, encoding='utf-8').read()
+alt = "'collect' => $type === T_TRAIT || ($type === T_CLASS && $named && $extends),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "'collect' => $type === T_TRAIT || $type === T_CLASS,"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Support/InheritedNames.php "jede Klasse der Datei zaehlt mit" &&
+pruefe "jede Klasse der Datei zaehlt mit" \
+  BaseMethodClashTest::test_only_what_lands_on_the_class_is_read failed
+wiederherstellen
+
+vorher_datei tests/Support/InheritedNames.php
+python3 - <<'PY2'
+p = 'tests/Support/InheritedNames.php'
+s = open(p, encoding='utf-8').read()
+alt = "'collect' => $type === T_TRAIT || ($type === T_CLASS && $named && $extends),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "'collect' => $type === T_CLASS && $named && $extends,"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Support/InheritedNames.php "ein Trait zaehlt nicht mehr mit" &&
+pruefe "ein Trait zaehlt nicht mehr mit" \
+  BaseMethodClashTest::test_only_what_lands_on_the_class_is_read failed
+wiederherstellen
+
+# Ohne die Klammer einer Einsetzung geht die Tiefe um eins zu tief; das
+# schliessende `}` der Methode wirft dann den Rahmen der Klasse weg, und alles
+# danach steht ausserhalb.
+vorher_datei tests/Support/InheritedNames.php
+python3 - <<'PY2'
+p = 'tests/Support/InheritedNames.php'
+s = open(p, encoding='utf-8').read()
+alt = '            if ($token[0] === T_CURLY_OPEN || $token[0] === T_DOLLAR_OPEN_CURLY_BRACES) {\n                $depth++;\n\n                continue;\n            }\n\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei tests/Support/InheritedNames.php "die Klammer einer Einsetzung zaehlt nicht" &&
+pruefe "die Klammer einer Einsetzung zaehlt nicht" \
+  BaseMethodClashTest::test_only_what_lands_on_the_class_is_read failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BaseMethodClashTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

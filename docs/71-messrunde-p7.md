@@ -7,6 +7,16 @@ auf `cloudsrv24` läuft.
 
 Sie kommt vor dem Plan, weil dieses Projekt damit schon einmal ein
 Abnahmekriterium umgeworfen hat, bevor eine Zeile Plan entstand (`docs/38 §2`).
+
+> **Diesmal hat sie mehr umgeworfen als ein Kriterium: die ganze Stufe.** Am
+> selben Tag hat der Betreiber gefragt, ob ein eigener Nameserver überhaupt
+> Sinn ergibt, und die Zahlen unten waren die Antwort — §4.4 (die Zone wird bei
+> einem gewöhnlichen Datenbank-Neustart dunkel) und §4.5 (ein CSK, dessen DS das
+> Panel nicht setzen kann). **P7 führt keine Zone mehr** (`docs/72`).
+>
+> Dieses Dokument bleibt vollständig stehen. Eine Messrunde, die eine
+> Entscheidung *gegen* etwas trägt, ist genauso viel wert wie eine dafür — und
+> wer die Frage in einem Jahr noch einmal aufmacht, fängt nicht bei null an.
 Die Fragen, die sie beantwortet, und die elf Entscheidungen des Betreibers
 stehen in `docs/70`.
 

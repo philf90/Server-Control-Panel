@@ -43,30 +43,6 @@ use SrvPanel\Agent\Version;
  * jetzt zwei Formen — die ACME-förmige und die der Anbieter —, darunter eine
  * Grenze.
  *
- * **Die eine Ausnahme, und warum sie eng ist (P7).** PowerDNS bedient seine
- * HTTP-API im Klartext; die Fassung 4.8.3 kennt für ihren Webserver keine
- * Option für ein Zertifikat, keine für einen Schlüssel und keine für einen
- * Unix-Socket (gemessen, `docs/71 §4.1`). Damit stösst Zusage 1 auf eine
- * Vorgabe aus `docs/20 §9`, und der Betreiber hat die benannte Ausnahme
- * gewählt (`docs/70 §13`).
- *
- * Sie ist **kein Schalter an der Klasse, sondern ein Wert am Aufruf**:
- * `new Curl(loopbackPort: 8081)`. Ohne dieses Argument gibt es die Ausnahme
- * nicht — jeder bestehende Weg, die Zertifizierungsstelle und alle acht
- * DNS-Anbieter, baut `new Curl` ohne Argument und kann sie deshalb gar nicht
- * benutzen. Eine Ausnahme, die überall gilt, wäre keine.
- *
- * **Verglichen wird der zerlegte Wirt und nicht der Anfang der Zeichenkette.**
- * `str_starts_with($url, 'http://127.0.0.1')` liesse
- * `http://127.0.0.1.angreifer.invalid/` durch — der Name beginnt mit derselben
- * Zeichenkette und zeigt woandershin. Das ist die Fehlerklasse, gegen die
- * dieses Repo `AnchoredPatternTest` hat.
- *
- * **Und kein Name, auch nicht `localhost`.** Ein Name kommt aus einer
- * Auflösung, und eine Auflösung ist etwas, das jemand ändern kann — in
- * `/etc/hosts`, im Systemauflöser, über eine Suchdomäne. Die Ausnahme gilt für
- * eine Adresse und nicht für ein Versprechen darauf.
- *
  * **curl und nicht die Stream-Wrapper von PHP:** `php8.4-curl` ist eine
  * Abhängigkeit des Pakets, die Prüfung des Zertifikats ist die Vorgabe, und
  * `ca-certificates` steht ebenfalls im Paket. Mit `allow_url_fopen` hinge
@@ -82,54 +58,26 @@ final class Curl implements Outbound
     public const TIMEOUT = 30;
 
     /**
-     * Die zwei Adressen, für die die Ausnahme gilt.
+     * Darf der Agent diese Adresse überhaupt wählen?
      *
-     * **`[::1]` mit Klammern, und das ist keine Schreibweise, sondern das
-     * Ergebnis einer Messung.** `parse_url('http://[::1]:8081/x')` gibt den
-     * Wirt als `[::1]` zurück, nicht als `::1`. Wer gegen die klammerlose Form
-     * vergleicht, baut eine Ausnahme, die für IPv6 nie greift — und die sieht
-     * gebaut aus.
+     * **Eine eigene Frage und keine Zeile mitten im Ablauf** — das ist Zusage 1
+     * von oben, und sie stand von P4 bis P7 ohne einen einzigen Test da. Als
+     * Bedingung innerhalb von {@see send} war sie nicht prüfbar, ohne dabei
+     * wirklich eine Verbindung aufzubauen; als Frage ist sie es.
      *
-     * Die klammerlose Form steht bewusst **nicht** hier: `http://::1:8081/x`
-     * zerlegt sich zu Wirt `::1` und Port 8081, obwohl es keine gültige Adresse
-     * dieser Form gibt. Was diese Klasse annimmt, baut der Agent selbst; die
-     * missgebildete Form braucht er nicht.
+     * **Es ist trotzdem nur eine Fassung der Regel.** {@see send} entscheidet
+     * nichts selbst, sondern fragt hier — sonst wären es zwei, und die zweite
+     * ist die, die veraltet.
      *
-     * @var list<string>
-     */
-    public const LOOPBACK = ['127.0.0.1', '[::1]'];
-
-    /**
-     * @param  int|null  $loopbackPort  Der Port, für den die Ausnahme gilt —
-     *                                  `null` heisst: keine Ausnahme.
-     */
-    public function __construct(private readonly ?int $loopbackPort = null) {}
-
-    /**
-     * Darf diese Adresse überhaupt gewählt werden?
-     *
-     * Getrennt von {@see send}, weil eine Zusage, die man prüfen will, eine
-     * Frage sein muss und keine Anweisung mitten in einem Ablauf.
+     * **Hier stand einmal eine Ausnahme für die Rückschleife**, für die
+     * HTTP-API von PowerDNS, die kein TLS spricht (`docs/71 §4.1`). Sie ist am
+     * 21. August 2026 wieder zurückgebaut worden, weil P7 keinen eigenen
+     * Nameserver mehr betreibt (`docs/72`). Ein Riss in dieser Zusage, den kein
+     * Merkmal benutzt, ist Angriffsfläche ohne Gegenwert.
      */
     public function permitted(string $url): bool
     {
-        if (str_starts_with($url, 'https://')) {
-            return true;
-        }
-
-        if ($this->loopbackPort === null) {
-            return false;
-        }
-
-        $parts = parse_url($url);
-
-        if (! is_array($parts)) {
-            return false;
-        }
-
-        return strtolower((string) ($parts['scheme'] ?? '')) === 'http'
-            && in_array($parts['host'] ?? '', self::LOOPBACK, true)
-            && ($parts['port'] ?? null) === $this->loopbackPort;
+        return str_starts_with($url, 'https://');
     }
 
     /**

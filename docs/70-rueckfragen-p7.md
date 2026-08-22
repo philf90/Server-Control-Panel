@@ -380,9 +380,32 @@ Keine Fragen an den Betreiber, aber Punkte für den Plan:
 
 ## 13. Die Entscheidungen des Betreibers
 
-Getroffen am 21. August 2026, alle elf. Sie sind die Grundlage des Plans; wo
-dieser Abschnitt und meine Einschätzungen weiter oben auseinandergehen, gilt
-dieser Abschnitt.
+> **Am selben Tag überholt — und zwar von der Frage, die vor allen elf hätte
+> stehen müssen.** Der Betreiber hat vor dem Absetzen der ersten Befehle
+> gefragt, ob die Umsetzung eigener DNS-Funktionen überhaupt Sinn ergibt,
+> bevor es zu erheblichen Problemen kommen kann. **Die Antwort war nein**;
+> P7 führt keine Zone mehr, sondern gleicht ab (`docs/72`). Die zwölfte
+> Entscheidung steht in §15.
+>
+> **Die elf unten bleiben trotzdem stehen**, vollständig und unverändert. Sie
+> sind die Vorgeschichte der zwölften: Ohne sie wäre nie gemessen worden, was
+> ein eigener Nameserver kostet, und die Frage hätte keine Zahlen gehabt.
+>
+> **Und eine davon ist der Grund, dass die Frage überhaupt gestellt wurde** —
+> Entscheidung 5, der einzelne Nameserver. Ich habe sie als Antwort behandelt
+> und hätte sie als Warnung lesen müssen.
+>
+> **Ich hatte die Frage selbst gestellt, in §5, und mich mit der Antwort
+> zufriedengegeben.** Dort steht „viele Registries verlangen zwei Nameserver in
+> verschiedenen Netzen"; die Antwort darauf regelte, wie das *dargestellt* wird.
+> Das ist keine Antwort auf das Risiko.
+>
+> > **Eine Entscheidung über die Darstellung eines Risikos ist keine
+> > Entscheidung über das Risiko.**
+
+Getroffen am 21. August 2026, alle elf. Sie waren die Grundlage des verworfenen
+Plans; wo dieser Abschnitt und meine Einschätzungen weiter oben auseinandergehen,
+gilt dieser Abschnitt.
 
 | # | Frage | Entscheidung |
 |---|---|---|
@@ -504,3 +527,64 @@ trennt — und das ist genau die Art von Rückweg, die es nicht gibt:
 
 Die Adressen aus `ip -brief address` werden ausserdem für die Zonenvorlage
 gebraucht (A/AAAA für `@`, `www` und `*`) und für die beiden NS-Namen.
+
+
+---
+
+## 15. Die zwölfte Entscheidung — und die einzige, die zählt
+
+**Gefragt am 21. August 2026, nach den elf und vor der ersten Zeile Code:**
+*In wieweit macht die Implementierung der DNS-Funktionen Sinn? Sollte nicht
+generell auf die Verwaltung der Zone durch den Domain-Provider gesetzt werden,
+bevor es zu erheblichen Problemen kommen kann?*
+
+**Entschieden: P7 wird „externer DNS" — das Panel führt keine Zone.** Die
+Begründung steht in `docs/72 §1`, mit den Messungen aus `docs/71` darunter.
+
+### Was das an den elf ändert
+
+| # | Entscheidung | Was daraus wird |
+|---|---|---|
+| 1 | Nur die HTTP-API | **hinfällig** — keine API, kein PowerDNS |
+| 1a | Ausnahme in `Curl` | **zurückgebaut** (§15.1) |
+| 3 | `gmysql` auf der Panel-MariaDB | hinfällig |
+| 5 | Ein einzelner Nameserver | **war die Warnung, nicht die Antwort** |
+| 6 | Zonenvorlage | wird zum **Sollzustand**, gegen den abgeglichen wird |
+| 7 | DNSSEC zweistufig | hinfällig |
+| 8 | Externer DNS je Domain | **wird die ganze Stufe** |
+| 9 | Kundenrechte | hinfällig — der Kunde sieht, er ändert nichts |
+| 9a | `ns1`/`ns2` auf `cloudsrv24` | hinfällig, und §1.4 in `docs/72` sagt warum das gut ist |
+| 10 | Vorrang der lokalen Zone | hinfällig — es gibt keine lokale Zone |
+
+Von elf Entscheidungen bleiben zwei in veränderter Form. **Das ist der Preis
+dafür, eine Frage in der falschen Reihenfolge gestellt zu haben** — und er ist
+klein gegen den Preis, sie gar nicht gestellt zu haben.
+
+> **Zehn beantwortete Fragen ersetzen nicht die eine, die niemand gestellt
+> hat.**
+
+### 15.1 Was zurückgebaut wurde
+
+`agent/src/Acme/Curl.php` hat seine Ausnahme für die Rückschleife wieder
+verloren. Ein Riss in der Zusage „nach draussen nur https", den kein Merkmal
+benutzt, ist Angriffsfläche ohne Gegenwert.
+
+**Geblieben ist die Naht.** Die Regel steht jetzt als Frage (`permitted()`)
+statt als Bedingung mitten im Ablauf, und damit hat sie zum ersten Mal einen
+Wächter — von P4 bis P7 stand sie ungeprüft da. Zwölf Fälle in beide
+Richtungen, zwei Eingriffe im Bruchskript.
+
+> **Eine Regel, die man nicht fragen kann, hat keinen Wächter — auch wenn jeder
+> sie kennt.**
+
+### 15.2 Was von den offenen Servermessungen bleibt
+
+Die zwei Befehlsfolgen aus §14 werden für diese Fassung **nicht mehr
+gebraucht**: keine PowerDNS-Fassung, kein Port 53. Sie bleiben dort stehen als
+Vorarbeit für den Fall, dass die Frage wiederkommt — und dann fängt niemand bei
+null an.
+
+**Und eine Messung fehlt weiterhin und ist benannt:** ob DENIC eine Delegierung
+mit zwei Nameservern auf derselben Maschine annimmt (`docs/72 §1.4`). Sie
+gehört beantwortet, *bevor* jemand die Entscheidung noch einmal aufmacht, nicht
+danach.

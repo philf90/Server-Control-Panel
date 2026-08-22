@@ -16815,91 +16815,121 @@ nannte `docs/69`, bevor es das gab —, und das ist die vertraute Lehre aus eine
 neuen Richtung: **eine abgeschnittene Liste, die man als vollständige liest, ist
 keine Messung, sondern ihre Verkleidung.**
 
-### P7 — der Agent darf zum ersten Mal im Klartext sprechen, und zwar mit zwei Adressen
+### P7 — die Frage, die vor allen elf hätte stehen müssen
 
-`agent/src/Acme/Curl.php` ist der einzige Ort, an dem der Agent nach draussen
-spricht, und seine erste von vier Zusagen lautete ohne Ausnahme **„nur https"**.
-P7 braucht die HTTP-API von PowerDNS, und die spricht kein TLS: Fassung 4.8.3
-kennt für ihren Webserver weder eine Option für ein Zertifikat noch eine für
-einen Schlüssel noch eine für einen Unix-Socket — gemessen, mit der Gegenprobe
-daneben (`docs/71 §4.1`). Der Betreiber hat die benannte Ausnahme gewählt
-(`docs/70 §13`).
+Die Stufe war geplant: PowerDNS autoritativ über die HTTP-API, Zonenvorlage,
+Eintragseditor, DNSSEC, elf beantwortete Entscheidungen (`docs/70 §13`), eine
+Messrunde mit sechsundzwanzig Messungen (`docs/71`), ein Plan (`docs/72`) und
+der erste Schritt gebaut. Dann hat der Betreiber gefragt, ob eigene
+DNS-Funktionen überhaupt Sinn ergeben, bevor es zu erheblichen Problemen kommen
+kann.
 
-**Sie ist ein Wert am Aufruf und kein Schalter an der Klasse.**
-`new Curl(loopbackPort: 8081)` gewährt sie; ohne dieses Argument gibt es sie
-nicht. Alle sechzehn bestehenden Aufrufer — die Zertifizierungsstelle und jeder
-der acht DNS-Anbieter — bauen `new Curl` ohne Argument und können sie deshalb
-gar nicht benutzen. Eine Ausnahme, die überall gilt, wäre keine.
+**Die Antwort war nein.** P7 führt keine Zone mehr — es gleicht ab.
 
-**Verglichen wird der zerlegte Wirt und nicht der Anfang der Zeichenkette.**
-`str_starts_with($url, 'http://127.0.0.1')` liesse
-`http://127.0.0.1.angreifer.invalid/` durch — der Name beginnt mit derselben
-Zeichenkette und zeigt woandershin. Dieselbe Fehlerklasse hat hier schon zweimal
-gekostet, und `AnchoredPatternTest` steht seit P3 dafür da.
+**Der Ausfallschaden wird nicht grösser, er wird anders.** `cloudsrv24` weg
+heisst heute: die Websites sind weg. Mit eigener Zone auf einer Maschine hiesse
+es: die **Namen** sind weg — mitsamt dem MX auf einen fremden Mailanbieter, der
+Subdomain auf ein CDN, dem TXT für irgendeine Verifikation. Das Panel wäre zum
+Einzelpunkt für Infrastruktur geworden, die es nicht betreibt.
 
-**`[::1]` steht mit Klammern in `Curl::LOOPBACK`, und das ist eine Messung und
-keine Schreibweise.** `parse_url('http://[::1]:8081/x')` gibt den Wirt als
-`[::1]` zurück. Gegen `::1` verglichen griffe die Ausnahme für IPv6 nie — und
-zwar unauffällig: Der Code sähe gebaut aus, und der Fehler fiele erst dem auf,
-der den Dienst auf `::1` bindet.
+Und das ist gemessen, nicht befürchtet: Fällt MariaDB weg, bedient PowerDNS noch
+rund zwanzig Sekunden aus dem Zwischenspeicher und fällt dann auf `SERVFAIL` —
+dieselbe MariaDB wie die des Panels. Ein gewöhnlicher Datenbank-Neustart beim
+Update nimmt die Zone dunkel. Dazu ein CSK, dessen DS das Panel nicht setzen
+kann: Jeder Schlüsselwechsel ist ein harter Fehlschlag für validierende
+Auflöser, wenn er schiefgeht, und die Erholung braucht den Registrar.
+
+**Zehn der elf Entscheidungen sind damit hinfällig** (`docs/70 §15`), und eine
+davon war die Warnung, die ich als Antwort behandelt habe: der einzelne
+Nameserver. Ich hatte in `docs/70 §5` selbst notiert, dass viele Registries zwei
+in verschiedenen Netzen verlangen — und mich mit einer Entscheidung darüber
+zufriedengegeben, wie das *dargestellt* wird.
+
+> **Eine Entscheidung über die Darstellung eines Risikos ist keine Entscheidung
+> über das Risiko.**
+
+> **Zehn beantwortete Fragen ersetzen nicht die eine, die niemand gestellt
+> hat.**
+
+**Was `docs/20 §10` schon sagte, seit es den Plan gibt:** „Eine Domain ist ohne
+eigene Zone benutzbar (externer DNS), eine Zone ohne Domain nicht. Und DNS ist
+die Stufe mit der höchsten Außenwirkung eines Fehlers." Das sind beide Hälften
+der Begründung — und gelesen worden ist es als Aussage über die *Reihenfolge*.
+
+> **Eine Begründung für die Reihenfolge kann eine gegen die Sache sein, und man
+> merkt es erst, wenn jemand die Frage stellt.**
+
+**Was P7 stattdessen wird** (`docs/72`, `docs/20 §9` umgeschrieben): Das Panel
+kennt den Sollzustand einer Domain — `A`/`AAAA` für sie und `www` — und gleicht
+ihn gegen die **autoritativen** Nameserver ab, nicht gegen den Systemauflöser.
+Drei Zustände je Eintrag: zeigt hierher · zeigt woandershin, **mit dem gefundenen
+Wert** · fehlt. „Zeigt woandershin" ist dabei kein Fehler; ein Kunde hinter einem
+CDN hat genau diesen Zustand. `CAA` wird gelesen und nicht gesetzt: Ein Satz, der
+die eigene Zertifizierungsstelle nicht nennt, wird gemeldet, **bevor** eine
+Bestellung daran scheitert — und jeder Fehlversuch zählt bei Let's Encrypt fünf
+pro Konto und Stunde, für jeden Kunden dieses Servers. Jedes Ergebnis trägt den
+Zeitpunkt seiner Messung.
+
+Wildcard-Zertifikate über DNS-01 bleiben unberührt: acht Anbieter plus RFC 2136
+stehen seit P4, und dafür braucht es keine eigene Zone. Aus neun geplanten
+Agent-Operationen wird **eine** (`dns.check`), aus drei neuen Spalten **keine**.
+
+**Ausdrücklich nicht dazu gehört das Schreiben in fremde Zonen** über die
+vorhandenen Anbieter-Zugangsdaten — technisch derselbe Aufruf wie ein `TXT`, und
+genau deshalb bewacht: Die Frage „wer hat meinen Eintrag geändert" beantwortet
+man einmal falsch und wird sie nie wieder los.
+
+### P7 — die Ausnahme in `Curl` ist zurückgebaut, ihr Wächter geblieben
+
+Für die HTTP-API von PowerDNS war die erste der vier Zusagen von
+`agent/src/Acme/Curl.php` aufgebrochen worden — „nach draussen nur https" bekam
+eine Ausnahme für `127.0.0.1` und `[::1]`. **Sie ist wieder heraus.** Ein Riss in
+dieser Zusage, den kein Merkmal benutzt, ist Angriffsfläche ohne Gegenwert.
+
+**Geblieben ist die Naht, und mit ihr ein Wächter, den die Regel nie hatte.** Sie
+stand von P4 bis P7 als Bedingung mitten in `send()` und war damit nicht zu
+prüfen, ohne wirklich eine Verbindung aufzubauen. Jetzt ist sie eine Frage
+(`permitted()`), und `OutboundHttpsOnlyTest` stellt sie in beide Richtungen —
+zwölf Fälle, darunter die aus dem Rückbau, damit der nächste, der eine Ausnahme
+erwägt, sie hier findet statt sie neu zu suchen. Zwei Eingriffe stehen dafür in
+`tests/waechter-brechen.sh`; der zweite prüft, dass die Regel **einmal** im
+Quelltext steht und `send()` nicht selbst entscheidet.
+
+> **Eine Regel, die man nicht fragen kann, hat keinen Wächter — auch wenn jeder
+> sie kennt.**
+
+Aus dem verworfenen Bau bleibt ausserdem eine Messung, die sich gelohnt hat:
+`parse_url('http://[::1]:8081/x')` gibt den Wirt **mit Klammern** zurück. Gegen
+`::1` verglichen hätte die Ausnahme für IPv6 nie gegriffen — und hätte gebaut
+ausgesehen.
 
 > **Ein Wert, den nur die Dokumentation kennt, ist eine Vermutung mit Fussnote.**
-
-**Und kein Name, auch nicht `localhost`.** Ein Name kommt aus einer Auflösung,
-und eine Auflösung ist etwas, das jemand ändern kann — in `/etc/hosts`, im
-Systemauflöser, über eine Suchdomäne. Die Ausnahme gilt für eine Adresse und
-nicht für ein Versprechen darauf. Ebenso abgewiesen: die Adresse als
-Benutzername (`http://127.0.0.1@angreifer.invalid/`), als Sprungmarke, in
-hexadezimaler oder verkürzter Schreibweise, ohne Port und mit einem anderen.
-
-`LoopbackExceptionTest` prüft einundzwanzig Fälle in beide Richtungen. Vier
-Eingriffe stehen dafür in `tests/waechter-brechen.sh` — und der vierte ist erst
-dazugekommen, nachdem die ersten drei den beworbenen Fall gar nicht getroffen
-hatten: Die Fassung mit dem Portvergleich weist `127.0.0.1.angreifer.invalid`
-zufällig ab; erst der Präfixvergleich **ohne** Port lässt ihn durch.
-
-> **Ein Eingriff, der irgendetwas rot macht, belegt nicht die Regel, für die er
-> dasteht.**
 
 ### P7 — geplant: die Rückfragen, die Messrunde und der Plan
 
 - **`docs/70`** — die zehn Rückfragen an den Betreiber, jede mit ihrer
-  Messgrundlage und einer Einschätzung daneben, und in §13 die elf
-  Entscheidungen. Zwei Messungen sind dort als Befehlsfolge für den Server
-  offengeblieben statt vermutet zu werden: die PowerDNS-Fassung auf Debian 12
-  und 13 (`deb.debian.org` gibt dem Proxy dieses Containers einen 403) und
-  Port 53 gegen `systemd-resolved`.
+  Messgrundlage und einer Einschätzung daneben, in §13 die elf Entscheidungen
+  und in §15 die zwölfte, die zehn davon aufgehoben hat.
 - **`docs/71`** — die Messrunde gegen PowerDNS 4.8.3, mit `gsqlite3` und mit
   `gmysql` gegen MariaDB 10.11.14. Sechsundzwanzig Messungen, jede mit
-  Gegenprobe. Das Messmittel liegt als **`tests/dns-messen.sh`** im Repo und
-  nicht in einem Sitzungsverlauf.
-- **`docs/72`** — der Plan.
+  Gegenprobe. Sie trägt jetzt eine Entscheidung **gegen** ihren Gegenstand, und
+  das macht sie nicht wertlos: Wer die Frage in einem Jahr aufmacht, fängt nicht
+  bei null an. Das Messmittel liegt als **`tests/dns-messen.sh`** im Repo.
+- **`docs/72`** — der Plan, in seiner zweiten Fassung.
 
 **Der Satz „über die HTTP-API, nicht über die Datenbank" aus `docs/20 §9` hat
-zum ersten Mal eine Zahl.** Eine Änderung über die API ist nach **0,8 ms**
-ausgeliefert; dieselbe Änderung direkt in die Tabelle `records` geschrieben
-erst nach **62 431 ms** — passend zu `negquery-cache-ttl 60`. Faktor rund 78 000.
-Bis dahin war das eine Anweisung mit einer Begründung.
+dabei zum ersten Mal eine Zahl bekommen** — und behält sie, auch wenn die Stufe
+ihn nicht mehr braucht. Eine Änderung über die API ist nach **0,8 ms**
+ausgeliefert; dieselbe Änderung direkt in die Tabelle `records` geschrieben erst
+nach **62 431 ms**, passend zu `negquery-cache-ttl 60`. Faktor rund 78 000.
 
-**Und das Abnahmekriterium aus `docs/20 §9` ist neu gefasst**, weil die
-Messrunde einen seiner drei Punkte umgeworfen hat: „Ein Zonenfehler wird nicht
-übernommen" prüft PowerDNS und nicht diesen Bau — die API weist kaputte Einträge
-selbst ab, serverseitig und atomar. Übrig bleibt die Frage, die niemand gestellt
-hatte: was der Kunde davon liest. Ihre Begründungen nennen `pdnsutil check-zone`,
-ein Programm, das er nicht hat und nicht haben soll.
-
-> **Ein Kriterium, das der Prüfling gar nicht verletzen kann, prüft den
-> Lieferanten und nicht den Bau.**
-
-Aus drei Sätzen sind zehn messbare Punkte geworden. **AXFR und NOTIFY fallen aus
-P7 heraus** — es gibt keinen zweiten Nameserver, und ein Merkmal, das nie
-gelaufen ist, wird nicht ausgeliefert. `docs/20 §9` wird bei der Abnahme
-nachgeführt.
-
-Nebenbei ein Fund im Rechtemodell: **`Feature::DnsEdit` trägt seit P4 die
-Beschriftung „DNS-Einträge bearbeiten" und tut etwas anderes** — es gibt einem
-Abonnement ein eigenes DNS-01-Profil für ACME, also die Ablage fremder
-Registrar-Token. Beide Beschriftungen werden im Zuge von P7 berichtigt.
+Nebenbei ein Fund im Rechtemodell, der die neue Fassung mehr betrifft als die
+alte: **`Feature::DnsEdit` trägt seit P4 die Beschriftung „DNS-Einträge
+bearbeiten" und tut etwas anderes** — es gibt einem Abonnement die Ablage fremder
+Registrar-Token für ACME. In der verworfenen Fassung wäre daneben eine zweite
+Freigabe entstanden, die den Namen zu Recht getragen hätte. Jetzt wird es **nie**
+einen Eintragseditor geben, und die Beschriftung ist damit nicht mehr ungenau,
+sondern falsch. Sie heisst künftig „Eigene DNS-Zugangsdaten für Zertifikate".
 
 > **Eine Beschriftung, die etwas anderes verspricht als der Code tut, ist eine
 > Zusage, die niemand eingelöst hat.**

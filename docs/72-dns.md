@@ -1,500 +1,376 @@
-# P7 — DNS
+# P7 — DNS-Abgleich
 
-Geschrieben am 21. August 2026, nach der Abnahme von P6 (`docs/69`), den elf
-Entscheidungen des Betreibers (`docs/70 §13`) und der Messrunde (`docs/71`).
+Geschrieben am 21. August 2026. **Die erste Fassung dieses Dokuments plante einen
+eigenen autoritativen Nameserver** — PowerDNS über die HTTP-API, Zonenvorlage,
+Eintragseditor, DNSSEC. Sie ist am selben Tag verworfen worden, nachdem der
+Betreiber gefragt hat, ob das überhaupt Sinn ergibt, bevor es zu erheblichen
+Problemen kommen kann.
 
-**Wo dieser Plan und `docs/20 §9` sich widersprechen, steht der Grund
-daneben** — und `docs/20` wird nachgeführt, nicht stillschweigend übergangen.
-
----
-
-## 1. Der Auftrag, und was die Messrunde daran geändert hat
-
-`docs/20 §9` verlangt: PowerDNS autoritativ über die HTTP-API, eine
-Zonenvorlage, neun Satztypen mit Prüfung, DNSSEC mit Schlüsselwechsel und
-DS-Angaben, AXFR an Slaves, die Betriebsart „externer DNS" und eine Kundensicht.
-
-**Drei Dinge daran sind nach `docs/70` und `docs/71` anders.**
-
-1. **AXFR und NOTIFY fallen weg.** Es gibt keinen zweiten Nameserver
-   (`docs/70 §13`, Entscheidung 5). Beides ungeprüft mitzubauen hiesse, ein
-   Merkmal auszuliefern, das nie gelaufen ist.
-2. **„Ein Zonenfehler wird nicht übernommen" prüft den falschen.** PowerDNS
-   weist kaputte Einträge selbst ab, serverseitig und atomar (`docs/71 §4.2`).
-   Das Panel kann diese Eigenschaft gar nicht verletzen — es kann sie nur
-   umgehen, indem es an der API vorbeischreibt. Das Kriterium wird deshalb neu
-   gefasst (§3).
-3. **Die eigene Zone braucht kein Warten.** 0,8 ms zwischen API-Antwort und
-   Auslieferung gegen 60 bis 900 Sekunden bei den acht externen Anbietern
-   (`docs/71 §4.3`). `Patience` und `Resolver::ready()` gehören für die lokale
-   Zone ausdrücklich **nicht** benutzt.
-
-> **Ein Kriterium, das der Prüfling gar nicht verletzen kann, prüft den
-> Lieferanten und nicht den Bau.**
+**Die Antwort war nein**, und die Begründung steht in §1. Die Messrunde
+(`docs/71`) behält ihren Wert: Sie ist die Grundlage dieser Entscheidung, nicht
+ihr Abfall.
 
 ---
 
-## 2. Die Grenze — und die eine Ausnahme, die P7 kostet
+## 1. Warum P7 keinen eigenen Nameserver bekommt
 
-Der Agent ist die einzige Stelle mit Systemrechten, und `agent/src/Acme/Curl.php`
-ist der einzige Ort, an dem er nach draussen spricht. Seine erste Zusage lautet
-**„Nur https"**, durchgesetzt von einer Zeile:
+Die Entscheidung fiel am 21. August 2026 auf die Rückfrage des Betreibers hin.
+Vier Gründe, drei davon gemessen.
 
-```php
-if (! str_starts_with($url, 'https://')) {
-    throw AgentException::denied('Nach draussen spricht der Agent nur über https.');
-}
-```
+### 1.1 Der Ausfallschaden wird nicht grösser, er wird anders
 
-**Die API von PowerDNS spricht kein HTTPS, und 4.8.3 kennt dafür keine Option**
-(`docs/71 §4.1`). Der Betreiber hat die benannte Ausnahme gewählt
-(`docs/70 §13`, Entscheidung 1a). Sie wird so gebaut:
+Heute gilt: `cloudsrv24` weg → die Websites sind weg. Mit eigener Zone auf einer
+Maschine gilt: `cloudsrv24` weg → **die Namen selbst sind weg**. Das nimmt Dinge
+mit, die gar nicht hier liegen — ein MX auf einen fremden Mailanbieter, eine
+Subdomain auf ein CDN, ein TXT für irgendeine Verifikation.
 
-### 2.1 Wie die Ausnahme aussieht — und wie sie nicht aussieht
+Das Panel würde damit zum Einzelpunkt für Infrastruktur, die es nicht betreibt.
 
-**Falsch wäre der Vergleich am Anfang der Zeichenkette.** `http://127.0.0.1`
-als Präfix zu prüfen lässt `http://127.0.0.1.angreifer.invalid/` durch — der
-Name beginnt mit derselben Zeichenkette und zeigt woandershin. Das ist genau die
-Fehlerklasse, gegen die dieses Repo `AnchoredPatternTest` hat, und sie ist hier
-schon zweimal teuer gewesen.
+> **Ein Dienst, dessen Ausfall Dinge mitnimmt, die er nicht betreibt, hat eine
+> andere Art von Verantwortung als einer, der nur sich selbst mitnimmt.**
 
-**Richtig ist: die Adresse zerlegen und den Wirt vergleichen.** `parse_url()`,
-dann `$host` gegen genau `127.0.0.1` und `::1`. Und:
+### 1.2 Und das ist gemessen, nicht befürchtet
 
-- **Kein Name, auch nicht `localhost`.** Ein Name kommt aus einer Auflösung, und
-  eine Auflösung ist etwas, das jemand ändern kann — in `/etc/hosts`, im
-  Systemauflöser, über eine Suchdomäne. Die Ausnahme gilt für eine **Adresse**
-  und nicht für ein Versprechen darauf.
-- **Nur für den Port der API.** Steht der Port in der Konfiguration, wird er
-  verglichen; alles andere auf der Rückschleife bleibt draussen.
-- **Die drei übrigen Zusagen bleiben unangetastet** — keine Umleitungen,
-  gedeckelte Antwort, Zeitlimits. Der Riss betrifft ausschliesslich TLS.
+Aus `docs/71 §4.4`: Fällt MariaDB weg, bedient PowerDNS noch rund zwanzig
+Sekunden aus seinem Zwischenspeicher und fällt dann auf `SERVFAIL`. Es ist
+dieselbe MariaDB wie die des Panels (das war Entscheidung 3). Ein gewöhnlicher
+Datenbank-Neustart beim Update nimmt die Zone also für zehn bis fünfzehn
+Sekunden dunkel.
 
-### 2.2 Der Wächter dazu
+Das ist kein Katastrophenfall. Das ist ein Dienstag.
 
-`LoopbackExceptionTest`, und er prüft **beide** Richtungen:
+### 1.3 DNSSEC ist die schärfste Kante, und das Panel kann sie nicht abstumpfen
 
-- `https://…` geht durch, `http://` auf eine fremde Adresse nicht.
-- `http://127.0.0.1:8081/…` geht durch.
-- **`http://127.0.0.1.angreifer.invalid/…` geht nicht durch** — das ist der
-  Fall, an dem die naive Fassung stirbt.
-- `http://localhost:8081/…` geht **nicht** durch.
-- `http://[::1]:8081/…` geht durch, `http://[::1]:9999/…` nicht.
+Gemessen (`docs/71 §4.5`): PowerDNS legt einen **CSK** an, kein KSK/ZSK-Paar.
+Damit zieht **jeder** Schlüsselwechsel einen neuen DS beim Registrar nach sich —
+und den kann das Panel nicht setzen, nur anzeigen. Ein falscher Wechsel heisst
+harter Fehlschlag für jeden validierenden Auflöser, und die Erholung braucht den
+Registrar plus die Haltbarkeit des DS.
 
-Der Bruch dazu ersetzt die Zerlegung durch den Präfixvergleich und muss rot
-werden. Ein Wächter, der nie rot war, ist kein Wächter.
+Die zweistufige Führung aus der ursprünglichen Entscheidung 7 verkleinert dieses
+Fenster. Sie schliesst es nicht.
 
-> **Eine Ausnahme ohne Wächter ist keine Ausnahme, sondern der neue
-> Normalfall.**
+### 1.4 Und eine Frage, die die Sache ohnehin entschieden hätte
 
-### 2.3 Wo der API-Schlüssel liegt
+`docs/70 §5` hatte notiert, dass viele Registries zwei Nameserver in
+verschiedenen Netzen verlangen. Die Antwort darauf war „ns1 und ns2, beide auf
+`cloudsrv24`, und schreib ehrlich hin, dass es kein Ausfallschutz ist" — eine
+Entscheidung über die **Darstellung**. Ob die Delegierung so überhaupt
+angenommen wird, hat niemand geprüft.
 
-Wie die übrigen Geheimnisse des Agenten: in einer Datei unter `/etc/srvpanel`,
-`0600`, `root`. **Nicht in der Panel-Datenbank** — sonst öffnet ein Lesezugriff
-auf die Datenbank den Weg zum Nameserver, und die Datenbank ist dieselbe, in der
-die Zonen liegen. Das Panel schickt eine typisierte Operation; den Schlüssel
-sieht es nie.
+Bei deutschsprachiger Zielgruppe heisst das `.de` und damit DENIC, die die
+Nameserver bei der Delegierung prüft. **Das ist ungemessen geblieben**, und es
+steht hier als das, was es ist: kein Argument, sondern eine offene Frage, die
+gross genug war, um die Abwägung zu kippen.
+
+> **Eine Entscheidung über die Darstellung eines Risikos ist keine Entscheidung
+> über das Risiko.**
+
+### 1.5 Was dabei aufgegeben wird — und was nicht
+
+**Nicht aufgegeben:** Wildcard-Zertifikate über DNS-01. Das ist seit P4 gebaut,
+acht Anbieter plus RFC 2136 (`docs/34 §6`). Dafür braucht es die eigene Zone
+nicht.
+
+**Aufgegeben wird ein Satz aus `docs/20 §9`:** „eine neu angelegte Domain ist
+ohne weiteres Zutun auflösbar". Sein ehrlicher Ersatz steht im selben Absatz
+schon als eigene Betriebsart — *das Panel verwaltet nichts, zeigt aber die
+nötigen Einträge zum Abgleich*. Genau das wird P7.
 
 ---
 
-## 3. Das Abnahmekriterium — neu gefasst
+## 2. Was P7 wird
 
-`docs/20 §9` sagt: „Fertig, wenn eine neu angelegte Domain ohne weiteres Zutun
-auflösbar ist, ein Zonenfehler nicht übernommen wird und DNSSEC nachweislich
-validiert."
+**Das Panel führt keine Zone. Es weiss, was eine Domain braucht, und sieht nach,
+ob es da ist.**
 
-Der zweite Punkt prüft PowerDNS (§1). Neu gefasst, als **zehn Punkte, jeder auf
-`cloudsrv24` messbar**:
+Drei Teile:
+
+1. **Der Sollzustand** — welche Einträge diese Domain braucht, damit sie hier
+   funktioniert. Das weiss das Panel ohnehin; bisher stand es nirgends.
+2. **Der Istzustand** — gemessen an den autoritativen Nameservern der Zone, nicht
+   am Systemauflöser.
+3. **Der Vergleich**, mit dem gefundenen Wert daneben und dem Zeitpunkt der
+   Messung.
+
+### 2.1 Der Sollzustand
+
+| Eintrag | Wert | Warum |
+|---|---|---|
+| `A` auf den Domainnamen | IPv4 des Servers | Ohne ihn ist die Website nicht erreichbar |
+| `AAAA` auf den Domainnamen | IPv6 des Servers | Nur wenn der Server eine hat |
+| `A`/`AAAA` auf `www` | dieselben | Der Standard-Vhost bedient beide |
+| `CAA` | **wird geprüft, nicht gefordert** | §2.4 |
+
+**Kein MX, kein SPF, kein DMARC.** Mailversand ist laut `docs/20` eine spätere
+Stufe, und ein Sollwert für etwas, das es nicht gibt, ist ein Fehler mit
+Ansage.
+
+**Und jede Domain des Panels bringt ihren eigenen Sollzustand mit** — auch eine
+Subdomain, die als eigene Domain angelegt ist. Der Sollzustand entsteht aus dem
+Bestand und wird nicht je Domain hingeschrieben.
+
+### 2.2 Der Istzustand — und warum nicht der Systemauflöser
+
+`agent/src/Acme/Dns/Resolver.php` gibt es seit P4, und sein Kopfkommentar sagt
+den Grund schon: Der Systemauflöser antwortet aus seinem Zwischenspeicher, und
+der kann den Namen von vorhin noch als „gibt es nicht" führen.
+
+**Für diese Frage ist das besonders schädlich.** Der Kunde stellt seinen Eintrag
+beim Anbieter um, sieht im Panel nach — und das Panel sagt weiter „zeigt
+woandershin". Er stellt ihn zurück, und dann ist es wirklich falsch.
+
+> **Ein Zwischenspeicher, der eine Anleitung beantwortet, macht aus einer Hilfe
+> eine Irreführung.**
+
+Gefragt werden deshalb die autoritativen Server der Zone, wie bei `ready()`.
+
+**Was dafür zu bauen ist:** `Packet` kann heute genau einen Satztyp lesen — TXT
+(`Packet::TYPE_TXT`, „der einzige Satztyp, den diese Prüfung braucht").
+Dazukommen **A, AAAA und CAA, ausschliesslich lesend**. Das sind drei
+Rdata-Formate: vier Bytes, sechzehn Bytes, und ein Flag mit Marke und Wert. Kein
+Schreiben, kein Aktualisieren, keine Signatur.
+
+Das ist der ganze technische Kern dieser Stufe.
+
+### 2.3 Der Vergleich und seine drei Zustände
+
+Je Eintrag genau drei, und die Unterscheidung ist die halbe Miete:
+
+| Zustand | Was er heisst |
+|---|---|
+| **zeigt hierher** | Der Wert ist der erwartete |
+| **zeigt woandershin** | Es gibt einen Wert, und er ist ein anderer — **mit dem gefundenen daneben** |
+| **fehlt** | Es gibt keinen Wert |
+
+**„Zeigt woandershin" ist kein Fehler.** Ein Kunde, der seine Domain absichtlich
+über Cloudflare oder ein CDN führt, hat genau diesen Zustand und will keine rote
+Meldung. Die Anzeige sagt, was ist, und nicht, was falsch ist — die Wertung
+gehört dorthin, wo sie eine Folge hat (die Website antwortet nicht, das
+Zertifikat lässt sich nicht bestellen).
+
+> **Eine Anzeige, die drei verschiedene Werte gleich aussehen lässt, behauptet
+> etwas, das sie nicht weiss** — und eine, die einen davon als Fehler malt,
+> auch.
+
+### 2.4 CAA — der Fall, der eine Bestellung rettet
+
+Ein CAA-Satz, der die eigene Zertifizierungsstelle nicht nennt, lässt die
+Bestellung scheitern, und zwar mit einer Meldung, die von der Zone spricht und
+nicht vom Panel. Das Panel setzt hier nichts — es **liest** und meldet den einen
+Fall, der etwas kostet:
+
+- kein CAA → alles erlaubt, in Ordnung, keine Meldung;
+- CAA, das die eigene CA nennt → in Ordnung;
+- CAA, das sie **nicht** nennt → Hinweis, **bevor** eine Bestellung daran
+  scheitert.
+
+Jeder Fehlversuch zählt bei Let's Encrypt fünf pro Konto und Stunde — und die
+gelten für jeden Kunden dieses Servers (`docs/34 §11`). Ein Hinweis vorher ist
+deshalb nicht Komfort, sondern Schadensbegrenzung.
+
+### 2.5 Wann gemessen wird
+
+**Nicht bei jedem Seitenaufruf.** Das hinge die Seite an fremden Nameservern und
+machte aus einem Klick eine Reihe von UDP-Anfragen mit fremden Zeitlimits.
+
+Stattdessen: ein Vorgang, der auf Wunsch läuft und regelmässig — und das
+Ergebnis trägt **den Zeitpunkt seiner Messung sichtbar**.
+
+> **Eine Antwort aus dem Zwischenspeicher ist eine Aussage über vorhin** — und
+> wenn sie das ist, sagt sie es auch.
+
+### 2.6 Die eine Operation
+
+`dns.check` — der Agent fragt die autoritativen Server und gibt zurück, was er
+gefunden hat. Ausgehende Verbindungen gehören nach Grenze 1 in den Agenten, auch
+UDP auf Port 53.
+
+**Eine Operation und keine neun.** Das ist der Umfangsunterschied zwischen dieser
+Fassung und der verworfenen.
+
+### 2.7 Wo das steht
+
+**An der Domain**, als Teil ihrer Seite — nicht als eigener Menüpunkt und nicht
+als Unterseite davon. Dreimal in P6 ist ein Merkmal drei Klicks tief gelandet und
+musste verlegt werden (`docs/55` Befund 8, `docs/59` Befund 19, `docs/64`
+Befund 13); jedes Mal hat es der Betreiber gemeldet und kein Test.
+
+> **Vor jedem neuen Merkmal: Wo sucht jemand diese Handlung, und steht sie
+> dort?**
+
+Der Ort ist derselbe, an dem der Kunde ohnehin steht, wenn er sich fragt, warum
+seine Seite nicht erscheint.
+
+---
+
+## 3. Das Abnahmekriterium
+
+Acht Punkte, **alle auf `cloudsrv24` messbar** — ohne Registrar, ohne DS, ohne
+fremde Mitwirkung. Das ist der zweite grosse Unterschied zur verworfenen
+Fassung, deren Punkt 8 von einem Dritten abhing.
 
 | # | Punkt | Gemessen woran |
 |---|---|---|
-| 1 | Eine neu angelegte Domain löst ohne weiteres Zutun auf | `A`, `AAAA` und `www` liefern die Serveradresse, gefragt am autoritativen Server |
-| 2 | Der Platzhalter greift | ein nie gesetzter Name unter der Zone löst auf |
-| 3 | Das CAA steht und nennt die eigene CA | `CAA` am Apex |
-| 4 | Ein kaputter Eintrag wird abgewiesen, **und der Kunde liest einen Satz, der ihm gehört** | die Meldung nennt weder `pdnsutil` noch einen HTTP-Code |
-| 5 | Ein abgewiesener Aufruf hinterlässt nichts | das gültige RRset desselben Aufrufs steht danach **nicht** im Bestand |
-| 6 | Das Panel schreibt nie an der API vorbei | kein Zugriff auf die PowerDNS-Tabellen aus `app/`, belegt durch einen Wächter **und** durch eine Messung am laufenden Server |
-| 7 | DNSSEC lässt sich einschalten, und der DS steht zum Weitergeben da | DS aus der Oberfläche, verglichen mit dem der API |
-| 8 | DNSSEC validiert nachweislich | ein fremder validierender Auflöser nimmt die Zone an, nach Eintrag des DS beim Registrar |
-| 9 | Ein Kunde kann seine Einträge bearbeiten, und die gesperrten nicht | SOA, NS am Apex und DNSSEC sind ihm verwehrt; ein NS unterhalb der Zone nicht |
-| 10 | Eine Bestellung nach DNS-01 gegen die eigene Zone läuft durch, ohne zu warten | die Bestellung nennt keinen Wartelauf |
+| 1 | Eine Domain, deren `A` hierher zeigt, wird als „zeigt hierher" angezeigt | eine echte Domain auf `cloudsrv24` |
+| 2 | Eine Domain, deren `A` woandershin zeigt, wird als solche angezeigt — **mit dem gefundenen Wert** | eine Domain, deren `A` absichtlich anders steht |
+| 3 | Eine Domain ohne `A` wird von einer mit falschem `A` unterschieden | die beiden Zustände nebeneinander |
+| 4 | Die Prüfung fragt die autoritativen Server und nicht den Systemauflöser | Wächter **und** eine Messung: eine Änderung ist sichtbar, bevor ein Auflöserzwischenspeicher sie hätte |
+| 5 | Ein fehlendes `AAAA` wird nicht als Fehler gemeldet, wenn der Server keine IPv6 führt | beide Fälle |
+| 6 | Ein `CAA`, das die eigene CA nicht nennt, wird gemeldet, bevor eine Bestellung daran scheitert | ein gesetztes fremdes CAA |
+| 7 | Der Zeitpunkt der Messung steht dabei | die Anzeige |
+| 8 | Bei 390 px läuft nichts über, in beiden Themes | `tests/bilder-messen.js` |
 
-**Punkt 8 ist der teuerste**, und er braucht eine echte Domain, deren Registrar
-einen DS annimmt. Er ist der einzige Punkt, der nicht allein auf `cloudsrv24`
-liegt, und er gehört deshalb **früh** angefangen und nicht am Ende.
-
-**Punkt 4 ist der, den `docs/20` nicht kannte.** Er ist das, was von „ein
-Zonenfehler wird nicht übernommen" übrigbleibt, wenn der Lieferant die Prüfung
-schon mitbringt: nicht *ob* abgewiesen wird, sondern *was der Kunde davon
-liest*.
+**Punkt 4 ist der, der etwas beweist.** Alles andere liesse sich auch mit
+`dns_get_record()` bauen — und wäre dann genau die Anzeige, die dem Kunden
+zwanzig Minuten lang das Gegenteil dessen sagt, was er gerade eingestellt hat.
 
 ---
 
 ## 4. Was P7 ausdrücklich **nicht** wird
 
-- **Kein AXFR, kein NOTIFY, keine Slaves** (Entscheidung 5). `docs/20 §9` wird
-  entsprechend nachgeführt.
-- **Kein zweiter Weg zu demselben Gegenstand.** Der RFC-2136-Klient bleibt
-  unverändert einer von acht Anbietern für **fremde** Zonen und bekommt keine
-  Rolle für die eigene (`docs/70 §1`).
-- **Kein Mail.** MX, SPF, DMARC stehen nicht in der Vorlage; der Kunde darf sie
-  setzen, das Panel setzt sie nicht.
-- **Keine Registrar-Anbindung.** Das Panel zeigt den DS an und trägt ihn
-  nirgends ein.
-- **Kein Spiegel der Einträge in der Panel-Datenbank** (§5).
-- **Kein PTR.** `docs/20 §9` nennt einen „PTR-Hinweis" — das bleibt ein Hinweis
-  auf der Seite und keine Verwaltung: Die Rückwärtszone gehört dem, dem das Netz
-  gehört, und das ist nicht dieses Panel.
-- **Keine Zonenübernahme von aussen.** Wer eine bestehende Zone hierher holen
-  will, trägt sie ein; ein Import über AXFR wäre der Slave-Fall, den es nicht
-  gibt.
+- **Kein autoritativer Nameserver**, kein PowerDNS, keine Zone, kein
+  Eintragseditor, kein DNSSEC, kein AXFR, kein NOTIFY. §1 ist die Begründung.
+- **Keine Änderung an fremden Zonen** — auch nicht dort, wo das Panel es
+  könnte. Für acht Anbieter liegen seit P4 Zugangsdaten vor, und ein `A`-Eintrag
+  wäre technisch derselbe Aufruf wie ein `TXT`. **Das ist der naheliegende
+  nächste Schritt und ausdrücklich nicht dieser** — er macht aus einer Anzeige
+  wieder einen Schreiber, und die Frage „wer hat meinen Eintrag geändert" ist
+  eine, die man einmal falsch beantwortet und nie wieder los wird. Wenn der
+  Abgleich sich bewährt, ist das eine eigene Stufe mit eigener Entscheidung.
+- **Kein Mail** (MX, SPF, DMARC) — spätere Stufe.
+- **Kein PTR.** Die Rückwärtszone gehört dem, dem das Netz gehört.
+- **Keine Wertung fremder Betriebsarten.** Wer über ein CDN fährt, bekommt
+  „zeigt woandershin" und keine rote Meldung (§2.3).
 
 ---
 
-## 5. Datenmodell — was das Panel führt und was es nicht führt
+## 5. Datenmodell
 
-**Die Einträge stehen in PowerDNS und werden nicht gespiegelt.** Ein Spiegel
-wäre ein zweiter Bestand, und der zweite ist der, der veraltet — der Fehler, an
-dem dieses Projekt am häufigsten verloren hat.
-
-Der übliche Einwand lautet: „Dann hängt die Seite an einem Dienst, der
-stillstehen kann." **Durch Entscheidung 3 fällt er weitgehend weg:** PowerDNS
-liegt mit `gmysql` auf derselben MariaDB wie das Panel. Ist sie weg, ist auch
-das Panel weg — die Abhängigkeit ist keine neue. Bleibt der Fall, dass **pdns**
-steht und MariaDB läuft; dafür bekommt die Zonenseite einen eigenen Zustand
-(§8.3) statt einer weissen Seite.
-
-Das Panel führt drei Dinge, die PowerDNS nicht halten kann:
+Klein, und das ist der Punkt:
 
 ```
-domains.dns_mode          'local' | 'external'      (Entscheidung 8)
-domains.dnssec_state      'off' | 'pending_ds' | 'active'   (Entscheidung 7)
-
-dns_record_pins           domain_id, name, type, pinned_at
+domain_dns_checks     domain_id, checked_at, findings (json)
 ```
 
-**`dns_record_pins` ist der teuerste Teil dieses Plans** und der Grund, warum
-Entscheidung 9 so lautet, wie sie lautet. Ändert ein Kunde einen Eintrag, den
-das Panel selbst gesetzt hat — den `A` auf den Server, weil seine Seite künftig
-bei einem externen Dienst liegt —, dann darf die Automatik ihn beim nächsten
-Anfassen der Zone **nicht still zurücksetzen.**
+**Kein Spiegel einer Zone**, weil es keine Zone gibt. Was hier steht, ist das
+Ergebnis einer Messung mit ihrem Zeitpunkt — und ein Ergebnis ohne Zeitpunkt
+wäre eine Behauptung über jetzt.
 
-Das ist `certificate_pinned_at` aus `docs/34 §11` noch einmal, mit demselben
-Grund und demselben Rückfallverhalten: Wird der gepinnte Wert später unhaltbar,
-wird **laut** zurückgefallen — ein Eintrag im Prüfprotokoll und ein Hinweis auf
-der Seite, nicht ein stiller Wechsel.
-
-> **Was der Geprüfte selbst zurücknehmen kann, ist keine Schranke, sondern eine
-> Voreinstellung** — und umgekehrt: Was die Automatik unbemerkt zurücknimmt, ist
-> keine Entscheidung des Kunden, sondern ein Vorschlag.
-
-**`dnssec_state` hat drei Werte und nicht zwei**, weil die zweistufige Führung
-aus Entscheidung 7 einen Zustand *zwischen* aus und an braucht. Ein Hinweis, den
-jemand weggeklickt hat, ist kein Zustand.
+`domains` bekommt **keine neue Spalte**. Die verworfene Fassung brauchte
+`dns_mode`, `dnssec_state` und `dns_record_pins`; davon bleibt nichts, weil das
+Panel nichts mehr führt, was es zurücknehmen könnte.
 
 ---
 
-## 6. Die Operationen des Agenten
+## 6. Die Rechte
 
-Typisiert, wie alles andere — nie Text, der zu einer Kommandozeile oder einer
-Konfigurationsdatei wird.
+**Keine neue Freigabe.** Der Kunde sieht nur, und sehen darf er seine eigene
+Domain ohnehin. `Feature::DnsEdit` behält seine heutige Bedeutung — ein eigenes
+DNS-01-Profil für ACME.
 
-| Operation | Was sie tut |
-|---|---|
-| `dns.server.info` | Fassung und Erreichbarkeit; die Grundlage der Überwachung (§10) |
-| `dns.zone.create` | Zone anlegen und die Vorlage in **einem** Aufruf einspielen |
-| `dns.zone.read` | Zone samt RRsets lesen — die Quelle jeder Anzeige |
-| `dns.zone.remove` | Zone löschen |
-| `dns.record.write` | Ein RRset setzen oder entfernen |
-| `dns.dnssec.enable` | Signieren einschalten |
-| `dns.dnssec.disable` | und wieder aus |
-| `dns.dnssec.keys` | Schlüssel und DS-Angaben lesen |
-| `dns.dnssec.rollover` | Schlüsselwechsel |
+**Die falsche Beschriftung gehört trotzdem berichtigt, und jetzt mehr als
+vorher.** `Feature::DnsEdit` heisst seit P4 **„DNS-Einträge bearbeiten"** und tut
+etwas anderes: Es gibt einem Abonnement die Ablage fremder Registrar-Token. In
+der verworfenen Fassung wäre daneben eine zweite Freigabe entstanden, die den
+Namen zu Recht getragen hätte. Jetzt wird es **nie** einen Eintragseditor geben —
+und eine Beschriftung, die einen verspricht, ist dann keine Ungenauigkeit mehr,
+sondern schlicht falsch.
 
-**`dns.zone.create` spielt die Vorlage im selben Aufruf ein und nicht in einem
-zweiten** (gemessen: geht, `docs/71 §3` Nr. 7). Der Grund ist nicht Geschwindigkeit,
-sondern Atomarität: Ein zweiter Aufruf kann scheitern, und dann steht eine Zone
-ohne Einträge da — auflösbar, aber ins Leere.
-
-**`dns.record.write` schreibt ein RRset und nicht einen Eintrag.** Die API
-ersetzt satzweise; wer „einen Eintrag hinzufügen" anbietet, muss den Satz vorher
-lesen, ergänzen und ganz zurückschreiben. Diese Lesestelle ist die eine, an der
-zwei gleichzeitige Änderungen einander überschreiben können, und sie gehört
-benannt statt übersehen.
-
-> **Eine Frage an den Bestand, die beim Einreihen gestellt wird, kennt die
-> anderen Vorgänge derselben Reihe nicht.**
-
----
-
-## 7. Die Zonenvorlage
-
-Nach Entscheidung 6 und 9a:
-
-```
-@      SOA    ns1.<panel>. hostmaster.<panel>. <serial> …
-@      NS     ns1.<panel>.
-@      NS     ns2.<panel>.
-@      A      <IPv4 des Servers>
-@      AAAA   <IPv6 des Servers>
-www    A      <IPv4 des Servers>
-www    AAAA   <IPv6 des Servers>
-*      A      <IPv4 des Servers>
-*      AAAA   <IPv6 des Servers>
-@      CAA    0 issue "letsencrypt.org"
-```
-
-Drei Dinge, die daran hängen:
-
-1. **Der Name des Nameservers kommt aus `SrvPanel\Agent\Names::fqdn()`** und
-   nirgendwoher sonst. Diese Quelle ist viermal neu erfunden worden; seither
-   hält `HostnameSourceTest` sie fest.
-2. **`ns1` und `ns2` zeigen beide auf `cloudsrv24`** (Entscheidung 9a). Das
-   erfüllt die Formalie und ist **kein Ausfallschutz** — und genau das gehört
-   auf die Seite geschrieben, sonst verkauft die Oberfläche eine Redundanz, die
-   es nicht gibt.
-3. **Das CAA muss mitziehen, wenn die Zertifizierungsstelle wechselt.** Ein CAA,
-   das die eigene CA nicht mehr nennt, nimmt dem Kunden die Erneuerung — und
-   zwar erst in sechzig Tagen, wenn niemand mehr an den Wechsel denkt. Das ist
-   ein eigener Wächter: *Die CA in der Zonenvorlage ist dieselbe, die
-   `AcmeSettings` führt.*
-
-> **Ein Eintrag, den das Panel setzt und nicht mitzieht, ist eine Zusage mit
-> Ablaufdatum.**
-
-**Und die Vorlage ist eine Vorlage.** Ändert sie sich, ändern sich die schon
-stehenden Zonen nicht. Das ist Absicht — ein Nachziehen würde Kundenänderungen
-überschreiben —, und es gehört sichtbar: Die Zonenseite sagt, wenn eine Zone
-nach einer älteren Vorlage entstanden ist.
-
----
-
-## 8. Die Oberfläche
-
-### 8.1 Wo sucht jemand das?
-
-Dreimal in P6 ist ein Merkmal drei Klicks tief gelandet und musste verlegt
-werden — der Dateimanager (`docs/55` Befund 8), der SFTP-Zugang (`docs/59`
-Befund 19) und der Bereich „Job anlegen" (`docs/64` Befund 13). Jedes Mal hat
-es der Betreiber gemeldet und kein Test.
-
-> **Vor jedem neuen Merkmal: Wo sucht jemand diese Handlung, und steht sie
-> dort?**
-
-**Die Antwort für P7: an der Domain.** Ein Kunde, der einen DNS-Eintrag ändern
-will, geht zu seiner Domain und nicht in die Einstellungen — „DNS" ist ein
-Reiter der Domainseite, nicht ein eigener Menüpunkt und schon gar nicht eine
-Unterseite davon. Der Betreiber findet dieselbe Ansicht zusätzlich über die
-Domainliste.
-
-### 8.2 Die Eintragsliste
-
-- **Kein freies Textfeld für eine Zonendatei.** Ein Formular je Satztyp, mit den
-  Feldern, die dieser Typ hat — Priorität nur beim MX, Gewicht und Port nur beim
-  SRV. Das ist dieselbe Entscheidung wie „kein freies SQL" aus P5c: Der Agent
-  bekommt typisierte Fragen und keine Anweisung.
-- **Die Meldung der API wird übersetzt, nicht durchgereicht** (§3 Punkt 4).
-  „try 'pdnsutil check-zone'" nennt ein Programm, das der Kunde nicht hat.
-- **Gesperrte Sätze werden gezeigt und nicht versteckt.** SOA und die NS am
-  Apex stehen da, ohne Knopf — wer sie nicht sieht, sucht sie. Und der Knopf
-  fehlt, weil die Policy es sagt, nicht weil ein `v-if` den Kontotyp abfragt
-  (`AbilityReachTest`).
-- **Bei 390 px** ist ein Eintrag ein Kärtchen und keine Tabellenzeile. Ein
-  Zonenname darf 253 Zeichen lang sein, ein einzelnes Label 63 — die
-  Umbruchregel aus `docs/67` Befund 6 gilt hier an jeder Stelle, an der ein Name
-  steht.
-
-### 8.3 Wenn PowerDNS nicht antwortet
-
-Ein eigener Zustand mit einem Satz, der sagt, was los ist und was der Kunde tun
-kann (nämlich nichts, und auch das gehört gesagt). **Keine leere Liste** — eine
-leere Liste behauptet, es gebe keine Einträge.
-
-> **Eine Anzeige, die drei verschiedene Werte gleich aussehen lässt, behauptet
-> etwas, das sie nicht weiss.**
-
-### 8.4 DNSSEC in zwei Schritten
-
-1. **Einschalten.** Die Zone wird signiert, `dnssec_state` geht auf
-   `pending_ds`.
-2. **Der DS steht zum Abholen da**, mit einem Satz dazu, was der Kunde damit
-   tut — bei seinem Registrar eintragen, nicht hier.
-3. **Der Kunde bestätigt**, dass er ihn eingetragen hat; `dnssec_state` geht auf
-   `active`.
-
-Der Zustand `pending_ds` ist nicht kosmetisch: Solange er gilt, ist die Zone
-signiert, aber die Kette nicht geschlossen — und ein Schlüsselwechsel in diesem
-Zustand ist harmlos, im Zustand `active` dagegen nimmt er die Domain vom Netz,
-bis der neue DS steht. **Der Schlüsselwechsel führt deshalb wieder über
-`pending_ds`**, und das gilt bei einem CSK für *jeden* Wechsel (`docs/71 §4.5`).
-
----
-
-## 9. Die Rechte
-
-**`Feature::DnsEdit` behält seine heutige Bedeutung** — ein eigenes
-DNS-01-Profil für ACME (Entscheidung 9). Für das Bearbeiten der eigenen Zone
-kommt **`Feature::DnsRecords`** dazu.
-
-**Und dabei fällt eine Ungereimtheit auf, die es seit P4 gibt:**
-`Feature::DnsEdit` trägt schon heute die Beschriftung **„DNS-Einträge
-bearbeiten"** — also genau das, was es *nicht* tut. Wer den Plan liest, kauft
-etwas anderes, als er bekommt.
+Sie heisst künftig **„Eigene DNS-Zugangsdaten für Zertifikate"**.
 
 > **Eine Beschriftung, die etwas anderes verspricht als der Code tut, ist eine
 > Zusage, die niemand eingelöst hat.**
 
-Die Beschriftung wird deshalb im selben Schritt berichtigt: `DnsEdit` heisst
-künftig „Eigene DNS-Zugangsdaten für Zertifikate", `DnsRecords` heisst
-„DNS-Einträge bearbeiten". Das ist eine Änderung an einer sichtbaren
-Beschriftung und gehört in den `CHANGELOG` mit ihrem Grund.
-
-**Gesperrt für den Kunden** (Entscheidung 9):
-
-- der SOA-Satz,
-- **die NS-Sätze am Apex** — und nur dort. Ein NS *unterhalb* der Zone ist eine
-  Unterzonen-Delegierung, alltäglich und erlaubt. Die Regel lautet also **NS am
-  Apex gesperrt, NS darunter erlaubt**, und der Unterschied ist der ganze Fall.
-- DNSSEC und alles, was an Schlüsseln hängt.
-
-**Erlaubt**, mit Warnung und Rückholweg: die A/AAAA, die das Panel gesetzt hat
-(§5).
-
-Jede Route trägt `can:` oder steht mit Begründung in
-`app/Support/Authorization/RouteGuard.php`. Und wer eine Aktion **zeigt**, fragt
-vorher dieselbe Policy, die sie später abweist — die Antwort kommt als
-`can`-Ablage im Inertia-Payload, nie als `v-if` auf den Kontotyp.
-
 ---
 
-## 10. Die Überwachung fragt die API
-
-Aus `docs/71 §4.4`: Fällt MariaDB weg, meldet die API sofort `500`, während der
-Nameserver noch rund zwanzig Sekunden aus seinem Zwischenspeicher weiterbedient
-und danach auf `SERVFAIL` fällt. **Die API sieht den Ausfall also, bevor Kunden
-ihn sehen** — das ist die Zeitspanne, in der eine Überwachung noch etwas
-ausrichten kann.
-
-`dns.server.info` ist deshalb die Frage, die der Metrikenlauf stellt, und nicht
-eine DNS-Abfrage an Port 53. Eine Abfrage, die aus dem Zwischenspeicher
-beantwortet wird, meldet „alles in Ordnung" für einen Dienst, der seinen Bestand
-verloren hat.
-
-> **Eine Antwort aus dem Zwischenspeicher ist eine Aussage über vorhin.**
-
----
-
-## 11. ACME gegen die eigene Zone
-
-Der Faden aus P4, den `docs/20` als „DNS-01 gegen die eigene Zone (nach P7
-automatisch)" führt.
-
-**Vorrang: die lokale Zone** (Entscheidung 10). Liegt die Zone hier und sind
-zugleich Zugangsdaten für einen fremden Anbieter hinterlegt, gewinnt die lokale
-— und die hinterlegten Zugangsdaten werden **als für diese Domain wirkungslos
-angezeigt**. Nicht verschwiegen:
-
-> **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht von
-> einem zu unterscheiden, das es nicht gibt.**
-
-**Und die lokale Zone wartet nicht.** `Patience` und `Resolver::ready()`
-existieren, weil die API eines Anbieters „ok" sagt, bevor der Eintrag
-ausgeliefert wird — hier vergehen 0,8 ms (`docs/71 §4.3`). Ein Wartelauf über
-60 Sekunden gegen den eigenen Server wäre eine Minute, die jede Bestellung
-zusätzlich kostet, ohne dass sie etwas prüft.
-
-Der Wächter dazu ist einer, der etwas **verhindert**: *Der lokale Anbieter
-benutzt die Wartelogik der externen nicht.* Er ist nötig, weil der bequemste Bau
-darin bestünde, `DnsProvider` einfach ein neuntes Mal umzusetzen und `patience()`
-mitzuerben.
-
----
-
-## 12. Die Wächter
-
-Für jede Regel einer, und jeder wird gegengeprüft.
+## 7. Die Wächter
 
 | Wächter | Regel |
 |---|---|
-| `LoopbackExceptionTest` | Die Ausnahme in `Curl` gilt für zwei Adressen und keinen Namen (§2.2) |
-| `DnsApiOnlyTest` | Nichts unter `app/` fasst die PowerDNS-Tabellen an — nicht einmal lesend |
-| `ZoneTemplateSourceTest` | Die Vorlage steht an einer Stelle, und die CA darin ist die aus `AcmeSettings` (§7) |
-| `ApexRecordTest` | NS am Apex gesperrt, NS darunter erlaubt (§9) |
-| `LocalZoneNoPatienceTest` | Der lokale Weg erbt die Wartelogik der Anbieter nicht (§11) |
-| `DnssecStateTest` | Jeder Schlüsselwechsel führt über `pending_ds` (§8.4) |
-| `RecordPinTest` | Ein gepinnter Eintrag wird nicht still überschrieben (§5) |
-| `DnsMessageTest` | Keine Meldung der API erreicht den Kunden unübersetzt (§3 Punkt 4) |
-| `DnsOperationReachTest` | Jeder Operationsname zeigt auf eine Operation, die es gibt |
+| `AuthoritativeLookupTest` | Der Abgleich fragt `Resolver` und nirgendwo `dns_get_record()` für die Werte |
+| `RecordRdataTest` | A, AAAA und CAA werden aus gebauten Paketen richtig gelesen — und ein abgeschnittenes ergibt kein Ergebnis statt eines falschen |
+| `DesiredRecordSourceTest` | Der Sollzustand steht an einer Stelle und wird nicht je Ansicht neu gerechnet |
+| `CheckAgeTest` | Kein Ergebnis wird ohne seinen Zeitpunkt angezeigt |
+| `NoZoneWriteTest` | Nichts unter `app/` oder `agent/` schreibt in eine fremde Zone — die acht Anbieter bleiben dem ACME-Weg vorbehalten |
 
-**Zwei davon lassen sich nicht auf die übliche Art brechen**, und das gehört
-dazugeschrieben: `DnsApiOnlyTest` und `DnsOperationReachTest` prüfen die
-Abwesenheit von etwas. Ihr Bruch besteht darin, das Verbotene **einzufügen** —
-eine Abfrage auf `records` in einem Controller, einen Operationsnamen ohne
-Operation — und zu sehen, dass es rot wird.
+`NoZoneWriteTest` ist der, der §4 zweiten Punkt festhält: Der bequemste Weg
+später ist, `Cloudflare::add()` einfach auch für einen `A`-Eintrag zu benutzen.
+Der Wächter macht daraus eine Entscheidung statt einer Handbewegung.
 
 ---
 
-## 13. Die Schritte, in dieser Reihenfolge
+## 8. Die Schritte
 
-| # | Schritt | Warum hier |
-|---|---|---|
-| 0 | Die zwei offenen Servermessungen (`docs/70 §14`) | Sie entscheiden die Mindestfassung und die Bindung an Port 53 |
-| 1 | **Punkt 8 des Kriteriums anfangen** — eine Domain besorgen, deren Registrar einen DS annimmt | Der einzige Punkt, der nicht allein auf `cloudsrv24` liegt; am Ende ist er ein Blocker |
-| 2 | PowerDNS aufs Paket: Abhängigkeit, `gmysql`, Schema, Bindung an die öffentlichen Adressen | Ohne den Dienst misst nichts etwas |
-| 3 | Die Ausnahme in `Curl` samt `LoopbackExceptionTest` und Bruch | Sie ist die Grenze; alles Weitere geht durch sie |
-| 4 | `dns.server.info`, und die Überwachung daran (§10) | Der erste Weg, der beweist, dass der Agent die API erreicht |
-| 5 | `dns.zone.create` mit der Vorlage, `dns.zone.read`, `dns.zone.remove` | Kriterienpunkte 1–3 |
-| 6 | Das Datenmodell: `dns_mode`, `dnssec_state`, `dns_record_pins` | Vor der Oberfläche, weil sie darauf steht |
-| 7 | `dns.record.write` und die Eintragsliste, mit den übersetzten Meldungen | Kriterienpunkte 4 und 5 |
-| 8 | Die zweite Freigabe, die Sperren, die berichtigten Beschriftungen (§9) | Kriterienpunkt 9 |
-| 9 | Das Pinnen und sein lautes Zurückfallen (§5) | Der teuerste Teil; er steht hinter dem Editor, weil er ihn braucht |
-| 10 | DNSSEC in zwei Schritten (§8.4) | Kriterienpunkte 7 und 8 |
-| 11 | „Externer DNS" je Domain (Entscheidung 8) | Klein, und er hängt am Datenmodell aus Schritt 6 |
-| 12 | ACME gegen die eigene Zone (§11) | Kriterienpunkt 10 |
-| 13 | **Zwischenabnahme auf `cloudsrv24`** | Spätestens hier, weil ab Schritt 2 alles auf einem Dienst steht, den der Container nur als Wegwerf-Fassung kennt |
-| 14 | Bilderrunde, beide Themes, 390 und 1440 px | `tests/bilder-messen.js` |
-| 15 | Abnahmelauf, Protokoll **während** des Laufs | `docs/69` als Vorbild |
+| # | Schritt |
+|---|---|
+| 1 | `Packet` um A, AAAA und CAA erweitern, lesend — mit `RecordRdataTest` und gebauten Paketen |
+| 2 | `dns.check` im Agenten, gegen den vorhandenen `Resolver` |
+| 3 | Der Sollzustand als eine Quelle, mit `DesiredRecordSourceTest` |
+| 4 | Der Vergleich mit seinen drei Zuständen |
+| 5 | Die Anzeige an der Domain, mit dem Zeitpunkt |
+| 6 | Der CAA-Fall |
+| 7 | Die regelmässige Messung und ihre Grenze (wie viele Domains je Lauf, welches Zeitlimit) |
+| 8 | Bilderrunde, beide Themes, 390 und 1440 px |
+| 9 | Abnahmelauf auf `cloudsrv24`, Protokoll **während** des Laufs |
 
-**Schritt 1 steht so weit vorn, weil er von jemand anderem abhängt.** Ein
-Registrar, der einen DS annimmt, ist keine Sache von Minuten, und Punkt 8 ist
-der einzige, der ohne ihn nicht messbar ist. Wer ihn ans Ende schiebt, hat am
-Ende eine fertige Stufe und kein Kriterium.
+**Keine Zwischenabnahme nötig.** Nichts an dieser Stufe steht auf einem Dienst,
+den der Container nur als Wegwerf-Fassung kennt — der `Resolver` läuft hier
+gegen echte Nameserver.
 
 ---
 
-## 14. Die Risiken, ehrlich benannt
+## 9. Die Risiken
 
-1. **Der Nameserver hängt an der Panel-Datenbank** (Entscheidung 3). Gemessen
-   ist, dass er den Ausfall überlebt, nach ~20 s auf `SERVFAIL` fällt und sich
-   in 5 s selbst erholt (`docs/71 §4.4`). Ungemessen ist, wie er sich verhält,
-   wenn die Datenbank *langsam* ist statt weg — der Fall, der im Betrieb
-   häufiger ist.
-2. **Die Ausnahme in `Curl`.** Sie ist eng gefasst und geprüft, aber sie ist der
-   erste Riss in einer Zusage, die ohne Ausnahme galt. Wer die nächste
-   hinzufügt, findet einen Präzedenzfall vor.
-3. **`dns_record_pins` kann veralten.** Ein Pin auf einen Eintrag, den es nicht
-   mehr gibt, ist derselbe Grabstein wie in `docs/35`: Solange etwas darauf
-   zeigt, sieht der Rest nicht aus wie einer. Der Rückbau gehört **mitgebaut**
-   und nicht nachgereicht.
-4. **Die Fassungsspanne 4.5 bis 4.8** über die vier Zielplattformen ist erst zur
-   Hälfte gemessen (`docs/70 §14.1`).
-5. **Die höchste Aussenwirkung.** `docs/20 §10` nennt genau das als Grund, warum
-   DNS spät kommt — im Wortlaut: „eine falsche Zone nimmt **Kunden** vom Netz,
-   ein falscher Vhost nur eine Seite". Der Unterschied ist die Mehrzahl: Eine
-   Zone trägt alles, was unter einem Namen liegt, und ein Fehler daran ist von
-   aussen sichtbar, bevor er hier auffällt. Jeder Schritt, der eine bestehende
-   Zone anfasst, gehört deshalb an einer Wegwerf-Domain gemessen, bevor er eine
-   echte trifft.
+Deutlich kleiner als in der verworfenen Fassung, aber nicht null:
+
+1. **Fremde Nameserver antworten langsam oder gar nicht.** Der Abgleich hängt an
+   Servern, die niemand hier betreibt. Zeitlimit und Obergrenze je Lauf gehören
+   in Schritt 7 — und ein Ergebnis „nicht erreichbar" ist ein eigener Zustand,
+   nicht „fehlt".
+2. **Ein falsch gelesenes Rdata zeigt einen falschen Zustand.** Harmlos für die
+   Zone, aber es schickt den Kunden dorthin, wo nichts zu ändern ist. Deshalb
+   `RecordRdataTest` gegen gebaute Pakete und nicht gegen echte Antworten.
+3. **Die Anzeige kann in beide Richtungen irreführen** — „zeigt woandershin" bei
+   einem Kunden, der das absichtlich tut, und „zeigt hierher" bei einem, dessen
+   Anbieter mehrere Adressen führt und nur eine davon hierher zeigt. Der zweite
+   Fall gehört benannt: Ein Satz mit mehreren Werten wird als Menge verglichen
+   und nicht am ersten.
+4. **Der Zeitpunkt kann alt sein**, und dann ist die Anzeige eine Aussage über
+   vorhin. Deshalb steht er dabei.
 
 ---
 
-## 15. Was offen bleibt und nicht zu P7 gehört
+## 10. Was aus der verworfenen Fassung bleibt
 
-- Die zwei Servermessungen aus `docs/70 §14`.
-- Das Verhalten bei einer **langsamen** statt einer fehlenden Datenbank
-  (Risiko 1).
-- Das Verhalten bei vielen Zonen — Last ist nicht gemessen (`docs/71 §1`).
+- **`docs/70`** — die Rückfragen und die elf Entscheidungen. Sie sind die
+  Vorgeschichte dieser Entscheidung und bleiben stehen; §13 trägt die Revision
+  nach.
+- **`docs/71`** — die Messrunde. Ihre Zahlen sind der Grund für §1.2 und §1.3.
+  Ein Messmittel, das eine Entscheidung *gegen* etwas trägt, ist genauso viel
+  wert wie eines dafür.
+- **`tests/dns-messen.sh`** — bleibt im Repo. Wer die Frage in einem Jahr noch
+  einmal aufmacht, fängt nicht bei null an.
+- **Der Wächter über `Curl`** — die Ausnahme ist zurückgebaut, aber die Regel
+  „nach draussen nur https" hat dabei zum ersten Mal einen Test bekommen
+  (`OutboundHttpsOnlyTest`). Sie stand von P4 bis P7 ungeprüft da.
+
+> **Ein Plan, den man verwirft, ist bezahlt — was man behält, entscheidet, ob er
+> auch teuer war.**
+
+---
+
+## 11. Was offen bleibt
+
+- **Die DENIC-Frage aus §1.4** ist ungemessen und bleibt es. Sie gehört
+  beantwortet, bevor jemand die Entscheidung noch einmal aufmacht — nicht
+  danach.
+- **Die zwei Servermessungen aus `docs/70 §14`** werden für diese Fassung nicht
+  mehr gebraucht: keine PowerDNS-Fassung, kein Port 53. Sie bleiben dort als
+  Vorarbeit für den Fall stehen, dass die Frage wiederkommt.
+- **Das Schreiben fremder Zonen über die vorhandenen Anbieter-Zugangsdaten**
+  (§4) — der naheliegende nächste Schritt, ausdrücklich nicht dieser.
 - Und aus P6, weiterhin benannt (`docs/69 §3`): Wand 2 aus Punkt 11, Befund 23,
   die neunzehn ungeprüften Griffe in `RevealTest::UNEXAMINED`, die vollständige
-  Umkehrung der Abstandsregel — und die Entscheidung, ob die CI künftig
-  `packaging/testbed.sh` aufruft (`docs/67 §3`).
+  Umkehrung der Abstandsregel — und die Entscheidung zu `packaging/testbed.sh`
+  (`docs/67 §3`).

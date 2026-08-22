@@ -13256,6 +13256,102 @@ pruefe "die Regel ein zweites Mal im Rumpf" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   OutboundHttpsOnlyTest::test_the_rule_is_written_once passed
+echo "── RecordRdataTest: A, AAAA und CAA aus dem Drahtformat ──"
+#
+# **Sechs Eingriffe, und der erste hat den Kommentar im Quelltext berichtigt.**
+# Ohne die Laengenpruefung wurden nur zwei der sechs Faelle rot — inet_ntop
+# weist naemlich nicht jede falsche Laenge ab, sondern entscheidet die
+# Adressfamilie an der Laenge. Ein A-Satz mit sechzehn Bytes kommt damit als
+# IPv6-Adresse zurueck: ein Wert, der falsch ist und richtig aussieht.
+#
+# > **Eine Umformung, die aus der Laenge auf die Bedeutung schliesst, hat
+# > keinen Fehlerfall fuer die falsche Laenge — sie hat ein anderes Ergebnis.**
+
+vorher_datei agent/src/Acme/Dns/Packet.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Packet.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if ($expected === null || strlen($data) !== $expected) {\n            return null;\n        }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        if ($expected === null) {\n            return null;\n        }"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Acme/Dns/Packet.php "Adresse ohne Laengenpruefung" &&
+pruefe "Adresse ohne Laengenpruefung" \
+  RecordRdataTest::test_an_address_of_the_wrong_length_is_no_address failed
+wiederherstellen
+
+vorher_datei agent/src/Acme/Dns/Packet.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Packet.php'
+s = open(p, encoding='utf-8').read()
+alt = "if ($meta['type'] === $type && $meta['class'] === self::CLASS_IN) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "if ($meta['type'] === $type) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Acme/Dns/Packet.php "Satz einer fremden Klasse zaehlt mit" &&
+pruefe "Satz einer fremden Klasse zaehlt mit" \
+  RecordRdataTest::test_a_record_of_another_class_is_skipped failed
+wiederherstellen
+
+vorher_datei agent/src/Acme/Dns/Packet.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Packet.php'
+s = open(p, encoding='utf-8').read()
+alt = "'tag' => strtolower(substr($data, 2, $tagLength)),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "'tag' => substr($data, 2, $tagLength),"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Acme/Dns/Packet.php "CAA-Marke nicht kleingeschrieben" &&
+pruefe "CAA-Marke nicht kleingeschrieben" \
+  RecordRdataTest::test_the_tag_is_compared_in_lower_case failed
+wiederherstellen
+
+vorher_datei agent/src/Acme/Dns/Packet.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Packet.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($tagLength === 0 || 2 + $tagLength > strlen($data)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        if (false) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Acme/Dns/Packet.php "CAA-Marke ohne Laengenpruefung" &&
+pruefe "CAA-Marke ohne Laengenpruefung" \
+  RecordRdataTest::test_a_malformed_caa_yields_nothing failed
+wiederherstellen
+
+vorher_datei agent/src/Acme/Dns/Packet.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Packet.php'
+s = open(p, encoding='utf-8').read()
+alt = "if ($address !== null && ! in_array($address, $found, true)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "if ($address !== null) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Acme/Dns/Packet.php "Adressen werden nicht entdoppelt" &&
+pruefe "Adressen werden nicht entdoppelt" \
+  RecordRdataTest::test_the_same_address_twice_is_listed_once failed
+wiederherstellen
+
+vorher_datei agent/src/Acme/Dns/Packet.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Packet.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if ($header['id'] !== $id) {\n            return null;\n        }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        if (false) {\n            return null;\n        }"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Acme/Dns/Packet.php "Kennung der Antwort wird nicht geprueft" &&
+pruefe "Kennung der Antwort wird nicht geprueft" \
+  RecordRdataTest::test_an_unusable_answer_has_no_code failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  RecordRdataTest::test_an_unusable_answer_has_no_code passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

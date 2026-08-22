@@ -78,7 +78,7 @@ final class Resolver implements Lookup
     public function txt(string $server, string $name): array
     {
         $id = random_int(0, 0xFFFF);
-        $answer = $this->ask($server, Packet::query($id, $name));
+        $answer = $this->ask($server, Packet::query($id, $name, Packet::TYPE_TXT));
 
         return $answer === null ? [] : Packet::txt($answer, $id);
     }

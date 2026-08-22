@@ -16933,3 +16933,60 @@ sondern falsch. Sie heisst künftig „Eigene DNS-Zugangsdaten für Zertifikate"
 
 > **Eine Beschriftung, die etwas anderes verspricht als der Code tut, ist eine
 > Zusage, die niemand eingelöst hat.**
+
+### P7 Schritt 1 — `Packet` liest vier Satztypen statt einem
+
+Für den Abgleich (`docs/72 §2.2`) kommen **A, AAAA und CAA** dazu,
+ausschliesslich lesend. Geschrieben wird weiterhin nur TXT, und zwar in
+`UpdateMessage`. `Packet::query()` trägt den Typ jetzt als Wert ohne Vorgabe —
+eine geerbte Vorgabe wäre die, die beim nächsten Aufrufer falsch ist, und ein
+Aufruf, der bei vier Typen nicht sagt, wonach er fragt, ist nicht mehr zu lesen.
+
+**Die Satzwanderung steht einmal da.** Vier Schleifen über dasselbe Paket wären
+vier Gelegenheiten, die Prüfung auf das Paketende zu vergessen — und ein halb
+gelesener Satz ergibt einen Wert, der fast stimmt.
+
+**Der Fund des Schritts kam beim Gegenprüfen und hat einen Kommentar
+berichtigt.** Nimmt man die Längenprüfung vor `inet_ntop` heraus, werden nur
+**zwei von sechs** Prüffällen rot. Der Grund ist schärfer als der, der vorher im
+Quelltext stand: `inet_ntop` weist nicht jede falsche Länge ab — es **entscheidet
+die Adressfamilie an der Länge**. Gemessen: 3, 5, 15 und 0 Bytes ergeben `false`,
+4 und 16 Bytes ergeben immer eine Adresse. Ein `A`-Satz mit sechzehn Bytes käme
+damit als IPv6-Adresse zurück und ein `AAAA` mit vieren als IPv4.
+
+> **Eine Umformung, die aus der Länge auf die Bedeutung schliesst, hat keinen
+> Fehlerfall für die falsche Länge — sie hat ein anderes Ergebnis.**
+
+Das ist kein Fehler, den man sieht, sondern ein Wert, der falsch ist und richtig
+aussieht — und genau der schickt den Kunden dorthin, wo nichts zu ändern ist.
+
+Vier weitere Entscheidungen, jede mit ihrem Eingriff im Bruchskript:
+
+- **`inet_ntop` und keine eigene Umformung.** Für IPv6 ist sie die Regel, wann
+  `::` gesetzt werden darf (RFC 5952) — die schreibt man einmal falsch und merkt
+  es an einer Adresse, die es so nur bei einem Kunden gibt. Der eigentliche Grund
+  ist aber der Nebeneffekt: Zwei Adressen, die beide durch `inet_ntop` gegangen
+  sind, lassen sich als Zeichenketten vergleichen. `2001:db8::1` und
+  `2001:0db8:0000::0001` sind dieselbe Adresse und nicht dieselbe Zeichenkette.
+- **Die CAA-Marke wird kleingeschrieben.** RFC 8659 §4.1 sagt, sie sei
+  unabhängig von der Schreibweise; wer sie nimmt, wie sie ankommt, übersieht ein
+  `ISSUE` und meldet „kein CAA" — also grün für eine Zone, die jede Bestellung
+  abweist.
+- **Nur der Antwortabschnitt wird gelesen.** Autorität und Zusatzangaben führen
+  Sätze zu anderen Namen — das `A` des Nameservers etwa. Wer über das ganze
+  Paket liefe, bekäme dessen Adresse als Antwort auf die Frage nach der Domain.
+- **Der Eigentümername wird nicht verglichen**, und das ist Absicht: Zeigt `www`
+  über ein `CNAME` woandershin, stehen die `A`-Sätze des Ziels in derselben
+  Antwort unter dessen Namen. Gefragt war, wohin der Name am Ende auflöst.
+
+**Und `Packet::rcode()` ist dazugekommen**, weil der Abgleich vier Zustände
+braucht und ohne ihn drei hätte: „kein Satz gefunden" sähe genauso aus wie
+„nicht erreichbar", denn beide ergeben eine leere Liste.
+
+> **Eine leere Liste, die zwei Dinge bedeuten kann, bedeutet keins von beiden.**
+
+`RecordRdataTest` prüft 26 Fälle gegen gebaute Pakete — darunter die, die sich
+bei einem echten Nameserver gar nicht bestellen liessen: eine Adresse mit drei
+Bytes, ein CAA mit einer Marke, die über den Satz hinausreicht, ein `A`-Satz in
+der Klasse Chaos. Sechs Eingriffe stehen in `tests/waechter-brechen.sh`, jeder
+einzeln nachgewiesen.

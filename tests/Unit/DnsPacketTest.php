@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use SrvPanel\Agent\Acme\Dns\Packet;
 
@@ -79,9 +80,9 @@ final class DnsPacketTest extends TestCase
         return $packet.implode('', $answers);
     }
 
-    public function test_the_question_asks_for_txt_without_recursion(): void
+    public function test_the_question_asks_without_recursion(): void
     {
-        $query = Packet::query(self::ID, self::NAME);
+        $query = Packet::query(self::ID, self::NAME, Packet::TYPE_TXT);
         $header = unpack('nid/nflags/nqd/nan/nns/nar', $query) ?: [];
 
         $this->assertSame(self::ID, $header['id'] ?? null);
@@ -93,6 +94,32 @@ final class DnsPacketTest extends TestCase
 
         $this->assertStringContainsString("\x0f_acme-challenge\x07example\x02de\x00", $query);
         $this->assertSame(pack('n2', Packet::TYPE_TXT, Packet::CLASS_IN), substr($query, -4));
+    }
+
+    /**
+     * Der Typ reist als Wert und wird nicht angenommen.
+     *
+     * **Bis P7 stand er fest im Rumpf.** Seither fragt derselbe Aufruf nach
+     * vier verschiedenen Typen, und ein Aufruf, der den falschen stellt,
+     * bekommt eine Antwort mit null Sätzen — also dasselbe Bild wie ein
+     * Eintrag, den es nicht gibt.
+     */
+    #[DataProvider('satztypen')]
+    public function test_the_question_carries_its_type(int $type): void
+    {
+        $this->assertSame(
+            pack('n2', $type, Packet::CLASS_IN),
+            substr(Packet::query(self::ID, self::NAME, $type), -4),
+        );
+    }
+
+    /** @return iterable<string, array{int}> */
+    public static function satztypen(): iterable
+    {
+        yield 'A' => [Packet::TYPE_A];
+        yield 'AAAA' => [Packet::TYPE_AAAA];
+        yield 'TXT' => [Packet::TYPE_TXT];
+        yield 'CAA' => [Packet::TYPE_CAA];
     }
 
     public function test_a_compressed_name_is_read_correctly(): void

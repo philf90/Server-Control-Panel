@@ -16990,3 +16990,72 @@ bei einem echten Nameserver gar nicht bestellen liessen: eine Adresse mit drei
 Bytes, ein CAA mit einer Marke, die über den Satz hinausreicht, ein `A`-Satz in
 der Klasse Chaos. Sechs Eingriffe stehen in `tests/waechter-brechen.sh`, jeder
 einzeln nachgewiesen.
+
+### P7 Schritt 2 — `dns.check`: der Agent misst, das Panel vergleicht
+
+Die eine Operation dieser Stufe. Sie fragt die **autoritativen** Nameserver
+einer Zone und gibt zurück, was sie sagen — mehr nicht.
+
+**Der Schnitt ist die Entscheidung dieses Schritts.** Was eine Domain haben
+*soll*, weiss das Panel: welche Adressen dieser Server hat, welche Domains es
+gibt, welche Betriebsart eingestellt ist. Was sie *hat*, weiss nur, wer eine
+Steckdose aufmachen darf. Ein Agent, der den Sollzustand kennte, hätte eine
+zweite Fassung davon — und die zweite ist die, die veraltet.
+
+> **Der Agent misst, das Panel vergleicht.**
+
+**`Lookup` kennt seit heute `null` als Antwort, und das ist der Kern.** Bis
+dahin gab `txt()` eine leere Liste zurück, wenn der Server nicht erreichbar war,
+wenn die Antwort nicht passte **und** wenn es den Satz nicht gab. Für ACME war
+das richtig — dort heisst alles drei „noch nicht, frag gleich nochmal". Der
+Abgleich muss „es gibt keinen Eintrag" von „ich weiss es nicht" unterscheiden,
+sonst meldet er dem Kunden einen fehlenden Eintrag, wenn in Wahrheit sein
+Nameserver schweigt.
+
+> **Eine leere Liste, die zwei Dinge bedeuten kann, bedeutet keins von beiden.**
+
+`DnsChallenge` schreibt dafür `?? []` daneben und unterscheidet weiterhin nicht —
+für ACME ist das die richtige Antwort. Aus zwei Methoden (`txt()` und einer
+zweiten für den Abgleich) ist eine geworden: `records($server, $name, $type)`.
+CAA steht daneben als eigene Frage, weil ein CAA-Satz kein Wert ist, sondern
+drei — eine Aufzählung, deren Form vom Typ abhängt, liest man einmal falsch aus.
+
+**Die Typweiche steht in `Packet::values()` und nicht im `Resolver`.** Dort
+hinge sie an einer Steckdose und wäre ohne Nameserver nicht zu prüfen; in
+`Packet` ist sie eine Umformung wie alles andere. Ein unbekannter Typ wirft dort
+und gibt **nicht** `null` zurück: Als `null` sähe ein Fehler im Aufrufer aus wie
+„nicht erreichbar", und dann suchte jemand den Fehler beim Nameserver des
+Kunden — dort, wo nichts zu ändern ist.
+
+Vier Regeln der Operation, jede mit ihrem Eingriff im Bruchskript:
+
+- **Jeder Name muss in der Zone liegen**, gefragt über `Zones::pick()` — die
+  eine Stelle, die das entscheiden darf. Der Bruch dazu setzt einen
+  Zeichenkettenvergleich ein und lässt `boesexample.de` als Teil von
+  `example.de` durch; gefragt würden dann die Nameserver einer Zone nach einem
+  Namen, für den sie nicht zuständig sind, **und die Antwort sähe aus wie ein
+  Befund**.
+- **Der Satztyp kommt als Name von einer Positivliste** und nicht als Zahl. Eine
+  Zahl von aussen wäre ein roher Drahtwert.
+- **Ein Server, der auf eine Frage nicht antwortet, wird nicht sechzehnmal
+  gefragt.** Sonst kostet ein einziger toter Nameserver das Produkt aus Fragen
+  und Zeitlimit, und der Vorgang stirbt an seinem eigenen, während die anderen
+  Server längst geantwortet haben. Der Preis steht daneben: Ein verlorenes
+  UDP-Paket nimmt diesen Server für den Lauf heraus — sichtbar, weil `answered`
+  dann kleiner ist als `asked`.
+- **Uneinigkeit ist ein eigener Zustand und kein Mittelwert.** Liefert der eine
+  Nameserver eine andere Adresse als der andere, ist die Domain für die Hälfte
+  der Welt woanders. Verglichen wird die **sortierte** Wertemenge — ohne das
+  meldete jede Zone mit zwei Adressen Uneinigkeit, und das ist der Normalfall
+  und kein Befund.
+
+**Und `dns.check` steht vorübergehend in `AgentOperationReachTest::UNREACHED`.**
+Der Agent kann seit heute messen; der Weg dorthin entsteht in den Schritten 3
+bis 5. Der Eintrag räumt sich selbst weg: Sobald `app/` den Namen nennt, wird
+`test_the_list_of_unreached_operations_does_not_outlive_them` rot. Genau dafür
+gibt es die Liste.
+
+`DnsCheckTest` prüft 22 Fälle gegen ein Doppel — darunter die, die sich draussen
+nicht bestellen lassen: zwei Nameserver mit verschiedenen Antworten, einer, der
+auf die erste Frage schweigt, eine Zone ohne Nameserver. Sieben Eingriffe stehen
+in `tests/waechter-brechen.sh`, jeder einzeln nachgewiesen.

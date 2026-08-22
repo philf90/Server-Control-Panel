@@ -88,6 +88,40 @@ final class Packet
     }
 
     /**
+     * Die Werte eines Satztyps — oder `null`, wenn die Antwort unbrauchbar ist.
+     *
+     * **Die Typweiche steht hier und nicht im {@see Resolver}.** Dort hinge sie
+     * an einer Steckdose und wäre ohne Nameserver nicht zu prüfen; hier ist sie
+     * eine Umformung wie alles andere in dieser Klasse. Der Resolver bleibt
+     * damit das, was er sein soll: fragen und weiterreichen.
+     *
+     * **`null` und `[]` sind zwei Antworten.** `null` heisst „es kam nichts
+     * Brauchbares an", `[]` heisst „der Server hat geantwortet, und es gibt
+     * keinen solchen Satz". Der Abgleich aus `docs/72 §2.3` braucht beide.
+     *
+     * CAA steht nicht hier, sondern in {@see authorities} — ein CAA-Satz ist
+     * kein Wert, sondern drei, und eine Aufzählung mit zwei verschiedenen
+     * Formen ist keine.
+     *
+     * @return list<string>|null
+     */
+    public static function values(string $answer, int $id, int $type): ?array
+    {
+        if (self::rcode($answer, $id) === null) {
+            return null;
+        }
+
+        return match ($type) {
+            self::TYPE_TXT => self::txt($answer, $id),
+            self::TYPE_A, self::TYPE_AAAA => self::addresses($answer, $id, $type),
+            // **Ein unbekannter Typ ist ein Fehler im Aufrufer und kein
+            // Zustand der Zone.** Als `null` sähe er aus wie „nicht
+            // erreichbar", und dann suchte jemand den Fehler beim Nameserver.
+            default => throw new \InvalidArgumentException(sprintf('Für den Satztyp %d gibt es hier keine Werte.', $type)),
+        };
+    }
+
+    /**
      * Die TXT-Werte aus einer Antwort.
      *
      * Passt etwas nicht — zu kurz, falsche Kennung, abgeschnitten —, ist die

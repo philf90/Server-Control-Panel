@@ -389,6 +389,53 @@ final class RecordRdataTest extends TestCase
         );
     }
 
+    // ------------------------------------------------------------------
+    // Die Typweiche
+    // ------------------------------------------------------------------
+
+    /**
+     * `values()` gibt je Typ das Richtige zurück.
+     *
+     * Sie steht in dieser Klasse und nicht im `Resolver`, weil sie dort an
+     * einer Steckdose hinge und ohne Nameserver nicht zu prüfen wäre.
+     */
+    public function test_the_type_decides_what_comes_back(): void
+    {
+        $a = $this->answer(
+            [$this->record(self::POINTER, Packet::TYPE_A, inet_pton('203.0.113.10') ?: '')],
+            Packet::TYPE_A,
+        );
+        $txt = $this->answer(
+            [$this->record(self::POINTER, Packet::TYPE_TXT, "\x04wert")],
+            Packet::TYPE_TXT,
+        );
+
+        $this->assertSame(['203.0.113.10'], Packet::values($a, self::ID, Packet::TYPE_A));
+        $this->assertSame(['wert'], Packet::values($txt, self::ID, Packet::TYPE_TXT));
+
+        // Und die Unterscheidung, für die es `values()` überhaupt gibt.
+        $this->assertNull(Packet::values('', self::ID, Packet::TYPE_A), 'unbrauchbar');
+        $this->assertSame(
+            [],
+            Packet::values($this->answer([], Packet::TYPE_A), self::ID, Packet::TYPE_A),
+            'geantwortet, aber kein Satz',
+        );
+    }
+
+    /**
+     * Ein Typ, für den es hier keine Werte gibt, ist ein Fehler im Aufrufer.
+     *
+     * **Und ausdrücklich kein `null`.** Als `null` sähe er aus wie „nicht
+     * erreichbar", und dann suchte jemand den Fehler beim Nameserver des
+     * Kunden — dort, wo nichts zu ändern ist.
+     */
+    public function test_an_unsupported_type_is_a_mistake_and_not_a_state(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        Packet::values($this->answer([], Packet::TYPE_CAA), self::ID, Packet::TYPE_CAA);
+    }
+
     /** Ein CAA-Satz aus seinen drei Teilen. */
     private function caa(int $flags, string $tag, string $value): string
     {

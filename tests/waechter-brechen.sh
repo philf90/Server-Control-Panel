@@ -13352,6 +13352,112 @@ pruefe "Kennung der Antwort wird nicht geprueft" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   RecordRdataTest::test_an_unusable_answer_has_no_code passed
+echo "── DnsCheckTest: der Agent misst, das Panel vergleicht ──"
+#
+# **Sieben Eingriffe.** Der erste ist der teuerste: Ein Zeichenkettenvergleich
+# statt Zones::pick laesst boesexample.de als Teil von example.de durch — und
+# fragt dann die Nameserver einer Zone nach einem Namen, fuer den sie nicht
+# zustaendig sind. Die Antwort saehe aus wie ein Befund.
+
+vorher_datei agent/src/Ops/DnsCheck.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DnsCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if (Zones::pick($name, [$zone]) === null) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            if (! str_ends_with($name, $zone)) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/DnsCheck.php "Zeichenkettenvergleich statt Zones::pick" &&
+pruefe "Zeichenkettenvergleich statt Zones::pick" \
+  DnsCheckTest::test_a_name_that_only_looks_like_it_belongs_is_refused failed
+wiederherstellen
+
+vorher_datei agent/src/Ops/DnsCheck.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DnsCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if (! isset(self::TYPES[$label])) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            if (false && ! isset(self::TYPES[$label])) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/DnsCheck.php "Satztyp ohne Positivliste" &&
+pruefe "Satztyp ohne Positivliste" \
+  DnsCheckTest::test_only_the_four_known_types_are_accepted failed
+wiederherstellen
+
+vorher_datei agent/src/Ops/DnsCheck.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DnsCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (count($raw) > self::MAX_QUERIES) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        if (false) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/DnsCheck.php "Obergrenze der Fragen faellt weg" &&
+pruefe "Obergrenze der Fragen faellt weg" \
+  DnsCheckTest::test_too_many_queries_are_refused failed
+wiederherstellen
+
+vorher_datei agent/src/Ops/DnsCheck.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DnsCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = "$servers = array_slice($this->lookup->nameservers($zone), 0, self::MAX_SERVERS);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "$servers = $this->lookup->nameservers($zone);"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/DnsCheck.php "Obergrenze der Server faellt weg" &&
+pruefe "Obergrenze der Server faellt weg" \
+  DnsCheckTest::test_at_most_four_servers_are_asked failed
+wiederherstellen
+
+vorher_datei agent/src/Ops/DnsCheck.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DnsCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = """                if (isset($stumm[$server])) {\n                    continue;\n                }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """                if (false) {\n                    continue;\n                }"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/DnsCheck.php "stummer Server wird weiter gefragt" &&
+pruefe "stummer Server wird weiter gefragt" \
+  DnsCheckTest::test_a_silent_server_is_asked_once_and_then_left_alone failed
+wiederherstellen
+
+vorher_datei agent/src/Ops/DnsCheck.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DnsCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = "            sort($einzeln);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            // sort($einzeln);"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/DnsCheck.php "Reihenfolge zaehlt bei der Einigkeit mit" &&
+pruefe "Reihenfolge zaehlt bei der Einigkeit mit" \
+  DnsCheckTest::test_the_same_values_in_another_order_are_no_disagreement failed
+wiederherstellen
+
+vorher_datei agent/src/Ops/DnsCheck.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DnsCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if ($query['type'] === Packet::TYPE_CAA) {\n                $authorities[] = $ergebnis;\n            } else {\n                $records[] = $ergebnis;\n            }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            $records[] = $ergebnis;"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/DnsCheck.php "CAA landet unter den Werten" &&
+pruefe "CAA landet unter den Werten" \
+  DnsCheckTest::test_caa_records_come_back_separately failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  DnsCheckTest::test_caa_records_come_back_separately passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

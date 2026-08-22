@@ -17655,3 +17655,42 @@ Eingriffen zurücksetzen — hintereinander gefahren meldeten achtzehn Eingriffe
 aus dem Gedächtnis und nicht mit `git checkout -- .`: Der nimmt mit, was noch
 nicht eingecheckt ist, und hat in diesem Durchgang vier fertige Behebungen
 gelöscht. Der Satz steht seit P5c in `CLAUDE.md`, und er stimmt.
+
+### Derselbe Fehler ein zweites Mal, drei Commits nach seiner Lehre
+
+`BreakScriptTest::interventions()` stand ohne Dokumentationsblock da, und seiner
+hing über der neuen Methode darüber — **genau der Fehler, der zwei Commits
+vorher an `Settings::diskQuota()` behoben und als Lehre aufgeschrieben worden
+ist.** Eine neue Methode wandert zwischen einen Block und die Methode, die er
+beschreibt; danach beschreibt er die falsche.
+
+Gemeldet hat es wieder PHPStan, und wieder nur die Hälfte: die fehlende
+Typangabe an der einen Methode, nicht den falschen Block über der anderen.
+
+> **Ein Werkzeug bemerkt den fehlenden Kommentar. Den falschen bemerkt es
+> nicht.**
+
+**Zweimal derselbe Handgriff heisst in diesem Projekt: Es fehlt eine Stelle.**
+Nachgezählt über 750 Dateien unter `app/`, `agent/src/`, `tests/`, `database/`,
+`routes/`, `config/` und `bootstrap/`: **21 Fundstellen**, an denen zwei
+Dokumentationsblöcke unmittelbar aufeinander folgen. Die drei nachgesehenen sind
+alle derselbe Fall — eine Beschreibung, die über der Beschreibung einer anderen
+Methode steht:
+
+- `CustomerPolicy.php` — „Anmelden als" steht über „Sperren und freigeben".
+- `DomainController.php` — „Die serverweite Liste" über „Die Domains".
+- `BluntBuildTest.php` — „Jeder der drei Eingriffe wirkt" über „Die stumpfen
+  Fassungen".
+
+**Behoben ist hier nur die eine, die dieser Zweig erzeugt hat.** Die anderen
+zwanzig sind älter als er — auch die drei in Dateien, die er anfasst, stehen
+schon auf `main`. Sie gehören in einen eigenen Handgriff mit einem eigenen
+Wächter, und nicht in einen Zweig über DNS.
+
+> **Ein Befund, den man beim Vorbeigehen macht, wird nicht dadurch besser, dass
+> man ihn im selben Atemzug behebt.**
+
+Der Wächter dazu ist mechanisch: Zwei `T_DOC_COMMENT` mit nichts als Leerraum
+dazwischen. Er lässt sich nicht bauen, ohne die einundzwanzig zu entscheiden —
+und das ist eine inhaltliche Arbeit, denn manche der verwaisten Blöcke
+beschreiben eine Methode, die es nicht mehr gibt.

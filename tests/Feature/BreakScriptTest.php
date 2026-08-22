@@ -58,17 +58,6 @@ final class BreakScriptTest extends TestCase
     }
 
     /**
-     * Die Zeichenketten, die ein Eingriff in seiner Zieldatei sucht.
-     *
-     * Gelesen werden die eingebetteten Python-Blöcke: `p = '<datei>'` nennt das
-     * Ziel, jedes `s.replace(<alt>, …)` den gesuchten Text. Beides steht im
-     * Skript in derselben, immer gleichen Form — sie hier nachzubauen ist
-     * billiger, als das Skript umzuschreiben, damit es sich selbst auskunftsfähig
-     * macht.
-     *
-     * @return list<array{file: string, needle: string}>
-     */
-    /**
      * Aneinandergereihte Zeichenketten zu einer zusammenziehen.
      *
      * **Die Lücke, die dieser Wächter über sich selbst benannt hat — und die am
@@ -111,6 +100,17 @@ final class BreakScriptTest extends TestCase
         return $block;
     }
 
+    /**
+     * Die Zeichenketten, die ein Eingriff in seiner Zieldatei sucht.
+     *
+     * Gelesen werden die eingebetteten Python-Blöcke: `p = '<datei>'` nennt das
+     * Ziel, jedes `s.replace(<alt>, …)` den gesuchten Text. Beides steht im
+     * Skript in derselben, immer gleichen Form — sie hier nachzubauen ist
+     * billiger, als das Skript umzuschreiben, damit es sich selbst auskunftsfähig
+     * macht.
+     *
+     * @return list<array{file: string, needle: string}>
+     */
     private function interventions(): array
     {
         $script = (string) file_get_contents($this->root().'/tests/waechter-brechen.sh');

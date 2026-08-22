@@ -13582,6 +13582,144 @@ pruefe "ein zweiter Bau des Sollzustands in app/" \
 rm -f app/Support/Dns/NachbauZumBrechen.php
 pruefe "  … zurückgesetzt wieder grün" \
   DesiredRecordSourceTest::test_only_one_place_works_out_what_a_domain_needs passed
+echo "── DnsComparisonTest / ServerAddressTest: der Vergleich und die Adressquelle ──"
+#
+# **Der erste Eingriff ist der wichtigste.** Ein Name zeigt hierher, wenn jeder
+# ausgelieferte Wert einer von unseren ist — nicht, wenn die Listen gleich sind.
+# Ein Server kann zwei Adressen fuehren; ein Kunde, der auf eine davon zeigt,
+# ist richtig unterwegs. Und ein einziger fremder Wert daneben genuegt, damit
+# ein Teil der Anfragen woanders landet.
+#
+# > **Ein Eintrag, der ueberwiegend stimmt, ist ein Ausfall, den man fuer ein
+# > Netzproblem haelt.**
+
+vorher_datei app/Support/Dns/Comparison.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Comparison.php'
+s = open(p, encoding='utf-8').read()
+alt = '            if (! in_array($value, $expected, true)) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            if ($found['values'] !== $expected) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Comparison.php "Gleichheit statt Teilmenge" &&
+pruefe "Gleichheit statt Teilmenge" \
+  DnsComparisonTest::test_one_of_our_two_addresses_is_enough failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Comparison.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Comparison.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($found['consistent'] === false) {\n            return DnsRecordState::Inconsistent;\n        }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        if (false) {\n            return DnsRecordState::Inconsistent;\n        }'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Comparison.php "Uneinigkeit wird nicht erkannt" &&
+pruefe "Uneinigkeit wird nicht erkannt" \
+  DnsComparisonTest::test_disagreeing_nameservers_are_recognised_before_the_values failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Comparison.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Comparison.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($found === null || $found['asked'] === 0 || $found['answered'] === 0) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        if ($found === null) {'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Comparison.php "stumme Zone gilt als fehlender Eintrag" &&
+pruefe "stumme Zone gilt als fehlender Eintrag" \
+  DnsComparisonTest::test_a_silent_zone_says_nothing_about_the_record failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Comparison.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Comparison.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return strtolower(trim($name, '. ')).'/'.strtoupper($type);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        return $name.'/'.$type;"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Comparison.php "Zuordnung achtet auf die Schreibweise" &&
+pruefe "Zuordnung achtet auf die Schreibweise" \
+  DnsComparisonTest::test_name_and_type_are_matched_regardless_of_spelling failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/ServerAddresses.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/ServerAddresses.php'
+s = open(p, encoding='utf-8').read()
+alt = '        if (self::carrierGrade($address)) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        if (false) {'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/ServerAddresses.php "CGNAT kommt durch" &&
+pruefe "CGNAT kommt durch" \
+  ServerAddressTest::test_an_unroutable_address_is_refused_with_a_reason failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/ServerAddresses.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/ServerAddresses.php'
+s = open(p, encoding='utf-8').read()
+alt = '        if (self::multicast($address)) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        if (false) {'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/ServerAddresses.php "Multicast kommt durch" &&
+pruefe "Multicast kommt durch" \
+  ServerAddressTest::test_an_unroutable_address_is_refused_with_a_reason failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/ServerAddresses.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/ServerAddresses.php'
+s = open(p, encoding='utf-8').read()
+alt = '        return $chosen !== [] ? $chosen : self::routable($derived);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        return $chosen !== [] ? $chosen : self::canonical($derived);'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/ServerAddresses.php "abgeleitete Adressen werden nicht gesiebt" &&
+pruefe "abgeleitete Adressen werden nicht gesiebt" \
+  ServerAddressTest::test_the_derived_addresses_are_filtered failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/ServerAddresses.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/ServerAddresses.php'
+s = open(p, encoding='utf-8').read()
+alt = '        $chosen = self::canonical($override);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        $chosen = self::routable($override);'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/ServerAddresses.php "die Uebersteuerung wird ein zweites Mal gesiebt" &&
+pruefe "die Uebersteuerung wird ein zweites Mal gesiebt" \
+  ServerAddressTest::test_the_override_is_trusted_because_it_was_checked_when_it_was_entered failed
+wiederherstellen
+
+vorher_datei app/Enums/DnsRecordState.php
+python3 - <<'PY2'
+p = 'app/Enums/DnsRecordState.php'
+s = open(p, encoding='utf-8').read()
+alt = '            self::Elsewhere => false,'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '            self::Elsewhere => true,'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Enums/DnsRecordState.php "woandershin gilt als Fehler" &&
+pruefe "woandershin gilt als Fehler" \
+  DnsComparisonTest::test_pointing_elsewhere_is_not_treated_as_a_fault failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  DnsComparisonTest::test_pointing_elsewhere_is_not_treated_as_a_fault passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

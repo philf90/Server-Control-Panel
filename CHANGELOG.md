@@ -17128,3 +17128,70 @@ stehen.
 `{@see \SrvPanel\Agent\…}` im Kommentar einen Import machen — das wäre eine
 Abhängigkeit von `app/` auf den Agenten gewesen, die es nur im Kommentar gibt.
 Der Klassenname steht dort jetzt als Text, mit dem Grund daneben.
+
+### P7 Schritt 4 — der Vergleich, und die eine Frage, an der er hängt
+
+**Wann zeigt ein Name hierher?** Nicht, wenn die Werte gleich sind — und der
+Unterschied ist der ganze Sinn von `App\Support\Dns\Comparison`.
+
+Ein Name zeigt hierher, wenn **jeder ausgelieferte Wert einer von unseren ist**.
+Ein Server kann zwei Adressen führen und die Website unter beiden bedienen; ein
+Kunde, der auf eine davon zeigt, ist richtig unterwegs — eine Gleichheitsprüfung
+meldete ihn als falsch. Umgekehrt genügt **ein** fremder Wert daneben, damit ein
+Teil der Anfragen woanders landet.
+
+> **Ein Eintrag, der überwiegend stimmt, ist ein Ausfall, den man für ein
+> Netzproblem hält.**
+
+**Fünf Zustände und nicht drei.** `docs/72 §2.3` nannte drei; zwei sind beim
+Bauen dazugekommen, und beide bezeichnen etwas, das der Kunde anders behandeln
+muss:
+
+- **`Unreachable`** ist kein Zustand der Zone, sondern einer der Messung. Ohne
+  ihn meldete die Anzeige „der Eintrag fehlt", wenn in Wahrheit der Nameserver
+  schweigt.
+- **`Inconsistent`** heisst, dass die Nameserver derselben Zone Verschiedenes
+  sagen — die Domain funktioniert für einen Teil der Welt und für den anderen
+  nicht, und die Abhilfe liegt beim Anbieter statt am Eintrag. Erkannt wird das
+  **vor** dem Wertevergleich, sonst suchte der Kunde den Fehler bei sich.
+
+**Und „zeigt woandershin" ist ausdrücklich kein Fehler** (`blocking() === false`).
+Wer seine Domain absichtlich über ein CDN führt, hat genau diesen Zustand. Die
+Anzeige sagt, was ist, und nicht, was falsch ist.
+
+### P7 Schritt 4 — die Adressquelle, und zwei Lücken in `filter_var`
+
+`App\Support\Dns\ServerAddresses`: abgeleitet, mit Übersteuerung
+(`docs/72 §2.1a`). Ohne Übersteuerung meldete der Abgleich hinter NAT jede
+Domain als „zeigt woandershin" — mit der **privaten** Adresse als Sollwert, was
+schlimmer ist als keine Anzeige, weil es wie eine Auskunft aussieht. Ohne
+Ableitung ginge der Abgleich vor dem ersten Eintrag gar nicht, und das träfe die
+Ersteinrichtung.
+
+**Gemessen statt nachgelesen** (21. August 2026): `filter_var` mit
+`NO_PRIV_RANGE|NO_RES_RANGE` wirft `10/8`, `172.16/12`, `192.168/16`,
+`169.254/16`, `127/8`, `0.0.0.0`, `fc00::/7`, `fe80::/10` und `::1` hinaus —
+**und lässt CGNAT (`100.64/10`) und Multicast durch.**
+
+> **Ein Filter, den man für vollständig hält, ist eine Lücke mit Fussnote.**
+
+Beides gehört heraus: Ein Server hinter Anbieter-NAT ist von aussen nicht
+erreichbar; seine Adresse als `A`-Eintrag wäre ein Sollwert, den keine Domain je
+erfüllen kann. Die Gegenprobe steht daneben — `100.128.0.1` und `100.63.255.254`
+liegen ausserhalb von `100.64.0.0/10` und gehen durch, sonst hiesse die Regel
+womöglich nur „alles, was mit 100 anfängt".
+
+**Die Übersteuerung wird beim Lesen nicht noch einmal gesiebt.** Sie ist beim
+Eintragen geprüft worden (`ServerAddresses::rejected()` liefert den Satz, den
+der Betreiber liest); wer sie ein zweites Mal siebte, hätte zwei Fassungen
+derselben Regel — und die zweite entschiede stillschweigend anders, als die
+Meldung am Formular gesagt hat.
+
+`Settings::dnsAddresses()` trägt sie, mit derselben Warnung wie `bind-address`
+und der PostgreSQL-Schalter daneben: Was dort steht, ist eine im Panel gemerkte
+Fassung eines Serverzustands und kann veralten. Die Seite zeigt deshalb beides —
+das Eingetragene und das Abgeleitete.
+
+`DnsComparisonTest` (16 Fälle) und `ServerAddressTest` (28 Fälle) prüfen beides;
+neun Eingriffe stehen in `tests/waechter-brechen.sh`, jeder einzeln
+nachgewiesen.

@@ -318,6 +318,33 @@ in derselben Vorschrift.
 
 > **Ein hergestellter Zustand ist auch ein weggenommener.**
 
+**Und es waren zwei, nicht einer.** Beim Ausschreiben dieses Abschnitts stand
+hier zuerst, das CAA sei der einzige Grund für das Gelb an `cloudlab24.de` — und
+der nächste Schritt lautete „CAA entfernen, dann `Jetzt prüfen` drücken".
+
+Der Betreiber hat den zweiten gefunden, bevor der Schritt gefahren wurde: Die
+Übersteuerung `203.0.113.10` aus §2.3 stand noch. Mit ihr ist
+`effective = [203.0.113.10]`, jeder `A`-Satz wird dagegen gehalten, und
+`cloudlab24.de` wäre von „nachsehen (CAA)" auf „nachsehen (zeigt woandershin)"
+gewechselt — dieselbe Farbe, anderer Grund, derselbe verdeckte Prüfkörper.
+
+**Die Regel dazu stand bereits in `docs/75 §2.3`**, wörtlich: „Danach wieder
+leeren. Solange der Eintrag steht, meldet der Abgleich jede Domain als ‚Zeigt
+woandershin'." Sie war aufgeschrieben und wurde beim nächsten Schritt nicht
+angewandt.
+
+> **Eine Vorschrift, die man selbst geschrieben hat, liest man beim Ausführen
+> genauso wenig wie jede andere.**
+
+**Und die Folge wäre grösser gewesen als „eine Zeile wird gelb".**
+`DesiredRecords` erzeugt ohne IPv6 des Servers **gar keinen `AAAA`-Eintrag**
+(Kriterium 5 aus `docs/72 §3`). Bei einer reinen IPv4-Übersteuerung verschwindet
+die `AAAA`-Zeile aus der Tabelle, statt auf „Fehlt" zu fallen — die Ansicht hätte
+also nicht nur eine andere Farbe getragen, sondern eine Zeile weniger.
+
+**Reihenfolge deshalb:** erst das Feld leeren, dann prüfen, dann aufnehmen. Wer
+zuerst prüft, prüft gegen die Adresse, die er gerade wegnehmen wollte.
+
 ---
 
 ## 3. Beobachtungen ohne Fund
@@ -337,11 +364,15 @@ Frage an den Betreiber und kein Fehler.
 
 - **Vier der sechzehn Lagen** — die Ansichten 1 bis 3 sind vollständig, 4 steht
   aus.
-- **Die Domainliste mit mehr als einer Marke.** Solange das CAA aus §2.2 steht,
-  sagen alle vier Zeilen „nachsehen". Der Zustand „in Ordnung" entsteht, sobald
-  es weg ist und `cloudlab24.de` neu geprüft wurde; „ungeprüft" braucht eine
-  frisch angelegte Domain. Beides gehört nachgeholt, sonst ist die Spalte
-  gemessen und nicht belegt.
+- **Die Domainliste mit mehr als einer Marke.** Alle vier Zeilen sagen
+  „nachsehen", solange **beide** hergestellten Zustände stehen — das CAA aus
+  §2.2 und die Übersteuerung aus §2.3. „In Ordnung" entsteht, wenn beide weg
+  sind und `cloudlab24.de` neu geprüft wurde; „ungeprüft" braucht zusätzlich
+  eine frisch angelegte Domain. Sonst ist die Spalte gemessen und nicht belegt.
+- **Kriterium 5 liesse sich nebenbei belegen** und ist es nicht: Mit einer
+  reinen IPv4-Übersteuerung verschwindet die `AAAA`-Zeile, statt auf „Fehlt" zu
+  fallen. Das ist genau die Zusage aus `docs/72 §3` — sie gehört in den
+  Abnahmelauf, nicht in diesen.
 - **Die Konsole ist nicht gelesen worden.** In den Aufnahmen zu Ansicht 2
   zählten die Entwicklerwerkzeuge zwölf Fehler und fünfunddreissig Warnungen;
   ein Teil kommt sichtbar aus einer Browsererweiterung (`background.js`,

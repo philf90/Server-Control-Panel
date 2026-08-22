@@ -13720,6 +13720,98 @@ pruefe "woandershin gilt als Fehler" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   DnsComparisonTest::test_pointing_elsewhere_is_not_treated_as_a_fault passed
+echo "── CaaAuthorityTest: darf unsere Stelle ausstellen? ──"
+#
+# **Der erste Eingriff ist der, an dem eine naive Umsetzung falsch liegt.**
+# Ist issuewild vorhanden, gilt fuer einen Platzhalter nur das — issue zaehlt
+# dann nicht mit. Wer beide zusammenwirft, haelt eine Zone fuer erlaubt, die
+# Platzhalter ausdruecklich ausschliesst. Und P4 bestellt Platzhalter.
+
+vorher_datei app/Support/Dns/Authority.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Authority.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $tag = ($wildcard && $wild !== []) ? 'issuewild' : 'issue';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        $tag = 'issue';"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Authority.php "issuewild wird bei Platzhaltern ignoriert" &&
+pruefe "issuewild wird bei Platzhaltern ignoriert" \
+  CaaAuthorityTest::test_issuewild_alone_decides_for_a_wildcard failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Authority.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Authority.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if (($record['flags'] & self::CRITICAL) === self::CRITICAL"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '            if (false'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Authority.php "der kritische unbekannte Satz wird uebersehen" &&
+pruefe "der kritische unbekannte Satz wird uebersehen" \
+  CaaAuthorityTest::test_a_critical_unknown_tag_forbids_issuance failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Authority.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Authority.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $name = strtolower(trim(strtok($value, ';') ?: ''));"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        $name = strtolower(trim($value));'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Authority.php "Angaben hinter dem Namen zaehlen mit" &&
+pruefe "Angaben hinter dem Namen zaehlen mit" \
+  CaaAuthorityTest::test_parameters_behind_the_name_are_ignored failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Authority.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Authority.php'
+s = open(p, encoding='utf-8').read()
+alt = '        if ($ca !== null && in_array(strtolower($ca), $issuers, true)) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        if ($ca === null || in_array(strtolower($ca), $issuers, true)) {'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Authority.php "unbekannte eigene Kennung gilt als erlaubt" &&
+pruefe "unbekannte eigene Kennung gilt als erlaubt" \
+  CaaAuthorityTest::test_without_a_known_identifier_nothing_is_promised failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Authority.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Authority.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return $name === '' ? null : $name;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        return $name === '' ? 'letsencrypt.org' : $name;"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Authority.php "ein leerer CAA-Wert erlaubt jedem" &&
+pruefe "ein leerer CAA-Wert erlaubt jedem" \
+  CaaAuthorityTest::test_an_empty_value_forbids_everyone failed
+wiederherstellen
+
+vorher_datei agent/src/Acme/Directories.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Directories.php'
+s = open(p, encoding='utf-8').read()
+alt = "        self::STAGING => 'letsencrypt.org',\n        self::PRODUCTION => 'letsencrypt.org',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        self::PRODUCTION => 'letsencrypt.org',"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Acme/Directories.php "eine Zertifizierungsstelle ohne CAA-Kennung" &&
+pruefe "eine Zertifizierungsstelle ohne CAA-Kennung" \
+  CaaAuthorityTest::test_every_directory_has_a_caa_identifier failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CaaAuthorityTest::test_every_directory_has_a_caa_identifier passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

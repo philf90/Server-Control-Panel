@@ -17242,3 +17242,75 @@ wollte zum zweiten Mal aus einem `{@see \App\…}` in einem Kommentar einen Impo
 machen, diesmal in der Migration; der Klassenname steht dort jetzt als Text.
 
 > **Eine Klasse, die auf nichts zeigt, sieht aus wie Gestaltung und ist keine.**
+
+### P7 — ein Fehler aus Schritt 5, gefunden beim Bauen von Schritt 6
+
+**Ein Alias darf jeden Namen tragen** — `Domains::parent()` sagt es wörtlich:
+„genau dafür gibt es ihn." Schritt 5 hat trotzdem alle Namen einer Domain unter
+**ihrer** Zone gefragt. Ein Alias `beispiel.at` an einer Domain `beispiel.de`
+liegt nicht in deren Zone; `dns.check` weist ihn zu Recht ab, die Ausnahme wird
+gefangen — und **die ganze Domain** stand als „nicht erreichbar" da, auch die
+Einträge, die in Ordnung waren.
+
+> **Ein Fehler an einem Namen, der als Zustand der ganzen Domain erscheint, ist
+> schlimmer als kein Befund.**
+
+Es geht jetzt **ein Aufruf je Name** hinaus. Das ist auch sachlich richtiger:
+Die Sätze eines fremden Alias liegen auf anderen Nameservern, und die der
+eigenen Zone zu fragen ergäbe eine Antwort von jemandem, der nicht zuständig
+ist. Ein Fehlschlag bleibt dabei bei seinem Namen.
+
+**Und `Dns::names()` ist ersatzlos gefallen.** Es war ein Nachbau von
+`Domain::serverNames()`, das es seit P4 gibt — dieselbe Liste, zweimal
+geschrieben, und die zweite wäre die gewesen, die beim nächsten Domaintyp
+veraltet.
+
+### P7 Schritt 6 — CAA wird gelesen und nicht gefordert
+
+Kein CAA ist der richtige Zustand: Dann darf jede Stelle ausstellen, und es gibt
+nichts zu melden. Gelesen wird trotzdem, denn ein Satz, der uns **nicht** nennt,
+lässt jede Bestellung scheitern — und jeder Fehlversuch zählt bei Let's Encrypt
+fünf je Konto und Stunde, für **jeden** Kunden dieses Servers (`docs/34 §11`).
+
+> **Ein Hinweis vorher ist keine Bequemlichkeit, sondern Schadensbegrenzung.**
+
+**Der Fall, an dem eine naive Umsetzung falsch liegt, ist der Platzhalter.** Ist
+`issuewild` vorhanden, gilt für einen Platzhalter **nur** das — `issue` zählt
+dann nicht mit (RFC 8659 §4.2). Wer beide zusammenwürfe, hielte eine Zone für
+erlaubt, die Platzhalter ausdrücklich ausschliesst; und P4 bestellt Platzhalter.
+
+Vier weitere Regeln, jede mit ihrem Eingriff:
+
+- **Ein zwingender Satz mit unbekannter Marke verbietet die Ausstellung**, und
+  zwar vor allem anderen. Wer ihn übersieht, meldet „darf" für eine Zone, die
+  jede Bestellung abweist — obwohl `issue` uns nennt.
+- **Hinter dem Namen dürfen Angaben stehen** (`letsencrypt.org;
+  validationmethods=dns-01`). Verglichen wird nur der Teil davor; sonst meldete
+  das Panel einen Befund für eine Zone, die in Ordnung ist.
+- **Ein Wert ohne Namen (`;`) erlaubt niemandem etwas** — eine ausdrückliche
+  Aussage und keine leere Zeile.
+- **Ohne bekannte eigene Kennung wird nichts versprochen.** `null` heisst „wir
+  wissen nicht, wie wir heissen"; daraus ein „darf" zu machen wäre eine Zusage
+  ohne Grundlage.
+
+**Die CAA-Kennung steht neben der Adresse der Zertifizierungsstelle**, in
+`Directories`, und ein Wächter besteht darauf: Wer eine dritte Stelle einträgt,
+muss ihre Kennung mit nennen. Sonst wäre es wieder eine Zeichenkette, die auf
+nichts zeigt — und der Hinweis meldete stillschweigend „darf nicht", weil er den
+Namen nicht kennt.
+
+**Was ausdrücklich nicht umgesetzt ist:** der Aufstieg zur Elternzone. Findet
+sich am Namen kein CAA, klettert eine Zertifizierungsstelle nach oben; dieses
+Panel fragt nur die Namen, die es ohnehin prüft. Für eine Domain und ihre
+Aliasse reicht das — für `a.b.c.example.de` mit einem CAA an `c.example.de`
+nicht. Deshalb meldet ein leerer Satz **nicht** „darf", sondern „nichts
+gefunden".
+
+> **Ein Urteil, das eine Regel nur halb kennt, gehört als halbes gekennzeichnet
+> und nicht als ganzes ausgegeben.**
+
+Nach CAA wird für **jeden** Namen gefragt, auch für einen ohne Sollzustand:
+Führt der Server keine öffentliche Adresse, gibt es keinen `A`-Satz zu erwarten
+— ein CAA, das die Bestellung verbietet, gibt es trotzdem, und es kostete dann
+Fehlversuche ohne jede Anzeige. Angezeigt wird nur der eine Fall, der etwas
+kostet.

@@ -82,6 +82,12 @@ const props = defineProps<{
       findings: {
         nameservers: string[]
         addresses: { derived: string[]; override: string[]; effective: string[] }
+        authorities: {
+          name: string
+          state: 'none' | 'allowed' | 'refused' | 'unknown'
+          reason: string | null
+          issuers: string[]
+        }[]
         records: {
           name: string
           type: string
@@ -654,6 +660,22 @@ const dnsAdressenWeichenAb = computed(() => {
           <p class="section-note">
             Zuletzt geprüft: {{ dnsGeprueft }}<template v-if="props.dns.last.findings.nameservers.length > 0">
             · gefragt wurden {{ props.dns.last.findings.nameservers.join(', ') }}</template>
+          </p>
+
+          <!--
+            **CAA wird nur gemeldet, wenn es etwas kostet** (`docs/72 §2.4`).
+            Kein CAA ist der richtige Zustand, und ein Satz, der uns nennt,
+            ebenfalls — beides schweigt hier. Angezeigt wird der eine Fall, der
+            jede Bestellung scheitern lässt, und zwar **bevor** sie es tut:
+            Jeder Fehlversuch zählt bei Let's Encrypt fünf je Konto und Stunde,
+            und die gelten für jeden Kunden dieses Servers.
+          -->
+          <p
+            v-for="caa in props.dns.last.findings.authorities.filter((a) => a.state === 'refused')"
+            :key="caa.name"
+            class="notice warn"
+          >
+            <span><span class="ident">{{ caa.name }}</span> — {{ caa.reason }}</span>
           </p>
 
           <!--

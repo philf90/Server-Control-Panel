@@ -345,6 +345,21 @@ also nicht nur eine andere Farbe getragen, sondern eine Zeile weniger.
 **Reihenfolge deshalb:** erst das Feld leeren, dann prüfen, dann aufnehmen. Wer
 zuerst prüft, prüft gegen die Adresse, die er gerade wegnehmen wollte.
 
+**Gefahren und belegt.** Nach dem Leeren des Feldes und einem Lauf über „Jetzt
+prüfen" steht `cloudlab24.de` auf **„in Ordnung"** und `cloudlab24.ipv64.de` auf
+„nachsehen" — grün neben gelb, in derselben Liste (390 px hell, `dokument: 0`,
+Gegenprobe `200/200`, `versteckt: 2`). Die Spalte unterscheidet sichtbar.
+
+**Die Aufnahme entstand in der Kundensicht** und nicht als Betreiber: „3
+insgesamt" statt „4", dazu ein Knopf „Domain anlegen". Beides ist richtig — der
+Betreiber bekommt den Knopf bewusst nicht (`creatable` ist für ihn leer, weil
+eine Auswahl über Hunderte Abonnements kein kurzer Weg wäre), und
+`p6-abnahme.invalid` gehört einem anderen Abonnement. Es steht hier, damit
+niemand später die vierte Domain für verschwunden hält.
+
+> **Zwei Aufnahmen derselben Adresse können verschiedene Seiten zeigen, wenn
+> zwischen ihnen die Sicht gewechselt hat.**
+
 ---
 
 ## 3. Beobachtungen ohne Fund
@@ -364,11 +379,20 @@ Frage an den Betreiber und kein Fehler.
 
 - **Vier der sechzehn Lagen** — die Ansichten 1 bis 3 sind vollständig, 4 steht
   aus.
-- **Die Domainliste mit mehr als einer Marke.** Alle vier Zeilen sagen
-  „nachsehen", solange **beide** hergestellten Zustände stehen — das CAA aus
-  §2.2 und die Übersteuerung aus §2.3. „In Ordnung" entsteht, wenn beide weg
-  sind und `cloudlab24.de` neu geprüft wurde; „ungeprüft" braucht zusätzlich
-  eine frisch angelegte Domain. Sonst ist die Spalte gemessen und nicht belegt.
+- **Die Marke „ungeprüft" ist nicht aufgenommen**, und sie ist **flüchtig**:
+  `srvpanel-dns.timer` läuft alle 15 Minuten, also ist jede Domain spätestens
+  nach einer Viertelstunde geprüft. Den Zustand gibt es nur im Fenster zwischen
+  Anlegen und erstem Lauf.
+
+  **Ihn herzustellen ist nicht umsonst.** Die Automatik bestellt ein Zertifikat,
+  sobald der Server-Block steht; für einen Namen, der nicht auf den Server
+  zeigt, scheitert das und verbraucht einen der fünf Fehlversuche je Stunde, die
+  für alle Kunden dieses Servers zusammen gelten. Er gehört deshalb in den
+  Abnahmelauf, wo ohnehin eine Domain angelegt wird (Kriterium 1) — dort fällt
+  er kostenlos ab.
+
+  > **Ein Zustand, dessen Herstellung ein Kontingent kostet, wird dort geprüft,
+  > wo er ohnehin entsteht.**
 - **Kriterium 5 liesse sich nebenbei belegen** und ist es nicht: Mit einer
   reinen IPv4-Übersteuerung verschwindet die `AAAA`-Zeile, statt auf „Fehlt" zu
   fallen. Das ist genau die Zusage aus `docs/72 §3` — sie gehört in den

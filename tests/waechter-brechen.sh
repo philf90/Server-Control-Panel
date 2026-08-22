@@ -13458,6 +13458,130 @@ pruefe "CAA landet unter den Werten" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   DnsCheckTest::test_caa_records_come_back_separately passed
+echo "── DesiredRecordSourceTest: der Sollzustand, einmal und richtig ──"
+#
+# **Sieben Eingriffe, und zwei davon sind beim ersten Anlauf untauglich
+# gewesen.** Der eine hat die Zielstelle verfehlt; der andere hat den Code
+# zerstoert statt die Regel zu verletzen — er nahm die Pruefung auf
+# `inet_pton() === false` heraus, und `inet_ntop(false)` ist ein TypeError. Der
+# Waechter meldete daraufhin ein Loch und kein Rot, und ein Loch sieht aus wie
+# 'nicht gemessen' und nicht wie 'stimmt nicht'.
+#
+# > **Ein Bruch muss die Regel verletzen und nicht den Code zerstoeren.**
+
+vorher_datei app/Support/Dns/DesiredRecords.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/DesiredRecords.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if ($expected !== []) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            if (true) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/DesiredRecords.php "AAAA auch ohne IPv6 des Servers" &&
+pruefe "AAAA auch ohne IPv6 des Servers" \
+  DesiredRecordSourceTest::test_without_ipv6_no_quad_a_is_demanded failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/DesiredRecords.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/DesiredRecords.php'
+s = open(p, encoding='utf-8').read()
+alt = "            $normalized = inet_ntop($packed);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            $normalized = trim($address);"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/DesiredRecords.php "erwartete Adressen nicht vereinheitlicht" &&
+pruefe "erwartete Adressen nicht vereinheitlicht" \
+  DesiredRecordSourceTest::test_the_expected_addresses_are_written_the_way_they_are_measured failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/DesiredRecords.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/DesiredRecords.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if ((strlen($packed) === 16) !== $sechs) {\n                continue;\n            }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """            if (false) {\n                continue;\n            }"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/DesiredRecords.php "IPv4 und IPv6 nicht getrennt" &&
+pruefe "IPv4 und IPv6 nicht getrennt" \
+  DesiredRecordSourceTest::test_a_domain_needs_addresses_on_its_own_name failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/DesiredRecords.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/DesiredRecords.php'
+s = open(p, encoding='utf-8').read()
+alt = '        return strtolower(trim($name, ". \\t\\n\\r\\0\\x0B"));'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        return $name;"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/DesiredRecords.php "Name nicht vereinheitlicht" &&
+pruefe "Name nicht vereinheitlicht" \
+  DesiredRecordSourceTest::test_the_name_is_normalised failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/DesiredRecords.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/DesiredRecords.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if ($normalized === '' || isset($seen[$normalized])) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            if ($normalized === '') {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/DesiredRecords.php "Namen in forAll nicht entdoppelt" &&
+pruefe "Namen in forAll nicht entdoppelt" \
+  DesiredRecordSourceTest::test_several_names_at_once_and_each_only_once failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/DesiredRecords.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/DesiredRecords.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if ($packed === false) {\n                continue;\n            }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """            if ($packed === false) {\n                if (! $sechs && trim($address) !== '') {\n                    $found[] = trim($address);\n                }\n\n                continue;\n            }"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/DesiredRecords.php "was keine Adresse ist, kommt durch" &&
+pruefe "was keine Adresse ist, kommt durch" \
+  DesiredRecordSourceTest::test_something_that_is_no_address_is_left_out failed
+wiederherstellen
+
+# **Der siebte legt eine Datei an statt eine zu ändern**, und deshalb räumt er
+# selbst auf: `wiederherstellen` holt geänderte Dateien zurück, eine neue lässt
+# es stehen. Ohne das `rm` fände der nächste Lauf ein schmutziges `app/` vor,
+# das er sich selbst gemacht hat.
+cat > app/Support/Dns/NachbauZumBrechen.php <<'PY3'
+<?php
+
+declare(strict_types=1);
+
+namespace App\Support\Dns;
+
+/** Wegwerf aus tests/waechter-brechen.sh — ein zweiter Bau des Sollzustands. */
+final class NachbauZumBrechen
+{
+    /** @return list<array<string, mixed>> */
+    public static function fuer(string $name, string $v4, string $v6): array
+    {
+        return [
+            ['name' => $name, 'type' => 'A', 'expected' => [$v4]],
+            ['name' => $name, 'type' => 'AAAA', 'expected' => [$v6]],
+        ];
+    }
+}
+PY3
+pruefe "ein zweiter Bau des Sollzustands in app/" \
+  DesiredRecordSourceTest::test_only_one_place_works_out_what_a_domain_needs failed
+rm -f app/Support/Dns/NachbauZumBrechen.php
+pruefe "  … zurückgesetzt wieder grün" \
+  DesiredRecordSourceTest::test_only_one_place_works_out_what_a_domain_needs passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

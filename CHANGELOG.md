@@ -17059,3 +17059,72 @@ gibt es die Liste.
 nicht bestellen lassen: zwei Nameserver mit verschiedenen Antworten, einer, der
 auf die erste Frage schweigt, eine Zone ohne Nameserver. Sieben Eingriffe stehen
 in `tests/waechter-brechen.sh`, jeder einzeln nachgewiesen.
+
+### P7 Schritt 3 — der Sollzustand, und eine Zeile im Plan, die falsch war
+
+`App\Support\Dns\DesiredRecords` ist die eine Stelle, die ausrechnet, was eine
+Domain braucht, damit sie hier funktioniert. Sie kennt keinen Bestand und keine
+Datenbank: ein Name, die Adressen dieses Servers, und heraus kommt, was daraus
+folgt. Damit lässt sie sich ohne Laravel prüfen — der Durchgang misst die Regel
+statt eines Modells.
+
+**Beim Bauen ist aufgefallen, dass `docs/72 §2.1` falsch war.** Dort stand
+„`A`/`AAAA` auf `www` — der Standard-Vhost bedient beide". Er tut es nicht:
+`Site::serverNames()` gibt `array_merge([$domain], $aliases)` zurück, also die
+Domain und ihre **ausdrücklichen** Aliasse. Ein automatisches `www` legt dieses
+Panel nirgends an. Geschrieben hatte ich das aus der Annahme.
+
+> **Wissen aus zweiter Hand sieht aus wie Wissen** — auch das eigene von
+> vorgestern.
+
+**Die Regel wird dadurch einfacher und richtiger.** Ein Alias ist in diesem
+System eine eigene Zeile in `domains` (`type = alias`, `parent_domain_id`),
+genau wie eine Subdomain. Es gibt also keinen Sonderfall: Jede Zeile wird von
+nginx unter ihrem eigenen Namen bedient und braucht Adressen auf genau diesen
+Namen. Wer `www` will, legt es als Alias an — dann steht es von selbst im
+Sollzustand.
+
+**Ohne IPv6 des Servers entsteht kein `AAAA`-Eintrag** — und nicht etwa einer
+mit leerer Erwartung. Der Unterschied ist der zwischen „hier fehlt etwas" und
+„danach wird nicht gefragt"; Punkt 5 des Abnahmekriteriums hängt daran.
+
+**Die erwarteten Adressen gehen durch `inet_pton`/`inet_ntop`.** Das ist keine
+Kosmetik, sondern die Bedingung dafür, dass der Vergleich stimmt:
+`2001:0db8::0001` und `2001:db8::1` sind dieselbe Adresse und nicht dieselbe
+Zeichenkette, und die gemessene Seite kommt immer in der kurzen Form aus dem
+Agenten.
+
+> **Zwei Werte, die dasselbe bedeuten und verschieden geschrieben sind, ergeben
+> einen Befund, den es nicht gibt.**
+
+`CAA` steht ausdrücklich **nicht** im Sollzustand: Kein CAA ist der richtige
+Zustand, und ein Sollwert dafür wäre eine Forderung, die dieses Panel nicht
+stellen will. Gelesen wird es trotzdem (Schritt 6).
+
+**Der Wächter über die Einzahl hat zwei Ausdrücke und nicht einen.** Der erste
+sucht die Liste, wie jemand sie in einem Controller hinschreibt
+(`'type' => 'A'`); der zweite den Satztyp selbst (`'AAAA'`). Gegen den ersten
+allein käme ein Nachbau durch, der seine Typen in einer Konstante oder einem
+`match` führt — und das ist keine ausgefallene Schreibweise, sondern die
+aufgeräumtere.
+
+> **Ein Wächter, der eine Form sucht, findet die andere nicht — und meldet Grün
+> für die aufgeräumtere Fassung des Fehlers.**
+
+Sieben Eingriffe stehen in `tests/waechter-brechen.sh`, und **zwei davon waren
+beim ersten Anlauf untauglich**: einer hat die Zielstelle verfehlt, der andere
+den Code zerstört statt die Regel zu verletzen — er nahm die Prüfung auf
+`inet_pton() === false` heraus, und `inet_ntop(false)` ist ein `TypeError`. Der
+Wächter meldete daraufhin ein **Loch** und kein Rot, und ein Loch sieht aus wie
+„nicht gemessen" und nicht wie „stimmt nicht".
+
+> **Ein Bruch muss die Regel verletzen und nicht den Code zerstören.**
+
+Der siebte Eingriff legt eine Datei an, statt eine zu ändern, und räumt deshalb
+selbst auf: `wiederherstellen` holt geänderte Dateien zurück und lässt eine neue
+stehen.
+
+**Und `DesiredRecords` führt keinen einzigen `use`.** Pint wollte aus einem
+`{@see \SrvPanel\Agent\…}` im Kommentar einen Import machen — das wäre eine
+Abhängigkeit von `app/` auf den Agenten gewesen, die es nur im Kommentar gibt.
+Der Klassenname steht dort jetzt als Text, mit dem Grund daneben.

@@ -95,20 +95,44 @@ Drei Teile:
 
 ### 2.1 Der Sollzustand
 
+> **Berichtigt am 21. August 2026, vor dem Bauen von Schritt 3.** Hier stand
+> eine Zeile „`A`/`AAAA` auf `www` — der Standard-Vhost bedient beide". **Das ist
+> falsch, und ich hatte es angenommen statt nachgesehen.** `Site::serverNames()`
+> gibt `array_merge([$this->domain], $this->aliases)` zurück: die Domain und
+> ihre **ausdrücklichen** Aliasse. Ein automatisches `www` legt dieses Panel
+> nirgends an.
+>
+> **Die Regel wird dadurch einfacher, nicht komplizierter** — und richtiger: Ein
+> Alias ist in diesem System eine eigene Zeile in `domains` (`type = alias`,
+> `parent_domain_id`), genau wie eine Subdomain. Es gibt also gar keinen
+> Sonderfall; jede Zeile braucht Adressen auf ihren eigenen Namen.
+>
+> > **Wissen aus zweiter Hand sieht aus wie Wissen** — auch das eigene von
+> > vorgestern.
+
 | Eintrag | Wert | Warum |
 |---|---|---|
-| `A` auf den Domainnamen | IPv4 des Servers | Ohne ihn ist die Website nicht erreichbar |
-| `AAAA` auf den Domainnamen | IPv6 des Servers | Nur wenn der Server eine hat |
-| `A`/`AAAA` auf `www` | dieselben | Der Standard-Vhost bedient beide |
-| `CAA` | **wird geprüft, nicht gefordert** | §2.4 |
+| `A` auf den Namen der Domain | IPv4 des Servers | Ohne ihn ist die Website nicht erreichbar |
+| `AAAA` auf den Namen der Domain | IPv6 des Servers | **Nur wenn der Server eine hat** — sonst ist sein Fehlen kein Befund |
+| `CAA` | **wird geprüft, nicht gefordert** | §2.4, und deshalb kein Teil des Sollzustands |
+
+**Die Regel in einem Satz:** Jede Zeile in `domains` — Haupt-, Zusatzdomain,
+Subdomain **und Alias** — wird von nginx unter ihrem eigenen Namen bedient und
+braucht deshalb Adressen auf genau diesen Namen. Ein `www`, das der Kunde will,
+legt er als Alias an; dann steht es von selbst im Sollzustand.
 
 **Kein MX, kein SPF, kein DMARC.** Mailversand ist laut `docs/20` eine spätere
 Stufe, und ein Sollwert für etwas, das es nicht gibt, ist ein Fehler mit
 Ansage.
 
-**Und jede Domain des Panels bringt ihren eigenen Sollzustand mit** — auch eine
-Subdomain, die als eigene Domain angelegt ist. Der Sollzustand entsteht aus dem
-Bestand und wird nicht je Domain hingeschrieben.
+**Die erwarteten Adressen werden vereinheitlicht abgelegt.** `2001:0db8::0001`
+und `2001:db8::1` sind dieselbe Adresse und nicht dieselbe Zeichenkette; der
+Abgleich vergleicht Zeichenketten. Beide Seiten gehen deshalb durch
+`inet_ntop(inet_pton(…))` — die gemessene in {@see Packet::addresses}, die
+erwartete an ihrer Quelle.
+
+> **Zwei Werte, die dasselbe bedeuten und verschieden geschrieben sind, ergeben
+> einen Befund, den es nicht gibt.**
 
 ### 2.2 Der Istzustand — und warum nicht der Systemauflöser
 

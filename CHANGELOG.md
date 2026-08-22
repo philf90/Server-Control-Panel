@@ -17881,3 +17881,55 @@ und wäre grün.
 
 Was er **nicht** prüft: ob die Frist *reicht*. Eine zu kurze fiele im Betrieb
 als abgebrochener Lauf auf — hier ist sie nicht messbar.
+
+### P7 Schritt 9 — die Vorschrift der Bilderrunde, und ihr erster Fund
+
+`docs/75` ist die Vorschrift: zwei Ansichten (die Domainseite mit dem
+DNS-Abgleich und Einstellungen → Allgemein), zehn Zustände, beide Themes, 390
+und 1440 px. Das Messmittel ist `tests/bilder-messen.js` unverändert aus dem
+Zweig — es liegt seit dem 19. August als geprüfte Vorschrift im Repo, statt in
+jedem Lauf neu geschrieben zu werden.
+
+**Und die Vormessung im Container hat sofort einen Fund gebracht, der keine
+Zahl erzeugt.** Die Meldung „nicht gefragt" auf der Domainseite sah bei 390 px
+so aus:
+
+```
+F   p6-      hat die Prüfung gar nicht
+ü   abnah    stattgefunden. Das liegt an diesem
+r   me.in    Server und nicht an der Zone — über
+    valid    ihre Einträge ist damit nichts gesagt.
+```
+
+`.notice` ist eine **Flexbox**. Der Wortlaut stand als drei Geschwister darin —
+der Textknoten „Für", das `span.ident` mit dem Namen und der Rest des Satzes —,
+und daraus werden drei Flexkinder mit je eigener Spalte. „Für" bekam fünf Pixel
+Breite. Der Überlauf war dabei **`0`, in allen vier Lagen**, und die Gegenprobe
+schlug mit `200/200` aus: Die Messung war fehlerfrei und hat über diese Ansicht
+nichts gesagt.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+Behoben, indem der Satz in ein `span` wandert — so wie es die übrigen
+einundsechzig Meldungen dieses Projekts tun; die eine Ausnahme war die aus P7.
+
+> **Eine Gewohnheit, an die sich einundsechzig Stellen halten, ist trotzdem
+> keine Regel, solange die zweiundsechzigste sie brechen darf.**
+
+`NoticeChildrenTest` ist diese Regel.
+
+**Und sein erster Bruch blieb stumm** — der lehrreichste Teil. Wird die
+Beachtung der Anführungszeichen im Zerleger abgeschaltet, hört er ein Tag am
+ersten `>` auf zu lesen und verliert damit genau die sechs Meldungen, deren
+öffnendes Tag ein `>` im Attribut trägt (`v-if="… .length > 0"`). Die beiden
+Gegenproben über den Bestand zählten dann sechs weniger — und blieben grün.
+
+> **Eine Gegenprobe über eine Menge merkt nicht, dass ein Teil der Menge
+> fehlt.**
+
+Der bittere Teil: Die Meldung, um die es überhaupt ging, ist eine von diesen
+sechs. Ein Zerleger mit diesem Fehler hätte den Anlass selbst nicht gefunden.
+Der Wächter hat deshalb einen Prüfkörper aus der Hand bekommen statt einer Zahl
+über den Bestand — er hängt an keiner Datei und wird von keinem Aufräumen
+kleiner.

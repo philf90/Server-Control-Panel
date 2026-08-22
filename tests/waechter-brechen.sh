@@ -14369,6 +14369,81 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OneshotDeadlineTest passed
 
 echo
+echo "── NoticeChildrenTest: Text neben einem Element in einer Meldung ──"
+#
+# **Der Anlass hat keine Zahl erzeugt** (`docs/75`): `.notice` ist eine
+# Flexbox, und der Wortlaut der Meldung „nicht gefragt" stand als drei
+# Geschwister darin. Bei 390 px brach „Für" in drei Zeilen — bei einem
+# Ueberlauf von 0 in allen vier Lagen.
+
+vorher_datei resources/js/Pages/Domains/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<span>Für\n              <span class="ident">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = 'Für\n              <span class="ident">'
+s = s.replace(alt, neu, 1)
+alt2 = 'nicht an der Zone — über ihre Einträge ist damit nichts gesagt.</span>'
+assert s.count(alt2) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt2, 'nicht an der Zone — über ihre Einträge ist damit nichts gesagt.', 1))
+PY2
+griff_datei resources/js/Pages/Domains/Show.vue "Text neben einem Element in einer Meldung" &&
+pruefe "Text neben einem Element in einer Meldung" \
+  NoticeChildrenTest::test_a_notice_does_not_put_text_beside_an_element failed
+wiederherstellen
+
+# **Der zweite Eingriff ist der, der beim Bau des Waechters stumm blieb.**
+# Ohne die Beachtung der Anfuehrungszeichen verliert der Zerleger genau die
+# sechs Meldungen, deren Tag ein `>` im Attribut traegt — darunter die, um die
+# es ging. Die beiden Gegenproben ueber den Bestand zaehlen dann sechs
+# weniger und bleiben gruen; erst ein Pruefkoerper aus der Hand faengt es.
+
+vorher_datei tests/Unit/NoticeChildrenTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/NoticeChildrenTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "} elseif ($c === '\"' || $c === \"'\") {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '} elseif (false) {', 1))
+PY2
+griff_datei tests/Unit/NoticeChildrenTest.php "der Zerleger hoert am ersten Spitzklammer-Ende auf" &&
+pruefe "der Zerleger hoert am ersten Spitzklammer-Ende auf" \
+  NoticeChildrenTest::test_the_scan_reads_a_tag_with_an_angle_bracket_in_an_attribute failed
+wiederherstellen
+
+vorher_datei tests/Unit/NoticeChildrenTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/NoticeChildrenTest.php'
+s = open(p, encoding='utf-8').read()
+alt = 'class="[^"]*\\bnotice\\b'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'class="[^"]*\\bnoticex\\b', 1))
+PY2
+griff_datei tests/Unit/NoticeChildrenTest.php "der Zerleger findet keine Meldung mehr" &&
+pruefe "der Zerleger findet keine Meldung mehr" \
+  NoticeChildrenTest::test_there_are_notices_to_check failed
+wiederherstellen
+
+vorher_datei tests/Unit/NoticeChildrenTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/NoticeChildrenTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """                    if ($tiefe === 0) {
+                        $kinder++;
+                    }
+
+                    $tiefe++;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '                    $tiefe++;', 1))
+PY2
+griff_datei tests/Unit/NoticeChildrenTest.php "der Zerleger verschluckt jedes Kindelement" &&
+pruefe "der Zerleger verschluckt jedes Kindelement" \
+  NoticeChildrenTest::test_the_scan_sees_children_inside_a_notice failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NoticeChildrenTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

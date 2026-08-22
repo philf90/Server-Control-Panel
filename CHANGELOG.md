@@ -18046,3 +18046,83 @@ Vormittag), `StandaloneClassTest` (`.obstacle` gab es nur unter `.toggle`) und
 
 > **Eine Behebung ist eine Änderung, und jede Änderung ist ein neuer Anlass zu
 > messen.**
+
+### Die Kacheln der Übersicht laufen von allein — ausserhalb von P7
+
+Wunsch des Betreibers vom 22. August 2026: „Auf der Übersicht in der
+Adminverwaltung sind die Kacheln der Sparklines zu finden. Diese aktualisieren
+sich aktuell nicht automatisch." Der Sammler schreibt im **Zehnsekundentakt**
+(`srvpanel-metrics.service`) — die Zahlen standen also nicht still, die Seite
+sah bloss nicht mehr hin. Wer die Auslastung beobachten wollte, drückte F5.
+
+Gebaut ist beides, was der Wunsch nennt: ein Selbstlauf alle dreissig Sekunden
+und ein Knopf, der von Hand nachlädt. Das Zeichen des Knopfes trägt ein **`A`**,
+solange der Selbstlauf an ist, und verliert es, wenn er aus ist; die Auswahl
+daneben schaltet ihn. Beide stehen im Seitenkopf, also rechts neben
+„Übersicht" — dort, wo jede andere Seite dieses Panels ihre Hauptaktion führt.
+
+**Der Selbstlauf hält an, wo er nichts nützt.** Bei verdecktem Reiter geschieht
+nichts (`document.hidden`), beim Zurückkommen wird sofort nachgeholt, und ein
+zweiter Aufruf während eines laufenden riegelt ab. Der Schalter wohnt im
+Browser und nicht am Konto: Das Thema hell/dunkel gehört dem Menschen und soll
+ihm auf jedes Gerät folgen — dieser Schalter gehört dem **Bildschirm**.
+
+**Der Steuerungscode übergibt jede Angabe jetzt als Verschluss.** Inertia siebt
+vor dem Auflösen; ein fertig übergebener Wert ist aber schon gerechnet, wenn
+das Sieb ihn sieht. Ohne die Umstellung hätte jedes Nachladen der Kacheln die
+ganze Seite gekostet: `system.info`, `pg.server.info` und je Dienst ein
+`service.status`. So kostet es **einen** Aufruf, und den nur, weil die Schwelle
+der Load die Kernzahl braucht.
+
+> **Ein Nachladen, das nur einen Teil holt, spart nur dann etwas, wenn der Rest
+> nicht schon gerechnet ist.**
+
+**Und die zweite Regel gehört diesem Gerüst.** Ein Panel mit Seitenwechsel über
+den Server verliert einen Takt von selbst — die nächste Seite ist ein neues
+Dokument. Inertia tauscht die Seite **im selben Dokument** aus.
+
+> **Ein Takt ohne Abschaltung hört nicht auf, wenn die Seite verschwindet — er
+> hört auf, wenn der Browser zugeht.**
+
+**Die Wächter.** `PartialReloadTest` hält jeden Namen in einem `only:` gegen die
+Angaben des `Inertia::render`, das diese Seite erzeugt — er verlangt, dass es
+die Angabe gibt **und** dass sie als Verschluss kommt. `TeardownTest` verlangt
+zu jedem `setInterval` ein `clearInterval` und zu jedem Horcher an `document`
+oder `window` seine Abmeldung, beides in einem Haken, der beim Verlassen läuft.
+
+**Und der erste Prüfkörper von `PartialReloadTest` verglich nur die Namen.** Der
+Bruch nahm dem Leser das Überspringen von Zeichenketten; das Komma in
+`'nicht, wirklich'` beendete die Angabe zu früh, als Wert stand `'nicht` da —
+und der Wächter blieb grün, weil der Schlüssel `name` weiter in der Liste stand.
+
+> **Ein Prüfkörper, der nur die Namen vergleicht, merkt nicht, dass die Werte
+> falsch abgeschnitten sind.**
+
+Derselbe Satz wie bei `FileSearchTest` (`docs/66`): Er verglich die Schlüssel,
+die beide Seiten schicken, und beide schickten denselben kaputten Wert.
+
+**Zwei Funde am Bild, die keine Zahl gehabt hätte.** Die Messung meldete in
+allen vier Lagen `dokument: 0` und die Gegenprobe `200/200` — und im Knopf stand
+bei 1440 px **kein Zeichen**: `.action-icon` ist ab 720 px `display: none`, weil
+ein Zeichen neben seinem Wort dort gemessen nichts spart (`docs/64 §12`). Das
+stimmt für ein Zeichen, das dasselbe sagt wie sein Wort; das `A` sagt etwas, das
+in keinem Wort des Knopfes steht.
+
+> **Eine Regel, die den Platz begründet, gilt nicht für ein Zeichen, das eine
+> Auskunft trägt.**
+
+Der zweite betraf das `A` selbst: Als Strichzeichnung im 24er-Raster wäre es bei
+der gezeigten Größe von 20 px rund fünf Pixel hoch — bei einer Strichstärke von
+1,33 px liefen die beiden Schrägen und der Querstrich ineinander. Es wird
+deshalb **gesetzt und nicht gezeichnet** (`<text>` mit `fill` und ausdrücklich
+ohne `stroke`), und der Ring hat fünf Fassungen gebraucht, bis der Buchstabe
+ihn nicht mehr berührte. Angesehen im Browser, nicht gerechnet.
+
+**Ein bestehender Wächter hat dabei ein falsches Rot geliefert, und das war ein
+Fund.** `ActionIconTest` suchte `name` unmittelbar hinter `<ActionIcon` — bei
+einem Zeichen mit mehreren Attributen steht es nicht mehr zuerst. Gemeldet wurde
+„diese Zeichnung verlangt kein Knopf", während der Knopf sie sehr wohl verlangte;
+die Gegenrichtung wäre dabei still grün geblieben.
+
+> **Ein Ausdruck, der ein Attribut an einer festen Stelle sucht, findet es nicht
+> mehr, sobald ein zweites danebensteht.**

@@ -44,7 +44,10 @@ final class ActionIconTest extends TestCase
      *
      * @var list<string>
      */
-    private const USERS = ['resources/js/Pages/Files/Index.vue'];
+    private const USERS = [
+        'resources/js/Pages/Files/Index.vue',
+        'resources/js/Pages/Overview.vue',
+    ];
 
     /** Für jeden verlangten Namen gibt es eine Zeichnung. */
     public function test_every_requested_icon_is_drawn(): void
@@ -215,7 +218,21 @@ final class ActionIconTest extends TestCase
         $namen = [];
 
         foreach (self::USERS as $pfad) {
-            preg_match_all('/<ActionIcon name="(\w+)"/', $this->read($pfad), $treffer);
+            /*
+             * **`[^>]*` zwischen Marke und `name`, und das ist bezahlt.** Der
+             * erste Wurf verlangte `name` unmittelbar hinter `<ActionIcon`.
+             * Ein Knopf, dessen Zeichen mehrere Attribute trägt, steht aber
+             * über mehrere Zeilen — und dann kommt `name` nicht zuerst.
+             *
+             * Aufgefallen ist es als **falsches Rot**: `refresh` stand als
+             * Zeichnung da, die niemand verlangt, während der Knopf sie sehr
+             * wohl verlangte. Der Fall daneben — jedes verlangte Zeichen ist
+             * gezeichnet — wäre dabei still grün geblieben.
+             *
+             * > **Ein Ausdruck, der ein Attribut an einer festen Stelle sucht,
+             * > findet es nicht mehr, sobald ein zweites danebensteht.**
+             */
+            preg_match_all('/<ActionIcon\b[^>]*\bname="(\w+)"/', $this->read($pfad), $treffer);
 
             $namen = array_merge($namen, $treffer[1]);
         }

@@ -64,7 +64,7 @@ final class ClassNameTest extends TestCase
         'small',
         'source', 'spaced', 'split', 'sr', 'stacks', 'state', 'strength', 'string', 'sub', 'subline',
         'tag', 'tasks', 'text', 'tight', 'tile', 'tiles', 'time', 'title', 'toggle', 'tok',
-        'top', 'topbar', 'tree', 'trend', 'twig', 'unit', 'usage', 'value', 'variable', 'verb',
+        'top', 'topbar', 'tree', 'trend', 'turns', 'twig', 'unit', 'usage', 'value', 'variable', 'verb',
         'version', 'warn',
         'wide', 'who', 'with',
     ];

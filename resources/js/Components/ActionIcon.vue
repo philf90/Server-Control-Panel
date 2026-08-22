@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /*
- * Die Zeichen der Handlungen — vier, und der Satz ist geschlossen.
+ * Die Zeichen der Handlungen — ein geschlossener Satz.
  *
  * **Warum das nicht `NavIcon` ist.** Dort steht der Satz der *Navigation*, und
  * `NavIconTest` hält ihn eins zu eins gegen die Menüpunkte in `PanelLayout`:
@@ -45,9 +45,35 @@ const PATHS: Record<string, string> = {
   // Suchen: die Lupe. Das eine Zeichen, bei dem die Verkehrsform stärker ist
   // als jede eigene Idee.
   search: 'M11 4a7 7 0 100 14 7 7 0 000-14zM20 20l-4-4',
+
+  // Aktualisieren: der Pfeil, der einmal herumgeht. Auch hier ist die
+  // Verkehrsform stärker als jede eigene Idee — der Bogen lässt oben rechts
+  // eine Lücke, und die Spitze steht als Winkel darin.
+  //
+  // **Der Ring nimmt das Raster ganz aus (r = 9), und das ist gemessen und
+  // nicht geschätzt.** In seiner Mitte steht das `A` des Selbstlaufs; bei
+  // r = 8 berührte es den Bogen links und rechts, und bei der gezeigten Größe
+  // von 20 px war daraus ein Fleck geworden. Fünf Fassungen aufgenommen, im
+  // Browser angesehen, diese gewählt.
+  refresh: 'M21 12a9 9 0 11-2.64-6.36L21 8M21 4v4h-4',
 }
 
-const props = defineProps<{ name: string }>()
+const props = withDefaults(defineProps<{
+  /** Welche Zeichnung. Die Namen stehen in {@link PATHS}. */
+  name: string
+
+  /**
+   * Ein Buchstabe in der Mitte der Zeichnung — leer heisst: keiner.
+   *
+   * **Warum es das gibt.** Der Selbstlauf der Übersicht ist ein Zustand des
+   * Knopfes und nicht eine zweite Handlung: Derselbe Knopf aktualisiert von
+   * Hand, und ob er das ausserdem von allein tut, sagt das `A` darin. Zwei
+   * Zeichnungen dafür — `refresh` und `refreshAuto` — wären zwei Fassungen
+   * derselben Sache, und die zweite ist die, die beim nächsten Umzeichnen
+   * stehenbleibt.
+   */
+  letter?: string
+}>(), { letter: '' })
 
 const path = (): string => PATHS[props.name] ?? ''
 </script>
@@ -69,5 +95,34 @@ const path = (): string => PATHS[props.name] ?? ''
     aria-hidden="true"
   >
     <path :d="path()" />
+
+    <!--
+      **Der Buchstabe wird gesetzt und nicht gezeichnet.**
+
+      Der Satz besteht aus Umrissen, und dabei bleibt es — ein Piktogramm mit
+      einer Fläche dazwischen läse sich als eigene Bedeutung. Ein Buchstabe ist
+      aber kein Piktogramm: Als Strichzeichnung im 24er-Raster wäre das `A`
+      sechs Einheiten hoch, also bei der gezeigten Größe von 20 px rund fünf
+      Pixel — mit einer Strichstärke von 1,33 px. Die beiden Schrägen und der
+      Querstrich liefen dabei ineinander.
+
+      Deshalb `<text>` mit `fill` und ausdrücklich **ohne** `stroke`: Ohne das
+      zweite trüge er die 1,6 des Umrisses als Kontur und wäre unlesbar.
+
+      `y` und nicht `dominant-baseline`: Die Grundlinie steht damit an einer
+      Stelle, die jeder Browser gleich rechnet. 15,3 ist die Mitte plus der
+      halben Versalhöhe von 9 px Schriftgrad — im Browser nachgesehen, nicht
+      gerechnet: Bei 11 px stiess der Buchstabe an den Bogen.
+    -->
+    <text
+      v-if="letter"
+      x="12"
+      y="15.3"
+      text-anchor="middle"
+      font-size="9"
+      font-weight="700"
+      fill="currentColor"
+      stroke="none"
+    >{{ letter }}</text>
   </svg>
 </template>

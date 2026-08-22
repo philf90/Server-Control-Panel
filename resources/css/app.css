@@ -3317,6 +3317,29 @@ p:not([class]) {
 }
 
 /*
+ * **Ein Zeichen, das einen Zustand trägt, bleibt stehen — auf jeder Breite.**
+ *
+ * Die Regel darüber ist eine Aussage über **Platz**: Neben einem Wort spart
+ * ein Zeichen ab 720 px gemessen nichts (`docs/64 §12`), also steht es dort
+ * nicht. Das stimmt für ein Zeichen, das dasselbe sagt wie sein Wort.
+ *
+ * Der Selbstlauf der Übersicht ist ein anderer Fall: Das `A` im Ring sagt, ob
+ * die Kacheln von allein nachladen, und das steht in keinem Wort des Knopfes.
+ * Unter der Regel darüber wäre diese Auskunft auf dem Telefon da und auf dem
+ * Monitor fort — also genau dort fort, wo jemand eine Übersicht offen liegen
+ * lässt.
+ *
+ * > **Eine Regel, die den Platz begründet, gilt nicht für ein Zeichen, das
+ * > eine Auskunft trägt.**
+ *
+ * Gefunden auf dem Bild und nicht im Test: Die Messung meldete `dokument: 0`
+ * in allen vier Lagen, und im Knopf stand bei 1440 px kein Zeichen.
+ */
+.action-icon.state {
+  display: block;
+}
+
+/*
  * `.button.search-toggle` und nicht `.search-toggle`: `ButtonStyleTest` liest
  * die bekannten Knopfklassen aus diesem Stylesheet, statt sie aufzuzählen —
  * eine Aufzählung dort wäre der zweite Ort für dieselbe Liste. Wer eine
@@ -3957,6 +3980,33 @@ p:not([class]) {
 
   50% {
     opacity: 0.25;
+  }
+}
+
+/*
+ * Ein Zeichen, das sich dreht, solange sein Vorgang läuft.
+ *
+ * **Der Anlass ist eine Regel dieses Projekts und kein Fund.** Die Übersicht
+ * lädt ihre Kacheln seit dem 22. August 2026 auf Knopfdruck nach. Der Vorgang
+ * dauert Bruchteile einer Sekunde, und die Zahlen darunter ändern sich dabei
+ * oft nicht sichtbar — ein Klick sähe damit aus wie einer, der nichts getan
+ * hat. Genau das steht seit Monaten als Befund im Projekt: „ein Umschalter,
+ * der sichtbar nichts tat".
+ *
+ * **Kein `transform-origin`.** Das `<svg>` steht als ersetztes Element in der
+ * Zeile; sein Bezugspunkt ist von sich aus die Mitte seines Kastens. Ein
+ * `transform-box: fill-box` bezöge sich dagegen auf die Zeichnung darin, und
+ * die füllt das Raster nicht ganz aus — der Ring liefe dann leicht unrund.
+ *
+ * Anhalten bei `prefers-reduced-motion` besorgt die Regel ganz unten für alle.
+ */
+.turns {
+  animation: zeichen-dreht 0.9s linear infinite;
+}
+
+@keyframes zeichen-dreht {
+  to {
+    transform: rotate(1turn);
   }
 }
 

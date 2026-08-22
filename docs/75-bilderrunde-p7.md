@@ -5,10 +5,10 @@ Ansicht und Zustand: Schiebt die Seite bei 390 px aus dem Bild, und sieht sie in
 beiden Themes so aus, wie sie gemeint ist?
 
 Dieses Dokument ist die Vorschrift. Das Protokoll entsteht **während** des Laufs
-und nicht danach — und es bekommt seine Nummer erst, wenn die erste Ansicht
-gemessen ist. Hier steht sie deshalb noch nicht: Ein Verweis auf ein Dokument,
-das es nicht gibt, ist ein toter Verweis, und `DocLinkTest` besteht zu Recht
-darauf. Er hat diesen Absatz beim Schreiben schon einmal rot gemacht.
+und nicht danach; es ist **`docs/76`** und angelegt worden, als die erste Lage
+gemessen war. Vorher stand hier keine Nummer — ein Verweis auf ein Dokument, das
+es nicht gibt, ist ein toter Verweis, und `DocLinkTest` hat genau diesen Absatz
+beim Schreiben schon einmal rot gemacht.
 
 **Er ist zugleich Punkt 8 des Abnahmekriteriums** (`docs/72 §3`): „Bei 390 px
 läuft nichts über, in beiden Themes." Anders als die übrigen sieben ist dieser

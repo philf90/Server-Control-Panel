@@ -48,18 +48,46 @@ final class OverviewController extends Controller
             return $this->forCustomer($account);
         }
 
+        /*
+         * **Jede Angabe als Verschluss, und das ist keine Formsache.**
+         *
+         * Die Kacheln laden sich seit dem 22. August 2026 alle dreissig
+         * Sekunden selbst nach — `router.reload({ only: ['tiles'] })`. Inertia
+         * siebt die Angaben **vor** dem Auflösen: Was der Browser nicht
+         * verlangt, wird gar nicht erst gerechnet. Stünden hier fertige Werte,
+         * wäre das Sieb wirkungslos, denn dann sind sie schon gerechnet, bevor
+         * `Inertia::render` sie überhaupt sieht.
+         *
+         * Der Unterschied ist gemessen in Aufrufen an den Agenten: eine volle
+         * Seite kostet `system.info`, `pg.server.info` und je Dienst ein
+         * `service.status` — mindestens fünf. Ein Nachladen der Kacheln kostet
+         * **einen**, und den nur, weil die Schwelle der Load die Kernzahl
+         * braucht.
+         *
+         * > **Ein Nachladen, das nur einen Teil holt, spart nur dann etwas,
+         * > wenn der Rest nicht schon gerechnet ist.**
+         *
+         * `PartialReloadTest` hält beide Hälften zusammen: Jeder Name in einem
+         * `only:` zeigt auf eine Angabe, die es gibt — und auf eine, die als
+         * Verschluss übergeben wird.
+         */
+        $info = null;
+
         // Ein Aufruf, nicht drei: `system.info` liefert alles auf einmal, und
         // jeder weitere wäre ein Verbindungsaufbau zum Agenten für Werte, die
-        // schon dastehen.
-        $info = $this->systemInfo($agent);
+        // schon dastehen. Der Verschluss merkt sich die Antwort, damit aus den
+        // vier Lesern nicht vier Aufrufe werden.
+        $system = function () use ($agent, &$info): array {
+            return $info ??= $this->systemInfo($agent);
+        };
 
         return Inertia::render('Overview', [
-            'server' => $this->server($info, $settings),
-            'hosting' => $this->hosting(),
-            'tiles' => $this->tiles($store, $this->cores($info)),
-            'services' => $this->services($agent),
-            'filesystems' => $this->filesystems($info),
-            'processes' => $this->processes($info),
+            'server' => fn (): array => $this->server($system(), $settings),
+            'hosting' => fn (): array => $this->hosting(),
+            'tiles' => fn (): array => $this->tiles($store, $this->cores($system())),
+            'services' => fn (): array => $this->services($agent),
+            'filesystems' => fn (): array => $this->filesystems($system()),
+            'processes' => fn (): array => $this->processes($system()),
         ]);
     }
 

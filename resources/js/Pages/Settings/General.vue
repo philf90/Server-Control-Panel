@@ -3,6 +3,7 @@ import { useForm, Head } from '@inertiajs/vue3'
 import FormErrors from '../../Components/FormErrors.vue'
 import Section from '../../Components/Section.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import Idents from '../../Components/Idents.vue'
 
 /*
  * Was für den ganzen Server gilt und zu keinem Dienst gehört (docs/40).
@@ -129,11 +130,11 @@ function submit(): void {
           <tbody>
             <tr>
               <td>Abgeleitet</td>
-              <td class="right ident">{{ props.addresses.derived.join(' ') || '—' }}</td>
+              <td class="right ident"><Idents :values="props.addresses.derived" /></td>
             </tr>
             <tr>
               <td>Verglichen wird gegen</td>
-              <td class="right ident">{{ props.addresses.effective.join(' ') || '—' }}</td>
+              <td class="right ident"><Idents :values="props.addresses.effective" /></td>
             </tr>
           </tbody>
         </table>

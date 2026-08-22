@@ -3317,6 +3317,29 @@ p:not([class]) {
 }
 
 /*
+ * **Ein Zeichen, das einen Zustand trägt, bleibt stehen — auf jeder Breite.**
+ *
+ * Die Regel darüber ist eine Aussage über **Platz**: Neben einem Wort spart
+ * ein Zeichen ab 720 px gemessen nichts (`docs/64 §12`), also steht es dort
+ * nicht. Das stimmt für ein Zeichen, das dasselbe sagt wie sein Wort.
+ *
+ * Der Selbstlauf der Übersicht ist ein anderer Fall: Das `A` im Ring sagt, ob
+ * die Kacheln von allein nachladen, und das steht in keinem Wort des Knopfes.
+ * Unter der Regel darüber wäre diese Auskunft auf dem Telefon da und auf dem
+ * Monitor fort — also genau dort fort, wo jemand eine Übersicht offen liegen
+ * lässt.
+ *
+ * > **Eine Regel, die den Platz begründet, gilt nicht für ein Zeichen, das
+ * > eine Auskunft trägt.**
+ *
+ * Gefunden auf dem Bild und nicht im Test: Die Messung meldete `dokument: 0`
+ * in allen vier Lagen, und im Knopf stand bei 1440 px kein Zeichen.
+ */
+.action-icon.state {
+  display: block;
+}
+
+/*
  * `.button.search-toggle` und nicht `.search-toggle`: `ButtonStyleTest` liest
  * die bekannten Knopfklassen aus diesem Stylesheet, statt sie aufzuzählen —
  * eine Aufzählung dort wäre der zweite Ort für dieselbe Liste. Wer eine
@@ -3551,6 +3574,62 @@ p:not([class]) {
 
 .toggle .hint {
   margin-top: 0;
+}
+
+/*
+ * Ein Schalter, den man nicht umlegen kann, sieht aus wie einer.
+ *
+ * **Befund 3 der Bilderrunde** (`docs/76`), gemeldet vom Betreiber: „Das
+ * Kästchen ‚Als Platzhalter bestellen' lässt sich gerade gar nicht anklicken."
+ * Dass es das nicht tut, war richtig — ein Platzhalter geht nur über DNS-01,
+ * und dafür fehlten die Zugangsdaten. Der Fehler war die Anzeige: `.toggle`
+ * setzt `cursor: pointer` **unbedingt**, die Beschriftung stand in voller
+ * `--text-strong`-Farbe, und blass war allein das Kästchen, weil der Browser
+ * es blass rendert.
+ *
+ * > **Ein Bedienelement, das nicht bedienbar ist und trotzdem den Zeigefinger
+ * > zeigt, sagt dem Kunden, er habe falsch geklickt.**
+ *
+ * **Dieselbe Datei kannte die Lösung** — für Felder, ein paar hundert Zeilen
+ * weiter oben (`.field input:disabled`): gedämpfte Schrift, gestrichelter
+ * Rand, `cursor: default`. Sie war für das eine aufgeschrieben und für das
+ * andere nicht.
+ *
+ * > **Eine Regel, die für ein Feld gilt, gilt nicht für den Schalter daneben,
+ * > bloss weil sie dieselbe ist.**
+ *
+ * `:has()` und nicht eine Klasse an der Vorlage: Der Zustand steht am
+ * `input`, und wer ihn dort setzt, soll ihn nicht zweimal schreiben müssen.
+ * Eine zweite Fassung wäre die, die veraltet.
+ */
+.toggle:has(input:disabled) {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+/*
+ * Und der Grund steht abgesetzt.
+ *
+ * **Er stand als dritter `.hint` unter dem Kästchen**, in derselben Grösse und
+ * Farbe wie die zwei erklärenden davor — und las sich damit als weitere
+ * Erklärung statt als Sperre. Der Betreiber hat ihn übersehen.
+ *
+ * > **Ein Grund, der aussieht wie eine Fussnote, wird gelesen wie eine.**
+ *
+ * Die Farbe ist `--warn` und nicht `--critical`: Es ist nichts kaputt, es
+ * fehlt etwas. Und sie steht neben der gedämpften Beschriftung — der einzige
+ * Satz in dieser Zeile, der nicht blass ist, ist der, der erklärt warum.
+ *
+ * **Freistehend und nicht als `.toggle .obstacle`.** Der erste Wurf band sie an
+ * den Schalter, und `StandaloneClassTest` hat zugebissen: Eine Klasse, die es
+ * nur unter einem Vorfahren gibt, tut ausserhalb davon nichts — und wer sie
+ * dort verwendet, bekommt keinen Fehler, sondern ein Nichts.
+ *
+ * > **Eine Klasse, die es nur als Nachfahrenregel gibt, ist ausserhalb ihres
+ * > Vorfahren ein Wunsch.**
+ */
+.obstacle {
+  color: var(--warn);
 }
 
 /*
@@ -3901,6 +3980,33 @@ p:not([class]) {
 
   50% {
     opacity: 0.25;
+  }
+}
+
+/*
+ * Ein Zeichen, das sich dreht, solange sein Vorgang läuft.
+ *
+ * **Der Anlass ist eine Regel dieses Projekts und kein Fund.** Die Übersicht
+ * lädt ihre Kacheln seit dem 22. August 2026 auf Knopfdruck nach. Der Vorgang
+ * dauert Bruchteile einer Sekunde, und die Zahlen darunter ändern sich dabei
+ * oft nicht sichtbar — ein Klick sähe damit aus wie einer, der nichts getan
+ * hat. Genau das steht seit Monaten als Befund im Projekt: „ein Umschalter,
+ * der sichtbar nichts tat".
+ *
+ * **Kein `transform-origin`.** Das `<svg>` steht als ersetztes Element in der
+ * Zeile; sein Bezugspunkt ist von sich aus die Mitte seines Kastens. Ein
+ * `transform-box: fill-box` bezöge sich dagegen auf die Zeichnung darin, und
+ * die füllt das Raster nicht ganz aus — der Ring liefe dann leicht unrund.
+ *
+ * Anhalten bei `prefers-reduced-motion` besorgt die Regel ganz unten für alle.
+ */
+.turns {
+  animation: zeichen-dreht 0.9s linear infinite;
+}
+
+@keyframes zeichen-dreht {
+  to {
+    transform: rotate(1turn);
   }
 }
 

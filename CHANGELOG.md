@@ -17978,3 +17978,151 @@ stellte jede der bis zu `Page::SIZE` Zeilen ihre eigene Abfrage. `hasOne` und
 nicht `hasMany`, weil `Dns::store()` je Domain genau eine Zeile schreibt — eine
 Beziehung, die eine Liste verspricht, die nie länger als eins wird, ist eine
 falsche Auskunft über die Tabelle.
+
+### Die drei Befunde der Bilderrunde
+
+Alle drei aus `docs/76`, und **keinen davon hat eine Zahl gefunden** — sie
+traten in Lagen auf, die vollständig grün gemessen waren (`dokument: 0`,
+`schiebt: []`, Gegenprobe `200/200`).
+
+**Befund 1 und 2 haben dieselbe Ursache.** `2a0a:4cc0:c1:ebd1:b82d:51ff:fe72:3083`
+brach bei 390 px nach `51ff:f` — also **mitten im Hextet**; wer das liest, sieht
+`f` und `e72` als zwei gültige Gruppen und zählt acht, wo sieben stehen. Und
+`*.cloudlab24.de cloudlab24.de` standen als zwei Namen nebeneinander, getrennt
+nur durch ein Leerzeichen, beide mit Punkten darin.
+
+> **Ein Umbruch ohne bevorzugte Stelle bricht dort, wo es passt, und nicht dort,
+> wo man liest.**
+
+`Idents.vue` ist die eine Stelle: ein Komma zwischen den Werten, eine
+Umbruchgelegenheit nach jedem `:` und `.` **innerhalb** eines Wertes — und
+**nie hinter dem letzten**. Der erste Wurf setzte sie überall, und im Bild fiel
+damit die schliessende Klammer eines Satzes allein auf die nächste Zeile.
+
+> **Eine Umbruchgelegenheit am Ende eines Wertes gehört nicht mehr dem Wert.**
+
+**Beim Beheben kamen vier Fundstellen dazu**, die der Befund nicht genannt
+hatte: `Settings/Php.vue` und `Settings/Tls.vue`, zwei davon mit Domainnamen und
+IP-Adressen.
+
+> **Ein Befund, den man an der Fundstelle behebt, ist an den anderen
+> Fundstellen nicht behoben.**
+
+**Befund 3 hat kein Messmittel finden können.** Das Kästchen „Als Platzhalter
+bestellen" liess sich nicht anklicken — richtigerweise, denn ein Platzhalter
+geht nur über DNS-01 und die Zugangsdaten fehlten. Der Fehler war die Anzeige:
+`.toggle` setzte `cursor: pointer` unbedingt, die Beschriftung stand in voller
+Farbe, und der Hinderungsgrund war der dritte `.hint` in derselben Grösse wie
+die zwei erklärenden davor.
+
+> **Ein Bedienelement, das nicht bedienbar ist und trotzdem den Zeigefinger
+> zeigt, sagt dem Kunden, er habe falsch geklickt.**
+
+Die Lösung stand seit Monaten in derselben Datei — für Felder
+(`.field input:disabled`), mit eigener Begründung im Kommentar.
+
+> **Eine Regel, die für ein Feld gilt, gilt nicht für den Schalter daneben,
+> bloss weil sie dieselbe ist.**
+
+Derselbe Satz stand am selben Tag über `SettingsWriterReachTest`.
+
+**Die Wächter.** `IdentListTest` verbietet ein `join()` **innerhalb** eines
+`.ident` — dort, wo Monospace und `overflow-wrap: anywhere` zusammenkommen; ein
+`join()` in einer Aufzählung im Fliesstext bleibt erlaubt.
+`DisabledStateTest` zählt aus den Vorlagen auf, welche Hüllen ein `<label>`
+trägt, und verlangt für jede eine Regel in `app.css`, die `disabled` kennt.
+
+**Und der erste Wurf von `IdentListTest` fing den Fall nicht, der ihn ausgelöst
+hatte:** Er suchte Klasse und `join()` in derselben Zeile, die Fundstelle stand
+über zwei. Der Bruch änderte die Datei nachweislich, und der Wächter blieb grün.
+
+> **Ein Wächter, der den Fall nicht fängt, der ihn ausgelöst hat, ist keiner.**
+
+**Vier bestehende Wächter haben die Behebung abgefangen**, jeder zu Recht:
+`NoticeChildrenTest` und `NoticeShapeTest` (die neue Komponente stand als
+zweites Flexkind neben Text in einer Meldung — genau die Regel vom selben
+Vormittag), `StandaloneClassTest` (`.obstacle` gab es nur unter `.toggle`) und
+`ClassNameTest` (das Wort fehlte im Vokabular).
+
+> **Eine Behebung ist eine Änderung, und jede Änderung ist ein neuer Anlass zu
+> messen.**
+
+### Die Kacheln der Übersicht laufen von allein — ausserhalb von P7
+
+Wunsch des Betreibers vom 22. August 2026: „Auf der Übersicht in der
+Adminverwaltung sind die Kacheln der Sparklines zu finden. Diese aktualisieren
+sich aktuell nicht automatisch." Der Sammler schreibt im **Zehnsekundentakt**
+(`srvpanel-metrics.service`) — die Zahlen standen also nicht still, die Seite
+sah bloss nicht mehr hin. Wer die Auslastung beobachten wollte, drückte F5.
+
+Gebaut ist beides, was der Wunsch nennt: ein Selbstlauf alle dreissig Sekunden
+und ein Knopf, der von Hand nachlädt. Das Zeichen des Knopfes trägt ein **`A`**,
+solange der Selbstlauf an ist, und verliert es, wenn er aus ist; die Auswahl
+daneben schaltet ihn. Beide stehen im Seitenkopf, also rechts neben
+„Übersicht" — dort, wo jede andere Seite dieses Panels ihre Hauptaktion führt.
+
+**Der Selbstlauf hält an, wo er nichts nützt.** Bei verdecktem Reiter geschieht
+nichts (`document.hidden`), beim Zurückkommen wird sofort nachgeholt, und ein
+zweiter Aufruf während eines laufenden riegelt ab. Der Schalter wohnt im
+Browser und nicht am Konto: Das Thema hell/dunkel gehört dem Menschen und soll
+ihm auf jedes Gerät folgen — dieser Schalter gehört dem **Bildschirm**.
+
+**Der Steuerungscode übergibt jede Angabe jetzt als Verschluss.** Inertia siebt
+vor dem Auflösen; ein fertig übergebener Wert ist aber schon gerechnet, wenn
+das Sieb ihn sieht. Ohne die Umstellung hätte jedes Nachladen der Kacheln die
+ganze Seite gekostet: `system.info`, `pg.server.info` und je Dienst ein
+`service.status`. So kostet es **einen** Aufruf, und den nur, weil die Schwelle
+der Load die Kernzahl braucht.
+
+> **Ein Nachladen, das nur einen Teil holt, spart nur dann etwas, wenn der Rest
+> nicht schon gerechnet ist.**
+
+**Und die zweite Regel gehört diesem Gerüst.** Ein Panel mit Seitenwechsel über
+den Server verliert einen Takt von selbst — die nächste Seite ist ein neues
+Dokument. Inertia tauscht die Seite **im selben Dokument** aus.
+
+> **Ein Takt ohne Abschaltung hört nicht auf, wenn die Seite verschwindet — er
+> hört auf, wenn der Browser zugeht.**
+
+**Die Wächter.** `PartialReloadTest` hält jeden Namen in einem `only:` gegen die
+Angaben des `Inertia::render`, das diese Seite erzeugt — er verlangt, dass es
+die Angabe gibt **und** dass sie als Verschluss kommt. `TeardownTest` verlangt
+zu jedem `setInterval` ein `clearInterval` und zu jedem Horcher an `document`
+oder `window` seine Abmeldung, beides in einem Haken, der beim Verlassen läuft.
+
+**Und der erste Prüfkörper von `PartialReloadTest` verglich nur die Namen.** Der
+Bruch nahm dem Leser das Überspringen von Zeichenketten; das Komma in
+`'nicht, wirklich'` beendete die Angabe zu früh, als Wert stand `'nicht` da —
+und der Wächter blieb grün, weil der Schlüssel `name` weiter in der Liste stand.
+
+> **Ein Prüfkörper, der nur die Namen vergleicht, merkt nicht, dass die Werte
+> falsch abgeschnitten sind.**
+
+Derselbe Satz wie bei `FileSearchTest` (`docs/66`): Er verglich die Schlüssel,
+die beide Seiten schicken, und beide schickten denselben kaputten Wert.
+
+**Zwei Funde am Bild, die keine Zahl gehabt hätte.** Die Messung meldete in
+allen vier Lagen `dokument: 0` und die Gegenprobe `200/200` — und im Knopf stand
+bei 1440 px **kein Zeichen**: `.action-icon` ist ab 720 px `display: none`, weil
+ein Zeichen neben seinem Wort dort gemessen nichts spart (`docs/64 §12`). Das
+stimmt für ein Zeichen, das dasselbe sagt wie sein Wort; das `A` sagt etwas, das
+in keinem Wort des Knopfes steht.
+
+> **Eine Regel, die den Platz begründet, gilt nicht für ein Zeichen, das eine
+> Auskunft trägt.**
+
+Der zweite betraf das `A` selbst: Als Strichzeichnung im 24er-Raster wäre es bei
+der gezeigten Größe von 20 px rund fünf Pixel hoch — bei einer Strichstärke von
+1,33 px liefen die beiden Schrägen und der Querstrich ineinander. Es wird
+deshalb **gesetzt und nicht gezeichnet** (`<text>` mit `fill` und ausdrücklich
+ohne `stroke`), und der Ring hat fünf Fassungen gebraucht, bis der Buchstabe
+ihn nicht mehr berührte. Angesehen im Browser, nicht gerechnet.
+
+**Ein bestehender Wächter hat dabei ein falsches Rot geliefert, und das war ein
+Fund.** `ActionIconTest` suchte `name` unmittelbar hinter `<ActionIcon` — bei
+einem Zeichen mit mehreren Attributen steht es nicht mehr zuerst. Gemeldet wurde
+„diese Zeichnung verlangt kein Knopf", während der Knopf sie sehr wohl verlangte;
+die Gegenrichtung wäre dabei still grün geblieben.
+
+> **Ein Ausdruck, der ein Attribut an einer festen Stelle sucht, findet es nicht
+> mehr, sobald ein zweites danebensteht.**

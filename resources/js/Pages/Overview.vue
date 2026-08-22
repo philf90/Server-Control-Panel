@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { Link, router } from '@inertiajs/vue3'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import ActionIcon from '../Components/ActionIcon.vue'
 import Bar from '../Components/Bar.vue'
 import Section from '../Components/Section.vue'
 import Badge from '../Components/Badge.vue'
@@ -122,6 +123,141 @@ const kernelText = computed(() => {
   return props.server.kernel_stale === true ? `${kernel} — ein neuerer ist installiert` : kernel
 })
 
+/*
+ * ═══════════════════════════════════════════════════════════════════════
+ * Der Selbstlauf der Kacheln
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * **Der Anlass.** Vom Betreiber am 22. August 2026 gemeldet: „Die Kacheln der
+ * Sparklines aktualisieren sich aktuell nicht automatisch." Der Sammler
+ * schreibt im **Zehnsekundentakt** (`srvpanel-metrics.service`) — die Zahlen
+ * standen also nicht still, die Seite sah bloss nicht mehr hin. Wer die
+ * Auslastung beobachten wollte, drückte F5.
+ *
+ * **Dreissig Sekunden.** Der Sammler liefert in dieser Zeit drei neue
+ * Stützstellen; schneller nachzuladen hiesse, dieselbe Kurve noch einmal zu
+ * holen.
+ *
+ * **Nur die Kacheln.** `only: ['tiles']` — Dienste, Dateisysteme und Prozesse
+ * bleiben, wie sie sind. Der Steuerungscode übergibt jede Angabe deshalb als
+ * Verschluss; ohne das wäre das Sieb wirkungslos (dort steht die Begründung
+ * und die gemessene Zahl der Agentenaufrufe).
+ */
+
+/** Wie oft nachgeladen wird. */
+const CYCLE_MS = 30_000
+
+/** Wo der Browser sich merkt, ob der Selbstlauf an ist. */
+const STORAGE_KEY = 'srvpanel.overview.auto'
+
+/**
+ * Ob der Selbstlauf läuft — gemerkt im Browser und nicht am Konto.
+ *
+ * **Warum `localStorage` und nicht das Profil.** Das Thema hell/dunkel gehört
+ * dem Menschen und soll ihm auf jedes Gerät folgen. Dieser Schalter gehört dem
+ * **Bildschirm**: Auf dem Monitor neben dem Schreibtisch soll die Seite von
+ * allein laufen, auf dem Telefon in der Bahn nicht. Ein Wert am Konto wäre für
+ * beide derselbe.
+ *
+ * **Und jeder Zugriff in einem `try`.** In einem privaten Fenster und bei
+ * abgeschalteten Seitendaten wirft schon das Lesen — nicht `null`, sondern
+ * eine Ausnahme. Ohne die Klammer stünde die Übersicht dort weiß da.
+ */
+const auto = ref(gemerkt())
+
+/** Ob gerade nachgeladen wird — der Knopf dreht sich dann. */
+const busy = ref(false)
+
+let cycle: ReturnType<typeof setInterval> | undefined
+
+function gemerkt(): boolean {
+  try {
+    // Die Vorgabe ist „an": Wer nichts eingestellt hat, will die Zahlen sehen.
+    return window.localStorage.getItem(STORAGE_KEY) !== 'off'
+  } catch {
+    return true
+  }
+}
+
+function merken(an: boolean): void {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, an ? 'on' : 'off')
+  } catch {
+    // Ein Schalter, der sich nicht merken lässt, wirkt trotzdem für diese
+    // Sitzung. Eine Fehlermeldung dafür wäre eine Störung ohne Handlung.
+  }
+}
+
+/**
+ * Die Kacheln neu holen.
+ *
+ * **Der Riegel ist keine Feinheit.** Ein zweiter Aufruf, während der erste
+ * unterwegs ist, macht aus einem Takt zwei — und Inertia bricht den ersten ab,
+ * die Seite hängt dann an der Antwort des zweiten.
+ */
+function refresh(): void {
+  if (busy.value) return
+
+  router.reload({
+    only: ['tiles'],
+    onStart: () => {
+      busy.value = true
+    },
+    onFinish: () => {
+      busy.value = false
+    },
+  })
+}
+
+/**
+ * Ein Takt — und im Hintergrund geschieht nichts.
+ *
+ * **`document.hidden` und nicht bloss der Schalter.** Ein vergessener Reiter
+ * fragte sonst alle dreissig Sekunden den Agenten, für eine Seite, die niemand
+ * ansieht. Bei zwanzig offenen Reitern ist das der Unterschied zwischen einem
+ * Aufruf und zwanzig.
+ */
+function tick(): void {
+  if (!auto.value || document.hidden) return
+
+  refresh()
+}
+
+/**
+ * Zurück im Bild: sofort nachholen.
+ *
+ * Ohne das zeigte die Seite nach dem Umschalten aus einem anderen Reiter bis
+ * zu dreissig Sekunden lang den Stand von vorhin — und zwar genau in dem
+ * Augenblick, in dem jemand hinsieht.
+ */
+function onVisible(): void {
+  if (!document.hidden && auto.value) refresh()
+}
+
+watch(auto, (an: boolean): void => {
+  merken(an)
+
+  // Einschalten heisst „jetzt", nicht „in dreissig Sekunden". Ein Schalter,
+  // der sichtbar nichts tut, ist der Befund vom 7. August in anderer Gestalt.
+  if (an) refresh()
+})
+
+onMounted((): void => {
+  cycle = setInterval(tick, CYCLE_MS)
+  document.addEventListener('visibilitychange', onVisible)
+})
+
+/*
+ * **Ohne das läuft der Takt weiter, wenn die Seite längst weg ist.** Dieses
+ * Panel lädt nicht neu — Inertia tauscht die Seite im selben Dokument aus. Ein
+ * `setInterval` überlebt das und fragt bis zum Schliessen des Reiters weiter,
+ * von jeder Seite aus, auf der man einmal war. `IntervalTest` besteht darauf.
+ */
+onUnmounted((): void => {
+  clearInterval(cycle)
+  document.removeEventListener('visibilitychange', onVisible)
+})
+
 const headline = props.server.reachable
   ? [props.server.hostname, props.server.distribution, kernelText.value, uptimeText(props.server.uptime_s ?? 0)]
       .filter(Boolean)
@@ -131,6 +267,60 @@ const headline = props.server.reachable
 
 <template>
   <PanelLayout title="Übersicht" :subline="headline">
+    <!--
+      **Der Selbstlauf steht im Seitenkopf und nicht bei den Kacheln.**
+
+      Der Betreiber hat beides angeboten — neben der Überschrift oder am
+      oberen rechten Rand. Der Seitenkopf ist beides zugleich: `.page-head`
+      verteilt Titelblock und Knopfreihe mit `space-between`, also steht die
+      Reihe rechts auf derselben Grundlinie wie „Übersicht". Und es ist der
+      Ort, an dem jede andere Seite dieses Panels ihre Hauptaktion führt — ein
+      zweiter Ort nur für diese eine Seite wäre eine zweite Ordnung.
+
+      **Zwei Bedienelemente und nicht eines.** Der Knopf aktualisiert von Hand,
+      die Auswahl schaltet den Selbstlauf. Das `A` im Zeichen sagt, dass er
+      läuft — und das Wort daneben sagt, was das heisst: Ein Zeichen trägt
+      keine Bedeutung allein (`NavIcon.vue`, `ActionIconTest`).
+    -->
+    <template #actions>
+      <div class="button-row">
+        <button
+          type="button"
+          class="button"
+          :aria-busy="busy"
+          @click="refresh"
+        >
+          <!--
+            `state`: Das Zeichen trägt hier eine Auskunft und nicht bloss die
+            Wiederholung seines Wortes — es bleibt deshalb auf jeder Breite
+            stehen (`app.css`).
+          -->
+          <ActionIcon
+            name="refresh"
+            class="state"
+            :letter="auto ? 'A' : ''"
+            :class="{ turns: busy }"
+          />
+          <span>Aktualisieren</span>
+        </button>
+
+        <!--
+          **Eine beschriftete Auswahl und kein blosses Kästchen.** Am 7. August
+          hat der Betreiber ein unbeschriftetes Auswahlfeld auf der Domainliste
+          gemeldet — „geht unter und wird nicht wirklich wahrgenommen". Der Ort
+          ist derselbe, die Bauart deshalb auch: `.field.inline` im
+          `.button-row`.
+        -->
+        <label class="field inline">
+          <span>Selbstlauf</span>
+          <select v-model="auto">
+            <option :value="true">alle 30 Sekunden</option>
+            <option :value="false">aus</option>
+          </select>
+        </label>
+      </div>
+    </template>
+
     <p v-if="!server.reachable" class="notice critical">
       <span>
         <b>Der Agent antwortet nicht.</b>

@@ -4,6 +4,7 @@ import { computed, ref } from 'vue'
 import EyeIcon from './EyeIcon.vue'
 import Section from './Section.vue'
 import { useConfirmation } from '../Composables/useConfirmation'
+import Idents from './Idents.vue'
 
 const { ask } = useConfirmation()
 
@@ -204,7 +205,7 @@ function moment(seconds: number): string {
         <tr>
           <td class="quiet">Zonen</td>
           <td class="right" :class="{ ident: props.credential.zones.length > 0 }">
-            <template v-if="props.credential.zones.length > 0">{{ props.credential.zones.join(' ') }}</template>
+            <template v-if="props.credential.zones.length > 0"><Idents :values="props.credential.zones" /></template>
             <template v-else-if="asked">vom Anbieter</template>
             <template v-else>keine</template>
           </td>

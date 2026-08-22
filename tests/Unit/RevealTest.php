@@ -126,6 +126,10 @@ final class RevealTest extends TestCase
         'Pages/Files/Index.vue startPack archiveName' => 'Das Formular geht **innerhalb** der Auswahlleiste auf, an der Stelle des Knopfes: '.
             'Die Leiste trägt die Frage („wie soll das Archiv heissen?") und darunter das Feld. Gemessen in der Bilderrunde vom '.
             '20. August, Zustand „Packen".',
+        'Pages/Overview.vue refresh busy' => 'Der „Bereich" ist der Griff selbst: `busy` dreht das Zeichen **in** dem Knopf, den man '.
+            'gerade gedrückt hat. Näher an seinem Griff kann eine Wirkung nicht stehen — ein Sprung ins Bild ginge zu dem Knopf, der '.
+            'unter dem Finger liegt. Erschienen ist der Eintrag am 22. August, weil dieser Wächter seit dem 20. auch `:class`-Schalter '.
+            'liest; über ein `v-if` erscheint hier nichts.',
         'Pages/Operations/Show.vue cancel cancelRequested' => 'Der Knopf steht in der Kopfzeile der Seite, die Meldung ist das erste Element '.
             'darunter — zwischen beiden liegt nichts. Das ist eine Aussage über den Aufbau und keine über Pixel; eine Messung braucht '.
             'es hier nicht, weil kein Inhalt dazwischenkommen kann.',

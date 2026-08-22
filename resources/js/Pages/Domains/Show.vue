@@ -6,6 +6,7 @@ import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import FormErrors from '../../Components/FormErrors.vue'
 import { useConfirmation } from '../../Composables/useConfirmation'
+import Idents from '../../Components/Idents.vue'
 
 const { ask } = useConfirmation()
 
@@ -417,7 +418,7 @@ const dnsAdressenWeichenAb = computed(() => {
             </tr>
             <tr>
               <td class="quiet">Gilt für</td>
-              <td class="right ident">{{ props.certificate.names.join(', ') || '—' }}</td>
+              <td class="right ident"><Idents :values="props.certificate.names" /></td>
             </tr>
           </tbody>
         </table>
@@ -471,12 +472,12 @@ const dnsAdressenWeichenAb = computed(() => {
           <span>
             Als Platzhalter bestellen
             <small class="hint">
-              Ein Zertifikat für <span class="ident">{{ props.wildcard.names.join(' ') }}</span> —
+              Ein Zertifikat für <span class="ident"><Idents :values="props.wildcard.names" /></span> —
               es gilt für jede Unterdomain dieser Zone, auch für die eines
               anderen Abonnements. Dafür zählt es bei der Wochengrenze als eine
               Bestellung statt als eine je Name.
             </small>
-            <small v-if="props.wildcard.obstacle" class="hint">{{ props.wildcard.obstacle }}</small>
+            <small v-if="props.wildcard.obstacle" class="hint obstacle">{{ props.wildcard.obstacle }}</small>
           </span>
         </label>
 
@@ -513,7 +514,7 @@ const dnsAdressenWeichenAb = computed(() => {
         >
           Eine Ebene tiefer deckt ein Platzhalter nicht. Ohne eigenes Zertifikat
           bleiben:
-          <span class="ident">{{ props.wildcard.uncovered.join(' ') }}</span>
+          <span class="ident"><Idents :values="props.wildcard.uncovered" /></span>
         </p>
 
         <!--
@@ -630,7 +631,7 @@ const dnsAdressenWeichenAb = computed(() => {
                   <Badge :kind="dnsRang(satz.state)">{{ dnsWort(satz.state) }}</Badge>
                 </td>
                 <td data-column="Erwartet" class="ident quiet">
-                  {{ satz.expected.join(', ') || '—' }}
+                  <Idents :values="satz.expected" />
                 </td>
                 <!--
                   **Der gefundene Wert steht daneben und nicht nur der
@@ -638,7 +639,7 @@ const dnsAdressenWeichenAb = computed(() => {
                   Auskunft, mit der niemand etwas anfangen kann.
                 -->
                 <td data-column="Gefunden" class="ident">
-                  {{ satz.found.join(', ') || '—' }}
+                  <Idents :values="satz.found" />
                 </td>
               </tr>
               <tr v-if="props.dns.last.findings.records.length === 0">
@@ -656,7 +657,7 @@ const dnsAdressenWeichenAb = computed(() => {
           -->
           <p class="section-note">
             Zuletzt geprüft: {{ dnsGeprueft }}<template v-if="props.dns.last.findings.nameservers.length > 0">
-            · gefragt wurden {{ props.dns.last.findings.nameservers.join(', ') }}</template>
+            · gefragt wurden <Idents :values="props.dns.last.findings.nameservers" /></template>
           </p>
 
           <!--
@@ -691,7 +692,7 @@ const dnsAdressenWeichenAb = computed(() => {
           -->
           <p v-if="props.dns.last.findings.unasked.length > 0" class="notice warn">
             <span>Für
-              <span class="ident">{{ props.dns.last.findings.unasked.join(' ') }}</span>
+              <span class="ident"><Idents :values="props.dns.last.findings.unasked" /></span>
               hat die Prüfung gar nicht stattgefunden. Das liegt an diesem Server und
               nicht an der Zone — über ihre Einträge ist damit nichts gesagt.</span>
           </p>
@@ -712,10 +713,11 @@ const dnsAdressenWeichenAb = computed(() => {
           über jede Domain.
         -->
         <p v-if="dnsAdressenWeichenAb" class="notice warn">
-          Die eingetragenen Adressen ({{ props.dns.addresses.override.join(', ') }}) sind
-          andere als die, die dieser Server führt
-          ({{ props.dns.addresses.derived.join(', ') }}). Das kann hinter NAT richtig sein
-          — sonst ist der Eintrag veraltet.
+          <span>Die eingetragenen Adressen
+            (<Idents :values="props.dns.addresses.override" />) sind andere als
+            die, die dieser Server führt
+            (<Idents :values="props.dns.addresses.derived" />). Das kann hinter
+            NAT richtig sein — sonst ist der Eintrag veraltet.</span>
         </p>
 
         <div v-if="props.can.check_dns" class="button-row">

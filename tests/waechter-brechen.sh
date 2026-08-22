@@ -14522,6 +14522,351 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DnsHealthTest passed
 
 echo
+echo "── IdentListTest / DisabledStateTest: die drei Befunde der Bilderrunde ──"
+#
+# **Zwei Befunde, eine Ursache** (`docs/76`): Eine IPv6 brach bei 390 px mitten
+# im Hextet, und zwei Namen standen durch ein Leerzeichen getrennt nebeneinander.
+# Beide entstehen dort, wo `.ident` gilt — Monospace UND overflow-wrap: anywhere.
+
+vorher_datei resources/js/Pages/Domains/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<td data-column="Gefunden" class="ident">\n                  <Idents :values="satz.found" />'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '<td data-column="Gefunden" class="ident">\n                  {{ satz.found.join(\', \') }}'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Domains/Show.vue "eine Kennungsliste wieder mit join geklebt" &&
+pruefe "eine Kennungsliste wieder mit join geklebt" \
+  IdentListTest::test_no_ident_glues_a_list_with_join failed
+wiederherstellen
+
+# **Die Gegenprobe zum Bestand:** Steht `<Idents>` nirgends mehr, ist die Regel
+# eine Verbotstafel vor einer leeren Strasse.
+
+vorher_datei tests/Unit/IdentListTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/IdentListTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "substr_count($vorlage, '<Idents')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "substr_count($vorlage, '<IdentsX')", 1))
+PY2
+griff_datei tests/Unit/IdentListTest.php "die Komponente wird nirgends benutzt" &&
+pruefe "die Komponente wird nirgends benutzt" \
+  IdentListTest::test_the_component_is_actually_used failed
+wiederherstellen
+
+vorher_datei tests/Unit/IdentListTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/IdentListTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/^<template>$(.*?)^<\\/template>$/ms'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/^<templateX>$(.*?)^<\\/templateX>$/ms'", 1))
+PY2
+griff_datei tests/Unit/IdentListTest.php "die Vorlagen werden nicht mehr gelesen" &&
+pruefe "die Vorlagen werden nicht mehr gelesen" \
+  IdentListTest::test_there_are_templates_to_check failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" IdentListTest passed
+
+# **Befund 3:** Ein Kaestchen, das nicht klickt und aussieht, als taete es das.
+# Gemeldet vom Betreiber, gefunden von keinem Messmittel.
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.toggle:has(input:disabled) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.toggle:has(input:aus) {', 1))
+PY2
+griff_datei resources/css/app.css "der Schalter kennt keinen Aus-Zustand mehr" &&
+pruefe "der Schalter kennt keinen Aus-Zustand mehr" \
+  DisabledStateTest::test_every_wrapper_shows_that_it_is_off failed
+wiederherstellen
+
+# **Die Gegenprobe zum Stylesheet-Leser.** Einer, der immer `true` gibt, waere
+# fuer immer gruen — und niemandem faellt es auf.
+
+vorher_datei tests/Unit/DisabledStateTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DisabledStateTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return false;\n    }\n\n    /**\n     * Jeder Selektor in `app.css`"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        return true;\n    }\n\n    /**\n     * Jeder Selektor in `app.css`"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Unit/DisabledStateTest.php "der Stylesheet-Leser sagt immer ja" &&
+pruefe "der Stylesheet-Leser sagt immer ja" \
+  DisabledStateTest::test_the_stylesheet_reader_can_say_no failed
+wiederherstellen
+
+vorher_datei tests/Unit/DisabledStateTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DisabledStateTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/^<label\\\\b[^>]*\\\\bclass=\"([^\"]+)\"/s'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/^<labelX\\\\b[^>]*\\\\bclass=\"([^\"]+)\"/s'", 1))
+PY2
+griff_datei tests/Unit/DisabledStateTest.php "der Aufzaehler findet keine Huelle mehr" &&
+pruefe "der Aufzaehler findet keine Huelle mehr" \
+  DisabledStateTest::test_there_are_wrappers_to_check failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DisabledStateTest passed
+
+# **Und die dritte Ursache aus Befund 3: der Grund, der wie eine Fussnote
+# aussieht.** `.obstacle` faerbt ihn ab; ohne die Regel steht er in derselben
+# Farbe wie die zwei erklaerenden Hinweise darueber.
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.obstacle {\n  color: var(--warn);\n}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.obstacleX {\n  color: var(--warn);\n}', 1))
+PY2
+griff_datei resources/css/app.css "der Hinderungsgrund verliert seine Farbe" &&
+pruefe "der Hinderungsgrund verliert seine Farbe" \
+  ClassReachTest::test_every_class_in_a_template_points_at_a_rule failed
+wiederherstellen
+
+# ── Der Selbstlauf der Übersicht (22. August 2026) ──────────────────────────
+#
+# Wunsch des Betreibers: Die Kacheln der Sparklines sollen sich alle dreissig
+# Sekunden selbst nachladen, mit einem Knopf fuer den Griff von Hand und einer
+# Auswahl fuer an/aus. Daran haengen zwei neue Regeln — eine ueber das
+# teilweise Nachladen, eine ueber das Aufraeumen.
+
+# **Ein Nachladen, das nur einen Teil holt, holt auch nur einen Teil.** Inertia
+# siebt vor dem Aufloesen; ein fertig uebergebener Wert ist schon gerechnet,
+# wenn das Sieb ihn sieht.
+
+vorher_datei app/Http/Controllers/OverviewController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/OverviewController.php'
+s = open(p, encoding='utf-8').read()
+alt = "'tiles' => fn (): array => $this->tiles("
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'tiles' => $this->tiles(", 1))
+PY2
+griff_datei app/Http/Controllers/OverviewController.php "die Kacheln kommen fertig statt als Verschluss" &&
+pruefe "die Kacheln kommen fertig statt als Verschluss" \
+  PartialReloadTest::test_every_partially_reloaded_prop_is_a_closure failed
+wiederherstellen
+
+# **Und die andere Haelfte derselben Zeichenkette: der Name.** `'tiles'` zeigt
+# auf eine Angabe des Steuerungscodes, und niemand ausser diesem Waechter
+# schlaegt sie nach.
+
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Overview.vue'
+s = open(p, encoding='utf-8').read()
+alt = "only: ['tiles'],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "only: ['kacheln'],", 1))
+PY2
+griff_datei resources/js/Pages/Overview.vue "das Nachladen nennt eine Angabe, die es nicht gibt" &&
+pruefe "das Nachladen nennt eine Angabe, die es nicht gibt" \
+  PartialReloadTest::test_every_partially_reloaded_prop_is_a_closure failed
+wiederherstellen
+
+# **Die Gegenprobe zum Leser: Zeichenketten ueberspringen.** Ohne das beendet
+# ein Komma in einem Text die Angabe zu frueh — und der Schluessel steht
+# danach trotzdem da. Der erste Wurf dieses Waechters verglich nur die
+# Schluessel und blieb bei genau diesem Bruch gruen.
+
+vorher_datei tests/Unit/PartialReloadTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/PartialReloadTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """                $i = $this->afterString($feld, $i);
+
+                continue;
+            }
+
+            if (str_contains('([{', $zeichen)) {"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """                continue;
+            }
+
+            if (str_contains('([{', $zeichen)) {"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Unit/PartialReloadTest.php "der Leser ueberspringt keine Zeichenketten mehr" &&
+pruefe "der Leser ueberspringt keine Zeichenketten mehr" \
+  PartialReloadTest::test_the_reader_tells_a_closure_from_a_value failed
+wiederherstellen
+
+# **Und der Leser, der jeden Ausdruck fuer einen Verschluss haelt.** Er waere
+# fuer immer gruen.
+
+vorher_datei tests/Unit/PartialReloadTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/PartialReloadTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return preg_match('/^(?:static\\s+)?(?:fn|function)\\s*\\(/', $ausdruck) === 1;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        return true;", 1))
+PY2
+griff_datei tests/Unit/PartialReloadTest.php "jeder Ausdruck gilt als Verschluss" &&
+pruefe "jeder Ausdruck gilt als Verschluss" \
+  PartialReloadTest::test_the_reader_tells_a_closure_from_a_value failed
+wiederherstellen
+
+# **Und der Ausdruck, der kein `Inertia::render` mehr findet.** Ohne Fund
+# prueft die Regel darunter nichts und ist gruen, ohne etwas gesehen zu haben.
+
+vorher_datei tests/Unit/PartialReloadTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/PartialReloadTest.php'
+s = open(p, encoding='utf-8').read()
+alt = '"/Inertia::render\\\\(\\\\s*\'([^\']+)\'\\\\s*,\\\\s*\\\\[/"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '"/InertiaX::render\\\\(\\\\s*\'([^\']+)\'\\\\s*,\\\\s*\\\\[/"'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Unit/PartialReloadTest.php "es wird kein Inertia::render mehr gefunden" &&
+pruefe "es wird kein Inertia::render mehr gefunden" \
+  PartialReloadTest::test_there_is_a_partial_reload_to_check failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PartialReloadTest passed
+
+# **Was eine Seite anlegt, raeumt sie beim Verlassen weg.** Inertia tauscht die
+# Seite im selben Dokument aus; ein Takt ohne Abschaltung laeuft bis zum
+# Schliessen des Reiters weiter, von jeder Seite aus, auf der man einmal war.
+
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Overview.vue'
+s = open(p, encoding='utf-8').read()
+alt = '  clearInterval(cycle)\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '  void cycle\n', 1))
+PY2
+griff_datei resources/js/Pages/Overview.vue "der Takt wird nie angehalten" &&
+pruefe "der Takt wird nie angehalten" \
+  TeardownTest::test_every_interval_is_cleared failed
+wiederherstellen
+
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Overview.vue'
+s = open(p, encoding='utf-8').read()
+alt = "  document.removeEventListener('visibilitychange', onVisible)\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Pages/Overview.vue "der Horcher an document bleibt liegen" &&
+pruefe "der Horcher an document bleibt liegen" \
+  TeardownTest::test_every_global_listener_is_removed failed
+wiederherstellen
+
+# **Ein Rueckweg, den kein Haken ruft, steht im Quelltext und nicht im Ablauf**
+# — und ein Waechter, der nur nach dem Wort sucht, waere damit gruen.
+
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Overview.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'onUnmounted((): void => {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'const abbau = ((): void => {', 1))
+PY2
+griff_datei resources/js/Pages/Overview.vue "der Rueckweg haengt an keinem Haken" &&
+pruefe "der Rueckweg haengt an keinem Haken" \
+  TeardownTest::test_the_teardown_sits_in_an_unmount_hook failed
+wiederherstellen
+
+# **Die Abgrenzung auf `document` und `window`.** Ohne sie zieht der Ausdruck
+# jeden Horcher herein — auch den an einer `EventSource`, die mit `close()`
+# stirbt. Eine Zaehlung am Bestand merkt das nicht; der Pruefkoerper von Hand
+# schon.
+
+vorher_datei tests/Unit/TeardownTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/TeardownTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/\\b(?:document|window)\\.'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/\\b(?:\\w+)\\.'", 1))
+PY2
+griff_datei tests/Unit/TeardownTest.php "der Ausdruck nimmt jeden Horcher" &&
+pruefe "der Ausdruck nimmt jeden Horcher" \
+  TeardownTest::test_the_expression_tells_the_two_apart failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TeardownTest passed
+
+# **Neben jedem Zeichen steht sein Wort** — auch neben dem des Selbstlaufs.
+
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Overview.vue'
+s = open(p, encoding='utf-8').read()
+alt = '          <span>Aktualisieren</span>\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Pages/Overview.vue "der Aktualisieren-Knopf verliert sein Wort" &&
+pruefe "der Aktualisieren-Knopf verliert sein Wort" \
+  ActionIconTest::test_every_icon_has_a_word_beside_it failed
+wiederherstellen
+
+# **Und der Ausdruck, der `name` an einer festen Stelle sucht.** Ein Zeichen
+# mit mehreren Attributen steht ueber mehrere Zeilen — dann kommt `name` nicht
+# zuerst. Bezahlt als falsches Rot am 22. August.
+
+vorher_datei tests/Unit/ActionIconTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/ActionIconTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/<ActionIcon\\b[^>]*\\bname=\"(\\w+)\"/'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/<ActionIcon name=\"(\\w+)\"/'", 1))
+PY2
+griff_datei tests/Unit/ActionIconTest.php "der Ausdruck sucht name an einer festen Stelle" &&
+pruefe "der Ausdruck sucht name an einer festen Stelle" \
+  ActionIconTest::test_every_drawn_icon_is_used failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActionIconTest passed
+
+# **Das Zeichen, das eine Auskunft traegt, bleibt auf jeder Breite stehen.**
+# Ohne diese Regel ist `.action-icon` ab 720 px `display: none` — das `A` des
+# Selbstlaufs waere auf dem Telefon da und auf dem Monitor fort.
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.action-icon.state {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.action-icon.stateX {', 1))
+PY2
+griff_datei resources/css/app.css "das Zustandszeichen verliert seine Regel" &&
+pruefe "das Zustandszeichen verliert seine Regel" \
+  ClassReachTest::test_every_class_in_a_template_points_at_a_rule failed
+wiederherstellen
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.turns {\n  animation: zeichen-dreht'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.turnsX {\n  animation: zeichen-dreht', 1))
+PY2
+griff_datei resources/css/app.css "das drehende Zeichen verliert seine Regel" &&
+pruefe "das drehende Zeichen verliert seine Regel" \
+  ClassReachTest::test_every_class_in_a_template_points_at_a_rule failed
+wiederherstellen
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

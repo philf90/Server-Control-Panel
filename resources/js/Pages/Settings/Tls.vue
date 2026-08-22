@@ -6,6 +6,7 @@ import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import FormErrors from '../../Components/FormErrors.vue'
 import { useConfirmation } from '../../Composables/useConfirmation'
+import Idents from '../../Components/Idents.vue'
 
 const { ask } = useConfirmation()
 
@@ -163,7 +164,7 @@ function neuAusstellen(): void {
       <p v-if="fehlende.length > 0" class="notice warn">
         <span>
           Dieser Rechner ist auch unter
-          <span class="ident">{{ fehlende.join(', ') }}</span> erreichbar —
+          <span class="ident"><Idents :values="fehlende" /></span> erreichbar —
           das Zertifikat deckt das nicht ab. Eine neue Adresse stellt es nicht
           von selbst neu aus; auf einem Server mit Docker gäbe das jede Woche
           ein neues Zertifikat samt neuer Warnung im Browser.
@@ -211,11 +212,11 @@ function neuAusstellen(): void {
             <tbody>
               <tr>
                 <td class="quiet">Namen</td>
-                <td class="right ident">{{ props.certificate.names?.dns.join(', ') || '—' }}</td>
+                <td class="right ident"><Idents :values="props.certificate.names?.dns ?? []" /></td>
               </tr>
               <tr>
                 <td class="quiet">Adressen</td>
-                <td class="right ident">{{ props.certificate.names?.ip.join(', ') || '—' }}</td>
+                <td class="right ident"><Idents :values="props.certificate.names?.ip ?? []" /></td>
               </tr>
             </tbody>
           </table>

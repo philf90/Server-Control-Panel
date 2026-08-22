@@ -4,6 +4,7 @@ import { ref } from 'vue'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import { useConfirmation } from '../../Composables/useConfirmation'
+import Idents from '../../Components/Idents.vue'
 
 const { ask } = useConfirmation()
 
@@ -174,7 +175,7 @@ function zustand(v: Version): string {
                 hier hat, lautet „warum ist die Version nicht vollständig".
               -->
               <p v-if="v.installed && v.missing && v.missing.length > 0" class="quiet">
-                fehlt: <span class="ident">{{ v.missing.join(', ') }}</span>
+                fehlt: <span class="ident"><Idents :values="v.missing" /></span>
               </p>
 
               <!--
@@ -185,7 +186,7 @@ function zustand(v: Version): string {
                 Betreiber hat es am 9. August 2026 auf dem Server verlangt.
               -->
               <p v-if="v.installed && v.present && v.present.length > 0" class="quiet">
-                vorhanden: <span class="ident">{{ v.present.join(', ') }}</span>
+                vorhanden: <span class="ident"><Idents :values="v.present" /></span>
               </p>
             </td>
 

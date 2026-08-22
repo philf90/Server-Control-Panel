@@ -679,12 +679,21 @@ const dnsAdressenWeichenAb = computed(() => {
             Ohne Nameserver ist über die Zone nichts gesagt — und das ist etwas
             anderes als ein fehlender Eintrag. Der Satz nennt den Grund, statt
             den Kunden an seinen Einträgen suchen zu lassen.
+
+            **Der Satz steht in genau einem `span`, und das ist kein Geschmack.**
+            `.notice` ist eine Flexbox; ein Textknoten neben einem Element ergibt
+            zwei Flexkinder, und jedes davon bekommt seine eigene Spalte. Der
+            erste Wurf hatte „Für", das `.ident` und den Rest als drei
+            Geschwister — bei 390 px stand links eine fünf Zeichen breite Spalte
+            mit `F` / `ü` / `r` untereinander und daneben der Name, Zeichen für
+            Zeichen umgebrochen. Der Überlauf war dabei `0`: Es lief nichts über,
+            es sah nur falsch aus.
           -->
           <p v-if="props.dns.last.findings.unasked.length > 0" class="notice warn">
-            Für
-            <span class="ident">{{ props.dns.last.findings.unasked.join(' ') }}</span>
-            hat die Prüfung gar nicht stattgefunden. Das liegt an diesem Server und
-            nicht an der Zone — über ihre Einträge ist damit nichts gesagt.
+            <span>Für
+              <span class="ident">{{ props.dns.last.findings.unasked.join(' ') }}</span>
+              hat die Prüfung gar nicht stattgefunden. Das liegt an diesem Server und
+              nicht an der Zone — über ihre Einträge ist damit nichts gesagt.</span>
           </p>
           <p
             v-else-if="props.dns.last.findings.nameservers.length === 0"

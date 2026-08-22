@@ -15,6 +15,18 @@ interface Row {
   is_redirect: boolean
   subscription: string | null
   subscription_id: number
+
+  /**
+   * Der DNS-Abgleich, auf eine Marke zusammengezogen.
+   *
+   * **Rang und Wortlaut kommen vom Server** (`DnsHealth`) und werden hier
+   * nicht abgeleitet. Eine Zuordnung im Template wäre eine zweite Fassung
+   * derselben Regel — dieselbe Entscheidung wie bei den fünf Zuständen im
+   * Bereich an der Domain.
+   */
+  dns: string
+  dns_label: string
+  dns_badge: 'ok' | 'warn' | 'critical' | 'neutral'
 }
 
 const props = defineProps<{
@@ -90,7 +102,7 @@ function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
       <table class="stacks">
         <thead>
           <tr>
-            <th>Domain</th><th>Sorte</th><th>Abonnement</th><th>PHP</th><th>Zustand</th>
+            <th>Domain</th><th>Sorte</th><th>Abonnement</th><th>PHP</th><th>DNS</th><th>Zustand</th>
           </tr>
         </thead>
         <tbody>
@@ -118,12 +130,23 @@ function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
               <template v-else>{{ row.php_version ?? '—' }}</template>
             </td>
 
+            <!--
+              **Der DNS-Abgleich steht vor dem Zustand der Domain**, weil er
+              die Frage beantwortet, die eine Liste stellt: Welche Zeile muss
+              ich aufschlagen? Der Zustand daneben sagt, ob die Domain
+              eingerichtet ist — zwei verschiedene Auskünfte, und die
+              Reihenfolge ist die, in der man sie liest.
+            -->
+            <td data-column="DNS">
+              <Badge :kind="row.dns_badge">{{ row.dns_label }}</Badge>
+            </td>
+
             <td data-column="Zustand">
               <Badge :kind="rang(row.status)">{{ row.status_label }}</Badge>
             </td>
           </tr>
           <tr v-if="props.domains.data.length === 0">
-            <td colspan="5" class="quiet">Noch keine Domain.</td>
+            <td colspan="6" class="quiet">Noch keine Domain.</td>
           </tr>
         </tbody>
       </table>

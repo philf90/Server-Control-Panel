@@ -170,6 +170,21 @@ Betreibers im selben Zweig, nachdem der Rest von P7 als eigener Pull Request
 draussen war. `srvpanel-cron` bekommt 180 s, `srvpanel-usage` 600 s,
 `srvpanel-tls` 1800 s; der Wächter dazu ist `OneshotDeadlineTest`.
 
+**Und am 22. August auf `cloudsrv24` nachgesehen**, gegen `v0.7.0-rc.3`:
+
+```
+srvpanel-cron.service    TimeoutStartUSec=3min
+srvpanel-usage.service   TimeoutStartUSec=10min
+srvpanel-tls.service     TimeoutStartUSec=30min
+```
+
+Das ist die Gegenprobe zur Messung oben — dieselbe Frage an dieselbe Stelle,
+einmal vorher (`infinity`) und einmal nachher. Ohne sie wäre nur belegt, dass
+drei Dateien im Zweig eine Zeile mehr tragen, und nicht, dass systemd sie liest.
+
+> **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+> jemand ihn behoben hat.**
+
 **Die Zahlen hängen am Takt und nicht an einer Laufzeitmessung.** Für `tls` gibt
 es keine: In dreissig Tagen Journal steht keine einzige echte Erneuerung, nur
 Prüfungen mit „gilt noch" in unter einer Sekunde. Eine knappe Frist wäre dort

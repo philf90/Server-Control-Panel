@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use RuntimeException;
 use SrvPanel\Agent\DocumentRoot;
@@ -56,6 +57,7 @@ use SrvPanel\Agent\Ops\SubscriptionProvision;
  * @property-read Certificate|null $certificate
  * @property-read Domain|null $parent
  * @property-read Collection<int, Domain> $children
+ * @property-read DomainDnsCheck|null $dnsCheck
  */
 class Domain extends Model
 {
@@ -223,6 +225,26 @@ class Domain extends Model
     public function children(): HasMany
     {
         return $this->hasMany(self::class, 'parent_domain_id');
+    }
+
+    /**
+     * Der letzte DNS-Abgleich dieser Domain — oder keiner.
+     *
+     * **Es gibt je Domain genau eine Zeile**, `Dns::store()` schreibt sie über
+     * `updateOrCreate()`. Deshalb `hasOne` und nicht `hasMany`: Die Beziehung
+     * bildet ab, was in der Tabelle steht, statt eine Liste zu versprechen,
+     * die nie länger als eins wird.
+     *
+     * **Sie ist für die Listen da**, nicht für die Domainseite — dort fragt
+     * `Dns::last()`, weil es dabei auch den Zeitpunkt über `Clock` schickt.
+     * Hier geht es um zwanzig Zeilen auf einmal: Ohne `with('dnsCheck')`
+     * stellte jede Zeile ihre eigene Abfrage.
+     *
+     * @return HasOne<DomainDnsCheck, $this>
+     */
+    public function dnsCheck(): HasOne
+    {
+        return $this->hasOne(DomainDnsCheck::class);
     }
 
     /**

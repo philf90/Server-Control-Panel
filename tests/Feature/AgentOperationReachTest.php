@@ -280,22 +280,6 @@ final class AgentOperationReachTest extends TestCase
      * @var array<string, string>
      */
     private const UNREACHED = [
-        /*
-         * **Eingetragen am 21. August 2026 mit Schritt 2 von P7, und der
-         * Eintrag ist eine Schuld mit Fälligkeitsdatum.** Der Agent kann seit
-         * heute messen; der Weg dorthin entsteht in Schritt 3 bis 5
-         * (`docs/72 §8`), wenn das Panel seinen Sollzustand kennt und die
-         * Domainseite ihn zeigt.
-         *
-         * Er räumt sich selbst weg: Sobald `app/` den Namen nennt, wird
-         * {@see self::test_the_list_of_unreached_operations_does_not_outlive_them}
-         * rot, und dann muss diese Zeile fallen. Genau dafür gibt es sie.
-         */
-        'dns.check' => 'Der Agent misst seit P7 Schritt 2; das Panel fragt erst ab Schritt 3 danach '
-            .'(docs/72 §8). Die Operation ist nicht verändernd und liest ausschliesslich fremdes '
-            .'DNS — sie hat kein Recht, das jemand missbrauchen könnte, und der Eintrag fällt, '
-            .'sobald der Abgleich in der Oberfläche steht.',
-
         'acme.account.ensure' => 'Gefunden am 8. August 2026, als dieser Wächter entstand. Der '
             .'Kommentar der Operation sagt, die Oberfläche zeige die Adresse an dem Knopf, der '
             .'sie auslöst — diesen Knopf gibt es nicht, und `app/` nennt den Namen nirgends. In '

@@ -402,6 +402,21 @@ Route::middleware('auth')->group(function (): void {
      * Dateinamen und Bruchstücke aus dem Quelltext. Wer Dateien nicht lesen
      * darf, soll sie nicht über diesen Umweg sehen.
      */
+    /*
+     * Der DNS-Abgleich (P7 Schritt 5, `docs/72 §2.5`).
+     *
+     * **`POST` und nicht `GET`, obwohl nichts geändert wird.** Der Aufruf
+     * kostet mehrere UDP-Anfragen an fremde Nameserver und legt ein Ergebnis
+     * ab; als `GET` liefe er bei jedem Vorwärtsblättern und jedem Vorabruf des
+     * Browsers mit.
+     *
+     * `can:view` und nicht `update`: Nachsehen darf, wer die Domain sehen
+     * darf — geändert wird an ihr nichts.
+     */
+    Route::post('/domains/{domain}/dns/check', [DomainController::class, 'checkDns'])
+        ->middleware('can:view,domain')
+        ->name('domains.dns.check');
+
     Route::get('/domains/{domain}/logs', [DomainController::class, 'logs'])
         ->middleware('can:viewLogs,domain')
         ->name('domains.logs');

@@ -74,6 +74,35 @@ enum DnsRecordState: string
         };
     }
 
+    /**
+     * Welchen Rang die Zustandsmarke trägt.
+     *
+     * **Hier und nicht in der Vue-Datei**, denn dort wäre es eine `v-if`-Kette
+     * neben der Aufzählung — also eine zweite Fassung derselben Regel, und die
+     * zweite ist die, die beim nächsten Zustand vergessen wird.
+     *
+     * **`neutral` für „nicht erreichbar" ist die eigentliche Entscheidung.**
+     * Die Marke sagt laut `Badge` „kein Zustand, eine Abwesenheit" — und genau
+     * das ist gemeint: Über die Zone ist nichts gesagt. Ein rotes Signal
+     * behauptete, es sei etwas kaputt, und der Kunde suchte den Fehler in
+     * seinem Eintrag.
+     *
+     * **Und `warn` für „zeigt woandershin" und nicht `critical`.** Wer über
+     * ein CDN fährt, hat diesen Zustand absichtlich; ein rotes Signal wäre für
+     * ihn eine Fehlmeldung, die er nie loswird.
+     *
+     * @return 'ok'|'warn'|'critical'|'neutral'
+     */
+    public function badge(): string
+    {
+        return match ($this) {
+            self::Here => 'ok',
+            self::Elsewhere => 'warn',
+            self::Missing, self::Inconsistent => 'critical',
+            self::Unreachable => 'neutral',
+        };
+    }
+
     /** Steht dieser Zustand einer Website im Weg? */
     public function blocking(): bool
     {

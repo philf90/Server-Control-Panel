@@ -17195,3 +17195,50 @@ das Eingetragene und das Abgeleitete.
 `DnsComparisonTest` (16 Fälle) und `ServerAddressTest` (28 Fälle) prüfen beides;
 neun Eingriffe stehen in `tests/waechter-brechen.sh`, jeder einzeln
 nachgewiesen.
+
+### P7 Schritt 5 — die Anzeige an der Domain, und die Schuld, die sich selbst wegräumt
+
+Der Abgleich steht als Bereich **an der Domain** (`docs/72 §2.7`) — nicht als
+eigener Menüpunkt und nicht als Unterseite. Dreimal in P6 ist ein Merkmal drei
+Klicks tief gelandet und musste verlegt werden; hier ist der Ort, an dem jemand
+ohnehin steht, wenn er sich fragt, warum seine Seite nicht erscheint. Er kommt
+**nach** dem Zertifikat, weil er dieselbe Frage eine Ebene früher beantwortet:
+Ohne den richtigen `A`-Eintrag kommt niemand an, und dann ist auch kein
+Zertifikat zu bestellen.
+
+**Gemessen wird nicht bei jedem Seitenaufruf.** Das hinge die Seite an fremden
+Nameservern mit fremden Zeitlimits. Gezeigt wird das letzte Ergebnis **mit
+seinem Zeitpunkt**, geprüft wird auf Wunsch.
+
+> **Eine Antwort aus dem Zwischenspeicher ist eine Aussage über vorhin** — und
+> wenn sie das ist, sagt sie es auch.
+
+**Vor dem ersten Lauf steht ein Satz und keine leere Tabelle.** Eine leere
+Tabelle sähe aus wie „alles in Ordnung"; gemessen wurde aber noch gar nichts —
+derselbe Grund, aus dem `Settings::diskQuota()` vor seinem ersten Lauf schweigt.
+
+**Der gefundene Wert steht neben dem Zustand.** „Zeigt woandershin" ohne die
+Adresse ist eine Auskunft, mit der niemand etwas anfangen kann.
+
+**`checked_at` ist nicht `updated_at`.** Ein späterer Umbau, der die Zeile aus
+einem anderen Grund anfasst, verschöbe sonst die Auskunft „zuletzt geprüft" —
+und die Anzeige behauptete eine Frische, die es nicht gibt.
+
+**Die Route ist `POST` und nicht `GET`, obwohl nichts geändert wird.** Der
+Aufruf kostet mehrere UDP-Anfragen an fremde Nameserver und legt ein Ergebnis
+ab; als `GET` liefe er bei jedem Vorwärtsblättern und jedem Vorabruf des
+Browsers mit. `can:view` und nicht `update`: Nachsehen darf, wer die Domain
+sehen darf.
+
+**Und der `UNREACHED`-Eintrag aus Schritt 2 ist gefallen** — genau so, wie er
+gedacht war. Sobald `app/` den Namen `dns.check` nennt, wird
+`test_the_list_of_unreached_operations_does_not_outlive_them` rot; die Zeile
+musste weg. Eine Schuld mit Fälligkeitsdatum, die sich selbst eintreibt.
+
+**Zwei Kleinigkeiten, die Wächter gefunden haben.** `ClassReachTest` hat eine
+Klasse `section-actions` beanstandet, die es in `app.css` nicht gibt — sie heisst
+`button-row`, und mein `grep` davor hatte nur `section-note` gezählt. Und Pint
+wollte zum zweiten Mal aus einem `{@see \App\…}` in einem Kommentar einen Import
+machen, diesmal in der Migration; der Klassenname steht dort jetzt als Text.
+
+> **Eine Klasse, die auf nichts zeigt, sieht aus wie Gestaltung und ist keine.**

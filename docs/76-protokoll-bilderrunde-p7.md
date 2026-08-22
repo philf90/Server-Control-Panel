@@ -24,7 +24,7 @@ ungültig und keine Messung.
 | 1 | Domain, DNS-Abgleich | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 1) |
 | 1 | Domain, DNS-Abgleich | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 1) |
 | 1 | Domain, DNS-Abgleich | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 2) |
-| 1 | Domain, DNS-Abgleich | 1440 | dunkel | — | — | — | offen |
+| 1 | Domain, DNS-Abgleich | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 3) |
 | 2 | Einstellungen → Allgemein | 390 | hell | — | — | — | offen |
 | 2 | Einstellungen → Allgemein | 390 | dunkel | — | — | — | offen |
 | 2 | Einstellungen → Allgemein | 1440 | hell | — | — | — | offen |
@@ -48,6 +48,7 @@ einzeln benannt.
 | 1 / 390 / hell | keiner | — |
 | 1 / 390 / dunkel | keiner | — |
 | 1 / 1440 / hell | keiner | — |
+| 1 / 1440 / dunkel | keiner | — |
 
 **`rollt` ist bei 390 px leer, und das ist richtig.** Die Tabellen stehen dort
 als Kärtchen; ein Rollbehälter ist gar nicht aktiv. `docs/63 §6` hält das als
@@ -146,6 +147,62 @@ benutzen `join(' ')` für einen Cron-Ausdruck und einen SVG-Pfad — die bleiben
 
 **Nicht behoben**, aus demselben Grund wie Befund 1.
 
+### Befund 3 — ein Kästchen, das nicht klickt und aussieht, als täte es das
+
+**Gemeldet vom Betreiber während des Laufs**, in Lage 1/1440/dunkel: „Das
+Kästchen ‚Als Platzhalter bestellen' lässt sich gerade gar nicht anklicken."
+
+**Dass es nicht klickt, ist richtig.** Am Eingabefeld steht
+`:disabled="!props.wildcard.possible"`, und `possible` ist falsch, weil für
+diese Domain keine DNS-Zugangsdaten hinterlegt sind. Ein Platzhalter geht nur
+über DNS-01, DNS-01 nur mit Zugangsdaten. Der Satz steht sogar daneben.
+
+**Der Fund ist die Anzeige.** Der Betreiber, der dieses System gebaut hat, hat
+den Zustand nicht erkannt. Drei Ursachen, alle in `app.css`:
+
+1. **`.toggle` setzt `cursor: pointer` unbedingt.** Die Zeile zeigt den
+   Zeigefinger auch dann, wenn nichts passiert.
+2. **`.toggle` kennt gar keinen abgeschalteten Zustand.** Die Beschriftung
+   bleibt in voller `--text-strong`-Farbe; blass ist nur das Kästchen selbst,
+   und das rendert der Browser.
+3. **Der Grund sieht nicht aus wie einer.** „Für diese Domain sind keine
+   DNS-Zugangsdaten hinterlegt" ist der **dritte** `.hint` unter dem Kästchen,
+   in derselben Grösse und Farbe wie die zwei erklärenden davor. Er liest sich
+   als weitere Erklärung.
+
+**Dasselbe Stylesheet kennt die Lösung — für Felder**, mit eigener Begründung
+im Kommentar:
+
+```css
+.field input:disabled { color: var(--text-muted); background: var(--surface);
+                        border-style: dashed; cursor: default; }
+```
+
+> **Eine Regel, die für ein Feld gilt, gilt nicht für den Schalter daneben,
+> bloss weil sie dieselbe ist.**
+
+Derselbe Satz wie bei `SettingsWriterReachTest` am selben Tag: Dort war die
+Regel für den Agenten aufgeschrieben und für `Settings` nicht.
+
+> **Ein Bedienelement, das nicht bedienbar ist und trotzdem den Zeigefinger
+> zeigt, sagt dem Kunden, er habe falsch geklickt.**
+
+**Der Weg:** `.toggle:has(input:disabled)` bekommt die Behandlung, die `.field`
+schon hat — gedämpfte Schrift, `cursor: default`. Und der Hinderungsgrund
+gehört von den erklärenden `.hint` abgesetzt, damit er als Sperre und nicht als
+Fussnote liest. Ein Wächter darüber, dass ein abschaltbares Bedienelement einen
+sichtbaren Aus-Zustand hat, gehört dazu.
+
+**Nicht behoben**, aus demselben Grund wie Befund 1 und 2.
+
+**Und die Lehre über den Lauf hinaus.** `dokument: 0`, `schiebt: []`,
+Gegenprobe `200/200` — vier Lagen lang. Kein Messmittel dieses Projekts hätte
+das gefunden; gefunden hat es jemand, der klicken wollte.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.** Und diesmal nicht einmal einen Betrachter, sondern einen
+> Benutzer: Ansehen genügte nicht, es musste jemand hingreifen.
+
 ### Was in dieser Lage richtig war
 
 - Vier Zeilen des Bereichs, Zustand als Marke mit Wort und Punkt, „Erwartet"
@@ -200,7 +257,8 @@ Frage an den Betreiber und kein Fehler.
 
 ## 4. Was offen ist
 
-- **Dreizehn der sechzehn Lagen.**
+- **Zwölf der sechzehn Lagen** — Ansicht 1 ist vollständig, die Ansichten 2 bis
+  4 stehen aus.
 - **Die Fuge unter „Als Platzhalter bestellen" ist gar nicht zu sehen**, und
   zwar aus einem Grund im Code: Der Knopf steht unter
   `v-if="props.can.update && (!props.certificate || alsPlatzhalter)"`. Diese

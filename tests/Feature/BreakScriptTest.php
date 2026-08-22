@@ -68,6 +68,49 @@ final class BreakScriptTest extends TestCase
      *
      * @return list<array{file: string, needle: string}>
      */
+    /**
+     * Aneinandergereihte Zeichenketten zu einer zusammenziehen.
+     *
+     * **Die Lücke, die dieser Wächter über sich selbst benannt hat — und die am
+     * 22. August 2026 einen roten Lauf gekostet hat.** Python reiht benachbarte
+     * Zeichenketten aneinander, und dreizehn Blöcke im Skript nutzen das für
+     * mehrzeilige Stellen:
+     *
+     *     s.replace(
+     *         "        foreach (…) {\n"
+     *         "            if (…) {\n",
+     *         …
+     *     )
+     *
+     * Der Ausdruck darunter liest davon nur das erste Stück. Ein Eingriff, der
+     * `resolver->txt()` suchte — seit P7 heisst die Methode `records()` —, galt
+     * damit als heil: Sein erstes Stück (`foreach ($servers as $server) {`)
+     * stand noch da, der Rest nicht. Im Lauf änderte er nichts, `griff_datei`
+     * meldete es, und dieser Wächter war grün.
+     *
+     * > **Ein Wächter, der eine Zeichenkette nur bis zur ersten Naht liest,
+     * > prüft den Anfang und nennt es das Ganze.**
+     *
+     * Zusammengezogen wird nur, was auf einer eigenen Zeile steht und dieselbe
+     * Anführung trägt — was sich erst zur Laufzeit zusammensetzt (`alt + neu`,
+     * `%`-Formatierung), bleibt weiter unlesbar und zählt weiter als nicht
+     * vorhanden.
+     */
+    private function joinAdjacentStrings(string $block): string
+    {
+        do {
+            $vorher = $block;
+
+            $block = (string) preg_replace(
+                '/"((?:[^"\\\\]|\\\\.)*)"\s*\n\s*"((?:[^"\\\\]|\\\\.)*)"/',
+                '"$1$2"',
+                $block,
+            );
+        } while ($block !== $vorher);
+
+        return $block;
+    }
+
     private function interventions(): array
     {
         $script = (string) file_get_contents($this->root().'/tests/waechter-brechen.sh');
@@ -134,6 +177,8 @@ final class BreakScriptTest extends TestCase
              * Umformung), bleibt damit unlesbar und zählt weiter als nicht
              * vorhanden — eine Lücke, die jetzt wenigstens klein und benannt ist.
              */
+            $block = $this->joinAdjacentStrings($block);
+
             $variablen = [];
 
             preg_match_all(

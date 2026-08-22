@@ -17587,3 +17587,71 @@ Beispielklasse hiess zuerst `…Test`; `GuardReachTest` sammelt jeden solchen Na
 aus dem Quelltext und verlangt einen Wächter dazu. Nach der Umbenennung stand der
 alte Name noch im erklärenden Absatz — und wurde wieder gemeldet. Er
 unterscheidet Erklärung und Erwähnung nicht, und das ist richtig so.
+
+### Der Bruchlauf hat drei eigene Fehler gemeldet — und einen davon verschwiegen
+
+Der wöchentliche Lauf von `tests/waechter-brechen.sh` ist am 22. August 2026 zum
+ersten Mal an einem Pull Request gefahren und hat drei Dinge gefunden, alle drei
+im Prüfmittel und keines im Prüfling.
+
+**Der erste war unsichtbar, und das ist der eigentliche Befund.** Die Bilanz am
+Ende meldete „6 Prüfung(en) ohne Biss" und führte fünf auf. `griff_datei` zählt
+einen wirkungslosen Eingriff mit, trägt ihn aber nicht in die Liste ein — und
+genau dieser Fall ist der schwerste: Ein Eingriff, der nichts ändert, hat
+nichts gemessen, und der Wächter dahinter war nie rot.
+
+> **Eine Bilanz, die eine Art von Fehlschlag nicht aufführt, ist eine Liste und
+> keine Bilanz.**
+
+Beide Griffprüfungen tragen jetzt ein. `stumm` bleibt dabei unberührt: Der
+Zähler trägt die Meldung „dieses Skript hat nichts gemessen", und ein einzelner
+wirkungsloser Eingriff unter 626 wirksamen löste sie sonst aus.
+
+**Der zweite ist der Eingriff, den das verdeckt hat.** „Ein Nameserver genügt"
+suchte `resolver->txt()` — die Methode heisst seit P7 Schritt 1
+`records(…, Packet::TYPE_TXT)`. Er fand seinen Text nicht mehr und änderte
+nichts; `DnsChallengeTest` galt seit Schritt 1 als abgesichert und war es nicht.
+
+**`BreakScriptTest` war dabei grün, und der Grund stand in seinem eigenen
+Kommentar.** Sein Leser kannte drei Schreibweisen und nannte die vierte
+ausdrücklich als Lücke: was sich aus mehreren Zeichenketten zusammensetzt.
+Genau diese Form hatte der Eingriff — Python reiht benachbarte Zeichenketten
+aneinander, und gelesen wurde nur das erste Stück. Das stand noch im Quelltext,
+der Rest nicht.
+
+> **Ein Wächter, der eine Zeichenkette nur bis zur ersten Naht liest, prüft den
+> Anfang und nennt es das Ganze.**
+
+`joinAdjacentStrings()` zieht sie jetzt zusammen — **dreizehn Blöcke** waren so
+geschrieben und damit ungeprüft. Die Gegenprobe: den alten Eingriff in seiner
+alten Form wieder einsetzen, der Wächter wird rot.
+
+**Der dritte ist eine Gegenprobe, die durch eine zweite Wand stumpf geworden
+ist.** „Geltungsbereich nimmt alles" nimmt die Eingrenzung aus `sources()` und
+erwartete, dass die drei Attrappen unter `tests/Support` gemeldet werden. Seit
+`InheritedNames::declarations()` nur noch sammelt, was auf der Klasse landet,
+werden sie gar nicht mehr gelesen — sie erben von nichts.
+
+> **Eine Gegenprobe, die nur eine von zwei Wänden wegnimmt, schlägt nicht aus,
+> solange die andere hält — und sagt dann über keine von beiden etwas.**
+
+Sie zeigt jetzt auf `test_every_source_is_really_a_test_case`, der die
+Eingrenzung selbst prüft statt ihrer Folge: Was gelesen wird, muss ein Testfall
+oder ein Trait sein, denn nur dann ist `PHPUnit\Framework\TestCase` die richtige
+Basisklasse für den Vergleich.
+
+**Und der Befund über das Vorgehen:** Alle 626 Eingriffe lassen sich hier
+einzeln fahren — Datei sichern, Block anwenden, auf Änderung prüfen,
+zurückschreiben —, und dieser Durchgang meldet jetzt **null ohne Wirkung**. Das
+ist mehr, als `BreakScriptTest` kann: Er liest den gesuchten Text, dieser
+Durchgang wendet ihn an.
+
+> **Ein Text, der noch dasteht, ist keine Zusage, dass die Ersetzung etwas
+> ändert.**
+
+Zwei Fallen dabei, beide teuer bezahlt. Der Durchgang muss **zwischen** den
+Eingriffen zurücksetzen — hintereinander gefahren meldeten achtzehn Eingriffe
+„ohne Wirkung", weil jeder den Baum des vorigen vorfand. Und zurückgesetzt wird
+aus dem Gedächtnis und nicht mit `git checkout -- .`: Der nimmt mit, was noch
+nicht eingecheckt ist, und hat in diesem Durchgang vier fertige Behebungen
+gelöscht. Der Satz steht seit P5c in `CLAUDE.md`, und er stimmt.

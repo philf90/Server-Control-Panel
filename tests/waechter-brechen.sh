@@ -192,6 +192,22 @@ griff_datei() {
     printf '  FEHLT  %-56s Eingriff hat nichts geändert\n' "$name"
     fehler=$((fehler + 1))
 
+    # **Auch hier, und das fehlte bis zum 22. August 2026.** Der Zähler stieg,
+    # die Bilanz am Ende blieb still — sie führte nur auf, was `pruefe`
+    # gemeldet hatte. Wer sie las, suchte einen Fehlschlag, den es dort nicht
+    # gab, und übersah den, der wirklich zählt: Ein Eingriff, der nichts
+    # ändert, hat nichts gemessen.
+    #
+    #   Eine Bilanz, die eine Art von Fehlschlag nicht aufführt, ist eine
+    #   Liste und keine Bilanz.
+    gefallen="$gefallen  $name — Eingriff hat nichts geändert
+"
+
+    # **`stumm` bleibt unberührt**, obwohl ein wirkungsloser Eingriff nichts
+    # gemessen hat. Der Zähler trägt die Meldung „dieses Skript hat nichts
+    # gemessen", und die gilt für den Fall, dass **kein** Ergebnis lesbar war.
+    # Ein einzelner wirkungsloser Eingriff unter 626 wirksamen löste sie sonst
+    # aus und stellte 625 gültige Messungen in Frage.
     return 1
   fi
 
@@ -205,6 +221,22 @@ griff() {
     printf '  FEHLT  %-56s Eingriff hat nichts geändert\n' "$name"
     fehler=$((fehler + 1))
 
+    # **Auch hier, und das fehlte bis zum 22. August 2026.** Der Zähler stieg,
+    # die Bilanz am Ende blieb still — sie führte nur auf, was `pruefe`
+    # gemeldet hatte. Wer sie las, suchte einen Fehlschlag, den es dort nicht
+    # gab, und übersah den, der wirklich zählt: Ein Eingriff, der nichts
+    # ändert, hat nichts gemessen.
+    #
+    #   Eine Bilanz, die eine Art von Fehlschlag nicht aufführt, ist eine
+    #   Liste und keine Bilanz.
+    gefallen="$gefallen  $name — Eingriff hat nichts geändert
+"
+
+    # **`stumm` bleibt unberührt**, obwohl ein wirkungsloser Eingriff nichts
+    # gemessen hat. Der Zähler trägt die Meldung „dieses Skript hat nichts
+    # gemessen", und die gilt für den Fall, dass **kein** Ergebnis lesbar war.
+    # Ein einzelner wirkungsloser Eingriff unter 626 wirksamen löste sie sonst
+    # aus und stellte 625 gültige Messungen in Frage.
     return 1
   fi
 
@@ -1735,22 +1767,17 @@ vorher_datei agent/src/Acme/DnsChallenge.php
 python3 - <<'PY2'
 p = 'agent/src/Acme/DnsChallenge.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace(
-    "        foreach ($servers as $server) {\n"
-    "            if (! in_array($wanted, $this->resolver->txt($server, $record), true)) {\n"
-    "                return false;\n"
-    "            }\n"
-    "        }\n"
-    "\n"
-    "        return true;",
-    "        foreach ($servers as $server) {\n"
-    "            if (in_array($wanted, $this->resolver->txt($server, $record), true)) {\n"
-    "                return true;\n"
-    "            }\n"
-    "        }\n"
-    "\n"
-    "        return false;",
-)
+# **Nachgezogen am 22. August 2026.** Der Eingriff nannte `resolver->txt()`,
+# und die Methode heisst seit P7 Schritt 1 `records(..., Packet::TYPE_TXT)`.
+# Er fand seinen Text nicht mehr, aenderte nichts — und `griff_datei` meldete
+# das, ohne es in die Bilanz am Ende aufzunehmen.
+alt = "            if (! in_array($wanted, $found, true)) {\n                return false;\n            }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "            if (in_array($wanted, $found, true)) {\n                return true;\n            }", 1)
+
+alt = "        return true;\n    }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "        return false;\n    }", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei agent/src/Acme/DnsChallenge.php "Ein Nameserver genügt" &&
@@ -9094,7 +9121,7 @@ open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei tests/Unit/BaseMethodClashTest.php "Geltungsbereich nimmt alles" &&
 pruefe "Geltungsbereich nimmt alles" \
-  BaseMethodClashTest::test_no_test_declares_a_name_the_base_class_owns failed
+  BaseMethodClashTest::test_every_source_is_really_a_test_case failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BaseMethodClashTest passed
 

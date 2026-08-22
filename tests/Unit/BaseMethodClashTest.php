@@ -149,6 +149,55 @@ final class BaseMethodClashTest extends TestCase
     }
 
     /**
+     * Was `sources()` liest, ist wirklich ein Testfall oder ein Trait.
+     *
+     * **Das ist die Zusage, auf der dieser Wächter steht.** Er vergleicht jede
+     * gelesene Datei gegen die `final`-Methoden von
+     * `PHPUnit\Framework\TestCase` — und das ist nur dann die richtige
+     * Basisklasse, wenn die Datei auch von ihr erbt. Eine Klasse, die von
+     * etwas anderem erbt und `run()` erklärt, bekäme sonst einen Befund über
+     * eine Basisklasse, die sie nie gesehen hat.
+     *
+     * **Vorher hing diese Zusage an einem Eingriff, der sie nicht mehr prüfen
+     * konnte.** Er nahm die Eingrenzung heraus und erwartete, dass die drei
+     * Attrappen unter `tests/Support` gemeldet werden — die haben einen
+     * eigenen Konstruktor. Seit {@see InheritedNames::declarations()} nur noch
+     * sammelt, was auf der Klasse landet, werden sie ohnehin nicht gelesen:
+     * Sie erben von nichts. Die eine Wand hielt, also schlug die Gegenprobe
+     * für die andere nicht mehr aus.
+     *
+     * > **Eine Gegenprobe, die nur eine von zwei Wänden wegnimmt, schlägt
+     * > nicht aus, solange die andere hält — und sagt dann über keine von
+     * > beiden etwas.**
+     *
+     * Geprüft wird deshalb die Eingrenzung selbst statt ihrer Folge.
+     */
+    public function test_every_source_is_really_a_test_case(): void
+    {
+        $fremd = [];
+
+        foreach ($this->sources() as $pfad) {
+            $quelltext = (string) file_get_contents($pfad);
+
+            $istTestfall = preg_match('/\bclass\s+\w+\s+extends\s+\S*TestCase\b/', $quelltext) === 1;
+            $istTrait = preg_match('/^\s*trait\s+\w+/m', $quelltext) === 1;
+
+            if (! $istTestfall && ! $istTrait) {
+                $fremd[] = basename($pfad);
+            }
+        }
+
+        $this->assertSame([], $fremd, implode("\n", [
+            'Diese gelesenen Dateien sind weder Testfall noch Trait:',
+            ...$fremd,
+            '',
+            'Der Vergleich unten haelt jede gelesene Datei gegen die final-Methoden',
+            'von PHPUnit\Framework\TestCase. Fuer eine Klasse, die von etwas anderem',
+            'erbt, ist das die falsche Basisklasse — und ihr Befund eine Erfindung.',
+        ]));
+    }
+
+    /**
      * Quelltexte, an denen der Geltungsbereich entschieden wird.
      *
      * **Sie sind der Prüfkörper dieses Wächters.** Ohne sie steht seine Regel

@@ -232,7 +232,6 @@ final class BlockSpacingTest extends TestCase
         'link + link',
         'pager-state + button',
         'sections + form',
-        'toggle + button-row',
         'toggle + choices',
         'toggle + ident',
         'toggle + dependent',

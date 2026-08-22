@@ -17694,3 +17694,36 @@ Der Wächter dazu ist mechanisch: Zwei `T_DOC_COMMENT` mit nichts als Leerraum
 dazwischen. Er lässt sich nicht bauen, ohne die einundzwanzig zu entscheiden —
 und das ist eine inhaltliche Arbeit, denn manche der verwaisten Blöcke
 beschreiben eine Methode, die es nicht mehr gibt.
+
+### Ein Knopf, der am Kästchen darüber klebte
+
+Gemeldet vom Betreiber in der Zwischenabnahme von P7 (`docs/74`): Auf der
+Domainseite stand „Zertifikat bestellen" ohne eine Lücke unter „Als Platzhalter
+bestellen".
+
+`.toggle` bringt oben 14px mit und unten nichts. Der Abstand darunter kam
+deshalb nicht von ihm, sondern von dem, was zufällig davor stand — im
+DNS-Bereich ein `.section-note` mit eigenem Rand, im Zertifikatsbereich nichts.
+
+> **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit der
+> nächsten Ergänzung.**
+
+Derselbe Satz wie in P4, wo ein Abstand mit der nächsten Ergänzung fiel.
+
+**Der Wächter hatte die Fuge längst gezählt.** `toggle + button-row` stand in
+`BlockSpacingTest::OPEN_SEAMS` — der Liste der Fugen, die noch niemand
+angesehen hat. Genau dafür ist sie da: Ob zwei Bausteine zu eng stehen,
+entscheidet ein Blick und keine Regel. Der Blick ist jetzt erfolgt, die Fuge hat
+ihre Nachbarschaftsregel, und der Eintrag fällt weg.
+
+Gemessen im Container gegen das gebaute Stylesheet, mit einem Prüfkörper, der
+unterscheidet: `.toggle` + Behälter ohne Klasse **0 px**, `.toggle` +
+`.button-row` **26 px**, und daneben die etablierte Fuge `.section-note` +
+`.button-row` mit denselben **26 px**.
+
+**Nur diese eine Fuge.** `.toggle` selbst einen `margin-bottom` zu geben, hätte
+vier weitere Fugen verstellt, die in `OPEN_SEAMS` stehen und nicht angesehen
+worden sind.
+
+Der Bruch nennt beide betroffenen Seiten: `Domains/Show.vue` und — was erst der
+Wächter gezeigt hat — `Auth/Login.vue`.

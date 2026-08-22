@@ -431,7 +431,7 @@ Der Wächter macht daraus eine Entscheidung statt einer Handbewegung.
 | 5 | Die Anzeige an der Domain, mit dem Zeitpunkt |
 | 6 | Der CAA-Fall |
 | 7 | Die regelmässige Messung und ihre Grenze — Kommando, Timer, Reihenfolge (§2.5a) |
-| 8 | Zwischenabnahme auf `cloudsrv24` |
+| 8 | Zwischenabnahme auf `cloudsrv24` — der Lauf steht in **`docs/73`** |
 | 9 | Bilderrunde, beide Themes, 390 und 1440 px |
 | 10 | Abnahmelauf auf `cloudsrv24`, Protokoll **während** des Laufs |
 

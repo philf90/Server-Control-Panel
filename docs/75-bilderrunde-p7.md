@@ -39,6 +39,39 @@ halben Tag gekostet hat:
 Das Skript wird nach jedem Neuladen **frisch aus dem Zweig** geholt, und `stand`
 gehört in jede Zeile des Protokolls.
 
+### 1.1 Die Vormessung im Container — und wo sie zu gnädig war
+
+Beide Ansichten sind vor dem Lauf im Aufsatz dieses Containers gemessen worden
+(echtes Markup, frisch gebautes Stylesheet, Chromium bei 390 und 1440 px, beide
+Themes). Das ersetzt den Lauf nicht — es nimmt ihm die Fehler ab, die keine
+echten Daten brauchen. **Einer ist so gefunden worden**, und er hatte keine
+Zahl: die Meldung „nicht gefragt", drei Flexkinder statt einem
+(`NoticeChildrenTest`).
+
+**Und der Aufsatz selbst hatte einen Fehler, der ihn zu gnädig machte.**
+`.content { padding: 18px 16px 28px }` bei 390 px steht in einem
+`<style scoped>` von `PanelLayout.vue`. Vite bindet so eine Regel an ein
+Attribut, das nur der Übersetzer setzt — handgeschriebenes Markup trifft sie
+nie. Der Aufsatz mass damit eine **390 px** breite Inhaltsfläche, wo die echte
+Seite **358 px** gibt.
+
+> **Ein Aufsatz ohne die Regeln, die den Inhalt beschneiden, misst eine
+> breitere Seite als die, um die es geht.**
+
+Das ist dieselbe Grenze wie in `docs/59` (`.usage`), nur andersherum: Dort
+fehlte einer Komponente ihr eigenes Aussehen, hier dem Inhalt sein Rahmen. Wer
+einen Aufsatz baut, zieht die `scoped`-Regeln der Hülle von Hand nach — sonst
+ist jede Null 32 px zu optimistisch.
+
+**Nachgezogen gemessen**, alle vier Lagen je Ansicht: `dokument: 0`,
+Gegenprobe `200/200`. Dazu der ungünstige Fall der Adressliste — drei Adressen,
+IPv6 unkomprimiert ausgeschrieben — ebenfalls `0`: Sie bricht in drei Zeilen,
+rechtsbündig, ohne zu schieben.
+
+**Was die Vormessung ausdrücklich nicht beantwortet:** wie die Seite mit
+*echten* Daten aussieht, mit dem Rail daneben, mit den Vorgängen darunter und
+mit Namen, die länger sind als ausgedachte. Dafür ist der Lauf da.
+
 ---
 
 ## 2. Vorbereitung

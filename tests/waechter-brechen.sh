@@ -14261,6 +14261,43 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DnsSurveyTest passed
 
 echo
+echo "── SettingsWriterReachTest: eine Einstellung ohne Weg hinein ──"
+#
+# Befund 2 der Zwischenabnahme (docs/74): Settings::saveDnsAddresses() gab es
+# seit P7 Schritt 4 und nichts hat es aufgerufen. Die Gegenseite wurde gelesen,
+# die Domainseite wollte sogar warnen, wenn eingetragene und abgeleitete
+# Adressen auseinandergehen — sie konnten nie auseinandergehen.
+
+vorher_datei app/Http/Controllers/GeneralSettingsController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/GeneralSettingsController.php'
+s = open(p, encoding='utf-8').read()
+alt = '        $settings->saveDnsAddresses($adressen);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        // der Aufrufer ist weg', 1))
+PY2
+griff_datei app/Http/Controllers/GeneralSettingsController.php "die Uebersteuerung ohne Weg hinein" &&
+pruefe "die Uebersteuerung ohne Weg hinein" \
+  SettingsWriterReachTest::test_every_writer_is_called_from_somewhere failed
+wiederherstellen
+
+# Und die Gegenprobe zum Scanner: Laeuft er ins Leere, meldet er nicht „alles
+# in Ordnung", sondern dass er nichts gefunden hat.
+vorher_datei tests/Unit/SettingsWriterReachTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/SettingsWriterReachTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "$datei->getExtension() !== 'php'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$datei->getExtension() !== 'phpx'", 1))
+PY2
+griff_datei tests/Unit/SettingsWriterReachTest.php "der Scanner laeuft ins Leere" &&
+pruefe "der Scanner laeuft ins Leere" \
+  SettingsWriterReachTest::test_the_scan_for_callers_finds_anything failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SettingsWriterReachTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

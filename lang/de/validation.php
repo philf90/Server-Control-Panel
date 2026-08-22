@@ -229,6 +229,7 @@ return [
         'target' => 'Ziel',
         'task' => 'Aufgabe',
         'theme' => 'Darstellung',
+        'dns_addresses' => 'Eingetragene Adressen',
         'timezone' => 'Zeitzone',
         'to' => 'Ziel',
         'token' => 'Token',

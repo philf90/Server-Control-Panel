@@ -17789,3 +17789,46 @@ der Zone" statt der bisherigen Sammelmeldung.
 **Und das Doppel in `DnsSweepTest` konnte den mittleren Fall gar nicht
 darstellen:** Sein `silent` gab `null` zurück und war damit in Wahrheit der
 ungefragte. Es kennt jetzt drei Ausgänge, und ein Fall unterscheidet sie.
+
+### Die Übersteuerung der Adressen bekommt ihren Weg hinein
+
+Befund 2 der Zwischenabnahme (`docs/74`). `Settings::saveDnsAddresses()` gab es
+seit P7 Schritt 4, und **nichts hat es aufgerufen** — kein Formular, keine
+Route, kein Schalter. Die Gegenseite wurde gelesen, die Domainseite hielt ihr
+Ergebnis sogar gegen die abgeleiteten Adressen und wollte warnen, wenn beide
+auseinandergehen. Sie konnten nie auseinandergehen.
+
+> **Eine Einstellung, die sich lesen, aber nirgends setzen lässt, ist keine
+> Einstellung — sie ist ein Vorsatz.**
+
+Das Feld steht unter **Einstellungen → Allgemein** — „Was für den ganzen Server
+gilt". „DNS-Zugang" daneben führt Zugangsdaten für Bestellungen über DNS-01 und
+ist ein anderes Thema; die Frage „welche Adressen sollen meine Domains tragen?"
+gehört zum Server und nicht zu einem Dienst.
+
+Geprüft wird jede Zeile über `ServerAddresses::rejected()` — dieselbe Stelle,
+die auch die abgeleiteten Adressen siebt. Und beide Listen stehen daneben: was
+eingetragen ist und was abgeleitet würde. Eine im Panel gemerkte Fassung eines
+Serverzustands ist die, die veraltet; man muss sehen, wenn sie nicht mehr
+stimmt.
+
+**Der Wächter, der gefehlt hat.** `SettingsWriterReachTest` verlangt, dass jede
+`save*`-Methode von `Settings` ausserhalb gerufen wird. Für dieselbe Form gibt
+es seit P3 `AgentOperationReachTest` — er fand zwei fertig gebaute
+Agent-Operationen, die von nichts aufgerufen wurden. Die Regel war für den
+Agenten aufgeschrieben und für `Settings` nicht.
+
+> **Eine Regel, die für einen Gegenstand gilt, gilt nicht für den nächsten,
+> bloss weil sie dieselbe ist.**
+
+**Und er hat sich beim ersten Lauf selbst widerlegt:** Er meldete alle fünf
+Schreibmethoden als tot, weil `glob('**/*.php')` in PHP nicht rekursiert. Vier
+davon haben ihren Aufrufer seit Monaten. Er zählt seitdem auch die Aufrufe
+insgesamt — ein Scanner, der ins Leere läuft, meldet jetzt das und nicht „alles
+in Ordnung".
+
+**Zwei weitere Wächter haben beim Bau zugebissen**, beide zu Recht:
+`ButtonStyleTest` (zwei Knöpfe „wichtig" in einem Formular — es ist ein
+Formular, also gehört ein Knopf darunter) und `AttributeNameTest` (ein
+validiertes Feld ohne deutschen Namen; er heisst jetzt so, wie er am Feld
+steht).

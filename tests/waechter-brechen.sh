@@ -14089,9 +14089,11 @@ vorher_datei app/Support/Dns/Sweep.php
 python3 - <<'PY2'
 p = 'app/Support/Dns/Sweep.php'
 s = open(p, encoding='utf-8').read()
-alt = '            if ($this->wasSilent($findings)) {\n                $silent++;\n            }\n'
+# Seit dem 22. August steht der stumme Fall im `elseif` hinter dem ungefragten
+# (docs/74, Befund 1); der Eingriff nimmt jetzt diesen Zweig weg.
+alt = '            } elseif ($this->wasSilent($findings)) {\n                $silent++;\n            }'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '            }', 1))
 PY2
 griff_datei app/Support/Dns/Sweep.php "eine stumme Zone wird nicht gezaehlt" &&
 pruefe "eine stumme Zone wird nicht gezaehlt" \
@@ -14168,6 +14170,203 @@ pruefe "die Klammer einer Einsetzung zaehlt nicht" \
   BaseMethodClashTest::test_only_what_lands_on_the_class_is_read failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BaseMethodClashTest passed
+
+echo
+echo "── DisplayTimeZoneTest: der Browser entscheidet die Zeitzone ──"
+#
+# Befund 3 der Zwischenabnahme (docs/74): Der DNS-Bereich schickte ISO-8601 an
+# den Browser und liess dort new Date().toLocaleString() rechnen — also in der
+# Zone des Betrachters. Daneben rendert die Vorgangsliste derselben Seite ueber
+# Clock::display(), also in der eingestellten Anzeigezone.
+
+vorher_datei resources/js/Pages/Domains/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'const dnsGeprueft = computed(() => props.dns.last?.checked_at ?? null)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "const dnsGeprueft = computed(() => {\n  const wann = props.dns.last?.checked_at\n\n  return wann === undefined ? null : new Date(wann).toLocaleString('de-DE')\n})"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Domains/Show.vue "der Browser rechnet die Zeit" &&
+pruefe "der Browser rechnet die Zeit" \
+  DisplayTimeZoneTest::test_no_new_place_decides_the_time_zone_in_the_browser failed
+wiederherstellen
+
+# Und die Gegenprobe zum Ausdruck: Trifft er nichts mehr, meldet der Waechter
+# nicht „alles in Ordnung", sondern dass seine gezaehlten Stellen fehlen.
+vorher_datei tests/Unit/DisplayTimeZoneTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DisplayTimeZoneTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "str_contains($zeile, 'new Date(')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "str_contains($zeile, 'new Datum(')", 1))
+PY2
+griff_datei tests/Unit/DisplayTimeZoneTest.php "der Ausdruck trifft nichts mehr" &&
+pruefe "der Ausdruck trifft nichts mehr" \
+  DisplayTimeZoneTest::test_every_counted_place_still_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DisplayTimeZoneTest passed
+
+echo
+echo "── Der ungefragte Name: nicht gefragt ist nicht dasselbe wie ohne Antwort ──"
+#
+# Befund 1 der Zwischenabnahme (docs/74). Measurement sagt in seiner
+# Beschreibung, `null` heisse „die Messung hat nicht stattgefunden" — die
+# Auskunft entstand und wurde verworfen, bevor sie jemand lesen konnte. Im
+# Bericht sah ein gescheiterter Agentenaufruf danach genauso aus wie eine Zone,
+# die wirklich schweigt.
+
+vorher_datei app/Support/Dns/Survey.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Survey.php'
+s = open(p, encoding='utf-8').read()
+alt = "                $unasked[] = (string) $name;\n\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Dns/Survey.php "der ungefragte Name wird verschwiegen" &&
+pruefe "der ungefragte Name wird verschwiegen" \
+  DnsSurveyTest::test_a_name_that_could_not_be_asked_is_named failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Survey.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Survey.php'
+s = open(p, encoding='utf-8').read()
+alt = "            $answer = $this->measurement->of((string) $name, $queries);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            $answer = $this->measurement->of((string) $name, $queries);\n            $unasked[] = (string) $name;"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Survey.php "jeder Name gilt als ungefragt" &&
+pruefe "jeder Name gilt als ungefragt" \
+  DnsSurveyTest::test_a_zone_that_answers_is_not_counted_as_unasked failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Sweep.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Sweep.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if ($this->wasUnasked($findings)) {\n                $unasked++;\n            } elseif ($this->wasSilent($findings)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            if ($this->wasSilent($findings)) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Sweep.php "nicht gefragt zaehlt wieder als stumm" &&
+pruefe "nicht gefragt zaehlt wieder als stumm" \
+  DnsSweepTest::test_a_name_that_could_not_be_asked_is_not_a_silent_zone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DnsSurveyTest passed
+
+echo
+echo "── SettingsWriterReachTest: eine Einstellung ohne Weg hinein ──"
+#
+# Befund 2 der Zwischenabnahme (docs/74): Settings::saveDnsAddresses() gab es
+# seit P7 Schritt 4 und nichts hat es aufgerufen. Die Gegenseite wurde gelesen,
+# die Domainseite wollte sogar warnen, wenn eingetragene und abgeleitete
+# Adressen auseinandergehen — sie konnten nie auseinandergehen.
+
+vorher_datei app/Http/Controllers/GeneralSettingsController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/GeneralSettingsController.php'
+s = open(p, encoding='utf-8').read()
+alt = '        $settings->saveDnsAddresses($adressen);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        // der Aufrufer ist weg', 1))
+PY2
+griff_datei app/Http/Controllers/GeneralSettingsController.php "die Uebersteuerung ohne Weg hinein" &&
+pruefe "die Uebersteuerung ohne Weg hinein" \
+  SettingsWriterReachTest::test_every_writer_is_called_from_somewhere failed
+wiederherstellen
+
+# Und die Gegenprobe zum Scanner: Laeuft er ins Leere, meldet er nicht „alles
+# in Ordnung", sondern dass er nichts gefunden hat.
+vorher_datei tests/Unit/SettingsWriterReachTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/SettingsWriterReachTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "$datei->getExtension() !== 'php'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$datei->getExtension() !== 'phpx'", 1))
+PY2
+griff_datei tests/Unit/SettingsWriterReachTest.php "der Scanner laeuft ins Leere" &&
+pruefe "der Scanner laeuft ins Leere" \
+  SettingsWriterReachTest::test_the_scan_for_callers_finds_anything failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SettingsWriterReachTest passed
+
+echo
+echo "── OneshotDeadlineTest: ein Dienst ohne Frist ──"
+#
+# **Der Anlass ist gemessen und nicht gedacht** (`docs/74`, Befund 4): Auf
+# `cloudsrv24` stand `srvpanel-cron.service` auf `TimeoutStartUSec=infinity`.
+# Ein `Type=oneshot` ohne eigene Angabe laeuft ohne Frist; haengt so ein Lauf,
+# bleibt die Unit in `activating`, und systemd startet sie beim naechsten
+# Termin nicht noch einmal.
+
+vorher_datei packaging/systemd/srvpanel-cron.service
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-cron.service'
+s = open(p, encoding='utf-8').read()
+alt = '\nTimeoutStartSec=180'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei packaging/systemd/srvpanel-cron.service "ein Dienst am Timer ohne Frist" &&
+pruefe "ein Dienst am Timer ohne Frist" \
+  OneshotDeadlineTest::test_every_timed_service_declares_a_deadline failed
+wiederherstellen
+
+vorher_datei packaging/systemd/srvpanel-cron.service
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-cron.service'
+s = open(p, encoding='utf-8').read()
+alt = 'TimeoutStartSec=180'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'TimeoutStartSec=600', 1))
+PY2
+griff_datei packaging/systemd/srvpanel-cron.service "die Frist liegt ueber dem Takt" &&
+pruefe "die Frist liegt ueber dem Takt" \
+  OneshotDeadlineTest::test_the_deadline_is_shorter_than_the_period failed
+wiederherstellen
+
+# **Der dritte Eingriff bricht keine Regel des Bestands, sondern die Lesbarkeit
+# des Takts.** Eine Schreibweise, die `period()` nicht kennt, darf nicht
+# stillschweigend durchgehen — sonst prueft der Fall darueber nichts und ist
+# gruen.
+
+vorher_datei packaging/systemd/srvpanel-cron.timer
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-cron.timer'
+s = open(p, encoding='utf-8').read()
+alt = 'OnCalendar=*:0/5'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'OnCalendar=*:00/5', 1))
+PY2
+griff_datei packaging/systemd/srvpanel-cron.timer "eine Schreibweise, die der Waechter nicht kennt" &&
+pruefe "eine Schreibweise, die der Waechter nicht kennt" \
+  OneshotDeadlineTest::test_the_deadline_is_shorter_than_the_period failed
+wiederherstellen
+
+# **Und die Gegenprobe des Aufzaehlers.** Findet der Ausdruck ueber
+# `packaging/systemd` keine Timer mehr, pruefen die beiden Faelle darueber null
+# Dienste und sind gruen, ohne etwas gesehen zu haben.
+
+vorher_datei tests/Unit/OneshotDeadlineTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/OneshotDeadlineTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "/packaging/systemd/*.timer'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "/packaging/systemd/*.timerx'", 1))
+PY2
+griff_datei tests/Unit/OneshotDeadlineTest.php "der Aufzaehler findet keinen Timer" &&
+pruefe "der Aufzaehler findet keinen Timer" \
+  OneshotDeadlineTest::test_there_are_timers_to_check failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OneshotDeadlineTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

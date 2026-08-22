@@ -233,6 +233,44 @@ final class DnsSurveyTest extends TestCase
     }
 
     /**
+     * Ein Name, der nicht gefragt werden konnte, wird als solcher genannt.
+     *
+     * **Die Unterscheidung entsteht hier und wurde bis zum 22. August 2026
+     * verworfen.** {@see Measurement} sagt in seiner Beschreibung, `null`
+     * heisse „die Messung hat nicht stattgefunden" — aber niemand hat es
+     * weitergegeben, und im Bericht sah ein gescheiterter Agentenaufruf genauso
+     * aus wie eine Zone, die wirklich schweigt.
+     *
+     * > **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut
+     * > wie keine.**
+     */
+    public function test_a_name_that_could_not_be_asked_is_named(): void
+    {
+        $survey = new Survey(new ScriptedMeasurement([
+            'beispiel.de' => $this->leer(),
+            'beispiel.at' => null,
+        ]));
+
+        $befund = $survey->of(['beispiel.de', 'beispiel.at'], [self::V4], null);
+
+        $this->assertSame(['beispiel.at'], $befund['unasked'], 'Der ungefragte Name steht nicht dabei.');
+    }
+
+    /**
+     * Und eine Zone, die antwortet, steht nicht darunter.
+     *
+     * **Ohne diesen Fall misst der obere nichts.** Eine Fassung, die jeden
+     * Namen einträgt, erfüllt ihn genauso — und dann wäre „nicht gefragt"
+     * wieder dasselbe wie „ohne Antwort", nur andersherum.
+     */
+    public function test_a_zone_that_answers_is_not_counted_as_unasked(): void
+    {
+        $survey = new Survey(new ScriptedMeasurement(['beispiel.de' => $this->leer()]));
+
+        $this->assertSame([], $survey->of(['beispiel.de'], [self::V4], null)['unasked']);
+    }
+
+    /**
      * @param  list<string>  $values
      * @return array{name: string, type: string, asked: int, answered: int, values: list<string>, consistent: bool}
      */

@@ -81,6 +81,7 @@ const props = defineProps<{
       checked_at: string
       findings: {
         nameservers: string[]
+      unasked: string[]
         addresses: { derived: string[]; override: string[]; effective: string[] }
         authorities: {
           name: string
@@ -280,11 +281,7 @@ const dnsRang = (zustand: DnsZustand): 'ok' | 'warn' | 'critical' | 'neutral' =>
  * **Er steht immer dabei**, und das ist keine Kosmetik: Was hier zu sehen ist,
  * ist eine Aussage über den Augenblick der Messung und nicht über jetzt.
  */
-const dnsGeprueft = computed(() => {
-  const wann = props.dns.last?.checked_at
-
-  return wann === undefined ? null : new Date(wann).toLocaleString('de-DE')
-})
+const dnsGeprueft = computed(() => props.dns.last?.checked_at ?? null)
 
 /** Läuft die Prüfung gerade? */
 const dnsLaeuft = ref(false)
@@ -683,7 +680,16 @@ const dnsAdressenWeichenAb = computed(() => {
             anderes als ein fehlender Eintrag. Der Satz nennt den Grund, statt
             den Kunden an seinen Einträgen suchen zu lassen.
           -->
-          <p v-if="props.dns.last.findings.nameservers.length === 0" class="notice warn">
+          <p v-if="props.dns.last.findings.unasked.length > 0" class="notice warn">
+            Für
+            <span class="ident">{{ props.dns.last.findings.unasked.join(' ') }}</span>
+            hat die Prüfung gar nicht stattgefunden. Das liegt an diesem Server und
+            nicht an der Zone — über ihre Einträge ist damit nichts gesagt.
+          </p>
+          <p
+            v-else-if="props.dns.last.findings.nameservers.length === 0"
+            class="notice warn"
+          >
             Für diese Domain waren keine Nameserver zu erreichen. Über ihre Einträge ist
             damit nichts gesagt — möglicherweise ist sie noch nicht delegiert.
           </p>

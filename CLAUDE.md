@@ -1330,6 +1330,17 @@ Testen berücksichtigen:
     > **Ein Werkzeug, das man über die gewohnten Pfade fährt, prüft die
     > Gewohnheit und nicht die Änderung.**
 
+    **Und die geänderten Dateien allein reichen nicht — die Schnittstellen,
+    die sie umsetzen, gehören dazu.** Am 22. August meldete ein solcher Lauf
+    dreizehnmal `argument.type`: „`ScriptedMeasurement` given, `Measurement`
+    expected". Beide Klassen sind in Ordnung; `Measurement.php` war bloss nicht
+    im Lauf, weil der Zweig sie nicht geändert hatte, und ohne sie kann PHPStan
+    das `implements` nicht auflösen. Mit der Schnittstelle daneben ist die
+    Ausgabe leer.
+
+    > **Ein Prüfer, dem die Schnittstelle fehlt, meldet nicht „ich kenne sie
+    > nicht" — er meldet, dass die Klasse sie nicht erfüllt.**
+
     Die teuerste der acht war keine Typangabe: Zwei neue Methoden waren
     zwischen `diskQuota()` und seinen Dokumentationsblock gerutscht, und der
     versprach über `dnsAddresses()` ein `array{available: …}`, wo ein

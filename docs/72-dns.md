@@ -143,6 +143,11 @@ also ohne `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`,
 `fc00::/7` und `fe80::/10`. Der Betreiber sieht sie auf der Seite und kann sie
 übersteuern; **leer heisst „nimm die abgeleiteten"**.
 
+**Das Feld steht unter Einstellungen → Allgemein** („Was für den ganzen
+Server gilt"), seit dem 22. August 2026. Bis dahin war nur die Ableitung
+gebaut, und `Settings::saveDnsAddresses()` hatte keinen Aufrufer — gefunden in
+der Zwischenabnahme (`docs/74`, Befund 2).
+
 **Warum nicht nur abgeleitet.** Hinter NAT, einer Floating-IP oder einem
 Lastverteiler ist die Adresse, unter der ein Server von aussen erreichbar ist,
 von innen nicht zu erfahren. Ohne Übersteuerung meldete der Abgleich dort jede
@@ -431,7 +436,7 @@ Der Wächter macht daraus eine Entscheidung statt einer Handbewegung.
 | 5 | Die Anzeige an der Domain, mit dem Zeitpunkt |
 | 6 | Der CAA-Fall |
 | 7 | Die regelmässige Messung und ihre Grenze — Kommando, Timer, Reihenfolge (§2.5a) |
-| 8 | Zwischenabnahme auf `cloudsrv24` |
+| 8 | ~~Zwischenabnahme auf `cloudsrv24`~~ — **abgenommen am 22. August 2026** gegen `v0.7.0-rc.1`; der Lauf steht in `docs/73`, das Protokoll in **`docs/74`** |
 | 9 | Bilderrunde, beide Themes, 390 und 1440 px |
 | 10 | Abnahmelauf auf `cloudsrv24`, Protokoll **während** des Laufs |
 

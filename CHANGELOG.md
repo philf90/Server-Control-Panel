@@ -17694,3 +17694,190 @@ Der Wächter dazu ist mechanisch: Zwei `T_DOC_COMMENT` mit nichts als Leerraum
 dazwischen. Er lässt sich nicht bauen, ohne die einundzwanzig zu entscheiden —
 und das ist eine inhaltliche Arbeit, denn manche der verwaisten Blöcke
 beschreiben eine Methode, die es nicht mehr gibt.
+
+### Ein Knopf, der am Kästchen darüber klebte
+
+Gemeldet vom Betreiber in der Zwischenabnahme von P7 (`docs/74`): Auf der
+Domainseite stand „Zertifikat bestellen" ohne eine Lücke unter „Als Platzhalter
+bestellen".
+
+`.toggle` bringt oben 14px mit und unten nichts. Der Abstand darunter kam
+deshalb nicht von ihm, sondern von dem, was zufällig davor stand — im
+DNS-Bereich ein `.section-note` mit eigenem Rand, im Zertifikatsbereich nichts.
+
+> **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit der
+> nächsten Ergänzung.**
+
+Derselbe Satz wie in P4, wo ein Abstand mit der nächsten Ergänzung fiel.
+
+**Der Wächter hatte die Fuge längst gezählt.** `toggle + button-row` stand in
+`BlockSpacingTest::OPEN_SEAMS` — der Liste der Fugen, die noch niemand
+angesehen hat. Genau dafür ist sie da: Ob zwei Bausteine zu eng stehen,
+entscheidet ein Blick und keine Regel. Der Blick ist jetzt erfolgt, die Fuge hat
+ihre Nachbarschaftsregel, und der Eintrag fällt weg.
+
+Gemessen im Container gegen das gebaute Stylesheet, mit einem Prüfkörper, der
+unterscheidet: `.toggle` + Behälter ohne Klasse **0 px**, `.toggle` +
+`.button-row` **26 px**, und daneben die etablierte Fuge `.section-note` +
+`.button-row` mit denselben **26 px**.
+
+**Nur diese eine Fuge.** `.toggle` selbst einen `margin-bottom` zu geben, hätte
+vier weitere Fugen verstellt, die in `OPEN_SEAMS` stehen und nicht angesehen
+worden sind.
+
+Der Bruch nennt beide betroffenen Seiten: `Domains/Show.vue` und — was erst der
+Wächter gezeigt hat — `Auth/Login.vue`.
+
+### Zwei Zeitangaben auf einer Seite, die in zwei Zonen rechnen
+
+Befund 3 der Zwischenabnahme (`docs/74`). Auf der Domainseite rendert die
+Vorgangsliste über `Clock::display()` — also in der **eingestellten**
+Anzeigezone. Der DNS-Abgleich daneben schickte ISO-8601 an den Browser und
+liess dort `new Date().toLocaleString()` rechnen, also in der Zone des
+**Betrachters**.
+
+Aufgefallen ist es niemandem: Auf dem Messrechner waren beide Zonen dieselbe.
+Gefunden hat es nur, dass jemand die zwei Zahlen nebeneinander gelesen hat.
+
+> **Zwei Zeitangaben auf einer Seite, die in verschiedenen Zonen rechnen, sind
+> schlimmer als eine falsche: Man kann sie miteinander vergleichen.**
+
+`Dns::last()` schickt den Zeitpunkt jetzt durch `Clock`, die Seite druckt nur
+noch. Nebeneffekt: Beide Angaben tragen damit dasselbe Format.
+
+**Der Wächter zählt statt auszunehmen.** `DisplayTimeZoneTest` findet jede
+Stelle, an der `new Date(…)` und ein `toLocale…` in derselben Zeile stehen —
+und hält sie gegen eine Liste mit **fünf** Fundstellen, die es im Bestand noch
+gibt. Eine davon (`Databases/Show.vue`, `size_measured_at`) ist derselbe Befund
+und war nur nie gemeldet; die anderen vier formatieren Sekunden vom Agenten und
+würden beim Umbau ihr sichtbares Format ändern — das braucht eigene Aufnahmen.
+
+> **Ein Loch, das man zählt, ist kein Loch mehr — es ist eine Zahl, die kleiner
+> werden kann.**
+
+Der zweite Fall des Wächters ist zugleich seine Gegenprobe: Trifft der Ausdruck
+nichts mehr, findet er null statt fünf und wird rot, statt „alles in Ordnung"
+zu melden. Beide Brüche stehen im Skript und beissen einzeln.
+
+### „Nicht gefragt" ist nicht dasselbe wie „ohne Antwort"
+
+Befund 1 der Zwischenabnahme (`docs/74`). Der Bericht meldete
+`2 geprüft, 2 ohne Antwort`, und um zu wissen, ob der Agent gescheitert war oder
+die Zonen wirklich schweigen, musste jemand ins Protokoll des Agenten sehen.
+
+**Die Unterscheidung gab es die ganze Zeit.** `Measurement` sagt in seiner
+Beschreibung, `null` heisse „die Messung hat nicht stattgefunden" — und genau
+das ist etwas anderes als eine Antwort ohne Sätze. `Survey` warf die Auskunft
+weg, `Sweep` konnte sie nicht mehr haben.
+
+> **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+> keine.**
+
+`Survey::of()` führt die ungefragten Namen jetzt als `unasked` mit, `Sweep`
+zählt sie getrennt, und die Meldung nennt beide Zahlen. Die Reihenfolge ist Teil
+der Regel: Wurde ein Name nicht gefragt, ist die leere Nameserverliste damit
+erklärt — sie zusätzlich als „ohne Antwort" zu zählen hiesse, denselben Vorgang
+zweimal zu melden.
+
+> **Ein Fehlerweg, der sich vom Normalfall nicht unterscheiden lässt, ist keine
+> Auskunft, sondern eine Vermutung.**
+
+Auf der Domainseite steht die Unterscheidung ebenfalls: „Für *diese Namen* hat
+die Prüfung gar nicht stattgefunden — das liegt an diesem Server und nicht an
+der Zone" statt der bisherigen Sammelmeldung.
+
+**Und das Doppel in `DnsSweepTest` konnte den mittleren Fall gar nicht
+darstellen:** Sein `silent` gab `null` zurück und war damit in Wahrheit der
+ungefragte. Es kennt jetzt drei Ausgänge, und ein Fall unterscheidet sie.
+
+### Die Übersteuerung der Adressen bekommt ihren Weg hinein
+
+Befund 2 der Zwischenabnahme (`docs/74`). `Settings::saveDnsAddresses()` gab es
+seit P7 Schritt 4, und **nichts hat es aufgerufen** — kein Formular, keine
+Route, kein Schalter. Die Gegenseite wurde gelesen, die Domainseite hielt ihr
+Ergebnis sogar gegen die abgeleiteten Adressen und wollte warnen, wenn beide
+auseinandergehen. Sie konnten nie auseinandergehen.
+
+> **Eine Einstellung, die sich lesen, aber nirgends setzen lässt, ist keine
+> Einstellung — sie ist ein Vorsatz.**
+
+Das Feld steht unter **Einstellungen → Allgemein** — „Was für den ganzen Server
+gilt". „DNS-Zugang" daneben führt Zugangsdaten für Bestellungen über DNS-01 und
+ist ein anderes Thema; die Frage „welche Adressen sollen meine Domains tragen?"
+gehört zum Server und nicht zu einem Dienst.
+
+Geprüft wird jede Zeile über `ServerAddresses::rejected()` — dieselbe Stelle,
+die auch die abgeleiteten Adressen siebt. Und beide Listen stehen daneben: was
+eingetragen ist und was abgeleitet würde. Eine im Panel gemerkte Fassung eines
+Serverzustands ist die, die veraltet; man muss sehen, wenn sie nicht mehr
+stimmt.
+
+**Der Wächter, der gefehlt hat.** `SettingsWriterReachTest` verlangt, dass jede
+`save*`-Methode von `Settings` ausserhalb gerufen wird. Für dieselbe Form gibt
+es seit P3 `AgentOperationReachTest` — er fand zwei fertig gebaute
+Agent-Operationen, die von nichts aufgerufen wurden. Die Regel war für den
+Agenten aufgeschrieben und für `Settings` nicht.
+
+> **Eine Regel, die für einen Gegenstand gilt, gilt nicht für den nächsten,
+> bloss weil sie dieselbe ist.**
+
+**Und er hat sich beim ersten Lauf selbst widerlegt:** Er meldete alle fünf
+Schreibmethoden als tot, weil `glob('**/*.php')` in PHP nicht rekursiert. Vier
+davon haben ihren Aufrufer seit Monaten. Er zählt seitdem auch die Aufrufe
+insgesamt — ein Scanner, der ins Leere läuft, meldet jetzt das und nicht „alles
+in Ordnung".
+
+**Zwei weitere Wächter haben beim Bau zugebissen**, beide zu Recht:
+`ButtonStyleTest` (zwei Knöpfe „wichtig" in einem Formular — es ist ein
+Formular, also gehört ein Knopf darunter) und `AttributeNameTest` (ein
+validiertes Feld ohne deutschen Namen; er heisst jetzt so, wie er am Feld
+steht).
+
+### Drei Timer ohne Frist — ausserhalb von P7
+
+Befund 4 der Zwischenabnahme (`docs/74`), und der einzige der vier, der nichts
+mit DNS zu tun hat. Punkt 3 des Laufs hat die Zahl gemessen, die dieser
+Entwicklungscontainer nicht liefern kann:
+
+```
+srvpanel-dns.service    TimeoutStartUSec=10min
+srvpanel-cron.service   TimeoutStartUSec=infinity
+```
+
+**`infinity` bestätigt die Begründung, die in `srvpanel-dns.service` seit
+Schritt 7 steht:** Ein `Type=oneshot` ohne eigene Angabe läuft ohne Frist. Hängt
+so ein Lauf — an einem Socket, an einem fremden Server, an einem Systemaufruf —,
+bleibt die Unit in `activating`, und systemd startet sie beim nächsten Termin
+**nicht noch einmal**. Ein einziger hängender Lauf nimmt damit alle folgenden
+mit, und der Timer meldet dabei weiter `enabled`.
+
+> **Ein Dienst, der „active" meldet und keinen nächsten Termin hat, ist
+> abgeschaltet und sieht aus wie eingeschaltet.**
+
+Derselbe Satz wie am 19. August 2026, andere Ursache: Damals fehlte dem Timer
+der Kalender, hier fehlt dem Dienst die Frist. `srvpanel-cron` bekommt 180 s,
+`srvpanel-usage` 600 s, `srvpanel-tls` 1800 s.
+
+**Bei `tls` wäre eine knappe Frist schädlicher als gar keine.** Sie räumte eine
+laufende ACME-Bestellung mitten im Vorgang ab, und ein abgebrochener Versuch
+kostet trotzdem einen der fünf Fehlversuche je Stunde, die für alle Kunden
+dieses Servers zusammen gelten (`docs/34 §11`). Wie lange eine echte Erneuerung
+braucht, ist ungemessen — in dreissig Tagen Journal steht keine einzige, nur
+Prüfungen mit „gilt noch" in unter einer Sekunde.
+
+> **Ein Deckel gegen das Hängenbleiben muss nicht knapp sein — er muss endlich
+> sein.**
+
+Deshalb hängen die drei Zahlen nicht an einer Laufzeitmessung, sondern am Takt
+ihres Timers: jede deutlich darunter, damit ein Hänger höchstens einen Termin
+kostet statt mehrerer.
+
+**Der Wächter dazu ist `OneshotDeadlineTest`**, und er zählt die Timer auf,
+statt sie aufzuschreiben — dieselbe Bauart wie `TimerRearmTest`: Eine Liste
+nennt die, an die man beim Schreiben gedacht hat, und der nächste Timer stünde
+nicht darin. Eine `OnCalendar`-Schreibweise, die er nicht kennt, macht ihn rot
+statt sie stillschweigend durchzulassen; sonst prüfte der Fall darunter nichts
+und wäre grün.
+
+Was er **nicht** prüft: ob die Frist *reicht*. Eine zu kurze fiele im Betrieb
+als abgebrochener Lauf auf — hier ist sie nicht messbar.

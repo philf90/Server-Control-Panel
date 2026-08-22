@@ -3507,6 +3507,32 @@ p:not([class]) {
   cursor: pointer;
 }
 
+/*
+ * Ein Knopf klebt nicht am Kästchen darüber.
+ *
+ * **Gefunden vom Betreiber in der Zwischenabnahme von P7** (`docs/74`), auf der
+ * Domainseite: „Zertifikat bestellen" stand ohne eine Lücke unter „Als
+ * Platzhalter bestellen".
+ *
+ * `.toggle` bringt oben 14px mit und unten nichts. Der Abstand darunter kam
+ * deshalb nicht von ihm, sondern von dem, was zufällig davor stand — im
+ * DNS-Bereich ein `.section-note` mit eigenem Rand, im Zertifikatsbereich
+ * nichts. Es ist der Fehler aus P4 noch einmal:
+ *
+ * > **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit
+ * > der nächsten Ergänzung.**
+ *
+ * **Nur diese eine Fuge**, und nicht `.toggle` selbst ein `margin-bottom` zu
+ * geben: Vier weitere Fugen hinter einem `.toggle` stehen in
+ * `BlockSpacingTest::OPEN_SEAMS` und sind **nicht angesehen worden**. Sie
+ * mitzuändern hiesse, vier Stellen ohne Messung zu verstellen.
+ *
+ * > **Ob zwei Bausteine zu eng stehen, entscheidet ein Blick und keine Regel.**
+ */
+.toggle + .button-row {
+  margin-top: var(--block-gap);
+}
+
 .toggle input[type='checkbox'],
 .toggle input[type='radio'] {
   flex: none;

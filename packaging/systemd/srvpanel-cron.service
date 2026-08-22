@@ -14,6 +14,32 @@ Group=srvpanel
 WorkingDirectory=/opt/srvpanel/current
 ExecStart=/opt/srvpanel/bin/php artisan srvpanel:cron-runs
 
+# **Fünf Minuten Takt, also drei Minuten Frist.**
+#
+# Ein `Type=oneshot` **ohne** eigene Angabe läuft ohne Frist — gemessen am
+# 22. August 2026 auf cloudsrv24: `TimeoutStartUSec=infinity` (`docs/74`,
+# Befund 4). Hängt so ein Lauf, bleibt die Unit in `activating`, und systemd
+# startet sie beim nächsten Termin **nicht noch einmal**. Ein einziger
+# hängender Lauf nimmt damit alle folgenden mit.
+#
+#   Ein Dienst, der „active" meldet und keinen nächsten Termin hat, ist
+#   abgeschaltet und sieht aus wie eingeschaltet.
+#
+# Derselbe Satz wie am 19. August, andere Ursache: Damals war es ein Timer ohne
+# Kalender, hier wäre es ein Dienst ohne Frist.
+#
+# **Die Zahl ist grosszügig und nicht knapp**, und das ist die ganze
+# Überlegung. Der Lauf fragt den Agenten und schreibt in die Datenbank; wie
+# lange er dabei braucht, hängt an der Zahl der Jobs. Der Deckel soll ein
+# Hängenbleiben beenden und keine Pünktlichkeit erzwingen:
+#
+#   Ein Deckel gegen das Hängenbleiben muss nicht knapp sein — er muss endlich
+#   sein.
+#
+# Er liegt unter dem Takt des Timers, damit ein Hänger höchstens einen Termin
+# kostet und nicht mehrere. `OneshotDeadlineTest` rechnet beides nach.
+TimeoutStartSec=180
+
 # Dieser Lauf fragt den Agenten und schreibt in die Datenbank. Mehr braucht er
 # nicht — und mehr bekommt er nicht.
 NoNewPrivileges=yes

@@ -165,8 +165,19 @@ mit einem Timer, der `enabled` meldet.
 Derselbe Satz wie am 19. August 2026, andere Ursache. Damals war es ein Timer
 ohne Kalender, diesmal wäre es ein Dienst ohne Frist.
 
-**Ausserhalb von P7 und ausdrücklich nicht behoben.** Der Handgriff ist klein —
-drei Units bekommen ein `TimeoutStartSec` — aber er gehört nicht in diesen Zweig.
+**Ausserhalb von P7, und am 22. August 2026 behoben** — auf Wunsch des
+Betreibers im selben Zweig, nachdem der Rest von P7 als eigener Pull Request
+draussen war. `srvpanel-cron` bekommt 180 s, `srvpanel-usage` 600 s,
+`srvpanel-tls` 1800 s; der Wächter dazu ist `OneshotDeadlineTest`.
+
+**Die Zahlen hängen am Takt und nicht an einer Laufzeitmessung.** Für `tls` gibt
+es keine: In dreissig Tagen Journal steht keine einzige echte Erneuerung, nur
+Prüfungen mit „gilt noch" in unter einer Sekunde. Eine knappe Frist wäre dort
+schädlicher als gar keine — sie räumte eine laufende ACME-Bestellung ab, und der
+abgebrochene Versuch kostet trotzdem einen der fünf Fehlversuche je Stunde.
+
+> **Ein Deckel gegen das Hängenbleiben muss nicht knapp sein — er muss endlich
+> sein.**
 
 ---
 

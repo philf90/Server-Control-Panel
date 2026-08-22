@@ -14298,6 +14298,77 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SettingsWriterReachTest passed
 
 echo
+echo "── OneshotDeadlineTest: ein Dienst ohne Frist ──"
+#
+# **Der Anlass ist gemessen und nicht gedacht** (`docs/74`, Befund 4): Auf
+# `cloudsrv24` stand `srvpanel-cron.service` auf `TimeoutStartUSec=infinity`.
+# Ein `Type=oneshot` ohne eigene Angabe laeuft ohne Frist; haengt so ein Lauf,
+# bleibt die Unit in `activating`, und systemd startet sie beim naechsten
+# Termin nicht noch einmal.
+
+vorher_datei packaging/systemd/srvpanel-cron.service
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-cron.service'
+s = open(p, encoding='utf-8').read()
+alt = '\nTimeoutStartSec=180'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei packaging/systemd/srvpanel-cron.service "ein Dienst am Timer ohne Frist" &&
+pruefe "ein Dienst am Timer ohne Frist" \
+  OneshotDeadlineTest::test_every_timed_service_declares_a_deadline failed
+wiederherstellen
+
+vorher_datei packaging/systemd/srvpanel-cron.service
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-cron.service'
+s = open(p, encoding='utf-8').read()
+alt = 'TimeoutStartSec=180'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'TimeoutStartSec=600', 1))
+PY2
+griff_datei packaging/systemd/srvpanel-cron.service "die Frist liegt ueber dem Takt" &&
+pruefe "die Frist liegt ueber dem Takt" \
+  OneshotDeadlineTest::test_the_deadline_is_shorter_than_the_period failed
+wiederherstellen
+
+# **Der dritte Eingriff bricht keine Regel des Bestands, sondern die Lesbarkeit
+# des Takts.** Eine Schreibweise, die `period()` nicht kennt, darf nicht
+# stillschweigend durchgehen — sonst prueft der Fall darueber nichts und ist
+# gruen.
+
+vorher_datei packaging/systemd/srvpanel-cron.timer
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-cron.timer'
+s = open(p, encoding='utf-8').read()
+alt = 'OnCalendar=*:0/5'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'OnCalendar=*:00/5', 1))
+PY2
+griff_datei packaging/systemd/srvpanel-cron.timer "eine Schreibweise, die der Waechter nicht kennt" &&
+pruefe "eine Schreibweise, die der Waechter nicht kennt" \
+  OneshotDeadlineTest::test_the_deadline_is_shorter_than_the_period failed
+wiederherstellen
+
+# **Und die Gegenprobe des Aufzaehlers.** Findet der Ausdruck ueber
+# `packaging/systemd` keine Timer mehr, pruefen die beiden Faelle darueber null
+# Dienste und sind gruen, ohne etwas gesehen zu haben.
+
+vorher_datei tests/Unit/OneshotDeadlineTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/OneshotDeadlineTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "/packaging/systemd/*.timer'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "/packaging/systemd/*.timerx'", 1))
+PY2
+griff_datei tests/Unit/OneshotDeadlineTest.php "der Aufzaehler findet keinen Timer" &&
+pruefe "der Aufzaehler findet keinen Timer" \
+  OneshotDeadlineTest::test_there_are_timers_to_check failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OneshotDeadlineTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

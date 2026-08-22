@@ -17832,3 +17832,52 @@ in Ordnung".
 Formular, also gehört ein Knopf darunter) und `AttributeNameTest` (ein
 validiertes Feld ohne deutschen Namen; er heisst jetzt so, wie er am Feld
 steht).
+
+### Drei Timer ohne Frist — ausserhalb von P7
+
+Befund 4 der Zwischenabnahme (`docs/74`), und der einzige der vier, der nichts
+mit DNS zu tun hat. Punkt 3 des Laufs hat die Zahl gemessen, die dieser
+Entwicklungscontainer nicht liefern kann:
+
+```
+srvpanel-dns.service    TimeoutStartUSec=10min
+srvpanel-cron.service   TimeoutStartUSec=infinity
+```
+
+**`infinity` bestätigt die Begründung, die in `srvpanel-dns.service` seit
+Schritt 7 steht:** Ein `Type=oneshot` ohne eigene Angabe läuft ohne Frist. Hängt
+so ein Lauf — an einem Socket, an einem fremden Server, an einem Systemaufruf —,
+bleibt die Unit in `activating`, und systemd startet sie beim nächsten Termin
+**nicht noch einmal**. Ein einziger hängender Lauf nimmt damit alle folgenden
+mit, und der Timer meldet dabei weiter `enabled`.
+
+> **Ein Dienst, der „active" meldet und keinen nächsten Termin hat, ist
+> abgeschaltet und sieht aus wie eingeschaltet.**
+
+Derselbe Satz wie am 19. August 2026, andere Ursache: Damals fehlte dem Timer
+der Kalender, hier fehlt dem Dienst die Frist. `srvpanel-cron` bekommt 180 s,
+`srvpanel-usage` 600 s, `srvpanel-tls` 1800 s.
+
+**Bei `tls` wäre eine knappe Frist schädlicher als gar keine.** Sie räumte eine
+laufende ACME-Bestellung mitten im Vorgang ab, und ein abgebrochener Versuch
+kostet trotzdem einen der fünf Fehlversuche je Stunde, die für alle Kunden
+dieses Servers zusammen gelten (`docs/34 §11`). Wie lange eine echte Erneuerung
+braucht, ist ungemessen — in dreissig Tagen Journal steht keine einzige, nur
+Prüfungen mit „gilt noch" in unter einer Sekunde.
+
+> **Ein Deckel gegen das Hängenbleiben muss nicht knapp sein — er muss endlich
+> sein.**
+
+Deshalb hängen die drei Zahlen nicht an einer Laufzeitmessung, sondern am Takt
+ihres Timers: jede deutlich darunter, damit ein Hänger höchstens einen Termin
+kostet statt mehrerer.
+
+**Der Wächter dazu ist `OneshotDeadlineTest`**, und er zählt die Timer auf,
+statt sie aufzuschreiben — dieselbe Bauart wie `TimerRearmTest`: Eine Liste
+nennt die, an die man beim Schreiben gedacht hat, und der nächste Timer stünde
+nicht darin. Eine `OnCalendar`-Schreibweise, die er nicht kennt, macht ihn rot
+statt sie stillschweigend durchzulassen; sonst prüfte der Fall darunter nichts
+und wäre grün.
+
+Was er **nicht** prüft: ob die Frist *reicht*. Eine zu kurze fiele im Betrieb
+als abgebrochener Lauf auf — hier ist sie nicht messbar.

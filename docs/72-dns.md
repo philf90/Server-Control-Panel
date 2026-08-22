@@ -134,6 +134,37 @@ erwartete an ihrer Quelle.
 > **Zwei Werte, die dasselbe bedeuten und verschieden geschrieben sind, ergeben
 > einen Befund, den es nicht gibt.**
 
+### 2.1a Woher die Adressen kommen
+
+Entschieden am 21. August 2026: **abgeleitet, mit Übersteuerung.**
+
+Der Agent liefert die Adressen der Schnittstellen, gefiltert auf öffentliche —
+also ohne `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`,
+`fc00::/7` und `fe80::/10`. Der Betreiber sieht sie auf der Seite und kann sie
+übersteuern; **leer heisst „nimm die abgeleiteten"**.
+
+**Warum nicht nur abgeleitet.** Hinter NAT, einer Floating-IP oder einem
+Lastverteiler ist die Adresse, unter der ein Server von aussen erreichbar ist,
+von innen nicht zu erfahren. Ohne Übersteuerung meldete der Abgleich dort jede
+Domain als „zeigt woandershin" — und zwar mit der **privaten** Adresse als
+Sollwert. Das ist schlimmer als keine Anzeige: Es sieht aus wie eine Auskunft.
+
+**Warum nicht nur eingestellt.** Ohne Ableitung funktioniert der Abgleich vor
+dem ersten Eintrag gar nicht, und das trifft ausgerechnet die Ersteinrichtung —
+den Zeitpunkt, an dem jemand am ehesten wissen will, ob seine Domain schon
+hierher zeigt.
+
+**Der Preis steht daneben und gehört in die Oberfläche:** Eine übersteuerte
+Adresse ist eine gemerkte Fassung eines Serverzustands, und die kann veralten.
+Bekommt der Server eine neue Adresse, zeigt der Abgleich weiter auf die alte —
+und meldet jede Domain als falsch, die in Wahrheit richtig steht. Die Seite
+zeigt deshalb **beide**: was eingetragen ist und was abgeleitet würde.
+
+> **Eine im Panel gemerkte Fassung eines Serverzustands ist die, die veraltet**
+> — derselbe Satz, der in `Settings` schon über `bind-address` und den
+> PostgreSQL-Schalter steht. Er verbietet die Übersteuerung nicht; er verlangt,
+> dass man sieht, wenn sie nicht mehr stimmt.
+
 ### 2.2 Der Istzustand — und warum nicht der Systemauflöser
 
 `agent/src/Acme/Dns/Resolver.php` gibt es seit P4, und sein Kopfkommentar sagt
@@ -331,7 +362,7 @@ Der Wächter macht daraus eine Entscheidung statt einer Handbewegung.
 | 1 | `Packet` um A, AAAA und CAA erweitern, lesend — mit `RecordRdataTest` und gebauten Paketen |
 | 2 | `dns.check` im Agenten, gegen den vorhandenen `Resolver` |
 | 3 | Der Sollzustand als eine Quelle, mit `DesiredRecordSourceTest` |
-| 4 | Der Vergleich mit seinen drei Zuständen |
+| 4 | Die Adressquelle (§2.1a) und der Vergleich mit seinen drei Zuständen |
 | 5 | Die Anzeige an der Domain, mit dem Zeitpunkt |
 | 6 | Der CAA-Fall |
 | 7 | Die regelmässige Messung und ihre Grenze (wie viele Domains je Lauf, welches Zeitlimit) |

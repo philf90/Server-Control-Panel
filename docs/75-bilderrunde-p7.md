@@ -82,13 +82,23 @@ einziger nicht sofort wirkt: Eine Änderung an der Zone braucht ihre TTL.
 
 ### 2.0 — Welche Fassung läuft?
 
-`srvpanel --version` muss **`0.7.0-rc.2` oder neuer** melden. Auf `rc.1` fehlen
-alle vier Behebungen aus `docs/74`, und drei davon sind genau die Zustände, von
-denen hier Bilder entstehen sollen: die Unterscheidung „nicht gefragt" gegen
-„ohne Antwort", der Zeitpunkt über `Clock`, und das Feld für die Übersteuerung.
+`srvpanel --version` muss **`0.7.0-rc.3` oder neuer** melden.
+
+Auf `rc.1` fehlen alle vier Behebungen aus `docs/74`, und drei davon sind genau
+die Zustände, von denen hier Bilder entstehen sollen: die Unterscheidung „nicht
+gefragt" gegen „ohne Antwort", der Zeitpunkt über `Clock`, und das Feld für die
+Übersteuerung.
+
+**Und `rc.2` reicht nicht**, obwohl es die vier hat: Der Fund aus §1.1 — die
+Meldung „nicht gefragt" als drei Flexkinder — ist erst danach behoben worden.
+Genau dieser Zustand steht unten in der Liste, von der Bilder entstehen sollen.
+Diese Zeile stand hier zuerst auf `rc.2`, und sie war eine Fassung später falsch.
 
 > **Ein Bild von einem Zustand, der eine Fassung später anders aussieht, ist
 > kein Beleg, sondern ein Andenken.**
+
+> **Eine Fassungsangabe in einer Vorschrift veraltet mit dem nächsten Commit,
+> und niemand merkt es — sie steht nicht im Weg.**
 
 ### 2.1 — Die Messstrecke steht schon
 

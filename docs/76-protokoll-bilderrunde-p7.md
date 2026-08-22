@@ -33,10 +33,10 @@ ungültig und keine Messung.
 | 3 | Domainliste `/domains` | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Beobachtung) |
 | 3 | Domainliste `/domains` | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Beobachtung) |
 | 3 | Domainliste `/domains` | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Beobachtung) |
-| 4 | Abonnement, „Domains" | 390 | hell | — | — | — | offen |
-| 4 | Abonnement, „Domains" | 390 | dunkel | — | — | — | offen |
-| 4 | Abonnement, „Domains" | 1440 | hell | — | — | — | offen |
-| 4 | Abonnement, „Domains" | 1440 | dunkel | — | — | — | offen |
+| 4 | Abonnement, „Domains" | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ |
+| 4 | Abonnement, „Domains" | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ |
+| 4 | Abonnement, „Domains" | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ |
+| 4 | Abonnement, „Domains" | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ |
 
 ### Die Einträge in `schiebt` und `rollt`
 
@@ -51,6 +51,7 @@ einzeln benannt.
 | 1 / 1440 / dunkel | keiner | — |
 | 2 / alle vier | keiner | — |
 | 3 / alle vier | keiner | — |
+| 4 / alle vier | keiner | — |
 
 **`rollt` ist bei 390 px leer, und das ist richtig.** Die Tabellen stehen dort
 als Kärtchen; ein Rollbehälter ist gar nicht aktiv. `docs/63 §6` hält das als
@@ -360,6 +361,51 @@ niemand später die vierte Domain für verschwunden hält.
 > **Zwei Aufnahmen derselben Adresse können verschiedene Seiten zeigen, wenn
 > zwischen ihnen die Sicht gewechselt hat.**
 
+### Ansicht 4 — kein Fund
+
+Alle vier Lagen `dokument: 0`, Gegenprobe `200/200`, `schiebt` und `rollt` leer;
+`versteckt: 4` bei 390 px, `0` bei 1440.
+
+- **Fünf Spalten statt sechs** — ohne „Abonnement", weil man schon darin ist.
+  Bei 390 px fünf Zeilen je Kärtchen.
+- **Grün neben Gelb auch hier:** `cloudlab24.de` trägt „in Ordnung",
+  `p6-b.invalid` und `cloudlab24.ipv64.de` tragen „nachsehen".
+- **Die Reihenfolge stimmt.** `p6-b.invalid` als Hauptdomain steht oben, die
+  beiden Zusatzdomains darunter — das ist
+  `orderByRaw("case when type = \'main\' then 0 else 1 end")`, im Bild belegt
+  statt im Test behauptet.
+
+---
+
+## 2a. Der Stand nach dem Lauf
+
+**Sechzehn von sechzehn Lagen gemessen. Kein `dokument` ungleich `0`, keine
+Gegenprobe ungleich `200/200`, kein einziger Eintrag in `schiebt`.**
+
+**Punkt 8 des Abnahmekriteriums** (`docs/72 §3`) — „bei 390 px läuft nichts
+über, in beiden Themes" — ist damit erfüllt und gemessen.
+
+**Und drei Befunde, keinen davon hat eine Zahl gefunden.** Alle drei traten in
+Lagen auf, die vollständig grün gemessen waren:
+
+| # | Befund | gefunden von | gefunden in |
+|---|---|---|---|
+| 1 | IPv6 bricht mitten im Hextet | Betrachter | 1/390, beide Themes |
+| 2 | Zwei Namen, getrennt durch ein Leerzeichen | Betrachter | 1/1440/hell |
+| 3 | Kästchen ohne sichtbaren Aus-Zustand | **Benutzer** | 1/1440/dunkel |
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.** Und bei Befund 3 nicht einmal den: Ansehen genügte nicht, es
+> musste jemand hingreifen.
+
+**Alle drei sitzen in Ansicht 1.** Die Ansichten 2 bis 4 sind ohne Fund
+geblieben — sie sind auch die jüngeren und die einfacheren. Ansicht 1 trägt
+fünf Bereiche, drei Meldungssorten und eine Tabelle mit fünf Spalten; die
+anderen tragen je eine Liste.
+
+> **Die Ansicht mit den meisten Zuständen hat die meisten Fehler, und das ist
+> keine Überraschung — es ist der Grund, sie zuerst zu messen.**
+
 ---
 
 ## 3. Beobachtungen ohne Fund
@@ -377,8 +423,8 @@ Frage an den Betreiber und kein Fehler.
 
 ## 4. Was offen ist
 
-- **Vier der sechzehn Lagen** — die Ansichten 1 bis 3 sind vollständig, 4 steht
-  aus.
+- **Die drei Befunde sind nicht behoben.** Sie kommen zusammen dran, mit je
+  einem Wächter und einem Bruch, und werden danach nachgemessen.
 - **Die Marke „ungeprüft" ist nicht aufgenommen**, und sie ist **flüchtig**:
   `srvpanel-dns.timer` läuft alle 15 Minuten, also ist jede Domain spätestens
   nach einer Viertelstunde geprüft. Den Zustand gibt es nur im Fenster zwischen

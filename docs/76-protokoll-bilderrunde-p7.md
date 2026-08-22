@@ -23,7 +23,7 @@ ungültig und keine Messung.
 |---|---|---|---|---|---|---|---|
 | 1 | Domain, DNS-Abgleich | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 1) |
 | 1 | Domain, DNS-Abgleich | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 1) |
-| 1 | Domain, DNS-Abgleich | 1440 | hell | — | — | — | offen |
+| 1 | Domain, DNS-Abgleich | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 2) |
 | 1 | Domain, DNS-Abgleich | 1440 | dunkel | — | — | — | offen |
 | 2 | Einstellungen → Allgemein | 390 | hell | — | — | — | offen |
 | 2 | Einstellungen → Allgemein | 390 | dunkel | — | — | — | offen |
@@ -47,6 +47,7 @@ einzeln benannt.
 |---|---|---|
 | 1 / 390 / hell | keiner | — |
 | 1 / 390 / dunkel | keiner | — |
+| 1 / 1440 / hell | keiner | — |
 
 **`rollt` ist bei 390 px leer, und das ist richtig.** Die Tabellen stehen dort
 als Kärtchen; ein Rollbehälter ist gar nicht aktiv. `docs/63 §6` hält das als
@@ -102,6 +103,49 @@ belegt statt angenommen. Genau dafür wird jede Lage einzeln gemessen: Ein Theme
 wechselt Ränder und Schriftgrade mit, und das war in diesem Projekt schon
 zweimal genau der Unterschied.
 
+### Befund 2 — zwei Namen, getrennt durch ein Leerzeichen
+
+Gefunden in Lage 1/1440/hell. Im Bereich „Zertifikat" steht unter dem Kästchen
+„Als Platzhalter bestellen":
+
+```
+Ein Zertifikat für *.cloudlab24.de cloudlab24.de — es gilt für jede
+Unterdomain dieser Zone …
+```
+
+`*.cloudlab24.de cloudlab24.de` sind **zwei** Namen. Getrennt sind sie nur durch
+ein Leerzeichen, und beide enthalten Punkte — es gibt für den Leser kein
+Zeichen, an dem der eine aufhört und der andere anfängt. Wer das liest, sieht
+einen kaputten Namen, keine Liste.
+
+**Dieselbe Datei kennt es besser.** In `Domains/Show.vue` stehen beide
+Schreibweisen nebeneinander:
+
+| Zeile | Gegenstand | Trennung |
+|---|---|---|
+| 420 | `certificate.names` | `, ` |
+| 633 / 641 | `expected` / `found` | `, ` |
+| 659 | `nameservers` | `, ` |
+| 715 / 717 | `override` / `derived` | `, ` |
+| **474** | **`wildcard.names`** | **Leerzeichen** |
+| **516** | **`wildcard.uncovered`** | **Leerzeichen** |
+| **694** | **`unasked`** | **Leerzeichen** |
+
+> **Zwei Schreibweisen für dieselbe Sache in einer Datei sind keine Wahl,
+> sondern ein Versehen — und die seltenere ist die, die niemand gegenprüft.**
+
+**Bei 390 px wird es schlimmer, nicht besser.** `.ident` trägt dort
+`overflow-wrap: anywhere` (siehe Befund 1). Der Umbruch darf dann **innerhalb**
+eines Namens fallen, und das Leerzeichen ist nicht mehr die einzige, sondern
+eine von vielen Trennstellen — der letzte Hinweis auf die Grenze verschwindet.
+
+**Der Weg:** `join(', ')` überall dort, wo eine Liste von Namen oder Adressen
+steht. Betroffen sind die drei Stellen oben, dazu `Settings/General.vue` (132,
+136) und `Components/DnsCredentials.vue` (207). `Cron.vue` und `Tile.vue`
+benutzen `join(' ')` für einen Cron-Ausdruck und einen SVG-Pfad — die bleiben.
+
+**Nicht behoben**, aus demselben Grund wie Befund 1.
+
 ### Was in dieser Lage richtig war
 
 - Vier Zeilen des Bereichs, Zustand als Marke mit Wort und Punkt, „Erwartet"
@@ -116,6 +160,19 @@ zweimal genau der Unterschied.
   Zertifikat, DNS-Abgleich, Eigenes Zertifikat, Vorgänge, Verzeichnis und
   Handler, PHP-Einstellungen, nginx-Direktiven. Die Bereiche stehen getrennt,
   keiner klebt am nächsten, nichts ragt heraus.
+
+**Und bei 1440 px zusätzlich:**
+
+- **Befund 1 tritt dort nicht auf.** Die IPv6 steht in einer Zeile:
+  `2a0a:4cc0:c1:ebd1:b82d:51ff:fe72:3083`, in „Erwartet" wie in „Gefunden". Er
+  ist damit ein Fall der schmalen Breite und nicht der Regel.
+- **`versteckt: 0`**, wo bei 390 px vier standen. Richtig: Bei dieser Breite ist
+  `.stacks` eine echte Tabelle, ihre Spaltenüberschriften sind sichtbar und
+  müssen nicht für den Screenreader aus dem Bild genommen werden.
+- Die Seite steht zweispaltig (Stammdaten neben Zertifikat, Eigenes Zertifikat
+  neben Vorgängen, Verzeichnis neben PHP-Einstellungen), das Rail links, und die
+  Fassung `0.7.0-rc.4` steht an zwei Stellen im Bild — oben am Rail und unten
+  als „Quelltext".
 
 **Ein Fund ist vor dem Lauf entstanden** und steht deshalb nicht hier, sondern
 in `docs/75 §1.1`: Die Meldung „nicht gefragt" stand als drei Flexkinder in
@@ -143,16 +200,21 @@ Frage an den Betreiber und kein Fehler.
 
 ## 4. Was offen ist
 
-- **Vierzehn der sechzehn Lagen.**
-- **Die Fuge unter „Als Platzhalter bestellen".** Die ganzseitige Aufnahme zu
-  Lage 1/390/hell zeigt die komplette Seite und trägt in ihrer Struktur; im
-  Massstab der Übermittlung ist der Abstand zwischen dem Kästchen und dem
-  Bereich darunter aber nicht ablesbar. Es ist die Stelle, die am 22. August als
-  Befund gemeldet und mit `.toggle + .button-row` behoben wurde — sie gehört im
-  Original angesehen.
+- **Dreizehn der sechzehn Lagen.**
+- **Die Fuge unter „Als Platzhalter bestellen" ist gar nicht zu sehen**, und
+  zwar aus einem Grund im Code: Der Knopf steht unter
+  `v-if="props.can.update && (!props.certificate || alsPlatzhalter)"`. Diese
+  Domain **hat** ein gültiges Zertifikat und das Kästchen ist leer — also gibt
+  es keine `.button-row`, an der die Regel `.toggle + .button-row` greifen
+  könnte.
 
-  > **Ein Bild, dessen Massstab die Frage nicht trägt, beantwortet sie nicht —
-  > es sieht nur so aus, als hätte man hingesehen.**
+  Der Zustand ist herstellbar: **Kästchen ankreuzen**, dann erscheint der Knopf
+  („Platzhalter bestellen") unmittelbar darunter. Das ist die Aufnahme, die die
+  Behebung vom 22. August belegt — und ohne sie ist sie unbelegt.
+
+  > **Ein Bild von einer Seite, auf der der Gegenstand gar nicht gerendert
+  > wird, ist kein Beleg für seinen Zustand — es ist ein Beleg für die
+  > Bedingung davor.**
 - **Die Behebung aus `docs/75 §1.1` ist noch nicht nachgesehen.** Der Fund war
   die Meldung „nicht gefragt", und die erscheint nur an einer Domain, deren
   Nameserver niemand erreicht — `cloudlab24.de` hat welche. Sie gehört an

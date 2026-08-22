@@ -17379,3 +17379,102 @@ gezeigt.
 
 > **Bevor man aus einer Reibung eine Regel macht, zählt man nach, wie oft der
 > Bestand es anders hält.**
+
+### P7 Schritt 7 — der Abgleich läuft von selbst, und seine Grenze besteht aus zwei Zahlen
+
+`srvpanel dns-check` fährt einen Durchgang; `srvpanel-dns.timer` startet ihn alle
+fünfzehn Minuten. Dieselbe Bauart wie die drei Timer davor — `Type=oneshot`, kein
+Dauerlauf, kein Eintrag in cron, denn das Panel verwaltet cron und hängt seine
+eigene Verwaltung nicht hinein.
+
+**Die naheliegende Grenze wäre falsch gewesen.** „So viele Domains je Lauf"
+deckelt eine Zahl, die die Dauer nicht bestimmt: Eine Domain hat einen Namen oder
+zwölf — jeder Alias ist ein eigener Aufruf —, und ihre Nameserver antworten in
+Millisekunden oder gar nicht.
+
+> **Eine Grenze über die Zahl der Vorgänge ist keine über ihre Dauer, solange der
+> einzelne Vorgang unterschiedlich lange braucht.**
+
+Also beides: 25 Domains **und** 240 Sekunden, und die Frist ist die, die hält.
+
+**Eine Frist allein hält aber auch nicht.** „Noch Zeit übrig" vor einem Vorgang
+unbekannter Dauer sagt nichts über sein Ende — eine Domain, die mit einer Sekunde
+Restfrist angefangen wird, läuft trotzdem, bis ihre Nameserver geantwortet haben
+oder in ihr Zeitlimit gelaufen sind. `Budget::reserve()` rechnet deshalb den
+schlimmsten Fall **dieser** Domain vor: Namen × Nameserver × Zeitlimit, und die
+beiden hinteren Zahlen werden dort gefragt, wo sie gelten (`DnsCheck::MAX_SERVERS`
+und `Resolver::TIMEOUT_SECONDS`), nicht abgeschrieben.
+
+> **Eine Frist, die vor einem Vorgang unbekannter Dauer geprüft wird, ist
+> eingehalten, solange niemand misst, wann er endet.**
+
+**Und die Reserve gilt nicht für die erste Domain.** Eine mit zwölf Aliassen hat
+eine Reserve von 240 Sekunden — genau die Frist. Ohne diese Ausnahme käme sie in
+keinem einzigen Lauf an die Reihe, für immer, und im Bericht stünde nur „wartet
+noch".
+
+> **Eine Reserve, die den ersten Vorgang verhindert, macht aus einer Grenze eine
+> Sperre.**
+
+**Die Reihenfolge ist die andere Hälfte der Grenze.** Erst, wer noch nie gemessen
+wurde, dann der älteste Befund. Ein Deckel ohne Reihenfolge bevorzugt immer
+dieselben Domains — die mit der kleinsten Kennung —, und der Bericht meldete
+trotzdem jeden Lauf „25 geprüft".
+
+> **Eine Obergrenze ohne Reihenfolge ist keine Begrenzung, sondern eine
+> Bevorzugung.**
+
+Ausgeschrieben wird sie mit einem eigenen Ausdruck und nicht der Datenbank
+überlassen: Ein blosses `order by checked_at` liefert die noch nie gemessenen
+zuerst, weil `NULL` in beiden Systemen aufsteigend vorn steht — das ist Wissen
+aus zweiter Hand und gälte für ein drittes System vielleicht nicht mehr.
+
+**Drei Fristen über denselben Lauf stehen in drei Dateien, die nichts voneinander
+wissen:** das Budget im Quelltext, `TimeoutStartSec` in `srvpanel-dns.service`,
+`OnCalendar` in `srvpanel-dns.timer`. `DnsBudgetTest` hält sie aneinander. Der
+Fall, den das verhindert, ist still: Räumt die Unit den Lauf mitten in einer
+Messung ab, steht die Ursache in einer `.service`-Datei; fällt der nächste Termin
+in einen noch laufenden Dienst, startet systemd ihn gar nicht erst.
+
+> **Zwei Fristen über denselben Lauf, die nichts voneinander wissen, entscheidet
+> die kleinere — und die steht woanders.**
+
+**`withoutRestriction` steht in `Sweep::run()`, und zwar wegen eines Fehlers, den
+es hier schon einmal gab.** Der Lauf hat kein angemeldetes Konto — ihn startet
+ein Timer —, und im Grundzustand klammert die Mandantenklammer auf `0 = 1`. Genau
+daran ist der Einsammler der Cron-Läufe wochenlang gescheitert: Er meldete „88
+eingesammelt, 0 eingepflegt", und die 88 waren fort.
+
+> **Zwei Stellen, die dieselbe Ausnahme brauchen, und nur eine hat sie: Die
+> andere fällt nicht auf, weil sie leise das Richtige tut — nämlich nichts.**
+
+**Aliasse werden mitgemessen**, obwohl ihre Namen schon unter der Elterndomain
+gefragt wurden. Sie haben eine eigene Seite mit einem eigenen Abgleich; wer sie
+überspränge, liesse genau diese Seite für immer auf „noch nie geprüft" stehen.
+Zwei Sätze Fragen sind billiger als eine Seite, die nie etwas sagt. Übergangen
+wird allein, was gerade zurückgebaut wird — dessen Zeile nähme der Fremdschlüssel
+Sekunden später wieder mit.
+
+**Ein Fehlschlag beendet den Lauf nicht.** Sonst bliebe die kaputte Domain beim
+nächsten Mal wieder die älteste, und der Lauf käme nie an den Rest — für immer,
+ohne eine einzige Meldung darüber. Gezählt und genannt wird sie trotzdem, und
+ebenso, was liegen geblieben ist: Eine Obergrenze, die nichts sagt, wenn sie
+greift, sieht aus wie „alles gemessen".
+
+**Und eine Zeile im Plan war falsch.** `docs/72 §8` sagte „keine Zwischenabnahme
+nötig", weil nichts an dieser Stufe auf einem Dienst stehe, den der Container nur
+als Wegwerf-Fassung kennt. Das stimmt für den `Resolver` und für sonst nichts:
+Migration, Modell, Controller, Route, Bereich, Kommando und Timer sind auf keinem
+Server je gelaufen, und ohne `vendor/` hat sie hier auch kein Feature-Test
+angefasst.
+
+> **Eine Begründung, die für einen Teil stimmt, ist keine für das Ganze.**
+
+Die Zwischenabnahme steht jetzt als Schritt 8 vor der Bilderrunde — mit einer
+Messung, die dieser Container nicht liefern kann: Was `TimeoutStartSec` für
+`Type=oneshot` ohne eigene Angabe wäre, steht hier nur in der Dokumentation und
+ist ungemessen. Deshalb steht die Zahl in der Unit, statt sich auf eine Vorgabe
+zu verlassen.
+
+> **Eine Frist, die man nicht aufschreibt, ist die Frist einer Vorgabe, die man
+> nicht gemessen hat.**

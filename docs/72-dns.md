@@ -235,6 +235,69 @@ Ergebnis trägt **den Zeitpunkt seiner Messung sichtbar**.
 > **Eine Antwort aus dem Zwischenspeicher ist eine Aussage über vorhin** — und
 > wenn sie das ist, sagt sie es auch.
 
+### 2.5a Die Grenze des regelmässigen Laufs
+
+**Gebaut am 22. August 2026 als Schritt 7.** `srvpanel dns-check` fährt einen
+Durchgang, gestartet von `srvpanel-dns.timer` alle fünfzehn Minuten — dieselbe
+Bauart wie die drei Timer davor: `Type=oneshot`, kein Dauerlauf, kein Eintrag in
+cron (das Panel verwaltet cron und hängt seine eigene Verwaltung nicht hinein).
+
+**Die Grenze besteht aus zwei Zahlen, und die naheliegende allein wäre falsch.**
+„So viele Domains je Lauf" deckelt eine Zahl, die die Dauer nicht bestimmt: Eine
+Domain hat einen Namen oder zwölf — jeder Alias ist ein eigener Aufruf —, und
+ihre Nameserver antworten in Millisekunden oder gar nicht.
+
+> **Eine Grenze über die Zahl der Vorgänge ist keine über ihre Dauer, solange
+> der einzelne Vorgang unterschiedlich lange braucht.**
+
+Also beides, und die Frist ist die, die hält:
+
+| Zahl | Wert | Wo |
+|---|---|---|
+| Domains je Lauf | 25 | `Budget::DOMAINS` |
+| Frist je Lauf | 240 s | `Budget::SECONDS` |
+| Reserve je Name | Server × Zeitlimit = 20 s | `Budget::reserve()`, gefragt bei `DnsCheck::MAX_SERVERS` und `Resolver::TIMEOUT_SECONDS` |
+| Frist der Unit | 600 s | `TimeoutStartSec` in `srvpanel-dns.service` |
+| Takt | 15 min | `OnCalendar` in `srvpanel-dns.timer` |
+| Frühestens wieder | 60 min | `Sweep::FRESH_MINUTES` |
+
+**Die Reserve ist der Teil, der leicht fehlt.** „Noch Zeit übrig" vor einem
+Vorgang unbekannter Dauer sagt nichts über sein Ende — gerechnet wird deshalb
+mit dem schlimmsten Fall *dieser* Domain, und der hängt an der Zahl ihrer Namen.
+
+> **Eine Frist, die vor einem Vorgang unbekannter Dauer geprüft wird, ist
+> eingehalten, solange niemand misst, wann er endet.**
+
+**Und die Reserve gilt nicht für die erste Domain.** Eine mit zwölf Aliassen
+hat eine Reserve von 240 Sekunden — genau die Frist. Ohne die Ausnahme käme sie
+in keinem Lauf an die Reihe, für immer, und im Bericht stünde nur „wartet noch".
+
+> **Eine Reserve, die den ersten Vorgang verhindert, macht aus einer Grenze eine
+> Sperre.**
+
+**Die Reihenfolge ist die andere Hälfte der Grenze:** erst, wer noch nie
+gemessen wurde, dann der älteste Befund. Ein Deckel ohne Reihenfolge bevorzugt
+immer dieselben Domains, und der Bericht meldete trotzdem jeden Lauf
+„25 geprüft".
+
+> **Eine Obergrenze ohne Reihenfolge ist keine Begrenzung, sondern eine
+> Bevorzugung.**
+
+**Drei der sechs Zahlen stehen in drei Dateien, die nichts voneinander wissen.**
+`DnsBudgetTest` hält sie aneinander: Die Frist der Unit muss über der des
+Quelltextes liegen, und der Takt über beiden — sonst räumt systemd den Lauf
+mitten in einer Messung ab, oder der nächste Termin fällt in einen noch
+laufenden Dienst und fällt lautlos aus.
+
+> **Zwei Fristen über denselben Lauf, die nichts voneinander wissen, entscheidet
+> die kleinere — und die steht woanders.**
+
+**Was der Lauf nicht filtert, ist die Sorte.** Ein Alias wird mitgemessen,
+obwohl seine Namen schon unter seiner Elterndomain gefragt wurden — er hat eine
+eigene Seite mit einem eigenen Abgleich, und wer ihn überspränge, liesse genau
+diese Seite für immer auf „noch nie geprüft" stehen. Übergangen wird allein, was
+gerade zurückgebaut wird.
+
 ### 2.6 Die eine Operation
 
 `dns.check` — der Agent fragt die autoritativen Server und gibt zurück, was er
@@ -348,6 +411,8 @@ Sie heisst künftig **„Eigene DNS-Zugangsdaten für Zertifikate"**.
 | `DesiredRecordSourceTest` | Der Sollzustand steht an einer Stelle und wird nicht je Ansicht neu gerechnet |
 | `CheckAgeTest` | Kein Ergebnis wird ohne seinen Zeitpunkt angezeigt |
 | `NoZoneWriteTest` | Nichts unter `app/` oder `agent/` schreibt in eine fremde Zone — die acht Anbieter bleiben dem ACME-Weg vorbehalten |
+| `DnsBudgetTest` | Die Grenze des regelmässigen Laufs hält — und die drei Fristen in drei Dateien passen zueinander (§2.5a) |
+| `DnsSweepTest` | Der Lauf misst ohne angemeldetes Konto, in der Reihenfolge des Alters, und ein Fehlschlag beendet ihn nicht |
 
 `NoZoneWriteTest` ist der, der §4 zweiten Punkt festhält: Der bequemste Weg
 später ist, `Cloudflare::add()` einfach auch für einen `A`-Eintrag zu benutzen.
@@ -365,13 +430,27 @@ Der Wächter macht daraus eine Entscheidung statt einer Handbewegung.
 | 4 | Die Adressquelle (§2.1a) und der Vergleich mit seinen drei Zuständen |
 | 5 | Die Anzeige an der Domain, mit dem Zeitpunkt |
 | 6 | Der CAA-Fall |
-| 7 | Die regelmässige Messung und ihre Grenze (wie viele Domains je Lauf, welches Zeitlimit) |
-| 8 | Bilderrunde, beide Themes, 390 und 1440 px |
-| 9 | Abnahmelauf auf `cloudsrv24`, Protokoll **während** des Laufs |
+| 7 | Die regelmässige Messung und ihre Grenze — Kommando, Timer, Reihenfolge (§2.5a) |
+| 8 | Zwischenabnahme auf `cloudsrv24` |
+| 9 | Bilderrunde, beide Themes, 390 und 1440 px |
+| 10 | Abnahmelauf auf `cloudsrv24`, Protokoll **während** des Laufs |
 
-**Keine Zwischenabnahme nötig.** Nichts an dieser Stufe steht auf einem Dienst,
-den der Container nur als Wegwerf-Fassung kennt — der `Resolver` läuft hier
-gegen echte Nameserver.
+**Schritt 8 stand hier zuerst nicht da**, und die Begründung dafür war falsch.
+Sie lautete: Nichts an dieser Stufe stehe auf einem Dienst, den der Container nur
+als Wegwerf-Fassung kennt — der `Resolver` laufe hier gegen echte Nameserver.
+Das stimmt für den `Resolver` und für sonst nichts. Migration, Modell,
+Controller, Route, Bereich, Kommando und Timer sind auf keinem Server je
+gelaufen; `vendor/` fehlt in diesem Container, also hat auch kein Feature-Test
+sie angefasst.
+
+> **Eine Begründung, die für einen Teil stimmt, ist keine für das Ganze.**
+
+Vor die Bilderrunde gehört deshalb ein kurzer Lauf auf `cloudsrv24`: Migration
+einspielen, `systemctl list-timers srvpanel-dns.timer` lesen,
+`srvpanel dns-check` von Hand fahren, den Bereich an einer echten Domain
+ansehen. Und dabei die eine Zahl messen, die dieser Container nicht kennt:
+`systemctl show srvpanel-dns.service -p TimeoutStartUSec` — die Vorgabe für
+`Type=oneshot` steht hier nur in der Dokumentation und ist ungemessen.
 
 ---
 

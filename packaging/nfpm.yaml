@@ -131,6 +131,15 @@ contents:
   - src: ./packaging/systemd/srvpanel-cron.timer
     dst: /lib/systemd/system/srvpanel-cron.timer
 
+  # Und dasselbe für den DNS-Abgleich (P7). Ohne die .timer-Datei stünde an
+  # jeder Domain „noch nie geprüft", bis jemand den Knopf drückt — also genau
+  # in dem Fall nichts, für den es das Merkmal gibt: dass sich ein Eintrag
+  # ändert, ohne dass jemand hinsieht.
+  - src: ./packaging/systemd/srvpanel-dns.service
+    dst: /lib/systemd/system/srvpanel-dns.service
+  - src: ./packaging/systemd/srvpanel-dns.timer
+    dst: /lib/systemd/system/srvpanel-dns.timer
+
   - src: ./packaging/bin/php
     dst: /opt/srvpanel/bin/php
     file_info:

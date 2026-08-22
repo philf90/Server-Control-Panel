@@ -13885,6 +13885,202 @@ pruefe "  … zurückgesetzt wieder grün" \
   DnsSurveyTest::test_a_failing_name_does_not_spoil_the_others passed
 
 echo
+echo "── DnsBudgetTest: die Grenze des regelmaessigen Abgleichs ──"
+#
+# Die Grenze besteht aus drei Zahlen in drei Dateien, die nichts voneinander
+# wissen: die Frist im Quelltext, die der Unit und der Takt des Timers. Von
+# zwei Fristen ueber denselben Lauf entscheidet die kleinere — und die steht
+# woanders.
+
+vorher_datei app/Support/Dns/Budget.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Budget.php'
+s = open(p, encoding='utf-8').read()
+alt = '        return $elapsed + (float) self::reserve($names) <= (float) $this->seconds;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        return $elapsed <= (float) $this->seconds;'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Budget.php "eine Frist ohne Reserve" &&
+pruefe "eine Frist ohne Reserve" \
+  DnsBudgetTest::test_a_domain_that_would_not_fit_is_not_started failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Budget.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Budget.php'
+s = open(p, encoding='utf-8').read()
+alt = '        if ($done >= $this->domains) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        if ($done > $this->domains) {'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Budget.php "eine Domain zu viel je Lauf" &&
+pruefe "eine Domain zu viel je Lauf" \
+  DnsBudgetTest::test_the_count_bound_stops_the_run failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Budget.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Budget.php'
+s = open(p, encoding='utf-8').read()
+alt = '        if ($done === 0) {\n            return true;\n        }\n\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Dns/Budget.php "die Reserve sperrt die erste Domain" &&
+pruefe "die Reserve sperrt die erste Domain" \
+  DnsBudgetTest::test_the_first_domain_always_gets_its_turn failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Budget.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Budget.php'
+s = open(p, encoding='utf-8').read()
+alt = 'self::reserve($names) <= (float) $this->seconds;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = 'self::reserve($names) < (float) $this->seconds;'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Budget.php "was genau hineinpasst, faellt heraus" &&
+pruefe "was genau hineinpasst, faellt heraus" \
+  DnsBudgetTest::test_what_fits_exactly_is_started failed
+wiederherstellen
+
+# **Die zweite Fassung einer Zahl.** Das Ergebnis bleibt richtig — heute. Der
+# Wächter faellt trotzdem, und das ist der Punkt: Er prueft nicht den Wert,
+# sondern woher er kommt.
+vorher_datei app/Support/Dns/Budget.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Budget.php'
+s = open(p, encoding='utf-8').read()
+alt = 'return max(1, $names) * DnsCheck::MAX_SERVERS * Resolver::TIMEOUT_SECONDS;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = 'return max(1, $names) * 4 * 5;'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Budget.php "eine eigene Zahl statt der des Agenten" &&
+pruefe "eine eigene Zahl statt der des Agenten" \
+  DnsBudgetTest::test_the_reserve_is_taken_from_where_it_holds failed
+wiederherstellen
+
+vorher_datei packaging/systemd/srvpanel-dns.service
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-dns.service'
+s = open(p, encoding='utf-8').read()
+alt = 'TimeoutStartSec=600'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'TimeoutStartSec=60', 1))
+PY2
+griff_datei packaging/systemd/srvpanel-dns.service "die Unit ist knapper als das Budget" &&
+pruefe "die Unit ist knapper als das Budget" \
+  DnsBudgetTest::test_the_unit_allows_more_time_than_the_budget failed
+wiederherstellen
+
+vorher_datei packaging/systemd/srvpanel-dns.timer
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-dns.timer'
+s = open(p, encoding='utf-8').read()
+alt = 'OnCalendar=*:0/15'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'OnCalendar=*:0/2', 1))
+PY2
+griff_datei packaging/systemd/srvpanel-dns.timer "der Takt ist kuerzer als ein Lauf" &&
+pruefe "der Takt ist kuerzer als ein Lauf" \
+  DnsBudgetTest::test_the_timer_fires_less_often_than_a_run_may_last failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DnsBudgetTest passed
+
+echo
+echo "── DnsSweepTest: wer drankommt und wann Schluss ist ──"
+#
+# **Der erste Eingriff ist der Fehler des Cron-Einsammlers**, ein Merkmal
+# spaeter: Der Lauf hat kein angemeldetes Konto, die Mandantenklammer
+# verweigert im Grundzustand alles, und der Bericht meldet „0 faellig".
+
+vorher_datei app/Support/Dns/Sweep.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Sweep.php'
+s = open(p, encoding='utf-8').read()
+alt = '        $this->tenancy->withoutRestriction(function () use (&$report): void {\n            $report = $this->go();\n        });'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        $report = $this->go();'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Sweep.php "der Lauf ohne Ausnahme von der Klammer" &&
+pruefe "der Lauf ohne Ausnahme von der Klammer" \
+  DnsSweepTest::test_it_measures_without_a_logged_in_account failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Sweep.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Sweep.php'
+s = open(p, encoding='utf-8').read()
+alt = "            ->orderByRaw('case when domain_dns_checks.checked_at is null then 0 else 1 end')\n            ->orderBy('domain_dns_checks.checked_at')\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Dns/Sweep.php "eine Obergrenze ohne Reihenfolge" &&
+pruefe "eine Obergrenze ohne Reihenfolge" \
+  DnsSweepTest::test_the_oldest_finding_comes_next failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Sweep.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Sweep.php'
+s = open(p, encoding='utf-8').read()
+alt = "            ->where(fn (Builder $query) => $query\n                ->whereNull('domain_dns_checks.checked_at')\n                ->orWhere('domain_dns_checks.checked_at', '<=', $stale))\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Dns/Sweep.php "ein frischer Befund wird wiederholt" &&
+pruefe "ein frischer Befund wird wiederholt" \
+  DnsSweepTest::test_a_fresh_finding_is_not_measured_again failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Sweep.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Sweep.php'
+s = open(p, encoding='utf-8').read()
+alt = "            ->where('domains.status', '!=', DomainStatus::Removing)\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Dns/Sweep.php "der Rueckbau wird mitgemessen" &&
+pruefe "der Rueckbau wird mitgemessen" \
+  DnsSweepTest::test_a_domain_being_removed_is_skipped failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Sweep.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Sweep.php'
+s = open(p, encoding='utf-8').read()
+alt = '            } catch (Throwable) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '            } catch (\\LogicException) {'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Sweep.php "ein Fehlschlag beendet den Lauf" &&
+pruefe "ein Fehlschlag beendet den Lauf" \
+  DnsSweepTest::test_a_failing_domain_does_not_stop_the_run failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Sweep.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Sweep.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'left' => max(0, $candidates->count() - $done),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'left' => 0,", 1))
+PY2
+griff_datei app/Support/Dns/Sweep.php "was liegen bleibt, wird verschwiegen" &&
+pruefe "was liegen bleibt, wird verschwiegen" \
+  DnsSweepTest::test_the_bound_leaves_the_rest_for_the_next_run failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  DnsSweepTest::test_it_measures_without_a_logged_in_account passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

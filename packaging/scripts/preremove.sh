@@ -6,7 +6,7 @@ set -eu
 
 # Der Timer zuerst: Sonst startet er die Messung noch, während die Dienste
 # unter ihm weggehen.
-for timer in srvpanel-usage srvpanel-tls srvpanel-cron; do
+for timer in srvpanel-usage srvpanel-tls srvpanel-cron srvpanel-dns; do
     systemctl stop "${timer}.timer" >/dev/null 2>&1 || true
     systemctl disable "${timer}.timer" >/dev/null 2>&1 || true
 done

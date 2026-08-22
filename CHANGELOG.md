@@ -17933,3 +17933,48 @@ sechs. Ein Zerleger mit diesem Fehler hätte den Anlass selbst nicht gefunden.
 Der Wächter hat deshalb einen Prüfkörper aus der Hand bekommen statt einer Zahl
 über den Bestand — er hängt an keiner Datei und wird von keinem Aufräumen
 kleiner.
+
+### Der DNS-Abgleich als eine Marke in den Domainlisten
+
+Ein Wunsch des Betreibers vom 22. August 2026, geäussert beim ersten Bild der
+Bilderrunde. Der Bereich an der Domain sagt je Name und Satz, was ist — fünf
+Zustände, dazu CAA und die ungefragten Namen. Das ist die richtige Auskunft
+**an der Domain** und die falsche **in einer Liste**.
+
+> **Eine Liste beantwortet nicht dieselbe Frage wie eine Seite. Sie beantwortet,
+> welche Seite man aufschlagen muss.**
+
+`DnsHealth` zieht den Befund auf eine Marke zusammen, und beide Listen —
+`/domains` und der Bereich „Domains" am Abonnement — tragen sie in einer neuen
+Spalte vor dem Zustand der Domain.
+
+**Drei Zustände und nicht zwei, obwohl zwei gewünscht waren.** „Noch nie
+geprüft" ist keins von beidem: Jede frisch angelegte Domain ist genau dieser
+Fall, und sie als „in Ordnung" zu führen wäre eine Entwarnung ohne Messung —
+derselbe Fehler, vor dem `Dns::last()` mit seinem `null` warnt.
+
+> **Eine Marke, die „in Ordnung" sagt, weil niemand gemessen hat, ist keine
+> Auskunft, sondern eine Vermutung mit Farbe.**
+
+Die Wörter sind „in Ordnung", „nachsehen" und „ungeprüft"; die Ränge `ok`,
+`warn` und `neutral`. **„Zeigt woandershin" bekommt dabei denselben gelben Rang,
+den die Zeile an der Domain schon trägt** — die Liste sagt damit nicht „kaputt",
+sondern „hier steht etwas, das nicht der Regelfall ist". Wer über ein CDN fährt,
+sieht keine neue Meldung (`docs/72 §2.3`).
+
+**Der Wächter hält den Fall, an dem so ein Zusammenzug still falsch wird.**
+`DnsHealthTest` zählt die `DnsRecordState` **auf**, statt sie aufzuschreiben, und
+ein Zustand, den `of()` nicht kennt, ergibt „nachsehen" statt „in Ordnung":
+
+> **Ein Zusammenzug, der Unbekanntes für gut hält, wird beim nächsten Zustand
+> still falsch.**
+
+Es sind zu diesem Aufzählungstyp schon zweimal Zustände nachträglich
+dazugekommen — beide beim Bauen von P7 Schritt 2.
+
+**Und die Listen fragen nicht je Zeile.** `Domain::dnsCheck()` ist eine
+`hasOne`-Beziehung, beide Controller laden sie über `with()` mit; ohne das
+stellte jede der bis zu `Page::SIZE` Zeilen ihre eigene Abfrage. `hasOne` und
+nicht `hasMany`, weil `Dns::store()` je Domain genau eine Zeile schreibt — eine
+Beziehung, die eine Liste verspricht, die nie länger als eins wird, ist eine
+falsche Auskunft über die Tabelle.

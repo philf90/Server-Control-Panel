@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\CustomerStatus;
+use App\Enums\DnsHealth;
 use App\Enums\SubscriptionStatus;
 use App\Models\Customer;
 use App\Models\Domain;
@@ -314,18 +315,38 @@ final class SubscriptionController extends Controller
              * zusätzlich die serverweite Liste unter /domains.
              */
             'domains' => $subscription->domains()
+                /*
+                 * **`dnsCheck` wird mitgeladen** — die Spalte „DNS" braucht den
+                 * letzten Befund jeder Domain, und ohne das `with` stellte jede
+                 * Zeile ihre eigene Abfrage.
+                 */
+                ->with('dnsCheck')
                 ->orderByRaw("case when type = 'main' then 0 else 1 end")
                 ->orderBy('name')
                 ->get()
-                ->map(static fn (Domain $domain): array => [
-                    'id' => (int) $domain->id,
-                    'name' => $domain->name,
-                    'type_label' => $domain->type->label(),
-                    'status' => $domain->status->value,
-                    'status_label' => $domain->status->label(),
-                    'php_version' => $domain->php_version,
-                    'is_redirect' => $domain->isRedirect(),
-                ])->all(),
+                ->map(static function (Domain $domain): array {
+                    $health = DnsHealth::of($domain->dnsCheck?->findings);
+
+                    return [
+                        'id' => (int) $domain->id,
+                        'name' => $domain->name,
+                        'type_label' => $domain->type->label(),
+                        'status' => $domain->status->value,
+                        'status_label' => $domain->status->label(),
+                        'php_version' => $domain->php_version,
+                        'is_redirect' => $domain->isRedirect(),
+
+                        /*
+                         * **Derselbe Zusammenzug wie in der serverweiten
+                         * Liste**, und aus derselben Quelle: Zwei Fassungen
+                         * dieser Regel liefen beim nächsten Zustand
+                         * auseinander.
+                         */
+                        'dns' => $health->value,
+                        'dns_label' => $health->label(),
+                        'dns_badge' => $health->badge(),
+                    ];
+                })->all(),
 
             /*
              * Was der Betrachter an diesem Abonnement tun darf.

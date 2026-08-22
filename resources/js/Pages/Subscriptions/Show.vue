@@ -56,6 +56,14 @@ const props = defineProps<{
     status_label: string
     php_version: string | null
     is_redirect: boolean
+
+    /**
+     * Der DNS-Abgleich, auf eine Marke zusammengezogen — Rang und Wortlaut
+     * kommen vom Server (`DnsHealth`) und werden hier nicht abgeleitet.
+     */
+    dns: string
+    dns_label: string
+    dns_badge: 'ok' | 'warn' | 'critical' | 'neutral'
   }[]
   /**
    * Was der Betrachter an diesem Abonnement tun darf — vom Server entschieden.
@@ -552,7 +560,7 @@ function remove(): void {
         <div class="scrolls">
           <table class="stacks">
             <thead>
-              <tr><th>Domain</th><th>Sorte</th><th>PHP</th><th>Zustand</th></tr>
+              <tr><th>Domain</th><th>Sorte</th><th>PHP</th><th>DNS</th><th>Zustand</th></tr>
             </thead>
             <tbody>
               <tr v-for="d in props.domains" :key="d.id">
@@ -564,12 +572,21 @@ function remove(): void {
                   <template v-if="d.is_redirect"><span class="quiet">leitet weiter</span></template>
                   <template v-else>{{ d.php_version ?? '—' }}</template>
                 </td>
+                <!--
+                  **Der DNS-Abgleich steht vor dem Zustand der Domain.** Eine
+                  Liste beantwortet nicht dieselbe Frage wie eine Seite — sie
+                  beantwortet, welche Seite man aufschlagen muss.
+                -->
+                <td data-column="DNS">
+                  <Badge :kind="d.dns_badge">{{ d.dns_label }}</Badge>
+                </td>
+
                 <td data-column="Zustand">
                   <Badge :kind="rang(d.status)">{{ d.status_label }}</Badge>
                 </td>
               </tr>
               <tr v-if="props.domains.length === 0">
-                <td colspan="4" class="quiet">Noch keine Domain.</td>
+                <td colspan="5" class="quiet">Noch keine Domain.</td>
               </tr>
             </tbody>
           </table>

@@ -173,10 +173,20 @@ nicht geprüft und wandert damit unverändert weiter in den Abnahmelauf.
 |---|---|---|
 | 1 | Domain mit DNS-Abgleich | `/domains/<id>` |
 | 2 | Einstellungen → Allgemein | `/settings/general` |
+| 3 | Domainliste, serverweit | `/domains` |
+| 4 | Abonnement, Bereich „Domains" | `/subscriptions/<abo>` |
 
-Das ist wenig gegen die neun Ansichten aus `docs/63`, und es ist die richtige
-Zahl: P7 hat genau zwei Stellen an der Oberfläche angefasst. Der Lauf lebt
-deshalb nicht von den Ansichten, sondern von den **Zuständen** darunter.
+**Die Ansichten 3 und 4 sind am 22. August dazugekommen**, mitten im Lauf: Der
+Betreiber hat sich beim ersten Bild eine Marke in den Domainlisten gewünscht,
+die sagt, welche Zeile man aufschlagen muss (`DnsHealth`). Damit fasst P7 vier
+Stellen der Oberfläche an statt zwei, und die Runde wächst mit.
+
+> **Eine Bilderrunde deckt ab, was die Stufe angefasst hat — nicht, was sie am
+> Anfang angefasst hatte.**
+
+Beide Listen tragen dadurch eine Spalte mehr (sechs statt fünf, vier statt
+drei). Vorgemessen im Aufsatz: alle vier Lagen `dokument: 0`, Gegenprobe
+`200/200`, bei 390 px als Kärtchen gestapelt.
 
 ### Und dazu die Zustände, die das Layout ändern
 
@@ -197,6 +207,7 @@ oder Grau, eine Meldung —, kommt er zusätzlich im zweiten Theme dazu.
 | Allgemein | Übersteuerung leer | der Ausgangszustand, „Abgeleitet" und „Verglichen wird gegen" gleich |
 | Allgemein | Übersteuerung gesetzt | nach 2.3 — die beiden Zeilen verschieden |
 | Allgemein | Feld abgewiesen | `keine-adresse` eintragen und speichern — Meldung oben, `aria-invalid` am Feld |
+| Liste | alle drei Marken nebeneinander | eine geprüfte, eine abweichende und eine nie geprüfte Domain in derselben Liste |
 
 **Der lange Name ist der Prüfkörper, der hier am ehesten etwas findet.** Ein
 Zonenname darf 253 Zeichen tragen, ein einzelnes Label 63 — und die

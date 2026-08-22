@@ -14444,6 +14444,84 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NoticeChildrenTest passed
 
 echo
+echo "── DnsHealthTest: der Abgleich als eine Marke ──"
+#
+# **Gewuenscht vom Betreiber am 22. August 2026** waehrend der Bilderrunde: In
+# den Domainlisten eine Marke, die sagt, welche Zeile man aufschlagen muss.
+
+vorher_datei app/Enums/DnsHealth.php
+python3 - <<'PY2'
+p = 'app/Enums/DnsHealth.php'
+s = open(p, encoding='utf-8').read()
+alt = '        if ($findings === null) {\n            return self::Unchecked;\n        }'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Enums/DnsHealth.php "ungeprueft wird zu in Ordnung" &&
+pruefe "ungeprueft wird zu in Ordnung" \
+  DnsHealthTest::test_never_checked_is_its_own_state failed
+wiederherstellen
+
+# **Der teuerste Bruch: ein unbekannter Zustand gilt als gut.** Genau der Fall,
+# der beim naechsten DnsRecordState still falsch wird — es sind schon einmal
+# zwei nachtraeglich dazugekommen.
+
+vorher_datei app/Enums/DnsHealth.php
+python3 - <<'PY2'
+p = 'app/Enums/DnsHealth.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if ($state !== DnsRecordState::Here) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            if ($state !== null && $state !== DnsRecordState::Here) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Enums/DnsHealth.php "ein unbekannter Zustand gilt als gut" &&
+pruefe "ein unbekannter Zustand gilt als gut" \
+  DnsHealthTest::test_an_unknown_state_is_not_fine failed
+wiederherstellen
+
+vorher_datei app/Enums/DnsHealth.php
+python3 - <<'PY2'
+p = 'app/Enums/DnsHealth.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($records === []) {\n            return self::Attention;\n        }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Enums/DnsHealth.php "ein Befund ohne Saetze gilt als gut" &&
+pruefe "ein Befund ohne Saetze gilt als gut" \
+  DnsHealthTest::test_a_finding_without_records_is_not_fine failed
+wiederherstellen
+
+vorher_datei app/Enums/DnsHealth.php
+python3 - <<'PY2'
+p = 'app/Enums/DnsHealth.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if (is_array($authority) && ($authority['state'] ?? null) === 'refused') {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            if (false) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Enums/DnsHealth.php "ein abweisendes CAA wird ueberlesen" &&
+pruefe "ein abweisendes CAA wird ueberlesen" \
+  DnsHealthTest::test_a_refused_authority_asks_for_attention failed
+wiederherstellen
+
+vorher_datei app/Enums/DnsHealth.php
+python3 - <<'PY2'
+p = 'app/Enums/DnsHealth.php'
+s = open(p, encoding='utf-8').read()
+alt = "            self::Unchecked => 'neutral',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            self::Unchecked => 'grau',", 1))
+PY2
+griff_datei app/Enums/DnsHealth.php "ein Rang, den Badge nicht kennt" &&
+pruefe "ein Rang, den Badge nicht kennt" \
+  DnsHealthTest::test_every_badge_rank_is_one_the_component_knows failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DnsHealthTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

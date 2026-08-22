@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\CertificateSource;
+use App\Enums\DnsHealth;
 use App\Enums\SubscriptionStatus;
 use App\Models\Account;
 use App\Models\Certificate;
@@ -87,7 +88,13 @@ final class DomainController extends Controller
     public function index(Request $request): Response
     {
         $domains = Domain::query()
-            ->with('subscription')
+            /*
+             * **`dnsCheck` wird mitgeladen und nicht je Zeile gefragt.** Die
+             * Spalte „DNS" braucht den letzten Befund jeder Domain; ohne das
+             * `with` stellte jede der bis zu Page::SIZE Zeilen ihre eigene
+             * Abfrage.
+             */
+            ->with(['subscription', 'dnsCheck'])
             ->orderBy('name')
             ->paginate(Page::SIZE)
             ->withQueryString();
@@ -643,6 +650,8 @@ final class DomainController extends Controller
     /** @return array<string, mixed> */
     private function row(Domain $domain): array
     {
+        $health = DnsHealth::of($domain->dnsCheck?->findings);
+
         return [
             'id' => (int) $domain->id,
             'name' => $domain->name,
@@ -657,6 +666,16 @@ final class DomainController extends Controller
             'subscription' => $domain->subscription?->name,
             'subscription_id' => (int) $domain->subscription_id,
             'removable' => $domain->type->removable(),
+
+            /*
+             * **Der DNS-Abgleich als eine Marke** — gewünscht vom Betreiber am
+             * 22. August 2026. Was hier steht, entscheidet {@see DnsHealth} und
+             * nicht die Seite: Eine `v-if`-Kette im Template wäre eine zweite
+             * Fassung derselben Regel, und die zweite veraltet.
+             */
+            'dns' => $health->value,
+            'dns_label' => $health->label(),
+            'dns_badge' => $health->badge(),
         ];
     }
 }

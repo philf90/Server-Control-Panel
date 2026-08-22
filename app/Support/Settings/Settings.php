@@ -63,6 +63,24 @@ final class Settings
     /** Was der Messlauf über die Dateisystem-Quota gesehen hat. */
     private const DISK_QUOTA = 'usage.disk_quota';
 
+    /**
+     * Die Adressen, auf die eine Kundendomain zeigen soll — übersteuert.
+     *
+     * **Leer heisst „nimm die abgeleiteten"** (`docs/72 §2.1a`), und das ist
+     * der Normalfall. Eingetragen wird nur, wo die Ableitung nicht geht:
+     * hinter NAT, einer Floating-IP oder einem Lastverteiler ist die Adresse,
+     * unter der ein Server von aussen erreichbar ist, von innen nicht zu
+     * erfahren.
+     *
+     * **Das ist derselbe Fall wie `bind-address` und der PostgreSQL-Schalter
+     * darüber**, und dieselbe Warnung gilt: Was hier steht, ist eine im Panel
+     * gemerkte Fassung eines Serverzustands, und die kann veralten. Bekommt
+     * der Server eine neue Adresse, meldet der Abgleich sonst jede Domain als
+     * falsch, die in Wahrheit richtig steht — deshalb zeigt die Seite beides,
+     * das Eingetragene und das Abgeleitete.
+     */
+    private const DNS_ADDRESSES = 'dns.addresses';
+
     private ?MailSettings $mail = null;
 
     /** @var list<string>|null */
@@ -194,6 +212,36 @@ final class Settings
         Setting::query()->updateOrCreate(
             ['key' => self::POSTGRES],
             ['value' => ['offered' => $offered, 'changed_at' => now()->toDateTimeString()]],
+        );
+    }
+
+    /**
+     * Die eingetragenen Adressen — leer, wenn abgeleitet werden soll.
+     *
+     * @return list<string>
+     */
+    public function dnsAddresses(): array
+    {
+        $value = $this->read(self::DNS_ADDRESSES);
+        $addresses = [];
+
+        foreach ($value['addresses'] ?? [] as $address) {
+            if (is_string($address) && $address !== '') {
+                $addresses[] = $address;
+            }
+        }
+
+        return $addresses;
+    }
+
+    /**
+     * @param  list<string>  $addresses  Leer räumt die Übersteuerung ab
+     */
+    public function saveDnsAddresses(array $addresses): void
+    {
+        Setting::query()->updateOrCreate(
+            ['key' => self::DNS_ADDRESSES],
+            ['value' => ['addresses' => array_values($addresses)]],
         );
     }
 

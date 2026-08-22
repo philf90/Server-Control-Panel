@@ -34,6 +34,7 @@ use SrvPanel\Agent\Ops\DbUserGrant;
 use SrvPanel\Agent\Ops\DbUserLock;
 use SrvPanel\Agent\Ops\DbUserPassword;
 use SrvPanel\Agent\Ops\DbUserRemove;
+use SrvPanel\Agent\Ops\DnsCheck;
 use SrvPanel\Agent\Ops\DnsCredentialForget;
 use SrvPanel\Agent\Ops\DnsCredentialList;
 use SrvPanel\Agent\Ops\DnsCredentialStore;
@@ -192,6 +193,16 @@ final class Registry
         $this->register(new DnsCredentialStore);
         $this->register(new DnsCredentialList);
         $this->register(new DnsCredentialForget);
+
+        /*
+         * P7 — DNS-Abgleich (docs/72).
+         *
+         * Eine einzige Operation, und sie verändert nichts: Das Panel kennt den
+         * Sollzustand einer Domain, der Agent misst den Istzustand, und
+         * verglichen wird oben. Ein Agent, der den Sollzustand kennte, hätte
+         * eine zweite Fassung davon.
+         */
+        $this->register(new DnsCheck);
 
         /*
          * P5 — Datenbanken (docs/36).

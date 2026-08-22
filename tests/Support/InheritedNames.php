@@ -92,7 +92,7 @@ final class InheritedNames
         $inherited = self::methodsOf($parent);
         $found = [];
 
-        foreach (self::declaredIn($source) as $name => $visibility) {
+        foreach (self::declarations($source) as $name => $visibility) {
             $base = $inherited[strtolower($name)] ?? null;
 
             if ($base === null) {
@@ -159,7 +159,7 @@ final class InheritedNames
     }
 
     /**
-     * Die Methoden, die eine Datei selbst erklärt.
+     * Die Methoden, die auf der Klasse dieser Datei landen.
      *
      * **Über die Token und nicht über einen Ausdruck.** Ein regulärer Ausdruck
      * fände auch eine Erklärung, die in einer Zeichenkette steht — und dieses
@@ -167,18 +167,69 @@ final class InheritedNames
      * `token_get_all()` weiss, was Zeichenkette ist; derselbe Grund wie bei
      * {@see WithoutPhpComments}.
      *
+     * **Und über die Klasse und nicht über die Datei — das ist die zweite
+     * Hälfte einer Berichtigung, die schon einmal halb gemacht wurde.**
+     * `BaseMethodClashTest` hat beim ersten Wurf alles unter `tests/Support`
+     * eingesammelt und drei Attrappen gemeldet, die gar nicht von `TestCase`
+     * erben; die Behebung war, den **Dateisatz** einzugrenzen. Der Fehler sass
+     * eine Ebene tiefer weiter: *In* einer Datei wurde jede Funktion der
+     * Testklasse zugeschlagen. Am 22. August 2026 hat das drei Fehlbefunde
+     * erzeugt — ein Doppel neben seinem Testfall in derselben Datei und eine
+     * anonyme Klasse in einer Methode, jedes mit einem eigenen
+     * `__construct()`.
+     *
+     * > **Ein Wächter, der seinen Geltungsbereich an der Datei festmacht,
+     * > prüft die Datei und nicht die Klasse.**
+     *
+     * Gesammelt wird deshalb nur, was wirklich auf der Klasse landet: die
+     * Methoden einer **benannten Klasse mit `extends`** und die eines
+     * **Traits** — der wird hineingezogen und verdrängt dort die geerbte
+     * Methode. Eine zweite Klasse ohne `extends`, eine anonyme Klasse, ein
+     * Interface und ein Enum stehen für sich.
+     *
      * @return array<string, string> Name auf Sichtbarkeit
      */
-    private static function declaredIn(string $source): array
+    public static function declarations(string $source): array
     {
         $declared = [];
         $visibility = 'public';
         $tokens = token_get_all($source);
 
+        /** @var list<array{collect: bool, depth: int}> $frames */
+        $frames = [];
+
+        /** @var array{collect: bool, at: int}|null $pending */
+        $pending = null;
+        $depth = 0;
+
         foreach ($tokens as $index => $token) {
             if (! is_array($token)) {
+                if ($token === '{') {
+                    $depth++;
+
+                    if ($pending !== null && $pending['at'] === $index) {
+                        $frames[] = ['collect' => $pending['collect'], 'depth' => $depth];
+                        $pending = null;
+                    }
+                } elseif ($token === '}') {
+                    if ($frames !== [] && $frames[count($frames) - 1]['depth'] === $depth) {
+                        array_pop($frames);
+                    }
+
+                    $depth--;
+                }
+
                 // Ein `;` oder eine Klammer beendet, was an Angaben davorstand.
                 $visibility = 'public';
+
+                continue;
+            }
+
+            // Die geschweifte Klammer einer Einsetzung in einer Zeichenkette
+            // zählt mit — ihre schliessende ist ein gewöhnliches `}`, und ohne
+            // sie liefe die Tiefe auseinander.
+            if ($token[0] === T_CURLY_OPEN || $token[0] === T_DOLLAR_OPEN_CURLY_BRACES) {
+                $depth++;
 
                 continue;
             }
@@ -195,13 +246,23 @@ final class InheritedNames
                 continue;
             }
 
+            if (in_array($token[0], [T_CLASS, T_TRAIT, T_INTERFACE, T_ENUM], true)) {
+                $body = self::bodyAfter($tokens, $index, $token[0]);
+
+                if ($body !== null) {
+                    $pending = $body;
+                }
+
+                continue;
+            }
+
             if ($token[0] !== T_FUNCTION) {
                 continue;
             }
 
             $name = self::nameAfter($tokens, $index);
 
-            if ($name !== null) {
+            if ($name !== null && $frames !== [] && $frames[count($frames) - 1]['collect']) {
                 $declared[$name] = $visibility;
             }
 
@@ -209,6 +270,97 @@ final class InheritedNames
         }
 
         return $declared;
+    }
+
+    /**
+     * Wo der Rumpf dieser Struktur anfängt — und ob seine Methoden zählen.
+     *
+     * `null` heisst „das ist gar keine Erklärung": `Foo::class` ist ein
+     * `T_CLASS` wie jede Klassenerklärung, und wer das übersieht, schiebt beim
+     * nächsten `{` einen Rahmen auf den Stapel, der dort nicht hingehört.
+     *
+     * **Für diese eine Zeile gibt es keinen erreichbaren Bruch, und das steht
+     * hier statt einer Zusage.** Sie nimmt ohne Wirkung weg, was zwei andere
+     * Prüfungen schon abfangen: Hinter `::class` steht nie ein `T_STRING`,
+     * also bleibt `$named` falsch und der Rahmen zählt ohnehin nicht — und
+     * folgt bis zur nächsten Klammer doch eine echte Erklärung, überschreibt
+     * deren `T_CLASS` das Vorgemerkte. Nachgemessen am 22. August 2026: ohne
+     * diese Zeile bleiben alle Fälle grün. Sie bleibt trotzdem, weil sie die
+     * Absicht ausspricht.
+     *
+     * > **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und
+     * > nicht als Zusage.**
+     *
+     * @param  array<int, array{0: int, 1: string, 2: int}|string>  $tokens
+     * @return array{collect: bool, at: int}|null
+     */
+    private static function bodyAfter(array $tokens, int $index, int $type): ?array
+    {
+        for ($i = $index - 1; $i >= 0; $i--) {
+            $token = $tokens[$i];
+
+            if (is_array($token) && in_array($token[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+                continue;
+            }
+
+            if (is_array($token) && $token[0] === T_DOUBLE_COLON) {
+                return null;
+            }
+
+            break;
+        }
+
+        $named = false;
+        $extends = false;
+        $first = true;
+        $parens = 0;
+
+        for ($i = $index + 1, $ende = count($tokens); $i < $ende; $i++) {
+            $token = $tokens[$i];
+
+            if (is_array($token)) {
+                if (in_array($token[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+                    continue;
+                }
+
+                if ($first && $token[0] === T_STRING) {
+                    $named = true;
+                }
+
+                if ($token[0] === T_EXTENDS) {
+                    $extends = true;
+                }
+
+                $first = false;
+
+                continue;
+            }
+
+            $first = false;
+
+            if ($token === '(') {
+                $parens++;
+
+                continue;
+            }
+
+            if ($token === ')') {
+                $parens--;
+
+                continue;
+            }
+
+            // Nur die Klammer auf der äussersten Ebene ist der Rumpf. Die
+            // Klammern in den Argumenten einer anonymen Klasse sind es nicht.
+            if ($token === '{' && $parens === 0) {
+                return [
+                    'collect' => $type === T_TRAIT || ($type === T_CLASS && $named && $extends),
+                    'at' => $i,
+                ];
+            }
+        }
+
+        return null;
     }
 
     /**

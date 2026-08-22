@@ -1151,6 +1151,30 @@ Testen berücksichtigen:
 
   > **Ein Rückweg, der voraussetzt, dass der Dienst noch läuft, ist keiner für
   > den Fall, dass ihn genau dieser Vorgang beendet hat.**
+- **PowerDNS gibt es hier auch — es ist nur nicht installiert.** Derselbe Satz
+  wie bei MariaDB, beim `sshd` und bei PHPStan, und diesmal stand „ungemessen"
+  ausdrücklich in der Übergabe. `apt-get update && apt-get install -y
+  pdns-server pdns-backend-sqlite3 pdns-backend-mysql pdns-tools` holt
+  **4.8.3-4build3** aus `noble/universe` — dieselbe Fassung, die Ubuntu 24.04
+  ausliefert. Zwei Wegwerf-Instanzen auf eigenen Ports, eine je Backend, rühren
+  nichts an. Gemessen am 21. August 2026 (`docs/71 §2`).
+
+  Drei Handgriffe, die Zeit gekostet haben: **`apt-get update` zuerst** (sonst
+  404 auf drei Dateien aus einem veralteten Index); **der Sockelpfad muss kurz
+  sein**, wie bei PostgreSQL, also `socket-dir=/tmp/pd` und die Daten im
+  Scratchpad; und **`--config-name=mysql` sucht `pdns-mysql.conf`**, nicht
+  `pdns--mysql.conf` — der Bindestrich steht schon drin, und ein Lauf mit
+  `--config-name=-mysql` meldet „no backends configured for querying", was nach
+  einem Fehler in der Konfiguration aussieht und einer im Aufruf ist.
+
+  Die Messvorschrift liegt als **`tests/dns-messen.sh`** daneben, mit einer
+  Gegenprobe je Messung. Ihr erster Lauf hat einen Fehler in ihr selbst
+  gefunden: Die Atomaritätsprobe fragte den Nameserver nach einem Namen, den es
+  nicht geben durfte — und bekam die Antwort des Platzhalters aus derselben
+  Zonenvorlage.
+
+  > **Eine Gegenprobe, die ein Platzhalter beantwortet, hat den Gegenstand nicht
+  > gefragt.**
 - **PostgreSQL gibt es hier, und zwar vollständig.** `postgresql-16` ist
   installiert, Serverbinärdateien und alles. Ein
   Wegwerf-Cluster (`initdb` in den Scratchpad, `pg_ctl` auf einem eigenen Port)
@@ -1294,6 +1318,27 @@ Testen berücksichtigen:
     Meldungen, die nichts bedeuten. Unterhalb von `agent/` gibt es kein
     Framework, und dort läuft Stufe 6 sauber durch. Genau so gefunden:
     `array_values()` auf einer Liste, die schon eine ist.
+
+    **Und die Dateiliste kommt aus dem Zweig und nicht aus dem Gedächtnis.**
+    Am 22. August 2026 hat die CI acht PHPStan-Meldungen zu P7 gebracht, jede
+    davon hier auffindbar — der Lauf war über `agent/src`, `tests/Support` und
+    die framework-freien Klassen gefahren, also über die Pfade, die in diesem
+    Abschnitt stehen, und nicht über die Dateien, die der Zweig anfasst. Ein
+    Lauf über `git diff --name-only origin/main...HEAD` meldet dieselben acht
+    Zeilen auf denselben Zeilennummern.
+
+    > **Ein Werkzeug, das man über die gewohnten Pfade fährt, prüft die
+    > Gewohnheit und nicht die Änderung.**
+
+    Die teuerste der acht war keine Typangabe: Zwei neue Methoden waren
+    zwischen `diskQuota()` und seinen Dokumentationsblock gerutscht, und der
+    versprach über `dnsAddresses()` ein `array{available: …}`, wo ein
+    `list<string>` steht. Gemeldet wurde die Hälfte, die ein Werkzeug sehen
+    kann — der fehlende Kommentar an der einen Methode, nicht der falsche über
+    der anderen.
+
+    > **Ein Werkzeug bemerkt den fehlenden Kommentar. Den falschen bemerkt es
+    > nicht.**
 
     **Für eine einzelne neue Datei geht trotzdem mehr, als es aussieht.** Ein
     Lauf über *nur* die geänderte Datei bringt zwar ein Dutzend

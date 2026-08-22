@@ -6,6 +6,7 @@ namespace SrvPanel\Agent\Acme;
 
 use SrvPanel\Agent\Acme\Dns\DnsProvider;
 use SrvPanel\Agent\Acme\Dns\Lookup;
+use SrvPanel\Agent\Acme\Dns\Packet;
 use SrvPanel\Agent\Acme\Dns\Resolver;
 use SrvPanel\Agent\DomainName;
 
@@ -141,7 +142,15 @@ final class DnsChallenge implements Challenge
         }
 
         foreach ($servers as $server) {
-            if (! in_array($wanted, $this->resolver->txt($server, $record), true)) {
+            /*
+             * **`?? []` und nicht unterscheiden — hier ist das richtig.** Für
+             * ACME heissen „nicht erreichbar" und „noch kein Satz" dasselbe:
+             * noch nicht losschicken. Der Abgleich aus P7 muss die beiden
+             * trennen, diese Prüfung nicht.
+             */
+            $found = $this->resolver->records($server, $record, Packet::TYPE_TXT) ?? [];
+
+            if (! in_array($wanted, $found, true)) {
                 return false;
             }
         }

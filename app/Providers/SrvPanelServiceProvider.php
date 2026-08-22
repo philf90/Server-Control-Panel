@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Models\Account;
+use App\Support\Dns\AgentMeasurement;
+use App\Support\Dns\Measurement;
 use App\Support\Metrics\Collector;
 use App\Support\Metrics\Store;
 use App\Support\Settings\MailConfiguration;
@@ -47,6 +49,16 @@ final class SrvPanelServiceProvider extends ServiceProvider
         // Welche DNS-Profile hinterlegt sind, weiss der Agent — als Singleton,
         // damit eine Domainseite ihn einmal fragt und nicht je Zeile.
         $this->app->singleton(DnsCredentials::class, AgentDnsCredentials::class);
+
+        /*
+         * **P7: der Abgleich misst über den Agenten.** {@see Survey} kennt die
+         * Reihenfolge des Merkmals und keine Steckdose; welche Umsetzung
+         * misst, wird hier entschieden. Genau dieselbe Naht wie bei
+         * `DnsCredentials` darüber — und der Grund ist derselbe: Ohne sie
+         * liesse sich der Fall „diese eine Zone schweigt, die daneben nicht"
+         * nirgends herstellen.
+         */
+        $this->app->singleton(Measurement::class, AgentMeasurement::class);
 
         // Als Singleton, damit die Einstellungen je Anfrage einmal gelesen
         // werden und nicht einmal je Aufrufer.

@@ -73,6 +73,31 @@ const props = defineProps<{
     view_logs: boolean
     upload_certificate: boolean
     order_wildcard: boolean
+    check_dns: boolean
+  }
+  dns: {
+    /** `null` heisst „noch nie geprüft" — nicht „nichts gefunden". */
+    last: {
+      checked_at: string
+      findings: {
+        nameservers: string[]
+        addresses: { derived: string[]; override: string[]; effective: string[] }
+        authorities: {
+          name: string
+          state: 'none' | 'allowed' | 'refused' | 'unknown'
+          reason: string | null
+          issuers: string[]
+        }[]
+        records: {
+          name: string
+          type: string
+          state: 'here' | 'elsewhere' | 'missing' | 'inconsistent' | 'unreachable'
+          expected: string[]
+          found: string[]
+        }[]
+      }
+    } | null
+    addresses: { derived: string[]; override: string[]; effective: string[] }
   }
   operations: { id: number; task: string | null; status_label: string; created_at: string | null }[]
 }>()
@@ -226,6 +251,71 @@ function entfernen(): void {
     router.delete(`/domains/${props.domain.id}`)
   })
 }
+
+/*
+ * **Die Beschriftungen der Zustände stehen hier und nicht im Server-Payload.**
+ * Sie sind Text der Oberfläche; der Zustand selbst ist eine Kennung. Die
+ * Zuordnung zum Rang der Marke steht dagegen **nicht** hier, sondern in
+ * `DnsRecordState::badge()` — eine `v-if`-Kette daneben wäre eine zweite
+ * Fassung derselben Regel.
+ */
+const dnsZustaende = {
+  here: { wort: 'Zeigt hierher', rang: 'ok' },
+  elsewhere: { wort: 'Zeigt woandershin', rang: 'warn' },
+  missing: { wort: 'Fehlt', rang: 'critical' },
+  inconsistent: { wort: 'Nameserver uneinig', rang: 'critical' },
+  unreachable: { wort: 'Nicht erreichbar', rang: 'neutral' },
+} as const
+
+type DnsZustand = keyof typeof dnsZustaende
+
+const dnsWort = (zustand: DnsZustand): string => dnsZustaende[zustand].wort
+
+const dnsRang = (zustand: DnsZustand): 'ok' | 'warn' | 'critical' | 'neutral' =>
+  dnsZustaende[zustand].rang
+
+/**
+ * Der Zeitpunkt der Messung, als Satz.
+ *
+ * **Er steht immer dabei**, und das ist keine Kosmetik: Was hier zu sehen ist,
+ * ist eine Aussage über den Augenblick der Messung und nicht über jetzt.
+ */
+const dnsGeprueft = computed(() => {
+  const wann = props.dns.last?.checked_at
+
+  return wann === undefined ? null : new Date(wann).toLocaleString('de-DE')
+})
+
+/** Läuft die Prüfung gerade? */
+const dnsLaeuft = ref(false)
+
+const dnsPruefen = (): void => {
+  dnsLaeuft.value = true
+
+  router.post(`/domains/${props.domain.id}/dns/check`, {}, {
+    preserveScroll: true,
+    onFinish: () => { dnsLaeuft.value = false },
+  })
+}
+
+/**
+ * Steht die Übersteuerung der Adressen im Widerspruch zu dem, was der Server
+ * führt?
+ *
+ * **Der Fall, für den das dasteht** (`docs/72 §2.1a`): Eine eingetragene
+ * Adresse ist eine im Panel gemerkte Fassung eines Serverzustands. Bekommt der
+ * Server eine neue Adresse, meldet der Abgleich sonst jede Domain als falsch,
+ * die in Wahrheit richtig steht — und niemand sähe, woran es liegt.
+ */
+const dnsAdressenWeichenAb = computed(() => {
+  const { derived, override } = props.dns.addresses
+
+  if (override.length === 0 || derived.length === 0) {
+    return false
+  }
+
+  return override.some((adresse) => !derived.includes(adresse))
+})
 </script>
 
 <template>
@@ -496,6 +586,128 @@ function entfernen(): void {
             </button>
           </div>
         </form>
+      </Section>
+
+      <!--
+        **Der DNS-Abgleich steht an der Domain** (`docs/72 §2.7`). Dreimal in P6
+        ist ein Merkmal drei Klicks tief gelandet und musste verlegt werden;
+        hier ist der Ort, an dem jemand ohnehin steht, wenn er sich fragt, warum
+        seine Seite nicht erscheint.
+
+        Er kommt **nach** dem Zertifikat und vor den Vorgängen, weil er dieselbe
+        Frage eine Ebene früher beantwortet: Ohne den richtigen A-Eintrag kommt
+        niemand an, und dann ist auch kein Zertifikat zu bestellen.
+      -->
+      <Section
+        title="DNS-Abgleich"
+        full
+        note="Was diese Domain braucht, damit sie hier erreichbar ist — und was ihre Nameserver wirklich ausliefern."
+      >
+        <!--
+          **Vor dem ersten Lauf steht hier kein Befund, sondern ein Satz.**
+          Eine leere Tabelle sähe aus wie „alles in Ordnung"; gemessen wurde
+          aber noch gar nichts.
+        -->
+        <p v-if="props.dns.last === null" class="section-note">
+          Diese Domain ist noch nicht geprüft worden.
+        </p>
+
+        <template v-else>
+          <table class="stacks">
+            <thead>
+              <tr>
+                <th>Name</th><th>Satz</th><th>Zustand</th><th>Erwartet</th><th>Gefunden</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="satz in props.dns.last.findings.records" :key="`${satz.name}/${satz.type}`">
+                <!--
+                  `.ident` und `.name`: Ein Zonenname darf 253 Zeichen lang
+                  sein, ein einzelnes Label 63. Ohne die Umbruchregel schiebt
+                  eine einzige lange Subdomain die Seite bei 390px aus dem Bild
+                  — genau der Befund aus `docs/67`.
+                -->
+                <td data-column="Name" class="ident name">{{ satz.name }}</td>
+                <td data-column="Satz" class="ident">{{ satz.type }}</td>
+                <td data-column="Zustand">
+                  <Badge :kind="dnsRang(satz.state)">{{ dnsWort(satz.state) }}</Badge>
+                </td>
+                <td data-column="Erwartet" class="ident quiet">
+                  {{ satz.expected.join(', ') || '—' }}
+                </td>
+                <!--
+                  **Der gefundene Wert steht daneben und nicht nur der
+                  Zustand.** „Zeigt woandershin" ohne die Adresse ist eine
+                  Auskunft, mit der niemand etwas anfangen kann.
+                -->
+                <td data-column="Gefunden" class="ident">
+                  {{ satz.found.join(', ') || '—' }}
+                </td>
+              </tr>
+              <tr v-if="props.dns.last.findings.records.length === 0">
+                <td colspan="5" class="quiet">
+                  Für diese Domain ist kein Sollzustand bekannt — dem Server fehlt eine
+                  öffentliche Adresse.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!--
+            **Der Zeitpunkt steht immer dabei.** Was oben zu sehen ist, ist
+            eine Aussage über den Augenblick der Messung und nicht über jetzt.
+          -->
+          <p class="section-note">
+            Zuletzt geprüft: {{ dnsGeprueft }}<template v-if="props.dns.last.findings.nameservers.length > 0">
+            · gefragt wurden {{ props.dns.last.findings.nameservers.join(', ') }}</template>
+          </p>
+
+          <!--
+            **CAA wird nur gemeldet, wenn es etwas kostet** (`docs/72 §2.4`).
+            Kein CAA ist der richtige Zustand, und ein Satz, der uns nennt,
+            ebenfalls — beides schweigt hier. Angezeigt wird der eine Fall, der
+            jede Bestellung scheitern lässt, und zwar **bevor** sie es tut:
+            Jeder Fehlversuch zählt bei Let's Encrypt fünf je Konto und Stunde,
+            und die gelten für jeden Kunden dieses Servers.
+          -->
+          <p
+            v-for="caa in props.dns.last.findings.authorities.filter((a) => a.state === 'refused')"
+            :key="caa.name"
+            class="notice warn"
+          >
+            <span><span class="ident">{{ caa.name }}</span> — {{ caa.reason }}</span>
+          </p>
+
+          <!--
+            Ohne Nameserver ist über die Zone nichts gesagt — und das ist etwas
+            anderes als ein fehlender Eintrag. Der Satz nennt den Grund, statt
+            den Kunden an seinen Einträgen suchen zu lassen.
+          -->
+          <p v-if="props.dns.last.findings.nameservers.length === 0" class="notice warn">
+            Für diese Domain waren keine Nameserver zu erreichen. Über ihre Einträge ist
+            damit nichts gesagt — möglicherweise ist sie noch nicht delegiert.
+          </p>
+        </template>
+
+        <!--
+          **Die Übersteuerung und das Abgeleitete stehen beide da**
+          (`docs/72 §2.1a`). Eine eingetragene Adresse ist eine im Panel
+          gemerkte Fassung eines Serverzustands und kann veralten; wer nur das
+          Ergebnis zeigt, macht aus einer alten Eintragung eine falsche Auskunft
+          über jede Domain.
+        -->
+        <p v-if="dnsAdressenWeichenAb" class="notice warn">
+          Die eingetragenen Adressen ({{ props.dns.addresses.override.join(', ') }}) sind
+          andere als die, die dieser Server führt
+          ({{ props.dns.addresses.derived.join(', ') }}). Das kann hinter NAT richtig sein
+          — sonst ist der Eintrag veraltet.
+        </p>
+
+        <div v-if="props.can.check_dns" class="button-row">
+          <button type="button" class="button" :disabled="dnsLaeuft" @click="dnsPruefen">
+            {{ dnsLaeuft ? 'Wird geprüft …' : 'Jetzt prüfen' }}
+          </button>
+        </div>
       </Section>
 
       <!--

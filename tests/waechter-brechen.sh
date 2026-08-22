@@ -192,6 +192,22 @@ griff_datei() {
     printf '  FEHLT  %-56s Eingriff hat nichts geändert\n' "$name"
     fehler=$((fehler + 1))
 
+    # **Auch hier, und das fehlte bis zum 22. August 2026.** Der Zähler stieg,
+    # die Bilanz am Ende blieb still — sie führte nur auf, was `pruefe`
+    # gemeldet hatte. Wer sie las, suchte einen Fehlschlag, den es dort nicht
+    # gab, und übersah den, der wirklich zählt: Ein Eingriff, der nichts
+    # ändert, hat nichts gemessen.
+    #
+    #   Eine Bilanz, die eine Art von Fehlschlag nicht aufführt, ist eine
+    #   Liste und keine Bilanz.
+    gefallen="$gefallen  $name — Eingriff hat nichts geändert
+"
+
+    # **`stumm` bleibt unberührt**, obwohl ein wirkungsloser Eingriff nichts
+    # gemessen hat. Der Zähler trägt die Meldung „dieses Skript hat nichts
+    # gemessen", und die gilt für den Fall, dass **kein** Ergebnis lesbar war.
+    # Ein einzelner wirkungsloser Eingriff unter 626 wirksamen löste sie sonst
+    # aus und stellte 625 gültige Messungen in Frage.
     return 1
   fi
 
@@ -205,6 +221,22 @@ griff() {
     printf '  FEHLT  %-56s Eingriff hat nichts geändert\n' "$name"
     fehler=$((fehler + 1))
 
+    # **Auch hier, und das fehlte bis zum 22. August 2026.** Der Zähler stieg,
+    # die Bilanz am Ende blieb still — sie führte nur auf, was `pruefe`
+    # gemeldet hatte. Wer sie las, suchte einen Fehlschlag, den es dort nicht
+    # gab, und übersah den, der wirklich zählt: Ein Eingriff, der nichts
+    # ändert, hat nichts gemessen.
+    #
+    #   Eine Bilanz, die eine Art von Fehlschlag nicht aufführt, ist eine
+    #   Liste und keine Bilanz.
+    gefallen="$gefallen  $name — Eingriff hat nichts geändert
+"
+
+    # **`stumm` bleibt unberührt**, obwohl ein wirkungsloser Eingriff nichts
+    # gemessen hat. Der Zähler trägt die Meldung „dieses Skript hat nichts
+    # gemessen", und die gilt für den Fall, dass **kein** Ergebnis lesbar war.
+    # Ein einzelner wirkungsloser Eingriff unter 626 wirksamen löste sie sonst
+    # aus und stellte 625 gültige Messungen in Frage.
     return 1
   fi
 
@@ -1735,22 +1767,17 @@ vorher_datei agent/src/Acme/DnsChallenge.php
 python3 - <<'PY2'
 p = 'agent/src/Acme/DnsChallenge.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace(
-    "        foreach ($servers as $server) {\n"
-    "            if (! in_array($wanted, $this->resolver->txt($server, $record), true)) {\n"
-    "                return false;\n"
-    "            }\n"
-    "        }\n"
-    "\n"
-    "        return true;",
-    "        foreach ($servers as $server) {\n"
-    "            if (in_array($wanted, $this->resolver->txt($server, $record), true)) {\n"
-    "                return true;\n"
-    "            }\n"
-    "        }\n"
-    "\n"
-    "        return false;",
-)
+# **Nachgezogen am 22. August 2026.** Der Eingriff nannte `resolver->txt()`,
+# und die Methode heisst seit P7 Schritt 1 `records(..., Packet::TYPE_TXT)`.
+# Er fand seinen Text nicht mehr, aenderte nichts — und `griff_datei` meldete
+# das, ohne es in die Bilanz am Ende aufzunehmen.
+alt = "            if (! in_array($wanted, $found, true)) {\n                return false;\n            }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "            if (in_array($wanted, $found, true)) {\n                return true;\n            }", 1)
+
+alt = "        return true;\n    }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "        return false;\n    }", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei agent/src/Acme/DnsChallenge.php "Ein Nameserver genügt" &&
@@ -9024,29 +9051,22 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TenancySweepTest passed
 
 echo
-echo "── BaseMethodClashTest: der Ausdruck verliert seinen Anker ──"
+# **Der Eingriff „Ausdruck ohne Anker" ist am 22. August 2026 entfallen**, und
+# zwar mit seinem Gegenstand. Er hat den Anker `^` aus einem regulären Ausdruck
+# in BaseMethodClashTest genommen, damit dieser auch die Zeichenkette
+# „public function run(Context …" aus SandboxCredentialsTest als Erklärung
+# liest. Diesen Ausdruck gibt es nicht mehr: Gelesen wird über
+# InheritedNames::declarations() und damit über token_get_all(), und der weiss,
+# was Zeichenkette ist.
 #
-# **Die Regel selbst lässt sich nicht brechen, und das ist ihr Wesen.** Eine
-# Methode, die einen final-Namen der Basisklasse trägt, tötet den ganzen Lauf
-# beim Laden — der Prüfling käme gar nicht erst dazu, rot zu werden. Gebrochen
-# werden deshalb die Teile des Wächters, und jeder einzeln.
+# Die Regel gilt weiter und hat ihren Fall — „eine Zeichenkette ist kein
+# Quelltext" in BaseMethodClashTest::quellen(). Einen Bruch dazu gibt es nicht,
+# weil es nichts mehr zu brechen gibt: Die Zusage steckt im Tokenizer und nicht
+# in einer Zeile dieses Repos.
 #
-# Ohne den Anker am Zeilenanfang trifft der Ausdruck auch eine Zeichenkette:
-# SandboxCredentialsTest führt „public function run(Context …" als Behauptung
-# über fremden Quelltext. Ein Wächter, der beim ersten Lauf einen Fehler
-# erfindet, wird abgeschaltet und nicht befolgt.
-vorher_datei tests/Unit/BaseMethodClashTest.php
-python3 - <<'PY2'
-p = 'tests/Unit/BaseMethodClashTest.php'
-s = open(p, encoding='utf-8').read()
-s = s.replace("'/^\\s*(?:(?:final|", "'/(?:(?:final|", 1)
-open(p, 'w', encoding='utf-8').write(s)
-PY2
-griff_datei tests/Unit/BaseMethodClashTest.php "Ausdruck ohne Anker" &&
-pruefe "Ausdruck ohne Anker" \
-  BaseMethodClashTest::test_no_test_declares_a_name_the_base_class_owns failed
-wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" BaseMethodClashTest passed
+#   Ist die Regel weggefallen, geht der Eingriff mit ihr — und wenn nur ihre
+#   Mechanik weggefallen ist, geht er trotzdem, denn er brach die Mechanik.
+
 
 echo
 echo "── BaseMethodClashTest: die Aufzählung der Dateien läuft ins Leere ──"
@@ -9101,7 +9121,7 @@ open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei tests/Unit/BaseMethodClashTest.php "Geltungsbereich nimmt alles" &&
 pruefe "Geltungsbereich nimmt alles" \
-  BaseMethodClashTest::test_no_test_declares_a_name_the_base_class_owns failed
+  BaseMethodClashTest::test_every_source_is_really_a_test_case failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BaseMethodClashTest passed
 
@@ -13218,6 +13238,936 @@ pruefe "VIEW_FIELDS deckt ein Zeitplanfeld" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   CronScheduleFormTest::test_the_free_expression_is_a_view_on_the_five_fields passed
+
+echo
+echo "── OutboundHttpsOnlyTest: nach draussen nur https ──"
+#
+# **Zwei Eingriffe, weil die Regel zwei Teile hat** — dass sie gilt, und dass
+# sie nur einmal dasteht. Der zweite ist der teurere: Eine zweite Fassung
+# derselben Bedingung im Rumpf von send() wäre unauffällig und liefe beim
+# nächsten Umbau auseinander.
+
+vorher_datei agent/src/Acme/Curl.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Curl.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return str_starts_with($url, 'https://');"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        return str_starts_with($url, 'https://') || str_starts_with($url, 'http://127.0.0.1');"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Acme/Curl.php "eine Ausnahme fuer die Rueckschleife" &&
+pruefe "eine Ausnahme fuer die Rueckschleife" \
+  OutboundHttpsOnlyTest::test_only_https_is_permitted failed
+wiederherstellen
+
+vorher_datei agent/src/Acme/Curl.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Curl.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (! $this->permitted($url)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        if (! str_starts_with($url, 'https://')) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Acme/Curl.php "die Regel ein zweites Mal im Rumpf" &&
+pruefe "die Regel ein zweites Mal im Rumpf" \
+  OutboundHttpsOnlyTest::test_the_rule_is_written_once failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  OutboundHttpsOnlyTest::test_the_rule_is_written_once passed
+echo "── RecordRdataTest: A, AAAA und CAA aus dem Drahtformat ──"
+#
+# **Sechs Eingriffe, und der erste hat den Kommentar im Quelltext berichtigt.**
+# Ohne die Laengenpruefung wurden nur zwei der sechs Faelle rot — inet_ntop
+# weist naemlich nicht jede falsche Laenge ab, sondern entscheidet die
+# Adressfamilie an der Laenge. Ein A-Satz mit sechzehn Bytes kommt damit als
+# IPv6-Adresse zurueck: ein Wert, der falsch ist und richtig aussieht.
+#
+# > **Eine Umformung, die aus der Laenge auf die Bedeutung schliesst, hat
+# > keinen Fehlerfall fuer die falsche Laenge — sie hat ein anderes Ergebnis.**
+
+vorher_datei agent/src/Acme/Dns/Packet.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Packet.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if ($expected === null || strlen($data) !== $expected) {\n            return null;\n        }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        if ($expected === null) {\n            return null;\n        }"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Acme/Dns/Packet.php "Adresse ohne Laengenpruefung" &&
+pruefe "Adresse ohne Laengenpruefung" \
+  RecordRdataTest::test_an_address_of_the_wrong_length_is_no_address failed
+wiederherstellen
+
+vorher_datei agent/src/Acme/Dns/Packet.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Packet.php'
+s = open(p, encoding='utf-8').read()
+alt = "if ($meta['type'] === $type && $meta['class'] === self::CLASS_IN) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "if ($meta['type'] === $type) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Acme/Dns/Packet.php "Satz einer fremden Klasse zaehlt mit" &&
+pruefe "Satz einer fremden Klasse zaehlt mit" \
+  RecordRdataTest::test_a_record_of_another_class_is_skipped failed
+wiederherstellen
+
+vorher_datei agent/src/Acme/Dns/Packet.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Packet.php'
+s = open(p, encoding='utf-8').read()
+alt = "'tag' => strtolower(substr($data, 2, $tagLength)),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "'tag' => substr($data, 2, $tagLength),"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Acme/Dns/Packet.php "CAA-Marke nicht kleingeschrieben" &&
+pruefe "CAA-Marke nicht kleingeschrieben" \
+  RecordRdataTest::test_the_tag_is_compared_in_lower_case failed
+wiederherstellen
+
+vorher_datei agent/src/Acme/Dns/Packet.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Packet.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($tagLength === 0 || 2 + $tagLength > strlen($data)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        if (false) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Acme/Dns/Packet.php "CAA-Marke ohne Laengenpruefung" &&
+pruefe "CAA-Marke ohne Laengenpruefung" \
+  RecordRdataTest::test_a_malformed_caa_yields_nothing failed
+wiederherstellen
+
+vorher_datei agent/src/Acme/Dns/Packet.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Packet.php'
+s = open(p, encoding='utf-8').read()
+alt = "if ($address !== null && ! in_array($address, $found, true)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "if ($address !== null) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Acme/Dns/Packet.php "Adressen werden nicht entdoppelt" &&
+pruefe "Adressen werden nicht entdoppelt" \
+  RecordRdataTest::test_the_same_address_twice_is_listed_once failed
+wiederherstellen
+
+vorher_datei agent/src/Acme/Dns/Packet.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Packet.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if ($header['id'] !== $id) {\n            return null;\n        }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        if (false) {\n            return null;\n        }"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Acme/Dns/Packet.php "Kennung der Antwort wird nicht geprueft" &&
+pruefe "Kennung der Antwort wird nicht geprueft" \
+  RecordRdataTest::test_an_unusable_answer_has_no_code failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  RecordRdataTest::test_an_unusable_answer_has_no_code passed
+echo "── DnsCheckTest: der Agent misst, das Panel vergleicht ──"
+#
+# **Sieben Eingriffe.** Der erste ist der teuerste: Ein Zeichenkettenvergleich
+# statt Zones::pick laesst boesexample.de als Teil von example.de durch — und
+# fragt dann die Nameserver einer Zone nach einem Namen, fuer den sie nicht
+# zustaendig sind. Die Antwort saehe aus wie ein Befund.
+
+vorher_datei agent/src/Ops/DnsCheck.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DnsCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if (Zones::pick($name, [$zone]) === null) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            if (! str_ends_with($name, $zone)) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/DnsCheck.php "Zeichenkettenvergleich statt Zones::pick" &&
+pruefe "Zeichenkettenvergleich statt Zones::pick" \
+  DnsCheckTest::test_a_name_that_only_looks_like_it_belongs_is_refused failed
+wiederherstellen
+
+vorher_datei agent/src/Ops/DnsCheck.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DnsCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if (! isset(self::TYPES[$label])) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            if (false && ! isset(self::TYPES[$label])) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/DnsCheck.php "Satztyp ohne Positivliste" &&
+pruefe "Satztyp ohne Positivliste" \
+  DnsCheckTest::test_only_the_four_known_types_are_accepted failed
+wiederherstellen
+
+vorher_datei agent/src/Ops/DnsCheck.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DnsCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (count($raw) > self::MAX_QUERIES) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        if (false) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/DnsCheck.php "Obergrenze der Fragen faellt weg" &&
+pruefe "Obergrenze der Fragen faellt weg" \
+  DnsCheckTest::test_too_many_queries_are_refused failed
+wiederherstellen
+
+vorher_datei agent/src/Ops/DnsCheck.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DnsCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = "$servers = array_slice($this->lookup->nameservers($zone), 0, self::MAX_SERVERS);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "$servers = $this->lookup->nameservers($zone);"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/DnsCheck.php "Obergrenze der Server faellt weg" &&
+pruefe "Obergrenze der Server faellt weg" \
+  DnsCheckTest::test_at_most_four_servers_are_asked failed
+wiederherstellen
+
+vorher_datei agent/src/Ops/DnsCheck.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DnsCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = """                if (isset($stumm[$server])) {\n                    continue;\n                }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """                if (false) {\n                    continue;\n                }"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/DnsCheck.php "stummer Server wird weiter gefragt" &&
+pruefe "stummer Server wird weiter gefragt" \
+  DnsCheckTest::test_a_silent_server_is_asked_once_and_then_left_alone failed
+wiederherstellen
+
+vorher_datei agent/src/Ops/DnsCheck.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DnsCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = "            sort($einzeln);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            // sort($einzeln);"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/DnsCheck.php "Reihenfolge zaehlt bei der Einigkeit mit" &&
+pruefe "Reihenfolge zaehlt bei der Einigkeit mit" \
+  DnsCheckTest::test_the_same_values_in_another_order_are_no_disagreement failed
+wiederherstellen
+
+vorher_datei agent/src/Ops/DnsCheck.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DnsCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if ($query['type'] === Packet::TYPE_CAA) {\n                $authorities[] = $ergebnis;\n            } else {\n                $records[] = $ergebnis;\n            }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            $records[] = $ergebnis;"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/DnsCheck.php "CAA landet unter den Werten" &&
+pruefe "CAA landet unter den Werten" \
+  DnsCheckTest::test_caa_records_come_back_separately failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  DnsCheckTest::test_caa_records_come_back_separately passed
+echo "── DesiredRecordSourceTest: der Sollzustand, einmal und richtig ──"
+#
+# **Sieben Eingriffe, und zwei davon sind beim ersten Anlauf untauglich
+# gewesen.** Der eine hat die Zielstelle verfehlt; der andere hat den Code
+# zerstoert statt die Regel zu verletzen — er nahm die Pruefung auf
+# `inet_pton() === false` heraus, und `inet_ntop(false)` ist ein TypeError. Der
+# Waechter meldete daraufhin ein Loch und kein Rot, und ein Loch sieht aus wie
+# 'nicht gemessen' und nicht wie 'stimmt nicht'.
+#
+# > **Ein Bruch muss die Regel verletzen und nicht den Code zerstoeren.**
+
+vorher_datei app/Support/Dns/DesiredRecords.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/DesiredRecords.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if ($expected !== []) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            if (true) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/DesiredRecords.php "AAAA auch ohne IPv6 des Servers" &&
+pruefe "AAAA auch ohne IPv6 des Servers" \
+  DesiredRecordSourceTest::test_without_ipv6_no_quad_a_is_demanded failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/DesiredRecords.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/DesiredRecords.php'
+s = open(p, encoding='utf-8').read()
+alt = "            $normalized = inet_ntop($packed);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            $normalized = trim($address);"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/DesiredRecords.php "erwartete Adressen nicht vereinheitlicht" &&
+pruefe "erwartete Adressen nicht vereinheitlicht" \
+  DesiredRecordSourceTest::test_the_expected_addresses_are_written_the_way_they_are_measured failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/DesiredRecords.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/DesiredRecords.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if ((strlen($packed) === 16) !== $sechs) {\n                continue;\n            }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """            if (false) {\n                continue;\n            }"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/DesiredRecords.php "IPv4 und IPv6 nicht getrennt" &&
+pruefe "IPv4 und IPv6 nicht getrennt" \
+  DesiredRecordSourceTest::test_a_domain_needs_addresses_on_its_own_name failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/DesiredRecords.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/DesiredRecords.php'
+s = open(p, encoding='utf-8').read()
+alt = '        return strtolower(trim($name, ". \\t\\n\\r\\0\\x0B"));'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        return $name;"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/DesiredRecords.php "Name nicht vereinheitlicht" &&
+pruefe "Name nicht vereinheitlicht" \
+  DesiredRecordSourceTest::test_the_name_is_normalised failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/DesiredRecords.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/DesiredRecords.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if ($normalized === '' || isset($seen[$normalized])) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            if ($normalized === '') {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/DesiredRecords.php "Namen in forAll nicht entdoppelt" &&
+pruefe "Namen in forAll nicht entdoppelt" \
+  DesiredRecordSourceTest::test_several_names_at_once_and_each_only_once failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/DesiredRecords.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/DesiredRecords.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if ($packed === false) {\n                continue;\n            }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """            if ($packed === false) {\n                if (! $sechs && trim($address) !== '') {\n                    $found[] = trim($address);\n                }\n\n                continue;\n            }"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/DesiredRecords.php "was keine Adresse ist, kommt durch" &&
+pruefe "was keine Adresse ist, kommt durch" \
+  DesiredRecordSourceTest::test_something_that_is_no_address_is_left_out failed
+wiederherstellen
+
+# **Der siebte legt eine Datei an statt eine zu ändern**, und deshalb räumt er
+# selbst auf: `wiederherstellen` holt geänderte Dateien zurück, eine neue lässt
+# es stehen. Ohne das `rm` fände der nächste Lauf ein schmutziges `app/` vor,
+# das er sich selbst gemacht hat.
+cat > app/Support/Dns/NachbauZumBrechen.php <<'PY3'
+<?php
+
+declare(strict_types=1);
+
+namespace App\Support\Dns;
+
+/** Wegwerf aus tests/waechter-brechen.sh — ein zweiter Bau des Sollzustands. */
+final class NachbauZumBrechen
+{
+    /** @return list<array<string, mixed>> */
+    public static function fuer(string $name, string $v4, string $v6): array
+    {
+        return [
+            ['name' => $name, 'type' => 'A', 'expected' => [$v4]],
+            ['name' => $name, 'type' => 'AAAA', 'expected' => [$v6]],
+        ];
+    }
+}
+PY3
+pruefe "ein zweiter Bau des Sollzustands in app/" \
+  DesiredRecordSourceTest::test_only_one_place_works_out_what_a_domain_needs failed
+rm -f app/Support/Dns/NachbauZumBrechen.php
+pruefe "  … zurückgesetzt wieder grün" \
+  DesiredRecordSourceTest::test_only_one_place_works_out_what_a_domain_needs passed
+echo "── DnsComparisonTest / ServerAddressTest: der Vergleich und die Adressquelle ──"
+#
+# **Der erste Eingriff ist der wichtigste.** Ein Name zeigt hierher, wenn jeder
+# ausgelieferte Wert einer von unseren ist — nicht, wenn die Listen gleich sind.
+# Ein Server kann zwei Adressen fuehren; ein Kunde, der auf eine davon zeigt,
+# ist richtig unterwegs. Und ein einziger fremder Wert daneben genuegt, damit
+# ein Teil der Anfragen woanders landet.
+#
+# > **Ein Eintrag, der ueberwiegend stimmt, ist ein Ausfall, den man fuer ein
+# > Netzproblem haelt.**
+
+vorher_datei app/Support/Dns/Comparison.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Comparison.php'
+s = open(p, encoding='utf-8').read()
+alt = '            if (! in_array($value, $expected, true)) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            if ($found['values'] !== $expected) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Comparison.php "Gleichheit statt Teilmenge" &&
+pruefe "Gleichheit statt Teilmenge" \
+  DnsComparisonTest::test_one_of_our_two_addresses_is_enough failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Comparison.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Comparison.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($found['consistent'] === false) {\n            return DnsRecordState::Inconsistent;\n        }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        if (false) {\n            return DnsRecordState::Inconsistent;\n        }'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Comparison.php "Uneinigkeit wird nicht erkannt" &&
+pruefe "Uneinigkeit wird nicht erkannt" \
+  DnsComparisonTest::test_disagreeing_nameservers_are_recognised_before_the_values failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Comparison.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Comparison.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($found === null || $found['asked'] === 0 || $found['answered'] === 0) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        if ($found === null) {'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Comparison.php "stumme Zone gilt als fehlender Eintrag" &&
+pruefe "stumme Zone gilt als fehlender Eintrag" \
+  DnsComparisonTest::test_a_silent_zone_says_nothing_about_the_record failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Comparison.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Comparison.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return strtolower(trim($name, '. ')).'/'.strtoupper($type);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        return $name.'/'.$type;"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Comparison.php "Zuordnung achtet auf die Schreibweise" &&
+pruefe "Zuordnung achtet auf die Schreibweise" \
+  DnsComparisonTest::test_name_and_type_are_matched_regardless_of_spelling failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/ServerAddresses.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/ServerAddresses.php'
+s = open(p, encoding='utf-8').read()
+alt = '        if (self::carrierGrade($address)) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        if (false) {'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/ServerAddresses.php "CGNAT kommt durch" &&
+pruefe "CGNAT kommt durch" \
+  ServerAddressTest::test_an_unroutable_address_is_refused_with_a_reason failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/ServerAddresses.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/ServerAddresses.php'
+s = open(p, encoding='utf-8').read()
+alt = '        if (self::multicast($address)) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        if (false) {'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/ServerAddresses.php "Multicast kommt durch" &&
+pruefe "Multicast kommt durch" \
+  ServerAddressTest::test_an_unroutable_address_is_refused_with_a_reason failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/ServerAddresses.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/ServerAddresses.php'
+s = open(p, encoding='utf-8').read()
+alt = '        return $chosen !== [] ? $chosen : self::routable($derived);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        return $chosen !== [] ? $chosen : self::canonical($derived);'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/ServerAddresses.php "abgeleitete Adressen werden nicht gesiebt" &&
+pruefe "abgeleitete Adressen werden nicht gesiebt" \
+  ServerAddressTest::test_the_derived_addresses_are_filtered failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/ServerAddresses.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/ServerAddresses.php'
+s = open(p, encoding='utf-8').read()
+alt = '        $chosen = self::canonical($override);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        $chosen = self::routable($override);'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/ServerAddresses.php "die Uebersteuerung wird ein zweites Mal gesiebt" &&
+pruefe "die Uebersteuerung wird ein zweites Mal gesiebt" \
+  ServerAddressTest::test_the_override_is_trusted_because_it_was_checked_when_it_was_entered failed
+wiederherstellen
+
+vorher_datei app/Enums/DnsRecordState.php
+python3 - <<'PY2'
+p = 'app/Enums/DnsRecordState.php'
+s = open(p, encoding='utf-8').read()
+alt = '            self::Elsewhere => false,'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '            self::Elsewhere => true,'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Enums/DnsRecordState.php "woandershin gilt als Fehler" &&
+pruefe "woandershin gilt als Fehler" \
+  DnsComparisonTest::test_pointing_elsewhere_is_not_treated_as_a_fault failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  DnsComparisonTest::test_pointing_elsewhere_is_not_treated_as_a_fault passed
+echo "── CaaAuthorityTest: darf unsere Stelle ausstellen? ──"
+#
+# **Der erste Eingriff ist der, an dem eine naive Umsetzung falsch liegt.**
+# Ist issuewild vorhanden, gilt fuer einen Platzhalter nur das — issue zaehlt
+# dann nicht mit. Wer beide zusammenwirft, haelt eine Zone fuer erlaubt, die
+# Platzhalter ausdruecklich ausschliesst. Und P4 bestellt Platzhalter.
+
+vorher_datei app/Support/Dns/Authority.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Authority.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $tag = ($wildcard && $wild !== []) ? 'issuewild' : 'issue';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        $tag = 'issue';"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Authority.php "issuewild wird bei Platzhaltern ignoriert" &&
+pruefe "issuewild wird bei Platzhaltern ignoriert" \
+  CaaAuthorityTest::test_issuewild_alone_decides_for_a_wildcard failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Authority.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Authority.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if (($record['flags'] & self::CRITICAL) === self::CRITICAL"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '            if (false'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Authority.php "der kritische unbekannte Satz wird uebersehen" &&
+pruefe "der kritische unbekannte Satz wird uebersehen" \
+  CaaAuthorityTest::test_a_critical_unknown_tag_forbids_issuance failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Authority.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Authority.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $name = strtolower(trim(strtok($value, ';') ?: ''));"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        $name = strtolower(trim($value));'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Authority.php "Angaben hinter dem Namen zaehlen mit" &&
+pruefe "Angaben hinter dem Namen zaehlen mit" \
+  CaaAuthorityTest::test_parameters_behind_the_name_are_ignored failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Authority.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Authority.php'
+s = open(p, encoding='utf-8').read()
+alt = '        if ($ca !== null && in_array(strtolower($ca), $issuers, true)) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        if ($ca === null || in_array(strtolower($ca), $issuers, true)) {'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Authority.php "unbekannte eigene Kennung gilt als erlaubt" &&
+pruefe "unbekannte eigene Kennung gilt als erlaubt" \
+  CaaAuthorityTest::test_without_a_known_identifier_nothing_is_promised failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Authority.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Authority.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return $name === '' ? null : $name;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        return $name === '' ? 'letsencrypt.org' : $name;"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Authority.php "ein leerer CAA-Wert erlaubt jedem" &&
+pruefe "ein leerer CAA-Wert erlaubt jedem" \
+  CaaAuthorityTest::test_an_empty_value_forbids_everyone failed
+wiederherstellen
+
+vorher_datei agent/src/Acme/Directories.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Directories.php'
+s = open(p, encoding='utf-8').read()
+alt = "        self::STAGING => 'letsencrypt.org',\n        self::PRODUCTION => 'letsencrypt.org',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        self::PRODUCTION => 'letsencrypt.org',"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Acme/Directories.php "eine Zertifizierungsstelle ohne CAA-Kennung" &&
+pruefe "eine Zertifizierungsstelle ohne CAA-Kennung" \
+  CaaAuthorityTest::test_every_directory_has_a_caa_identifier failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  CaaAuthorityTest::test_every_directory_has_a_caa_identifier passed
+echo "── DnsSurveyTest: die Reihenfolge des ganzen Merkmals ──"
+#
+# **Der erste Eingriff ist die Fassung, die es wirklich gab** — ein Aufruf fuer
+# alle Namen unter der Zone der Domain. Ein Alias darf jeden Namen tragen; er
+# liegt dann nicht in dieser Zone, dns.check weist ab, und die ganze Domain
+# stand als 'nicht erreichbar' da.
+#
+# **Und das Doppel muss so streng sein wie das Original.** Beim ersten Anlauf
+# war es nachsichtiger: Es beantwortete auch eine Frage nach einem fremden
+# Namen — und blieb gruen fuer genau die Fassung, die im Betrieb verdorben hat.
+#
+# > **Eine Attrappe, die weniger verbietet als das Original, sagt Ja zu Code,
+# > den das Original ablehnt.**
+
+vorher_datei app/Support/Dns/Survey.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Survey.php'
+s = open(p, encoding='utf-8').read()
+alt = '        foreach ($this->queries($names, $desired) as $name => $queries) {\n            $answer = $this->measurement->of((string) $name, $queries);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        $alle = [];\n\n        foreach ($this->queries($names, $desired) as $queries) {\n            foreach ($queries as $frage) {\n                $alle[] = $frage;\n            }\n        }\n\n        foreach ([$names[0] ?? '' => $alle] as $name => $queries) {\n            $answer = $this->measurement->of((string) $name, $queries);"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Survey.php "ein Aufruf fuer alle Namen" &&
+pruefe "ein Aufruf fuer alle Namen" \
+  DnsSurveyTest::test_a_failing_name_does_not_spoil_the_others failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Survey.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Survey.php'
+s = open(p, encoding='utf-8').read()
+alt = "        foreach ($names as $name) {\n            $byName[$name][] = ['name' => $name, 'type' => 'CAA'];\n        }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        // Der Bruch: CAA nur dort, wo es ohnehin einen Sollzustand gibt.\n        $byName = [];'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Survey.php "CAA nur mit Sollzustand" &&
+pruefe "CAA nur mit Sollzustand" \
+  DnsSurveyTest::test_caa_is_asked_even_without_a_desired_state failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Survey.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Survey.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $silent = ($entry['answered'] ?? 0) === 0;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        $silent = false;'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Survey.php "eine stumme Zone bekommt ein CAA-Urteil" &&
+pruefe "eine stumme Zone bekommt ein CAA-Urteil" \
+  DnsSurveyTest::test_a_silent_zone_gets_no_caa_verdict failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Survey.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Survey.php'
+s = open(p, encoding='utf-8').read()
+alt = '                if (! in_array($server, $nameservers, true)) {\n                    $nameservers[] = $server;\n                }'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '                $nameservers[] = $server;'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Survey.php "Nameserver werden nicht entdoppelt" &&
+pruefe "Nameserver werden nicht entdoppelt" \
+  DnsSurveyTest::test_the_nameservers_are_merged_without_repetition failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  DnsSurveyTest::test_a_failing_name_does_not_spoil_the_others passed
+
+echo
+echo "── DnsBudgetTest: die Grenze des regelmaessigen Abgleichs ──"
+#
+# Die Grenze besteht aus drei Zahlen in drei Dateien, die nichts voneinander
+# wissen: die Frist im Quelltext, die der Unit und der Takt des Timers. Von
+# zwei Fristen ueber denselben Lauf entscheidet die kleinere — und die steht
+# woanders.
+
+vorher_datei app/Support/Dns/Budget.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Budget.php'
+s = open(p, encoding='utf-8').read()
+alt = '        return $elapsed + (float) self::reserve($names) <= (float) $this->seconds;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        return $elapsed <= (float) $this->seconds;'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Budget.php "eine Frist ohne Reserve" &&
+pruefe "eine Frist ohne Reserve" \
+  DnsBudgetTest::test_a_domain_that_would_not_fit_is_not_started failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Budget.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Budget.php'
+s = open(p, encoding='utf-8').read()
+alt = '        if ($done >= $this->domains) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        if ($done > $this->domains) {'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Budget.php "eine Domain zu viel je Lauf" &&
+pruefe "eine Domain zu viel je Lauf" \
+  DnsBudgetTest::test_the_count_bound_stops_the_run failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Budget.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Budget.php'
+s = open(p, encoding='utf-8').read()
+alt = '        if ($done === 0) {\n            return true;\n        }\n\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Dns/Budget.php "die Reserve sperrt die erste Domain" &&
+pruefe "die Reserve sperrt die erste Domain" \
+  DnsBudgetTest::test_the_first_domain_always_gets_its_turn failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Budget.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Budget.php'
+s = open(p, encoding='utf-8').read()
+alt = 'self::reserve($names) <= (float) $this->seconds;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = 'self::reserve($names) < (float) $this->seconds;'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Budget.php "was genau hineinpasst, faellt heraus" &&
+pruefe "was genau hineinpasst, faellt heraus" \
+  DnsBudgetTest::test_what_fits_exactly_is_started failed
+wiederherstellen
+
+# **Die zweite Fassung einer Zahl.** Das Ergebnis bleibt richtig — heute. Der
+# Wächter faellt trotzdem, und das ist der Punkt: Er prueft nicht den Wert,
+# sondern woher er kommt.
+vorher_datei app/Support/Dns/Budget.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Budget.php'
+s = open(p, encoding='utf-8').read()
+alt = 'return max(1, $names) * DnsCheck::MAX_SERVERS * Resolver::TIMEOUT_SECONDS;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = 'return max(1, $names) * 4 * 5;'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Budget.php "eine eigene Zahl statt der des Agenten" &&
+pruefe "eine eigene Zahl statt der des Agenten" \
+  DnsBudgetTest::test_the_reserve_is_taken_from_where_it_holds failed
+wiederherstellen
+
+vorher_datei packaging/systemd/srvpanel-dns.service
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-dns.service'
+s = open(p, encoding='utf-8').read()
+alt = 'TimeoutStartSec=600'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'TimeoutStartSec=60', 1))
+PY2
+griff_datei packaging/systemd/srvpanel-dns.service "die Unit ist knapper als das Budget" &&
+pruefe "die Unit ist knapper als das Budget" \
+  DnsBudgetTest::test_the_unit_allows_more_time_than_the_budget failed
+wiederherstellen
+
+vorher_datei packaging/systemd/srvpanel-dns.timer
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-dns.timer'
+s = open(p, encoding='utf-8').read()
+alt = 'OnCalendar=*:0/15'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'OnCalendar=*:0/2', 1))
+PY2
+griff_datei packaging/systemd/srvpanel-dns.timer "der Takt ist kuerzer als ein Lauf" &&
+pruefe "der Takt ist kuerzer als ein Lauf" \
+  DnsBudgetTest::test_the_timer_fires_less_often_than_a_run_may_last failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DnsBudgetTest passed
+
+echo
+echo "── DnsSweepTest: wer drankommt und wann Schluss ist ──"
+#
+# **Der erste Eingriff ist der Fehler des Cron-Einsammlers**, ein Merkmal
+# spaeter: Der Lauf hat kein angemeldetes Konto, die Mandantenklammer
+# verweigert im Grundzustand alles, und der Bericht meldet „0 faellig".
+
+vorher_datei app/Support/Dns/Sweep.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Sweep.php'
+s = open(p, encoding='utf-8').read()
+alt = '        $this->tenancy->withoutRestriction(function () use (&$report): void {\n            $report = $this->go();\n        });'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        $report = $this->go();'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Sweep.php "der Lauf ohne Ausnahme von der Klammer" &&
+pruefe "der Lauf ohne Ausnahme von der Klammer" \
+  DnsSweepTest::test_it_measures_without_a_logged_in_account failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Sweep.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Sweep.php'
+s = open(p, encoding='utf-8').read()
+alt = "            ->orderByRaw('case when domain_dns_checks.checked_at is null then 0 else 1 end')\n            ->orderBy('domain_dns_checks.checked_at')\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Dns/Sweep.php "eine Obergrenze ohne Reihenfolge" &&
+pruefe "eine Obergrenze ohne Reihenfolge" \
+  DnsSweepTest::test_the_oldest_finding_comes_next failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Sweep.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Sweep.php'
+s = open(p, encoding='utf-8').read()
+alt = "            ->where(fn (Builder $query) => $query\n                ->whereNull('domain_dns_checks.checked_at')\n                ->orWhere('domain_dns_checks.checked_at', '<=', $stale))\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Dns/Sweep.php "ein frischer Befund wird wiederholt" &&
+pruefe "ein frischer Befund wird wiederholt" \
+  DnsSweepTest::test_a_fresh_finding_is_not_measured_again failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Sweep.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Sweep.php'
+s = open(p, encoding='utf-8').read()
+alt = "            ->where('domains.status', '!=', DomainStatus::Removing)\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Dns/Sweep.php "der Rueckbau wird mitgemessen" &&
+pruefe "der Rueckbau wird mitgemessen" \
+  DnsSweepTest::test_a_domain_being_removed_is_skipped failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Sweep.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Sweep.php'
+s = open(p, encoding='utf-8').read()
+alt = '            } catch (Throwable) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '            } catch (\\LogicException) {'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Sweep.php "ein Fehlschlag beendet den Lauf" &&
+pruefe "ein Fehlschlag beendet den Lauf" \
+  DnsSweepTest::test_a_failing_domain_does_not_stop_the_run failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Sweep.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Sweep.php'
+s = open(p, encoding='utf-8').read()
+alt = '            if ($this->wasSilent($findings)) {\n                $silent++;\n            }\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Dns/Sweep.php "eine stumme Zone wird nicht gezaehlt" &&
+pruefe "eine stumme Zone wird nicht gezaehlt" \
+  DnsSweepTest::test_a_zone_that_answers_nobody_is_counted_as_silent failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Sweep.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Sweep.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'left' => max(0, $candidates->count() - $done),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'left' => 0,", 1))
+PY2
+griff_datei app/Support/Dns/Sweep.php "was liegen bleibt, wird verschwiegen" &&
+pruefe "was liegen bleibt, wird verschwiegen" \
+  DnsSweepTest::test_the_bound_leaves_the_rest_for_the_next_run failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  DnsSweepTest::test_it_measures_without_a_logged_in_account passed
+
+echo
+echo "── BaseMethodClashTest: der Leser sieht die Klasse und nicht die Datei ──"
+#
+# Am 22. August 2026 hat dieser Wächter drei Fehlbefunde erzeugt: ein Doppel
+# neben seinem Testfall in derselben Datei und eine anonyme Klasse in einer
+# Methode, jedes mit einem eigenen __construct(). Jeder Befund behauptete,
+# php artisan test ende mit 255 — im selben Lauf liefen 2295 Tests durch.
+#
+#   Ein Wächter, der seinen Geltungsbereich an der Datei festmacht, prüft die
+#   Datei und nicht die Klasse.
+
+vorher_datei tests/Support/InheritedNames.php
+python3 - <<'PY2'
+p = 'tests/Support/InheritedNames.php'
+s = open(p, encoding='utf-8').read()
+alt = "'collect' => $type === T_TRAIT || ($type === T_CLASS && $named && $extends),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "'collect' => $type === T_TRAIT || $type === T_CLASS,"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Support/InheritedNames.php "jede Klasse der Datei zaehlt mit" &&
+pruefe "jede Klasse der Datei zaehlt mit" \
+  BaseMethodClashTest::test_only_what_lands_on_the_class_is_read failed
+wiederherstellen
+
+vorher_datei tests/Support/InheritedNames.php
+python3 - <<'PY2'
+p = 'tests/Support/InheritedNames.php'
+s = open(p, encoding='utf-8').read()
+alt = "'collect' => $type === T_TRAIT || ($type === T_CLASS && $named && $extends),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "'collect' => $type === T_CLASS && $named && $extends,"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Support/InheritedNames.php "ein Trait zaehlt nicht mehr mit" &&
+pruefe "ein Trait zaehlt nicht mehr mit" \
+  BaseMethodClashTest::test_only_what_lands_on_the_class_is_read failed
+wiederherstellen
+
+# Ohne die Klammer einer Einsetzung geht die Tiefe um eins zu tief; das
+# schliessende `}` der Methode wirft dann den Rahmen der Klasse weg, und alles
+# danach steht ausserhalb.
+vorher_datei tests/Support/InheritedNames.php
+python3 - <<'PY2'
+p = 'tests/Support/InheritedNames.php'
+s = open(p, encoding='utf-8').read()
+alt = '            if ($token[0] === T_CURLY_OPEN || $token[0] === T_DOLLAR_OPEN_CURLY_BRACES) {\n                $depth++;\n\n                continue;\n            }\n\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei tests/Support/InheritedNames.php "die Klammer einer Einsetzung zaehlt nicht" &&
+pruefe "die Klammer einer Einsetzung zaehlt nicht" \
+  BaseMethodClashTest::test_only_what_lands_on_the_class_is_read failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BaseMethodClashTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

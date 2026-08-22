@@ -182,6 +182,16 @@ final class AgentOperationReachTest extends TestCase
         'pg.role.create' => 'Das Passwort darf nicht in operations.payload liegen (docs/38 §4). Der Dienst ruft unmittelbar auf und schreibt den Bestand selbst — und dieselbe Operation setzt das Passwort an einer vorhandenen Rolle, weil CREATE ROLE kein IF NOT EXISTS kennt.',
         'pg.role.grant' => 'Vergibt oder nimmt ein Recht für genau ein Paar. Die Zuordnungstabelle schreibt der Dienst, nachdem der Agent geantwortet hat.',
         'pg.role.remove' => 'Entfernt einen Zugang. DROP ROLE dauert Millisekunden, und die Zeile geht danach im selben Aufruf. Der Rückbau einer ganzen Datenbank läuft dagegen über die Warteschlange und wird von App\Support\Databases\PgLifecycle beantwortet.',
+        /*
+         * **P7: der DNS-Abgleich.** Kein Lebenslauf, weil nichts entsteht und
+         * nichts vergeht — die Operation fragt fremde Nameserver und gibt
+         * zurück, was sie sagen. Was daraus folgt, entscheidet das Panel gegen
+         * seinen eigenen Sollzustand (`docs/72 §2`).
+         *
+         * > **Der Agent misst, das Panel vergleicht.**
+         */
+        'dns.check' => 'Fragt die autoritativen Nameserver einer Zone. Ändert nichts — weder am System noch am Bestand des Panels.',
+
     ];
 
     private function registry(): Registry

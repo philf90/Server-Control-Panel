@@ -1179,22 +1179,41 @@ die Streichung nicht später als Vergessen gelesen wird (`docs/51 §3`):
   **bewohnbares** Chroot je Abonnement — Shell, Bibliotheken, `/dev/null`,
   `/etc/passwd` — und damit ein anderes Verzeichnisschema als §4.5.
 
-### P7 — DNS · 3–4 Wochen · (0.8)
+### P7 — DNS-Abgleich · 1–2 Wochen · (0.8)
 
-- PowerDNS autoritativ, angesteuert über die HTTP-API (nicht über die
-  Datenbank)
-- Zonenvorlage mit Platzhaltern; beim Anlegen einer Domain entsteht die Zone
-  automatisch
-- Einträge: A, AAAA, CNAME, MX, TXT, SRV, CAA, NS, PTR-Hinweis; Prüfung vor
-  dem Übernehmen
-- DNSSEC ein-/ausschaltbar, Schlüsselwechsel, DS-Angaben zum Weitergeben
-- AXFR an Slave-Server, Benachrichtigungen
-- Betriebsart „externer DNS": das Panel verwaltet nichts, zeigt aber die
-  nötigen Einträge zum Abgleich
-- Kundensicht: Einträge bearbeiten, im Rahmen des Plans
+> **Umgeschrieben am 21. August 2026.** Diese Stufe plante bis dahin einen
+> eigenen autoritativen Nameserver — PowerDNS über die HTTP-API, Zonenvorlage,
+> Eintragseditor, DNSSEC, AXFR. Der Betreiber hat vor dem Bauen gefragt, ob das
+> Sinn ergibt, bevor es zu erheblichen Problemen kommen kann, und die Antwort
+> war nein. **Die Begründung steht in `docs/72 §1`**, die Messungen dahinter in
+> `docs/71`. Von der ursprünglichen Liste bleibt der vorletzte Punkt — und der
+> wird die ganze Stufe.
 
-**Fertig, wenn** eine neu angelegte Domain ohne weiteres Zutun auflösbar ist,
-ein Zonenfehler nicht übernommen wird und DNSSEC nachweislich validiert.
+- Das Panel **führt keine Zone**. Es kennt den Sollzustand einer Domain und
+  gleicht ihn gegen die **autoritativen** Nameserver ab — nicht gegen den
+  Systemauflöser, dessen Zwischenspeicher aus einer Anleitung eine Irreführung
+  macht.
+- Sollzustand: `A`/`AAAA` für die Domain und `www`. Kein Mail, kein PTR.
+- Drei Zustände je Eintrag: zeigt hierher · zeigt woandershin (**mit dem
+  gefundenen Wert**) · fehlt. „Zeigt woandershin" ist kein Fehler — ein Kunde
+  hinter einem CDN hat genau diesen Zustand.
+- `CAA` wird gelesen und nicht gesetzt: Ein Satz, der die eigene
+  Zertifizierungsstelle nicht nennt, wird gemeldet, **bevor** eine Bestellung
+  daran scheitert.
+- Jedes Ergebnis trägt den Zeitpunkt seiner Messung.
+- Wildcard-Zertifikate über DNS-01 bleiben unberührt — acht Anbieter plus
+  RFC 2136 stehen seit P4 (`docs/34 §6`), und dafür braucht es keine eigene
+  Zone.
+
+**Fertig, wenn** eine Domain, deren Einträge woandershin zeigen, mit dem
+gefundenen Wert angezeigt wird, ein fehlender Eintrag von einem falschen
+unterschieden wird, der Abgleich die autoritativen Server fragt — nachweisbar —
+und ein fremdes `CAA` gemeldet wird, bevor es eine Bestellung kostet.
+
+**Was ausdrücklich nicht mehr dazugehört:** eigener Nameserver, Zone,
+Eintragseditor, DNSSEC, AXFR, NOTIFY — und das Schreiben in fremde Zonen über
+die vorhandenen Anbieter-Zugangsdaten. Das letzte ist der naheliegende nächste
+Schritt und eine eigene Entscheidung (`docs/72 §4`).
 
 ### P8 — Sicherungen und Wiederherstellung · 3–4 Wochen · (0.9)
 
@@ -1260,6 +1279,17 @@ anderen Weg kennt.
 eigene Zone benutzbar (externer DNS), eine Zone ohne Domain nicht. Und DNS ist
 die Stufe mit der höchsten Außenwirkung eines Fehlers: eine falsche Zone nimmt
 Kunden vom Netz, ein falscher Vhost nur eine Seite.
+
+> **Nachgetragen am 21. August 2026.** Dieser Absatz hat die Entscheidung von
+> P7 vorweggenommen, und niemand hat ihn so gelesen — auch ich nicht, als ich
+> die Stufe geplant habe. Er nennt beide Hälften: dass eine Domain ohne eigene
+> Zone benutzbar ist, und dass ein Fehler hier Kunden trifft und nicht eine
+> Seite. Zusammengenommen ist das die Begründung dafür, die Zone gar nicht erst
+> zu führen — nicht nur dafür, es spät zu tun. Gefragt hat danach der Betreiber
+> (`docs/72 §1`).
+>
+> **Eine Begründung für die Reihenfolge kann eine gegen die Sache sein, und man
+> merkt es erst, wenn jemand die Frage stellt.**
 
 ## 11. Nach der 1.0
 

@@ -68,19 +68,41 @@ final class Resolver implements Lookup
     }
 
     /**
-     * Die TXT-Werte, die dieser Server für diesen Namen ausliefert.
+     * Die Werte, die dieser Server für diesen Namen und Typ ausliefert.
      *
-     * Kommt keine Antwort, ist die Antwort eine leere Liste und keine
-     * Ausnahme — der Aufrufer wartet dann weiter.
+     * Kommt keine Antwort oder keine, die zu dieser Frage gehört, ist das
+     * Ergebnis `null` und keine Ausnahme. Wer wie ACME nicht unterscheiden
+     * will, schreibt `?? []` daneben — wer wie der Abgleich unterscheiden
+     * muss, kann es.
      *
-     * @return list<string>
+     * **Die Typweiche steht in {@see Packet::values} und nicht hier.** Hier
+     * hinge sie an einer Steckdose und wäre ohne Nameserver nicht zu prüfen.
+     *
+     * @return list<string>|null
      */
-    public function txt(string $server, string $name): array
+    public function records(string $server, string $name, int $type): ?array
     {
         $id = random_int(0, 0xFFFF);
-        $answer = $this->ask($server, Packet::query($id, $name));
+        $answer = $this->ask($server, Packet::query($id, $name, $type));
 
-        return $answer === null ? [] : Packet::txt($answer, $id);
+        return $answer === null ? null : Packet::values($answer, $id, $type);
+    }
+
+    /**
+     * Die CAA-Sätze, die dieser Server für diesen Namen ausliefert.
+     *
+     * @return list<array{flags: int, tag: string, value: string}>|null
+     */
+    public function authorities(string $server, string $name): ?array
+    {
+        $id = random_int(0, 0xFFFF);
+        $answer = $this->ask($server, Packet::query($id, $name, Packet::TYPE_CAA));
+
+        if ($answer === null || Packet::rcode($answer, $id) === null) {
+            return null;
+        }
+
+        return Packet::authorities($answer, $id);
     }
 
     /**

@@ -58,6 +58,29 @@ final class Curl implements Outbound
     public const TIMEOUT = 30;
 
     /**
+     * Darf der Agent diese Adresse überhaupt wählen?
+     *
+     * **Eine eigene Frage und keine Zeile mitten im Ablauf** — das ist Zusage 1
+     * von oben, und sie stand von P4 bis P7 ohne einen einzigen Test da. Als
+     * Bedingung innerhalb von {@see send} war sie nicht prüfbar, ohne dabei
+     * wirklich eine Verbindung aufzubauen; als Frage ist sie es.
+     *
+     * **Es ist trotzdem nur eine Fassung der Regel.** {@see send} entscheidet
+     * nichts selbst, sondern fragt hier — sonst wären es zwei, und die zweite
+     * ist die, die veraltet.
+     *
+     * **Hier stand einmal eine Ausnahme für die Rückschleife**, für die
+     * HTTP-API von PowerDNS, die kein TLS spricht (`docs/71 §4.1`). Sie ist am
+     * 21. August 2026 wieder zurückgebaut worden, weil P7 keinen eigenen
+     * Nameserver mehr betreibt (`docs/72`). Ein Riss in dieser Zusage, den kein
+     * Merkmal benutzt, ist Angriffsfläche ohne Gegenwert.
+     */
+    public function permitted(string $url): bool
+    {
+        return str_starts_with($url, 'https://');
+    }
+
+    /**
      * Eine Anfrage nach draussen — mit den vier Zusagen von oben.
      *
      * @param  string  $method  `GET`, `POST`, `DELETE` — was der Gegenstelle
@@ -67,7 +90,7 @@ final class Curl implements Outbound
      */
     public function send(string $method, string $url, array $headers, ?string $body = null): Response
     {
-        if (! str_starts_with($url, 'https://')) {
+        if (! $this->permitted($url)) {
             throw AgentException::denied('Nach draussen spricht der Agent nur über https.');
         }
 

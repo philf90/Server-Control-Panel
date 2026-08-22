@@ -1,0 +1,56 @@
+[Unit]
+Description=SrvPanel — die Domains mit ihren Nameservern abgleichen
+Documentation=https://repo.cloudsrv24.de/
+After=srvpanel-agentd.service
+Requires=srvpanel-agentd.service
+
+[Service]
+# Type=oneshot und kein Restart: Der Timer startet den nächsten Lauf.
+Type=oneshot
+User=srvpanel
+Group=srvpanel
+WorkingDirectory=/opt/srvpanel/current
+ExecStart=/opt/srvpanel/bin/php artisan srvpanel:dns-check
+
+# **Die Frist steht hier, obwohl der Lauf seine eigene mitbringt.**
+#
+# App\Support\Dns\Budget::SECONDS deckelt den Durchgang auf vier Minuten — aber
+# nur an den Stellen, an denen er selbst nachrechnet. Was ihn wirklich lange
+# machen kann, liegt tiefer: Die Suche nach den Nameservern einer Zone geht über
+# den Systemauflöser, und dessen Frist gehört ihm. Bleibt sie aus, hängt dieser
+# Lauf, und mit ihm die Unit.
+#
+# Das ist der teure Fall, weil er still ist: systemd startet einen Dienst nicht
+# ein zweites Mal, solange der erste noch läuft. Ein einziger hängender Lauf
+# nimmt also nicht einen Termin mit, sondern alle folgenden — dieselbe Form wie
+# der Timer ohne nächsten Termin vom 19. August 2026, und genauso unauffällig.
+#
+#   Ein Dienst, der „active" meldet und keinen nächsten Termin hat, ist
+#   abgeschaltet und sieht aus wie eingeschaltet.
+#
+# Zehn Minuten sind reichlich über den vier des Budgets und weit unter dem Takt
+# von fünfzehn. Dass die Zahl über der des Budgets liegt, prüft
+# tests/Unit/DnsBudgetTest.php: Von zwei Fristen über denselben Lauf entscheidet
+# die kleinere, und die stünde hier — also in der Datei, in die beim Ändern des
+# Budgets niemand sieht.
+TimeoutStartSec=600
+
+# Dieser Lauf fragt den Agenten und schreibt in die Datenbank. Mehr braucht er
+# nicht — und mehr bekommt er nicht.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+ReadWritePaths=/var/lib/srvpanel /var/log/srvpanel
+
+MemoryMax=192M
+TasksMax=32

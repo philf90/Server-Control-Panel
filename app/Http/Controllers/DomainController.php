@@ -12,6 +12,7 @@ use App\Models\Domain;
 use App\Models\Operation;
 use App\Models\Subscription;
 use App\Support\Audit\Audit;
+use App\Support\Dns\Dns;
 use App\Support\Plans\Quota;
 use App\Support\Time\Clock;
 use App\Support\Tls\AcmeSettings;
@@ -57,6 +58,7 @@ final class DomainController extends Controller
         private readonly PhpLimits $limits,
         private readonly CertificateChoice $choice,
         private readonly WildcardOrder $wildcards,
+        private readonly Dns $dns,
     ) {}
 
     /**
@@ -153,6 +155,26 @@ final class DomainController extends Controller
         return redirect()->route('domains.show', $domain);
     }
 
+    /**
+     * Den DNS-Abgleich jetzt fahren.
+     *
+     * **Ein eigener Weg und kein Teil von `show`.** Eine Messung bei jedem
+     * Seitenaufruf hinge die Seite an fremden Nameservern; sie läuft, wenn
+     * jemand sie auslöst — und regelmässig im Hintergrund.
+     *
+     * **Kein Vorgang und kein Eintrag im Protokoll.** Der Abgleich ändert
+     * nichts, weder am System noch an der Zone; eine Seite, die bei jedem
+     * Nachsehen eine Zeile schreibt, öffnet man nicht gern. Dieselbe
+     * Aufteilung wie bei `dns.credential.list` und `acme.certificate.info`.
+     */
+    public function checkDns(Domain $domain): RedirectResponse
+    {
+        $this->dns->check($domain);
+
+        return to_route('domains.show', $domain)
+            ->with('success', 'Der DNS-Abgleich ist gelaufen.');
+    }
+
     public function show(Domain $domain, Request $request): Response
     {
         $domain->loadMissing(['subscription', 'parent']);
@@ -213,6 +235,25 @@ final class DomainController extends Controller
                 'covered' => $this->wildcards->covered($domain),
             ],
 
+            /*
+             * **Der DNS-Abgleich wird gelesen und nicht gefahren** (P7
+             * Schritt 5, `docs/72 §2.5`). Eine Messung bei jedem Seitenaufruf
+             * hinge die Seite an fremden Nameservern mit fremden Zeitlimits;
+             * gezeigt wird deshalb das letzte Ergebnis **mit seinem
+             * Zeitpunkt**, und geprüft wird auf Wunsch.
+             *
+             * > **Eine Antwort aus dem Zwischenspeicher ist eine Aussage über
+             * > vorhin** — und wenn sie das ist, sagt sie es auch.
+             *
+             * `null` heisst „noch nie geprüft" und nicht „nichts gefunden":
+             * Die Seite soll vor dem ersten Lauf schweigen statt Entwarnung zu
+             * geben.
+             */
+            'dns' => [
+                'last' => $this->dns->last($domain),
+                'addresses' => $this->dns->addresses(),
+            ],
+
             // **`can` und nicht `may`.** Diese Seite hiess als einzige anders
             // und war damit von `AbilityReachTest` in beide Richtungen nicht
             // erfasst — weder „kommt an" noch „wird benutzt". Eine zweite
@@ -225,6 +266,7 @@ final class DomainController extends Controller
                 'view_logs' => $request->user()?->can('viewLogs', $domain) ?? false,
                 'upload_certificate' => $request->user()?->can('uploadCertificate', $domain) ?? false,
                 'order_wildcard' => $request->user()?->can('orderWildcard', $domain) ?? false,
+                'check_dns' => $request->user()?->can('view', $domain) ?? false,
             ],
             'operations' => Operation::query()
                 ->where('subject_type', 'domain')

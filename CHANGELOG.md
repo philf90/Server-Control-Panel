@@ -16814,3 +16814,883 @@ und Befund 23 aus `docs/59`. `DocLinkTest` hat den Lauf eröffnet — `docs/68`
 nannte `docs/69`, bevor es das gab —, und das ist die vertraute Lehre aus einer
 neuen Richtung: **eine abgeschnittene Liste, die man als vollständige liest, ist
 keine Messung, sondern ihre Verkleidung.**
+
+### P7 — die Frage, die vor allen elf hätte stehen müssen
+
+Die Stufe war geplant: PowerDNS autoritativ über die HTTP-API, Zonenvorlage,
+Eintragseditor, DNSSEC, elf beantwortete Entscheidungen (`docs/70 §13`), eine
+Messrunde mit sechsundzwanzig Messungen (`docs/71`), ein Plan (`docs/72`) und
+der erste Schritt gebaut. Dann hat der Betreiber gefragt, ob eigene
+DNS-Funktionen überhaupt Sinn ergeben, bevor es zu erheblichen Problemen kommen
+kann.
+
+**Die Antwort war nein.** P7 führt keine Zone mehr — es gleicht ab.
+
+**Der Ausfallschaden wird nicht grösser, er wird anders.** `cloudsrv24` weg
+heisst heute: die Websites sind weg. Mit eigener Zone auf einer Maschine hiesse
+es: die **Namen** sind weg — mitsamt dem MX auf einen fremden Mailanbieter, der
+Subdomain auf ein CDN, dem TXT für irgendeine Verifikation. Das Panel wäre zum
+Einzelpunkt für Infrastruktur geworden, die es nicht betreibt.
+
+Und das ist gemessen, nicht befürchtet: Fällt MariaDB weg, bedient PowerDNS noch
+rund zwanzig Sekunden aus dem Zwischenspeicher und fällt dann auf `SERVFAIL` —
+dieselbe MariaDB wie die des Panels. Ein gewöhnlicher Datenbank-Neustart beim
+Update nimmt die Zone dunkel. Dazu ein CSK, dessen DS das Panel nicht setzen
+kann: Jeder Schlüsselwechsel ist ein harter Fehlschlag für validierende
+Auflöser, wenn er schiefgeht, und die Erholung braucht den Registrar.
+
+**Zehn der elf Entscheidungen sind damit hinfällig** (`docs/70 §15`), und eine
+davon war die Warnung, die ich als Antwort behandelt habe: der einzelne
+Nameserver. Ich hatte in `docs/70 §5` selbst notiert, dass viele Registries zwei
+in verschiedenen Netzen verlangen — und mich mit einer Entscheidung darüber
+zufriedengegeben, wie das *dargestellt* wird.
+
+> **Eine Entscheidung über die Darstellung eines Risikos ist keine Entscheidung
+> über das Risiko.**
+
+> **Zehn beantwortete Fragen ersetzen nicht die eine, die niemand gestellt
+> hat.**
+
+**Was `docs/20 §10` schon sagte, seit es den Plan gibt:** „Eine Domain ist ohne
+eigene Zone benutzbar (externer DNS), eine Zone ohne Domain nicht. Und DNS ist
+die Stufe mit der höchsten Außenwirkung eines Fehlers." Das sind beide Hälften
+der Begründung — und gelesen worden ist es als Aussage über die *Reihenfolge*.
+
+> **Eine Begründung für die Reihenfolge kann eine gegen die Sache sein, und man
+> merkt es erst, wenn jemand die Frage stellt.**
+
+**Was P7 stattdessen wird** (`docs/72`, `docs/20 §9` umgeschrieben): Das Panel
+kennt den Sollzustand einer Domain — `A`/`AAAA` für sie und `www` — und gleicht
+ihn gegen die **autoritativen** Nameserver ab, nicht gegen den Systemauflöser.
+Drei Zustände je Eintrag: zeigt hierher · zeigt woandershin, **mit dem gefundenen
+Wert** · fehlt. „Zeigt woandershin" ist dabei kein Fehler; ein Kunde hinter einem
+CDN hat genau diesen Zustand. `CAA` wird gelesen und nicht gesetzt: Ein Satz, der
+die eigene Zertifizierungsstelle nicht nennt, wird gemeldet, **bevor** eine
+Bestellung daran scheitert — und jeder Fehlversuch zählt bei Let's Encrypt fünf
+pro Konto und Stunde, für jeden Kunden dieses Servers. Jedes Ergebnis trägt den
+Zeitpunkt seiner Messung.
+
+Wildcard-Zertifikate über DNS-01 bleiben unberührt: acht Anbieter plus RFC 2136
+stehen seit P4, und dafür braucht es keine eigene Zone. Aus neun geplanten
+Agent-Operationen wird **eine** (`dns.check`), aus drei neuen Spalten **keine**.
+
+**Ausdrücklich nicht dazu gehört das Schreiben in fremde Zonen** über die
+vorhandenen Anbieter-Zugangsdaten — technisch derselbe Aufruf wie ein `TXT`, und
+genau deshalb bewacht: Die Frage „wer hat meinen Eintrag geändert" beantwortet
+man einmal falsch und wird sie nie wieder los.
+
+### P7 — die Ausnahme in `Curl` ist zurückgebaut, ihr Wächter geblieben
+
+Für die HTTP-API von PowerDNS war die erste der vier Zusagen von
+`agent/src/Acme/Curl.php` aufgebrochen worden — „nach draussen nur https" bekam
+eine Ausnahme für `127.0.0.1` und `[::1]`. **Sie ist wieder heraus.** Ein Riss in
+dieser Zusage, den kein Merkmal benutzt, ist Angriffsfläche ohne Gegenwert.
+
+**Geblieben ist die Naht, und mit ihr ein Wächter, den die Regel nie hatte.** Sie
+stand von P4 bis P7 als Bedingung mitten in `send()` und war damit nicht zu
+prüfen, ohne wirklich eine Verbindung aufzubauen. Jetzt ist sie eine Frage
+(`permitted()`), und `OutboundHttpsOnlyTest` stellt sie in beide Richtungen —
+zwölf Fälle, darunter die aus dem Rückbau, damit der nächste, der eine Ausnahme
+erwägt, sie hier findet statt sie neu zu suchen. Zwei Eingriffe stehen dafür in
+`tests/waechter-brechen.sh`; der zweite prüft, dass die Regel **einmal** im
+Quelltext steht und `send()` nicht selbst entscheidet.
+
+> **Eine Regel, die man nicht fragen kann, hat keinen Wächter — auch wenn jeder
+> sie kennt.**
+
+Aus dem verworfenen Bau bleibt ausserdem eine Messung, die sich gelohnt hat:
+`parse_url('http://[::1]:8081/x')` gibt den Wirt **mit Klammern** zurück. Gegen
+`::1` verglichen hätte die Ausnahme für IPv6 nie gegriffen — und hätte gebaut
+ausgesehen.
+
+> **Ein Wert, den nur die Dokumentation kennt, ist eine Vermutung mit Fussnote.**
+
+### P7 — geplant: die Rückfragen, die Messrunde und der Plan
+
+- **`docs/70`** — die zehn Rückfragen an den Betreiber, jede mit ihrer
+  Messgrundlage und einer Einschätzung daneben, in §13 die elf Entscheidungen
+  und in §15 die zwölfte, die zehn davon aufgehoben hat.
+- **`docs/71`** — die Messrunde gegen PowerDNS 4.8.3, mit `gsqlite3` und mit
+  `gmysql` gegen MariaDB 10.11.14. Sechsundzwanzig Messungen, jede mit
+  Gegenprobe. Sie trägt jetzt eine Entscheidung **gegen** ihren Gegenstand, und
+  das macht sie nicht wertlos: Wer die Frage in einem Jahr aufmacht, fängt nicht
+  bei null an. Das Messmittel liegt als **`tests/dns-messen.sh`** im Repo.
+- **`docs/72`** — der Plan, in seiner zweiten Fassung.
+
+**Der Satz „über die HTTP-API, nicht über die Datenbank" aus `docs/20 §9` hat
+dabei zum ersten Mal eine Zahl bekommen** — und behält sie, auch wenn die Stufe
+ihn nicht mehr braucht. Eine Änderung über die API ist nach **0,8 ms**
+ausgeliefert; dieselbe Änderung direkt in die Tabelle `records` geschrieben erst
+nach **62 431 ms**, passend zu `negquery-cache-ttl 60`. Faktor rund 78 000.
+
+Nebenbei ein Fund im Rechtemodell, der die neue Fassung mehr betrifft als die
+alte: **`Feature::DnsEdit` trägt seit P4 die Beschriftung „DNS-Einträge
+bearbeiten" und tut etwas anderes** — es gibt einem Abonnement die Ablage fremder
+Registrar-Token für ACME. In der verworfenen Fassung wäre daneben eine zweite
+Freigabe entstanden, die den Namen zu Recht getragen hätte. Jetzt wird es **nie**
+einen Eintragseditor geben, und die Beschriftung ist damit nicht mehr ungenau,
+sondern falsch. Sie heisst künftig „Eigene DNS-Zugangsdaten für Zertifikate".
+
+> **Eine Beschriftung, die etwas anderes verspricht als der Code tut, ist eine
+> Zusage, die niemand eingelöst hat.**
+
+### P7 Schritt 1 — `Packet` liest vier Satztypen statt einem
+
+Für den Abgleich (`docs/72 §2.2`) kommen **A, AAAA und CAA** dazu,
+ausschliesslich lesend. Geschrieben wird weiterhin nur TXT, und zwar in
+`UpdateMessage`. `Packet::query()` trägt den Typ jetzt als Wert ohne Vorgabe —
+eine geerbte Vorgabe wäre die, die beim nächsten Aufrufer falsch ist, und ein
+Aufruf, der bei vier Typen nicht sagt, wonach er fragt, ist nicht mehr zu lesen.
+
+**Die Satzwanderung steht einmal da.** Vier Schleifen über dasselbe Paket wären
+vier Gelegenheiten, die Prüfung auf das Paketende zu vergessen — und ein halb
+gelesener Satz ergibt einen Wert, der fast stimmt.
+
+**Der Fund des Schritts kam beim Gegenprüfen und hat einen Kommentar
+berichtigt.** Nimmt man die Längenprüfung vor `inet_ntop` heraus, werden nur
+**zwei von sechs** Prüffällen rot. Der Grund ist schärfer als der, der vorher im
+Quelltext stand: `inet_ntop` weist nicht jede falsche Länge ab — es **entscheidet
+die Adressfamilie an der Länge**. Gemessen: 3, 5, 15 und 0 Bytes ergeben `false`,
+4 und 16 Bytes ergeben immer eine Adresse. Ein `A`-Satz mit sechzehn Bytes käme
+damit als IPv6-Adresse zurück und ein `AAAA` mit vieren als IPv4.
+
+> **Eine Umformung, die aus der Länge auf die Bedeutung schliesst, hat keinen
+> Fehlerfall für die falsche Länge — sie hat ein anderes Ergebnis.**
+
+Das ist kein Fehler, den man sieht, sondern ein Wert, der falsch ist und richtig
+aussieht — und genau der schickt den Kunden dorthin, wo nichts zu ändern ist.
+
+Vier weitere Entscheidungen, jede mit ihrem Eingriff im Bruchskript:
+
+- **`inet_ntop` und keine eigene Umformung.** Für IPv6 ist sie die Regel, wann
+  `::` gesetzt werden darf (RFC 5952) — die schreibt man einmal falsch und merkt
+  es an einer Adresse, die es so nur bei einem Kunden gibt. Der eigentliche Grund
+  ist aber der Nebeneffekt: Zwei Adressen, die beide durch `inet_ntop` gegangen
+  sind, lassen sich als Zeichenketten vergleichen. `2001:db8::1` und
+  `2001:0db8:0000::0001` sind dieselbe Adresse und nicht dieselbe Zeichenkette.
+- **Die CAA-Marke wird kleingeschrieben.** RFC 8659 §4.1 sagt, sie sei
+  unabhängig von der Schreibweise; wer sie nimmt, wie sie ankommt, übersieht ein
+  `ISSUE` und meldet „kein CAA" — also grün für eine Zone, die jede Bestellung
+  abweist.
+- **Nur der Antwortabschnitt wird gelesen.** Autorität und Zusatzangaben führen
+  Sätze zu anderen Namen — das `A` des Nameservers etwa. Wer über das ganze
+  Paket liefe, bekäme dessen Adresse als Antwort auf die Frage nach der Domain.
+- **Der Eigentümername wird nicht verglichen**, und das ist Absicht: Zeigt `www`
+  über ein `CNAME` woandershin, stehen die `A`-Sätze des Ziels in derselben
+  Antwort unter dessen Namen. Gefragt war, wohin der Name am Ende auflöst.
+
+**Und `Packet::rcode()` ist dazugekommen**, weil der Abgleich vier Zustände
+braucht und ohne ihn drei hätte: „kein Satz gefunden" sähe genauso aus wie
+„nicht erreichbar", denn beide ergeben eine leere Liste.
+
+> **Eine leere Liste, die zwei Dinge bedeuten kann, bedeutet keins von beiden.**
+
+`RecordRdataTest` prüft 26 Fälle gegen gebaute Pakete — darunter die, die sich
+bei einem echten Nameserver gar nicht bestellen liessen: eine Adresse mit drei
+Bytes, ein CAA mit einer Marke, die über den Satz hinausreicht, ein `A`-Satz in
+der Klasse Chaos. Sechs Eingriffe stehen in `tests/waechter-brechen.sh`, jeder
+einzeln nachgewiesen.
+
+### P7 Schritt 2 — `dns.check`: der Agent misst, das Panel vergleicht
+
+Die eine Operation dieser Stufe. Sie fragt die **autoritativen** Nameserver
+einer Zone und gibt zurück, was sie sagen — mehr nicht.
+
+**Der Schnitt ist die Entscheidung dieses Schritts.** Was eine Domain haben
+*soll*, weiss das Panel: welche Adressen dieser Server hat, welche Domains es
+gibt, welche Betriebsart eingestellt ist. Was sie *hat*, weiss nur, wer eine
+Steckdose aufmachen darf. Ein Agent, der den Sollzustand kennte, hätte eine
+zweite Fassung davon — und die zweite ist die, die veraltet.
+
+> **Der Agent misst, das Panel vergleicht.**
+
+**`Lookup` kennt seit heute `null` als Antwort, und das ist der Kern.** Bis
+dahin gab `txt()` eine leere Liste zurück, wenn der Server nicht erreichbar war,
+wenn die Antwort nicht passte **und** wenn es den Satz nicht gab. Für ACME war
+das richtig — dort heisst alles drei „noch nicht, frag gleich nochmal". Der
+Abgleich muss „es gibt keinen Eintrag" von „ich weiss es nicht" unterscheiden,
+sonst meldet er dem Kunden einen fehlenden Eintrag, wenn in Wahrheit sein
+Nameserver schweigt.
+
+> **Eine leere Liste, die zwei Dinge bedeuten kann, bedeutet keins von beiden.**
+
+`DnsChallenge` schreibt dafür `?? []` daneben und unterscheidet weiterhin nicht —
+für ACME ist das die richtige Antwort. Aus zwei Methoden (`txt()` und einer
+zweiten für den Abgleich) ist eine geworden: `records($server, $name, $type)`.
+CAA steht daneben als eigene Frage, weil ein CAA-Satz kein Wert ist, sondern
+drei — eine Aufzählung, deren Form vom Typ abhängt, liest man einmal falsch aus.
+
+**Die Typweiche steht in `Packet::values()` und nicht im `Resolver`.** Dort
+hinge sie an einer Steckdose und wäre ohne Nameserver nicht zu prüfen; in
+`Packet` ist sie eine Umformung wie alles andere. Ein unbekannter Typ wirft dort
+und gibt **nicht** `null` zurück: Als `null` sähe ein Fehler im Aufrufer aus wie
+„nicht erreichbar", und dann suchte jemand den Fehler beim Nameserver des
+Kunden — dort, wo nichts zu ändern ist.
+
+Vier Regeln der Operation, jede mit ihrem Eingriff im Bruchskript:
+
+- **Jeder Name muss in der Zone liegen**, gefragt über `Zones::pick()` — die
+  eine Stelle, die das entscheiden darf. Der Bruch dazu setzt einen
+  Zeichenkettenvergleich ein und lässt `boesexample.de` als Teil von
+  `example.de` durch; gefragt würden dann die Nameserver einer Zone nach einem
+  Namen, für den sie nicht zuständig sind, **und die Antwort sähe aus wie ein
+  Befund**.
+- **Der Satztyp kommt als Name von einer Positivliste** und nicht als Zahl. Eine
+  Zahl von aussen wäre ein roher Drahtwert.
+- **Ein Server, der auf eine Frage nicht antwortet, wird nicht sechzehnmal
+  gefragt.** Sonst kostet ein einziger toter Nameserver das Produkt aus Fragen
+  und Zeitlimit, und der Vorgang stirbt an seinem eigenen, während die anderen
+  Server längst geantwortet haben. Der Preis steht daneben: Ein verlorenes
+  UDP-Paket nimmt diesen Server für den Lauf heraus — sichtbar, weil `answered`
+  dann kleiner ist als `asked`.
+- **Uneinigkeit ist ein eigener Zustand und kein Mittelwert.** Liefert der eine
+  Nameserver eine andere Adresse als der andere, ist die Domain für die Hälfte
+  der Welt woanders. Verglichen wird die **sortierte** Wertemenge — ohne das
+  meldete jede Zone mit zwei Adressen Uneinigkeit, und das ist der Normalfall
+  und kein Befund.
+
+**Und `dns.check` steht vorübergehend in `AgentOperationReachTest::UNREACHED`.**
+Der Agent kann seit heute messen; der Weg dorthin entsteht in den Schritten 3
+bis 5. Der Eintrag räumt sich selbst weg: Sobald `app/` den Namen nennt, wird
+`test_the_list_of_unreached_operations_does_not_outlive_them` rot. Genau dafür
+gibt es die Liste.
+
+`DnsCheckTest` prüft 22 Fälle gegen ein Doppel — darunter die, die sich draussen
+nicht bestellen lassen: zwei Nameserver mit verschiedenen Antworten, einer, der
+auf die erste Frage schweigt, eine Zone ohne Nameserver. Sieben Eingriffe stehen
+in `tests/waechter-brechen.sh`, jeder einzeln nachgewiesen.
+
+### P7 Schritt 3 — der Sollzustand, und eine Zeile im Plan, die falsch war
+
+`App\Support\Dns\DesiredRecords` ist die eine Stelle, die ausrechnet, was eine
+Domain braucht, damit sie hier funktioniert. Sie kennt keinen Bestand und keine
+Datenbank: ein Name, die Adressen dieses Servers, und heraus kommt, was daraus
+folgt. Damit lässt sie sich ohne Laravel prüfen — der Durchgang misst die Regel
+statt eines Modells.
+
+**Beim Bauen ist aufgefallen, dass `docs/72 §2.1` falsch war.** Dort stand
+„`A`/`AAAA` auf `www` — der Standard-Vhost bedient beide". Er tut es nicht:
+`Site::serverNames()` gibt `array_merge([$domain], $aliases)` zurück, also die
+Domain und ihre **ausdrücklichen** Aliasse. Ein automatisches `www` legt dieses
+Panel nirgends an. Geschrieben hatte ich das aus der Annahme.
+
+> **Wissen aus zweiter Hand sieht aus wie Wissen** — auch das eigene von
+> vorgestern.
+
+**Die Regel wird dadurch einfacher und richtiger.** Ein Alias ist in diesem
+System eine eigene Zeile in `domains` (`type = alias`, `parent_domain_id`),
+genau wie eine Subdomain. Es gibt also keinen Sonderfall: Jede Zeile wird von
+nginx unter ihrem eigenen Namen bedient und braucht Adressen auf genau diesen
+Namen. Wer `www` will, legt es als Alias an — dann steht es von selbst im
+Sollzustand.
+
+**Ohne IPv6 des Servers entsteht kein `AAAA`-Eintrag** — und nicht etwa einer
+mit leerer Erwartung. Der Unterschied ist der zwischen „hier fehlt etwas" und
+„danach wird nicht gefragt"; Punkt 5 des Abnahmekriteriums hängt daran.
+
+**Die erwarteten Adressen gehen durch `inet_pton`/`inet_ntop`.** Das ist keine
+Kosmetik, sondern die Bedingung dafür, dass der Vergleich stimmt:
+`2001:0db8::0001` und `2001:db8::1` sind dieselbe Adresse und nicht dieselbe
+Zeichenkette, und die gemessene Seite kommt immer in der kurzen Form aus dem
+Agenten.
+
+> **Zwei Werte, die dasselbe bedeuten und verschieden geschrieben sind, ergeben
+> einen Befund, den es nicht gibt.**
+
+`CAA` steht ausdrücklich **nicht** im Sollzustand: Kein CAA ist der richtige
+Zustand, und ein Sollwert dafür wäre eine Forderung, die dieses Panel nicht
+stellen will. Gelesen wird es trotzdem (Schritt 6).
+
+**Der Wächter über die Einzahl hat zwei Ausdrücke und nicht einen.** Der erste
+sucht die Liste, wie jemand sie in einem Controller hinschreibt
+(`'type' => 'A'`); der zweite den Satztyp selbst (`'AAAA'`). Gegen den ersten
+allein käme ein Nachbau durch, der seine Typen in einer Konstante oder einem
+`match` führt — und das ist keine ausgefallene Schreibweise, sondern die
+aufgeräumtere.
+
+> **Ein Wächter, der eine Form sucht, findet die andere nicht — und meldet Grün
+> für die aufgeräumtere Fassung des Fehlers.**
+
+Sieben Eingriffe stehen in `tests/waechter-brechen.sh`, und **zwei davon waren
+beim ersten Anlauf untauglich**: einer hat die Zielstelle verfehlt, der andere
+den Code zerstört statt die Regel zu verletzen — er nahm die Prüfung auf
+`inet_pton() === false` heraus, und `inet_ntop(false)` ist ein `TypeError`. Der
+Wächter meldete daraufhin ein **Loch** und kein Rot, und ein Loch sieht aus wie
+„nicht gemessen" und nicht wie „stimmt nicht".
+
+> **Ein Bruch muss die Regel verletzen und nicht den Code zerstören.**
+
+Der siebte Eingriff legt eine Datei an, statt eine zu ändern, und räumt deshalb
+selbst auf: `wiederherstellen` holt geänderte Dateien zurück und lässt eine neue
+stehen.
+
+**`DesiredRecords` führt keinen einzigen `use`** — der Verweis auf `Packet` im
+Agenten steht als Text im Satz. *(Nachgetragen am 21. August: Hier stand als
+Begründung, Pint mache aus einem `{@see \SrvPanel\Agent\…}` „eine
+Abhängigkeit, die es nur im Kommentar gibt". Das war falsch — siehe den Eintrag
+weiter unten.)*
+
+### P7 Schritt 4 — der Vergleich, und die eine Frage, an der er hängt
+
+**Wann zeigt ein Name hierher?** Nicht, wenn die Werte gleich sind — und der
+Unterschied ist der ganze Sinn von `App\Support\Dns\Comparison`.
+
+Ein Name zeigt hierher, wenn **jeder ausgelieferte Wert einer von unseren ist**.
+Ein Server kann zwei Adressen führen und die Website unter beiden bedienen; ein
+Kunde, der auf eine davon zeigt, ist richtig unterwegs — eine Gleichheitsprüfung
+meldete ihn als falsch. Umgekehrt genügt **ein** fremder Wert daneben, damit ein
+Teil der Anfragen woanders landet.
+
+> **Ein Eintrag, der überwiegend stimmt, ist ein Ausfall, den man für ein
+> Netzproblem hält.**
+
+**Fünf Zustände und nicht drei.** `docs/72 §2.3` nannte drei; zwei sind beim
+Bauen dazugekommen, und beide bezeichnen etwas, das der Kunde anders behandeln
+muss:
+
+- **`Unreachable`** ist kein Zustand der Zone, sondern einer der Messung. Ohne
+  ihn meldete die Anzeige „der Eintrag fehlt", wenn in Wahrheit der Nameserver
+  schweigt.
+- **`Inconsistent`** heisst, dass die Nameserver derselben Zone Verschiedenes
+  sagen — die Domain funktioniert für einen Teil der Welt und für den anderen
+  nicht, und die Abhilfe liegt beim Anbieter statt am Eintrag. Erkannt wird das
+  **vor** dem Wertevergleich, sonst suchte der Kunde den Fehler bei sich.
+
+**Und „zeigt woandershin" ist ausdrücklich kein Fehler** (`blocking() === false`).
+Wer seine Domain absichtlich über ein CDN führt, hat genau diesen Zustand. Die
+Anzeige sagt, was ist, und nicht, was falsch ist.
+
+### P7 Schritt 4 — die Adressquelle, und zwei Lücken in `filter_var`
+
+`App\Support\Dns\ServerAddresses`: abgeleitet, mit Übersteuerung
+(`docs/72 §2.1a`). Ohne Übersteuerung meldete der Abgleich hinter NAT jede
+Domain als „zeigt woandershin" — mit der **privaten** Adresse als Sollwert, was
+schlimmer ist als keine Anzeige, weil es wie eine Auskunft aussieht. Ohne
+Ableitung ginge der Abgleich vor dem ersten Eintrag gar nicht, und das träfe die
+Ersteinrichtung.
+
+**Gemessen statt nachgelesen** (21. August 2026): `filter_var` mit
+`NO_PRIV_RANGE|NO_RES_RANGE` wirft `10/8`, `172.16/12`, `192.168/16`,
+`169.254/16`, `127/8`, `0.0.0.0`, `fc00::/7`, `fe80::/10` und `::1` hinaus —
+**und lässt CGNAT (`100.64/10`) und Multicast durch.**
+
+> **Ein Filter, den man für vollständig hält, ist eine Lücke mit Fussnote.**
+
+Beides gehört heraus: Ein Server hinter Anbieter-NAT ist von aussen nicht
+erreichbar; seine Adresse als `A`-Eintrag wäre ein Sollwert, den keine Domain je
+erfüllen kann. Die Gegenprobe steht daneben — `100.128.0.1` und `100.63.255.254`
+liegen ausserhalb von `100.64.0.0/10` und gehen durch, sonst hiesse die Regel
+womöglich nur „alles, was mit 100 anfängt".
+
+**Die Übersteuerung wird beim Lesen nicht noch einmal gesiebt.** Sie ist beim
+Eintragen geprüft worden (`ServerAddresses::rejected()` liefert den Satz, den
+der Betreiber liest); wer sie ein zweites Mal siebte, hätte zwei Fassungen
+derselben Regel — und die zweite entschiede stillschweigend anders, als die
+Meldung am Formular gesagt hat.
+
+`Settings::dnsAddresses()` trägt sie, mit derselben Warnung wie `bind-address`
+und der PostgreSQL-Schalter daneben: Was dort steht, ist eine im Panel gemerkte
+Fassung eines Serverzustands und kann veralten. Die Seite zeigt deshalb beides —
+das Eingetragene und das Abgeleitete.
+
+`DnsComparisonTest` (16 Fälle) und `ServerAddressTest` (28 Fälle) prüfen beides;
+neun Eingriffe stehen in `tests/waechter-brechen.sh`, jeder einzeln
+nachgewiesen.
+
+### P7 Schritt 5 — die Anzeige an der Domain, und die Schuld, die sich selbst wegräumt
+
+Der Abgleich steht als Bereich **an der Domain** (`docs/72 §2.7`) — nicht als
+eigener Menüpunkt und nicht als Unterseite. Dreimal in P6 ist ein Merkmal drei
+Klicks tief gelandet und musste verlegt werden; hier ist der Ort, an dem jemand
+ohnehin steht, wenn er sich fragt, warum seine Seite nicht erscheint. Er kommt
+**nach** dem Zertifikat, weil er dieselbe Frage eine Ebene früher beantwortet:
+Ohne den richtigen `A`-Eintrag kommt niemand an, und dann ist auch kein
+Zertifikat zu bestellen.
+
+**Gemessen wird nicht bei jedem Seitenaufruf.** Das hinge die Seite an fremden
+Nameservern mit fremden Zeitlimits. Gezeigt wird das letzte Ergebnis **mit
+seinem Zeitpunkt**, geprüft wird auf Wunsch.
+
+> **Eine Antwort aus dem Zwischenspeicher ist eine Aussage über vorhin** — und
+> wenn sie das ist, sagt sie es auch.
+
+**Vor dem ersten Lauf steht ein Satz und keine leere Tabelle.** Eine leere
+Tabelle sähe aus wie „alles in Ordnung"; gemessen wurde aber noch gar nichts —
+derselbe Grund, aus dem `Settings::diskQuota()` vor seinem ersten Lauf schweigt.
+
+**Der gefundene Wert steht neben dem Zustand.** „Zeigt woandershin" ohne die
+Adresse ist eine Auskunft, mit der niemand etwas anfangen kann.
+
+**`checked_at` ist nicht `updated_at`.** Ein späterer Umbau, der die Zeile aus
+einem anderen Grund anfasst, verschöbe sonst die Auskunft „zuletzt geprüft" —
+und die Anzeige behauptete eine Frische, die es nicht gibt.
+
+**Die Route ist `POST` und nicht `GET`, obwohl nichts geändert wird.** Der
+Aufruf kostet mehrere UDP-Anfragen an fremde Nameserver und legt ein Ergebnis
+ab; als `GET` liefe er bei jedem Vorwärtsblättern und jedem Vorabruf des
+Browsers mit. `can:view` und nicht `update`: Nachsehen darf, wer die Domain
+sehen darf.
+
+**Und der `UNREACHED`-Eintrag aus Schritt 2 ist gefallen** — genau so, wie er
+gedacht war. Sobald `app/` den Namen `dns.check` nennt, wird
+`test_the_list_of_unreached_operations_does_not_outlive_them` rot; die Zeile
+musste weg. Eine Schuld mit Fälligkeitsdatum, die sich selbst eintreibt.
+
+**Zwei Kleinigkeiten, die Wächter gefunden haben.** `ClassReachTest` hat eine
+Klasse `section-actions` beanstandet, die es in `app.css` nicht gibt — sie heisst
+`button-row`, und mein `grep` davor hatte nur `section-note` gezählt. *(Der
+zweite Punkt, der hier stand — Pint mache aus einem `{@see \App\…}` einen
+Import —, war ein Irrtum und ist am selben Tag zurückgenommen worden; siehe
+unten.)*
+
+> **Eine Klasse, die auf nichts zeigt, sieht aus wie Gestaltung und ist keine.**
+
+### P7 — ein Fehler aus Schritt 5, gefunden beim Bauen von Schritt 6
+
+**Ein Alias darf jeden Namen tragen** — `Domains::parent()` sagt es wörtlich:
+„genau dafür gibt es ihn." Schritt 5 hat trotzdem alle Namen einer Domain unter
+**ihrer** Zone gefragt. Ein Alias `beispiel.at` an einer Domain `beispiel.de`
+liegt nicht in deren Zone; `dns.check` weist ihn zu Recht ab, die Ausnahme wird
+gefangen — und **die ganze Domain** stand als „nicht erreichbar" da, auch die
+Einträge, die in Ordnung waren.
+
+> **Ein Fehler an einem Namen, der als Zustand der ganzen Domain erscheint, ist
+> schlimmer als kein Befund.**
+
+Es geht jetzt **ein Aufruf je Name** hinaus. Das ist auch sachlich richtiger:
+Die Sätze eines fremden Alias liegen auf anderen Nameservern, und die der
+eigenen Zone zu fragen ergäbe eine Antwort von jemandem, der nicht zuständig
+ist. Ein Fehlschlag bleibt dabei bei seinem Namen.
+
+**Und `Dns::names()` ist ersatzlos gefallen.** Es war ein Nachbau von
+`Domain::serverNames()`, das es seit P4 gibt — dieselbe Liste, zweimal
+geschrieben, und die zweite wäre die gewesen, die beim nächsten Domaintyp
+veraltet.
+
+### P7 Schritt 6 — CAA wird gelesen und nicht gefordert
+
+Kein CAA ist der richtige Zustand: Dann darf jede Stelle ausstellen, und es gibt
+nichts zu melden. Gelesen wird trotzdem, denn ein Satz, der uns **nicht** nennt,
+lässt jede Bestellung scheitern — und jeder Fehlversuch zählt bei Let's Encrypt
+fünf je Konto und Stunde, für **jeden** Kunden dieses Servers (`docs/34 §11`).
+
+> **Ein Hinweis vorher ist keine Bequemlichkeit, sondern Schadensbegrenzung.**
+
+**Der Fall, an dem eine naive Umsetzung falsch liegt, ist der Platzhalter.** Ist
+`issuewild` vorhanden, gilt für einen Platzhalter **nur** das — `issue` zählt
+dann nicht mit (RFC 8659 §4.2). Wer beide zusammenwürfe, hielte eine Zone für
+erlaubt, die Platzhalter ausdrücklich ausschliesst; und P4 bestellt Platzhalter.
+
+Vier weitere Regeln, jede mit ihrem Eingriff:
+
+- **Ein zwingender Satz mit unbekannter Marke verbietet die Ausstellung**, und
+  zwar vor allem anderen. Wer ihn übersieht, meldet „darf" für eine Zone, die
+  jede Bestellung abweist — obwohl `issue` uns nennt.
+- **Hinter dem Namen dürfen Angaben stehen** (`letsencrypt.org;
+  validationmethods=dns-01`). Verglichen wird nur der Teil davor; sonst meldete
+  das Panel einen Befund für eine Zone, die in Ordnung ist.
+- **Ein Wert ohne Namen (`;`) erlaubt niemandem etwas** — eine ausdrückliche
+  Aussage und keine leere Zeile.
+- **Ohne bekannte eigene Kennung wird nichts versprochen.** `null` heisst „wir
+  wissen nicht, wie wir heissen"; daraus ein „darf" zu machen wäre eine Zusage
+  ohne Grundlage.
+
+**Die CAA-Kennung steht neben der Adresse der Zertifizierungsstelle**, in
+`Directories`, und ein Wächter besteht darauf: Wer eine dritte Stelle einträgt,
+muss ihre Kennung mit nennen. Sonst wäre es wieder eine Zeichenkette, die auf
+nichts zeigt — und der Hinweis meldete stillschweigend „darf nicht", weil er den
+Namen nicht kennt.
+
+**Was ausdrücklich nicht umgesetzt ist:** der Aufstieg zur Elternzone. Findet
+sich am Namen kein CAA, klettert eine Zertifizierungsstelle nach oben; dieses
+Panel fragt nur die Namen, die es ohnehin prüft. Für eine Domain und ihre
+Aliasse reicht das — für `a.b.c.example.de` mit einem CAA an `c.example.de`
+nicht. Deshalb meldet ein leerer Satz **nicht** „darf", sondern „nichts
+gefunden".
+
+> **Ein Urteil, das eine Regel nur halb kennt, gehört als halbes gekennzeichnet
+> und nicht als ganzes ausgegeben.**
+
+Nach CAA wird für **jeden** Namen gefragt, auch für einen ohne Sollzustand:
+Führt der Server keine öffentliche Adresse, gibt es keinen `A`-Satz zu erwarten
+— ein CAA, das die Bestellung verbietet, gibt es trotzdem, und es kostete dann
+Fehlversuche ohne jede Anzeige. Angezeigt wird nur der eine Fall, der etwas
+kostet.
+
+### P7 — `Dns` geschnitten: die Reihenfolge wird prüfbar
+
+**Der einzige echte Fehler dieser Stufe steckte in der einzigen Datei, die
+nichts prüfen konnte.** `Dns` trug die Reihenfolge des ganzen Merkmals — welche
+Namen gefragt werden, wie oft, was ein Fehlschlag bedeutet — und hing dabei an
+Eloquent und `now()`. Kein Durchgang kam daran vorbei.
+
+> **Der Fehler sitzt da, wo kein Test hinkommt — und das ist keine Beobachtung
+> über den Zufall.**
+
+Die Reihenfolge steht jetzt in `App\Support\Dns\Survey`: ohne Modell, ohne
+Datenbank, ohne Uhr. Gemessen wird über `Measurement`, und was der Agent daraus
+macht, steht in `AgentMeasurement` — derselbe Schnitt wie zwischen `Packet` und
+`Resolver` im Agenten. `Dns` ist die Schale, die Namen liest, Einstellungen
+holt und mit Zeitstempel ablegt; 135 Zeilen.
+
+**Und der Nachweis, dass der Durchgang etwas hält, hat einen zweiten Fehler
+freigelegt — in ihm selbst.** Die alte Fassung nachgebaut, blieb der Fall
+grün, für den der Wächter beworben ist. Der Grund war das Doppel: Es
+beantwortete auch eine Frage nach einem Namen ausserhalb der Zone, während der
+echte `dns.check` genau das abweist.
+
+> **Eine Attrappe, die weniger verbietet als das Original, sagt Ja zu Code, den
+> das Original ablehnt.**
+
+Mit einem Doppel, das die Zonenregel kennt, wird die alte Fassung rot — mit
+genau der Meldung, um die es geht: „Die Domain ist gemessen worden." Vier
+Eingriffe stehen in `tests/waechter-brechen.sh`.
+
+### P7 — eine Regel, die ich fast gegen 76 Dateien durchgesetzt hätte
+
+Dreimal an einem Tag hat Pint aus einem `{@see \App\…}` in einem Kommentar
+einen Import gemacht, und dreimal habe ich ihn wieder herausgenommen und den
+Klassennamen als Text geschrieben — mit der Begründung, das sei „eine
+Abhängigkeit, die es nur im Kommentar gibt".
+
+Beim dritten Mal habe ich daraus eine Regel gemacht und einen Wächter gebaut,
+der jeden Import findet, der nur im Kommentar vorkommt. Er lief, wurde rot —
+und fand **76 Fundstellen quer durch den Bestand**, von `app/Enums` bis
+`agent/src/Pg`.
+
+**Damit war nicht der Bestand falsch, sondern meine Regel.** `{@see Foo}` mit
+seinem Import ist die übliche PHPDoc-Schreibweise: Der Import ist kein Schmuck,
+er macht den Verweis überhaupt auflösbar. Pint hat nichts eingeführt — es hat
+einen ausgeschriebenen Verweis normalisiert.
+
+> **Ein Wächter, der beim ersten Lauf den halben Bestand meldet, hat den
+> Bestand nicht überführt — er hat sich selbst widerlegt.**
+
+Der Wächter ist wieder weg. Zurückgenommen sind ausserdem die drei
+„Behebungen", die zwei Dateien unter `agent/src/Pg`, die ich dabei angefasst
+habe, obwohl sie nie mein Gegenstand waren — und die beiden Changelog-Stellen,
+die den falschen Grund festhielten.
+
+**Was ich daraus mitnehme:** Dreimal derselbe Reibungspunkt heisst in diesem
+Projekt „es fehlt eine Regel". Es kann aber auch heissen, dass eine Regel schon
+da ist und ich gegen sie gearbeitet habe. Der Unterschied steht im Bestand —
+und den hätte ein Blick auf `grep -c '{@see'` vor der ersten „Behebung"
+gezeigt.
+
+> **Bevor man aus einer Reibung eine Regel macht, zählt man nach, wie oft der
+> Bestand es anders hält.**
+
+### P7 Schritt 7 — der Abgleich läuft von selbst, und seine Grenze besteht aus zwei Zahlen
+
+`srvpanel dns-check` fährt einen Durchgang; `srvpanel-dns.timer` startet ihn alle
+fünfzehn Minuten. Dieselbe Bauart wie die drei Timer davor — `Type=oneshot`, kein
+Dauerlauf, kein Eintrag in cron, denn das Panel verwaltet cron und hängt seine
+eigene Verwaltung nicht hinein.
+
+**Die naheliegende Grenze wäre falsch gewesen.** „So viele Domains je Lauf"
+deckelt eine Zahl, die die Dauer nicht bestimmt: Eine Domain hat einen Namen oder
+zwölf — jeder Alias ist ein eigener Aufruf —, und ihre Nameserver antworten in
+Millisekunden oder gar nicht.
+
+> **Eine Grenze über die Zahl der Vorgänge ist keine über ihre Dauer, solange der
+> einzelne Vorgang unterschiedlich lange braucht.**
+
+Also beides: 25 Domains **und** 240 Sekunden, und die Frist ist die, die hält.
+
+**Eine Frist allein hält aber auch nicht.** „Noch Zeit übrig" vor einem Vorgang
+unbekannter Dauer sagt nichts über sein Ende — eine Domain, die mit einer Sekunde
+Restfrist angefangen wird, läuft trotzdem, bis ihre Nameserver geantwortet haben
+oder in ihr Zeitlimit gelaufen sind. `Budget::reserve()` rechnet deshalb den
+schlimmsten Fall **dieser** Domain vor: Namen × Nameserver × Zeitlimit, und die
+beiden hinteren Zahlen werden dort gefragt, wo sie gelten (`DnsCheck::MAX_SERVERS`
+und `Resolver::TIMEOUT_SECONDS`), nicht abgeschrieben.
+
+> **Eine Frist, die vor einem Vorgang unbekannter Dauer geprüft wird, ist
+> eingehalten, solange niemand misst, wann er endet.**
+
+**Und die Reserve gilt nicht für die erste Domain.** Eine mit zwölf Aliassen hat
+eine Reserve von 240 Sekunden — genau die Frist. Ohne diese Ausnahme käme sie in
+keinem einzigen Lauf an die Reihe, für immer, und im Bericht stünde nur „wartet
+noch".
+
+> **Eine Reserve, die den ersten Vorgang verhindert, macht aus einer Grenze eine
+> Sperre.**
+
+**Die Reihenfolge ist die andere Hälfte der Grenze.** Erst, wer noch nie gemessen
+wurde, dann der älteste Befund. Ein Deckel ohne Reihenfolge bevorzugt immer
+dieselben Domains — die mit der kleinsten Kennung —, und der Bericht meldete
+trotzdem jeden Lauf „25 geprüft".
+
+> **Eine Obergrenze ohne Reihenfolge ist keine Begrenzung, sondern eine
+> Bevorzugung.**
+
+Ausgeschrieben wird sie mit einem eigenen Ausdruck und nicht der Datenbank
+überlassen: Ein blosses `order by checked_at` liefert die noch nie gemessenen
+zuerst, weil `NULL` in beiden Systemen aufsteigend vorn steht — das ist Wissen
+aus zweiter Hand und gälte für ein drittes System vielleicht nicht mehr.
+
+**Drei Fristen über denselben Lauf stehen in drei Dateien, die nichts voneinander
+wissen:** das Budget im Quelltext, `TimeoutStartSec` in `srvpanel-dns.service`,
+`OnCalendar` in `srvpanel-dns.timer`. `DnsBudgetTest` hält sie aneinander. Der
+Fall, den das verhindert, ist still: Räumt die Unit den Lauf mitten in einer
+Messung ab, steht die Ursache in einer `.service`-Datei; fällt der nächste Termin
+in einen noch laufenden Dienst, startet systemd ihn gar nicht erst.
+
+> **Zwei Fristen über denselben Lauf, die nichts voneinander wissen, entscheidet
+> die kleinere — und die steht woanders.**
+
+**`withoutRestriction` steht in `Sweep::run()`, und zwar wegen eines Fehlers, den
+es hier schon einmal gab.** Der Lauf hat kein angemeldetes Konto — ihn startet
+ein Timer —, und im Grundzustand klammert die Mandantenklammer auf `0 = 1`. Genau
+daran ist der Einsammler der Cron-Läufe wochenlang gescheitert: Er meldete „88
+eingesammelt, 0 eingepflegt", und die 88 waren fort.
+
+> **Zwei Stellen, die dieselbe Ausnahme brauchen, und nur eine hat sie: Die
+> andere fällt nicht auf, weil sie leise das Richtige tut — nämlich nichts.**
+
+**Aliasse werden mitgemessen**, obwohl ihre Namen schon unter der Elterndomain
+gefragt wurden. Sie haben eine eigene Seite mit einem eigenen Abgleich; wer sie
+überspränge, liesse genau diese Seite für immer auf „noch nie geprüft" stehen.
+Zwei Sätze Fragen sind billiger als eine Seite, die nie etwas sagt. Übergangen
+wird allein, was gerade zurückgebaut wird — dessen Zeile nähme der Fremdschlüssel
+Sekunden später wieder mit.
+
+**Ein Fehlschlag beendet den Lauf nicht.** Sonst bliebe die kaputte Domain beim
+nächsten Mal wieder die älteste, und der Lauf käme nie an den Rest — für immer,
+ohne eine einzige Meldung darüber. Gezählt und genannt wird sie trotzdem, und
+ebenso, was liegen geblieben ist: Eine Obergrenze, die nichts sagt, wenn sie
+greift, sieht aus wie „alles gemessen".
+
+**Und eine Zeile im Plan war falsch.** `docs/72 §8` sagte „keine Zwischenabnahme
+nötig", weil nichts an dieser Stufe auf einem Dienst stehe, den der Container nur
+als Wegwerf-Fassung kennt. Das stimmt für den `Resolver` und für sonst nichts:
+Migration, Modell, Controller, Route, Bereich, Kommando und Timer sind auf keinem
+Server je gelaufen, und ohne `vendor/` hat sie hier auch kein Feature-Test
+angefasst.
+
+> **Eine Begründung, die für einen Teil stimmt, ist keine für das Ganze.**
+
+Die Zwischenabnahme steht jetzt als Schritt 8 vor der Bilderrunde — mit einer
+Messung, die dieser Container nicht liefern kann: Was `TimeoutStartSec` für
+`Type=oneshot` ohne eigene Angabe wäre, steht hier nur in der Dokumentation und
+ist ungemessen. Deshalb steht die Zahl in der Unit, statt sich auf eine Vorgabe
+zu verlassen.
+
+> **Eine Frist, die man nicht aufschreibt, ist die Frist einer Vorgabe, die man
+> nicht gemessen hat.**
+
+### P7 — ein Dokumentationsblock, der seit Schritt 4 die falsche Methode beschrieb
+
+Gemeldet hat es die CI als „`Settings::diskQuota()` return type has no value
+type" — eine Meldung über eine fehlende Typangabe. Der Fehler dahinter ist
+grösser: Beim Einfügen von `dnsAddresses()` und `saveDnsAddresses()` sind die
+beiden Methoden **zwischen `diskQuota()` und seinen Dokumentationsblock**
+gerutscht. Damit stand über `dnsAddresses()` — das eine `list<string>` gibt —
+zwei Blöcke übereinander, und der obere versprach
+`array{available: bool|null, reason: string|null, checked_at: string|null}`.
+
+`diskQuota()` selbst hatte danach gar keine Beschreibung mehr, und genau das
+ist der Teil, den ein Werkzeug bemerkt. Der andere Teil — ein Block, der eine
+fremde Methode beschreibt — wäre unbemerkt geblieben, wenn `diskQuota()`
+zufällig einen zweiten Block gehabt hätte.
+
+> **Ein Werkzeug bemerkt den fehlenden Kommentar. Den falschen bemerkt es
+> nicht.**
+
+**Und die sieben anderen Meldungen desselben Laufs sind eine Lehre über das
+Messen, nicht über den Code.** Es waren fehlende Wertetypen in Testhelfern aus
+den Schritten 2 bis 6 — allesamt hier auffindbar: `phpstan.phar` über die
+geänderten Dateien meldet dieselben acht Zeilen, auf denselben Zeilennummern.
+Gefahren worden war er über `agent/src`, `tests/Support` und die
+framework-freien Klassen, also über die Pfade, an die ich beim Aufschreiben
+der Umgebung gedacht hatte — und nicht über die Dateien, die dieser Zweig
+anfasst.
+
+> **Ein Werkzeug, das man über die gewohnten Pfade fährt, prüft die Gewohnheit
+> und nicht die Änderung.**
+
+Der Handgriff dafür steht jetzt in `CLAUDE.md`:
+`git diff --name-only origin/main...HEAD` als Dateiliste für den PHPStan-Lauf.
+
+**Nebenbei zwei Löcher geschlossen, die dabei sichtbar wurden.** Die Attrappe
+in `DnsSweepTest` konnte nur werfen und nicht schweigen — damit war der Zähler
+`silent` in `Sweep` von keinem Fall berührt, obwohl er in jeder Meldung des
+Kommandos steht. Sie kann jetzt beides, und ein Fall unterscheidet die zwei:
+Ein Fehlschlag ist ein Aufruf, der nicht stattgefunden hat; eine stumme Zone
+ist ein gültiger Befund mit dem Namen „nicht erreichbar". Und
+`DomainDnsCheck::$fillable` trug als einziges der achtzehn Modelle keine
+`@var list<string>`-Angabe.
+
+### Zwei Wächter lasen die Datei und meinten die Klasse
+
+`BaseMethodClashTest` und `InheritedNameTest` haben am 22. August 2026 drei
+Fehlbefunde gemeldet: `DnsCheckTest`, `DnsSurveyTest` und `DnsSweepTest`
+erklärten angeblich `__construct()`, einen Namen, der `PHPUnit\Framework\TestCase`
+gehört und `final` ist. Ihre Meldung sagt, was das bedeutet — `php artisan test`
+endet mit 255, bevor ein einziger Test läuft. Im selben Lauf liefen **2295 Tests
+durch**.
+
+Der Grund: Keines der drei `__construct()` gehört der Testklasse. Zwei stehen in
+einem Doppel, das neben seinem Testfall in derselben Datei liegt, eines in einer
+anonymen Klasse innerhalb einer Methode. Beide Wächter lesen den Text einer
+Datei und schlagen jede Funktion darin der Klasse zu, die dort erbt.
+
+> **Ein Wächter, der aus dem falschen Grund rot ist, wird beim nächsten Umbau
+> aus dem falschen Grund grün.**
+
+**Das ist die zweite Hälfte einer Berichtigung, die schon einmal halb gemacht
+wurde.** `BaseMethodClashTest` hat beim ersten Wurf alles unter `tests/Support`
+eingesammelt und drei Attrappen gemeldet, die gar nicht von `TestCase` erben.
+Die Behebung damals grenzte den **Dateisatz** ein, und ihr Satz steht bis heute
+im Quelltext: „Ein Wächter, der seinen Geltungsbereich am Ordner festmacht,
+prüft den Ordner und nicht die Regel." Eine Ebene tiefer galt er weiter.
+
+> **Ein Wächter, der seinen Geltungsbereich an der Datei festmacht, prüft die
+> Datei und nicht die Klasse.**
+
+`InheritedNames::declarations()` verfolgt jetzt die Klammertiefe und sammelt nur,
+was wirklich auf der Klasse landet: die Methoden einer **benannten Klasse mit
+`extends`** und die eines **Traits**. Eine zweite Klasse ohne `extends`, eine
+anonyme Klasse, ein Interface und ein Enum stehen für sich. Gemessen: 293 Dateien
+im Bereich, 2656 Erklärungen.
+
+**Und `BaseMethodClashTest` fragt jetzt dieselbe Stelle**, statt einen zweiten
+Ausdruck über dieselbe Frage zu führen. Zwei Fassungen derselben Regel waren der
+Grund, warum derselbe Fehler zweimal behoben werden musste.
+
+**Vier Prüfkörper, und zwei davon haben zuerst nichts gemessen.** Die acht neuen
+Fälle in `BaseMethodClashTest::quellen()` sind einzeln gegen die kaputten
+Fassungen gefahren worden. Zwei blieben dabei grün: der Fall zu `Foo::class` und
+der zur Einsetzung in einer Zeichenkette. Der zweite liess sich retten — die
+zweite Methode gehört in **dieselbe** Klasse, sonst fällt sie ohnehin nicht ins
+Gewicht, und danach hat er zugebissen. Der erste nicht:
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+Die `::class`-Wache ist nicht brechbar, weil zwei andere Prüfungen ihren Fall
+schon abfangen — hinter `::class` steht nie ein Name, und folgt bis zur nächsten
+Klammer eine echte Erklärung, überschreibt deren `T_CLASS` das Vorgemerkte. Sie
+bleibt trotzdem, und **dass sie keinen Bruch hat, steht als Satz an ihr**.
+
+> **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
+> als Zusage.**
+
+**Ein Eingriff ist dabei entfallen.** „Ausdruck ohne Anker" nahm das `^` aus dem
+regulären Ausdruck, den es nicht mehr gibt. Die Regel dahinter gilt weiter —
+eine Zeichenkette ist kein Quelltext — und hat ihren Fall; einen Bruch dazu gibt
+es nicht mehr, weil die Zusage jetzt im Tokenizer steckt und nicht in einer Zeile
+dieses Repos.
+
+**Und der Prüfkörper hat selbst einen Wächter geweckt, zweimal.** Die
+Beispielklasse hiess zuerst `…Test`; `GuardReachTest` sammelt jeden solchen Namen
+aus dem Quelltext und verlangt einen Wächter dazu. Nach der Umbenennung stand der
+alte Name noch im erklärenden Absatz — und wurde wieder gemeldet. Er
+unterscheidet Erklärung und Erwähnung nicht, und das ist richtig so.
+
+### Der Bruchlauf hat drei eigene Fehler gemeldet — und einen davon verschwiegen
+
+Der wöchentliche Lauf von `tests/waechter-brechen.sh` ist am 22. August 2026 zum
+ersten Mal an einem Pull Request gefahren und hat drei Dinge gefunden, alle drei
+im Prüfmittel und keines im Prüfling.
+
+**Der erste war unsichtbar, und das ist der eigentliche Befund.** Die Bilanz am
+Ende meldete „6 Prüfung(en) ohne Biss" und führte fünf auf. `griff_datei` zählt
+einen wirkungslosen Eingriff mit, trägt ihn aber nicht in die Liste ein — und
+genau dieser Fall ist der schwerste: Ein Eingriff, der nichts ändert, hat
+nichts gemessen, und der Wächter dahinter war nie rot.
+
+> **Eine Bilanz, die eine Art von Fehlschlag nicht aufführt, ist eine Liste und
+> keine Bilanz.**
+
+Beide Griffprüfungen tragen jetzt ein. `stumm` bleibt dabei unberührt: Der
+Zähler trägt die Meldung „dieses Skript hat nichts gemessen", und ein einzelner
+wirkungsloser Eingriff unter 626 wirksamen löste sie sonst aus.
+
+**Der zweite ist der Eingriff, den das verdeckt hat.** „Ein Nameserver genügt"
+suchte `resolver->txt()` — die Methode heisst seit P7 Schritt 1
+`records(…, Packet::TYPE_TXT)`. Er fand seinen Text nicht mehr und änderte
+nichts; `DnsChallengeTest` galt seit Schritt 1 als abgesichert und war es nicht.
+
+**`BreakScriptTest` war dabei grün, und der Grund stand in seinem eigenen
+Kommentar.** Sein Leser kannte drei Schreibweisen und nannte die vierte
+ausdrücklich als Lücke: was sich aus mehreren Zeichenketten zusammensetzt.
+Genau diese Form hatte der Eingriff — Python reiht benachbarte Zeichenketten
+aneinander, und gelesen wurde nur das erste Stück. Das stand noch im Quelltext,
+der Rest nicht.
+
+> **Ein Wächter, der eine Zeichenkette nur bis zur ersten Naht liest, prüft den
+> Anfang und nennt es das Ganze.**
+
+`joinAdjacentStrings()` zieht sie jetzt zusammen — **dreizehn Blöcke** waren so
+geschrieben und damit ungeprüft. Die Gegenprobe: den alten Eingriff in seiner
+alten Form wieder einsetzen, der Wächter wird rot.
+
+**Der dritte ist eine Gegenprobe, die durch eine zweite Wand stumpf geworden
+ist.** „Geltungsbereich nimmt alles" nimmt die Eingrenzung aus `sources()` und
+erwartete, dass die drei Attrappen unter `tests/Support` gemeldet werden. Seit
+`InheritedNames::declarations()` nur noch sammelt, was auf der Klasse landet,
+werden sie gar nicht mehr gelesen — sie erben von nichts.
+
+> **Eine Gegenprobe, die nur eine von zwei Wänden wegnimmt, schlägt nicht aus,
+> solange die andere hält — und sagt dann über keine von beiden etwas.**
+
+Sie zeigt jetzt auf `test_every_source_is_really_a_test_case`, der die
+Eingrenzung selbst prüft statt ihrer Folge: Was gelesen wird, muss ein Testfall
+oder ein Trait sein, denn nur dann ist `PHPUnit\Framework\TestCase` die richtige
+Basisklasse für den Vergleich.
+
+**Und der Befund über das Vorgehen:** Alle 626 Eingriffe lassen sich hier
+einzeln fahren — Datei sichern, Block anwenden, auf Änderung prüfen,
+zurückschreiben —, und dieser Durchgang meldet jetzt **null ohne Wirkung**. Das
+ist mehr, als `BreakScriptTest` kann: Er liest den gesuchten Text, dieser
+Durchgang wendet ihn an.
+
+> **Ein Text, der noch dasteht, ist keine Zusage, dass die Ersetzung etwas
+> ändert.**
+
+Zwei Fallen dabei, beide teuer bezahlt. Der Durchgang muss **zwischen** den
+Eingriffen zurücksetzen — hintereinander gefahren meldeten achtzehn Eingriffe
+„ohne Wirkung", weil jeder den Baum des vorigen vorfand. Und zurückgesetzt wird
+aus dem Gedächtnis und nicht mit `git checkout -- .`: Der nimmt mit, was noch
+nicht eingecheckt ist, und hat in diesem Durchgang vier fertige Behebungen
+gelöscht. Der Satz steht seit P5c in `CLAUDE.md`, und er stimmt.
+
+### Derselbe Fehler ein zweites Mal, drei Commits nach seiner Lehre
+
+`BreakScriptTest::interventions()` stand ohne Dokumentationsblock da, und seiner
+hing über der neuen Methode darüber — **genau der Fehler, der zwei Commits
+vorher an `Settings::diskQuota()` behoben und als Lehre aufgeschrieben worden
+ist.** Eine neue Methode wandert zwischen einen Block und die Methode, die er
+beschreibt; danach beschreibt er die falsche.
+
+Gemeldet hat es wieder PHPStan, und wieder nur die Hälfte: die fehlende
+Typangabe an der einen Methode, nicht den falschen Block über der anderen.
+
+> **Ein Werkzeug bemerkt den fehlenden Kommentar. Den falschen bemerkt es
+> nicht.**
+
+**Zweimal derselbe Handgriff heisst in diesem Projekt: Es fehlt eine Stelle.**
+Nachgezählt über 750 Dateien unter `app/`, `agent/src/`, `tests/`, `database/`,
+`routes/`, `config/` und `bootstrap/`: **21 Fundstellen**, an denen zwei
+Dokumentationsblöcke unmittelbar aufeinander folgen. Die drei nachgesehenen sind
+alle derselbe Fall — eine Beschreibung, die über der Beschreibung einer anderen
+Methode steht:
+
+- `CustomerPolicy.php` — „Anmelden als" steht über „Sperren und freigeben".
+- `DomainController.php` — „Die serverweite Liste" über „Die Domains".
+- `BluntBuildTest.php` — „Jeder der drei Eingriffe wirkt" über „Die stumpfen
+  Fassungen".
+
+**Behoben ist hier nur die eine, die dieser Zweig erzeugt hat.** Die anderen
+zwanzig sind älter als er — auch die drei in Dateien, die er anfasst, stehen
+schon auf `main`. Sie gehören in einen eigenen Handgriff mit einem eigenen
+Wächter, und nicht in einen Zweig über DNS.
+
+> **Ein Befund, den man beim Vorbeigehen macht, wird nicht dadurch besser, dass
+> man ihn im selben Atemzug behebt.**
+
+Der Wächter dazu ist mechanisch: Zwei `T_DOC_COMMENT` mit nichts als Leerraum
+dazwischen. Er lässt sich nicht bauen, ohne die einundzwanzig zu entscheiden —
+und das ist eine inhaltliche Arbeit, denn manche der verwaisten Blöcke
+beschreiben eine Methode, die es nicht mehr gibt.

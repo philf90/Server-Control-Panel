@@ -1,0 +1,37 @@
+[Unit]
+Description=SrvPanel — regelmässiger DNS-Abgleich der Domains
+Documentation=https://repo.cloudsrv24.de/
+
+[Timer]
+# Fünf Minuten nach dem Start. Derselbe Versatz wie bei den anderen Timern: In
+# den ersten Minuten fährt der Server hoch, und ein Abgleich, der auf einen noch
+# nicht laufenden Agenten trifft, ist eine Fehlermeldung ohne Anlass. Hier kommt
+# dazu, dass der Auflöser dieses Rechners selbst erst stehen muss — sonst misst
+# der erste Lauf nach jedem Neustart „nicht erreichbar" für alles.
+OnBootSec=5min
+
+# **Wall-clock und nicht monoton.** Ein rein monotoner Timer kann seinen
+# nächsten Termin verlieren und dabei „active" bleiben; auf cloudsrv24 hat das
+# am 19. August 2026 zweiundzwanzig Stunden lang niemandem etwas gesagt.
+# `OnCalendar` rechnet gegen die Uhr und braucht keine Vorgeschichte.
+#
+# **Alle fünfzehn Minuten und nicht stündlich.** Der Takt ist nicht die
+# Messhäufigkeit einer Domain — die steht auf Sweep::FRESH_MINUTES und ist eine
+# Stunde. Er entscheidet, wie schnell eine **neu angelegte** Domain zum ersten
+# Mal drankommt, und das ist der Fall, in dem jemand wartet: Er hat den Eintrag
+# gerade beim Anbieter gesetzt und sieht nach, ob er angekommen ist.
+#
+# Ein Lauf ohne fällige Domain kostet eine Abfrage und ist sofort fertig.
+OnCalendar=*:0/15
+
+# Ein Server, der über Nacht aus war, gleicht nach dem Einschalten einmal ab,
+# statt bis zur nächsten Viertelstunde zu warten.
+Persistent=true
+
+# Zwei Minuten Streuung. Der Lauf ist nicht dringend, und zwanzig gleichzeitig
+# eingerichtete Server sollen nicht in derselben Sekunde dieselben Nameserver
+# fragen — von dort aus sähe das nicht wie zwanzig Panels aus.
+RandomizedDelaySec=2min
+
+[Install]
+WantedBy=timers.target

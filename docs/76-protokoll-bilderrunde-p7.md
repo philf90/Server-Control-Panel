@@ -193,7 +193,18 @@ gehört von den erklärenden `.hint` abgesetzt, damit er als Sperre und nicht al
 Fussnote liest. Ein Wächter darüber, dass ein abschaltbares Bedienelement einen
 sichtbaren Aus-Zustand hat, gehört dazu.
 
-**Nicht behoben**, aus demselben Grund wie Befund 1 und 2.
+**Der Betreiber hat entschieden, dass er gebaut wird** — am 22. August, im Lauf:
+„Wir haben einen Befund, der nachträglich gebaut bzw. korrigiert werden muss,
+damit die Darstellung deutlicher wird." Behoben wird er mit den übrigen am Ende,
+aus demselben Grund wie Befund 1 und 2.
+
+**Und er hat ihn gegengeprüft, indem er die Ursache wegnahm:** Zugangsdaten
+hinterlegt, und das Kästchen klickt. Damit ist belegt, dass die Sperre an
+`possible` hängt und nicht an einem kaputten Bedienelement — die Behebung
+betrifft die Anzeige und nicht die Logik.
+
+> **Eine Sperre, die man aufhebt, statt sie zu umgehen, sagt einem, ob man die
+> richtige gefunden hat.**
 
 **Und die Lehre über den Lauf hinaus.** `dokument: 0`, `schiebt: []`,
 Gegenprobe `200/200` — vier Lagen lang. Kein Messmittel dieses Projekts hätte
@@ -259,20 +270,41 @@ Frage an den Betreiber und kein Fehler.
 
 - **Zwölf der sechzehn Lagen** — Ansicht 1 ist vollständig, die Ansichten 2 bis
   4 stehen aus.
-- **Die Fuge unter „Als Platzhalter bestellen" ist gar nicht zu sehen**, und
-  zwar aus einem Grund im Code: Der Knopf steht unter
-  `v-if="props.can.update && (!props.certificate || alsPlatzhalter)"`. Diese
-  Domain **hat** ein gültiges Zertifikat und das Kästchen ist leer — also gibt
-  es keine `.button-row`, an der die Regel `.toggle + .button-row` greifen
-  könnte.
+- **Die Regel `.toggle + .button-row` ist weiterhin unbelegt**, und der Versuch,
+  sie zu belegen, hat gezeigt warum.
 
-  Der Zustand ist herstellbar: **Kästchen ankreuzen**, dann erscheint der Knopf
-  („Platzhalter bestellen") unmittelbar darunter. Das ist die Aufnahme, die die
-  Behebung vom 22. August belegt — und ohne sie ist sie unbelegt.
+  Nachdem Zugangsdaten hinterlegt waren, liess sich das Kästchen ankreuzen und
+  der Knopf „Platzhalter bestellen" erschien mit sichtbarem Abstand darüber
+  (1440/hell, `dokument: 0`, Gegenprobe `200/200`). **Der Abstand stammt aber
+  nicht aus der Regel.** Zwischen beiden steht ein dritter Baustein:
 
-  > **Ein Bild von einer Seite, auf der der Gegenstand gar nicht gerendert
-  > wird, ist kein Beleg für seinen Zustand — es ist ein Beleg für die
-  > Bedingung davor.**
+  ```
+  <label class="toggle">…</label>
+  <p class="section-note">Das bestehende Zertifikat bleibt liegen. …</p>
+  <div class="button-row"><button>Platzhalter bestellen</button></div>
+  ```
+
+  `.toggle + .button-row` ist ein **direkter** Nachbarschaftsselektor; mit dem
+  `.section-note` dazwischen greift er nicht. Was man sieht, ist der Rand dieses
+  Absatzes — wörtlich der Zustand, den der Kommentar in `app.css` als Ursache
+  des ursprünglichen Befundes benennt.
+
+  > **Ein Abstand, der richtig aussieht, ist noch kein Beleg dafür, dass die
+  > Regel greift, die ihn erzeugen sollte.**
+
+  Der Zustand, in dem sie greift, ist eine Domain **ohne** Zertifikat: Dann
+  entfällt der `.section-note` (`v-if="alsPlatzhalter && props.certificate"`),
+  und der Knopf steht unmittelbar unter dem Kästchen. Er gehört in den
+  Abnahmelauf.
+
+- **Auf `cloudlab24.de` sind seit dem 22. August DNS-Zugangsdaten hinterlegt**,
+  vom Betreiber im Lauf gesetzt, um Befund 3 gegenzuprüfen. Alle Aufnahmen
+  danach zeigen die Seite **ohne** den Hinderungsgrund unter dem Kästchen. Wer
+  spätere Bilder mit den früheren vergleicht, findet dort eine Zeile weniger und
+  keinen Fehler.
+
+  > **Ein Zustand, den man zum Prüfen herstellt, bleibt hergestellt, bis ihn
+  > jemand zurücknimmt.**
 - **Die Behebung aus `docs/75 §1.1` ist noch nicht nachgesehen.** Der Fund war
   die Meldung „nicht gefragt", und die erscheint nur an einer Domain, deren
   Nameserver niemand erreicht — `cloudlab24.de` hat welche. Sie gehört an

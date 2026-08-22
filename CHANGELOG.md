@@ -17727,3 +17727,34 @@ worden sind.
 
 Der Bruch nennt beide betroffenen Seiten: `Domains/Show.vue` und — was erst der
 Wächter gezeigt hat — `Auth/Login.vue`.
+
+### Zwei Zeitangaben auf einer Seite, die in zwei Zonen rechnen
+
+Befund 3 der Zwischenabnahme (`docs/74`). Auf der Domainseite rendert die
+Vorgangsliste über `Clock::display()` — also in der **eingestellten**
+Anzeigezone. Der DNS-Abgleich daneben schickte ISO-8601 an den Browser und
+liess dort `new Date().toLocaleString()` rechnen, also in der Zone des
+**Betrachters**.
+
+Aufgefallen ist es niemandem: Auf dem Messrechner waren beide Zonen dieselbe.
+Gefunden hat es nur, dass jemand die zwei Zahlen nebeneinander gelesen hat.
+
+> **Zwei Zeitangaben auf einer Seite, die in verschiedenen Zonen rechnen, sind
+> schlimmer als eine falsche: Man kann sie miteinander vergleichen.**
+
+`Dns::last()` schickt den Zeitpunkt jetzt durch `Clock`, die Seite druckt nur
+noch. Nebeneffekt: Beide Angaben tragen damit dasselbe Format.
+
+**Der Wächter zählt statt auszunehmen.** `DisplayTimeZoneTest` findet jede
+Stelle, an der `new Date(…)` und ein `toLocale…` in derselben Zeile stehen —
+und hält sie gegen eine Liste mit **fünf** Fundstellen, die es im Bestand noch
+gibt. Eine davon (`Databases/Show.vue`, `size_measured_at`) ist derselbe Befund
+und war nur nie gemeldet; die anderen vier formatieren Sekunden vom Agenten und
+würden beim Umbau ihr sichtbares Format ändern — das braucht eigene Aufnahmen.
+
+> **Ein Loch, das man zählt, ist kein Loch mehr — es ist eine Zahl, die kleiner
+> werden kann.**
+
+Der zweite Fall des Wächters ist zugleich seine Gegenprobe: Trifft der Ausdruck
+nichts mehr, findet er null statt fünf und wird rot, statt „alles in Ordnung"
+zu melden. Beide Brüche stehen im Skript und beissen einzeln.

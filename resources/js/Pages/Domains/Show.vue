@@ -280,11 +280,7 @@ const dnsRang = (zustand: DnsZustand): 'ok' | 'warn' | 'critical' | 'neutral' =>
  * **Er steht immer dabei**, und das ist keine Kosmetik: Was hier zu sehen ist,
  * ist eine Aussage über den Augenblick der Messung und nicht über jetzt.
  */
-const dnsGeprueft = computed(() => {
-  const wann = props.dns.last?.checked_at
-
-  return wann === undefined ? null : new Date(wann).toLocaleString('de-DE')
-})
+const dnsGeprueft = computed(() => props.dns.last?.checked_at ?? null)
 
 /** Läuft die Prüfung gerade? */
 const dnsLaeuft = ref(false)

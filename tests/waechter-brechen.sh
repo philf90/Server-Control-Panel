@@ -14170,6 +14170,44 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BaseMethodClashTest passed
 
 echo
+echo "── DisplayTimeZoneTest: der Browser entscheidet die Zeitzone ──"
+#
+# Befund 3 der Zwischenabnahme (docs/74): Der DNS-Bereich schickte ISO-8601 an
+# den Browser und liess dort new Date().toLocaleString() rechnen — also in der
+# Zone des Betrachters. Daneben rendert die Vorgangsliste derselben Seite ueber
+# Clock::display(), also in der eingestellten Anzeigezone.
+
+vorher_datei resources/js/Pages/Domains/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'const dnsGeprueft = computed(() => props.dns.last?.checked_at ?? null)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "const dnsGeprueft = computed(() => {\n  const wann = props.dns.last?.checked_at\n\n  return wann === undefined ? null : new Date(wann).toLocaleString('de-DE')\n})"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Domains/Show.vue "der Browser rechnet die Zeit" &&
+pruefe "der Browser rechnet die Zeit" \
+  DisplayTimeZoneTest::test_no_new_place_decides_the_time_zone_in_the_browser failed
+wiederherstellen
+
+# Und die Gegenprobe zum Ausdruck: Trifft er nichts mehr, meldet der Waechter
+# nicht „alles in Ordnung", sondern dass seine gezaehlten Stellen fehlen.
+vorher_datei tests/Unit/DisplayTimeZoneTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DisplayTimeZoneTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "str_contains($zeile, 'new Date(')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "str_contains($zeile, 'new Datum(')", 1))
+PY2
+griff_datei tests/Unit/DisplayTimeZoneTest.php "der Ausdruck trifft nichts mehr" &&
+pruefe "der Ausdruck trifft nichts mehr" \
+  DisplayTimeZoneTest::test_every_counted_place_still_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DisplayTimeZoneTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

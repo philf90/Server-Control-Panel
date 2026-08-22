@@ -8,6 +8,7 @@ use App\Models\Domain;
 use App\Models\DomainDnsCheck;
 use App\Support\Settings\Settings;
 use App\Support\Tenancy\Tenancy;
+use App\Support\Time\Clock;
 use App\Support\Tls\AcmeSettings;
 use SrvPanel\Agent\Acme\Directories;
 use SrvPanel\Agent\Names;
@@ -77,7 +78,23 @@ final class Dns
         }
 
         return [
-            'checked_at' => $check->checked_at->toIso8601String(),
+            /*
+             * **Über {@see Clock} und nicht als ISO-8601 an den Browser.**
+             * Bis zum 22. August 2026 stand hier `toIso8601String()`, und die
+             * Seite rechnete mit `new Date().toLocaleString()` — also in der
+             * Zeitzone des **Browsers**. Daneben rendert die Vorgangsliste
+             * derselben Seite über `Clock::display()`, also in der
+             * **eingestellten** Anzeigezone. Zwei Zeitangaben auf einer Seite,
+             * die in verschiedenen Zonen rechnen.
+             *
+             * Aufgefallen ist es niemandem, weil beide Zonen auf dem
+             * Messrechner dieselbe waren (`docs/74`, Befund 3).
+             *
+             * > **Zwei Zeitangaben auf einer Seite, die in verschiedenen Zonen
+             * > rechnen, sind schlimmer als eine falsche: Man kann sie
+             * > miteinander vergleichen.**
+             */
+            'checked_at' => Clock::display($check->checked_at),
             'findings' => $check->findings,
         ];
     }

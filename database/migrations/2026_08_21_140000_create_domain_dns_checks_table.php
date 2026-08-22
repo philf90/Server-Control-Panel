@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\Concerns\BelongsToSubscription;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -23,7 +24,7 @@ use Illuminate\Support\Facades\Schema;
  *
  * **`subscription_id` steht mit dabei**, obwohl die Domain ihn kennt. Dieselbe
  * Bauart wie bei `cron_runs`, und aus demselben Grund:
- * das Trait `BelongsToSubscription` klammert über diese Spalte,
+ * {@see BelongsToSubscription} klammert über diese Spalte,
  * und ohne sie wäre die Voreinstellung dieser Tabelle „alles sichtbar" statt
  * „nichts".
  *

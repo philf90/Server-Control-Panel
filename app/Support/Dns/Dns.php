@@ -10,48 +10,32 @@ use App\Support\Settings\Settings;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tls\AcmeSettings;
 use SrvPanel\Agent\Acme\Directories;
-use SrvPanel\Agent\Client;
 use SrvPanel\Agent\Names;
-use Throwable;
 
 /**
- * Der Abgleich: was eine Domain braucht, gegen das, was das DNS ausliefert.
+ * Der Abgleich, angeschlossen: Bestand, Uhr und Ablage.
  *
- * **Diese Klasse führt die vier Teile zusammen und entscheidet nichts selbst.**
- * Der Sollzustand steht in {@see DesiredRecords}, die Adressen in
- * {@see ServerAddresses}, das Urteil in {@see Comparison}, die Messung im
- * Agenten. Was hier steht, ist die Reihenfolge — und die Frage, welche Namen
- * überhaupt zu einer Domain gehören.
+ * **Diese Klasse entscheidet nichts.** Was gefragt wird und was die Antwort
+ * bedeutet, steht in {@see Survey} — ohne Modell, ohne Datenbank, ohne Uhr und
+ * deshalb prüfbar. Hier steht nur, woher die Namen kommen, woher die Adressen,
+ * welche Zertifizierungsstelle gilt und wohin das Ergebnis geht.
  *
- * **Gefragt wird nach der Domain und ihren Aliassen** — die Liste kommt aus
- * {@see Domain::serverNames()} und wird hier nicht nachgebaut. Genau diese
- * Namen bedient nginx unter ihrem eigenen `server_name`; ein automatisches
- * `www` gibt es nicht, wer es will, legt es als Alias an.
+ * **Der Schnitt ist am 21. August nachgezogen worden, und zwar aus Anlass.**
+ * Solange die Reihenfolge des ganzen Merkmals hier stand, hing sie an Eloquent
+ * und `now()`; kein Durchgang kam daran vorbei. Der einzige echte Fehler dieser
+ * Stufe steckte genau dort.
  *
- * **Und es geht ein Aufruf je Name hinaus und nicht einer je Domain.** Der
- * erste Wurf fragte alle Namen unter der Zone der Domain — und das ist falsch,
- * denn **ein Alias darf jeden Namen tragen** (`Domains::parent()` sagt es
- * wörtlich: „genau dafür gibt es ihn"). Ein Alias `beispiel.at` an einer
- * Domain `beispiel.de` liegt nicht in deren Zone; `dns.check` weist ihn zu
- * Recht ab, die Ausnahme wird gefangen — und **die ganze Domain** stand als
- * „nicht erreichbar" da, auch die Einträge, die in Ordnung waren.
+ * > **Der Fehler sitzt da, wo kein Test hinkommt — und das ist keine
+ * > Beobachtung über den Zufall.**
  *
- * > **Ein Fehler an einem Namen, der als Zustand der ganzen Domain erscheint,
- * > ist schlimmer als kein Befund.**
- *
- * Je Name ist ausserdem sachlich richtiger: Die Sätze eines fremden Alias
- * liegen auf **anderen** Nameservern, und die der eigenen Zone zu fragen
- * ergäbe eine Antwort von jemandem, der nicht zuständig ist.
- *
- * **Ein Fehlschlag ist ein Ergebnis und keine Ausnahme.** Antwortet der Agent
- * nicht, steht das als „nicht erreichbar" da — mit Zeitpunkt. Eine Seite, die
- * bei einem stummen Agenten gar nichts zeigt, sieht aus wie eine Domain ohne
- * Befund.
+ * **Die Namen kommen aus {@see Domain::serverNames()}** und werden hier nicht
+ * nachgebaut: Genau diese bedient nginx unter ihrem eigenen `server_name`. Ein
+ * automatisches `www` gibt es nicht; wer es will, legt es als Alias an.
  */
 final class Dns
 {
     public function __construct(
-        private readonly Client $agent,
+        private readonly Survey $survey,
         private readonly Settings $settings,
         private readonly Tenancy $tenancy,
         private readonly AcmeSettings $tls,
@@ -65,32 +49,12 @@ final class Dns
     public function check(Domain $domain): array
     {
         $addresses = $this->addresses();
-        $desired = DesiredRecords::forAll($domain->serverNames(), $addresses['effective']);
 
-        $measured = $this->measure($desired, $domain->serverNames());
-
-        $findings = [
-            'nameservers' => $measured['nameservers'],
-            'addresses' => $addresses,
-            /*
-             * **Das CAA-Urteil steht neben den Einträgen und nicht darunter.**
-             * Es beantwortet eine andere Frage: nicht „kommt jemand an", sondern
-             * „lässt sich ein Zertifikat bestellen". Ein Satz, der uns nicht
-             * nennt, kostet Fehlversuche, die für jeden Kunden dieses Servers
-             * zählen (`docs/34 §11`).
-             */
-            'authorities' => $measured['authorities'],
-            'records' => array_map(
-                static fn (array $entry): array => [
-                    'name' => $entry['name'],
-                    'type' => $entry['type'],
-                    'state' => $entry['state']->value,
-                    'expected' => $entry['expected'],
-                    'found' => $entry['found'],
-                ],
-                Comparison::of($desired, $measured['records']),
-            ),
-        ];
+        $findings = ['addresses' => $addresses] + $this->survey->of(
+            $domain->serverNames(),
+            $addresses['effective'],
+            Directories::caa($this->tls->directory()),
+        );
 
         return $this->store($domain, $findings);
     }
@@ -138,93 +102,6 @@ final class Dns
             'override' => $override,
             'effective' => ServerAddresses::effective($derived, $override),
         ];
-    }
-
-    /**
-     * Den Agenten fragen — je Name einmal, und einen Fehlschlag als Ergebnis.
-     *
-     * **Je Name, weil ein Alias jeden Namen tragen darf** (siehe den
-     * Klassenkopf). Die Zone ist dabei der Name selbst; `Resolver` sucht den
-     * NS-Satz von unten nach oben und landet bei der Zone darüber, wenn der
-     * Name keinen eigenen hat.
-     *
-     * **Ein Fehlschlag bleibt bei seinem Namen.** Scheitert die Frage nach
-     * einem Alias, stehen dessen Einträge als „nicht erreichbar" da — und die
-     * der Domain daneben so, wie sie gemessen wurden.
-     *
-     * @param  list<array{name: string, type: string, expected: list<string>}>  $desired
-     * @param  list<string>  $names  Auch die ohne Sollzustand — CAA gilt für jeden
-     * @return array{nameservers: list<string>, records: list<array<string, mixed>>, authorities: list<array<string, mixed>>}
-     */
-    private function measure(array $desired, array $names): array
-    {
-        $jeName = [];
-
-        /*
-         * **Nach CAA wird für jeden Namen gefragt, auch ohne Sollzustand.**
-         * Führt der Server keine öffentliche Adresse, gibt es keinen `A`-Satz
-         * zu erwarten — ein CAA, das die Bestellung verbietet, gibt es
-         * trotzdem, und es kostete dann Fehlversuche ohne jede Anzeige.
-         */
-        foreach ($names as $name) {
-            $jeName[$name][] = ['name' => $name, 'type' => 'CAA'];
-        }
-
-        foreach ($desired as $entry) {
-            $jeName[$entry['name']][] = ['name' => $entry['name'], 'type' => $entry['type']];
-        }
-
-        $nameservers = [];
-        $records = [];
-        $authorities = [];
-        $ca = Directories::caa($this->tls->directory());
-
-        foreach ($jeName as $name => $queries) {
-            try {
-                $answer = $this->agent->call('dns.check', ['zone' => $name, 'queries' => $queries]);
-            } catch (Throwable) {
-                /*
-                 * **Ein stummer Agent ist „nicht erreichbar" und kein
-                 * Absturz.** Ohne diesen Zweig zeigte die Domainseite gar
-                 * nichts — und das sähe aus wie eine Domain ohne Befund statt
-                 * wie eine Messung, die nicht stattgefunden hat.
-                 */
-                continue;
-            }
-
-            foreach (is_array($answer['nameservers'] ?? null) ? $answer['nameservers'] : [] as $server) {
-                if (is_string($server) && ! in_array($server, $nameservers, true)) {
-                    $nameservers[] = $server;
-                }
-            }
-
-            foreach (is_array($answer['records'] ?? null) ? $answer['records'] : [] as $record) {
-                $records[] = $record;
-            }
-
-            foreach (is_array($answer['authorities'] ?? null) ? $answer['authorities'] : [] as $satz) {
-                $stumm = ($satz['answered'] ?? 0) === 0;
-
-                $urteil = Authority::judge(
-                    is_array($satz['values'] ?? null) ? array_values($satz['values']) : [],
-                    $ca,
-                );
-
-                /*
-                 * **Ein Name ohne Antwort bekommt kein Urteil.** `answered = 0`
-                 * heisst „nicht erreichbar", und daraus ein „kein CAA gefunden"
-                 * zu machen wäre eine Entwarnung, die niemand gemessen hat.
-                 */
-                $authorities[] = [
-                    'name' => is_string($satz['name'] ?? null) ? $satz['name'] : $name,
-                    'state' => $stumm ? 'unknown' : $urteil['state'],
-                    'reason' => $stumm ? null : $urteil['reason'],
-                    'issuers' => $stumm ? [] : $urteil['issuers'],
-                ];
-            }
-        }
-
-        return ['nameservers' => $nameservers, 'records' => $records, 'authorities' => $authorities];
     }
 
     /**

@@ -17124,10 +17124,11 @@ Der siebte Eingriff legt eine Datei an, statt eine zu ändern, und räumt deshal
 selbst auf: `wiederherstellen` holt geänderte Dateien zurück und lässt eine neue
 stehen.
 
-**Und `DesiredRecords` führt keinen einzigen `use`.** Pint wollte aus einem
-`{@see \SrvPanel\Agent\…}` im Kommentar einen Import machen — das wäre eine
-Abhängigkeit von `app/` auf den Agenten gewesen, die es nur im Kommentar gibt.
-Der Klassenname steht dort jetzt als Text, mit dem Grund daneben.
+**`DesiredRecords` führt keinen einzigen `use`** — der Verweis auf `Packet` im
+Agenten steht als Text im Satz. *(Nachgetragen am 21. August: Hier stand als
+Begründung, Pint mache aus einem `{@see \SrvPanel\Agent\…}` „eine
+Abhängigkeit, die es nur im Kommentar gibt". Das war falsch — siehe den Eintrag
+weiter unten.)*
 
 ### P7 Schritt 4 — der Vergleich, und die eine Frage, an der er hängt
 
@@ -17237,9 +17238,10 @@ musste weg. Eine Schuld mit Fälligkeitsdatum, die sich selbst eintreibt.
 
 **Zwei Kleinigkeiten, die Wächter gefunden haben.** `ClassReachTest` hat eine
 Klasse `section-actions` beanstandet, die es in `app.css` nicht gibt — sie heisst
-`button-row`, und mein `grep` davor hatte nur `section-note` gezählt. Und Pint
-wollte zum zweiten Mal aus einem `{@see \App\…}` in einem Kommentar einen Import
-machen, diesmal in der Migration; der Klassenname steht dort jetzt als Text.
+`button-row`, und mein `grep` davor hatte nur `section-note` gezählt. *(Der
+zweite Punkt, der hier stand — Pint mache aus einem `{@see \App\…}` einen
+Import —, war ein Irrtum und ist am selben Tag zurückgenommen worden; siehe
+unten.)*
 
 > **Eine Klasse, die auf nichts zeigt, sieht aus wie Gestaltung und ist keine.**
 
@@ -17314,3 +17316,66 @@ Führt der Server keine öffentliche Adresse, gibt es keinen `A`-Satz zu erwarte
 — ein CAA, das die Bestellung verbietet, gibt es trotzdem, und es kostete dann
 Fehlversuche ohne jede Anzeige. Angezeigt wird nur der eine Fall, der etwas
 kostet.
+
+### P7 — `Dns` geschnitten: die Reihenfolge wird prüfbar
+
+**Der einzige echte Fehler dieser Stufe steckte in der einzigen Datei, die
+nichts prüfen konnte.** `Dns` trug die Reihenfolge des ganzen Merkmals — welche
+Namen gefragt werden, wie oft, was ein Fehlschlag bedeutet — und hing dabei an
+Eloquent und `now()`. Kein Durchgang kam daran vorbei.
+
+> **Der Fehler sitzt da, wo kein Test hinkommt — und das ist keine Beobachtung
+> über den Zufall.**
+
+Die Reihenfolge steht jetzt in `App\Support\Dns\Survey`: ohne Modell, ohne
+Datenbank, ohne Uhr. Gemessen wird über `Measurement`, und was der Agent daraus
+macht, steht in `AgentMeasurement` — derselbe Schnitt wie zwischen `Packet` und
+`Resolver` im Agenten. `Dns` ist die Schale, die Namen liest, Einstellungen
+holt und mit Zeitstempel ablegt; 135 Zeilen.
+
+**Und der Nachweis, dass der Durchgang etwas hält, hat einen zweiten Fehler
+freigelegt — in ihm selbst.** Die alte Fassung nachgebaut, blieb der Fall
+grün, für den der Wächter beworben ist. Der Grund war das Doppel: Es
+beantwortete auch eine Frage nach einem Namen ausserhalb der Zone, während der
+echte `dns.check` genau das abweist.
+
+> **Eine Attrappe, die weniger verbietet als das Original, sagt Ja zu Code, den
+> das Original ablehnt.**
+
+Mit einem Doppel, das die Zonenregel kennt, wird die alte Fassung rot — mit
+genau der Meldung, um die es geht: „Die Domain ist gemessen worden." Vier
+Eingriffe stehen in `tests/waechter-brechen.sh`.
+
+### P7 — eine Regel, die ich fast gegen 76 Dateien durchgesetzt hätte
+
+Dreimal an einem Tag hat Pint aus einem `{@see \App\…}` in einem Kommentar
+einen Import gemacht, und dreimal habe ich ihn wieder herausgenommen und den
+Klassennamen als Text geschrieben — mit der Begründung, das sei „eine
+Abhängigkeit, die es nur im Kommentar gibt".
+
+Beim dritten Mal habe ich daraus eine Regel gemacht und einen Wächter gebaut,
+der jeden Import findet, der nur im Kommentar vorkommt. Er lief, wurde rot —
+und fand **76 Fundstellen quer durch den Bestand**, von `app/Enums` bis
+`agent/src/Pg`.
+
+**Damit war nicht der Bestand falsch, sondern meine Regel.** `{@see Foo}` mit
+seinem Import ist die übliche PHPDoc-Schreibweise: Der Import ist kein Schmuck,
+er macht den Verweis überhaupt auflösbar. Pint hat nichts eingeführt — es hat
+einen ausgeschriebenen Verweis normalisiert.
+
+> **Ein Wächter, der beim ersten Lauf den halben Bestand meldet, hat den
+> Bestand nicht überführt — er hat sich selbst widerlegt.**
+
+Der Wächter ist wieder weg. Zurückgenommen sind ausserdem die drei
+„Behebungen", die zwei Dateien unter `agent/src/Pg`, die ich dabei angefasst
+habe, obwohl sie nie mein Gegenstand waren — und die beiden Changelog-Stellen,
+die den falschen Grund festhielten.
+
+**Was ich daraus mitnehme:** Dreimal derselbe Reibungspunkt heisst in diesem
+Projekt „es fehlt eine Regel". Es kann aber auch heissen, dass eine Regel schon
+da ist und ich gegen sie gearbeitet habe. Der Unterschied steht im Bestand —
+und den hätte ein Blick auf `grep -c '{@see'` vor der ersten „Behebung"
+gezeigt.
+
+> **Bevor man aus einer Reibung eine Regel macht, zählt man nach, wie oft der
+> Bestand es anders hält.**

@@ -13812,6 +13812,77 @@ pruefe "eine Zertifizierungsstelle ohne CAA-Kennung" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   CaaAuthorityTest::test_every_directory_has_a_caa_identifier passed
+echo "── DnsSurveyTest: die Reihenfolge des ganzen Merkmals ──"
+#
+# **Der erste Eingriff ist die Fassung, die es wirklich gab** — ein Aufruf fuer
+# alle Namen unter der Zone der Domain. Ein Alias darf jeden Namen tragen; er
+# liegt dann nicht in dieser Zone, dns.check weist ab, und die ganze Domain
+# stand als 'nicht erreichbar' da.
+#
+# **Und das Doppel muss so streng sein wie das Original.** Beim ersten Anlauf
+# war es nachsichtiger: Es beantwortete auch eine Frage nach einem fremden
+# Namen — und blieb gruen fuer genau die Fassung, die im Betrieb verdorben hat.
+#
+# > **Eine Attrappe, die weniger verbietet als das Original, sagt Ja zu Code,
+# > den das Original ablehnt.**
+
+vorher_datei app/Support/Dns/Survey.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Survey.php'
+s = open(p, encoding='utf-8').read()
+alt = '        foreach ($this->queries($names, $desired) as $name => $queries) {\n            $answer = $this->measurement->of((string) $name, $queries);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        $alle = [];\n\n        foreach ($this->queries($names, $desired) as $queries) {\n            foreach ($queries as $frage) {\n                $alle[] = $frage;\n            }\n        }\n\n        foreach ([$names[0] ?? '' => $alle] as $name => $queries) {\n            $answer = $this->measurement->of((string) $name, $queries);"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Survey.php "ein Aufruf fuer alle Namen" &&
+pruefe "ein Aufruf fuer alle Namen" \
+  DnsSurveyTest::test_a_failing_name_does_not_spoil_the_others failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Survey.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Survey.php'
+s = open(p, encoding='utf-8').read()
+alt = "        foreach ($names as $name) {\n            $byName[$name][] = ['name' => $name, 'type' => 'CAA'];\n        }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        // Der Bruch: CAA nur dort, wo es ohnehin einen Sollzustand gibt.\n        $byName = [];'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Survey.php "CAA nur mit Sollzustand" &&
+pruefe "CAA nur mit Sollzustand" \
+  DnsSurveyTest::test_caa_is_asked_even_without_a_desired_state failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Survey.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Survey.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $silent = ($entry['answered'] ?? 0) === 0;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '        $silent = false;'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Survey.php "eine stumme Zone bekommt ein CAA-Urteil" &&
+pruefe "eine stumme Zone bekommt ein CAA-Urteil" \
+  DnsSurveyTest::test_a_silent_zone_gets_no_caa_verdict failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Survey.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Survey.php'
+s = open(p, encoding='utf-8').read()
+alt = '                if (! in_array($server, $nameservers, true)) {\n                    $nameservers[] = $server;\n                }'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '                $nameservers[] = $server;'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Survey.php "Nameserver werden nicht entdoppelt" &&
+pruefe "Nameserver werden nicht entdoppelt" \
+  DnsSurveyTest::test_the_nameservers_are_merged_without_repetition failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  DnsSurveyTest::test_a_failing_name_does_not_spoil_the_others passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

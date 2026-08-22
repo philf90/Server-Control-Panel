@@ -105,10 +105,11 @@ final class DesiredRecords
      * Agenten durch `inet_ntop` (`Packet::addresses`); die erwartete geht hier
      * hindurch, und erst dann heisst „gleich" auch gleich.
      *
-     * **Der Klassenname steht hier absichtlich als Text und nicht als
-     * `{@see}`.** Pint macht aus einem ausgeschriebenen Verweis einen `use` —
-     * und das wäre eine Abhängigkeit von `app/` auf den Agenten, die es nur im
-     * Kommentar gibt.
+     * **Der Klassenname steht hier als Text und nicht als `{@see}`**, weil
+     * `Packet` im Agenten liegt und diese Klasse sonst nichts von dort braucht.
+     * Ein `{@see}` mit seinem Import wäre ebenfalls in Ordnung — so schreibt es
+     * dieses Repo an 76 Stellen; hier ist der Hinweis kurz genug für einen
+     * Satz.
      *
      * > **Zwei Werte, die dasselbe bedeuten und verschieden geschrieben sind,
      * > ergeben einen Befund, den es nicht gibt.**

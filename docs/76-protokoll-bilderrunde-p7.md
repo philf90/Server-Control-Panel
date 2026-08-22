@@ -22,7 +22,7 @@ ungültig und keine Messung.
 | # | Ansicht | Breite | Thema | `stand` | `dokument` | Gegenprobe | Bild |
 |---|---|---|---|---|---|---|---|
 | 1 | Domain, DNS-Abgleich | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 1) |
-| 1 | Domain, DNS-Abgleich | 390 | dunkel | — | — | — | offen |
+| 1 | Domain, DNS-Abgleich | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 1) |
 | 1 | Domain, DNS-Abgleich | 1440 | hell | — | — | — | offen |
 | 1 | Domain, DNS-Abgleich | 1440 | dunkel | — | — | — | offen |
 | 2 | Einstellungen → Allgemein | 390 | hell | — | — | — | offen |
@@ -46,6 +46,7 @@ einzeln benannt.
 | Lage | Eintrag | gewollt oder Fund |
 |---|---|---|
 | 1 / 390 / hell | keiner | — |
+| 1 / 390 / dunkel | keiner | — |
 
 **`rollt` ist bei 390 px leer, und das ist richtig.** Die Tabellen stehen dort
 als Kärtchen; ein Rollbehälter ist gar nicht aktiv. `docs/63 §6` hält das als
@@ -95,6 +96,12 @@ Verfeinerung der bestehenden.
 danach nachgemessen — eine Behebung mitten im Lauf kostet eine Fassung und macht
 jedes Bild davor zu einem Andenken.
 
+**In beiden Themes gleich** (390/hell und 390/dunkel, je `dokument: 0`). Damit
+ist er eine Eigenschaft der Geometrie und nicht der Farbe — erwartet, aber jetzt
+belegt statt angenommen. Genau dafür wird jede Lage einzeln gemessen: Ein Theme
+wechselt Ränder und Schriftgrade mit, und das war in diesem Projekt schon
+zweimal genau der Unterschied.
+
 ### Was in dieser Lage richtig war
 
 - Vier Zeilen des Bereichs, Zustand als Marke mit Wort und Punkt, „Erwartet"
@@ -105,6 +112,10 @@ jedes Bild davor zu einem Andenken.
   behoben.
 - Die CAA-Meldung steht dreizeilig und lesbar in einem `.notice warn`, mit dem
   Namen als `.ident` **innerhalb** des Satzes.
+- Die ganzseitige Aufnahme zeigt die komplette Seite — Banner, Stammdaten,
+  Zertifikat, DNS-Abgleich, Eigenes Zertifikat, Vorgänge, Verzeichnis und
+  Handler, PHP-Einstellungen, nginx-Direktiven. Die Bereiche stehen getrennt,
+  keiner klebt am nächsten, nichts ragt heraus.
 
 **Ein Fund ist vor dem Lauf entstanden** und steht deshalb nicht hier, sondern
 in `docs/75 §1.1`: Die Meldung „nicht gefragt" stand als drei Flexkinder in
@@ -132,7 +143,16 @@ Frage an den Betreiber und kein Fehler.
 
 ## 4. Was offen ist
 
-- **Fünfzehn der sechzehn Lagen.**
+- **Vierzehn der sechzehn Lagen.**
+- **Die Fuge unter „Als Platzhalter bestellen".** Die ganzseitige Aufnahme zu
+  Lage 1/390/hell zeigt die komplette Seite und trägt in ihrer Struktur; im
+  Massstab der Übermittlung ist der Abstand zwischen dem Kästchen und dem
+  Bereich darunter aber nicht ablesbar. Es ist die Stelle, die am 22. August als
+  Befund gemeldet und mit `.toggle + .button-row` behoben wurde — sie gehört im
+  Original angesehen.
+
+  > **Ein Bild, dessen Massstab die Frage nicht trägt, beantwortet sie nicht —
+  > es sieht nur so aus, als hätte man hingesehen.**
 - **Die Behebung aus `docs/75 §1.1` ist noch nicht nachgesehen.** Der Fund war
   die Meldung „nicht gefragt", und die erscheint nur an einer Domain, deren
   Nameserver niemand erreicht — `cloudlab24.de` hat welche. Sie gehört an

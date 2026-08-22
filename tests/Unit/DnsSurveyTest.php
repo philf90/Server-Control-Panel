@@ -232,7 +232,10 @@ final class DnsSurveyTest extends TestCase
         $this->assertSame(['198.51.100.9'], $satz['found']);
     }
 
-    /** @param list<string> $values */
+    /**
+     * @param  list<string>  $values
+     * @return array{name: string, type: string, asked: int, answered: int, values: list<string>, consistent: bool}
+     */
     private function record(string $name, string $type, array $values): array
     {
         return [

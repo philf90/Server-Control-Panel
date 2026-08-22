@@ -14069,6 +14069,19 @@ vorher_datei app/Support/Dns/Sweep.php
 python3 - <<'PY2'
 p = 'app/Support/Dns/Sweep.php'
 s = open(p, encoding='utf-8').read()
+alt = '            if ($this->wasSilent($findings)) {\n                $silent++;\n            }\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Dns/Sweep.php "eine stumme Zone wird nicht gezaehlt" &&
+pruefe "eine stumme Zone wird nicht gezaehlt" \
+  DnsSweepTest::test_a_zone_that_answers_nobody_is_counted_as_silent failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Sweep.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Sweep.php'
+s = open(p, encoding='utf-8').read()
 alt = "            'left' => max(0, $candidates->count() - $done),"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'left' => 0,", 1))

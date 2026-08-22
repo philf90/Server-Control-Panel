@@ -1319,6 +1319,27 @@ Testen berücksichtigen:
     Framework, und dort läuft Stufe 6 sauber durch. Genau so gefunden:
     `array_values()` auf einer Liste, die schon eine ist.
 
+    **Und die Dateiliste kommt aus dem Zweig und nicht aus dem Gedächtnis.**
+    Am 22. August 2026 hat die CI acht PHPStan-Meldungen zu P7 gebracht, jede
+    davon hier auffindbar — der Lauf war über `agent/src`, `tests/Support` und
+    die framework-freien Klassen gefahren, also über die Pfade, die in diesem
+    Abschnitt stehen, und nicht über die Dateien, die der Zweig anfasst. Ein
+    Lauf über `git diff --name-only origin/main...HEAD` meldet dieselben acht
+    Zeilen auf denselben Zeilennummern.
+
+    > **Ein Werkzeug, das man über die gewohnten Pfade fährt, prüft die
+    > Gewohnheit und nicht die Änderung.**
+
+    Die teuerste der acht war keine Typangabe: Zwei neue Methoden waren
+    zwischen `diskQuota()` und seinen Dokumentationsblock gerutscht, und der
+    versprach über `dnsAddresses()` ein `array{available: …}`, wo ein
+    `list<string>` steht. Gemeldet wurde die Hälfte, die ein Werkzeug sehen
+    kann — der fehlende Kommentar an der einen Methode, nicht der falsche über
+    der anderen.
+
+    > **Ein Werkzeug bemerkt den fehlenden Kommentar. Den falschen bemerkt es
+    > nicht.**
+
     **Für eine einzelne neue Datei geht trotzdem mehr, als es aussieht.** Ein
     Lauf über *nur* die geänderte Datei bringt zwar ein Dutzend
     `method.notFound` für jede `assert…` — aber alles, was PHPStan aus dem

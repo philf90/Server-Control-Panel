@@ -52,7 +52,10 @@ final class DnsCheckTest extends TestCase
         return new DnsCheck(new ScriptedLookup($servers ?? self::NS, [], $records, $caa));
     }
 
-    /** @param list<array{name: string, type: string}> $queries */
+    /**
+     * @param  list<array{name: string, type: string}>  $queries
+     * @return array{zone: string, queries: list<array{name: string, type: string}>}
+     */
     private function args(array $queries, string $zone = self::ZONE): array
     {
         return ['zone' => $zone, 'queries' => $queries];

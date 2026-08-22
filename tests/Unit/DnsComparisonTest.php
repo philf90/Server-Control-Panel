@@ -28,13 +28,19 @@ final class DnsComparisonTest extends TestCase
 
     private const FREMD = '198.51.100.7';
 
-    /** @param list<string> $expected */
+    /**
+     * @param  list<string>  $expected
+     * @return list<array{name: string, type: string, expected: list<string>}>
+     */
     private function desired(array $expected = [self::V4]): array
     {
         return [['name' => 'example.de', 'type' => 'A', 'expected' => $expected]];
     }
 
-    /** @param list<string> $values */
+    /**
+     * @param  list<string>  $values
+     * @return list<array{name: string, type: string, asked: int, answered: int, values: list<string>, consistent: bool}>
+     */
     private function measured(
         array $values = [self::V4],
         int $asked = 2,
@@ -53,6 +59,10 @@ final class DnsComparisonTest extends TestCase
         ]];
     }
 
+    /**
+     * @param  list<array{name: string, type: string, expected: list<string>}>  $desired
+     * @param  list<array{name: string, type: string, asked: int, answered: int, values: list<string>, consistent: bool}>  $measured
+     */
     private function state(array $desired, array $measured): DnsRecordState
     {
         return Comparison::of($desired, $measured)[0]['state'];

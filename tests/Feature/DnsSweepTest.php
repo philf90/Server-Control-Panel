@@ -212,6 +212,26 @@ final class DnsSweepTest extends TestCase
         $this->assertContains($alias->id, $this->measured(), 'Der Alias bekommt keinen eigenen Befund.');
     }
 
+    /**
+     * Eine Zone, die niemand beantwortet, wird als solche gezählt.
+     *
+     * **Stumm ist kein Fehlschlag.** Der Befund ist gültig und lautet „nicht
+     * erreichbar" — gezählt wird er trotzdem, denn ein Lauf, in dem plötzlich
+     * *alle* stumm sind, sagt nichts über die Domains und alles über diesen
+     * Server. Ohne die Zahl sähe genau das aus wie ein gewöhnlicher Lauf.
+     */
+    public function test_a_zone_that_answers_nobody_is_counted_as_silent(): void
+    {
+        $this->domain('stumm.de');
+        $this->domain('laut.de');
+
+        $bericht = $this->sweep(silent: 'stumm.de')->run();
+
+        $this->assertSame(2, $bericht['checked'], 'Eine stumme Zone ist kein Fehlschlag.');
+        $this->assertSame(0, $bericht['failed']);
+        $this->assertSame(1, $bericht['silent'], 'Die stumme Zone wird nicht gezaehlt.');
+    }
+
     // ------------------------------------------------------------------
     // Aufbau
     // ------------------------------------------------------------------
@@ -219,14 +239,20 @@ final class DnsSweepTest extends TestCase
     /**
      * Ein Durchgang mit einer Messung, die nichts nach draussen fragt.
      *
-     * `$explode` nennt den Namen, bei dem die Messung wirft — das ist der
-     * Fehlschlag, den {@see Sweep} auffangen muss.
+     * **Zwei Arten von Misserfolg, und sie sind nicht dasselbe.** `$explode`
+     * nennt den Namen, bei dem die Messung **wirft** — der Fehlschlag, den
+     * {@see Sweep} auffangen muss. `$silent` nennt den, bei dem sie `null`
+     * gibt: Dann hat der Aufruf stattgefunden und niemand geantwortet, und das
+     * ist ein gültiges Ergebnis mit dem Namen „nicht erreichbar".
      */
-    private function sweep(int $domains = 25, ?string $explode = null): Sweep
+    private function sweep(int $domains = 25, ?string $explode = null, ?string $silent = null): Sweep
     {
-        $this->app->instance(Measurement::class, new class($explode) implements Measurement
+        $this->app->instance(Measurement::class, new class($explode, $silent) implements Measurement
         {
-            public function __construct(private readonly ?string $explode) {}
+            public function __construct(
+                private readonly ?string $explode,
+                private readonly ?string $silent,
+            ) {}
 
             /**
              * @param  list<array{name: string, type: string}>  $queries
@@ -236,6 +262,10 @@ final class DnsSweepTest extends TestCase
             {
                 if ($this->explode !== null && $zone === $this->explode) {
                     throw new RuntimeException('Diese Zone kostet den Aufruf.');
+                }
+
+                if ($this->silent !== null && $zone === $this->silent) {
+                    return null;
                 }
 
                 return ['nameservers' => ['198.51.100.1'], 'records' => [], 'authorities' => []];

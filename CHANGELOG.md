@@ -17478,3 +17478,45 @@ zu verlassen.
 
 > **Eine Frist, die man nicht aufschreibt, ist die Frist einer Vorgabe, die man
 > nicht gemessen hat.**
+
+### P7 — ein Dokumentationsblock, der seit Schritt 4 die falsche Methode beschrieb
+
+Gemeldet hat es die CI als „`Settings::diskQuota()` return type has no value
+type" — eine Meldung über eine fehlende Typangabe. Der Fehler dahinter ist
+grösser: Beim Einfügen von `dnsAddresses()` und `saveDnsAddresses()` sind die
+beiden Methoden **zwischen `diskQuota()` und seinen Dokumentationsblock**
+gerutscht. Damit stand über `dnsAddresses()` — das eine `list<string>` gibt —
+zwei Blöcke übereinander, und der obere versprach
+`array{available: bool|null, reason: string|null, checked_at: string|null}`.
+
+`diskQuota()` selbst hatte danach gar keine Beschreibung mehr, und genau das
+ist der Teil, den ein Werkzeug bemerkt. Der andere Teil — ein Block, der eine
+fremde Methode beschreibt — wäre unbemerkt geblieben, wenn `diskQuota()`
+zufällig einen zweiten Block gehabt hätte.
+
+> **Ein Werkzeug bemerkt den fehlenden Kommentar. Den falschen bemerkt es
+> nicht.**
+
+**Und die sieben anderen Meldungen desselben Laufs sind eine Lehre über das
+Messen, nicht über den Code.** Es waren fehlende Wertetypen in Testhelfern aus
+den Schritten 2 bis 6 — allesamt hier auffindbar: `phpstan.phar` über die
+geänderten Dateien meldet dieselben acht Zeilen, auf denselben Zeilennummern.
+Gefahren worden war er über `agent/src`, `tests/Support` und die
+framework-freien Klassen, also über die Pfade, an die ich beim Aufschreiben
+der Umgebung gedacht hatte — und nicht über die Dateien, die dieser Zweig
+anfasst.
+
+> **Ein Werkzeug, das man über die gewohnten Pfade fährt, prüft die Gewohnheit
+> und nicht die Änderung.**
+
+Der Handgriff dafür steht jetzt in `CLAUDE.md`:
+`git diff --name-only origin/main...HEAD` als Dateiliste für den PHPStan-Lauf.
+
+**Nebenbei zwei Löcher geschlossen, die dabei sichtbar wurden.** Die Attrappe
+in `DnsSweepTest` konnte nur werfen und nicht schweigen — damit war der Zähler
+`silent` in `Sweep` von keinem Fall berührt, obwohl er in jeder Meldung des
+Kommandos steht. Sie kann jetzt beides, und ein Fall unterscheidet die zwei:
+Ein Fehlschlag ist ein Aufruf, der nicht stattgefunden hat; eine stumme Zone
+ist ein gültiger Befund mit dem Namen „nicht erreichbar". Und
+`DomainDnsCheck::$fillable` trug als einziges der achtzehn Modelle keine
+`@var list<string>`-Angabe.

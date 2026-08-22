@@ -34,6 +34,7 @@ final class DomainDnsCheck extends Model
 {
     use BelongsToSubscription;
 
+    /** @var list<string> */
     protected $fillable = ['domain_id', 'subscription_id', 'checked_at', 'findings'];
 
     /** @return BelongsTo<Domain, $this> */

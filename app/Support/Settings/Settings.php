@@ -216,24 +216,6 @@ final class Settings
     }
 
     /**
-     * Ob das Dateisystem unter `/var/www/vhosts` eine Benutzerquota führt.
-     *
-     * **Gemessen wird das nicht hier, sondern jede Viertelstunde ohnehin.**
-     * `subscription.usage` liest die Quota-Datei mit `repquota`; scheitert das,
-     * kommt `available: false` samt Grund zurück. Diese Antwort stand bis zum
-     * 10. August 2026 nur im Journal des Messlaufs — die Übersicht wusste
-     * nichts davon, und ein Betreiber erfuhr vom fehlenden Quota-System erst,
-     * wenn er ein Abonnement anlegte.
-     *
-     * **Die Mount-Option beweist nichts, und das ist gemessen.** Auf
-     * `cloudsrv24` stand `rw,relatime,quota,usrquota` in `/proc/mounts` und
-     * `quotaon -p /` sagte trotzdem `is off`: Die Quotadatei war nie angelegt
-     * worden. Wer nur die Optionen liest, meldet Bereitschaft, wo keine ist —
-     * deshalb steht hier das Ergebnis eines Leseversuchs und keine Ableitung.
-     *
-     * @return array{available: bool|null, reason: string|null, checked_at: string|null}
-     */
-    /**
      * Die eingetragenen Adressen — leer, wenn abgeleitet werden soll.
      *
      * @return list<string>
@@ -263,6 +245,24 @@ final class Settings
         );
     }
 
+    /**
+     * Ob das Dateisystem unter `/var/www/vhosts` eine Benutzerquota führt.
+     *
+     * **Gemessen wird das nicht hier, sondern jede Viertelstunde ohnehin.**
+     * `subscription.usage` liest die Quota-Datei mit `repquota`; scheitert das,
+     * kommt `available: false` samt Grund zurück. Diese Antwort stand bis zum
+     * 10. August 2026 nur im Journal des Messlaufs — die Übersicht wusste
+     * nichts davon, und ein Betreiber erfuhr vom fehlenden Quota-System erst,
+     * wenn er ein Abonnement anlegte.
+     *
+     * **Die Mount-Option beweist nichts, und das ist gemessen.** Auf
+     * `cloudsrv24` stand `rw,relatime,quota,usrquota` in `/proc/mounts` und
+     * `quotaon -p /` sagte trotzdem `is off`: Die Quotadatei war nie angelegt
+     * worden. Wer nur die Optionen liest, meldet Bereitschaft, wo keine ist —
+     * deshalb steht hier das Ergebnis eines Leseversuchs und keine Ableitung.
+     *
+     * @return array{available: bool|null, reason: string|null, checked_at: string|null}
+     */
     public function diskQuota(): array
     {
         $value = $this->read(self::DISK_QUOTA);

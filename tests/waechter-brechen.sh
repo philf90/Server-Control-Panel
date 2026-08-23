@@ -14715,8 +14715,42 @@ alt = '.toggle:has(input:disabled) {'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, '.toggle:has(input:aus) {', 1))
 PY2
-griff_datei resources/css/app.css "der Schalter kennt keinen Aus-Zustand mehr" &&
-pruefe "der Schalter kennt keinen Aus-Zustand mehr" \
+griff_datei resources/css/app.css "der Schalter nimmt den Zeigefinger nicht zurueck" &&
+pruefe "der Schalter nimmt den Zeigefinger nicht zurueck" \
+  DisabledStateTest::test_a_disabled_wrapper_takes_back_the_pointer failed
+wiederherstellen
+
+# **Und die Frage „gibt es ueberhaupt eine Regel?" braucht jetzt `.field`.**
+#
+# Bis Befund 6 hat der Eingriff darueber sie beantwortet: `.toggle` hatte genau
+# eine Regel fuer den Aus-Zustand, und sie zu brechen machte den Fall rot. Seit
+# Befund 6 hat `.toggle` zwei — die fuer die Beschriftung und die fuers
+# Kaestchen —, und eine beantwortet die Frage fuer die andere mit. Gefunden hat
+# das der Wochenlauf und nicht das Bauen: Der Eingriff aenderte die Datei
+# weiter nachweislich und biss nicht mehr.
+#
+# > **Eine zweite Regel fuer dieselbe Huelle macht die Frage „gibt es eine?"
+# > stumpf.**
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = """.field input[readonly],
+.field input:disabled,
+.field select:disabled,
+.field textarea:disabled,
+.with-unit input:disabled {"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """.field input[readonly],
+.field input:aus,
+.field select:aus,
+.field textarea:aus,
+.with-unit input:aus {"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/css/app.css "das Feld kennt keinen Aus-Zustand mehr" &&
+pruefe "das Feld kennt keinen Aus-Zustand mehr" \
   DisabledStateTest::test_every_wrapper_shows_that_it_is_off failed
 wiederherstellen
 

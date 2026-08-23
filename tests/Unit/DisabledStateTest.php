@@ -256,6 +256,22 @@ final class DisabledStateTest extends TestCase
     }
 
     /**
+     * Was die Hülle im **Ein**-Zustand verspricht — ihre freistehende Regel.
+     *
+     * @return string der Rumpf von `.klasse { … }`, leer wenn es sie nicht gibt
+     */
+    private function baseRule(string $klasse): string
+    {
+        foreach ($this->blocks() as [$selektor, $rumpf]) {
+            if ($selektor === '.'.$klasse) {
+                return $rumpf;
+            }
+        }
+
+        return '';
+    }
+
+    /**
      * Jede Regel in `app.css` als `[Selektor, Rumpf]`.
      *
      * @return list<array{string, string}>
@@ -410,6 +426,79 @@ final class DisabledStateTest extends TestCase
             '',
             'Der Weg: eine der Formen aus DisabledStateTest::FORMS, so wie',
             '`.field input:disabled` es seit Monaten mit `border-style: dashed` tut.',
+        ]));
+    }
+
+    /**
+     * Eine Hülle, die den Zeigefinger verspricht, nimmt ihn zurück.
+     *
+     * ## Der Anlass
+     *
+     * **Ein Eingriff des Bruchskripts, der stumpf geworden ist** — gefunden am
+     * 23. August im Wochenlauf, nicht beim Bauen. Er bricht
+     * `.toggle:has(input:disabled)`, also die Regel, die die Beschriftung
+     * dämpft und den Zeigefinger zurücknimmt; bis Befund 6 war das die einzige
+     * Regel für diese Hülle, und {@see self::test_every_wrapper_shows_that_it_is_off}
+     * wurde davon rot.
+     *
+     * Seit Befund 6 gibt es eine **zweite** — die für das Kästchen. Der Fall
+     * darüber fragt „gibt es *eine* Regel mit `disabled`?", und die zweite
+     * beantwortet das mit. Der Eingriff änderte die Datei weiter nachweislich
+     * und biss nicht mehr.
+     *
+     * > **Eine zweite Regel für dieselbe Hülle macht die Frage „gibt es eine?"
+     * > stumpf.**
+     *
+     * Damit war die erste Hälfte von Befund 3 unbewacht: Ein Schalter, der den
+     * Zeigefinger zeigt und nicht klickt, sagt dem Kunden, er habe falsch
+     * geklickt.
+     *
+     * ## Was er prüft
+     *
+     * Nur Hüllen, die im Ein-Zustand `cursor: pointer` **versprechen** — sonst
+     * gibt es nichts zurückzunehmen. `.field` verspricht ihn nicht und kommt
+     * hier nicht vor; `.toggle` verspricht ihn.
+     *
+     * > **Ein Versprechen, das nur der Ein-Zustand kennt, muss der Aus-Zustand
+     * > widerrufen.**
+     */
+    public function test_a_disabled_wrapper_takes_back_the_pointer(): void
+    {
+        $ohne = [];
+        $versprochen = 0;
+
+        foreach (array_keys($this->wrappers()) as $klasse) {
+            if (! str_contains($this->baseRule($klasse), 'cursor: pointer')) {
+                continue;
+            }
+
+            $versprochen++;
+
+            foreach ($this->disabledRules($klasse) as $angabe) {
+                if (str_starts_with($angabe, 'cursor')) {
+                    continue 2;
+                }
+            }
+
+            $ohne[] = '.'.$klasse;
+        }
+
+        $this->assertGreaterThanOrEqual(
+            1,
+            $versprochen,
+            'Keine Hülle verspricht mehr `cursor: pointer` — dann prüft diese Regel nichts.',
+        );
+
+        $this->assertSame([], $ohne, implode("\n", [
+            'Diese Huellen zeigen den Zeigefinger und nehmen ihn nicht zurueck,',
+            'wenn ihr Bedienelement gesperrt ist:',
+            ...$ohne,
+            '',
+            'Ein Bedienelement, das nicht bedienbar ist und trotzdem den Zeigefinger',
+            'zeigt, sagt dem Kunden, er habe falsch geklickt — Befund 3 der',
+            'Bilderrunde, gemeldet vom Betreiber mitten im Lauf.',
+            '',
+            'Der Weg: `cursor: default` in der Regel fuer den Aus-Zustand.',
         ]));
     }
 

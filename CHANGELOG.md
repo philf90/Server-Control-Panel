@@ -18329,3 +18329,41 @@ des Kästchens (was ist das), die **Marke** (ob), der Satz in `--warn` (warum).
 `DisabledStateTest` hält das als eigene Regel: Ein Schalter, der sich sperren
 lässt, sagt es auch als Wort. Der Satz mit dem Grund ersetzt sie nicht — er sagt
 warum, sie sagt ob.
+
+### Ein Eingriff, der stumpf geworden ist
+
+Der Wochenlauf des Bruchskripts war rot, mit genau einer Meldung:
+
+```
+FEHLT  der Schalter kennt keinen Aus-Zustand mehr   passed (erwartet: failed)
+```
+
+Der Eingriff bricht `.toggle:has(input:disabled)` — die Regel, die die
+Beschriftung dämpft und den Zeigefinger zurücknimmt. Sein Zieltest fragte „gibt
+es für diese Hülle **eine** Regel mit `disabled`?", und bis Befund 6 war das die
+einzige. Die Behebung von Befund 6 gab `.toggle` eine **zweite**, die fürs
+Kästchen — und die beantwortete die Frage mit. Der Eingriff änderte die Datei
+weiter nachweislich und biss nicht mehr.
+
+> **Eine zweite Regel für dieselbe Hülle macht die Frage „gibt es eine?"
+> stumpf.**
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand neben seiner Regel eine zweite baut, die dieselbe Frage
+> beantwortet.**
+
+`BreakScriptTest` war dabei grün: Er prüft, dass ein Eingriff seinen Text noch
+findet. Den fand er.
+
+**Damit war die erste Hälfte von Befund 3 unbewacht** — ein Schalter, der den
+Zeigefinger zeigt und nicht klickt. Sie steht jetzt als eigene Regel da: **Eine
+Hülle, die den Zeigefinger verspricht, nimmt ihn zurück**, geprüft nur dort, wo
+der Ein-Zustand ihn überhaupt verspricht. Der Eingriff zeigt auf sie; die Frage
+„gibt es überhaupt eine Regel?" hat einen eigenen Eingriff über `.field`
+bekommen.
+
+**Und der Grund, warum es beim Bauen nicht auffiel:** Jeder neue Eingriff war
+einzeln im Gestell belegt, keiner im Lauf. Welche Eingriffe zu fahren sind, sagt
+nicht das Gedächtnis, sondern der Zweig — alle, deren Datei er angefasst hat.
+Nachgeholt über die vierzehn Dateien dieses Zweiges: **53 Eingriffe, alle
+beissen.**

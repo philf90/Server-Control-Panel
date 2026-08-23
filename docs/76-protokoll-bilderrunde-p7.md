@@ -640,6 +640,29 @@ genau der Ein-Zustand ist.
 > **Ein Eingriff, der eine Regel entfernt und einen Rest stehen lässt, prüft den
 > Rest.**
 
+**Und der Wochenlauf hat einen Tag später einen Eingriff von gestern gemeldet,
+der stumpf geworden war.** Er bricht `.toggle:has(input:disabled)` — die Regel,
+die die Beschriftung dämpft und den Zeigefinger zurücknimmt. Sein Zieltest
+fragte „gibt es für diese Hülle **eine** Regel mit `disabled`?", und bis Befund 6
+war das die einzige. Die Behebung gab `.toggle` eine zweite, die fürs Kästchen —
+und die beantwortete die Frage mit.
+
+> **Eine zweite Regel für dieselbe Hülle macht die Frage „gibt es eine?"
+> stumpf.**
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand neben seiner Regel eine zweite baut, die dieselbe Frage
+> beantwortet.**
+
+Damit war die erste Hälfte von Befund 3 unbewacht: ein Schalter, der den
+Zeigefinger zeigt und nicht klickt. Sie steht jetzt als eigene Regel da —
+**eine Hülle, die den Zeigefinger verspricht, nimmt ihn zurück** —, und der
+Eingriff zeigt auf sie. Die Frage „gibt es überhaupt eine Regel?" hat einen
+eigenen Eingriff über `.field` bekommen.
+
+**Nachgeholt für den ganzen Zweig:** jeder Eingriff, dessen Datei dieser Zweig
+angefasst hat, angewandt und im Gestell gefahren — **53, alle beissen.**
+
 ---
 
 ## 2b. Was das Beheben gekostet hat

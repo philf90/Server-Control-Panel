@@ -36,6 +36,8 @@ ungültig und keine Messung.
 | 1 · rc.6 | Domain, ganze Seite | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ |
 | 1 · rc.7 | Domain, ganze Seite | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 7 erfüllt) |
 | 1 · rc.7 | Domain, ganze Seite | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ (unverändert) |
+| 3 · rc.7 | Domainliste `/domains` | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 8) |
+| 5 · rc.7 | Datenbankliste `/databases` | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 8) |
 | 1 | Domain, DNS-Abgleich | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 1) |
 | 1 | Domain, DNS-Abgleich | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 2) |
 | 1 | Domain, DNS-Abgleich | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 3) |
@@ -714,6 +716,70 @@ eine Frage an den, der sie schreibt, und keine Eigenschaft des Quelltextes.
 
 > **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
 > als Zusage.**
+
+---
+
+### Befund 8 — ein Knopf, so hoch wie die Beschriftung daneben
+
+Gemeldet vom Betreiber am 23. August beim Nachsehen des Abonnementnamens gegen
+`v0.7.0-rc.7`: „Der Knopf ‚Domain anlegen' ist zu gross im Verhältnis zum
+Auswahlfeld bei 390 px. Gleiches beim Knopf ‚Datenbank anlegen'."
+
+**Der Punkt selbst ist erfüllt** — `p6-abnahme.invalid` steht in beiden Feldern
+vollständig, beide Lagen gültig. Der Einwand gilt dem, was daneben steht.
+
+**Gemessen bei 390 px, Domainliste:** Knopf **133×72**, Auswahlfeld **206×44**.
+`.page-head .button-row` richtet mit `stretch` aus — richtig für eine Reihe aus
+lauter Knöpfen, die dann gleich hoch sind. Steht ein **beschriftetes** Feld
+dabei, ist die Reihe so hoch wie Beschriftung plus Feld, und der Knopf wächst
+mit.
+
+> **Eine Höhe, die ein Nachbar vorgibt, ist keine Aussage über den Knopf.**
+
+Drei Fassungen gemessen:
+
+| | Knopf | Auswahlfeld | Unterkanten |
+|---|---|---|---|
+| `stretch` (vorher) | 133×**72** | 206×44 | bündig |
+| `center` | 133×44 | 206×44 | 14 px auseinander |
+| **`flex-end`** | 133×**44** | 206×44 | **bündig** |
+
+`center` macht ihn gleich hoch und lässt ihn über der Feldkante schweben;
+`flex-end` setzt ihn darauf. Die Kopfhöhe bleibt bei allen dreien 134 px.
+
+**Und das ist ein Fehler, den derselbe Tag verursacht hat.** Die Ausrichtung gab
+es schon, als `align-items: center` in der Regel, die den Seitenkopf der
+Übersicht in eine Zeile bringt — und die traf zuerst *alle* Reihen mit einem
+Feld. Die Verengung auf `:has(.field > select:only-child)` war richtig (sonst
+wurde der Abonnementname beschnitten, siehe Befund davor), hat aber **zwei
+Dinge zugleich** weggenommen: das Schrumpfen des Feldes, das schadete, und die
+Ausrichtung, die half.
+
+> **Wer eine Regel verengt, verengt alles, was in ihr steht — auch das, was mit
+> dem Grund der Verengung nichts zu tun hatte.**
+
+**Behoben** als eigene Regel am breiten `:has(.field)`, mit `flex-end`. Sie
+beschneidet nichts und ist überall richtig, wo ein Feld neben einem Knopf steht.
+
+**Kein Bild und keine Messung dieses Laufs hätte ihn gefunden.** Der Überlauf
+war in allen Lagen `0`, `schiebt` und `rollt` leer, die Kopfhöhe unverändert.
+Es ist ein Verhältnis und keine Zahl, die überläuft — gesehen hat es der
+Betreiber.
+
+> **Eine Messung, die auf Überlauf zeigt, sieht ein falsches Verhältnis nicht.**
+
+**Und die Nachbildung im Aufsatz war vorher falsch.** Sie hatte **eine**
+Knopfreihe; die echte Seite hat **zwei ineinander** — `PanelLayout.vue` legt
+den Platz `#actions` in ein `.button-row`, und `Domains/Index.vue` legt sein
+eigenes `form.button-row` hinein. Mit nur einer Ebene brach der Knopf in die
+zweite Zeile und war 44 px hoch; erst mit beiden ergaben sich die 72.
+
+> **Eine Nachbildung, der eine Ebene fehlt, misst eine andere Lage — und zwar
+> eine, die harmloser aussieht.**
+
+`ButtonFieldAlignTest` hält seitdem beides auseinander: dass die Ausrichtung
+gesetzt ist, und dass sie am **breiten** Selektor hängt. Zwei Eingriffe, beide
+gegengeprüft.
 
 ---
 

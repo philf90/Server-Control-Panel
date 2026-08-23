@@ -18529,3 +18529,51 @@ die Fuge, die man sieht, sobald die Tabelle geladen ist.
 
 Gefunden hat es der Lauf der Eingriffe: Der Bruch, der `.section-note` seinen
 unteren Rand nimmt, liess den Wächter grün.
+
+### Befund 8 — ein Knopf, so hoch wie die Beschriftung daneben
+
+Gemeldet vom Betreiber am 23. August 2026 im Nachlauf zu `v0.7.0-rc.7`: „Der
+Knopf ‚Domain anlegen' ist zu gross im Verhältnis zum Auswahlfeld bei 390 px.
+Gleiches beim Knopf ‚Datenbank anlegen'."
+
+`.page-head .button-row` richtet mit `stretch` aus, und für eine Reihe aus
+lauter Knöpfen ist das richtig — sie sind dann gleich hoch. Steht ein
+**beschriftetes** Feld dabei, ist die Reihe so hoch wie Beschriftung plus Feld,
+und der Knopf wächst auf etwas, das mit ihm nichts zu tun hat: gemessen bei
+390 px **133×72** gegen ein Feld von **206×44**.
+
+> **Eine Höhe, die ein Nachbar vorgibt, ist keine Aussage über den Knopf.**
+
+`flex-end` und nicht `center`: Beide machen den Knopf 44 px hoch, aber `center`
+lässt ihn 14 px über der Feldkante schweben. Die Kopfhöhe bleibt in allen
+Fassungen 134 px — es geht nicht um Platz, sondern um das Verhältnis.
+
+**Verursacht hat ihn derselbe Tag.** Die Ausrichtung gab es schon als
+`align-items: center`, in der Regel, die den Seitenkopf der Übersicht bei 390 px
+in eine Zeile bringt. Deren Verengung auf `:has(.field > select:only-child)` war
+richtig — ohne sie wurde der Abonnementname beschnitten —, hat aber **zwei Dinge
+zugleich** weggenommen: das Schrumpfen des Feldes, das schadete, und die
+Ausrichtung, die half.
+
+> **Wer eine Regel verengt, verengt alles, was in ihr steht — auch das, was mit
+> dem Grund der Verengung nichts zu tun hatte.**
+
+Sie steht jetzt für sich, am breiten `:has(.field)`: Eine Ausrichtung
+beschneidet nichts und ist überall richtig, wo ein Feld neben einem Knopf steht.
+`ButtonFieldAlignTest` prüft beides — dass sie gesetzt ist, und dass sie am
+breiten Selektor hängt und nicht in der verengten Regel; zwei Eingriffe, beide
+gegengeprüft.
+
+**Gefunden hat ihn kein Messmittel dieses Projekts.** Der Überlauf war in allen
+vier Lagen `0`, `schiebt` und `rollt` leer, die Kopfhöhe unverändert.
+
+> **Eine Messung, die auf Überlauf zeigt, sieht ein falsches Verhältnis nicht.**
+
+**Und die Nachbildung im Aufsatz war dabei falsch.** Sie hatte **eine**
+Knopfreihe; die echte Seite hat **zwei ineinander** — `PanelLayout.vue` legt den
+Platz `#actions` in ein `.button-row`, und `Domains/Index.vue` legt sein eigenes
+`form.button-row` hinein. Mit nur einer Ebene brach der Knopf in die zweite
+Zeile und war 44 px hoch; erst mit beiden ergaben sich die 72.
+
+> **Eine Nachbildung, der eine Ebene fehlt, misst eine andere Lage — und zwar
+> eine, die harmloser aussieht.**

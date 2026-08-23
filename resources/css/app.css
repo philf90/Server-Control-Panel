@@ -3142,12 +3142,51 @@ p:not([class]) {
    *   Domains       188px → 188px   unberührt, Name vollständig
    *   Datenbanken   188px → 188px   unberührt, Name vollständig
    *
-   * `align-items: center` gehört dazu: Ohne das streckt sich der Knopf auf die
-   * Höhe der Feldspalte.
+   * Die Ausrichtung steht seit dem 23. August in der Regel darüber und gilt
+   * damit auch für die beiden Listenseiten — siehe dort.
    */
+  /*
+   * **Ein Knopf neben einem beschrifteten Feld sitzt auf dessen Unterkante.**
+   *
+   * `.page-head .button-row` richtet mit `stretch` aus, und das ist für eine
+   * Reihe aus lauter Knöpfen richtig: Sie sind dann gleich hoch. Sobald ein
+   * Feld dabeisteht, ist die Reihe so hoch wie **Beschriftung plus Feld** — und
+   * der Knopf wächst mit, auf etwas, das mit ihm nichts zu tun hat.
+   *
+   * Gemeldet vom Betreiber am 23. August im Nachlauf zu `v0.7.0-rc.7`: „Der
+   * Knopf ‚Domain anlegen' ist zu gross im Verhältnis zum Auswahlfeld bei
+   * 390 px. Gleiches beim Knopf ‚Datenbank anlegen'."
+   *
+   * Gemessen bei 390 px, Domainliste:
+   *
+   *   stretch (vorher)   Knopf 133×72   Feld 206×44
+   *   center             Knopf 133×44   Unterkanten 14 px auseinander
+   *   flex-end           Knopf 133×44   Unterkanten bündig
+   *
+   * `center` macht ihn zwar gleich hoch und lässt ihn über der Feldkante
+   * schweben; `flex-end` setzt ihn darauf.
+   *
+   * > **Eine Höhe, die ein Nachbar vorgibt, ist keine Aussage über den Knopf.**
+   *
+   * **Diese Regel hat es schon einmal gegeben, als Teil der Regel darunter** —
+   * und sie ist beim Verengen mit verlorengegangen. Die Verengung war richtig
+   * (der Abonnementname wurde sonst beschnitten), aber sie hat zwei Dinge
+   * zugleich weggenommen: das Schrumpfen des Feldes, das schadete, und die
+   * Ausrichtung, die half.
+   *
+   * > **Wer eine Regel verengt, verengt alles, was in ihr steht — auch das, was
+   * > mit dem Grund der Verengung nichts zu tun hatte.**
+   *
+   * Sie steht deshalb für sich, mit dem breiten `:has(.field)`: Eine Ausrichtung
+   * beschneidet nichts und ist überall richtig, wo ein Feld neben einem Knopf
+   * steht. `ButtonFieldAlignTest` hält beides auseinander.
+   */
+  .page-head .button-row:has(.field) {
+    align-items: flex-end;
+  }
+
   .page-head .button-row:has(.field > select:only-child) {
     flex-wrap: nowrap;
-    align-items: center;
   }
 
   .page-head .button-row:has(.field > select:only-child) .button {

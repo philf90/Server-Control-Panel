@@ -15141,6 +15141,46 @@ pruefe "das drehende Zeichen verliert seine Regel" \
 wiederherstellen
 
 echo
+echo "── ButtonFieldAlignTest: die Ausrichtung wandert in die verengte Regel ──"
+#
+# **Der Fehler, den dieses Repo am 23. August gemacht hat.** Die Ausrichtung
+# stand in der Regel, die den Seitenkopf der Uebersicht in eine Zeile bringt;
+# beim Verengen dieser Regel ist sie mit verschwunden, und der Knopf auf der
+# Domain- und der Datenbankliste wuchs wieder auf die Hoehe von Beschriftung
+# plus Feld. Kein Ueberlauf, keine geaenderte Kopfhoehe — nur ein Verhaeltnis.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.page-head .button-row:has(.field) {\n    align-items: flex-end;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.page-head .button-row:has(.field > select:only-child) {\n    align-items: flex-end;', 1))
+PY2
+griff_datei resources/css/app.css "die Ausrichtung gilt nur noch fuer ein Feld ohne Beschriftung" &&
+pruefe "die Ausrichtung gilt nur noch fuer ein Feld ohne Beschriftung" \
+  ButtonFieldAlignTest::test_the_alignment_hangs_on_the_broad_selector failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ButtonFieldAlignTest passed
+
+echo
+echo "── ButtonFieldAlignTest: die Ausrichtung faellt auf stretch zurueck ──"
+#
+# Eine Regel, die dasteht und das Geerbte wiederholt, sieht aus wie eine Regel.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.page-head .button-row:has(.field) {\n    align-items: flex-end;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.page-head .button-row:has(.field) {\n    align-items: stretch;', 1))
+PY2
+griff_datei resources/css/app.css "die Ausrichtung ist wieder stretch" &&
+pruefe "die Ausrichtung ist wieder stretch" \
+  ButtonFieldAlignTest::test_the_alignment_hangs_on_the_broad_selector failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ButtonFieldAlignTest passed
+
+echo
 echo "── SelectorValidityTest: ein :has() wandert in ein :has() ──"
 #
 # **Der Fall, den dieses Repo am 23. August bezahlt hat.** Die Spezifikation

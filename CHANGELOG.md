@@ -18194,3 +18194,65 @@ einen Bruch, auch für 1600.
 Gemessen wird seitdem an den Zeichen, und ein Fall `kontrolle` mit einem Wert,
 der auf keine Zeile passt, muss in beiden Fassungen brechen — sonst endet das
 Skript mit Rückgabewert 1 und keine Null daneben bedeutet etwas.
+
+### Befund 5 — die Behebung von Befund 3 gilt nicht
+
+Nachgesehen am 23. August 2026 auf `cloudsrv24` gegen `v0.7.0-rc.5`, an einer
+Domain ohne DNS-Zugangsdaten. Zwei der drei Teile von Befund 3 stimmen: Die
+Beschriftung „Als Platzhalter bestellen" steht blass, der Zeiger ist der normale
+Pfeil. Der dritte nicht — der Hinderungsgrund stand in derselben Farbe wie die
+Erklärung darüber, also genau so wie **vor** der Behebung.
+
+Die Regel dafür gab es:
+
+```
+.obstacle { color: var(--warn); }        /* Zeile 3647 */
+.hint     { color: var(--text-muted); }  /* Zeile 3784 */
+```
+
+Beide 0,1,0, das Markup `class="hint obstacle"` — bei gleicher Spezifität
+entscheidet die Reihenfolge in der Datei, und `.hint` steht 137 Zeilen weiter
+unten.
+
+> **Eine Klasse, die auf eine Regel zeigt, sagt nichts darüber, ob die Regel
+> gilt.**
+
+`ClassReachTest` war grün: Die Klasse zeigte auf eine Regel, die es gibt. Die
+Frage dahinter hat kein Wächter gestellt.
+
+**Und der Weg dorthin ist die eigentliche Lehre.** Der erste Wurf war
+`.toggle .obstacle` (0,2,0) und hätte gewonnen. `StandaloneClassTest` hat ihn
+abgelehnt, zu Recht — eine Klasse, die es nur unter einem Vorfahren gibt, tut
+ausserhalb davon nichts. Die Antwort darauf, `.obstacle` freistehend, hat die
+Spezifität weggenommen, die sie brauchte.
+
+> **Eine Behebung, die einem Wächter ausweicht, kann dabei genau das verlieren,
+> wofür sie da war.**
+
+Behoben als `.hint.obstacle` — zwei Klassen sind 0,2,0 und gewinnen gegen
+`.hint`, gleich wo die Regeln stehen. Die Regel eine Zeile tiefer zu schieben
+hätte es auch getan, bis zum nächsten Aufräumen.
+
+> **Eine Regel, die durch ihren Ort gewinnt, verliert beim nächsten Umzug — und
+> sagt es nicht.**
+
+**Ausgezählt, wie oft das sonst noch dasteht:** 42 Klassenpaare stehen in den
+Vorlagen an einem Element, **drei** davon setzen dieselbe Eigenschaft mit
+gleicher Spezifität. Eines ist dieser Befund; `.breadcrumb`+`.ident` und
+`.ident`+`.path-line` sind ohne Folge und stehen mit ihrem gemessenen Ausgang in
+`SpecificityTest::ORDERED`. **`SpecificityTest`** hält die Regel: Ein Streit
+zweier Klassen an einem Element wird durch Spezifität entschieden, nicht durch
+den Ort in der Datei — oder er steht auf der Liste.
+
+**Nachgemessen im Aufsatz, beide Themes, Kontrast gerechnet:** Das Hindernis
+steht auf `rgb(132,83,6)` (6,5:1 gegen Weiß) beziehungsweise `rgb(226,169,74)`
+(9,0:1 gegen den dunklen Grund), die Erklärung daneben auf `rgb(92,100,112)` und
+`rgb(153,160,174)`. Die Gegenprobe mit dem Stand von rc.5 zeigt für alle drei
+Zeilen dieselbe Farbe — genau das Bild vom Server.
+
+**Und die erste dieser Messungen war keine.** Sie las eine Zeichenkette ab, die
+beim Laden der Seite entstanden war, und meldete nach dem Umschalten aufs dunkle
+Thema dieselben Farben wie im hellen.
+
+> **Ein Wert, der beim Laden entstanden ist, sagt nichts über den Zustand
+> danach.**

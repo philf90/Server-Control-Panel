@@ -14650,6 +14650,60 @@ pruefe "der Ausdruck findet kein Idents mehr" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" IdentPlacementTest passed
 
+# ── SpecificityTest: Befund 5 der Bilderrunde ──────────────────────────────
+#
+# `.obstacle` und `.hint` setzen beide `color` und haben beide 0,1,0. Bei
+# gleicher Spezifitaet entscheidet die Reihenfolge in der Datei — und `.hint`
+# steht 137 Zeilen weiter unten. Der Hinderungsgrund war damit so blass wie die
+# Erklaerung darueber, also genau so wie vor seiner Behebung. ClassReachTest war
+# gruen: Die Klasse zeigte auf eine Regel, die es gibt.
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.hint.obstacle {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.obstacle {', 1))
+PY2
+griff_datei resources/css/app.css "der Hinderungsgrund verliert gegen .hint" &&
+pruefe "der Hinderungsgrund verliert gegen .hint" \
+  SpecificityTest::test_no_pair_is_decided_by_source_order failed
+wiederherstellen
+
+# **Die Gegenprobe zum Vergleich.** Einer, der keinen Streit mehr sieht, waere
+# fuer immer gruen — die Sperrklinke ueber ORDERED faengt ihn.
+
+vorher_datei tests/Unit/SpecificityTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/SpecificityTest.php'
+s = open(p, encoding='utf-8').read()
+alt = 'foreach (array_intersect(array_keys($regeln[$a]), array_keys($regeln[$b])) as $eigenschaft) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'foreach ([] as $eigenschaft) {', 1))
+PY2
+griff_datei tests/Unit/SpecificityTest.php "der Vergleich sieht keinen Streit mehr" &&
+pruefe "der Vergleich sieht keinen Streit mehr" \
+  SpecificityTest::test_no_pair_is_decided_by_source_order failed
+wiederherstellen
+
+# **Und der Leser von app.css.** Findet er keine Regel mehr, prueft der Fall
+# darunter nichts und ist gruen, ohne etwas gesehen zu haben.
+
+vorher_datei tests/Unit/SpecificityTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/SpecificityTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/([^{}]+)\\{([^{}]*)\\}/'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/(XX[^{}]+)\\{([^{}]*)\\}/'", 1))
+PY2
+griff_datei tests/Unit/SpecificityTest.php "app.css wird nicht mehr gelesen" &&
+pruefe "app.css wird nicht mehr gelesen" \
+  SpecificityTest::test_the_comparison_sees_a_conflict failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SpecificityTest passed
+
 # **Befund 3:** Ein Kaestchen, das nicht klickt und aussieht, als taete es das.
 # Gemeldet vom Betreiber, gefunden von keinem Messmittel.
 

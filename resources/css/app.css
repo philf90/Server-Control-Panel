@@ -3643,8 +3643,30 @@ p:not([class]) {
  *
  * > **Eine Klasse, die es nur als Nachfahrenregel gibt, ist ausserhalb ihres
  * > Vorfahren ein Wunsch.**
+ *
+ * **Und dann galt sie trotzdem nicht** — Befund 5 der Bilderrunde (`docs/76`),
+ * gesehen auf dem Server gegen `v0.7.0-rc.5`. Sie steht als `class="hint
+ * obstacle"`, und `.hint` setzt ebenfalls `color`. Beide haben die Spezifität
+ * 0,1,0; entschieden hat die **Reihenfolge in der Datei**, und `.hint` steht
+ * 137 Zeilen weiter unten. Der Hinderungsgrund stand damit in derselben Farbe
+ * wie die Erklärung darüber — also genau so, wie vor der Behebung.
+ *
+ * > **Eine Klasse, die auf eine Regel zeigt, sagt nichts darüber, ob die Regel
+ * > gilt.**
+ *
+ * `ClassReachTest` war grün: Die Klasse zeigte auf eine Regel, die es gibt.
+ * Dass eine andere sie überschreibt, fragt er nicht — und kein anderer Wächter
+ * auch. Seitdem tut es {@see \Tests\Unit\SpecificityTest}.
+ *
+ * **Deshalb `.hint.obstacle` und nicht `.obstacle`.** Zwei Klassen sind 0,2,0
+ * und gewinnen gegen `.hint`, gleich wo die beiden Regeln stehen. Die Regel
+ * eine Zeile tiefer zu schieben hätte es auch getan — bis zum nächsten
+ * Aufräumen, und dann lautlos nicht mehr.
+ *
+ * > **Eine Regel, die durch ihren Ort gewinnt, verliert beim nächsten
+ * > Umzug — und sagt es nicht.**
  */
-.obstacle {
+.hint.obstacle {
   color: var(--warn);
 }
 

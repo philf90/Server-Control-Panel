@@ -26,6 +26,10 @@ ungültig und keine Messung.
 | 1 · rc.5 | Domain, DNS-Abgleich | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ |
 | 1 · rc.5 | Domain, DNS-Abgleich | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 4) |
 | 1 · rc.5 | Domain, DNS-Abgleich | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 4) |
+| 1 · rc.5 ohne Zugangsdaten | Domain, Zertifikat | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 5) |
+| 1 · rc.5 ohne Zugangsdaten | Domain, Zertifikat | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 5) |
+| 1 · rc.5 ohne Zugangsdaten | Domain, Zertifikat | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ |
+| 1 · rc.5 ohne Zugangsdaten | Domain, Zertifikat | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ |
 | 1 | Domain, DNS-Abgleich | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 1) |
 | 1 | Domain, DNS-Abgleich | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 2) |
 | 1 | Domain, DNS-Abgleich | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 3) |
@@ -477,6 +481,85 @@ einen Fall `kontrolle` mit einem Wert, der auf keine Zeile passt: Bricht der
 nicht, endet das Skript mit Rückgabewert 1, und keine Null daneben bedeutet
 etwas.
 
+
+### Befund 5 — die Behebung von Befund 3 gilt nicht
+
+Gefunden am 23. August auf `cloudsrv24` gegen **`v0.7.0-rc.5`**, beim Nachsehen
+von Befund 3 — und damit zum zweiten Mal an einer Behebung dieses Laufs. Wieder
+ohne eine Zahl: `dokument: 0`, `schiebt: []`, Gegenprobe `200/200` in allen vier
+Lagen.
+
+Zwei der drei Teile von Befund 3 stimmen: Die Beschriftung „Als Platzhalter
+bestellen" steht blass, und der Zeiger ist der normale Pfeil. Der dritte nicht —
+der Hinderungsgrund stand in derselben Farbe wie die Erklärung darüber, also
+genau so wie **vor** der Behebung.
+
+Die Regel dafür gab es:
+
+```
+.obstacle { color: var(--warn); }        /* Zeile 3647 */
+.hint     { color: var(--text-muted); }  /* Zeile 3784 */
+```
+
+Beide haben die Spezifität 0,1,0, das Markup lautet `class="hint obstacle"`, und
+bei gleicher Spezifität entscheidet die **Reihenfolge in der Datei**. `.hint`
+steht 137 Zeilen weiter unten und gewinnt.
+
+> **Eine Klasse, die auf eine Regel zeigt, sagt nichts darüber, ob die Regel
+> gilt.**
+
+`ClassReachTest` war grün — er fragt, ob eine Klasse auf eine Regel zeigt, die
+es gibt, und genau das war der Fall. Die Frage dahinter hat kein Wächter
+gestellt.
+
+**Und der Weg dorthin ist die eigentliche Lehre.** Der erste Wurf war `.toggle
+.obstacle` (0,2,0) und hätte gewonnen. `StandaloneClassTest` hat ihn abgelehnt,
+zu Recht: Eine Klasse, die es nur unter einem Vorfahren gibt, tut ausserhalb
+davon nichts. Die Antwort darauf — `.obstacle` freistehend — hat die
+Spezifität weggenommen, die sie brauchte.
+
+> **Eine Behebung, die einem Wächter ausweicht, kann dabei genau das verlieren,
+> wofür sie da war.**
+
+**Wie oft steht das sonst noch da?** Ausgezählt über alle Klassenpaare, die in
+einer Vorlage an einem Element stehen: **42 Paare, drei davon setzen dieselbe
+Eigenschaft mit gleicher Spezifität.** Eines ist dieser Befund; die anderen
+beiden sind ohne Folge und stehen benannt in `SpecificityTest::ORDERED`:
+
+| Paar | Eigenschaft | gewinnt | Folge |
+|---|---|---|---|
+| `.hint` + `.obstacle` | `color` | `.hint` | **der Befund** |
+| `.breadcrumb` + `.ident` | `font-size` | `.breadcrumb` | die Krume bleibt klein — gewollt |
+| `.ident` + `.path-line` | `font-size` | `.path-line` | die Pfadzeile bleibt klein — gewollt |
+| `.ident` + `.path-line` | `overflow-wrap` | `.path-line` | derselbe Wert, keine Wirkung |
+
+**Behoben** als `.hint.obstacle` — zwei Klassen sind 0,2,0 und gewinnen gegen
+`.hint`, gleich wo die beiden Regeln stehen. Die Regel eine Zeile tiefer zu
+schieben hätte es auch getan, bis zum nächsten Aufräumen.
+
+> **Eine Regel, die durch ihren Ort gewinnt, verliert beim nächsten Umzug — und
+> sagt es nicht.**
+
+**Nachgemessen im Aufsatz**, beide Themes, mit gerechnetem Kontrast:
+
+| | hell | dunkel |
+|---|---|---|
+| Beschriftung | `rgb(92,100,112)` | `rgb(153,160,174)` |
+| Erklärung | `rgb(92,100,112)` | `rgb(153,160,174)` |
+| Hindernis | `rgb(132,83,6)` — 6,5:1 | `rgb(226,169,74)` — 9,0:1 |
+| Zeiger | `default` | `default` |
+
+Und die Gegenprobe mit dem Stand von rc.5: dort steht das Hindernis auf
+`rgb(92,100,112)` — dieselbe Farbe wie die Erklärung, genau wie auf dem Bild vom
+Server.
+
+**Die erste Messung dazu war keine.** Sie las eine Zeichenkette ab, die beim
+Laden der Seite entstanden war, und meldete nach dem Umschalten aufs dunkle Thema
+dieselben Farben wie im hellen.
+
+> **Ein Wert, der beim Laden entstanden ist, sagt nichts über den Zustand
+> danach.**
+
 ---
 
 ## 2b. Was das Beheben gekostet hat
@@ -564,6 +647,16 @@ Frage an den Betreiber und kein Fehler.
   er über 321 Breiten gemessen (§2, Befund 4). Er gehört in den nächsten Lauf,
   und zwar an beiden Fundstellen: der Zeile „gefragt wurden" bei 1440 px und dem
   Satz unter „Als Platzhalter bestellen" bei 390 px.
+- **Befund 3 ist am 23. August nachgesehen** — zwei seiner drei Teile stimmen,
+  der dritte hat **Befund 5** ergeben. Auch der ist behoben und **nicht auf dem
+  Server nachgesehen**; im Aufsatz sind beide Themes mit gerechnetem Kontrast
+  gemessen (§2, Befund 5).
+
+  **Zweimal an einem Tag hat das Nachsehen einer Behebung einen Befund
+  gebracht.** Das ist kein Zufall dieses Laufs, sondern der Satz aus `docs/66` in
+  seiner schärfsten Form: Eine Behebung ist eine Änderung wie jede andere.
+- **Die DNS-Zugangsdaten an `p6-b.invalid` sind entfernt** und damit nicht mehr
+  offen. Wer den Platzhalter wieder prüfen will, hinterlegt sie neu.
 - **Die Marke „ungeprüft" ist nicht aufgenommen**, und sie ist **flüchtig**:
   `srvpanel-dns.timer` läuft alle 15 Minuten, also ist jede Domain spätestens
   nach einer Viertelstunde geprüft. Den Zustand gibt es nur im Fenster zwischen

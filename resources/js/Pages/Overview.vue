@@ -144,14 +144,31 @@ const kernelText = computed(() => {
  * und die gemessene Zahl der Agentenaufrufe).
  */
 
-/** Wie oft nachgeladen wird. */
-const CYCLE_MS = 30_000
+/**
+ * Die Takte, die zur Wahl stehen — Sekunden, `0` heisst „nicht von allein".
+ *
+ * **Die Auswahl entsteht aus dieser Liste und steht nicht zweimal da.** Ein
+ * `<option>` von Hand daneben wäre eine zweite Fassung derselben Angabe, und
+ * ein Wert, den die Liste nicht kennt, liesse die Auswahl leer aussehen — der
+ * Fehler, den dieses Projekt sechsmal bezahlt hat: eine Zeichenkette, die auf
+ * etwas verweist, das niemand nachschlägt.
+ *
+ * **Die Wörter stehen ausgeschrieben.** „30 s" wäre kürzer und ist eine
+ * Abkürzung, die dieses Panel sonst nirgends benutzt; gemessen kostet die volle
+ * Schreibweise bei 390 px vierzehn Pixel Höhe.
+ */
+const TAKTE = [
+  { sekunden: 30, wort: 'alle 30 Sekunden' },
+  { sekunden: 60, wort: 'alle 60 Sekunden' },
+  { sekunden: 0, wort: 'nicht von allein' },
+] as const
 
-/** Wo der Browser sich merkt, ob der Selbstlauf an ist. */
-const STORAGE_KEY = 'srvpanel.overview.auto'
+/** Wo der Browser sich den Takt merkt. */
+const STORAGE_KEY = 'srvpanel.overview.cycle'
 
 /**
- * Ob der Selbstlauf läuft — gemerkt im Browser und nicht am Konto.
+ * Der Takt in Sekunden, `0` heisst „nicht von allein" — gemerkt im Browser und
+ * nicht am Konto.
  *
  * **Warum `localStorage` und nicht das Profil.** Das Thema hell/dunkel gehört
  * dem Menschen und soll ihm auf jedes Gerät folgen. Dieser Schalter gehört dem
@@ -163,29 +180,59 @@ const STORAGE_KEY = 'srvpanel.overview.auto'
  * abgeschalteten Seitendaten wirft schon das Lesen — nicht `null`, sondern
  * eine Ausnahme. Ohne die Klammer stünde die Übersicht dort weiß da.
  */
-const auto = ref(gemerkt())
+const cycle = ref(gemerkt())
 
 /** Ob gerade nachgeladen wird — der Knopf dreht sich dann. */
 const busy = ref(false)
 
-let cycle: ReturnType<typeof setInterval> | undefined
+let takt: ReturnType<typeof setInterval> | undefined
 
-function gemerkt(): boolean {
+/**
+ * Der gemerkte Takt — oder die Vorgabe.
+ *
+ * **Gelesen wird gegen {@link TAKTE} und nicht gegen sich selbst.** Im
+ * Speicher des Browsers kann alles stehen: ein Wert aus einer früheren Fassung,
+ * etwas von Hand Eingetragenes, Unsinn. Ein Takt, den die Liste nicht kennt,
+ * liesse die Auswahl leer aussehen und liefe in einem Rhythmus, den niemand
+ * gewählt hat.
+ *
+ * > **Ein Wert aus fremder Hand gehört gegen die Liste geprüft, die ihn
+ * > anbietet.**
+ */
+function gemerkt(): number {
   try {
-    // Die Vorgabe ist „an": Wer nichts eingestellt hat, will die Zahlen sehen.
-    return window.localStorage.getItem(STORAGE_KEY) !== 'off'
+    const wert = Number(window.localStorage.getItem(STORAGE_KEY))
+
+    if (TAKTE.some((t) => t.sekunden === wert)) return wert
   } catch {
-    return true
+    // Kein Zugriff auf den Speicher — dann gilt die Vorgabe.
   }
+
+  // Die Vorgabe ist der kürzeste Takt: Wer nichts eingestellt hat, will die
+  // Zahlen sehen.
+  return TAKTE[0].sekunden
 }
 
-function merken(an: boolean): void {
+function merken(sekunden: number): void {
   try {
-    window.localStorage.setItem(STORAGE_KEY, an ? 'on' : 'off')
+    window.localStorage.setItem(STORAGE_KEY, String(sekunden))
   } catch {
     // Ein Schalter, der sich nicht merken lässt, wirkt trotzdem für diese
     // Sitzung. Eine Fehlermeldung dafür wäre eine Störung ohne Handlung.
   }
+}
+
+/**
+ * Den Takt neu stellen — anhalten und, wenn einer gewählt ist, neu setzen.
+ *
+ * `setInterval` kennt keine Änderung seiner Länge; wer den Takt umstellt, muss
+ * den alten anhalten. Ohne das liefen nach zwei Umstellungen drei.
+ */
+function stellen(): void {
+  clearInterval(takt)
+  takt = undefined
+
+  if (cycle.value > 0) takt = setInterval(tick, cycle.value * 1000)
 }
 
 /**
@@ -217,8 +264,21 @@ function refresh(): void {
  * ansieht. Bei zwanzig offenen Reitern ist das der Unterschied zwischen einem
  * Aufruf und zwanzig.
  */
+/**
+ * Der Buchstabe im Zeichen — `A`, solange ein Takt gewählt ist.
+ *
+ * **Als Berechnung und nicht als Vergleich im Attribut.** `:letter="cycle > 0
+ * ? …"` trägt ein `>` mitten in die Vorlage, und jeder Wächter, der ein Tag
+ * über `[^>]*` liest, hört genau dort auf. `BlockSpacingTest` hat sich daran
+ * am 23. August verzählt und eine Fuge gemeldet, die es nicht gibt.
+ *
+ * > **Ein `>` in einem Attribut beendet das Tag für jeden, der es mit einem
+ * > Ausdruck liest.**
+ */
+const letter = computed((): string => (cycle.value > 0 ? 'A' : ''))
+
 function tick(): void {
-  if (!auto.value || document.hidden) return
+  if (cycle.value === 0 || document.hidden) return
 
   refresh()
 }
@@ -231,19 +291,20 @@ function tick(): void {
  * Augenblick, in dem jemand hinsieht.
  */
 function onVisible(): void {
-  if (!document.hidden && auto.value) refresh()
+  if (!document.hidden && cycle.value > 0) refresh()
 }
 
-watch(auto, (an: boolean): void => {
-  merken(an)
+watch(cycle, (sekunden: number): void => {
+  merken(sekunden)
+  stellen()
 
   // Einschalten heisst „jetzt", nicht „in dreissig Sekunden". Ein Schalter,
   // der sichtbar nichts tut, ist der Befund vom 7. August in anderer Gestalt.
-  if (an) refresh()
+  if (sekunden > 0) refresh()
 })
 
 onMounted((): void => {
-  cycle = setInterval(tick, CYCLE_MS)
+  stellen()
   document.addEventListener('visibilitychange', onVisible)
 })
 
@@ -254,7 +315,7 @@ onMounted((): void => {
  * von jeder Seite aus, auf der man einmal war. `IntervalTest` besteht darauf.
  */
 onUnmounted((): void => {
-  clearInterval(cycle)
+  clearInterval(takt)
   document.removeEventListener('visibilitychange', onVisible)
 })
 
@@ -298,24 +359,37 @@ const headline = props.server.reachable
           <ActionIcon
             name="refresh"
             class="state"
-            :letter="auto ? 'A' : ''"
+            :letter="letter"
             :class="{ turns: busy }"
           />
           <span>Aktualisieren</span>
         </button>
 
         <!--
-          **Eine beschriftete Auswahl und kein blosses Kästchen.** Am 7. August
-          hat der Betreiber ein unbeschriftetes Auswahlfeld auf der Domainliste
-          gemeldet — „geht unter und wird nicht wirklich wahrgenommen". Der Ort
-          ist derselbe, die Bauart deshalb auch: `.field.inline` im
-          `.button-row`.
+          **Die Auswahl trägt ihre Beschriftung in ihren eigenen Optionen.**
+
+          Am 7. August hat der Betreiber ein unbeschriftetes Auswahlfeld auf der
+          Domainliste gemeldet — „geht unter und wird nicht wirklich
+          wahrgenommen". Dort stand ein **Abonnementname** darin, und der sagt
+          über die Aufgabe des Feldes nichts; erst „Abonnement" daneben tut das.
+
+          Hier ist es umgekehrt: „alle 30 Sekunden" neben einem Knopf, der
+          „Aktualisieren" heisst, **ist** die Beschriftung. Ein Etikett
+          „Selbstlauf" davor sagte dasselbe ein zweites Mal und kostete bei
+          390 px eine eigene Spalte — der Betreiber hat es am 23. August als
+          überflüssig gemeldet.
+
+          > **Eine Beschriftung, die dasselbe sagt wie der Wert darunter, ist
+          > keine Auskunft, sondern eine Wiederholung.**
+
+          `aria-label` bleibt: Die Vorlesehilfe liest die Optionen nicht mit,
+          sie liest den Namen des Feldes. `FormLabelTest` prüft die Klammer und
+          nicht den Text — sein eigener Kopf sagt, dass das Bild über die
+          Beschriftung entscheidet.
         -->
         <label class="field inline">
-          <span>Selbstlauf</span>
-          <select v-model="auto">
-            <option :value="true">alle 30 Sekunden</option>
-            <option :value="false">aus</option>
+          <select v-model="cycle" aria-label="Selbstlauf">
+            <option v-for="t in TAKTE" :key="t.sekunden" :value="t.sekunden">{{ t.wort }}</option>
           </select>
         </label>
       </div>

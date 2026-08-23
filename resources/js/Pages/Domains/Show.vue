@@ -666,8 +666,13 @@ const dnsAdressenWeichenAb = computed(() => {
           <!--
             **Der Zeitpunkt steht immer dabei.** Was oben zu sehen ist, ist
             eine Aussage über den Augenblick der Messung und nicht über jetzt.
+
+            **`wide`, weil das hier kein Satz ist.** Ein Zeitpunkt und die
+            Nameserver, die gefragt wurden, sind **eine** Auskunft; das
+            Zeilenmass von `.section-note` trennte sie bei 1440 px mitten in
+            der Adressliste (`docs/76`, Befund 7).
           -->
-          <p class="section-note">
+          <p class="section-note wide">
             Zuletzt geprüft: {{ dnsGeprueft }}<template v-if="props.dns.last.findings.nameservers.length > 0">
             · gefragt wurden {{ props.dns.last.findings.nameservers.join(', ') }}</template>
           </p>

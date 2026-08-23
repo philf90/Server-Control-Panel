@@ -34,6 +34,8 @@ ungültig und keine Messung.
 | 1 · rc.6 | Domain, ganze Seite | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ |
 | 1 · rc.6 | Domain, ganze Seite | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ (4a, Befund 7) |
 | 1 · rc.6 | Domain, ganze Seite | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ |
+| 1 · rc.7 | Domain, ganze Seite | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 7 erfüllt) |
+| 1 · rc.7 | Domain, ganze Seite | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ (unverändert) |
 | 1 | Domain, DNS-Abgleich | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 1) |
 | 1 | Domain, DNS-Abgleich | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 2) |
 | 1 | Domain, DNS-Abgleich | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 3) |
@@ -804,8 +806,23 @@ Frage an den Betreiber und kein Fehler.
   Und die Marke „nicht möglich" steht in beiden Breiten **neben** der
   Beschriftung.
 - **Dabei ist Befund 7 herausgefallen** — zum dritten Mal in diesem Lauf ein
-  Befund am Nachsehen einer Behebung. Er ist behoben und **nicht nachgesehen**;
-  im Aufsatz sind beide Breiten gemessen (§2, Befund 7).
+  Befund am Nachsehen einer Behebung.
+- **Befund 7 ist am 23. August gegen `v0.7.0-rc.7` nachgesehen und erfüllt.**
+  Zwei Lagen, beide gültig (`dokument: 0`, Gegenprobe `200/200`, `schiebt` und
+  `rollt` leer):
+
+  | Lage | Zeile „Zuletzt geprüft … · gefragt wurden …" |
+  |---|---|
+  | 1440 / dunkel | **eine** Zeile, beide Adressen ganz |
+  | 390 / hell | zwei Zeilen, unverändert |
+
+  Bei 390 px ist das kein Rest, sondern die Zusage: Die Grenze von 64ch bindet
+  dort ohnehin nicht, die Spalte ist 358 px breit.
+
+  **`versteckt: 4` bei 390 gegen `0` bei 1440 ist erwartet.** Die Verben der
+  Knöpfe verlassen unterhalb von 720 px das Bild und bleiben im Dokument
+  (`.page-head .verb`, wegen WCAG 2.5.3); sie laufen über, sind aber unsichtbar,
+  und die Messung zählt sie deshalb getrennt statt sie zu melden.
 - **Befund 3 ist am 23. August nachgesehen** — zwei seiner drei Teile stimmen,
   der dritte hat **Befund 5** ergeben, und der Betreiber hat danach **Befund 6**
   gemeldet: Die Umgebung des Kästchens war behoben, das Kästchen selbst nicht. Auch der ist behoben und **nicht auf dem
@@ -845,6 +862,27 @@ Frage an den Betreiber und kein Fehler.
 
   > **Ein Zähler, der auf nichts zeigt, das man aufschlagen kann, ist noch keine
   > Auskunft über den Prüfling.**
+
+  **Am 23. August ist der Zähler aufgeschlagen worden**, im Nachlauf zu
+  `v0.7.0-rc.7`: Alle fünfzehn Einträge sind dieselbe Meldung — *„A form field
+  element should have an id or name attribute"*. Sie betrifft den Prüfling
+  (ausgezählt: **124 von 138 Feldern** ohne `id` und ohne `name`) und ist
+  trotzdem **kein Fund**.
+
+  Zwei Gründe, beide nachgeprüft. Erstens misst Chrome hier seine
+  **Ausfüllhilfe** und nicht die Zugänglichkeit: Beschriftet sind diese Felder
+  über die Klammer — jedes steht in seinem `<label>`, und genau darauf besteht
+  `FormLabelTest`. Zweitens reisen sie über Inertia als JSON und nicht über ein
+  natives `POST`; ein Name trüge nichts. Die eine Stelle, an der ein Browser ihn
+  wirklich braucht, hat ihn: `Auth/Login.vue` führt `name` **und**
+  `autocomplete` an Adresse und Passwort.
+
+  > **Ein Zähler, der eine Heuristik zählt, sagt nichts über die Regel, die man
+  > einhält.**
+
+  Damit ist der Kanal für diese Seite ausgeschöpft — die Frage nach den
+  **Fehlern** (der rote Zähler stand bei 390 px auf 1) bleibt offen und braucht
+  weiterhin den Filter „Errors only" mit Neuladen.
 - **Die Konsole war zuvor nicht gelesen worden.** In den Aufnahmen zu Ansicht 2
   zählten die Entwicklerwerkzeuge zwölf Fehler und fünfunddreissig Warnungen;
   ein Teil kommt sichtbar aus einer Browsererweiterung (`background.js`,

@@ -91,21 +91,17 @@ Zwischenspeicher, der nach zwei Minuten ohnehin verfällt, belegt nichts.
 räumt ihn ab**, und das ist keine Aufräumarbeit, sondern Teil des Laufs:
 Solange er steht, scheitert jede echte Bestellung für diese Domain.
 
-### 3.1 Und die eine Sache, die am Vortag geschehen muss
+### 3.1 Was ausdrücklich **nicht** in die Vorbereitung gehört
 
-**Den Zwischenspeicher des Systemauflösers auf `fremd.cloudlab24.de` füllen** —
-mit dem **alten** Wert, damit Punkt 4 überhaupt etwas zu vergleichen hat:
+**Das Füllen des Auflöser-Zwischenspeichers.** Der erste Wurf dieser Vorschrift
+hat es hierher gestellt, „am Vortag" — und das ist falsch: Der Prüfkörper von
+Punkt 4 ist ein Eintrag mit **TTL 3600**, also einer Stunde. Über Nacht ist
+davon nichts übrig, und der Lauf begänne mit einem leeren Zwischenspeicher,
+ohne dass es jemandem auffiele.
 
-```bash
-ssh cloudsrv24 'dig +noall +answer fremd.cloudlab24.de A'
-```
+> **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr hergestellt.**
 
-Erwartet: `192.0.2.1` mit einer TTL nahe 3600. **Ohne diesen Schritt misst Punkt
-4 nichts**, und zwar unsichtbar: Ein Auflöser ohne Eintrag holt die Antwort
-frisch und liefert denselben Wert wie das Panel.
-
-> **Eine Gegenprobe, die zufällig dasselbe liefert wie der Prüfling, hat nichts
-> verglichen.**
+Er wird in Punkt 4 (a) hergestellt, unmittelbar bevor er gebraucht wird.
 
 ---
 
@@ -183,16 +179,28 @@ Punkt nicht erfüllt, auch wenn beide Wörter richtig dastehen.
 **Der Punkt, der etwas beweist.** Der Reihe nach, und die Reihenfolge ist das
 Verfahren:
 
-**(a) Den Zwischenspeicher belegen.** Er wurde in §3.1 gefüllt; jetzt nachsehen,
-dass er noch hält:
+**(a) Den Zwischenspeicher füllen — mit dem alten Wert.** Zweimal fragen, und
+zwar über den **Systemauflöser** (kein `@server`):
 
 ```bash
-ssh cloudsrv24 'dig +noall +answer fremd.cloudlab24.de A'
+ssh cloudsrv24 'dig +noall +answer fremd.cloudlab24.de A; sleep 2; \
+  dig +noall +answer fremd.cloudlab24.de A'
 ```
 
-Erwartet: `192.0.2.1`, TTL deutlich unter 3600 und über 0. **Steht dort 3600,
-ist der Eintrag gerade frisch geholt worden und der Zwischenspeicher war leer —
-dann §3.1 wiederholen und mindestens eine Minute warten.**
+Erwartet: beide Male `192.0.2.1`, und die **TTL der zweiten Antwort ist kleiner**
+als die der ersten. Das ist der Beleg, dass der Auflöser den Wert wirklich hält
+und ihn nicht jedes Mal frisch holt — ohne ihn misst Punkt 4 nichts, und zwar
+unsichtbar:
+
+> **Eine Gegenprobe, die zufällig dasselbe liefert wie der Prüfling, hat nichts
+> verglichen.**
+
+**Bleibt die TTL gleich, ist der Auflöser kein Zwischenspeicher** (oder `dig`
+fragt an ihm vorbei). Dann ist Punkt 4 auf diesem Weg nicht fahrbar — das gehört
+so ins Protokoll und nicht als „erfüllt".
+
+**Ab hier läuft die Uhr:** Die Restlaufzeit aus der zweiten Antwort ist das
+Zeitfenster für (b) bis (d). Bei TTL 3600 ist das reichlich, aber es ist endlich.
 
 **(b) Den Eintrag beim Anbieter ändern:** `fremd.cloudlab24.de` von `192.0.2.1`
 auf **`198.51.100.1`** (TEST-NET-2).

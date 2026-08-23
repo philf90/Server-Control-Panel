@@ -38,6 +38,8 @@ ungültig und keine Messung.
 | 1 · rc.7 | Domain, ganze Seite | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ (unverändert) |
 | 3 · rc.7 | Domainliste `/domains` | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 8) |
 | 5 · rc.7 | Datenbankliste `/databases` | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 8) |
+| 6 · rc.7 | Übersicht `/`, Seitenkopf | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ |
+| 6 · rc.7 | Übersicht `/`, Seitenkopf | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ |
 | 1 | Domain, DNS-Abgleich | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 1) |
 | 1 | Domain, DNS-Abgleich | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 2) |
 | 1 | Domain, DNS-Abgleich | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 3) |
@@ -873,6 +875,34 @@ Frage an den Betreiber und kein Fehler.
   Beschriftung.
 - **Dabei ist Befund 7 herausgefallen** — zum dritten Mal in diesem Lauf ein
   Befund am Nachsehen einer Behebung.
+- **Der Seitenkopf der Übersicht ist am 23. August gegen `v0.7.0-rc.7`
+  nachgesehen und erfüllt.** Beide Themes bei 390 px, beide Lagen gültig und in
+  jeder Zahl gleich:
+
+  | | Wert |
+  |---|---|
+  | Kopfhöhe | **126 px** (vorher 140) |
+  | Reihe | 44 px |
+  | Knopf | 132×44 |
+  | Auswahlfeld | 172×44 |
+  | Knopf und Feld in einer Zeile | **ja** |
+  | Zeichen neben dem Wort | **ja** |
+
+  Die 126 px sind die Vorhersage aus dem Aufsatz, auf den Pixel getroffen.
+
+  **Eine Zahl weicht ab, und sie schliesst eine offene Frage.** Das Feld ist auf
+  dem Server **172 px** breit, im Aufsatz waren es 202 — und „alle 30 Sekunden"
+  steht in beiden vollständig darin. Im Container war ausgerechnet worden, der
+  Text *brauche* 201 px, und die verbleibenden 2 px Luft galten als knapp. Die
+  201 waren nie eine Bedarfsangabe:
+
+  > **Ein Wert, der immer dem entspricht, wogegen man ihn hält, ist keine
+  > Messung.** `scrollWidth` eines `<select>` gibt seine eigene sichtbare Breite
+  > zurück, auch wenn der Text abgeschnitten ist — gemessen an drei
+  > Polsterungen, jedes Mal `Luft 0`, und auf dem Server an einer Breite, die
+  > 30 px darunter liegt und trotzdem reicht.
+
+  Was über die Abschneidegefahr entscheidet, bleibt damit allein das Bild.
 - **Befund 7 ist am 23. August gegen `v0.7.0-rc.7` nachgesehen und erfüllt.**
   Zwei Lagen, beide gültig (`dokument: 0`, Gegenprobe `200/200`, `schiebt` und
   `rollt` leer):

@@ -77,6 +77,43 @@ final class DisabledStateTest extends TestCase
      */
     private const IDIOM = 5;
 
+    /**
+     * Formen, die der Ein-Zustand nicht hat.
+     *
+     * **Warum Werte und nicht Eigenschaften.** Der erste Wurf zählte
+     * *Eigenschaften* — `border`, `outline`, `appearance` — und war damit
+     * zweimal zu schwach:
+     *
+     * - `appearance: none` ist keine Form, sondern die **Erlaubnis**, eine zu
+     *   geben: Ohne sie zeichnet der Browser das Kästchen selbst. Der Eingriff,
+     *   der den gestrichelten Rand entfernte, liess sie stehen — und der
+     *   Wächter blieb grün.
+     * - `border: 1px solid` ist eine Eigenschaft aus der Liste und sieht aus
+     *   wie ein **bedienbares** Element.
+     *
+     * > **Ein Eingriff, der eine Regel entfernt und einen Rest stehen lässt,
+     * > prüft den Rest.**
+     *
+     * Gefragt wird deshalb nach der Form selbst: gestrichelt, gepunktet,
+     * doppelt, durchgestrichen. Keine davon trägt ein Bedienelement dieses
+     * Panels im Ein-Zustand, und keine davon ist eine Farbe.
+     *
+     * **Warum überhaupt die Form.** Der Betreiber hat das Kästchen „Als
+     * Platzhalter bestellen" ein zweites Mal gemeldet, nachdem Befund 3 behoben
+     * war: „lässt sich zwar nicht klicken, hat aber immer noch nicht wirklich
+     * deaktiviert gewirkt." Die Beschriftung war gedämpft, der Zeigefinger
+     * fort — und das Kästchen selbst blieb dasselbe Quadrat mit einem blasseren
+     * Rand.
+     *
+     * > **Weniger Kontrast liest sich als „unwichtig", nicht als „gesperrt".**
+     *
+     * Es ist ausserdem WCAG 1.4.1: Farbe darf nicht das einzige Mittel sein,
+     * mit dem eine Auskunft transportiert wird.
+     *
+     * @var list<string>
+     */
+    private const FORMS = ['dashed', 'dotted', 'double', 'line-through'];
+
     private function root(): string
     {
         return dirname(__DIR__, 2);
@@ -176,42 +213,63 @@ final class DisabledStateTest extends TestCase
      */
     private function styled(string $klasse): bool
     {
-        /*
-         * **Der ganze Selektor, nicht eine Zeile.** Der erste Wurf verlangte
-         * die Klasse, `disabled` und die öffnende Klammer auf **einer** Zeile
-         * — und fand damit `.field input:disabled` nicht, weil dessen Selektor
-         * über fünf Zeilen läuft und die Klammer erst hinter
-         * `.with-unit input:disabled` steht.
-         *
-         * > **Ein Ausdruck, der eine Zeile liest, findet keinen Selektor, der
-         * > über fünf geht.**
-         */
-        foreach ($this->selectors() as $selektor) {
-            if (str_contains($selektor, '.'.$klasse) && str_contains($selektor, 'disabled')) {
-                return true;
-            }
-        }
-
-        return false;
+        return $this->disabledRules($klasse) !== [];
     }
 
     /**
-     * Jeder Selektor in `app.css` — alles zwischen `}` und der nächsten `{`.
+     * Die Eigenschaften, die `app.css` für den Aus-Zustand dieser Hülle setzt.
      *
-     * @return list<string>
+     * **Der ganze Selektor, nicht eine Zeile.** Der erste Wurf verlangte die
+     * Klasse, `disabled` und die öffnende Klammer auf **einer** Zeile — und
+     * fand damit `.field input:disabled` nicht, weil dessen Selektor über fünf
+     * Zeilen läuft und die Klammer erst hinter `.with-unit input:disabled`
+     * steht.
+     *
+     * > **Ein Ausdruck, der eine Zeile liest, findet keinen Selektor, der über
+     * > fünf geht.**
+     *
+     * @return list<string> die gesetzten Angaben, `name: wert`
      */
-    private function selectors(): array
+    private function disabledRules(string $klasse): array
     {
-        $ohne = (string) preg_replace('~/\\*.*?\\*/~s', ' ', $this->stylesheet());
-        $selektoren = [];
+        $eigenschaften = [];
 
-        foreach (preg_split('/[{}]/', $ohne) ?: [] as $index => $stueck) {
-            if ($index % 2 === 0) {
-                $selektoren[] = trim($stueck);
+        foreach ($this->blocks() as [$selektor, $rumpf]) {
+            if (! str_contains($selektor, '.'.$klasse) || ! str_contains($selektor, 'disabled')) {
+                continue;
+            }
+
+            foreach (explode(';', $rumpf) as $angabe) {
+                if (! str_contains($angabe, ':')) {
+                    continue;
+                }
+
+                $name = trim(explode(':', $angabe, 2)[0]);
+
+                if ($name !== '' && ! str_starts_with($name, '--')) {
+                    $eigenschaften[] = trim((string) preg_replace('/\s+/', ' ', $angabe));
+                }
             }
         }
 
-        return $selektoren;
+        return array_values(array_unique($eigenschaften));
+    }
+
+    /**
+     * Jede Regel in `app.css` als `[Selektor, Rumpf]`.
+     *
+     * @return list<array{string, string}>
+     */
+    private function blocks(): array
+    {
+        $ohne = (string) preg_replace('~/\\*.*?\\*/~s', ' ', $this->stylesheet());
+
+        preg_match_all('/([^{}]+)\{([^{}]*)\}/', $ohne, $treffer, PREG_SET_ORDER);
+
+        return array_map(
+            static fn (array $t): array => [trim($t[1]), $t[2]],
+            $treffer,
+        );
     }
 
     /**
@@ -255,6 +313,29 @@ final class DisabledStateTest extends TestCase
     }
 
     /**
+     * **Und die Gegenprobe zum Leser der Eigenschaften.**
+     *
+     * Er darf nicht alles für eine Form halten und nicht nichts. Der
+     * Prüfkörper ist `.field`: Dort steht seit Monaten `border-style: dashed`
+     * neben `color` und `background` — also beides, Form und Farbe.
+     */
+    public function test_the_reader_tells_shape_from_colour(): void
+    {
+        $feld = implode(' | ', $this->disabledRules('field'));
+
+        $this->assertStringContainsString('border-style: dashed', $feld,
+            'Der Leser findet `border-style: dashed` an `.field input:disabled` nicht.');
+        $this->assertStringContainsString('color:', $feld,
+            'Der Leser findet `color` an `.field input:disabled` nicht.');
+
+        $this->assertSame(
+            [],
+            $this->disabledRules('gibtesnicht'),
+            'Der Leser findet Eigenschaften für eine Klasse, die es nicht gibt.',
+        );
+    }
+
+    /**
      * Jede Hülle mit einem abschaltbaren Bedienelement hat einen sichtbaren
      * Aus-Zustand.
      */
@@ -283,6 +364,52 @@ final class DisabledStateTest extends TestCase
             '',
             'Der Weg: eine Regel in app.css, die die Klasse und disabled nennt, so',
             'wie .field input:disabled es seit Monaten tut.',
+        ]));
+    }
+
+    /**
+     * Und er sagt es durch die **Form**, nicht nur durch die Farbe.
+     *
+     * **Das ist die zweite Hälfte von Befund 3, und sie hat einen zweiten Lauf
+     * gebraucht.** Der Fall darüber war grün, während das Kästchen aussah wie
+     * eines, das man drücken kann: Die Regel gab es, sie änderte die Farbe, und
+     * das genügt nicht.
+     *
+     * > **Ein Wächter, der fragt, ob es eine Regel gibt, sagt nichts darüber,
+     * > ob man sie sieht.**
+     */
+    public function test_every_off_state_is_said_by_shape(): void
+    {
+        $nurFarbe = [];
+
+        foreach ($this->wrappers() as $klasse => $anzahl) {
+            $gesetzt = $this->disabledRules($klasse);
+
+            if ($gesetzt === []) {
+                continue;
+            }
+
+            foreach (self::FORMS as $form) {
+                if (str_contains(implode(' | ', $gesetzt), $form)) {
+                    continue 2;
+                }
+            }
+
+            $nurFarbe[] = sprintf('.%s (%dx) — setzt nur: %s', $klasse, $anzahl, implode('; ', $gesetzt));
+        }
+
+        $this->assertSame([], $nurFarbe, implode("\n", [
+            'Diese Huellen sagen ihren Aus-Zustand nur ueber die Farbe:',
+            ...$nurFarbe,
+            '',
+            'Weniger Kontrast liest sich als „unwichtig", nicht als „gesperrt" — der',
+            'Betreiber hat das Kaestchen „Als Platzhalter bestellen" genau deshalb ein',
+            'zweites Mal gemeldet, nachdem es behoben war.',
+            '',
+            'Es ist ausserdem WCAG 1.4.1: Farbe darf nicht das einzige Mittel sein.',
+            '',
+            'Der Weg: eine der Formen aus DisabledStateTest::FORMS, so wie',
+            '`.field input:disabled` es seit Monaten mit `border-style: dashed` tut.',
         ]));
     }
 }

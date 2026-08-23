@@ -18256,3 +18256,47 @@ Thema dieselben Farben wie im hellen.
 
 > **Ein Wert, der beim Laden entstanden ist, sagt nichts über den Zustand
 > danach.**
+
+### Befund 6 — Befund 3 ist behoben und wirkt trotzdem nicht
+
+Gemeldet vom Betreiber, nachdem Befund 3 und 5 behoben waren: „Das Kästchen bei
+Platzhalter bestellen liess sich zwar nicht klicken, hat aber immer noch nicht
+wirklich deaktiviert gewirkt."
+
+Behoben war die **Umgebung** — Beschriftung gedämpft, Zeigefinger fort,
+Hinderungsgrund in `--warn`. Das **Kästchen selbst** blieb, wie der Browser es
+zeichnet: dasselbe Quadrat mit einem blasseren Rand. Bei vierfacher
+Vergrösserung nebeneinander ist der ganze Unterschied ein hellerer Strich, und
+bei 17 px trägt das fast nichts.
+
+> **Weniger Kontrast liest sich als „unwichtig", nicht als „gesperrt".**
+
+Es ist ausserdem WCAG 1.4.1: Farbe darf nicht das einzige Mittel sein. Und es
+ist zum dritten Mal derselbe Satz — erst für das Feld, dann für die Beschriftung
+des Schalters, jetzt für sein Kästchen:
+
+> **Eine Regel, die für ein Feld gilt, gilt nicht für den Schalter daneben,
+> bloss weil sie dieselbe ist.**
+
+Ein gesperrtes Kästchen trägt jetzt denselben gestrichelten Rand, den das
+gesperrte Feld seit Monaten trägt. Eine Marke „nicht möglich" war der zweite
+Entwurf und ist gemessen durchgefallen: Sie bricht auf eine eigene Zeile, liest
+sich als eigener Block — und sagt zum dritten Mal, was der Satz darunter schon
+sagt.
+
+**Und der Wächter war grün, während das Kästchen gleich aussah.**
+`DisabledStateTest` fragte, ob es für die Hülle eine Regel gibt, die `disabled`
+nennt. Die gab es; sie änderte die Farbe.
+
+> **Ein Wächter, der fragt, ob es eine Regel gibt, sagt nichts darüber, ob man
+> sie sieht.**
+
+Er verlangt jetzt eine Form, und zwar am **Wert**: gestrichelt, gepunktet,
+doppelt, durchgestrichen. **Der erste Wurf dieser Verschärfung zählte
+Eigenschaften und war zu schwach** — er blieb grün, als der Eingriff den
+gestrichelten Rand entfernte, weil `appearance: none` stehenblieb und als Form
+zählte. Sie ist keine, sondern die Erlaubnis, eine zu geben; und `border: 1px
+solid` wäre durchgegangen, obwohl das der Ein-Zustand ist.
+
+> **Ein Eingriff, der eine Regel entfernt und einen Rest stehen lässt, prüft den
+> Rest.**

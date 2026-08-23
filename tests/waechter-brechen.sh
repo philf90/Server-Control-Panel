@@ -14727,14 +14727,50 @@ vorher_datei tests/Unit/DisabledStateTest.php
 python3 - <<'PY2'
 p = 'tests/Unit/DisabledStateTest.php'
 s = open(p, encoding='utf-8').read()
-alt = "        return false;\n    }\n\n    /**\n     * Jeder Selektor in `app.css`"
+alt = "            if (! str_contains($selektor, '.'.$klasse) || ! str_contains($selektor, 'disabled')) {"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-neu = "        return true;\n    }\n\n    /**\n     * Jeder Selektor in `app.css`"
-open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            if (true) {", 1))
 PY2
-griff_datei tests/Unit/DisabledStateTest.php "der Stylesheet-Leser sagt immer ja" &&
-pruefe "der Stylesheet-Leser sagt immer ja" \
-  DisabledStateTest::test_the_stylesheet_reader_can_say_no failed
+griff_datei tests/Unit/DisabledStateTest.php "der Stylesheet-Leser findet nichts mehr" &&
+pruefe "der Stylesheet-Leser findet nichts mehr" \
+  DisabledStateTest::test_the_reader_tells_shape_from_colour failed
+wiederherstellen
+
+# **Der Zerleger der Angaben.** Haelt er nichts fuer eine Eigenschaft, ist die
+# Regel ueber die Form fuer immer gruen — es gaebe dann nirgends eine.
+
+vorher_datei tests/Unit/DisabledStateTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DisabledStateTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "                if ($name !== '' && ! str_starts_with($name, '--')) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                if (false) {", 1))
+PY2
+griff_datei tests/Unit/DisabledStateTest.php "der Zerleger findet keine Angabe mehr" &&
+pruefe "der Zerleger findet keine Angabe mehr" \
+  DisabledStateTest::test_the_reader_tells_shape_from_colour failed
+wiederherstellen
+
+# **Befund 6:** Das gesperrte Kaestchen sagt es nur ueber die Farbe — genau der
+# Zustand von rc.5, den der Betreiber ein zweites Mal gemeldet hat.
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+# Gestrichelt wird durchgezogen — also genau die Form, die ein BEDIENBARES
+# Element traegt. Der erste Wurf dieses Eingriffs nahm den ganzen Rand weg und
+# hat nicht gebissen: `appearance: none` blieb stehen, und die stand damals in
+# der Liste der Formen. Sie ist keine Form, sondern die Erlaubnis, eine zu
+# geben.
+alt = "  border: 1px dashed var(--control-line);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "  border: 1px solid var(--control-line);", 1))
+PY2
+griff_datei resources/css/app.css "das gesperrte Kaestchen traegt die Form des bedienbaren" &&
+pruefe "das gesperrte Kaestchen traegt die Form des bedienbaren" \
+  DisabledStateTest::test_every_off_state_is_said_by_shape failed
 wiederherstellen
 
 vorher_datei tests/Unit/DisabledStateTest.php

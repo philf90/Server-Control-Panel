@@ -3624,6 +3624,87 @@ p:not([class]) {
 }
 
 /*
+ * Ein gesperrtes Kästchen sagt es durch seine **Form**.
+ *
+ * ## Der Anlass
+ *
+ * **Befund 6 der Bilderrunde** (`docs/76`) — Befund 3 zum zweiten Mal, vom
+ * Betreiber gemeldet, nachdem er behoben war: „Das Kästchen liess sich zwar
+ * nicht klicken, hat aber immer noch nicht wirklich deaktiviert gewirkt."
+ *
+ * Die Behebung von Befund 3 hat die **Beschriftung** gedämpft und den
+ * Zeigefinger genommen. Das Kästchen selbst blieb, wie der Browser es zeichnet:
+ * dasselbe Quadrat, nur mit blasserem Rand. Gemessen bei vierfacher
+ * Vergrösserung ist der Unterschied zum bedienbaren Kästchen ein hellerer
+ * Strich — und bei 17 px trägt das fast nichts.
+ *
+ * > **Weniger Kontrast liest sich als „unwichtig", nicht als „gesperrt".**
+ *
+ * Und es ist derselbe Satz wie WCAG 1.4.1: Farbe darf nicht das einzige Mittel
+ * sein, mit dem eine Auskunft transportiert wird. Ein blasserer Rand ist nur
+ * Farbe.
+ *
+ * ## Warum gestrichelt und nicht etwas Neues
+ *
+ * Diese Form gibt es in diesem Stylesheet schon, für das Feld, das man nicht
+ * ändern kann (`.field input:disabled`), mit genau dieser Begründung: „die Form
+ * sagt ‚hier steht etwas, das man nicht ändert', und sie sagt es ohne Farbe."
+ *
+ * Zum dritten Mal derselbe Satz — erst für das Feld, dann für die Beschriftung
+ * des Schalters (Befund 3), jetzt für sein Kästchen:
+ *
+ * > **Eine Regel, die für ein Feld gilt, gilt nicht für den Schalter daneben,
+ * > bloss weil sie dieselbe ist.**
+ *
+ * **Eine Marke „nicht möglich" war der zweite Entwurf und ist gemessen
+ * durchgefallen:** Sie bricht neben der Beschriftung auf eine eigene Zeile,
+ * liest sich als eigener Block — und sagt zum dritten Mal, was der Satz in
+ * `--warn` darunter schon sagt.
+ *
+ * ## Der Preis
+ *
+ * `appearance: none` nimmt dem Kästchen die Zeichnung des Browsers, also auch
+ * den Haken. Er steht deshalb hier, als beschnittene Fläche in `--text-muted`
+ * statt als Farbwert in einem eingebetteten Bild — sonst folgte er dem Thema
+ * nicht.
+ *
+ * **Nur der gesperrte Zustand ist umgezeichnet.** Ein Kästchen, das zwischen
+ * bedienbar und gesperrt wechselt, änderte damit seine Form; in diesem Panel
+ * gibt es genau **ein** `:disabled`-Kästchen, und sein Zustand entsteht auf dem
+ * Server. Wer das ändert, misst nach.
+ */
+.toggle input[type='checkbox']:disabled,
+.toggle input[type='radio']:disabled {
+  appearance: none;
+  background: var(--surface);
+  border: 1px dashed var(--control-line);
+  border-radius: 3px;
+}
+
+/* Rund bleibt rund — auch gesperrt. */
+.toggle input[type='radio']:disabled {
+  border-radius: 50%;
+}
+
+.toggle input:disabled:checked::before {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--text-muted);
+}
+
+/* Der Haken. Beschnitten und nicht gezeichnet: So trägt er die Marke der
+   Umgebung und folgt dem Thema. */
+.toggle input[type='checkbox']:disabled:checked::before {
+  clip-path: polygon(14% 46%, 8% 56%, 40% 82%, 92% 24%, 82% 16%, 39% 64%);
+}
+
+.toggle input[type='radio']:disabled:checked::before {
+  clip-path: circle(28% at 50% 50%);
+}
+
+/*
  * Und der Grund steht abgesetzt.
  *
  * **Er stand als dritter `.hint` unter dem Kästchen**, in derselben Grösse und

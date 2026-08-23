@@ -560,6 +560,66 @@ dieselben Farben wie im hellen.
 > **Ein Wert, der beim Laden entstanden ist, sagt nichts über den Zustand
 > danach.**
 
+
+### Befund 6 — Befund 3 ist behoben und wirkt trotzdem nicht
+
+Gemeldet vom Betreiber am 23. August, nachdem Befund 3 und Befund 5 behoben
+waren: „Das Kästchen bei Platzhalter bestellen liess sich zwar nicht klicken,
+hat aber immer noch nicht wirklich deaktiviert gewirkt."
+
+**Was behoben war, war die Umgebung.** Die Beschriftung ist gedämpft, der
+Zeigefinger fort, der Hinderungsgrund steht in `--warn`. Das **Kästchen selbst**
+blieb, wie der Browser es zeichnet: dasselbe Quadrat, nur mit blasserem Rand.
+Bei vierfacher Vergrösserung nebeneinander gestellt ist der ganze Unterschied
+zum bedienbaren Kästchen ein hellerer Strich — und bei 17 px trägt das fast
+nichts.
+
+> **Weniger Kontrast liest sich als „unwichtig", nicht als „gesperrt".**
+
+Es ist ausserdem WCAG 1.4.1: Farbe darf nicht das einzige Mittel sein, mit dem
+eine Auskunft transportiert wird. Ein blasserer Rand ist nur Farbe.
+
+**Zum dritten Mal derselbe Satz.** Erst galt die Regel für das Feld
+(`.field input:disabled`, seit Monaten, mit eigener Begründung), dann für die
+Beschriftung des Schalters (Befund 3), jetzt für sein Kästchen:
+
+> **Eine Regel, die für ein Feld gilt, gilt nicht für den Schalter daneben,
+> bloss weil sie dieselbe ist.**
+
+**Drei Entwürfe gebaut und angesehen**, in beiden Themes:
+
+| | |
+|---|---|
+| **A** — gestrichelter Rand, wie das gesperrte Feld | trägt, auch angehakt |
+| **B** — eine Marke „nicht möglich" neben der Beschriftung | bricht auf eine eigene Zeile, liest sich als eigener Block — und sagt zum dritten Mal, was der Satz in `--warn` darunter schon sagt |
+| **C** — beides | erbt Bs Problem |
+
+**Gebaut ist A.** `appearance: none` nimmt dem Kästchen die Zeichnung des
+Browsers; der Haken steht deshalb als beschnittene Fläche in `--text-muted` und
+nicht als Farbwert in einem eingebetteten Bild — sonst folgte er dem Thema
+nicht. Umgezeichnet ist **nur** der gesperrte Zustand; in diesem Panel gibt es
+genau ein `:disabled`-Kästchen, und sein Zustand entsteht auf dem Server.
+
+**Und der Wächter war grün, während das Kästchen gleich aussah.**
+`DisabledStateTest` fragte, ob es für die Hülle eine Regel gibt, die `disabled`
+nennt. Die gab es — sie änderte die Farbe.
+
+> **Ein Wächter, der fragt, ob es eine Regel gibt, sagt nichts darüber, ob man
+> sie sieht.**
+
+Er verlangt seitdem eine **Form**, und zwar am Wert: gestrichelt, gepunktet,
+doppelt oder durchgestrichen.
+
+**Der erste Wurf dieser Verschärfung war zu schwach, und der Bruch hat es
+gezeigt.** Er zählte *Eigenschaften* — `border`, `outline`, `appearance` — und
+blieb grün, als der Eingriff den gestrichelten Rand entfernte: `appearance:
+none` stand noch da und galt als Form. Sie ist aber keine, sondern die
+Erlaubnis, eine zu geben. Und `border: 1px solid` wäre durchgegangen, obwohl das
+genau der Ein-Zustand ist.
+
+> **Ein Eingriff, der eine Regel entfernt und einen Rest stehen lässt, prüft den
+> Rest.**
+
 ---
 
 ## 2b. Was das Beheben gekostet hat
@@ -648,7 +708,8 @@ Frage an den Betreiber und kein Fehler.
   und zwar an beiden Fundstellen: der Zeile „gefragt wurden" bei 1440 px und dem
   Satz unter „Als Platzhalter bestellen" bei 390 px.
 - **Befund 3 ist am 23. August nachgesehen** — zwei seiner drei Teile stimmen,
-  der dritte hat **Befund 5** ergeben. Auch der ist behoben und **nicht auf dem
+  der dritte hat **Befund 5** ergeben, und der Betreiber hat danach **Befund 6**
+  gemeldet: Die Umgebung des Kästchens war behoben, das Kästchen selbst nicht. Auch der ist behoben und **nicht auf dem
   Server nachgesehen**; im Aufsatz sind beide Themes mit gerechnetem Kontrast
   gemessen (§2, Befund 5).
 

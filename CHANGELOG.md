@@ -18578,6 +18578,14 @@ Zeile und war 44 px hoch; erst mit beiden ergaben sich die 72.
 > **Eine Nachbildung, der eine Ebene fehlt, misst eine andere Lage — und zwar
 > eine, die harmloser aussieht.**
 
+**Nachgesehen am 23. August auf `cloudsrv24` gegen `v0.7.0-rc.8`**, beide Seiten
+bei 390 px, beide Lagen gültig: Knopf 116×44 bzw. 137×44 gegen ein Feld von
+190×44, gleich hoch, Unterkanten bündig, Abonnementname ungekürzt. Damit ist
+kein Befund der Bilderrunde mehr offen.
+
+> **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+> jemand ihn behoben hat.**
+
 ### `tests/takt-messen.js` — das Mittel bleibt, nicht nur das Ergebnis
 
 Der Nachlauf zu `v0.7.0-rc.7` hat den Takt der Übersicht zum ersten Mal

@@ -40,6 +40,8 @@ ungültig und keine Messung.
 | 5 · rc.7 | Datenbankliste `/databases` | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 8) |
 | 6 · rc.7 | Übersicht `/`, Seitenkopf | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ |
 | 6 · rc.7 | Übersicht `/`, Seitenkopf | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ |
+| 3 · rc.8 | Domainliste `/domains` | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 8 erfüllt) |
+| 5 · rc.8 | Datenbankliste `/databases` | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 8 erfüllt) |
 | 1 | Domain, DNS-Abgleich | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 1) |
 | 1 | Domain, DNS-Abgleich | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 2) |
 | 1 | Domain, DNS-Abgleich | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 3) |
@@ -783,6 +785,22 @@ zweite Zeile und war 44 px hoch; erst mit beiden ergaben sich die 72.
 gesetzt ist, und dass sie am **breiten** Selektor hängt. Zwei Eingriffe, beide
 gegengeprüft.
 
+**Nachgesehen am 23. August gegen `v0.7.0-rc.8`, beide Seiten, beide Lagen
+gültig:**
+
+| | `/domains` | `/databases` |
+|---|---|---|
+| Knopf | 116×**44** | 137×**44** |
+| Auswahlfeld | 190×44 | 190×44 |
+| gleich hoch | **ja** | **ja** |
+| Unterkanten bündig | **ja** | **ja** |
+| Abonnementname | `p6-abnahme.invalid`, ganz | `p6-abnahme.invalid`, ganz |
+
+Im Bild reicht der Knopf nicht mehr über die Beschriftung „Abonnement" hinauf.
+Der Name steht ungekürzt — die Ausrichtung hat nichts beschnitten, was der
+ganze Grund war, sie als eigene Regel zu bauen und nicht in die verengte
+zurückzulegen.
+
 ---
 
 ## 2b. Was das Beheben gekostet hat
@@ -856,6 +874,13 @@ Frage an den Betreiber und kein Fehler.
 ---
 
 ## 4. Was offen ist
+
+**Kein Befund dieses Laufs ist mehr offen.** Die Befunde 1 bis 8 sind behoben
+**und nachgesehen**, der letzte (Befund 8) am 23. August gegen `v0.7.0-rc.8`.
+Was hier darunter steht, sind Zustände, Fragen und Messungen, die dieser Lauf
+nicht hergestellt oder nicht ausgeschöpft hat — keine Mängel am Prüfling.
+
+> **Ein Protokoll ohne seine Lücken liest sich wie eine Abnahme.**
 
 - **Befund 1 und 2 sind am 23. August auf dem Server nachgesehen** — gegen
   `v0.7.0-rc.5`, vier Lagen, alle vier gültig. Die IPv6 bricht hinter dem

@@ -1150,7 +1150,14 @@ final class MobileLayoutTest extends TestCase
             $selector,
             ['.field', 'label.field', 'div.field'],
             ['div', 'form', '.form', '.section', '.sections'],
-            ['.field-row', '.inline', '.sheet', '.tile'],
+            /*
+             * `.page-head` ist hier fremd: Dieser Test fragt nach dem Feld im
+             * **Formular**, und `.form` ist der Flexbehälter, um den es geht.
+             * Ein Feld in der Kopfzeile einer Seite steht in einem anderen und
+             * bekommt seine Breite dort (`app.css`, `.page-head
+             * .button-row:has(.field)`).
+             */
+            ['.field-row', '.inline', '.page-head', '.sheet', '.tile'],
         );
     }
 

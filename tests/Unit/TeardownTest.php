@@ -97,6 +97,98 @@ final class TeardownTest extends TestCase
     }
 
     /**
+     * Der Rumpf der Aufräumhaken einer Quelle.
+     *
+     * **Warum es den Rumpf braucht und nicht die Datei.** Bis zum 23. August
+     * fragten die Fälle darunter, ob das Wort irgendwo in der Datei steht. Das
+     * trug, solange es genau eine Stelle gab, an der aufgeräumt wird — und die
+     * Übersicht hat am 23. August eine zweite bekommen: `stellen()` hält den
+     * alten Takt an, bevor es den neuen setzt. Damit war die Frage „gibt es
+     * ein `clearInterval`?" mit Ja zu beantworten, auch wenn im `onUnmounted`
+     * keines mehr stünde.
+     *
+     * > **Eine zweite Stelle, die dasselbe Wort trägt, macht die Frage „gibt
+     * > es eine?" stumpf.** Derselbe Satz wie bei `.toggle` in
+     * `waechter-brechen.sh`, nur eine Ebene höher: dort eine zweite CSS-Regel
+     * für dieselbe Hülle, hier ein zweiter Aufruf in derselben Datei.
+     *
+     * Gefunden hat das kein Nachdenken, sondern der Lauf der Eingriffe: Der
+     * Bruch, der den Takt nie anhält, liess sich nicht mehr eindeutig setzen.
+     *
+     * **Gezählt und nicht gesucht.** Ein Ausdruck über „`onUnmounted` … `}`"
+     * endet an der ersten schliessenden Klammer und damit mitten im Rumpf;
+     * gezählt wird deshalb die Verschachtelung. Was in einer Zeichenkette
+     * steht, zählt dabei mit — in einem Aufräumhaken steht keine.
+     */
+    private function hookBody(string $quelle): string
+    {
+        $rumpf = '';
+        $laenge = strlen($quelle);
+
+        foreach (self::HOOKS as $haken) {
+            $von = 0;
+
+            while (($treffer = strpos($quelle, $haken, $von)) !== false) {
+                $von = $treffer + strlen($haken);
+                $auf = strpos($quelle, '{', $von);
+
+                if ($auf === false) {
+                    continue;
+                }
+
+                $tiefe = 0;
+
+                for ($i = $auf; $i < $laenge; $i++) {
+                    if ($quelle[$i] === '{') {
+                        $tiefe++;
+                    } elseif ($quelle[$i] === '}') {
+                        $tiefe--;
+
+                        if ($tiefe === 0) {
+                            $rumpf .= substr($quelle, $auf, $i - $auf + 1);
+
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        return $rumpf;
+    }
+
+    /**
+     * **Die Gegenprobe zum Ausschnitt.**
+     *
+     * Ein Ausschnitt, der zu viel nimmt, ist von einem, der das Richtige
+     * nimmt, nicht zu unterscheiden — beide sind grün. Der Prüfkörper hat
+     * deshalb einen Aufruf *ausserhalb* des Hakens, einen darin und eine
+     * geschachtelte Klammer dazwischen.
+     */
+    public function test_the_hook_body_stops_at_its_own_brace(): void
+    {
+        $probe = implode("\n", [
+            'function stellen(): void {',
+            '  clearInterval(draussen)',
+            '}',
+            '',
+            'onUnmounted((): void => {',
+            '  if (takt) {',
+            '    clearInterval(drinnen)',
+            '  }',
+            '})',
+            '',
+            'clearInterval(dahinter)',
+        ]);
+
+        $rumpf = $this->hookBody($probe);
+
+        $this->assertStringContainsString('clearInterval(drinnen)', $rumpf, 'Der Ausschnitt reicht nicht bis in den Rumpf.');
+        $this->assertStringNotContainsString('clearInterval(draussen)', $rumpf, 'Der Ausschnitt nimmt mit, was vor dem Haken steht.');
+        $this->assertStringNotContainsString('clearInterval(dahinter)', $rumpf, 'Der Ausschnitt endet nicht an der Klammer des Hakens.');
+    }
+
+    /**
      * Die Ereignisnamen, auf die eine Quelle an `document` oder `window`
      * horcht — beziehungsweise aufhört.
      *
@@ -182,13 +274,13 @@ final class TeardownTest extends TestCase
                 continue;
             }
 
-            if (! str_contains($quelle, 'clearInterval(')) {
+            if (! str_contains($this->hookBody($quelle), 'clearInterval(')) {
                 $ohne[] = $pfad;
             }
         }
 
         $this->assertSame([], $ohne, implode("\n", [
-            'Diese Dateien setzen einen Takt und halten ihn nie an:',
+            'Diese Dateien setzen einen Takt und halten ihn im Aufraeumhaken nie an:',
             ...$ohne,
             '',
             'Inertia tauscht die Seite im selben Dokument aus. Ein setInterval',
@@ -205,7 +297,7 @@ final class TeardownTest extends TestCase
         $offen = [];
 
         foreach ($this->sources() as $pfad => $quelle) {
-            $ab = $this->globalListeners($quelle, 'remove');
+            $ab = $this->globalListeners($this->hookBody($quelle), 'remove');
 
             foreach ($this->globalListeners($quelle, 'add') as $ereignis) {
                 if (! in_array($ereignis, $ab, true)) {
@@ -215,7 +307,7 @@ final class TeardownTest extends TestCase
         }
 
         $this->assertSame([], $offen, implode("\n", [
-            'Diese Horcher an document oder window werden nie abgemeldet:',
+            'Diese Horcher an document oder window werden im Aufraeumhaken nie abgemeldet:',
             ...$offen,
             '',
             'document und window ueberleben jede Seite dieses Panels. Ein Horcher',

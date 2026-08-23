@@ -3079,6 +3079,122 @@ p:not([class]) {
   }
 
   /*
+   * **Eine Reihe, in der auch ein Feld steht, ist keine Leiste aus Knöpfen.**
+   *
+   * Die Regel darüber gibt jedem Knopf `flex: 1 1 0`, und ihre Begründung
+   * lautet: „Vier gleich breite Knöpfe lesen sich als eine Leiste." Sobald in
+   * derselben Reihe ein Feld steht, stimmt sie nicht mehr — der Knopf nimmt
+   * dann allen Platz und drängt das Feld in die zweite Zeile.
+   *
+   * > **Eine Regel gilt so weit wie ihre Begründung und nicht so weit wie ihr
+   * > Selektor.**
+   *
+   * Drei Seitenköpfe dieses Panels mischen so: Übersicht (Selbstlauf),
+   * Domainliste und Datenbankliste (je „Abonnement" plus Anlegen-Knopf) —
+   * **und die Regel gilt nur für den ersten.**
+   *
+   * `nowrap` lässt das Feld schrumpfen statt umbrechen. Ein `<select>` bricht
+   * nicht um, es **schneidet ab** — und das meldet kein Überlauf, weder über
+   * `scrollWidth` noch über eine Rechnung, die den Pfeil schätzt.
+   *
+   * > **Ein `<select>`, der abschneidet, meldet keinen Überlauf.**
+   *
+   * ## Warum `:not(:has(> span))` und nicht `:has(.field)`
+   *
+   * **Der erste Wurf vom 23. August traf alle drei, und die Zahlen sahen gut
+   * aus:** die Reihe der beiden Listen von 126 px auf 72 px, der Seitenkopf von
+   * 188 px auf 134 px. Im Bild stand daneben `kunde-mustermann-` — der
+   * Abonnementname war abgeschnitten, und zwei Abonnements, die sich erst hinten
+   * unterscheiden, sind damit nicht mehr auseinanderzuhalten.
+   *
+   * > **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
+   * > Keines von beiden ersetzt das andere.**
+   *
+   * Genau dieses Feld hat der Betreiber am 7. August gemeldet, und der Schaden
+   * steht im Kopf von `FormLabelTest`: Wer sich im Abonnement vertut, legt die
+   * Domain im falschen an, mit eigenem Verzeichnisbaum und eigenem
+   * Systembenutzer. 54 px sind dafür kein Preis.
+   *
+   * Der Unterschied zwischen den beiden Fällen ist **nicht** die Zahl der
+   * Bedienelemente, sondern die Herkunft des Wertes: „alle 30 Sekunden" ist
+   * eines von drei Wörtern, die dieses Panel selbst schreibt;
+   * `kunde-mustermann-gmbh` ist ein Name, den der Betreiber vergibt und dessen
+   * Länge niemand kennt. Ablesen lässt sich das an der Beschriftung — ein Feld,
+   * dessen Wert sich selbst erklärt, braucht keine.
+   *
+   * > **Ein Feld, das seine Beschriftung braucht, trägt einen Wert, den das
+   * > Panel nicht kennt — und der darf nicht beschnitten werden.**
+   *
+   * **`select:only-child` und nicht `:not(:has(> span))`.** Das war der zweite
+   * Wurf, und er hat gar nichts getan: `:has()` darf nicht in `:has()` stehen,
+   * und ein Selektor mit einer ungültigen Stelle fällt **ganz** weg. Die Regel
+   * stand da, sah richtig aus und traf nichts — die Messung daneben zeigte
+   * unverändert 58 px, also genau das, was auch eine fehlende Regel liefert.
+   * Gefunden hat es das Bild und nicht der Selektor.
+   *
+   * > **Eine ungültige Stelle in einem Selektor macht ihn nicht ungenauer,
+   * > sondern wirkungslos — und das sieht aus wie „die Regel greift hier
+   * > nicht".**
+   *
+   * Gemessen bei 390 px, Höhe des Seitenkopfs:
+   *
+   *   Übersicht     140px → 126px   eine Zeile statt zweier Spalten
+   *   Domains       188px → 188px   unberührt, Name vollständig
+   *   Datenbanken   188px → 188px   unberührt, Name vollständig
+   *
+   * `align-items: center` gehört dazu: Ohne das streckt sich der Knopf auf die
+   * Höhe der Feldspalte.
+   */
+  .page-head .button-row:has(.field > select:only-child) {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .page-head .button-row:has(.field > select:only-child) .button {
+    flex: none;
+
+    /*
+     * **Und die Spalte im Knopf fällt mit derselben Begründung.** Die Regel
+     * darüber stellt das Zeichen über sein Wort, weil vier Knöpfe
+     * nebeneinander sonst nicht in 358 px passen — gemessen in `docs/64 §12`,
+     * 119 px gegen 215 px. Steht nur **ein** Knopf in der Reihe, gibt es
+     * nichts zu sparen: Er nimmt ohnehin bloss, was er braucht, und die
+     * Spalte macht ihn nur höher.
+     *
+     * Gemessen am 23. August bei 390 px, Höhe der Reihe:
+     *
+     *   Zeichen über dem Wort (heute)   58px   Knopf 111 breit, Feld 237
+     *   Zeichen neben dem Wort           44px   Knopf 145 breit, Feld 203
+     *
+     * Vierzehn Pixel weniger, und der Knopf liest sich wie jeder andere
+     * Knopf dieses Panels. Die 34 px, die er in der Breite dazunimmt, hat das
+     * Feld: Alle drei Takte stehen darin vollständig.
+     *
+     * > **Eine Regel gilt so weit wie ihre Begründung und nicht so weit wie
+     * > ihr Selektor.** Derselbe Satz wie eine Zeile höher, nur an der
+     * anderen Hälfte derselben Regel — beim ersten Wurf am 23. August ist
+     * genau diese Hälfte stehengeblieben.
+     *
+     * **Was hier keine Zahl hat.** Ob das Feld seinen längsten Takt noch
+     * zeigt, sagt kein Messwert: `scrollWidth` eines `<select>` gibt seine
+     * eigene sichtbare Breite zurück, auch wenn der Text abgeschnitten ist —
+     * gemessen an drei Polsterungen, jedes Mal `Luft 0`. Wer die Optionen
+     * ändert, sieht im Bild nach.
+     *
+     * > **Ein Wert, der immer dem entspricht, wogegen man ihn hält, ist keine
+     * > Messung.**
+     */
+    flex-direction: row;
+    gap: 7px;
+    padding: 8px 10px;
+  }
+
+  .page-head .button-row:has(.field > select:only-child) .field {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  /*
    * Das Verb bleibt im Dokument und verlässt nur das Bild.
    *
    * **Nicht `display: none`.** Das nähme es auch aus dem zugänglichen Namen,

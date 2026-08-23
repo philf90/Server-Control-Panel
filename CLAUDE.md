@@ -1564,6 +1564,15 @@ Testen berücksichtigen:
   - Nach jeder Aufnahme `scrollWidth - clientWidth` messen. Ein waagerechter
     Überlauf bei 390px sieht auf dem Bild nach nichts aus und ist auf dem
     Telefon der ganze Unterschied.
+  - **Kein `| head` über dem Messlauf.** `head` schliesst die Leitung nach der
+    ersten Zeile, node stirbt am SIGPIPE — und die Aufnahmen der übrigen drei
+    Lagen sind dann die des **vorigen** Laufs. Am 23. August genau so passiert:
+    Hell zeigte den neuen Stand, Dunkel den alten, bei identischem Stylesheet,
+    und das las sich eine Weile wie ein Fehler im Theme. Der Lauf gehört in eine
+    Datei und die Datei danach gelesen.
+
+    > **Ein Bild, das ein abgebrochener Lauf hat liegen lassen, sieht aus wie
+    > ein Ergebnis — es trägt kein Datum im Bild.**
 - Vordergrund-`sleep` ist blockiert — Hintergrundlauf verwenden.
 - **`git checkout -- resources/` wirft eigene Arbeit weg.** Beim Gegenprüfen
   eines Wächters ist das der Weg zurück — und wenn im selben Verzeichnis noch

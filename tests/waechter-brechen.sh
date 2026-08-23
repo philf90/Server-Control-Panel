@@ -15009,14 +15009,20 @@ pruefe "  … zurückgesetzt wieder grün" PartialReloadTest passed
 # **Was eine Seite anlegt, raeumt sie beim Verlassen weg.** Inertia tauscht die
 # Seite im selben Dokument aus; ein Takt ohne Abschaltung laeuft bis zum
 # Schliessen des Reiters weiter, von jeder Seite aus, auf der man einmal war.
+#
+# **Getroffen wird die Stelle im Haken und nicht die erste im Text.** Seit dem
+# Takt von 60 Sekunden haelt `stellen()` den alten Takt selbst an — es gibt also
+# ein zweites `clearInterval` in derselben Datei, und ein Waechter, der nach dem
+# Wort sucht, waere damit gruen. `TeardownTest` liest deshalb den Rumpf des
+# Hakens; dieser Eingriff greift genau dorthin.
 
 vorher_datei resources/js/Pages/Overview.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Overview.vue'
 s = open(p, encoding='utf-8').read()
-alt = '  clearInterval(cycle)\n'
+alt = 'onUnmounted((): void => {\n  clearInterval(takt)\n'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '  void cycle\n', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'onUnmounted((): void => {\n  void cycle\n', 1))
 PY2
 griff_datei resources/js/Pages/Overview.vue "der Takt wird nie angehalten" &&
 pruefe "der Takt wird nie angehalten" \
@@ -15133,6 +15139,28 @@ griff_datei resources/css/app.css "das drehende Zeichen verliert seine Regel" &&
 pruefe "das drehende Zeichen verliert seine Regel" \
   ClassReachTest::test_every_class_in_a_template_points_at_a_rule failed
 wiederherstellen
+
+echo
+echo "── SelectorValidityTest: ein :has() wandert in ein :has() ──"
+#
+# **Der Fall, den dieses Repo am 23. August bezahlt hat.** Die Spezifikation
+# verbietet ein `:has()` in einem `:has()`; der Browser wirft den Selektor dann
+# nicht halb weg, sondern ganz. `npm run build` meldet davon nichts, und die
+# Messung daneben liefert genau die Zahl, die auch eine Regel liefert, die aus
+# gutem Grund nicht greift.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.button-row:has(.field > select:only-child) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.button-row:has(.field:not(:has(> span))) {', 1))
+PY2
+griff_datei resources/css/app.css "ein :has() steht in einem :has()" &&
+pruefe "ein :has() steht in einem :has()" \
+  SelectorValidityTest::test_no_selector_nests_has_inside_has failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SelectorValidityTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

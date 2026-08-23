@@ -18403,3 +18403,129 @@ eine Frage an den, der sie schreibt, und keine Eigenschaft des Quelltextes.
 
 > **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
 > als Zusage.**
+
+### Der Selbstlauf der Übersicht — ein Takt mehr, ein Etikett weniger
+
+Drei Wünsche des Betreibers vom 23. August 2026, alle drei an dem Bereich, den
+`v0.7.0-rc.5` gebracht hat: „Neben ‚alle 30 Sekunden' brauchen wir noch ‚alle
+60 Sekunden' als Option. Und die Darstellung des Aktualisieren-Bereiches in der
+390-px-Ansicht ist suboptimal. Es wirkt gestackt. Und generell ist die Nennung
+‚Selbstlauf' überflüssig und kann für mich entfallen."
+
+**Der Takt steht jetzt einmal da.** `TAKTE` ist die Liste der drei Möglichkeiten
+— 30 Sekunden, 60 Sekunden, nicht von allein —, und sie ist zugleich die
+Aufzählung im Auswahlfeld und die Prüfung dessen, was im `localStorage` steht.
+Vorher waren das zwei Stellen, und eine dritte Möglichkeit hätte beide gebraucht.
+
+**`stellen()` hält den alten Takt an, bevor es den neuen setzt.** `setInterval`
+kennt keine Änderung seiner Länge; ohne das liefen nach zwei Umstellungen drei.
+
+**Das Etikett ist fort.** „alle 30 Sekunden" neben einem Knopf, der
+„Aktualisieren" heisst, **ist** die Beschriftung; ein „Selbstlauf" davor sagte
+dasselbe ein zweites Mal und kostete bei 390 px eine eigene Spalte. Das
+`aria-label` bleibt — die Vorlesehilfe liest die Optionen nicht mit, sie liest
+den Namen des Feldes.
+
+> **Eine Beschriftung, die dasselbe sagt wie der Wert darunter, ist keine
+> Auskunft, sondern eine Wiederholung.**
+
+**Und der Seitenkopf steht bei 390 px in einer Zeile** (140 px → 126 px): Der
+Knopf nimmt nur, was er braucht, das Feld den Rest, und das Zeichen steht neben
+seinem Wort statt darüber. Die Regel, die es über sein Wort stellt, ist in
+`docs/64 §12` gemessen und gilt für **vier** Knöpfe nebeneinander, die sonst
+nicht in 358 px passen. Steht nur einer da, gibt es nichts zu sparen — und die
+Spalte macht ihn bloss 14 px höher.
+
+> **Eine Regel gilt so weit wie ihre Begründung und nicht so weit wie ihr
+> Selektor.**
+
+#### Und der erste Wurf dieser Regel hätte den Abonnementnamen abgeschnitten
+
+Sie hiess `.page-head .button-row:has(.field)` und traf damit auch die Domain-
+und die Datenbankliste. **Die Zahlen sahen gut aus:** die Reihe von 126 px auf
+72 px, der Seitenkopf von 188 px auf 134 px. Im Bild stand daneben
+`kunde-mustermann-` — der Name war abgeschnitten, und zwei Abonnements, die sich
+erst hinten unterscheiden, waren nicht mehr auseinanderzuhalten.
+
+> **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
+> Keines von beiden ersetzt das andere.**
+
+Genau dieses Feld hat der Betreiber am 7. August gemeldet, und was ein Griff
+danebengreift, steht im Kopf von `FormLabelTest`: eine Domain im falschen
+Abonnement, mit eigenem Verzeichnisbaum und eigenem Systembenutzer. 54 px sind
+dafür kein Preis.
+
+Der Unterschied zwischen den beiden Fällen ist nicht die Zahl der
+Bedienelemente, sondern die **Herkunft des Wertes**: „alle 30 Sekunden" ist
+eines von drei Wörtern, die dieses Panel selbst schreibt; `kunde-mustermann-gmbh`
+ist ein Name, den der Betreiber vergibt und dessen Länge niemand kennt. Ablesen
+lässt sich das an der Beschriftung.
+
+> **Ein Feld, das seine Beschriftung braucht, trägt einen Wert, den das Panel
+> nicht kennt — und der darf nicht beschnitten werden.**
+
+**Und kein Messwert hätte das gefunden.** `scrollWidth` eines `<select>` gibt
+seine eigene sichtbare Breite zurück, auch wenn der Text abgeschnitten ist —
+nachgemessen an drei Polsterungen, jedes Mal `Luft 0`.
+
+> **Ein Wert, der immer dem entspricht, wogegen man ihn hält, ist keine
+> Messung.**
+
+#### `SelectorValidityTest` — ein `:has()` in einem `:has()` ist keine Regel
+
+Die Eingrenzung sollte zuerst `:has(.field:not(:has(> span)))` heissen. Das ist
+ein `:has()` **in** einem `:has()`, und das verbietet die Spezifikation: Der
+Browser wirft den Selektor nicht halb weg, sondern **ganz**, samt allem in
+seinem Block. `npm run build` übersetzt die Datei trotzdem, `ClassReachTest`
+findet die Klassen, `SpecificityTest` vergleicht Regeln, die es gibt — alle drei
+grün. Die Messung daneben meldete unverändert 58 px, also genau die Zahl, die
+auch eine Regel liefert, die aus gutem Grund nicht greift.
+
+> **Eine ungültige Stelle in einem Selektor macht ihn nicht ungenauer, sondern
+> wirkungslos — und das sieht aus wie „die Regel greift hier nicht".**
+
+Geworden ist es `:has(.field > select:only-child)`. Der neue Wächter prüft genau
+diesen einen Fall und nicht „ist CSS gültig": Ein vollständiger Parser wäre eine
+zweite Fassung dessen, was der Browser tut, und die zweite veraltet.
+
+**Sein Ausschnitt hat dabei denselben Fehler zweimal gemacht.** Der erste Wurf
+las die Selektoren mit `/(^|[};])([^{};]*?)\{/` und verlor die **erste** Regel
+jedes `@media`-Blocks: `preg_match_all` setzt hinter dem Ende des vorigen
+Treffers auf, das Trennzeichen ist damit verbraucht. Ein `{` in die Zeichenklasse
+zu nehmen half nicht — aus demselben Grund, und **die Zahl am Bestand blieb bei
+beiden Fassungen gleich**. Gezählt wird jetzt Zeichen für Zeichen; das sind
+286 Selektoren statt 270.
+
+> **Zwei Fassungen eines Ausdrucks, die dieselbe Zahl liefern, können beide
+> denselben Fall verlieren.**
+
+#### `TeardownTest` liest den Rumpf des Hakens und nicht mehr die Datei
+
+Aufgefallen beim Lauf der Eingriffe: Der Bruch „der Takt wird nie angehalten"
+liess sich nicht mehr eindeutig setzen, weil `stellen()` ein zweites
+`clearInterval` in dieselbe Datei gebracht hat. Damit war die Frage „gibt es
+ein `clearInterval`?" mit Ja zu beantworten, auch wenn im `onUnmounted` keines
+mehr stünde — und dann läuft der Takt bis zum Schliessen des Reiters weiter.
+
+> **Eine zweite Stelle, die dasselbe Wort trägt, macht die Frage „gibt es eine?"
+> stumpf.**
+
+Derselbe Satz wie am 23. August bei `.toggle`, nur eine Ebene höher: dort eine
+zweite CSS-Regel für dieselbe Hülle, hier ein zweiter Aufruf in derselben Datei.
+Geprüft wird jetzt der **Rumpf** der Aufräumhaken, für den Takt und für die
+Horcher an `document` und `window`.
+
+#### `BlockSpacingTest` — ein `v-else` schliesst nur seinen eigenen Zweig aus
+
+Der Wächter hat am 23. August gelernt, dass zwei Zweige derselben Bedingung
+einander ausschliessen. Der erste Wurf hat die Kette am **Nachfolger**
+weitergezählt, und damit fiel eine echte Fuge weg: Unter dem Erklärsatz der
+Konsole steht `<p v-if="loadingTable" class="empty">` und dahinter
+`<div v-else class="scrolls">`. Die beiden schliessen einander aus — den Satz
+darüber schliesst keines von beiden aus, und `section-note + scrolls` ist genau
+die Fuge, die man sieht, sobald die Tabelle geladen ist.
+
+> **Zwei Zweige einer Bedingung schliessen einander aus und sonst niemanden.**
+
+Gefunden hat es der Lauf der Eingriffe: Der Bruch, der `.section-note` seinen
+unteren Rand nimmt, liess den Wächter grün.

@@ -30,6 +30,10 @@ ungültig und keine Messung.
 | 1 · rc.5 ohne Zugangsdaten | Domain, Zertifikat | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 5) |
 | 1 · rc.5 ohne Zugangsdaten | Domain, Zertifikat | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ |
 | 1 · rc.5 ohne Zugangsdaten | Domain, Zertifikat | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ |
+| 1 · rc.6 | Domain, ganze Seite | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ (4b, 5, 6, Marke) |
+| 1 · rc.6 | Domain, ganze Seite | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ |
+| 1 · rc.6 | Domain, ganze Seite | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ (4a, Befund 7) |
+| 1 · rc.6 | Domain, ganze Seite | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ |
 | 1 | Domain, DNS-Abgleich | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 1) |
 | 1 | Domain, DNS-Abgleich | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 2) |
 | 1 | Domain, DNS-Abgleich | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 3) |
@@ -663,6 +667,52 @@ eigenen Eingriff über `.field` bekommen.
 **Nachgeholt für den ganzen Zweig:** jeder Eingriff, dessen Datei dieser Zweig
 angefasst hat, angewandt und im Gestell gefahren — **53, alle beissen.**
 
+
+### Befund 7 — ein Zeilenmass über einer Ablesung
+
+Gemeldet vom Betreiber am 23. August beim Nachsehen von Befund 4 gegen
+`v0.7.0-rc.6`: „Bei 1440 px bricht es um nach dem Komma. Eigentlich unnötig. Der
+Platz ist komplett da."
+
+```
+Zuletzt geprüft: 2026-08-23 18:01:56 · gefragt wurden 167.235.231.182,
+159.69.110.93
+```
+
+**Befund 4 ist damit erfüllt** — der Umbruch fällt hinter das Komma, beide
+Adressen sind ganz. Der Einwand gilt der Frage davor: Warum bricht die Zeile
+überhaupt?
+
+**Gemessen bei 1440 px:** Die Zeile braucht **576 px**, `.section-note` gibt ihr
+mit `max-width: 64ch` **529** — sie verfehlt es um 47 px, und die Spalte daneben
+ist 952 px breit.
+
+**Die Grenze bleibt trotzdem**, denn sie tut echte Arbeit: **16 der 26 Notizen
+dieses Panels sind länger als 64 Zeichen**, die längste 285. Ohne Grenze liefen
+die über die ganze Spalte.
+
+> **Ein Zeilenmass ist für einen Satz. Eine Ablesung ist keiner.**
+
+Die Notiz ist **eine** Auskunft — ein Zeitpunkt und die Nameserver, die gefragt
+wurden. Der Umbruch trennte eine Aufzählung von zwei Adressen in der Mitte, und
+damit sah eine Auskunft nach zweien aus.
+
+**Behoben** als `.section-note.wide`. Nachgemessen: bei 1440 px **eine** Zeile
+statt zwei, bei 390 px unverändert zwei (dort bindet die Grenze ohnehin nicht,
+die Spalte ist 358 px breit). Ein Satz daneben behält seine 529 px — bei 1440 px
+drei Zeilen, bei 390 px fünf.
+
+**Zwei Klassen und nicht eine**, und das ist die Lehre aus Befund 5: Eine
+freistehende `.wide` hätte dieselbe Spezifität wie `.section-note`, und wer
+gewinnt, entschiede die Reihenfolge der Datei. `SpecificityTest` fängt genau
+diese falsche Fassung — gegengeprüft.
+
+**Was kein Test hält:** ob eine Notiz ein Satz ist oder eine Ablesung. Das ist
+eine Frage an den, der sie schreibt, und keine Eigenschaft des Quelltextes.
+
+> **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
+> als Zusage.**
+
 ---
 
 ## 2b. Was das Beheben gekostet hat
@@ -745,11 +795,17 @@ Frage an den Betreiber und kein Fehler.
 
   > **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
   > jemand ihn behoben hat.**
-- **Und das Nachsehen hat Befund 4 gebracht** — an der Behebung selbst. Er ist
-  behoben und **seinerseits nicht auf dem Server nachgesehen**; im Aufsatz ist
-  er über 321 Breiten gemessen (§2, Befund 4). Er gehört in den nächsten Lauf,
-  und zwar an beiden Fundstellen: der Zeile „gefragt wurden" bei 1440 px und dem
-  Satz unter „Als Platzhalter bestellen" bei 390 px.
+- **Befund 4, 5 und 6 sind am 23. August gegen `v0.7.0-rc.6` nachgesehen** —
+  vier Lagen, alle vier gültig. Befund 4 an **beiden** Fundstellen: Die Zeile
+  „gefragt wurden" bricht bei 1440 px hinter dem Komma, beide Adressen ganz; der
+  Satz unter „Als Platzhalter bestellen" steht bei 390 px mit `*.cloudlab24.de,`
+  am Zeilenende und `cloudlab24.de` in der nächsten. Befund 5: der
+  Hinderungsgrund in `--warn`, abgesetzt. Befund 6: das Kästchen gestrichelt.
+  Und die Marke „nicht möglich" steht in beiden Breiten **neben** der
+  Beschriftung.
+- **Dabei ist Befund 7 herausgefallen** — zum dritten Mal in diesem Lauf ein
+  Befund am Nachsehen einer Behebung. Er ist behoben und **nicht nachgesehen**;
+  im Aufsatz sind beide Breiten gemessen (§2, Befund 7).
 - **Befund 3 ist am 23. August nachgesehen** — zwei seiner drei Teile stimmen,
   der dritte hat **Befund 5** ergeben, und der Betreiber hat danach **Befund 6**
   gemeldet: Die Umgebung des Kästchens war behoben, das Kästchen selbst nicht. Auch der ist behoben und **nicht auf dem
@@ -779,7 +835,17 @@ Frage an den Betreiber und kein Fehler.
   reinen IPv4-Übersteuerung verschwindet die `AAAA`-Zeile, statt auf „Fehlt" zu
   fallen. Das ist genau die Zusage aus `docs/72 §3` — sie gehört in den
   Abnahmelauf, nicht in diesen.
-- **Die Konsole ist nicht gelesen worden.** In den Aufnahmen zu Ansicht 2
+- **Die Konsole ist gelesen, aber nicht ausgeschöpft.** In allen vier Lagen des
+  Nachlaufs zu `v0.7.0-rc.6` steht im Protokoll unter `top` **kein** Eintrag des
+  Panels — nur das eingefügte Messmittel und seine Antworten. Der Zähler der
+  Entwicklerwerkzeuge meldet daneben einen Fehler und vierzehn Warnungen; beim
+  Anklicken erscheint nichts im Protokoll, was dafür spricht, dass er einen
+  anderen Kontext zählt (eine Erweiterung). **Belegt ist das nicht** — dafür
+  müsste die Seite mit dem Filter „Errors only" neu geladen werden.
+
+  > **Ein Zähler, der auf nichts zeigt, das man aufschlagen kann, ist noch keine
+  > Auskunft über den Prüfling.**
+- **Die Konsole war zuvor nicht gelesen worden.** In den Aufnahmen zu Ansicht 2
   zählten die Entwicklerwerkzeuge zwölf Fehler und fünfunddreissig Warnungen;
   ein Teil kommt sichtbar aus einer Browsererweiterung (`background.js`,
   `[AppIntegration]`). Auf Ansicht 3 steht dagegen **ein** Fehler und „No

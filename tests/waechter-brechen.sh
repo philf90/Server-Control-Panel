@@ -14704,6 +14704,24 @@ pruefe "app.css wird nicht mehr gelesen" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SpecificityTest passed
 
+# **Befund 7 der Bilderrunde:** Eine Ablesung ist kein Satz und nimmt die volle
+# Breite. Geschrieben als freistehende `.wide` haette sie dieselbe Spezifitaet
+# wie `.section-note` — und wer gewinnt, entschiede die Reihenfolge der Datei.
+# Genau daran ist Befund 5 gescheitert.
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.section-note.wide {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.wide {', 1))
+PY2
+griff_datei resources/css/app.css "die Ablesung gewinnt nur durch die Reihenfolge" &&
+pruefe "die Ablesung gewinnt nur durch die Reihenfolge" \
+  SpecificityTest::test_no_pair_is_decided_by_source_order failed
+wiederherstellen
+
 # **Befund 3:** Ein Kaestchen, das nicht klickt und aussieht, als taete es das.
 # Gemeldet vom Betreiber, gefunden von keinem Messmittel.
 

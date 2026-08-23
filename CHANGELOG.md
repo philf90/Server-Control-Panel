@@ -18367,3 +18367,39 @@ einzeln im Gestell belegt, keiner im Lauf. Welche Eingriffe zu fahren sind, sagt
 nicht das Gedächtnis, sondern der Zweig — alle, deren Datei er angefasst hat.
 Nachgeholt über die vierzehn Dateien dieses Zweiges: **53 Eingriffe, alle
 beissen.**
+
+### Befund 7 — ein Zeilenmass über einer Ablesung
+
+Gemeldet vom Betreiber beim Nachsehen von Befund 4 gegen `v0.7.0-rc.6`: „Bei
+1440 px bricht es um nach dem Komma. Eigentlich unnötig. Der Platz ist komplett
+da."
+
+Befund 4 selbst ist damit erfüllt — der Umbruch fällt hinter das Komma, beide
+Adressen sind ganz. Der Einwand gilt der Frage davor: Warum bricht die Zeile
+überhaupt?
+
+**Gemessen bei 1440 px:** Die Zeile braucht **576 px**, `.section-note` gibt ihr
+mit `max-width: 64ch` **529** — sie verfehlt es um 47 px, und die Spalte daneben
+ist 952 px breit.
+
+**Die Grenze bleibt trotzdem**, denn sie tut echte Arbeit: 16 der 26 Notizen
+dieses Panels sind länger als 64 Zeichen, die längste 285.
+
+> **Ein Zeilenmass ist für einen Satz. Eine Ablesung ist keiner.**
+
+„Zuletzt geprüft … · gefragt wurden A, B" ist **eine** Auskunft; der Umbruch
+trennte eine Aufzählung von zwei Adressen in der Mitte, und damit sah eine
+Auskunft nach zweien aus. Sie trägt jetzt `.section-note.wide` — bei 1440 px
+eine Zeile statt zwei, bei 390 px unverändert, weil die Grenze dort ohnehin
+nicht bindet.
+
+**Zwei Klassen und nicht eine**, und das ist die Lehre aus Befund 5: Eine
+freistehende `.wide` hätte dieselbe Spezifität wie `.section-note`, und wer
+gewinnt, entschiede die Reihenfolge der Datei. `SpecificityTest` fängt genau
+diese falsche Fassung — gegengeprüft, sie wird rot.
+
+**Was kein Test hält:** ob eine Notiz ein Satz ist oder eine Ablesung. Das ist
+eine Frage an den, der sie schreibt, und keine Eigenschaft des Quelltextes.
+
+> **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
+> als Zusage.**

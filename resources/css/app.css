@@ -680,6 +680,44 @@ input[type='radio'] {
   overflow-wrap: anywhere;
 }
 
+/*
+ * Eine Notiz, die **keinen Satz** trägt, nimmt die volle Breite.
+ *
+ * ## Der Anlass
+ *
+ * **Befund 7 der Bilderrunde** (`docs/76`), gemeldet vom Betreiber beim
+ * Nachsehen von Befund 4: „Bei 1440 px bricht es um nach dem Komma. Eigentlich
+ * unnötig. Der Platz ist komplett da."
+ *
+ *     Zuletzt geprüft: 2026-08-23 18:01:56 · gefragt wurden 167.235.231.182,
+ *     159.69.110.93
+ *
+ * Gemessen bei 1440 px: Die Zeile braucht **576 px**, `max-width: 64ch` gibt
+ * ihr **529** — sie verfehlt es um 47 px, und die Spalte daneben ist 952 px
+ * breit. Der Umbruch trennt dabei eine Aufzählung von zwei Adressen in der
+ * Mitte, und damit sieht eine Auskunft nach zweien aus.
+ *
+ * ## Warum die Grenze trotzdem bleibt
+ *
+ * Sie tut echte Arbeit: **16 der 26 Notizen dieses Panels sind länger als 64
+ * Zeichen**, die längste 285. Ohne Grenze liefen die über die ganze Spalte, und
+ * genau davor schützt ein Zeilenmass.
+ *
+ * > **Ein Zeilenmass ist für einen Satz. Eine Ablesung ist keiner.**
+ *
+ * Die Notiz oben ist **eine** Auskunft — ein Zeitpunkt und die Nameserver, die
+ * gefragt wurden. Wer sie liest, springt nicht von Zeile zu Zeile, sondern
+ * nimmt sie als Ganzes.
+ *
+ * **`.section-note.wide` und nicht `.wide`.** Zwei Klassen sind 0,2,0 und
+ * gewinnen gegen `.section-note`, gleich wo die Regeln stehen — das ist die
+ * Lehre aus Befund 5, wo `.obstacle` als freistehende Regel gegen `.hint`
+ * verloren hat.
+ */
+.section-note.wide {
+  max-width: none;
+}
+
 /* Ein leerer Zustand ist eine Auskunft. Eine weisse Fläche wäre keine. */
 .empty {
   margin: 0;

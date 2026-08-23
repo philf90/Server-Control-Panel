@@ -1443,6 +1443,34 @@ Testen berücksichtigen:
   > **„Das Bruchskript läuft hier nicht" ist keine Ausrede, sondern ein
   > Handgriff mehr.**
 
+  **Und welche Eingriffe man fährt, sagt nicht das Gedächtnis, sondern der
+  Zweig:** alle, deren `vorher_datei` eine Datei nennt, die dieser Zweig
+  geändert hat. Am 23. August 2026 hat genau das gefehlt. Ein Eingriff von
+  gestern brach `.toggle:has(input:disabled)`, und sein Zieltest fragte „gibt es
+  für diese Hülle **eine** Regel mit `disabled`?". Die Behebung von Befund 6 gab
+  `.toggle` eine **zweite** — die fürs Kästchen —, und die beantwortete die
+  Frage mit. Der Eingriff änderte die Datei weiter nachweislich und biss nicht
+  mehr; gemeldet hat es der Wochenlauf.
+
+  > **Eine zweite Regel für dieselbe Hülle macht die Frage „gibt es eine?"
+  > stumpf.**
+
+  > **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+  > wenn jemand neben seiner Regel eine zweite baut, die dieselbe Frage
+  > beantwortet.**
+
+  Nachgeholt über die vierzehn Dateien dieses Zweiges: **53 Eingriffe, alle
+  beissen.** Ein Wegwerfskript im Scratchpad genügt dafür — es wendet den
+  Python-Block an, fährt den genannten Test im Gestell und holt die Datei
+  zurück. Es gehört **nicht** ins Repo: Das wäre eine zweite Fassung von
+  `tests/waechter-brechen.sh`, und die zweite veraltet.
+
+  **Zwei Fallen dabei, beide bezahlt.** Der Lauf über alle 649 Eingriffe
+  braucht mehr als zwei Minuten und wird abgebrochen — ein Abbruch mitten im
+  Eingriff lässt die Datei kaputt liegen (`git status` vorher und nachher
+  vergleichen). Und `sort -u datei | tee datei` leert die Datei, bevor `sort`
+  sie liest.
+
   **Was das Gestell nicht kann, zählt es nach Art** statt es „übersprungen" zu
   nennen: fehlende Klassen, `setUp()`, Datenlieferanten, `use App\`. Gemessen
   468 grün, 1 rot, 263 solcher Löcher. Der Grund für die Aufzählung ist ein

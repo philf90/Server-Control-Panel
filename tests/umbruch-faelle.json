@@ -1,0 +1,37 @@
+[
+  {
+    "name": "kontrolle",
+    "werte": ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
+    "markup": "<p class=\"section-note\" style=\"overflow-wrap:anywhere\">Ein Wert, der auf keine Zeile passt: %s</p>"
+  },
+  {
+    "name": "Domains/Show 660 — gefragt wurden",
+    "werte": ["167.235.231.182", "159.69.110.93"],
+    "markup": "<p class=\"section-note\">Zuletzt geprüft: 2026-08-23 06:45:47 · gefragt wurden %s</p>"
+  },
+  {
+    "name": "Domains/Show 517 — ungedeckt",
+    "werte": ["a.b.cloudlab24.de", "c.d.cloudlab24.de"],
+    "markup": "<p class=\"section-note\">Eine Ebene tiefer deckt ein Platzhalter nicht. Ohne eigenes Zertifikat bleiben: <span class=\"ident\">%s</span></p>"
+  },
+  {
+    "name": "Domains/Show 475 — Platzhalter",
+    "werte": ["*.cloudlab24.de", "cloudlab24.de"],
+    "markup": "<p class=\"hint\">Ein Zertifikat für <span class=\"ident\">%s</span> — es gilt für jede Unterdomain dieser Zone, auch für die eines anderen Abonnements. Dafür zählt es bei der Wochengrenze als eine Bestellung statt als eine je Name.</p>"
+  },
+  {
+    "name": "Domains/Show 695 — nicht gefragt",
+    "werte": ["cloudlab24.de", "www.cloudlab24.de"],
+    "markup": "<p class=\"notice warn\"><span>Für <span class=\"ident\">%s</span> hat die Prüfung gar nicht stattgefunden. Das liegt an diesem Server und nicht an der Zone — über ihre Einträge ist damit nichts gesagt.</span></p>"
+  },
+  {
+    "name": "Domains/Show 717 — eingetragene Adressen",
+    "werte": ["203.0.113.10"],
+    "markup": "<p class=\"notice warn\"><span>Die eingetragenen Adressen (%s) sind andere als die, die dieser Server führt (159.195.56.255, 2a0a:4cc0:2000:1a4::3083). Das kann hinter NAT richtig sein — sonst ist der Eintrag veraltet.</span></p>"
+  },
+  {
+    "name": "Domains/Show 634 — Zelle, Wert allein",
+    "werte": ["2a0a:4cc0:c1:ebd1:b82d:51ff:fe72:3083"],
+    "markup": "<table class=\"pairs\" style=\"width:100%\"><tbody><tr><td>Erwartet</td><td class=\"right ident\">%s</td></tr></tbody></table>"
+  }
+]

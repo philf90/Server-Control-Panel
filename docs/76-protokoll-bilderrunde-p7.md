@@ -22,6 +22,14 @@ ungültig und keine Messung.
 | # | Ansicht | Breite | Thema | `stand` | `dokument` | Gegenprobe | Bild |
 |---|---|---|---|---|---|---|---|
 | 1 | Domain, DNS-Abgleich | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 1) |
+| 1 · rc.5 | Domain, DNS-Abgleich | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ (1 und 2 behoben) |
+| 1 · rc.5 | Domain, DNS-Abgleich | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ |
+| 1 · rc.5 | Domain, DNS-Abgleich | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 4) |
+| 1 · rc.5 | Domain, DNS-Abgleich | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 4) |
+| 1 · rc.5 ohne Zugangsdaten | Domain, Zertifikat | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 5) |
+| 1 · rc.5 ohne Zugangsdaten | Domain, Zertifikat | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 5) |
+| 1 · rc.5 ohne Zugangsdaten | Domain, Zertifikat | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ |
+| 1 · rc.5 ohne Zugangsdaten | Domain, Zertifikat | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ |
 | 1 | Domain, DNS-Abgleich | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 1) |
 | 1 | Domain, DNS-Abgleich | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 2) |
 | 1 | Domain, DNS-Abgleich | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 3) |
@@ -388,6 +396,273 @@ Alle vier Lagen `dokument: 0`, Gegenprobe `200/200`, `schiebt` und `rollt` leer;
   `orderByRaw("case when type = \'main\' then 0 else 1 end")`, im Bild belegt
   statt im Test behauptet.
 
+
+### Befund 4 — die Behebung von Befund 1 und 2 zerschneidet eine Adresse
+
+Gefunden am 23. August auf `cloudsrv24` gegen **`v0.7.0-rc.5`**, beim Nachsehen
+von Befund 1 und 2 — also an genau der Behebung, die dieser Lauf prüfen sollte.
+Wieder ohne eine Zahl: `dokument: 0`, `schiebt: []`, Gegenprobe `200/200` in
+allen vier Lagen.
+
+Unter dem DNS-Abgleich stand bei 1440 px:
+
+```
+Zuletzt geprüft: 2026-08-23 06:45:47 · gefragt wurden 167.235.231.182, 159.69.
+110.93
+```
+
+Die zweite Adresse ist mitten durchgebrochen. Vor der Behebung brach diese Zeile
+am Leerzeichen hinter dem Komma, und beide Adressen blieben ganz.
+
+**Der Mechanismus.** Eine Umbruchgelegenheit ist keine Empfehlung, sondern eine
+Stelle wie jedes Leerzeichen. Der Zeilenumbruch nimmt die **letzte, die noch
+passt** — und das ist die im Inneren des Wertes, sobald sie weiter rechts steht
+als das Leerzeichen davor.
+
+> **Eine Umbruchgelegenheit bricht, sobald es passt. `overflow-wrap: anywhere`
+> bricht nur, wenn es sein muss.**
+
+**Zwei Breiten beantworten das nicht.** Bei 390 px und bei 1440 px sah die
+Fundstelle von Befund 2 in beiden Fassungen **gleich** aus; der Schaden liegt
+dazwischen und an anderen Fundstellen. Gemessen wurde deshalb der ganze Bereich
+von 320 bis 1600 px in Vierer-Schritten — 321 Breiten je Fall und Fassung, mit
+`tests/umbruch-messen.mjs` und `tests/umbruch-faelle.json`. Gezählt ist, bei wie
+vielen Breiten ein Wert über zwei Zeilen geht:
+
+| Fundstelle | ohne `<wbr>` | mit `<wbr>` |
+|---|---|---|
+| 660 `.section-note` „gefragt wurden" | **0** | **291** |
+| 517 `.section-note` + `.ident` „ungedeckt" | **0** | **289** |
+| 717 `.notice warn` Adressen | **0** | 14 (320–372) |
+| 695 `.notice warn` + `.ident` „nicht gefragt" | **0** | 11 (320–360) |
+| 475 `.hint` + `.ident` Platzhalter | **0** | 4 (**380–392**) |
+| 634 `td.ident` — Zelle, Wert allein | 6 (320–340) | 6 (320–340) |
+
+Zwei Dinge stehen darin. **In jedem Satz** macht die Gelegenheit es schlechter,
+und zwar von „nie getrennt" auf bis zu 291 von 321 Breiten. **In der Zelle**
+ändert sie die Anzahl nicht — sie ändert nur den Ort, und genau dafür ist sie
+gebaut.
+
+Und die vierte Zeile ist die teuerste: Der Bereich 380–392 px enthält die
+**390 px**, mit denen dieser Lauf misst. Der Satz unter „Als Platzhalter
+bestellen" — die Fundstelle von Befund 2 — war durch seine eigene Behebung an
+genau dieser Breite zerschnitten, und in den Aufnahmen von Lage 1/390 war er
+nicht im Bild.
+
+> **Eine Behebung ist eine Änderung, und jede Änderung ist ein neuer Anlass zu
+> messen.**
+
+> **Eine Frage, deren Antwort an der Breite hängt, ist mit zwei Breiten nicht
+> beantwortet.**
+
+**Behoben.** Neun Fundstellen in `Domains/Show.vue`, `Settings/Php.vue` und
+`Settings/Tls.vue` stehen wieder als `join(', ')` — das Komma aus Befund 2
+bleibt, die Umbruchgelegenheit geht. `<Idents>` bleibt an den acht Stellen, an
+denen der Wert allein in seiner Zelle steht. `.section-note` bekommt
+`overflow-wrap: anywhere`: Das bricht nur, wenn ein Wert auf keine Zeile passt,
+und fängt damit den Fall ab, für den die Gelegenheit dort einmal gedacht war.
+
+**Und der Wächter von gestern war zu breit gezogen.** `IdentListTest` verbot
+*jedes* `join()` in einer `.ident` — nach dieser Messung stehen dort sechs
+richtige. Er verbietet jetzt das blosse Leerzeichen, also das, was Befund 2
+wirklich gekostet hat. Die Platzierung hält `IdentPlacementTest`.
+
+> **Eine Regel, die mehr verbietet als ihr Befund hergibt, steht dem nächsten
+> Befund im Weg.**
+
+**Die Sonde hat sich zweimal selbst geprüft.** Ihre erste Fassung zählte die
+Client-Rechtecke des Elements — ein `<wbr>` ist aber ein Element und zerteilt
+diese Liste, also meldete sie für **jede** Breite einen Bruch, auch für 1600.
+
+> **Eine Sonde, die für jede Eingabe dasselbe sagt, hat nichts gemessen.**
+
+Gemessen wird seitdem an den Zeichen. Und `tests/umbruch-faelle.json` trägt
+einen Fall `kontrolle` mit einem Wert, der auf keine Zeile passt: Bricht der
+nicht, endet das Skript mit Rückgabewert 1, und keine Null daneben bedeutet
+etwas.
+
+
+### Befund 5 — die Behebung von Befund 3 gilt nicht
+
+Gefunden am 23. August auf `cloudsrv24` gegen **`v0.7.0-rc.5`**, beim Nachsehen
+von Befund 3 — und damit zum zweiten Mal an einer Behebung dieses Laufs. Wieder
+ohne eine Zahl: `dokument: 0`, `schiebt: []`, Gegenprobe `200/200` in allen vier
+Lagen.
+
+Zwei der drei Teile von Befund 3 stimmen: Die Beschriftung „Als Platzhalter
+bestellen" steht blass, und der Zeiger ist der normale Pfeil. Der dritte nicht —
+der Hinderungsgrund stand in derselben Farbe wie die Erklärung darüber, also
+genau so wie **vor** der Behebung.
+
+Die Regel dafür gab es:
+
+```
+.obstacle { color: var(--warn); }        /* Zeile 3647 */
+.hint     { color: var(--text-muted); }  /* Zeile 3784 */
+```
+
+Beide haben die Spezifität 0,1,0, das Markup lautet `class="hint obstacle"`, und
+bei gleicher Spezifität entscheidet die **Reihenfolge in der Datei**. `.hint`
+steht 137 Zeilen weiter unten und gewinnt.
+
+> **Eine Klasse, die auf eine Regel zeigt, sagt nichts darüber, ob die Regel
+> gilt.**
+
+`ClassReachTest` war grün — er fragt, ob eine Klasse auf eine Regel zeigt, die
+es gibt, und genau das war der Fall. Die Frage dahinter hat kein Wächter
+gestellt.
+
+**Und der Weg dorthin ist die eigentliche Lehre.** Der erste Wurf war `.toggle
+.obstacle` (0,2,0) und hätte gewonnen. `StandaloneClassTest` hat ihn abgelehnt,
+zu Recht: Eine Klasse, die es nur unter einem Vorfahren gibt, tut ausserhalb
+davon nichts. Die Antwort darauf — `.obstacle` freistehend — hat die
+Spezifität weggenommen, die sie brauchte.
+
+> **Eine Behebung, die einem Wächter ausweicht, kann dabei genau das verlieren,
+> wofür sie da war.**
+
+**Wie oft steht das sonst noch da?** Ausgezählt über alle Klassenpaare, die in
+einer Vorlage an einem Element stehen: **42 Paare, drei davon setzen dieselbe
+Eigenschaft mit gleicher Spezifität.** Eines ist dieser Befund; die anderen
+beiden sind ohne Folge und stehen benannt in `SpecificityTest::ORDERED`:
+
+| Paar | Eigenschaft | gewinnt | Folge |
+|---|---|---|---|
+| `.hint` + `.obstacle` | `color` | `.hint` | **der Befund** |
+| `.breadcrumb` + `.ident` | `font-size` | `.breadcrumb` | die Krume bleibt klein — gewollt |
+| `.ident` + `.path-line` | `font-size` | `.path-line` | die Pfadzeile bleibt klein — gewollt |
+| `.ident` + `.path-line` | `overflow-wrap` | `.path-line` | derselbe Wert, keine Wirkung |
+
+**Behoben** als `.hint.obstacle` — zwei Klassen sind 0,2,0 und gewinnen gegen
+`.hint`, gleich wo die beiden Regeln stehen. Die Regel eine Zeile tiefer zu
+schieben hätte es auch getan, bis zum nächsten Aufräumen.
+
+> **Eine Regel, die durch ihren Ort gewinnt, verliert beim nächsten Umzug — und
+> sagt es nicht.**
+
+**Nachgemessen im Aufsatz**, beide Themes, mit gerechnetem Kontrast:
+
+| | hell | dunkel |
+|---|---|---|
+| Beschriftung | `rgb(92,100,112)` | `rgb(153,160,174)` |
+| Erklärung | `rgb(92,100,112)` | `rgb(153,160,174)` |
+| Hindernis | `rgb(132,83,6)` — 6,5:1 | `rgb(226,169,74)` — 9,0:1 |
+| Zeiger | `default` | `default` |
+
+Und die Gegenprobe mit dem Stand von rc.5: dort steht das Hindernis auf
+`rgb(92,100,112)` — dieselbe Farbe wie die Erklärung, genau wie auf dem Bild vom
+Server.
+
+**Die erste Messung dazu war keine.** Sie las eine Zeichenkette ab, die beim
+Laden der Seite entstanden war, und meldete nach dem Umschalten aufs dunkle Thema
+dieselben Farben wie im hellen.
+
+> **Ein Wert, der beim Laden entstanden ist, sagt nichts über den Zustand
+> danach.**
+
+
+### Befund 6 — Befund 3 ist behoben und wirkt trotzdem nicht
+
+Gemeldet vom Betreiber am 23. August, nachdem Befund 3 und Befund 5 behoben
+waren: „Das Kästchen bei Platzhalter bestellen liess sich zwar nicht klicken,
+hat aber immer noch nicht wirklich deaktiviert gewirkt."
+
+**Was behoben war, war die Umgebung.** Die Beschriftung ist gedämpft, der
+Zeigefinger fort, der Hinderungsgrund steht in `--warn`. Das **Kästchen selbst**
+blieb, wie der Browser es zeichnet: dasselbe Quadrat, nur mit blasserem Rand.
+Bei vierfacher Vergrösserung nebeneinander gestellt ist der ganze Unterschied
+zum bedienbaren Kästchen ein hellerer Strich — und bei 17 px trägt das fast
+nichts.
+
+> **Weniger Kontrast liest sich als „unwichtig", nicht als „gesperrt".**
+
+Es ist ausserdem WCAG 1.4.1: Farbe darf nicht das einzige Mittel sein, mit dem
+eine Auskunft transportiert wird. Ein blasserer Rand ist nur Farbe.
+
+**Zum dritten Mal derselbe Satz.** Erst galt die Regel für das Feld
+(`.field input:disabled`, seit Monaten, mit eigener Begründung), dann für die
+Beschriftung des Schalters (Befund 3), jetzt für sein Kästchen:
+
+> **Eine Regel, die für ein Feld gilt, gilt nicht für den Schalter daneben,
+> bloss weil sie dieselbe ist.**
+
+**Drei Entwürfe gebaut und angesehen**, in beiden Themes:
+
+| | |
+|---|---|
+| **A** — gestrichelter Rand, wie das gesperrte Feld | trägt, auch angehakt |
+| **B** — eine Marke „nicht möglich" neben der Beschriftung | bricht auf eine eigene Zeile, liest sich als eigener Block — und sagt zum dritten Mal, was der Satz in `--warn` darunter schon sagt |
+| **C** — beides | erbt Bs Problem |
+
+**Gebaut ist A.** `appearance: none` nimmt dem Kästchen die Zeichnung des
+Browsers; der Haken steht deshalb als beschnittene Fläche in `--text-muted` und
+nicht als Farbwert in einem eingebetteten Bild — sonst folgte er dem Thema
+nicht. Umgezeichnet ist **nur** der gesperrte Zustand; in diesem Panel gibt es
+genau ein `:disabled`-Kästchen, und sein Zustand entsteht auf dem Server.
+
+**Und B ist doch gebaut worden** — auf Wunsch des Betreibers, dem die Form
+allein nicht gereicht hat. Das war der richtige Einwand, und mein Grund, sie zu
+verwerfen, war falsch gemessen: Die Marke brach nicht, **weil sie eine Marke
+ist**, sondern weil `.toggle > span` stapelt. Sie war darin ein weiteres
+Stapelkind.
+
+> **Eine Marke, die neben etwas stehen soll, braucht eine Zeile, in der „neben"
+> überhaupt vorkommt.**
+
+> **Ein Entwurf, der am Behälter scheitert, ist nicht widerlegt.**
+
+`.label-row` ist diese Zeile. Gemessen bei 390 und 1440 px, beide Themes:
+`dokument: 0`, und die Marke steht in **beiden** Breiten neben der Beschriftung.
+
+Damit sagen es jetzt drei Dinge, und jedes beantwortet eine andere Frage: die
+**Form** des Kästchens (was ist das), die **Marke** (ob), der Satz in `--warn`
+(warum).
+
+> **Eine Form sagt es dem, der sie schon kennt. Ein Wort sagt es allen.**
+
+**Und der Wächter war grün, während das Kästchen gleich aussah.**
+`DisabledStateTest` fragte, ob es für die Hülle eine Regel gibt, die `disabled`
+nennt. Die gab es — sie änderte die Farbe.
+
+> **Ein Wächter, der fragt, ob es eine Regel gibt, sagt nichts darüber, ob man
+> sie sieht.**
+
+Er verlangt seitdem eine **Form**, und zwar am Wert: gestrichelt, gepunktet,
+doppelt oder durchgestrichen.
+
+**Der erste Wurf dieser Verschärfung war zu schwach, und der Bruch hat es
+gezeigt.** Er zählte *Eigenschaften* — `border`, `outline`, `appearance` — und
+blieb grün, als der Eingriff den gestrichelten Rand entfernte: `appearance:
+none` stand noch da und galt als Form. Sie ist aber keine, sondern die
+Erlaubnis, eine zu geben. Und `border: 1px solid` wäre durchgegangen, obwohl das
+genau der Ein-Zustand ist.
+
+> **Ein Eingriff, der eine Regel entfernt und einen Rest stehen lässt, prüft den
+> Rest.**
+
+**Und der Wochenlauf hat einen Tag später einen Eingriff von gestern gemeldet,
+der stumpf geworden war.** Er bricht `.toggle:has(input:disabled)` — die Regel,
+die die Beschriftung dämpft und den Zeigefinger zurücknimmt. Sein Zieltest
+fragte „gibt es für diese Hülle **eine** Regel mit `disabled`?", und bis Befund 6
+war das die einzige. Die Behebung gab `.toggle` eine zweite, die fürs Kästchen —
+und die beantwortete die Frage mit.
+
+> **Eine zweite Regel für dieselbe Hülle macht die Frage „gibt es eine?"
+> stumpf.**
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand neben seiner Regel eine zweite baut, die dieselbe Frage
+> beantwortet.**
+
+Damit war die erste Hälfte von Befund 3 unbewacht: ein Schalter, der den
+Zeigefinger zeigt und nicht klickt. Sie steht jetzt als eigene Regel da —
+**eine Hülle, die den Zeigefinger verspricht, nimmt ihn zurück** —, und der
+Eingriff zeigt auf sie. Die Frage „gibt es überhaupt eine Regel?" hat einen
+eigenen Eingriff über `.field` bekommen.
+
+**Nachgeholt für den ganzen Zweig:** jeder Eingriff, dessen Datei dieser Zweig
+angefasst hat, angewandt und im Gestell gefahren — **53, alle beissen.**
+
 ---
 
 ## 2b. Was das Beheben gekostet hat
@@ -462,12 +737,30 @@ Frage an den Betreiber und kein Fehler.
 
 ## 4. Was offen ist
 
-- **Die drei Behebungen sind auf dem Server nicht nachgesehen.** Sie sind im
-  Aufsatz gemessen (`dokument: 0` in allen Lagen, und die IPv6 bricht jetzt nach
-  dem Doppelpunkt statt im Hextet) — das ist etwas anderes.
+- **Befund 1 und 2 sind am 23. August auf dem Server nachgesehen** — gegen
+  `v0.7.0-rc.5`, vier Lagen, alle vier gültig. Die IPv6 bricht hinter dem
+  Doppelpunkt, `fe72` ist ganz; `*.cloudlab24.de, cloudlab24.de` steht mit
+  Komma. **Befund 3 ist noch nicht nachgesehen** — dafür braucht es eine Domain
+  ohne hinterlegte DNS-Zugangsdaten, und `cloudlab24.de` trägt sie seit dem Lauf.
 
   > **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
   > jemand ihn behoben hat.**
+- **Und das Nachsehen hat Befund 4 gebracht** — an der Behebung selbst. Er ist
+  behoben und **seinerseits nicht auf dem Server nachgesehen**; im Aufsatz ist
+  er über 321 Breiten gemessen (§2, Befund 4). Er gehört in den nächsten Lauf,
+  und zwar an beiden Fundstellen: der Zeile „gefragt wurden" bei 1440 px und dem
+  Satz unter „Als Platzhalter bestellen" bei 390 px.
+- **Befund 3 ist am 23. August nachgesehen** — zwei seiner drei Teile stimmen,
+  der dritte hat **Befund 5** ergeben, und der Betreiber hat danach **Befund 6**
+  gemeldet: Die Umgebung des Kästchens war behoben, das Kästchen selbst nicht. Auch der ist behoben und **nicht auf dem
+  Server nachgesehen**; im Aufsatz sind beide Themes mit gerechnetem Kontrast
+  gemessen (§2, Befund 5).
+
+  **Zweimal an einem Tag hat das Nachsehen einer Behebung einen Befund
+  gebracht.** Das ist kein Zufall dieses Laufs, sondern der Satz aus `docs/66` in
+  seiner schärfsten Form: Eine Behebung ist eine Änderung wie jede andere.
+- **Die DNS-Zugangsdaten an `p6-b.invalid` sind entfernt** und damit nicht mehr
+  offen. Wer den Platzhalter wieder prüfen will, hinterlegt sie neu.
 - **Die Marke „ungeprüft" ist nicht aufgenommen**, und sie ist **flüchtig**:
   `srvpanel-dns.timer` läuft alle 15 Minuten, also ist jede Domain spätestens
   nach einer Viertelstunde geprüft. Den Zustand gibt es nur im Fenster zwischen

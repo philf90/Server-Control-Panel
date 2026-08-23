@@ -14522,40 +14522,65 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DnsHealthTest passed
 
 echo
-echo "── IdentListTest / DisabledStateTest: die drei Befunde der Bilderrunde ──"
+echo "── IdentListTest / IdentPlacementTest / DisabledStateTest: die Bilderrunde ──"
 #
 # **Zwei Befunde, eine Ursache** (`docs/76`): Eine IPv6 brach bei 390 px mitten
 # im Hextet, und zwei Namen standen durch ein Leerzeichen getrennt nebeneinander.
 # Beide entstehen dort, wo `.ident` gilt — Monospace UND overflow-wrap: anywhere.
+#
+# **Und Befund 4 hat die Regel einen Tag spaeter enger gezogen.** Die Behebung
+# setzte eine Umbruchgelegenheit in jeden Wert; in einem SATZ gewinnt die gegen
+# das Leerzeichen daneben und zerschneidet eine Adresse. Verboten ist deshalb
+# nicht mehr jedes `join()` in einer `.ident`, sondern das blosse Leerzeichen —
+# und `<Idents>` gehoert nur noch dorthin, wo der Wert allein steht.
 
 vorher_datei resources/js/Pages/Domains/Show.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Domains/Show.vue'
 s = open(p, encoding='utf-8').read()
-alt = '<td data-column="Gefunden" class="ident">\n                  <Idents :values="satz.found" />'
+alt = "{{ props.wildcard.names.join(', ') }}"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-neu = '<td data-column="Gefunden" class="ident">\n                  {{ satz.found.join(\', \') }}'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "{{ props.wildcard.names.join(' ') }}", 1))
 PY2
-griff_datei resources/js/Pages/Domains/Show.vue "eine Kennungsliste wieder mit join geklebt" &&
-pruefe "eine Kennungsliste wieder mit join geklebt" \
-  IdentListTest::test_no_ident_glues_a_list_with_join failed
+griff_datei resources/js/Pages/Domains/Show.vue "eine Kennungsliste wieder mit blossem Leerzeichen" &&
+pruefe "eine Kennungsliste wieder mit blossem Leerzeichen" \
+  IdentListTest::test_no_ident_separates_a_list_with_a_bare_space failed
 wiederherstellen
 
-# **Die Gegenprobe zum Bestand:** Steht `<Idents>` nirgends mehr, ist die Regel
-# eine Verbotstafel vor einer leeren Strasse.
+# **Die Gegenprobe zum Ausdruck:** Einer, der ein Komma fuer einen Fund haelt,
+# machte sechs richtige Stellen rot — und einer, der das Leerzeichen nicht mehr
+# findet, waere fuer immer gruen. Eine Zaehlung am Bestand merkt beides nicht.
 
 vorher_datei tests/Unit/IdentListTest.php
 python3 - <<'PY2'
 p = 'tests/Unit/IdentListTest.php'
 s = open(p, encoding='utf-8').read()
-alt = "substr_count($vorlage, '<Idents')"
+# Das Leerzeichen zwischen den beiden Anfuehrungszeichen wird zu einer Klasse,
+# die auch ein Komma nimmt — der Ausdruck haelt dann `join(', ')` fuer einen
+# Fund, und sechs richtige Stellen dieses Panels waeren rot.
+alt = '] ['
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, "substr_count($vorlage, '<IdentsX')", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '][, ]*[', 1))
 PY2
-griff_datei tests/Unit/IdentListTest.php "die Komponente wird nirgends benutzt" &&
-pruefe "die Komponente wird nirgends benutzt" \
-  IdentListTest::test_the_component_is_actually_used failed
+griff_datei tests/Unit/IdentListTest.php "das Komma gilt als Fund" &&
+pruefe "das Komma gilt als Fund" \
+  IdentListTest::test_the_expression_tells_a_comma_from_a_space failed
+wiederherstellen
+
+# Und die andere Richtung: Findet der Ausdruck das Leerzeichen gar nicht mehr,
+# ist die Regel darunter fuer immer gruen.
+
+vorher_datei tests/Unit/IdentListTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/IdentListTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "\\\\.join\\\\(\\\\s*"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "\\\\.joinX\\\\(\\\\s*", 1))
+PY2
+griff_datei tests/Unit/IdentListTest.php "der Ausdruck findet kein join mehr" &&
+pruefe "der Ausdruck findet kein join mehr" \
+  IdentListTest::test_the_expression_tells_a_comma_from_a_space failed
 wiederherstellen
 
 vorher_datei tests/Unit/IdentListTest.php
@@ -14572,6 +14597,113 @@ pruefe "die Vorlagen werden nicht mehr gelesen" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" IdentListTest passed
 
+# ── IdentPlacementTest: Befund 4 der Bilderrunde ───────────────────────────
+#
+# Gemessen ueber 321 Breiten (`tests/umbruch-messen.mjs`): In einem Satz bricht
+# ohne die Umbruchgelegenheit KEIN Wert, mit ihr bis zu 291 von 321 — und der
+# Bereich 380–392 px enthaelt die 390, mit denen jede Bilderrunde misst.
+
+vorher_datei resources/js/Pages/Domains/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = "· gefragt wurden {{ props.dns.last.findings.nameservers.join(', ') }}"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '· gefragt wurden <Idents :values="props.dns.last.findings.nameservers" />'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Domains/Show.vue "Idents steht wieder in einem Satz" &&
+pruefe "Idents steht wieder in einem Satz" \
+  IdentPlacementTest::test_no_idents_stands_in_running_text failed
+wiederherstellen
+
+# **Die Gegenprobe zum Leser.** Einer, der nie Text neben dem Wert sieht, haelt
+# jeden Satz fuer eine Zelle — und die Regel darueber waere fuer immer gruen.
+
+vorher_datei tests/Unit/IdentPlacementTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/IdentPlacementTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if ($tiefe <= 0 && trim($zeichen) !== '') {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            if (false) {", 1))
+PY2
+griff_datei tests/Unit/IdentPlacementTest.php "der Leser sieht nie Text neben dem Wert" &&
+pruefe "der Leser sieht nie Text neben dem Wert" \
+  IdentPlacementTest::test_the_reader_tells_a_cell_from_a_sentence failed
+wiederherstellen
+
+# **Und die Gegenprobe zum Bestand:** Steht `<Idents>` nirgends mehr, ist die
+# Regel eine Verbotstafel vor einer leeren Strasse.
+
+vorher_datei tests/Unit/IdentPlacementTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/IdentPlacementTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/<Idents\\b[^>]*\\/>/'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/<IdentsX\\b[^>]*\\/>/'", 1))
+PY2
+griff_datei tests/Unit/IdentPlacementTest.php "der Ausdruck findet kein Idents mehr" &&
+pruefe "der Ausdruck findet kein Idents mehr" \
+  IdentPlacementTest::test_the_component_is_actually_used failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" IdentPlacementTest passed
+
+# ── SpecificityTest: Befund 5 der Bilderrunde ──────────────────────────────
+#
+# `.obstacle` und `.hint` setzen beide `color` und haben beide 0,1,0. Bei
+# gleicher Spezifitaet entscheidet die Reihenfolge in der Datei — und `.hint`
+# steht 137 Zeilen weiter unten. Der Hinderungsgrund war damit so blass wie die
+# Erklaerung darueber, also genau so wie vor seiner Behebung. ClassReachTest war
+# gruen: Die Klasse zeigte auf eine Regel, die es gibt.
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.hint.obstacle {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.obstacle {', 1))
+PY2
+griff_datei resources/css/app.css "der Hinderungsgrund verliert gegen .hint" &&
+pruefe "der Hinderungsgrund verliert gegen .hint" \
+  SpecificityTest::test_no_pair_is_decided_by_source_order failed
+wiederherstellen
+
+# **Die Gegenprobe zum Vergleich.** Einer, der keinen Streit mehr sieht, waere
+# fuer immer gruen — die Sperrklinke ueber ORDERED faengt ihn.
+
+vorher_datei tests/Unit/SpecificityTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/SpecificityTest.php'
+s = open(p, encoding='utf-8').read()
+alt = 'foreach (array_intersect(array_keys($regeln[$a]), array_keys($regeln[$b])) as $eigenschaft) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'foreach ([] as $eigenschaft) {', 1))
+PY2
+griff_datei tests/Unit/SpecificityTest.php "der Vergleich sieht keinen Streit mehr" &&
+pruefe "der Vergleich sieht keinen Streit mehr" \
+  SpecificityTest::test_no_pair_is_decided_by_source_order failed
+wiederherstellen
+
+# **Und der Leser von app.css.** Findet er keine Regel mehr, prueft der Fall
+# darunter nichts und ist gruen, ohne etwas gesehen zu haben.
+
+vorher_datei tests/Unit/SpecificityTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/SpecificityTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/([^{}]+)\\{([^{}]*)\\}/'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/(XX[^{}]+)\\{([^{}]*)\\}/'", 1))
+PY2
+griff_datei tests/Unit/SpecificityTest.php "app.css wird nicht mehr gelesen" &&
+pruefe "app.css wird nicht mehr gelesen" \
+  SpecificityTest::test_the_comparison_sees_a_conflict failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SpecificityTest passed
+
 # **Befund 3:** Ein Kaestchen, das nicht klickt und aussieht, als taete es das.
 # Gemeldet vom Betreiber, gefunden von keinem Messmittel.
 
@@ -14583,8 +14715,42 @@ alt = '.toggle:has(input:disabled) {'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, '.toggle:has(input:aus) {', 1))
 PY2
-griff_datei resources/css/app.css "der Schalter kennt keinen Aus-Zustand mehr" &&
-pruefe "der Schalter kennt keinen Aus-Zustand mehr" \
+griff_datei resources/css/app.css "der Schalter nimmt den Zeigefinger nicht zurueck" &&
+pruefe "der Schalter nimmt den Zeigefinger nicht zurueck" \
+  DisabledStateTest::test_a_disabled_wrapper_takes_back_the_pointer failed
+wiederherstellen
+
+# **Und die Frage „gibt es ueberhaupt eine Regel?" braucht jetzt `.field`.**
+#
+# Bis Befund 6 hat der Eingriff darueber sie beantwortet: `.toggle` hatte genau
+# eine Regel fuer den Aus-Zustand, und sie zu brechen machte den Fall rot. Seit
+# Befund 6 hat `.toggle` zwei — die fuer die Beschriftung und die fuers
+# Kaestchen —, und eine beantwortet die Frage fuer die andere mit. Gefunden hat
+# das der Wochenlauf und nicht das Bauen: Der Eingriff aenderte die Datei
+# weiter nachweislich und biss nicht mehr.
+#
+# > **Eine zweite Regel fuer dieselbe Huelle macht die Frage „gibt es eine?"
+# > stumpf.**
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = """.field input[readonly],
+.field input:disabled,
+.field select:disabled,
+.field textarea:disabled,
+.with-unit input:disabled {"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """.field input[readonly],
+.field input:aus,
+.field select:aus,
+.field textarea:aus,
+.with-unit input:aus {"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/css/app.css "das Feld kennt keinen Aus-Zustand mehr" &&
+pruefe "das Feld kennt keinen Aus-Zustand mehr" \
   DisabledStateTest::test_every_wrapper_shows_that_it_is_off failed
 wiederherstellen
 
@@ -14595,14 +14761,98 @@ vorher_datei tests/Unit/DisabledStateTest.php
 python3 - <<'PY2'
 p = 'tests/Unit/DisabledStateTest.php'
 s = open(p, encoding='utf-8').read()
-alt = "        return false;\n    }\n\n    /**\n     * Jeder Selektor in `app.css`"
+alt = "            if (! str_contains($selektor, '.'.$klasse) || ! str_contains($selektor, 'disabled')) {"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-neu = "        return true;\n    }\n\n    /**\n     * Jeder Selektor in `app.css`"
-open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            if (true) {", 1))
 PY2
-griff_datei tests/Unit/DisabledStateTest.php "der Stylesheet-Leser sagt immer ja" &&
-pruefe "der Stylesheet-Leser sagt immer ja" \
-  DisabledStateTest::test_the_stylesheet_reader_can_say_no failed
+griff_datei tests/Unit/DisabledStateTest.php "der Stylesheet-Leser findet nichts mehr" &&
+pruefe "der Stylesheet-Leser findet nichts mehr" \
+  DisabledStateTest::test_the_reader_tells_shape_from_colour failed
+wiederherstellen
+
+# **Der Zerleger der Angaben.** Haelt er nichts fuer eine Eigenschaft, ist die
+# Regel ueber die Form fuer immer gruen — es gaebe dann nirgends eine.
+
+vorher_datei tests/Unit/DisabledStateTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DisabledStateTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "                if ($name !== '' && ! str_starts_with($name, '--')) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                if (false) {", 1))
+PY2
+griff_datei tests/Unit/DisabledStateTest.php "der Zerleger findet keine Angabe mehr" &&
+pruefe "der Zerleger findet keine Angabe mehr" \
+  DisabledStateTest::test_the_reader_tells_shape_from_colour failed
+wiederherstellen
+
+# **Befund 6:** Das gesperrte Kaestchen sagt es nur ueber die Farbe — genau der
+# Zustand von rc.5, den der Betreiber ein zweites Mal gemeldet hat.
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+# Gestrichelt wird durchgezogen — also genau die Form, die ein BEDIENBARES
+# Element traegt. Der erste Wurf dieses Eingriffs nahm den ganzen Rand weg und
+# hat nicht gebissen: `appearance: none` blieb stehen, und die stand damals in
+# der Liste der Formen. Sie ist keine Form, sondern die Erlaubnis, eine zu
+# geben.
+alt = "  border: 1px dashed var(--control-line);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "  border: 1px solid var(--control-line);", 1))
+PY2
+griff_datei resources/css/app.css "das gesperrte Kaestchen traegt die Form des bedienbaren" &&
+pruefe "das gesperrte Kaestchen traegt die Form des bedienbaren" \
+  DisabledStateTest::test_every_off_state_is_said_by_shape failed
+wiederherstellen
+
+# **Und der Wunsch des Betreibers dazu:** Die Form allein hat ihm nicht
+# gereicht. Eine Form sagt es dem, der sie kennt — ein Wort sagt es allen.
+
+vorher_datei resources/js/Pages/Domains/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = '              <Badge v-if="!props.wildcard.possible" kind="neutral">nicht möglich</Badge>\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Pages/Domains/Show.vue "der gesperrte Schalter sagt es nicht als Wort" &&
+pruefe "der gesperrte Schalter sagt es nicht als Wort" \
+  DisabledStateTest::test_every_disabled_toggle_says_it_in_words failed
+wiederherstellen
+
+# **Die Gegenprobe:** Findet der Ausdruck keinen sperrbaren Schalter mehr,
+# prueft die Regel darueber nichts und ist gruen, ohne etwas gesehen zu haben.
+
+vorher_datei tests/Unit/DisabledStateTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DisabledStateTest.php'
+s = open(p, encoding='utf-8').read()
+alt = '/<label[^>]*class="'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '/<labelX[^>]*class="', 1))
+PY2
+griff_datei tests/Unit/DisabledStateTest.php "der Ausdruck findet keinen Schalter mehr" &&
+pruefe "der Ausdruck findet keinen Schalter mehr" \
+  DisabledStateTest::test_every_disabled_toggle_says_it_in_words failed
+wiederherstellen
+
+# **Und die Zeile, die „neben" erst moeglich macht.** Ohne ihre Regel ist die
+# Marke ein weiteres Stapelkind und rutscht unter die Beschriftung.
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.label-row {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.label-rowX {', 1))
+PY2
+griff_datei resources/css/app.css "die Zeile der Beschriftung verliert ihre Regel" &&
+pruefe "die Zeile der Beschriftung verliert ihre Regel" \
+  ClassReachTest::test_every_class_in_a_template_points_at_a_rule failed
 wiederherstellen
 
 vorher_datei tests/Unit/DisabledStateTest.php

@@ -600,6 +600,26 @@ nicht als Farbwert in einem eingebetteten Bild — sonst folgte er dem Thema
 nicht. Umgezeichnet ist **nur** der gesperrte Zustand; in diesem Panel gibt es
 genau ein `:disabled`-Kästchen, und sein Zustand entsteht auf dem Server.
 
+**Und B ist doch gebaut worden** — auf Wunsch des Betreibers, dem die Form
+allein nicht gereicht hat. Das war der richtige Einwand, und mein Grund, sie zu
+verwerfen, war falsch gemessen: Die Marke brach nicht, **weil sie eine Marke
+ist**, sondern weil `.toggle > span` stapelt. Sie war darin ein weiteres
+Stapelkind.
+
+> **Eine Marke, die neben etwas stehen soll, braucht eine Zeile, in der „neben"
+> überhaupt vorkommt.**
+
+> **Ein Entwurf, der am Behälter scheitert, ist nicht widerlegt.**
+
+`.label-row` ist diese Zeile. Gemessen bei 390 und 1440 px, beide Themes:
+`dokument: 0`, und die Marke steht in **beiden** Breiten neben der Beschriftung.
+
+Damit sagen es jetzt drei Dinge, und jedes beantwortet eine andere Frage: die
+**Form** des Kästchens (was ist das), die **Marke** (ob), der Satz in `--warn`
+(warum).
+
+> **Eine Form sagt es dem, der sie schon kennt. Ein Wort sagt es allen.**
+
 **Und der Wächter war grün, während das Kästchen gleich aussah.**
 `DisabledStateTest` fragte, ob es für die Hülle eine Regel gibt, die `disabled`
 nennt. Die gab es — sie änderte die Farbe.

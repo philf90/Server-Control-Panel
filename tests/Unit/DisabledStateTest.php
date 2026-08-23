@@ -412,4 +412,71 @@ final class DisabledStateTest extends TestCase
             '`.field input:disabled` es seit Monaten mit `border-style: dashed` tut.',
         ]));
     }
+
+    /**
+     * Jeder gesperrte Schalter sagt seinen Zustand auch als **Wort**.
+     *
+     * **Der Anlass ist der Wunsch des Betreibers zu Befund 6.** Die Form allein
+     * hat ihm nicht gereicht — und das ist keine Marotte, sondern der Kern der
+     * Sache: Eine Form muss man kennen, ein Wort nicht. Ein gestrichelter Rand
+     * bedeutet in diesem Panel „das kannst du nicht ändern", weil es hier so
+     * vereinbart ist; wer die Vereinbarung nicht kennt, sieht ein Kästchen mit
+     * einem anderen Rand.
+     *
+     * > **Eine Form sagt es dem, der sie schon kennt. Ein Wort sagt es allen.**
+     *
+     * Der Satz mit dem **Grund** steht daneben und ersetzt das nicht: Er
+     * beantwortet „warum", und diese Marke beantwortet „ob". Wer erst den Grund
+     * liest, hat die Frage schon gestellt.
+     *
+     * ## Was er nicht prüft
+     *
+     * Was auf der Marke steht. „nicht möglich" ist eine Formulierung, kein
+     * Gesetz — und `WordChoiceTest` liest die Sprache der Oberfläche ohnehin.
+     */
+    public function test_every_disabled_toggle_says_it_in_words(): void
+    {
+        $ohneWort = [];
+        $gesehen = 0;
+
+        foreach ($this->templates() as $pfad => $vorlage) {
+            preg_match_all(
+                '/<label[^>]*class="[^"]*\btoggle\b[^"]*"[^>]*>(.*?)<\/label>/s',
+                $vorlage,
+                $schalter,
+                PREG_SET_ORDER,
+            );
+
+            foreach ($schalter as [, $inhalt]) {
+                if (! str_contains($inhalt, ':disabled')) {
+                    continue;
+                }
+
+                $gesehen++;
+
+                if (! str_contains($inhalt, '<Badge')) {
+                    $ohneWort[] = $pfad;
+                }
+            }
+        }
+
+        $this->assertGreaterThanOrEqual(
+            1,
+            $gesehen,
+            'Es gibt keinen sperrbaren Schalter mehr — dann prüft diese Regel nichts.',
+        );
+
+        $this->assertSame([], $ohneWort, implode("\n", [
+            'Diese Schalter lassen sich sperren und sagen es nicht als Wort:',
+            ...$ohneWort,
+            '',
+            'Die Form sagt es dem, der sie kennt. Der Betreiber hat das Kaestchen',
+            '„Als Platzhalter bestellen" ein zweites Mal gemeldet, nachdem es die',
+            'Form schon hatte.',
+            '',
+            'Der Weg: eine Marke neben der Beschriftung, in einer .label-row —',
+            '<Badge kind="neutral">nicht moeglich</Badge>. Der Satz mit dem Grund',
+            'darunter ersetzt sie nicht: Er sagt warum, sie sagt ob.',
+        ]));
+    }
 }

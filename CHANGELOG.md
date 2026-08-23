@@ -18300,3 +18300,32 @@ solid` wäre durchgegangen, obwohl das der Ein-Zustand ist.
 
 > **Ein Eingriff, der eine Regel entfernt und einen Rest stehen lässt, prüft den
 > Rest.**
+
+### Die Marke aus dem verworfenen Entwurf — sie war nicht widerlegt
+
+Wunsch des Betreibers zu Befund 6: Die Marke „nicht möglich" aus den Entwürfen
+B und C soll trotzdem eingesetzt werden.
+
+**Der Einwand war richtig, und mein Grund, sie zu verwerfen, war falsch
+gemessen.** Sie brach nicht auf eine eigene Zeile, *weil sie eine Marke ist*,
+sondern weil `.toggle > span` stapelt — Beschriftung, Erklärung, Hinderungsgrund
+stehen dort untereinander. Die Marke war darin ein weiteres Stapelkind.
+
+> **Eine Marke, die neben etwas stehen soll, braucht eine Zeile, in der „neben"
+> überhaupt vorkommt.**
+
+> **Ein Entwurf, der am Behälter scheitert, ist nicht widerlegt.**
+
+`.label-row` ist diese Zeile: Beschriftung und Marke nebeneinander, umbrechend,
+damit die Marke bei knapper Breite unter die Beschriftung geht statt aus dem
+Bild. Gemessen bei 390 und 1440 px in beiden Themes — `dokument: 0`, und sie
+steht in **beiden** Breiten daneben.
+
+Damit sagen es drei Dinge, und jedes beantwortet eine andere Frage: die **Form**
+des Kästchens (was ist das), die **Marke** (ob), der Satz in `--warn` (warum).
+
+> **Eine Form sagt es dem, der sie schon kennt. Ein Wort sagt es allen.**
+
+`DisabledStateTest` hält das als eigene Regel: Ein Schalter, der sich sperren
+lässt, sagt es auch als Wort. Der Satz mit dem Grund ersetzt sie nicht — er sagt
+warum, sie sagt ob.

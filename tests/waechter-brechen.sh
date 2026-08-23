@@ -14773,6 +14773,54 @@ pruefe "das gesperrte Kaestchen traegt die Form des bedienbaren" \
   DisabledStateTest::test_every_off_state_is_said_by_shape failed
 wiederherstellen
 
+# **Und der Wunsch des Betreibers dazu:** Die Form allein hat ihm nicht
+# gereicht. Eine Form sagt es dem, der sie kennt — ein Wort sagt es allen.
+
+vorher_datei resources/js/Pages/Domains/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = '              <Badge v-if="!props.wildcard.possible" kind="neutral">nicht möglich</Badge>\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Pages/Domains/Show.vue "der gesperrte Schalter sagt es nicht als Wort" &&
+pruefe "der gesperrte Schalter sagt es nicht als Wort" \
+  DisabledStateTest::test_every_disabled_toggle_says_it_in_words failed
+wiederherstellen
+
+# **Die Gegenprobe:** Findet der Ausdruck keinen sperrbaren Schalter mehr,
+# prueft die Regel darueber nichts und ist gruen, ohne etwas gesehen zu haben.
+
+vorher_datei tests/Unit/DisabledStateTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DisabledStateTest.php'
+s = open(p, encoding='utf-8').read()
+alt = '/<label[^>]*class="'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '/<labelX[^>]*class="', 1))
+PY2
+griff_datei tests/Unit/DisabledStateTest.php "der Ausdruck findet keinen Schalter mehr" &&
+pruefe "der Ausdruck findet keinen Schalter mehr" \
+  DisabledStateTest::test_every_disabled_toggle_says_it_in_words failed
+wiederherstellen
+
+# **Und die Zeile, die „neben" erst moeglich macht.** Ohne ihre Regel ist die
+# Marke ein weiteres Stapelkind und rutscht unter die Beschriftung.
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.label-row {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.label-rowX {', 1))
+PY2
+griff_datei resources/css/app.css "die Zeile der Beschriftung verliert ihre Regel" &&
+pruefe "die Zeile der Beschriftung verliert ihre Regel" \
+  ClassReachTest::test_every_class_in_a_template_points_at_a_rule failed
+wiederherstellen
+
 vorher_datei tests/Unit/DisabledStateTest.php
 python3 - <<'PY2'
 p = 'tests/Unit/DisabledStateTest.php'

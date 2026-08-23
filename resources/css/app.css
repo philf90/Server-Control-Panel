@@ -3588,6 +3588,32 @@ p:not([class]) {
   gap: 2px;
 }
 
+/*
+ * Die Beschriftung eines Schalters und die Marke, die seinen Zustand nennt.
+ *
+ * **Warum es diese Zeile gibt.** `.toggle > span` stapelt — Beschriftung,
+ * Erklärung, Hinderungsgrund stehen untereinander. Eine Marke daneben wird
+ * darin zu einem weiteren Stapelkind und rutscht unter die Beschriftung; im
+ * Entwurf sah sie damit aus wie ein eigener Block und nicht wie eine Angabe zu
+ * dieser Zeile.
+ *
+ * > **Eine Marke, die neben etwas stehen soll, braucht eine Zeile, in der
+ * > „neben" überhaupt vorkommt.**
+ *
+ * Der Behälter war das Problem und nicht die Marke — gemessen beim Entwurf zu
+ * Befund 6, wo genau das die Fassung mit der Marke hat durchfallen lassen.
+ *
+ * **`wrap` und nicht `nowrap`.** Bei 390 px reicht die Breite für „Als
+ * Platzhalter bestellen" und die Marke nicht immer; dann gehört die Marke unter
+ * die Beschriftung und nicht aus dem Bild.
+ */
+.label-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .toggle .hint {
   margin-top: 0;
 }

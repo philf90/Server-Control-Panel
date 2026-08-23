@@ -470,7 +470,19 @@ const dnsAdressenWeichenAb = computed(() => {
         <label v-if="props.can.order_wildcard && !props.wildcard.covered" class="toggle">
           <input v-model="alsPlatzhalter" type="checkbox" :disabled="!props.wildcard.possible">
           <span>
-            Als Platzhalter bestellen
+            <!--
+              **Die Marke steht neben der Beschriftung und nicht darunter.**
+              `.toggle > span` stapelt; ohne diese Zeile wäre sie ein weiteres
+              Stapelkind und läse sich als eigener Block (`docs/76`, Befund 6).
+
+              **Und sie sagt den Zustand, der Satz darunter den Grund.** Das
+              Kästchen sagt es seit Befund 6 durch seine Form — aber eine Form
+              muss man kennen, ein Wort nicht.
+            -->
+            <span class="label-row">
+              Als Platzhalter bestellen
+              <Badge v-if="!props.wildcard.possible" kind="neutral">nicht möglich</Badge>
+            </span>
             <small class="hint">
               Ein Zertifikat für <span class="ident">{{ props.wildcard.names.join(', ') }}</span> —
               es gilt für jede Unterdomain dieser Zone, auch für die eines

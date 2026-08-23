@@ -164,7 +164,7 @@ function neuAusstellen(): void {
       <p v-if="fehlende.length > 0" class="notice warn">
         <span>
           Dieser Rechner ist auch unter
-          <span class="ident"><Idents :values="fehlende" /></span> erreichbar —
+          <span class="ident">{{ fehlende.join(', ') }}</span> erreichbar —
           das Zertifikat deckt das nicht ab. Eine neue Adresse stellt es nicht
           von selbst neu aus; auf einem Server mit Docker gäbe das jede Woche
           ein neues Zertifikat samt neuer Warnung im Browser.

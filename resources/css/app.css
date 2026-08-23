@@ -662,6 +662,22 @@ input[type='radio'] {
   font-size: var(--text-small);
   color: var(--text-muted);
   max-width: 64ch;
+
+  /*
+   * **Der Erklärsatz trägt Kennungen, und die brechen nicht von selbst.**
+   *
+   * „Zuletzt geprüft … · gefragt wurden 167.235.231.182, 159.69.110.93" ist so
+   * ein Satz. Solange zwei Adressen darin stehen, bricht die Zeile am
+   * Leerzeichen hinter dem Komma; steht dort **eine**, die länger ist als die
+   * Zeile, gibt es keine Stelle, an der sie brechen dürfte — und dann schiebt
+   * sie die Seite aus dem Bild. Das ist der Befund aus `docs/67`, nur an einem
+   * anderen Baustein.
+   *
+   * `anywhere` bricht **nur, wenn es sein muss** — anders als eine
+   * Umbruchgelegenheit im Text, die bricht, sobald es passt (`docs/76`,
+   * Befund 4). Genau deshalb steht hier die Regel und nicht ein `<wbr>`.
+   */
+  overflow-wrap: anywhere;
 }
 
 /* Ein leerer Zustand ist eine Auskunft. Eine weisse Fläche wäre keine. */

@@ -22,6 +22,10 @@ ungültig und keine Messung.
 | # | Ansicht | Breite | Thema | `stand` | `dokument` | Gegenprobe | Bild |
 |---|---|---|---|---|---|---|---|
 | 1 | Domain, DNS-Abgleich | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 1) |
+| 1 · rc.5 | Domain, DNS-Abgleich | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ (1 und 2 behoben) |
+| 1 · rc.5 | Domain, DNS-Abgleich | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ |
+| 1 · rc.5 | Domain, DNS-Abgleich | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 4) |
+| 1 · rc.5 | Domain, DNS-Abgleich | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 4) |
 | 1 | Domain, DNS-Abgleich | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 1) |
 | 1 | Domain, DNS-Abgleich | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 2) |
 | 1 | Domain, DNS-Abgleich | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 3) |
@@ -388,6 +392,91 @@ Alle vier Lagen `dokument: 0`, Gegenprobe `200/200`, `schiebt` und `rollt` leer;
   `orderByRaw("case when type = \'main\' then 0 else 1 end")`, im Bild belegt
   statt im Test behauptet.
 
+
+### Befund 4 — die Behebung von Befund 1 und 2 zerschneidet eine Adresse
+
+Gefunden am 23. August auf `cloudsrv24` gegen **`v0.7.0-rc.5`**, beim Nachsehen
+von Befund 1 und 2 — also an genau der Behebung, die dieser Lauf prüfen sollte.
+Wieder ohne eine Zahl: `dokument: 0`, `schiebt: []`, Gegenprobe `200/200` in
+allen vier Lagen.
+
+Unter dem DNS-Abgleich stand bei 1440 px:
+
+```
+Zuletzt geprüft: 2026-08-23 06:45:47 · gefragt wurden 167.235.231.182, 159.69.
+110.93
+```
+
+Die zweite Adresse ist mitten durchgebrochen. Vor der Behebung brach diese Zeile
+am Leerzeichen hinter dem Komma, und beide Adressen blieben ganz.
+
+**Der Mechanismus.** Eine Umbruchgelegenheit ist keine Empfehlung, sondern eine
+Stelle wie jedes Leerzeichen. Der Zeilenumbruch nimmt die **letzte, die noch
+passt** — und das ist die im Inneren des Wertes, sobald sie weiter rechts steht
+als das Leerzeichen davor.
+
+> **Eine Umbruchgelegenheit bricht, sobald es passt. `overflow-wrap: anywhere`
+> bricht nur, wenn es sein muss.**
+
+**Zwei Breiten beantworten das nicht.** Bei 390 px und bei 1440 px sah die
+Fundstelle von Befund 2 in beiden Fassungen **gleich** aus; der Schaden liegt
+dazwischen und an anderen Fundstellen. Gemessen wurde deshalb der ganze Bereich
+von 320 bis 1600 px in Vierer-Schritten — 321 Breiten je Fall und Fassung, mit
+`tests/umbruch-messen.mjs` und `tests/umbruch-faelle.json`. Gezählt ist, bei wie
+vielen Breiten ein Wert über zwei Zeilen geht:
+
+| Fundstelle | ohne `<wbr>` | mit `<wbr>` |
+|---|---|---|
+| 660 `.section-note` „gefragt wurden" | **0** | **291** |
+| 517 `.section-note` + `.ident` „ungedeckt" | **0** | **289** |
+| 717 `.notice warn` Adressen | **0** | 14 (320–372) |
+| 695 `.notice warn` + `.ident` „nicht gefragt" | **0** | 11 (320–360) |
+| 475 `.hint` + `.ident` Platzhalter | **0** | 4 (**380–392**) |
+| 634 `td.ident` — Zelle, Wert allein | 6 (320–340) | 6 (320–340) |
+
+Zwei Dinge stehen darin. **In jedem Satz** macht die Gelegenheit es schlechter,
+und zwar von „nie getrennt" auf bis zu 291 von 321 Breiten. **In der Zelle**
+ändert sie die Anzahl nicht — sie ändert nur den Ort, und genau dafür ist sie
+gebaut.
+
+Und die vierte Zeile ist die teuerste: Der Bereich 380–392 px enthält die
+**390 px**, mit denen dieser Lauf misst. Der Satz unter „Als Platzhalter
+bestellen" — die Fundstelle von Befund 2 — war durch seine eigene Behebung an
+genau dieser Breite zerschnitten, und in den Aufnahmen von Lage 1/390 war er
+nicht im Bild.
+
+> **Eine Behebung ist eine Änderung, und jede Änderung ist ein neuer Anlass zu
+> messen.**
+
+> **Eine Frage, deren Antwort an der Breite hängt, ist mit zwei Breiten nicht
+> beantwortet.**
+
+**Behoben.** Neun Fundstellen in `Domains/Show.vue`, `Settings/Php.vue` und
+`Settings/Tls.vue` stehen wieder als `join(', ')` — das Komma aus Befund 2
+bleibt, die Umbruchgelegenheit geht. `<Idents>` bleibt an den acht Stellen, an
+denen der Wert allein in seiner Zelle steht. `.section-note` bekommt
+`overflow-wrap: anywhere`: Das bricht nur, wenn ein Wert auf keine Zeile passt,
+und fängt damit den Fall ab, für den die Gelegenheit dort einmal gedacht war.
+
+**Und der Wächter von gestern war zu breit gezogen.** `IdentListTest` verbot
+*jedes* `join()` in einer `.ident` — nach dieser Messung stehen dort sechs
+richtige. Er verbietet jetzt das blosse Leerzeichen, also das, was Befund 2
+wirklich gekostet hat. Die Platzierung hält `IdentPlacementTest`.
+
+> **Eine Regel, die mehr verbietet als ihr Befund hergibt, steht dem nächsten
+> Befund im Weg.**
+
+**Die Sonde hat sich zweimal selbst geprüft.** Ihre erste Fassung zählte die
+Client-Rechtecke des Elements — ein `<wbr>` ist aber ein Element und zerteilt
+diese Liste, also meldete sie für **jede** Breite einen Bruch, auch für 1600.
+
+> **Eine Sonde, die für jede Eingabe dasselbe sagt, hat nichts gemessen.**
+
+Gemessen wird seitdem an den Zeichen. Und `tests/umbruch-faelle.json` trägt
+einen Fall `kontrolle` mit einem Wert, der auf keine Zeile passt: Bricht der
+nicht, endet das Skript mit Rückgabewert 1, und keine Null daneben bedeutet
+etwas.
+
 ---
 
 ## 2b. Was das Beheben gekostet hat
@@ -462,12 +551,19 @@ Frage an den Betreiber und kein Fehler.
 
 ## 4. Was offen ist
 
-- **Die drei Behebungen sind auf dem Server nicht nachgesehen.** Sie sind im
-  Aufsatz gemessen (`dokument: 0` in allen Lagen, und die IPv6 bricht jetzt nach
-  dem Doppelpunkt statt im Hextet) — das ist etwas anderes.
+- **Befund 1 und 2 sind am 23. August auf dem Server nachgesehen** — gegen
+  `v0.7.0-rc.5`, vier Lagen, alle vier gültig. Die IPv6 bricht hinter dem
+  Doppelpunkt, `fe72` ist ganz; `*.cloudlab24.de, cloudlab24.de` steht mit
+  Komma. **Befund 3 ist noch nicht nachgesehen** — dafür braucht es eine Domain
+  ohne hinterlegte DNS-Zugangsdaten, und `cloudlab24.de` trägt sie seit dem Lauf.
 
   > **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
   > jemand ihn behoben hat.**
+- **Und das Nachsehen hat Befund 4 gebracht** — an der Behebung selbst. Er ist
+  behoben und **seinerseits nicht auf dem Server nachgesehen**; im Aufsatz ist
+  er über 321 Breiten gemessen (§2, Befund 4). Er gehört in den nächsten Lauf,
+  und zwar an beiden Fundstellen: der Zeile „gefragt wurden" bei 1440 px und dem
+  Satz unter „Als Platzhalter bestellen" bei 390 px.
 - **Die Marke „ungeprüft" ist nicht aufgenommen**, und sie ist **flüchtig**:
   `srvpanel-dns.timer` läuft alle 15 Minuten, also ist jede Domain spätestens
   nach einer Viertelstunde geprüft. Den Zustand gibt es nur im Fenster zwischen

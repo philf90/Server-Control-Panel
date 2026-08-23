@@ -18126,3 +18126,71 @@ die Gegenrichtung wäre dabei still grün geblieben.
 
 > **Ein Ausdruck, der ein Attribut an einer festen Stelle sucht, findet es nicht
 > mehr, sobald ein zweites danebensteht.**
+
+### Befund 4 — die Behebung von Befund 1 und 2 zerschneidet eine Adresse
+
+Nachgesehen am 23. August 2026 auf `cloudsrv24` gegen `v0.7.0-rc.5`, was am Tag
+davor behoben worden war. Befund 1 und 2 sind in Ordnung: Die IPv6 bricht hinter
+dem Doppelpunkt, die zwei Namen stehen mit Komma. Daneben stand das hier:
+
+```
+Zuletzt geprüft: 2026-08-23 06:45:47 · gefragt wurden 167.235.231.182, 159.69.
+110.93
+```
+
+Wieder ohne Zahl — `dokument: 0`, `schiebt: []`, Gegenprobe `200/200` in allen
+vier Lagen. Vor der Behebung brach diese Zeile am Leerzeichen hinter dem Komma,
+und beide Adressen blieben ganz.
+
+**Der Mechanismus.** Eine Umbruchgelegenheit ist keine Empfehlung, sondern eine
+Stelle wie jedes Leerzeichen. Der Umbruch nimmt die letzte, die noch passt — und
+das ist die im Inneren des Wertes, sobald sie weiter rechts steht als das
+Leerzeichen davor.
+
+> **Eine Umbruchgelegenheit bricht, sobald es passt. `overflow-wrap: anywhere`
+> bricht nur, wenn es sein muss.**
+
+**Zwei Breiten beantworten das nicht.** Bei 390 und bei 1440 px sah die
+Fundstelle von Befund 2 in beiden Fassungen gleich aus. Gemessen ist deshalb der
+Bereich von 320 bis 1600 px in Vierer-Schritten — 321 Breiten je Fall, mit
+`tests/umbruch-messen.mjs`. In einem **Satz** bricht ohne die Gelegenheit *kein*
+Wert; mit ihr bricht einer bei bis zu **291 von 321** Breiten. In einer **Zelle**
+ändert sie die Anzahl nicht — nur den Ort, und genau dafür ist sie gebaut.
+
+Die teuerste Zeile der Tabelle: Der Satz unter „Als Platzhalter bestellen" —
+die Fundstelle von Befund 2 — bricht mit der Gelegenheit bei 380 bis 392 px, und
+darin liegen die **390 px**, mit denen jede Bilderrunde dieses Projekts misst.
+Die Behebung hat ihren eigenen Befund an genau der Breite wieder aufgemacht, an
+der er gefunden wurde.
+
+> **Eine Behebung ist eine Änderung, und jede Änderung ist ein neuer Anlass zu
+> messen.**
+
+> **Eine Frage, deren Antwort an der Breite hängt, ist mit zwei Breiten nicht
+> beantwortet.**
+
+Neun Fundstellen stehen wieder als `join(', ')` — das Komma bleibt, die
+Gelegenheit geht. `<Idents>` bleibt an den acht Stellen, an denen der Wert allein
+in seiner Zelle steht. `.section-note` bekommt `overflow-wrap: anywhere` für den
+Fall, für den die Gelegenheit dort gedacht war: einen Wert, der auf keine Zeile
+passt.
+
+**Und der Wächter von gestern war zu breit gezogen.** `IdentListTest` verbot
+*jedes* `join()` in einer `.ident`; nach dieser Messung stehen dort sechs
+richtige. Er verbietet jetzt das blosse Leerzeichen — das, was Befund 2 wirklich
+gekostet hat. `IdentPlacementTest` hält die Platzierung.
+
+> **Eine Regel, die mehr verbietet als ihr Befund hergibt, steht dem nächsten
+> Befund im Weg.**
+
+**Die Messvorschrift liegt als `tests/umbruch-messen.mjs` im Repo**, mit ihren
+Fällen in `tests/umbruch-faelle.json` — was man zweimal braucht, gehört dorthin.
+Ihre erste Fassung zählte die Client-Rechtecke des Elements; ein `<wbr>` ist aber
+selbst ein Element und zerteilt diese Liste, also meldete sie für **jede** Breite
+einen Bruch, auch für 1600.
+
+> **Eine Sonde, die für jede Eingabe dasselbe sagt, hat nichts gemessen.**
+
+Gemessen wird seitdem an den Zeichen, und ein Fall `kontrolle` mit einem Wert,
+der auf keine Zeile passt, muss in beiden Fassungen brechen — sonst endet das
+Skript mit Rückgabewert 1 und keine Null daneben bedeutet etwas.

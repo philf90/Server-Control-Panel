@@ -14522,40 +14522,65 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DnsHealthTest passed
 
 echo
-echo "── IdentListTest / DisabledStateTest: die drei Befunde der Bilderrunde ──"
+echo "── IdentListTest / IdentPlacementTest / DisabledStateTest: die Bilderrunde ──"
 #
 # **Zwei Befunde, eine Ursache** (`docs/76`): Eine IPv6 brach bei 390 px mitten
 # im Hextet, und zwei Namen standen durch ein Leerzeichen getrennt nebeneinander.
 # Beide entstehen dort, wo `.ident` gilt — Monospace UND overflow-wrap: anywhere.
+#
+# **Und Befund 4 hat die Regel einen Tag spaeter enger gezogen.** Die Behebung
+# setzte eine Umbruchgelegenheit in jeden Wert; in einem SATZ gewinnt die gegen
+# das Leerzeichen daneben und zerschneidet eine Adresse. Verboten ist deshalb
+# nicht mehr jedes `join()` in einer `.ident`, sondern das blosse Leerzeichen —
+# und `<Idents>` gehoert nur noch dorthin, wo der Wert allein steht.
 
 vorher_datei resources/js/Pages/Domains/Show.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Domains/Show.vue'
 s = open(p, encoding='utf-8').read()
-alt = '<td data-column="Gefunden" class="ident">\n                  <Idents :values="satz.found" />'
+alt = "{{ props.wildcard.names.join(', ') }}"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-neu = '<td data-column="Gefunden" class="ident">\n                  {{ satz.found.join(\', \') }}'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "{{ props.wildcard.names.join(' ') }}", 1))
 PY2
-griff_datei resources/js/Pages/Domains/Show.vue "eine Kennungsliste wieder mit join geklebt" &&
-pruefe "eine Kennungsliste wieder mit join geklebt" \
-  IdentListTest::test_no_ident_glues_a_list_with_join failed
+griff_datei resources/js/Pages/Domains/Show.vue "eine Kennungsliste wieder mit blossem Leerzeichen" &&
+pruefe "eine Kennungsliste wieder mit blossem Leerzeichen" \
+  IdentListTest::test_no_ident_separates_a_list_with_a_bare_space failed
 wiederherstellen
 
-# **Die Gegenprobe zum Bestand:** Steht `<Idents>` nirgends mehr, ist die Regel
-# eine Verbotstafel vor einer leeren Strasse.
+# **Die Gegenprobe zum Ausdruck:** Einer, der ein Komma fuer einen Fund haelt,
+# machte sechs richtige Stellen rot — und einer, der das Leerzeichen nicht mehr
+# findet, waere fuer immer gruen. Eine Zaehlung am Bestand merkt beides nicht.
 
 vorher_datei tests/Unit/IdentListTest.php
 python3 - <<'PY2'
 p = 'tests/Unit/IdentListTest.php'
 s = open(p, encoding='utf-8').read()
-alt = "substr_count($vorlage, '<Idents')"
+# Das Leerzeichen zwischen den beiden Anfuehrungszeichen wird zu einer Klasse,
+# die auch ein Komma nimmt — der Ausdruck haelt dann `join(', ')` fuer einen
+# Fund, und sechs richtige Stellen dieses Panels waeren rot.
+alt = '] ['
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, "substr_count($vorlage, '<IdentsX')", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '][, ]*[', 1))
 PY2
-griff_datei tests/Unit/IdentListTest.php "die Komponente wird nirgends benutzt" &&
-pruefe "die Komponente wird nirgends benutzt" \
-  IdentListTest::test_the_component_is_actually_used failed
+griff_datei tests/Unit/IdentListTest.php "das Komma gilt als Fund" &&
+pruefe "das Komma gilt als Fund" \
+  IdentListTest::test_the_expression_tells_a_comma_from_a_space failed
+wiederherstellen
+
+# Und die andere Richtung: Findet der Ausdruck das Leerzeichen gar nicht mehr,
+# ist die Regel darunter fuer immer gruen.
+
+vorher_datei tests/Unit/IdentListTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/IdentListTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "\\\\.join\\\\(\\\\s*"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "\\\\.joinX\\\\(\\\\s*", 1))
+PY2
+griff_datei tests/Unit/IdentListTest.php "der Ausdruck findet kein join mehr" &&
+pruefe "der Ausdruck findet kein join mehr" \
+  IdentListTest::test_the_expression_tells_a_comma_from_a_space failed
 wiederherstellen
 
 vorher_datei tests/Unit/IdentListTest.php
@@ -14571,6 +14596,59 @@ pruefe "die Vorlagen werden nicht mehr gelesen" \
   IdentListTest::test_there_are_templates_to_check failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" IdentListTest passed
+
+# ── IdentPlacementTest: Befund 4 der Bilderrunde ───────────────────────────
+#
+# Gemessen ueber 321 Breiten (`tests/umbruch-messen.mjs`): In einem Satz bricht
+# ohne die Umbruchgelegenheit KEIN Wert, mit ihr bis zu 291 von 321 — und der
+# Bereich 380–392 px enthaelt die 390, mit denen jede Bilderrunde misst.
+
+vorher_datei resources/js/Pages/Domains/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = "· gefragt wurden {{ props.dns.last.findings.nameservers.join(', ') }}"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '· gefragt wurden <Idents :values="props.dns.last.findings.nameservers" />'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Domains/Show.vue "Idents steht wieder in einem Satz" &&
+pruefe "Idents steht wieder in einem Satz" \
+  IdentPlacementTest::test_no_idents_stands_in_running_text failed
+wiederherstellen
+
+# **Die Gegenprobe zum Leser.** Einer, der nie Text neben dem Wert sieht, haelt
+# jeden Satz fuer eine Zelle — und die Regel darueber waere fuer immer gruen.
+
+vorher_datei tests/Unit/IdentPlacementTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/IdentPlacementTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if ($tiefe <= 0 && trim($zeichen) !== '') {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            if (false) {", 1))
+PY2
+griff_datei tests/Unit/IdentPlacementTest.php "der Leser sieht nie Text neben dem Wert" &&
+pruefe "der Leser sieht nie Text neben dem Wert" \
+  IdentPlacementTest::test_the_reader_tells_a_cell_from_a_sentence failed
+wiederherstellen
+
+# **Und die Gegenprobe zum Bestand:** Steht `<Idents>` nirgends mehr, ist die
+# Regel eine Verbotstafel vor einer leeren Strasse.
+
+vorher_datei tests/Unit/IdentPlacementTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/IdentPlacementTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/<Idents\\b[^>]*\\/>/'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/<IdentsX\\b[^>]*\\/>/'", 1))
+PY2
+griff_datei tests/Unit/IdentPlacementTest.php "der Ausdruck findet kein Idents mehr" &&
+pruefe "der Ausdruck findet kein Idents mehr" \
+  IdentPlacementTest::test_the_component_is_actually_used failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" IdentPlacementTest passed
 
 # **Befund 3:** Ein Kaestchen, das nicht klickt und aussieht, als taete es das.
 # Gemeldet vom Betreiber, gefunden von keinem Messmittel.

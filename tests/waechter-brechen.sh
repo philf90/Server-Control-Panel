@@ -15141,6 +15141,44 @@ pruefe "das drehende Zeichen verliert seine Regel" \
 wiederherstellen
 
 echo
+echo "── TickProbeTest: die Uebersicht laedt nicht mehr als Teilladung nach ──"
+#
+# **Die Kopplung, an der die Taktprobe haengt.** Sie erkennt eine Nachladung an
+# `X-Inertia-Partial-Data`, und die schickt Inertia nur bei `router.reload({
+# only: [...] })`. Eine volle Navigation taete fuer den Betrachter dasselbe und
+# waere fuer die Probe unsichtbar — sie meldete nichts, und das sieht aus wie
+# ein Takt, der steht.
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Overview.vue'
+s = open(p, encoding='utf-8').read()
+alt = "  router.reload({\n    only: ['tiles'],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "  router.reload({\n    ohneOnly: ['tiles'],", 1))
+PY2
+griff_datei resources/js/Pages/Overview.vue "die Uebersicht laedt voll statt teilweise nach" &&
+pruefe "die Uebersicht laedt voll statt teilweise nach" \
+  TickProbeTest::test_the_overview_reloads_partially failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TickProbeTest passed
+
+echo
+echo "── TickProbeTest: die Probe hoert auf eine andere Kopfzeile ──"
+vorher_datei tests/takt-messen.js
+python3 - <<'PY2'
+p = 'tests/takt-messen.js'
+s = open(p, encoding='utf-8').read()
+alt = "'x-inertia-partial-data'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'x-requested-with'", 1))
+PY2
+griff_datei tests/takt-messen.js "die Taktprobe hoert auf die falsche Kopfzeile" &&
+pruefe "die Taktprobe hoert auf die falsche Kopfzeile" \
+  TickProbeTest::test_the_probe_listens_for_the_partial_header failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TickProbeTest passed
+
+echo
 echo "── ButtonFieldAlignTest: die Ausrichtung wandert in die verengte Regel ──"
 #
 # **Der Fehler, den dieses Repo am 23. August gemacht hat.** Die Ausrichtung

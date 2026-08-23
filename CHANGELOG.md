@@ -18577,3 +18577,46 @@ Zeile und war 44 px hoch; erst mit beiden ergaben sich die 72.
 
 > **Eine Nachbildung, der eine Ebene fehlt, misst eine andere Lage — und zwar
 > eine, die harmloser aussieht.**
+
+### `tests/takt-messen.js` — das Mittel bleibt, nicht nur das Ergebnis
+
+Der Nachlauf zu `v0.7.0-rc.7` hat den Takt der Übersicht zum ersten Mal
+**gemessen** statt angesehen: eine Probe an `XMLHttpRequest.prototype.send`, die
+jede Teilnachladung mit ihrem Zeitstempel meldet. Gemessen wurden dreimal 30,0 s,
+dann dreimal 60,0 s, danach keine Zeile mehr.
+
+**Der Beleg steht in dem, was fehlt.** Hielte `stellen()` den alten Takt nicht
+an, liefe der 30-Sekunden-Takt in seiner Phase weiter — bei 144,5 · 174,5 ·
+204,5 und so fort. Keine dieser Zeilen ist da.
+
+> **Ein zweiter Takt ist nicht daran zu erkennen, dass etwas Falsches passiert,
+> sondern daran, dass etwas zu oft passiert.**
+
+Weder ein Bild noch die Überlaufmessung sagen darüber etwas, und ein Blick auf
+die Uhr auch nicht: „es lädt nach" sieht bei 30 und bei 60 Sekunden gleich aus.
+Die Probe liegt deshalb als Datei im Repo, aus demselben Grund wie
+`tests/bilder-messen.js` seit dem 19. August:
+
+> **Ein Messmittel, das man aufhebt, macht die Fehler von letztem Mal nicht noch
+> einmal.**
+
+`TickProbeTest` hält die eine Kopplung, an der sie stumm werden kann: Sie
+erkennt eine Nachladung an `X-Inertia-Partial-Data`, und die schickt Inertia nur
+bei `router.reload({ only: [...] })`. Wird der Selbstlauf auf eine volle
+Navigation umgestellt, meldet die Probe nichts mehr — und das sieht aus wie ein
+Takt, der steht.
+
+> **Ein Messmittel, das an einer Eigenschaft des Prüflings hängt, misst nichts
+> mehr, sobald der Prüfling sie ablegt — und meldet dabei dasselbe wie ein
+> Prüfling, der stillsteht.**
+
+**Der erste Wurf dieses Wächters war dabei wirkungslos, und gefunden hat es der
+Lauf der Eingriffe.** Er suchte den Namen der Kopfzeile in der ganzen Datei —
+und der Kopfkommentar der Probe erklärt, worauf sie hört. Der Eingriff tauschte
+die Zeichenkette im Code aus, die Erklärung blieb stehen, der Wächter blieb grün.
+
+> **Ein Wächter, der Kommentare mitliest, verlangt, dass niemand aufschreibt,
+> was er prüfen soll.**
+
+Derselbe Satz wie im Kopf von `FormLabelTest`, dort an einem `<label>` im
+Kommentar.

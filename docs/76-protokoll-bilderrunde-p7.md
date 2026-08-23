@@ -875,6 +875,46 @@ Frage an den Betreiber und kein Fehler.
   Beschriftung.
 - **Dabei ist Befund 7 herausgefallen** — zum dritten Mal in diesem Lauf ein
   Befund am Nachsehen einer Behebung.
+- **Der Takt der Übersicht ist am 23. August gegen `v0.7.0-rc.7` gemessen und
+  erfüllt** — und das ist der einzige Punkt dieses Laufs, den kein Bild
+  beantworten kann. Gemessen mit einer Probe an
+  `XMLHttpRequest.prototype.send`, die jede Anfrage mit
+  `X-Inertia-Partial-Data` mit ihrem Zeitstempel meldet.
+
+  | Zeile | Abstand | |
+  |---|---|---|
+  | 1,9 s | — | **Gegenprobe** (Klick auf „Aktualisieren") |
+  | 24,5 s | — | erste selbsttätige |
+  | 54,5 s | **30,0** | |
+  | 84,5 s | **30,0** | |
+  | 114,5 s | **30,0** | |
+  | 122,6 s | 8,1 | Umschalten auf 60 s — sofortiges Nachladen |
+  | 182,6 s | **60,0** | |
+  | 242,6 s | **60,0** | |
+  | 302,6 s | **60,0** | |
+  | — | | „nicht von allein": keine Zeile mehr |
+
+  **Der Beleg steht in dem, was fehlt.** Hielte `stellen()` den alten Takt nicht
+  an, liefe der 30-Sekunden-Takt in seiner Phase weiter — bei 144,5 · 174,5 ·
+  204,5 · 234,5 · 264,5 · 294,5. Keine dieser Zeilen ist da; die drei nach dem
+  Umschalten liegen exakt auf der 60-Sekunden-Phase ab 122,6. Es läuft genau ein
+  Zeitgeber.
+
+  > **Ein zweiter Takt ist nicht daran zu erkennen, dass etwas Falsches
+  > passiert, sondern daran, dass etwas zu oft passiert.**
+
+  Zwei Zahlen, die nach einem Fund aussehen und keiner sind: Die 8,1 s beim
+  Umschalten sind gewollt (der Beobachter lädt bei einer Änderung sofort nach,
+  damit niemand eine Minute auf frische Zahlen wartet), und die erste Zeile bei
+  24,5 statt 30,0 ist die Phase eines Taktes, der schon lief, als die Probe
+  eingesetzt wurde.
+
+  **Und die Gegenprobe stand zuerst.** Ohne die Zeile bei 1,9 s wäre jede
+  ausbleibende Zeile danach mehrdeutig gewesen — „der Takt ist aus" und „die
+  Probe misst nichts" sehen gleich aus.
+
+  > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+  > steht.**
 - **Der Seitenkopf der Übersicht ist am 23. August gegen `v0.7.0-rc.7`
   nachgesehen und erfüllt.** Beide Themes bei 390 px, beide Lagen gültig und in
   jeder Zahl gleich:

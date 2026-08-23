@@ -34,6 +34,12 @@ ungültig und keine Messung.
 | 1 · rc.6 | Domain, ganze Seite | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ |
 | 1 · rc.6 | Domain, ganze Seite | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ (4a, Befund 7) |
 | 1 · rc.6 | Domain, ganze Seite | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ |
+| 1 · rc.7 | Domain, ganze Seite | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 7 erfüllt) |
+| 1 · rc.7 | Domain, ganze Seite | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ (unverändert) |
+| 3 · rc.7 | Domainliste `/domains` | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 8) |
+| 5 · rc.7 | Datenbankliste `/databases` | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 8) |
+| 6 · rc.7 | Übersicht `/`, Seitenkopf | 390 | hell | 2026-08-21 | **0** | 200/200 | ✓ |
+| 6 · rc.7 | Übersicht `/`, Seitenkopf | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ |
 | 1 | Domain, DNS-Abgleich | 390 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 1) |
 | 1 | Domain, DNS-Abgleich | 1440 | hell | 2026-08-21 | **0** | 200/200 | ✓ (Befund 2) |
 | 1 | Domain, DNS-Abgleich | 1440 | dunkel | 2026-08-21 | **0** | 200/200 | ✓ (Befund 3) |
@@ -715,6 +721,70 @@ eine Frage an den, der sie schreibt, und keine Eigenschaft des Quelltextes.
 
 ---
 
+### Befund 8 — ein Knopf, so hoch wie die Beschriftung daneben
+
+Gemeldet vom Betreiber am 23. August beim Nachsehen des Abonnementnamens gegen
+`v0.7.0-rc.7`: „Der Knopf ‚Domain anlegen' ist zu gross im Verhältnis zum
+Auswahlfeld bei 390 px. Gleiches beim Knopf ‚Datenbank anlegen'."
+
+**Der Punkt selbst ist erfüllt** — `p6-abnahme.invalid` steht in beiden Feldern
+vollständig, beide Lagen gültig. Der Einwand gilt dem, was daneben steht.
+
+**Gemessen bei 390 px, Domainliste:** Knopf **133×72**, Auswahlfeld **206×44**.
+`.page-head .button-row` richtet mit `stretch` aus — richtig für eine Reihe aus
+lauter Knöpfen, die dann gleich hoch sind. Steht ein **beschriftetes** Feld
+dabei, ist die Reihe so hoch wie Beschriftung plus Feld, und der Knopf wächst
+mit.
+
+> **Eine Höhe, die ein Nachbar vorgibt, ist keine Aussage über den Knopf.**
+
+Drei Fassungen gemessen:
+
+| | Knopf | Auswahlfeld | Unterkanten |
+|---|---|---|---|
+| `stretch` (vorher) | 133×**72** | 206×44 | bündig |
+| `center` | 133×44 | 206×44 | 14 px auseinander |
+| **`flex-end`** | 133×**44** | 206×44 | **bündig** |
+
+`center` macht ihn gleich hoch und lässt ihn über der Feldkante schweben;
+`flex-end` setzt ihn darauf. Die Kopfhöhe bleibt bei allen dreien 134 px.
+
+**Und das ist ein Fehler, den derselbe Tag verursacht hat.** Die Ausrichtung gab
+es schon, als `align-items: center` in der Regel, die den Seitenkopf der
+Übersicht in eine Zeile bringt — und die traf zuerst *alle* Reihen mit einem
+Feld. Die Verengung auf `:has(.field > select:only-child)` war richtig (sonst
+wurde der Abonnementname beschnitten, siehe Befund davor), hat aber **zwei
+Dinge zugleich** weggenommen: das Schrumpfen des Feldes, das schadete, und die
+Ausrichtung, die half.
+
+> **Wer eine Regel verengt, verengt alles, was in ihr steht — auch das, was mit
+> dem Grund der Verengung nichts zu tun hatte.**
+
+**Behoben** als eigene Regel am breiten `:has(.field)`, mit `flex-end`. Sie
+beschneidet nichts und ist überall richtig, wo ein Feld neben einem Knopf steht.
+
+**Kein Bild und keine Messung dieses Laufs hätte ihn gefunden.** Der Überlauf
+war in allen Lagen `0`, `schiebt` und `rollt` leer, die Kopfhöhe unverändert.
+Es ist ein Verhältnis und keine Zahl, die überläuft — gesehen hat es der
+Betreiber.
+
+> **Eine Messung, die auf Überlauf zeigt, sieht ein falsches Verhältnis nicht.**
+
+**Und die Nachbildung im Aufsatz war vorher falsch.** Sie hatte **eine**
+Knopfreihe; die echte Seite hat **zwei ineinander** — `PanelLayout.vue` legt
+den Platz `#actions` in ein `.button-row`, und `Domains/Index.vue` legt sein
+eigenes `form.button-row` hinein. Mit nur einer Ebene brach der Knopf in die
+zweite Zeile und war 44 px hoch; erst mit beiden ergaben sich die 72.
+
+> **Eine Nachbildung, der eine Ebene fehlt, misst eine andere Lage — und zwar
+> eine, die harmloser aussieht.**
+
+`ButtonFieldAlignTest` hält seitdem beides auseinander: dass die Ausrichtung
+gesetzt ist, und dass sie am **breiten** Selektor hängt. Zwei Eingriffe, beide
+gegengeprüft.
+
+---
+
 ## 2b. Was das Beheben gekostet hat
 
 **Vier bestehende Wächter haben die Behebung abgefangen**, jeder zu Recht:
@@ -804,8 +874,91 @@ Frage an den Betreiber und kein Fehler.
   Und die Marke „nicht möglich" steht in beiden Breiten **neben** der
   Beschriftung.
 - **Dabei ist Befund 7 herausgefallen** — zum dritten Mal in diesem Lauf ein
-  Befund am Nachsehen einer Behebung. Er ist behoben und **nicht nachgesehen**;
-  im Aufsatz sind beide Breiten gemessen (§2, Befund 7).
+  Befund am Nachsehen einer Behebung.
+- **Der Takt der Übersicht ist am 23. August gegen `v0.7.0-rc.7` gemessen und
+  erfüllt** — und das ist der einzige Punkt dieses Laufs, den kein Bild
+  beantworten kann. Gemessen mit einer Probe an
+  `XMLHttpRequest.prototype.send`, die jede Anfrage mit
+  `X-Inertia-Partial-Data` mit ihrem Zeitstempel meldet.
+
+  | Zeile | Abstand | |
+  |---|---|---|
+  | 1,9 s | — | **Gegenprobe** (Klick auf „Aktualisieren") |
+  | 24,5 s | — | erste selbsttätige |
+  | 54,5 s | **30,0** | |
+  | 84,5 s | **30,0** | |
+  | 114,5 s | **30,0** | |
+  | 122,6 s | 8,1 | Umschalten auf 60 s — sofortiges Nachladen |
+  | 182,6 s | **60,0** | |
+  | 242,6 s | **60,0** | |
+  | 302,6 s | **60,0** | |
+  | — | | „nicht von allein": keine Zeile mehr |
+
+  **Der Beleg steht in dem, was fehlt.** Hielte `stellen()` den alten Takt nicht
+  an, liefe der 30-Sekunden-Takt in seiner Phase weiter — bei 144,5 · 174,5 ·
+  204,5 · 234,5 · 264,5 · 294,5. Keine dieser Zeilen ist da; die drei nach dem
+  Umschalten liegen exakt auf der 60-Sekunden-Phase ab 122,6. Es läuft genau ein
+  Zeitgeber.
+
+  > **Ein zweiter Takt ist nicht daran zu erkennen, dass etwas Falsches
+  > passiert, sondern daran, dass etwas zu oft passiert.**
+
+  Zwei Zahlen, die nach einem Fund aussehen und keiner sind: Die 8,1 s beim
+  Umschalten sind gewollt (der Beobachter lädt bei einer Änderung sofort nach,
+  damit niemand eine Minute auf frische Zahlen wartet), und die erste Zeile bei
+  24,5 statt 30,0 ist die Phase eines Taktes, der schon lief, als die Probe
+  eingesetzt wurde.
+
+  **Und die Gegenprobe stand zuerst.** Ohne die Zeile bei 1,9 s wäre jede
+  ausbleibende Zeile danach mehrdeutig gewesen — „der Takt ist aus" und „die
+  Probe misst nichts" sehen gleich aus.
+
+  > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+  > steht.**
+- **Der Seitenkopf der Übersicht ist am 23. August gegen `v0.7.0-rc.7`
+  nachgesehen und erfüllt.** Beide Themes bei 390 px, beide Lagen gültig und in
+  jeder Zahl gleich:
+
+  | | Wert |
+  |---|---|
+  | Kopfhöhe | **126 px** (vorher 140) |
+  | Reihe | 44 px |
+  | Knopf | 132×44 |
+  | Auswahlfeld | 172×44 |
+  | Knopf und Feld in einer Zeile | **ja** |
+  | Zeichen neben dem Wort | **ja** |
+
+  Die 126 px sind die Vorhersage aus dem Aufsatz, auf den Pixel getroffen.
+
+  **Eine Zahl weicht ab, und sie schliesst eine offene Frage.** Das Feld ist auf
+  dem Server **172 px** breit, im Aufsatz waren es 202 — und „alle 30 Sekunden"
+  steht in beiden vollständig darin. Im Container war ausgerechnet worden, der
+  Text *brauche* 201 px, und die verbleibenden 2 px Luft galten als knapp. Die
+  201 waren nie eine Bedarfsangabe:
+
+  > **Ein Wert, der immer dem entspricht, wogegen man ihn hält, ist keine
+  > Messung.** `scrollWidth` eines `<select>` gibt seine eigene sichtbare Breite
+  > zurück, auch wenn der Text abgeschnitten ist — gemessen an drei
+  > Polsterungen, jedes Mal `Luft 0`, und auf dem Server an einer Breite, die
+  > 30 px darunter liegt und trotzdem reicht.
+
+  Was über die Abschneidegefahr entscheidet, bleibt damit allein das Bild.
+- **Befund 7 ist am 23. August gegen `v0.7.0-rc.7` nachgesehen und erfüllt.**
+  Zwei Lagen, beide gültig (`dokument: 0`, Gegenprobe `200/200`, `schiebt` und
+  `rollt` leer):
+
+  | Lage | Zeile „Zuletzt geprüft … · gefragt wurden …" |
+  |---|---|
+  | 1440 / dunkel | **eine** Zeile, beide Adressen ganz |
+  | 390 / hell | zwei Zeilen, unverändert |
+
+  Bei 390 px ist das kein Rest, sondern die Zusage: Die Grenze von 64ch bindet
+  dort ohnehin nicht, die Spalte ist 358 px breit.
+
+  **`versteckt: 4` bei 390 gegen `0` bei 1440 ist erwartet.** Die Verben der
+  Knöpfe verlassen unterhalb von 720 px das Bild und bleiben im Dokument
+  (`.page-head .verb`, wegen WCAG 2.5.3); sie laufen über, sind aber unsichtbar,
+  und die Messung zählt sie deshalb getrennt statt sie zu melden.
 - **Befund 3 ist am 23. August nachgesehen** — zwei seiner drei Teile stimmen,
   der dritte hat **Befund 5** ergeben, und der Betreiber hat danach **Befund 6**
   gemeldet: Die Umgebung des Kästchens war behoben, das Kästchen selbst nicht. Auch der ist behoben und **nicht auf dem
@@ -845,6 +998,27 @@ Frage an den Betreiber und kein Fehler.
 
   > **Ein Zähler, der auf nichts zeigt, das man aufschlagen kann, ist noch keine
   > Auskunft über den Prüfling.**
+
+  **Am 23. August ist der Zähler aufgeschlagen worden**, im Nachlauf zu
+  `v0.7.0-rc.7`: Alle fünfzehn Einträge sind dieselbe Meldung — *„A form field
+  element should have an id or name attribute"*. Sie betrifft den Prüfling
+  (ausgezählt: **124 von 138 Feldern** ohne `id` und ohne `name`) und ist
+  trotzdem **kein Fund**.
+
+  Zwei Gründe, beide nachgeprüft. Erstens misst Chrome hier seine
+  **Ausfüllhilfe** und nicht die Zugänglichkeit: Beschriftet sind diese Felder
+  über die Klammer — jedes steht in seinem `<label>`, und genau darauf besteht
+  `FormLabelTest`. Zweitens reisen sie über Inertia als JSON und nicht über ein
+  natives `POST`; ein Name trüge nichts. Die eine Stelle, an der ein Browser ihn
+  wirklich braucht, hat ihn: `Auth/Login.vue` führt `name` **und**
+  `autocomplete` an Adresse und Passwort.
+
+  > **Ein Zähler, der eine Heuristik zählt, sagt nichts über die Regel, die man
+  > einhält.**
+
+  Damit ist der Kanal für diese Seite ausgeschöpft — die Frage nach den
+  **Fehlern** (der rote Zähler stand bei 390 px auf 1) bleibt offen und braucht
+  weiterhin den Filter „Errors only" mit Neuladen.
 - **Die Konsole war zuvor nicht gelesen worden.** In den Aufnahmen zu Ansicht 2
   zählten die Entwicklerwerkzeuge zwölf Fehler und fünfunddreissig Warnungen;
   ein Teil kommt sichtbar aus einer Browsererweiterung (`background.js`,

@@ -803,6 +803,39 @@ in der CI: `AnchoredPatternTest` am ersten `$` ohne `D` im neuen Leser, und
 `GuardReachTest` an einem Kommentar, der `AptResultTest` nannte, bevor es ihn
 gab.
 
+**Schritt 2 ist gebaut, und er war derselbe Befund von der anderen Seite.**
+Zwei apt-Läufe enden in der dpkg-Sperre; gefragt hat danach genau eine der vier
+apt-rufenden Operationen, und ihre Frage sah nur die **eigenen** abgesetzten
+Läufe. `queue:work` ist einspurig, aber `panel.update` setzt seinen Lauf über
+`systemd-run` **ausserhalb** ab — in diesem Fenster ist die Kollision in beiden
+Richtungen offen.
+
+`AptLock` fragt jetzt die Sperre selbst, über `/proc/locks`. **Nicht über
+`flock()`, und das ist gemessen:** dpkg nimmt eine POSIX-Sperre über `fcntl`,
+PHPs `flock()` spricht `flock(2)`, und die beiden Familien sehen einander nicht.
+
+> **Eine Sperre, die man mit dem falschen Werkzeug abfragt, meldet immer frei.**
+
+Zugeordnet wird über den **Inode allein** und nicht über Gerät und Inode: Die
+Umrechnung von `dev_t` gilt nicht für jede Bauart, und läge sie daneben,
+entstünde ein falsches Negativ statt einer Ablehnung zuviel.
+
+> **Wenn eine Zuordnung schiefgehen kann, entscheidet die Richtung, in die sie
+> schiefgeht.**
+
+**Und beim Verschieben fiel M5 ein zweites Mal an, nur andersherum.** Die alte
+Prüfung las ausschliesslich `stdout` und schloss aus einer leeren Ausgabe „es
+läuft keiner"; ohne systemd meldet `systemctl` aber `rc=1` mit der Auskunft auf
+`stderr`. Die Frage war nicht beantwortet, und geraten wurde in die Richtung,
+die einen kollidierenden Lauf losgehen lässt.
+
+> **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts zu tun".**
+
+Dazu ein Fund von PHPStan am frisch gebauten Wächter: eine leere Ausnahmeliste,
+gegen die geprüft wurde.
+
+> **Eine leere Positivliste ist kein Mechanismus, sondern eine Verzierung.**
+
 **Was offen bleibt und benannt ist:** Teil 3 von M5 — `panel.update` liest nach
 dem Neustart seine eigene Fassung nach — hängt an Schritt 6 und steht bis dahin
 als Ausnahme in `AptResultTest`. **Schritt 0 ist nicht gefahren:** Die Messrunde

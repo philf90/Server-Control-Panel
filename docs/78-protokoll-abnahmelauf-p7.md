@@ -7,8 +7,9 @@ Abnahmekriteriums aus `docs/72 §3`.
 **Dieses Dokument entsteht während des Laufs und nicht danach.** Es ist angelegt
 worden, als die Vorbereitung gemessen war — und nicht vorher.
 
-**Der Lauf ist nicht abgeschlossen.** Was hier steht, ist gemessen; was fehlt,
-steht als offen und nicht als erledigt.
+**Der Lauf ist gefahren, und P7 ist abgenommen** — alle acht Punkte des
+Abnahmekriteriums aus `docs/72 §3` sind auf `cloudsrv24` gegen `0.7.0-rc.8`
+gemessen und erfüllt. Was offen bleibt, steht in §5 benannt.
 
 ---
 
@@ -474,7 +475,7 @@ wechselt zwischen den Läufen (`167.235.231.182, 159.69.110.93` gegen
 `159.69.110.93, 167.235.231.182`). Der Inhalt ist derselbe; die Reihenfolge
 kommt aus dem NS-Satz und ist keine Aussage des Panels.
 
-### Punkt 8 — bei 390 px läuft nichts über · Kriterium 8
+### Punkt 8 — bei 390 px läuft nichts über · Kriterium 8 **erfüllt**
 
 `dokument` ist das Kriterium und muss `0` sein; `gegenprobe` muss `200/200`
 lauten, sonst ist die Zeile ungültig und keine Messung.
@@ -487,6 +488,8 @@ lauten, sonst ist die Zeile ungültig und keine Messung.
 | `hier.cloudlab24.de` | 390 | dunkel | **0** | 200/200 | — | — | 4 |
 | `fremd.cloudlab24.de` | 390 | hell | **0** | 200/200 | — | — | 4 |
 | `fremd.cloudlab24.de` | 390 | dunkel | **0** | 200/200 | — | — | 4 |
+| `ohne.cloudlab24.de` | 390 | hell | **0** | 200/200 | — | — | 4 |
+| `ohne.cloudlab24.de` | 390 | dunkel | **0** | 200/200 | — | — | 4 |
 
 **Diese Seite ist vorgezogen worden**, solange der `CAA`-Satz stand: Der Hinweis
 ist ein langer Satz mit zwei Domainnamen darin, also die Sorte Zeile, die bei
@@ -535,9 +538,54 @@ Let's Encrypt kann für jeden Namen unter `cloudlab24.de` wieder ausstellen.
 
 ---
 
-## 4. Was offen ist
+## 3a. Das Abnahmekriterium, Punkt für Punkt
 
-- Punkt 8 für `ohne.cloudlab24.de`, beide Themes — zwei Lagen.
+| # | Kriterium | Gemessen an | |
+|---|---|---|---|
+| 1 | zeigt hierher | `hier.cloudlab24.de` | **erfüllt** |
+| 2 | zeigt woandershin, **mit dem gefundenen Wert** | `fremd.cloudlab24.de` → `192.0.2.1` | **erfüllt** |
+| 3 | „fehlt" ist von „zeigt woandershin" unterschieden | `ohne` gegen `fremd`, zwei Kanäle | **erfüllt** |
+| 4 | die autoritativen Server, nicht der Systemauflöser | `tcpdump`, mit Gegenprobe | **erfüllt** |
+| 5 | kein `AAAA` ohne IPv6 am Server | Übersteuerung, mit Rücknahme | **erfüllt** |
+| 6 | fremdes `CAA` wird gemeldet | vorher/nachher/Kind | **erfüllt** |
+| 7 | der Zeitpunkt steht dabei | gegen `date`, 33 s | **erfüllt** |
+| 8 | bei 390 px läuft nichts über, beide Themes | acht Lagen | **erfüllt** |
+
+**P7 ist damit abgenommen.**
+
+---
+
+## 4. Was dieser Lauf über sich selbst gelernt hat
+
+**Kein einziger Fund am Prüfling.** Alle acht Kriterien sind bei der ersten
+Messung erfüllt gewesen. Jede Korrektur dieses Tages betraf die **Vorschrift**
+oder die **Umgebung**:
+
+| Was | Wo es steckte |
+|---|---|
+| Der Prüfkörper für Punkt 4 sollte am Vortag entstehen — bei einer Haltbarkeit von einer Stunde | Vorschrift |
+| Bei ipv64 lässt sich die TTL nicht ändern; das ganze Verfahren von Punkt 4 hing daran | Vorschrift |
+| Punkt 4 hätte den `NS`-Aufruf des Panels als Verstoss gezählt | Vorschrift |
+| Das `CAA` in der Vorbereitung hätte die Bestellungen aller drei Testdomains blockiert | Vorschrift |
+| Die Zone führt einen Platzhalter — „kein Satz" gibt es dort nicht (Befund V1) | Umgebung |
+| Punkt 1 sagte „Bild machen, sofort" und nicht, wieviel Zeit das ist | Vorschrift |
+
+> **Die Mehrheit der Fehler steckt nicht im Prüfling, sondern im Prüfmittel** —
+> hier war es die Gesamtheit.
+
+**Drei davon hätten ein falsches Rot erzeugt** (der `NS`-Aufruf, der Platzhalter,
+das vorgezogene `CAA`), zwei ein falsches Grün (der verfallene Zwischenspeicher,
+das Zeitfenster von Punkt 1). Gefunden wurden sie auf zwei Wegen und auf keinem
+dritten: durch **Messen der Vorbereitung** statt sie vorauszusetzen, und durch
+**Nachsehen am Quelltext**, bevor eine Anweisung ausgeschrieben wurde.
+
+> **Ein Abnahmelauf, der eine ungeprüfte Annahme als Anweisung führt, prüft sie
+> nicht — er führt sie aus.**
+
+---
+
+## 5. Was offen bleibt
+
 - **Eine benannte Lücke im Bild, nicht in der Messung:** Die beiden
   `fremd`-Aufnahmen zeigen den oberen Teil der Seite und nicht den DNS-Abgleich.
   `bilderMessen()` läuft über alle Elemente, die Messung deckt die Seite also
@@ -545,6 +593,25 @@ Let's Encrypt kann für jeden Namen unter `cloudlab24.de` wieder ausstellen.
 
   > **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
   > Keines von beiden ersetzt das andere.**
+- **Kein Aufstieg zur CAA-Elternzone.** Benannte Grenze, in Punkt 6
+  ausgeschrieben und im Kopf von `Authority` begründet. Kein Mangel, solange die
+  Anzeige nicht behauptet, es dürfe ausgestellt werden.
+- **Der Zustand „Nameserver uneinig"** und **„kein Sollzustand bekannt"** —
+  beide lassen sich nicht nebenbei herstellen und bleiben ungemessen
+  (`docs/75 §2.4`).
+- **Die Grenze des Durchgangs** (25 Domains, 240 Sekunden) — auf einem Server
+  mit einer Handvoll Domains nicht auszulösen. Im Gestell gemessen, hier nur
+  nicht widerlegt.
+- **Die Zertifikatsautomatik der neuen Domains.** `hier.cloudlab24.de` zeigt
+  hierher und hatte nach über einer Stunde kein Zertifikat, während
+  `cloudlab24.de` eines trägt. Betrifft nicht den DNS-Abgleich; wer es verfolgt,
+  fängt bei den Vorgängen und dem Protokoll dieser Domains an.
+- **Der rote Fehlerzähler der Entwicklerwerkzeuge** — unverändert offen aus
+  `docs/76 §4`. Braucht den Filter „Errors only" mit Neuladen.
+- **Die drei Testdomains und ihre DNS-Einträge stehen noch.** Wer sie zurückbaut,
+  sieht dabei nach, ob Server-Block und Verzeichnis mitgehen; der `TXT`-Satz an
+  `ohne.cloudlab24.de` und die `A`-Sätze an `hier` und `fremd` gehören dann
+  ebenfalls fort.
 
 - **Der `CAA`-Satz steht** und verweigert Let's Encrypt jede Ausstellung unter
   `cloudlab24.de`. Punkt 9 räumt ihn ab — das ist Teil des Laufs und nicht

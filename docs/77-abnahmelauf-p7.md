@@ -275,51 +275,77 @@ sondern ein Wettrennen.
 Der Gegenstand ist ein UDP-Paket an eine Adresse. Also wird das Paket
 angesehen.
 
-**(a) Die autoritativen Adressen holen** — und den Systemauflöser dazu:
+**Und das Kriterium meint die Werte der Sätze, nicht das Auffinden der Zone.**
+`Resolver::nameservers()` fragt über `dns_get_record()` — also über den
+**Systemauflöser** —, wo eine Zone liegt, und `addresses()` löst die Namen
+`ns1/ns2.ipv64.net` genauso auf. Der Kopf der Klasse begründet es: Wo eine Zone
+liegt, ändert sich nicht im Minutentakt, und ein Zwischenspeicher kann diese
+Antwort nicht verfälschen.
+
+Eine Messung „kein Paket an den Systemauflöser" meldete deshalb Rot, wo alles
+richtig ist.
+
+> **Ein Kriterium, das man am falschen Paket misst, meldet den Prüfling für
+> etwas, das er zu Recht tut.**
+
+Unterschieden wird nach dem **gefragten Namen**:
+
+| Frage | Ziel | Urteil |
+|---|---|---|
+| `A?`/`AAAA?`/`CAA?` auf die Domain | autoritative Adressen | **muss** |
+| dieselben Fragen | Systemauflöser | **Verstoss** |
+| `NS?` auf die Zone, `A?` auf die NS-Namen | Systemauflöser | erlaubt |
+
+**(a) Der Mitschnitt, während nur das Panel arbeitet.** Im Terminal:
 
 ```bash
-ssh cloudsrv24 'dig +short ns1.ipv64.net ns2.ipv64.net; \
-  echo "--- Systemaufloeser ---"; grep ^nameserver /etc/resolv.conf'
+timeout 45 tcpdump -n -i any 'udp port 53' > /tmp/p4-panel.txt 2>/dev/null
 ```
 
-Die ersten Adressen sind die, an die Pakete gehen **müssen**; die letzte ist
-die, an die **keines** gehen darf. Beide notieren — die Zeile aus (d) ist ohne
-sie nicht zu lesen.
+Währenddessen im Browser auf `fremd.cloudlab24.de` **„Jetzt prüfen"** klicken.
+Sonst nichts — kein `dig`, keine andere Seite.
 
-**(b) Mitschneiden.** In einem eigenen Terminal:
+**(b) Der Beleg und der Verstoss, getrennt gezählt:**
 
 ```bash
-ssh cloudsrv24 'sudo timeout 60 tcpdump -n -i any "udp port 53" 2>/dev/null'
+echo "=== BELEG: Saetze der Domain an den autoritativen Servern ==="
+grep -E '> (159\.69\.110\.93|167\.235\.231\.182)\.53:' /tmp/p4-panel.txt \
+  | grep -oE '(A|AAAA|CAA)\? [^ ]+' | sort | uniq -c
+
+echo "=== VERSTOSS: dieselben Saetze am Systemaufloeser ==="
+grep -E '> 127\.0\.0\.53\.53:' /tmp/p4-panel.txt \
+  | grep -cE '(A|AAAA|CAA)\? fremd\.cloudlab24\.de'
+
+echo "=== erlaubt: was sonst an den Systemaufloeser ging ==="
+grep -E '> 127\.0\.0\.53\.53:' /tmp/p4-panel.txt \
+  | grep -oE '(A|AAAA|CAA|NS)\? [^ ]+' | sort | uniq -c
 ```
 
-**(c) Innerhalb dieser 60 Sekunden zweierlei tun**, und die Reihenfolge ist
-gleichgültig:
+**Erwartet:** Die erste Liste nennt `A?`, `AAAA?` und `CAA?` auf
+`fremd.cloudlab24.de`. Die zweite Zahl ist **`0`**. Die dritte nennt `NS?` auf
+die Zone und `A?` auf die Nameservernamen — und **keinen** Satz der Domain.
 
-1. Im Panel auf `fremd.cloudlab24.de` **„Jetzt prüfen"** klicken.
-2. In einem dritten Terminal die **Gegenprobe** fahren:
-   ```bash
-   ssh cloudsrv24 'dig +short fremd.cloudlab24.de A'
-   ```
-   Das ist eine Frage **über den Systemauflöser**, und sie muss im Mitschnitt
-   als Paket an dessen Adresse auftauchen.
+**(c) Die Gegenprobe, ohne die der Mitschnitt nichts belegt.** „Null Pakete"
+sieht genauso aus, ob das Panel den Auflöser meidet oder `tcpdump` an der
+falschen Schnittstelle lauscht. Als ein Block:
 
-**(d) Den Mitschnitt lesen.** Erwartet:
+```bash
+timeout 12 tcpdump -n -i any 'udp port 53' > /tmp/p4-probe.txt 2>/dev/null &
+sleep 3
+dig +short fremd.cloudlab24.de A
+sleep 10
+grep -cE '> 127\.0\.0\.53\.53:.*A\? fremd\.cloudlab24\.de' /tmp/p4-probe.txt
+```
 
-| | |
-|---|---|
-| Pakete an die NS-Adressen aus (a) | **mehrere** — das Panel |
-| Pakete an den Systemauflöser | **genau die der Gegenprobe** und sonst keines |
-
-**Ohne die Gegenprobe belegt der Mitschnitt nichts.** „Kein Paket an den
-Auflöser" sieht genauso aus, ob das Panel ihn meidet oder `tcpdump` an der
-falschen Schnittstelle lauscht.
+**Erwartet: eine Zahl grösser als 0.** Damit steht fest, dass ein `A?` auf genau
+diesen Namen am Systemauflöser im Mitschnitt **erscheinen würde** — und die `0`
+aus (b) ist eine Messung statt eines blinden Flecks.
 
 > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
 > steht.**
 
-**Und die zweite Hälfte, die das Panel gegen sich selbst prüft.** Der Mitschnitt
-sagt, wen es fragt — nicht, ob es die Antwort danach frisch verwendet. Deshalb
-noch einmal, jetzt ohne `tcpdump`:
+**(d) Die zweite Hälfte, die das Panel gegen sich selbst prüft.** Der Mitschnitt
+sagt, wen es fragt — nicht, ob es die Antwort danach frisch verwendet:
 
 1. Bei ipv64 `fremd.cloudlab24.de` von `192.0.2.1` auf **`198.51.100.1`**
    (TEST-NET-2) ändern.
@@ -328,17 +354,15 @@ noch einmal, jetzt ohne `tcpdump`:
 
 **Erwartet: `198.51.100.1`.** Das belegt **nicht** Kriterium 4 — bei dieser TTL
 zeigte auch ein Auflöser den neuen Wert. Es belegt, dass das Panel keinen
-**eigenen** Zwischenspeicher führt, der älter ist als seine Anzeige. Das gehört
-so ins Protokoll und nicht als zweiter Beleg für dasselbe.
+**eigenen** Zwischenspeicher führt, der älter ist als seine Anzeige.
 
 > **Zwei Messungen, die man zusammenzählt, obwohl sie Verschiedenes zeigen,
 > ergeben eine Zahl, die nichts bedeutet.**
 
-**Wenn `tcpdump` nicht verfügbar ist oder `sudo` es nicht zulässt**, ist
-Kriterium 4 auf diesem Weg nicht fahrbar. Dann steht es als **offen** im
-Protokoll — nicht als erfüllt, und nicht als „durch die Anzeige belegt". Dass
-das Panel „gefragt wurden 167.235.231.182, 159.69.110.93" anzeigt, ist seine
-eigene Behauptung über sich selbst.
+**Wenn `tcpdump` nicht verfügbar ist**, ist Kriterium 4 auf diesem Weg nicht
+fahrbar. Dann steht es als **offen** im Protokoll — nicht als erfüllt und nicht
+als „durch die Anzeige belegt". Dass das Panel „gefragt wurden 159.69.110.93,
+167.235.231.182" anzeigt, ist seine eigene Behauptung über sich selbst.
 
 > **Eine Anzeige, die sagt, was sie getan hat, ist kein Beleg dafür, dass sie es
 > getan hat.**

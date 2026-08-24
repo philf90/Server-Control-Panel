@@ -19277,3 +19277,51 @@ Gemessen nach `tests/bilder-messen.js`: `dokument: 0` in allen vier Lagen,
 Gegenprobe 200/200, `schiebt` leer. Der Log-Kasten rollt bei 390 px um 708 px
 **innerhalb** seines Behälters und steht deshalb in `rollt` — was der erste Lauf
 nicht ausgab und damit ein leeres `schiebt` ohne Nachbarn liess.
+
+### A9 vorgezogen — und die Skizze setzte eine Seite voraus, die es nicht gibt
+
+**Entschieden vom Betreiber am 24. August 2026**, auf die Frage, wann sich
+weitere Admins anlegen und ihre Rolle festlegen lassen. A9 steht seitdem in P7b
+an zweiter Stelle, nach A5, und ist als **`docs/82`** ausgeschrieben.
+
+**Der Grund für das Vorziehen** ist der Satz aus `docs/81 §11` selbst: Wer eine
+Adminfunktion baut, entscheidet beim Bauen, auf welcher Seite sie liegt. A2,
+A10 und A1 sind drei weitere davon; jede Woche später sind es mehr, die die
+Entscheidung nachtragen müssten — und teuer ist dabei nicht das Gate, sondern
+`AbilityReachTest`: Ein Knopf, den der Betrachter nicht drücken darf, wird nicht
+gezeigt, also bekäme jede Seite ihren Bildsatz ein zweites Mal.
+
+**Beim Ausschreiben fiel auf, dass die Skizze eine Fähigkeit voraussetzt, die es
+nicht gibt.** Ihre Rollentabelle führt „Konten, Rollen, IP-Beschränkung —
+Betreiber ja, Administrator nein". Eine Kontenverwaltung gibt es aber nirgends:
+Kein Controller nennt `AccountType::Admin`, und Adminkonten entstehen
+ausschliesslich über `srvpanel admin` auf der Kommandozeile.
+
+> **Eine Tabelle, die eine Fähigkeit einer Rolle zuordnet, setzt voraus, dass es
+> die Fähigkeit gibt — und sagt nichts darüber, ob sie jemand gebaut hat.**
+
+**Der Bestand ist am Quelltext gemessen worden, nicht erinnert** (`docs/82 §1`),
+und zwei Dinge waren schon da, die A9 sonst gebaut hätte: das Sperren eines
+Kontos (`AccountStatus::Disabled`, an drei Stellen gefragt) und die Datenlage
+für die Sitzungsübersicht (Treiber `database`, Tabelle mit IP, Gerät und letzter
+Aktivität).
+
+**Und ein Fund entscheidet den Entwurf.** `audit_events.account_id` und
+`operations.account_id` stehen auf `nullOnDelete()`. Der Kommentar daneben sagt
+richtig, dass der **Eintrag** stehenbleibt — der **Handelnde** bleibt nicht: Ein
+gelöschtes Adminkonto zieht seine ganze Geschichte auf `null`, und wer später
+fragt, wer die Paketquellen geändert hat, bekommt eine Zeile ohne Namen.
+
+> **Ein Protokoll, aus dem sich der Handelnde nachträglich entfernen lässt, ist
+> kein Protokoll — es ist eine Liste von Ereignissen.**
+
+Adminkonten werden deshalb **gesperrt und nicht gelöscht**.
+
+**Kein Rechte-Baukasten, und die Begründung steht jetzt vollständig da**
+(`docs/82 §4`): Die Trennlinie ist eine Sicherheitszusage und keine Vorliebe,
+ein Baukasten müsste in **jeder** Kombination stimmen — und genau die
+Kombination aus Falle 1 („verbergen ist nicht schützen") könnte ein Betreiber
+darin selbst herstellen, ohne dass das Panel warnen kann. Die Asymmetrie zum
+Kunden ist Absicht und längst gebaut: Für Zusatzbenutzer gibt es sehr wohl einen
+feinen Rechtekatalog — dort ist die Sprengweite ein Abonnement, auf der
+Adminebene der ganze Server.

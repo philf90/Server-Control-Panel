@@ -777,8 +777,9 @@ gelassen und steht am jeweiligen Ort ausgeschrieben.
   Neustart von `srvpanel-web` überlebt, ist seit P1 behauptet und **nur durch
   den eigenen Gebrauch belegt**. Er gehört in Schritt 6 gemessen und nicht in
   Schritt 10 erlebt.
-- ~~Der Name der Stufe~~ — **am 24. August entschieden: P7b** (§1.2). Offen
-  bleibt der Ort von A3, A4, A7 und A9 (`docs/81 §12.1`).
+- ~~Der Name der Stufe~~ — **am 24. August entschieden: P7b** (§1.2). **A9 ist
+  am selben Tag vorgezogen worden** und steht als `docs/82` ausgeschrieben in
+  P7b; offen bleibt der Ort von A3, A4 und A7 (`docs/81 §12.1`).
 - Die überstimmte Nachlese zu Frage 1 (§5.1).
 
 **Aus P7** (`docs/72 §11`, `docs/78 §5`):

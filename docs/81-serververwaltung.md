@@ -739,6 +739,16 @@ Wochen nicht mehr gelesen. Was er meldet, muss behebbar sein und nicht nur wahr.
 
 ### A9 — Zwei Rollen, Zugang · 1,5 Wochen
 
+> **Vorgezogen am 24. August 2026 und ausgeschrieben: der Plan ist `docs/82`.**
+> Diese Skizze bleibt als Begründung stehen; was ihr fehlte, ist dort
+> nachgetragen — vor allem die **Kontenverwaltung**. Die Tabelle unten führt
+> „Konten, Rollen, IP-Beschränkung" als Fähigkeit und setzt damit voraus, dass
+> es diese Seite gibt; ausgeschrieben war sie nirgends, und Adminkonten
+> entstehen bis heute ausschliesslich über `srvpanel admin`.
+>
+> **Eine Tabelle, die eine Fähigkeit einer Rolle zuordnet, setzt voraus, dass es
+> die Fähigkeit gibt — und sagt nichts darüber, ob sie jemand gebaut hat.**
+
 **Zuschnitt vom Betreiber, 24. August 2026.** Nicht „Admin und Nur-Lese-Admin",
 sondern zwei Rollen mit verschiedenem Gegenstand:
 
@@ -1024,13 +1034,17 @@ Serververwaltungssatz in P9 zeigt dorthin statt ihn ein zweites Mal zu führen.
 | **P7b — Serververwaltung** | A5, A2, A10, A1, A11, A6 | **entschieden**, vor P8 |
 | **P8** | Sicherungen und Wiederherstellung | unverändert |
 | **P9** | Kundenfähigkeit nach `docs/20 §9`, **ohne** den Serververwaltungssatz | unverändert |
-| _(ohne Stufe)_ | A3, A4, A7, A9 — Firewall, Fail2ban, Schwellen, Rollen | **offen**, Vorschlag: eigene Stufe nach P9 |
+| _(ohne Stufe)_ | A3, A4, A7 — Firewall, Fail2ban, Schwellen | **offen**, Vorschlag: eigene Stufe nach P9 |
 
-**Die vier absichernden Vorschläge sind bewusst nicht mitentschieden worden.**
-Sie stehen in `docs/20 §9` unter P7b als „hat noch keine Stufe" — benannt und
-ohne Ort, statt stillschweigend irgendwohin geschoben. A9 wiegt dabei am
-schwersten, weil sie das Rechtemodell teilt und damit jede Adminfunktion
-betrifft, die vorher gebaut wird (§11, `docs/20 §6.1`).
+**Drei der vier absichernden Vorschläge haben weiterhin keinen Ort.** Sie
+stehen in `docs/20 §9` unter P7b als „hat noch keine Stufe" — benannt und ohne
+Stufe, statt stillschweigend irgendwohin geschoben.
+
+**A9 ist am 24. August daraus herausgelöst und in P7b vorgezogen worden**, an
+die zweite Stelle nach A5. Der Grund ist der Satz aus §11 selbst: Wer eine
+Adminfunktion baut, entscheidet beim Bauen, auf welcher Seite sie liegt — jede
+Woche später sind das mehr Funktionen, die die Entscheidung nachtragen müssten.
+Der ausgeschriebene Plan ist `docs/82`.
 
 > **Ein Name, der eine Reihenfolge behauptet, wird falsch, wenn die Reihenfolge
 > sich ändert — und er wird trotzdem weiterbenutzt, weil er in Überschriften

@@ -738,10 +738,32 @@ falsch.
 > sich ändert — und er wird trotzdem weiterbenutzt, weil er in Überschriften
 > steht.**
 
-**Offen ist, wohin A3, A4, A7 und A9 gehören** — Firewall, Fail2ban, Schwellen
-und die zwei Verwaltungsrollen. Sie stehen in `docs/20 §9` unter P7b als „hat
-noch keine Stufe"; A9 wiegt am schwersten, weil sie das Rechtemodell teilt und
-damit jede Adminfunktion betrifft, die vorher gebaut wird.
+**A9 ist am 24. August vorgezogen worden** — zwei Verwaltungsrollen **und die
+Kontenverwaltung**, ausgeschrieben als **`docs/82`**. Der Grund: Wer eine
+Adminfunktion baut, entscheidet beim Bauen, auf welcher Seite sie liegt, und
+jede Woche später sind das mehr Funktionen, die es nachtragen müssten. Sie steht
+in P7b an zweiter Stelle, nach A5.
+
+**Beim Ausschreiben fiel auf, dass die Skizze eine Fähigkeit voraussetzt, die
+es nicht gibt:** `docs/81 §11` führt „Konten, Rollen, IP-Beschränkung" in seiner
+Rollentabelle — eine Kontenverwaltung gibt es aber nirgends. Adminkonten
+entstehen ausschliesslich über `srvpanel admin` auf der Kommandozeile.
+
+> **Eine Tabelle, die eine Fähigkeit einer Rolle zuordnet, setzt voraus, dass es
+> die Fähigkeit gibt — und sagt nichts darüber, ob sie jemand gebaut hat.**
+
+Und der Fund, der den Entwurf entscheidet: `audit_events.account_id` steht auf
+`nullOnDelete()`. Ein gelöschtes Adminkonto zieht damit seine **ganze
+Protokollhistorie** auf `null`.
+
+> **Ein Protokoll, aus dem sich der Handelnde nachträglich entfernen lässt, ist
+> kein Protokoll — es ist eine Liste von Ereignissen.**
+
+Adminkonten werden deshalb **gesperrt und nicht gelöscht**; den Zustand
+`disabled` gibt es längst, und drei Stellen fragen ihn schon.
+
+**Offen bleibt, wohin A3, A4 und A7 gehören** — Firewall, Fail2ban, Schwellen.
+Sie stehen in `docs/20 §9` unter P7b als „hat noch keine Stufe".
 
 Der Plan ist **`docs/81`** (A1 vollständig, die übrigen als Skizze), die
 Bestandsaufnahme **`docs/80`**, die Übergabe **`docs/79`**.

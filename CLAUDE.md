@@ -10,7 +10,13 @@ Architektur (§4), Rechtemodell (§6), Gestaltung (§7.2) und die Ausbaustufen
 Die Oberfläche folgt seit August 2026 dem Gestaltungssystem **„Kontor"**
 (Plan §7.2) — hell entworfen, keine Karten, Monospace nur für Kennungen.
 
-Stand: **P0 bis P6 abgenommen.** P6 ist am **21. August 2026** auf `cloudsrv24`
+Stand: **P0 bis P7 abgenommen.** P7 (der DNS-Abgleich) ist am **24. August
+2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
+`docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
+dieses Laufs steht weiter unten; sie ist eine über Abnahmeläufe und nicht über
+DNS.
+
+ P6 ist am **21. August 2026** auf `cloudsrv24`
 gegen `v0.6.0-rc.24` abgenommen — der Angriffsdurchgang (`docs/62`) und der
 Abschlusslauf, der seine vier letzten Reste durch die echte Route belegt hat
 (`docs/68` der Lauf, **`docs/69`** das Protokoll mit der Tabelle der fünfzehn
@@ -566,6 +572,71 @@ der Mandantenklammer steht.
 
 > **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
 > gefahren — man denkt an das Gebaute und nicht an das Berührte.**
+
+---
+
+## P7 — der Abnahmelauf, der keinen Fund am Prüfling hatte
+
+Abgenommen am **24. August 2026** gegen `0.7.0-rc.8`, alle acht Kriterien aus
+`docs/72 §3`. Der Lauf ist `docs/77`, das Protokoll **`docs/78`**.
+
+**Alle acht waren bei der ersten Messung erfüllt.** Jede Korrektur dieses Tages
+betraf die **Vorschrift** oder die **Umgebung** — nicht das Panel. Drei davon
+hätten ein falsches Rot erzeugt, zwei ein falsches Grün.
+
+> **Die Mehrheit der Fehler steckt nicht im Prüfling, sondern im Prüfmittel** —
+> hier war es die Gesamtheit.
+
+Gefunden wurden sie auf zwei Wegen und auf keinem dritten: durch **Messen der
+Vorbereitung** statt sie vorauszusetzen, und durch **Nachsehen am Quelltext**,
+bevor eine Anweisung ausgeschrieben wurde.
+
+**Der teuerste hätte den Prüfling für etwas gemeldet, das er zu Recht tut.**
+Kriterium 4 lautet „fragt die autoritativen Server und nicht den
+Systemauflöser", und die Messung sollte zählen, ob überhaupt ein Paket an den
+Auflöser geht. Es geht eines: `Resolver::nameservers()` fragt über
+`dns_get_record()`, **wo eine Zone liegt**, und das ist im Kopf der Klasse
+begründet. Das Kriterium meint die *Werte der Sätze*, nicht das Auffinden der
+Zone.
+
+> **Ein Kriterium, das man am falschen Paket misst, meldet den Prüfling für
+> etwas, das er zu Recht tut.**
+
+**Und der zweite steckte in der Zone.** `ohne.cloudlab24.de` sollte den Zustand
+„fehlt" herstellen, indem man dort nichts anlegt — die Zone führt aber einen
+Platzhalter, und ein Name, den es nicht gibt, bekommt dort eine Antwort. Punkt 3
+hätte zwei Namen gemessen, die beide „zeigt hierher" sagen.
+
+> **Ein Zustand, den die Umgebung nicht zulässt, wird nicht dadurch
+> hergestellt, dass man nichts tut.**
+
+Der Ausweg fasst die Zone nicht an: Ein Platzhalter greift nach RFC 4592 nur für
+Namen, die es **gar nicht** gibt, also lässt ein `TXT`-Satz den Namen existieren
+und die `A`-Frage kommt leer zurück.
+
+**Zwei Sätze über Prüfkörper**, beide an Punkt 4 bezahlt. Der erste, weil das
+Verfahren einen gefüllten Auflöser-Zwischenspeicher brauchte und ipv64 die TTL
+fest auf 10 Sekunden stellt:
+
+> **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr hergestellt.**
+
+Der zweite, weil das ganze Verfahren an dieser Haltbarkeit hing und deshalb
+ersetzt wurde — gemessen wird jetzt das UDP-Paket selbst:
+
+> **Eine Messung, die um ihren Gegenstand herumführt, hängt an Bedingungen, die
+> mit ihm nichts zu tun haben.**
+
+**Und einer über das Zurücknehmen.** Punkt 9 räumt den `CAA`-Satz ab und misst
+danach noch einmal — nicht als Aufräumen, sondern als Beleg für Punkt 6:
+
+> **Eine Anzeige, die einen Zustand meldet, muss ihn auch wieder zurücknehmen —
+> sonst hat sie ihn nicht gemessen, sondern behalten.**
+
+**Was benannt offen bleibt** (`docs/78 §5`): der fehlende Aufstieg zur
+CAA-Elternzone (Grenze, kein Mangel), „Nameserver uneinig" und „kein Sollzustand
+bekannt" als nicht herstellbare Zustände, die Grenze des Durchgangs, und eine
+Beobachtung ausserhalb von P7 — die Zertifikatsautomatik hat für die drei neuen
+Domains über eine Stunde lang nichts bestellt.
 
 ---
 

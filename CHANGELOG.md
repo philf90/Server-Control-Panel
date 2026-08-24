@@ -18578,6 +18578,14 @@ Zeile und war 44 px hoch; erst mit beiden ergaben sich die 72.
 > **Eine Nachbildung, der eine Ebene fehlt, misst eine andere Lage — und zwar
 > eine, die harmloser aussieht.**
 
+**Nachgesehen am 23. August auf `cloudsrv24` gegen `v0.7.0-rc.8`**, beide Seiten
+bei 390 px, beide Lagen gültig: Knopf 116×44 bzw. 137×44 gegen ein Feld von
+190×44, gleich hoch, Unterkanten bündig, Abonnementname ungekürzt. Damit ist
+kein Befund der Bilderrunde mehr offen.
+
+> **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+> jemand ihn behoben hat.**
+
 ### `tests/takt-messen.js` — das Mittel bleibt, nicht nur das Ergebnis
 
 Der Nachlauf zu `v0.7.0-rc.7` hat den Takt der Übersicht zum ersten Mal
@@ -18620,3 +18628,56 @@ die Zeichenkette im Code aus, die Erklärung blieb stehen, der Wächter blieb gr
 
 Derselbe Satz wie im Kopf von `FormLabelTest`, dort an einem `<label>` im
 Kommentar.
+
+### P7 ist abgenommen — und der Lauf hatte keinen Fund am Prüfling
+
+Am **24. August 2026** auf `cloudsrv24` gegen `0.7.0-rc.8`, alle acht Kriterien
+aus `docs/72 §3`. Der Lauf steht in `docs/77`, das Protokoll in **`docs/78`**.
+
+**Alle acht waren bei der ersten Messung erfüllt.** Jede Korrektur dieses Tages
+betraf die Vorschrift oder die Umgebung; drei davon hätten ein falsches Rot
+erzeugt, zwei ein falsches Grün.
+
+> **Die Mehrheit der Fehler steckt nicht im Prüfling, sondern im Prüfmittel** —
+> hier war es die Gesamtheit.
+
+**Der teuerste hätte den Prüfling für etwas gemeldet, das er zu Recht tut.**
+Kriterium 4 verlangt „die autoritativen Server und nicht den Systemauflöser",
+und die geplante Messung wollte zählen, ob überhaupt ein Paket an den Auflöser
+geht. Es geht eines: `Resolver::nameservers()` fragt über `dns_get_record()`,
+**wo eine Zone liegt** — im Kopf der Klasse begründet, weil sich das nicht im
+Minutentakt ändert. Gemessen wird jetzt nach dem **gefragten Namen**: `A`,
+`AAAA` und `CAA` der Domain müssen an die autoritativen Adressen gehen, `NS` auf
+die Zone darf an den Auflöser.
+
+> **Ein Kriterium, das man am falschen Paket misst, meldet den Prüfling für
+> etwas, das er zu Recht tut.**
+
+**Der zweite steckte in der Zone.** Der Zustand „fehlt" sollte entstehen, indem
+man einen Namen nicht anlegt — `cloudlab24.de` führt aber einen Platzhalter, und
+ein Name, den es nicht gibt, bekommt dort eine Antwort. Behoben ohne die Zone
+anzufassen: Ein `TXT`-Satz lässt den Namen existieren, und ein Platzhalter greift
+nach RFC 4592 nur für Namen, die es **gar nicht** gibt.
+
+> **Ein Zustand, den die Umgebung nicht zulässt, wird nicht dadurch hergestellt,
+> dass man nichts tut.**
+
+**Und das Verfahren von Punkt 4 ist zweimal umgebaut worden**, bevor es
+gemessen hat. Es brauchte einen gefüllten Auflöser-Zwischenspeicher; bei ipv64
+steht die TTL fest auf 10 Sekunden.
+
+> **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr hergestellt.**
+
+> **Eine Messung, die um ihren Gegenstand herumführt, hängt an Bedingungen, die
+> mit ihm nichts zu tun haben.** Der Gegenstand ist ein UDP-Paket an eine
+> Adresse — also wird das Paket angesehen, mit `tcpdump` und einer Gegenprobe.
+
+**Was der Lauf nebenbei geschlossen hat:** die beiden Reste aus `docs/76 §4`,
+die sich nur in einem flüchtigen Zustand zeigen — die Marke „ungeprüft" und die
+Regel `.toggle + .button-row`, letztere mit `24px` gegen `--block-gap` gemessen.
+
+**Was benannt offen bleibt** (`docs/78 §5`): der fehlende Aufstieg zur
+CAA-Elternzone (eine Grenze, kein Mangel), „Nameserver uneinig" und „kein
+Sollzustand bekannt" als nicht herstellbare Zustände, die Grenze des Durchgangs
+— und eine Beobachtung ausserhalb von P7: Die Zertifikatsautomatik hat für die
+drei neu angelegten Domains über eine Stunde lang nichts bestellt.

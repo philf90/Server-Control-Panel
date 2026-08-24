@@ -704,10 +704,55 @@ dritten: durch **Messen der Vorbereitung** statt sie vorauszusetzen, und durch
   > leeren Liste und nicht mit einem Fehler.**
 - **Der rote Fehlerzähler der Entwicklerwerkzeuge** — unverändert offen aus
   `docs/76 §4`. Braucht den Filter „Errors only" mit Neuladen.
-- **Die drei Testdomains und ihre DNS-Einträge stehen noch.** Wer sie zurückbaut,
-  sieht dabei nach, ob Server-Block und Verzeichnis mitgehen; der `TXT`-Satz an
-  `ohne.cloudlab24.de` und die `A`-Sätze an `hier` und `fremd` gehören dann
-  ebenfalls fort.
+- ~~**Die drei Testdomains und ihre DNS-Einträge stehen noch.**~~
+  **Abgeräumt am 24. August 2026**, zusammen mit `tls.cloudlab24.de` aus der
+  Nachschau. Im Panel ist keine der vier Domains mehr da; bei ipv64 sind die
+  `A`-Sätze an `hier`, `fremd` und `tls` und der `TXT`-Satz an `ohne` fort.
+
+  **Gemessen im Paar, gegen einen Namen, den es nie gab** — denn der
+  Platzhalter der Zone antwortet weiterhin für jeden dieser Namen, und „es
+  kommt eine Antwort" heisst hier nicht „der Eintrag steht noch":
+
+      hier                 159.195.56.255
+      fremd                159.195.56.255
+      tls                  159.195.56.255
+      aufraeum-probe-4711  159.195.56.255      ← der Kontrollname
+
+  Vier gleiche Antworten heissen: Für alle antwortet der Platzhalter, die
+  eigenen Sätze sind weg. Die `TXT`-Frage an `ohne` kam leer zurück.
+
+  **Und dabei ist ein Rest herausgefallen, der mit DNS nichts zu tun hat.**
+  Der Rückbau einer Domain nimmt ihr Zertifikat nicht mit, und `srvpanel tls
+  --prune` holt es auch später nicht. Gemessen an Zertifikat 26, nachdem
+  `tls.cloudlab24.de` gelöscht war:
+
+      Zertifikat 26: Abo 137 · Abschrift p6-b.invalid · Ablageort tls.cloudlab24.de
+      verweist noch eine Domain darauf: 0
+      /etc/srvpanel/tls/certs/tls.cloudlab24.de/privkey.pem   -rw------- root root 1704
+
+  `CertificatePrune` nennt einen Waisen: `subscription_id` null **bei gesetzter**
+  Abschrift. Hier ist `subscription_id` gesetzt — das Abonnement lebt, nur die
+  Domain gibt es nicht mehr. Die Zeile wird also nie verwaisen, `--prune` führt
+  sie nie auf (gemessen: `11 verwaiste Zeile(n), 0 Ablageort(e) zu entfernen`,
+  und `tls.cloudlab24.de` kommt darin nicht vor), und eine Route zum Entfernen
+  eines einzelnen Zertifikats gibt es im Panel nicht.
+
+  > **Wer etwas anlegt, das auf der Platte bleibt, baut den Weg zurück mit.**
+
+  Derselbe Satz wie in `docs/35 §11`, und dieselbe Art Fund: Dort war der
+  Auslöser das zurückgebaute **Abonnement**, und der Weg zurück ist gebaut
+  worden; für die gelöschte **Domain** innerhalb eines lebenden Abonnements ist
+  er es nie. Aufgefallen ist es nur, weil dieser Punkt vorschrieb, beim
+  Zurückbauen nachzusehen, ob Server-Block und Verzeichnis mitgehen.
+
+  **Bleibt als Befund offen und ist nicht behoben.** Wer ihn anfasst,
+  entscheidet zuerst die Frage, die dahintersteht: Ein Zertifikat gehört einem
+  **Abonnement** und nicht einer Domain, kann also weitere Namen decken, die
+  noch leben. Ein Rückbau, der es als Nebenwirkung eines Klicks löscht, nähme
+  im falschen Fall eine laufende Website vom Netz. Der nächstliegende Weg wäre
+  deshalb nicht der Rückbau, sondern `--prune`: Es fragt nach, kennt
+  `--dry-run` und ist die eine Stelle, an der dieses System Schlüsselmaterial
+  von der Platte nimmt.
 
 - **Der `CAA`-Satz steht** und verweigert Let's Encrypt jede Ausstellung unter
   `cloudlab24.de`. Punkt 9 räumt ihn ab — das ist Teil des Laufs und nicht

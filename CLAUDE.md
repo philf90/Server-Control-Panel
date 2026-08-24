@@ -679,6 +679,15 @@ der Paketierung?" ging an die Vereinigung von `nfpm.yaml` und `postinstall.sh`.
 > **Eine Frage an die Vereinigung hält auch dann, wenn eine der Quellen blind
 > ist — die andere zahlt für sie mit.**
 
+**Und ein Befund, der beim Abräumen danach herausfiel und offen bleibt:** Der
+Rückbau einer Domain nimmt ihr Zertifikat nicht mit, und `srvpanel tls --prune`
+holt es auch später nicht — es räumt Zertifikate **zurückgebauter Abonnements**
+ab (`subscription_id` null bei gesetzter Abschrift), und hier lebt das
+Abonnement weiter. Gemessen an Zertifikat 26 nach dem Löschen von
+`tls.cloudlab24.de`: null verweisende Domains, `privkey.pem` liegt. Vor einer
+Behebung steht die Frage, die dahintersteht — ein Zertifikat gehört einem
+Abonnement und nicht einer Domain und kann Namen decken, die noch leben.
+
 **Was ein Betreiber danach von Hand tut:** `srvpanel vhost --sites`. Das Update
 zieht den Block der Oberfläche nach, die der Kundendomains nicht — und die
 zeigen bis dahin auf den alten Ort.

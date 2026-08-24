@@ -18799,3 +18799,44 @@ null Zeilen und sagt kein Wort dazu. Gemessen als Paar: `mit Klammer: 0` ·
 
 > **Eine Frage, die im Grundzustand alles verweigert, antwortet mit einer leeren
 > Liste und nicht mit einem Fehler.**
+
+### Ein Zertifikat, das den Rückbau seiner Domain überlebt — offener Befund
+
+Beim Abräumen der Testdomains aus `docs/77` herausgefallen, und zwar nur, weil
+`docs/78 §5` vorschrieb, beim Zurückbauen nachzusehen, ob Server-Block und
+Verzeichnis mitgehen.
+
+Der Rückbau einer Domain nimmt ihr Zertifikat nicht mit, und `srvpanel tls
+--prune` holt es auch später nicht. Gemessen an Zertifikat 26, nachdem
+`tls.cloudlab24.de` gelöscht war:
+
+```
+Zertifikat 26: Abo 137 · Abschrift p6-b.invalid · Ablageort tls.cloudlab24.de
+verweist noch eine Domain darauf: 0
+/etc/srvpanel/tls/certs/tls.cloudlab24.de/privkey.pem   -rw------- root root 1704
+```
+
+`CertificatePrune` nennt einen Waisen: `subscription_id` **null** bei gesetzter
+Abschrift. Hier ist `subscription_id` gesetzt — das Abonnement lebt, nur die
+Domain gibt es nicht mehr. Die Zeile verwaist also nie, `--prune` führt sie nie
+auf (`11 verwaiste Zeile(n), 0 Ablageort(e) zu entfernen`, ohne
+`tls.cloudlab24.de` darin), und eine Route zum Entfernen eines einzelnen
+Zertifikats hat das Panel nicht. Was bleibt, ist ein privater Schlüssel, den
+keine Zeile mehr nennt und keine Domain mehr braucht.
+
+> **Wer etwas anlegt, das auf der Platte bleibt, baut den Weg zurück mit.**
+
+Derselbe Satz wie in `docs/35 §11` und dieselbe Art Fund. Dort war der Auslöser
+das zurückgebaute **Abonnement**, und der Weg zurück ist gebaut worden; für die
+gelöschte **Domain** innerhalb eines lebenden Abonnements ist er es nie.
+
+**Nicht behoben, und die Frage dahinter gehört vor die Behebung:** Ein
+Zertifikat gehört einem Abonnement und nicht einer Domain, kann also weitere
+Namen decken, die noch leben. Ein Rückbau, der es als Nebenwirkung eines Klicks
+löscht, nähme im falschen Fall eine laufende Website vom Netz.
+
+**Abgeräumt sind dafür die vier Testnamen** — `hier`, `fremd`, `ohne` und
+`tls` unter `cloudlab24.de`, im Panel und bei ipv64. Belegt im Paar gegen einen
+Kontrollnamen, weil der Platzhalter der Zone für jeden dieser Namen weiter
+antwortet: vier gleiche Adressen heissen „alle vom Platzhalter", nicht „stehen
+noch".

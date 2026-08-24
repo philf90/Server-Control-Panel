@@ -18753,7 +18753,7 @@ Weiteres auf den alten Ort und liefern die Prüfdatei nicht aus. Nachgezogen
 werden sie mit `srvpanel vhost --sites` — dasselbe Kommando bestellt dabei für
 jede Domain ohne Zertifikat eines, und es nennt vorher die Zahl.
 
-### Nachgesehen: die Prüfdatei ist erreichbar — das Zertifikat ist es ungemessen
+### Nachgesehen: die Prüfdatei ist erreichbar, und das Zertifikat kommt an
 
 Auf `cloudsrv24` gegen `0.7.0-rc.9`, nach `srvpanel vhost --sites` (vier
 Server-Blöcke neu geschrieben). Mit einer Prüfdatei von Hand am neuen Ort und
@@ -18765,15 +18765,30 @@ nirgends mehr.
 > **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
 > jemand ihn behoben hat.**
 
-**Die Kette bis zum ausgestellten Zertifikat ist dabei ausdrücklich nicht
-gemessen worden.** Die zwei Bestellungen, die `vhost --sites` angestossen hat,
-galten `p6-b.invalid` und `p6-abnahme.invalid` und sind zu Recht mit
-`rejectedIdentifier` gescheitert — *„Domain name does not end with a valid
-public suffix (TLD)"*. Von den vier Domains dieses Servers dürfen zwei kein
-Zertifikat bekommen, die beiden anderen haben längst eines; es gab also keinen
-Fall, an dem sich eine vollständige Bestellung hätte zeigen können.
+**Und die Kette bis zum ausgestellten Zertifikat ebenfalls** — aber erst im
+zweiten Anlauf. Die zwei Bestellungen aus `vhost --sites` galten `p6-b.invalid`
+und `p6-abnahme.invalid` und sind zu Recht mit `rejectedIdentifier` gescheitert
+(*„Domain name does not end with a valid public suffix (TLD)"*); von den vier
+Domains dieses Servers dürfen zwei kein Zertifikat bekommen, die beiden anderen
+hatten längst eines.
 
 > **Ein Beleg für den Weg ist keiner für das Ziel.**
+
+Hergestellt wurde der fehlende Fall mit einem `A`-Satz für `tls.cloudlab24.de`
+und der Domain im Panel, sonst nichts. Vorgang 682 steht auf `succeeded`, und
+am Ende steht nicht die Statusspalte, sondern das Zertifikat selbst:
+`subject=CN = tls.cloudlab24.de`, `issuer` Let's Encrypt YR1, `notBefore` von
+derselben Minute. Das Abonnement hatte keine DNS-Zugangsdaten — HTTP-01 war
+also der einzige Weg, und genau der war es, der vorher an den Rechten
+scheiterte.
+
+**Die erste Fassung dieser Messung war keine.** Ein Platzhalter in der
+Befehlszeile blieb ungesetzt, der Aufruf lief ohne SNI gegen den Vorgabeblock,
+und heraus kam ein gültig aussehendes Zertifikat mit dem falschen Namen und
+einem `notBefore` von vorgestern.
+
+> **Ein Prüfkörper, der ohne seinen Gegenstand misst, misst etwas anderes und
+> sieht dabei aus wie ein Ergebnis.**
 
 **Und eine Falle beim Nachsehen, die eine Runde gekostet hat.** `srvpanel
 tinker` läuft ohne angemeldetes Konto, und `Operation` trägt über

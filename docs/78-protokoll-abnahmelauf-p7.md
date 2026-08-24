@@ -660,20 +660,38 @@ dritten: durch **Messen der Vorbereitung** statt sie vorauszusetzen, und durch
   Die 404 daneben ist der Prüfkörper der 200: Ohne sie hiesse „200" nur, dass
   hier irgendetwas antwortet.
 
-  **Und die Kette bis zum Zertifikat ist damit ausdrücklich *nicht* gemessen.**
-  Die zwei Bestellungen, die `vhost --sites` angestossen hat (Vorgänge 678 und
-  679), sind zu Recht gescheitert: Sie galten `p6-b.invalid` und
-  `p6-abnahme.invalid`, und die Zertifizierungsstelle antwortet dafür mit
-  `rejectedIdentifier` — *„Domain name does not end with a valid public suffix
-  (TLD)"*. Von den vier Domains dieses Servers dürfen zwei kein Zertifikat
-  bekommen, und die beiden anderen (`cloudlab24.de`, `cloudlab24.ipv64.de`)
-  haben längst eines. Es gab also keinen Fall, an dem sich eine vollständige
-  Bestellung hätte zeigen können.
+  **Und die Kette bis zum ausgestellten Zertifikat ist ebenfalls gemessen** —
+  aber erst im zweiten Anlauf. Die zwei Bestellungen, die `vhost --sites`
+  angestossen hat (Vorgänge 678 und 679), sind zu Recht gescheitert: Sie galten
+  `p6-b.invalid` und `p6-abnahme.invalid`, und die Zertifizierungsstelle
+  antwortet dafür mit `rejectedIdentifier` — *„Domain name does not end with a
+  valid public suffix (TLD)"*. Von den vier Domains dieses Servers dürfen zwei
+  kein Zertifikat bekommen, die beiden anderen hatten längst eines. Es gab also
+  keinen Fall, an dem sich eine vollständige Bestellung hätte zeigen können.
 
   > **Ein Beleg für den Weg ist keiner für das Ziel.**
 
-  Wer ihn nachholen will, legt eine neue Unterdomain unter `cloudlab24.de` an
-  und sieht der Automatik zu — dasselbe Verfahren wie in Punkt 1 dieses Laufs.
+  Hergestellt wurde er wie in Punkt 1 dieses Laufs: ein `A`-Satz für
+  `tls.cloudlab24.de` und die Domain im Panel angelegt, sonst nichts. **Vorgang
+  682 steht auf `succeeded`**, die Domain trägt Zertifikat 26, und am Ende steht
+  nicht die Statusspalte, sondern das Zertifikat selbst:
+
+      subject=CN = tls.cloudlab24.de
+      issuer=C = US, O = Let's Encrypt, CN = YR1
+      notBefore=Aug 24 11:00:18 2026 GMT
+      notAfter=Nov 22 11:00:17 2026 GMT
+
+  Ohne DNS-Zugangsdaten am Abonnement — HTTP-01 war also der einzige Weg, und
+  genau der war es, der vorher an den Rechten scheiterte.
+
+  **Die erste Fassung dieser Messung war keine.** `DOMAIN=<der Name…>` hat bash
+  als Eingabeumleitung gelesen und mit `syntax error` abgebrochen; der Aufruf
+  daneben lief als `-connect ":443" -servername ""`, also ohne SNI gegen den
+  Vorgabeblock. Herausgekommen ist ein gültig aussehendes Zertifikat mit dem
+  falschen Namen und einem `notBefore` von vorgestern.
+
+  > **Ein Prüfkörper, der ohne seinen Gegenstand misst, misst etwas anderes und
+  > sieht dabei aus wie ein Ergebnis.**
 
   **Und eine Falle beim Nachsehen selbst, die eine Runde gekostet hat.**
   `srvpanel tinker` läuft **ohne angemeldetes Konto**, und `Operation` trägt

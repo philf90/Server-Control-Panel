@@ -18883,3 +18883,23 @@ umgezogen ist, einer auf einen Testnamen, der sich geändert hat. Gemeldet hat e
 
 > **Ein Wächter über die Wächter ist der einzige, der merkt, dass ein Eingriff
 > beim Umbau seinen Gegenstand verloren hat.**
+
+### Nachgesehen gegen `0.7.0-rc.10` — und eine Zahl ohne Substantiv
+
+`srvpanel tls --prune --dry-run` auf `cloudsrv24`, dieselbe Domain und derselbe
+Befehl wie vor der Behebung: `tls.cloudlab24.de` steht jetzt als
+`Ablageort und Zeile(n) — ohne Domain` da, vorher kam es überhaupt nicht vor.
+Die beiden **gebrauchten** Ablageorte (`cloudlab24.de`, `cloudlab24.ipv64.de`)
+bleiben unverändert verschont — das ist die Richtung, in der ein Fehler eine
+laufende Website vom Netz nähme.
+
+> **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+> jemand ihn behoben hat.**
+
+**Dabei fiel ein Fehler in der Ausgabe auf, den kein Wächter sehen konnte.** Die
+Zusammenfassung lautete „11 verwaiste und 1 Zeile(n) ohne Domain" — die erste
+Zahl stand ohne Substantiv da, „Zeile(n)" gehörte sichtbar zur zweiten.
+`CountedNounTest` prüft eine Zahl mit **anschliessendem** Mehrzahlwort; hier
+fehlte das Wort, statt falsch zu sein. Jede Zahl trägt jetzt ihr eigenes.
+
+> **Ein Wächter über die Form findet kein Wort, das gar nicht dasteht.**

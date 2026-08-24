@@ -35,12 +35,20 @@ nachgesehen.
 ## 2. Was man braucht
 
 - **`cloudsrv24` mit dem Stand, gegen den abgenommen wird.** Punkt 0 belegt ihn.
-- **Ein Terminal auf dem MacBook** und **einen Browser** mit den
-  Entwicklerwerkzeugen.
+- **Drei Terminals auf dem MacBook** und **einen Browser** mit den
+  Entwicklerwerkzeugen. Drei, weil Punkt 4 gleichzeitig mitschneidet, klickt und
+  gegenprüft.
+- **`tcpdump` auf `cloudsrv24` und `sudo`, das es zulässt.** Punkt 4 steht und
+  fällt damit; ohne bleibt Kriterium 4 offen. Vorher nachsehen:
+  ```bash
+  ssh cloudsrv24 'command -v tcpdump && sudo -n true && echo "beides da"'
+  ```
 - **Zugriff auf die Zone `cloudlab24.de` bei ipv64** — der Lauf setzt und ändert
   dort Einträge. Ohne diesen Zugriff sind die Punkte 1 bis 4 und 7 nicht fahrbar.
 - **Etwa 90 Minuten**, davon rund 30 Wartezeit.
-- **Am Vortag oder mindestens eine Stunde vorher:** die Vorbereitung aus §3.
+- **Vor dem Lauf:** die drei Einträge aus §3. Sie brauchen keinen Vorlauf über
+  die Ausbreitungszeit hinaus — bei einer TTL von 10 Sekunden sind das
+  Sekunden.
 - Die Bereitschaft, **jede Ausgabe zu schicken — auch die, die richtig
   aussieht.**
 
@@ -64,7 +72,7 @@ nicht neu an.
 
 ---
 
-## 3. Die Vorbereitung — mindestens eine Stunde vorher
+## 3. Die Vorbereitung — drei DNS-Einträge, sonst nichts
 
 **Sie muss vor dem Lauf geschehen, weil DNS Zeit braucht.** Wer sie im Lauf
 macht, misst die Verzögerung des Anbieters und nicht das Panel.
@@ -82,26 +90,45 @@ sie gehört niemandem und kann mit keinem echten Rechner verwechselt werden. Wer
 hier die Adresse eines fremden Hosters einträgt, hat im Protokoll eine Zahl
 stehen, die aussieht wie ein Befund.
 
-**Die TTL von `fremd.cloudlab24.de` auf 3600 setzen.** Punkt 4 hängt daran: Ein
-Zwischenspeicher, der nach zwei Minuten ohnehin verfällt, belegt nichts.
+**Die TTL ist gleichgültig, und das war sie nicht immer.** Der erste Wurf dieser
+Vorschrift verlangte 3600 auf `fremd`, weil Punkt 4 einen haltbaren
+Auflöser-Zwischenspeicher brauchte. Bei ipv64 steht die TTL fest auf 10 Sekunden
+und lässt sich nicht ändern — gemeldet vom Betreiber am 24. August. Punkt 4 ist
+deshalb neu entworfen und misst jetzt direkt statt über einen Umweg; er braucht
+keine TTL mehr. Siehe dort.
 
-**Und der `CAA`-Satz auf `cloudlab24.de` bleibt stehen** —
-`cloudlab24.de. CAA 0 issue "digicert.com"`, gesetzt am 22. August und in
-`docs/76 §4` als offen geführt. Er ist der Prüfkörper für Punkt 6. **Punkt 9
-räumt ihn ab**, und das ist keine Aufräumarbeit, sondern Teil des Laufs:
-Solange er steht, scheitert jede echte Bestellung für diese Domain.
+**Und der `CAA`-Satz gehört ausdrücklich *nicht* in die Vorbereitung** — er wird
+in Punkt 6 gesetzt und in Punkt 9 entfernt. Der Grund steht in §3.2.
 
 ### 3.1 Was ausdrücklich **nicht** in die Vorbereitung gehört
 
-**Das Füllen des Auflöser-Zwischenspeichers.** Der erste Wurf dieser Vorschrift
-hat es hierher gestellt, „am Vortag" — und das ist falsch: Der Prüfkörper von
-Punkt 4 ist ein Eintrag mit **TTL 3600**, also einer Stunde. Über Nacht ist
-davon nichts übrig, und der Lauf begänne mit einem leeren Zwischenspeicher,
-ohne dass es jemandem auffiele.
+**Ein Prüfkörper mit Haltbarkeit.** Der erste Wurf stellte das Füllen des
+Auflöser-Zwischenspeichers hierher, „am Vortag" — bei einer TTL von einer Stunde.
 
 > **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr hergestellt.**
 
-Er wird in Punkt 4 (a) hergestellt, unmittelbar bevor er gebraucht wird.
+Der zweite Wurf zog ihn nach Punkt 4 (a). Der dritte hat ihn **abgeschafft**: Er
+war nie nötig. Siehe Punkt 4.
+
+### 3.2 Warum das `CAA` erst in Punkt 6 gesetzt wird
+
+**Weil eine echte Zertifizierungsstelle zur Elternzone aufsteigt.** Ein
+`CAA 0 issue "digicert.com"` an `cloudlab24.de` verbietet Let's Encrypt die
+Ausstellung für **jeden** Namen darunter — also auch für `hier`, `fremd` und
+`ohne`, die dieser Lauf anlegt. Stünde der Satz von Anfang an, scheiterte jede
+Bestellung dieses Laufs an ihm, und die Punkte 1 bis 3 mässen einen Server, der
+nebenbei kaputtgemacht wurde.
+
+> **Ein Prüfkörper, der neben dem Gegenstand auch alles andere trifft, misst
+> nicht mehr den Gegenstand.**
+
+Dass das Panel selbst **nicht** aufsteigt (`Authority`, siehe Punkt 6), ändert
+daran nichts: Die Bestellung macht Let's Encrypt und nicht das Panel.
+
+Gesetzt wird der Satz deshalb in Punkt 6, gemessen, und in Punkt 9 wieder
+entfernt. **Bei einer TTL von 10 Sekunden ist er innerhalb einer halben Minute
+sichtbar und danach genauso schnell wieder fort** — was hier ein Nachteil war,
+ist dort einer der wenigen Vorteile.
 
 ---
 
@@ -176,61 +203,90 @@ Punkt nicht erfüllt, auch wenn beide Wörter richtig dastehen.
 
 ### Punkt 4 — Die autoritativen Server, nicht der Auflöser (Kriterium 4)
 
-**Der Punkt, der etwas beweist.** Der Reihe nach, und die Reihenfolge ist das
-Verfahren:
+**Der Punkt, der etwas beweist** — und der einzige, den die Zwischenabnahme
+ausdrücklich nicht gemessen hat (`docs/74 §7`).
 
-**(a) Den Zwischenspeicher füllen — mit dem alten Wert.** Zweimal fragen, und
-zwar über den **Systemauflöser** (kein `@server`):
+**Gemessen wird, wen das Panel fragt, und nicht, was es dabei erfährt.** Die
+ersten beiden Fassungen dieser Vorschrift wollten es über einen
+Auflöser-Zwischenspeicher belegen: alten Wert cachen, Eintrag ändern, und wenn
+das Panel den neuen zeigt, hat es nicht den Auflöser gefragt. Das ist ein
+Umweg, und er ist an ipv64 gescheitert — dort steht die TTL fest auf 10
+Sekunden. Ein Zwischenspeicher, der zehn Sekunden hält, ist kein Prüfkörper,
+sondern ein Wettrennen.
 
-```bash
-ssh cloudsrv24 'dig +noall +answer fremd.cloudlab24.de A; sleep 2; \
-  dig +noall +answer fremd.cloudlab24.de A'
-```
+> **Eine Messung, die um ihren Gegenstand herumführt, hängt an Bedingungen, die
+> mit ihm nichts zu tun haben.**
 
-Erwartet: beide Male `192.0.2.1`, und die **TTL der zweiten Antwort ist kleiner**
-als die der ersten. Das ist der Beleg, dass der Auflöser den Wert wirklich hält
-und ihn nicht jedes Mal frisch holt — ohne ihn misst Punkt 4 nichts, und zwar
-unsichtbar:
+Der Gegenstand ist ein UDP-Paket an eine Adresse. Also wird das Paket
+angesehen.
 
-> **Eine Gegenprobe, die zufällig dasselbe liefert wie der Prüfling, hat nichts
-> verglichen.**
-
-**Bleibt die TTL gleich, ist der Auflöser kein Zwischenspeicher** (oder `dig`
-fragt an ihm vorbei). Dann ist Punkt 4 auf diesem Weg nicht fahrbar — das gehört
-so ins Protokoll und nicht als „erfüllt".
-
-**Ab hier läuft die Uhr:** Die Restlaufzeit aus der zweiten Antwort ist das
-Zeitfenster für (b) bis (d). Bei TTL 3600 ist das reichlich, aber es ist endlich.
-
-**(b) Den Eintrag beim Anbieter ändern:** `fremd.cloudlab24.de` von `192.0.2.1`
-auf **`198.51.100.1`** (TEST-NET-2).
-
-**(c) Sofort — innerhalb der Restlaufzeit aus (a) — beide Wege fragen:**
+**(a) Die autoritativen Adressen holen** — und den Systemauflöser dazu:
 
 ```bash
-ssh cloudsrv24 'echo "--- Systemaufloeser ---"; dig +noall +answer fremd.cloudlab24.de A; \
-  echo "--- autoritativ ---"; dig +noall +answer @ns1.ipv64.net fremd.cloudlab24.de A'
+ssh cloudsrv24 'dig +short ns1.ipv64.net ns2.ipv64.net; \
+  echo "--- Systemaufloeser ---"; grep ^nameserver /etc/resolv.conf'
 ```
 
-Erwartet: Der Systemauflöser sagt **`192.0.2.1`** (aus dem Zwischenspeicher), der
-autoritative Server sagt **`198.51.100.1`**. **Sagen beide dasselbe, ist der
-Prüfkörper hin** — dann ist der Zwischenspeicher verfallen, und (a) bis (c)
-müssen wiederholt werden. Weitermachen wäre sinnlos:
+Die ersten Adressen sind die, an die Pakete gehen **müssen**; die letzte ist
+die, an die **keines** gehen darf. Beide notieren — die Zeile aus (d) ist ohne
+sie nicht zu lesen.
 
-> **Eine Gegenprobe, die zufällig dasselbe liefert wie der Prüfling, hat nichts
-> verglichen.**
+**(b) Mitschneiden.** In einem eigenen Terminal:
 
-**(d) Im Panel „Jetzt prüfen" klicken.**
+```bash
+ssh cloudsrv24 'sudo timeout 60 tcpdump -n -i any "udp port 53" 2>/dev/null'
+```
 
-**Erwartet: das Panel zeigt `198.51.100.1`** — den neuen Wert, den der
-Systemauflöser in diesem Moment noch nicht kennt. Das ist der Beleg, und er ist
-nur in diesem Zeitfenster zu haben.
+**(c) Innerhalb dieser 60 Sekunden zweierlei tun**, und die Reihenfolge ist
+gleichgültig:
 
-**Die Ausgabe aus (c) und das Bild aus (d) gehören zusammen ins Protokoll.**
-Eines allein belegt nichts: Die Ausgabe zeigt, dass ein Unterschied bestand, das
-Bild, auf welcher Seite das Panel steht.
+1. Im Panel auf `fremd.cloudlab24.de` **„Jetzt prüfen"** klicken.
+2. In einem dritten Terminal die **Gegenprobe** fahren:
+   ```bash
+   ssh cloudsrv24 'dig +short fremd.cloudlab24.de A'
+   ```
+   Das ist eine Frage **über den Systemauflöser**, und sie muss im Mitschnitt
+   als Paket an dessen Adresse auftauchen.
 
----
+**(d) Den Mitschnitt lesen.** Erwartet:
+
+| | |
+|---|---|
+| Pakete an die NS-Adressen aus (a) | **mehrere** — das Panel |
+| Pakete an den Systemauflöser | **genau die der Gegenprobe** und sonst keines |
+
+**Ohne die Gegenprobe belegt der Mitschnitt nichts.** „Kein Paket an den
+Auflöser" sieht genauso aus, ob das Panel ihn meidet oder `tcpdump` an der
+falschen Schnittstelle lauscht.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+**Und die zweite Hälfte, die das Panel gegen sich selbst prüft.** Der Mitschnitt
+sagt, wen es fragt — nicht, ob es die Antwort danach frisch verwendet. Deshalb
+noch einmal, jetzt ohne `tcpdump`:
+
+1. Bei ipv64 `fremd.cloudlab24.de` von `192.0.2.1` auf **`198.51.100.1`**
+   (TEST-NET-2) ändern.
+2. Eine halbe Minute warten — bei TTL 10 ist das reichlich.
+3. Im Panel „Jetzt prüfen".
+
+**Erwartet: `198.51.100.1`.** Das belegt **nicht** Kriterium 4 — bei dieser TTL
+zeigte auch ein Auflöser den neuen Wert. Es belegt, dass das Panel keinen
+**eigenen** Zwischenspeicher führt, der älter ist als seine Anzeige. Das gehört
+so ins Protokoll und nicht als zweiter Beleg für dasselbe.
+
+> **Zwei Messungen, die man zusammenzählt, obwohl sie Verschiedenes zeigen,
+> ergeben eine Zahl, die nichts bedeutet.**
+
+**Wenn `tcpdump` nicht verfügbar ist oder `sudo` es nicht zulässt**, ist
+Kriterium 4 auf diesem Weg nicht fahrbar. Dann steht es als **offen** im
+Protokoll — nicht als erfüllt, und nicht als „durch die Anzeige belegt". Dass
+das Panel „gefragt wurden 167.235.231.182, 159.69.110.93" anzeigt, ist seine
+eigene Behauptung über sich selbst.
+
+> **Eine Anzeige, die sagt, was sie getan hat, ist kein Beleg dafür, dass sie es
+> getan hat.**
 
 ### Punkt 5 — Kein `AAAA` ohne IPv6 am Server (Kriterium 5)
 
@@ -262,7 +318,33 @@ Fehler.
 
 ### Punkt 6 — Das fremde `CAA` wird gemeldet (Kriterium 6)
 
-Auf `cloudlab24.de` (die trägt den Satz seit dem 22. August) „Jetzt prüfen".
+**(a) Erst die Gegenprobe, solange es den Satz noch nicht gibt.** Auf
+`cloudlab24.de` „Jetzt prüfen". Erwartet: **kein** CAA-Hinweis. Ohne diesen
+Schritt ist der Hinweis in (c) von einem, der immer dasteht, nicht zu
+unterscheiden.
+
+**(b) Den Satz setzen** — bei ipv64 in der Zone `cloudlab24.de`:
+
+| Feld | Wert |
+|---|---|
+| Präfix | *leer* |
+| Typ | `CAA` |
+| Ziel | `0 issue "digicert.com"` |
+
+Also Flags `0`, Tag `issue`, Wert `digicert.com`. **`digicert.com` ist eine
+echte, aber fremde Stelle** — Let's Encrypt steht nicht darin, und genau das
+soll gemeldet werden.
+
+Massgeblich ist die Zone und nicht das Formular:
+
+```bash
+ssh cloudsrv24 'dig +noall +answer @ns1.ipv64.net cloudlab24.de CAA'
+```
+
+Erst wenn dort `0 issue "digicert.com"` steht, weiter. Bei TTL 10 dauert das
+Sekunden.
+
+**(c)** Auf `cloudlab24.de` „Jetzt prüfen".
 
 **Erwartet:** ein Hinweis, dass der `CAA`-Satz die eigene Zertifizierungsstelle
 nicht nennt — sichtbar **bevor** jemand eine Bestellung auslöst.
@@ -285,12 +367,10 @@ Wer im Lauf auf diese Lücke stösst, schreibt sie als **benannte Grenze** ins
 Protokoll und nicht als Mangel. Sie ist erst dann einer, wenn die Anzeige
 behauptet, es dürfe ausgestellt werden.
 
-Zur Kontrolle, was wirklich in der Zone steht:
-
-```bash
-ssh cloudsrv24 'dig +noall +answer @ns1.ipv64.net cloudlab24.de CAA; \
-  dig +noall +answer @ns1.ipv64.net hier.cloudlab24.de CAA'
-```
+**Ab jetzt eilt es.** Solange der Satz steht, verweigert Let's Encrypt die
+Ausstellung für **jeden** Namen unter `cloudlab24.de` — auch für die drei
+Domains dieses Laufs. Punkt 9 räumt ihn ab, und das ist kein Aufräumen, sondern
+der Abschluss dieses Punktes.
 
 ---
 
@@ -337,11 +417,16 @@ Stichprobe je Seite in hell — die Bilderrunde hat diese Breite bereits gemesse
 ssh cloudsrv24 'dig +noall +answer @ns1.ipv64.net cloudlab24.de CAA'
 ```
 
-**Den `CAA`-Satz auf `cloudlab24.de` bei ipv64 entfernen** und die Ausgabe
-danach noch einmal schicken — leer.
+**Den `CAA`-Satz aus Punkt 6 bei ipv64 entfernen** und die Ausgabe danach noch
+einmal schicken — leer.
 
-Solange er steht, scheitert jede echte Bestellung für diese Domain, und jeder
-Fehlversuch zählt gegen die fünf je Stunde für **alle** Kunden dieses Servers.
+Solange er steht, verweigert Let's Encrypt die Ausstellung für jeden Namen unter
+`cloudlab24.de`, und jeder Fehlversuch zählt gegen die fünf je Stunde für
+**alle** Kunden dieses Servers.
+
+**Und die Gegenprobe zum Abräumen:** auf `cloudlab24.de` noch einmal „Jetzt
+prüfen". Der Hinweis muss fort sein. Bleibt er stehen, hängt die Anzeige an
+einem gemerkten Befund und nicht an der Zone.
 
 Die drei angelegten Domains können stehenbleiben oder zurückgebaut werden; wer
 sie zurückbaut, sieht dabei nach, ob der Server-Block und das Verzeichnis
@@ -374,6 +459,10 @@ das Kästchen über der Knopfreihe, beide aus Punkt 1.
 - **Den Aufstieg zur CAA-Elternzone.** Er ist nicht gebaut und im Kopf von
   `Authority` begründet; siehe Punkt 6. Ein CAA an `c.example.de` deckt
   `a.b.c.example.de` nicht ab.
+- **Das Verhalten bei langer TTL.** Bei ipv64 steht sie fest auf 10 Sekunden.
+  Ob das Panel eine Änderung auch dann sofort zeigt, wenn ein Auflöser sie eine
+  Stunde lang verschwiege, ist hier nicht zu messen — Punkt 4 belegt statt
+  dessen direkt, **wen** es fragt, und das ist die stärkere Aussage.
 - **Das Schreiben in fremde Zonen.** P7 liest. `docs/72 §4` ist die Begründung.
 
 ---

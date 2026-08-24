@@ -196,6 +196,42 @@ root lief. Auf einem echten Server steht es dort — und damit ist
 hat, auch wenn es an der Kommandozeile geschah. Das ist der Grund, warum A5 sie
 führt und nicht das Panel-Protokoll.
 
+### 2.1c M12 — Conffiles, nachgemessen am 22. August
+
+**Nachgetragen, weil Frage 3 aus §3 nicht aus dem Gedächtnis zu beantworten
+war.** Die Probe ist `tests/apt-conffile-messen.sh`; sie installiert und
+entfernt ein selbstgebautes Prüfpaket und gehört deshalb **nicht** in
+`apt-messen.sh`, dessen Zusage „nur lesend" der Grund ist, dass es auf
+`cloudsrv24` fahren darf.
+
+| Lauf | Ergebnis |
+|---|---|
+| **M12a** ohne `--force-conf*`, stdin am Dateiende | `end of file on stdin at conffile prompt`, **rc=1**, Paket bleibt `iU`, `.dpkg-new` daneben |
+| **M12a2** ohne `--force-conf*`, stdin offen | **rc=124** — der Lauf wartet ohne Zeitgrenze, Paket bleibt `iU` |
+| **M12b** mit `--force-confold`, Conffile geändert | rc=0, Paket `ii`, Bestand bleibt, `.dpkg-dist` daneben, **drei `==>`-Zeilen** in der Ausgabe |
+| **M12c** Gegenprobe, Conffile unverändert | rc=0, neue Fassung kommt durch, **keine** `.dpkg-dist` |
+
+**Der erste Befund ist der wichtige:** `DEBIAN_FRONTEND=noninteractive`
+beantwortet die Conffile-Frage **nicht**. Die Fahne gilt für debconf; diese
+Frage stellt dpkg selbst, auf stdin. Beide Ausgänge sind schlecht, und welcher
+eintritt, hängt daran, wie stdin steht — bei einem Lauf unter `systemd-run`
+also an einer Eigenschaft, die mit dem Paket nichts zu tun hat.
+
+> **Eine Fahne, die Interaktion abschalten soll, schaltet die eines anderen
+> Programms ab als die, die im Weg steht.**
+
+**Und der zweite Befund steckte im Messmittel.** Der erste Wurf dieser Probe
+hat gemessen, `--force-confold` lasse die Datei *stumm* zurück — mit einem
+`grep`, das drei Zeilen zu früh abschnitt. Die drei `==>`-Zeilen stehen da. Der
+Satz wäre so in den Plan gegangen und hätte Abnahmekriterium 6 falsch begründet.
+
+> **Eine Messung, die zu früh abschneidet, meldet nicht „nichts gefunden",
+> sondern „nicht hingesehen" — und die beiden sehen gleich aus.**
+
+Der Grund, das Dateisystem trotzdem abzusuchen, bleibt bestehen: In einem Lauf
+über 146 Pakete gehen drei Zeilen unter. **Untergehen ist aber etwas anderes
+als nicht dastehen**, und nur das eine ist wahr.
+
 ### 2.2 Was das Messmittel selbst gekostet hat
 
 Zwei Fehler in `tests/apt-messen.sh`, beide beim ersten Lauf gefunden und beide
@@ -225,11 +261,12 @@ liefert noch `/etc/apt/sources.list` mit Inhalt), dem Namen der Sicherheitssuite
 | eine Neuinstallation in `dist-upgrade` (`Inst` ohne `[alt]`) | die Falle aus M3, Punkt 1 |
 | ein zurückgehaltenes Paket (M4) | die Zahl, die in die Anzeige gehört |
 | ein Schlüssel **mit** Ablaufdatum (M6) | sonst misst die Ablaufprüfung nichts |
-| eine `.dpkg-dist` nach `--force-confold` (M9) | die Anzeige hängt daran |
+| ~~eine `.dpkg-dist` nach `--force-confold` (M9)~~ | **geschlossen am 22. August**, siehe §2.1c |
 | `Requested-By` in der Historie (M11) | die Auskunft, für die A5 sie führt |
 
 > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
-> steht.** Fünf der elf Messungen stehen heute auf einer Null ohne Nachbarn.
+> steht.** Fünf der elf Messungen standen auf einer Null ohne Nachbarn; **vier
+> sind es noch**, seit M12 die `.dpkg-dist` geschlossen hat.
 
 **Nur auf einem echten Server messbar:** wie lange ein voller `dist-upgrade`
 läuft (die Zahl entscheidet über die Zeitgrenze der Operation), was passiert,
@@ -240,42 +277,131 @@ ihn seit P1 und **belegt hat ihn nur der eigene Gebrauch**.
 
 ---
 
-## 3. Was der Betreiber vor dem Bauen entscheiden muss
+## 3. Die vier Fragen — beantwortet
 
-Vier Fragen. Sie sind hier ausformuliert, weil sie den Zuschnitt ändern und
-nicht die Umsetzung.
+Vier Fragen, die den Zuschnitt ändern und nicht die Umsetzung. **Ausformuliert
+am 22. August 2026 auf Verlangen des Betreibers.** Was hier steht, ist mein
+Vorschlag mit seiner Begründung — die Entscheidung bleibt seine, und bis sie
+gefallen ist, gilt der Vorschlag als Annahme und nicht als Beschluss.
 
-**Frage 1 — Darf das Panel eine fremde Paketquelle hinzufügen?**
+### Frage 1 — Darf das Panel eine fremde Paketquelle hinzufügen?
 
-Eine Quelle hinzuzufügen heisst, root über apt weiterzugeben: Wer die Quelle
-kontrolliert, kontrolliert jedes Paket, das von dort kommt. Mein Vorschlag ist
-**nein für den ersten Wurf** — anzeigen, ein- und ausschalten, und an
-hinzufügbaren Quellen nur die drei, die das Panel ohnehin kennt (Sury, PGDG, das
-eigene Repo). Freies Hinzufügen ist eine eigene Entscheidung und kein
-Nebeneffekt.
+**Nein im ersten Wurf. Anzeigen, ein- und ausschalten, und an hinzufügbaren
+Quellen nur die drei, die das Panel ohnehin kennt** — Sury, PGDG, das eigene
+Repo.
 
-**Frage 2 — Wer darf einspielen?**
+Der Grund ist nicht die Vorsicht, sondern der Hebel: Wer eine Quelle
+kontrolliert, kann ein Paket mit höherer Fassungsnummer ausliefern, das ein
+beliebiges anderes ersetzt — `libc6`, `openssh-server`, `srvpanel` selbst. Eine
+Quelle hinzuzufügen ist damit nicht eine Handlung neben den anderen, sondern
+**die Handlung, die alle künftigen umfasst.**
 
-Nur der Admin, oder auch ein Nur-Lese-Admin (A9)? Mein Vorschlag: **Anzeigen für
-jeden Admin, Einspielen nur für den vollen.** Die Trennung fällt sonst später
-teurer.
+Dagegen steht ein naheliegender Einwand, und er ist ernst zu nehmen: Der Admin
+hat SSH und root. Er kann die Quelle in dreissig Sekunden von Hand eintragen —
+was schützt ein Panel, das es ihm verbietet?
 
-**Frage 3 — Conffiles: `confold` oder fragen?**
+**Die Antwort steht im Auftrag des Plans und nicht in der Sicherheitslehre.**
+Das Panel ist kundenfähig gedacht, und A9 bringt einen zweiten Admin und einen
+mit Nur-Lese-Recht. Ab diesem Tag ist „Quelle hinzufügen" ein Weg von *Admin*
+nach *root auf Dauer* — und zwar über eine Browsersitzung, die gestohlen werden
+kann. Der heutige Zustand mit genau einem Admin ist nicht der, für den gebaut
+wird.
 
-`--force-confold` hält den Bestand und lässt `.dpkg-dist` liegen. Die Alternative
-wäre, den Lauf abzubrechen, wenn ein Paket eine Conffile-Frage stellt. Mein
-Vorschlag: **`confold` und die zurückgelassenen Dateien anzeigen** — ein Abbruch
-mitten im Lauf hinterlässt eine halb aktualisierte Maschine, und das ist der
-schlechtere von zwei Zuständen.
+> **Eine Handlung, die heute nichts hinzufügt, weil es nur einen Benutzer gibt,
+> fügt an dem Tag etwas hinzu, an dem es zwei gibt — und niemand sieht dann
+> nach.**
 
-**Frage 4 — Wie weit darf die Automatik gehen?**
+**Und es gibt einen besseren Weg, den dieses Repo schon geht.** Die Sury-Quelle
+kommt als Paket (`srvpanel-php-source`, `packaging/php-source.sh`): Definition
+und Schlüssel stecken in einem Artefakt, das das Projekt selbst signiert, statt
+in einem Formularfeld. Wer später PGDG will, bekommt `srvpanel-pgdg-source` —
+eine Freigabe, kein Textfeld. Das ist dieselbe Grenze wie überall hier: **nicht
+Freitext, sondern eine Positivliste, die im Code wächst.**
 
-Von „gar nicht" über „Sicherheitsupdates unbeaufsichtigt" bis „alles". Mein
-Vorschlag: **`unattended-upgrades` für Sicherheitsupdates einschalten dürfen,
-alles andere von Hand.** Das Panel betreibt die Automatik nicht selbst, es
-konfiguriert die der Distribution — Leitbild 1.
+### Frage 2 — Wer darf einspielen?
 
----
+**Anzeigen für jeden Admin, einspielen und auffrischen nur für den vollen.**
+
+Die Trennung ist heute gegenstandslos — es gibt genau einen Admin, und A9 kommt
+erst in P9c. Genau deshalb gehört sie **jetzt** gebaut: Eine Fähigkeit
+nachträglich zu spalten heisst, an jeder Stelle zu entscheiden, auf welcher
+Seite sie lag, und das ist der Weg, auf dem eine zweite Fassung der Policy
+entsteht. Zwei Fähigkeiten von Anfang an — `packages.view` und
+`packages.manage` — kosten heute nichts.
+
+> **Eine Fähigkeit, die man später spaltet, wird an einer Stelle vergessen — und
+> die eine Stelle ist die, die niemand prüft.**
+
+**Und `refresh` gehört auf die Seite von `manage`, nicht von `view`.** Das ist
+die einzige Stelle, an der ich schwanke: Ein `apt-get update` richtet keinen
+Schaden an, und ein Support-Admin sähe damit frische Zahlen. Dagegen: Es ist
+eine mutierende Operation (§5), sie geht ins Netz, und sie lässt sich
+wiederholen. Sobald „nur lesen" die erste Ausnahme hat, ist es keine Kategorie
+mehr, sondern eine Liste. Die ehrliche Anzeige für den Nur-Lese-Admin ist die
+Zahl **mit dem Alter daneben** — „vor drei Stunden nachgesehen" ist eine
+vollständige Auskunft, kein Mangel.
+
+### Frage 3 — Conffiles: `confold` oder abbrechen?
+
+**`--force-confold`, und die zurückgelassenen Dateien anzeigen.** Diese Frage
+war offen und ist jetzt gemessen (§2.1c); die Messung hat die Alternative
+erledigt.
+
+**„Abbrechen, wenn ein Paket fragt" ist keine Wahl, sondern der Zustand ohne
+Wahl** — und er ist der schlechteste von dreien. Ohne `--force-conf*` stellt
+dpkg seine Frage auf stdin, und `DEBIAN_FRONTEND=noninteractive` beantwortet
+sie nicht. Gemessen: Bei offenem stdin **wartet der Lauf ohne Zeitgrenze**, bei
+stdin am Dateiende bricht er mit rc=1 ab. In beiden Fällen bleibt das Paket
+`iU` — ausgepackt, nicht eingerichtet — und die Maschine ist mitten im Lauf
+halb aktualisiert.
+
+Bei einem Lauf über 146 Pakete heisst das: Ein einziges Paket mit einer
+angefassten Conffile hält den ganzen Vorgang an, an einer beliebigen Stelle.
+
+**`--force-confnew` fällt aus** — es überschreibt, was der Betreiber von Hand
+geändert hat, und widerspricht Leitbild 1 wörtlich.
+
+Bleibt `confold`: Der Bestand bleibt, die neue Fassung liegt als `.dpkg-dist`
+daneben, und die Ausgabe sagt es in drei `==>`-Zeilen. **Die Anzeige bleibt
+trotzdem Pflicht**, aber aus einem anderen Grund als gedacht: nicht weil nichts
+dasteht, sondern weil drei Zeilen in einem Lauf über 146 Pakete untergehen.
+Deshalb sucht `system.packages.list` das Dateisystem ab und zeigt jede
+`.dpkg-dist` mit ihrem Pfad — Abnahmekriterium 6.
+
+### Frage 4 — Wie weit darf die Automatik gehen?
+
+**In zwei Schaltern, und sie sind verschieden scharf:**
+
+1. **Paketlisten auffrischen: immer an.** `APT::Periodic::Update-Package-Lists`
+   ändert nichts am System und ist die Bedingung dafür, dass die Anzeige nicht
+   lügt. Eine Zahl, die drei Wochen alt ist, ist schlimmer als keine.
+2. **Sicherheitsupdates unbeaufsichtigt: anbietbar, voreingestellt aus.** Der
+   Betreiber schaltet es ein, wenn er es will.
+
+**Alles darüber hinaus nicht.** Ein unbeaufsichtigtes `dist-upgrade` nimmt
+irgendwann ein Paket mit, das eine Fassung wechselt, während niemand hinsieht.
+
+Drei Festlegungen dazu, jede mit ihrem Grund:
+
+- **Kein automatischer Neustart.** `Unattended-Upgrade::Automatic-Reboot` bleibt
+  `false`. Der Neustart wird **angezeigt** (M7) und von Hand ausgelöst — ein
+  Hosting-Server, der nachts um drei von selbst neu startet, ist ein Ausfall mit
+  guter Absicht.
+- **Die eigene Quelle bleibt draussen.** `unattended-upgrades` nimmt nur die
+  konfigurierten Herkünfte, voreingestellt `${distro_id}:${distro_codename}-security`
+  — das eigene Repo ist damit ohnehin nicht dabei. Das ist gut so und gehört
+  hingeschrieben, damit es niemand später „der Vollständigkeit halber" ergänzt:
+  **Ein Panel, das sich selbst unbeaufsichtigt aktualisiert, kann sich
+  unbeaufsichtigt zerlegen**, und für diesen Weg gibt es `panel.update` mit
+  seiner Bereitschaftsprüfung.
+- **Das Panel betreibt die Automatik nicht selbst**, es konfiguriert die der
+  Distribution. `unattended-upgrades` ist auf keinem der vier Ziele
+  vorinstalliert (M8), das Einschalten ist also ein `apt-get install` und damit
+  ein ausdrücklicher Akt — kein stiller Nebeneffekt.
+
+**Und der Zustand wird aus `apt-config dump` gelesen, nicht aus der eigenen
+Datei.** M8 hat gemessen, warum: Ein fremdes Paket hatte `APT::Periodic::Enable`
+auf `0` gesetzt, und die eigene Datei hätte weiter „an" gemeldet.
 
 ## 4. Das Abnahmekriterium von A1
 
@@ -675,9 +801,14 @@ und `docs/66` Befunde gefunden, bevor ein Abnahmelauf sie gefunden hat.
 
 ## 13. Was offen bleibt und benannt ist
 
-- **Die drei Plattformen aus §2.3** und die fünf Fälle ohne Nachbarn. Wer A1
-  anfängt, fängt dort an und nicht bei null.
-- **Die vier Fragen aus §3.** Ohne sie ist der Zuschnitt geraten.
+- **Die drei Plattformen aus §2.3** und die **vier** verbliebenen Fälle ohne
+  Nachbarn — die `.dpkg-dist` ist seit §2.1c geschlossen. Wer A1 anfängt, fängt
+  dort an und nicht bei null.
+- **Die vier Fragen aus §3 sind beantwortet, aber nicht entschieden.** Der
+  Unterschied ist der Punkt: §3 ist mein Vorschlag mit seiner Begründung, und
+  bis der Betreiber ihn bestätigt oder ändert, ist er eine Annahme. Frage 3 ist
+  dabei die einzige, die nicht mehr offen *ist* — sie ist gemessen (§2.1c), und
+  eine Messung nimmt einer Entscheidung ihre Alternativen.
 - **Der einzige Punkt, der A1 zum Scheitern bringen kann** (§2.3, letzter
   Absatz): dass `systemd-run` den Neustart von `srvpanel-web` überlebt, ist seit
   P1 behauptet und nur durch den eigenen Gebrauch belegt. Er gehört in Schritt 6

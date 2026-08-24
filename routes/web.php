@@ -15,6 +15,7 @@ use App\Http\Controllers\DomainController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\GeneralSettingsController;
 use App\Http\Controllers\ImpersonationController;
+use App\Http\Controllers\LogsController;
 use App\Http\Controllers\MailSettingsController;
 use App\Http\Controllers\OperationController;
 use App\Http\Controllers\OperationStreamController;
@@ -143,6 +144,28 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/audit/export', [AuditController::class, 'export'])
         ->middleware('can:viewAny,'.AuditEvent::class)
         ->name('audit.export');
+
+    /*
+     * Die Protokolle des Servers.
+     *
+     * **`can:operate-server` und nicht `can:manage-settings`**, entschieden
+     * beim Bauen und nicht später (`docs/81 §11`). Der Grund steht in
+     * {@see \App\Http\Controllers\LogsController} ausführlich und in einem
+     * Satz hier: Ein Stacktrace in `laravel.log` trägt, was ihn ausgelöst hat —
+     * bei einer Ausnahme im Verbindungsaufbau also die Zugangsdaten der
+     * Datenbank. Das ist Merkmal 3 aus `docs/20 §6.1`.
+     *
+     * Neben dem Protokoll des Panels (`/audit`) und nicht darin: Das eine ist,
+     * was das Panel getan hat, das andere, was auf dem Server geschehen ist —
+     * auch an ihm vorbei.
+     */
+    Route::get('/logs', [LogsController::class, 'show'])
+        ->middleware('can:operate-server')
+        ->name('logs');
+
+    Route::get('/logs/download', [LogsController::class, 'download'])
+        ->middleware('can:operate-server')
+        ->name('logs.download');
 
     /*
      * Kunden — die Betreiberseite.
@@ -813,7 +836,7 @@ Route::middleware('auth')->group(function (): void {
      * einzige Einstellungsseite, für die das gilt. Sie ändert, wie ein
      * Zeitstempel dargestellt wird, und trägt damit keines der drei Merkmale
      * aus `docs/20 §6.1`. Die Begründung steht mit ihr in
-     * {@see \App\Support\Authorization\AdminAbility::administratorSettings()};
+     * {@see \App\Support\Authorization\AdminAbility::administratorRoutes()};
      * ohne Eintrag dort fällt sie im Wächter durch.
      */
     Route::get('/settings/general', [GeneralSettingsController::class, 'show'])

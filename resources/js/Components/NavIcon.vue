@@ -66,6 +66,18 @@ const PATHS: Record<string, string> = {
   // Protokoll: Zeilen mit Punkten davor — Einträge untereinander.
   log: 'M5 6h.01M5 12h.01M5 18h.01M9.5 6H19M9.5 12H19M9.5 18H19',
 
+  /*
+   * Logs des Servers: ein Blatt mit umgeknickter Ecke und zwei Zeilen.
+   *
+   * **Bewusst nicht dasselbe wie `log`.** Die beiden Punkte stehen in
+   * derselben Gruppe — „Protokoll" ist, was das Panel getan hat, „Logs" ist,
+   * was auf dem Server steht. Bei „Datenbanken" und „Datenbankserver" durfte
+   * ein Zeichen zweimal stehen, weil die **Gruppen** den Unterschied machen;
+   * hier täte es das nicht, und zwei gleiche Zeichen untereinander lesen sich
+   * als derselbe Ort.
+   */
+  logfile: 'M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6',
+
   // PHP-Versionen: spitze Klammern, das Zeichen für Quelltext.
   php: 'M8.5 8L5 12l3.5 4M15.5 8L19 12l-3.5 4',
 

@@ -13,12 +13,23 @@ namespace SrvPanel\Agent;
  */
 final class Config
 {
+    /**
+     * Wohin der Agent protokolliert, wenn die Konfiguration nichts anderes
+     * sagt.
+     *
+     * **Als Konstante, weil {@see Logs} darauf zeigt.** Eine Vorgabe in einer
+     * Parameterliste lässt sich von aussen nicht lesen, ohne ein Objekt zu
+     * bauen — und ein zweites Mal hingeschriebener Pfad ist genau der Verweis,
+     * den in diesem Repo nichts prüft.
+     */
+    public const DEFAULT_LOG_FILE = '/var/log/srvpanel/agent.log';
+
     /** @param list<string> $configRoots */
     public function __construct(
         public readonly string $socket = '/run/srvpanel/agent.sock',
         public readonly string $group = 'srvpanel',
         public readonly string $user = 'srvpanel',
-        public readonly string $logFile = '/var/log/srvpanel/agent.log',
+        public readonly string $logFile = self::DEFAULT_LOG_FILE,
         public readonly array $configRoots = ['/etc/nginx', '/etc/php', '/etc/ssh', '/var/lib/srvpanel'],
         public readonly int $maxChildren = 8,
         public readonly bool $allowUnprivileged = false,

@@ -94,21 +94,29 @@ final class AdminAbility
     }
 
     /**
-     * Einstellungsseiten, die **nicht** dem Betreiber gehören — mit Begründung.
+     * Routen, die **nicht** dem Betreiber gehören — mit Begründung.
      *
-     * **Die Voreinstellung ist der Betreiber, und das ist Absicht.** Eine neue
-     * Seite unter `/settings/` fällt im Wächter durch, bis jemand entweder
-     * `can:operate-server` daran schreibt oder sie hier einträgt. Der Fehler
-     * fällt damit zur sicheren Seite: Eine Seite, die versehentlich zu streng
-     * ist, meldet sich beim Administrator; eine, die versehentlich zu offen
-     * ist, meldet sich nie.
+     * **Die Voreinstellung ist der Betreiber, und das ist Absicht.** Eine
+     * Route, die {@see self::MANAGE_SETTINGS} trägt, fällt im Wächter durch,
+     * bis sie hier steht. Der Fehler fällt damit zur sicheren Seite: Eine
+     * Seite, die versehentlich zu streng ist, meldet sich beim Administrator;
+     * eine, die versehentlich zu offen ist, meldet sich nie.
+     *
+     * **Die Regel galt bis zum 24. August 2026 nur für `/settings/`**, und
+     * beim Bau der Seite „Logs" fiel auf, dass das zu wenig ist: `/logs` ist
+     * eine Adminseite und liegt nicht dort. Ein Pfad, der die Regel trägt, ist
+     * eine Eigenschaft des Ortes und nicht der Sache — gefragt wird deshalb
+     * nach der **Fähigkeit** und nicht nach dem Verzeichnis.
+     *
+     * > **Eine Regel, die an einem Pfad hängt, gilt für die nächste Seite
+     * > nicht mehr — und niemand merkt es, weil sie grün bleibt.**
      *
      * Schlüssel ist der Pfad ohne führenden Schrägstrich, so wie er in
      * `routes/web.php` steht.
      *
      * @return array<string, string> Pfad => Begründung
      */
-    public static function administratorSettings(): array
+    public static function administratorRoutes(): array
     {
         return [
             'settings/general' => 'Die Anzeigezeitzone des Panels (docs/40). Sie ändert, wie ein '

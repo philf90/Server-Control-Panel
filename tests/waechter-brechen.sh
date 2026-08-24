@@ -15821,7 +15821,7 @@ open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
 PY2
 griff_datei routes/web.php "Geheimnisseite mit schwaecherer Faehigkeit" &&
 pruefe "Geheimnisseite mit schwaecherer Faehigkeit" \
-  AdminAbilityTest::test_a_settings_route_belongs_to_the_operator_unless_declared failed
+  AdminAbilityTest::test_an_admin_route_belongs_to_the_operator_unless_declared failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AdminAbilityTest passed
 
@@ -15907,6 +15907,108 @@ pruefe "dritte Rolle in der Registratur" \
   AdminAbilityTest::test_every_ability_belongs_to_one_of_the_two_roles failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AdminAbilityTest passed
+
+echo
+echo "── LogSourceTest: der Schluessel wird nicht mehr gegen die Liste geprueft ──"
+#
+# Zwischen dem Formular und `fopen()` steht genau eine Sache: die Positivliste.
+# Faellt sie weg, ist der kuerzeste Weg von einem angemeldeten Konto zu
+# /etc/shadow eine Adresszeile.
+vorher_datei agent/src/Logs.php
+python3 - <<'PY2'
+p = 'agent/src/Logs.php'
+s = open(p, encoding='utf-8').read()
+alt = "return self::sources()[Guard::enum($key, self::keys(), 'source')];"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "return self::sources()[$key] ?? ['kind' => self::FILE, 'label' => '', 'path' => (string) $key, 'unit' => null];"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Logs.php "Logquelle ohne Positivliste" &&
+pruefe "Logquelle ohne Positivliste" \
+  LogSourceTest::test_a_key_outside_the_list_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogSourceTest passed
+
+echo
+echo "── LogSourceTest: eine Quelle zeigt aus dem erlaubten Bereich heraus ──"
+#
+# Die Grenze faengt, was die Positivliste selbst nicht faengt: einen neuen
+# Eintrag, der auf /etc oder ein Kundenverzeichnis zeigt. Ersteres waere ein
+# Geheimnis des Systems, letzteres ein Bruch der Mandantenklammer.
+vorher_datei agent/src/Logs.php
+python3 - <<'PY2'
+p = 'agent/src/Logs.php'
+s = open(p, encoding='utf-8').read()
+alt = "'auth' => self::file('Anmeldungen am Server', '/var/log/auth.log'),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "'auth' => self::file('Anmeldungen am Server', '/etc/shadow'),"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Logs.php "Logquelle ausserhalb der Grenze" &&
+pruefe "Logquelle ausserhalb der Grenze" \
+  LogSourceTest::test_every_file_stays_inside_the_allowed_roots failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogSourceTest passed
+
+echo
+echo "── LogSourceTest: eine Journalquelle nennt eine Unit, die es nicht gibt ──"
+#
+# Der Verweis, den sonst nichts prueft. journalctl meldet eine unbekannte Unit
+# mit Rueckgabe 0 und „-- No entries --" — der Kunde saehe „steht nichts im
+# Journal" und haette keinen Anlass, an einen Fehler zu denken.
+vorher_datei agent/src/Logs.php
+python3 - <<'PY2'
+p = 'agent/src/Logs.php'
+s = open(p, encoding='utf-8').read()
+alt = "'srvpanel-usage' => 'Verbrauch',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'srvpanel-verbrauch' => 'Verbrauch',", 1))
+PY2
+griff_datei agent/src/Logs.php "Journalquelle ohne Unit" &&
+pruefe "Journalquelle ohne Unit" \
+  LogSourceTest::test_every_journal_source_names_a_unit_the_package_ships failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogSourceTest passed
+
+echo
+echo "── LogSourceTest: `-- No entries --` kommt als Zeile durch ──"
+#
+# Gemessen am 24. August 2026: journalctl schreibt die Markierung auf **stdout**,
+# also dorthin, wo der Leser die Zeilen erwartet. Wer sie durchreicht, zeigt eine
+# Meldung des Werkzeugs als Inhalt des Protokolls.
+vorher_datei agent/src/Ops/SystemLogsTail.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemLogsTail.php'
+s = open(p, encoding='utf-8').read()
+alt = "if (trim($line) === '' || trim($line) === self::JOURNAL_EMPTY) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "if (trim($line) === '') {", 1))
+PY2
+griff_datei agent/src/Ops/SystemLogsTail.php "Journalmarkierung als Zeile" &&
+pruefe "Journalmarkierung als Zeile" \
+  LogSourceTest::test_the_empty_marker_is_not_a_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogSourceTest passed
+
+echo
+echo "── LogSourceTest: der Hinweis aus stderr wird verworfen ──"
+#
+# „No journal files were found" heisst, dass dieser Server sein Journal nicht
+# behaelt — eine Auskunft ueber die Einrichtung. Ohne sie sieht ein Server ohne
+# persistentes Journal aus wie ein Dienst, der nichts schreibt.
+vorher_datei agent/src/Ops/SystemLogsTail.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemLogsTail.php'
+s = open(p, encoding='utf-8').read()
+alt = "'note' => $note === '' ? null : $note,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'note' => null,", 1))
+PY2
+griff_datei agent/src/Ops/SystemLogsTail.php "Journalhinweis verworfen" &&
+pruefe "Journalhinweis verworfen" \
+  LogSourceTest::test_the_empty_marker_is_not_a_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogSourceTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

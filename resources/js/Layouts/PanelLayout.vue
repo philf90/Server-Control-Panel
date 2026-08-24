@@ -217,6 +217,26 @@ const navigation = computed(() => {
     { group: 'Server', items: [
       { name: 'Vorgänge', href: '/operations', icon: 'operations' },
       { name: 'Protokoll', href: '/audit', icon: 'log' },
+
+      /*
+       * **Neben „Vorgänge" und „Protokoll", und das ist die ganze
+       * Begründung.** Die drei sagen, was passiert ist: was das Panel gerade
+       * tut, was es getan hat, und was auf dem Server steht — auch das, was an
+       * ihm vorbei geschah.
+       *
+       * **Nur hier und nicht in der Kundennavigation.** Ein Kunde findet die
+       * Protokolle seiner Domains an der Domain; die des Servers gehen ihn
+       * nichts an, und ein Stacktrace darin trüge fremde Geheimnisse.
+       *
+       * Dieses Projekt hat den Ort eines Menüpunkts dreimal falsch gehabt —
+       * Dateimanager, SFTP-Zugang, „Job anlegen" —, und jedes Mal hat es der
+       * Betreiber gemeldet und kein Test:
+       *
+       *   Vor jedem neuen Merkmal: Wo sucht jemand diese Handlung, und steht
+       *   sie dort?
+       */
+      { name: 'Logs', href: '/logs', icon: 'logfile' },
+
       { name: 'Allgemein', href: '/settings/general', icon: 'general' },
       { name: 'PHP-Versionen', href: '/settings/php', icon: 'php' },
 

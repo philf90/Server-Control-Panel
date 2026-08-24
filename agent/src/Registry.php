@@ -92,6 +92,8 @@ use SrvPanel\Agent\Ops\SubscriptionResume;
 use SrvPanel\Agent\Ops\SubscriptionSuspend;
 use SrvPanel\Agent\Ops\SubscriptionUsage;
 use SrvPanel\Agent\Ops\SystemInfo;
+use SrvPanel\Agent\Ops\SystemLogsList;
+use SrvPanel\Agent\Ops\SystemLogsTail;
 use SrvPanel\Agent\Ops\WebIsolationProbe;
 use SrvPanel\Agent\Ops\WebLogrotate;
 use SrvPanel\Agent\Ops\WebLogsTail;
@@ -176,6 +178,10 @@ final class Registry
         $this->register(new WebSiteApply);
         $this->register(new WebSiteRemove);
         $this->register(new WebLogsTail);
+
+        // Die Protokolle des Servers — Positivliste in SrvPanel\Agent\Logs.
+        $this->register(new SystemLogsList);
+        $this->register(new SystemLogsTail);
         $this->register(new WebLogrotate);
         $this->register(new WebIsolationProbe);
         $this->register(new PhpVersionList);

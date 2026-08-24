@@ -30,7 +30,7 @@ use PHPUnit\Framework\TestCase;
  *
  * 1. **Die Voreinstellung ist der Betreiber.** Eine Route unter `/settings/`
  *    mit einer Fähigkeit trägt `can:operate-server` — es sei denn, sie steht in
- *    `AdminAbility::administratorSettings()` mit ihrer Begründung. Der Fehler fällt damit zur sicheren Seite: Eine
+ *    `AdminAbility::administratorRoutes()` mit ihrer Begründung. Der Fehler fällt damit zur sicheren Seite: Eine
  *    Seite, die versehentlich zu streng ist, meldet sich beim Administrator;
  *    eine, die versehentlich zu offen ist, meldet sich nie.
  * 2. **Die Registratur veraltet nicht.** Jeder Eintrag gehört noch zu einer
@@ -54,20 +54,24 @@ final class AdminAbilityTest extends TestCase
     /** Die Rolle, der eine Einstellungsseite ohne Eintrag gehört. */
     private const DEFAULT_ABILITY = 'operate-server';
 
-    /** Jede Einstellungsseite gehört dem Betreiber — oder steht mit Begründung da. */
-    public function test_a_settings_route_belongs_to_the_operator_unless_declared(): void
+    /**
+     * Jede Adminroute gehört dem Betreiber — oder steht mit Begründung da.
+     *
+     * **Gefragt wird nach der Fähigkeit und nicht nach dem Pfad.** Die erste
+     * Fassung dieser Regel las nur Routen unter `/settings/`; beim Bau der
+     * Seite „Logs" fiel auf, dass `/logs` eine Adminseite ist und dort nicht
+     * liegt. Sie wäre durchgekommen, und der Wächter wäre grün geblieben.
+     *
+     * > **Eine Regel, die an einem Pfad hängt, gilt für die nächste Seite
+     * > nicht mehr — und niemand merkt es, weil sie grün bleibt.**
+     */
+    public function test_an_admin_route_belongs_to_the_operator_unless_declared(): void
     {
-        $declared = $this->administratorSettings();
+        $declared = $this->administratorRoutes();
         $strays = [];
         $checked = 0;
 
-        foreach ($this->settingsRoutes() as [$method, $path, $ability]) {
-            // Ohne Fähigkeit ist es keine Adminseite — `/settings/profile` und
-            // die Zwei-Faktor-Einrichtung gehören jedem Konto selbst.
-            if ($ability === null) {
-                continue;
-            }
-
+        foreach ($this->adminRoutes() as [$method, $path, $ability]) {
             $checked++;
 
             if ($ability === self::DEFAULT_ABILITY) {
@@ -82,13 +86,13 @@ final class AdminAbilityTest extends TestCase
         }
 
         // Ein Ausdruck, der nichts findet, ist kein bestandener Test.
-        $this->assertGreaterThan(5, $checked, 'Es werden kaum Einstellungsrouten gefunden — dann prüft dieser Test nichts.');
+        $this->assertGreaterThan(5, $checked, 'Es werden kaum Adminrouten gefunden — dann prüft dieser Test nichts.');
 
         $this->assertSame([], $strays, sprintf(
-            "Diese Einstellungsrouten gehören nicht dem Betreiber und sagen nicht, warum:\n\n  %s\n\n"
+            "Diese Adminrouten gehören nicht dem Betreiber und sagen nicht, warum:\n\n  %s\n\n"
             .'Kritisch ist, was root auf Dauer verleiht, alle Kunden mitnimmt oder ein Geheimnis '
             .'zeigt (docs/20 §6.1). Wer eine Ausnahme braucht, trägt sie mit ihrer Begründung in '
-            .'AdminAbility::administratorSettings() ein.',
+            .'AdminAbility::administratorRoutes() ein.',
             implode("\n  ", $strays),
         ));
     }
@@ -104,15 +108,13 @@ final class AdminAbilityTest extends TestCase
     {
         $paths = [];
 
-        foreach ($this->settingsRoutes() as [, $path, $ability]) {
-            if ($ability !== null) {
-                $paths[$path] = true;
-            }
+        foreach ($this->adminRoutes() as [, $path]) {
+            $paths[$path] = true;
         }
 
-        foreach (array_keys($this->administratorSettings()) as $declared) {
+        foreach (array_keys($this->administratorRoutes()) as $declared) {
             $this->assertArrayHasKey($declared, $paths, sprintf(
-                '%s steht in AdminAbility::administratorSettings(), und eine Einstellungsroute mit '
+                '%s steht in AdminAbility::administratorRoutes(), und eine Einstellungsroute mit '
                 .'Fähigkeit gibt es dafür nicht mehr.',
                 $declared,
             ));
@@ -122,7 +124,7 @@ final class AdminAbilityTest extends TestCase
     /** Jede Ausnahme trägt eine Begründung und keine leere Zeichenkette. */
     public function test_every_declaration_carries_a_reason(): void
     {
-        $declarations = $this->administratorSettings();
+        $declarations = $this->administratorRoutes();
 
         $this->assertNotSame([], $declarations, 'Ohne einen Eintrag misst der Test darunter nichts.');
 
@@ -269,13 +271,13 @@ final class AdminAbilityTest extends TestCase
      *
      * @return array<string, string>
      */
-    private function administratorSettings(): array
+    private function administratorRoutes(): array
     {
         $source = (string) file_get_contents(
             dirname(__DIR__, 2).'/app/Support/Authorization/AdminAbility.php',
         );
 
-        $start = strpos($source, 'function administratorSettings');
+        $start = strpos($source, 'function administratorRoutes');
 
         if ($start === false) {
             return [];
@@ -324,11 +326,15 @@ final class AdminAbilityTest extends TestCase
     }
 
     /**
-     * Die Einstellungsrouten mit ihrer Fähigkeit.
+     * Die Routen, die eine Adminfähigkeit tragen — mit ihr.
      *
-     * @return list<array{0: string, 1: string, 2: null|string}>
+     * Eine Route ohne `can:` oder mit einer Modell-Policy (`can:view,domain`)
+     * ist keine Adminroute: `/settings/profile` und die Zwei-Faktor-Einrichtung
+     * gehören jedem Konto selbst.
+     *
+     * @return list<array{0: string, 1: string, 2: string}>
      */
-    private function settingsRoutes(): array
+    private function adminRoutes(): array
     {
         $source = (string) file_get_contents(dirname(__DIR__, 2).'/routes/web.php');
         $routes = [];
@@ -338,15 +344,17 @@ final class AdminAbilityTest extends TestCase
                 continue;
             }
 
-            if (! str_starts_with($match[2], '/settings/')) {
+            if (preg_match("/->middleware\('can:([a-z][a-z-]*)'\)/", $block, $can) !== 1) {
                 continue;
             }
 
-            $ability = preg_match("/->middleware\('can:([a-z][a-z-]*)'\)/", $block, $can) === 1
-                ? $can[1]
-                : null;
+            // Nur die Fähigkeiten der Registratur; alles ohne Bindestrich ist
+            // eine Modell-Policy und gehört zu einem Modell statt zu einer Rolle.
+            if (! str_contains($can[1], '-')) {
+                continue;
+            }
 
-            $routes[] = [strtoupper($match[1]), ltrim($match[2], '/'), $ability];
+            $routes[] = [strtoupper($match[1]), ltrim($match[2], '/'), $can[1]];
         }
 
         return $routes;

@@ -3546,27 +3546,28 @@ echo "── CertificatePruneTest: der geteilte Ablageort wird mitgenommen ─�
 # **Der Fehler, den der Zielserver am 7. August fast bekommen hätte.** Auf ihm
 # teilte sich `cloudlab24.de` seinen Ablageort zwischen einem zurückgebauten und
 # einem LEBENDEN Abonnement. Wer beim Aufräumen je Zeile entscheidet statt je
-# Ablageort — oder die lebenden Zeilen nicht mitzählt —, löscht den privaten
-# Schlüssel einer laufenden Website.
+# Ablageort — oder die gebrauchten Zeilen nicht mitzählt —, löscht den privaten
+# Schlüssel einer laufenden Website. Seit dem 24. August heisst „gebraucht"
+# nicht mehr „lebendes Abonnement", sondern „eine Domain zeigt darauf oder wird
+# davon gedeckt"; der Zieltest heisst deshalb anders.
 vorher_datei app/Support/Tls/CertificatePrune.php
 python3 - <<'PY2'
 p = 'app/Support/Tls/CertificatePrune.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace(
-    """                if (array_key_exists($name, $spoken)) {
-                    $shared[$name] = true;
+alt = """                if (array_key_exists($name, $gesprochen)) {
+                    $shared[] = $name;
 
                     continue;
                 }
 
-""",
-    "",
-)
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei app/Support/Tls/CertificatePrune.php "geteilter Ablageort wird entfernt" &&
 pruefe "geteilter Ablageort wird entfernt" \
-  CertificatePruneTest::test_a_storage_name_shared_with_a_living_certificate_is_kept failed
+  CertificatePruneTest::test_a_storage_name_shared_with_a_used_certificate_is_kept failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificatePruneTest passed
 
@@ -15383,6 +15384,129 @@ pruefe "Auslese der Paketierung leer" \
   ChallengeReachTest::test_no_packaged_directory_blocks_the_way_to_the_probe_file failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ChallengeReachTest passed
+
+echo
+echo "── CertificatePruneTest: die Auswahl kennt nur noch den Waisen ──"
+#
+# **Der Fehler selbst, wie er bis 0.7.0 im Repo stand.** Der Rueckbau einer
+# einzelnen Domain liess ihr Zertifikat liegen: Das Abonnement lebt, die Zeile
+# verwaist also nie, und --prune fuehrte sie nie auf. Gemessen auf cloudsrv24 an
+# tls.cloudlab24.de -- null verweisende Domains, privkey.pem lag da.
+vorher_datei app/Support/Tls/CertificatePrune.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificatePrune.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($certificate->subscription_id === null) {\n            return false;\n        }\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "        if ($certificate->subscription_id !== null) {\n            return true;\n        }\n", 1))
+PY2
+griff_datei app/Support/Tls/CertificatePrune.php "Auswahl kennt nur den Waisen" &&
+pruefe "Auswahl kennt nur den Waisen" \
+  CertificatePruneTest::test_a_certificate_whose_last_domain_is_gone_is_removable failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificatePruneTest passed
+
+echo
+echo "── CertificatePruneTest: gefragt wird nur die Zuordnung, nicht die Deckung ──"
+#
+# Die gefaehrliche Richtung. Ein Platzhalter deckt www.lebt.invalid, ohne der
+# Domain zugeordnet zu sein -- CertificateChoice waehlt ihn trotzdem jederzeit.
+# Wer nur domains.certificate_id fragt, loescht den Schluessel unter einer
+# laufenden Website weg.
+vorher_datei app/Support/Tls/CertificatePrune.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificatePrune.php'
+s = open(p, encoding='utf-8').read()
+alt = "                if ($certificate->covers($name)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                if (false) {", 1))
+PY2
+griff_datei app/Support/Tls/CertificatePrune.php "nur die Zuordnung gefragt" &&
+pruefe "nur die Zuordnung gefragt" \
+  CertificatePruneTest::test_a_certificate_that_only_covers_a_living_domain_is_kept failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificatePruneTest passed
+
+echo
+echo "── CertificatePruneTest: forget() laesst die Zeile ohne Domain stehen ──"
+#
+# Sonst bleibt ein Wegweiser auf ein Verzeichnis, das der Agent gerade entfernt
+# hat -- und der naechste Lauf meldet dafuer "war schon fort".
+vorher_datei app/Support/Tls/CertificatePrune.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificatePrune.php'
+s = open(p, encoding='utf-8').read()
+alt = "                if (! $this->inUse($zeile)) {\n                    $ids[] = $zeile->id;\n                }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "                if ($zeile->orphaned()) {\n                    $ids[] = $zeile->id;\n                }", 1))
+PY2
+griff_datei app/Support/Tls/CertificatePrune.php "forget() nur fuer Waisen" &&
+pruefe "forget() nur fuer Waisen" \
+  CertificatePruneTest::test_forget_drops_a_row_whose_domain_is_gone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificatePruneTest passed
+
+echo
+echo "── CertificatePruneTest: forget() nimmt eine gebrauchte Zeile mit ──"
+#
+# Die Gegenrichtung desselben Griffs, und die teurere: Wer hier zu grosszuegig
+# ist, laesst ein Verzeichnis liegen; wer zu streng ist, nimmt eine Website vom
+# Netz.
+vorher_datei app/Support/Tls/CertificatePrune.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificatePrune.php'
+s = open(p, encoding='utf-8').read()
+alt = "                if (! $this->inUse($zeile)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                if (true) {", 1))
+PY2
+griff_datei app/Support/Tls/CertificatePrune.php "forget() nimmt alles mit" &&
+pruefe "forget() nimmt alles mit" \
+  CertificatePruneTest::test_forget_keeps_a_row_that_is_still_used failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificatePruneTest passed
+
+echo
+echo "── CertificatePruneTest: 'nichts zu tun' zaehlt nur die Waisen ──"
+#
+# Der Ausstieg des Kommandos haengt daran. Zaehlt er nur die Waisen, meldet
+# `srvpanel tls --prune` "keine ungebrauchten Zertifikate" und laesst den
+# privaten Schluessel liegen -- ohne eine einzige Zeile Ausgabe.
+vorher_datei app/Support/Tls/CertificatePrune.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificatePrune.php'
+s = open(p, encoding='utf-8').read()
+alt = "'nothing' => $verwaist === 0 && $verlassen === 0,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'nothing' => $verwaist === 0,", 1))
+PY2
+griff_datei app/Support/Tls/CertificatePrune.php "nichts zu tun zaehlt nur Waisen" &&
+pruefe "nichts zu tun zaehlt nur Waisen" \
+  CertificatePruneTest::test_a_certificate_whose_last_domain_is_gone_is_removable failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificatePruneTest passed
+
+echo
+echo "── CertificatePruneTest: das Zertifikat der Oberflaeche gilt als ungebraucht ──"
+#
+# Die gefaehrlichste Verwechslung dieses Umbaus: Panel-Zertifikat und Waise
+# tragen beide subscription_id null. Wer sie verwechselt, entfernt den
+# privaten Schluessel, mit dem das Panel selbst antwortet.
+vorher_datei app/Support/Tls/CertificatePrune.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificatePrune.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($certificate->forPanel()) {\n            return true;\n        }\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Tls/CertificatePrune.php "Oberflaeche gilt als ungebraucht" &&
+pruefe "Oberflaeche gilt als ungebraucht" \
+  CertificatePruneTest::test_the_storage_name_of_the_panel_certificate_is_kept failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificatePruneTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

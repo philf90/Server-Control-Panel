@@ -18799,3 +18799,87 @@ null Zeilen und sagt kein Wort dazu. Gemessen als Paar: `mit Klammer: 0` ·
 
 > **Eine Frage, die im Grundzustand alles verweigert, antwortet mit einer leeren
 > Liste und nicht mit einem Fehler.**
+
+### Ein Zertifikat, das den Rückbau seiner Domain überlebt — beim Aufräumen gefunden
+
+Beim Abräumen der Testdomains aus `docs/77` herausgefallen, und zwar nur, weil
+`docs/78 §5` vorschrieb, beim Zurückbauen nachzusehen, ob Server-Block und
+Verzeichnis mitgehen.
+
+Der Rückbau einer Domain nimmt ihr Zertifikat nicht mit, und `srvpanel tls
+--prune` holt es auch später nicht. Gemessen an Zertifikat 26, nachdem
+`tls.cloudlab24.de` gelöscht war:
+
+```
+Zertifikat 26: Abo 137 · Abschrift p6-b.invalid · Ablageort tls.cloudlab24.de
+verweist noch eine Domain darauf: 0
+/etc/srvpanel/tls/certs/tls.cloudlab24.de/privkey.pem   -rw------- root root 1704
+```
+
+`CertificatePrune` nennt einen Waisen: `subscription_id` **null** bei gesetzter
+Abschrift. Hier ist `subscription_id` gesetzt — das Abonnement lebt, nur die
+Domain gibt es nicht mehr. Die Zeile verwaist also nie, `--prune` führt sie nie
+auf (`11 verwaiste Zeile(n), 0 Ablageort(e) zu entfernen`, ohne
+`tls.cloudlab24.de` darin), und eine Route zum Entfernen eines einzelnen
+Zertifikats hat das Panel nicht. Was bleibt, ist ein privater Schlüssel, den
+keine Zeile mehr nennt und keine Domain mehr braucht.
+
+> **Wer etwas anlegt, das auf der Platte bleibt, baut den Weg zurück mit.**
+
+Derselbe Satz wie in `docs/35 §11` und dieselbe Art Fund. Dort war der Auslöser
+das zurückgebaute **Abonnement**, und der Weg zurück ist gebaut worden; für die
+gelöschte **Domain** innerhalb eines lebenden Abonnements ist er es nie.
+
+**Die Frage dahinter gehört vor die Behebung, und sie hat den Weg entschieden:**
+Ein Zertifikat gehört einem Abonnement und nicht einer Domain, kann also weitere
+Namen decken, die noch leben. Ein Rückbau, der es als Nebenwirkung eines Klicks
+löscht, nähme im falschen Fall eine laufende Website vom Netz. Behoben wurde es
+deshalb nicht am Rückbau, sondern an `--prune` — siehe unten.
+
+**Abgeräumt sind dafür die vier Testnamen** — `hier`, `fremd`, `ohne` und
+`tls` unter `cloudlab24.de`, im Panel und bei ipv64. Belegt im Paar gegen einen
+Kontrollnamen, weil der Platzhalter der Zone für jeden dieser Namen weiter
+antwortet: vier gleiche Adressen heissen „alle vom Platzhalter", nicht „stehen
+noch".
+
+### `srvpanel tls --prune` kennt zwei Arten ungebrauchter Zertifikate
+
+Die Behebung des Befundes darüber. Aufgeräumt wird weiterhin nur an der einen
+Stelle, die dafür gebaut ist: Sie fragt nach, kennt `--dry-run`, und ihre
+Auswahlregel steht in `CertificatePrune` statt im Kommando, damit ein Test sie
+prüfen kann, ohne sie nachzubauen. Neu ist, was sie als ungebraucht ansieht:
+
+| Art | Bedingung |
+|---|---|
+| **verwaist** | `subscription_id` null bei gesetzter Abschrift — das Abonnement ist zurückgebaut |
+| **ohne Domain** | das Abonnement lebt, aber keine seiner Domains nennt das Zertifikat und keine wird von ihm gedeckt |
+
+**Gefragt wird nach der Deckung und nicht nach der Zuordnung**, und das ist die
+gefährliche Hälfte. Ein Platzhalter deckt `www.example.de`, ohne der Domain
+zugeordnet zu sein — `CertificateChoice` wählt ihn trotzdem jederzeit. Wer nur
+`domains.certificate_id` fragte, löschte den privaten Schlüssel unter einer
+laufenden Website weg. Im Zweifel gilt eine Zeile deshalb als gebraucht: Wer zu
+grosszügig ist, lässt ein Verzeichnis liegen; wer zu streng ist, nimmt eine
+Website vom Netz. Das Kommando nennt jetzt je Ablageort den Grund — bei einem
+Vorgang, der Schlüsselmaterial von der Platte nimmt, ist „warum" so wichtig wie
+„was".
+
+**Zwei Stellen wären dabei beinahe stehengeblieben, und beide sind zweite
+Fassungen derselben Regel.** `forget()` trug die Bedingung eines Waisen
+ausgeschrieben — der Agent hätte die Datei entfernt und die Zeile wäre
+geblieben, ein Wegweiser auf ein Verzeichnis, das es nicht mehr gibt. Und der
+Ausstieg des Kommandos hing an `orphans === 0`; er hätte „keine verwaisten
+Zertifikate" gemeldet und den Schlüssel liegen lassen. Beide fragen jetzt
+dieselbe eine Stelle: `inUse()` und `plan()['nothing']`.
+
+> **Zwei Fassungen derselben Regel laufen auseinander — und die falsche ist die,
+> die man bekommt.**
+
+Sechs neue Eingriffe in `tests/waechter-brechen.sh` stehen dafür ein, darunter
+der Fehler selbst und beide Richtungen von `forget()`. **Zwei bestehende
+Eingriffe hat dieser Umbau stumpf gemacht** — einer zeigte auf eine Zeile, die
+umgezogen ist, einer auf einen Testnamen, der sich geändert hat. Gemeldet hat es
+`BreakScriptTest`, nicht das Gedächtnis.
+
+> **Ein Wächter über die Wächter ist der einzige, der merkt, dass ein Eingriff
+> beim Umbau seinen Gegenstand verloren hat.**

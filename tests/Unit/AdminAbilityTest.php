@@ -178,9 +178,14 @@ final class AdminAbilityTest extends TestCase
         $this->assertArrayHasKey('manage-settings', $abilities);
         $this->assertArrayHasKey(self::DEFAULT_ABILITY, $abilities);
 
+        $cases = $this->roleCases();
+
+        $this->assertSame(['Operator', 'Administrator'], $cases,
+            'AdminRole führt andere Fälle als die zwei Rollen aus docs/20 §6.1.');
+
         foreach ($abilities as $ability => $declaration) {
-            $this->assertContains($declaration['role'], ['operator', 'administrator'], sprintf(
-                '%s gehört der Rolle „%s", und die gibt es in docs/20 §6.1 nicht.',
+            $this->assertContains($declaration['role'], $cases, sprintf(
+                '%s gehört der Rolle „%s", und die gibt es in AdminRole nicht.',
                 $ability,
                 $declaration['role'],
             ));
@@ -247,7 +252,7 @@ final class AdminAbilityTest extends TestCase
         );
 
         preg_match_all(
-            "/self::(\w+) => \[\s*'role' => self::(\w+),\s*'reason' => (.*?),\s*\],/s",
+            "/self::(\w+) => \[\s*'role' => AdminRole::(\w+),\s*'reason' => (.*?),\s*\],/s",
             $source,
             $matches,
             PREG_SET_ORDER,
@@ -258,7 +263,9 @@ final class AdminAbilityTest extends TestCase
 
         foreach ($matches as $match) {
             $abilities[$constants[$match[1]] ?? $match[1]] = [
-                'role' => $constants[$match[2]] ?? $match[2],
+                // Der Fallname des Enums, nicht sein Wert: Verglichen wird
+                // unten gegen die Fälle, die AdminRole wirklich führt.
+                'role' => $match[2],
                 'reason' => $this->joined($match[3]),
             ];
         }
@@ -297,6 +304,24 @@ final class AdminAbilityTest extends TestCase
         }
 
         return $declared;
+    }
+
+    /**
+     * Die Fälle von `AdminRole`, aus dem Quelltext gelesen.
+     *
+     * **Als Text und nicht über Reflexion**, aus demselben Grund wie beim Rest
+     * dieses Wächters: Er läuft ohne Framework, und `AdminRole` liegt unter
+     * `App\`.
+     *
+     * @return list<string>
+     */
+    private function roleCases(): array
+    {
+        $source = (string) file_get_contents(dirname(__DIR__, 2).'/app/Enums/AdminRole.php');
+
+        preg_match_all("/case (\w+) = '/", $source, $matches);
+
+        return $matches[1];
     }
 
     /**

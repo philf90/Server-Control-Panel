@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support\Authorization;
 
+use App\Enums\AdminRole;
+
 /**
  * Die Adminfähigkeiten und die Rolle, der jede gehört.
  *
@@ -53,11 +55,16 @@ namespace App\Support\Authorization;
  */
 final class AdminAbility
 {
-    /** Dem `root` dieses Servers nahe. Darf alles. */
-    public const OPERATOR = 'operator';
-
-    /** Verwaltet Kunden, Abonnements, Domains, Datenbanken. Kritisches nicht. */
-    public const ADMINISTRATOR = 'administrator';
+    /**
+     * **Die Rollen stehen in {@see AdminRole} und nicht mehr hier.**
+     *
+     * Sie standen an dieser Stelle als zwei Konstanten, weil es den Enum noch
+     * nicht gab. Zwei Stellen für denselben Namen sind der Fehler, den dieses
+     * Repo am häufigsten macht — und beim Anlegen der Spalte `accounts.role`
+     * wäre daraus eine dritte geworden.
+     *
+     * > **Ein Name, der an zwei Stellen steht, steht bald an dreien.**
+     */
 
     /** Was nur der Betreiber darf. */
     public const OPERATE_SERVER = 'operate-server';
@@ -71,19 +78,19 @@ final class AdminAbility
      * Die Gates entstehen aus dieser Liste — eine Fähigkeit, die hier nicht
      * steht, gibt es nicht.
      *
-     * @return array<string, array{role: string, reason: string}>
+     * @return array<string, array{role: AdminRole, reason: string}>
      */
     public static function abilities(): array
     {
         return [
             self::MANAGE_SETTINGS => [
-                'role' => self::ADMINISTRATOR,
+                'role' => AdminRole::Administrator,
                 'reason' => 'Einstellungen, die keines der drei Merkmale tragen: kein Geheimnis, kein '
                     .'Weg zu root, keine Wirkung auf alle Kunden. Der Administrator verwaltet Kunden '
                     .'und Abonnements — dazu gehört, das Panel dafür einrichten zu können.',
             ],
             self::OPERATE_SERVER => [
-                'role' => self::OPERATOR,
+                'role' => AdminRole::Operator,
                 'reason' => 'Alles, was eines der drei Merkmale aus docs/20 §6.1 trägt. Die '
                     .'Zugangsdaten für DNS und Mailversand sind Geheimnisse; der private Schlüssel '
                     .'des Panels ist eines; PHP-Versionen installieren ruft apt-get und ist damit ein '

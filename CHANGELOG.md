@@ -19325,3 +19325,62 @@ darin selbst herstellen, ohne dass das Panel warnen kann. Die Asymmetrie zum
 Kunden ist Absicht und längst gebaut: Für Zusatzbenutzer gibt es sehr wohl einen
 feinen Rechtekatalog — dort ist die Sprengweite ein Abonnement, auf der
 Adminebene der ganze Server.
+
+### A9 Schritt 1 — die Rolle am Konto
+
+**Eine zweite Achse, kein vierter `AccountType`.** `AccountType` beantwortet
+„wen sieht dieses Konto"; darauf antworten Betreiber und Administrator **gleich**
+— den ganzen Server. Verschieden ist nur, was sie dürfen. Ein vierter Fall wäre
+augenblicklich `isAdmin() === false` und `belongsToCustomer() === true` an 52
+Stellen, und der neue Betreiber sähe eine **leere Kundenliste**.
+
+Gebaut: `AdminRole` mit zwei Fällen und der Rangfolge in `covers()`, eine Spalte
+`accounts.role`, und `Account::isOperator()` / `Account::fulfils()`.
+
+**Die Spalte ist `nullable` und trägt keine Vorgabe.** `null` heisst „kein
+Admin" und nicht „noch nichts gewählt". Und **die Rolle allein gewährt nichts**:
+Beide Methoden fragen die Ebene mit, also ist ein Kundenkonto mit
+`role = operator` trotzdem keiner — und ein Adminkonto ohne Rolle genügt keiner.
+Wer die Migration nicht gefahren hat, bekommt eine Ablehnung und keine stille
+Vollmacht.
+
+**Bestehende Adminkonten werden Betreiber.** Sie dürfen heute alles; sie als
+Administrator zu migrieren wäre eine stille Rechteentziehung auf einem laufenden
+Server.
+
+> **Eine Migration, die Rechte wegnimmt, sperrt jemanden aus, der gestern noch
+> hineinkam.**
+
+**Die Rollennamen sind aus `AdminAbility` in den Enum gewandert.** Sie standen
+dort als zwei Konstanten, weil es den Enum noch nicht gab; mit der Spalte wäre
+daraus eine dritte Stelle geworden.
+
+> **Ein Name, der an zwei Stellen steht, steht bald an dreien.**
+
+**`AccountTypeAxisTest` prüft die Trennung jetzt, statt sie in einer Meldung zu
+behaupten:** Kein `AccountType`-Fall trägt den Wert eines `AdminRole`-Falls.
+
+> **Ein Satz in einer Fehlermeldung ist eine Warnung an den, der sie liest. Eine
+> Prüfung ist eine an den, der sie auslöst.**
+
+**Zwei Wächter für eine Regel, und das ist keine Verdopplung.** `AdminRoleTest`
+läuft ohne Framework und hält die Erreichbarkeit der Ebenenfrage im Quelltext;
+`RoleAxisTest` misst die Wirkung am Model und läuft in der CI. Die Regel ist
+dieselbe, die Messbarkeit nicht.
+
+**Und der Bestand aus `docs/82 §1` stand an einer Zeile falsch da.** Er meldete
+„zweiter Faktor: nirgends erzwungen" — `RequireTwoFactor` erzwingt ihn seit P1
+für jedes Adminkonto. Der `grep` hatte nach der Spalte gesucht, der Code fragt
+eine Modellmethode.
+
+> **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts zu tun".**
+> Der Satz gilt für einen `grep` genauso wie für einen Rückgabewert.
+
+Gefunden hat es kein zweiter `grep`, sondern ein Kommentar in `AccountFactory`,
+der beiläufig das Gegenteil behauptete. **Die Folge für den Plan:** Der geplante
+Schalter für den erzwungenen zweiten Faktor entfällt — er wäre doppelt falsch
+gewesen, weil es die Durchsetzung gibt und `docs/20 §6.4` sie verpflichtend
+nennt.
+
+> **Ein Schalter für eine Pflicht ist keine Einstellung, sondern eine Ausnahme —
+> und wer sie anbietet, hat die Pflicht abgeschafft.**

@@ -15890,20 +15890,22 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AdminAbilityTest passed
 
 echo
-echo "── AdminAbilityTest: eine Rolle, die es in docs/20 §6.1 nicht gibt ──"
+echo "── AdminAbilityTest: eine dritte Rolle im Enum ──"
 #
-# Die Admin-Ebene hat genau zwei Rollen. Eine dritte hier einzutragen ist der
-# Anfang eines Rechte-Baukastens, und der ist ausdruecklich nicht das Modell.
-vorher_datei app/Support/Authorization/AdminAbility.php
+# Die Admin-Ebene hat genau zwei Rollen. Eine dritte einzutragen ist der Anfang
+# eines Rechte-Baukastens, und der ist ausdruecklich nicht das Modell
+# (docs/82 §4). Wer eine dritte will, entscheidet vorher, was sie darf.
+vorher_datei app/Enums/AdminRole.php
 python3 - <<'PY2'
-p = 'app/Support/Authorization/AdminAbility.php'
+p = 'app/Enums/AdminRole.php'
 s = open(p, encoding='utf-8').read()
-alt = "public const OPERATOR = 'operator';"
+alt = "    case Administrator = 'administrator';"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, "public const OPERATOR = 'superadmin';", 1))
+neu = alt + "\n\n    case Superadmin = 'superadmin';"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
 PY2
-griff_datei app/Support/Authorization/AdminAbility.php "dritte Rolle in der Registratur" &&
-pruefe "dritte Rolle in der Registratur" \
+griff_datei app/Enums/AdminRole.php "dritte Rolle im Enum" &&
+pruefe "dritte Rolle im Enum" \
   AdminAbilityTest::test_every_ability_belongs_to_one_of_the_two_roles failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AdminAbilityTest passed
@@ -16009,6 +16011,108 @@ pruefe "Journalhinweis verworfen" \
   LogSourceTest::test_the_empty_marker_is_not_a_line failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" LogSourceTest passed
+
+echo
+echo "── AdminRoleTest: der Administrator deckt den Betreiber ──"
+#
+# Die Rangfolge ist die ganze Ordnung zwischen den beiden Rollen. Deckt der
+# Administrator den Betreiber, ist die Trennung eine Zierde — und zwar eine, die
+# jede Geheimnisseite oeffnet.
+vorher_datei app/Enums/AdminRole.php
+python3 - <<'PY2'
+p = 'app/Enums/AdminRole.php'
+s = open(p, encoding='utf-8').read()
+alt = 'self::Administrator => $required === self::Administrator,'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'self::Administrator => true,', 1))
+PY2
+griff_datei app/Enums/AdminRole.php "Administrator deckt den Betreiber" &&
+pruefe "Administrator deckt den Betreiber" \
+  AdminRoleTest::test_the_operator_covers_the_administrator_and_not_the_other_way failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminRoleTest passed
+
+echo
+echo "── AdminRoleTest: isOperator fragt die Mandantenachse nicht mehr ──"
+#
+# Die Richtung entscheidet. Fiele die Rollenfrage weg, waere jeder Admin
+# Betreiber — das faellt sofort auf. Faellt die Ebenenfrage weg, genuegt ein
+# Kundenkonto mit role = operator, und das faellt niemandem auf, weil es dort
+# normalerweise nicht steht.
+vorher_datei app/Models/Account.php
+python3 - <<'PY2'
+p = 'app/Models/Account.php'
+s = open(p, encoding='utf-8').read()
+alt = 'return $this->type->isAdmin() && $this->role === AdminRole::Operator;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'return $this->role === AdminRole::Operator;', 1))
+PY2
+griff_datei app/Models/Account.php "isOperator ohne Mandantenachse" &&
+pruefe "isOperator ohne Mandantenachse" \
+  AdminRoleTest::test_both_account_methods_ask_the_tenancy_axis failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminRoleTest passed
+
+echo
+echo "── AdminRoleTest: die Migration macht bestehende Admins zu Administratoren ──"
+#
+# Eine stille Rechteentziehung auf einem laufenden Server: Der Betreiber kaeme
+# am Montag nicht mehr an seine Mailkonfiguration, und die Meldung dazu sagte
+# nichts ueber eine Migration.
+vorher_datei database/migrations/2026_08_24_170000_add_admin_role_to_accounts.php
+python3 - <<'PY2'
+p = 'database/migrations/2026_08_24_170000_add_admin_role_to_accounts.php'
+s = open(p, encoding='utf-8').read()
+alt = 'AdminRole::Operator->value'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'AdminRole::Administrator->value', 1))
+PY2
+griff_datei database/migrations/2026_08_24_170000_add_admin_role_to_accounts.php "Migration entzieht Rechte" &&
+pruefe "Migration entzieht Rechte" \
+  AdminRoleTest::test_the_migration_makes_existing_admins_operators failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminRoleTest passed
+
+echo
+echo "── AdminRoleTest: die Rollenspalte bekommt eine Vorgabe ──"
+#
+# `null` heisst an einem Kundenkonto „kein Admin". Eine Vorgabe nimmt dieser
+# Null ihre Bedeutung — und traegt sie an jedes Konto, das danach entsteht.
+vorher_datei database/migrations/2026_08_24_170000_add_admin_role_to_accounts.php
+python3 - <<'PY2'
+p = 'database/migrations/2026_08_24_170000_add_admin_role_to_accounts.php'
+s = open(p, encoding='utf-8').read()
+alt = "->nullable()->after('type');"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "->nullable()->default('operator')->after('type');", 1))
+PY2
+griff_datei database/migrations/2026_08_24_170000_add_admin_role_to_accounts.php "Rollenspalte mit Vorgabe" &&
+pruefe "Rollenspalte mit Vorgabe" \
+  AdminRoleTest::test_the_migration_makes_existing_admins_operators failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminRoleTest passed
+
+echo
+echo "── AccountTypeAxisTest: die Rolle rutscht in die Mandantenachse ──"
+#
+# Zwei Achsen in einem Feld machen isAdmin() an 52 Stellen zweideutig. Der
+# neue Fall waere augenblicklich `isAdmin() === false` und
+# `belongsToCustomer() === true` — die Mandantenklammer setzte ihn auf
+# whereRaw('0 = 1'), und der neue Betreiber saehe eine leere Kundenliste.
+vorher_datei app/Enums/AccountType.php
+python3 - <<'PY2'
+p = 'app/Enums/AccountType.php'
+s = open(p, encoding='utf-8').read()
+alt = "    case Additional = 'additional';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = alt + "\n\n    case Operator = 'operator';"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Enums/AccountType.php "Rolle in der Mandantenachse" &&
+pruefe "Rolle in der Mandantenachse" \
+  AccountTypeAxisTest::test_neither_axis_carries_the_name_of_the_other failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountTypeAxisTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

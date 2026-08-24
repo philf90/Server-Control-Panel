@@ -40,7 +40,7 @@ und nicht bei null.
 | `accounts.type` | `admin` · `customer` · `additional` (`AccountType`) |
 | `accounts.status` | `active` · `disabled` (`AccountStatus`), mit `canSignIn()` |
 | Wer fragt `canSignIn()` | `LoginController`, `TwoFactorChallengeController`, `ImpersonationController` — **drei Stellen, alle vorhanden** |
-| Zweiter Faktor | Spalten und Einrichtungsseite da (`/settings/two-factor`), **nirgends erzwungen** |
+| Zweiter Faktor | Spalten, Einrichtungsseite **und Durchsetzung**: `RequireTwoFactor` schickt jedes Adminkonto ohne zweiten Faktor auf die Einrichtungsseite (§1.2) |
 | Sitzungen | Treiber `database`, Tabelle mit `user_id`, `ip_address`, `user_agent`, `last_activity` — **alles da, was eine Übersicht braucht** |
 | Anmeldespuren | `last_login_at`, `last_login_ip` am Konto |
 | Adminkonto anlegen | nur `srvpanel admin <adresse>` (`CreateAdmin`), mit `--generate` |
@@ -74,6 +74,25 @@ Mai die Paketquellen geändert hat, bekommt eine Zeile ohne Namen.
 **Daraus folgt Entscheidung 1 (unten): Adminkonten werden gesperrt, nicht
 gelöscht.**
 
+### 1.2 Und eine Zeile dieser Tabelle stand zuerst falsch da
+
+**Hier stand „zweiter Faktor: nirgends erzwungen".** Das war ein falsches
+Negativ: Gesucht wurde `two_factor_confirmed_at` in `app/Http/Middleware/` und
+`app/Providers/`, gefunden nichts — und daraus geschlossen, dass es keine
+Durchsetzung gibt. `RequireTwoFactor` fragt aber `$account->hasTwoFactor()`,
+eine Methode am Model, und steht seit P1 in `bootstrap/app.php`.
+
+> **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts zu
+> tun".** Der Satz steht in `CLAUDE.md` über Rückgabewerte und gilt für einen
+> `grep` genauso.
+
+Gefunden hat es kein zweiter `grep`, sondern ein **Kommentar in
+`AccountFactory`**, der beim Schreiben eines Testkontos beiläufig behauptete,
+die Middleware setze das durch. Der Widerspruch zur eigenen Tabelle war der
+Anlass nachzusehen.
+
+**Die Folge für den Plan steht in §2.5.**
+
 ---
 
 ## 2. Was A9 baut
@@ -99,8 +118,20 @@ auf `whereRaw('0 = 1')`, und der neue Betreiber sähe eine **leere Kundenliste**
 `AccountTypeAxisTest` steht seit dem 24. August als Stolperdraht davor.
 
 **Gebaut wird deshalb:** eine Spalte `role` an `accounts`, `operator` oder
-`administrator`, nicht nullable, Vorgabe `operator` für bestehende Konten (siehe
-§5.1). `AccountType::Admin` bleibt für beide.
+`administrator`. `AccountType::Admin` bleibt für beide.
+
+**Die Spalte ist `nullable` und trägt keine Vorgabe**, und beides hat denselben
+Grund: Sie bedeutet nur an einem Adminkonto etwas. `null` heisst „kein Admin"
+und nicht „noch nichts gewählt"; eine Vorgabe wie `administrator` an jedem
+Kundenkonto wäre eine Angabe, die etwas behauptet, das niemand entschieden hat.
+
+**Und die Rolle allein gewährt nichts.** `Account::isOperator()` und
+`Account::fulfils()` fragen **beide** Achsen — die Ebene und die Rolle. Ein
+Kundenkonto, das durch einen Fehler `operator` trüge, ist damit trotzdem keiner,
+und ein Adminkonto ohne Rolle genügt keiner: Wer die Migration nicht gefahren
+hat, bekommt eine Ablehnung und keine stille Vollmacht.
+
+Bestehende Adminkonten setzt die Migration auf `operator` (§5.1).
 
 ### 2.2 Die Auflösung der Gates
 
@@ -164,9 +195,21 @@ Aus der Skizze übernommen, unverändert im Umfang:
 - **IP-Beschränkung der Panel-Anmeldung.** Eine Liste von Netzen; leer heisst
   „von überall". **Sie gilt für Adminkonten**, nicht für Kunden — ein Kunde, der
   sich aus dem Urlaub nicht anmelden kann, ist ein Ausfall.
-- **Erzwungener zweiter Faktor** für Adminkonten, als Schalter. Wer ihn
-  einschaltet und selbst keinen eingerichtet hat, wird zuerst zur Einrichtung
-  geführt — sonst sperrt der Schalter seinen eigenen Urheber aus.
+- **Der zweite Faktor ist nicht Gegenstand dieser Stufe** — er ist gebaut und
+  gilt. `docs/20 §6.4` sagt „für Admins **verpflichtend**", und
+  `RequireTwoFactor` setzt genau das durch: Ein Adminkonto ohne zweiten Faktor
+  kommt über die Einrichtungsseite nicht hinaus.
+
+  **Der erste Wurf dieses Dokuments hat hier einen Schalter geplant**, weil §1
+  ihn für nicht erzwungen hielt (§1.2). Er wäre doppelt falsch gewesen: Die
+  Durchsetzung gibt es, und ein Schalter, der sie abstellt, widerspricht dem
+  Plan.
+
+  > **Ein Schalter für eine Pflicht ist keine Einstellung, sondern eine
+  > Ausnahme — und wer sie anbietet, hat die Pflicht abgeschafft.**
+
+  Was **fehlt** und in `docs/20 §6.4` steht, ist der zweite Faktor **je Plan für
+  Kunden**. Das gehört zum Plan und nicht zu A9.
 - **Sitzungsübersicht** je Konto mit „hier abmelden". Die Daten liegen in
   `sessions`; gezeigt werden IP, Gerät und letzte Aktivität.
 
@@ -313,7 +356,7 @@ und die einmalige Passwortanzeige.
 | 4 | Aussperrschutz (§3, Falle 3) und die Messung von `srvpanel admin` | der letzte Betreiber lässt sich nicht herabstufen, und der Rückweg ist **gegangen** |
 | 5 | Die Fläche: Menü, `can`-Ablage, nichts Verbotenes im Payload (§5.4) | Punkt 3 und 4 des Kriteriums, gemessen an der Antwort |
 | 6 | Bilder bei 390 und 1440 px in beiden Themes | `tests/bilder-messen.js` meldet 0 px mit ausschlagender Gegenprobe |
-| 7 | Erzwungener zweiter Faktor, IP-Beschränkung, Sitzungsübersicht | ein Schalter, der seinen eigenen Urheber nicht aussperrt |
+| 7 | IP-Beschränkung und Sitzungsübersicht (der zweite Faktor ist gebaut, §2.5) | eine IP-Beschränkung, die ihren eigenen Urheber nicht aussperrt |
 | 8 | Wächter brechen, Lauf von `tests/waechter-brechen.sh` | jeder Eingriff beisst — einzeln **und** im Lauf |
 | 9 | Der Abnahmelauf auf `cloudsrv24` | die sieben Punkte aus §6 |
 

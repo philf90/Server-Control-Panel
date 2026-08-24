@@ -6,6 +6,7 @@ namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Apt;
+use SrvPanel\Agent\AptLock;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Op;
 use SrvPanel\Agent\PhpVersions;
@@ -88,6 +89,12 @@ final class PhpVersionInstall implements Op
                 'available' => PhpVersions::available(),
             ];
         }
+
+        // **Erst hier und nicht am Anfang der Operation.** Oben steht ein
+        // Ausstieg für den Fall, dass nichts fehlt — der ruft kein apt, und
+        // eine Ablehnung dafür wäre eine für einen Lauf, der nie kollidiert
+        // hätte.
+        AptLock::ensureFree($context);
 
         $context->progress(10, 'Paketlisten auffrischen');
         $refresh = Apt::refresh($context);

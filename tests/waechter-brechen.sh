@@ -15697,6 +15697,110 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PhpSourceUriTest passed
 
 echo
+echo "── AptLockReachTest: eine Operation greift an der Paketsperre vorbei ──"
+#
+# Zwei apt-Läufe gleichzeitig enden in der dpkg-Sperre, und deren Meldung
+# versteht niemand (docs/81 §7, Falle 2). Bis zum 24. August 2026 fragte genau
+# eine der vier apt-rufenden Operationen danach — und ihre Frage sah nur die
+# eigenen abgesetzten Läufe.
+vorher_datei agent/src/Ops/PhpVersionRemove.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PhpVersionRemove.php'
+s = open(p, encoding='utf-8').read()
+alt = '        AptLock::ensureFree($context);\n\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Ops/PhpVersionRemove.php "Operation ohne Paketsperre" &&
+pruefe "Operation ohne Paketsperre" \
+  AptLockReachTest::test_every_operation_that_touches_apt_goes_through_the_lock failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptLockReachTest passed
+
+echo
+echo "── AptLockReachTest: FLOCK wird als Konflikt mitgezählt ──"
+#
+# Gemessen am 24. August 2026: PHPs `flock()` gelingt, während dpkgs
+# POSIX-Sperre gehalten wird — die beiden Familien sehen einander nicht.
+# Eine FLOCK-Zeile mitzuzählen ergäbe eine Ablehnung für einen Lauf, der
+# durchgekommen wäre.
+vorher_datei agent/src/AptLock.php
+python3 - <<'PY2'
+p = 'agent/src/AptLock.php'
+s = open(p, encoding='utf-8').read()
+alt = "private const CONFLICTING = ['POSIX', 'OFDLCK'];"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "private const CONFLICTING = ['POSIX', 'OFDLCK', 'FLOCK'];", 1))
+PY2
+griff_datei agent/src/AptLock.php "FLOCK zaehlt als Konflikt" &&
+pruefe "FLOCK zaehlt als Konflikt" \
+  AptLockReachTest::test_a_flock_entry_does_not_count failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptLockReachTest passed
+
+echo
+echo "── AptLockReachTest: der Unitname steht wieder als eigene Zeichenkette da ──"
+#
+# In PanelUpdate standen der gebaute Name und die Suche danach als zwei
+# Zeichenketten nebeneinander. Zwei Fassungen derselben Regel, und die zweite
+# ist die, die beim Umbenennen stehenbleibt.
+vorher_datei agent/src/Ops/PanelUpdate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PanelUpdate.php'
+s = open(p, encoding='utf-8').read()
+alt = 'AptLock::UNIT_PREFIX.bin2hex'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'srvpanel-update-'.bin2hex", 1))
+PY2
+griff_datei agent/src/Ops/PanelUpdate.php "Unitname als eigene Zeichenkette" &&
+pruefe "Unitname als eigene Zeichenkette" \
+  AptLockReachTest::test_the_unit_name_is_built_from_the_constant failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptLockReachTest passed
+
+echo
+echo "── AptLockReachTest: der wartende Anwärter faellt durch den Ausdruck ──"
+#
+# /proc/locks führt blockierte Anwärter als Fortsetzungszeile mit `->`. Eine
+# Datei, für die jemand ansteht, ist erst recht nicht frei — ohne den
+# Vorausblick fällt die Zeile durch.
+vorher_datei agent/src/AptLock.php
+python3 - <<'PY2'
+p = 'agent/src/AptLock.php'
+s = open(p, encoding='utf-8').read()
+alt = '(?:->\\s+)?'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/AptLock.php "Anwaerter faellt durch den Ausdruck" &&
+pruefe "Anwaerter faellt durch den Ausdruck" \
+  AptLockReachTest::test_a_waiting_process_counts_too failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptLockReachTest passed
+
+echo
+echo "── AptLockReachTest: ein fehlgeschlagenes systemctl gilt wieder als Antwort ──"
+#
+# Derselbe Befund wie M5, nur andersherum, und er stand in genau dem Code, der
+# nach AptLock gezogen ist: PanelUpdate las seit P0 nur stdout und schloss aus
+# einer leeren Ausgabe „es läuft keiner". Gemessen ohne systemd: rc=1, stdout
+# leer, die Auskunft auf stderr. Geraten wurde in die Richtung, die einen
+# kollidierenden Lauf losgehen lässt.
+vorher_datei agent/src/AptLock.php
+python3 - <<'PY2'
+p = 'agent/src/AptLock.php'
+s = open(p, encoding='utf-8').read()
+alt = 'if (! $units->successful()) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if (false) {', 1))
+PY2
+griff_datei agent/src/AptLock.php "systemctl-Fehlschlag gilt als Antwort" &&
+pruefe "systemctl-Fehlschlag gilt als Antwort" \
+  AptLockReachTest::test_a_failed_listing_is_not_an_answer failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptLockReachTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

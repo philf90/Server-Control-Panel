@@ -235,11 +235,39 @@ wert ".ucf-dist unter /etc" "$(find /etc -name '*.ucf-dist' 2>/dev/null | wc -l 
 
 # ---------------------------------------------------------------------------
 # M10 — Die Sperren, an denen ein zweiter Lauf scheitert.
+#
+# **Nachgetragen am 24. August 2026: nicht nur, ob es sie gibt, sondern ob der
+# Fühler sie sieht.** `SrvPanel\Agent\AptLock` fragt sie über `/proc/locks`,
+# zugeordnet über den Inode — und nicht über `flock()`. Gemessen: dpkg nimmt
+# eine POSIX-Sperre über `fcntl`, PHPs `flock()` spricht `flock(2)`, und die
+# beiden Familien sehen einander nicht. Ein Wächter über `flock()` meldete
+# „frei", während apt läuft.
+#
+#   Eine Sperre, die man mit dem falschen Werkzeug abfragt, meldet immer frei.
+#
+# Diese Messung bleibt **rein lesend**: Sie nimmt keine Sperre und schreibt
+# nichts. Sie beantwortet, ob `/proc/locks` auf dieser Plattform die Inodes
+# führt, an denen der Fühler hängt — auf einem Server, auf dem gerade nichts
+# läuft, ist die erwartete Antwort „keine gehalten".
 # ---------------------------------------------------------------------------
 titel "M10 — Sperren"
 for L in /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock /var/cache/apt/archives/lock; do
-    if [ -e "${L}" ]; then wert "${L}" "vorhanden"; else wert "${L}" "fehlt"; fi
+    if [ -e "${L}" ]; then
+        INO="$(stat -c '%i' "${L}" 2>/dev/null || echo '—')"
+        # Nur POSIX und OFDLCK: FLOCK ist die andere Familie und blockiert apt
+        # nicht. Das Inode-Feld von /proc/locks ist das dritte in major:minor:inode.
+        HALTER="$(awk -v ino="${INO}" '
+            { for (i = 1; i <= NF; i++) if ($i ~ /^[0-9a-f]+:[0-9a-f]+:[0-9]+$/) {
+                split($i, t, ":"); if (t[3] == ino && ($2 == "POSIX" || $2 == "OFDLCK" || $3 == "POSIX" || $3 == "OFDLCK")) c++ } }
+            END { print c + 0 }' /proc/locks 2>/dev/null)"
+        wert "${L}" "vorhanden · inode ${INO} · gehalten: ${HALTER}"
+    else
+        wert "${L}" "fehlt"
+    fi
 done
+# Gegenprobe: Der Leser findet in /proc/locks überhaupt Zeilen. Steht hier 0,
+# misst die Spalte „gehalten" oben nichts, und ihre Nullen bedeuten nichts.
+wert "Gegenprobe: Zeilen in /proc/locks" "$(wc -l < /proc/locks | tr -d ' ')"
 
 # ---------------------------------------------------------------------------
 # M11 — Die Historie, aus der A5 liest.

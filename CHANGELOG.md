@@ -19043,3 +19043,80 @@ gar keine Nummer mehr:
 > Vorgang, der `docs/73` und `docs/74` doppelt vergeben hat.**
 
 Der Lauf bekommt seine Nummer, wenn er geschrieben wird — nach einem `ls docs/`.
+
+### Zwei apt-Läufe endeten in der dpkg-Sperre — gefragt hat danach eine Operation von vieren
+
+**Schritt 2 von A1** (`docs/81 §9`), und wie Schritt 1 ein Befund an
+ausgeliefertem Code. `docs/81 §7` führt ihn als Falle 2.
+
+Gefragt hat bis zum 24. August 2026 genau `panel.update` — und **die Frage war
+die falsche**: `systemctl list-units srvpanel-update-*` sieht nur die eigenen
+abgesetzten Läufe. Ein `php.version.install` in der Warteschlange kam darin
+nicht vor, und umgekehrt sah keine der drei anderen apt-rufenden Operationen
+ein laufendes Update.
+
+Die Warteschlange trägt dabei nur die halbe Strecke: `queue:work` ist
+einspurig, aber `panel.update` setzt seinen Lauf über `systemd-run`
+**ausserhalb** ab und kehrt sofort zurück. Das Panel bedient weiter, während apt
+lädt — und in diesem Fenster ist die Kollision in beiden Richtungen offen. Was
+der Kunde davon sah, war die Meldung von dpkg.
+
+**`AptLock` ist jetzt die eine Stelle, und sie fragt die Sperre selbst.** Eine
+Liste eigener Units beantwortet „läuft einer **von uns**"; gefragt ist „ist die
+Sperre gerade frei" — und die hält auch ein Betreiber, der über SSH `apt-get`
+tippt.
+
+**Nicht über `flock()`, und das ist gemessen.** dpkg nimmt eine POSIX-Sperre
+über `fcntl`, PHPs `flock()` spricht `flock(2)` — auf Linux zwei Familien, die
+einander nicht sehen:
+
+    Halter (fcntl F_SETLK auf lock-frontend) aktiv
+    php -r 'flock(…, LOCK_EX|LOCK_NB)'  ->  gelingt
+    /proc/locks                          ->  POSIX ADVISORY WRITE 8580 fe:00:242
+
+> **Eine Sperre, die man mit dem falschen Werkzeug abfragt, meldet immer frei.**
+
+Gelesen wird deshalb `/proc/locks`: Es nimmt selbst keine Sperre — ein Fühler,
+der sperrt, ist der Fehler, den er sucht —, es braucht **kein zusätzliches
+Programm auf der Positivliste**, und es kann nicht blockieren. Zugeordnet wird
+über den **Inode** und nicht über Gerät und Inode: Die Umrechnung von `dev_t`
+in `major:minor` gilt nicht für jede Bauart, und läge sie daneben, entstünde
+ein falsches Negativ.
+
+> **Wenn eine Zuordnung schiefgehen kann, entscheidet die Richtung, in die sie
+> schiefgeht.**
+
+**Beide Fragen werden gestellt, und sie sind nicht zwei Fassungen derselben:**
+`/proc/locks` sieht auch die Kommandozeile, aber nichts, bevor apt zugegriffen
+hat; `systemctl` sieht auch das Fenster zwischen `systemd-run` und dem ersten
+Zugriff. Wer nur die erste stellt, lässt genau dieses Fenster offen.
+
+**Und welche Sperrdatei gehalten wird, hängt am Unterbefehl** — gemessen bei
+`apt-get install`: `lock-frontend`, `lock` und `archives/lock`; bei
+`apt-get update` dagegen `lists/lock`. Eine einzelne zu fragen hiesse, die
+Hälfte der Läufe nicht zu sehen.
+
+**Beim Verschieben fiel M5 ein zweites Mal an, nur andersherum.** Die alte
+Prüfung las ausschliesslich `stdout` und schloss aus einer leeren Ausgabe „es
+läuft keiner". Gemessen in einem Container ohne systemd: `rc=1`, `stdout` leer,
+die Auskunft auf `stderr`. Die Frage war damit **nicht beantwortet** — und
+geraten wurde in die Richtung, die einen kollidierenden Lauf losgehen lässt.
+
+> **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts zu tun".**
+
+Ein fehlgeschlagenes `systemctl` bricht deshalb ab, statt „nein" zu antworten.
+
+**Die Prüfung sitzt dort, wo apt gerufen wird, und nicht am Anfang der
+Operation.** `php.version.install` steigt vorher aus, wenn nichts fehlt;
+`pg.server.install` ruft apt nur im Zweig `absent`. Eine Ablehnung dort wäre
+eine für einen Lauf, der nie kollidiert hätte.
+
+**Und PHPStan hat eine Verzierung als solche gemeldet.** `AptLockReachTest`
+trug eine leere Ausnahmeliste, gedacht als Weg für `system.packages.list` —
+`array_key_exists()` gegen `array{}` ist immer falsch.
+
+> **Eine leere Positivliste ist kein Mechanismus, sondern eine Verzierung.**
+
+`tests/apt-messen.sh` misst in M10 seitdem nicht nur, ob es die vier
+Sperrdateien gibt, sondern ob `/proc/locks` sie führt — rein lesend, mit
+Gegenprobe, damit sich der Fühler auf einem echten Server nachprüfen lässt.

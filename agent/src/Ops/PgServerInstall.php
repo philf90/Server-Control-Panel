@@ -6,6 +6,7 @@ namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Apt;
+use SrvPanel\Agent\AptLock;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Op;
 use SrvPanel\Agent\Pg\Clusters;
@@ -184,6 +185,12 @@ final class PgServerInstall implements Op
      */
     private function install(Context $context): bool
     {
+        // **In diesem Zweig und nicht in execute().** `describe()` schickt die
+        // Operation je nach Vorgefundenem auch auf Wege, die apt nicht
+        // anfassen — einen vorhandenen Cluster starten etwa. Eine Ablehnung
+        // dort wäre eine für einen Lauf, der nie kollidiert hätte.
+        AptLock::ensureFree($context);
+
         $context->progress(15, 'Paketlisten auffrischen');
         $refresh = Apt::refresh($context);
 

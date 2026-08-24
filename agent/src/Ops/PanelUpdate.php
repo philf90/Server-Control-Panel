@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\AptLock;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Op;
 
@@ -41,17 +42,22 @@ final class PanelUpdate implements Op
 
     public function execute(array $args, Context $context): array
     {
-        $unit = 'srvpanel-update-'.bin2hex(random_bytes(4));
+        $unit = AptLock::UNIT_PREFIX.bin2hex(random_bytes(4));
 
-        // Läuft bereits eines? Zwei apt-Läufe gleichzeitig enden in der
-        // dpkg-Sperre, und die Meldung darüber versteht niemand.
-        $running = $context->runner->run('systemctl', ['list-units', '--plain', '--no-legend', 'srvpanel-update-*'], 15);
-
-        foreach ($running->lines() as $line) {
-            if (str_contains($line, 'running')) {
-                throw AgentException::execFailed('Es läuft bereits ein Update.');
-            }
-        }
+        /*
+         * **Die Prüfung ist am 24. August 2026 nach {@see AptLock} gezogen.**
+         *
+         * Hier stand sie seit P0 — und sie war die einzige im ganzen Agenten,
+         * obwohl drei weitere Operationen apt rufen. Sie sah ausserdem nur die
+         * eigenen abgesetzten Läufe: Ein `php.version.install` in der
+         * Warteschlange kam darin nicht vor, und ein Betreiber mit `apt-get`
+         * auf der Kommandozeile schon gar nicht.
+         *
+         * Der Unitname kommt jetzt aus derselben Konstanten, nach der gesucht
+         * wird. Vorher standen die beiden Zeichenketten nebeneinander, und die
+         * zweite ist die, die beim Umbenennen stehenbleibt.
+         */
+        AptLock::ensureFree($context);
 
         $context->progress(10, 'Update wird abgesetzt');
 

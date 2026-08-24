@@ -395,11 +395,66 @@ weg" nicht von „die Zeile ist kaputt" zu unterscheiden.
 > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
 > steht.**
 
+### Punkt 6 — das fremde `CAA` · Kriterium 6 **erfüllt**
+
+| Schritt | Zeit | Ergebnis |
+|---|---|---|
+| (a) Gegenprobe, **vor** dem Satz | 11:15:47 | `cloudlab24.de`: **kein** Hinweis |
+| (b)/(c) Satz gesetzt und in der Zone belegt | — | `cloudlab24.de. 10 IN CAA 0 issue "digicert.com"` |
+| (d) nach dem Satz | 11:16:52 | **Hinweis steht** |
+| Gegenprobe am Kind | 11:17:22 | `hier.cloudlab24.de`: **kein** Hinweis |
+
+**Der Wortlaut der Meldung:**
+
+> `cloudlab24.de — CAA erlaubt nur digicert.com. Solange letsencrypt.org nicht
+> dabeisteht, scheitert jede Bestellung.`
+
+**Sie ist eine Auskunft und keine Markierung.** Sie nennt die Domain, was erlaubt
+ist, was fehlt und die Folge — also alles, was jemand braucht, um es zu beheben,
+ohne erst nachzuschlagen.
+
+**Und (a) ist nicht Förmlichkeit.** Ohne die Messung vor dem Setzen wäre der
+Hinweis in (d) von einem, der immer dasteht, nicht zu unterscheiden.
+
+### Die benannte Grenze: kein Aufstieg zur Elternzone
+
+`hier.cloudlab24.de` zeigt **keinen** Hinweis, obwohl `cloudlab24.de` darüber
+den blockierenden Satz trägt. **Eine echte Zertifizierungsstelle klettert
+hinauf** — eine Bestellung für `hier.cloudlab24.de` würde also sehr wohl
+scheitern.
+
+Das ist **kein Fund**, sondern die Grenze, die im Kopf von `Authority`
+ausgeschrieben steht: Das Panel fragt nur die Namen, die es ohnehin prüft, und
+meldet bei leerem Satz deshalb „nichts gefunden" statt „darf".
+
+> **Ein Urteil, das eine Regel nur halb kennt, gehört als halbes gekennzeichnet
+> und nicht als ganzes ausgegeben.**
+
+Sie wäre erst dann ein Mangel, wenn die Anzeige behauptete, es dürfe ausgestellt
+werden.
+
+### Eine Beobachtung ohne Fund — und nicht in P7s Zuständigkeit
+
+`cloudlab24.de` trägt ein Zertifikat (Let's Encrypt, YR2, gültig bis
+20.11.2026). `hier.cloudlab24.de` trägt nach 35 Minuten weiter keines, und der
+Bereich sagt unverändert „Noch keine. Bestellt wird von selbst…".
+
+Das betrifft die **Zertifikatsautomatik** und nicht den DNS-Abgleich. Ob die
+Bestellung für die neuen Domains gescheitert ist oder nie lief, ist von der Seite
+aus nicht zu unterscheiden — dieselbe Beobachtung wie bei `fremd` in Punkt 2, nur
+an einem Namen, der hierher zeigt und deshalb nicht daran scheitern sollte.
+
+**Hier steht sie als Beobachtung.** Wer sie verfolgt, fängt bei den Vorgängen und
+dem Protokoll dieser Domains an.
+
 ---
 
 ## 4. Was offen ist
 
-- Die Punkte 6 bis 9 (Kriterien 6, 7 und 8).
+- Die Punkte 7 bis 9 (Kriterien 7 und 8).
+- **Der `CAA`-Satz steht** und verweigert Let's Encrypt jede Ausstellung unter
+  `cloudlab24.de`. Punkt 9 räumt ihn ab — das ist Teil des Laufs und nicht
+  Aufräumen danach.
 
 **Aus `docs/76 §4` ist damit nichts mehr offen**, was dieser Lauf hätte
 abfallen lassen sollen: Die Marke „ungeprüft" ist im Kasten, `.toggle +

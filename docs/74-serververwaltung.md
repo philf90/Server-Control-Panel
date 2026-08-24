@@ -301,11 +301,15 @@ hat SSH und root. Er kann die Quelle in dreissig Sekunden von Hand eintragen —
 was schützt ein Panel, das es ihm verbietet?
 
 **Die Antwort steht im Auftrag des Plans und nicht in der Sicherheitslehre.**
-Das Panel ist kundenfähig gedacht, und A9 bringt einen zweiten Admin und einen
-mit Nur-Lese-Recht. Ab diesem Tag ist „Quelle hinzufügen" ein Weg von *Admin*
-nach *root auf Dauer* — und zwar über eine Browsersitzung, die gestohlen werden
-kann. Der heutige Zustand mit genau einem Admin ist nicht der, für den gebaut
-wird.
+Das Panel ist kundenfähig gedacht, und A9 bringt die zweite Rolle: einen
+**Administrator**, der verwalten darf und Kritisches nicht (§11). Ab diesem Tag
+ist „Quelle hinzufügen" der kürzeste Weg von *Administrator* nach *root auf
+Dauer* — über eine Browsersitzung, die gestohlen werden kann. Der heutige
+Zustand mit genau einem Konto ist nicht der, für den gebaut wird.
+
+Das ist auch der Grund, warum die Antwort auf diese Frage nicht „der Admin hat
+ja ohnehin SSH" sein kann: **Der Administrator hat kein SSH.** Genau er ist die
+Rolle, die es hier gibt.
 
 > **Eine Handlung, die heute nichts hinzufügt, weil es nur einen Benutzer gibt,
 > fügt an dem Tag etwas hinzu, an dem es zwei gibt — und niemand sieht dann
@@ -320,26 +324,41 @@ Freitext, sondern eine Positivliste, die im Code wächst.**
 
 ### Frage 2 — Wer darf einspielen?
 
-**Anzeigen für jeden Admin, einspielen und auffrischen nur für den vollen.**
+**Beantwortet am 22. August, und vom Betreiber am selben Tag umgeworfen — zu
+Recht.** Meine Antwort lautete „voller Admin gegen Nur-Lese-Admin". Der
+Betreiber hat zwei Rollen vorgeschlagen, von denen die zweite **verwalten darf
+und Kritisches weder sieht noch bedient**. Das ist eine andere Achse:
 
-Die Trennung ist heute gegenstandslos — es gibt genau einen Admin, und A9 kommt
-erst in P9c. Genau deshalb gehört sie **jetzt** gebaut: Eine Fähigkeit
-nachträglich zu spalten heisst, an jeder Stelle zu entscheiden, auf welcher
-Seite sie lag, und das ist der Weg, auf dem eine zweite Fassung der Policy
-entsteht. Zwei Fähigkeiten von Anfang an — `packages.view` und
-`packages.manage` — kosten heute nichts.
+> **Meine Aufteilung trennte nach dem Verb, seine nach dem Gegenstand.** Ein
+> Nur-Lese-Admin ist für ein Hosting-Panel keine brauchbare Rolle — wer Kunden
+> betreut, muss anlegen und ändern dürfen. Was ihn von der Betreiberrolle
+> trennt, ist nicht *ob* er handelt, sondern *woran*.
 
-> **Eine Fähigkeit, die man später spaltet, wird an einer Stelle vergessen — und
-> die eine Stelle ist die, die niemand prüft.**
+Das Rollenmodell steht deshalb ausgeschrieben in **§11 bei A9**, weil es über
+A1 hinausgeht. Für A1 folgt daraus:
 
-**Und `refresh` gehört auf die Seite von `manage`, nicht von `view`.** Das ist
-die einzige Stelle, an der ich schwanke: Ein `apt-get update` richtet keinen
-Schaden an, und ein Support-Admin sähe damit frische Zahlen. Dagegen: Es ist
-eine mutierende Operation (§5), sie geht ins Netz, und sie lässt sich
-wiederholen. Sobald „nur lesen" die erste Ausnahme hat, ist es keine Kategorie
-mehr, sondern eine Liste. Die ehrliche Anzeige für den Nur-Lese-Admin ist die
-Zahl **mit dem Alter daneben** — „vor drei Stunden nachgesehen" ist eine
-vollständige Auskunft, kein Mangel.
+| | Betreiber | Administrator |
+|---|---|---|
+| Zahlen und Liste sehen | ja | **ja** |
+| `refresh` (Listen auffrischen) | ja | ja |
+| Updates einspielen | ja | nein |
+| Paketquellen sehen | ja | ja, ohne Schlüsselmaterial |
+| Paketquellen schalten | ja | nein |
+| Unbeaufsichtigte Updates schalten | ja | nein |
+| Neustart | ja | nein |
+
+**`refresh` wandert damit auf die Seite des Administrators**, und meine
+Begründung dagegen fällt: Sie lautete, „nur lesen" dürfe keine Ausnahme haben,
+sonst sei es keine Kategorie mehr. Diese Rolle heisst aber gar nicht „nur
+lesen" — sie darf schreiben, nur woanders. Die Ausnahme, gegen die ich
+argumentiert habe, gibt es in diesem Modell nicht.
+
+> **Ein Einwand gegen eine Kategorie fällt mit der Kategorie.**
+
+**Und die Liste sieht er vollständig.** Ein Administrator, der nicht weiss, dass
+vierzig Sicherheitsupdates offen sind, kann einen Kundenausfall nicht deuten.
+Verborgen wird die Handlung, nicht der Zustand — und das ist die Regel, an der
+sich in §11 alles ausrichtet.
 
 ### Frage 3 — Conffiles: `confold` oder abbrechen?
 
@@ -678,27 +697,138 @@ Wochen nicht mehr gelesen. Was er meldet, muss behebbar sein und nicht nur wahr.
 
 ---
 
-### A9 — Admins, Rollen, Zugang · 1 Woche
+### A9 — Zwei Rollen, Zugang · 1,5 Wochen
 
-**Was.** Ein zweiter Admin (Vertretung), ein Admin mit Nur-Lese-Recht (Support),
-IP-Beschränkung für die Panel-Anmeldung, erzwungene 2FA für Admins, und eine
+**Zuschnitt vom Betreiber, 22. August 2026.** Nicht „Admin und Nur-Lese-Admin",
+sondern zwei Rollen mit verschiedenem Gegenstand:
+
+- **Betreiber** — ist dem `root` dieses Servers nahe. Alles.
+- **Administrator** — verwaltet Kunden, Abonnements, Domains, Datenbanken. Was
+  zu kritisch ist, **sieht** er nicht und bedient er nicht.
+
+Dazu IP-Beschränkung für die Panel-Anmeldung, erzwungene 2FA, und eine
 Sitzungsübersicht mit „hier abmelden".
 
-**Warum.** Heute gibt es genau **einen** Admin. Fällt er aus oder verliert er
-sein zweites Merkmal, ist niemand mehr da.
+#### Was „kritisch" heisst
 
-**Wie es passt.** Das Rechtemodell trägt es: Autorisierung sitzt an der Aktion,
-jede Route trägt `can:`, `AbilityReachTest` prüft beide Richtungen. Es fehlt die
-Fläche.
+Drei Merkmale, und eines genügt:
 
-**Fertig, wenn** ein Nur-Lese-Admin jede Seite sieht und **keinen** Knopf — und
-`AbilityReachTest` das für alle Routen belegt, nicht für die geprüften.
+1. **Es verleiht root auf Dauer.** Paketquellen, unbeaufsichtigte Updates.
+2. **Es nimmt alle Kunden mit.** Dienste stoppen, Firewall, Neustart,
+   Systemupdates einspielen.
+3. **Es zeigt ein Geheimnis.** DNS-Zugangsdaten, SMTP-Kennwort, private
+   Schlüssel des Panels.
 
-**Die Falle.** Eine IP-Beschränkung ist das zweite Merkmal, mit dem man sich
-aussperrt (nach der Firewall). Die eigene Adresse gehört vorbelegt und der
-Zustand vor dem Speichern angezeigt.
+| Bereich | Betreiber | Administrator |
+|---|---|---|
+| Kunden, Pläne, Abonnements, Domains | ja | **ja — das ist die Arbeit** |
+| Datenbanken, Konsole, Dateien, Cron, SFTP | ja | ja |
+| Vorgänge, Protokoll | ja | ja |
+| Pakete und Updates | ja | sehen ja, einspielen nein |
+| Paketquellen | ja | sehen ohne Schlüssel, schalten nein |
+| Dienste | ja | Zustand ja, `restart`/`reload` ja, `stop`/`disable` nein |
+| Firewall, Anmeldeschutz | ja | nein — auch nicht sehen |
+| Neustart, Zeitzone des Servers | ja | nein |
+| PHP-Versionen installieren | ja | nein (§ siehe unten) |
+| Datenbank-Fernzugriff schalten | ja | nein |
+| Mailversand, DNS-Zugang, Panel-Zertifikat | ja | **nein — auch nicht sehen** |
+| Konten, Rollen, IP-Beschränkung | ja | nein |
 
----
+#### Die drei Fallen
+
+**Erstens: Verbergen ist nicht Schützen.** Wenn der Administrator die
+DNS-Zugangsdaten nicht *sieht*, aber eine Zertifikatsbestellung auslösen darf,
+die sie benutzt, ist das Geheimnis für ihn weiterhin wirksam. Geteilt wird nach
+**Wirkung**, nicht nach Bildschirm.
+
+> **Eine Seite, die man nicht sieht, ist keine Grenze, solange ein Knopf
+> daneben dasselbe bewirkt.**
+
+Deshalb steht „PHP-Versionen installieren" beim Betreiber: `php.version.install`
+ruft `apt-get install`. Der Paketname kommt zwar aus zwei Positivlisten und ist
+damit gebunden — aber es bleibt ein Weg, über den Pakete aus einer fremden
+Quelle auf die Maschine kommen. Wer Quellen nicht schalten darf, soll nicht über
+die Hintertür daraus installieren.
+
+**Zweitens: Wer Konten anlegt, legt seine eigene Rolle an.** Ein Administrator,
+der ein Konto anlegen darf, darf keinen Betreiber anlegen — sonst ist die
+Trennung eine Zierde. Und er darf sich nicht selbst befördern. Beides gehört an
+**dieselbe** Prüfung wie die Rolle selbst und nicht an eine zweite daneben.
+
+**Drittens: Die Aussperrung.** Es muss immer mindestens einen Betreiber geben.
+Der letzte lässt sich weder herabstufen noch löschen noch sperren, und die
+Meldung dazu sagt, warum. Der Rückweg, wenn es doch passiert, ist `srvpanel
+admin` auf der Kommandozeile — den gibt es (`CreateAdmin`), und er gehört in
+dieser Stufe geprüft, nicht angenommen.
+
+#### Was das am Datenmodell ändert — und was ausdrücklich nicht
+
+**`AccountType` bekommt keinen vierten Fall.** Das ist die wichtigste Zeile
+dieses Abschnitts, und sie ist am Quelltext nachgesehen:
+
+```php
+public function isAdmin(): bool          { return $this === self::Admin; }
+public function belongsToCustomer(): bool { return $this !== self::Admin; }
+```
+
+Beide sind als **Gleichheit mit einem Fall** geschrieben, nicht als
+Zugehörigkeit zu einer Menge. Ein vierter Fall `Superadmin` wäre damit
+augenblicklich `isAdmin() === false` und `belongsToCustomer() === true` — an
+**52 Stellen** in `app/` und `routes/`, die `isAdmin()` rufen. Die
+Mandantenklammer würde ihn auf `whereRaw('0 = 1')` setzen, weil er keinen
+Kunden hat.
+
+Es fiele also zur sicheren Seite — und das ist kein Trost:
+
+> **Ein Fehler, der zur sicheren Seite fällt, fällt trotzdem, und er fällt
+> leise.** Der neue Betreiber sähe eine leere Kundenliste, und niemand käme auf
+> die Idee, dass ein Enum-Fall daran schuld ist.
+
+**Der Grund dahinter ist, dass zwei Fragen in einem Feld stecken.**
+`AccountType` beantwortet „wen sieht dieses Konto" — die Mandantenfrage. Für
+Betreiber und Administrator lautet die Antwort **gleich**: den ganzen Server.
+Verschieden ist nur, was sie tun dürfen. Das sind zwei Achsen, und wer sie in
+ein Feld legt, macht `isAdmin()` an 52 Stellen zweideutig.
+
+Deshalb: **`AccountType::Admin` bleibt für beide**, und die Rolle kommt als
+eigene Angabe am Konto dazu. `isAdmin()` behält an allen 52 Stellen seine
+heutige Bedeutung — „kein Kunde" —, und die neue Unterscheidung taucht
+ausschliesslich dort auf, wo eine Fähigkeit sie braucht.
+
+**Und der Kommentar an `AccountType` wird falsch.** Dort steht heute: *„Bewusst
+kein Rollen- und Rechte-Baukasten: Drei feste Ebenen decken den Bedarf eines
+Hosting-Panels ab."* Der Satz stimmt weiterhin für die Mandantenebene und nicht
+mehr als Ganzes. Er gehört im selben Schritt umgeschrieben, in dem die Rolle
+entsteht.
+
+> **Ein Kommentar, der eine Entscheidung begründet, wird zur Falschaussage, wenn
+> die Entscheidung sich ändert — und er wird nicht mitgeändert, weil er im
+> Diff nicht auffällt.**
+
+#### Wo die Rolle durchgesetzt wird
+
+`Gate::define('manage-settings', fn ($account) => $account->isAdmin())` — **eine
+Zeile, fünfzehnmal in `routes/web.php` benutzt**, und sie deckt heute alle sechs
+Einstellungsseiten ab, die Geheimnisse tragen. Das ist die Naht: Aus dem einen
+Gate werden mehrere, entlang der Tabelle oben.
+
+**Und die Fläche folgt derselben Prüfung, nicht einer zweiten.** Ein Menüpunkt,
+den der Administrator nicht bedienen darf, wird nicht gezeigt — und die Antwort
+darauf kommt als `can`-Ablage aus derselben Policy, nicht als `v-if` auf die
+Rolle. `AbilityReachTest` prüft beide Richtungen; er bekommt die neue Rolle als
+zweiten Durchgang.
+
+**Für „auch nicht sehen" gibt es das Vorbild schon.** `OverviewController`
+verzweigt **serverseitig** und erhebt die Serverwerte für einen Kunden gar nicht
+erst — mit der Begründung, dass ein `v-if` die Daten trotzdem an den Browser
+schickt und wer die Antwort ansieht, sie liest. Dasselbe gilt hier: Was der
+Administrator nicht sehen darf, wird nicht ausgeblendet, sondern **nicht
+geschickt**.
+
+**Fertig, wenn** ein Administrator jede Seite seiner Tabelle bedienen kann, auf
+den übrigen einen 403 bekommt **und in der Inertia-Antwort dieser Seiten kein
+Feld steht, das er nicht sehen darf** — gemessen an der Antwort, nicht am Bild.
+Und wenn der letzte Betreiber sich nicht herabstufen lässt.
 
 ### A7 — Schwellen und Benachrichtigungen · 1,5 Wochen
 
@@ -790,7 +920,7 @@ Betreiber, nicht dieses Dokument:
 |---|---|---|
 | **P9a** Serververwaltung | A5, A2, A10, A1, A11, A6 | ~6 Wochen |
 | **P9b** Kundenfähigkeit | Statistik, Kundenbenachrichtigungen, Branding, API, Dokumentation | ~4 Wochen |
-| **P9c** Absicherung | A3, A4, A7, A9 | ~5 Wochen |
+| **P9c** Absicherung | A3, A4, A7, A9 | ~5,5 Wochen |
 
 **Und eine kleinere Empfehlung: A5, A2 und A10 vor P8 vorziehen.** Zusammen
 zweieinhalb Wochen, und sie machen jede Stufe danach billiger — ein

@@ -15241,6 +15241,150 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SelectorValidityTest passed
 
 echo
+echo "── ChallengeReachTest: der Ablageort liegt wieder hinter 0750 ──"
+#
+# **Der Fehler selbst, wie er bis 0.7.0 im Repo stand.** Die Pruefdatei war
+# 0644, ihre Verzeichnisse 0755, der location-Block zeigte richtig -- und der
+# nginx-Worker kam als www-data nicht durch /var/lib/srvpanel (0750
+# srvpanel:srvpanel). Die Zertifizierungsstelle las 403, und mehr als die Zahl
+# hat davon niemand gesehen.
+vorher_datei agent/src/Acme/HttpChallenge.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/HttpChallenge.php'
+s = open(p, encoding='utf-8').read()
+alt = "public const DIRECTORY = '/var/spool/srvpanel/acme-challenge';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "public const DIRECTORY = '/var/lib/srvpanel/acme-challenge';", 1))
+PY2
+griff_datei agent/src/Acme/HttpChallenge.php "Ablageort hinter 0750" &&
+pruefe "Ablageort hinter 0750" \
+  ChallengeReachTest::test_no_packaged_directory_blocks_the_way_to_the_probe_file failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ChallengeReachTest passed
+
+echo
+echo "── ChallengeReachTest: nfpm.yaml liefert den Ablageort nicht mehr aus ──"
+#
+# Ohne diesen Eingriff waere nicht belegt, dass je Quelle gefragt wird: Eine
+# Frage an die Vereinigung haelt auch dann, wenn eine der beiden Quellen blind
+# ist -- die andere zahlt fuer sie mit. Genau so war dieser Waechter beim ersten
+# Wurf gebaut, und genau so blieb er hier gruen.
+vorher_datei packaging/nfpm.yaml
+python3 - <<'PY2'
+p = 'packaging/nfpm.yaml'
+s = open(p, encoding='utf-8').read()
+alt = '  - dst: /var/spool/srvpanel/acme-challenge\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '  - dst: /var/spool/srvpanel/acme-probe\n', 1))
+PY2
+griff_datei packaging/nfpm.yaml "Ablageort fehlt in nfpm.yaml" &&
+pruefe "Ablageort fehlt in nfpm.yaml" \
+  ChallengeReachTest::test_the_probe_directory_is_shipped_by_both_sources failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ChallengeReachTest passed
+
+echo
+echo "── ChallengeReachTest: postinstall.sh richtet den Ablageort nicht nach ──"
+#
+# Die andere Haelfte desselben Satzes: nfpm.yaml legt das Verzeichnis beim
+# Entpacken an, postinstall.sh richtet bestehende Installationen nach. Fehlt das
+# eine, hat ein frisch installierter Server es nicht; fehlt das andere, ein
+# aktualisierter.
+vorher_datei packaging/scripts/postinstall.sh
+python3 - <<'PY2'
+p = 'packaging/scripts/postinstall.sh'
+s = open(p, encoding='utf-8').read()
+alt = '    install -d -o root -g root -m 0755 /var/spool/srvpanel/acme-challenge\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei packaging/scripts/postinstall.sh "Ablageort fehlt in postinstall.sh" &&
+pruefe "Ablageort fehlt in postinstall.sh" \
+  ChallengeReachTest::test_the_probe_directory_is_shipped_by_both_sources failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ChallengeReachTest passed
+
+echo
+echo "── ChallengeReachTest: die Pruefdatei entsteht nur fuer root lesbar ──"
+#
+# Die zweite Haelfte der Regel: Der Weg nuetzt nichts, wenn am Ende eine Datei
+# liegt, die der Worker nicht lesen darf. Ein Geheimnis steht nicht darin --
+# genau diese Zeichenkette soll jeder von aussen abrufen koennen.
+vorher_datei agent/src/Acme/HttpChallenge.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/HttpChallenge.php'
+s = open(p, encoding='utf-8').read()
+alt = 'chmod($file, 0o644);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'chmod($file, 0o640);', 1))
+PY2
+griff_datei agent/src/Acme/HttpChallenge.php "Pruefdatei nur fuer root" &&
+pruefe "Pruefdatei nur fuer root" \
+  ChallengeReachTest::test_the_probe_file_and_its_directory_are_created_readable failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ChallengeReachTest passed
+
+echo
+echo "── ChallengeReachTest: das Verzeichnis der Pruefdatei ohne x ──"
+#
+# Derselbe Fehler eine Ebene tiefer, und diesmal legt ihn der Agent selbst an
+# statt die Paketierung.
+vorher_datei agent/src/Acme/HttpChallenge.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/HttpChallenge.php'
+s = open(p, encoding='utf-8').read()
+alt = 'mkdir($directory, 0o755, true)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'mkdir($directory, 0o750, true)', 1))
+PY2
+griff_datei agent/src/Acme/HttpChallenge.php "Verzeichnis der Pruefdatei ohne x" &&
+pruefe "Verzeichnis der Pruefdatei ohne x" \
+  ChallengeReachTest::test_the_probe_file_and_its_directory_are_created_readable failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ChallengeReachTest passed
+
+echo
+echo "── ChallengeReachTest: ein unaufloesbarer Pfad legt sich in den Weg ──"
+#
+# „Nicht aufgeloest" sieht aus wie „nicht betroffen". Zieht eine Schleife mit
+# einer Variablen ueber den Weg zur Pruefdatei, ist die Wanderung dort blind --
+# und ohne diese Frage trotzdem gruen.
+vorher_datei packaging/scripts/postinstall.sh
+python3 - <<'PY2'
+p = 'packaging/scripts/postinstall.sh'
+s = open(p, encoding='utf-8').read()
+alt = '"/var/lib/srvpanel/storage/${part}"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '"/var/spool/${part}"', 1))
+PY2
+griff_datei packaging/scripts/postinstall.sh "unaufloesbarer Pfad im Weg" &&
+pruefe "unaufloesbarer Pfad im Weg" \
+  ChallengeReachTest::test_no_unresolved_path_lies_on_the_way_to_the_probe_file failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ChallengeReachTest passed
+
+echo
+echo "── ChallengeReachTest: die Auslese der Paketierung laeuft ins Leere ──"
+#
+# Der Pruefkoerper des Waechters selbst. Findet der Ausdruck kein Verzeichnis,
+# hat die Wanderung nichts angesehen und meldet Gruen -- eine Null ist nur dann
+# eine Messung, wenn daneben etwas anderes als Null steht.
+vorher_datei packaging/scripts/postinstall.sh
+python3 - <<'PY2'
+p = 'packaging/scripts/postinstall.sh'
+s = open(p, encoding='utf-8').read()
+alt = 'install -d -o'
+assert s.count(alt) > 5, 'Zielform nicht gefunden — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'install -D -o'))
+PY2
+griff_datei packaging/scripts/postinstall.sh "Auslese der Paketierung leer" &&
+pruefe "Auslese der Paketierung leer" \
+  ChallengeReachTest::test_no_packaged_directory_blocks_the_way_to_the_probe_file failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ChallengeReachTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

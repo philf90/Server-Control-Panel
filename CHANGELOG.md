@@ -18681,3 +18681,74 @@ CAA-Elternzone (eine Grenze, kein Mangel), „Nameserver uneinig" und „kein
 Sollzustand bekannt" als nicht herstellbare Zustände, die Grenze des Durchgangs
 — und eine Beobachtung ausserhalb von P7: Die Zertifikatsautomatik hat für die
 drei neu angelegten Domains über eine Stunde lang nichts bestellt.
+
+### Die Zertifikatsbeobachtung aus `docs/78 §5` — HTTP-01 hat nie funktioniert
+
+Die Beobachtung darüber ist nachgegangen worden, und sie war kein Warten,
+sondern ein Fehlschlag: Die Automatik **hat** bestellt, eine Sekunde nach
+`web.site.apply`, und alle drei Bestellungen sind gescheitert. Zwei davon zu
+Recht — `fremd` zeigt auf `192.0.2.1` (TEST-NET, von der Zertifizierungsstelle
+abgewiesen), `ohne` hat gar keinen `A`-Satz. Die dritte nicht:
+
+    Invalid response from
+    http://hier.cloudlab24.de/.well-known/acme-challenge/rDfTSap…: 403
+
+**Die Prüfdatei lag, und alles an ihr war richtig.** Sie steht auf `0644`, ihre
+Verzeichnisse auf `0755`, der `location`-Block zeigt mit `root` genau dorthin.
+Falsch war der **Weg**: Die Datei lag unter `/var/lib/srvpanel`, und das liefert
+das Paket seit P0 als `0750 srvpanel:srvpanel` aus. Der nginx-Worker läuft als
+`www-data`, `postinstall.sh` nimmt `srvpanel` in die Gruppe `www-data` auf und
+nicht umgekehrt — er kam nicht einmal hindurch.
+
+> **Eine Datei, die für alle lesbar ist, ist damit nicht erreichbar — der Weg zu
+> ihr entscheidet.**
+
+Gemessen auf `cloudsrv24` als Paar an einem einzigen Bit, mit derselben Datei
+und derselben Adresse: `403` · mit `o+x` auf `/var/lib/srvpanel` `200` · nach
+`o-x` wieder `403`. Im Log der Domain steht dazu `open(…) failed (13:
+Permission denied)`.
+
+**Der Ablageort ist nach `/var/spool/srvpanel/acme-challenge` gewandert** —
+dorthin, wo aus demselben Grund schon die Aufzeichnungen der Cronjobs liegen.
+`CronApply::SPOOL_DIR` nennt seit P6 wörtlich denselben Grund und dieselbe
+Antwort; für die ACME-Prüfdatei hat die Frage niemand gestellt. Die Alternative
+— `/var/lib/srvpanel` ein `o+x` geben — steht dort schon beantwortet: *Wer ein
+Verzeichnis öffnet, damit ein anderer durchkommt, öffnet es für alle, die
+vorbeikommen.*
+
+> **Ein Fehler, den man an einer Stelle vermieden hat, ist an der nächsten
+> wieder da, wenn die Vermeidung nicht die Regel wurde.**
+
+**Warum kein Test das gefunden hat:** weil keiner über die Grenze zweier Dateien
+hinweggesehen hat. Der Ablageort steht im Agenten, die Rechte seiner
+Elternverzeichnisse in der Paketierung — jede Seite für sich war in Ordnung. Das
+ist dasselbe Muster wie überall hier: eine Zeichenkette, die auf etwas verweist,
+ohne dass etwas den Bezug prüft.
+
+**`ChallengeReachTest` ist der Wächter dazu.** Er wandert vom Wurzelverzeichnis
+bis zum Ablageort und verlangt für jedes Verzeichnis, das die Paketierung
+anlegt, ein `x` für „andere"; er verlangt den Ablageort in **beiden** Quellen —
+`nfpm.yaml` legt ihn beim Entpacken an, `postinstall.sh` richtet bestehende
+Installationen nach —, und er liest die beiden Zahlen aus
+`HttpChallenge::present()` statt aus einem Kommentar daneben. Sieben Eingriffe
+in `tests/waechter-brechen.sh` stehen dafür ein, darunter der Fehler selbst.
+
+**Und beim Gegenprüfen ist der Wächter einmal grün geblieben, wo er hätte rot
+sein müssen.** Die Frage „steht der Ablageort in der Paketierung?" ging an die
+**Vereinigung** beider Quellen — ein Eingriff, der den Eintrag aus `nfpm.yaml`
+nimmt, liess ihn kalt, weil `postinstall.sh` für ihn mitzahlte.
+
+> **Eine Frage an die Vereinigung hält auch dann, wenn eine der Quellen blind
+> ist — die andere zahlt für sie mit.**
+
+Die Auslese der Paketierung steht dafür jetzt als
+`Tests\Support\ReadsPackagedDirectories` neben `ServiceDirectoryTest`, der sie
+seit `docs/67` Befund 1 benutzt: Zwei Wächter stellen an dieselben Zeilen zwei
+verschiedene Fragen, und eine zweite Fassung des Ausdrucks wäre die, die
+veraltet.
+
+**Was das für einen bestehenden Server heisst.** Den Server-Block der
+Oberfläche zieht jedes Update nach; die Blöcke der Kundendomains zeigen bis auf
+Weiteres auf den alten Ort und liefern die Prüfdatei nicht aus. Nachgezogen
+werden sie mit `srvpanel vhost --sites` — dasselbe Kommando bestellt dabei für
+jede Domain ohne Zertifikat eines, und es nennt vorher die Zahl.

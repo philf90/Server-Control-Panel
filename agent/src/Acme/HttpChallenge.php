@@ -31,8 +31,44 @@ final class HttpChallenge implements Challenge
 {
     public const TYPE = 'http-01';
 
-    /** Hier liegen die Prüfdateien aller Domains dieses Servers. */
-    public const DIRECTORY = '/var/lib/srvpanel/acme-challenge';
+    /**
+     * Hier liegen die Prüfdateien aller Domains dieses Servers.
+     *
+     * **Unter `/var/spool` und nicht unter `/var/lib/srvpanel`** — gemessen am
+     * 24. August 2026 auf `cloudsrv24`, nachdem drei frisch angelegte Domains
+     * kein Zertifikat bekamen. Die Prüfdatei steht auf `0644`, ihre
+     * Verzeichnisse auf `0755`, und ausgeliefert hat nginx trotzdem nichts:
+     * Das Paket legt `/var/lib/srvpanel` als `0750 srvpanel:srvpanel` an, der
+     * nginx-Worker läuft als `www-data`, und `www-data` gehört dieser Gruppe
+     * nicht an — `postinstall.sh` nimmt `srvpanel` in die Gruppe `www-data`
+     * auf, nicht umgekehrt. Er kam nicht einmal hindurch. Die
+     * Zertifizierungsstelle las **403** und meldete „Invalid response … : 403"
+     * — eine Zahl, in der von Rechten nichts steht.
+     *
+     * Gemessen als Paar an einem einzigen Bit: `403` · mit `o+x` auf
+     * `/var/lib/srvpanel` `200` · nach `o-x` wieder `403`, dazu im Log der
+     * Domain `open(…) failed (13: Permission denied)`.
+     *
+     * > **Eine Datei, die für alle lesbar ist, ist damit nicht erreichbar —
+     * > der Weg zu ihr entscheidet.**
+     *
+     * **Dieselbe Frage ist in P6 schon einmal gestellt und beantwortet
+     * worden**, für die Aufzeichnungen der Cronjobs: {@see
+     * \SrvPanel\Agent\Ops\CronApply::SPOOL_DIR} nennt denselben Grund und
+     * dieselbe Antwort. Hier hat sie niemand gestellt. Die Alternative wäre
+     * gewesen, `/var/lib/srvpanel` ein `o+x` zu geben — also die Rechte des
+     * Panels aufzuweichen, damit ein Fremder an einem Unterverzeichnis vorbei
+     * darf. Der Satz dagegen steht dort ebenfalls: *Wer ein Verzeichnis
+     * öffnet, damit ein anderer durchkommt, öffnet es für alle, die
+     * vorbeikommen.*
+     *
+     * **Wer diesen Wert ändert, ändert den Ablageort und die `root`-Zeile
+     * zugleich** — beide kommen von hier, siehe {@see self::nginxLocation()}.
+     * Was er nicht ändert, sind die Blöcke, die schon auf der Platte stehen:
+     * Den der Oberfläche zieht jedes Update nach, die der Kundendomains erst
+     * `srvpanel vhost --sites`.
+     */
+    public const DIRECTORY = '/var/spool/srvpanel/acme-challenge';
 
     /** Der Pfad aus der Adresse — er ist Teil des Ablageorts, siehe oben. */
     public const PREFIX = '/.well-known/acme-challenge';

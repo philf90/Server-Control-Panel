@@ -640,6 +640,51 @@ Domains über eine Stunde lang nichts bestellt.
 
 ---
 
+## Die Zertifikatsbeobachtung aus `docs/78 §5` — 24. August 2026
+
+Sie stand als „hatte nach über einer Stunde kein Zertifikat" da und war kein
+Warten, sondern ein Fehlschlag: Die Automatik hatte bestellt, eine Sekunde nach
+`web.site.apply`, und die Prüfung von ACME bekam **403**. Die Prüfdatei lag,
+stand auf `0644`, ihre Verzeichnisse auf `0755`, und der `location`-Block zeigte
+mit `root` genau dorthin. Falsch war der Weg: `/var/lib/srvpanel` ist `0750
+srvpanel:srvpanel`, der nginx-Worker läuft als `www-data`.
+
+> **Eine Datei, die für alle lesbar ist, ist damit nicht erreichbar — der Weg zu
+> ihr entscheidet.**
+
+**Dieselbe Frage war in P6 schon einmal gestellt und beantwortet** —
+`CronApply::SPOOL_DIR` nennt wörtlich denselben Grund für die Aufzeichnungen der
+Cronjobs, und dort ist die Antwort `/var/spool`. Für die ACME-Prüfdatei hat sie
+niemand gestellt. Das ist der Satz aus `docs/59` zum vierten Mal:
+
+> **Ein Fehler, den man an einer Stelle vermieden hat, ist an der nächsten
+> wieder da, wenn die Vermeidung nicht die Regel wurde.**
+
+Kein Wächter konnte ihn sehen, weil er zwischen zwei Dateien steht: Der
+Ablageort wohnt im Agenten, die Rechte seiner Elternverzeichnisse in der
+Paketierung, und jede Seite für sich war in Ordnung. `ChallengeReachTest` wandert
+jetzt vom Wurzelverzeichnis bis zum Ablageort.
+
+**Und zwei Sätze über das Messen, beide an diesem Tag bezahlt.** Der erste, weil
+der erste Griff in den Fehlerlog leer blieb — `/var/log/nginx/error.log` ist
+nicht die Datei, jede Domain hat über `SiteTemplate` ihren eigenen unter
+`/var/www/vhosts/<benutzer>/logs/<domain>/error.log`:
+
+> **Ein leerer Griff in die falsche Datei sieht aus wie ein Befund.**
+
+Der zweite, weil der frisch gebaute Wächter beim Gegenprüfen an genau der Stelle
+grün blieb, an der er hätte rot sein müssen: Seine Frage „steht der Ablageort in
+der Paketierung?" ging an die Vereinigung von `nfpm.yaml` und `postinstall.sh`.
+
+> **Eine Frage an die Vereinigung hält auch dann, wenn eine der Quellen blind
+> ist — die andere zahlt für sie mit.**
+
+**Was ein Betreiber danach von Hand tut:** `srvpanel vhost --sites`. Das Update
+zieht den Block der Oberfläche nach, die der Kundendomains nicht — und die
+zeigen bis dahin auf den alten Ort.
+
+---
+
 ## Die eine Gewohnheit, die dieses Projekt trägt
 
 **Für jede Regel gibt es einen Wächter, und der Wächter wird gegengeprüft.**
@@ -669,6 +714,8 @@ jede Regel in app.css wird von einem Template erreicht) und `PaginationTest`
 (wer paginiert, lässt auch blättern) — dazu `RedirectTargetTest` (wer
 weiterleitet, nennt das Ziel; `back()` kennt es hier nicht) und
 `PairedSeriesTest` (zwei Kurven in einem Feld teilen sich die Achse) und
+`ChallengeReachTest` (der Webserver kommt bis zur ACME-Prüfdatei — geprüft an
+den Rechten jedes Verzeichnisses auf dem Weg dorthin) und
 `HostnameSourceTest` (nur `Names` fragt den Kernel nach dem Rechnernamen) und
 `AbilityReachTest` (ein Knopf, den der Betrachter nicht drücken darf, wird nicht
 gezeigt), `NavIconTest` (jeder Menüpunkt trägt ein Zeichen, und jedes Zeichen ist

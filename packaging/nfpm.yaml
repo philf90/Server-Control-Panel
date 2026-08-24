@@ -206,6 +206,18 @@ contents:
       mode: 0755
       owner: root
       group: root
+
+  # Die Prüfdateien für HTTP-01. Aus demselben Grund unter /var/spool: nginx
+  # liefert sie als www-data aus, und /var/lib/srvpanel ist 0750
+  # srvpanel:srvpanel — der Worker käme dort nicht einmal hindurch und
+  # antwortete mit 403. Gemessen am 24. August 2026 auf einem echten Server,
+  # nachdem drei Domains kein Zertifikat bekommen hatten.
+  - dst: /var/spool/srvpanel/acme-challenge
+    type: dir
+    file_info:
+      mode: 0755
+      owner: root
+      group: root
   - dst: /var/lib/srvpanel
     type: dir
     file_info:

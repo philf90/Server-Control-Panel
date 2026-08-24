@@ -602,10 +602,47 @@ dritten: durch **Messen der Vorbereitung** statt sie vorauszusetzen, und durch
 - **Die Grenze des Durchgangs** (25 Domains, 240 Sekunden) — auf einem Server
   mit einer Handvoll Domains nicht auszulösen. Im Gestell gemessen, hier nur
   nicht widerlegt.
-- **Die Zertifikatsautomatik der neuen Domains.** `hier.cloudlab24.de` zeigt
-  hierher und hatte nach über einer Stunde kein Zertifikat, während
-  `cloudlab24.de` eines trägt. Betrifft nicht den DNS-Abgleich; wer es verfolgt,
-  fängt bei den Vorgängen und dem Protokoll dieser Domains an.
+- ~~**Die Zertifikatsautomatik der neuen Domains.**~~ **Nachgegangen am
+  24. August 2026 — es war kein Warten, sondern ein Fehlschlag.** Die Automatik
+  hat bestellt, eine Sekunde nach `web.site.apply`; die Vorgänge 660, 663 und
+  666 stehen als `acme.certificate.issue` auf `failed`. Zwei davon zu Recht:
+  `fremd` zeigt auf `192.0.2.1` (TEST-NET, von der Zertifizierungsstelle
+  abgewiesen), `ohne` hat gar keinen `A`-Satz. Der dritte nicht — für `hier`
+  stand dort:
+
+      Invalid response from
+      http://hier.cloudlab24.de/.well-known/acme-challenge/rDfTSap…: 403
+
+  Die Prüfdatei lag, sie stand auf `0644`, ihre Verzeichnisse auf `0755`, und
+  der `location`-Block zeigte mit `root` genau dorthin. Falsch war der **Weg**:
+  Die Datei lag unter `/var/lib/srvpanel`, und das ist `0750
+  srvpanel:srvpanel`; der nginx-Worker läuft als `www-data` und kam nicht
+  hindurch.
+
+  Gemessen als Paar an einem einzigen Bit, mit derselben Datei und derselben
+  Adresse: `403` · mit `o+x` auf `/var/lib/srvpanel` `200` · nach `o-x` wieder
+  `403`, dazu im Log der Domain `open(…) failed (13: Permission denied)`.
+
+  > **Eine Datei, die für alle lesbar ist, ist damit nicht erreichbar — der Weg
+  > zu ihr entscheidet.**
+
+  Ohne DNS-Zugangsdaten am Abonnement — und die hatte es nicht — ist DNS-01
+  unmöglich, HTTP-01 also der einzige Weg. Der 403 ist damit nicht *ein* Grund,
+  sondern *der* Grund.
+
+  Behoben: Der Ablageort liegt jetzt unter `/var/spool/srvpanel/acme-challenge`,
+  dort, wo aus demselben Grund schon die Aufzeichnungen der Cronjobs liegen.
+  `ChallengeReachTest` ist der Wächter, sieben Eingriffe stehen dafür ein.
+  **Auf einem bestehenden Server zeigen die Blöcke der Kundendomains bis auf
+  Weiteres auf den alten Ort** — nachgezogen werden sie mit `srvpanel vhost
+  --sites`.
+
+  Und die erste Messung dazu war keine: `grep acme-challenge
+  /var/log/nginx/error.log*` blieb leer, weil jede Domain über
+  `SiteTemplate` ihren **eigenen** Log unter
+  `/var/www/vhosts/<benutzer>/logs/<domain>/error.log` bekommt.
+
+  > **Ein leerer Griff in die falsche Datei sieht aus wie ein Befund.**
 - **Der rote Fehlerzähler der Entwicklerwerkzeuge** — unverändert offen aus
   `docs/76 §4`. Braucht den Filter „Errors only" mit Neuladen.
 - **Die drei Testdomains und ihre DNS-Einträge stehen noch.** Wer sie zurückbaut,

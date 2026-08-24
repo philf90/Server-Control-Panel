@@ -727,6 +727,89 @@ und zwar wortlos. Gemessen als Paar: `mit Klammer: 0` · `ohne Klammer: 679`.
 
 ---
 
+## Die Serververwaltung — der erste Handgriff, und er war ein Befund
+
+**Die Stufe hat noch keine Nummer.** Geplant wurde sie als „P9a", weil
+`docs/20 §9` die Serververwaltung in P9 führt; sie hängt aber zwischen P7 und
+P8, und `docs/81 §12.1` schlägt **P7b** vor. Das ist eine Planänderung an
+`docs/20 §9` und Sache des Betreibers — bis sie gefallen ist, wird die Stufe
+beim Namen genannt und nicht bei der Nummer.
+
+> **Ein Name, der eine Reihenfolge behauptet, wird falsch, wenn die Reihenfolge
+> sich ändert — und er wird trotzdem weiterbenutzt, weil er in Überschriften
+> steht.**
+
+Der Plan ist **`docs/81`** (A1 vollständig, die übrigen als Skizze), die
+Bestandsaufnahme **`docs/80`**, die Übergabe **`docs/79`**.
+
+**Angefangen wurde nicht mit einem Merkmal, sondern mit M5** — Schritt 1 aus
+`docs/81 §9`, ein Befund an Code, der seit P1 ausgeliefert ist:
+
+> **`apt-get update` gibt 0 zurück, auch wenn jede einzelne Quelle unerreichbar
+> war.** Die Fehlschläge stehen als `W:`-Zeilen auf stderr, apt arbeitet mit den
+> alten Listen weiter, und der Rückgabewert sagt nichts.
+
+Das ist keine Nachlässigkeit von apt, sondern seine Zusage: Gefragt ist nicht
+„habe ich alle Quellen erreicht", sondern „habe ich danach einen benutzbaren
+Zustand". Bis dahin stand an drei Stellen `if (! $update->successful())` und
+sonst nichts.
+
+> **Ein Rückgabewert, der einen Fehlschlag nicht tragen kann, ist keine Prüfung
+> — er ist eine Zeile, die aussieht wie eine.**
+
+`Apt` ist jetzt die eine Stelle, die `apt-get update` ruft, und liest `stderr`
+**je Quelle**. Sie entscheidet nichts — das tun die Aufrufer, und zwar
+verschieden: `php.version.install` bricht an seiner **eigenen** toten Quelle ab
+(die Adressen liest `PhpVersions::sourceUris()` aus der Datei, die
+`packaging/php-source.sh` schreibt), `pg.server.install` nennt die Ausfälle nur,
+weil es sein Depot noch nicht kennt. Nicht `--error-on=any`:
+
+> **Eine Härte, die nur einheitlich zu haben ist, gehört nicht an eine Stelle,
+> an der die Aufrufer verschieden entscheiden müssen.**
+
+**Was der Fehler anrichtete, ist die eigentliche Lehre.** Bei unerreichbarer
+Sury las der Betreiber *„Unable to locate package php8.4-fpm"* — der Zustand
+richtig gemeldet, die Ursache falsch.
+
+> **Eine Prüfung, die den Zustand fängt, hat über die Ursache nichts gesagt —
+> und der Leser sucht dort, wohin die Meldung zeigt.**
+
+**Und der Fund am Prüfmittel wiegt schwerer als der am Prüfling.** Die Messung
+zu M5 schrieb `>datei 2>&1` und zählte darin die `W:`-Zeilen. Damit war belegt,
+dass sie auf *einem der beiden* Kanäle stehen — nicht, auf welchem. Im Kopf der
+Messung stand trotzdem „sie stehen auf stderr", und genau daran hängt der neue
+Leser: Stünden sie auf stdout, fände er wortlos nichts.
+
+> **Eine Messung, die zwei Dinge zusammenwirft, belegt keines von beiden.**
+
+Nachgemessen mit getrennten Kanälen und Gegenprobe auf beiden Seiten: stdout 0
+Bytes, stderr 244, zwei `W:`-Zeilen, davon **eine** eine Quelle — die zweite ist
+die Zusammenfassung und steht einmal da, egal wie viele ausgefallen sind.
+
+**Zwei Wächter, sechs Brüche, alle einzeln belegt.** `AptResultTest` sucht
+ausdrücklich **nicht** das Wort `successful()`; er zählt die Aufrufe von
+`apt-get update` und misst die Wirkung an einem selbstgebauten Ergebnis mit
+Rückgabe 0. `PhpSourceUriTest` hält die Naht zur Paketierung — liefe sie
+auseinander, bliebe der Abbruch aus, und M5 wäre still wieder da.
+
+> **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts zu tun".**
+
+**Zwei bestehende Wächter haben dabei zugebissen**, beide beim Bauen und keiner
+in der CI: `AnchoredPatternTest` am ersten `$` ohne `D` im neuen Leser, und
+`GuardReachTest` an einem Kommentar, der `AptResultTest` nannte, bevor es ihn
+gab.
+
+**Was offen bleibt und benannt ist:** Teil 3 von M5 — `panel.update` liest nach
+dem Neustart seine eigene Fassung nach — hängt an Schritt 6 und steht bis dahin
+als Ausnahme in `AptResultTest`. **Schritt 0 ist nicht gefahren:** Die Messrunde
+fehlt auf Debian 12, Debian 13 und Ubuntu 22.04, und vier Fälle kamen im
+Container nicht vor (ein zurückgehaltenes Paket, ein Schlüssel **mit** Ablauf,
+eine Neuinstallation in `dist-upgrade`, ein `Requested-By`). Und **die Abnahme
+von Schritt 1 steht aus** — sie gehört auf einen echten Server. Im Container ist
+der Durchstich gegen echte apt-Ausgabe belegt, mehr nicht.
+
+---
+
 ## Die eine Gewohnheit, die dieses Projekt trägt
 
 **Für jede Regel gibt es einen Wächter, und der Wächter wird gegengeprüft.**

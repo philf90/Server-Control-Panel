@@ -355,13 +355,51 @@ Paket an den Systemauflöser?" — die Antwort ist ja, und zwar zu Recht.
 > **Ein Kriterium, das man am falschen Paket misst, meldet den Prüfling für
 > etwas, das er zu Recht tut.**
 
+### Punkt 4 (d) — die Änderungsprobe
+
+`fremd.cloudlab24.de` bei ipv64 von `192.0.2.1` auf `198.51.100.1` geändert,
+eine halbe Minute gewartet, „Jetzt prüfen":
+
+| Satz | Zustand | Erwartet | Gefunden |
+|---|---|---|---|
+| `A` | Zeigt woandershin | `159.195.56.255` | **`198.51.100.1`** |
+
+`Zuletzt geprüft: 2026-08-24 11:09:51`
+
+**Das belegt nicht Kriterium 4** — bei einer TTL von 10 Sekunden zeigte auch ein
+Auflöser den neuen Wert. Es belegt, dass das Panel keinen **eigenen**
+Zwischenspeicher führt, der älter wäre als seine Anzeige.
+
+> **Zwei Messungen, die man zusammenzählt, obwohl sie Verschiedenes zeigen,
+> ergeben eine Zahl, die nichts bedeutet.**
+
+### Punkt 5 — kein `AAAA` ohne IPv6 · Kriterium 5 **erfüllt**
+
+Die Übersteuerung unter Einstellungen → Allgemein auf **nur die IPv4** gesetzt,
+danach wieder geleert. Beide Male `hier.cloudlab24.de` geprüft:
+
+| | Zeilen im Abgleich |
+|---|---|
+| (c) Übersteuerung `159.195.56.255` | **eine** — `A` → Zeigt hierher (11:11:16) |
+| (d) Übersteuerung leer | **zwei** — `A` → Zeigt hierher, `AAAA` → Fehlt (11:11:53) |
+
+**Die `AAAA`-Zeile fällt nicht auf „Fehlt" — sie verschwindet.** Das ist genau
+der Unterschied, den `DesiredRecords::for()` im Kopfkommentar benennt: „hier
+fehlt etwas" gegen „danach wird nicht gefragt". Ohne IPv6 des Servers entsteht
+gar kein Sollwert, statt eines mit leerer Erwartung.
+
+**Und weil die Zeile in (d) zurückkommt, sagt (c) etwas über die Übersteuerung**
+und nicht über einen Fehler. Ohne diesen zweiten Schritt wäre „die Zeile ist
+weg" nicht von „die Zeile ist kaputt" zu unterscheiden.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
 ---
 
 ## 4. Was offen ist
 
-- Die Punkte 5 bis 9 (Kriterien 5 bis 8).
-- Punkt 4 (d) — die Änderungsprobe. Sie belegt **nicht** Kriterium 4 (das ist
-  erfüllt), sondern dass das Panel keinen eigenen Zwischenspeicher führt.
+- Die Punkte 6 bis 9 (Kriterien 6, 7 und 8).
 
 **Aus `docs/76 §4` ist damit nichts mehr offen**, was dieser Lauf hätte
 abfallen lassen sollen: Die Marke „ungeprüft" ist im Kasten, `.toggle +

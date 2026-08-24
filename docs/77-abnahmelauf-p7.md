@@ -178,8 +178,22 @@ Erinnerung.
 
 ### Punkt 1 — „zeigt hierher" (Kriterium 1)
 
-Im Panel `hier.cloudlab24.de` als Domain anlegen. **Sofort danach**, bevor der
-erste Abgleich gelaufen ist, die Domainseite öffnen.
+**Zuerst nachsehen, wann der Timer feuert:**
+
+```bash
+systemctl list-timers srvpanel-dns.timer --no-pager
+```
+
+**Steht `NEXT` weniger als zwei Minuten voraus, abwarten.** Der Timer misst alle
+15 Minuten; feuert er unmittelbar nach dem Anlegen, ist die Marke „ungeprüft"
+fort, bevor jemand sie fotografiert hat. Nach dem Feuern steht fast eine volle
+Viertelstunde zur Verfügung.
+
+> **Ein Zustand, der von selbst endet, wird nicht dadurch messbar, dass man
+> sich beeilt — sondern dadurch, dass man weiss, wann er endet.**
+
+Dann im Panel `hier.cloudlab24.de` als Domain anlegen. **Sofort danach**, bevor
+der erste Abgleich gelaufen ist, die Domainseite öffnen.
 
 **Erwartet, und das sind drei Dinge auf einmal:**
 
@@ -192,6 +206,11 @@ erste Abgleich gelaufen ist, die Domainseite öffnen.
    Knopfreihe. *Das ist der zweite Rest aus `docs/76 §4`: die Regel
    `.toggle + .button-row` greift nur in diesem Zustand, weil sonst ein
    `.section-note` dazwischensteht.* **Bild machen.**
+
+   **Dieser Zustand ist der kürzere von beiden.** `hier.cloudlab24.de` zeigt
+   hierher und die Zone trägt kein CAA — die Bestellung läuft also durch,
+   möglicherweise in unter einer Minute. Wer erst A in Ruhe fotografiert und
+   dann B sucht, findet B unter Umständen nicht mehr.
 3. Auf „Jetzt prüfen" klicken. Danach: `A` → **„Zeigt hierher"**, erwarteter und
    gefundener Wert gleich.
 

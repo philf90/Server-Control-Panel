@@ -18752,3 +18752,50 @@ Oberfläche zieht jedes Update nach; die Blöcke der Kundendomains zeigen bis au
 Weiteres auf den alten Ort und liefern die Prüfdatei nicht aus. Nachgezogen
 werden sie mit `srvpanel vhost --sites` — dasselbe Kommando bestellt dabei für
 jede Domain ohne Zertifikat eines, und es nennt vorher die Zahl.
+
+### Nachgesehen: die Prüfdatei ist erreichbar, und das Zertifikat kommt an
+
+Auf `cloudsrv24` gegen `0.7.0-rc.9`, nach `srvpanel vhost --sites` (vier
+Server-Blöcke neu geschrieben). Mit einer Prüfdatei von Hand am neuen Ort und
+über den echten Webserver: `200` auf die Datei, `404` auf einen Namen, den es
+dort nicht gibt. Alle vier Blöcke tragen dieselbe eine `root`-Zeile
+`/var/spool/srvpanel/acme-challenge`; `/var/lib/srvpanel/acme-challenge` steht
+nirgends mehr.
+
+> **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+> jemand ihn behoben hat.**
+
+**Und die Kette bis zum ausgestellten Zertifikat ebenfalls** — aber erst im
+zweiten Anlauf. Die zwei Bestellungen aus `vhost --sites` galten `p6-b.invalid`
+und `p6-abnahme.invalid` und sind zu Recht mit `rejectedIdentifier` gescheitert
+(*„Domain name does not end with a valid public suffix (TLD)"*); von den vier
+Domains dieses Servers dürfen zwei kein Zertifikat bekommen, die beiden anderen
+hatten längst eines.
+
+> **Ein Beleg für den Weg ist keiner für das Ziel.**
+
+Hergestellt wurde der fehlende Fall mit einem `A`-Satz für `tls.cloudlab24.de`
+und der Domain im Panel, sonst nichts. Vorgang 682 steht auf `succeeded`, und
+am Ende steht nicht die Statusspalte, sondern das Zertifikat selbst:
+`subject=CN = tls.cloudlab24.de`, `issuer` Let's Encrypt YR1, `notBefore` von
+derselben Minute. Das Abonnement hatte keine DNS-Zugangsdaten — HTTP-01 war
+also der einzige Weg, und genau der war es, der vorher an den Rechten
+scheiterte.
+
+**Die erste Fassung dieser Messung war keine.** Ein Platzhalter in der
+Befehlszeile blieb ungesetzt, der Aufruf lief ohne SNI gegen den Vorgabeblock,
+und heraus kam ein gültig aussehendes Zertifikat mit dem falschen Namen und
+einem `notBefore` von vorgestern.
+
+> **Ein Prüfkörper, der ohne seinen Gegenstand misst, misst etwas anderes und
+> sieht dabei aus wie ein Ergebnis.**
+
+**Und eine Falle beim Nachsehen, die eine Runde gekostet hat.** `srvpanel
+tinker` läuft ohne angemeldetes Konto, und `Operation` trägt über
+`BelongsToSubscription` die Mandantenklammer als globalen Filter. Ohne
+`withoutGlobalScopes()` steht sie auf `whereRaw('0 = 1')` — die Abfrage liefert
+null Zeilen und sagt kein Wort dazu. Gemessen als Paar: `mit Klammer: 0` ·
+`ohne Klammer: 679`.
+
+> **Eine Frage, die im Grundzustand alles verweigert, antwortet mit einer leeren
+> Liste und nicht mit einem Fehler.**

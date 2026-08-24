@@ -683,6 +683,33 @@ der Paketierung?" ging an die Vereinigung von `nfpm.yaml` und `postinstall.sh`.
 zieht den Block der Oberfläche nach, die der Kundendomains nicht — und die
 zeigen bis dahin auf den alten Ort.
 
+**Nachgesehen am 24. August gegen `0.7.0-rc.9`** (`docs/78 §5`): `200` auf die
+Prüfdatei, `404` auf einen Namen, den es dort nicht gibt, und alle vier Blöcke
+tragen dieselbe eine `root`-Zeile. Die Kette bis zum **ausgestellten**
+Zertifikat brauchte einen zweiten Anlauf — die zwei Bestellungen aus
+`vhost --sites` galten Namen unter `.invalid` und sind zu Recht abgewiesen
+worden, es gab also keinen Fall, an dem sie sich hätte zeigen können.
+
+> **Ein Beleg für den Weg ist keiner für das Ziel.**
+
+Hergestellt wurde er mit einer neuen Unterdomain: Vorgang 682 `succeeded`,
+`subject=CN = tls.cloudlab24.de`, Let's Encrypt YR1, `notBefore` von derselben
+Minute — über HTTP-01, weil das Abonnement keine DNS-Zugangsdaten trägt. Und
+die erste Fassung dieser Messung war keine: Ein ungesetzter Platzhalter liess
+`openssl` ohne SNI gegen den Vorgabeblock laufen, und heraus kam ein gültig
+aussehendes Zertifikat mit dem falschen Namen.
+
+> **Ein Prüfkörper, der ohne seinen Gegenstand misst, misst etwas anderes und
+> sieht dabei aus wie ein Ergebnis.**
+
+Und eine Falle beim Nachsehen: **`srvpanel tinker` läuft ohne angemeldetes
+Konto.** Jedes Modell mit `BelongsToSubscription` steht dort auf
+`whereRaw('0 = 1')` — ohne `withoutGlobalScopes()` kommen null Zeilen zurück,
+und zwar wortlos. Gemessen als Paar: `mit Klammer: 0` · `ohne Klammer: 679`.
+
+> **Eine Frage, die im Grundzustand alles verweigert, antwortet mit einer leeren
+> Liste und nicht mit einem Fehler.**
+
 ---
 
 ## Die eine Gewohnheit, die dieses Projekt trägt

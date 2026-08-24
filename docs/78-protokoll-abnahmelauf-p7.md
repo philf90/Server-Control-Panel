@@ -643,6 +643,47 @@ dritten: durch **Messen der Vorbereitung** statt sie vorauszusetzen, und durch
   `/var/www/vhosts/<benutzer>/logs/<domain>/error.log` bekommt.
 
   > **Ein leerer Griff in die falsche Datei sieht aus wie ein Befund.**
+
+  **Nachgesehen am 24. August 2026 auf `cloudsrv24` gegen `0.7.0-rc.9`** — weil
+  ein Befund erst als behoben gilt, wenn jemand nachgesehen hat, und nicht,
+  wenn jemand ihn behoben hat.
+
+  `srvpanel vhost --sites` hat vier Server-Blöcke neu geschrieben. Danach, mit
+  einer Prüfdatei von Hand am neuen Ort und über den echten Webserver:
+
+  | Messung | Wert |
+  |---|---|
+  | `GET …/acme-challenge/probe-ok` | **200** |
+  | `GET …/acme-challenge/gibt-es-nicht` | **404** |
+  | `grep -h "root /var" /etc/nginx/srvpanel.d/*.conf \| sort -u` | genau **eine** Prüfdatei-Zeile: `/var/spool/srvpanel/acme-challenge`, und nirgends mehr `/var/lib/srvpanel/acme-challenge` |
+
+  Die 404 daneben ist der Prüfkörper der 200: Ohne sie hiesse „200" nur, dass
+  hier irgendetwas antwortet.
+
+  **Und die Kette bis zum Zertifikat ist damit ausdrücklich *nicht* gemessen.**
+  Die zwei Bestellungen, die `vhost --sites` angestossen hat (Vorgänge 678 und
+  679), sind zu Recht gescheitert: Sie galten `p6-b.invalid` und
+  `p6-abnahme.invalid`, und die Zertifizierungsstelle antwortet dafür mit
+  `rejectedIdentifier` — *„Domain name does not end with a valid public suffix
+  (TLD)"*. Von den vier Domains dieses Servers dürfen zwei kein Zertifikat
+  bekommen, und die beiden anderen (`cloudlab24.de`, `cloudlab24.ipv64.de`)
+  haben längst eines. Es gab also keinen Fall, an dem sich eine vollständige
+  Bestellung hätte zeigen können.
+
+  > **Ein Beleg für den Weg ist keiner für das Ziel.**
+
+  Wer ihn nachholen will, legt eine neue Unterdomain unter `cloudlab24.de` an
+  und sieht der Automatik zu — dasselbe Verfahren wie in Punkt 1 dieses Laufs.
+
+  **Und eine Falle beim Nachsehen selbst, die eine Runde gekostet hat.**
+  `srvpanel tinker` läuft **ohne angemeldetes Konto**, und `Operation` trägt
+  über `BelongsToSubscription` die Mandantenklammer als globalen Filter. Ohne
+  `withoutGlobalScopes()` steht sie auf `whereRaw('0 = 1')`, die Abfrage liefert
+  null Zeilen und sagt kein Wort dazu. Gemessen als Paar: `mit Klammer: 0` ·
+  `ohne Klammer: 679`.
+
+  > **Eine Frage, die im Grundzustand alles verweigert, antwortet mit einer
+  > leeren Liste und nicht mit einem Fehler.**
 - **Der rote Fehlerzähler der Entwicklerwerkzeuge** — unverändert offen aus
   `docs/76 §4`. Braucht den Filter „Errors only" mit Neuladen.
 - **Die drei Testdomains und ihre DNS-Einträge stehen noch.** Wer sie zurückbaut,

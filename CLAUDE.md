@@ -683,6 +683,23 @@ der Paketierung?" ging an die Vereinigung von `nfpm.yaml` und `postinstall.sh`.
 zieht den Block der Oberfläche nach, die der Kundendomains nicht — und die
 zeigen bis dahin auf den alten Ort.
 
+**Nachgesehen am 24. August gegen `0.7.0-rc.9`** (`docs/78 §5`): `200` auf die
+Prüfdatei, `404` auf einen Namen, den es dort nicht gibt, und alle vier Blöcke
+tragen dieselbe eine `root`-Zeile. Die Kette bis zum **ausgestellten**
+Zertifikat ist dabei ausdrücklich nicht gemessen — die zwei Bestellungen, die
+`vhost --sites` anstiess, galten Namen unter `.invalid` und sind zu Recht
+abgewiesen worden.
+
+> **Ein Beleg für den Weg ist keiner für das Ziel.**
+
+Und eine Falle beim Nachsehen: **`srvpanel tinker` läuft ohne angemeldetes
+Konto.** Jedes Modell mit `BelongsToSubscription` steht dort auf
+`whereRaw('0 = 1')` — ohne `withoutGlobalScopes()` kommen null Zeilen zurück,
+und zwar wortlos. Gemessen als Paar: `mit Klammer: 0` · `ohne Klammer: 679`.
+
+> **Eine Frage, die im Grundzustand alles verweigert, antwortet mit einer leeren
+> Liste und nicht mit einem Fehler.**
+
 ---
 
 ## Die eine Gewohnheit, die dieses Projekt trägt

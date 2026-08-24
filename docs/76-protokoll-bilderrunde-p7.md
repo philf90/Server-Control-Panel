@@ -8,8 +8,10 @@ MacBook aus. Die Vorschrift steht in `docs/75`; sie ist Schritt 9 aus
 worden, als die erste Lage gemessen war — und nicht vorher: Solange keine
 Messung darin steht, ist ein Protokoll eine Gliederung.
 
-**Der Lauf ist nicht abgeschlossen.** Was hier steht, ist gemessen; was fehlt,
-steht in §4 als offen und nicht als erledigt.
+**Der Lauf ist abgeschlossen** — acht Befunde, alle behoben **und**
+nachgesehen; der letzte (Befund 8) am 24. August gegen `v0.7.0-rc.8`. Was in §4
+steht, sind Zustände, Fragen und Messungen, die dieser Lauf nicht hergestellt
+oder nicht ausgeschöpft hat — keine Mängel am Prüfling.
 
 ---
 

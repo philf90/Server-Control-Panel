@@ -45,14 +45,24 @@ final class RoleResolutionTest extends TestCase
     /**
      * Wo ein Adminkonto entsteht — und jede Stelle setzt eine Rolle.
      *
-     * **Die Liste ist die Regel und nicht ihre Abkürzung.** Kommt eine vierte
+     * **Die Liste ist die Regel und nicht ihre Abkürzung.** Kommt eine weitere
      * Stelle dazu, ohne hier zu stehen, meldet der Test unten, dass er sie
      * nicht kennt — statt sie stillschweigend zu übergehen.
+     *
+     * **Und genau das ist am 24. August passiert.** Schritt 3 hat mit
+     * `AccountController` die dritte Anlegestelle gebaut, und dieser Test war
+     * beim ersten Lauf danach rot. Gefunden hat sie nicht das Gedächtnis,
+     * sondern der Stolperdraht, den Schritt 2 einen Tag vorher dafür gelegt
+     * hatte.
+     *
+     * > **Ein Wächter, der eine Liste hält, zeigt seinen Wert erst an dem Tag,
+     * > an dem jemand die Liste vergisst.**
      *
      * @var list<string>
      */
     private const CREATION_SITES = [
         'app/Console/Commands/CreateAdmin.php',
+        'app/Http/Controllers/AccountController.php',
         'database/factories/AccountFactory.php',
     ];
 

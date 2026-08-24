@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Enums\AccountType;
 use App\Models\Account;
 use App\Support\Authorization\AdminAbility;
 use App\Support\Dns\AgentMeasurement;
@@ -17,6 +18,7 @@ use App\Support\Tls\AgentDnsCredentials;
 use App\Support\Tls\DnsCredentials;
 use Illuminate\Mail\MailManager;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use SrvPanel\Agent\Client;
 
@@ -101,6 +103,32 @@ final class SrvPanelServiceProvider extends ServiceProvider
                 static fn (Account $account): bool => $account->fulfils($declaration['role']),
             );
         }
+
+        /*
+         * `{admin}` in einer Route ist ein **Adminkonto** und sonst nichts.
+         *
+         * **Die zweite Falle aus `docs/82 §3` sagt, warum das hier steht und
+         * nicht im Controller:**
+         *
+         * > Die Prüfung gehört an **dieselbe** Stelle wie die Rolle und nicht
+         * > an eine zweite daneben, sonst ist sie beim nächsten Weg zum Konto
+         * > nicht dabei.
+         *
+         * `Account` trägt keine Mandantenklammer — die Klammer gilt für
+         * Abonnements und was daran hängt, nicht für Anmeldekonten. Eine
+         * gewöhnliche Bindung fände damit **jedes** Konto, und
+         * `/accounts/{id}/edit` mit der Kennung eines Kundenkontos wäre ein
+         * Formular, das dessen Rolle setzt. Vier Methoden mit derselben
+         * Vorprüfung wären dieselbe Regel an vier Stellen; die fünfte hätte sie
+         * nicht.
+         *
+         * **404 und nicht 403:** Ob es dieses Konto gibt, ist selbst eine
+         * Auskunft. Für einen Betreiber ändert das nichts — er sieht die Liste
+         * ohnehin.
+         */
+        Route::bind('admin', static fn (string $value): Account => Account::query()
+            ->where('type', AccountType::Admin)
+            ->findOrFail($value));
 
         /*
          * Die Mailkonfiguration entsteht erst, wenn wirklich eine Mail

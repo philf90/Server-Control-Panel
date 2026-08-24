@@ -192,12 +192,31 @@ Eine Seite **„Konten"** in der Gruppe „Server", **nur für den Betreiber**.
 ja/nein, letzte Anmeldung. Nur Adminkonten — Kundenkonten stehen am Kunden, und
 zwei Listen derselben Zeilen wären zwei Wege zum selben Ort.
 
-**Anlegen.** Name, Adresse, Rolle. **Kein Passwortfeld:** Das Passwort wird
-erzeugt und einmalig angezeigt, wie bei `srvpanel admin --generate`. Ein
-Betreiber, der das Passwort eines anderen Kontos wählt, kennt es danach.
+**Anlegen.** Name, Adresse, Rolle — und das Passwort über `PasswordFields`,
+dieselbe Komponente wie an jeder anderen Stelle des Panels.
+
+**Der erste Wurf dieses Absatzes war falsch.** Er plante „kein Passwortfeld: Das
+Passwort wird erzeugt und einmalig angezeigt" — also eine **zweite Bauart** für
+etwas, das dieses Panel seit P1 auf eine Art macht. Die Begründung dagegen steht
+im Kopf von `Policy::generate()` und ist älter als dieser Plan:
+
+> **Ein Passwort, das der Server erzeugt und ausliefert, steht in jedem Puffer
+> auf dem Weg** — in der Antwort, im Sitzungsspeicher, im Browser.
+> `crypto.getRandomValues` bleibt auf dem Gerät.
+
+Der Knopf „Passwort erzeugen" sitzt in `PasswordFields`, würfelt im Browser und
+zeigt das Erzeugte im Klartext. Die Zusage aus §6.1 — **einmalig angezeigt,
+danach nicht wieder abrufbar** — ist damit eingelöst, nur an einer anderen
+Stelle als geplant: **vor** dem Absenden statt danach.
+
+Was am ersten Wurf richtig war, bleibt: Der Betreiber **tippt kein Passwort
+aus**.
 
 > **Ein Passwort, das jemand für einen anderen setzt, ist ein gemeinsames
 > Geheimnis — und im Protokoll steht später nur einer von beiden.**
+
+> **Ein Plan, der für etwas Gebautes eine zweite Bauart vorsieht, hat nicht
+> entschieden — er hat nicht nachgesehen.**
 
 **Ändern.** Name, Rolle, Zustand. **Nicht die Adresse** im ersten Wurf: Sie ist
 die Anmeldung und steht im Protokoll; ihr Wechsel ist ein eigener Vorgang mit
@@ -374,8 +393,8 @@ und die einmalige Passwortanzeige.
 | 0 | Bestand messen (§1) | **erledigt** — die Tabelle oben |
 | 1 | Rolle am Konto: Migration, Enum, Model, `AccountTypeAxisTest` erweitern | ein bestehendes Adminkonto ist danach Betreiber, und `isAdmin()` bedeutet unverändert „kein Kunde" |
 | 2 | Auflösung der Gates über die Rolle **und die Anlegestellen mitziehen** | ein Administrator bekommt auf den sechs Geheimnisseiten 403 — **erledigt** |
-| 3 | Kontenverwaltung: Liste, Anlegen mit erzeugtem Passwort, Ändern, Sperren | ein zweites Adminkonto entsteht ohne SSH |
-| 4 | Aussperrschutz (§3, Falle 3) und die Messung von `srvpanel admin` | der letzte Betreiber lässt sich nicht herabstufen, und der Rückweg ist **gegangen** |
+| 3 | Kontenverwaltung: Liste, Anlegen mit erzeugtem Passwort, Ändern, Sperren | ein zweites Adminkonto entsteht ohne SSH — **erledigt** |
+| 4 | Aussperrschutz (§3, Falle 3) und die Messung von `srvpanel admin` | der Schutz ist **gebaut** (er kam mit Schritt 3, weil das Änderungsformular ihn braucht); der **Rückweg ist ungegangen** und gehört auf einen echten Server |
 | 5 | Die Fläche: Menü, `can`-Ablage, nichts Verbotenes im Payload (§5.4) | Punkt 3 und 4 des Kriteriums, gemessen an der Antwort |
 | 6 | Bilder bei 390 und 1440 px in beiden Themes | `tests/bilder-messen.js` meldet 0 px mit ausschlagender Gegenprobe |
 | 7 | IP-Beschränkung und Sitzungsübersicht (der zweite Faktor ist gebaut, §2.5) | eine IP-Beschränkung, die ihren eigenen Urheber nicht aussperrt |
@@ -396,7 +415,8 @@ abtrennen, wenn die Stufe kürzer werden soll.
 | `AdminAbilityTest` (erweitert) | Jede Adminroute gehört einer Rolle; die Voreinstellung ist der Betreiber | eine Geheimnisseite auf die schwächere Fähigkeit legen |
 | `RoleResolutionTest` | Die Gates lösen über die Rolle auf; jede Anlegestelle setzt eine Rolle, und es gibt keine vierte | die Auflösung zurückdrehen · eine Rolle weglassen · heimlich anlegen |
 | `RoleGateTest` (CI) | Administrator 403 auf den Geheimnisseiten, Betreiber 200, Konto ohne Rolle 403 | eine Seite auf die schwächere Fähigkeit legen |
-| `LastOperatorTest` | Der letzte aktive Betreiber lässt sich nicht herabstufen, sperren oder löschen | die Prüfung an einer der drei Stellen entfernen |
+| `LastOperatorTest` | Der letzte aktive Betreiber lässt sich nicht herabstufen oder sperren — und einen dritten Weg gibt es nicht | die Prüfung entfernen · eine Löschroute bauen |
+| `AccountMutationTest` | Jede **ändernde** Kontenroute fragt den Aussperrschutz oder steht mit Begründung daneben | eine neue ändernde Route ohne Prüfung · eine Ausnahme für etwas, das es nicht gibt |
 | `AdminPayloadTest` | Was eine Rolle nicht sehen darf, steht nicht in der Inertia-Antwort | ein verbotenes Feld bedingungslos mitschicken |
 
 **`LastOperatorTest` prüft alle drei Wege**, und das ist der Punkt: Eine
@@ -408,9 +428,39 @@ dieselbe Aussperrung.
 
 ---
 
+## 8a. Was Schritt 3 an der Vorschrift geändert hat
+
+**Das Löschen gibt es nicht, und deshalb prüft `LastOperatorTest` zwei Wege und
+das Fehlen des dritten.** §8 nannte drei; §9 lässt das Löschen bewusst offen.
+Beides zusammen ist eine Lücke, solange niemand sie bemerkt — also stellt der
+Wächter fest, dass keine löschende Kontenroute existiert. Wer eine baut, bekommt
+dort Rot.
+
+> **Ein Weg, den es noch nicht gibt, ist nur so lange kein Loch, wie jemand
+> merkt, dass er entsteht.**
+
+**Und §8 hatte einen Wächter zu wenig.** `LastOperatorTest` misst die Wirkung an
+den Wegen, die es beim Schreiben gab — er bliebe grün, während daneben ein
+zweiter Weg in dieselbe Aussperrung entsteht. `AccountMutationTest` stellt die
+Frage, die er nicht stellen kann, und läuft ausserdem ohne Framework.
+
+> **Ein Wächter, der die bekannten Wege prüft, sagt nichts über den nächsten,
+> den jemand baut.**
+
+---
+
 ## 9. Was benannt offen bleibt
 
 - **Der Wechsel der Anmeldeadresse** (§2.4) — bewusst nicht in diesem Wurf.
+- **Der Rückweg `srvpanel:admin` ist weiterhin ungegangen** (§3, Falle 3). Der
+  Aussperrschutz steht; ob das Kommando ein Konto, das sich selbst ausgesperrt
+  hat, wieder brauchbar macht, hat niemand nachgesehen. Das gehört auf einen
+  echten Server und ist Punkt 6 des Abnahmekriteriums.
+
+  > **Ein Rückweg, den niemand gegangen ist, ist eine Zusage und kein Weg.**
+- **Der Menüpunkt „Konten" steht auch beim Administrator** und gibt ihm einen
+  403 — wie die sechs Geheimnisseiten daneben seit Schritt 2. Das ist Schritt 5
+  und ausdrücklich kein `v-if` auf die Rolle.
 - **Das Löschen von Adminkonten** (§1.1) — solange das Protokoll den Handelnden
   über `nullOnDelete()` verliert, ist Sperren die ehrlichere Antwort. Wer es
   später bauen will, löst zuerst die Frage, wie der Name im Protokoll bleibt.

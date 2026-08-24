@@ -237,6 +237,26 @@ const navigation = computed(() => {
        */
       { name: 'Logs', href: '/logs', icon: 'logfile' },
 
+      /*
+       * **Konten steht bei „Server" und nicht bei „Verwaltung".** Wer hier
+       * steht, verwaltet diesen Server — die Liste ist ein Stück davon und
+       * nicht ein Stück Kundenverwaltung. Nebenan: „Vorgänge", „Protokoll",
+       * „Logs" sagen, *was* geschehen ist; „Konten" sagt, *wer* es darf.
+       *
+       *   Vor jedem neuen Merkmal: Wo sucht jemand diese Handlung, und steht
+       *   sie dort?
+       *
+       * **Der Eintrag steht heute auch beim Administrator, und der bekommt
+       * darauf einen 403.** Das ist kein Versehen, sondern der Zustand nach
+       * A9 Schritt 2: Diese Navigation kommt aus dem Kontotyp, und seit die
+       * Gates über die Rolle auflösen, gilt das für sechs Einträge daneben
+       * genauso — „PHP-Versionen" bis „DNS-Zugang". Schritt 5 gibt allen
+       * sieben dieselbe Antwort aus der Policy statt aus dem Kontotyp
+       * (`docs/82 §7`). Hier eine eigene Bedingung auf die Rolle zu setzen,
+       * wäre deren zweite Fassung — und die zweite veraltet.
+       */
+      { name: 'Konten', href: '/accounts', icon: 'accounts' },
+
       { name: 'Allgemein', href: '/settings/general', icon: 'general' },
       { name: 'PHP-Versionen', href: '/settings/php', icon: 'php' },
 

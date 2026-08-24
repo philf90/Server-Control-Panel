@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
@@ -166,6 +167,50 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/logs/download', [LogsController::class, 'download'])
         ->middleware('can:operate-server')
         ->name('logs.download');
+
+    /*
+     * Die Adminkonten — A9 Schritt 3.
+     *
+     * **`can:operate-server`, und daran hängt die zweite Falle aus
+     * `docs/82 §3`:** Wer Konten anlegt, legt seine eigene Rolle an. Ein
+     * Administrator, der hier hereinkäme, machte sich zum Betreiber — die
+     * Trennung wäre dann eine Zeile weit gültig und einen Klick weit nicht.
+     *
+     * **Der Parameter heisst `{admin}` und nicht `{account}`.** Er löst über
+     * {@see \App\Providers\SrvPanelServiceProvider} nur Adminkonten auf; ein
+     * Kundenkonto ergibt 404. Der Name sagt, was gebunden wird — und lässt
+     * `{account}` für den Tag frei, an dem ein Kundenkonto eine eigene Route
+     * bekommt. Eine Bindung, die `{account}` auf Adminkonten verengte, wäre
+     * für diese Route eine stille Falle.
+     */
+    Route::get('/accounts', [AccountController::class, 'index'])
+        ->middleware('can:operate-server')
+        ->name('accounts.index');
+
+    Route::get('/accounts/create', [AccountController::class, 'create'])
+        ->middleware('can:operate-server')
+        ->name('accounts.create');
+
+    Route::post('/accounts', [AccountController::class, 'store'])
+        ->middleware('can:operate-server')
+        ->name('accounts.store');
+
+    Route::get('/accounts/{admin}/edit', [AccountController::class, 'edit'])
+        ->middleware('can:operate-server')
+        ->name('accounts.edit');
+
+    Route::patch('/accounts/{admin}', [AccountController::class, 'update'])
+        ->middleware('can:operate-server')
+        ->name('accounts.update');
+
+    /*
+     * Das Zurücksetzen als eigene Route und nicht als Feld im Formular
+     * darüber: Ein Passwort, das versehentlich mitgeschickt wird, weil es im
+     * selben `PATCH` steht, ist ein Passwortwechsel, den niemand wollte.
+     */
+    Route::post('/accounts/{admin}/password', [AccountController::class, 'password'])
+        ->middleware('can:operate-server')
+        ->name('accounts.password');
 
     /*
      * Kunden — die Betreiberseite.

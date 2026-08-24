@@ -16179,6 +16179,93 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RoleResolutionTest passed
 
 echo
+echo "── AccountMutationTest: die aendernde Route fragt den Aussperrschutz nicht ──"
+#
+# Der Rueckfall von A9 Schritt 3. Ohne diese eine Zeile laesst sich der letzte
+# aktive Betreiber herabstufen oder sperren — und danach kommt niemand mehr an
+# die Einstellungen dieses Servers.
+vorher_datei app/Http/Controllers/AccountController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AccountController.php'
+s = open(p, encoding='utf-8').read()
+alt = 'if (! LastOperator::permits($admin, $role, $status)) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if (false) {', 1))
+PY2
+griff_datei app/Http/Controllers/AccountController.php "Aussperrschutz ungefragt" &&
+pruefe "Aussperrschutz ungefragt" \
+  AccountMutationTest::test_every_mutating_account_route_asks_the_guard failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountMutationTest passed
+
+echo
+echo "── AccountMutationTest: eine neue aendernde Route umgeht ihn ──"
+#
+# Der eigentliche Zweck dieses Waechters. `LastOperatorTest` misst die Wirkung
+# an den Wegen, die es beim Schreiben gab — er bliebe gruen, waehrend daneben
+# ein zweiter Weg in dieselbe Aussperrung entsteht.
+#
+#   Ein Waechter, der die bekannten Wege prueft, sagt nichts ueber den
+#   naechsten, den jemand baut.
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+alt = "    Route::post('/accounts/{admin}/password'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = ("    Route::post('/accounts/{admin}/disable', [AccountController::class, 'disable'])"
+       "->name('accounts.disable');\n\n" + alt)
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei routes/web.php "zweiter Weg zur Aussperrung" &&
+pruefe "zweiter Weg zur Aussperrung" \
+  AccountMutationTest::test_every_mutating_account_route_asks_the_guard failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountMutationTest passed
+
+echo
+echo "── AccountMutationTest: eine Ausnahme fuer eine Route, die es nicht gibt ──"
+#
+# Die Gegenrichtung der Registratur. Ohne sie waechst die Ausnahmeliste ueber
+# Jahre und entschuldigt irgendwann eine neue Methode desselben Namens.
+vorher_datei tests/Unit/AccountMutationTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/AccountMutationTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "    ];\n\n    /** Die eine Stelle"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        'destroy' => 'Gibt es nicht mehr.',\n" + alt
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Unit/AccountMutationTest.php "veraltete Ausnahme" &&
+pruefe "veraltete Ausnahme" \
+  AccountMutationTest::test_no_exception_stands_for_a_route_that_is_gone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountMutationTest passed
+
+echo
+echo "── AccountMutationTest: der Ausdruck findet keine Route mehr ──"
+#
+# Der Pruefkoerper des Waechters selbst. Ohne die Untergrenze meldete er Gruen,
+# sobald seine Zielstelle umzieht — und zwar fuer *keine* gemessene Route.
+#
+#   Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+#   steht.
+vorher_datei tests/Unit/AccountMutationTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/AccountMutationTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "accounts[^']"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "kontenXX[^']", 1))
+PY2
+griff_datei tests/Unit/AccountMutationTest.php "Ausdruck ins Leere" &&
+pruefe "Ausdruck ins Leere" \
+  AccountMutationTest::test_every_mutating_account_route_asks_the_guard failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountMutationTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

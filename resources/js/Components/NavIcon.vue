@@ -113,6 +113,16 @@ const PATHS: Record<string, string> = {
 
   // Mein Konto: eine Person.
   account: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4.5 20a7.5 7.5 0 0115 0',
+
+  /*
+   * Konten: eine Person mit einem Schlüssel — Adminkonten, nicht Kunden.
+   *
+   * Es ist bewusst weder `account` (eine Person, „Mein Konto") noch `customers`
+   * (zwei Personen). Beide gibt es schon, und ein Zeichen, das an zwei Stellen
+   * steht, sagt an der zweiten nichts mehr. Der Schlüssel ist das, was diese
+   * Liste von den anderen unterscheidet: Wer hier steht, darf an den Server.
+   */
+  accounts: 'M8.5 11.5a4 4 0 100-8 4 4 0 000 8zM2 20a6.5 6.5 0 0113 0M18 16.5a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5zM19.9 14.25H22.5M21.4 14.25v1.9',
 }
 
 const props = withDefaults(defineProps<{ name: string; size?: number }>(), { size: 17 })

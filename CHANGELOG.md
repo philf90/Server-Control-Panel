@@ -19433,3 +19433,105 @@ nicht durchgekommen**: Der Ausdruck kannte `=> AccountType::Admin` und übersah
 Zielzeile dieser Schritt umgeschrieben hat: Die Schleife über
 `AdminAbility::abilities()` heisst jetzt anders, und der Eingriff fand seinen
 Text nicht mehr.
+
+### A9 Schritt 3 — die Kontenverwaltung
+
+**Ein zweites Adminkonto entsteht ohne SSH.** Bis heute war `srvpanel:admin` der
+einzige Weg: Wer einen zweiten Menschen an das Panel lassen wollte, brauchte
+root auf dem Server — also genau die Rechte, die das Rechtemodell dem
+Administrator gerade nicht geben will.
+
+> **Ein Rechtemodell, dessen zweite Rolle sich nur mit den Rechten der ersten
+> anlegen lässt, hat keine zweite Rolle.**
+
+Die Seite „Konten" steht in der Gruppe „Server", trägt `can:operate-server` und
+kann anlegen, umbenennen, die Rolle wechseln und sperren. Gelöscht wird nicht:
+Solange das Protokoll seinen Handelnden über `nullOnDelete()` verliert, ist
+Sperren die ehrlichere Antwort — ein gesperrtes Konto kommt nicht mehr herein,
+und seine Einträge tragen weiter seinen Namen.
+
+**Der Aussperrschutz sitzt an einer Stelle und fragt nach dem Zielzustand.**
+Herabstufen und Sperren sehen im Formular verschieden aus und sind dieselbe
+Handlung; `LastOperator::permits()` bekommt deshalb Rolle und Zustand, wie sie
+*nachher* gelten sollen, und entscheidet daraus. Der naheliegende Entwurf —
+`mayDemote()` und `maySuspend()` — hätte die Frage, was eine Aussperrung ist,
+wieder in den Controller gelegt.
+
+> **Eine Prüfung, die die Handlung entgegennimmt, muss jede Handlung kennen.
+> Eine, die den Zielzustand entgegennimmt, kennt sie alle.**
+
+**Der Plan war an einer Stelle falsch, und das Panel hatte recht.** `docs/82
+§2.4` sah vor, das Passwort auf dem **Server** zu erzeugen und einmalig
+anzuzeigen — eine zweite Bauart für etwas, das dieses Panel seit P1 auf eine Art
+macht. Die Begründung dagegen steht im Kopf von `Policy::generate()` und ist
+älter als der Plan: Ein Passwort, das der Server ausliefert, steht in jedem
+Puffer auf dem Weg. Gebaut ist `PasswordFields` mit seinem Knopf, wie beim
+Anlegen eines Kunden; der Plan ist berichtigt.
+
+> **Ein Plan, der für etwas Gebautes eine zweite Bauart vorsieht, hat nicht
+> entschieden — er hat nicht nachgesehen.**
+
+**`{admin}` löst nur Adminkonten auf**, und zwar in der Routenbindung statt in
+vier Controller-Methoden. `Account` trägt keine Mandantenklammer — die gilt für
+Abonnements und was daran hängt —, eine gewöhnliche Bindung fände also jedes
+Konto, und `/accounts/{id}/edit` mit der Kennung eines Kundenkontos wäre ein
+Formular, das dessen Rolle setzt.
+
+**Zwei Wächter, und der Stolperdraht von vorgestern hat den ersten gefunden.**
+`RoleResolutionTest` war beim ersten Lauf rot: Der Controller ist die **dritte**
+Anlegestelle für Adminkonten, und die Liste kannte zwei. Gefunden hat sie nicht
+das Gedächtnis, sondern der Wächter, den Schritt 2 einen Tag vorher dafür gelegt
+hatte.
+
+`LastOperatorTest` misst die Wirkung an allen Wegen — herabstufen, sperren, und
+die Feststellung, dass es **keinen dritten gibt**: Wer eine Löschroute baut,
+bekommt dort Rot statt einer stillen dritten Tür. Dazu zwei Gegenproben, ohne
+die eine Schranke, die jede Änderung abweist, genauso bestünde.
+
+`AccountMutationTest` steht daneben und beantwortet, was jener nicht kann: Gibt
+es einen **neuen** Weg? Er hält jede ändernde Kontenroute gegen die Frage, ob
+sie den Aussperrschutz ruft — Voreinstellung „muss fragen", Ausnahmen mit
+Begründung, und in beide Richtungen geprüft.
+
+> **Ein Wächter, der die bekannten Wege prüft, sagt nichts über den nächsten,
+> den jemand baut.**
+
+**Drei bestehende Wächter haben an der neuen Fläche zugebissen**, jeder mit
+einem echten Befund: zwei fehlende deutsche Feldnamen (`role`, `status`), eine
+Beschriftung, die anders hiess als die Fehlermeldung (`E-Mail-Adresse` gegen
+„Anmeldeadresse"), und ein Klassenname ohne Eintrag im Vokabular.
+
+**Und einer davon war meiner.** Die Kontenliste brachte eine eigene Regel für
+`.ident` mit — den Namen der globalen Kennungsklasse. Sie überschrieb deren
+Schriftgrösse und machte `MobileLayoutTest` blind: Der Wächter merkt sich an der
+**letzten** `.ident`-Regel im gebauten Stylesheet, ob `overflow-wrap: anywhere`
+dabei ist, und das war seitdem die aus der Komponente.
+
+> **Eine Komponentenregel mit dem Namen einer globalen überschreibt nicht nur
+> deren Form, sondern auch die Antwort, die ein Wächter über sie bekommt.**
+
+**Zwei Befunde kamen aus der Bilderrunde, und keinen hätte ein Test gefunden.**
+
+Der erste hatte eine Zahl: Die Anmeldeadresse stand wie die Kundennummer in
+einem `<input readonly>` und lief bei 390 px um **215 px** über dessen Rand —
+das Dokument schob dabei `0`, weil ein Eingabefeld seinen Inhalt selbst rollt.
+Der Betreiber konnte die Adresse des Kontos, das er gerade ändert, nicht zu Ende
+lesen. `K-1001` hat sechs Zeichen, eine Anmeldeadresse darf 255 haben.
+
+> **Eine Zelle, die rollen darf, hat keine Obergrenze — sie hat nur keine Zahl,
+> die sich beschwert.**
+
+Der zweite hatte keine: Zwischen dem Knopf „Abbrechen" und der Überschrift
+„Passwort zurücksetzen" standen **0 px**. Zwei `<form>` auf einer Seite sind
+Geschwister unter `main.page`, und das verteilt nicht — den Abstand zwischen
+Bereichen gibt der jeweilige Behälter an *seine* Kinder. Die Überlaufmessung
+meldete in allen vier Lagen `dokument: 0`, weil nichts überläuft.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+**Was offen bleibt:** Der Menüpunkt „Konten" steht heute auch beim
+Administrator, der darauf einen 403 bekommt — wie sechs Einträge daneben seit
+Schritt 2. Die Navigation kommt aus dem Kontotyp; Schritt 5 gibt allen sieben
+dieselbe Antwort aus der Policy. Eine eigene Bedingung nur für den neuen
+Eintrag wäre deren zweite Fassung gewesen.

@@ -1009,6 +1009,12 @@ das Messmittel mit seiner Gegenprobe und die Fallen, die diesen Lauf schon
 gekostet haben — mit **`64`** als Protokoll dazu, angelegt am 19. August nach
 den ersten beiden Ansichten.
 
+Und **`79` die Übergabe an die Adminfunktionen vor P8** — der Stand des
+Projekts in Zahlen, die drei Grenzen, was dieser Container kann und was nicht
+(mit den fünf Fallen beim Bau des Wegwerf-Gestells), was für sichtbare
+Adminfunktionen im Besonderen gilt, und was der neuen Sitzung mitzugeben ist.
+Sie ersetzt den Plan der Adminfunktionen nicht — der ist anderswo entstanden.
+
 Und **`65` der Serverlauf zu `v0.6.0-rc.20`** — die elf Punkte, mit denen die
 sieben Befunde der zweiten Runde und die drei Wünsche auf einem echten Server
 geprüft werden, samt den drei Dingen, die der Aufsatz im Container

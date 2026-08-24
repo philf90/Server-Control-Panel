@@ -501,13 +501,35 @@ ist derselbe Aufruf, den die Profilseite nach dem Speichern macht, und er spart
 die Navigation. Die Farben ändern die Anordnung nicht, und beide Zeilen sind in
 jeder Zahl gleich.
 
+### Punkt 9 — der `CAA`-Satz ist abgeräumt
+
+```
+dig +noall +answer @ns1.ipv64.net cloudlab24.de CAA
+(leer)
+```
+
+Und auf `cloudlab24.de`, 11:41:22: `A` und `AAAA` beide „Zeigt hierher",
+**kein Hinweis**.
+
+**Das trägt rückwirkend Punkt 6.** Dieselbe Seite zeigte den Hinweis um 11:16:52
+und zeigt ihn um 11:41:22 nicht mehr, bei sonst identischer Anzeige. Der Hinweis
+folgt also **der Zone** und nicht einem einmal gemerkten Befund — ohne diesen
+Schritt bliebe offen, ob Punkt 6 die Wirklichkeit gemessen hat oder einen
+gespeicherten Zustand.
+
+> **Eine Anzeige, die einen Zustand meldet, muss ihn auch wieder zurücknehmen —
+> sonst hat sie ihn nicht gemessen, sondern behalten.**
+
+Damit steht die Zone wieder so, wie sie vor dem Lauf stand: kein `CAA`, und
+Let's Encrypt kann für jeden Namen unter `cloudlab24.de` wieder ausstellen.
+
 ---
 
 ## 4. Was offen ist
 
 - Punkt 8 für die drei übrigen Domainseiten (`hier`, `fremd`, `ohne`), je zwei
   Themes — sechs Lagen.
-- Punkt 9: der `CAA`-Satz steht noch.
+
 - **Der `CAA`-Satz steht** und verweigert Let's Encrypt jede Ausstellung unter
   `cloudlab24.de`. Punkt 9 räumt ihn ab — das ist Teil des Laufs und nicht
   Aufräumen danach.

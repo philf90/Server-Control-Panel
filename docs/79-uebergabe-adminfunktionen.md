@@ -5,9 +5,10 @@ mit diesem Repo noch nichts zu tun hatte und die Adminfunktionen planen und
 bauen soll, die vor P8 kommen.
 
 **Was es nicht ist.** Es ist **kein Plan für die Adminfunktionen** — der ist in
-einer eigenen Sitzung entstanden und liegt dem Betreiber vor. Dieses Dokument
-trägt den Zustand des Projekts und die Regeln, unter denen hier gebaut wird.
-Wer die beiden verwechselt, plant zweimal.
+einer eigenen Sitzung entstanden und steht seit dem 24. August als **`docs/80`**
+(der Vergleich mit Plesk und cPanel) und **`docs/81`** (der Plan, mit A1
+ausgeschrieben) im Repo. Dieses Dokument trägt den Zustand des Projekts und die
+Regeln, unter denen hier gebaut wird. Wer die beiden verwechselt, plant zweimal.
 
 > **Was man zweimal braucht, gehört ins Repo — auch wenn es keine Zeile Code
 > ist.** Deshalb steht das hier und nicht in einem Sitzungsverlauf.
@@ -404,7 +405,7 @@ gemessen**. Wer sie anfasst, fängt dort an und nicht bei null.
 
 ## 10. Was der neuen Sitzung konkret mitzugeben ist
 
-1. **Den Plan der Adminfunktionen** aus der eigenen Sitzung — dieses Dokument
+1. **Den Plan der Adminfunktionen** — `docs/80` und `docs/81`. Dieses Dokument
    ersetzt ihn nicht.
 2. **Den Zweignamen**, auf dem entwickelt werden soll.
 3. Den Hinweis, **`CLAUDE.md` zu lesen und nicht zu überfliegen** — und

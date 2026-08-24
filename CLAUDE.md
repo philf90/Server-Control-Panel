@@ -836,6 +836,32 @@ gegen die geprüft wurde.
 
 > **Eine leere Positivliste ist kein Mechanismus, sondern eine Verzierung.**
 
+**Und die Naht für A9 ist gelegt, bevor A9 gebaut wird.** `docs/20 §6.1` teilt
+die Admin-Ebene in **Betreiber** und **Administrator**; P7b baut vier
+Adminfunktionen, bevor A9 drankommt. Käme die Teilung danach, müsste jede Seite
+ihre `can`-Ablage und ihren Bildsatz ein zweites Mal bekommen — `AbilityReachTest`
+besteht darauf, dass ein Knopf, den der Betrachter nicht drücken darf, gar nicht
+gezeigt wird.
+
+Nachgezählt: 126 Routen tragen `can:`, aber nur **eine** war eine
+Adminfähigkeit. Seitdem sind es zwei — `operate-server` (11 Routen: PHP,
+Datenbank-Fernzugriff, Mailversand, Panel-Zertifikat, DNS) und
+`manage-settings` (2: die Anzeigezeitzone). **Beide lösen auf `isAdmin()` auf**;
+A9 ändert damit *eine Zeile* statt jeder Aufrufstelle.
+
+`AdminAbility` ist nach dem Vorbild von `RouteGuard` gebaut, und die
+**Voreinstellung ist der Betreiber**:
+
+> **Der Fehler fällt damit zur sicheren Seite.** Eine Seite, die versehentlich
+> zu streng ist, meldet sich beim Administrator; eine, die versehentlich zu
+> offen ist, meldet sich nie.
+
+Vier Kommentare nannten nach dem Umzug die falsche Fähigkeit — die Fehlerklasse
+dieses Projekts in ihrer harmlosesten Form:
+
+> **Ein Kommentar, der eine Fähigkeit nennt, ist derselbe Verweis wie ein `can:`
+> im Code — nur prüft ihn nichts.**
+
 **Was offen bleibt und benannt ist:** Teil 3 von M5 — `panel.update` liest nach
 dem Neustart seine eigene Fassung nach — hängt an Schritt 6 und steht bis dahin
 als Ausnahme in `AptResultTest`. **Schritt 0 ist nicht gefahren:** Die Messrunde

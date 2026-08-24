@@ -19120,3 +19120,70 @@ trug eine leere Ausnahmeliste, gedacht als Weg für `system.packages.list` —
 `tests/apt-messen.sh` misst in M10 seitdem nicht nur, ob es die vier
 Sperrdateien gibt, sondern ob `/proc/locks` sie führt — rein lesend, mit
 Gegenprobe, damit sich der Fühler auf einem echten Server nachprüfen lässt.
+
+### Zwei Adminfähigkeiten statt einer — A9s Naht, bevor A9 gebaut wird
+
+**Vorarbeit für P7b, nicht A9 selbst.** `docs/20 §6.1` teilt die Admin-Ebene in
+**Betreiber** und **Administrator**; gebaut wird das in A9. Dazwischen liegen
+vier Adminfunktionen — Logs, Dienste, Diagnose, Pakete und Updates — und
+`docs/81 §11` sagt dazu einen Satz, der teuer wird, wenn man ihn überliest:
+
+> **Wer eine Adminfunktion baut, entscheidet beim Bauen, auf welcher Seite sie
+> liegt — und nicht später.**
+
+**Teuer wird A9-zuletzt nicht an den Gates, sondern an den Bildern.**
+`AbilityReachTest` besteht darauf, dass ein Knopf, den der Betrachter nicht
+drücken darf, gar nicht gezeigt wird. Käme die Teilung nach P7b, müsste jede
+neue Seite ihre `can`-Ablage und ihren Bildsatz ein zweites Mal bekommen.
+
+**Nachgezählt am Quelltext, bevor entschieden wurde:** 126 Routen tragen `can:`,
+aber nur **eine** davon ist eine Adminfähigkeit — `manage-settings`, 13 Routen,
+sechs Einstellungsseiten. Alles andere sind Modell-Policies, über die ein
+Administrator laut der Tabelle in `docs/81 §11` ohnehin verfügen soll. Die
+Adminfläche ist also ein einziges Gate, und fünf der sechs Seiten entscheidet
+diese Tabelle wörtlich.
+
+Damit war die Teilung mechanisch statt eine Entwurfsfrage:
+
+| Fähigkeit | Rolle | Routen |
+|---|---|---|
+| `operate-server` | Betreiber | 11 — PHP-Versionen, Datenbank-Fernzugriff, Mailversand, Panel-Zertifikat, DNS-Zugang |
+| `manage-settings` | Administrator | 2 — die Anzeigezeitzone (`docs/40`) |
+
+**Beide lösen heute auf `isAdmin()` auf.** Das ist keine Verdopplung auf
+Verdacht: A9 ändert damit **eine Zeile** — die Auflösung — und keine einzige
+Aufrufstelle, keinen Schlüssel in einer `can`-Ablage, kein Bild.
+
+**Die Voreinstellung ist der Betreiber.** `AdminAbility` ist nach dem Vorbild
+von `RouteGuard` gebaut: Eine Einstellungsseite, die dem Administrator gehören
+soll, steht dort mit ihrer Begründung; alles andere fällt im Wächter durch.
+
+> **Der Fehler fällt damit zur sicheren Seite.** Eine Seite, die versehentlich
+> zu streng ist, meldet sich beim Administrator; eine, die versehentlich zu
+> offen ist, meldet sich nie.
+
+`AdminAbilityTest` hält beide Richtungen — kein Eintrag überlebt seine Route —
+und liest `routes/web.php` wie die Registratur **als Text**, damit er ohne
+Framework läuft und seine sechs Eingriffe dort belegt werden können, wo
+`vendor/` fehlt.
+
+**Vier Kommentare nannten nach dem Umzug die falsche Fähigkeit**, drei davon in
+Controllern. Das ist die Fehlerklasse dieses Projekts in ihrer harmlosesten
+Form — eine Zeichenkette, die auf etwas zeigt, ohne dass etwas den Bezug hält.
+Der Wächter prüft seitdem auch die Fähigkeiten im Fliesstext von
+`routes/web.php`.
+
+> **Ein Kommentar, der eine Fähigkeit nennt, ist derselbe Verweis wie ein `can:`
+> im Code — nur prüft ihn nichts.**
+
+**Und ein Eingriff des Bruchskripts trug die überholte Entscheidung mit.** Der
+Bruch zu `RemoteAccessTest` baut eine schreibende Route unter
+`/settings/database` ein; sie trug `can:manage-settings`. Der Eingriff biss
+weiter, aber er baute eine Route ein, die es so nicht mehr gäbe.
+
+**Gefunden hat einen Fehler in diesem Wächter sein eigener Prüfkörper:** Dem
+`preg_split` über die Routendatei fehlte der schliessende Trenner, und die
+Untergrenze meldete „Es werden kaum Einstellungsrouten gefunden".
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**

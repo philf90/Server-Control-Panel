@@ -806,9 +806,15 @@ Route::middleware('auth')->group(function (): void {
      */
     /*
      * **Serverweit und zu keinem Dienst gehörend** — der Ort, den `docs/40`
-     * verlangt hat und den es nicht gab. `can:manage-settings` wie bei den
-     * übrigen Einstellungsseiten: Es gibt kein Modell, an dem eine Policy
-     * hinge, sondern eine Fähigkeit.
+     * verlangt hat und den es nicht gab. Es gibt kein Modell, an dem eine
+     * Policy hinge, sondern eine Fähigkeit.
+     *
+     * **Und zwar `can:manage-settings` und nicht `can:operate-server`** — die
+     * einzige Einstellungsseite, für die das gilt. Sie ändert, wie ein
+     * Zeitstempel dargestellt wird, und trägt damit keines der drei Merkmale
+     * aus `docs/20 §6.1`. Die Begründung steht mit ihr in
+     * {@see \App\Support\Authorization\AdminAbility::administratorSettings()};
+     * ohne Eintrag dort fällt sie im Wächter durch.
      */
     Route::get('/settings/general', [GeneralSettingsController::class, 'show'])
         ->middleware('can:manage-settings')
@@ -819,7 +825,7 @@ Route::middleware('auth')->group(function (): void {
         ->name('settings.general.update');
 
     Route::get('/settings/php', [PhpSettingsController::class, 'show'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.php');
 
     /*
@@ -833,7 +839,7 @@ Route::middleware('auth')->group(function (): void {
      * steht.
      */
     Route::get('/settings/database', [DatabaseSettingsController::class, 'show'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.database');
 
     /*
@@ -880,20 +886,20 @@ Route::middleware('auth')->group(function (): void {
     /*
      * Mailversand über ein Relay (docs/25).
      *
-     * `can:manage-settings` ist eine Fähigkeit und keine Policy: Es gibt kein
+     * `can:operate-server` ist eine Fähigkeit und keine Policy: Es gibt kein
      * Modell, dem diese Einstellungen gehören. Die mechanische Routenprüfung
      * nimmt beide Formen an — Hauptsache, an der Route steht eine Prüfung.
      */
     Route::get('/settings/mail', [MailSettingsController::class, 'show'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.mail');
 
     Route::put('/settings/mail', [MailSettingsController::class, 'update'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.mail.update');
 
     Route::post('/settings/mail/test', [MailSettingsController::class, 'test'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.mail.test');
 
     /*
@@ -903,11 +909,11 @@ Route::middleware('auth')->group(function (): void {
      * Es gibt kein Modell, dem diese Einstellung gehört.
      */
     Route::get('/settings/tls', [TlsSettingsController::class, 'show'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.tls');
 
     Route::post('/settings/tls', [TlsSettingsController::class, 'store'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.tls.reissue');
 
     /*
@@ -918,7 +924,7 @@ Route::middleware('auth')->group(function (): void {
      * ihn nur auf der Kommandozeile.
      */
     Route::put('/settings/tls/acme', [TlsSettingsController::class, 'acme'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.tls.acme');
 
     /*
@@ -933,15 +939,15 @@ Route::middleware('auth')->group(function (): void {
      * im Klartext in der Datenbank.
      */
     Route::get('/settings/dns', [DnsSettingsController::class, 'show'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.dns');
 
     Route::put('/settings/dns', [DnsSettingsController::class, 'store'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.dns.store');
 
     Route::delete('/settings/dns', [DnsSettingsController::class, 'destroy'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.dns.forget');
 
     /*

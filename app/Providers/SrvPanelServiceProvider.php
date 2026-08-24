@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Models\Account;
+use App\Support\Authorization\AdminAbility;
 use App\Support\Dns\AgentMeasurement;
 use App\Support\Dns\Measurement;
 use App\Support\Metrics\Collector;
@@ -75,8 +76,24 @@ final class SrvPanelServiceProvider extends ServiceProvider
          * Zeile in einer Tabelle, aber niemand „besitzt" sie. Die mechanische
          * Routenprüfung nimmt `can:` in beiden Formen an; ohne diese Zeile
          * fiele die Route dort durch.
+         *
+         * **Zwei Fähigkeiten seit dem 24. August 2026, und heute eine
+         * Auflösung.** `docs/20 §6.1` teilt die Admin-Ebene in Betreiber und
+         * Administrator; gebaut wird das in A9. Bis dahin gibt es nur eine
+         * Rolle, und beide Fähigkeiten beantworten dieselbe Frage.
+         *
+         * Das ist keine Verdopplung auf Verdacht, sondern die Naht: Die Stufe
+         * P7b baut Adminfunktionen, und {@see AdminAbility} sagt, warum jede
+         * beim Bauen ihre Seite wählen muss. **A9 ändert dann diese eine
+         * Zeile** — nicht eine Aufrufstelle in `routes/web.php`, nicht einen
+         * Schlüssel in der `can`-Ablage einer Seite, kein Bild.
+         *
+         * Die Gates entstehen aus der Registratur und nicht daneben: Eine
+         * Fähigkeit, die dort nicht steht, gibt es nicht.
          */
-        Gate::define('manage-settings', static fn (Account $account): bool => $account->isAdmin());
+        foreach (array_keys(AdminAbility::abilities()) as $ability) {
+            Gate::define($ability, static fn (Account $account): bool => $account->isAdmin());
+        }
 
         /*
          * Die Mailkonfiguration entsteht erst, wenn wirklich eine Mail

@@ -801,6 +801,40 @@ Meldung dazu sagt, warum. Der Rückweg, wenn es doch passiert, ist `srvpanel
 admin` auf der Kommandozeile — den gibt es (`CreateAdmin`), und er gehört in
 dieser Stufe geprüft, nicht angenommen.
 
+#### Die Naht ist vorbereitet — seit dem 24. August 2026
+
+**Gebaut wird A9 hier; die Aufrufstellen sind schon geteilt.** Der Grund steht
+oben in §11 selbst: *Wer eine Adminfunktion baut, entscheidet beim Bauen, auf
+welcher Seite sie liegt.* P7b baut vier davon, bevor A9 drankommt — käme die
+Teilung erst danach, müsste jede Seite ihre `can`-Ablage und ihre Bilder ein
+zweites Mal bekommen, weil `AbilityReachTest` darauf besteht, dass ein Knopf,
+den der Betrachter nicht drücken darf, gar nicht gezeigt wird.
+
+Deshalb gibt es seit dem 24. August **zwei Fähigkeiten statt einer**:
+
+| Fähigkeit | Rolle | Heute |
+|---|---|---|
+| `operate-server` | Betreiber | 11 Routen: PHP-Versionen, Datenbank-Fernzugriff, Mailversand, Panel-Zertifikat, DNS-Zugang |
+| `manage-settings` | Administrator | 2 Routen: die Anzeigezeitzone (`docs/40`) |
+
+**Beide lösen auf `isAdmin()` auf**, weil es nur eine Rolle gibt. Was A9 ändert,
+ist **eine Zeile** — die Auflösung in `SrvPanelServiceProvider` —, und keine
+einzige Aufrufstelle, kein Schlüssel in einer `can`-Ablage und kein Bild.
+
+Die Zuordnung wohnt in `App\Support\Authorization\AdminAbility`, gebaut nach
+dem Vorbild von `RouteGuard`: **Die Voreinstellung ist der Betreiber**, und eine
+Einstellungsseite, die ihm nicht gehört, steht dort mit ihrer Begründung.
+`AdminAbilityTest` hält beide Richtungen — kein Eintrag überlebt seine Route,
+und keine Seite entkommt der Entscheidung.
+
+> **Der Fehler fällt damit zur sicheren Seite.** Eine Seite, die versehentlich
+> zu streng ist, meldet sich beim Administrator; eine, die versehentlich zu
+> offen ist, meldet sich nie.
+
+Was A9 dann noch zu tun hat: die Rolle am Konto, die Auflösung der beiden Gates,
+die drei Fallen unten — und die Fähigkeiten, die P7b bis dahin dazugelegt hat,
+in derselben Registratur.
+
 #### Was das am Datenmodell ändert — und was ausdrücklich nicht
 
 **`AccountType` bekommt keinen vierten Fall.** Das ist die wichtigste Zeile

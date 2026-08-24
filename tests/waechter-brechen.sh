@@ -4909,7 +4909,10 @@ s = open(p, encoding='utf-8').read()
 s = s.replace(
     "    Route::get('/settings/database', [DatabaseSettingsController::class, 'show'])",
     "    Route::put('/settings/database', [DatabaseSettingsController::class, 'show'])\n"
-    "        ->middleware('can:manage-settings')\n"
+    # Seit dem 24. August die Betreiber-Faehigkeit: Der Fernzugriff nimmt alle
+    # Kunden mit (docs/20 §6.1). Eingebaut wird damit eine Route, die es so
+    # wirklich gaebe — und nicht eine mit einer ueberholten Entscheidung.
+    "        ->middleware('can:operate-server')\n"
     "        ->name('settings.database.switch');\n\n"
     "    Route::get('/settings/database', [DatabaseSettingsController::class, 'show'])",
 )
@@ -15799,6 +15802,111 @@ pruefe "systemctl-Fehlschlag gilt als Antwort" \
   AptLockReachTest::test_a_failed_listing_is_not_an_answer failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AptLockReachTest passed
+
+echo
+echo "── AdminAbilityTest: eine geheimnistragende Seite faellt auf die schwaechere Faehigkeit zurueck ──"
+#
+# Die DNS-Zugangsdaten sind ein Geheimnis (docs/20 §6.1, Merkmal 3). Wer sie
+# hinter `can:manage-settings` legt, gibt sie mit A9 dem Administrator — und
+# zwar still, weil heute beide Faehigkeiten dasselbe beantworten.
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+alt = """Route::get('/settings/dns', [DnsSettingsController::class, 'show'])
+        ->middleware('can:operate-server')"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = alt.replace("'can:operate-server'", "'can:manage-settings'")
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei routes/web.php "Geheimnisseite mit schwaecherer Faehigkeit" &&
+pruefe "Geheimnisseite mit schwaecherer Faehigkeit" \
+  AdminAbilityTest::test_a_settings_route_belongs_to_the_operator_unless_declared failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminAbilityTest passed
+
+echo
+echo "── AdminAbilityTest: eine Erklaerung ueberlebt ihre Route ──"
+#
+# Die zweite Richtung, dieselbe wie bei RouteGuard: Ohne sie waechst die
+# Registratur ueber Jahre und deckt irgendwann eine Seite, an die niemand mehr
+# gedacht hat.
+vorher_datei app/Support/Authorization/AdminAbility.php
+python3 - <<'PY2'
+p = 'app/Support/Authorization/AdminAbility.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'settings/general' =>"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = ("            'settings/gibtsnicht' => 'Eine Begruendung, die lang genug ist, um als eine zu gelten.',\n"
+       "            'settings/general' =>")
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Authorization/AdminAbility.php "Erklaerung ohne Route" &&
+pruefe "Erklaerung ohne Route" \
+  AdminAbilityTest::test_no_declaration_outlives_its_route failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminAbilityTest passed
+
+echo
+echo "── AdminAbilityTest: ein Gate steht neben der Registratur ──"
+#
+# Eine Faehigkeit mit eigenem Gate::define hat keine Rolle und keine
+# Begruendung — und mit A9 keine Seite, auf der sie liegt. Gemerkt haette es
+# niemand, weil sie funktioniert.
+vorher_datei app/Providers/SrvPanelServiceProvider.php
+python3 - <<'PY2'
+p = 'app/Providers/SrvPanelServiceProvider.php'
+s = open(p, encoding='utf-8').read()
+alt = '        foreach (array_keys(AdminAbility::abilities()) as $ability) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = ("        Gate::define('manage-firewall', static fn (Account $account): bool => $account->isAdmin());\n\n"
+       + alt)
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Providers/SrvPanelServiceProvider.php "Gate neben der Registratur" &&
+pruefe "Gate neben der Registratur" \
+  AdminAbilityTest::test_no_gate_is_defined_beside_the_registry failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminAbilityTest passed
+
+echo
+echo "── AdminAbilityTest: eine Route nennt eine Faehigkeit, die es nicht gibt ──"
+#
+# Derselbe Fehler wie ueberall in diesem Projekt: eine Zeichenkette, die auf
+# etwas zeigt, ohne dass etwas den Bezug haelt. Ein `can:` mit Tippfehler laesst
+# Laravel die Faehigkeit verweigern — und die Seite ist fuer alle zu.
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+alt = "'can:operate-server'"
+assert s.count(alt) >= 1, 'Zielstelle fehlt — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'can:operate-servers'", 1))
+PY2
+griff_datei routes/web.php "Faehigkeit mit Tippfehler" &&
+pruefe "Faehigkeit mit Tippfehler" \
+  AdminAbilityTest::test_no_ability_named_in_the_routes_points_nowhere failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminAbilityTest passed
+
+echo
+echo "── AdminAbilityTest: eine Rolle, die es in docs/20 §6.1 nicht gibt ──"
+#
+# Die Admin-Ebene hat genau zwei Rollen. Eine dritte hier einzutragen ist der
+# Anfang eines Rechte-Baukastens, und der ist ausdruecklich nicht das Modell.
+vorher_datei app/Support/Authorization/AdminAbility.php
+python3 - <<'PY2'
+p = 'app/Support/Authorization/AdminAbility.php'
+s = open(p, encoding='utf-8').read()
+alt = "public const OPERATOR = 'operator';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "public const OPERATOR = 'superadmin';", 1))
+PY2
+griff_datei app/Support/Authorization/AdminAbility.php "dritte Rolle in der Registratur" &&
+pruefe "dritte Rolle in der Registratur" \
+  AdminAbilityTest::test_every_ability_belongs_to_one_of_the_two_roles failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminAbilityTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

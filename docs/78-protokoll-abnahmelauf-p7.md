@@ -142,13 +142,90 @@ Messung.
 
 ---
 
-## 3. Die Lagen
+## 3. Der Lauf
 
-*Noch keine — der Lauf beginnt mit Punkt 0.*
+### Punkt 0 — Die Fassung
+
+```
+readlink -f /opt/srvpanel/current
+/opt/srvpanel/releases/0.7.0-rc.8
+
+/opt/srvpanel/current/artisan --version
+Laravel Framework 13.23.0
+```
+
+Im Menü des Panels steht `0.7.0-rc.8`. **Beide Quellen stimmen überein** — das
+ist die Fassung, gegen die dieser Lauf misst.
+
+### Punkt 1 — „zeigt hierher" · Kriterium 1 **erfüllt**
+
+**Der Timer stand günstig.** `systemctl list-timers` vor dem Anlegen:
+
+```
+NEXT                            LEFT   LAST                            PASSED
+Mon 2026-08-24 10:46:11 CEST    7min   Mon 2026-08-24 10:30:45 CEST    8min ago
+```
+
+Sieben Minuten Fenster für die beiden flüchtigen Zustände.
+
+**Der Abgleich nach „Jetzt prüfen":**
+
+| Name | Satz | Zustand | Erwartet | Gefunden |
+|---|---|---|---|---|
+| `hier.cloudlab24.de` | `A` | **Zeigt hierher** | `159.195.56.255` | `159.195.56.255` |
+| `hier.cloudlab24.de` | `AAAA` | Fehlt | `2a0a:4cc0:c1:ebd1:b82d:51ff:fe72:3083` | – |
+
+`Zuletzt geprüft: 2026-08-24 10:40:39 · gefragt wurden 159.69.110.93,
+167.235.231.182`
+
+**Kriterium 1 ist erfüllt.** Die beiden gefragten Adressen sind genau die
+autoritativen aus §1.3.
+
+**Drei Dinge fallen nebenbei ab:**
+
+1. **`AAAA` → „Fehlt" ist richtig** und nicht etwa ein Rest: Der Server führt
+   IPv6, die Zone trägt aber nur einen `A`-Satz. Das ist zugleich die
+   **Ausgangslage für Punkt 5** — dort muss diese Zeile nach der Übersteuerung
+   ganz **verschwinden** statt auf „Fehlt" stehenzubleiben. Der Kontrast ist
+   damit schärfer als geplant: nicht „Fehlt gegen Fehlt", sondern „Zeile gegen
+   keine Zeile".
+2. **Der Zeitpunkt 10:40:39 liegt zwischen den Timerläufen** (10:30:45 und
+   10:46:11). Der Knopf misst also auf Zuruf und nicht aus einem Bestand — was
+   `docs/74 §6` schon belegt hatte und hier nebenbei noch einmal dasteht.
+3. **Die Uhrzeit ist lokal** (der Timer meldet CEST). Punkt 7 misst das sauber.
+
+### Die beiden flüchtigen Zustände aus `docs/76 §4`
+
+**Die Marke „ungeprüft" ist im Kasten.** In der Domainliste stand
+`hier.cloudlab24.de · Zusatzdomain · p6-b.invalid · 8.3 · ungeprüft · aktiv`.
+
+Sie lebt nur zwischen dem Anlegen und dem ersten Abgleich, und ihre Herstellung
+kostet sonst einen Zertifikat-Fehlversuch. Hier ist sie kostenlos abgefallen —
+genau wie `docs/76 §4` es vorgesehen hat.
+
+> **Ein Zustand, dessen Herstellung ein Kontingent kostet, wird dort geprüft, wo
+> er ohnehin entsteht.**
+
+**Der zweite Zustand — `.toggle + .button-row` — ist im Markup gegeben.** Auf
+der Seite einer Domain ohne Zertifikat gilt:
+
+- `alsPlatzhalter` ist falsch (das Kästchen trägt „nicht möglich" und ist
+  gesperrt: keine DNS-Zugangsdaten),
+- `props.certificate` ist `null`,
+
+und damit rendert **keiner** der beiden `.section-note` dazwischen. Der Text, der
+im Bild zwischen Kästchen und Knopf steht, liegt **innerhalb** des
+`<label class="toggle">` als `.hint` und `.hint.obstacle`.
+
+*Ob die Regel damit auch wirkt, wird gemessen — das Bild allein belegt es nicht.*
 
 ---
 
 ## 4. Was offen ist
 
-**Alles ausser der Vorbereitung.** Die acht Punkte aus `docs/72 §3` sind noch
-nicht gemessen.
+- Die Punkte 2 bis 9 (Kriterien 2 bis 8).
+- Die Messung zu `.toggle + .button-row` — der Abstand ist zu sehen, die Regel
+  dahinter noch nicht belegt.
+
+  > **Ein Abstand, der richtig aussieht, ist noch kein Beleg dafür, dass die
+  > Regel greift, die ihn erzeugen sollte.**

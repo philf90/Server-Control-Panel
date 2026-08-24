@@ -447,11 +447,38 @@ an einem Namen, der hierher zeigt und deshalb nicht daran scheitern sollte.
 **Hier steht sie als Beobachtung.** Wer sie verfolgt, fängt bei den Vorgängen und
 dem Protokoll dieser Domains an.
 
+### Punkt 7 — der Zeitpunkt · Kriterium 7 **erfüllt**
+
+**Die Zeitzone**, gegen die Serveruhr gehalten:
+
+| | |
+|---|---|
+| `date` auf `cloudsrv24` | `Mo 24. Aug 11:27:05 CEST 2026` |
+| Anzeige nach dem Klick | `Zuletzt geprüft: 2026-08-24 11:27:38` |
+| Unterschied | **33 Sekunden** |
+
+Das ist die Zeit zwischen den beiden Handgriffen und **nicht zwei Stunden**.
+Stünde dort UTC, läse man `09:27:38`. `docs/74` Befund 3 sass genau hier — der
+Zeitpunkt rechnete in der falschen Zeitzone — und er ist behoben.
+
+**Und der Zeitpunkt bewegt sich richtig:** `11:17:22` (aus Punkt 6) blieb beim
+Wiederaufrufen der Seite stehen und sprang erst durch „Jetzt prüfen" auf
+`11:27:38`. Er ist also eine Aussage über die letzte Messung und nicht über den
+letzten Seitenaufruf.
+
+> **Eine Antwort aus dem Zwischenspeicher ist eine Aussage über vorhin — und
+> wenn sie das ist, sagt sie es auch.**
+
+**Eine Beobachtung ohne Fund:** Die Reihenfolge der gefragten Nameserver
+wechselt zwischen den Läufen (`167.235.231.182, 159.69.110.93` gegen
+`159.69.110.93, 167.235.231.182`). Der Inhalt ist derselbe; die Reihenfolge
+kommt aus dem NS-Satz und ist keine Aussage des Panels.
+
 ---
 
 ## 4. Was offen ist
 
-- Die Punkte 7 bis 9 (Kriterien 7 und 8).
+- Punkt 8 (Kriterium 8) und Punkt 9.
 - **Der `CAA`-Satz steht** und verweigert Let's Encrypt jede Ausstellung unter
   `cloudlab24.de`. Punkt 9 räumt ihn ab — das ist Teil des Laufs und nicht
   Aufräumen danach.

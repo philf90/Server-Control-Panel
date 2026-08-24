@@ -14170,6 +14170,52 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BaseMethodClashTest passed
 
 echo
+echo "── AccountTypeAxisTest: der vierte Fall im Enum ──"
+#
+# Der Fehler, gegen den der Stolperdraht steht, und zwar wörtlich: eine
+# Verwaltungsrolle in der Mandantenachse. Sie wäre still — isAdmin() liefert
+# für den neuen Fall `false`, belongsToCustomer() `true`, und die Klammer
+# setzte ihn auf 0 = 1. Eine leere Kundenliste, und niemand sucht bei einem
+# Enum-Fall.
+vorher_datei app/Enums/AccountType.php
+python3 - <<'PY2'
+p = 'app/Enums/AccountType.php'
+s = open(p, encoding='utf-8').read()
+alt = "    case Admin = 'admin';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt + "\n    case Superadmin = 'superadmin';", 1))
+PY2
+griff_datei app/Enums/AccountType.php "vierter Fall im Enum" &&
+pruefe "vierter Fall im Enum" \
+  AccountTypeAxisTest::test_the_enum_carries_exactly_the_three_tenancy_levels failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountTypeAxisTest passed
+
+echo
+echo "── AccountTypeAxisTest: die eigene Begründung fällt weg ──"
+#
+# Der zweite Fall des Wächters prüft nicht die Ordnung, sondern seinen eigenen
+# Grund: Vergleicht isAdmin() nicht mehr gegen genau einen Fall, ist das Verbot
+# des vierten Falls hinfällig. Er soll dann melden, dass er überholt ist —
+# nicht schweigend eine Ordnung durchsetzen, die es nicht mehr braucht.
+#
+#   Ein Wächter, der seine eigene Voraussetzung nicht prüft, setzt sie auch
+#   dann noch durch, wenn sie weggefallen ist.
+vorher_datei app/Enums/AccountType.php
+python3 - <<'PY2'
+p = 'app/Enums/AccountType.php'
+s = open(p, encoding='utf-8').read()
+alt = 'return $this === self::Admin;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'return in_array($this, [self::Admin], true);', 1))
+PY2
+griff_datei app/Enums/AccountType.php "isAdmin vergleicht gegen eine Menge" &&
+pruefe "isAdmin vergleicht gegen eine Menge" \
+  AccountTypeAxisTest::test_both_methods_still_compare_against_a_single_case failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountTypeAxisTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

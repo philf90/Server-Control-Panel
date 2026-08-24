@@ -113,7 +113,7 @@ Stand hier. Die Spalte **Bewertung** ist meine, nicht die der Hersteller.
 | SSH-Zugang des Admins, Schlüssel | Extension | SSH Access | nur SFTP je Abo (P6) | — | bewusst offen |
 | 2FA | ja | ja | **ja**, TOTP mit Schrittsperre | — | gleichauf |
 | Zugangsbeschränkung für das Panel (IP) | ja | ja | nein | — | **Lücke A9** |
-| Weitere Admins, Rollen | Additional Administrators | Reseller/Root | nein — genau ein Admin | Reseller post-1.0 | **Lücke A9** |
+| Weitere Admins, Rollen | Additional Administrators | Reseller/Root | nein — genau ein Admin | Reseller post-1.0 | **Lücke A9** — zwei Rollen, `docs/74 §11` |
 | Sitzungen sehen und beenden | ja | ja | nein | — | **Lücke A9**, klein |
 | Malware-Scan | ImunifyAV | ImunifyAV | nein | nein | **bewusst nicht**, §5 — mit einer billigen Hälfte, A13 |
 | WAF / ModSecurity | ja, drei Regelwerke | ja, Anbieterwahl | nein | nein | **bewusst nicht**, §5 |
@@ -408,24 +408,44 @@ verglichen?
 
 ---
 
-### A9 — Mehrere Admins, Rollen, Zugang zum Panel
+### A9 — Zwei Rollen, Zugang zum Panel
 
-**Was.** Vier kleine Dinge: ein zweiter Admin (Vertretung), ein Admin mit
-Nur-Lese-Recht (Support), IP-Beschränkung für die Panel-Anmeldung, erzwungene
-2FA für Admins — dazu eine Sitzungsübersicht mit „hier abmelden".
+> **Zuschnitt vom Betreiber, 22. August 2026.** Hier stand „ein zweiter Admin
+> (Vertretung), ein Admin mit Nur-Lese-Recht (Support)". Das war nach dem
+> **Verb** geteilt — lesen gegen schreiben —, und für ein Hosting-Panel ist das
+> die falsche Achse: Wer Kunden betreut, muss anlegen und ändern dürfen. Der
+> Betreiber hat nach dem **Gegenstand** geteilt. Ausgeschrieben ist das Modell
+> in `docs/74 §11`.
+
+**Was.** Zwei Verwaltungsrollen:
+
+- **Betreiber** — dem `root` dieses Servers nahe. Alles.
+- **Administrator** — verwaltet Kunden, Abonnements, Domains, Datenbanken. Was
+  zu kritisch ist, sieht er nicht und bedient er nicht.
+
+Kritisch heisst: verleiht root auf Dauer (Paketquellen) · nimmt alle Kunden mit
+(Dienste stoppen, Firewall, Neustart) · zeigt ein Geheimnis (DNS-Zugangsdaten,
+SMTP-Kennwort, private Schlüssel). Dazu IP-Beschränkung für die Anmeldung,
+erzwungene 2FA und eine Sitzungsübersicht.
 
 **Warum.** Heute gibt es genau **einen** Admin. Fällt er aus oder verliert er
-sein zweites Merkmal, ist niemand mehr da. Und ein Support-Zugang, der nur
-lesen darf, ist die häufigste Anforderung eines Betriebs mit mehr als einer
-Person.
+sein zweites Merkmal, ist niemand mehr da.
 
-**Wie es passt.** Das Rechtemodell trägt es schon: Autorisierung sitzt an der
-Aktion, jede Route trägt `can:`, `AbilityReachTest` prüft beide Richtungen. Es
-fehlt die Fläche, nicht das Fundament.
+**Wie es passt.** Das Rechtemodell trägt es: Autorisierung sitzt an der Aktion,
+jede Route trägt `can:`, `AbilityReachTest` prüft beide Richtungen. Die Naht ist
+eine einzige Zeile — `Gate::define('manage-settings', … isAdmin())`,
+fünfzehnmal in `routes/web.php` benutzt, und sie deckt heute alle sechs Seiten
+ab, die Geheimnisse tragen.
 
-**Aufwand.** 1 Woche. **Hoher Nutzen, kleiner Aufwand.**
+**Fertig, wenn** ein Administrator jede Seite seiner Tabelle bedienen kann, auf
+den übrigen einen 403 bekommt **und in der Inertia-Antwort dieser Seiten kein
+Feld steht, das er nicht sehen darf** — gemessen an der Antwort, nicht am Bild.
 
----
+**Die Fallen.** Drei, in `docs/74 §11` ausgeschrieben. Die teuerste steht am
+Datenmodell: **`AccountType` bekommt keinen vierten Fall.** Seine Methoden sind
+als Gleichheit mit einem Fall geschrieben; ein `Superadmin` wäre augenblicklich
+`isAdmin() === false` an 52 Stellen. Seit dem 22. August steht
+`AccountTypeAxisTest` als Stolperdraht davor.
 
 ### A10 — Diagnose des Bestands
 
@@ -547,7 +567,7 @@ ohne ein beschriebenes Sicherungsformat zweimal gebaut wird.
 | 1 | **A5** Logs | 3–5 Tage | kleinster Aufwand, sofort jeden Tag nützlich |
 | 2 | **A2** Dienste und Timer | 1 Woche | enthält den Timer-Befund als Anzeige |
 | 3 | **A10** Diagnose | 1 Woche | zahlt sich bei jeder folgenden Abnahme aus |
-| 4 | **A9** Admins und Zugang | 1 Woche | Fundament liegt, nur die Fläche fehlt |
+| 4 | **A9** Zwei Rollen und Zugang | 1,5 Wochen | Fundament liegt; die Naht ist ein einziges Gate |
 | 5 | **A1** Pakete und Updates | 2–3 Wochen | die eigentliche Stufe, Fundament liegt |
 | 6 | **A7** Schwellen und Meldungen | 1,5 Wochen | braucht A2 und A10 als Quellen |
 | 7 | **A3** Firewall | 2 Wochen | braucht eine eigene Messrunde |
@@ -574,7 +594,7 @@ Allein der hervorgehobene Teil ist nach dieser Aufstellung acht bis zehn Wochen.
   ansehen muss, um zu wissen, wie es ihm geht.
 - **P9b — Kundenfähigkeit** (Statistik, Kundenbenachrichtigungen, Branding,
   API, Dokumentation): der ursprüngliche Rest, rund 4 Wochen.
-- **P9c — Absicherung des Servers** (A3, A4, A7, A9): rund 5 Wochen. Sie darf
+- **P9c — Absicherung des Servers** (A3, A4, A7, A9): rund 5,5 Wochen. Sie darf
   auch nach P10 kommen, wenn der Server hinter einer Cloud-Firewall steht —
   aber dann als Entscheidung und nicht als Versäumnis.
 

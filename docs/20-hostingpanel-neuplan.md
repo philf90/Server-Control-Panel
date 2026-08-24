@@ -27,7 +27,7 @@ Diese neun Punkte sind entschieden und der Rahmen für alles Weitere.
 | Stack | PHP 8.3+/Laravel, Vue 3 + Inertia, Vite, Tailwind | Schnelle Feature-Entwicklung, viel Vorbild im Hosting-Umfeld; dafür eine PHP-Laufzeit auf dem Host und eine strikt getrennte Rechteebene (§4) |
 | Zielplattform | Debian 12/13, Ubuntu 22.04/24.04 | Eine Paketwelt (apt), ein Pfadschema, vier CI-Zweige |
 | Isolation | ein Systembenutzer je Abonnement | Plesk-Modell: eigener PHP-FPM-Pool, `open_basedir`, Chroot-SFTP, Dateisystem-Quota |
-| Rollenmodell | Admin → Kunde → Zusatzbenutzer | Keine Reseller-Ebene in der 1.0, aber im Modell vorbereitet (§5.4) |
+| Rollenmodell | Admin → Kunde → Zusatzbenutzer; **innerhalb Admin zwei Rollen** (§6.1) | Keine Reseller-Ebene in der 1.0, aber im Modell vorbereitet (§5.4) |
 | Funktionsumfang 1.0 | Web + PHP + Datenbanken, DNS autoritativ, FTP/SFTP, Cron, Backups | Mail ist **nicht** in der 1.0 |
 | Mail | spätere Ausbaustufe | Datenmodell, DNS-Zonen, Backups und Rechte werden so geschnitten, dass Postfix/Dovecot ohne Umbau andocken (§5.5) |
 | Name | **SrvPanel** | Beschreibend, kurz, kollisionsarm. Die beiden verworfenen Vorschläge und die Markenrecherche in §12.1 |
@@ -345,6 +345,33 @@ Objekttyp-Platz für Mailkonten. Keine Tabellen, keine Attrappen-Oberfläche.
 | **Admin** | den ganzen Server | alles: Kunden, Pläne, Dienste, Pakete, Firewall, Panel-Einstellungen, Updates |
 | **Kunde** | seine Abonnements | alles innerhalb seiner Abonnements, im Rahmen von Plan und Kontingent |
 | **Zusatzbenutzer** | ausgewählte Abonnements/Domains | genau die Rechte, die der Kunde ihm zuweist |
+
+#### Zwei Rollen innerhalb der Admin-Ebene
+
+> **Entschieden vom Betreiber am 22. August 2026**, beim Planen von A9
+> (`docs/74 §11`). Gebaut wird es dort — hier steht es, weil §6 die Quelle für
+> das Rechtemodell ist und eine Entscheidung, die nur im Planungsdokument
+> stünde, beim nächsten Nachschlagen nicht gefunden wird.
+
+Die Admin-**Ebene** bleibt eine: Beide Rollen sehen den ganzen Server, und für
+die Mandantenklammer sind sie ununterscheidbar. Verschieden ist nur, was sie
+dürfen:
+
+| Rolle | Darf |
+|---|---|
+| **Betreiber** | alles. Dem `root` dieses Servers nahe |
+| **Administrator** | Kunden, Abonnements, Domains, Datenbanken, Dateien, Cron, Protokoll. **Kritisches weder sehen noch bedienen** |
+
+Kritisch ist, was eines dieser drei Merkmale trägt: es verleiht root auf Dauer
+(Paketquellen, unbeaufsichtigte Updates) · es nimmt alle Kunden mit (Dienste
+stoppen, Firewall, Neustart, Systemupdates einspielen) · es zeigt ein Geheimnis
+(DNS-Zugangsdaten, SMTP-Kennwort, private Schlüssel des Panels).
+
+**Das ist kein Rechte-Baukasten**, sondern eine feste zweite Rolle — dieselbe
+Begründung wie bei den drei Ebenen. Und es ist **keine vierte Ebene**: Ebene und
+Rolle sind zwei Achsen, und wer sie in ein Feld legt, macht „ist Admin"
+zweideutig. Die Folgen dieser Verwechslung stehen in `docs/74 §11`, der
+Stolperdraht dagegen ist `AccountTypeAxisTest`.
 
 Der Rechtekatalog für Zusatzbenutzer (Plesk-nah): Dateien lesen, Dateien
 schreiben, Datenbanken, DNS, Cron, Sicherungen, PHP-Einstellungen, Zertifikate,

@@ -862,6 +862,32 @@ dieses Projekts in ihrer harmlosesten Form:
 > **Ein Kommentar, der eine Fähigkeit nennt, ist derselbe Verweis wie ein `can:`
 > im Code — nur prüft ihn nichts.**
 
+**A5 ist gebaut — die Protokolle des Servers an einer Stelle.** Positivliste im
+Agenten (`SrvPanel\Agent\Logs`), sieben Dateien und das Journal der acht eigenen
+Units; **kein Pfad und keine Unit kommen von aussen**, übergeben wird ein
+Schlüssel. Die Seite gehört dem Betreiber, entschieden beim Bauen: Ein
+Stacktrace in `laravel.log` trägt, was ihn ausgelöst hat — bei einer Ausnahme im
+Verbindungsaufbau also die Zugangsdaten der Datenbank.
+
+**Der Fund der Messrunde ist M5 zum dritten Mal.** `journalctl` unterscheidet
+mit seinem Rückgabewert nicht zwischen „kein Journal", „Unit unbekannt" und
+„keine Einträge" — alle drei geben `rc=0`, `-- No entries --` auf **stdout** und
+die Auskunft auf stderr.
+
+> **Ein Leser, der `-- No entries --` als Zeile nimmt, zeigt eine Meldung des
+> Werkzeugs als Inhalt des Protokolls.**
+
+**Und die Bildrunde hat einen Fehler im Messmittel gefunden, nicht in der
+Seite.** Das Theme wurde über `emulateMedia({ colorScheme })` umgestellt —
+`app.css` kennt aber keine `prefers-color-scheme`-Regel, es hängt allein an
+`data-theme` am `<html>`. Beide Läufe waren hell.
+
+> **Eine Umstellung, die der Prüfling nicht liest, hat nichts umgestellt — und
+> das Bild daneben sieht aus wie ein Ergebnis.**
+
+Dazu: Ein leeres `schiebt` bedeutet erst etwas, wenn `rollt` daneben steht. Der
+erste Lauf gab nur das erste aus.
+
 **Was offen bleibt und benannt ist:** Teil 3 von M5 — `panel.update` liest nach
 dem Neustart seine eigene Fassung nach — hängt an Schritt 6 und steht bis dahin
 als Ausnahme in `AptResultTest`. **Schritt 0 ist nicht gefahren:** Die Messrunde

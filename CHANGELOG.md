@@ -19187,3 +19187,93 @@ Untergrenze meldete „Es werden kaum Einstellungsrouten gefunden".
 
 > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
 > steht.**
+
+### A5 — die Protokolle des Servers an einer Stelle
+
+**Das erste Merkmal von P7b.** Eine Seite „Logs" mit einer Positivliste im
+Agenten: `laravel.log`, `update.log`, das Protokoll des Agenten, die beiden
+nginx-Protokolle der Oberfläche, `/var/log/apt/history.log`, `/var/log/auth.log`
+— und das Journal der acht eigenen Units.
+
+**Die eigentliche Begründung ist `history.log`.** Dort steht, **wer** ein Paket
+eingespielt hat, auf einem echten Server mit `Requested-By` — also auch dann,
+wenn es an der Kommandozeile geschah und damit an diesem Panel vorbei. Das
+Panel-Protokoll kann das nicht wissen.
+
+**Kein Pfad kommt von aussen und keine Unit.** Übergeben wird ein Schlüssel aus
+`SrvPanel\Agent\Logs`; alles andere wäre der kürzeste Weg von einem angemeldeten
+Konto zu `/etc/shadow`. Für das Journal gilt dasselbe: `journalctl -u <was der
+Benutzer schickt>` gäbe die Ausgabe jedes Dienstes heraus, und darunter sind
+welche, die Zugangsdaten protokollieren.
+
+**Gemessen vor dem Bauen** (`tests/logs-messen.sh`, rein lesend, jede Messung
+mit Gegenprobe) — und der Fund hat den Entwurf entschieden:
+
+    journalctl -u srvpanel-web       rc=0 · stdout „-- No entries --"
+                                     stderr „No journal files were found."
+    journalctl -u gibt-es-nicht      dasselbe, Zeichen für Zeichen
+
+Der Rückgabewert unterscheidet also **nicht** zwischen „diese Unit hat nichts
+geschrieben", „es gibt gar kein Journal" und „diese Unit kennt niemand". Und die
+Markierung steht auf **stdout**, also dort, wo der Leser die Zeilen erwartet.
+Das ist dieselbe Fehlerform wie M5, zum dritten Mal.
+
+> **Ein Leser, der `-- No entries --` als Zeile nimmt, zeigt eine Meldung des
+> Werkzeugs als Inhalt des Protokolls.**
+
+Die Markierung wird deshalb herausgenommen, und `stderr` wird zum **Hinweis**
+statt verworfen: „kein Journal auf diesem Server" ist eine Auskunft über die
+Einrichtung, nicht über den Dienst. Die Gegenprobe derselben Messung zeigt, dass
+der Rückgabewert sehr wohl etwas tragen kann — ein unbekanntes Ausgabeformat
+endet mit 1.
+
+**Die Seite gehört dem Betreiber, entschieden beim Bauen.** Ein Stacktrace in
+`laravel.log` trägt, was ihn ausgelöst hat: bei einer Ausnahme im
+Verbindungsaufbau die Zugangsdaten der Datenbank, bei einer im Zertifikatsbezug
+den Token des DNS-Anbieters. Das ist Merkmal 3 aus `docs/20 §6.1`.
+
+**Drei Pfade werden geholt statt hingeschrieben** — `PanelUpdate::LOG`,
+`Config::DEFAULT_LOG_FILE` und die beiden neuen Konstanten in `PanelVhost`,
+dessen Vorlage sie jetzt aus derselben Quelle setzt. Was sich nicht als
+Konstante holen lässt, hält `LogSourceTest` gegen seine Quelle: jede Journalunit
+gegen die Units, die das Paket ausliefert (`packaging/systemd/srvpanel-web.service`
+und seine sieben Geschwister), der Ort von `laravel.log` gegen den Schreibbereich
+aus `packaging/nfpm.yaml`.
+
+**Der Menüpunkt steht neben „Vorgänge" und „Protokoll"** — die drei sagen, was
+passiert ist — und **nur** in der Adminnavigation. Ein Kunde findet die
+Protokolle seiner Domains an der Domain.
+
+**„Angezeigtes sichern" und nicht „Herunterladen".** Eine Antwort des Agenten
+passt in knapp ein Megabyte, ein Zugriffsprotokoll ist ein Vielfaches davon.
+
+> **Ein Knopf, der mehr verspricht, als der Weg dahinter trägt, ist eine Zusage
+> und keine Bequemlichkeit.**
+
+**Beim Bauen fiel eine Lücke im Wächter vom Vortag auf.** `AdminAbilityTest`
+prüfte nur Routen unter `/settings/` — und `/logs` ist eine Adminseite, die dort
+nicht liegt. Sie wäre mit der schwächeren Fähigkeit durchgekommen, und der
+Wächter wäre grün geblieben. Die Regel fragt jetzt nach der **Fähigkeit** statt
+nach dem Pfad.
+
+> **Eine Regel, die an einem Pfad hängt, gilt für die nächste Seite nicht mehr —
+> und niemand merkt es, weil sie grün bleibt.**
+
+**Drei bestehende Wächter haben zugebissen:** `CountedNounTest` an
+„500 Zeilen" ohne Entscheidung über das Wort, `BlockSpacingTest` an einer
+Nachbarschaft von `.ident` und `.quiet`, die `app.css` nicht kennt, und
+`GuardReachTest` an einem Verweis auf `LogSourceTest`, bevor es ihn gab.
+
+**Und die Bildrunde hat einen Fehler im Messmittel gefunden, nicht in der
+Seite.** Der erste Lauf stellte das Theme über `emulateMedia({ colorScheme })`
+um — `app.css` kennt aber gar keine `prefers-color-scheme`-Regel, das Theme
+hängt allein an `data-theme` am `<html>`. Beide Läufe waren hell, und die
+Messung hätte „beide Themes" behauptet.
+
+> **Eine Umstellung, die der Prüfling nicht liest, hat nichts umgestellt — und
+> das Bild daneben sieht aus wie ein Ergebnis.**
+
+Gemessen nach `tests/bilder-messen.js`: `dokument: 0` in allen vier Lagen,
+Gegenprobe 200/200, `schiebt` leer. Der Log-Kasten rollt bei 390 px um 708 px
+**innerhalb** seines Behälters und steht deshalb in `rollt` — was der erste Lauf
+nicht ausgab und damit ein leeres `schiebt` ohne Nachbarn liess.

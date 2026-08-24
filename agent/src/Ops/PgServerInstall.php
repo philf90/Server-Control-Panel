@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Apt;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Op;
 use SrvPanel\Agent\Pg\Clusters;
@@ -157,13 +158,37 @@ final class PgServerInstall implements Op
         ];
     }
 
+    /**
+     * **Warum hier gemeldet und nicht abgebrochen wird — anders als bei
+     * `php.version.install`.**
+     *
+     * Beide Operationen leiden an M5 (`docs/81 §2.1a`): `apt-get update` endet
+     * mit 0, auch wenn keine Quelle antwortete, und mit den alten Listen
+     * *gelingt* die Installation danach — nur eben mit einer veralteten
+     * Fassung, wortlos.
+     *
+     * `php.version.install` kann das abwenden, weil es **seine** Quelle kennt:
+     * Das Panel hat sie selbst eingetragen, und ihre Adressen stehen in
+     * `php-sury.sources`. {@see self::PACKAGE} kommt dagegen aus der
+     * Distribution, und welches Depot das auf diesem Server ist, weiss der
+     * Agent heute nicht — die Antwort steckt in `apt-get indextargets` und
+     * kommt mit `system.sources.list` (Schritt 4).
+     *
+     * Bis dahin gilt die ehrlichere Hälfte: **nennen, was ausgefallen ist,
+     * statt zu raten, ob es das eigene war.** Ein Abbruch auf Verdacht wäre
+     * `--error-on=any` von Hand nachgebaut — eine tote Drittquelle hielte dann
+     * eine Installation auf, die sie nichts angeht.
+     *
+     * > **Eine Härte, die nur einheitlich zu haben ist, gehört nicht an eine
+     * > Stelle, an der die Aufrufer verschieden entscheiden müssen.**
+     */
     private function install(Context $context): bool
     {
         $context->progress(15, 'Paketlisten auffrischen');
-        $update = $context->stream('apt-get', ['update', '-qq'], 300);
+        $refresh = Apt::refresh($context);
 
-        if (! $update->successful()) {
-            throw AgentException::execFailed('apt-get update ist fehlgeschlagen: '.$update->message());
+        if (! $refresh->result->successful()) {
+            throw AgentException::execFailed('apt-get update ist fehlgeschlagen: '.$refresh->result->message());
         }
 
         $context->progress(30, 'PostgreSQL installieren');
@@ -175,8 +200,9 @@ final class PgServerInstall implements Op
 
         if (! $install->successful()) {
             throw AgentException::execFailed(
-                'Die Installation ist fehlgeschlagen: '.$install->message(),
-                ['package' => self::PACKAGE],
+                'Die Installation ist fehlgeschlagen: '.$install->message()
+                .($refresh->reachedEverything() ? '' : ' Nicht erreichbar war: '.$refresh->summary().'.'),
+                ['package' => self::PACKAGE, 'sources_unreachable' => $refresh->unreachable],
             );
         }
 

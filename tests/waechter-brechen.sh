@@ -15555,6 +15555,148 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AccountTypeAxisTest passed
 
 echo
+echo "── AptResultTest: der Rückgabewert ist wieder die einzige Auskunft ──"
+#
+# **Der einzige Bruch dieses Skripts, der eine echte Regression nachstellt und
+# keine erfundene.** Bis zum 24. August 2026 stand an drei Stellen
+# `if (! $update->successful())` und sonst nichts — und `apt-get update` endet
+# mit 0, auch wenn keine einzige Quelle geantwortet hat (M5, docs/81 §2.1).
+# Gemessen im Container gegen apt 2.8.3: rc=0, stdout leer, zwei `W:`-Zeilen
+# auf stderr.
+#
+# Der Eingriff wirft den Leser heraus und lässt genau das übrig, was vorher
+# dastand.
+#
+#   Ein Rückgabewert, der einen Fehlschlag nicht tragen kann, ist keine
+#   Prüfung — er ist eine Zeile, die aussieht wie eine.
+vorher_datei agent/src/Apt.php
+python3 - <<'PY2'
+p = 'agent/src/Apt.php'
+s = open(p, encoding='utf-8').read()
+alt = 'return new self($result, self::readFailures($result->stderr));'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'return new self($result, []);', 1))
+PY2
+griff_datei agent/src/Apt.php "apt-get update ohne den Leser" &&
+pruefe "apt-get update ohne den Leser" \
+  AptResultTest::test_a_run_that_ends_with_zero_can_still_have_lost_a_source failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptResultTest passed
+
+echo
+echo "── AptResultTest: eine Operation ruft apt-get update an Apt vorbei ──"
+#
+# Die andere Hälfte derselben Regel. Ein zweiter Aufruf von `apt-get update`
+# neben `Apt::refresh()` bringt eine zweite Fassung der Prüfung mit — und die
+# zweite ist erfahrungsgemäss die, die den stderr nicht liest.
+#
+#   Zwei Listen, die dasselbe meinen, laufen auseinander — und keine von
+#   beiden ist der Ort, an dem man nachsieht.
+vorher_datei agent/src/Ops/PhpVersionInstall.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PhpVersionInstall.php'
+s = open(p, encoding='utf-8').read()
+alt = '$refresh = Apt::refresh($context);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "$refresh = Apt::of($context->stream('apt-get', ['update', '-qq'], 300));"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/PhpVersionInstall.php "apt-get update an Apt vorbei" &&
+pruefe "apt-get update an Apt vorbei" \
+  AptResultTest::test_every_call_of_apt_get_update_goes_through_one_place failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptResultTest passed
+
+echo
+echo "── AptResultTest: der Ausdruck findet seine eigene Stelle nicht mehr ──"
+#
+# Der Prüfkörper des Wächters. Zieht `apt-get update` um oder ändert seine
+# Schreibweise, findet die Suche nichts mehr — und meldete dann Grün für eine
+# Regel, die sie gar nicht mehr liest. Genau so ist dieses Projekt dreimal in
+# einen Wächter gelaufen, der beim Aufräumen zubiss statt beim Fehler.
+#
+#   Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+#   steht.
+vorher_datei agent/src/Apt.php
+python3 - <<'PY2'
+p = 'agent/src/Apt.php'
+s = open(p, encoding='utf-8').read()
+alt = "self::UPDATE_ARGUMENTS, $timeout"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "['upgrade', '-qq'], $timeout", 1))
+PY2
+griff_datei agent/src/Apt.php "der Ausdruck trifft Apt nicht mehr" &&
+pruefe "der Ausdruck trifft Apt nicht mehr" \
+  AptResultTest::test_the_home_and_every_exception_are_reached_by_the_scan failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptResultTest passed
+
+echo
+echo "── PhpSourceUriTest: die Paketierung benennt ihre Quelldatei um ──"
+#
+# `php.version.install` bricht an einer toten PHP-Quelle ab, und welche das
+# ist, liest es aus der Datei, die `php-source.sh` schreibt. Heisst sie anders,
+# gibt `sourceUris()` eine leere Liste zurück — und dann geschieht **nichts
+# Sichtbares**: Der Abbruch bleibt aus, und der Fund M5 ist still wieder da.
+#
+#   Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts zu tun".
+vorher_datei packaging/php-source.sh
+python3 - <<'PY2'
+p = 'packaging/php-source.sh'
+s = open(p, encoding='utf-8').read()
+alt = '/etc/apt/sources.list.d/php-sury.sources'
+assert s.count(alt) == 2, 'Zielstelle nicht mehr zweimal da — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '/etc/apt/sources.list.d/php-ondrej.sources'))
+PY2
+griff_datei packaging/php-source.sh "Quelldatei der Paketierung umbenannt" &&
+pruefe "Quelldatei der Paketierung umbenannt" \
+  PhpSourceUriTest::test_the_packaging_writes_the_file_the_agent_reads failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PhpSourceUriTest passed
+
+echo
+echo "── PhpSourceUriTest: die Paketierung schreibt ein anderes Feld ──"
+#
+# Dieselbe stille Lücke von der anderen Seite: Die Datei heisst richtig, das
+# Feld darin nicht. Der Wächter fragt deshalb nicht nach dem Wort `URIs`,
+# sondern lässt den Leser den Block lesen, den die Paketierung wirklich
+# erzeugt.
+vorher_datei packaging/php-source.sh
+python3 - <<'PY2'
+p = 'packaging/php-source.sh'
+s = open(p, encoding='utf-8').read()
+alt = 'URIs: ${base}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'URL: ${base}', 1))
+PY2
+griff_datei packaging/php-source.sh "Paketierung schreibt ein anderes Feld" &&
+pruefe "Paketierung schreibt ein anderes Feld" \
+  PhpSourceUriTest::test_the_reader_understands_what_the_packaging_writes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PhpSourceUriTest passed
+
+echo
+echo "── PhpSourceUriTest: der Leser liest nicht mehr nur am Zeilenanfang ──"
+#
+# `Signed-By:` kann ein über vierzig Zeilen gefalteter PGP-Block sein
+# (docs/81 §2.1). Eine Fortsetzungszeile beginnt mit einem Leerzeichen und ist
+# **kein** Feld — wer den Anker wegnimmt, holt sich eine Adresse aus dem
+# Schlüsselblock.
+vorher_datei agent/src/PhpVersions.php
+python3 - <<'PY2'
+p = 'agent/src/PhpVersions.php'
+s = open(p, encoding='utf-8').read()
+alt = r"'/^URIs:\s*(.*?)\s*$/D'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, r"'/URIs:\s*(.*?)\s*$/D'", 1))
+PY2
+griff_datei agent/src/PhpVersions.php "URIs ohne Anker am Zeilenanfang" &&
+pruefe "URIs ohne Anker am Zeilenanfang" \
+  PhpSourceUriTest::test_a_folded_block_does_not_become_a_field failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PhpSourceUriTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Apt;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Op;
 use SrvPanel\Agent\PhpVersions;
@@ -89,10 +90,52 @@ final class PhpVersionInstall implements Op
         }
 
         $context->progress(10, 'Paketlisten auffrischen');
-        $update = $context->stream('apt-get', ['update', '-qq'], 300);
+        $refresh = Apt::refresh($context);
 
-        if (! $update->successful()) {
-            throw AgentException::execFailed('apt-get update ist fehlgeschlagen: '.$update->message());
+        if (! $refresh->result->successful()) {
+            throw AgentException::execFailed('apt-get update ist fehlgeschlagen: '.$refresh->result->message());
+        }
+
+        /*
+         * **Der Rückgabewert oben ist nicht die Prüfung, sondern ihre Hälfte.**
+         *
+         * `apt-get update` endet mit 0, auch wenn jede Quelle unerreichbar war
+         * — die alten Listen bleiben liegen, und das ist für apt ein
+         * benutzbarer Zustand (M5, `docs/81 §2.1`). Was danach geschah, stand
+         * bis zum 24. August 2026 so da:
+         *
+         *   Sury unerreichbar → `apt-get install php8.4-fpm` findet nichts →
+         *   Abbruch mit *„Die Installation ist fehlgeschlagen: Unable to locate
+         *   package php8.4-fpm"*.
+         *
+         * Der **Zustand** war damit richtig gemeldet und die **Ursache**
+         * falsch: Der Betreiber sucht am Paket, der Fehler sitzt an der Quelle.
+         *
+         * > **Eine Prüfung, die den Zustand fängt, hat über die Ursache nichts
+         * > gesagt — und der Leser sucht dort, wohin die Meldung zeigt.**
+         *
+         * Schlimmer war der stille Fall daneben: Mit einer alten Liste
+         * *gelingt* die Installation, und der Kunde bekommt die Fassung von
+         * vorletzter Woche, ohne dass irgendwo etwas davon steht.
+         *
+         * Gefragt werden die Adressen aus der Quelldatei und keine hier
+         * hingeschriebene: Debian und Ubuntu bekommen verschiedene, und ein
+         * Betreiber darf einen Spiegel eintragen.
+         */
+        $unreachable = $refresh->hitting(PhpVersions::sourceUris());
+
+        if ($unreachable !== null) {
+            throw AgentException::execFailed(
+                sprintf(
+                    'Die PHP-Paketquelle %s ist nicht erreichbar: %s. Ohne sie kennt apt nur die alten '
+                    .'Paketlisten — PHP %s käme veraltet oder gar nicht. Die Installation wurde deshalb '
+                    .'nicht begonnen.',
+                    $unreachable['base'],
+                    $unreachable['reason'],
+                    $version,
+                ),
+                ['source' => $unreachable['base'], 'reason' => $unreachable['reason']],
+            );
         }
 
         $context->progress(30, 'Pakete installieren');
@@ -104,8 +147,12 @@ final class PhpVersionInstall implements Op
 
         if (! $install->successful()) {
             throw AgentException::execFailed(
-                'Die Installation ist fehlgeschlagen: '.$install->message(),
-                ['packages' => $packages],
+                'Die Installation ist fehlgeschlagen: '.$install->message()
+                // Eine fremde Quelle liefert die PHP-Pakete nicht, kann eine
+                // Abhängigkeit aber sehr wohl zurückhalten. Sie steht deshalb
+                // dabei — als Hinweis und nicht als Urteil.
+                .($refresh->reachedEverything() ? '' : ' Nicht erreichbar war ausserdem: '.$refresh->summary().'.'),
+                ['packages' => $packages, 'sources_unreachable' => $refresh->unreachable],
             );
         }
 

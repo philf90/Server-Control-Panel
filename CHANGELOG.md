@@ -18903,3 +18903,103 @@ Zahl stand ohne Substantiv da, „Zeile(n)" gehörte sichtbar zur zweiten.
 fehlte das Wort, statt falsch zu sein. Jede Zahl trägt jetzt ihr eigenes.
 
 > **Ein Wächter über die Form findet kein Wort, das gar nicht dasteht.**
+
+### `apt-get update` meldet Erfolg, auch wenn keine Quelle geantwortet hat
+
+**Der erste Handgriff der Serververwaltung ist kein Merkmal, sondern ein Befund
+an bestehendem Code** — M5 aus `docs/81 §2.1`, Schritt 1 aus `docs/81 §9`.
+
+Nachgemessen im Container gegen apt 2.8.3, mit einer Quelle auf `127.0.0.1:1`
+und **getrennten Kanälen** — die Messrunde hatte `2>&1` zusammengeworfen und
+damit nie belegt, auf welchem der beiden die Auskunft steht:
+
+    rc=0 · stdout 0 Bytes · stderr 244 Bytes
+    W: Failed to fetch http://127.0.0.1:1/gibtsnicht/dists/noble/InRelease  Could not connect …
+    W: Some index files failed to download. They have been ignored, or old ones used instead.
+
+Das ist keine Nachlässigkeit von apt, sondern seine Zusage: Der Rückgabewert
+beantwortet nicht „habe ich alle Quellen erreicht", sondern „habe ich danach
+einen benutzbaren Zustand" — und den hat er, weil die alte Liste liegen bleibt.
+
+> **Ein Rückgabewert, der einen Fehlschlag nicht tragen kann, ist keine Prüfung
+> — er ist eine Zeile, die aussieht wie eine.**
+
+Bis dahin stand an drei Stellen `if (! $update->successful())` und sonst nichts.
+Was das anrichtete, war an `php.version.install` zu besichtigen: Bei
+unerreichbarer Sury findet `apt-get install` das Paket nicht, und der Betreiber
+las *„Die Installation ist fehlgeschlagen: Unable to locate package
+php8.4-fpm"*. Der **Zustand** war damit richtig gemeldet, die **Ursache**
+falsch.
+
+> **Eine Prüfung, die den Zustand fängt, hat über die Ursache nichts gesagt —
+> und der Leser sucht dort, wohin die Meldung zeigt.**
+
+Schlimmer war der stille Fall daneben: Mit einer veralteten Liste *gelingt* die
+Installation, und der Kunde bekommt die Fassung von vorletzter Woche, ohne dass
+irgendwo etwas davon steht.
+
+**`Apt` ist jetzt die eine Stelle, die `apt-get update` ruft** und `stderr` **je
+Quelle** liest statt eines Wahrheitswerts. Der Rückgabewert bleibt daneben
+stehen — er ist nicht falsch, nur unvollständig: Bei klemmender Sperre oder
+kaputter Quelldatei endet der Lauf sehr wohl ungleich 0.
+
+**Und nicht `--error-on=any`**, obwohl die Fahne genau diese Zeilen zu `E:`
+macht und mit 100 endet (gemessen). Sie ist alles oder nichts:
+
+> **Eine Härte, die nur einheitlich zu haben ist, gehört nicht an eine Stelle,
+> an der die Aufrufer verschieden entscheiden müssen.**
+
+**Die Aufrufer entscheiden deshalb verschieden**, und das ist der Kern:
+
+- `php.version.install` **bricht ab**, wenn die Quelle unerreichbar war, die es
+  braucht — mit einer Meldung über die Quelle statt über das Paket, und **bevor**
+  `apt-get install` überhaupt läuft.
+- `pg.server.install` **nennt** die ausgefallenen Quellen und bricht nicht ab. Es
+  kennt seine eigene nicht: `postgresql` kommt aus der Distribution, und welches
+  Depot das auf einem Server ist, beantwortet erst `apt-get indextargets` in
+  Schritt 4. Ein Abbruch auf Verdacht wäre `--error-on=any` von Hand nachgebaut.
+- `panel.update` bleibt, wie es ist, und trägt seine Schuld jetzt sichtbar. Sein
+  `apt-get update -qq && apt-get install --only-upgrade srvpanel` läuft in einer
+  eigenen transienten Unit, damit es den Neustart des Agenten überlebt; wer
+  seinen `stderr` hier läse, wartete auf ein Update, das genau diesen Prozess
+  beendet. Die Antwort ist Teil 3 von M5 — **nach** dem Neustart die eigene
+  Fassung nachlesen — und hängt an Schritt 6.
+
+**Welche Quelle die eigene ist, wird gelesen und nicht gewusst.**
+`PhpVersions::sourceUris()` liest die Datei, die `packaging/php-source.sh`
+schreibt. Eine Fallunterscheidung im Agenten wäre eine zweite Fassung derselben
+Regel — Debian bekommt `packages.sury.org`, Ubuntu das PPA — und sie wäre
+ausserdem falsch, sobald ein Betreiber einen Spiegel einträgt. Gelesen wird
+dabei **ein Feld einer selbst geschriebenen Datei** und kein deb822 im
+allgemeinen Sinne: `Signed-By:` darf ein über vierzig Zeilen gefalteter
+PGP-Block sein, und eine Fortsetzungszeile ist kein Feld.
+
+**Zwei Wächter, sechs Brüche, jeder einzeln belegt.** `AptResultTest` sucht
+ausdrücklich **nicht** das Wort `successful()` — er wäre grün, sobald irgendwo
+daneben eine zweite Prüfung stünde. Er zählt statt dessen die Aufrufe von
+`apt-get update` im Quelltext und besteht darauf, dass jeder in `Apt` liegt oder
+mit seinem Grund als Ausnahme geführt wird; und er misst die **Wirkung** an
+einem selbstgebauten Ergebnis mit Rückgabe 0 und `W:`-Zeilen. Er ist damit der
+seltene Fall eines Wächters, der eine echte Regression nachstellt und keine
+erfundene.
+
+> **Ein Wächter, der ein Wort sucht statt einer Wirkung, ist grün, sobald das
+> Wort irgendwo steht.**
+
+`PhpSourceUriTest` hält die andere Naht: Benennt die Paketierung ihre Datei um
+oder schreibt sie das Feld anders, gibt `sourceUris()` eine leere Liste zurück —
+und dann geschieht **nichts Sichtbares**. Der Abbruch bleibt aus, und M5 ist
+still wieder da.
+
+> **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts zu tun".**
+
+**Was dabei zwei bestehende Wächter gefangen haben**, beide beim Bauen und
+keiner in der CI: `AnchoredPatternTest` das erste `$` ohne `D` im neuen Leser,
+und `GuardReachTest` einen Verweis auf `AptResultTest` aus einem Kommentar, den
+es zu diesem Zeitpunkt noch nicht gab.
+
+**Was offen bleibt und benannt ist:** Teil 3 von M5 (`panel.update` liest seine
+Fassung nach, Schritt 6) und Schritt 0 — die Messrunde auf Debian 12, Debian 13
+und Ubuntu 22.04 sowie die vier Fälle, die im Container nicht vorkamen. Die
+Abnahme von Schritt 1 gehört auf einen echten Server: **Eine Ausbaustufe gilt
+erst als fertig, wenn ihr Abnahmekriterium nachweisbar erfüllt ist.**

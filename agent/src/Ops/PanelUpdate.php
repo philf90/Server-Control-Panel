@@ -57,6 +57,34 @@ final class PanelUpdate implements Op
 
         @unlink(self::LOG);
 
+        /*
+         * **Das `&&` hier ist keine Prüfung, und das steht so lange da, bis
+         * Schritt 6 es behebt** (M5, `docs/81 §2.1a` und §9).
+         *
+         * `apt-get update` endet mit 0, auch wenn keine einzige Quelle
+         * geantwortet hat — die alten Listen bleiben liegen. Die rechte Seite
+         * läuft also immer. Und mit alten Listen findet `--only-upgrade`
+         * nichts Neueres, meldet `0 upgraded` und endet ebenfalls mit 0: Das
+         * Panel meldet „Update läuft", die Fassung bleibt stehen, und im
+         * Protokoll steht ein erfolgreicher Lauf.
+         *
+         * **Warum das hier nicht wie in `php.version.install` behoben wird.**
+         * Dort liest {@see \SrvPanel\Agent\Apt::refresh()} den `stderr` des
+         * Laufs, weil die Operation auf ihn wartet. Dieser Lauf läuft
+         * ausdrücklich **ohne** jemanden, der wartet: Er liegt in einer eigenen
+         * transienten Unit, damit er den Neustart des Agenten überlebt, und
+         * seine Ausgabe geht in {@see self::LOG}. Wer sie hier lesen wollte,
+         * müsste auf ein Update warten, das genau diesen Prozess beendet.
+         *
+         * Die Antwort steht deshalb im Plan an anderer Stelle: **nach dem
+         * Neustart die eigene Fassung nachlesen** und melden, wenn sie dieselbe
+         * geblieben ist. Das ist Teil 3 von M5 und hängt an Schritt 6 —
+         * `AptResultTest` führt diese Stelle bis dahin als benannte Ausnahme,
+         * damit sie nicht als erledigt durchgeht.
+         *
+         * > **Ein Rückgabewert, der einen Fehlschlag nicht tragen kann, ist
+         * > keine Prüfung — er ist eine Zeile, die aussieht wie eine.**
+         */
         $result = $context->runner->run('systemd-run', [
             '--unit='.$unit,
             '--collect',

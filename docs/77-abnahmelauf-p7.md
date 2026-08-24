@@ -83,12 +83,42 @@ In der Zone `cloudlab24.de` bei ipv64 einrichten:
 |---|---|---|---|
 | `hier.cloudlab24.de` | `A` | die Adresse von `cloudsrv24` (gemessen: `159.195.56.255`) | Punkt 1 |
 | `fremd.cloudlab24.de` | `A` | `192.0.2.1` | Punkt 2, 4 |
-| `ohne.cloudlab24.de` | — | **kein Satz** | Punkt 3 |
+| `ohne.cloudlab24.de` | `TXT` | `p7-abnahme` — **und kein `A`** | Punkt 3 |
 
 **`192.0.2.1` und nicht irgendeine Adresse.** Das ist TEST-NET-1 aus RFC 5737 —
 sie gehört niemandem und kann mit keinem echten Rechner verwechselt werden. Wer
 hier die Adresse eines fremden Hosters einträgt, hat im Protokoll eine Zahl
 stehen, die aussieht wie ein Befund.
+
+**Warum `ohne` einen `TXT`-Satz bekommt, obwohl der Zustand „fehlt" heisst.**
+Die Zone `cloudlab24.de` führt einen **Platzhalter** — gemessen am 24. August:
+`ohne.cloudlab24.de` antwortete mit der Serveradresse, ohne dass dort je etwas
+angelegt worden wäre. Ein Name, den es nicht gibt, existiert in dieser Zone
+nicht; der Platzhalter beantwortet ihn.
+
+> **Ein Zustand, den die Umgebung nicht zulässt, wird nicht dadurch
+> hergestellt, dass man nichts tut.**
+
+Ein Platzhalter greift nach RFC 4592 nur für Namen, die es in der Zone **gar
+nicht** gibt. Ein beliebiger anderer Satz am Namen lässt ihn existieren — und
+dann kommt die `A`-Frage leer zurück, statt vom Platzhalter beantwortet zu
+werden. Genau das ist „fehlt": `Comparison::state()` entscheidet ihn an
+`values === []` bei `answered > 0`, also an einer **leeren Antwort** und nicht
+an NXDOMAIN.
+
+**Der Platzhalter selbst bleibt stehen.** Ihn für einen Abnahmelauf abzuräumen
+hiesse, den Server für den Prüfkörper zu verändern.
+
+**Und die Gegenprobe gehört dazu:**
+
+```bash
+dig +short @ns1.ipv64.net zufall-a7f3.cloudlab24.de A   # der Platzhalter: antwortet
+dig +short @ns1.ipv64.net ohne.cloudlab24.de A          # leer
+dig +short @ns1.ipv64.net ohne.cloudlab24.de TXT        # "p7-abnahme"
+```
+
+Ohne die erste Zeile ist die zweite von einer Zone ohne Platzhalter nicht zu
+unterscheiden — und dann sagt sie nichts darüber, dass der Kniff nötig war.
 
 **Die TTL ist gleichgültig, und das war sie nicht immer.** Der erste Wurf dieser
 Vorschrift verlangte 3600 auf `fremd`, weil Punkt 4 einen haltbaren
@@ -191,6 +221,12 @@ Wer absichtlich über ein CDN fährt, hat genau diesen Zustand.
 `ohne.cloudlab24.de` als Domain anlegen, „Jetzt prüfen".
 
 **Erwartet:** `A` → **„Fehlt"**, kein gefundener Wert.
+
+**Und nicht „Nicht erreichbar".** Die beiden liegen hier dicht beieinander:
+`Missing` heisst „geantwortet, kein Wert", `Unreachable` heisst „niemand hat
+geantwortet". Steht dort `Nicht erreichbar`, ist nicht der Zustand falsch,
+sondern die Messung — dann hat der Nameserver geschwiegen, und §3 ist zu
+wiederholen.
 
 **Und dann beide Seiten nebeneinander ansehen** — `fremd` und `ohne`. Kriterium 3
 verlangt die *Unterscheidung*, nicht zwei Zustände. Sehen sie gleich aus, ist der

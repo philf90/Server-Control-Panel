@@ -6,6 +6,7 @@ import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import FormErrors from '../../Components/FormErrors.vue'
 import { useConfirmation } from '../../Composables/useConfirmation'
+import Idents from '../../Components/Idents.vue'
 
 const { ask } = useConfirmation()
 
@@ -81,6 +82,7 @@ const props = defineProps<{
       checked_at: string
       findings: {
         nameservers: string[]
+      unasked: string[]
         addresses: { derived: string[]; override: string[]; effective: string[] }
         authorities: {
           name: string
@@ -280,11 +282,7 @@ const dnsRang = (zustand: DnsZustand): 'ok' | 'warn' | 'critical' | 'neutral' =>
  * **Er steht immer dabei**, und das ist keine Kosmetik: Was hier zu sehen ist,
  * ist eine Aussage über den Augenblick der Messung und nicht über jetzt.
  */
-const dnsGeprueft = computed(() => {
-  const wann = props.dns.last?.checked_at
-
-  return wann === undefined ? null : new Date(wann).toLocaleString('de-DE')
-})
+const dnsGeprueft = computed(() => props.dns.last?.checked_at ?? null)
 
 /** Läuft die Prüfung gerade? */
 const dnsLaeuft = ref(false)
@@ -420,7 +418,7 @@ const dnsAdressenWeichenAb = computed(() => {
             </tr>
             <tr>
               <td class="quiet">Gilt für</td>
-              <td class="right ident">{{ props.certificate.names.join(', ') || '—' }}</td>
+              <td class="right ident"><Idents :values="props.certificate.names" /></td>
             </tr>
           </tbody>
         </table>
@@ -472,14 +470,26 @@ const dnsAdressenWeichenAb = computed(() => {
         <label v-if="props.can.order_wildcard && !props.wildcard.covered" class="toggle">
           <input v-model="alsPlatzhalter" type="checkbox" :disabled="!props.wildcard.possible">
           <span>
-            Als Platzhalter bestellen
+            <!--
+              **Die Marke steht neben der Beschriftung und nicht darunter.**
+              `.toggle > span` stapelt; ohne diese Zeile wäre sie ein weiteres
+              Stapelkind und läse sich als eigener Block (`docs/76`, Befund 6).
+
+              **Und sie sagt den Zustand, der Satz darunter den Grund.** Das
+              Kästchen sagt es seit Befund 6 durch seine Form — aber eine Form
+              muss man kennen, ein Wort nicht.
+            -->
+            <span class="label-row">
+              Als Platzhalter bestellen
+              <Badge v-if="!props.wildcard.possible" kind="neutral">nicht möglich</Badge>
+            </span>
             <small class="hint">
-              Ein Zertifikat für <span class="ident">{{ props.wildcard.names.join(' ') }}</span> —
+              Ein Zertifikat für <span class="ident">{{ props.wildcard.names.join(', ') }}</span> —
               es gilt für jede Unterdomain dieser Zone, auch für die eines
               anderen Abonnements. Dafür zählt es bei der Wochengrenze als eine
               Bestellung statt als eine je Name.
             </small>
-            <small v-if="props.wildcard.obstacle" class="hint">{{ props.wildcard.obstacle }}</small>
+            <small v-if="props.wildcard.obstacle" class="hint obstacle">{{ props.wildcard.obstacle }}</small>
           </span>
         </label>
 
@@ -516,7 +526,7 @@ const dnsAdressenWeichenAb = computed(() => {
         >
           Eine Ebene tiefer deckt ein Platzhalter nicht. Ohne eigenes Zertifikat
           bleiben:
-          <span class="ident">{{ props.wildcard.uncovered.join(' ') }}</span>
+          <span class="ident">{{ props.wildcard.uncovered.join(', ') }}</span>
         </p>
 
         <!--
@@ -633,7 +643,7 @@ const dnsAdressenWeichenAb = computed(() => {
                   <Badge :kind="dnsRang(satz.state)">{{ dnsWort(satz.state) }}</Badge>
                 </td>
                 <td data-column="Erwartet" class="ident quiet">
-                  {{ satz.expected.join(', ') || '—' }}
+                  <Idents :values="satz.expected" />
                 </td>
                 <!--
                   **Der gefundene Wert steht daneben und nicht nur der
@@ -641,7 +651,7 @@ const dnsAdressenWeichenAb = computed(() => {
                   Auskunft, mit der niemand etwas anfangen kann.
                 -->
                 <td data-column="Gefunden" class="ident">
-                  {{ satz.found.join(', ') || '—' }}
+                  <Idents :values="satz.found" />
                 </td>
               </tr>
               <tr v-if="props.dns.last.findings.records.length === 0">
@@ -656,8 +666,13 @@ const dnsAdressenWeichenAb = computed(() => {
           <!--
             **Der Zeitpunkt steht immer dabei.** Was oben zu sehen ist, ist
             eine Aussage über den Augenblick der Messung und nicht über jetzt.
+
+            **`wide`, weil das hier kein Satz ist.** Ein Zeitpunkt und die
+            Nameserver, die gefragt wurden, sind **eine** Auskunft; das
+            Zeilenmass von `.section-note` trennte sie bei 1440 px mitten in
+            der Adressliste (`docs/76`, Befund 7).
           -->
-          <p class="section-note">
+          <p class="section-note wide">
             Zuletzt geprüft: {{ dnsGeprueft }}<template v-if="props.dns.last.findings.nameservers.length > 0">
             · gefragt wurden {{ props.dns.last.findings.nameservers.join(', ') }}</template>
           </p>
@@ -682,8 +697,26 @@ const dnsAdressenWeichenAb = computed(() => {
             Ohne Nameserver ist über die Zone nichts gesagt — und das ist etwas
             anderes als ein fehlender Eintrag. Der Satz nennt den Grund, statt
             den Kunden an seinen Einträgen suchen zu lassen.
+
+            **Der Satz steht in genau einem `span`, und das ist kein Geschmack.**
+            `.notice` ist eine Flexbox; ein Textknoten neben einem Element ergibt
+            zwei Flexkinder, und jedes davon bekommt seine eigene Spalte. Der
+            erste Wurf hatte „Für", das `.ident` und den Rest als drei
+            Geschwister — bei 390 px stand links eine fünf Zeichen breite Spalte
+            mit `F` / `ü` / `r` untereinander und daneben der Name, Zeichen für
+            Zeichen umgebrochen. Der Überlauf war dabei `0`: Es lief nichts über,
+            es sah nur falsch aus.
           -->
-          <p v-if="props.dns.last.findings.nameservers.length === 0" class="notice warn">
+          <p v-if="props.dns.last.findings.unasked.length > 0" class="notice warn">
+            <span>Für
+              <span class="ident">{{ props.dns.last.findings.unasked.join(', ') }}</span>
+              hat die Prüfung gar nicht stattgefunden. Das liegt an diesem Server und
+              nicht an der Zone — über ihre Einträge ist damit nichts gesagt.</span>
+          </p>
+          <p
+            v-else-if="props.dns.last.findings.nameservers.length === 0"
+            class="notice warn"
+          >
             Für diese Domain waren keine Nameserver zu erreichen. Über ihre Einträge ist
             damit nichts gesagt — möglicherweise ist sie noch nicht delegiert.
           </p>
@@ -697,10 +730,11 @@ const dnsAdressenWeichenAb = computed(() => {
           über jede Domain.
         -->
         <p v-if="dnsAdressenWeichenAb" class="notice warn">
-          Die eingetragenen Adressen ({{ props.dns.addresses.override.join(', ') }}) sind
-          andere als die, die dieser Server führt
-          ({{ props.dns.addresses.derived.join(', ') }}). Das kann hinter NAT richtig sein
-          — sonst ist der Eintrag veraltet.
+          <span>Die eingetragenen Adressen
+            ({{ props.dns.addresses.override.join(', ') }}) sind andere als
+            die, die dieser Server führt
+            ({{ props.dns.addresses.derived.join(', ') }}). Das kann hinter
+            NAT richtig sein — sonst ist der Eintrag veraltet.</span>
         </p>
 
         <div v-if="props.can.check_dns" class="button-row">

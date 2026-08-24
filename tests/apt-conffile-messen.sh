@@ -12,7 +12,7 @@
 # Prüfkörper liefert, prüft sich gegen sich selbst.
 #
 # Gemessen am 24. August 2026 auf Ubuntu 24.04, dpkg 1.22.6. Die Antwort auf
-# Frage 3 aus docs/74 §3 hängt daran.
+# Frage 3 aus docs/81 §3 hängt daran.
 #
 # Aufruf:  sh tests/apt-conffile-messen.sh
 set -u

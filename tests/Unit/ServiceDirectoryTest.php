@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use Tests\Support\ReadsPackagedDirectories;
 
 /**
  * Ein Verzeichnis hat einen Eigentümer, und zwar genau einen.
@@ -48,6 +49,8 @@ use PHPUnit\Framework\TestCase;
  */
 final class ServiceDirectoryTest extends TestCase
 {
+    use ReadsPackagedDirectories;
+
     /**
      * Was systemd verwaltet, und wohin es zeigt.
      *
@@ -452,65 +455,6 @@ final class ServiceDirectoryTest extends TestCase
     }
 
     /**
-     * Was die Paketierung über Verzeichnisse sagt — aus beiden Quellen.
-     *
-     * `postinstall.sh` steht **hinter** `nfpm.yaml`: Es läuft später und ist
-     * damit die Stelle, die im Zweifel gilt.
-     *
-     * @return array<array-key,array{mode: string, owner: string, quelle: string}>
-     */
-    private function packagedDirectories(bool $alle = false): array
-    {
-        $gefunden = [];
-        $liste = [];
-        $nfpm = (string) file_get_contents($this->root().'/packaging/nfpm.yaml');
-
-        preg_match_all(
-            '/-\s+dst:\s*(\S+)\s*\n\s*type:\s*dir\s*\n\s*file_info:\s*\n\s*mode:\s*(\S+)\s*\n\s*owner:\s*(\S+)/',
-            $nfpm,
-            $treffer,
-            PREG_SET_ORDER,
-        );
-
-        foreach ($treffer as $t) {
-            $gefunden[$t[1]] = $liste[] = [
-                'mode' => $this->normalise($t[2]),
-                'owner' => $t[3],
-                'quelle' => 'nfpm.yaml',
-            ];
-        }
-
-        $postinst = $this->withoutComments(
-            (string) file_get_contents($this->root().'/packaging/scripts/postinstall.sh')
-        );
-
-        preg_match_all(
-            '/install -d -o (\S+) -g \S+ -m (\S+) (\S+)/',
-            $postinst,
-            $treffer,
-            PREG_SET_ORDER,
-        );
-
-        foreach ($treffer as $t) {
-            $gefunden[$t[3]] = $liste[] = [
-                'mode' => $this->normalise($t[2]),
-                'owner' => $t[1],
-                'quelle' => 'postinstall.sh',
-            ];
-        }
-
-        // `$alle` zählt beide Quellen einzeln; `$gefunden` ist die Sicht für
-        // den Vergleich, in der postinstall.sh nfpm.yaml überschreibt.
-        return $alle ? $liste : $gefunden;
-    }
-
-    /** `750` und `0750` sind dasselbe — verglichen wird vierstellig. */
-    private function normalise(string $mode): string
-    {
-        return str_pad(ltrim($mode, '0') === '' ? '0' : ltrim($mode, '0'), 4, '0', STR_PAD_LEFT);
-    }
-
-    /**
      * Eine Datei ohne ihre Kommentarzeilen.
      *
      * **Sonst zählt die Erklärung mit.** In der Unit steht seit der Behebung
@@ -523,11 +467,11 @@ final class ServiceDirectoryTest extends TestCase
      */
     private function withoutComments(string $quelle): string
     {
-        return (string) preg_replace('/^\s*#.*$/m', '', $quelle);
+        return $this->withoutHashComments($quelle);
     }
 
     private function root(): string
     {
-        return dirname(__DIR__, 2);
+        return $this->packagingRoot();
     }
 }

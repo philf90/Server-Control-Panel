@@ -12,6 +12,39 @@ Group=srvpanel
 WorkingDirectory=/opt/srvpanel/current
 ExecStart=/opt/srvpanel/bin/php artisan srvpanel:tls
 
+# **Täglicher Takt, also dreissig Minuten Frist.**
+#
+# Ein `Type=oneshot` **ohne** eigene Angabe läuft ohne Frist — gemessen am
+# 22. August 2026 auf cloudsrv24: `TimeoutStartUSec=infinity` (`docs/74`,
+# Befund 4). Hängt so ein Lauf, bleibt die Unit in `activating`, und systemd
+# startet sie beim nächsten Termin **nicht noch einmal**. Ein einziger
+# hängender Lauf nimmt damit alle folgenden mit.
+#
+#   Ein Dienst, der „active" meldet und keinen nächsten Termin hat, ist
+#   abgeschaltet und sieht aus wie eingeschaltet.
+#
+# Derselbe Satz wie am 19. August, andere Ursache: Damals war es ein Timer ohne
+# Kalender, hier wäre es ein Dienst ohne Frist.
+#
+# **Die Zahl ist grosszügig und nicht knapp**, und das ist die ganze
+# Überlegung. Eine Erneuerung geht über ACME und wartet dabei auf eine fremde
+# Stelle, und ein Lauf nimmt bis zu zehn Zertifikate mit
+# (`CertificateRenewal::PER_RUN`).
+# Wie lange das dauert, ist ungemessen: In dreissig Tagen Journal steht keine
+# einzige echte Erneuerung, nur Prüfungen mit „gilt noch" in unter einer
+# Sekunde. Eine knappe Frist wäre hier schädlicher als gar keine — sie räumte
+# eine laufende Bestellung ab, und der abgebrochene Versuch kostet trotzdem
+# einen der fünf Fehlversuche je Stunde, die für alle Kunden dieses Servers
+# zusammen gelten (`docs/34 §11`). Der Deckel soll ein Hängenbleiben beenden
+# und keine Pünktlichkeit erzwingen:
+#
+#   Ein Deckel gegen das Hängenbleiben muss nicht knapp sein — er muss endlich
+#   sein.
+#
+# Er liegt unter dem Takt des Timers, damit ein Hänger höchstens einen Termin
+# kostet und nicht mehrere. `OneshotDeadlineTest` rechnet beides nach.
+TimeoutStartSec=1800
+
 # Dieser Lauf fragt den Agenten und schreibt sonst nichts. Das Zertifikat legt
 # der Agent an — er läuft als root, dieser Dienst nicht.
 NoNewPrivileges=yes

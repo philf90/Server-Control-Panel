@@ -10,7 +10,13 @@ Architektur (§4), Rechtemodell (§6), Gestaltung (§7.2) und die Ausbaustufen
 Die Oberfläche folgt seit August 2026 dem Gestaltungssystem **„Kontor"**
 (Plan §7.2) — hell entworfen, keine Karten, Monospace nur für Kennungen.
 
-Stand: **P0 bis P6 abgenommen.** P6 ist am **21. August 2026** auf `cloudsrv24`
+Stand: **P0 bis P7 abgenommen.** P7 (der DNS-Abgleich) ist am **24. August
+2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
+`docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
+dieses Laufs steht weiter unten; sie ist eine über Abnahmeläufe und nicht über
+DNS.
+
+ P6 ist am **21. August 2026** auf `cloudsrv24`
 gegen `v0.6.0-rc.24` abgenommen — der Angriffsdurchgang (`docs/62`) und der
 Abschlusslauf, der seine vier letzten Reste durch die echte Route belegt hat
 (`docs/68` der Lauf, **`docs/69`** das Protokoll mit der Tabelle der fünfzehn
@@ -569,6 +575,158 @@ der Mandantenklammer steht.
 
 ---
 
+## P7 — der Abnahmelauf, der keinen Fund am Prüfling hatte
+
+Abgenommen am **24. August 2026** gegen `0.7.0-rc.8`, alle acht Kriterien aus
+`docs/72 §3`. Der Lauf ist `docs/77`, das Protokoll **`docs/78`**.
+
+**Alle acht waren bei der ersten Messung erfüllt.** Jede Korrektur dieses Tages
+betraf die **Vorschrift** oder die **Umgebung** — nicht das Panel. Drei davon
+hätten ein falsches Rot erzeugt, zwei ein falsches Grün.
+
+> **Die Mehrheit der Fehler steckt nicht im Prüfling, sondern im Prüfmittel** —
+> hier war es die Gesamtheit.
+
+Gefunden wurden sie auf zwei Wegen und auf keinem dritten: durch **Messen der
+Vorbereitung** statt sie vorauszusetzen, und durch **Nachsehen am Quelltext**,
+bevor eine Anweisung ausgeschrieben wurde.
+
+**Der teuerste hätte den Prüfling für etwas gemeldet, das er zu Recht tut.**
+Kriterium 4 lautet „fragt die autoritativen Server und nicht den
+Systemauflöser", und die Messung sollte zählen, ob überhaupt ein Paket an den
+Auflöser geht. Es geht eines: `Resolver::nameservers()` fragt über
+`dns_get_record()`, **wo eine Zone liegt**, und das ist im Kopf der Klasse
+begründet. Das Kriterium meint die *Werte der Sätze*, nicht das Auffinden der
+Zone.
+
+> **Ein Kriterium, das man am falschen Paket misst, meldet den Prüfling für
+> etwas, das er zu Recht tut.**
+
+**Und der zweite steckte in der Zone.** `ohne.cloudlab24.de` sollte den Zustand
+„fehlt" herstellen, indem man dort nichts anlegt — die Zone führt aber einen
+Platzhalter, und ein Name, den es nicht gibt, bekommt dort eine Antwort. Punkt 3
+hätte zwei Namen gemessen, die beide „zeigt hierher" sagen.
+
+> **Ein Zustand, den die Umgebung nicht zulässt, wird nicht dadurch
+> hergestellt, dass man nichts tut.**
+
+Der Ausweg fasst die Zone nicht an: Ein Platzhalter greift nach RFC 4592 nur für
+Namen, die es **gar nicht** gibt, also lässt ein `TXT`-Satz den Namen existieren
+und die `A`-Frage kommt leer zurück.
+
+**Zwei Sätze über Prüfkörper**, beide an Punkt 4 bezahlt. Der erste, weil das
+Verfahren einen gefüllten Auflöser-Zwischenspeicher brauchte und ipv64 die TTL
+fest auf 10 Sekunden stellt:
+
+> **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr hergestellt.**
+
+Der zweite, weil das ganze Verfahren an dieser Haltbarkeit hing und deshalb
+ersetzt wurde — gemessen wird jetzt das UDP-Paket selbst:
+
+> **Eine Messung, die um ihren Gegenstand herumführt, hängt an Bedingungen, die
+> mit ihm nichts zu tun haben.**
+
+**Und einer über das Zurücknehmen.** Punkt 9 räumt den `CAA`-Satz ab und misst
+danach noch einmal — nicht als Aufräumen, sondern als Beleg für Punkt 6:
+
+> **Eine Anzeige, die einen Zustand meldet, muss ihn auch wieder zurücknehmen —
+> sonst hat sie ihn nicht gemessen, sondern behalten.**
+
+**Was benannt offen bleibt** (`docs/78 §5`): der fehlende Aufstieg zur
+CAA-Elternzone (Grenze, kein Mangel), „Nameserver uneinig" und „kein Sollzustand
+bekannt" als nicht herstellbare Zustände, die Grenze des Durchgangs, und eine
+Beobachtung ausserhalb von P7 — die Zertifikatsautomatik hat für die drei neuen
+Domains über eine Stunde lang nichts bestellt.
+
+---
+
+## Die Zertifikatsbeobachtung aus `docs/78 §5` — 24. August 2026
+
+Sie stand als „hatte nach über einer Stunde kein Zertifikat" da und war kein
+Warten, sondern ein Fehlschlag: Die Automatik hatte bestellt, eine Sekunde nach
+`web.site.apply`, und die Prüfung von ACME bekam **403**. Die Prüfdatei lag,
+stand auf `0644`, ihre Verzeichnisse auf `0755`, und der `location`-Block zeigte
+mit `root` genau dorthin. Falsch war der Weg: `/var/lib/srvpanel` ist `0750
+srvpanel:srvpanel`, der nginx-Worker läuft als `www-data`.
+
+> **Eine Datei, die für alle lesbar ist, ist damit nicht erreichbar — der Weg zu
+> ihr entscheidet.**
+
+**Dieselbe Frage war in P6 schon einmal gestellt und beantwortet** —
+`CronApply::SPOOL_DIR` nennt wörtlich denselben Grund für die Aufzeichnungen der
+Cronjobs, und dort ist die Antwort `/var/spool`. Für die ACME-Prüfdatei hat sie
+niemand gestellt. Das ist der Satz aus `docs/59` zum vierten Mal:
+
+> **Ein Fehler, den man an einer Stelle vermieden hat, ist an der nächsten
+> wieder da, wenn die Vermeidung nicht die Regel wurde.**
+
+Kein Wächter konnte ihn sehen, weil er zwischen zwei Dateien steht: Der
+Ablageort wohnt im Agenten, die Rechte seiner Elternverzeichnisse in der
+Paketierung, und jede Seite für sich war in Ordnung. `ChallengeReachTest` wandert
+jetzt vom Wurzelverzeichnis bis zum Ablageort.
+
+**Und zwei Sätze über das Messen, beide an diesem Tag bezahlt.** Der erste, weil
+der erste Griff in den Fehlerlog leer blieb — `/var/log/nginx/error.log` ist
+nicht die Datei, jede Domain hat über `SiteTemplate` ihren eigenen unter
+`/var/www/vhosts/<benutzer>/logs/<domain>/error.log`:
+
+> **Ein leerer Griff in die falsche Datei sieht aus wie ein Befund.**
+
+Der zweite, weil der frisch gebaute Wächter beim Gegenprüfen an genau der Stelle
+grün blieb, an der er hätte rot sein müssen: Seine Frage „steht der Ablageort in
+der Paketierung?" ging an die Vereinigung von `nfpm.yaml` und `postinstall.sh`.
+
+> **Eine Frage an die Vereinigung hält auch dann, wenn eine der Quellen blind
+> ist — die andere zahlt für sie mit.**
+
+**Und ein Befund, der beim Abräumen danach herausfiel:** Der Rückbau einer
+Domain nimmt ihr Zertifikat nicht mit, und `srvpanel tls --prune` holte es auch
+später nicht — es räumte nur Zertifikate **zurückgebauter Abonnements** ab, und
+hier lebt das Abonnement weiter. Gemessen an Zertifikat 26 nach dem Löschen von
+`tls.cloudlab24.de`: null verweisende Domains, `privkey.pem` lag.
+`CertificatePrune` kennt seitdem zwei Arten ungebrauchter Zeilen — verwaist und
+**ohne Domain** —, und **gefragt wird nach der Deckung und nicht nach der
+Zuordnung**: Ein Platzhalter deckt eine lebende Domain, ohne ihr zugeordnet zu
+sein, und wer nur `domains.certificate_id` fragte, löschte den Schlüssel unter
+einer laufenden Website weg. Im Zweifel gilt eine Zeile als gebraucht.
+
+Zwei Stellen wären dabei beinahe stehengeblieben, beide zweite Fassungen
+derselben Regel: `forget()` mit der ausgeschriebenen Waisenbedingung und der
+Ausstieg des Kommandos an `orphans === 0`.
+
+**Was ein Betreiber danach von Hand tut:** `srvpanel vhost --sites`. Das Update
+zieht den Block der Oberfläche nach, die der Kundendomains nicht — und die
+zeigen bis dahin auf den alten Ort.
+
+**Nachgesehen am 24. August gegen `0.7.0-rc.9`** (`docs/78 §5`): `200` auf die
+Prüfdatei, `404` auf einen Namen, den es dort nicht gibt, und alle vier Blöcke
+tragen dieselbe eine `root`-Zeile. Die Kette bis zum **ausgestellten**
+Zertifikat brauchte einen zweiten Anlauf — die zwei Bestellungen aus
+`vhost --sites` galten Namen unter `.invalid` und sind zu Recht abgewiesen
+worden, es gab also keinen Fall, an dem sie sich hätte zeigen können.
+
+> **Ein Beleg für den Weg ist keiner für das Ziel.**
+
+Hergestellt wurde er mit einer neuen Unterdomain: Vorgang 682 `succeeded`,
+`subject=CN = tls.cloudlab24.de`, Let's Encrypt YR1, `notBefore` von derselben
+Minute — über HTTP-01, weil das Abonnement keine DNS-Zugangsdaten trägt. Und
+die erste Fassung dieser Messung war keine: Ein ungesetzter Platzhalter liess
+`openssl` ohne SNI gegen den Vorgabeblock laufen, und heraus kam ein gültig
+aussehendes Zertifikat mit dem falschen Namen.
+
+> **Ein Prüfkörper, der ohne seinen Gegenstand misst, misst etwas anderes und
+> sieht dabei aus wie ein Ergebnis.**
+
+Und eine Falle beim Nachsehen: **`srvpanel tinker` läuft ohne angemeldetes
+Konto.** Jedes Modell mit `BelongsToSubscription` steht dort auf
+`whereRaw('0 = 1')` — ohne `withoutGlobalScopes()` kommen null Zeilen zurück,
+und zwar wortlos. Gemessen als Paar: `mit Klammer: 0` · `ohne Klammer: 679`.
+
+> **Eine Frage, die im Grundzustand alles verweigert, antwortet mit einer leeren
+> Liste und nicht mit einem Fehler.**
+
+---
+
 ## Die eine Gewohnheit, die dieses Projekt trägt
 
 **Für jede Regel gibt es einen Wächter, und der Wächter wird gegengeprüft.**
@@ -598,6 +756,8 @@ jede Regel in app.css wird von einem Template erreicht) und `PaginationTest`
 (wer paginiert, lässt auch blättern) — dazu `RedirectTargetTest` (wer
 weiterleitet, nennt das Ziel; `back()` kennt es hier nicht) und
 `PairedSeriesTest` (zwei Kurven in einem Feld teilen sich die Achse) und
+`ChallengeReachTest` (der Webserver kommt bis zur ACME-Prüfdatei — geprüft an
+den Rechten jedes Verzeichnisses auf dem Weg dorthin) und
 `HostnameSourceTest` (nur `Names` fragt den Kernel nach dem Rechnernamen) und
 `AbilityReachTest` (ein Knopf, den der Betrachter nicht drücken darf, wird nicht
 gezeigt), `NavIconTest` (jeder Menüpunkt trägt ein Zeichen, und jedes Zeichen ist
@@ -848,6 +1008,12 @@ Und **`63` die Bilderrunde** — Schritt 12: die neun Ansichten, ihre Zustände,
 das Messmittel mit seiner Gegenprobe und die Fallen, die diesen Lauf schon
 gekostet haben — mit **`64`** als Protokoll dazu, angelegt am 19. August nach
 den ersten beiden Ansichten.
+
+Und **`79` die Übergabe an die Adminfunktionen vor P8** — der Stand des
+Projekts in Zahlen, die drei Grenzen, was dieser Container kann und was nicht
+(mit den fünf Fallen beim Bau des Wegwerf-Gestells), was für sichtbare
+Adminfunktionen im Besonderen gilt, und was der neuen Sitzung mitzugeben ist.
+Sie ersetzt den Plan der Adminfunktionen nicht — der ist anderswo entstanden.
 
 Und **`65` der Serverlauf zu `v0.6.0-rc.20`** — die elf Punkte, mit denen die
 sieben Befunde der zweiten Runde und die drei Wünsche auf einem echten Server
@@ -1330,6 +1496,17 @@ Testen berücksichtigen:
     > **Ein Werkzeug, das man über die gewohnten Pfade fährt, prüft die
     > Gewohnheit und nicht die Änderung.**
 
+    **Und die geänderten Dateien allein reichen nicht — die Schnittstellen,
+    die sie umsetzen, gehören dazu.** Am 22. August meldete ein solcher Lauf
+    dreizehnmal `argument.type`: „`ScriptedMeasurement` given, `Measurement`
+    expected". Beide Klassen sind in Ordnung; `Measurement.php` war bloss nicht
+    im Lauf, weil der Zweig sie nicht geändert hatte, und ohne sie kann PHPStan
+    das `implements` nicht auflösen. Mit der Schnittstelle daneben ist die
+    Ausgabe leer.
+
+    > **Ein Prüfer, dem die Schnittstelle fehlt, meldet nicht „ich kenne sie
+    > nicht" — er meldet, dass die Klasse sie nicht erfüllt.**
+
     Die teuerste der acht war keine Typangabe: Zwei neue Methoden waren
     zwischen `diskQuota()` und seinen Dokumentationsblock gerutscht, und der
     versprach über `dnsAddresses()` ein `array{available: …}`, wo ein
@@ -1432,6 +1609,34 @@ Testen berücksichtigen:
   > **„Das Bruchskript läuft hier nicht" ist keine Ausrede, sondern ein
   > Handgriff mehr.**
 
+  **Und welche Eingriffe man fährt, sagt nicht das Gedächtnis, sondern der
+  Zweig:** alle, deren `vorher_datei` eine Datei nennt, die dieser Zweig
+  geändert hat. Am 23. August 2026 hat genau das gefehlt. Ein Eingriff von
+  gestern brach `.toggle:has(input:disabled)`, und sein Zieltest fragte „gibt es
+  für diese Hülle **eine** Regel mit `disabled`?". Die Behebung von Befund 6 gab
+  `.toggle` eine **zweite** — die fürs Kästchen —, und die beantwortete die
+  Frage mit. Der Eingriff änderte die Datei weiter nachweislich und biss nicht
+  mehr; gemeldet hat es der Wochenlauf.
+
+  > **Eine zweite Regel für dieselbe Hülle macht die Frage „gibt es eine?"
+  > stumpf.**
+
+  > **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+  > wenn jemand neben seiner Regel eine zweite baut, die dieselbe Frage
+  > beantwortet.**
+
+  Nachgeholt über die vierzehn Dateien dieses Zweiges: **53 Eingriffe, alle
+  beissen.** Ein Wegwerfskript im Scratchpad genügt dafür — es wendet den
+  Python-Block an, fährt den genannten Test im Gestell und holt die Datei
+  zurück. Es gehört **nicht** ins Repo: Das wäre eine zweite Fassung von
+  `tests/waechter-brechen.sh`, und die zweite veraltet.
+
+  **Zwei Fallen dabei, beide bezahlt.** Der Lauf über alle 649 Eingriffe
+  braucht mehr als zwei Minuten und wird abgebrochen — ein Abbruch mitten im
+  Eingriff lässt die Datei kaputt liegen (`git status` vorher und nachher
+  vergleichen). Und `sort -u datei | tee datei` leert die Datei, bevor `sort`
+  sie liest.
+
   **Was das Gestell nicht kann, zählt es nach Art** statt es „übersprungen" zu
   nennen: fehlende Klassen, `setUp()`, Datenlieferanten, `use App\`. Gemessen
   468 grün, 1 rot, 263 solcher Löcher. Der Grund für die Aufzählung ist ein
@@ -1525,6 +1730,15 @@ Testen berücksichtigen:
   - Nach jeder Aufnahme `scrollWidth - clientWidth` messen. Ein waagerechter
     Überlauf bei 390px sieht auf dem Bild nach nichts aus und ist auf dem
     Telefon der ganze Unterschied.
+  - **Kein `| head` über dem Messlauf.** `head` schliesst die Leitung nach der
+    ersten Zeile, node stirbt am SIGPIPE — und die Aufnahmen der übrigen drei
+    Lagen sind dann die des **vorigen** Laufs. Am 23. August genau so passiert:
+    Hell zeigte den neuen Stand, Dunkel den alten, bei identischem Stylesheet,
+    und das las sich eine Weile wie ein Fehler im Theme. Der Lauf gehört in eine
+    Datei und die Datei danach gelesen.
+
+    > **Ein Bild, das ein abgebrochener Lauf hat liegen lassen, sieht aus wie
+    > ein Ergebnis — es trägt kein Datum im Bild.**
 - Vordergrund-`sleep` ist blockiert — Hintergrundlauf verwenden.
 - **`git checkout -- resources/` wirft eigene Arbeit weg.** Beim Gegenprüfen
   eines Wächters ist das der Weg zurück — und wenn im selben Verzeichnis noch

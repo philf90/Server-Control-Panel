@@ -230,6 +230,31 @@ final class DnsSweepTest extends TestCase
         $this->assertSame(2, $bericht['checked'], 'Eine stumme Zone ist kein Fehlschlag.');
         $this->assertSame(0, $bericht['failed']);
         $this->assertSame(1, $bericht['silent'], 'Die stumme Zone wird nicht gezaehlt.');
+        $this->assertSame(0, $bericht['unasked'], 'Eine stumme Zone ist gefragt worden.');
+    }
+
+    /**
+     * Ein Name, der nicht gefragt werden konnte, ist etwas anderes als eine
+     * Zone, die schweigt.
+     *
+     * **Bis zum 22. August 2026 war es dasselbe**, weil beides zu einer leeren
+     * Nameserverliste führt. Im Bericht stand „ohne Antwort", und um zu wissen,
+     * ob der Agent gescheitert war, musste jemand in dessen Protokoll sehen
+     * (`docs/74`, Befund 1).
+     *
+     * > **Ein Fehlerweg, der sich vom Normalfall nicht unterscheiden lässt, ist
+     * > keine Auskunft, sondern eine Vermutung.**
+     */
+    public function test_a_name_that_could_not_be_asked_is_not_a_silent_zone(): void
+    {
+        $this->domain('ungefragt.de');
+
+        $bericht = $this->sweep(unasked: 'ungefragt.de')->run();
+
+        $this->assertSame(1, $bericht['checked'], 'Die Domain ist gemessen worden.');
+        $this->assertSame(1, $bericht['unasked'], 'Der ungefragte Name wird nicht gezaehlt.');
+        $this->assertSame(0, $bericht['silent'], 'Er darf nicht zusaetzlich als stumm gelten.');
+        $this->assertSame(0, $bericht['failed'], 'Und ein Fehlschlag des Vorgangs ist er auch nicht.');
     }
 
     // ------------------------------------------------------------------
@@ -239,19 +264,28 @@ final class DnsSweepTest extends TestCase
     /**
      * Ein Durchgang mit einer Messung, die nichts nach draussen fragt.
      *
-     * **Zwei Arten von Misserfolg, und sie sind nicht dasselbe.** `$explode`
+     * **Drei Arten von Misserfolg, und keine zwei sind dasselbe.** `$explode`
      * nennt den Namen, bei dem die Messung **wirft** — der Fehlschlag, den
-     * {@see Sweep} auffangen muss. `$silent` nennt den, bei dem sie `null`
-     * gibt: Dann hat der Aufruf stattgefunden und niemand geantwortet, und das
-     * ist ein gültiges Ergebnis mit dem Namen „nicht erreichbar".
+     * {@see Sweep} auffangen muss. `$unasked` nennt den, bei dem sie `null`
+     * gibt: Der Aufruf hat nicht stattgefunden, und das liegt an uns.
+     * `$silent` nennt den, bei dem sie antwortet und **niemand** Nameserver
+     * genannt hat — ein gültiges Ergebnis mit dem Namen „nicht erreichbar".
+     *
+     * Die mittlere Sorte gab es hier bis zum 22. August 2026 nicht: `$silent`
+     * gab `null` zurück und war damit in Wahrheit der ungefragte Fall.
      */
-    private function sweep(int $domains = 25, ?string $explode = null, ?string $silent = null): Sweep
-    {
-        $this->app->instance(Measurement::class, new class($explode, $silent) implements Measurement
+    private function sweep(
+        int $domains = 25,
+        ?string $explode = null,
+        ?string $silent = null,
+        ?string $unasked = null,
+    ): Sweep {
+        $this->app->instance(Measurement::class, new class($explode, $silent, $unasked) implements Measurement
         {
             public function __construct(
                 private readonly ?string $explode,
                 private readonly ?string $silent,
+                private readonly ?string $unasked,
             ) {}
 
             /**
@@ -264,8 +298,12 @@ final class DnsSweepTest extends TestCase
                     throw new RuntimeException('Diese Zone kostet den Aufruf.');
                 }
 
-                if ($this->silent !== null && $zone === $this->silent) {
+                if ($this->unasked !== null && $zone === $this->unasked) {
                     return null;
+                }
+
+                if ($this->silent !== null && $zone === $this->silent) {
+                    return ['nameservers' => [], 'records' => [], 'authorities' => []];
                 }
 
                 return ['nameservers' => ['198.51.100.1'], 'records' => [], 'authorities' => []];

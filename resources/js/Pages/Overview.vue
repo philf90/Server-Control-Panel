@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { Link, router } from '@inertiajs/vue3'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import ActionIcon from '../Components/ActionIcon.vue'
 import Bar from '../Components/Bar.vue'
 import Section from '../Components/Section.vue'
 import Badge from '../Components/Badge.vue'
@@ -122,6 +123,202 @@ const kernelText = computed(() => {
   return props.server.kernel_stale === true ? `${kernel} — ein neuerer ist installiert` : kernel
 })
 
+/*
+ * ═══════════════════════════════════════════════════════════════════════
+ * Der Selbstlauf der Kacheln
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * **Der Anlass.** Vom Betreiber am 22. August 2026 gemeldet: „Die Kacheln der
+ * Sparklines aktualisieren sich aktuell nicht automatisch." Der Sammler
+ * schreibt im **Zehnsekundentakt** (`srvpanel-metrics.service`) — die Zahlen
+ * standen also nicht still, die Seite sah bloss nicht mehr hin. Wer die
+ * Auslastung beobachten wollte, drückte F5.
+ *
+ * **Dreissig Sekunden.** Der Sammler liefert in dieser Zeit drei neue
+ * Stützstellen; schneller nachzuladen hiesse, dieselbe Kurve noch einmal zu
+ * holen.
+ *
+ * **Nur die Kacheln.** `only: ['tiles']` — Dienste, Dateisysteme und Prozesse
+ * bleiben, wie sie sind. Der Steuerungscode übergibt jede Angabe deshalb als
+ * Verschluss; ohne das wäre das Sieb wirkungslos (dort steht die Begründung
+ * und die gemessene Zahl der Agentenaufrufe).
+ */
+
+/**
+ * Die Takte, die zur Wahl stehen — Sekunden, `0` heisst „nicht von allein".
+ *
+ * **Die Auswahl entsteht aus dieser Liste und steht nicht zweimal da.** Ein
+ * `<option>` von Hand daneben wäre eine zweite Fassung derselben Angabe, und
+ * ein Wert, den die Liste nicht kennt, liesse die Auswahl leer aussehen — der
+ * Fehler, den dieses Projekt sechsmal bezahlt hat: eine Zeichenkette, die auf
+ * etwas verweist, das niemand nachschlägt.
+ *
+ * **Die Wörter stehen ausgeschrieben.** „30 s" wäre kürzer und ist eine
+ * Abkürzung, die dieses Panel sonst nirgends benutzt; gemessen kostet die volle
+ * Schreibweise bei 390 px vierzehn Pixel Höhe.
+ */
+const TAKTE = [
+  { sekunden: 30, wort: 'alle 30 Sekunden' },
+  { sekunden: 60, wort: 'alle 60 Sekunden' },
+  { sekunden: 0, wort: 'nicht von allein' },
+] as const
+
+/** Wo der Browser sich den Takt merkt. */
+const STORAGE_KEY = 'srvpanel.overview.cycle'
+
+/**
+ * Der Takt in Sekunden, `0` heisst „nicht von allein" — gemerkt im Browser und
+ * nicht am Konto.
+ *
+ * **Warum `localStorage` und nicht das Profil.** Das Thema hell/dunkel gehört
+ * dem Menschen und soll ihm auf jedes Gerät folgen. Dieser Schalter gehört dem
+ * **Bildschirm**: Auf dem Monitor neben dem Schreibtisch soll die Seite von
+ * allein laufen, auf dem Telefon in der Bahn nicht. Ein Wert am Konto wäre für
+ * beide derselbe.
+ *
+ * **Und jeder Zugriff in einem `try`.** In einem privaten Fenster und bei
+ * abgeschalteten Seitendaten wirft schon das Lesen — nicht `null`, sondern
+ * eine Ausnahme. Ohne die Klammer stünde die Übersicht dort weiß da.
+ */
+const cycle = ref(gemerkt())
+
+/** Ob gerade nachgeladen wird — der Knopf dreht sich dann. */
+const busy = ref(false)
+
+let takt: ReturnType<typeof setInterval> | undefined
+
+/**
+ * Der gemerkte Takt — oder die Vorgabe.
+ *
+ * **Gelesen wird gegen {@link TAKTE} und nicht gegen sich selbst.** Im
+ * Speicher des Browsers kann alles stehen: ein Wert aus einer früheren Fassung,
+ * etwas von Hand Eingetragenes, Unsinn. Ein Takt, den die Liste nicht kennt,
+ * liesse die Auswahl leer aussehen und liefe in einem Rhythmus, den niemand
+ * gewählt hat.
+ *
+ * > **Ein Wert aus fremder Hand gehört gegen die Liste geprüft, die ihn
+ * > anbietet.**
+ */
+function gemerkt(): number {
+  try {
+    const wert = Number(window.localStorage.getItem(STORAGE_KEY))
+
+    if (TAKTE.some((t) => t.sekunden === wert)) return wert
+  } catch {
+    // Kein Zugriff auf den Speicher — dann gilt die Vorgabe.
+  }
+
+  // Die Vorgabe ist der kürzeste Takt: Wer nichts eingestellt hat, will die
+  // Zahlen sehen.
+  return TAKTE[0].sekunden
+}
+
+function merken(sekunden: number): void {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, String(sekunden))
+  } catch {
+    // Ein Schalter, der sich nicht merken lässt, wirkt trotzdem für diese
+    // Sitzung. Eine Fehlermeldung dafür wäre eine Störung ohne Handlung.
+  }
+}
+
+/**
+ * Den Takt neu stellen — anhalten und, wenn einer gewählt ist, neu setzen.
+ *
+ * `setInterval` kennt keine Änderung seiner Länge; wer den Takt umstellt, muss
+ * den alten anhalten. Ohne das liefen nach zwei Umstellungen drei.
+ */
+function stellen(): void {
+  clearInterval(takt)
+  takt = undefined
+
+  if (cycle.value > 0) takt = setInterval(tick, cycle.value * 1000)
+}
+
+/**
+ * Die Kacheln neu holen.
+ *
+ * **Der Riegel ist keine Feinheit.** Ein zweiter Aufruf, während der erste
+ * unterwegs ist, macht aus einem Takt zwei — und Inertia bricht den ersten ab,
+ * die Seite hängt dann an der Antwort des zweiten.
+ */
+function refresh(): void {
+  if (busy.value) return
+
+  router.reload({
+    only: ['tiles'],
+    onStart: () => {
+      busy.value = true
+    },
+    onFinish: () => {
+      busy.value = false
+    },
+  })
+}
+
+/**
+ * Ein Takt — und im Hintergrund geschieht nichts.
+ *
+ * **`document.hidden` und nicht bloss der Schalter.** Ein vergessener Reiter
+ * fragte sonst alle dreissig Sekunden den Agenten, für eine Seite, die niemand
+ * ansieht. Bei zwanzig offenen Reitern ist das der Unterschied zwischen einem
+ * Aufruf und zwanzig.
+ */
+/**
+ * Der Buchstabe im Zeichen — `A`, solange ein Takt gewählt ist.
+ *
+ * **Als Berechnung und nicht als Vergleich im Attribut.** `:letter="cycle > 0
+ * ? …"` trägt ein `>` mitten in die Vorlage, und jeder Wächter, der ein Tag
+ * über `[^>]*` liest, hört genau dort auf. `BlockSpacingTest` hat sich daran
+ * am 23. August verzählt und eine Fuge gemeldet, die es nicht gibt.
+ *
+ * > **Ein `>` in einem Attribut beendet das Tag für jeden, der es mit einem
+ * > Ausdruck liest.**
+ */
+const letter = computed((): string => (cycle.value > 0 ? 'A' : ''))
+
+function tick(): void {
+  if (cycle.value === 0 || document.hidden) return
+
+  refresh()
+}
+
+/**
+ * Zurück im Bild: sofort nachholen.
+ *
+ * Ohne das zeigte die Seite nach dem Umschalten aus einem anderen Reiter bis
+ * zu dreissig Sekunden lang den Stand von vorhin — und zwar genau in dem
+ * Augenblick, in dem jemand hinsieht.
+ */
+function onVisible(): void {
+  if (!document.hidden && cycle.value > 0) refresh()
+}
+
+watch(cycle, (sekunden: number): void => {
+  merken(sekunden)
+  stellen()
+
+  // Einschalten heisst „jetzt", nicht „in dreissig Sekunden". Ein Schalter,
+  // der sichtbar nichts tut, ist der Befund vom 7. August in anderer Gestalt.
+  if (sekunden > 0) refresh()
+})
+
+onMounted((): void => {
+  stellen()
+  document.addEventListener('visibilitychange', onVisible)
+})
+
+/*
+ * **Ohne das läuft der Takt weiter, wenn die Seite längst weg ist.** Dieses
+ * Panel lädt nicht neu — Inertia tauscht die Seite im selben Dokument aus. Ein
+ * `setInterval` überlebt das und fragt bis zum Schliessen des Reiters weiter,
+ * von jeder Seite aus, auf der man einmal war. `IntervalTest` besteht darauf.
+ */
+onUnmounted((): void => {
+  clearInterval(takt)
+  document.removeEventListener('visibilitychange', onVisible)
+})
+
 const headline = props.server.reachable
   ? [props.server.hostname, props.server.distribution, kernelText.value, uptimeText(props.server.uptime_s ?? 0)]
       .filter(Boolean)
@@ -131,6 +328,73 @@ const headline = props.server.reachable
 
 <template>
   <PanelLayout title="Übersicht" :subline="headline">
+    <!--
+      **Der Selbstlauf steht im Seitenkopf und nicht bei den Kacheln.**
+
+      Der Betreiber hat beides angeboten — neben der Überschrift oder am
+      oberen rechten Rand. Der Seitenkopf ist beides zugleich: `.page-head`
+      verteilt Titelblock und Knopfreihe mit `space-between`, also steht die
+      Reihe rechts auf derselben Grundlinie wie „Übersicht". Und es ist der
+      Ort, an dem jede andere Seite dieses Panels ihre Hauptaktion führt — ein
+      zweiter Ort nur für diese eine Seite wäre eine zweite Ordnung.
+
+      **Zwei Bedienelemente und nicht eines.** Der Knopf aktualisiert von Hand,
+      die Auswahl schaltet den Selbstlauf. Das `A` im Zeichen sagt, dass er
+      läuft — und das Wort daneben sagt, was das heisst: Ein Zeichen trägt
+      keine Bedeutung allein (`NavIcon.vue`, `ActionIconTest`).
+    -->
+    <template #actions>
+      <div class="button-row">
+        <button
+          type="button"
+          class="button"
+          :aria-busy="busy"
+          @click="refresh"
+        >
+          <!--
+            `state`: Das Zeichen trägt hier eine Auskunft und nicht bloss die
+            Wiederholung seines Wortes — es bleibt deshalb auf jeder Breite
+            stehen (`app.css`).
+          -->
+          <ActionIcon
+            name="refresh"
+            class="state"
+            :letter="letter"
+            :class="{ turns: busy }"
+          />
+          <span>Aktualisieren</span>
+        </button>
+
+        <!--
+          **Die Auswahl trägt ihre Beschriftung in ihren eigenen Optionen.**
+
+          Am 7. August hat der Betreiber ein unbeschriftetes Auswahlfeld auf der
+          Domainliste gemeldet — „geht unter und wird nicht wirklich
+          wahrgenommen". Dort stand ein **Abonnementname** darin, und der sagt
+          über die Aufgabe des Feldes nichts; erst „Abonnement" daneben tut das.
+
+          Hier ist es umgekehrt: „alle 30 Sekunden" neben einem Knopf, der
+          „Aktualisieren" heisst, **ist** die Beschriftung. Ein Etikett
+          „Selbstlauf" davor sagte dasselbe ein zweites Mal und kostete bei
+          390 px eine eigene Spalte — der Betreiber hat es am 23. August als
+          überflüssig gemeldet.
+
+          > **Eine Beschriftung, die dasselbe sagt wie der Wert darunter, ist
+          > keine Auskunft, sondern eine Wiederholung.**
+
+          `aria-label` bleibt: Die Vorlesehilfe liest die Optionen nicht mit,
+          sie liest den Namen des Feldes. `FormLabelTest` prüft die Klammer und
+          nicht den Text — sein eigener Kopf sagt, dass das Bild über die
+          Beschriftung entscheidet.
+        -->
+        <label class="field inline">
+          <select v-model="cycle" aria-label="Selbstlauf">
+            <option v-for="t in TAKTE" :key="t.sekunden" :value="t.sekunden">{{ t.wort }}</option>
+          </select>
+        </label>
+      </div>
+    </template>
+
     <p v-if="!server.reachable" class="notice critical">
       <span>
         <b>Der Agent antwortet nicht.</b>

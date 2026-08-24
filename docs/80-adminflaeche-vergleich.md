@@ -1,4 +1,8 @@
-# 73 — Die Admin-Ansicht im Vergleich mit Plesk und cPanel
+# 80 — Die Admin-Ansicht im Vergleich mit Plesk und cPanel
+
+> **Umnummeriert am 24. August 2026 von `docs/73` auf `docs/80`** — P7 hat die
+> Nummer am selben Tag in einer parallelen Sitzung vergeben. Der Plan dazu ist
+> `docs/81` (vorher `docs/74`).
 
 Geschrieben am 24. August 2026 auf die Frage des Betreibers, welche Funktionen
 für den **Serveradministrator** noch sinnvoll in die Admin-Ansicht gehören.
@@ -113,7 +117,7 @@ Stand hier. Die Spalte **Bewertung** ist meine, nicht die der Hersteller.
 | SSH-Zugang des Admins, Schlüssel | Extension | SSH Access | nur SFTP je Abo (P6) | — | bewusst offen |
 | 2FA | ja | ja | **ja**, TOTP mit Schrittsperre | — | gleichauf |
 | Zugangsbeschränkung für das Panel (IP) | ja | ja | nein | — | **Lücke A9** |
-| Weitere Admins, Rollen | Additional Administrators | Reseller/Root | nein — genau ein Admin | Reseller post-1.0 | **Lücke A9** — zwei Rollen, `docs/74 §11` |
+| Weitere Admins, Rollen | Additional Administrators | Reseller/Root | nein — genau ein Admin | Reseller post-1.0 | **Lücke A9** — zwei Rollen, `docs/81 §11` |
 | Sitzungen sehen und beenden | ja | ja | nein | — | **Lücke A9**, klein |
 | Malware-Scan | ImunifyAV | ImunifyAV | nein | nein | **bewusst nicht**, §5 — mit einer billigen Hälfte, A13 |
 | WAF / ModSecurity | ja, drei Regelwerke | ja, Anbieterwahl | nein | nein | **bewusst nicht**, §5 |
@@ -404,7 +408,7 @@ Domains ist.
 Abgleich „zeigt woandershin" meldet, ist die erste Frage: gegen **was** hat er
 verglichen?
 
-**Aufwand.** 2–3 Tage, am besten zusammen mit P7.
+**Aufwand.** 2–3 Tage. P7 ist abgenommen; A8 steht damit für sich.
 
 ---
 
@@ -415,7 +419,7 @@ verglichen?
 > **Verb** geteilt — lesen gegen schreiben —, und für ein Hosting-Panel ist das
 > die falsche Achse: Wer Kunden betreut, muss anlegen und ändern dürfen. Der
 > Betreiber hat nach dem **Gegenstand** geteilt. Ausgeschrieben ist das Modell
-> in `docs/74 §11`.
+> in `docs/81 §11`.
 
 **Was.** Zwei Verwaltungsrollen:
 
@@ -441,7 +445,7 @@ ab, die Geheimnisse tragen.
 den übrigen einen 403 bekommt **und in der Inertia-Antwort dieser Seiten kein
 Feld steht, das er nicht sehen darf** — gemessen an der Antwort, nicht am Bild.
 
-**Die Fallen.** Drei, in `docs/74 §11` ausgeschrieben. Die teuerste steht am
+**Die Fallen.** Drei, in `docs/81 §11` ausgeschrieben. Die teuerste steht am
 Datenmodell: **`AccountType` bekommt keinen vierten Fall.** Seine Methoden sind
 als Gleichheit mit einem Fall geschrieben; ein `Superadmin` wäre augenblicklich
 `isAdmin() === false` an 52 Stellen. Seit dem 24. August steht

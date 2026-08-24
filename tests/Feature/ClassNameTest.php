@@ -55,7 +55,7 @@ final class ClassNameTest extends TestCase
         'list',
         'literal',
         'log', 'long', 'mark', 'menu', 'met', 'meter', 'multiline', 'name', 'node', 'number',
-        'narrow', 'nav', 'neutral', 'note', 'notice', 'ok', 'on', 'op',
+        'narrow', 'nav', 'neutral', 'note', 'notice', 'obstacle', 'ok', 'on', 'op',
         'open', 'operator', 'output', 'over', 'page', 'pager', 'pair', 'paired', 'pairs', 'password', 'path',
         'permissions', 'property', 'punctuation',
         'postscript', 'primary', 'progress', 'quiet', 'rail', 'release',
@@ -64,7 +64,7 @@ final class ClassNameTest extends TestCase
         'small',
         'source', 'spaced', 'split', 'sr', 'stacks', 'state', 'strength', 'string', 'sub', 'subline',
         'tag', 'tasks', 'text', 'tight', 'tile', 'tiles', 'time', 'title', 'toggle', 'tok',
-        'top', 'topbar', 'tree', 'trend', 'twig', 'unit', 'usage', 'value', 'variable', 'verb',
+        'top', 'topbar', 'tree', 'trend', 'turns', 'twig', 'unit', 'usage', 'value', 'variable', 'verb',
         'version', 'warn',
         'wide', 'who', 'with',
     ];

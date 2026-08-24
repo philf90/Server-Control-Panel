@@ -175,18 +175,21 @@ final class BlockSpacingTest extends TestCase
          * > Falsche — und schweigt über das Richtige.**
          */
         'link + ident',
-        'choices + dependent',
-        'choices + label',
-        'choices + with-unit',
-        'dependent + dependent',
-        'dependent + with-unit',
-        'field + button',
+        /*
+         * **Und dieselbe Brotkrume noch einmal, im Dateimanager.** `<span
+         * class="quiet">/</span>` und der Knopf mit dem Namen stehen in einer
+         * Zeile; zwei Blöcke im Fluss sind das nicht.
+         *
+         * Gesehen am 23. August, nachdem der Ausdruck über die Tags
+         * Anführungszeichen gelernt hatte — vorher verzählte er sich an
+         * `@click="open('/')"` und der Nachbar entstand gar nicht.
+         */
+        'quiet + link',
         'form + form',
         'field + field-row',
         'hint + field-row',
         'hint + form',
         'scrolls + form',
-        'ident + button-row',
         'ident + ident',
         'ident + notice',
         /*
@@ -215,8 +218,6 @@ final class BlockSpacingTest extends TestCase
          */
         'output + quiet',
         'badge + quiet',
-        'folds + quiet',
-        'quiet + ident',
         'link + quiet',
         'field + quiet',
         'quiet + quiet',
@@ -226,17 +227,10 @@ final class BlockSpacingTest extends TestCase
          * freigegeben, weil die Regel darüber auf die drei gemessenen Fälle
          * verengt wurde.
          */
-        'scrolls + scrolls',
-        'button-row + scrolls',
         'leaf + leaf',
         'link + link',
-        'pager-state + button',
-        'sections + form',
-        'toggle + button-row',
         'toggle + choices',
-        'toggle + ident',
         'toggle + dependent',
-        'toggle + with-unit',
     ];
 
     /**
@@ -541,13 +535,33 @@ final class BlockSpacingTest extends TestCase
             '~<template([^>]*)>|</template>~s',
             static function (array $treffer) use (&$tiefe): string {
                 if ($treffer[0] === '</template>') {
-                    return array_pop($tiefe) === true ? '</div>' : '';
+                    array_pop($tiefe);
+
+                    return '</div>';
                 }
 
                 $benannt = preg_match('~(^|\s)(#|v-slot)~', $treffer[1]) === 1;
-                $tiefe[] = $benannt;
+                $tiefe[] = true;
 
-                return $benannt ? '<div data-slot>' : '';
+                /*
+                 * **Ein `<template v-else>` wird zu einem klassenlosen Kasten
+                 * und nicht zu nichts.**
+                 *
+                 * Gelöscht war er bis zum 23. August, und damit ging seine
+                 * **Bedingung** verloren: In der Zeilenansicht der Konsole
+                 * steht `<span v-if class="quiet">NULL</span>`, daneben ein
+                 * `v-else-if`, und im `<template v-else>` der Wert mit seinem
+                 * Knopf. Ohne die Hülle wurde der Knopf zum Nachbarn der
+                 * beiden Marken — obwohl **nie beide zugleich** da sind.
+                 *
+                 * Ein Kasten ohne Klasse ändert an der Fuge nichts:
+                 * {@see self::transparent()} sieht durch ihn hindurch, seine
+                 * Kinder bleiben im Fluss. Was er hinzufügt, ist die
+                 * Zugehörigkeit zum Zweig.
+                 *
+                 * > **Wer eine Hülle wegwirft, wirft ihre Bedingung mit weg.**
+                 */
+                return $benannt ? '<div data-slot>' : '<div'.$treffer[1].'>';
             },
             $ohneKommentare,
         );
@@ -727,7 +741,25 @@ final class BlockSpacingTest extends TestCase
          */
         $void = ['input', 'br', 'hr', 'img', 'meta', 'link', 'source', 'area', 'col'];
 
-        preg_match_all('/<(\/?)([a-zA-Z][\w.-]*)([^>]*)>/s', $template, $tags, PREG_SET_ORDER);
+        /*
+         * **Der Ausdruck kennt Anführungszeichen, und das ist bezahlt.**
+         *
+         * `[^>]*` hört am ersten `>` auf — auch an einem, das **in** einem
+         * Attribut steht. `:letter="cycle > 0 ? 'A' : ''"` auf der Übersicht
+         * riss damit ein selbstschliessendes Tag mitten entzwei: Die Tiefe
+         * stieg und fiel nie wieder, und alles dahinter bekam den falschen
+         * Elternteil. Gemeldet wurde eine Fuge zwischen `.button-row` und
+         * `.tiles` — zwei Kästen, die im Browser nicht einmal denselben
+         * Vorfahren haben.
+         *
+         * > **Ein `>` in einem Attribut beendet das Tag für jeden, der es mit
+         * > einem Ausdruck liest.**
+         *
+         * Derselbe Fehler hat `NoticeChildrenTest` schon einmal gekostet
+         * (`docs/76`, Befund 3). Dort steht die Lehre; hier steht sie ein
+         * zweites Mal, weil zwei Wächter zwei Ausdrücke haben.
+         */
+        preg_match_all('/<(\/?)([a-zA-Z][\w.-]*)((?:"[^"]*"|\'[^\']*\'|[^>"\'])*)>/s', $template, $tags, PREG_SET_ORDER);
 
         $stil = $this->stylesheet($scoped);
         $bausteine = array_keys($this->stylesheet());
@@ -811,13 +843,60 @@ final class BlockSpacingTest extends TestCase
              * das nächste Geschwister, und — solange dieses an einer Bedingung
              * hängt — auch das dahinter.
              */
+            /*
+             * **Und ein `v-else` ist kein Nachbar, sondern eine Alternative.**
+             *
+             * Auf der Domain- und der Datenbankliste steht im Seitenkopf
+             * `<Link v-if="creatable.length === 1" class="button primary">`
+             * und daneben `<form v-else-if="creatable.length > 1"
+             * class="button-row">`. Im Quelltext folgen sie aufeinander; im
+             * Browser ist **immer nur eines von beiden** da.
+             *
+             * > **Zwei Zweige derselben Bedingung berühren sich nie — sie
+             * > schliessen einander aus.**
+             *
+             * Gesehen wurde das erst am 23. August, nachdem der Ausdruck über
+             * die Tags Anführungszeichen gelernt hatte: Vorher verzählte er
+             * sich an `creatable.length === 1` und die beiden bekamen gar
+             * nicht erst denselben Elternteil.
+             *
+             * **Ausschliessend ist das nur gegenüber dem Vorgänger selbst.**
+             * Der erste Wurf hat die Kette am *Nachfolger* weitergezählt, und
+             * damit fiel eine echte Fuge weg: Unter dem Erklärsatz der Konsole
+             * steht `<p v-if="loadingTable" class="empty">` und dahinter
+             * `<div v-else class="scrolls">`. Die beiden schliessen einander
+             * aus — den Satz darüber schliesst keines von beiden aus, und
+             * `section-note + scrolls` ist genau die Fuge, die man sieht,
+             * sobald die Tabelle geladen ist.
+             *
+             * > **Zwei Zweige einer Bedingung schliessen einander aus und
+             * > sonst niemanden.** Für den Baustein davor sind sie beide
+             * > möglich — und damit beide Nachbarn.
+             */
             $nachbarn = [];
             $naechster = $this->sibling($tags, $start, $void);
 
+            // Steht der Vorgänger selbst in einer Kette, sind die Glieder
+            // dahinter seine Alternativen und nicht seine Nachbarn.
+            $eigeneKette = preg_match('/\sv-(?:if|else-if)\b/', $tags[$start][3]) === 1;
+
             while ($naechster !== null) {
+                $attribute = $tags[$naechster][3];
+
+                if ($eigeneKette && preg_match('/\sv-(?:else-if|else)\b/', $attribute) === 1) {
+                    $eigeneKette = preg_match('/\sv-else-if\b/', $attribute) === 1;
+                    $naechster = $this->sibling($tags, $naechster, $void);
+
+                    continue;
+                }
+
+                $eigeneKette = false;
                 $nachbarn[] = $naechster;
 
-                if (preg_match('/\sv-(?:if|else-if|else)\b/', $tags[$naechster][3]) !== 1) {
+                // Hängt dieser Nachbar an einer Bedingung, rückt seine eigene
+                // Alternative an seine Stelle — und die berührt den Vorgänger
+                // dann genauso.
+                if (preg_match('/\sv-(?:if|else-if)\b/', $attribute) !== 1) {
                     break;
                 }
 

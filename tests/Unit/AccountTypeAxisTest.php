@@ -18,7 +18,7 @@ use ReflectionEnum;
  * **Der Schaden.** `isAdmin()` und `belongsToCustomer()` sind als *Gleichheit
  * mit einem Fall* geschrieben und nicht als Zugehörigkeit zu einer Menge. Ein
  * vierter Fall — etwa `Superadmin` für die zweite Verwaltungsrolle aus
- * `docs/74 §11` — wäre damit augenblicklich `isAdmin() === false` und
+ * `docs/81 §11` — wäre damit augenblicklich `isAdmin() === false` und
  * `belongsToCustomer() === true`, an über fünfzig Stellen in `app/` und
  * `routes/`. Die Mandantenklammer setzte ihn auf `whereRaw('0 = 1')`, weil er
  * keinen Kunden hat.
@@ -42,7 +42,7 @@ final class AccountTypeAxisTest extends TestCase
 {
     /**
      * Die drei Ebenen aus §6.1 des Plans. Wer hier etwas ergänzt, liest
-     * vorher `docs/74 §11` — und trägt die neue Rolle woanders ein.
+     * vorher `docs/81 §11` — und trägt die neue Rolle woanders ein.
      */
     private const KNOWN = ['admin', 'customer', 'additional'];
 
@@ -63,7 +63,7 @@ final class AccountTypeAxisTest extends TestCase
             'AccountType hat einen Fall bekommen. Das ist die Mandantenachse — '
             .'eine Verwaltungsrolle gehört nicht hierher, weil isAdmin() und '
             .'belongsToCustomer() gegen genau einen Fall vergleichen und der '
-            .'neue Fall damit still zum Kunden würde. Siehe docs/74 §11.',
+            .'neue Fall damit still zum Kunden würde. Siehe docs/81 §11.',
         );
     }
 

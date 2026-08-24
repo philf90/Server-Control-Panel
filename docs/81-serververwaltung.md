@@ -1,13 +1,27 @@
-# 74 — P9a: Serververwaltung für den Admin
+# 81 — Serververwaltung für den Admin
 
-Geplant am 24. August 2026. Der Auftrag steht in `docs/73`: Der Betreiber hat
+*Geplant unter dem Namen „P9a“. Die Reihenfolge ist seit `docs/79` „vor P8“ — siehe §12.1.*
+
+Geplant am 24. August 2026. Der Auftrag steht in `docs/80`: Der Betreiber hat
 die Admin-Ansicht gegen Plesk und cPanel gehalten und gefragt, was noch
 hineingehört. Sechzehn Vorschläge sind daraus geworden; **A1 — Paketquellen und
 Systemupdates über apt** war seine eigene Idee und ist der grösste.
 
 **Dieses Dokument plant A1 vollständig und die übrigen als Skizze**, in der
-Reihenfolge aus `docs/73 §6.1`. Die Abarbeitung erfolgt nach Abschluss von P7
-in einer eigenen Sitzung.
+Reihenfolge aus `docs/80 §6.1`. Die Abarbeitung erfolgt in einer eigenen
+Sitzung — **P7 ist seit dem 24. August abgenommen** (`docs/78`), und die
+Adminfunktionen kommen damit vor P8. Die Übergabe an jene Sitzung ist
+`docs/79`; sie trägt den Zustand des Projekts, dieses Dokument den Plan.
+
+> **Umnummeriert am 24. August 2026.** Dieses Dokument hiess `docs/74`, das
+> nebenstehende `docs/73` — beide Nummern hat P7 am selben Tag vergeben, in
+> einer parallelen Sitzung. Wer in einem Commit oder einer Notiz von vor diesem
+> Datum `docs/73` oder `docs/74` liest und Adminfunktionen erwartet, sucht
+> `docs/80` und `docs/81`.
+>
+> **Eine Nummer, die zwei Sitzungen gleichzeitig vergeben, gehört keiner von
+> beiden.** Der Rückweg ist billig, solange nur zwei Dokumente daran hängen —
+> und teuer, sobald ein Protokoll darauf verweist.
 
 **§2 ist die Messrunde, und ein Teil davon ist gefahren** — gegen Ubuntu 24.04
 im Container, mit `tests/apt-messen.sh` als Messmittel. Was dort steht, ist
@@ -509,7 +523,7 @@ nicht.
 ## 6. Die Oberfläche
 
 Eine Seite **„Pakete und Updates"** in der neuen Menügruppe **„Server"**
-(`docs/73 §6.3`), in vier Bereichen:
+(`docs/80 §6.3`), in vier Bereichen:
 
 1. **Zustand** — wann zuletzt aktualisiert, wie viele Pakete, davon Sicherheit,
    davon zurückgehalten, Neustart nötig. Mit dem Knopf „Jetzt nachsehen".
@@ -640,7 +654,7 @@ an bestehendem Code und wartet nicht auf ein neues Merkmal.
 
 ---
 
-## 11. Die übrigen Punkte, in der Reihenfolge aus `docs/73 §6.1`
+## 11. Die übrigen Punkte, in der Reihenfolge aus `docs/80 §6.1`
 
 Skizzen, kein Plan. Jede Stufe bekommt ihr eigenes Dokument, wenn sie drankommt.
 
@@ -913,7 +927,7 @@ Liste.
 |---|---|---|
 | **A11** | Neustart, Zeitzone des Servers und NTP **neben** der Anzeigezeitzone aus `docs/40`, Rechnername nur anzeigen | mit A1, Schritt 7 |
 | **A6** | Leseansicht von `/etc/crontab`, `/etc/cron.d`, `cron.daily` und `cron.weekly` | mit A2 |
-| **A8** | Welche Adressen der Server hat, welche der DNS-Abgleich als Soll nimmt | mit P7 |
+| **A8** | Welche Adressen der Server hat, welche der DNS-Abgleich als Soll nimmt | eigenständig; P7 ist fertig |
 | **A12** | Wartungsmodus: alle Kundenseiten auf 503, Panel erreichbar | mit A1 |
 | **A13** | Die billige Hälfte des Malware-Scans: 0777, frisch geänderte PHP-Dateien, `eval(base64_decode` als Textsuche | mit A10 |
 
@@ -942,6 +956,31 @@ Betreiber, nicht dieses Dokument:
 zweieinhalb Wochen, und sie machen jede Stufe danach billiger — ein
 Diagnoselauf, der jede Nacht den Bestand prüft, hätte in `docs/45`, `docs/62`
 und `docs/66` Befunde gefunden, bevor ein Abnahmelauf sie gefunden hat.
+
+### 12.1 Die Reihenfolge ist entschieden, der Name nicht
+
+**Nachgetragen am 24. August 2026, nach dem Merge von P7.** `docs/79` heisst
+„Übergabe: die Adminfunktionen **vor P8**" — der Betreiber hat die Reihenfolge
+damit entschieden, und weiter als die Empfehlung oben reicht: nicht nur A5, A2
+und A10, sondern die Adminfunktionen insgesamt kommen vor die Sicherungen.
+
+**Damit ist der Name „P9a" falsch geworden.** Er stammt aus der Annahme, diese
+Arbeit hänge hinten an P9; sie hängt jetzt zwischen P7 und P8. Die Tabelle
+darüber bleibt als **Zuschnitt** richtig — welche Vorschläge zusammengehören
+und was sie kosten —, nur ihre Namen nicht.
+
+Mein Vorschlag, und er ist eine Planänderung und damit Sache des Betreibers:
+
+| Stufe | Inhalt | Wann |
+|---|---|---|
+| **P7b — Serververwaltung** | A5, A2, A10, A1, A11, A6 | vor P8, wie in `docs/79` angesetzt |
+| **P8** | Sicherungen und Wiederherstellung | unverändert |
+| **P9** | Kundenfähigkeit nach `docs/20 §9`, **ohne** den Serververwaltungssatz | unverändert |
+| **P9b — Absicherung** | A3, A4, A7, A9 | nach P9, oder als Entscheidung früher |
+
+> **Ein Name, der eine Reihenfolge behauptet, wird falsch, wenn die Reihenfolge
+> sich ändert — und er wird trotzdem weiterbenutzt, weil er in Überschriften
+> steht.** Deshalb steht das hier und nicht als stille Umbenennung.
 
 ---
 

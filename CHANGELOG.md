@@ -17694,3 +17694,1212 @@ Der Wächter dazu ist mechanisch: Zwei `T_DOC_COMMENT` mit nichts als Leerraum
 dazwischen. Er lässt sich nicht bauen, ohne die einundzwanzig zu entscheiden —
 und das ist eine inhaltliche Arbeit, denn manche der verwaisten Blöcke
 beschreiben eine Methode, die es nicht mehr gibt.
+
+### Ein Knopf, der am Kästchen darüber klebte
+
+Gemeldet vom Betreiber in der Zwischenabnahme von P7 (`docs/74`): Auf der
+Domainseite stand „Zertifikat bestellen" ohne eine Lücke unter „Als Platzhalter
+bestellen".
+
+`.toggle` bringt oben 14px mit und unten nichts. Der Abstand darunter kam
+deshalb nicht von ihm, sondern von dem, was zufällig davor stand — im
+DNS-Bereich ein `.section-note` mit eigenem Rand, im Zertifikatsbereich nichts.
+
+> **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit der
+> nächsten Ergänzung.**
+
+Derselbe Satz wie in P4, wo ein Abstand mit der nächsten Ergänzung fiel.
+
+**Der Wächter hatte die Fuge längst gezählt.** `toggle + button-row` stand in
+`BlockSpacingTest::OPEN_SEAMS` — der Liste der Fugen, die noch niemand
+angesehen hat. Genau dafür ist sie da: Ob zwei Bausteine zu eng stehen,
+entscheidet ein Blick und keine Regel. Der Blick ist jetzt erfolgt, die Fuge hat
+ihre Nachbarschaftsregel, und der Eintrag fällt weg.
+
+Gemessen im Container gegen das gebaute Stylesheet, mit einem Prüfkörper, der
+unterscheidet: `.toggle` + Behälter ohne Klasse **0 px**, `.toggle` +
+`.button-row` **26 px**, und daneben die etablierte Fuge `.section-note` +
+`.button-row` mit denselben **26 px**.
+
+**Nur diese eine Fuge.** `.toggle` selbst einen `margin-bottom` zu geben, hätte
+vier weitere Fugen verstellt, die in `OPEN_SEAMS` stehen und nicht angesehen
+worden sind.
+
+Der Bruch nennt beide betroffenen Seiten: `Domains/Show.vue` und — was erst der
+Wächter gezeigt hat — `Auth/Login.vue`.
+
+### Zwei Zeitangaben auf einer Seite, die in zwei Zonen rechnen
+
+Befund 3 der Zwischenabnahme (`docs/74`). Auf der Domainseite rendert die
+Vorgangsliste über `Clock::display()` — also in der **eingestellten**
+Anzeigezone. Der DNS-Abgleich daneben schickte ISO-8601 an den Browser und
+liess dort `new Date().toLocaleString()` rechnen, also in der Zone des
+**Betrachters**.
+
+Aufgefallen ist es niemandem: Auf dem Messrechner waren beide Zonen dieselbe.
+Gefunden hat es nur, dass jemand die zwei Zahlen nebeneinander gelesen hat.
+
+> **Zwei Zeitangaben auf einer Seite, die in verschiedenen Zonen rechnen, sind
+> schlimmer als eine falsche: Man kann sie miteinander vergleichen.**
+
+`Dns::last()` schickt den Zeitpunkt jetzt durch `Clock`, die Seite druckt nur
+noch. Nebeneffekt: Beide Angaben tragen damit dasselbe Format.
+
+**Der Wächter zählt statt auszunehmen.** `DisplayTimeZoneTest` findet jede
+Stelle, an der `new Date(…)` und ein `toLocale…` in derselben Zeile stehen —
+und hält sie gegen eine Liste mit **fünf** Fundstellen, die es im Bestand noch
+gibt. Eine davon (`Databases/Show.vue`, `size_measured_at`) ist derselbe Befund
+und war nur nie gemeldet; die anderen vier formatieren Sekunden vom Agenten und
+würden beim Umbau ihr sichtbares Format ändern — das braucht eigene Aufnahmen.
+
+> **Ein Loch, das man zählt, ist kein Loch mehr — es ist eine Zahl, die kleiner
+> werden kann.**
+
+Der zweite Fall des Wächters ist zugleich seine Gegenprobe: Trifft der Ausdruck
+nichts mehr, findet er null statt fünf und wird rot, statt „alles in Ordnung"
+zu melden. Beide Brüche stehen im Skript und beissen einzeln.
+
+### „Nicht gefragt" ist nicht dasselbe wie „ohne Antwort"
+
+Befund 1 der Zwischenabnahme (`docs/74`). Der Bericht meldete
+`2 geprüft, 2 ohne Antwort`, und um zu wissen, ob der Agent gescheitert war oder
+die Zonen wirklich schweigen, musste jemand ins Protokoll des Agenten sehen.
+
+**Die Unterscheidung gab es die ganze Zeit.** `Measurement` sagt in seiner
+Beschreibung, `null` heisse „die Messung hat nicht stattgefunden" — und genau
+das ist etwas anderes als eine Antwort ohne Sätze. `Survey` warf die Auskunft
+weg, `Sweep` konnte sie nicht mehr haben.
+
+> **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+> keine.**
+
+`Survey::of()` führt die ungefragten Namen jetzt als `unasked` mit, `Sweep`
+zählt sie getrennt, und die Meldung nennt beide Zahlen. Die Reihenfolge ist Teil
+der Regel: Wurde ein Name nicht gefragt, ist die leere Nameserverliste damit
+erklärt — sie zusätzlich als „ohne Antwort" zu zählen hiesse, denselben Vorgang
+zweimal zu melden.
+
+> **Ein Fehlerweg, der sich vom Normalfall nicht unterscheiden lässt, ist keine
+> Auskunft, sondern eine Vermutung.**
+
+Auf der Domainseite steht die Unterscheidung ebenfalls: „Für *diese Namen* hat
+die Prüfung gar nicht stattgefunden — das liegt an diesem Server und nicht an
+der Zone" statt der bisherigen Sammelmeldung.
+
+**Und das Doppel in `DnsSweepTest` konnte den mittleren Fall gar nicht
+darstellen:** Sein `silent` gab `null` zurück und war damit in Wahrheit der
+ungefragte. Es kennt jetzt drei Ausgänge, und ein Fall unterscheidet sie.
+
+### Die Übersteuerung der Adressen bekommt ihren Weg hinein
+
+Befund 2 der Zwischenabnahme (`docs/74`). `Settings::saveDnsAddresses()` gab es
+seit P7 Schritt 4, und **nichts hat es aufgerufen** — kein Formular, keine
+Route, kein Schalter. Die Gegenseite wurde gelesen, die Domainseite hielt ihr
+Ergebnis sogar gegen die abgeleiteten Adressen und wollte warnen, wenn beide
+auseinandergehen. Sie konnten nie auseinandergehen.
+
+> **Eine Einstellung, die sich lesen, aber nirgends setzen lässt, ist keine
+> Einstellung — sie ist ein Vorsatz.**
+
+Das Feld steht unter **Einstellungen → Allgemein** — „Was für den ganzen Server
+gilt". „DNS-Zugang" daneben führt Zugangsdaten für Bestellungen über DNS-01 und
+ist ein anderes Thema; die Frage „welche Adressen sollen meine Domains tragen?"
+gehört zum Server und nicht zu einem Dienst.
+
+Geprüft wird jede Zeile über `ServerAddresses::rejected()` — dieselbe Stelle,
+die auch die abgeleiteten Adressen siebt. Und beide Listen stehen daneben: was
+eingetragen ist und was abgeleitet würde. Eine im Panel gemerkte Fassung eines
+Serverzustands ist die, die veraltet; man muss sehen, wenn sie nicht mehr
+stimmt.
+
+**Der Wächter, der gefehlt hat.** `SettingsWriterReachTest` verlangt, dass jede
+`save*`-Methode von `Settings` ausserhalb gerufen wird. Für dieselbe Form gibt
+es seit P3 `AgentOperationReachTest` — er fand zwei fertig gebaute
+Agent-Operationen, die von nichts aufgerufen wurden. Die Regel war für den
+Agenten aufgeschrieben und für `Settings` nicht.
+
+> **Eine Regel, die für einen Gegenstand gilt, gilt nicht für den nächsten,
+> bloss weil sie dieselbe ist.**
+
+**Und er hat sich beim ersten Lauf selbst widerlegt:** Er meldete alle fünf
+Schreibmethoden als tot, weil `glob('**/*.php')` in PHP nicht rekursiert. Vier
+davon haben ihren Aufrufer seit Monaten. Er zählt seitdem auch die Aufrufe
+insgesamt — ein Scanner, der ins Leere läuft, meldet jetzt das und nicht „alles
+in Ordnung".
+
+**Zwei weitere Wächter haben beim Bau zugebissen**, beide zu Recht:
+`ButtonStyleTest` (zwei Knöpfe „wichtig" in einem Formular — es ist ein
+Formular, also gehört ein Knopf darunter) und `AttributeNameTest` (ein
+validiertes Feld ohne deutschen Namen; er heisst jetzt so, wie er am Feld
+steht).
+
+### Drei Timer ohne Frist — ausserhalb von P7
+
+Befund 4 der Zwischenabnahme (`docs/74`), und der einzige der vier, der nichts
+mit DNS zu tun hat. Punkt 3 des Laufs hat die Zahl gemessen, die dieser
+Entwicklungscontainer nicht liefern kann:
+
+```
+srvpanel-dns.service    TimeoutStartUSec=10min
+srvpanel-cron.service   TimeoutStartUSec=infinity
+```
+
+**`infinity` bestätigt die Begründung, die in `srvpanel-dns.service` seit
+Schritt 7 steht:** Ein `Type=oneshot` ohne eigene Angabe läuft ohne Frist. Hängt
+so ein Lauf — an einem Socket, an einem fremden Server, an einem Systemaufruf —,
+bleibt die Unit in `activating`, und systemd startet sie beim nächsten Termin
+**nicht noch einmal**. Ein einziger hängender Lauf nimmt damit alle folgenden
+mit, und der Timer meldet dabei weiter `enabled`.
+
+> **Ein Dienst, der „active" meldet und keinen nächsten Termin hat, ist
+> abgeschaltet und sieht aus wie eingeschaltet.**
+
+Derselbe Satz wie am 19. August 2026, andere Ursache: Damals fehlte dem Timer
+der Kalender, hier fehlt dem Dienst die Frist. `srvpanel-cron` bekommt 180 s,
+`srvpanel-usage` 600 s, `srvpanel-tls` 1800 s.
+
+**Bei `tls` wäre eine knappe Frist schädlicher als gar keine.** Sie räumte eine
+laufende ACME-Bestellung mitten im Vorgang ab, und ein abgebrochener Versuch
+kostet trotzdem einen der fünf Fehlversuche je Stunde, die für alle Kunden
+dieses Servers zusammen gelten (`docs/34 §11`). Wie lange eine echte Erneuerung
+braucht, ist ungemessen — in dreissig Tagen Journal steht keine einzige, nur
+Prüfungen mit „gilt noch" in unter einer Sekunde.
+
+> **Ein Deckel gegen das Hängenbleiben muss nicht knapp sein — er muss endlich
+> sein.**
+
+Deshalb hängen die drei Zahlen nicht an einer Laufzeitmessung, sondern am Takt
+ihres Timers: jede deutlich darunter, damit ein Hänger höchstens einen Termin
+kostet statt mehrerer.
+
+**Der Wächter dazu ist `OneshotDeadlineTest`**, und er zählt die Timer auf,
+statt sie aufzuschreiben — dieselbe Bauart wie `TimerRearmTest`: Eine Liste
+nennt die, an die man beim Schreiben gedacht hat, und der nächste Timer stünde
+nicht darin. Eine `OnCalendar`-Schreibweise, die er nicht kennt, macht ihn rot
+statt sie stillschweigend durchzulassen; sonst prüfte der Fall darunter nichts
+und wäre grün.
+
+Was er **nicht** prüft: ob die Frist *reicht*. Eine zu kurze fiele im Betrieb
+als abgebrochener Lauf auf — hier ist sie nicht messbar.
+
+### P7 Schritt 9 — die Vorschrift der Bilderrunde, und ihr erster Fund
+
+`docs/75` ist die Vorschrift: zwei Ansichten (die Domainseite mit dem
+DNS-Abgleich und Einstellungen → Allgemein), zehn Zustände, beide Themes, 390
+und 1440 px. Das Messmittel ist `tests/bilder-messen.js` unverändert aus dem
+Zweig — es liegt seit dem 19. August als geprüfte Vorschrift im Repo, statt in
+jedem Lauf neu geschrieben zu werden.
+
+**Und die Vormessung im Container hat sofort einen Fund gebracht, der keine
+Zahl erzeugt.** Die Meldung „nicht gefragt" auf der Domainseite sah bei 390 px
+so aus:
+
+```
+F   p6-      hat die Prüfung gar nicht
+ü   abnah    stattgefunden. Das liegt an diesem
+r   me.in    Server und nicht an der Zone — über
+    valid    ihre Einträge ist damit nichts gesagt.
+```
+
+`.notice` ist eine **Flexbox**. Der Wortlaut stand als drei Geschwister darin —
+der Textknoten „Für", das `span.ident` mit dem Namen und der Rest des Satzes —,
+und daraus werden drei Flexkinder mit je eigener Spalte. „Für" bekam fünf Pixel
+Breite. Der Überlauf war dabei **`0`, in allen vier Lagen**, und die Gegenprobe
+schlug mit `200/200` aus: Die Messung war fehlerfrei und hat über diese Ansicht
+nichts gesagt.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+Behoben, indem der Satz in ein `span` wandert — so wie es die übrigen
+einundsechzig Meldungen dieses Projekts tun; die eine Ausnahme war die aus P7.
+
+> **Eine Gewohnheit, an die sich einundsechzig Stellen halten, ist trotzdem
+> keine Regel, solange die zweiundsechzigste sie brechen darf.**
+
+`NoticeChildrenTest` ist diese Regel.
+
+**Und sein erster Bruch blieb stumm** — der lehrreichste Teil. Wird die
+Beachtung der Anführungszeichen im Zerleger abgeschaltet, hört er ein Tag am
+ersten `>` auf zu lesen und verliert damit genau die sechs Meldungen, deren
+öffnendes Tag ein `>` im Attribut trägt (`v-if="… .length > 0"`). Die beiden
+Gegenproben über den Bestand zählten dann sechs weniger — und blieben grün.
+
+> **Eine Gegenprobe über eine Menge merkt nicht, dass ein Teil der Menge
+> fehlt.**
+
+Der bittere Teil: Die Meldung, um die es überhaupt ging, ist eine von diesen
+sechs. Ein Zerleger mit diesem Fehler hätte den Anlass selbst nicht gefunden.
+Der Wächter hat deshalb einen Prüfkörper aus der Hand bekommen statt einer Zahl
+über den Bestand — er hängt an keiner Datei und wird von keinem Aufräumen
+kleiner.
+
+### Der DNS-Abgleich als eine Marke in den Domainlisten
+
+Ein Wunsch des Betreibers vom 22. August 2026, geäussert beim ersten Bild der
+Bilderrunde. Der Bereich an der Domain sagt je Name und Satz, was ist — fünf
+Zustände, dazu CAA und die ungefragten Namen. Das ist die richtige Auskunft
+**an der Domain** und die falsche **in einer Liste**.
+
+> **Eine Liste beantwortet nicht dieselbe Frage wie eine Seite. Sie beantwortet,
+> welche Seite man aufschlagen muss.**
+
+`DnsHealth` zieht den Befund auf eine Marke zusammen, und beide Listen —
+`/domains` und der Bereich „Domains" am Abonnement — tragen sie in einer neuen
+Spalte vor dem Zustand der Domain.
+
+**Drei Zustände und nicht zwei, obwohl zwei gewünscht waren.** „Noch nie
+geprüft" ist keins von beidem: Jede frisch angelegte Domain ist genau dieser
+Fall, und sie als „in Ordnung" zu führen wäre eine Entwarnung ohne Messung —
+derselbe Fehler, vor dem `Dns::last()` mit seinem `null` warnt.
+
+> **Eine Marke, die „in Ordnung" sagt, weil niemand gemessen hat, ist keine
+> Auskunft, sondern eine Vermutung mit Farbe.**
+
+Die Wörter sind „in Ordnung", „nachsehen" und „ungeprüft"; die Ränge `ok`,
+`warn` und `neutral`. **„Zeigt woandershin" bekommt dabei denselben gelben Rang,
+den die Zeile an der Domain schon trägt** — die Liste sagt damit nicht „kaputt",
+sondern „hier steht etwas, das nicht der Regelfall ist". Wer über ein CDN fährt,
+sieht keine neue Meldung (`docs/72 §2.3`).
+
+**Der Wächter hält den Fall, an dem so ein Zusammenzug still falsch wird.**
+`DnsHealthTest` zählt die `DnsRecordState` **auf**, statt sie aufzuschreiben, und
+ein Zustand, den `of()` nicht kennt, ergibt „nachsehen" statt „in Ordnung":
+
+> **Ein Zusammenzug, der Unbekanntes für gut hält, wird beim nächsten Zustand
+> still falsch.**
+
+Es sind zu diesem Aufzählungstyp schon zweimal Zustände nachträglich
+dazugekommen — beide beim Bauen von P7 Schritt 2.
+
+**Und die Listen fragen nicht je Zeile.** `Domain::dnsCheck()` ist eine
+`hasOne`-Beziehung, beide Controller laden sie über `with()` mit; ohne das
+stellte jede der bis zu `Page::SIZE` Zeilen ihre eigene Abfrage. `hasOne` und
+nicht `hasMany`, weil `Dns::store()` je Domain genau eine Zeile schreibt — eine
+Beziehung, die eine Liste verspricht, die nie länger als eins wird, ist eine
+falsche Auskunft über die Tabelle.
+
+### Die drei Befunde der Bilderrunde
+
+Alle drei aus `docs/76`, und **keinen davon hat eine Zahl gefunden** — sie
+traten in Lagen auf, die vollständig grün gemessen waren (`dokument: 0`,
+`schiebt: []`, Gegenprobe `200/200`).
+
+**Befund 1 und 2 haben dieselbe Ursache.** `2a0a:4cc0:c1:ebd1:b82d:51ff:fe72:3083`
+brach bei 390 px nach `51ff:f` — also **mitten im Hextet**; wer das liest, sieht
+`f` und `e72` als zwei gültige Gruppen und zählt acht, wo sieben stehen. Und
+`*.cloudlab24.de cloudlab24.de` standen als zwei Namen nebeneinander, getrennt
+nur durch ein Leerzeichen, beide mit Punkten darin.
+
+> **Ein Umbruch ohne bevorzugte Stelle bricht dort, wo es passt, und nicht dort,
+> wo man liest.**
+
+`Idents.vue` ist die eine Stelle: ein Komma zwischen den Werten, eine
+Umbruchgelegenheit nach jedem `:` und `.` **innerhalb** eines Wertes — und
+**nie hinter dem letzten**. Der erste Wurf setzte sie überall, und im Bild fiel
+damit die schliessende Klammer eines Satzes allein auf die nächste Zeile.
+
+> **Eine Umbruchgelegenheit am Ende eines Wertes gehört nicht mehr dem Wert.**
+
+**Beim Beheben kamen vier Fundstellen dazu**, die der Befund nicht genannt
+hatte: `Settings/Php.vue` und `Settings/Tls.vue`, zwei davon mit Domainnamen und
+IP-Adressen.
+
+> **Ein Befund, den man an der Fundstelle behebt, ist an den anderen
+> Fundstellen nicht behoben.**
+
+**Befund 3 hat kein Messmittel finden können.** Das Kästchen „Als Platzhalter
+bestellen" liess sich nicht anklicken — richtigerweise, denn ein Platzhalter
+geht nur über DNS-01 und die Zugangsdaten fehlten. Der Fehler war die Anzeige:
+`.toggle` setzte `cursor: pointer` unbedingt, die Beschriftung stand in voller
+Farbe, und der Hinderungsgrund war der dritte `.hint` in derselben Grösse wie
+die zwei erklärenden davor.
+
+> **Ein Bedienelement, das nicht bedienbar ist und trotzdem den Zeigefinger
+> zeigt, sagt dem Kunden, er habe falsch geklickt.**
+
+Die Lösung stand seit Monaten in derselben Datei — für Felder
+(`.field input:disabled`), mit eigener Begründung im Kommentar.
+
+> **Eine Regel, die für ein Feld gilt, gilt nicht für den Schalter daneben,
+> bloss weil sie dieselbe ist.**
+
+Derselbe Satz stand am selben Tag über `SettingsWriterReachTest`.
+
+**Die Wächter.** `IdentListTest` verbietet ein `join()` **innerhalb** eines
+`.ident` — dort, wo Monospace und `overflow-wrap: anywhere` zusammenkommen; ein
+`join()` in einer Aufzählung im Fliesstext bleibt erlaubt.
+`DisabledStateTest` zählt aus den Vorlagen auf, welche Hüllen ein `<label>`
+trägt, und verlangt für jede eine Regel in `app.css`, die `disabled` kennt.
+
+**Und der erste Wurf von `IdentListTest` fing den Fall nicht, der ihn ausgelöst
+hatte:** Er suchte Klasse und `join()` in derselben Zeile, die Fundstelle stand
+über zwei. Der Bruch änderte die Datei nachweislich, und der Wächter blieb grün.
+
+> **Ein Wächter, der den Fall nicht fängt, der ihn ausgelöst hat, ist keiner.**
+
+**Vier bestehende Wächter haben die Behebung abgefangen**, jeder zu Recht:
+`NoticeChildrenTest` und `NoticeShapeTest` (die neue Komponente stand als
+zweites Flexkind neben Text in einer Meldung — genau die Regel vom selben
+Vormittag), `StandaloneClassTest` (`.obstacle` gab es nur unter `.toggle`) und
+`ClassNameTest` (das Wort fehlte im Vokabular).
+
+> **Eine Behebung ist eine Änderung, und jede Änderung ist ein neuer Anlass zu
+> messen.**
+
+### Die Kacheln der Übersicht laufen von allein — ausserhalb von P7
+
+Wunsch des Betreibers vom 22. August 2026: „Auf der Übersicht in der
+Adminverwaltung sind die Kacheln der Sparklines zu finden. Diese aktualisieren
+sich aktuell nicht automatisch." Der Sammler schreibt im **Zehnsekundentakt**
+(`srvpanel-metrics.service`) — die Zahlen standen also nicht still, die Seite
+sah bloss nicht mehr hin. Wer die Auslastung beobachten wollte, drückte F5.
+
+Gebaut ist beides, was der Wunsch nennt: ein Selbstlauf alle dreissig Sekunden
+und ein Knopf, der von Hand nachlädt. Das Zeichen des Knopfes trägt ein **`A`**,
+solange der Selbstlauf an ist, und verliert es, wenn er aus ist; die Auswahl
+daneben schaltet ihn. Beide stehen im Seitenkopf, also rechts neben
+„Übersicht" — dort, wo jede andere Seite dieses Panels ihre Hauptaktion führt.
+
+**Der Selbstlauf hält an, wo er nichts nützt.** Bei verdecktem Reiter geschieht
+nichts (`document.hidden`), beim Zurückkommen wird sofort nachgeholt, und ein
+zweiter Aufruf während eines laufenden riegelt ab. Der Schalter wohnt im
+Browser und nicht am Konto: Das Thema hell/dunkel gehört dem Menschen und soll
+ihm auf jedes Gerät folgen — dieser Schalter gehört dem **Bildschirm**.
+
+**Der Steuerungscode übergibt jede Angabe jetzt als Verschluss.** Inertia siebt
+vor dem Auflösen; ein fertig übergebener Wert ist aber schon gerechnet, wenn
+das Sieb ihn sieht. Ohne die Umstellung hätte jedes Nachladen der Kacheln die
+ganze Seite gekostet: `system.info`, `pg.server.info` und je Dienst ein
+`service.status`. So kostet es **einen** Aufruf, und den nur, weil die Schwelle
+der Load die Kernzahl braucht.
+
+> **Ein Nachladen, das nur einen Teil holt, spart nur dann etwas, wenn der Rest
+> nicht schon gerechnet ist.**
+
+**Und die zweite Regel gehört diesem Gerüst.** Ein Panel mit Seitenwechsel über
+den Server verliert einen Takt von selbst — die nächste Seite ist ein neues
+Dokument. Inertia tauscht die Seite **im selben Dokument** aus.
+
+> **Ein Takt ohne Abschaltung hört nicht auf, wenn die Seite verschwindet — er
+> hört auf, wenn der Browser zugeht.**
+
+**Die Wächter.** `PartialReloadTest` hält jeden Namen in einem `only:` gegen die
+Angaben des `Inertia::render`, das diese Seite erzeugt — er verlangt, dass es
+die Angabe gibt **und** dass sie als Verschluss kommt. `TeardownTest` verlangt
+zu jedem `setInterval` ein `clearInterval` und zu jedem Horcher an `document`
+oder `window` seine Abmeldung, beides in einem Haken, der beim Verlassen läuft.
+
+**Und der erste Prüfkörper von `PartialReloadTest` verglich nur die Namen.** Der
+Bruch nahm dem Leser das Überspringen von Zeichenketten; das Komma in
+`'nicht, wirklich'` beendete die Angabe zu früh, als Wert stand `'nicht` da —
+und der Wächter blieb grün, weil der Schlüssel `name` weiter in der Liste stand.
+
+> **Ein Prüfkörper, der nur die Namen vergleicht, merkt nicht, dass die Werte
+> falsch abgeschnitten sind.**
+
+Derselbe Satz wie bei `FileSearchTest` (`docs/66`): Er verglich die Schlüssel,
+die beide Seiten schicken, und beide schickten denselben kaputten Wert.
+
+**Zwei Funde am Bild, die keine Zahl gehabt hätte.** Die Messung meldete in
+allen vier Lagen `dokument: 0` und die Gegenprobe `200/200` — und im Knopf stand
+bei 1440 px **kein Zeichen**: `.action-icon` ist ab 720 px `display: none`, weil
+ein Zeichen neben seinem Wort dort gemessen nichts spart (`docs/64 §12`). Das
+stimmt für ein Zeichen, das dasselbe sagt wie sein Wort; das `A` sagt etwas, das
+in keinem Wort des Knopfes steht.
+
+> **Eine Regel, die den Platz begründet, gilt nicht für ein Zeichen, das eine
+> Auskunft trägt.**
+
+Der zweite betraf das `A` selbst: Als Strichzeichnung im 24er-Raster wäre es bei
+der gezeigten Größe von 20 px rund fünf Pixel hoch — bei einer Strichstärke von
+1,33 px liefen die beiden Schrägen und der Querstrich ineinander. Es wird
+deshalb **gesetzt und nicht gezeichnet** (`<text>` mit `fill` und ausdrücklich
+ohne `stroke`), und der Ring hat fünf Fassungen gebraucht, bis der Buchstabe
+ihn nicht mehr berührte. Angesehen im Browser, nicht gerechnet.
+
+**Ein bestehender Wächter hat dabei ein falsches Rot geliefert, und das war ein
+Fund.** `ActionIconTest` suchte `name` unmittelbar hinter `<ActionIcon` — bei
+einem Zeichen mit mehreren Attributen steht es nicht mehr zuerst. Gemeldet wurde
+„diese Zeichnung verlangt kein Knopf", während der Knopf sie sehr wohl verlangte;
+die Gegenrichtung wäre dabei still grün geblieben.
+
+> **Ein Ausdruck, der ein Attribut an einer festen Stelle sucht, findet es nicht
+> mehr, sobald ein zweites danebensteht.**
+
+### Befund 4 — die Behebung von Befund 1 und 2 zerschneidet eine Adresse
+
+Nachgesehen am 23. August 2026 auf `cloudsrv24` gegen `v0.7.0-rc.5`, was am Tag
+davor behoben worden war. Befund 1 und 2 sind in Ordnung: Die IPv6 bricht hinter
+dem Doppelpunkt, die zwei Namen stehen mit Komma. Daneben stand das hier:
+
+```
+Zuletzt geprüft: 2026-08-23 06:45:47 · gefragt wurden 167.235.231.182, 159.69.
+110.93
+```
+
+Wieder ohne Zahl — `dokument: 0`, `schiebt: []`, Gegenprobe `200/200` in allen
+vier Lagen. Vor der Behebung brach diese Zeile am Leerzeichen hinter dem Komma,
+und beide Adressen blieben ganz.
+
+**Der Mechanismus.** Eine Umbruchgelegenheit ist keine Empfehlung, sondern eine
+Stelle wie jedes Leerzeichen. Der Umbruch nimmt die letzte, die noch passt — und
+das ist die im Inneren des Wertes, sobald sie weiter rechts steht als das
+Leerzeichen davor.
+
+> **Eine Umbruchgelegenheit bricht, sobald es passt. `overflow-wrap: anywhere`
+> bricht nur, wenn es sein muss.**
+
+**Zwei Breiten beantworten das nicht.** Bei 390 und bei 1440 px sah die
+Fundstelle von Befund 2 in beiden Fassungen gleich aus. Gemessen ist deshalb der
+Bereich von 320 bis 1600 px in Vierer-Schritten — 321 Breiten je Fall, mit
+`tests/umbruch-messen.mjs`. In einem **Satz** bricht ohne die Gelegenheit *kein*
+Wert; mit ihr bricht einer bei bis zu **291 von 321** Breiten. In einer **Zelle**
+ändert sie die Anzahl nicht — nur den Ort, und genau dafür ist sie gebaut.
+
+Die teuerste Zeile der Tabelle: Der Satz unter „Als Platzhalter bestellen" —
+die Fundstelle von Befund 2 — bricht mit der Gelegenheit bei 380 bis 392 px, und
+darin liegen die **390 px**, mit denen jede Bilderrunde dieses Projekts misst.
+Die Behebung hat ihren eigenen Befund an genau der Breite wieder aufgemacht, an
+der er gefunden wurde.
+
+> **Eine Behebung ist eine Änderung, und jede Änderung ist ein neuer Anlass zu
+> messen.**
+
+> **Eine Frage, deren Antwort an der Breite hängt, ist mit zwei Breiten nicht
+> beantwortet.**
+
+Neun Fundstellen stehen wieder als `join(', ')` — das Komma bleibt, die
+Gelegenheit geht. `<Idents>` bleibt an den acht Stellen, an denen der Wert allein
+in seiner Zelle steht. `.section-note` bekommt `overflow-wrap: anywhere` für den
+Fall, für den die Gelegenheit dort gedacht war: einen Wert, der auf keine Zeile
+passt.
+
+**Und der Wächter von gestern war zu breit gezogen.** `IdentListTest` verbot
+*jedes* `join()` in einer `.ident`; nach dieser Messung stehen dort sechs
+richtige. Er verbietet jetzt das blosse Leerzeichen — das, was Befund 2 wirklich
+gekostet hat. `IdentPlacementTest` hält die Platzierung.
+
+> **Eine Regel, die mehr verbietet als ihr Befund hergibt, steht dem nächsten
+> Befund im Weg.**
+
+**Die Messvorschrift liegt als `tests/umbruch-messen.mjs` im Repo**, mit ihren
+Fällen in `tests/umbruch-faelle.json` — was man zweimal braucht, gehört dorthin.
+Ihre erste Fassung zählte die Client-Rechtecke des Elements; ein `<wbr>` ist aber
+selbst ein Element und zerteilt diese Liste, also meldete sie für **jede** Breite
+einen Bruch, auch für 1600.
+
+> **Eine Sonde, die für jede Eingabe dasselbe sagt, hat nichts gemessen.**
+
+Gemessen wird seitdem an den Zeichen, und ein Fall `kontrolle` mit einem Wert,
+der auf keine Zeile passt, muss in beiden Fassungen brechen — sonst endet das
+Skript mit Rückgabewert 1 und keine Null daneben bedeutet etwas.
+
+### Befund 5 — die Behebung von Befund 3 gilt nicht
+
+Nachgesehen am 23. August 2026 auf `cloudsrv24` gegen `v0.7.0-rc.5`, an einer
+Domain ohne DNS-Zugangsdaten. Zwei der drei Teile von Befund 3 stimmen: Die
+Beschriftung „Als Platzhalter bestellen" steht blass, der Zeiger ist der normale
+Pfeil. Der dritte nicht — der Hinderungsgrund stand in derselben Farbe wie die
+Erklärung darüber, also genau so wie **vor** der Behebung.
+
+Die Regel dafür gab es:
+
+```
+.obstacle { color: var(--warn); }        /* Zeile 3647 */
+.hint     { color: var(--text-muted); }  /* Zeile 3784 */
+```
+
+Beide 0,1,0, das Markup `class="hint obstacle"` — bei gleicher Spezifität
+entscheidet die Reihenfolge in der Datei, und `.hint` steht 137 Zeilen weiter
+unten.
+
+> **Eine Klasse, die auf eine Regel zeigt, sagt nichts darüber, ob die Regel
+> gilt.**
+
+`ClassReachTest` war grün: Die Klasse zeigte auf eine Regel, die es gibt. Die
+Frage dahinter hat kein Wächter gestellt.
+
+**Und der Weg dorthin ist die eigentliche Lehre.** Der erste Wurf war
+`.toggle .obstacle` (0,2,0) und hätte gewonnen. `StandaloneClassTest` hat ihn
+abgelehnt, zu Recht — eine Klasse, die es nur unter einem Vorfahren gibt, tut
+ausserhalb davon nichts. Die Antwort darauf, `.obstacle` freistehend, hat die
+Spezifität weggenommen, die sie brauchte.
+
+> **Eine Behebung, die einem Wächter ausweicht, kann dabei genau das verlieren,
+> wofür sie da war.**
+
+Behoben als `.hint.obstacle` — zwei Klassen sind 0,2,0 und gewinnen gegen
+`.hint`, gleich wo die Regeln stehen. Die Regel eine Zeile tiefer zu schieben
+hätte es auch getan, bis zum nächsten Aufräumen.
+
+> **Eine Regel, die durch ihren Ort gewinnt, verliert beim nächsten Umzug — und
+> sagt es nicht.**
+
+**Ausgezählt, wie oft das sonst noch dasteht:** 42 Klassenpaare stehen in den
+Vorlagen an einem Element, **drei** davon setzen dieselbe Eigenschaft mit
+gleicher Spezifität. Eines ist dieser Befund; `.breadcrumb`+`.ident` und
+`.ident`+`.path-line` sind ohne Folge und stehen mit ihrem gemessenen Ausgang in
+`SpecificityTest::ORDERED`. **`SpecificityTest`** hält die Regel: Ein Streit
+zweier Klassen an einem Element wird durch Spezifität entschieden, nicht durch
+den Ort in der Datei — oder er steht auf der Liste.
+
+**Nachgemessen im Aufsatz, beide Themes, Kontrast gerechnet:** Das Hindernis
+steht auf `rgb(132,83,6)` (6,5:1 gegen Weiß) beziehungsweise `rgb(226,169,74)`
+(9,0:1 gegen den dunklen Grund), die Erklärung daneben auf `rgb(92,100,112)` und
+`rgb(153,160,174)`. Die Gegenprobe mit dem Stand von rc.5 zeigt für alle drei
+Zeilen dieselbe Farbe — genau das Bild vom Server.
+
+**Und die erste dieser Messungen war keine.** Sie las eine Zeichenkette ab, die
+beim Laden der Seite entstanden war, und meldete nach dem Umschalten aufs dunkle
+Thema dieselben Farben wie im hellen.
+
+> **Ein Wert, der beim Laden entstanden ist, sagt nichts über den Zustand
+> danach.**
+
+### Befund 6 — Befund 3 ist behoben und wirkt trotzdem nicht
+
+Gemeldet vom Betreiber, nachdem Befund 3 und 5 behoben waren: „Das Kästchen bei
+Platzhalter bestellen liess sich zwar nicht klicken, hat aber immer noch nicht
+wirklich deaktiviert gewirkt."
+
+Behoben war die **Umgebung** — Beschriftung gedämpft, Zeigefinger fort,
+Hinderungsgrund in `--warn`. Das **Kästchen selbst** blieb, wie der Browser es
+zeichnet: dasselbe Quadrat mit einem blasseren Rand. Bei vierfacher
+Vergrösserung nebeneinander ist der ganze Unterschied ein hellerer Strich, und
+bei 17 px trägt das fast nichts.
+
+> **Weniger Kontrast liest sich als „unwichtig", nicht als „gesperrt".**
+
+Es ist ausserdem WCAG 1.4.1: Farbe darf nicht das einzige Mittel sein. Und es
+ist zum dritten Mal derselbe Satz — erst für das Feld, dann für die Beschriftung
+des Schalters, jetzt für sein Kästchen:
+
+> **Eine Regel, die für ein Feld gilt, gilt nicht für den Schalter daneben,
+> bloss weil sie dieselbe ist.**
+
+Ein gesperrtes Kästchen trägt jetzt denselben gestrichelten Rand, den das
+gesperrte Feld seit Monaten trägt. Eine Marke „nicht möglich" war der zweite
+Entwurf und ist gemessen durchgefallen: Sie bricht auf eine eigene Zeile, liest
+sich als eigener Block — und sagt zum dritten Mal, was der Satz darunter schon
+sagt.
+
+**Und der Wächter war grün, während das Kästchen gleich aussah.**
+`DisabledStateTest` fragte, ob es für die Hülle eine Regel gibt, die `disabled`
+nennt. Die gab es; sie änderte die Farbe.
+
+> **Ein Wächter, der fragt, ob es eine Regel gibt, sagt nichts darüber, ob man
+> sie sieht.**
+
+Er verlangt jetzt eine Form, und zwar am **Wert**: gestrichelt, gepunktet,
+doppelt, durchgestrichen. **Der erste Wurf dieser Verschärfung zählte
+Eigenschaften und war zu schwach** — er blieb grün, als der Eingriff den
+gestrichelten Rand entfernte, weil `appearance: none` stehenblieb und als Form
+zählte. Sie ist keine, sondern die Erlaubnis, eine zu geben; und `border: 1px
+solid` wäre durchgegangen, obwohl das der Ein-Zustand ist.
+
+> **Ein Eingriff, der eine Regel entfernt und einen Rest stehen lässt, prüft den
+> Rest.**
+
+### Die Marke aus dem verworfenen Entwurf — sie war nicht widerlegt
+
+Wunsch des Betreibers zu Befund 6: Die Marke „nicht möglich" aus den Entwürfen
+B und C soll trotzdem eingesetzt werden.
+
+**Der Einwand war richtig, und mein Grund, sie zu verwerfen, war falsch
+gemessen.** Sie brach nicht auf eine eigene Zeile, *weil sie eine Marke ist*,
+sondern weil `.toggle > span` stapelt — Beschriftung, Erklärung, Hinderungsgrund
+stehen dort untereinander. Die Marke war darin ein weiteres Stapelkind.
+
+> **Eine Marke, die neben etwas stehen soll, braucht eine Zeile, in der „neben"
+> überhaupt vorkommt.**
+
+> **Ein Entwurf, der am Behälter scheitert, ist nicht widerlegt.**
+
+`.label-row` ist diese Zeile: Beschriftung und Marke nebeneinander, umbrechend,
+damit die Marke bei knapper Breite unter die Beschriftung geht statt aus dem
+Bild. Gemessen bei 390 und 1440 px in beiden Themes — `dokument: 0`, und sie
+steht in **beiden** Breiten daneben.
+
+Damit sagen es drei Dinge, und jedes beantwortet eine andere Frage: die **Form**
+des Kästchens (was ist das), die **Marke** (ob), der Satz in `--warn` (warum).
+
+> **Eine Form sagt es dem, der sie schon kennt. Ein Wort sagt es allen.**
+
+`DisabledStateTest` hält das als eigene Regel: Ein Schalter, der sich sperren
+lässt, sagt es auch als Wort. Der Satz mit dem Grund ersetzt sie nicht — er sagt
+warum, sie sagt ob.
+
+### Ein Eingriff, der stumpf geworden ist
+
+Der Wochenlauf des Bruchskripts war rot, mit genau einer Meldung:
+
+```
+FEHLT  der Schalter kennt keinen Aus-Zustand mehr   passed (erwartet: failed)
+```
+
+Der Eingriff bricht `.toggle:has(input:disabled)` — die Regel, die die
+Beschriftung dämpft und den Zeigefinger zurücknimmt. Sein Zieltest fragte „gibt
+es für diese Hülle **eine** Regel mit `disabled`?", und bis Befund 6 war das die
+einzige. Die Behebung von Befund 6 gab `.toggle` eine **zweite**, die fürs
+Kästchen — und die beantwortete die Frage mit. Der Eingriff änderte die Datei
+weiter nachweislich und biss nicht mehr.
+
+> **Eine zweite Regel für dieselbe Hülle macht die Frage „gibt es eine?"
+> stumpf.**
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand neben seiner Regel eine zweite baut, die dieselbe Frage
+> beantwortet.**
+
+`BreakScriptTest` war dabei grün: Er prüft, dass ein Eingriff seinen Text noch
+findet. Den fand er.
+
+**Damit war die erste Hälfte von Befund 3 unbewacht** — ein Schalter, der den
+Zeigefinger zeigt und nicht klickt. Sie steht jetzt als eigene Regel da: **Eine
+Hülle, die den Zeigefinger verspricht, nimmt ihn zurück**, geprüft nur dort, wo
+der Ein-Zustand ihn überhaupt verspricht. Der Eingriff zeigt auf sie; die Frage
+„gibt es überhaupt eine Regel?" hat einen eigenen Eingriff über `.field`
+bekommen.
+
+**Und der Grund, warum es beim Bauen nicht auffiel:** Jeder neue Eingriff war
+einzeln im Gestell belegt, keiner im Lauf. Welche Eingriffe zu fahren sind, sagt
+nicht das Gedächtnis, sondern der Zweig — alle, deren Datei er angefasst hat.
+Nachgeholt über die vierzehn Dateien dieses Zweiges: **53 Eingriffe, alle
+beissen.**
+
+### Befund 7 — ein Zeilenmass über einer Ablesung
+
+Gemeldet vom Betreiber beim Nachsehen von Befund 4 gegen `v0.7.0-rc.6`: „Bei
+1440 px bricht es um nach dem Komma. Eigentlich unnötig. Der Platz ist komplett
+da."
+
+Befund 4 selbst ist damit erfüllt — der Umbruch fällt hinter das Komma, beide
+Adressen sind ganz. Der Einwand gilt der Frage davor: Warum bricht die Zeile
+überhaupt?
+
+**Gemessen bei 1440 px:** Die Zeile braucht **576 px**, `.section-note` gibt ihr
+mit `max-width: 64ch` **529** — sie verfehlt es um 47 px, und die Spalte daneben
+ist 952 px breit.
+
+**Die Grenze bleibt trotzdem**, denn sie tut echte Arbeit: 16 der 26 Notizen
+dieses Panels sind länger als 64 Zeichen, die längste 285.
+
+> **Ein Zeilenmass ist für einen Satz. Eine Ablesung ist keiner.**
+
+„Zuletzt geprüft … · gefragt wurden A, B" ist **eine** Auskunft; der Umbruch
+trennte eine Aufzählung von zwei Adressen in der Mitte, und damit sah eine
+Auskunft nach zweien aus. Sie trägt jetzt `.section-note.wide` — bei 1440 px
+eine Zeile statt zwei, bei 390 px unverändert, weil die Grenze dort ohnehin
+nicht bindet.
+
+**Zwei Klassen und nicht eine**, und das ist die Lehre aus Befund 5: Eine
+freistehende `.wide` hätte dieselbe Spezifität wie `.section-note`, und wer
+gewinnt, entschiede die Reihenfolge der Datei. `SpecificityTest` fängt genau
+diese falsche Fassung — gegengeprüft, sie wird rot.
+
+**Was kein Test hält:** ob eine Notiz ein Satz ist oder eine Ablesung. Das ist
+eine Frage an den, der sie schreibt, und keine Eigenschaft des Quelltextes.
+
+> **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
+> als Zusage.**
+
+### Der Selbstlauf der Übersicht — ein Takt mehr, ein Etikett weniger
+
+Drei Wünsche des Betreibers vom 23. August 2026, alle drei an dem Bereich, den
+`v0.7.0-rc.5` gebracht hat: „Neben ‚alle 30 Sekunden' brauchen wir noch ‚alle
+60 Sekunden' als Option. Und die Darstellung des Aktualisieren-Bereiches in der
+390-px-Ansicht ist suboptimal. Es wirkt gestackt. Und generell ist die Nennung
+‚Selbstlauf' überflüssig und kann für mich entfallen."
+
+**Der Takt steht jetzt einmal da.** `TAKTE` ist die Liste der drei Möglichkeiten
+— 30 Sekunden, 60 Sekunden, nicht von allein —, und sie ist zugleich die
+Aufzählung im Auswahlfeld und die Prüfung dessen, was im `localStorage` steht.
+Vorher waren das zwei Stellen, und eine dritte Möglichkeit hätte beide gebraucht.
+
+**`stellen()` hält den alten Takt an, bevor es den neuen setzt.** `setInterval`
+kennt keine Änderung seiner Länge; ohne das liefen nach zwei Umstellungen drei.
+
+**Das Etikett ist fort.** „alle 30 Sekunden" neben einem Knopf, der
+„Aktualisieren" heisst, **ist** die Beschriftung; ein „Selbstlauf" davor sagte
+dasselbe ein zweites Mal und kostete bei 390 px eine eigene Spalte. Das
+`aria-label` bleibt — die Vorlesehilfe liest die Optionen nicht mit, sie liest
+den Namen des Feldes.
+
+> **Eine Beschriftung, die dasselbe sagt wie der Wert darunter, ist keine
+> Auskunft, sondern eine Wiederholung.**
+
+**Und der Seitenkopf steht bei 390 px in einer Zeile** (140 px → 126 px): Der
+Knopf nimmt nur, was er braucht, das Feld den Rest, und das Zeichen steht neben
+seinem Wort statt darüber. Die Regel, die es über sein Wort stellt, ist in
+`docs/64 §12` gemessen und gilt für **vier** Knöpfe nebeneinander, die sonst
+nicht in 358 px passen. Steht nur einer da, gibt es nichts zu sparen — und die
+Spalte macht ihn bloss 14 px höher.
+
+> **Eine Regel gilt so weit wie ihre Begründung und nicht so weit wie ihr
+> Selektor.**
+
+#### Und der erste Wurf dieser Regel hätte den Abonnementnamen abgeschnitten
+
+Sie hiess `.page-head .button-row:has(.field)` und traf damit auch die Domain-
+und die Datenbankliste. **Die Zahlen sahen gut aus:** die Reihe von 126 px auf
+72 px, der Seitenkopf von 188 px auf 134 px. Im Bild stand daneben
+`kunde-mustermann-` — der Name war abgeschnitten, und zwei Abonnements, die sich
+erst hinten unterscheiden, waren nicht mehr auseinanderzuhalten.
+
+> **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
+> Keines von beiden ersetzt das andere.**
+
+Genau dieses Feld hat der Betreiber am 7. August gemeldet, und was ein Griff
+danebengreift, steht im Kopf von `FormLabelTest`: eine Domain im falschen
+Abonnement, mit eigenem Verzeichnisbaum und eigenem Systembenutzer. 54 px sind
+dafür kein Preis.
+
+Der Unterschied zwischen den beiden Fällen ist nicht die Zahl der
+Bedienelemente, sondern die **Herkunft des Wertes**: „alle 30 Sekunden" ist
+eines von drei Wörtern, die dieses Panel selbst schreibt; `kunde-mustermann-gmbh`
+ist ein Name, den der Betreiber vergibt und dessen Länge niemand kennt. Ablesen
+lässt sich das an der Beschriftung.
+
+> **Ein Feld, das seine Beschriftung braucht, trägt einen Wert, den das Panel
+> nicht kennt — und der darf nicht beschnitten werden.**
+
+**Und kein Messwert hätte das gefunden.** `scrollWidth` eines `<select>` gibt
+seine eigene sichtbare Breite zurück, auch wenn der Text abgeschnitten ist —
+nachgemessen an drei Polsterungen, jedes Mal `Luft 0`.
+
+> **Ein Wert, der immer dem entspricht, wogegen man ihn hält, ist keine
+> Messung.**
+
+#### `SelectorValidityTest` — ein `:has()` in einem `:has()` ist keine Regel
+
+Die Eingrenzung sollte zuerst `:has(.field:not(:has(> span)))` heissen. Das ist
+ein `:has()` **in** einem `:has()`, und das verbietet die Spezifikation: Der
+Browser wirft den Selektor nicht halb weg, sondern **ganz**, samt allem in
+seinem Block. `npm run build` übersetzt die Datei trotzdem, `ClassReachTest`
+findet die Klassen, `SpecificityTest` vergleicht Regeln, die es gibt — alle drei
+grün. Die Messung daneben meldete unverändert 58 px, also genau die Zahl, die
+auch eine Regel liefert, die aus gutem Grund nicht greift.
+
+> **Eine ungültige Stelle in einem Selektor macht ihn nicht ungenauer, sondern
+> wirkungslos — und das sieht aus wie „die Regel greift hier nicht".**
+
+Geworden ist es `:has(.field > select:only-child)`. Der neue Wächter prüft genau
+diesen einen Fall und nicht „ist CSS gültig": Ein vollständiger Parser wäre eine
+zweite Fassung dessen, was der Browser tut, und die zweite veraltet.
+
+**Sein Ausschnitt hat dabei denselben Fehler zweimal gemacht.** Der erste Wurf
+las die Selektoren mit `/(^|[};])([^{};]*?)\{/` und verlor die **erste** Regel
+jedes `@media`-Blocks: `preg_match_all` setzt hinter dem Ende des vorigen
+Treffers auf, das Trennzeichen ist damit verbraucht. Ein `{` in die Zeichenklasse
+zu nehmen half nicht — aus demselben Grund, und **die Zahl am Bestand blieb bei
+beiden Fassungen gleich**. Gezählt wird jetzt Zeichen für Zeichen; das sind
+286 Selektoren statt 270.
+
+> **Zwei Fassungen eines Ausdrucks, die dieselbe Zahl liefern, können beide
+> denselben Fall verlieren.**
+
+#### `TeardownTest` liest den Rumpf des Hakens und nicht mehr die Datei
+
+Aufgefallen beim Lauf der Eingriffe: Der Bruch „der Takt wird nie angehalten"
+liess sich nicht mehr eindeutig setzen, weil `stellen()` ein zweites
+`clearInterval` in dieselbe Datei gebracht hat. Damit war die Frage „gibt es
+ein `clearInterval`?" mit Ja zu beantworten, auch wenn im `onUnmounted` keines
+mehr stünde — und dann läuft der Takt bis zum Schliessen des Reiters weiter.
+
+> **Eine zweite Stelle, die dasselbe Wort trägt, macht die Frage „gibt es eine?"
+> stumpf.**
+
+Derselbe Satz wie am 23. August bei `.toggle`, nur eine Ebene höher: dort eine
+zweite CSS-Regel für dieselbe Hülle, hier ein zweiter Aufruf in derselben Datei.
+Geprüft wird jetzt der **Rumpf** der Aufräumhaken, für den Takt und für die
+Horcher an `document` und `window`.
+
+#### `BlockSpacingTest` — ein `v-else` schliesst nur seinen eigenen Zweig aus
+
+Der Wächter hat am 23. August gelernt, dass zwei Zweige derselben Bedingung
+einander ausschliessen. Der erste Wurf hat die Kette am **Nachfolger**
+weitergezählt, und damit fiel eine echte Fuge weg: Unter dem Erklärsatz der
+Konsole steht `<p v-if="loadingTable" class="empty">` und dahinter
+`<div v-else class="scrolls">`. Die beiden schliessen einander aus — den Satz
+darüber schliesst keines von beiden aus, und `section-note + scrolls` ist genau
+die Fuge, die man sieht, sobald die Tabelle geladen ist.
+
+> **Zwei Zweige einer Bedingung schliessen einander aus und sonst niemanden.**
+
+Gefunden hat es der Lauf der Eingriffe: Der Bruch, der `.section-note` seinen
+unteren Rand nimmt, liess den Wächter grün.
+
+### Befund 8 — ein Knopf, so hoch wie die Beschriftung daneben
+
+Gemeldet vom Betreiber am 23. August 2026 im Nachlauf zu `v0.7.0-rc.7`: „Der
+Knopf ‚Domain anlegen' ist zu gross im Verhältnis zum Auswahlfeld bei 390 px.
+Gleiches beim Knopf ‚Datenbank anlegen'."
+
+`.page-head .button-row` richtet mit `stretch` aus, und für eine Reihe aus
+lauter Knöpfen ist das richtig — sie sind dann gleich hoch. Steht ein
+**beschriftetes** Feld dabei, ist die Reihe so hoch wie Beschriftung plus Feld,
+und der Knopf wächst auf etwas, das mit ihm nichts zu tun hat: gemessen bei
+390 px **133×72** gegen ein Feld von **206×44**.
+
+> **Eine Höhe, die ein Nachbar vorgibt, ist keine Aussage über den Knopf.**
+
+`flex-end` und nicht `center`: Beide machen den Knopf 44 px hoch, aber `center`
+lässt ihn 14 px über der Feldkante schweben. Die Kopfhöhe bleibt in allen
+Fassungen 134 px — es geht nicht um Platz, sondern um das Verhältnis.
+
+**Verursacht hat ihn derselbe Tag.** Die Ausrichtung gab es schon als
+`align-items: center`, in der Regel, die den Seitenkopf der Übersicht bei 390 px
+in eine Zeile bringt. Deren Verengung auf `:has(.field > select:only-child)` war
+richtig — ohne sie wurde der Abonnementname beschnitten —, hat aber **zwei Dinge
+zugleich** weggenommen: das Schrumpfen des Feldes, das schadete, und die
+Ausrichtung, die half.
+
+> **Wer eine Regel verengt, verengt alles, was in ihr steht — auch das, was mit
+> dem Grund der Verengung nichts zu tun hatte.**
+
+Sie steht jetzt für sich, am breiten `:has(.field)`: Eine Ausrichtung
+beschneidet nichts und ist überall richtig, wo ein Feld neben einem Knopf steht.
+`ButtonFieldAlignTest` prüft beides — dass sie gesetzt ist, und dass sie am
+breiten Selektor hängt und nicht in der verengten Regel; zwei Eingriffe, beide
+gegengeprüft.
+
+**Gefunden hat ihn kein Messmittel dieses Projekts.** Der Überlauf war in allen
+vier Lagen `0`, `schiebt` und `rollt` leer, die Kopfhöhe unverändert.
+
+> **Eine Messung, die auf Überlauf zeigt, sieht ein falsches Verhältnis nicht.**
+
+**Und die Nachbildung im Aufsatz war dabei falsch.** Sie hatte **eine**
+Knopfreihe; die echte Seite hat **zwei ineinander** — `PanelLayout.vue` legt den
+Platz `#actions` in ein `.button-row`, und `Domains/Index.vue` legt sein eigenes
+`form.button-row` hinein. Mit nur einer Ebene brach der Knopf in die zweite
+Zeile und war 44 px hoch; erst mit beiden ergaben sich die 72.
+
+> **Eine Nachbildung, der eine Ebene fehlt, misst eine andere Lage — und zwar
+> eine, die harmloser aussieht.**
+
+**Nachgesehen am 23. August auf `cloudsrv24` gegen `v0.7.0-rc.8`**, beide Seiten
+bei 390 px, beide Lagen gültig: Knopf 116×44 bzw. 137×44 gegen ein Feld von
+190×44, gleich hoch, Unterkanten bündig, Abonnementname ungekürzt. Damit ist
+kein Befund der Bilderrunde mehr offen.
+
+> **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+> jemand ihn behoben hat.**
+
+### `tests/takt-messen.js` — das Mittel bleibt, nicht nur das Ergebnis
+
+Der Nachlauf zu `v0.7.0-rc.7` hat den Takt der Übersicht zum ersten Mal
+**gemessen** statt angesehen: eine Probe an `XMLHttpRequest.prototype.send`, die
+jede Teilnachladung mit ihrem Zeitstempel meldet. Gemessen wurden dreimal 30,0 s,
+dann dreimal 60,0 s, danach keine Zeile mehr.
+
+**Der Beleg steht in dem, was fehlt.** Hielte `stellen()` den alten Takt nicht
+an, liefe der 30-Sekunden-Takt in seiner Phase weiter — bei 144,5 · 174,5 ·
+204,5 und so fort. Keine dieser Zeilen ist da.
+
+> **Ein zweiter Takt ist nicht daran zu erkennen, dass etwas Falsches passiert,
+> sondern daran, dass etwas zu oft passiert.**
+
+Weder ein Bild noch die Überlaufmessung sagen darüber etwas, und ein Blick auf
+die Uhr auch nicht: „es lädt nach" sieht bei 30 und bei 60 Sekunden gleich aus.
+Die Probe liegt deshalb als Datei im Repo, aus demselben Grund wie
+`tests/bilder-messen.js` seit dem 19. August:
+
+> **Ein Messmittel, das man aufhebt, macht die Fehler von letztem Mal nicht noch
+> einmal.**
+
+`TickProbeTest` hält die eine Kopplung, an der sie stumm werden kann: Sie
+erkennt eine Nachladung an `X-Inertia-Partial-Data`, und die schickt Inertia nur
+bei `router.reload({ only: [...] })`. Wird der Selbstlauf auf eine volle
+Navigation umgestellt, meldet die Probe nichts mehr — und das sieht aus wie ein
+Takt, der steht.
+
+> **Ein Messmittel, das an einer Eigenschaft des Prüflings hängt, misst nichts
+> mehr, sobald der Prüfling sie ablegt — und meldet dabei dasselbe wie ein
+> Prüfling, der stillsteht.**
+
+**Der erste Wurf dieses Wächters war dabei wirkungslos, und gefunden hat es der
+Lauf der Eingriffe.** Er suchte den Namen der Kopfzeile in der ganzen Datei —
+und der Kopfkommentar der Probe erklärt, worauf sie hört. Der Eingriff tauschte
+die Zeichenkette im Code aus, die Erklärung blieb stehen, der Wächter blieb grün.
+
+> **Ein Wächter, der Kommentare mitliest, verlangt, dass niemand aufschreibt,
+> was er prüfen soll.**
+
+Derselbe Satz wie im Kopf von `FormLabelTest`, dort an einem `<label>` im
+Kommentar.
+
+### P7 ist abgenommen — und der Lauf hatte keinen Fund am Prüfling
+
+Am **24. August 2026** auf `cloudsrv24` gegen `0.7.0-rc.8`, alle acht Kriterien
+aus `docs/72 §3`. Der Lauf steht in `docs/77`, das Protokoll in **`docs/78`**.
+
+**Alle acht waren bei der ersten Messung erfüllt.** Jede Korrektur dieses Tages
+betraf die Vorschrift oder die Umgebung; drei davon hätten ein falsches Rot
+erzeugt, zwei ein falsches Grün.
+
+> **Die Mehrheit der Fehler steckt nicht im Prüfling, sondern im Prüfmittel** —
+> hier war es die Gesamtheit.
+
+**Der teuerste hätte den Prüfling für etwas gemeldet, das er zu Recht tut.**
+Kriterium 4 verlangt „die autoritativen Server und nicht den Systemauflöser",
+und die geplante Messung wollte zählen, ob überhaupt ein Paket an den Auflöser
+geht. Es geht eines: `Resolver::nameservers()` fragt über `dns_get_record()`,
+**wo eine Zone liegt** — im Kopf der Klasse begründet, weil sich das nicht im
+Minutentakt ändert. Gemessen wird jetzt nach dem **gefragten Namen**: `A`,
+`AAAA` und `CAA` der Domain müssen an die autoritativen Adressen gehen, `NS` auf
+die Zone darf an den Auflöser.
+
+> **Ein Kriterium, das man am falschen Paket misst, meldet den Prüfling für
+> etwas, das er zu Recht tut.**
+
+**Der zweite steckte in der Zone.** Der Zustand „fehlt" sollte entstehen, indem
+man einen Namen nicht anlegt — `cloudlab24.de` führt aber einen Platzhalter, und
+ein Name, den es nicht gibt, bekommt dort eine Antwort. Behoben ohne die Zone
+anzufassen: Ein `TXT`-Satz lässt den Namen existieren, und ein Platzhalter greift
+nach RFC 4592 nur für Namen, die es **gar nicht** gibt.
+
+> **Ein Zustand, den die Umgebung nicht zulässt, wird nicht dadurch hergestellt,
+> dass man nichts tut.**
+
+**Und das Verfahren von Punkt 4 ist zweimal umgebaut worden**, bevor es
+gemessen hat. Es brauchte einen gefüllten Auflöser-Zwischenspeicher; bei ipv64
+steht die TTL fest auf 10 Sekunden.
+
+> **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr hergestellt.**
+
+> **Eine Messung, die um ihren Gegenstand herumführt, hängt an Bedingungen, die
+> mit ihm nichts zu tun haben.** Der Gegenstand ist ein UDP-Paket an eine
+> Adresse — also wird das Paket angesehen, mit `tcpdump` und einer Gegenprobe.
+
+**Was der Lauf nebenbei geschlossen hat:** die beiden Reste aus `docs/76 §4`,
+die sich nur in einem flüchtigen Zustand zeigen — die Marke „ungeprüft" und die
+Regel `.toggle + .button-row`, letztere mit `24px` gegen `--block-gap` gemessen.
+
+**Was benannt offen bleibt** (`docs/78 §5`): der fehlende Aufstieg zur
+CAA-Elternzone (eine Grenze, kein Mangel), „Nameserver uneinig" und „kein
+Sollzustand bekannt" als nicht herstellbare Zustände, die Grenze des Durchgangs
+— und eine Beobachtung ausserhalb von P7: Die Zertifikatsautomatik hat für die
+drei neu angelegten Domains über eine Stunde lang nichts bestellt.
+
+### Die Zertifikatsbeobachtung aus `docs/78 §5` — HTTP-01 hat nie funktioniert
+
+Die Beobachtung darüber ist nachgegangen worden, und sie war kein Warten,
+sondern ein Fehlschlag: Die Automatik **hat** bestellt, eine Sekunde nach
+`web.site.apply`, und alle drei Bestellungen sind gescheitert. Zwei davon zu
+Recht — `fremd` zeigt auf `192.0.2.1` (TEST-NET, von der Zertifizierungsstelle
+abgewiesen), `ohne` hat gar keinen `A`-Satz. Die dritte nicht:
+
+    Invalid response from
+    http://hier.cloudlab24.de/.well-known/acme-challenge/rDfTSap…: 403
+
+**Die Prüfdatei lag, und alles an ihr war richtig.** Sie steht auf `0644`, ihre
+Verzeichnisse auf `0755`, der `location`-Block zeigt mit `root` genau dorthin.
+Falsch war der **Weg**: Die Datei lag unter `/var/lib/srvpanel`, und das liefert
+das Paket seit P0 als `0750 srvpanel:srvpanel` aus. Der nginx-Worker läuft als
+`www-data`, `postinstall.sh` nimmt `srvpanel` in die Gruppe `www-data` auf und
+nicht umgekehrt — er kam nicht einmal hindurch.
+
+> **Eine Datei, die für alle lesbar ist, ist damit nicht erreichbar — der Weg zu
+> ihr entscheidet.**
+
+Gemessen auf `cloudsrv24` als Paar an einem einzigen Bit, mit derselben Datei
+und derselben Adresse: `403` · mit `o+x` auf `/var/lib/srvpanel` `200` · nach
+`o-x` wieder `403`. Im Log der Domain steht dazu `open(…) failed (13:
+Permission denied)`.
+
+**Der Ablageort ist nach `/var/spool/srvpanel/acme-challenge` gewandert** —
+dorthin, wo aus demselben Grund schon die Aufzeichnungen der Cronjobs liegen.
+`CronApply::SPOOL_DIR` nennt seit P6 wörtlich denselben Grund und dieselbe
+Antwort; für die ACME-Prüfdatei hat die Frage niemand gestellt. Die Alternative
+— `/var/lib/srvpanel` ein `o+x` geben — steht dort schon beantwortet: *Wer ein
+Verzeichnis öffnet, damit ein anderer durchkommt, öffnet es für alle, die
+vorbeikommen.*
+
+> **Ein Fehler, den man an einer Stelle vermieden hat, ist an der nächsten
+> wieder da, wenn die Vermeidung nicht die Regel wurde.**
+
+**Warum kein Test das gefunden hat:** weil keiner über die Grenze zweier Dateien
+hinweggesehen hat. Der Ablageort steht im Agenten, die Rechte seiner
+Elternverzeichnisse in der Paketierung — jede Seite für sich war in Ordnung. Das
+ist dasselbe Muster wie überall hier: eine Zeichenkette, die auf etwas verweist,
+ohne dass etwas den Bezug prüft.
+
+**`ChallengeReachTest` ist der Wächter dazu.** Er wandert vom Wurzelverzeichnis
+bis zum Ablageort und verlangt für jedes Verzeichnis, das die Paketierung
+anlegt, ein `x` für „andere"; er verlangt den Ablageort in **beiden** Quellen —
+`nfpm.yaml` legt ihn beim Entpacken an, `postinstall.sh` richtet bestehende
+Installationen nach —, und er liest die beiden Zahlen aus
+`HttpChallenge::present()` statt aus einem Kommentar daneben. Sieben Eingriffe
+in `tests/waechter-brechen.sh` stehen dafür ein, darunter der Fehler selbst.
+
+**Und beim Gegenprüfen ist der Wächter einmal grün geblieben, wo er hätte rot
+sein müssen.** Die Frage „steht der Ablageort in der Paketierung?" ging an die
+**Vereinigung** beider Quellen — ein Eingriff, der den Eintrag aus `nfpm.yaml`
+nimmt, liess ihn kalt, weil `postinstall.sh` für ihn mitzahlte.
+
+> **Eine Frage an die Vereinigung hält auch dann, wenn eine der Quellen blind
+> ist — die andere zahlt für sie mit.**
+
+Die Auslese der Paketierung steht dafür jetzt als
+`Tests\Support\ReadsPackagedDirectories` neben `ServiceDirectoryTest`, der sie
+seit `docs/67` Befund 1 benutzt: Zwei Wächter stellen an dieselben Zeilen zwei
+verschiedene Fragen, und eine zweite Fassung des Ausdrucks wäre die, die
+veraltet.
+
+**Was das für einen bestehenden Server heisst.** Den Server-Block der
+Oberfläche zieht jedes Update nach; die Blöcke der Kundendomains zeigen bis auf
+Weiteres auf den alten Ort und liefern die Prüfdatei nicht aus. Nachgezogen
+werden sie mit `srvpanel vhost --sites` — dasselbe Kommando bestellt dabei für
+jede Domain ohne Zertifikat eines, und es nennt vorher die Zahl.
+
+### Nachgesehen: die Prüfdatei ist erreichbar, und das Zertifikat kommt an
+
+Auf `cloudsrv24` gegen `0.7.0-rc.9`, nach `srvpanel vhost --sites` (vier
+Server-Blöcke neu geschrieben). Mit einer Prüfdatei von Hand am neuen Ort und
+über den echten Webserver: `200` auf die Datei, `404` auf einen Namen, den es
+dort nicht gibt. Alle vier Blöcke tragen dieselbe eine `root`-Zeile
+`/var/spool/srvpanel/acme-challenge`; `/var/lib/srvpanel/acme-challenge` steht
+nirgends mehr.
+
+> **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+> jemand ihn behoben hat.**
+
+**Und die Kette bis zum ausgestellten Zertifikat ebenfalls** — aber erst im
+zweiten Anlauf. Die zwei Bestellungen aus `vhost --sites` galten `p6-b.invalid`
+und `p6-abnahme.invalid` und sind zu Recht mit `rejectedIdentifier` gescheitert
+(*„Domain name does not end with a valid public suffix (TLD)"*); von den vier
+Domains dieses Servers dürfen zwei kein Zertifikat bekommen, die beiden anderen
+hatten längst eines.
+
+> **Ein Beleg für den Weg ist keiner für das Ziel.**
+
+Hergestellt wurde der fehlende Fall mit einem `A`-Satz für `tls.cloudlab24.de`
+und der Domain im Panel, sonst nichts. Vorgang 682 steht auf `succeeded`, und
+am Ende steht nicht die Statusspalte, sondern das Zertifikat selbst:
+`subject=CN = tls.cloudlab24.de`, `issuer` Let's Encrypt YR1, `notBefore` von
+derselben Minute. Das Abonnement hatte keine DNS-Zugangsdaten — HTTP-01 war
+also der einzige Weg, und genau der war es, der vorher an den Rechten
+scheiterte.
+
+**Die erste Fassung dieser Messung war keine.** Ein Platzhalter in der
+Befehlszeile blieb ungesetzt, der Aufruf lief ohne SNI gegen den Vorgabeblock,
+und heraus kam ein gültig aussehendes Zertifikat mit dem falschen Namen und
+einem `notBefore` von vorgestern.
+
+> **Ein Prüfkörper, der ohne seinen Gegenstand misst, misst etwas anderes und
+> sieht dabei aus wie ein Ergebnis.**
+
+**Und eine Falle beim Nachsehen, die eine Runde gekostet hat.** `srvpanel
+tinker` läuft ohne angemeldetes Konto, und `Operation` trägt über
+`BelongsToSubscription` die Mandantenklammer als globalen Filter. Ohne
+`withoutGlobalScopes()` steht sie auf `whereRaw('0 = 1')` — die Abfrage liefert
+null Zeilen und sagt kein Wort dazu. Gemessen als Paar: `mit Klammer: 0` ·
+`ohne Klammer: 679`.
+
+> **Eine Frage, die im Grundzustand alles verweigert, antwortet mit einer leeren
+> Liste und nicht mit einem Fehler.**
+
+### Ein Zertifikat, das den Rückbau seiner Domain überlebt — beim Aufräumen gefunden
+
+Beim Abräumen der Testdomains aus `docs/77` herausgefallen, und zwar nur, weil
+`docs/78 §5` vorschrieb, beim Zurückbauen nachzusehen, ob Server-Block und
+Verzeichnis mitgehen.
+
+Der Rückbau einer Domain nimmt ihr Zertifikat nicht mit, und `srvpanel tls
+--prune` holt es auch später nicht. Gemessen an Zertifikat 26, nachdem
+`tls.cloudlab24.de` gelöscht war:
+
+```
+Zertifikat 26: Abo 137 · Abschrift p6-b.invalid · Ablageort tls.cloudlab24.de
+verweist noch eine Domain darauf: 0
+/etc/srvpanel/tls/certs/tls.cloudlab24.de/privkey.pem   -rw------- root root 1704
+```
+
+`CertificatePrune` nennt einen Waisen: `subscription_id` **null** bei gesetzter
+Abschrift. Hier ist `subscription_id` gesetzt — das Abonnement lebt, nur die
+Domain gibt es nicht mehr. Die Zeile verwaist also nie, `--prune` führt sie nie
+auf (`11 verwaiste Zeile(n), 0 Ablageort(e) zu entfernen`, ohne
+`tls.cloudlab24.de` darin), und eine Route zum Entfernen eines einzelnen
+Zertifikats hat das Panel nicht. Was bleibt, ist ein privater Schlüssel, den
+keine Zeile mehr nennt und keine Domain mehr braucht.
+
+> **Wer etwas anlegt, das auf der Platte bleibt, baut den Weg zurück mit.**
+
+Derselbe Satz wie in `docs/35 §11` und dieselbe Art Fund. Dort war der Auslöser
+das zurückgebaute **Abonnement**, und der Weg zurück ist gebaut worden; für die
+gelöschte **Domain** innerhalb eines lebenden Abonnements ist er es nie.
+
+**Die Frage dahinter gehört vor die Behebung, und sie hat den Weg entschieden:**
+Ein Zertifikat gehört einem Abonnement und nicht einer Domain, kann also weitere
+Namen decken, die noch leben. Ein Rückbau, der es als Nebenwirkung eines Klicks
+löscht, nähme im falschen Fall eine laufende Website vom Netz. Behoben wurde es
+deshalb nicht am Rückbau, sondern an `--prune` — siehe unten.
+
+**Abgeräumt sind dafür die vier Testnamen** — `hier`, `fremd`, `ohne` und
+`tls` unter `cloudlab24.de`, im Panel und bei ipv64. Belegt im Paar gegen einen
+Kontrollnamen, weil der Platzhalter der Zone für jeden dieser Namen weiter
+antwortet: vier gleiche Adressen heissen „alle vom Platzhalter", nicht „stehen
+noch".
+
+### `srvpanel tls --prune` kennt zwei Arten ungebrauchter Zertifikate
+
+Die Behebung des Befundes darüber. Aufgeräumt wird weiterhin nur an der einen
+Stelle, die dafür gebaut ist: Sie fragt nach, kennt `--dry-run`, und ihre
+Auswahlregel steht in `CertificatePrune` statt im Kommando, damit ein Test sie
+prüfen kann, ohne sie nachzubauen. Neu ist, was sie als ungebraucht ansieht:
+
+| Art | Bedingung |
+|---|---|
+| **verwaist** | `subscription_id` null bei gesetzter Abschrift — das Abonnement ist zurückgebaut |
+| **ohne Domain** | das Abonnement lebt, aber keine seiner Domains nennt das Zertifikat und keine wird von ihm gedeckt |
+
+**Gefragt wird nach der Deckung und nicht nach der Zuordnung**, und das ist die
+gefährliche Hälfte. Ein Platzhalter deckt `www.example.de`, ohne der Domain
+zugeordnet zu sein — `CertificateChoice` wählt ihn trotzdem jederzeit. Wer nur
+`domains.certificate_id` fragte, löschte den privaten Schlüssel unter einer
+laufenden Website weg. Im Zweifel gilt eine Zeile deshalb als gebraucht: Wer zu
+grosszügig ist, lässt ein Verzeichnis liegen; wer zu streng ist, nimmt eine
+Website vom Netz. Das Kommando nennt jetzt je Ablageort den Grund — bei einem
+Vorgang, der Schlüsselmaterial von der Platte nimmt, ist „warum" so wichtig wie
+„was".
+
+**Zwei Stellen wären dabei beinahe stehengeblieben, und beide sind zweite
+Fassungen derselben Regel.** `forget()` trug die Bedingung eines Waisen
+ausgeschrieben — der Agent hätte die Datei entfernt und die Zeile wäre
+geblieben, ein Wegweiser auf ein Verzeichnis, das es nicht mehr gibt. Und der
+Ausstieg des Kommandos hing an `orphans === 0`; er hätte „keine verwaisten
+Zertifikate" gemeldet und den Schlüssel liegen lassen. Beide fragen jetzt
+dieselbe eine Stelle: `inUse()` und `plan()['nothing']`.
+
+> **Zwei Fassungen derselben Regel laufen auseinander — und die falsche ist die,
+> die man bekommt.**
+
+Sechs neue Eingriffe in `tests/waechter-brechen.sh` stehen dafür ein, darunter
+der Fehler selbst und beide Richtungen von `forget()`. **Zwei bestehende
+Eingriffe hat dieser Umbau stumpf gemacht** — einer zeigte auf eine Zeile, die
+umgezogen ist, einer auf einen Testnamen, der sich geändert hat. Gemeldet hat es
+`BreakScriptTest`, nicht das Gedächtnis.
+
+> **Ein Wächter über die Wächter ist der einzige, der merkt, dass ein Eingriff
+> beim Umbau seinen Gegenstand verloren hat.**
+
+### Nachgesehen gegen `0.7.0-rc.10` — und eine Zahl ohne Substantiv
+
+`srvpanel tls --prune --dry-run` auf `cloudsrv24`, dieselbe Domain und derselbe
+Befehl wie vor der Behebung: `tls.cloudlab24.de` steht jetzt als
+`Ablageort und Zeile(n) — ohne Domain` da, vorher kam es überhaupt nicht vor.
+Die beiden **gebrauchten** Ablageorte (`cloudlab24.de`, `cloudlab24.ipv64.de`)
+bleiben unverändert verschont — das ist die Richtung, in der ein Fehler eine
+laufende Website vom Netz nähme.
+
+> **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+> jemand ihn behoben hat.**
+
+**Dabei fiel ein Fehler in der Ausgabe auf, den kein Wächter sehen konnte.** Die
+Zusammenfassung lautete „11 verwaiste und 1 Zeile(n) ohne Domain" — die erste
+Zahl stand ohne Substantiv da, „Zeile(n)" gehörte sichtbar zur zweiten.
+`CountedNounTest` prüft eine Zahl mit **anschliessendem** Mehrzahlwort; hier
+fehlte das Wort, statt falsch zu sein. Jede Zahl trägt jetzt ihr eigenes.
+
+> **Ein Wächter über die Form findet kein Wort, das gar nicht dasteht.**

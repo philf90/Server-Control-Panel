@@ -227,7 +227,7 @@ final class EnsureTls extends Command
     }
 
     /**
-     * Die Zertifikate zurückgebauter Abonnements entfernen — Dateien und Zeilen.
+     * Die ungebrauchten Zertifikate entfernen — Dateien und Zeilen.
      *
      * **Warum es das gibt.** Bis August 2026 konnte dieses System ein
      * Zertifikat anlegen und erneuern, aber nirgends löschen. Ein
@@ -241,6 +241,12 @@ final class EnsureTls extends Command
      * Kommando.** Die Auswahl ist die ganze Sicherheit des Vorgangs; sie steht
      * an einer Stelle, damit ein Test sie prüfen kann, ohne sie nachzubauen.
      *
+     * **Seit dem 24. August 2026 fasst es zwei Fälle**, und der zweite ist
+     * derselbe Fehler eine Ebene tiefer: Auch der Rückbau einer einzelnen
+     * **Domain** liess ihr Zertifikat liegen, und weil das Abonnement weiterlebt,
+     * verwaiste die Zeile nie. Gemessen auf `cloudsrv24` an `tls.cloudlab24.de`:
+     * null verweisende Domains, `privkey.pem` lag, `--prune` führte es nicht auf.
+     *
      * **Erst die Datei, dann die Zeile.** Bricht der Agent ab, bleibt die Zeile
      * stehen und zeigt weiter auf ihr Verzeichnis — ein zweiter Lauf holt es
      * nach. Andersherum wäre die Datei danach unauffindbar.
@@ -249,15 +255,26 @@ final class EnsureTls extends Command
     {
         $plan = $prune->plan();
 
-        if ($plan['orphans'] === 0) {
-            $this->info('Keine verwaisten Zertifikate.');
+        // **Die Frage stellt der Plan und nicht dieses Kommando.** Hier stand
+        // bis zum 24. August 2026 `$plan['orphans'] === 0` — eine zweite
+        // Fassung der Regel, und beim zweiten Fall war sie veraltet: Das
+        // Kommando meldete „keine verwaisten Zertifikate" und liess den
+        // privaten Schlüssel liegen.
+        if ($plan['nothing']) {
+            $this->info('Keine ungebrauchten Zertifikate.');
 
             return self::SUCCESS;
         }
 
         $this->line(sprintf(
-            '%d verwaiste Zeile(n), %d Ablageort(e) zu entfernen.',
+            // **Jede Zahl mit ihrem eigenen Substantiv.** „11 verwaiste und 1
+            // Zeile(n) ohne Domain" liess die erste Zahl ohne Wort dastehen —
+            // „Zeile(n)" gehörte sichtbar zur zweiten. Gesehen auf dem
+            // Zielserver, nicht im Test: `CountedNounTest` prüft eine Zahl mit
+            // anschliessendem Mehrzahlwort, und hier fehlte das Wort.
+            '%d verwaiste Zeile(n), %d Zeile(n) ohne Domain, %d Ablageort(e) zu entfernen.',
             $plan['orphans'],
+            $plan['abandoned'],
             count($plan['removable']),
         ));
 
@@ -265,8 +282,12 @@ final class EnsureTls extends Command
             $this->warn("  {$name}: Ablageort bleibt — er wird noch gebraucht. Nur die Zeile geht.");
         }
 
+        // **Mit dem Grund daneben.** „Was" allein genügt bei einem Vorgang
+        // nicht, der einen privaten Schlüssel von der Platte nimmt: Wer
+        // bestätigt, soll lesen können, ob das Abonnement fort ist oder ob nur
+        // keine Domain mehr darauf zeigt.
         foreach ($plan['removable'] as $name) {
-            $this->line("  {$name}: Ablageort und Zeile(n)");
+            $this->line(sprintf('  %s: Ablageort und Zeile(n) — %s', $name, $plan['reasons'][$name] ?? 'ohne Grund'));
         }
 
         if ($this->option('dry-run') === true) {

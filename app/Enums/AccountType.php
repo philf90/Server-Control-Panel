@@ -13,7 +13,7 @@ namespace App\Enums;
  * Hosting-Panels ab." Der erste Halbsatz gilt weiter, der zweite nicht mehr —
  * der Betreiber hat zwei Verwaltungsrollen entschieden, **Betreiber** und
  * **Administrator**, wobei der zweite verwaltet und Kritisches weder sieht noch
- * bedient. Das Modell steht in `docs/74 §11` (A9); gebaut ist es noch nicht.
+ * bedient. Das Modell steht in `docs/81 §11` (A9); gebaut ist es noch nicht.
  *
  * Für den Zusatzbenutzer gilt der alte Satz unverändert: Was er darf, steht
  * nicht an seinem Konto, sondern an der Zuordnung zum Abonnement — derselbe
@@ -44,7 +44,7 @@ enum AccountType: string
      * Sieht dieses Konto den ganzen Server?
      *
      * **Das ist keine Aussage darüber, was es darf.** Beide Verwaltungsrollen
-     * aus `docs/74 §11` antworten hier `true`; sie unterscheiden sich an den
+     * aus `docs/81 §11` antworten hier `true`; sie unterscheiden sich an den
      * Gates, nicht an dieser Zeile.
      */
     public function isAdmin(): bool

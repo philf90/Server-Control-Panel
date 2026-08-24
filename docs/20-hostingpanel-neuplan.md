@@ -349,7 +349,7 @@ Objekttyp-Platz für Mailkonten. Keine Tabellen, keine Attrappen-Oberfläche.
 #### Zwei Rollen innerhalb der Admin-Ebene
 
 > **Entschieden vom Betreiber am 24. August 2026**, beim Planen von A9
-> (`docs/74 §11`). Gebaut wird es dort — hier steht es, weil §6 die Quelle für
+> (`docs/81 §11`). Gebaut wird es dort — hier steht es, weil §6 die Quelle für
 > das Rechtemodell ist und eine Entscheidung, die nur im Planungsdokument
 > stünde, beim nächsten Nachschlagen nicht gefunden wird.
 
@@ -370,7 +370,7 @@ stoppen, Firewall, Neustart, Systemupdates einspielen) · es zeigt ein Geheimnis
 **Das ist kein Rechte-Baukasten**, sondern eine feste zweite Rolle — dieselbe
 Begründung wie bei den drei Ebenen. Und es ist **keine vierte Ebene**: Ebene und
 Rolle sind zwei Achsen, und wer sie in ein Feld legt, macht „ist Admin"
-zweideutig. Die Folgen dieser Verwechslung stehen in `docs/74 §11`, der
+zweideutig. Die Folgen dieser Verwechslung stehen in `docs/81 §11`, der
 Stolperdraht dagegen ist `AccountTypeAxisTest`.
 
 Der Rechtekatalog für Zusatzbenutzer (Plesk-nah): Dateien lesen, Dateien

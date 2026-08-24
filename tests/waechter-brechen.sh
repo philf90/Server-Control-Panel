@@ -3546,27 +3546,28 @@ echo "── CertificatePruneTest: der geteilte Ablageort wird mitgenommen ─�
 # **Der Fehler, den der Zielserver am 7. August fast bekommen hätte.** Auf ihm
 # teilte sich `cloudlab24.de` seinen Ablageort zwischen einem zurückgebauten und
 # einem LEBENDEN Abonnement. Wer beim Aufräumen je Zeile entscheidet statt je
-# Ablageort — oder die lebenden Zeilen nicht mitzählt —, löscht den privaten
-# Schlüssel einer laufenden Website.
+# Ablageort — oder die gebrauchten Zeilen nicht mitzählt —, löscht den privaten
+# Schlüssel einer laufenden Website. Seit dem 24. August heisst „gebraucht"
+# nicht mehr „lebendes Abonnement", sondern „eine Domain zeigt darauf oder wird
+# davon gedeckt"; der Zieltest heisst deshalb anders.
 vorher_datei app/Support/Tls/CertificatePrune.php
 python3 - <<'PY2'
 p = 'app/Support/Tls/CertificatePrune.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace(
-    """                if (array_key_exists($name, $spoken)) {
-                    $shared[$name] = true;
+alt = """                if (array_key_exists($name, $gesprochen)) {
+                    $shared[] = $name;
 
                     continue;
                 }
 
-""",
-    "",
-)
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei app/Support/Tls/CertificatePrune.php "geteilter Ablageort wird entfernt" &&
 pruefe "geteilter Ablageort wird entfernt" \
-  CertificatePruneTest::test_a_storage_name_shared_with_a_living_certificate_is_kept failed
+  CertificatePruneTest::test_a_storage_name_shared_with_a_used_certificate_is_kept failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificatePruneTest passed
 
@@ -14089,9 +14090,11 @@ vorher_datei app/Support/Dns/Sweep.php
 python3 - <<'PY2'
 p = 'app/Support/Dns/Sweep.php'
 s = open(p, encoding='utf-8').read()
-alt = '            if ($this->wasSilent($findings)) {\n                $silent++;\n            }\n'
+# Seit dem 22. August steht der stumme Fall im `elseif` hinter dem ungefragten
+# (docs/74, Befund 1); der Eingriff nimmt jetzt diesen Zweig weg.
+alt = '            } elseif ($this->wasSilent($findings)) {\n                $silent++;\n            }'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '            }', 1))
 PY2
 griff_datei app/Support/Dns/Sweep.php "eine stumme Zone wird nicht gezaehlt" &&
 pruefe "eine stumme Zone wird nicht gezaehlt" \
@@ -14168,6 +14171,1342 @@ pruefe "die Klammer einer Einsetzung zaehlt nicht" \
   BaseMethodClashTest::test_only_what_lands_on_the_class_is_read failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BaseMethodClashTest passed
+
+echo
+echo "── DisplayTimeZoneTest: der Browser entscheidet die Zeitzone ──"
+#
+# Befund 3 der Zwischenabnahme (docs/74): Der DNS-Bereich schickte ISO-8601 an
+# den Browser und liess dort new Date().toLocaleString() rechnen — also in der
+# Zone des Betrachters. Daneben rendert die Vorgangsliste derselben Seite ueber
+# Clock::display(), also in der eingestellten Anzeigezone.
+
+vorher_datei resources/js/Pages/Domains/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'const dnsGeprueft = computed(() => props.dns.last?.checked_at ?? null)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "const dnsGeprueft = computed(() => {\n  const wann = props.dns.last?.checked_at\n\n  return wann === undefined ? null : new Date(wann).toLocaleString('de-DE')\n})"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Domains/Show.vue "der Browser rechnet die Zeit" &&
+pruefe "der Browser rechnet die Zeit" \
+  DisplayTimeZoneTest::test_no_new_place_decides_the_time_zone_in_the_browser failed
+wiederherstellen
+
+# Und die Gegenprobe zum Ausdruck: Trifft er nichts mehr, meldet der Waechter
+# nicht „alles in Ordnung", sondern dass seine gezaehlten Stellen fehlen.
+vorher_datei tests/Unit/DisplayTimeZoneTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DisplayTimeZoneTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "str_contains($zeile, 'new Date(')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "str_contains($zeile, 'new Datum(')", 1))
+PY2
+griff_datei tests/Unit/DisplayTimeZoneTest.php "der Ausdruck trifft nichts mehr" &&
+pruefe "der Ausdruck trifft nichts mehr" \
+  DisplayTimeZoneTest::test_every_counted_place_still_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DisplayTimeZoneTest passed
+
+echo
+echo "── Der ungefragte Name: nicht gefragt ist nicht dasselbe wie ohne Antwort ──"
+#
+# Befund 1 der Zwischenabnahme (docs/74). Measurement sagt in seiner
+# Beschreibung, `null` heisse „die Messung hat nicht stattgefunden" — die
+# Auskunft entstand und wurde verworfen, bevor sie jemand lesen konnte. Im
+# Bericht sah ein gescheiterter Agentenaufruf danach genauso aus wie eine Zone,
+# die wirklich schweigt.
+
+vorher_datei app/Support/Dns/Survey.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Survey.php'
+s = open(p, encoding='utf-8').read()
+alt = "                $unasked[] = (string) $name;\n\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Dns/Survey.php "der ungefragte Name wird verschwiegen" &&
+pruefe "der ungefragte Name wird verschwiegen" \
+  DnsSurveyTest::test_a_name_that_could_not_be_asked_is_named failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Survey.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Survey.php'
+s = open(p, encoding='utf-8').read()
+alt = "            $answer = $this->measurement->of((string) $name, $queries);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            $answer = $this->measurement->of((string) $name, $queries);\n            $unasked[] = (string) $name;"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Survey.php "jeder Name gilt als ungefragt" &&
+pruefe "jeder Name gilt als ungefragt" \
+  DnsSurveyTest::test_a_zone_that_answers_is_not_counted_as_unasked failed
+wiederherstellen
+
+vorher_datei app/Support/Dns/Sweep.php
+python3 - <<'PY2'
+p = 'app/Support/Dns/Sweep.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if ($this->wasUnasked($findings)) {\n                $unasked++;\n            } elseif ($this->wasSilent($findings)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            if ($this->wasSilent($findings)) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Dns/Sweep.php "nicht gefragt zaehlt wieder als stumm" &&
+pruefe "nicht gefragt zaehlt wieder als stumm" \
+  DnsSweepTest::test_a_name_that_could_not_be_asked_is_not_a_silent_zone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DnsSurveyTest passed
+
+echo
+echo "── SettingsWriterReachTest: eine Einstellung ohne Weg hinein ──"
+#
+# Befund 2 der Zwischenabnahme (docs/74): Settings::saveDnsAddresses() gab es
+# seit P7 Schritt 4 und nichts hat es aufgerufen. Die Gegenseite wurde gelesen,
+# die Domainseite wollte sogar warnen, wenn eingetragene und abgeleitete
+# Adressen auseinandergehen — sie konnten nie auseinandergehen.
+
+vorher_datei app/Http/Controllers/GeneralSettingsController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/GeneralSettingsController.php'
+s = open(p, encoding='utf-8').read()
+alt = '        $settings->saveDnsAddresses($adressen);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        // der Aufrufer ist weg', 1))
+PY2
+griff_datei app/Http/Controllers/GeneralSettingsController.php "die Uebersteuerung ohne Weg hinein" &&
+pruefe "die Uebersteuerung ohne Weg hinein" \
+  SettingsWriterReachTest::test_every_writer_is_called_from_somewhere failed
+wiederherstellen
+
+# Und die Gegenprobe zum Scanner: Laeuft er ins Leere, meldet er nicht „alles
+# in Ordnung", sondern dass er nichts gefunden hat.
+vorher_datei tests/Unit/SettingsWriterReachTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/SettingsWriterReachTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "$datei->getExtension() !== 'php'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$datei->getExtension() !== 'phpx'", 1))
+PY2
+griff_datei tests/Unit/SettingsWriterReachTest.php "der Scanner laeuft ins Leere" &&
+pruefe "der Scanner laeuft ins Leere" \
+  SettingsWriterReachTest::test_the_scan_for_callers_finds_anything failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SettingsWriterReachTest passed
+
+echo
+echo "── OneshotDeadlineTest: ein Dienst ohne Frist ──"
+#
+# **Der Anlass ist gemessen und nicht gedacht** (`docs/74`, Befund 4): Auf
+# `cloudsrv24` stand `srvpanel-cron.service` auf `TimeoutStartUSec=infinity`.
+# Ein `Type=oneshot` ohne eigene Angabe laeuft ohne Frist; haengt so ein Lauf,
+# bleibt die Unit in `activating`, und systemd startet sie beim naechsten
+# Termin nicht noch einmal.
+
+vorher_datei packaging/systemd/srvpanel-cron.service
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-cron.service'
+s = open(p, encoding='utf-8').read()
+alt = '\nTimeoutStartSec=180'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei packaging/systemd/srvpanel-cron.service "ein Dienst am Timer ohne Frist" &&
+pruefe "ein Dienst am Timer ohne Frist" \
+  OneshotDeadlineTest::test_every_timed_service_declares_a_deadline failed
+wiederherstellen
+
+vorher_datei packaging/systemd/srvpanel-cron.service
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-cron.service'
+s = open(p, encoding='utf-8').read()
+alt = 'TimeoutStartSec=180'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'TimeoutStartSec=600', 1))
+PY2
+griff_datei packaging/systemd/srvpanel-cron.service "die Frist liegt ueber dem Takt" &&
+pruefe "die Frist liegt ueber dem Takt" \
+  OneshotDeadlineTest::test_the_deadline_is_shorter_than_the_period failed
+wiederherstellen
+
+# **Der dritte Eingriff bricht keine Regel des Bestands, sondern die Lesbarkeit
+# des Takts.** Eine Schreibweise, die `period()` nicht kennt, darf nicht
+# stillschweigend durchgehen — sonst prueft der Fall darueber nichts und ist
+# gruen.
+
+vorher_datei packaging/systemd/srvpanel-cron.timer
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-cron.timer'
+s = open(p, encoding='utf-8').read()
+alt = 'OnCalendar=*:0/5'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'OnCalendar=*:00/5', 1))
+PY2
+griff_datei packaging/systemd/srvpanel-cron.timer "eine Schreibweise, die der Waechter nicht kennt" &&
+pruefe "eine Schreibweise, die der Waechter nicht kennt" \
+  OneshotDeadlineTest::test_the_deadline_is_shorter_than_the_period failed
+wiederherstellen
+
+# **Und die Gegenprobe des Aufzaehlers.** Findet der Ausdruck ueber
+# `packaging/systemd` keine Timer mehr, pruefen die beiden Faelle darueber null
+# Dienste und sind gruen, ohne etwas gesehen zu haben.
+
+vorher_datei tests/Unit/OneshotDeadlineTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/OneshotDeadlineTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "/packaging/systemd/*.timer'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "/packaging/systemd/*.timerx'", 1))
+PY2
+griff_datei tests/Unit/OneshotDeadlineTest.php "der Aufzaehler findet keinen Timer" &&
+pruefe "der Aufzaehler findet keinen Timer" \
+  OneshotDeadlineTest::test_there_are_timers_to_check failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OneshotDeadlineTest passed
+
+echo
+echo "── NoticeChildrenTest: Text neben einem Element in einer Meldung ──"
+#
+# **Der Anlass hat keine Zahl erzeugt** (`docs/75`): `.notice` ist eine
+# Flexbox, und der Wortlaut der Meldung „nicht gefragt" stand als drei
+# Geschwister darin. Bei 390 px brach „Für" in drei Zeilen — bei einem
+# Ueberlauf von 0 in allen vier Lagen.
+
+vorher_datei resources/js/Pages/Domains/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<span>Für\n              <span class="ident">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = 'Für\n              <span class="ident">'
+s = s.replace(alt, neu, 1)
+alt2 = 'nicht an der Zone — über ihre Einträge ist damit nichts gesagt.</span>'
+assert s.count(alt2) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt2, 'nicht an der Zone — über ihre Einträge ist damit nichts gesagt.', 1))
+PY2
+griff_datei resources/js/Pages/Domains/Show.vue "Text neben einem Element in einer Meldung" &&
+pruefe "Text neben einem Element in einer Meldung" \
+  NoticeChildrenTest::test_a_notice_does_not_put_text_beside_an_element failed
+wiederherstellen
+
+# **Der zweite Eingriff ist der, der beim Bau des Waechters stumm blieb.**
+# Ohne die Beachtung der Anfuehrungszeichen verliert der Zerleger genau die
+# sechs Meldungen, deren Tag ein `>` im Attribut traegt — darunter die, um die
+# es ging. Die beiden Gegenproben ueber den Bestand zaehlen dann sechs
+# weniger und bleiben gruen; erst ein Pruefkoerper aus der Hand faengt es.
+
+vorher_datei tests/Unit/NoticeChildrenTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/NoticeChildrenTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "} elseif ($c === '\"' || $c === \"'\") {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '} elseif (false) {', 1))
+PY2
+griff_datei tests/Unit/NoticeChildrenTest.php "der Zerleger hoert am ersten Spitzklammer-Ende auf" &&
+pruefe "der Zerleger hoert am ersten Spitzklammer-Ende auf" \
+  NoticeChildrenTest::test_the_scan_reads_a_tag_with_an_angle_bracket_in_an_attribute failed
+wiederherstellen
+
+vorher_datei tests/Unit/NoticeChildrenTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/NoticeChildrenTest.php'
+s = open(p, encoding='utf-8').read()
+alt = 'class="[^"]*\\bnotice\\b'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'class="[^"]*\\bnoticex\\b', 1))
+PY2
+griff_datei tests/Unit/NoticeChildrenTest.php "der Zerleger findet keine Meldung mehr" &&
+pruefe "der Zerleger findet keine Meldung mehr" \
+  NoticeChildrenTest::test_there_are_notices_to_check failed
+wiederherstellen
+
+vorher_datei tests/Unit/NoticeChildrenTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/NoticeChildrenTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """                    if ($tiefe === 0) {
+                        $kinder++;
+                    }
+
+                    $tiefe++;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '                    $tiefe++;', 1))
+PY2
+griff_datei tests/Unit/NoticeChildrenTest.php "der Zerleger verschluckt jedes Kindelement" &&
+pruefe "der Zerleger verschluckt jedes Kindelement" \
+  NoticeChildrenTest::test_the_scan_sees_children_inside_a_notice failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NoticeChildrenTest passed
+
+echo
+echo "── DnsHealthTest: der Abgleich als eine Marke ──"
+#
+# **Gewuenscht vom Betreiber am 22. August 2026** waehrend der Bilderrunde: In
+# den Domainlisten eine Marke, die sagt, welche Zeile man aufschlagen muss.
+
+vorher_datei app/Enums/DnsHealth.php
+python3 - <<'PY2'
+p = 'app/Enums/DnsHealth.php'
+s = open(p, encoding='utf-8').read()
+alt = '        if ($findings === null) {\n            return self::Unchecked;\n        }'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Enums/DnsHealth.php "ungeprueft wird zu in Ordnung" &&
+pruefe "ungeprueft wird zu in Ordnung" \
+  DnsHealthTest::test_never_checked_is_its_own_state failed
+wiederherstellen
+
+# **Der teuerste Bruch: ein unbekannter Zustand gilt als gut.** Genau der Fall,
+# der beim naechsten DnsRecordState still falsch wird — es sind schon einmal
+# zwei nachtraeglich dazugekommen.
+
+vorher_datei app/Enums/DnsHealth.php
+python3 - <<'PY2'
+p = 'app/Enums/DnsHealth.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if ($state !== DnsRecordState::Here) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            if ($state !== null && $state !== DnsRecordState::Here) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Enums/DnsHealth.php "ein unbekannter Zustand gilt als gut" &&
+pruefe "ein unbekannter Zustand gilt als gut" \
+  DnsHealthTest::test_an_unknown_state_is_not_fine failed
+wiederherstellen
+
+vorher_datei app/Enums/DnsHealth.php
+python3 - <<'PY2'
+p = 'app/Enums/DnsHealth.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($records === []) {\n            return self::Attention;\n        }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Enums/DnsHealth.php "ein Befund ohne Saetze gilt als gut" &&
+pruefe "ein Befund ohne Saetze gilt als gut" \
+  DnsHealthTest::test_a_finding_without_records_is_not_fine failed
+wiederherstellen
+
+vorher_datei app/Enums/DnsHealth.php
+python3 - <<'PY2'
+p = 'app/Enums/DnsHealth.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if (is_array($authority) && ($authority['state'] ?? null) === 'refused') {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            if (false) {"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Enums/DnsHealth.php "ein abweisendes CAA wird ueberlesen" &&
+pruefe "ein abweisendes CAA wird ueberlesen" \
+  DnsHealthTest::test_a_refused_authority_asks_for_attention failed
+wiederherstellen
+
+vorher_datei app/Enums/DnsHealth.php
+python3 - <<'PY2'
+p = 'app/Enums/DnsHealth.php'
+s = open(p, encoding='utf-8').read()
+alt = "            self::Unchecked => 'neutral',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            self::Unchecked => 'grau',", 1))
+PY2
+griff_datei app/Enums/DnsHealth.php "ein Rang, den Badge nicht kennt" &&
+pruefe "ein Rang, den Badge nicht kennt" \
+  DnsHealthTest::test_every_badge_rank_is_one_the_component_knows failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DnsHealthTest passed
+
+echo
+echo "── IdentListTest / IdentPlacementTest / DisabledStateTest: die Bilderrunde ──"
+#
+# **Zwei Befunde, eine Ursache** (`docs/76`): Eine IPv6 brach bei 390 px mitten
+# im Hextet, und zwei Namen standen durch ein Leerzeichen getrennt nebeneinander.
+# Beide entstehen dort, wo `.ident` gilt — Monospace UND overflow-wrap: anywhere.
+#
+# **Und Befund 4 hat die Regel einen Tag spaeter enger gezogen.** Die Behebung
+# setzte eine Umbruchgelegenheit in jeden Wert; in einem SATZ gewinnt die gegen
+# das Leerzeichen daneben und zerschneidet eine Adresse. Verboten ist deshalb
+# nicht mehr jedes `join()` in einer `.ident`, sondern das blosse Leerzeichen —
+# und `<Idents>` gehoert nur noch dorthin, wo der Wert allein steht.
+
+vorher_datei resources/js/Pages/Domains/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = "{{ props.wildcard.names.join(', ') }}"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "{{ props.wildcard.names.join(' ') }}", 1))
+PY2
+griff_datei resources/js/Pages/Domains/Show.vue "eine Kennungsliste wieder mit blossem Leerzeichen" &&
+pruefe "eine Kennungsliste wieder mit blossem Leerzeichen" \
+  IdentListTest::test_no_ident_separates_a_list_with_a_bare_space failed
+wiederherstellen
+
+# **Die Gegenprobe zum Ausdruck:** Einer, der ein Komma fuer einen Fund haelt,
+# machte sechs richtige Stellen rot — und einer, der das Leerzeichen nicht mehr
+# findet, waere fuer immer gruen. Eine Zaehlung am Bestand merkt beides nicht.
+
+vorher_datei tests/Unit/IdentListTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/IdentListTest.php'
+s = open(p, encoding='utf-8').read()
+# Das Leerzeichen zwischen den beiden Anfuehrungszeichen wird zu einer Klasse,
+# die auch ein Komma nimmt — der Ausdruck haelt dann `join(', ')` fuer einen
+# Fund, und sechs richtige Stellen dieses Panels waeren rot.
+alt = '] ['
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '][, ]*[', 1))
+PY2
+griff_datei tests/Unit/IdentListTest.php "das Komma gilt als Fund" &&
+pruefe "das Komma gilt als Fund" \
+  IdentListTest::test_the_expression_tells_a_comma_from_a_space failed
+wiederherstellen
+
+# Und die andere Richtung: Findet der Ausdruck das Leerzeichen gar nicht mehr,
+# ist die Regel darunter fuer immer gruen.
+
+vorher_datei tests/Unit/IdentListTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/IdentListTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "\\\\.join\\\\(\\\\s*"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "\\\\.joinX\\\\(\\\\s*", 1))
+PY2
+griff_datei tests/Unit/IdentListTest.php "der Ausdruck findet kein join mehr" &&
+pruefe "der Ausdruck findet kein join mehr" \
+  IdentListTest::test_the_expression_tells_a_comma_from_a_space failed
+wiederherstellen
+
+vorher_datei tests/Unit/IdentListTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/IdentListTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/^<template>$(.*?)^<\\/template>$/ms'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/^<templateX>$(.*?)^<\\/templateX>$/ms'", 1))
+PY2
+griff_datei tests/Unit/IdentListTest.php "die Vorlagen werden nicht mehr gelesen" &&
+pruefe "die Vorlagen werden nicht mehr gelesen" \
+  IdentListTest::test_there_are_templates_to_check failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" IdentListTest passed
+
+# ── IdentPlacementTest: Befund 4 der Bilderrunde ───────────────────────────
+#
+# Gemessen ueber 321 Breiten (`tests/umbruch-messen.mjs`): In einem Satz bricht
+# ohne die Umbruchgelegenheit KEIN Wert, mit ihr bis zu 291 von 321 — und der
+# Bereich 380–392 px enthaelt die 390, mit denen jede Bilderrunde misst.
+
+vorher_datei resources/js/Pages/Domains/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = "· gefragt wurden {{ props.dns.last.findings.nameservers.join(', ') }}"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '· gefragt wurden <Idents :values="props.dns.last.findings.nameservers" />'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Domains/Show.vue "Idents steht wieder in einem Satz" &&
+pruefe "Idents steht wieder in einem Satz" \
+  IdentPlacementTest::test_no_idents_stands_in_running_text failed
+wiederherstellen
+
+# **Die Gegenprobe zum Leser.** Einer, der nie Text neben dem Wert sieht, haelt
+# jeden Satz fuer eine Zelle — und die Regel darueber waere fuer immer gruen.
+
+vorher_datei tests/Unit/IdentPlacementTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/IdentPlacementTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if ($tiefe <= 0 && trim($zeichen) !== '') {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            if (false) {", 1))
+PY2
+griff_datei tests/Unit/IdentPlacementTest.php "der Leser sieht nie Text neben dem Wert" &&
+pruefe "der Leser sieht nie Text neben dem Wert" \
+  IdentPlacementTest::test_the_reader_tells_a_cell_from_a_sentence failed
+wiederherstellen
+
+# **Und die Gegenprobe zum Bestand:** Steht `<Idents>` nirgends mehr, ist die
+# Regel eine Verbotstafel vor einer leeren Strasse.
+
+vorher_datei tests/Unit/IdentPlacementTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/IdentPlacementTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/<Idents\\b[^>]*\\/>/'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/<IdentsX\\b[^>]*\\/>/'", 1))
+PY2
+griff_datei tests/Unit/IdentPlacementTest.php "der Ausdruck findet kein Idents mehr" &&
+pruefe "der Ausdruck findet kein Idents mehr" \
+  IdentPlacementTest::test_the_component_is_actually_used failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" IdentPlacementTest passed
+
+# ── SpecificityTest: Befund 5 der Bilderrunde ──────────────────────────────
+#
+# `.obstacle` und `.hint` setzen beide `color` und haben beide 0,1,0. Bei
+# gleicher Spezifitaet entscheidet die Reihenfolge in der Datei — und `.hint`
+# steht 137 Zeilen weiter unten. Der Hinderungsgrund war damit so blass wie die
+# Erklaerung darueber, also genau so wie vor seiner Behebung. ClassReachTest war
+# gruen: Die Klasse zeigte auf eine Regel, die es gibt.
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.hint.obstacle {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.obstacle {', 1))
+PY2
+griff_datei resources/css/app.css "der Hinderungsgrund verliert gegen .hint" &&
+pruefe "der Hinderungsgrund verliert gegen .hint" \
+  SpecificityTest::test_no_pair_is_decided_by_source_order failed
+wiederherstellen
+
+# **Die Gegenprobe zum Vergleich.** Einer, der keinen Streit mehr sieht, waere
+# fuer immer gruen — die Sperrklinke ueber ORDERED faengt ihn.
+
+vorher_datei tests/Unit/SpecificityTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/SpecificityTest.php'
+s = open(p, encoding='utf-8').read()
+alt = 'foreach (array_intersect(array_keys($regeln[$a]), array_keys($regeln[$b])) as $eigenschaft) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'foreach ([] as $eigenschaft) {', 1))
+PY2
+griff_datei tests/Unit/SpecificityTest.php "der Vergleich sieht keinen Streit mehr" &&
+pruefe "der Vergleich sieht keinen Streit mehr" \
+  SpecificityTest::test_no_pair_is_decided_by_source_order failed
+wiederherstellen
+
+# **Und der Leser von app.css.** Findet er keine Regel mehr, prueft der Fall
+# darunter nichts und ist gruen, ohne etwas gesehen zu haben.
+
+vorher_datei tests/Unit/SpecificityTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/SpecificityTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/([^{}]+)\\{([^{}]*)\\}/'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/(XX[^{}]+)\\{([^{}]*)\\}/'", 1))
+PY2
+griff_datei tests/Unit/SpecificityTest.php "app.css wird nicht mehr gelesen" &&
+pruefe "app.css wird nicht mehr gelesen" \
+  SpecificityTest::test_the_comparison_sees_a_conflict failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SpecificityTest passed
+
+# **Befund 7 der Bilderrunde:** Eine Ablesung ist kein Satz und nimmt die volle
+# Breite. Geschrieben als freistehende `.wide` haette sie dieselbe Spezifitaet
+# wie `.section-note` — und wer gewinnt, entschiede die Reihenfolge der Datei.
+# Genau daran ist Befund 5 gescheitert.
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.section-note.wide {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.wide {', 1))
+PY2
+griff_datei resources/css/app.css "die Ablesung gewinnt nur durch die Reihenfolge" &&
+pruefe "die Ablesung gewinnt nur durch die Reihenfolge" \
+  SpecificityTest::test_no_pair_is_decided_by_source_order failed
+wiederherstellen
+
+# **Befund 3:** Ein Kaestchen, das nicht klickt und aussieht, als taete es das.
+# Gemeldet vom Betreiber, gefunden von keinem Messmittel.
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.toggle:has(input:disabled) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.toggle:has(input:aus) {', 1))
+PY2
+griff_datei resources/css/app.css "der Schalter nimmt den Zeigefinger nicht zurueck" &&
+pruefe "der Schalter nimmt den Zeigefinger nicht zurueck" \
+  DisabledStateTest::test_a_disabled_wrapper_takes_back_the_pointer failed
+wiederherstellen
+
+# **Und die Frage „gibt es ueberhaupt eine Regel?" braucht jetzt `.field`.**
+#
+# Bis Befund 6 hat der Eingriff darueber sie beantwortet: `.toggle` hatte genau
+# eine Regel fuer den Aus-Zustand, und sie zu brechen machte den Fall rot. Seit
+# Befund 6 hat `.toggle` zwei — die fuer die Beschriftung und die fuers
+# Kaestchen —, und eine beantwortet die Frage fuer die andere mit. Gefunden hat
+# das der Wochenlauf und nicht das Bauen: Der Eingriff aenderte die Datei
+# weiter nachweislich und biss nicht mehr.
+#
+# > **Eine zweite Regel fuer dieselbe Huelle macht die Frage „gibt es eine?"
+# > stumpf.**
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = """.field input[readonly],
+.field input:disabled,
+.field select:disabled,
+.field textarea:disabled,
+.with-unit input:disabled {"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """.field input[readonly],
+.field input:aus,
+.field select:aus,
+.field textarea:aus,
+.with-unit input:aus {"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/css/app.css "das Feld kennt keinen Aus-Zustand mehr" &&
+pruefe "das Feld kennt keinen Aus-Zustand mehr" \
+  DisabledStateTest::test_every_wrapper_shows_that_it_is_off failed
+wiederherstellen
+
+# **Die Gegenprobe zum Stylesheet-Leser.** Einer, der immer `true` gibt, waere
+# fuer immer gruen — und niemandem faellt es auf.
+
+vorher_datei tests/Unit/DisabledStateTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DisabledStateTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if (! str_contains($selektor, '.'.$klasse) || ! str_contains($selektor, 'disabled')) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            if (true) {", 1))
+PY2
+griff_datei tests/Unit/DisabledStateTest.php "der Stylesheet-Leser findet nichts mehr" &&
+pruefe "der Stylesheet-Leser findet nichts mehr" \
+  DisabledStateTest::test_the_reader_tells_shape_from_colour failed
+wiederherstellen
+
+# **Der Zerleger der Angaben.** Haelt er nichts fuer eine Eigenschaft, ist die
+# Regel ueber die Form fuer immer gruen — es gaebe dann nirgends eine.
+
+vorher_datei tests/Unit/DisabledStateTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DisabledStateTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "                if ($name !== '' && ! str_starts_with($name, '--')) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                if (false) {", 1))
+PY2
+griff_datei tests/Unit/DisabledStateTest.php "der Zerleger findet keine Angabe mehr" &&
+pruefe "der Zerleger findet keine Angabe mehr" \
+  DisabledStateTest::test_the_reader_tells_shape_from_colour failed
+wiederherstellen
+
+# **Befund 6:** Das gesperrte Kaestchen sagt es nur ueber die Farbe — genau der
+# Zustand von rc.5, den der Betreiber ein zweites Mal gemeldet hat.
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+# Gestrichelt wird durchgezogen — also genau die Form, die ein BEDIENBARES
+# Element traegt. Der erste Wurf dieses Eingriffs nahm den ganzen Rand weg und
+# hat nicht gebissen: `appearance: none` blieb stehen, und die stand damals in
+# der Liste der Formen. Sie ist keine Form, sondern die Erlaubnis, eine zu
+# geben.
+alt = "  border: 1px dashed var(--control-line);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "  border: 1px solid var(--control-line);", 1))
+PY2
+griff_datei resources/css/app.css "das gesperrte Kaestchen traegt die Form des bedienbaren" &&
+pruefe "das gesperrte Kaestchen traegt die Form des bedienbaren" \
+  DisabledStateTest::test_every_off_state_is_said_by_shape failed
+wiederherstellen
+
+# **Und der Wunsch des Betreibers dazu:** Die Form allein hat ihm nicht
+# gereicht. Eine Form sagt es dem, der sie kennt — ein Wort sagt es allen.
+
+vorher_datei resources/js/Pages/Domains/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = '              <Badge v-if="!props.wildcard.possible" kind="neutral">nicht möglich</Badge>\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Pages/Domains/Show.vue "der gesperrte Schalter sagt es nicht als Wort" &&
+pruefe "der gesperrte Schalter sagt es nicht als Wort" \
+  DisabledStateTest::test_every_disabled_toggle_says_it_in_words failed
+wiederherstellen
+
+# **Die Gegenprobe:** Findet der Ausdruck keinen sperrbaren Schalter mehr,
+# prueft die Regel darueber nichts und ist gruen, ohne etwas gesehen zu haben.
+
+vorher_datei tests/Unit/DisabledStateTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DisabledStateTest.php'
+s = open(p, encoding='utf-8').read()
+alt = '/<label[^>]*class="'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '/<labelX[^>]*class="', 1))
+PY2
+griff_datei tests/Unit/DisabledStateTest.php "der Ausdruck findet keinen Schalter mehr" &&
+pruefe "der Ausdruck findet keinen Schalter mehr" \
+  DisabledStateTest::test_every_disabled_toggle_says_it_in_words failed
+wiederherstellen
+
+# **Und die Zeile, die „neben" erst moeglich macht.** Ohne ihre Regel ist die
+# Marke ein weiteres Stapelkind und rutscht unter die Beschriftung.
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.label-row {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.label-rowX {', 1))
+PY2
+griff_datei resources/css/app.css "die Zeile der Beschriftung verliert ihre Regel" &&
+pruefe "die Zeile der Beschriftung verliert ihre Regel" \
+  ClassReachTest::test_every_class_in_a_template_points_at_a_rule failed
+wiederherstellen
+
+vorher_datei tests/Unit/DisabledStateTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DisabledStateTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/^<label\\\\b[^>]*\\\\bclass=\"([^\"]+)\"/s'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/^<labelX\\\\b[^>]*\\\\bclass=\"([^\"]+)\"/s'", 1))
+PY2
+griff_datei tests/Unit/DisabledStateTest.php "der Aufzaehler findet keine Huelle mehr" &&
+pruefe "der Aufzaehler findet keine Huelle mehr" \
+  DisabledStateTest::test_there_are_wrappers_to_check failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DisabledStateTest passed
+
+# **Und die dritte Ursache aus Befund 3: der Grund, der wie eine Fussnote
+# aussieht.** `.obstacle` faerbt ihn ab; ohne die Regel steht er in derselben
+# Farbe wie die zwei erklaerenden Hinweise darueber.
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.obstacle {\n  color: var(--warn);\n}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.obstacleX {\n  color: var(--warn);\n}', 1))
+PY2
+griff_datei resources/css/app.css "der Hinderungsgrund verliert seine Farbe" &&
+pruefe "der Hinderungsgrund verliert seine Farbe" \
+  ClassReachTest::test_every_class_in_a_template_points_at_a_rule failed
+wiederherstellen
+
+# ── Der Selbstlauf der Übersicht (22. August 2026) ──────────────────────────
+#
+# Wunsch des Betreibers: Die Kacheln der Sparklines sollen sich alle dreissig
+# Sekunden selbst nachladen, mit einem Knopf fuer den Griff von Hand und einer
+# Auswahl fuer an/aus. Daran haengen zwei neue Regeln — eine ueber das
+# teilweise Nachladen, eine ueber das Aufraeumen.
+
+# **Ein Nachladen, das nur einen Teil holt, holt auch nur einen Teil.** Inertia
+# siebt vor dem Aufloesen; ein fertig uebergebener Wert ist schon gerechnet,
+# wenn das Sieb ihn sieht.
+
+vorher_datei app/Http/Controllers/OverviewController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/OverviewController.php'
+s = open(p, encoding='utf-8').read()
+alt = "'tiles' => fn (): array => $this->tiles("
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'tiles' => $this->tiles(", 1))
+PY2
+griff_datei app/Http/Controllers/OverviewController.php "die Kacheln kommen fertig statt als Verschluss" &&
+pruefe "die Kacheln kommen fertig statt als Verschluss" \
+  PartialReloadTest::test_every_partially_reloaded_prop_is_a_closure failed
+wiederherstellen
+
+# **Und die andere Haelfte derselben Zeichenkette: der Name.** `'tiles'` zeigt
+# auf eine Angabe des Steuerungscodes, und niemand ausser diesem Waechter
+# schlaegt sie nach.
+
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Overview.vue'
+s = open(p, encoding='utf-8').read()
+alt = "only: ['tiles'],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "only: ['kacheln'],", 1))
+PY2
+griff_datei resources/js/Pages/Overview.vue "das Nachladen nennt eine Angabe, die es nicht gibt" &&
+pruefe "das Nachladen nennt eine Angabe, die es nicht gibt" \
+  PartialReloadTest::test_every_partially_reloaded_prop_is_a_closure failed
+wiederherstellen
+
+# **Die Gegenprobe zum Leser: Zeichenketten ueberspringen.** Ohne das beendet
+# ein Komma in einem Text die Angabe zu frueh — und der Schluessel steht
+# danach trotzdem da. Der erste Wurf dieses Waechters verglich nur die
+# Schluessel und blieb bei genau diesem Bruch gruen.
+
+vorher_datei tests/Unit/PartialReloadTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/PartialReloadTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """                $i = $this->afterString($feld, $i);
+
+                continue;
+            }
+
+            if (str_contains('([{', $zeichen)) {"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """                continue;
+            }
+
+            if (str_contains('([{', $zeichen)) {"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Unit/PartialReloadTest.php "der Leser ueberspringt keine Zeichenketten mehr" &&
+pruefe "der Leser ueberspringt keine Zeichenketten mehr" \
+  PartialReloadTest::test_the_reader_tells_a_closure_from_a_value failed
+wiederherstellen
+
+# **Und der Leser, der jeden Ausdruck fuer einen Verschluss haelt.** Er waere
+# fuer immer gruen.
+
+vorher_datei tests/Unit/PartialReloadTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/PartialReloadTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return preg_match('/^(?:static\\s+)?(?:fn|function)\\s*\\(/', $ausdruck) === 1;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        return true;", 1))
+PY2
+griff_datei tests/Unit/PartialReloadTest.php "jeder Ausdruck gilt als Verschluss" &&
+pruefe "jeder Ausdruck gilt als Verschluss" \
+  PartialReloadTest::test_the_reader_tells_a_closure_from_a_value failed
+wiederherstellen
+
+# **Und der Ausdruck, der kein `Inertia::render` mehr findet.** Ohne Fund
+# prueft die Regel darunter nichts und ist gruen, ohne etwas gesehen zu haben.
+
+vorher_datei tests/Unit/PartialReloadTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/PartialReloadTest.php'
+s = open(p, encoding='utf-8').read()
+alt = '"/Inertia::render\\\\(\\\\s*\'([^\']+)\'\\\\s*,\\\\s*\\\\[/"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '"/InertiaX::render\\\\(\\\\s*\'([^\']+)\'\\\\s*,\\\\s*\\\\[/"'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Unit/PartialReloadTest.php "es wird kein Inertia::render mehr gefunden" &&
+pruefe "es wird kein Inertia::render mehr gefunden" \
+  PartialReloadTest::test_there_is_a_partial_reload_to_check failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PartialReloadTest passed
+
+# **Was eine Seite anlegt, raeumt sie beim Verlassen weg.** Inertia tauscht die
+# Seite im selben Dokument aus; ein Takt ohne Abschaltung laeuft bis zum
+# Schliessen des Reiters weiter, von jeder Seite aus, auf der man einmal war.
+#
+# **Getroffen wird die Stelle im Haken und nicht die erste im Text.** Seit dem
+# Takt von 60 Sekunden haelt `stellen()` den alten Takt selbst an — es gibt also
+# ein zweites `clearInterval` in derselben Datei, und ein Waechter, der nach dem
+# Wort sucht, waere damit gruen. `TeardownTest` liest deshalb den Rumpf des
+# Hakens; dieser Eingriff greift genau dorthin.
+
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Overview.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'onUnmounted((): void => {\n  clearInterval(takt)\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'onUnmounted((): void => {\n  void cycle\n', 1))
+PY2
+griff_datei resources/js/Pages/Overview.vue "der Takt wird nie angehalten" &&
+pruefe "der Takt wird nie angehalten" \
+  TeardownTest::test_every_interval_is_cleared failed
+wiederherstellen
+
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Overview.vue'
+s = open(p, encoding='utf-8').read()
+alt = "  document.removeEventListener('visibilitychange', onVisible)\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Pages/Overview.vue "der Horcher an document bleibt liegen" &&
+pruefe "der Horcher an document bleibt liegen" \
+  TeardownTest::test_every_global_listener_is_removed failed
+wiederherstellen
+
+# **Ein Rueckweg, den kein Haken ruft, steht im Quelltext und nicht im Ablauf**
+# — und ein Waechter, der nur nach dem Wort sucht, waere damit gruen.
+
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Overview.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'onUnmounted((): void => {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'const abbau = ((): void => {', 1))
+PY2
+griff_datei resources/js/Pages/Overview.vue "der Rueckweg haengt an keinem Haken" &&
+pruefe "der Rueckweg haengt an keinem Haken" \
+  TeardownTest::test_the_teardown_sits_in_an_unmount_hook failed
+wiederherstellen
+
+# **Die Abgrenzung auf `document` und `window`.** Ohne sie zieht der Ausdruck
+# jeden Horcher herein — auch den an einer `EventSource`, die mit `close()`
+# stirbt. Eine Zaehlung am Bestand merkt das nicht; der Pruefkoerper von Hand
+# schon.
+
+vorher_datei tests/Unit/TeardownTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/TeardownTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/\\b(?:document|window)\\.'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/\\b(?:\\w+)\\.'", 1))
+PY2
+griff_datei tests/Unit/TeardownTest.php "der Ausdruck nimmt jeden Horcher" &&
+pruefe "der Ausdruck nimmt jeden Horcher" \
+  TeardownTest::test_the_expression_tells_the_two_apart failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TeardownTest passed
+
+# **Neben jedem Zeichen steht sein Wort** — auch neben dem des Selbstlaufs.
+
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Overview.vue'
+s = open(p, encoding='utf-8').read()
+alt = '          <span>Aktualisieren</span>\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Pages/Overview.vue "der Aktualisieren-Knopf verliert sein Wort" &&
+pruefe "der Aktualisieren-Knopf verliert sein Wort" \
+  ActionIconTest::test_every_icon_has_a_word_beside_it failed
+wiederherstellen
+
+# **Und der Ausdruck, der `name` an einer festen Stelle sucht.** Ein Zeichen
+# mit mehreren Attributen steht ueber mehrere Zeilen — dann kommt `name` nicht
+# zuerst. Bezahlt als falsches Rot am 22. August.
+
+vorher_datei tests/Unit/ActionIconTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/ActionIconTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/<ActionIcon\\b[^>]*\\bname=\"(\\w+)\"/'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/<ActionIcon name=\"(\\w+)\"/'", 1))
+PY2
+griff_datei tests/Unit/ActionIconTest.php "der Ausdruck sucht name an einer festen Stelle" &&
+pruefe "der Ausdruck sucht name an einer festen Stelle" \
+  ActionIconTest::test_every_drawn_icon_is_used failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActionIconTest passed
+
+# **Das Zeichen, das eine Auskunft traegt, bleibt auf jeder Breite stehen.**
+# Ohne diese Regel ist `.action-icon` ab 720 px `display: none` — das `A` des
+# Selbstlaufs waere auf dem Telefon da und auf dem Monitor fort.
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.action-icon.state {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.action-icon.stateX {', 1))
+PY2
+griff_datei resources/css/app.css "das Zustandszeichen verliert seine Regel" &&
+pruefe "das Zustandszeichen verliert seine Regel" \
+  ClassReachTest::test_every_class_in_a_template_points_at_a_rule failed
+wiederherstellen
+
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.turns {\n  animation: zeichen-dreht'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.turnsX {\n  animation: zeichen-dreht', 1))
+PY2
+griff_datei resources/css/app.css "das drehende Zeichen verliert seine Regel" &&
+pruefe "das drehende Zeichen verliert seine Regel" \
+  ClassReachTest::test_every_class_in_a_template_points_at_a_rule failed
+wiederherstellen
+
+echo
+echo "── TickProbeTest: die Uebersicht laedt nicht mehr als Teilladung nach ──"
+#
+# **Die Kopplung, an der die Taktprobe haengt.** Sie erkennt eine Nachladung an
+# `X-Inertia-Partial-Data`, und die schickt Inertia nur bei `router.reload({
+# only: [...] })`. Eine volle Navigation taete fuer den Betrachter dasselbe und
+# waere fuer die Probe unsichtbar — sie meldete nichts, und das sieht aus wie
+# ein Takt, der steht.
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Overview.vue'
+s = open(p, encoding='utf-8').read()
+alt = "  router.reload({\n    only: ['tiles'],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "  router.reload({\n    ohneOnly: ['tiles'],", 1))
+PY2
+griff_datei resources/js/Pages/Overview.vue "die Uebersicht laedt voll statt teilweise nach" &&
+pruefe "die Uebersicht laedt voll statt teilweise nach" \
+  TickProbeTest::test_the_overview_reloads_partially failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TickProbeTest passed
+
+echo
+echo "── TickProbeTest: die Probe hoert auf eine andere Kopfzeile ──"
+vorher_datei tests/takt-messen.js
+python3 - <<'PY2'
+p = 'tests/takt-messen.js'
+s = open(p, encoding='utf-8').read()
+alt = "'x-inertia-partial-data'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'x-requested-with'", 1))
+PY2
+griff_datei tests/takt-messen.js "die Taktprobe hoert auf die falsche Kopfzeile" &&
+pruefe "die Taktprobe hoert auf die falsche Kopfzeile" \
+  TickProbeTest::test_the_probe_listens_for_the_partial_header failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TickProbeTest passed
+
+echo
+echo "── ButtonFieldAlignTest: die Ausrichtung wandert in die verengte Regel ──"
+#
+# **Der Fehler, den dieses Repo am 23. August gemacht hat.** Die Ausrichtung
+# stand in der Regel, die den Seitenkopf der Uebersicht in eine Zeile bringt;
+# beim Verengen dieser Regel ist sie mit verschwunden, und der Knopf auf der
+# Domain- und der Datenbankliste wuchs wieder auf die Hoehe von Beschriftung
+# plus Feld. Kein Ueberlauf, keine geaenderte Kopfhoehe — nur ein Verhaeltnis.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.page-head .button-row:has(.field) {\n    align-items: flex-end;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.page-head .button-row:has(.field > select:only-child) {\n    align-items: flex-end;', 1))
+PY2
+griff_datei resources/css/app.css "die Ausrichtung gilt nur noch fuer ein Feld ohne Beschriftung" &&
+pruefe "die Ausrichtung gilt nur noch fuer ein Feld ohne Beschriftung" \
+  ButtonFieldAlignTest::test_the_alignment_hangs_on_the_broad_selector failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ButtonFieldAlignTest passed
+
+echo
+echo "── ButtonFieldAlignTest: die Ausrichtung faellt auf stretch zurueck ──"
+#
+# Eine Regel, die dasteht und das Geerbte wiederholt, sieht aus wie eine Regel.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.page-head .button-row:has(.field) {\n    align-items: flex-end;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.page-head .button-row:has(.field) {\n    align-items: stretch;', 1))
+PY2
+griff_datei resources/css/app.css "die Ausrichtung ist wieder stretch" &&
+pruefe "die Ausrichtung ist wieder stretch" \
+  ButtonFieldAlignTest::test_the_alignment_hangs_on_the_broad_selector failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ButtonFieldAlignTest passed
+
+echo
+echo "── SelectorValidityTest: ein :has() wandert in ein :has() ──"
+#
+# **Der Fall, den dieses Repo am 23. August bezahlt hat.** Die Spezifikation
+# verbietet ein `:has()` in einem `:has()`; der Browser wirft den Selektor dann
+# nicht halb weg, sondern ganz. `npm run build` meldet davon nichts, und die
+# Messung daneben liefert genau die Zahl, die auch eine Regel liefert, die aus
+# gutem Grund nicht greift.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.button-row:has(.field > select:only-child) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.button-row:has(.field:not(:has(> span))) {', 1))
+PY2
+griff_datei resources/css/app.css "ein :has() steht in einem :has()" &&
+pruefe "ein :has() steht in einem :has()" \
+  SelectorValidityTest::test_no_selector_nests_has_inside_has failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SelectorValidityTest passed
+
+echo
+echo "── ChallengeReachTest: der Ablageort liegt wieder hinter 0750 ──"
+#
+# **Der Fehler selbst, wie er bis 0.7.0 im Repo stand.** Die Pruefdatei war
+# 0644, ihre Verzeichnisse 0755, der location-Block zeigte richtig -- und der
+# nginx-Worker kam als www-data nicht durch /var/lib/srvpanel (0750
+# srvpanel:srvpanel). Die Zertifizierungsstelle las 403, und mehr als die Zahl
+# hat davon niemand gesehen.
+vorher_datei agent/src/Acme/HttpChallenge.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/HttpChallenge.php'
+s = open(p, encoding='utf-8').read()
+alt = "public const DIRECTORY = '/var/spool/srvpanel/acme-challenge';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "public const DIRECTORY = '/var/lib/srvpanel/acme-challenge';", 1))
+PY2
+griff_datei agent/src/Acme/HttpChallenge.php "Ablageort hinter 0750" &&
+pruefe "Ablageort hinter 0750" \
+  ChallengeReachTest::test_no_packaged_directory_blocks_the_way_to_the_probe_file failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ChallengeReachTest passed
+
+echo
+echo "── ChallengeReachTest: nfpm.yaml liefert den Ablageort nicht mehr aus ──"
+#
+# Ohne diesen Eingriff waere nicht belegt, dass je Quelle gefragt wird: Eine
+# Frage an die Vereinigung haelt auch dann, wenn eine der beiden Quellen blind
+# ist -- die andere zahlt fuer sie mit. Genau so war dieser Waechter beim ersten
+# Wurf gebaut, und genau so blieb er hier gruen.
+vorher_datei packaging/nfpm.yaml
+python3 - <<'PY2'
+p = 'packaging/nfpm.yaml'
+s = open(p, encoding='utf-8').read()
+alt = '  - dst: /var/spool/srvpanel/acme-challenge\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '  - dst: /var/spool/srvpanel/acme-probe\n', 1))
+PY2
+griff_datei packaging/nfpm.yaml "Ablageort fehlt in nfpm.yaml" &&
+pruefe "Ablageort fehlt in nfpm.yaml" \
+  ChallengeReachTest::test_the_probe_directory_is_shipped_by_both_sources failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ChallengeReachTest passed
+
+echo
+echo "── ChallengeReachTest: postinstall.sh richtet den Ablageort nicht nach ──"
+#
+# Die andere Haelfte desselben Satzes: nfpm.yaml legt das Verzeichnis beim
+# Entpacken an, postinstall.sh richtet bestehende Installationen nach. Fehlt das
+# eine, hat ein frisch installierter Server es nicht; fehlt das andere, ein
+# aktualisierter.
+vorher_datei packaging/scripts/postinstall.sh
+python3 - <<'PY2'
+p = 'packaging/scripts/postinstall.sh'
+s = open(p, encoding='utf-8').read()
+alt = '    install -d -o root -g root -m 0755 /var/spool/srvpanel/acme-challenge\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei packaging/scripts/postinstall.sh "Ablageort fehlt in postinstall.sh" &&
+pruefe "Ablageort fehlt in postinstall.sh" \
+  ChallengeReachTest::test_the_probe_directory_is_shipped_by_both_sources failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ChallengeReachTest passed
+
+echo
+echo "── ChallengeReachTest: die Pruefdatei entsteht nur fuer root lesbar ──"
+#
+# Die zweite Haelfte der Regel: Der Weg nuetzt nichts, wenn am Ende eine Datei
+# liegt, die der Worker nicht lesen darf. Ein Geheimnis steht nicht darin --
+# genau diese Zeichenkette soll jeder von aussen abrufen koennen.
+vorher_datei agent/src/Acme/HttpChallenge.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/HttpChallenge.php'
+s = open(p, encoding='utf-8').read()
+alt = 'chmod($file, 0o644);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'chmod($file, 0o640);', 1))
+PY2
+griff_datei agent/src/Acme/HttpChallenge.php "Pruefdatei nur fuer root" &&
+pruefe "Pruefdatei nur fuer root" \
+  ChallengeReachTest::test_the_probe_file_and_its_directory_are_created_readable failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ChallengeReachTest passed
+
+echo
+echo "── ChallengeReachTest: das Verzeichnis der Pruefdatei ohne x ──"
+#
+# Derselbe Fehler eine Ebene tiefer, und diesmal legt ihn der Agent selbst an
+# statt die Paketierung.
+vorher_datei agent/src/Acme/HttpChallenge.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/HttpChallenge.php'
+s = open(p, encoding='utf-8').read()
+alt = 'mkdir($directory, 0o755, true)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'mkdir($directory, 0o750, true)', 1))
+PY2
+griff_datei agent/src/Acme/HttpChallenge.php "Verzeichnis der Pruefdatei ohne x" &&
+pruefe "Verzeichnis der Pruefdatei ohne x" \
+  ChallengeReachTest::test_the_probe_file_and_its_directory_are_created_readable failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ChallengeReachTest passed
+
+echo
+echo "── ChallengeReachTest: ein unaufloesbarer Pfad legt sich in den Weg ──"
+#
+# „Nicht aufgeloest" sieht aus wie „nicht betroffen". Zieht eine Schleife mit
+# einer Variablen ueber den Weg zur Pruefdatei, ist die Wanderung dort blind --
+# und ohne diese Frage trotzdem gruen.
+vorher_datei packaging/scripts/postinstall.sh
+python3 - <<'PY2'
+p = 'packaging/scripts/postinstall.sh'
+s = open(p, encoding='utf-8').read()
+alt = '"/var/lib/srvpanel/storage/${part}"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '"/var/spool/${part}"', 1))
+PY2
+griff_datei packaging/scripts/postinstall.sh "unaufloesbarer Pfad im Weg" &&
+pruefe "unaufloesbarer Pfad im Weg" \
+  ChallengeReachTest::test_no_unresolved_path_lies_on_the_way_to_the_probe_file failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ChallengeReachTest passed
+
+echo
+echo "── ChallengeReachTest: die Auslese der Paketierung laeuft ins Leere ──"
+#
+# Der Pruefkoerper des Waechters selbst. Findet der Ausdruck kein Verzeichnis,
+# hat die Wanderung nichts angesehen und meldet Gruen -- eine Null ist nur dann
+# eine Messung, wenn daneben etwas anderes als Null steht.
+vorher_datei packaging/scripts/postinstall.sh
+python3 - <<'PY2'
+p = 'packaging/scripts/postinstall.sh'
+s = open(p, encoding='utf-8').read()
+alt = 'install -d -o'
+assert s.count(alt) > 5, 'Zielform nicht gefunden — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'install -D -o'))
+PY2
+griff_datei packaging/scripts/postinstall.sh "Auslese der Paketierung leer" &&
+pruefe "Auslese der Paketierung leer" \
+  ChallengeReachTest::test_no_packaged_directory_blocks_the_way_to_the_probe_file failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ChallengeReachTest passed
+
+echo
+echo "── CertificatePruneTest: die Auswahl kennt nur noch den Waisen ──"
+#
+# **Der Fehler selbst, wie er bis 0.7.0 im Repo stand.** Der Rueckbau einer
+# einzelnen Domain liess ihr Zertifikat liegen: Das Abonnement lebt, die Zeile
+# verwaist also nie, und --prune fuehrte sie nie auf. Gemessen auf cloudsrv24 an
+# tls.cloudlab24.de -- null verweisende Domains, privkey.pem lag da.
+vorher_datei app/Support/Tls/CertificatePrune.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificatePrune.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($certificate->subscription_id === null) {\n            return false;\n        }\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "        if ($certificate->subscription_id !== null) {\n            return true;\n        }\n", 1))
+PY2
+griff_datei app/Support/Tls/CertificatePrune.php "Auswahl kennt nur den Waisen" &&
+pruefe "Auswahl kennt nur den Waisen" \
+  CertificatePruneTest::test_a_certificate_whose_last_domain_is_gone_is_removable failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificatePruneTest passed
+
+echo
+echo "── CertificatePruneTest: gefragt wird nur die Zuordnung, nicht die Deckung ──"
+#
+# Die gefaehrliche Richtung. Ein Platzhalter deckt www.lebt.invalid, ohne der
+# Domain zugeordnet zu sein -- CertificateChoice waehlt ihn trotzdem jederzeit.
+# Wer nur domains.certificate_id fragt, loescht den Schluessel unter einer
+# laufenden Website weg.
+vorher_datei app/Support/Tls/CertificatePrune.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificatePrune.php'
+s = open(p, encoding='utf-8').read()
+alt = "                if ($certificate->covers($name)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                if (false) {", 1))
+PY2
+griff_datei app/Support/Tls/CertificatePrune.php "nur die Zuordnung gefragt" &&
+pruefe "nur die Zuordnung gefragt" \
+  CertificatePruneTest::test_a_certificate_that_only_covers_a_living_domain_is_kept failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificatePruneTest passed
+
+echo
+echo "── CertificatePruneTest: forget() laesst die Zeile ohne Domain stehen ──"
+#
+# Sonst bleibt ein Wegweiser auf ein Verzeichnis, das der Agent gerade entfernt
+# hat -- und der naechste Lauf meldet dafuer "war schon fort".
+vorher_datei app/Support/Tls/CertificatePrune.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificatePrune.php'
+s = open(p, encoding='utf-8').read()
+alt = "                if (! $this->inUse($zeile)) {\n                    $ids[] = $zeile->id;\n                }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "                if ($zeile->orphaned()) {\n                    $ids[] = $zeile->id;\n                }", 1))
+PY2
+griff_datei app/Support/Tls/CertificatePrune.php "forget() nur fuer Waisen" &&
+pruefe "forget() nur fuer Waisen" \
+  CertificatePruneTest::test_forget_drops_a_row_whose_domain_is_gone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificatePruneTest passed
+
+echo
+echo "── CertificatePruneTest: forget() nimmt eine gebrauchte Zeile mit ──"
+#
+# Die Gegenrichtung desselben Griffs, und die teurere: Wer hier zu grosszuegig
+# ist, laesst ein Verzeichnis liegen; wer zu streng ist, nimmt eine Website vom
+# Netz.
+vorher_datei app/Support/Tls/CertificatePrune.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificatePrune.php'
+s = open(p, encoding='utf-8').read()
+alt = "                if (! $this->inUse($zeile)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                if (true) {", 1))
+PY2
+griff_datei app/Support/Tls/CertificatePrune.php "forget() nimmt alles mit" &&
+pruefe "forget() nimmt alles mit" \
+  CertificatePruneTest::test_forget_keeps_a_row_that_is_still_used failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificatePruneTest passed
+
+echo
+echo "── CertificatePruneTest: 'nichts zu tun' zaehlt nur die Waisen ──"
+#
+# Der Ausstieg des Kommandos haengt daran. Zaehlt er nur die Waisen, meldet
+# `srvpanel tls --prune` "keine ungebrauchten Zertifikate" und laesst den
+# privaten Schluessel liegen -- ohne eine einzige Zeile Ausgabe.
+vorher_datei app/Support/Tls/CertificatePrune.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificatePrune.php'
+s = open(p, encoding='utf-8').read()
+alt = "'nothing' => $verwaist === 0 && $verlassen === 0,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'nothing' => $verwaist === 0,", 1))
+PY2
+griff_datei app/Support/Tls/CertificatePrune.php "nichts zu tun zaehlt nur Waisen" &&
+pruefe "nichts zu tun zaehlt nur Waisen" \
+  CertificatePruneTest::test_a_certificate_whose_last_domain_is_gone_is_removable failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificatePruneTest passed
+
+echo
+echo "── CertificatePruneTest: das Zertifikat der Oberflaeche gilt als ungebraucht ──"
+#
+# Die gefaehrlichste Verwechslung dieses Umbaus: Panel-Zertifikat und Waise
+# tragen beide subscription_id null. Wer sie verwechselt, entfernt den
+# privaten Schluessel, mit dem das Panel selbst antwortet.
+vorher_datei app/Support/Tls/CertificatePrune.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificatePrune.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($certificate->forPanel()) {\n            return true;\n        }\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Tls/CertificatePrune.php "Oberflaeche gilt als ungebraucht" &&
+pruefe "Oberflaeche gilt als ungebraucht" \
+  CertificatePruneTest::test_the_storage_name_of_the_panel_certificate_is_kept failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificatePruneTest passed
 
 echo
 echo "── AccountTypeAxisTest: der vierte Fall im Enum ──"

@@ -727,17 +727,21 @@ und zwar wortlos. Gemessen als Paar: `mit Klammer: 0` · `ohne Klammer: 679`.
 
 ---
 
-## Die Serververwaltung — der erste Handgriff, und er war ein Befund
+## P7b, die Serververwaltung — der erste Handgriff war ein Befund
 
-**Die Stufe hat noch keine Nummer.** Geplant wurde sie als „P9a", weil
-`docs/20 §9` die Serververwaltung in P9 führt; sie hängt aber zwischen P7 und
-P8, und `docs/81 §12.1` schlägt **P7b** vor. Das ist eine Planänderung an
-`docs/20 §9` und Sache des Betreibers — bis sie gefallen ist, wird die Stufe
-beim Namen genannt und nicht bei der Nummer.
+**Die Stufe heisst P7b**, entschieden am 24. August 2026; `docs/20 §9` trägt sie
+zwischen P7 und P8. Geplant wurde sie als „P9a", weil `docs/20 §9` die
+Serververwaltung in P9 führte — sie hängt aber davor, und damit war der Name
+falsch.
 
 > **Ein Name, der eine Reihenfolge behauptet, wird falsch, wenn die Reihenfolge
 > sich ändert — und er wird trotzdem weiterbenutzt, weil er in Überschriften
 > steht.**
+
+**Offen ist, wohin A3, A4, A7 und A9 gehören** — Firewall, Fail2ban, Schwellen
+und die zwei Verwaltungsrollen. Sie stehen in `docs/20 §9` unter P7b als „hat
+noch keine Stufe"; A9 wiegt am schwersten, weil sie das Rechtemodell teilt und
+damit jede Adminfunktion betrifft, die vorher gebaut wird.
 
 Der Plan ist **`docs/81`** (A1 vollständig, die übrigen als Skizze), die
 Bestandsaufnahme **`docs/80`**, die Übergabe **`docs/79`**.

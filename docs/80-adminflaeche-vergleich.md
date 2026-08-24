@@ -593,7 +593,9 @@ Allein der hervorgehobene Teil ist nach dieser Aufstellung acht bis zehn Wochen.
 
 **Vorschlag: P9 teilen.**
 
-- **P9a — Serververwaltung** (A5, A2, A10, A1, A11, A6): rund 6 Wochen.
+- **P7b — Serververwaltung** (A5, A2, A10, A1, A11, A6): rund 6 Wochen.
+  _Am 24. August 2026 so entschieden und in `docs/20 §9` eingetragen; geplant
+  war sie unter „P9a"._
   Das ist die Stufe, nach der der Betreiber den Server nicht mehr über SSH
   ansehen muss, um zu wissen, wie es ihm geht.
 - **P9b — Kundenfähigkeit** (Statistik, Kundenbenachrichtigungen, Branding,

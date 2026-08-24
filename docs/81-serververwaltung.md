@@ -1,6 +1,6 @@
 # 81 — Serververwaltung für den Admin
 
-*Geplant unter dem Namen „P9a“. Die Reihenfolge ist seit `docs/79` „vor P8“ — siehe §12.1.*
+*Die Stufe heisst **P7b** und liegt vor P8 — entschieden am 24. August 2026, siehe §12.1. Geplant wurde sie unter „P9a“.*
 
 Geplant am 24. August 2026. Der Auftrag steht in `docs/80`: Der Betreiber hat
 die Admin-Ansicht gegen Plesk und cPanel gehalten und gefragt, was noch
@@ -455,7 +455,17 @@ auf `0` gesetzt, und die eigene Datei hätte weiter „an" gemeldet.
 ## 4. Das Abnahmekriterium von A1
 
 Acht Punkte, gemessen auf einem echten Server. Der Lauf dazu wird eigens
-geschrieben (`docs/76`), nach dem Muster von `docs/58` und `docs/65`.
+geschrieben, nach dem Muster von `docs/58` und `docs/65`.
+
+> **Hier stand `docs/76`, und die Nummer gehört seit P7 der Bilderrunde**
+> (`docs/76-protokoll-bilderrunde-p7.md`). Der Verweis zeigte damit auf ein
+> fremdes Dokument — und `DocLinkTest` konnte das nicht sehen, weil er prüft,
+> ob die Nummer *existiert*, und nicht, ob sie das Gemeinte trägt.
+>
+> **Eine Nummer, die man vergibt, bevor das Dokument existiert, ist genau der
+> Vorgang, der `docs/73` und `docs/74` doppelt vergeben hat.** Deshalb steht
+> hier keine mehr: Der Lauf bekommt seine Nummer, wenn er geschrieben wird, und
+> zwar nach einem `ls docs/`.
 
 1. Die Seite nennt die Zahl der aktualisierbaren Pakete, **die Zahl der
    Sicherheitsupdates getrennt** und die Zahl der zurückgehaltenen — und alle
@@ -626,7 +636,7 @@ CI.
 | 7 | `system.sources.toggle` und der Neustart-Knopf | `SourceOwnershipTest` ist grün und sein Bruch rot |
 | 8 | `unattended-upgrades` — Zustand aus `apt-config dump`, Schalter | der wirksame Zustand stimmt, wenn ein fremdes Paket dazwischenschreibt |
 | 9 | Die Wächter brechen, voller Lauf von `tests/waechter-brechen.sh` | jeder der fünf Eingriffe beisst — einzeln **und** im Lauf |
-| 10 | Der Abnahmelauf (`docs/76`) auf `cloudsrv24` | die acht Punkte aus §4 |
+| 10 | Der Abnahmelauf (eigenes Dokument, §4) auf `cloudsrv24` | die acht Punkte aus §4 |
 
 **Schritt 0 und Schritt 1 kommen vor allem anderen.** Schritt 1 ist ein Befund
 an bestehendem Code und wartet nicht auf ein neues Merkmal.
@@ -944,7 +954,9 @@ Allein der Serververwaltungsteil ist nach dieser Aufstellung **acht bis zehn
 Wochen**.
 
 **Vorschlag zur Teilung** — eine Änderung an `docs/20`, und die trifft der
-Betreiber, nicht dieses Dokument:
+Betreiber, nicht dieses Dokument. _Überholt: §12.1 darunter trägt, was
+entschieden wurde. Die Tabelle bleibt als Zuschnitt richtig — welche Vorschläge
+zusammengehören und was sie kosten —, nur ihre Namen nicht._
 
 | Stufe | Inhalt | Dauer |
 |---|---|---|
@@ -957,7 +969,7 @@ zweieinhalb Wochen, und sie machen jede Stufe danach billiger — ein
 Diagnoselauf, der jede Nacht den Bestand prüft, hätte in `docs/45`, `docs/62`
 und `docs/66` Befunde gefunden, bevor ein Abnahmelauf sie gefunden hat.
 
-### 12.1 Die Reihenfolge ist entschieden, der Name nicht
+### 12.1 Reihenfolge und Name sind entschieden — der Rest nicht
 
 **Nachgetragen am 24. August 2026, nach dem Merge von P7.** `docs/79` heisst
 „Übergabe: die Adminfunktionen **vor P8**" — der Betreiber hat die Reihenfolge
@@ -969,14 +981,22 @@ Arbeit hänge hinten an P9; sie hängt jetzt zwischen P7 und P8. Die Tabelle
 darüber bleibt als **Zuschnitt** richtig — welche Vorschläge zusammengehören
 und was sie kosten —, nur ihre Namen nicht.
 
-Mein Vorschlag, und er ist eine Planänderung und damit Sache des Betreibers:
+**Der Betreiber hat am 24. August 2026 entschieden: die Stufe heisst P7b.**
+`docs/20 §9` trägt sie seitdem zwischen P7 und P8, und der
+Serververwaltungssatz in P9 zeigt dorthin statt ihn ein zweites Mal zu führen.
 
 | Stufe | Inhalt | Wann |
 |---|---|---|
-| **P7b — Serververwaltung** | A5, A2, A10, A1, A11, A6 | vor P8, wie in `docs/79` angesetzt |
+| **P7b — Serververwaltung** | A5, A2, A10, A1, A11, A6 | **entschieden**, vor P8 |
 | **P8** | Sicherungen und Wiederherstellung | unverändert |
 | **P9** | Kundenfähigkeit nach `docs/20 §9`, **ohne** den Serververwaltungssatz | unverändert |
-| **P9b — Absicherung** | A3, A4, A7, A9 | nach P9, oder als Entscheidung früher |
+| _(ohne Stufe)_ | A3, A4, A7, A9 — Firewall, Fail2ban, Schwellen, Rollen | **offen**, Vorschlag: eigene Stufe nach P9 |
+
+**Die vier absichernden Vorschläge sind bewusst nicht mitentschieden worden.**
+Sie stehen in `docs/20 §9` unter P7b als „hat noch keine Stufe" — benannt und
+ohne Ort, statt stillschweigend irgendwohin geschoben. A9 wiegt dabei am
+schwersten, weil sie das Rechtemodell teilt und damit jede Adminfunktion
+betrifft, die vorher gebaut wird (§11, `docs/20 §6.1`).
 
 > **Ein Name, der eine Reihenfolge behauptet, wird falsch, wenn die Reihenfolge
 > sich ändert — und er wird trotzdem weiterbenutzt, weil er in Überschriften

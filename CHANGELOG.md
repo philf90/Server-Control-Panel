@@ -19003,3 +19003,43 @@ Fassung nach, Schritt 6) und Schritt 0 — die Messrunde auf Debian 12, Debian 1
 und Ubuntu 22.04 sowie die vier Fälle, die im Container nicht vorkamen. Die
 Abnahme von Schritt 1 gehört auf einen echten Server: **Eine Ausbaustufe gilt
 erst als fertig, wenn ihr Abnahmekriterium nachweisbar erfüllt ist.**
+
+### Die Serververwaltung heisst P7b — und ein Verweis zeigte auf ein fremdes Dokument
+
+**Entschieden vom Betreiber am 24. August 2026.** `docs/20 §9` trägt die Stufe
+seitdem zwischen P7 und P8; der Serververwaltungssatz in P9 zeigt dorthin,
+statt ihn ein zweites Mal zu führen. Geplant war sie unter „P9a", weil sie in
+P9 stand — sie hängt aber davor.
+
+> **Ein Name, der eine Reihenfolge behauptet, wird falsch, wenn die Reihenfolge
+> sich ändert — und er wird trotzdem weiterbenutzt, weil er in Überschriften
+> steht.**
+
+**Bewusst nicht mitentschieden:** wohin A3, A4, A7 und A9 gehören — Firewall,
+Fail2ban, Schwellen und die zwei Verwaltungsrollen, zusammen rund 5,5 Wochen.
+Sie stehen in `docs/20 §9` unter P7b als „hat noch keine Stufe", benannt und
+ohne Ort, statt stillschweigend irgendwohin geschoben zu werden. A9 wiegt am
+schwersten: Sie teilt den Admin in Betreiber und Administrator, und wer eine
+Adminfunktion **vorher** baut, entscheidet beim Bauen, auf welcher Seite sie
+liegt.
+
+**Beim Umschreiben fiel ein toter Verweis auf, den kein Wächter sehen konnte.**
+`docs/81` nannte an zwei Stellen `docs/76` als den Abnahmelauf von A1. Die
+Nummer gehört seit P7 der Bilderrunde (`docs/76-protokoll-bilderrunde-p7.md`) —
+der Verweis zeigte also auf ein fremdes Dokument, und zwar seit dem Merge des
+Plans.
+
+> **Ein Wächter, der prüft, ob eine Nummer existiert, hat über das, was sie
+> trägt, nichts gesagt.**
+
+`DocLinkTest` prüft `glob('docs/<nummer>-*.md')` und war zufrieden, weil es die
+Datei gibt. Das ist keine Lücke, die sich schliessen lässt — welches Dokument
+gemeint war, weiss nur der Schreibende.
+
+**Behoben wurde deshalb die Ursache und nicht der Verweis.** Dort steht jetzt
+gar keine Nummer mehr:
+
+> **Eine Nummer, die man vergibt, bevor das Dokument existiert, ist genau der
+> Vorgang, der `docs/73` und `docs/74` doppelt vergeben hat.**
+
+Der Lauf bekommt seine Nummer, wenn er geschrieben wird — nach einem `ls docs/`.

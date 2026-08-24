@@ -54,7 +54,11 @@ Mit ihnen kamen `tests/apt-messen.sh`, `tests/apt-conffile-messen.sh`,
 `AccountTypeAxisTest` samt seinen zwei Eingriffen im Bruchskript, das
 Rollenmodell in `docs/20 §6.1` und der berichtigte Kopf von `AccountType`.
 
-### 1.2 Der Name der Stufe ist offen
+### 1.2 Die Stufe heisst P7b
+
+**Entschieden am 24. August 2026 vom Betreiber**, und `docs/20 §9` trägt sie
+seitdem zwischen P7 und P8. Der Absatz darunter bleibt stehen, weil er die
+Begründung trägt und nicht nur das Ergebnis.
 
 Geplant wurde sie unter „P9a", weil `docs/20 §9` die Serververwaltung in P9
 führt. **Dieser Name ist falsch geworden**: Dieses Dokument heisst „die
@@ -65,8 +69,9 @@ Adminfunktionen **vor P8**", und damit hängt die Arbeit zwischen P7 und P8.
 > sich ändert — und er wird trotzdem weiterbenutzt, weil er in Überschriften
 > steht.**
 
-Das ist eine Planänderung an `docs/20 §9` und **Sache des Betreibers**. Bis sie
-gefallen ist, wird die Stufe beim Namen genannt und nicht bei der Nummer.
+Das war eine Planänderung an `docs/20 §9`; sie ist gefallen. **Offen geblieben
+ist, wohin A3, A4, A7 und A9 gehören** — sie stehen in `docs/20 §9` unter P7b
+als „hat noch keine Stufe".
 
 ---
 
@@ -772,7 +777,8 @@ gelassen und steht am jeweiligen Ort ausgeschrieben.
   Neustart von `srvpanel-web` überlebt, ist seit P1 behauptet und **nur durch
   den eigenen Gebrauch belegt**. Er gehört in Schritt 6 gemessen und nicht in
   Schritt 10 erlebt.
-- **Der Name der Stufe** (§1.2) und die Teilung von P9 (`docs/81 §12`).
+- ~~Der Name der Stufe~~ — **am 24. August entschieden: P7b** (§1.2). Offen
+  bleibt der Ort von A3, A4, A7 und A9 (`docs/81 §12.1`).
 - Die überstimmte Nachlese zu Frage 1 (§5.1).
 
 **Aus P7** (`docs/72 §11`, `docs/78 §5`):
@@ -799,8 +805,8 @@ gemessen**. Wer sie anfasst, fängt dort an und nicht bei null.
 ## 14. Was der neuen Sitzung konkret mitzugeben ist
 
 1. **Den Zweignamen**, auf dem entwickelt werden soll.
-2. **Ob die Stufe P7b heissen soll** (§1.2) — oder wie sonst. Bis das
-   entschieden ist, wird sie beim Namen genannt und nicht bei der Nummer.
+2. ~~Ob die Stufe P7b heissen soll~~ — **entschieden, sie heisst P7b** (§1.2).
+   Mitzugeben ist statt dessen, dass A3, A4, A7 und A9 noch keinen Ort haben.
 3. Den Hinweis, **`CLAUDE.md` zu lesen und nicht zu überfliegen** — und
    `docs/20` für alles, was Architektur, Rechte oder Gestaltung berührt.
 4. Die Ansage, dass **der Betreiber die Serverbefehle fährt** und Ausgaben und

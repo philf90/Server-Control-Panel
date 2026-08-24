@@ -776,6 +776,29 @@ dritten: durch **Messen der Vorbereitung** statt sie vorauszusetzen, und durch
   > **Zwei Fassungen derselben Regel laufen auseinander — und die falsche ist
   > die, die man bekommt.**
 
+  **Nachgesehen am 24. August 2026 gegen `0.7.0-rc.10`**, weil eine Behebung
+  eine Änderung ist und jede Änderung ein neuer Anlass zu messen. Dieselbe
+  Domain, derselbe Befehl, nur eine Fassung später:
+
+  | | vorher | jetzt |
+  |---|---|---|
+  | Zusammenfassung | `11 verwaiste Zeile(n), **0** Ablageort(e) zu entfernen` | `11 verwaiste … **1** Ablageort(e) zu entfernen` |
+  | `tls.cloudlab24.de` | kam überhaupt nicht vor | `Ablageort und Zeile(n) — **ohne Domain**` |
+  | `cloudlab24.de`, `cloudlab24.ipv64.de` | Ablageort bleibt | unverändert: Ablageort bleibt |
+
+  Die letzte Zeile ist die wichtigere: Die beiden **gebrauchten** Ablageorte
+  bleiben verschont. Ein Aufräumen, das den einen Rest findet und dabei einen
+  laufenden Schlüssel mitnähme, wäre die teurere Hälfte gewesen.
+
+  **Und die Ausgabe selbst hatte einen Fehler, den kein Wächter sehen konnte.**
+  Sie lautete „11 verwaiste und 1 Zeile(n) ohne Domain" — die erste Zahl stand
+  ohne Substantiv da, „Zeile(n)" gehörte sichtbar zur zweiten.
+  `CountedNounTest` prüft eine Zahl mit **anschliessendem** Mehrzahlwort; hier
+  fehlte das Wort, statt falsch zu sein. Gesehen hat es der Blick auf die echte
+  Ausgabe.
+
+  > **Ein Wächter über die Form findet kein Wort, das gar nicht dasteht.**
+
 - **Der `CAA`-Satz steht** und verweigert Let's Encrypt jede Ausstellung unter
   `cloudlab24.de`. Punkt 9 räumt ihn ab — das ist Teil des Laufs und nicht
   Aufräumen danach.

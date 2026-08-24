@@ -267,7 +267,12 @@ final class EnsureTls extends Command
         }
 
         $this->line(sprintf(
-            '%d verwaiste und %d Zeile(n) ohne Domain, %d Ablageort(e) zu entfernen.',
+            // **Jede Zahl mit ihrem eigenen Substantiv.** „11 verwaiste und 1
+            // Zeile(n) ohne Domain" liess die erste Zahl ohne Wort dastehen —
+            // „Zeile(n)" gehörte sichtbar zur zweiten. Gesehen auf dem
+            // Zielserver, nicht im Test: `CountedNounTest` prüft eine Zahl mit
+            // anschliessendem Mehrzahlwort, und hier fehlte das Wort.
+            '%d verwaiste Zeile(n), %d Zeile(n) ohne Domain, %d Ablageort(e) zu entfernen.',
             $plan['orphans'],
             $plan['abandoned'],
             count($plan['removable']),

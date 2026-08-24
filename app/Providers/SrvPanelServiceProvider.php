@@ -77,22 +77,29 @@ final class SrvPanelServiceProvider extends ServiceProvider
          * Routenprüfung nimmt `can:` in beiden Formen an; ohne diese Zeile
          * fiele die Route dort durch.
          *
-         * **Zwei Fähigkeiten seit dem 24. August 2026, und heute eine
-         * Auflösung.** `docs/20 §6.1` teilt die Admin-Ebene in Betreiber und
-         * Administrator; gebaut wird das in A9. Bis dahin gibt es nur eine
-         * Rolle, und beide Fähigkeiten beantworten dieselbe Frage.
+         * **Seit dem 24. August lösen sie über die Rolle auf** (A9 Schritt 2,
+         * `docs/82 §2.2`). Davor stand hier `$account->isAdmin()` für beide —
+         * die Naht war gelegt, die Unterscheidung aber wirkungslos, weil es nur
+         * eine Rolle gab.
          *
-         * Das ist keine Verdopplung auf Verdacht, sondern die Naht: Die Stufe
-         * P7b baut Adminfunktionen, und {@see AdminAbility} sagt, warum jede
-         * beim Bauen ihre Seite wählen muss. **A9 ändert dann diese eine
-         * Zeile** — nicht eine Aufrufstelle in `routes/web.php`, nicht einen
-         * Schlüssel in der `can`-Ablage einer Seite, kein Bild.
+         * **Geändert hat sich genau diese eine Zeile.** Keine Aufrufstelle in
+         * `routes/web.php`, kein Schlüssel in einer `can`-Ablage, kein Bild —
+         * und das war der Zweck, die Fähigkeiten zwei Tage vor den Rollen zu
+         * trennen.
+         *
+         * Gefragt wird {@see Account::fulfils()} und nicht die Rolle
+         * unmittelbar: Dort steht, dass **beide** Achsen zählen — die Ebene und
+         * die Rolle. Ein Kundenkonto, das durch einen Fehler `operator` trüge,
+         * kommt damit nicht durch, und ein Adminkonto ohne Rolle auch nicht.
          *
          * Die Gates entstehen aus der Registratur und nicht daneben: Eine
          * Fähigkeit, die dort nicht steht, gibt es nicht.
          */
-        foreach (array_keys(AdminAbility::abilities()) as $ability) {
-            Gate::define($ability, static fn (Account $account): bool => $account->isAdmin());
+        foreach (AdminAbility::abilities() as $ability => $declaration) {
+            Gate::define(
+                $ability,
+                static fn (Account $account): bool => $account->fulfils($declaration['role']),
+            );
         }
 
         /*

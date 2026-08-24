@@ -133,9 +133,9 @@ hat, bekommt eine Ablehnung und keine stille Vollmacht.
 
 Bestehende Adminkonten setzt die Migration auf `operator` (§5.1).
 
-### 2.2 Die Auflösung der Gates
+### 2.2 Die Auflösung der Gates — **gebaut**
 
-Heute:
+Vorher:
 
 ```php
 foreach (array_keys(AdminAbility::abilities()) as $ability) {
@@ -143,9 +143,22 @@ foreach (array_keys(AdminAbility::abilities()) as $ability) {
 }
 ```
 
-Danach: dieselbe Schleife, und die Auflösung fragt die Rolle der Fähigkeit
-gegen die Rolle des Kontos. **Eine Zeile** — keine Aufrufstelle in
-`routes/web.php`, kein Schlüssel in einer `can`-Ablage, kein Bild.
+Nachher: dieselbe Schleife, und die Auflösung fragt {@see Account::fulfils()}
+mit der Rolle der Fähigkeit. **Eine Zeile** — keine Aufrufstelle in
+`routes/web.php`, kein Schlüssel in einer `can`-Ablage, kein Bild. Genau dafür
+war die Naht zwei Tage vorher gelegt worden.
+
+**Und der eigentliche Aufwand von Schritt 2 lag woanders.** Sobald die Gates die
+Rolle fragen, ist ein Adminkonto **ohne** Rolle wirkungslos — es meldet sich an
+und darf nichts. Adminkonten entstehen an zwei Stellen (`CreateAdmin` und
+`AccountFactory`), und beide mussten mit.
+
+> **Eine Änderung, die eine Angabe zur Pflicht macht, muss jede Stelle
+> mitnehmen, die sie erzeugt — sonst ist der erste neue Datensatz kaputt.**
+
+`CreateAdmin` legt dabei **Betreiber** an, nicht Administratoren: Es ist der
+Rückweg für jemanden, der sich ausgesperrt hat (§3, Falle 3), und ein
+Administrator käme nicht an die Ursache.
 
 ### 2.3 Feiner als eine Seite
 
@@ -161,6 +174,15 @@ Das sind drei Fähigkeiten mehr, keine neue Bauart: `AdminAbility` nimmt sie auf
 und die betroffene Route trägt sie. **A2 ist die erste Stufe, die das braucht** —
 und A2 kommt nach A9, weil der Betreiber A9 vorgezogen hat. Das ist die
 Reihenfolge, die sich das spart.
+
+> **Nachgetragen bei Schritt 2:** Sie kommen **mit ihren Routen** und nicht
+> vorher. Nachgesehen am 24. August gibt es heute keine Route, die einen Dienst
+> steuert, und `system.packages.*` und `system.sources.*` gibt es auch nicht —
+> drei Fähigkeiten jetzt einzutragen ergäbe drei Einträge, die auf nichts
+> zeigen. Genau so eine leere Vorrichtung hat PHPStan zwei Tage vorher an
+> `AdminAbilityTest` gemeldet.
+>
+> **Eine leere Positivliste ist kein Mechanismus, sondern eine Verzierung.**
 
 ### 2.4 Die Kontenverwaltung — der Teil, der in der Skizze fehlt
 
@@ -351,7 +373,7 @@ und die einmalige Passwortanzeige.
 |---|---|---|
 | 0 | Bestand messen (§1) | **erledigt** — die Tabelle oben |
 | 1 | Rolle am Konto: Migration, Enum, Model, `AccountTypeAxisTest` erweitern | ein bestehendes Adminkonto ist danach Betreiber, und `isAdmin()` bedeutet unverändert „kein Kunde" |
-| 2 | Auflösung der Gates über die Rolle; `AdminAbility` um die drei feineren Fähigkeiten (§2.3) | ein Administrator bekommt auf den sechs Geheimnisseiten 403 |
+| 2 | Auflösung der Gates über die Rolle **und die Anlegestellen mitziehen** | ein Administrator bekommt auf den sechs Geheimnisseiten 403 — **erledigt** |
 | 3 | Kontenverwaltung: Liste, Anlegen mit erzeugtem Passwort, Ändern, Sperren | ein zweites Adminkonto entsteht ohne SSH |
 | 4 | Aussperrschutz (§3, Falle 3) und die Messung von `srvpanel admin` | der letzte Betreiber lässt sich nicht herabstufen, und der Rückweg ist **gegangen** |
 | 5 | Die Fläche: Menü, `can`-Ablage, nichts Verbotenes im Payload (§5.4) | Punkt 3 und 4 des Kriteriums, gemessen an der Antwort |
@@ -372,7 +394,8 @@ abtrennen, wenn die Stufe kürzer werden soll.
 |---|---|---|
 | `AccountTypeAxisTest` (erweitert) | `AccountType` bekommt keinen vierten Fall, und die Rolle steht nicht darin | einen Fall `Superadmin` ergänzen |
 | `AdminAbilityTest` (erweitert) | Jede Adminroute gehört einer Rolle; die Voreinstellung ist der Betreiber | eine Geheimnisseite auf die schwächere Fähigkeit legen |
-| `RoleResolutionTest` | Die Gates lösen über die Rolle auf und nicht über `isAdmin()` | die Auflösung auf `isAdmin()` zurückdrehen |
+| `RoleResolutionTest` | Die Gates lösen über die Rolle auf; jede Anlegestelle setzt eine Rolle, und es gibt keine vierte | die Auflösung zurückdrehen · eine Rolle weglassen · heimlich anlegen |
+| `RoleGateTest` (CI) | Administrator 403 auf den Geheimnisseiten, Betreiber 200, Konto ohne Rolle 403 | eine Seite auf die schwächere Fähigkeit legen |
 | `LastOperatorTest` | Der letzte aktive Betreiber lässt sich nicht herabstufen, sperren oder löschen | die Prüfung an einer der drei Stellen entfernen |
 | `AdminPayloadTest` | Was eine Rolle nicht sehen darf, steht nicht in der Inertia-Antwort | ein verbotenes Feld bedingungslos mitschicken |
 

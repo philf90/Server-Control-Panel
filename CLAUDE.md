@@ -762,6 +762,31 @@ Protokollhistorie** auf `null`.
 Adminkonten werden deshalb **gesperrt und nicht gelöscht**; den Zustand
 `disabled` gibt es längst, und drei Stellen fragen ihn schon.
 
+**Die Schritte 1 und 2 sind gebaut.** `AdminRole` ist die zweite Achse — kein
+vierter `AccountType`, weil der an 52 Stellen `isAdmin() === false` ergäbe und
+der neue Betreiber eine leere Kundenliste sähe. Die Spalte `accounts.role` ist
+nullable und ohne Vorgabe (`null` heisst „kein Admin"), und **die Rolle allein
+gewährt nichts**: `Account::fulfils()` fragt beide Achsen.
+
+Seit Schritt 2 lösen die Gates darüber auf — **eine Zeile im Provider**, keine
+Aufrufstelle, kein `can`-Schlüssel, kein Bild. Genau dafür war die Naht zwei
+Tage vorher gelegt worden.
+
+**Der Aufwand von Schritt 2 lag woanders**, und das ist die Lehre: Sobald die
+Gates die Rolle fragen, ist ein Adminkonto **ohne** Rolle wirkungslos — es
+meldet sich an und darf nichts. `CreateAdmin` und `AccountFactory` mussten mit.
+
+> **Eine Änderung, die eine Angabe zur Pflicht macht, muss jede Stelle
+> mitnehmen, die sie erzeugt — sonst ist der erste neue Datensatz kaputt.**
+
+Zwei Wächter halten das: `RoleGateTest` misst die Wirkung an der Tür (CI),
+`RoleResolutionTest` hält im Quelltext, was ohne Framework prüfbar ist. Sein
+Bruch hat dabei ein Loch in ihm selbst gefunden — der Ausdruck kannte
+`=> AccountType::Admin` und übersah `=> \App\Enums\AccountType::Admin`.
+
+> **Ein Wächter, der nur die gewohnte Schreibweise kennt, prüft die Gewohnheit
+> und nicht die Regel.**
+
 **Offen bleibt, wohin A3, A4 und A7 gehören** — Firewall, Fail2ban, Schwellen.
 Sie stehen in `docs/20 §9` unter P7b als „hat noch keine Stufe".
 

@@ -15857,7 +15857,7 @@ vorher_datei app/Providers/SrvPanelServiceProvider.php
 python3 - <<'PY2'
 p = 'app/Providers/SrvPanelServiceProvider.php'
 s = open(p, encoding='utf-8').read()
-alt = '        foreach (array_keys(AdminAbility::abilities()) as $ability) {'
+alt = '        foreach (AdminAbility::abilities() as $ability => $declaration) {'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 neu = ("        Gate::define('manage-firewall', static fn (Account $account): bool => $account->isAdmin());\n\n"
        + alt)
@@ -16113,6 +16113,70 @@ pruefe "Rolle in der Mandantenachse" \
   AccountTypeAxisTest::test_neither_axis_carries_the_name_of_the_other failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AccountTypeAxisTest passed
+
+echo
+echo "── RoleResolutionTest: die Gates loesen wieder ueber die Ebene auf ──"
+#
+# Der Rueckfall von A9 Schritt 2. Er ist **still**: Beide Rollen duerfen dann
+# wieder alles, und kein Test stolpert ueber eine Ablehnung, die es nicht gibt.
+vorher_datei app/Providers/SrvPanelServiceProvider.php
+python3 - <<'PY2'
+p = 'app/Providers/SrvPanelServiceProvider.php'
+s = open(p, encoding='utf-8').read()
+alt = "static fn (Account $account): bool => $account->fulfils($declaration['role']),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'static fn (Account $account): bool => $account->isAdmin(),', 1))
+PY2
+griff_datei app/Providers/SrvPanelServiceProvider.php "Gates ohne Rolle" &&
+pruefe "Gates ohne Rolle" \
+  RoleResolutionTest::test_the_gates_resolve_over_the_role failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RoleResolutionTest passed
+
+echo
+echo "── RoleResolutionTest: srvpanel admin legt ein Konto ohne Rolle an ──"
+#
+# Seit die Gates ueber die Rolle aufloesen, erfuellt ein Adminkonto ohne Rolle
+# keine Faehigkeit: Es kann sich anmelden und darf nichts. Ausgerechnet dieses
+# Kommando ist der Rueckweg fuer jemanden, der sich ausgesperrt hat.
+vorher_datei app/Console/Commands/CreateAdmin.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/CreateAdmin.php'
+s = open(p, encoding='utf-8').read()
+alt = "                'role' => AdminRole::Operator,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Console/Commands/CreateAdmin.php "Adminkonto ohne Rolle" &&
+pruefe "Adminkonto ohne Rolle" \
+  RoleResolutionTest::test_every_place_that_creates_an_admin_sets_a_role failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RoleResolutionTest passed
+
+echo
+echo "── RoleResolutionTest: eine vierte Stelle legt heimlich ein Adminkonto an ──"
+#
+# Der Pruefkoerper der Liste. Er hat beim ersten Lauf ein echtes Loch gefunden:
+# Der Ausdruck kannte nur `=> AccountType::Admin` und uebersah
+# `=> \App\Enums\AccountType::Admin`.
+#
+#   Ein Waechter, der nur die gewohnte Schreibweise kennt, prueft die
+#   Gewohnheit und nicht die Regel.
+vorher_datei app/Console/Commands/Setup.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Setup.php'
+s = open(p, encoding='utf-8').read()
+alt = '    private function actor()'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = ("    private function heimlich(): void { \\App\\Models\\Account::query()"
+       "->create(['type' => \\App\\Enums\\AccountType::Admin]); }\n\n" + alt)
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Console/Commands/Setup.php "vierte Anlegestelle" &&
+pruefe "vierte Anlegestelle" \
+  RoleResolutionTest::test_no_other_place_creates_an_admin_account failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RoleResolutionTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

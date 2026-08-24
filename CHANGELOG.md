@@ -19384,3 +19384,52 @@ nennt.
 
 > **Ein Schalter für eine Pflicht ist keine Einstellung, sondern eine Ausnahme —
 > und wer sie anbietet, hat die Pflicht abgeschafft.**
+
+### A9 Schritt 2 — die Trennung wirkt
+
+**Aus `$account->isAdmin()` wird `$account->fulfils($declaration['role'])`** —
+eine Zeile im Provider, und die zwei Fähigkeiten beantworten seitdem
+verschiedene Fragen. Keine Aufrufstelle in `routes/web.php`, kein Schlüssel in
+einer `can`-Ablage, kein Bild hat sich geändert. **Genau dafür war die Naht zwei
+Tage vorher gelegt worden.**
+
+**Der eigentliche Aufwand lag woanders.** Sobald die Gates die Rolle fragen, ist
+ein Adminkonto **ohne** Rolle wirkungslos: Es meldet sich an und darf nichts.
+Adminkonten entstehen an zwei Stellen — `CreateAdmin` und `AccountFactory` —,
+und beide mussten mit. Ohne das hätte dieser Schritt jedes neu angelegte Konto
+lahmgelegt, und der Test­lauf jedes Feature-Tests wäre rot geworden.
+
+> **Eine Änderung, die eine Angabe zur Pflicht macht, muss jede Stelle
+> mitnehmen, die sie erzeugt — sonst ist der erste neue Datensatz kaputt.**
+
+`CreateAdmin` legt dabei **Betreiber** an: Es ist der Rückweg für jemanden, der
+sich ausgesperrt hat, und ein Administrator käme nicht an die Ursache.
+
+**Die drei feineren Fähigkeiten aus `docs/82 §2.3` kommen nicht mit.** Der Plan
+sah sie für diesen Schritt vor; nachgesehen gibt es heute keine Route, die einen
+Dienst steuert, und `system.packages.*` und `system.sources.*` gibt es auch
+nicht. Drei Einträge, die auf nichts zeigen, wären genau die Vorrichtung, die
+PHPStan zwei Tage vorher an `AdminAbilityTest` gemeldet hat.
+
+> **Eine leere Positivliste ist kein Mechanismus, sondern eine Verzierung.**
+
+Sie kommen mit ihren Routen, in A1 und A2. Der Plan ist entsprechend berichtigt.
+
+**Zwei Wächter, und der zweite hat beim Brechen ein Loch in sich selbst
+gefunden.** `RoleGateTest` misst die Wirkung an der Tür — Administrator 403 auf
+den sechs Geheimnisseiten, Betreiber 200, Konto ohne Rolle 403, und
+ausdrücklich, dass der Administrator Kunden, Abonnements und Domains behält.
+`RoleResolutionTest` hält im Quelltext, was ohne Framework prüfbar ist: die
+Auflösung, jede Anlegestelle, und dass es keine vierte gibt.
+
+Sein dritter Bruch — eine heimliche vierte Anlegestelle — **ist beim ersten Lauf
+nicht durchgekommen**: Der Ausdruck kannte `=> AccountType::Admin` und übersah
+`=> \App\Enums\AccountType::Admin`.
+
+> **Ein Wächter, der nur die gewohnte Schreibweise kennt, prüft die Gewohnheit
+> und nicht die Regel.**
+
+**Und `BreakScriptTest` hat einen Eingriff von vorgestern gefangen**, dessen
+Zielzeile dieser Schritt umgeschrieben hat: Die Schleife über
+`AdminAbility::abilities()` heisst jetzt anders, und der Eingriff fand seinen
+Text nicht mehr.

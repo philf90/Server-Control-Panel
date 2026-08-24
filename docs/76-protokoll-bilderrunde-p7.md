@@ -1055,8 +1055,11 @@ nicht hergestellt oder nicht ausgeschöpft hat — keine Mängel am Prüfling.
   > **Ein Fehler in der Konsole erzeugt keinen Überlauf und steht auf keinem
   > Bild.** Er ist der dritte Kanal neben Zahl und Betrachter, und dieser Lauf
   > hat ihn bisher nicht benutzt.
-- **Die Regel `.toggle + .button-row` ist weiterhin unbelegt**, und der Versuch,
-  sie zu belegen, hat gezeigt warum.
+- **Die Regel `.toggle + .button-row` ist am 24. August belegt worden** — im
+  Abnahmelauf von P7, an `hier.cloudlab24.de` unmittelbar nach dem Anlegen:
+  `.toggle` hat die Knopfreihe als direkten Nachbarn, und deren `margin-top`
+  ist `24px` wie `--block-gap`. Das Protokoll ist `docs/78`. Was darunter steht,
+  ist die Vorgeschichte und erklärt, warum es diesen einen Zustand brauchte.
 
   Nachdem Zugangsdaten hinterlegt waren, liess sich das Kästchen ankreuzen und
   der Knopf „Platzhalter bestellen" erschien mit sichtbarem Abstand darüber

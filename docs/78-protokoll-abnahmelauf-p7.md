@@ -217,15 +217,35 @@ und damit rendert **keiner** der beiden `.section-note` dazwischen. Der Text, de
 im Bild zwischen Kästchen und Knopf steht, liegt **innerhalb** des
 `<label class="toggle">` als `.hint` und `.hint.obstacle`.
 
-*Ob die Regel damit auch wirkt, wird gemessen — das Bild allein belegt es nicht.*
+**Und sie wirkt — gemessen im Browser bei 390 px:**
+
+```
+Nachbar von .toggle:   button-row
+ist die Knopfreihe:    true
+margin-top daran:      24px
+--block-gap ist:       24px
+```
+
+Der Nachbar **ist** die Knopfreihe, und der Abstand **ist** `--block-gap`. Damit
+ist `.toggle + .button-row` belegt — die Regel, die in `docs/76 §4` seit dem
+23. August als „weiterhin unbelegt" stand, weil sie sich nur in genau diesem
+Zustand zeigen lässt.
+
+> **Ein Abstand, der richtig aussieht, ist noch kein Beleg dafür, dass die Regel
+> greift, die ihn erzeugen sollte** — zwei gleiche Zahlen sind einer.
+
+**Eine Beobachtung, die einer Vorhersage widerspricht.** Die Vorschrift nennt
+diesen Zustand den „kürzeren von beiden", weil die Automatik bestellt, sobald
+der Server-Block steht. Beim Messen stand dort nach mehreren Minuten weiter
+„Noch keine" — die Bestellung braucht länger als angenommen. Kein Fund, aber die
+Begründung für die Eile war falsch.
 
 ---
 
 ## 4. Was offen ist
 
 - Die Punkte 2 bis 9 (Kriterien 2 bis 8).
-- Die Messung zu `.toggle + .button-row` — der Abstand ist zu sehen, die Regel
-  dahinter noch nicht belegt.
 
-  > **Ein Abstand, der richtig aussieht, ist noch kein Beleg dafür, dass die
-  > Regel greift, die ihn erzeugen sollte.**
+**Aus `docs/76 §4` ist damit nichts mehr offen**, was dieser Lauf hätte
+abfallen lassen sollen: Die Marke „ungeprüft" ist im Kasten, `.toggle +
+.button-row` ist belegt. Kriterium 5 folgt in Punkt 5.

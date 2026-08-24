@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Certificate;
+use App\Models\Domain;
 use App\Models\Subscription;
 use App\Support\Subscriptions\Lifecycle;
 use App\Support\Tenancy\Tenancy;
+use App\Support\Tls\CertificateChoice;
 use App\Support\Tls\CertificatePrune;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use ReflectionMethod;
@@ -119,15 +121,25 @@ final class CertificatePruneTest extends TestCase
     /**
      * **Die Regel, die der Zielserver ausgelöst hat.**
      *
-     * Ein Ablageort, den noch ein lebendes Zertifikat nennt, wird nicht
+     * Ein Ablageort, den noch ein **gebrauchtes** Zertifikat nennt, wird nicht
      * entfernt — nur die verwaiste Zeile geht.
+     *
+     * **Das lebende Zertifikat bekommt hier seit dem 24. August eine Domain**,
+     * und das ist keine Verzierung: Seit dem zweiten Fall der Regel genügt
+     * „lebendes Abonnement" nicht mehr, es muss auch jemand darauf zeigen.
+     * Ohne die Domain prüfte dieser Fall den anderen Zweig und nicht seinen
+     * eigenen — er wäre grün geblieben und hätte etwas anderes gemessen.
      */
-    public function test_a_storage_name_shared_with_a_living_certificate_is_kept(): void
+    public function test_a_storage_name_shared_with_a_used_certificate_is_kept(): void
     {
         $lebend = Subscription::factory()->create(['name' => 'lebt.invalid']);
-        Certificate::factory()->create([
+        Certificate::factory()->covering(['lebt.invalid'])->create([
             'subscription_id' => $lebend->id,
             'storage_name' => 'geteilt.invalid',
+        ]);
+        Domain::factory()->main()->create([
+            'subscription_id' => $lebend->id,
+            'name' => 'lebt.invalid',
         ]);
 
         $this->orphan('geteilt.invalid');
@@ -137,6 +149,114 @@ final class CertificatePruneTest extends TestCase
 
         $this->assertSame(['allein.invalid'], $plan['removable'], 'Nur der Ablageort, den niemand mehr nennt, darf fort.');
         $this->assertSame(['geteilt.invalid'], $plan['shared']);
+    }
+
+    /**
+     * **Der Fund vom 24. August 2026, und der Grund für den zweiten Fall.**
+     *
+     * Nach dem Rückbau einer einzelnen Domain blieb ihr Zertifikat liegen: Das
+     * Abonnement lebt, die Zeile verwaist also nie, und `--prune` führte sie
+     * nie auf. Gemessen auf `cloudsrv24` an `tls.cloudlab24.de` — null
+     * verweisende Domains, `privkey.pem` lag da.
+     */
+    public function test_a_certificate_whose_last_domain_is_gone_is_removable(): void
+    {
+        $lebend = Subscription::factory()->create(['name' => 'lebt.invalid']);
+
+        Certificate::factory()->covering(['fort.invalid'])->create([
+            'subscription_id' => $lebend->id,
+            'storage_name' => 'fort.invalid',
+        ]);
+
+        // Eine andere Domain desselben Abonnements — das Abonnement lebt also
+        // wirklich, und trotzdem zeigt niemand auf dieses Zertifikat.
+        Domain::factory()->main()->create([
+            'subscription_id' => $lebend->id,
+            'name' => 'lebt.invalid',
+        ]);
+
+        $plan = app(CertificatePrune::class)->plan();
+
+        $this->assertSame(['fort.invalid'], $plan['removable']);
+        $this->assertSame(0, $plan['orphans'], 'Verwaist ist die Zeile nicht — ihr Abonnement lebt.');
+        $this->assertSame(1, $plan['abandoned']);
+        $this->assertSame('ohne Domain', $plan['reasons']['fort.invalid'] ?? null);
+        $this->assertFalse($plan['nothing'], 'Sonst steigt das Kommando aus, bevor es etwas ausgibt.');
+    }
+
+    /**
+     * **Die gefährliche Richtung, und sie geht über die Deckung.**
+     *
+     * Ein Platzhalter deckt `www.lebt.invalid`, ohne der Domain zugeordnet zu
+     * sein — {@see CertificateChoice} wählt ihn trotzdem
+     * jederzeit. Wer nur `domains.certificate_id` fragte, löschte hier den
+     * Schlüssel unter einer laufenden Website weg.
+     */
+    public function test_a_certificate_that_only_covers_a_living_domain_is_kept(): void
+    {
+        $lebend = Subscription::factory()->create(['name' => 'lebt.invalid']);
+
+        Certificate::factory()->covering(['*.lebt.invalid'])->create([
+            'subscription_id' => $lebend->id,
+            'storage_name' => 'platzhalter.invalid',
+        ]);
+
+        $domain = Domain::factory()->main()->create([
+            'subscription_id' => $lebend->id,
+            'name' => 'www.lebt.invalid',
+        ]);
+
+        $this->assertNull($domain->certificate_id, 'Zugeordnet ist es nicht — genau darum geht es.');
+
+        $plan = app(CertificatePrune::class)->plan();
+
+        $this->assertSame([], $plan['removable'], 'Ein gedeckter lebender Name hält den Ablageort.');
+        $this->assertSame(0, $plan['abandoned']);
+        $this->assertTrue($plan['nothing'], 'Es ist nichts zu tun — und das Kommando erfährt es von hier.');
+    }
+
+    /**
+     * Und die Zeile geht mit, nicht nur die Datei.
+     *
+     * **Sonst bliebe ein Wegweiser auf ein Verzeichnis, das es nicht mehr
+     * gibt.** `forget()` prüfte bis zum 24. August die Bedingung eines Waisen
+     * ausgeschrieben; für den zweiten Fall hätte der Agent die Datei entfernt
+     * und die Zeile wäre stehengeblieben.
+     */
+    public function test_forget_drops_a_row_whose_domain_is_gone(): void
+    {
+        $lebend = Subscription::factory()->create(['name' => 'lebt.invalid']);
+
+        $zeile = Certificate::factory()->covering(['fort.invalid'])->create([
+            'subscription_id' => $lebend->id,
+            'storage_name' => 'fort.invalid',
+        ]);
+
+        $this->assertSame(1, app(CertificatePrune::class)->forget('fort.invalid'));
+
+        $this->assertNull(
+            $this->unrestricted(fn (): ?Certificate => Certificate::query()->find($zeile->id)),
+            'Die Zeile zeigt sonst weiter auf ein Verzeichnis, das der Agent gerade entfernt hat.',
+        );
+    }
+
+    /** Und eine gebrauchte Zeile bleibt auch dann stehen, wenn jemand sie nennt. */
+    public function test_forget_keeps_a_row_that_is_still_used(): void
+    {
+        $lebend = Subscription::factory()->create(['name' => 'lebt.invalid']);
+
+        $zeile = Certificate::factory()->covering(['lebt.invalid'])->create([
+            'subscription_id' => $lebend->id,
+            'storage_name' => 'gebraucht.invalid',
+        ]);
+        Domain::factory()->main()->create([
+            'subscription_id' => $lebend->id,
+            'name' => 'lebt.invalid',
+        ]);
+
+        $this->assertSame(0, app(CertificatePrune::class)->forget('gebraucht.invalid'));
+
+        $this->assertNotNull($this->unrestricted(fn (): ?Certificate => Certificate::query()->find($zeile->id)));
     }
 
     /** Und der Ablageort der Oberfläche ist ebenfalls gesprochen. */
@@ -153,5 +273,6 @@ final class CertificatePruneTest extends TestCase
 
         $this->assertSame([], $plan['removable'], 'Der Ablageort der Oberfläche darf nie entfernt werden.');
         $this->assertSame(['panel.invalid'], $plan['shared']);
+        $this->assertSame(0, $plan['abandoned'], 'Das Zertifikat der Oberfläche ist keine Zeile ohne Domain.');
     }
 }

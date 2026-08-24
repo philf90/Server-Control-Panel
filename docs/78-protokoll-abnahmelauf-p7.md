@@ -745,14 +745,36 @@ dritten: durch **Messen der Vorbereitung** statt sie vorauszusetzen, und durch
   er es nie. Aufgefallen ist es nur, weil dieser Punkt vorschrieb, beim
   Zurückbauen nachzusehen, ob Server-Block und Verzeichnis mitgehen.
 
-  **Bleibt als Befund offen und ist nicht behoben.** Wer ihn anfasst,
-  entscheidet zuerst die Frage, die dahintersteht: Ein Zertifikat gehört einem
-  **Abonnement** und nicht einer Domain, kann also weitere Namen decken, die
-  noch leben. Ein Rückbau, der es als Nebenwirkung eines Klicks löscht, nähme
-  im falschen Fall eine laufende Website vom Netz. Der nächstliegende Weg wäre
-  deshalb nicht der Rückbau, sondern `--prune`: Es fragt nach, kennt
-  `--dry-run` und ist die eine Stelle, an der dieses System Schlüsselmaterial
-  von der Platte nimmt.
+  **Behoben am 24. August 2026 in `CertificatePrune`.** Die Frage dahinter hat
+  den Weg entschieden: Ein Zertifikat gehört einem **Abonnement** und nicht
+  einer Domain, kann also weitere Namen decken, die noch leben. Ein Rückbau,
+  der es als Nebenwirkung eines Klicks löscht, nähme im falschen Fall eine
+  laufende Website vom Netz. Aufgeräumt wird deshalb weiterhin nur an der einen
+  Stelle, die dafür gebaut ist — `srvpanel tls --prune` fragt nach und kennt
+  `--dry-run`; sie kennt jetzt zwei Arten ungebrauchter Zeilen statt einer:
+
+  | Art | Bedingung |
+  |---|---|
+  | **verwaist** | `subscription_id` null bei gesetzter Abschrift — das Abonnement ist zurückgebaut |
+  | **ohne Domain** | das Abonnement lebt, aber keine seiner Domains nennt das Zertifikat und keine wird von ihm gedeckt |
+
+  **Gefragt wird nach der Deckung und nicht nach der Zuordnung**, und das ist
+  die gefährliche Hälfte: Ein Platzhalter deckt `www.example.de`, ohne der
+  Domain zugeordnet zu sein — `CertificateChoice` wählt ihn trotzdem jederzeit.
+  Wer nur `domains.certificate_id` fragte, löschte den Schlüssel unter einer
+  laufenden Website weg. Im Zweifel gilt eine Zeile als gebraucht: Wer zu
+  grosszügig ist, lässt ein Verzeichnis liegen; wer zu streng ist, nimmt eine
+  Website vom Netz.
+
+  Drei Stellen mussten dafür zusammen wandern, und die letzte wäre beinahe
+  stehengeblieben: `forget()` trug die Bedingung eines Waisen ausgeschrieben,
+  hätte also die Datei entfernen lassen und die Zeile stehengelassen — einen
+  Wegweiser auf ein Verzeichnis, das es nicht mehr gibt. Und der Ausstieg des
+  Kommandos hing an `orphans === 0`, einer **zweiten Fassung der Regel**; er
+  fragt jetzt `plan()['nothing']`.
+
+  > **Zwei Fassungen derselben Regel laufen auseinander — und die falsche ist
+  > die, die man bekommt.**
 
 - **Der `CAA`-Satz steht** und verweigert Let's Encrypt jede Ausstellung unter
   `cloudlab24.de`. Punkt 9 räumt ihn ab — das ist Teil des Laufs und nicht

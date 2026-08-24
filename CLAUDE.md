@@ -679,14 +679,20 @@ der Paketierung?" ging an die Vereinigung von `nfpm.yaml` und `postinstall.sh`.
 > **Eine Frage an die Vereinigung hält auch dann, wenn eine der Quellen blind
 > ist — die andere zahlt für sie mit.**
 
-**Und ein Befund, der beim Abräumen danach herausfiel und offen bleibt:** Der
-Rückbau einer Domain nimmt ihr Zertifikat nicht mit, und `srvpanel tls --prune`
-holt es auch später nicht — es räumt Zertifikate **zurückgebauter Abonnements**
-ab (`subscription_id` null bei gesetzter Abschrift), und hier lebt das
-Abonnement weiter. Gemessen an Zertifikat 26 nach dem Löschen von
-`tls.cloudlab24.de`: null verweisende Domains, `privkey.pem` liegt. Vor einer
-Behebung steht die Frage, die dahintersteht — ein Zertifikat gehört einem
-Abonnement und nicht einer Domain und kann Namen decken, die noch leben.
+**Und ein Befund, der beim Abräumen danach herausfiel:** Der Rückbau einer
+Domain nimmt ihr Zertifikat nicht mit, und `srvpanel tls --prune` holte es auch
+später nicht — es räumte nur Zertifikate **zurückgebauter Abonnements** ab, und
+hier lebt das Abonnement weiter. Gemessen an Zertifikat 26 nach dem Löschen von
+`tls.cloudlab24.de`: null verweisende Domains, `privkey.pem` lag.
+`CertificatePrune` kennt seitdem zwei Arten ungebrauchter Zeilen — verwaist und
+**ohne Domain** —, und **gefragt wird nach der Deckung und nicht nach der
+Zuordnung**: Ein Platzhalter deckt eine lebende Domain, ohne ihr zugeordnet zu
+sein, und wer nur `domains.certificate_id` fragte, löschte den Schlüssel unter
+einer laufenden Website weg. Im Zweifel gilt eine Zeile als gebraucht.
+
+Zwei Stellen wären dabei beinahe stehengeblieben, beide zweite Fassungen
+derselben Regel: `forget()` mit der ausgeschriebenen Waisenbedingung und der
+Ausstieg des Kommandos an `orphans === 0`.
 
 **Was ein Betreiber danach von Hand tut:** `srvpanel vhost --sites`. Das Update
 zieht den Block der Oberfläche nach, die der Kundendomains nicht — und die

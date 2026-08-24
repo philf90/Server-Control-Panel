@@ -269,11 +269,99 @@ und ist für Let's Encrypt nicht erreichbar — oder ob sie noch nicht lief, ist
 der Seite aus nicht zu unterscheiden. Das betrifft die Zertifikatsanzeige und
 nicht den DNS-Abgleich; hier steht es als Beobachtung und nicht als Mangel.
 
+### Punkt 3 — „fehlt" ist nicht „zeigt woandershin" · Kriterium 3 **erfüllt**
+
+`ohne.cloudlab24.de` angelegt, „Jetzt prüfen".
+
+| Name | Satz | Zustand | Erwartet | Gefunden |
+|---|---|---|---|---|
+| `ohne.cloudlab24.de` | `A` | **Fehlt** | `159.195.56.255` | – |
+| `ohne.cloudlab24.de` | `AAAA` | Fehlt | `2a0a:4cc0:c1:ebd1:b82d:51ff:fe72:3083` | – |
+
+`Zuletzt geprüft: 2026-08-24 10:50:19`
+
+**Und ausdrücklich „Fehlt", nicht „Nicht erreichbar".** Die Vorbereitung hatte
+das aus `Comparison::state()` vorhergesagt: NODATA heisst `answered > 0` und
+`values === []`. Der `TXT`-Kniff aus Befund V1 trägt also durch bis in die
+Anzeige.
+
+**Die Unterscheidung, um die es geht** — dieselbe Spalte, zwei Domains:
+
+| | `fremd` · `A` | `ohne` · `A` |
+|---|---|---|
+| Zustand | **Zeigt woandershin** (bernstein) | **Fehlt** (rot) |
+| Erwartet | `159.195.56.255` | `159.195.56.255` |
+| Gefunden | **`192.0.2.1`** | **–** |
+
+**Sie trägt über zwei Kanäle:** die Marke (Wort *und* Farbe) und die Spalte
+`GEFUNDEN` (ein Wert gegen einen Strich). Wer den Farbcode nicht kennt, sieht
+den Unterschied trotzdem — und das ist der Unterschied zwischen „zwei Zustände
+existieren" und „ein Kunde erkennt sie auseinander".
+
+> **Eine Anzeige, die drei verschiedene Werte gleich aussehen lässt, behauptet
+> etwas, das sie nicht weiss.**
+
+### Punkt 4 — die autoritativen Server · Kriterium 4 **erfüllt**
+
+**Der Punkt, der etwas beweist**, und der einzige, den `docs/74 §7` ausdrücklich
+offen gelassen hat.
+
+Mitschnitt über 45 Sekunden, in denen ausschliesslich „Jetzt prüfen" auf
+`fremd.cloudlab24.de` geklickt wurde:
+
+```
+=== BELEG: Saetze der Domain an den autoritativen Servern ===
+      2 AAAA? fremd.cloudlab24.de.
+      2 A? fremd.cloudlab24.de.
+      2 CAA? fremd.cloudlab24.de.
+=== VERSTOSS: dieselben Saetze am Systemaufloeser ===
+0
+=== erlaubt: was sonst an den Systemaufloeser ging ===
+      1 A? ns1.ipv64.net.
+      1 A? ns2.ipv64.net.
+      1 NS? cloudlab24.de.
+      2 NS? fremd.cloudlab24.de.
+```
+
+**Die Gegenprobe**, eigenes Fenster, nur ein `dig` über den Systemauflöser:
+
+```
+dig +short fremd.cloudlab24.de A → 192.0.2.1
+grep -c '> 127.0.0.53.53:.*A? fremd.cloudlab24.de' → 1
+```
+
+**Drei Aussagen stecken darin, und jede steht für sich:**
+
+1. **Die Null ist eine Messung.** Die Gegenprobe zeigt `1` — ein `A?` auf genau
+   diesen Namen am Systemauflöser **erscheint** im Mitschnitt, wenn es eines
+   gibt. Also heisst die `0`: „das Panel hat keines geschickt", und nicht „ich
+   habe an der falschen Stelle gelauscht".
+
+   > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+   > steht.**
+
+2. **Die `2` ist keine Zufallszahl.** Jeder Satztyp geht zweimal hinaus, einmal
+   je autoritativem Server — genau wie der Kopf des `Resolver` es beschreibt
+   („jeder einzeln"). Damit hat der Zustand `Inconsistent` überhaupt eine
+   Grundlage: Er entsteht aus dem Vergleich dieser beiden Antworten.
+
+3. **Am Auflöser steht genau das Erlaubte.** `NS?` auf die Zone, `A?` auf die
+   beiden Nameservernamen — und kein einziger Satz der Domain.
+
+**Und ohne die Prüfung am Quelltext wären diese vier Zeilen als Verstoss
+gezählt worden.** Die erste Fassung dieser Messung fragte „geht überhaupt ein
+Paket an den Systemauflöser?" — die Antwort ist ja, und zwar zu Recht.
+
+> **Ein Kriterium, das man am falschen Paket misst, meldet den Prüfling für
+> etwas, das er zu Recht tut.**
+
 ---
 
 ## 4. Was offen ist
 
-- Die Punkte 3 bis 9 (Kriterien 3 bis 8).
+- Die Punkte 5 bis 9 (Kriterien 5 bis 8).
+- Punkt 4 (d) — die Änderungsprobe. Sie belegt **nicht** Kriterium 4 (das ist
+  erfüllt), sondern dass das Panel keinen eigenen Zwischenspeicher führt.
 
 **Aus `docs/76 §4` ist damit nichts mehr offen**, was dieser Lauf hätte
 abfallen lassen sollen: Die Marke „ungeprüft" ist im Kasten, `.toggle +

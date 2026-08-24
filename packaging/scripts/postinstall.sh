@@ -120,6 +120,18 @@ set_permissions() {
     install -d -o srvpanel -g srvpanel -m 0700 /var/lib/srvpanel/tmp
     install -d -o srvpanel -g srvpanel -m 0750 /var/log/srvpanel
     install -d -o root -g root -m 0755 /etc/srvpanel/tls
+
+    # Die Prüfdateien für HTTP-01. Sie liegen seit 0.7.1 unter /var/spool und
+    # nicht mehr unter /var/lib/srvpanel: nginx liefert sie als www-data aus,
+    # und /var/lib/srvpanel ist 0750 srvpanel:srvpanel — der Worker kam dort
+    # nicht einmal hindurch und antwortete mit 403.
+    install -d -o root -g root -m 0755 /var/spool/srvpanel/acme-challenge
+
+    # Und der alte Ablageort wird abgeräumt. Darin steht nur, was eine laufende
+    # Bestellung gerade abgelegt hat — öffentliche Prüfzeichenketten mit einer
+    # Lebensdauer von Sekunden. Ihn stehenzulassen hiesse, auf jedem Server ein
+    # Verzeichnis zu behalten, in das nie wieder jemand schreibt.
+    rm -rf /var/lib/srvpanel/acme-challenge
 }
 
 panel_port() {

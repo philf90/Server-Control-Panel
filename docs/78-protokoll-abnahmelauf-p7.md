@@ -474,11 +474,40 @@ wechselt zwischen den Läufen (`167.235.231.182, 159.69.110.93` gegen
 `159.69.110.93, 167.235.231.182`). Der Inhalt ist derselbe; die Reihenfolge
 kommt aus dem NS-Satz und ist keine Aussage des Panels.
 
+### Punkt 8 — bei 390 px läuft nichts über · Kriterium 8
+
+`dokument` ist das Kriterium und muss `0` sein; `gegenprobe` muss `200/200`
+lauten, sonst ist die Zeile ungültig und keine Messung.
+
+| Seite | Breite | Thema | `dokument` | Gegenprobe | `schiebt` | `rollt` | `versteckt` |
+|---|---|---|---|---|---|---|---|
+| `cloudlab24.de` (mit CAA-Hinweis) | 390 | hell | **0** | 200/200 | — | — | 4 |
+| `cloudlab24.de` (mit CAA-Hinweis) | 390 | dunkel | **0** | 200/200 | — | — | 4 |
+
+**Diese Seite ist vorgezogen worden**, solange der `CAA`-Satz stand: Der Hinweis
+ist ein langer Satz mit zwei Domainnamen darin, also die Sorte Zeile, die bei
+390 px schiebt.
+
+**Er bricht sauber auf drei Zeilen um und bleibt im Kasten.** Und `rollt` ist
+leer — kein Element rollt waagerecht, der Satz versteckt sich also nicht in
+einem Behälter, der die Zahl beruhigt.
+
+> **Eine Zelle, die rollen darf, hat keine Obergrenze — sie hat nur keine Zahl,
+> die sich beschwert.** Genau deshalb wird `rollt` mitgelesen und nicht nur
+> `dokument`.
+
+Der Themenwechsel lief über `window.srvpanelTheme('dark')` in der Konsole — das
+ist derselbe Aufruf, den die Profilseite nach dem Speichern macht, und er spart
+die Navigation. Die Farben ändern die Anordnung nicht, und beide Zeilen sind in
+jeder Zahl gleich.
+
 ---
 
 ## 4. Was offen ist
 
-- Punkt 8 (Kriterium 8) und Punkt 9.
+- Punkt 8 für die drei übrigen Domainseiten (`hier`, `fremd`, `ohne`), je zwei
+  Themes — sechs Lagen.
+- Punkt 9: der `CAA`-Satz steht noch.
 - **Der `CAA`-Satz steht** und verweigert Let's Encrypt jede Ausstellung unter
   `cloudlab24.de`. Punkt 9 räumt ihn ab — das ist Teil des Laufs und nicht
   Aufräumen danach.

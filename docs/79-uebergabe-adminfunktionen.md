@@ -49,11 +49,10 @@ Nebenher, je 2–3 Tage: **A11** (Neustart, Zeitzone des Servers, NTP), **A6**
 | **`docs/80-adminflaeche-vergleich.md`** | Die Bestandsaufnahme: was die Admin-Ansicht heute kann, der Vergleich mit Plesk und cPanel in vier Tabellen, die sechzehn Vorschläge mit Begründung, und **sechs Dinge, die ausdrücklich nicht vorgeschlagen werden** |
 | **`docs/81-serververwaltung.md`** | Der Plan. **A1 vollständig** (Messrunde, Abnahmekriterium, Operationen, Oberfläche, Fallen, Wächter, zehn Schritte), die übrigen als Skizze mit je einem „Fertig, wenn" |
 
-**Beide sind bis zum Merge von PR #172 nur auf dem Zweig
-`claude/panel-features-comparison-a87fus`.** Der PR ist grün und mergebereit
-(`mergeable_state: clean`), aber am 24. August **nicht gemergt**. Wer auf `main`
-startet und die Dokumente nicht findet, sucht nicht falsch — sie sind noch nicht
-dort.
+**Beide liegen auf `main`** — PR #172 ist am 24. August gemergt (`dd1153f`).
+Mit ihnen kamen `tests/apt-messen.sh`, `tests/apt-conffile-messen.sh`,
+`AccountTypeAxisTest` samt seinen zwei Eingriffen im Bruchskript, das
+Rollenmodell in `docs/20 §6.1` und der berichtigte Kopf von `AccountType`.
 
 ### 1.2 Der Name der Stufe ist offen
 
@@ -88,7 +87,7 @@ gefallen ist, wird die Stufe beim Namen genannt und nicht bei der Nummer.
 |---|---|
 | Ausbaustufen | **P0 bis P7 abgenommen** — P7 am 24. August 2026 auf `cloudsrv24` gegen `0.7.0-rc.8`, alle acht Kriterien aus `docs/72 §3` |
 | Letzte Fassung | `v0.7.0-rc.11`, Beta-Kanal |
-| `main` | `8508ef2` (Stand 24. August, nach dem Merge von P7) |
+| `main` | `dd1153f` (Stand 24. August, nach dem Merge von PR #172; davor `8508ef2` mit P7) |
 | Wächter | **307** Dateien unter `tests/Unit` und `tests/Feature` |
 | Bruchskript | `tests/waechter-brechen.sh`, **728 Eingriffe** |
 | Agent-Operationen | **94** registriert. Unter `agent/src/Ops/` liegen 95 Dateien — die 95. ist `SubscriptionState`, die gemeinsame Basisklasse von `SubscriptionSuspend` und `SubscriptionResume`, und keine Operation. Wer die Differenz nachzählt, hat sie damit erklärt |
@@ -800,19 +799,17 @@ gemessen**. Wer sie anfasst, fängt dort an und nicht bei null.
 ## 14. Was der neuen Sitzung konkret mitzugeben ist
 
 1. **Den Zweignamen**, auf dem entwickelt werden soll.
-2. **Ob PR #172 inzwischen gemergt ist.** Wenn nein, liegen `docs/80` und
-   `docs/81` nur auf `claude/panel-features-comparison-a87fus`, und der neue
-   Zweig startet von dort statt von `main`.
-3. **Ob die Stufe P7b heissen soll** (§1.2) — oder wie sonst.
-4. Den Hinweis, **`CLAUDE.md` zu lesen und nicht zu überfliegen** — und
+2. **Ob die Stufe P7b heissen soll** (§1.2) — oder wie sonst. Bis das
+   entschieden ist, wird sie beim Namen genannt und nicht bei der Nummer.
+3. Den Hinweis, **`CLAUDE.md` zu lesen und nicht zu überfliegen** — und
    `docs/20` für alles, was Architektur, Rechte oder Gestaltung berührt.
-5. Die Ansage, dass **der Betreiber die Serverbefehle fährt** und Ausgaben und
+4. Die Ansage, dass **der Betreiber die Serverbefehle fährt** und Ausgaben und
    Bilder zurückschickt — insbesondere für Schritt 0 (die Messrunde auf den
    drei fehlenden Plattformen) und für jeden Abnahmelauf.
-6. Dass **Bilder in beiden Themes bei 390 und 1440 px** dazugehören, sobald
+5. Dass **Bilder in beiden Themes bei 390 und 1440 px** dazugehören, sobald
    etwas Sichtbares entsteht, und dass `tests/bilder-messen.js` die Vorschrift
    dafür ist.
-7. Die Entscheidung aus §9, ob das Wegwerf-Gestell ins Repo soll.
+6. Die Entscheidung aus §9, ob das Wegwerf-Gestell ins Repo soll.
 
 **Der erste Handgriff ist nicht A5, sondern Schritt 1 aus §4** — der apt-Befund
 an bestehendem Code. Er wartet auf kein Merkmal.

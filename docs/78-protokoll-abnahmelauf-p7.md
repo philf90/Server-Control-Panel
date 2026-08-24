@@ -483,6 +483,10 @@ lauten, sonst ist die Zeile ungültig und keine Messung.
 |---|---|---|---|---|---|---|---|
 | `cloudlab24.de` (mit CAA-Hinweis) | 390 | hell | **0** | 200/200 | — | — | 4 |
 | `cloudlab24.de` (mit CAA-Hinweis) | 390 | dunkel | **0** | 200/200 | — | — | 4 |
+| `hier.cloudlab24.de` | 390 | hell | **0** | 200/200 | — | — | 4 |
+| `hier.cloudlab24.de` | 390 | dunkel | **0** | 200/200 | — | — | 4 |
+| `fremd.cloudlab24.de` | 390 | hell | **0** | 200/200 | — | — | 4 |
+| `fremd.cloudlab24.de` | 390 | dunkel | **0** | 200/200 | — | — | 4 |
 
 **Diese Seite ist vorgezogen worden**, solange der `CAA`-Satz stand: Der Hinweis
 ist ein langer Satz mit zwei Domainnamen darin, also die Sorte Zeile, die bei
@@ -495,6 +499,12 @@ einem Behälter, der die Zahl beruhigt.
 > **Eine Zelle, die rollen darf, hat keine Obergrenze — sie hat nur keine Zahl,
 > die sich beschwert.** Genau deshalb wird `rollt` mitgelesen und nicht nur
 > `dokument`.
+
+**Und die IPv6 bricht auch im Kärtchen richtig.** Auf `hier.cloudlab24.de` steht
+in `ERWARTET` der Umbruch **hinter** dem Doppelpunkt —
+`2a0a:4cc0:c1:ebd1:b82d:51ff:fe72:` / `3083` —, `fe72` bleibt also ganz. Das ist
+Befund 1 aus `docs/76`, und er trägt in der gestapelten Form genauso wie in der
+Tabelle.
 
 Der Themenwechsel lief über `window.srvpanelTheme('dark')` in der Konsole — das
 ist derselbe Aufruf, den die Profilseite nach dem Speichern macht, und er spart
@@ -527,8 +537,14 @@ Let's Encrypt kann für jeden Namen unter `cloudlab24.de` wieder ausstellen.
 
 ## 4. Was offen ist
 
-- Punkt 8 für die drei übrigen Domainseiten (`hier`, `fremd`, `ohne`), je zwei
-  Themes — sechs Lagen.
+- Punkt 8 für `ohne.cloudlab24.de`, beide Themes — zwei Lagen.
+- **Eine benannte Lücke im Bild, nicht in der Messung:** Die beiden
+  `fremd`-Aufnahmen zeigen den oberen Teil der Seite und nicht den DNS-Abgleich.
+  `bilderMessen()` läuft über alle Elemente, die Messung deckt die Seite also
+  ab; der zweite Kanal fehlt für diesen Bereich.
+
+  > **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
+  > Keines von beiden ersetzt das andere.**
 
 - **Der `CAA`-Satz steht** und verweigert Let's Encrypt jede Ausstellung unter
   `cloudlab24.de`. Punkt 9 räumt ihn ab — das ist Teil des Laufs und nicht

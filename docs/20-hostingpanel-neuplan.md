@@ -348,7 +348,7 @@ Objekttyp-Platz für Mailkonten. Keine Tabellen, keine Attrappen-Oberfläche.
 
 #### Zwei Rollen innerhalb der Admin-Ebene
 
-> **Entschieden vom Betreiber am 22. August 2026**, beim Planen von A9
+> **Entschieden vom Betreiber am 24. August 2026**, beim Planen von A9
 > (`docs/74 §11`). Gebaut wird es dort — hier steht es, weil §6 die Quelle für
 > das Rechtemodell ist und eine Entscheidung, die nur im Planungsdokument
 > stünde, beim nächsten Nachschlagen nicht gefunden wird.

@@ -11,7 +11,7 @@
 # hat nicht den Fall, an dem es hier hängt, und ein Prüfling, der seinen eigenen
 # Prüfkörper liefert, prüft sich gegen sich selbst.
 #
-# Gemessen am 22. August 2026 auf Ubuntu 24.04, dpkg 1.22.6. Die Antwort auf
+# Gemessen am 24. August 2026 auf Ubuntu 24.04, dpkg 1.22.6. Die Antwort auf
 # Frage 3 aus docs/74 §3 hängt daran.
 #
 # Aufruf:  sh tests/apt-conffile-messen.sh

@@ -8,7 +8,7 @@ namespace App\Enums;
  * Die drei Ebenen aus §6.1 des Plans — die **Mandantenfrage** und sonst nichts.
  *
  * Dieses Enum beantwortet „wen sieht dieses Konto". Es beantwortet nicht „was
- * darf es". Bis zum 22. August 2026 stand hier, das sei dasselbe: „Bewusst kein
+ * darf es". Bis zum 24. August 2026 stand hier, das sei dasselbe: „Bewusst kein
  * Rollen- und Rechte-Baukasten: Drei feste Ebenen decken den Bedarf eines
  * Hosting-Panels ab." Der erste Halbsatz gilt weiter, der zweite nicht mehr —
  * der Betreiber hat zwei Verwaltungsrollen entschieden, **Betreiber** und

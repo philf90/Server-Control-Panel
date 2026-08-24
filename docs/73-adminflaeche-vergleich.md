@@ -1,6 +1,6 @@
 # 73 — Die Admin-Ansicht im Vergleich mit Plesk und cPanel
 
-Geschrieben am 22. August 2026 auf die Frage des Betreibers, welche Funktionen
+Geschrieben am 24. August 2026 auf die Frage des Betreibers, welche Funktionen
 für den **Serveradministrator** noch sinnvoll in die Admin-Ansicht gehören.
 Genannt war als Beispiel die Verwaltung der Paketquellen und der Systemupdates
 über apt — sie steht unten als Vorschlag **A1** und ist der am weitesten
@@ -410,7 +410,7 @@ verglichen?
 
 ### A9 — Zwei Rollen, Zugang zum Panel
 
-> **Zuschnitt vom Betreiber, 22. August 2026.** Hier stand „ein zweiter Admin
+> **Zuschnitt vom Betreiber, 24. August 2026.** Hier stand „ein zweiter Admin
 > (Vertretung), ein Admin mit Nur-Lese-Recht (Support)". Das war nach dem
 > **Verb** geteilt — lesen gegen schreiben —, und für ein Hosting-Panel ist das
 > die falsche Achse: Wer Kunden betreut, muss anlegen und ändern dürfen. Der
@@ -444,7 +444,7 @@ Feld steht, das er nicht sehen darf** — gemessen an der Antwort, nicht am Bild
 **Die Fallen.** Drei, in `docs/74 §11` ausgeschrieben. Die teuerste steht am
 Datenmodell: **`AccountType` bekommt keinen vierten Fall.** Seine Methoden sind
 als Gleichheit mit einem Fall geschrieben; ein `Superadmin` wäre augenblicklich
-`isAdmin() === false` an 52 Stellen. Seit dem 22. August steht
+`isAdmin() === false` an 52 Stellen. Seit dem 24. August steht
 `AccountTypeAxisTest` als Stolperdraht davor.
 
 ### A10 — Diagnose des Bestands

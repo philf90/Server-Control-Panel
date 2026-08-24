@@ -1,6 +1,6 @@
 # 74 — P9a: Serververwaltung für den Admin
 
-Geplant am 22. August 2026. Der Auftrag steht in `docs/73`: Der Betreiber hat
+Geplant am 24. August 2026. Der Auftrag steht in `docs/73`: Der Betreiber hat
 die Admin-Ansicht gegen Plesk und cPanel gehalten und gefragt, was noch
 hineingehört. Sechzehn Vorschläge sind daraus geworden; **A1 — Paketquellen und
 Systemupdates über apt** war seine eigene Idee und ist der grösste.
@@ -45,7 +45,7 @@ Neu sind also **eine Seite und vier Operationen**, nicht ein Verfahren.
 ### 2.1 Was gefahren ist
 
 **`tests/apt-messen.sh`, elf Messungen, jede mit Gegenprobe**, gefahren am
-22. August 2026 im Container gegen **Ubuntu 24.04 (noble), apt 2.8.3,
+24. August 2026 im Container gegen **Ubuntu 24.04 (noble), apt 2.8.3,
 dpkg 1.22.6**. Das Skript schreibt nirgends nach `/etc` und ist damit auf einem
 echten Server fahrbar — dafür ist es gebaut.
 
@@ -77,7 +77,7 @@ Sie liest an dieser Stelle nur niemand.
 
 ### 2.1a Was M5 an den vier Aufrufstellen anrichtet
 
-**Nachgetragen am 22. August 2026, auf die Rückfrage des Betreibers.** Die
+**Nachgetragen am 24. August 2026, auf die Rückfrage des Betreibers.** Die
 Fassung oben stand hier als ein Satz für alle vier Stellen, und das war zu
 grob: An zweien fängt der bestehende Nachlesecode den Schaden tatsächlich ab.
 Der Unterschied entscheidet, was Schritt 1 überhaupt zu tun hat.
@@ -196,7 +196,7 @@ root lief. Auf einem echten Server steht es dort — und damit ist
 hat, auch wenn es an der Kommandozeile geschah. Das ist der Grund, warum A5 sie
 führt und nicht das Panel-Protokoll.
 
-### 2.1c M12 — Conffiles, nachgemessen am 22. August
+### 2.1c M12 — Conffiles, nachgemessen am 24. August
 
 **Nachgetragen, weil Frage 3 aus §3 nicht aus dem Gedächtnis zu beantworten
 war.** Die Probe ist `tests/apt-conffile-messen.sh`; sie installiert und
@@ -261,7 +261,7 @@ liefert noch `/etc/apt/sources.list` mit Inhalt), dem Namen der Sicherheitssuite
 | eine Neuinstallation in `dist-upgrade` (`Inst` ohne `[alt]`) | die Falle aus M3, Punkt 1 |
 | ein zurückgehaltenes Paket (M4) | die Zahl, die in die Anzeige gehört |
 | ein Schlüssel **mit** Ablaufdatum (M6) | sonst misst die Ablaufprüfung nichts |
-| ~~eine `.dpkg-dist` nach `--force-confold` (M9)~~ | **geschlossen am 22. August**, siehe §2.1c |
+| ~~eine `.dpkg-dist` nach `--force-confold` (M9)~~ | **geschlossen am 24. August**, siehe §2.1c |
 | `Requested-By` in der Historie (M11) | die Auskunft, für die A5 sie führt |
 
 > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
@@ -277,18 +277,31 @@ ihn seit P1 und **belegt hat ihn nur der eigene Gebrauch**.
 
 ---
 
-## 3. Die vier Fragen — beantwortet
+## 3. Die vier Fragen — entschieden
 
-Vier Fragen, die den Zuschnitt ändern und nicht die Umsetzung. **Ausformuliert
-am 22. August 2026 auf Verlangen des Betreibers.** Was hier steht, ist mein
-Vorschlag mit seiner Begründung — die Entscheidung bleibt seine, und bis sie
-gefallen ist, gilt der Vorschlag als Annahme und nicht als Beschluss.
+Vier Fragen, die den Zuschnitt ändern und nicht die Umsetzung. Ausformuliert am
+24. August 2026 auf Verlangen des Betreibers — **und am selben Tag alle vier
+entschieden.**
+
+| | Entschieden durch | Wie |
+|---|---|---|
+| **1** Fremde Paketquellen | den Betreiber, 24. August | Vorschlag angenommen: **nein** im ersten Wurf |
+| **2** Wer darf einspielen | den Betreiber, 24. August | **eigener Zuschnitt** — zwei Rollen statt zweier Rechte, §11 |
+| **3** Conffiles | die Messung, §2.1c | `--force-confold`; die Alternative gibt es nicht |
+| **4** Reichweite der Automatik | den Betreiber, 24. August | Vorschlag angenommen: zwei Schalter, verschieden scharf |
+
+**Was unter jeder Frage steht, ist damit Beschluss und nicht Annahme.** Die
+Begründungen bleiben stehen, weil eine Entscheidung ohne ihren Grund beim
+nächsten Anlass neu verhandelt wird — und weil zwei von ihnen einen Einwand
+enthalten, den man kennen muss, wenn man sie später ändern will.
 
 ### Frage 1 — Darf das Panel eine fremde Paketquelle hinzufügen?
 
-**Nein im ersten Wurf. Anzeigen, ein- und ausschalten, und an hinzufügbaren
-Quellen nur die drei, die das Panel ohnehin kennt** — Sury, PGDG, das eigene
-Repo.
+> **Entschieden am 24. August 2026: nein.** Der Betreiber hat den Vorschlag
+> angenommen.
+
+**Anzeigen, ein- und ausschalten, und an hinzufügbaren Quellen nur die drei,
+die das Panel ohnehin kennt** — Sury, PGDG, das eigene Repo.
 
 Der Grund ist nicht die Vorsicht, sondern der Hebel: Wer eine Quelle
 kontrolliert, kann ein Paket mit höherer Fassungsnummer ausliefern, das ein
@@ -324,7 +337,7 @@ Freitext, sondern eine Positivliste, die im Code wächst.**
 
 ### Frage 2 — Wer darf einspielen?
 
-**Beantwortet am 22. August, und vom Betreiber am selben Tag umgeworfen — zu
+**Beantwortet am 24. August, und vom Betreiber am selben Tag umgeworfen — zu
 Recht.** Meine Antwort lautete „voller Admin gegen Nur-Lese-Admin". Der
 Betreiber hat zwei Rollen vorgeschlagen, von denen die zweite **verwalten darf
 und Kritisches weder sieht noch bedient**. Das ist eine andere Achse:
@@ -389,7 +402,10 @@ Deshalb sucht `system.packages.list` das Dateisystem ab und zeigt jede
 
 ### Frage 4 — Wie weit darf die Automatik gehen?
 
-**In zwei Schaltern, und sie sind verschieden scharf:**
+> **Entschieden am 24. August 2026: zwei Schalter.** Der Betreiber hat den
+> Vorschlag angenommen, mitsamt den drei Festlegungen darunter.
+
+**Sie sind verschieden scharf:**
 
 1. **Paketlisten auffrischen: immer an.** `APT::Periodic::Update-Package-Lists`
    ändert nichts am System und ist die Bedingung dafür, dass die Anzeige nicht
@@ -607,7 +623,7 @@ an bestehendem Code und wartet nicht auf ein neues Merkmal.
 
 ## 10. Was A1 ausdrücklich **nicht** wird
 
-- **Kein Hinzufügen beliebiger Fremdquellen** (Frage 1). Anzeigen, schalten, und
+- **Kein Hinzufügen beliebiger Fremdquellen** (§3 Frage 1, entschieden). Anzeigen, schalten, und
   die drei bekannten.
 - **Kein Paketsuchfeld und kein Installieren beliebiger Pakete.** Was das Panel
   installiert, installiert es über ein Merkmal (PHP-Version, PostgreSQL) — nicht
@@ -699,7 +715,7 @@ Wochen nicht mehr gelesen. Was er meldet, muss behebbar sein und nicht nur wahr.
 
 ### A9 — Zwei Rollen, Zugang · 1,5 Wochen
 
-**Zuschnitt vom Betreiber, 22. August 2026.** Nicht „Admin und Nur-Lese-Admin",
+**Zuschnitt vom Betreiber, 24. August 2026.** Nicht „Admin und Nur-Lese-Admin",
 sondern zwei Rollen mit verschiedenem Gegenstand:
 
 - **Betreiber** — ist dem `root` dieses Servers nahe. Alles.
@@ -934,11 +950,12 @@ und `docs/66` Befunde gefunden, bevor ein Abnahmelauf sie gefunden hat.
 - **Die drei Plattformen aus §2.3** und die **vier** verbliebenen Fälle ohne
   Nachbarn — die `.dpkg-dist` ist seit §2.1c geschlossen. Wer A1 anfängt, fängt
   dort an und nicht bei null.
-- **Die vier Fragen aus §3 sind beantwortet, aber nicht entschieden.** Der
-  Unterschied ist der Punkt: §3 ist mein Vorschlag mit seiner Begründung, und
-  bis der Betreiber ihn bestätigt oder ändert, ist er eine Annahme. Frage 3 ist
-  dabei die einzige, die nicht mehr offen *ist* — sie ist gemessen (§2.1c), und
-  eine Messung nimmt einer Entscheidung ihre Alternativen.
+- **Die vier Fragen aus §3 sind entschieden** (24. August, Tabelle dort) und
+  stehen damit nicht mehr offen. Was sie hinterlassen, ist eine Nachlese, kein
+  Rest: Frage 1 hat einen Einwand, der bewusst überstimmt wurde — der Admin
+  hat SSH und kann die Quelle von Hand eintragen. Er trägt, solange es **einen**
+  Kontotyp gibt, und fällt mit A9, weil der Administrator kein SSH hat. Wer die
+  Entscheidung später aufmacht, fängt bei diesem Satz an.
 - **Der einzige Punkt, der A1 zum Scheitern bringen kann** (§2.3, letzter
   Absatz): dass `systemd-run` den Neustart von `srvpanel-web` überlebt, ist seit
   P1 behauptet und nur durch den eigenen Gebrauch belegt. Er gehört in Schritt 6

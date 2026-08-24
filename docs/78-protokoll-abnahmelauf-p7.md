@@ -240,11 +240,40 @@ der Server-Block steht. Beim Messen stand dort nach mehreren Minuten weiter
 „Noch keine" — die Bestellung braucht länger als angenommen. Kein Fund, aber die
 Begründung für die Eile war falsch.
 
+### Punkt 2 — „zeigt woandershin" · Kriterium 2 **erfüllt**
+
+`fremd.cloudlab24.de` angelegt, „Jetzt prüfen" — Meldung „Der DNS-Abgleich ist
+gelaufen."
+
+| Name | Satz | Zustand | Erwartet | Gefunden |
+|---|---|---|---|---|
+| `fremd.cloudlab24.de` | `A` | **Zeigt woandershin** | `159.195.56.255` | **`192.0.2.1`** |
+| `fremd.cloudlab24.de` | `AAAA` | Fehlt | `2a0a:4cc0:c1:ebd1:b82d:51ff:fe72:3083` | – |
+
+`Zuletzt geprüft: 2026-08-24 10:45:09 · gefragt wurden 159.69.110.93,
+167.235.231.182`
+
+**Beide Hälften des Kriteriums sind erfüllt.** Der gefundene Wert `192.0.2.1`
+steht da — das ist der Teil, den `docs/72 §3` wörtlich verlangt („mit dem
+gefundenen Wert"), und ohne ihn wäre die Anzeige ein Urteil ohne Auskunft.
+
+**Und die Marke ist bernsteinfarben, nicht rot.** „Zeigt woandershin" ist als
+Auskunft dargestellt und nicht als Mangel — die Zusage aus `docs/72 §2.3` für
+den Kunden, der absichtlich über ein CDN fährt. Daneben steht „Fehlt" in Rot:
+Die drei Zustände sind auch farblich unterschieden und nicht nur im Wort.
+
+**Eine Beobachtung ohne Fund.** Der Zertifikatsbereich sagt hier dasselbe wie
+bei `hier.cloudlab24.de`: „Noch keine. Bestellt wird von selbst…". Ob die
+Bestellung für `fremd` inzwischen gescheitert ist — der Name zeigt auf TEST-NET-1
+und ist für Let's Encrypt nicht erreichbar — oder ob sie noch nicht lief, ist von
+der Seite aus nicht zu unterscheiden. Das betrifft die Zertifikatsanzeige und
+nicht den DNS-Abgleich; hier steht es als Beobachtung und nicht als Mangel.
+
 ---
 
 ## 4. Was offen ist
 
-- Die Punkte 2 bis 9 (Kriterien 2 bis 8).
+- Die Punkte 3 bis 9 (Kriterien 3 bis 8).
 
 **Aus `docs/76 §4` ist damit nichts mehr offen**, was dieser Lauf hätte
 abfallen lassen sollen: Die Marke „ungeprüft" ist im Kasten, `.toggle +

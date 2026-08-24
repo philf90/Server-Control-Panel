@@ -64,17 +64,73 @@ einrichtet.
 Gemessen mit Gegenprobe gegen eine Quelle auf `127.0.0.1:1`: `rc=0`, zwei
 `W:`-Zeilen. Mit `--error-on=any`: `rc=100`, dieselben zwei Zeilen als `E:`.
 
-`PhpVersionInstall`, `PgServerInstall` und `PanelUpdate` rufen alle drei
-`apt-get update -qq` und prüfen `$result->successful()`. **Diese Prüfung kann
-für eine kaputte Quelle nicht rot werden** — sie ist seit P3 da und hat nie
-etwas gemeldet. Was danach passiert, ist der eigentliche Schaden: `apt-get
-install` läuft mit veralteten Listen weiter und scheitert an einer Fassung, die
-es nicht mehr gibt, mit einer Meldung über das Paket statt über die Quelle.
+**Das ist keine Nachlässigkeit von apt, sondern seine Zusage.** Der
+Rückgabewert beantwortet nicht „habe ich alle Quellen erreicht", sondern „habe
+ich danach einen benutzbaren Zustand" — und eine unerreichbare Quelle ist dafür
+kein Hindernis, weil die alte Liste liegen bleibt. Die Meldung sagt es wörtlich:
+*„They have been ignored, or old ones used instead."* Die Auskunft ist also
+**da**; sie steht auf stderr, und `Result` trennt `stdout` und `stderr` längst.
+Sie liest an dieser Stelle nur niemand.
 
 > **Ein Rückgabewert, der einen Fehlschlag nicht tragen kann, ist keine
 > Prüfung — er ist eine Zeile, die aussieht wie eine.**
 
-Das ist ein Befund und kein Merkmal: Er gehört **vor** A1 behoben, in Schritt 1.
+### 2.1a Was M5 an den vier Aufrufstellen anrichtet
+
+**Nachgetragen am 22. August 2026, auf die Rückfrage des Betreibers.** Die
+Fassung oben stand hier als ein Satz für alle vier Stellen, und das war zu
+grob: An zweien fängt der bestehende Nachlesecode den Schaden tatsächlich ab.
+Der Unterschied entscheidet, was Schritt 1 überhaupt zu tun hat.
+
+| Stelle | Was geschieht | Wie schlimm |
+|---|---|---|
+| `PhpVersionInstall` | Sury unerreichbar → `apt-get install php8.4-fpm` findet nichts → rc≠0 → Abbruch mit *„Die Installation ist fehlgeschlagen: Unable to locate package"* | **Zustand richtig, Diagnose falsch.** Der Betreiber sucht am Paket, der Fehler sitzt an der Quelle |
+| `PgServerInstall` | dasselbe; zusätzlich fängt `describe()` es mit *„apt meldet Erfolg, PostgreSQL fehlt trotzdem"* | dito |
+| dieselben, **mit alten Listen** | apt installiert die Fassung, die in der veralteten Liste steht. `missing()` ist zufrieden, weil das Paket danach dasteht | **still.** Man bekommt eine veraltete Fassung und erfährt nichts |
+| `PanelUpdate` | `apt-get update -qq && apt-get install --only-upgrade srvpanel` — das `&&` greift nie, weil `update` immer 0 ist. Mit alten Listen findet `--only-upgrade` nichts Neueres, meldet `0 upgraded` und endet mit **rc 0** | **der schlimmste.** Das Panel meldet „Update läuft", die Fassung bleibt stehen, und im Protokoll steht ein erfolgreicher Lauf |
+
+Die beiden Sätze „Erfolg wird gelesen und nicht geglaubt", die in
+`PhpVersionInstall` und `PgServerInstall` als Kommentar stehen, tun also ihre
+Arbeit — sie fangen den **Zustand**. Was keiner von beiden fängt, ist die
+**Ursache**. Und `PanelUpdate` hat die zweite Frage gar nicht, weil es dabei
+selbst neu startet.
+
+> **Eine Prüfung, die den Zustand fängt, hat über die Ursache nichts gesagt —
+> und der Leser sucht dort, wohin die Meldung zeigt.**
+
+**Für A1 zählt die dritte Zeile.** `system.packages.list` würde nach einem
+`refresh` mit toter Sicherheitsquelle **„0 Sicherheitsupdates"** anzeigen. Das
+ist die Lehre dieses Repos in Reinform: eine Null, die „nicht nachgesehen"
+bedeutet und wie „nichts zu tun" aussieht.
+
+### 2.1b Was daraus zu bauen ist
+
+Drei Teile, und keiner davon ist gross:
+
+1. **Ein Leser statt eines Rückgabewerts.** Eine Stelle — `Apt::refresh()` —
+   ruft `apt-get update`, liest `stderr` auf `^W: Failed to fetch <URI>` und
+   gibt **je Quelle** einen Ausgang zurück statt eines Wahrheitswerts. Der
+   Rückgabewert bleibt als zusätzliche Prüfung stehen: Er ist nicht falsch, nur
+   unvollständig.
+2. **Die Aufrufer entscheiden verschieden.** `PhpVersionInstall` bricht ab, wenn
+   **die Quelle, die es braucht**, unerreichbar war — mit dieser Begründung
+   statt der über das Paket. `system.packages.list` bricht nicht ab, sondern
+   zeigt die tote Quelle neben der Zahl.
+3. **`PanelUpdate` bekommt seine zweite Frage:** nach dem Lauf die Fassung
+   nachlesen und melden, wenn sie dieselbe geblieben ist. Das geht erst nach dem
+   Neustart, also im postinstall oder beim nächsten Start — **dieser Teil hängt
+   deshalb an Schritt 6 und nicht an Schritt 1.**
+
+**Und nicht `--error-on=any` global.** Die Fahne ist die richtige Härte für
+einen Lauf, der genau eine Quelle braucht, und die falsche für einen, der alle
+nachsieht: Eine vorübergehend unerreichbare Drittquelle würde damit ein
+Sicherheitsupdate aus dem Ubuntu-Archiv blockieren.
+
+> **Eine Härte, die nur einheitlich zu haben ist, gehört nicht an eine Stelle,
+> an der die Aufrufer verschieden entscheiden müssen.**
+
+Das ist ein Befund und kein Merkmal: Die Teile 1 und 2 gehören **vor** A1
+behoben, in Schritt 1.
 
 **M3 ist die Form, an der der Leser hängt.** Zwei Fallen in einer Zeile:
 
@@ -275,8 +331,12 @@ Operationen apt rufen.
 > ist der Ort, an dem man nachsieht.** Der Satz stammt aus `docs/47` und gilt
 > hier für eine Prüfung statt für eine Argumentliste.
 
-Und `apt-get update` bekommt an allen vier Aufrufstellen einen Leser statt eines
-Rückgabewerts (§2.1, M5).
+Und `apt-get update` läuft künftig über **eine** Stelle, `Apt::refresh()`, die
+`stderr` je Quelle liest statt eines Rückgabewerts (§2.1b). Was der Aufrufer
+daraus macht, entscheidet er selbst: `PhpVersionInstall` bricht an einer toten
+Sury ab, `system.packages.list` zeigt sie neben der Zahl. Die dritte Hälfte —
+`PanelUpdate` liest nach dem Lauf seine eigene Fassung nach — geht erst nach dem
+Neustart und hängt deshalb an Schritt 6.
 
 **Kein Freitext erreicht apt.** Paketnamen werden gegen die zuvor gelesene Liste
 geprüft — nicht gegen ein Muster. Ein Muster liesse `--reinstall` durch, sobald
@@ -346,7 +406,7 @@ in `tests/waechter-brechen.sh`.
 
 | Wächter | Regel | Der Bruch |
 |---|---|---|
-| `AptResultTest` | Kein Aufruf von `apt-get update` prüft seinen Rückgabewert als einzige Auskunft | `successful()` als einzige Bedingung wieder einsetzen |
+| `AptResultTest` | Jeder Aufruf von `apt-get update` liest `stderr`; der Rückgabewert ist nie die einzige Auskunft | `successful()` als einzige Bedingung wieder einsetzen |
 | `AptLockReachTest` | Jede apt-rufende Operation geht über `AptLock` | eine Operation daran vorbeiführen |
 | `InstLineTest` | Der Leser trennt `[alt]` von `[arch]` und liest **alle** Herkünfte | die Zeile ohne `[alt]` aus dem Prüfkörper nehmen |
 | `SourceOwnershipTest` | Geschrieben wird nur in Dateien, die das Panel angelegt hat | einen fremden Pfad in die Schreibliste setzen |
@@ -357,6 +417,19 @@ in `tests/waechter-brechen.sh`.
 `InstLineTest` baut seine Prüfkörper **selbst**, Zeile für Zeile — so wie
 `ArchiveDepthTest` seine Archive baut. Ein Prüfkörper aus `apt-get -s` auf dieser
 Maschine enthält genau die Fälle nicht, an denen der Leser bricht (§2.3).
+
+**`AptResultTest` darf dabei nicht nach dem Wort `successful()` suchen.** Er
+wäre grün, sobald irgendwo daneben eine zweite Prüfung steht — derselbe Fehler
+wie der Wächter aus `docs/62` Punkt 12, der einen Satz suchte statt seiner
+Erreichbarkeit. Er sucht die Aufrufe von `apt-get update` und belegt für jeden
+einzeln, dass `stderr` gelesen wird.
+
+> **Ein Wächter, der ein Wort sucht statt einer Wirkung, ist grün, sobald das
+> Wort irgendwo steht.**
+
+Er ist ausserdem der einzige der fünf, der eine **echte** Regression nachstellt
+und keine erfundene: Der Zustand vor der Behebung sah genau so aus, wie sein
+Bruch ihn herstellt.
 
 Und: Diese fünf Wächter erben nur von `TestCase` und sind damit **hier fahrbar**,
 im Gestell ohne PHPUnit. Wer sie baut, belegt ihre Brüche hier und nicht in der
@@ -369,12 +442,12 @@ CI.
 | # | Schritt | Fertig, wenn |
 |---|---|---|
 | 0 | Die Messrunde auf den drei fehlenden Plattformen und die fünf fehlenden Fälle (§2.3) | `tests/apt-messen.sh` ist viermal gelaufen, und die fünf Fälle haben einen Wert neben ihrer Null |
-| 1 | **Der Befund M5 behoben** — an allen vier bestehenden Aufrufstellen, mit `AptResultTest` | eine kaputte Quelle lässt `php.version.install` nicht mehr durchlaufen |
+| 1 | **Der Befund M5 behoben, Teile 1 und 2** (§2.1b) — `Apt::refresh()` und die drei lesenden Aufrufer, mit `AptResultTest` | eine unerreichbare Sury lässt `php.version.install` mit einer Meldung **über die Quelle** scheitern, nicht über das Paket |
 | 2 | `AptLock` als die eine Stelle; `PanelUpdate` zieht um | `AptLockReachTest` ist grün und sein Bruch rot |
 | 3 | `system.packages.list` mit dem Leser und `InstLineTest` | die Zahlen stimmen mit der Kommandozeile überein |
 | 4 | `system.sources.list` über `indextargets` **und** die Dateien | eine abgeschaltete Quelle erscheint bei den Dateien und nicht bei den Zielen |
 | 5 | Die Seite, beide Themes, 390 px gemessen | `tests/bilder-messen.js` meldet 0 px, mit ausschlagender Gegenprobe |
-| 6 | `system.packages.upgrade` über `systemd-run` | ein Upgrade mit `srvpanel` darin läuft durch, Protokoll vollständig |
+| 6 | `system.packages.upgrade` über `systemd-run`; dazu **Teil 3 von M5** — `PanelUpdate` liest nach dem Neustart seine eigene Fassung nach | ein Upgrade mit `srvpanel` darin läuft durch, Protokoll vollständig — und ein Lauf, der nichts bewirkt hat, meldet das statt Erfolg |
 | 7 | `system.sources.toggle` und der Neustart-Knopf | `SourceOwnershipTest` ist grün und sein Bruch rot |
 | 8 | `unattended-upgrades` — Zustand aus `apt-config dump`, Schalter | der wirksame Zustand stimmt, wenn ein fremdes Paket dazwischenschreibt |
 | 9 | Die Wächter brechen, voller Lauf von `tests/waechter-brechen.sh` | jeder der fünf Eingriffe beisst — einzeln **und** im Lauf |

@@ -93,7 +93,6 @@ final class ClassNameTest extends TestCase
      */
     private const FOREIGN_PREFIX = ['cm-'];
 
-    /** @return list<string> */
     /**
      * Die Blade-Vorlagen — seit es welche mit Klassen gibt.
      *
@@ -119,6 +118,7 @@ final class ClassNameTest extends TestCase
         return $files;
     }
 
+    /** @return list<string> */
     private function vueFiles(): array
     {
         $files = [];

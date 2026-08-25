@@ -85,8 +85,6 @@ final class ClassReachTest extends TestCase
      * **Kein eigener `<style>`-Block.** Eine Blade-Datei hat keinen, also muss
      * jede Klasse in `app.css` stehen — die Vereinigung fällt hier weg, und das
      * ist die schärfere Frage.
-     *
-     * @return list<string>
      */
     public function test_every_class_in_a_blade_view_points_at_a_rule(): void
     {

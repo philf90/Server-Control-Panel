@@ -17096,6 +17096,137 @@ pruefe "Antwort ungelesen" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SessionDriverTest passed
 
+echo "── QrSourceTest: die Oberflaeche baut die Adresse selbst ──"
+#
+# Wunsch 1. Zwei Fassungen derselben otpauth-Adresse liefen auseinander, und die
+# falsche waere die im QR-Code — weil niemand ihn abtippt und mit der Textzeile
+# vergleicht.
+vorher_datei resources/js/Components/QrCode.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/QrCode.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'encode(props.uri,'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'encode(`otpauth://totp/${props.uri}`,', 1))
+PY2
+griff_datei resources/js/Components/QrCode.vue "Adresse in der Oberflaeche gebaut" &&
+pruefe "Adresse in der Oberflaeche gebaut" \
+  QrSourceTest::test_the_interface_never_builds_the_uri_itself failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QrSourceTest passed
+
+echo "── QrSourceTest: der Code bekommt eine eigene Quelle ──"
+#
+# Dann zeigen Code und Textzeile Verschiedenes, und gemerkt wird es erst, wenn
+# jemand den Code nicht mehr scannen kann.
+vorher_datei resources/js/Pages/Auth/TwoFactorSetup.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Auth/TwoFactorSetup.vue'
+s = open(p, encoding='utf-8').read()
+alt = ':uri="props.uri"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, ':uri="props.secret ?? \'\'"', 1))
+PY2
+griff_datei resources/js/Pages/Auth/TwoFactorSetup.vue "Code mit eigener Quelle" &&
+pruefe "Code mit eigener Quelle" \
+  QrSourceTest::test_the_code_and_the_text_share_one_value failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QrSourceTest passed
+
+echo "── QrSourceTest: der QR-Code folgt dem Thema ──"
+#
+# Die eine Ausnahme von „beide Themes entstehen zusammen". Invertiert scheitert
+# ein QR-Code an vielen Lesegeraeten — und eine Ausnahme, die niemand prueft,
+# ist beim naechsten Durchgang durch app.css weg, mit der besten Absicht.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '  --bg: #0f1116;\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, alt + '  --qr-dark: #ffffff;\n  --qr-light: #0f1115;\n', 1))
+PY2
+griff_datei resources/css/app.css "QR-Code folgt dem Thema" &&
+pruefe "QR-Code folgt dem Thema" \
+  QrSourceTest::test_the_qr_colours_do_not_follow_the_theme failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QrSourceTest passed
+
+echo "── QrSourceTest: Farbe wandert in die Komponente ──"
+#
+# Jede Farbe kommt aus app.css. Die Ausnahme betrifft das Umschalten, nicht den
+# Ort.
+vorher_datei resources/js/Components/QrCode.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/QrCode.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'class="qr-modules"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'class="qr-modules" fill="#000000"', 1))
+PY2
+griff_datei resources/js/Components/QrCode.vue "Farbe in der QR-Komponente" &&
+pruefe "Farbe in der QR-Komponente" \
+  QrSourceTest::test_the_component_only_draws failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QrSourceTest passed
+
+echo "── QrSourceTest: die Untergrenze der Dateiliste ──"
+#
+# Der Pruefkoerper. Der erste Wurf las mit `glob('**/*')` null Dateien — PHPs
+# glob steigt nicht in Unterverzeichnisse ab, egal wie viele Sterne dastehen.
+vorher_datei tests/Unit/QrSourceTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/QrSourceTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "$wurzel.'/resources/js'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$wurzel.'/resources/views'", 1))
+PY2
+griff_datei tests/Unit/QrSourceTest.php "Untergrenze der QR-Dateiliste" &&
+pruefe "Untergrenze der QR-Dateiliste" \
+  QrSourceTest::test_the_interface_never_builds_the_uri_itself failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QrSourceTest passed
+
+echo "── QrSourceTest: eine zweite Datei bindet die Bibliothek ein ──"
+#
+# Dieselbe Auflage, die `docs/51 §8.1` fuer CodeMirror stellt: Eine Bibliothek,
+# die an zwei Stellen benutzt wird, ist beim naechsten Mal an drei — und dann
+# entscheidet die Gewohnheit statt eines Menschen.
+vorher_datei resources/js/Pages/Auth/TwoFactorSetup.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Auth/TwoFactorSetup.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<script setup lang="ts">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt + "\nimport { encode } from 'uqr'", 1))
+PY2
+griff_datei resources/js/Pages/Auth/TwoFactorSetup.vue "Bibliothek an zweiter Stelle" &&
+pruefe "Bibliothek an zweiter Stelle" \
+  QrSourceTest::test_only_the_qr_component_touches_the_library failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QrSourceTest passed
+
+echo "── FrontendDependencyTest: eine Abhaengigkeit ohne Begruendung ──"
+#
+# Der Waechter, der beim Einbau von uqr zugebissen hat. Wer eine hinzufuegt,
+# traegt sie mit ihrem Grund in ALLOWED ein — und holt vorher die Entscheidung
+# ein.
+vorher_datei tests/Unit/FrontendDependencyTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/FrontendDependencyTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'uqr' => 'die Modulmatrix des QR-Codes (docs/84, Wunsch 1) — gezeichnet wird bei uns',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei tests/Unit/FrontendDependencyTest.php "Abhaengigkeit ohne Begruendung" &&
+pruefe "Abhaengigkeit ohne Begruendung" \
+  FrontendDependencyTest::test_every_dependency_is_accounted_for failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FrontendDependencyTest passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

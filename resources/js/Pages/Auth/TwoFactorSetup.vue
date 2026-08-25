@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
+import QrCode from '../../Components/QrCode.vue'
 import Section from '../../Components/Section.vue'
 import CodeField from '../../Components/CodeField.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
@@ -60,9 +61,23 @@ const off = useForm({ code: '' })
 
       <Section v-if="!props.active" title="Einrichten">
         <p class="section-note">
-          Diesen Schlüssel in einer Authenticator-App hinterlegen und danach den
-          angezeigten Code eintragen. Erst dann gilt der zweite Faktor.
+          Diesen Code mit einer Authenticator-App abfotografieren und danach den
+          angezeigten Code eintragen. Erst dann gilt der zweite Faktor. Wer nicht
+          fotografieren kann, trägt den Schlüssel darunter von Hand ein.
         </p>
+
+        <!--
+          **Eine Quelle für beides.** Der Code und die Adresse darunter kommen
+          aus demselben `uri` — die Adresse wird hier nicht ein zweites Mal
+          zusammengesetzt. Zwei Konstruktionen derselben Zeichenkette liefen
+          auseinander, und die falsche wäre die, die niemand liest, weil man den
+          Code fotografiert statt ihn abzutippen.
+
+          > **Ein Weg, den niemand nachliest, ist der, an dem ein Fehler bleibt.**
+
+          `QrSourceTest` hält das.
+        -->
+        <QrCode v-if="props.uri" :uri="props.uri" />
 
         <table class="pairs">
           <tbody>

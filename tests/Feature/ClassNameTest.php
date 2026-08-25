@@ -50,6 +50,7 @@ final class ClassNameTest extends TestCase
         'code', 'comment', 'confirmation', 'content', 'critical', 'crumbs', 'cursor', 'danger', 'dependent',
         'description',
         'done', 'editor', 'empty', 'end', 'error', 'explains', 'eye', 'facts', 'failure', 'field', 'file',
+        'ground', 'modules', 'qr',
         'filter',
         'fold', 'folded', 'folds', 'foot', 'footer', 'form', 'frame', 'full', 'grid', 'group', 'head',
         'here', 'hint', 'icon', 'ident', 'inline', 'invalid', 'item', 'keyword', 'knob', 'label', 'leaf', 'line', 'link',

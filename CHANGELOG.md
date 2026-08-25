@@ -20278,3 +20278,84 @@ die Seite die Antwort auch liest.**
 
 > **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht von
 > einem zu unterscheiden, das es nicht gibt.**
+
+### Der QR-Code beim zweiten Faktor — und die zweite Abhängigkeit dieses Projekts
+
+**Wunsch 1 aus `docs/84`**, geäussert vom Betreiber während des Abnahmelaufs und
+ausdrücklich mit einer Abhängigkeit zugelassen. Er trifft eine Lücke, die schon
+im Code stand: `TwoFactorSetupController` **spricht an zwei Stellen von einem
+QR-Code**, den es nicht gab.
+
+**Die Bibliothek rechnet, wir zeichnen.** Was an einem QR-Code schwer ist, ist
+Reed-Solomon, die Maskenwahl und die Bitfolge nach ISO/IEC 18004 — das schreibt
+man nicht selbst. Was leicht ist, ist das Zeichnen, und das gehört uns, weil
+`docs/20 §7.2` Form, Grösse und Farbe in diesem Repo verlangt. `uqr` liefert
+deshalb nur das boolesche Raster.
+
+**Ausgewählt wurde gemessen und nicht behauptet**, gegen zwei Mitbewerber:
+
+| | uqr | @paulmillr/qr | qrcode-generator |
+|---|---|---|---|
+| Transitive Abhängigkeiten | **0** | 0 | 0 |
+| Lizenz | MIT | MIT/Apache-2.0 | MIT |
+| Entpackt | **79 KB** | 343 KB | 556 KB |
+| Zuletzt veröffentlicht | 2026-04 | 2026-05 | 2025-08 |
+
+Im Lock steht **ein** Eintrag, im gebauten Bündel kostet sie **11,4 KB**
+(455,8 → 467,1; gzip +4,4).
+
+**Und die Kodierung ist gegengeprüft.** Bei angeglichener Fehlerkorrektur und
+gleichem Rand liefern alle drei 45 Module; `uqr` und `@paulmillr/qr` sind **Bit
+für Bit gleich**. Der dritte weicht ab — aber Sucherquadrate 147/147 und
+Taktlinien 89/89 identisch, nur das Datenfeld zu 40 % anders. Das ist eine
+andere Maske und kein Kodierfehler.
+
+> **Zwei unabhängige Umsetzungen, die dasselbe ausrechnen, sind eine Messung.
+> Eine allein ist eine Behauptung.**
+
+**Nicht nachgeladen, anders als CodeMirror** — und das ist eine Entscheidung mit
+Grund: Dort sind es rund 300 KB, hier 11,4; ein eigener Brocken samt
+Ladezustand kostete mehr Umstand, als er spart.
+
+**Zwei Ausnahmen sind aufgeschrieben, weil sie welche sind.**
+
+Die erste: **Ein QR-Code bleibt dunkel auf hell, auch im dunklen Theme.**
+Invertiert scheitert er an vielen Lesegeräten — die Kameras vieler Telefone
+suchen dunkle Module auf hellem Grund und finden die Sucherquadrate sonst nicht.
+
+> **Eine Regel des Gestaltungssystems, die ein Gerät nicht liest, ist keine
+> Gestaltung mehr, sondern ein Ausfall.**
+
+Sie steht trotzdem als Marke und nicht als Hexwert in der Komponente: Die
+Ausnahme betrifft das *Umschalten*, nicht den Ort. `QrSourceTest` hält sie als
+**Abwesenheit** — `--qr-dark` und `--qr-light` stehen genau einmal, und ein
+zweites Vorkommen im dunklen Block ist der Befund. Ohne diesen Wächter wäre die
+Ausnahme beim nächsten Durchgang durch app.css weg, und zwar mit der besten
+Absicht: Jede andere Marke dort hat ihr Gegenstück.
+
+Die zweite: **eine Quelle für den Code und die Textzeile.** Beide bekommen
+dasselbe `uri` vom Server. Zwei Konstruktionen derselben `otpauth://`-Adresse
+liefen auseinander, und die falsche wäre die im QR-Code — weil niemand ihn
+abtippt und mit der Textzeile vergleicht.
+
+> **Ein Weg, den niemand nachliest, ist der, an dem ein Fehler bleibt.**
+
+**Gemessen und angesehen:** 53 Module (45 Symbol plus zweimal vier Ruhebereich
+nach ISO/IEC 18004), 200 px, **3,77 px je Modul**; `dokument 0 · gegenprobe
+200/200 · schiebt 0` in allen vier Lagen. Die Gegenprobe zur Ausnahme steht
+daneben: Der Seitenhintergrund wechselt von `rgb(255,255,255)` auf
+`rgb(15,17,22)`, die Fläche des Codes bleibt bei beiden `rgb(255,255,255)`.
+
+**Und zwei bestehende Wächter haben beim Einbau zugebissen.**
+`FrontendDependencyTest` — es gibt ihn seit CodeMirror, und sein Kopf sagt
+weshalb: *„Eine Regel, die nie jemand gebrochen hat, sieht aus wie eine Regel
+und ist eine Gewohnheit."* Er verlangt die Begründung in `ALLOWED` **und die
+Entscheidung vorher**; beides liegt vor. `ClassNameTest` verlangte die drei
+neuen Wörter im Vokabular.
+
+**Der erste Wurf des neuen Wächters las null Dateien:** PHPs `glob` steigt nicht
+in Unterverzeichnisse ab, egal wie viele Sterne dastehen. Gemeldet hat es seine
+eigene Untergrenze, beim ersten Lauf.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**

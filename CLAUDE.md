@@ -1682,29 +1682,41 @@ srvpanel setup|update|version|metrics|usage|cron-runs|tls|dns|dns-check
          |db|vhost|admin|access|acceptance|acceptance-web|acceptance-db
 ```
 
-Die Wahrheit ist der `case`-Zweig in `packaging/bin/srvpanel`, und `CommandReachTest`
-liest ihn genau dort statt aus einer Liste im Test. Hier stand die Aufzählung bis
-zum 25. August 2026 mit neun Einträgen, während der Wrapper sechzehn kannte:
-`cron-runs`, `dns`, `dns-check`, `db`, `acceptance-db`, `access` und `version`
-fehlten.
+Die Wahrheit ist der `case`-Zweig in `packaging/bin/srvpanel`; `PackagingTest`
+und `CommandReachTest` lesen ihn genau dort statt aus einer Liste im Test. Hier
+stand die Aufzählung bis zum 25. August 2026 mit neun Einträgen, während der
+Wrapper sechzehn kannte: `cron-runs`, `dns`, `dns-check`, `db`, `acceptance-db`,
+`access` und `version` fehlten.
 
-**Und beim Nachtragen fiel eine Lücke auf, die kein Wächter hält.**
-`CommandReachTest` prüft **eine** Richtung: dass jeder Befehl, den die Oberfläche
-zum Abtippen hinstellt, wirklich läuft. Die andere prüft nichts — dass jedes
-`srvpanel:…`-Kommando der Anwendung auch im `case`-Zweig steht. Fehlt es dort,
-reicht der Wrapper den Namen unverändert an artisan durch, und aus
-`srvpanel access` wird `artisan access` statt `artisan srvpanel:access`: Das
-Kommando ist von der Kommandozeile aus nicht erreichbar, und nichts sagt es.
-Gehalten wird das heute nur für `access` selbst, durch
-`AccessCommandTest::test_the_wrapper_knows_the_command()` — also für das eine
-Kommando, bei dem jemand daran gedacht hat.
+**Beide Richtungen sind gehalten, und die zweite erst seit dem 25. August.**
+`PackagingTest::test_the_wrapper_knows_every_command_of_the_panel` prüft, dass
+jedes `srvpanel:`-Kommando der Anwendung im `case`-Zweig steht — es gibt ihn,
+seit `admin` dort einmal fehlte und die Ersteinrichtung einen Befehl nannte, den
+es auf dem Server nicht gab. `test_every_command_the_wrapper_offers_exists`
+prüft die Gegenrichtung: dass ein Eintrag auch ein Kommando nennt, das es gibt.
+**So entsteht ein toter Eintrag wirklich** — bei einer Umbenennung trägt man den
+neuen Namen nach, die erste Richtung ist danach wieder grün, und der alte bleibt
+liegen. Auf dem Server wird daraus „Command not defined" für einen Namen, den
+der Wrapper selbst anbietet.
 
 > **Ein Wächter, der eine Richtung prüft, hat über die andere nichts gesagt —
 > und welche der beiden fehlt, sieht man erst, wenn man sie braucht.**
 
-`srvpanel tinker` steht deshalb nicht in dieser Liste und funktioniert trotzdem:
-Es heisst in artisan `tinker` und nicht `srvpanel:tinker`, und der Durchreicher
-ist für diesen einen Fall genau richtig.
+**Und der Weg zu dieser Lücke ist die eigentliche Lehre.** Der erste Befund
+lautete, *keine* der beiden Richtungen sei gehalten, und er war falsch: Die
+Testnamen von `PackagingTest` waren mit einem `| head -20` gelesen und der
+Schluss aus der abgeschnittenen Liste gezogen worden.
+`test_the_wrapper_knows_every_command_of_the_panel` steht dort an **19.** Stelle.
+Aus dem Irrtum wurde beinahe eine Zeile in dieser Datei, die einen vorhandenen
+Wächter für nicht vorhanden erklärt — und das ist schlimmer als eine fehlende
+Zeile, weil danach jemand einen zweiten baut.
+
+> **Eine abgeschnittene Liste sieht aus wie eine vollständige — sie sagt nicht,
+> wo sie aufhört.**
+
+`srvpanel tinker` steht nicht in dieser Liste und funktioniert trotzdem: Es
+heisst in artisan `tinker` und nicht `srvpanel:tinker`, und der Durchreicher ist
+für diesen einen Fall genau richtig.
 
 ---
 

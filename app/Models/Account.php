@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\AccountStatus;
 use App\Enums\AccountType;
+use App\Enums\AdminRole;
 use App\Enums\Permission;
 use App\Support\Tenancy\Tenancy;
 use Database\Factories\AccountFactory;
@@ -33,6 +34,7 @@ use RuntimeException;
  *
  * @property int $id
  * @property AccountType $type
+ * @property AdminRole|null $role
  * @property int|null $customer_id
  * @property string $name
  * @property string|null $email
@@ -55,7 +57,7 @@ class Account extends Authenticatable
 
     /** @var list<string> */
     protected $fillable = [
-        'type', 'customer_id', 'name', 'email', 'password', 'locale', 'status', 'theme',
+        'type', 'role', 'customer_id', 'name', 'email', 'password', 'locale', 'status', 'theme',
     ];
 
     /**
@@ -79,6 +81,7 @@ class Account extends Authenticatable
     {
         return [
             'type' => AccountType::class,
+            'role' => AdminRole::class,
             'status' => AccountStatus::class,
             'password' => 'hashed',
             'two_factor_secret' => 'encrypted',
@@ -254,6 +257,45 @@ class Account extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->type->isAdmin();
+    }
+
+    /**
+     * Ist dieses Konto ein **Betreiber**?
+     *
+     * **Nicht dasselbe wie {@see self::isAdmin()}, und das ist der ganze
+     * Punkt.** `isAdmin()` heisst an 52 Stellen „kein Kunde" — die
+     * Mandantenfrage. Diese hier fragt die zweite Achse: Was darf dieses Konto
+     * innerhalb der Admin-Ebene (`docs/20 §6.1`)?
+     *
+     * > **Wer `isAdmin()` beim Bauen zu „ist Betreiber" umdeutet, nimmt dem
+     * > Administrator die Kundenverwaltung — also genau die Arbeit, für die es
+     * > ihn gibt.**
+     *
+     * **Gefragt werden beide Achsen und nicht nur die Rolle.** Ein Kundenkonto,
+     * das durch einen Fehler `operator` trüge, ist damit trotzdem keiner: Die
+     * Spalte allein gewährt nichts. Das ist die Richtung, in die ein Fehler
+     * hier fallen soll.
+     */
+    public function isOperator(): bool
+    {
+        return $this->type->isAdmin() && $this->role === AdminRole::Operator;
+    }
+
+    /**
+     * Genügt die Rolle dieses Kontos der verlangten?
+     *
+     * **Die eine Stelle, die eine Fähigkeit gegen ein Konto hält.** Die
+     * Rangfolge steht in {@see AdminRole::covers()}; hier steht nur die
+     * Vorbedingung, dass es überhaupt ein Adminkonto sein muss.
+     *
+     * Ein Konto ohne Rolle — jedes Kundenkonto, und ein Adminkonto aus einer
+     * Zeit vor dieser Spalte — genügt keiner. **Das ist die sichere Richtung:**
+     * Wer die Migration nicht gefahren hat, bekommt eine Ablehnung und keine
+     * stille Vollmacht.
+     */
+    public function fulfils(AdminRole $required): bool
+    {
+        return $this->type->isAdmin() && $this->role?->covers($required) === true;
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Enums\AccountType;
+use App\Enums\AdminRole;
 use PHPUnit\Framework\TestCase;
 use ReflectionEnum;
 
@@ -65,6 +66,35 @@ final class AccountTypeAxisTest extends TestCase
             .'belongsToCustomer() gegen genau einen Fall vergleichen und der '
             .'neue Fall damit still zum Kunden würde. Siehe docs/81 §11.',
         );
+    }
+
+    /**
+     * Keine der beiden Achsen trägt den Namen der anderen.
+     *
+     * **Nachgetragen am 24. August 2026, als es `AdminRole` wirklich gab.** Bis
+     * dahin war „eine Verwaltungsrolle gehört nicht hierher" ein Satz in einer
+     * Meldung; jetzt ist es eine Prüfung. Wer `case Operator = 'operator'` in
+     * `AccountType` schreibt, wird von beiden Wächtern gemeldet — von dem über
+     * die Zahl der Fälle und von diesem über den Namen.
+     *
+     * > **Ein Satz in einer Fehlermeldung ist eine Warnung an den, der sie
+     * > liest. Eine Prüfung ist eine an den, der sie auslöst.**
+     */
+    public function test_neither_axis_carries_the_name_of_the_other(): void
+    {
+        $roles = array_map(static fn (AdminRole $case): string => $case->value, AdminRole::cases());
+        $levels = array_map(static fn (AccountType $case): string => $case->value, AccountType::cases());
+
+        $this->assertNotSame([], $roles, 'AdminRole hat keine Fälle — dann prüft dieser Test nichts.');
+
+        foreach ($roles as $role) {
+            $this->assertNotContains($role, $levels, sprintf(
+                'AccountType trägt den Fall „%s", und das ist eine Verwaltungsrolle. '
+                .'Die beiden sind zwei Achsen (docs/20 §6.1): Die Ebene sagt, wen ein Konto '
+                .'sieht, die Rolle, was es darf. In einem Feld macht das isAdmin() zweideutig.',
+                $role,
+            ));
+        }
     }
 
     /**

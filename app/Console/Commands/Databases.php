@@ -730,7 +730,6 @@ final class Databases extends Command
         return number_format($bytes / (1024 * 1024 * 1024), 1, ',', '.').' GB';
     }
 
-    /** @return array<string, string> */
     /**
      * Den Fernzugriff ein- oder ausschalten (`docs/36 §12`).
      *

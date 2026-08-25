@@ -3385,6 +3385,31 @@ p:not([class]) {
 }
 
 /*
+ * **Zwei Formulare auf einer Seite stehen wie zwei Bereiche untereinander.**
+ *
+ * Eine Seite mit zwei getrennten Absendevorgängen — Konto ändern und Passwort
+ * zurücksetzen — braucht zwei `<form>`. Als Geschwister unter `main.page`
+ * standen sie **auf 0 px**: `.page` verteilt nicht, den Abstand zwischen
+ * Bereichen gibt `.form` beziehungsweise `.sections` an ihre eigenen Kinder,
+ * und zwei Formulare sind niemandes Kinder. Der Knopf „Abbrechen" klebte an
+ * der Überschrift des nächsten Bereichs.
+ *
+ * Gemessen und nicht gesehen: Die Überlaufmessung meldete `dokument: 0` in
+ * allen vier Lagen, weil nichts überläuft. Aufgefallen ist es am Bild.
+ *
+ * > **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+ * > Betrachter.**
+ *
+ * `.sections` als Hülle gibt den Abstand; diese Zeile gibt den Formularen
+ * darin die volle Breite. Ohne sie ist ein Formular so breit wie sein Inhalt,
+ * und zwei untereinander stehen unterschiedlich breit da (1360 gegen 513 bei
+ * 1440 px gemessen) — der Bruch in der Kante liest sich wie ein Fehler.
+ */
+.sections > .form {
+  flex-basis: 100%;
+}
+
+/*
  * Ein Feld hört bei 540px auf.
  *
  * Ein Bereich, der allein in seiner Zeile steht, nimmt die ganze Breite — und

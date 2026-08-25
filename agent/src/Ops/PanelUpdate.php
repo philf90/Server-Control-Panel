@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\AptLock;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Op;
 
@@ -41,22 +42,55 @@ final class PanelUpdate implements Op
 
     public function execute(array $args, Context $context): array
     {
-        $unit = 'srvpanel-update-'.bin2hex(random_bytes(4));
+        $unit = AptLock::UNIT_PREFIX.bin2hex(random_bytes(4));
 
-        // Läuft bereits eines? Zwei apt-Läufe gleichzeitig enden in der
-        // dpkg-Sperre, und die Meldung darüber versteht niemand.
-        $running = $context->runner->run('systemctl', ['list-units', '--plain', '--no-legend', 'srvpanel-update-*'], 15);
-
-        foreach ($running->lines() as $line) {
-            if (str_contains($line, 'running')) {
-                throw AgentException::execFailed('Es läuft bereits ein Update.');
-            }
-        }
+        /*
+         * **Die Prüfung ist am 24. August 2026 nach {@see AptLock} gezogen.**
+         *
+         * Hier stand sie seit P0 — und sie war die einzige im ganzen Agenten,
+         * obwohl drei weitere Operationen apt rufen. Sie sah ausserdem nur die
+         * eigenen abgesetzten Läufe: Ein `php.version.install` in der
+         * Warteschlange kam darin nicht vor, und ein Betreiber mit `apt-get`
+         * auf der Kommandozeile schon gar nicht.
+         *
+         * Der Unitname kommt jetzt aus derselben Konstanten, nach der gesucht
+         * wird. Vorher standen die beiden Zeichenketten nebeneinander, und die
+         * zweite ist die, die beim Umbenennen stehenbleibt.
+         */
+        AptLock::ensureFree($context);
 
         $context->progress(10, 'Update wird abgesetzt');
 
         @unlink(self::LOG);
 
+        /*
+         * **Das `&&` hier ist keine Prüfung, und das steht so lange da, bis
+         * Schritt 6 es behebt** (M5, `docs/81 §2.1a` und §9).
+         *
+         * `apt-get update` endet mit 0, auch wenn keine einzige Quelle
+         * geantwortet hat — die alten Listen bleiben liegen. Die rechte Seite
+         * läuft also immer. Und mit alten Listen findet `--only-upgrade`
+         * nichts Neueres, meldet `0 upgraded` und endet ebenfalls mit 0: Das
+         * Panel meldet „Update läuft", die Fassung bleibt stehen, und im
+         * Protokoll steht ein erfolgreicher Lauf.
+         *
+         * **Warum das hier nicht wie in `php.version.install` behoben wird.**
+         * Dort liest {@see \SrvPanel\Agent\Apt::refresh()} den `stderr` des
+         * Laufs, weil die Operation auf ihn wartet. Dieser Lauf läuft
+         * ausdrücklich **ohne** jemanden, der wartet: Er liegt in einer eigenen
+         * transienten Unit, damit er den Neustart des Agenten überlebt, und
+         * seine Ausgabe geht in {@see self::LOG}. Wer sie hier lesen wollte,
+         * müsste auf ein Update warten, das genau diesen Prozess beendet.
+         *
+         * Die Antwort steht deshalb im Plan an anderer Stelle: **nach dem
+         * Neustart die eigene Fassung nachlesen** und melden, wenn sie dieselbe
+         * geblieben ist. Das ist Teil 3 von M5 und hängt an Schritt 6 —
+         * `AptResultTest` führt diese Stelle bis dahin als benannte Ausnahme,
+         * damit sie nicht als erledigt durchgeht.
+         *
+         * > **Ein Rückgabewert, der einen Fehlschlag nicht tragen kann, ist
+         * > keine Prüfung — er ist eine Zeile, die aussieht wie eine.**
+         */
         $result = $context->runner->run('systemd-run', [
             '--unit='.$unit,
             '--collect',

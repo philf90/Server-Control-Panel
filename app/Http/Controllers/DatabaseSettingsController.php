@@ -95,7 +95,7 @@ final class DatabaseSettingsController extends Controller
              * hat, gehört ihm nicht und stünde hier als fremde Zahl.
              *
              * Ohne Mandantenklammer wird nichts gefragt: Diese Route trägt
-             * `can:manage-settings`, und für einen Betreiber ist die Klammer
+             * `can:operate-server`, und für einen Betreiber ist die Klammer
              * über `forAccount()` ohnehin offen. Ein `withoutRestriction()`
              * wäre hier eine Ausnahme ohne Anlass.
              */

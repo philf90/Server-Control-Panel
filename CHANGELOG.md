@@ -18903,3 +18903,967 @@ Zahl stand ohne Substantiv da, „Zeile(n)" gehörte sichtbar zur zweiten.
 fehlte das Wort, statt falsch zu sein. Jede Zahl trägt jetzt ihr eigenes.
 
 > **Ein Wächter über die Form findet kein Wort, das gar nicht dasteht.**
+
+### `apt-get update` meldet Erfolg, auch wenn keine Quelle geantwortet hat
+
+**Der erste Handgriff der Serververwaltung ist kein Merkmal, sondern ein Befund
+an bestehendem Code** — M5 aus `docs/81 §2.1`, Schritt 1 aus `docs/81 §9`.
+
+Nachgemessen im Container gegen apt 2.8.3, mit einer Quelle auf `127.0.0.1:1`
+und **getrennten Kanälen** — die Messrunde hatte `2>&1` zusammengeworfen und
+damit nie belegt, auf welchem der beiden die Auskunft steht:
+
+    rc=0 · stdout 0 Bytes · stderr 244 Bytes
+    W: Failed to fetch http://127.0.0.1:1/gibtsnicht/dists/noble/InRelease  Could not connect …
+    W: Some index files failed to download. They have been ignored, or old ones used instead.
+
+Das ist keine Nachlässigkeit von apt, sondern seine Zusage: Der Rückgabewert
+beantwortet nicht „habe ich alle Quellen erreicht", sondern „habe ich danach
+einen benutzbaren Zustand" — und den hat er, weil die alte Liste liegen bleibt.
+
+> **Ein Rückgabewert, der einen Fehlschlag nicht tragen kann, ist keine Prüfung
+> — er ist eine Zeile, die aussieht wie eine.**
+
+Bis dahin stand an drei Stellen `if (! $update->successful())` und sonst nichts.
+Was das anrichtete, war an `php.version.install` zu besichtigen: Bei
+unerreichbarer Sury findet `apt-get install` das Paket nicht, und der Betreiber
+las *„Die Installation ist fehlgeschlagen: Unable to locate package
+php8.4-fpm"*. Der **Zustand** war damit richtig gemeldet, die **Ursache**
+falsch.
+
+> **Eine Prüfung, die den Zustand fängt, hat über die Ursache nichts gesagt —
+> und der Leser sucht dort, wohin die Meldung zeigt.**
+
+Schlimmer war der stille Fall daneben: Mit einer veralteten Liste *gelingt* die
+Installation, und der Kunde bekommt die Fassung von vorletzter Woche, ohne dass
+irgendwo etwas davon steht.
+
+**`Apt` ist jetzt die eine Stelle, die `apt-get update` ruft** und `stderr` **je
+Quelle** liest statt eines Wahrheitswerts. Der Rückgabewert bleibt daneben
+stehen — er ist nicht falsch, nur unvollständig: Bei klemmender Sperre oder
+kaputter Quelldatei endet der Lauf sehr wohl ungleich 0.
+
+**Und nicht `--error-on=any`**, obwohl die Fahne genau diese Zeilen zu `E:`
+macht und mit 100 endet (gemessen). Sie ist alles oder nichts:
+
+> **Eine Härte, die nur einheitlich zu haben ist, gehört nicht an eine Stelle,
+> an der die Aufrufer verschieden entscheiden müssen.**
+
+**Die Aufrufer entscheiden deshalb verschieden**, und das ist der Kern:
+
+- `php.version.install` **bricht ab**, wenn die Quelle unerreichbar war, die es
+  braucht — mit einer Meldung über die Quelle statt über das Paket, und **bevor**
+  `apt-get install` überhaupt läuft.
+- `pg.server.install` **nennt** die ausgefallenen Quellen und bricht nicht ab. Es
+  kennt seine eigene nicht: `postgresql` kommt aus der Distribution, und welches
+  Depot das auf einem Server ist, beantwortet erst `apt-get indextargets` in
+  Schritt 4. Ein Abbruch auf Verdacht wäre `--error-on=any` von Hand nachgebaut.
+- `panel.update` bleibt, wie es ist, und trägt seine Schuld jetzt sichtbar. Sein
+  `apt-get update -qq && apt-get install --only-upgrade srvpanel` läuft in einer
+  eigenen transienten Unit, damit es den Neustart des Agenten überlebt; wer
+  seinen `stderr` hier läse, wartete auf ein Update, das genau diesen Prozess
+  beendet. Die Antwort ist Teil 3 von M5 — **nach** dem Neustart die eigene
+  Fassung nachlesen — und hängt an Schritt 6.
+
+**Welche Quelle die eigene ist, wird gelesen und nicht gewusst.**
+`PhpVersions::sourceUris()` liest die Datei, die `packaging/php-source.sh`
+schreibt. Eine Fallunterscheidung im Agenten wäre eine zweite Fassung derselben
+Regel — Debian bekommt `packages.sury.org`, Ubuntu das PPA — und sie wäre
+ausserdem falsch, sobald ein Betreiber einen Spiegel einträgt. Gelesen wird
+dabei **ein Feld einer selbst geschriebenen Datei** und kein deb822 im
+allgemeinen Sinne: `Signed-By:` darf ein über vierzig Zeilen gefalteter
+PGP-Block sein, und eine Fortsetzungszeile ist kein Feld.
+
+**Zwei Wächter, sechs Brüche, jeder einzeln belegt.** `AptResultTest` sucht
+ausdrücklich **nicht** das Wort `successful()` — er wäre grün, sobald irgendwo
+daneben eine zweite Prüfung stünde. Er zählt statt dessen die Aufrufe von
+`apt-get update` im Quelltext und besteht darauf, dass jeder in `Apt` liegt oder
+mit seinem Grund als Ausnahme geführt wird; und er misst die **Wirkung** an
+einem selbstgebauten Ergebnis mit Rückgabe 0 und `W:`-Zeilen. Er ist damit der
+seltene Fall eines Wächters, der eine echte Regression nachstellt und keine
+erfundene.
+
+> **Ein Wächter, der ein Wort sucht statt einer Wirkung, ist grün, sobald das
+> Wort irgendwo steht.**
+
+`PhpSourceUriTest` hält die andere Naht: Benennt die Paketierung ihre Datei um
+oder schreibt sie das Feld anders, gibt `sourceUris()` eine leere Liste zurück —
+und dann geschieht **nichts Sichtbares**. Der Abbruch bleibt aus, und M5 ist
+still wieder da.
+
+> **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts zu tun".**
+
+**Was dabei zwei bestehende Wächter gefangen haben**, beide beim Bauen und
+keiner in der CI: `AnchoredPatternTest` das erste `$` ohne `D` im neuen Leser,
+und `GuardReachTest` einen Verweis auf `AptResultTest` aus einem Kommentar, den
+es zu diesem Zeitpunkt noch nicht gab.
+
+**Was offen bleibt und benannt ist:** Teil 3 von M5 (`panel.update` liest seine
+Fassung nach, Schritt 6) und Schritt 0 — die Messrunde auf Debian 12, Debian 13
+und Ubuntu 22.04 sowie die vier Fälle, die im Container nicht vorkamen. Die
+Abnahme von Schritt 1 gehört auf einen echten Server: **Eine Ausbaustufe gilt
+erst als fertig, wenn ihr Abnahmekriterium nachweisbar erfüllt ist.**
+
+### Die Serververwaltung heisst P7b — und ein Verweis zeigte auf ein fremdes Dokument
+
+**Entschieden vom Betreiber am 24. August 2026.** `docs/20 §9` trägt die Stufe
+seitdem zwischen P7 und P8; der Serververwaltungssatz in P9 zeigt dorthin,
+statt ihn ein zweites Mal zu führen. Geplant war sie unter „P9a", weil sie in
+P9 stand — sie hängt aber davor.
+
+> **Ein Name, der eine Reihenfolge behauptet, wird falsch, wenn die Reihenfolge
+> sich ändert — und er wird trotzdem weiterbenutzt, weil er in Überschriften
+> steht.**
+
+**Bewusst nicht mitentschieden:** wohin A3, A4, A7 und A9 gehören — Firewall,
+Fail2ban, Schwellen und die zwei Verwaltungsrollen, zusammen rund 5,5 Wochen.
+Sie stehen in `docs/20 §9` unter P7b als „hat noch keine Stufe", benannt und
+ohne Ort, statt stillschweigend irgendwohin geschoben zu werden. A9 wiegt am
+schwersten: Sie teilt den Admin in Betreiber und Administrator, und wer eine
+Adminfunktion **vorher** baut, entscheidet beim Bauen, auf welcher Seite sie
+liegt.
+
+**Beim Umschreiben fiel ein toter Verweis auf, den kein Wächter sehen konnte.**
+`docs/81` nannte an zwei Stellen `docs/76` als den Abnahmelauf von A1. Die
+Nummer gehört seit P7 der Bilderrunde (`docs/76-protokoll-bilderrunde-p7.md`) —
+der Verweis zeigte also auf ein fremdes Dokument, und zwar seit dem Merge des
+Plans.
+
+> **Ein Wächter, der prüft, ob eine Nummer existiert, hat über das, was sie
+> trägt, nichts gesagt.**
+
+`DocLinkTest` prüft `glob('docs/<nummer>-*.md')` und war zufrieden, weil es die
+Datei gibt. Das ist keine Lücke, die sich schliessen lässt — welches Dokument
+gemeint war, weiss nur der Schreibende.
+
+**Behoben wurde deshalb die Ursache und nicht der Verweis.** Dort steht jetzt
+gar keine Nummer mehr:
+
+> **Eine Nummer, die man vergibt, bevor das Dokument existiert, ist genau der
+> Vorgang, der `docs/73` und `docs/74` doppelt vergeben hat.**
+
+Der Lauf bekommt seine Nummer, wenn er geschrieben wird — nach einem `ls docs/`.
+
+### Zwei apt-Läufe endeten in der dpkg-Sperre — gefragt hat danach eine Operation von vieren
+
+**Schritt 2 von A1** (`docs/81 §9`), und wie Schritt 1 ein Befund an
+ausgeliefertem Code. `docs/81 §7` führt ihn als Falle 2.
+
+Gefragt hat bis zum 24. August 2026 genau `panel.update` — und **die Frage war
+die falsche**: `systemctl list-units srvpanel-update-*` sieht nur die eigenen
+abgesetzten Läufe. Ein `php.version.install` in der Warteschlange kam darin
+nicht vor, und umgekehrt sah keine der drei anderen apt-rufenden Operationen
+ein laufendes Update.
+
+Die Warteschlange trägt dabei nur die halbe Strecke: `queue:work` ist
+einspurig, aber `panel.update` setzt seinen Lauf über `systemd-run`
+**ausserhalb** ab und kehrt sofort zurück. Das Panel bedient weiter, während apt
+lädt — und in diesem Fenster ist die Kollision in beiden Richtungen offen. Was
+der Kunde davon sah, war die Meldung von dpkg.
+
+**`AptLock` ist jetzt die eine Stelle, und sie fragt die Sperre selbst.** Eine
+Liste eigener Units beantwortet „läuft einer **von uns**"; gefragt ist „ist die
+Sperre gerade frei" — und die hält auch ein Betreiber, der über SSH `apt-get`
+tippt.
+
+**Nicht über `flock()`, und das ist gemessen.** dpkg nimmt eine POSIX-Sperre
+über `fcntl`, PHPs `flock()` spricht `flock(2)` — auf Linux zwei Familien, die
+einander nicht sehen:
+
+    Halter (fcntl F_SETLK auf lock-frontend) aktiv
+    php -r 'flock(…, LOCK_EX|LOCK_NB)'  ->  gelingt
+    /proc/locks                          ->  POSIX ADVISORY WRITE 8580 fe:00:242
+
+> **Eine Sperre, die man mit dem falschen Werkzeug abfragt, meldet immer frei.**
+
+Gelesen wird deshalb `/proc/locks`: Es nimmt selbst keine Sperre — ein Fühler,
+der sperrt, ist der Fehler, den er sucht —, es braucht **kein zusätzliches
+Programm auf der Positivliste**, und es kann nicht blockieren. Zugeordnet wird
+über den **Inode** und nicht über Gerät und Inode: Die Umrechnung von `dev_t`
+in `major:minor` gilt nicht für jede Bauart, und läge sie daneben, entstünde
+ein falsches Negativ.
+
+> **Wenn eine Zuordnung schiefgehen kann, entscheidet die Richtung, in die sie
+> schiefgeht.**
+
+**Beide Fragen werden gestellt, und sie sind nicht zwei Fassungen derselben:**
+`/proc/locks` sieht auch die Kommandozeile, aber nichts, bevor apt zugegriffen
+hat; `systemctl` sieht auch das Fenster zwischen `systemd-run` und dem ersten
+Zugriff. Wer nur die erste stellt, lässt genau dieses Fenster offen.
+
+**Und welche Sperrdatei gehalten wird, hängt am Unterbefehl** — gemessen bei
+`apt-get install`: `lock-frontend`, `lock` und `archives/lock`; bei
+`apt-get update` dagegen `lists/lock`. Eine einzelne zu fragen hiesse, die
+Hälfte der Läufe nicht zu sehen.
+
+**Beim Verschieben fiel M5 ein zweites Mal an, nur andersherum.** Die alte
+Prüfung las ausschliesslich `stdout` und schloss aus einer leeren Ausgabe „es
+läuft keiner". Gemessen in einem Container ohne systemd: `rc=1`, `stdout` leer,
+die Auskunft auf `stderr`. Die Frage war damit **nicht beantwortet** — und
+geraten wurde in die Richtung, die einen kollidierenden Lauf losgehen lässt.
+
+> **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts zu tun".**
+
+Ein fehlgeschlagenes `systemctl` bricht deshalb ab, statt „nein" zu antworten.
+
+**Die Prüfung sitzt dort, wo apt gerufen wird, und nicht am Anfang der
+Operation.** `php.version.install` steigt vorher aus, wenn nichts fehlt;
+`pg.server.install` ruft apt nur im Zweig `absent`. Eine Ablehnung dort wäre
+eine für einen Lauf, der nie kollidiert hätte.
+
+**Und PHPStan hat eine Verzierung als solche gemeldet.** `AptLockReachTest`
+trug eine leere Ausnahmeliste, gedacht als Weg für `system.packages.list` —
+`array_key_exists()` gegen `array{}` ist immer falsch.
+
+> **Eine leere Positivliste ist kein Mechanismus, sondern eine Verzierung.**
+
+`tests/apt-messen.sh` misst in M10 seitdem nicht nur, ob es die vier
+Sperrdateien gibt, sondern ob `/proc/locks` sie führt — rein lesend, mit
+Gegenprobe, damit sich der Fühler auf einem echten Server nachprüfen lässt.
+
+### Zwei Adminfähigkeiten statt einer — A9s Naht, bevor A9 gebaut wird
+
+**Vorarbeit für P7b, nicht A9 selbst.** `docs/20 §6.1` teilt die Admin-Ebene in
+**Betreiber** und **Administrator**; gebaut wird das in A9. Dazwischen liegen
+vier Adminfunktionen — Logs, Dienste, Diagnose, Pakete und Updates — und
+`docs/81 §11` sagt dazu einen Satz, der teuer wird, wenn man ihn überliest:
+
+> **Wer eine Adminfunktion baut, entscheidet beim Bauen, auf welcher Seite sie
+> liegt — und nicht später.**
+
+**Teuer wird A9-zuletzt nicht an den Gates, sondern an den Bildern.**
+`AbilityReachTest` besteht darauf, dass ein Knopf, den der Betrachter nicht
+drücken darf, gar nicht gezeigt wird. Käme die Teilung nach P7b, müsste jede
+neue Seite ihre `can`-Ablage und ihren Bildsatz ein zweites Mal bekommen.
+
+**Nachgezählt am Quelltext, bevor entschieden wurde:** 126 Routen tragen `can:`,
+aber nur **eine** davon ist eine Adminfähigkeit — `manage-settings`, 13 Routen,
+sechs Einstellungsseiten. Alles andere sind Modell-Policies, über die ein
+Administrator laut der Tabelle in `docs/81 §11` ohnehin verfügen soll. Die
+Adminfläche ist also ein einziges Gate, und fünf der sechs Seiten entscheidet
+diese Tabelle wörtlich.
+
+Damit war die Teilung mechanisch statt eine Entwurfsfrage:
+
+| Fähigkeit | Rolle | Routen |
+|---|---|---|
+| `operate-server` | Betreiber | 11 — PHP-Versionen, Datenbank-Fernzugriff, Mailversand, Panel-Zertifikat, DNS-Zugang |
+| `manage-settings` | Administrator | 2 — die Anzeigezeitzone (`docs/40`) |
+
+**Beide lösen heute auf `isAdmin()` auf.** Das ist keine Verdopplung auf
+Verdacht: A9 ändert damit **eine Zeile** — die Auflösung — und keine einzige
+Aufrufstelle, keinen Schlüssel in einer `can`-Ablage, kein Bild.
+
+**Die Voreinstellung ist der Betreiber.** `AdminAbility` ist nach dem Vorbild
+von `RouteGuard` gebaut: Eine Einstellungsseite, die dem Administrator gehören
+soll, steht dort mit ihrer Begründung; alles andere fällt im Wächter durch.
+
+> **Der Fehler fällt damit zur sicheren Seite.** Eine Seite, die versehentlich
+> zu streng ist, meldet sich beim Administrator; eine, die versehentlich zu
+> offen ist, meldet sich nie.
+
+`AdminAbilityTest` hält beide Richtungen — kein Eintrag überlebt seine Route —
+und liest `routes/web.php` wie die Registratur **als Text**, damit er ohne
+Framework läuft und seine sechs Eingriffe dort belegt werden können, wo
+`vendor/` fehlt.
+
+**Vier Kommentare nannten nach dem Umzug die falsche Fähigkeit**, drei davon in
+Controllern. Das ist die Fehlerklasse dieses Projekts in ihrer harmlosesten
+Form — eine Zeichenkette, die auf etwas zeigt, ohne dass etwas den Bezug hält.
+Der Wächter prüft seitdem auch die Fähigkeiten im Fliesstext von
+`routes/web.php`.
+
+> **Ein Kommentar, der eine Fähigkeit nennt, ist derselbe Verweis wie ein `can:`
+> im Code — nur prüft ihn nichts.**
+
+**Und ein Eingriff des Bruchskripts trug die überholte Entscheidung mit.** Der
+Bruch zu `RemoteAccessTest` baut eine schreibende Route unter
+`/settings/database` ein; sie trug `can:manage-settings`. Der Eingriff biss
+weiter, aber er baute eine Route ein, die es so nicht mehr gäbe.
+
+**Gefunden hat einen Fehler in diesem Wächter sein eigener Prüfkörper:** Dem
+`preg_split` über die Routendatei fehlte der schliessende Trenner, und die
+Untergrenze meldete „Es werden kaum Einstellungsrouten gefunden".
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+### A5 — die Protokolle des Servers an einer Stelle
+
+**Das erste Merkmal von P7b.** Eine Seite „Logs" mit einer Positivliste im
+Agenten: `laravel.log`, `update.log`, das Protokoll des Agenten, die beiden
+nginx-Protokolle der Oberfläche, `/var/log/apt/history.log`, `/var/log/auth.log`
+— und das Journal der acht eigenen Units.
+
+**Die eigentliche Begründung ist `history.log`.** Dort steht, **wer** ein Paket
+eingespielt hat, auf einem echten Server mit `Requested-By` — also auch dann,
+wenn es an der Kommandozeile geschah und damit an diesem Panel vorbei. Das
+Panel-Protokoll kann das nicht wissen.
+
+**Kein Pfad kommt von aussen und keine Unit.** Übergeben wird ein Schlüssel aus
+`SrvPanel\Agent\Logs`; alles andere wäre der kürzeste Weg von einem angemeldeten
+Konto zu `/etc/shadow`. Für das Journal gilt dasselbe: `journalctl -u <was der
+Benutzer schickt>` gäbe die Ausgabe jedes Dienstes heraus, und darunter sind
+welche, die Zugangsdaten protokollieren.
+
+**Gemessen vor dem Bauen** (`tests/logs-messen.sh`, rein lesend, jede Messung
+mit Gegenprobe) — und der Fund hat den Entwurf entschieden:
+
+    journalctl -u srvpanel-web       rc=0 · stdout „-- No entries --"
+                                     stderr „No journal files were found."
+    journalctl -u gibt-es-nicht      dasselbe, Zeichen für Zeichen
+
+Der Rückgabewert unterscheidet also **nicht** zwischen „diese Unit hat nichts
+geschrieben", „es gibt gar kein Journal" und „diese Unit kennt niemand". Und die
+Markierung steht auf **stdout**, also dort, wo der Leser die Zeilen erwartet.
+Das ist dieselbe Fehlerform wie M5, zum dritten Mal.
+
+> **Ein Leser, der `-- No entries --` als Zeile nimmt, zeigt eine Meldung des
+> Werkzeugs als Inhalt des Protokolls.**
+
+Die Markierung wird deshalb herausgenommen, und `stderr` wird zum **Hinweis**
+statt verworfen: „kein Journal auf diesem Server" ist eine Auskunft über die
+Einrichtung, nicht über den Dienst. Die Gegenprobe derselben Messung zeigt, dass
+der Rückgabewert sehr wohl etwas tragen kann — ein unbekanntes Ausgabeformat
+endet mit 1.
+
+**Die Seite gehört dem Betreiber, entschieden beim Bauen.** Ein Stacktrace in
+`laravel.log` trägt, was ihn ausgelöst hat: bei einer Ausnahme im
+Verbindungsaufbau die Zugangsdaten der Datenbank, bei einer im Zertifikatsbezug
+den Token des DNS-Anbieters. Das ist Merkmal 3 aus `docs/20 §6.1`.
+
+**Drei Pfade werden geholt statt hingeschrieben** — `PanelUpdate::LOG`,
+`Config::DEFAULT_LOG_FILE` und die beiden neuen Konstanten in `PanelVhost`,
+dessen Vorlage sie jetzt aus derselben Quelle setzt. Was sich nicht als
+Konstante holen lässt, hält `LogSourceTest` gegen seine Quelle: jede Journalunit
+gegen die Units, die das Paket ausliefert (`packaging/systemd/srvpanel-web.service`
+und seine sieben Geschwister), der Ort von `laravel.log` gegen den Schreibbereich
+aus `packaging/nfpm.yaml`.
+
+**Der Menüpunkt steht neben „Vorgänge" und „Protokoll"** — die drei sagen, was
+passiert ist — und **nur** in der Adminnavigation. Ein Kunde findet die
+Protokolle seiner Domains an der Domain.
+
+**„Angezeigtes sichern" und nicht „Herunterladen".** Eine Antwort des Agenten
+passt in knapp ein Megabyte, ein Zugriffsprotokoll ist ein Vielfaches davon.
+
+> **Ein Knopf, der mehr verspricht, als der Weg dahinter trägt, ist eine Zusage
+> und keine Bequemlichkeit.**
+
+**Beim Bauen fiel eine Lücke im Wächter vom Vortag auf.** `AdminAbilityTest`
+prüfte nur Routen unter `/settings/` — und `/logs` ist eine Adminseite, die dort
+nicht liegt. Sie wäre mit der schwächeren Fähigkeit durchgekommen, und der
+Wächter wäre grün geblieben. Die Regel fragt jetzt nach der **Fähigkeit** statt
+nach dem Pfad.
+
+> **Eine Regel, die an einem Pfad hängt, gilt für die nächste Seite nicht mehr —
+> und niemand merkt es, weil sie grün bleibt.**
+
+**Drei bestehende Wächter haben zugebissen:** `CountedNounTest` an
+„500 Zeilen" ohne Entscheidung über das Wort, `BlockSpacingTest` an einer
+Nachbarschaft von `.ident` und `.quiet`, die `app.css` nicht kennt, und
+`GuardReachTest` an einem Verweis auf `LogSourceTest`, bevor es ihn gab.
+
+**Und die Bildrunde hat einen Fehler im Messmittel gefunden, nicht in der
+Seite.** Der erste Lauf stellte das Theme über `emulateMedia({ colorScheme })`
+um — `app.css` kennt aber gar keine `prefers-color-scheme`-Regel, das Theme
+hängt allein an `data-theme` am `<html>`. Beide Läufe waren hell, und die
+Messung hätte „beide Themes" behauptet.
+
+> **Eine Umstellung, die der Prüfling nicht liest, hat nichts umgestellt — und
+> das Bild daneben sieht aus wie ein Ergebnis.**
+
+Gemessen nach `tests/bilder-messen.js`: `dokument: 0` in allen vier Lagen,
+Gegenprobe 200/200, `schiebt` leer. Der Log-Kasten rollt bei 390 px um 708 px
+**innerhalb** seines Behälters und steht deshalb in `rollt` — was der erste Lauf
+nicht ausgab und damit ein leeres `schiebt` ohne Nachbarn liess.
+
+### A9 vorgezogen — und die Skizze setzte eine Seite voraus, die es nicht gibt
+
+**Entschieden vom Betreiber am 24. August 2026**, auf die Frage, wann sich
+weitere Admins anlegen und ihre Rolle festlegen lassen. A9 steht seitdem in P7b
+an zweiter Stelle, nach A5, und ist als **`docs/82`** ausgeschrieben.
+
+**Der Grund für das Vorziehen** ist der Satz aus `docs/81 §11` selbst: Wer eine
+Adminfunktion baut, entscheidet beim Bauen, auf welcher Seite sie liegt. A2,
+A10 und A1 sind drei weitere davon; jede Woche später sind es mehr, die die
+Entscheidung nachtragen müssten — und teuer ist dabei nicht das Gate, sondern
+`AbilityReachTest`: Ein Knopf, den der Betrachter nicht drücken darf, wird nicht
+gezeigt, also bekäme jede Seite ihren Bildsatz ein zweites Mal.
+
+**Beim Ausschreiben fiel auf, dass die Skizze eine Fähigkeit voraussetzt, die es
+nicht gibt.** Ihre Rollentabelle führt „Konten, Rollen, IP-Beschränkung —
+Betreiber ja, Administrator nein". Eine Kontenverwaltung gibt es aber nirgends:
+Kein Controller nennt `AccountType::Admin`, und Adminkonten entstehen
+ausschliesslich über `srvpanel admin` auf der Kommandozeile.
+
+> **Eine Tabelle, die eine Fähigkeit einer Rolle zuordnet, setzt voraus, dass es
+> die Fähigkeit gibt — und sagt nichts darüber, ob sie jemand gebaut hat.**
+
+**Der Bestand ist am Quelltext gemessen worden, nicht erinnert** (`docs/82 §1`),
+und zwei Dinge waren schon da, die A9 sonst gebaut hätte: das Sperren eines
+Kontos (`AccountStatus::Disabled`, an drei Stellen gefragt) und die Datenlage
+für die Sitzungsübersicht (Treiber `database`, Tabelle mit IP, Gerät und letzter
+Aktivität).
+
+**Und ein Fund entscheidet den Entwurf.** `audit_events.account_id` und
+`operations.account_id` stehen auf `nullOnDelete()`. Der Kommentar daneben sagt
+richtig, dass der **Eintrag** stehenbleibt — der **Handelnde** bleibt nicht: Ein
+gelöschtes Adminkonto zieht seine ganze Geschichte auf `null`, und wer später
+fragt, wer die Paketquellen geändert hat, bekommt eine Zeile ohne Namen.
+
+> **Ein Protokoll, aus dem sich der Handelnde nachträglich entfernen lässt, ist
+> kein Protokoll — es ist eine Liste von Ereignissen.**
+
+Adminkonten werden deshalb **gesperrt und nicht gelöscht**.
+
+**Kein Rechte-Baukasten, und die Begründung steht jetzt vollständig da**
+(`docs/82 §4`): Die Trennlinie ist eine Sicherheitszusage und keine Vorliebe,
+ein Baukasten müsste in **jeder** Kombination stimmen — und genau die
+Kombination aus Falle 1 („verbergen ist nicht schützen") könnte ein Betreiber
+darin selbst herstellen, ohne dass das Panel warnen kann. Die Asymmetrie zum
+Kunden ist Absicht und längst gebaut: Für Zusatzbenutzer gibt es sehr wohl einen
+feinen Rechtekatalog — dort ist die Sprengweite ein Abonnement, auf der
+Adminebene der ganze Server.
+
+### A9 Schritt 1 — die Rolle am Konto
+
+**Eine zweite Achse, kein vierter `AccountType`.** `AccountType` beantwortet
+„wen sieht dieses Konto"; darauf antworten Betreiber und Administrator **gleich**
+— den ganzen Server. Verschieden ist nur, was sie dürfen. Ein vierter Fall wäre
+augenblicklich `isAdmin() === false` und `belongsToCustomer() === true` an 52
+Stellen, und der neue Betreiber sähe eine **leere Kundenliste**.
+
+Gebaut: `AdminRole` mit zwei Fällen und der Rangfolge in `covers()`, eine Spalte
+`accounts.role`, und `Account::isOperator()` / `Account::fulfils()`.
+
+**Die Spalte ist `nullable` und trägt keine Vorgabe.** `null` heisst „kein
+Admin" und nicht „noch nichts gewählt". Und **die Rolle allein gewährt nichts**:
+Beide Methoden fragen die Ebene mit, also ist ein Kundenkonto mit
+`role = operator` trotzdem keiner — und ein Adminkonto ohne Rolle genügt keiner.
+Wer die Migration nicht gefahren hat, bekommt eine Ablehnung und keine stille
+Vollmacht.
+
+**Bestehende Adminkonten werden Betreiber.** Sie dürfen heute alles; sie als
+Administrator zu migrieren wäre eine stille Rechteentziehung auf einem laufenden
+Server.
+
+> **Eine Migration, die Rechte wegnimmt, sperrt jemanden aus, der gestern noch
+> hineinkam.**
+
+**Die Rollennamen sind aus `AdminAbility` in den Enum gewandert.** Sie standen
+dort als zwei Konstanten, weil es den Enum noch nicht gab; mit der Spalte wäre
+daraus eine dritte Stelle geworden.
+
+> **Ein Name, der an zwei Stellen steht, steht bald an dreien.**
+
+**`AccountTypeAxisTest` prüft die Trennung jetzt, statt sie in einer Meldung zu
+behaupten:** Kein `AccountType`-Fall trägt den Wert eines `AdminRole`-Falls.
+
+> **Ein Satz in einer Fehlermeldung ist eine Warnung an den, der sie liest. Eine
+> Prüfung ist eine an den, der sie auslöst.**
+
+**Zwei Wächter für eine Regel, und das ist keine Verdopplung.** `AdminRoleTest`
+läuft ohne Framework und hält die Erreichbarkeit der Ebenenfrage im Quelltext;
+`RoleAxisTest` misst die Wirkung am Model und läuft in der CI. Die Regel ist
+dieselbe, die Messbarkeit nicht.
+
+**Und der Bestand aus `docs/82 §1` stand an einer Zeile falsch da.** Er meldete
+„zweiter Faktor: nirgends erzwungen" — `RequireTwoFactor` erzwingt ihn seit P1
+für jedes Adminkonto. Der `grep` hatte nach der Spalte gesucht, der Code fragt
+eine Modellmethode.
+
+> **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts zu tun".**
+> Der Satz gilt für einen `grep` genauso wie für einen Rückgabewert.
+
+Gefunden hat es kein zweiter `grep`, sondern ein Kommentar in `AccountFactory`,
+der beiläufig das Gegenteil behauptete. **Die Folge für den Plan:** Der geplante
+Schalter für den erzwungenen zweiten Faktor entfällt — er wäre doppelt falsch
+gewesen, weil es die Durchsetzung gibt und `docs/20 §6.4` sie verpflichtend
+nennt.
+
+> **Ein Schalter für eine Pflicht ist keine Einstellung, sondern eine Ausnahme —
+> und wer sie anbietet, hat die Pflicht abgeschafft.**
+
+### A9 Schritt 2 — die Trennung wirkt
+
+**Aus `$account->isAdmin()` wird `$account->fulfils($declaration['role'])`** —
+eine Zeile im Provider, und die zwei Fähigkeiten beantworten seitdem
+verschiedene Fragen. Keine Aufrufstelle in `routes/web.php`, kein Schlüssel in
+einer `can`-Ablage, kein Bild hat sich geändert. **Genau dafür war die Naht zwei
+Tage vorher gelegt worden.**
+
+**Der eigentliche Aufwand lag woanders.** Sobald die Gates die Rolle fragen, ist
+ein Adminkonto **ohne** Rolle wirkungslos: Es meldet sich an und darf nichts.
+Adminkonten entstehen an zwei Stellen — `CreateAdmin` und `AccountFactory` —,
+und beide mussten mit. Ohne das hätte dieser Schritt jedes neu angelegte Konto
+lahmgelegt, und der Test­lauf jedes Feature-Tests wäre rot geworden.
+
+> **Eine Änderung, die eine Angabe zur Pflicht macht, muss jede Stelle
+> mitnehmen, die sie erzeugt — sonst ist der erste neue Datensatz kaputt.**
+
+`CreateAdmin` legt dabei **Betreiber** an: Es ist der Rückweg für jemanden, der
+sich ausgesperrt hat, und ein Administrator käme nicht an die Ursache.
+
+**Die drei feineren Fähigkeiten aus `docs/82 §2.3` kommen nicht mit.** Der Plan
+sah sie für diesen Schritt vor; nachgesehen gibt es heute keine Route, die einen
+Dienst steuert, und `system.packages.*` und `system.sources.*` gibt es auch
+nicht. Drei Einträge, die auf nichts zeigen, wären genau die Vorrichtung, die
+PHPStan zwei Tage vorher an `AdminAbilityTest` gemeldet hat.
+
+> **Eine leere Positivliste ist kein Mechanismus, sondern eine Verzierung.**
+
+Sie kommen mit ihren Routen, in A1 und A2. Der Plan ist entsprechend berichtigt.
+
+**Zwei Wächter, und der zweite hat beim Brechen ein Loch in sich selbst
+gefunden.** `RoleGateTest` misst die Wirkung an der Tür — Administrator 403 auf
+den sechs Geheimnisseiten, Betreiber 200, Konto ohne Rolle 403, und
+ausdrücklich, dass der Administrator Kunden, Abonnements und Domains behält.
+`RoleResolutionTest` hält im Quelltext, was ohne Framework prüfbar ist: die
+Auflösung, jede Anlegestelle, und dass es keine vierte gibt.
+
+Sein dritter Bruch — eine heimliche vierte Anlegestelle — **ist beim ersten Lauf
+nicht durchgekommen**: Der Ausdruck kannte `=> AccountType::Admin` und übersah
+`=> \App\Enums\AccountType::Admin`.
+
+> **Ein Wächter, der nur die gewohnte Schreibweise kennt, prüft die Gewohnheit
+> und nicht die Regel.**
+
+**Und `BreakScriptTest` hat einen Eingriff von vorgestern gefangen**, dessen
+Zielzeile dieser Schritt umgeschrieben hat: Die Schleife über
+`AdminAbility::abilities()` heisst jetzt anders, und der Eingriff fand seinen
+Text nicht mehr.
+
+### A9 Schritt 3 — die Kontenverwaltung
+
+**Ein zweites Adminkonto entsteht ohne SSH.** Bis heute war `srvpanel:admin` der
+einzige Weg: Wer einen zweiten Menschen an das Panel lassen wollte, brauchte
+root auf dem Server — also genau die Rechte, die das Rechtemodell dem
+Administrator gerade nicht geben will.
+
+> **Ein Rechtemodell, dessen zweite Rolle sich nur mit den Rechten der ersten
+> anlegen lässt, hat keine zweite Rolle.**
+
+Die Seite „Konten" steht in der Gruppe „Server", trägt `can:operate-server` und
+kann anlegen, umbenennen, die Rolle wechseln und sperren. Gelöscht wird nicht:
+Solange das Protokoll seinen Handelnden über `nullOnDelete()` verliert, ist
+Sperren die ehrlichere Antwort — ein gesperrtes Konto kommt nicht mehr herein,
+und seine Einträge tragen weiter seinen Namen.
+
+**Der Aussperrschutz sitzt an einer Stelle und fragt nach dem Zielzustand.**
+Herabstufen und Sperren sehen im Formular verschieden aus und sind dieselbe
+Handlung; `LastOperator::permits()` bekommt deshalb Rolle und Zustand, wie sie
+*nachher* gelten sollen, und entscheidet daraus. Der naheliegende Entwurf —
+`mayDemote()` und `maySuspend()` — hätte die Frage, was eine Aussperrung ist,
+wieder in den Controller gelegt.
+
+> **Eine Prüfung, die die Handlung entgegennimmt, muss jede Handlung kennen.
+> Eine, die den Zielzustand entgegennimmt, kennt sie alle.**
+
+**Der Plan war an einer Stelle falsch, und das Panel hatte recht.** `docs/82
+§2.4` sah vor, das Passwort auf dem **Server** zu erzeugen und einmalig
+anzuzeigen — eine zweite Bauart für etwas, das dieses Panel seit P1 auf eine Art
+macht. Die Begründung dagegen steht im Kopf von `Policy::generate()` und ist
+älter als der Plan: Ein Passwort, das der Server ausliefert, steht in jedem
+Puffer auf dem Weg. Gebaut ist `PasswordFields` mit seinem Knopf, wie beim
+Anlegen eines Kunden; der Plan ist berichtigt.
+
+> **Ein Plan, der für etwas Gebautes eine zweite Bauart vorsieht, hat nicht
+> entschieden — er hat nicht nachgesehen.**
+
+**`{admin}` löst nur Adminkonten auf**, und zwar in der Routenbindung statt in
+vier Controller-Methoden. `Account` trägt keine Mandantenklammer — die gilt für
+Abonnements und was daran hängt —, eine gewöhnliche Bindung fände also jedes
+Konto, und `/accounts/{id}/edit` mit der Kennung eines Kundenkontos wäre ein
+Formular, das dessen Rolle setzt.
+
+**Zwei Wächter, und der Stolperdraht von vorgestern hat den ersten gefunden.**
+`RoleResolutionTest` war beim ersten Lauf rot: Der Controller ist die **dritte**
+Anlegestelle für Adminkonten, und die Liste kannte zwei. Gefunden hat sie nicht
+das Gedächtnis, sondern der Wächter, den Schritt 2 einen Tag vorher dafür gelegt
+hatte.
+
+`LastOperatorTest` misst die Wirkung an allen Wegen — herabstufen, sperren, und
+die Feststellung, dass es **keinen dritten gibt**: Wer eine Löschroute baut,
+bekommt dort Rot statt einer stillen dritten Tür. Dazu zwei Gegenproben, ohne
+die eine Schranke, die jede Änderung abweist, genauso bestünde.
+
+`AccountMutationTest` steht daneben und beantwortet, was jener nicht kann: Gibt
+es einen **neuen** Weg? Er hält jede ändernde Kontenroute gegen die Frage, ob
+sie den Aussperrschutz ruft — Voreinstellung „muss fragen", Ausnahmen mit
+Begründung, und in beide Richtungen geprüft.
+
+> **Ein Wächter, der die bekannten Wege prüft, sagt nichts über den nächsten,
+> den jemand baut.**
+
+**Drei bestehende Wächter haben an der neuen Fläche zugebissen**, jeder mit
+einem echten Befund: zwei fehlende deutsche Feldnamen (`role`, `status`), eine
+Beschriftung, die anders hiess als die Fehlermeldung (`E-Mail-Adresse` gegen
+„Anmeldeadresse"), und ein Klassenname ohne Eintrag im Vokabular.
+
+**Und einer davon war meiner.** Die Kontenliste brachte eine eigene Regel für
+`.ident` mit — den Namen der globalen Kennungsklasse. Sie überschrieb deren
+Schriftgrösse und machte `MobileLayoutTest` blind: Der Wächter merkt sich an der
+**letzten** `.ident`-Regel im gebauten Stylesheet, ob `overflow-wrap: anywhere`
+dabei ist, und das war seitdem die aus der Komponente.
+
+> **Eine Komponentenregel mit dem Namen einer globalen überschreibt nicht nur
+> deren Form, sondern auch die Antwort, die ein Wächter über sie bekommt.**
+
+**Zwei Befunde kamen aus der Bilderrunde, und keinen hätte ein Test gefunden.**
+
+Der erste hatte eine Zahl: Die Anmeldeadresse stand wie die Kundennummer in
+einem `<input readonly>` und lief bei 390 px um **215 px** über dessen Rand —
+das Dokument schob dabei `0`, weil ein Eingabefeld seinen Inhalt selbst rollt.
+Der Betreiber konnte die Adresse des Kontos, das er gerade ändert, nicht zu Ende
+lesen. `K-1001` hat sechs Zeichen, eine Anmeldeadresse darf 255 haben.
+
+> **Eine Zelle, die rollen darf, hat keine Obergrenze — sie hat nur keine Zahl,
+> die sich beschwert.**
+
+Der zweite hatte keine: Zwischen dem Knopf „Abbrechen" und der Überschrift
+„Passwort zurücksetzen" standen **0 px**. Zwei `<form>` auf einer Seite sind
+Geschwister unter `main.page`, und das verteilt nicht — den Abstand zwischen
+Bereichen gibt der jeweilige Behälter an *seine* Kinder. Die Überlaufmessung
+meldete in allen vier Lagen `dokument: 0`, weil nichts überläuft.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+**Was offen bleibt:** Der Menüpunkt „Konten" steht heute auch beim
+Administrator, der darauf einen 403 bekommt — wie sechs Einträge daneben seit
+Schritt 2. Die Navigation kommt aus dem Kontotyp; Schritt 5 gibt allen sieben
+dieselbe Antwort aus der Policy. Eine eigene Bedingung nur für den neuen
+Eintrag wäre deren zweite Fassung gewesen.
+
+### A9 Schritt 5 — die Fläche kommt aus der Policy
+
+**Die Navigation kam bis hierher aus dem Kontotyp**, und das war richtig,
+solange jeder Admin alles durfte. Seit Schritt 2 über die Rolle auflöst, sah ein
+Administrator **sieben** Menüpunkte, die ihm alle einen 403 gaben. Die geteilte
+Ablage `abilities` beantwortet das jetzt aus demselben Gate, an dem die Route
+hängt.
+
+> **Wer eine Aktion zeigt, fragt vorher dieselbe Policy, die sie später
+> abweist.**
+
+**Der Schlüssel heisst `abilities` und nicht `can`, und das ist kein
+Geschmack.** `can` ist vergeben: Neun Seiten schicken eine eigene `can`-Ablage
+über *ihr* Objekt. Seitenwerte überschreiben geteilte — ein geteiltes `can` wäre
+auf genau diesen neun Seiten fort, und das Menü verlöre dort seine Einträge,
+während es überall sonst steht.
+
+> **Ein geteilter Schlüssel, den eine Seite auch benutzt, ist auf dieser Seite
+> kein geteilter Schlüssel mehr — und der Ausfall sieht aus wie ein
+> Rechteproblem.**
+
+**Die Messung davor hat das Kriterium schon erfüllt vorgefunden.** 43 Seiten
+ausgezählt, acht nur für den Betreiber, und in den übrigen 35 steht kein
+Betreibergeheimnis — die vier Verdachtsfälle waren alle harmlos. Kriterium 3 war
+damit erfüllt, **und nichts hielt es**. Der Payload-Teil dieses Schritts ist
+deshalb kein Umbau, sondern ein Stolperdraht.
+
+> **Ein gemessener Zustand ohne Wächter ist ein Datum von gestern.**
+
+**Und die Messung hat eine Zusage freigelegt, die niemand aufgeschrieben
+hatte.** `/operations/{id}` zeigt `payload`, `result` und `output` jedem Admin;
+`output` sind die Protokollzeilen des Agenten — dieselbe Art Inhalt, deretwegen
+`/logs` dem Betreiber allein gehört. Dass dort nichts Geheimes steht, liegt
+nicht an einem Filter: Die zwölf geheimnisführenden Operationen senden **null**
+Protokollzeilen, und Datenbankpasswörter laufen über direkte Agent-Aufrufe, die
+gar keine Vorgangszeile anlegen. `AdminPayloadTest` hält das seitdem.
+
+> **Eine Seite ist nur so verschwiegen wie das, was sie durchreicht.**
+
+**Der erste Wurf des Wächters hatte dieselbe Lücke wie mein Eingriff dagegen.**
+Er las den Text zwischen zwei `Inertia::render(` und hätte `LogsController` nie
+gesehen — der rendert `Inertia::render('Logs/Index', $this->read(…))`, und die
+Ablage entsteht in einer Hilfsmethode. Gefunden hat das nicht das Nachdenken,
+sondern ein Bruch, der genau dort ansetzen wollte und keine Zielstelle fand.
+
+> **Ein Wächter, der einen Ausdruck nicht auflösen kann, hat nicht wenig
+> gemessen — er hat an dieser Stelle gar nicht gemessen.**
+
+Sechs Eingriffe im Bruchskript, jeder einzeln belegt und jeder mit bewiesenem
+Rückweg. Dazu zwei Fälle in `AbilityReachTest`, die die Wirkung an der Antwort
+messen statt am Markup: Betreiber beide Fähigkeiten, Administrator nur
+`manage-settings`, Kunde die Ablage mit lauter `false` — **nicht** gar keine,
+sonst hinge an dem Unterschied irgendwann eine Bedingung.
+
+Nachgesehen wurde auch im Bild, in beiden Themes: Die Servergruppe des
+Administrators steht mit drei Einträgen da, Überschrift und Trenner intakt.
+Leere Gruppen fallen weg — eine Überschrift ohne Einträge behauptet, es gäbe
+dort etwas.
+
+### Der verwaiste Dokumentationsblock — ein Wächter für eine alte Fehlerklasse
+
+**Beim Bau von Schritt 5 ist eine neue Methode zwischen `impersonation()` und
+ihren Block gerutscht.** PHPStan meldete die Hälfte, die ein Werkzeug sehen kann
+— den fehlenden `@return`-Typ an der einen Methode — und kostete eine CI-Runde.
+Dasselbe hat dieses Repo schon einmal getroffen, an `diskQuota()`, und dort war
+es teurer: Der Block versprach über `dnsAddresses()` ein `array{available: …}`,
+wo ein `list<string>` steht.
+
+> **Ein Werkzeug bemerkt den fehlenden Kommentar. Den falschen bemerkt es
+> nicht.**
+
+**Der erste Wurf des Wächters fragte die falsche Frage.** „Zwei
+Dokumentationsblöcke hintereinander" meldete **zwanzig** Stellen — achtzehn
+davon zu Recht so geschrieben: Eine lange Erklärung als eigener Block über dem
+Block der Methode ist in diesem Repo üblich.
+
+> **Ein Wächter, der Richtiges mitmeldet, ist kein strenger Wächter — er ist
+> einer, den man gleich wieder los ist.**
+
+Mit der **Marke** als Bedingung — `@return`, `@param`, `@var` — bleiben zwei,
+und beide waren echt: ein zurückgebliebenes `@return array<string, string>` in
+`srvpanel:db`, dessen Methode ihren Block längst selbst trägt, und der Block von
+`PgDatabaseRemove::removeOwner()`, der über die Methode daneben gerutscht war.
+Dazu zwei Blöcke ohne Marke, die derselbe Durchgang gefunden hat und die
+trotzdem falsch standen: der von `share()` und einer in
+`AgentOperationReachTest`.
+
+**Und `BreakScriptTest` hat einen Eingriff gefangen**, dessen Anker Schritt 5
+umgeschrieben hat: Der Menüpunkt „Mailversand" trägt jetzt seine Fähigkeit mit,
+und der Eingriff fand seinen Text nicht mehr. Er läuft hier im Gestell — ich
+habe ihn nicht gefahren, obwohl ich `PanelLayout.vue` angefasst hatte.
+
+> **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
+> gefahren — man denkt an das Gebaute und nicht an das Berührte.**
+
+### A9 Schritt 7, erste Hälfte — die Netzbeschränkung
+
+**Aus welchen Netzen sich ein Verwaltungskonto anmelden darf.** Leer heisst „von
+überall" — der Zustand jedes Servers, der die Einstellung nie angefasst hat.
+
+> **Eine leere Liste, die alles verbietet, sperrt beim Einschalten aus — eine,
+> die alles erlaubt, ändert nichts.**
+
+**Die Rechnung gab es schon, nur am falschen Ort.** `Pg\Hba::cidr()` prüft seit
+P5b Netze in CIDR-Schreibweise — rohe Bytes über `inet_pton`, dieselbe Rechnung
+für IPv4 und IPv6, gesetzte Wirtsbits werden abgewiesen. Vier Klassen nennen sie
+im Kommentar als *die* Schreibweise, und das Panel ruft sie über die
+Namensraumgrenze hinweg auf. Sie stand nur in der Klasse, die `pg_hba.conf`
+schreibt, und trug deren Politik im Text.
+
+`Net\Cidr` trägt jetzt die Rechnung und `Hba::cidr()` seine eigene Ablehnung von
+`/0` — für einen Datenbankzugang ein Fehler, für eine Anmeldebeschränkung bloss
+die Voreinstellung mit mehr Zeichen.
+
+> **Zwei Systeme mit derselben Rechnung und verschiedenen Regeln teilen die
+> Rechnung und nicht die Regeln.**
+
+**Und sie war von keinem einzigen Test abgedeckt** — nachgesehen am 25. August.
+`PgRemoteAccess` schickt jede Zeile hindurch; ein Fehler darin hätte den
+Fernzugriff jedes Kunden getroffen, und gemerkt hätte es niemand.
+`CidrTest` prüft sie jetzt in 27 Fällen, darunter die Grenze innerhalb eines
+Bytes (`/25`) und die gemischten Familien.
+
+> **Eine Rechnung, auf die sich vier Stellen berufen, hat nicht deshalb einen
+> Test, weil vier Stellen sie nennen.**
+
+**Gefragt wird an zwei Stellen, und keine ersetzt die andere.** Bei der
+Anmeldung, damit das Protokoll die Wahrheit sagt; und bei **jeder** Anfrage,
+weil eine offene Sitzung die Beschränkung sonst überlebt.
+
+> **Eine Schranke, die nur an der Tür steht, gilt für niemanden, der schon drin
+> ist.**
+
+`docs/82 §2.5` nennt es „IP-Beschränkung der Panel-**Anmeldung**" — so gebaut
+wäre es die Hälfte gewesen: Wer im Büro angemeldet war und den Rechner mitnimmt,
+arbeitet weiter.
+
+**Der Aussperrschutz ist das Abnahmekriterium**, und er fragt mit der Liste, die
+gespeichert werden *soll*. Eine leere Liste geht dabei ohne Prüfung durch — sie
+kann niemanden aussperren, und eine Bedingung, die auch sie fragt, liesse eine
+Beschränkung nie wieder abschalten.
+
+**Ein Befund aus der Bilderrunde, den die Zahl nicht hatte:** Die Zeilen der
+Netzliste standen bei 390 px auf **0 px** Abstand. `.section` ist kein
+Flexbehälter; was auf dem Bild wie ein Abstand aussah, waren die Ränder der
+Felder. Das ist dieselbe Stelle wie bei den zwei Formularen der Kontenseite —
+zum dritten Mal in derselben Runde.
+
+> **Ein Abstand, den man sieht, ist nicht derselbe wie einer, den ein Behälter
+> gibt.**
+
+### A9 Schritt 7, zweite Hälfte — die Sitzungsübersicht
+
+**Welche Sitzungen ein Konto offen hat, und eine davon beenden.** Die Daten
+liegen in Laravels eigener `sessions`-Tabelle; gelesen werden vier Spalten, und
+`payload` ist keine davon — dort liegt die serialisierte Sitzung.
+
+> **Eine Spalte, die man nicht liest, kann nichts verraten.**
+
+**Gesucht wird über Konto und Kennung**, nicht über die Kennung allein. Sonst
+beendete eine abgeschriebene Kennung die Sitzung eines fremden Kontos — und sie
+steht im Cookie des Betroffenen, ist also nicht geheim gegenüber ihm selbst.
+
+> **Ein Filter über einen Bezeichner allein ist keine Zuordnung — er ist eine
+> Suche.**
+
+**Die eigene laufende Sitzung ist erkennbar und trotzdem zu beenden.** „Ich
+sitze an einem fremden Rechner" ist der häufigste Anlass, diese Liste
+aufzuschlagen; ein Knopf, der verschwiege, welche Zeile die laufende ist, wäre
+die Falle.
+
+**Die Gerätekennung wird gekürzt und nicht ausgewertet.** Eine Auswertung nach
+Browser und System wäre eine Bibliothek mit einer Tabelle, die veraltet — ein
+neuer Browser hiesse dann „unbekannt".
+
+> **Eine Auswertung, die einen Fall nicht kennt, sagt weniger als der
+> ungedeutete Wert.**
+
+**Zwei Wächter haben an der neuen Route zugebissen**, und der zweite hat gezeigt,
+dass seine Frage zu grob war. `AccountMutationTest` verlangte den Aussperrschutz
+für jede ändernde Kontenroute — eine Sitzung zu beenden ist keiner, das steht
+jetzt mit Begründung in der Ausnahmeliste. Und `LastOperatorTest` fragte „gibt es
+ein `DELETE` unter `/accounts`" und meldete `…/sessions` mit; gemeint ist die
+eine Adresse, hinter der das Konto verschwindet.
+
+> **Ein Wächter, der Richtiges mitmeldet, ist kein strenger Wächter — er ist
+> einer, den man gleich wieder los ist.**
+
+**Und ein Fund der CI in meinem eigenen Test:** `assertGuest()` nimmt als ersten
+Wert den Guard und keine Meldung. Laravel suchte daraufhin einen Guard namens
+„Die Sitzung läuft weiter, obwohl …". Der Fehlschlag war laut und nicht still,
+und das ist die einzige gute Nachricht daran.
+
+> **Ein zweiter Wert, der wie eine Meldung aussieht, ist manchmal ein Name.**
+
+### Zwei Annahmen über abschliessende Werte — und ein Formatierer, der zu viel wusste
+
+**Dieselbe Annahme hat in einer Runde zweimal zugeschlagen**, in benachbartem
+Code: `assertGuest()` nimmt als ersten Wert den **Guard**, `assertDatabaseHas()`
+als dritten die **Verbindung**. Beide Male stand dort ein deutscher Satz, und
+Laravel suchte einen Guard beziehungsweise eine Verbindung dieses Namens.
+
+> **Ein abschliessender Wert ist nicht deshalb eine Meldung, weil er ein Satz
+> ist.**
+
+In PHPUnit stimmt die Gewohnheit fast immer; in Laravels Testhelfern oft nicht.
+`AssertionArgumentTest` hält das jetzt — an neun Helfern, und das Merkmal ist
+das **Leerzeichen**: Ein Guard heisst `web`, eine Verbindung `sqlite`, eine
+Meldung dieses Projekts ist ein Satz. Das trennt zuverlässiger als eine Liste
+gültiger Namen, die bei der nächsten Verbindung nachgezogen werden müsste.
+
+**Der Fehlschlag ist dabei laut und nicht still** — dieser Wächter spart keine
+stille Fehlfunktion, sondern verschiebt eine laute von der CI an die Tastatur.
+Das ist trotzdem sein Wert: Zwei CI-Runden für dieselbe Annahme sind eine zu
+viel.
+
+**Und sein erster Wurf hat sich selbst gemeldet.** Er las die Kommentare mit, in
+denen die kaputten Aufrufe zitiert stehen, und seine eigenen Prüfkörper.
+
+> **Ein Wächter, der Prosa mitliest, findet jede Warnung vor sich selbst.**
+
+**Der lehrreichste Fund kam von Pint.** Der private Helfer hiess `testFiles()`;
+Pint setzt in einer Testklasse die Schreibweise `test_…` durch und hat die
+**Deklaration** umbenannt — die Aufrufstelle nicht. Heraus kam eine Datei, die
+`php -l` besteht und beim Ausführen an einer undefinierten Methode stirbt.
+
+> **Ein Formatierer, der eine Namensregel durchsetzt, wendet sie auch auf den
+> an, der die Regel nicht meinte.**
+
+Das ist die Verwandte der Falle mit `count()`, `matches()` und `run()`: ein
+Helfer in einer Testklasse, dessen Name jemand anderem gehört. Dort ist es die
+Basisklasse, hier der Formatierer.
+
+### Der Abnahmelauf für A9 ist ausgeschrieben — `docs/83`
+
+**Vierzehn Punkte auf `cloudsrv24`**, und zwei davon sind der Grund, dass es ihn
+gibt.
+
+**Punkt 8** geht den Rückweg `srvpanel admin` — er steht seit `docs/82 §3` als
+Falle 3 in der Vorschrift, seine Begründung im Kopf von `CreateAdmin`, und
+gegangen ist ihn niemand.
+
+> **Ein Rückweg, den niemand gegangen ist, ist eine Zusage und kein Weg.**
+
+**Punkt 9c** misst, ob eine offene Sitzung endet, wenn ihre Adresse nicht mehr
+zugelassen ist — hinter dem echten nginx und nicht gegen ein `REMOTE_ADDR` aus
+einem Testaufruf.
+
+> **Eine Adresse, die im Test aus einer Variablen kommt, kommt im Betrieb aus
+> einer Kopfzeile — und dazwischen steht ein Reverse-Proxy.**
+
+**Beim Ausschreiben sind drei Dinge aufgefallen, die vorher niemand wusste.**
+
+**Das Abnahmekriterium nennt sechs Geheimnisseiten, und es sind acht.**
+`docs/82 §6` wurde geschrieben, bevor Schritt 3 die Kontenseite und Schritt 7 die
+Zugangsseite gebaut hat.
+
+> **Ein Kriterium, das vor dem Bauen geschrieben wurde, kennt nicht, was beim
+> Bauen entstanden ist.**
+
+**Und es kennt die Netzbeschränkung gar nicht** — sie ist Schritt 7 und steht in
+§6 nicht, obwohl sie das Merkmal mit der grössten Wirkung ist. Der Lauf führt
+sie als Punkt 9 und sagt dazu, dass sie über die Abnahme mitentscheidet.
+
+**Der teuerste Fund ist ein fehlender Rückweg.** `srvpanel admin` holt ein Konto
+zurück, das sich mit Passwort oder zweitem Faktor ausgesperrt hat. Für eine
+**Netzbeschränkung** gibt es nichts dergleichen: Ändert sich die Adresse des
+Betreibers — ein ISP, der neu nummeriert —, kommt niemand mehr herein. Der Weg
+über `srvpanel tinker` funktioniert und steht in keiner Hilfe.
+
+> **Ein Rückweg, den man erst sucht, wenn man ihn braucht, ist keiner.**
+
+Der Lauf nennt ihn in §2.1, damit er vor dem Lauf gelesen wird, und §7 führt
+`srvpanel access --clear` als das, was danach zu bauen bleibt.
+
+**Und die Nummer des Protokolls steht bewusst nicht darin.** `docs/81` hat einmal
+eine genannt, die einem anderen Dokument gehörte; `DocLinkTest` sah das nicht,
+weil er prüft, ob es die Datei gibt, und nicht, ob sie das Gemeinte ist.
+
+> **Eine Nummer, die man vergibt, bevor es die Datei gibt, ist eine Zusage an
+> einen Namen und nicht an einen Inhalt.**
+
+### `srvpanel access` — der Rückweg, den das Ausschreiben gefunden hat
+
+**Die Netzbeschränkung ist die einzige Einstellung dieses Panels, die ihren
+eigenen Betreiber aussperren kann** — nicht durch einen Fehler im Formular,
+dagegen steht `AdminNetwork::covers()`, sondern durch die Welt: ein Anschluss
+mit neuer Adresse, ein Umzug, ein Anbieter, der neu nummeriert. Danach ist die
+gespeicherte Liste richtig und trotzdem falsch.
+
+`srvpanel admin` holt ein Konto zurück, das sich mit Passwort oder zweitem
+Faktor ausgesperrt hat. Für die Netzbeschränkung gab es nichts dergleichen.
+
+> **Ein Rückweg, den man erst sucht, wenn man ihn braucht, ist keiner.**
+
+**Aufgefallen ist das nicht beim Bauen, sondern beim Ausschreiben des
+Abnahmelaufs.** `docs/83 §2.1` sollte den Weg zurück nennen — und beim
+Aufschreiben war keiner da, nur ein `tinker`-Einzeiler ohne Hilfe und ohne
+Handbuch.
+
+> **Wer eine Anleitung schreibt, geht die Schritte im Kopf — und merkt, wo
+> keiner ist.**
+
+**`--clear` fragt keinen Aussperrschutz**, und das ist Absicht: Wer das Kommando
+aufruft, sitzt auf dem Server, und die Frage „deckt diese Liste deine Adresse"
+hat für ihn keine sinnvolle Antwort.
+
+> **Ein Rückweg, der dieselbe Bedingung prüft wie der Hinweg, führt zurück an
+> denselben Punkt.**
+
+**Und die Änderung steht im Protokoll** — mit `quelle: Kommandozeile` und ohne
+handelndes Konto, denn es war keines angemeldet. Ein Weg, der an der Oberfläche
+vorbeiführt, gehört erst recht dorthin: Sonst liesse sich eine
+Netzbeschränkung spurlos aufheben, von genau dem, dessen Handeln man später
+nachliest.
+
+**Dabei ist die Politik an eine Stelle gewandert.** Formular und Kommando
+stellen dieselbe Frage — ist das ein brauchbares Netz? —, und die Ablehnung von
+`0.0.0.0/0` stand bis dahin im Controller. `AdminNetwork::normalize()` trägt sie
+jetzt, `AccessCommandTest` hält beide Eingänge dagegen.
+
+> **Zwei Eingänge zu derselben Einstellung teilen ihre Prüfung, oder die
+> Einstellung hat zwei Bedeutungen.**
+
+**Und ein Fall, für den niemand gebaut hatte, stimmt trotzdem:** `::/0` — das
+ganze IPv6-Internet — wird abgewiesen, weil die Prüfung auf `/0` endet und nicht
+auf `0.0.0.0/0`. Gemessen, nicht angenommen.
+
+**Berichtigt wurde dabei auch das Abnahmekriterium:** `docs/82 §6.3` nannte sechs
+Geheimnisseiten. Es sind acht — die Kontenseite kam mit Schritt 3, die
+Zugangsseite mit Schritt 7, beide nach dem Absatz.

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\AptLock;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Op;
 use SrvPanel\Agent\PhpVersions;
@@ -57,6 +58,11 @@ final class PhpVersionRemove implements Op
                 count($pools),
             ));
         }
+
+        // Vor dem Stoppen des Handlers: Scheitert der Lauf gleich an der
+        // Paketsperre, wäre der Dienst abgeschaltet und die Pakete lägen noch
+        // da — ein Zustand, den niemand bestellt hat.
+        AptLock::ensureFree($context);
 
         $context->progress(20, 'FPM stoppen');
         $context->runner->run('systemctl', ['disable', '--now', PhpVersions::unit($version)], 60);

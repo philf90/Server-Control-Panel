@@ -119,9 +119,23 @@ wert "kept back gemeldet" \
 # Fehlschläge stehen als `W:`-Zeilen auf stderr, und apt arbeitet mit den alten
 # Listen weiter.
 #
-# Das trifft bestehenden Code: PhpVersionInstall, PgServerInstall und
-# PanelUpdate rufen `apt-get update -qq` und prüfen `successful()`. Diese
-# Prüfung kann für eine kaputte Quelle nicht rot werden.
+# Das traf bestehenden Code: PhpVersionInstall, PgServerInstall und PanelUpdate
+# riefen `apt-get update -qq` und prüften `successful()`. Diese Prüfung kann für
+# eine kaputte Quelle nicht rot werden. Seit dem 24. August 2026 liest
+# `SrvPanel\Agent\Apt` den stderr je Quelle (docs/81 §2.1b, Schritt 1).
+#
+# **Die Kanäle werden getrennt gemessen, und das ist nachgetragen.** Der erste
+# Wurf schrieb `>datei 2>&1` und zählte darin die `W:`-Zeilen — damit war
+# gemessen, dass sie auf *einem der beiden* Kanäle stehen, und nicht, auf
+# welchem. Der Satz „sie stehen auf stderr" stand trotzdem im Kopf dieser
+# Messung, und der Leser im Agenten hängt genau daran: Stünden sie auf stdout,
+# fände `Apt::readFailures()` wortlos nichts.
+#
+#   Eine Messung, die zwei Dinge zusammenwirft, belegt keines von beiden.
+#
+# **Und die Rohzeile wird ausgegeben**, weil `AptResultTest` ihre Form als
+# Prüfkörper führt (gemessen gegen apt 2.8.3). Auf apt 2.4 kann sie anders
+# aussehen — genau dafür läuft diese Messung auf allen vier Zielplattformen.
 #
 # Die Gegenprobe läuft gegen eine Quelle auf 127.0.0.1:1 — die gibt es
 # garantiert nicht, und sie fasst den Bestand nicht an.
@@ -130,13 +144,23 @@ titel "M5 — Rückgabewert von apt-get update"
 printf 'deb http://127.0.0.1:1/gibtsnicht %s main\n' "${VERSION_CODENAME:-stable}" > "${PROBE}/kaputt.list"
 UOPT="-o Dir::Etc::sourcelist=${PROBE}/kaputt.list -o Dir::Etc::sourceparts=${PROBE}/parts -o Dir::State::Lists=${PROBE}/lists"
 # shellcheck disable=SC2086
-apt-get update -qq ${UOPT} >"${PROBE}/u1.txt" 2>&1
+apt-get update -qq ${UOPT} >"${PROBE}/u1out.txt" 2>"${PROBE}/u1err.txt"
 wert "rc bei kaputter Quelle" "$?  (erwartet 0 — das ist der Befund)"
-wert "W:-Zeilen dabei" "$(grep -c '^W:' "${PROBE}/u1.txt")"
+wert "Bytes auf stdout" "$(wc -c < "${PROBE}/u1out.txt" | tr -d ' ')  (erwartet 0)"
+wert "Bytes auf stderr" "$(wc -c < "${PROBE}/u1err.txt" | tr -d ' ')  (erwartet > 0)"
+wert "W:-Zeilen auf stderr" "$(grep -c '^W:' "${PROBE}/u1err.txt")"
+# Gegenprobe zur Kanaltrennung: Auf stdout darf keine davon stehen. Ohne diese
+# Zeile sähe „stderr trägt sie" genauso aus wie „beide tragen sie".
+wert "Gegenprobe: W: auf stdout" "$(grep -c '^W:' "${PROBE}/u1out.txt")  (erwartet 0)"
+# Nur die Quellzeile, nicht die Zusammenfassung dahinter — die steht einmal da,
+# egal wie viele Quellen ausgefallen sind, und ist keine Quelle.
+wert "Zeilen 'Failed to fetch'" "$(grep -c '^W: Failed to fetch' "${PROBE}/u1err.txt")  (erwartet 1)"
+printf '  Rohzeile:\n'
+sed -n 's/^/    /p' "${PROBE}/u1err.txt"
 # shellcheck disable=SC2086
-apt-get update -qq --error-on=any ${UOPT} >"${PROBE}/u2.txt" 2>&1
+apt-get update -qq --error-on=any ${UOPT} >"${PROBE}/u2out.txt" 2>"${PROBE}/u2err.txt"
 wert "rc mit --error-on=any" "$?  (erwartet 100)"
-wert "Gegenprobe: E:-Zeilen" "$(grep -c '^E:' "${PROBE}/u2.txt")"
+wert "Gegenprobe: E:-Zeilen" "$(grep -c '^E:' "${PROBE}/u2err.txt")"
 
 # ---------------------------------------------------------------------------
 # M6 — Signaturschlüssel und ihr Ablauf.
@@ -211,11 +235,39 @@ wert ".ucf-dist unter /etc" "$(find /etc -name '*.ucf-dist' 2>/dev/null | wc -l 
 
 # ---------------------------------------------------------------------------
 # M10 — Die Sperren, an denen ein zweiter Lauf scheitert.
+#
+# **Nachgetragen am 24. August 2026: nicht nur, ob es sie gibt, sondern ob der
+# Fühler sie sieht.** `SrvPanel\Agent\AptLock` fragt sie über `/proc/locks`,
+# zugeordnet über den Inode — und nicht über `flock()`. Gemessen: dpkg nimmt
+# eine POSIX-Sperre über `fcntl`, PHPs `flock()` spricht `flock(2)`, und die
+# beiden Familien sehen einander nicht. Ein Wächter über `flock()` meldete
+# „frei", während apt läuft.
+#
+#   Eine Sperre, die man mit dem falschen Werkzeug abfragt, meldet immer frei.
+#
+# Diese Messung bleibt **rein lesend**: Sie nimmt keine Sperre und schreibt
+# nichts. Sie beantwortet, ob `/proc/locks` auf dieser Plattform die Inodes
+# führt, an denen der Fühler hängt — auf einem Server, auf dem gerade nichts
+# läuft, ist die erwartete Antwort „keine gehalten".
 # ---------------------------------------------------------------------------
 titel "M10 — Sperren"
 for L in /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock /var/cache/apt/archives/lock; do
-    if [ -e "${L}" ]; then wert "${L}" "vorhanden"; else wert "${L}" "fehlt"; fi
+    if [ -e "${L}" ]; then
+        INO="$(stat -c '%i' "${L}" 2>/dev/null || echo '—')"
+        # Nur POSIX und OFDLCK: FLOCK ist die andere Familie und blockiert apt
+        # nicht. Das Inode-Feld von /proc/locks ist das dritte in major:minor:inode.
+        HALTER="$(awk -v ino="${INO}" '
+            { for (i = 1; i <= NF; i++) if ($i ~ /^[0-9a-f]+:[0-9a-f]+:[0-9]+$/) {
+                split($i, t, ":"); if (t[3] == ino && ($2 == "POSIX" || $2 == "OFDLCK" || $3 == "POSIX" || $3 == "OFDLCK")) c++ } }
+            END { print c + 0 }' /proc/locks 2>/dev/null)"
+        wert "${L}" "vorhanden · inode ${INO} · gehalten: ${HALTER}"
+    else
+        wert "${L}" "fehlt"
+    fi
 done
+# Gegenprobe: Der Leser findet in /proc/locks überhaupt Zeilen. Steht hier 0,
+# misst die Spalte „gehalten" oben nichts, und ihre Nullen bedeuten nichts.
+wert "Gegenprobe: Zeilen in /proc/locks" "$(wc -l < /proc/locks | tr -d ' ')"
 
 # ---------------------------------------------------------------------------
 # M11 — Die Historie, aus der A5 liest.

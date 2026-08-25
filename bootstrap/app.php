@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\ApplyTenancy;
+use App\Http\Middleware\EnforceAdminNetwork;
 use App\Http\Middleware\EnforceSessionLifetime;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RememberPageUrl;
@@ -41,6 +42,13 @@ $app = Application::configure(basePath: dirname(__DIR__))
                 EnforceSessionLifetime::class,
                 ApplyTenancy::class,
                 SubstituteBindings::class,
+
+                // Die Netzbeschränkung vor dem zweiten Faktor: Wer von hier
+                // nicht herein darf, soll dessen Einrichtungsseite nicht sehen.
+                // Und nach ApplyTenancy, weil sie über Settings an die
+                // Datenbank geht.
+                EnforceAdminNetwork::class,
+
                 RequireTwoFactor::class,
 
                 // RememberPageUrl setzt das „Zurück" für Inertia-Navigationen.

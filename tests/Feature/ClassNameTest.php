@@ -44,7 +44,7 @@ final class ClassNameTest extends TestCase
      * die in CSS und HTML zu Hause ist (`nav`, `sr`, `sub`, `op`).
      */
     private const VOCABULARY = [
-        'account', 'action', 'active', 'after', 'area', 'arrow', 'aside', 'badge', 'band', 'bar',
+        'account', 'action', 'active', 'address', 'after', 'agent', 'area', 'arrow', 'aside', 'badge', 'band', 'bar',
         'blank',
         'block', 'branch', 'breadcrumb', 'button', 'cell', 'check', 'choice', 'choices', 'codes',
         'code', 'comment', 'confirmation', 'content', 'critical', 'crumbs', 'cursor', 'danger', 'dependent',

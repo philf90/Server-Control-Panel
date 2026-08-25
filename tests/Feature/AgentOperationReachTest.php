@@ -109,6 +109,8 @@ final class AgentOperationReachTest extends TestCase
         'config.validate' => 'Prüft eine Konfigurationsdatei.',
         'webserver.detect' => 'Schaut nach, welcher Webserver läuft.',
         'web.logs.tail' => 'Liest die letzten Zeilen eines Protokolls.',
+        'system.logs.list' => 'Zählt die Protokolle des Servers auf; das Panel führt darüber keinen Bestand.',
+        'system.logs.tail' => 'Liest die letzten Zeilen eines Protokolls des Servers — lesend, ohne Vorgang.',
         'web.isolation.probe' => 'Legt die Selbstprobe des Abnahmelaufs ab und entfernt sie wieder; im Panel steht dazu nichts.',
         'web.logrotate.apply' => 'Schreibt eine logrotate-Datei; im Panel steht dazu nichts.',
         'php.pool.apply' => 'Der Pool gehört zum Abonnement und hat keinen eigenen Zustand im Panel.',
@@ -388,25 +390,6 @@ final class AgentOperationReachTest extends TestCase
     }
 
     /**
-     * Jede Operation des Agenten wird auch benutzt.
-     *
-     * Eine Operation, die niemand aufruft, ist Code, der als root läuft und für
-     * den es keinen Weg gibt — die Angriffsfläche ohne den Nutzen.
-     *
-     * **Gefragt wird die erklärte Liste und nicht der Quelltext.** Der erste
-     * Entwurf suchte die Namen an den Aufrufstellen, und das ging schief: Der
-     * Steuerungscode der Abonnements reicht sie über eine eigene Methode
-     * durch, und `subscription.provision` sah dadurch unbenutzt aus. Ein
-     * Ausdruck, der jede Schreibweise eines Aufrufs erraten muss, ist kein
-     * Wächter, sondern eine zweite Fehlerquelle. Die Liste aus
-     * {@see Lifecycles::handled()} und {@see self::WITHOUT_LIFECYCLE} ist
-     * dagegen eine Aussage, die jemand hinschreibt — und sie wird in beide
-     * Richtungen gegen die Registratur gehalten.
-     *
-     * Genau so gefunden: `php.pool.remove` und `web.logrotate.apply` waren in
-     * P3 gebaut und von nichts aufgerufen.
-     */
-    /**
      * Eine Erklärung ist noch kein Aufruf.
      *
      * **Der Wächter darunter hatte eine Lücke, und sie hat drei Monate
@@ -490,6 +473,25 @@ final class AgentOperationReachTest extends TestCase
         }
     }
 
+    /**
+     * Jede Operation des Agenten wird auch benutzt.
+     *
+     * Eine Operation, die niemand aufruft, ist Code, der als root läuft und für
+     * den es keinen Weg gibt — die Angriffsfläche ohne den Nutzen.
+     *
+     * **Gefragt wird die erklärte Liste und nicht der Quelltext.** Der erste
+     * Entwurf suchte die Namen an den Aufrufstellen, und das ging schief: Der
+     * Steuerungscode der Abonnements reicht sie über eine eigene Methode
+     * durch, und `subscription.provision` sah dadurch unbenutzt aus. Ein
+     * Ausdruck, der jede Schreibweise eines Aufrufs erraten muss, ist kein
+     * Wächter, sondern eine zweite Fehlerquelle. Die Liste aus
+     * {@see Lifecycles::handled()} und {@see self::WITHOUT_LIFECYCLE} ist
+     * dagegen eine Aussage, die jemand hinschreibt — und sie wird in beide
+     * Richtungen gegen die Registratur gehalten.
+     *
+     * Genau so gefunden: `php.pool.remove` und `web.logrotate.apply` waren in
+     * P3 gebaut und von nichts aufgerufen.
+     */
     public function test_every_operation_of_the_agent_is_used(): void
     {
         $erklärt = array_merge(Lifecycles::handled(), array_keys(self::WITHOUT_LIFECYCLE));

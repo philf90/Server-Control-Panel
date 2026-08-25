@@ -66,6 +66,18 @@ const PATHS: Record<string, string> = {
   // Protokoll: Zeilen mit Punkten davor — Einträge untereinander.
   log: 'M5 6h.01M5 12h.01M5 18h.01M9.5 6H19M9.5 12H19M9.5 18H19',
 
+  /*
+   * Logs des Servers: ein Blatt mit umgeknickter Ecke und zwei Zeilen.
+   *
+   * **Bewusst nicht dasselbe wie `log`.** Die beiden Punkte stehen in
+   * derselben Gruppe — „Protokoll" ist, was das Panel getan hat, „Logs" ist,
+   * was auf dem Server steht. Bei „Datenbanken" und „Datenbankserver" durfte
+   * ein Zeichen zweimal stehen, weil die **Gruppen** den Unterschied machen;
+   * hier täte es das nicht, und zwei gleiche Zeichen untereinander lesen sich
+   * als derselbe Ort.
+   */
+  logfile: 'M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6',
+
   // PHP-Versionen: spitze Klammern, das Zeichen für Quelltext.
   php: 'M8.5 8L5 12l3.5 4M15.5 8L19 12l-3.5 4',
 
@@ -101,6 +113,23 @@ const PATHS: Record<string, string> = {
 
   // Mein Konto: eine Person.
   account: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4.5 20a7.5 7.5 0 0115 0',
+
+  /*
+   * Konten: eine Person mit einem Schlüssel — Adminkonten, nicht Kunden.
+   *
+   * Es ist bewusst weder `account` (eine Person, „Mein Konto") noch `customers`
+   * (zwei Personen). Beide gibt es schon, und ein Zeichen, das an zwei Stellen
+   * steht, sagt an der zweiten nichts mehr. Der Schlüssel ist das, was diese
+   * Liste von den anderen unterscheidet: Wer hier steht, darf an den Server.
+   */
+  accounts: 'M8.5 11.5a4 4 0 100-8 4 4 0 000 8zM2 20a6.5 6.5 0 0113 0M18 16.5a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5zM19.9 14.25H22.5M21.4 14.25v1.9',
+
+  /*
+   * Zugang: ein Schloss. Nicht `tls` (der Schild — das ist die Echtheit einer
+   * Verbindung) und nicht `sftp` (der Schlüssel am Konto). Hier geht es um die
+   * Tür selbst: wer überhaupt herein darf.
+   */
+  access: 'M6 10.5V7.5a6 6 0 0112 0v3M5 10.5h14v9H5zM12 14v2',
 }
 
 const props = withDefaults(defineProps<{ name: string; size?: number }>(), { size: 17 })

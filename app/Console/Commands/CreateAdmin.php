@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Enums\AccountStatus;
 use App\Enums\AccountType;
+use App\Enums\AdminRole;
 use App\Models\Account;
 use App\Support\Passwords\Policy;
 use Illuminate\Console\Command;
@@ -78,6 +79,18 @@ final class CreateAdmin extends Command
         } else {
             Account::query()->create([
                 'type' => AccountType::Admin,
+
+                /*
+                 * **Betreiber und nicht Administrator.** Dieses Kommando ist
+                 * der Rückweg, wenn sich jemand ausgesperrt hat (`docs/82 §3`,
+                 * Falle 3) — ein Konto, das es anlegt, muss den Server wieder
+                 * in die Hand bekommen können. Ein Administrator käme nicht an
+                 * die Einstellungen und damit nicht an die Ursache.
+                 *
+                 * Wer einen Administrator will, legt ihn in der Oberfläche an;
+                 * das ist Schritt 3.
+                 */
+                'role' => AdminRole::Operator,
                 'customer_id' => null,
                 'name' => (string) ($this->option('name') ?: 'Administrator'),
                 'email' => $email,

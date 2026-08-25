@@ -9,6 +9,7 @@ use SrvPanel\Agent\Acme\PanelCertificate;
 use SrvPanel\Agent\Acme\Trust;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Logs;
 use SrvPanel\Agent\Names;
 use SrvPanel\Agent\NginxApply;
 use SrvPanel\Agent\Op;
@@ -29,6 +30,19 @@ use SrvPanel\Agent\Op;
  */
 final class PanelVhost implements Op
 {
+    /**
+     * Wohin die Oberfläche des Panels protokolliert.
+     *
+     * **Als Konstanten, weil {@see Logs} darauf zeigt.**
+     * Die Seite „Logs" holt sich den Pfad von hier statt ihn ein zweites Mal
+     * hinzuschreiben — sonst zeigte sie nach einer Umbenennung auf eine Datei,
+     * die niemand mehr beschreibt, und meldete „kein Protokoll" statt eines
+     * Fehlers.
+     */
+    public const ACCESS_LOG = '/var/log/srvpanel/panel-access.log';
+
+    public const ERROR_LOG = '/var/log/srvpanel/panel-error.log';
+
     public function __construct(private readonly string $target = '/etc/nginx/conf.d/srvpanel.conf') {}
 
     public static function name(): string
@@ -190,6 +204,11 @@ final class PanelVhost implements Op
         // Ablageort und ausliefernde Zeile dürfen nicht auseinanderlaufen.
         $challenge = HttpChallenge::nginxLocation();
 
+        // Aus den Konstanten und nicht wörtlich in der Vorlage: Der Ort steht
+        // damit einmal da, und die Seite „Logs" liest denselben.
+        $access = self::ACCESS_LOG;
+        $error = self::ERROR_LOG;
+
         /*
          * **HSTS erst, wenn ein Browser dem Zertifikat überhaupt trauen kann.**
          *
@@ -285,8 +304,8 @@ final class PanelVhost implements Op
 
             include /etc/srvpanel/nginx-extra.conf*;
 
-            access_log /var/log/srvpanel/panel-access.log;
-            error_log  /var/log/srvpanel/panel-error.log;
+            access_log {$access};
+            error_log  {$error};
         }
 
         # **Port 80, und zwar nur für zwei Dinge.**
@@ -317,8 +336,8 @@ final class PanelVhost implements Op
                 return 301 https://{$hostname}:{$port}\$request_uri;
             }
 
-            access_log /var/log/srvpanel/panel-access.log;
-            error_log  /var/log/srvpanel/panel-error.log;
+            access_log {$access};
+            error_log  {$error};
         }
 
         CONF;

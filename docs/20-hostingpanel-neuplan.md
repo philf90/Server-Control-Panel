@@ -1242,6 +1242,61 @@ Eintragseditor, DNSSEC, AXFR, NOTIFY — und das Schreiben in fremde Zonen über
 die vorhandenen Anbieter-Zugangsdaten. Das letzte ist der naheliegende nächste
 Schritt und eine eigene Entscheidung (`docs/72 §4`).
 
+### P7b — Serververwaltung · ~7,5 Wochen · (0.8.x)
+
+> **Dazugekommen am 24. August 2026, entschieden vom Betreiber.** Diese Stufe
+> stand bis dahin als ein Aufzählungspunkt in P9 („Serververwaltung für den
+> Admin: Dienste, Pakete und Systemupdates, Firewall (nftables),
+> Fail2ban-Jails, Logs") — und allein dieser Punkt ist nach der Aufstellung in
+> `docs/80` **acht bis zehn Wochen**, während P9 insgesamt mit drei bis vier
+> angesetzt war. Die Bestandsaufnahme ist `docs/80`, der Plan `docs/81`, die
+> Übergabe `docs/79`.
+>
+> Geplant wurde sie unter dem Namen „P9a", weil sie in P9 stand. Sie hängt aber
+> zwischen P7 und P8, und damit war der Name falsch:
+>
+> > **Ein Name, der eine Reihenfolge behauptet, wird falsch, wenn die
+> > Reihenfolge sich ändert — und er wird trotzdem weiterbenutzt, weil er in
+> > Überschriften steht.**
+
+Sieben Vorschläge aus `docs/80 §6.1`, in dieser Reihenfolge:
+
+- **A5 — Logs an einer Stelle** · 3–5 Tage · **zuerst**. Positivliste von
+  Quellen im Agenten, dazu `/var/log/apt/history.log`. Kein Dateipfad aus dem
+  Formular. Zuerst, weil jede folgende Stufe damit billiger wird: A1 erzeugt
+  ein Protokoll, das jemand lesen können muss.
+- **A9 — Zwei Verwaltungsrollen und die Kontenverwaltung** · 1,5–2 Wochen ·
+  **vorgezogen am 24. August 2026**. Der Plan ist `docs/82`. Vorgezogen, weil
+  jede Adminfunktion, die vorher entsteht, ihre Rolle beim Bauen entscheiden
+  muss — und weil Adminkonten bis dahin **ausschliesslich** über
+  `srvpanel admin` auf der Kommandozeile entstehen.
+- **A2 — Dienste und Timer** · 1 Woche. Alle Units, Neustartzähler, und **der
+  nächste Termin je Timer** — ein Timer ohne Termin meldet „active" und ist
+  abgeschaltet (`docs/64`). Braucht die drei feineren Fähigkeiten aus
+  `docs/82 §2.3` und kommt deshalb nach A9.
+- **A10 — Diagnose des Bestands** · 1 Woche. Knopf und Nachtlauf.
+- **A1 — Paketquellen und Systemupdates über apt** · 2–3 Wochen. Vollständig
+  ausgeplant in `docs/81` §2 bis §10, mit Abnahmekriterium (§4) und
+  Schrittfolge (§9).
+- **A11 — Neustart, Zeitzone des Servers, NTP** · 2–3 Tage.
+- **A6 — Zeitpläne des Servers, nur lesen** · 2–3 Tage.
+
+**Fertig, wenn** ein Betreiber Systemupdates einspielen, Dienste ansehen und
+Logs lesen kann, ohne sich anzumelden — und das Abnahmekriterium von A1
+(`docs/81 §4`, acht Punkte) auf einem echten Server erfüllt ist.
+
+**Was hier ausdrücklich nicht dazugehört und noch keine Stufe hat:** die drei
+absichernden Vorschläge **A3** (Firewall über nftables), **A4** (Anmeldeschutz
+über fail2ban) und **A7** (Schwellen und Benachrichtigungen), zusammen rund vier
+Wochen. `docs/81 §12.1` schlägt für sie eine eigene Stufe nach P9 vor;
+**entschieden ist das nicht.**
+
+> **A9 stand bis zum 24. August in dieser Gruppe und ist herausgelöst worden.**
+> Sie war die folgenreichste darin: Sie teilt den Admin in Betreiber und
+> Administrator (`§6.1`), und wer eine Adminfunktion baut, entscheidet **beim
+> Bauen**, auf welcher Seite sie liegt. Jede Woche, die sie später kommt, ist
+> eine Woche Adminfunktionen, die diese Entscheidung nachtragen müssten.
+
 ### P8 — Sicherungen und Wiederherstellung · 3–4 Wochen · (0.9)
 
 - Sicherung je Abonnement: Dateien, Datenbanken, Konfiguration (Domains, DNS,
@@ -1268,8 +1323,11 @@ funktionieren — geprüft durch einen automatisierten Lauf, nicht von Hand.
 - Benachrichtigungen an Kunden: Kontingent erreicht, Zertifikat läuft ab,
   Sicherung fehlgeschlagen
 - Branding: Logo, Farben, Fußzeile, Absenderadresse, eigene Panel-Domain
-- Serververwaltung für den Admin: Dienste, Pakete und Systemupdates,
-  Firewall (nftables), Fail2ban-Jails, Logs
+- ~~Serververwaltung für den Admin~~ — **seit dem 24. August 2026 eine eigene
+  Stufe, P7b**, und damit vor P8 statt hier. Der Punkt bleibt als Zeile stehen
+  und nicht als stille Streichung: Wer P9 plant, soll sehen, wohin er gegangen
+  ist. Was von ihm noch keine Stufe hat, sind Firewall und Fail2ban — siehe
+  dort.
 - API v1 mit OpenAPI-Beschreibung und Tokens; darüber Abonnement anlegen,
   ändern, sperren, löschen
 - Dokumentation: Betreiberhandbuch, Kundenhilfe in der Oberfläche

@@ -623,7 +623,12 @@ echo "── NavIconTest: ein Menüpunkt ohne Zeichen ──"
 #
 # Ein Eintrag ohne `icon:` steht in der Spalte als einziger ohne Zeichen da —
 # kein Fehler, keine Meldung, nur eine Lücke, die nach einem Fehler aussieht.
-sed -i "s|{ name: 'Mailversand', href: '/settings/mail', icon: 'mail' }|{ name: 'Mailversand', href: '/settings/mail' }|" \
+#
+# **Der Anker traegt seit A9 Schritt 5 die Faehigkeit mit.** Der Eintrag heisst
+# jetzt `…, icon: 'mail', ability: 'operate-server' }`; ohne das Nachziehen fand
+# dieser Eingriff seinen Text nicht mehr und prueffte nichts. Gemeldet hat es
+# BreakScriptTest.
+sed -i "s|{ name: 'Mailversand', href: '/settings/mail', icon: 'mail', ability: 'operate-server' }|{ name: 'Mailversand', href: '/settings/mail', ability: 'operate-server' }|" \
   resources/js/Layouts/PanelLayout.vue
 pruefe "Menüpunkt ohne Zeichen" \
   NavIconTest::test_every_menu_entry_carries_an_icon failed
@@ -4909,7 +4914,10 @@ s = open(p, encoding='utf-8').read()
 s = s.replace(
     "    Route::get('/settings/database', [DatabaseSettingsController::class, 'show'])",
     "    Route::put('/settings/database', [DatabaseSettingsController::class, 'show'])\n"
-    "        ->middleware('can:manage-settings')\n"
+    # Seit dem 24. August die Betreiber-Faehigkeit: Der Fernzugriff nimmt alle
+    # Kunden mit (docs/20 §6.1). Eingebaut wird damit eine Route, die es so
+    # wirklich gaebe — und nicht eine mit einer ueberholten Entscheidung.
+    "        ->middleware('can:operate-server')\n"
     "        ->name('settings.database.switch');\n\n"
     "    Route::get('/settings/database', [DatabaseSettingsController::class, 'show'])",
 )
@@ -15553,6 +15561,1117 @@ pruefe "isAdmin vergleicht gegen eine Menge" \
   AccountTypeAxisTest::test_both_methods_still_compare_against_a_single_case failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AccountTypeAxisTest passed
+
+echo
+echo "── AptResultTest: der Rückgabewert ist wieder die einzige Auskunft ──"
+#
+# **Der einzige Bruch dieses Skripts, der eine echte Regression nachstellt und
+# keine erfundene.** Bis zum 24. August 2026 stand an drei Stellen
+# `if (! $update->successful())` und sonst nichts — und `apt-get update` endet
+# mit 0, auch wenn keine einzige Quelle geantwortet hat (M5, docs/81 §2.1).
+# Gemessen im Container gegen apt 2.8.3: rc=0, stdout leer, zwei `W:`-Zeilen
+# auf stderr.
+#
+# Der Eingriff wirft den Leser heraus und lässt genau das übrig, was vorher
+# dastand.
+#
+#   Ein Rückgabewert, der einen Fehlschlag nicht tragen kann, ist keine
+#   Prüfung — er ist eine Zeile, die aussieht wie eine.
+vorher_datei agent/src/Apt.php
+python3 - <<'PY2'
+p = 'agent/src/Apt.php'
+s = open(p, encoding='utf-8').read()
+alt = 'return new self($result, self::readFailures($result->stderr));'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'return new self($result, []);', 1))
+PY2
+griff_datei agent/src/Apt.php "apt-get update ohne den Leser" &&
+pruefe "apt-get update ohne den Leser" \
+  AptResultTest::test_a_run_that_ends_with_zero_can_still_have_lost_a_source failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptResultTest passed
+
+echo
+echo "── AptResultTest: eine Operation ruft apt-get update an Apt vorbei ──"
+#
+# Die andere Hälfte derselben Regel. Ein zweiter Aufruf von `apt-get update`
+# neben `Apt::refresh()` bringt eine zweite Fassung der Prüfung mit — und die
+# zweite ist erfahrungsgemäss die, die den stderr nicht liest.
+#
+#   Zwei Listen, die dasselbe meinen, laufen auseinander — und keine von
+#   beiden ist der Ort, an dem man nachsieht.
+vorher_datei agent/src/Ops/PhpVersionInstall.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PhpVersionInstall.php'
+s = open(p, encoding='utf-8').read()
+alt = '$refresh = Apt::refresh($context);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "$refresh = Apt::of($context->stream('apt-get', ['update', '-qq'], 300));"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/PhpVersionInstall.php "apt-get update an Apt vorbei" &&
+pruefe "apt-get update an Apt vorbei" \
+  AptResultTest::test_every_call_of_apt_get_update_goes_through_one_place failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptResultTest passed
+
+echo
+echo "── AptResultTest: der Ausdruck findet seine eigene Stelle nicht mehr ──"
+#
+# Der Prüfkörper des Wächters. Zieht `apt-get update` um oder ändert seine
+# Schreibweise, findet die Suche nichts mehr — und meldete dann Grün für eine
+# Regel, die sie gar nicht mehr liest. Genau so ist dieses Projekt dreimal in
+# einen Wächter gelaufen, der beim Aufräumen zubiss statt beim Fehler.
+#
+#   Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+#   steht.
+vorher_datei agent/src/Apt.php
+python3 - <<'PY2'
+p = 'agent/src/Apt.php'
+s = open(p, encoding='utf-8').read()
+alt = "self::UPDATE_ARGUMENTS, $timeout"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "['upgrade', '-qq'], $timeout", 1))
+PY2
+griff_datei agent/src/Apt.php "der Ausdruck trifft Apt nicht mehr" &&
+pruefe "der Ausdruck trifft Apt nicht mehr" \
+  AptResultTest::test_the_home_and_every_exception_are_reached_by_the_scan failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptResultTest passed
+
+echo
+echo "── PhpSourceUriTest: die Paketierung benennt ihre Quelldatei um ──"
+#
+# `php.version.install` bricht an einer toten PHP-Quelle ab, und welche das
+# ist, liest es aus der Datei, die `php-source.sh` schreibt. Heisst sie anders,
+# gibt `sourceUris()` eine leere Liste zurück — und dann geschieht **nichts
+# Sichtbares**: Der Abbruch bleibt aus, und der Fund M5 ist still wieder da.
+#
+#   Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts zu tun".
+vorher_datei packaging/php-source.sh
+python3 - <<'PY2'
+p = 'packaging/php-source.sh'
+s = open(p, encoding='utf-8').read()
+alt = '/etc/apt/sources.list.d/php-sury.sources'
+assert s.count(alt) == 2, 'Zielstelle nicht mehr zweimal da — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '/etc/apt/sources.list.d/php-ondrej.sources'))
+PY2
+griff_datei packaging/php-source.sh "Quelldatei der Paketierung umbenannt" &&
+pruefe "Quelldatei der Paketierung umbenannt" \
+  PhpSourceUriTest::test_the_packaging_writes_the_file_the_agent_reads failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PhpSourceUriTest passed
+
+echo
+echo "── PhpSourceUriTest: die Paketierung schreibt ein anderes Feld ──"
+#
+# Dieselbe stille Lücke von der anderen Seite: Die Datei heisst richtig, das
+# Feld darin nicht. Der Wächter fragt deshalb nicht nach dem Wort `URIs`,
+# sondern lässt den Leser den Block lesen, den die Paketierung wirklich
+# erzeugt.
+vorher_datei packaging/php-source.sh
+python3 - <<'PY2'
+p = 'packaging/php-source.sh'
+s = open(p, encoding='utf-8').read()
+alt = 'URIs: ${base}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'URL: ${base}', 1))
+PY2
+griff_datei packaging/php-source.sh "Paketierung schreibt ein anderes Feld" &&
+pruefe "Paketierung schreibt ein anderes Feld" \
+  PhpSourceUriTest::test_the_reader_understands_what_the_packaging_writes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PhpSourceUriTest passed
+
+echo
+echo "── PhpSourceUriTest: der Leser liest nicht mehr nur am Zeilenanfang ──"
+#
+# `Signed-By:` kann ein über vierzig Zeilen gefalteter PGP-Block sein
+# (docs/81 §2.1). Eine Fortsetzungszeile beginnt mit einem Leerzeichen und ist
+# **kein** Feld — wer den Anker wegnimmt, holt sich eine Adresse aus dem
+# Schlüsselblock.
+vorher_datei agent/src/PhpVersions.php
+python3 - <<'PY2'
+p = 'agent/src/PhpVersions.php'
+s = open(p, encoding='utf-8').read()
+alt = r"'/^URIs:\s*(.*?)\s*$/D'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, r"'/URIs:\s*(.*?)\s*$/D'", 1))
+PY2
+griff_datei agent/src/PhpVersions.php "URIs ohne Anker am Zeilenanfang" &&
+pruefe "URIs ohne Anker am Zeilenanfang" \
+  PhpSourceUriTest::test_a_folded_block_does_not_become_a_field failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PhpSourceUriTest passed
+
+echo
+echo "── AptLockReachTest: eine Operation greift an der Paketsperre vorbei ──"
+#
+# Zwei apt-Läufe gleichzeitig enden in der dpkg-Sperre, und deren Meldung
+# versteht niemand (docs/81 §7, Falle 2). Bis zum 24. August 2026 fragte genau
+# eine der vier apt-rufenden Operationen danach — und ihre Frage sah nur die
+# eigenen abgesetzten Läufe.
+vorher_datei agent/src/Ops/PhpVersionRemove.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PhpVersionRemove.php'
+s = open(p, encoding='utf-8').read()
+alt = '        AptLock::ensureFree($context);\n\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Ops/PhpVersionRemove.php "Operation ohne Paketsperre" &&
+pruefe "Operation ohne Paketsperre" \
+  AptLockReachTest::test_every_operation_that_touches_apt_goes_through_the_lock failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptLockReachTest passed
+
+echo
+echo "── AptLockReachTest: FLOCK wird als Konflikt mitgezählt ──"
+#
+# Gemessen am 24. August 2026: PHPs `flock()` gelingt, während dpkgs
+# POSIX-Sperre gehalten wird — die beiden Familien sehen einander nicht.
+# Eine FLOCK-Zeile mitzuzählen ergäbe eine Ablehnung für einen Lauf, der
+# durchgekommen wäre.
+vorher_datei agent/src/AptLock.php
+python3 - <<'PY2'
+p = 'agent/src/AptLock.php'
+s = open(p, encoding='utf-8').read()
+alt = "private const CONFLICTING = ['POSIX', 'OFDLCK'];"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "private const CONFLICTING = ['POSIX', 'OFDLCK', 'FLOCK'];", 1))
+PY2
+griff_datei agent/src/AptLock.php "FLOCK zaehlt als Konflikt" &&
+pruefe "FLOCK zaehlt als Konflikt" \
+  AptLockReachTest::test_a_flock_entry_does_not_count failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptLockReachTest passed
+
+echo
+echo "── AptLockReachTest: der Unitname steht wieder als eigene Zeichenkette da ──"
+#
+# In PanelUpdate standen der gebaute Name und die Suche danach als zwei
+# Zeichenketten nebeneinander. Zwei Fassungen derselben Regel, und die zweite
+# ist die, die beim Umbenennen stehenbleibt.
+vorher_datei agent/src/Ops/PanelUpdate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PanelUpdate.php'
+s = open(p, encoding='utf-8').read()
+alt = 'AptLock::UNIT_PREFIX.bin2hex'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'srvpanel-update-'.bin2hex", 1))
+PY2
+griff_datei agent/src/Ops/PanelUpdate.php "Unitname als eigene Zeichenkette" &&
+pruefe "Unitname als eigene Zeichenkette" \
+  AptLockReachTest::test_the_unit_name_is_built_from_the_constant failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptLockReachTest passed
+
+echo
+echo "── AptLockReachTest: der wartende Anwärter faellt durch den Ausdruck ──"
+#
+# /proc/locks führt blockierte Anwärter als Fortsetzungszeile mit `->`. Eine
+# Datei, für die jemand ansteht, ist erst recht nicht frei — ohne den
+# Vorausblick fällt die Zeile durch.
+vorher_datei agent/src/AptLock.php
+python3 - <<'PY2'
+p = 'agent/src/AptLock.php'
+s = open(p, encoding='utf-8').read()
+alt = '(?:->\\s+)?'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/AptLock.php "Anwaerter faellt durch den Ausdruck" &&
+pruefe "Anwaerter faellt durch den Ausdruck" \
+  AptLockReachTest::test_a_waiting_process_counts_too failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptLockReachTest passed
+
+echo
+echo "── AptLockReachTest: ein fehlgeschlagenes systemctl gilt wieder als Antwort ──"
+#
+# Derselbe Befund wie M5, nur andersherum, und er stand in genau dem Code, der
+# nach AptLock gezogen ist: PanelUpdate las seit P0 nur stdout und schloss aus
+# einer leeren Ausgabe „es läuft keiner". Gemessen ohne systemd: rc=1, stdout
+# leer, die Auskunft auf stderr. Geraten wurde in die Richtung, die einen
+# kollidierenden Lauf losgehen lässt.
+vorher_datei agent/src/AptLock.php
+python3 - <<'PY2'
+p = 'agent/src/AptLock.php'
+s = open(p, encoding='utf-8').read()
+alt = 'if (! $units->successful()) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if (false) {', 1))
+PY2
+griff_datei agent/src/AptLock.php "systemctl-Fehlschlag gilt als Antwort" &&
+pruefe "systemctl-Fehlschlag gilt als Antwort" \
+  AptLockReachTest::test_a_failed_listing_is_not_an_answer failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptLockReachTest passed
+
+echo
+echo "── AdminAbilityTest: eine geheimnistragende Seite faellt auf die schwaechere Faehigkeit zurueck ──"
+#
+# Die DNS-Zugangsdaten sind ein Geheimnis (docs/20 §6.1, Merkmal 3). Wer sie
+# hinter `can:manage-settings` legt, gibt sie mit A9 dem Administrator — und
+# zwar still, weil heute beide Faehigkeiten dasselbe beantworten.
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+alt = """Route::get('/settings/dns', [DnsSettingsController::class, 'show'])
+        ->middleware('can:operate-server')"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = alt.replace("'can:operate-server'", "'can:manage-settings'")
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei routes/web.php "Geheimnisseite mit schwaecherer Faehigkeit" &&
+pruefe "Geheimnisseite mit schwaecherer Faehigkeit" \
+  AdminAbilityTest::test_an_admin_route_belongs_to_the_operator_unless_declared failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminAbilityTest passed
+
+echo
+echo "── AdminAbilityTest: eine Erklaerung ueberlebt ihre Route ──"
+#
+# Die zweite Richtung, dieselbe wie bei RouteGuard: Ohne sie waechst die
+# Registratur ueber Jahre und deckt irgendwann eine Seite, an die niemand mehr
+# gedacht hat.
+vorher_datei app/Support/Authorization/AdminAbility.php
+python3 - <<'PY2'
+p = 'app/Support/Authorization/AdminAbility.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'settings/general' =>"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = ("            'settings/gibtsnicht' => 'Eine Begruendung, die lang genug ist, um als eine zu gelten.',\n"
+       "            'settings/general' =>")
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Authorization/AdminAbility.php "Erklaerung ohne Route" &&
+pruefe "Erklaerung ohne Route" \
+  AdminAbilityTest::test_no_declaration_outlives_its_route failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminAbilityTest passed
+
+echo
+echo "── AdminAbilityTest: ein Gate steht neben der Registratur ──"
+#
+# Eine Faehigkeit mit eigenem Gate::define hat keine Rolle und keine
+# Begruendung — und mit A9 keine Seite, auf der sie liegt. Gemerkt haette es
+# niemand, weil sie funktioniert.
+vorher_datei app/Providers/SrvPanelServiceProvider.php
+python3 - <<'PY2'
+p = 'app/Providers/SrvPanelServiceProvider.php'
+s = open(p, encoding='utf-8').read()
+alt = '        foreach (AdminAbility::abilities() as $ability => $declaration) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = ("        Gate::define('manage-firewall', static fn (Account $account): bool => $account->isAdmin());\n\n"
+       + alt)
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Providers/SrvPanelServiceProvider.php "Gate neben der Registratur" &&
+pruefe "Gate neben der Registratur" \
+  AdminAbilityTest::test_no_gate_is_defined_beside_the_registry failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminAbilityTest passed
+
+echo
+echo "── AdminAbilityTest: eine Route nennt eine Faehigkeit, die es nicht gibt ──"
+#
+# Derselbe Fehler wie ueberall in diesem Projekt: eine Zeichenkette, die auf
+# etwas zeigt, ohne dass etwas den Bezug haelt. Ein `can:` mit Tippfehler laesst
+# Laravel die Faehigkeit verweigern — und die Seite ist fuer alle zu.
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+alt = "'can:operate-server'"
+assert s.count(alt) >= 1, 'Zielstelle fehlt — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'can:operate-servers'", 1))
+PY2
+griff_datei routes/web.php "Faehigkeit mit Tippfehler" &&
+pruefe "Faehigkeit mit Tippfehler" \
+  AdminAbilityTest::test_no_ability_named_in_the_routes_points_nowhere failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminAbilityTest passed
+
+echo
+echo "── AdminAbilityTest: eine dritte Rolle im Enum ──"
+#
+# Die Admin-Ebene hat genau zwei Rollen. Eine dritte einzutragen ist der Anfang
+# eines Rechte-Baukastens, und der ist ausdruecklich nicht das Modell
+# (docs/82 §4). Wer eine dritte will, entscheidet vorher, was sie darf.
+vorher_datei app/Enums/AdminRole.php
+python3 - <<'PY2'
+p = 'app/Enums/AdminRole.php'
+s = open(p, encoding='utf-8').read()
+alt = "    case Administrator = 'administrator';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = alt + "\n\n    case Superadmin = 'superadmin';"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Enums/AdminRole.php "dritte Rolle im Enum" &&
+pruefe "dritte Rolle im Enum" \
+  AdminAbilityTest::test_every_ability_belongs_to_one_of_the_two_roles failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminAbilityTest passed
+
+echo
+echo "── LogSourceTest: der Schluessel wird nicht mehr gegen die Liste geprueft ──"
+#
+# Zwischen dem Formular und `fopen()` steht genau eine Sache: die Positivliste.
+# Faellt sie weg, ist der kuerzeste Weg von einem angemeldeten Konto zu
+# /etc/shadow eine Adresszeile.
+vorher_datei agent/src/Logs.php
+python3 - <<'PY2'
+p = 'agent/src/Logs.php'
+s = open(p, encoding='utf-8').read()
+alt = "return self::sources()[Guard::enum($key, self::keys(), 'source')];"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "return self::sources()[$key] ?? ['kind' => self::FILE, 'label' => '', 'path' => (string) $key, 'unit' => null];"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Logs.php "Logquelle ohne Positivliste" &&
+pruefe "Logquelle ohne Positivliste" \
+  LogSourceTest::test_a_key_outside_the_list_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogSourceTest passed
+
+echo
+echo "── LogSourceTest: eine Quelle zeigt aus dem erlaubten Bereich heraus ──"
+#
+# Die Grenze faengt, was die Positivliste selbst nicht faengt: einen neuen
+# Eintrag, der auf /etc oder ein Kundenverzeichnis zeigt. Ersteres waere ein
+# Geheimnis des Systems, letzteres ein Bruch der Mandantenklammer.
+vorher_datei agent/src/Logs.php
+python3 - <<'PY2'
+p = 'agent/src/Logs.php'
+s = open(p, encoding='utf-8').read()
+alt = "'auth' => self::file('Anmeldungen am Server', '/var/log/auth.log'),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "'auth' => self::file('Anmeldungen am Server', '/etc/shadow'),"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Logs.php "Logquelle ausserhalb der Grenze" &&
+pruefe "Logquelle ausserhalb der Grenze" \
+  LogSourceTest::test_every_file_stays_inside_the_allowed_roots failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogSourceTest passed
+
+echo
+echo "── LogSourceTest: eine Journalquelle nennt eine Unit, die es nicht gibt ──"
+#
+# Der Verweis, den sonst nichts prueft. journalctl meldet eine unbekannte Unit
+# mit Rueckgabe 0 und „-- No entries --" — der Kunde saehe „steht nichts im
+# Journal" und haette keinen Anlass, an einen Fehler zu denken.
+vorher_datei agent/src/Logs.php
+python3 - <<'PY2'
+p = 'agent/src/Logs.php'
+s = open(p, encoding='utf-8').read()
+alt = "'srvpanel-usage' => 'Verbrauch',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'srvpanel-verbrauch' => 'Verbrauch',", 1))
+PY2
+griff_datei agent/src/Logs.php "Journalquelle ohne Unit" &&
+pruefe "Journalquelle ohne Unit" \
+  LogSourceTest::test_every_journal_source_names_a_unit_the_package_ships failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogSourceTest passed
+
+echo
+echo "── LogSourceTest: `-- No entries --` kommt als Zeile durch ──"
+#
+# Gemessen am 24. August 2026: journalctl schreibt die Markierung auf **stdout**,
+# also dorthin, wo der Leser die Zeilen erwartet. Wer sie durchreicht, zeigt eine
+# Meldung des Werkzeugs als Inhalt des Protokolls.
+vorher_datei agent/src/Ops/SystemLogsTail.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemLogsTail.php'
+s = open(p, encoding='utf-8').read()
+alt = "if (trim($line) === '' || trim($line) === self::JOURNAL_EMPTY) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "if (trim($line) === '') {", 1))
+PY2
+griff_datei agent/src/Ops/SystemLogsTail.php "Journalmarkierung als Zeile" &&
+pruefe "Journalmarkierung als Zeile" \
+  LogSourceTest::test_the_empty_marker_is_not_a_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogSourceTest passed
+
+echo
+echo "── LogSourceTest: der Hinweis aus stderr wird verworfen ──"
+#
+# „No journal files were found" heisst, dass dieser Server sein Journal nicht
+# behaelt — eine Auskunft ueber die Einrichtung. Ohne sie sieht ein Server ohne
+# persistentes Journal aus wie ein Dienst, der nichts schreibt.
+vorher_datei agent/src/Ops/SystemLogsTail.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemLogsTail.php'
+s = open(p, encoding='utf-8').read()
+alt = "'note' => $note === '' ? null : $note,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'note' => null,", 1))
+PY2
+griff_datei agent/src/Ops/SystemLogsTail.php "Journalhinweis verworfen" &&
+pruefe "Journalhinweis verworfen" \
+  LogSourceTest::test_the_empty_marker_is_not_a_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogSourceTest passed
+
+echo
+echo "── AdminRoleTest: der Administrator deckt den Betreiber ──"
+#
+# Die Rangfolge ist die ganze Ordnung zwischen den beiden Rollen. Deckt der
+# Administrator den Betreiber, ist die Trennung eine Zierde — und zwar eine, die
+# jede Geheimnisseite oeffnet.
+vorher_datei app/Enums/AdminRole.php
+python3 - <<'PY2'
+p = 'app/Enums/AdminRole.php'
+s = open(p, encoding='utf-8').read()
+alt = 'self::Administrator => $required === self::Administrator,'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'self::Administrator => true,', 1))
+PY2
+griff_datei app/Enums/AdminRole.php "Administrator deckt den Betreiber" &&
+pruefe "Administrator deckt den Betreiber" \
+  AdminRoleTest::test_the_operator_covers_the_administrator_and_not_the_other_way failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminRoleTest passed
+
+echo
+echo "── AdminRoleTest: isOperator fragt die Mandantenachse nicht mehr ──"
+#
+# Die Richtung entscheidet. Fiele die Rollenfrage weg, waere jeder Admin
+# Betreiber — das faellt sofort auf. Faellt die Ebenenfrage weg, genuegt ein
+# Kundenkonto mit role = operator, und das faellt niemandem auf, weil es dort
+# normalerweise nicht steht.
+vorher_datei app/Models/Account.php
+python3 - <<'PY2'
+p = 'app/Models/Account.php'
+s = open(p, encoding='utf-8').read()
+alt = 'return $this->type->isAdmin() && $this->role === AdminRole::Operator;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'return $this->role === AdminRole::Operator;', 1))
+PY2
+griff_datei app/Models/Account.php "isOperator ohne Mandantenachse" &&
+pruefe "isOperator ohne Mandantenachse" \
+  AdminRoleTest::test_both_account_methods_ask_the_tenancy_axis failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminRoleTest passed
+
+echo
+echo "── AdminRoleTest: die Migration macht bestehende Admins zu Administratoren ──"
+#
+# Eine stille Rechteentziehung auf einem laufenden Server: Der Betreiber kaeme
+# am Montag nicht mehr an seine Mailkonfiguration, und die Meldung dazu sagte
+# nichts ueber eine Migration.
+vorher_datei database/migrations/2026_08_24_170000_add_admin_role_to_accounts.php
+python3 - <<'PY2'
+p = 'database/migrations/2026_08_24_170000_add_admin_role_to_accounts.php'
+s = open(p, encoding='utf-8').read()
+alt = 'AdminRole::Operator->value'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'AdminRole::Administrator->value', 1))
+PY2
+griff_datei database/migrations/2026_08_24_170000_add_admin_role_to_accounts.php "Migration entzieht Rechte" &&
+pruefe "Migration entzieht Rechte" \
+  AdminRoleTest::test_the_migration_makes_existing_admins_operators failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminRoleTest passed
+
+echo
+echo "── AdminRoleTest: die Rollenspalte bekommt eine Vorgabe ──"
+#
+# `null` heisst an einem Kundenkonto „kein Admin". Eine Vorgabe nimmt dieser
+# Null ihre Bedeutung — und traegt sie an jedes Konto, das danach entsteht.
+vorher_datei database/migrations/2026_08_24_170000_add_admin_role_to_accounts.php
+python3 - <<'PY2'
+p = 'database/migrations/2026_08_24_170000_add_admin_role_to_accounts.php'
+s = open(p, encoding='utf-8').read()
+alt = "->nullable()->after('type');"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "->nullable()->default('operator')->after('type');", 1))
+PY2
+griff_datei database/migrations/2026_08_24_170000_add_admin_role_to_accounts.php "Rollenspalte mit Vorgabe" &&
+pruefe "Rollenspalte mit Vorgabe" \
+  AdminRoleTest::test_the_migration_makes_existing_admins_operators failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminRoleTest passed
+
+echo
+echo "── AccountTypeAxisTest: die Rolle rutscht in die Mandantenachse ──"
+#
+# Zwei Achsen in einem Feld machen isAdmin() an 52 Stellen zweideutig. Der
+# neue Fall waere augenblicklich `isAdmin() === false` und
+# `belongsToCustomer() === true` — die Mandantenklammer setzte ihn auf
+# whereRaw('0 = 1'), und der neue Betreiber saehe eine leere Kundenliste.
+vorher_datei app/Enums/AccountType.php
+python3 - <<'PY2'
+p = 'app/Enums/AccountType.php'
+s = open(p, encoding='utf-8').read()
+alt = "    case Additional = 'additional';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = alt + "\n\n    case Operator = 'operator';"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Enums/AccountType.php "Rolle in der Mandantenachse" &&
+pruefe "Rolle in der Mandantenachse" \
+  AccountTypeAxisTest::test_neither_axis_carries_the_name_of_the_other failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountTypeAxisTest passed
+
+echo
+echo "── RoleResolutionTest: die Gates loesen wieder ueber die Ebene auf ──"
+#
+# Der Rueckfall von A9 Schritt 2. Er ist **still**: Beide Rollen duerfen dann
+# wieder alles, und kein Test stolpert ueber eine Ablehnung, die es nicht gibt.
+vorher_datei app/Providers/SrvPanelServiceProvider.php
+python3 - <<'PY2'
+p = 'app/Providers/SrvPanelServiceProvider.php'
+s = open(p, encoding='utf-8').read()
+alt = "static fn (Account $account): bool => $account->fulfils($declaration['role']),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'static fn (Account $account): bool => $account->isAdmin(),', 1))
+PY2
+griff_datei app/Providers/SrvPanelServiceProvider.php "Gates ohne Rolle" &&
+pruefe "Gates ohne Rolle" \
+  RoleResolutionTest::test_the_gates_resolve_over_the_role failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RoleResolutionTest passed
+
+echo
+echo "── RoleResolutionTest: srvpanel admin legt ein Konto ohne Rolle an ──"
+#
+# Seit die Gates ueber die Rolle aufloesen, erfuellt ein Adminkonto ohne Rolle
+# keine Faehigkeit: Es kann sich anmelden und darf nichts. Ausgerechnet dieses
+# Kommando ist der Rueckweg fuer jemanden, der sich ausgesperrt hat.
+vorher_datei app/Console/Commands/CreateAdmin.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/CreateAdmin.php'
+s = open(p, encoding='utf-8').read()
+alt = "                'role' => AdminRole::Operator,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Console/Commands/CreateAdmin.php "Adminkonto ohne Rolle" &&
+pruefe "Adminkonto ohne Rolle" \
+  RoleResolutionTest::test_every_place_that_creates_an_admin_sets_a_role failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RoleResolutionTest passed
+
+echo
+echo "── RoleResolutionTest: eine vierte Stelle legt heimlich ein Adminkonto an ──"
+#
+# Der Pruefkoerper der Liste. Er hat beim ersten Lauf ein echtes Loch gefunden:
+# Der Ausdruck kannte nur `=> AccountType::Admin` und uebersah
+# `=> \App\Enums\AccountType::Admin`.
+#
+#   Ein Waechter, der nur die gewohnte Schreibweise kennt, prueft die
+#   Gewohnheit und nicht die Regel.
+vorher_datei app/Console/Commands/Setup.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Setup.php'
+s = open(p, encoding='utf-8').read()
+alt = '    private function actor()'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = ("    private function heimlich(): void { \\App\\Models\\Account::query()"
+       "->create(['type' => \\App\\Enums\\AccountType::Admin]); }\n\n" + alt)
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Console/Commands/Setup.php "vierte Anlegestelle" &&
+pruefe "vierte Anlegestelle" \
+  RoleResolutionTest::test_no_other_place_creates_an_admin_account failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RoleResolutionTest passed
+
+echo
+echo "── AccountMutationTest: die aendernde Route fragt den Aussperrschutz nicht ──"
+#
+# Der Rueckfall von A9 Schritt 3. Ohne diese eine Zeile laesst sich der letzte
+# aktive Betreiber herabstufen oder sperren — und danach kommt niemand mehr an
+# die Einstellungen dieses Servers.
+vorher_datei app/Http/Controllers/AccountController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AccountController.php'
+s = open(p, encoding='utf-8').read()
+alt = 'if (! LastOperator::permits($admin, $role, $status)) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if (false) {', 1))
+PY2
+griff_datei app/Http/Controllers/AccountController.php "Aussperrschutz ungefragt" &&
+pruefe "Aussperrschutz ungefragt" \
+  AccountMutationTest::test_every_mutating_account_route_asks_the_guard failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountMutationTest passed
+
+echo
+echo "── AccountMutationTest: eine neue aendernde Route umgeht ihn ──"
+#
+# Der eigentliche Zweck dieses Waechters. `LastOperatorTest` misst die Wirkung
+# an den Wegen, die es beim Schreiben gab — er bliebe gruen, waehrend daneben
+# ein zweiter Weg in dieselbe Aussperrung entsteht.
+#
+#   Ein Waechter, der die bekannten Wege prueft, sagt nichts ueber den
+#   naechsten, den jemand baut.
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+alt = "    Route::post('/accounts/{admin}/password'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = ("    Route::post('/accounts/{admin}/disable', [AccountController::class, 'disable'])"
+       "->name('accounts.disable');\n\n" + alt)
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei routes/web.php "zweiter Weg zur Aussperrung" &&
+pruefe "zweiter Weg zur Aussperrung" \
+  AccountMutationTest::test_every_mutating_account_route_asks_the_guard failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountMutationTest passed
+
+echo
+echo "── AccountMutationTest: eine Ausnahme fuer eine Route, die es nicht gibt ──"
+#
+# Die Gegenrichtung der Registratur. Ohne sie waechst die Ausnahmeliste ueber
+# Jahre und entschuldigt irgendwann eine neue Methode desselben Namens.
+vorher_datei tests/Unit/AccountMutationTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/AccountMutationTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "    ];\n\n    /** Die eine Stelle"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        'destroy' => 'Gibt es nicht mehr.',\n" + alt
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Unit/AccountMutationTest.php "veraltete Ausnahme" &&
+pruefe "veraltete Ausnahme" \
+  AccountMutationTest::test_no_exception_stands_for_a_route_that_is_gone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountMutationTest passed
+
+echo
+echo "── AccountMutationTest: der Ausdruck findet keine Route mehr ──"
+#
+# Der Pruefkoerper des Waechters selbst. Ohne die Untergrenze meldete er Gruen,
+# sobald seine Zielstelle umzieht — und zwar fuer *keine* gemessene Route.
+#
+#   Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+#   steht.
+vorher_datei tests/Unit/AccountMutationTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/AccountMutationTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "accounts[^']"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "kontenXX[^']", 1))
+PY2
+griff_datei tests/Unit/AccountMutationTest.php "Ausdruck ins Leere" &&
+pruefe "Ausdruck ins Leere" \
+  AccountMutationTest::test_every_mutating_account_route_asks_the_guard failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountMutationTest passed
+
+echo
+echo "── AdminPayloadTest: eine Seite ueberschreibt die geteilte Ablage ──"
+#
+# Inertia laesst Seitenwerte ueber geteilte gewinnen. Ein zweites `abilities`
+# in einem Controller nimmt der Navigation genau auf dieser Seite ihre
+# Eintraege — und der Ausfall liest sich wie ein Rechteproblem.
+#
+# Der Eingriff sitzt mit Absicht in der **Hilfsmethode** und nicht am
+# `render()`: Der erste Wurf des Waechters las nur den Text hinter
+# `Inertia::render(` und haette LogsController nie gesehen.
+vorher_datei app/Http/Controllers/LogsController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/LogsController.php'
+s = open(p, encoding='utf-8').read()
+alt = '    private function read('
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+i = s.index(alt)
+j = s.index('return [', i) + len('return [')
+open(p, 'w', encoding='utf-8').write(s[:j] + "\n            'abilities' => []," + s[j:])
+PY2
+griff_datei app/Http/Controllers/LogsController.php "geteilte Ablage ueberschrieben" &&
+pruefe "geteilte Ablage ueberschrieben" \
+  AdminPayloadTest::test_no_page_shadows_the_shared_abilities failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminPayloadTest passed
+
+echo
+echo "── AdminPayloadTest: ein Menuepunkt verliert seine Faehigkeit ──"
+#
+# Der Rueckfall von A9 Schritt 5: Der Eintrag steht wieder bei jedem, und der
+# Administrator bekommt darauf einen 403.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = "{ name: 'Logs', href: '/logs', icon: 'logfile', ability: 'operate-server' }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "{ name: 'Logs', href: '/logs', icon: 'logfile' }"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Menuepunkt ohne Faehigkeit" &&
+pruefe "Menuepunkt ohne Faehigkeit" \
+  AdminPayloadTest::test_every_menu_entry_carries_the_ability_of_its_route failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminPayloadTest passed
+
+echo
+echo "── AdminPayloadTest: ein Menuepunkt erfindet eine Faehigkeit ──"
+#
+# Die Gegenrichtung. Ohne sie bliebe der Waechter gruen, wenn jemand jedem
+# Eintrag vorsichtshalber `operate-server` gaebe — dann verschwaenden „Kunden"
+# und „Abonnements" aus der Navigation des Administrators, also genau die
+# Arbeit, fuer die es ihn gibt.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = "{ name: 'Kunden', href: '/customers', icon: 'customers' }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "{ name: 'Kunden', href: '/customers', icon: 'customers', ability: 'operate-server' }"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "erfundene Faehigkeit" &&
+pruefe "erfundene Faehigkeit" \
+  AdminPayloadTest::test_no_menu_entry_invents_an_ability failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminPayloadTest passed
+
+echo
+echo "── AdminPayloadTest: eine geheimnisfuehrende Operation protokolliert ──"
+#
+# Protokollzeilen des Agenten landen in `Operation.output`, und
+# /operations/{id} zeigt sie **jedem** Admin — auch dem, der /logs nicht sehen
+# darf. Dass dort heute nichts Geheimes steht, liegt nicht an einem Filter,
+# sondern daran, dass diese zwoelf Operationen schweigen.
+vorher_datei agent/src/Ops/DbUserCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DbUserCreate.php'
+s = open(p, encoding='utf-8').read()
+i = s.rindex('    }')
+zeile = "    private function schwatz(): void { $this->log('angelegt'); }\n\n"
+open(p, 'w', encoding='utf-8').write(s[:i] + zeile + s[i:])
+PY2
+griff_datei agent/src/Ops/DbUserCreate.php "Operation protokolliert ein Geheimnis" &&
+pruefe "Operation protokolliert ein Geheimnis" \
+  AdminPayloadTest::test_no_secret_bearing_operation_logs_a_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminPayloadTest passed
+
+echo
+echo "── AdminPayloadTest: der Routenausdruck trifft nichts mehr ──"
+#
+# Der Pruefkoerper. Ohne die Untergrenze meldete der Waechter Gruen, sobald
+# seine Zielstelle umzieht — und zwar fuer *keine* gemessene Route.
+vorher_datei tests/Unit/AdminPayloadTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/AdminPayloadTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "Route::get\\('"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "Route::xget\\('", 1))
+PY2
+griff_datei tests/Unit/AdminPayloadTest.php "Routenausdruck ins Leere" &&
+pruefe "Routenausdruck ins Leere" \
+  AdminPayloadTest::test_every_menu_entry_carries_the_ability_of_its_route failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminPayloadTest passed
+
+echo
+echo "── AdminPayloadTest: die Renderzaehlung trifft nichts mehr ──"
+#
+# Die zweite Untergrenze, und sie gehoert zur ersten Zusage: Ohne sie
+# unterschiede „keine Seite ueberschreibt" nicht von „keine Seite gelesen".
+vorher_datei tests/Unit/AdminPayloadTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/AdminPayloadTest.php'
+s = open(p, encoding='utf-8').read()
+alt = 'Inertia::render\\('
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'Inertia::xrender\\(', 1))
+PY2
+griff_datei tests/Unit/AdminPayloadTest.php "Renderzaehlung ins Leere" &&
+pruefe "Renderzaehlung ins Leere" \
+  AdminPayloadTest::test_no_page_shadows_the_shared_abilities failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminPayloadTest passed
+
+echo
+echo "── DocblockAnchorTest: eine Marke steht ueber einem Block statt einer Methode ──"
+#
+# Genau der Fehler vom 25. August: Eine neue Methode rutscht zwischen eine
+# bestehende und ihren Dokumentationsblock. PHPStan meldet davon nur die
+# Haelfte, die ein Werkzeug sehen kann.
+#
+#   Ein Werkzeug bemerkt den fehlenden Kommentar. Den falschen bemerkt es nicht.
+vorher_datei app/Http/Middleware/HandleInertiaRequests.php
+python3 - <<'PY2'
+p = 'app/Http/Middleware/HandleInertiaRequests.php'
+s = open(p, encoding='utf-8').read()
+alt = '    /**\n     * Was auf jeder Seite verfügbar ist.'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '    /**\n     * Ein Zwischenschieber.\n     *\n     * @return int\n     */\n' + alt
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Http/Middleware/HandleInertiaRequests.php "Marke ohne Deklaration" &&
+pruefe "Marke ohne Deklaration" \
+  DocblockAnchorTest::test_no_docblock_stands_directly_above_another failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DocblockAnchorTest passed
+
+echo
+echo "── DocblockAnchorTest: es werden kaum Dateien gelesen ──"
+#
+# Der Pruefkoerper. Ohne die Untergrenze meldete der Waechter Gruen, sobald sein
+# Verzeichnisumfang schrumpft — und zwar fuer *keine* gemessene Datei.
+vorher_datei tests/Unit/DocblockAnchorTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DocblockAnchorTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "['app', 'agent/src', 'database', 'tests']"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "['app/Enums']", 1))
+PY2
+griff_datei tests/Unit/DocblockAnchorTest.php "Dateiumfang geschrumpft" &&
+pruefe "Dateiumfang geschrumpft" \
+  DocblockAnchorTest::test_no_docblock_stands_directly_above_another failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DocblockAnchorTest passed
+
+echo
+echo "── CidrTest: der Abgleich rechnet nur in ganzen Bytes ──"
+#
+# Ein /25 deckt die untere Haelfte eines /24. Wer nur ganze Bytes vergleicht,
+# laesst die obere mit herein — und merkt es an keinem der ueblichen Netze.
+vorher_datei agent/src/Net/Cidr.php
+python3 - <<'PY2'
+p = 'agent/src/Net/Cidr.php'
+s = open(p, encoding='utf-8').read()
+alt = '$index === $full && $bits > 0 => chr(ord($byte) & (0xFF << (8 - $bits)) & 0xFF),'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '$index === $full && $bits > 0 => $byte,', 1))
+PY2
+griff_datei agent/src/Net/Cidr.php "Abgleich nur in ganzen Bytes" &&
+pruefe "Abgleich nur in ganzen Bytes" \
+  CidrTest::test_an_address_is_inside_a_network_or_it_is_not failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CidrTest passed
+
+echo
+echo "── CidrTest: die Datenbankseite laesst das ganze Internet durch ──"
+#
+# Die eine Stelle, an der Rechnung und Politik auseinandergehen. Ohne sie traegt
+# `pg_hba.conf` eine Zeile fuer jeden Rechner der Welt.
+vorher_datei agent/src/Pg/Hba.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Hba.php'
+s = open(p, encoding='utf-8').read()
+alt = "if (str_ends_with($normalized, '/0')) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if (false) {', 1))
+PY2
+griff_datei agent/src/Pg/Hba.php "ganzes Internet in pg_hba" &&
+pruefe "ganzes Internet in pg_hba" \
+  CidrTest::test_the_database_side_refuses_the_whole_internet failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CidrTest passed
+
+echo
+echo "── AdminNetworkTest: die Beschraenkung gilt nur noch an der Tuer ──"
+#
+# `docs/82 §2.5` nennt nur die Anmeldung. So gebaut waere es die Haelfte: Wer im
+# Buero angemeldet war und den Rechner mitnimmt, arbeitet weiter.
+#
+#   Eine Schranke, die nur an der Tuer steht, gilt fuer niemanden, der schon
+#   drin ist.
+vorher_datei app/Http/Middleware/EnforceAdminNetwork.php
+python3 - <<'PY2'
+p = 'app/Http/Middleware/EnforceAdminNetwork.php'
+s = open(p, encoding='utf-8').read()
+alt = 'if (AdminNetwork::permits($account, $request->ip())) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if (true) {', 1))
+PY2
+griff_datei app/Http/Middleware/EnforceAdminNetwork.php "Sitzung ueberlebt die Beschraenkung" &&
+pruefe "Sitzung ueberlebt die Beschraenkung" \
+  AdminNetworkTest::test_a_live_session_from_a_forbidden_address_is_ended failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminNetworkTest passed
+
+echo
+echo "── AdminNetworkTest: der Aussperrschutz faellt ──"
+#
+# Das Abnahmekriterium von Schritt 7. Ohne ihn ist ein Tippfehler in einem Netz
+# ein Serverbesuch ueber SSH — und fuer einen Administrator das Ende seines
+# Zugangs.
+vorher_datei app/Http/Controllers/AccessSettingsController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AccessSettingsController.php'
+s = open(p, encoding='utf-8').read()
+alt = "if ($networks !== [] && ! AdminNetwork::covers($networks, $request->ip())) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if (false) {', 1))
+PY2
+griff_datei app/Http/Controllers/AccessSettingsController.php "Aussperrschutz gefallen" &&
+pruefe "Aussperrschutz gefallen" \
+  AdminNetworkTest::test_a_list_that_locks_out_its_own_author_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminNetworkTest passed
+
+echo
+echo "── AccountSessionTest: die Sitzung wird ueber die Kennung allein gesucht ──"
+#
+# Ohne `user_id` in der Bedingung beendet eine abgeschriebene Kennung die
+# Sitzung eines fremden Kontos.
+#
+#   Ein Filter ueber einen Bezeichner allein ist keine Zuordnung — er ist eine
+#   Suche.
+vorher_datei app/Support/Authorization/Sessions.php
+python3 - <<'PY2'
+p = 'app/Support/Authorization/Sessions.php'
+s = open(p, encoding='utf-8').read()
+alt = "            ->where('user_id', $account->id)\n            ->where('id', $id)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            ->where('id', $id)", 1))
+PY2
+griff_datei app/Support/Authorization/Sessions.php "Sitzung ohne Zuordnung" &&
+pruefe "Sitzung ohne Zuordnung" \
+  AccountSessionTest::test_a_session_of_another_account_is_not_touched failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountSessionTest passed
+
+echo
+echo "── AssertionArgumentTest: eine Meldung, wo Laravel etwas anderes erwartet ──"
+#
+# Genau der Fehler vom 25. August, zweimal in einer Runde: `assertGuest()` nimmt
+# den Guard, `assertDatabaseHas()` die Verbindung. Der Fehlschlag ist laut —
+# Laravel sucht dann einen Guard oder eine Verbindung dieses Namens.
+#
+#   Ein abschliessender Wert ist nicht deshalb eine Meldung, weil er ein Satz
+#   ist.
+vorher_datei tests/Feature/AccountSessionTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/AccountSessionTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "$this->assertDatabaseMissing('sessions', ['id' => 'sitzung-eins']);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "$this->assertDatabaseMissing('sessions', ['id' => 'sitzung-eins'], 'Die Sitzung ist noch da.');"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Feature/AccountSessionTest.php "Meldung statt Verbindung" &&
+pruefe "Meldung statt Verbindung" \
+  AssertionArgumentTest::test_no_laravel_helper_is_handed_a_message failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AssertionArgumentTest passed
+
+echo
+echo "── AssertionArgumentTest: die Helferliste schrumpft ──"
+#
+# Der Pruefkoerper. Ohne die Untergrenze meldete der Waechter Gruen, sobald
+# seine Liste leerlaeuft — und zwar fuer *keinen* gemessenen Aufruf.
+vorher_datei tests/Unit/AssertionArgumentTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/AssertionArgumentTest.php'
+s = open(p, encoding='utf-8').read()
+for alt in ["        'assertGuest' => 'den Guard',\n",
+            "        'assertDatabaseHas' => 'die Verbindung',\n",
+            "        'assertDatabaseMissing' => 'die Verbindung',\n"]:
+    assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+    s = s.replace(alt, '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Unit/AssertionArgumentTest.php "Helferliste geschrumpft" &&
+pruefe "Helferliste geschrumpft" \
+  AssertionArgumentTest::test_no_laravel_helper_is_handed_a_message failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AssertionArgumentTest passed
+
+echo
+echo "── AccessCommandTest: das Kommando baut seine eigene Pruefung ──"
+#
+# Formular und Kommando stellen dieselbe Frage. Baut eines seine eigene
+# Pruefung, hat die Einstellung zwei Bedeutungen — und welche die strengere ist,
+# merkt niemand. `Cidr::normalize()` allein laesst `0.0.0.0/0` durch.
+vorher_datei app/Console/Commands/Access.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Access.php'
+s = open(p, encoding='utf-8').read()
+alt = 'AdminNetwork::normalize($entry)'
+assert s.count(alt) == 2, 'Zielstelle nicht wie erwartet — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '\\SrvPanel\\Agent\\Net\\Cidr::normalize($entry)'))
+PY2
+griff_datei app/Console/Commands/Access.php "Kommando prueft selbst" &&
+pruefe "Kommando prueft selbst" \
+  AccessCommandTest::test_both_entrances_ask_the_same_place failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCommandTest passed
+
+echo
+echo "── AccessCommandTest: der Rueckweg fragt den Aussperrschutz ──"
+#
+# Der Fall, fuer den es das Kommando gibt: Die gespeicherte Liste ist richtig
+# und trotzdem falsch, weil sich die Adresse geaendert hat. Ein Aussperrschutz
+# an dieser Stelle machte aus dem Rueckweg einen zweiten Hinweg.
+#
+#   Ein Rueckweg, der dieselbe Bedingung prueft wie der Hinweg, fuehrt zurueck
+#   an denselben Punkt.
+vorher_datei app/Console/Commands/Access.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Access.php'
+s = open(p, encoding='utf-8').read()
+alt = '        $after = $clear ? [] : $this->apply($before, $add, $remove);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = ('        if ($clear && ! AdminNetwork::covers($before, null)) {\n'
+       '            return self::FAILURE;\n'
+       '        }\n\n' + alt)
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Console/Commands/Access.php "Rueckweg mit Aussperrschutz" &&
+pruefe "Rueckweg mit Aussperrschutz" \
+  AccessCommandTest::test_clearing_asks_no_lockout_question failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCommandTest passed
+
+echo
+echo "── AccessCommandTest: die Aenderung steht nicht mehr im Protokoll ──"
+#
+# Ein Weg, der an der Oberflaeche vorbeifuehrt, gehoert erst recht ins
+# Protokoll. Ohne ihn liesse sich eine Netzbeschraenkung spurlos aufheben — von
+# jemandem mit SSH, also genau von dem, dessen Handeln man spaeter nachliest.
+vorher_datei app/Console/Commands/Access.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Access.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'settings.access',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'settings.geheim',", 1))
+PY2
+griff_datei app/Console/Commands/Access.php "Aenderung ohne Protokoll" &&
+pruefe "Aenderung ohne Protokoll" \
+  AccessCommandTest::test_a_change_from_the_command_line_is_recorded failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCommandTest passed
+
+echo
+echo "── AccessCommandTest: der Wrapper kennt das Kommando nicht ──"
+#
+# Genau wie `admin`, das lange fehlte: Wer es tippt, bekommt „Command not
+# defined" — und der Rueckweg aus einer Netzbeschraenkung waere wieder nur ein
+# tinker-Einzeiler.
+vorher_datei packaging/bin/srvpanel
+python3 - <<'PY2'
+p = 'packaging/bin/srvpanel'
+s = open(p, encoding='utf-8').read()
+alt = '|admin|access|version)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '|admin|version)', 1))
+PY2
+griff_datei packaging/bin/srvpanel "Wrapper ohne access" &&
+pruefe "Wrapper ohne access" \
+  AccessCommandTest::test_the_wrapper_knows_the_command failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCommandTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

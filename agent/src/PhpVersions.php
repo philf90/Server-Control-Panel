@@ -130,6 +130,78 @@ final class PhpVersions
         return '/run/php/srvpanel-'.Ops\SubscriptionProvision::systemUser($user).'-'.self::normalize($version).'.sock';
     }
 
+    /**
+     * Die Quelldatei, die `packaging/php-source.sh` schreibt.
+     *
+     * **Als Vorgabe und nicht als feste Zeichenkette**, damit ein Wächter die
+     * Auswertung in einem Sandkasten prüfen kann, ohne den Pfad ein zweites
+     * Mal zu bauen — dieselbe Bauart wie bei {@see self::PHP_ROOT}.
+     */
+    public const SOURCE_FILE = '/etc/apt/sources.list.d/php-sury.sources';
+
+    /**
+     * Die Adressen der PHP-Quelle — gelesen, nicht gewusst.
+     *
+     * ## Warum die Datei und keine Konstante
+     *
+     * `packaging/php-source.sh` trägt je nach Distribution eine andere Adresse
+     * ein: `https://packages.sury.org/php/` auf Debian, das PPA von Ondřej
+     * Surý auf Ubuntu. Dieselbe Fallunterscheidung hier noch einmal
+     * hinzuschreiben wäre eine zweite Fassung derselben Regel — und die
+     * zweite ist die, die veraltet. Sie wäre ausserdem falsch, sobald ein
+     * Betreiber einen Spiegel einträgt.
+     *
+     * > **Eine Auskunft aus der eigenen Datei ist keine über den wirksamen
+     * > Zustand.** Hier ist die Datei der wirksame Zustand: Genau sie liest
+     * > apt.
+     *
+     * ## Warum das kein deb822-Leser ist
+     *
+     * `docs/81 §2.1b` entscheidet ausdrücklich gegen einen — `Signed-By:` kann
+     * ein über vierzig Zeilen gefalteter PGP-Block sein, eine Datei mehrere
+     * Stanzas tragen, `Suites:` mehrere Suiten. Gelesen wird hier **ein Feld
+     * einer Datei, die das Panel selbst geschrieben hat**, und dafür genügt die
+     * eine Eigenschaft, die deb822 zusichert: Ein fortgesetzter Wert beginnt
+     * mit einem Leerzeichen. Ein `URIs:` am Zeilenanfang ist deshalb immer ein
+     * Feldname und nie die Fortsetzung eines anderen.
+     *
+     * Mehrere Stanzas mit je eigenem `URIs:` kommen trotzdem alle mit: Wer die
+     * Datei von Hand erweitert hat, soll nicht die Hälfte der Antwort bekommen.
+     *
+     * Leer, wenn es die Datei nicht gibt — auf Debian 13 kommt PHP 8.4 aus der
+     * Distribution, und dort richtet das Paket gar keine Quelle ein. **Leer
+     * heisst „keine eigene Quelle" und nicht „nicht nachgesehen":** Der
+     * Aufrufer kann dann keine Quelle als schuldig benennen, und das ist
+     * richtig so.
+     *
+     * @return list<string>
+     */
+    public static function sourceUris(string $file = self::SOURCE_FILE): array
+    {
+        if (! is_file($file)) {
+            return [];
+        }
+
+        $uris = [];
+
+        foreach (explode("\n", (string) file_get_contents($file)) as $line) {
+            if (preg_match('/^URIs:\s*(.*?)\s*$/D', rtrim($line, "\r"), $match) !== 1) {
+                continue;
+            }
+
+            // deb822 erlaubt mehrere Adressen in einem Feld, durch Leerraum
+            // getrennt. Eine einzelne Zeichenkette zurückzugeben hiesse, bei
+            // zweien die zweite zu verlieren.
+            foreach (preg_split('/\s+/', $match[1]) ?: [] as $uri) {
+                if ($uri !== '') {
+                    $uris[] = $uri;
+                }
+            }
+        }
+
+        return array_values(array_unique($uris));
+    }
+
     /** Ist diese Version auf dem System vorhanden? */
     public static function installed(string $version): bool
     {

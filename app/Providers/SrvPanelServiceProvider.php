@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Enums\AccountType;
 use App\Models\Account;
+use App\Support\Authorization\AdminAbility;
 use App\Support\Dns\AgentMeasurement;
 use App\Support\Dns\Measurement;
 use App\Support\Metrics\Collector;
@@ -16,6 +18,7 @@ use App\Support\Tls\AgentDnsCredentials;
 use App\Support\Tls\DnsCredentials;
 use Illuminate\Mail\MailManager;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use SrvPanel\Agent\Client;
 
@@ -75,8 +78,57 @@ final class SrvPanelServiceProvider extends ServiceProvider
          * Zeile in einer Tabelle, aber niemand „besitzt" sie. Die mechanische
          * Routenprüfung nimmt `can:` in beiden Formen an; ohne diese Zeile
          * fiele die Route dort durch.
+         *
+         * **Seit dem 24. August lösen sie über die Rolle auf** (A9 Schritt 2,
+         * `docs/82 §2.2`). Davor stand hier `$account->isAdmin()` für beide —
+         * die Naht war gelegt, die Unterscheidung aber wirkungslos, weil es nur
+         * eine Rolle gab.
+         *
+         * **Geändert hat sich genau diese eine Zeile.** Keine Aufrufstelle in
+         * `routes/web.php`, kein Schlüssel in einer `can`-Ablage, kein Bild —
+         * und das war der Zweck, die Fähigkeiten zwei Tage vor den Rollen zu
+         * trennen.
+         *
+         * Gefragt wird {@see Account::fulfils()} und nicht die Rolle
+         * unmittelbar: Dort steht, dass **beide** Achsen zählen — die Ebene und
+         * die Rolle. Ein Kundenkonto, das durch einen Fehler `operator` trüge,
+         * kommt damit nicht durch, und ein Adminkonto ohne Rolle auch nicht.
+         *
+         * Die Gates entstehen aus der Registratur und nicht daneben: Eine
+         * Fähigkeit, die dort nicht steht, gibt es nicht.
          */
-        Gate::define('manage-settings', static fn (Account $account): bool => $account->isAdmin());
+        foreach (AdminAbility::abilities() as $ability => $declaration) {
+            Gate::define(
+                $ability,
+                static fn (Account $account): bool => $account->fulfils($declaration['role']),
+            );
+        }
+
+        /*
+         * `{admin}` in einer Route ist ein **Adminkonto** und sonst nichts.
+         *
+         * **Die zweite Falle aus `docs/82 §3` sagt, warum das hier steht und
+         * nicht im Controller:**
+         *
+         * > Die Prüfung gehört an **dieselbe** Stelle wie die Rolle und nicht
+         * > an eine zweite daneben, sonst ist sie beim nächsten Weg zum Konto
+         * > nicht dabei.
+         *
+         * `Account` trägt keine Mandantenklammer — die Klammer gilt für
+         * Abonnements und was daran hängt, nicht für Anmeldekonten. Eine
+         * gewöhnliche Bindung fände damit **jedes** Konto, und
+         * `/accounts/{id}/edit` mit der Kennung eines Kundenkontos wäre ein
+         * Formular, das dessen Rolle setzt. Vier Methoden mit derselben
+         * Vorprüfung wären dieselbe Regel an vier Stellen; die fünfte hätte sie
+         * nicht.
+         *
+         * **404 und nicht 403:** Ob es dieses Konto gibt, ist selbst eine
+         * Auskunft. Für einen Betreiber ändert das nichts — er sieht die Liste
+         * ohnehin.
+         */
+        Route::bind('admin', static fn (string $value): Account => Account::query()
+            ->where('type', AccountType::Admin)
+            ->findOrFail($value));
 
         /*
          * Die Mailkonfiguration entsteht erst, wenn wirklich eine Mail

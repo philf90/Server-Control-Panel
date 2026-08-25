@@ -727,6 +727,225 @@ und zwar wortlos. Gemessen als Paar: `mit Klammer: 0` · `ohne Klammer: 679`.
 
 ---
 
+## P7b, die Serververwaltung — der erste Handgriff war ein Befund
+
+**Die Stufe heisst P7b**, entschieden am 24. August 2026; `docs/20 §9` trägt sie
+zwischen P7 und P8. Geplant wurde sie als „P9a", weil `docs/20 §9` die
+Serververwaltung in P9 führte — sie hängt aber davor, und damit war der Name
+falsch.
+
+> **Ein Name, der eine Reihenfolge behauptet, wird falsch, wenn die Reihenfolge
+> sich ändert — und er wird trotzdem weiterbenutzt, weil er in Überschriften
+> steht.**
+
+**A9 ist am 24. August vorgezogen worden** — zwei Verwaltungsrollen **und die
+Kontenverwaltung**, ausgeschrieben als **`docs/82`**. Der Grund: Wer eine
+Adminfunktion baut, entscheidet beim Bauen, auf welcher Seite sie liegt, und
+jede Woche später sind das mehr Funktionen, die es nachtragen müssten. Sie steht
+in P7b an zweiter Stelle, nach A5.
+
+**Beim Ausschreiben fiel auf, dass die Skizze eine Fähigkeit voraussetzt, die
+es nicht gibt:** `docs/81 §11` führt „Konten, Rollen, IP-Beschränkung" in seiner
+Rollentabelle — eine Kontenverwaltung gibt es aber nirgends. Adminkonten
+entstehen ausschliesslich über `srvpanel admin` auf der Kommandozeile.
+
+> **Eine Tabelle, die eine Fähigkeit einer Rolle zuordnet, setzt voraus, dass es
+> die Fähigkeit gibt — und sagt nichts darüber, ob sie jemand gebaut hat.**
+
+Und der Fund, der den Entwurf entscheidet: `audit_events.account_id` steht auf
+`nullOnDelete()`. Ein gelöschtes Adminkonto zieht damit seine **ganze
+Protokollhistorie** auf `null`.
+
+> **Ein Protokoll, aus dem sich der Handelnde nachträglich entfernen lässt, ist
+> kein Protokoll — es ist eine Liste von Ereignissen.**
+
+Adminkonten werden deshalb **gesperrt und nicht gelöscht**; den Zustand
+`disabled` gibt es längst, und drei Stellen fragen ihn schon.
+
+**Die Schritte 1 und 2 sind gebaut.** `AdminRole` ist die zweite Achse — kein
+vierter `AccountType`, weil der an 52 Stellen `isAdmin() === false` ergäbe und
+der neue Betreiber eine leere Kundenliste sähe. Die Spalte `accounts.role` ist
+nullable und ohne Vorgabe (`null` heisst „kein Admin"), und **die Rolle allein
+gewährt nichts**: `Account::fulfils()` fragt beide Achsen.
+
+Seit Schritt 2 lösen die Gates darüber auf — **eine Zeile im Provider**, keine
+Aufrufstelle, kein `can`-Schlüssel, kein Bild. Genau dafür war die Naht zwei
+Tage vorher gelegt worden.
+
+**Der Aufwand von Schritt 2 lag woanders**, und das ist die Lehre: Sobald die
+Gates die Rolle fragen, ist ein Adminkonto **ohne** Rolle wirkungslos — es
+meldet sich an und darf nichts. `CreateAdmin` und `AccountFactory` mussten mit.
+
+> **Eine Änderung, die eine Angabe zur Pflicht macht, muss jede Stelle
+> mitnehmen, die sie erzeugt — sonst ist der erste neue Datensatz kaputt.**
+
+Zwei Wächter halten das: `RoleGateTest` misst die Wirkung an der Tür (CI),
+`RoleResolutionTest` hält im Quelltext, was ohne Framework prüfbar ist. Sein
+Bruch hat dabei ein Loch in ihm selbst gefunden — der Ausdruck kannte
+`=> AccountType::Admin` und übersah `=> \App\Enums\AccountType::Admin`.
+
+> **Ein Wächter, der nur die gewohnte Schreibweise kennt, prüft die Gewohnheit
+> und nicht die Regel.**
+
+**Offen bleibt, wohin A3, A4 und A7 gehören** — Firewall, Fail2ban, Schwellen.
+Sie stehen in `docs/20 §9` unter P7b als „hat noch keine Stufe".
+
+Der Plan ist **`docs/81`** (A1 vollständig, die übrigen als Skizze), die
+Bestandsaufnahme **`docs/80`**, die Übergabe **`docs/79`**.
+
+**Angefangen wurde nicht mit einem Merkmal, sondern mit M5** — Schritt 1 aus
+`docs/81 §9`, ein Befund an Code, der seit P1 ausgeliefert ist:
+
+> **`apt-get update` gibt 0 zurück, auch wenn jede einzelne Quelle unerreichbar
+> war.** Die Fehlschläge stehen als `W:`-Zeilen auf stderr, apt arbeitet mit den
+> alten Listen weiter, und der Rückgabewert sagt nichts.
+
+Das ist keine Nachlässigkeit von apt, sondern seine Zusage: Gefragt ist nicht
+„habe ich alle Quellen erreicht", sondern „habe ich danach einen benutzbaren
+Zustand". Bis dahin stand an drei Stellen `if (! $update->successful())` und
+sonst nichts.
+
+> **Ein Rückgabewert, der einen Fehlschlag nicht tragen kann, ist keine Prüfung
+> — er ist eine Zeile, die aussieht wie eine.**
+
+`Apt` ist jetzt die eine Stelle, die `apt-get update` ruft, und liest `stderr`
+**je Quelle**. Sie entscheidet nichts — das tun die Aufrufer, und zwar
+verschieden: `php.version.install` bricht an seiner **eigenen** toten Quelle ab
+(die Adressen liest `PhpVersions::sourceUris()` aus der Datei, die
+`packaging/php-source.sh` schreibt), `pg.server.install` nennt die Ausfälle nur,
+weil es sein Depot noch nicht kennt. Nicht `--error-on=any`:
+
+> **Eine Härte, die nur einheitlich zu haben ist, gehört nicht an eine Stelle,
+> an der die Aufrufer verschieden entscheiden müssen.**
+
+**Was der Fehler anrichtete, ist die eigentliche Lehre.** Bei unerreichbarer
+Sury las der Betreiber *„Unable to locate package php8.4-fpm"* — der Zustand
+richtig gemeldet, die Ursache falsch.
+
+> **Eine Prüfung, die den Zustand fängt, hat über die Ursache nichts gesagt —
+> und der Leser sucht dort, wohin die Meldung zeigt.**
+
+**Und der Fund am Prüfmittel wiegt schwerer als der am Prüfling.** Die Messung
+zu M5 schrieb `>datei 2>&1` und zählte darin die `W:`-Zeilen. Damit war belegt,
+dass sie auf *einem der beiden* Kanäle stehen — nicht, auf welchem. Im Kopf der
+Messung stand trotzdem „sie stehen auf stderr", und genau daran hängt der neue
+Leser: Stünden sie auf stdout, fände er wortlos nichts.
+
+> **Eine Messung, die zwei Dinge zusammenwirft, belegt keines von beiden.**
+
+Nachgemessen mit getrennten Kanälen und Gegenprobe auf beiden Seiten: stdout 0
+Bytes, stderr 244, zwei `W:`-Zeilen, davon **eine** eine Quelle — die zweite ist
+die Zusammenfassung und steht einmal da, egal wie viele ausgefallen sind.
+
+**Zwei Wächter, sechs Brüche, alle einzeln belegt.** `AptResultTest` sucht
+ausdrücklich **nicht** das Wort `successful()`; er zählt die Aufrufe von
+`apt-get update` und misst die Wirkung an einem selbstgebauten Ergebnis mit
+Rückgabe 0. `PhpSourceUriTest` hält die Naht zur Paketierung — liefe sie
+auseinander, bliebe der Abbruch aus, und M5 wäre still wieder da.
+
+> **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts zu tun".**
+
+**Zwei bestehende Wächter haben dabei zugebissen**, beide beim Bauen und keiner
+in der CI: `AnchoredPatternTest` am ersten `$` ohne `D` im neuen Leser, und
+`GuardReachTest` an einem Kommentar, der `AptResultTest` nannte, bevor es ihn
+gab.
+
+**Schritt 2 ist gebaut, und er war derselbe Befund von der anderen Seite.**
+Zwei apt-Läufe enden in der dpkg-Sperre; gefragt hat danach genau eine der vier
+apt-rufenden Operationen, und ihre Frage sah nur die **eigenen** abgesetzten
+Läufe. `queue:work` ist einspurig, aber `panel.update` setzt seinen Lauf über
+`systemd-run` **ausserhalb** ab — in diesem Fenster ist die Kollision in beiden
+Richtungen offen.
+
+`AptLock` fragt jetzt die Sperre selbst, über `/proc/locks`. **Nicht über
+`flock()`, und das ist gemessen:** dpkg nimmt eine POSIX-Sperre über `fcntl`,
+PHPs `flock()` spricht `flock(2)`, und die beiden Familien sehen einander nicht.
+
+> **Eine Sperre, die man mit dem falschen Werkzeug abfragt, meldet immer frei.**
+
+Zugeordnet wird über den **Inode allein** und nicht über Gerät und Inode: Die
+Umrechnung von `dev_t` gilt nicht für jede Bauart, und läge sie daneben,
+entstünde ein falsches Negativ statt einer Ablehnung zuviel.
+
+> **Wenn eine Zuordnung schiefgehen kann, entscheidet die Richtung, in die sie
+> schiefgeht.**
+
+**Und beim Verschieben fiel M5 ein zweites Mal an, nur andersherum.** Die alte
+Prüfung las ausschliesslich `stdout` und schloss aus einer leeren Ausgabe „es
+läuft keiner"; ohne systemd meldet `systemctl` aber `rc=1` mit der Auskunft auf
+`stderr`. Die Frage war nicht beantwortet, und geraten wurde in die Richtung,
+die einen kollidierenden Lauf losgehen lässt.
+
+> **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts zu tun".**
+
+Dazu ein Fund von PHPStan am frisch gebauten Wächter: eine leere Ausnahmeliste,
+gegen die geprüft wurde.
+
+> **Eine leere Positivliste ist kein Mechanismus, sondern eine Verzierung.**
+
+**Und die Naht für A9 ist gelegt, bevor A9 gebaut wird.** `docs/20 §6.1` teilt
+die Admin-Ebene in **Betreiber** und **Administrator**; P7b baut vier
+Adminfunktionen, bevor A9 drankommt. Käme die Teilung danach, müsste jede Seite
+ihre `can`-Ablage und ihren Bildsatz ein zweites Mal bekommen — `AbilityReachTest`
+besteht darauf, dass ein Knopf, den der Betrachter nicht drücken darf, gar nicht
+gezeigt wird.
+
+Nachgezählt: 126 Routen tragen `can:`, aber nur **eine** war eine
+Adminfähigkeit. Seitdem sind es zwei — `operate-server` (11 Routen: PHP,
+Datenbank-Fernzugriff, Mailversand, Panel-Zertifikat, DNS) und
+`manage-settings` (2: die Anzeigezeitzone). **Beide lösen auf `isAdmin()` auf**;
+A9 ändert damit *eine Zeile* statt jeder Aufrufstelle.
+
+`AdminAbility` ist nach dem Vorbild von `RouteGuard` gebaut, und die
+**Voreinstellung ist der Betreiber**:
+
+> **Der Fehler fällt damit zur sicheren Seite.** Eine Seite, die versehentlich
+> zu streng ist, meldet sich beim Administrator; eine, die versehentlich zu
+> offen ist, meldet sich nie.
+
+Vier Kommentare nannten nach dem Umzug die falsche Fähigkeit — die Fehlerklasse
+dieses Projekts in ihrer harmlosesten Form:
+
+> **Ein Kommentar, der eine Fähigkeit nennt, ist derselbe Verweis wie ein `can:`
+> im Code — nur prüft ihn nichts.**
+
+**A5 ist gebaut — die Protokolle des Servers an einer Stelle.** Positivliste im
+Agenten (`SrvPanel\Agent\Logs`), sieben Dateien und das Journal der acht eigenen
+Units; **kein Pfad und keine Unit kommen von aussen**, übergeben wird ein
+Schlüssel. Die Seite gehört dem Betreiber, entschieden beim Bauen: Ein
+Stacktrace in `laravel.log` trägt, was ihn ausgelöst hat — bei einer Ausnahme im
+Verbindungsaufbau also die Zugangsdaten der Datenbank.
+
+**Der Fund der Messrunde ist M5 zum dritten Mal.** `journalctl` unterscheidet
+mit seinem Rückgabewert nicht zwischen „kein Journal", „Unit unbekannt" und
+„keine Einträge" — alle drei geben `rc=0`, `-- No entries --` auf **stdout** und
+die Auskunft auf stderr.
+
+> **Ein Leser, der `-- No entries --` als Zeile nimmt, zeigt eine Meldung des
+> Werkzeugs als Inhalt des Protokolls.**
+
+**Und die Bildrunde hat einen Fehler im Messmittel gefunden, nicht in der
+Seite.** Das Theme wurde über `emulateMedia({ colorScheme })` umgestellt —
+`app.css` kennt aber keine `prefers-color-scheme`-Regel, es hängt allein an
+`data-theme` am `<html>`. Beide Läufe waren hell.
+
+> **Eine Umstellung, die der Prüfling nicht liest, hat nichts umgestellt — und
+> das Bild daneben sieht aus wie ein Ergebnis.**
+
+Dazu: Ein leeres `schiebt` bedeutet erst etwas, wenn `rollt` daneben steht. Der
+erste Lauf gab nur das erste aus.
+
+**Was offen bleibt und benannt ist:** Teil 3 von M5 — `panel.update` liest nach
+dem Neustart seine eigene Fassung nach — hängt an Schritt 6 und steht bis dahin
+als Ausnahme in `AptResultTest`. **Schritt 0 ist nicht gefahren:** Die Messrunde
+fehlt auf Debian 12, Debian 13 und Ubuntu 22.04, und vier Fälle kamen im
+Container nicht vor (ein zurückgehaltenes Paket, ein Schlüssel **mit** Ablauf,
+eine Neuinstallation in `dist-upgrade`, ein `Requested-By`). Und **die Abnahme
+von Schritt 1 steht aus** — sie gehört auf einen echten Server. Im Container ist
+der Durchstich gegen echte apt-Ausgabe belegt, mehr nicht.
+
+---
+
 ## Die eine Gewohnheit, die dieses Projekt trägt
 
 **Für jede Regel gibt es einen Wächter, und der Wächter wird gegengeprüft.**

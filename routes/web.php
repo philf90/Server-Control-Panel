@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\AccessSettingsController;
+use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
@@ -15,6 +17,7 @@ use App\Http\Controllers\DomainController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\GeneralSettingsController;
 use App\Http\Controllers\ImpersonationController;
+use App\Http\Controllers\LogsController;
 use App\Http\Controllers\MailSettingsController;
 use App\Http\Controllers\OperationController;
 use App\Http\Controllers\OperationStreamController;
@@ -143,6 +146,97 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/audit/export', [AuditController::class, 'export'])
         ->middleware('can:viewAny,'.AuditEvent::class)
         ->name('audit.export');
+
+    /*
+     * Die Protokolle des Servers.
+     *
+     * **`can:operate-server` und nicht `can:manage-settings`**, entschieden
+     * beim Bauen und nicht später (`docs/81 §11`). Der Grund steht in
+     * {@see \App\Http\Controllers\LogsController} ausführlich und in einem
+     * Satz hier: Ein Stacktrace in `laravel.log` trägt, was ihn ausgelöst hat —
+     * bei einer Ausnahme im Verbindungsaufbau also die Zugangsdaten der
+     * Datenbank. Das ist Merkmal 3 aus `docs/20 §6.1`.
+     *
+     * Neben dem Protokoll des Panels (`/audit`) und nicht darin: Das eine ist,
+     * was das Panel getan hat, das andere, was auf dem Server geschehen ist —
+     * auch an ihm vorbei.
+     */
+    Route::get('/logs', [LogsController::class, 'show'])
+        ->middleware('can:operate-server')
+        ->name('logs');
+
+    Route::get('/logs/download', [LogsController::class, 'download'])
+        ->middleware('can:operate-server')
+        ->name('logs.download');
+
+    /*
+     * Die Adminkonten — A9 Schritt 3.
+     *
+     * **`can:operate-server`, und daran hängt die zweite Falle aus
+     * `docs/82 §3`:** Wer Konten anlegt, legt seine eigene Rolle an. Ein
+     * Administrator, der hier hereinkäme, machte sich zum Betreiber — die
+     * Trennung wäre dann eine Zeile weit gültig und einen Klick weit nicht.
+     *
+     * **Der Parameter heisst `{admin}` und nicht `{account}`.** Er löst über
+     * {@see \App\Providers\SrvPanelServiceProvider} nur Adminkonten auf; ein
+     * Kundenkonto ergibt 404. Der Name sagt, was gebunden wird — und lässt
+     * `{account}` für den Tag frei, an dem ein Kundenkonto eine eigene Route
+     * bekommt. Eine Bindung, die `{account}` auf Adminkonten verengte, wäre
+     * für diese Route eine stille Falle.
+     */
+    Route::get('/accounts', [AccountController::class, 'index'])
+        ->middleware('can:operate-server')
+        ->name('accounts.index');
+
+    Route::get('/accounts/create', [AccountController::class, 'create'])
+        ->middleware('can:operate-server')
+        ->name('accounts.create');
+
+    Route::post('/accounts', [AccountController::class, 'store'])
+        ->middleware('can:operate-server')
+        ->name('accounts.store');
+
+    Route::get('/accounts/{admin}/edit', [AccountController::class, 'edit'])
+        ->middleware('can:operate-server')
+        ->name('accounts.edit');
+
+    Route::patch('/accounts/{admin}', [AccountController::class, 'update'])
+        ->middleware('can:operate-server')
+        ->name('accounts.update');
+
+    /*
+     * Das Zurücksetzen als eigene Route und nicht als Feld im Formular
+     * darüber: Ein Passwort, das versehentlich mitgeschickt wird, weil es im
+     * selben `PATCH` steht, ist ein Passwortwechsel, den niemand wollte.
+     */
+    Route::post('/accounts/{admin}/password', [AccountController::class, 'password'])
+        ->middleware('can:operate-server')
+        ->name('accounts.password');
+
+    /*
+     * Eine offene Sitzung beenden. `DELETE`, weil sie danach fort ist — und
+     * mit der Kennung im Rumpf statt in der Adresse: Ein Sitzungskennzeichen
+     * gehört nicht in ein Zugriffslog.
+     */
+    Route::delete('/accounts/{admin}/sessions', [AccountController::class, 'endSession'])
+        ->middleware('can:operate-server')
+        ->name('accounts.sessions.end');
+
+    /*
+     * Der Zugang zum Panel — A9 Schritt 7.
+     *
+     * **`can:operate-server`**, und zwar in seiner schärfsten Lesart: Wer diese
+     * Liste ändert, entscheidet, wer überhaupt an den Server kommt. Eine
+     * falsche Zeile sperrt jeden Administrator aus, und zurück kommt man nur
+     * über SSH — also über genau die Rechte, die der Administrator nicht hat.
+     */
+    Route::get('/settings/access', [AccessSettingsController::class, 'show'])
+        ->middleware('can:operate-server')
+        ->name('settings.access');
+
+    Route::put('/settings/access', [AccessSettingsController::class, 'update'])
+        ->middleware('can:operate-server')
+        ->name('settings.access.update');
 
     /*
      * Kunden — die Betreiberseite.
@@ -806,9 +900,15 @@ Route::middleware('auth')->group(function (): void {
      */
     /*
      * **Serverweit und zu keinem Dienst gehörend** — der Ort, den `docs/40`
-     * verlangt hat und den es nicht gab. `can:manage-settings` wie bei den
-     * übrigen Einstellungsseiten: Es gibt kein Modell, an dem eine Policy
-     * hinge, sondern eine Fähigkeit.
+     * verlangt hat und den es nicht gab. Es gibt kein Modell, an dem eine
+     * Policy hinge, sondern eine Fähigkeit.
+     *
+     * **Und zwar `can:manage-settings` und nicht `can:operate-server`** — die
+     * einzige Einstellungsseite, für die das gilt. Sie ändert, wie ein
+     * Zeitstempel dargestellt wird, und trägt damit keines der drei Merkmale
+     * aus `docs/20 §6.1`. Die Begründung steht mit ihr in
+     * {@see \App\Support\Authorization\AdminAbility::administratorRoutes()};
+     * ohne Eintrag dort fällt sie im Wächter durch.
      */
     Route::get('/settings/general', [GeneralSettingsController::class, 'show'])
         ->middleware('can:manage-settings')
@@ -819,7 +919,7 @@ Route::middleware('auth')->group(function (): void {
         ->name('settings.general.update');
 
     Route::get('/settings/php', [PhpSettingsController::class, 'show'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.php');
 
     /*
@@ -833,7 +933,7 @@ Route::middleware('auth')->group(function (): void {
      * steht.
      */
     Route::get('/settings/database', [DatabaseSettingsController::class, 'show'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.database');
 
     /*
@@ -880,20 +980,20 @@ Route::middleware('auth')->group(function (): void {
     /*
      * Mailversand über ein Relay (docs/25).
      *
-     * `can:manage-settings` ist eine Fähigkeit und keine Policy: Es gibt kein
+     * `can:operate-server` ist eine Fähigkeit und keine Policy: Es gibt kein
      * Modell, dem diese Einstellungen gehören. Die mechanische Routenprüfung
      * nimmt beide Formen an — Hauptsache, an der Route steht eine Prüfung.
      */
     Route::get('/settings/mail', [MailSettingsController::class, 'show'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.mail');
 
     Route::put('/settings/mail', [MailSettingsController::class, 'update'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.mail.update');
 
     Route::post('/settings/mail/test', [MailSettingsController::class, 'test'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.mail.test');
 
     /*
@@ -903,11 +1003,11 @@ Route::middleware('auth')->group(function (): void {
      * Es gibt kein Modell, dem diese Einstellung gehört.
      */
     Route::get('/settings/tls', [TlsSettingsController::class, 'show'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.tls');
 
     Route::post('/settings/tls', [TlsSettingsController::class, 'store'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.tls.reissue');
 
     /*
@@ -918,7 +1018,7 @@ Route::middleware('auth')->group(function (): void {
      * ihn nur auf der Kommandozeile.
      */
     Route::put('/settings/tls/acme', [TlsSettingsController::class, 'acme'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.tls.acme');
 
     /*
@@ -933,15 +1033,15 @@ Route::middleware('auth')->group(function (): void {
      * im Klartext in der Datenbank.
      */
     Route::get('/settings/dns', [DnsSettingsController::class, 'show'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.dns');
 
     Route::put('/settings/dns', [DnsSettingsController::class, 'store'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.dns.store');
 
     Route::delete('/settings/dns', [DnsSettingsController::class, 'destroy'])
-        ->middleware('can:manage-settings')
+        ->middleware('can:operate-server')
         ->name('settings.dns.forget');
 
     /*

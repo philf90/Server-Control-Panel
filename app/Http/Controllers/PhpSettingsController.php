@@ -19,8 +19,15 @@ use SrvPanel\Agent\PhpVersions;
  * **Installiert wird von hier, und nur von hier.** Die Knöpfe legen einen
  * Vorgang über den Aufgabenkatalog an (`php.version.install`,
  * `php.version.remove`); die Prüfung, wer das darf, steht an dessen Route und
- * nicht an dieser. Ein Kunde sieht diese Seite nicht — `can:manage-settings`,
+ * nicht an dieser. Ein Kunde sieht diese Seite nicht — `can:operate-server`,
  * dieselbe Schranke wie beim Mailversand und beim Zertifikat.
+ *
+ * **Warum die Betreiber-Schranke und nicht die des Administrators.**
+ * `php.version.install` ruft `apt-get install`. Der Paketname entsteht aus zwei
+ * Positivlisten und ist damit gebunden — es bleibt aber ein Weg, über den
+ * Pakete aus einer fremden Quelle auf die Maschine kommen. Wer Paketquellen
+ * nicht schalten darf, soll nicht über die Hintertür daraus installieren
+ * (`docs/20 §6.1`, Merkmal 1).
  *
  * **Der Agent wird beim Öffnen gefragt.** Was er sagt, landet zugleich im
  * Zwischenspeicher, aus dem die Domainformulare ihre Auswahl bauen: Diese

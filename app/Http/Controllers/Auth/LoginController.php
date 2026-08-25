@@ -10,6 +10,7 @@ use App\Models\Account;
 use App\Models\Customer;
 use App\Support\Audit\Audit;
 use App\Support\Auth\LoginThrottle;
+use App\Support\Authorization\AdminNetwork;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -116,6 +117,38 @@ final class LoginController extends Controller
 
             throw ValidationException::withMessages([
                 'email' => 'Diese Zugangsdaten passen nicht zu einem aktiven Konto.',
+            ]);
+        }
+
+        /*
+         * **Die Netzbeschränkung — und zwar hier und nicht früher** (A9
+         * Schritt 7).
+         *
+         * Sie steht **hinter** der Passwortprüfung, obwohl sie mit dem Passwort
+         * nichts zu tun hat. Vorher gefragt wäre sie eine Auskunft an jeden:
+         * Wer irgendeine Adresse eintippt, erführe, ob sein Netz zugelassen ist
+         * — und die Ratenbegrenzung fiele aus, weil der Versuch nie bis zur
+         * Zählung käme.
+         *
+         * Sie steht **vor** dem zweiten Faktor, weil ein Konto, das von hier
+         * nicht herein darf, den zweiten Schritt gar nicht erst sehen soll.
+         *
+         * **Der Satz an den Browser nennt den Grund**, und das ist kein Leck:
+         * Wer hier ankommt, hat das richtige Passwort. Ein „Zugangsdaten
+         * passen nicht" wäre für den Betreiber, der sein eigenes Netz falsch
+         * eingetragen hat, eine Stunde Suche an der falschen Stelle.
+         */
+        if (! AdminNetwork::permits($account, $ip)) {
+            $audit->record(
+                'auth.login.blocked',
+                AuditResult::Failure,
+                account: $account,
+                context: ['email' => $email, 'ip' => $ip, 'reason' => 'Netz nicht zugelassen'],
+            );
+
+            throw ValidationException::withMessages([
+                'email' => 'Von dieser Adresse aus ist die Anmeldung für Verwaltungskonten nicht '
+                    .'zugelassen. Wenden Sie sich an den Betreiber dieses Servers.',
             ]);
         }
 

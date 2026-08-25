@@ -8,6 +8,7 @@ use App\Enums\SubscriptionStatus;
 use App\Models\Account;
 use App\Models\Subscription;
 use App\Support\Audit\Impersonation;
+use App\Support\Authorization\AdminAbility;
 use App\Support\Panel\Source;
 use App\Support\Passwords\Policy;
 use Illuminate\Http\Request;
@@ -18,15 +19,6 @@ final class HandleInertiaRequests extends Middleware
 {
     protected $rootView = 'app';
 
-    /**
-     * Was auf jeder Seite verfügbar ist.
-     *
-     * Der Quellenlink gehört dazu, weil er auf jeder Seite steht — die Auflage
-     * aus Abschnitt 13 der AGPL gilt für die Oberfläche, nicht für eine
-     * Unterseite davon.
-     *
-     * @return array<string,mixed>
-     */
     /**
      * Alle Meldungen eines Feldes und nicht nur die erste.
      *
@@ -100,6 +92,15 @@ final class HandleInertiaRequests extends Middleware
         return (object) $verbunden;
     }
 
+    /**
+     * Was auf jeder Seite verfügbar ist.
+     *
+     * Der Quellenlink gehört dazu, weil er auf jeder Seite steht — die Auflage
+     * aus Abschnitt 13 der AGPL gilt für die Oberfläche, nicht für eine
+     * Unterseite davon.
+     *
+     * @return array<string,mixed>
+     */
     public function share(Request $request): array
     {
         $account = $request->user();
@@ -156,6 +157,38 @@ final class HandleInertiaRequests extends Middleware
                         ->exists(),
             ] : null,
 
+            /*
+             * **Was der Betrachter auf diesem Server darf** — A9 Schritt 5.
+             *
+             * Die Navigation kam bis hierher aus dem **Kontotyp**, und das war
+             * richtig, solange jeder Admin alles durfte. Seit Schritt 2 lösen
+             * die Fähigkeiten über die Rolle auf: Ein Administrator sah sieben
+             * Menüpunkte, die ihm alle einen 403 gaben.
+             *
+             * > **Wer eine Aktion zeigt, fragt vorher dieselbe Policy, die sie
+             * > später abweist.**
+             *
+             * Gefragt wird `$account->can()` und damit dasselbe Gate, an dem
+             * die Route hängt. Ein `v-if` auf die Rolle im Menü wäre die zweite
+             * Fassung der Policy, und die zweite ist die, die veraltet.
+             *
+             * ## Warum der Schlüssel `abilities` heisst und nicht `can`
+             *
+             * `can` ist vergeben: **Neun Seiten** schicken eine eigene
+             * `can`-Ablage — „was darf ich mit *diesem* Objekt". Seitenwerte
+             * überschreiben geteilte, und ein geteiltes `can` wäre auf genau
+             * diesen neun Seiten fort. Das Menü verlöre dort seine Einträge,
+             * und zwar nur dort.
+             *
+             * > **Ein geteilter Schlüssel, den eine Seite auch benutzt, ist auf
+             * > dieser Seite kein geteilter Schlüssel mehr — und der Ausfall
+             * > sieht aus wie ein Rechteproblem.**
+             *
+             * Die beiden sind auch inhaltlich verschieden: `can` beantwortet
+             * eine Frage über ein Objekt, `abilities` eine über den Server.
+             */
+            'abilities' => $account instanceof Account ? $this->abilities($account) : [],
+
             // „Anmelden als" muss auf jeder Seite sichtbar sein (§6.3). Ein
             // Admin, der vergisst, in wessen Sicht er ist, tut sonst im Namen
             // eines Kunden Dinge, die er für seine eigenen hält.
@@ -193,6 +226,33 @@ final class HandleInertiaRequests extends Middleware
                 'recoveryCodes' => fn () => $request->session()->get('recoveryCodes'),
             ],
         ]);
+    }
+
+    /**
+     * Die Adminfähigkeiten des Betrachters, jede mit ihrer Antwort.
+     *
+     * **Aus der Registratur und nicht aus einer Liste hier.** Eine Fähigkeit,
+     * die {@see AdminAbility::abilities()} dazubekommt, steht damit sofort auch
+     * in der Ablage — sonst wäre dies die Stelle, an der jemand sie nachtragen
+     * müsste und es vergisst.
+     *
+     * **Für einen Kunden sind alle `false`, und das ist kein Sonderfall.**
+     * `Account::fulfils()` fragt beide Achsen; ein Kundenkonto erfüllt keine
+     * Adminrolle. Die Ablage steht trotzdem da — eine fehlende Ablage und eine
+     * mit lauter `false` müssen für die Oberfläche dasselbe bedeuten, sonst
+     * hängt an ihrem Unterschied irgendwann eine Bedingung.
+     *
+     * @return array<string, bool>
+     */
+    private function abilities(Account $account): array
+    {
+        $abilities = [];
+
+        foreach (array_keys(AdminAbility::abilities()) as $ability) {
+            $abilities[$ability] = $account->can($ability);
+        }
+
+        return $abilities;
     }
 
     /**

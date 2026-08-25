@@ -123,6 +123,13 @@ const PATHS: Record<string, string> = {
    * Liste von den anderen unterscheidet: Wer hier steht, darf an den Server.
    */
   accounts: 'M8.5 11.5a4 4 0 100-8 4 4 0 000 8zM2 20a6.5 6.5 0 0113 0M18 16.5a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5zM19.9 14.25H22.5M21.4 14.25v1.9',
+
+  /*
+   * Zugang: ein Schloss. Nicht `tls` (der Schild — das ist die Echtheit einer
+   * Verbindung) und nicht `sftp` (der Schlüssel am Konto). Hier geht es um die
+   * Tür selbst: wer überhaupt herein darf.
+   */
+  access: 'M6 10.5V7.5a6 6 0 0112 0v3M5 10.5h14v9H5zM12 14v2',
 }
 
 const props = withDefaults(defineProps<{ name: string; size?: number }>(), { size: 17 })

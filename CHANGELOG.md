@@ -19630,3 +19630,59 @@ habe ihn nicht gefahren, obwohl ich `PanelLayout.vue` angefasst hatte.
 
 > **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
 > gefahren — man denkt an das Gebaute und nicht an das Berührte.**
+
+### A9 Schritt 7, erste Hälfte — die Netzbeschränkung
+
+**Aus welchen Netzen sich ein Verwaltungskonto anmelden darf.** Leer heisst „von
+überall" — der Zustand jedes Servers, der die Einstellung nie angefasst hat.
+
+> **Eine leere Liste, die alles verbietet, sperrt beim Einschalten aus — eine,
+> die alles erlaubt, ändert nichts.**
+
+**Die Rechnung gab es schon, nur am falschen Ort.** `Pg\Hba::cidr()` prüft seit
+P5b Netze in CIDR-Schreibweise — rohe Bytes über `inet_pton`, dieselbe Rechnung
+für IPv4 und IPv6, gesetzte Wirtsbits werden abgewiesen. Vier Klassen nennen sie
+im Kommentar als *die* Schreibweise, und das Panel ruft sie über die
+Namensraumgrenze hinweg auf. Sie stand nur in der Klasse, die `pg_hba.conf`
+schreibt, und trug deren Politik im Text.
+
+`Net\Cidr` trägt jetzt die Rechnung und `Hba::cidr()` seine eigene Ablehnung von
+`/0` — für einen Datenbankzugang ein Fehler, für eine Anmeldebeschränkung bloss
+die Voreinstellung mit mehr Zeichen.
+
+> **Zwei Systeme mit derselben Rechnung und verschiedenen Regeln teilen die
+> Rechnung und nicht die Regeln.**
+
+**Und sie war von keinem einzigen Test abgedeckt** — nachgesehen am 25. August.
+`PgRemoteAccess` schickt jede Zeile hindurch; ein Fehler darin hätte den
+Fernzugriff jedes Kunden getroffen, und gemerkt hätte es niemand.
+`CidrTest` prüft sie jetzt in 27 Fällen, darunter die Grenze innerhalb eines
+Bytes (`/25`) und die gemischten Familien.
+
+> **Eine Rechnung, auf die sich vier Stellen berufen, hat nicht deshalb einen
+> Test, weil vier Stellen sie nennen.**
+
+**Gefragt wird an zwei Stellen, und keine ersetzt die andere.** Bei der
+Anmeldung, damit das Protokoll die Wahrheit sagt; und bei **jeder** Anfrage,
+weil eine offene Sitzung die Beschränkung sonst überlebt.
+
+> **Eine Schranke, die nur an der Tür steht, gilt für niemanden, der schon drin
+> ist.**
+
+`docs/82 §2.5` nennt es „IP-Beschränkung der Panel-**Anmeldung**" — so gebaut
+wäre es die Hälfte gewesen: Wer im Büro angemeldet war und den Rechner mitnimmt,
+arbeitet weiter.
+
+**Der Aussperrschutz ist das Abnahmekriterium**, und er fragt mit der Liste, die
+gespeichert werden *soll*. Eine leere Liste geht dabei ohne Prüfung durch — sie
+kann niemanden aussperren, und eine Bedingung, die auch sie fragt, liesse eine
+Beschränkung nie wieder abschalten.
+
+**Ein Befund aus der Bilderrunde, den die Zahl nicht hatte:** Die Zeilen der
+Netzliste standen bei 390 px auf **0 px** Abstand. `.section` ist kein
+Flexbehälter; was auf dem Bild wie ein Abstand aussah, waren die Ränder der
+Felder. Das ist dieselbe Stelle wie bei den zwei Formularen der Kontenseite —
+zum dritten Mal in derselben Runde.
+
+> **Ein Abstand, den man sieht, ist nicht derselbe wie einer, den ein Behälter
+> gibt.**

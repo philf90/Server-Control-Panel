@@ -206,6 +206,8 @@ return [
         'notes' => 'Notizen',
         'offset' => 'Versatz',
         'order' => 'Sortierung',
+        'networks' => 'Netze',
+        'networks.*' => 'Netz',
         'password' => 'Passwort',
         'password_clear' => 'Passwort im Klartext',
         'path' => 'Pfad',

@@ -291,6 +291,13 @@ const navigation = computed(() => {
        */
       { name: 'Konten', href: '/accounts', icon: 'accounts', ability: 'operate-server' },
 
+      /*
+       * **Neben „Konten", und das ist die Begründung.** Das eine sagt, *wer*
+       * an diesen Server darf, das andere *von wo*. Zwei Hälften derselben
+       * Frage; wer die eine sucht, sucht die andere gleich mit.
+       */
+      { name: 'Zugang', href: '/settings/access', icon: 'access', ability: 'operate-server' },
+
       { name: 'Allgemein', href: '/settings/general', icon: 'general', ability: 'manage-settings' },
       { name: 'PHP-Versionen', href: '/settings/php', icon: 'php', ability: 'operate-server' },
 

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\AccessSettingsController;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\Auth\LoginController;
@@ -211,6 +212,22 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/accounts/{admin}/password', [AccountController::class, 'password'])
         ->middleware('can:operate-server')
         ->name('accounts.password');
+
+    /*
+     * Der Zugang zum Panel — A9 Schritt 7.
+     *
+     * **`can:operate-server`**, und zwar in seiner schärfsten Lesart: Wer diese
+     * Liste ändert, entscheidet, wer überhaupt an den Server kommt. Eine
+     * falsche Zeile sperrt jeden Administrator aus, und zurück kommt man nur
+     * über SSH — also über genau die Rechte, die der Administrator nicht hat.
+     */
+    Route::get('/settings/access', [AccessSettingsController::class, 'show'])
+        ->middleware('can:operate-server')
+        ->name('settings.access');
+
+    Route::put('/settings/access', [AccessSettingsController::class, 'update'])
+        ->middleware('can:operate-server')
+        ->name('settings.access.update');
 
     /*
      * Kunden — die Betreiberseite.

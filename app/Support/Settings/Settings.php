@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support\Settings;
 
 use App\Models\Setting;
+use App\Support\Authorization\AdminNetwork;
 use App\Support\Web\PhpSelection;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Schema;
@@ -80,6 +81,9 @@ final class Settings
      * das Eingetragene und das Abgeleitete.
      */
     private const DNS_ADDRESSES = 'dns.addresses';
+
+    /** Die Netze, aus denen sich ein Adminkonto anmelden darf (A9 Schritt 7). */
+    private const ADMIN_NETWORKS = 'admin.networks';
 
     private ?MailSettings $mail = null;
 
@@ -242,6 +246,46 @@ final class Settings
         Setting::query()->updateOrCreate(
             ['key' => self::DNS_ADDRESSES],
             ['value' => ['addresses' => array_values($addresses)]],
+        );
+    }
+
+    /**
+     * Die Netze, aus denen sich ein Adminkonto anmelden darf.
+     *
+     * **Eine leere Liste heisst „von überall" und nicht „von nirgends".** Das
+     * ist die Voreinstellung eines frisch eingerichteten Servers, und die
+     * andere Lesart hätte den Betreiber beim ersten Update ausgesperrt.
+     *
+     * > **Eine leere Liste, die alles verbietet, sperrt beim Einschalten aus —
+     * > eine, die alles erlaubt, ändert nichts.**
+     *
+     * Die Entscheidung darüber trifft {@see AdminNetwork};
+     * hier steht nur, was gespeichert ist.
+     *
+     * @return list<string>
+     */
+    public function adminNetworks(): array
+    {
+        $value = $this->read(self::ADMIN_NETWORKS);
+        $networks = [];
+
+        foreach ($value['networks'] ?? [] as $network) {
+            if (is_string($network) && $network !== '') {
+                $networks[] = $network;
+            }
+        }
+
+        return $networks;
+    }
+
+    /**
+     * @param  list<string>  $networks  Leer hebt die Beschränkung auf
+     */
+    public function saveAdminNetworks(array $networks): void
+    {
+        Setting::query()->updateOrCreate(
+            ['key' => self::ADMIN_NETWORKS],
+            ['value' => ['networks' => array_values($networks)]],
         );
     }
 

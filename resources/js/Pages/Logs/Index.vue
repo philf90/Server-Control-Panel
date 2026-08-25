@@ -4,6 +4,7 @@ import { computed, reactive, watch } from 'vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Section from '../../Components/Section.vue'
 import { counted } from '../../Composables/useCounted'
+import { formatBytes } from '../../bytes'
 
 /*
  * Die Protokolle des Servers.
@@ -72,13 +73,26 @@ function ladeUrl(): string {
   return `/logs/download?${query.toString()}`
 }
 
-/** Bytes als Zahl, die ein Mensch liest — dieselbe Staffel wie im Dateimanager. */
+/*
+ * Die Grösse einer Protokolldatei.
+ *
+ * **`formatBytes` und keine eigene Staffel.** Hier stand beim Bau von A5 eine
+ * dritte Fassung derselben Umrechnung — und eine schlechtere: ohne
+ * Tausendertrennung, ohne GB, mit `toFixed` statt der deutschen Schreibweise.
+ * Eine Datei von 1,2 GB las sich als „1234.6 MB".
+ *
+ * Gefunden hat es `SizeUnitTest`, der genau dafür existiert. Dass er es erst
+ * jetzt gemeldet hat, liegt nicht an ihm: Die CI läuft auf `push` nur für
+ * `main`, und auf diesem Zweig ist sie bis heute kein einziges Mal gefahren.
+ *
+ * > **Ein Wächter, den man nicht fährt, ist von einem, den es nicht gibt, nicht
+ * > zu unterscheiden.**
+ *
+ * `null` heisst „nicht gemessen" — die Unterscheidung trifft der Aufrufer, weil
+ * nur er weiss, wie sie an seiner Stelle heisst.
+ */
 function groesse(bytes: number | null): string {
-  if (bytes === null) return '—'
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
-
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+  return bytes === null ? '—' : formatBytes(bytes)
 }
 </script>
 

@@ -9,7 +9,7 @@ use App\Enums\AdminRole;
 use App\Models\Account;
 use App\Support\Authorization\LastOperator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Route as Router;
 use Tests\TestCase;
 
 /**
@@ -89,7 +89,13 @@ final class LastOperatorTest extends TestCase
     {
         $deleting = [];
 
-        foreach (Route::getRoutes() as $route) {
+        /*
+         * **`->getRoutes()` auf der Sammlung und nicht die Sammlung selbst.**
+         * `Route::getRoutes()` gibt ein `RouteCollectionInterface` zurück; das
+         * ist zur Laufzeit iterierbar, sagt es aber im Typ nicht zu — PHPStan
+         * meldet `foreach.nonIterable`. Die Methode darauf liefert das Array.
+         */
+        foreach (Router::getRoutes()->getRoutes() as $route) {
             $uri = $route->uri();
 
             if (! str_starts_with($uri, 'accounts')) {

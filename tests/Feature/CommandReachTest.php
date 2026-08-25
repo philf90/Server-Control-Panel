@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
+use Tests\Support\WithoutMarkupComments;
 
 /**
  * Wer einen Befehl abdruckt, druckt einen ab, den es gibt.
@@ -42,6 +43,8 @@ use SplFileInfo;
  */
 final class CommandReachTest extends TestCase
 {
+    use WithoutMarkupComments;
+
     /**
      * Optionen, die jedes Artisan-Kommando kennt, ohne sie zu deklarieren.
      *
@@ -290,6 +293,82 @@ final class CommandReachTest extends TestCase
         $this->assertSame([], $befunde, sprintf(
             "Diese Befehle stehen in der Oberfläche und laufen so nicht:\n  %s\n\n".
             'Wer sie abtippt, bekommt eine Fehlermeldung von Symfony und sonst nichts.',
+            implode("\n  ", $befunde),
+        ));
+    }
+
+    /**
+     * Die Oberfläche nennt den Aufrufer und nicht artisan.
+     *
+     * **Befund 2 aus `docs/84`.** Auf der Kontenseite stand
+     * `srvpanel:admin` — der artisan-Name. Auf dem Server heisst der Aufrufer
+     * `srvpanel`, und wer die Zeile abtippt, bekommt „command not found".
+     *
+     * Der Gegenbeleg stand im selben Repo, drei Dateien entfernt: `Setup.php`
+     * druckt `srvpanel admin --generate`. Nachgezählt war es die **einzige**
+     * Stelle mit Doppelpunkt in der Oberfläche.
+     *
+     * **Warum die beiden Prüfungen darüber es nicht sahen.** Beide suchen
+     * `srvpanel` **plus Leerzeichen** — für sie gibt es die Doppelpunktform gar
+     * nicht.
+     *
+     * > **Ein Wächter, der eine Schreibweise kennt, prüft die Schreibweise und
+     * > nicht den Befehl.**
+     *
+     * **In PHP ist die Doppelpunktform richtig** und steht dort an dreizehn
+     * Stellen: in `$signature` und als `command` im Protokoll. Sie benennen die
+     * artisan-Kommandos, und die heissen so. Gemeint ist hier ausschliesslich,
+     * was auf der Seite steht.
+     *
+     * **Kommentare zählen nicht mit** — ein Kommentar in einer `.vue` ist Text
+     * für den, der sie baut, und nicht für den, der die Seite ansieht. Ohne
+     * diesen Schnitt meldete dieser Wächter den Kommentar, der die Behebung
+     * begründet.
+     */
+    public function test_the_interface_names_the_wrapper_and_not_artisan(): void
+    {
+        $befunde = [];
+        $erwaehnungen = 0;
+
+        foreach ($this->sources() as $file) {
+            if (! str_ends_with($file, '.vue')) {
+                continue;
+            }
+
+            $quelle = $this->withoutMarkupComments((string) file_get_contents($file));
+            $ort = substr($file, strlen($this->root()) + 1);
+
+            $erwaehnungen += preg_match_all('/\bsrvpanel[ :]/', $quelle);
+
+            if (preg_match_all('/\bsrvpanel:([a-z][a-z0-9-]*)/', $quelle, $treffer, PREG_OFFSET_CAPTURE) === 0) {
+                continue;
+            }
+
+            foreach ($treffer[1] as $i => $sub) {
+                $befunde[] = sprintf(
+                    '%s:%d — „srvpanel:%s"; auf dem Server heisst es „srvpanel %s"',
+                    $ort,
+                    substr_count(substr($quelle, 0, (int) $treffer[0][$i][1]), "\n") + 1,
+                    $sub[0],
+                    $sub[0],
+                );
+            }
+        }
+
+        /*
+         * **Die Untergrenze zählt beide Schreibweisen.** Zählte sie nur die
+         * falsche, stünde sie auf null, sobald die Regel eingehalten wird — und
+         * der Wächter meldete Rot für genau die Ordnung, die er durchsetzt.
+         */
+        $this->assertGreaterThan(
+            0,
+            $erwaehnungen,
+            'In der Oberfläche steht kein einziges „srvpanel" — dann greift der Ausdruck nicht mehr.',
+        );
+
+        $this->assertSame([], $befunde, sprintf(
+            "Diese Stellen nennen den artisan-Namen statt des Aufrufers:\n  %s\n\n".
+            'Der Doppelpunkt gehört in `$signature` und ins Protokoll, nicht auf eine Seite.',
             implode("\n  ", $befunde),
         ));
     }

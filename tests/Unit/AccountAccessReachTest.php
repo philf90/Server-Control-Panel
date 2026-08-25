@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
+use Tests\Support\WithoutPhpComments;
 
 /**
  * Die Frage „darf dieses Konto herein" steht an **einer** Stelle, und die
@@ -31,6 +32,19 @@ use SplFileInfo;
  *
  * > **Ein Wächter, der die Klasse prüft, hat über ihren Aufruf nichts gesagt.**
  *
+ * ## Kommentare werden nicht mitgelesen
+ *
+ * Der erste Lauf dieses Wächters meldete den eigenen Kommentar: Im
+ * `TwoFactorChallengeController` steht `status->canSignIn()` im Dokumentblock —
+ * als Begründung dafür, dass es dort *nicht mehr* steht.
+ *
+ * > **Ein Wächter, der Kommentare mitliest, findet seine eigene Begründung.**
+ *
+ * Geschnitten wird über `WithoutPhpComments`, und nicht mit einer eigenen
+ * Fassung: Genau dagegen gibt es den Baustein. Sein Kopf erzählt, wie drei
+ * Wächter dieselbe kaputte Zeile abgeschrieben hatten — und dass einer davon
+ * grün blieb, während seine Regel gebrochen war.
+ *
  * ## Warum hier keine `{@see}`-Verweise stehen
  *
  * Pint macht aus einem vollqualifizierten `{@see}` im Dokumentblock einen
@@ -44,6 +58,8 @@ use SplFileInfo;
  */
 final class AccountAccessReachTest extends TestCase
 {
+    use WithoutPhpComments;
+
     /**
      * `canSignIn()` wird nur aus `AccountAccess`
      * gerufen.
@@ -118,41 +134,6 @@ final class AccountAccessReachTest extends TestCase
         $this->assertLessThan($netz, $zustand,
             'EnforceAccountAccess steht hinter EnforceAdminNetwork. Ein gesperrtes Konto bekäme '
             .'dann „Netz nicht mehr zugelassen" zu lesen — den Grund, der nicht zutrifft.');
-    }
-
-    /**
-     * Der Quelltext ohne seine Kommentare.
-     *
-     * **Sein erster Lauf hat den eigenen Kommentar gemeldet.** Im
-     * `TwoFactorChallengeController` steht
-     * `status->canSignIn()` im Dokumentblock — als Begründung dafür, dass es
-     * dort *nicht mehr* steht. Der Ausdruck traf ihn.
-     *
-     * > **Ein Wächter, der Kommentare mitliest, findet seine eigene
-     * > Begründung.**
-     *
-     * Geschnitten wird über `token_get_all()` und nicht mit einem Ausdruck:
-     * Ein Muster über `//` nähme jede Adresse in einer Zeichenkette mit.
-     */
-    private function withoutComments(string $quelle): string
-    {
-        $text = '';
-
-        foreach (token_get_all($quelle) as $token) {
-            if (! is_array($token)) {
-                $text .= $token;
-
-                continue;
-            }
-
-            if ($token[0] === T_COMMENT || $token[0] === T_DOC_COMMENT) {
-                continue;
-            }
-
-            $text .= $token[1];
-        }
-
-        return $text;
     }
 
     /**

@@ -293,7 +293,13 @@ function submitReset(): void {
             Setzt ein neues Passwort für dieses Konto. Der zweite Faktor bleibt
             dabei unberührt — wer sich damit ausgesperrt hat, kommt auch mit einem
             neuen Passwort nicht herein; dafür gibt es
-            <span class="ident">srvpanel:admin</span> auf dem Server.
+            <!--
+              **`srvpanel admin` und nicht `srvpanel:admin`.** Der Doppelpunkt
+              ist der artisan-Name; auf dem Server heisst der Aufrufer
+              `srvpanel`, und wer die Zeile abtippt, bekam „command not found"
+              (Befund 2 aus `docs/84`).
+            -->
+            <span class="ident">srvpanel admin</span> auf dem Server.
           </p>
 
           <PasswordFields

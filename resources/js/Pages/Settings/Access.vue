@@ -53,8 +53,17 @@ function fehlerhaft(index: number): boolean {
 
 function submit(): void {
   form
+    /*
+     * **Die leeren Zeilen bleiben drin** (Befund 10 aus `docs/84`). Wer sie
+     * hier wegfiltert, verschiebt die Kennungen: Der Server schlüsselt seine
+     * Fehler nach `networks.<n>`, und `n` zählte dann über eine Liste, die es
+     * im Browser nicht gibt. Sobald irgendwo davor eine leere Zeile stand,
+     * bekam die falsche Zeile den roten Rand.
+     *
+     * Weggeworfen werden sie jetzt im Controller — nach dem Zählen.
+     */
     .transform((data) => ({
-      networks: data.networks.map((n) => n.trim()).filter((n) => n !== ''),
+      networks: data.networks.map((n) => n.trim()),
     }))
     .put('/settings/access', {
       /*

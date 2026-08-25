@@ -718,6 +718,62 @@ input[type='radio'] {
   max-width: none;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   Die Fehlerseiten
+
+   403, 404, 500 und ihre Geschwister. Sie sind reines Blade und tragen kein
+   Inertia — eine Seite, die es gerade dann geben muss, wenn etwas kaputt ist,
+   lädt so wenig wie möglich. Deshalb steht ihre Form hier und nicht in einer
+   Komponente.
+
+   Bis zum 25. August 2026 gab es sie nicht: Laravels Vorgabe, englisch und in
+   Times (`docs/84`, Befund 3).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/*
+   Sie trägt ihren Rand selbst und leiht sich keine Hülle. `.content` — die
+   Fläche der Panelseiten — steht im `<style scoped>` von `PanelLayout.vue` und
+   gilt für Blade nicht; ein `class="page"` wäre eine Klasse ohne Regel gewesen.
+*/
+.failure {
+  max-width: 52ch;
+  margin: 0 auto;
+  padding: 48px 20px;
+}
+
+/*
+   Die Zahl steht über der Überschrift und nicht darin: „404 Nicht gefunden" in
+   einer Zeile liest sich als ein Satz, und die Zahl ist keiner. Sie ist die
+   Kennung, mit der man danach sucht — deshalb dieselbe Behandlung wie jede
+   andere Kennung dieser Oberfläche.
+*/
+.failure-code {
+  margin: 0 0 4px;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+
+.failure h1 {
+  margin: 0 0 12px;
+  font-size: var(--text-heading);
+  line-height: 1.25;
+  color: var(--text-strong);
+
+  /*
+     Dieselbe Ausnahme wie bei `.ident` und `.stacks td .ident` — die vierte
+     Fassung. Eine Überschrift, die nicht brechen darf, schiebt die Seite bei
+     390 px aus dem Bild, und ein Fehler ist der schlechteste Ort dafür.
+  */
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.failure-back {
+  margin: 20px 0 0;
+}
+
 /* Ein leerer Zustand ist eine Auskunft. Eine weisse Fläche wäre keine. */
 .empty {
   margin: 0;

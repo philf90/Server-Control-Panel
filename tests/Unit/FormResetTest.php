@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
+use Tests\Support\WithoutMarkupComments;
 
 /**
  * Ein Formular, das bestehende Werte ändert, springt nach dem Speichern nicht
@@ -44,6 +45,17 @@ use SplFileInfo;
  * > **Ein Handgriff, der für ein Anlege-Formular richtig ist, ist für eine
  * > Änderungsmaske das Gegenteil.**
  *
+ * ## Kommentare werden nicht mitgelesen
+ *
+ * Sein erster Lauf war rot auf der **behobenen** Datei: Der Kommentar, der den
+ * Befund erklärt, enthält `onSuccess: () => form.reset()` als Zitat.
+ *
+ * > **Ein Wächter, der Kommentare mitliest, findet seine eigene Begründung.**
+ *
+ * Geschnitten wird über `WithoutMarkupComments` und nicht mit einer eigenen
+ * Fassung — der Zwilling von `WithoutPhpComments`, dessen Kopf erzählt, was
+ * abgeschriebene Fassungen dieses Handgriffs schon gekostet haben.
+ *
  * ## Was ausdrücklich erlaubt bleibt
  *
  * `reset()` ausserhalb von `onSuccess` — ein „Abbrechen", das auf den Stand vom
@@ -53,13 +65,15 @@ use SplFileInfo;
  */
 final class FormResetTest extends TestCase
 {
+    use WithoutMarkupComments;
+
     public function test_no_edit_form_resets_to_the_state_before_saving(): void
     {
         $funde = [];
         $formulare = 0;
 
         foreach ($this->components() as $pfad => $roh) {
-            $quelle = $this->withoutComments($roh);
+            $quelle = $this->withoutMarkupComments($roh);
             $namen = $this->formsSeededFromProps($quelle);
 
             if ($namen === []) {
@@ -106,96 +120,6 @@ final class FormResetTest extends TestCase
             .'und danach reset().',
             implode("\n  ", $funde),
         ));
-    }
-
-    /**
-     * Der Quelltext mit **ausgeblendeten** Kommentaren.
-     *
-     * **Sein erster Lauf war rot auf der behobenen Datei.** Der Kommentar, der
-     * den Befund erklärt, enthält `onSuccess: () => form.reset()` als Zitat —
-     * und der Wächter fand darin genau das, wogegen er gebaut ist.
-     *
-     * > **Ein Wächter, der Kommentare mitliest, findet seine eigene
-     * > Begründung.**
-     *
-     * Derselbe Fehler wie in `AccountAccessReachTest`, am selben Tag und in
-     * einer anderen Sprache. Dort schneidet `token_get_all()`; hier gibt es das
-     * nicht, also läuft ein kleiner Abtaster über die Zeichenketten hinweg.
-     *
-     * **Ausgeblendet und nicht entfernt:** Die Zeichen werden durch Leerzeichen
-     * ersetzt, damit die Stellen und damit die gemeldeten Zeilennummern
-     * stimmen.
-     *
-     * **Was er nicht kann:** ein reguläres Ausdrucksliteral von einer Division
-     * unterscheiden. In diesem Verzeichnis kommt keines vor — käme eines dazu,
-     * das `//` enthält, meldete dieser Wächter zu wenig statt zu viel.
-     */
-    private function withoutComments(string $quelle): string
-    {
-        $aus = $quelle;
-        $laenge = strlen($quelle);
-        $i = 0;
-
-        while ($i < $laenge) {
-            $c = $quelle[$i];
-
-            // Zeichenketten werden übersprungen, nicht gelesen.
-            if ($c === "'" || $c === '"' || $c === '`') {
-                $i++;
-
-                while ($i < $laenge && $quelle[$i] !== $c) {
-                    $i += $quelle[$i] === '\\' ? 2 : 1;
-                }
-
-                $i++;
-
-                continue;
-            }
-
-            if ($c === '/' && $i + 1 < $laenge && $quelle[$i + 1] === '*') {
-                $ende = strpos($quelle, '*/', $i + 2);
-                $ende = $ende === false ? $laenge : $ende + 2;
-                $aus = $this->blank($aus, $i, $ende);
-                $i = $ende;
-
-                continue;
-            }
-
-            if ($c === '/' && $i + 1 < $laenge && $quelle[$i + 1] === '/') {
-                $ende = strpos($quelle, "\n", $i);
-                $ende = $ende === false ? $laenge : $ende;
-                $aus = $this->blank($aus, $i, $ende);
-                $i = $ende;
-
-                continue;
-            }
-
-            // Auch HTML-Kommentare der Vorlage.
-            if ($c === '<' && substr($quelle, $i, 4) === '<!--') {
-                $ende = strpos($quelle, '-->', $i + 4);
-                $ende = $ende === false ? $laenge : $ende + 3;
-                $aus = $this->blank($aus, $i, $ende);
-                $i = $ende;
-
-                continue;
-            }
-
-            $i++;
-        }
-
-        return $aus;
-    }
-
-    /** Einen Abschnitt durch Leerzeichen ersetzen, Zeilenumbrüche behalten. */
-    private function blank(string $quelle, int $von, int $bis): string
-    {
-        for ($i = $von; $i < $bis && $i < strlen($quelle); $i++) {
-            if ($quelle[$i] !== "\n") {
-                $quelle[$i] = ' ';
-            }
-        }
-
-        return $quelle;
     }
 
     /**

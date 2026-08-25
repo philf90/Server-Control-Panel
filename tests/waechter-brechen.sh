@@ -107,7 +107,11 @@ cd "$(dirname "$0")/.." || exit 1
 # „nicht wieder grün". Der Wächter darüber war dabei **grün**: Er liest die
 # Zeichenkette aus dem `s.replace(...)`-Aufruf, und diese beiden Blöcke halten
 # sie in einer Variablen. Zweiundfünfzig Blöcke tun das.
-BAEUME="resources/ app/ agent/ tests/ packaging/ .github/ database/ routes/ docs/ config/ bootstrap/ lang/ package.json"
+# `vite.config.js` kam am 25. August dazu, und wieder aus demselben Grund: Ein
+# Eingriff zu `ErrorPageTest` nimmt dort den Stylesheet-Eingang heraus. Der
+# Wächter darüber hat es beim ersten Lauf gemeldet — er zählt inzwischen die
+# angefassten Dateien und nicht nur die genannten.
+BAEUME="resources/ app/ agent/ tests/ packaging/ .github/ database/ routes/ docs/ config/ bootstrap/ lang/ package.json vite.config.js"
 
 # **Dieses Skript liegt selbst unter `tests/` und nimmt sich aus.**
 #
@@ -16922,7 +16926,7 @@ vorher_datei tests/Unit/FormResetTest.php
 python3 - <<'PY2'
 p = 'tests/Unit/FormResetTest.php'
 s = open(p, encoding='utf-8').read()
-alt = '            $quelle = $this->withoutComments($roh);'
+alt = '            $quelle = $this->withoutMarkupComments($roh);'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, '            $quelle = $roh;', 1))
 PY2
@@ -16931,6 +16935,112 @@ pruefe "Kommentar-Abstreifer entfernt" \
   FormResetTest::test_no_edit_form_resets_to_the_state_before_saving failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FormResetTest passed
+
+echo "── ErrorPageTest: eine Fehlerseite fehlt ──"
+#
+# Befund 3 aus `docs/84`. Ohne die Datei rendert Laravel selbst: englisch, in
+# Times, ausserhalb von „Kontor". Vor A9 sah das kaum jemand; seit der
+# Rollentrennung ist der 403 der entworfene Zustand fuer acht Seiten.
+vorher_datei resources/views/errors/403.blade.php
+rm -f resources/views/errors/403.blade.php
+griff_datei resources/views/errors/403.blade.php "Fehlerseite fehlt" &&
+pruefe "Fehlerseite fehlt" \
+  ErrorPageTest::test_every_status_the_panel_can_show_has_its_own_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ErrorPageTest passed
+
+echo "── ErrorPageTest: eine Fehlerseite ohne Satz ──"
+#
+# Eine Seite, auf der „404" steht und sonst nichts, sagt dasselbe wie Laravels
+# Vorgabe — nur auf deutsch.
+vorher_datei resources/views/errors/404.blade.php
+python3 - <<'PY2'
+import re
+p = 'resources/views/errors/404.blade.php'
+s = open(p, encoding='utf-8').read()
+assert s.count("@section('message'") == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(re.sub(r"@section\('message'.*\n", '', s))
+PY2
+griff_datei resources/views/errors/404.blade.php "Fehlerseite ohne Satz" &&
+pruefe "Fehlerseite ohne Satz" \
+  ErrorPageTest::test_every_error_page_says_what_happened failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ErrorPageTest passed
+
+echo "── ErrorPageTest: die Huelle fragt jemanden ──"
+#
+# Eine Fehlerseite, die `auth()` ruft, scheitert bei einem 500, den eine tote
+# Datenbankverbindung ausgeloest hat, ein zweites Mal — und der Betrachter
+# bekaeme gar nichts.
+vorher_datei resources/views/errors/layout.blade.php
+python3 - <<'PY2'
+p = 'resources/views/errors/layout.blade.php'
+s = open(p, encoding='utf-8').read()
+assert s.count('<main>') == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace('<main>', '<main data-x="{{ auth()->id() }}">', 1))
+PY2
+griff_datei resources/views/errors/layout.blade.php "Fehlerseite fragt auth()" &&
+pruefe "Fehlerseite fragt auth()" \
+  ErrorPageTest::test_the_layout_loads_the_stylesheet_and_nothing_else failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ErrorPageTest passed
+
+echo "── ErrorPageTest: das Stylesheet ist kein Vite-Eingang mehr ──"
+#
+# `@vite()` findet es dann nicht — und zwar erst zur Laufzeit, auf genau der
+# Seite, die tragen soll.
+vorher_datei vite.config.js
+python3 - <<'PY2'
+p = 'vite.config.js'
+s = open(p, encoding='utf-8').read()
+alt = ", 'resources/css/app.css'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei vite.config.js "Stylesheet kein Vite-Eingang" &&
+pruefe "Stylesheet kein Vite-Eingang" \
+  ErrorPageTest::test_the_stylesheet_is_a_vite_entry failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ErrorPageTest passed
+
+echo "── ClassReachTest: eine Klasse ohne Regel in einer Blade-Vorlage ──"
+#
+# Bis zum 25. August las dieser Waechter ausschliesslich `.vue`. Mit den
+# Fehlerseiten gibt es Blade-Vorlagen mit Klassen — und eine Blade-Datei hat
+# keinen eigenen <style>-Block, was sie benutzt gehoert in app.css.
+vorher_datei resources/views/errors/layout.blade.php
+python3 - <<'PY2'
+p = 'resources/views/errors/layout.blade.php'
+s = open(p, encoding='utf-8').read()
+alt = 'class="failure"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'class="failure gibtesnicht"', 1))
+PY2
+griff_datei resources/views/errors/layout.blade.php "Blade-Klasse ohne Regel" &&
+pruefe "Blade-Klasse ohne Regel" \
+  ClassReachTest::test_every_class_in_a_blade_view_points_at_a_rule failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ClassReachTest passed
+
+echo "── ClassNameTest: Blade faellt aus der Reichweite ──"
+#
+# Die andere Seite von Befund 3. Ohne Blade in der Schleife melden `.failure`
+# und ihre Geschwister „erreicht kein Template" — obwohl sie eine Seite tragen,
+# die es gibt. Der Waechter hat das beim ersten Lauf ueber die neuen
+# Fehlerseiten selbst gemeldet.
+vorher_datei tests/Feature/ClassNameTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/ClassNameTest.php'
+s = open(p, encoding='utf-8').read()
+alt = 'array_merge($this->vueFiles(), $this->bladeFiles())'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '$this->vueFiles()', 1))
+PY2
+griff_datei tests/Feature/ClassNameTest.php "Blade ausserhalb der Reichweite" &&
+pruefe "Blade ausserhalb der Reichweite" \
+  ClassNameTest::test_every_rule_in_app_css_is_reached_by_a_template failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ClassNameTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

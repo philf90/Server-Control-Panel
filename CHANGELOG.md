@@ -20096,3 +20096,95 @@ Zum zweiten Mal an diesem Tag und in einer anderen Sprache: In
 also blendet ein kleiner Abtaster Kommentare aus — durch Leerzeichen ersetzt und
 nicht entfernt, damit die gemeldeten Zeilennummern stimmen. Dass er tragend ist,
 belegt ein eigener Eingriff im Bruchskript.
+
+### Eigene Fehlerseiten, gesammelte Formularfehler und ein Kommando, das man tippen kann
+
+Drei Befunde aus `docs/84` in einem Zug — 10, 2 und 3.
+
+**Befund 10: alle schlechten Zeilen werden gemeldet, nicht nur die erste.** Auf
+der Zugangsseite stand ein `throw` im Schleifenrumpf; der erste falsche Eintrag
+beendete die Prüfung, und der Kunde bekam seine Liste in so vielen Runden
+zurück, wie sie Fehler hatte. `srvpanel access` steigt weiterhin beim ersten
+aus, und das ist dort richtig.
+
+> **Zwei Eingänge, die dieselbe Prüfung teilen, teilen darum noch nicht dieselbe
+> Meldung — eine Liste hat mehr Fehler als eine Kommandozeile.**
+
+**Und beim Beheben fiel ein zweiter Fehler daneben auf.** Die Oberfläche warf
+ihre leeren Zeilen vor dem Absenden weg, der Schlüssel `networks.<n>` zählte
+also über die **gefilterte** Liste. Sobald irgendwo davor eine leere Zeile
+stand, bekam die falsche Zeile den roten Rand — genau das, was der Betreiber
+während des Laufs beobachtet hatte.
+
+> **Eine Kennung, die auf eine Liste zeigt, die der Browser nicht hat, zeigt auf
+> die falsche Zeile.**
+
+Das Formular schickt seine Zeilen jetzt, wie sie dastehen; weggeworfen werden
+die leeren im Controller, **nach** dem Zählen. `max:64` bezieht sich damit auf
+Zeilen statt auf Netze — es war nie ein Produktversprechen, sondern der Deckel
+für eine zu grosse Anfrage, und `64` steht an keiner anderen Stelle.
+
+**Befund 2: `srvpanel admin` statt `srvpanel:admin`.** Der Doppelpunkt ist der
+artisan-Name; auf dem Server heisst der Aufrufer `srvpanel`, und wer die Zeile
+abtippte, bekam „command not found". `CommandReachTest` sah es nicht, weil beide
+bestehenden Prüfungen `srvpanel` **plus Leerzeichen** verlangen.
+
+> **Ein Wächter, der eine Schreibweise kennt, prüft die Schreibweise und nicht
+> den Befehl.**
+
+In PHP bleibt die Doppelpunktform richtig und steht dort an dreizehn Stellen: in
+`$signature` und als `command` im Protokoll. Die neue Prüfung gilt nur der
+Oberfläche.
+
+**Befund 3: eigene Fehlerseiten.** 403, 404, 419, 429, 500 und 503 waren
+Laravels Vorgabe — *„This action is unauthorized."*, englisch, in Times,
+ausserhalb von „Kontor". `resources/views/errors/` gab es nicht.
+
+> **Ein Wächter, der die geschriebenen Seiten prüft, sagt nichts über die, die
+> niemand geschrieben hat.**
+
+A9 hat es wichtig gemacht: Vor der Rollentrennung bekam kaum jemand einen 403 zu
+sehen; seit Schritt 2 ist er der **entworfene** Zustand für acht Seiten.
+
+> **Eine Seite, die niemand sehen sollte, wird durch eine Rollentrennung zu
+> einer, die jemand sehen soll.**
+
+**Blade und nicht Inertia**, und das ist die Überlegung dahinter: Über Inertia
+gerendert liefe die Seite durch `HandleInertiaRequests::share()` und damit an
+die Datenbank — bei einem 500, den eine tote Verbindung ausgelöst hat,
+scheiterte sie ein zweites Mal. Kein Inertia, kein `auth()`, keine Abfrage;
+`ErrorPageTest` hält alle drei.
+
+> **Eine Seite, die es gerade dann geben muss, wenn etwas kaputt ist, lädt so
+> wenig wie möglich.**
+
+Dafür ist `resources/css/app.css` ein zweiter Vite-Eingang geworden: Das
+Skriptbündel setzt Inertia auf `#app` auf, das eine Blade-Seite nicht hat.
+
+**Zwei bestehende Wächter mussten mit, und einer hat es selbst gemeldet.**
+`ClassReachTest` und `ClassNameTest` lasen ausschliesslich `.vue` — unter
+`resources/views/` lagen zwei Dateien ohne Klassen, und die Frage stellte sich
+nicht. Mit den Fehlerseiten stellt sie sich: `ClassNameTest` meldete `.failure`
+als „erreicht kein Template", und `ClassReachTest` fand beim ersten Lauf über
+Blade eine Klasse, die ich erfunden hatte — `class="page"` gibt es nicht, die
+Layouts benutzen `.content`, und die steht in deren `<style scoped>`.
+
+**Und der Kommentar-Abstreifer hat eine dritte Form gelernt.** `{{-- --}}` ist
+Blade, und der erste Lauf des neuen Wächters meldete prompt den Kommentar, der
+seine Regel begründet — zum dritten Mal an diesem Tag. `WithoutMarkupComments`
+liegt jetzt als Baustein neben `WithoutPhpComments` und kennt alle drei Formen.
+Dabei ist auch eine zweite Fassung verschwunden, die am selben Tag entstanden
+war: `AccountAccessReachTest` hatte `token_get_all()` selbst nachgebaut, statt
+den Baustein zu nehmen, den es seit Monaten gibt.
+
+**Die Bilderrunde hat dabei die Falle aus `CLAUDE.md` vorgeführt.** Die erste
+Messung meldete `gegenprobe 208/200` — der Prüfkörper muss **genau** 200
+ergeben. Der Aufsatz zeigte auf ein Stylesheet, das ein späterer Bau ersetzt
+hatte, und mass eine ungestaltete Seite weiter.
+
+> **Ein Aufsatz, der auf ein gebautes Stylesheet zeigt, zeigt nach dem nächsten
+> Bau ins Leere — und misst weiter.**
+
+Er liest den Namen jetzt aus dem Manifest und bricht ab, wenn die Schrift noch
+Times ist. Danach: `dokument 0 · gegenprobe 200/200 · schiebt 0` in allen vier
+Lagen.

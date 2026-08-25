@@ -19817,3 +19817,53 @@ weil er prüft, ob es die Datei gibt, und nicht, ob sie das Gemeinte ist.
 
 > **Eine Nummer, die man vergibt, bevor es die Datei gibt, ist eine Zusage an
 > einen Namen und nicht an einen Inhalt.**
+
+### `srvpanel access` — der Rückweg, den das Ausschreiben gefunden hat
+
+**Die Netzbeschränkung ist die einzige Einstellung dieses Panels, die ihren
+eigenen Betreiber aussperren kann** — nicht durch einen Fehler im Formular,
+dagegen steht `AdminNetwork::covers()`, sondern durch die Welt: ein Anschluss
+mit neuer Adresse, ein Umzug, ein Anbieter, der neu nummeriert. Danach ist die
+gespeicherte Liste richtig und trotzdem falsch.
+
+`srvpanel admin` holt ein Konto zurück, das sich mit Passwort oder zweitem
+Faktor ausgesperrt hat. Für die Netzbeschränkung gab es nichts dergleichen.
+
+> **Ein Rückweg, den man erst sucht, wenn man ihn braucht, ist keiner.**
+
+**Aufgefallen ist das nicht beim Bauen, sondern beim Ausschreiben des
+Abnahmelaufs.** `docs/83 §2.1` sollte den Weg zurück nennen — und beim
+Aufschreiben war keiner da, nur ein `tinker`-Einzeiler ohne Hilfe und ohne
+Handbuch.
+
+> **Wer eine Anleitung schreibt, geht die Schritte im Kopf — und merkt, wo
+> keiner ist.**
+
+**`--clear` fragt keinen Aussperrschutz**, und das ist Absicht: Wer das Kommando
+aufruft, sitzt auf dem Server, und die Frage „deckt diese Liste deine Adresse"
+hat für ihn keine sinnvolle Antwort.
+
+> **Ein Rückweg, der dieselbe Bedingung prüft wie der Hinweg, führt zurück an
+> denselben Punkt.**
+
+**Und die Änderung steht im Protokoll** — mit `quelle: Kommandozeile` und ohne
+handelndes Konto, denn es war keines angemeldet. Ein Weg, der an der Oberfläche
+vorbeiführt, gehört erst recht dorthin: Sonst liesse sich eine
+Netzbeschränkung spurlos aufheben, von genau dem, dessen Handeln man später
+nachliest.
+
+**Dabei ist die Politik an eine Stelle gewandert.** Formular und Kommando
+stellen dieselbe Frage — ist das ein brauchbares Netz? —, und die Ablehnung von
+`0.0.0.0/0` stand bis dahin im Controller. `AdminNetwork::normalize()` trägt sie
+jetzt, `AccessCommandTest` hält beide Eingänge dagegen.
+
+> **Zwei Eingänge zu derselben Einstellung teilen ihre Prüfung, oder die
+> Einstellung hat zwei Bedeutungen.**
+
+**Und ein Fall, für den niemand gebaut hatte, stimmt trotzdem:** `::/0` — das
+ganze IPv6-Internet — wird abgewiesen, weil die Prüfung auf `/0` endet und nicht
+auf `0.0.0.0/0`. Gemessen, nicht angenommen.
+
+**Berichtigt wurde dabei auch das Abnahmekriterium:** `docs/82 §6.3` nannte sechs
+Geheimnisseiten. Es sind acht — die Kontenseite kam mit Schritt 3, die
+Zugangsseite mit Schritt 7, beide nach dem Absatz.

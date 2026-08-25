@@ -82,20 +82,27 @@ sie es trotzdem tun, ist dies der Weg zurück, und er gehört **vor** dem Lauf
 einmal gelesen:
 
 ```bash
-ssh cloudsrv24 'srvpanel tinker --execute="app(App\\Support\\Settings\\Settings::class)->saveAdminNetworks([]);"'
+ssh cloudsrv24 'srvpanel access'          # was gilt gerade?
+ssh cloudsrv24 'srvpanel access --clear'  # alles abräumen
 ```
 
-Danach gilt wieder „von überall". **`Setting` trägt keine Mandantenklammer**, der
-Aufruf braucht also kein `withoutGlobalScopes()` — anders als jedes Modell mit
-`BelongsToSubscription`, das in `srvpanel tinker` wortlos null Zeilen liefert.
+Danach gilt wieder „von überall", und im Protokoll steht ein `settings.access`
+mit `quelle: Kommandozeile` und **ohne handelndes Konto** — auf der
+Kommandozeile ist keines angemeldet.
 
 > **Ein Rückweg, den man erst sucht, wenn man ihn braucht, ist keiner.**
 
-**Und das ist zugleich ein benannter Mangel:** Es gibt kein
-`srvpanel access --clear`. Der Weg über `tinker` funktioniert, steht aber in
-keiner Hilfe und in keinem Handbuch. Wer nach diesem Lauf entscheidet, dass die
-Netzbeschränkung bleiben soll, baut das Kommando nach — §7 führt es als offenen
-Punkt.
+**Dieses Kommando gab es beim ersten Ausschreiben dieses Laufs nicht.** Der Weg
+zurück war ein `tinker`-Einzeiler, der in keiner Hilfe stand. Aufgefallen ist
+das nicht beim Bauen der Netzbeschränkung, sondern beim Aufschreiben dieses
+Abschnitts.
+
+> **Wer eine Anleitung schreibt, geht die Schritte im Kopf — und merkt, wo
+> keiner ist.**
+
+**`--clear` fragt keinen Aussperrschutz**, und das ist Absicht: Wer das Kommando
+aufruft, sitzt auf dem Server. Ein Rückweg, der dieselbe Bedingung prüft wie der
+Hinweg, führt zurück an denselben Punkt.
 
 ### 2.2 Was dieser Lauf am Server verändert
 
@@ -638,10 +645,9 @@ aufgeschrieben.
 
 ## 7. Was nach diesem Lauf zu bauen bleibt
 
-- **`srvpanel access --clear`** (§2.1). Der Weg über `tinker` funktioniert und
-  steht in keiner Hilfe. Solange die Netzbeschränkung benutzt wird, gehört ein
-  Kommando dazu, das sie von der Kommandozeile abräumt — dieselbe Rolle, die
-  `srvpanel admin` für ein ausgesperrtes Konto spielt.
-- **Die Kriterien 3 und 4 in `docs/82 §6` auf acht Seiten berichtigen.** Die
-  Vorschrift kennt sechs.
+- **Die Kriterien 3 und 4 in `docs/82 §6`** kennen sechs Geheimnisseiten; es
+  sind acht. Berichtigt am 25. August, nachdem dieser Lauf es aufgedeckt hat.
+- **Nichts weiter.** `srvpanel access` stand hier als offener Punkt und ist
+  gebaut, bevor der Lauf gefahren wurde — §2.1 zeigt auf ein Kommando, das es
+  gibt.
 - **A3, A4 und A7** haben weiterhin keine Stufe (`docs/20 §9`).

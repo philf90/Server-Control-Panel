@@ -16588,6 +16588,92 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AssertionArgumentTest passed
 
 echo
+echo "── AccessCommandTest: das Kommando baut seine eigene Pruefung ──"
+#
+# Formular und Kommando stellen dieselbe Frage. Baut eines seine eigene
+# Pruefung, hat die Einstellung zwei Bedeutungen — und welche die strengere ist,
+# merkt niemand. `Cidr::normalize()` allein laesst `0.0.0.0/0` durch.
+vorher_datei app/Console/Commands/Access.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Access.php'
+s = open(p, encoding='utf-8').read()
+alt = 'AdminNetwork::normalize($entry)'
+assert s.count(alt) == 2, 'Zielstelle nicht wie erwartet — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '\\SrvPanel\\Agent\\Net\\Cidr::normalize($entry)'))
+PY2
+griff_datei app/Console/Commands/Access.php "Kommando prueft selbst" &&
+pruefe "Kommando prueft selbst" \
+  AccessCommandTest::test_both_entrances_ask_the_same_place failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCommandTest passed
+
+echo
+echo "── AccessCommandTest: der Rueckweg fragt den Aussperrschutz ──"
+#
+# Der Fall, fuer den es das Kommando gibt: Die gespeicherte Liste ist richtig
+# und trotzdem falsch, weil sich die Adresse geaendert hat. Ein Aussperrschutz
+# an dieser Stelle machte aus dem Rueckweg einen zweiten Hinweg.
+#
+#   Ein Rueckweg, der dieselbe Bedingung prueft wie der Hinweg, fuehrt zurueck
+#   an denselben Punkt.
+vorher_datei app/Console/Commands/Access.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Access.php'
+s = open(p, encoding='utf-8').read()
+alt = '        $after = $clear ? [] : $this->apply($before, $add, $remove);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = ('        if ($clear && ! AdminNetwork::covers($before, null)) {\n'
+       '            return self::FAILURE;\n'
+       '        }\n\n' + alt)
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Console/Commands/Access.php "Rueckweg mit Aussperrschutz" &&
+pruefe "Rueckweg mit Aussperrschutz" \
+  AccessCommandTest::test_clearing_asks_no_lockout_question failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCommandTest passed
+
+echo
+echo "── AccessCommandTest: die Aenderung steht nicht mehr im Protokoll ──"
+#
+# Ein Weg, der an der Oberflaeche vorbeifuehrt, gehoert erst recht ins
+# Protokoll. Ohne ihn liesse sich eine Netzbeschraenkung spurlos aufheben — von
+# jemandem mit SSH, also genau von dem, dessen Handeln man spaeter nachliest.
+vorher_datei app/Console/Commands/Access.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Access.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'settings.access',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'settings.geheim',", 1))
+PY2
+griff_datei app/Console/Commands/Access.php "Aenderung ohne Protokoll" &&
+pruefe "Aenderung ohne Protokoll" \
+  AccessCommandTest::test_a_change_from_the_command_line_is_recorded failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCommandTest passed
+
+echo
+echo "── AccessCommandTest: der Wrapper kennt das Kommando nicht ──"
+#
+# Genau wie `admin`, das lange fehlte: Wer es tippt, bekommt „Command not
+# defined" — und der Rueckweg aus einer Netzbeschraenkung waere wieder nur ein
+# tinker-Einzeiler.
+vorher_datei packaging/bin/srvpanel
+python3 - <<'PY2'
+p = 'packaging/bin/srvpanel'
+s = open(p, encoding='utf-8').read()
+alt = '|admin|access|version)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '|admin|version)', 1))
+PY2
+griff_datei packaging/bin/srvpanel "Wrapper ohne access" &&
+pruefe "Wrapper ohne access" \
+  AccessCommandTest::test_the_wrapper_knows_the_command failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCommandTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

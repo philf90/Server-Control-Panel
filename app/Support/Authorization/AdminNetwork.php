@@ -7,7 +7,9 @@ namespace App\Support\Authorization;
 use App\Http\Middleware\EnforceAdminNetwork;
 use App\Models\Account;
 use App\Support\Settings\Settings;
+use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Net\Cidr;
+use SrvPanel\Agent\Pg\Hba;
 
 /**
  * Aus welchen Netzen sich ein Adminkonto anmelden darf.
@@ -108,6 +110,40 @@ final class AdminNetwork
         }
 
         return false;
+    }
+
+    /**
+     * Ein Netz prüfen und in seine kanonische Schreibweise bringen.
+     *
+     * **Die Rechnung steht in {@see Cidr}, die Politik hier** — dieselbe
+     * Teilung wie bei {@see Hba::cidr()}, nur mit der
+     * anderen Entscheidung: Dort ist `0.0.0.0/0` eine Ablehnung, weil ein
+     * Datenbankzugang für das ganze Internet ein Fehler ist. Hier beschränkt es
+     * schlicht nichts.
+     *
+     * **Und sie steht hier und nicht im Controller**, weil zwei Wege dieselbe
+     * Frage stellen: das Formular und `srvpanel access --add`. Stünde die Regel
+     * an beiden, liefen sie auseinander — und welche der beiden dann die
+     * strengere ist, wüsste niemand.
+     *
+     * > **Zwei Eingänge zu derselben Einstellung teilen ihre Prüfung, oder die
+     * > Einstellung hat zwei Bedeutungen.**
+     *
+     * @throws AgentException wenn die Angabe kein brauchbares Netz ist
+     */
+    public static function normalize(mixed $entry, string $field = 'Netz'): string
+    {
+        $normalized = Cidr::normalize($entry, $field);
+
+        if (str_ends_with($normalized, '/0')) {
+            throw AgentException::badRequest(sprintf(
+                '%s deckt das ganze Internet ab und beschränkt damit nichts. Lassen Sie die Liste '
+                .'leer, wenn keine Beschränkung gelten soll.',
+                is_string($entry) ? trim($entry) : $normalized,
+            ));
+        }
+
+        return $normalized;
     }
 
     /**

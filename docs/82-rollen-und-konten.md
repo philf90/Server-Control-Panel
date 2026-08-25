@@ -367,9 +367,16 @@ Sieben Punkte, gemessen auf einem echten Server.
 2. Dieses Konto meldet sich an, sieht die Kunden, Abonnements und Domains und
    kann damit arbeiten.
 3. Es bekommt auf `/settings/dns`, `/settings/mail`, `/settings/tls`,
-   `/settings/database`, `/settings/php` und `/logs` einen **403** — und in der
-   Inertia-Antwort der Seiten, die es sehen darf, steht **kein Feld**, das es
-   nicht sehen darf. Gemessen an der Antwort, nicht am Bild.
+   `/settings/database`, `/settings/php`, `/logs`, `/accounts` und
+   `/settings/access` einen **403** — und in der Inertia-Antwort der Seiten, die
+   es sehen darf, steht **kein Feld**, das es nicht sehen darf. Gemessen an der
+   Antwort, nicht am Bild.
+
+   *Berichtigt am 25. August: Hier standen sechs Seiten. Die Kontenseite kam mit
+   Schritt 3, die Zugangsseite mit Schritt 7 — beide nach diesem Absatz.*
+
+   > **Ein Kriterium, das vor dem Bauen geschrieben wurde, kennt nicht, was beim
+   > Bauen entstanden ist.**
 4. Der Menüpunkt „Konten" und die Gruppe der Geheimnisseiten stehen in seiner
    Navigation **nicht** — und die Antwort darauf kommt aus der Policy, nicht aus
    einem `v-if` auf die Rolle.

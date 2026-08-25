@@ -13,7 +13,6 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use SrvPanel\Agent\AgentException;
-use SrvPanel\Agent\Net\Cidr;
 
 /**
  * Der Zugang zum Panel — aus welchen Netzen sich ein Verwaltungskonto anmelden
@@ -70,35 +69,19 @@ final class AccessSettingsController extends Controller
         foreach ($raw as $index => $entry) {
             try {
                 /*
-                 * **Dieselbe Rechnung wie beim Fernzugriff der Datenbank** —
-                 * {@see Cidr::normalize()}. Ein eigener Parser hier wäre die
-                 * zweite Fassung, und die zweite ist die, die eine
-                 * IPv6-Schreibweise nicht kennt.
+                 * **Prüfung und Politik stehen in {@see AdminNetwork}** und
+                 * nicht hier: `srvpanel access --add` stellt dieselbe Frage,
+                 * und zwei Fassungen liefen auseinander.
                  *
-                 * **Ohne `Hba::cidr()`**, und das ist der Unterschied zwischen
-                 * Rechnung und Politik: Dort ist `/0` eine Ablehnung, weil ein
-                 * Datenbankzugang für das ganze Internet ein Fehler ist. Hier
-                 * wäre es bloss die Voreinstellung mit mehr Zeichen — und wird
-                 * unten mit einem Satz abgewiesen, der das sagt.
+                 * > **Zwei Eingänge zu derselben Einstellung teilen ihre
+                 * > Prüfung, oder die Einstellung hat zwei Bedeutungen.**
                  */
-                $normalized = Cidr::normalize($entry, 'Netz');
+                $networks[] = AdminNetwork::normalize($entry);
             } catch (AgentException $error) {
                 throw ValidationException::withMessages([
                     'networks.'.$index => $error->getMessage(),
                 ]);
             }
-
-            if (str_ends_with($normalized, '/0')) {
-                throw ValidationException::withMessages([
-                    'networks.'.$index => sprintf(
-                        '%s deckt das ganze Internet ab und beschränkt damit nichts. Lassen Sie die '
-                        .'Liste leer, wenn keine Beschränkung gelten soll.',
-                        $entry,
-                    ),
-                ]);
-            }
-
-            $networks[] = $normalized;
         }
 
         $networks = array_values(array_unique($networks));

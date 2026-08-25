@@ -16713,6 +16713,90 @@ pruefe "Wrapper-Liste zusammengefallen" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PackagingTest passed
 
+echo "── SfcBlockTest: <style> rutscht in den Vorlagenblock ──"
+#
+# Der Fund vom 25. August 2026 (`docs/83` Punkt 13). Ein `<style scoped>`
+# innerhalb von `<template>` ist kein Block der Komponente, sondern Markup —
+# Vue wirft es weg. Auf der Seite fehlten damit beide Regeln der Datei, und die
+# Marke „diese Sitzung" stand ohne Abstand an der Adresse.
+vorher_datei resources/js/Pages/Accounts/Form.vue
+python3 - <<'PY2'
+import re
+p = 'resources/js/Pages/Accounts/Form.vue'
+s = open(p, encoding='utf-8').read()
+m = re.search(r'\n<style scoped>\n.*?\n</style>\n', s, re.S)
+assert m, 'Zielstelle nicht gefunden — der Bruch waere blind'
+block = m.group(0).strip('\n')
+rest = s[:m.start()] + s[m.end():]
+assert rest.count('    <FormErrors />') == 1, 'Zielstelle nicht eindeutig'
+open(p, 'w', encoding='utf-8').write(rest.replace('    <FormErrors />', block + '\n\n    <FormErrors />', 1))
+PY2
+griff_datei resources/js/Pages/Accounts/Form.vue "Stilblock im Vorlagenblock" &&
+pruefe "Stilblock im Vorlagenblock" \
+  SfcBlockTest::test_no_block_hides_inside_the_template failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SfcBlockTest passed
+
+echo "── ClassReachTest: derselbe Eingriff, von der anderen Seite ──"
+#
+# **Der Grund, dass dieser Eingriff zweimal dasteht.** Bis zum 25. August war
+# `ClassReachTest` bei genau dieser Quelle gruen: Er suchte `<style>` in der
+# ganzen Datei, und ein weggeworfener Block sieht dabei aus wie ein wirksamer.
+# Faellt die Verschaerfung wieder heraus, meldet nur noch dieser Eingriff es.
+vorher_datei resources/js/Pages/Accounts/Form.vue
+python3 - <<'PY2'
+import re
+p = 'resources/js/Pages/Accounts/Form.vue'
+s = open(p, encoding='utf-8').read()
+m = re.search(r'\n<style scoped>\n.*?\n</style>\n', s, re.S)
+assert m, 'Zielstelle nicht gefunden — der Bruch waere blind'
+block = m.group(0).strip('\n')
+rest = s[:m.start()] + s[m.end():]
+assert rest.count('    <FormErrors />') == 1, 'Zielstelle nicht eindeutig'
+open(p, 'w', encoding='utf-8').write(rest.replace('    <FormErrors />', block + '\n\n    <FormErrors />', 1))
+PY2
+griff_datei resources/js/Pages/Accounts/Form.vue "Regel hinter dem Vorlagenblock unsichtbar" &&
+pruefe "Regel hinter dem Vorlagenblock unsichtbar" \
+  ClassReachTest::test_every_class_in_a_template_points_at_a_rule failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ClassReachTest passed
+
+echo "── SfcBlockTest: <style> eingerueckt ──"
+#
+# Die zweite Haelfte der Regel. Eine Einrueckung wirkt fuer sich genommen
+# nichts — sie ist das Zeichen dafuer, dass jemand den Block in etwas
+# hineingeschrieben hat, und wird gemeldet, bevor sie wirkt.
+vorher_datei resources/js/Pages/Accounts/Form.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Accounts/Form.vue'
+s = open(p, encoding='utf-8').read()
+assert s.count('\n<style scoped>') == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace('\n<style scoped>', '\n  <style scoped>', 1))
+PY2
+griff_datei resources/js/Pages/Accounts/Form.vue "Stilblock eingerückt" &&
+pruefe "Stilblock eingerückt" \
+  SfcBlockTest::test_every_style_block_starts_at_the_margin failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SfcBlockTest passed
+
+echo "── SfcBlockTest: die Untergrenze ──"
+#
+# Der Pruefkoerper. Findet der Ausdruck keinen Vorlagenblock mehr, laeuft die
+# Schleife leer und der Waechter meldete Gruen, ohne etwas gemessen zu haben.
+vorher_datei tests/Feature/SfcBlockTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/SfcBlockTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/^<template>$/m'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/^<template-gibt-es-nicht>$/m'", 1))
+PY2
+griff_datei tests/Feature/SfcBlockTest.php "Untergrenze des Stilblock-Wächters" &&
+pruefe "Untergrenze des Stilblock-Wächters" \
+  SfcBlockTest::test_no_block_hides_inside_the_template failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SfcBlockTest passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

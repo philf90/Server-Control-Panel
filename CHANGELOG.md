@@ -19867,3 +19867,56 @@ auf `0.0.0.0/0`. Gemessen, nicht angenommen.
 **Berichtigt wurde dabei auch das Abnahmekriterium:** `docs/82 §6.3` nannte sechs
 Geheimnisseiten. Es sind acht — die Kontenseite kam mit Schritt 3, die
 Zugangsseite mit Schritt 7, beide nach dem Absatz.
+
+### Ein `<style scoped>` im Vorlagenblock — und der Wächter, der ihn für einen Block hielt
+
+**Der Betreiber hat am 25. August 2026 gemeldet, die Marke „diese Sitzung" klebe
+ohne Abstand an der Adresse** (`docs/83`, Punkt 13, die Bilderrunde). Im
+Quelltext stand der Abstand: `.title-row { display: flex; gap: 8px }`.
+
+Der Block, in dem er stand, war **in den `<template>`-Block gerutscht** —
+zwischen den benannten Bereich `#breadcrumb` und den ersten Inhalt. Ein
+`<style>` an dieser Stelle ist kein Block der Komponente, sondern Markup, und
+Vues Übersetzer wirft es weg. Nachgezählt am Bündel: kein `data-v`-Kennzeichen
+trug `.agent` und `.title-row`, während die beiden anderen Komponenten mit einer
+gleichnamigen Regel ihres hatten. Beide Regeln der Datei waren auf der Seite
+fort — die Gerätekennung stand in Fliesstextgrösse statt in `--text-small`, und
+die Marke auf **0 px** neben der Adresse.
+
+> **Ein Block, der an der falschen Stelle steht, ist kein falsch stehender Block
+> — er ist keiner.**
+
+**Nicht 4 px, sondern 0**, und der Unterschied ist der Aufsatz: Ein von Hand
+geschriebener Prüfkörper behält den Zeilenumbruch zwischen zwei Elementen als
+Wortabstand, Vue zieht ihn ein. Gemessen mit und ohne die Regel — mit ihr 8 px
+bis zur Marke und 18 px bis zu ihrem Punkt, ohne sie im Aufsatz 4, in der
+Renderfunktion keiner.
+
+> **Ein Aufsatz, der das Markup selbst schreibt, misst auch seine eigenen
+> Leerzeichen mit.**
+
+**`ClassReachTest` war dabei grün, und das ist der eigentliche Befund.** Er
+fragt, ob jede Klasse einer Vorlage eine Regel hat, und suchte sie mit
+`#<style[^>]*>(.*)</style>#su` **in der ganzen Datei**. Für diese Frage sieht ein
+weggeworfener Block genauso aus wie ein wirksamer.
+
+> **Ein Wächter, der eine Zeichenkette sucht statt eines Blocks, ist grün,
+> sobald die Zeichenkette irgendwo steht.**
+
+Derselbe Satz wie bei Punkt 12 aus `docs/62`, dort über die Erreichbarkeit einer
+Meldung statt über die Wirksamkeit einer Regel. Er schneidet den Vorlagenblock
+seitdem heraus, bevor er nach `<style>` sucht; **belegt ist das mit einem
+Eingriff, der die alte Fassung gegen dieselbe kaputte Quelle grün zeigt.**
+
+**`SfcBlockTest` hält die Regel selbst** — damit der Fehler auch dann auffällt,
+wenn niemand nach einer Klasse fragt: Kein `<style>` und kein `<script>` steht
+innerhalb des Vorlagenblocks, und jeder `<style>`-Block beginnt am linken Rand.
+Beide Prüfungen zählen mit, wie viele Dateien sie erreicht haben, und melden
+Rot, wenn es fast keine sind.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+**Ausgezählt über alle 66 Komponenten: genau eine war betroffen**, und es ist
+eine Seite aus A9. Die vier Eingriffe stehen in `tests/waechter-brechen.sh`,
+jeder einzeln belegt.

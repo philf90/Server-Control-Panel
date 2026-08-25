@@ -90,9 +90,28 @@ final class ClassReachTest extends TestCase
         return (string) preg_replace('/<!--.*?-->/su', '', $match[1]);
     }
 
+    /**
+     * Der `<style>`-Block der Komponente — **ohne den Vorlagenblock**.
+     *
+     * **Warum der erst herausgeschnitten wird.** Bis zum 25. August 2026 suchte
+     * dieser Ausdruck in der ganzen Datei. In `Accounts/Form.vue` war ein
+     * `<style scoped>` in den `<template>`-Block gerutscht; Vue wirft ein
+     * solches Markup weg, die Regeln standen weder im gebauten Stylesheet noch
+     * in der Renderfunktion — und dieser Wächter fand sie trotzdem und war
+     * zufrieden. Die Marke „diese Sitzung" stand daraufhin ohne Abstand an der
+     * Adresse, und `.agent` fehlte dazu.
+     *
+     * > **Ein Wächter, der eine Zeichenkette sucht statt eines Blocks, ist
+     * > grün, sobald die Zeichenkette irgendwo steht.**
+     *
+     * Dass ein Block überhaupt an dieser Stelle steht, meldet {@see SfcBlockTest}.
+     * Hier geht es nur darum, ihn nicht mitzulesen.
+     */
     private function style(string $source): string
     {
-        if (preg_match('#<style[^>]*>(.*)</style>#su', $source, $match) !== 1) {
+        $ohneVorlage = (string) preg_replace('#^<template>.*^</template>#sm', '', $source);
+
+        if (preg_match('#<style[^>]*>(.*)</style>#su', $ohneVorlage, $match) !== 1) {
             return '';
         }
 

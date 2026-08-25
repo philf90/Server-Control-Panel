@@ -117,23 +117,6 @@ function submitReset(): void {
       <Link href="/accounts" class="link">Konten</Link>
     </template>
 
-<style scoped>
-/*
- * Die Gerätekennung ist lang und hat Leerzeichen — sie bricht wie Fliesstext.
- * `.ident` wäre hier falsch: Das ist keine Kennung, die man abtippt.
- */
-.agent {
-  font-size: var(--text-small);
-}
-
-.title-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-</style>
-
     <FormErrors />
 
     <!--
@@ -332,3 +315,20 @@ function submitReset(): void {
     </div>
   </PanelLayout>
 </template>
+
+<style scoped>
+/*
+ * Die Gerätekennung ist lang und hat Leerzeichen — sie bricht wie Fliesstext.
+ * `.ident` wäre hier falsch: Das ist keine Kennung, die man abtippt.
+ */
+.agent {
+  font-size: var(--text-small);
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+</style>

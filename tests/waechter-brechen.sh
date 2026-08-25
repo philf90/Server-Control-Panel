@@ -17042,6 +17042,60 @@ pruefe "Blade ausserhalb der Reichweite" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ClassNameTest passed
 
+echo "── SessionDriverTest: die Auslieferung wechselt den Treiber ──"
+#
+# Befund 15 aus `docs/84`. Ohne `database` bleibt die Tabelle `sessions` leer,
+# und „keine offenen Sitzungen" ist nicht von „nicht nachgesehen" zu
+# unterscheiden.
+vorher_datei config/session.php
+python3 - <<'PY2'
+p = 'config/session.php'
+s = open(p, encoding='utf-8').read()
+alt = "env('SESSION_DRIVER', 'database')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "env('SESSION_DRIVER', 'file')", 1))
+PY2
+griff_datei config/session.php "Sitzungstreiber gewechselt" &&
+pruefe "Sitzungstreiber gewechselt" \
+  SessionDriverTest::test_the_shipped_configuration_uses_the_database_driver failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SessionDriverTest passed
+
+echo "── SessionDriverTest: Sessions fragt den Treiber nicht mehr ──"
+#
+# Dann setzt die Klasse ihn wieder voraus, und der Ausfall faellt zur
+# beruhigenden Seite.
+vorher_datei app/Support/Authorization/Sessions.php
+python3 - <<'PY2'
+p = 'app/Support/Authorization/Sessions.php'
+s = open(p, encoding='utf-8').read()
+alt = "config('session.driver') === 'database'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'true', 1))
+PY2
+griff_datei app/Support/Authorization/Sessions.php "Treiber vorausgesetzt" &&
+pruefe "Treiber vorausgesetzt" \
+  SessionDriverTest::test_the_session_list_asks_which_driver_is_in_use failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SessionDriverTest passed
+
+echo "── SessionDriverTest: die Seite liest die Antwort nicht ──"
+#
+# Ein Wert, der geschrieben und nie gelesen wird, ist von aussen nicht von
+# einem zu unterscheiden, den es nicht gibt.
+vorher_datei resources/js/Pages/Accounts/Form.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Accounts/Form.vue'
+s = open(p, encoding='utf-8').read()
+assert s.count('sessionsReadable') >= 2, 'Zielstelle nicht gefunden — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace('sessionsReadable', 'sessionsGelesen'))
+PY2
+griff_datei resources/js/Pages/Accounts/Form.vue "Antwort ungelesen" &&
+pruefe "Antwort ungelesen" \
+  SessionDriverTest::test_the_page_says_so_when_it_cannot_answer failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SessionDriverTest passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

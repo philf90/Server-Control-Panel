@@ -20188,3 +20188,93 @@ hatte, und mass eine ungestaltete Seite weiter.
 Er liest den Namen jetzt aus dem Manifest und bricht ab, wenn die Schrift noch
 Times ist. Danach: `dokument 0 · gegenprobe 200/200 · schiebt 0` in allen vier
 Lagen.
+
+### Fünf kleinere Befunde aus `docs/84` — und einer davon war zwei
+
+**Befund 5: die Kürzung der Gerätekennung greift jetzt.** Die Grenze lag bei
+120 Zeichen. Gemessen an fünf echten Kennungen:
+
+```
+Linux/Firefox     70    Windows/Chrome   111
+Android/Chrome   117    macOS/Safari     117
+iPhone/Safari    137
+```
+
+Nur die letzte wurde gekürzt, und der Knopf „Beenden" stand deshalb bei 1440 px
+ausserhalb des Sichtbaren.
+
+> **Eine Obergrenze, die über dem tatsächlichen Höchstwert liegt, ist keine.**
+
+**60 ist keine runde Zahl, sondern eine gemessene:** Der Klammerausdruck, der
+das Gerät nennt, ist in denselben fünf Kennungen 40 bis 54 Zeichen lang. 60
+liegt über dem längsten davon und unter der kürzesten ganzen Kennung — die
+Auskunft bleibt vollständig, der Rest fällt weg. Der Test nimmt die **kürzeste**
+der fünf als Prüfkörper: Für die längste wäre er auch mit der alten Grenze grün
+gewesen.
+
+**Befund 9 war zwei Fehler.** Der gemeldete: `.button.small` setzt
+`min-height: 0` und ist ausdrücklich „für eine Aktion, die in einer
+Tabellenzeile steht"; auf der Zugangsseite stand sie neben einem Feld.
+Ausgezählt über alle Seiten war das die **einzige** solche Stelle.
+
+Der zweite fiel beim Messen auf: Nach dem Wechsel auf `.button` waren es 38 px
+gegen 43 — beide über `--tap`, und trotzdem verschieden.
+
+> **Zwei Werte, die beide über der Untergrenze liegen, sind darum noch nicht
+> gleich.**
+
+`align-self: stretch` löst es, und der erste Wurf machte den Knopf **60 px**:
+`.field` bringt `margin-top: 16px` mit, und `stretch` meint die Hülle. Den
+Abstand zwischen den Zeilen gibt `.rows` über `gap` — genau das steht in dessen
+Kommentar.
+
+> **Ein Abstand, den zwei Stellen geben, ist an einer von beiden falsch.**
+
+Gemessen nach der Änderung: 44/44 bei 390 px, 43/43 bei 1440. **Was offen
+bleibt, steht als Beobachtung 7 in `docs/84`:** Dieselbe Paarung gibt es auf der
+Übersicht, dort mit einem `.field.inline`, das unter 480 px zweizeilig wird. Ob
+ein Knopf so hoch sein soll wie ein Feld, ist eine Frage an das
+Gestaltungssystem und keine Behebung.
+
+**Befund 12: die Auswahl gehört uns.** Im ganzen Stylesheet stand
+`appearance: none` genau einmal — für das gesperrte Kästchen. Die Auswahl
+behielt damit iOS Safaris eigene Zeichnung, deren innere Höhe sich zu unserer
+Polsterung **addiert**, statt sie zu ersetzen. In Chromium erreichen beide den
+Boden und sind gleich hoch; iOS rechnet anders.
+
+> **Ein Bedienelement, dessen Zeichnung das System behält, hat eine Höhe, die
+> wir nicht angegeben haben.**
+
+Der Pfeil steht als **beschnittene Fläche** in `--text-muted` und nicht als
+Farbwert in einem eingebetteten Bild — dasselbe Verfahren wie beim Haken des
+Kästchens, damit er dem Thema folgt. Sein `bottom` rechnet aus `--tap`: Die
+Marke ist mobil 44 px und am Schreibtisch 38, und eine feste Zahl wäre in genau
+der Ansicht falsch, wegen der es den Block gibt.
+
+**Befund 14: die Namensvorgabe heisst „Verwaltung".** `CreateAdmin` setzte
+`'Administrator'` — aus der Zeit, als das Wort die ganze Klasse beschrieb. Seit
+A9 Schritt 2 ist es eine von zwei Rollen, und auf der Kontenliste stand
+`Administrator` über `• Betreiber`.
+
+> **Ein Name, der eine Klasse beschreibt, wird mehrdeutig, sobald jemand das
+> Wort für eine Unterteilung derselben Klasse verwendet — und die Vorgabe steht
+> in einer Datei, die man beim Unterteilen aufmacht.**
+
+Bestehende Konten behalten ihren Namen; das ist die Angabe eines Menschen und
+keine Einstellung.
+
+**Befund 15: aus der leeren Liste wird ein Satz.** `Sessions::of()` liest
+`DB::table('sessions')`, und gefüllt wird die Tabelle nur vom Treiber
+`database`. Bei jedem anderen kamen null Zeilen, der Bereich verschwand — und
+„keine offenen Sitzungen" war nicht von „nicht nachgesehen" zu unterscheiden.
+
+> **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts zu tun".**
+
+Derselbe Satz wie bei `apt-get update` in A1, diesmal an einem
+Konfigurationswert statt an einem Rückgabewert. `Sessions::readable()` fragt
+jetzt, die Seite sagt es, und `SessionDriverTest` hält die Naht in beide
+Richtungen — einschliesslich der Hälfte, die sonst still verschwindet: **dass
+die Seite die Antwort auch liest.**
+
+> **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht von
+> einem zu unterscheiden, das es nicht gibt.**

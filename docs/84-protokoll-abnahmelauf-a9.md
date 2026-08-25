@@ -9,7 +9,7 @@ es vor Schritt 7 geschrieben wurde.
 gemessen und erfüllt. Die Punkte 11 bis 13 gehören zu A1 und A5 und entscheiden
 über A9 nicht; ihre Befunde stehen hier, weil sie irgendwo stehen müssen.
 
-**Sechzehn Befunde, sechs Beobachtungen, ein Wunsch.** Kein einziger davon ist
+**Sechzehn Befunde, sieben Beobachtungen, ein Wunsch.** Kein einziger davon ist
 von einem Test gefunden worden — dasselbe Verhältnis wie in `docs/45`, `docs/48`
 und `docs/59`. **Und wie dort steckt die Mehrheit nicht im Prüfling:** sieben der
 sechzehn betreffen die Vorschrift, das Prüfmittel oder das Kriterium, nicht das
@@ -435,7 +435,7 @@ Ausgezählt über alle 66 Komponenten: genau eine war betroffen.
 
 ---
 
-## 4. Die sechs Beobachtungen und der Wunsch
+## 4. Die sieben Beobachtungen und der Wunsch
 
 **Beobachtung 1 — keine `Content-Security-Policy` am Panel.** Kein Befund dieses
 Laufs, aber A9 macht die Frage schärfer: Ein Administrator ist jetzt ein
@@ -494,6 +494,24 @@ sagt, wonach der Leser sucht: *„war das mein Rechner"*. Für ein gestohlenes
 Cookie ist der neue Wert die **bessere** Auskunft; für die Frage „welche dieser
 Zeilen ist mein altes Telefon" die schlechtere. Die Klasse schreibt sonst sehr
 genau auf, was sie liest und was nicht — diese Eigenschaft fehlte.
+
+**Beobachtung 7 — ein Knopf neben einem Feld ist am Schreibtisch 5 px
+niedriger.** Beim Beheben von Befund 9 gemessen und nicht behoben: Bei 1440 px
+wird ein `.field`-Bedienelement mit `--text-input` und 9 px Polsterung von
+selbst **43 px** hoch, ein `.button` mit `--text-table` und 8 px nur **38**.
+Beide halten `--tap` ein — die Marke ist ausdrücklich „die kleinste Fläche für
+einen Zeiger" und keine Höhe.
+
+> **Zwei Werte, die beide über der Untergrenze liegen, sind darum noch nicht
+> gleich.**
+
+Auf der Zugangsseite ist es behoben, weil dort die Zeile keine sichtbare
+Beschriftung trägt und die Hülle des Feldes damit genau so hoch ist wie sein
+Bedienelement. Auf der **Übersicht** steht dieselbe Paarung („Aktualisieren"
+neben dem Selbstlauf), und dort trägt sie ein `.field.inline`, das unter 480 px
+zweizeilig wird — ein gestreckter Knopf wäre dann zwei Zeilen hoch. Das ist eine
+Frage an das Gestaltungssystem und keine Behebung: **Soll ein Knopf so hoch sein
+wie ein Feld?** Bei 390 px stellt sie sich nicht, dort sind beide 44.
 
 **Wunsch 1 — ein QR-Code beim zweiten Faktor.** Der Betreiber hat ihn während
 Punkt 2 geäussert, und er trifft eine Lücke, die schon im Code steht:

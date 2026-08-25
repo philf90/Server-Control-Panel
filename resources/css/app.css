@@ -3731,6 +3731,65 @@ p:not([class]) {
 }
 
 /*
+ * Die Auswahl gehört uns und nicht dem Betriebssystem.
+ *
+ * ## Der Anlass
+ *
+ * **Befund 12 aus `docs/84`**, gemeldet vom Betreiber: Auf der Übersicht sind
+ * „Aktualisieren" und die Auswahl daneben **mobil** nicht gleich hoch. Am
+ * Schreibtisch stimmt es.
+ *
+ * Im ganzen Stylesheet stand `appearance: none` genau einmal — für das
+ * gesperrte Kästchen. Die Auswahl behielt damit die Zeichnung des Systems, und
+ * deren innere Höhe kommt vom System: Sie **addiert** sich zu unserer
+ * Polsterung, statt sie zu ersetzen. Der Knopf daneben ist ein blankes
+ * `<button>`, das vollständig uns gehört — er bleibt auf `--tap`, die Auswahl
+ * wächst darüber hinaus.
+ *
+ * Nachgerechnet, warum es im Container nicht auffiel: In Chromium erreichen
+ * beide den Boden und sind gleich hoch. **iOS rechnet anders.**
+ *
+ * > **Ein Bedienelement, dessen Zeichnung das System behält, hat eine Höhe, die
+ * > wir nicht angegeben haben.**
+ *
+ * ## Der Pfeil
+ *
+ * `appearance: none` nimmt der Auswahl auch ihren Pfeil, und ohne ihn sieht sie
+ * aus wie ein Textfeld. Er steht deshalb hier — als **beschnittene Fläche** in
+ * `--text-muted` und nicht als Farbwert in einem eingebetteten Bild, damit er
+ * dem Thema folgt. Dasselbe Verfahren wie beim Haken des Kästchens.
+ *
+ * `bottom` rechnet aus `--tap` und nicht aus einer festen Zahl: Die Marke ist
+ * mobil 44 px und am Schreibtisch 38, und ein fester Wert wäre in genau der
+ * Ansicht falsch, wegen der es diesen Block gibt.
+ */
+.field select {
+  appearance: none;
+
+  /* Platz für den Pfeil — sonst läuft ein langer Wert darunter. */
+  padding-right: 34px;
+}
+
+.field:has(select) {
+  position: relative;
+}
+
+.field:has(select)::after {
+  content: '';
+  position: absolute;
+  right: 13px;
+  bottom: calc(var(--tap) / 2 - 3px);
+  width: 9px;
+  height: 6px;
+
+  background: var(--text-muted);
+  clip-path: polygon(0 0, 50% 100%, 100% 0, 84% 0, 50% 68%, 16% 0);
+
+  /* Der Pfeil ist Zierde: Ein Klick auf ihn gehört der Auswahl darunter. */
+  pointer-events: none;
+}
+
+/*
  * Ein Feld, das nur zum Lesen dasteht, ist kein Bedienelement.
  *
  * Es bekommt deshalb keinen Rand nach WCAG 1.4.11, sondern einen gestrichelten

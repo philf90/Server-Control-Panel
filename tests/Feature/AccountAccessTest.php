@@ -8,7 +8,9 @@ use App\Enums\AccountStatus;
 use App\Models\Account;
 use App\Models\Customer;
 use App\Support\Audit\Impersonation;
+use App\Support\Authorization\Sessions;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -143,6 +145,54 @@ final class AccountAccessTest extends TestCase
             ->withSession([Impersonation::SESSION_KEY => (int) $admin->id])
             ->get('/')
             ->assertOk();
+    }
+
+    /**
+     * **Die Gerätekennung wird wirklich gekürzt** (Befund 5 aus `docs/84`).
+     *
+     * Die Grenze lag bei 120 und griff damit fast nie: Gemessen sind fünf
+     * echte Kennungen 70, 111, 117, 117 und 137 Zeichen lang — nur die letzte
+     * wurde gekürzt, und der Knopf „Beenden" stand deshalb bei 1440 px
+     * ausserhalb des Sichtbaren.
+     *
+     * > **Eine Obergrenze, die über dem tatsächlichen Höchstwert liegt, ist
+     * > keine.**
+     *
+     * **Der Prüfkörper ist die kürzeste der fünf**, nicht die längste: Für die
+     * längste wäre der Test auch mit der alten Grenze grün gewesen.
+     *
+     * > **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall,
+     * > misst nicht.**
+     */
+    public function test_a_real_user_agent_is_actually_shortened(): void
+    {
+        $admin = Account::factory()->admin()->create();
+        $kurz = 'Mozilla/5.0 (X11; Linux x86_64; rv:126.0) Gecko/20100101 Firefox/126.0';
+
+        DB::table('sessions')->insert([
+            'id' => 'probe-sitzung-fuer-die-kennung',
+            'user_id' => $admin->id,
+            'ip_address' => '203.0.113.9',
+            'user_agent' => $kurz,
+            'payload' => '',
+            'last_activity' => time(),
+        ]);
+
+        $zeilen = Sessions::of($admin, null);
+
+        $this->assertCount(1, $zeilen, 'Die Probe ist nicht angekommen — dann misst der Rest nichts.');
+
+        $gezeigt = (string) $zeilen[0]['agent'];
+
+        $this->assertStringEndsWith('…', $gezeigt, sprintf(
+            'Die Kennung ist %d Zeichen lang und wird nicht gekürzt: „%s"',
+            mb_strlen($kurz),
+            $gezeigt,
+        ));
+
+        $this->assertStringContainsString('X11; Linux x86_64', $gezeigt,
+            'Der Klammerausdruck nennt das Gerät und ist die Auskunft, die hier gesucht wird — '
+            .'er darf nicht mit weggeschnitten werden.');
     }
 
     /**

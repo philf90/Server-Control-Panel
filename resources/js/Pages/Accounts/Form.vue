@@ -52,6 +52,12 @@ const props = defineProps<{
   roles: { value: string; label: string }[]
   isLastOperator: boolean
   sessions?: OpenSession[]
+
+  /**
+   * Lässt sich die Sitzungsliste überhaupt beantworten? Siehe den Bereich
+   * unten — sie hängt am Sitzungstreiber, und eine leere Liste sagte das nicht.
+   */
+  sessionsReadable?: boolean
 }>()
 
 /* Beim Anlegen gibt es noch kein Konto und damit keine Sitzungen. */
@@ -248,6 +254,30 @@ function submitReset(): void {
         ist eine eigene Handlung, und ein Absenden für alle zusammen gäbe es
         nicht.
       -->
+      <!--
+        **Ein Satz statt einer leeren Liste** (Befund 15 aus `docs/84`). Die
+        Tabelle `sessions` füllt nur der Treiber `database`. Steht
+        `SESSION_DRIVER` auf etwas anderes, kommen null Zeilen zurück — und der
+        Bereich verschwand einfach. „Keine offenen Sitzungen" war damit nicht
+        von „nicht nachgesehen" zu unterscheiden, und die beruhigende Lesart
+        gewann.
+
+        > **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts
+        > zu tun".**
+      -->
+      <Section
+        v-if="props.account !== null && !props.sessionsReadable"
+        title="Offene Sitzungen"
+      >
+        <p class="hint">
+          Die offenen Sitzungen lassen sich nicht anzeigen: Dieser Server
+          speichert Sitzungen nicht in der Datenbank
+          (<span class="ident">SESSION_DRIVER</span>). Solange das so ist, weiss
+          das Panel nicht, wer angemeldet ist — auch dann nicht, wenn jemand es
+          ist.
+        </p>
+      </Section>
+
       <Section v-if="props.account !== null && sessions.length > 0" title="Offene Sitzungen" full>
         <div class="scrolls">
           <table class="stacks">

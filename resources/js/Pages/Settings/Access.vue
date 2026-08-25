@@ -150,11 +150,25 @@ function submit(): void {
                   :aria-invalid="fehlerhaft(index)"
                 >
               </label>
-              <button type="button" class="button small" @click="remove(index)">Entfernen</button>
+              <!--
+                **`.button` und nicht `.button small`** (Befund 9 aus
+                `docs/84`). `.button.small` ist ausdrücklich „für eine Aktion,
+                die in einer Tabellenzeile steht und die Zeile nicht sprengen
+                soll" — sie setzt `min-height: 0`. Hier steht sie neben einem
+                Feld, das `--tap` hoch ist, und war es nicht.
+
+                Unter `max-width: 720px` bekommt `.button.small` seine Höhe
+                zurück; der Fehler gab es also nur in der breiten Ansicht — und
+                die Bildrunde zielt auf die schmale.
+
+                > **Ein Fehler, den nur die breite Ansicht hat, entgeht einer
+                > Prüfung, die auf die schmale zielt.**
+              -->
+              <button type="button" class="button" @click="remove(index)">Entfernen</button>
             </div>
 
             <div class="button-row">
-              <button type="button" class="button small" @click="add">Netz hinzufügen</button>
+              <button type="button" class="button" @click="add">Netz hinzufügen</button>
             </div>
           </div>
         </Section>
@@ -195,6 +209,41 @@ function submit(): void {
 .row .field {
   flex: 1;
   min-width: 0;
+
+  /*
+   * **Ohne den eigenen Rand.** `.field` bringt `margin-top: 16px` mit, und in
+   * einer Zeile ist der doppelt gemoppelt: Den Abstand zwischen den Zeilen gibt
+   * `.rows` über `gap` — genau das steht in dessen Kommentar. Der erste Wurf
+   * hier liess ihn stehen, und der gestreckte Knopf wurde **60 px** statt 43,
+   * weil `stretch` die Hülle meint und die Hülle den Rand trägt.
+   *
+   * > **Ein Abstand, den zwei Stellen geben, ist an einer von beiden falsch.**
+   */
+  margin-top: 0;
+}
+
+/*
+ * **Der Knopf ist so hoch wie das Feld daneben** (Befund 9 aus `docs/84`).
+ *
+ * `--tap` ist ausdrücklich „die kleinste Fläche für einen Zeiger" — eine
+ * Untergrenze und keine Höhe. Gemessen bei 1440 px: Ein Feld mit
+ * `--text-input` und 9 px Polsterung wird von selbst **43 px** hoch, ein Knopf
+ * mit `--text-table` und 8 px nur 38. Beide halten die Marke ein, und
+ * nebeneinander sehen sie falsch aus.
+ *
+ * > **Zwei Werte, die beide über der Untergrenze liegen, sind darum noch nicht
+ * > gleich.**
+ *
+ * `align-self: stretch` und keine feste Zahl: Die Höhe des Feldes hängt an
+ * `--text-input` und der Dichte, und eine abgeschriebene 43 wäre beim nächsten
+ * Wechsel falsch. **Das geht hier, weil die Zeile keine sichtbare Beschriftung
+ * trägt** — die Hülle des Feldes ist dann genau so hoch wie sein
+ * Bedienelement. Wo eine Beschriftung darübersteht, gilt das nicht.
+ *
+ * Gemessen nach der Änderung: 44/44 bei 390 px, 43/43 bei 1440.
+ */
+.row .button {
+  align-self: stretch;
 }
 
 /* Nur für Vorlesesoftware: Die Zeilen haben keine sichtbare Beschriftung. */

@@ -92,7 +92,27 @@ final class CreateAdmin extends Command
                  */
                 'role' => AdminRole::Operator,
                 'customer_id' => null,
-                'name' => (string) ($this->option('name') ?: 'Administrator'),
+                /*
+                 * **„Verwaltung" und nicht „Administrator"** (Befund 14 aus
+                 * `docs/84`). Die alte Vorgabe stammt aus der Zeit, als es
+                 * **eine** Art Adminkonto gab und das Wort die ganze Klasse
+                 * beschrieb. Seit A9 Schritt 2 ist es eine von zwei Rollen, und
+                 * auf der Kontenliste stand dann `Administrator` über
+                 * `• Betreiber` — zwei Wörter, von denen man wissen muss,
+                 * welches der Name ist.
+                 *
+                 * Der zweite Fall ist schlimmer als der erste:
+                 * `Administrator / • Administrator`.
+                 *
+                 * > **Ein Name, der eine Klasse beschreibt, wird mehrdeutig,
+                 * > sobald jemand das Wort für eine Unterteilung derselben
+                 * > Klasse verwendet — und die Vorgabe steht in einer Datei,
+                 * > die man beim Unterteilen aufmacht.**
+                 *
+                 * Bestehende Konten behalten ihren Namen; das ist die Angabe
+                 * eines Menschen und keine Einstellung.
+                 */
+                'name' => (string) ($this->option('name') ?: 'Verwaltung'),
                 'email' => $email,
                 'password' => $password,
                 'status' => AccountStatus::Active,

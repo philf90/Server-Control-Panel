@@ -16,10 +16,15 @@ Stand: **P0 bis P7 abgenommen.** P7 (der DNS-Abgleich) ist am **24. August
 dieses Laufs steht weiter unten; sie ist eine über Abnahmeläufe und nicht über
 DNS.
 
-**P7b ist gebaut und nicht abgenommen.** A1 (Schritte 1 und 2), A5 und A9
-(Schritte 1 bis 7) sind fertig und als **`v0.7.1-rc.1`** freigegeben; der
-Abnahmelauf steht als **`docs/83`** und ist **nicht gefahren**. Erst er macht
-die Stufe fertig — gemessen auf einem echten Server und nicht geschätzt.
+**A9 ist am 25. August 2026 abgenommen** — auf `cloudsrv24` gegen
+`v0.7.1-rc.2`, die Punkte 1 bis 10 aus `docs/83`, der Lauf ist `docs/83` und das
+Protokoll **`docs/84`**. Im selben Lauf sind **A1 Schritt 1** (Punkt 11, M5 auf
+einem echten Server) und **A5** (Punkt 12) belegt.
+
+**P7b ist damit nicht fertig.** Offen sind **A1 Schritt 0** (die Messrunde auf
+Debian 12/13 und Ubuntu 22.04) und **A1 Schritt 6**, an dem Teil 3 von M5 hängt;
+A3, A4 und A7 haben weiterhin keine Stufe. Die sechzehn Befunde und sechs
+Beobachtungen des Laufs stehen mit ihrer Baureihenfolge in `docs/84 §7`.
 
  P6 ist am **21. August 2026** auf `cloudsrv24`
 gegen `v0.6.0-rc.24` abgenommen — der Angriffsdurchgang (`docs/62`) und der
@@ -1024,6 +1029,98 @@ Fall, dass die Beschränkung selbst der Schaden ist.
 
 ---
 
+## Der Abnahmelauf von A9 — 25. August 2026
+
+Gefahren gegen `v0.7.1-rc.2`, der Lauf ist `docs/83`, das Protokoll **`docs/84`**.
+**Sechzehn Befunde, sechs Beobachtungen, keinen davon ein Test** — und wie in
+`docs/45`, `docs/48` und `docs/59` steckt die Mehrheit nicht im Prüfling:
+**sieben der sechzehn** betreffen die Vorschrift, das Prüfmittel oder das
+Kriterium.
+
+**Drei Vorschriften dieses Laufs haben am Gegenstand vorbeigemessen**, alle drei
+nach demselben Muster. Der teuerste davon hätte den grössten Befund des Laufs
+verschwiegen: Punkt 7 lautete „fliegt beim nächsten Klick heraus — **oder
+spätestens** die nächste Anmeldung scheitert".
+
+> **Ein Kriterium, das zwei Ausgänge zulässt, misst keinen von beiden.**
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.** Erwartung 4 von Punkt 8 („die Rolle bleibt Betreiber") lief gegen ein
+> Konto, das schon Betreiber war.
+
+> **Ein Prüfkörper, der eine andere Quelle tötet als die, an der die Prüfung
+> hängt, erreicht die Prüfung nicht.** Punkt 11 tötete eine beliebige
+> apt-Quelle; abbrechen kann `php.version.install` nur an seiner eigenen.
+
+**Fünf Befunde hat der Betreiber gemeldet und nicht eine Messung** — darunter
+der mit der grössten Wirkung: **Sperren beendet keine offene Sitzung.** Keine der
+sieben Mittelschichten fragt den Kontozustand; ein gesperrtes Adminkonto behält
+seine Rechte bis zu **30 Tage**, solange jemand die Sitzung benutzt.
+
+> **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
+> als Zusage.**
+
+**Und der zweitgefährlichste ist eine Zeile, die zum Wiederanlegen verleitet.**
+`form.reset()` stellt auf der Zugangsseite den Stand vom **Laden** wieder her;
+eine gelöschte Zeile kommt zurück, obwohl der Server sie entfernt hat. Wer sie
+wiedersieht, drückt noch einmal Speichern — und legt die Beschränkung wieder an,
+die er gerade aufgehoben hat. Beide Vorgänge melden Erfolg.
+
+> **Eine Anzeige, die den Zustand vor der Änderung zeigt, verleitet zu der
+> Handlung, die die Änderung zurücknimmt.**
+
+**Der Fund, der ein Werkzeug gekostet hat: ein `<style scoped>` im
+Vorlagenblock.** Er war zwischen einen benannten Bereich und den ersten Inhalt
+gerutscht; Vue wirft ein `<style>` an dieser Stelle weg, und **beide** Regeln der
+Komponente waren auf der Seite fort — weder im gebauten Stylesheet noch in der
+Renderfunktion.
+
+> **Ein Block, der an der falschen Stelle steht, ist kein falsch stehender Block
+> — er ist keiner.**
+
+`ClassReachTest` war grün, weil er `<style>` in der **ganzen Datei** suchte.
+
+> **Ein Wächter, der eine Zeichenkette sucht statt eines Blocks, ist grün,
+> sobald die Zeichenkette irgendwo steht.**
+
+Er schneidet den Vorlagenblock seitdem heraus; **`SfcBlockTest`** hält die Regel
+selbst. Belegt ist beides mit einem Eingriff, der die **alte** Fassung gegen
+dieselbe kaputte Quelle grün zeigt — ein Wächter, dessen Verschärfung man nicht
+gegen den Fehler misst, den sie fangen soll, ist eine Behauptung.
+
+**Vier weitere Sätze aus diesem Lauf.** Der erste, weil das Kriterium den
+Kontozustand über acht Seiten prüfte, die es als `.vue` gar nicht gibt:
+
+> **Ein Wächter, der die geschriebenen Seiten prüft, sagt nichts über die, die
+> niemand geschrieben hat.** `resources/views/errors/` gibt es nicht; jeder 403
+> ist Laravels englische Vorgabeseite, und A9 macht sie zum entworfenen Zustand
+> für acht Seiten.
+
+Der zweite, weil die Kürzung der Gerätekennung bei 120 Zeichen sitzt und ein
+Desktop-Chrome bei 116 liegt:
+
+> **Eine Obergrenze, die über dem tatsächlichen Höchstwert liegt, ist keine.**
+
+Der dritte, weil `.button.small` unter `max-width: 720px` seine Höhe
+zurückbekommt:
+
+> **Ein Fehler, den nur die breite Ansicht hat, entgeht einer Prüfung, die auf
+> die schmale zielt.**
+
+Der vierte, weil ich eine Anweisung geschrieben habe, die zuerst „erst
+nachsehen" sagte und dann den geratenen Hostnamen einsetzte:
+
+> **Eine Anweisung, die zuerst „nachsehen" sagt und danach den geratenen Wert
+> einsetzt, hat das Nachsehen zur Verzierung gemacht.**
+
+**Und einer über das eigene Messmittel.** Die flache Konsolenzeile, mit der die
+Bilderrunde gefahren wurde, liess `stand` weg — genau das Feld, das
+`tests/bilder-messen.js` am 19. August bekommen hat, weil es bei jedem Neuladen
+aus der Zwischenablage zurückkommt.
+
+> **Wer ein Messmittel kürzt, kürzt zuerst das Feld weg, das vor der alten
+> Messung schützt.**
+
 ## Was diese Runde über die Werkzeuge gelehrt hat
 
 **Die CI ist auf diesem Zweig dreizehn Commits lang kein einziges Mal
@@ -1145,9 +1242,13 @@ Fähigkeitsablage, jeder Menüpunkt trägt die Fähigkeit seiner Route, und kein
 geheimnisführende Operation sendet Protokollzeilen), `AssertionArgumentTest`
 (ein Satz steht nicht dort, wo ein Guard oder eine Verbindung erwartet wird —
 das Merkmal ist das Leerzeichen), `DocblockAnchorTest` (ein Dokumentationsblock
-mit Marke steht an seiner Methode) und `BaseMethodClashTest` (kein Testfall
+mit Marke steht an seiner Methode) , `BaseMethodClashTest` (kein Testfall
 deklariert einen Namen, der der Basisklasse gehört — er spiegelt deren
-`final`-Methoden, statt eine Liste zu pflegen). Der Bruch selbst steht als
+`final`-Methoden, statt eine Liste zu pflegen) und `SfcBlockTest` (ein
+`<style>`-Block einer `.vue` steht auf oberster Ebene und nicht im
+Vorlagenblock, wo der Übersetzer ihn wegwirft — die Regel, die
+`ClassReachTest` nicht halten konnte, weil er eine Zeichenkette suchte statt
+eines Blocks). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -1408,7 +1509,11 @@ vierzehn Punkte auf einem echten Server, **noch nicht gefahren**. Zwei davon
 sind der Grund, dass es ihn gibt: Punkt 8 geht den Rückweg `srvpanel admin`, den
 bisher niemand gegangen ist, und Punkt 9c misst hinter dem echten nginx, ob eine
 offene Sitzung endet, wenn ihre Adresse nicht mehr zugelassen ist. §5 sagt, was
-er ausdrücklich nicht prüft, §7 was danach zu bauen bleibt. Die Nummer des
+er ausdrücklich nicht prüft, §7 was danach zu bauen bleibt — und **`84` das
+Protokoll dazu**: die fünfzehn Punkte mit ihren gemessenen Werten, die sechzehn
+Befunde mit ihren Lehren, die sechs Beobachtungen, was der Lauf über sich selbst
+gelernt hat (§5), was offen bleibt (§6) und die Baureihenfolge nach
+Dringlichkeit (§7). Die Nummer des
 Protokolls steht bewusst **nicht** im Dokument — `docs/81` hat einmal eine
 genannt, die einem anderen Dokument gehörte, und `DocLinkTest` konnte das nicht
 sehen.

@@ -19920,3 +19920,55 @@ Rot, wenn es fast keine sind.
 **Ausgezählt über alle 66 Komponenten: genau eine war betroffen**, und es ist
 eine Seite aus A9. Die vier Eingriffe stehen in `tests/waechter-brechen.sh`,
 jeder einzeln belegt.
+
+### A9 ist abgenommen — und sieben der sechzehn Befunde stecken nicht im Prüfling
+
+Gefahren am 25. August 2026 auf `cloudsrv24` gegen `v0.7.1-rc.2`. Der Lauf ist
+`docs/83`, das Protokoll **`docs/84`**. **Die Punkte 1 bis 10 sind erfüllt** —
+damit ist A9 abgenommen; im selben Lauf sind **A1 Schritt 1** (M5 auf einem
+echten Server) und **A5** belegt.
+
+**Sechzehn Befunde, sechs Beobachtungen, keinen davon ein Test** — dasselbe
+Verhältnis wie in `docs/45`, `docs/48` und `docs/59`, und wie dort steckt die
+Mehrheit nicht im Prüfling: **sieben** betreffen die Vorschrift, das Prüfmittel
+oder das Kriterium.
+
+**Drei Vorschriften dieses Laufs haben am Gegenstand vorbeigemessen**, alle drei
+nach demselben Muster — und der teuerste hätte den grössten Befund verschwiegen.
+Punkt 7 lautete „fliegt beim nächsten Klick heraus — **oder spätestens** die
+nächste Anmeldung scheitert", war damit grün, egal was geschah, und konnte den
+Befund nie melden.
+
+> **Ein Kriterium, das zwei Ausgänge zulässt, misst keinen von beiden.**
+
+**Der Befund selbst ist der schwerste des Laufs: Sperren beendet keine offene
+Sitzung.** Keine der sieben Mittelschichten fragt den Kontozustand; `status`
+wird bei der Anmeldung gefragt und bei einer laufenden Anfrage nie. Der Leerlauf
+setzt sich bei jedem Klick zurück, die absolute Obergrenze liegt bei 30 Tagen —
+**ein gesperrtes Adminkonto behält seine Rechte also bis zu 30 Tage lang.**
+Gefunden hat ihn der Betreiber, weil er hingesehen und den Unterschied berichtet
+hat, statt den Haken zu setzen.
+
+> **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
+> als Zusage.**
+
+**Zwei weitere Prüfkörper haben am Gegenstand vorbeigemessen:** Erwartung 4 von
+Punkt 8 („die Rolle bleibt unverändert") lief gegen ein Konto, das schon
+Betreiber war — im Fehlerfall stünde dasselbe Ergebnis da; und Punkt 11 tötete
+eine **beliebige** apt-Quelle, während `php.version.install` nur an seiner
+**eigenen** abbrechen kann.
+
+Der erste ist in Punkt 14 nachgeholt, und zwar schärfer als verlangt: am
+**gesperrten** Administratorkonto. Damit ist zugleich der Rückweg aus
+`status = disabled` gegangen — ein Fall, den vorher niemand hatte, denn Punkt 8
+hatte ein Konto gerettet, das ein unbekanntes Passwort ausgesperrt hatte.
+
+**Was gebaut werden muss, steht mit Reihenfolge in `docs/84 §7`.** Nach Befund 6
+kommt Befund 11: `form.reset()` stellt auf der Zugangsseite den Stand vom *Laden*
+wieder her, die gelöschte Zeile kommt zurück — und wer daraus auf einen
+Fehlschlag schliesst und noch einmal speichert, legt die Beschränkung wieder an,
+die er gerade aufgehoben hat. Beide Vorgänge melden Erfolg.
+
+**Und was offen bleibt, steht in `docs/84 §6`** — darunter „Übersicht bei
+390/Dunkel", das Kontenformular (es ist mit den fehlenden Regeln aus Befund 16
+gemessen worden) und Beobachtung 6, die ein echter Befund sein kann.

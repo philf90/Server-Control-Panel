@@ -199,6 +199,28 @@ final class PgDatabaseRemove implements Op
     }
 
     /**
+     * Hängt an dieser Rolle noch etwas — irgendwo im Cluster?
+     *
+     * `pg_shdepend` ist ein gemeinsamer Katalog: Er trägt auch die
+     * Abhängigkeiten aus anderen Datenbanken, und genau die sind hier gemeint.
+     * Über `pg_roles` verbunden und nicht über `::regrole`, weil die Umwandlung
+     * eine Ausnahme wirft, sobald es die Rolle nicht mehr gibt — und in genau
+     * dem Fall lautet die Antwort „nein" und nicht „Fehler".
+     */
+    public static function dependencyQuery(string $role): string
+    {
+        return sprintf(
+            'SELECT 1 FROM pg_shdepend d JOIN pg_roles r ON r.oid = d.refobjid WHERE r.rolname = %s LIMIT 1',
+            Sql::text($role),
+        );
+    }
+
+    private function stillNeeded(Context $context, string $role): bool
+    {
+        return $this->session->query($context, self::dependencyQuery($role)) !== [];
+    }
+
+    /**
      * Und die Eigentümerrolle geht mit der **letzten** Datenbank.
      *
      * **Ohne diese Zeile gäbe es hier genau die Lücke, die `docs/35` teuer
@@ -222,28 +244,6 @@ final class PgDatabaseRemove implements Op
      *
      * @return string|null Der Name, wenn sie ging — sonst `null`
      */
-    /**
-     * Hängt an dieser Rolle noch etwas — irgendwo im Cluster?
-     *
-     * `pg_shdepend` ist ein gemeinsamer Katalog: Er trägt auch die
-     * Abhängigkeiten aus anderen Datenbanken, und genau die sind hier gemeint.
-     * Über `pg_roles` verbunden und nicht über `::regrole`, weil die Umwandlung
-     * eine Ausnahme wirft, sobald es die Rolle nicht mehr gibt — und in genau
-     * dem Fall lautet die Antwort „nein" und nicht „Fehler".
-     */
-    public static function dependencyQuery(string $role): string
-    {
-        return sprintf(
-            'SELECT 1 FROM pg_shdepend d JOIN pg_roles r ON r.oid = d.refobjid WHERE r.rolname = %s LIMIT 1',
-            Sql::text($role),
-        );
-    }
-
-    private function stillNeeded(Context $context, string $role): bool
-    {
-        return $this->session->query($context, self::dependencyQuery($role)) !== [];
-    }
-
     private function removeOwner(Context $context, string $prefix): ?string
     {
         $remaining = $this->session->query($context, sprintf(

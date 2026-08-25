@@ -623,7 +623,12 @@ echo "── NavIconTest: ein Menüpunkt ohne Zeichen ──"
 #
 # Ein Eintrag ohne `icon:` steht in der Spalte als einziger ohne Zeichen da —
 # kein Fehler, keine Meldung, nur eine Lücke, die nach einem Fehler aussieht.
-sed -i "s|{ name: 'Mailversand', href: '/settings/mail', icon: 'mail' }|{ name: 'Mailversand', href: '/settings/mail' }|" \
+#
+# **Der Anker traegt seit A9 Schritt 5 die Faehigkeit mit.** Der Eintrag heisst
+# jetzt `…, icon: 'mail', ability: 'operate-server' }`; ohne das Nachziehen fand
+# dieser Eingriff seinen Text nicht mehr und prueffte nichts. Gemeldet hat es
+# BreakScriptTest.
+sed -i "s|{ name: 'Mailversand', href: '/settings/mail', icon: 'mail', ability: 'operate-server' }|{ name: 'Mailversand', href: '/settings/mail', ability: 'operate-server' }|" \
   resources/js/Layouts/PanelLayout.vue
 pruefe "Menüpunkt ohne Zeichen" \
   NavIconTest::test_every_menu_entry_carries_an_icon failed
@@ -16391,6 +16396,48 @@ pruefe "Renderzaehlung ins Leere" \
   AdminPayloadTest::test_no_page_shadows_the_shared_abilities failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AdminPayloadTest passed
+
+echo
+echo "── DocblockAnchorTest: eine Marke steht ueber einem Block statt einer Methode ──"
+#
+# Genau der Fehler vom 25. August: Eine neue Methode rutscht zwischen eine
+# bestehende und ihren Dokumentationsblock. PHPStan meldet davon nur die
+# Haelfte, die ein Werkzeug sehen kann.
+#
+#   Ein Werkzeug bemerkt den fehlenden Kommentar. Den falschen bemerkt es nicht.
+vorher_datei app/Http/Middleware/HandleInertiaRequests.php
+python3 - <<'PY2'
+p = 'app/Http/Middleware/HandleInertiaRequests.php'
+s = open(p, encoding='utf-8').read()
+alt = '    /**\n     * Was auf jeder Seite verfügbar ist.'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '    /**\n     * Ein Zwischenschieber.\n     *\n     * @return int\n     */\n' + alt
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Http/Middleware/HandleInertiaRequests.php "Marke ohne Deklaration" &&
+pruefe "Marke ohne Deklaration" \
+  DocblockAnchorTest::test_no_docblock_stands_directly_above_another failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DocblockAnchorTest passed
+
+echo
+echo "── DocblockAnchorTest: es werden kaum Dateien gelesen ──"
+#
+# Der Pruefkoerper. Ohne die Untergrenze meldete der Waechter Gruen, sobald sein
+# Verzeichnisumfang schrumpft — und zwar fuer *keine* gemessene Datei.
+vorher_datei tests/Unit/DocblockAnchorTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DocblockAnchorTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "['app', 'agent/src', 'database', 'tests']"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "['app/Enums']", 1))
+PY2
+griff_datei tests/Unit/DocblockAnchorTest.php "Dateiumfang geschrumpft" &&
+pruefe "Dateiumfang geschrumpft" \
+  DocblockAnchorTest::test_no_docblock_stands_directly_above_another failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DocblockAnchorTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

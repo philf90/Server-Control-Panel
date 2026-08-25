@@ -19594,3 +19594,39 @@ Nachgesehen wurde auch im Bild, in beiden Themes: Die Servergruppe des
 Administrators steht mit drei Einträgen da, Überschrift und Trenner intakt.
 Leere Gruppen fallen weg — eine Überschrift ohne Einträge behauptet, es gäbe
 dort etwas.
+
+### Der verwaiste Dokumentationsblock — ein Wächter für eine alte Fehlerklasse
+
+**Beim Bau von Schritt 5 ist eine neue Methode zwischen `impersonation()` und
+ihren Block gerutscht.** PHPStan meldete die Hälfte, die ein Werkzeug sehen kann
+— den fehlenden `@return`-Typ an der einen Methode — und kostete eine CI-Runde.
+Dasselbe hat dieses Repo schon einmal getroffen, an `diskQuota()`, und dort war
+es teurer: Der Block versprach über `dnsAddresses()` ein `array{available: …}`,
+wo ein `list<string>` steht.
+
+> **Ein Werkzeug bemerkt den fehlenden Kommentar. Den falschen bemerkt es
+> nicht.**
+
+**Der erste Wurf des Wächters fragte die falsche Frage.** „Zwei
+Dokumentationsblöcke hintereinander" meldete **zwanzig** Stellen — achtzehn
+davon zu Recht so geschrieben: Eine lange Erklärung als eigener Block über dem
+Block der Methode ist in diesem Repo üblich.
+
+> **Ein Wächter, der Richtiges mitmeldet, ist kein strenger Wächter — er ist
+> einer, den man gleich wieder los ist.**
+
+Mit der **Marke** als Bedingung — `@return`, `@param`, `@var` — bleiben zwei,
+und beide waren echt: ein zurückgebliebenes `@return array<string, string>` in
+`srvpanel:db`, dessen Methode ihren Block längst selbst trägt, und der Block von
+`PgDatabaseRemove::removeOwner()`, der über die Methode daneben gerutscht war.
+Dazu zwei Blöcke ohne Marke, die derselbe Durchgang gefunden hat und die
+trotzdem falsch standen: der von `share()` und einer in
+`AgentOperationReachTest`.
+
+**Und `BreakScriptTest` hat einen Eingriff gefangen**, dessen Anker Schritt 5
+umgeschrieben hat: Der Menüpunkt „Mailversand" trägt jetzt seine Fähigkeit mit,
+und der Eingriff fand seinen Text nicht mehr. Er läuft hier im Gestell — ich
+habe ihn nicht gefahren, obwohl ich `PanelLayout.vue` angefasst hatte.
+
+> **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
+> gefahren — man denkt an das Gebaute und nicht an das Berührte.**

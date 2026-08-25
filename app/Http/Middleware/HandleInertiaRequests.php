@@ -20,15 +20,6 @@ final class HandleInertiaRequests extends Middleware
     protected $rootView = 'app';
 
     /**
-     * Was auf jeder Seite verfügbar ist.
-     *
-     * Der Quellenlink gehört dazu, weil er auf jeder Seite steht — die Auflage
-     * aus Abschnitt 13 der AGPL gilt für die Oberfläche, nicht für eine
-     * Unterseite davon.
-     *
-     * @return array<string,mixed>
-     */
-    /**
      * Alle Meldungen eines Feldes und nicht nur die erste.
      *
      * ## Der Fehler, den `report()` nicht sehen konnte
@@ -101,6 +92,15 @@ final class HandleInertiaRequests extends Middleware
         return (object) $verbunden;
     }
 
+    /**
+     * Was auf jeder Seite verfügbar ist.
+     *
+     * Der Quellenlink gehört dazu, weil er auf jeder Seite steht — die Auflage
+     * aus Abschnitt 13 der AGPL gilt für die Oberfläche, nicht für eine
+     * Unterseite davon.
+     *
+     * @return array<string,mixed>
+     */
     public function share(Request $request): array
     {
         $account = $request->user();
@@ -229,11 +229,6 @@ final class HandleInertiaRequests extends Middleware
     }
 
     /**
-     * Läuft gerade ein „Anmelden als"? Und wenn ja, wer hat es begonnen?
-     *
-     * @return array<string, mixed>|null
-     */
-    /**
      * Die Adminfähigkeiten des Betrachters, jede mit ihrer Antwort.
      *
      * **Aus der Registratur und nicht aus einer Liste hier.** Eine Fähigkeit,
@@ -260,6 +255,11 @@ final class HandleInertiaRequests extends Middleware
         return $abilities;
     }
 
+    /**
+     * Läuft gerade ein „Anmelden als"? Und wenn ja, wer hat es begonnen?
+     *
+     * @return array<string, mixed>|null
+     */
     private function impersonation(Request $request): ?array
     {
         if (! $request->hasSession()) {

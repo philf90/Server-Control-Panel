@@ -107,7 +107,11 @@ cd "$(dirname "$0")/.." || exit 1
 # „nicht wieder grün". Der Wächter darüber war dabei **grün**: Er liest die
 # Zeichenkette aus dem `s.replace(...)`-Aufruf, und diese beiden Blöcke halten
 # sie in einer Variablen. Zweiundfünfzig Blöcke tun das.
-BAEUME="resources/ app/ agent/ tests/ packaging/ .github/ database/ routes/ docs/ config/ bootstrap/ lang/ package.json"
+# `vite.config.js` kam am 25. August dazu, und wieder aus demselben Grund: Ein
+# Eingriff zu `ErrorPageTest` nimmt dort den Stylesheet-Eingang heraus. Der
+# Wächter darüber hat es beim ersten Lauf gemeldet — er zählt inzwischen die
+# angefassten Dateien und nicht nur die genannten.
+BAEUME="resources/ app/ agent/ tests/ packaging/ .github/ database/ routes/ docs/ config/ bootstrap/ lang/ package.json vite.config.js"
 
 # **Dieses Skript liegt selbst unter `tests/` und nimmt sich aus.**
 #
@@ -16712,6 +16716,516 @@ pruefe "Wrapper-Liste zusammengefallen" \
   PackagingTest::test_every_command_the_wrapper_offers_exists failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PackagingTest passed
+
+echo "── SfcBlockTest: <style> rutscht in den Vorlagenblock ──"
+#
+# Der Fund vom 25. August 2026 (`docs/83` Punkt 13). Ein `<style scoped>`
+# innerhalb von `<template>` ist kein Block der Komponente, sondern Markup —
+# Vue wirft es weg. Auf der Seite fehlten damit beide Regeln der Datei, und die
+# Marke „diese Sitzung" stand ohne Abstand an der Adresse.
+vorher_datei resources/js/Pages/Accounts/Form.vue
+python3 - <<'PY2'
+import re
+p = 'resources/js/Pages/Accounts/Form.vue'
+s = open(p, encoding='utf-8').read()
+m = re.search(r'\n<style scoped>\n.*?\n</style>\n', s, re.S)
+assert m, 'Zielstelle nicht gefunden — der Bruch waere blind'
+block = m.group(0).strip('\n')
+rest = s[:m.start()] + s[m.end():]
+assert rest.count('    <FormErrors />') == 1, 'Zielstelle nicht eindeutig'
+open(p, 'w', encoding='utf-8').write(rest.replace('    <FormErrors />', block + '\n\n    <FormErrors />', 1))
+PY2
+griff_datei resources/js/Pages/Accounts/Form.vue "Stilblock im Vorlagenblock" &&
+pruefe "Stilblock im Vorlagenblock" \
+  SfcBlockTest::test_no_block_hides_inside_the_template failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SfcBlockTest passed
+
+echo "── ClassReachTest: derselbe Eingriff, von der anderen Seite ──"
+#
+# **Der Grund, dass dieser Eingriff zweimal dasteht.** Bis zum 25. August war
+# `ClassReachTest` bei genau dieser Quelle gruen: Er suchte `<style>` in der
+# ganzen Datei, und ein weggeworfener Block sieht dabei aus wie ein wirksamer.
+# Faellt die Verschaerfung wieder heraus, meldet nur noch dieser Eingriff es.
+vorher_datei resources/js/Pages/Accounts/Form.vue
+python3 - <<'PY2'
+import re
+p = 'resources/js/Pages/Accounts/Form.vue'
+s = open(p, encoding='utf-8').read()
+m = re.search(r'\n<style scoped>\n.*?\n</style>\n', s, re.S)
+assert m, 'Zielstelle nicht gefunden — der Bruch waere blind'
+block = m.group(0).strip('\n')
+rest = s[:m.start()] + s[m.end():]
+assert rest.count('    <FormErrors />') == 1, 'Zielstelle nicht eindeutig'
+open(p, 'w', encoding='utf-8').write(rest.replace('    <FormErrors />', block + '\n\n    <FormErrors />', 1))
+PY2
+griff_datei resources/js/Pages/Accounts/Form.vue "Regel hinter dem Vorlagenblock unsichtbar" &&
+pruefe "Regel hinter dem Vorlagenblock unsichtbar" \
+  ClassReachTest::test_every_class_in_a_template_points_at_a_rule failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ClassReachTest passed
+
+echo "── SfcBlockTest: <style> eingerueckt ──"
+#
+# Die zweite Haelfte der Regel. Eine Einrueckung wirkt fuer sich genommen
+# nichts — sie ist das Zeichen dafuer, dass jemand den Block in etwas
+# hineingeschrieben hat, und wird gemeldet, bevor sie wirkt.
+vorher_datei resources/js/Pages/Accounts/Form.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Accounts/Form.vue'
+s = open(p, encoding='utf-8').read()
+assert s.count('\n<style scoped>') == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace('\n<style scoped>', '\n  <style scoped>', 1))
+PY2
+griff_datei resources/js/Pages/Accounts/Form.vue "Stilblock eingerückt" &&
+pruefe "Stilblock eingerückt" \
+  SfcBlockTest::test_every_style_block_starts_at_the_margin failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SfcBlockTest passed
+
+echo "── SfcBlockTest: die Untergrenze ──"
+#
+# Der Pruefkoerper. Findet der Ausdruck keinen Vorlagenblock mehr, laeuft die
+# Schleife leer und der Waechter meldete Gruen, ohne etwas gemessen zu haben.
+vorher_datei tests/Feature/SfcBlockTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/SfcBlockTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/^<template>$/m'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/^<template-gibt-es-nicht>$/m'", 1))
+PY2
+griff_datei tests/Feature/SfcBlockTest.php "Untergrenze des Stilblock-Wächters" &&
+pruefe "Untergrenze des Stilblock-Wächters" \
+  SfcBlockTest::test_no_block_hides_inside_the_template failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SfcBlockTest passed
+
+echo "── AccountAccessReachTest: die Mittelschicht faellt aus bootstrap/app.php ──"
+#
+# Befund 6 aus `docs/84`. Die Klasse waere danach da, AccountAccessTest in der
+# CI gruen — und niemand riefe sie auf. Die Fehlerklasse dieses Projekts in
+# Reinform: eine Zeichenkette, die auf etwas verweist, ohne dass jemand den
+# Bezug prueft.
+vorher_datei bootstrap/app.php
+python3 - <<'PY2'
+p = 'bootstrap/app.php'
+s = open(p, encoding='utf-8').read()
+alt = '                EnforceAccountAccess::class,\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei bootstrap/app.php "Zustandspruefung nicht eingetragen" &&
+pruefe "Zustandspruefung nicht eingetragen" \
+  AccountAccessReachTest::test_the_middleware_is_registered_before_the_network_check failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountAccessReachTest passed
+
+echo "── AccountAccessReachTest: die Reihenfolge kippt ──"
+#
+# Steht der Zustand hinter dem Netz, liest ein gesperrtes Konto „Netz nicht mehr
+# zugelassen" — den Grund, der nicht zutrifft.
+vorher_datei bootstrap/app.php
+python3 - <<'PY2'
+p = 'bootstrap/app.php'
+s = open(p, encoding='utf-8').read()
+a = '                EnforceAccountAccess::class,\n'
+b = '                EnforceAdminNetwork::class,\n'
+assert s.count(a) == 1 and s.count(b) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(a, '', 1).replace(b, b + a, 1))
+PY2
+griff_datei bootstrap/app.php "Zustandspruefung hinter dem Netz" &&
+pruefe "Zustandspruefung hinter dem Netz" \
+  AccountAccessReachTest::test_the_middleware_is_registered_before_the_network_check failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountAccessReachTest passed
+
+echo "── AccountAccessReachTest: eine zweite Stelle fragt den Zustand selbst ──"
+#
+# Genau so ist Befund 6 entstanden: Der LoginController fragte nach dem
+# zurueckgezogenen Kunden, die beiden anderen Tueren nicht — und ein
+# zurueckgezogener Kunde kam ueber den zweiten Faktor herein.
+vorher_datei app/Http/Controllers/Auth/TwoFactorChallengeController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/Auth/TwoFactorChallengeController.php'
+s = open(p, encoding='utf-8').read()
+alt = 'AccountAccess::permits($account) ? $account : null;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, '$account->status->canSignIn() ? $account : null;', 1))
+PY2
+griff_datei app/Http/Controllers/Auth/TwoFactorChallengeController.php "Zweite Fassung der Zustandsfrage" &&
+pruefe "Zweite Fassung der Zustandsfrage" \
+  AccountAccessReachTest::test_only_one_class_asks_whether_an_account_may_sign_in failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountAccessReachTest passed
+
+echo "── AccountAccessReachTest: die Untergrenze ──"
+#
+# Der Pruefkoerper. Laeuft der Ausdruck ins Leere, faende er auch dann nichts,
+# wenn zehn Stellen die Frage selbst stellten.
+vorher_datei tests/Unit/AccountAccessReachTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/AccountAccessReachTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/->\\s*canSignIn\\s*\\(/'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/->\\s*gibtEsNichtMehr\\s*\\(/'", 1))
+PY2
+griff_datei tests/Unit/AccountAccessReachTest.php "Untergrenze der Zustandsfrage" &&
+pruefe "Untergrenze der Zustandsfrage" \
+  AccountAccessReachTest::test_only_one_class_asks_whether_an_account_may_sign_in failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountAccessReachTest passed
+
+echo "── FormResetTest: die Aenderungsmaske springt auf den Stand vom Laden zurueck ──"
+#
+# Befund 11 aus `docs/84`. `reset()` stellt die Werte her, die das Formular
+# beim Laden hatte — nach dem Speichern also den Stand davor. Und Inertia macht
+# den dann zum neuen Ausgangswert, weil es `form.data()` erst NACH diesem
+# Rueckruf uebernimmt.
+vorher_datei resources/js/Pages/Settings/Access.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Access.vue'
+s = open(p, encoding='utf-8').read()
+alt = "        form.defaults({ networks: [...props.networks, ''] }).reset()"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        form.reset()', 1))
+PY2
+griff_datei resources/js/Pages/Settings/Access.vue "Aenderungsmaske springt zurueck" &&
+pruefe "Aenderungsmaske springt zurueck" \
+  FormResetTest::test_no_edit_form_resets_to_the_state_before_saving failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FormResetTest passed
+
+echo "── FormResetTest: die Untergrenze ──"
+#
+# Der Pruefkoerper. Findet der Ausdruck keine Formulare mehr, laeuft die
+# Schleife leer und der Waechter meldete Gruen, ohne etwas gemessen zu haben.
+vorher_datei tests/Unit/FormResetTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/FormResetTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/const\\s+(\\w+)\\s*=\\s*useForm[^(]*\\(/'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "'/const\\s+(\\w+)\\s*=\\s*gibtEsNichtMehr[^(]*\\(/'", 1))
+PY2
+griff_datei tests/Unit/FormResetTest.php "Untergrenze der Formularregel" &&
+pruefe "Untergrenze der Formularregel" \
+  FormResetTest::test_no_edit_form_resets_to_the_state_before_saving failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FormResetTest passed
+
+echo "── FormResetTest: der Kommentar-Abstreifer ist tragend ──"
+#
+# Ohne ihn liest der Waechter den Kommentar mit, der den Befund erklaert — dort
+# steht `onSuccess: () => form.reset()` als Zitat. Er meldete dann die behobene
+# Datei, und wer ihn gebaut hat, schaltet ihn ab.
+vorher_datei tests/Unit/FormResetTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/FormResetTest.php'
+s = open(p, encoding='utf-8').read()
+alt = '            $quelle = $this->withoutMarkupComments($roh);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '            $quelle = $roh;', 1))
+PY2
+griff_datei tests/Unit/FormResetTest.php "Kommentar-Abstreifer entfernt" &&
+pruefe "Kommentar-Abstreifer entfernt" \
+  FormResetTest::test_no_edit_form_resets_to_the_state_before_saving failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FormResetTest passed
+
+echo "── ErrorPageTest: eine Fehlerseite fehlt ──"
+#
+# Befund 3 aus `docs/84`. Ohne die Datei rendert Laravel selbst: englisch, in
+# Times, ausserhalb von „Kontor". Vor A9 sah das kaum jemand; seit der
+# Rollentrennung ist der 403 der entworfene Zustand fuer acht Seiten.
+vorher_datei resources/views/errors/403.blade.php
+rm -f resources/views/errors/403.blade.php
+griff_datei resources/views/errors/403.blade.php "Fehlerseite fehlt" &&
+pruefe "Fehlerseite fehlt" \
+  ErrorPageTest::test_every_status_the_panel_can_show_has_its_own_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ErrorPageTest passed
+
+echo "── ErrorPageTest: eine Fehlerseite ohne Satz ──"
+#
+# Eine Seite, auf der „404" steht und sonst nichts, sagt dasselbe wie Laravels
+# Vorgabe — nur auf deutsch.
+vorher_datei resources/views/errors/404.blade.php
+python3 - <<'PY2'
+import re
+p = 'resources/views/errors/404.blade.php'
+s = open(p, encoding='utf-8').read()
+assert s.count("@section('message'") == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(re.sub(r"@section\('message'.*\n", '', s))
+PY2
+griff_datei resources/views/errors/404.blade.php "Fehlerseite ohne Satz" &&
+pruefe "Fehlerseite ohne Satz" \
+  ErrorPageTest::test_every_error_page_says_what_happened failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ErrorPageTest passed
+
+echo "── ErrorPageTest: die Huelle fragt jemanden ──"
+#
+# Eine Fehlerseite, die `auth()` ruft, scheitert bei einem 500, den eine tote
+# Datenbankverbindung ausgeloest hat, ein zweites Mal — und der Betrachter
+# bekaeme gar nichts.
+vorher_datei resources/views/errors/layout.blade.php
+python3 - <<'PY2'
+p = 'resources/views/errors/layout.blade.php'
+s = open(p, encoding='utf-8').read()
+assert s.count('<main>') == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace('<main>', '<main data-x="{{ auth()->id() }}">', 1))
+PY2
+griff_datei resources/views/errors/layout.blade.php "Fehlerseite fragt auth()" &&
+pruefe "Fehlerseite fragt auth()" \
+  ErrorPageTest::test_the_layout_loads_the_stylesheet_and_nothing_else failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ErrorPageTest passed
+
+echo "── ErrorPageTest: das Stylesheet ist kein Vite-Eingang mehr ──"
+#
+# `@vite()` findet es dann nicht — und zwar erst zur Laufzeit, auf genau der
+# Seite, die tragen soll.
+vorher_datei vite.config.js
+python3 - <<'PY2'
+p = 'vite.config.js'
+s = open(p, encoding='utf-8').read()
+alt = ", 'resources/css/app.css'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei vite.config.js "Stylesheet kein Vite-Eingang" &&
+pruefe "Stylesheet kein Vite-Eingang" \
+  ErrorPageTest::test_the_stylesheet_is_a_vite_entry failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ErrorPageTest passed
+
+echo "── ClassReachTest: eine Klasse ohne Regel in einer Blade-Vorlage ──"
+#
+# Bis zum 25. August las dieser Waechter ausschliesslich `.vue`. Mit den
+# Fehlerseiten gibt es Blade-Vorlagen mit Klassen — und eine Blade-Datei hat
+# keinen eigenen <style>-Block, was sie benutzt gehoert in app.css.
+vorher_datei resources/views/errors/layout.blade.php
+python3 - <<'PY2'
+p = 'resources/views/errors/layout.blade.php'
+s = open(p, encoding='utf-8').read()
+alt = 'class="failure"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'class="failure gibtesnicht"', 1))
+PY2
+griff_datei resources/views/errors/layout.blade.php "Blade-Klasse ohne Regel" &&
+pruefe "Blade-Klasse ohne Regel" \
+  ClassReachTest::test_every_class_in_a_blade_view_points_at_a_rule failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ClassReachTest passed
+
+echo "── ClassNameTest: Blade faellt aus der Reichweite ──"
+#
+# Die andere Seite von Befund 3. Ohne Blade in der Schleife melden `.failure`
+# und ihre Geschwister „erreicht kein Template" — obwohl sie eine Seite tragen,
+# die es gibt. Der Waechter hat das beim ersten Lauf ueber die neuen
+# Fehlerseiten selbst gemeldet.
+vorher_datei tests/Feature/ClassNameTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/ClassNameTest.php'
+s = open(p, encoding='utf-8').read()
+alt = 'array_merge($this->vueFiles(), $this->bladeFiles())'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '$this->vueFiles()', 1))
+PY2
+griff_datei tests/Feature/ClassNameTest.php "Blade ausserhalb der Reichweite" &&
+pruefe "Blade ausserhalb der Reichweite" \
+  ClassNameTest::test_every_rule_in_app_css_is_reached_by_a_template failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ClassNameTest passed
+
+echo "── SessionDriverTest: die Auslieferung wechselt den Treiber ──"
+#
+# Befund 15 aus `docs/84`. Ohne `database` bleibt die Tabelle `sessions` leer,
+# und „keine offenen Sitzungen" ist nicht von „nicht nachgesehen" zu
+# unterscheiden.
+vorher_datei config/session.php
+python3 - <<'PY2'
+p = 'config/session.php'
+s = open(p, encoding='utf-8').read()
+alt = "env('SESSION_DRIVER', 'database')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "env('SESSION_DRIVER', 'file')", 1))
+PY2
+griff_datei config/session.php "Sitzungstreiber gewechselt" &&
+pruefe "Sitzungstreiber gewechselt" \
+  SessionDriverTest::test_the_shipped_configuration_uses_the_database_driver failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SessionDriverTest passed
+
+echo "── SessionDriverTest: Sessions fragt den Treiber nicht mehr ──"
+#
+# Dann setzt die Klasse ihn wieder voraus, und der Ausfall faellt zur
+# beruhigenden Seite.
+vorher_datei app/Support/Authorization/Sessions.php
+python3 - <<'PY2'
+p = 'app/Support/Authorization/Sessions.php'
+s = open(p, encoding='utf-8').read()
+alt = "config('session.driver') === 'database'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'true', 1))
+PY2
+griff_datei app/Support/Authorization/Sessions.php "Treiber vorausgesetzt" &&
+pruefe "Treiber vorausgesetzt" \
+  SessionDriverTest::test_the_session_list_asks_which_driver_is_in_use failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SessionDriverTest passed
+
+echo "── SessionDriverTest: die Seite liest die Antwort nicht ──"
+#
+# Ein Wert, der geschrieben und nie gelesen wird, ist von aussen nicht von
+# einem zu unterscheiden, den es nicht gibt.
+vorher_datei resources/js/Pages/Accounts/Form.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Accounts/Form.vue'
+s = open(p, encoding='utf-8').read()
+assert s.count('sessionsReadable') >= 2, 'Zielstelle nicht gefunden — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace('sessionsReadable', 'sessionsGelesen'))
+PY2
+griff_datei resources/js/Pages/Accounts/Form.vue "Antwort ungelesen" &&
+pruefe "Antwort ungelesen" \
+  SessionDriverTest::test_the_page_says_so_when_it_cannot_answer failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SessionDriverTest passed
+
+echo "── QrSourceTest: die Oberflaeche baut die Adresse selbst ──"
+#
+# Wunsch 1. Zwei Fassungen derselben otpauth-Adresse liefen auseinander, und die
+# falsche waere die im QR-Code — weil niemand ihn abtippt und mit der Textzeile
+# vergleicht.
+vorher_datei resources/js/Components/QrCode.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/QrCode.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'encode(props.uri,'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'encode(`otpauth://totp/${props.uri}`,', 1))
+PY2
+griff_datei resources/js/Components/QrCode.vue "Adresse in der Oberflaeche gebaut" &&
+pruefe "Adresse in der Oberflaeche gebaut" \
+  QrSourceTest::test_the_interface_never_builds_the_uri_itself failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QrSourceTest passed
+
+echo "── QrSourceTest: der Code bekommt eine eigene Quelle ──"
+#
+# Dann zeigen Code und Textzeile Verschiedenes, und gemerkt wird es erst, wenn
+# jemand den Code nicht mehr scannen kann.
+vorher_datei resources/js/Pages/Auth/TwoFactorSetup.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Auth/TwoFactorSetup.vue'
+s = open(p, encoding='utf-8').read()
+alt = ':uri="props.uri"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, ':uri="props.secret ?? \'\'"', 1))
+PY2
+griff_datei resources/js/Pages/Auth/TwoFactorSetup.vue "Code mit eigener Quelle" &&
+pruefe "Code mit eigener Quelle" \
+  QrSourceTest::test_the_code_and_the_text_share_one_value failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QrSourceTest passed
+
+echo "── QrSourceTest: der QR-Code folgt dem Thema ──"
+#
+# Die eine Ausnahme von „beide Themes entstehen zusammen". Invertiert scheitert
+# ein QR-Code an vielen Lesegeraeten — und eine Ausnahme, die niemand prueft,
+# ist beim naechsten Durchgang durch app.css weg, mit der besten Absicht.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '  --bg: #0f1116;\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, alt + '  --qr-dark: #ffffff;\n  --qr-light: #0f1115;\n', 1))
+PY2
+griff_datei resources/css/app.css "QR-Code folgt dem Thema" &&
+pruefe "QR-Code folgt dem Thema" \
+  QrSourceTest::test_the_qr_colours_do_not_follow_the_theme failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QrSourceTest passed
+
+echo "── QrSourceTest: Farbe wandert in die Komponente ──"
+#
+# Jede Farbe kommt aus app.css. Die Ausnahme betrifft das Umschalten, nicht den
+# Ort.
+vorher_datei resources/js/Components/QrCode.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/QrCode.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'class="qr-modules"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'class="qr-modules" fill="#000000"', 1))
+PY2
+griff_datei resources/js/Components/QrCode.vue "Farbe in der QR-Komponente" &&
+pruefe "Farbe in der QR-Komponente" \
+  QrSourceTest::test_the_component_only_draws failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QrSourceTest passed
+
+echo "── QrSourceTest: die Untergrenze der Dateiliste ──"
+#
+# Der Pruefkoerper. Der erste Wurf las mit `glob('**/*')` null Dateien — PHPs
+# glob steigt nicht in Unterverzeichnisse ab, egal wie viele Sterne dastehen.
+vorher_datei tests/Unit/QrSourceTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/QrSourceTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "$wurzel.'/resources/js'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$wurzel.'/resources/views'", 1))
+PY2
+griff_datei tests/Unit/QrSourceTest.php "Untergrenze der QR-Dateiliste" &&
+pruefe "Untergrenze der QR-Dateiliste" \
+  QrSourceTest::test_the_interface_never_builds_the_uri_itself failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QrSourceTest passed
+
+echo "── QrSourceTest: eine zweite Datei bindet die Bibliothek ein ──"
+#
+# Dieselbe Auflage, die `docs/51 §8.1` fuer CodeMirror stellt: Eine Bibliothek,
+# die an zwei Stellen benutzt wird, ist beim naechsten Mal an drei — und dann
+# entscheidet die Gewohnheit statt eines Menschen.
+vorher_datei resources/js/Pages/Auth/TwoFactorSetup.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Auth/TwoFactorSetup.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<script setup lang="ts">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt + "\nimport { encode } from 'uqr'", 1))
+PY2
+griff_datei resources/js/Pages/Auth/TwoFactorSetup.vue "Bibliothek an zweiter Stelle" &&
+pruefe "Bibliothek an zweiter Stelle" \
+  QrSourceTest::test_only_the_qr_component_touches_the_library failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QrSourceTest passed
+
+echo "── FrontendDependencyTest: eine Abhaengigkeit ohne Begruendung ──"
+#
+# Der Waechter, der beim Einbau von uqr zugebissen hat. Wer eine hinzufuegt,
+# traegt sie mit ihrem Grund in ALLOWED ein — und holt vorher die Entscheidung
+# ein.
+vorher_datei tests/Unit/FrontendDependencyTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/FrontendDependencyTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'uqr' => 'die Modulmatrix des QR-Codes (docs/84, Wunsch 1) — gezeichnet wird bei uns',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei tests/Unit/FrontendDependencyTest.php "Abhaengigkeit ohne Begruendung" &&
+pruefe "Abhaengigkeit ohne Begruendung" \
+  FrontendDependencyTest::test_every_dependency_is_accounted_for failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FrontendDependencyTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

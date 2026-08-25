@@ -10,6 +10,7 @@ use App\Models\Account;
 use App\Support\Audit\Audit;
 use App\Support\Auth\LoginThrottle;
 use App\Support\Auth\RecoveryCodes;
+use App\Support\Authorization\AccountAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -166,6 +167,11 @@ final class TwoFactorChallengeController extends Controller
 
         $account = Account::query()->find((int) $id);
 
-        return $account !== null && $account->status->canSignIn() ? $account : null;
+        /*
+         * **Dieselbe Frage wie an der Anmeldung** und nicht die halbe: Hier
+         * stand `status->canSignIn()`, und damit kam ein zurückgezogener Kunde
+         * über den zweiten Faktor herein.
+         */
+        return $account !== null && AccountAccess::permits($account) ? $account : null;
     }
 }

@@ -45,11 +45,13 @@ final class ClassNameTest extends TestCase
      */
     private const VOCABULARY = [
         'account', 'action', 'active', 'address', 'after', 'agent', 'area', 'arrow', 'aside', 'badge', 'band', 'bar',
-        'blank',
+        'back', 'blank',
         'block', 'branch', 'breadcrumb', 'button', 'cell', 'check', 'choice', 'choices', 'codes',
         'code', 'comment', 'confirmation', 'content', 'critical', 'crumbs', 'cursor', 'danger', 'dependent',
         'description',
-        'done', 'editor', 'empty', 'end', 'error', 'explains', 'eye', 'facts', 'field', 'file', 'filter',
+        'done', 'editor', 'empty', 'end', 'error', 'explains', 'eye', 'facts', 'failure', 'field', 'file',
+        'ground', 'modules', 'qr',
+        'filter',
         'fold', 'folded', 'folds', 'foot', 'footer', 'form', 'frame', 'full', 'grid', 'group', 'head',
         'here', 'hint', 'icon', 'ident', 'inline', 'invalid', 'item', 'keyword', 'knob', 'label', 'leaf', 'line', 'link',
         'list',
@@ -90,6 +92,31 @@ final class ClassNameTest extends TestCase
      * @var list<string>
      */
     private const FOREIGN_PREFIX = ['cm-'];
+
+    /**
+     * Die Blade-Vorlagen — seit es welche mit Klassen gibt.
+     *
+     * @return list<string>
+     */
+    private function bladeFiles(): array
+    {
+        $files = [];
+
+        /** @var SplFileInfo $file */
+        foreach (new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator(dirname(__DIR__, 2).'/resources/views', FilesystemIterator::SKIP_DOTS),
+        ) as $file) {
+            if ($file->isFile() && str_ends_with($file->getFilename(), '.blade.php')) {
+                $files[] = $file->getPathname();
+            }
+        }
+
+        sort($files);
+
+        $this->assertGreaterThan(5, count($files), 'Es werden kaum Vorlagen gelesen — dann prüft dieser Test nichts.');
+
+        return $files;
+    }
 
     /** @return list<string> */
     private function vueFiles(): array
@@ -224,14 +251,28 @@ final class ClassNameTest extends TestCase
             'tok-property', 'tok-variable', 'tok-punctuation',
         ];
 
-        foreach ($this->vueFiles() as $path) {
+        /*
+         * **Blade zählt mit, und das ist Befund 3 aus `docs/84`.** Bis zum
+         * 25. August 2026 las diese Schleife ausschliesslich `.vue` — unter
+         * `resources/views/` lagen zwei Dateien ohne Klassen, und die Frage
+         * stellte sich nicht. Mit den Fehlerseiten stellt sie sich: `.failure`
+         * steht in `app.css` und wird von keinem `.vue` erreicht.
+         *
+         * > **Ein Wächter, der die geschriebenen Seiten prüft, sagt nichts über
+         * > die, die niemand geschrieben hat.**
+         */
+        foreach (array_merge($this->vueFiles(), $this->bladeFiles()) as $path) {
             $source = (string) file_get_contents($path);
 
-            if (preg_match('#<template>(.*)</template>#su', $source, $match) !== 1) {
+            if (str_ends_with($path, '.blade.php')) {
+                // Eine Blade-Datei ist ihre eigene Vorlage; Blade-Kommentare
+                // sind keine.
+                $template = (string) preg_replace('/\{\{--.*?--\}\}/su', '', $source);
+            } elseif (preg_match('#<template>(.*)</template>#su', $source, $match) === 1) {
+                $template = (string) preg_replace('/<!--.*?-->/su', '', $match[1]);
+            } else {
                 continue;
             }
-
-            $template = (string) preg_replace('/<!--.*?-->/su', '', $match[1]);
 
             // class="a b c"
             preg_match_all('/\bclass="([^"]*)"/', $template, $statisch);

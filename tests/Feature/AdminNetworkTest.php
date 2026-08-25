@@ -205,4 +205,41 @@ final class AdminNetworkTest extends TestCase
             ->put('/settings/access', ['networks' => ['0.0.0.0/0']])
             ->assertSessionHasErrors('networks.0');
     }
+
+    /**
+     * **Alle schlechten Zeilen werden gemeldet, nicht nur die erste.**
+     *
+     * Befund 10 aus `docs/84`. Hier stand ein `throw` im Schleifenrumpf: Der
+     * erste schlechte Eintrag beendete die Prüfung, alles darunter wurde nie
+     * angesehen — und der Kunde bekam seine Liste in so vielen Runden zurück,
+     * wie sie Fehler hatte.
+     *
+     * > **Zwei Eingänge, die dieselbe Prüfung teilen, teilen darum noch nicht
+     * > dieselbe Meldung — eine Liste hat mehr Fehler als eine Kommandozeile.**
+     */
+    public function test_every_bad_row_is_reported_and_not_only_the_first(): void
+    {
+        $this->actingAs(Account::factory()->admin()->create())
+            ->put('/settings/access', ['networks' => ['192.0.2.7/24', '0.0.0.0/0', 'kein-netz']])
+            ->assertSessionHasErrors(['networks.0', 'networks.1', 'networks.2']);
+    }
+
+    /**
+     * **Der Fehlerschlüssel zählt über die Zeilen des Formulars.**
+     *
+     * Die Oberfläche schickt ihre Zeilen, wie sie dastehen — auch die leere zum
+     * Tippen. Würde sie die leeren vorher wegwerfen, zeigte `networks.0` auf
+     * eine Liste, die es im Browser nicht gibt, und der rote Rand landete eine
+     * Zeile zu weit oben.
+     *
+     * > **Eine Kennung, die auf eine Liste zeigt, die der Browser nicht hat,
+     * > zeigt auf die falsche Zeile.**
+     */
+    public function test_an_empty_row_does_not_shift_the_error_key(): void
+    {
+        $this->actingAs(Account::factory()->admin()->create())
+            ->put('/settings/access', ['networks' => ['', '0.0.0.0/0', '']])
+            ->assertSessionHasErrors('networks.1')
+            ->assertSessionDoesntHaveErrors('networks.0');
+    }
 }

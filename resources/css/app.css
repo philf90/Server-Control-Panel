@@ -125,6 +125,32 @@
   --mark-accent: #3730a3;
 
   /*
+   * Der QR-Code — die eine Ausnahme von „beide Themes entstehen zusammen".
+   *
+   * **Diese zwei Marken stehen mit Absicht nur hier und nicht im dunklen
+   * Block.** Ein QR-Code bleibt dunkel auf hell, auch wenn die Seite um ihn
+   * herum dunkel ist. Invertiert scheitert er an vielen Lesegeräten: Der
+   * Standard verlangt kein bestimmtes Vorzeichen, aber die Kameras vieler
+   * Telefone suchen dunkle Module auf hellem Grund und finden die
+   * Sucherquadrate sonst nicht.
+   *
+   * > **Eine Regel des Gestaltungssystems, die ein Gerät nicht liest, ist
+   * > keine Gestaltung mehr, sondern ein Ausfall.**
+   *
+   * Sie stehen trotzdem als Marken und nicht als Hexwerte in der Komponente —
+   * die Ausnahme betrifft das *Umschalten*, nicht den Ort. `QrThemeTest` hält
+   * beides: dass es sie gibt und dass sie im dunklen Block **nicht** noch
+   * einmal stehen.
+   *
+   * Das Dunkel ist nicht `#000000`: Reines Schwarz auf reinem Weiss ist härter
+   * als nötig, und die Marke trägt denselben Wert wie `--text-strong` im hellen
+   * Theme — der Code sieht damit aus wie Text dieser Oberfläche und liest sich
+   * für die Kamera genauso gut (Kontrast 17,9:1).
+   */
+  --qr-dark: #0f1115;
+  --qr-light: #ffffff;
+
+  /*
    * Die zweite Kurve einer Kachel, die zwei Richtungen zeigt — heute das Netz
    * mit eingehend und ausgehend.
    *
@@ -716,6 +742,86 @@ input[type='radio'] {
  */
 .section-note.wide {
   max-width: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Die Fehlerseiten
+
+   403, 404, 500 und ihre Geschwister. Sie sind reines Blade und tragen kein
+   Inertia — eine Seite, die es gerade dann geben muss, wenn etwas kaputt ist,
+   lädt so wenig wie möglich. Deshalb steht ihre Form hier und nicht in einer
+   Komponente.
+
+   Bis zum 25. August 2026 gab es sie nicht: Laravels Vorgabe, englisch und in
+   Times (`docs/84`, Befund 3).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/*
+   Sie trägt ihren Rand selbst und leiht sich keine Hülle. `.content` — die
+   Fläche der Panelseiten — steht im `<style scoped>` von `PanelLayout.vue` und
+   gilt für Blade nicht; ein `class="page"` wäre eine Klasse ohne Regel gewesen.
+*/
+.failure {
+  max-width: 52ch;
+  margin: 0 auto;
+  padding: 48px 20px;
+}
+
+/*
+   Die Zahl steht über der Überschrift und nicht darin: „404 Nicht gefunden" in
+   einer Zeile liest sich als ein Satz, und die Zahl ist keiner. Sie ist die
+   Kennung, mit der man danach sucht — deshalb dieselbe Behandlung wie jede
+   andere Kennung dieser Oberfläche.
+*/
+.failure-code {
+  margin: 0 0 4px;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+
+.failure h1 {
+  margin: 0 0 12px;
+  font-size: var(--text-heading);
+  line-height: 1.25;
+  color: var(--text-strong);
+
+  /*
+     Dieselbe Ausnahme wie bei `.ident` und `.stacks td .ident` — die vierte
+     Fassung. Eine Überschrift, die nicht brechen darf, schiebt die Seite bei
+     390 px aus dem Bild, und ein Fehler ist der schlechteste Ort dafür.
+  */
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.failure-back {
+  margin: 20px 0 0;
+}
+
+/*
+ * Der QR-Code.
+ *
+ * Die Grösse steht hier und nicht an der Komponente: 200 px bei 53 Modulen
+ * (45 plus zweimal vier Ruhebereich) sind rund **3,8 px je Modul** — genug für
+ * jede Telefonkamera aus Armlänge. `shape-rendering: crispEdges` verhindert,
+ * dass der Browser die Kanten weichzeichnet und aus einem Modul einen grauen
+ * Fleck macht.
+ */
+.qr {
+  width: 200px;
+  height: 200px;
+  border-radius: var(--radius);
+}
+
+/* Dunkel auf hell, in beiden Themes — die Begründung steht bei `--qr-dark`. */
+.qr-ground {
+  fill: var(--qr-light);
+}
+
+.qr-modules {
+  fill: var(--qr-dark);
 }
 
 /* Ein leerer Zustand ist eine Auskunft. Eine weisse Fläche wäre keine. */
@@ -3672,6 +3778,65 @@ p:not([class]) {
 .field textarea {
   min-height: 92px;
   resize: vertical;
+}
+
+/*
+ * Die Auswahl gehört uns und nicht dem Betriebssystem.
+ *
+ * ## Der Anlass
+ *
+ * **Befund 12 aus `docs/84`**, gemeldet vom Betreiber: Auf der Übersicht sind
+ * „Aktualisieren" und die Auswahl daneben **mobil** nicht gleich hoch. Am
+ * Schreibtisch stimmt es.
+ *
+ * Im ganzen Stylesheet stand `appearance: none` genau einmal — für das
+ * gesperrte Kästchen. Die Auswahl behielt damit die Zeichnung des Systems, und
+ * deren innere Höhe kommt vom System: Sie **addiert** sich zu unserer
+ * Polsterung, statt sie zu ersetzen. Der Knopf daneben ist ein blankes
+ * `<button>`, das vollständig uns gehört — er bleibt auf `--tap`, die Auswahl
+ * wächst darüber hinaus.
+ *
+ * Nachgerechnet, warum es im Container nicht auffiel: In Chromium erreichen
+ * beide den Boden und sind gleich hoch. **iOS rechnet anders.**
+ *
+ * > **Ein Bedienelement, dessen Zeichnung das System behält, hat eine Höhe, die
+ * > wir nicht angegeben haben.**
+ *
+ * ## Der Pfeil
+ *
+ * `appearance: none` nimmt der Auswahl auch ihren Pfeil, und ohne ihn sieht sie
+ * aus wie ein Textfeld. Er steht deshalb hier — als **beschnittene Fläche** in
+ * `--text-muted` und nicht als Farbwert in einem eingebetteten Bild, damit er
+ * dem Thema folgt. Dasselbe Verfahren wie beim Haken des Kästchens.
+ *
+ * `bottom` rechnet aus `--tap` und nicht aus einer festen Zahl: Die Marke ist
+ * mobil 44 px und am Schreibtisch 38, und ein fester Wert wäre in genau der
+ * Ansicht falsch, wegen der es diesen Block gibt.
+ */
+.field select {
+  appearance: none;
+
+  /* Platz für den Pfeil — sonst läuft ein langer Wert darunter. */
+  padding-right: 34px;
+}
+
+.field:has(select) {
+  position: relative;
+}
+
+.field:has(select)::after {
+  content: '';
+  position: absolute;
+  right: 13px;
+  bottom: calc(var(--tap) / 2 - 3px);
+  width: 9px;
+  height: 6px;
+
+  background: var(--text-muted);
+  clip-path: polygon(0 0, 50% 100%, 100% 0, 84% 0, 50% 68%, 16% 0);
+
+  /* Der Pfeil ist Zierde: Ein Klick auf ihn gehört der Auswahl darunter. */
+  pointer-events: none;
 }
 
 /*

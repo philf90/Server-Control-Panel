@@ -215,6 +215,14 @@ final class AccountController extends Controller
             'sessions' => Sessions::of($admin, $request->session()->getId()),
 
             /*
+             * **Ob die Liste überhaupt beantwortbar ist** (Befund 15 aus
+             * `docs/84`). Ohne diese Angabe wäre „keine offenen Sitzungen"
+             * nicht von „nicht nachgesehen" zu unterscheiden — und die
+             * beruhigende Lesart gewänne.
+             */
+            'sessionsReadable' => Sessions::readable(),
+
+            /*
              * **Mit denselben Augen wie {@see self::update()}.** Zeigte das
              * Formular seine Auswahl an einer anderen Frage als die Prüfung
              * dahinter, stünde dort ein Knopf, den der Aufruf danach abweist —

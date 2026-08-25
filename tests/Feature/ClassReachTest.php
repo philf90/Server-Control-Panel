@@ -70,6 +70,91 @@ final class ClassReachTest extends TestCase
         return $files;
     }
 
+    /**
+     * Dieselbe Frage für Blade.
+     *
+     * **Der Anlass ist Befund 3 aus `docs/84`.** Bis zum 25. August 2026 gab es
+     * unter `resources/views/` genau zwei Dateien und keine mit Klassen — der
+     * Wurzelrahmen und eine Testmail. Mit den Fehlerseiten sind es sieben, und
+     * sie tragen `.failure`, `.page`, `.hint`, `.link`. Für sie galt bis dahin
+     * nichts: Dieser Wächter las ausschliesslich `.vue`.
+     *
+     * > **Ein Wächter, der die geschriebenen Seiten prüft, sagt nichts über
+     * > die, die niemand geschrieben hat.**
+     *
+     * **Kein eigener `<style>`-Block.** Eine Blade-Datei hat keinen, also muss
+     * jede Klasse in `app.css` stehen — die Vereinigung fällt hier weg, und das
+     * ist die schärfere Frage.
+     */
+    public function test_every_class_in_a_blade_view_points_at_a_rule(): void
+    {
+        $global = $this->defined((string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css'));
+
+        $unknown = [];
+        $checked = 0;
+
+        foreach ($this->bladeFiles() as $path) {
+            $quelle = (string) preg_replace('/\{\{--.*?--\}\}/su', '', (string) file_get_contents($path));
+
+            foreach ($this->used($quelle) as $klasse) {
+                $checked++;
+
+                if (! in_array($klasse, $global, true)) {
+                    $unknown[] = sprintf('%s: %s', $this->relative($path), $klasse);
+                }
+            }
+        }
+
+        /*
+         * **Die Untergrenze steht viel niedriger als beim Vue-Zwilling**, und
+         * das ist kein Nachlassen: Unter `resources/views/` liegen neun
+         * Dateien, und nur eine trägt Klassen — die Hülle der Fehlerseiten, mit
+         * gemessenen fünf. Alles andere ist Inertia und steht in `.vue`.
+         *
+         * Der erste Wurf verlangte mehr als das Gemessene und wurde prompt rot,
+         * nachdem eine erfundene Klasse **entfernt** worden war.
+         *
+         * > **Ein Wächter, der beim Aufräumen zubeisst, wird beim Aufräumen
+         * > abgeschaltet.**
+         *
+         * Was die Zahl belegen soll, ist nur eines: dass der Ausdruck nicht ins
+         * Leere läuft.
+         */
+        $this->assertGreaterThan(3, $checked, 'Es werden kaum Klassen gefunden — dann prüft dieser Test nichts.');
+
+        $this->assertSame([], $unknown, sprintf(
+            "Diese Klassen stehen in einer Blade-Vorlage und in keiner Regel:\n  %s\n\n".
+            'Eine Blade-Datei hat keinen eigenen <style>-Block — was sie benutzt, gehört in '
+            .'resources/css/app.css.',
+            implode("\n  ", $unknown),
+        ));
+    }
+
+    /**
+     * Alle Blade-Vorlagen.
+     *
+     * @return list<string>
+     */
+    private function bladeFiles(): array
+    {
+        $files = [];
+
+        /** @var SplFileInfo $file */
+        foreach (new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator(dirname(__DIR__, 2).'/resources/views', FilesystemIterator::SKIP_DOTS),
+        ) as $file) {
+            if ($file->isFile() && str_ends_with($file->getFilename(), '.blade.php')) {
+                $files[] = $file->getPathname();
+            }
+        }
+
+        sort($files);
+
+        $this->assertGreaterThan(5, count($files), 'Es werden kaum Vorlagen gelesen — dann prüft dieser Test nichts.');
+
+        return $files;
+    }
+
     private function relative(string $path): string
     {
         return str_replace(dirname(__DIR__, 2).'/', '', $path);
@@ -90,9 +175,28 @@ final class ClassReachTest extends TestCase
         return (string) preg_replace('/<!--.*?-->/su', '', $match[1]);
     }
 
+    /**
+     * Der `<style>`-Block der Komponente — **ohne den Vorlagenblock**.
+     *
+     * **Warum der erst herausgeschnitten wird.** Bis zum 25. August 2026 suchte
+     * dieser Ausdruck in der ganzen Datei. In `Accounts/Form.vue` war ein
+     * `<style scoped>` in den `<template>`-Block gerutscht; Vue wirft ein
+     * solches Markup weg, die Regeln standen weder im gebauten Stylesheet noch
+     * in der Renderfunktion — und dieser Wächter fand sie trotzdem und war
+     * zufrieden. Die Marke „diese Sitzung" stand daraufhin ohne Abstand an der
+     * Adresse, und `.agent` fehlte dazu.
+     *
+     * > **Ein Wächter, der eine Zeichenkette sucht statt eines Blocks, ist
+     * > grün, sobald die Zeichenkette irgendwo steht.**
+     *
+     * Dass ein Block überhaupt an dieser Stelle steht, meldet {@see SfcBlockTest}.
+     * Hier geht es nur darum, ihn nicht mitzulesen.
+     */
     private function style(string $source): string
     {
-        if (preg_match('#<style[^>]*>(.*)</style>#su', $source, $match) !== 1) {
+        $ohneVorlage = (string) preg_replace('#^<template>.*^</template>#sm', '', $source);
+
+        if (preg_match('#<style[^>]*>(.*)</style>#su', $ohneVorlage, $match) !== 1) {
             return '';
         }
 

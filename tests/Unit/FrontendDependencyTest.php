@@ -65,6 +65,26 @@ final class FrontendDependencyTest extends TestCase
         '@codemirror/' => 'der Editor (docs/51 §3, Entscheidung 1) — nachgeladen, Farben aus app.css',
         'codemirror' => 'der Editor (docs/51 §3, Entscheidung 1)',
         '@lezer/' => 'gehört zu CodeMirror',
+
+        /*
+         * **Die zweite Ausnahme, entschieden am 25. August 2026** — der
+         * QR-Code beim zweiten Faktor (`docs/84`, Wunsch 1). Der Betreiber hat
+         * sie ausdrücklich zugelassen: „auch wenn eine Abhängigkeit entsteht".
+         *
+         * Gemessen vor der Auswahl, gegen `@paulmillr/qr` und
+         * `qrcode-generator`: **null** transitive Abhängigkeiten (ein Eintrag
+         * im Lock), MIT, 79 KB entpackt, eigene Typen — und **11,4 KB** im
+         * gebauten Bündel. Die Matrix ist Bit für Bit dieselbe wie die einer
+         * unabhängigen Umsetzung.
+         *
+         * **Nicht nachgeladen, anders als CodeMirror**, und das ist eine
+         * Entscheidung mit Grund: Dort sind es rund 300 KB, hier 11,4 — ein
+         * eigener Brocken samt Ladezustand kostete mehr Umstand, als er spart.
+         *
+         * Was die Bibliothek darf, steht in `QrSourceTest`: die Matrix
+         * rechnen. Gezeichnet wird hier, und die Farbe kommt aus app.css.
+         */
+        'uqr' => 'die Modulmatrix des QR-Codes (docs/84, Wunsch 1) — gezeichnet wird bei uns',
     ];
 
     /** Die einzige Datei, die CodeMirror anfassen darf. */

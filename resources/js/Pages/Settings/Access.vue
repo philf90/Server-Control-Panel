@@ -53,11 +53,54 @@ function fehlerhaft(index: number): boolean {
 
 function submit(): void {
   form
+    /*
+     * **Die leeren Zeilen bleiben drin** (Befund 10 aus `docs/84`). Wer sie
+     * hier wegfiltert, verschiebt die Kennungen: Der Server schlüsselt seine
+     * Fehler nach `networks.<n>`, und `n` zählte dann über eine Liste, die es
+     * im Browser nicht gibt. Sobald irgendwo davor eine leere Zeile stand,
+     * bekam die falsche Zeile den roten Rand.
+     *
+     * Weggeworfen werden sie jetzt im Controller — nach dem Zählen.
+     */
     .transform((data) => ({
-      networks: data.networks.map((n) => n.trim()).filter((n) => n !== ''),
+      networks: data.networks.map((n) => n.trim()),
     }))
     .put('/settings/access', {
-      onSuccess: () => form.reset(),
+      /*
+       * **Der Ausgangswert kommt vom Server und nicht vom Seitenaufbau.**
+       *
+       * Hier stand `onSuccess: () => form.reset()`, und das war Befund 11 aus
+       * `docs/84`. `reset()` stellt die Werte her, die das Formular **beim
+       * Laden** hatte — nach dem Speichern also den Stand *davor*. Eine
+       * gelöschte Zeile kam damit zurück, obwohl der Server sie entfernt hatte.
+       *
+       * Und es blieb nicht bei der Anzeige: Inertia übernimmt nach einem
+       * erfolgreichen Absenden `form.data()` als neuen Ausgangswert — aber
+       * **nach** diesem Rückruf. Der alte Stand wurde damit zur Grundlage.
+       * Wer die wiedergekehrte Zeile für einen Fehlschlag hielt und noch
+       * einmal speicherte, legte die Beschränkung wieder an, die er gerade
+       * aufgehoben hatte. Beide Vorgänge meldeten Erfolg.
+       *
+       * > **Eine Anzeige, die den Zustand vor der Änderung zeigt, verleitet zu
+       * > der Handlung, die die Änderung zurücknimmt.**
+       *
+       * **`props.networks` ist hier schon frisch** — im Quelltext von
+       * `@inertiajs/core` nachgesehen: `await this.setPage()` läuft vor
+       * `onSuccess`. Und bei einem Validierungsfehler kehrt der Ablauf vorher
+       * bei `onError` um, dieser Zweig also nie — ein abgewiesenes Formular
+       * verliert seine Eingabe nicht.
+       *
+       * **Warum vom Server und nicht das Abgeschickte:** `normalize()` schreibt
+       * kanonisch (`94.31.74.201` wird `94.31.74.201/32`) und `array_unique`
+       * fasst zusammen. Wer das Gesendete anzeigt, zeigt wieder etwas anderes
+       * als das Gespeicherte — denselben Fehler eine Nummer kleiner.
+       *
+       * `defaults()` setzt dabei Inertias eigene Übernahme ausser Kraft; das
+       * ist gewollt und in der Bibliothek so vorgesehen.
+       */
+      onSuccess: () => {
+        form.defaults({ networks: [...props.networks, ''] }).reset()
+      },
     })
 }
 </script>
@@ -107,11 +150,25 @@ function submit(): void {
                   :aria-invalid="fehlerhaft(index)"
                 >
               </label>
-              <button type="button" class="button small" @click="remove(index)">Entfernen</button>
+              <!--
+                **`.button` und nicht `.button small`** (Befund 9 aus
+                `docs/84`). `.button.small` ist ausdrücklich „für eine Aktion,
+                die in einer Tabellenzeile steht und die Zeile nicht sprengen
+                soll" — sie setzt `min-height: 0`. Hier steht sie neben einem
+                Feld, das `--tap` hoch ist, und war es nicht.
+
+                Unter `max-width: 720px` bekommt `.button.small` seine Höhe
+                zurück; der Fehler gab es also nur in der breiten Ansicht — und
+                die Bildrunde zielt auf die schmale.
+
+                > **Ein Fehler, den nur die breite Ansicht hat, entgeht einer
+                > Prüfung, die auf die schmale zielt.**
+              -->
+              <button type="button" class="button" @click="remove(index)">Entfernen</button>
             </div>
 
             <div class="button-row">
-              <button type="button" class="button small" @click="add">Netz hinzufügen</button>
+              <button type="button" class="button" @click="add">Netz hinzufügen</button>
             </div>
           </div>
         </Section>
@@ -152,6 +209,41 @@ function submit(): void {
 .row .field {
   flex: 1;
   min-width: 0;
+
+  /*
+   * **Ohne den eigenen Rand.** `.field` bringt `margin-top: 16px` mit, und in
+   * einer Zeile ist der doppelt gemoppelt: Den Abstand zwischen den Zeilen gibt
+   * `.rows` über `gap` — genau das steht in dessen Kommentar. Der erste Wurf
+   * hier liess ihn stehen, und der gestreckte Knopf wurde **60 px** statt 43,
+   * weil `stretch` die Hülle meint und die Hülle den Rand trägt.
+   *
+   * > **Ein Abstand, den zwei Stellen geben, ist an einer von beiden falsch.**
+   */
+  margin-top: 0;
+}
+
+/*
+ * **Der Knopf ist so hoch wie das Feld daneben** (Befund 9 aus `docs/84`).
+ *
+ * `--tap` ist ausdrücklich „die kleinste Fläche für einen Zeiger" — eine
+ * Untergrenze und keine Höhe. Gemessen bei 1440 px: Ein Feld mit
+ * `--text-input` und 9 px Polsterung wird von selbst **43 px** hoch, ein Knopf
+ * mit `--text-table` und 8 px nur 38. Beide halten die Marke ein, und
+ * nebeneinander sehen sie falsch aus.
+ *
+ * > **Zwei Werte, die beide über der Untergrenze liegen, sind darum noch nicht
+ * > gleich.**
+ *
+ * `align-self: stretch` und keine feste Zahl: Die Höhe des Feldes hängt an
+ * `--text-input` und der Dichte, und eine abgeschriebene 43 wäre beim nächsten
+ * Wechsel falsch. **Das geht hier, weil die Zeile keine sichtbare Beschriftung
+ * trägt** — die Hülle des Feldes ist dann genau so hoch wie sein
+ * Bedienelement. Wo eine Beschriftung darübersteht, gilt das nicht.
+ *
+ * Gemessen nach der Änderung: 44/44 bei 390 px, 43/43 bei 1440.
+ */
+.row .button {
+  align-self: stretch;
 }
 
 /* Nur für Vorlesesoftware: Die Zeilen haben keine sichtbare Beschriftung. */

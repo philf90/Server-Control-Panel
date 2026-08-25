@@ -36,12 +36,60 @@ use Illuminate\Support\Facades\DB;
 final class Sessions
 {
     /**
+     * Wie viel von der Gerätekennung stehenbleibt.
+     *
+     * Gemessen und nicht gewählt — die Begründung steht bei {@see self::agent()}.
+     */
+    private const AGENT_MAX = 60;
+
+    /**
+     * Lässt sich diese Liste überhaupt beantworten?
+     *
+     * **Befund 15 aus `docs/84`.** `sessions` ist Laravels Tabelle, und
+     * gefüllt wird sie nur vom Treiber `database`. Steht `SESSION_DRIVER` auf
+     * `file` oder `redis`, liefert die Abfrage unten **null Zeilen** — und die
+     * Seite sagte dann „keine offenen Sitzungen", während der Leser gerade in
+     * einer sitzt.
+     *
+     * > **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts
+     * > zu tun".**
+     *
+     * Derselbe Satz wie bei `apt-get update` in A1, diesmal an einem
+     * Konfigurationswert statt an einem Rückgabewert. Gehalten hat ihn nichts:
+     * kein Wächter, keine Prüfung, kein Satz.
+     *
+     * Das Panel liefert `database` aus — in `config/session.php` und in
+     * `.env.example`. Wer es ändert, bekommt jetzt einen Satz statt einer
+     * leeren Liste.
+     */
+    public static function readable(): bool
+    {
+        return config('session.driver') === 'database';
+    }
+
+    /**
      * Die offenen Sitzungen eines Kontos, die jüngste zuerst.
      *
      * @return list<array{id: string, ip: string|null, agent: string|null, last: string|null, current: bool}>
      */
     public static function of(Account $account, ?string $currentId): array
     {
+        /*
+         * **Hier stand ein `if (! self::readable()) return [];`, und es war
+         * falsch.** Es hat genau den Fehler wiederholt, gegen den Befund 15
+         * gebaut ist: eine leere Liste, die „nicht nachgesehen" bedeutet und
+         * wie „nichts zu tun" aussieht. Gemerkt hat es die CI, weil der Griff
+         * einen **bestehenden** Test brach — im Testlauf steht
+         * `SESSION_DRIVER=array`, und dort ist die Tabelle trotzdem gefüllt.
+         *
+         * > **Eine Behebung, die den behobenen Fehler an anderer Stelle wieder
+         * > einführt, ist keine.**
+         *
+         * Diese Methode beantwortet „was steht in der Tabelle". Ob die Tabelle
+         * die benutzte ist, ist eine andere Frage — die beantwortet
+         * {@see self::readable()}, und die Seite sagt es. Die Tabelle selbst
+         * legt eine Migration an; sie zu lesen ist immer gefahrlos.
+         */
         $rows = DB::table('sessions')
             ->select(['id', 'ip_address', 'user_agent', 'last_activity'])
             ->where('user_id', $account->id)
@@ -86,9 +134,27 @@ final class Sessions
      * Das Gerät hinter einer Sitzung — kurz und lesbar.
      *
      * **Gekürzt und nicht ausgewertet.** Eine Kennung wie „Mozilla/5.0
-     * (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 …" ist 120 Zeichen
-     * lang und sagt dem Leser nichts, was er nicht schon weiss. Was er sucht,
-     * ist „war das mein Rechner" — und dafür genügt der Anfang.
+     * (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 …" sagt dem Leser
+     * nichts, was er nicht schon weiss. Was er sucht, ist „war das mein
+     * Rechner" — und dafür genügt der Anfang.
+     *
+     * **Die Grenze lag bei 120 und griff damit fast nie** (Befund 5 aus
+     * `docs/84`). Gemessen an fünf echten Kennungen:
+     *
+     *   Linux/Firefox     70    Windows/Chrome   111
+     *   Android/Chrome   117    macOS/Safari     117
+     *   iPhone/Safari    137
+     *
+     * Nur die letzte wurde gekürzt. Der Knopf „Beenden" stand deshalb bei
+     * 1440 px ausserhalb des Sichtbaren.
+     *
+     * > **Eine Obergrenze, die über dem tatsächlichen Höchstwert liegt, ist
+     * > keine.**
+     *
+     * **60 ist keine runde Zahl, sondern eine gemessene:** Der Klammerausdruck,
+     * der das Gerät nennt, ist in denselben fünf Kennungen 40 bis 54 Zeichen
+     * lang. 60 liegt über dem längsten davon und unter der kürzesten ganzen
+     * Kennung — die Auskunft bleibt vollständig, der Rest fällt weg.
      *
      * Eine Auswertung nach Browser und System wäre eine Bibliothek mit einer
      * Tabelle, die veraltet: Ein neuer Browser hiesse dann „unbekannt", und das
@@ -103,6 +169,6 @@ final class Sessions
             return null;
         }
 
-        return mb_strlen($agent) > 120 ? mb_substr($agent, 0, 119).'…' : $agent;
+        return mb_strlen($agent) > self::AGENT_MAX ? mb_substr($agent, 0, self::AGENT_MAX - 1).'…' : $agent;
     }
 }

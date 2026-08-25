@@ -53,20 +53,38 @@ final class AccessSettingsController extends Controller
 
     public function update(Request $request, Settings $settings, Audit $audit): RedirectResponse
     {
+        /*
+         * **Leere Zeilen sind erlaubt, und das ist Befund 10 aus `docs/84`.**
+         *
+         * Bis zum 25. August 2026 warf die Oberfläche die leeren Zeilen vor dem
+         * Absenden weg, und der Fehlerschlüssel `networks.<n>` zählte über die
+         * **gefilterte** Liste. Sobald irgendwo davor eine leere Zeile stand,
+         * zeigte der rote Rand auf eine andere Zeile als die, die falsch war.
+         *
+         * > **Eine Kennung, die auf eine Liste zeigt, die der Browser nicht
+         * > hat, zeigt auf die falsche Zeile.**
+         *
+         * Jetzt schickt das Formular seine Zeilen, wie sie dastehen — auch die
+         * leere zum Tippen —, und der Index bedeutet auf beiden Seiten
+         * dasselbe. `max:64` bezieht sich damit auf **Zeilen** und nicht mehr
+         * auf Netze; es war nie ein Produktversprechen, sondern der Deckel für
+         * eine zu grosse Anfrage.
+         */
         $data = $request->validate([
             'networks' => ['present', 'array', 'max:64'],
-            'networks.*' => ['required', 'string', 'max:64'],
+            'networks.*' => ['nullable', 'string', 'max:64'],
         ]);
 
-        /** @var list<string> $raw */
-        $raw = array_values(array_filter(
-            array_map(static fn (mixed $v): string => trim((string) $v), $data['networks']),
-            static fn (string $v): bool => $v !== '',
-        ));
-
         $networks = [];
+        $refusals = [];
 
-        foreach ($raw as $index => $entry) {
+        foreach ($data['networks'] as $index => $entry) {
+            $entry = trim((string) $entry);
+
+            if ($entry === '') {
+                continue;
+            }
+
             try {
                 /*
                  * **Prüfung und Politik stehen in {@see AdminNetwork}** und
@@ -78,10 +96,26 @@ final class AccessSettingsController extends Controller
                  */
                 $networks[] = AdminNetwork::normalize($entry);
             } catch (AgentException $error) {
-                throw ValidationException::withMessages([
-                    'networks.'.$index => $error->getMessage(),
-                ]);
+                /*
+                 * **Gesammelt und nicht geworfen.** Hier stand ein `throw` im
+                 * Schleifenrumpf: Der erste schlechte Eintrag beendete die
+                 * Prüfung, alles darunter wurde nie angesehen — und der Kunde
+                 * bekam seine Liste in so vielen Runden zurück, wie sie Fehler
+                 * hatte.
+                 *
+                 * `srvpanel access` steigt weiterhin beim ersten aus, und das
+                 * ist dort richtig: An einer Kommandozeile steht ein Argument.
+                 *
+                 * > **Zwei Eingänge, die dieselbe Prüfung teilen, teilen darum
+                 * > noch nicht dieselbe Meldung — eine Liste hat mehr Fehler
+                 * > als eine Kommandozeile.**
+                 */
+                $refusals['networks.'.$index] = $error->getMessage();
             }
+        }
+
+        if ($refusals !== []) {
+            throw ValidationException::withMessages($refusals);
         }
 
         $networks = array_values(array_unique($networks));

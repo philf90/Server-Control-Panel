@@ -52,6 +52,12 @@ const props = defineProps<{
   roles: { value: string; label: string }[]
   isLastOperator: boolean
   sessions?: OpenSession[]
+
+  /**
+   * Lässt sich die Sitzungsliste überhaupt beantworten? Siehe den Bereich
+   * unten — sie hängt am Sitzungstreiber, und eine leere Liste sagte das nicht.
+   */
+  sessionsReadable?: boolean
 }>()
 
 /* Beim Anlegen gibt es noch kein Konto und damit keine Sitzungen. */
@@ -116,23 +122,6 @@ function submitReset(): void {
     <template #breadcrumb>
       <Link href="/accounts" class="link">Konten</Link>
     </template>
-
-<style scoped>
-/*
- * Die Gerätekennung ist lang und hat Leerzeichen — sie bricht wie Fliesstext.
- * `.ident` wäre hier falsch: Das ist keine Kennung, die man abtippt.
- */
-.agent {
-  font-size: var(--text-small);
-}
-
-.title-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-</style>
 
     <FormErrors />
 
@@ -265,6 +254,30 @@ function submitReset(): void {
         ist eine eigene Handlung, und ein Absenden für alle zusammen gäbe es
         nicht.
       -->
+      <!--
+        **Ein Satz statt einer leeren Liste** (Befund 15 aus `docs/84`). Die
+        Tabelle `sessions` füllt nur der Treiber `database`. Steht
+        `SESSION_DRIVER` auf etwas anderes, kommen null Zeilen zurück — und der
+        Bereich verschwand einfach. „Keine offenen Sitzungen" war damit nicht
+        von „nicht nachgesehen" zu unterscheiden, und die beruhigende Lesart
+        gewann.
+
+        > **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts
+        > zu tun".**
+      -->
+      <Section
+        v-if="props.account !== null && !props.sessionsReadable"
+        title="Offene Sitzungen"
+      >
+        <p class="hint">
+          Die offenen Sitzungen lassen sich nicht anzeigen: Dieser Server
+          speichert Sitzungen nicht in der Datenbank
+          (<span class="ident">SESSION_DRIVER</span>). Solange das so ist, weiss
+          das Panel nicht, wer angemeldet ist — auch dann nicht, wenn jemand es
+          ist.
+        </p>
+      </Section>
+
       <Section v-if="props.account !== null && sessions.length > 0" title="Offene Sitzungen" full>
         <div class="scrolls">
           <table class="stacks">
@@ -310,7 +323,13 @@ function submitReset(): void {
             Setzt ein neues Passwort für dieses Konto. Der zweite Faktor bleibt
             dabei unberührt — wer sich damit ausgesperrt hat, kommt auch mit einem
             neuen Passwort nicht herein; dafür gibt es
-            <span class="ident">srvpanel:admin</span> auf dem Server.
+            <!--
+              **`srvpanel admin` und nicht `srvpanel:admin`.** Der Doppelpunkt
+              ist der artisan-Name; auf dem Server heisst der Aufrufer
+              `srvpanel`, und wer die Zeile abtippt, bekam „command not found"
+              (Befund 2 aus `docs/84`).
+            -->
+            <span class="ident">srvpanel admin</span> auf dem Server.
           </p>
 
           <PasswordFields
@@ -332,3 +351,20 @@ function submitReset(): void {
     </div>
   </PanelLayout>
 </template>
+
+<style scoped>
+/*
+ * Die Gerätekennung ist lang und hat Leerzeichen — sie bricht wie Fliesstext.
+ * `.ident` wäre hier falsch: Das ist keine Kennung, die man abtippt.
+ */
+.agent {
+  font-size: var(--text-small);
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+</style>

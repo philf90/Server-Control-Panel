@@ -19867,3 +19867,495 @@ auf `0.0.0.0/0`. Gemessen, nicht angenommen.
 **Berichtigt wurde dabei auch das Abnahmekriterium:** `docs/82 §6.3` nannte sechs
 Geheimnisseiten. Es sind acht — die Kontenseite kam mit Schritt 3, die
 Zugangsseite mit Schritt 7, beide nach dem Absatz.
+
+### Ein `<style scoped>` im Vorlagenblock — und der Wächter, der ihn für einen Block hielt
+
+**Der Betreiber hat am 25. August 2026 gemeldet, die Marke „diese Sitzung" klebe
+ohne Abstand an der Adresse** (`docs/83`, Punkt 13, die Bilderrunde). Im
+Quelltext stand der Abstand: `.title-row { display: flex; gap: 8px }`.
+
+Der Block, in dem er stand, war **in den `<template>`-Block gerutscht** —
+zwischen den benannten Bereich `#breadcrumb` und den ersten Inhalt. Ein
+`<style>` an dieser Stelle ist kein Block der Komponente, sondern Markup, und
+Vues Übersetzer wirft es weg. Nachgezählt am Bündel: kein `data-v`-Kennzeichen
+trug `.agent` und `.title-row`, während die beiden anderen Komponenten mit einer
+gleichnamigen Regel ihres hatten. Beide Regeln der Datei waren auf der Seite
+fort — die Gerätekennung stand in Fliesstextgrösse statt in `--text-small`, und
+die Marke auf **0 px** neben der Adresse.
+
+> **Ein Block, der an der falschen Stelle steht, ist kein falsch stehender Block
+> — er ist keiner.**
+
+**Nicht 4 px, sondern 0**, und der Unterschied ist der Aufsatz: Ein von Hand
+geschriebener Prüfkörper behält den Zeilenumbruch zwischen zwei Elementen als
+Wortabstand, Vue zieht ihn ein. Gemessen mit und ohne die Regel — mit ihr 8 px
+bis zur Marke und 18 px bis zu ihrem Punkt, ohne sie im Aufsatz 4, in der
+Renderfunktion keiner.
+
+> **Ein Aufsatz, der das Markup selbst schreibt, misst auch seine eigenen
+> Leerzeichen mit.**
+
+**`ClassReachTest` war dabei grün, und das ist der eigentliche Befund.** Er
+fragt, ob jede Klasse einer Vorlage eine Regel hat, und suchte sie mit
+`#<style[^>]*>(.*)</style>#su` **in der ganzen Datei**. Für diese Frage sieht ein
+weggeworfener Block genauso aus wie ein wirksamer.
+
+> **Ein Wächter, der eine Zeichenkette sucht statt eines Blocks, ist grün,
+> sobald die Zeichenkette irgendwo steht.**
+
+Derselbe Satz wie bei Punkt 12 aus `docs/62`, dort über die Erreichbarkeit einer
+Meldung statt über die Wirksamkeit einer Regel. Er schneidet den Vorlagenblock
+seitdem heraus, bevor er nach `<style>` sucht; **belegt ist das mit einem
+Eingriff, der die alte Fassung gegen dieselbe kaputte Quelle grün zeigt.**
+
+**`SfcBlockTest` hält die Regel selbst** — damit der Fehler auch dann auffällt,
+wenn niemand nach einer Klasse fragt: Kein `<style>` und kein `<script>` steht
+innerhalb des Vorlagenblocks, und jeder `<style>`-Block beginnt am linken Rand.
+Beide Prüfungen zählen mit, wie viele Dateien sie erreicht haben, und melden
+Rot, wenn es fast keine sind.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+**Ausgezählt über alle 66 Komponenten: genau eine war betroffen**, und es ist
+eine Seite aus A9. Die vier Eingriffe stehen in `tests/waechter-brechen.sh`,
+jeder einzeln belegt.
+
+### A9 ist abgenommen — und sieben der sechzehn Befunde stecken nicht im Prüfling
+
+Gefahren am 25. August 2026 auf `cloudsrv24` gegen `v0.7.1-rc.2`. Der Lauf ist
+`docs/83`, das Protokoll **`docs/84`**. **Die Punkte 1 bis 10 sind erfüllt** —
+damit ist A9 abgenommen; im selben Lauf sind **A1 Schritt 1** (M5 auf einem
+echten Server) und **A5** belegt.
+
+**Sechzehn Befunde, sechs Beobachtungen, keinen davon ein Test** — dasselbe
+Verhältnis wie in `docs/45`, `docs/48` und `docs/59`, und wie dort steckt die
+Mehrheit nicht im Prüfling: **sieben** betreffen die Vorschrift, das Prüfmittel
+oder das Kriterium.
+
+**Drei Vorschriften dieses Laufs haben am Gegenstand vorbeigemessen**, alle drei
+nach demselben Muster — und der teuerste hätte den grössten Befund verschwiegen.
+Punkt 7 lautete „fliegt beim nächsten Klick heraus — **oder spätestens** die
+nächste Anmeldung scheitert", war damit grün, egal was geschah, und konnte den
+Befund nie melden.
+
+> **Ein Kriterium, das zwei Ausgänge zulässt, misst keinen von beiden.**
+
+**Der Befund selbst ist der schwerste des Laufs: Sperren beendet keine offene
+Sitzung.** Keine der sieben Mittelschichten fragt den Kontozustand; `status`
+wird bei der Anmeldung gefragt und bei einer laufenden Anfrage nie. Der Leerlauf
+setzt sich bei jedem Klick zurück, die absolute Obergrenze liegt bei 30 Tagen —
+**ein gesperrtes Adminkonto behält seine Rechte also bis zu 30 Tage lang.**
+Gefunden hat ihn der Betreiber, weil er hingesehen und den Unterschied berichtet
+hat, statt den Haken zu setzen.
+
+> **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
+> als Zusage.**
+
+**Zwei weitere Prüfkörper haben am Gegenstand vorbeigemessen:** Erwartung 4 von
+Punkt 8 („die Rolle bleibt unverändert") lief gegen ein Konto, das schon
+Betreiber war — im Fehlerfall stünde dasselbe Ergebnis da; und Punkt 11 tötete
+eine **beliebige** apt-Quelle, während `php.version.install` nur an seiner
+**eigenen** abbrechen kann.
+
+Der erste ist in Punkt 14 nachgeholt, und zwar schärfer als verlangt: am
+**gesperrten** Administratorkonto. Damit ist zugleich der Rückweg aus
+`status = disabled` gegangen — ein Fall, den vorher niemand hatte, denn Punkt 8
+hatte ein Konto gerettet, das ein unbekanntes Passwort ausgesperrt hatte.
+
+**Was gebaut werden muss, steht mit Reihenfolge in `docs/84 §7`.** Nach Befund 6
+kommt Befund 11: `form.reset()` stellt auf der Zugangsseite den Stand vom *Laden*
+wieder her, die gelöschte Zeile kommt zurück — und wer daraus auf einen
+Fehlschlag schliesst und noch einmal speichert, legt die Beschränkung wieder an,
+die er gerade aufgehoben hat. Beide Vorgänge melden Erfolg.
+
+**Und was offen bleibt, steht in `docs/84 §6`** — darunter „Übersicht bei
+390/Dunkel", das Kontenformular (es ist mit den fehlenden Regeln aus Befund 16
+gemessen worden) und Beobachtung 6, die ein echter Befund sein kann.
+
+### Ein gesperrtes Konto verliert seine Sitzung — und die Frage steht jetzt an einer Stelle
+
+**Befund 6 aus `docs/84`, der schwerste des Abnahmelaufs.** Keine der sieben
+Mittelschichten fragte den Kontozustand. `status` wurde beim **Anmelden**
+gefragt, beim zweiten Faktor und bei der Rückkehr aus einer fremden Sicht — bei
+einer laufenden Anfrage nie. Der Leerlauf einer Sitzung setzt sich bei jedem
+Klick zurück, die absolute Obergrenze liegt bei 30 Tagen: **So lange behielt ein
+gesperrtes Adminkonto seine Rechte, solange jemand die Sitzung benutzte.**
+
+> **Eine Schranke, die nur an der Tür steht, gilt für niemanden, der schon drin
+> ist.**
+
+Derselbe Satz wie bei der Netzbeschränkung, und in P7b zum zweiten Mal fällig —
+einmal fürs Netz, einmal für den Zustand. `EnforceAccountAccess` ist nach dem
+Vorbild von `EnforceAdminNetwork` gebaut und steht **davor** in der Kette: Ein
+Konto, das gar nicht mehr da sein darf, wird nicht zuerst nach seiner Adresse
+gefragt — sonst läse ein gesperrtes Konto „Netz nicht mehr zugelassen", den
+Grund, der nicht zutrifft.
+
+**Beim Bauen wurde der Befund breiter, als er gemeldet war.** Die Anmeldung wies
+aus **zwei** Gründen ab — Konto gesperrt *und* Kunde zurückgezogen —, die beiden
+anderen Türen nur aus einem. **Ein zurückgezogener Kunde kam damit über den
+zweiten Faktor herein.** `AccountAccess` ist jetzt die eine Stelle, die die Frage
+beantwortet; alle drei Türen und die Mittelschicht fragen sie.
+
+> **Zwei Eingänge zu derselben Einstellung teilen ihre Prüfung, oder die
+> Einstellung hat zwei Bedeutungen.**
+
+**Und ein zweiter Fall stand im Quelltext, ohne dass ihn jemand zu Ende gedacht
+hatte.** In fremder Sicht ist `Auth::user()` der **Kunde**; der Handelnde steht
+im Sitzungsschlüssel. Der `ImpersonationController` kennt den Fall längst — *„Der
+Rückweg ist versperrt — das Konto wurde inzwischen gelöscht oder gesperrt"* —,
+aber nur für den, der auf „zurück" drückt. Wer weiterarbeitet, wurde nicht
+gefragt. Die Mittelschicht fragt beide.
+
+> **Ein Zustand, der beim Verlassen geprüft wird, ist beim Bleiben ungeprüft.**
+
+**Zwei Wächter, vier Brüche.** `AccountAccessTest` misst die Wirkung an der Tür
+und mitten in der Sitzung (CI); `AccountAccessReachTest` hält framework-frei,
+dass `canSignIn()` nur aus `AccountAccess` gerufen wird und dass die
+Mittelschicht in `bootstrap/app.php` **vor** der Netzbeschränkung steht. Neben
+jedem Rauswurf steht die Gegenprobe, die durchkommen muss — sonst bestünde der
+Test auch für eine Mittelschicht, die jeden hinauswirft.
+
+**Der Wächter hat beim ersten Lauf seinen eigenen Kommentar gemeldet.** Im
+`TwoFactorChallengeController` steht `status->canSignIn()` im Dokumentblock — als
+Begründung dafür, dass es dort *nicht mehr* steht.
+
+> **Ein Wächter, der Kommentare mitliest, findet seine eigene Begründung.**
+
+Geschnitten wird seitdem über `token_get_all()` und nicht mit einem Ausdruck: Ein
+Muster über `//` nähme jede Adresse in einer Zeichenkette mit.
+
+**Und die Falle aus `CLAUDE.md` hat in dieser Runde zweimal zugeschlagen, beide
+Male derselbe Fixer.** Pint macht aus einem vollqualifizierten `{@see}` im
+Dokumentblock einen `use`-Eintrag — und damit aus einem framework-freien Wächter
+einen, der genau dort nicht mehr läuft, wofür es ihn gibt. Gemessen: Nach dem
+`pint`-Lauf meldete das Gestell „braucht Laravel". Die Verweise stehen deshalb
+als Code-Auszeichnung, mit der Begründung im Klassenkopf.
+
+> **Ein Wächter, den man vor dem Formatierer prüft, ist nicht der, der ins Repo
+> geht.**
+
+### Die Zugangsseite zeigt nach dem Speichern den Server und nicht den Seitenaufbau
+
+**Befund 11 aus `docs/84`, und der zweitgefährlichste des Abnahmelaufs.** Auf der
+Zugangsseite stand `onSuccess: () => form.reset()`. `reset()` stellt die Werte
+her, die das Formular **beim Laden** hatte — nach dem Speichern also den Stand
+*davor*. Eine gelöschte Zeile kam zurück, obwohl der Server sie korrekt entfernt
+hatte.
+
+**Und es blieb nicht bei der Anzeige.** Im Quelltext von `@inertiajs/vue3`
+nachgesehen:
+
+```js
+const onSuccess = options.onSuccess ? await options.onSuccess(page2) : null
+if (!wasDefaultsCalledInOnSuccess()) {
+  setDefaults(cloneDeep3(form.data()))
+  form.isDirty = false
+}
+```
+
+Inertia übernimmt die abgeschickten Werte als neuen Ausgangswert — aber **nach**
+dem Rückruf. `reset()` lief davor und machte damit den *alten* Stand zur
+Grundlage. Wer die wiedergekehrte Zeile für einen Fehlschlag hielt und noch
+einmal speicherte, legte die Beschränkung wieder an, die er gerade aufgehoben
+hatte. Beide Vorgänge meldeten Erfolg.
+
+> **Eine Anzeige, die den Zustand vor der Änderung zeigt, verleitet zu der
+> Handlung, die die Änderung zurücknimmt.**
+
+**`reset()` selbst ist nicht der Fehler.** Für ein Anlege-Formular ist es genau
+richtig: Nach dem Absenden sollen die Felder leer sein, und leer *ist* der
+Ausgangswert. Dieses Repo tut das an sechs Stellen, alle in Ordnung. Falsch wird
+es, sobald der Ausgangswert aus `props` kommt — dann ist er der Zustand des
+Servers **vor** der Änderung.
+
+> **Ein Handgriff, der für ein Anlege-Formular richtig ist, ist für eine
+> Änderungsmaske das Gegenteil.**
+
+Ausgezählt: **sechzehn Formulare lesen ihre Werte aus `props`, und genau eines**
+sprang zurück. `FormResetTest` hält das seitdem, mit drei Brüchen.
+
+**Genommen wird der Stand vom Server und nicht das Abgeschickte:**
+`AdminNetwork::normalize()` schreibt kanonisch (`94.31.74.201` wird
+`94.31.74.201/32`) und `array_unique` fasst zusammen. Wer das Gesendete
+anzeigte, zeigte wieder etwas anderes als das Gespeicherte — denselben Fehler
+eine Nummer kleiner. Dass `props` in `onSuccess` schon frisch sind, steht
+ebenfalls im Quelltext von `@inertiajs/core`: `await this.setPage()` läuft davor,
+und bei einem Validierungsfehler kehrt der Ablauf vorher bei `onError` um — ein
+abgewiesenes Formular verliert seine Eingabe also nicht.
+
+**Und der Wächter war beim ersten Lauf rot auf der behobenen Datei.** Der
+Kommentar, der den Befund erklärt, enthält `onSuccess: () => form.reset()` als
+Zitat.
+
+> **Ein Wächter, der Kommentare mitliest, findet seine eigene Begründung.**
+
+Zum zweiten Mal an diesem Tag und in einer anderen Sprache: In
+`AccountAccessReachTest` schneidet `token_get_all()`, hier gibt es das nicht,
+also blendet ein kleiner Abtaster Kommentare aus — durch Leerzeichen ersetzt und
+nicht entfernt, damit die gemeldeten Zeilennummern stimmen. Dass er tragend ist,
+belegt ein eigener Eingriff im Bruchskript.
+
+### Eigene Fehlerseiten, gesammelte Formularfehler und ein Kommando, das man tippen kann
+
+Drei Befunde aus `docs/84` in einem Zug — 10, 2 und 3.
+
+**Befund 10: alle schlechten Zeilen werden gemeldet, nicht nur die erste.** Auf
+der Zugangsseite stand ein `throw` im Schleifenrumpf; der erste falsche Eintrag
+beendete die Prüfung, und der Kunde bekam seine Liste in so vielen Runden
+zurück, wie sie Fehler hatte. `srvpanel access` steigt weiterhin beim ersten
+aus, und das ist dort richtig.
+
+> **Zwei Eingänge, die dieselbe Prüfung teilen, teilen darum noch nicht dieselbe
+> Meldung — eine Liste hat mehr Fehler als eine Kommandozeile.**
+
+**Und beim Beheben fiel ein zweiter Fehler daneben auf.** Die Oberfläche warf
+ihre leeren Zeilen vor dem Absenden weg, der Schlüssel `networks.<n>` zählte
+also über die **gefilterte** Liste. Sobald irgendwo davor eine leere Zeile
+stand, bekam die falsche Zeile den roten Rand — genau das, was der Betreiber
+während des Laufs beobachtet hatte.
+
+> **Eine Kennung, die auf eine Liste zeigt, die der Browser nicht hat, zeigt auf
+> die falsche Zeile.**
+
+Das Formular schickt seine Zeilen jetzt, wie sie dastehen; weggeworfen werden
+die leeren im Controller, **nach** dem Zählen. `max:64` bezieht sich damit auf
+Zeilen statt auf Netze — es war nie ein Produktversprechen, sondern der Deckel
+für eine zu grosse Anfrage, und `64` steht an keiner anderen Stelle.
+
+**Befund 2: `srvpanel admin` statt `srvpanel:admin`.** Der Doppelpunkt ist der
+artisan-Name; auf dem Server heisst der Aufrufer `srvpanel`, und wer die Zeile
+abtippte, bekam „command not found". `CommandReachTest` sah es nicht, weil beide
+bestehenden Prüfungen `srvpanel` **plus Leerzeichen** verlangen.
+
+> **Ein Wächter, der eine Schreibweise kennt, prüft die Schreibweise und nicht
+> den Befehl.**
+
+In PHP bleibt die Doppelpunktform richtig und steht dort an dreizehn Stellen: in
+`$signature` und als `command` im Protokoll. Die neue Prüfung gilt nur der
+Oberfläche.
+
+**Befund 3: eigene Fehlerseiten.** 403, 404, 419, 429, 500 und 503 waren
+Laravels Vorgabe — *„This action is unauthorized."*, englisch, in Times,
+ausserhalb von „Kontor". `resources/views/errors/` gab es nicht.
+
+> **Ein Wächter, der die geschriebenen Seiten prüft, sagt nichts über die, die
+> niemand geschrieben hat.**
+
+A9 hat es wichtig gemacht: Vor der Rollentrennung bekam kaum jemand einen 403 zu
+sehen; seit Schritt 2 ist er der **entworfene** Zustand für acht Seiten.
+
+> **Eine Seite, die niemand sehen sollte, wird durch eine Rollentrennung zu
+> einer, die jemand sehen soll.**
+
+**Blade und nicht Inertia**, und das ist die Überlegung dahinter: Über Inertia
+gerendert liefe die Seite durch `HandleInertiaRequests::share()` und damit an
+die Datenbank — bei einem 500, den eine tote Verbindung ausgelöst hat,
+scheiterte sie ein zweites Mal. Kein Inertia, kein `auth()`, keine Abfrage;
+`ErrorPageTest` hält alle drei.
+
+> **Eine Seite, die es gerade dann geben muss, wenn etwas kaputt ist, lädt so
+> wenig wie möglich.**
+
+Dafür ist `resources/css/app.css` ein zweiter Vite-Eingang geworden: Das
+Skriptbündel setzt Inertia auf `#app` auf, das eine Blade-Seite nicht hat.
+
+**Zwei bestehende Wächter mussten mit, und einer hat es selbst gemeldet.**
+`ClassReachTest` und `ClassNameTest` lasen ausschliesslich `.vue` — unter
+`resources/views/` lagen zwei Dateien ohne Klassen, und die Frage stellte sich
+nicht. Mit den Fehlerseiten stellt sie sich: `ClassNameTest` meldete `.failure`
+als „erreicht kein Template", und `ClassReachTest` fand beim ersten Lauf über
+Blade eine Klasse, die ich erfunden hatte — `class="page"` gibt es nicht, die
+Layouts benutzen `.content`, und die steht in deren `<style scoped>`.
+
+**Und der Kommentar-Abstreifer hat eine dritte Form gelernt.** `{{-- --}}` ist
+Blade, und der erste Lauf des neuen Wächters meldete prompt den Kommentar, der
+seine Regel begründet — zum dritten Mal an diesem Tag. `WithoutMarkupComments`
+liegt jetzt als Baustein neben `WithoutPhpComments` und kennt alle drei Formen.
+Dabei ist auch eine zweite Fassung verschwunden, die am selben Tag entstanden
+war: `AccountAccessReachTest` hatte `token_get_all()` selbst nachgebaut, statt
+den Baustein zu nehmen, den es seit Monaten gibt.
+
+**Die Bilderrunde hat dabei die Falle aus `CLAUDE.md` vorgeführt.** Die erste
+Messung meldete `gegenprobe 208/200` — der Prüfkörper muss **genau** 200
+ergeben. Der Aufsatz zeigte auf ein Stylesheet, das ein späterer Bau ersetzt
+hatte, und mass eine ungestaltete Seite weiter.
+
+> **Ein Aufsatz, der auf ein gebautes Stylesheet zeigt, zeigt nach dem nächsten
+> Bau ins Leere — und misst weiter.**
+
+Er liest den Namen jetzt aus dem Manifest und bricht ab, wenn die Schrift noch
+Times ist. Danach: `dokument 0 · gegenprobe 200/200 · schiebt 0` in allen vier
+Lagen.
+
+### Fünf kleinere Befunde aus `docs/84` — und einer davon war zwei
+
+**Befund 5: die Kürzung der Gerätekennung greift jetzt.** Die Grenze lag bei
+120 Zeichen. Gemessen an fünf echten Kennungen:
+
+```
+Linux/Firefox     70    Windows/Chrome   111
+Android/Chrome   117    macOS/Safari     117
+iPhone/Safari    137
+```
+
+Nur die letzte wurde gekürzt, und der Knopf „Beenden" stand deshalb bei 1440 px
+ausserhalb des Sichtbaren.
+
+> **Eine Obergrenze, die über dem tatsächlichen Höchstwert liegt, ist keine.**
+
+**60 ist keine runde Zahl, sondern eine gemessene:** Der Klammerausdruck, der
+das Gerät nennt, ist in denselben fünf Kennungen 40 bis 54 Zeichen lang. 60
+liegt über dem längsten davon und unter der kürzesten ganzen Kennung — die
+Auskunft bleibt vollständig, der Rest fällt weg. Der Test nimmt die **kürzeste**
+der fünf als Prüfkörper: Für die längste wäre er auch mit der alten Grenze grün
+gewesen.
+
+**Befund 9 war zwei Fehler.** Der gemeldete: `.button.small` setzt
+`min-height: 0` und ist ausdrücklich „für eine Aktion, die in einer
+Tabellenzeile steht"; auf der Zugangsseite stand sie neben einem Feld.
+Ausgezählt über alle Seiten war das die **einzige** solche Stelle.
+
+Der zweite fiel beim Messen auf: Nach dem Wechsel auf `.button` waren es 38 px
+gegen 43 — beide über `--tap`, und trotzdem verschieden.
+
+> **Zwei Werte, die beide über der Untergrenze liegen, sind darum noch nicht
+> gleich.**
+
+`align-self: stretch` löst es, und der erste Wurf machte den Knopf **60 px**:
+`.field` bringt `margin-top: 16px` mit, und `stretch` meint die Hülle. Den
+Abstand zwischen den Zeilen gibt `.rows` über `gap` — genau das steht in dessen
+Kommentar.
+
+> **Ein Abstand, den zwei Stellen geben, ist an einer von beiden falsch.**
+
+Gemessen nach der Änderung: 44/44 bei 390 px, 43/43 bei 1440. **Was offen
+bleibt, steht als Beobachtung 7 in `docs/84`:** Dieselbe Paarung gibt es auf der
+Übersicht, dort mit einem `.field.inline`, das unter 480 px zweizeilig wird. Ob
+ein Knopf so hoch sein soll wie ein Feld, ist eine Frage an das
+Gestaltungssystem und keine Behebung.
+
+**Befund 12: die Auswahl gehört uns.** Im ganzen Stylesheet stand
+`appearance: none` genau einmal — für das gesperrte Kästchen. Die Auswahl
+behielt damit iOS Safaris eigene Zeichnung, deren innere Höhe sich zu unserer
+Polsterung **addiert**, statt sie zu ersetzen. In Chromium erreichen beide den
+Boden und sind gleich hoch; iOS rechnet anders.
+
+> **Ein Bedienelement, dessen Zeichnung das System behält, hat eine Höhe, die
+> wir nicht angegeben haben.**
+
+Der Pfeil steht als **beschnittene Fläche** in `--text-muted` und nicht als
+Farbwert in einem eingebetteten Bild — dasselbe Verfahren wie beim Haken des
+Kästchens, damit er dem Thema folgt. Sein `bottom` rechnet aus `--tap`: Die
+Marke ist mobil 44 px und am Schreibtisch 38, und eine feste Zahl wäre in genau
+der Ansicht falsch, wegen der es den Block gibt.
+
+**Befund 14: die Namensvorgabe heisst „Verwaltung".** `CreateAdmin` setzte
+`'Administrator'` — aus der Zeit, als das Wort die ganze Klasse beschrieb. Seit
+A9 Schritt 2 ist es eine von zwei Rollen, und auf der Kontenliste stand
+`Administrator` über `• Betreiber`.
+
+> **Ein Name, der eine Klasse beschreibt, wird mehrdeutig, sobald jemand das
+> Wort für eine Unterteilung derselben Klasse verwendet — und die Vorgabe steht
+> in einer Datei, die man beim Unterteilen aufmacht.**
+
+Bestehende Konten behalten ihren Namen; das ist die Angabe eines Menschen und
+keine Einstellung.
+
+**Befund 15: aus der leeren Liste wird ein Satz.** `Sessions::of()` liest
+`DB::table('sessions')`, und gefüllt wird die Tabelle nur vom Treiber
+`database`. Bei jedem anderen kamen null Zeilen, der Bereich verschwand — und
+„keine offenen Sitzungen" war nicht von „nicht nachgesehen" zu unterscheiden.
+
+> **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts zu tun".**
+
+Derselbe Satz wie bei `apt-get update` in A1, diesmal an einem
+Konfigurationswert statt an einem Rückgabewert. `Sessions::readable()` fragt
+jetzt, die Seite sagt es, und `SessionDriverTest` hält die Naht in beide
+Richtungen — einschliesslich der Hälfte, die sonst still verschwindet: **dass
+die Seite die Antwort auch liest.**
+
+> **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht von
+> einem zu unterscheiden, das es nicht gibt.**
+
+### Der QR-Code beim zweiten Faktor — und die zweite Abhängigkeit dieses Projekts
+
+**Wunsch 1 aus `docs/84`**, geäussert vom Betreiber während des Abnahmelaufs und
+ausdrücklich mit einer Abhängigkeit zugelassen. Er trifft eine Lücke, die schon
+im Code stand: `TwoFactorSetupController` **spricht an zwei Stellen von einem
+QR-Code**, den es nicht gab.
+
+**Die Bibliothek rechnet, wir zeichnen.** Was an einem QR-Code schwer ist, ist
+Reed-Solomon, die Maskenwahl und die Bitfolge nach ISO/IEC 18004 — das schreibt
+man nicht selbst. Was leicht ist, ist das Zeichnen, und das gehört uns, weil
+`docs/20 §7.2` Form, Grösse und Farbe in diesem Repo verlangt. `uqr` liefert
+deshalb nur das boolesche Raster.
+
+**Ausgewählt wurde gemessen und nicht behauptet**, gegen zwei Mitbewerber:
+
+| | uqr | @paulmillr/qr | qrcode-generator |
+|---|---|---|---|
+| Transitive Abhängigkeiten | **0** | 0 | 0 |
+| Lizenz | MIT | MIT/Apache-2.0 | MIT |
+| Entpackt | **79 KB** | 343 KB | 556 KB |
+| Zuletzt veröffentlicht | 2026-04 | 2026-05 | 2025-08 |
+
+Im Lock steht **ein** Eintrag, im gebauten Bündel kostet sie **11,4 KB**
+(455,8 → 467,1; gzip +4,4).
+
+**Und die Kodierung ist gegengeprüft.** Bei angeglichener Fehlerkorrektur und
+gleichem Rand liefern alle drei 45 Module; `uqr` und `@paulmillr/qr` sind **Bit
+für Bit gleich**. Der dritte weicht ab — aber Sucherquadrate 147/147 und
+Taktlinien 89/89 identisch, nur das Datenfeld zu 40 % anders. Das ist eine
+andere Maske und kein Kodierfehler.
+
+> **Zwei unabhängige Umsetzungen, die dasselbe ausrechnen, sind eine Messung.
+> Eine allein ist eine Behauptung.**
+
+**Nicht nachgeladen, anders als CodeMirror** — und das ist eine Entscheidung mit
+Grund: Dort sind es rund 300 KB, hier 11,4; ein eigener Brocken samt
+Ladezustand kostete mehr Umstand, als er spart.
+
+**Zwei Ausnahmen sind aufgeschrieben, weil sie welche sind.**
+
+Die erste: **Ein QR-Code bleibt dunkel auf hell, auch im dunklen Theme.**
+Invertiert scheitert er an vielen Lesegeräten — die Kameras vieler Telefone
+suchen dunkle Module auf hellem Grund und finden die Sucherquadrate sonst nicht.
+
+> **Eine Regel des Gestaltungssystems, die ein Gerät nicht liest, ist keine
+> Gestaltung mehr, sondern ein Ausfall.**
+
+Sie steht trotzdem als Marke und nicht als Hexwert in der Komponente: Die
+Ausnahme betrifft das *Umschalten*, nicht den Ort. `QrSourceTest` hält sie als
+**Abwesenheit** — `--qr-dark` und `--qr-light` stehen genau einmal, und ein
+zweites Vorkommen im dunklen Block ist der Befund. Ohne diesen Wächter wäre die
+Ausnahme beim nächsten Durchgang durch app.css weg, und zwar mit der besten
+Absicht: Jede andere Marke dort hat ihr Gegenstück.
+
+Die zweite: **eine Quelle für den Code und die Textzeile.** Beide bekommen
+dasselbe `uri` vom Server. Zwei Konstruktionen derselben `otpauth://`-Adresse
+liefen auseinander, und die falsche wäre die im QR-Code — weil niemand ihn
+abtippt und mit der Textzeile vergleicht.
+
+> **Ein Weg, den niemand nachliest, ist der, an dem ein Fehler bleibt.**
+
+**Gemessen und angesehen:** 53 Module (45 Symbol plus zweimal vier Ruhebereich
+nach ISO/IEC 18004), 200 px, **3,77 px je Modul**; `dokument 0 · gegenprobe
+200/200 · schiebt 0` in allen vier Lagen. Die Gegenprobe zur Ausnahme steht
+daneben: Der Seitenhintergrund wechselt von `rgb(255,255,255)` auf
+`rgb(15,17,22)`, die Fläche des Codes bleibt bei beiden `rgb(255,255,255)`.
+
+**Und zwei bestehende Wächter haben beim Einbau zugebissen.**
+`FrontendDependencyTest` — es gibt ihn seit CodeMirror, und sein Kopf sagt
+weshalb: *„Eine Regel, die nie jemand gebrochen hat, sieht aus wie eine Regel
+und ist eine Gewohnheit."* Er verlangt die Begründung in `ALLOWED` **und die
+Entscheidung vorher**; beides liegt vor. `ClassNameTest` verlangte die drei
+neuen Wörter im Vokabular.
+
+**Der erste Wurf des neuen Wächters las null Dateien:** PHPs `glob` steigt nicht
+in Unterverzeichnisse ab, egal wie viele Sterne dastehen. Gemeldet hat es seine
+eigene Untergrenze, beim ersten Lauf.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**

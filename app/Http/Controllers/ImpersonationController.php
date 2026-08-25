@@ -10,6 +10,7 @@ use App\Models\Account;
 use App\Models\Customer;
 use App\Support\Audit\Audit;
 use App\Support\Audit\Impersonation;
+use App\Support\Authorization\AccountAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -93,7 +94,7 @@ final class ImpersonationController extends Controller
         // und die Klammer steht in diesem Moment auf der Sicht des Kunden.
         $admin = Account::query()->find((int) $adminId);
 
-        if ($admin === null || ! $admin->isAdmin() || ! $admin->status->canSignIn()) {
+        if ($admin === null || ! $admin->isAdmin() || ! AccountAccess::permits($admin)) {
             // Der Rückweg ist versperrt — das Konto wurde inzwischen gelöscht
             // oder gesperrt. Dann bleibt nur das Abmelden, und zwar sofort:
             // In fremder Sicht weiterzuarbeiten wäre der schlechtere Zustand.

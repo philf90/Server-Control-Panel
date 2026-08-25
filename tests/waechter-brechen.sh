@@ -16266,6 +16266,133 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AccountMutationTest passed
 
 echo
+echo "── AdminPayloadTest: eine Seite ueberschreibt die geteilte Ablage ──"
+#
+# Inertia laesst Seitenwerte ueber geteilte gewinnen. Ein zweites `abilities`
+# in einem Controller nimmt der Navigation genau auf dieser Seite ihre
+# Eintraege — und der Ausfall liest sich wie ein Rechteproblem.
+#
+# Der Eingriff sitzt mit Absicht in der **Hilfsmethode** und nicht am
+# `render()`: Der erste Wurf des Waechters las nur den Text hinter
+# `Inertia::render(` und haette LogsController nie gesehen.
+vorher_datei app/Http/Controllers/LogsController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/LogsController.php'
+s = open(p, encoding='utf-8').read()
+alt = '    private function read('
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+i = s.index(alt)
+j = s.index('return [', i) + len('return [')
+open(p, 'w', encoding='utf-8').write(s[:j] + "\n            'abilities' => []," + s[j:])
+PY2
+griff_datei app/Http/Controllers/LogsController.php "geteilte Ablage ueberschrieben" &&
+pruefe "geteilte Ablage ueberschrieben" \
+  AdminPayloadTest::test_no_page_shadows_the_shared_abilities failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminPayloadTest passed
+
+echo
+echo "── AdminPayloadTest: ein Menuepunkt verliert seine Faehigkeit ──"
+#
+# Der Rueckfall von A9 Schritt 5: Der Eintrag steht wieder bei jedem, und der
+# Administrator bekommt darauf einen 403.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = "{ name: 'Logs', href: '/logs', icon: 'logfile', ability: 'operate-server' }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "{ name: 'Logs', href: '/logs', icon: 'logfile' }"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Menuepunkt ohne Faehigkeit" &&
+pruefe "Menuepunkt ohne Faehigkeit" \
+  AdminPayloadTest::test_every_menu_entry_carries_the_ability_of_its_route failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminPayloadTest passed
+
+echo
+echo "── AdminPayloadTest: ein Menuepunkt erfindet eine Faehigkeit ──"
+#
+# Die Gegenrichtung. Ohne sie bliebe der Waechter gruen, wenn jemand jedem
+# Eintrag vorsichtshalber `operate-server` gaebe — dann verschwaenden „Kunden"
+# und „Abonnements" aus der Navigation des Administrators, also genau die
+# Arbeit, fuer die es ihn gibt.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = "{ name: 'Kunden', href: '/customers', icon: 'customers' }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "{ name: 'Kunden', href: '/customers', icon: 'customers', ability: 'operate-server' }"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "erfundene Faehigkeit" &&
+pruefe "erfundene Faehigkeit" \
+  AdminPayloadTest::test_no_menu_entry_invents_an_ability failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminPayloadTest passed
+
+echo
+echo "── AdminPayloadTest: eine geheimnisfuehrende Operation protokolliert ──"
+#
+# Protokollzeilen des Agenten landen in `Operation.output`, und
+# /operations/{id} zeigt sie **jedem** Admin — auch dem, der /logs nicht sehen
+# darf. Dass dort heute nichts Geheimes steht, liegt nicht an einem Filter,
+# sondern daran, dass diese zwoelf Operationen schweigen.
+vorher_datei agent/src/Ops/DbUserCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DbUserCreate.php'
+s = open(p, encoding='utf-8').read()
+i = s.rindex('    }')
+zeile = "    private function schwatz(): void { $this->log('angelegt'); }\n\n"
+open(p, 'w', encoding='utf-8').write(s[:i] + zeile + s[i:])
+PY2
+griff_datei agent/src/Ops/DbUserCreate.php "Operation protokolliert ein Geheimnis" &&
+pruefe "Operation protokolliert ein Geheimnis" \
+  AdminPayloadTest::test_no_secret_bearing_operation_logs_a_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminPayloadTest passed
+
+echo
+echo "── AdminPayloadTest: der Routenausdruck trifft nichts mehr ──"
+#
+# Der Pruefkoerper. Ohne die Untergrenze meldete der Waechter Gruen, sobald
+# seine Zielstelle umzieht — und zwar fuer *keine* gemessene Route.
+vorher_datei tests/Unit/AdminPayloadTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/AdminPayloadTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "Route::get\\('"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "Route::xget\\('", 1))
+PY2
+griff_datei tests/Unit/AdminPayloadTest.php "Routenausdruck ins Leere" &&
+pruefe "Routenausdruck ins Leere" \
+  AdminPayloadTest::test_every_menu_entry_carries_the_ability_of_its_route failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminPayloadTest passed
+
+echo
+echo "── AdminPayloadTest: die Renderzaehlung trifft nichts mehr ──"
+#
+# Die zweite Untergrenze, und sie gehoert zur ersten Zusage: Ohne sie
+# unterschiede „keine Seite ueberschreibt" nicht von „keine Seite gelesen".
+vorher_datei tests/Unit/AdminPayloadTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/AdminPayloadTest.php'
+s = open(p, encoding='utf-8').read()
+alt = 'Inertia::render\\('
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'Inertia::xrender\\(', 1))
+PY2
+griff_datei tests/Unit/AdminPayloadTest.php "Renderzaehlung ins Leere" &&
+pruefe "Renderzaehlung ins Leere" \
+  AdminPayloadTest::test_no_page_shadows_the_shared_abilities failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminPayloadTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

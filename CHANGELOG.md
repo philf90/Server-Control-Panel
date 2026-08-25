@@ -19535,3 +19535,62 @@ Administrator, der darauf einen 403 bekommt — wie sechs Einträge daneben seit
 Schritt 2. Die Navigation kommt aus dem Kontotyp; Schritt 5 gibt allen sieben
 dieselbe Antwort aus der Policy. Eine eigene Bedingung nur für den neuen
 Eintrag wäre deren zweite Fassung gewesen.
+
+### A9 Schritt 5 — die Fläche kommt aus der Policy
+
+**Die Navigation kam bis hierher aus dem Kontotyp**, und das war richtig,
+solange jeder Admin alles durfte. Seit Schritt 2 über die Rolle auflöst, sah ein
+Administrator **sieben** Menüpunkte, die ihm alle einen 403 gaben. Die geteilte
+Ablage `abilities` beantwortet das jetzt aus demselben Gate, an dem die Route
+hängt.
+
+> **Wer eine Aktion zeigt, fragt vorher dieselbe Policy, die sie später
+> abweist.**
+
+**Der Schlüssel heisst `abilities` und nicht `can`, und das ist kein
+Geschmack.** `can` ist vergeben: Neun Seiten schicken eine eigene `can`-Ablage
+über *ihr* Objekt. Seitenwerte überschreiben geteilte — ein geteiltes `can` wäre
+auf genau diesen neun Seiten fort, und das Menü verlöre dort seine Einträge,
+während es überall sonst steht.
+
+> **Ein geteilter Schlüssel, den eine Seite auch benutzt, ist auf dieser Seite
+> kein geteilter Schlüssel mehr — und der Ausfall sieht aus wie ein
+> Rechteproblem.**
+
+**Die Messung davor hat das Kriterium schon erfüllt vorgefunden.** 43 Seiten
+ausgezählt, acht nur für den Betreiber, und in den übrigen 35 steht kein
+Betreibergeheimnis — die vier Verdachtsfälle waren alle harmlos. Kriterium 3 war
+damit erfüllt, **und nichts hielt es**. Der Payload-Teil dieses Schritts ist
+deshalb kein Umbau, sondern ein Stolperdraht.
+
+> **Ein gemessener Zustand ohne Wächter ist ein Datum von gestern.**
+
+**Und die Messung hat eine Zusage freigelegt, die niemand aufgeschrieben
+hatte.** `/operations/{id}` zeigt `payload`, `result` und `output` jedem Admin;
+`output` sind die Protokollzeilen des Agenten — dieselbe Art Inhalt, deretwegen
+`/logs` dem Betreiber allein gehört. Dass dort nichts Geheimes steht, liegt
+nicht an einem Filter: Die zwölf geheimnisführenden Operationen senden **null**
+Protokollzeilen, und Datenbankpasswörter laufen über direkte Agent-Aufrufe, die
+gar keine Vorgangszeile anlegen. `AdminPayloadTest` hält das seitdem.
+
+> **Eine Seite ist nur so verschwiegen wie das, was sie durchreicht.**
+
+**Der erste Wurf des Wächters hatte dieselbe Lücke wie mein Eingriff dagegen.**
+Er las den Text zwischen zwei `Inertia::render(` und hätte `LogsController` nie
+gesehen — der rendert `Inertia::render('Logs/Index', $this->read(…))`, und die
+Ablage entsteht in einer Hilfsmethode. Gefunden hat das nicht das Nachdenken,
+sondern ein Bruch, der genau dort ansetzen wollte und keine Zielstelle fand.
+
+> **Ein Wächter, der einen Ausdruck nicht auflösen kann, hat nicht wenig
+> gemessen — er hat an dieser Stelle gar nicht gemessen.**
+
+Sechs Eingriffe im Bruchskript, jeder einzeln belegt und jeder mit bewiesenem
+Rückweg. Dazu zwei Fälle in `AbilityReachTest`, die die Wirkung an der Antwort
+messen statt am Markup: Betreiber beide Fähigkeiten, Administrator nur
+`manage-settings`, Kunde die Ablage mit lauter `false` — **nicht** gar keine,
+sonst hinge an dem Unterschied irgendwann eine Bedingung.
+
+Nachgesehen wurde auch im Bild, in beiden Themes: Die Servergruppe des
+Administrators steht mit drei Einträgen da, Überschrift und Trenner intakt.
+Leere Gruppen fallen weg — eine Überschrift ohne Einträge behauptet, es gäbe
+dort etwas.

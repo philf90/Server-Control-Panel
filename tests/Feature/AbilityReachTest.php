@@ -328,4 +328,58 @@ final class AbilityReachTest extends TestCase
                 ->where('can.viewCustomer', true)
                 ->etc());
     }
+
+    /**
+     * Die geteilte Ablage sagt jeder Rolle, was sie auf diesem Server darf.
+     *
+     * **Das ist Kriterium 4 aus `docs/82 §6`, gemessen an der Antwort und nicht
+     * am Bild.** Die Navigation kam bis A9 Schritt 5 aus dem Kontotyp; seit
+     * Schritt 2 die Fähigkeiten über die Rolle auflöst, sah ein Administrator
+     * sieben Menüpunkte, die ihm alle einen 403 gaben.
+     *
+     * Gemessen wird die Ablage und nicht das Menü: Das Menü liest sie, und ein
+     * Test über das Markup prüfte die Schleife statt der Auskunft.
+     *
+     * > **Wer eine Aktion zeigt, fragt vorher dieselbe Policy, die sie später
+     * > abweist.**
+     */
+    public function test_the_shared_abilities_follow_the_role(): void
+    {
+        $this->actingAs(Account::factory()->admin()->create())
+            ->get('/')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('abilities.operate-server', true)
+                ->where('abilities.manage-settings', true)
+                ->etc());
+
+        $this->actingAs(Account::factory()->administrator()->create())
+            ->get('/')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('abilities.operate-server', false)
+                ->where('abilities.manage-settings', true)
+                ->etc());
+    }
+
+    /**
+     * Und ein Kunde bekommt die Ablage mit lauter `false`.
+     *
+     * **Nicht: gar keine.** Eine fehlende Ablage und eine mit lauter `false`
+     * müssen für die Oberfläche dasselbe bedeuten — sonst hängt an ihrem
+     * Unterschied irgendwann eine Bedingung, und die eine Hälfte davon ist
+     * falsch.
+     */
+    public function test_a_customer_gets_the_bag_with_nothing_in_it(): void
+    {
+        [$account] = $this->customerWithSubscription();
+
+        $this->actingAs($account)
+            ->get('/')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('abilities.operate-server', false)
+                ->where('abilities.manage-settings', false)
+                ->etc());
+    }
 }

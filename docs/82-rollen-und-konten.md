@@ -395,7 +395,7 @@ und die einmalige Passwortanzeige.
 | 2 | Auflösung der Gates über die Rolle **und die Anlegestellen mitziehen** | ein Administrator bekommt auf den sechs Geheimnisseiten 403 — **erledigt** |
 | 3 | Kontenverwaltung: Liste, Anlegen mit erzeugtem Passwort, Ändern, Sperren | ein zweites Adminkonto entsteht ohne SSH — **erledigt** |
 | 4 | Aussperrschutz (§3, Falle 3) und die Messung von `srvpanel admin` | der Schutz ist **gebaut** (er kam mit Schritt 3, weil das Änderungsformular ihn braucht); der **Rückweg ist ungegangen** und gehört auf einen echten Server |
-| 5 | Die Fläche: Menü, `can`-Ablage, nichts Verbotenes im Payload (§5.4) | Punkt 3 und 4 des Kriteriums, gemessen an der Antwort |
+| 5 | Die Fläche: Menü, Fähigkeitsablage, nichts Verbotenes im Payload (§5.4) | Punkt 3 und 4 des Kriteriums, gemessen an der Antwort — **erledigt** |
 | 6 | Bilder bei 390 und 1440 px in beiden Themes | `tests/bilder-messen.js` meldet 0 px mit ausschlagender Gegenprobe |
 | 7 | IP-Beschränkung und Sitzungsübersicht (der zweite Faktor ist gebaut, §2.5) | eine IP-Beschränkung, die ihren eigenen Urheber nicht aussperrt |
 | 8 | Wächter brechen, Lauf von `tests/waechter-brechen.sh` | jeder Eingriff beisst — einzeln **und** im Lauf |
@@ -417,7 +417,7 @@ abtrennen, wenn die Stufe kürzer werden soll.
 | `RoleGateTest` (CI) | Administrator 403 auf den Geheimnisseiten, Betreiber 200, Konto ohne Rolle 403 | eine Seite auf die schwächere Fähigkeit legen |
 | `LastOperatorTest` | Der letzte aktive Betreiber lässt sich nicht herabstufen oder sperren — und einen dritten Weg gibt es nicht | die Prüfung entfernen · eine Löschroute bauen |
 | `AccountMutationTest` | Jede **ändernde** Kontenroute fragt den Aussperrschutz oder steht mit Begründung daneben | eine neue ändernde Route ohne Prüfung · eine Ausnahme für etwas, das es nicht gibt |
-| `AdminPayloadTest` | Was eine Rolle nicht sehen darf, steht nicht in der Inertia-Antwort | ein verbotenes Feld bedingungslos mitschicken |
+| `AdminPayloadTest` | Keine Seite überschreibt die geteilte Ablage · jeder Menüpunkt trägt die Fähigkeit seiner Route · keine geheimnisführende Agent-Operation protokolliert | die Ablage in einer Hilfsmethode überschreiben · einem Eintrag die Fähigkeit nehmen oder eine erfinden · eine Operation schwatzen lassen |
 
 **`LastOperatorTest` prüft alle drei Wege**, und das ist der Punkt: Eine
 Aussperrung, die über das Sperren statt über das Herabstufen läuft, ist
@@ -447,6 +447,30 @@ Frage, die er nicht stellen kann, und läuft ausserdem ohne Framework.
 > **Ein Wächter, der die bekannten Wege prüft, sagt nichts über den nächsten,
 > den jemand baut.**
 
+## 8b. Was die Messung vor Schritt 5 ergeben hat
+
+**43 Inertia-Seiten, acht davon nur für den Betreiber, und in den übrigen 35
+steht kein Betreibergeheimnis.** Die vier Verdachtsfälle waren alle harmlos:
+`Databases/Show` zeigt dem Kunden sein eigenes, einmalig geflashtes Passwort,
+`Domains/Show` schickt zu ACME zwei Wahrheitswerte und zu DNS ein Prüfergebnis
+mit öffentlichen Adressen.
+
+**Kriterium 3 war damit schon erfüllt, bevor Schritt 5 anfing** — und nichts
+hielt es. Das ändert, was dieser Schritt ist: Der Payload-Teil ist kein Umbau,
+sondern ein Stolperdraht über einen gemessenen Zustand.
+
+> **Ein gemessener Zustand ohne Wächter ist ein Datum von gestern.**
+
+**Und die Messung hat eine Zusage freigelegt, die niemand aufgeschrieben
+hatte.** `/operations/{id}` zeigt `payload`, `result` und `output` **jedem**
+Admin. `output` sind die Protokollzeilen des Agenten — dieselbe Art Inhalt,
+deretwegen `/logs` dem Betreiber allein gehört. Dass dort nichts Geheimes steht,
+liegt nicht an einem Filter: Die zwölf geheimnisführenden Operationen senden
+**null** Protokollzeilen, und die Datenbankpasswörter laufen über direkte
+Agent-Aufrufe, die gar keine Vorgangszeile anlegen.
+
+> **Eine Seite ist nur so verschwiegen wie das, was sie durchreicht.**
+
 ---
 
 ## 9. Was benannt offen bleibt
@@ -458,9 +482,9 @@ Frage, die er nicht stellen kann, und läuft ausserdem ohne Framework.
   echten Server und ist Punkt 6 des Abnahmekriteriums.
 
   > **Ein Rückweg, den niemand gegangen ist, ist eine Zusage und kein Weg.**
-- **Der Menüpunkt „Konten" steht auch beim Administrator** und gibt ihm einen
-  403 — wie die sechs Geheimnisseiten daneben seit Schritt 2. Das ist Schritt 5
-  und ausdrücklich kein `v-if` auf die Rolle.
+- **Kriterium 3 war schon vor Schritt 5 erfüllt** (25. August gemessen, §8b) —
+  aber nur gemessen, nicht gebaut. `AdminPayloadTest` hält es seitdem; die
+  Messung selbst ist nicht wiederholbar abgelegt.
 - **Das Löschen von Adminkonten** (§1.1) — solange das Protokoll den Handelnden
   über `nullOnDelete()` verliert, ist Sperren die ehrlichere Antwort. Wer es
   später bauen will, löst zuerst die Frage, wie der Name im Protokoll bleibt.

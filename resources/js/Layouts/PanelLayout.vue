@@ -90,6 +90,40 @@ const fehler = computed(() => (page.props.flash as Record<string, string> | unde
  */
 const current = computed(() => page.url.split('?')[0])
 
+/*
+ * Was der Betrachter auf diesem Server darf — aus der Policy, nicht aus dem
+ * Kontotyp (A9 Schritt 5).
+ *
+ * **Der Schlüssel heisst `abilities` und nicht `can`.** Neun Seiten schicken
+ * eine eigene `can`-Ablage über *ihr* Objekt; Seitenwerte überschreiben
+ * geteilte, und ein geteiltes `can` wäre auf genau diesen neun Seiten fort —
+ * das Menü verlöre dort seine Einträge, und der Ausfall sähe aus wie ein
+ * Rechteproblem.
+ *
+ * Ein fehlender Eintrag zählt als `false`: Wer nicht angemeldet ist, sieht die
+ * Servergruppe ohnehin nicht, und ein `undefined`, das als „darf" gälte, wäre
+ * die Voreinstellung zur falschen Seite.
+ */
+const abilities = computed(() => (page.props.abilities ?? {}) as Record<string, boolean>)
+
+/*
+ * **Eine Schnittstelle und kein Parametertyp aus lauter optionalen Feldern.**
+ * `{ ability?: string }` ist für TypeScript ein „weak type": Ein Eintrag der
+ * Kundennavigation trägt kein `ability`, hat damit keine Eigenschaft gemeinsam,
+ * und die Zuweisung ist ein Fehler statt eines stillen `undefined`. Mit `name`
+ * darin passen beide Zweige.
+ */
+interface NavItem {
+  name: string
+  href: string
+  icon: string
+  ability?: string
+}
+
+function darf(item: NavItem): boolean {
+  return item.ability === undefined || abilities.value[item.ability] === true
+}
+
 const navigation = computed(() => {
   if (account.value?.is_admin === false) {
     return [
@@ -235,7 +269,7 @@ const navigation = computed(() => {
        *   Vor jedem neuen Merkmal: Wo sucht jemand diese Handlung, und steht
        *   sie dort?
        */
-      { name: 'Logs', href: '/logs', icon: 'logfile' },
+      { name: 'Logs', href: '/logs', icon: 'logfile', ability: 'operate-server' },
 
       /*
        * **Konten steht bei „Server" und nicht bei „Verwaltung".** Wer hier
@@ -255,10 +289,10 @@ const navigation = computed(() => {
        * (`docs/82 §7`). Hier eine eigene Bedingung auf die Rolle zu setzen,
        * wäre deren zweite Fassung — und die zweite veraltet.
        */
-      { name: 'Konten', href: '/accounts', icon: 'accounts' },
+      { name: 'Konten', href: '/accounts', icon: 'accounts', ability: 'operate-server' },
 
-      { name: 'Allgemein', href: '/settings/general', icon: 'general' },
-      { name: 'PHP-Versionen', href: '/settings/php', icon: 'php' },
+      { name: 'Allgemein', href: '/settings/general', icon: 'general', ability: 'manage-settings' },
+      { name: 'PHP-Versionen', href: '/settings/php', icon: 'php', ability: 'operate-server' },
 
       /*
        * **Dasselbe Zeichen wie „Datenbanken", und mit Absicht.** Die beiden
@@ -267,14 +301,31 @@ const navigation = computed(() => {
        * Ein zweites, ähnliches Zeichen zu zeichnen hiesse, einen Unterschied
        * anzudeuten, den die Gruppe schon macht.
        */
-      { name: 'Datenbankserver', href: '/settings/database', icon: 'databases' },
-      { name: 'Mailversand', href: '/settings/mail', icon: 'mail' },
-      { name: 'Zertifikat', href: '/settings/tls', icon: 'tls' },
-      { name: 'DNS-Zugang', href: '/settings/dns', icon: 'dns' },
+      { name: 'Datenbankserver', href: '/settings/database', icon: 'databases', ability: 'operate-server' },
+      { name: 'Mailversand', href: '/settings/mail', icon: 'mail', ability: 'operate-server' },
+      { name: 'Zertifikat', href: '/settings/tls', icon: 'tls', ability: 'operate-server' },
+      { name: 'DNS-Zugang', href: '/settings/dns', icon: 'dns', ability: 'operate-server' },
     ] },
     { group: 'Konto', items: [{ name: 'Mein Konto', href: '/settings/profile', icon: 'account' }] },
   ]
 })
+
+/*
+ * Die Navigation, wie sie dieser Betrachter sieht.
+ *
+ * `navigation` sagt, **was es gibt**; hier steht, **was er davon darf**. Zwei
+ * Schritte und nicht einer, weil sonst in derselben Liste stünde, wozu ein
+ * Menüpunkt da ist und wer ihn sehen darf — und die Filterbedingung wüchse in
+ * jede Zeile hinein.
+ *
+ * Leere Gruppen fallen weg: Eine Überschrift ohne Einträge behauptet, es gäbe
+ * dort etwas.
+ */
+const sichtbar = computed(() =>
+  navigation.value
+    .map((block) => ({ ...block, items: block.items.filter(darf) }))
+    .filter((block) => block.items.length > 0),
+)
 
 function signOut(): void {
   router.post('/logout')
@@ -402,7 +453,13 @@ onBeforeUnmount(() => {
       </div>
 
       <nav class="nav-list">
-        <template v-for="block in navigation" :key="block.group ?? 'oben'">
+        <!--
+          **Gefiltert wird vor der Gruppe und nicht in ihr.** Eine Überschrift
+          „Server" über null Einträgen wäre ein leerer Abschnitt, der behauptet,
+          es gäbe dort etwas — und die Servergruppe kann für einen
+          Administrator, dem beide Fähigkeiten fehlen, leer werden.
+        -->
+        <template v-for="block in sichtbar" :key="block.group ?? 'oben'">
           <p v-if="block.group" class="nav-group">{{ block.group }}</p>
           <Link
             v-for="item in block.items"

@@ -19972,3 +19972,66 @@ die er gerade aufgehoben hat. Beide Vorgänge melden Erfolg.
 **Und was offen bleibt, steht in `docs/84 §6`** — darunter „Übersicht bei
 390/Dunkel", das Kontenformular (es ist mit den fehlenden Regeln aus Befund 16
 gemessen worden) und Beobachtung 6, die ein echter Befund sein kann.
+
+### Ein gesperrtes Konto verliert seine Sitzung — und die Frage steht jetzt an einer Stelle
+
+**Befund 6 aus `docs/84`, der schwerste des Abnahmelaufs.** Keine der sieben
+Mittelschichten fragte den Kontozustand. `status` wurde beim **Anmelden**
+gefragt, beim zweiten Faktor und bei der Rückkehr aus einer fremden Sicht — bei
+einer laufenden Anfrage nie. Der Leerlauf einer Sitzung setzt sich bei jedem
+Klick zurück, die absolute Obergrenze liegt bei 30 Tagen: **So lange behielt ein
+gesperrtes Adminkonto seine Rechte, solange jemand die Sitzung benutzte.**
+
+> **Eine Schranke, die nur an der Tür steht, gilt für niemanden, der schon drin
+> ist.**
+
+Derselbe Satz wie bei der Netzbeschränkung, und in P7b zum zweiten Mal fällig —
+einmal fürs Netz, einmal für den Zustand. `EnforceAccountAccess` ist nach dem
+Vorbild von `EnforceAdminNetwork` gebaut und steht **davor** in der Kette: Ein
+Konto, das gar nicht mehr da sein darf, wird nicht zuerst nach seiner Adresse
+gefragt — sonst läse ein gesperrtes Konto „Netz nicht mehr zugelassen", den
+Grund, der nicht zutrifft.
+
+**Beim Bauen wurde der Befund breiter, als er gemeldet war.** Die Anmeldung wies
+aus **zwei** Gründen ab — Konto gesperrt *und* Kunde zurückgezogen —, die beiden
+anderen Türen nur aus einem. **Ein zurückgezogener Kunde kam damit über den
+zweiten Faktor herein.** `AccountAccess` ist jetzt die eine Stelle, die die Frage
+beantwortet; alle drei Türen und die Mittelschicht fragen sie.
+
+> **Zwei Eingänge zu derselben Einstellung teilen ihre Prüfung, oder die
+> Einstellung hat zwei Bedeutungen.**
+
+**Und ein zweiter Fall stand im Quelltext, ohne dass ihn jemand zu Ende gedacht
+hatte.** In fremder Sicht ist `Auth::user()` der **Kunde**; der Handelnde steht
+im Sitzungsschlüssel. Der `ImpersonationController` kennt den Fall längst — *„Der
+Rückweg ist versperrt — das Konto wurde inzwischen gelöscht oder gesperrt"* —,
+aber nur für den, der auf „zurück" drückt. Wer weiterarbeitet, wurde nicht
+gefragt. Die Mittelschicht fragt beide.
+
+> **Ein Zustand, der beim Verlassen geprüft wird, ist beim Bleiben ungeprüft.**
+
+**Zwei Wächter, vier Brüche.** `AccountAccessTest` misst die Wirkung an der Tür
+und mitten in der Sitzung (CI); `AccountAccessReachTest` hält framework-frei,
+dass `canSignIn()` nur aus `AccountAccess` gerufen wird und dass die
+Mittelschicht in `bootstrap/app.php` **vor** der Netzbeschränkung steht. Neben
+jedem Rauswurf steht die Gegenprobe, die durchkommen muss — sonst bestünde der
+Test auch für eine Mittelschicht, die jeden hinauswirft.
+
+**Der Wächter hat beim ersten Lauf seinen eigenen Kommentar gemeldet.** Im
+`TwoFactorChallengeController` steht `status->canSignIn()` im Dokumentblock — als
+Begründung dafür, dass es dort *nicht mehr* steht.
+
+> **Ein Wächter, der Kommentare mitliest, findet seine eigene Begründung.**
+
+Geschnitten wird seitdem über `token_get_all()` und nicht mit einem Ausdruck: Ein
+Muster über `//` nähme jede Adresse in einer Zeichenkette mit.
+
+**Und die Falle aus `CLAUDE.md` hat in dieser Runde zweimal zugeschlagen, beide
+Male derselbe Fixer.** Pint macht aus einem vollqualifizierten `{@see}` im
+Dokumentblock einen `use`-Eintrag — und damit aus einem framework-freien Wächter
+einen, der genau dort nicht mehr läuft, wofür es ihn gibt. Gemessen: Nach dem
+`pint`-Lauf meldete das Gestell „braucht Laravel". Die Verweise stehen deshalb
+als Code-Auszeichnung, mit der Begründung im Klassenkopf.
+
+> **Ein Wächter, den man vor dem Formatierer prüft, ist nicht der, der ins Repo
+> geht.**

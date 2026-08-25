@@ -16797,6 +16797,83 @@ pruefe "Untergrenze des Stilblock-Wächters" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SfcBlockTest passed
 
+echo "── AccountAccessReachTest: die Mittelschicht faellt aus bootstrap/app.php ──"
+#
+# Befund 6 aus `docs/84`. Die Klasse waere danach da, AccountAccessTest in der
+# CI gruen — und niemand riefe sie auf. Die Fehlerklasse dieses Projekts in
+# Reinform: eine Zeichenkette, die auf etwas verweist, ohne dass jemand den
+# Bezug prueft.
+vorher_datei bootstrap/app.php
+python3 - <<'PY2'
+p = 'bootstrap/app.php'
+s = open(p, encoding='utf-8').read()
+alt = '                EnforceAccountAccess::class,\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei bootstrap/app.php "Zustandspruefung nicht eingetragen" &&
+pruefe "Zustandspruefung nicht eingetragen" \
+  AccountAccessReachTest::test_the_middleware_is_registered_before_the_network_check failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountAccessReachTest passed
+
+echo "── AccountAccessReachTest: die Reihenfolge kippt ──"
+#
+# Steht der Zustand hinter dem Netz, liest ein gesperrtes Konto „Netz nicht mehr
+# zugelassen" — den Grund, der nicht zutrifft.
+vorher_datei bootstrap/app.php
+python3 - <<'PY2'
+p = 'bootstrap/app.php'
+s = open(p, encoding='utf-8').read()
+a = '                EnforceAccountAccess::class,\n'
+b = '                EnforceAdminNetwork::class,\n'
+assert s.count(a) == 1 and s.count(b) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(a, '', 1).replace(b, b + a, 1))
+PY2
+griff_datei bootstrap/app.php "Zustandspruefung hinter dem Netz" &&
+pruefe "Zustandspruefung hinter dem Netz" \
+  AccountAccessReachTest::test_the_middleware_is_registered_before_the_network_check failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountAccessReachTest passed
+
+echo "── AccountAccessReachTest: eine zweite Stelle fragt den Zustand selbst ──"
+#
+# Genau so ist Befund 6 entstanden: Der LoginController fragte nach dem
+# zurueckgezogenen Kunden, die beiden anderen Tueren nicht — und ein
+# zurueckgezogener Kunde kam ueber den zweiten Faktor herein.
+vorher_datei app/Http/Controllers/Auth/TwoFactorChallengeController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/Auth/TwoFactorChallengeController.php'
+s = open(p, encoding='utf-8').read()
+alt = 'AccountAccess::permits($account) ? $account : null;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, '$account->status->canSignIn() ? $account : null;', 1))
+PY2
+griff_datei app/Http/Controllers/Auth/TwoFactorChallengeController.php "Zweite Fassung der Zustandsfrage" &&
+pruefe "Zweite Fassung der Zustandsfrage" \
+  AccountAccessReachTest::test_only_one_class_asks_whether_an_account_may_sign_in failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountAccessReachTest passed
+
+echo "── AccountAccessReachTest: die Untergrenze ──"
+#
+# Der Pruefkoerper. Laeuft der Ausdruck ins Leere, faende er auch dann nichts,
+# wenn zehn Stellen die Frage selbst stellten.
+vorher_datei tests/Unit/AccountAccessReachTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/AccountAccessReachTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/->\\s*canSignIn\\s*\\(/'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/->\\s*gibtEsNichtMehr\\s*\\(/'", 1))
+PY2
+griff_datei tests/Unit/AccountAccessReachTest.php "Untergrenze der Zustandsfrage" &&
+pruefe "Untergrenze der Zustandsfrage" \
+  AccountAccessReachTest::test_only_one_class_asks_whether_an_account_may_sign_in failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountAccessReachTest passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

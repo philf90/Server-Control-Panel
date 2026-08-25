@@ -460,12 +460,40 @@ Bezug.** Fiele es weg, bliebe `unreachable` für immer leer: lautlos, ohne
 Fehler, und M5 wäre wieder da. `LC_ALL=C` hat in P5c schon einmal zugebissen
 (die latin1-Aushandlung von `mysql`).
 
-**Beobachtung 6 — welches Gerät steht in „diese Sitzung"?** Die markierte Zeile
-trug eine Android-Kennung, während in Desktop-Chrome mit Gerätesimulation
-gemessen wurde. Entweder schreibt Laravels Sitzungshandler `user_agent` bei
-jedem Schreibvorgang neu — dann zeigt die Spalte das **zuletzt gesehene** Gerät
-und nicht das anmeldende —, oder `current` steht auf der falschen Zeile. Der
-zweite Fall wäre ein echter Befund. **Ungemessen.**
+**Beobachtung 6 — die Spalte „Gerät" zeigt das zuletzt gesehene Gerät, nicht
+das anmeldende.** *Gemessen und geschlossen; kein Befund.*
+
+Anlass war die markierte Zeile mit einer Android-Kennung, während in
+Desktop-Chrome mit Gerätesimulation gemessen wurde. Zwei Erklärungen waren
+denkbar, und die zweite — `current` steht auf der falschen Zeile — ist **durch
+den Bau ausgeschlossen**: `Sessions::of()` vergleicht `$row->id` mit
+`$request->session()->getId()`, also mit der Kennung der Sitzung, die diese
+Anfrage bedient. Passt keine, ist **keine** Zeile markiert; eine falsche kann es
+nicht werden.
+
+Gemessen wurde deshalb die erste, an **einer** Zeile zu **drei** Zeitpunkten:
+
+| | Kennung | `user_agent` |
+|---|---|---|
+| normales Fenster | `is0Ptj3Kf…` | `Windows NT 10.0; Win64; x64` |
+| Simulation an, **ohne** Neuladen | `is0Ptj3Kf…` | `Windows NT 10.0; Win64; x64` |
+| nach dem Neuladen | `is0Ptj3Kf…` | `Linux; Android 15; Pixel 9` |
+
+Die zweite Sitzung desselben Kontos (ein iPhone) blieb über alle drei Läufe
+unverändert — sie ist die Gegenprobe dafür, dass sich nicht einfach alles ändert.
+
+> **Zwei Werte sagen, dass sich etwas geändert hat. Der dritte sagt, wodurch.**
+
+Der Wert bewegt sich nicht beim Umschalten, sondern beim **Schreiben der
+Sitzung**: Laravels `addRequestInformation()` setzt `ip_address` und
+`user_agent` bei jedem Schreibvorgang neu. Beide Spalten tragen also den letzten
+Stand und nicht den der Anmeldung.
+
+**Aufgeschrieben gehört es trotzdem**, denn der Kopf von `Sessions::agent()`
+sagt, wonach der Leser sucht: *„war das mein Rechner"*. Für ein gestohlenes
+Cookie ist der neue Wert die **bessere** Auskunft; für die Frage „welche dieser
+Zeilen ist mein altes Telefon" die schlechtere. Die Klasse schreibt sonst sehr
+genau auf, was sie liest und was nicht — diese Eigenschaft fehlte.
 
 **Wunsch 1 — ein QR-Code beim zweiten Faktor.** Der Betreiber hat ihn während
 Punkt 2 geäussert, und er trifft eine Lücke, die schon im Code steht:
@@ -513,7 +541,6 @@ zuerst „erst nachsehen" sagte und dann den geratenen Wert einsetzte
   (§2, Punkt 13).
 - **Das Kontenformular gehört nach dem nächsten Ausliefern nachgemessen** — es
   ist mit den fehlenden Regeln aus Befund 16 gemessen worden.
-- **Beobachtung 6 ist ungemessen** und kann ein echter Befund sein.
 - **Die apt-Messrunde auf Debian 12/13 und Ubuntu 22.04** steht seit A1 aus
   (`docs/83 §5`).
 - **Teil 3 von M5** — `panel.update` liest nach dem Neustart seine eigene

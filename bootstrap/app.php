@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\ApplyTenancy;
+use App\Http\Middleware\EnforceAccountAccess;
 use App\Http\Middleware\EnforceAdminNetwork;
 use App\Http\Middleware\EnforceSessionLifetime;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -42,6 +43,14 @@ $app = Application::configure(basePath: dirname(__DIR__))
                 EnforceSessionLifetime::class,
                 ApplyTenancy::class,
                 SubstituteBindings::class,
+
+                // Der Kontozustand vor allem anderen: Ein Konto, das gar
+                // nicht mehr da sein darf, wird nicht zuerst nach seiner
+                // Adresse gefragt. Bis zum 25. August 2026 stand hier gar
+                // nichts — `status` wurde ausschliesslich beim Anmelden
+                // gefragt, und ein gesperrtes Konto behielt seine offene
+                // Sitzung bis zu 30 Tage (Befund 6 aus `docs/84`).
+                EnforceAccountAccess::class,
 
                 // Die Netzbeschränkung vor dem zweiten Faktor: Wer von hier
                 // nicht herein darf, soll dessen Einrichtungsseite nicht sehen.

@@ -16874,6 +16874,64 @@ pruefe "Untergrenze der Zustandsfrage" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AccountAccessReachTest passed
 
+echo "── FormResetTest: die Aenderungsmaske springt auf den Stand vom Laden zurueck ──"
+#
+# Befund 11 aus `docs/84`. `reset()` stellt die Werte her, die das Formular
+# beim Laden hatte — nach dem Speichern also den Stand davor. Und Inertia macht
+# den dann zum neuen Ausgangswert, weil es `form.data()` erst NACH diesem
+# Rueckruf uebernimmt.
+vorher_datei resources/js/Pages/Settings/Access.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Access.vue'
+s = open(p, encoding='utf-8').read()
+alt = "        form.defaults({ networks: [...props.networks, ''] }).reset()"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        form.reset()', 1))
+PY2
+griff_datei resources/js/Pages/Settings/Access.vue "Aenderungsmaske springt zurueck" &&
+pruefe "Aenderungsmaske springt zurueck" \
+  FormResetTest::test_no_edit_form_resets_to_the_state_before_saving failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FormResetTest passed
+
+echo "── FormResetTest: die Untergrenze ──"
+#
+# Der Pruefkoerper. Findet der Ausdruck keine Formulare mehr, laeuft die
+# Schleife leer und der Waechter meldete Gruen, ohne etwas gemessen zu haben.
+vorher_datei tests/Unit/FormResetTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/FormResetTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/const\\s+(\\w+)\\s*=\\s*useForm[^(]*\\(/'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "'/const\\s+(\\w+)\\s*=\\s*gibtEsNichtMehr[^(]*\\(/'", 1))
+PY2
+griff_datei tests/Unit/FormResetTest.php "Untergrenze der Formularregel" &&
+pruefe "Untergrenze der Formularregel" \
+  FormResetTest::test_no_edit_form_resets_to_the_state_before_saving failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FormResetTest passed
+
+echo "── FormResetTest: der Kommentar-Abstreifer ist tragend ──"
+#
+# Ohne ihn liest der Waechter den Kommentar mit, der den Befund erklaert — dort
+# steht `onSuccess: () => form.reset()` als Zitat. Er meldete dann die behobene
+# Datei, und wer ihn gebaut hat, schaltet ihn ab.
+vorher_datei tests/Unit/FormResetTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/FormResetTest.php'
+s = open(p, encoding='utf-8').read()
+alt = '            $quelle = $this->withoutComments($roh);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '            $quelle = $roh;', 1))
+PY2
+griff_datei tests/Unit/FormResetTest.php "Kommentar-Abstreifer entfernt" &&
+pruefe "Kommentar-Abstreifer entfernt" \
+  FormResetTest::test_no_edit_form_resets_to_the_state_before_saving failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FormResetTest passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

@@ -20035,3 +20035,64 @@ als Code-Auszeichnung, mit der Begründung im Klassenkopf.
 
 > **Ein Wächter, den man vor dem Formatierer prüft, ist nicht der, der ins Repo
 > geht.**
+
+### Die Zugangsseite zeigt nach dem Speichern den Server und nicht den Seitenaufbau
+
+**Befund 11 aus `docs/84`, und der zweitgefährlichste des Abnahmelaufs.** Auf der
+Zugangsseite stand `onSuccess: () => form.reset()`. `reset()` stellt die Werte
+her, die das Formular **beim Laden** hatte — nach dem Speichern also den Stand
+*davor*. Eine gelöschte Zeile kam zurück, obwohl der Server sie korrekt entfernt
+hatte.
+
+**Und es blieb nicht bei der Anzeige.** Im Quelltext von `@inertiajs/vue3`
+nachgesehen:
+
+```js
+const onSuccess = options.onSuccess ? await options.onSuccess(page2) : null
+if (!wasDefaultsCalledInOnSuccess()) {
+  setDefaults(cloneDeep3(form.data()))
+  form.isDirty = false
+}
+```
+
+Inertia übernimmt die abgeschickten Werte als neuen Ausgangswert — aber **nach**
+dem Rückruf. `reset()` lief davor und machte damit den *alten* Stand zur
+Grundlage. Wer die wiedergekehrte Zeile für einen Fehlschlag hielt und noch
+einmal speicherte, legte die Beschränkung wieder an, die er gerade aufgehoben
+hatte. Beide Vorgänge meldeten Erfolg.
+
+> **Eine Anzeige, die den Zustand vor der Änderung zeigt, verleitet zu der
+> Handlung, die die Änderung zurücknimmt.**
+
+**`reset()` selbst ist nicht der Fehler.** Für ein Anlege-Formular ist es genau
+richtig: Nach dem Absenden sollen die Felder leer sein, und leer *ist* der
+Ausgangswert. Dieses Repo tut das an sechs Stellen, alle in Ordnung. Falsch wird
+es, sobald der Ausgangswert aus `props` kommt — dann ist er der Zustand des
+Servers **vor** der Änderung.
+
+> **Ein Handgriff, der für ein Anlege-Formular richtig ist, ist für eine
+> Änderungsmaske das Gegenteil.**
+
+Ausgezählt: **sechzehn Formulare lesen ihre Werte aus `props`, und genau eines**
+sprang zurück. `FormResetTest` hält das seitdem, mit drei Brüchen.
+
+**Genommen wird der Stand vom Server und nicht das Abgeschickte:**
+`AdminNetwork::normalize()` schreibt kanonisch (`94.31.74.201` wird
+`94.31.74.201/32`) und `array_unique` fasst zusammen. Wer das Gesendete
+anzeigte, zeigte wieder etwas anderes als das Gespeicherte — denselben Fehler
+eine Nummer kleiner. Dass `props` in `onSuccess` schon frisch sind, steht
+ebenfalls im Quelltext von `@inertiajs/core`: `await this.setPage()` läuft davor,
+und bei einem Validierungsfehler kehrt der Ablauf vorher bei `onError` um — ein
+abgewiesenes Formular verliert seine Eingabe also nicht.
+
+**Und der Wächter war beim ersten Lauf rot auf der behobenen Datei.** Der
+Kommentar, der den Befund erklärt, enthält `onSuccess: () => form.reset()` als
+Zitat.
+
+> **Ein Wächter, der Kommentare mitliest, findet seine eigene Begründung.**
+
+Zum zweiten Mal an diesem Tag und in einer anderen Sprache: In
+`AccountAccessReachTest` schneidet `token_get_all()`, hier gibt es das nicht,
+also blendet ein kleiner Abtaster Kommentare aus — durch Leerzeichen ersetzt und
+nicht entfernt, damit die gemeldeten Zeilennummern stimmen. Dass er tragend ist,
+belegt ein eigener Eingriff im Bruchskript.

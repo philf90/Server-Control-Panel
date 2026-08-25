@@ -57,7 +57,41 @@ function submit(): void {
       networks: data.networks.map((n) => n.trim()).filter((n) => n !== ''),
     }))
     .put('/settings/access', {
-      onSuccess: () => form.reset(),
+      /*
+       * **Der Ausgangswert kommt vom Server und nicht vom Seitenaufbau.**
+       *
+       * Hier stand `onSuccess: () => form.reset()`, und das war Befund 11 aus
+       * `docs/84`. `reset()` stellt die Werte her, die das Formular **beim
+       * Laden** hatte — nach dem Speichern also den Stand *davor*. Eine
+       * gelöschte Zeile kam damit zurück, obwohl der Server sie entfernt hatte.
+       *
+       * Und es blieb nicht bei der Anzeige: Inertia übernimmt nach einem
+       * erfolgreichen Absenden `form.data()` als neuen Ausgangswert — aber
+       * **nach** diesem Rückruf. Der alte Stand wurde damit zur Grundlage.
+       * Wer die wiedergekehrte Zeile für einen Fehlschlag hielt und noch
+       * einmal speicherte, legte die Beschränkung wieder an, die er gerade
+       * aufgehoben hatte. Beide Vorgänge meldeten Erfolg.
+       *
+       * > **Eine Anzeige, die den Zustand vor der Änderung zeigt, verleitet zu
+       * > der Handlung, die die Änderung zurücknimmt.**
+       *
+       * **`props.networks` ist hier schon frisch** — im Quelltext von
+       * `@inertiajs/core` nachgesehen: `await this.setPage()` läuft vor
+       * `onSuccess`. Und bei einem Validierungsfehler kehrt der Ablauf vorher
+       * bei `onError` um, dieser Zweig also nie — ein abgewiesenes Formular
+       * verliert seine Eingabe nicht.
+       *
+       * **Warum vom Server und nicht das Abgeschickte:** `normalize()` schreibt
+       * kanonisch (`94.31.74.201` wird `94.31.74.201/32`) und `array_unique`
+       * fasst zusammen. Wer das Gesendete anzeigt, zeigt wieder etwas anderes
+       * als das Gespeicherte — denselben Fehler eine Nummer kleiner.
+       *
+       * `defaults()` setzt dabei Inertias eigene Übernahme ausser Kraft; das
+       * ist gewollt und in der Bibliothek so vorgesehen.
+       */
+      onSuccess: () => {
+        form.defaults({ networks: [...props.networks, ''] }).reset()
+      },
     })
 }
 </script>

@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\WithoutHashComments;
 
 /**
  * Die Vorgabe: In der Entwicklung erscheint jede Fassung als `-rc.N` im
@@ -26,6 +27,8 @@ use PHPUnit\Framework\TestCase;
  */
 final class ReleaseChannelTest extends TestCase
 {
+    use WithoutHashComments;
+
     private string $marker;
 
     protected function setUp(): void
@@ -229,7 +232,7 @@ final class ReleaseChannelTest extends TestCase
      */
     public function test_nothing_else_derives_the_channel(): void
     {
-        $release = (string) file_get_contents($this->root().'/.github/workflows/release.yml');
+        $release = $this->withoutHashComments((string) file_get_contents($this->root().'/.github/workflows/release.yml'));
 
         $this->assertDoesNotMatchRegularExpression(
             '/case\s+"\$\{?\{?[^"]*(VERSION|version)[^"]*"\s+in\s*\n?\s*\*-\*/',
@@ -274,5 +277,185 @@ final class ReleaseChannelTest extends TestCase
     public function test_the_guard_is_executable(): void
     {
         $this->assertTrue(is_executable($this->root().'/packaging/version-channel.sh'));
+    }
+
+    /**
+     * Die Botschaft durch den Wächter schicken.
+     *
+     * Über eine Datei und nicht über eine Pipe im Aufruf: Die Botschaft eines
+     * Tags trägt Zeilenumbrüche, Anführungszeichen und Gedankenstriche, und
+     * jede Fassung davon, die durch eine Kommandozeile geht, prüft am Ende die
+     * Maskierung und nicht den Wächter.
+     *
+     * @return array{status: int, out: string}
+     */
+    private function notesFor(string $version, string $message): array
+    {
+        $file = sys_get_temp_dir().'/srvpanel-notes-'.bin2hex(random_bytes(6));
+        file_put_contents($file, $message);
+
+        $output = [];
+        $status = 0;
+
+        exec(sprintf(
+            '%s %s < %s 2>&1',
+            escapeshellarg($this->root().'/packaging/release-notes.sh'),
+            escapeshellarg($version),
+            escapeshellarg($file),
+        ), $output, $status);
+
+        unlink($file);
+
+        return ['status' => $status, 'out' => implode("\n", $output)];
+    }
+
+    /**
+     * Die Tabelle der Botschaften. Links, was in einem Tag stehen könnte;
+     * rechts, ob daraus eine Freigabenotiz werden darf.
+     *
+     * Die drei Annahmefälle sind keine erfundenen — es sind die drei Formen,
+     * die dieses Repository tatsächlich benutzt hat. Der erste Entwurf dieses
+     * Wächters verlangte einen Rumpf unter der Betreffzeile; nachgemessen an
+     * den vorhandenen Tags hätte er neun der letzten vierzehn abgewiesen.
+     *
+     * @return array<string, array{0: string, 1: bool}>
+     */
+    public static function tagMessages(): array
+    {
+        return [
+            // Die Form seit v0.7.1-rc.1: Betreffzeile, Leerzeile, Rumpf.
+            'Betreff und Rumpf' => ["SrvPanel 0.7.1-rc.3 — die Befunde\n\nDer Abnahmelauf ist gefahren.\n", true],
+
+            // Bis v0.7.0-rc.8 stand die ganze Notiz in einer einzigen Zeile,
+            // die längste 1264 Zeichen lang.
+            'alles in der Betreffzeile' => ['Der Nachlauf zu rc.7, und Befund 8 daraus', true],
+
+            // v0.7.0-rc.9 bis rc.11: als Betreff die nackte Fassung, darunter
+            // der Rumpf. Die Botschaft als Ganzes sagt etwas — die Betreffzeile
+            // für sich nicht.
+            'nackter Betreff, Rumpf darunter' => ["0.7.0-rc.11\n\nEine Zahl ohne Substantiv.\n", true],
+
+            // Und die Fälle, in denen das Release ohne Auskunft dastünde.
+            'leer' => ['', false],
+            'nur ein Umbruch' => ["\n", false],
+            'nur Leerraum' => ["  \n\t\n", false],
+            'nur die Fassung' => ['0.7.1-rc.3', false],
+            'nur die Fassung mit v' => ['v0.7.1-rc.3', false],
+            'die Fassung mit Leerraum drum' => ["\n 0.7.1-rc.3 \n", false],
+        ];
+    }
+
+    /**
+     * Eine Botschaft, die nichts sagt, hält den Lauf an — vor dem Bauen.
+     *
+     * Der Wächter steht im Lauf an derselben Stelle wie der über den Kanal:
+     * Weist er ab, ist nichts gebaut, nichts signiert und nichts
+     * veröffentlicht. Das ist der teure, aber richtige Weg herum — ein Release
+     * ohne Notiz nimmt man schwerer zurück als einen Tag.
+     *
+     * @param  bool  $accepted  Darf daraus eine Freigabenotiz werden?
+     */
+    #[DataProvider('tagMessages')]
+    public function test_a_tag_message_must_say_something(string $message, bool $accepted): void
+    {
+        $result = $this->notesFor('0.7.1-rc.3', $message);
+
+        if (! $accepted) {
+            $this->assertSame(
+                1,
+                $result['status'],
+                sprintf('Aus „%s" wird eine Freigabenotiz, obwohl sie nichts sagt.', addcslashes($message, "\n\t")),
+            );
+
+            return;
+        }
+
+        $this->assertSame(
+            0,
+            $result['status'],
+            sprintf('Die Botschaft wird abgewiesen: %s', $result['out']),
+        );
+
+        $this->assertSame(
+            trim($message),
+            trim($result['out']),
+            'Die Notiz kommt nicht unverändert heraus — der Wächter schreibt am Text mit.',
+        );
+    }
+
+    /**
+     * Die Tabelle deckt beide Ausgänge ab.
+     *
+     * Fiele sie auf lauter Annahmefälle zusammen, liefe der Test weiter grün
+     * und hätte über die Abweisung nichts gesagt. Das ist die Falle, in die
+     * dieses Vorgehen schon dreimal gelaufen ist: Eine Null ist nur dann eine
+     * Messung, wenn daneben etwas anderes als Null steht.
+     */
+    public function test_the_table_covers_both_outcomes(): void
+    {
+        $accepted = array_filter(self::tagMessages(), static fn (array $row): bool => $row[1]);
+
+        $this->assertGreaterThanOrEqual(3, count($accepted), 'Die Tabelle prüft die Annahme kaum noch.');
+        $this->assertGreaterThanOrEqual(
+            3,
+            count(self::tagMessages()) - count($accepted),
+            'Die Tabelle prüft die Abweisung kaum noch.',
+        );
+    }
+
+    /**
+     * Die Freigabenotiz kommt aus dem Tag und nicht aus einer festen Zeile.
+     *
+     * Hier stand `--notes "Siehe CHANGELOG.md."` — und der CHANGELOG führt seit
+     * P0 nur den Abschnitt [Unbereinigt], also keinen zu irgendeiner Fassung.
+     *
+     * > **Eine Freigabenotiz, die auf ein Dokument verweist, in dem die Fassung
+     * > nicht vorkommt, verweist ins Leere.**
+     *
+     * Gemerkt hat es niemand, weil eine Freigabe ohne Verhaltensänderung die
+     * Lücke nicht spürbar macht. 0.7.1-rc.3 hat sie spürbar gemacht: Ihre
+     * Kopfänderung beendet offene Sitzungen gesperrter Konten.
+     */
+    public function test_the_release_notes_come_from_the_tag(): void
+    {
+        $release = $this->withoutHashComments((string) file_get_contents($this->root().'/.github/workflows/release.yml'));
+
+        $this->assertStringContainsString(
+            'packaging/release-notes.sh',
+            $release,
+            'Der Freigabelauf ruft den Wächter über die Notiz nicht auf — dann steht die Regel in einer Datei, die niemand liest.',
+        );
+
+        $this->assertDoesNotMatchRegularExpression(
+            '/--notes[ \t]+["\']/',
+            $release,
+            'Die Freigabenotiz steht wieder als feste Zeile im Lauf statt im Tag.',
+        );
+    }
+
+    /**
+     * Beide Wege setzen die Notiz — der anlegende und der ersetzende.
+     *
+     * Gibt es das Release schon, lädt der zweite Anlauf die Dateien mit
+     * `--clobber` nach. Täte er nur das, bliebe die Notiz des ersten stehen:
+     * zwei Wege, die dieselbe Fassung veröffentlichen und verschieden über sie
+     * Auskunft geben. Derselbe Fehler wie beim Kanal, nur andersherum — dort
+     * wurde zweimal abgeleitet, hier einmal zu wenig gesetzt.
+     */
+    public function test_both_paths_publish_the_notes(): void
+    {
+        $release = $this->withoutHashComments((string) file_get_contents($this->root().'/.github/workflows/release.yml'));
+
+        $this->assertSame(
+            2,
+            substr_count($release, '--notes-file'),
+            'Nicht beide Wege des Release-Schritts setzen die Notiz.',
+        );
+    }
+
+    /** Ausführbar — sonst scheitert der Aufruf im Freigabelauf. */
+    public function test_the_notes_guard_is_executable(): void
+    {
+        $this->assertTrue(is_executable($this->root().'/packaging/release-notes.sh'));
     }
 }

@@ -20359,3 +20359,99 @@ eigene Untergrenze, beim ersten Lauf.
 
 > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
 > steht.**
+
+### Die Freigabenotiz kommt aus dem Tag — der CHANGELOG war ein Verweis ins Leere
+
+Der Freigabelauf setzte als Notiz die feste Zeile `--notes "Siehe
+CHANGELOG.md."`. Diese Datei führt seit P0 **nur** den Abschnitt
+`[Unbereinigt]`, also keinen zu irgendeiner Fassung. Damit stand an keiner der
+beiden Stellen, die ein Betreiber vor dem Update liest, was sich ändert.
+
+> **Eine Freigabenotiz, die auf ein Dokument verweist, in dem die Fassung nicht
+> vorkommt, verweist ins Leere.**
+
+**Gemerkt hat es niemand, weil die Lücke eine Bedingung braucht, um zu
+schmerzen.** Bei einer Freigabe ohne Verhaltensänderung fehlt nichts. 0.7.1-rc.3
+hatte eine: Ihre Kopfänderung beendet offene Sitzungen gesperrter Konten. Wer
+das nicht vorher liest, erfährt es aus der Wirkung — und danach ist der Text,
+den es zu lesen gäbe, immer noch da, nur im Tag-Objekt, wo niemand nachsieht.
+
+**Die Notiz ist jetzt die Botschaft des Tags.** Sie steht dort schon: Jede
+Freigabe ist ein annotierter Tag, geschrieben von dem, der weiss, was drin ist.
+
+**Der erste Entwurf des Wächters ist an einer Messung gestorben, vor der ersten
+Zeile Code.** Er verlangte einen Rumpf unter der Betreffzeile und ein
+`SrvPanel <fassung>` als Betreff. Nachgezählt an den letzten vierzehn Tags:
+
+| Regel | hätte abgewiesen |
+|---|---|
+| Pflicht-Rumpf unter der Betreffzeile | **9 von 14** |
+| Betreff beginnt mit `SrvPanel <fassung>` | **12 von 14** |
+
+Bis `v0.7.0-rc.8` stand die ganze Notiz in **einer** Betreffzeile, die längste
+1264 Zeichen lang; `v0.7.0-rc.9` bis `rc.11` tragen als Betreff die nackte
+Fassungsnummer und den Text darunter.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
+Geprüft wird deshalb die Botschaft **als Ganzes** und nicht ihre
+Zeilenaufteilung: Sagt sie etwas anderes als die Fassungsnummer, die im Titel
+des Releases ohnehin steht? Gegen alle **119** vorhandenen Tags gemessen —
+119 angenommen, 0 abgewiesen, bei sechs gezielt gebauten Ablehnungsfällen
+daneben.
+
+**Die Regel steht in `packaging/release-notes.sh` und nicht im Lauf**, und zwar
+aus dem Grund, den `ReleaseChannelTest` seit P3 im eigenen Kopf nennt: Ein
+Wächter, der ausschliesslich in einem Workflow steht, lässt sich nicht
+gegenprüfen — man müsste einen Tag pushen, um ihn brechen zu sehen. So fährt ihn
+eine Tabelle, und acht Eingriffe im Bruchskript belegen ihn.
+
+Zwei Entscheidungen daneben:
+
+- **Gelesen wird über die API, nicht aus dem Checkout.** `actions/checkout` holt
+  flach, und ob das Tag-Objekt mitsamt seiner Botschaft dabei ist, hängt an
+  einer Voreinstellung, die diesem Lauf nicht gehört. Gemessen an `v0.7.1-rc.3`:
+  `.message` trägt die vollständige Botschaft.
+- **Beide Wege setzen die Notiz.** Gibt es das Release schon, lädt der zweite
+  Anlauf die Dateien mit `--clobber` nach; täte er nur das, bliebe die Notiz des
+  ersten stehen. Zwei Wege, die dieselbe Fassung veröffentlichen und verschieden
+  über sie Auskunft geben, sind derselbe Fehler wie der Kanal, der einmal an
+  zwei Stellen abgeleitet wurde — nur andersherum.
+
+**Und der Wächter war beim ersten Durchgang rot, weil er seinen eigenen
+Kommentar gelesen hat** — die Zeile darüber, die erklärt, was dort früher stand,
+enthält `--notes "Siehe CHANGELOG.md."` als Zitat.
+
+> **Ein Wächter, der seinen eigenen Kommentar liest, meldet die Erklärung als
+> den Fehler, den sie erklärt.**
+
+Dieselbe Fehlerklasse ist hier schon dreimal aufgetreten, jedes Mal in
+PHP-Quelltext; dafür gibt es `WithoutPhpComments`. Für YAML und Shell fehlte
+sie, und dort wiegt sie schwerer, weil zwei Wächter **zählen** statt zu suchen:
+Ein Kommentar, der die gesuchte Zeichenkette nennt, macht aus „genau einmal" ein
+„zweimal", und der Befund liest sich wie eine zweite Fassung der Regel. Der neue
+Baustein schneidet nur ganze Kommentarzeilen weg — ein nachgestellter Kommentar
+liesse sich von einer Raute in einer Zeichenkette nicht unterscheiden, und beide
+stehen in den Läufen dieses Projekts.
+
+**Zwei Fehler steckten dabei im Prüfmittel und keiner im Prüfling.** Der erste:
+Der Prüfkörper für den Annahmefall war leer, weil der Tag lokal gar nicht lag —
+gemessen wurde eine leere Botschaft, und die weist der Wächter zu Recht ab. Der
+zweite: Ein Eingriff des Bruchskripts entfernte die Ablehnungszeilen der Tabelle
+mit einem Ausdruck, der den Umbruch zwischen benachbarten Zeilen verschluckt und
+deshalb nur jede zweite traf — übrig blieben genau die drei, die der Wächter
+verlangt.
+
+> **Ein Eingriff, der die Regel nur bis an ihre Grenze verletzt, verletzt sie
+> nicht.**
+
+**Und einer über PHPStan in diesem Container.** Ein Lauf über den neuen Trait
+allein meldete nichts, auch mit einem absichtlich falschen Rückgabetyp darin.
+PHPStan prüft den Rumpf eines Traits im Zusammenhang der Klasse, die ihn
+einbindet — ohne sie wird er nicht gelesen.
+
+> **Ein Trait ohne die Klasse, die ihn einbindet, wird nicht geprüft — und der
+> Lauf meldet nicht „ich kann das nicht", sondern nichts.**
+
+Mit beiden Dateien im selben Lauf schlägt die Gegenprobe aus, und der geprüfte
+Stand hat null echte Zeilen.

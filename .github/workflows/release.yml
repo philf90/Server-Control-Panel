@@ -43,6 +43,49 @@ jobs:
           echo "channel=${CHANNEL}" >> "$GITHUB_OUTPUT"
           echo "Fassung ${VERSION} erscheint im Kanal ${CHANNEL}."
 
+      # **Die Freigabenotiz ist die Botschaft des Tags.**
+      #
+      # Hier stand `--notes "Siehe CHANGELOG.md."`, eine feste Zeile — und der
+      # CHANGELOG führt seit P0 nur den Abschnitt [Unbereinigt], also keinen zu
+      # irgendeiner Fassung. Damit stand an keiner der beiden Stellen, die ein
+      # Betreiber vor dem Update liest, was sich ändert. Aufgefallen ist es an
+      # 0.7.1-rc.3, deren Kopfänderung offene Sitzungen gesperrter Konten
+      # beendet: Wer das nicht vorher liest, erfährt es aus der Wirkung.
+      #
+      # Gelesen wird über die API und nicht aus dem Checkout. `actions/checkout`
+      # holt flach, und ob das Tag-Objekt mitsamt seiner Botschaft dabei ist,
+      # hängt an einer Voreinstellung, die diesem Lauf nicht gehört. Die API
+      # beantwortet die Frage unabhängig davon — gemessen an v0.7.1-rc.3, deren
+      # `.message` die vollständige Botschaft trägt.
+      #
+      # Ein leichtgewichtiger Tag hat gar kein Tag-Objekt; `select` lässt `sha`
+      # dann leer, die Botschaft bleibt leer, und der Wächter weist sie mit der
+      # Meldung ab, die diesen Fall benennt.
+      #
+      # Der Schritt steht vor dem Bauen — dieselbe Ordnung wie beim Kanal: Weist
+      # er ab, ist nichts gebaut, nichts signiert und nichts veröffentlicht.
+      - name: Freigabenotiz aus dem Tag
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${GITHUB_REF_NAME}" \
+                   --jq 'select(.object.type == "tag") | .object.sha')"
+
+          if [ -n "$sha" ]; then
+            gh api "repos/${GITHUB_REPOSITORY}/git/tags/${sha}" --jq '.message' \
+              > "${RUNNER_TEMP}/tag-message"
+          else
+            : > "${RUNNER_TEMP}/tag-message"
+          fi
+
+          packaging/release-notes.sh "${{ steps.release.outputs.version }}" \
+            < "${RUNNER_TEMP}/tag-message" > "${RUNNER_TEMP}/notes.md"
+
+          echo "Die Freigabenotiz umfasst $(wc -c < "${RUNNER_TEMP}/notes.md") Zeichen."
+
       # 8.4, nicht weniger: composer.json verlangt ^8.4 (Laravel 13 setzt
       # Symfony 8 voraus). Mit 8.3 bricht schon das composer install in
       # build.sh ab — und zwar erst in der Freigabe, weil die CI hier nicht
@@ -134,10 +177,15 @@ jobs:
           if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
             echo "::notice::Release ${GITHUB_REF_NAME} steht bereits — die Dateien werden ersetzt."
             gh release upload "${GITHUB_REF_NAME}" dist/* --clobber
+
+            # Und die Notiz mit. Sonst bliebe beim zweiten Anlauf stehen, was
+            # der erste geschrieben hat — zwei Wege, die dieselbe Fassung
+            # veröffentlichen und verschieden über sie Auskunft geben.
+            gh release edit "${GITHUB_REF_NAME}" --notes-file "${RUNNER_TEMP}/notes.md"
           else
             gh release create "${GITHUB_REF_NAME}" dist/* \
               --title "SrvPanel ${{ steps.release.outputs.version }}" \
-              --notes "Siehe CHANGELOG.md." \
+              --notes-file "${RUNNER_TEMP}/notes.md" \
               $([ "${{ steps.release.outputs.channel }}" = "beta" ] && echo --prerelease)
           fi
 

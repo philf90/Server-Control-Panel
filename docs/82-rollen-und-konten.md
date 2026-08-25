@@ -397,7 +397,7 @@ und die einmalige Passwortanzeige.
 | 4 | Aussperrschutz (§3, Falle 3) und die Messung von `srvpanel admin` | der Schutz ist **gebaut** (er kam mit Schritt 3, weil das Änderungsformular ihn braucht); der **Rückweg ist ungegangen** und gehört auf einen echten Server |
 | 5 | Die Fläche: Menü, Fähigkeitsablage, nichts Verbotenes im Payload (§5.4) | Punkt 3 und 4 des Kriteriums, gemessen an der Antwort — **erledigt** |
 | 6 | Bilder bei 390 und 1440 px in beiden Themes | `tests/bilder-messen.js` meldet 0 px mit ausschlagender Gegenprobe |
-| 7 | IP-Beschränkung und Sitzungsübersicht (der zweite Faktor ist gebaut, §2.5) | eine IP-Beschränkung, die ihren eigenen Urheber nicht aussperrt |
+| 7 | IP-Beschränkung und Sitzungsübersicht (der zweite Faktor ist gebaut, §2.5) | eine IP-Beschränkung, die ihren eigenen Urheber nicht aussperrt — **erledigt** |
 | 8 | Wächter brechen, Lauf von `tests/waechter-brechen.sh` | jeder Eingriff beisst — einzeln **und** im Lauf |
 | 9 | Der Abnahmelauf auf `cloudsrv24` | die sieben Punkte aus §6 |
 
@@ -417,6 +417,9 @@ abtrennen, wenn die Stufe kürzer werden soll.
 | `RoleGateTest` (CI) | Administrator 403 auf den Geheimnisseiten, Betreiber 200, Konto ohne Rolle 403 | eine Seite auf die schwächere Fähigkeit legen |
 | `LastOperatorTest` | Der letzte aktive Betreiber lässt sich nicht herabstufen oder sperren — und einen dritten Weg gibt es nicht | die Prüfung entfernen · eine Löschroute bauen |
 | `AccountMutationTest` | Jede **ändernde** Kontenroute fragt den Aussperrschutz oder steht mit Begründung daneben | eine neue ändernde Route ohne Prüfung · eine Ausnahme für etwas, das es nicht gibt |
+| `CidrTest` | Die Netzrechnung stimmt — und die `/0`-Politik steht bei der Datenbank und nicht in ihr | den Abgleich in ganzen Bytes rechnen · die Politik entfernen |
+| `AdminNetworkTest` | Die Beschränkung gilt auch für eine offene Sitzung, und keine Liste sperrt ihren Urheber aus | die Mittelschicht durchlassen · den Aussperrschutz entfernen |
+| `AccountSessionTest` | Eine Sitzung wird über Konto **und** Kennung gefunden | die `user_id` aus der Bedingung nehmen |
 | `AdminPayloadTest` | Keine Seite überschreibt die geteilte Ablage · jeder Menüpunkt trägt die Fähigkeit seiner Route · keine geheimnisführende Agent-Operation protokolliert | die Ablage in einer Hilfsmethode überschreiben · einem Eintrag die Fähigkeit nehmen oder eine erfinden · eine Operation schwatzen lassen |
 
 **`LastOperatorTest` prüft alle drei Wege**, und das ist der Punkt: Eine

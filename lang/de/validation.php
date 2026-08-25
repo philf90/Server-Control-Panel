@@ -224,6 +224,7 @@ return [
         'result' => 'Ergebnis',
         'role' => 'Rolle',
         'secret' => 'Geheimnis',
+        'session' => 'Sitzung',
         'server' => 'Nameserver',
         'shared_secret' => 'Gemeinsames Geheimnis',
         'status' => 'Zustand',

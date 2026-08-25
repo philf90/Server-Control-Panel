@@ -16440,6 +16440,108 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DocblockAnchorTest passed
 
 echo
+echo "── CidrTest: der Abgleich rechnet nur in ganzen Bytes ──"
+#
+# Ein /25 deckt die untere Haelfte eines /24. Wer nur ganze Bytes vergleicht,
+# laesst die obere mit herein — und merkt es an keinem der ueblichen Netze.
+vorher_datei agent/src/Net/Cidr.php
+python3 - <<'PY2'
+p = 'agent/src/Net/Cidr.php'
+s = open(p, encoding='utf-8').read()
+alt = '$index === $full && $bits > 0 => chr(ord($byte) & (0xFF << (8 - $bits)) & 0xFF),'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '$index === $full && $bits > 0 => $byte,', 1))
+PY2
+griff_datei agent/src/Net/Cidr.php "Abgleich nur in ganzen Bytes" &&
+pruefe "Abgleich nur in ganzen Bytes" \
+  CidrTest::test_an_address_is_inside_a_network_or_it_is_not failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CidrTest passed
+
+echo
+echo "── CidrTest: die Datenbankseite laesst das ganze Internet durch ──"
+#
+# Die eine Stelle, an der Rechnung und Politik auseinandergehen. Ohne sie traegt
+# `pg_hba.conf` eine Zeile fuer jeden Rechner der Welt.
+vorher_datei agent/src/Pg/Hba.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Hba.php'
+s = open(p, encoding='utf-8').read()
+alt = "if (str_ends_with($normalized, '/0')) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if (false) {', 1))
+PY2
+griff_datei agent/src/Pg/Hba.php "ganzes Internet in pg_hba" &&
+pruefe "ganzes Internet in pg_hba" \
+  CidrTest::test_the_database_side_refuses_the_whole_internet failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CidrTest passed
+
+echo
+echo "── AdminNetworkTest: die Beschraenkung gilt nur noch an der Tuer ──"
+#
+# `docs/82 §2.5` nennt nur die Anmeldung. So gebaut waere es die Haelfte: Wer im
+# Buero angemeldet war und den Rechner mitnimmt, arbeitet weiter.
+#
+#   Eine Schranke, die nur an der Tuer steht, gilt fuer niemanden, der schon
+#   drin ist.
+vorher_datei app/Http/Middleware/EnforceAdminNetwork.php
+python3 - <<'PY2'
+p = 'app/Http/Middleware/EnforceAdminNetwork.php'
+s = open(p, encoding='utf-8').read()
+alt = 'if (AdminNetwork::permits($account, $request->ip())) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if (true) {', 1))
+PY2
+griff_datei app/Http/Middleware/EnforceAdminNetwork.php "Sitzung ueberlebt die Beschraenkung" &&
+pruefe "Sitzung ueberlebt die Beschraenkung" \
+  AdminNetworkTest::test_a_live_session_from_a_forbidden_address_is_ended failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminNetworkTest passed
+
+echo
+echo "── AdminNetworkTest: der Aussperrschutz faellt ──"
+#
+# Das Abnahmekriterium von Schritt 7. Ohne ihn ist ein Tippfehler in einem Netz
+# ein Serverbesuch ueber SSH — und fuer einen Administrator das Ende seines
+# Zugangs.
+vorher_datei app/Http/Controllers/AccessSettingsController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AccessSettingsController.php'
+s = open(p, encoding='utf-8').read()
+alt = "if ($networks !== [] && ! AdminNetwork::covers($networks, $request->ip())) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if (false) {', 1))
+PY2
+griff_datei app/Http/Controllers/AccessSettingsController.php "Aussperrschutz gefallen" &&
+pruefe "Aussperrschutz gefallen" \
+  AdminNetworkTest::test_a_list_that_locks_out_its_own_author_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AdminNetworkTest passed
+
+echo
+echo "── AccountSessionTest: die Sitzung wird ueber die Kennung allein gesucht ──"
+#
+# Ohne `user_id` in der Bedingung beendet eine abgeschriebene Kennung die
+# Sitzung eines fremden Kontos.
+#
+#   Ein Filter ueber einen Bezeichner allein ist keine Zuordnung — er ist eine
+#   Suche.
+vorher_datei app/Support/Authorization/Sessions.php
+python3 - <<'PY2'
+p = 'app/Support/Authorization/Sessions.php'
+s = open(p, encoding='utf-8').read()
+alt = "            ->where('user_id', $account->id)\n            ->where('id', $id)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            ->where('id', $id)", 1))
+PY2
+griff_datei app/Support/Authorization/Sessions.php "Sitzung ohne Zuordnung" &&
+pruefe "Sitzung ohne Zuordnung" \
+  AccountSessionTest::test_a_session_of_another_account_is_not_touched failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountSessionTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

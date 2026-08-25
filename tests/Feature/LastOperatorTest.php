@@ -96,14 +96,27 @@ final class LastOperatorTest extends TestCase
          * meldet `foreach.nonIterable`. Die Methode darauf liefert das Array.
          */
         foreach (Router::getRoutes()->getRoutes() as $route) {
-            $uri = $route->uri();
-
-            if (! str_starts_with($uri, 'accounts')) {
+            /*
+             * **Die Adresse des Kontos selbst und nicht alles darunter.**
+             *
+             * Der erste Wurf fragte „irgendein `DELETE` unter `/accounts`" und
+             * war beim ersten Zusatz rot: `DELETE /accounts/{admin}/sessions`
+             * beendet eine Sitzung und nimmt niemandem seine Rolle. Ein
+             * Wächter, der jede Unterressource mitmeldet, wird beim ersten
+             * Aufräumen abgeschaltet.
+             *
+             * > **Ein Wächter, der Richtiges mitmeldet, ist kein strenger
+             * > Wächter — er ist einer, den man gleich wieder los ist.**
+             *
+             * Gemeint ist die eine Adresse, hinter der das Konto verschwindet:
+             * `accounts/{…}` und nichts dahinter.
+             */
+            if (preg_match('/\Aaccounts\/\{[^}\/]+\}\z/', $route->uri()) !== 1) {
                 continue;
             }
 
             if (in_array('DELETE', $route->methods(), true)) {
-                $deleting[] = $uri;
+                $deleting[] = $route->uri();
             }
         }
 

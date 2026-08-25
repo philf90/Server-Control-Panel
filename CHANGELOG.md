@@ -19686,3 +19686,47 @@ zum dritten Mal in derselben Runde.
 
 > **Ein Abstand, den man sieht, ist nicht derselbe wie einer, den ein Behälter
 > gibt.**
+
+### A9 Schritt 7, zweite Hälfte — die Sitzungsübersicht
+
+**Welche Sitzungen ein Konto offen hat, und eine davon beenden.** Die Daten
+liegen in Laravels eigener `sessions`-Tabelle; gelesen werden vier Spalten, und
+`payload` ist keine davon — dort liegt die serialisierte Sitzung.
+
+> **Eine Spalte, die man nicht liest, kann nichts verraten.**
+
+**Gesucht wird über Konto und Kennung**, nicht über die Kennung allein. Sonst
+beendete eine abgeschriebene Kennung die Sitzung eines fremden Kontos — und sie
+steht im Cookie des Betroffenen, ist also nicht geheim gegenüber ihm selbst.
+
+> **Ein Filter über einen Bezeichner allein ist keine Zuordnung — er ist eine
+> Suche.**
+
+**Die eigene laufende Sitzung ist erkennbar und trotzdem zu beenden.** „Ich
+sitze an einem fremden Rechner" ist der häufigste Anlass, diese Liste
+aufzuschlagen; ein Knopf, der verschwiege, welche Zeile die laufende ist, wäre
+die Falle.
+
+**Die Gerätekennung wird gekürzt und nicht ausgewertet.** Eine Auswertung nach
+Browser und System wäre eine Bibliothek mit einer Tabelle, die veraltet — ein
+neuer Browser hiesse dann „unbekannt".
+
+> **Eine Auswertung, die einen Fall nicht kennt, sagt weniger als der
+> ungedeutete Wert.**
+
+**Zwei Wächter haben an der neuen Route zugebissen**, und der zweite hat gezeigt,
+dass seine Frage zu grob war. `AccountMutationTest` verlangte den Aussperrschutz
+für jede ändernde Kontenroute — eine Sitzung zu beenden ist keiner, das steht
+jetzt mit Begründung in der Ausnahmeliste. Und `LastOperatorTest` fragte „gibt es
+ein `DELETE` unter `/accounts`" und meldete `…/sessions` mit; gemeint ist die
+eine Adresse, hinter der das Konto verschwindet.
+
+> **Ein Wächter, der Richtiges mitmeldet, ist kein strenger Wächter — er ist
+> einer, den man gleich wieder los ist.**
+
+**Und ein Fund der CI in meinem eigenen Test:** `assertGuest()` nimmt als ersten
+Wert den Guard und keine Meldung. Laravel suchte daraufhin einen Guard namens
+„Die Sitzung läuft weiter, obwohl …". Der Fehlschlag war laut und nicht still,
+und das ist die einzige gute Nachricht daran.
+
+> **Ein zweiter Wert, der wie eine Meldung aussieht, ist manchmal ein Name.**

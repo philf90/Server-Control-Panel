@@ -10,6 +10,7 @@ use App\Enums\AdminRole;
 use App\Models\Account;
 use App\Support\Audit\Audit;
 use App\Support\Authorization\LastOperator;
+use App\Support\Authorization\Sessions;
 use App\Support\Passwords\Policy;
 use App\Support\Time\Clock;
 use App\Support\Web\Page;
@@ -185,7 +186,7 @@ final class AccountController extends Controller
             ->with('success', "Konto {$account->name} angelegt.");
     }
 
-    public function edit(Account $admin): Response
+    public function edit(Request $request, Account $admin): Response
     {
         return Inertia::render('Accounts/Form', [
             'account' => [
@@ -202,6 +203,16 @@ final class AccountController extends Controller
                 'status' => $admin->status->value,
             ],
             'roles' => self::roles(),
+
+            /*
+             * **Die offenen Sitzungen dieses Kontos** (`docs/82 §2.5`).
+             *
+             * Sie stehen an der Kontenseite und nicht an einer eigenen: Wer
+             * fragt „wer ist gerade angemeldet", fragt es über ein Konto — und
+             * eine zweite Liste derselben Zeilen wäre ein zweiter Weg zum
+             * selben Ort.
+             */
+            'sessions' => Sessions::of($admin, $request->session()->getId()),
 
             /*
              * **Mit denselben Augen wie {@see self::update()}.** Zeigte das
@@ -288,6 +299,39 @@ final class AccountController extends Controller
 
         return redirect()->route('accounts.index')
             ->with('success', "Passwort von {$admin->name} gesetzt.");
+    }
+
+    /**
+     * Eine Sitzung dieses Kontos beenden.
+     *
+     * **Auch die eigene**, und das ist Absicht: „Ich sitze an einem fremden
+     * Rechner" ist der häufigste Anlass, diese Liste überhaupt aufzuschlagen.
+     * Die Seite schreibt dran, welche Zeile die laufende ist — ein Knopf, der
+     * das verschwiege, wäre die Falle.
+     */
+    public function endSession(Request $request, Account $admin, Audit $audit): RedirectResponse
+    {
+        $data = $request->validate(['session' => ['required', 'string', 'max:255']]);
+
+        $gone = Sessions::forget($admin, (string) $data['session']);
+
+        if (! $gone) {
+            /*
+             * **Kein Fehler, sondern die Auskunft.** Eine Sitzung, die es nicht
+             * mehr gibt, ist genau der Zustand, den der Betreiber herstellen
+             * wollte — sie kann zwischen Anzeige und Klick abgelaufen sein.
+             */
+            return redirect()->route('accounts.edit', $admin)
+                ->with('notice', 'Diese Sitzung gibt es nicht mehr.');
+        }
+
+        $audit->success('account.session.ended', $admin, [
+            'name' => $admin->name,
+            'email' => $admin->email,
+        ]);
+
+        return redirect()->route('accounts.edit', $admin)
+            ->with('success', 'Die Sitzung wurde beendet.');
     }
 
     /**

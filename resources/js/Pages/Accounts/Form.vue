@@ -17,8 +17,9 @@
  * Begründung dagegen ist älter als der Plan und steht im Kopf von
  * `App\Support\Passwords\Policy::generate()`.
  */
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
+import Badge from '../../Components/Badge.vue'
 import FormErrors from '../../Components/FormErrors.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import PasswordFields from '../../Components/PasswordFields.vue'
@@ -27,6 +28,14 @@ import Section from '../../Components/Section.vue'
 interface PasswordPolicy {
   minimum: number
   requirements: { key: string; label: string }[]
+}
+
+interface OpenSession {
+  id: string
+  ip: string | null
+  agent: string | null
+  last: string | null
+  current: boolean
 }
 
 interface Existing {
@@ -42,7 +51,11 @@ const props = defineProps<{
   values: { name: string; email?: string; role: string | null; status?: string }
   roles: { value: string; label: string }[]
   isLastOperator: boolean
+  sessions?: OpenSession[]
 }>()
+
+/* Beim Anlegen gibt es noch kein Konto und damit keine Sitzungen. */
+const sessions = computed(() => props.sessions ?? [])
 
 const page = usePage<{ passwordPolicy: PasswordPolicy }>()
 const policy = computed(() => page.props.passwordPolicy)
@@ -69,6 +82,21 @@ function submit(): void {
   form.patch(`/accounts/${props.account.id}`)
 }
 
+/*
+ * Eine Sitzung beenden.
+ *
+ * Die Kennung reist im **Rumpf** und nicht in der Adresse: Ein
+ * Sitzungskennzeichen gehört nicht in ein Zugriffslog.
+ */
+function endSession(session: OpenSession): void {
+  if (props.account === null) return
+
+  router.delete(`/accounts/${props.account.id}/sessions`, {
+    data: { session: session.id },
+    preserveScroll: true,
+  })
+}
+
 function submitReset(): void {
   if (props.account === null) return
 
@@ -88,6 +116,23 @@ function submitReset(): void {
     <template #breadcrumb>
       <Link href="/accounts" class="link">Konten</Link>
     </template>
+
+<style scoped>
+/*
+ * Die Gerätekennung ist lang und hat Leerzeichen — sie bricht wie Fliesstext.
+ * `.ident` wäre hier falsch: Das ist keine Kennung, die man abtippt.
+ */
+.agent {
+  font-size: var(--text-small);
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+</style>
 
     <FormErrors />
 
@@ -214,6 +259,45 @@ function submitReset(): void {
           <Link href="/accounts" class="button">Abbrechen</Link>
         </div>
       </form>
+
+      <!--
+        **Die offenen Sitzungen** (`docs/82 §2.5`). Kein Formular: Jede Zeile
+        ist eine eigene Handlung, und ein Absenden für alle zusammen gäbe es
+        nicht.
+      -->
+      <Section v-if="props.account !== null && sessions.length > 0" title="Offene Sitzungen" full>
+        <div class="scrolls">
+          <table class="stacks">
+            <thead>
+              <tr><th>Adresse</th><th>Gerät</th><th>Letzte Aktivität</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="session in sessions" :key="session.id">
+                <td data-column="Adresse" class="multiline">
+                  <span class="title-row">
+                    <span class="ident">{{ session.ip ?? 'unbekannt' }}</span>
+                    <!--
+                      **Welche die laufende ist, steht dran.** Sie lässt sich
+                      genauso beenden wie jede andere — „ich sitze an einem
+                      fremden Rechner" ist der häufigste Anlass, diese Liste
+                      überhaupt aufzuschlagen. Ein Knopf, der das verschwiege,
+                      wäre die Falle.
+                    -->
+                    <Badge v-if="session.current" kind="neutral">diese Sitzung</Badge>
+                  </span>
+                </td>
+                <td data-column="Gerät" class="quiet agent">{{ session.agent ?? 'unbekannt' }}</td>
+                <td data-column="Letzte Aktivität" class="quiet">{{ session.last ?? '—' }}</td>
+                <td>
+                  <button type="button" class="button small" @click="endSession(session)">
+                    Beenden
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Section>
 
       <!--
         **Das Zurücksetzen steht in einem eigenen Formular und nicht im Feld

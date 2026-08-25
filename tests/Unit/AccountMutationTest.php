@@ -59,6 +59,9 @@ final class AccountMutationTest extends TestCase
             .'sperrt keines — die Zahl der aktiven Betreiber kann dabei nur steigen.',
         'password' => 'Setzt ein Passwort. Rolle und Zustand bleiben unberührt; wer vorher '
             .'Betreiber und aktiv war, ist es danach.',
+        'endSession' => 'Beendet eine offene Sitzung. Das Konto bleibt, was es war, und kann sich '
+            .'wieder anmelden — eine Sitzung zu beenden ist kein Entzug, sondern ein Rauswurf auf '
+            .'Zeit.',
     ];
 
     /** Die eine Stelle, die entscheidet, ob eine Änderung jemanden aussperrt. */

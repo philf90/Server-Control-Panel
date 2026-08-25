@@ -214,6 +214,15 @@ Route::middleware('auth')->group(function (): void {
         ->name('accounts.password');
 
     /*
+     * Eine offene Sitzung beenden. `DELETE`, weil sie danach fort ist — und
+     * mit der Kennung im Rumpf statt in der Adresse: Ein Sitzungskennzeichen
+     * gehört nicht in ein Zugriffslog.
+     */
+    Route::delete('/accounts/{admin}/sessions', [AccountController::class, 'endSession'])
+        ->middleware('can:operate-server')
+        ->name('accounts.sessions.end');
+
+    /*
      * Der Zugang zum Panel — A9 Schritt 7.
      *
      * **`can:operate-server`**, und zwar in seiner schärfsten Lesart: Wer diese

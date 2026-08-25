@@ -89,7 +89,18 @@ final class AdminNetworkTest extends TestCase
             ->get('/')
             ->assertRedirect('/login');
 
-        $this->assertGuest('Die Sitzung läuft weiter, obwohl das Netz nicht mehr zugelassen ist.');
+        /*
+         * **`assertGuest()` nimmt als ersten Wert den Guard und keine Meldung.**
+         * Der erste Wurf übergab hier einen Satz — Laravel suchte daraufhin
+         * einen Guard dieses Namens und warf `Auth guard [Die Sitzung läuft
+         * weiter, …] is not defined`. Der Fehlschlag war laut und nicht still,
+         * und das ist die einzige gute Nachricht daran.
+         *
+         * > **Ein zweiter Wert, der wie eine Meldung aussieht, ist manchmal ein
+         * > Name.**
+         */
+        $this->assertFalse(auth()->check(),
+            'Die Sitzung läuft weiter, obwohl das Netz nicht mehr zugelassen ist.');
     }
 
     /**

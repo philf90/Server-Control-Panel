@@ -19730,3 +19730,41 @@ Wert den Guard und keine Meldung. Laravel suchte daraufhin einen Guard namens
 und das ist die einzige gute Nachricht daran.
 
 > **Ein zweiter Wert, der wie eine Meldung aussieht, ist manchmal ein Name.**
+
+### Zwei Annahmen über abschliessende Werte — und ein Formatierer, der zu viel wusste
+
+**Dieselbe Annahme hat in einer Runde zweimal zugeschlagen**, in benachbartem
+Code: `assertGuest()` nimmt als ersten Wert den **Guard**, `assertDatabaseHas()`
+als dritten die **Verbindung**. Beide Male stand dort ein deutscher Satz, und
+Laravel suchte einen Guard beziehungsweise eine Verbindung dieses Namens.
+
+> **Ein abschliessender Wert ist nicht deshalb eine Meldung, weil er ein Satz
+> ist.**
+
+In PHPUnit stimmt die Gewohnheit fast immer; in Laravels Testhelfern oft nicht.
+`AssertionArgumentTest` hält das jetzt — an neun Helfern, und das Merkmal ist
+das **Leerzeichen**: Ein Guard heisst `web`, eine Verbindung `sqlite`, eine
+Meldung dieses Projekts ist ein Satz. Das trennt zuverlässiger als eine Liste
+gültiger Namen, die bei der nächsten Verbindung nachgezogen werden müsste.
+
+**Der Fehlschlag ist dabei laut und nicht still** — dieser Wächter spart keine
+stille Fehlfunktion, sondern verschiebt eine laute von der CI an die Tastatur.
+Das ist trotzdem sein Wert: Zwei CI-Runden für dieselbe Annahme sind eine zu
+viel.
+
+**Und sein erster Wurf hat sich selbst gemeldet.** Er las die Kommentare mit, in
+denen die kaputten Aufrufe zitiert stehen, und seine eigenen Prüfkörper.
+
+> **Ein Wächter, der Prosa mitliest, findet jede Warnung vor sich selbst.**
+
+**Der lehrreichste Fund kam von Pint.** Der private Helfer hiess `testFiles()`;
+Pint setzt in einer Testklasse die Schreibweise `test_…` durch und hat die
+**Deklaration** umbenannt — die Aufrufstelle nicht. Heraus kam eine Datei, die
+`php -l` besteht und beim Ausführen an einer undefinierten Methode stirbt.
+
+> **Ein Formatierer, der eine Namensregel durchsetzt, wendet sie auch auf den
+> an, der die Regel nicht meinte.**
+
+Das ist die Verwandte der Falle mit `count()`, `matches()` und `run()`: ein
+Helfer in einer Testklasse, dessen Name jemand anderem gehört. Dort ist es die
+Basisklasse, hier der Formatierer.

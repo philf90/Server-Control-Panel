@@ -85,8 +85,22 @@ final class AccountSessionTest extends TestCase
         $this->actingAs($operator)
             ->delete("/accounts/{$one->id}/sessions", ['session' => 'sitzung-von-zwei']);
 
-        $this->assertDatabaseHas('sessions', ['id' => 'sitzung-von-zwei'],
-            'Die Sitzung eines fremden Kontos wurde über die Adresse eines anderen beendet.');
+        /*
+         * **`assertDatabaseHas()` nimmt als dritten Wert die Verbindung und
+         * keine Meldung** — genau wie `assertGuest()` als ersten den Guard
+         * nimmt. Beide Male hat dieselbe Annahme zugeschlagen: dass ein
+         * abschliessender Text eine Erklärung ist. In PHPUnit stimmt das, in
+         * Laravels Testhelfern oft nicht.
+         *
+         * > **Ein abschliessender Wert ist nicht deshalb eine Meldung, weil er
+         * > ein Satz ist.**
+         *
+         * `assertNotNull` daneben trägt sie, und dort ist sie auch eine.
+         */
+        $this->assertNotNull(
+            DB::table('sessions')->where('id', 'sitzung-von-zwei')->first(),
+            'Die Sitzung eines fremden Kontos wurde über die Adresse eines anderen beendet.',
+        );
     }
 
     /**

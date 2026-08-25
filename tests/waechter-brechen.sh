@@ -16542,6 +16542,52 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AccountSessionTest passed
 
 echo
+echo "── AssertionArgumentTest: eine Meldung, wo Laravel etwas anderes erwartet ──"
+#
+# Genau der Fehler vom 25. August, zweimal in einer Runde: `assertGuest()` nimmt
+# den Guard, `assertDatabaseHas()` die Verbindung. Der Fehlschlag ist laut —
+# Laravel sucht dann einen Guard oder eine Verbindung dieses Namens.
+#
+#   Ein abschliessender Wert ist nicht deshalb eine Meldung, weil er ein Satz
+#   ist.
+vorher_datei tests/Feature/AccountSessionTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/AccountSessionTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "$this->assertDatabaseMissing('sessions', ['id' => 'sitzung-eins']);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "$this->assertDatabaseMissing('sessions', ['id' => 'sitzung-eins'], 'Die Sitzung ist noch da.');"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Feature/AccountSessionTest.php "Meldung statt Verbindung" &&
+pruefe "Meldung statt Verbindung" \
+  AssertionArgumentTest::test_no_laravel_helper_is_handed_a_message failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AssertionArgumentTest passed
+
+echo
+echo "── AssertionArgumentTest: die Helferliste schrumpft ──"
+#
+# Der Pruefkoerper. Ohne die Untergrenze meldete der Waechter Gruen, sobald
+# seine Liste leerlaeuft — und zwar fuer *keinen* gemessenen Aufruf.
+vorher_datei tests/Unit/AssertionArgumentTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/AssertionArgumentTest.php'
+s = open(p, encoding='utf-8').read()
+for alt in ["        'assertGuest' => 'den Guard',\n",
+            "        'assertDatabaseHas' => 'die Verbindung',\n",
+            "        'assertDatabaseMissing' => 'die Verbindung',\n"]:
+    assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+    s = s.replace(alt, '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Unit/AssertionArgumentTest.php "Helferliste geschrumpft" &&
+pruefe "Helferliste geschrumpft" \
+  AssertionArgumentTest::test_no_laravel_helper_is_handed_a_message failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AssertionArgumentTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

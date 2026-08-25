@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Support\Authorization\AdminNetwork;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\WithoutPhpComments;
@@ -23,7 +22,7 @@ use Tests\Support\WithoutPhpComments;
  * > denselben Punkt.**
  *
  * **Die zweite:** Formular und Kommando stellen dieselbe Frage — ist das ein
- * brauchbares Netz? — und beide fragen {@see AdminNetwork}.
+ * brauchbares Netz? — und beide fragen `AdminNetwork`.
  * Baut eines davon seine eigene Prüfung, hat die Einstellung zwei Bedeutungen,
  * und welche die strengere ist, merkt niemand.
  *
@@ -35,6 +34,18 @@ use Tests\Support\WithoutPhpComments;
  * Die **Wirkung** eines Artisan-Kommandos misst man mit `artisan()`, und das
  * braucht Laravel. Hier steht, was ohne Framework prüfbar ist — und das ist der
  * Teil, der dort, wo `vendor/` fehlt, sonst gar nicht auffiele.
+ *
+ * **Deshalb steht der Name oben ohne `{@see}`.** Pints
+ * `fully_qualified_strict_types` zieht aus einer Referenz im Dokumentblock einen
+ * `use`-Eintrag — und damit wäre dieser Wächter framework-abhängig und liefe
+ * genau dort nicht mehr, wofür es ihn gibt.
+ *
+ * **Gemerkt hat das erst der Lauf des Bruchskripts.** Beim Schreiben war der
+ * Wächter grün; Pint lief danach und fügte den Import hinzu. Was ins Repo geht,
+ * ist die Fassung **nach** dem Formatierer.
+ *
+ * > **Ein Wächter, den man vor dem Formatierer prüft, ist nicht der, der ins
+ * > Repo geht.**
  */
 final class AccessCommandTest extends TestCase
 {

@@ -16,6 +16,11 @@ Stand: **P0 bis P7 abgenommen.** P7 (der DNS-Abgleich) ist am **24. August
 dieses Laufs steht weiter unten; sie ist eine über Abnahmeläufe und nicht über
 DNS.
 
+**P7b ist gebaut und nicht abgenommen.** A1 (Schritte 1 und 2), A5 und A9
+(Schritte 1 bis 7) sind fertig und als **`v0.7.1-rc.1`** freigegeben; der
+Abnahmelauf steht als **`docs/83`** und ist **nicht gefahren**. Erst er macht
+die Stufe fertig — gemessen auf einem echten Server und nicht geschätzt.
+
  P6 ist am **21. August 2026** auf `cloudsrv24`
 gegen `v0.6.0-rc.24` abgenommen — der Angriffsdurchgang (`docs/62`) und der
 Abschlusslauf, der seine vier letzten Reste durch die echte Route belegt hat
@@ -762,7 +767,8 @@ Protokollhistorie** auf `null`.
 Adminkonten werden deshalb **gesperrt und nicht gelöscht**; den Zustand
 `disabled` gibt es längst, und drei Stellen fragen ihn schon.
 
-**Die Schritte 1 und 2 sind gebaut.** `AdminRole` ist die zweite Achse — kein
+**Die Schritte 1 und 2 sind gebaut** — die Schritte 3, 5 und 7 stehen weiter
+unten unter „A9 ist gebaut". `AdminRole` ist die zweite Achse — kein
 vierter `AccountType`, weil der an 52 Stellen `isAdmin() === false` ergäbe und
 der neue Betreiber eine leere Kundenliste sähe. Die Spalte `accounts.role` ist
 nullable und ohne Vorgabe (`null` heisst „kein Admin"), und **die Rolle allein
@@ -946,6 +952,150 @@ der Durchstich gegen echte apt-Ausgabe belegt, mehr nicht.
 
 ---
 
+## A9 ist gebaut — Rollen, Konten, Netze, Sitzungen
+
+Die Schritte 3, 5 und 7 aus `docs/82` sind gebaut und zusammen mit A1 und A5 als
+**`v0.7.1-rc.1`** freigegeben. Der Abnahmelauf steht als **`docs/83`** und ist
+**nicht gefahren** — die Stufe ist damit nicht abgenommen.
+
+**Schritt 3, die Kontenverwaltung.** Ein zweites Adminkonto entsteht ohne SSH;
+bis dahin war `srvpanel admin` der einzige Weg, und der braucht root — also
+genau die Rechte, die das Rechtemodell dem Administrator nicht geben will. Der
+Aussperrschutz sitzt an **einer** Stelle und wird mit dem **Zielzustand**
+gefragt, nicht mit dem gegenwärtigen: Herabstufen und Sperren sehen im Formular
+verschieden aus und sind dieselbe Handlung.
+
+> **Zwei Wege, die denselben Zustand herstellen, brauchen dieselbe Frage — und
+> die Frage lautet, wie es nachher aussieht.**
+
+**Schritt 5, die Fläche aus der Policy.** Seit Schritt 2 über die Rolle
+auflöst, sah ein Administrator sieben Menüpunkte, die ihm alle einen 403 gaben.
+Die geteilte Ablage heisst **`abilities` und nicht `can`** — `can` ist vergeben,
+neun Seiten schicken eine eigene über ihr Objekt, und Seitenwerte überschreiben
+geteilte.
+
+> **Ein geteilter Schlüssel, den eine Seite auch benutzt, ist auf genau dieser
+> Seite fort — und der Ausfall liest sich wie ein Rechteproblem.**
+
+Die Messung davor hat das Kriterium **schon erfüllt vorgefunden**: 43 Seiten
+ausgezählt, acht nur für den Betreiber, in den übrigen 35 kein
+Betreibergeheimnis. Der Payload-Teil ist deshalb kein Umbau, sondern ein
+Stolperdraht.
+
+> **Ein Zustand, der stimmt und den nichts hält, ist von einem, der nicht
+> stimmt, nur durch Glück getrennt.**
+
+Dabei fiel eine Zusage heraus, die niemand aufgeschrieben hatte:
+`/operations/{id}` zeigt `output` **jedem** Admin, und das sind die
+Protokollzeilen des Agenten — dieselbe Art Inhalt, deretwegen `/logs` dem
+Betreiber allein gehört. Dass dort nichts Geheimes steht, liegt nicht an einem
+Filter, sondern daran, dass die zwölf geheimnisführenden Operationen **null**
+Zeilen senden. `AdminPayloadTest` hält das seitdem.
+
+> **Eine Sicherheit, die aus einer Eigenschaft der Daten folgt und nicht aus
+> einer Prüfung, hält genau so lange, bis jemand die Daten ändert.**
+
+**Schritt 7, Netze und Sitzungen.** Gefragt wird an **zwei** Stellen — bei der
+Anmeldung, damit das Protokoll die Wahrheit sagt, und bei jeder Anfrage, weil
+eine offene Sitzung die Beschränkung sonst überlebt. `docs/82 §2.5` nannte nur
+die Anmeldung; so gebaut wäre es die Hälfte gewesen.
+
+> **Eine Beschränkung, die nur an der Tür gefragt wird, gilt für niemanden, der
+> schon drin ist.**
+
+Die CIDR-Rechnung gab es schon, nur am falschen Ort und **von keinem einzigen
+Test abgedeckt** — `Pg\Hba::cidr()` seit P5b, über die Namensraumgrenze
+gerufen. `Net\Cidr` trägt sie jetzt samt `contains()`, `CidrTest` prüft sie in
+27 Fällen. Gesucht wird eine Sitzung über **Konto und Kennung**, nicht über die
+Kennung allein: Sonst beendete eine abgeschriebene Kennung die Sitzung eines
+fremden Kontos, und sie steht im Cookie des Betroffenen.
+
+**Und `srvpanel access` ist ein Merkmal, das kein Plan bestellt hat.** Beim
+Ausschreiben von `docs/83` fiel auf, dass `srvpanel admin` ein Konto
+zurückholt, das sich mit Passwort oder zweitem Faktor ausgesperrt hat — für die
+Netzbeschränkung gab es nichts dergleichen. Ändert sich die Adresse des
+Betreibers, kommt niemand mehr herein.
+
+> **Ein Merkmal, das aussperren kann, braucht seinen Rückweg — und dass er
+> fehlt, merkt man beim Ausschreiben des Abnahmelaufs und nicht beim Bauen.**
+
+`--clear` fragt den Aussperrschutz bewusst **nicht**: Es ist der Griff für den
+Fall, dass die Beschränkung selbst der Schaden ist.
+
+---
+
+## Was diese Runde über die Werkzeuge gelehrt hat
+
+**Die CI ist auf diesem Zweig dreizehn Commits lang kein einziges Mal
+gefahren.** `ci.yml` hängt auf `push` nur an `main` und sonst an
+`pull_request` — ohne PR läuft nichts, und ausgelöst hat es niemand. Der erste
+Lauf von Hand brachte `SizeUnitTest` rot, und zwar seit A5: Die Logs-Seite trug
+eine **dritte** Fassung von `formatBytes`, schlechter als die kanonische, und
+eine Datei von 1,2 GB las sich als „1234.6 MB". Zwischen dem Bau von A5 und dem
+ersten Lauf liegen fünf weitere Commits.
+
+> **Ein Wächter, den man nicht fährt, ist von einem, den es nicht gibt, nicht zu
+> unterscheiden.**
+
+**Und dasselbe eine Ebene höher: `waechter.yml` hängt allein an
+`pull_request`.** Neun Läufe von Hand auf `ci.yml` (789 bis 797) haben das
+Bruchskript nie angefasst; erst der PR hat es gefahren — 716 Eingriffe, alle
+beissen, davon 52 neu von dieser Runde. Die vier zuletzt gebauten sind genau die, die das Gestell
+hier mit „braucht Laravel — hier nicht messbar" meldet.
+
+> **Ein Werkzeug, das an einem Ereignis hängt, das man nicht auslöst, ist
+> abgeschaltet und sieht aus wie eingerichtet.**
+
+Wer also auf einem Zweig arbeitet und wissen will, ob er trägt, löst die CI von
+Hand aus (`workflow_dispatch`) **oder** öffnet den PR — und weiss dabei, dass
+das erste das Bruchskript nicht mitnimmt.
+
+**Pint läuft nach dem Wächter, und was ins Repo geht, ist die Fassung danach.**
+Aus `{@see \App\Support\Authorization\AdminNetwork}` im Dokumentblock machte er
+einen `use`-Eintrag — damit war ein framework-freier Wächter framework-abhängig
+und lief genau dort nicht mehr, wofür es ihn gibt.
+
+> **Ein Wächter, den man vor dem Formatierer prüft, ist nicht der, der ins Repo
+> geht.**
+
+**Und Pint hat eine Methode umbenannt, ohne ihre Aufrufstelle.** In einer
+Testklasse setzt er `test_…` durch; aus `testFiles()` wurde `test_files()`, der
+Aufruf blieb stehen. Heraus kam eine Datei, die `php -l` besteht und beim
+Ausführen an einer undefinierten Methode stirbt — die Verwandte der Falle mit
+`count()`, `matches()` und `run()`, nur mit dem Formatierer statt der
+Basisklasse.
+
+**Zweimal dieselbe Annahme über einen abschliessenden Wert.** `assertGuest()`
+nimmt als ersten Wert den **Guard**, `assertDatabaseHas()` als dritten die
+**Verbindung**; beide Male stand dort ein deutscher Satz, und Laravel suchte
+einen Guard beziehungsweise eine Verbindung dieses Namens.
+`AssertionArgumentTest` hält das an neun Helfern, und das Merkmal ist das
+**Leerzeichen** — ein Guard heisst `web`, eine Verbindung `sqlite`, eine Meldung
+ist ein Satz.
+
+> **Ein Wert am Ende einer Argumentliste sieht aus wie eine Meldung, auch wenn
+> etwas an ihm hängt.**
+
+**Ein verwaister Dokumentationsblock.** Eine neue Methode war zwischen
+`impersonation()` und ihren Block gerutscht; PHPStan meldete die Hälfte, die ein
+Werkzeug sehen kann. `DocblockAnchorTest` hält das jetzt — und sein **erster
+Wurf fragte die falsche Frage**: „zwei Blöcke hintereinander" meldete zwanzig
+Stellen, achtzehn davon zu Recht so geschrieben. Mit der Marke als Bedingung
+bleiben zwei, und beide waren echt.
+
+> **Ein Wächter, der zu viel meldet, wird abgeschaltet — und zwar von dem, der
+> ihn gebaut hat.**
+
+**Und ein Handgriff, der beim Gegenprüfen Arbeit vernichtet hat:**
+`git checkout --` mit einer gemischten Liste aus verfolgten und unverfolgten
+Pfaden stellt **nichts** wieder her und sagt es nicht. Drei Dateien blieben
+mitten im Bruch liegen. Gesichert wird seitdem mit `cp`, und nach jedem Eingriff
+steht eine belegte Zeile „zurück".
+
+> **Ein Rückweg, der stillschweigend nichts tut, ist schlimmer als keiner.**
+
+---
+
 ## Die eine Gewohnheit, die dieses Projekt trägt
 
 **Für jede Regel gibt es einen Wächter, und der Wächter wird gegengeprüft.**
@@ -982,7 +1132,22 @@ den Rechten jedes Verzeichnisses auf dem Weg dorthin) und
 gezeigt), `NavIconTest` (jeder Menüpunkt trägt ein Zeichen, und jedes Zeichen ist
 gezeichnet), `FieldErrorTest` (ein Fehler steht einmal auf der Seite — und wo
 ein Feld rot werden kann, steht auch die Zusammenfassung, die sagt warum) und `SparklineShapeTest` (in einem ungleich gezogenen Feld wird
-nichts Rundes in Nutzerkoordinaten gezeichnet). Der Bruch selbst steht als
+nichts Rundes in Nutzerkoordinaten gezeichnet) — und aus P7b
+`AptResultTest` (wer `apt-get update` ruft, liest die Quellen und nicht den
+Rückgabewert; er sucht ausdrücklich **nicht** das Wort `successful()`, sondern
+misst die Wirkung an einem selbstgebauten Ergebnis mit Rückgabe 0),
+`LastOperatorTest` (der letzte Betreiber lässt sich weder herabstufen noch
+sperren — gemessen an beiden Wegen, mit dem Nachweis, dass es keinen dritten
+gibt), `AccountMutationTest` (jede ändernde Kontenroute fragt den
+Aussperrschutz — oder steht mit Begründung als harmlos da, in beide Richtungen
+und ohne Framework), `AdminPayloadTest` (keine Seite überschreibt die geteilte
+Fähigkeitsablage, jeder Menüpunkt trägt die Fähigkeit seiner Route, und keine
+geheimnisführende Operation sendet Protokollzeilen), `AssertionArgumentTest`
+(ein Satz steht nicht dort, wo ein Guard oder eine Verbindung erwartet wird —
+das Merkmal ist das Leerzeichen), `DocblockAnchorTest` (ein Dokumentationsblock
+mit Marke steht an seiner Methode) und `BaseMethodClashTest` (kein Testfall
+deklariert einen Namen, der der Basisklasse gehört — er spiegelt deren
+`final`-Methoden, statt eine Liste zu pflegen). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -1233,6 +1398,20 @@ Projekts in Zahlen, die drei Grenzen, was dieser Container kann und was nicht
 (mit den fünf Fallen beim Bau des Wegwerf-Gestells), was für sichtbare
 Adminfunktionen im Besonderen gilt, und was der neuen Sitzung mitzugeben ist.
 Sie ersetzt den Plan der Adminfunktionen nicht — der ist anderswo entstanden.
+
+Und aus P7b: **`80` die Bestandsaufnahme** · **`81` der Plan** (A1 vollständig,
+die übrigen als Skizze) · **`82` Rollen und Konten** — der Plan von A9, mit den
+zwei Achsen, dem Aussperrschutz und der Netzbeschränkung; §2.4 ist einmal
+berichtigt worden, weil er eine Passworterzeugung auf dem Server vorsah, die
+dieses Panel seit P1 im Browser macht — und **`83` der Abnahmelauf für A9**:
+vierzehn Punkte auf einem echten Server, **noch nicht gefahren**. Zwei davon
+sind der Grund, dass es ihn gibt: Punkt 8 geht den Rückweg `srvpanel admin`, den
+bisher niemand gegangen ist, und Punkt 9c misst hinter dem echten nginx, ob eine
+offene Sitzung endet, wenn ihre Adresse nicht mehr zugelassen ist. §5 sagt, was
+er ausdrücklich nicht prüft, §7 was danach zu bauen bleibt. Die Nummer des
+Protokolls steht bewusst **nicht** im Dokument — `docs/81` hat einmal eine
+genannt, die einem anderen Dokument gehörte, und `DocLinkTest` konnte das nicht
+sehen.
 
 Und **`65` der Serverlauf zu `v0.6.0-rc.20`** — die elf Punkte, mit denen die
 sieben Befunde der zweiten Runde und die drei Wünsche auf einem echten Server
@@ -1498,7 +1677,46 @@ php artisan migrate
 ```
 
 Auf dem Zielserver:
-`srvpanel setup|update|metrics|usage|tls|vhost|acceptance|acceptance-web|admin`.
+```
+srvpanel setup|update|version|metrics|usage|cron-runs|tls|dns|dns-check
+         |db|vhost|admin|access|acceptance|acceptance-web|acceptance-db
+```
+
+Die Wahrheit ist der `case`-Zweig in `packaging/bin/srvpanel`; `PackagingTest`
+und `CommandReachTest` lesen ihn genau dort statt aus einer Liste im Test. Hier
+stand die Aufzählung bis zum 25. August 2026 mit neun Einträgen, während der
+Wrapper sechzehn kannte: `cron-runs`, `dns`, `dns-check`, `db`, `acceptance-db`,
+`access` und `version` fehlten.
+
+**Beide Richtungen sind gehalten, und die zweite erst seit dem 25. August.**
+`PackagingTest::test_the_wrapper_knows_every_command_of_the_panel` prüft, dass
+jedes `srvpanel:`-Kommando der Anwendung im `case`-Zweig steht — es gibt ihn,
+seit `admin` dort einmal fehlte und die Ersteinrichtung einen Befehl nannte, den
+es auf dem Server nicht gab. `test_every_command_the_wrapper_offers_exists`
+prüft die Gegenrichtung: dass ein Eintrag auch ein Kommando nennt, das es gibt.
+**So entsteht ein toter Eintrag wirklich** — bei einer Umbenennung trägt man den
+neuen Namen nach, die erste Richtung ist danach wieder grün, und der alte bleibt
+liegen. Auf dem Server wird daraus „Command not defined" für einen Namen, den
+der Wrapper selbst anbietet.
+
+> **Ein Wächter, der eine Richtung prüft, hat über die andere nichts gesagt —
+> und welche der beiden fehlt, sieht man erst, wenn man sie braucht.**
+
+**Und der Weg zu dieser Lücke ist die eigentliche Lehre.** Der erste Befund
+lautete, *keine* der beiden Richtungen sei gehalten, und er war falsch: Die
+Testnamen von `PackagingTest` waren mit einem `| head -20` gelesen und der
+Schluss aus der abgeschnittenen Liste gezogen worden.
+`test_the_wrapper_knows_every_command_of_the_panel` steht dort an **19.** Stelle.
+Aus dem Irrtum wurde beinahe eine Zeile in dieser Datei, die einen vorhandenen
+Wächter für nicht vorhanden erklärt — und das ist schlimmer als eine fehlende
+Zeile, weil danach jemand einen zweiten baut.
+
+> **Eine abgeschnittene Liste sieht aus wie eine vollständige — sie sagt nicht,
+> wo sie aufhört.**
+
+`srvpanel tinker` steht nicht in dieser Liste und funktioniert trotzdem: Es
+heisst in artisan `tinker` und nicht `srvpanel:tinker`, und der Durchreicher ist
+für diesen einen Fall genau richtig.
 
 ---
 

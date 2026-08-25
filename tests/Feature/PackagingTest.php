@@ -963,6 +963,62 @@ final class PackagingTest extends TestCase
         ));
     }
 
+    /**
+     * Die Gegenrichtung: Was der Wrapper anbietet, gibt es auch.
+     *
+     * **Warum das ein eigener Test ist und nicht dieselbe Schleife
+     * andersherum.** Der Test darüber hält eine Richtung — jedes Kommando der
+     * Anwendung steht im `case`-Zweig. Über die andere sagt er nichts, und die
+     * bricht bei jeder Umbenennung. Wer `srvpanel:dns-check` in
+     * `srvpanel:dns-verify` umtauft, bekommt vom Test darüber zu Recht ein Rot
+     * und trägt `dns-verify` im Wrapper nach — womit dieser wieder grün ist.
+     * Der alte Eintrag `dns-check` steht dann immer noch daneben, und nichts
+     * meldet ihn.
+     *
+     * Auf dem Server ist das kein toter Buchstabe, sondern eine Falle mit
+     * Ansage: `srvpanel dns-check` wird zu `artisan srvpanel:dns-check` und
+     * endet in „Command not defined". Der Betreiber liest einen Namen, den der
+     * Wrapper selbst anbietet, und bekommt die Meldung, es gebe ihn nicht.
+     *
+     * > **Ein Wächter, der eine Richtung prüft, hat über die andere nichts
+     * > gesagt — und welche der beiden fehlt, sieht man erst, wenn man sie
+     * > braucht.**
+     *
+     * Gefunden am 25. August 2026 beim Nachtragen der Befehlsliste in
+     * `CLAUDE.md`, nicht durch einen Fehlschlag.
+     */
+    public function test_every_command_the_wrapper_offers_exists(): void
+    {
+        $known = $this->wrapperCommands();
+
+        // **Die Untergrenze, damit eine leere Liste nicht als Erfolg
+        // durchgeht.** Fiele `wrapperCommands()` auf einen einzigen Eintrag
+        // zusammen — ein Ausdruck, der nur noch den ersten Namen greift —,
+        // liefe die Schleife darunter fast leer und dieser Test wäre grün,
+        // ohne etwas gemessen zu haben.
+        $this->assertGreaterThan(1, count($known),
+            'packaging/bin/srvpanel gibt nur '.count($known).' Kommando(s) her. Der Ausdruck in '
+            .'wrapperCommands() greift dann nicht mehr den ganzen case-Zweig, und dieser Test '
+            .'misst nichts.',
+        );
+
+        $artisan = $this->artisanCommands();
+        $unknown = [];
+
+        foreach ($known as $short) {
+            if (! in_array('srvpanel:'.$short, $artisan, true)) {
+                $unknown[] = $short;
+            }
+        }
+
+        $this->assertSame([], $unknown, sprintf(
+            "packaging/bin/srvpanel bietet diese Kommandos an, und artisan kennt sie nicht:\n  %s\n\n".
+            'Wer sie auf dem Server tippt, bekommt „Command not defined" — für einen Namen, den '.
+            'der Wrapper selbst anbietet.',
+            implode("\n  ", $unknown),
+        ));
+    }
+
     public function test_the_setup_points_at_a_command_that_exists(): void
     {
         $setup = (string) file_get_contents(dirname(__DIR__, 2).'/app/Console/Commands/Setup.php');

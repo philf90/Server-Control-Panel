@@ -16673,6 +16673,46 @@ pruefe "Wrapper ohne access" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AccessCommandTest passed
 
+echo "── PackagingTest: der Wrapper bietet ein Kommando an, das es nicht gibt ──"
+#
+# Die Gegenrichtung zum Eingriff darueber. Ein Eintrag, den niemand mehr
+# einloest — so entsteht er wirklich: bei einer Umbenennung traegt man den
+# neuen Namen nach und laesst den alten stehen. Auf dem Server wird daraus
+# „Command not defined" fuer einen Namen, den der Wrapper selbst anbietet.
+vorher_datei packaging/bin/srvpanel
+python3 - <<'PY2'
+p = 'packaging/bin/srvpanel'
+s = open(p, encoding='utf-8').read()
+alt = '|admin|access|version)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '|admin|access|version|dns-verify)', 1))
+PY2
+griff_datei packaging/bin/srvpanel "Wrapper mit totem Eintrag" &&
+pruefe "Wrapper mit totem Eintrag" \
+  PackagingTest::test_every_command_the_wrapper_offers_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PackagingTest passed
+
+echo "── PackagingTest: die Wrapper-Liste faellt auf einen Eintrag zusammen ──"
+#
+# Der Pruefkoerper fuer die Untergrenze. Ohne sie liefe die Schleife des
+# Waechters fast leer und meldete Gruen, ohne etwas gemessen zu haben — die
+# Null, die wie „nichts zu beanstanden" aussieht und „nicht nachgesehen" heisst.
+vorher_datei packaging/bin/srvpanel
+python3 - <<'PY2'
+p = 'packaging/bin/srvpanel'
+s = open(p, encoding='utf-8').read()
+alt = ('setup|update|metrics|usage|cron-runs|tls|dns|dns-check|db|vhost|'
+       'acceptance|acceptance-web|acceptance-db|admin|access|version)')
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'setup)', 1))
+PY2
+griff_datei packaging/bin/srvpanel "Wrapper-Liste zusammengefallen" &&
+pruefe "Wrapper-Liste zusammengefallen" \
+  PackagingTest::test_every_command_the_wrapper_offers_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PackagingTest passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

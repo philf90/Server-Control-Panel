@@ -8,9 +8,11 @@ use App\Enums\AccountStatus;
 use App\Models\Account;
 use App\Models\Customer;
 use App\Support\Audit\Impersonation;
+use App\Support\Auth\RecoveryCodes;
 use App\Support\Authorization\Sessions;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use SrvPanel\Agent\Totp;
 use Tests\TestCase;
 
 /**
@@ -205,6 +207,21 @@ final class AccountAccessTest extends TestCase
     {
         $customer = Customer::factory()->create();
         $account = Account::factory()->customer($customer)->create();
+
+        /*
+         * **Der zweite Faktor muss eingerichtet sein**, sonst gibt es die Tür
+         * gar nicht: `AccountFactory` setzt das Geheimnis nur im
+         * `admin()`-Zustand, und ein Kundenkonto hat von sich aus keines. Der
+         * erste Wurf dieses Tests landete deshalb auf `/` statt auf
+         * `/two-factor` — er mass eine Tür, die nicht da war.
+         *
+         * > **Ein Prüfkörper ohne die Vorbedingung misst den Weg daneben.**
+         */
+        $account->forceFill([
+            'two_factor_secret' => Totp::generateSecret(),
+            'two_factor_recovery_codes' => RecoveryCodes::hashAll(RecoveryCodes::generate()),
+            'two_factor_confirmed_at' => now(),
+        ])->save();
 
         /*
          * **Über den echten Weg und nicht über den Sitzungsschlüssel.** Der

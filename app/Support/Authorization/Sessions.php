@@ -74,10 +74,22 @@ final class Sessions
      */
     public static function of(Account $account, ?string $currentId): array
     {
-        if (! self::readable()) {
-            return [];
-        }
-
+        /*
+         * **Hier stand ein `if (! self::readable()) return [];`, und es war
+         * falsch.** Es hat genau den Fehler wiederholt, gegen den Befund 15
+         * gebaut ist: eine leere Liste, die „nicht nachgesehen" bedeutet und
+         * wie „nichts zu tun" aussieht. Gemerkt hat es die CI, weil der Griff
+         * einen **bestehenden** Test brach — im Testlauf steht
+         * `SESSION_DRIVER=array`, und dort ist die Tabelle trotzdem gefüllt.
+         *
+         * > **Eine Behebung, die den behobenen Fehler an anderer Stelle wieder
+         * > einführt, ist keine.**
+         *
+         * Diese Methode beantwortet „was steht in der Tabelle". Ob die Tabelle
+         * die benutzte ist, ist eine andere Frage — die beantwortet
+         * {@see self::readable()}, und die Seite sagt es. Die Tabelle selbst
+         * legt eine Migration an; sie zu lesen ist immer gefahrlos.
+         */
         $rows = DB::table('sessions')
             ->select(['id', 'ip_address', 'user_agent', 'last_activity'])
             ->where('user_id', $account->id)

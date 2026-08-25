@@ -19768,3 +19768,52 @@ Pint setzt in einer Testklasse die Schreibweise `test_…` durch und hat die
 Das ist die Verwandte der Falle mit `count()`, `matches()` und `run()`: ein
 Helfer in einer Testklasse, dessen Name jemand anderem gehört. Dort ist es die
 Basisklasse, hier der Formatierer.
+
+### Der Abnahmelauf für A9 ist ausgeschrieben — `docs/83`
+
+**Vierzehn Punkte auf `cloudsrv24`**, und zwei davon sind der Grund, dass es ihn
+gibt.
+
+**Punkt 8** geht den Rückweg `srvpanel admin` — er steht seit `docs/82 §3` als
+Falle 3 in der Vorschrift, seine Begründung im Kopf von `CreateAdmin`, und
+gegangen ist ihn niemand.
+
+> **Ein Rückweg, den niemand gegangen ist, ist eine Zusage und kein Weg.**
+
+**Punkt 9c** misst, ob eine offene Sitzung endet, wenn ihre Adresse nicht mehr
+zugelassen ist — hinter dem echten nginx und nicht gegen ein `REMOTE_ADDR` aus
+einem Testaufruf.
+
+> **Eine Adresse, die im Test aus einer Variablen kommt, kommt im Betrieb aus
+> einer Kopfzeile — und dazwischen steht ein Reverse-Proxy.**
+
+**Beim Ausschreiben sind drei Dinge aufgefallen, die vorher niemand wusste.**
+
+**Das Abnahmekriterium nennt sechs Geheimnisseiten, und es sind acht.**
+`docs/82 §6` wurde geschrieben, bevor Schritt 3 die Kontenseite und Schritt 7 die
+Zugangsseite gebaut hat.
+
+> **Ein Kriterium, das vor dem Bauen geschrieben wurde, kennt nicht, was beim
+> Bauen entstanden ist.**
+
+**Und es kennt die Netzbeschränkung gar nicht** — sie ist Schritt 7 und steht in
+§6 nicht, obwohl sie das Merkmal mit der grössten Wirkung ist. Der Lauf führt
+sie als Punkt 9 und sagt dazu, dass sie über die Abnahme mitentscheidet.
+
+**Der teuerste Fund ist ein fehlender Rückweg.** `srvpanel admin` holt ein Konto
+zurück, das sich mit Passwort oder zweitem Faktor ausgesperrt hat. Für eine
+**Netzbeschränkung** gibt es nichts dergleichen: Ändert sich die Adresse des
+Betreibers — ein ISP, der neu nummeriert —, kommt niemand mehr herein. Der Weg
+über `srvpanel tinker` funktioniert und steht in keiner Hilfe.
+
+> **Ein Rückweg, den man erst sucht, wenn man ihn braucht, ist keiner.**
+
+Der Lauf nennt ihn in §2.1, damit er vor dem Lauf gelesen wird, und §7 führt
+`srvpanel access --clear` als das, was danach zu bauen bleibt.
+
+**Und die Nummer des Protokolls steht bewusst nicht darin.** `docs/81` hat einmal
+eine genannt, die einem anderen Dokument gehörte; `DocLinkTest` sah das nicht,
+weil er prüft, ob es die Datei gibt, und nicht, ob sie das Gemeinte ist.
+
+> **Eine Nummer, die man vergibt, bevor es die Datei gibt, ist eine Zusage an
+> einen Namen und nicht an einen Inhalt.**

@@ -399,7 +399,7 @@ und die einmalige Passwortanzeige.
 | 6 | Bilder bei 390 und 1440 px in beiden Themes | `tests/bilder-messen.js` meldet 0 px mit ausschlagender Gegenprobe |
 | 7 | IP-Beschränkung und Sitzungsübersicht (der zweite Faktor ist gebaut, §2.5) | eine IP-Beschränkung, die ihren eigenen Urheber nicht aussperrt — **erledigt** |
 | 8 | Wächter brechen, Lauf von `tests/waechter-brechen.sh` | jeder Eingriff beisst — einzeln **und** im Lauf |
-| 9 | Der Abnahmelauf auf `cloudsrv24` | die sieben Punkte aus §6 |
+| 9 | Der Abnahmelauf auf `cloudsrv24` | die sieben Punkte aus §6 — **ausgeschrieben als `docs/83`**, gefahren noch nicht |
 
 **Aufwand: 1,5 bis 2 Wochen.** Die Schritte 1 bis 5 sind der Kern und
 beantworten die Frage des Betreibers; 7 ist der Zugangsteil und liesse sich

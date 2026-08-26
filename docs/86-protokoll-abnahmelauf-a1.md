@@ -1112,4 +1112,52 @@ Server belegt. Die Anzeige einer Neuinstallation ist nicht gemessen.** Die
 nächste Gelegenheit kommt von allein — sobald ein Upgrade eine neue Abhängigkeit
 mitbringt, steht sie in der Liste, und dann ist es ein Blick.
 
+---
+
+### Punkt 2b — Eine Quelle aus- und wieder einschalten · **erfüllt**
+
+Geschaltet wurde `php-sury.sources` und **nicht** `srvpanel.sources`: Die eigene
+Quelle abzuschalten nähme dem Panel den Blick auf seine eigenen Updates, und
+Punkt 5 hängt daran.
+
+Vorgang **694**, `system.sources.toggle`, Argumente
+`{path: …/php-sury.sources, stanza: 1, enabled: false}`, Ausgabe
+„Paketquelle ausschalten: php-sury.sources", fertig in einer Sekunde.
+
+    Ziele insgesamt      53  →  51  →  53
+    Datei                ohne  →  Enabled: no  →  Enabled: yes
+    Seite                an    →  abgeschaltet →  an
+
+**Die Datei bleibt stehen und wird nicht auskommentiert.** `Enabled: no` kommt
+als Zeile hinzu, alles andere — `URIs`, `Suites`, `Components`, `Signed-By` —
+steht unverändert da. Und beim Wiedereinschalten wird die Zeile nicht entfernt,
+sondern auf `yes` gesetzt: ausdrücklich statt abwesend.
+
+> **Eine Anzeige, die einen Zustand meldet, muss ihn auch wieder zurücknehmen —
+> sonst hat sie ihn nicht gemessen, sondern behalten.**
+
+---
+
+**Beobachtung 10 — meine Gegenprobe zählte eine andere Einheit als die Messung.**
+
+Erwartet hatte ich, die Gesamtzahl falle um die Zahl aus
+`apt-get indextargets | grep -c 'ondrej\|sury'`, also um **16**. Gemessen sind
+**2**.
+
+Der Fehler ist meiner: `grep -c` zählt **Zeilen**, `indextargets` gibt aber je
+Ziel ein Stanza aus, und der Name der Quelle steht darin mehrfach — URI,
+Repo-URI, Beschreibung, Kennung. Sechzehn Zeilen sind zwei Ziele.
+
+> **Eine Gegenprobe, die eine andere Einheit zählt als die Messung, bestätigt
+> nichts — sie nennt eine zweite Zahl.**
+
+**Die richtige Gegenprobe stand die ganze Zeit auf der Seite.** Die Quellenliste
+nennt die Ziele je Eintrag: `1 + 1 + 37 + 12 = 51`, und genau 51 misst
+`indextargets` im abgeschalteten Zustand. Die Seite rechnet damit Quelle für
+Quelle mit apt überein — eine schärfere Aussage als die, die der Lauf verlangt
+hat.
+
+> **Eine Zahl, die der Prüfling selbst je Zeile ausweist, ist eine bessere
+> Gegenprobe als eine, die man daneben baut.**
+
 <!-- Wird während des Laufs weitergefüllt. -->

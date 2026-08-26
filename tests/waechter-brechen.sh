@@ -17398,6 +17398,107 @@ pruefe "Rauten-Abstreifer entfernt" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ReleaseChannelTest passed
 
+echo "── AptMeasurementReachTest: eine Plattform faellt aus der Messrunde ──"
+#
+# Zwei Listen, die dasselbe meinen, laufen auseinander. Faellt eine Plattform
+# aus der Messrunde, misst sie drei, waehrend vier ausgeliefert werden — und
+# der Lauf bleibt gruen, weil er die fehlende gar nicht erwartet.
+vorher_datei .github/workflows/ci.yml
+python3 - <<'PY2'
+import re
+p = '.github/workflows/ci.yml'
+s = open(p, encoding='utf-8').read()
+# Nur im Block der Messrunde, nicht im Installationsjob.
+block = re.search(r'^  apt-messrunde:$.*?(?=^  [a-z-]+:$)', s, re.M | re.S)
+assert block, 'Der Job apt-messrunde steht nicht im Lauf — der Bruch waere blind'
+neu = block.group(0).replace('          - name: Ubuntu 22.04\n            image: ubuntu:22.04\n', '', 1)
+assert neu != block.group(0), 'Zielstelle nicht gefunden — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s[:block.start()] + neu + s[block.end():])
+PY2
+griff_datei .github/workflows/ci.yml "Plattform fehlt in der Messrunde" &&
+pruefe "Plattform fehlt in der Messrunde" \
+  AptMeasurementReachTest::test_the_measurement_covers_every_platform_that_is_installed_on failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptMeasurementReachTest passed
+
+echo "── AptMeasurementReachTest: der Aufruf wird auskommentiert ──"
+#
+# Die wahrscheinlichste Mutation ueberhaupt, und der Grund fuer den
+# Kommentar-Abstreifer: Gemessen an genau dieser Quelle ist der Waechter mit
+# Abstreifer rot und ohne ihn gruen — er faende die Zeichenkette dann in dem
+# Kommentar, zu dem der Aufruf gerade geworden ist.
+vorher_datei .github/workflows/ci.yml
+python3 - <<'PY2'
+p = '.github/workflows/ci.yml'
+s = open(p, encoding='utf-8').read()
+alt = '              sh tests/apt-faelle-messen.sh\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, '              # sh tests/apt-faelle-messen.sh\n', 1))
+PY2
+griff_datei .github/workflows/ci.yml "Aufruf auskommentiert" &&
+pruefe "Aufruf auskommentiert" \
+  AptMeasurementReachTest::test_the_job_calls_both_scripts failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptMeasurementReachTest passed
+
+echo "── AptMeasurementReachTest: das Faelle-Skript druckt nur noch ──"
+#
+# Ohne Rueckgabewert meldet ein Lauf, in dessen Protokoll „FALL NICHT
+# HERGESTELLT" steht, genauso Gruen wie einer, der alle vier hergestellt hat.
+vorher_datei tests/apt-faelle-messen.sh
+python3 - <<'PY2'
+p = 'tests/apt-faelle-messen.sh'
+s = open(p, encoding='utf-8').read()
+alt = 'exit "${OFFEN}"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'exit 0', 1))
+PY2
+griff_datei tests/apt-faelle-messen.sh "Faelle-Skript ohne Rueckgabewert" &&
+pruefe "Faelle-Skript ohne Rueckgabewert" \
+  AptMeasurementReachTest::test_the_case_script_decides_instead_of_printing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptMeasurementReachTest passed
+
+echo "── AptMeasurementReachTest: ein Fall nennt eine Messung, die es nicht gibt ──"
+#
+# Der haeufigste Fehler dieses Repositorys in seiner reinsten Form: eine
+# Zeichenkette, die auf etwas verweist, ohne dass etwas den Bezug prueft.
+vorher_datei tests/apt-faelle-messen.sh
+python3 - <<'PY2'
+p = 'tests/apt-faelle-messen.sh'
+s = open(p, encoding='utf-8').read()
+alt = 'titel "F3 — Schlüssel mit Ablaufdatum (M6)"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, 'titel "F3 — Schlüssel mit Ablaufdatum (M99)"', 1))
+PY2
+griff_datei tests/apt-faelle-messen.sh "Fall zeigt auf keine Messung" &&
+pruefe "Fall zeigt auf keine Messung" \
+  AptMeasurementReachTest::test_every_case_names_a_measurement_that_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptMeasurementReachTest passed
+
+echo "── AptMeasurementReachTest: die Untergrenze der Fallliste ──"
+#
+# Der Pruefkoerper. Findet der Ausdruck die Faelle nicht mehr, laeuft die
+# Schleife leer und der Waechter meldete Gruen, ohne einen Verweis geprueft zu
+# haben.
+vorher_datei tests/Unit/AptMeasurementReachTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/AptMeasurementReachTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/^titel \"F\\d+ — .*\\((M\\d+)\\)\"$/m'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "'/^titel \"G\\d+ — .*\\((M\\d+)\\)\"$/m'", 1))
+PY2
+griff_datei tests/Unit/AptMeasurementReachTest.php "Untergrenze der Fallliste" &&
+pruefe "Untergrenze der Fallliste" \
+  AptMeasurementReachTest::test_every_case_names_a_measurement_that_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptMeasurementReachTest passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

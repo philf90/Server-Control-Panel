@@ -20514,3 +20514,69 @@ anderen die `scoped`-Regeln aller Komponenten.
 > **Ein Aufsatz, der ein Stylesheet von zweien nimmt, misst eine Seite ohne die
 > Regeln jeder Komponente — und weil die Seitenregeln da sind, sieht das
 > Ergebnis aus wie eines.**
+
+### Die apt-Messrunde fährt in der CI — auf allen vier Zielplattformen
+
+`docs/81 §2.3` führte die Messrunde vor A1 als offen: Gemessen war Ubuntu 24.04,
+für Debian 12, Debian 13 und Ubuntu 22.04 stand im Plan eine **Erwartung** statt
+einer Zahl. Vorgesehen war „ein Lauf je Plattform" von Hand.
+
+Als Job ist es ähnlich teuer und ergibt etwas anderes — derselbe Schritt, den
+dieses Projekt in P5b für PostgreSQL schon gegangen ist:
+
+> **Eine Messung, die einmal jemand von Hand macht, ist ein Datum. Eine, die die
+> CI macht, ist eine Zusage.**
+
+**Zwei Skripte, und die Trennung ist keine Formsache.** `tests/apt-messen.sh`
+sagt im Kopf zu, nichts zu installieren und nichts zu ändern — deshalb darf es
+auf einem echten Server laufen. Das neue `tests/apt-faelle-messen.sh` stellt die
+vier Fälle her, die von allein nicht vorkommen, und gehört genau deshalb
+ausschliesslich in einen Wegwerf-Container: Es setzt eine Sperrmarkierung,
+installiert ein Paket neu und schreibt in die apt-Historie.
+
+Gemessen auf Ubuntu 24.04, jeder Fall mit seinem Nachbarwert:
+
+| Fall | vorher | hergestellt | Gegenprobe |
+|---|---|---|---|
+| `Inst` ohne `[alte Fassung]` (M3) | 0 | 2 | 145 Zeilen *mit* `[alt]` |
+| zurückgehaltenes Paket (M4) | 0 | 1 | `Inst` 145 → 144 |
+| Schlüssel mit Ablaufdatum (M6) | 0 | 1 | Feld 7: leer / `1819258648` |
+| `Requested-By` (M11) | 2 | 3 | ohne `SUDO_UID` unverändert |
+
+**Der Fund dabei war eine Umgebungsvariable.** `Requested-By` entsteht nicht mit
+`SUDO_USER`, sondern mit **`SUDO_UID`** — und apt löst die Zahl selbst zum Namen
+auf. Mit `SUDO_USER=messkonto` allein bleibt die Zeile aus; die erste Fassung
+dieses Falls hätte also nichts gemessen und dabei ausgesehen wie eine Messung.
+
+> **Eine Umgebungsvariable, die den Namen trägt, ist nicht die, die gelesen
+> wird.**
+
+**Das Skript entscheidet über seinen Rückgabewert und druckt nicht nur.** Ein
+Lauf, in dessen Protokoll „FALL NICHT HERGESTELLT" steht, wäre sonst genauso
+grün wie einer, der alle vier herstellt. Gegengeprüft mit einem Eingriff an der
+Bedingung: ein ausgefallener Fall ergibt Rückgabewert 1 und die Zeile „1 von 4
+Fällen nicht hergestellt".
+
+Der erste Versuch dieser Gegenprobe war keine — ein gekürzter `PATH` liess das
+Skript mit 127 sterben, statt eine Regel zu verletzen.
+
+> **Ein Bruch muss die Regel verletzen und nicht den Code zerstören.**
+
+**Der Wächter vergleicht zwei Listen, die es wirklich gibt.** Nicht gegen eine
+Aufzählung im Test — die stünde als dritte Fassung daneben und veraltete zuerst.
+Verglichen werden die Plattformen der Messrunde mit denen des Installationsjobs.
+
+Und sein Kommentar-Abstreifer ist tragend, gemessen an derselben kaputten
+Quelle: Wird der Aufruf **auskommentiert** — die wahrscheinlichste Mutation
+überhaupt —, ist der Wächter mit Abstreifer rot und ohne ihn grün.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald die Zeichenkette
+> irgendwo steht — auch in dem Kommentar, der aus ihr wurde.**
+
+Die erste Begründung im Kopf des Wächters war dabei falsch („ein Wächter, der
+zählt, bekäme die Namen doppelt") und ist berichtigt: Dieser Wächter zählt
+nichts, und ohne den Abstreifer bleibt er an der heilen Datei genauso grün.
+
+Fünf Eingriffe im Bruchskript, jeder einzeln gefahren und jeder mit belegtem
+Rückweg. **Was noch nicht gemessen ist:** die drei fehlenden Plattformen selbst
+— gebaut ist das Mittel, der Lauf folgt.

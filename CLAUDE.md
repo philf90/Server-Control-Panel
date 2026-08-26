@@ -1930,6 +1930,16 @@ Testen berücksichtigen:
   > **Ein Aufsatz, der das echte Markup und das gebaute Stylesheet benutzt, misst
   > die echte Seite — und nicht etwas Ähnliches.**
 
+  **Mit einer Falle, die am 26. August fast eine Messung gekostet hätte: Es sind
+  zwei Stylesheets, nicht eines.** Der Eintrag `resources/js/app.ts` im Manifest
+  führt beide — in dem einen stehen die Seitenregeln aus `app.css`, in dem
+  anderen die `scoped`-Regeln **aller** Komponenten. Wer „das" Stylesheet aus
+  dem Manifest nimmt, bekommt eine Seite, auf der jede Komponentenregel fehlt,
+  und weil die Seitenregeln da sind, sieht sie aus wie eine Seite.
+
+  > **Ein Aufsatz, der ein Stylesheet von zweien nimmt, misst eine Seite ohne
+  > die Regeln jeder Komponente — und das Ergebnis sieht aus wie eines.**
+
   **Mit einer Grenze, die am 17. August fast einen Fehlbefund gekostet hätte:
   `<style scoped>` gilt in diesem Aufsatz nicht.** Vite übersetzt so eine Regel
   zu `.usage[data-v-1ecda25a]`, und handgeschriebenes Markup ohne dieses
@@ -1987,6 +1997,48 @@ Testen berücksichtigen:
   vermessen worden: Die Metadaten von packagist antworten mit **200**,
   `codeload.github.com` mit **403**. Composer löst also auf und scheitert beim
   Herunterladen.
+
+  **Und `composer install` geht doch — mit drei Einstellungen.** Der Satz oben
+  stimmt für den Aufruf, wie man ihn tippt, und er hat neun Monate lang die
+  Arbeitsweise dieses Repositorys bestimmt: kein `vendor/`, also kein
+  `artisan serve`, kein echter Testlauf, keine Aufnahme einer echten Seite — und
+  jede Änderung an `app/`, `agent/` oder `tests/` kostet eine CI-Runde.
+
+  Gemessen am 26. August 2026 ist die Sperre schmaler als der Satz. `git clone
+  https://github.com/…` **funktioniert** hier, über dieselbe Leitung, über die
+  dieses Repo gepusht wird. Composer benutzt sie nur nicht: Es fragt die
+  GitHub-API nach einer Zipball-Adresse, und die sperrt der Proxy. Drei
+  Einstellungen drehen das um:
+
+      composer config -g use-github-api false
+      composer config -g github-protocols https
+      COMPOSER_ALLOW_SUPERUSER=1 composer install --prefer-source --no-dev
+
+  Ergebnis: `vendor/autoload.php`, 403 MB, `php artisan --version` meldet
+  Laravel 13.23.0. Damit laufen `artisan serve`, Migrationen, `srvpanel:admin`
+  und Aufnahmen **echter Seiten** in diesem Container.
+
+  **`--no-dev` ist kein Nebensatz, sondern der Kern.** Der einzige harte Blocker
+  war `phpstan/phpstan`: Es kommt als Zipball über `api.github.com`, der Proxy
+  antwortet **403**, und composer deutet 403 als „Anmeldung nötig" und bricht
+  **den ganzen Lauf** ab — nachdem 22 Pakete bereits erfolgreich geklont waren.
+  Ein einziges Entwicklungspaket verhinderte so alle Laufzeitabhängigkeiten.
+
+  > **Ein Abbruch, der nach dem ersten Fehlschlag alles verwirft, macht aus
+  > einem gesperrten Paket eine gesperrte Umgebung.**
+
+  Was `--no-dev` kostet, ist wenig: kein `vendor/bin/phpunit` und kein
+  `vendor/bin/pint` — beide gibt es als phar, siehe unten, und PHPStan ohnehin.
+
+  Eine Falle beim Einstellen: `composer config -g github-protocols git` meint
+  das git://-Protokoll auf Port 9418 und nicht „per git klonen". Der Wert wurde
+  als **leere Liste** abgelegt, und der Lauf brach mit „Failed to clone … via
+  protocols" ab — mit einer Lücke da, wo das Protokoll stehen sollte.
+
+  > **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite
+  > braucht einen Versuch.** Derselbe Satz wie bei MariaDB, beim `sshd`, bei
+  > PowerDNS und bei PHPStan — diesmal an der Aussage, die diese Datei am
+  > häufigsten benutzt hat.
 
   - **`pint.phar` gibt es von den GitHub-Releases, und es *ist* Pint.** In P4
     stand hier, man müsse sich mit `php-cs-fixer.phar` behelfen und dessen

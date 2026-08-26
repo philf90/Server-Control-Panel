@@ -20455,3 +20455,62 @@ einbindet — ohne sie wird er nicht gelesen.
 
 Mit beiden Dateien im selben Lauf schlägt die Gegenprobe aus, und der geprüfte
 Stand hat null echte Zeilen.
+
+### Zwei offene Messungen nachgeholt — und der Container kann mehr, als hier stand
+
+Die zwei Punkte aus `docs/84 §6`, die auf eine Messung warteten, sind gemessen.
+Beim Beschaffen der Voraussetzung dafür ist eine Aussage gefallen, die neun
+Monate lang die Arbeitsweise dieses Repositorys bestimmt hat.
+
+**`composer install` geht in diesem Container — mit drei Einstellungen.** Der
+Proxy sperrt `codeload.github.com` und `api.github.com`, aber **nicht** git zu
+github.com; über dieselbe Leitung wird dieses Repo gepusht. Composer benutzt sie
+nur nicht von allein: Es fragt die API nach einer Zipball-Adresse.
+
+    composer config -g use-github-api false
+    composer config -g github-protocols https
+    COMPOSER_ALLOW_SUPERUSER=1 composer install --prefer-source --no-dev
+
+Ergebnis: `vendor/autoload.php`, Laravel 13.23.0, `artisan serve`, Migrationen,
+`srvpanel:admin` — und damit Aufnahmen **echter** Seiten statt handgeschriebenen
+Markups.
+
+**Der einzige harte Blocker war ein Entwicklungspaket.** `phpstan/phpstan` kommt
+als Zipball über `api.github.com`, der Proxy antwortet 403, composer deutet das
+als „Anmeldung nötig" und bricht den ganzen Lauf ab — nachdem 22 Pakete bereits
+erfolgreich geklont waren.
+
+> **Ein Abbruch, der nach dem ersten Fehlschlag alles verwirft, macht aus einem
+> gesperrten Paket eine gesperrte Umgebung.**
+
+**Die Messungen selbst.** Die Übersicht bei 390/Dunkel: `dokument: 0`,
+`gegenprobe: 200/200`, `schiebt: 0` in allen vier Lagen — mit der benannten
+Grenze, dass gegen eine leere Instanz ohne Agenten gemessen wurde.
+
+Das Kontenformular war der interessantere Fall. Über den Überlauf ist Befund 16
+gar nicht messbar, denn ein fehlender Abstand lässt nichts überlaufen; `dokument:
+0` und `schiebt: 0` hätten ihn auch im kaputten Zustand gemeldet. Gemessen wurde
+deshalb der Abstand: `.title-row` steht auf `display: flex` mit `column-gap:
+8px`, die sichtbare Lücke zwischen Adresse und Marke beträgt bei 390 px wie bei
+1440 px **8 px**. Vorher war sie 0. Beide Regeln des Blocks aus `Form.vue`
+wirken — die Gerätekennung steht in der kleineren Schrift und gekürzt.
+
+**Zwei Fehler am Messmittel, beide bezahlt.**
+
+Der erste hat acht Messungen gekostet, ohne dass eine davon rot war: Der Zugang
+wurde nach der Anmeldung auf die Einrichtung des zweiten Faktors umgeleitet, und
+alle acht Lagen meldeten `dokument: 0` und `gegenprobe: 200/200` — für dieselbe
+Seite. Verräterisch war nicht die Null, sondern dass alle acht Zeilen identisch
+waren. Der Lauf prüft seitdem nach jeder Navigation, ob er dort steht, wo er
+hinwollte.
+
+> **Ein Prüfkörper, der ohne seinen Gegenstand misst, misst etwas anderes und
+> sieht dabei aus wie ein Ergebnis.**
+
+Der zweite betrifft jeden künftigen Aufsatz: Das Manifest führt für den Eintrag
+`app.ts` **zwei** Stylesheets. In dem einen stehen die Seitenregeln, in dem
+anderen die `scoped`-Regeln aller Komponenten.
+
+> **Ein Aufsatz, der ein Stylesheet von zweien nimmt, misst eine Seite ohne die
+> Regeln jeder Komponente — und weil die Seitenregeln da sind, sieht das
+> Ergebnis aus wie eines.**

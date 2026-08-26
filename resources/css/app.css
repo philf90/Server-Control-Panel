@@ -1928,6 +1928,36 @@ table.pairs {
 }
 
 /*
+ * **Auf dem Telefon wird es grösser.**
+ *
+ * Gemessen am 26. August 2026 bei 390 px: 17×17. WCAG 2.5.8 verlangt 24×24 für
+ * ein Ziel, das kein Text ist — auf einem Zeigegerät ist der Unterschied eine
+ * Frage der Bequemlichkeit, auf einem Finger eine der Treffsicherheit. Das
+ * `<label>` umschliesst den Haken hier nicht; das Ziel ist der Kasten selbst
+ * und nicht die Zeile.
+ *
+ * **Es steht an `.check` und nicht an der Updates-Seite.** Dieselben 17 px hat
+ * der Dateimanager seit P6.
+ *
+ * > **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten
+ * > Merkmal wieder da, wenn die Behebung nicht die Regel wurde.**
+ *
+ * **Und es steht hier und nicht im grossen `@media`-Block weiter oben** — der
+ * endet bei Zeile 1500, `.check` entsteht bei 1941. Gleiche Spezifität, und
+ * dann gewinnt die spätere Regel: Der erste Wurf stand dort und hat **nichts**
+ * bewirkt, bei unverändert 17×17 in der Messung.
+ *
+ * > **Eine Regel für den schmalen Fall, die vor der allgemeinen steht, ist
+ * > keine Ausnahme — sie ist die, die verliert.**
+ */
+@media (max-width: 720px) {
+  .check {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/*
  * Der Pfad über dem Editor.
  *
  * Er steht als eigene Zeile und nicht in der Überschrift: `docs/46 §20.11` hat
@@ -3952,6 +3982,29 @@ p:not([class]) {
  * > **Ob zwei Bausteine zu eng stehen, entscheidet ein Blick und keine Regel.**
  */
 .toggle + .button-row {
+  margin-top: var(--block-gap);
+}
+
+/*
+ * Und zwei Knopfreihen kleben nicht aneinander.
+ *
+ * **Dieselbe Regel wie eine Zeile darüber, aus demselben Anlass — nur ein Jahr
+ * später und mit einer Zahl.** Auf der Updates-Seite stehen seit dem
+ * 26. August zwei Reihen untereinander: der Neustart, der zu seiner Meldung
+ * gehört, und die drei Griffe, die zur Tabelle darunter gehören. Gemessen bei
+ * 1440 px: **26 px** zur Meldung darüber, **26 px** zum Filter darunter — und
+ * **0 px** zwischen den beiden Reihen.
+ *
+ * Vier Knöpfe ohne Lücke lesen sich als eine Gruppe. Der Neustart stand damit
+ * näher an „Alle installieren" als an dem Satz, der ihn erklärt.
+ *
+ * > **Nähe ist eine Aussage über Zusammengehörigkeit, und sie gilt auch dann,
+ * > wenn sie niemand gemeint hat.**
+ *
+ * Gefunden hat es die Aufnahme und nicht die Messung: `dokument` blieb 0, und
+ * `schiebt` war leer.
+ */
+.button-row + .button-row {
   margin-top: var(--block-gap);
 }
 

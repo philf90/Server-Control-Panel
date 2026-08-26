@@ -21141,3 +21141,112 @@ Das ist derselbe Satz, den dieser Test in seinem eigenen Kopf führt, zum dritte
 Mal — einmal für eine Kopfzeile zu viel, einmal für eine zu wenig, jetzt für
 einen Wert, den es so nicht gibt. Gefragt wird die Fassung jetzt bei der
 Mittelschicht, die sie setzt.
+
+### A1 Schritt 6 — Aktualisierungen installieren, und Teil 3 von M5
+
+Zwei Operationen: `system.packages.refresh` frischt die Paketlisten auf und
+nennt **je Quelle**, welche ausgefallen ist; `system.packages.upgrade`
+installiert — alles, nur Sicherheit, oder ausgewählte Pakete.
+
+**Der Lauf geht als transiente Unit an ein Skript und nicht an `apt-get`**, und
+das ist der Kern dieses Schritts. Gemessen: Ein Lauf, der nichts zu tun hat,
+schreibt `0 upgraded, 0 newly installed, 0 to remove and 144 not upgraded.` und
+endet mit **0**. Das ist M5 an einer vierten Stelle.
+
+> **Ein Rückgabewert, der einen Fehlschlag nicht tragen kann, ist keine Prüfung
+> — er ist eine Zeile, die aussieht wie eine.**
+
+`packaging/bin/apt-run` zählt deshalb vorher und nachher, wie viele
+Aktualisierungen offen sind, schreibt das Ergebnis als letzte Zeile des
+Protokolls und endet **ungleich 0**, wenn sich nichts geändert hat. Vier
+Ausgänge gegen echtes apt gemessen: nichts bewirkt → 3, etwas bewirkt → 0,
+unbekannter Modus → 2, keine Namen → 2.
+
+**Und damit ist Teil 3 von M5 eingelöst.** `panel.update` setzte seit P0
+`apt-get update -qq && apt-get install -y --only-upgrade srvpanel` ab — das
+`&&` griff nie, weil `apt-get update` immer 0 ist, und mit alten Listen fand
+`--only-upgrade` nichts, meldete `0 upgraded` und endete ebenfalls mit 0. Das
+Panel meldete „Update läuft", die Fassung blieb stehen, und im Protokoll stand
+ein erfolgreicher Lauf. Es läuft jetzt über dasselbe Skript im Modus `panel`
+und vergleicht die **installierte Fassung** vor und nach dem Lauf.
+
+> **Wenn die Fassung danach dieselbe ist, ist es gleichgültig, warum.**
+
+Diese eine Frage ersetzt jede Prüfung am Rückgabewert von `apt-get update`: Sie
+fällt gleich aus, ob eine Quelle tot war, ob die Listen alt waren oder ob es
+nichts Neues gab. Die Ausnahme in `AptResultTest` ist damit fort.
+
+**Kein Freitext erreicht apt.** Gemessen: `--reinstall` als *Paketname* wird von
+apt **als Option** geschluckt — „0 upgraded", rc=0, wortlos. Geprüft wird
+deshalb gegen die Liste, die der Agent selbst gerade gelesen hat, und nicht
+gegen ein Muster; ein Muster müsste jede solche Schreibweise erraten. `--`
+täte es auch und ist bewusst **nicht** dabei: Es wäre eine zweite Grenze neben
+der Positivliste, und es könnte nur die Hälfte — ein Paket, das gar nicht zur
+Aktualisierung anstand, hielte es nicht auf.
+
+**Zwei Fallen hat die Messrunde geschlossen, bevor sie Code wurden.**
+`--only-upgrade` für benannte Pakete klingt richtig und tut auf einem Paket,
+das noch nicht installiert ist, wortlos nichts — in der Liste stehen aber auch
+Neuinstallationen. Und `apt-get -t <suite>` ist kein Sicherheitsfilter, sondern
+eine andere Kandidatenwahl (140 statt 142 Pakete): Die Liste „nur Sicherheit"
+stellt der Agent selbst zusammen, aus derselben Lesung wie die Positivliste.
+
+**Auf der Seite**: „Jetzt nachsehen" im Seitenkopf, drei Griffe über der
+Tabelle und ein Kästchen je Zeile. Die Auswahl überlebt Filter und Seiten —
+wer erst nach `libssl` sucht, drei Zeilen anhakt und dann nach `perl` sucht,
+will beide Gruppen installieren; deshalb steht die Zahl am Knopf und nicht in
+der Tabelle.
+
+**`--force-confold` bleibt** (Frage 3, entschieden durch M12), und
+`Dpkg::Use-Pty=0` ist dazugekommen: Die längste Zeile des Protokolls fällt
+damit von **1400 auf 103** Zeichen — ohne sie steht der Datenbankfortschritt
+von dpkg als eine einzige Zeile darin.
+
+### Drei Wächter, die aus einem anderen Grund rot waren
+
+**`AptResultTest` wäre an diesem Tag blind geworden.** Der Aufruf von
+`apt-get update` zog in ein Shell-Skript um; der Wächter las nur PHP und hätte
+weiter Grün gemeldet — für eine Stelle, die er gar nicht mehr sieht. Er liest
+jetzt auch `packaging/bin`. Dabei fiel ein Loch in seinem Ausdruck auf, das es
+schon vorher gab: `apt-get -q update` traf er nicht, weil er `apt-get`
+unmittelbar vor `update` verlangte.
+
+> **Ein Ausdruck, der die gewohnte Schreibweise kennt, prüft die Gewohnheit und
+> nicht die Regel.**
+
+**`AptLockReachTest` verlor `PanelUpdate` aus derselben Ursache** — in dessen
+Quelltext steht seit dem Umzug kein `apt-get` mehr. Gefangen hat es die
+Untergrenze daneben und nicht das Nachdenken.
+
+**Und `CountedNounTest` hat eine Regel dazubekommen, die eine Aufnahme
+gefunden hat.** In der Rückfrage stand „**2 :count ausgewählte Pakete
+installieren?**" — `counted()` setzt die Zahl selbst davor und nimmt daneben
+nur das Wort; `:count` ist die Schreibweise von `lang/de/validation.php`, wo
+Laravel den Platzhalter ersetzt. Hier ersetzte ihn niemand.
+
+> **Wissen aus zweiter Hand sieht aus wie Wissen.**
+
+Die Messung daneben war fehlerfrei: `dokument=0`, Gegenprobe 200/200. Ein
+Platzhalter, der als Text dasteht, lässt nichts überlaufen.
+
+### Zwei Funde der Bilderrunde, beide ohne Zahl
+
+**Das Ankreuzfeld einer Zeile ist bei 390 px 17×17 gross** — WCAG 2.5.8
+verlangt 24×24 für ein Ziel, das kein Text ist. Es gilt seit P6 genauso für den
+Dateimanager, deshalb steht die Regel an `.check` und nicht an der neuen Seite.
+
+**Und der erste Wurf dieser Regel hat nichts bewirkt.** Sie stand im grossen
+`@media`-Block bei Zeile 1351, `.check` entsteht bei 1941 — gleiche
+Spezifität, und dann gewinnt die spätere Regel. Die Messung sagte unverändert
+17×17.
+
+> **Eine Regel für den schmalen Fall, die vor der allgemeinen steht, ist keine
+> Ausnahme — sie ist die, die verliert.**
+
+**Zwei Knopfreihen klebten aneinander.** Gemessen bei 1440 px: 26 px zur
+Meldung darüber, 26 px zum Filter darunter, **0 px** zwischen den Reihen. Vier
+Knöpfe ohne Lücke lesen sich als eine Gruppe — der Neustart stand damit näher
+an „Alle installieren" als an dem Satz, der ihn erklärt.
+
+> **Nähe ist eine Aussage über Zusammengehörigkeit, und sie gilt auch dann,
+> wenn sie niemand gemeint hat.**

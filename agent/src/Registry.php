@@ -95,6 +95,8 @@ use SrvPanel\Agent\Ops\SystemInfo;
 use SrvPanel\Agent\Ops\SystemLogsList;
 use SrvPanel\Agent\Ops\SystemLogsTail;
 use SrvPanel\Agent\Ops\SystemPackagesList;
+use SrvPanel\Agent\Ops\SystemPackagesRefresh;
+use SrvPanel\Agent\Ops\SystemPackagesUpgrade;
 use SrvPanel\Agent\Ops\SystemReboot;
 use SrvPanel\Agent\Ops\SystemSourcesList;
 use SrvPanel\Agent\Ops\SystemSourcesToggle;
@@ -189,6 +191,8 @@ final class Registry
 
         // P7b A1 — der Paketstand und die Quellen. Lesen apt und ändern nichts.
         $this->register(new SystemPackagesList);
+        $this->register(new SystemPackagesRefresh);
+        $this->register(new SystemPackagesUpgrade);
         $this->register(new SystemReboot);
         $this->register(new SystemSourcesList);
         $this->register(new SystemSourcesToggle);

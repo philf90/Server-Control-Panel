@@ -7,6 +7,7 @@ import Badge from '../../Components/Badge.vue'
 import FormErrors from '../../Components/FormErrors.vue'
 import RebootButton from '../../Components/RebootButton.vue'
 import { counted } from '../../Composables/useCounted'
+import { useConfirmation } from '../../Composables/useConfirmation'
 
 /*
  * Der Paketstand dieses Servers und die Quellen, aus denen er kommt.
@@ -306,6 +307,102 @@ const unlesbar = computed(() =>
 )
 
 /*
+ * ═══════════════════════════════════════════════════════════════════════
+ * Auffrischen und Einspielen
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+
+const { ask } = useConfirmation()
+
+/**
+ * Die angehakten Pakete — über Filter und Seiten hinweg.
+ *
+ * **Ein Set und keine Eigenschaft an der Zeile.** Die Zeilen entstehen aus
+ * `sichtbar` neu, sobald jemand filtert oder blättert; eine Marke an der Zeile
+ * wäre beim nächsten Rendern fort. Und die Auswahl **soll** einen Filterwechsel
+ * überleben: Wer erst nach `libssl` sucht, drei Zeilen anhakt und dann nach
+ * `perl` sucht, will beide Gruppen installieren.
+ *
+ * Damit kann die Zahl grösser sein als das, was gerade zu sehen ist — deshalb
+ * steht sie am Knopf.
+ */
+const gewaehlt = ref(new Set<string>())
+
+function umschalten(name: string): void {
+  // Ein neues Set und kein `add`/`delete` am alten: Vue verfolgt die Identität,
+  // nicht den Inhalt — eine Mutation an Ort und Stelle löste kein Rendern aus.
+  const naechstes = new Set(gewaehlt.value)
+
+  if (naechstes.has(name)) naechstes.delete(name)
+  else naechstes.add(name)
+
+  gewaehlt.value = naechstes
+}
+
+/** Sind alle sichtbaren Zeilen angehakt? */
+const alleSichtbarGewaehlt = computed(
+  () => sichtbar.value.length > 0 && sichtbar.value.every((p) => gewaehlt.value.has(p.name)),
+)
+
+function alleUmschalten(): void {
+  const naechstes = new Set(gewaehlt.value)
+
+  for (const paket of sichtbar.value) {
+    if (alleSichtbarGewaehlt.value) naechstes.delete(paket.name)
+    else naechstes.add(paket.name)
+  }
+
+  gewaehlt.value = naechstes
+}
+
+function auffrischen(): void {
+  ask(
+    'Die Paketlisten jetzt auffrischen?\n'
+      + 'Das dauert auf einem Server, der lange nicht nachgesehen hat, über eine Minute.',
+    'Nachsehen',
+    () => router.post('/updates/refresh'),
+    false,
+  )
+}
+
+/**
+ * Installieren — mit einer Rückfrage, die sagt, was genau geschieht.
+ *
+ * **Der Satz nennt die Zahl und nicht die Handlung.** „Aktualisierungen
+ * installieren?" beantwortet niemand falsch; „142 Pakete installieren, davon 124
+ * mit Sicherheitsbezug?" schon.
+ */
+function installieren(modus: 'all' | 'security' | 'packages'): void {
+  const namen = modus === 'packages' ? [...gewaehlt.value] : []
+
+  const was = modus === 'all'
+    ? counted(props.packages?.upgradable.length ?? 0, 'Paket', 'Pakete')
+    : modus === 'security'
+      ? counted(props.packages?.security ?? 0, 'Sicherheitsupdate', 'Sicherheitsupdates')
+      : counted(namen.length, 'ausgewähltes Paket', 'ausgewählte Pakete')
+
+  ask(
+    `${was} installieren?\n`
+      + 'Der Lauf läuft weiter, auch wenn diese Seite geschlossen wird — er liegt in einer eigenen '
+      + 'systemd-Unit und überlebt einen Neustart des Panels.\n'
+      + 'Konfigurationsdateien, die von Hand geändert wurden, bleiben stehen; die neue Version legt '
+      + 'sich als .dpkg-dist daneben und erscheint danach auf dieser Seite.',
+    'Installieren',
+    () => router.post('/updates/install', { mode: modus, packages: namen }),
+
+    /*
+     * **Nicht rot, und das ist eine Aussage.** `.button.danger` heisst in
+     * diesem Panel „lässt sich nicht zurücknehmen" (Plan §7.2), und
+     * `DangerRankTest` hält Knopf und Rückfrage zusammen. Eine Aktualisierung
+     * einzuspielen ist die Handlung, für die es diese Seite gibt — der rote
+     * Knopf dieser Stufe ist der Neustart, und wenn beides rot wäre, sagte die
+     * Farbe nichts mehr.
+     */
+    false,
+  )
+}
+
+/*
  * **Drei Zustände und nicht zwei.** `null` heisst „nicht feststellbar" — auf
  * diesem Server ist `update-notifier-common` nicht installiert, und dann fehlt
  * `/run/reboot-required`, weil niemand sie schreibt. Das ist etwas anderes als
@@ -329,6 +426,20 @@ const neustart = computed(() => {
   <Head title="Updates" />
 
   <PanelLayout title="Updates" subline="Der Paketstand dieses Servers und seine Quellen">
+    <!--
+      **„Jetzt nachsehen" steht im Seitenkopf und nicht bei den Paketen.**
+
+      Es frischt die **Grundlage** der ganzen Seite auf — auch die Quellen
+      darunter zeigen danach andere Zahlen. Ein Knopf im Bereich „Pakete" sähe
+      aus, als beträfe er nur die Liste daneben. Und es ist der Ort, an dem jede
+      andere Seite dieses Panels ihre Hauptaktion führt.
+    -->
+    <template #actions>
+      <div class="button-row">
+        <button type="button" class="button" @click="auffrischen">Jetzt nachsehen</button>
+      </div>
+    </template>
+
     <!--
       Kein Zusatz für „steht unter dem Seitenkopf": Das erledigt
       `.page-head + .tiles` in app.css, und eine eigene Klasse dafür wäre
@@ -432,6 +543,41 @@ const neustart = computed(() => {
 
           <template v-else>
             <!--
+              **Die drei Griffe stehen über dem Filter und nicht darunter.**
+
+              Sie beziehen sich auf den **Bestand** und nicht auf das, was der
+              Filter gerade zeigt — „Alle installieren" nimmt die 142 aus der
+              Kachel, auch wenn darunter drei Zeilen zu sehen sind. Stünden sie
+              unter dem Filter, läse sich das als „alle davon".
+
+              Der dritte trägt seine Zahl im Wort: Er ist der einzige, dessen
+              Umfang von einer Auswahl abhängt, die man beim Lesen nicht sieht.
+            -->
+            <div class="button-row">
+              <button type="button" class="button primary" @click="installieren('all')">
+                Alle installieren
+              </button>
+
+              <button
+                v-if="props.packages.security > 0"
+                type="button"
+                class="button"
+                @click="installieren('security')"
+              >
+                Nur Sicherheit installieren
+              </button>
+
+              <button
+                type="button"
+                class="button"
+                :disabled="gewaehlt.size === 0"
+                @click="installieren('packages')"
+              >
+                {{ counted(gewaehlt.size, 'ausgewähltes installieren', 'ausgewählte installieren') }}
+              </button>
+            </div>
+
+            <!--
               **Filtern vor Blättern.** Auf dem Telefon kostet eine Zeile
               179 px; wer dort etwas sucht, soll es finden und nicht durch
               vierzehn Bildschirme rollen.
@@ -475,6 +621,21 @@ const neustart = computed(() => {
             <table class="stacks">
               <thead>
                 <tr>
+                  <!--
+                    **Das Kästchen im Kopf hakt die sichtbare Seite an und nicht
+                    den Bestand.** „Alles" hiesse bei 142 Paketen über sieben
+                    Seiten etwas anderes als das, was man vor sich sieht — und
+                    dafür gibt es den Knopf „Alle installieren" daneben.
+                  -->
+                  <th>
+                    <input
+                      type="checkbox"
+                      class="check"
+                      :checked="alleSichtbarGewaehlt"
+                      aria-label="Alle sichtbaren Pakete auswählen"
+                      @change="alleUmschalten"
+                    >
+                  </th>
                   <th>Paket</th>
                   <th>Installiert</th>
                   <th>Neu</th>
@@ -484,6 +645,22 @@ const neustart = computed(() => {
 
               <tbody>
                 <tr v-for="paket in sichtbar" :key="paket.name">
+                  <!--
+                    **`.check` und nicht `.toggle`** — dieselbe Form wie im
+                    Dateimanager. Der `.toggle` bringt `margin-top: 14px` und
+                    ein `<span>` mit Beschriftung mit; beides ist in einer Zelle
+                    falsch, in der der Name schon danebensteht.
+                  -->
+                  <td data-column="Auswahl">
+                    <input
+                      type="checkbox"
+                      class="check"
+                      :checked="gewaehlt.has(paket.name)"
+                      :aria-label="paket.name + ' auswählen'"
+                      @change="umschalten(paket.name)"
+                    >
+                  </td>
+
                   <td data-column="Paket" class="ident">
                     {{ paket.name }}
                     <Badge v-if="paket.security" kind="warn">Sicherheit</Badge>

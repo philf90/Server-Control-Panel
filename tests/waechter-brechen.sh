@@ -18365,6 +18365,127 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RebootConfirmTest passed
 
 echo
+echo "── PackageNameTest: die Positivliste durch ein Muster ersetzt ──"
+#
+# Gemessen (U4): Ein Paketname, der wie eine Option aussieht, wird von apt ALS
+# Option geschluckt — "0 upgraded", rc=0, wortlos. Ein Muster muesste jede
+# solche Schreibweise erraten.
+vorher_datei agent/src/Ops/SystemPackagesUpgrade.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemPackagesUpgrade.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if (! array_key_exists($name, $bekannt)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "            if (preg_match('/^[a-z0-9.+-]+$/D', $name) !== 1) {", 1))
+PY2
+griff_datei agent/src/Ops/SystemPackagesUpgrade.php "Muster statt Liste" &&
+pruefe "Muster statt Liste" \
+  PackageNameTest::test_a_name_that_apt_did_not_offer_is_refused failed
+wiederherstellen
+
+echo
+echo "── PackageNameTest: der fremde Name wird uebergangen statt abgewiesen ──"
+#
+# Ein Name, der in der Liste nicht steht, ist entweder ein Angriff oder eine
+# veraltete Seite. Im zweiten Fall will der Betreiber es wissen, statt
+# hinterher ein Paket zu vermissen.
+vorher_datei agent/src/Ops/SystemPackagesUpgrade.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemPackagesUpgrade.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($fremd !== []) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        if (false) {", 1))
+PY2
+griff_datei agent/src/Ops/SystemPackagesUpgrade.php "fremder Name uebergangen" &&
+pruefe "fremder Name uebergangen" \
+  PackageNameTest::test_the_refusal_names_what_it_refused failed
+wiederherstellen
+
+echo
+echo "── PackageNameTest: 'nur Sicherheit' nimmt die Namen aus der Anfrage ──"
+#
+# Hier reist gar kein Name aus dem Browser mit. Wer die Liste trotzdem aus der
+# Anfrage naehme, gaebe dem Aufrufer eine freie Auswahl unter dem Namen "nur
+# Sicherheit".
+vorher_datei agent/src/Ops/SystemPackagesUpgrade.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemPackagesUpgrade.php'
+s = open(p, encoding='utf-8').read()
+alt = "            return array_keys(array_filter($bekannt));"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "            return is_array($angefragt) ? array_values(array_filter($angefragt, 'is_string')) : [];", 1))
+PY2
+griff_datei agent/src/Ops/SystemPackagesUpgrade.php "Sicherheit aus der Anfrage" &&
+pruefe "Sicherheit aus der Anfrage" \
+  PackageNameTest::test_security_builds_its_own_list failed
+wiederherstellen
+
+echo
+echo "── PackageNameTest: ein Muster im Panel ──"
+#
+# Die Grenze sitzt im Agenten. Eine zweite im Panel waere die schwaechere davor
+# — und sie stuende dort, wo niemand die Liste kennt, gegen die sie pruefen
+# muesste.
+vorher_datei app/Http/Controllers/UpdatesController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/UpdatesController.php'
+s = open(p, encoding='utf-8').read()
+alt = "'packages.*' => ['string'],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "'packages.*' => ['string', 'regex:/^[a-z0-9.+-]+$/'],", 1))
+PY2
+griff_datei app/Http/Controllers/UpdatesController.php "Muster im Panel" &&
+pruefe "Muster im Panel" \
+  PackageNameTest::test_the_panel_puts_no_pattern_on_a_package_name failed
+wiederherstellen
+
+echo
+echo "── PackageNameTest: --only-upgrade im benannten Lauf ──"
+#
+# Gemessen (U9): Auf ein Paket, das noch nicht installiert ist, tut
+# --only-upgrade wortlos nichts und endet mit 0. In der Liste stehen aber auch
+# Neuinstallationen.
+vorher_datei packaging/bin/apt-run
+python3 - <<'PY2'
+p = 'packaging/bin/apt-run'
+s = open(p, encoding='utf-8').read()
+alt = '        set -- install "$@"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, '        set -- install --only-upgrade "$@"', 1))
+PY2
+griff_datei packaging/bin/apt-run "--only-upgrade im benannten Lauf" &&
+pruefe "--only-upgrade im benannten Lauf" \
+  PackageNameTest::test_the_named_run_does_not_use_only_upgrade failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PackageNameTest passed
+
+echo
+echo "── CountedNounTest: ein :count im Wort fuer counted() ──"
+#
+# `counted()` setzt die Zahl selbst davor. Ein `:count` daneben ist die
+# Schreibweise von lang/de/validation.php — dort ersetzt Laravel ihn, hier
+# niemand, und er steht woertlich auf der Seite ("2 :count ausgewaehlte Pakete").
+vorher_datei resources/js/Pages/Updates/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Updates/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = "counted(namen.length, 'ausgewähltes Paket', 'ausgewählte Pakete')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "counted(namen.length, 'ein ausgewähltes Paket', ':count ausgewählte Pakete')", 1))
+PY2
+griff_datei resources/js/Pages/Updates/Index.vue "Platzhalter im Wort" &&
+pruefe "Platzhalter im Wort" \
+  CountedNounTest::test_no_word_for_counted_carries_a_placeholder failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CountedNounTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

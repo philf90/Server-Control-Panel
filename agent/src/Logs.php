@@ -88,6 +88,7 @@ final class Logs
         $sources = [
             'panel' => self::file('Panel', '/var/lib/srvpanel/storage/logs/laravel.log'),
             'panel-update' => self::file('Update des Panels', PanelUpdate::LOG),
+            'packages-upgrade' => self::file('Aktualisierungen installieren', Ops\SystemPackagesUpgrade::LOG),
             'agent' => self::file('Agent (Datei)', Config::DEFAULT_LOG_FILE),
             'panel-error' => self::file('Weboberfläche — Fehler', Ops\PanelVhost::ERROR_LOG),
             'panel-access' => self::file('Weboberfläche — Zugriffe', Ops\PanelVhost::ACCESS_LOG),

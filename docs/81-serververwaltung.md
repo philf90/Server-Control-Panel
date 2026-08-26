@@ -675,6 +675,96 @@ Fehlschlag des Agenten.
 
 ---
 
+### 2.3g Die Messrunde vor Schritt 6 (26. August 2026)
+
+Dreizehn Griffe gegen echtes apt in diesem Container, jeder mit seiner
+Gegenprobe. **Zwei davon haben den Entwurf umgeworfen, einer eine Falle
+geschlossen, und einer hat gezeigt, dass hier gar nichts zu entscheiden ist.**
+
+| | Gefragt | Gemessen |
+|---|---|---|
+| **U1** | Was tut ein Lauf, der nichts zu tun hat? | `0 upgraded, 0 newly installed, 0 to remove and 144 not upgraded.` — **rc=0** |
+| **U1b** | Bekommt man genau die Pakete, die man nennt? | Nein: `--only-upgrade dpkg` zog `dpkg-dev` und `libdpkg-perl` mit |
+| **U4** | Was macht apt aus einem Namen, der wie eine Option aussieht? | Er **wird** eine Option. `--reinstall` und `-y` ergeben „0 upgraded", rc=0, wortlos |
+| **U5** | Beendet `--` die Optionsauswertung? | Ja: `E: Unable to locate package --reinstall` |
+| **U6** | Gibt es einen eingebauten Sicherheitsfilter? | Nein. `-t noble-security` liefert **140** statt 142 — weniger, nicht andere |
+| **U8** | `upgrade` gegen `dist-upgrade` | Hier **identisch**: 142 Inst, 0 Remv, 0 neu — in allen drei Formen |
+| **U9** | `--only-upgrade` auf ein Paket, das nicht installiert ist | Tut wortlos nichts, rc=0 |
+| **U12** | Wie lange dauert ein Paket? | 2599 ms (gzip, Download und Einrichten). `-q` allein räumt das Protokoll **nicht** auf |
+| **U13** | Und `Dpkg::Use-Pty=0`? | Längste Zeile **1400 → 103** Zeichen; der Datenbankfortschritt von dpkg wird eine einzige saubere Zeile |
+
+**U1 entscheidet die Bauart.** Ein Lauf, der nichts bewirkt hat, endet mit 0 und
+sieht aus wie Erfolg — das ist M5 an einer **vierten** Stelle, nach
+`apt-get update`, `php.version.install` und `journalctl`. Deshalb läuft in der
+transienten Unit kein blosses `apt-get`, sondern `packaging/bin/apt-run`: Es
+zählt vorher und nachher, wie viele Aktualisierungen offen sind, schreibt das
+Ergebnis als letzte Zeile des Protokolls und endet **ungleich 0**, wenn sich
+nichts geändert hat. Vier Ausgänge gemessen: nichts bewirkt → 3, etwas bewirkt
+→ 0, unbekannter Modus → 2, keine Namen → 2.
+
+**U4 und U5 zusammen entscheiden gegen `--`.** Der Schalter tut, was er soll —
+und er wäre eine **zweite** Grenze neben der Positivliste. Diese Positivliste
+kommt aus der Antwort, die der Agent gerade selbst gelesen hat; sie weist
+`--reinstall` ab, bevor apt es sieht, und sie weist ausserdem `openssh-server`
+ab, das gar nicht zur Aktualisierung anstand. `--` könnte nur das erste.
+
+> **Zwei Mechanismen für eine Regel: Der Bruch des einen beisst dann nicht mehr,
+> und der andere veraltet.**
+
+**U9 hat eine Falle geschlossen, die im ersten Entwurf drinstand.** Für benannte
+Pakete lag `--only-upgrade` nahe — es klingt nach „nur aktualisieren, nichts
+Neues". Gemessen tut es auf einem Paket, das noch nicht installiert ist,
+**wortlos nichts**. In der Liste stehen aber auch Neuinstallationen (die Zeilen
+ohne alte Fassung, dafür gibt es seit Schritt 5 eine eigene Kachel), und die
+wären damit still unter den Tisch gefallen.
+
+**U8 ist der Fall, in dem die Messung nichts entscheidet.** Alle drei Formen
+geben hier dieselben Zahlen; der Unterschied zeigt sich erst auf einem Server,
+auf dem ein Paket entfernt werden müsste. Entschieden ist er deshalb am Plan und
+nicht am Messwert: **`dist-upgrade`**, weil die Zahl auf der Seite aus
+`dist-upgrade` kommt und daneben ausgewiesen steht, was dabei entfernt würde.
+
+> **Ein Knopf, der weniger tut als die Zahl neben ihm, ist die schlechtere
+> Lüge.**
+
+**Und U1b gehört auf die Seite und nicht in eine Fussnote:** Wer drei Pakete
+anhakt, bekommt drei plus deren Abhängigkeiten. Das steht in der Zeile, die apt
+selbst schreibt (`3 upgraded, …`), und die steht im Protokoll des Laufs.
+
+---
+
+### 2.3h Was Schritt 6 offen lässt und benennt (26. August 2026)
+
+**Die Rollen aus `docs/81 §3` Frage 2 sind nicht gebaut.** Dort steht, dass der
+Administrator Zahlen und Liste **sieht** und `refresh` auslösen darf; gebaut ist
+die ganze Seite als `can:operate-server`, also nur für den Betreiber. Das ist
+kein Versehen dieses Schritts, sondern der Zustand seit Schritt 5 — und der
+Grund steht in `UpdatesController`: Die Fassungen der installierten Pakete sagen
+einem Leser, welche bekannten Lücken dieser Server hat.
+
+Die beiden Sätze widersprechen einander, und **beide sind vertretbar**. Wer die
+Seite dem Administrator öffnet, muss zugleich die Schlüssel aus der
+Quellenliste nehmen (Frage 2 sagt „ohne Schlüsselmaterial") und die drei
+Installierknöpfe hinter der Fähigkeit verstecken, die er nicht hat. Das ist ein
+eigener Schritt mit eigenen Wächtern und nicht eine Zeile in diesem.
+
+> **Ein Widerspruch, der benannt dasteht, ist eine Aufgabe. Ein stillschweigend
+> aufgelöster ist eine Entscheidung, die niemand getroffen hat.**
+
+**Und drei Dinge bleiben auf einem echten Server zu messen:**
+
+1. Wie lange ein voller Lauf über 142 Pakete dauert. Für die Operation ist das
+   **gleichgültig** — sie wartet nicht, ihr Zeitlimit deckt nur das Absetzen —,
+   für den Betreiber nicht.
+2. Dass die transiente Unit den Neustart von `srvpanel-worker` überlebt, wenn
+   `srvpanel` selbst im Lauf steckt. Das ist Abnahmepunkt 5 und der einzige
+   Punkt, der A1 zum Scheitern bringen kann.
+3. Dass `apt-run panel` die Fassung wirklich vergleicht. Hier ist `srvpanel`
+   nicht installiert; gemessen ist nur der Fehlerweg (`rc=100`, *„Fassung:
+   vorher unbekannt, jetzt unbekannt"*).
+
+---
+
 **Nur auf einem echten Server messbar:** wie lange ein voller `dist-upgrade`
 läuft (die Zahl entscheidet über die Zeitgrenze der Operation), was passiert,
 wenn das Upgrade `srvpanel` selbst enthält, und ob `systemd-run` den Lauf
@@ -993,7 +1083,7 @@ nachgetragen und nicht nachträglich erfunden.
 | `AptLockReachTest` | Jede apt-rufende Operation geht über `AptLock` | eine Operation daran vorbeiführen |
 | `InstLineTest` | Der Leser trennt `[alt]` von `[arch]` und liest **alle** Herkünfte | die Zeile ohne `[alt]` aus dem Prüfkörper nehmen |
 | `SourceOwnershipTest` | Geschrieben wird nur in Dateien, die das Panel angelegt hat | einen fremden Pfad in die Schreibliste setzen |
-| `PackageNameTest` | Paketnamen kommen aus der vorigen Antwort, nicht aus einem Muster | die Prüfung durch ein `preg_match` ersetzen |
+| `PackageNameTest` | Paketnamen kommen aus der vorigen Antwort, nicht aus einem Muster — und der benannte Lauf benutzt kein `--only-upgrade` | die Prüfung durch ein `preg_match` ersetzen |
 | `KeyExpiryTest` | Der Fingerabdruck gehört zum Schlüssel und nicht zu seinem Unterschlüssel; ein leeres Feld 7 heisst „nie" und nicht 1970 | `$offen = null` am `sub` streichen |
 | `RebootConfirmTest` | Der Neustart wird über `systemd-run` **abgesetzt** und nicht im Agenten ausgeführt; der Rechnername wird auf dem Server geprüft, und zwar gegen dieselbe Quelle, die die Seite zeigt | `systemd-run` durch `systemctl` ersetzen; `Rule::in([$host])` durch `'string'` |
 
@@ -1032,7 +1122,7 @@ CI.
 | 3 | ~~`system.packages.list` mit dem Leser und `InstLineTest`~~ **erledigt am 26. August 2026** | ✔ Über drei Läufe gegen die Kommandozeile gemessen (`dist-upgrade` ganz, mit Sperrmarkierung, gemischt mit `Remv` und Neuinstallation): alle fünf Zahlen gleich, und **jeder** Zähler mindestens einmal ungleich null |
 | 4 | ~~`system.sources.list` über `indextargets` **und** die Dateien~~ **erledigt am 26. August 2026** | ✔ `ubuntu.sources:1` auf `Enabled: no` — der Eintrag steht weiter in den Dateien (`AUS`, 0 Ziele), die Ziele fallen von 16 auf 4 für diese Datei, und `:2` behält Nummer **und** Ziele. Dazu die dritte Lage: zwei eingeschaltete Quellen ohne Ziel (PPAs, 403 am Proxy)  **4b am selben Tag nachgezogen:** Fingerabdruck und Ablauf je Schlüssel — sie standen in der Beschreibung der Operation und fehlten im „fertig, wenn“. Damit ist Abnahmepunkt 4 gebaut. |
 | 5 | ~~Die Seite, beide Themes, 390 px gemessen~~ **erledigt am 26. August 2026** | ✔ Vier Lagen gegen die **echte** Seite mit laufendem Agenten: `dokument=0`, Gegenprobe 200/200, `schiebt=0`. Und ein Befund, den diese Messung nicht sieht — siehe §2.3c |
-| 6 | `system.packages.upgrade` über `systemd-run`; dazu **Teil 3 von M5** — `PanelUpdate` liest nach dem Neustart seine eigene Fassung nach | ein Upgrade mit `srvpanel` darin läuft durch, Protokoll vollständig — und ein Lauf, der nichts bewirkt hat, meldet das statt Erfolg |
+| 6 | ~~`system.packages.upgrade` über `systemd-run`; dazu **Teil 3 von M5**~~ **gebaut am 26. August 2026** | ✔ `system.packages.refresh` und `system.packages.upgrade` (`all` · `security` · benannte), beide über `AptLock`; der Lauf geht als transiente Unit an `packaging/bin/apt-run`, und **das Skript zählt vorher und nachher** — vier Ausgänge gegen echtes apt gemessen (§2.3g).  ✔ **Teil 3 von M5**: `panel.update` läuft jetzt über dasselbe Skript im Modus `panel` und vergleicht die installierte Fassung statt eines Rückgabewerts; die Ausnahme in `AptResultTest` ist fort.  ✔ `PackageNameTest` grün, fünf Brüche, alle beissend. **Abgenommen ist er nicht** — die drei Punkte aus §2.3h gehören auf einen echten Server |
 | 7 | ~~`system.sources.toggle` und der Neustart-Knopf~~ **erledigt am 26. August 2026** | ✔ **Die Quelle**: `SourceOwnershipTest` grün, sechs Brüche, alle beissend; gemessen durch echtes apt — 16 → 5 → 16 Ziele, und der Rückweg belegt: bei kaputtem apt kommt die Datei byte-identisch zurück.  ✔ **Der Neustart**: `system.reboot` setzt einen Zeitgeber über `systemd-run` ab, statt `systemctl reboot` im eigenen Prozess zu rufen; die Messrunde dazu steht in §2.3e, der Durchstich in §2.3f. `RebootConfirmTest` grün, sechs Brüche, alle beissend. **Offen und benannt:** dass die transiente Unit den Neustart überlebt, ist hier nicht messbar (§2.3e, letzter Absatz) |
 | 8 | `unattended-upgrades` — Zustand aus `apt-config dump`, Schalter | der wirksame Zustand stimmt, wenn ein fremdes Paket dazwischenschreibt |
 | 9 | Die Wächter brechen, voller Lauf von `tests/waechter-brechen.sh` | jeder der fünf Eingriffe beisst — einzeln **und** im Lauf |

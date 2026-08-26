@@ -90,7 +90,20 @@ final class AptLockReachTest extends TestCase
     ];
 
     /** Woran erkannt wird, dass eine Operation apt anfasst. */
-    private const TOUCHES_APT = '/\'apt-get\'|apt-get\s+\w|\bApt::(refresh|of)\s*\(/';
+    /*
+     * **Und seit dem 26. August auch das Skript, das apt für uns ruft.**
+     * `panel.update` und `system.packages.upgrade` setzen ihren Lauf über
+     * `SystemPackagesUpgrade::RUNNER` ab; in ihrem Quelltext steht seitdem kein
+     * `apt-get` mehr. Ohne diese Alternative fiel `PanelUpdate` aus der Prüfung
+     * heraus — und zwar **still**: Der Wächter oben zählt nur, was er findet,
+     * und was er nicht findet, prüft er auch nicht.
+     *
+     * Gefangen hat es die Untergrenze daneben, nicht das Nachdenken.
+     *
+     * > **Ein Aufruf, der in ein Skript umzieht, ist für einen Ausdruck über
+     * > PHP-Quelltext verschwunden — nicht harmlos geworden.**
+     */
+    private const TOUCHES_APT = '/\'apt-get\'|apt-get\s+\w|\bApt::(refresh|of)\s*\(|UPGRADE_RUNNER|SystemPackagesUpgrade::RUNNER|self::RUNNER/';
 
     /** Jede apt-rufende Operation fragt vorher, ob die Sperre frei ist. */
     public function test_every_operation_that_touches_apt_goes_through_the_lock(): void
@@ -163,17 +176,17 @@ final class AptLockReachTest extends TestCase
     }
 
     /**
-     * Und die vier, die es heute sind, werden vom Ausdruck auch getroffen.
+     * Und die sechs, die es heute sind, werden vom Ausdruck auch getroffen.
      *
      * Der Prüfkörper des Tests oben: Ändert sich die Schreibweise eines
      * apt-Aufrufs, findet die Suche nichts mehr und meldete Grün für eine
      * Regel, die sie nicht mehr liest.
      */
-    public function test_the_four_known_callers_are_reached_by_the_scan(): void
+    public function test_the_known_callers_are_reached_by_the_scan(): void
     {
         $sources = $this->operationSources();
 
-        foreach (['PanelUpdate', 'PhpVersionInstall', 'PhpVersionRemove', 'PgServerInstall'] as $operation) {
+        foreach (['PanelUpdate', 'PhpVersionInstall', 'PhpVersionRemove', 'PgServerInstall', 'SystemPackagesRefresh', 'SystemPackagesUpgrade'] as $operation) {
             $path = 'agent/src/Ops/'.$operation.'.php';
 
             $this->assertArrayHasKey($path, $sources, $path.' gibt es nicht mehr.');

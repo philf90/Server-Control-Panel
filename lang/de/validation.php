@@ -212,6 +212,8 @@ return [
         'networks.*' => 'Netz',
         'password' => 'Passwort',
         'password_clear' => 'Passwort im Klartext',
+        'packages' => 'Pakete',
+        'packages.*' => 'Paket',
         'path' => 'Pfad',
         'paths' => 'Pfade',
         'paths.*' => 'Pfad',

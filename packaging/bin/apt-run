@@ -1,0 +1,159 @@
+#!/bin/sh
+#
+# apt-run — spielt Aktualisierungen ein und sagt am Ende, ob es etwas bewirkt hat.
+#
+# Aufgerufen wird es ausschliesslich aus einer transienten systemd-Unit, die
+# `system.packages.upgrade` absetzt:
+#
+#     systemd-run --unit=srvpanel-upgrade-<hex> --collect \
+#         --property=StandardOutput=append:/var/log/srvpanel/upgrade.log \
+#         /usr/lib/srvpanel/apt-run all
+#     /usr/lib/srvpanel/apt-run packages tar gzip
+#
+# ## Warum ein Skript und kein `sh -c` im Agenten
+#
+# Weil hier mehr als eine Zeile steht. `panel.update` setzt seinen Lauf seit P0
+# als `sh -c 'apt-get update -qq && apt-get install …'` ab, und das ist für eine
+# Zeile richtig. Sobald ein Vorher/Nachher dazukommt, wäre es eine
+# Zeichenkette in PHP, die keine Prüfung sieht — shellcheck fährt über dieses
+# Verzeichnis, über eine Zeichenkette in PHP fährt nichts.
+#
+# ## Warum es überhaupt zählt
+#
+# `docs/81 §2.1a`, M5, vierte Zeile — und gemessen am 26. August 2026:
+#
+#     apt-get install -y --only-upgrade dpkg   (bereits aktuell)
+#     -> "0 upgraded, 0 newly installed, 0 to remove and 144 not upgraded."
+#     -> rc=0
+#
+# > **Ein Lauf, der nichts bewirkt hat, endet mit 0 und sieht aus wie Erfolg.**
+#
+# Deshalb zählt dieses Skript vorher und nachher, wie viele Aktualisierungen
+# offen sind, und macht daraus die letzte Zeile des Protokolls. Bleibt die Zahl
+# gleich, endet es **ungleich 0** — die Unit steht dann auf `failed`, und
+# `systemctl status` sagt dasselbe wie das Protokoll.
+#
+# ## Die vier Optionen und je ein Satz dazu
+#
+# `-q`            — ohne den Fortschrittsbalken, der sonst hunderte `\r` schreibt.
+# `-y`            — niemand sitzt davor.
+# `Dpkg::Use-Pty=0` — gemessen: die längste Zeile fällt von 1400 auf 103 Zeichen.
+#                   Ohne sie steht der Datenbankfortschritt von dpkg als eine
+#                   einzige Zeile im Protokoll, zwanzigmal „(Reading database …".
+# `--force-confold` — Frage 3 aus `docs/81 §3`, entschieden durch M12: Ohne eine
+#                   `--force-conf*`-Fahne stellt dpkg seine Frage auf stdin, und
+#                   `DEBIAN_FRONTEND=noninteractive` beantwortet sie **nicht**.
+#                   Der Lauf wartet dann ohne Frist oder bricht mit rc=1 ab, und
+#                   das Paket bleibt `iU` — halb installiert.
+#
+set -u
+
+NAME=apt-run
+
+fehler() {
+    echo "$NAME: $1" >&2
+    exit 2
+}
+
+# Wie viele Aktualisierungen apt gerade sieht.
+#
+# **`-s` und nicht der Zähler von `apt list --upgradable`:** Es ist derselbe
+# Lauf, den `system.packages.list` liest, also dieselbe Zahl, die auf der Seite
+# steht. Zwei Wege zu einer Zahl gehen auseinander, und der zweite veraltet.
+#
+# **Und sie ist nicht dieselbe wie apts „not upgraded" eine Zeile darüber.**
+# Gemessen: Nach `apt-get install dpkg` stand dort `142 not upgraded`, hier 140.
+# Beide stimmen und beantworten verschiedene Fragen — apt zählt, was dieser
+# Aufruf nicht angefasst hat, dieses Skript, was ein `dist-upgrade` noch täte.
+# Die Differenz sind die zurückgehaltenen Pakete.
+offen() {
+    apt-get -s dist-upgrade 2>/dev/null | grep -c '^Inst ' || true
+}
+
+# Die installierte Fassung des Panels.
+#
+# **Das ist Teil 3 von M5** (`docs/81 §2.1b`): `panel.update` hat bis zum
+# 26. August 2026 `apt-get update -qq && apt-get install --only-upgrade srvpanel`
+# abgesetzt — und das `&&` griff nie, weil `apt-get update` immer 0 ist. Mit
+# veralteten Listen fand `--only-upgrade` nichts Neueres, meldete „0 upgraded"
+# und endete mit 0: Das Panel meldete „Update läuft", die Fassung blieb stehen,
+# und im Protokoll stand ein erfolgreicher Lauf.
+#
+# > **Wenn die Fassung danach dieselbe ist, ist es gleichgültig, warum.**
+#
+# Diese eine Frage ersetzt jede Prüfung am Rückgabewert von `apt-get update`:
+# Sie fällt gleich aus, ob eine Quelle tot war, ob die Listen alt waren oder ob
+# es schlicht nichts Neues gibt.
+fassung() {
+    dpkg-query -W -f='${Version}' srvpanel 2>/dev/null || echo unbekannt
+}
+
+[ $# -ge 1 ] || fehler 'Aufruf: apt-run all | apt-run packages <name> ... | apt-run panel'
+
+modus=$1
+shift
+
+case $modus in
+    all)
+        # Die Namen spielen hier keine Rolle; die Seite zeigt die Zahl aus
+        # demselben `dist-upgrade`, und der Knopf tut, was dort steht — samt
+        # dem, was daneben als „würde entfernt" ausgewiesen ist.
+        mass=offen
+        einheit='offene Aktualisierungen'
+        set -- dist-upgrade
+        ;;
+    packages)
+        [ $# -ge 1 ] || fehler 'apt-run packages braucht mindestens einen Namen.'
+
+        # **Kein `--only-upgrade`.** Gemessen am 26. August 2026: Auf ein Paket,
+        # das noch gar nicht installiert ist, tut es wortlos nichts und endet
+        # mit 0. In der Liste stehen aber auch Neuinstallationen — eine Zeile
+        # ohne alte Fassung —, und die fielen damit still unter den Tisch.
+        mass=offen
+        einheit='offene Aktualisierungen'
+        set -- install "$@"
+        ;;
+    panel)
+        # **Hier wird aufgefrischt und im anderen Modus nicht.** Das Einspielen
+        # folgt auf der Seite dem Knopf „Jetzt nachsehen"; das Update des Panels
+        # kommt von der Kommandozeile, und dort gibt es keinen solchen Knopf.
+        #
+        # Der Rückgabewert dieses Laufs wird bewusst nicht geprüft — er trägt
+        # nichts (M5). Geprüft wird die Fassung, weiter unten.
+        echo "$NAME: Paketlisten werden aufgefrischt."
+        apt-get -q update || echo "$NAME: apt-get update endete ungleich 0 — der Lauf geht weiter, entschieden wird an der Fassung."
+
+        mass=fassung
+        einheit='Fassung'
+        set -- install --only-upgrade srvpanel
+        ;;
+    *)
+        fehler "Unbekannter Modus: $modus"
+        ;;
+esac
+
+vorher=$($mass)
+
+apt-get -q -y -o Dpkg::Use-Pty=0 -o Dpkg::Options::=--force-confold "$@"
+rueckgabe=$?
+
+nachher=$($mass)
+
+if [ "$rueckgabe" -ne 0 ]; then
+    echo "$NAME: apt-get endete mit $rueckgabe. $einheit: vorher $vorher, jetzt $nachher."
+    exit "$rueckgabe"
+fi
+
+if [ "$vorher" = "$nachher" ]; then
+    # **Der Fall, für den es dieses Skript gibt.** Er tritt ein, wenn die
+    # Paketlisten veraltet sind (M5), wenn eine Quelle abgeschaltet ist, oder
+    # wenn ein Name zwar bekannt, aber schon aktuell war.
+    echo "$NAME: Der Lauf hat nichts verändert — $einheit vorher wie nachher: $nachher."
+    exit 3
+fi
+
+if [ "$mass" = fassung ]; then
+    echo "$NAME: Fassung $vorher wurde zu $nachher."
+else
+    echo "$NAME: $((vorher - nachher)) von $vorher Aktualisierungen eingespielt, $nachher bleiben offen."
+fi

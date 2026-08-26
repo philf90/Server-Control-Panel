@@ -271,4 +271,61 @@ final class CountedNounTest extends TestCase
             'Das Muster hält einen ganzen Satz für eine Mengenangabe — den kann `counted()` nicht.',
         );
     }
+
+    /**
+     * Und in einem Wort für `counted()` steht kein `:count`.
+     *
+     * ## Der Fund, der diese Regel ausgelöst hat
+     *
+     * Am 26. August 2026 stand auf der Updates-Seite in einer Rückfrage:
+     *
+     * > **2 :count ausgewählte Pakete installieren?**
+     *
+     * `counted()` **setzt die Zahl selbst davor** und nimmt daneben nur das
+     * Wort. Ein `:count` darin ist die Schreibweise von
+     * `lang/de/validation.php` — dort ersetzt Laravel den Platzhalter, hier
+     * ersetzt ihn niemand.
+     *
+     * > **Wissen aus zweiter Hand sieht aus wie Wissen.**
+     *
+     * **Und gefunden hat es kein Test, sondern eine Aufnahme.** Die Messung
+     * daneben war fehlerfrei: `dokument=0`, Gegenprobe 200/200. Ein
+     * Platzhalter, der als Text dasteht, lässt nichts überlaufen.
+     *
+     * > **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+     * > Betrachter.**
+     */
+    public function test_no_word_for_counted_carries_a_placeholder(): void
+    {
+        $muster = '/\bcounted\s*\([^)]*:count/';
+        $treffer = [];
+
+        foreach ($this->templates() as $pfad => $vorlage) {
+            if (preg_match($muster, $vorlage) === 1) {
+                $treffer[] = $pfad;
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $treffer,
+            "Hier steht ein `:count` in einem Wort für `counted()`:\n  ".implode("\n  ", $treffer)."\n\n".
+            '`counted()` setzt die Zahl selbst davor; den Platzhalter ersetzt niemand, und er '.
+            'erscheint wörtlich auf der Seite. Die Schreibweise mit `:count` gehört nach '.
+            'lang/de/validation.php und nirgendwo sonst hin.',
+        );
+
+        // Die Gegenprobe: Das Muster findet die Form, gegen die es geschrieben ist.
+        $this->assertSame(
+            1,
+            preg_match($muster, "counted(n, 'ein Paket', ':count Pakete')"),
+            'Das Muster findet den Platzhalter nicht — dann prüft dieser Fall nichts.',
+        );
+
+        $this->assertSame(
+            0,
+            preg_match($muster, "counted(n, 'Paket', 'Pakete')"),
+            'Das Muster hält eine richtige Mengenangabe für einen Fehler.',
+        );
+    }
 }

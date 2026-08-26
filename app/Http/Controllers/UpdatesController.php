@@ -9,10 +9,12 @@ use App\Support\Audit\Audit;
 use App\Support\Operations\Operations;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
+use SrvPanel\Agent\Ops\SystemPackagesUpgrade;
 
 /**
  * Der Paketstand dieses Servers und die Quellen, aus denen er kommt.
@@ -99,6 +101,105 @@ final class UpdatesController extends Controller
             'path' => $daten['path'],
             'stanza' => (int) $daten['stanza'],
             'enabled' => (bool) $daten['enabled'],
+            'operation' => (int) $operation->id,
+        ]);
+
+        return redirect()->route('operations.show', $operation);
+    }
+
+    /**
+     * Die Paketlisten auffrischen.
+     *
+     * **Ein eigener Griff und kein Nebeneffekt des Ansehens.** `apt-get update`
+     * nimmt die Sperre und dauert auf einem kalten Server über eine Minute; bei
+     * jedem Seitenaufruf wäre das ein Lauf, den niemand bestellt hat.
+     *
+     * > **Eine Anzeige, die beim Ansehen etwas verändert, ist keine Anzeige.**
+     */
+    public function refresh(Request $request, Operations $operations, Audit $audit): RedirectResponse
+    {
+        $account = $request->user();
+
+        $operation = $operations->dispatch(
+            'system.packages.refresh',
+            [],
+            account: $account instanceof Account ? $account : null,
+            message: 'Paketlisten auffrischen',
+        );
+
+        $audit->success('packages.refreshed', context: ['operation' => (int) $operation->id]);
+
+        return redirect()->route('operations.show', $operation);
+    }
+
+    /**
+     * Aktualisierungen installieren.
+     *
+     * ## Warum hier kein Muster über den Paketnamen steht
+     *
+     * Weil die Prüfung im Agenten sitzt, und zwar gegen die Liste, die er
+     * **selbst** gerade gelesen hat (`docs/81 §5`: *„Kein Freitext erreicht
+     * apt."*). Ein `regex` an dieser Stelle wäre eine zweite Fassung derselben
+     * Grenze, und sie stünde vor der schwächeren:
+     *
+     * > **Eine Grenze, die zweimal gezogen ist, gilt an der schwächeren
+     * > Stelle.**
+     *
+     * Ein Muster müsste ausserdem jede Schreibweise erraten, die apt als Option
+     * deutet — gemessen am 26. August 2026: `--reinstall` als Paketname wird
+     * von apt **als Option** geschluckt und ergibt „0 upgraded" mit
+     * Rückgabewert 0. Eine Positivliste muss nichts erraten.
+     *
+     * ## Warum die Namen überhaupt mitreisen
+     *
+     * Weil der Betreiber sie ausgewählt hat. `all` und `security` kommen ohne
+     * aus — bei `security` stellt der Agent die Liste selbst zusammen, denn
+     * `apt-get -t <suite>` ist kein Sicherheitsfilter (gemessen: 140 statt 142
+     * Pakete, also weniger und nicht andere).
+     */
+    public function install(Request $request, Operations $operations, Audit $audit): RedirectResponse
+    {
+        /*
+         * **`mode` heisst hier „Umfang" und im Dateimanager „Rechte".**
+         *
+         * Ein Feldname kann in zwei Formularen zwei Dinge bedeuten; die Liste
+         * in `lang/de/validation.php` trägt die häufigere, und der Ausweg für
+         * die andere ist der dritte Wert von `validate()`. Ohne ihn läse der
+         * Betreiber hier „Das ausgewählte Rechte ist ungültig" — ein Feld, das
+         * es auf dieser Seite nicht gibt (`docs/66`, Befund 3).
+         */
+        $daten = $request->validate([
+            'mode' => ['required', 'string', Rule::in(SystemPackagesUpgrade::MODES)],
+            'packages' => ['array'],
+            'packages.*' => ['string'],
+        ], [], ['mode' => 'Umfang']);
+
+        $mode = (string) $daten['mode'];
+
+        /** @var list<string> $pakete */
+        $pakete = $mode === 'packages' ? array_values($daten['packages'] ?? []) : [];
+
+        $account = $request->user();
+
+        $operation = $operations->dispatch(
+            'system.packages.upgrade',
+            ['mode' => $mode, 'packages' => $pakete],
+            account: $account instanceof Account ? $account : null,
+            message: 'Aktualisierungen installieren: '.match ($mode) {
+                'all' => 'alle',
+                'security' => 'nur Sicherheit',
+                // Die Einzahl steht hier ausgeschrieben und nicht als
+                // `$n === 1 ? … : …` an fünf Stellen: Diese Zeile wird
+                // gelesen, nicht gerechnet.
+                default => count($pakete) === 1
+                    ? 'ein Paket ('.$pakete[0].')'
+                    : count($pakete).' Pakete',
+            },
+        );
+
+        $audit->success('packages.upgraded', context: [
+            'mode' => $mode,
+            'packages' => $pakete,
             'operation' => (int) $operation->id,
         ]);
 

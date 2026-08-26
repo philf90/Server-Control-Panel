@@ -199,6 +199,39 @@ Route::middleware('auth')->group(function (): void {
         ->name('updates.sources.toggle');
 
     /*
+     * Die Paketlisten auffrischen — A1 Schritt 6.
+     *
+     * **`POST` und nicht `GET`**, weil `apt-get update` die Sperre nimmt und
+     * schreibt. Ein Griff, der beim Ansehen der Seite mitliefe, wäre auf einem
+     * kalten Server eine Minute Wartezeit, die niemand bestellt hat.
+     *
+     * **Hier steht `can:operate-server`, und `docs/81 §3` Frage 2 will es
+     * anders:** Auffrischen soll auch der Administrator dürfen. Das setzt
+     * voraus, dass er die Seite überhaupt sieht — und die gehört heute ganz
+     * dem Betreiber. Die Umstellung ist ein eigener Schritt und steht in
+     * `docs/81 §2.3h` benannt; eine Route, die weiter reicht als die Seite,
+     * auf der ihr Knopf steht, wäre keine Lösung, sondern eine Ungereimtheit
+     * mehr.
+     */
+    Route::post('/updates/refresh', [UpdatesController::class, 'refresh'])
+        ->middleware('can:operate-server')
+        ->name('updates.refresh');
+
+    /*
+     * Aktualisierungen einspielen — A1 Schritt 6.
+     *
+     * **`can:operate-server`, und zwar unstrittig:** `docs/81 §3` Frage 2 gibt
+     * das Einspielen ausdrücklich nur dem Betreiber. Ein Administrator sieht
+     * den Zustand und bedient ihn nicht.
+     *
+     * **Kein Muster über den Paketnamen — hier nicht und im Panel nirgends.**
+     * Geprüft wird im Agenten gegen die Liste, die er selbst gelesen hat.
+     */
+    Route::post('/updates/install', [UpdatesController::class, 'install'])
+        ->middleware('can:operate-server')
+        ->name('updates.install');
+
+    /*
      * Den Server neu starten — A1 Schritt 7, zweite Hälfte.
      *
      * **`/server/reboot` und nicht `/updates/reboot`.** Der Anlass steht an

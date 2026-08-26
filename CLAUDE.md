@@ -1252,7 +1252,11 @@ eines Blocks) und `RebootConfirmTest` (der Neustart wird über `systemd-run`
 **abgesetzt** und nicht im Agenten ausgeführt; der Rechnername wird auf dem
 Server geprüft, und zwar gegen dieselbe Quelle, aus der die Seite ihn zeigt —
 gefragt wird der Programmname **an der Aufrufstelle** und nicht die
-Zeichenkette „systemctl" irgendwo in der Datei). Der Bruch selbst steht als
+Zeichenkette „systemctl" irgendwo in der Datei) und `PackageNameTest` (ein
+Paketname kommt aus der Antwort, die der Agent selbst gerade gelesen hat, und
+nicht aus einem Muster — gemessen an den Namen, die apt **als Option**
+schluckt; dazu: der benannte Lauf benutzt kein `--only-upgrade`, weil das ein
+noch nicht installiertes Paket wortlos überginge). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -1299,6 +1303,22 @@ rot für einen Grund, der mit seiner Regel nichts zu tun hat.
 
 > **Ein Wächter, der Anführungszeichen zählt, zählt die des Fliesstextes mit —
 > und ob er zubeisst, entscheidet die Parität.**
+
+**Und dieselbe Blindheit eine Stunde später, aus einem anderen Grund:** Der
+Aufruf von `apt-get update` zog am 26. August aus PHP in ein Shell-Skript unter
+`packaging/bin`. `AptResultTest` und `AptLockReachTest` lesen beide **nur
+PHP** — sie hätten weiter Grün gemeldet für eine Stelle, die sie gar nicht mehr
+sehen. Gefangen hat es keine der beiden Regeln, sondern ihre Untergrenzen: Die
+namentlich genannte Stelle „ruft kein `apt-get update` mehr".
+
+> **Ein Aufruf, der in ein Skript umzieht, ist für einen Ausdruck über
+> PHP-Quelltext verschwunden — nicht harmlos geworden.**
+
+Dabei fiel ein Loch auf, das älter war: `apt-get -q update` traf der Ausdruck
+nicht, weil er `apt-get` unmittelbar vor `update` verlangte.
+
+> **Ein Ausdruck, der die gewohnte Schreibweise kennt, prüft die Gewohnheit und
+> nicht die Regel.**
 
 Die Antwort steht seit langem im Repo: `Tests\Support\WithoutPhpComments` fragt
 `token_get_all()`, also den Parser. Zehn Wächter benutzten ihn, dieser nicht.

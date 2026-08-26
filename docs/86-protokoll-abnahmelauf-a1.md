@@ -442,4 +442,107 @@ erfüllt.
 > **Ein Bild, das man auf eine Frage hin ansieht, beantwortet die Frage — und
 > verdeckt alles, was daneben steht.**
 
+---
+
+### Punkt 7d — die Anzeige nimmt ihren Zustand zurück · **erfüllt**
+
+`rm /run/reboot-required /run/reboot-required.pkgs`, Seite neu geladen: „Kein
+Neustart nötig", grün. Kein Rest der bernsteinfarbenen Meldung.
+
+**Zustand 3 ist nicht gemessen worden**, und das ist eine Entscheidung mit
+Begründung. `reboot()` fragt `dpkg-query` nach `update-notifier-common`;
+herstellen liesse sich der Zustand also nur, indem man das Paket entfernt. Der
+Trockenlauf sagt, was das kostet:
+
+    The following packages will be REMOVED:
+      ubuntu-server update-notifier-common
+
+`ubuntu-server` ist ein Metapaket ohne eigene Dateien und mit einem Handgriff
+zurückzuholen — aber solange es fort ist, gelten dutzende automatisch
+installierte Pakete als entbehrlich, und ein `apt autoremove` in diesem Fenster
+räumte sie ab. Auf einem Server mit Kundenwebsites ist das der falsche Preis für
+eine Messung, die der Quelltext ohnehin belegt.
+
+**Im Quelltext belegt, auf dem Server nicht gemessen.** Der zweite Satz ist der,
+auf den es ankommt.
+
+---
+
+### Punkt 8 — die Automatik, vorgezogen
+
+`unattended-upgrades` ist **installiert**, und beide Timer sind scharf:
+
+    apt-daily.timer          Thu 2026-08-27 04:44:53 CEST   8h
+    apt-daily-upgrade.timer  Thu 2026-08-27 06:17:32 CEST  10h
+
+Damit ist der Prüfkörper der Punkte 1, 2 und 5 **verderblich**: Vier der
+anstehenden Pakete sind Sicherheitsaktualisierungen, und in zehn Stunden spielt
+sie der Server selbst ein. Punkt 8 wird deshalb vorgezogen — sein Griff schaltet
+die Automatik ab, und damit misst er sich selbst und rettet die übrigen Punkte.
+
+> **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr hergestellt.**
+
+---
+
+**Befund 7 — „Zurückgehalten 0", während sieben zurückgehalten werden.**
+
+Die Kacheln der Seite:
+
+    AKTUALISIERBAR 11 · DAVON SICHERHEIT 4 · DAVON NEU 0
+    ZURÜCKGEHALTEN 0 · WÜRDE ENTFERNT 0
+
+Und was apt an derselben Stelle sagt (`apt-get -s upgrade`, unter `LC_ALL=C`
+gemessen):
+
+    The following upgrades have been deferred due to phasing:
+      libproc2-0 libpython3.12-minimal libpython3.12-stdlib libpython3.12t64
+      procps python3.12 python3.12-minimal
+
+**Sieben Pakete werden zurückgehalten, und die Kachel sagt `0`.**
+
+Die Ursache ist ein Ausdruck, der einen Wortlaut kennt und nicht die Regel.
+`Packages::keptBack()` sucht `have been kept back` — den Satz, den apt für eine
+durch Abhängigkeiten blockierte Aktualisierung schreibt. Ubuntu schreibt für ein
+zurückgehaltenes **Phasing** einen anderen, und beide bedeuten für den Betreiber
+dasselbe: das kommt jetzt nicht.
+
+> **Ein Ausdruck, der die gewohnte Schreibweise kennt, prüft die Gewohnheit und
+> nicht die Regel.**
+
+**Und die Auskunft liegt in der Antwort, die der Agent bereits liest.** Sie steht
+in derselben Ausgabe von `apt-get -s upgrade`, aus der `keptBack()` seinen einen
+Satz zieht — samt der sieben Namen zwei Zeilen darunter. Es fehlt kein Griff,
+sondern ein Ausdruck.
+
+> **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+> keine.**
+
+Derselbe Satz wie in `docs/66` an `context` im Protokoll, hier an einer Stelle,
+an der er dem Betreiber sagt, ob sein Server nach dem Einspielen fertig ist.
+
+---
+
+**Offen: Warum zeigt die Seite 11, wo ein Lauf 4 einspielt?**
+
+Gemessen am 26. August, 20:23:34 CEST, in der Shell:
+
+    LC_ALL=C apt-get -s dist-upgrade | grep '^Inst '
+    libheif-plugin-libde265 · libheif-plugin-aomenc · libheif-plugin-aomdec · libheif1
+
+**Vier.** Die Kachel `AKTUALISIERBAR` ist `upgradable.length`, `Packages::read()`
+füllt `upgradable` ausschliesslich aus diesen `Inst`-Zeilen, und der Controller
+reicht das Ergebnis unverändert durch. Elf können dort nicht stehen — und sie
+stehen dort.
+
+**Zwei Vermutungen sind gemessen und beide falsch.** Die feste Umgebung des
+Agenten ist es nicht: unter `env -i` mit `Runner::ENVIRONMENT` nachgestellt
+kommen dieselben **4** heraus, und der `diff` der Namen ist leer. Zusatzoptionen
+sind es auch nicht — `SystemPackagesList::apt()` ruft `apt-get -s dist-upgrade`
+blank.
+
+Was fehlt, ist die **Liste** unter den Kacheln. Solange nur die Zahl gemessen
+ist, ist die Frage nicht gestellt, sondern nur gezählt.
+
+> **Ein Kriterium, das nach einer Anzahl fragt, prüft nicht, was gezählt wurde.**
+
 <!-- Wird während des Laufs weitergefüllt. -->

@@ -170,18 +170,44 @@ wert "Gegenprobe: E:-Zeilen" "$(grep -c '^E:' "${PROBE}/u2err.txt")"
 # 0 zurückgibt, merkt es niemand.
 # ---------------------------------------------------------------------------
 titel "M6 — Signaturschlüssel"
+
+# **Eine Liste für die Messung UND die Gegenprobe.** Bis zum 26. August standen
+# hier zwei: Die Schleife las drei Verzeichnisse, die Gegenprobe zwei — und auf
+# Debian 12/13 kam dabei „48 mit Ablaufdatum" neben „41 pub-Zeilen gesamt"
+# heraus, also mehr ablaufende Schlüssel als überhaupt vorhandene.
+#
+#   Eine Gegenprobe über eine andere Grundgesamtheit als die Messung ist keine.
+BUNDE="/usr/share/keyrings/*.gpg /etc/apt/keyrings/* /etc/apt/trusted.gpg.d/*"
+
 GEFUNDEN=0
+GESAMT=0
 MITABLAUF=0
-for KEY in /usr/share/keyrings/*.gpg /etc/apt/keyrings/* /etc/apt/trusted.gpg.d/*; do
+# shellcheck disable=SC2086
+for KEY in ${BUNDE}; do
     [ -f "${KEY}" ] || continue
     GEFUNDEN=$((GEFUNDEN + 1))
-    N="$(gpg --show-keys --with-colons "${KEY}" 2>/dev/null | awk -F: '$1=="pub" && $7!=""' | wc -l | tr -d ' ')"
-    MITABLAUF=$((MITABLAUF + N))
+    ZEILEN="$(gpg --show-keys --with-colons "${KEY}" 2>/dev/null | awk -F: '$1=="pub"')"
+    GESAMT=$((GESAMT + $(printf '%s' "${ZEILEN}" | grep -c '^pub' || true)))
+    MITABLAUF=$((MITABLAUF + $(printf '%s' "${ZEILEN}" | awk -F: '$7!=""' | grep -c '^pub' || true)))
 done
 wert "Schlüsselbunde gelesen" "${GEFUNDEN}"
+wert "Gegenprobe: pub-Zeilen gesamt" "${GESAMT}"
 wert "Schlüssel mit Ablaufdatum" "${MITABLAUF}"
-wert "Gegenprobe: pub-Zeilen gesamt" \
-    "$(for K in /usr/share/keyrings/*.gpg /etc/apt/keyrings/*; do [ -f "$K" ] && gpg --show-keys --with-colons "$K" 2>/dev/null; done | grep -c '^pub')"
+
+# **Und die Zahl, die zählt, ist nicht „hat einen Ablauf", sondern „läuft
+# bald".** Ein Schlüssel mit Ablauf in fünf Jahren ist kein Befund; einer mit
+# Ablauf in drei Wochen bricht `apt-get update`, und weil M5 dabei 0 zurückgibt,
+# merkt es niemand.
+SCHWELLE=$(( $(date +%s) + 30 * 86400 ))
+BALD=0
+# shellcheck disable=SC2086
+for KEY in ${BUNDE}; do
+    [ -f "${KEY}" ] || continue
+    N="$(gpg --show-keys --with-colons "${KEY}" 2>/dev/null |
+        awk -F: -v s="${SCHWELLE}" '$1=="pub" && $7!="" && $7+0 < s' | grep -c '^pub' || true)"
+    BALD=$((BALD + N))
+done
+wert "davon in unter 30 Tagen fällig" "${BALD}"
 
 # ---------------------------------------------------------------------------
 # M7 — Neustart nötig?

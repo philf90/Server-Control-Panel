@@ -76,6 +76,28 @@ final class Runner
         // (gemessen). Eine Zuordnung dafür wäre eine zweite Liste, die
         // veraltet.
         'dpkg-query' => '/usr/bin/dpkg-query',
+
+        /*
+         * **Dazugekommen am 26. August 2026 für A1 Schritt 4b**, und die
+         * Erweiterung dieser Liste ist die erste Grenze dieses Projekts — sie
+         * gehört begründet.
+         *
+         * Gebraucht wird `gpg` für **eine** Frage: Wann läuft der
+         * Signaturschlüssel einer Paketquelle ab? Ein abgelaufener Schlüssel
+         * bricht `apt-get update`, und weil das (M5) mit `0` endet, merkt es
+         * niemand — das ist Abnahmepunkt 4 aus `docs/81 §4`.
+         *
+         * Aufgerufen wird ausschliesslich lesend, mit `--show-keys
+         * --with-colons`, und **nie mit einem Pfad aus einem Formular**: Die
+         * Pfade stammen aus `Signed-By:` der Quelldateien, die eingebetteten
+         * Blöcke kommen über stdin.
+         *
+         * **Und es liegt auf allen vier Zielplattformen** — gemessen, nicht
+         * angenommen: Die apt-Messrunde der CI fährt F3 auf Debian 12/13 und
+         * Ubuntu 22.04/24.04, und F3 meldet „gpg fehlt" als Ausfall. Alle vier
+         * Läufe sind grün.
+         */
+        'gpg' => '/usr/bin/gpg',
         'mysql' => '/usr/bin/mysql',
         'mysqldump' => '/usr/bin/mysqldump',
 

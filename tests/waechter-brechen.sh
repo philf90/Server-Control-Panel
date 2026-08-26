@@ -17934,6 +17934,173 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FilterResetTest passed
 
 echo
+echo "── KeyExpiryTest: eine sub-Zeile schliesst den Schluessel nicht mehr ──"
+#
+# Auf dieser Maschine stehen 12 fpr-Zeilen bei 11 pub und 1 sub. Bleibt der
+# Schluessel ueber die sub-Zeile hinaus offen, nimmt er den Fingerabdruck des
+# Unterschluessels — und der Betreiber vergleicht ihn mit dem, den der
+# Anbieter nennt, und findet ihn nicht.
+#
+# **Der erste Wurf dieses Eingriffs hat nicht gebissen**, und das war ein Fund:
+# Er nahm eine zusaetzliche Bedingung heraus, die dasselbe noch einmal sagte
+# wie diese Zeile hier. Zwei Mechanismen fuer eine Regel, zum dritten Mal in
+# dieser Runde; der zweite ist fort.
+#
+#   Ein Eingriff, der nicht beisst, sagt entweder etwas ueber den Waechter
+#   oder etwas ueber die Regel.
+vorher_datei agent/src/Keys.php
+python3 - <<'PY2'
+p = 'agent/src/Keys.php'
+s = open(p, encoding='utf-8').read()
+alt = """                if ($offen !== null) {
+                    $schluessel[] = $offen;
+                    $offen = null;
+                }
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """                if ($offen !== null && $treffer['art'] === 'pub') {
+                    $schluessel[] = $offen;
+                    $offen = null;
+                }
+"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Keys.php "sub schliesst den Schluessel nicht" &&
+pruefe "sub schliesst den Schluessel nicht" \
+  KeyExpiryTest::test_the_fingerprint_belongs_to_the_key_and_not_to_its_subkey failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" KeyExpiryTest passed
+
+echo
+echo "── KeyExpiryTest: ein leeres Feld 7 wird zur Epoche ──"
+#
+# Feld 7 leer heisst „laeuft nie ab". Als 0 gelesen ist jeder Schluessel seit
+# dem 1. Januar 1970 abgelaufen, und die Seite meldet neun Befunde, wo keiner
+# ist. Gemessen auf dieser Maschine: 9 pub-Zeilen, Feld 7 in allen neun leer.
+vorher_datei agent/src/Keys.php
+python3 - <<'PY2'
+p = 'agent/src/Keys.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return $roh === '' || ltrim($roh, '0123456789') !== '' ? null : (int) $roh;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        return (int) $roh;", 1))
+PY2
+griff_datei agent/src/Keys.php "leeres Feld 7 als Epoche" &&
+pruefe "leeres Feld 7 als Epoche" \
+  KeyExpiryTest::test_an_empty_expiry_is_never_and_not_the_epoch failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" KeyExpiryTest passed
+
+echo
+echo "── KeyExpiryTest: die Dreissig-Tage-Grenze verschiebt sich ──"
+#
+# Aus dreissig Tagen sieben zu machen ist keine Verschaerfung, sondern eine
+# Lockerung: Ein Schluessel, der in drei Wochen ablaeuft, wird dann nicht mehr
+# gemeldet — und apt-get update bricht daran, waehrend M5 dabei 0 zurueckgibt.
+vorher_datei agent/src/Keys.php
+python3 - <<'PY2'
+p = 'agent/src/Keys.php'
+s = open(p, encoding='utf-8').read()
+alt = 'public const SOON_SECONDS = 30 * 86400;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'public const SOON_SECONDS = 7 * 86400;', 1))
+PY2
+griff_datei agent/src/Keys.php "Dreissig-Tage-Grenze verschoben" &&
+pruefe "Dreissig-Tage-Grenze verschoben" \
+  KeyExpiryTest::test_the_thirty_day_boundary_holds failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" KeyExpiryTest passed
+
+echo
+echo "── KeyExpiryTest: die erste Zeile eines eingebetteten Blocks faellt weg ──"
+#
+# Die dritte Form von Signed-By traegt den Blockanfang in derselben Zeile.
+# Nimmt unfold() nur die Faltung, fehlt „-----BEGIN PGP PUBLIC KEY BLOCK-----"
+# und gpg liest gar nichts. Auf dieser Maschine betrifft das eine von vier
+# Quellen (ondrej).
+vorher_datei agent/src/Keys.php
+python3 - <<'PY2'
+p = 'agent/src/Keys.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if (trim($wert) !== '') {
+            $zeilen[] = trim($wert);
+        }
+
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Keys.php "erste Zeile des Blocks faellt weg" &&
+pruefe "erste Zeile des Blocks faellt weg" \
+  KeyExpiryTest::test_the_first_line_of_an_inline_block_is_not_lost failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" KeyExpiryTest passed
+
+echo
+echo "── KeyExpiryTest: die Faltung eines fremden Feldes wird mitgenommen ──"
+#
+# Sources::folded() sucht die Fortsetzung EINES Feldes. Ohne die Bedingung
+# nimmt es jede — und aus einer mehrzeiligen Description wird ein PGP-Block,
+# den gpg nicht lesen kann.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if ($drin && preg_match('/^[ \\t]/', $zeile) === 1) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "            if (preg_match('/^[ \\t]/', $zeile) === 1) {", 1))
+PY2
+griff_datei agent/src/Sources.php "Faltung eines fremden Feldes" &&
+pruefe "Faltung eines fremden Feldes" \
+  KeyExpiryTest::test_folding_of_another_field_is_not_taken failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" KeyExpiryTest passed
+
+echo
+echo "── KeyExpiryTest: gpg faellt von der Positivliste ──"
+#
+# Die erste Grenze dieses Projekts: Der Agent startet nur, was in
+# Runner::PROGRAMS steht. Ein Aufruf ohne Eintrag scheitert zur Laufzeit — und
+# zwar erst auf dem Server, wenn ein Betreiber die Quellenseite aufschlaegt.
+vorher_datei agent/src/Runner.php
+python3 - <<'PY2'
+p = 'agent/src/Runner.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'gpg' => '/usr/bin/gpg',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Runner.php "gpg von der Positivliste" &&
+pruefe "gpg von der Positivliste" \
+  KeyExpiryTest::test_gpg_is_on_the_allowlist_with_an_absolute_path failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" KeyExpiryTest passed
+
+echo
+echo "── KeyExpiryTest: der Kommentar-Abstreifer ist tragend ──"
+#
+# Ohne ihn zaehlt der Waechter seinen eigenen Gegenstand mit: Der Dokumentblock
+# ueber der Methode nennt Keys::ARGUMENTS, und aus zwei Stellen werden drei.
+# Gemessen — ohne Abstreifer rot, mit ihm gruen, an derselben heilen Quelle.
+vorher_datei tests/Unit/KeyExpiryTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/KeyExpiryTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $quelle = $this->withoutComments(
+            (string) file_get_contents(dirname(__DIR__, 2).'/agent/src/Ops/SystemSourcesList.php'),
+        );"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        $quelle = (string) file_get_contents(dirname(__DIR__, 2).'/agent/src/Ops/SystemSourcesList.php');"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Unit/KeyExpiryTest.php "Kommentar-Abstreifer entfernt" &&
+pruefe "Kommentar-Abstreifer entfernt" \
+  KeyExpiryTest::test_the_invocation_is_machine_readable_and_stated_once failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" KeyExpiryTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

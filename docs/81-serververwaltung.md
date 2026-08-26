@@ -515,6 +515,70 @@ Stufe hat den Satz einen Commit vorher noch zitiert. Es steht jetzt als Kachel
 > **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht von
 > einem zu unterscheiden, das es nicht gibt.**
 
+### 2.3d Schritt 4b — ein Abnahmepunkt ohne Schritt (26. August 2026)
+
+**Schritt 4 war nach seinem „fertig, wenn" abgehakt und nach seiner
+Beschreibung nicht.** §6 sagt über `system.sources.list`: *„…getrennt
+beschriftet; **je Schlüssel Fingerabdruck und Ablauf**"*. Gebaut war beides
+nicht — das „fertig, wenn" fragt nur nach der abgeschalteten Quelle, und danach
+war gemessen worden.
+
+> **Ein „fertig, wenn", das weniger verlangt als die Beschreibung daneben,
+> lässt die Hälfte durchgehen.**
+
+Daran hängt **Abnahmepunkt 4** — „ein Schlüssel, der in weniger als dreissig
+Tagen abläuft, wird gemeldet, bevor ein Lauf daran scheitert". Der Punkt hat in
+§9 keinen eigenen Schritt; er wohnte in Schritt 4, und dort fehlte er.
+
+**`gpg` steht seitdem auf der Positivliste des Agenten**, und das ist die erste
+Grenze dieses Projekts — sie gehört begründet. Gebraucht wird es für genau eine
+Frage, aufgerufen wird ausschliesslich lesend (`--show-keys --with-colons`),
+und **nie mit einem Pfad aus einem Formular**: Die Pfade stammen aus
+`Signed-By:` der Quelldateien, die eingebetteten Blöcke gehen über stdin.
+
+**Es liegt auf allen vier Zielplattformen** — gemessen und nicht angenommen:
+`tests/apt-faelle-messen.sh` meldet „gpg fehlt" als Ausfall, und alle vier
+Messrunden der CI sind grün.
+
+**Sechs Messungen vor der ersten Zeile:**
+
+| | Frage | Gemessen |
+|---|---|---|
+| K1 | Wo steht der Ablauf? | Feld 7 der `pub`-Zeile als Unixzeit; **leer heisst „läuft nie ab"**. Auf Debian 12 in der CI: eine Zeile leer, eine mit `1819259803`. |
+| K2 | Wo der Fingerabdruck? | In der `fpr`-Zeile darunter — und die gehört zur zuletzt gesehenen `pub` **oder `sub`**. Hier: 12 `fpr` bei 11 `pub` und 1 `sub`. |
+| K3 | Braucht `gpg` ein Heimverzeichnis? | **Ja, auch nur zum Lesen** — und es legt es an. Ohne beschreibbares HOME stirbt es mit `rc=2`. Einen nur-lesenden Aufruf gibt es nicht. |
+| K4 | Liest es einen Block von stdin? | **Ja**, aufgefaltet nach deb822: rc 0, eine `pub`- und eine `fpr`-Zeile. |
+| K5 | Ein Pfad, den es nicht gibt? | `rc=2`, keine Zeilen — und „keine Schlüssel gefunden" sähe aus wie „diese Quelle hat keinen". |
+| K6 | Wie viele Schlüssel je Bund? | Bis zu **drei** (`ubuntu-archive-keyring.gpg`). |
+
+**K3 entscheidet den Ablageort.** Eine lesende Frage soll keinen Schlüsselbund
+in root's Heimverzeichnis anlegen, den danach niemand erklären kann — `gpg`
+bekommt deshalb `--homedir` auf einen eigenen Ort unter `/var/lib/srvpanel`.
+
+**Und die Meldung ist der Punkt, nicht die Spalte.** Eine Spalte steht da und
+wartet, dass jemand hinsieht; ein abgelaufener Schlüssel bricht `apt-get
+update`, und weil das mit `0` endet (M5), meldet der Server danach „nichts zu
+tun". Über der Quellentabelle steht deshalb ein Satz, sobald ein Schlüssel
+fällig oder unlesbar ist.
+
+**Zum dritten Mal in dieser Runde: zwei Fassungen einer Regel, die einander
+decken.** Der Fingerabdruck-Leser trug drei — eine Prüfung auf die Art der
+letzten Zeile, ein `$offen['fingerprint'] === null`, und die Zeile, die `$offen`
+bei jeder `sub` schliesst. Gemessen: jede allein grün, **erst ohne alle rot.**
+Zwei Eingriffe nacheinander bissen nicht, bevor das auffiel.
+
+> **Ein Eingriff, der nicht beisst, sagt entweder etwas über den Wächter oder
+> etwas über die Regel.**
+
+**Und M6 im Messmittel ist gerichtet.** Der Nebenbefund aus §2.3 lautete „48 mit
+Ablaufdatum neben 41 pub-Zeilen gesamt" — mehr ablaufende als vorhandene. Die
+Schleife las drei Verzeichnisse, die Gegenprobe zwei. Eine Liste für beide, und
+die Zahl, die zählt, ist dazugekommen: nicht „hat einen Ablauf", sondern „läuft
+in unter dreissig Tagen ab".
+
+
+---
+
 **Und ein zweiter Befund aus demselben Blick.** In der ersten Fassung stand die
 Spalte „Zustand" der Quellentabelle am Ende — bei 1440 px ausserhalb des
 Bildes. Sie ist die Antwort dieser Tabelle: „kein Index" gegen „11 Ziele" ist
@@ -873,7 +937,7 @@ CI.
 | 1 | **Der Befund M5 behoben, Teile 1 und 2** (§2.1b) — `Apt::refresh()` und die drei lesenden Aufrufer, mit `AptResultTest` | eine unerreichbare Sury lässt `php.version.install` mit einer Meldung **über die Quelle** scheitern, nicht über das Paket |
 | 2 | `AptLock` als die eine Stelle; `PanelUpdate` zieht um | `AptLockReachTest` ist grün und sein Bruch rot |
 | 3 | ~~`system.packages.list` mit dem Leser und `InstLineTest`~~ **erledigt am 26. August 2026** | ✔ Über drei Läufe gegen die Kommandozeile gemessen (`dist-upgrade` ganz, mit Sperrmarkierung, gemischt mit `Remv` und Neuinstallation): alle fünf Zahlen gleich, und **jeder** Zähler mindestens einmal ungleich null |
-| 4 | ~~`system.sources.list` über `indextargets` **und** die Dateien~~ **erledigt am 26. August 2026** | ✔ `ubuntu.sources:1` auf `Enabled: no` — der Eintrag steht weiter in den Dateien (`AUS`, 0 Ziele), die Ziele fallen von 16 auf 4 für diese Datei, und `:2` behält Nummer **und** Ziele. Dazu die dritte Lage: zwei eingeschaltete Quellen ohne Ziel (PPAs, 403 am Proxy) |
+| 4 | ~~`system.sources.list` über `indextargets` **und** die Dateien~~ **erledigt am 26. August 2026** | ✔ `ubuntu.sources:1` auf `Enabled: no` — der Eintrag steht weiter in den Dateien (`AUS`, 0 Ziele), die Ziele fallen von 16 auf 4 für diese Datei, und `:2` behält Nummer **und** Ziele. Dazu die dritte Lage: zwei eingeschaltete Quellen ohne Ziel (PPAs, 403 am Proxy)  **4b am selben Tag nachgezogen:** Fingerabdruck und Ablauf je Schlüssel — sie standen in der Beschreibung der Operation und fehlten im „fertig, wenn“. Damit ist Abnahmepunkt 4 gebaut. |
 | 5 | ~~Die Seite, beide Themes, 390 px gemessen~~ **erledigt am 26. August 2026** | ✔ Vier Lagen gegen die **echte** Seite mit laufendem Agenten: `dokument=0`, Gegenprobe 200/200, `schiebt=0`. Und ein Befund, den diese Messung nicht sieht — siehe §2.3c |
 | 6 | `system.packages.upgrade` über `systemd-run`; dazu **Teil 3 von M5** — `PanelUpdate` liest nach dem Neustart seine eigene Fassung nach | ein Upgrade mit `srvpanel` darin läuft durch, Protokoll vollständig — und ein Lauf, der nichts bewirkt hat, meldet das statt Erfolg |
 | 7 | `system.sources.toggle` und der Neustart-Knopf | `SourceOwnershipTest` ist grün und sein Bruch rot |

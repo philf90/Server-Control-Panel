@@ -20918,3 +20918,58 @@ zurückgenommen.
 
 Belegt ist es am Fall, der von Hand nachweislich beisst: 48 Eingriffe, alle
 beissen, **null ohne Messung**.
+
+### Schritt 4b — Fingerabdruck und Ablauf, und ein Abnahmepunkt ohne Schritt
+
+Beim Nachsehen, was in A1 noch offen ist, kam ein eigener Rest heraus: **Schritt
+4 war nach seinem „fertig, wenn" abgehakt und nach seiner Beschreibung nicht.**
+`docs/81 §6` sagt über `system.sources.list` *„…je Schlüssel Fingerabdruck und
+Ablauf"*; gebaut war beides nicht. Das „fertig, wenn" fragt nur nach der
+abgeschalteten Quelle, und danach war gemessen worden. Beides steht in derselben
+Datei, zwölf Zeilen auseinander.
+
+> **Ein „fertig, wenn", das weniger verlangt als die Beschreibung daneben, lässt
+> die Hälfte durchgehen.**
+
+Daran hängt **Abnahmepunkt 4**: ein Schlüssel, der in weniger als dreissig Tagen
+abläuft, wird gemeldet, **bevor** ein Lauf daran scheitert. Der Punkt hat in §9
+keinen eigenen Schritt.
+
+**`gpg` steht jetzt auf der Positivliste des Agenten.** Das ist die erste Grenze
+dieses Projekts, und sie gehört begründet: eine Frage, ausschliesslich lesend,
+**nie mit einem Pfad aus einem Formular** — die Pfade stammen aus `Signed-By:`
+der Quelldateien, die eingebetteten Blöcke gehen über stdin. Dass es auf allen
+vier Zielplattformen liegt, ist gemessen: `tests/apt-faelle-messen.sh` meldet
+„gpg fehlt" als Ausfall, und alle vier Messrunden sind grün.
+
+**Sechs Messungen davor**, und zwei haben den Entwurf entschieden. `gpg` braucht
+ein **beschreibbares Heimverzeichnis, auch nur zum Lesen** — es legt es an und
+stirbt mit `rc=2`, wenn es das nicht kann. Einen nur-lesenden Aufruf gibt es
+nicht, also bekommt es `--homedir` auf einen eigenen Ort statt `/root/.gnupg`.
+Und die `fpr`-Zeile gehört zur zuletzt gesehenen `pub` **oder `sub`**: 12 `fpr`
+bei 11 `pub` und 1 `sub` — wer „die `fpr`-Zeile" nimmt, hängt einem Schlüssel
+den Fingerabdruck seines Unterschlüssels an.
+
+**Die Meldung ist der Abnahmepunkt, nicht die Spalte.** Eine Spalte wartet, dass
+jemand hinsieht; ein abgelaufener Schlüssel bricht `apt-get update`, und weil das
+mit `0` endet (M5), meldet der Server danach „nichts zu tun".
+
+**Zum dritten Mal in dieser Runde: zwei Fassungen einer Regel, die einander
+decken.** Der Leser trug drei Mechanismen für die Fingerabdruck-Paarung.
+Gemessen: jeder allein grün, **erst ohne alle rot**. Zwei Eingriffe nacheinander
+bissen nicht, bevor das auffiel.
+
+> **Ein Eingriff, der nicht beisst, sagt entweder etwas über den Wächter oder
+> etwas über die Regel.**
+
+**Und M6 im Messmittel ist gerichtet.** Der Nebenbefund aus `docs/81 §2.3`
+lautete „48 mit Ablaufdatum neben 41 pub-Zeilen gesamt" — mehr ablaufende als
+vorhandene. Die Schleife las drei Verzeichnisse, die Gegenprobe zwei; jetzt eine
+Liste für beide, und daneben die Zahl, die wirklich zählt: nicht „hat einen
+Ablauf", sondern „läuft in unter dreissig Tagen ab".
+
+**Ein Layoutbefund aus der Bilderrunde.** Herkunft und Fingerabdruck standen in
+einer Zelle — bei 390 px ist `.stacks td` eine Flexbox, und aus „in der Datei"
+neben vierzig Hexziffern wurden drei Zeilen mit je einem Wort. Ein
+`flex-direction` in der Komponente wäre die Gestaltung einer Tabelle am
+Gestaltungssystem vorbei; zwei Spalten sind dieselbe Auskunft ohne eigene Regel.

@@ -6,6 +6,7 @@ namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Keys;
 use SrvPanel\Agent\Op;
 use SrvPanel\Agent\Sources;
 
@@ -64,7 +65,7 @@ final class SystemSourcesList implements Op
 
         return [
             'targets' => $ziele,
-            'files' => $this->files($ziele),
+            'files' => $this->files($ziele, $context),
         ];
     }
 
@@ -74,7 +75,7 @@ final class SystemSourcesList implements Op
      * @param  list<array{file: null|string, stanza: null|int, fields: array<string, string>}>  $ziele
      * @return list<array{path: string, format: string, entries: list<array<string, mixed>>}>
      */
-    private function files(array $ziele): array
+    private function files(array $ziele, Context $context): array
     {
         // Wie viele Ziele hängen an welchem Eintrag? Gezählt und nicht nur
         // „ja/nein": Eine Stanza mit `Suites: noble noble-updates` wird zu
@@ -114,7 +115,7 @@ final class SystemSourcesList implements Op
                     'uris' => $felder['URIs'] ?? '',
                     'suites' => $felder['Suites'] ?? '',
                     'components' => $felder['Components'] ?? '',
-                    'key' => Sources::key($felder),
+                    'key' => $this->key($context, $felder, $eintrag['block']),
                 ];
             }
 
@@ -126,6 +127,55 @@ final class SystemSourcesList implements Op
         }
 
         return $dateien;
+    }
+
+    /**
+     * Der Schlüssel einer Stanza, mit Fingerabdruck und Ablauf.
+     *
+     * **Zwei Wege in dasselbe `gpg`.** Ein Pfad geht als Argument hinein, ein
+     * eingebetteter Block über stdin — beide gemessen (`docs/81 §2.3b`, Q7).
+     * Der Aufruf ist derselbe und steht als {@see Keys::ARGUMENTS} einmal da.
+     *
+     * **Ein Fehlschlag ist kein leeres Ergebnis.** Ein Pfad, den es nicht gibt,
+     * endet mit `rc=2` — und „keine Schlüssel gefunden" sähe aus wie „dieser
+     * Quelle fehlt der Schlüssel", was etwas ganz anderes heisst. Er kommt
+     * deshalb als `unreadable` zurück und nicht als leere Liste.
+     *
+     * > **Eine leere Liste, die „nicht nachgesehen" bedeutet, sieht aus wie
+     * > „nichts da".**
+     *
+     * @param  array<string, string>  $felder
+     * @return array<string, mixed>
+     */
+    private function key(Context $context, array $felder, string $block): array
+    {
+        $art = Sources::key($felder);
+
+        if ($art['kind'] === 'none') {
+            return $art + ['keys' => [], 'readable' => true];
+        }
+
+        $lauf = $art['kind'] === 'path'
+            ? $context->runner->run('gpg', [...Keys::ARGUMENTS, '--homedir', Keys::HOME, (string) $art['path']], 20)
+            : $context->runner->run(
+                'gpg',
+                [...Keys::ARGUMENTS, '--homedir', Keys::HOME],
+                20,
+                input: Keys::unfold($felder['Signed-By'] ?? '', Sources::folded($block, 'Signed-By')),
+            );
+
+        if (! $lauf->successful()) {
+            return $art + ['keys' => [], 'readable' => false];
+        }
+
+        $jetzt = time();
+        $schluessel = [];
+
+        foreach (Keys::read($lauf->stdout) as $eine) {
+            $schluessel[] = $eine + ['state' => Keys::state($eine['expires'], $jetzt)];
+        }
+
+        return $art + ['keys' => $schluessel, 'readable' => true];
     }
 
     /**

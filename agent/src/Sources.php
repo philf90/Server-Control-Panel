@@ -181,7 +181,7 @@ final class Sources
      * Quelle abschaltet, und der Verbund bräche in dem Fall, für den es ihn
      * gibt.
      *
-     * @return list<array{stanza: int, fields: array<string, string>, enabled: bool}>
+     * @return list<array{stanza: int, fields: array<string, string>, enabled: bool, block: string}>
      */
     public static function stanzas(string $inhalt): array
     {
@@ -201,10 +201,47 @@ final class Sources
                 'stanza' => $nummer,
                 'fields' => $felder,
                 'enabled' => self::enabled($felder),
+
+                // Der Rohblock reist mit, damit der Schlüsselleser die Faltung
+                // von `Signed-By:` bekommt — sie steht in keinem Feldwert.
+                'block' => $block,
             ];
         }
 
         return $stanzas;
+    }
+
+    /**
+     * Die gefalteten Zeilen eines Feldes — für `Signed-By:` mit eingebettetem
+     * Block.
+     *
+     * **Sie werden gebraucht und nicht nur übersprungen.** {@see self::fields()}
+     * wirft sie weg, weil ein Feldwert hier eine Zeile ist; für den Schlüssel
+     * ist der gefaltete Block aber der ganze Inhalt, und `gpg` liest ihn über
+     * stdin ({@see Keys::unfold()}).
+     *
+     * @return list<string>
+     */
+    public static function folded(string $block, string $feld): array
+    {
+        $gefaltet = [];
+        $drin = false;
+
+        foreach (preg_split('/\R/', $block) ?: [] as $zeile) {
+            if (preg_match(self::FIELD, $zeile, $treffer) === 1) {
+                $drin = $treffer['name'] === $feld;
+
+                continue;
+            }
+
+            // Eine Fortsetzungszeile beginnt mit einem Leerzeichen — und nur
+            // solange wir im gesuchten Feld stehen.
+            if ($drin && preg_match('/^[ \t]/', $zeile) === 1) {
+                $gefaltet[] = $zeile;
+            }
+        }
+
+        return $gefaltet;
     }
 
     /**
@@ -258,7 +295,7 @@ final class Sources
      * es kein `Enabled:`, das Abschalten ist das Kommentarzeichen — und apt
      * zählt nur, was es liest.
      *
-     * @return list<array{stanza: int, fields: array<string, string>, enabled: bool}>
+     * @return list<array{stanza: int, fields: array<string, string>, enabled: bool, block: string}>
      */
     public static function oneliners(string $inhalt): array
     {
@@ -287,6 +324,9 @@ final class Sources
                     'Signed-By' => self::option($treffer['options'], 'signed-by'),
                 ], static fn (string $w): bool => $w !== ''),
                 'enabled' => true,
+
+                // Ein Einzeiler hat keine Faltung — `signed-by=` ist ein Pfad.
+                'block' => '',
             ];
         }
 

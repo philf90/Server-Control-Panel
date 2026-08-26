@@ -38,7 +38,12 @@ interface Entry {
   uris: string
   suites: string
   components: string
-  key: { kind: string; path: string | null }
+  key: {
+    kind: string
+    path: string | null
+    readable: boolean
+    keys: { fingerprint: string | null; uid: string | null; expires: number | null; state: string }[]
+  }
 }
 
 const props = defineProps<{
@@ -225,11 +230,55 @@ function zustand(eintrag: Entry): { kind: 'ok' | 'warn' | 'neutral'; text: strin
 
 /** Woher der Schlüssel kommt — als Satz und nicht als Kennung. */
 function schluessel(eintrag: Entry): string {
+  if (!eintrag.key.readable) return 'nicht lesbar'
   if (eintrag.key.kind === 'path') return eintrag.key.path ?? ''
   if (eintrag.key.kind === 'embedded') return 'in der Datei'
 
   return 'keiner'
 }
+
+/**
+ * Der Fingerabdruck, in Vierergruppen.
+ *
+ * Vierzig Hexziffern am Stück liest niemand ab. Gruppiert wird wie in jedem
+ * Werkzeug, das Fingerabdrücke zeigt — so lässt er sich mit dem vergleichen,
+ * den ein Anbieter auf seiner Seite nennt.
+ */
+function abdruck(roh: string | null): string {
+  return roh === null ? '' : (roh.match(/.{1,4}/g) ?? []).join(' ')
+}
+
+/**
+ * Die Schlüssel, die eine Meldung wert sind.
+ *
+ * **Das ist Abnahmepunkt 4 aus `docs/81 §4`** — ein Schlüssel, der bald
+ * abläuft, wird gemeldet, **bevor** ein Lauf an ihm scheitert. Eine Spalte
+ * allein tut das nicht: Sie steht da und wartet, dass jemand hinsieht. Ein
+ * abgelaufener Schlüssel bricht `apt-get update`, und weil das mit `0` endet,
+ * meldet der Server danach „nichts zu tun".
+ */
+const faellig = computed(() => {
+  const treffer: { datei: string; stanza: number; state: string; uid: string | null; expires: number | null }[] = []
+
+  for (const datei of props.sources?.files ?? []) {
+    for (const eintrag of datei.entries) {
+      for (const k of eintrag.key.keys) {
+        if (k.state === 'soon' || k.state === 'expired') {
+          treffer.push({ datei: datei.path, stanza: eintrag.stanza, state: k.state, uid: k.uid, expires: k.expires })
+        }
+      }
+    }
+  }
+
+  return treffer
+})
+
+/** Quellen, deren Schlüssel sich nicht lesen liess — etwas anderes als „keiner". */
+const unlesbar = computed(() =>
+  (props.sources?.files ?? []).flatMap((datei) =>
+    datei.entries.filter((e) => !e.key.readable).map((e) => `${datei.path}:${e.stanza}`),
+  ),
+)
 
 /*
  * **Drei Zustände und nicht zwei.** `null` heisst „nicht feststellbar" — auf
@@ -439,6 +488,28 @@ const neustart = computed(() => {
         </p>
 
         <template v-else-if="props.sources">
+          <!--
+            **Die Meldung, nicht die Spalte, ist Abnahmepunkt 4.** Eine Spalte
+            wartet, dass jemand hinsieht; ein abgelaufener Schlüssel bricht
+            `apt-get update`, und weil das mit `0` endet, meldet der Server
+            danach „nichts zu tun".
+          -->
+          <p v-if="faellig.length > 0" class="notice warn">
+            <span>
+              {{ counted(faellig.length, 'Ein Signaturschlüssel', 'Signaturschlüssel') }}
+              {{ faellig.some((f) => f.state === 'expired') ? 'ist abgelaufen oder läuft bald ab' : 'läuft in weniger als dreissig Tagen ab' }}:
+              <span class="ident">{{ faellig.map((f) => `${f.datei}:${f.stanza}`).join(', ') }}</span>
+            </span>
+          </p>
+
+          <p v-if="unlesbar.length > 0" class="notice warn">
+            <span>
+              {{ counted(unlesbar.length, 'Ein Signaturschlüssel liess', 'Signaturschlüssel liessen') }}
+              sich nicht lesen — das ist etwas anderes, als hätte die Quelle keinen:
+              <span class="ident">{{ unlesbar.join(', ') }}</span>
+            </span>
+          </p>
+
           <p class="section-note wide">
             Was apt tatsächlich benutzt, steht als Zahl neben jedem Eintrag.
             Eine Quelle ohne Index ist nicht abgeschaltet — apt hat sie nur nicht
@@ -464,6 +535,7 @@ const neustart = computed(() => {
                   <th>Adresse</th>
                   <th>Suiten</th>
                   <th>Schlüssel</th>
+                  <th>Fingerabdruck</th>
                 </tr>
               </thead>
 
@@ -488,7 +560,27 @@ const neustart = computed(() => {
 
                     <td data-column="Adresse" class="ident">{{ eintrag.uris }}</td>
                     <td data-column="Suiten" class="ident">{{ eintrag.suites }}</td>
+                    <!--
+                      **Herkunft und Fingerabdruck stehen in zwei Spalten und
+                      nicht in einer Zelle.** Der erste Wurf legte beide
+                      übereinander — bei 390 px ist `.stacks td` eine Flexbox,
+                      und aus „in der Datei" neben vierzig Hexziffern wurden
+                      drei Zeilen mit je einem Wort. Ein `flex-direction` in
+                      dieser Komponente wäre die Gestaltung einer Tabelle am
+                      Gestaltungssystem vorbei; zwei Spalten sind dieselbe
+                      Auskunft ohne eigene Regel.
+                    -->
                     <td data-column="Schlüssel" class="ident">{{ schluessel(eintrag) }}</td>
+
+                    <td data-column="Fingerabdruck" class="ident">
+                      <span v-if="eintrag.key.keys.length === 0" class="quiet">—</span>
+
+                      <template v-for="k in eintrag.key.keys" :key="k.fingerprint ?? k.uid ?? k.expires ?? 0">
+                        <Badge v-if="k.state === 'expired'" kind="critical">abgelaufen</Badge>
+                        <Badge v-else-if="k.state === 'soon'" kind="warn">läuft bald ab</Badge>
+                        <span class="quiet">{{ abdruck(k.fingerprint) }}</span>
+                      </template>
+                    </td>
                   </tr>
                 </template>
               </tbody>

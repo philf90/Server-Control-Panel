@@ -851,8 +851,13 @@ ihn seit P1 und **belegt hat ihn nur der eigene Gebrauch**.
 
 ### 2.3j Was der volle Bruchlauf gekostet hat (26. August 2026)
 
-Schritt 9 ist gefahren: **1524 Prüfungen, `FEHLT: 0`, „Alle Wächter beissen."**
-Der Baum davor und danach ist derselbe — der Lauf hat nichts liegen lassen.
+Schritt 9 ist zweimal gefahren. Der erste Lauf: **1524 Prüfungen, `FEHLT: 0`,
+„Alle Wächter beissen."** Der zweite, nach den beiden neuen Eingriffen zu
+`ShellCheckReachTest`: **1527 Prüfungen, `FEHLT: 0`** — die zwei Eingriffe und
+ihre gemeinsame Gegenprobe. Der Baum davor und danach ist beide Male derselbe.
+
+**Zwischen den beiden liegt ein dritter Lauf, der nichts belegt**, und der ist
+weiter unten der eigentliche Befund dieses Schritts.
 
 Bezahlt hat er einen Befund, und der steckte nicht in einem Eingriff, sondern
 in der Umgebung, in der das Skript läuft.
@@ -860,8 +865,8 @@ in der Umgebung, in der das Skript läuft.
 **Das Skript brach an seiner eigenen Vorprüfung ab.** `pruefe()` liest die
 Ausgabe von PHPUnit als Text und sucht `OK (` beziehungsweise `FAILURES!`. In
 einer Agentensitzung schreibt derselbe Aufruf statt dessen eine Zeile JSON —
-`{"tool":"phpunit","result":"passed",…}` —, und damit fällt **jede** der 1524
-Prüfungen in den Zweig „unlesbar". Die Vorprüfung hat das gefangen, wofür es sie
+`{"tool":"phpunit","result":"passed",…}` —, und damit fällt **jede** Prüfung in
+den Zweig „unlesbar". Die Vorprüfung hat das gefangen, wofür es sie
 gibt; sie sagte nur nicht, woran es liegt.
 
 Gefunden durch Aussieben der ganzen Umgebung, Variable für Variable: `AI_AGENT`
@@ -971,6 +976,36 @@ andere eine, die *dazugehört*.
 Der Handgriff ist einfach und steht in `CLAUDE.md`: **Während das Bruchskript
 läuft, wird nicht am Repo gearbeitet.** Es dauert gut zwanzig Minuten; das ist
 die Zeit für etwas anderes als für dieses Repo.
+
+**Und der vergiftete Lauf hat seinen eigenen Schaden gemeldet** — nur nicht als
+Schaden, sondern als einzigen `FEHLT` unter 1156 Prüfungen:
+
+```
+── RemoteAccessTest: die beiden Systeme nehmen verschiedene Adressen ──
+  ok     zwei Listen von Horchadressen                            failed
+  FEHLT    … zurückgesetzt wieder grün                        failed (erwartet: passed)
+```
+
+Der Grund ist genau der Schaden: Der Eingriff traf `Databases.php`, und der
+**kaputte** Stand war inzwischen committet — also stellte `wiederherstellen()`
+den kaputten wieder her, und der Wächter blieb rot. Die Zeile „zurückgesetzt
+wieder grün" ist die einzige im ganzen Skript, die das überhaupt bemerken kann.
+
+> **Ein Rückweg über `git` stellt nicht den heilen Stand her, sondern den
+> festgeschriebenen** — und wer den kaputten festschreibt, macht ihn zum Ziel
+> des Rückwegs.
+
+Das ist die Gegenprobe zu diesem Befund und war nicht als solche geplant: Ohne
+sie stünde hier nur, dass etwas schiefgehen *kann*.
+
+**Die Laufmarke hält davon die kleinere Hälfte.** Sie weist einen zweiten *Lauf*
+ab — `flock -n` auf `$TMPDIR/srvpanel-waechter-brechen.lock`, genommen vor dem
+ersten Eingriff, in beide Richtungen gemessen (gesperrt: abgewiesen mit einem
+Satz; frei: kommt durch bis zur Sauberkeitsprüfung). Einen Menschen, der
+nebenher schreibt, kann sie nicht abweisen.
+
+> **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
+> als Zusage.**
 
 ---
 
@@ -1341,7 +1376,7 @@ CI.
 | 6 | ~~`system.packages.upgrade` über `systemd-run`; dazu **Teil 3 von M5**~~ **gebaut am 26. August 2026** | ✔ `system.packages.refresh` und `system.packages.upgrade` (`all` · `security` · benannte), beide über `AptLock`; der Lauf geht als transiente Unit an `packaging/bin/apt-run`, und **das Skript zählt vorher und nachher** — vier Ausgänge gegen echtes apt gemessen (§2.3g).  ✔ **Teil 3 von M5**: `panel.update` läuft jetzt über dasselbe Skript im Modus `panel` und vergleicht die installierte Fassung statt eines Rückgabewerts; die Ausnahme in `AptResultTest` ist fort.  ✔ `PackageNameTest` grün, fünf Brüche, alle beissend. **Abgenommen ist er nicht** — die drei Punkte aus §2.3h gehören auf einen echten Server |
 | 7 | ~~`system.sources.toggle` und der Neustart-Knopf~~ **erledigt am 26. August 2026** | ✔ **Die Quelle**: `SourceOwnershipTest` grün, sechs Brüche, alle beissend; gemessen durch echtes apt — 16 → 5 → 16 Ziele, und der Rückweg belegt: bei kaputtem apt kommt die Datei byte-identisch zurück.  ✔ **Der Neustart**: `system.reboot` setzt einen Zeitgeber über `systemd-run` ab, statt `systemctl reboot` im eigenen Prozess zu rufen; die Messrunde dazu steht in §2.3e, der Durchstich in §2.3f. `RebootConfirmTest` grün, sechs Brüche, alle beissend. **Offen und benannt:** dass die transiente Unit den Neustart überlebt, ist hier nicht messbar (§2.3e, letzter Absatz) |
 | 8 | ~~`unattended-upgrades` — Zustand aus `apt-config dump`, Schalter~~ **gebaut am 26. August 2026** | ✔ Der Zustand kommt aus `apt-config dump` und hat fünf Teile (Paket, Hauptschalter, zwei Abstände, Zeitgeber); `system.packages.unattended` schreibt ein Fragment und **liest nach**, ob es angekommen ist.  ✔ **Der fremde Schreiber ist der Normalfall, nicht der Sonderfall**: In diesem Container setzt `docker-disable-periodic-update` den Hauptschalter auf `0`, während `20auto-upgrades` beide Teilschalter auf `1` sagt (§2.3i).  ✔ `UnattendedStateTest` grün, acht Brüche, alle beissend |
-| 9 | ~~Die Wächter brechen, voller Lauf von `tests/waechter-brechen.sh`~~ **erledigt am 26. August 2026** | ✔ **1524 Prüfungen, `FEHLT: 0`, „Alle Wächter beissen."** Der Baum davor und danach ist derselbe.  ✔ Die drei Brüche, die das Skript nicht fahren kann (`BreakScriptTest`, `ChangelogTest` in beiden Richtungen), von Hand gefahren und jeder rot mit seiner eigenen Meldung.  ✔ Der Befund des Laufs steckte nicht in einem Eingriff, sondern in der Umgebung: `AI_AGENT` und `CLAUDECODE` verpacken die Ausgabe von PHPUnit als JSON, und damit war **jede** Prüfung „unlesbar" (§2.3j) |
+| 9 | ~~Die Wächter brechen, voller Lauf von `tests/waechter-brechen.sh`~~ **erledigt am 26. August 2026** | ✔ **1524 Prüfungen, `FEHLT: 0`, „Alle Wächter beissen."** — und nach den beiden neuen Eingriffen zu `ShellCheckReachTest` ein zweites Mal mit **1527, `FEHLT: 0`**. Der Baum davor und danach ist beide Male derselbe.  ✔ Die drei Brüche, die das Skript nicht fahren kann (`BreakScriptTest`, `ChangelogTest` in beiden Richtungen), von Hand gefahren und jeder rot mit seiner eigenen Meldung.  ✔ Der Befund des Laufs steckte nicht in einem Eingriff, sondern in der Umgebung: `AI_AGENT` und `CLAUDECODE` verpacken die Ausgabe von PHPUnit als JSON, und damit war **jede** Prüfung „unlesbar" (§2.3j) |
 | 10 | Der Abnahmelauf auf `cloudsrv24` — **ausgeschrieben am 26. August 2026 als `docs/85-abnahmelauf-a1.md`**, noch nicht gefahren | die acht Punkte aus §4, dazu die drei Dinge aus §2.3h. Zwei Punkte dürfen als „nicht messbar" ausfallen (4 ohne ablaufenden Schlüssel, 2 ohne Neuinstallation); **Punkt 5 darf es nicht** |
 
 **Schritt 0 und Schritt 1 kommen vor allem anderen.** Schritt 1 ist ein Befund

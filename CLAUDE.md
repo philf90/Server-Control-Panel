@@ -2334,8 +2334,9 @@ Testen berücksichtigen:
 
   **Und das Bruchskript läuft hier — seit dem 26. August im Ganzen.** Hier
   stand, es brauche `vendor/bin/phpunit` und laufe deshalb nicht; mit dem
-  `vendor/` von oben ist der volle Lauf ein Aufruf. Gemessen: **1524 Prüfungen,
-  `FEHLT: 0`, „Alle Wächter beissen."**, Arbeitsbaum davor und danach derselbe.
+  `vendor/` von oben ist der volle Lauf ein Aufruf. Gemessen am 26. August:
+  **1527 Prüfungen, `FEHLT: 0`, „Alle Wächter beissen."**, Arbeitsbaum davor und
+  danach derselbe.
   Er dauert gut zwanzig Minuten und gehört deshalb in den Hintergrund und in
   eine Datei.
 
@@ -2361,8 +2362,8 @@ Testen berücksichtigen:
 
   **Aber nur mit fester Umgebung.** In einer Agentensitzung verpacken `AI_AGENT`
   und `CLAUDECODE` die Ausgabe von PHPUnit als eine Zeile JSON; `pruefe()` sucht
-  `OK (` und `FAILURES!` und fällt damit bei **jeder** der 1524 Prüfungen in den
-  Zweig „unlesbar". Der Kopf des Skripts nimmt beide seitdem selbst heraus —
+  `OK (` und `FAILURES!` und fällt damit bei **jeder** Prüfung in den Zweig
+  „unlesbar". Der Kopf des Skripts nimmt beide seitdem selbst heraus —
   dieselbe Antwort, die `Runner::ENVIRONMENT` seit P0 für den Agenten gibt.
 
   > **Ein Parser, der zwischen zwei Umgebungen hin- und hergebaut wird, ist

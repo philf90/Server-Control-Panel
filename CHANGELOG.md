@@ -21523,3 +21523,34 @@ das Skript ist 7500 Zeilen lang. Gefragt wird jetzt über einen Wahrheitswert.
 
 > **Ein Wächter, der zu viel meldet, wird abgeschaltet — und zwar von dem, der
 > ihn gebaut hat.**
+
+### Der Bruchlauf, sauber gefahren — und der vergiftete meldet seinen eigenen Schaden
+
+Nach der Laufmarke ist der Durchgang ein zweites Mal gefahren, diesmal ohne
+zweiten Schreiber: **1527 Prüfungen, `FEHLT: 0`, „Alle Wächter beissen."**
+Das sind die 1524 des ersten Laufs plus die beiden neuen Eingriffe zu
+`ShellCheckReachTest` und ihre gemeinsame Gegenprobe. Der Arbeitsbaum davor und
+danach ist derselbe, die Laufmarke danach wieder frei.
+
+**Damit ist belegt, was einzeln zu belegen nicht genügt:** Die beiden neuen
+Eingriffe beissen auch **im Lauf** und nicht nur für sich. Ein Eingriff steht
+dort neben anderen, und die verändern seinen Gegenstand.
+
+**Und der abgebrochene Lauf dazwischen hat seinen eigenen Schaden gemeldet** —
+als einzigen `FEHLT` unter 1156 Prüfungen:
+
+    ── RemoteAccessTest: die beiden Systeme nehmen verschiedene Adressen ──
+      ok     zwei Listen von Horchadressen                            failed
+      FEHLT    … zurückgesetzt wieder grün                        failed
+
+Der Grund ist genau der Schaden: Der Eingriff traf `Databases.php`, und der
+kaputte Stand war inzwischen committet — also stellte `wiederherstellen()` den
+kaputten wieder her, und der Wächter blieb rot.
+
+> **Ein Rückweg über `git` stellt nicht den heilen Stand her, sondern den
+> festgeschriebenen** — und wer den kaputten festschreibt, macht ihn zum Ziel
+> des Rückwegs.
+
+Die Zeile „zurückgesetzt wieder grün" ist die einzige im ganzen Skript, die das
+überhaupt bemerken kann. Sie war als Gegenprobe zum Eingriff gedacht und ist
+hier zur Gegenprobe des ganzen Vorgangs geworden.

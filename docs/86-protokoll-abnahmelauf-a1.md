@@ -468,7 +468,7 @@ auf den es ankommt.
 
 ---
 
-### Punkt 8 — die Automatik, vorgezogen
+### Punkt 9 — die Automatik, vorgezogen
 
 `unattended-upgrades` ist **installiert**, und beide Timer sind scharf:
 
@@ -477,10 +477,18 @@ auf den es ankommt.
 
 Damit ist der Prüfkörper der Punkte 1, 2 und 5 **verderblich**: Vier der
 anstehenden Pakete sind Sicherheitsaktualisierungen, und in zehn Stunden spielt
-sie der Server selbst ein. Punkt 8 wird deshalb vorgezogen — sein Griff schaltet
-die Automatik ab, und damit misst er sich selbst und rettet die übrigen Punkte.
+sie der Server selbst ein. Punkt 9 wird deshalb vorgezogen — sein Griff schaltet
+die Automatik, und damit misst er sich selbst und rettet die übrigen Punkte.
 
 > **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr hergestellt.**
+
+**Und die Nummer stand hier einmal falsch.** Ich hatte „Punkt 8" geschrieben —
+das ist „ein zweiter Lauf wird abgewiesen". Geschrieben aus dem Gedächtnis statt
+aus `docs/85`, und das ist derselbe Handgriff, der in `docs/84` eine Anweisung
+gekostet hat.
+
+> **Eine Anweisung, die zuerst „nachsehen" sagt und danach den geratenen Wert
+> einsetzt, hat das Nachsehen zur Verzierung gemacht.**
 
 ---
 
@@ -540,9 +548,34 @@ kommen dieselben **4** heraus, und der `diff` der Namen ist leer. Zusatzoptionen
 sind es auch nicht — `SystemPackagesList::apt()` ruft `apt-get -s dist-upgrade`
 blank.
 
-Was fehlt, ist die **Liste** unter den Kacheln. Solange nur die Zahl gemessen
-ist, ist die Frage nicht gestellt, sondern nur gezählt.
+**Und die Liste unter den Kacheln beantwortet es.** Sie führt elf Zeilen, und die
+sieben zurückgehaltenen stehen namentlich darin:
+
+    libpython3.12t64 · python3.12 · libpython3.12-stdlib · python3.12-minimal
+    libpython3.12-minimal · libproc2-0 · procps      → Ubuntu:24.04/noble-updates
+    libheif-plugin-libde265 · libheif-plugin-aomenc
+    libheif-plugin-aomdec · libheif1     · Sicherheit → Ubuntu:24.04/noble-security
+
+Daneben, 20:28:31 und noch einmal 20:29:01 in der Shell: **vier**.
 
 > **Ein Kriterium, das nach einer Anzahl fragt, prüft nicht, was gezählt wurde.**
+
+Die Zahl allein hätte „elf gegen vier" gesagt und offengelassen, *welche* elf.
+Mit den Namen ist es der ernste Fall: Die Seite bietet sieben Pakete an, die ein
+Lauf nicht einspielt — **und sie sind alle vorausgewählt, wenn der Betreiber
+„Alle installieren" drückt.**
+
+Herkunft und Fassungen der sieben stimmen dabei mit dem überein, was apt in
+`apt list --upgradable` zeigt. Der Agent hat sie also aus echten `Inst`-Zeilen
+gelesen; sie sind nicht erfunden, sondern von einem Lauf, der sie anbot.
+
+**Was den Unterschied macht, ist ungemessen.** Drei Vermutungen sind geprüft und
+alle drei falsch: die feste Umgebung des Agenten (unter `env -i` nachgestellt:
+dieselben vier, `diff` leer), Zusatzoptionen am Aufruf (`SystemPackagesList::apt()`
+ruft blank), und ein Unterschied zwischen ausgeliefertem Stand und Arbeitsbaum
+(`git diff v0.7.2-rc.1..HEAD` über die vier beteiligten Dateien: leer).
+
+> **Wissen aus zweiter Hand sieht aus wie Wissen.** Dreimal an einem Abend, und
+> jedes Mal klang die Vermutung beim Aufschreiben wie ein Ergebnis.
 
 <!-- Wird während des Laufs weitergefüllt. -->

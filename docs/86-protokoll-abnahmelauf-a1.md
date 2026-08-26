@@ -1037,4 +1037,31 @@ Alle sechs behoben, der Wächter erweitert, ein Dauereingriff im Bruchskript.
 **Nachgesehen auf dem Server ist das noch nicht** — es geht mit der nächsten
 Fassung mit.
 
+---
+
+### Punkt 1 — Die drei Zahlen stimmen (Kriterium 1) · **erfüllt**
+
+Gemessen gegen `0.7.2-rc.2`:
+
+    aktualisierbar           4     Seite: 4
+    davon Sicherheit         4     Seite: 4
+    zurückgehalten           7     Seite: 7
+    Gegenprobe: showhold     0
+
+**Und die Vorschrift war an einer Stelle falsch.** `docs/85` verlangt als dritte
+Messung `apt-mark showhold | wc -l`. Das misst seit Befund 7 etwas anderes als
+die Kachel: `showhold` kennt nur ausdrücklich festgehaltene Pakete und sieht
+Phasing nie. Der Vergleich hätte `0` gegen `7` ergeben — und das liest sich wie
+ein Befund am Prüfling.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
+Gemessen wird stattdessen dieselbe Ausgabe, die auch der Agent liest: die Namen
+unter **beiden** Überschriften von `apt-get -s upgrade`. `showhold` steht als
+Gegenprobe daneben und muss `0` sein — sonst wäre die `7` womöglich aus einer
+ganz anderen Quelle.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
 <!-- Wird während des Laufs weitergefüllt. -->

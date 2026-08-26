@@ -578,4 +578,48 @@ ruft blank), und ein Unterschied zwischen ausgeliefertem Stand und Arbeitsbaum
 > **Wissen aus zweiter Hand sieht aus wie Wissen.** Dreimal an einem Abend, und
 > jedes Mal klang die Vermutung beim Aufschreiben wie ein Ergebnis.
 
+---
+
+### Punkt 9a — der Zustand vor dem Schalten · **gemessen**
+
+Aus **apts** Sicht, nicht aus unserer Datei:
+
+    APT::Periodic ""
+    APT::Periodic::Update-Package-Lists "1"
+    APT::Periodic::Download-Upgradeable-Packages "0"
+    APT::Periodic::AutocleanInterval "0"
+    APT::Periodic::Unattended-Upgrade "1"
+
+    /etc/apt/apt.conf.d/10periodic       129 Bytes, Feb 10 2026
+    /etc/apt/apt.conf.d/20auto-upgrades   80 Bytes, Feb 12 2024
+
+    unattended-upgrades: installed
+    apt-daily.timer          Thu 2026-08-27 04:44:53 CEST
+    apt-daily-upgrade.timer  Thu 2026-08-27 06:17:32 CEST
+
+**Die Automatik ist an**, der Hauptschalter steht auf leer (also nicht auf `0`),
+und beide Timer sind scharf. **`zz-srvpanel-unattended` gibt es nicht** — das
+Panel hat hier noch nie geschrieben; der Ausgangszustand ist unberührt und
+stammt vom Abbild.
+
+Das ist der Zustand, der beim Schalten verlorengeht, und deshalb steht er hier,
+bevor geschaltet wird.
+
+---
+
+**Beobachtung 5 — der leere Griff in die falsche Datei.**
+
+Gefragt war, was der Agent wirklich ausgeführt hat. Der Griff ging an
+`journalctl -u srvpanel-agentd` und kam **leer** zurück — was sich wie ein Befund
+liest („der Agent hat gar kein apt gerufen") und keiner ist: Der Agent schreibt
+nicht ins Journal. `Config::DEFAULT_LOG_FILE` und `packaging/etc/agent.json`
+nennen beide `/var/log/srvpanel/agent.log`.
+
+> **Ein leerer Griff in die falsche Datei sieht aus wie ein Befund.**
+
+Derselbe Satz wie in `docs/78`, wo der erste Griff in
+`/var/log/nginx/error.log` ging und die Domain ihren eigenen hat. Beide Male
+hätte die Antwort im Quelltext gestanden, und beide Male ist zuerst getippt
+worden.
+
 <!-- Wird während des Laufs weitergefüllt. -->

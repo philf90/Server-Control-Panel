@@ -18295,29 +18295,70 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SourceOwnershipTest passed
 
 echo
-echo "── SourceOwnershipTest: der Pfad wird nicht mehr aufgeloest ──"
+echo "── SourceOwnershipTest: der Pfad wird nicht mehr geglaettet ──"
 #
-# Ohne die Aufloesung wird `/etc/apt/sources.list.d/./srvpanel.sources`
+# Ohne die Glaettung wird `/etc/apt/sources.list.d/./srvpanel.sources`
 # abgewiesen — dieselbe Datei, anders geschrieben.
 #
-# **Der erste Wurf dieses Eingriffs hat nicht gebissen**, und das war ein Fund:
-# Die Begruendung daneben lautete „sonst fuehrt ein symbolischer Verweis an der
-# Liste vorbei", und gemessen ist es andersherum. Ein Verweis AN der eigenen
-# Stelle wird vom Zeichenkettenvergleich ohnehin angenommen; realpath faengt
-# ihn nicht, es erweitert nur.
+# **Dieser Eingriff hat zweimal aufgehoert zu beissen, und beide Male war das
+# der Fund.** Zuerst lautete seine Begruendung „sonst fuehrt ein symbolischer
+# Verweis an der Liste vorbei", und gemessen ist es andersherum: Ein Verweis AN
+# der eigenen Stelle wird vom Zeichenkettenvergleich ohnehin angenommen.
 #
 #   Eine Aufloesung, die zwei Schreibweisen zusammenfuehrt, ist keine Pruefung
 #   — sie ist eine Nachsicht.
+#
+# Und am 26. August ein zweites Mal: Er brach `realpath()`, und daneben war
+# `lexical()` entstanden, das dieselbe Frage beantwortet. Die Datei aenderte
+# sich nachweislich, der Waechter blieb gruen.
+#
+#   Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+#   wenn jemand neben seiner Regel eine zweite baut, die dieselbe Frage
+#   beantwortet.
+#
+# Er greift seitdem die Stelle, die die Zusage wirklich traegt, und zwar die,
+# die OHNE Dateisystem auskommt: Genau darauf kam es an, denn die eigene
+# Quelldatei entsteht erst beim Anlegen.
 vorher_datei agent/src/Sources.php
 python3 - <<'PY2'
 p = 'agent/src/Sources.php'
 s = open(p, encoding='utf-8').read()
-alt = "        $echt = realpath($pfad);"
+alt = "                || $glatt === self::lexical($eigen)\n"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, "        $echt = false;", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "", 1))
 PY2
-griff_datei agent/src/Sources.php "Pfad nicht mehr aufgeloest" &&
-pruefe "Pfad nicht mehr aufgeloest" \
+griff_datei agent/src/Sources.php "Pfad nicht mehr geglaettet" &&
+pruefe "Pfad nicht mehr geglaettet" \
+  SourceOwnershipTest::test_equivalent_spellings_of_the_same_file_are_accepted failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceOwnershipTest passed
+
+echo
+echo "── SourceOwnershipTest: die Glaettung fragt das Dateisystem ──"
+#
+# Die zweite Haelfte derselben Zusage, und die teurere. `realpath()` gibt
+# `false`, wenn es die Datei nicht gibt — und genau dann ist die Frage am
+# wichtigsten. Am 26. August war der Waechter deshalb in der CI rot und hier
+# gruen: Im Container lag ein `srvpanel.sources`, das eine Messrunde Stunden
+# vorher liegen gelassen hatte.
+#
+#   Ein Test, dessen Ergebnis davon abhaengt, was gerade nebenher liegt, misst
+#   die Umgebung mit.
+#
+# Dieser Eingriff stellt den alten Zustand her: Die Glaettung fragt wieder das
+# Dateisystem. Er beisst am Pruefkoerper, den es nicht gibt — und zwar
+# unabhaengig davon, was auf dem Pruefrechner liegt.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $glatt = self::lexical($pfad);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        $glatt = realpath($pfad) === false ? '' : self::lexical($pfad);"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Sources.php "Glaettung fragt das Dateisystem" &&
+pruefe "Glaettung fragt das Dateisystem" \
   SourceOwnershipTest::test_equivalent_spellings_of_the_same_file_are_accepted failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SourceOwnershipTest passed

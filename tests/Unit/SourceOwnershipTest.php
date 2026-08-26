@@ -192,11 +192,25 @@ final class SourceOwnershipTest extends TestCase
      * **Gemessen, nachdem der Bruch dazu nicht gebissen hat.** Der erste Wurf
      * behauptete, `realpath()` fange einen symbolischen Verweis ab — es ist
      * andersherum: Ein Verweis **an** der eigenen Stelle wird vom
-     * Zeichenkettenvergleich ohnehin angenommen. Was `realpath()` leistet, ist
-     * die Annahme von `./` und `../` in derselben Datei.
+     * Zeichenkettenvergleich ohnehin angenommen. Was aufzulösen bleibt, ist
+     * `./` und `../` in derselben Datei.
      *
      * > **Eine Auflösung, die zwei Schreibweisen zusammenführt, ist keine
      * > Prüfung — sie ist eine Nachsicht.**
+     *
+     * ## Und dieser Fall hat die Umgebung mitgemessen
+     *
+     * Am 26. August war er in der CI rot und hier grün — mit demselben Code.
+     * `Sources::isOwned()` löste über `realpath()` auf, und das gibt `false`,
+     * wenn es die Datei nicht gibt. Im Container **gab** es sie: Eine Messrunde
+     * zu Schritt 7 hatte Stunden vorher ein `srvpanel.sources` liegen lassen.
+     *
+     * > **Ein Test, dessen Ergebnis davon abhängt, was gerade nebenher liegt,
+     * > misst die Umgebung mit.**
+     *
+     * Der Fall prüft deshalb seitdem **beide** Lagen ausdrücklich: mit der
+     * Datei und ohne sie. Die zweite ist die, die zählt — die eigene Quelldatei
+     * entsteht erst beim Anlegen, und genau dann muss die Frage stimmen.
      */
     public function test_equivalent_spellings_of_the_same_file_are_accepted(): void
     {
@@ -205,6 +219,40 @@ final class SourceOwnershipTest extends TestCase
         $this->assertTrue(
             Sources::isOwned($mitPunkt),
             'Dieselbe Datei, anders geschrieben, wird abgewiesen — dann fehlt die Auflösung.',
+        );
+
+        /*
+         * **Und derselbe Fall an einem Prüfkörper, den `realpath()` nicht
+         * tragen kann — gleich, was auf dem Rechner liegt.**
+         *
+         * Der Zwischenschritt gibt es nicht, also gibt `realpath()` hier
+         * `false`, auch wenn die Zieldatei selbst da ist. Gemessen in beiden
+         * Lagen des Containers: `false`/`true` mit der Datei wie ohne sie.
+         *
+         * Damit hängt die Zusage nicht mehr daran, ob auf dem Prüfrechner
+         * zufällig ein `srvpanel.sources` liegt — und genau daran hing sie am
+         * 26. August, als dieser Fall in der CI rot und hier grün war.
+         *
+         * Dass ein `..` hinter einem nicht vorhandenen Stück lexikalisch
+         * aufgelöst wird, ist die Nachsicht, die {@see Sources::isOwned()} im
+         * Kopf benennt: Sie erweitert die Annahme und verengt sie nicht.
+         */
+        $ueberNichts = dirname(Sources::PANEL_SOURCE).'/gibtesnicht/../'.basename(Sources::PANEL_SOURCE);
+
+        $this->assertFalse(
+            realpath($ueberNichts),
+            'Der Prüfkörper lässt sich auflösen — dann misst er die Glättung nicht.',
+        );
+
+        $this->assertTrue(
+            Sources::isOwned($ueberNichts),
+            'Ohne Dateisystem wird dieselbe Datei abgewiesen — dann trägt die Zusage nur auf einem Server, auf dem sie schon liegt.',
+        );
+
+        // Und die Nachsicht bleibt eine Nachsicht: Ein fremder Name, der es
+        // ebenfalls nicht gibt, kommt trotzdem nicht hinein.
+        $this->assertFalse(
+            Sources::isOwned(dirname(Sources::PANEL_SOURCE).'/gibtesnicht/../fremd.sources'),
         );
 
         // Die Gegenprobe: Auflösen heisst nicht, alles anzunehmen.

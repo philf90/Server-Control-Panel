@@ -103,9 +103,11 @@ final class FilterResetTest extends TestCase
         $namen = array_unique($treffer['name']);
         $namen = array_diff($namen, self::NOT_A_FILTER);
 
+        // `sort()` schreibt die Schlüssel neu — danach ist es eine Liste, und
+        // ein `array_values()` daneben wäre eine Zeile, die nichts tut.
         sort($namen);
 
-        return array_values($namen);
+        return $namen;
     }
 
     /** Jeder Filter, den die Berechnung liest, steht in der zurücksetzenden Beobachtung. */

@@ -1007,6 +1007,64 @@ nebenher schreibt, kann sie nicht abweisen.
 > **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
 > als Zusage.**
 
+### 2.3k Der CI-Lauf zu diesem Stand (26. August 2026)
+
+Von Hand ausgelöst (`workflow_dispatch`), weil `ci.yml` auf einem Zweig ohne PR
+nicht fährt. **Dreizehn der fünfzehn Jobs grün**, darunter alle vier
+Installationsläufe, alle vier apt-Messrunden und — zum ersten Mal über das ganze
+Verzeichnis — `shellcheck` mit `packaging/bin/*`.
+
+**Zwei rot, und beide waren meine.**
+
+**Der erste ist der lehrreiche: Ein Wächter war in der CI rot und hier grün, mit
+demselben Code.** `SourceOwnershipTest` prüft, dass
+`/etc/apt/sources.list.d/./srvpanel.sources` als dieselbe Datei angenommen wird.
+`Sources::isOwned()` löste über `realpath()` auf — und das gibt `false`, wenn es
+die Datei nicht gibt. Im Container **gab** es sie: Die Messrunde zu Schritt 7
+hatte Stunden vorher ein `srvpanel.sources` liegen gelassen (angelegt 08:57,
+Ziel `example.invalid`).
+
+> **Ein Test, dessen Ergebnis davon abhängt, was gerade nebenher liegt, misst
+> die Umgebung mit.**
+
+Und der Zustand, in dem er falsch war, ist der wichtigere: **Die eigene
+Quelldatei entsteht erst beim Anlegen.** Bis dahin hätte `isOwned()` eine
+Schreibweise mit `./` abgewiesen — die Zusage im Kopf der Methode galt nur auf
+einem Server, auf dem die Datei schon lag.
+
+`Sources::lexical()` führt die Schreibweisen jetzt **ohne Dateisystem** zusammen;
+`realpath()` steht daneben und löst zusätzlich Verweise auf. Der Prüfkörper des
+Wächters ist ein Pfad, den `realpath()` **nie** tragen kann
+(`…/gibtesnicht/../srvpanel.sources`) — gemessen in beiden Lagen des Containers,
+mit der Datei wie ohne sie: `realpath` `false`, `isOwned` `true`, beide Male.
+
+**Und der bestehende Eingriff dazu hat aufgehört zu beissen.** Er brach
+`realpath()`; daneben war `lexical()` entstanden, das dieselbe Frage
+beantwortet. Die Datei änderte sich nachweislich, der Wächter blieb grün.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand neben seiner Regel eine zweite baut, die dieselbe Frage
+> beantwortet.**
+
+Derselbe Satz wie am 23. August an `.toggle:has(input:disabled)`, und diesmal
+**vor** dem Push gefangen statt vom Wochenlauf. Es sind jetzt zwei Eingriffe,
+einer je Hälfte, und beide beissen in beiden Lagen des Containers.
+
+**Der zweite Fehlschlag war PHPStan**, eine Zeile: `array_values()` hinter einem
+`sort()` in `FilterResetTest`, das die Schlüssel ohnehin neu schreibt. Die Datei
+gehört diesem Zweig, und die lokalen PHPStan-Läufe hatten sie nie gesehen — sie
+gingen über die Datei, die gerade entstand, statt über den Zweig.
+
+> **Ein Werkzeug, das man über die gewohnten Pfade fährt, prüft die Gewohnheit
+> und nicht die Änderung.** Hier die engere Fassung davon: über die Datei, an
+> der man gerade sitzt.
+
+Nachgeholt über `git diff --name-only origin/main...HEAD` (38 PHP-Dateien): null
+echte Zeilen. Die zwei, die stehenbleiben, sind larastan-abhängig
+(`Collection<int,stdClass>` gegen das Modell) und in der CI mit larastan nicht
+da — die CI hat genau die eine Zeile gemeldet.
+
+
 ---
 
 ## 3. Die vier Fragen — entschieden

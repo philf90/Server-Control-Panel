@@ -2151,6 +2151,18 @@ Testen berücksichtigen:
   > **Ein Test, dessen Ergebnis davon abhängt, was gerade nebenher läuft, misst
   > die Umgebung mit.**
 
+  **Und dasselbe ohne einen laufenden Prozess, am 26. August 2026: Es genügt,
+  was von einer Messrunde *liegenbleibt*.** `SourceOwnershipTest` war in der CI
+  rot und hier grün, mit demselben Code — `Sources::isOwned()` löste über
+  `realpath()` auf, und im Container lag ein `srvpanel.sources`, das die
+  Messrunde zu A1 Schritt 7 Stunden vorher hinterlassen hatte.
+
+  > **Ein Test, dessen Ergebnis davon abhängt, was gerade nebenher liegt, misst
+  > die Umgebung genauso mit — und dagegen hilft kein Anhalten.**
+
+  Wer hier misst, räumt seinen Prüfkörper hinterher weg; wer einen Wächter baut,
+  gibt ihm einen Prüfkörper, den die Umgebung nicht liefern kann.
+
   **Und zwei weitere setzten voraus, dass hier niemand gebaut hat** — bis zum
   26. August 2026. `PreviousUrlTest` schickte `X-Inertia-Version: ''`, und
   Inertia trägt dort den Stand der Bauartefakte ein: Weicht er ab, kommt **409**

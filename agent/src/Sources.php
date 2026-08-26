@@ -104,23 +104,79 @@ final class Sources
      * die eigene Quelldatei durch einen Verweis ersetzt hat — dafür braucht es
      * root, und der Agent läuft ohnehin als root.
      *
+     * ## Warum `realpath()` dafür nicht genügt
+     *
+     * **Weil es `false` gibt, wenn es die Datei nicht gibt** — und genau dann
+     * ist die Frage am wichtigsten: Die eigene Quelldatei entsteht erst beim
+     * Anlegen. Bis zum 26. August war die Zusage oben deshalb nur auf einem
+     * Server wahr, auf dem die Datei schon lag.
+     *
+     * Gefunden hat das die CI, und **hier war der Fall grün** — weil eine
+     * Messrunde Stunden vorher ein `srvpanel.sources` im Container liegen
+     * gelassen hatte.
+     *
+     * > **Ein Test, dessen Ergebnis davon abhängt, was gerade nebenher liegt,
+     * > misst die Umgebung mit.**
+     *
+     * {@see self::lexical()} führt die Schreibweisen deshalb ohne das
+     * Dateisystem zusammen; `realpath()` bleibt daneben stehen und löst
+     * zusätzlich Verweise auf, wenn es die Datei gibt.
+     *
      * Die Grenze ist die Liste selbst, und die steht in {@see self::owned()}.
      */
     public static function isOwned(string $pfad): bool
     {
         $echt = realpath($pfad);
+        $glatt = self::lexical($pfad);
 
         foreach (self::owned() as $eigen) {
-            // **Beide Seiten aufgelöst, und die unaufgelöste als Rückfall.**
-            // `realpath()` gibt `false`, wenn es die Datei nicht gibt — und
-            // eine Datei, die es nicht gibt, ist trotzdem eine, die das Panel
-            // anlegen dürfte.
-            if ($pfad === $eigen || ($echt !== false && $echt === realpath($eigen))) {
+            // **Drei Wege, und der mittlere ist der, der ohne Datei auskommt.**
+            // Die Zeichenkette für den Regelfall, die lexikalische Glättung für
+            // eine andere Schreibweise derselben Datei, `realpath()` für einen
+            // Verweis — das letzte nur, wenn es die Datei schon gibt.
+            if ($pfad === $eigen
+                || $glatt === self::lexical($eigen)
+                || ($echt !== false && $echt === realpath($eigen))
+            ) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * `.` und `..` auflösen, ohne das Dateisystem zu fragen.
+     *
+     * **Ohne Dateisystem, und das ist der Zweck.** Eine Datei, die es noch
+     * nicht gibt, hat keinen `realpath()` — sie ist trotzdem eine, die das
+     * Panel anlegen dürfte.
+     *
+     * Ein `..` hinter einem symbolischen Verweis bedeutet lexikalisch etwas
+     * anderes als im Dateisystem. Das ist hier hinnehmbar: Diese Funktion
+     * entscheidet nichts allein — sie **erweitert** die Annahme neben dem
+     * Zeichenkettenvergleich, und der Fehler fiele zur nachsichtigen Seite,
+     * die `realpath()` daneben ohnehin schon hat.
+     */
+    private static function lexical(string $pfad): string
+    {
+        $teile = [];
+
+        foreach (explode('/', $pfad) as $stueck) {
+            if ($stueck === '' || $stueck === '.') {
+                continue;
+            }
+
+            if ($stueck === '..') {
+                array_pop($teile);
+
+                continue;
+            }
+
+            $teile[] = $stueck;
+        }
+
+        return (str_starts_with($pfad, '/') ? '/' : '').implode('/', $teile);
     }
 
     /**

@@ -192,6 +192,7 @@ return [
         'from_name' => 'Anzeigename des Absenders',
         'granted' => 'Rechte',
         'host' => 'Server',
+        'hostname' => 'Rechnername',
         'hour' => 'Stunde',
         'ip' => 'IP-Adresse',
         'is_default' => 'Standardplan',

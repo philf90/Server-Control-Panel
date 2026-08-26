@@ -143,6 +143,15 @@ final class UpdatesController extends Controller
             'errors' => $errors,
 
             /*
+             * **Der Neustart-Knopf steht am zweiten seiner beiden Anlässe**
+             * (`docs/81 §6`). Hier ist er `/run/reboot-required`, auf der
+             * Übersicht der neuere Kernel in `/boot` — zwei Fragen an zwei
+             * Quellen, eine Handlung, und beide Male steht sie neben ihrem
+             * Anlass statt in einem Menü.
+             */
+            'reboot' => ServerController::prompt(),
+
+            /*
              * **Hier stand eine `page_size` aus {@see Page::SIZE}, und sie ist
              * wieder fort.** Die Begründung lautete „eine Zahl, eine Stelle" —
              * und war falsch: `Page::SIZE` ist die Seitengrösse der

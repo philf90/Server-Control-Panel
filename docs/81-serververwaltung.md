@@ -589,6 +589,92 @@ also für die eine Auskunft, deretwegen es sie gibt.
 
 ---
 
+### 2.3e Die Messrunde vor dem Neustart-Knopf (26. August 2026)
+
+Sechs Griffe, bevor eine Zeile entstand — und der wichtigste Befund ist, **dass
+sich hier fast nichts messen lässt**: Dieser Container hat systemd nicht als
+PID 1, `/run/systemd/system` fehlt, und jeder Weg zum Neustart endet an
+derselben Wand. Was messbar war, ist die **Gestalt** dieser Wand, und die
+entscheidet den Bau.
+
+| | Gefragt | Gemessen |
+|---|---|---|
+| **R1** | Was tut `systemctl reboot` ohne systemd? | `rc=1`, **stdout 0 Byte**, stderr 236 Byte — und die Meldung steht darin **zweimal** (einmal für den Manager, einmal für logind) |
+| **R2** | Und `systemd-run`? | dasselbe: `rc=1`, stdout 0, stderr 118 |
+| **R3** | Trägt `systemctl` den Schalter `--when=`? | hier ja — systemd **255**. Er kam mit v250, und **Ubuntu 22.04 liefert 249** |
+| **R4** | Ist `shutdown` ein eigenes Programm? | nein — `/sbin/shutdown` und `/usr/sbin/shutdown` sind Symlinks auf `systemctl` |
+| **R5** | Lässt sich ein geplanter Neustart auslesen? | `/run/systemd/shutdown/` ist leer; ohne systemd nicht herstellbar |
+| **R6** | Gegenprobe: antwortet ein anderes Programm? | `dpkg-query` → `rc=0`, `installed`, stderr 0 Byte |
+
+**Drei Entscheidungen hängen daran.**
+
+**R1 entscheidet, dass gelesen wird und nicht geraten.** Die Meldung steht
+ausschliesslich auf `stderr`; ein Leser, der nur die Ausgabe ansieht, fände eine
+leere Zeile und meldete Erfolg. Das ist M5 zum vierten Mal, an einem anderen
+Programm.
+
+**R3 entscheidet gegen den kürzeren Weg.** `systemctl --when=+1min reboot` täte
+dasselbe in einer Zeile — auf drei der vier Zielplattformen. Der Schalter ist
+hier vorhanden und auf Ubuntu 22.04 nicht, und **gemessen ist das nicht**:
+Schritt 0 dieser Stufe fährt auf vier Plattformen, diese Runde nur auf einer.
+
+> **Ein Schalter, der auf drei von vier Plattformen funktioniert, ist
+> schlimmer als keiner — er fällt genau dort aus, wo niemand hinsieht.**
+
+**R4 entscheidet gegen einen zweiten Eintrag auf der Positivliste.** `shutdown`
+wäre eine zweite Schreibweise für `systemctl`, und die erste Grenze dieses
+Projekts wächst nicht um Schreibweisen.
+
+**Und ein Fehler im Messmittel, im selben Lauf:**
+`printf '%s (rc=%s)' "$(systemctl is-system-running)" "$?"` gab `offline (rc=0)`
+aus — der Rückgabewert gehörte nicht mehr zu `systemctl`, sondern zu dem, was
+die Shell beim Aufbau der Argumentliste zuletzt getan hatte. Derselbe Griff
+einzeln gefahren meldet `rc=1`.
+
+> **Ein Rückgabewert, den man in derselben Zeile ausgibt wie seine Ausgabe,
+> gehört einem anderen Befehl.**
+
+**Was nur auf einem echten Server zu messen ist** (und damit in den
+Abnahmelauf gehört): dass die transiente Unit den Neustart von
+`srvpanel-worker` überlebt; wie `systemd-run --on-active` einen zweiten Anlauf
+unter demselben Unitnamen abweist; und ob eine Minute reicht, damit Vorgang und
+Protokollzeile geschrieben sind, bevor die Maschine geht.
+
+---
+
+### 2.3f Was der Durchstich im Container doch belegt hat (26. August 2026)
+
+Der Neustart selbst ist hier nicht messbar — **der Weg dorthin schon**, und zwar
+vollständig: Knopf, Rückfrage, Prüfung des Namens, Vorgang, Warteschlange,
+Agent. Gemessen über den echten nginx-losen Entwicklungsserver mit laufendem
+Agenten:
+
+| | Gemessen |
+|---|---|
+| Falscher Name, am Knopf vorbei geschickt | abgewiesen; **kein Vorgang angelegt**; „Der eingegebene Name ist nicht der Name dieses Servers." steht auf der Seite |
+| Richtiger Name über die Rückfrage | Vorgang 1 angelegt, weitergeleitet auf `/operations/1` |
+| Der Vorgang | `failed`, `code=exec_failed`, Meldung: *„Der Neustart ließ sich nicht absetzen: System has not been booted with systemd…"* |
+| Das Protokoll | `server.rebooted` mit `hostname=vm`, `delay=60`, `operation=1` |
+| Der Knopf der Rückfrage | leeres Feld → abgeschaltet, Name eingetippt → frei; in allen vier Lagen gemessen |
+| Überlauf bei 390 px | `dokument=0`, `block=0`, `feld=0` — mit einem **69 Zeichen** langen Rechnernamen, weil der dieses Containers `vm` heisst und zwei Zeichen nicht messen; Gegenprobe mit `nowrap`: 227 / 243 / 297 |
+
+**Der Rechnername dieses Containers ist der Grund für die letzte Zeile.** Eine
+Null neben `vm` sagt über `cloudsrv24.de` nichts, und über einen Kundennamen
+mit siebzig Zeichen erst recht nicht.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+**Und zwei Fallen dieses Repos haben in diesem Lauf zum wiederholten Mal
+zugeschlagen.** Die erste Messung des falschen Namens schickte
+`redirect: 'manual'` und bekam `status: 0` — dieselbe Null wie in `docs/62`
+Punkt 11. Und der erste Lauf zeigte den Vorgang auf `wartet`, weil in diesem
+Container keine Warteschlange läuft; ohne `php artisan queue:work
+--queue=operations` bleibt jeder Vorgang stehen und sieht aus wie ein
+Fehlschlag des Agenten.
+
+---
+
 **Nur auf einem echten Server messbar:** wie lange ein voller `dist-upgrade`
 läuft (die Zahl entscheidet über die Zeitgrenze der Operation), was passiert,
 wenn das Upgrade `srvpanel` selbst enthält, und ob `systemd-run` den Lauf
@@ -893,8 +979,13 @@ hat.
 
 ## 8. Die Wächter und ihre Brüche
 
-Fünf neue. Jeder wird nach dem Bauen absichtlich gebrochen, und der Bruch kommt
-in `tests/waechter-brechen.sh`.
+Sieben neue. Jeder wird nach dem Bauen absichtlich gebrochen, und der Bruch
+kommt in `tests/waechter-brechen.sh`.
+
+**Hier standen fünf.** `KeyExpiryTest` kam mit Schritt 4b dazu, weil ein
+Abnahmepunkt ohne Schritt dastand (§2.3d); `RebootConfirmTest` mit dem
+Neustart-Knopf, weil Falle 8 aus §7 keinen Wächter hatte. Beide Zeilen sind
+nachgetragen und nicht nachträglich erfunden.
 
 | Wächter | Regel | Der Bruch |
 |---|---|---|
@@ -903,6 +994,8 @@ in `tests/waechter-brechen.sh`.
 | `InstLineTest` | Der Leser trennt `[alt]` von `[arch]` und liest **alle** Herkünfte | die Zeile ohne `[alt]` aus dem Prüfkörper nehmen |
 | `SourceOwnershipTest` | Geschrieben wird nur in Dateien, die das Panel angelegt hat | einen fremden Pfad in die Schreibliste setzen |
 | `PackageNameTest` | Paketnamen kommen aus der vorigen Antwort, nicht aus einem Muster | die Prüfung durch ein `preg_match` ersetzen |
+| `KeyExpiryTest` | Der Fingerabdruck gehört zum Schlüssel und nicht zu seinem Unterschlüssel; ein leeres Feld 7 heisst „nie" und nicht 1970 | `$offen = null` am `sub` streichen |
+| `RebootConfirmTest` | Der Neustart wird über `systemd-run` **abgesetzt** und nicht im Agenten ausgeführt; der Rechnername wird auf dem Server geprüft, und zwar gegen dieselbe Quelle, die die Seite zeigt | `systemd-run` durch `systemctl` ersetzen; `Rule::in([$host])` durch `'string'` |
 
 **Zwei Hinweise, beide aus `CLAUDE.md` bezahlt:**
 
@@ -940,7 +1033,7 @@ CI.
 | 4 | ~~`system.sources.list` über `indextargets` **und** die Dateien~~ **erledigt am 26. August 2026** | ✔ `ubuntu.sources:1` auf `Enabled: no` — der Eintrag steht weiter in den Dateien (`AUS`, 0 Ziele), die Ziele fallen von 16 auf 4 für diese Datei, und `:2` behält Nummer **und** Ziele. Dazu die dritte Lage: zwei eingeschaltete Quellen ohne Ziel (PPAs, 403 am Proxy)  **4b am selben Tag nachgezogen:** Fingerabdruck und Ablauf je Schlüssel — sie standen in der Beschreibung der Operation und fehlten im „fertig, wenn“. Damit ist Abnahmepunkt 4 gebaut. |
 | 5 | ~~Die Seite, beide Themes, 390 px gemessen~~ **erledigt am 26. August 2026** | ✔ Vier Lagen gegen die **echte** Seite mit laufendem Agenten: `dokument=0`, Gegenprobe 200/200, `schiebt=0`. Und ein Befund, den diese Messung nicht sieht — siehe §2.3c |
 | 6 | `system.packages.upgrade` über `systemd-run`; dazu **Teil 3 von M5** — `PanelUpdate` liest nach dem Neustart seine eigene Fassung nach | ein Upgrade mit `srvpanel` darin läuft durch, Protokoll vollständig — und ein Lauf, der nichts bewirkt hat, meldet das statt Erfolg |
-| 7 | `system.sources.toggle` ~~und der Neustart-Knopf~~ | **Die Quelle am 26. August 2026 erledigt**: `SourceOwnershipTest` grün, sechs Brüche, alle beissend. Gemessen durch echtes apt — 16 → 5 → 16 Ziele, und der Rückweg belegt: bei kaputtem apt kommt die Datei byte-identisch zurück. **Der Neustart-Knopf ist offen.** |
+| 7 | ~~`system.sources.toggle` und der Neustart-Knopf~~ **erledigt am 26. August 2026** | ✔ **Die Quelle**: `SourceOwnershipTest` grün, sechs Brüche, alle beissend; gemessen durch echtes apt — 16 → 5 → 16 Ziele, und der Rückweg belegt: bei kaputtem apt kommt die Datei byte-identisch zurück.  ✔ **Der Neustart**: `system.reboot` setzt einen Zeitgeber über `systemd-run` ab, statt `systemctl reboot` im eigenen Prozess zu rufen; die Messrunde dazu steht in §2.3e, der Durchstich in §2.3f. `RebootConfirmTest` grün, sechs Brüche, alle beissend. **Offen und benannt:** dass die transiente Unit den Neustart überlebt, ist hier nicht messbar (§2.3e, letzter Absatz) |
 | 8 | `unattended-upgrades` — Zustand aus `apt-config dump`, Schalter | der wirksame Zustand stimmt, wenn ein fremdes Paket dazwischenschreibt |
 | 9 | Die Wächter brechen, voller Lauf von `tests/waechter-brechen.sh` | jeder der fünf Eingriffe beisst — einzeln **und** im Lauf |
 | 10 | Der Abnahmelauf (eigenes Dokument, §4) auf `cloudsrv24` | die acht Punkte aus §4 |
@@ -1286,7 +1379,7 @@ Liste.
 
 | | Was | Wo |
 |---|---|---|
-| **A11** | Neustart, Zeitzone des Servers und NTP **neben** der Anzeigezeitzone aus `docs/40`, Rechnername nur anzeigen | mit A1, Schritt 7 |
+| **A11** | ~~Neustart~~ **am 26. August 2026 gebaut** (Schritt 7); Zeitzone des Servers und NTP **neben** der Anzeigezeitzone aus `docs/40`, Rechnername nur anzeigen | mit A1, Schritt 7 — die Nachbarn landen in `ServerController` |
 | **A6** | Leseansicht von `/etc/crontab`, `/etc/cron.d`, `cron.daily` und `cron.weekly` | mit A2 |
 | **A8** | Welche Adressen der Server hat, welche der DNS-Abgleich als Soll nimmt | eigenständig; P7 ist fertig |
 | **A12** | Wartungsmodus: alle Kundenseiten auf 503, Panel erreichbar | mit A1 |

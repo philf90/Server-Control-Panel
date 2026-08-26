@@ -10884,7 +10884,7 @@ vorher_datei resources/js/Components/Confirmation.vue
 python3 - <<'PY2'
 p = 'resources/js/Components/Confirmation.vue'
 s = open(p, encoding='utf-8').read()
-s = s.replace("void nextTick(() => bringIntoView(block.value))", "void nextTick()", 1)
+s = s.replace("      bringIntoView(block.value)", "      void 0", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/js/Components/Confirmation.vue "Sprung ins Bild" &&
@@ -18251,6 +18251,118 @@ pruefe "Pfad nicht mehr aufgeloest" \
   SourceOwnershipTest::test_equivalent_spellings_of_the_same_file_are_accepted failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SourceOwnershipTest passed
+
+echo
+echo "── RebootConfirmTest: der Neustart laeuft im Agenten selbst ──"
+#
+# Die Falle, um die es geht: Ein `systemctl reboot` in der Operation ist ein
+# Wettlauf zwischen ihrer Antwort und dem SIGTERM an die eigene
+# Kontrollgruppe. Wer ihn verliert, hinterlaesst einen Vorgang auf `running`.
+vorher_datei agent/src/Ops/SystemReboot.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemReboot.php'
+s = open(p, encoding='utf-8').read()
+alt = "$context->runner->run('systemd-run', ["
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$context->runner->run('systemctl', [", 1))
+PY2
+griff_datei agent/src/Ops/SystemReboot.php "Neustart ohne Zeitgeber" &&
+pruefe "Neustart ohne Zeitgeber" \
+  RebootConfirmTest::test_the_reboot_is_scheduled_and_not_executed failed
+wiederherstellen
+
+echo
+echo "── RebootConfirmTest: Untergrenze der Aufrufsuche ──"
+#
+# Findet der Ausdruck gar keinen Programmaufruf mehr, hat er nicht wenig
+# gemessen — er hat nicht gemessen.
+vorher_datei agent/src/Ops/SystemReboot.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemReboot.php'
+s = open(p, encoding='utf-8').read()
+alt = "$context->runner->run('systemd-run', ["
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$context->runner->start([", 1))
+PY2
+griff_datei agent/src/Ops/SystemReboot.php "kein Programmaufruf mehr" &&
+pruefe "kein Programmaufruf mehr" \
+  RebootConfirmTest::test_the_reboot_is_scheduled_and_not_executed failed
+wiederherstellen
+
+echo
+echo "── RebootConfirmTest: Wartezeit als eigene Zahl ──"
+#
+# `--on-active=0` bestellt denselben Wettlauf ueber einen Umweg — und sieht im
+# Quelltext aus wie eine Einstellung statt wie ein Fehler.
+vorher_datei agent/src/Ops/SystemReboot.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemReboot.php'
+s = open(p, encoding='utf-8').read()
+alt = "'--on-active='.self::DELAY_SECONDS,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'--on-active=0',", 1))
+PY2
+griff_datei agent/src/Ops/SystemReboot.php "Wartezeit an der Unit ersetzt" &&
+pruefe "Wartezeit an der Unit ersetzt" \
+  RebootConfirmTest::test_the_delay_is_what_makes_the_answer_arrive failed
+wiederherstellen
+
+echo
+echo "── RebootConfirmTest: der Rechnername nur im Browser geprueft ──"
+#
+# Ein abgeschalteter Knopf ist ein Zustand im Browser. Wer die Anfrage selbst
+# schickt, sieht ihn nie.
+vorher_datei app/Http/Controllers/ServerController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/ServerController.php'
+s = open(p, encoding='utf-8').read()
+alt = "Rule::in([$host])"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'string'", 1))
+PY2
+griff_datei app/Http/Controllers/ServerController.php "Name ungeprueft entgegengenommen" &&
+pruefe "Name ungeprueft entgegengenommen" \
+  RebootConfirmTest::test_the_hostname_is_checked_on_the_server failed
+wiederherstellen
+
+echo
+echo "── RebootConfirmTest: gezeigter und gepruefter Name aus zwei Quellen ──"
+#
+# Names::host() liefert den vollstaendigen Namen, fqdn() darf null sein. Wer
+# den einen zeigt und den anderen prueft, baut eine Bestaetigung, die niemand
+# bestehen kann — und der Betreiber haelt sich fuer vertippt.
+vorher_datei app/Http/Controllers/ServerController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/ServerController.php'
+s = open(p, encoding='utf-8').read()
+alt = "'hostname' => Names::host(),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'hostname' => Names::fqdn(),", 1))
+PY2
+griff_datei app/Http/Controllers/ServerController.php "zwei Quellen fuer einen Namen" &&
+pruefe "zwei Quellen fuer einen Namen" \
+  RebootConfirmTest::test_the_shown_name_and_the_checked_name_have_one_source failed
+wiederherstellen
+
+echo
+echo "── RebootConfirmTest: die Wartezeit ausgeschrieben ──"
+#
+# Sie ist eine Zusage des Agenten. Ein Wort dafuer ist ihre zweite Fassung, und
+# die bleibt stehen, wenn jemand DELAY_SECONDS aendert.
+vorher_datei resources/js/Components/RebootButton.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/RebootButton.vue'
+s = open(p, encoding='utf-8').read()
+alt = "`Der Neustart läuft ${props.delay} Sekunden nach dem Bestätigen an. Bis dahin lässt er `"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "'Der Neustart läuft eine Minute nach dem Bestätigen an. Bis dahin lässt er '", 1))
+PY2
+griff_datei resources/js/Components/RebootButton.vue "Wartezeit als Wort" &&
+pruefe "Wartezeit als Wort" \
+  RebootConfirmTest::test_the_waiting_time_is_not_written_out_in_the_question failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RebootConfirmTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

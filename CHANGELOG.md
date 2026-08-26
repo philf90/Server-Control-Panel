@@ -21037,3 +21037,107 @@ anfasst und nicht nach ihrem Rückweg heisst, und die apt-Sperre, deren Ausnahme
 begründet sein will.
 
 **Offen aus diesem Schritt: der Neustart-Knopf.**
+
+### A1 Schritt 7, zweite Hälfte — der Neustart-Knopf
+
+`system.reboot` setzt einen **Zeitgeber** über `systemd-run` ab, statt
+`systemctl reboot` im eigenen Prozess zu rufen. Das ist keine Vorsicht, sondern
+die einzige Bauart, die eine Antwort erlaubt: Der Neustart nimmt Agent,
+Warteschlange, Webserver und Datenbank gemeinsam mit, und ein direkter Aufruf
+wäre ein Wettlauf zwischen der Antwort der Operation und dem SIGTERM, das
+systemd der eigenen Kontrollgruppe schickt.
+
+> **Ein Vorgang, dessen Antwort nie ankommt, ist von einem, der nie gelaufen
+> ist, nicht zu unterscheiden.**
+
+`systemd-run` antwortet dagegen sofort und endgültig — es gibt die Unit an oder
+einen Fehlschlag mit Grund. Dieselbe Überlegung wie bei `panel.update` seit P0.
+
+**Zwei Wege, die kürzer aussehen, sind es nicht.** `systemctl --when=+1min
+reboot` täte dasselbe in einer Zeile — den Schalter gibt es erst ab systemd 250,
+und **Ubuntu 22.04 liefert 249** aus. Und `shutdown` ist auf diesen Systemen ein
+Symlink auf `systemctl`; ein Eintrag dafür auf der Positivliste wäre eine zweite
+Schreibweise für ein Programm, das dort schon steht.
+
+> **Ein Schalter, der auf drei von vier Plattformen funktioniert, ist schlimmer
+> als keiner — er fällt genau dort aus, wo niemand hinsieht.**
+
+**Der Rechnername wird zweimal gefragt und zählt einmal.** Im Browser bleibt der
+Knopf abgeschaltet, bis der Name stimmt — das ist die Anzeige. Geprüft wird auf
+dem Server, gegen `Names::host()`, also gegen dieselbe Quelle, aus der die Seite
+den Namen zeigt. Stünde dort einmal `host()` und einmal `php_uname('n')`, wäre
+die Bestätigung auf jedem Server mit vollständigem Namen unbestehbar, und der
+Betreiber hielte sich für vertippt.
+
+**Der Knopf steht an seinem Anlass und nicht in einem Menü** (`docs/81 §6`):
+auf der Übersicht bei `kernel_stale`, auf der Updates-Seite unter der
+Neustartmeldung. Auf der Übersicht **nur** bei diesem einen Anlass — sie ist die
+Seite, auf der jedes Adminkonto landet, und ein stehender Neustart-Knopf auf der
+Startseite ist ein Fehlgriff, der auf seine Gelegenheit wartet.
+
+**Die Rückfrage kann jetzt ein Wort verlangen.** `useConfirmation` nimmt einen
+`challenge`; ohne ihn bleibt sie, was sie an allen achtzehn Stellen seit dem
+15. August ist. Das Feld setzt `autocapitalize="none"` — ohne das macht iOS aus
+`cloudsrv24.de` ein `Cloudsrv24.de`, und der Vergleich scheitert, ohne dass
+irgendetwas sichtbar falsch aussähe.
+
+**Und die Wartezeit steht nicht im Satz.** Sie kommt aus
+`SystemReboot::DELAY_SECONDS` bis in die deutsche Rückfrage; ein „eine Minute"
+im Text wäre ihre zweite Fassung, und die bliebe stehen, wenn jemand die Zahl
+ändert. `RebootConfirmTest` besteht darauf.
+
+**Gemessen wurde vorher, und das Ergebnis war vor allem: hier lässt sich fast
+nichts messen.** Dieser Container hat systemd nicht als PID 1. Was messbar war,
+ist die Gestalt der Wand — `rc=1`, **stdout null Byte**, die Meldung
+ausschliesslich auf `stderr`, und zwar zweimal. Ein Leser, der nur die Ausgabe
+ansieht, fände dort eine leere Zeile und meldete Erfolg; das ist M5 zum vierten
+Mal, an einem anderen Programm.
+
+**Der Weg zum Neustart ist trotzdem vollständig belegt** — Knopf, Rückfrage,
+Prüfung, Vorgang, Warteschlange, Agent: Ein falscher Name wird abgewiesen und
+legt **keinen** Vorgang an, ein richtiger legt einen an, und der endet mit der
+echten Meldung von systemd. Was offen bleibt und benannt ist: dass die
+transiente Unit den Neustart von `srvpanel-worker` überlebt. `docs/81` führt das
+als den einen Punkt, der A1 zum Scheitern bringen kann, und er gehört auf einen
+echten Server.
+
+**Kein Abbruch über das Panel.** Der Weg zurück ist
+`systemctl stop srvpanel-reboot.timer` auf der Kommandozeile — dafür ist die
+Minute lang genug und der Unitname fest. Ein Knopf dafür setzte voraus, dass
+das Panel einen anstehenden Zeitgeber wieder auslesen kann, und wie systemd das
+meldet, ist hier nicht messbar. Es steht als Rest benannt da und nicht als
+vergessene Hälfte.
+
+### Zwei Wächter, die aus einem anderen Grund rot waren
+
+**`PartialReloadTest` meldete seine Untergrenze**, und geändert hatte sich nur
+ein Kommentar. Deutsche Anführungszeichen stehen in diesem Repo als `„…"` — die
+öffnende ist U+201E, die schliessende ein gewöhnliches `"` (1214 gegen ein
+einziges U+201C, ausgezählt). Der Leser des Wächters arbeitet auf **Bytes** und
+hält jedes `"` für den Anfang einer PHP-Zeichenkette; solange ihre Zahl im
+gelesenen Bereich gerade ist, geht das gut. Ein Kommentar mit einem Zitat mehr
+verschob alles danach, die schliessende eckige Klammer wurde nie gefunden, und
+`Inertia::render('Overview', …)` fiel aus der Liste.
+
+> **Ein Wächter, der Anführungszeichen zählt, zählt die des Fliesstextes mit —
+> und ob er zubeisst, entscheidet die Parität.**
+
+Er liest jetzt über `WithoutPhpComments`, also über den Parser statt über ein
+Muster — zehn Wächter dieses Repos taten das schon.
+
+**Und `PreviousUrlTest` fiel an einer Kopfzeile, deren Wert kein Browser je
+schickt.** Dort stand `X-Inertia-Version: ''`; Inertia trägt an dieser Stelle
+den Stand der Bauartefakte ein und antwortet bei Abweichung mit **409** statt
+mit der Seite. Grün war das nur, weil in der CI `php artisan test` **vor**
+`npm run build` läuft — ohne `public/build/manifest.json` ist die Fassung `null`,
+und die leere Kopfzeile passte dazu. In einem Container, in dem jemand gebaut
+hat, fielen beide Fälle, ohne dass an der Regel etwas kaputt gewesen wäre.
+Gemessen in beide Richtungen: mit Manifest 0 von 2, ohne Manifest 2 von 2.
+
+> **Eine Kopfzeile mit einem Wert, den der Browser nie sendet, ist derselbe
+> Fehler wie eine, die er nie sendet — sie fällt nur später auf.**
+
+Das ist derselbe Satz, den dieser Test in seinem eigenen Kopf führt, zum dritten
+Mal — einmal für eine Kopfzeile zu viel, einmal für eine zu wenig, jetzt für
+einen Wert, den es so nicht gibt. Gefragt wird die Fassung jetzt bei der
+Mittelschicht, die sie setzt.

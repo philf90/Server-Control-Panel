@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useConfirmation } from '../Composables/useConfirmation'
 import { bringIntoView } from '../scroll'
 
@@ -27,6 +27,34 @@ const { pending, accept, dismiss } = useConfirmation()
 const block = ref<HTMLElement | null>(null)
 
 /*
+ * Das abgetippte Wort — für die Fragen, bei denen ein Ja nicht genügt.
+ *
+ * **Der erste Fall ist der Neustart** (`docs/81 §7`, Falle 8). Er nimmt jede
+ * Kundenseite dieses Servers für zwei Minuten mit, und er ist auf zwei Seiten
+ * ein Klick weit entfernt. Ein Ja/Nein davor kostet genau die eine Bewegung,
+ * die ein Fehlgriff ohnehin ist.
+ */
+const typed = ref('')
+
+const feld = ref<HTMLInputElement | null>(null)
+
+/**
+ * Darf der Knopf gedrückt werden?
+ *
+ * **Das ist die Anzeige und nicht die Schranke.** Ein abgeschalteter Knopf ist
+ * ein Zustand im Browser, und wer die Anfrage selbst schickt, sieht ihn nie —
+ * geprüft wird der Name deshalb noch einmal auf dem Server.
+ *
+ * > **Was der Geprüfte selbst zurücknehmen kann, ist keine Schranke, sondern
+ * > eine Voreinstellung.**
+ */
+const ready = computed((): boolean => {
+  const frage = pending.value
+
+  return frage === null || frage.challenge === null || typed.value.trim() === frage.challenge
+})
+
+/*
  * **Die Frage holt sich ins Bild.** Gedrückt wird der Knopf an einer Zeile weit
  * unten, gefragt wird oben — und mit `preserveScroll` springt die Seite nicht
  * mit. Auf einem iPhone sah das aus, als täte der Knopf nichts (`docs/55`,
@@ -34,8 +62,20 @@ const block = ref<HTMLElement | null>(null)
  * haben.
  */
 watch(pending, (offen) => {
+  /*
+   * **Geleert wird bei jedem Wechsel und nicht beim Schliessen.** Sonst stünde
+   * die Antwort auf die vorige Frage noch im Feld, wenn die nächste kommt — und
+   * bei zwei Fragen mit demselben Wort wäre der Knopf sofort drückbar.
+   */
+  typed.value = ''
+
   if (offen !== null) {
-    void nextTick(() => bringIntoView(block.value))
+    void nextTick(() => {
+      bringIntoView(block.value)
+
+      // Wer abtippen soll, soll nicht erst klicken müssen.
+      feld.value?.focus()
+    })
   }
 })
 </script>
@@ -61,11 +101,36 @@ watch(pending, (offen) => {
       </template>
     </p>
 
+    <!--
+      **Das Feld steht zwischen Frage und Knopf und nicht daneben.**
+
+      Es ist die Bedingung des Knopfes, und es wird gelesen, bevor er gedrückt
+      wird. Rechts daneben stünde es bei 390 px unter ihm.
+
+      **Ohne `autocapitalize` schlägt es auf dem Telefon fehl.** iOS setzt den
+      ersten Buchstaben eines leeren Feldes gross; aus „cloudsrv24.de" würde
+      „Cloudsrv24.de", und der Vergleich schlüge fehl, ohne dass irgendetwas
+      sichtbar falsch aussähe.
+    -->
+    <label v-if="pending.challenge !== null" class="field">
+      <span>Zur Bestätigung eingeben: <span class="ident">{{ pending.challenge }}</span></span>
+      <input
+        ref="feld"
+        v-model="typed"
+        type="text"
+        autocapitalize="none"
+        autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
+      >
+    </label>
+
     <div class="button-row">
       <button
         type="button"
         :class="pending.destructive ? 'button danger' : 'button primary'"
-        @click="accept"
+        :disabled="!ready"
+        @click="accept(typed.trim())"
       >
         {{ pending.verb }}
       </button>

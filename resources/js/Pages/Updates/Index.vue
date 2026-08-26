@@ -4,6 +4,8 @@ import { computed, ref, watch } from 'vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Section from '../../Components/Section.vue'
 import Badge from '../../Components/Badge.vue'
+import FormErrors from '../../Components/FormErrors.vue'
+import RebootButton from '../../Components/RebootButton.vue'
 import { counted } from '../../Composables/useCounted'
 
 /*
@@ -16,9 +18,10 @@ import { counted } from '../../Composables/useCounted'
  *
  *   Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts zu tun".
  *
- * **Diese Seite liest nur.** Der Knopf, der aktualisiert, kommt in Schritt 6;
- * er braucht `systemd-run`, damit ein Neustart des Panels den Lauf nicht
- * mitnimmt.
+ * **Diese Seite liest — bis auf zwei Griffe.** Der Schalter je eigener
+ * Paketquelle und der Neustart; der Knopf, der *aktualisiert*, kommt in
+ * Schritt 6 und braucht `systemd-run`, damit ein Neustart des Panels den Lauf
+ * nicht mitnimmt.
  */
 
 interface Package {
@@ -64,6 +67,9 @@ const props = defineProps<{
   } | null
 
   errors: Record<string, string>
+
+  /** Der Rechnername zum Bestätigen und die Wartezeit — {@see ServerController::prompt()}. */
+  reboot: { hostname: string; delay: number }
 }>()
 
 /*
@@ -335,6 +341,17 @@ const neustart = computed(() => {
       </div>
     </div>
 
+    <!--
+      **Wozu die Zusammenfassung auf einer Seite ohne Formular.** Zwei Griffe
+      dieser Seite können abgewiesen werden — der Schalter einer fremden Quelle
+      und der Neustart mit dem falschen Rechnernamen. Ohne sie käme die Antwort
+      des Servers an und niemand sähe sie.
+
+      > **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+      > keine.**
+    -->
+    <FormErrors />
+
     <div class="sections">
       <Section title="Pakete" full>
         <p v-if="props.errors.packages" class="notice critical">
@@ -357,6 +374,23 @@ const neustart = computed(() => {
               </template>
             </span>
           </p>
+
+          <!--
+            **Der Knopf steht unter der Meldung und nicht darin.** `.notice` ist
+            eine Flexbox mit `align-items: flex-start`; ein Knopf als zweites
+            Kind nähme bei 390 px etwa ein Drittel der Zeile, und der Satz
+            daneben bräche in fünf.
+
+            **Und er steht in allen drei Zuständen da**, nicht nur bei „steht
+            aus". Wer einen Server aus einem anderen Grund neu starten will,
+            sucht die Handlung dort, wo der Zustand der Maschine steht — und
+            findet einen Knopf, der nur bei einem von drei Zuständen erscheint,
+            genau dann nicht.
+
+            > **Vor jedem neuen Merkmal: Wo sucht jemand diese Handlung, und
+            > steht sie dort?**
+          -->
+          <RebootButton :hostname="props.reboot.hostname" :delay="props.reboot.delay" />
 
           <!--
             **Zurückgehalten und „würde entfernt" stehen als Satz da und nicht

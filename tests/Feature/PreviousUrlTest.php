@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RememberPageUrl;
 use App\Models\Account;
 use App\Models\Customer;
@@ -50,7 +51,28 @@ use Tests\TestCase;
  * aus `bootstrap/app.php` streichen — liess ihn **grün**, gefunden vom Lauf des
  * Bruchskripts und von keinem Test.
  *
- * Der Grund ist der Satz oben mit umgekehrtem Vorzeichen: Nicht eine Kopfzeile
+ * ## Und ein drittes Mal derselbe Satz — der Fund vom 26. August 2026
+ *
+ * Hier stand `->withHeader('X-Inertia-Version', '')`, und die leere Fassung ist
+ * **kein Wert, den ein Browser je schickt**: Inertia trägt dort den Stand der
+ * Bauartefakte ein, und stimmt er nicht mit dem des Servers überein, antwortet
+ * die Anwendung mit **409** statt mit der Seite.
+ *
+ * Grün war das nur, weil in der CI `php artisan test` **vor** `npm run build`
+ * läuft — ohne `public/build/manifest.json` ist die Fassung `null`, und die
+ * leere Kopfzeile passte dazu. In einem Container, in dem jemand gebaut hat,
+ * fielen beide Fälle mit 409, und zwar ohne dass an der Regel etwas kaputt
+ * gewesen wäre. Gemessen in beide Richtungen: mit Manifest 0 von 2, ohne
+ * Manifest 2 von 2.
+ *
+ * > **Eine Kopfzeile mit einem Wert, den der Browser nie sendet, ist derselbe
+ * > Fehler wie eine, die er nie sendet — sie fällt nur später auf.**
+ *
+ * Gefragt wird deshalb die Anwendung selbst, so wie der Browser es tut.
+ *
+ * ## Der Grund für das zweite Mal
+ *
+ * Der Satz oben mit umgekehrtem Vorzeichen: Nicht eine Kopfzeile
  * zu viel, sondern **eine zu wenig.** Die Aufrufe hier trugen `X-Inertia`, aber
  * kein `X-Requested-With` — im Browser setzt Inertia beide. Ohne die zweite ist
  * `$request->ajax()` falsch, und dann merkt sich Laravels `StartSession` die Seite
@@ -95,6 +117,18 @@ final class PreviousUrlTest extends TestCase
     }
 
     /**
+     * Die Fassung der Bauartefakte — die, die auch der Browser mitschickt.
+     *
+     * **Nicht `Inertia::getVersion()`.** Die steht ausserhalb einer Anfrage auf
+     * der leeren Zeichenkette; gesetzt wird sie von genau dieser Mittelschicht,
+     * und zwar je Anfrage. Gefragt wird deshalb sie.
+     */
+    private function assetVersion(): string
+    {
+        return (string) (new HandleInertiaRequests)->version(request());
+    }
+
+    /**
      * Eine Inertia-Navigation ist eine Seite und wird als solche gemerkt.
      *
      * **Die Untergrenze dieses Wächters.** Ohne diesen Fall bliebe unbemerkt,
@@ -108,7 +142,7 @@ final class PreviousUrlTest extends TestCase
 
         $this->actingAs($account)
             ->withHeader('X-Inertia', 'true')
-            ->withHeader('X-Inertia-Version', '')
+            ->withHeader('X-Inertia-Version', $this->assetVersion())
             ->withHeader('X-Requested-With', 'XMLHttpRequest')
             ->get("/databases/{$database->id}")
             ->assertSuccessful();
@@ -141,7 +175,7 @@ final class PreviousUrlTest extends TestCase
 
         $this->actingAs($account)
             ->withHeader('X-Inertia', 'true')
-            ->withHeader('X-Inertia-Version', '')
+            ->withHeader('X-Inertia-Version', $this->assetVersion())
             ->withHeader('X-Requested-With', 'XMLHttpRequest')
             ->get("/databases/{$database->id}")
             ->assertSuccessful();

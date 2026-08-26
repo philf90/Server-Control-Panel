@@ -25,6 +25,7 @@ use App\Http\Controllers\OverviewController;
 use App\Http\Controllers\PhpSettingsController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ServerController;
 use App\Http\Controllers\SftpController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\SubscriptionDnsController;
@@ -196,6 +197,27 @@ Route::middleware('auth')->group(function (): void {
     Route::put('/updates/sources', [UpdatesController::class, 'toggle'])
         ->middleware('can:operate-server')
         ->name('updates.sources.toggle');
+
+    /*
+     * Den Server neu starten — A1 Schritt 7, zweite Hälfte.
+     *
+     * **`/server/reboot` und nicht `/updates/reboot`.** Der Anlass steht an
+     * zwei Stellen — „Ein Neustart steht aus" auf der Updates-Seite, „ein
+     * neuerer Kernel ist installiert" auf der Übersicht —, die Handlung gibt es
+     * einmal. Eine Adresse, die nach einer der beiden Seiten hiesse, wäre auf
+     * der anderen falsch, und A11 hängt seine Nachbarn (Zeitzone des Servers,
+     * NTP) an dieselbe Gruppe.
+     *
+     * **`POST` und nicht `PUT`.** Hier wird nichts auf einen Zustand gesetzt,
+     * sondern etwas ausgelöst; ein zweiter Aufruf ist auch kein zweites Mal
+     * dasselbe, sondern ein zweiter Neustart.
+     *
+     * **`can:operate-server`.** Der Neustart nimmt jedes Abonnement dieses
+     * Servers mit — `docs/20 §6.1`, erstes Merkmal.
+     */
+    Route::post('/server/reboot', [ServerController::class, 'reboot'])
+        ->middleware('can:operate-server')
+        ->name('server.reboot');
 
     Route::get('/logs/download', [LogsController::class, 'download'])
         ->middleware('can:operate-server')

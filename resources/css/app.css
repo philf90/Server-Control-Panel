@@ -4707,6 +4707,15 @@ p:not([class]) {
   margin-top: 12px;
 }
 
+/* Das abzutippende Wort steht zwischen Frage und Knopfreihe — dieselben
+   Abstände wie in einem Formular, damit die Frage nicht wie zwei Blöcke
+   aussieht. Die Breite ist gedeckelt, weil ein Feld über die ganze Zeile bei
+   1440 px eine Eingabe verspricht, die aus einem Wort besteht. */
+.confirmation .field {
+  max-width: 32ch;
+  margin-top: 12px;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    Die Ausgabe eines Vorgangs
    ═══════════════════════════════════════════════════════════════════════ */

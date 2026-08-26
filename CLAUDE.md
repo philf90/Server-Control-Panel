@@ -1248,7 +1248,11 @@ deklariert einen Namen, der der Basisklasse gehört — er spiegelt deren
 `<style>`-Block einer `.vue` steht auf oberster Ebene und nicht im
 Vorlagenblock, wo der Übersetzer ihn wegwirft — die Regel, die
 `ClassReachTest` nicht halten konnte, weil er eine Zeichenkette suchte statt
-eines Blocks). Der Bruch selbst steht als
+eines Blocks) und `RebootConfirmTest` (der Neustart wird über `systemd-run`
+**abgesetzt** und nicht im Agenten ausgeführt; der Rechnername wird auf dem
+Server geprüft, und zwar gegen dieselbe Quelle, aus der die Seite ihn zeigt —
+gefragt wird der Programmname **an der Aufrufstelle** und nicht die
+Zeichenkette „systemctl" irgendwo in der Datei). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -1283,6 +1287,23 @@ lautet `(?<![=!<>])=(?!=)`.
 
 > **Ein Ausdruck, der eine Zuweisung sucht, findet jeden Vergleich mit, solange
 > er das Gleichheitszeichen nicht abgrenzt.**
+
+**Und derselbe Fehler eine Ebene tiefer, am 26. August 2026:** `PartialReloadTest`
+las PHP **byteweise** und hielt jedes `"` für den Anfang einer Zeichenkette.
+Deutsche Anführungszeichen stehen in diesem Repo als `„…"` — die öffnende ist
+U+201E, die schliessende ein gewöhnliches `"` (1214 gegen ein einziges U+201C,
+ausgezählt). Ein Kommentar mit einem Zitat mehr verschob alles danach; die
+schliessende eckige Klammer eines `Inertia::render` wurde nie gefunden, die
+Seite fiel aus der Liste, und der Wächter meldete seine **Untergrenze** — also
+rot für einen Grund, der mit seiner Regel nichts zu tun hat.
+
+> **Ein Wächter, der Anführungszeichen zählt, zählt die des Fliesstextes mit —
+> und ob er zubeisst, entscheidet die Parität.**
+
+Die Antwort steht seit langem im Repo: `Tests\Support\WithoutPhpComments` fragt
+`token_get_all()`, also den Parser. Zehn Wächter benutzten ihn, dieser nicht.
+**Wer einen Wächter über PHP-Quelltext baut, streift die Kommentare ab, bevor er
+zählt** — gleich, ob er Klammern, Anführungszeichen oder `//` sucht.
 
 **Und die teuerste Falle dieses Tages: ein Fehler, den kein Wächter sehen
 kann, weil er in den Klammern steht.** `})})` in einer `.vue` — die
@@ -2076,6 +2097,26 @@ Testen berücksichtigen:
 
   > **Ein Test, dessen Ergebnis davon abhängt, was gerade nebenher läuft, misst
   > die Umgebung mit.**
+
+  **Und zwei weitere setzten voraus, dass hier niemand gebaut hat** — bis zum
+  26. August 2026. `PreviousUrlTest` schickte `X-Inertia-Version: ''`, und
+  Inertia trägt dort den Stand der Bauartefakte ein: Weicht er ab, kommt **409**
+  statt der Seite. In der CI läuft `php artisan test` **vor** `npm run build`,
+  also gibt es kein `public/build/manifest.json`, die Fassung ist `null`, und
+  die leere Kopfzeile passte. Wer hier `npm run build` fährt — und das tut jede
+  Bilderrunde —, hatte danach zwei rote Tests ohne einen kaputten Code.
+  Gemessen in beide Richtungen: mit Manifest 0 von 2, ohne Manifest 2 von 2.
+  Behoben; gefragt wird die Fassung jetzt bei der Mittelschicht, die sie setzt.
+
+  > **Eine Kopfzeile mit einem Wert, den der Browser nie sendet, ist derselbe
+  > Fehler wie eine, die er nie sendet — sie fällt nur später auf.**
+
+  **Und ohne Warteschlange bleibt jeder Vorgang auf `wartet` stehen.**
+  `QUEUE_CONNECTION=database`, und niemand arbeitet sie ab; die Vorgangsseite
+  zeigt dann „wartet" und `Fortschritt 0 %`, was wie ein hängender Agent
+  aussieht. Der Griff ist `php artisan queue:work --queue=operations --once` —
+  **mit** der Warteschlange, denn ohne `--queue` bedient der Arbeiter `default`
+  und findet nichts.
 
   Eine Falle beim Einstellen: `composer config -g github-protocols git` meint
   das git://-Protokoll auf Port 9418 und nicht „per git klonen". Der Wert wurde

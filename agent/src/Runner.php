@@ -206,6 +206,40 @@ final class Runner
     }
 
     /**
+     * Der absolute Pfad eines Programms der Positivliste.
+     *
+     * **Für den einen Fall, in dem ein Programm nicht hier gestartet wird.**
+     * `SrvPanel\Agent\Ops\SystemReboot` übergibt `systemctl` an
+     * `systemd-run`, damit der Neustart den Agenten überlebt — das Programm
+     * läuft dann in einer Unit mit der Umgebung von systemd, und ein blosser
+     * Name würde dort über einen fremden `PATH` aufgelöst.
+     *
+     * Gebraucht wird also der absolute Pfad. Ihn dort hinzuschreiben wäre eine
+     * **zweite Schreibweise** einer Zeile, die in {@see self::PROGRAMS} schon
+     * steht — und das ist der Fehler, den dieses Repo am häufigsten bezahlt
+     * hat: Beim Umziehen wird die eine nachgetragen und die andere vergessen.
+     *
+     * > **Zwei Listen, die dasselbe meinen, laufen auseinander — und keine von
+     * > beiden ist der Ort, an dem man nachsieht.**
+     *
+     * **Es ist keine zweite Tür.** Wer den Pfad hat, hat damit nichts, was
+     * {@see self::run()} nicht auch gäbe; die Prüfung ist dieselbe, und ein
+     * unbekannter Name endet hier genauso als Ablehnung.
+     */
+    public static function path(string $program): string
+    {
+        $path = self::PROGRAMS[$program] ?? null;
+
+        if ($path === null) {
+            throw AgentException::denied(
+                sprintf('%s steht nicht auf der Positivliste der Programme.', $program),
+            );
+        }
+
+        return $path;
+    }
+
+    /**
      * Die feste Umgebung plus das, was der Aufrufer nennen darf.
      *
      * **Der Wert muss ein absoluter Pfad sein**, und das ist keine Vorsicht auf

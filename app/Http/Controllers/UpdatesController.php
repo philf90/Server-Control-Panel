@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\Account;
+use App\Support\Audit\Audit;
+use App\Support\Operations\Operations;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use SrvPanel\Agent\AgentException;
@@ -45,6 +50,59 @@ final class UpdatesController extends Controller
     public function show(Client $agent): Response
     {
         return Inertia::render('Updates/Index', $this->read($agent));
+    }
+
+    /**
+     * Eine eigene Paketquelle ein- oder ausschalten.
+     *
+     * **Der Pfad reist mit und wird im Agenten geprüft, nicht hier.** Die
+     * Liste der eigenen Dateien steht in `SrvPanel\Agent\Sources::owned()` —
+     * eine zweite Fassung im Panel wäre die, die beim nächsten Eintrag
+     * vergessen wird, und sie stünde auf der Seite mit den Systemrechten
+     * **davor**.
+     *
+     * > **Eine Grenze, die zweimal gezogen ist, gilt an der schwächeren
+     * > Stelle.**
+     *
+     * **Der Wahrheitswert steht im Rumpf und nicht in der Adresse.**
+     * `router.get` legt seine Werte in die URL, und dort wird aus `false` das
+     * Wort `"false"`; Laravels Regel `boolean` nimmt kein Wort (`docs/66`).
+     */
+    public function toggle(Request $request, Operations $operations, Audit $audit): RedirectResponse
+    {
+        $daten = $request->validate([
+            'path' => ['required', 'string'],
+            'stanza' => ['required', 'integer', 'min:1'],
+            'enabled' => ['required', 'boolean'],
+        ]);
+
+        $account = $request->user();
+
+        $operation = $operations->dispatch(
+            'system.sources.toggle',
+            [
+                'path' => $daten['path'],
+                'stanza' => (int) $daten['stanza'],
+                'enabled' => (bool) $daten['enabled'],
+            ],
+            account: $account instanceof Account ? $account : null,
+            message: ((bool) $daten['enabled'] ? 'Paketquelle einschalten' : 'Paketquelle ausschalten')
+                .': '.basename((string) $daten['path']),
+        );
+
+        /*
+         * **Das Protokoll nennt den Gegenstand und nicht nur die Handlung** —
+         * `docs/66`: „Ein Protokoll, das die Art der Handlung nennt und nicht
+         * ihren Gegenstand, beantwortet die Frage, die niemand stellt."
+         */
+        $audit->success('sources.toggled', context: [
+            'path' => $daten['path'],
+            'stanza' => (int) $daten['stanza'],
+            'enabled' => (bool) $daten['enabled'],
+            'operation' => (int) $operation->id,
+        ]);
+
+        return redirect()->route('operations.show', $operation);
     }
 
     /**

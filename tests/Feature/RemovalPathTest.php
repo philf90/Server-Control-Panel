@@ -122,6 +122,7 @@ final class RemovalPathTest extends TestCase
         'db.remote.access' => 'Der Weg zurück ist dieselbe Operation mit `mode: off` — und beim `purge` nimmt packaging/scripts/postremove.sh die Datei mit, weil ein entferntes Panel keinen offenen Datenbankport hinterlassen darf.',
         'web.isolation.probe' => 'Legt ihr Prüfskript im selben Lauf ab und entfernt es im `finally`; über die Operation hinaus bleibt nichts.',
         'pg.remote.access' => 'Zwei Wege zurück, und beide sind dieselbe Operation: `mode: off` nimmt 60-srvpanel.conf mit, eine leere `rules`-Liste nimmt den Block aus pg_hba.conf. Die Datei selbst gehört der Distribution und wird nie entfernt — angefasst wird nur, was zwischen den Marken steht (docs/38 §14).',
+        'system.sources.toggle' => 'Legt keine Datei an, sondern setzt `Enabled:` in einer, die die Paketierung geschrieben hat — der Weg zurück ist dieselbe Operation mit `enabled: true`, und die Datei selbst nimmt beim `purge` das Paket mit, das sie angelegt hat.',
 
         // **P6: die Datei-Operationen des Kunden.** Sie legen ab, was der Kunde
         // ablegen will — und der Weg zurück ist eine eigene Operation für alle

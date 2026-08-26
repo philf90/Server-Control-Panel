@@ -182,6 +182,21 @@ Route::middleware('auth')->group(function (): void {
         ->middleware('can:operate-server')
         ->name('updates');
 
+    /*
+     * Eine eigene Paketquelle schalten — A1 Schritt 7.
+     *
+     * **`PUT` und nicht `GET`**, weil es ändert; und der Rumpf trägt den
+     * Wahrheitswert, weil `router.get` seine Werte in die Adresse legt und dort
+     * alles eine Zeichenkette ist (`docs/66`).
+     *
+     * Geschaltet wird ausschliesslich, was das Panel angelegt hat — die Grenze
+     * sitzt im Agenten ({@see \SrvPanel\Agent\Sources::owned()}) und nicht
+     * hier: Wer eine Paketquelle kontrolliert, kontrolliert jedes Paket.
+     */
+    Route::put('/updates/sources', [UpdatesController::class, 'toggle'])
+        ->middleware('can:operate-server')
+        ->name('updates.sources.toggle');
+
     Route::get('/logs/download', [LogsController::class, 'download'])
         ->middleware('can:operate-server')
         ->name('logs.download');

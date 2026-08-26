@@ -18101,6 +18101,158 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" KeyExpiryTest passed
 
 echo
+echo "── SourceOwnershipTest: ein fremder Pfad in der Schreibliste ──"
+#
+# **Der Bruch, den `docs/81 §8` vorschreibt.** Wer eine Paketquelle
+# kontrolliert, kann ein Paket mit hoeherer Fassungsnummer ausliefern, das ein
+# beliebiges anderes ersetzt — libc6, openssh-server, srvpanel selbst. Steht
+# eine fremde Datei in der Liste, ist genau dieser Hebel offen.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = 'return [PhpVersions::SOURCE_FILE, self::PANEL_SOURCE];'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(
+    alt, "return [PhpVersions::SOURCE_FILE, self::PANEL_SOURCE, '/etc/apt/sources.list.d/docker.list'];", 1))
+PY2
+griff_datei agent/src/Sources.php "fremder Pfad in der Schreibliste" &&
+pruefe "fremder Pfad in der Schreibliste" \
+  SourceOwnershipTest::test_every_owned_file_is_written_by_the_packaging failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceOwnershipTest passed
+
+echo
+echo "── SourceOwnershipTest: die Paketierung benennt ihre Datei um ──"
+#
+# Die andere Richtung derselben Naht. Laeuft die Paketierung weg, liesse sich
+# die eigene Quelle nicht mehr schalten — und der Grund stuende in keiner
+# Meldung: Die Datei ist ja da, sie heisst nur anders.
+vorher_datei packaging/install.sh
+python3 - <<'PY2'
+p = 'packaging/install.sh'
+s = open(p, encoding='utf-8').read()
+alt = 'cat > /etc/apt/sources.list.d/srvpanel.sources <<EOF'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, 'cat > /etc/apt/sources.list.d/srvpanel-repo.sources <<EOF', 1))
+PY2
+griff_datei packaging/install.sh "Paketierung benennt um" &&
+pruefe "Paketierung benennt um" \
+  SourceOwnershipTest::test_every_owned_file_is_written_by_the_packaging failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceOwnershipTest passed
+
+echo
+echo "── SourceOwnershipTest: gefragt wird erst nach dem Schreiben ──"
+#
+# Ein isOwned() hinter dem Schreiben ist kein Schutz, sondern eine Notiz: Die
+# fremde Datei ist dann schon veraendert.
+vorher_datei agent/src/Ops/SystemSourcesToggle.php
+python3 - <<'PY2'
+import re
+p = 'agent/src/Ops/SystemSourcesToggle.php'
+s = open(p, encoding='utf-8').read()
+block = """        if (! Sources::isOwned($pfad)) {
+            throw AgentException::denied(
+                'Diese Paketquelle hat das Panel nicht angelegt; sie lässt sich hier nicht schalten.',
+            );
+        }
+
+"""
+assert s.count(block) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(block, '', 1)
+anker = '        $this->write($pfad, $nachher);\n'
+assert s.count(anker) == 1, 'Zweite Zielstelle nicht eindeutig'
+open(p, 'w', encoding='utf-8').write(s.replace(anker, anker + '\n' + block, 1))
+PY2
+griff_datei agent/src/Ops/SystemSourcesToggle.php "Eigentumsfrage hinter dem Schreiben" &&
+pruefe "Eigentumsfrage hinter dem Schreiben" \
+  SourceOwnershipTest::test_the_toggle_asks_before_it_writes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceOwnershipTest passed
+
+echo
+echo "── SourceOwnershipTest: ein Fehlschlag der Probe rollt nicht zurueck ──"
+#
+# Gemessen am 26. August 2026: Eine einzige unlesbare .sources laesst apt-get
+# indextargets UND apt-get -s upgrade mit rc=100 und null Zeilen enden. Ohne
+# Rueckweg bleibt der Server so stehen, und keine PHP-Version laesst sich mehr
+# installieren.
+vorher_datei agent/src/Ops/SystemSourcesToggle.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemSourcesToggle.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if (! $probe->successful()) {
+            $this->write($pfad, $vorher);
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "        if (! $probe->successful()) {\n", 1))
+PY2
+griff_datei agent/src/Ops/SystemSourcesToggle.php "Probe ohne Rueckweg" &&
+pruefe "Probe ohne Rueckweg" \
+  SourceOwnershipTest::test_a_failed_probe_rolls_the_file_back failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceOwnershipTest passed
+
+echo
+echo "── SourceOwnershipTest: geschrieben wird ohne rename ──"
+#
+# Ein file_put_contents() auf die Zieldatei ist zwischen Kuerzen und Schreiben
+# ein Zustand, in dem apt eine halbe Stanza liest — und dann liest es gar
+# nichts mehr.
+#
+# **Der erste Wurf dieses Eingriffs hat nicht gebissen**: Die Pruefung zaehlte
+# die Aufrufe und fand `rename` irgendwo. Sie sieht seitdem auf das Ziel des
+# Schreibens.
+#
+#   Ein Waechter, der zaehlt, wie oft geschrieben wird, hat ueber das Wohin
+#   nichts gesagt.
+vorher_datei agent/src/Ops/SystemSourcesToggle.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemSourcesToggle.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (@file_put_contents($neben, $inhalt) === false) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "        if (@file_put_contents($pfad, $inhalt) === false) {", 1))
+PY2
+griff_datei agent/src/Ops/SystemSourcesToggle.php "geschrieben ohne rename" &&
+pruefe "geschrieben ohne rename" \
+  SourceOwnershipTest::test_the_write_is_atomic failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceOwnershipTest passed
+
+echo
+echo "── SourceOwnershipTest: der Pfad wird nicht mehr aufgeloest ──"
+#
+# Ohne die Aufloesung wird `/etc/apt/sources.list.d/./srvpanel.sources`
+# abgewiesen — dieselbe Datei, anders geschrieben.
+#
+# **Der erste Wurf dieses Eingriffs hat nicht gebissen**, und das war ein Fund:
+# Die Begruendung daneben lautete „sonst fuehrt ein symbolischer Verweis an der
+# Liste vorbei", und gemessen ist es andersherum. Ein Verweis AN der eigenen
+# Stelle wird vom Zeichenkettenvergleich ohnehin angenommen; realpath faengt
+# ihn nicht, es erweitert nur.
+#
+#   Eine Aufloesung, die zwei Schreibweisen zusammenfuehrt, ist keine Pruefung
+#   — sie ist eine Nachsicht.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $echt = realpath($pfad);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        $echt = false;", 1))
+PY2
+griff_datei agent/src/Sources.php "Pfad nicht mehr aufgeloest" &&
+pruefe "Pfad nicht mehr aufgeloest" \
+  SourceOwnershipTest::test_equivalent_spellings_of_the_same_file_are_accepted failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceOwnershipTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

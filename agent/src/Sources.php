@@ -50,6 +50,80 @@ final class Sources
     public const PARTS = '/etc/apt/sources.list.d';
 
     /**
+     * Die Quelldatei des Panels selbst.
+     *
+     * **Sie hat bis zum 26. August keine Konstante gehabt** — geschrieben wird
+     * sie von `packaging/install.sh`, und der Pfad stand dort einmal und sonst
+     * nirgends. `SourceOwnershipTest` hält beide Seiten zusammen; liefen sie
+     * auseinander, liesse sich die eigene Quelle nicht mehr schalten, und der
+     * Grund stünde in keiner Meldung.
+     */
+    public const PANEL_SOURCE = '/etc/apt/sources.list.d/srvpanel.sources';
+
+    /**
+     * Die Dateien, in die das Panel schreiben darf.
+     *
+     * **Der Hebel, um den es hier geht.** Wer eine Paketquelle kontrolliert,
+     * kann ein Paket mit höherer Fassungsnummer ausliefern, das ein beliebiges
+     * anderes ersetzt — `libc6`, `openssh-server`, `srvpanel` selbst. Eine
+     * fremde Quelle zu schalten ist damit nicht eine Handlung neben den
+     * anderen (`docs/81 §3`, Frage 1).
+     *
+     * **Zwei und nicht drei.** Der Plan nennt „Sury, PGDG, das eigene Repo";
+     * PGDG gibt es in diesem Repo noch nicht — es käme als
+     * `srvpanel-pgdg-source`, also als Freigabe und nicht als Textfeld. Steht
+     * es einmal da, kommt es hier dazu und `SourceOwnershipTest` verlangt
+     * seine Gegenstelle in der Paketierung.
+     *
+     * **Der Pfad von Sury kommt aus {@see PhpVersions::SOURCE_FILE}** und
+     * nicht noch einmal ausgeschrieben — eine zweite Fassung wäre die, die
+     * beim Umbenennen stehenbleibt.
+     *
+     * @return list<string>
+     */
+    public static function owned(): array
+    {
+        return [PhpVersions::SOURCE_FILE, self::PANEL_SOURCE];
+    }
+
+    /**
+     * Darf in diese Datei geschrieben werden?
+     *
+     * **`realpath()` erweitert die Annahme, es verengt sie nicht** — und hier
+     * stand bis zum 26. August das Gegenteil: „ein symbolischer Verweis führt
+     * sonst an der Liste vorbei". Gemessen ist es andersherum. Ein Verweis
+     * **an** der eigenen Stelle wird vom Zeichenkettenvergleich ohnehin
+     * angenommen, egal worauf er zeigt; `realpath()` fängt ihn nicht.
+     *
+     * > **Eine Auflösung, die zwei Schreibweisen zusammenführt, ist keine
+     * > Prüfung — sie ist eine Nachsicht.**
+     *
+     * Was sie leistet: `/etc/apt/sources.list.d/./srvpanel.sources` und
+     * `…/../sources.list.d/srvpanel.sources` sind dieselbe Datei und werden
+     * auch so behandelt. Was sie **nicht** leisten muss: den Fall, dass jemand
+     * die eigene Quelldatei durch einen Verweis ersetzt hat — dafür braucht es
+     * root, und der Agent läuft ohnehin als root.
+     *
+     * Die Grenze ist die Liste selbst, und die steht in {@see self::owned()}.
+     */
+    public static function isOwned(string $pfad): bool
+    {
+        $echt = realpath($pfad);
+
+        foreach (self::owned() as $eigen) {
+            // **Beide Seiten aufgelöst, und die unaufgelöste als Rückfall.**
+            // `realpath()` gibt `false`, wenn es die Datei nicht gibt — und
+            // eine Datei, die es nicht gibt, ist trotzdem eine, die das Panel
+            // anlegen dürfte.
+            if ($pfad === $eigen || ($echt !== false && $echt === realpath($eigen))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Die Felder eines Ziels, die ein Betreiber liest.
      *
      * `indextargets` gibt je Block **29** Felder aus, die meisten davon über
@@ -286,6 +360,82 @@ final class Sources
         $wert = strtolower(trim($felder['Enabled'] ?? ''));
 
         return ! in_array($wert, ['no', 'false', '0'], true);
+    }
+
+    /**
+     * Eine Stanza ein- oder ausschalten — als Text, nicht als Datei.
+     *
+     * **Getrennt vom Schreiben, damit es prüfbar ist.** Was hier passiert, ist
+     * die ganze Regel; das Schreiben ist ein `rename()`.
+     *
+     * **Gearbeitet wird am Rohtext und nicht an den gelesenen Feldern.** Eine
+     * Stanza trägt einen gefalteten PGP-Block über vierzig Zeilen, und ein
+     * Neuschreiben aus `fields()` verlöre ihn — dort steht der Wert einer
+     * Faltung nicht.
+     *
+     * > **Wer eine Datei aus dem liest, was er von ihr braucht, schreibt weg,
+     * > was er nicht gelesen hat.**
+     *
+     * Ein vorhandenes `Enabled:` wird ersetzt, sonst kommt die Zeile **hinter
+     * die erste Feldzeile** der Stanza. Nicht ans Ende: Dort könnte eine
+     * Fortsetzungszeile stehen, und eine Zeile dahinter sähe zwar wie ein Feld
+     * aus, stünde aber optisch mitten im Schlüssel.
+     *
+     * @throws AgentException wenn es die Stanza nicht gibt
+     */
+    public static function toggled(string $inhalt, int $stanza, bool $enabled): string
+    {
+        $bloecke = preg_split('/(\R[ \t]*\R)/', $inhalt, -1, PREG_SPLIT_DELIM_CAPTURE) ?: [];
+        $nummer = 0;
+        $getroffen = false;
+
+        foreach ($bloecke as $i => $block) {
+            // Die Trenner stehen an den ungeraden Stellen und bleiben, wie sie
+            // sind — sonst verschiebt jedes Schalten die ganze Datei.
+            if ($i % 2 === 1 || self::fields($block) === []) {
+                continue;
+            }
+
+            $nummer++;
+
+            if ($nummer !== $stanza) {
+                continue;
+            }
+
+            $bloecke[$i] = self::withEnabled($block, $enabled);
+            $getroffen = true;
+        }
+
+        if (! $getroffen) {
+            throw AgentException::badRequest('Diesen Eintrag gibt es in der Datei nicht.', ['stanza' => $stanza]);
+        }
+
+        return implode('', $bloecke);
+    }
+
+    /** Die `Enabled:`-Zeile eines Blocks setzen oder einfügen. */
+    private static function withEnabled(string $block, bool $enabled): string
+    {
+        $wert = $enabled ? 'yes' : 'no';
+        $zeilen = preg_split('/\R/', $block) ?: [];
+
+        foreach ($zeilen as $i => $zeile) {
+            if (preg_match(self::FIELD, $zeile, $treffer) === 1 && $treffer['name'] === 'Enabled') {
+                $zeilen[$i] = 'Enabled: '.$wert;
+
+                return implode("\n", $zeilen);
+            }
+        }
+
+        foreach ($zeilen as $i => $zeile) {
+            if (preg_match(self::FIELD, $zeile) === 1) {
+                array_splice($zeilen, $i + 1, 0, ['Enabled: '.$wert]);
+
+                return implode("\n", $zeilen);
+            }
+        }
+
+        return $block;
     }
 
     /**

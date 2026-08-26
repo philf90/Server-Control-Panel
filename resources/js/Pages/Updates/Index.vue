@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3'
+import { Head, router } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Section from '../../Components/Section.vue'
@@ -38,6 +38,7 @@ interface Entry {
   uris: string
   suites: string
   components: string
+  owned: boolean
   key: {
     kind: string
     path: string | null
@@ -226,6 +227,24 @@ function zustand(eintrag: Entry): { kind: 'ok' | 'warn' | 'neutral'; text: strin
   if (eintrag.targets === 0) return { kind: 'warn', text: 'kein Index' }
 
   return { kind: 'ok', text: counted(eintrag.targets, 'Ziel', 'Ziele') }
+}
+
+/*
+ * **Geschaltet wird nur, was das Panel angelegt hat** — und das entscheidet der
+ * Agent, nicht diese Seite. `eintrag.owned` kommt aus
+ * `SrvPanel\Agent\Sources::owned()`; eine eigene Liste hier wäre deren zweite
+ * Fassung und stünde vor der Stelle mit den Systemrechten.
+ *
+ * **Der Wahrheitswert reist im Rumpf und nicht in der Adresse.** `router.get`
+ * legt seine Werte in die URL, und dort wird aus `false` das Wort `"false"`
+ * (`docs/66`).
+ */
+function schalten(datei: string, eintrag: Entry): void {
+  router.put('/updates/sources', {
+    path: datei,
+    stanza: eintrag.stanza,
+    enabled: !eintrag.enabled,
+  })
 }
 
 /** Woher der Schlüssel kommt — als Satz und nicht als Kennung. */
@@ -536,6 +555,7 @@ const neustart = computed(() => {
                   <th>Suiten</th>
                   <th>Schlüssel</th>
                   <th>Fingerabdruck</th>
+                  <th>Schalten</th>
                 </tr>
               </thead>
 
@@ -580,6 +600,25 @@ const neustart = computed(() => {
                         <Badge v-else-if="k.state === 'soon'" kind="warn">läuft bald ab</Badge>
                         <span class="quiet">{{ abdruck(k.fingerprint) }}</span>
                       </template>
+                    </td>
+
+                    <!--
+                      **Kein Knopf, wo er nicht gedrückt werden darf**, und
+                      daneben der Grund — ein fehlendes Bedienelement ist keine
+                      Auskunft (`docs/46 §4`, Kriterium 5): Wer die Quelle
+                      abschalten will, sucht sonst weiter.
+                    -->
+                    <td data-column="Schalten">
+                      <button
+                        v-if="eintrag.owned"
+                        type="button"
+                        class="button small"
+                        @click="schalten(datei.path, eintrag)"
+                      >
+                        {{ eintrag.enabled ? 'Ausschalten' : 'Einschalten' }}
+                      </button>
+
+                      <span v-else class="quiet">nicht vom Panel angelegt</span>
                     </td>
                   </tr>
                 </template>

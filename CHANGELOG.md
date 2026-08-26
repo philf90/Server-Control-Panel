@@ -20973,3 +20973,67 @@ einer Zelle — bei 390 px ist `.stacks td` eine Flexbox, und aus „in der Date
 neben vierzig Hexziffern wurden drei Zeilen mit je einem Wort. Ein
 `flex-direction` in der Komponente wäre die Gestaltung einer Tabelle am
 Gestaltungssystem vorbei; zwei Spalten sind dieselbe Auskunft ohne eigene Regel.
+
+### A1 Schritt 7, erste Hälfte — eine eigene Paketquelle schalten
+
+`system.sources.toggle` setzt `Enabled:` in einer Stanza. **Nur in Dateien, die
+das Panel selbst angelegt hat** — heute zwei: die Sury-Quelle und das eigene
+Repo. PGDG nennt der Plan als dritte; es gibt sie in diesem Repo noch nicht, und
+sie käme als `srvpanel-pgdg-source`, also als Freigabe und nicht als Textfeld.
+
+**Der Grund ist der Hebel.** Wer eine Paketquelle kontrolliert, kann ein Paket
+mit höherer Fassungsnummer ausliefern, das ein beliebiges anderes ersetzt —
+`libc6`, `openssh-server`, `srvpanel` selbst. Eine fremde Quelle anzufassen ist
+nicht eine Handlung neben den anderen, sondern die, die alle künftigen umfasst.
+
+**Und danach wird nachgesehen, weil eine kaputte Quelldatei nicht diese Quelle
+bricht, sondern apt.** Gemessen: Eine einzige unlesbare `.sources` lässt
+`apt-get indextargets` **und** `apt-get -s upgrade` mit `rc=100` und null Zeilen
+enden — *„The list of sources could not be read."* Danach installiert dieser
+Server keine PHP-Version mehr und kein PostgreSQL.
+
+> **Ein Fehler in einer Datei, den nur der nächste Leser bemerkt, ist beim
+> Schreiben am billigsten.**
+
+Der Rückweg trägt hier, anders als beim `sshd` aus `docs/59`: apt ist kein
+Dienst, der an einer kaputten Datei stirbt. Belegt mit einem Störer daneben —
+die Datei kommt **byte-identisch** zurück, und die Wegwerfdatei bleibt nicht
+liegen. Geschrieben wird daneben und dann umbenannt; `rename()` ist nur
+innerhalb eines Dateisystems atomar, deshalb liegt sie im selben Verzeichnis.
+
+**Der Rundlauf durch echtes apt:** 16 Ziele → Stanza 1 aus → 5 Ziele → wieder an
+→ 16. Gearbeitet wird am Rohtext und nicht an den gelesenen Feldern: Eine Stanza
+trägt einen gefalteten PGP-Block über vierzig Zeilen, und ein Neuschreiben aus
+`fields()` verlöre ihn.
+
+> **Wer eine Datei aus dem liest, was er von ihr braucht, schreibt weg, was er
+> nicht gelesen hat.**
+
+**`SourceOwnershipTest` hält die Liste gegen die Paketierung**, in beide
+Richtungen — dieselbe Naht wie `PhpSourceUriTest`. So entsteht die Lücke
+wirklich: Kommt eine dritte Quelle dazu, trägt sie jemand in die Paketierung ein
+und vergisst die Liste; sie erschiene dann auf der Seite und liesse sich als
+einzige nicht schalten, ohne dass irgendwo stünde, warum.
+
+**Drei der sechs Brüche bissen zuerst nicht**, und einer davon hat eine falsche
+Begründung von mir aufgedeckt: Der Kommentar behauptete, `realpath()` fange
+einen symbolischen Verweis ab. Gemessen ist es andersherum — ein Verweis **an**
+der eigenen Stelle wird vom Zeichenkettenvergleich ohnehin angenommen;
+`realpath()` fängt ihn nicht, es erweitert nur.
+
+> **Eine Auflösung, die zwei Schreibweisen zusammenführt, ist keine Prüfung —
+> sie ist eine Nachsicht.**
+
+Die zwei anderen waren stumpfe Prüfungen: Eine zählte die schreibenden Aufrufe
+und fand `rename` irgendwo, ohne auf das Ziel zu sehen; die andere zielte auf
+die falsche Richtung derselben Naht.
+
+> **Ein Wächter, der zählt, wie oft geschrieben wird, hat über das Wohin nichts
+> gesagt.**
+
+**Drei bestehende Wächter haben an der neuen Fläche zugebissen** — und alle drei
+zu Recht: zwei fehlende deutsche Feldnamen, eine Operation, die eine Datei
+anfasst und nicht nach ihrem Rückweg heisst, und die apt-Sperre, deren Ausnahme
+begründet sein will.
+
+**Offen aus diesem Schritt: der Neustart-Knopf.**

@@ -96,6 +96,7 @@ use SrvPanel\Agent\Ops\SystemLogsList;
 use SrvPanel\Agent\Ops\SystemLogsTail;
 use SrvPanel\Agent\Ops\SystemPackagesList;
 use SrvPanel\Agent\Ops\SystemSourcesList;
+use SrvPanel\Agent\Ops\SystemSourcesToggle;
 use SrvPanel\Agent\Ops\WebIsolationProbe;
 use SrvPanel\Agent\Ops\WebLogrotate;
 use SrvPanel\Agent\Ops\WebLogsTail;
@@ -188,6 +189,7 @@ final class Registry
         // P7b A1 — der Paketstand und die Quellen. Lesen apt und ändern nichts.
         $this->register(new SystemPackagesList);
         $this->register(new SystemSourcesList);
+        $this->register(new SystemSourcesToggle);
 
         $this->register(new WebLogrotate);
         $this->register(new WebIsolationProbe);

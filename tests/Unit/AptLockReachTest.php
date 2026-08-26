@@ -86,6 +86,7 @@ final class AptLockReachTest extends TestCase
     private const EXCEPTIONS = [
         'SystemPackagesList.php' => 'ruft apt ausschliesslich mit -s; gemessen: nimmt die Sperre nicht',
         'SystemSourcesList.php' => 'ruft apt ausschliesslich mit indextargets; gemessen: nimmt die Sperre nicht',
+        'SystemSourcesToggle.php' => 'ruft apt ausschliesslich mit indextargets — als Probe NACH dem Schreiben, und die muss gerade dann antworten, wenn ein Lauf läuft; gemessen: nimmt die Sperre nicht',
     ];
 
     /** Woran erkannt wird, dass eine Operation apt anfasst. */

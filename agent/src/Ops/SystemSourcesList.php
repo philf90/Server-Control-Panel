@@ -116,6 +116,19 @@ final class SystemSourcesList implements Op
                     'suites' => $felder['Suites'] ?? '',
                     'components' => $felder['Components'] ?? '',
                     'key' => $this->key($context, $felder, $eintrag['block']),
+
+                    /*
+                     * **Ob geschaltet werden darf, sagt der Agent und nicht
+                     * die Seite.** Eine zweite Fassung der Liste im Panel wäre
+                     * die, die beim nächsten Eintrag vergessen wird — und sie
+                     * stünde vor der Stelle mit den Systemrechten.
+                     *
+                     * `AbilityReachTest` verlangt ohnehin, dass ein Knopf, den
+                     * der Betrachter nicht drücken darf, gar nicht gezeigt
+                     * wird. Hier ist es dieselbe Regel eine Ebene tiefer:
+                     * nicht wer darf, sondern was darf.
+                     */
+                    'owned' => ! $einzeiler && Sources::isOwned($pfad),
                 ];
             }
 

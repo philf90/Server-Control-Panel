@@ -84,7 +84,7 @@ final class AptLockReachTest extends TestCase
      * @var array<string, string>
      */
     private const EXCEPTIONS = [
-        'SystemPackagesList.php' => 'ruft apt ausschliesslich mit -s; gemessen: nimmt die Sperre nicht',
+        'SystemPackagesList.php' => 'sieht ausschliesslich nach — über `apt-run simulate`, also zweimal `apt-get -s`; gemessen: nimmt die Sperre nicht',
         'SystemSourcesList.php' => 'ruft apt ausschliesslich mit indextargets; gemessen: nimmt die Sperre nicht',
         'SystemSourcesToggle.php' => 'ruft apt ausschliesslich mit indextargets — als Probe NACH dem Schreiben, und die muss gerade dann antworten, wenn ein Lauf läuft; gemessen: nimmt die Sperre nicht',
     ];
@@ -103,7 +103,7 @@ final class AptLockReachTest extends TestCase
      * > **Ein Aufruf, der in ein Skript umzieht, ist für einen Ausdruck über
      * > PHP-Quelltext verschwunden — nicht harmlos geworden.**
      */
-    private const TOUCHES_APT = '/\'apt-get\'|apt-get\s+\w|\bApt::(refresh|of)\s*\(|UPGRADE_RUNNER|SystemPackagesUpgrade::RUNNER|self::RUNNER/';
+    private const TOUCHES_APT = '/\'apt-get\'|apt-get\s+\w|\bApt::(refresh|of|simulate)\s*\(|UPGRADE_RUNNER|SystemPackagesUpgrade::RUNNER|self::RUNNER/';
 
     /** Jede apt-rufende Operation fragt vorher, ob die Sperre frei ist. */
     public function test_every_operation_that_touches_apt_goes_through_the_lock(): void

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent\Ops;
 
-use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Apt;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Op;
 use SrvPanel\Agent\Packages;
@@ -35,12 +35,6 @@ use SrvPanel\Agent\Unattended;
  */
 final class SystemPackagesList implements Op
 {
-    /** @var list<string> */
-    public const DIST_UPGRADE = ['-s', 'dist-upgrade'];
-
-    /** @var list<string> */
-    public const UPGRADE = ['-s', 'upgrade'];
-
     /**
      * Wer `/run/reboot-required` anlegt.
      *
@@ -113,11 +107,22 @@ final class SystemPackagesList implements Op
 
     public function execute(array $args, Context $context): array
     {
-        $dist = $this->apt($context, self::DIST_UPGRADE);
-        $plain = $this->apt($context, self::UPGRADE);
+        /*
+         * **Gefragt wird über dieselbe transiente Unit, in der auch
+         * eingespielt wird** (`docs/86`, Befund 6). Unmittelbar aus dem
+         * Agenten gefragt, antwortet apt anders: Seine Härtung legt einen
+         * Mount-Namensraum an, darin meldet `ischroot` rc=0, und in einem
+         * chroot hält Ubuntu keine phasenverzögerten Pakete zurück. Gemessen
+         * auf `cloudsrv24`: elf Zeilen hier, vier dort — die Seite zeigte elf,
+         * und `apt-run all` spielte vier ein.
+         *
+         * > **Zwei Läufe desselben Befehls an zwei Orten sind zwei Messungen
+         * > und nicht eine.**
+         */
+        $laeufe = Apt::simulate($context, SystemPackagesUpgrade::RUNNER);
 
         return [
-            ...Packages::read($dist, $plain),
+            ...Packages::read($laeufe['dist-upgrade'], $laeufe['upgrade']),
             'reboot' => $this->reboot($context),
             'leftovers' => $this->leftovers(),
             'unattended' => $this->unattended($context),
@@ -225,48 +230,6 @@ final class SystemPackagesList implements Op
         }
 
         return $stand;
-    }
-
-    /**
-     * Ein `apt-get -s`-Lauf, dessen Fehlschlag nicht als „nichts zu tun"
-     * durchgeht.
-     *
-     * **Hier reicht der Rückgabewert, und bei `apt-get update` reichte er
-     * nicht** — der Unterschied ist gemessen und keine Auslegung. `update`
-     * fragt „habe ich danach einen benutzbaren Zustand", und den hat es auch
-     * mit toten Quellen: rc 0, die alten Listen bleiben liegen (M5,
-     * `docs/81 §2.1`). Ein `-s dist-upgrade` beantwortet dagegen eine Frage,
-     * die scheitern kann, und trägt das Scheitern:
-     *
-     *     eine tote Quelle                rc 0   · 145 Inst · stderr leer
-     *     eine unerfüllbare Fassung       rc 100 ·   0 Inst · „E: Version … not found"
-     *     die dpkg-Sperre gehalten        rc 0   · 145 Inst
-     *
-     * Gemessen am 26. August 2026 gegen apt 2.8.3.
-     *
-     * Die erste Zeile ist dabei die lehrreiche: Eine tote Quelle **fällt hier
-     * nicht auf**, weil `-s` die Listen nicht erneuert, sondern liest. Die
-     * Antwort ist dann so alt wie die Listen — richtig, aber nicht frisch.
-     * Wer Frische zusagen will, braucht `Apt::refresh()` davor und dessen
-     * Leser; diese Operation sagt sie nicht zu.
-     *
-     * > **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts
-     * > zu tun".**
-     *
-     * @param  list<string>  $argumente
-     */
-    private function apt(Context $context, array $argumente): string
-    {
-        $lauf = $context->runner->run('apt-get', $argumente, 120);
-
-        if (! $lauf->successful()) {
-            throw AgentException::execFailed(
-                'Der Paketstand liess sich nicht ermitteln: '.$lauf->message(),
-                ['arguments' => $argumente, 'code' => $lauf->code],
-            );
-        }
-
-        return $lauf->stdout;
     }
 
     /**

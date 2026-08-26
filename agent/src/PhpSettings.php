@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent;
 
-use Tests\Unit\AnchoredPatternTest;
-
 /**
  * Die PHP-Einstellungen, die eine Domain übersteuern darf.
  *
@@ -46,7 +44,7 @@ final class PhpSettings
      * einem abschliessenden Zeilenumbruch, und `Europe/Berlin\n` ginge durch —
      * ein gültiger Wert und der Anfang einer zweiten Einstellung. Genau daran
      * ist der Angriffsdurchgang hängengeblieben; die ganze Fehlerklasse hat
-     * seitdem einen eigenen Wächter ({@see AnchoredPatternTest}).
+     * seitdem einen eigenen Wächter (`AnchoredPatternTest`).
      *
      * @var array<string, string>
      */

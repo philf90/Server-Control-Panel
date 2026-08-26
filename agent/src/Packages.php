@@ -183,43 +183,86 @@ final class Packages
     }
 
     /**
+     * Die beiden Überschriften, unter denen apt Zurückgehaltenes aufzählt.
+     *
+     * **Zwei Wortlaute für dieselbe Auskunft, und bis zum 26. August 2026
+     * kannte dieser Leser nur einen** (`docs/86`, Befund 7). Auf `cloudsrv24`
+     * standen sieben Pakete unter dem zweiten, und die Kachel meldete `0`.
+     *
+     * > **Ein Ausdruck, der die gewohnte Schreibweise kennt, prüft die
+     * > Gewohnheit und nicht die Regel.**
+     *
+     * **Und sie sind trotzdem nicht dasselbe.** Ein Paket bleibt stehen, weil
+     * ein Upgrade etwas entfernen müsste — dagegen hilft `dist-upgrade`, und
+     * genau das tut der Knopf „Alle installieren". Ein phasenverzögertes bleibt
+     * stehen, weil Ubuntu es stufenweise ausrollt; dagegen hilft **warten**.
+     * Ohne den Unterschied drückt der Betreiber den Knopf, sieht dieselben
+     * Namen wieder und ist zurück in dem Fall, für den es diese Stufe gibt.
+     *
+     * > **Zwei Zustände mit derselben Anzeige und verschiedener Abhilfe sind
+     * > eine Anzeige zu wenig.**
+     *
+     * @var array<string, string> Satzstück => Grund
+     */
+    private const KEPT_BACK = [
+        'have been kept back' => 'dependencies',
+        'deferred due to phasing' => 'phasing',
+    ];
+
+    /**
      * Die zurückgehaltenen Pakete aus einer `upgrade`-Ausgabe.
      *
-     * `apt-get upgrade` lässt stehen, was etwas entfernen würde, und eine
-     * Sperrmarkierung erzeugt denselben Zustand willentlich. Die Namen stehen
-     * eingerückt unter der Überschrift, mehrere je Zeile.
+     * Die Namen stehen eingerückt unter ihrer Überschrift, mehrere je Zeile —
+     * und **beide Abschnitte können nebeneinander stehen**, deshalb bricht
+     * diese Schleife nicht ab, wenn einer zu Ende ist.
      *
      * > **Diese Zahl gehört in die Anzeige**, sonst behauptet sie
      * > Vollständigkeit, die sie nicht hat.
      *
-     * @return list<string>
+     * @return list<array{name: string, reason: string}>
      */
     public static function keptBack(string $upgrade): array
     {
         $namen = [];
-        $drin = false;
+        $grund = null;
 
         foreach (preg_split('/\R/', $upgrade) ?: [] as $zeile) {
-            if (str_contains($zeile, 'have been kept back')) {
-                $drin = true;
+            $ueberschrift = null;
+
+            foreach (self::KEPT_BACK as $satz => $art) {
+                if (str_contains($zeile, $satz)) {
+                    $ueberschrift = $art;
+
+                    break;
+                }
+            }
+
+            if ($ueberschrift !== null) {
+                $grund = $ueberschrift;
 
                 continue;
             }
 
-            if (! $drin) {
+            if ($grund === null) {
                 continue;
             }
 
-            // Die Liste endet an der ersten Zeile, die nicht eingerückt ist —
-            // dort beginnt der nächste Abschnitt („The following packages will
-            // be upgraded:").
+            /*
+             * Die Liste endet an der ersten Zeile, die nicht eingerückt ist —
+             * dort beginnt der nächste Abschnitt („The following packages will
+             * be upgraded:"). Weitergelesen wird trotzdem: Der zweite
+             * Abschnitt kann darunter noch kommen, und wer hier abbricht,
+             * findet ihn nie.
+             */
             if ($zeile === '' || ! str_starts_with($zeile, ' ')) {
-                break;
+                $grund = null;
+
+                continue;
             }
 
             foreach (preg_split('/\s+/', trim($zeile)) ?: [] as $name) {
                 if ($name !== '') {
-                    $namen[] = $name;
+                    $namen[] = ['name' => $name, 'reason' => $grund];
                 }
             }
         }
@@ -235,7 +278,7 @@ final class Packages
      * Zahl, die ein Betreiber sehen muss — und sie steht in keinem der beiden
      * Läufe allein.
      *
-     * @return array{upgradable: list<array<string, mixed>>, removals: list<string>, held: list<string>, security: int, fresh: int}
+     * @return array{upgradable: list<array<string, mixed>>, removals: list<string>, held: list<array{name: string, reason: string}>, security: int, fresh: int}
      */
     public static function read(string $distUpgrade, string $upgrade): array
     {

@@ -1627,6 +1627,166 @@ final class MobileLayoutTest extends TestCase
     }
 
     /**
+     * In der Rückfrage ist das Feld so breit wie die Knöpfe, die es freigibt.
+     *
+     * **Gefunden vom Betreiber im Abnahmelauf zu A1** (`docs/86`, Punkt 7c), an
+     * der Rückfrage vor dem Neustart. Gemessen bei 390 px mit dem gebauten
+     * Stylesheet: Knöpfe je **323 px**, Feld **285 px** — 38 px kürzer als das,
+     * was darunter steht, und in einer Spalte sieht man jedes Pixel davon.
+     *
+     * **Zwei richtige Regeln, die niemand aneinandergebunden hat.** Der Deckel
+     * `max-width: 32ch` ist eine Zusage über die *breite* Ansicht: Hier steht
+     * ein Wort und kein Satz. Unter 480 px zieht `.button-row` ihre Knöpfe auf
+     * volle Breite, damit vom zweiten nicht drei Buchstaben übrigbleiben. Beide
+     * für sich sind begründet; zusammen ergeben sie eine ausgefranste Spalte.
+     *
+     * > **Eine Breite, die für die breite Ansicht begründet ist, ist auf der
+     * > schmalen keine Begründung mehr — sie ist ein Rest.**
+     *
+     * **Geprüft wird die Bindung und nicht die Zahl.** Ein Wächter über
+     * „285 gegen 323" müsste `ch` in Pixel umrechnen, also eine Schriftart
+     * annehmen. Nachgerechnet wird deshalb, dass die Aufhebung des Deckels an
+     * **demselben Haltepunkt** steht wie das Dehnen der Knöpfe: Zieht jemand
+     * den einen um, muss der andere mit. Zwei Zahlen, die zusammengehören,
+     * laufen sonst auseinander, und gemeldet hat es zuletzt der Betreiber.
+     */
+    public function test_the_confirmation_field_is_not_capped_on_a_phone(): void
+    {
+        $blöcke = $this->mediaBlocks();
+
+        $haltepunkt = null;
+
+        foreach ($blöcke as [$grenze, $inhalt]) {
+            foreach ($this->declarations($inhalt) as [$regel, $angaben]) {
+                if (! $this->reachesAButtonInARow($regel)) {
+                    continue;
+                }
+
+                if (preg_match('/(?:^|[;{\s])width:\s*100%/', $angaben) === 1) {
+                    $haltepunkt = $grenze;
+                }
+            }
+        }
+
+        /*
+         * Die Untergrenze: Ohne das Dehnen misst dieser Test nichts, und ein
+         * Grün bedeutete „nicht nachgesehen" statt „nichts zu tun".
+         */
+        $this->assertNotNull(
+            $haltepunkt,
+            'Es wird kein `@media (max-width: …)` gefunden, in dem `.button-row .button` auf '.
+            '`width: 100%` geht. Entweder stapelt die Knopfreihe nicht mehr — dann gibt es diese '.
+            'Frage nicht mehr — oder dieser Test liest an der falschen Stelle.',
+        );
+
+        $gedeckelt = null;
+
+        foreach ($blöcke as [$grenze, $inhalt]) {
+            if ($grenze !== $haltepunkt) {
+                continue;
+            }
+
+            foreach ($this->declarations($inhalt) as [$regel, $angaben]) {
+                foreach (explode(',', $regel) as $einzeln) {
+                    if (! $this->reachesTheConfirmationField(trim($einzeln))) {
+                        continue;
+                    }
+
+                    if (preg_match('/(?:^|[;{\s])max-width:\s*([^;]+)/', $angaben, $treffer) === 1) {
+                        $gedeckelt = trim($treffer[1]);
+                    }
+                }
+            }
+        }
+
+        $this->assertNotNull(
+            $gedeckelt,
+            sprintf(
+                'Unter %s dehnt `.button-row` ihre Knöpfe auf volle Breite, und für das Feld darüber '.
+                'sagt das niemand ab. Es bleibt auf `max-width: 32ch` stehen und ist damit kürzer als '.
+                'die Knöpfe, die es freigibt (docs/86, Punkt 7c).',
+                $haltepunkt,
+            ),
+        );
+
+        $this->assertContains(
+            $gedeckelt,
+            ['none', '100%'],
+            sprintf(
+                'Unter %s steht `.confirmation .field` auf `max-width: %s`. Auf einer Fläche, auf der '.
+                'ohnehin alles untereinander in einer Spalte steht, ist ein Deckel keine Zusage mehr, '.
+                'sondern ein Rest — und er macht die Spalte ausgefranst.',
+                $haltepunkt,
+                (string) $gedeckelt,
+            ),
+        );
+    }
+
+    /**
+     * Die `@media`-Blöcke mit schmaler Grenze, jeder mit seiner Grenze.
+     *
+     * `narrowRules()` wirft die Bedingung weg — für „gilt bei 390 px?" ist das
+     * richtig, für „steht es an *demselben* Haltepunkt?" ist es genau die
+     * Angabe, um die es geht.
+     *
+     * @return list<array{string, string}>
+     */
+    private function mediaBlocks(): array
+    {
+        $css = $this->withoutComments((string) file_get_contents(
+            dirname(__DIR__, 2).'/resources/css/app.css',
+        ));
+
+        preg_match_all('/@media([^{]*)\{((?:[^{}]|\{[^{}]*\})*)\}/s', $css, $blöcke, PREG_SET_ORDER);
+
+        $heraus = [];
+
+        foreach ($blöcke as $block) {
+            if (preg_match('/max-width:\s*([0-9]+px)/', $block[1], $treffer) !== 1) {
+                continue;
+            }
+
+            $heraus[] = [$treffer[1], $block[2]];
+        }
+
+        return $heraus;
+    }
+
+    /** Trifft dieser Selektor einen Knopf in einer Knopfreihe? */
+    private function reachesAButtonInARow(string $regel): bool
+    {
+        foreach (explode(',', $regel) as $einzeln) {
+            $teile = preg_split('/\s*>\s*|\s+/', trim($einzeln)) ?: [];
+
+            if (in_array('.button-row', $teile, true)
+                && in_array(end($teile), ['.button', 'button.button'], true)
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Und dieser das Feld in der Rückfrage?
+     *
+     * `.confirmation` muss im Selektor stehen: Eine allgemeine Regel an
+     * `.field` wäre eine Antwort auf eine Frage, die nur dieser Block stellt —
+     * und sie stellte sie jedem Formular des Panels.
+     */
+    private function reachesTheConfirmationField(string $selektor): bool
+    {
+        $teile = preg_split('/\s*>\s*|\s+/', trim($selektor)) ?: [];
+
+        if (! in_array('.confirmation', $teile, true)) {
+            return false;
+        }
+
+        return in_array(end($teile), ['.field', 'label.field', 'div.field'], true);
+    }
+
+    /**
      * Jedes Stylesheet des Panels: app.css und die `<style>`-Blöcke.
      *
      * @return array<string, string>

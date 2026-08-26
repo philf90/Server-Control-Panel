@@ -10,6 +10,35 @@
 #         /usr/lib/srvpanel/apt-run all
 #     /usr/lib/srvpanel/apt-run packages tar gzip
 #
+# ## Und seit dem 26. August auch aus `system.packages.list`
+#
+# Der Modus `simulate` sieht nur nach. Er steht hier und nicht im Agenten, weil
+# apt **an zwei Orten zwei verschiedene Antworten gibt** — und der Ort, der
+# zählt, ist der, an dem eingespielt wird.
+#
+# `srvpanel-agentd.service` läuft mit `PrivateTmp`, `ProtectKernelTunables` und
+# `ProtectControlGroups`; jede davon legt einen Mount-Namensraum an, und darin
+# meldet `ischroot` **rc=0**. In einem chroot wendet Ubuntu sein *Phasing* nicht
+# an, hält also nichts zurück und bietet alles an. Gemessen auf `cloudsrv24` am
+# 26. August 2026 (`docs/86`, Befund 6):
+#
+#     im Agenten          -> 11 `Inst`-Zeilen
+#     transiente Unit     ->  4
+#     RestrictNamespaces  ->  4   (legt keinen Namensraum an)
+#
+# Die Seite zeigte elf, und `apt-run all` spielte vier ein. Beides war für sich
+# richtig; zusammen war es eine Lüge.
+#
+# > **Zwei Läufe desselben Befehls an zwei Orten sind zwei Messungen und nicht
+# > eine.**
+#
+# Eine Option war der falsche Ausweg: `APT::Get::Always-Include-Phased-Updates`
+# greift gegen die Chroot-Erkennung nicht (gemessen), und
+# `Never-Include-Phased-Updates` greift zwar, hält phasenverzögerte Pakete aber
+# **immer** zurück — auch auf einer Maschine, die Ubuntu für die Phase
+# ausgewählt hat. Sie brächte die beiden Seiten zur Übereinstimmung, indem sie
+# beide verschiebt.
+#
 # ## Warum ein Skript und kein `sh -c` im Agenten
 #
 # Weil hier mehr als eine Zeile steht. `panel.update` setzt seinen Lauf seit P0
@@ -50,6 +79,14 @@ set -u
 
 NAME=apt-run
 
+# Die Trennzeile zwischen den beiden Simulationen von `simulate`.
+#
+# **Ein Lauf und nicht zwei**, weil jede transiente Unit einen Prozess kostet
+# und die Seite bei jedem Aufbau nachsieht. Die Marke steht am Zeilenanfang und
+# trägt zwei Doppelpunkte — apt schreibt keine solche Zeile, und der Leser im
+# Agenten besteht darauf, sie genau zweimal zu finden, statt zu raten.
+MARKE='### srvpanel apt-run::'
+
 fehler() {
     echo "$NAME: $1" >&2
     exit 2
@@ -88,7 +125,7 @@ fassung() {
     dpkg-query -W -f='${Version}' srvpanel 2>/dev/null || echo unbekannt
 }
 
-[ $# -ge 1 ] || fehler 'Aufruf: apt-run all | apt-run packages <name> ... | apt-run panel'
+[ $# -ge 1 ] || fehler 'Aufruf: apt-run all | apt-run packages <name> ... | apt-run panel | apt-run simulate'
 
 modus=$1
 shift
@@ -126,6 +163,28 @@ case $modus in
         mass=fassung
         einheit='Fassung'
         set -- install --only-upgrade srvpanel
+        ;;
+    simulate)
+        # **Dieser Modus steigt hier aus und nicht unten.** Der gemeinsame Rumpf
+        # misst ein Vorher, spielt ein und misst ein Nachher; hier gibt es
+        # nichts einzuspielen und deshalb auch kein Vorher.
+        #
+        # Beide Läufe, weil sie verschiedene Fragen beantworten: `dist-upgrade`
+        # sagt, was möglich ist, `upgrade` sagt, was ohne Entfernen möglich ist
+        # — und nur der zweite nennt, was zurückgehalten wird.
+        echo "$MARKE dist-upgrade"
+        apt-get -s dist-upgrade
+        erst=$?
+
+        echo "$MARKE upgrade"
+        apt-get -s upgrade
+        zweit=$?
+
+        # **Der erste Fehlschlag gewinnt, und keiner wird verschluckt.** Ein
+        # `W:` auf stderr ist keiner — apt endet dabei mit 0, und genau darum
+        # geht es in M5.
+        [ "$erst" -eq 0 ] || exit "$erst"
+        exit "$zweit"
         ;;
     *)
         fehler "Unbekannter Modus: $modus"

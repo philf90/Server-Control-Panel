@@ -206,6 +206,136 @@ final class Apt
     }
 
     /**
+     * Die Marke, mit der `apt-run simulate` seine beiden Läufe trennt.
+     *
+     * Sie steht hier **und** im Skript, und das ist eine Naht mit zwei Enden;
+     * `AptSimulationTest` hält sie zusammen. Liefe sie auseinander, fände
+     * {@see self::sections()} nichts und die Seite bekäme eine Ausnahme statt
+     * einer Zahl.
+     *
+     * **Ohne `@see`, und das ist Absicht.** Pint macht aus einer
+     * ausgeschriebenen Marke einen `use`-Eintrag — und der zöge eine Klasse aus
+     * `tests/` in den Agenten, der framework- und abhängigkeitsfrei ist und sie
+     * gar nicht laden könnte.
+     */
+    public const MARK = '### srvpanel apt-run::';
+
+    /** Die beiden Läufe, in der Reihenfolge, in der das Skript sie schreibt. */
+    public const RUNS = ['dist-upgrade', 'upgrade'];
+
+    /**
+     * Nachsehen, was apt einspielen würde — **dort, wo eingespielt wird**.
+     *
+     * ## Der Fund, der diese Methode ausgelöst hat (`docs/86`, Befund 6)
+     *
+     * Bis zum 26. August 2026 rief `system.packages.list` `apt-get -s
+     * dist-upgrade` unmittelbar aus dem Agenten. Der läuft mit `PrivateTmp`,
+     * `ProtectKernelTunables` und `ProtectControlGroups`; jede davon legt einen
+     * Mount-Namensraum an, und darin meldet `ischroot` **rc=0**. In einem
+     * chroot wendet Ubuntu sein *Phasing* nicht an — es hält nichts zurück und
+     * bietet alles an.
+     *
+     * Auf `cloudsrv24` gemessen: **elf** Zeilen im Agenten, **vier** in der
+     * transienten Unit, in der `apt-run all` einspielt. Der Betreiber sah elf,
+     * drückte „Alle installieren" und bekam vier.
+     *
+     * > **Zwei Läufe desselben Befehls an zwei Orten sind zwei Messungen und
+     * > nicht eine.**
+     *
+     * Die Antwort ist nicht, dem Agenten seine Härtung zu nehmen, und auch
+     * keine apt-Option: `Always-Include-Phased-Updates` greift gegen die
+     * Chroot-Erkennung nicht, und `Never-Include-Phased-Updates` greift zwar,
+     * verschiebt aber **beide** Seiten — es hielte phasenverzögerte Pakete auch
+     * dann zurück, wenn Ubuntu diese Maschine ausgewählt hat.
+     *
+     * > **Ein Griff, der zwei Seiten zur Übereinstimmung bringt, indem er beide
+     * > verschiebt, hat die Frage nicht beantwortet, sondern verlegt.**
+     *
+     * Gefragt wird deshalb dasselbe Skript, das auch einspielt, und über
+     * denselben Weg. Damit stimmen die beiden Seiten **von Bauart wegen**
+     * überein statt aus Versehen.
+     *
+     * @return array<string, string> Lauf => Ausgabe
+     */
+    public static function simulate(Context $context, string $runner, int $timeout = 120): array
+    {
+        $lauf = $context->runner->run('systemd-run', [
+            '--quiet',
+
+            // `--pipe` gibt uns die Ausgabe, `--wait` wartet auf das Ende, und
+            // `--collect` räumt die Unit auch dann ab, wenn sie scheitert.
+            '--pipe',
+            '--wait',
+            '--collect',
+            '--setenv=DEBIAN_FRONTEND=noninteractive',
+            $runner,
+            'simulate',
+        ], $timeout);
+
+        if (! $lauf->successful()) {
+            throw AgentException::execFailed(
+                'Der Paketstand liess sich nicht ermitteln: '.$lauf->message(),
+            );
+        }
+
+        return self::sections($lauf->stdout);
+    }
+
+    /**
+     * Die beiden Läufe aus einer Ausgabe von `apt-run simulate` — die Naht.
+     *
+     * **Sie besteht auf genau zwei Abschnitten und rät nicht.** Eine Marke, die
+     * fehlt, wäre sonst ein leerer Abschnitt — und ein leerer Abschnitt sieht
+     * aus wie „nichts zu aktualisieren".
+     *
+     * > **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts zu
+     * > tun".**
+     *
+     * @return array<string, string>
+     *
+     * @throws AgentException
+     */
+    public static function sections(string $stdout): array
+    {
+        $abschnitte = [];
+        $offen = null;
+
+        foreach (preg_split('/\R/', $stdout) ?: [] as $zeile) {
+            if (str_starts_with($zeile, self::MARK)) {
+                $offen = trim(substr($zeile, strlen(self::MARK)));
+                $abschnitte[$offen] ??= [];
+
+                continue;
+            }
+
+            // Was vor der ersten Marke steht, gehört niemandem. Es gibt dort
+            // nichts zu lesen, und still mitzunehmen wäre schlimmer als es
+            // wegzuwerfen.
+            if ($offen === null) {
+                continue;
+            }
+
+            $abschnitte[$offen][] = $zeile;
+        }
+
+        foreach (self::RUNS as $name) {
+            if (! isset($abschnitte[$name])) {
+                throw AgentException::execFailed(sprintf(
+                    'Die Ausgabe von „apt-run simulate" führt den Abschnitt „%s" nicht. '.
+                    'Gefunden: %s.',
+                    $name,
+                    $abschnitte === [] ? 'keinen' : implode(', ', array_keys($abschnitte)),
+                ));
+            }
+        }
+
+        return array_map(
+            static fn (array $zeilen): string => implode("\n", $zeilen),
+            $abschnitte,
+        );
+    }
+
+    /**
      * Aus der Adresse einer Indexdatei die der Quelle machen — so weit das
      * geht.
      *

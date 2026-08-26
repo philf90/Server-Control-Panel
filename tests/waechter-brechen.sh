@@ -104,6 +104,48 @@ cd "$(dirname "$0")/.." || exit 1
 export -n AI_AGENT CLAUDECODE 2>/dev/null || true
 unset AI_AGENT CLAUDECODE
 
+# **Dieses Skript stellt den Arbeitsbaum her und duldet deshalb keinen zweiten
+# Schreiber.** `wiederherstellen()` faehrt nach *jedem* Eingriff ein
+# `git checkout --` ueber die Baeume unten. Wer daneben arbeitet, verliert seine
+# Aenderungen zwischen zwei Eingriffen — und ein `git add -A`, das in ein
+# offenes Bruchfenster faellt, nimmt den Eingriff mit ins Repo.
+#
+# Am 26. August 2026 beides in einem Commit passiert: Ergaenzungen an `docs/81`
+# waren fort, und `app/Console/Commands/Databases.php` stand mit `$fehlt = null;`
+# statt seiner Pruefung im Repo — committet und gepusht. Gefunden hat es kein
+# Waechter, sondern ein Blick auf `git show --stat`.
+#
+#   Ein Werkzeug, das den Arbeitsbaum herstellt, duldet keinen zweiten
+#   Schreiber — es nimmt ihm seine Arbeit weg und schiebt ihm seine eigene
+#   unter.
+#
+# **Die Sperre haelt davon genau eine Haelfte**, und das ist ehrlich gesagt die
+# kleinere: Sie weist einen zweiten *Lauf* ab. Einen Menschen, der nebenher eine
+# Datei schreibt, kann sie nicht abweisen — das ist eine Regel und kein
+# Mechanismus, und sie steht in `CLAUDE.md`.
+#
+#   Was ein Test nicht halten kann, gehoert als Frage aufgeschrieben und nicht
+#   als Zusage.
+#
+# Die Marke ist zugleich das, woran ein Zweiter den laufenden Lauf *sieht* —
+# ohne sie ist „laeuft gerade einer?" nur an der Prozessliste zu beantworten.
+LAUFMARKE="${TMPDIR:-/tmp}/srvpanel-waechter-brechen.lock"
+
+exec 9>"$LAUFMARKE" || {
+  echo "Die Laufmarke $LAUFMARKE laesst sich nicht anlegen." >&2
+  exit 1
+}
+
+# `flock` sperrt je *offener Datei*; dieser eine Deskriptor wird genau einmal
+# genommen und mit dem Prozess wieder frei — die verschachtelte Sperre aus P5b
+# kann hier nicht entstehen.
+if ! flock -n 9; then
+  echo "Es laeuft bereits ein Lauf dieses Skripts ($LAUFMARKE ist gesperrt)." >&2
+  echo "Zwei Laeufe zugleich stellen einander den Arbeitsbaum um; der zweite" >&2
+  echo "misst dann einen Zustand, den niemand hergestellt hat." >&2
+  exit 1
+fi
+
 # **Die Bäume, in denen dieses Skript arbeitet — einmal aufgeschrieben.**
 #
 # Sie standen zweimal da, für die Sauberkeitsprüfung und für den Rückweg, und

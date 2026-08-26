@@ -522,6 +522,98 @@ final class BreakScriptTest extends TestCase
         )));
     }
 
+    /**
+     * Und es nimmt eine Sperre, bevor es den Arbeitsbaum anfasst.
+     *
+     * ## Der Fund, der diesen Fall ausgelöst hat
+     *
+     * Am 26. August 2026 lief das Skript im Hintergrund, während daneben
+     * weitergearbeitet wurde. `wiederherstellen()` fährt nach **jedem** Eingriff
+     * ein `git checkout --` über zwölf Bäume — und beide Richtungen gingen
+     * schief, lautlos und in einem einzigen Commit:
+     *
+     * - Ergänzungen an `docs/81` wurden zwischen Schreiben und Committen
+     *   zurückgesetzt; der Commit ging ohne sie durch und meldete Erfolg.
+     * - Ein `git add -A` fiel in ein offenes Bruchfenster und nahm
+     *   `app/Console/Commands/Databases.php` mit — `$fehlt = null;` statt seiner
+     *   Prüfung, committet und gepusht.
+     *
+     * > **Ein Werkzeug, das den Arbeitsbaum herstellt, duldet keinen zweiten
+     * > Schreiber** — es nimmt ihm seine Arbeit weg und schiebt ihm seine
+     * > eigene unter.
+     *
+     * ## Was die Sperre hält, und was nicht
+     *
+     * Sie weist einen zweiten **Lauf** ab. Einen Menschen, der nebenher eine
+     * Datei schreibt, kann sie nicht abweisen — das ist eine Regel in
+     * `CLAUDE.md` und kein Mechanismus.
+     *
+     * > **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und
+     * > nicht als Zusage.**
+     *
+     * Geprüft wird deshalb genau das, was prüfbar ist: dass die Sperre
+     * genommen wird, **bevor** der erste Eingriff läuft, und dass sie
+     * nicht-blockierend ist. Ein `flock` ohne `-n` wartete auf den anderen
+     * Lauf, statt ihn zu melden — und aus dem Befund würde eine Stunde
+     * Stillstand ohne Fehlermeldung.
+     *
+     * > **Eine Sperre, die man zweimal nimmt, ist ein Stillstand ohne
+     * > Fehlermeldung.** Derselbe Satz wie in P5b, nur eine Ebene höher.
+     *
+     * **Der Bruch dazu** steht nicht im Skript — er änderte das Skript selbst.
+     * Von Hand, und so:
+     *
+     *     sed -i "s/flock -n 9/flock -s 9/" tests/waechter-brechen.sh
+     *     ./vendor/bin/phpunit --filter BreakScriptTest   # muss rot sein
+     *     cp <sicherung> tests/waechter-brechen.sh
+     *
+     * Gesichert wird mit `cp` und nicht mit `git checkout --`: Wer diesen Fall
+     * bricht, hat an dieser Datei fast immer eine eigene Änderung liegen.
+     */
+    public function test_the_script_takes_a_lock_before_it_touches_the_tree(): void
+    {
+        $skript = (string) file_get_contents($this->root().'/tests/waechter-brechen.sh');
+
+        /*
+         * **Gefragt wird über einen Wahrheitswert und nicht über den Text.**
+         * `assertMatchesRegularExpression` druckt im Fehlerfall den ganzen
+         * Gegenstand — dieses Skript ist 7500 Zeilen lang, und die Meldung war
+         * beim ersten Wurf 1,8 MB gross. Gemessen beim Gegenprüfen.
+         *
+         * > **Ein Wächter, der zu viel meldet, wird abgeschaltet — und zwar von
+         * > dem, der ihn gebaut hat.**
+         */
+        $this->assertSame(1, preg_match('/^exec 9>/m', $skript), implode(' ', [
+            'tests/waechter-brechen.sh nimmt keine Laufmarke mehr.',
+            'Zwei Läufe zugleich stellen einander den Arbeitsbaum um, und der zweite misst',
+            'einen Zustand, den niemand hergestellt hat.',
+        ]));
+
+        $this->assertSame(1, preg_match('/flock -n 9/', $skript), implode(' ', [
+            'Die Sperre wird ohne -n genommen — dann wartet der zweite Lauf auf den ersten,',
+            'statt ihn zu melden. Aus einem Befund wird so ein Stillstand ohne Fehlermeldung.',
+        ]));
+
+        /*
+         * **Und sie muss vor dem ersten Eingriff stehen.** Eine Sperre hinter
+         * dem ersten `git checkout --` hätte den Fall vom 26. August nicht
+         * verhindert: Da war der Baum schon einmal umgestellt.
+         */
+        $sperre = strpos($skript, 'flock -n 9');
+        $ersterGriff = strpos($skript, 'vorher_datei ');
+
+        $this->assertIsInt($sperre);
+        $this->assertIsInt($ersterGriff, implode(' ', [
+            'Im Skript steht kein einziger Eingriff mehr (`vorher_datei`) —',
+            'dann prüft dieser Fall nichts.',
+        ]));
+
+        $this->assertLessThan($ersterGriff, $sperre, implode(' ', [
+            'Die Sperre steht hinter dem ersten Eingriff. Dann ist der Arbeitsbaum bereits',
+            'einmal umgestellt worden, bevor irgendjemand abgewiesen wird.',
+        ]));
+    }
+
     public function test_every_embedded_block_is_valid_python(): void
     {
         $script = (string) file_get_contents($this->root().'/tests/waechter-brechen.sh');

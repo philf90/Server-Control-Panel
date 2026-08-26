@@ -2339,6 +2339,26 @@ Testen berücksichtigen:
   Er dauert gut zwanzig Minuten und gehört deshalb in den Hintergrund und in
   eine Datei.
 
+  **Und während er läuft, wird nicht am Repo gearbeitet.** `wiederherstellen()`
+  fährt nach **jedem** Eingriff ein `git checkout --` über zwölf Bäume; ein
+  zweiter Schreiber verliert darin seine Arbeit, und ein `git add -A` in einem
+  offenen Bruchfenster nimmt den Eingriff mit. Am 26. August genau so passiert,
+  beides in einem Commit: die Ergänzungen an `docs/81` waren fort, und
+  `app/Console/Commands/Databases.php` stand mit `$fehlt = null;` statt seiner
+  Prüfung im Repo — committet und gepusht.
+
+  > **Ein Werkzeug, das den Arbeitsbaum herstellt, duldet keinen zweiten
+  > Schreiber** — es nimmt ihm seine Arbeit weg und schiebt ihm seine eigene
+  > unter.
+
+  Gefunden hat es kein Wächter, sondern `git show --stat` — die Dateiliste des
+  eigenen Commits, gelesen statt überflogen. Im `git status` sieht beides aus
+  wie nichts: Der eine Schaden ist eine Datei, die *fehlt*, der andere eine,
+  die *dazugehört*.
+
+  > **Ein Commit, dessen Dateiliste man nicht liest, ist eine Zusage über
+  > Änderungen, die man nicht gesehen hat.**
+
   **Aber nur mit fester Umgebung.** In einer Agentensitzung verpacken `AI_AGENT`
   und `CLAUDECODE` die Ausgabe von PHPUnit als eine Zeile JSON; `pruefe()` sucht
   `OK (` und `FAILURES!` und fällt damit bei **jeder** der 1524 Prüfungen in den

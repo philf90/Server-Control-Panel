@@ -837,7 +837,7 @@ final class Databases extends Command
         }
 
         if ($mode === 'on') {
-            $fehlt = null;
+            $fehlt = $this->panelDatabaseUnreachable();
 
             if ($fehlt !== null) {
                 return $this->undoRemote($agent, (string) ($result['path'] ?? ''), $fehlt);

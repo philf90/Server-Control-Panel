@@ -935,6 +935,43 @@ darüber sah nie eine rohe Zeile.
 > Zeichenkette) hing an einer `assert…`-Signatur, die PHPStan ohne Framework
 > gar nicht kennt.
 
+**Und der zweite Lauf hat einen Befund gebracht, den das Skript selbst nicht
+haben kann — er entsteht daneben.** Er lief im Hintergrund, während weiter am
+Repo gearbeitet wurde, und das geht nicht: `wiederherstellen()` fährt nach
+**jedem** Eingriff ein `git checkout --` über zwölf Bäume, darunter `docs/`.
+
+Zwei Schäden, beide lautlos:
+
+1. **Eigene Arbeit war fort.** Die Ergänzungen an `docs/81 §4` und §9 wurden
+   zwischen Schreiben und Committen zurückgesetzt; der Commit ging ohne sie
+   durch und meldete Erfolg. (`docs/85` überlebte nur, weil `git checkout --`
+   unverfolgte Dateien nicht anfasst.)
+2. **Fremde Arbeit war drin.** Ein `git add -A` fiel genau in ein offenes
+   Bruchfenster und nahm `app/Console/Commands/Databases.php` mit — `$fehlt =
+   null;` statt `$fehlt = $this->panelDatabaseUnreachable();`. Der Eingriff, der
+   `srvpanel db --remote=on` seinen Rückweg nimmt, war **committet und
+   gepusht**.
+
+> **Ein Werkzeug, das den Arbeitsbaum herstellt, duldet keinen zweiten
+> Schreiber** — es nimmt ihm seine Arbeit weg und schiebt ihm seine eigene
+> unter.
+
+Das ist derselbe Satz wie bei `pg_hba.conf` in P5b („Ein zweiter Schreiber in
+derselben Datei ist kein zweiter Schreiber, solange nur einer die Sperre nimmt"),
+nur über einen ganzen Baum statt über eine Datei.
+
+**Gefunden hat es kein Wächter, sondern ein Blick auf `git show --stat`** — die
+Dateiliste des eigenen Commits, gelesen statt überflogen. Beide Schäden sehen im
+`git status` danach aus wie nichts: Der eine ist eine Datei, die *fehlt*, der
+andere eine, die *dazugehört*.
+
+> **Ein Commit, dessen Dateiliste man nicht liest, ist eine Zusage über
+> Änderungen, die man nicht gesehen hat.**
+
+Der Handgriff ist einfach und steht in `CLAUDE.md`: **Während das Bruchskript
+läuft, wird nicht am Repo gearbeitet.** Es dauert gut zwanzig Minuten; das ist
+die Zeit für etwas anderes als für dieses Repo.
+
 ---
 
 ## 3. Die vier Fragen — entschieden
@@ -1100,8 +1137,9 @@ auf `0` gesetzt, und die eigene Datei hätte weiter „an" gemeldet.
 
 ## 4. Das Abnahmekriterium von A1
 
-Acht Punkte, gemessen auf einem echten Server. Der Lauf dazu wird eigens
-geschrieben, nach dem Muster von `docs/58` und `docs/65`.
+Acht Punkte, gemessen auf einem echten Server. Der Lauf dazu ist
+**`docs/85-abnahmelauf-a1.md`**, geschrieben am 26. August 2026 nach dem Muster
+von `docs/58`, `docs/65` und `docs/83`.
 
 > **Hier stand `docs/76`, und die Nummer gehört seit P7 der Bilderrunde**
 > (`docs/76-protokoll-bilderrunde-p7.md`). Der Verweis zeigte damit auf ein
@@ -1304,7 +1342,7 @@ CI.
 | 7 | ~~`system.sources.toggle` und der Neustart-Knopf~~ **erledigt am 26. August 2026** | ✔ **Die Quelle**: `SourceOwnershipTest` grün, sechs Brüche, alle beissend; gemessen durch echtes apt — 16 → 5 → 16 Ziele, und der Rückweg belegt: bei kaputtem apt kommt die Datei byte-identisch zurück.  ✔ **Der Neustart**: `system.reboot` setzt einen Zeitgeber über `systemd-run` ab, statt `systemctl reboot` im eigenen Prozess zu rufen; die Messrunde dazu steht in §2.3e, der Durchstich in §2.3f. `RebootConfirmTest` grün, sechs Brüche, alle beissend. **Offen und benannt:** dass die transiente Unit den Neustart überlebt, ist hier nicht messbar (§2.3e, letzter Absatz) |
 | 8 | ~~`unattended-upgrades` — Zustand aus `apt-config dump`, Schalter~~ **gebaut am 26. August 2026** | ✔ Der Zustand kommt aus `apt-config dump` und hat fünf Teile (Paket, Hauptschalter, zwei Abstände, Zeitgeber); `system.packages.unattended` schreibt ein Fragment und **liest nach**, ob es angekommen ist.  ✔ **Der fremde Schreiber ist der Normalfall, nicht der Sonderfall**: In diesem Container setzt `docker-disable-periodic-update` den Hauptschalter auf `0`, während `20auto-upgrades` beide Teilschalter auf `1` sagt (§2.3i).  ✔ `UnattendedStateTest` grün, acht Brüche, alle beissend |
 | 9 | ~~Die Wächter brechen, voller Lauf von `tests/waechter-brechen.sh`~~ **erledigt am 26. August 2026** | ✔ **1524 Prüfungen, `FEHLT: 0`, „Alle Wächter beissen."** Der Baum davor und danach ist derselbe.  ✔ Die drei Brüche, die das Skript nicht fahren kann (`BreakScriptTest`, `ChangelogTest` in beiden Richtungen), von Hand gefahren und jeder rot mit seiner eigenen Meldung.  ✔ Der Befund des Laufs steckte nicht in einem Eingriff, sondern in der Umgebung: `AI_AGENT` und `CLAUDECODE` verpacken die Ausgabe von PHPUnit als JSON, und damit war **jede** Prüfung „unlesbar" (§2.3j) |
-| 10 | Der Abnahmelauf (eigenes Dokument, §4) auf `cloudsrv24` | die acht Punkte aus §4 |
+| 10 | Der Abnahmelauf auf `cloudsrv24` — **ausgeschrieben am 26. August 2026 als `docs/85-abnahmelauf-a1.md`**, noch nicht gefahren | die acht Punkte aus §4, dazu die drei Dinge aus §2.3h. Zwei Punkte dürfen als „nicht messbar" ausfallen (4 ohne ablaufenden Schlüssel, 2 ohne Neuinstallation); **Punkt 5 darf es nicht** |
 
 **Schritt 0 und Schritt 1 kommen vor allem anderen.** Schritt 1 ist ein Befund
 an bestehendem Code und wartet nicht auf ein neues Merkmal.

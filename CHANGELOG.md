@@ -21466,3 +21466,60 @@ Schlüssel **nicht messbar** und wird als solcher protokolliert statt als grün.
 **Und §6 sagt, welche zwei Punkte ausfallen dürfen und welcher nicht.** Ein
 Abnahmelauf, der jeden nicht messbaren Punkt gleich behandelt, nimmt am Ende ab,
 was niemand gesehen hat.
+
+### Ein Werkzeug, das den Arbeitsbaum herstellt, duldet keinen zweiten Schreiber
+
+Der zweite volle Lauf des Bruchskripts lief im Hintergrund, während daneben
+weitergearbeitet wurde. `wiederherstellen()` fährt nach **jedem** Eingriff ein
+`git checkout --` über zwölf Bäume, darunter `docs/` — und beide Richtungen
+gingen schief, lautlos und in **einem** Commit:
+
+- **Eigene Arbeit war fort.** Ergänzungen an `docs/81 §4` und §9 wurden zwischen
+  Schreiben und Committen zurückgesetzt; der Commit ging ohne sie durch und
+  meldete Erfolg. `docs/85` überlebte nur, weil `git checkout --` unverfolgte
+  Dateien nicht anfasst.
+- **Fremde Arbeit war drin.** Ein `git add -A` fiel in ein offenes Bruchfenster
+  und nahm `app/Console/Commands/Databases.php` mit — `$fehlt = null;` statt
+  `$fehlt = $this->panelDatabaseUnreachable();`. Der Eingriff, der `srvpanel db
+  --remote=on` seinen Rückweg nimmt, war committet und gepusht.
+
+> **Ein Werkzeug, das den Arbeitsbaum herstellt, duldet keinen zweiten
+> Schreiber** — es nimmt ihm seine Arbeit weg und schiebt ihm seine eigene
+> unter.
+
+Derselbe Satz wie bei `pg_hba.conf` in P5b, nur über einen ganzen Baum statt
+über eine Datei.
+
+**Gefunden hat es kein Wächter, sondern `git show --stat`** — die Dateiliste des
+eigenen Commits, gelesen statt überflogen. Im `git status` sieht beides aus wie
+nichts: Der eine Schaden ist eine Datei, die *fehlt*, der andere eine, die
+*dazugehört*.
+
+> **Ein Commit, dessen Dateiliste man nicht liest, ist eine Zusage über
+> Änderungen, die man nicht gesehen hat.**
+
+Beide Schäden sind zurückgenommen, `Databases.php` gegen den Stand vor dem
+Commit auf Byte-Gleichheit geprüft.
+
+**Das Skript nimmt jetzt eine Laufmarke** (`flock -n` auf
+`$TMPDIR/srvpanel-waechter-brechen.lock`), bevor es den ersten Eingriff fährt.
+`-n` und nicht blockierend, weil ein wartender zweiter Lauf aus einem Befund
+eine Stunde Stillstand ohne Fehlermeldung machte — derselbe Satz wie in P5b.
+
+**Sie hält davon genau eine Hälfte, und das ist die kleinere:** Sie weist einen
+zweiten *Lauf* ab. Einen Menschen, der nebenher eine Datei schreibt, kann sie
+nicht abweisen. Das steht als Regel in `CLAUDE.md` und nicht als Zusage im Code.
+
+> **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
+> als Zusage.**
+
+`BreakScriptTest::test_the_script_takes_a_lock_before_it_touches_the_tree` prüft
+drei Dinge: dass die Marke genommen wird, dass sie nicht-blockierend ist, und
+dass sie **vor** dem ersten Eingriff steht. Drei Brüche, alle beissend.
+
+**Und der erste Wurf dieses Wächters meldete 1,8 MB.**
+`assertMatchesRegularExpression` druckt im Fehlerfall den ganzen Gegenstand, und
+das Skript ist 7500 Zeilen lang. Gefragt wird jetzt über einen Wahrheitswert.
+
+> **Ein Wächter, der zu viel meldet, wird abgeschaltet — und zwar von dem, der
+> ihn gebaut hat.**

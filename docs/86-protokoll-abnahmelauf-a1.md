@@ -702,19 +702,49 @@ Umgebungsvariablen (dieselben in beiden Läufen), nicht die Argumente (blank, im
 Agentenlog gelesen), nicht der ausgelieferte Stand (`git diff` leer), nicht die
 Zeit (Seitenaufbau und Shell-Messung 29 Sekunden auseinander).
 
-`srvpanel-agentd.service` trägt `PrivateTmp`, `RestrictNamespaces`,
-`ProtectKernelTunables` und `ProtectControlGroups` — jede davon legt einen
-Mount-Namensraum an. Ubuntu entscheidet über das Zurückhalten eines Pakets
-(*Phasing*) anhand einer Kennung dieser Maschine; sieht apt sie nicht, hält es
-**nichts** zurück und bietet alles an. Welche der Eigenschaften es ist und
-welche Datei dabei fehlt, ist **noch nicht gemessen**.
+**Die Ursache ist der Mount-Namensraum**, einzeln gemessen statt in einem Zug:
 
-> **Eine Härtung, die einem Programm eine Auskunft über die Maschine nimmt,
-> ändert seine Antwort — nicht seine Fehlermeldung.**
+    ohne alles              →  4
+    PrivateTmp              → 11
+    ProtectKernelTunables   → 11
+    ProtectControlGroups    → 11
+    RestrictNamespaces      →  4
+    Gegenprobe (Shell)      →  4
 
-Die Wirkung für den Betreiber steht dagegen fest: Er sieht elf Zeilen, drückt
-„Alle installieren", bekommt „fertig" — und sieben davon stehen beim nächsten
-Aufruf unverändert wieder da.
+Die drei, die 11 ergeben, legen einen **Mount-Namensraum** an. `RestrictNamespaces`
+tut das nicht — es verbietet nur das *Anlegen* — und gibt 4. Zwei weitere
+Vermutungen sind dabei ausgeschieden: Die `machine-id` ist innen wie aussen
+`208394f6…1319`, und der `diff` über `apt-config dump` ist **leer**. Es ist keine
+Konfiguration und keine fehlende Kennung, sondern die Form des Dateibaums.
+
+> **Eine Gegenprobe, die zwei Wände zugleich wegnimmt, sagt über keine von
+> beiden etwas.** (`docs/61 §1`) Fünf Wände auf einmal hätten hier „der
+> Sandkasten" ergeben und damit nichts.
+
+**Und die zweite Hälfte steht im Quelltext.** `SystemPackagesUpgrade` setzt
+`apt-run` über `systemd-run` ab, und die transiente Unit bekommt **keine**
+Härtung mit — nur `--unit`, `--collect`, `--description`, die beiden `Standard*`
+und `DEBIAN_FRONTEND`. Das ist genau die Zeile `ohne alles → 4`.
+
+| | Kontext | Antwort |
+|---|---|---|
+| Was die Seite zeigt | Agent, mit Härtung | **11** |
+| Was „Alle installieren" tut | transiente Unit, ohne Härtung | **4** |
+
+**Derselbe Befehl, zwei Orte, zwei Antworten — und dazwischen sitzt der Knopf.**
+
+> **Zwei Läufe desselben Befehls an zwei Orten sind zwei Messungen und nicht
+> eine.**
+
+Die Wirkung für den Betreiber: Er sieht elf Zeilen, drückt „Alle installieren",
+und `apt-run` schreibt ihm am Ende *„offen: vorher 4, jetzt 0"* — eine Zahl, die
+er nie gesehen hat. Beim nächsten Aufruf stehen sieben Zeilen da.
+
+**Und das löst Beobachtung 3 auf.** Die Seite zeigte vor dem `apt update` des
+Betreibers **7**, während die Shell dort null aktualisierbare Pakete maß: Es
+waren die sieben phasenverzögerten, die der Sandkasten mitzählt und die Shell
+nicht. Mit den vier Sicherheitsupdates aus dem `apt update` wurden daraus elf.
+Es war nie eine zweite Frage, sondern von Anfang an dieselbe.
 
 ---
 

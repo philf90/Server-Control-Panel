@@ -261,12 +261,41 @@ lehrreich genug, um sie festzuhalten:
 
 ### 2.3 Was offen ist — und im Plan nirgends als Tatsache stehen darf
 
-**Auf den drei anderen Zielplattformen ungemessen:** Debian 12, Debian 13,
-Ubuntu 22.04. Zu holen mit demselben Skript, ein Lauf je Plattform. Erwartet
-werden Unterschiede bei: der Voreinstellung `.list` gegen `.sources` (Debian 12
-liefert noch `/etc/apt/sources.list` mit Inhalt), dem Namen der Sicherheitssuite
-(`bookworm-security` gegen `noble-security`), und `--error-on=any` auf apt 2.4
-(Ubuntu 22.04).
+~~**Auf den drei anderen Zielplattformen ungemessen:** Debian 12, Debian 13,
+Ubuntu 22.04.~~ — **gemessen am 26. August 2026, und zwar nicht einmal, sondern
+fortlaufend.** Der CI-Job `apt-messrunde` fährt `tests/apt-messen.sh` und
+`tests/apt-faelle-messen.sh` bei jedem Lauf in einem Container je Plattform und
+legt die Ausgabe als Artefakt ab.
+
+> **Eine Messung, die einmal jemand von Hand macht, ist ein Datum. Eine, die die
+> CI macht, ist eine Zusage.**
+
+**Die Zahlen stehen deshalb bewusst nicht hier**, sondern im Artefakt des
+jeweiligen Laufs — ein Dokument, das sie festschreibt, veraltet mit dem nächsten
+Abbild. Was hier steht, sind die drei Erwartungen, die dieser Abschnitt
+aufgestellt hat, und ihre Antwort.
+
+| Erwartung | Antwort |
+|---|---|
+| Debian 12 liefert noch `/etc/apt/sources.list` mit Inhalt | **falsch.** 0 `.list`-Dateien, 1 `.sources`-Datei; das heutige Abbild ist deb822. |
+| Der Name der Sicherheitssuite unterscheidet sich | **richtig** — und feiner als gedacht: `bookworm-security`, `trixie-security`, `jammy-security`. Debian legt sie auf einen eigenen **Pfad** (`deb.debian.org/debian-security`), Ubuntu auf einen eigenen **Rechner** (`security.ubuntu.com`). |
+| `--error-on=any` auf apt 2.4 (Ubuntu 22.04) | **es gibt ihn.** Rückgabewert 100 auf Debian 12, Debian 13 und Ubuntu 22.04. |
+
+> **Eine Erwartung im Plan ist keine Messung.** Die erste war falsch, und sie
+> hätte den Leser der Quellen auf eine Datei geschickt, die es nicht gibt.
+
+**Und der Befund M5 trägt auf allen vier Plattformen.** `apt-get update` gibt
+bei einer unerreichbaren Quelle überall `0` zurück, schreibt überall 0 Bytes auf
+stdout und die `W:`-Zeilen überall auf stderr. Das war bis hierher an einer
+Plattform gemessen und für die anderen angenommen.
+
+**Ein Nebenbefund am Messmittel, ungefixt und benannt:** M6 meldet auf Debian 12
+und 13 „Schlüssel mit Ablaufdatum 48" neben „Gegenprobe: pub-Zeilen gesamt 41".
+Die Zahlen widersprechen sich nur scheinbar — die Messung liest drei
+Verzeichnisse, die Gegenprobe zwei.
+
+> **Eine Gegenprobe über eine andere Grundgesamtheit als die Messung ist keine.**
+
 
 **Fälle, die im Container nicht vorkamen und eigens erzeugt werden müssen:**
 
@@ -281,6 +310,24 @@ liefert noch `/etc/apt/sources.list` mit Inhalt), dem Namen der Sicherheitssuite
 > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
 > steht.** Fünf der elf Messungen standen auf einer Null ohne Nachbarn; **vier
 > sind es noch**, seit M12 die `.dpkg-dist` geschlossen hat.
+
+**Alle vier sind hergestellt**, von `tests/apt-faelle-messen.sh` und in jedem
+CI-Lauf neu. Von sechzehn Fällen über vier Plattformen fehlt **einer**: Auf
+`debian:12` gibt es kein aktualisierbares Paket, also lässt sich „zurückgehalten"
+dort nicht herstellen. Das Skript nennt ihn „AUF DIESER PLATTFORM NICHT
+HERSTELLBAR" und zählt ihn getrennt.
+
+> **Ein Fall, den die Plattform nicht hergibt, ist kein Fehlschlag — aber er
+> darf auch nicht wie ein Erfolg aussehen.**
+
+**Der Fall `Requested-By` hat dabei am meisten gelehrt.** apt schreibt die Zeile
+nur, wenn `SUDO_UID` gesetzt ist **und** auf einen Benutzer auflöst — `SUDO_USER`
+allein genügt nicht, und eine unbekannte Kennung erzeugt nichts. Der erste Lauf
+setzte `SUDO_UID=1000` fest; in `debian:12` gibt es diesen Benutzer nicht, und
+das las sich wie „diese Plattform schreibt die Zeile nicht".
+
+> **Eine Kennung, die auf niemanden zeigt, erzeugt keine Zeile — und das sieht
+> aus wie ein Merkmal der Plattform.**
 
 **Nur auf einem echten Server messbar:** wie lange ein voller `dist-upgrade`
 läuft (die Zahl entscheidet über die Zeitgrenze der Operation), was passiert,
@@ -626,7 +673,7 @@ CI.
 
 | # | Schritt | Fertig, wenn |
 |---|---|---|
-| 0 | Die Messrunde auf den drei fehlenden Plattformen und die fünf fehlenden Fälle (§2.3) | `tests/apt-messen.sh` ist viermal gelaufen, und die fünf Fälle haben einen Wert neben ihrer Null |
+| 0 | ~~Die Messrunde auf den drei fehlenden Plattformen und die fünf fehlenden Fälle (§2.3)~~ **erledigt am 26. August 2026** | ✔ Der CI-Job `apt-messrunde` fährt sie auf allen vier Plattformen bei jedem Lauf; fünfzehn von sechzehn Fällen hergestellt, der sechzehnte auf `debian:12` nicht herstellbar und als solcher benannt |
 | 1 | **Der Befund M5 behoben, Teile 1 und 2** (§2.1b) — `Apt::refresh()` und die drei lesenden Aufrufer, mit `AptResultTest` | eine unerreichbare Sury lässt `php.version.install` mit einer Meldung **über die Quelle** scheitern, nicht über das Paket |
 | 2 | `AptLock` als die eine Stelle; `PanelUpdate` zieht um | `AptLockReachTest` ist grün und sein Bruch rot |
 | 3 | `system.packages.list` mit dem Leser und `InstLineTest` | die Zahlen stimmen mit der Kommandozeile überein |
@@ -1054,9 +1101,10 @@ Der ausgeschriebene Plan ist `docs/82`.
 
 ## 13. Was offen bleibt und benannt ist
 
-- **Die drei Plattformen aus §2.3** und die **vier** verbliebenen Fälle ohne
-  Nachbarn — die `.dpkg-dist` ist seit §2.1c geschlossen. Wer A1 anfängt, fängt
-  dort an und nicht bei null.
+- ~~**Die drei Plattformen aus §2.3** und die **vier** verbliebenen Fälle ohne
+  Nachbarn~~ — **erledigt am 26. August 2026.** Beides fährt die CI, und §2.3
+  trägt die Antworten auf die drei Erwartungen, die dort standen. Eine davon war
+  falsch.
 - **Die vier Fragen aus §3 sind entschieden** (24. August, Tabelle dort) und
   stehen damit nicht mehr offen. Was sie hinterlassen, ist eine Nachlese, kein
   Rest: Frage 1 hat einen Einwand, der bewusst überstimmt wurde — der Admin

@@ -575,8 +575,10 @@ zuerst „erst nachsehen" sagte und dann den geratenen Wert einsetzte
   Schrift aus `.agent` und gekürzt. Gemessen auf der **echten** Seite hinter
   `artisan serve` — der Container-Aufsatz aus handgeschriebenem Markup kann
   `<style scoped>` grundsätzlich nicht, und genau darum ging es hier.
-- **Die apt-Messrunde auf Debian 12/13 und Ubuntu 22.04** steht seit A1 aus
-  (`docs/83 §5`).
+- ~~**Die apt-Messrunde auf Debian 12/13 und Ubuntu 22.04** steht seit A1 aus~~
+  — **erledigt am 26. August 2026.** Sie fährt jetzt in der CI auf allen vier
+  Zielplattformen, bei jedem Lauf. Die Antworten stehen in `docs/81 §2.3`; eine
+  der drei Erwartungen, die dort standen, war falsch.
 - **Teil 3 von M5** — `panel.update` liest nach dem Neustart seine eigene
   Fassung nach — hängt an A1 Schritt 6.
 - **A3, A4 und A7** haben weiterhin keine Stufe (`docs/20 §9`).

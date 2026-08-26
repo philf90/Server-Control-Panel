@@ -20617,3 +20617,35 @@ Zeile. Eine debconf-Frage in einem Container ohne Terminal wird nie beantwortet;
 der Lauf stünde bis zum Zeitüberschreiten und sagte nicht, worauf er wartet.
 Nachgezählt: 16 apt-Aufrufe in den Arbeitsabläufen, keiner mehr ohne die Angabe.
 Das Skript selbst setzt sie jetzt einmal am Kopf.
+
+### A1 Schritt 0 ist erledigt — und eine Erwartung des Plans war falsch
+
+Die apt-Messrunde fährt auf allen vier Zielplattformen und ist grün. `docs/81
+§2.3` hatte drei Unterschiede erwartet; gemessen ist:
+
+| Erwartung | Antwort |
+|---|---|
+| Debian 12 liefert noch `/etc/apt/sources.list` mit Inhalt | **falsch** — 0 `.list`-Dateien, 1 `.sources`-Datei |
+| Der Name der Sicherheitssuite unterscheidet sich | **richtig**, und feiner: Debian legt sie auf einen eigenen Pfad, Ubuntu auf einen eigenen Rechner |
+| `--error-on=any` auf apt 2.4 | **es gibt ihn** — Rückgabewert 100 auf allen dreien |
+
+> **Eine Erwartung im Plan ist keine Messung.** Die erste hätte den Leser der
+> Quellen auf eine Datei geschickt, die es nicht gibt.
+
+**Und der Befund M5 trägt auf allen vier Plattformen**, statt auf einer gemessen
+und für drei angenommen zu sein: `apt-get update` gibt bei unerreichbarer Quelle
+überall `0` zurück, schreibt 0 Bytes auf stdout und die `W:`-Zeilen auf stderr.
+
+**Fünfzehn von sechzehn Fällen sind hergestellt.** Der sechzehnte ist „ein
+zurückgehaltenes Paket" auf `debian:12`: Das Abbild ist vollständig aktuell, es
+gibt nichts zurückzuhalten. Er steht als „AUF DIESER PLATTFORM NICHT
+HERSTELLBAR" da und zählt getrennt.
+
+Die Zahlen selbst stehen bewusst **nicht** im Plan, sondern im Artefakt jedes
+Laufs. Ein Dokument, das sie festschreibt, veraltet mit dem nächsten Abbild.
+
+**Ein Nebenbefund am bestehenden Messmittel, benannt und nicht behoben:** M6
+meldet auf Debian 12 und 13 „Schlüssel mit Ablaufdatum 48" neben „Gegenprobe:
+pub-Zeilen gesamt 41". Die Messung liest drei Verzeichnisse, die Gegenprobe zwei.
+
+> **Eine Gegenprobe über eine andere Grundgesamtheit als die Messung ist keine.**

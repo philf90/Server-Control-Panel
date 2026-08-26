@@ -111,6 +111,8 @@ final class AgentOperationReachTest extends TestCase
         'web.logs.tail' => 'Liest die letzten Zeilen eines Protokolls.',
         'system.logs.list' => 'Zählt die Protokolle des Servers auf; das Panel führt darüber keinen Bestand.',
         'system.logs.tail' => 'Liest die letzten Zeilen eines Protokolls des Servers — lesend, ohne Vorgang.',
+        'system.packages.list' => 'Liest den Paketstand über apt-get -s; das Panel führt darüber keinen Bestand, und die Antwort ändert nichts.',
+        'system.sources.list' => 'Liest die Paketquellen über apt-get indextargets und die Dateien unter /etc/apt — lesend, ohne Vorgang.',
         'web.isolation.probe' => 'Legt die Selbstprobe des Abnahmelaufs ab und entfernt sie wieder; im Panel steht dazu nichts.',
         'web.logrotate.apply' => 'Schreibt eine logrotate-Datei; im Panel steht dazu nichts.',
         'php.pool.apply' => 'Der Pool gehört zum Abonnement und hat keinen eigenen Zustand im Panel.',

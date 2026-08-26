@@ -20809,3 +20809,49 @@ Aus 18 Zielen wurden 1.
 `SourceListTest` baut seine Prüfkörper selbst — dieser Container hat keine
 abgeschaltete Stanza, keine auskommentierte `.list`-Zeile und keine Datei mit
 mehr als zwei Stanzas. Acht Brüche, jeder einzeln belegt.
+
+### A1 Schritt 5 — die Seite, und ein grüner Messwert über eine Seite von 29 412 px
+
+Die Gruppe „Server" hat einen Menüpunkt **Updates**. Er schliesst die Reihe, die
+den Zustand dieses Servers beschreibt — „Vorgänge" sagt, was gerade läuft,
+„Protokoll", was das Panel getan hat, „Logs", was auf dem Server steht, und
+„Updates", was ansteht. Erst danach beginnt mit „Konten" die andere Frage: wer
+darf.
+
+Die Seite zeigt die Kacheln (aktualisierbar, davon Sicherheit, zurückgehalten,
+würde entfernt), die Pakete mit alter und neuer Fassung, und darunter die
+Paketquellen mit ihren drei Zuständen. Sie **liest nur**; der Knopf, der
+aktualisiert, kommt in Schritt 6.
+
+**Warum Pakete und Quellen auf einer Seite stehen:** Die zweite Liste erklärt
+die erste. „0 Aktualisierungen" hat zwei sehr verschiedene Gründe — der Server
+ist aktuell, oder apt kommt an seine Quellen nicht heran —, und die Zahl allein
+sieht in beiden Fällen gleich aus.
+
+**Der Befund dieses Schritts war grün.** Alle vier Lagen meldeten `dokument=0`,
+Gegenprobe 200/200, `schiebt=0` — und bei 390 px war die Seite **29 412 px
+hoch**: 145 Paketzeilen als gestapelte Kärtchen, rund 203 px je Zeile,
+fünfunddreissig Telefonschirme.
+
+> **Eine Messung, die nur waagerecht misst, sagt über die Höhe nichts.**
+
+Derselbe Schnitt wie bei der Baumansicht aus `docs/46 §11.1`: Dort war der
+waagerechte Überlauf in jedem Entwurf 0, und entschieden wurde die Frage
+senkrecht. Gefunden hat es beide Male kein Messwert, sondern ein Blick auf das
+Bild. Geblättert wird jetzt mit `Page::SIZE` — derselben 50 wie überall sonst,
+und die Zahl reist aus dem Controller statt in der Vorlage zu stehen. Danach:
+11 467 px.
+
+**Und ein zweiter Befund aus demselben Blick.** Die Spalte „Zustand" der
+Quellentabelle stand am Ende und lag bei 1440 px ausserhalb des Bildes. Sie ist
+die Antwort dieser Tabelle: „kein Index" gegen „11 Ziele" ist genau die
+Unterscheidung, für die Schritt 4 gebaut wurde.
+
+> **Eine Spalte, die man wegrollen muss, ist keine Antwort.**
+
+**Vier Fehler hat der Testlauf gefunden, bevor eine CI-Runde fällig war** — und
+das ist neu in diesem Container. `.notice` ist eine Flexbox, und ein Textknoten
+neben einem Element ergibt zwei Spalten (`NoticeChildrenTest`, viermal); eine
+Vorlage entschied die Einzahl selbst statt über `counted()`
+(`CountedNounTest`); und die beiden neuen Operationen fehlten in
+`AgentOperationReachTest`, gleich in zwei Richtungen.

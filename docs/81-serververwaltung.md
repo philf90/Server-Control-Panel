@@ -456,6 +456,34 @@ Proxy dieses Containers sie sperrt.
 
 ---
 
+### 2.3c Der Befund, den die Bilderrunde nicht sehen konnte (26. August 2026)
+
+Die Seite war in allen vier Lagen grün — `dokument=0`, Gegenprobe 200/200,
+`schiebt=0`, `rollt` nur die zwei gewollten Behälter. Und sie war bei 390 px
+**29 412 px hoch**: 145 Paketzeilen als gestapelte Kärtchen, rund 203 px je
+Zeile, **fünfunddreissig Telefonschirme**.
+
+> **Eine Messung, die nur waagerecht misst, sagt über die Höhe nichts.**
+
+Das ist derselbe Schnitt wie bei der Baumansicht aus `docs/46 §11.1`: Der
+waagerechte Überlauf war dort in jedem Entwurf 0, und entschieden wurde die
+Frage senkrecht (4992 px gestapelt gegen 964 px als Baum). Gefunden hat es
+beide Male kein Messwert, sondern ein Blick auf das Bild.
+
+Geblättert wird jetzt mit `Page::SIZE` — derselben 50, mit der jede andere
+Liste dieses Panels blättert; die Zahl reist aus dem Controller und steht nicht
+in der Vorlage. Danach: **11 467 px**.
+
+**Und ein zweiter Befund aus demselben Blick.** In der ersten Fassung stand die
+Spalte „Zustand" der Quellentabelle am Ende — bei 1440 px ausserhalb des
+Bildes. Sie ist die Antwort dieser Tabelle: „kein Index" gegen „11 Ziele" ist
+genau die Unterscheidung, für die Schritt 4 gebaut wurde. Die Tabelle rollte
+also für die eine Auskunft, deretwegen es sie gibt.
+
+> **Eine Spalte, die man wegrollen muss, ist keine Antwort.**
+
+---
+
 **Nur auf einem echten Server messbar:** wie lange ein voller `dist-upgrade`
 läuft (die Zahl entscheidet über die Zeitgrenze der Operation), was passiert,
 wenn das Upgrade `srvpanel` selbst enthält, und ob `systemd-run` den Lauf
@@ -805,7 +833,7 @@ CI.
 | 2 | `AptLock` als die eine Stelle; `PanelUpdate` zieht um | `AptLockReachTest` ist grün und sein Bruch rot |
 | 3 | ~~`system.packages.list` mit dem Leser und `InstLineTest`~~ **erledigt am 26. August 2026** | ✔ Über drei Läufe gegen die Kommandozeile gemessen (`dist-upgrade` ganz, mit Sperrmarkierung, gemischt mit `Remv` und Neuinstallation): alle fünf Zahlen gleich, und **jeder** Zähler mindestens einmal ungleich null |
 | 4 | ~~`system.sources.list` über `indextargets` **und** die Dateien~~ **erledigt am 26. August 2026** | ✔ `ubuntu.sources:1` auf `Enabled: no` — der Eintrag steht weiter in den Dateien (`AUS`, 0 Ziele), die Ziele fallen von 16 auf 4 für diese Datei, und `:2` behält Nummer **und** Ziele. Dazu die dritte Lage: zwei eingeschaltete Quellen ohne Ziel (PPAs, 403 am Proxy) |
-| 5 | Die Seite, beide Themes, 390 px gemessen | `tests/bilder-messen.js` meldet 0 px, mit ausschlagender Gegenprobe |
+| 5 | ~~Die Seite, beide Themes, 390 px gemessen~~ **erledigt am 26. August 2026** | ✔ Vier Lagen gegen die **echte** Seite mit laufendem Agenten: `dokument=0`, Gegenprobe 200/200, `schiebt=0`. Und ein Befund, den diese Messung nicht sieht — siehe §2.3c |
 | 6 | `system.packages.upgrade` über `systemd-run`; dazu **Teil 3 von M5** — `PanelUpdate` liest nach dem Neustart seine eigene Fassung nach | ein Upgrade mit `srvpanel` darin läuft durch, Protokoll vollständig — und ein Lauf, der nichts bewirkt hat, meldet das statt Erfolg |
 | 7 | `system.sources.toggle` und der Neustart-Knopf | `SourceOwnershipTest` ist grün und sein Bruch rot |
 | 8 | `unattended-upgrades` — Zustand aus `apt-config dump`, Schalter | der wirksame Zustand stimmt, wenn ein fremdes Paket dazwischenschreibt |

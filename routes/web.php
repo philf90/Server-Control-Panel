@@ -29,6 +29,7 @@ use App\Http\Controllers\SftpController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\SubscriptionDnsController;
 use App\Http\Controllers\TlsSettingsController;
+use App\Http\Controllers\UpdatesController;
 use App\Http\Middleware\KeepPreviousUrl;
 use App\Models\AuditEvent;
 use App\Models\Customer;
@@ -164,6 +165,22 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/logs', [LogsController::class, 'show'])
         ->middleware('can:operate-server')
         ->name('logs');
+
+    /*
+     * Der Paketstand und die Quellen — P7b A1 Schritt 5.
+     *
+     * **`can:operate-server`**, dieselbe Fähigkeit wie „PHP-Versionen" und
+     * „Datenbankserver": Die Seite beschreibt die Maschine und nicht ein
+     * Abonnement. Welche Fassungen hier laufen, sagt einem Leser, welche
+     * bekannten Lücken dieser Server hat.
+     *
+     * **Nur `GET`.** Diese Stufe liest; der Knopf, der aktualisiert, kommt in
+     * Schritt 6 und braucht `systemd-run`, damit ein Neustart des Panels den
+     * Lauf nicht mitnimmt.
+     */
+    Route::get('/updates', [UpdatesController::class, 'show'])
+        ->middleware('can:operate-server')
+        ->name('updates');
 
     Route::get('/logs/download', [LogsController::class, 'download'])
         ->middleware('can:operate-server')

@@ -2030,6 +2030,53 @@ Testen berücksichtigen:
   Was `--no-dev` kostet, ist wenig: kein `vendor/bin/phpunit` und kein
   `vendor/bin/pint` — beide gibt es als phar, siehe unten, und PHPStan ohnehin.
 
+  **Und seit dem 26. August läuft der volle Testlauf hier — `php artisan test`
+  und alles, was Laravel braucht.** Der einzige harte Blocker war und ist
+  `phpstan/phpstan`; er kommt als Zipball über `api.github.com`, und composer
+  bricht daran den ganzen Lauf ab. Nimmt man ihn und `larastan` aus
+  `composer.json` **und** `composer.lock` heraus, läuft `composer install
+  --prefer-source` durch und legt `vendor/bin/phpunit` ab (12.5.33 gemessen).
+  Danach beide Dateien mit `git checkout --` zurückholen und mit `git status`
+  nachsehen — was hier nicht ins Repo darf, ist die gekürzte Fassung.
+
+  **Was das wert ist, zeigt der erste Lauf:** 2635 Tests, und er fand **vier
+  Fehler in einer frisch gebauten Seite**, für die es sonst vier CI-Runden
+  gebraucht hätte. `phar.phpunit.de` sperrt der Proxy weiterhin, und die
+  GitHub-Releases von PHPUnit tragen kein `phpunit.phar` unter
+  `latest/download` — beides gemessen.
+
+  > **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite
+  > braucht einen Versuch.** Derselbe Satz zum sechsten Mal, diesmal an dem
+  > Werkzeug, dessen Fehlen die Arbeitsweise dieses Repositorys neun Monate
+  > lang bestimmt hat.
+
+- **Den Agenten gibt es hier auch — er muss nur gestartet werden.** Hier stand
+  „kein Agent", und das war eine Aussage über den *laufenden* Dienst, nicht über
+  das Programm. `agent/bin/srvpanel-agentd serve --config=<datei>
+  --socket=/tmp/…sock --unprivileged` läuft, antwortet über den echten Socket
+  und beantwortet echte Operationen; mit `SRVPANEL_AGENT_SOCKET` in der `.env`
+  zeigt das Panel darauf. Gemessen am 26. August 2026 gegen
+  `system.packages.list` und `system.sources.list` — damit sind Aufnahmen einer
+  Seite **mit echten Daten** hier möglich und nicht nur mit „Der Agent antwortet
+  nicht".
+
+  Drei Handgriffe, die Zeit gekostet haben: Der `--config`-Pfad muss **absolut**
+  sein; der Log-Schlüssel heisst `log` und nicht `journal` (sonst schreibt der
+  Dienst nach `/var/log/srvpanel/agent.log` und meldet das in jeder Zeile); und
+  `pkill -f srvpanel-agentd` tötet die eigene Shell mit, weil das Muster auf
+  deren Kommandozeile passt (Rückgabewert 144).
+
+  **Und drei Tests setzen voraus, dass hier kein Agent läuft.**
+  `LoginTest::test_the_health_check_stays_open` erwartet 503,
+  `DomainRouteTest::test_only_an_operator_reaches_the_php_page` prüft eine
+  `live`-Eigenschaft, `DumpSizeTest::test_a_missing_file_is_reported` greift auf
+  den Datenbankserver durch. Mit laufendem Agenten sind alle drei rot, ohne ihn
+  grün — gemessen in beide Richtungen. In der CI läuft keiner, dort sind sie
+  stabil; wer hier den vollen Lauf fährt, hält den Agenten vorher an.
+
+  > **Ein Test, dessen Ergebnis davon abhängt, was gerade nebenher läuft, misst
+  > die Umgebung mit.**
+
   Eine Falle beim Einstellen: `composer config -g github-protocols git` meint
   das git://-Protokoll auf Port 9418 und nicht „per git klonen". Der Wert wurde
   als **leere Liste** abgelegt, und der Lauf brach mit „Failed to clone … via

@@ -20580,3 +20580,40 @@ nichts, und ohne den Abstreifer bleibt er an der heilen Datei genauso grün.
 Fünf Eingriffe im Bruchskript, jeder einzeln gefahren und jeder mit belegtem
 Rückweg. **Was noch nicht gemessen ist:** die drei fehlenden Plattformen selbst
 — gebaut ist das Mittel, der Lauf folgt.
+
+### Der erste Lauf der Messrunde hat zwei Fehler gefunden — beide in ihr selbst
+
+Die apt-Messrunde ist zum ersten Mal auf allen vier Zielplattformen gefahren und
+war auf dreien rot. Kein Befund am Prüfling: alle drei stecken im Messmittel.
+
+**Der erste hätte eine Plattformeigenschaft erfunden.** `Requested-By` blieb auf
+Debian 12 aus, obwohl `SUDO_UID` gesetzt war — das las sich wie „diese Plattform
+schreibt die Zeile nicht". Nachgemessen: apt schreibt sie nur, wenn die Kennung
+**auf einen Benutzer auflöst.** Unbekannte uid 4242 ergibt keine Zeile, bekannte
+uid 1000 ergibt eine. Im `debian:12`-Abbild gibt es keinen Benutzer mit uid 1000.
+
+> **Eine Kennung, die auf niemanden zeigt, erzeugt keine Zeile — und das sieht
+> aus wie ein Merkmal der Plattform.**
+
+Die uid kommt jetzt aus `/etc/passwd`; gibt es keine, legt das Skript einen
+Benutzer an.
+
+**Der zweite ist eine Unterscheidung, die gefehlt hat.** Auf `debian:12` gibt es
+kein aktualisierbares Paket — das Abbild ist vollständig aktuell —, und damit
+lässt sich „zurückgehalten" nicht herstellen. Das ist kein Fehlschlag des
+Skripts, sondern eine Eigenschaft des Abbilds.
+
+> **Ein Fall, den die Plattform nicht hergibt, ist kein Fehlschlag — aber er
+> darf auch nicht wie ein Erfolg aussehen.**
+
+Er wird deshalb laut als „AUF DIESER PLATTFORM NICHT HERSTELLBAR" genannt und
+getrennt gezählt; der Rückgabewert hängt an ihm nicht. Der Abschluss nennt beide
+Zahlen.
+
+**Und der dritte kam von einem Wächter, den es längst gibt.** `PackagingTest`
+verlangt `DEBIAN_FRONTEND=noninteractive` **in derselben Zeile** wie jedes
+`apt-get install` eines Arbeitsablaufs — meine stand am `docker run` statt an der
+Zeile. Eine debconf-Frage in einem Container ohne Terminal wird nie beantwortet;
+der Lauf stünde bis zum Zeitüberschreiten und sagte nicht, worauf er wartet.
+Nachgezählt: 16 apt-Aufrufe in den Arbeitsabläufen, keiner mehr ohne die Angabe.
+Das Skript selbst setzt sie jetzt einmal am Kopf.

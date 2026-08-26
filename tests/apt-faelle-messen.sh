@@ -8,9 +8,9 @@
 # entfernen und nirgends nach /etc zu schreiben; genau deshalb darf es auf
 # `cloudsrv24` laufen. Hier ist das Gegenteil der Zweck: Die vier Fälle kommen
 # nicht von allein vor, sie müssen **hergestellt** werden. Das Skript setzt eine
-# Sperrmarkierung, installiert ein Paket neu und schreibt damit in
-# `/var/log/apt/history.log`. Es gehört in einen Wegwerf-Container und nirgends
-# sonst hin.
+# Sperrmarkierung, installiert ein Paket neu, legt gegebenenfalls einen Benutzer
+# an und schreibt in `/var/log/apt/history.log`. Es gehört in einen
+# Wegwerf-Container und nirgends sonst hin.
 #
 # **Warum es die Fälle überhaupt braucht.** `docs/81 §2.3` führt sie als die
 # Messungen, die auf einer Null ohne Nachbarn standen:
@@ -30,6 +30,12 @@
 # dann ist über die Messung nichts gesagt.
 set -eu
 
+# Ohne die Angabe bleibt eine debconf-Frage in einem Container ohne Terminal
+# unbeantwortet — der Lauf steht bis zum Zeitüberschreiten und sagt nicht,
+# worauf er wartet. Dieselbe Regel hält `PackagingTest` für die Arbeitsabläufe.
+DEBIAN_FRONTEND=noninteractive
+export DEBIAN_FRONTEND
+
 PROBE="${TMPDIR:-/tmp}/apt-faelle.$$"
 HALT=""
 aufraeumen() {
@@ -42,6 +48,7 @@ trap aufraeumen EXIT INT TERM
 mkdir -p "${PROBE}"
 
 OFFEN=0
+UNMOEGLICH=0
 
 titel() { printf '\n=== %s\n' "$1"; }
 wert()  { printf '  %-38s %s\n' "$1" "$2"; }
@@ -63,6 +70,22 @@ paar() {
 ausgefallen() {
     printf '  %-38s %s\n' "$1" "FALL NICHT HERGESTELLT"
     OFFEN=$((OFFEN + 1))
+}
+
+# **Zwei Gründe, aus denen ein Fall fehlt, und nur einer ist ein Fehler.**
+# Der erste Lauf in der CI hat das gelehrt: Auf `debian:12` gibt es kein
+# aktualisierbares Paket, weil das Abbild vollständig aktuell ist. Dann lässt
+# sich „zurückgehalten" nicht herstellen — aus einer Eigenschaft des Abbilds und
+# nicht aus einem Fehler im Skript.
+#
+# > **Ein Fall, den die Plattform nicht hergibt, ist kein Fehlschlag — aber er
+# > darf auch nicht wie ein Erfolg aussehen.**
+#
+# Er wird deshalb laut genannt und getrennt gezählt; der Rückgabewert hängt an
+# ihm nicht.
+unmoeglich() {
+    printf '  %-38s %s\n' "$1" "AUF DIESER PLATTFORM NICHT HERSTELLBAR"
+    UNMOEGLICH=$((UNMOEGLICH + 1))
 }
 
 . /etc/os-release
@@ -121,7 +144,7 @@ KEPT_VORHER="$(grep -ci 'kept back' "${PROBE}/up0.txt" || true)"
 
 HALT="$(apt list --upgradable 2>/dev/null | sed -n 's#^\([a-z0-9][a-z0-9.+-]*\)/.*#\1#p' | head -1)"
 if [ -z "${HALT}" ]; then
-    ausgefallen "kein aktualisierbares Paket"
+    unmoeglich "kein aktualisierbares Paket"
 else
     apt-mark hold "${HALT}" >/dev/null 2>&1
     apt-get -s upgrade > "${PROBE}/up1.txt" 2>/dev/null || true
@@ -191,8 +214,28 @@ else
     apt-get install -y --reinstall -qq hostname >/dev/null 2>&1 || true
     RB_OHNE="$(grep -c '^Requested-By:' "${LOG}" || true)"
 
-    SUDO_UID=1000 apt-get install -y --reinstall -qq hostname >/dev/null 2>&1 || true
-    RB_MIT="$(grep -c '^Requested-By:' "${LOG}" || true)"
+    # **Die Kennung muss auf jemanden zeigen.** Der erste Lauf in der CI hat
+    # `SUDO_UID=1000` fest gesetzt; auf `debian:12` gibt es diesen Benutzer
+    # nicht, apt liess die Zeile weg, und das las sich wie „diese Plattform
+    # schreibt kein Requested-By". Nachgemessen: unbekannte uid 4242 ergibt
+    # keine Zeile, bekannte uid 1000 ergibt eine.
+    #
+    # > **Eine Kennung, die auf niemanden zeigt, erzeugt keine Zeile — und das
+    # > sieht aus wie ein Merkmal der Plattform.**
+    UID_ECHT="$(awk -F: '$3 >= 1000 && $3 < 65534 { print $3; exit }' /etc/passwd)"
+    if [ -z "${UID_ECHT}" ]; then
+        useradd -M -u 4000 messkonto >/dev/null 2>&1 || true
+        UID_ECHT="$(awk -F: '$3 >= 1000 && $3 < 65534 { print $3; exit }' /etc/passwd)"
+    fi
+
+    if [ -z "${UID_ECHT}" ]; then
+        ausgefallen "keine benutzbare uid"
+        RB_MIT="${RB_OHNE}"
+    else
+        wert "benutzte uid" "${UID_ECHT} ($(getent passwd "${UID_ECHT}" | cut -d: -f1))"
+        SUDO_UID="${UID_ECHT}" apt-get install -y --reinstall -qq hostname >/dev/null 2>&1 || true
+        RB_MIT="$(grep -c '^Requested-By:' "${LOG}" || true)"
+    fi
 
     paar "Requested-By-Zeilen" "${RB_VORHER}" "${RB_MIT}"
     wert "Gegenprobe: ohne SUDO_UID" "${RB_OHNE} (unverändert = richtig)"
@@ -200,8 +243,8 @@ else
     tail -6 "${LOG}" | sed 's/^/      /'
 fi
 
-printf '\n=== %s %s: %s von 4 Fällen nicht hergestellt.\n' \
-    "${ID}" "${VERSION_ID}" "${OFFEN}"
+printf '\n=== %s %s: %s von 4 Fällen nicht hergestellt, %s nicht herstellbar.\n' \
+    "${ID}" "${VERSION_ID}" "${OFFEN}" "${UNMOEGLICH}"
 
 # **Der Rückgabewert ist die eigentliche Zusage.** Ein Lauf, der nur druckt,
 # meldet einen ausgefallenen Fall genauso grün wie einen hergestellten — und

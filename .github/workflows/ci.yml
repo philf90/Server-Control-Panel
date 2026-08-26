@@ -750,7 +750,7 @@ jobs:
             -e DEBIAN_FRONTEND=noninteractive \
             "${{ matrix.image }}" sh -c '
               apt-get update -qq >/dev/null 2>&1 || true
-              apt-get install -y -qq gnupg >/dev/null 2>&1 || true
+              DEBIAN_FRONTEND=noninteractive apt-get install -y -qq gnupg >/dev/null 2>&1 || true
               sh tests/apt-messen.sh
               sh tests/apt-faelle-messen.sh
             ' | tee messrunde.txt

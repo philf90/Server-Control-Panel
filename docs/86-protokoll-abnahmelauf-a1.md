@@ -167,4 +167,63 @@ am 9. August 2026 auf demselben Server gemessen worden: Die *Meldung* von
 Gemeldet hat es der Betreiber, nicht die Messung — er hat die fünf Zeilen gegen
 die Seite gehalten, die zwei zeigt.
 
+### Punkt 3d — die Ursache statt des Zustands · **erfüllt**
+
+Der Weg, an dem der Befund entdeckt wurde: eine PHP-Fassung über die Seite
+installieren lassen, während die eigene Quelle tot ist. Vorgang **691**:
+
+    Zustand      fehlgeschlagen
+    Fortschritt  10 %
+    Argumente    {"php_version": "8.1"}
+
+    Die PHP-Paketquelle https://gibtesnicht.invalid/php/ ist nicht erreichbar:
+    Could not resolve 'gibtesnicht.invalid'. Ohne sie kennt apt nur die alten
+    Paketlisten — PHP 8.1 käme veraltet oder gar nicht. Die Installation wurde
+    deshalb nicht begonnen.
+
+**Vier Erwartungen, alle vier getroffen:** Der Vorgang scheitert, die Quelle
+steht mit Namen und Grund da, der Satz sagt dass nicht begonnen wurde — und
+*„Unable to locate package php8.1-fpm"* kommt nicht vor. Das ist die Meldung,
+die ein Betreiber vor A1 bekommen hätte.
+
+**Und `Fortschritt 10 %` belegt es unabhängig vom Satz.**
+`PhpVersionInstall` fragt `hitting(PhpVersions::sourceUris())` bei 10 und
+schaltet erst bei 30 auf „Pakete installieren". Die Zahl sagt damit dasselbe wie
+der Satz, nur ohne ihm zu glauben.
+
+> **Ein Beleg, der neben dem Satz steht, ist mehr wert als der Satz.**
+
+**Der Kontrast zu Befund 1 ist der eigentliche Wert dieses Punktes.** Hier steht
+der Vorgang auf `fehlgeschlagen`, weil er wirklich abgebrochen hat. Der
+Zustandsautomat kann einen **ganzen** Fehlschlag tragen — nur den **halben**
+nicht.
+
+**Kriterium 3 ist damit in der Sache erfüllt**, mit Befund 1 als benannter
+Ausnahme für den Auffrischlauf.
+
+---
+
+**Beobachtung 2 — die alten Listen sind verwaist, nicht fort.**
+
+Der Prüfkörper biegt die `URIs:` um. Danach meldet `apt-cache policy` für
+`php8.1-fpm` und `php8.2-fpm` `Candidate: (none)`, mit der einzigen
+Versionstabellenzeile `100 /var/lib/dpkg/status` — dem Karteileichen-Eintrag.
+
+**Die Listen liegen trotzdem noch da:**
+
+    /var/lib/apt/lists/ppa.launchpadcontent.net_ondrej_php_ubuntu_dists_noble_InRelease
+    …_main_binary-amd64_Packages
+    …_main_i18n_Translation-en
+
+apt indiziert über die **URI** der Quelle und nicht über den Dateinamen. Eine
+geänderte `URIs:` macht damit aus der Quelle eine andere — die alten Listen
+bleiben liegen und gehören zu niemandem mehr.
+
+Das ist beim Ausschreiben zunächst als „der Index ist fort" notiert worden und
+war zu schnell. Für Punkt 3 ändert es nichts: Der Prüfkörper unterscheidet
+weiterhin, weil das Panel die Quelle prüft, **bevor** es apt fragt.
+
+> **Ein Zustand, den man aus der Wirkung erschliesst, ist eine Vermutung, bis
+> jemand die Ursache ansieht.**
+
 <!-- Wird während des Laufs weitergefüllt. -->

@@ -25,10 +25,12 @@ use App\Http\Controllers\OverviewController;
 use App\Http\Controllers\PhpSettingsController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ServerController;
 use App\Http\Controllers\SftpController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\SubscriptionDnsController;
 use App\Http\Controllers\TlsSettingsController;
+use App\Http\Controllers\UpdatesController;
 use App\Http\Middleware\KeepPreviousUrl;
 use App\Models\AuditEvent;
 use App\Models\Customer;
@@ -164,6 +166,108 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/logs', [LogsController::class, 'show'])
         ->middleware('can:operate-server')
         ->name('logs');
+
+    /*
+     * Der Paketstand und die Quellen — P7b A1 Schritt 5.
+     *
+     * **`can:operate-server`**, dieselbe Fähigkeit wie „PHP-Versionen" und
+     * „Datenbankserver": Die Seite beschreibt die Maschine und nicht ein
+     * Abonnement. Welche Fassungen hier laufen, sagt einem Leser, welche
+     * bekannten Lücken dieser Server hat.
+     *
+     * **Nur `GET`.** Diese Stufe liest; der Knopf, der aktualisiert, kommt in
+     * Schritt 6 und braucht `systemd-run`, damit ein Neustart des Panels den
+     * Lauf nicht mitnimmt.
+     */
+    Route::get('/updates', [UpdatesController::class, 'show'])
+        ->middleware('can:operate-server')
+        ->name('updates');
+
+    /*
+     * Eine eigene Paketquelle schalten — A1 Schritt 7.
+     *
+     * **`PUT` und nicht `GET`**, weil es ändert; und der Rumpf trägt den
+     * Wahrheitswert, weil `router.get` seine Werte in die Adresse legt und dort
+     * alles eine Zeichenkette ist (`docs/66`).
+     *
+     * Geschaltet wird ausschliesslich, was das Panel angelegt hat — die Grenze
+     * sitzt im Agenten ({@see \SrvPanel\Agent\Sources::owned()}) und nicht
+     * hier: Wer eine Paketquelle kontrolliert, kontrolliert jedes Paket.
+     */
+    Route::put('/updates/sources', [UpdatesController::class, 'toggle'])
+        ->middleware('can:operate-server')
+        ->name('updates.sources.toggle');
+
+    /*
+     * Die Paketlisten auffrischen — A1 Schritt 6.
+     *
+     * **`POST` und nicht `GET`**, weil `apt-get update` die Sperre nimmt und
+     * schreibt. Ein Griff, der beim Ansehen der Seite mitliefe, wäre auf einem
+     * kalten Server eine Minute Wartezeit, die niemand bestellt hat.
+     *
+     * **Hier steht `can:operate-server`, und `docs/81 §3` Frage 2 will es
+     * anders:** Auffrischen soll auch der Administrator dürfen. Das setzt
+     * voraus, dass er die Seite überhaupt sieht — und die gehört heute ganz
+     * dem Betreiber. Die Umstellung ist ein eigener Schritt und steht in
+     * `docs/81 §2.3h` benannt; eine Route, die weiter reicht als die Seite,
+     * auf der ihr Knopf steht, wäre keine Lösung, sondern eine Ungereimtheit
+     * mehr.
+     */
+    Route::post('/updates/refresh', [UpdatesController::class, 'refresh'])
+        ->middleware('can:operate-server')
+        ->name('updates.refresh');
+
+    /*
+     * Aktualisierungen einspielen — A1 Schritt 6.
+     *
+     * **`can:operate-server`, und zwar unstrittig:** `docs/81 §3` Frage 2 gibt
+     * das Einspielen ausdrücklich nur dem Betreiber. Ein Administrator sieht
+     * den Zustand und bedient ihn nicht.
+     *
+     * **Kein Muster über den Paketnamen — hier nicht und im Panel nirgends.**
+     * Geprüft wird im Agenten gegen die Liste, die er selbst gelesen hat.
+     */
+    Route::post('/updates/install', [UpdatesController::class, 'install'])
+        ->middleware('can:operate-server')
+        ->name('updates.install');
+
+    /*
+     * Die unbeaufsichtigten Updates schalten — A1 Schritt 8.
+     *
+     * **`PUT`, weil ein Zustand gesetzt wird** und nicht etwas ausgelöst: Ein
+     * zweiter Aufruf mit demselben Wert lässt den Server, wie er ist.
+     *
+     * **Der Wahrheitswert steht im Rumpf und nicht in der Adresse** — dort
+     * wird aus `false` das Wort `"false"`, und Laravels Regel `boolean` nimmt
+     * kein Wort (`docs/66`).
+     *
+     * **`can:operate-server`:** `docs/81 §3` Frage 2 gibt das Schalten der
+     * Automatik ausdrücklich nur dem Betreiber.
+     */
+    Route::put('/updates/unattended', [UpdatesController::class, 'unattended'])
+        ->middleware('can:operate-server')
+        ->name('updates.unattended');
+
+    /*
+     * Den Server neu starten — A1 Schritt 7, zweite Hälfte.
+     *
+     * **`/server/reboot` und nicht `/updates/reboot`.** Der Anlass steht an
+     * zwei Stellen — „Ein Neustart steht aus" auf der Updates-Seite, „ein
+     * neuerer Kernel ist installiert" auf der Übersicht —, die Handlung gibt es
+     * einmal. Eine Adresse, die nach einer der beiden Seiten hiesse, wäre auf
+     * der anderen falsch, und A11 hängt seine Nachbarn (Zeitzone des Servers,
+     * NTP) an dieselbe Gruppe.
+     *
+     * **`POST` und nicht `PUT`.** Hier wird nichts auf einen Zustand gesetzt,
+     * sondern etwas ausgelöst; ein zweiter Aufruf ist auch kein zweites Mal
+     * dasselbe, sondern ein zweiter Neustart.
+     *
+     * **`can:operate-server`.** Der Neustart nimmt jedes Abonnement dieses
+     * Servers mit — `docs/20 §6.1`, erstes Merkmal.
+     */
+    Route::post('/server/reboot', [ServerController::class, 'reboot'])
+        ->middleware('can:operate-server')
+        ->name('server.reboot');
 
     Route::get('/logs/download', [LogsController::class, 'download'])
         ->middleware('can:operate-server')

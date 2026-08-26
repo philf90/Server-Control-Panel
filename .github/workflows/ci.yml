@@ -702,6 +702,65 @@ jobs:
   # Die Abhängigkeiten eines Pakets kann man nur prüfen, indem man es allein
   # installiert.
   #
+  # **Die Messrunde vor A1, auf allen vier Zielplattformen.**
+  #
+  # `docs/81 §2.3` führt sie als offen: Gemessen war Ubuntu 24.04, und für
+  # Debian 12, Debian 13 und Ubuntu 22.04 stand im Plan eine Erwartung statt
+  # einer Zahl. Erwartet werden Unterschiede bei `.list` gegen `.sources`, beim
+  # Namen der Sicherheitssuite und bei `--error-on=any` auf apt 2.4.
+  #
+  # Der Plan sah dafür „ein Lauf je Plattform" von Hand vor. Als Job ist es
+  # ähnlich teuer und ergibt etwas anderes — denselben Schritt, den dieses
+  # Projekt in P5b für PostgreSQL schon gegangen ist:
+  #
+  # > **Eine Messung, die einmal jemand von Hand macht, ist ein Datum. Eine, die
+  # > die CI macht, ist eine Zusage.**
+  #
+  # Zwei Skripte, und die Trennung ist keine Formsache: `apt-messen.sh` sagt im
+  # Kopf zu, nichts zu installieren und nichts zu ändern — deshalb darf es auf
+  # einem echten Server laufen. `apt-faelle-messen.sh` stellt die vier Fälle
+  # her, die von allein nicht vorkommen, und gehört genau deshalb ausschliesslich
+  # in einen Wegwerf-Container. Es meldet seinen Rückgabewert nach der Zahl der
+  # Fälle, die es **nicht** herstellen konnte; ein Lauf, der nur druckt, wäre
+  # bei einem ausgefallenen Fall genauso grün wie bei vieren.
+  apt-messrunde:
+    name: apt-Messrunde auf ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Debian 12
+            image: debian:12
+          - name: Debian 13
+            image: debian:13
+          - name: Ubuntu 22.04
+            image: ubuntu:22.04
+          - name: Ubuntu 24.04
+            image: ubuntu:24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # Im Container und nicht auf dem Runner: Der Runner ist Ubuntu, und eine
+      # Messung, die viermal dieselbe Plattform misst, ist keine.
+      - name: Messrunde und die vier Fälle
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD:/repo" -w /repo \
+            -e DEBIAN_FRONTEND=noninteractive \
+            "${{ matrix.image }}" sh -c '
+              apt-get update -qq >/dev/null 2>&1 || true
+              DEBIAN_FRONTEND=noninteractive apt-get install -y -qq gnupg >/dev/null 2>&1 || true
+              sh tests/apt-messen.sh
+              sh tests/apt-faelle-messen.sh
+            ' | tee messrunde.txt
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: apt-messrunde-${{ matrix.name }}
+          path: messrunde.txt
+
   # Der Job oben spielt PHP samt Erweiterungen vorher ein — denselben Weg geht
   # install.sh, und deshalb war dort nie zu sehen, dass das Paket `php8.4-mysql`
   # nicht als Abhängigkeit führte. Wer `apt install srvpanel` tippte, bekam ein
@@ -938,7 +997,11 @@ jobs:
           # dieses Projekts. SC1090 desgleichen für den Pfad aus einer Variablen.
           shellcheck -e SC1091 packaging/install.sh packaging/php-source.sh packaging/scripts/*.sh
           shellcheck packaging/version-channel.sh packaging/release-notes.sh
-          shellcheck -e SC1091 packaging/bin/php packaging/bin/php-fpm packaging/bin/srvpanel
+          # Das ganze Verzeichnis und keine Namensliste: `apt-run` und `cron-run`
+          # standen hier nicht, und `SystemPackagesUpgrade` begründet seine
+          # Bauart damit, dass shellcheck über dieses Verzeichnis fährt.
+          # `ShellCheckReachTest` hält die Begründung an der Tatsache.
+          shellcheck -e SC1091 packaging/bin/*
           shellcheck -e SC1090,SC1091 packaging/build.sh packaging/testbed.sh packaging/rotate-signing-keys.sh
 
   supply-chain:

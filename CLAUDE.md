@@ -21,10 +21,18 @@ DNS.
 Protokoll **`docs/84`**. Im selben Lauf sind **A1 Schritt 1** (Punkt 11, M5 auf
 einem echten Server) und **A5** (Punkt 12) belegt.
 
-**P7b ist damit nicht fertig.** Offen sind **A1 Schritt 0** (die Messrunde auf
-Debian 12/13 und Ubuntu 22.04) und **A1 Schritt 6**, an dem Teil 3 von M5 hängt;
-A3, A4 und A7 haben weiterhin keine Stufe. Die sechzehn Befunde und sechs
-Beobachtungen des Laufs stehen mit ihrer Baureihenfolge in `docs/84 §7`.
+**P7b ist damit nicht fertig.** Von **A1** sind die Schritte 0 bis 9 gebaut
+(`docs/81 §9`) — **offen ist Schritt 10, der Abnahmelauf**: Er steht seit dem
+26. August als **`docs/85`** ausgeschrieben da und ist **nicht gefahren**. Ohne
+ihn ist A1 nicht abgenommen, und zwar aus einem Grund, der in seinem Punkt 5
+steht: Dass eine transiente Unit den Neustart von `srvpanel-worker` überlebt,
+wenn `srvpanel` selbst im Lauf steckt, behauptet dieses Projekt seit P0 und
+belegt hat es nur der eigene Gebrauch.
+
+Ebenfalls offen und benannt: die **Rollenteilung** aus `docs/81 §3` Frage 2 (die
+Updates-Seite gehört ganz dem Betreiber, `docs/81 §2.3h`); A3, A4 und A7 haben
+weiterhin keine Stufe. Die sechzehn Befunde und sechs Beobachtungen des
+A9-Laufs stehen mit ihrer Baureihenfolge in `docs/84 §7`.
 
  P6 ist am **21. August 2026** auf `cloudsrv24`
 gegen `v0.6.0-rc.24` abgenommen — der Angriffsdurchgang (`docs/62`) und der
@@ -1248,7 +1256,21 @@ deklariert einen Namen, der der Basisklasse gehört — er spiegelt deren
 `<style>`-Block einer `.vue` steht auf oberster Ebene und nicht im
 Vorlagenblock, wo der Übersetzer ihn wegwirft — die Regel, die
 `ClassReachTest` nicht halten konnte, weil er eine Zeichenkette suchte statt
-eines Blocks). Der Bruch selbst steht als
+eines Blocks) und `ShellCheckReachTest` (jedes Shellskript unter `packaging/` kommt bei
+shellcheck vorbei, **und** jeder Pfad, den der Schritt nennt, deckt auch etwas —
+die zweite Richtung ist die, an der ein toter Eintrag wirklich entsteht) und
+`RebootConfirmTest` (der Neustart wird über `systemd-run`
+**abgesetzt** und nicht im Agenten ausgeführt; der Rechnername wird auf dem
+Server geprüft, und zwar gegen dieselbe Quelle, aus der die Seite ihn zeigt —
+gefragt wird der Programmname **an der Aufrufstelle** und nicht die
+Zeichenkette „systemctl" irgendwo in der Datei) und `PackageNameTest` (ein
+Paketname kommt aus der Antwort, die der Agent selbst gerade gelesen hat, und
+nicht aus einem Muster — gemessen an den Namen, die apt **als Option**
+schluckt; dazu: der benannte Lauf benutzt kein `--only-upgrade`, weil das ein
+noch nicht installiertes Paket wortlos überginge) und `UnattendedStateTest`
+(der Zustand der Automatik kommt aus `apt-config dump` und nicht aus der
+eigenen Datei; eine fehlende Zeile heisst **an** und nicht aus; das Ausschalten
+nimmt das Auffrischen der Listen nicht mit). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -1283,6 +1305,52 @@ lautet `(?<![=!<>])=(?!=)`.
 
 > **Ein Ausdruck, der eine Zuweisung sucht, findet jeden Vergleich mit, solange
 > er das Gleichheitszeichen nicht abgrenzt.**
+
+**Und derselbe Fehler eine Ebene tiefer, am 26. August 2026:** `PartialReloadTest`
+las PHP **byteweise** und hielt jedes `"` für den Anfang einer Zeichenkette.
+Deutsche Anführungszeichen stehen in diesem Repo als `„…"` — die öffnende ist
+U+201E, die schliessende ein gewöhnliches `"` (1214 gegen ein einziges U+201C,
+ausgezählt). Ein Kommentar mit einem Zitat mehr verschob alles danach; die
+schliessende eckige Klammer eines `Inertia::render` wurde nie gefunden, die
+Seite fiel aus der Liste, und der Wächter meldete seine **Untergrenze** — also
+rot für einen Grund, der mit seiner Regel nichts zu tun hat.
+
+> **Ein Wächter, der Anführungszeichen zählt, zählt die des Fliesstextes mit —
+> und ob er zubeisst, entscheidet die Parität.**
+
+**Und dieselbe Blindheit eine Stunde später, aus einem anderen Grund:** Der
+Aufruf von `apt-get update` zog am 26. August aus PHP in ein Shell-Skript unter
+`packaging/bin`. `AptResultTest` und `AptLockReachTest` lesen beide **nur
+PHP** — sie hätten weiter Grün gemeldet für eine Stelle, die sie gar nicht mehr
+sehen. Gefangen hat es keine der beiden Regeln, sondern ihre Untergrenzen: Die
+namentlich genannte Stelle „ruft kein `apt-get update` mehr".
+
+> **Ein Aufruf, der in ein Skript umzieht, ist für einen Ausdruck über
+> PHP-Quelltext verschwunden — nicht harmlos geworden.**
+
+**Und derselbe ASCII-Anführungsstrich noch einmal, diesmal in einer Shell.**
+`tests/waechter-brechen.sh` liess sich eine halbe Stunde lang nicht von `bash`
+parsen, weil eine Überschrift `„aus"` schrieb statt `„aus\"`. **Acht Prüfungen
+über das Skript blieben dabei grün** — sie lesen seinen Text, statt ihn zu
+fahren.
+
+> **Ein Bruchskript, das sich nicht einliest, prüft keine einzige Regel — und
+> jede Prüfung darüber bleibt grün.**
+
+`BreakScriptTest::test_the_script_itself_parses` fährt seitdem `bash -n`. Sein
+Gegenbeweis steht **im Test** und nicht im Skript: Ein Eingriff müsste das
+Bruchskript selbst verändern, und das nimmt der Rückweg zu Recht aus.
+
+Dabei fiel ein Loch auf, das älter war: `apt-get -q update` traf der Ausdruck
+nicht, weil er `apt-get` unmittelbar vor `update` verlangte.
+
+> **Ein Ausdruck, der die gewohnte Schreibweise kennt, prüft die Gewohnheit und
+> nicht die Regel.**
+
+Die Antwort steht seit langem im Repo: `Tests\Support\WithoutPhpComments` fragt
+`token_get_all()`, also den Parser. Zehn Wächter benutzten ihn, dieser nicht.
+**Wer einen Wächter über PHP-Quelltext baut, streift die Kommentare ab, bevor er
+zählt** — gleich, ob er Klammern, Anführungszeichen oder `//` sucht.
 
 **Und die teuerste Falle dieses Tages: ein Fehler, den kein Wächter sehen
 kann, weil er in den Klammern steht.** `})})` in einer `.vue` — die
@@ -1500,7 +1568,13 @@ Projekts in Zahlen, die drei Grenzen, was dieser Container kann und was nicht
 Adminfunktionen im Besonderen gilt, und was der neuen Sitzung mitzugeben ist.
 Sie ersetzt den Plan der Adminfunktionen nicht — der ist anderswo entstanden.
 
-Und aus P7b: **`80` die Bestandsaufnahme** · **`81` der Plan** (A1 vollständig,
+Und aus P7b: **`85` der Abnahmelauf für A1** — fünfzehn Punkte auf einem echten
+Server, **noch nicht gefahren**. Punkt 5 ist der Grund, dass es ihn gibt: Dass
+eine transiente Unit den Neustart von `srvpanel-worker` überlebt, wenn `srvpanel`
+selbst im Lauf steckt, **behauptet dieses Projekt seit P0** und belegt hat es nur
+der eigene Gebrauch. §5 sagt, was der Lauf ausdrücklich nicht prüft, §6, welche
+zwei Punkte als „nicht messbar" ausfallen dürfen und welcher nicht, §7 was danach
+zu bauen bleibt. · **`80` die Bestandsaufnahme** · **`81` der Plan** (A1 vollständig,
 die übrigen als Skizze) · **`82` Rollen und Konten** — der Plan von A9, mit den
 zwei Achsen, dem Aussperrschutz und der Netzbeschränkung; §2.4 ist einmal
 berichtigt worden, weil er eine Passworterzeugung auf dem Server vorsah, die
@@ -1930,6 +2004,16 @@ Testen berücksichtigen:
   > **Ein Aufsatz, der das echte Markup und das gebaute Stylesheet benutzt, misst
   > die echte Seite — und nicht etwas Ähnliches.**
 
+  **Mit einer Falle, die am 26. August fast eine Messung gekostet hätte: Es sind
+  zwei Stylesheets, nicht eines.** Der Eintrag `resources/js/app.ts` im Manifest
+  führt beide — in dem einen stehen die Seitenregeln aus `app.css`, in dem
+  anderen die `scoped`-Regeln **aller** Komponenten. Wer „das" Stylesheet aus
+  dem Manifest nimmt, bekommt eine Seite, auf der jede Komponentenregel fehlt,
+  und weil die Seitenregeln da sind, sieht sie aus wie eine Seite.
+
+  > **Ein Aufsatz, der ein Stylesheet von zweien nimmt, misst eine Seite ohne
+  > die Regeln jeder Komponente — und das Ergebnis sieht aus wie eines.**
+
   **Mit einer Grenze, die am 17. August fast einen Fehlbefund gekostet hätte:
   `<style scoped>` gilt in diesem Aufsatz nicht.** Vite übersetzt so eine Regel
   zu `.usage[data-v-1ecda25a]`, und handgeschriebenes Markup ohne dieses
@@ -1987,6 +2071,127 @@ Testen berücksichtigen:
   vermessen worden: Die Metadaten von packagist antworten mit **200**,
   `codeload.github.com` mit **403**. Composer löst also auf und scheitert beim
   Herunterladen.
+
+  **Und `composer install` geht doch — mit drei Einstellungen.** Der Satz oben
+  stimmt für den Aufruf, wie man ihn tippt, und er hat neun Monate lang die
+  Arbeitsweise dieses Repositorys bestimmt: kein `vendor/`, also kein
+  `artisan serve`, kein echter Testlauf, keine Aufnahme einer echten Seite — und
+  jede Änderung an `app/`, `agent/` oder `tests/` kostet eine CI-Runde.
+
+  Gemessen am 26. August 2026 ist die Sperre schmaler als der Satz. `git clone
+  https://github.com/…` **funktioniert** hier, über dieselbe Leitung, über die
+  dieses Repo gepusht wird. Composer benutzt sie nur nicht: Es fragt die
+  GitHub-API nach einer Zipball-Adresse, und die sperrt der Proxy. Drei
+  Einstellungen drehen das um:
+
+      composer config -g use-github-api false
+      composer config -g github-protocols https
+      COMPOSER_ALLOW_SUPERUSER=1 composer install --prefer-source --no-dev
+
+  Ergebnis: `vendor/autoload.php`, 403 MB, `php artisan --version` meldet
+  Laravel 13.23.0. Damit laufen `artisan serve`, Migrationen, `srvpanel:admin`
+  und Aufnahmen **echter Seiten** in diesem Container.
+
+  **`--no-dev` ist kein Nebensatz, sondern der Kern.** Der einzige harte Blocker
+  war `phpstan/phpstan`: Es kommt als Zipball über `api.github.com`, der Proxy
+  antwortet **403**, und composer deutet 403 als „Anmeldung nötig" und bricht
+  **den ganzen Lauf** ab — nachdem 22 Pakete bereits erfolgreich geklont waren.
+  Ein einziges Entwicklungspaket verhinderte so alle Laufzeitabhängigkeiten.
+
+  > **Ein Abbruch, der nach dem ersten Fehlschlag alles verwirft, macht aus
+  > einem gesperrten Paket eine gesperrte Umgebung.**
+
+  Was `--no-dev` kostet, ist wenig: kein `vendor/bin/phpunit` und kein
+  `vendor/bin/pint` — beide gibt es als phar, siehe unten, und PHPStan ohnehin.
+
+  **Und seit dem 26. August läuft der volle Testlauf hier — `php artisan test`
+  und alles, was Laravel braucht.** Der einzige harte Blocker war und ist
+  `phpstan/phpstan`; er kommt als Zipball über `api.github.com`, und composer
+  bricht daran den ganzen Lauf ab. Nimmt man ihn und `larastan` aus
+  `composer.json` **und** `composer.lock` heraus, läuft `composer install
+  --prefer-source` durch und legt `vendor/bin/phpunit` ab (12.5.33 gemessen).
+  Danach beide Dateien mit `git checkout --` zurückholen und mit `git status`
+  nachsehen — was hier nicht ins Repo darf, ist die gekürzte Fassung.
+
+  **Was das wert ist, zeigt der erste Lauf:** 2635 Tests, und er fand **vier
+  Fehler in einer frisch gebauten Seite**, für die es sonst vier CI-Runden
+  gebraucht hätte. `phar.phpunit.de` sperrt der Proxy weiterhin, und die
+  GitHub-Releases von PHPUnit tragen kein `phpunit.phar` unter
+  `latest/download` — beides gemessen.
+
+  > **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite
+  > braucht einen Versuch.** Derselbe Satz zum sechsten Mal, diesmal an dem
+  > Werkzeug, dessen Fehlen die Arbeitsweise dieses Repositorys neun Monate
+  > lang bestimmt hat.
+
+- **Den Agenten gibt es hier auch — er muss nur gestartet werden.** Hier stand
+  „kein Agent", und das war eine Aussage über den *laufenden* Dienst, nicht über
+  das Programm. `agent/bin/srvpanel-agentd serve --config=<datei>
+  --socket=/tmp/…sock --unprivileged` läuft, antwortet über den echten Socket
+  und beantwortet echte Operationen; mit `SRVPANEL_AGENT_SOCKET` in der `.env`
+  zeigt das Panel darauf. Gemessen am 26. August 2026 gegen
+  `system.packages.list` und `system.sources.list` — damit sind Aufnahmen einer
+  Seite **mit echten Daten** hier möglich und nicht nur mit „Der Agent antwortet
+  nicht".
+
+  Drei Handgriffe, die Zeit gekostet haben: Der `--config`-Pfad muss **absolut**
+  sein; der Log-Schlüssel heisst `log` und nicht `journal` (sonst schreibt der
+  Dienst nach `/var/log/srvpanel/agent.log` und meldet das in jeder Zeile); und
+  `pkill -f srvpanel-agentd` tötet die eigene Shell mit, weil das Muster auf
+  deren Kommandozeile passt (Rückgabewert 144).
+
+  **Und drei Tests setzen voraus, dass hier kein Agent läuft.**
+  `LoginTest::test_the_health_check_stays_open` erwartet 503,
+  `DomainRouteTest::test_only_an_operator_reaches_the_php_page` prüft eine
+  `live`-Eigenschaft, `DumpSizeTest::test_a_missing_file_is_reported` greift auf
+  den Datenbankserver durch. Mit laufendem Agenten sind alle drei rot, ohne ihn
+  grün — gemessen in beide Richtungen. In der CI läuft keiner, dort sind sie
+  stabil; wer hier den vollen Lauf fährt, hält den Agenten vorher an.
+
+  > **Ein Test, dessen Ergebnis davon abhängt, was gerade nebenher läuft, misst
+  > die Umgebung mit.**
+
+  **Und dasselbe ohne einen laufenden Prozess, am 26. August 2026: Es genügt,
+  was von einer Messrunde *liegenbleibt*.** `SourceOwnershipTest` war in der CI
+  rot und hier grün, mit demselben Code — `Sources::isOwned()` löste über
+  `realpath()` auf, und im Container lag ein `srvpanel.sources`, das die
+  Messrunde zu A1 Schritt 7 Stunden vorher hinterlassen hatte.
+
+  > **Ein Test, dessen Ergebnis davon abhängt, was gerade nebenher liegt, misst
+  > die Umgebung genauso mit — und dagegen hilft kein Anhalten.**
+
+  Wer hier misst, räumt seinen Prüfkörper hinterher weg; wer einen Wächter baut,
+  gibt ihm einen Prüfkörper, den die Umgebung nicht liefern kann.
+
+  **Und zwei weitere setzten voraus, dass hier niemand gebaut hat** — bis zum
+  26. August 2026. `PreviousUrlTest` schickte `X-Inertia-Version: ''`, und
+  Inertia trägt dort den Stand der Bauartefakte ein: Weicht er ab, kommt **409**
+  statt der Seite. In der CI läuft `php artisan test` **vor** `npm run build`,
+  also gibt es kein `public/build/manifest.json`, die Fassung ist `null`, und
+  die leere Kopfzeile passte. Wer hier `npm run build` fährt — und das tut jede
+  Bilderrunde —, hatte danach zwei rote Tests ohne einen kaputten Code.
+  Gemessen in beide Richtungen: mit Manifest 0 von 2, ohne Manifest 2 von 2.
+  Behoben; gefragt wird die Fassung jetzt bei der Mittelschicht, die sie setzt.
+
+  > **Eine Kopfzeile mit einem Wert, den der Browser nie sendet, ist derselbe
+  > Fehler wie eine, die er nie sendet — sie fällt nur später auf.**
+
+  **Und ohne Warteschlange bleibt jeder Vorgang auf `wartet` stehen.**
+  `QUEUE_CONNECTION=database`, und niemand arbeitet sie ab; die Vorgangsseite
+  zeigt dann „wartet" und `Fortschritt 0 %`, was wie ein hängender Agent
+  aussieht. Der Griff ist `php artisan queue:work --queue=operations --once` —
+  **mit** der Warteschlange, denn ohne `--queue` bedient der Arbeiter `default`
+  und findet nichts.
+
+  Eine Falle beim Einstellen: `composer config -g github-protocols git` meint
+  das git://-Protokoll auf Port 9418 und nicht „per git klonen". Der Wert wurde
+  als **leere Liste** abgelegt, und der Lauf brach mit „Failed to clone … via
+  protocols" ab — mit einer Lücke da, wo das Protokoll stehen sollte.
+
+  > **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite
+  > braucht einen Versuch.** Derselbe Satz wie bei MariaDB, beim `sshd`, bei
+  > PowerDNS und bei PHPStan — diesmal an der Aussage, die diese Datei am
+  > häufigsten benutzt hat.
 
   - **`pint.phar` gibt es von den GitHub-Releases, und es *ist* Pint.** In P4
     stand hier, man müsse sich mit `php-cs-fixer.phar` behelfen und dessen
@@ -2139,9 +2344,54 @@ Testen berücksichtigen:
   > **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
   > gefahren — man denkt an das Gebaute und nicht an das Berührte.**
 
-  **Und ein einzelner Eingriff des Bruchskripts lässt sich hier ebenfalls
-  fahren.** `tests/waechter-brechen.sh` als Ganzes braucht `vendor/bin/phpunit`
-  und läuft nicht — der einzelne Eingriff schon: Datei sichern, den
+  **Und das Bruchskript läuft hier — seit dem 26. August im Ganzen.** Hier
+  stand, es brauche `vendor/bin/phpunit` und laufe deshalb nicht; mit dem
+  `vendor/` von oben ist der volle Lauf ein Aufruf. Gemessen am 26. August:
+  **1527 Prüfungen, `FEHLT: 0`, „Alle Wächter beissen."**, Arbeitsbaum davor und
+  danach derselbe.
+  Er dauert gut zwanzig Minuten und gehört deshalb in den Hintergrund und in
+  eine Datei.
+
+  **Und während er läuft, wird nicht am Repo gearbeitet.** `wiederherstellen()`
+  fährt nach **jedem** Eingriff ein `git checkout --` über zwölf Bäume; ein
+  zweiter Schreiber verliert darin seine Arbeit, und ein `git add -A` in einem
+  offenen Bruchfenster nimmt den Eingriff mit. Am 26. August genau so passiert,
+  beides in einem Commit: die Ergänzungen an `docs/81` waren fort, und
+  `app/Console/Commands/Databases.php` stand mit `$fehlt = null;` statt seiner
+  Prüfung im Repo — committet und gepusht.
+
+  > **Ein Werkzeug, das den Arbeitsbaum herstellt, duldet keinen zweiten
+  > Schreiber** — es nimmt ihm seine Arbeit weg und schiebt ihm seine eigene
+  > unter.
+
+  Gefunden hat es kein Wächter, sondern `git show --stat` — die Dateiliste des
+  eigenen Commits, gelesen statt überflogen. Im `git status` sieht beides aus
+  wie nichts: Der eine Schaden ist eine Datei, die *fehlt*, der andere eine,
+  die *dazugehört*.
+
+  > **Ein Commit, dessen Dateiliste man nicht liest, ist eine Zusage über
+  > Änderungen, die man nicht gesehen hat.**
+
+  **Aber nur mit fester Umgebung.** In einer Agentensitzung verpacken `AI_AGENT`
+  und `CLAUDECODE` die Ausgabe von PHPUnit als eine Zeile JSON; `pruefe()` sucht
+  `OK (` und `FAILURES!` und fällt damit bei **jeder** Prüfung in den Zweig
+  „unlesbar". Der Kopf des Skripts nimmt beide seitdem selbst heraus —
+  dieselbe Antwort, die `Runner::ENVIRONMENT` seit P0 für den Agenten gibt.
+
+  > **Ein Parser, der zwischen zwei Umgebungen hin- und hergebaut wird, ist
+  > nicht falsch geschrieben — er misst eine Umgebung, die niemand festgelegt
+  > hat.** Dieser Leser ist genau das zweimal gewesen: einmal auf JSON, weil er
+  > in einer Agentensitzung entstand, und zurück auf Text, weil er in der CI
+  > nichts fand.
+
+  **Drei Brüche kann das Skript grundsätzlich nicht fahren** — die zu
+  `BreakScriptTest` und die beiden zu `ChangelogTest`. Sie ändern das Skript
+  selbst beziehungsweise `CHANGELOG.md`, und der Rückweg fasst beides zu Recht
+  nicht an. Die Befehlsfolge steht im Kopf des jeweiligen Tests; gefahren werden
+  sie von Hand, und **gesichert wird mit `cp`**: Liegt am Ziel eine eigene, noch
+  nicht eingecheckte Änderung, nähme `git checkout --` sie mit.
+
+  **Der einzelne Eingriff geht auch ohne all das** — Datei sichern, den
   Python-Block von Hand anwenden, den Wächter im Gestell fahren, Datei
   zurückholen. Am 20. August hat genau das einen Wächter überführt, der
   **wirkungslos** war, obwohl der Eingriff die Datei nachweislich veränderte
@@ -2149,7 +2399,9 @@ Testen berücksichtigen:
   belegt ihn so, statt ihn ungeprüft zu pushen.
 
   > **„Das Bruchskript läuft hier nicht" ist keine Ausrede, sondern ein
-  > Handgriff mehr.**
+  > Handgriff mehr.** Und seit dem 26. August ist der Satz selbst nicht mehr
+  > wahr — derselbe wie bei MariaDB, beim `sshd`, bei PowerDNS, bei PHPStan und
+  > bei Composer.
 
   **Und welche Eingriffe man fährt, sagt nicht das Gedächtnis, sondern der
   Zweig:** alle, deren `vorher_datei` eine Datei nennt, die dieser Zweig

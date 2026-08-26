@@ -88,6 +88,20 @@ final class OverviewController extends Controller
             'services' => fn (): array => $this->services($agent),
             'filesystems' => fn (): array => $this->filesystems($system()),
             'processes' => fn (): array => $this->processes($system()),
+
+            /*
+             * **Der Neustart-Knopf hängt an der Kernelzeile** (`docs/81 §6`).
+             * Steht dort „ein neuerer ist installiert", ist das der Anlass —
+             * und die Handlung soll daneben stehen und nicht in einem Menü.
+             *
+             * **Auch als Verschluss, aus demselben Grund wie die anderen
+             * sechs:** Der Selbstlauf der Kacheln lädt alle dreissig Sekunden
+             * mit `only: ['tiles']` nach. Stünde der Wert hier ohne Verschluss,
+             * liefe `SrvPanel\Agent\Names::host()` bei jedem Takt mit —
+             * und das ist im ungünstigsten Fall eine Rückwärtsauflösung über
+             * den Namensdienst.
+             */
+            'reboot' => fn (): array => ServerController::prompt(),
         ]);
     }
 

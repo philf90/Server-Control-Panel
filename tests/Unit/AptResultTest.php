@@ -7,6 +7,7 @@ namespace Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use SrvPanel\Agent\Apt;
 use SrvPanel\Agent\Result;
+use Tests\Support\WithoutHashComments;
 use Tests\Support\WithoutPhpComments;
 
 /**
@@ -56,31 +57,47 @@ use Tests\Support\WithoutPhpComments;
  * ## Was ausserhalb dieser Regel liegt, und warum
  *
  * `packaging/php-source.sh` ruft am Ende ebenfalls `apt-get update -qq`. Das
- * ist ein Shell-Skript im `postinst` eines Pakets — es kann nicht über eine
- * PHP-Klasse gehen, und es installiert nichts, dessen Fassung von der
- * Auffrischung abhinge. Die Regel hier gilt für den Agenten und die Anwendung.
+ * ist ein Shell-Skript im `postinst` eines Pakets — es läuft **einmal beim
+ * Einrichten** und installiert nichts, dessen Fassung von der Auffrischung
+ * abhinge.
+ *
+ * **Gelesen werden deshalb Agent, Anwendung und `packaging/bin`** — also die
+ * Programme, die das Panel im Betrieb ruft. Was im `postinst` steht, gehört
+ * dem Paket und nicht dem laufenden Panel; wer diese Grenze verschiebt, nimmt
+ * `php-source.sh` mit und braucht dort eine Ausnahme.
  */
 final class AptResultTest extends TestCase
 {
+    use WithoutHashComments;
     use WithoutPhpComments;
 
     /** Die eine Stelle, an der `apt-get update` stehen darf. */
     private const HOME = 'agent/src/Apt.php';
 
     /**
-     * Wer sonst noch `apt-get update` ruft — und warum das (noch) so ist.
+     * Wer sonst noch `apt-get update` ruft — und warum das so ist.
      *
      * **Eine benannte Ausnahme ist keine Erlaubnis, sondern eine Schuld mit
-     * Adresse.** Sie steht hier, damit sie nicht als erledigt durchgeht;
-     * `docs/81 §9` führt sie als Teil 3 von M5 in Schritt 6.
+     * Adresse.** Hier stand bis zum 26. August 2026 `PanelUpdate` mit dem
+     * Vermerk „Teil 3 von M5, Schritt 6" — die Schuld ist eingelöst, und die
+     * Zeile ist fort.
+     *
+     * **Dafür steht jetzt eine andere da, und sie ist eine andere Art
+     * Ausnahme:** `SrvPanel\Agent\Ops\SystemPackagesUpgrade::RUNNER`
+     * ruft `apt-get update` in einer Shell und **prüft seinen Rückgabewert
+     * bewusst nicht** — es vergleicht statt dessen die installierte Fassung
+     * vor und nach dem Lauf. Das ist nicht dieselbe Prüfung wie {@see Apt},
+     * aber es beantwortet dieselbe Frage, und zwar strenger:
+     *
+     * > **Wenn die Fassung danach dieselbe ist, ist es gleichgültig, warum.**
      *
      * @var array<string,string>
      */
     private const EXCEPTIONS = [
-        'agent/src/Ops/PanelUpdate.php' => 'Der Lauf liegt in einer eigenen transienten Unit, damit er den Neustart des Agenten '
-            .'überlebt; seine Ausgabe geht in eine Datei. Wer sie hier läse, wartete auf ein Update, '
-            .'das genau diesen Prozess beendet. Teil 3 von M5 liest statt dessen nach dem Neustart '
-            .'die eigene Fassung nach — Schritt 6 in docs/81 §9.',
+        'packaging/bin/apt-run' => 'Ruft `apt-get update` im Modus `panel` und liest seinen Rückgabewert '
+            .'ausdrücklich nicht. Entschieden wird an der installierten Fassung vor und nach dem Lauf — '
+            .'sie fällt gleich aus, ob eine Quelle tot war, ob die Listen alt waren oder ob es nichts '
+            .'Neues gab. Teil 3 von M5, docs/81 §2.1b.',
     ];
 
     /**
@@ -99,7 +116,18 @@ final class AptResultTest extends TestCase
         // Kommandozeile folgt eine Fahne, ein `&&`, eine Umleitung oder das
         // Ende — nie ein Wort. In „apt-get update ist fehlgeschlagen" folgt
         // eines, und das ist ein Satz und kein Befehl.
-        'shell' => '/apt-get\s+update(?!\s*[a-zA-Z])/',
+        //
+        // **Die Fahnen davor sind am 26. August 2026 dazugekommen, und ihr
+        // Fehlen war ein Loch.** Der Ausdruck verlangte `apt-get` unmittelbar
+        // vor `update`; ein `apt-get -q update` in einer Shell fiel damit
+        // durch, und genau so steht es im Skript, das seit diesem Tag den
+        // Lauf des Panels absetzt. Gefunden hat es nicht das Nachdenken,
+        // sondern die Untergrenze daneben: Die Ausnahme meldete „ruft kein
+        // apt-get update mehr".
+        //
+        //   Ein Ausdruck, der die gewohnte Schreibweise kennt, prüft die
+        //   Gewohnheit und nicht die Regel.
+        'shell' => '/apt-get\s+(?:-\S+\s+)*update(?!\s*[a-zA-Z])/',
         'liste' => '/\'apt-get\'\s*,\s*(?:array\(|\[)[^\])]*\'update\'/',
         'konstante' => '/(?:self|Apt)::UPDATE_ARGUMENTS/',
     ];
@@ -265,6 +293,11 @@ final class AptResultTest extends TestCase
             "\$runner->run('apt-get', array('update'), 300);",
             "'apt-get update && apt-get install -y srvpanel',",
             "'/bin/sh', '-c', 'apt-get update > /var/log/x.log',",
+
+            // Die Fahne **vor** dem Unterbefehl — die Form, die bis zum
+            // 26. August 2026 durchfiel.
+            'apt-get -q update || echo weiter',
+            'apt-get -qq -y update',
         ];
 
         foreach ($hits as $line) {
@@ -321,6 +354,17 @@ final class AptResultTest extends TestCase
     /** Wie oft ruft dieser Quelltext `apt-get update`? */
     private function updateCallSites(string $source): int
     {
+        /*
+         * **Zwei Arten Kommentar, und die Art entscheidet der Anfang der
+         * Datei.** Seit dem 26. August liest dieser Wächter auch die Skripte
+         * unter `packaging/bin` — dort beginnt ein Kommentar mit `#`, und
+         * `token_get_all()` hielte ihn für PHP-Code. Ohne den Schnitt meldete
+         * dieser Wächter jede Erklärung des Befundes M5 als seinen Verstoss.
+         */
+        if (! str_starts_with(ltrim($source), '<?php') && str_starts_with(ltrim($source), '#!')) {
+            $source = $this->withoutHashComments($source);
+        }
+
         $source = $this->withoutComments(str_starts_with(ltrim($source), '<?php') ? $source : "<?php\n".$source);
         $hits = 0;
 
@@ -332,7 +376,16 @@ final class AptResultTest extends TestCase
     }
 
     /**
-     * Der PHP-Quelltext von Agent und Anwendung, nach Pfad ab der Wurzel.
+     * Der Quelltext von Agent, Anwendung **und den Skripten der Paketierung**.
+     *
+     * **Die letzte Gruppe kam am 26. August 2026 dazu, und ohne sie wäre
+     * dieser Wächter an dem Tag blind geworden**, an dem die Regel umzog: Der
+     * Aufruf von `apt-get update` steht seitdem in `packaging/bin/apt-run`,
+     * also in einer Shell und nicht in PHP. Der Wächter hätte weiter Grün
+     * gemeldet — für eine Stelle, die er gar nicht mehr liest.
+     *
+     * > **Ein Wächter, der über die gewohnten Pfade fährt, prüft die
+     * > Gewohnheit und nicht die Regel.**
      *
      * @return array<string,string>
      */
@@ -350,6 +403,14 @@ final class AptResultTest extends TestCase
                 if ($file->isFile() && $file->getExtension() === 'php') {
                     $files[substr($file->getPathname(), strlen($root) + 1)] = (string) file_get_contents($file->getPathname());
                 }
+            }
+        }
+
+        // Die Skripte der Paketierung tragen keine Endung; gelesen wird, was
+        // dort liegt.
+        foreach (glob($root.'/packaging/bin/*') ?: [] as $script) {
+            if (is_file($script)) {
+                $files[substr($script, strlen($root) + 1)] = (string) file_get_contents($script);
             }
         }
 

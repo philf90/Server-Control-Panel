@@ -1,0 +1,221 @@
+<?php
+
+declare(strict_types=1);
+
+namespace SrvPanel\Agent;
+
+/**
+ * Die Signaturschlüssel der Paketquellen — Fingerabdruck und Ablauf.
+ *
+ * **Warum es das gibt.** Ein abgelaufener Schlüssel bricht `apt-get update`,
+ * und weil das mit `0` endet (M5, `docs/81 §2.1`), merkt es niemand — der
+ * Server bleibt auf den alten Listen stehen und meldet „nichts zu tun".
+ * `docs/81 §4` Punkt 4 verlangt deshalb, dass ein Schlüssel gemeldet wird,
+ * **bevor** ein Lauf an ihm scheitert.
+ *
+ * **Getrennt vom Aufruf, wie {@see Packages} und {@see Sources}** — `Runner`
+ * ist `final`, es gibt also keine Attrappe.
+ *
+ * ## Die Form, gemessen und nicht nachgelesen
+ *
+ * `gpg --show-keys --with-colons` schreibt je Schlüssel mehrere Zeilen:
+ *
+ *     pub:-:4096:1:8D81803C0EBFCD88:1487788586:::-:::escaESCA::::::23::0:
+ *     fpr:::::::::9DC858229FC7DD38854AE2D88D81803C0EBFCD88:
+ *     uid:-::::1487792064::B50C…::Docker Release (CE deb) <docker@docker.com>::…
+ *     sub:-:4096:1:7EA0A9C3F273FCD8:1487788586::::::s::::::23:
+ *     fpr:::::::::D3306A018370199E527AE7997EA0A9C3F273FCD8:
+ *
+ * **Feld 7 der `pub`-Zeile ist der Ablauf als Unixzeit; leer heisst „läuft nie
+ * ab".** Gemessen am 26. August 2026 auf Debian 12 in der CI, an einem eigens
+ * hergestellten Bund: eine Zeile mit leerem Feld 7, eine mit `1819259803`.
+ *
+ * **Und die `fpr`-Zeile gehört zur zuletzt gesehenen `pub` ODER `sub`.** Auf
+ * dieser Maschine stehen 12 `fpr` bei 11 `pub` und 1 `sub` — wer „die
+ * `fpr`-Zeile" nimmt, hängt einem Schlüssel den Fingerabdruck seines
+ * Unterschlüssels an.
+ *
+ * > **Eine Zeile, die zur vorigen gehört, gehört nicht zur vorigen ihrer
+ * > Art.**
+ */
+final class Keys
+{
+    /** Ab wann ein Ablauf gemeldet wird — `docs/81 §4` Punkt 4. */
+    public const SOON_SECONDS = 30 * 86400;
+
+    /**
+     * Das Heimverzeichnis, das `gpg` bekommt.
+     *
+     * **`gpg` legt sein Heimverzeichnis an, auch wenn es nur liest** — und
+     * stirbt mit `rc=2`, wenn es das nicht kann (gemessen: `--no-options`,
+     * `--homedir` auf einen fehlenden Pfad und ein unbeschreibbares `HOME`
+     * scheitern alle drei). Einen nur-lesenden Aufruf gibt es nicht.
+     *
+     * Deshalb ein eigener Ort statt `/root/.gnupg`: Eine lesende Frage soll
+     * keinen Schlüsselbund in root's Heimverzeichnis anlegen, den danach
+     * niemand erklären kann.
+     */
+    public const HOME = '/var/lib/srvpanel/gnupg';
+
+    /** @var list<string> */
+    public const ARGUMENTS = ['--batch', '--no-tty', '--show-keys', '--with-colons'];
+
+    /** `pub` und `sub` — beide führen einen Fingerabdruck. */
+    private const KEY_LINE = '/^(?<art>pub|sub):[^:]*:[^:]*:[^:]*:(?<keyid>[^:]*):(?<created>[^:]*):(?<expires>[^:]*):/';
+
+    private const FPR_LINE = '/^fpr:(?:[^:]*:){8}(?<fingerprint>[0-9A-Fa-f]+):/';
+
+    private const UID_LINE = '/^uid:(?:[^:]*:){8}(?<uid>[^:]*):/';
+
+    /**
+     * Was `gpg --with-colons` sagt, als Auskunft.
+     *
+     * **Unterschlüssel kommen nicht zurück.** Sie laufen eigenständig ab, und
+     * ein Betreiber, der „drei Schlüssel, zwei laufen bald aus" liest, zählt
+     * Dinge, die er in `Signed-By:` nie gesehen hat. Gezählt werden die
+     * Hauptschlüssel; ihre `sub`-Zeilen dienen hier nur dazu, den falschen
+     * Fingerabdruck **nicht** zu nehmen.
+     *
+     * @return list<array{fingerprint: null|string, keyid: string, created: null|int, expires: null|int, uid: null|string}>
+     */
+    public static function read(string $ausgabe): array
+    {
+        $schluessel = [];
+        $offen = null;
+
+        foreach (preg_split('/\R/', $ausgabe) ?: [] as $zeile) {
+            if (preg_match(self::KEY_LINE, $zeile, $treffer) === 1) {
+                if ($offen !== null) {
+                    $schluessel[] = $offen;
+                    $offen = null;
+                }
+
+                if ($treffer['art'] === 'pub') {
+                    $offen = [
+                        'fingerprint' => null,
+                        'keyid' => $treffer['keyid'],
+                        'created' => self::zahl($treffer['created']),
+                        'expires' => self::zahl($treffer['expires']),
+                        'uid' => null,
+                    ];
+                }
+
+                continue;
+            }
+
+            if ($offen === null) {
+                continue;
+            }
+
+            /*
+             * **Nur der Fingerabdruck hinter der `pub`-Zeile** — und das
+             * entscheidet allein die Zeile oben, die `$offen` bei jeder `sub`
+             * schliesst. Danach fällt jede weitere `fpr` in das `continue`
+             * darüber.
+             *
+             * **Hier standen bis zum 26. August drei Fassungen derselben
+             * Regel**, und zwei Eingriffe nacheinander bissen nicht. Gemessen,
+             * einzeln und zusammen: die Prüfung auf die Art der letzten Zeile
+             * allein — grün. Ein `$offen['fingerprint'] === null` daneben
+             * allein — grün. **Erst ohne beide rot.** Jede zahlte für die
+             * andere mit, und keine hätte verrotten können, ohne dass es
+             * auffällt.
+             *
+             * > **Ein Eingriff, der nicht beisst, sagt entweder etwas über den
+             * > Wächter oder etwas über die Regel.**
+             *
+             * Dasselbe wie beim Feldanker in {@see Sources::FIELD}, und in
+             * derselben Runde zum dritten Mal.
+             */
+            if (preg_match(self::FPR_LINE, $zeile, $treffer) === 1) {
+                $offen['fingerprint'] = strtoupper($treffer['fingerprint']);
+
+                continue;
+            }
+
+            if ($offen['uid'] === null && preg_match(self::UID_LINE, $zeile, $treffer) === 1) {
+                $offen['uid'] = $treffer['uid'] === '' ? null : self::entschluesselt($treffer['uid']);
+            }
+        }
+
+        if ($offen !== null) {
+            $schluessel[] = $offen;
+        }
+
+        return $schluessel;
+    }
+
+    /**
+     * Läuft dieser Schlüssel bald ab — oder ist er schon abgelaufen?
+     *
+     * **Drei Zustände und nicht zwei.** `null` heisst „läuft nie ab", und das
+     * ist etwas anderes als „läuft in fünf Jahren ab": Beides ist heute
+     * unbedenklich, aber nur das zweite wird es irgendwann nicht mehr sein.
+     *
+     * @return 'expired'|'never'|'ok'|'soon'
+     */
+    public static function state(?int $expires, int $jetzt): string
+    {
+        if ($expires === null) {
+            return 'never';
+        }
+
+        if ($expires <= $jetzt) {
+            return 'expired';
+        }
+
+        return $expires - $jetzt < self::SOON_SECONDS ? 'soon' : 'ok';
+    }
+
+    /**
+     * Einen eingebetteten `Signed-By:`-Block auffalten.
+     *
+     * **Drei Formen, alle drei gemessen** (`docs/81 §2.3b`, Q7): ein Pfad, ein
+     * leerer Wert mit gefaltetem Block darunter, und der Blockanfang **in
+     * derselben Zeile**. Aufgefaltet wird nach deb822: Jede Fortsetzungszeile
+     * beginnt mit einem Leerzeichen, und ein einzelner Punkt darin steht für
+     * die Leerzeile.
+     *
+     * Zurück kommt, was `gpg` über stdin lesen kann — gemessen: rc 0, eine
+     * `pub`- und eine `fpr`-Zeile.
+     *
+     * @param  list<string>  $gefaltet  Die Zeilen unter dem Feld, mit ihrem führenden Leerzeichen
+     */
+    public static function unfold(string $wert, array $gefaltet): string
+    {
+        $zeilen = [];
+
+        if (trim($wert) !== '') {
+            $zeilen[] = trim($wert);
+        }
+
+        foreach ($gefaltet as $zeile) {
+            $ohne = preg_replace('/^[ \t]/', '', $zeile) ?? $zeile;
+            $zeilen[] = $ohne === '.' ? '' : $ohne;
+        }
+
+        return implode("\n", $zeilen)."\n";
+    }
+
+    /** Ein leeres Feld ist keine Null. */
+    private static function zahl(string $roh): ?int
+    {
+        return $roh === '' || ltrim($roh, '0123456789') !== '' ? null : (int) $roh;
+    }
+
+    /**
+     * `--with-colons` maskiert in der `uid` mit `\x3a` und Verwandten.
+     *
+     * Ohne diese Rückwandlung liest ein Betreiber `Docker Release (CE deb)
+     * \x3cdocker@docker.com\x3e` — richtig kodiert und trotzdem falsch
+     * angezeigt.
+     */
+    private static function entschluesselt(string $roh): string
+    {
+        return (string) preg_replace_callback(
+            '/\\\\x([0-9a-fA-F]{2})/',
+            static fn (array $t): string => chr((int) hexdec($t[1])),
+            $roh,
+        );
+    }
+}

@@ -272,6 +272,25 @@ const navigation = computed(() => {
       { name: 'Logs', href: '/logs', icon: 'logfile', ability: 'operate-server' },
 
       /*
+       * **„Updates" schliesst die Reihe, die den Zustand dieses Servers
+       * beschreibt** — „Vorgänge" sagt, was gerade läuft, „Protokoll", was das
+       * Panel getan hat, „Logs", was auf dem Server steht, und „Updates", was
+       * ansteht. Erst danach beginnt mit „Konten" die andere Frage: wer darf.
+       *
+       * **Nicht unten bei „PHP-Versionen" und „Datenbankserver".** Die sind
+       * Einstellungen — man geht hin, wenn man etwas ändern will. Hierher geht
+       * jemand, weil er wissen will, ob sein Server ein Sicherheitsupdate
+       * braucht, und diese Frage stellt man sich neben den anderen drei.
+       *
+       *   Vor jedem neuen Merkmal: Wo sucht jemand diese Handlung, und steht
+       *   sie dort?
+       *
+       * Dieses Projekt hat den Ort eines Menüpunkts dreimal falsch gehabt, und
+       * jedes Mal hat es der Betreiber gemeldet und kein Test.
+       */
+      { name: 'Updates', href: '/updates', icon: 'updates', ability: 'operate-server' },
+
+      /*
        * **Konten steht bei „Server" und nicht bei „Verwaltung".** Wer hier
        * steht, verwaltet diesen Server — die Liste ist ein Stück davon und
        * nicht ein Stück Kundenverwaltung. Nebenan: „Vorgänge", „Protokoll",

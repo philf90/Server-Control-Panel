@@ -44,23 +44,66 @@ final class AptLockReachTest extends TestCase
     use WithoutPhpComments;
 
     /**
-     * **Hier stand eine leere Ausnahmeliste, und sie war keine.**
+     * Die Ausnahmen — mit ihrem Grund, und der Grund ist gemessen.
      *
-     * Gedacht war sie als Weg für `system.packages.list` (Schritt 3), das mit
-     * `apt-get -s dist-upgrade` möglicherweise ohne Sperre auskommt. PHPStan
-     * hat sie als das gemeldet, was sie war: `array_key_exists()` gegen
-     * `array{}` ist immer falsch — eine Vorrichtung, die nicht greifen kann.
+     * **Hier stand eine leere Liste, und sie war keine.** Gedacht war sie als
+     * Weg für `system.packages.list`; PHPStan hat sie als das gemeldet, was sie
+     * war: `array_key_exists()` gegen `array{}` ist immer falsch.
      *
      * > **Eine leere Positivliste ist kein Mechanismus, sondern eine
      * > Verzierung.**
      *
-     * Wer eine Ausnahme braucht, führt sie ein, wenn es sie gibt — und misst
-     * vorher, ob `apt-get -s` die Sperre wirklich nicht nimmt, statt es zu
-     * vermuten.
+     * **Am 26. August 2026 gemessen statt vermutet**, mit einer POSIX-Sperre
+     * auf `/var/lib/dpkg/lock-frontend` und einer Gegenprobe im selben Lauf:
+     *
+     *     apt-get -s dist-upgrade          rc 0    145 Inst-Zeilen
+     *     apt-get install --reinstall      rc 100  "Could not get lock"
+     *
+     * Die Simulation nimmt die Sperre also nicht, ein echter Lauf schon.
+     *
+     * **Und dasselbe für `indextargets`, eigens gemessen** (26. August 2026) —
+     * nicht aus dem Satz darüber geschlossen, denn `-s` und `indextargets` sind
+     * zwei verschiedene Unterbefehle:
+     *
+     *     apt-get indextargets             rc 0    15 200 B
+     *     apt-get -s dist-upgrade          rc 0    35 190 B
+     *     apt-get -y install cowsay        rc 100  "Could not get lock"
+     *
+     * Die dritte Zeile ist die Gegenprobe: Ohne sie hiesse „rc 0" nur, dass in
+     * diesem Lauf niemand die Sperre gehalten hat.
+     *
+     * > **Wissen aus zweiter Hand sieht aus wie Wissen.**
+     *
+     * **Und die Ausnahme ist nicht nur erlaubt, sondern richtig.** `ensureFree()`
+     * wirft, wenn ein Lauf läuft — eine Liste, die sich dann weigert, verweigert
+     * die Auskunft genau in dem Moment, in dem ein Betreiber sie braucht.
+     *
+     * > **Eine lesende Frage, die an einer Sperre scheitert, beantwortet sie
+     * > nicht später, sondern gar nicht.**
+     *
+     * @var array<string, string>
      */
+    private const EXCEPTIONS = [
+        'SystemPackagesList.php' => 'ruft apt ausschliesslich mit -s; gemessen: nimmt die Sperre nicht',
+        'SystemSourcesList.php' => 'ruft apt ausschliesslich mit indextargets; gemessen: nimmt die Sperre nicht',
+        'SystemSourcesToggle.php' => 'ruft apt ausschliesslich mit indextargets — als Probe NACH dem Schreiben, und die muss gerade dann antworten, wenn ein Lauf läuft; gemessen: nimmt die Sperre nicht',
+    ];
 
     /** Woran erkannt wird, dass eine Operation apt anfasst. */
-    private const TOUCHES_APT = '/\'apt-get\'|apt-get\s+\w|\bApt::(refresh|of)\s*\(/';
+    /*
+     * **Und seit dem 26. August auch das Skript, das apt für uns ruft.**
+     * `panel.update` und `system.packages.upgrade` setzen ihren Lauf über
+     * `SystemPackagesUpgrade::RUNNER` ab; in ihrem Quelltext steht seitdem kein
+     * `apt-get` mehr. Ohne diese Alternative fiel `PanelUpdate` aus der Prüfung
+     * heraus — und zwar **still**: Der Wächter oben zählt nur, was er findet,
+     * und was er nicht findet, prüft er auch nicht.
+     *
+     * Gefangen hat es die Untergrenze daneben, nicht das Nachdenken.
+     *
+     * > **Ein Aufruf, der in ein Skript umzieht, ist für einen Ausdruck über
+     * > PHP-Quelltext verschwunden — nicht harmlos geworden.**
+     */
+    private const TOUCHES_APT = '/\'apt-get\'|apt-get\s+\w|\bApt::(refresh|of)\s*\(|UPGRADE_RUNNER|SystemPackagesUpgrade::RUNNER|self::RUNNER/';
 
     /** Jede apt-rufende Operation fragt vorher, ob die Sperre frei ist. */
     public function test_every_operation_that_touches_apt_goes_through_the_lock(): void
@@ -74,6 +117,10 @@ final class AptLockReachTest extends TestCase
             }
 
             $found++;
+
+            if (array_key_exists(basename($path), self::EXCEPTIONS)) {
+                continue;
+            }
 
             if (! str_contains($source, 'AptLock::ensureFree')) {
                 $strays[] = $path;
@@ -93,17 +140,53 @@ final class AptLockReachTest extends TestCase
     }
 
     /**
-     * Und die vier, die es heute sind, werden vom Ausdruck auch getroffen.
+     * Und jede Ausnahme nennt eine Operation, die es gibt und die apt anfasst.
+     *
+     * **Die Gegenrichtung, und sie ist der eigentliche Verfall.** Ein Eintrag
+     * hier hebt eine Regel auf; verschwindet die Datei oder hört sie auf, apt
+     * zu rufen, hebt er nichts mehr auf und bleibt trotzdem stehen. Der nächste
+     * Leser hält ihn für eine geltende Ausnahme.
+     *
+     * Derselbe Fall wie beim toten Eintrag im Wrapper: Die erste Richtung ist
+     * nach einer Umbenennung wieder grün, und der alte Name bleibt liegen.
+     */
+    public function test_every_exception_names_an_operation_that_touches_apt(): void
+    {
+        $quellen = $this->operationSources();
+
+        $this->assertGreaterThan(2, count($quellen), 'Es werden kaum Operationen gefunden — dann prüft dieser Test nichts.');
+
+        foreach (array_keys(self::EXCEPTIONS) as $name) {
+            $treffer = array_filter(
+                $quellen,
+                static fn (string $path): bool => basename($path) === $name,
+                ARRAY_FILTER_USE_KEY,
+            );
+
+            $this->assertCount(1, $treffer, sprintf(
+                'Die Ausnahme nennt %s; eine Operation dieses Namens gibt es nicht.',
+                $name,
+            ));
+
+            $this->assertSame(1, preg_match(self::TOUCHES_APT, (string) reset($treffer)), sprintf(
+                '%s steht als Ausnahme, fasst apt aber gar nicht an — der Eintrag hebt nichts mehr auf.',
+                $name,
+            ));
+        }
+    }
+
+    /**
+     * Und die sechs, die es heute sind, werden vom Ausdruck auch getroffen.
      *
      * Der Prüfkörper des Tests oben: Ändert sich die Schreibweise eines
      * apt-Aufrufs, findet die Suche nichts mehr und meldete Grün für eine
      * Regel, die sie nicht mehr liest.
      */
-    public function test_the_four_known_callers_are_reached_by_the_scan(): void
+    public function test_the_known_callers_are_reached_by_the_scan(): void
     {
         $sources = $this->operationSources();
 
-        foreach (['PanelUpdate', 'PhpVersionInstall', 'PhpVersionRemove', 'PgServerInstall'] as $operation) {
+        foreach (['PanelUpdate', 'PhpVersionInstall', 'PhpVersionRemove', 'PgServerInstall', 'SystemPackagesRefresh', 'SystemPackagesUpgrade'] as $operation) {
             $path = 'agent/src/Ops/'.$operation.'.php';
 
             $this->assertArrayHasKey($path, $sources, $path.' gibt es nicht mehr.');

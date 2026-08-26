@@ -555,12 +555,30 @@ zuerst „erst nachsehen" sagte und dann den geratenen Wert einsetzte
 
 ## 6. Was offen bleibt
 
-- **„Übersicht bei 390/Dunkel"** ist ungemessen; gemessen wurde „Mein Konto"
-  (§2, Punkt 13).
-- **Das Kontenformular gehört nach dem nächsten Ausliefern nachgemessen** — es
-  ist mit den fehlenden Regeln aus Befund 16 gemessen worden.
-- **Die apt-Messrunde auf Debian 12/13 und Ubuntu 22.04** steht seit A1 aus
-  (`docs/83 §5`).
+- ~~**„Übersicht bei 390/Dunkel"** ist ungemessen~~ — **nachgeholt am 26. August
+  2026.** `dokument: 0`, `gegenprobe: 200/200`, `schiebt: 0`, in allen vier
+  Lagen. **Mit einer benannten Grenze:** gemessen gegen eine leere Instanz ohne
+  Agenten, die Kacheln zeigen also ihre Leerzustände. Die Anordnung ist damit
+  belegt, das Verhalten einer gefüllten Kachel nicht.
+- ~~**Das Kontenformular gehört nach dem nächsten Ausliefern nachgemessen**~~ —
+  **nachgeholt am 26. August 2026**, und nicht nur über den Überlauf: `dokument:
+  0` und `schiebt: 0` in allen vier Lagen sagen über Befund 16 nichts, weil ein
+  fehlender Abstand nichts überlaufen lässt. Gemessen wurde deshalb der Abstand
+  selbst — `.title-row` steht auf `display: flex` mit `column-gap: 8px`, und die
+  sichtbare Lücke zwischen Adresse und Marke beträgt bei 390 px wie bei 1440 px
+  **8 px**. Vorher war sie 0.
+
+  > **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+  > Betrachter.**
+
+  Beide Regeln des Blocks wirken: Die Gerätekennung steht in der kleineren
+  Schrift aus `.agent` und gekürzt. Gemessen auf der **echten** Seite hinter
+  `artisan serve` — der Container-Aufsatz aus handgeschriebenem Markup kann
+  `<style scoped>` grundsätzlich nicht, und genau darum ging es hier.
+- ~~**Die apt-Messrunde auf Debian 12/13 und Ubuntu 22.04** steht seit A1 aus~~
+  — **erledigt am 26. August 2026.** Sie fährt jetzt in der CI auf allen vier
+  Zielplattformen, bei jedem Lauf. Die Antworten stehen in `docs/81 §2.3`; eine
+  der drei Erwartungen, die dort standen, war falsch.
 - **Teil 3 von M5** — `panel.update` liest nach dem Neustart seine eigene
   Fassung nach — hängt an A1 Schritt 6.
 - **A3, A4 und A7** haben weiterhin keine Stufe (`docs/20 §9`).

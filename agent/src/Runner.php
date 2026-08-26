@@ -62,6 +62,27 @@ final class Runner
         'repquota' => '/usr/sbin/repquota',
         'apt-get' => '/usr/bin/apt-get',
 
+        /*
+         * **Dazugekommen am 26. August 2026 für A1 Schritt 8**, und rein
+         * lesend: `apt-config dump` gibt apts **aufgelöste** Sicht auf seine
+         * Einstellungen aus.
+         *
+         * Gebraucht wird es für eine Frage, die anders nicht zu beantworten
+         * ist: Läuft die Automatik dieses Servers wirklich? Die eigene Datei
+         * sagt darüber nichts — `/etc/apt/apt.conf.d` wird nach ASCII sortiert
+         * gelesen, und die letzte Zuweisung gewinnt. Gemessen in diesem
+         * Container: `20auto-upgrades` sagt für beide Teilschalter `1`, und die
+         * Automatik ist trotzdem aus, weil `docker-disable-periodic-update` den
+         * Hauptschalter auf `0` setzt.
+         *
+         * > **Eine Auskunft aus der eigenen Datei ist keine über den wirksamen
+         * > Zustand.**
+         *
+         * Dieselbe Bauart wie `apt-get indextargets` für die Quellen: apt
+         * fragen statt apt nachrechnen.
+         */
+        'apt-config' => '/usr/bin/apt-config',
+
         // **Lesend, und es beantwortet die Frage, die `apt-get` sonst raten
         // müsste:** Welche der Pakete einer PHP-Version liegen schon da? Bis
         // P5b hat `php.version.install` das am Handler abgelesen —
@@ -76,6 +97,28 @@ final class Runner
         // (gemessen). Eine Zuordnung dafür wäre eine zweite Liste, die
         // veraltet.
         'dpkg-query' => '/usr/bin/dpkg-query',
+
+        /*
+         * **Dazugekommen am 26. August 2026 für A1 Schritt 4b**, und die
+         * Erweiterung dieser Liste ist die erste Grenze dieses Projekts — sie
+         * gehört begründet.
+         *
+         * Gebraucht wird `gpg` für **eine** Frage: Wann läuft der
+         * Signaturschlüssel einer Paketquelle ab? Ein abgelaufener Schlüssel
+         * bricht `apt-get update`, und weil das (M5) mit `0` endet, merkt es
+         * niemand — das ist Abnahmepunkt 4 aus `docs/81 §4`.
+         *
+         * Aufgerufen wird ausschliesslich lesend, mit `--show-keys
+         * --with-colons`, und **nie mit einem Pfad aus einem Formular**: Die
+         * Pfade stammen aus `Signed-By:` der Quelldateien, die eingebetteten
+         * Blöcke kommen über stdin.
+         *
+         * **Und es liegt auf allen vier Zielplattformen** — gemessen, nicht
+         * angenommen: Die apt-Messrunde der CI fährt F3 auf Debian 12/13 und
+         * Ubuntu 22.04/24.04, und F3 meldet „gpg fehlt" als Ausfall. Alle vier
+         * Läufe sind grün.
+         */
+        'gpg' => '/usr/bin/gpg',
         'mysql' => '/usr/bin/mysql',
         'mysqldump' => '/usr/bin/mysqldump',
 
@@ -181,6 +224,40 @@ final class Runner
     public static function knows(string $program): bool
     {
         return isset(self::PROGRAMS[$program]);
+    }
+
+    /**
+     * Der absolute Pfad eines Programms der Positivliste.
+     *
+     * **Für den einen Fall, in dem ein Programm nicht hier gestartet wird.**
+     * `SrvPanel\Agent\Ops\SystemReboot` übergibt `systemctl` an
+     * `systemd-run`, damit der Neustart den Agenten überlebt — das Programm
+     * läuft dann in einer Unit mit der Umgebung von systemd, und ein blosser
+     * Name würde dort über einen fremden `PATH` aufgelöst.
+     *
+     * Gebraucht wird also der absolute Pfad. Ihn dort hinzuschreiben wäre eine
+     * **zweite Schreibweise** einer Zeile, die in {@see self::PROGRAMS} schon
+     * steht — und das ist der Fehler, den dieses Repo am häufigsten bezahlt
+     * hat: Beim Umziehen wird die eine nachgetragen und die andere vergessen.
+     *
+     * > **Zwei Listen, die dasselbe meinen, laufen auseinander — und keine von
+     * > beiden ist der Ort, an dem man nachsieht.**
+     *
+     * **Es ist keine zweite Tür.** Wer den Pfad hat, hat damit nichts, was
+     * {@see self::run()} nicht auch gäbe; die Prüfung ist dieselbe, und ein
+     * unbekannter Name endet hier genauso als Ablehnung.
+     */
+    public static function path(string $program): string
+    {
+        $path = self::PROGRAMS[$program] ?? null;
+
+        if ($path === null) {
+            throw AgentException::denied(
+                sprintf('%s steht nicht auf der Positivliste der Programme.', $program),
+            );
+        }
+
+        return $path;
     }
 
     /**

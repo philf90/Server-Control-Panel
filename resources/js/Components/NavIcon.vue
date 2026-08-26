@@ -78,6 +78,16 @@ const PATHS: Record<string, string> = {
    */
   logfile: 'M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6',
 
+  /*
+   * Updates: ein Kasten mit einem Pfeil nach oben heraus.
+   *
+   * **Kein Pfeil im Kreis** — den trägt `operations` schon, und die beiden
+   * stehen in derselben Gruppe. Und kein Ausrufezeichen: Das Zeichen steht
+   * auch dann da, wenn nichts ansteht, und ein Menü, das dauernd warnt, warnt
+   * nicht mehr.
+   */
+  updates: 'M4 15v4a2 2 0 002 2h12a2 2 0 002-2v-4M12 3v12M8 7l4-4 4 4',
+
   // PHP-Versionen: spitze Klammern, das Zeichen für Quelltext.
   php: 'M8.5 8L5 12l3.5 4M15.5 8L19 12l-3.5 4',
 

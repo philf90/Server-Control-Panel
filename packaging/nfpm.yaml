@@ -181,6 +181,17 @@ contents:
       owner: root
       group: root
 
+  # Das Skript, das `system.packages.upgrade` in seiner transienten Unit
+  # ausführt. Es läuft ausschliesslich als root und wird von nichts anderem
+  # aufgerufen — 0755 wie der Nachbar, weil `systemd-run` es startet und ein
+  # 0700 dort nichts hinzufügt, was root nicht ohnehin hätte.
+  - src: ./packaging/bin/apt-run
+    dst: /usr/lib/srvpanel/apt-run
+    file_info:
+      mode: 0755
+      owner: root
+      group: root
+
   - dst: /etc/srvpanel/tls
     type: dir
     file_info:

@@ -78,6 +78,74 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
+# **Die feste Umgebung dieses Skripts — aus demselben Grund wie im Agenten.**
+#
+# `pruefe()` liest die Ausgabe von PHPUnit als Text: `OK (`, `FAILURES!`. In
+# einer Agentensitzung schreibt derselbe Aufruf statt dessen eine Zeile JSON
+# (`{"tool":"phpunit","result":"passed",…}`), und dann faellt **jede** Pruefung
+# in den Zweig „unlesbar".
+#
+# Gemessen am 26. August 2026 durch Aussieben der ganzen Umgebung, Variable fuer
+# Variable: `AI_AGENT` und `CLAUDECODE` schalten die Verpackung ein, `env -i`
+# gibt gewoehnlichen Text. Beides einzeln nachgeprueft.
+#
+# **Der Leser ist deswegen schon zweimal umgebaut worden** — einmal auf JSON,
+# weil er in einer Agentensitzung entstand, und danach zurueck auf Text, weil er
+# in der CI nichts fand. Keiner der beiden Umbauten hat gefragt, WARUM dieselbe
+# Zeile zwei Ausgaben hat.
+#
+#   Ein Parser, der zwischen zwei Umgebungen hin- und hergebaut wird, ist
+#   nicht falsch geschrieben — er misst eine Umgebung, die niemand festgelegt
+#   hat.
+#
+# Deshalb steht die Umgebung jetzt hier, so wie `Runner::ENVIRONMENT` sie fuer
+# den Agenten festlegt: Wer eine Ausgabe parst, setzt die Umgebung, die sie
+# erzeugt. Die Vorpruefung unten bleibt als Rueckfall.
+export -n AI_AGENT CLAUDECODE 2>/dev/null || true
+unset AI_AGENT CLAUDECODE
+
+# **Dieses Skript stellt den Arbeitsbaum her und duldet deshalb keinen zweiten
+# Schreiber.** `wiederherstellen()` faehrt nach *jedem* Eingriff ein
+# `git checkout --` ueber die Baeume unten. Wer daneben arbeitet, verliert seine
+# Aenderungen zwischen zwei Eingriffen — und ein `git add -A`, das in ein
+# offenes Bruchfenster faellt, nimmt den Eingriff mit ins Repo.
+#
+# Am 26. August 2026 beides in einem Commit passiert: Ergaenzungen an `docs/81`
+# waren fort, und `app/Console/Commands/Databases.php` stand mit `$fehlt = null;`
+# statt seiner Pruefung im Repo — committet und gepusht. Gefunden hat es kein
+# Waechter, sondern ein Blick auf `git show --stat`.
+#
+#   Ein Werkzeug, das den Arbeitsbaum herstellt, duldet keinen zweiten
+#   Schreiber — es nimmt ihm seine Arbeit weg und schiebt ihm seine eigene
+#   unter.
+#
+# **Die Sperre haelt davon genau eine Haelfte**, und das ist ehrlich gesagt die
+# kleinere: Sie weist einen zweiten *Lauf* ab. Einen Menschen, der nebenher eine
+# Datei schreibt, kann sie nicht abweisen — das ist eine Regel und kein
+# Mechanismus, und sie steht in `CLAUDE.md`.
+#
+#   Was ein Test nicht halten kann, gehoert als Frage aufgeschrieben und nicht
+#   als Zusage.
+#
+# Die Marke ist zugleich das, woran ein Zweiter den laufenden Lauf *sieht* —
+# ohne sie ist „laeuft gerade einer?" nur an der Prozessliste zu beantworten.
+LAUFMARKE="${TMPDIR:-/tmp}/srvpanel-waechter-brechen.lock"
+
+exec 9>"$LAUFMARKE" || {
+  echo "Die Laufmarke $LAUFMARKE laesst sich nicht anlegen." >&2
+  exit 1
+}
+
+# `flock` sperrt je *offener Datei*; dieser eine Deskriptor wird genau einmal
+# genommen und mit dem Prozess wieder frei — die verschachtelte Sperre aus P5b
+# kann hier nicht entstehen.
+if ! flock -n 9; then
+  echo "Es laeuft bereits ein Lauf dieses Skripts ($LAUFMARKE ist gesperrt)." >&2
+  echo "Zwei Laeufe zugleich stellen einander den Arbeitsbaum um; der zweite" >&2
+  echo "misst dann einen Zustand, den niemand hergestellt hat." >&2
+  exit 1
+fi
+
 # **Die Bäume, in denen dieses Skript arbeitet — einmal aufgeschrieben.**
 #
 # Sie standen zweimal da, für die Sauberkeitsprüfung und für den Rückweg, und
@@ -271,6 +339,8 @@ vorpruefung() {
   esac
 
   echo "Der Testaufruf liefert nichts Lesbares — dieses Skript kann nichts messen." >&2
+  echo "Kommt eine Zeile JSON zurueck, steht AI_AGENT oder CLAUDECODE in der Umgebung;" >&2
+  echo "der Kopf dieses Skripts nimmt beide heraus. Kommt etwas anderes, liegt es an PHPUnit." >&2
   echo "Gepruefte Zeile: ./vendor/bin/phpunit --filter BreakScriptTest" >&2
   echo >&2
   printf '%s\n' "$roh" | tail -20 >&2
@@ -9303,7 +9373,7 @@ vorher_datei resources/css/app.css
 python3 - <<'PY2'
 p = 'resources/css/app.css'
 s = open(p, encoding='utf-8').read()
-s = s.replace('.button-row + .quiet,\n.quiet + .notice,\n.quiet + .scrolls {', '.nichts-davon {', 1)
+s = s.replace('.button-row + .quiet,\n.quiet + .notice,\n.quiet + .scrolls,', '.nichts-davon,', 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/css/app.css "Fugen um den leisen Satz" &&
@@ -10884,7 +10954,7 @@ vorher_datei resources/js/Components/Confirmation.vue
 python3 - <<'PY2'
 p = 'resources/js/Components/Confirmation.vue'
 s = open(p, encoding='utf-8').read()
-s = s.replace("void nextTick(() => bringIntoView(block.value))", "void nextTick()", 1)
+s = s.replace("      bringIntoView(block.value)", "      void 0", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/js/Components/Confirmation.vue "Sprung ins Bild" &&
@@ -17397,6 +17467,1331 @@ pruefe "Rauten-Abstreifer entfernt" \
   ReleaseChannelTest::test_the_release_notes_come_from_the_tag failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ReleaseChannelTest passed
+
+echo "── AptMeasurementReachTest: eine Plattform faellt aus der Messrunde ──"
+#
+# Zwei Listen, die dasselbe meinen, laufen auseinander. Faellt eine Plattform
+# aus der Messrunde, misst sie drei, waehrend vier ausgeliefert werden — und
+# der Lauf bleibt gruen, weil er die fehlende gar nicht erwartet.
+vorher_datei .github/workflows/ci.yml
+python3 - <<'PY2'
+import re
+p = '.github/workflows/ci.yml'
+s = open(p, encoding='utf-8').read()
+# Nur im Block der Messrunde, nicht im Installationsjob.
+block = re.search(r'^  apt-messrunde:$.*?(?=^  [a-z-]+:$)', s, re.M | re.S)
+assert block, 'Der Job apt-messrunde steht nicht im Lauf — der Bruch waere blind'
+neu = block.group(0).replace('          - name: Ubuntu 22.04\n            image: ubuntu:22.04\n', '', 1)
+assert neu != block.group(0), 'Zielstelle nicht gefunden — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s[:block.start()] + neu + s[block.end():])
+PY2
+griff_datei .github/workflows/ci.yml "Plattform fehlt in der Messrunde" &&
+pruefe "Plattform fehlt in der Messrunde" \
+  AptMeasurementReachTest::test_the_measurement_covers_every_platform_that_is_installed_on failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptMeasurementReachTest passed
+
+echo "── AptMeasurementReachTest: der Aufruf wird auskommentiert ──"
+#
+# Die wahrscheinlichste Mutation ueberhaupt, und der Grund fuer den
+# Kommentar-Abstreifer: Gemessen an genau dieser Quelle ist der Waechter mit
+# Abstreifer rot und ohne ihn gruen — er faende die Zeichenkette dann in dem
+# Kommentar, zu dem der Aufruf gerade geworden ist.
+vorher_datei .github/workflows/ci.yml
+python3 - <<'PY2'
+p = '.github/workflows/ci.yml'
+s = open(p, encoding='utf-8').read()
+alt = '              sh tests/apt-faelle-messen.sh\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, '              # sh tests/apt-faelle-messen.sh\n', 1))
+PY2
+griff_datei .github/workflows/ci.yml "Aufruf auskommentiert" &&
+pruefe "Aufruf auskommentiert" \
+  AptMeasurementReachTest::test_the_job_calls_both_scripts failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptMeasurementReachTest passed
+
+echo "── AptMeasurementReachTest: das Faelle-Skript druckt nur noch ──"
+#
+# Ohne Rueckgabewert meldet ein Lauf, in dessen Protokoll „FALL NICHT
+# HERGESTELLT" steht, genauso Gruen wie einer, der alle vier hergestellt hat.
+vorher_datei tests/apt-faelle-messen.sh
+python3 - <<'PY2'
+p = 'tests/apt-faelle-messen.sh'
+s = open(p, encoding='utf-8').read()
+alt = 'exit "${OFFEN}"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'exit 0', 1))
+PY2
+griff_datei tests/apt-faelle-messen.sh "Faelle-Skript ohne Rueckgabewert" &&
+pruefe "Faelle-Skript ohne Rueckgabewert" \
+  AptMeasurementReachTest::test_the_case_script_decides_instead_of_printing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptMeasurementReachTest passed
+
+echo "── AptMeasurementReachTest: ein Fall nennt eine Messung, die es nicht gibt ──"
+#
+# Der haeufigste Fehler dieses Repositorys in seiner reinsten Form: eine
+# Zeichenkette, die auf etwas verweist, ohne dass etwas den Bezug prueft.
+vorher_datei tests/apt-faelle-messen.sh
+python3 - <<'PY2'
+p = 'tests/apt-faelle-messen.sh'
+s = open(p, encoding='utf-8').read()
+alt = 'titel "F3 — Schlüssel mit Ablaufdatum (M6)"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, 'titel "F3 — Schlüssel mit Ablaufdatum (M99)"', 1))
+PY2
+griff_datei tests/apt-faelle-messen.sh "Fall zeigt auf keine Messung" &&
+pruefe "Fall zeigt auf keine Messung" \
+  AptMeasurementReachTest::test_every_case_names_a_measurement_that_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptMeasurementReachTest passed
+
+echo "── AptMeasurementReachTest: die Untergrenze der Fallliste ──"
+#
+# Der Pruefkoerper. Findet der Ausdruck die Faelle nicht mehr, laeuft die
+# Schleife leer und der Waechter meldete Gruen, ohne einen Verweis geprueft zu
+# haben.
+vorher_datei tests/Unit/AptMeasurementReachTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/AptMeasurementReachTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/^titel \"F\\d+ — .*\\((M\\d+)\\)\"$/m'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "'/^titel \"G\\d+ — .*\\((M\\d+)\\)\"$/m'", 1))
+PY2
+griff_datei tests/Unit/AptMeasurementReachTest.php "Untergrenze der Fallliste" &&
+pruefe "Untergrenze der Fallliste" \
+  AptMeasurementReachTest::test_every_case_names_a_measurement_that_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptMeasurementReachTest passed
+
+echo
+echo "── InstLineTest: die Zeile ohne [alt] faellt aus dem Pruefkoerper ──"
+#
+# **Der Bruch, den `docs/81 §8` vorschreibt.** Er ist die stille Sorte: Nimmt
+# jemand die Neuinstallation aus der Tabelle, bleiben die uebrigen acht Faelle
+# gruen und der Waechter meldet nichts — er ist nur kuerzer geworden. Die
+# Untergrenze in `test_the_table_carries_every_trap` ist die einzige Stelle,
+# die das sehen kann.
+#
+#   Ein Waechter ueber eine Aufzaehlung, der keine Untergrenze hat, wird beim
+#   Kuerzen nicht rot — er wird kuerzer.
+vorher_datei tests/Unit/InstLineTest.php
+python3 - <<'PY2'
+import re
+p = 'tests/Unit/InstLineTest.php'
+s = open(p, encoding='utf-8').read()
+# Der ganze Eintrag mitsamt seiner Zeile — nicht nur die Zeichenkette, sonst
+# bliebe ein Eintrag ohne Pruefkoerper stehen und die Datei waere kaputt statt
+# gekuerzt. Ein Bruch muss die Regel verletzen und nicht den Code zerstoeren.
+alt = re.search(r"            'ohne alte Fassung' => \[\n(?:.*\n)*?            \],\n", s)
+assert alt, 'Zielstelle nicht gefunden — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s[:alt.start()] + s[alt.end():])
+PY2
+griff_datei tests/Unit/InstLineTest.php "Zeile ohne [alt] entfernt" &&
+pruefe "Zeile ohne [alt] entfernt" \
+  InstLineTest::test_the_table_carries_every_trap failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InstLineTest passed
+
+echo
+echo "── InstLineTest: der Ausdruck endet wieder an der runden Klammer ──"
+#
+# **Die echte Regression.** Bis zum 26. August 2026 stand hinter `\)` ein `$`,
+# und apt haengt hinter der schliessenden Klammer an, was die Zeile ausgeloest
+# hat. Gemessen im Container gegen apt 2.8.3: 145 `Inst`-Zeilen, davon 56 mit
+# Anhang — gelesen wurden 89, und 89 haelt niemand fuer einen Fehler.
+#
+#   Eine Zeile, die der Leser verwirft, fehlt in keiner Summe — sie fehlt nur
+#   im Ergebnis.
+vorher_datei agent/src/Packages.php
+python3 - <<'PY2'
+p = 'agent/src/Packages.php'
+s = open(p, encoding='utf-8').read()
+alt = "\\((?<body>.*)\\)(?: \\[[^\\]]*\\])*$/D'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "\\((?<body>.*)\\)$/D'", 1))
+PY2
+griff_datei agent/src/Packages.php "Inst-Zeile mit Anhang verworfen" &&
+pruefe "Inst-Zeile mit Anhang verworfen" \
+  InstLineTest::test_the_trailing_group_is_tolerated_and_not_read failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InstLineTest passed
+
+echo
+echo "── InstLineTest: nur die erste Herkunft entscheidet ──"
+#
+# apt nennt die Aktualisierungssuite zuerst und die Sicherheitssuite danach.
+# Wer die erste nimmt, zaehlt jedes Sicherheitsupdate als gewoehnliches —
+# gemessen auf diesem Container 124 von 145.
+vorher_datei agent/src/Packages.php
+python3 - <<'PY2'
+p = 'agent/src/Packages.php'
+s = open(p, encoding='utf-8').read()
+alt = '        foreach ($origins as $origin) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, '        foreach (array_slice($origins, 0, 1) as $origin) {', 1))
+PY2
+griff_datei agent/src/Packages.php "nur die erste Herkunft" &&
+pruefe "nur die erste Herkunft" \
+  InstLineTest::test_every_origin_is_read_and_not_only_the_first failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InstLineTest passed
+
+echo
+echo "── InstLineTest: irgendwo statt am Ende der Herkunft ──"
+#
+# Der Anbieter steht vorn. Wer nach dem Wort sucht statt am Ende zu pruefen,
+# haelt `foo-security:1/stable` fuer ein Sicherheitsupdate.
+#
+# **Der erste Wurf dieses Eingriffs hat nicht gebissen**, und das war ein Fund:
+# Er ersetzte die Suite hinter dem letzten Schraegstrich durch die ganze
+# Herkunft — und die Suite ist ein Suffix der Herkunft, `str_ends_with` kann
+# ueber beiden also gar nicht verschieden antworten. Die Trennung war
+# Verzierung mit einer falschen Begruendung im Kommentar daneben.
+#
+#   Ein Eingriff, der nicht beisst, sagt entweder etwas ueber den Waechter
+#   oder etwas ueber die Regel.
+vorher_datei agent/src/Packages.php
+python3 - <<'PY2'
+p = 'agent/src/Packages.php'
+s = open(p, encoding='utf-8').read()
+alt = "if (str_ends_with($origin, '-security')) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "if (str_contains($origin, 'security')) {", 1))
+PY2
+griff_datei agent/src/Packages.php "irgendwo statt am Ende" &&
+pruefe "irgendwo statt am Ende" \
+  InstLineTest::test_the_end_of_the_origin_decides_and_not_the_vendor failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InstLineTest passed
+
+echo
+echo "── InstLineTest: eine fehlende alte Fassung wird zur leeren ──"
+#
+# `null` und `''` sehen in einer Ausgabe gleich aus und tragen `fresh`
+# verschieden. Ein Betreiber, der „12 Aktualisierungen" liest und hinterher
+# drei neue Pakete auf der Platte hat, ist belogen worden.
+vorher_datei agent/src/Packages.php
+python3 - <<'PY2'
+p = 'agent/src/Packages.php'
+s = open(p, encoding='utf-8').read()
+alt = "'old' => $kopf['old'] === '' ? null : $kopf['old'],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'old' => $kopf['old'],", 1))
+PY2
+griff_datei agent/src/Packages.php "fehlende alte Fassung als leere" &&
+pruefe "fehlende alte Fassung als leere" \
+  InstLineTest::test_a_missing_old_version_is_null_and_not_empty failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InstLineTest passed
+
+echo
+echo "── InstLineTest: die Liste der Zurueckgehaltenen laeuft weiter ──"
+#
+# Die Liste endet an der ersten Zeile, die nicht eingerueckt ist. Wer den
+# Ausstieg weglaesst, zaehlt den naechsten Abschnitt mit — und meldet die
+# aktualisierbaren Pakete als zurueckgehalten.
+vorher_datei agent/src/Packages.php
+python3 - <<'PY2'
+p = 'agent/src/Packages.php'
+s = open(p, encoding='utf-8').read()
+alt = "if ($zeile === '' || ! str_starts_with($zeile, ' ')) {\n                break;\n            }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "if ($zeile === '') {\n                continue;\n            }", 1))
+PY2
+griff_datei agent/src/Packages.php "Zurueckgehaltene ohne Ausstieg" &&
+pruefe "Zurueckgehaltene ohne Ausstieg" \
+  InstLineTest::test_kept_back_ends_at_the_next_section failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InstLineTest passed
+
+echo
+echo "── SourceListTest: der Stanza-Index wird als Zeilennummer gelesen ──"
+#
+# `Sourcesentry: <datei>:<n>` sieht aus wie eine Zeilenangabe — das ist die
+# Schreibweise, die jedes Werkzeug dafuer benutzt. Gemessen: In
+# ubuntu.sources stehen die Stanzas auf Zeile 32 und 40 und heissen :1 und :2.
+# Wer am ERSTEN Doppelpunkt trennt, zerlegt ausserdem jeden Dateinamen, der
+# selbst einen traegt.
+#
+#   Eine Zahl hinter einem Doppelpunkt sieht aus wie eine Zeilennummer.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = "$doppel = strrpos($herkunft, ':');"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$doppel = strpos($herkunft, ':');", 1))
+PY2
+griff_datei agent/src/Sources.php "Trennung am ersten Doppelpunkt" &&
+pruefe "Trennung am ersten Doppelpunkt" \
+  SourceListTest::test_the_source_entry_is_a_stanza_and_not_a_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
+
+echo
+echo "── SourceListTest: abgeschaltete Stanzas zaehlen nicht mehr mit ──"
+#
+# **Der teuerste Bruch dieses Waechters.** Zaehlt der Leser abgeschaltete
+# Stanzas nicht, verschiebt sich der Index genau dann, wenn jemand eine Quelle
+# abschaltet — also in dem Fall, fuer den es den Verbund gibt. Die Anzeige
+# haengt danach an der falschen Stanza und sieht dabei richtig aus.
+#
+# Gemessen am 26. August 2026: ubuntu.sources Stanza 1 auf `Enabled: no`, und
+# die Sicherheitsstanza bleibt in apts Zaehlung :2.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $nummer++;
+
+            $stanzas[] = ["""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """            if (! self::enabled($felder)) {
+                continue;
+            }
+
+            $nummer++;
+
+            $stanzas[] = ["""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Sources.php "abgeschaltete Stanza uebersprungen" &&
+pruefe "abgeschaltete Stanza uebersprungen" \
+  SourceListTest::test_comments_do_not_count_and_disabled_stanzas_do failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
+
+echo
+echo "── SourceListTest: nicht leer heisst Pfad ──"
+#
+# Die dritte Form von `Signed-By:` traegt den Blockanfang in derselben Zeile.
+# Ein Leser, der „nicht leer heisst Pfad" annimmt, meldet dem Betreiber
+# `-----BEGIN PGP PUBLIC KEY BLOCK-----` als Dateinamen. Alle drei Formen
+# standen am 26. August in einem einzigen /etc/apt/sources.list.d.
+#
+#   Ein Wert, der auch leer sein darf, unterscheidet sich nicht dadurch von
+#   einem Pfad, dass er nicht leer ist.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if (str_starts_with($wert, '-----BEGIN')) {
+            return ['kind' => 'embedded', 'path' => null];
+        }
+
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Sources.php "nicht leer heisst Pfad" &&
+pruefe "nicht leer heisst Pfad" \
+  SourceListTest::test_the_three_forms_of_signed_by_are_told_apart failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
+
+echo
+echo "── SourceListTest: der Feldanker laesst Einrueckung zu ──"
+#
+# Ein PGP-Block reist gefaltet in einem Feld, und jede seiner Zeilen ist
+# eingerueckt. Der Anker `^[A-Za-z]` ist die ganze Faltungsregel: Wer ihn
+# lockert, um „auch eingerueckte Felder" zu lesen, macht aus `Comment:` mitten
+# im Schluesselblock ein Feld.
+#
+# **Der erste Wurf dieses Eingriffs hat nicht gebissen**, und das war ein Fund:
+# Er nahm eine zweite Pruefung heraus, die neben dem Anker stand. Gemessen —
+# ohne die Pruefung gruen, mit Pruefung und gelostem Anker gruen, erst ohne
+# beides rot. Zwei Mechanismen fuer eine Regel, jeder zahlt fuer den anderen
+# mit; der zweite ist seitdem fort.
+#
+#   Eine Frage an die Vereinigung haelt auch dann, wenn eine der Quellen blind
+#   ist — die andere zahlt fuer sie mit.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = "private const FIELD = '/^(?<name>"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "private const FIELD = '/^[ \\t]*(?<name>", 1))
+PY2
+griff_datei agent/src/Sources.php "Feldanker laesst Einrueckung zu" &&
+pruefe "Feldanker laesst Einrueckung zu" \
+  SourceListTest::test_a_folded_key_block_does_not_become_fields failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
+
+echo
+echo "── SourceListTest: eine auskommentierte .list-Zeile zaehlt mit ──"
+#
+# Im Einzeiler-Format gibt es kein `Enabled:` — das Abschalten ist das
+# Kommentarzeichen, und apt zaehlt nur, was es liest. Wer den Anker des
+# Ausdrucks loest, nimmt die auskommentierte Zeile als Eintrag auf und
+# verschiebt damit jeden Index dahinter.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = "private const ONELINE = '/^(?<type>deb|deb-src)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "private const ONELINE = '/^#?\\s*(?<type>deb|deb-src)", 1))
+PY2
+griff_datei agent/src/Sources.php "auskommentierte Zeile zaehlt mit" &&
+pruefe "auskommentierte Zeile zaehlt mit" \
+  SourceListTest::test_a_commented_out_line_is_not_an_entry failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
+
+echo
+echo "── SourceListTest: Enabled wird gegen yes geprueft ──"
+#
+# Gegen `yes` statt gegen `no`: Dann haelt ein Tippfehler (`Enabled: yess`)
+# die Quelle fuer abgeschaltet, und der Betreiber sucht den Fehler dort, wo
+# keiner ist. Der Fehler faellt damit zur falschen Seite.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = "return ! in_array($wert, ['no', 'false', '0'], true);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "return $wert === '' || in_array($wert, ['yes', 'true', '1'], true);", 1))
+PY2
+griff_datei agent/src/Sources.php "Enabled gegen yes geprueft" &&
+pruefe "Enabled gegen yes geprueft" \
+  SourceListTest::test_a_missing_enabled_means_on_and_a_typo_does_not_switch_off failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
+
+echo
+echo "── SourceListTest: die Untergrenze der Formentabelle ──"
+#
+# Der Pruefkoerper. Nimmt jemand eine Form heraus, bleiben die uebrigen gruen
+# und der Waechter meldet nichts — er ist nur kuerzer geworden.
+vorher_datei tests/Unit/SourceListTest.php
+python3 - <<'PY2'
+import re
+p = 'tests/Unit/SourceListTest.php'
+s = open(p, encoding='utf-8').read()
+m = re.search(r"            'Blockanfang in derselben Zeile' => \[\n(?:.*\n)*?            \],\n", s)
+assert m, 'Zielstelle nicht gefunden — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s[:m.start()] + s[m.end():])
+PY2
+griff_datei tests/Unit/SourceListTest.php "Untergrenze der Formentabelle" &&
+pruefe "Untergrenze der Formentabelle" \
+  SourceListTest::test_the_table_carries_every_form failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
+
+echo
+echo "── SourceListTest: alle Felder der Ziele werden durchgereicht ──"
+#
+# `indextargets` gibt 29 Felder je Block aus, die meisten ueber
+# Kompressionsverfahren und Zwischenspeicherung. Wer alle durchreicht, schickt
+# sie an eine Oberflaeche, die sie nicht anzeigt — und Sourcesentry landet
+# zwischen den Feldern statt daneben.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = """                if (in_array($treffer['name'], self::FIELDS, true)) {
+                    $felder[$treffer['name']] = $treffer['value'];
+                }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "                $felder[$treffer['name']] = $treffer['value'];", 1))
+PY2
+griff_datei agent/src/Sources.php "alle Zielfelder durchgereicht" &&
+pruefe "alle Zielfelder durchgereicht" \
+  SourceListTest::test_only_the_fields_that_belong_on_a_page_are_kept failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
+
+echo
+echo "── FilterResetTest: ein Filter setzt die Blaetterung nicht zurueck ──"
+#
+# Wer auf Seite 5 von 8 steht und dann auf „nur Sicherheit" schaltet, sieht
+# eine LEERE Tabelle — obwohl 124 Treffer da sind. Gemessen an der echten
+# Seite: Seite 3 („41–60 von 145"), danach gefiltert, und ohne diesen
+# Ruecksprung stuende die Blaetterung auf 3 bei 124 Treffern in 20er-Seiten.
+#
+#   Eine Blaetterung, die den Filter nicht mitbekommt, zeigt nichts und meldet
+#   nichts.
+vorher_datei resources/js/Pages/Updates/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Updates/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'watch([auswahl, herkunft, suche], () => {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'watch([auswahl, herkunft], () => {', 1))
+PY2
+griff_datei resources/js/Pages/Updates/Index.vue "Filter ohne Ruecksprung" &&
+pruefe "Filter ohne Ruecksprung" \
+  FilterResetTest::test_every_filter_resets_the_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FilterResetTest passed
+
+echo
+echo "── FilterResetTest: die Blaetterbeschriftung zaehlt den Gesamtbestand ──"
+#
+# „1–20 von 145" ueber zwanzig von 124 Treffern: eine Zahl, die etwas anderes
+# zaehlt als die Liste darunter.
+vorher_datei resources/js/Pages/Updates/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Updates/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '  const gesamt = gefiltert.value.length'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, '  const gesamt = props.packages?.upgradable.length ?? 0', 1))
+PY2
+griff_datei resources/js/Pages/Updates/Index.vue "Beschriftung zaehlt den Gesamtbestand" &&
+pruefe "Beschriftung zaehlt den Gesamtbestand" \
+  FilterResetTest::test_the_pager_state_counts_what_the_table_shows failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FilterResetTest passed
+
+echo
+echo "── FilterResetTest: beide leeren Zustaende sehen gleich aus ──"
+#
+# „Der Server ist aktuell" und „auf diese Auswahl passt nichts" sind zwei
+# Auskuenfte. Wer den zweiten wegnimmt, meldet einen aktuellen Server fuer eine
+# Sucheingabe, die danebenging.
+vorher_datei resources/js/Pages/Updates/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Updates/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'v-if="gefiltert.length === 0"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'v-if="false"', 1))
+PY2
+griff_datei resources/js/Pages/Updates/Index.vue "leere Zustaende zusammengelegt" &&
+pruefe "leere Zustaende zusammengelegt" \
+  FilterResetTest::test_a_filtered_list_tells_its_two_empty_states_apart failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FilterResetTest passed
+
+echo
+echo "── FilterResetTest: der Pruefkoerper der Filtererkennung ──"
+#
+# Findet der Ausdruck die filternde Berechnung nicht mehr, laeuft die Schleife
+# leer und der Waechter meldete Gruen, ohne einen Filter geprueft zu haben.
+#
+#   Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+#   steht.
+vorher_datei tests/Unit/FilterResetTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/FilterResetTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "private const PAGER = '/^const seite = ref\\(1\\)$/m';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "private const PAGER = '/^const blatt = ref\\(1\\)$/m';", 1))
+PY2
+griff_datei tests/Unit/FilterResetTest.php "Pruefkoerper der Filtererkennung" &&
+pruefe "Pruefkoerper der Filtererkennung" \
+  FilterResetTest::test_every_filter_resets_the_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FilterResetTest passed
+
+echo
+echo "── KeyExpiryTest: eine sub-Zeile schliesst den Schluessel nicht mehr ──"
+#
+# Auf dieser Maschine stehen 12 fpr-Zeilen bei 11 pub und 1 sub. Bleibt der
+# Schluessel ueber die sub-Zeile hinaus offen, nimmt er den Fingerabdruck des
+# Unterschluessels — und der Betreiber vergleicht ihn mit dem, den der
+# Anbieter nennt, und findet ihn nicht.
+#
+# **Der erste Wurf dieses Eingriffs hat nicht gebissen**, und das war ein Fund:
+# Er nahm eine zusaetzliche Bedingung heraus, die dasselbe noch einmal sagte
+# wie diese Zeile hier. Zwei Mechanismen fuer eine Regel, zum dritten Mal in
+# dieser Runde; der zweite ist fort.
+#
+#   Ein Eingriff, der nicht beisst, sagt entweder etwas ueber den Waechter
+#   oder etwas ueber die Regel.
+vorher_datei agent/src/Keys.php
+python3 - <<'PY2'
+p = 'agent/src/Keys.php'
+s = open(p, encoding='utf-8').read()
+alt = """                if ($offen !== null) {
+                    $schluessel[] = $offen;
+                    $offen = null;
+                }
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """                if ($offen !== null && $treffer['art'] === 'pub') {
+                    $schluessel[] = $offen;
+                    $offen = null;
+                }
+"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Keys.php "sub schliesst den Schluessel nicht" &&
+pruefe "sub schliesst den Schluessel nicht" \
+  KeyExpiryTest::test_the_fingerprint_belongs_to_the_key_and_not_to_its_subkey failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" KeyExpiryTest passed
+
+echo
+echo "── KeyExpiryTest: ein leeres Feld 7 wird zur Epoche ──"
+#
+# Feld 7 leer heisst „laeuft nie ab". Als 0 gelesen ist jeder Schluessel seit
+# dem 1. Januar 1970 abgelaufen, und die Seite meldet neun Befunde, wo keiner
+# ist. Gemessen auf dieser Maschine: 9 pub-Zeilen, Feld 7 in allen neun leer.
+vorher_datei agent/src/Keys.php
+python3 - <<'PY2'
+p = 'agent/src/Keys.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return $roh === '' || ltrim($roh, '0123456789') !== '' ? null : (int) $roh;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        return (int) $roh;", 1))
+PY2
+griff_datei agent/src/Keys.php "leeres Feld 7 als Epoche" &&
+pruefe "leeres Feld 7 als Epoche" \
+  KeyExpiryTest::test_an_empty_expiry_is_never_and_not_the_epoch failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" KeyExpiryTest passed
+
+echo
+echo "── KeyExpiryTest: die Dreissig-Tage-Grenze verschiebt sich ──"
+#
+# Aus dreissig Tagen sieben zu machen ist keine Verschaerfung, sondern eine
+# Lockerung: Ein Schluessel, der in drei Wochen ablaeuft, wird dann nicht mehr
+# gemeldet — und apt-get update bricht daran, waehrend M5 dabei 0 zurueckgibt.
+vorher_datei agent/src/Keys.php
+python3 - <<'PY2'
+p = 'agent/src/Keys.php'
+s = open(p, encoding='utf-8').read()
+alt = 'public const SOON_SECONDS = 30 * 86400;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'public const SOON_SECONDS = 7 * 86400;', 1))
+PY2
+griff_datei agent/src/Keys.php "Dreissig-Tage-Grenze verschoben" &&
+pruefe "Dreissig-Tage-Grenze verschoben" \
+  KeyExpiryTest::test_the_thirty_day_boundary_holds failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" KeyExpiryTest passed
+
+echo
+echo "── KeyExpiryTest: die erste Zeile eines eingebetteten Blocks faellt weg ──"
+#
+# Die dritte Form von Signed-By traegt den Blockanfang in derselben Zeile.
+# Nimmt unfold() nur die Faltung, fehlt „-----BEGIN PGP PUBLIC KEY BLOCK-----"
+# und gpg liest gar nichts. Auf dieser Maschine betrifft das eine von vier
+# Quellen (ondrej).
+vorher_datei agent/src/Keys.php
+python3 - <<'PY2'
+p = 'agent/src/Keys.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if (trim($wert) !== '') {
+            $zeilen[] = trim($wert);
+        }
+
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Keys.php "erste Zeile des Blocks faellt weg" &&
+pruefe "erste Zeile des Blocks faellt weg" \
+  KeyExpiryTest::test_the_first_line_of_an_inline_block_is_not_lost failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" KeyExpiryTest passed
+
+echo
+echo "── KeyExpiryTest: die Faltung eines fremden Feldes wird mitgenommen ──"
+#
+# Sources::folded() sucht die Fortsetzung EINES Feldes. Ohne die Bedingung
+# nimmt es jede — und aus einer mehrzeiligen Description wird ein PGP-Block,
+# den gpg nicht lesen kann.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if ($drin && preg_match('/^[ \\t]/', $zeile) === 1) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "            if (preg_match('/^[ \\t]/', $zeile) === 1) {", 1))
+PY2
+griff_datei agent/src/Sources.php "Faltung eines fremden Feldes" &&
+pruefe "Faltung eines fremden Feldes" \
+  KeyExpiryTest::test_folding_of_another_field_is_not_taken failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" KeyExpiryTest passed
+
+echo
+echo "── KeyExpiryTest: gpg faellt von der Positivliste ──"
+#
+# Die erste Grenze dieses Projekts: Der Agent startet nur, was in
+# Runner::PROGRAMS steht. Ein Aufruf ohne Eintrag scheitert zur Laufzeit — und
+# zwar erst auf dem Server, wenn ein Betreiber die Quellenseite aufschlaegt.
+vorher_datei agent/src/Runner.php
+python3 - <<'PY2'
+p = 'agent/src/Runner.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'gpg' => '/usr/bin/gpg',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Runner.php "gpg von der Positivliste" &&
+pruefe "gpg von der Positivliste" \
+  KeyExpiryTest::test_gpg_is_on_the_allowlist_with_an_absolute_path failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" KeyExpiryTest passed
+
+echo
+echo "── KeyExpiryTest: der Kommentar-Abstreifer ist tragend ──"
+#
+# Ohne ihn zaehlt der Waechter seinen eigenen Gegenstand mit: Der Dokumentblock
+# ueber der Methode nennt Keys::ARGUMENTS, und aus zwei Stellen werden drei.
+# Gemessen — ohne Abstreifer rot, mit ihm gruen, an derselben heilen Quelle.
+vorher_datei tests/Unit/KeyExpiryTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/KeyExpiryTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $quelle = $this->withoutComments(
+            (string) file_get_contents(dirname(__DIR__, 2).'/agent/src/Ops/SystemSourcesList.php'),
+        );"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        $quelle = (string) file_get_contents(dirname(__DIR__, 2).'/agent/src/Ops/SystemSourcesList.php');"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Unit/KeyExpiryTest.php "Kommentar-Abstreifer entfernt" &&
+pruefe "Kommentar-Abstreifer entfernt" \
+  KeyExpiryTest::test_the_invocation_is_machine_readable_and_stated_once failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" KeyExpiryTest passed
+
+echo
+echo "── SourceOwnershipTest: ein fremder Pfad in der Schreibliste ──"
+#
+# **Der Bruch, den `docs/81 §8` vorschreibt.** Wer eine Paketquelle
+# kontrolliert, kann ein Paket mit hoeherer Fassungsnummer ausliefern, das ein
+# beliebiges anderes ersetzt — libc6, openssh-server, srvpanel selbst. Steht
+# eine fremde Datei in der Liste, ist genau dieser Hebel offen.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = 'return [PhpVersions::SOURCE_FILE, self::PANEL_SOURCE];'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(
+    alt, "return [PhpVersions::SOURCE_FILE, self::PANEL_SOURCE, '/etc/apt/sources.list.d/docker.list'];", 1))
+PY2
+griff_datei agent/src/Sources.php "fremder Pfad in der Schreibliste" &&
+pruefe "fremder Pfad in der Schreibliste" \
+  SourceOwnershipTest::test_every_owned_file_is_written_by_the_packaging failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceOwnershipTest passed
+
+echo
+echo "── SourceOwnershipTest: die Paketierung benennt ihre Datei um ──"
+#
+# Die andere Richtung derselben Naht. Laeuft die Paketierung weg, liesse sich
+# die eigene Quelle nicht mehr schalten — und der Grund stuende in keiner
+# Meldung: Die Datei ist ja da, sie heisst nur anders.
+vorher_datei packaging/install.sh
+python3 - <<'PY2'
+p = 'packaging/install.sh'
+s = open(p, encoding='utf-8').read()
+alt = 'cat > /etc/apt/sources.list.d/srvpanel.sources <<EOF'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, 'cat > /etc/apt/sources.list.d/srvpanel-repo.sources <<EOF', 1))
+PY2
+griff_datei packaging/install.sh "Paketierung benennt um" &&
+pruefe "Paketierung benennt um" \
+  SourceOwnershipTest::test_every_owned_file_is_written_by_the_packaging failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceOwnershipTest passed
+
+echo
+echo "── SourceOwnershipTest: gefragt wird erst nach dem Schreiben ──"
+#
+# Ein isOwned() hinter dem Schreiben ist kein Schutz, sondern eine Notiz: Die
+# fremde Datei ist dann schon veraendert.
+vorher_datei agent/src/Ops/SystemSourcesToggle.php
+python3 - <<'PY2'
+import re
+p = 'agent/src/Ops/SystemSourcesToggle.php'
+s = open(p, encoding='utf-8').read()
+block = """        if (! Sources::isOwned($pfad)) {
+            throw AgentException::denied(
+                'Diese Paketquelle hat das Panel nicht angelegt; sie lässt sich hier nicht schalten.',
+            );
+        }
+
+"""
+assert s.count(block) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(block, '', 1)
+anker = '        $this->write($pfad, $nachher);\n'
+assert s.count(anker) == 1, 'Zweite Zielstelle nicht eindeutig'
+open(p, 'w', encoding='utf-8').write(s.replace(anker, anker + '\n' + block, 1))
+PY2
+griff_datei agent/src/Ops/SystemSourcesToggle.php "Eigentumsfrage hinter dem Schreiben" &&
+pruefe "Eigentumsfrage hinter dem Schreiben" \
+  SourceOwnershipTest::test_the_toggle_asks_before_it_writes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceOwnershipTest passed
+
+echo
+echo "── SourceOwnershipTest: ein Fehlschlag der Probe rollt nicht zurueck ──"
+#
+# Gemessen am 26. August 2026: Eine einzige unlesbare .sources laesst apt-get
+# indextargets UND apt-get -s upgrade mit rc=100 und null Zeilen enden. Ohne
+# Rueckweg bleibt der Server so stehen, und keine PHP-Version laesst sich mehr
+# installieren.
+vorher_datei agent/src/Ops/SystemSourcesToggle.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemSourcesToggle.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if (! $probe->successful()) {
+            $this->write($pfad, $vorher);
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "        if (! $probe->successful()) {\n", 1))
+PY2
+griff_datei agent/src/Ops/SystemSourcesToggle.php "Probe ohne Rueckweg" &&
+pruefe "Probe ohne Rueckweg" \
+  SourceOwnershipTest::test_a_failed_probe_rolls_the_file_back failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceOwnershipTest passed
+
+echo
+echo "── SourceOwnershipTest: geschrieben wird ohne rename ──"
+#
+# Ein file_put_contents() auf die Zieldatei ist zwischen Kuerzen und Schreiben
+# ein Zustand, in dem apt eine halbe Stanza liest — und dann liest es gar
+# nichts mehr.
+#
+# **Der erste Wurf dieses Eingriffs hat nicht gebissen**: Die Pruefung zaehlte
+# die Aufrufe und fand `rename` irgendwo. Sie sieht seitdem auf das Ziel des
+# Schreibens.
+#
+#   Ein Waechter, der zaehlt, wie oft geschrieben wird, hat ueber das Wohin
+#   nichts gesagt.
+vorher_datei agent/src/Ops/SystemSourcesToggle.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemSourcesToggle.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (@file_put_contents($neben, $inhalt) === false) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "        if (@file_put_contents($pfad, $inhalt) === false) {", 1))
+PY2
+griff_datei agent/src/Ops/SystemSourcesToggle.php "geschrieben ohne rename" &&
+pruefe "geschrieben ohne rename" \
+  SourceOwnershipTest::test_the_write_is_atomic failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceOwnershipTest passed
+
+echo
+echo "── SourceOwnershipTest: der Pfad wird nicht mehr geglaettet ──"
+#
+# Ohne die Glaettung wird `/etc/apt/sources.list.d/./srvpanel.sources`
+# abgewiesen — dieselbe Datei, anders geschrieben.
+#
+# **Dieser Eingriff hat zweimal aufgehoert zu beissen, und beide Male war das
+# der Fund.** Zuerst lautete seine Begruendung „sonst fuehrt ein symbolischer
+# Verweis an der Liste vorbei", und gemessen ist es andersherum: Ein Verweis AN
+# der eigenen Stelle wird vom Zeichenkettenvergleich ohnehin angenommen.
+#
+#   Eine Aufloesung, die zwei Schreibweisen zusammenfuehrt, ist keine Pruefung
+#   — sie ist eine Nachsicht.
+#
+# Und am 26. August ein zweites Mal: Er brach `realpath()`, und daneben war
+# `lexical()` entstanden, das dieselbe Frage beantwortet. Die Datei aenderte
+# sich nachweislich, der Waechter blieb gruen.
+#
+#   Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+#   wenn jemand neben seiner Regel eine zweite baut, die dieselbe Frage
+#   beantwortet.
+#
+# Er greift seitdem die Stelle, die die Zusage wirklich traegt, und zwar die,
+# die OHNE Dateisystem auskommt: Genau darauf kam es an, denn die eigene
+# Quelldatei entsteht erst beim Anlegen.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = "                || $glatt === self::lexical($eigen)\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "", 1))
+PY2
+griff_datei agent/src/Sources.php "Pfad nicht mehr geglaettet" &&
+pruefe "Pfad nicht mehr geglaettet" \
+  SourceOwnershipTest::test_equivalent_spellings_of_the_same_file_are_accepted failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceOwnershipTest passed
+
+echo
+echo "── SourceOwnershipTest: die Glaettung fragt das Dateisystem ──"
+#
+# Die zweite Haelfte derselben Zusage, und die teurere. `realpath()` gibt
+# `false`, wenn es die Datei nicht gibt — und genau dann ist die Frage am
+# wichtigsten. Am 26. August war der Waechter deshalb in der CI rot und hier
+# gruen: Im Container lag ein `srvpanel.sources`, das eine Messrunde Stunden
+# vorher liegen gelassen hatte.
+#
+#   Ein Test, dessen Ergebnis davon abhaengt, was gerade nebenher liegt, misst
+#   die Umgebung mit.
+#
+# Dieser Eingriff stellt den alten Zustand her: Die Glaettung fragt wieder das
+# Dateisystem. Er beisst am Pruefkoerper, den es nicht gibt — und zwar
+# unabhaengig davon, was auf dem Pruefrechner liegt.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $glatt = self::lexical($pfad);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        $glatt = realpath($pfad) === false ? '' : self::lexical($pfad);"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Sources.php "Glaettung fragt das Dateisystem" &&
+pruefe "Glaettung fragt das Dateisystem" \
+  SourceOwnershipTest::test_equivalent_spellings_of_the_same_file_are_accepted failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceOwnershipTest passed
+
+echo
+echo "── RebootConfirmTest: der Neustart laeuft im Agenten selbst ──"
+#
+# Die Falle, um die es geht: Ein `systemctl reboot` in der Operation ist ein
+# Wettlauf zwischen ihrer Antwort und dem SIGTERM an die eigene
+# Kontrollgruppe. Wer ihn verliert, hinterlaesst einen Vorgang auf `running`.
+vorher_datei agent/src/Ops/SystemReboot.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemReboot.php'
+s = open(p, encoding='utf-8').read()
+alt = "$context->runner->run('systemd-run', ["
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$context->runner->run('systemctl', [", 1))
+PY2
+griff_datei agent/src/Ops/SystemReboot.php "Neustart ohne Zeitgeber" &&
+pruefe "Neustart ohne Zeitgeber" \
+  RebootConfirmTest::test_the_reboot_is_scheduled_and_not_executed failed
+wiederherstellen
+
+echo
+echo "── RebootConfirmTest: Untergrenze der Aufrufsuche ──"
+#
+# Findet der Ausdruck gar keinen Programmaufruf mehr, hat er nicht wenig
+# gemessen — er hat nicht gemessen.
+vorher_datei agent/src/Ops/SystemReboot.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemReboot.php'
+s = open(p, encoding='utf-8').read()
+alt = "$context->runner->run('systemd-run', ["
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$context->runner->start([", 1))
+PY2
+griff_datei agent/src/Ops/SystemReboot.php "kein Programmaufruf mehr" &&
+pruefe "kein Programmaufruf mehr" \
+  RebootConfirmTest::test_the_reboot_is_scheduled_and_not_executed failed
+wiederherstellen
+
+echo
+echo "── RebootConfirmTest: Wartezeit als eigene Zahl ──"
+#
+# `--on-active=0` bestellt denselben Wettlauf ueber einen Umweg — und sieht im
+# Quelltext aus wie eine Einstellung statt wie ein Fehler.
+vorher_datei agent/src/Ops/SystemReboot.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemReboot.php'
+s = open(p, encoding='utf-8').read()
+alt = "'--on-active='.self::DELAY_SECONDS,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'--on-active=0',", 1))
+PY2
+griff_datei agent/src/Ops/SystemReboot.php "Wartezeit an der Unit ersetzt" &&
+pruefe "Wartezeit an der Unit ersetzt" \
+  RebootConfirmTest::test_the_delay_is_what_makes_the_answer_arrive failed
+wiederherstellen
+
+echo
+echo "── RebootConfirmTest: der Rechnername nur im Browser geprueft ──"
+#
+# Ein abgeschalteter Knopf ist ein Zustand im Browser. Wer die Anfrage selbst
+# schickt, sieht ihn nie.
+vorher_datei app/Http/Controllers/ServerController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/ServerController.php'
+s = open(p, encoding='utf-8').read()
+alt = "Rule::in([$host])"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'string'", 1))
+PY2
+griff_datei app/Http/Controllers/ServerController.php "Name ungeprueft entgegengenommen" &&
+pruefe "Name ungeprueft entgegengenommen" \
+  RebootConfirmTest::test_the_hostname_is_checked_on_the_server failed
+wiederherstellen
+
+echo
+echo "── RebootConfirmTest: gezeigter und gepruefter Name aus zwei Quellen ──"
+#
+# Names::host() liefert den vollstaendigen Namen, fqdn() darf null sein. Wer
+# den einen zeigt und den anderen prueft, baut eine Bestaetigung, die niemand
+# bestehen kann — und der Betreiber haelt sich fuer vertippt.
+vorher_datei app/Http/Controllers/ServerController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/ServerController.php'
+s = open(p, encoding='utf-8').read()
+alt = "'hostname' => Names::host(),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'hostname' => Names::fqdn(),", 1))
+PY2
+griff_datei app/Http/Controllers/ServerController.php "zwei Quellen fuer einen Namen" &&
+pruefe "zwei Quellen fuer einen Namen" \
+  RebootConfirmTest::test_the_shown_name_and_the_checked_name_have_one_source failed
+wiederherstellen
+
+echo
+echo "── RebootConfirmTest: die Wartezeit ausgeschrieben ──"
+#
+# Sie ist eine Zusage des Agenten. Ein Wort dafuer ist ihre zweite Fassung, und
+# die bleibt stehen, wenn jemand DELAY_SECONDS aendert.
+vorher_datei resources/js/Components/RebootButton.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/RebootButton.vue'
+s = open(p, encoding='utf-8').read()
+alt = "`Der Neustart läuft ${props.delay} Sekunden nach dem Bestätigen an. Bis dahin lässt er `"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "'Der Neustart läuft eine Minute nach dem Bestätigen an. Bis dahin lässt er '", 1))
+PY2
+griff_datei resources/js/Components/RebootButton.vue "Wartezeit als Wort" &&
+pruefe "Wartezeit als Wort" \
+  RebootConfirmTest::test_the_waiting_time_is_not_written_out_in_the_question failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RebootConfirmTest passed
+
+echo
+echo "── PackageNameTest: die Positivliste durch ein Muster ersetzt ──"
+#
+# Gemessen (U4): Ein Paketname, der wie eine Option aussieht, wird von apt ALS
+# Option geschluckt — "0 upgraded", rc=0, wortlos. Ein Muster muesste jede
+# solche Schreibweise erraten.
+vorher_datei agent/src/Ops/SystemPackagesUpgrade.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemPackagesUpgrade.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if (! array_key_exists($name, $bekannt)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "            if (preg_match('/^[a-z0-9.+-]+$/D', $name) !== 1) {", 1))
+PY2
+griff_datei agent/src/Ops/SystemPackagesUpgrade.php "Muster statt Liste" &&
+pruefe "Muster statt Liste" \
+  PackageNameTest::test_a_name_that_apt_did_not_offer_is_refused failed
+wiederherstellen
+
+echo
+echo "── PackageNameTest: der fremde Name wird uebergangen statt abgewiesen ──"
+#
+# Ein Name, der in der Liste nicht steht, ist entweder ein Angriff oder eine
+# veraltete Seite. Im zweiten Fall will der Betreiber es wissen, statt
+# hinterher ein Paket zu vermissen.
+vorher_datei agent/src/Ops/SystemPackagesUpgrade.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemPackagesUpgrade.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($fremd !== []) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        if (false) {", 1))
+PY2
+griff_datei agent/src/Ops/SystemPackagesUpgrade.php "fremder Name uebergangen" &&
+pruefe "fremder Name uebergangen" \
+  PackageNameTest::test_the_refusal_names_what_it_refused failed
+wiederherstellen
+
+echo
+echo "── PackageNameTest: 'nur Sicherheit' nimmt die Namen aus der Anfrage ──"
+#
+# Hier reist gar kein Name aus dem Browser mit. Wer die Liste trotzdem aus der
+# Anfrage naehme, gaebe dem Aufrufer eine freie Auswahl unter dem Namen "nur
+# Sicherheit".
+vorher_datei agent/src/Ops/SystemPackagesUpgrade.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemPackagesUpgrade.php'
+s = open(p, encoding='utf-8').read()
+alt = "            return array_keys(array_filter($bekannt));"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "            return is_array($angefragt) ? array_values(array_filter($angefragt, 'is_string')) : [];", 1))
+PY2
+griff_datei agent/src/Ops/SystemPackagesUpgrade.php "Sicherheit aus der Anfrage" &&
+pruefe "Sicherheit aus der Anfrage" \
+  PackageNameTest::test_security_builds_its_own_list failed
+wiederherstellen
+
+echo
+echo "── PackageNameTest: ein Muster im Panel ──"
+#
+# Die Grenze sitzt im Agenten. Eine zweite im Panel waere die schwaechere davor
+# — und sie stuende dort, wo niemand die Liste kennt, gegen die sie pruefen
+# muesste.
+vorher_datei app/Http/Controllers/UpdatesController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/UpdatesController.php'
+s = open(p, encoding='utf-8').read()
+alt = "'packages.*' => ['string'],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "'packages.*' => ['string', 'regex:/^[a-z0-9.+-]+$/'],", 1))
+PY2
+griff_datei app/Http/Controllers/UpdatesController.php "Muster im Panel" &&
+pruefe "Muster im Panel" \
+  PackageNameTest::test_the_panel_puts_no_pattern_on_a_package_name failed
+wiederherstellen
+
+echo
+echo "── PackageNameTest: --only-upgrade im benannten Lauf ──"
+#
+# Gemessen (U9): Auf ein Paket, das noch nicht installiert ist, tut
+# --only-upgrade wortlos nichts und endet mit 0. In der Liste stehen aber auch
+# Neuinstallationen.
+vorher_datei packaging/bin/apt-run
+python3 - <<'PY2'
+p = 'packaging/bin/apt-run'
+s = open(p, encoding='utf-8').read()
+alt = '        set -- install "$@"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, '        set -- install --only-upgrade "$@"', 1))
+PY2
+griff_datei packaging/bin/apt-run "--only-upgrade im benannten Lauf" &&
+pruefe "--only-upgrade im benannten Lauf" \
+  PackageNameTest::test_the_named_run_does_not_use_only_upgrade failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PackageNameTest passed
+
+echo
+echo "── CountedNounTest: ein :count im Wort fuer counted() ──"
+#
+# `counted()` setzt die Zahl selbst davor. Ein `:count` daneben ist die
+# Schreibweise von lang/de/validation.php — dort ersetzt Laravel ihn, hier
+# niemand, und er steht woertlich auf der Seite ("2 :count ausgewaehlte Pakete").
+vorher_datei resources/js/Pages/Updates/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Updates/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = "counted(namen.length, 'ausgewähltes Paket', 'ausgewählte Pakete')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "counted(namen.length, 'ein ausgewähltes Paket', ':count ausgewählte Pakete')", 1))
+PY2
+griff_datei resources/js/Pages/Updates/Index.vue "Platzhalter im Wort" &&
+pruefe "Platzhalter im Wort" \
+  CountedNounTest::test_no_word_for_counted_carries_a_placeholder failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CountedNounTest passed
+
+echo
+echo "── UnattendedStateTest: eine fehlende Zeile als „aus\" gelesen ──"
+#
+# apt.systemd.daily setzt AutoAptEnable=1 (# default is yes). Wer aus dem
+# Fehlen auf "aus" schliesst, meldet eine abgeschaltete Automatik auf jedem
+# frisch aufgesetzten Server.
+vorher_datei agent/src/Unattended.php
+python3 - <<'PY2'
+p = 'agent/src/Unattended.php'
+s = open(p, encoding='utf-8').read()
+alt = "return ($values[self::ENABLE] ?? '1') !== '0';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "return ($values[self::ENABLE] ?? '0') !== '0';", 1))
+PY2
+griff_datei agent/src/Unattended.php "fehlende Zeile als aus" &&
+pruefe "fehlende Zeile als aus" \
+  UnattendedStateTest::test_a_missing_master_switch_means_on failed
+wiederherstellen
+
+echo
+echo "── UnattendedStateTest: Listeneintraege als gewoehnliche Zuweisung ──"
+#
+# Das doppelte :: ist ein Listeneintrag. Wer es als Zuweisung liest, behaelt
+# nur den letzten — und die Seite meldet eine Herkunft, wo apt vier kennt.
+vorher_datei agent/src/Unattended.php
+python3 - <<'PY2'
+p = 'agent/src/Unattended.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if ($treffer['list'] === '::') {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            if (false) {", 1))
+PY2
+griff_datei agent/src/Unattended.php "Liste als Zuweisung" &&
+pruefe "Liste als Zuweisung" \
+  UnattendedStateTest::test_the_dump_is_read_as_values_and_lists failed
+wiederherstellen
+
+echo
+echo "── UnattendedStateTest: das Ausschalten nimmt das Auffrischen mit ──"
+#
+# Frage 4 aus docs/81 §3: Die Paketlisten aufzufrischen aendert nichts am
+# System und ist die Bedingung dafuer, dass die Anzeige nicht luegt.
+vorher_datei agent/src/Unattended.php
+python3 - <<'PY2'
+p = 'agent/src/Unattended.php'
+s = open(p, encoding='utf-8').read()
+alt = "            self::LISTS.' \"1\";',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "            self::LISTS.' \"'.($upgrade ? '1' : '0').'\";',", 1))
+PY2
+griff_datei agent/src/Unattended.php "Auffrischen faellt mit" &&
+pruefe "Auffrischen faellt mit" \
+  UnattendedStateTest::test_switching_off_keeps_the_lists_fresh failed
+wiederherstellen
+
+echo
+echo "── UnattendedStateTest: der automatische Neustart erlaubt ──"
+#
+# Ein Hosting-Server, der nachts um drei von selbst neu startet, ist ein
+# Ausfall mit guter Absicht.
+vorher_datei agent/src/Unattended.php
+python3 - <<'PY2'
+p = 'agent/src/Unattended.php'
+s = open(p, encoding='utf-8').read()
+alt = "            self::REBOOT.' \"false\";',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            self::REBOOT.' \"true\";',", 1))
+PY2
+griff_datei agent/src/Unattended.php "Neustart von selbst" &&
+pruefe "Neustart von selbst" \
+  UnattendedStateTest::test_the_fragment_never_allows_an_automatic_reboot failed
+wiederherstellen
+
+echo
+echo "── UnattendedStateTest: das Panel entscheidet die Herkuenfte ──"
+#
+# Das Panel betreibt die Automatik nicht, es konfiguriert die der Distribution.
+# Die Herkuenfte zu verengen waere eine Richtlinie im Namen des Betreibers.
+vorher_datei agent/src/Unattended.php
+python3 - <<'PY2'
+p = 'agent/src/Unattended.php'
+s = open(p, encoding='utf-8').read()
+alt = "            self::REBOOT.' \"false\";',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "            self::REBOOT.' \"false\";',\n            self::ORIGINS.':: \"${distro_id}:${distro_codename}-security\";',", 1))
+PY2
+griff_datei agent/src/Unattended.php "Herkuenfte im Fragment" &&
+pruefe "Herkuenfte im Fragment" \
+  UnattendedStateTest::test_the_fragment_does_not_decide_the_origins failed
+wiederherstellen
+
+echo
+echo "── UnattendedStateTest: geschrieben und nicht nachgelesen ──"
+#
+# Der Name der Datei ist ein Versuch und keine Zusage: apt liest nach ASCII
+# sortiert, und Ziffern stehen vor Buchstaben. Die Zusage ist das Nachlesen.
+vorher_datei agent/src/Ops/SystemPackagesUnattended.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemPackagesUnattended.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $wirksam = $this->effective($context);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(
+    alt, "        $wirksam = ['enabled' => true, 'lists_days' => 1, 'upgrade_days' => $an ? 1 : 0, 'setters' => []];", 1))
+PY2
+griff_datei agent/src/Ops/SystemPackagesUnattended.php "ohne Nachlesen" &&
+pruefe "ohne Nachlesen" \
+  UnattendedStateTest::test_the_switch_reads_back_after_writing failed
+wiederherstellen
+
+echo
+echo "── UnattendedStateTest: der Zustand aus der eigenen Datei ──"
+#
+# Falle 7 aus docs/81 §7, gemessen: 20auto-upgrades sagt fuer beide
+# Teilschalter "1", und die Automatik ist trotzdem aus.
+vorher_datei agent/src/Ops/SystemPackagesList.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemPackagesList.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $gelesen = Unattended::read($dump->stdout);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "        $gelesen = Unattended::read((string) @file_get_contents(Unattended::FILE));", 1))
+PY2
+griff_datei agent/src/Ops/SystemPackagesList.php "Zustand aus der eigenen Datei" &&
+pruefe "Zustand aus der eigenen Datei" \
+  UnattendedStateTest::test_no_value_is_read_from_our_own_file failed
+wiederherstellen
+
+echo
+echo "── UnattendedStateTest: der Weg zurueck aus der Paketierung ──"
+#
+# Der Schalter entfernt die Datei nicht — ausgeschaltet haelt sie weiterhin den
+# Hauptschalter. Ohne postremove bliebe sie beim purge liegen: die Luecke aus
+# docs/35.
+vorher_datei packaging/scripts/postremove.sh
+python3 - <<'PY2'
+p = 'packaging/scripts/postremove.sh'
+s = open(p, encoding='utf-8').read()
+alt = '    rm -f "${automatik}"\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '    : "${automatik}"\n', 1))
+PY2
+griff_datei packaging/scripts/postremove.sh "Weg zurueck gestrichen" &&
+pruefe "Weg zurueck gestrichen" \
+  UnattendedStateTest::test_the_way_back_is_in_the_packaging failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnattendedStateTest passed
+
+echo
+echo "── ShellCheckReachTest: das Verzeichnis wieder als Namensliste ──"
+#
+# Der Anlass ist eine Begruendung, die nicht stimmte: SystemPackagesUpgrade
+# rechtfertigt seine Bauart damit, dass shellcheck ueber packaging/bin faehrt —
+# und die CI fuhr ueber drei Dateien mit Namen. `apt-run` und `cron-run`
+# standen nicht darunter.
+vorher_datei .github/workflows/ci.yml
+python3 - <<'PY2'
+p = '.github/workflows/ci.yml'
+s = open(p, encoding='utf-8').read()
+alt = '          shellcheck -e SC1091 packaging/bin/*\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(
+    alt,
+    '          shellcheck -e SC1091 packaging/bin/php packaging/bin/php-fpm packaging/bin/srvpanel\n',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei .github/workflows/ci.yml "Skripte ohne shellcheck" &&
+pruefe "Skripte ohne shellcheck" \
+  ShellCheckReachTest::test_every_shell_script_of_the_packaging_is_checked failed
+wiederherstellen
+
+echo
+echo "── ShellCheckReachTest: ein Pfad, der nichts mehr deckt ──"
+#
+# Die Gegenrichtung, und so entsteht ein toter Eintrag wirklich: Beim
+# Umbenennen wird der neue Ort nachgetragen, die andere Richtung ist wieder
+# gruen, und der alte bleibt als Zusage liegen, die niemand einloest.
+vorher_datei .github/workflows/ci.yml
+python3 - <<'PY2'
+p = '.github/workflows/ci.yml'
+s = open(p, encoding='utf-8').read()
+alt = '          shellcheck packaging/version-channel.sh packaging/release-notes.sh\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, alt.rstrip('\n') + ' packaging/umbenannt/*.sh\n', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei .github/workflows/ci.yml "Pfad ohne Deckung" &&
+pruefe "Pfad ohne Deckung" \
+  ShellCheckReachTest::test_every_path_the_step_names_covers_something failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ShellCheckReachTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

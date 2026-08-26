@@ -46,4 +46,19 @@ if [ -n "${entfernt}" ]; then
     echo "srvpanel:     systemctl restart mariadb.service"
 fi
 
+# Die Einstellung der unbeaufsichtigten Updates (A1 Schritt 8).
+#
+# Sie steht in einem eigenen Fragment unter apt.conf.d, und der Schalter der
+# Oberflaeche entfernt es NICHT: Ausgeschaltet haelt es weiterhin den
+# Hauptschalter und das taegliche Auffrischen der Listen. Der Weg zurueck ist
+# deshalb genau hier — sonst bliebe eine Datei liegen, die apt weiter liest,
+# waehrend das Panel, das sie geschrieben hat, fort ist.
+automatik="/etc/apt/apt.conf.d/zz-srvpanel-unattended"
+
+if [ -f "${automatik}" ]; then
+    rm -f "${automatik}"
+    echo "srvpanel: Einstellung der unbeaufsichtigten Updates entfernt: ${automatik}"
+    echo "srvpanel: Es gilt wieder, was die Distribution vorgibt."
+fi
+
 exit 0

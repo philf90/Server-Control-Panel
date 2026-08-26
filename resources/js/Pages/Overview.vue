@@ -5,6 +5,8 @@ import ActionIcon from '../Components/ActionIcon.vue'
 import Bar from '../Components/Bar.vue'
 import Section from '../Components/Section.vue'
 import Badge from '../Components/Badge.vue'
+import FormErrors from '../Components/FormErrors.vue'
+import RebootButton from '../Components/RebootButton.vue'
 import Tile, { type Second, type Series } from '../Components/Tile.vue'
 import PanelLayout from '../Layouts/PanelLayout.vue'
 
@@ -72,6 +74,9 @@ const props = defineProps<{
   services: Service[]
   filesystems: Filesystem[]
   processes: Process[]
+
+  /** Der Rechnername zum Bestätigen und die Wartezeit — `ServerController::prompt()`. */
+  reboot: { hostname: string; delay: number }
 }>()
 
 function uptimeText(seconds: number): string {
@@ -432,6 +437,43 @@ const headline = props.server.reachable
         </template>
       </span>
     </p>
+
+    <!--
+      **Der Kernel steht in der Kopfzeile, sein Anlass gehört auf die Seite.**
+
+      `docs/81 §6` verlangt den Neustart-Knopf „an der Kernelzeile der
+      Übersicht", und die ist ein Wort in der `subline` — ein Knopf lässt sich
+      dort nicht unterbringen, und ein Satz, der zum Handeln auffordert, gehört
+      ohnehin nicht in eine Kopfzeile aus vier Angaben.
+
+      **Nur bei `=== true`**, aus demselben Grund wie oben bei der Quota und
+      wie bei `kernelText`: `null` heisst, dass `/boot` sich nicht lesen liess.
+      Ein Hinweis auf „nicht nachgesehen" hin behauptet etwas über den Server,
+      das niemand gemessen hat — und stellte einen Neustart-Knopf daneben.
+
+      **Und hier nur bei dem einen Anlass**, während die Updates-Seite ihn in
+      allen drei Zuständen zeigt. Die Übersicht ist die Seite, auf der jedes
+      Adminkonto landet; ein stehender Neustart-Knopf auf der Startseite ist
+      ein Fehlgriff, der auf seine Gelegenheit wartet.
+    -->
+    <template v-if="server.kernel_stale === true">
+      <p class="notice warn">
+        <span>
+          <b>Es ist ein neuerer Kernel installiert als der laufende.</b>
+          Er wird erst mit einem Neustart wirksam — bis dahin läuft dieser
+          Server auf <span class="ident">{{ server.kernel }}</span>.
+        </span>
+      </p>
+
+      <RebootButton :hostname="props.reboot.hostname" :delay="props.reboot.delay" />
+    </template>
+
+    <!--
+      **Wozu die Zusammenfassung auf einer Seite ohne Formular.** Der Neustart
+      wird abgewiesen, wenn der eingegebene Rechnername nicht stimmt; ohne sie
+      käme die Antwort an und niemand sähe sie.
+    -->
+    <FormErrors />
 
     <div class="tiles">
       <Tile

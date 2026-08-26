@@ -20455,3 +20455,1153 @@ einbindet — ohne sie wird er nicht gelesen.
 
 Mit beiden Dateien im selben Lauf schlägt die Gegenprobe aus, und der geprüfte
 Stand hat null echte Zeilen.
+
+### Zwei offene Messungen nachgeholt — und der Container kann mehr, als hier stand
+
+Die zwei Punkte aus `docs/84 §6`, die auf eine Messung warteten, sind gemessen.
+Beim Beschaffen der Voraussetzung dafür ist eine Aussage gefallen, die neun
+Monate lang die Arbeitsweise dieses Repositorys bestimmt hat.
+
+**`composer install` geht in diesem Container — mit drei Einstellungen.** Der
+Proxy sperrt `codeload.github.com` und `api.github.com`, aber **nicht** git zu
+github.com; über dieselbe Leitung wird dieses Repo gepusht. Composer benutzt sie
+nur nicht von allein: Es fragt die API nach einer Zipball-Adresse.
+
+    composer config -g use-github-api false
+    composer config -g github-protocols https
+    COMPOSER_ALLOW_SUPERUSER=1 composer install --prefer-source --no-dev
+
+Ergebnis: `vendor/autoload.php`, Laravel 13.23.0, `artisan serve`, Migrationen,
+`srvpanel:admin` — und damit Aufnahmen **echter** Seiten statt handgeschriebenen
+Markups.
+
+**Der einzige harte Blocker war ein Entwicklungspaket.** `phpstan/phpstan` kommt
+als Zipball über `api.github.com`, der Proxy antwortet 403, composer deutet das
+als „Anmeldung nötig" und bricht den ganzen Lauf ab — nachdem 22 Pakete bereits
+erfolgreich geklont waren.
+
+> **Ein Abbruch, der nach dem ersten Fehlschlag alles verwirft, macht aus einem
+> gesperrten Paket eine gesperrte Umgebung.**
+
+**Die Messungen selbst.** Die Übersicht bei 390/Dunkel: `dokument: 0`,
+`gegenprobe: 200/200`, `schiebt: 0` in allen vier Lagen — mit der benannten
+Grenze, dass gegen eine leere Instanz ohne Agenten gemessen wurde.
+
+Das Kontenformular war der interessantere Fall. Über den Überlauf ist Befund 16
+gar nicht messbar, denn ein fehlender Abstand lässt nichts überlaufen; `dokument:
+0` und `schiebt: 0` hätten ihn auch im kaputten Zustand gemeldet. Gemessen wurde
+deshalb der Abstand: `.title-row` steht auf `display: flex` mit `column-gap:
+8px`, die sichtbare Lücke zwischen Adresse und Marke beträgt bei 390 px wie bei
+1440 px **8 px**. Vorher war sie 0. Beide Regeln des Blocks aus `Form.vue`
+wirken — die Gerätekennung steht in der kleineren Schrift und gekürzt.
+
+**Zwei Fehler am Messmittel, beide bezahlt.**
+
+Der erste hat acht Messungen gekostet, ohne dass eine davon rot war: Der Zugang
+wurde nach der Anmeldung auf die Einrichtung des zweiten Faktors umgeleitet, und
+alle acht Lagen meldeten `dokument: 0` und `gegenprobe: 200/200` — für dieselbe
+Seite. Verräterisch war nicht die Null, sondern dass alle acht Zeilen identisch
+waren. Der Lauf prüft seitdem nach jeder Navigation, ob er dort steht, wo er
+hinwollte.
+
+> **Ein Prüfkörper, der ohne seinen Gegenstand misst, misst etwas anderes und
+> sieht dabei aus wie ein Ergebnis.**
+
+Der zweite betrifft jeden künftigen Aufsatz: Das Manifest führt für den Eintrag
+`app.ts` **zwei** Stylesheets. In dem einen stehen die Seitenregeln, in dem
+anderen die `scoped`-Regeln aller Komponenten.
+
+> **Ein Aufsatz, der ein Stylesheet von zweien nimmt, misst eine Seite ohne die
+> Regeln jeder Komponente — und weil die Seitenregeln da sind, sieht das
+> Ergebnis aus wie eines.**
+
+### Die apt-Messrunde fährt in der CI — auf allen vier Zielplattformen
+
+`docs/81 §2.3` führte die Messrunde vor A1 als offen: Gemessen war Ubuntu 24.04,
+für Debian 12, Debian 13 und Ubuntu 22.04 stand im Plan eine **Erwartung** statt
+einer Zahl. Vorgesehen war „ein Lauf je Plattform" von Hand.
+
+Als Job ist es ähnlich teuer und ergibt etwas anderes — derselbe Schritt, den
+dieses Projekt in P5b für PostgreSQL schon gegangen ist:
+
+> **Eine Messung, die einmal jemand von Hand macht, ist ein Datum. Eine, die die
+> CI macht, ist eine Zusage.**
+
+**Zwei Skripte, und die Trennung ist keine Formsache.** `tests/apt-messen.sh`
+sagt im Kopf zu, nichts zu installieren und nichts zu ändern — deshalb darf es
+auf einem echten Server laufen. Das neue `tests/apt-faelle-messen.sh` stellt die
+vier Fälle her, die von allein nicht vorkommen, und gehört genau deshalb
+ausschliesslich in einen Wegwerf-Container: Es setzt eine Sperrmarkierung,
+installiert ein Paket neu und schreibt in die apt-Historie.
+
+Gemessen auf Ubuntu 24.04, jeder Fall mit seinem Nachbarwert:
+
+| Fall | vorher | hergestellt | Gegenprobe |
+|---|---|---|---|
+| `Inst` ohne `[alte Fassung]` (M3) | 0 | 2 | 145 Zeilen *mit* `[alt]` |
+| zurückgehaltenes Paket (M4) | 0 | 1 | `Inst` 145 → 144 |
+| Schlüssel mit Ablaufdatum (M6) | 0 | 1 | Feld 7: leer / `1819258648` |
+| `Requested-By` (M11) | 2 | 3 | ohne `SUDO_UID` unverändert |
+
+**Der Fund dabei war eine Umgebungsvariable.** `Requested-By` entsteht nicht mit
+`SUDO_USER`, sondern mit **`SUDO_UID`** — und apt löst die Zahl selbst zum Namen
+auf. Mit `SUDO_USER=messkonto` allein bleibt die Zeile aus; die erste Fassung
+dieses Falls hätte also nichts gemessen und dabei ausgesehen wie eine Messung.
+
+> **Eine Umgebungsvariable, die den Namen trägt, ist nicht die, die gelesen
+> wird.**
+
+**Das Skript entscheidet über seinen Rückgabewert und druckt nicht nur.** Ein
+Lauf, in dessen Protokoll „FALL NICHT HERGESTELLT" steht, wäre sonst genauso
+grün wie einer, der alle vier herstellt. Gegengeprüft mit einem Eingriff an der
+Bedingung: ein ausgefallener Fall ergibt Rückgabewert 1 und die Zeile „1 von 4
+Fällen nicht hergestellt".
+
+Der erste Versuch dieser Gegenprobe war keine — ein gekürzter `PATH` liess das
+Skript mit 127 sterben, statt eine Regel zu verletzen.
+
+> **Ein Bruch muss die Regel verletzen und nicht den Code zerstören.**
+
+**Der Wächter vergleicht zwei Listen, die es wirklich gibt.** Nicht gegen eine
+Aufzählung im Test — die stünde als dritte Fassung daneben und veraltete zuerst.
+Verglichen werden die Plattformen der Messrunde mit denen des Installationsjobs.
+
+Und sein Kommentar-Abstreifer ist tragend, gemessen an derselben kaputten
+Quelle: Wird der Aufruf **auskommentiert** — die wahrscheinlichste Mutation
+überhaupt —, ist der Wächter mit Abstreifer rot und ohne ihn grün.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald die Zeichenkette
+> irgendwo steht — auch in dem Kommentar, der aus ihr wurde.**
+
+Die erste Begründung im Kopf des Wächters war dabei falsch („ein Wächter, der
+zählt, bekäme die Namen doppelt") und ist berichtigt: Dieser Wächter zählt
+nichts, und ohne den Abstreifer bleibt er an der heilen Datei genauso grün.
+
+Fünf Eingriffe im Bruchskript, jeder einzeln gefahren und jeder mit belegtem
+Rückweg. **Was noch nicht gemessen ist:** die drei fehlenden Plattformen selbst
+— gebaut ist das Mittel, der Lauf folgt.
+
+### Der erste Lauf der Messrunde hat zwei Fehler gefunden — beide in ihr selbst
+
+Die apt-Messrunde ist zum ersten Mal auf allen vier Zielplattformen gefahren und
+war auf dreien rot. Kein Befund am Prüfling: alle drei stecken im Messmittel.
+
+**Der erste hätte eine Plattformeigenschaft erfunden.** `Requested-By` blieb auf
+Debian 12 aus, obwohl `SUDO_UID` gesetzt war — das las sich wie „diese Plattform
+schreibt die Zeile nicht". Nachgemessen: apt schreibt sie nur, wenn die Kennung
+**auf einen Benutzer auflöst.** Unbekannte uid 4242 ergibt keine Zeile, bekannte
+uid 1000 ergibt eine. Im `debian:12`-Abbild gibt es keinen Benutzer mit uid 1000.
+
+> **Eine Kennung, die auf niemanden zeigt, erzeugt keine Zeile — und das sieht
+> aus wie ein Merkmal der Plattform.**
+
+Die uid kommt jetzt aus `/etc/passwd`; gibt es keine, legt das Skript einen
+Benutzer an.
+
+**Der zweite ist eine Unterscheidung, die gefehlt hat.** Auf `debian:12` gibt es
+kein aktualisierbares Paket — das Abbild ist vollständig aktuell —, und damit
+lässt sich „zurückgehalten" nicht herstellen. Das ist kein Fehlschlag des
+Skripts, sondern eine Eigenschaft des Abbilds.
+
+> **Ein Fall, den die Plattform nicht hergibt, ist kein Fehlschlag — aber er
+> darf auch nicht wie ein Erfolg aussehen.**
+
+Er wird deshalb laut als „AUF DIESER PLATTFORM NICHT HERSTELLBAR" genannt und
+getrennt gezählt; der Rückgabewert hängt an ihm nicht. Der Abschluss nennt beide
+Zahlen.
+
+**Und der dritte kam von einem Wächter, den es längst gibt.** `PackagingTest`
+verlangt `DEBIAN_FRONTEND=noninteractive` **in derselben Zeile** wie jedes
+`apt-get install` eines Arbeitsablaufs — meine stand am `docker run` statt an der
+Zeile. Eine debconf-Frage in einem Container ohne Terminal wird nie beantwortet;
+der Lauf stünde bis zum Zeitüberschreiten und sagte nicht, worauf er wartet.
+Nachgezählt: 16 apt-Aufrufe in den Arbeitsabläufen, keiner mehr ohne die Angabe.
+Das Skript selbst setzt sie jetzt einmal am Kopf.
+
+### A1 Schritt 0 ist erledigt — und eine Erwartung des Plans war falsch
+
+Die apt-Messrunde fährt auf allen vier Zielplattformen und ist grün. `docs/81
+§2.3` hatte drei Unterschiede erwartet; gemessen ist:
+
+| Erwartung | Antwort |
+|---|---|
+| Debian 12 liefert noch `/etc/apt/sources.list` mit Inhalt | **falsch** — 0 `.list`-Dateien, 1 `.sources`-Datei |
+| Der Name der Sicherheitssuite unterscheidet sich | **richtig**, und feiner: Debian legt sie auf einen eigenen Pfad, Ubuntu auf einen eigenen Rechner |
+| `--error-on=any` auf apt 2.4 | **es gibt ihn** — Rückgabewert 100 auf allen dreien |
+
+> **Eine Erwartung im Plan ist keine Messung.** Die erste hätte den Leser der
+> Quellen auf eine Datei geschickt, die es nicht gibt.
+
+**Und der Befund M5 trägt auf allen vier Plattformen**, statt auf einer gemessen
+und für drei angenommen zu sein: `apt-get update` gibt bei unerreichbarer Quelle
+überall `0` zurück, schreibt 0 Bytes auf stdout und die `W:`-Zeilen auf stderr.
+
+**Fünfzehn von sechzehn Fällen sind hergestellt.** Der sechzehnte ist „ein
+zurückgehaltenes Paket" auf `debian:12`: Das Abbild ist vollständig aktuell, es
+gibt nichts zurückzuhalten. Er steht als „AUF DIESER PLATTFORM NICHT
+HERSTELLBAR" da und zählt getrennt.
+
+Die Zahlen selbst stehen bewusst **nicht** im Plan, sondern im Artefakt jedes
+Laufs. Ein Dokument, das sie festschreibt, veraltet mit dem nächsten Abbild.
+
+**Ein Nebenbefund am bestehenden Messmittel, benannt und nicht behoben:** M6
+meldet auf Debian 12 und 13 „Schlüssel mit Ablaufdatum 48" neben „Gegenprobe:
+pub-Zeilen gesamt 41". Die Messung liest drei Verzeichnisse, die Gegenprobe zwei.
+
+> **Eine Gegenprobe über eine andere Grundgesamtheit als die Messung ist keine.**
+
+### A1 Schritt 3 — der Paketstand, und die Zahl, die niemand für einen Fehler hält
+
+`system.packages.list` sagt, was auf diesem Server aktualisierbar ist: die
+Pakete mit alter und neuer Fassung, wie viele davon aus einer Sicherheitssuite
+kommen, was ein `dist-upgrade` entfernen würde, was `upgrade` zurückhält, ob ein
+Neustart aussteht und welche Konfigurationsdateien dpkg unter `/etc`
+zurückgelassen hat.
+
+**Gelesen wird in `SrvPanel\Agent\Packages` und nicht in der Operation** — aus
+demselben Grund wie bei `Apt::of()`: `Runner` und `Context` sind `final`, es gibt
+also keine Attrappe. Stünde der Leser in der Operation, wäre er nur über einen
+echten Server prüfbar, und das heisst: gar nicht.
+
+**Das Abnahmekriterium hat einen Fehler gefunden, den kein Wächter finden
+konnte.** Es lautet „die Zahlen stimmen mit der Kommandozeile überein", und beim
+ersten Vergleich standen 89 gegen 145. apt hängt hinter der schliessenden runden
+Klammer einer `Inst`-Zeile an, welche Pakete sie ausgelöst haben — als eine oder
+mehrere eckige Gruppen, manchmal leer:
+
+    … [amd64]) []
+    … [amd64]) [perl:amd64 ]
+    … [amd64]) [libpam-modules:amd64 on libpam-modules-bin:amd64] [libpam-modules:amd64 ]
+
+Der Ausdruck endete mit `\)$` und warf **56 von 145 Zeilen wortlos weg**.
+
+> **Eine Zeile, die der Leser verwirft, fehlt in keiner Summe — sie fehlt nur im
+> Ergebnis.** 89 ist eine Zahl, die niemand für einen Fehler hält.
+
+Der Anhang wird seitdem geduldet und **nicht gelesen**: Er beantwortet „warum
+wird das aktualisiert", und danach fragt keine Anzeige dieser Stufe. Ein Feld,
+das hier entstünde und das niemand liest, wäre von aussen nicht von einem zu
+unterscheiden, das es nicht gibt.
+
+**Und der Vergleich selbst stand zuerst auf drei Nullen.** `removals`, `fresh`
+und `held` waren auf beiden Seiten 0 — sie hätten auch dann übereingestimmt,
+wenn der Leser für sie vollständig kaputt gewesen wäre. Gemessen wird jetzt über
+drei Läufe (`dist-upgrade` ganz, einer mit Sperrmarkierung, einer gemischt mit
+`Remv` und Neuinstallation), und **jeder** der fünf Zähler schlägt mindestens
+einmal aus.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+**Ein Bruch, der nicht gebissen hat, hat eine falsche Begründung im Quelltext
+aufgedeckt.** `Packages::security()` trennte die Suite hinter dem letzten
+Schrägstrich ab, begründet mit `foo-security:1/stable` — ein Anbieter, der auf
+`-security` endet, solle nicht für ein Sicherheitsupdate gehalten werden. Die
+Suite ist aber ein **Suffix** der Herkunft; `str_ends_with` kann über beiden gar
+nicht verschieden antworten. Die Trennung war Verzierung, und der Kommentar
+daneben behauptete eine Wirkung, die sie nicht hatte.
+
+> **Ein Eingriff, der nicht beisst, sagt entweder etwas über den Wächter oder
+> etwas über die Regel.**
+
+Geprüft wird jetzt am Ende der Herkunft, und der Bruch setzt ein `str_contains`
+— den Fehler, den jemand wirklich machen würde. Dabei kam die dritte
+Herkunftsform heraus: `Docker CE:noble` trägt ein **Leerzeichen** im Anbieter und
+hat **keinen** Schrägstrich. Wer die Herkünfte am Leerzeichen trennt statt am
+Komma, macht daraus zwei.
+
+**Ein fehlgeschlagener apt-Lauf geht nicht mehr als „nichts zu tun" durch.**
+Die Operation sah den Rückgabewert zuerst gar nicht an — bei einem Abbruch wäre
+`stdout` leer gewesen und die Antwort „0 aktualisierbare Pakete". Anders als bei
+`apt-get update` (M5) trägt `apt-get -s` seinen Fehlschlag im Rückgabewert, und
+das ist gemessen: eine tote Quelle rc 0 mit 145 Zeilen, eine unerfüllbare Fassung
+rc 100 mit `E:` auf stderr, die gehaltene dpkg-Sperre rc 0 mit 145 Zeilen. Die
+erste Zeile ist die lehrreiche — `-s` erneuert die Listen nicht, sondern liest
+sie; die Antwort ist so alt wie die Listen, und diese Operation sagt keine
+Frische zu.
+
+**`InstLineTest` baut seine Prüfkörper Zeile für Zeile selbst**, wie
+`ArchiveDepthTest` seine Archive. Ein Prüfkörper aus `apt-get -s` auf der
+messenden Maschine enthält genau die Fälle nicht, an denen der Leser bricht: Auf
+`debian:12` gibt es keine einzige `Inst`-Zeile, auf diesem Container 145 — aber
+keine Neuinstallation und keine Entfernung. Die Tabelle trägt eine
+**Untergrenze**: Wer eine Zeile herausnimmt, nimmt eine Falle heraus, und
+`test_the_table_carries_every_trap` wird davon rot. Ohne sie wäre das Kürzen
+still — weniger Fälle, alle grün.
+
+> **Ein Prüfkörper, den man selbst baut, enthält die Fälle, an die man gedacht
+> hat.** Deshalb steht der Vergleich mit der Kommandozeile **neben**
+> `InstLineTest` und nicht statt ihm.
+
+Sechs Brüche, jeder einzeln belegt. Und der Wegwerf-Läufer, der sie fährt, hatte
+selbst eine Lücke: Er las die Zieldateien aus `git diff` und sah damit **keine
+neue Datei** — die sechs Eingriffe zu `Packages.php` und `InstLineTest.php`
+liefen im ersten Lauf gar nicht mit.
+
+> **Eine Liste der geänderten Dateien, die neue nicht kennt, lässt genau die
+> Eingriffe aus, die noch nie gefahren sind.**
+
+### A1 Schritt 4 — die Paketquellen, und zwei Zustände, die gleich aussehen
+
+`system.sources.list` zeigt beides: **was apt benutzt** (`apt-get indextargets`)
+und **was konfiguriert ist** (die Dateien unter `/etc/apt`). Je Eintrag steht
+daneben, ob er eingeschaltet ist und wie viele Ziele apt dazu führt.
+
+**Die Messrunde davor hat eine Aussage dieses Plans umgeworfen.** `docs/81 §2`
+schrieb, `indextargets` könne nicht sagen, aus welcher Datei ein Ziel stammt.
+Es kann: Jeder Block trägt `Sourcesentry: <datei>:<stanza>`, gemessen an allen
+18. Damit lassen sich die beiden Sichten **verbinden**, statt sie
+nebeneinanderzustellen und den Betreiber vergleichen zu lassen.
+
+> **Wissen aus zweiter Hand sieht aus wie Wissen.** Der Satz stand seit dem
+> Ausschreiben des Plans da und ist nie an `indextargets` selbst geprüft worden.
+
+**Die Zahl dahinter ist keine Zeilennummer.** In `ubuntu.sources` stehen die
+beiden Stanzas auf Zeile **32 und 40** und heissen `:1` und `:2`. Wer der
+üblichen Schreibweise folgt und dorthin springt, landet auf einem Kommentar.
+
+> **Eine Zahl hinter einem Doppelpunkt sieht aus wie eine Zeilennummer.**
+
+Gemessen ist auch, dass dieser Index **stabil** ist: Wird Stanza 1 abgeschaltet,
+bleibt die zweite `:2`. Abgeschaltete Stanzas zählen mit — sonst verschöbe sich
+der Index genau dann, wenn jemand eine Quelle abschaltet, und der Verbund bräche
+in dem Fall, für den es ihn gibt.
+
+**Und der Grund, warum es überhaupt zwei Sichten braucht, ist ein anderer als
+gedacht.** Nicht nur eine abgeschaltete Quelle fehlt in `indextargets` — auch
+eine, für die apt keinen Index geholt hat. Beide Zustände sehen von dort aus
+identisch aus. Gemessen an beidem: eine frisch angelegte Datei erscheint nicht,
+und die zwei PPAs dieses Containers erscheinen seit einem `apt-get update` nicht
+mehr, weil der Proxy sie mit 403 abweist. `Enabled:` wird deshalb aus der
+**Datei** gelesen; ohne dieses Feld meldete die Anzeige „abgeschaltet" für eine
+Quelle, die niemand abgeschaltet hat.
+
+> **Zwei Zustände, die von einer Seite gleich aussehen, brauchen die zweite
+> Seite — nicht eine Vermutung.**
+
+**`Signed-By:` hat drei Formen, und alle drei standen an diesem Tag in einem
+einzigen `/etc/apt/sources.list.d`:** ein Pfad, ein leerer Wert mit gefaltetem
+PGP-Block darunter, und der Blockanfang **in derselben Zeile**. Ein Leser, der
+„nicht leer heisst Pfad" annimmt, meldet bei der dritten
+`-----BEGIN PGP PUBLIC KEY BLOCK-----` als Dateinamen.
+
+> **Ein Wert, der auch leer sein darf, unterscheidet sich nicht dadurch von
+> einem Pfad, dass er nicht leer ist.**
+
+**Ein Bruch, der nicht gebissen hat — zum zweiten Mal in zwei Schritten.** Der
+Leser trug zwei Mechanismen für dieselbe Regel: einen Anker `^[A-Za-z]` im
+Feldausdruck und daneben eine eigene Prüfung auf Fortsetzungszeilen. Gemessen —
+ohne die Prüfung grün, mit der Prüfung und gelöstem Anker ebenfalls grün, erst
+ohne beides rot. Jeder zahlte für den anderen mit, und keiner hätte verrotten
+können, ohne dass es auffällt. Geblieben ist der Anker; er ist die Regel in
+ihrer direkten Form.
+
+> **Eine Frage an die Vereinigung hält auch dann, wenn eine der Quellen blind
+> ist — die andere zahlt für sie mit.**
+
+**Und eine Warnung, die Zustand gekostet hat.** `apt-get update` mit
+`-o Dir::Etc::sourceparts=-` aktualisiert nicht *eine* Quelle — es macht apts
+Sicht der Welt zu dieser einen und **räumt die Indexdateien aller übrigen ab**.
+Aus 18 Zielen wurden 1.
+
+> **Eine Einschränkung des Blickfelds ist keine Einschränkung der Wirkung.**
+
+`SourceListTest` baut seine Prüfkörper selbst — dieser Container hat keine
+abgeschaltete Stanza, keine auskommentierte `.list`-Zeile und keine Datei mit
+mehr als zwei Stanzas. Acht Brüche, jeder einzeln belegt.
+
+### A1 Schritt 5 — die Seite, und ein grüner Messwert über eine Seite von 29 412 px
+
+Die Gruppe „Server" hat einen Menüpunkt **Updates**. Er schliesst die Reihe, die
+den Zustand dieses Servers beschreibt — „Vorgänge" sagt, was gerade läuft,
+„Protokoll", was das Panel getan hat, „Logs", was auf dem Server steht, und
+„Updates", was ansteht. Erst danach beginnt mit „Konten" die andere Frage: wer
+darf.
+
+Die Seite zeigt die Kacheln (aktualisierbar, davon Sicherheit, zurückgehalten,
+würde entfernt), die Pakete mit alter und neuer Fassung, und darunter die
+Paketquellen mit ihren drei Zuständen. Sie **liest nur**; der Knopf, der
+aktualisiert, kommt in Schritt 6.
+
+**Warum Pakete und Quellen auf einer Seite stehen:** Die zweite Liste erklärt
+die erste. „0 Aktualisierungen" hat zwei sehr verschiedene Gründe — der Server
+ist aktuell, oder apt kommt an seine Quellen nicht heran —, und die Zahl allein
+sieht in beiden Fällen gleich aus.
+
+**Der Befund dieses Schritts war grün.** Alle vier Lagen meldeten `dokument=0`,
+Gegenprobe 200/200, `schiebt=0` — und bei 390 px war die Seite **29 412 px
+hoch**: 145 Paketzeilen als gestapelte Kärtchen, rund 203 px je Zeile,
+fünfunddreissig Telefonschirme.
+
+> **Eine Messung, die nur waagerecht misst, sagt über die Höhe nichts.**
+
+Derselbe Schnitt wie bei der Baumansicht aus `docs/46 §11.1`: Dort war der
+waagerechte Überlauf in jedem Entwurf 0, und entschieden wurde die Frage
+senkrecht. Gefunden hat es beide Male kein Messwert, sondern ein Blick auf das
+Bild. Geblättert wird jetzt mit `Page::SIZE` — derselben 50 wie überall sonst,
+und die Zahl reist aus dem Controller statt in der Vorlage zu stehen. Danach:
+11 467 px.
+
+**Und ein zweiter Befund aus demselben Blick.** Die Spalte „Zustand" der
+Quellentabelle stand am Ende und lag bei 1440 px ausserhalb des Bildes. Sie ist
+die Antwort dieser Tabelle: „kein Index" gegen „11 Ziele" ist genau die
+Unterscheidung, für die Schritt 4 gebaut wurde.
+
+> **Eine Spalte, die man wegrollen muss, ist keine Antwort.**
+
+**Vier Fehler hat der Testlauf gefunden, bevor eine CI-Runde fällig war** — und
+das ist neu in diesem Container. `.notice` ist eine Flexbox, und ein Textknoten
+neben einem Element ergibt zwei Spalten (`NoticeChildrenTest`, viermal); eine
+Vorlage entschied die Einzahl selbst statt über `counted()`
+(`CountedNounTest`); und die beiden neuen Operationen fehlten in
+`AgentOperationReachTest`, gleich in zwei Richtungen.
+
+### Filter und eine gemessene Seitengrösse — die 50 war geerbt und falsch
+
+Der Betreiber hat zwei Dinge gefragt: ob Blätterung bei 390 px überhaupt hilft,
+und ob es einen Filter für sicherheitsrelevante Updates geben kann. Beides war
+berechtigt, und das erste hat eine Zahl umgeworfen.
+
+**`Page::SIZE` (50) ist die Seitengrösse der blätternden Tabellen dieses Panels
+— und die passte hier nicht.** Gemessen an der echten Seite:
+
+    eine Zeile bei 1440 px:    41 px    50 Zeilen =  3 Bildschirme
+    eine Zeile bei  390 px:   179 px    50 Zeilen = 14 Bildschirme
+
+Das **4,4-fache**. Eine Tabellenzeile ist am Schreibtisch eine Zeile und auf dem
+Telefon ein Kärtchen mit vier Feldern.
+
+> **Eine Seitengrösse, die für eine einzeilige Tabelle stimmt, stimmt nicht für
+> ein Kärtchen mit vier Feldern.**
+
+> **Zwei Zahlen, die zufällig gleich sind, sind keine gemeinsame Zahl.**
+
+Zwanzig folgt aus der Messung und steht in der Vorlage; die `page_size` aus dem
+Controller ist wieder fort. **Nicht an der Fensterbreite** — wer beim Drehen des
+Telefons eine andere Seite vor sich hat, sucht die Zeile wieder, die er gerade
+gelesen hat.
+
+**Vier Filter**, weil Blättern die Frage nicht beantwortet, mit der jemand diese
+Seite öffnet: „Zeigen" (alle · nur Sicherheit · nur neue Pakete), „Herkunft"
+**aus den Daten** statt aus einer gepflegten Liste, und ein Namensfeld. Der
+Zustand bleibt lokal und reist nicht in der Adresse — anders als bei der
+Logs-Seite, wo der Filter zum Agenten muss: Hier läge in einem Serverumlauf ein
+zweites `apt-get -s dist-upgrade`.
+
+**`fresh` war ein Feld, das der Agent rechnet und niemand liest** — und diese
+Stufe hat den Satz einen Commit vorher noch zitiert. Es steht jetzt als Kachel
+„davon neu" da.
+
+`FilterResetTest` hält drei Regeln: jeder Filter setzt die Blätterung zurück
+(sonst sieht man auf Seite 5 eine leere Tabelle, obwohl 124 Treffer da sind),
+die Beschriftung zählt das Gefilterte, und „nichts da" ist nicht dieselbe
+Meldung wie „nichts passt". Er **zählt die Filter aus dem Code ab**, statt eine
+Liste zu führen — genau der vierte Filter, den jemand später dazubaut, ist der
+Fall, den es zu fangen gilt.
+
+**Und der Wegwerf-Läufer für die Brüche kann jetzt mehr — nachdem er zwei Fehler
+gemacht hat.** Fünf Eingriffe standen seit Wochen als „braucht Laravel — hier
+nicht messbar" da; mit dem lokalen PHPUnit fahren sie. Der erste Wurf des
+Rückfalls schrieb `open(datei, 'wb').write(open(datei, 'rb').read())` als
+vermeintlichen No-op — das `wb` kürzt die Datei, bevor das `rb` daneben sie
+liest. Heraus kam eine **leere `routes/web.php`**, und ein Wächter über
+schreibende Routen meldete Grün, weil es darin keine gibt.
+
+> **Ein Bruch muss die Regel verletzen und nicht den Code zerstören.**
+
+Beim Berichtigen flog dann beides zugleich — die schädliche Zeile **und** die
+nötige Wiederanwendung des Eingriffs, denn der wird eine Ebene höher schon
+zurückgenommen.
+
+> **Wer zwei Fehler zugleich vermutet, nimmt beim Berichtigen leicht den
+> richtigen Teil mit weg.**
+
+Belegt ist es am Fall, der von Hand nachweislich beisst: 48 Eingriffe, alle
+beissen, **null ohne Messung**.
+
+### Schritt 4b — Fingerabdruck und Ablauf, und ein Abnahmepunkt ohne Schritt
+
+Beim Nachsehen, was in A1 noch offen ist, kam ein eigener Rest heraus: **Schritt
+4 war nach seinem „fertig, wenn" abgehakt und nach seiner Beschreibung nicht.**
+`docs/81 §6` sagt über `system.sources.list` *„…je Schlüssel Fingerabdruck und
+Ablauf"*; gebaut war beides nicht. Das „fertig, wenn" fragt nur nach der
+abgeschalteten Quelle, und danach war gemessen worden. Beides steht in derselben
+Datei, zwölf Zeilen auseinander.
+
+> **Ein „fertig, wenn", das weniger verlangt als die Beschreibung daneben, lässt
+> die Hälfte durchgehen.**
+
+Daran hängt **Abnahmepunkt 4**: ein Schlüssel, der in weniger als dreissig Tagen
+abläuft, wird gemeldet, **bevor** ein Lauf daran scheitert. Der Punkt hat in §9
+keinen eigenen Schritt.
+
+**`gpg` steht jetzt auf der Positivliste des Agenten.** Das ist die erste Grenze
+dieses Projekts, und sie gehört begründet: eine Frage, ausschliesslich lesend,
+**nie mit einem Pfad aus einem Formular** — die Pfade stammen aus `Signed-By:`
+der Quelldateien, die eingebetteten Blöcke gehen über stdin. Dass es auf allen
+vier Zielplattformen liegt, ist gemessen: `tests/apt-faelle-messen.sh` meldet
+„gpg fehlt" als Ausfall, und alle vier Messrunden sind grün.
+
+**Sechs Messungen davor**, und zwei haben den Entwurf entschieden. `gpg` braucht
+ein **beschreibbares Heimverzeichnis, auch nur zum Lesen** — es legt es an und
+stirbt mit `rc=2`, wenn es das nicht kann. Einen nur-lesenden Aufruf gibt es
+nicht, also bekommt es `--homedir` auf einen eigenen Ort statt `/root/.gnupg`.
+Und die `fpr`-Zeile gehört zur zuletzt gesehenen `pub` **oder `sub`**: 12 `fpr`
+bei 11 `pub` und 1 `sub` — wer „die `fpr`-Zeile" nimmt, hängt einem Schlüssel
+den Fingerabdruck seines Unterschlüssels an.
+
+**Die Meldung ist der Abnahmepunkt, nicht die Spalte.** Eine Spalte wartet, dass
+jemand hinsieht; ein abgelaufener Schlüssel bricht `apt-get update`, und weil das
+mit `0` endet (M5), meldet der Server danach „nichts zu tun".
+
+**Zum dritten Mal in dieser Runde: zwei Fassungen einer Regel, die einander
+decken.** Der Leser trug drei Mechanismen für die Fingerabdruck-Paarung.
+Gemessen: jeder allein grün, **erst ohne alle rot**. Zwei Eingriffe nacheinander
+bissen nicht, bevor das auffiel.
+
+> **Ein Eingriff, der nicht beisst, sagt entweder etwas über den Wächter oder
+> etwas über die Regel.**
+
+**Und M6 im Messmittel ist gerichtet.** Der Nebenbefund aus `docs/81 §2.3`
+lautete „48 mit Ablaufdatum neben 41 pub-Zeilen gesamt" — mehr ablaufende als
+vorhandene. Die Schleife las drei Verzeichnisse, die Gegenprobe zwei; jetzt eine
+Liste für beide, und daneben die Zahl, die wirklich zählt: nicht „hat einen
+Ablauf", sondern „läuft in unter dreissig Tagen ab".
+
+**Ein Layoutbefund aus der Bilderrunde.** Herkunft und Fingerabdruck standen in
+einer Zelle — bei 390 px ist `.stacks td` eine Flexbox, und aus „in der Datei"
+neben vierzig Hexziffern wurden drei Zeilen mit je einem Wort. Ein
+`flex-direction` in der Komponente wäre die Gestaltung einer Tabelle am
+Gestaltungssystem vorbei; zwei Spalten sind dieselbe Auskunft ohne eigene Regel.
+
+### A1 Schritt 7, erste Hälfte — eine eigene Paketquelle schalten
+
+`system.sources.toggle` setzt `Enabled:` in einer Stanza. **Nur in Dateien, die
+das Panel selbst angelegt hat** — heute zwei: die Sury-Quelle und das eigene
+Repo. PGDG nennt der Plan als dritte; es gibt sie in diesem Repo noch nicht, und
+sie käme als `srvpanel-pgdg-source`, also als Freigabe und nicht als Textfeld.
+
+**Der Grund ist der Hebel.** Wer eine Paketquelle kontrolliert, kann ein Paket
+mit höherer Fassungsnummer ausliefern, das ein beliebiges anderes ersetzt —
+`libc6`, `openssh-server`, `srvpanel` selbst. Eine fremde Quelle anzufassen ist
+nicht eine Handlung neben den anderen, sondern die, die alle künftigen umfasst.
+
+**Und danach wird nachgesehen, weil eine kaputte Quelldatei nicht diese Quelle
+bricht, sondern apt.** Gemessen: Eine einzige unlesbare `.sources` lässt
+`apt-get indextargets` **und** `apt-get -s upgrade` mit `rc=100` und null Zeilen
+enden — *„The list of sources could not be read."* Danach installiert dieser
+Server keine PHP-Version mehr und kein PostgreSQL.
+
+> **Ein Fehler in einer Datei, den nur der nächste Leser bemerkt, ist beim
+> Schreiben am billigsten.**
+
+Der Rückweg trägt hier, anders als beim `sshd` aus `docs/59`: apt ist kein
+Dienst, der an einer kaputten Datei stirbt. Belegt mit einem Störer daneben —
+die Datei kommt **byte-identisch** zurück, und die Wegwerfdatei bleibt nicht
+liegen. Geschrieben wird daneben und dann umbenannt; `rename()` ist nur
+innerhalb eines Dateisystems atomar, deshalb liegt sie im selben Verzeichnis.
+
+**Der Rundlauf durch echtes apt:** 16 Ziele → Stanza 1 aus → 5 Ziele → wieder an
+→ 16. Gearbeitet wird am Rohtext und nicht an den gelesenen Feldern: Eine Stanza
+trägt einen gefalteten PGP-Block über vierzig Zeilen, und ein Neuschreiben aus
+`fields()` verlöre ihn.
+
+> **Wer eine Datei aus dem liest, was er von ihr braucht, schreibt weg, was er
+> nicht gelesen hat.**
+
+**`SourceOwnershipTest` hält die Liste gegen die Paketierung**, in beide
+Richtungen — dieselbe Naht wie `PhpSourceUriTest`. So entsteht die Lücke
+wirklich: Kommt eine dritte Quelle dazu, trägt sie jemand in die Paketierung ein
+und vergisst die Liste; sie erschiene dann auf der Seite und liesse sich als
+einzige nicht schalten, ohne dass irgendwo stünde, warum.
+
+**Drei der sechs Brüche bissen zuerst nicht**, und einer davon hat eine falsche
+Begründung von mir aufgedeckt: Der Kommentar behauptete, `realpath()` fange
+einen symbolischen Verweis ab. Gemessen ist es andersherum — ein Verweis **an**
+der eigenen Stelle wird vom Zeichenkettenvergleich ohnehin angenommen;
+`realpath()` fängt ihn nicht, es erweitert nur.
+
+> **Eine Auflösung, die zwei Schreibweisen zusammenführt, ist keine Prüfung —
+> sie ist eine Nachsicht.**
+
+Die zwei anderen waren stumpfe Prüfungen: Eine zählte die schreibenden Aufrufe
+und fand `rename` irgendwo, ohne auf das Ziel zu sehen; die andere zielte auf
+die falsche Richtung derselben Naht.
+
+> **Ein Wächter, der zählt, wie oft geschrieben wird, hat über das Wohin nichts
+> gesagt.**
+
+**Drei bestehende Wächter haben an der neuen Fläche zugebissen** — und alle drei
+zu Recht: zwei fehlende deutsche Feldnamen, eine Operation, die eine Datei
+anfasst und nicht nach ihrem Rückweg heisst, und die apt-Sperre, deren Ausnahme
+begründet sein will.
+
+**Offen aus diesem Schritt: der Neustart-Knopf.**
+
+### A1 Schritt 7, zweite Hälfte — der Neustart-Knopf
+
+`system.reboot` setzt einen **Zeitgeber** über `systemd-run` ab, statt
+`systemctl reboot` im eigenen Prozess zu rufen. Das ist keine Vorsicht, sondern
+die einzige Bauart, die eine Antwort erlaubt: Der Neustart nimmt Agent,
+Warteschlange, Webserver und Datenbank gemeinsam mit, und ein direkter Aufruf
+wäre ein Wettlauf zwischen der Antwort der Operation und dem SIGTERM, das
+systemd der eigenen Kontrollgruppe schickt.
+
+> **Ein Vorgang, dessen Antwort nie ankommt, ist von einem, der nie gelaufen
+> ist, nicht zu unterscheiden.**
+
+`systemd-run` antwortet dagegen sofort und endgültig — es gibt die Unit an oder
+einen Fehlschlag mit Grund. Dieselbe Überlegung wie bei `panel.update` seit P0.
+
+**Zwei Wege, die kürzer aussehen, sind es nicht.** `systemctl --when=+1min
+reboot` täte dasselbe in einer Zeile — den Schalter gibt es erst ab systemd 250,
+und **Ubuntu 22.04 liefert 249** aus. Und `shutdown` ist auf diesen Systemen ein
+Symlink auf `systemctl`; ein Eintrag dafür auf der Positivliste wäre eine zweite
+Schreibweise für ein Programm, das dort schon steht.
+
+> **Ein Schalter, der auf drei von vier Plattformen funktioniert, ist schlimmer
+> als keiner — er fällt genau dort aus, wo niemand hinsieht.**
+
+**Der Rechnername wird zweimal gefragt und zählt einmal.** Im Browser bleibt der
+Knopf abgeschaltet, bis der Name stimmt — das ist die Anzeige. Geprüft wird auf
+dem Server, gegen `Names::host()`, also gegen dieselbe Quelle, aus der die Seite
+den Namen zeigt. Stünde dort einmal `host()` und einmal `php_uname('n')`, wäre
+die Bestätigung auf jedem Server mit vollständigem Namen unbestehbar, und der
+Betreiber hielte sich für vertippt.
+
+**Der Knopf steht an seinem Anlass und nicht in einem Menü** (`docs/81 §6`):
+auf der Übersicht bei `kernel_stale`, auf der Updates-Seite unter der
+Neustartmeldung. Auf der Übersicht **nur** bei diesem einen Anlass — sie ist die
+Seite, auf der jedes Adminkonto landet, und ein stehender Neustart-Knopf auf der
+Startseite ist ein Fehlgriff, der auf seine Gelegenheit wartet.
+
+**Die Rückfrage kann jetzt ein Wort verlangen.** `useConfirmation` nimmt einen
+`challenge`; ohne ihn bleibt sie, was sie an allen achtzehn Stellen seit dem
+15. August ist. Das Feld setzt `autocapitalize="none"` — ohne das macht iOS aus
+`cloudsrv24.de` ein `Cloudsrv24.de`, und der Vergleich scheitert, ohne dass
+irgendetwas sichtbar falsch aussähe.
+
+**Und die Wartezeit steht nicht im Satz.** Sie kommt aus
+`SystemReboot::DELAY_SECONDS` bis in die deutsche Rückfrage; ein „eine Minute"
+im Text wäre ihre zweite Fassung, und die bliebe stehen, wenn jemand die Zahl
+ändert. `RebootConfirmTest` besteht darauf.
+
+**Gemessen wurde vorher, und das Ergebnis war vor allem: hier lässt sich fast
+nichts messen.** Dieser Container hat systemd nicht als PID 1. Was messbar war,
+ist die Gestalt der Wand — `rc=1`, **stdout null Byte**, die Meldung
+ausschliesslich auf `stderr`, und zwar zweimal. Ein Leser, der nur die Ausgabe
+ansieht, fände dort eine leere Zeile und meldete Erfolg; das ist M5 zum vierten
+Mal, an einem anderen Programm.
+
+**Der Weg zum Neustart ist trotzdem vollständig belegt** — Knopf, Rückfrage,
+Prüfung, Vorgang, Warteschlange, Agent: Ein falscher Name wird abgewiesen und
+legt **keinen** Vorgang an, ein richtiger legt einen an, und der endet mit der
+echten Meldung von systemd. Was offen bleibt und benannt ist: dass die
+transiente Unit den Neustart von `srvpanel-worker` überlebt. `docs/81` führt das
+als den einen Punkt, der A1 zum Scheitern bringen kann, und er gehört auf einen
+echten Server.
+
+**Kein Abbruch über das Panel.** Der Weg zurück ist
+`systemctl stop srvpanel-reboot.timer` auf der Kommandozeile — dafür ist die
+Minute lang genug und der Unitname fest. Ein Knopf dafür setzte voraus, dass
+das Panel einen anstehenden Zeitgeber wieder auslesen kann, und wie systemd das
+meldet, ist hier nicht messbar. Es steht als Rest benannt da und nicht als
+vergessene Hälfte.
+
+### Zwei Wächter, die aus einem anderen Grund rot waren
+
+**`PartialReloadTest` meldete seine Untergrenze**, und geändert hatte sich nur
+ein Kommentar. Deutsche Anführungszeichen stehen in diesem Repo als `„…"` — die
+öffnende ist U+201E, die schliessende ein gewöhnliches `"` (1214 gegen ein
+einziges U+201C, ausgezählt). Der Leser des Wächters arbeitet auf **Bytes** und
+hält jedes `"` für den Anfang einer PHP-Zeichenkette; solange ihre Zahl im
+gelesenen Bereich gerade ist, geht das gut. Ein Kommentar mit einem Zitat mehr
+verschob alles danach, die schliessende eckige Klammer wurde nie gefunden, und
+`Inertia::render('Overview', …)` fiel aus der Liste.
+
+> **Ein Wächter, der Anführungszeichen zählt, zählt die des Fliesstextes mit —
+> und ob er zubeisst, entscheidet die Parität.**
+
+Er liest jetzt über `WithoutPhpComments`, also über den Parser statt über ein
+Muster — zehn Wächter dieses Repos taten das schon.
+
+**Und `PreviousUrlTest` fiel an einer Kopfzeile, deren Wert kein Browser je
+schickt.** Dort stand `X-Inertia-Version: ''`; Inertia trägt an dieser Stelle
+den Stand der Bauartefakte ein und antwortet bei Abweichung mit **409** statt
+mit der Seite. Grün war das nur, weil in der CI `php artisan test` **vor**
+`npm run build` läuft — ohne `public/build/manifest.json` ist die Fassung `null`,
+und die leere Kopfzeile passte dazu. In einem Container, in dem jemand gebaut
+hat, fielen beide Fälle, ohne dass an der Regel etwas kaputt gewesen wäre.
+Gemessen in beide Richtungen: mit Manifest 0 von 2, ohne Manifest 2 von 2.
+
+> **Eine Kopfzeile mit einem Wert, den der Browser nie sendet, ist derselbe
+> Fehler wie eine, die er nie sendet — sie fällt nur später auf.**
+
+Das ist derselbe Satz, den dieser Test in seinem eigenen Kopf führt, zum dritten
+Mal — einmal für eine Kopfzeile zu viel, einmal für eine zu wenig, jetzt für
+einen Wert, den es so nicht gibt. Gefragt wird die Fassung jetzt bei der
+Mittelschicht, die sie setzt.
+
+### A1 Schritt 6 — Aktualisierungen installieren, und Teil 3 von M5
+
+Zwei Operationen: `system.packages.refresh` frischt die Paketlisten auf und
+nennt **je Quelle**, welche ausgefallen ist; `system.packages.upgrade`
+installiert — alles, nur Sicherheit, oder ausgewählte Pakete.
+
+**Der Lauf geht als transiente Unit an ein Skript und nicht an `apt-get`**, und
+das ist der Kern dieses Schritts. Gemessen: Ein Lauf, der nichts zu tun hat,
+schreibt `0 upgraded, 0 newly installed, 0 to remove and 144 not upgraded.` und
+endet mit **0**. Das ist M5 an einer vierten Stelle.
+
+> **Ein Rückgabewert, der einen Fehlschlag nicht tragen kann, ist keine Prüfung
+> — er ist eine Zeile, die aussieht wie eine.**
+
+`packaging/bin/apt-run` zählt deshalb vorher und nachher, wie viele
+Aktualisierungen offen sind, schreibt das Ergebnis als letzte Zeile des
+Protokolls und endet **ungleich 0**, wenn sich nichts geändert hat. Vier
+Ausgänge gegen echtes apt gemessen: nichts bewirkt → 3, etwas bewirkt → 0,
+unbekannter Modus → 2, keine Namen → 2.
+
+**Und damit ist Teil 3 von M5 eingelöst.** `panel.update` setzte seit P0
+`apt-get update -qq && apt-get install -y --only-upgrade srvpanel` ab — das
+`&&` griff nie, weil `apt-get update` immer 0 ist, und mit alten Listen fand
+`--only-upgrade` nichts, meldete `0 upgraded` und endete ebenfalls mit 0. Das
+Panel meldete „Update läuft", die Fassung blieb stehen, und im Protokoll stand
+ein erfolgreicher Lauf. Es läuft jetzt über dasselbe Skript im Modus `panel`
+und vergleicht die **installierte Fassung** vor und nach dem Lauf.
+
+> **Wenn die Fassung danach dieselbe ist, ist es gleichgültig, warum.**
+
+Diese eine Frage ersetzt jede Prüfung am Rückgabewert von `apt-get update`: Sie
+fällt gleich aus, ob eine Quelle tot war, ob die Listen alt waren oder ob es
+nichts Neues gab. Die Ausnahme in `AptResultTest` ist damit fort.
+
+**Kein Freitext erreicht apt.** Gemessen: `--reinstall` als *Paketname* wird von
+apt **als Option** geschluckt — „0 upgraded", rc=0, wortlos. Geprüft wird
+deshalb gegen die Liste, die der Agent selbst gerade gelesen hat, und nicht
+gegen ein Muster; ein Muster müsste jede solche Schreibweise erraten. `--`
+täte es auch und ist bewusst **nicht** dabei: Es wäre eine zweite Grenze neben
+der Positivliste, und es könnte nur die Hälfte — ein Paket, das gar nicht zur
+Aktualisierung anstand, hielte es nicht auf.
+
+**Zwei Fallen hat die Messrunde geschlossen, bevor sie Code wurden.**
+`--only-upgrade` für benannte Pakete klingt richtig und tut auf einem Paket,
+das noch nicht installiert ist, wortlos nichts — in der Liste stehen aber auch
+Neuinstallationen. Und `apt-get -t <suite>` ist kein Sicherheitsfilter, sondern
+eine andere Kandidatenwahl (140 statt 142 Pakete): Die Liste „nur Sicherheit"
+stellt der Agent selbst zusammen, aus derselben Lesung wie die Positivliste.
+
+**Auf der Seite**: „Jetzt nachsehen" im Seitenkopf, drei Griffe über der
+Tabelle und ein Kästchen je Zeile. Die Auswahl überlebt Filter und Seiten —
+wer erst nach `libssl` sucht, drei Zeilen anhakt und dann nach `perl` sucht,
+will beide Gruppen installieren; deshalb steht die Zahl am Knopf und nicht in
+der Tabelle.
+
+**`--force-confold` bleibt** (Frage 3, entschieden durch M12), und
+`Dpkg::Use-Pty=0` ist dazugekommen: Die längste Zeile des Protokolls fällt
+damit von **1400 auf 103** Zeichen — ohne sie steht der Datenbankfortschritt
+von dpkg als eine einzige Zeile darin.
+
+### Drei Wächter, die aus einem anderen Grund rot waren
+
+**`AptResultTest` wäre an diesem Tag blind geworden.** Der Aufruf von
+`apt-get update` zog in ein Shell-Skript um; der Wächter las nur PHP und hätte
+weiter Grün gemeldet — für eine Stelle, die er gar nicht mehr sieht. Er liest
+jetzt auch `packaging/bin`. Dabei fiel ein Loch in seinem Ausdruck auf, das es
+schon vorher gab: `apt-get -q update` traf er nicht, weil er `apt-get`
+unmittelbar vor `update` verlangte.
+
+> **Ein Ausdruck, der die gewohnte Schreibweise kennt, prüft die Gewohnheit und
+> nicht die Regel.**
+
+**`AptLockReachTest` verlor `PanelUpdate` aus derselben Ursache** — in dessen
+Quelltext steht seit dem Umzug kein `apt-get` mehr. Gefangen hat es die
+Untergrenze daneben und nicht das Nachdenken.
+
+**Und `CountedNounTest` hat eine Regel dazubekommen, die eine Aufnahme
+gefunden hat.** In der Rückfrage stand „**2 :count ausgewählte Pakete
+installieren?**" — `counted()` setzt die Zahl selbst davor und nimmt daneben
+nur das Wort; `:count` ist die Schreibweise von `lang/de/validation.php`, wo
+Laravel den Platzhalter ersetzt. Hier ersetzte ihn niemand.
+
+> **Wissen aus zweiter Hand sieht aus wie Wissen.**
+
+Die Messung daneben war fehlerfrei: `dokument=0`, Gegenprobe 200/200. Ein
+Platzhalter, der als Text dasteht, lässt nichts überlaufen.
+
+### Zwei Funde der Bilderrunde, beide ohne Zahl
+
+**Das Ankreuzfeld einer Zeile ist bei 390 px 17×17 gross** — WCAG 2.5.8
+verlangt 24×24 für ein Ziel, das kein Text ist. Es gilt seit P6 genauso für den
+Dateimanager, deshalb steht die Regel an `.check` und nicht an der neuen Seite.
+
+**Und der erste Wurf dieser Regel hat nichts bewirkt.** Sie stand im grossen
+`@media`-Block bei Zeile 1351, `.check` entsteht bei 1941 — gleiche
+Spezifität, und dann gewinnt die spätere Regel. Die Messung sagte unverändert
+17×17.
+
+> **Eine Regel für den schmalen Fall, die vor der allgemeinen steht, ist keine
+> Ausnahme — sie ist die, die verliert.**
+
+**Zwei Knopfreihen klebten aneinander.** Gemessen bei 1440 px: 26 px zur
+Meldung darüber, 26 px zum Filter darunter, **0 px** zwischen den Reihen. Vier
+Knöpfe ohne Lücke lesen sich als eine Gruppe — der Neustart stand damit näher
+an „Alle installieren" als an dem Satz, der ihn erklärt.
+
+> **Nähe ist eine Aussage über Zusammengehörigkeit, und sie gilt auch dann,
+> wenn sie niemand gemeint hat.**
+
+### A1 Schritt 8 — die unbeaufsichtigten Updates, und wer den Hauptschalter hält
+
+Die Updates-Seite hat einen vierten Bereich: was die Automatik von apt
+**wirklich** tut. `system.packages.unattended` schaltet sie.
+
+**Der wirksame Zustand hat fünf Teile**, und keiner davon steht in unserer
+Datei: ob `unattended-upgrades` installiert ist, der Hauptschalter
+`APT::Periodic::Enable`, die beiden Abstände in Tagen, und die Zeitgeber, die
+das tägliche Skript überhaupt anstossen. Gelesen wird über `apt-config dump` —
+apts eigene aufgelöste Sicht, so wie `apt-get indextargets` es für die Quellen
+ist.
+
+**Warum das nicht anders geht, steht live in diesem Container.**
+`/etc/apt/apt.conf.d/20auto-upgrades` sagt für **beide** Teilschalter `1`, und
+die Automatik läuft nicht: `docker-disable-periodic-update` setzt den
+Hauptschalter auf `0`, und `/usr/lib/apt/apt.systemd.daily` steigt daran in
+Zeile 358 aus, bevor es die anderen liest.
+
+> **Eine Auskunft aus der eigenen Datei ist keine über den wirksamen Zustand.**
+
+**Und die Regel, die überall steht, ist falsch.** „Eine Datei mit hoher Nummer
+gewinnt" — gemessen sortiert apt nach **ASCII**, und Ziffern stehen vor
+Buchstaben:
+
+    99-probe (Enable "7")  →  dump sagt "0"   (verloren)
+    zz-probe (Enable "7")  →  dump sagt "7"   (gewonnen)
+    ohne Prüfkörper        →  dump sagt "0"   (Gegenprobe)
+
+Die Datei des Panels heisst deshalb `zz-srvpanel-unattended`. Das ist ein
+Versuch und keine Zusage — die Zusage ist, dass die Operation nach dem
+Schreiben **nachliest** und abbricht, wenn der wirksame Wert nicht der gewollte
+ist. Sie nennt dann die Dateien, die denselben Schlüssel setzen, in der
+Ordnung, in der apt sie liest.
+
+> **Ein Namensschema, das „zuletzt" bedeuten soll, bedeutet es nur, solange
+> niemand einen Buchstaben davorschreibt.**
+
+> **Erfolg wird gelesen, nicht geglaubt.**
+
+**Eine fehlende Zeile heisst „an".** `apt.systemd.daily` setzt
+`AutoAptEnable=1  # default is yes`. Ein Leser, der aus dem Fehlen auf „aus"
+schlösse, meldete eine abgeschaltete Automatik auf jedem frisch aufgesetzten
+Server.
+
+> **Eine Vorgabe, die nirgends steht, steht im Programm — und nur dort.**
+
+**Zwei Einstellungen, verschieden scharf** (Frage 4 aus `docs/81 §3`): Die
+Paketlisten aufzufrischen bleibt an, auch wenn der Schalter aus ist — eine
+Zahl, die drei Wochen alt ist, ist schlimmer als keine. Unbeaufsichtigt zu
+installieren ist die scharfe Hälfte und folgt dem Schalter. Gemessen gegen
+echtes apt, beide Richtungen:
+
+    eingeschaltet   Enable 1 · Listen 1 · unbeaufsichtigt 1
+    ausgeschaltet   Enable 1 · Listen 1 · unbeaufsichtigt 0
+
+**Von selbst neu gestartet wird nie** — `Automatic-Reboot` steht in beiden
+Fassungen auf `false`.
+
+**Die Herkünfte setzt das Panel nicht, es zeigt sie.** Der Plan nahm an, die
+Vorgabe sei `${distro_id}:${distro_codename}-security`; gemessen sind es vier,
+darunter die Release-Tasche und zwei ESM-Herkünfte. Der Schluss hält — das
+eigene Depot ist nicht dabei —, die Prämisse war zu eng. Sie zu verengen wäre
+eine Richtlinienentscheidung im Namen des Betreibers.
+
+**Und der Weg zurück steht in der Paketierung.** Der Schalter entfernt die
+Datei nicht; ausgeschaltet hält sie weiterhin den Hauptschalter. Beim `purge`
+nimmt `postremove.sh` sie mit — sonst bliebe eine Datei liegen, die apt weiter
+liest, während das Panel, das sie geschrieben hat, fort ist. Die Lücke aus
+`docs/35`, diesmal vermieden statt später gefunden.
+
+### Ein Bruchskript, das sich nicht einliest, prüft nichts
+
+`tests/waechter-brechen.sh` liess sich eine halbe Stunde lang nicht von `bash`
+parsen, und **acht Prüfungen darüber blieben grün**: Jeder Eingriff fand seine
+Zielstelle, jeder Python-Block war gültig, jede Prüfung nannte einen Test, den
+es gibt. Nur ausführen liess sich das Ganze nicht.
+
+Die Ursache war eine Überschrift mit einem deutschen Anführungszeichen — die
+schliessende ist ein gewöhnliches `"` und beendet in einer Shell die
+Zeichenkette. Die vier Überschriften daneben schreiben `\"`; eine Gewohnheit,
+an die sich vier Stellen halten, ist trotzdem keine Regel, solange die fünfte
+sie brechen darf.
+
+> **Ein Bruchskript, das sich nicht einliest, prüft keine einzige Regel — und
+> jede Prüfung darüber bleibt grün.**
+
+`BreakScriptTest` fährt seitdem `bash -n` über das Skript, mit einer
+Gegenprobe an einer Wegwerfdatei: Der Eingriff dazu müsste das Bruchskript
+selbst verändern, und das nimmt der Rückweg zu Recht aus.
+
+### Und ein Satzbau, den nur das Bild gefunden hat
+
+Auf dem Bild stand „Den Hauptschalter setzt **1 diese Datei**". `counted()`
+setzt die Zahl **vor** das Wort — hier gehört sie in den Satzbau („setzt eine
+Datei" gegen „setzen zwei Dateien"). Es ist dieselbe Ursache wie beim `:count`
+zwei Schritte vorher, in ihrer zweiten Gestalt: nicht ein Platzhalter zu viel,
+sondern eine Zahl an der falschen Stelle.
+
+> **Ein Baustein, der die Zahl selbst setzt, passt nur in Sätze, die mit ihr
+> anfangen.**
+
+### A1 Schritt 9 — der volle Bruchlauf, und eine Umgebung, die niemand festgelegt hat
+
+**1524 Prüfungen, `FEHLT: 0`, „Alle Wächter beissen."** Der Arbeitsbaum davor
+und danach ist derselbe — der Lauf hat nichts liegen lassen.
+
+Bezahlt hat er einen Befund, und der steckte nicht in einem Eingriff, sondern in
+der Umgebung, in der das Skript läuft. `pruefe()` liest die Ausgabe von PHPUnit
+als Text und sucht `OK (` beziehungsweise `FAILURES!`. In einer Agentensitzung
+schreibt derselbe Aufruf statt dessen eine Zeile JSON, und damit fällt **jede**
+der 1524 Prüfungen in den Zweig „unlesbar". Ausgesiebt Variable für Variable:
+`AI_AGENT` und `CLAUDECODE` schalten die Verpackung ein, `env -i` gibt
+gewöhnlichen Text. Beide einzeln nachgeprüft, in beide Richtungen.
+
+**Die Lehre steht in der Geschichte dieses Lesers.** Er ist zweimal umgebaut
+worden — einmal auf JSON, weil er in einer Agentensitzung entstand, und danach
+zurück auf Text, weil er in der CI nichts fand. Keiner der beiden Umbauten hat
+gefragt, *warum* dieselbe Zeile zwei Ausgaben hat.
+
+> **Ein Parser, der zwischen zwei Umgebungen hin- und hergebaut wird, ist nicht
+> falsch geschrieben — er misst eine Umgebung, die niemand festgelegt hat.**
+
+Die Antwort steht seit P0 im Agenten: `Runner::ENVIRONMENT` legt `LC_ALL=C`
+fest, damit Zahlenformate stabil bleiben. Der Kopf des Skripts nimmt beide
+Variablen jetzt genauso selbst heraus. Die Vorprüfung bleibt als Rückfall — sie
+hat gefangen, wofür es sie gibt, sagte aber nur den Zustand und nicht die
+Ursache, und nennt seitdem beides.
+
+> **Eine Prüfung, die den Zustand fängt, hat über die Ursache nichts gesagt —
+> und der Leser sucht dort, wohin die Meldung zeigt.**
+
+**Die drei Brüche, die das Skript nicht fahren kann, sind von Hand gefahren** —
+sie ändern Dateien, die der Rückweg nicht anfasst. `BreakScriptTest` mit einem
+Eingriff, den man auf seinen alten Ort zurückdreht; `ChangelogTest` in beiden
+Richtungen, einmal auf einen Namensraum ohne Verzeichnis und einmal auf eine
+Klasse ohne Datei. Alle drei rot mit ihrer eigenen Meldung, danach wieder grün.
+
+**Gesichert wurde dabei mit `cp` und nicht mit `git checkout --`.** Der Baum
+trug eine eigene, nicht eingecheckte Änderung an genau der Datei, die der erste
+Bruch anfasst — der gewohnte Rückweg hätte sie mitgenommen. Der Satz dazu ist
+zwei Tage alt und hier zum ersten Mal *vor* dem Schaden angewandt.
+
+### Und eine Begründung, die zwei Schritte alt war und nicht stimmte
+
+`SrvPanel\Agent\Ops\SystemPackagesUpgrade` schreibt im Kopf, warum der apt-Lauf
+in einem Skript steht und nicht in einer Zeichenkette in PHP: *„weil shellcheck
+über dieses Verzeichnis fährt und über eine Zeichenkette in PHP nichts fährt."*
+
+Gemessen fuhr die CI über **drei Dateien mit Namen** — `packaging/bin/php`,
+`php-fpm`, `srvpanel` — und nicht über das Verzeichnis. `packaging/bin/apt-run`
+war einen Tag alt und ungeprüft, `packaging/bin/cron-run` seit P6. Beide sind
+sauber; das ist Glück und keine Zusage.
+
+> **Eine Begründung, die eine Tatsache behauptet, ist so lange richtig, bis
+> jemand die Tatsache ändert — und niemand liest die Begründung dabei.**
+
+Das ist wortwörtlich das Muster aus `CLAUDE.md`: eine Zeichenkette, die auf
+etwas verweist, ohne dass ein Werkzeug den Bezug prüft. Diesmal in einem
+Dokumentationsblock, der die Bauart einer Operation rechtfertigt.
+
+Die CI fährt seitdem `packaging/bin/*`. **`ShellCheckReachTest`** hält beide
+Richtungen: kein Shellskript unter `packaging/` entgeht der CI, und kein Pfad im
+Schritt deckt nichts. Die zweite ist die, an der ein toter Eintrag wirklich
+entsteht — beim Umbenennen wird der neue Ort nachgetragen, die erste Richtung
+ist wieder grün, und der alte bleibt als Zusage liegen, die niemand einlöst.
+
+**Und die Gegenprobe zur PHPStan-Messung des neuen Wächters war selbst keine.**
+Sie lieferte null Zeilen, bei sauberer *und* bei absichtlich kaputter Datei —
+dieselbe Ursache wie beim Bruchskript: `--error-format=raw` erzeugt die
+JSON-Verpackung nicht, `AI_AGENT` schon, und der Filter darüber sah nie eine
+rohe Zeile. Der zweite Prüfkörper musste ausserdem ein Fehler sein, den PHPStan
+**aus dem Code allein** sieht; der erste hing an einer `assert…`-Signatur, die
+es ohne Framework gar nicht kennt.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+### A1 Schritt 10 — der Abnahmelauf ist ausgeschrieben, nicht gefahren
+
+`docs/85-abnahmelauf-a1.md`, fünfzehn Punkte auf `cloudsrv24`. Die Nummer kommt
+nach einem `ls docs/` und nicht aus dem Gedächtnis — `docs/81` hat einmal eine
+genannt, die einem anderen Dokument gehörte.
+
+**Punkt 5 ist der Grund, dass es diesen Lauf gibt.** Ein Upgrade, das `srvpanel`
+selbst enthält, startet mitten im Lauf `srvpanel-worker` neu — also den Prozess,
+der die Operation abgesetzt hat. Dass die transiente Unit das überlebt,
+behauptet dieses Projekt seit P0 (so läuft `panel.update`), und belegt hat es
+nur der eigene Gebrauch.
+
+> **Ein Verfahren, das immer funktioniert hat, ist nicht dasselbe wie eines, das
+> jemand gemessen hat.**
+
+Der Beleg ist dabei nicht die abgesetzte Unit, sondern die **Bilanzzeile** von
+`apt-run` als letzte Zeile des Protokolls: Sie entsteht nach dem Neustart oder
+gar nicht.
+
+> **Ein Beleg für den Weg ist keiner für das Ziel.**
+
+**Beim Ausschreiben sind drei Prüfkörper umgefallen, bevor sie jemand gefahren
+hat.** Punkt 3 wollte die Sury-Quelle umbenennen — eine umbenannte Datei ist
+aber eine *fehlende* Quelle und keine unerreichbare, und apt meldet dazu gar
+nichts. Umgebogen wird jetzt die Adresse, und die Datei bleibt liegen. Punkt 2
+misst nichts, wenn das `dist-upgrade` keine Neuinstallation enthält, und hat
+einen Ersatzprüfkörper bekommen. Punkt 4 ist auf einem Server ohne ablaufenden
+Schlüssel **nicht messbar** und wird als solcher protokolliert statt als grün.
+
+> **Ein Prüfkörper, der einen anderen Zustand herstellt als den gemeinten,
+> erreicht die Prüfung nicht.**
+
+> **Ein Zustand, den die Umgebung nicht zulässt, wird nicht dadurch
+> hergestellt, dass man nichts tut.**
+
+**Und §6 sagt, welche zwei Punkte ausfallen dürfen und welcher nicht.** Ein
+Abnahmelauf, der jeden nicht messbaren Punkt gleich behandelt, nimmt am Ende ab,
+was niemand gesehen hat.
+
+### Ein Werkzeug, das den Arbeitsbaum herstellt, duldet keinen zweiten Schreiber
+
+Der zweite volle Lauf des Bruchskripts lief im Hintergrund, während daneben
+weitergearbeitet wurde. `wiederherstellen()` fährt nach **jedem** Eingriff ein
+`git checkout --` über zwölf Bäume, darunter `docs/` — und beide Richtungen
+gingen schief, lautlos und in **einem** Commit:
+
+- **Eigene Arbeit war fort.** Ergänzungen an `docs/81 §4` und §9 wurden zwischen
+  Schreiben und Committen zurückgesetzt; der Commit ging ohne sie durch und
+  meldete Erfolg. `docs/85` überlebte nur, weil `git checkout --` unverfolgte
+  Dateien nicht anfasst.
+- **Fremde Arbeit war drin.** Ein `git add -A` fiel in ein offenes Bruchfenster
+  und nahm `app/Console/Commands/Databases.php` mit — `$fehlt = null;` statt
+  `$fehlt = $this->panelDatabaseUnreachable();`. Der Eingriff, der `srvpanel db
+  --remote=on` seinen Rückweg nimmt, war committet und gepusht.
+
+> **Ein Werkzeug, das den Arbeitsbaum herstellt, duldet keinen zweiten
+> Schreiber** — es nimmt ihm seine Arbeit weg und schiebt ihm seine eigene
+> unter.
+
+Derselbe Satz wie bei `pg_hba.conf` in P5b, nur über einen ganzen Baum statt
+über eine Datei.
+
+**Gefunden hat es kein Wächter, sondern `git show --stat`** — die Dateiliste des
+eigenen Commits, gelesen statt überflogen. Im `git status` sieht beides aus wie
+nichts: Der eine Schaden ist eine Datei, die *fehlt*, der andere eine, die
+*dazugehört*.
+
+> **Ein Commit, dessen Dateiliste man nicht liest, ist eine Zusage über
+> Änderungen, die man nicht gesehen hat.**
+
+Beide Schäden sind zurückgenommen, `Databases.php` gegen den Stand vor dem
+Commit auf Byte-Gleichheit geprüft.
+
+**Das Skript nimmt jetzt eine Laufmarke** (`flock -n` auf
+`$TMPDIR/srvpanel-waechter-brechen.lock`), bevor es den ersten Eingriff fährt.
+`-n` und nicht blockierend, weil ein wartender zweiter Lauf aus einem Befund
+eine Stunde Stillstand ohne Fehlermeldung machte — derselbe Satz wie in P5b.
+
+**Sie hält davon genau eine Hälfte, und das ist die kleinere:** Sie weist einen
+zweiten *Lauf* ab. Einen Menschen, der nebenher eine Datei schreibt, kann sie
+nicht abweisen. Das steht als Regel in `CLAUDE.md` und nicht als Zusage im Code.
+
+> **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
+> als Zusage.**
+
+`BreakScriptTest::test_the_script_takes_a_lock_before_it_touches_the_tree` prüft
+drei Dinge: dass die Marke genommen wird, dass sie nicht-blockierend ist, und
+dass sie **vor** dem ersten Eingriff steht. Drei Brüche, alle beissend.
+
+**Und der erste Wurf dieses Wächters meldete 1,8 MB.**
+`assertMatchesRegularExpression` druckt im Fehlerfall den ganzen Gegenstand, und
+das Skript ist 7500 Zeilen lang. Gefragt wird jetzt über einen Wahrheitswert.
+
+> **Ein Wächter, der zu viel meldet, wird abgeschaltet — und zwar von dem, der
+> ihn gebaut hat.**
+
+### Der Bruchlauf, sauber gefahren — und der vergiftete meldet seinen eigenen Schaden
+
+Nach der Laufmarke ist der Durchgang ein zweites Mal gefahren, diesmal ohne
+zweiten Schreiber: **1527 Prüfungen, `FEHLT: 0`, „Alle Wächter beissen."**
+Das sind die 1524 des ersten Laufs plus die beiden neuen Eingriffe zu
+`ShellCheckReachTest` und ihre gemeinsame Gegenprobe. Der Arbeitsbaum davor und
+danach ist derselbe, die Laufmarke danach wieder frei.
+
+**Damit ist belegt, was einzeln zu belegen nicht genügt:** Die beiden neuen
+Eingriffe beissen auch **im Lauf** und nicht nur für sich. Ein Eingriff steht
+dort neben anderen, und die verändern seinen Gegenstand.
+
+**Und der abgebrochene Lauf dazwischen hat seinen eigenen Schaden gemeldet** —
+als einzigen `FEHLT` unter 1156 Prüfungen:
+
+    ── RemoteAccessTest: die beiden Systeme nehmen verschiedene Adressen ──
+      ok     zwei Listen von Horchadressen                            failed
+      FEHLT    … zurückgesetzt wieder grün                        failed
+
+Der Grund ist genau der Schaden: Der Eingriff traf `Databases.php`, und der
+kaputte Stand war inzwischen committet — also stellte `wiederherstellen()` den
+kaputten wieder her, und der Wächter blieb rot.
+
+> **Ein Rückweg über `git` stellt nicht den heilen Stand her, sondern den
+> festgeschriebenen** — und wer den kaputten festschreibt, macht ihn zum Ziel
+> des Rückwegs.
+
+Die Zeile „zurückgesetzt wieder grün" ist die einzige im ganzen Skript, die das
+überhaupt bemerken kann. Sie war als Gegenprobe zum Eingriff gedacht und ist
+hier zur Gegenprobe des ganzen Vorgangs geworden.
+
+### Ein Wächter, der in der CI rot war und hier grün — mit demselben Code
+
+`SourceOwnershipTest` prüft, dass `/etc/apt/sources.list.d/./srvpanel.sources`
+als dieselbe Datei angenommen wird. `Sources::isOwned()` löste über `realpath()`
+auf, und das gibt `false`, wenn es die Datei nicht gibt. Im Entwicklungscontainer
+**gab** es sie: Eine Messrunde zu A1 Schritt 7 hatte Stunden vorher ein
+`srvpanel.sources` liegen gelassen.
+
+> **Ein Test, dessen Ergebnis davon abhängt, was gerade nebenher liegt, misst
+> die Umgebung mit.**
+
+**Und der Zustand, in dem er falsch war, ist der wichtigere:** Die eigene
+Quelldatei entsteht erst beim Anlegen. Bis dahin wies `isOwned()` eine
+Schreibweise mit `./` ab — die Zusage im Kopf der Methode galt nur auf einem
+Server, auf dem die Datei schon lag.
+
+`Sources::lexical()` führt die Schreibweisen jetzt **ohne Dateisystem** zusammen;
+`realpath()` steht daneben und löst zusätzlich Verweise auf, wo es sie gibt. Der
+Prüfkörper des Wächters ist seitdem ein Pfad, den `realpath()` nie tragen kann
+(`…/gibtesnicht/../srvpanel.sources`) — gemessen in beiden Lagen des Containers,
+mit der Datei wie ohne sie: `realpath` `false`, `isOwned` `true`, beide Male.
+
+**Und der bestehende Eingriff dazu hat aufgehört zu beissen.** Er brach
+`realpath()`; daneben war `lexical()` entstanden, das dieselbe Frage beantwortet.
+Die Datei änderte sich nachweislich, der Wächter blieb grün.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand neben seiner Regel eine zweite baut, die dieselbe Frage
+> beantwortet.**
+
+Derselbe Satz wie am 23. August an `.toggle:has(input:disabled)`, diesmal **vor**
+dem Push gefangen statt vom Wochenlauf. Es sind jetzt zwei Eingriffe, einer je
+Hälfte, und beide beissen in beiden Lagen des Containers.
+
+**Daneben eine PHPStan-Zeile:** `array_values()` hinter einem `sort()`, das die
+Schlüssel ohnehin neu schreibt. Die Datei gehört diesem Zweig, und die lokalen
+Läufe hatten sie nie gesehen — sie gingen über die Datei, die gerade entstand,
+statt über den Zweig.
+
+> **Ein Werkzeug, das man über die gewohnten Pfade fährt, prüft die Gewohnheit
+> und nicht die Änderung.**
+
+Nachgeholt über `git diff --name-only origin/main...HEAD`, 38 Dateien: null echte
+Zeilen.
+
+Nachgesehen: CI-Lauf 812 gegen denselben Stand ist auf **allen fünfzehn Jobs
+grün** — beide Fehlschläge fort, und keiner dazugekommen.
+
+> **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+> jemand ihn behoben hat.**

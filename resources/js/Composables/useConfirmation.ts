@@ -49,7 +49,19 @@ export type Pending = {
     /** Ob die Handlung zerstört; entscheidet über die rote Fläche. */
     destructive: boolean
 
-    go: () => void
+    /**
+     * Das Wort, das abgetippt werden muss, bevor der Knopf gedrückt werden kann.
+     *
+     * **Für die Handlungen, die man nicht aus Versehen tun darf.** Ein Ja/Nein
+     * kostet einen Klick, und ein Klick ist genau das, was ein Fehlgriff ist.
+     * Wer den Rechnernamen abschreibt, hat den Satz darüber gelesen.
+     *
+     * `null` heisst „ein Ja genügt" — so wie an allen achtzehn Stellen, die es
+     * vor dem 26. August 2026 gab.
+     */
+    challenge: string | null
+
+    go: (answer: string) => void
 }
 
 const pending = ref<Pending | null>(null)
@@ -66,8 +78,14 @@ router.on('navigate', () => {
 
 export function useConfirmation(): {
     pending: DeepReadonly<Ref<Pending | null>>
-    ask: (question: string, verb: string, go: () => void, destructive?: boolean) => void
-    accept: () => void
+    ask: (
+        question: string,
+        verb: string,
+        go: (answer: string) => void,
+        destructive?: boolean,
+        challenge?: string,
+    ) => void
+    accept: (answer?: string) => void
     dismiss: () => void
 } {
     /**
@@ -77,12 +95,20 @@ export function useConfirmation(): {
      * @param verb Was der zustimmende Knopf sagt („Entfernen", „Sperren").
      * @param go Was bei Zustimmung geschieht.
      * @param destructive Ob dabei etwas verlorengeht. Entscheidet die Farbe.
+     * @param challenge Was abgetippt werden muss, bevor der Knopf drückbar ist.
      */
-    function ask(question: string, verb: string, go: () => void, destructive = true): void {
+    function ask(
+        question: string,
+        verb: string,
+        go: (answer: string) => void,
+        destructive = true,
+        challenge?: string,
+    ): void {
         pending.value = {
             lines: question.split('\n').filter((zeile) => zeile.trim() !== ''),
             verb,
             destructive,
+            challenge: challenge ?? null,
             go,
         }
     }
@@ -92,11 +118,11 @@ export function useConfirmation(): {
      * während die Antwort schon läuft — und ein zweiter Klick schickte den
      * Vorgang ein zweites Mal los.
      */
-    function accept(): void {
+    function accept(answer = ''): void {
         const offen = pending.value
 
         pending.value = null
-        offen?.go()
+        offen?.go(answer)
     }
 
     function dismiss(): void {

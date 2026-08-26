@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
+use Tests\Support\WithoutPhpComments;
 
 /**
  * Ein Nachladen, das nur einen Teil holt, holt auch nur einen Teil.
@@ -51,6 +52,8 @@ use SplFileInfo;
  */
 final class PartialReloadTest extends TestCase
 {
+    use WithoutPhpComments;
+
     private function root(): string
     {
         return dirname(__DIR__, 2);
@@ -67,13 +70,42 @@ final class PartialReloadTest extends TestCase
     }
 
     /**
-     * Jeder Steuerungscode, Pfad zu Inhalt.
+     * Jeder Steuerungscode, Pfad zu Inhalt — **ohne seine Kommentare.**
+     *
+     * ## Was ohne diese Zeile passiert ist
+     *
+     * Am 26. August 2026 stand dieser Wächter rot, und zwar mit der Meldung
+     * seiner **Untergrenze**: „Es wurde kein einziger Name geprüft — der
+     * Ausdruck trifft nicht mehr." Geändert hatte sich an der Regel nichts;
+     * geändert hatte sich ein Kommentar in `OverviewController`.
+     *
+     * Deutsche Anführungszeichen stehen in diesem Repo als `„…"` — die
+     * öffnende ist U+201E, die schliessende ein gewöhnliches `"` (1214 mal
+     * gegen ein einziges U+201C, ausgezählt). {@see self::closing()} liest
+     * aber **Bytes** und hält jedes `"` für den Anfang einer Zeichenkette. Es
+     * überspringt dann bis zum nächsten — und was dazwischen liegt, sieht es
+     * nicht mehr.
+     *
+     * Solange die Zahl dieser Zeichen im gelesenen Bereich **gerade** ist,
+     * geht das gut. Ein Kommentar mit einem einzigen Zitat mehr verschiebt
+     * alles danach, die schliessende eckige Klammer wird nie gefunden, und
+     * `Inertia::render('Overview', …)` fällt aus der Liste.
+     *
+     * > **Ein Wächter, der Anführungszeichen zählt, zählt die des Fliesstextes
+     * > mit — und ob er zubeisst, entscheidet die Parität.**
+     *
+     * {@see WithoutPhpComments} beantwortet das über `token_get_all()`, also
+     * über den Parser und nicht über ein Muster. Zehn Wächter dieses Repos
+     * benutzen ihn schon; dieser hat ihn gebraucht und nicht gehabt.
      *
      * @return array<string, string>
      */
     private function controllers(): array
     {
-        return $this->files($this->root().'/app/Http/Controllers', ['php']);
+        return array_map(
+            fn (string $quelle): string => $this->withoutComments($quelle),
+            $this->files($this->root().'/app/Http/Controllers', ['php']),
+        );
     }
 
     /**

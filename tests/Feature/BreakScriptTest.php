@@ -440,6 +440,180 @@ final class BreakScriptTest extends TestCase
      * Block Python ist. Fehlt `python3`, ist das kein Grund zu schweigen —
      * dann kann das Bruchskript ohnehin nichts ausrichten.
      */
+    /**
+     * Und das Skript selbst liest sich ein.
+     *
+     * ## Der Fund, der diesen Fall ausgelöst hat
+     *
+     * Am 26. August 2026 stand in einer Überschrift:
+     *
+     *     echo "── UnattendedStateTest: eine fehlende Zeile als „aus" gelesen ──"
+     *
+     * Deutsche Anführungszeichen stehen in diesem Repo als `„…"` — die
+     * schliessende ist ein **gewöhnliches** `"`, und in einer Shell beendet sie
+     * die Zeichenkette. Alles danach wurde zu etwas anderem, und `bash -n`
+     * meldete den Fehler achtzig Zeilen später an einer Klammer, die nichts
+     * damit zu tun hatte.
+     *
+     * **Die vier Überschriften daneben machen es richtig** und schreiben
+     * `„aus\"`. Eine Gewohnheit, an die sich vier Stellen halten, ist trotzdem
+     * keine Regel, solange die fünfte sie brechen darf.
+     *
+     * ## Warum die anderen Fälle das nicht gefangen haben
+     *
+     * Weil sie den Text **lesen** und nicht die Shell fragen: Jeder Eingriff
+     * fand weiter seine Zielstelle, jeder Python-Block war gültig, jede Prüfung
+     * nannte einen Test, den es gibt. Nur ausführen liess sich das Ganze nicht.
+     *
+     * > **Ein Bruchskript, das sich nicht einliest, prüft keine einzige
+     * > Regel — und jede Prüfung darüber bleibt grün.**
+     */
+    public function test_the_script_itself_parses(): void
+    {
+        $pfad = $this->root().'/tests/waechter-brechen.sh';
+
+        $ausgabe = [];
+        $status = 0;
+        exec('bash -n '.escapeshellarg($pfad).' 2>&1', $ausgabe, $status);
+
+        if ($status === 127) {
+            $this->markTestSkipped('bash ist hier nicht da.');
+        }
+
+        /*
+         * **Die Gegenprobe, und sie steht hier statt im Bruchskript.** Ein
+         * Eingriff, der `tests/waechter-brechen.sh` selbst veränderte, liesse
+         * das Skript sich beim Laufen unter den Füssen wegziehen — und
+         * `test_every_touched_file_lies_on_the_way_back` nimmt es zu Recht vom
+         * Rückweg aus. Die Regel wird deshalb an einer Wegwerfdatei belegt.
+         *
+         * > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes
+         * > als Null steht.**
+         */
+        $kaputt = tempnam(sys_get_temp_dir(), 'waechter');
+
+        if ($kaputt === false) {
+            $this->fail('Kein Platz für die Zwischendatei.');
+        }
+
+        file_put_contents($kaputt, "echo \"eine fehlende Zeile als „aus\" gelesen\"\nif [ 1 ]; then\n");
+
+        $probe = [];
+        $probeStatus = 0;
+        exec('bash -n '.escapeshellarg($kaputt).' 2>&1', $probe, $probeStatus);
+
+        @unlink($kaputt);
+
+        $this->assertNotSame(0, $probeStatus,
+            'bash -n meldet nichts an einem Skript, das nachweislich kaputt ist — dann misst dieser Fall nichts.');
+
+        $this->assertSame(0, $status, implode("\n", array_merge(
+            ['tests/waechter-brechen.sh liest sich nicht ein:'],
+            $ausgabe,
+            [
+                '',
+                'Ein Skript, das die Shell nicht parst, führt keinen einzigen Eingriff aus — und',
+                'die übrigen Fälle hier bleiben grün, weil sie den Text lesen statt ihn zu fahren.',
+                '',
+                'Der häufigste Grund ist ein deutsches Anführungszeichen in einer Überschrift:',
+                'Die schliessende ist ein gewöhnliches " und beendet die Zeichenkette. Sie gehört',
+                'als \\" geschrieben.',
+            ],
+        )));
+    }
+
+    /**
+     * Und es nimmt eine Sperre, bevor es den Arbeitsbaum anfasst.
+     *
+     * ## Der Fund, der diesen Fall ausgelöst hat
+     *
+     * Am 26. August 2026 lief das Skript im Hintergrund, während daneben
+     * weitergearbeitet wurde. `wiederherstellen()` fährt nach **jedem** Eingriff
+     * ein `git checkout --` über zwölf Bäume — und beide Richtungen gingen
+     * schief, lautlos und in einem einzigen Commit:
+     *
+     * - Ergänzungen an `docs/81` wurden zwischen Schreiben und Committen
+     *   zurückgesetzt; der Commit ging ohne sie durch und meldete Erfolg.
+     * - Ein `git add -A` fiel in ein offenes Bruchfenster und nahm
+     *   `app/Console/Commands/Databases.php` mit — `$fehlt = null;` statt seiner
+     *   Prüfung, committet und gepusht.
+     *
+     * > **Ein Werkzeug, das den Arbeitsbaum herstellt, duldet keinen zweiten
+     * > Schreiber** — es nimmt ihm seine Arbeit weg und schiebt ihm seine
+     * > eigene unter.
+     *
+     * ## Was die Sperre hält, und was nicht
+     *
+     * Sie weist einen zweiten **Lauf** ab. Einen Menschen, der nebenher eine
+     * Datei schreibt, kann sie nicht abweisen — das ist eine Regel in
+     * `CLAUDE.md` und kein Mechanismus.
+     *
+     * > **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und
+     * > nicht als Zusage.**
+     *
+     * Geprüft wird deshalb genau das, was prüfbar ist: dass die Sperre
+     * genommen wird, **bevor** der erste Eingriff läuft, und dass sie
+     * nicht-blockierend ist. Ein `flock` ohne `-n` wartete auf den anderen
+     * Lauf, statt ihn zu melden — und aus dem Befund würde eine Stunde
+     * Stillstand ohne Fehlermeldung.
+     *
+     * > **Eine Sperre, die man zweimal nimmt, ist ein Stillstand ohne
+     * > Fehlermeldung.** Derselbe Satz wie in P5b, nur eine Ebene höher.
+     *
+     * **Der Bruch dazu** steht nicht im Skript — er änderte das Skript selbst.
+     * Von Hand, und so:
+     *
+     *     sed -i "s/flock -n 9/flock -s 9/" tests/waechter-brechen.sh
+     *     ./vendor/bin/phpunit --filter BreakScriptTest   # muss rot sein
+     *     cp <sicherung> tests/waechter-brechen.sh
+     *
+     * Gesichert wird mit `cp` und nicht mit `git checkout --`: Wer diesen Fall
+     * bricht, hat an dieser Datei fast immer eine eigene Änderung liegen.
+     */
+    public function test_the_script_takes_a_lock_before_it_touches_the_tree(): void
+    {
+        $skript = (string) file_get_contents($this->root().'/tests/waechter-brechen.sh');
+
+        /*
+         * **Gefragt wird über einen Wahrheitswert und nicht über den Text.**
+         * `assertMatchesRegularExpression` druckt im Fehlerfall den ganzen
+         * Gegenstand — dieses Skript ist 7500 Zeilen lang, und die Meldung war
+         * beim ersten Wurf 1,8 MB gross. Gemessen beim Gegenprüfen.
+         *
+         * > **Ein Wächter, der zu viel meldet, wird abgeschaltet — und zwar von
+         * > dem, der ihn gebaut hat.**
+         */
+        $this->assertSame(1, preg_match('/^exec 9>/m', $skript), implode(' ', [
+            'tests/waechter-brechen.sh nimmt keine Laufmarke mehr.',
+            'Zwei Läufe zugleich stellen einander den Arbeitsbaum um, und der zweite misst',
+            'einen Zustand, den niemand hergestellt hat.',
+        ]));
+
+        $this->assertSame(1, preg_match('/flock -n 9/', $skript), implode(' ', [
+            'Die Sperre wird ohne -n genommen — dann wartet der zweite Lauf auf den ersten,',
+            'statt ihn zu melden. Aus einem Befund wird so ein Stillstand ohne Fehlermeldung.',
+        ]));
+
+        /*
+         * **Und sie muss vor dem ersten Eingriff stehen.** Eine Sperre hinter
+         * dem ersten `git checkout --` hätte den Fall vom 26. August nicht
+         * verhindert: Da war der Baum schon einmal umgestellt.
+         */
+        $sperre = strpos($skript, 'flock -n 9');
+        $ersterGriff = strpos($skript, 'vorher_datei ');
+
+        $this->assertIsInt($sperre);
+        $this->assertIsInt($ersterGriff, implode(' ', [
+            'Im Skript steht kein einziger Eingriff mehr (`vorher_datei`) —',
+            'dann prüft dieser Fall nichts.',
+        ]));
+
+        $this->assertLessThan($ersterGriff, $sperre, implode(' ', [
+            'Die Sperre steht hinter dem ersten Eingriff. Dann ist der Arbeitsbaum bereits',
+            'einmal umgestellt worden, bevor irgendjemand abgewiesen wird.',
+        ]));
+    }
+
     public function test_every_embedded_block_is_valid_python(): void
     {
         $script = (string) file_get_contents($this->root().'/tests/waechter-brechen.sh');

@@ -669,9 +669,9 @@ const neustart = computed(() => {
 
           <p v-if="zurueck('phasing').length > 0" class="notice warn">
             <span>
-              Ubuntu spielt
-              {{ counted(zurueck('phasing').length, 'ein Paket', 'Pakete') }} stufenweise aus
-              und hält es auf diesem Server noch zurück:
+              Ubuntu spielt Aktualisierungen stufenweise aus;
+              {{ counted(zurueck('phasing').length, 'Paket ist', 'Pakete sind') }}
+              auf diesem Server noch nicht an der Reihe:
               <span class="ident">{{ zurueck('phasing').join(', ') }}</span>
             </span>
           </p>
@@ -679,7 +679,7 @@ const neustart = computed(() => {
           <p v-if="props.packages.removals.length > 0" class="notice warn">
             <span>
               Ein vollständiges Update würde
-              {{ counted(props.packages.removals.length, 'ein Paket', 'Pakete') }} entfernen:
+              {{ counted(props.packages.removals.length, 'Paket', 'Pakete') }} entfernen:
               <span class="ident">{{ props.packages.removals.join(', ') }}</span>
             </span>
           </p>
@@ -691,7 +691,7 @@ const neustart = computed(() => {
           -->
           <p v-if="props.packages.leftovers.length > 0" class="notice warn">
             <span>
-              {{ counted(props.packages.leftovers.length, 'Eine Konfigurationsdatei unter /etc wartet', 'Konfigurationsdateien unter /etc warten') }}
+              {{ counted(props.packages.leftovers.length, 'Konfigurationsdatei unter /etc wartet', 'Konfigurationsdateien unter /etc warten') }}
               auf eine Entscheidung:
               <span class="ident">{{ props.packages.leftovers.join(', ') }}</span>
             </span>
@@ -886,15 +886,15 @@ const neustart = computed(() => {
           -->
           <p v-if="faellig.length > 0" class="notice warn">
             <span>
-              {{ counted(faellig.length, 'Ein Signaturschlüssel', 'Signaturschlüssel') }}
-              {{ faellig.some((f) => f.state === 'expired') ? 'ist abgelaufen oder läuft bald ab' : 'läuft in weniger als dreissig Tagen ab' }}:
+              {{ counted(faellig.length, 'Signaturschlüssel läuft', 'Signaturschlüssel laufen') }}
+              {{ faellig.some((f) => f.state === 'expired') ? 'bald ab — mindestens einer ist es schon' : 'in weniger als dreissig Tagen ab' }}:
               <span class="ident">{{ faellig.map((f) => `${f.datei}:${f.stanza}`).join(', ') }}</span>
             </span>
           </p>
 
           <p v-if="unlesbar.length > 0" class="notice warn">
             <span>
-              {{ counted(unlesbar.length, 'Ein Signaturschlüssel liess', 'Signaturschlüssel liessen') }}
+              {{ counted(unlesbar.length, 'Signaturschlüssel liess', 'Signaturschlüssel liessen') }}
               sich nicht lesen — das ist etwas anderes, als hätte die Quelle keinen:
               <span class="ident">{{ unlesbar.join(', ') }}</span>
             </span>

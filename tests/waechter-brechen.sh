@@ -15767,6 +15767,29 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AptResultTest passed
 
 echo
+echo "── CountedNounTest: die Einzahl bringt ihren eigenen Artikel mit ──"
+#
+# `counted()` schreibt die Zahl davor, auch bei eins — aus „ein Paket" wird
+# dann „1 ein Paket". Fuenf Stellen standen so da (docs/86, Befund 9), vier
+# davon aelter als der Tag, an dem es auffiel.
+#
+#   Der Artikel neben einer Zahl stimmt nur, solange es mehr als eines gibt.
+vorher_datei resources/js/Pages/Updates/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Updates/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = "counted(props.packages.removals.length, 'Paket', 'Pakete')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "counted(props.packages.removals.length, 'ein Paket', 'Pakete')", 1))
+PY2
+griff_datei resources/js/Pages/Updates/Index.vue "Artikel in der Einzahl" &&
+pruefe "Artikel in der Einzahl" \
+  CountedNounTest::test_no_singular_for_counted_carries_its_own_article failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CountedNounTest passed
+
+echo
 echo "── AptSimulationTest: die Marke der Naht läuft auseinander ──"
 #
 # Sie steht an zwei Enden — in `Apt::MARK` und in `apt-run`. Liefe sie

@@ -21778,3 +21778,40 @@ und fand seinen Text nicht mehr. Gemeldet hat es nicht das Nachdenken, sondern
 
 > **Ein Eingriff, dessen Zielstelle umzieht, prüft nichts mehr — und sieht dabei
 > aus, als wäre die Regel abgesichert.**
+
+### Der Artikel neben einer Zahl stimmt nur, solange es mehr als eines gibt
+
+Gesehen auf `cloudsrv24` gegen `0.7.2-rc.2`, an einer Meldung, die einen Tag alt
+war: „Ubuntu spielt 7 Pakete stufenweise aus und hält **es** … zurück". Das
+Zahlwort entscheidet `counted()`, das Fürwort daneben stand fest.
+
+Beim Nachzählen war das die kleinere Hälfte. **Fünf** Aufrufe von `counted()`
+übergaben eine Einzahl **mit eigenem Artikel**:
+
+    counted(n, 'ein Paket', 'Pakete')                        → „1 ein Paket"
+    counted(n, 'Eine Konfigurationsdatei unter /etc wartet')  → „1 Eine …"
+    counted(n, 'Ein Signaturschlüssel', …)                    → „1 Ein …"
+
+`counted()` schreibt die Zahl **immer** davor, auch bei eins. Vier der fünf sind
+älter als der Tag, an dem es auffiel — und keine davon sieht man beim Bauen: Die
+Einzahl ist in der Entwicklung der Sonderfall und im Betrieb der Normalfall.
+
+> **Ein Fehler, der an fünf Stellen unabhängig gemacht wurde, ist keine
+> Unachtsamkeit, sondern eine fehlende Stelle.**
+
+**Der bestehende Wächter konnte ihn nicht sehen.** `CountedNounTest` fragt, ob
+eine Zahl an einer *Mehrzahl* klebt („1 Zeilen"); hier klebt sie an einer
+richtigen Einzahl, die bloss zu viel mitbringt. Er hat den Fall dazubekommen —
+mit Wortgrenze im Ausdruck, weil „Eintrag" fünfmal als Einzahl dasteht und ohne
+sie alle fünf gemeldet würden.
+
+> **Ein Wächter, der zu viel meldet, wird abgeschaltet — und zwar von dem, der
+> ihn gebaut hat.**
+
+**Ein sechster Fall kam dabei heraus, den keine Zahl trägt.** Die Meldung über
+den fälligen Signaturschlüssel entschied ihr Zeitwort über `some(…)` — also
+danach, **ob** einer abgelaufen ist, und nicht danach, **wie viele** es sind. Bei
+zwei Schlüsseln stand dort „2 Signaturschlüssel ist abgelaufen".
+
+> **Ein Zeitwort, das von einer anderen Frage abhängt als die Zahl daneben,
+> stimmt mit ihr nur zufällig überein.**

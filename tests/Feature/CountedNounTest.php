@@ -328,4 +328,82 @@ final class CountedNounTest extends TestCase
             'Das Muster hält eine richtige Mengenangabe für einen Fehler.',
         );
     }
+
+    /**
+     * Und kein Wort für die Einzahl bringt seinen eigenen Artikel mit.
+     *
+     * **`counted()` setzt die Zahl davor**, und zwar immer — auch bei eins.
+     * Ein `counted($n, 'ein Paket', 'Pakete')` ergibt damit „**1 ein Paket**",
+     * und das sieht niemand beim Bauen: Die Einzahl ist in der Entwicklung der
+     * Sonderfall und im Betrieb der Normalfall.
+     *
+     * > **Ein Plural, der immer stimmt, stimmt nur, solange niemand eine Zeile
+     * > anlegt** — und der Artikel daneben stimmt nur, solange es mehr als eine
+     * > gibt.
+     *
+     * **Gefunden am 26. August 2026 an fünf Stellen**, vier davon älter als der
+     * Tag (`docs/86`, Befund 9). Aufgefallen ist eine, die gerade neu war, und
+     * die anderen vier hat erst das Auszählen gebracht.
+     *
+     * > **Ein Fehler, der an fünf Stellen unabhängig gemacht wurde, ist keine
+     * > Unachtsamkeit, sondern eine fehlende Stelle.**
+     *
+     * **Der bestehende Wächter daneben konnte ihn nicht sehen.** Er fragt, ob
+     * eine Zahl an einer Mehrzahl klebt — „1 Zeilen". Hier klebt sie an einer
+     * richtigen Einzahl, die bloss zu viel mitbringt.
+     */
+    public function test_no_singular_for_counted_carries_its_own_article(): void
+    {
+        $muster = '/\bcounted\s*\([^,]+,\s*\x27(?:[Ee]in|[Ee]ine|[Dd]er|[Dd]ie|[Dd]as)\s/u';
+        $treffer = [];
+
+        foreach ($this->templates() as $pfad => $vorlage) {
+            if (preg_match($muster, $vorlage) === 1) {
+                $treffer[] = $pfad;
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $treffer,
+            "Hier bringt das Wort für die Einzahl seinen eigenen Artikel mit:\n  ".implode("\n  ", $treffer)."\n\n".
+            '`counted()` schreibt die Zahl davor, auch bei eins — daraus wird „1 ein Paket". '.
+            'Das Wort steht ohne Artikel da; wo der Satz einen braucht, gehört er in den '.
+            'umgebenden Text und nicht in das gezählte Wort.',
+        );
+
+        // Die Gegenprobe: Das Muster findet die Form, gegen die es geschrieben
+        // ist — und lässt die richtige in Ruhe.
+        $this->assertSame(
+            1,
+            preg_match($muster, "counted(n, 'ein Paket', 'Pakete')"),
+            'Das Muster findet den Artikel nicht — dann prüft dieser Fall nichts.',
+        );
+
+        $this->assertSame(
+            1,
+            preg_match($muster, "counted(n, 'Eine Konfigurationsdatei wartet', 'Konfigurationsdateien warten')"),
+            'Das Muster kennt nur die kleingeschriebene Form — am Satzanfang steht sie gross.',
+        );
+
+        $this->assertSame(
+            0,
+            preg_match($muster, "counted(n, 'Paket', 'Pakete')"),
+            'Das Muster hält eine richtige Einzahl für einen Fehler.',
+        );
+
+        /*
+         * **Und ein Wort, das mit „ein…" anfängt, ist kein Artikel.**
+         * „Eintrag" steht in diesem Repo fünfmal als Einzahl da; ohne die
+         * Wortgrenze im Ausdruck meldete dieser Wächter sie alle fünf.
+         *
+         * > **Ein Wächter, der zu viel meldet, wird abgeschaltet — und zwar von
+         * > dem, der ihn gebaut hat.**
+         */
+        $this->assertSame(
+            0,
+            preg_match($muster, "counted(n, 'Eintrag', 'Einträge')"),
+            'Das Muster hält „Eintrag" für einen Artikel — es fehlt die Wortgrenze.',
+        );
+    }
 }

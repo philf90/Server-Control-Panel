@@ -987,4 +987,54 @@ zugeordnet ist — Phasing und nicht Abhängigkeit —, ist damit **ungemessen**
 Derselbe Satz hat in diesem Lauf schon zweimal gegolten, und beide Male hat erst
 die Liste die Frage entschieden.
 
+---
+
+**Die Namen sind nachgesehen — Befund 6 und 7 sind auf dem Server erfüllt.**
+
+Die Liste unter den Kacheln führt **vier** Zeilen, alle `libheif`, alle mit der
+Marke „Sicherheit" aus `Ubuntu:24.04/noble-security`. Die sieben stehen **nicht**
+darin, sondern in ihrer eigenen Meldung — und mit dem richtigen Grund:
+
+    Ubuntu spielt 7 Pakete stufenweise aus und hält es auf diesem Server noch
+    zurück: libproc2-0, libpython3.12-minimal, libpython3.12-stdlib,
+    libpython3.12t64, procps, python3.12, python3.12-minimal
+
+Sieben Namen, dieselben, die `apt-get -s upgrade` als „deferred due to phasing"
+führt. Der Grund ist als Phasing zugeordnet und nicht als Abhängigkeit; damit
+schickt die Seite den Betreiber nicht mehr auf den Knopf, der sie nicht holt.
+
+---
+
+**Befund 9 — „hält **es** zurück" bei sieben Paketen, und vier ältere Geschwister.**
+
+Der Satz oben ist der Prüfstein: `counted()` entscheidet über das Zahlwort, das
+Fürwort daneben stand fest auf `es`. Beim Nachzählen fiel auf, dass das die
+kleinere Hälfte war — **fünf** Aufrufe von `counted()` übergaben eine Einzahl
+**mit eigenem Artikel**:
+
+    counted(n, 'ein Paket', 'Pakete')                       → „1 ein Paket"
+    counted(n, 'Eine Konfigurationsdatei unter /etc wartet') → „1 Eine …"
+    counted(n, 'Ein Signaturschlüssel', …)                   → „1 Ein …"
+
+`counted()` schreibt die Zahl **immer** davor, auch bei eins. Vier der fünf sind
+älter als dieser Tag; aufgefallen ist die eine, die gerade neu war.
+
+> **Ein Fehler, der an fünf Stellen unabhängig gemacht wurde, ist keine
+> Unachtsamkeit, sondern eine fehlende Stelle.**
+
+**Und der bestehende Wächter konnte ihn nicht sehen.** `CountedNounTest` fragt,
+ob eine Zahl an einer *Mehrzahl* klebt — „1 Zeilen". Hier klebt sie an einer
+richtigen Einzahl, die bloss zu viel mitbringt.
+
+Dabei kam ein sechster Fall heraus, den keine Zahl trägt: Die Meldung über den
+fälligen Signaturschlüssel entschied ihr Zeitwort über `some(...)` und blieb
+damit im Singular — „2 Signaturschlüssel **ist** abgelaufen".
+
+> **Ein Zeitwort, das von einer anderen Frage abhängt als die Zahl daneben,
+> stimmt mit ihr nur zufällig überein.**
+
+Alle sechs behoben, der Wächter erweitert, ein Dauereingriff im Bruchskript.
+**Nachgesehen auf dem Server ist das noch nicht** — es geht mit der nächsten
+Fassung mit.
+
 <!-- Wird während des Laufs weitergefüllt. -->

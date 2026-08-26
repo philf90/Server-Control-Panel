@@ -1064,4 +1064,52 @@ ganz anderen Quelle.
 > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
 > steht.**
 
+---
+
+### Punkt 2 — Eine Neuinstallation ist als solche zu sehen (Kriterium 2) · **halb**
+
+    LC_ALL=C apt-get -s dist-upgrade | grep '^Inst ' | grep -v '\['
+    (Ende)
+
+**Auf diesem Server gibt es heute keine Neuinstallation** — kein anstehendes
+Update zieht ein neues Paket mit, und „davon neu" steht deshalb zu Recht auf `0`.
+Herstellen liesse sich der Zustand nur, indem wirklich etwas installiert wird,
+und dafür ist ein Server mit Kundenwebsites der falsche Ort.
+
+**Die Form ist trotzdem belegt**, und zwar gegen echtes apt statt gegen eine
+ausgedachte Zeile:
+
+    Inst cowsay (3.03+dfsg2-8 Ubuntu:24.04/noble [all])
+
+Diese Zeile, wörtlich vom Server genommen, durch `Packages::inst()` gelesen:
+
+    name: cowsay · old: NULL · new: 3.03+dfsg2-8
+    origins: [Ubuntu:24.04/noble] · architecture: all · security: false
+
+Und mit der Gegenprobe daneben — dieselbe Frage an eine Zeile **mit** alter
+Fassung ergibt `old: '1.17.6-1ubuntu4.7'`. Über beide zusammen zählt `read()`
+**upgradable 2, fresh 1, security 1**.
+
+Das ist die Stelle, an der der Leser einen gemessenen Kommentar trägt: `old`
+steht bei einer Neuinstallation als **leere Zeichenkette** da und ist nicht fort,
+weil hinter ihr noch eine Gruppe mitspielt; `architecture` fehlt wirklich, weil
+sie am Ende steht. Beides gilt für diese echte Zeile.
+
+**Was damit nicht gemessen ist: die Anzeige.** Ob die Seite eine solche Zeile als
+„neu" zeigt statt mit einer erfundenen alten Fassung, ist offen — dafür müsste
+sie in `dist-upgrade` stehen, und das tut sie heute nicht.
+
+**Und die Vorschrift war hier irreführend.** `docs/85` nennt `apt-get install -s
+cowsay` als Ersatz und schreibt dazu, „die Liste der Seite entsteht aus derselben
+Simulation". Das stimmt nicht: Die Seite liest `-s dist-upgrade`, und `cowsay`
+erschiene dort nie.
+
+> **Ein Prüfkörper, der die Seite ohne den Gegenstand misst, misst die Seite und
+> nicht den Gegenstand.**
+
+Zwei Sätze, und der zweite ist der, auf den es ankommt: **Die Form ist auf dem
+Server belegt. Die Anzeige einer Neuinstallation ist nicht gemessen.** Die
+nächste Gelegenheit kommt von allein — sobald ein Upgrade eine neue Abhängigkeit
+mitbringt, steht sie in der Liste, und dann ist es ein Blick.
+
 <!-- Wird während des Laufs weitergefüllt. -->

@@ -21427,3 +21427,42 @@ es ohne Framework gar nicht kennt.
 
 > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
 > steht.**
+
+### A1 Schritt 10 — der Abnahmelauf ist ausgeschrieben, nicht gefahren
+
+`docs/85-abnahmelauf-a1.md`, fünfzehn Punkte auf `cloudsrv24`. Die Nummer kommt
+nach einem `ls docs/` und nicht aus dem Gedächtnis — `docs/81` hat einmal eine
+genannt, die einem anderen Dokument gehörte.
+
+**Punkt 5 ist der Grund, dass es diesen Lauf gibt.** Ein Upgrade, das `srvpanel`
+selbst enthält, startet mitten im Lauf `srvpanel-worker` neu — also den Prozess,
+der die Operation abgesetzt hat. Dass die transiente Unit das überlebt,
+behauptet dieses Projekt seit P0 (so läuft `panel.update`), und belegt hat es
+nur der eigene Gebrauch.
+
+> **Ein Verfahren, das immer funktioniert hat, ist nicht dasselbe wie eines, das
+> jemand gemessen hat.**
+
+Der Beleg ist dabei nicht die abgesetzte Unit, sondern die **Bilanzzeile** von
+`apt-run` als letzte Zeile des Protokolls: Sie entsteht nach dem Neustart oder
+gar nicht.
+
+> **Ein Beleg für den Weg ist keiner für das Ziel.**
+
+**Beim Ausschreiben sind drei Prüfkörper umgefallen, bevor sie jemand gefahren
+hat.** Punkt 3 wollte die Sury-Quelle umbenennen — eine umbenannte Datei ist
+aber eine *fehlende* Quelle und keine unerreichbare, und apt meldet dazu gar
+nichts. Umgebogen wird jetzt die Adresse, und die Datei bleibt liegen. Punkt 2
+misst nichts, wenn das `dist-upgrade` keine Neuinstallation enthält, und hat
+einen Ersatzprüfkörper bekommen. Punkt 4 ist auf einem Server ohne ablaufenden
+Schlüssel **nicht messbar** und wird als solcher protokolliert statt als grün.
+
+> **Ein Prüfkörper, der einen anderen Zustand herstellt als den gemeinten,
+> erreicht die Prüfung nicht.**
+
+> **Ein Zustand, den die Umgebung nicht zulässt, wird nicht dadurch
+> hergestellt, dass man nichts tut.**
+
+**Und §6 sagt, welche zwei Punkte ausfallen dürfen und welcher nicht.** Ein
+Abnahmelauf, der jeden nicht messbaren Punkt gleich behandelt, nimmt am Ende ab,
+was niemand gesehen hat.

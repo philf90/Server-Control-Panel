@@ -21,10 +21,18 @@ DNS.
 Protokoll **`docs/84`**. Im selben Lauf sind **A1 Schritt 1** (Punkt 11, M5 auf
 einem echten Server) und **A5** (Punkt 12) belegt.
 
-**P7b ist damit nicht fertig.** Offen sind **A1 Schritt 0** (die Messrunde auf
-Debian 12/13 und Ubuntu 22.04) und **A1 Schritt 6**, an dem Teil 3 von M5 hängt;
-A3, A4 und A7 haben weiterhin keine Stufe. Die sechzehn Befunde und sechs
-Beobachtungen des Laufs stehen mit ihrer Baureihenfolge in `docs/84 §7`.
+**P7b ist damit nicht fertig.** Von **A1** sind die Schritte 0 bis 9 gebaut
+(`docs/81 §9`) — **offen ist Schritt 10, der Abnahmelauf**: Er steht seit dem
+26. August als **`docs/85`** ausgeschrieben da und ist **nicht gefahren**. Ohne
+ihn ist A1 nicht abgenommen, und zwar aus einem Grund, der in seinem Punkt 5
+steht: Dass eine transiente Unit den Neustart von `srvpanel-worker` überlebt,
+wenn `srvpanel` selbst im Lauf steckt, behauptet dieses Projekt seit P0 und
+belegt hat es nur der eigene Gebrauch.
+
+Ebenfalls offen und benannt: die **Rollenteilung** aus `docs/81 §3` Frage 2 (die
+Updates-Seite gehört ganz dem Betreiber, `docs/81 §2.3h`); A3, A4 und A7 haben
+weiterhin keine Stufe. Die sechzehn Befunde und sechs Beobachtungen des
+A9-Laufs stehen mit ihrer Baureihenfolge in `docs/84 §7`.
 
  P6 ist am **21. August 2026** auf `cloudsrv24`
 gegen `v0.6.0-rc.24` abgenommen — der Angriffsdurchgang (`docs/62`) und der
@@ -1560,7 +1568,13 @@ Projekts in Zahlen, die drei Grenzen, was dieser Container kann und was nicht
 Adminfunktionen im Besonderen gilt, und was der neuen Sitzung mitzugeben ist.
 Sie ersetzt den Plan der Adminfunktionen nicht — der ist anderswo entstanden.
 
-Und aus P7b: **`80` die Bestandsaufnahme** · **`81` der Plan** (A1 vollständig,
+Und aus P7b: **`85` der Abnahmelauf für A1** — fünfzehn Punkte auf einem echten
+Server, **noch nicht gefahren**. Punkt 5 ist der Grund, dass es ihn gibt: Dass
+eine transiente Unit den Neustart von `srvpanel-worker` überlebt, wenn `srvpanel`
+selbst im Lauf steckt, **behauptet dieses Projekt seit P0** und belegt hat es nur
+der eigene Gebrauch. §5 sagt, was der Lauf ausdrücklich nicht prüft, §6, welche
+zwei Punkte als „nicht messbar" ausfallen dürfen und welcher nicht, §7 was danach
+zu bauen bleibt. · **`80` die Bestandsaufnahme** · **`81` der Plan** (A1 vollständig,
 die übrigen als Skizze) · **`82` Rollen und Konten** — der Plan von A9, mit den
 zwei Achsen, dem Aussperrschutz und der Netzbeschränkung; §2.4 ist einmal
 berichtigt worden, weil er eine Passworterzeugung auf dem Server vorsah, die

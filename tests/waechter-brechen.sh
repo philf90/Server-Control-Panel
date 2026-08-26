@@ -1559,6 +1559,59 @@ pruefe "  … zurückgesetzt wieder grün" \
   MobileLayoutTest::test_an_identifier_may_break_outside_a_table passed
 
 echo
+echo "── MobileLayoutTest: der Deckel der Rückfrage bleibt auf dem Telefon ──"
+#
+# Der Bruch stellt den Zustand vom 26. August wieder her: Der Deckel für die
+# breite Ansicht gilt auch unter 480px, wo die Knöpfe darunter längst auf volle
+# Breite gehen. Gemessen bei 390px: Knöpfe 323px, Feld 285px.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""@media (max-width: 480px) {
+  .confirmation .field {
+    max-width: none;
+  }
+}
+""", '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "Rückfragefeld bleibt gedeckelt" &&
+pruefe "Rückfragefeld bleibt gedeckelt" \
+  MobileLayoutTest::test_the_confirmation_field_is_not_capped_on_a_phone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  MobileLayoutTest::test_the_confirmation_field_is_not_capped_on_a_phone passed
+
+echo
+echo "── MobileLayoutTest: die Aufhebung zieht an einen anderen Haltepunkt ──"
+#
+# Der teurere der beiden: Die Regel steht noch da und liest sich richtig — nur
+# gilt sie bei einer Breite, bei der die Knöpfe gar nicht dehnen. Genau so
+# laufen zwei Zahlen auseinander, die zusammengehören.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""@media (max-width: 480px) {
+  .confirmation .field {
+    max-width: none;
+  }
+}""", """@media (max-width: 720px) {
+  .confirmation .field {
+    max-width: none;
+  }
+}""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "Aufhebung am falschen Haltepunkt" &&
+pruefe "Aufhebung am falschen Haltepunkt" \
+  MobileLayoutTest::test_the_confirmation_field_is_not_capped_on_a_phone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  MobileLayoutTest::test_the_confirmation_field_is_not_capped_on_a_phone passed
+
+echo
 echo "── SiteTemplateTest: der Agent leitet das Zertifikat wieder selbst ab ──"
 #
 # Der Zustand vor dem zweiten Wurf: Der Agent sieht unter dem Namen der Domain

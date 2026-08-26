@@ -354,4 +354,92 @@ gemessen.
 > **Eine Zahl, die sich ändert, ohne dass jemand die Ursache kennt, ist keine
 > Messung — sie ist ein Anlass zu einer.**
 
+---
+
+### Punkt 7 — Der Neustart, und was vor ihm steht (Kriterium 7)
+
+**7b — die Meldung nennt die Pakete · erfüllt.**
+
+Hergestellt mit `touch /run/reboot-required` und zwei Namen in
+`/run/reboot-required.pkgs`. Die Seite meldet in Bernstein:
+
+    Ein Neustart steht aus — srvpanel, libssl3
+
+**Beide Namen stehen da, und der Rang ist `warn`** — derselbe Wortlaut, den der
+Quelltext führt. Die Meldung ist damit nicht „es liegt eine Datei", sondern
+„weswegen": Wer sie liest, weiss, ob er den Ausfall heute oder nächste Woche
+einplant.
+
+**7c — die Rückfrage verlangt den Namen des Servers · erfüllt.**
+
+Der Text nennt, was der Neustart mitnimmt — alle Websites, Datenbanken und
+Postfächer, **und dieses Panel** —, die 60 Sekunden bis zum Anlaufen und den
+Griff, mit dem man ihn in dieser Zeit noch stoppt
+(`systemctl stop srvpanel-reboot.timer`).
+
+Verlangt wird **`cloudsrv24.de`** und nicht `cloudsrv24`. Mit `asdf` bleibt der
+Knopf grau, mit dem vollen Namen wird er frei. Beides gemessen.
+
+**Und das berichtigt meine eigene Anweisung.** Ich hatte „`cloudsrv24` → Knopf
+wird frei" hingeschrieben — der kurze Name, den `php_uname('n')` liefert. Die
+Seite fragt `Names::host()`, und die gibt den vollen. Der Prüfling hat recht und
+die Vorschrift hatte unrecht; wäre sie befolgt worden, hätte der Punkt einen
+Fehler gemeldet, den es nicht gibt.
+
+> **Eine Vorschrift, die einen Wert selbst einsetzt statt ihn zu erfragen,
+> prüft ihren Verfasser.**
+
+---
+
+**Befund 5 — das Feld der Rückfrage ist kürzer als die Knöpfe darunter.**
+
+Gemeldet vom Betreiber am Bild zu 7c, bei 390 px. Nachgemessen im Container mit
+dem gebauten Stylesheet und dem Markup aus `Confirmation.vue`:
+
+    390px   block=358  feld=285  knopf=323  abbrechen=323  differenz=38
+    1440px  block=1376 feld=285  knopf=180  abbrechen=121  differenz=-105
+
+**38 px kürzer**, und in einer Spalte sieht man jedes davon. Die breite Ansicht
+ist in Ordnung — dort ist der Deckel gewollt.
+
+Der Fehler sind **zwei richtige Regeln, die niemand aneinandergebunden hat.**
+`max-width: 32ch` ist eine Zusage über die breite Ansicht („hier steht ein Wort
+und kein Satz"); unter 480 px zieht `.button-row` ihre Knöpfe auf volle Breite,
+damit vom zweiten nicht drei Buchstaben übrigbleiben. Jede für sich ist
+begründet, und zusammen ergeben sie eine ausgefranste Spalte.
+
+> **Eine Breite, die für die breite Ansicht begründet ist, ist auf der schmalen
+> keine Begründung mehr — sie ist ein Rest.**
+
+Behoben: Der Deckel fällt unter 480 px weg. Nachgemessen **0 px Unterschied**
+bei 390 px, unverändert bei 1440 px, Dokumentüberlauf `0` in beiden Lagen bei
+einer Gegenprobe, die mit 216 und 232 ausschlägt. Bilder in beiden Themes.
+
+**Der Wächter prüft die Bindung und nicht die Zahl.**
+`MobileLayoutTest::test_the_confirmation_field_is_not_capped_on_a_phone` liest
+den Haltepunkt, an dem die Knöpfe dehnen, und verlangt die Aufhebung des
+Deckels an **demselben**. Eine Prüfung über „285 gegen 323" müsste `ch` in Pixel
+umrechnen, also eine Schriftart annehmen — und sie hielte den Fall nicht, um den
+es geht: dass jemand eine der beiden Zahlen allein verschiebt. Vier Eingriffe,
+alle beissen, jeder mit seiner eigenen Meldung; zwei davon stehen als
+Dauereingriffe in `tests/waechter-brechen.sh`.
+
+---
+
+**Beobachtung 4 — gefunden hat es der Betreiber am Bild, nicht die Messung.**
+
+Der Dokumentüberlauf stand vorher wie nachher auf `0`. Ein Feld, das 38 px zu
+kurz ist, schiebt nichts; es steht nur falsch da.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+Derselbe Satz wie in `docs/46` und `docs/55` — und daneben der aus `docs/59`:
+Das Bild zu 7c ist auf die Frage hin angesehen worden, ob die Rückfrage bei
+390 px sauber stapelt. Sie tut es, der Überlauf ist `0`, und der Punkt galt als
+erfüllt.
+
+> **Ein Bild, das man auf eine Frage hin ansieht, beantwortet die Frage — und
+> verdeckt alles, was daneben steht.**
+
 <!-- Wird während des Laufs weitergefüllt. -->

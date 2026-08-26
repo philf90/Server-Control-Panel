@@ -21605,3 +21605,53 @@ grün** — beide Fehlschläge fort, und keiner dazugekommen.
 
 > **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
 > jemand ihn behoben hat.**
+
+### Zwei richtige Regeln, die niemand aneinandergebunden hat
+
+Gemeldet vom Betreiber im Abnahmelauf zu A1 (`docs/86`, Punkt 7c), an der
+Rückfrage vor dem Neustart: Bei 390 px ist das Feld, in das der Servername
+abgetippt wird, kürzer als die beiden Knöpfe darunter. Nachgemessen im Container
+mit dem gebauten Stylesheet und dem Markup aus `Confirmation.vue`:
+
+    390px   block=358  feld=285  knopf=323  abbrechen=323  differenz=38
+    1440px  block=1376 feld=285  knopf=180  abbrechen=121  differenz=-105
+
+**38 px**, und in einer Spalte sieht man jedes davon.
+
+Der Deckel `max-width: 32ch` ist eine Zusage über die **breite** Ansicht — dort
+verspräche ein Feld über die ganze Zeile eine Eingabe, die aus einem Satz
+besteht, und es steht ein Wort darin. Unter 480 px zieht `.button-row` ihre
+Knöpfe auf volle Breite, damit vom zweiten nicht drei Buchstaben übrigbleiben.
+Beide Regeln sind begründet, beide sind richtig, und keine von beiden weiss von
+der anderen.
+
+> **Eine Breite, die für die breite Ansicht begründet ist, ist auf der schmalen
+> keine Begründung mehr — sie ist ein Rest.**
+
+Der Deckel fällt unter 480 px weg. Nachgemessen: **0 px Unterschied** bei 390 px,
+unverändert bei 1440 px, Dokumentüberlauf `0` in beiden Lagen bei einer
+Gegenprobe, die mit 216 und 232 ausschlägt. Bilder in beiden Themes.
+
+**Der Wächter prüft die Bindung und nicht die Zahl.**
+`MobileLayoutTest::test_the_confirmation_field_is_not_capped_on_a_phone` liest
+aus `app.css`, an welchem Haltepunkt die Knöpfe dehnen, und verlangt die
+Aufhebung des Deckels an **demselben**. Eine Prüfung über „285 gegen 323" müsste
+`ch` in Pixel umrechnen, also eine Schriftart annehmen — und sie hielte
+ausgerechnet den Fall nicht, um den es geht: dass jemand eine der beiden Zahlen
+allein verschiebt. Vier Eingriffe, alle beissen, jeder mit seiner eigenen
+Meldung; zwei stehen als Dauereingriffe im Bruchskript.
+
+**Gefunden hat es das Bild und nicht die Messung.** Der Dokumentüberlauf stand
+vorher wie nachher auf `0`.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+**Und derselbe Punkt hat meine eigene Anweisung berichtigt.** Sie sagte, die
+Rückfrage verlange `cloudsrv24`; verlangt wird `cloudsrv24.de`, weil die Seite
+`Names::host()` fragt und nicht den kurzen Namen des Kernels. Der Prüfling hat
+recht, die Vorschrift hatte unrecht — befolgt hätte sie einen Fehler gemeldet,
+den es nicht gibt.
+
+> **Eine Vorschrift, die einen Wert selbst einsetzt statt ihn zu erfragen, prüft
+> ihren Verfasser.**

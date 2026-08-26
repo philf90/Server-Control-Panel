@@ -4781,6 +4781,37 @@ p:not([class]) {
   margin-top: 12px;
 }
 
+/*
+ * Auf dem Telefon fällt der Deckel weg — sonst steht das Feld kürzer da als
+ * die Knöpfe, die es freigibt.
+ *
+ * **Gefunden vom Betreiber im Abnahmelauf zu A1** (`docs/86`, Punkt 7c), an der
+ * Rückfrage vor dem Neustart. Gemessen bei 390 px mit dem gebauten Stylesheet:
+ * Block **358 px**, Knöpfe je **323 px**, Feld **285 px** — **38 px** kürzer als
+ * das, was darunter steht.
+ *
+ * Der Grund ist keine Nachlässigkeit, sondern zwei richtige Regeln, die
+ * niemand aneinandergebunden hat: Der Deckel oben ist eine Zusage über die
+ * *breite* Ansicht („hier steht ein Wort und kein Satz"), und unter 480 px
+ * zieht `.button-row` ihre Knöpfe auf volle Breite, damit vom zweiten nicht
+ * drei Buchstaben übrigbleiben. Auf einer Fläche, auf der ohnehin alles
+ * untereinander in einer Spalte steht, sagt der Deckel nichts mehr — er macht
+ * die Spalte nur ausgefranst.
+ *
+ * > **Eine Breite, die für die breite Ansicht begründet ist, ist auf der
+ * > schmalen keine Begründung mehr — sie ist ein Rest.**
+ *
+ * Derselbe Haltepunkt wie das Dehnen der Knöpfe, und das ist der Kern: Zwei
+ * Zahlen, die zusammengehören, laufen auseinander, sobald eine von beiden
+ * allein steht. Die Bindung rechnet
+ * `MobileLayoutTest::test_the_confirmation_field_is_not_capped_on_a_phone` nach.
+ */
+@media (max-width: 480px) {
+  .confirmation .field {
+    max-width: none;
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    Die Ausgabe eines Vorgangs
    ═══════════════════════════════════════════════════════════════════════ */

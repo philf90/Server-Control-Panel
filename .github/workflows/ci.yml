@@ -997,7 +997,11 @@ jobs:
           # dieses Projekts. SC1090 desgleichen für den Pfad aus einer Variablen.
           shellcheck -e SC1091 packaging/install.sh packaging/php-source.sh packaging/scripts/*.sh
           shellcheck packaging/version-channel.sh packaging/release-notes.sh
-          shellcheck -e SC1091 packaging/bin/php packaging/bin/php-fpm packaging/bin/srvpanel
+          # Das ganze Verzeichnis und keine Namensliste: `apt-run` und `cron-run`
+          # standen hier nicht, und `SystemPackagesUpgrade` begründet seine
+          # Bauart damit, dass shellcheck über dieses Verzeichnis fährt.
+          # `ShellCheckReachTest` hält die Begründung an der Tatsache.
+          shellcheck -e SC1091 packaging/bin/*
           shellcheck -e SC1090,SC1091 packaging/build.sh packaging/testbed.sh packaging/rotate-signing-keys.sh
 
   supply-chain:

@@ -69,8 +69,20 @@ final class SystemPackagesUpgrade implements Op
      * Das Skript, das in der Unit läuft.
      *
      * Derselbe Ort wie `cron-run` seit P6: `/usr/lib/srvpanel`. Ein Skript und
-     * keine Zeichenkette in PHP, weil shellcheck über dieses Verzeichnis fährt
-     * und über eine Zeichenkette in PHP nichts fährt.
+     * keine Zeichenkette in PHP, weil shellcheck über `packaging/bin` fährt und
+     * über eine Zeichenkette in PHP nichts fährt.
+     *
+     * **Und diese Begründung stimmte einen Tag lang nicht.** Am 26. August 2026
+     * fuhr die CI über drei Dateien mit Namen — `php`, `php-fpm`, `srvpanel` —,
+     * und weder dieses Skript noch `cron-run` standen darunter. Beide waren
+     * sauber; das war Glück und keine Zusage.
+     *
+     * > **Eine Begründung, die eine Tatsache behauptet, ist so lange richtig,
+     * > bis jemand die Tatsache ändert — und niemand liest die Begründung
+     * > dabei.**
+     *
+     * `ShellCheckReachTest` hält den Satz jetzt an der Tatsache, in beide
+     * Richtungen.
      */
     public const RUNNER = '/usr/lib/srvpanel/apt-run';
 

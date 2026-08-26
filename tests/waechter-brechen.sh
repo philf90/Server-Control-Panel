@@ -78,6 +78,32 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
+# **Die feste Umgebung dieses Skripts — aus demselben Grund wie im Agenten.**
+#
+# `pruefe()` liest die Ausgabe von PHPUnit als Text: `OK (`, `FAILURES!`. In
+# einer Agentensitzung schreibt derselbe Aufruf statt dessen eine Zeile JSON
+# (`{"tool":"phpunit","result":"passed",…}`), und dann faellt **jede** Pruefung
+# in den Zweig „unlesbar".
+#
+# Gemessen am 26. August 2026 durch Aussieben der ganzen Umgebung, Variable fuer
+# Variable: `AI_AGENT` und `CLAUDECODE` schalten die Verpackung ein, `env -i`
+# gibt gewoehnlichen Text. Beides einzeln nachgeprueft.
+#
+# **Der Leser ist deswegen schon zweimal umgebaut worden** — einmal auf JSON,
+# weil er in einer Agentensitzung entstand, und danach zurueck auf Text, weil er
+# in der CI nichts fand. Keiner der beiden Umbauten hat gefragt, WARUM dieselbe
+# Zeile zwei Ausgaben hat.
+#
+#   Ein Parser, der zwischen zwei Umgebungen hin- und hergebaut wird, ist
+#   nicht falsch geschrieben — er misst eine Umgebung, die niemand festgelegt
+#   hat.
+#
+# Deshalb steht die Umgebung jetzt hier, so wie `Runner::ENVIRONMENT` sie fuer
+# den Agenten festlegt: Wer eine Ausgabe parst, setzt die Umgebung, die sie
+# erzeugt. Die Vorpruefung unten bleibt als Rueckfall.
+export -n AI_AGENT CLAUDECODE 2>/dev/null || true
+unset AI_AGENT CLAUDECODE
+
 # **Die Bäume, in denen dieses Skript arbeitet — einmal aufgeschrieben.**
 #
 # Sie standen zweimal da, für die Sauberkeitsprüfung und für den Rückweg, und
@@ -271,6 +297,8 @@ vorpruefung() {
   esac
 
   echo "Der Testaufruf liefert nichts Lesbares — dieses Skript kann nichts messen." >&2
+  echo "Kommt eine Zeile JSON zurueck, steht AI_AGENT oder CLAUDECODE in der Umgebung;" >&2
+  echo "der Kopf dieses Skripts nimmt beide heraus. Kommt etwas anderes, liegt es an PHPUnit." >&2
   echo "Gepruefte Zeile: ./vendor/bin/phpunit --filter BreakScriptTest" >&2
   echo >&2
   printf '%s\n' "$roh" | tail -20 >&2
@@ -18635,6 +18663,52 @@ pruefe "Weg zurueck gestrichen" \
   UnattendedStateTest::test_the_way_back_is_in_the_packaging failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnattendedStateTest passed
+
+echo
+echo "── ShellCheckReachTest: das Verzeichnis wieder als Namensliste ──"
+#
+# Der Anlass ist eine Begruendung, die nicht stimmte: SystemPackagesUpgrade
+# rechtfertigt seine Bauart damit, dass shellcheck ueber packaging/bin faehrt —
+# und die CI fuhr ueber drei Dateien mit Namen. `apt-run` und `cron-run`
+# standen nicht darunter.
+vorher_datei .github/workflows/ci.yml
+python3 - <<'PY2'
+p = '.github/workflows/ci.yml'
+s = open(p, encoding='utf-8').read()
+alt = '          shellcheck -e SC1091 packaging/bin/*\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(
+    alt,
+    '          shellcheck -e SC1091 packaging/bin/php packaging/bin/php-fpm packaging/bin/srvpanel\n',
+    1,
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei .github/workflows/ci.yml "Skripte ohne shellcheck" &&
+pruefe "Skripte ohne shellcheck" \
+  ShellCheckReachTest::test_every_shell_script_of_the_packaging_is_checked failed
+wiederherstellen
+
+echo
+echo "── ShellCheckReachTest: ein Pfad, der nichts mehr deckt ──"
+#
+# Die Gegenrichtung, und so entsteht ein toter Eintrag wirklich: Beim
+# Umbenennen wird der neue Ort nachgetragen, die andere Richtung ist wieder
+# gruen, und der alte bleibt als Zusage liegen, die niemand einloest.
+vorher_datei .github/workflows/ci.yml
+python3 - <<'PY2'
+p = '.github/workflows/ci.yml'
+s = open(p, encoding='utf-8').read()
+alt = '          shellcheck packaging/version-channel.sh packaging/release-notes.sh\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, alt.rstrip('\n') + ' packaging/umbenannt/*.sh\n', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei .github/workflows/ci.yml "Pfad ohne Deckung" &&
+pruefe "Pfad ohne Deckung" \
+  ShellCheckReachTest::test_every_path_the_step_names_covers_something failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ShellCheckReachTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

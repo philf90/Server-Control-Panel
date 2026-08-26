@@ -21351,3 +21351,79 @@ sondern eine Zahl an der falschen Stelle.
 
 > **Ein Baustein, der die Zahl selbst setzt, passt nur in Sätze, die mit ihr
 > anfangen.**
+
+### A1 Schritt 9 — der volle Bruchlauf, und eine Umgebung, die niemand festgelegt hat
+
+**1524 Prüfungen, `FEHLT: 0`, „Alle Wächter beissen."** Der Arbeitsbaum davor
+und danach ist derselbe — der Lauf hat nichts liegen lassen.
+
+Bezahlt hat er einen Befund, und der steckte nicht in einem Eingriff, sondern in
+der Umgebung, in der das Skript läuft. `pruefe()` liest die Ausgabe von PHPUnit
+als Text und sucht `OK (` beziehungsweise `FAILURES!`. In einer Agentensitzung
+schreibt derselbe Aufruf statt dessen eine Zeile JSON, und damit fällt **jede**
+der 1524 Prüfungen in den Zweig „unlesbar". Ausgesiebt Variable für Variable:
+`AI_AGENT` und `CLAUDECODE` schalten die Verpackung ein, `env -i` gibt
+gewöhnlichen Text. Beide einzeln nachgeprüft, in beide Richtungen.
+
+**Die Lehre steht in der Geschichte dieses Lesers.** Er ist zweimal umgebaut
+worden — einmal auf JSON, weil er in einer Agentensitzung entstand, und danach
+zurück auf Text, weil er in der CI nichts fand. Keiner der beiden Umbauten hat
+gefragt, *warum* dieselbe Zeile zwei Ausgaben hat.
+
+> **Ein Parser, der zwischen zwei Umgebungen hin- und hergebaut wird, ist nicht
+> falsch geschrieben — er misst eine Umgebung, die niemand festgelegt hat.**
+
+Die Antwort steht seit P0 im Agenten: `Runner::ENVIRONMENT` legt `LC_ALL=C`
+fest, damit Zahlenformate stabil bleiben. Der Kopf des Skripts nimmt beide
+Variablen jetzt genauso selbst heraus. Die Vorprüfung bleibt als Rückfall — sie
+hat gefangen, wofür es sie gibt, sagte aber nur den Zustand und nicht die
+Ursache, und nennt seitdem beides.
+
+> **Eine Prüfung, die den Zustand fängt, hat über die Ursache nichts gesagt —
+> und der Leser sucht dort, wohin die Meldung zeigt.**
+
+**Die drei Brüche, die das Skript nicht fahren kann, sind von Hand gefahren** —
+sie ändern Dateien, die der Rückweg nicht anfasst. `BreakScriptTest` mit einem
+Eingriff, den man auf seinen alten Ort zurückdreht; `ChangelogTest` in beiden
+Richtungen, einmal auf einen Namensraum ohne Verzeichnis und einmal auf eine
+Klasse ohne Datei. Alle drei rot mit ihrer eigenen Meldung, danach wieder grün.
+
+**Gesichert wurde dabei mit `cp` und nicht mit `git checkout --`.** Der Baum
+trug eine eigene, nicht eingecheckte Änderung an genau der Datei, die der erste
+Bruch anfasst — der gewohnte Rückweg hätte sie mitgenommen. Der Satz dazu ist
+zwei Tage alt und hier zum ersten Mal *vor* dem Schaden angewandt.
+
+### Und eine Begründung, die zwei Schritte alt war und nicht stimmte
+
+`SrvPanel\Agent\Ops\SystemPackagesUpgrade` schreibt im Kopf, warum der apt-Lauf
+in einem Skript steht und nicht in einer Zeichenkette in PHP: *„weil shellcheck
+über dieses Verzeichnis fährt und über eine Zeichenkette in PHP nichts fährt."*
+
+Gemessen fuhr die CI über **drei Dateien mit Namen** — `packaging/bin/php`,
+`php-fpm`, `srvpanel` — und nicht über das Verzeichnis. `packaging/bin/apt-run`
+war einen Tag alt und ungeprüft, `packaging/bin/cron-run` seit P6. Beide sind
+sauber; das ist Glück und keine Zusage.
+
+> **Eine Begründung, die eine Tatsache behauptet, ist so lange richtig, bis
+> jemand die Tatsache ändert — und niemand liest die Begründung dabei.**
+
+Das ist wortwörtlich das Muster aus `CLAUDE.md`: eine Zeichenkette, die auf
+etwas verweist, ohne dass ein Werkzeug den Bezug prüft. Diesmal in einem
+Dokumentationsblock, der die Bauart einer Operation rechtfertigt.
+
+Die CI fährt seitdem `packaging/bin/*`. **`ShellCheckReachTest`** hält beide
+Richtungen: kein Shellskript unter `packaging/` entgeht der CI, und kein Pfad im
+Schritt deckt nichts. Die zweite ist die, an der ein toter Eintrag wirklich
+entsteht — beim Umbenennen wird der neue Ort nachgetragen, die erste Richtung
+ist wieder grün, und der alte bleibt als Zusage liegen, die niemand einlöst.
+
+**Und die Gegenprobe zur PHPStan-Messung des neuen Wächters war selbst keine.**
+Sie lieferte null Zeilen, bei sauberer *und* bei absichtlich kaputter Datei —
+dieselbe Ursache wie beim Bruchskript: `--error-format=raw` erzeugt die
+JSON-Verpackung nicht, `AI_AGENT` schon, und der Filter darüber sah nie eine
+rohe Zeile. Der zweite Prüfkörper musste ausserdem ein Fehler sein, den PHPStan
+**aus dem Code allein** sieht; der erste hing an einer `assert…`-Signatur, die
+es ohne Framework gar nicht kennt.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**

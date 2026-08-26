@@ -1248,7 +1248,10 @@ deklariert einen Namen, der der Basisklasse gehört — er spiegelt deren
 `<style>`-Block einer `.vue` steht auf oberster Ebene und nicht im
 Vorlagenblock, wo der Übersetzer ihn wegwirft — die Regel, die
 `ClassReachTest` nicht halten konnte, weil er eine Zeichenkette suchte statt
-eines Blocks) und `RebootConfirmTest` (der Neustart wird über `systemd-run`
+eines Blocks) und `ShellCheckReachTest` (jedes Shellskript unter `packaging/` kommt bei
+shellcheck vorbei, **und** jeder Pfad, den der Schritt nennt, deckt auch etwas —
+die zweite Richtung ist die, an der ein toter Eintrag wirklich entsteht) und
+`RebootConfirmTest` (der Neustart wird über `systemd-run`
 **abgesetzt** und nicht im Agenten ausgeführt; der Rechnername wird auf dem
 Server geprüft, und zwar gegen dieselbe Quelle, aus der die Seite ihn zeigt —
 gefragt wird der Programmname **an der Aufrufstelle** und nicht die
@@ -2315,9 +2318,33 @@ Testen berücksichtigen:
   > **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
   > gefahren — man denkt an das Gebaute und nicht an das Berührte.**
 
-  **Und ein einzelner Eingriff des Bruchskripts lässt sich hier ebenfalls
-  fahren.** `tests/waechter-brechen.sh` als Ganzes braucht `vendor/bin/phpunit`
-  und läuft nicht — der einzelne Eingriff schon: Datei sichern, den
+  **Und das Bruchskript läuft hier — seit dem 26. August im Ganzen.** Hier
+  stand, es brauche `vendor/bin/phpunit` und laufe deshalb nicht; mit dem
+  `vendor/` von oben ist der volle Lauf ein Aufruf. Gemessen: **1524 Prüfungen,
+  `FEHLT: 0`, „Alle Wächter beissen."**, Arbeitsbaum davor und danach derselbe.
+  Er dauert gut zwanzig Minuten und gehört deshalb in den Hintergrund und in
+  eine Datei.
+
+  **Aber nur mit fester Umgebung.** In einer Agentensitzung verpacken `AI_AGENT`
+  und `CLAUDECODE` die Ausgabe von PHPUnit als eine Zeile JSON; `pruefe()` sucht
+  `OK (` und `FAILURES!` und fällt damit bei **jeder** der 1524 Prüfungen in den
+  Zweig „unlesbar". Der Kopf des Skripts nimmt beide seitdem selbst heraus —
+  dieselbe Antwort, die `Runner::ENVIRONMENT` seit P0 für den Agenten gibt.
+
+  > **Ein Parser, der zwischen zwei Umgebungen hin- und hergebaut wird, ist
+  > nicht falsch geschrieben — er misst eine Umgebung, die niemand festgelegt
+  > hat.** Dieser Leser ist genau das zweimal gewesen: einmal auf JSON, weil er
+  > in einer Agentensitzung entstand, und zurück auf Text, weil er in der CI
+  > nichts fand.
+
+  **Drei Brüche kann das Skript grundsätzlich nicht fahren** — die zu
+  `BreakScriptTest` und die beiden zu `ChangelogTest`. Sie ändern das Skript
+  selbst beziehungsweise `CHANGELOG.md`, und der Rückweg fasst beides zu Recht
+  nicht an. Die Befehlsfolge steht im Kopf des jeweiligen Tests; gefahren werden
+  sie von Hand, und **gesichert wird mit `cp`**: Liegt am Ziel eine eigene, noch
+  nicht eingecheckte Änderung, nähme `git checkout --` sie mit.
+
+  **Der einzelne Eingriff geht auch ohne all das** — Datei sichern, den
   Python-Block von Hand anwenden, den Wächter im Gestell fahren, Datei
   zurückholen. Am 20. August hat genau das einen Wächter überführt, der
   **wirkungslos** war, obwohl der Eingriff die Datei nachweislich veränderte
@@ -2325,7 +2352,9 @@ Testen berücksichtigen:
   belegt ihn so, statt ihn ungeprüft zu pushen.
 
   > **„Das Bruchskript läuft hier nicht" ist keine Ausrede, sondern ein
-  > Handgriff mehr.**
+  > Handgriff mehr.** Und seit dem 26. August ist der Satz selbst nicht mehr
+  > wahr — derselbe wie bei MariaDB, beim `sshd`, bei PowerDNS, bei PHPStan und
+  > bei Composer.
 
   **Und welche Eingriffe man fährt, sagt nicht das Gedächtnis, sondern der
   Zweig:** alle, deren `vorher_datei` eine Datei nennt, die dieser Zweig

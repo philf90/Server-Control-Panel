@@ -849,6 +849,92 @@ tatsächlich überlebt, wenn `srvpanel-web` dabei neu startet. Der letzte Punkt
 ist der einzige, der A1 zum Scheitern bringen kann — `panel.update` behauptet
 ihn seit P1 und **belegt hat ihn nur der eigene Gebrauch**.
 
+### 2.3j Was der volle Bruchlauf gekostet hat (26. August 2026)
+
+Schritt 9 ist gefahren: **1524 Prüfungen, `FEHLT: 0`, „Alle Wächter beissen."**
+Der Baum davor und danach ist derselbe — der Lauf hat nichts liegen lassen.
+
+Bezahlt hat er einen Befund, und der steckte nicht in einem Eingriff, sondern
+in der Umgebung, in der das Skript läuft.
+
+**Das Skript brach an seiner eigenen Vorprüfung ab.** `pruefe()` liest die
+Ausgabe von PHPUnit als Text und sucht `OK (` beziehungsweise `FAILURES!`. In
+einer Agentensitzung schreibt derselbe Aufruf statt dessen eine Zeile JSON —
+`{"tool":"phpunit","result":"passed",…}` —, und damit fällt **jede** der 1524
+Prüfungen in den Zweig „unlesbar". Die Vorprüfung hat das gefangen, wofür es sie
+gibt; sie sagte nur nicht, woran es liegt.
+
+Gefunden durch Aussieben der ganzen Umgebung, Variable für Variable: `AI_AGENT`
+und `CLAUDECODE` schalten die Verpackung ein, `env -i` gibt gewöhnlichen Text.
+Beide einzeln nachgeprüft, in beide Richtungen.
+
+**Und die eigentliche Lehre steht in der Geschichte dieses Lesers.** Er ist
+zweimal umgebaut worden — einmal auf JSON, weil er in einer Agentensitzung
+entstand, und danach zurück auf Text, weil er in der CI nichts fand. Keiner der
+beiden Umbauten hat gefragt, *warum* dieselbe Zeile zwei Ausgaben hat.
+
+> **Ein Parser, der zwischen zwei Umgebungen hin- und hergebaut wird, ist nicht
+> falsch geschrieben — er misst eine Umgebung, die niemand festgelegt hat.**
+
+Die Antwort steht seit P0 im Agenten: `Runner::ENVIRONMENT` legt `LC_ALL=C`
+fest, damit Zahlenformate stabil bleiben. Dasselbe gilt hier — der Kopf des
+Skripts nimmt beide Variablen jetzt selbst heraus, und die Vorprüfung bleibt als
+Rückfall stehen, mit zwei Zeilen mehr in ihrer Meldung: Sie nennt seitdem die
+Ursache und nicht nur den Zustand.
+
+> **Eine Prüfung, die den Zustand fängt, hat über die Ursache nichts gesagt —
+> und der Leser sucht dort, wohin die Meldung zeigt.**
+
+Derselbe Satz wie bei M5 in §2.1a, nur an einem Werkzeug statt an apt.
+
+**Die drei Brüche, die das Skript nicht fahren kann, sind von Hand gefahren** —
+sie ändern Dateien, die `wiederherstellen()` nicht anfasst, und ein Eingriff in
+`tests/` nähme dem Lauf mitten darin die eigene Grundlage weg:
+
+| Wächter | Eingriff | gemessen |
+|---|---|---|
+| `BreakScriptTest` | ein Eingriff auf seinen alten Ort zurückgedreht (`\|db\|vhost\|` → `\|tls\|vhost\|`) | rot mit „packaging/bin/srvpanel: \|tls\|vhost\|", danach wieder grün |
+| `ChangelogTest` (1) | `App\Support\Databases\Engines\` → `…\Motoren\` | rot mit „nennt den Namensraum … das Verzeichnis dazu gibt es nicht" |
+| `ChangelogTest` (2) | derselbe Verweis ohne den abschliessenden `\` | rot mit „nennt … die Datei dazu gibt es nicht" |
+
+**Gesichert wurde mit `cp` und nicht mit `git checkout --`.** Der Baum trug zu
+diesem Zeitpunkt eine eigene, nicht eingecheckte Änderung an genau der Datei,
+die der erste Bruch anfasst — der gewohnte Rückweg hätte sie mitgenommen. Das
+ist der Satz aus `docs/84`, hier zum ersten Mal *vor* dem Schaden angewandt.
+
+**Und beim Nachsehen fiel eine Begründung um, die zwei Schritte alt ist.**
+`SystemPackagesUpgrade` schreibt im Kopf, warum der apt-Lauf in einem Skript
+steht und nicht in einer Zeichenkette in PHP: *„weil shellcheck über dieses
+Verzeichnis fährt"*. Gemessen fuhr die CI über **drei Dateien mit Namen** —
+`php`, `php-fpm`, `srvpanel` —, und `packaging/bin/apt-run` stand nicht
+darunter. `packaging/bin/cron-run` seit P6 auch nicht.
+
+> **Eine Begründung, die eine Tatsache behauptet, ist so lange richtig, bis
+> jemand die Tatsache ändert — und niemand liest die Begründung dabei.**
+
+Beide Skripte sind sauber; das ist Glück und keine Zusage. Die CI fährt seitdem
+`packaging/bin/*`, und `ShellCheckReachTest` hält beide Richtungen: kein
+Shellskript unter `packaging/` entgeht der CI, **und** kein Pfad im Schritt
+deckt nichts. Die zweite Richtung ist die, an der ein toter Eintrag wirklich
+entsteht — beim Umbenennen wird der neue Ort nachgetragen, die erste Richtung
+ist wieder grün, und der alte bleibt liegen.
+
+Vier Brüche, alle beissend, zwei davon im Skript (die dritte und vierte greifen
+den Wächter selbst an und gehören nicht hinein): Untergrenze 15 gegen achtzehn
+gefundene Skripte, und ein `ci.yml` ohne einen einzigen `shellcheck`-Aufruf.
+
+**Bezahlt hat das Nachsehen denselben Fehler ein zweites Mal.** Die Gegenprobe
+zur PHPStan-Messung des neuen Wächters lieferte null Zeilen — bei sauberer
+*und* bei absichtlich kaputter Datei. Ursache war wieder die Verpackung als
+JSON: `--error-format=raw` erzeugt sie nicht, `AI_AGENT` schon, und der Filter
+darüber sah nie eine rohe Zeile.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht** — und wenn der Prüfkörper etwas ist, das das Werkzeug aus dem Code
+> allein sehen kann. Der erste Prüfkörper (`private const MINDESTENS` als
+> Zeichenkette) hing an einer `assert…`-Signatur, die PHPStan ohne Framework
+> gar nicht kennt.
+
 ---
 
 ## 3. Die vier Fragen — entschieden
@@ -1217,7 +1303,7 @@ CI.
 | 6 | ~~`system.packages.upgrade` über `systemd-run`; dazu **Teil 3 von M5**~~ **gebaut am 26. August 2026** | ✔ `system.packages.refresh` und `system.packages.upgrade` (`all` · `security` · benannte), beide über `AptLock`; der Lauf geht als transiente Unit an `packaging/bin/apt-run`, und **das Skript zählt vorher und nachher** — vier Ausgänge gegen echtes apt gemessen (§2.3g).  ✔ **Teil 3 von M5**: `panel.update` läuft jetzt über dasselbe Skript im Modus `panel` und vergleicht die installierte Fassung statt eines Rückgabewerts; die Ausnahme in `AptResultTest` ist fort.  ✔ `PackageNameTest` grün, fünf Brüche, alle beissend. **Abgenommen ist er nicht** — die drei Punkte aus §2.3h gehören auf einen echten Server |
 | 7 | ~~`system.sources.toggle` und der Neustart-Knopf~~ **erledigt am 26. August 2026** | ✔ **Die Quelle**: `SourceOwnershipTest` grün, sechs Brüche, alle beissend; gemessen durch echtes apt — 16 → 5 → 16 Ziele, und der Rückweg belegt: bei kaputtem apt kommt die Datei byte-identisch zurück.  ✔ **Der Neustart**: `system.reboot` setzt einen Zeitgeber über `systemd-run` ab, statt `systemctl reboot` im eigenen Prozess zu rufen; die Messrunde dazu steht in §2.3e, der Durchstich in §2.3f. `RebootConfirmTest` grün, sechs Brüche, alle beissend. **Offen und benannt:** dass die transiente Unit den Neustart überlebt, ist hier nicht messbar (§2.3e, letzter Absatz) |
 | 8 | ~~`unattended-upgrades` — Zustand aus `apt-config dump`, Schalter~~ **gebaut am 26. August 2026** | ✔ Der Zustand kommt aus `apt-config dump` und hat fünf Teile (Paket, Hauptschalter, zwei Abstände, Zeitgeber); `system.packages.unattended` schreibt ein Fragment und **liest nach**, ob es angekommen ist.  ✔ **Der fremde Schreiber ist der Normalfall, nicht der Sonderfall**: In diesem Container setzt `docker-disable-periodic-update` den Hauptschalter auf `0`, während `20auto-upgrades` beide Teilschalter auf `1` sagt (§2.3i).  ✔ `UnattendedStateTest` grün, acht Brüche, alle beissend |
-| 9 | Die Wächter brechen, voller Lauf von `tests/waechter-brechen.sh` | jeder der fünf Eingriffe beisst — einzeln **und** im Lauf |
+| 9 | ~~Die Wächter brechen, voller Lauf von `tests/waechter-brechen.sh`~~ **erledigt am 26. August 2026** | ✔ **1524 Prüfungen, `FEHLT: 0`, „Alle Wächter beissen."** Der Baum davor und danach ist derselbe.  ✔ Die drei Brüche, die das Skript nicht fahren kann (`BreakScriptTest`, `ChangelogTest` in beiden Richtungen), von Hand gefahren und jeder rot mit seiner eigenen Meldung.  ✔ Der Befund des Laufs steckte nicht in einem Eingriff, sondern in der Umgebung: `AI_AGENT` und `CLAUDECODE` verpacken die Ausgabe von PHPUnit als JSON, und damit war **jede** Prüfung „unlesbar" (§2.3j) |
 | 10 | Der Abnahmelauf (eigenes Dokument, §4) auf `cloudsrv24` | die acht Punkte aus §4 |
 
 **Schritt 0 und Schritt 1 kommen vor allem anderen.** Schritt 1 ist ein Befund

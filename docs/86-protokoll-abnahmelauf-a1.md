@@ -226,4 +226,73 @@ weiterhin, weil das Panel die Quelle prüft, **bevor** es apt fragt.
 > **Ein Zustand, den man aus der Wirkung erschliesst, ist eine Vermutung, bis
 > jemand die Ursache ansieht.**
 
+### Punkt 3e — der Rückweg · **erfüllt**, und er liefert die fehlende Gegenprobe nach
+
+    URIs:                    wieder ppa.launchpadcontent.net/ondrej/php/ubuntu/
+    rc                       0
+    Ausfälle                 1 → 0
+    Candidate php8.1-fpm     (none) → 8.1.34-8+ubuntu24.04.1+deb.sury.org+1
+    Verzeichnis              .abnahme fort
+
+**Das Zahlenpaar macht es zur Messung.** Die 0 allein hiesse nichts; sie war
+eben 1.
+
+> **Eine Anzeige, die einen Zustand meldet, muss ihn auch wieder zurücknehmen —
+> sonst hat sie ihn nicht gemessen, sondern behalten.**
+
+**Und die Seite nimmt ihn zurück** (Vorgang 692): *„alle Quellen erreicht"*.
+
+**Damit ist Beobachtung 1 doch noch belegt, einen Punkt später als geplant.**
+Vorgang 692 führt in seiner Ausgabe eine `W:`-Zeile — die Schlüsselwarnung der
+Sury-PPA — und sagt daneben „alle Quellen erreicht". Der Leser unterscheidet
+also wirklich zwischen einer Warnung und einem Ausfall, und nicht nur im
+Quelltext.
+
+---
+
+### Punkt 4 — Ein ablaufender Schlüssel · **nicht messbar**
+
+Gefragt wurden die Schlüssel, die eine Quelle über `Signed-By:` wirklich
+benennt — nicht ein Verzeichnis:
+
+    /etc/apt/keyrings/docker.asc              8D81803C0EBFCD88   läuft nie ab
+    /usr/share/keyrings/php-sury-keyring.gpg  4F4EA0AAE5267A6C   läuft nie ab
+    /usr/share/keyrings/srvpanel-archive…gpg  7122B7C9C4393E86   läuft nie ab
+    /usr/share/keyrings/ubuntu-archive…gpg    3B4FE6ACC0B21F32   läuft nie ab
+                                              D94AA3F0EFE21092   läuft nie ab
+                                              871920D1991BC93C   läuft nie ab
+
+**Sechs von sechs ohne Ablaufdatum.** Der Zustand, den Kriterium 4 verlangt,
+kommt auf diesem Server nicht vor.
+
+> **Ein Zustand, den die Umgebung nicht zulässt, wird nicht dadurch
+> hergestellt, dass man nichts tut.**
+
+Der Punkt gilt damit als **nicht messbar** und **nicht** als erfüllt. `docs/85
+§6` lässt genau diesen Ausfall zu. Herstellbar wäre er nur mit einem
+Wegwerf-Schlüssel samt Ablauf, auf den eine Quelle zeigt — ein Eingriff in die
+Signaturkette des Servers, der ungefragt nicht gemacht wird.
+
+---
+
+**Offene Frage 1 — das `W:` steht über zwei Zeilen.**
+
+In der Ausgabe von Vorgang 692:
+
+    W
+    : https://ppa.launchpadcontent.net/…/InRelease: Signature by key 14AA…6C
+      uses weak algorithm (rsa1024)
+
+`W` allein, dann `: …`. Damit ist die Marke zerrissen, die eine Zeile überhaupt
+erst als Warnung erkennbar macht.
+
+**Ob es die Daten sind oder die Anzeige, ist noch nicht gemessen.** `.output`
+trägt `white-space: pre-wrap; word-break: break-word` — ein Umbruch nach *einem*
+Zeichen ergibt bei dieser Breite keinen Sinn, also steht der Umbruch vermutlich
+schon in dem, was apt schreibt. Solange das nicht gemessen ist, steht es hier
+als Frage und nicht als Befund.
+
+> **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
+> als Zusage.**
+
 <!-- Wird während des Laufs weitergefüllt. -->

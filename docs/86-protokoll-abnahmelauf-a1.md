@@ -145,4 +145,26 @@ nur, wenn es die Datei auch holt.
 > **Ein Prüfkörper und seine Gegenprobe an derselben Quelle sind nicht zwei
 > Messungen.**
 
+**Befund 3 — die Messvorschrift zählte Leichen mit.**
+
+Der Griff, mit dem Punkt 3d seinen Prüfkörper suchen sollte, lautete
+`dpkg-query -W -f='${Package}\n' 'php*-fpm'` und meldete **fünf** Pakete:
+8.1, 8.2, 8.3, 8.4 und `php-fpm`. Installiert sind zwei.
+
+`dpkg-query -W` listet, was dpkg **kennt**, nicht was installiert ist. Ein
+entferntes, nicht gepurgtes Paket behält seinen Eintrag mit
+`deinstall ok config-files`.
+
+**Am Panel ist nichts** — im Gegenteil: `PhpVersions::DPKG_ARGUMENTS` fragt
+`${binary:Package} ${db:Status-Status}` und zählt ausschliesslich `installed`.
+Der Kopf der Methode benennt genau diese Falle, und die Locale-Frage ist dort
+am 9. August 2026 auf demselben Server gemessen worden: Die *Meldung* von
+`dpkg-query` ist übersetzt, das Feld `${db:Status-Status}` nicht.
+
+> **Eine Anweisung, die weniger fragt als der Code, den sie prüft, misst gröber
+> als der Prüfling.**
+
+Gemeldet hat es der Betreiber, nicht die Messung — er hat die fünf Zeilen gegen
+die Seite gehalten, die zwei zeigt.
+
 <!-- Wird während des Laufs weitergefüllt. -->

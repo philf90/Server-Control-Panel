@@ -1160,4 +1160,66 @@ hat.
 > **Eine Zahl, die der Prüfling selbst je Zeile ausweist, ist eine bessere
 > Gegenprobe als eine, die man daneben baut.**
 
+---
+
+### Punkt 8a — Ein fremder Halter wird benannt (Kriterium 8) · **erfüllt**
+
+Vorgang **696**, `system.packages.upgrade`, `{mode: all, packages: []}`,
+**fehlgeschlagen** in derselben Sekunde:
+
+    Ein anderer Vorgang hält gerade die Paketsperre /var/lib/dpkg/lock-frontend
+    (python3, PID 575363) — das kann ein Lauf des Panels sein oder ein apt auf
+    der Kommandozeile. Der nächste Versuch geht erst, wenn er fertig ist.
+
+**Programmname und PID sind der Beleg**, nicht die Ablehnung: Sie zeigen, dass
+`/proc/locks` gelesen **und der Halter aufgelöst** wurde. „Etwas ist gesperrt"
+könnte auch ein Rateschluss sein. Die PID ist dieselbe, die der Prüfkörper
+selbst ausgegeben hat.
+
+---
+
+**Befund 10 — der Prüfkörper der Vorschrift nimmt die falsche Sperrfamilie.**
+
+`docs/85` schreibt für 8a `flock /var/lib/dpkg/lock-frontend sleep 90` vor.
+Gemessen am selben Inode, beide Familien nacheinander:
+
+    (1) flock   →   8: FLOCK  ADVISORY  WRITE 575346 fd:03:131426 0 EOF
+    (2) fcntl   →  14: POSIX  ADVISORY  WRITE 575363 fd:03:131426 0 EOF
+
+`AptLock::CONFLICTING` führt `POSIX` und `OFDLCK` und **nicht** `FLOCK` — mit
+der Begründung, dass die andere Familie apt gar nicht blockiert. Die Vorschrift
+hätte also eine Sperre gehalten, die niemanden stört; das Panel wäre losgelaufen,
+und das läse sich wie ein Befund am Prüfling.
+
+> **Ein Prüfkörper, der eine andere Sperre nimmt als die gemeinte, prüft die
+> gemeinte nicht.**
+
+Gemessen wird deshalb mit `fcntl.lockf` — derselben Familie, die dpkg nimmt.
+Die `FLOCK`-Zeile daneben ist die Gegenprobe: Ohne sie wäre „POSIX steht in
+`/proc/locks`" nur eine Zeile und kein Unterschied.
+
+---
+
+### Punkt 8b — Der eigene Lauf weist den zweiten ab · **nicht gemessen**
+
+Der Lauf lief durch, bevor ein zweiter Druck möglich war:
+
+    apt-run: 4 von 4 Aktualisierungen eingespielt, 0 bleiben offen.
+
+Genau die Zeile, die `apt-run` zusagt — Vorher und Nachher an derselben Frage
+gemessen, nicht am Rückgabewert. Die Unit war während des Laufs **einmal** in
+`systemctl list-units 'srvpanel-update-*'` und danach fort (`--collect`).
+
+**Und ein zweiter Anlauf geht heute nicht**, aus einem Grund im Quelltext: Bei
+`upgradable.length === 0` ersetzt die Seite die ganze Knopfreihe durch „Es steht
+keine Aktualisierung an." Es gibt keinen Knopf mehr, den man ein zweites Mal
+drücken könnte.
+
+**Das passt mit Punkt 5 zusammen.** Mit einer Fassung, in der `srvpanel` selbst
+in der Liste steht, ist Punkt 5 ein langlaufendes Upgrade des Panels — also
+genau das Fenster, das 8b braucht. Die beiden werden zusammen gemessen und
+nicht einzeln.
+
+> **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr hergestellt.**
+
 <!-- Wird während des Laufs weitergefüllt. -->

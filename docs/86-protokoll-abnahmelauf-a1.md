@@ -953,4 +953,38 @@ Gebaut und gemessen ist im Container, und das ist zweierlei.
 > **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
 > jemand ihn behoben hat.**
 
+---
+
+## Nachgesehen gegen `0.7.2-rc.2` — 26. August 2026
+
+`srvpanel version` meldet **`0.7.2-rc.2`**. Die Kacheln der Updates-Seite:
+
+    AKTUALISIERBAR 4 · DAVON SICHERHEIT 4 · DAVON NEU 0
+    ZURÜCKGEHALTEN 7 · WÜRDE ENTFERNT 0
+
+Gegen `0.7.2-rc.1` standen dort **11** und **0**. Beide Befunde greifen also, und
+zwar auf dem Server und nicht im Container.
+
+**Und die `7` belegt mehr als sich selbst.** Sie kann unter rc.1 gar nicht
+entstehen: Der Leser kannte damals nur `have been kept back`, und im Sandkasten
+des Agenten hielt apt ohnehin nichts zurück — beides musste sich ändern, damit
+diese Zahl dasteht. Damit ist die Frage beantwortet, die die Freigabenotiz
+ausdrücklich als ungemessen führte:
+
+> **`systemd-run --pipe --wait` trägt seine Ausgabe aus dem Agenten heraus
+> zurück.**
+
+Der Container konnte das grundsätzlich nicht zeigen — dort gibt es kein systemd.
+Belegt hat es keine eigene Messung, sondern eine Zahl, die ohne diesen Weg nicht
+dastünde.
+
+**Was hier noch nicht steht: die Namen.** Gesehen sind die Kacheln, nicht die
+Liste darunter und nicht die Meldung mit den sieben Namen. Ob der Grund richtig
+zugeordnet ist — Phasing und nicht Abhängigkeit —, ist damit **ungemessen**.
+
+> **Ein Kriterium, das nach einer Anzahl fragt, prüft nicht, was gezählt wurde.**
+
+Derselbe Satz hat in diesem Lauf schon zweimal gegolten, und beide Male hat erst
+die Liste die Frage entschieden.
+
 <!-- Wird während des Laufs weitergefüllt. -->

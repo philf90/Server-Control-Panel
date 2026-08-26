@@ -684,4 +684,63 @@ Anmeldeschale **nicht** nachstellen kann.
 > **Eine Gegenprobe, die den Prüfling aus einer anderen Umgebung heraus ruft,
 > misst die andere Umgebung mit.**
 
+---
+
+**Befund 6 — die Seite bietet an, was ein Lauf nicht einspielt.**
+**Reproduziert und eingegrenzt.**
+
+Gemessen am 26. August, in **einem** Aufruf und damit ohne die Zeitfrage:
+
+    ── im Sandkasten des Agenten ──                11
+    ── Gegenprobe, direkt daneben, ohne Sandkasten ──   4
+
+Hergestellt mit `nsenter -t $(systemctl show -p MainPID --value srvpanel-agentd)
+-m`, also im **Mount-Namensraum** der Unit, bei sonst gleicher fester Umgebung.
+
+Damit ist die Ursache eingegrenzt und vier Vermutungen sind widerlegt: nicht die
+Umgebungsvariablen (dieselben in beiden Läufen), nicht die Argumente (blank, im
+Agentenlog gelesen), nicht der ausgelieferte Stand (`git diff` leer), nicht die
+Zeit (Seitenaufbau und Shell-Messung 29 Sekunden auseinander).
+
+`srvpanel-agentd.service` trägt `PrivateTmp`, `RestrictNamespaces`,
+`ProtectKernelTunables` und `ProtectControlGroups` — jede davon legt einen
+Mount-Namensraum an. Ubuntu entscheidet über das Zurückhalten eines Pakets
+(*Phasing*) anhand einer Kennung dieser Maschine; sieht apt sie nicht, hält es
+**nichts** zurück und bietet alles an. Welche der Eigenschaften es ist und
+welche Datei dabei fehlt, ist **noch nicht gemessen**.
+
+> **Eine Härtung, die einem Programm eine Auskunft über die Maschine nimmt,
+> ändert seine Antwort — nicht seine Fehlermeldung.**
+
+Die Wirkung für den Betreiber steht dagegen fest: Er sieht elf Zeilen, drückt
+„Alle installieren", bekommt „fertig" — und sieben davon stehen beim nächsten
+Aufruf unverändert wieder da.
+
+---
+
+**Beobachtung 6, aufgelöst — der zweite Schalter ist Absicht, und trotzdem
+asymmetrisch.**
+
+Die Datei, die das Panel schreibt:
+
+    // Diese Datei gehört dem Panel und wird bei jeder Änderung neu geschrieben.
+    // Der Name beginnt mit zz, weil apt seine Fragmente nach ASCII sortiert liest …
+
+    APT::Periodic::Enable "1";
+    APT::Periodic::Update-Package-Lists "1";
+    APT::Periodic::Unattended-Upgrade "0";
+    Unattended-Upgrade::Automatic-Reboot "false";
+
+Der Hauptschalter steht dort mit Begründung: Beim **Einschalten** nützt
+`Unattended-Upgrade "1"` nichts, solange `Enable` auf `0` steht. Beim
+**Ausschalten** braucht es ihn nicht — und genau dort ist er die einzige Zeile,
+die etwas anschaltet, was der Betreiber nicht verlangt hat. Ein Server, auf dem
+`Enable "0"` bewusst gesetzt war, fährt nach einem Griff an einem *anderen*
+Schalter wieder täglich los.
+
+> **Ein Schalter, der einen zweiten mitnimmt, ist von aussen nicht als zwei
+> Handlungen zu erkennen.**
+
+Kein Kriterium dieses Laufs, benannt für die nächste Fassung.
+
 <!-- Wird während des Laufs weitergefüllt. -->

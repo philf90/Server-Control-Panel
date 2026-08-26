@@ -295,4 +295,63 @@ als Frage und nicht als Befund.
 > **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
 > als Zusage.**
 
+### Punkt 6 — Eine Conffile steht mit ihrem Pfad da (Kriterium 6) · **erfüllt**
+
+**Zwei Prüfkörper und nicht einer**, weil ein einzelner im Fehlerfall dasselbe
+zeigte wie im Erfolgsfall: einer in der ersten Ebene mit `.dpkg-dist`, einer
+**vier Ebenen tief** mit der anderen Endung `.ucf-dist`.
+
+Die Seite meldet vier — die beiden Prüfkörper und zwei echte, die schon lagen:
+
+    4 Konfigurationsdateien unter /etc warten auf eine Entscheidung:
+    /etc/default/grub.ucf-dist,
+    /etc/srvpanel/abnahme-a1.conf.dpkg-dist,
+    /etc/srvpanel/tief/a/b/zweite.conf.ucf-dist,
+    /etc/ssh/sshd_config.ucf-dist
+
+**Voller Pfad, beide Endungen, Tiefe 4.** Und die zwei echten sind der Beleg,
+dass der Leser nicht nur findet, was der Lauf selbst hingelegt hat.
+
+---
+
+**Befund 4 — das `W:` zerreisst in der Ausgabe, und apt ist es nicht.**
+
+Gemessen unter der Umgebung des Agenten, mit sichtbaren Zeilenenden:
+
+    1:W: https://ppa.launchpadcontent.net/…/InRelease: Signature by key
+    14AA…6C uses weak algorithm (rsa1024)$
+
+**Eine Zeile, `$` nur am Ende.** apt schreibt das `W:` zusammenhängend; der
+Umbruch entsteht danach — im Panel oder in der Anzeige.
+
+Auf der Vorgangsseite steht `W` allein und `: …` darunter. Damit ist die Marke
+zerrissen, an der eine Zeile überhaupt als Warnung erkennbar ist.
+
+> **Ein Format, das für Fliesstext reicht, reicht nicht für eine Marke am
+> Zeilenanfang.**
+
+`.output` trägt `white-space: pre-wrap; word-break: break-word`. Ob der Umbruch
+von dieser Regel kommt oder aus dem gespeicherten Text, ist noch offen — die
+Antwort entscheidet, ob der Fix in `app.css` oder im Weg der Ausgabe steht.
+
+---
+
+**Beobachtung 3 — Punkt 0b hat 0 gemessen, eine Stunde später sind es 7.**
+
+Die Seite zeigt `AKTUALISIERBAR 7`, nachdem der Lauf die Sury-Quelle einmal
+getötet, wiederhergestellt und ihre `InRelease` zum Neuholen gezwungen hat.
+Punkt 0b hatte nach einem erfolgreichen `apt-get update` **0** gemessen.
+
+**Damit werden die Punkte 1, 2 und 8 heute doch messbar** — die Teilung aus §2
+gilt nur noch für Punkt 5, der `srvpanel` selbst in der Liste braucht.
+
+Woher die sieben kommen, ist nicht gemessen: Entweder hat Sury in der Zwischen-
+zeit veröffentlicht, oder der zwischengespeicherte Index war älter als das
+`OK:` von apt vermuten liess. Der Unterschied ist nicht akademisch — im zweiten
+Fall hiesse „OK:" nicht „aktuell", und Punkt 0b hätte an einem veralteten Index
+gemessen.
+
+> **Eine Zahl, die sich ändert, ohne dass jemand die Ursache kennt, ist keine
+> Messung — sie ist ein Anlass zu einer.**
+
 <!-- Wird während des Laufs weitergefüllt. -->

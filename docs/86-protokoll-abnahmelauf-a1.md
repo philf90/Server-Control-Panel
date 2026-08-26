@@ -773,4 +773,71 @@ Schalter wieder täglich los.
 
 Kein Kriterium dieses Laufs, benannt für die nächste Fassung.
 
+---
+
+**Der Mechanismus von Befund 6, belegt statt erklärt.**
+
+    ischroot im Sandkasten:   rc=0
+    ischroot aussen:          rc=1
+
+apt hält sich in einem Mount-Namensraum für ein **chroot**, und in einem chroot
+wendet Ubuntu Phasing grundsätzlich nicht an. Das ist keine fehlende Datei und
+keine verlorene Kennung, sondern eine Erkennung, die anschlägt.
+
+> **Eine Härtung, die einem Programm die Form seines Dateibaums ändert, ändert
+> seine Antwort — nicht seine Fehlermeldung.**
+
+**Und die vier Läufe zu den beiden Optionen, mit ihrer Gegenprobe:**
+
+    Sandkasten, ohne Option:                11
+    Sandkasten, Always-Include=false:       11   ← greift nicht
+    aussen, Always-Include=true:            11   ← die Gegenprobe schlägt an
+    Sandkasten, Never-Include=true:          4   ← schlägt die Chroot-Erkennung
+    aussen, Always=true UND Never=true:     11   ← Always gewinnt gegen Never
+
+Die zweite Zeile ist der Grund, dass dieser Abschnitt fünf Zeilen hat und nicht
+zwei: **Der zuerst vorgeschlagene Fix war falsch, und gemessen hat es sich vor
+dem Bauen.** Die Chroot-Prüfung steht **vor** der Option; `Always-Include=false`
+kann sie nicht zurücknehmen.
+
+> **Eine Option, die etwas erlaubt, ist nicht dasselbe wie ein Zustand, in dem
+> es geschieht.**
+
+Die dritte Zeile ist die Gegenprobe, ohne die die zweite nichts bedeutete: Sie
+belegt, dass die sieben **genau** die phasenverzögerten sind und dass der
+Schalter überhaupt wirkt. Und die fünfte ist eine Rangfolge, die niemand
+bestellt hat und die jeder Fix kennen muss.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht** — hier: eine 11 ist nur dann „greift nicht", wenn daneben eine 4 steht,
+> die zeigt, dass der Schalter existiert.
+
+---
+
+**Der Fix — zwei Wege, und der billigere ist der schlechtere.**
+
+**A) Die Simulation zieht dorthin, wo der echte Lauf stattfindet.** `apt-run`
+bekommt einen Modus zum Nachsehen, und der Agent fragt ihn genauso ab, wie er
+`all` absetzt. Dann gibt es **eine** Stelle, an der apt gefragt wird, und beide
+Seiten stimmen von Bauart wegen überein statt aus Versehen. Das Panel verhält
+sich damit genau wie `apt` auf der Kommandozeile. Kostet je Seitenaufbau eine
+transiente Unit.
+
+**C) `Never-Include-Phased-Updates=true` an allen drei Aufrufen.** Eine Option
+statt eines Umbaus — und eine **Verhaltensänderung**: Der Schalter heisst nicht
+„verhalte dich normal", sondern „halte phasenverzögerte Pakete immer zurück".
+Auf einer Maschine, die Ubuntu für die Phase **ausgewählt** hat, bekäme der
+Betreiber sie über das Panel später als über die Kommandozeile.
+
+> **Ein Griff, der zwei Seiten zur Übereinstimmung bringt, indem er beide
+> verschiebt, hat die Frage nicht beantwortet, sondern verlegt.**
+
+Empfohlen ist **A**, und die Entscheidung liegt beim Betreiber. Was in jedem
+Fall dazugehört, ist **Befund 7**: Sobald die Simulation dort läuft, wo Phasing
+wirkt, schreibt apt „deferred due to phasing" — und liest `keptBack()` den Satz
+nicht, zeigt die Seite dann vier statt elf und verschweigt die sieben ganz.
+
+> **Ein Leser, der richtig liest, sagt nichts über eine Quelle, die nichts
+> sagt** — und umgekehrt.
+
 <!-- Wird während des Laufs weitergefüllt. -->

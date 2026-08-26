@@ -419,7 +419,11 @@ final class InstLineTest extends TestCase
             3 upgraded, 0 newly installed, 0 to remove.
             TXT;
 
-        $this->assertSame(['tar', 'dpkg', 'libc6'], Packages::keptBack($upgrade));
+        $this->assertSame([
+            ['name' => 'tar', 'reason' => 'dependencies'],
+            ['name' => 'dpkg', 'reason' => 'dependencies'],
+            ['name' => 'libc6', 'reason' => 'dependencies'],
+        ], Packages::keptBack($upgrade));
     }
 
     /** Ohne die Überschrift ist nichts zurückgehalten — und nicht alles. */
@@ -432,5 +436,71 @@ final class InstLineTest extends TestCase
             TXT;
 
         $this->assertSame([], Packages::keptBack($upgrade));
+    }
+
+    /**
+     * Ubuntu hält phasenverzögerte Pakete unter einem **anderen** Satz zurück.
+     *
+     * Der Prüfkörper ist die Ausgabe von `cloudsrv24` vom 26. August 2026, an
+     * der Befund 7 aufgefallen ist: Sieben Pakete standen darunter, und die
+     * Kachel meldete `0`, weil dieser Leser nur den Satz von `kept back` kannte.
+     *
+     * > **Ein Ausdruck, der die gewohnte Schreibweise kennt, prüft die
+     * > Gewohnheit und nicht die Regel.**
+     */
+    public function test_phased_updates_are_kept_back_too(): void
+    {
+        $upgrade = <<<'TXT'
+            Reading package lists...
+            The following upgrades have been deferred due to phasing:
+              libproc2-0 libpython3.12-minimal procps
+            The following packages will be upgraded:
+              libheif1
+            1 upgraded, 0 newly installed, 0 to remove and 3 not upgraded.
+            TXT;
+
+        $this->assertSame([
+            ['name' => 'libproc2-0', 'reason' => 'phasing'],
+            ['name' => 'libpython3.12-minimal', 'reason' => 'phasing'],
+            ['name' => 'procps', 'reason' => 'phasing'],
+        ], Packages::keptBack($upgrade));
+    }
+
+    /**
+     * Und beide Abschnitte können nebeneinander stehen — mit Fremdem dazwischen.
+     *
+     * **Der Prüfkörper hat zwei Anläufe gebraucht, und der erste hat nichts
+     * gemessen.** Er stellte die beiden Überschriften unmittelbar
+     * untereinander; damit biss der Rückfall auf `break` nicht, weil die
+     * Überschrift **vor** der Einrückungsprüfung erkannt wird und die Schleife
+     * gar nicht bis dorthin kam.
+     *
+     * > **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall,
+     * > misst nicht.**
+     *
+     * Zwischen den beiden steht jetzt, was auf `cloudsrv24` wirklich dazwischen
+     * stand: der autoremove-Hinweis samt seiner eigenen eingerückten Liste. Er
+     * prüft beides — dass ein `break` den zweiten Abschnitt verlöre, **und**
+     * dass die Namen unter einer fremden Überschrift nicht mitgezählt werden.
+     */
+    public function test_both_reasons_stand_side_by_side(): void
+    {
+        $upgrade = <<<'TXT'
+            The following packages have been kept back:
+              tar
+            The following packages were automatically installed and are no longer required:
+              php8.1-common php8.2-common
+            Use 'apt autoremove' to remove them.
+            The following upgrades have been deferred due to phasing:
+              procps
+            The following packages will be upgraded:
+              curl
+            1 upgraded, 0 newly installed, 0 to remove and 2 not upgraded.
+            TXT;
+
+        $this->assertSame([
+            ['name' => 'tar', 'reason' => 'dependencies'],
+            ['name' => 'procps', 'reason' => 'phasing'],
+        ], Packages::keptBack($upgrade));
     }
 }

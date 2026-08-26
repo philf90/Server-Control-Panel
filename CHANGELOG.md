@@ -21655,3 +21655,126 @@ den es nicht gibt.
 
 > **Eine Vorschrift, die einen Wert selbst einsetzt statt ihn zu erfragen, prüft
 > ihren Verfasser.**
+
+### Zwei Läufe desselben Befehls an zwei Orten
+
+Gemeldet im Abnahmelauf zu A1 (`docs/86`, Befund 6): Die Updates-Seite zeigte
+**elf** aktualisierbare Pakete, und `apt-get -s dist-upgrade` in der Shell
+meldete **vier**. Dieselbe Maschine, derselbe Index, dieselbe Minute — im
+Agentenlog steht ein Seitenaufbau 29 Sekunden vor der Shell-Messung.
+
+Fünf Vermutungen sind gemessen worden und vier waren falsch: nicht die feste
+Umgebung des Agenten (unter `env -i` nachgestellt: dieselben vier, `diff` leer),
+nicht die Argumente (blank, im Agentenlog gelesen statt vermutet), nicht der
+ausgelieferte Stand (`git diff v0.7.2-rc.1..HEAD` über die vier beteiligten
+Dateien: leer), nicht die Zeit.
+
+**Es ist der Sandkasten der Unit**, und die Bisektion trennt sauber:
+
+    ohne alles              →  4
+    PrivateTmp              → 11
+    ProtectKernelTunables   → 11
+    ProtectControlGroups    → 11
+    RestrictNamespaces      →  4
+    Gegenprobe (Shell)      →  4
+
+Die drei, die elf ergeben, legen einen **Mount-Namensraum** an; `RestrictNamespaces`
+verbietet nur das Anlegen und ergibt vier. Darin meldet `ischroot` **rc=0** — und
+in einem chroot wendet Ubuntu sein *Phasing* nicht an, hält also nichts zurück
+und bietet alles an.
+
+> **Eine Härtung, die einem Programm die Form seines Dateibaums ändert, ändert
+> seine Antwort — nicht seine Fehlermeldung.**
+
+**Die Wirkung war eine Lüge aus zwei richtigen Hälften.** `SystemPackagesUpgrade`
+setzt den echten Lauf über `systemd-run` als transiente Unit **ohne** Härtung ab
+— also in genau dem Kontext, der vier misst. Der Betreiber sah elf, drückte
+„Alle installieren" und bekam vier; `apt-run` schrieb ihm *„offen: vorher 4,
+jetzt 0"*, eine Zahl, die er nie gesehen hatte.
+
+> **Zwei Läufe desselben Befehls an zwei Orten sind zwei Messungen und nicht
+> eine.**
+
+**Der erste Fix war falsch, und gemessen hat es sich vor dem Bauen.**
+`APT::Get::Always-Include-Phased-Updates=false` greift nicht: Die Chroot-Prüfung
+steht davor. `Never-Include-Phased-Updates=true` greift zwar, verschiebt aber
+**beide** Seiten — es hielte phasenverzögerte Pakete auch dann zurück, wenn
+Ubuntu diese Maschine ausgewählt hat.
+
+> **Ein Griff, der zwei Seiten zur Übereinstimmung bringt, indem er beide
+> verschiebt, hat die Frage nicht beantwortet, sondern verlegt.**
+
+Gefragt wird jetzt dasselbe Skript, das auch einspielt: `apt-run simulate` fährt
+beide Simulationen in einem Lauf, getrennt durch eine Marke, abgesetzt über
+dieselbe transiente Unit. `Apt::simulate()` ruft es, `Apt::sections()` ist die
+Naht und besteht auf **genau** den erwarteten Abschnitten — ein fehlender wäre
+sonst eine leere Ausgabe, und die liest sich wie „nichts zu aktualisieren".
+
+Beide Aufrufstellen ziehen mit, und die zweite ist die wichtigere:
+`SystemPackagesUpgrade::upgradable()` baut daraus die **Positivliste**. Aus ihr
+heraus käme ein einzeln ausgewähltes phasenverzögertes Paket über
+`install <name>` durch, weil ein ausdrücklicher Name kein Phasing kennt — die
+beiden Knöpfe derselben Seite hätten verschieden entschieden, aus derselben
+Liste.
+
+### Ein Ausdruck, der die gewohnte Schreibweise kennt
+
+Befund 7 aus demselben Lauf: Die Kachel „Zurückgehalten" stand auf `0`, während
+apt sieben Pakete zurückhielt. `Packages::keptBack()` suchte einen Satz —
+`have been kept back` —, und Ubuntu schreibt für ein phasenverzögertes Paket
+`deferred due to phasing`. Beide stehen in derselben Ausgabe, die der Agent
+ohnehin liest.
+
+> **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+> keine.**
+
+**Und sie sind trotzdem nicht dasselbe.** Gegen ein abhängigkeitsbedingt
+stehengebliebenes Paket hilft `dist-upgrade` — genau das tut „Alle
+installieren". Gegen ein phasenverzögertes hilft **warten**. Ohne den
+Unterschied drückt der Betreiber den Knopf, sieht dieselben Namen wieder und ist
+zurück in dem Fall, für den es diese Stufe gibt. `held` trägt deshalb den Grund,
+und die Seite zeigt zwei Sätze statt einer Zahl mit Sternchen.
+
+> **Zwei Zustände mit derselben Anzeige und verschiedener Abhilfe sind eine
+> Anzeige zu wenig.**
+
+**Der Prüfkörper dazu hat zwei Anläufe gebraucht.** Der erste stellte die beiden
+Überschriften unmittelbar untereinander — und damit biss der Rückfall auf `break`
+nicht, weil die Überschrift **vor** der Einrückungsprüfung erkannt wird und die
+Schleife gar nicht bis dorthin kam. Zwischen den beiden steht jetzt, was auf dem
+Server wirklich dazwischenstand.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+### Und der Agent importierte eine Testklasse
+
+Beim Formatieren fiel auf, dass Pint aus `{@see \Tests\Unit\AptSimulationTest}`
+in einem Dokumentblock einen `use`-Eintrag macht. Nachgesehen, ob das schon
+einmal passiert ist: `agent/src/PhpSettings.php` trug seit P6
+
+    use Tests\Unit\AnchoredPatternTest;
+
+— eine Testklasse, importiert in den Prozess, der als root Pakete installiert
+und Systembenutzer anlegt. Geschrieben hat sie niemand.
+
+> **Ein Werkzeug, das eine Schreibweise vereinheitlicht, verschiebt damit eine
+> Abhängigkeit — und niemand hat sie geschrieben.**
+
+Folgenlos war es nur, weil ein Dokumentblock nichts lädt; derselbe Griff an einer
+Marke im Rumpf wäre ein `Class not found` auf einem echten Server und **erst
+dort**, denn im Container liegt `vendor/` daneben und alles löst auf.
+
+`AgentIndependenceTest` hält die erste der drei Grenzen seitdem mechanisch: eine
+**Positivliste** aus dem eigenen Namensraum und dem, was PHP mitbringt. Eine
+Verneinung („alles ausser `Tests\`") wäre die Regel von gestern gewesen.
+
+### Ein Eingriff, dessen Zielstelle umgezogen ist
+
+Beim Bau von Befund 7 wurde aus dem `break` in `keptBack()` ein Zurücksetzen mit
+`continue`. Ein bestehender Eingriff im Bruchskript zeigte auf das alte `break`
+und fand seinen Text nicht mehr. Gemeldet hat es nicht das Nachdenken, sondern
+`BreakScriptTest` — im selben Lauf, in dem die Änderung entstand.
+
+> **Ein Eingriff, dessen Zielstelle umzieht, prüft nichts mehr — und sieht dabei
+> aus, als wäre die Regel abgesichert.**

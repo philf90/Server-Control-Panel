@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Apt;
 use SrvPanel\Agent\AptLock;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Guard;
@@ -180,17 +181,23 @@ final class SystemPackagesUpgrade implements Op
      */
     private function upgradable(Context $context): array
     {
-        $simulation = $context->runner->run('apt-get', SystemPackagesList::DIST_UPGRADE, 120);
-
-        if (! $simulation->successful()) {
-            throw AgentException::execFailed(
-                'Der Paketstand ließ sich nicht lesen: '.$simulation->message(),
-            );
-        }
+        /*
+         * **Über dieselbe transiente Unit wie der Lauf selbst**, und das ist
+         * hier noch wichtiger als auf der Seite: Diese Liste ist die
+         * Positivliste, gegen die {@see self::names()} prüft. Fragte sie
+         * unmittelbar im Agenten, stünden darin phasenverzögerte Pakete, die
+         * ein `dist-upgrade` gar nicht anfasst — und ein einzeln ausgewähltes
+         * käme über `install <name>` trotzdem durch, weil ein ausdrücklicher
+         * Name kein Phasing kennt.
+         *
+         * Damit hätten die beiden Knöpfe derselben Seite verschieden
+         * entschieden, aus derselben Liste. (`docs/86`, Befund 6)
+         */
+        $laeufe = Apt::simulate($context, self::RUNNER);
 
         $liste = [];
 
-        foreach (preg_split('/\R/', $simulation->stdout) ?: [] as $zeile) {
+        foreach (preg_split('/\R/', $laeufe['dist-upgrade']) ?: [] as $zeile) {
             $inst = Packages::inst($zeile);
 
             if ($inst !== null) {

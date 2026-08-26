@@ -840,4 +840,117 @@ nicht, zeigt die Seite dann vier statt elf und verschweigt die sieben ganz.
 > **Ein Leser, der richtig liest, sagt nichts über eine Quelle, die nichts
 > sagt** — und umgekehrt.
 
+---
+
+## Gebaut am 26. August — Befund 6 und 7, und was dabei herausfiel
+
+**Der Weg ist A**, entschieden vom Betreiber: Die Simulation zieht dorthin, wo
+eingespielt wird, statt beide Seiten mit einer Option zu verschieben.
+
+`apt-run` bekommt den Modus **`simulate`** — beide Läufe (`-s dist-upgrade` und
+`-s upgrade`) in einem Aufruf, getrennt durch eine Marke, abgesetzt über
+dieselbe transiente Unit wie `apt-run all`. `Apt::simulate()` ruft ihn,
+**`Apt::sections()` ist die Naht** und besteht auf genau den erwarteten
+Abschnitten: Ein fehlender wäre sonst eine leere Ausgabe, und die liest sich wie
+„nichts zu aktualisieren".
+
+**Beide Aufrufstellen ziehen mit, und die zweite ist die wichtigere.**
+`SystemPackagesUpgrade::upgradable()` baut aus derselben Simulation die
+**Positivliste**, gegen die `names()` prüft. Aus ihr heraus käme ein einzeln
+ausgewähltes phasenverzögertes Paket über `install <name>` durch — ein
+ausdrücklicher Name kennt kein Phasing. Die beiden Knöpfe derselben Seite hätten
+verschieden entschieden, aus derselben Liste.
+
+**Befund 7 ist mitgebaut**, und `held` trägt seitdem den **Grund**: Gegen ein
+abhängigkeitsbedingt stehengebliebenes Paket hilft `dist-upgrade` — also der
+Knopf —, gegen ein phasenverzögertes hilft warten. Die Seite zeigt zwei Sätze
+statt einer Zahl mit Sternchen.
+
+**Neun Eingriffe, alle beissen**, jeder mit eigener Meldung; vier davon stehen
+als Dauereingriffe im Bruchskript. Voller Testlauf im Container, `pint` sauber,
+PHPStan über die Dateien dieses Zweiges leer — mit Gegenprobe, weil ein leerer
+Filter genauso aussieht wie eine saubere Datei.
+
+---
+
+**Beobachtung 7 — der achte Eingriff hat nicht gebissen, und das lag am
+Prüfkörper.**
+
+Er stellte den alten `break` wieder her, und `test_both_reasons_stand_side_by_side`
+blieb grün: In seinem Prüfkörper standen die beiden Überschriften unmittelbar
+untereinander, und eine Überschrift wird **vor** der Einrückungsprüfung erkannt
+— die Schleife kam gar nicht bis zum `break`. Zwischen den beiden steht jetzt,
+was auf `cloudsrv24` wirklich dazwischenstand.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+---
+
+**Beobachtung 8 — ein bestehender Eingriff hat seine Zielstelle verloren.**
+
+Aus dem `break` wurde ein Zurücksetzen mit `continue`; ein Eingriff von P6 zeigte
+weiter auf das alte `break`. Gemeldet hat es `BreakScriptTest` im selben Lauf, in
+dem die Änderung entstand — nicht das Nachdenken.
+
+> **Ein Eingriff, dessen Zielstelle umzieht, prüft nichts mehr — und sieht dabei
+> aus, als wäre die Regel abgesichert.**
+
+---
+
+**Befund 8 — der Agent importierte eine Testklasse, und niemand hat sie
+geschrieben.**
+
+Pint macht aus `{@see \Tests\Unit\…}` in einem Dokumentblock einen
+`use`-Eintrag. Nachgesehen, ob das schon einmal passiert ist:
+`agent/src/PhpSettings.php` trug seit P6
+
+    use Tests\Unit\AnchoredPatternTest;
+
+— in dem Prozess, der als root Pakete installiert und Systembenutzer anlegt.
+
+> **Ein Werkzeug, das eine Schreibweise vereinheitlicht, verschiebt damit eine
+> Abhängigkeit — und niemand hat sie geschrieben.**
+
+Folgenlos war es nur, weil ein Dokumentblock nichts lädt. Derselbe Griff an einer
+Marke im Rumpf wäre ein `Class not found` auf einem echten Server und **erst
+dort** — im Container liegt `vendor/` daneben und alles löst auf.
+
+> **Eine Abhängigkeit, die in der Entwicklungsumgebung vorhanden ist, fällt erst
+> dort auf, wo sie fehlt.**
+
+`AgentIndependenceTest` hält die erste der drei Grenzen seitdem mechanisch, als
+**Positivliste**. Sein erster Lauf hat vier weitere Einträge gefunden —
+`OpenSSLAsymmetricKey`, `CurlHandle` und ihresgleichen —, und die gehören dazu:
+Sie kommen mit PHP und nicht mit `vendor/`.
+
+---
+
+**Beobachtung 9 — zwei Handgriffe an mir selbst, beide in dieser Datei
+beschrieben.**
+
+Ein Ausdruck mit `(?:.*\n)*?` sollte eine private Hilfsmethode entfernen und
+nahm `execute()` mitsamt 234 Zeilen mit. Gemeldet hat es kein Nachdenken,
+sondern `AptLockReachTest` — mit der Frage „fasst diese Datei noch apt an?", und
+die Antwort war nein, weil die Datei keinen Rumpf mehr hatte.
+
+> **Ein Wächter über eine Regel fängt auch, was mit seiner Regel nichts zu tun
+> hat — wenn er am Gegenstand misst und nicht am Wort.**
+
+Und beim Gegenprüfen eines frisch gebauten Wächters holte `git checkout --` eine
+**unverfolgte** Datei nicht zurück, sondern tat wortlos nichts — der Satz aus
+`CLAUDE.md`, gelesen und trotzdem getippt.
+
+> **Ein Rückweg, der stillschweigend nichts tut, ist schlimmer als keiner.**
+
+---
+
+**Was damit für den Lauf offen bleibt.** Die Punkte 1, 2, 2b, 5, 8, 10, 11 und 12
+sind ungemessen. Sie brauchen `0.7.2-rc.2` auf dem Server — Punkt 5 ausserdem
+`srvpanel` selbst in der Liste. **Auf dem Server nachgesehen ist nichts davon**:
+Gebaut und gemessen ist im Container, und das ist zweierlei.
+
+> **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+> jemand ihn behoben hat.**
+
 <!-- Wird während des Laufs weitergefüllt. -->

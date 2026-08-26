@@ -15767,6 +15767,107 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AptResultTest passed
 
 echo
+echo "── AptSimulationTest: die Marke der Naht läuft auseinander ──"
+#
+# Sie steht an zwei Enden — in `Apt::MARK` und in `apt-run`. Liefe sie
+# auseinander, fände `Apt::sections()` keinen Abschnitt, und die Updates-Seite
+# bekäme eine Ausnahme statt einer Zahl.
+vorher_datei packaging/bin/apt-run
+python3 - <<'PY2'
+p = 'packaging/bin/apt-run'
+s = open(p, encoding='utf-8').read()
+alt = "MARKE='### srvpanel apt-run::'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "MARKE='### srvpanel::'", 1))
+PY2
+griff_datei packaging/bin/apt-run "Marke der Naht verschoben" &&
+pruefe "Marke der Naht verschoben" \
+  AptSimulationTest::test_the_mark_is_the_same_on_both_ends failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptSimulationTest passed
+
+echo
+echo "── AptSimulationTest: die Simulation wandert zurück in den Agenten ──"
+#
+# Der eigentliche Rückfall von Befund 6, und er sieht harmlos aus: eine Zeile,
+# die apt unmittelbar fragt. Im Agenten legt die Härtung einen
+# Mount-Namensraum an, `ischroot` meldet darin rc=0, und in einem chroot hält
+# Ubuntu keine phasenverzögerten Pakete zurück — gemessen elf gegen vier.
+#
+#   Zwei Läufe desselben Befehls an zwei Orten sind zwei Messungen und nicht
+#   eine.
+vorher_datei agent/src/Ops/SystemPackagesList.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemPackagesList.php'
+s = open(p, encoding='utf-8').read()
+alt = "$laeufe = Apt::simulate($context, SystemPackagesUpgrade::RUNNER);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = ("$laeufe = ['dist-upgrade' => $context->runner->run('apt-get', ['-s', 'dist-upgrade'], 120)->stdout, "
+       "'upgrade' => $context->runner->run('apt-get', ['-s', 'upgrade'], 120)->stdout];")
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/SystemPackagesList.php "Simulation wieder im Agenten" &&
+pruefe "Simulation wieder im Agenten" \
+  AptSimulationTest::test_no_operation_simulates_apt_inside_the_agent failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptSimulationTest passed
+
+echo
+echo "── InstLineTest: der Leser kennt nur den gewohnten Satz ──"
+#
+# Befund 7. `apt-get -s upgrade` schreibt für ein phasenverzögertes Paket
+# „deferred due to phasing" und nicht „have been kept back". Auf `cloudsrv24`
+# standen sieben Namen darunter, und die Kachel meldete 0.
+#
+#   Ein Ausdruck, der die gewohnte Schreibweise kennt, prüft die Gewohnheit und
+#   nicht die Regel.
+vorher_datei agent/src/Packages.php
+python3 - <<'PY2'
+p = 'agent/src/Packages.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'deferred due to phasing' => 'phasing',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Packages.php "nur der gewohnte Satz" &&
+pruefe "nur der gewohnte Satz" \
+  InstLineTest::test_phased_updates_are_kept_back_too failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InstLineTest passed
+
+echo
+echo "── InstLineTest: der Leser hört beim ersten Abschnittsende auf ──"
+#
+# Die zweite Hälfte von Befund 7, und sie ist die stillere: Ein `break` an der
+# ersten nicht eingerückten Zeile findet den zweiten Abschnitt nie. Der
+# Prüfkörper dazu hat zwei Anläufe gebraucht — im ersten standen die beiden
+# Überschriften unmittelbar untereinander, und dann kam die Schleife gar nicht
+# bis zur Einrückungsprüfung.
+#
+#   Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+#   nicht.
+vorher_datei agent/src/Packages.php
+python3 - <<'PY2'
+p = 'agent/src/Packages.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if ($zeile === '' || ! str_starts_with($zeile, ' ')) {
+                $grund = null;
+
+                continue;
+            }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """            if ($zeile === '' || ! str_starts_with($zeile, ' ')) {
+                break;
+            }"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Packages.php "Abbruch beim ersten Abschnittsende" &&
+pruefe "Abbruch beim ersten Abschnittsende" \
+  InstLineTest::test_both_reasons_stand_side_by_side failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InstLineTest passed
+
+echo
 echo "── PhpSourceUriTest: die Paketierung benennt ihre Quelldatei um ──"
 #
 # `php.version.install` bricht an einer toten PHP-Quelle ab, und welche das
@@ -17751,11 +17852,19 @@ echo "── InstLineTest: die Liste der Zurueckgehaltenen laeuft weiter ──"
 # Die Liste endet an der ersten Zeile, die nicht eingerueckt ist. Wer den
 # Ausstieg weglaesst, zaehlt den naechsten Abschnitt mit — und meldet die
 # aktualisierbaren Pakete als zurueckgehalten.
+#
+# **Die Zielstelle ist am 26. August umgezogen** (Befund 7): Aus dem `break`
+# wurde ein Zuruecksetzen mit `continue`, weil ein zweiter Abschnitt darunter
+# stehen kann. Gemeldet hat den toten Eingriff nicht das Nachdenken, sondern
+# BreakScriptTest — im selben Lauf, in dem die Aenderung entstand.
+#
+#   Ein Eingriff, dessen Zielstelle umzieht, prueft nichts mehr — und sieht
+#   dabei aus, als waere die Regel abgesichert.
 vorher_datei agent/src/Packages.php
 python3 - <<'PY2'
 p = 'agent/src/Packages.php'
 s = open(p, encoding='utf-8').read()
-alt = "if ($zeile === '' || ! str_starts_with($zeile, ' ')) {\n                break;\n            }"
+alt = "if ($zeile === '' || ! str_starts_with($zeile, ' ')) {\n                $grund = null;\n\n                continue;\n            }"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(
     s.replace(alt, "if ($zeile === '') {\n                continue;\n            }", 1))

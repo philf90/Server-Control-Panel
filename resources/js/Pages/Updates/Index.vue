@@ -55,7 +55,7 @@ const props = defineProps<{
   packages: {
     upgradable: Package[]
     removals: string[]
-    held: string[]
+    held: { name: string; reason: 'dependencies' | 'phasing' }[]
     security: number
     fresh: number
     reboot: { required: boolean | null; packages: string[] }
@@ -128,6 +128,19 @@ const kacheln = computed(() => {
     { key: 'removals', label: 'Würde entfernt', value: String(p.removals.length) },
   ]
 })
+
+/*
+ * Die zurückgehaltenen Namen zu einem Grund.
+ *
+ * **Zwei Meldungen und keine Zahl mit Sternchen.** Der Grund entscheidet, was
+ * der Betreiber tun kann — nachhelfen oder warten —, und eine gemeinsame Zeile
+ * mit einer Klammer dahinter läse sich wie eine Fussnote zu einer Sache.
+ */
+function zurueck(grund: 'dependencies' | 'phasing'): string[] {
+  return (props.packages?.held ?? [])
+    .filter((eintrag) => eintrag.reason === grund)
+    .map((eintrag) => eintrag.name)
+}
 
 /*
  * **Filtern, und erst danach blättern.** Ein Betreiber, der diese Seite auf dem
@@ -639,10 +652,27 @@ const neustart = computed(() => {
             braucht, um zu entscheiden; eine Zahl allein sagt ihm, dass etwas
             ist, und nicht was.
           -->
-          <p v-if="props.packages.held.length > 0" class="notice warn">
+          <!--
+            **Getrennt nach Grund, weil die Abhilfe verschieden ist.** Ein
+            Paket, das wegen einer Abhängigkeit stehenbleibt, holt „Alle
+            installieren" nach — es ist ein `dist-upgrade`. Ein
+            phasenverzögertes holt es nicht, und wer den Knopf dafür drückt,
+            sieht dieselben Namen wieder (`docs/86`, Befund 7).
+          -->
+          <p v-if="zurueck('dependencies').length > 0" class="notice warn">
             <span>
-              {{ counted(props.packages.held.length, 'Paket wird', 'Pakete werden') }} zurückgehalten:
-              <span class="ident">{{ props.packages.held.join(', ') }}</span>
+              {{ counted(zurueck('dependencies').length, 'Paket wird', 'Pakete werden') }} zurückgehalten,
+              weil ein Update etwas entfernen müsste:
+              <span class="ident">{{ zurueck('dependencies').join(', ') }}</span>
+            </span>
+          </p>
+
+          <p v-if="zurueck('phasing').length > 0" class="notice warn">
+            <span>
+              Ubuntu spielt
+              {{ counted(zurueck('phasing').length, 'ein Paket', 'Pakete') }} stufenweise aus
+              und hält es auf diesem Server noch zurück:
+              <span class="ident">{{ zurueck('phasing').join(', ') }}</span>
             </span>
           </p>
 

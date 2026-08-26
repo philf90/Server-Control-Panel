@@ -17847,6 +17847,93 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
 
 echo
+echo "── FilterResetTest: ein Filter setzt die Blaetterung nicht zurueck ──"
+#
+# Wer auf Seite 5 von 8 steht und dann auf „nur Sicherheit" schaltet, sieht
+# eine LEERE Tabelle — obwohl 124 Treffer da sind. Gemessen an der echten
+# Seite: Seite 3 („41–60 von 145"), danach gefiltert, und ohne diesen
+# Ruecksprung stuende die Blaetterung auf 3 bei 124 Treffern in 20er-Seiten.
+#
+#   Eine Blaetterung, die den Filter nicht mitbekommt, zeigt nichts und meldet
+#   nichts.
+vorher_datei resources/js/Pages/Updates/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Updates/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'watch([auswahl, herkunft, suche], () => {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'watch([auswahl, herkunft], () => {', 1))
+PY2
+griff_datei resources/js/Pages/Updates/Index.vue "Filter ohne Ruecksprung" &&
+pruefe "Filter ohne Ruecksprung" \
+  FilterResetTest::test_every_filter_resets_the_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FilterResetTest passed
+
+echo
+echo "── FilterResetTest: die Blaetterbeschriftung zaehlt den Gesamtbestand ──"
+#
+# „1–20 von 145" ueber zwanzig von 124 Treffern: eine Zahl, die etwas anderes
+# zaehlt als die Liste darunter.
+vorher_datei resources/js/Pages/Updates/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Updates/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '  const gesamt = gefiltert.value.length'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, '  const gesamt = props.packages?.upgradable.length ?? 0', 1))
+PY2
+griff_datei resources/js/Pages/Updates/Index.vue "Beschriftung zaehlt den Gesamtbestand" &&
+pruefe "Beschriftung zaehlt den Gesamtbestand" \
+  FilterResetTest::test_the_pager_state_counts_what_the_table_shows failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FilterResetTest passed
+
+echo
+echo "── FilterResetTest: beide leeren Zustaende sehen gleich aus ──"
+#
+# „Der Server ist aktuell" und „auf diese Auswahl passt nichts" sind zwei
+# Auskuenfte. Wer den zweiten wegnimmt, meldet einen aktuellen Server fuer eine
+# Sucheingabe, die danebenging.
+vorher_datei resources/js/Pages/Updates/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Updates/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'v-if="gefiltert.length === 0"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'v-if="false"', 1))
+PY2
+griff_datei resources/js/Pages/Updates/Index.vue "leere Zustaende zusammengelegt" &&
+pruefe "leere Zustaende zusammengelegt" \
+  FilterResetTest::test_a_filtered_list_tells_its_two_empty_states_apart failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FilterResetTest passed
+
+echo
+echo "── FilterResetTest: der Pruefkoerper der Filtererkennung ──"
+#
+# Findet der Ausdruck die filternde Berechnung nicht mehr, laeuft die Schleife
+# leer und der Waechter meldete Gruen, ohne einen Filter geprueft zu haben.
+#
+#   Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+#   steht.
+vorher_datei tests/Unit/FilterResetTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/FilterResetTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "private const PAGER = '/^const seite = ref\\(1\\)$/m';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "private const PAGER = '/^const blatt = ref\\(1\\)$/m';", 1))
+PY2
+griff_datei tests/Unit/FilterResetTest.php "Pruefkoerper der Filtererkennung" &&
+pruefe "Pruefkoerper der Filtererkennung" \
+  FilterResetTest::test_every_filter_resets_the_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FilterResetTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

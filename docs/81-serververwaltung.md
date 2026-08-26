@@ -474,6 +474,47 @@ Geblättert wird jetzt mit `Page::SIZE` — derselben 50, mit der jede andere
 Liste dieses Panels blättert; die Zahl reist aus dem Controller und steht nicht
 in der Vorlage. Danach: **11 467 px**.
 
+**Und die Blätterung war beim ersten Wurf auch noch falsch bemessen.**
+`Page::SIZE` (50) ist die Seitengrösse der blätternden **Tabellen** dieses
+Panels, in denen eine Zeile eine Zeile ist. Gemessen an der echten Seite:
+
+    eine Zeile bei 1440 px:    41 px    50 Zeilen =  3 Bildschirme
+    eine Zeile bei  390 px:   179 px    50 Zeilen = 14 Bildschirme
+
+Das **4,4-fache**. Dieselbe Zahl ergibt am Schreibtisch eine bequeme Liste und
+auf dem Telefon eine Wanderung.
+
+> **Eine Seitengrösse, die für eine einzeilige Tabelle stimmt, stimmt nicht für
+> ein Kärtchen mit vier Feldern.**
+
+> **Zwei Zahlen, die zufällig gleich sind, sind keine gemeinsame Zahl.**
+
+Zwanzig folgt aus der Messung — rund viereinhalb Telefonschirme, bei 1440 px
+knapp einer — und steht in der Vorlage statt in `Page::SIZE`. **Nicht** an der
+Fensterbreite: Wer beim Drehen des Telefons eine andere Seite vor sich hat,
+sucht die Zeile wieder, die er gerade gelesen hat.
+
+**Dazu vier Filter**, weil Blättern allein die Frage nicht beantwortet, mit der
+jemand diese Seite öffnet: „Zeigen" (alle · nur Sicherheit · nur neue Pakete),
+„Herkunft" aus den Daten statt aus einer gepflegten Liste, und ein Namensfeld.
+Der Zustand bleibt **lokal** und reist nicht in der Adresse — anders als bei der
+Logs-Seite, wo der Filter zum Agenten muss: Hier läge in einem Serverumlauf ein
+zweites `apt-get -s dist-upgrade`, also Sekunden für eine Auswahl, die im
+Browser eine Millisekunde kostet.
+
+Gemessen an der echten Seite: alle 145 → `1–20 von 145`; nur Sicherheit →
+`1–20 von 124`; nur neue Pakete → leer mit **eigener** Meldung; Herkunft
+`Docker CE:noble` → 5 Zeilen ohne Blätterung; Name `libssl` → 2. Und der Fall,
+der sonst still bricht: auf Seite 3 (`41–60 von 145`) gefiltert → zurück auf
+`1–20 von 124` statt auf eine leere Seite 3.
+
+**Und `fresh` war ein Feld, das der Agent rechnet und niemand liest** — dieselbe
+Stufe hat den Satz einen Commit vorher noch zitiert. Es steht jetzt als Kachel
+„davon neu" da.
+
+> **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht von
+> einem zu unterscheiden, das es nicht gibt.**
+
 **Und ein zweiter Befund aus demselben Blick.** In der ersten Fassung stand die
 Spalte „Zustand" der Quellentabelle am Ende — bei 1440 px ausserhalb des
 Bildes. Sie ist die Antwort dieser Tabelle: „kein Index" gegen „11 Ziele" ist

@@ -20855,3 +20855,66 @@ neben einem Element ergibt zwei Spalten (`NoticeChildrenTest`, viermal); eine
 Vorlage entschied die Einzahl selbst statt über `counted()`
 (`CountedNounTest`); und die beiden neuen Operationen fehlten in
 `AgentOperationReachTest`, gleich in zwei Richtungen.
+
+### Filter und eine gemessene Seitengrösse — die 50 war geerbt und falsch
+
+Der Betreiber hat zwei Dinge gefragt: ob Blätterung bei 390 px überhaupt hilft,
+und ob es einen Filter für sicherheitsrelevante Updates geben kann. Beides war
+berechtigt, und das erste hat eine Zahl umgeworfen.
+
+**`Page::SIZE` (50) ist die Seitengrösse der blätternden Tabellen dieses Panels
+— und die passte hier nicht.** Gemessen an der echten Seite:
+
+    eine Zeile bei 1440 px:    41 px    50 Zeilen =  3 Bildschirme
+    eine Zeile bei  390 px:   179 px    50 Zeilen = 14 Bildschirme
+
+Das **4,4-fache**. Eine Tabellenzeile ist am Schreibtisch eine Zeile und auf dem
+Telefon ein Kärtchen mit vier Feldern.
+
+> **Eine Seitengrösse, die für eine einzeilige Tabelle stimmt, stimmt nicht für
+> ein Kärtchen mit vier Feldern.**
+
+> **Zwei Zahlen, die zufällig gleich sind, sind keine gemeinsame Zahl.**
+
+Zwanzig folgt aus der Messung und steht in der Vorlage; die `page_size` aus dem
+Controller ist wieder fort. **Nicht an der Fensterbreite** — wer beim Drehen des
+Telefons eine andere Seite vor sich hat, sucht die Zeile wieder, die er gerade
+gelesen hat.
+
+**Vier Filter**, weil Blättern die Frage nicht beantwortet, mit der jemand diese
+Seite öffnet: „Zeigen" (alle · nur Sicherheit · nur neue Pakete), „Herkunft"
+**aus den Daten** statt aus einer gepflegten Liste, und ein Namensfeld. Der
+Zustand bleibt lokal und reist nicht in der Adresse — anders als bei der
+Logs-Seite, wo der Filter zum Agenten muss: Hier läge in einem Serverumlauf ein
+zweites `apt-get -s dist-upgrade`.
+
+**`fresh` war ein Feld, das der Agent rechnet und niemand liest** — und diese
+Stufe hat den Satz einen Commit vorher noch zitiert. Es steht jetzt als Kachel
+„davon neu" da.
+
+`FilterResetTest` hält drei Regeln: jeder Filter setzt die Blätterung zurück
+(sonst sieht man auf Seite 5 eine leere Tabelle, obwohl 124 Treffer da sind),
+die Beschriftung zählt das Gefilterte, und „nichts da" ist nicht dieselbe
+Meldung wie „nichts passt". Er **zählt die Filter aus dem Code ab**, statt eine
+Liste zu führen — genau der vierte Filter, den jemand später dazubaut, ist der
+Fall, den es zu fangen gilt.
+
+**Und der Wegwerf-Läufer für die Brüche kann jetzt mehr — nachdem er zwei Fehler
+gemacht hat.** Fünf Eingriffe standen seit Wochen als „braucht Laravel — hier
+nicht messbar" da; mit dem lokalen PHPUnit fahren sie. Der erste Wurf des
+Rückfalls schrieb `open(datei, 'wb').write(open(datei, 'rb').read())` als
+vermeintlichen No-op — das `wb` kürzt die Datei, bevor das `rb` daneben sie
+liest. Heraus kam eine **leere `routes/web.php`**, und ein Wächter über
+schreibende Routen meldete Grün, weil es darin keine gibt.
+
+> **Ein Bruch muss die Regel verletzen und nicht den Code zerstören.**
+
+Beim Berichtigen flog dann beides zugleich — die schädliche Zeile **und** die
+nötige Wiederanwendung des Eingriffs, denn der wird eine Ebene höher schon
+zurückgenommen.
+
+> **Wer zwei Fehler zugleich vermutet, nimmt beim Berichtigen leicht den
+> richtigen Teil mit weg.**
+
+Belegt ist es am Fall, der von Hand nachweislich beisst: 48 Eingriffe, alle
+beissen, **null ohne Messung**.

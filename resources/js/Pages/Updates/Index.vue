@@ -58,7 +58,6 @@ const props = defineProps<{
   } | null
 
   errors: Record<string, string>
-  page_size: number
 }>()
 
 /*
@@ -75,51 +74,132 @@ const kacheln = computed(() => {
   return [
     { key: 'upgradable', label: 'Aktualisierbar', value: String(p.upgradable.length) },
     { key: 'security', label: 'davon Sicherheit', value: String(p.security) },
+
+    /*
+     * **Diese Kachel hat beim ersten Wurf gefehlt**, und `fresh` war damit ein
+     * Feld, das der Agent rechnet und niemand liest — genau der Fehler, den
+     * `docs/66` an `context` im Protokoll beschreibt und den dieselbe Stufe
+     * einen Commit vorher noch zitiert hat.
+     *
+     *   Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht
+     *   von einem zu unterscheiden, das es nicht gibt.
+     *
+     * Und die Zahl gehört gezeigt: Wer „145 Aktualisierungen" liest und
+     * hinterher neue Pakete auf der Platte hat, ist belogen worden.
+     */
+    { key: 'fresh', label: 'davon neu', value: String(p.fresh) },
+
     { key: 'held', label: 'Zurückgehalten', value: String(p.held.length) },
     { key: 'removals', label: 'Würde entfernt', value: String(p.removals.length) },
   ]
 })
 
 /*
- * **Geblättert wird, und das ist ein Befund aus der Bilderrunde.** Die erste
- * Fassung zeigte alle 145 Zeilen; bei 390 px war die Seite **29 412 px** hoch —
- * fünfunddreissig Telefonschirme. Die Messung war dabei grün: `dokument=0`,
- * Gegenprobe 200/200, `schiebt=0`.
+ * **Filtern, und erst danach blättern.** Ein Betreiber, der diese Seite auf dem
+ * Telefon öffnet, will nicht 145 Zeilen durchsehen — er will wissen, ob etwas
+ * Sicherheitsrelevantes ansteht, und dann genau das sehen.
  *
- *   Eine Messung, die nur waagerecht misst, sagt über die Höhe nichts.
- *
- * Die Seitengrösse kommt aus `Page::SIZE` und nicht von hier — dieselbe Zahl,
- * mit der jede andere Liste dieses Panels blättert.
+ * **Der Zustand bleibt lokal und reist nicht in der Adresse**, anders als bei
+ * der Logs-Seite. Dort muss der Filter zum Agenten, weil er eine Datei liest;
+ * hier liegt der ganze Bestand schon in der Antwort, und ein Umlauf über den
+ * Server hiesse, `apt-get -s dist-upgrade` und `-s upgrade` ein zweites Mal zu
+ * fahren — Sekunden für eine Auswahl, die im Browser eine Millisekunde kostet.
  */
-const seite = ref(1)
+const auswahl = ref<'alle' | 'sicherheit' | 'neu'>('alle')
+const herkunft = ref('')
+const suche = ref('')
 
-const seiten = computed(() =>
-  Math.max(1, Math.ceil((props.packages?.upgradable.length ?? 0) / props.page_size)),
-)
+/**
+ * Die Herkünfte, die im Bestand wirklich vorkommen.
+ *
+ * **Aus den Daten und nicht aus einer Liste.** Eine gepflegte Aufzählung wäre
+ * die zweite Fassung dessen, was der Agent ohnehin schickt — und sie wäre in
+ * dem Moment falsch, in dem jemand eine Quelle hinzufügt.
+ */
+const herkuenfte = computed(() => {
+  const gesehen = new Set<string>()
 
-const sichtbar = computed(() => {
-  const alle = props.packages?.upgradable ?? []
-  const von = (seite.value - 1) * props.page_size
+  for (const paket of props.packages?.upgradable ?? []) {
+    for (const o of paket.origins) gesehen.add(o)
+  }
 
-  return alle.slice(von, von + props.page_size)
+  return [...gesehen].sort()
+})
+
+const gefiltert = computed(() => {
+  const wort = suche.value.trim().toLowerCase()
+
+  return (props.packages?.upgradable ?? []).filter((paket) => {
+    if (auswahl.value === 'sicherheit' && !paket.security) return false
+    if (auswahl.value === 'neu' && paket.old !== null) return false
+    if (herkunft.value !== '' && !paket.origins.includes(herkunft.value)) return false
+
+    return wort === '' || paket.name.toLowerCase().includes(wort)
+  })
 })
 
 /*
- * **Die Beschriftung nennt den Ausschnitt und nicht die Seitenzahl.** „1–50 von
- * 145" beantwortet, was jemand wissen will; „Seite 1 von 3" lässt ihn rechnen.
+ * **Geblättert wird, und die Seitengrösse ist gemessen und nicht geerbt.**
+ *
+ * Die erste Fassung zeigte alle 145 Zeilen; bei 390 px war die Seite
+ * **29 412 px** hoch. Die Messung war dabei grün — `dokument=0`, Gegenprobe
+ * 200/200, `schiebt=0`.
+ *
+ *   Eine Messung, die nur waagerecht misst, sagt über die Höhe nichts.
+ *
+ * **Die zweite Fassung erbte `Page::SIZE` (50), und auch das war falsch.**
+ * Gemessen am 26. August 2026 an der echten Seite: Eine Kärtchenzeile kostet
+ * bei 390 px **179 px**, bei 1440 px **41 px** — das **4,4-fache**. Dieselbe
+ * Seitenzahl ergibt damit drei Bildschirme am Schreibtisch und vierzehn auf
+ * dem Telefon.
+ *
+ *   Eine Seitengrösse, die für eine einzeilige Tabelle stimmt, stimmt nicht
+ *   für ein Kärtchen mit vier Feldern.
+ *
+ * Zwanzig ist die Zahl, die aus der Messung folgt: 20 × 179 px sind rund
+ * viereinhalb Telefonschirme und bei 1440 px knapp einer. Sie steht deshalb
+ * **hier** und nicht in `Page::SIZE` — die gilt für die blätternden Tabellen
+ * des Panels, und eine Zahl an zwei Orten zu benutzen, weil sie zufällig
+ * dieselbe war, ist keine Gemeinsamkeit.
+ *
+ * **Und die Grösse hängt nicht an der Fensterbreite.** Ein Betreiber, der beim
+ * Drehen des Telefons eine andere Seite vor sich hat, sucht die Zeile wieder,
+ * die er gerade gelesen hat.
+ */
+const SEITE = 20
+
+const seite = ref(1)
+
+const seiten = computed(() => Math.max(1, Math.ceil(gefiltert.value.length / SEITE)))
+
+const sichtbar = computed(() => gefiltert.value.slice((seite.value - 1) * SEITE, seite.value * SEITE))
+
+/*
+ * **Die Beschriftung nennt den Ausschnitt und nicht die Seitenzahl.** „1–20 von
+ * 124" beantwortet, was jemand wissen will; „Seite 1 von 7" lässt ihn rechnen.
+ * Und sie zählt das **Gefilterte**: Stünde dort die Gesamtzahl, behauptete sie
+ * einen Bestand, den die Liste darunter nicht zeigt.
  */
 const stand = computed(() => {
-  const gesamt = props.packages?.upgradable.length ?? 0
+  const gesamt = gefiltert.value.length
 
   if (gesamt === 0) return ''
 
-  const von = (seite.value - 1) * props.page_size + 1
+  const von = (seite.value - 1) * SEITE + 1
 
-  return `${von}–${Math.min(von + props.page_size - 1, gesamt)} von ${gesamt}`
+  return `${von}–${Math.min(von + SEITE - 1, gesamt)} von ${gesamt}`
 })
 
-// Ändert sich der Bestand unter der Blätterung, darf die Seitenzahl nicht
-// stehenbleiben — sonst zeigt sie auf einen Ausschnitt, den es nicht gibt.
+/*
+ * **Jede Änderung am Filter geht auf Seite 1 zurück.** Sonst steht der
+ * Betreiber nach dem Umschalten auf Seite 5 einer Liste, die nur noch zwei
+ * hat — und sieht nichts, obwohl Treffer da sind.
+ */
+watch([auswahl, herkunft, suche], () => {
+  seite.value = 1
+})
+
+// Und die Gegenrichtung, falls sich der Bestand unter der Blätterung ändert.
 watch(seiten, (jetzt) => {
   if (seite.value > jetzt) seite.value = jetzt
 })
@@ -248,7 +328,48 @@ const neustart = computed(() => {
             Es steht keine Aktualisierung an.
           </p>
 
-          <div v-else class="scrolls">
+          <template v-else>
+            <!--
+              **Filtern vor Blättern.** Auf dem Telefon kostet eine Zeile
+              179 px; wer dort etwas sucht, soll es finden und nicht durch
+              vierzehn Bildschirme rollen.
+            -->
+            <div class="filter">
+              <label class="field">
+                <span>Zeigen</span>
+                <select v-model="auswahl">
+                  <option value="alle">Alle</option>
+                  <option value="sicherheit">Nur Sicherheit</option>
+                  <option value="neu">Nur neue Pakete</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Herkunft</span>
+                <select v-model="herkunft">
+                  <option value="">Alle Herkünfte</option>
+                  <option v-for="o in herkuenfte" :key="o" :value="o">{{ o }}</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Name</span>
+                <input v-model="suche" type="text" placeholder="z. B. libssl">
+              </label>
+            </div>
+
+            <!--
+              **Zwei leere Zustände und nicht einer.** „Es steht keine
+              Aktualisierung an" ist eine Auskunft über den Server; „auf diesen
+              Filter passt nichts" eine über die Auswahl. Wer beide gleich
+              anzeigt, meldet einen aktuellen Server für eine Sucheingabe, die
+              danebenging.
+            -->
+            <p v-if="gefiltert.length === 0" class="empty">
+              Auf diese Auswahl passt kein Paket.
+            </p>
+
+            <div v-else class="scrolls">
             <table class="stacks">
               <thead>
                 <tr>
@@ -290,24 +411,25 @@ const neustart = computed(() => {
                   </td>
                 </tr>
               </tbody>
-            </table>
-          </div>
-
-          <div v-if="seiten > 1" class="pager">
-            <div>
-              <button type="button" class="button" :disabled="seite === 1" @click="seite--">
-                Zurück
-              </button>
+              </table>
             </div>
 
-            <p class="pager-state">{{ stand }}</p>
+            <div v-if="seiten > 1" class="pager">
+              <div>
+                <button type="button" class="button" :disabled="seite === 1" @click="seite--">
+                  Zurück
+                </button>
+              </div>
 
-            <div class="right">
-              <button type="button" class="button" :disabled="seite === seiten" @click="seite++">
-                Weiter
-              </button>
+              <p class="pager-state">{{ stand }}</p>
+
+              <div class="right">
+                <button type="button" class="button" :disabled="seite === seiten" @click="seite++">
+                  Weiter
+                </button>
+              </div>
             </div>
-          </div>
+          </template>
         </template>
       </Section>
 

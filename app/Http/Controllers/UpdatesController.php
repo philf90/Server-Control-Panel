@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Support\Web\Page;
 use Inertia\Inertia;
 use Inertia\Response;
 use SrvPanel\Agent\AgentException;
@@ -86,12 +85,19 @@ final class UpdatesController extends Controller
             'errors' => $errors,
 
             /*
-             * **Die Seitengrösse kommt von hier und nicht aus der Vorlage.**
-             * Sie steht als {@see Page::SIZE} an einer Stelle, und jede
-             * blätternde Liste dieses Panels benutzt dieselbe. Eine 50 in der
-             * `.vue` wäre deren zweite Fassung.
+             * **Hier stand eine `page_size` aus {@see Page::SIZE}, und sie ist
+             * wieder fort.** Die Begründung lautete „eine Zahl, eine Stelle" —
+             * und war falsch: `Page::SIZE` ist die Seitengrösse der
+             * blätternden **Tabellen** dieses Panels, in denen eine Zeile eine
+             * Zeile ist. Hier ist eine Zeile bei 390 px ein Kärtchen von
+             * 179 px, und dieselbe 50 ergibt vierzehn Bildschirme statt drei.
+             *
+             * > **Zwei Zahlen, die zufällig gleich sind, sind keine
+             * > gemeinsame Zahl.**
+             *
+             * Die Seitengrösse dieser Liste steht deshalb in der Vorlage, dort
+             * gemessen und begründet.
              */
-            'page_size' => Page::SIZE,
         ];
     }
 }

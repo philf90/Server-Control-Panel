@@ -94,6 +94,7 @@ use SrvPanel\Agent\Ops\SubscriptionUsage;
 use SrvPanel\Agent\Ops\SystemInfo;
 use SrvPanel\Agent\Ops\SystemLogsList;
 use SrvPanel\Agent\Ops\SystemLogsTail;
+use SrvPanel\Agent\Ops\SystemPackagesList;
 use SrvPanel\Agent\Ops\WebIsolationProbe;
 use SrvPanel\Agent\Ops\WebLogrotate;
 use SrvPanel\Agent\Ops\WebLogsTail;
@@ -182,6 +183,10 @@ final class Registry
         // Die Protokolle des Servers — Positivliste in SrvPanel\Agent\Logs.
         $this->register(new SystemLogsList);
         $this->register(new SystemLogsTail);
+
+        // P7b A1 — der Paketstand. Liest apt und ändert nichts.
+        $this->register(new SystemPackagesList);
+
         $this->register(new WebLogrotate);
         $this->register(new WebIsolationProbe);
         $this->register(new PhpVersionList);

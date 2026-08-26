@@ -20649,3 +20649,94 @@ meldet auf Debian 12 und 13 „Schlüssel mit Ablaufdatum 48" neben „Gegenprob
 pub-Zeilen gesamt 41". Die Messung liest drei Verzeichnisse, die Gegenprobe zwei.
 
 > **Eine Gegenprobe über eine andere Grundgesamtheit als die Messung ist keine.**
+
+### A1 Schritt 3 — der Paketstand, und die Zahl, die niemand für einen Fehler hält
+
+`system.packages.list` sagt, was auf diesem Server aktualisierbar ist: die
+Pakete mit alter und neuer Fassung, wie viele davon aus einer Sicherheitssuite
+kommen, was ein `dist-upgrade` entfernen würde, was `upgrade` zurückhält, ob ein
+Neustart aussteht und welche Konfigurationsdateien dpkg unter `/etc`
+zurückgelassen hat.
+
+**Gelesen wird in `SrvPanel\Agent\Packages` und nicht in der Operation** — aus
+demselben Grund wie bei `Apt::of()`: `Runner` und `Context` sind `final`, es gibt
+also keine Attrappe. Stünde der Leser in der Operation, wäre er nur über einen
+echten Server prüfbar, und das heisst: gar nicht.
+
+**Das Abnahmekriterium hat einen Fehler gefunden, den kein Wächter finden
+konnte.** Es lautet „die Zahlen stimmen mit der Kommandozeile überein", und beim
+ersten Vergleich standen 89 gegen 145. apt hängt hinter der schliessenden runden
+Klammer einer `Inst`-Zeile an, welche Pakete sie ausgelöst haben — als eine oder
+mehrere eckige Gruppen, manchmal leer:
+
+    … [amd64]) []
+    … [amd64]) [perl:amd64 ]
+    … [amd64]) [libpam-modules:amd64 on libpam-modules-bin:amd64] [libpam-modules:amd64 ]
+
+Der Ausdruck endete mit `\)$` und warf **56 von 145 Zeilen wortlos weg**.
+
+> **Eine Zeile, die der Leser verwirft, fehlt in keiner Summe — sie fehlt nur im
+> Ergebnis.** 89 ist eine Zahl, die niemand für einen Fehler hält.
+
+Der Anhang wird seitdem geduldet und **nicht gelesen**: Er beantwortet „warum
+wird das aktualisiert", und danach fragt keine Anzeige dieser Stufe. Ein Feld,
+das hier entstünde und das niemand liest, wäre von aussen nicht von einem zu
+unterscheiden, das es nicht gibt.
+
+**Und der Vergleich selbst stand zuerst auf drei Nullen.** `removals`, `fresh`
+und `held` waren auf beiden Seiten 0 — sie hätten auch dann übereingestimmt,
+wenn der Leser für sie vollständig kaputt gewesen wäre. Gemessen wird jetzt über
+drei Läufe (`dist-upgrade` ganz, einer mit Sperrmarkierung, einer gemischt mit
+`Remv` und Neuinstallation), und **jeder** der fünf Zähler schlägt mindestens
+einmal aus.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+**Ein Bruch, der nicht gebissen hat, hat eine falsche Begründung im Quelltext
+aufgedeckt.** `Packages::security()` trennte die Suite hinter dem letzten
+Schrägstrich ab, begründet mit `foo-security:1/stable` — ein Anbieter, der auf
+`-security` endet, solle nicht für ein Sicherheitsupdate gehalten werden. Die
+Suite ist aber ein **Suffix** der Herkunft; `str_ends_with` kann über beiden gar
+nicht verschieden antworten. Die Trennung war Verzierung, und der Kommentar
+daneben behauptete eine Wirkung, die sie nicht hatte.
+
+> **Ein Eingriff, der nicht beisst, sagt entweder etwas über den Wächter oder
+> etwas über die Regel.**
+
+Geprüft wird jetzt am Ende der Herkunft, und der Bruch setzt ein `str_contains`
+— den Fehler, den jemand wirklich machen würde. Dabei kam die dritte
+Herkunftsform heraus: `Docker CE:noble` trägt ein **Leerzeichen** im Anbieter und
+hat **keinen** Schrägstrich. Wer die Herkünfte am Leerzeichen trennt statt am
+Komma, macht daraus zwei.
+
+**Ein fehlgeschlagener apt-Lauf geht nicht mehr als „nichts zu tun" durch.**
+Die Operation sah den Rückgabewert zuerst gar nicht an — bei einem Abbruch wäre
+`stdout` leer gewesen und die Antwort „0 aktualisierbare Pakete". Anders als bei
+`apt-get update` (M5) trägt `apt-get -s` seinen Fehlschlag im Rückgabewert, und
+das ist gemessen: eine tote Quelle rc 0 mit 145 Zeilen, eine unerfüllbare Fassung
+rc 100 mit `E:` auf stderr, die gehaltene dpkg-Sperre rc 0 mit 145 Zeilen. Die
+erste Zeile ist die lehrreiche — `-s` erneuert die Listen nicht, sondern liest
+sie; die Antwort ist so alt wie die Listen, und diese Operation sagt keine
+Frische zu.
+
+**`InstLineTest` baut seine Prüfkörper Zeile für Zeile selbst**, wie
+`ArchiveDepthTest` seine Archive. Ein Prüfkörper aus `apt-get -s` auf der
+messenden Maschine enthält genau die Fälle nicht, an denen der Leser bricht: Auf
+`debian:12` gibt es keine einzige `Inst`-Zeile, auf diesem Container 145 — aber
+keine Neuinstallation und keine Entfernung. Die Tabelle trägt eine
+**Untergrenze**: Wer eine Zeile herausnimmt, nimmt eine Falle heraus, und
+`test_the_table_carries_every_trap` wird davon rot. Ohne sie wäre das Kürzen
+still — weniger Fälle, alle grün.
+
+> **Ein Prüfkörper, den man selbst baut, enthält die Fälle, an die man gedacht
+> hat.** Deshalb steht der Vergleich mit der Kommandozeile **neben**
+> `InstLineTest` und nicht statt ihm.
+
+Sechs Brüche, jeder einzeln belegt. Und der Wegwerf-Läufer, der sie fährt, hatte
+selbst eine Lücke: Er las die Zieldateien aus `git diff` und sah damit **keine
+neue Datei** — die sechs Eingriffe zu `Packages.php` und `InstLineTest.php`
+liefen im ersten Lauf gar nicht mit.
+
+> **Eine Liste der geänderten Dateien, die neue nicht kennt, lässt genau die
+> Eingriffe aus, die noch nie gefahren sind.**

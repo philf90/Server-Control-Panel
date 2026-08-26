@@ -44,20 +44,35 @@ final class AptLockReachTest extends TestCase
     use WithoutPhpComments;
 
     /**
-     * **Hier stand eine leere Ausnahmeliste, und sie war keine.**
+     * Die Ausnahmen — mit ihrem Grund, und der Grund ist gemessen.
      *
-     * Gedacht war sie als Weg für `system.packages.list` (Schritt 3), das mit
-     * `apt-get -s dist-upgrade` möglicherweise ohne Sperre auskommt. PHPStan
-     * hat sie als das gemeldet, was sie war: `array_key_exists()` gegen
-     * `array{}` ist immer falsch — eine Vorrichtung, die nicht greifen kann.
+     * **Hier stand eine leere Liste, und sie war keine.** Gedacht war sie als
+     * Weg für `system.packages.list`; PHPStan hat sie als das gemeldet, was sie
+     * war: `array_key_exists()` gegen `array{}` ist immer falsch.
      *
      * > **Eine leere Positivliste ist kein Mechanismus, sondern eine
      * > Verzierung.**
      *
-     * Wer eine Ausnahme braucht, führt sie ein, wenn es sie gibt — und misst
-     * vorher, ob `apt-get -s` die Sperre wirklich nicht nimmt, statt es zu
-     * vermuten.
+     * **Am 26. August 2026 gemessen statt vermutet**, mit einer POSIX-Sperre
+     * auf `/var/lib/dpkg/lock-frontend` und einer Gegenprobe im selben Lauf:
+     *
+     *     apt-get -s dist-upgrade          rc 0    145 Inst-Zeilen
+     *     apt-get install --reinstall      rc 100  "Could not get lock"
+     *
+     * Die Simulation nimmt die Sperre also nicht, ein echter Lauf schon.
+     *
+     * **Und die Ausnahme ist nicht nur erlaubt, sondern richtig.** `ensureFree()`
+     * wirft, wenn ein Lauf läuft — eine Liste, die sich dann weigert, verweigert
+     * die Auskunft genau in dem Moment, in dem ein Betreiber sie braucht.
+     *
+     * > **Eine lesende Frage, die an einer Sperre scheitert, beantwortet sie
+     * > nicht später, sondern gar nicht.**
+     *
+     * @var array<string, string>
      */
+    private const EXCEPTIONS = [
+        'SystemPackagesList.php' => 'ruft apt ausschliesslich mit -s; gemessen: nimmt die Sperre nicht',
+    ];
 
     /** Woran erkannt wird, dass eine Operation apt anfasst. */
     private const TOUCHES_APT = '/\'apt-get\'|apt-get\s+\w|\bApt::(refresh|of)\s*\(/';
@@ -75,6 +90,10 @@ final class AptLockReachTest extends TestCase
 
             $found++;
 
+            if (array_key_exists(basename($path), self::EXCEPTIONS)) {
+                continue;
+            }
+
             if (! str_contains($source, 'AptLock::ensureFree')) {
                 $strays[] = $path;
             }
@@ -90,6 +109,42 @@ final class AptLockReachTest extends TestCase
             .'die Sperre nicht nimmt — und führt sie dann mit ihrem Grund ein.',
             implode("\n  ", $strays),
         ));
+    }
+
+    /**
+     * Und jede Ausnahme nennt eine Operation, die es gibt und die apt anfasst.
+     *
+     * **Die Gegenrichtung, und sie ist der eigentliche Verfall.** Ein Eintrag
+     * hier hebt eine Regel auf; verschwindet die Datei oder hört sie auf, apt
+     * zu rufen, hebt er nichts mehr auf und bleibt trotzdem stehen. Der nächste
+     * Leser hält ihn für eine geltende Ausnahme.
+     *
+     * Derselbe Fall wie beim toten Eintrag im Wrapper: Die erste Richtung ist
+     * nach einer Umbenennung wieder grün, und der alte Name bleibt liegen.
+     */
+    public function test_every_exception_names_an_operation_that_touches_apt(): void
+    {
+        $quellen = $this->operationSources();
+
+        $this->assertGreaterThan(2, count($quellen), 'Es werden kaum Operationen gefunden — dann prüft dieser Test nichts.');
+
+        foreach (array_keys(self::EXCEPTIONS) as $name) {
+            $treffer = array_filter(
+                $quellen,
+                static fn (string $path): bool => basename($path) === $name,
+                ARRAY_FILTER_USE_KEY,
+            );
+
+            $this->assertCount(1, $treffer, sprintf(
+                'Die Ausnahme nennt %s; eine Operation dieses Namens gibt es nicht.',
+                $name,
+            ));
+
+            $this->assertSame(1, preg_match(self::TOUCHES_APT, (string) reset($treffer)), sprintf(
+                '%s steht als Ausnahme, fasst apt aber gar nicht an — der Eintrag hebt nichts mehr auf.',
+                $name,
+            ));
+        }
     }
 
     /**

@@ -17500,6 +17500,150 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AptMeasurementReachTest passed
 
 echo
+echo "── InstLineTest: die Zeile ohne [alt] faellt aus dem Pruefkoerper ──"
+#
+# **Der Bruch, den `docs/81 §8` vorschreibt.** Er ist die stille Sorte: Nimmt
+# jemand die Neuinstallation aus der Tabelle, bleiben die uebrigen acht Faelle
+# gruen und der Waechter meldet nichts — er ist nur kuerzer geworden. Die
+# Untergrenze in `test_the_table_carries_every_trap` ist die einzige Stelle,
+# die das sehen kann.
+#
+#   Ein Waechter ueber eine Aufzaehlung, der keine Untergrenze hat, wird beim
+#   Kuerzen nicht rot — er wird kuerzer.
+vorher_datei tests/Unit/InstLineTest.php
+python3 - <<'PY2'
+import re
+p = 'tests/Unit/InstLineTest.php'
+s = open(p, encoding='utf-8').read()
+# Der ganze Eintrag mitsamt seiner Zeile — nicht nur die Zeichenkette, sonst
+# bliebe ein Eintrag ohne Pruefkoerper stehen und die Datei waere kaputt statt
+# gekuerzt. Ein Bruch muss die Regel verletzen und nicht den Code zerstoeren.
+alt = re.search(r"            'ohne alte Fassung' => \[\n(?:.*\n)*?            \],\n", s)
+assert alt, 'Zielstelle nicht gefunden — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s[:alt.start()] + s[alt.end():])
+PY2
+griff_datei tests/Unit/InstLineTest.php "Zeile ohne [alt] entfernt" &&
+pruefe "Zeile ohne [alt] entfernt" \
+  InstLineTest::test_the_table_carries_every_trap failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InstLineTest passed
+
+echo
+echo "── InstLineTest: der Ausdruck endet wieder an der runden Klammer ──"
+#
+# **Die echte Regression.** Bis zum 26. August 2026 stand hinter `\)` ein `$`,
+# und apt haengt hinter der schliessenden Klammer an, was die Zeile ausgeloest
+# hat. Gemessen im Container gegen apt 2.8.3: 145 `Inst`-Zeilen, davon 56 mit
+# Anhang — gelesen wurden 89, und 89 haelt niemand fuer einen Fehler.
+#
+#   Eine Zeile, die der Leser verwirft, fehlt in keiner Summe — sie fehlt nur
+#   im Ergebnis.
+vorher_datei agent/src/Packages.php
+python3 - <<'PY2'
+p = 'agent/src/Packages.php'
+s = open(p, encoding='utf-8').read()
+alt = "\\((?<body>.*)\\)(?: \\[[^\\]]*\\])*$/D'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "\\((?<body>.*)\\)$/D'", 1))
+PY2
+griff_datei agent/src/Packages.php "Inst-Zeile mit Anhang verworfen" &&
+pruefe "Inst-Zeile mit Anhang verworfen" \
+  InstLineTest::test_the_trailing_group_is_tolerated_and_not_read failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InstLineTest passed
+
+echo
+echo "── InstLineTest: nur die erste Herkunft entscheidet ──"
+#
+# apt nennt die Aktualisierungssuite zuerst und die Sicherheitssuite danach.
+# Wer die erste nimmt, zaehlt jedes Sicherheitsupdate als gewoehnliches —
+# gemessen auf diesem Container 124 von 145.
+vorher_datei agent/src/Packages.php
+python3 - <<'PY2'
+p = 'agent/src/Packages.php'
+s = open(p, encoding='utf-8').read()
+alt = '        foreach ($origins as $origin) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, '        foreach (array_slice($origins, 0, 1) as $origin) {', 1))
+PY2
+griff_datei agent/src/Packages.php "nur die erste Herkunft" &&
+pruefe "nur die erste Herkunft" \
+  InstLineTest::test_every_origin_is_read_and_not_only_the_first failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InstLineTest passed
+
+echo
+echo "── InstLineTest: irgendwo statt am Ende der Herkunft ──"
+#
+# Der Anbieter steht vorn. Wer nach dem Wort sucht statt am Ende zu pruefen,
+# haelt `foo-security:1/stable` fuer ein Sicherheitsupdate.
+#
+# **Der erste Wurf dieses Eingriffs hat nicht gebissen**, und das war ein Fund:
+# Er ersetzte die Suite hinter dem letzten Schraegstrich durch die ganze
+# Herkunft — und die Suite ist ein Suffix der Herkunft, `str_ends_with` kann
+# ueber beiden also gar nicht verschieden antworten. Die Trennung war
+# Verzierung mit einer falschen Begruendung im Kommentar daneben.
+#
+#   Ein Eingriff, der nicht beisst, sagt entweder etwas ueber den Waechter
+#   oder etwas ueber die Regel.
+vorher_datei agent/src/Packages.php
+python3 - <<'PY2'
+p = 'agent/src/Packages.php'
+s = open(p, encoding='utf-8').read()
+alt = "if (str_ends_with($origin, '-security')) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "if (str_contains($origin, 'security')) {", 1))
+PY2
+griff_datei agent/src/Packages.php "irgendwo statt am Ende" &&
+pruefe "irgendwo statt am Ende" \
+  InstLineTest::test_the_end_of_the_origin_decides_and_not_the_vendor failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InstLineTest passed
+
+echo
+echo "── InstLineTest: eine fehlende alte Fassung wird zur leeren ──"
+#
+# `null` und `''` sehen in einer Ausgabe gleich aus und tragen `fresh`
+# verschieden. Ein Betreiber, der „12 Aktualisierungen" liest und hinterher
+# drei neue Pakete auf der Platte hat, ist belogen worden.
+vorher_datei agent/src/Packages.php
+python3 - <<'PY2'
+p = 'agent/src/Packages.php'
+s = open(p, encoding='utf-8').read()
+alt = "'old' => $kopf['old'] === '' ? null : $kopf['old'],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'old' => $kopf['old'],", 1))
+PY2
+griff_datei agent/src/Packages.php "fehlende alte Fassung als leere" &&
+pruefe "fehlende alte Fassung als leere" \
+  InstLineTest::test_a_missing_old_version_is_null_and_not_empty failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InstLineTest passed
+
+echo
+echo "── InstLineTest: die Liste der Zurueckgehaltenen laeuft weiter ──"
+#
+# Die Liste endet an der ersten Zeile, die nicht eingerueckt ist. Wer den
+# Ausstieg weglaesst, zaehlt den naechsten Abschnitt mit — und meldet die
+# aktualisierbaren Pakete als zurueckgehalten.
+vorher_datei agent/src/Packages.php
+python3 - <<'PY2'
+p = 'agent/src/Packages.php'
+s = open(p, encoding='utf-8').read()
+alt = "if ($zeile === '' || ! str_starts_with($zeile, ' ')) {\n                break;\n            }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "if ($zeile === '') {\n                continue;\n            }", 1))
+PY2
+griff_datei agent/src/Packages.php "Zurueckgehaltene ohne Ausstieg" &&
+pruefe "Zurueckgehaltene ohne Ausstieg" \
+  InstLineTest::test_kept_back_ends_at_the_next_section failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InstLineTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

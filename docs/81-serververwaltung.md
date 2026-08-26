@@ -329,6 +329,56 @@ das las sich wie „diese Plattform schreibt die Zeile nicht".
 > **Eine Kennung, die auf niemanden zeigt, erzeugt keine Zeile — und das sieht
 > aus wie ein Merkmal der Plattform.**
 
+### 2.3a Zwei Fallen, die erst der Leser gefunden hat (26. August 2026)
+
+Beide beim Bau von Schritt 3, beide an echter apt-Ausgabe, und **keine von
+beiden stand in M1 bis M12.**
+
+**Die erste war die teuerste, weil sie wie ein Ergebnis aussah.** apt hängt
+hinter der schliessenden runden Klammer einer `Inst`-Zeile an, welche Pakete
+diese Zeile ausgelöst haben — als eine oder mehrere eckige Gruppen, manchmal
+leer:
+
+    … [amd64]) []
+    … [amd64]) [perl:amd64 ]
+    … [amd64]) [libpam-modules:amd64 on libpam-modules-bin:amd64] [libpam-modules:amd64 ]
+
+Der erste Leser endete mit `\)$` und warf jede solche Zeile wortlos weg.
+Gemessen: **145 `Inst`-Zeilen, davon 56 mit Anhang, gelesen wurden 89** — und
+die Operation meldete 89 aktualisierbare Pakete gegen 145 auf der
+Kommandozeile.
+
+> **Eine Zeile, die der Leser verwirft, fehlt in keiner Summe — sie fehlt nur
+> im Ergebnis.** 89 ist eine Zahl, die niemand für einen Fehler hält.
+
+Gefunden hat sie **nicht** der Wächter, sondern das Abnahmekriterium dieses
+Schritts: „die Zahlen stimmen mit der Kommandozeile überein". Ein Wächter über
+selbstgebaute Zeilen kann eine Form nicht kennen, die niemand gesehen hat.
+
+> **Ein Prüfkörper, den man selbst baut, enthält die Fälle, an die man gedacht
+> hat.** Deshalb steht neben `InstLineTest` der Vergleich mit der
+> Kommandozeile und nicht statt ihm.
+
+**Die zweite kam heraus, weil ein Bruch nicht gebissen hat.** `Packages::security()`
+trennte die Suite hinter dem letzten Schrägstrich ab, begründet mit
+`foo-security:1/stable` — ein Anbieter, der auf `-security` endet, solle nicht
+für ein Sicherheitsupdate gehalten werden. Die Begründung war falsch: Die Suite
+ist ein **Suffix** der Herkunft, `str_ends_with` kann über beiden also gar nicht
+verschieden antworten. Die Trennung war Verzierung, und der Kommentar daneben
+behauptete eine Wirkung, die sie nicht hatte.
+
+> **Ein Eingriff, der nicht beisst, sagt entweder etwas über den Wächter oder
+> etwas über die Regel.**
+
+Die Fassung, die trägt, prüft am Ende und der Bruch setzt ein `str_contains` —
+den Fehler, den jemand wirklich machen würde. Gemessen über die drei
+Herkunftsformen dieses Containers, und die dritte war auch neu:
+`Docker CE:noble` trägt ein **Leerzeichen** im Anbieter und hat **keinen**
+Schrägstrich. Wer die Herkünfte am Leerzeichen trennt statt am Komma, macht
+daraus zwei.
+
+---
+
 **Nur auf einem echten Server messbar:** wie lange ein voller `dist-upgrade`
 läuft (die Zahl entscheidet über die Zeitgrenze der Operation), was passiert,
 wenn das Upgrade `srvpanel` selbst enthält, und ob `systemd-run` den Lauf
@@ -676,7 +726,7 @@ CI.
 | 0 | ~~Die Messrunde auf den drei fehlenden Plattformen und die fünf fehlenden Fälle (§2.3)~~ **erledigt am 26. August 2026** | ✔ Der CI-Job `apt-messrunde` fährt sie auf allen vier Plattformen bei jedem Lauf; fünfzehn von sechzehn Fällen hergestellt, der sechzehnte auf `debian:12` nicht herstellbar und als solcher benannt |
 | 1 | **Der Befund M5 behoben, Teile 1 und 2** (§2.1b) — `Apt::refresh()` und die drei lesenden Aufrufer, mit `AptResultTest` | eine unerreichbare Sury lässt `php.version.install` mit einer Meldung **über die Quelle** scheitern, nicht über das Paket |
 | 2 | `AptLock` als die eine Stelle; `PanelUpdate` zieht um | `AptLockReachTest` ist grün und sein Bruch rot |
-| 3 | `system.packages.list` mit dem Leser und `InstLineTest` | die Zahlen stimmen mit der Kommandozeile überein |
+| 3 | ~~`system.packages.list` mit dem Leser und `InstLineTest`~~ **erledigt am 26. August 2026** | ✔ Über drei Läufe gegen die Kommandozeile gemessen (`dist-upgrade` ganz, mit Sperrmarkierung, gemischt mit `Remv` und Neuinstallation): alle fünf Zahlen gleich, und **jeder** Zähler mindestens einmal ungleich null |
 | 4 | `system.sources.list` über `indextargets` **und** die Dateien | eine abgeschaltete Quelle erscheint bei den Dateien und nicht bei den Zielen |
 | 5 | Die Seite, beide Themes, 390 px gemessen | `tests/bilder-messen.js` meldet 0 px, mit ausschlagender Gegenprobe |
 | 6 | `system.packages.upgrade` über `systemd-run`; dazu **Teil 3 von M5** — `PanelUpdate` liest nach dem Neustart seine eigene Fassung nach | ein Upgrade mit `srvpanel` darin läuft durch, Protokoll vollständig — und ein Lauf, der nichts bewirkt hat, meldet das statt Erfolg |

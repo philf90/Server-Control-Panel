@@ -1064,6 +1064,12 @@ echte Zeilen. Die zwei, die stehenbleiben, sind larastan-abhängig
 (`Collection<int,stdClass>` gegen das Modell) und in der CI mit larastan nicht
 da — die CI hat genau die eine Zeile gemeldet.
 
+**Nachgesehen, und zwar in der CI und nicht am eigenen Rechner:** Lauf 812 gegen
+`2e27b51` ist auf **allen fünfzehn Jobs grün**.
+
+> **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+> jemand ihn behoben hat.**
+
 
 ---
 

@@ -21599,3 +21599,9 @@ statt über den Zweig.
 
 Nachgeholt über `git diff --name-only origin/main...HEAD`, 38 Dateien: null echte
 Zeilen.
+
+Nachgesehen: CI-Lauf 812 gegen denselben Stand ist auf **allen fünfzehn Jobs
+grün** — beide Fehlschläge fort, und keiner dazugekommen.
+
+> **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+> jemand ihn behoben hat.**

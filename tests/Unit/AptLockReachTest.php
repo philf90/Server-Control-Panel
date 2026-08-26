@@ -61,6 +61,19 @@ final class AptLockReachTest extends TestCase
      *
      * Die Simulation nimmt die Sperre also nicht, ein echter Lauf schon.
      *
+     * **Und dasselbe für `indextargets`, eigens gemessen** (26. August 2026) —
+     * nicht aus dem Satz darüber geschlossen, denn `-s` und `indextargets` sind
+     * zwei verschiedene Unterbefehle:
+     *
+     *     apt-get indextargets             rc 0    15 200 B
+     *     apt-get -s dist-upgrade          rc 0    35 190 B
+     *     apt-get -y install cowsay        rc 100  "Could not get lock"
+     *
+     * Die dritte Zeile ist die Gegenprobe: Ohne sie hiesse „rc 0" nur, dass in
+     * diesem Lauf niemand die Sperre gehalten hat.
+     *
+     * > **Wissen aus zweiter Hand sieht aus wie Wissen.**
+     *
      * **Und die Ausnahme ist nicht nur erlaubt, sondern richtig.** `ensureFree()`
      * wirft, wenn ein Lauf läuft — eine Liste, die sich dann weigert, verweigert
      * die Auskunft genau in dem Moment, in dem ein Betreiber sie braucht.
@@ -72,6 +85,7 @@ final class AptLockReachTest extends TestCase
      */
     private const EXCEPTIONS = [
         'SystemPackagesList.php' => 'ruft apt ausschliesslich mit -s; gemessen: nimmt die Sperre nicht',
+        'SystemSourcesList.php' => 'ruft apt ausschliesslich mit indextargets; gemessen: nimmt die Sperre nicht',
     ];
 
     /** Woran erkannt wird, dass eine Operation apt anfasst. */

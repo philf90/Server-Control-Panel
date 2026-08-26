@@ -17644,6 +17644,209 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" InstLineTest passed
 
 echo
+echo "── SourceListTest: der Stanza-Index wird als Zeilennummer gelesen ──"
+#
+# `Sourcesentry: <datei>:<n>` sieht aus wie eine Zeilenangabe — das ist die
+# Schreibweise, die jedes Werkzeug dafuer benutzt. Gemessen: In
+# ubuntu.sources stehen die Stanzas auf Zeile 32 und 40 und heissen :1 und :2.
+# Wer am ERSTEN Doppelpunkt trennt, zerlegt ausserdem jeden Dateinamen, der
+# selbst einen traegt.
+#
+#   Eine Zahl hinter einem Doppelpunkt sieht aus wie eine Zeilennummer.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = "$doppel = strrpos($herkunft, ':');"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$doppel = strpos($herkunft, ':');", 1))
+PY2
+griff_datei agent/src/Sources.php "Trennung am ersten Doppelpunkt" &&
+pruefe "Trennung am ersten Doppelpunkt" \
+  SourceListTest::test_the_source_entry_is_a_stanza_and_not_a_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
+
+echo
+echo "── SourceListTest: abgeschaltete Stanzas zaehlen nicht mehr mit ──"
+#
+# **Der teuerste Bruch dieses Waechters.** Zaehlt der Leser abgeschaltete
+# Stanzas nicht, verschiebt sich der Index genau dann, wenn jemand eine Quelle
+# abschaltet — also in dem Fall, fuer den es den Verbund gibt. Die Anzeige
+# haengt danach an der falschen Stanza und sieht dabei richtig aus.
+#
+# Gemessen am 26. August 2026: ubuntu.sources Stanza 1 auf `Enabled: no`, und
+# die Sicherheitsstanza bleibt in apts Zaehlung :2.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $nummer++;
+
+            $stanzas[] = ["""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """            if (! self::enabled($felder)) {
+                continue;
+            }
+
+            $nummer++;
+
+            $stanzas[] = ["""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Sources.php "abgeschaltete Stanza uebersprungen" &&
+pruefe "abgeschaltete Stanza uebersprungen" \
+  SourceListTest::test_comments_do_not_count_and_disabled_stanzas_do failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
+
+echo
+echo "── SourceListTest: nicht leer heisst Pfad ──"
+#
+# Die dritte Form von `Signed-By:` traegt den Blockanfang in derselben Zeile.
+# Ein Leser, der „nicht leer heisst Pfad" annimmt, meldet dem Betreiber
+# `-----BEGIN PGP PUBLIC KEY BLOCK-----` als Dateinamen. Alle drei Formen
+# standen am 26. August in einem einzigen /etc/apt/sources.list.d.
+#
+#   Ein Wert, der auch leer sein darf, unterscheidet sich nicht dadurch von
+#   einem Pfad, dass er nicht leer ist.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if (str_starts_with($wert, '-----BEGIN')) {
+            return ['kind' => 'embedded', 'path' => null];
+        }
+
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Sources.php "nicht leer heisst Pfad" &&
+pruefe "nicht leer heisst Pfad" \
+  SourceListTest::test_the_three_forms_of_signed_by_are_told_apart failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
+
+echo
+echo "── SourceListTest: der Feldanker laesst Einrueckung zu ──"
+#
+# Ein PGP-Block reist gefaltet in einem Feld, und jede seiner Zeilen ist
+# eingerueckt. Der Anker `^[A-Za-z]` ist die ganze Faltungsregel: Wer ihn
+# lockert, um „auch eingerueckte Felder" zu lesen, macht aus `Comment:` mitten
+# im Schluesselblock ein Feld.
+#
+# **Der erste Wurf dieses Eingriffs hat nicht gebissen**, und das war ein Fund:
+# Er nahm eine zweite Pruefung heraus, die neben dem Anker stand. Gemessen —
+# ohne die Pruefung gruen, mit Pruefung und gelostem Anker gruen, erst ohne
+# beides rot. Zwei Mechanismen fuer eine Regel, jeder zahlt fuer den anderen
+# mit; der zweite ist seitdem fort.
+#
+#   Eine Frage an die Vereinigung haelt auch dann, wenn eine der Quellen blind
+#   ist — die andere zahlt fuer sie mit.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = "private const FIELD = '/^(?<name>"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "private const FIELD = '/^[ \\t]*(?<name>", 1))
+PY2
+griff_datei agent/src/Sources.php "Feldanker laesst Einrueckung zu" &&
+pruefe "Feldanker laesst Einrueckung zu" \
+  SourceListTest::test_a_folded_key_block_does_not_become_fields failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
+
+echo
+echo "── SourceListTest: eine auskommentierte .list-Zeile zaehlt mit ──"
+#
+# Im Einzeiler-Format gibt es kein `Enabled:` — das Abschalten ist das
+# Kommentarzeichen, und apt zaehlt nur, was es liest. Wer den Anker des
+# Ausdrucks loest, nimmt die auskommentierte Zeile als Eintrag auf und
+# verschiebt damit jeden Index dahinter.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = "private const ONELINE = '/^(?<type>deb|deb-src)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "private const ONELINE = '/^#?\\s*(?<type>deb|deb-src)", 1))
+PY2
+griff_datei agent/src/Sources.php "auskommentierte Zeile zaehlt mit" &&
+pruefe "auskommentierte Zeile zaehlt mit" \
+  SourceListTest::test_a_commented_out_line_is_not_an_entry failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
+
+echo
+echo "── SourceListTest: Enabled wird gegen yes geprueft ──"
+#
+# Gegen `yes` statt gegen `no`: Dann haelt ein Tippfehler (`Enabled: yess`)
+# die Quelle fuer abgeschaltet, und der Betreiber sucht den Fehler dort, wo
+# keiner ist. Der Fehler faellt damit zur falschen Seite.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = "return ! in_array($wert, ['no', 'false', '0'], true);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "return $wert === '' || in_array($wert, ['yes', 'true', '1'], true);", 1))
+PY2
+griff_datei agent/src/Sources.php "Enabled gegen yes geprueft" &&
+pruefe "Enabled gegen yes geprueft" \
+  SourceListTest::test_a_missing_enabled_means_on_and_a_typo_does_not_switch_off failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
+
+echo
+echo "── SourceListTest: die Untergrenze der Formentabelle ──"
+#
+# Der Pruefkoerper. Nimmt jemand eine Form heraus, bleiben die uebrigen gruen
+# und der Waechter meldet nichts — er ist nur kuerzer geworden.
+vorher_datei tests/Unit/SourceListTest.php
+python3 - <<'PY2'
+import re
+p = 'tests/Unit/SourceListTest.php'
+s = open(p, encoding='utf-8').read()
+m = re.search(r"            'Blockanfang in derselben Zeile' => \[\n(?:.*\n)*?            \],\n", s)
+assert m, 'Zielstelle nicht gefunden — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s[:m.start()] + s[m.end():])
+PY2
+griff_datei tests/Unit/SourceListTest.php "Untergrenze der Formentabelle" &&
+pruefe "Untergrenze der Formentabelle" \
+  SourceListTest::test_the_table_carries_every_form failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
+
+echo
+echo "── SourceListTest: alle Felder der Ziele werden durchgereicht ──"
+#
+# `indextargets` gibt 29 Felder je Block aus, die meisten ueber
+# Kompressionsverfahren und Zwischenspeicherung. Wer alle durchreicht, schickt
+# sie an eine Oberflaeche, die sie nicht anzeigt — und Sourcesentry landet
+# zwischen den Feldern statt daneben.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = """                if (in_array($treffer['name'], self::FIELDS, true)) {
+                    $felder[$treffer['name']] = $treffer['value'];
+                }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "                $felder[$treffer['name']] = $treffer['value'];", 1))
+PY2
+griff_datei agent/src/Sources.php "alle Zielfelder durchgereicht" &&
+pruefe "alle Zielfelder durchgereicht" \
+  SourceListTest::test_only_the_fields_that_belong_on_a_page_are_kept failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

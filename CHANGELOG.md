@@ -20740,3 +20740,72 @@ liefen im ersten Lauf gar nicht mit.
 
 > **Eine Liste der geänderten Dateien, die neue nicht kennt, lässt genau die
 > Eingriffe aus, die noch nie gefahren sind.**
+
+### A1 Schritt 4 — die Paketquellen, und zwei Zustände, die gleich aussehen
+
+`system.sources.list` zeigt beides: **was apt benutzt** (`apt-get indextargets`)
+und **was konfiguriert ist** (die Dateien unter `/etc/apt`). Je Eintrag steht
+daneben, ob er eingeschaltet ist und wie viele Ziele apt dazu führt.
+
+**Die Messrunde davor hat eine Aussage dieses Plans umgeworfen.** `docs/81 §2`
+schrieb, `indextargets` könne nicht sagen, aus welcher Datei ein Ziel stammt.
+Es kann: Jeder Block trägt `Sourcesentry: <datei>:<stanza>`, gemessen an allen
+18. Damit lassen sich die beiden Sichten **verbinden**, statt sie
+nebeneinanderzustellen und den Betreiber vergleichen zu lassen.
+
+> **Wissen aus zweiter Hand sieht aus wie Wissen.** Der Satz stand seit dem
+> Ausschreiben des Plans da und ist nie an `indextargets` selbst geprüft worden.
+
+**Die Zahl dahinter ist keine Zeilennummer.** In `ubuntu.sources` stehen die
+beiden Stanzas auf Zeile **32 und 40** und heissen `:1` und `:2`. Wer der
+üblichen Schreibweise folgt und dorthin springt, landet auf einem Kommentar.
+
+> **Eine Zahl hinter einem Doppelpunkt sieht aus wie eine Zeilennummer.**
+
+Gemessen ist auch, dass dieser Index **stabil** ist: Wird Stanza 1 abgeschaltet,
+bleibt die zweite `:2`. Abgeschaltete Stanzas zählen mit — sonst verschöbe sich
+der Index genau dann, wenn jemand eine Quelle abschaltet, und der Verbund bräche
+in dem Fall, für den es ihn gibt.
+
+**Und der Grund, warum es überhaupt zwei Sichten braucht, ist ein anderer als
+gedacht.** Nicht nur eine abgeschaltete Quelle fehlt in `indextargets` — auch
+eine, für die apt keinen Index geholt hat. Beide Zustände sehen von dort aus
+identisch aus. Gemessen an beidem: eine frisch angelegte Datei erscheint nicht,
+und die zwei PPAs dieses Containers erscheinen seit einem `apt-get update` nicht
+mehr, weil der Proxy sie mit 403 abweist. `Enabled:` wird deshalb aus der
+**Datei** gelesen; ohne dieses Feld meldete die Anzeige „abgeschaltet" für eine
+Quelle, die niemand abgeschaltet hat.
+
+> **Zwei Zustände, die von einer Seite gleich aussehen, brauchen die zweite
+> Seite — nicht eine Vermutung.**
+
+**`Signed-By:` hat drei Formen, und alle drei standen an diesem Tag in einem
+einzigen `/etc/apt/sources.list.d`:** ein Pfad, ein leerer Wert mit gefaltetem
+PGP-Block darunter, und der Blockanfang **in derselben Zeile**. Ein Leser, der
+„nicht leer heisst Pfad" annimmt, meldet bei der dritten
+`-----BEGIN PGP PUBLIC KEY BLOCK-----` als Dateinamen.
+
+> **Ein Wert, der auch leer sein darf, unterscheidet sich nicht dadurch von
+> einem Pfad, dass er nicht leer ist.**
+
+**Ein Bruch, der nicht gebissen hat — zum zweiten Mal in zwei Schritten.** Der
+Leser trug zwei Mechanismen für dieselbe Regel: einen Anker `^[A-Za-z]` im
+Feldausdruck und daneben eine eigene Prüfung auf Fortsetzungszeilen. Gemessen —
+ohne die Prüfung grün, mit der Prüfung und gelöstem Anker ebenfalls grün, erst
+ohne beides rot. Jeder zahlte für den anderen mit, und keiner hätte verrotten
+können, ohne dass es auffällt. Geblieben ist der Anker; er ist die Regel in
+ihrer direkten Form.
+
+> **Eine Frage an die Vereinigung hält auch dann, wenn eine der Quellen blind
+> ist — die andere zahlt für sie mit.**
+
+**Und eine Warnung, die Zustand gekostet hat.** `apt-get update` mit
+`-o Dir::Etc::sourceparts=-` aktualisiert nicht *eine* Quelle — es macht apts
+Sicht der Welt zu dieser einen und **räumt die Indexdateien aller übrigen ab**.
+Aus 18 Zielen wurden 1.
+
+> **Eine Einschränkung des Blickfelds ist keine Einschränkung der Wirkung.**
+
+`SourceListTest` baut seine Prüfkörper selbst — dieser Container hat keine
+abgeschaltete Stanza, keine auskommentierte `.list`-Zeile und keine Datei mit
+mehr als zwei Stanzas. Acht Brüche, jeder einzeln belegt.

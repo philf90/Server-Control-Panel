@@ -176,13 +176,18 @@ Daraus folgt die Entscheidung, die den grössten Teil der Arbeit spart:
 > aufgelöste Sicht — mit `Origin`, `Suite`, `Component`, `Codename`, `Base-URI`
 > und `Trusted` je Ziel, in einer Form, die für Maschinen gedacht ist.
 
-Was `indextargets` **nicht** kann: sagen, aus welcher Datei ein Ziel stammt, und
-eine abgeschaltete Quelle zeigen (sie ist dort schlicht fort). Deshalb zwei
-Quellen nebeneinander und getrennt beschriftet: **was apt benutzt**
-(`indextargets`) und **was konfiguriert ist** (die Dateien).
+Was `indextargets` **nicht** kann: eine abgeschaltete Quelle zeigen — sie ist
+dort schlicht fort. Deshalb zwei Quellen nebeneinander und getrennt beschriftet:
+**was apt benutzt** (`indextargets`) und **was konfiguriert ist** (die Dateien).
 
 > **Zwei Fragen, die verschieden lauten, brauchen zwei Antworten — auch wenn sie
 > meistens dasselbe sagen.**
+
+**Hier stand bis zum 26. August auch, `indextargets` könne nicht sagen, aus
+welcher Datei ein Ziel stammt.** Das war falsch und nie gemessen: Jeder Block
+trägt `Sourcesentry: <datei>:<stanza>`. Die beiden Sichten lassen sich damit
+**verbinden** statt nebeneinandergestellt zu werden — §2.3b hat die acht
+Messungen dazu, und Q2 nennt die Falle in der Schreibweise.
 
 **Der Rest in Kürze:**
 
@@ -376,6 +381,78 @@ Herkunftsformen dieses Containers, und die dritte war auch neu:
 `Docker CE:noble` trägt ein **Leerzeichen** im Anbieter und hat **keinen**
 Schrägstrich. Wer die Herkünfte am Leerzeichen trennt statt am Komma, macht
 daraus zwei.
+
+---
+
+### 2.3b Die Messrunde vor Schritt 4 (26. August 2026)
+
+Acht Fragen an `apt-get indextargets` und die Quelldateien, gemessen bevor eine
+Zeile entstand. **Zwei davon werfen eine Aussage dieses Plans um.**
+
+| | Frage | Gemessen |
+|---|---|---|
+| Q1 | Sagt `indextargets`, aus welcher Datei ein Ziel stammt? | **Ja.** `Sourcesentry: <datei>:<n>`, in **allen 18** Blöcken, für `.sources` wie für `.list`. §2 sagt das Gegenteil — siehe unten. |
+| Q2 | Ist `n` eine Zeilennummer? | **Nein**, ein Stanza-Index. In `ubuntu.sources` stehen die Stanzas auf Zeile **32 und 40** und heissen `:1` und `:2`. |
+| Q3 | Verschiebt sich der Index, wenn eine Stanza abgeschaltet wird? | **Nein.** Stanza 1 auf `Enabled: no` — die Sicherheitsstanza bleibt `:2`. |
+| Q4 | Verschwindet eine abgeschaltete Quelle aus den Zielen? | **Ja**, 18 → 17, die Datei bleibt. Das Abnahmekriterium ist herstellbar. |
+| Q5 | Heisst „kein Ziel" also „abgeschaltet"? | **Nein.** Eine Quelle ohne geholten Index fehlt genauso. |
+| Q6 | Zählen Kommentarblöcke als Stanza? | **Nein** — nur Blöcke mit mindestens einer Feldzeile. `ubuntu.sources` beginnt mit 31 Kommentarzeilen, und die erste Feld-Stanza ist trotzdem `:1`. |
+| Q7 | Welche Formen hat `Signed-By:`? | **Drei**, alle drei auf dieser Maschine — siehe unten. |
+| Q8 | Und im `.list`-Format? | `signed-by=<pfad>` in den Optionsklammern, nicht als Feld. |
+
+**Q1 ist eine Berichtigung dieses Dokuments.** §2 schreibt: *„Was `indextargets`
+nicht kann: sagen, aus welcher Datei ein Ziel stammt, und eine abgeschaltete
+Quelle zeigen."* Die zweite Hälfte stimmt, die erste nicht — `Sourcesentry`
+trägt Datei **und** Stanza-Index, und Q3 sagt, dass dieser Index stabil bleibt.
+Damit lassen sich die beiden Sichten **verbinden** statt nebeneinanderzustellen,
+und der Betreiber muss sie nicht mit dem Auge vergleichen.
+
+> **Wissen aus zweiter Hand sieht aus wie Wissen.** Der Satz stand hier seit dem
+> Ausschreiben des Plans und ist nie an `indextargets` selbst geprüft worden.
+
+**Q2 ist die Falle daneben.** `datei:1` sieht aus wie eine Zeilenangabe — das ist
+die Schreibweise, die jedes Werkzeug dieser Welt dafür benutzt. Wer dorthin
+springt, landet in `ubuntu.sources` auf einem Kommentar.
+
+> **Eine Zahl hinter einem Doppelpunkt sieht aus wie eine Zeilennummer.**
+
+**Q5 entscheidet die Anzeige.** Aus den Zielen allein sind zwei sehr verschiedene
+Zustände nicht zu unterscheiden: eine Quelle, die der Betreiber **abgeschaltet**
+hat, und eine, für die apt **keinen Index hat** — weil sie neu ist oder weil das
+Holen scheitert. Gemessen an beidem: eine frisch angelegte Datei erscheint nicht
+in den Zielen, und die zwei PPAs dieses Containers erscheinen seit einem
+`apt-get update` nicht mehr, weil der Proxy sie mit 403 abweist. `Enabled:`
+gehört deshalb aus der **Datei** gelesen; ohne dieses Feld meldet die Anzeige
+„abgeschaltet" für eine Quelle, die niemand abgeschaltet hat.
+
+> **Zwei Zustände, die von einer Seite gleich aussehen, brauchen die zweite
+> Seite — nicht eine Vermutung.**
+
+**Q7, die drei Formen von `Signed-By:`**, alle drei in `/etc/apt/sources.list.d`
+dieser Maschine:
+
+    Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg      ← ein Pfad
+    Signed-By:                                                     ← leer, dann
+     -----BEGIN PGP PUBLIC KEY BLOCK-----                             gefaltet
+    Signed-By: -----BEGIN PGP PUBLIC KEY BLOCK-----                ← Wert in
+     .                                                                derselben
+     mQINBGYo0vEBEAC0Semxy5I2b8exRUxJfTKkHR4f5uyS0dTd9vYgMI5T…         Zeile
+
+Ein Leser, der „nicht leer heisst Pfad" annimmt, hält bei der dritten Form
+`-----BEGIN PGP PUBLIC KEY BLOCK-----` für einen Dateinamen. Die Unterscheidung
+ist nicht die Leere, sondern die **Faltung**: Eine Fortsetzungszeile beginnt mit
+einem Leerzeichen, und `.` steht für die Leerzeile darin.
+
+> **Ein Wert, der auch leer sein darf, unterscheidet sich nicht dadurch von
+> einem Pfad, dass er nicht leer ist.**
+
+**Und eine Warnung, die Zustand gekostet hat.** `apt-get update` mit
+`-o Dir::Etc::sourceparts=-` aktualisiert nicht *eine* Quelle — es macht apts
+Sicht der Welt zu dieser einen und **räumt die Indexdateien aller übrigen ab**.
+Aus 18 Zielen wurden so 1, und die zwei PPAs kamen danach nicht wieder, weil der
+Proxy dieses Containers sie sperrt.
+
+> **Eine Einschränkung des Blickfelds ist keine Einschränkung der Wirkung.**
 
 ---
 
@@ -727,7 +804,7 @@ CI.
 | 1 | **Der Befund M5 behoben, Teile 1 und 2** (§2.1b) — `Apt::refresh()` und die drei lesenden Aufrufer, mit `AptResultTest` | eine unerreichbare Sury lässt `php.version.install` mit einer Meldung **über die Quelle** scheitern, nicht über das Paket |
 | 2 | `AptLock` als die eine Stelle; `PanelUpdate` zieht um | `AptLockReachTest` ist grün und sein Bruch rot |
 | 3 | ~~`system.packages.list` mit dem Leser und `InstLineTest`~~ **erledigt am 26. August 2026** | ✔ Über drei Läufe gegen die Kommandozeile gemessen (`dist-upgrade` ganz, mit Sperrmarkierung, gemischt mit `Remv` und Neuinstallation): alle fünf Zahlen gleich, und **jeder** Zähler mindestens einmal ungleich null |
-| 4 | `system.sources.list` über `indextargets` **und** die Dateien | eine abgeschaltete Quelle erscheint bei den Dateien und nicht bei den Zielen |
+| 4 | ~~`system.sources.list` über `indextargets` **und** die Dateien~~ **erledigt am 26. August 2026** | ✔ `ubuntu.sources:1` auf `Enabled: no` — der Eintrag steht weiter in den Dateien (`AUS`, 0 Ziele), die Ziele fallen von 16 auf 4 für diese Datei, und `:2` behält Nummer **und** Ziele. Dazu die dritte Lage: zwei eingeschaltete Quellen ohne Ziel (PPAs, 403 am Proxy) |
 | 5 | Die Seite, beide Themes, 390 px gemessen | `tests/bilder-messen.js` meldet 0 px, mit ausschlagender Gegenprobe |
 | 6 | `system.packages.upgrade` über `systemd-run`; dazu **Teil 3 von M5** — `PanelUpdate` liest nach dem Neustart seine eigene Fassung nach | ein Upgrade mit `srvpanel` darin läuft durch, Protokoll vollständig — und ein Lauf, der nichts bewirkt hat, meldet das statt Erfolg |
 | 7 | `system.sources.toggle` und der Neustart-Knopf | `SourceOwnershipTest` ist grün und sein Bruch rot |

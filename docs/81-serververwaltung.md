@@ -765,6 +765,83 @@ eigener Schritt mit eigenen Wächtern und nicht eine Zeile in diesem.
 
 ---
 
+### 2.3i Die Messrunde vor Schritt 8 (26. August 2026)
+
+**M8 stand im Plan als Beobachtung und ist jetzt eine Messung** — und sie hat
+den Entwurf an zwei Stellen umgeworfen.
+
+| | Gefragt | Gemessen |
+|---|---|---|
+| **A2** | Was sagt `apt-config dump` heute? | `APT::Periodic::Enable "0"`, gesetzt von `docker-disable-periodic-update` |
+| **A6** | Gewinnt eine spätere Datei? | `99-probe` mit `Enable "7"` verliert — der dump sagt weiter `"0"` |
+| **A8** | Wird sie überhaupt gelesen? | **Ja** — ein eigener Schlüssel aus derselben Datei erscheint im dump |
+| **A10** | Also wonach sortiert apt? | `zz-probe` gewinnt (`"7"`), `99-probe` nicht (`"0"`), ohne Prüfkörper `"0"` |
+| **A13** | Was bringt das Paket mit? | `20auto-upgrades` mit `Update-Package-Lists "1"` und `Unattended-Upgrade "1"` |
+| **A14** | Wirksam danach? | Beide Teilschalter `1` — **und die Automatik aus** |
+| **A15** | Die Herkünfte der Vorgabe | `${distro_id}:${distro_codename}`, `-security`, ESMApps, ESM — **nicht nur** `-security` |
+| **A20** | Wie wird der Hauptschalter gelesen? | `apt.systemd.daily` Zeile 356–360: `Enable == 0` ⇒ `exit 0` |
+| **A22** | Und wenn er fehlt? | `AutoAptEnable=1  # default is yes` — **fehlend heisst an** |
+| **A23** | Wo steht der letzte Lauf? | `/var/lib/apt/periodic/update-stamp` und `upgrade-stamp`, nur als Änderungsdatum |
+
+**A10 wirft das Namensschema um.** Die Regel, die überall steht, lautet „eine
+Datei mit hoher Nummer gewinnt". Gemessen sortiert apt nach **ASCII**, und
+Ziffern stehen vor Buchstaben: `99-irgendwas` verliert gegen jede Datei, deren
+Name mit einem Buchstaben beginnt. Genau das tut hier
+`docker-disable-periodic-update`.
+
+> **Ein Namensschema, das „zuletzt" bedeuten soll, bedeutet es nur, solange
+> niemand einen Buchstaben davorschreibt.**
+
+Die Datei des Panels heisst deshalb `zz-srvpanel-unattended` — und das ist ein
+**Versuch** und keine Zusage. Die Zusage ist das Nachlesen: `apt-config dump`
+nach dem Schreiben, und wenn der wirksame Wert nicht der gewollte ist, bricht
+die Operation ab und nennt die Dateien, die denselben Schlüssel setzen.
+
+**A14 ist Falle 7 als lebender Fall.** Beide Teilschalter stehen auf `1`, und
+die Automatik läuft nicht. Wer die eigene Datei liest, meldet „an"; wer apt
+fragt, sieht „aus". Der Container zeigt das, weil er ein Docker-Abbild ist —
+die Ursache ist besonders, das Muster nicht.
+
+> **Eine Auskunft aus der eigenen Datei ist keine über den wirksamen Zustand.**
+
+**A22 kehrt eine naheliegende Annahme um.** Eine fehlende Zeile heisst **an**,
+nicht aus. Ein Leser, der aus dem Fehlen auf „aus" schlösse, meldete eine
+abgeschaltete Automatik auf jedem frisch aufgesetzten Server.
+
+> **Eine Vorgabe, die nirgends steht, steht im Programm — und nur dort.**
+
+**A15 berichtigt den Plan.** Frage 4 sagt, `unattended-upgrades` nehme
+voreingestellt `${distro_id}:${distro_codename}-security`. Gemessen sind es
+**vier** Herkünfte, darunter die Release-Tasche. Der Schluss hält — das eigene
+Depot ist nicht dabei —, die Prämisse war zu eng. Die Seite zeigt die Liste
+deshalb, statt sie zu behaupten; und das Panel **setzt** sie nicht: Es betreibt
+die Automatik nicht, es konfiguriert die der Distribution.
+
+**Der Durchstich ist gefahren**, beide Richtungen gegen echtes apt:
+
+| | `Enable` | `Update-Package-Lists` | `Unattended-Upgrade` |
+|---|---|---|---|
+| vorher (Gegenprobe) | 0 | 1 | 1 |
+| eingeschaltet | 1 | 1 | 1 |
+| ausgeschaltet | 1 | 1 | **0** |
+| Datei entfernt (Gegenprobe) | 0 | 1 | 1 |
+
+Die dritte Zeile ist die Entscheidung aus Frage 4 in Zahlen: Das Auffrischen
+bleibt an, wenn das Installieren abgeschaltet wird.
+
+**Und der Weg zurück steht in der Paketierung.** Der Schalter entfernt die
+Datei **nicht** — ausgeschaltet hält sie weiterhin den Hauptschalter und das
+Auffrischen. Beim `purge` nimmt `packaging/scripts/postremove.sh` sie mit;
+ohne das bliebe eine Datei liegen, die apt weiter liest, während das Panel, das
+sie geschrieben hat, fort ist. Das ist die Lücke aus `docs/35`, und sie ist hier
+vermieden statt später gefunden.
+
+**Was der Container jetzt trägt:** `unattended-upgrades` ist installiert (es war
+es vorher nicht), und `zz-srvpanel-unattended` ist nach den Messungen wieder
+entfernt. Wer hier erneut misst, fängt also nicht bei M8 an.
+
+---
+
 **Nur auf einem echten Server messbar:** wie lange ein voller `dist-upgrade`
 läuft (die Zahl entscheidet über die Zeitgrenze der Operation), was passiert,
 wenn das Upgrade `srvpanel` selbst enthält, und ob `systemd-run` den Lauf
@@ -979,7 +1056,20 @@ eine lange Tabelle mit Fassungsnummern, und Fassungsnummern sind Kennungen —
 
 ## 5. Die Operationen
 
-Fünf neue, alle im Agenten, alle typisiert.
+Fünf neue, alle im Agenten, alle typisiert — **gebaut sind es sechs.**
+
+**Die sechste ist `system.packages.unattended`**, der Schalter aus §6 Punkt 4.
+Sie fehlt in dieser Tabelle, weil die Skizze den Zustand aufzählte und die
+Handlung daneben vergass — derselbe Fehler wie bei Schritt 4b und beim
+Neustart-Knopf.
+
+> **Eine Tabelle, die einen Zustand aufzählt, sagt nichts darüber, wer ihn
+> ändert.**
+
+Das **Lesen** des Zustands steht dagegen zu Recht nicht hier: Es ist ein Feld
+mehr in `system.packages.list`, weil die Seite beides zusammen zeigt und der
+Griff (`apt-config dump`, ein `dpkg-query`, zwei `stat`) neben zwei
+`apt-get -s`-Läufen nicht ins Gewicht fällt.
 
 | Operation | mutierend | Was sie tut |
 |---|---|---|
@@ -1069,12 +1159,13 @@ hat.
 
 ## 8. Die Wächter und ihre Brüche
 
-Sieben neue. Jeder wird nach dem Bauen absichtlich gebrochen, und der Bruch
+Acht neue. Jeder wird nach dem Bauen absichtlich gebrochen, und der Bruch
 kommt in `tests/waechter-brechen.sh`.
 
 **Hier standen fünf.** `KeyExpiryTest` kam mit Schritt 4b dazu, weil ein
 Abnahmepunkt ohne Schritt dastand (§2.3d); `RebootConfirmTest` mit dem
-Neustart-Knopf, weil Falle 8 aus §7 keinen Wächter hatte. Beide Zeilen sind
+Neustart-Knopf, weil Falle 8 aus §7 keinen Wächter hatte; `UnattendedStateTest`
+mit Schritt 8, weil Falle 7 ebenfalls keinen hatte. Die drei Zeilen sind
 nachgetragen und nicht nachträglich erfunden.
 
 | Wächter | Regel | Der Bruch |
@@ -1086,6 +1177,7 @@ nachgetragen und nicht nachträglich erfunden.
 | `PackageNameTest` | Paketnamen kommen aus der vorigen Antwort, nicht aus einem Muster — und der benannte Lauf benutzt kein `--only-upgrade` | die Prüfung durch ein `preg_match` ersetzen |
 | `KeyExpiryTest` | Der Fingerabdruck gehört zum Schlüssel und nicht zu seinem Unterschlüssel; ein leeres Feld 7 heisst „nie" und nicht 1970 | `$offen = null` am `sub` streichen |
 | `RebootConfirmTest` | Der Neustart wird über `systemd-run` **abgesetzt** und nicht im Agenten ausgeführt; der Rechnername wird auf dem Server geprüft, und zwar gegen dieselbe Quelle, die die Seite zeigt | `systemd-run` durch `systemctl` ersetzen; `Rule::in([$host])` durch `'string'` |
+| `UnattendedStateTest` | Der Zustand der Automatik kommt aus `apt-config dump` und nicht aus der eigenen Datei; eine fehlende Zeile heisst **an**; das Ausschalten nimmt das Auffrischen nicht mit | den Zustand aus `Unattended::FILE` lesen; die Vorgabe von `'1'` auf `'0'` drehen |
 
 **Zwei Hinweise, beide aus `CLAUDE.md` bezahlt:**
 
@@ -1124,7 +1216,7 @@ CI.
 | 5 | ~~Die Seite, beide Themes, 390 px gemessen~~ **erledigt am 26. August 2026** | ✔ Vier Lagen gegen die **echte** Seite mit laufendem Agenten: `dokument=0`, Gegenprobe 200/200, `schiebt=0`. Und ein Befund, den diese Messung nicht sieht — siehe §2.3c |
 | 6 | ~~`system.packages.upgrade` über `systemd-run`; dazu **Teil 3 von M5**~~ **gebaut am 26. August 2026** | ✔ `system.packages.refresh` und `system.packages.upgrade` (`all` · `security` · benannte), beide über `AptLock`; der Lauf geht als transiente Unit an `packaging/bin/apt-run`, und **das Skript zählt vorher und nachher** — vier Ausgänge gegen echtes apt gemessen (§2.3g).  ✔ **Teil 3 von M5**: `panel.update` läuft jetzt über dasselbe Skript im Modus `panel` und vergleicht die installierte Fassung statt eines Rückgabewerts; die Ausnahme in `AptResultTest` ist fort.  ✔ `PackageNameTest` grün, fünf Brüche, alle beissend. **Abgenommen ist er nicht** — die drei Punkte aus §2.3h gehören auf einen echten Server |
 | 7 | ~~`system.sources.toggle` und der Neustart-Knopf~~ **erledigt am 26. August 2026** | ✔ **Die Quelle**: `SourceOwnershipTest` grün, sechs Brüche, alle beissend; gemessen durch echtes apt — 16 → 5 → 16 Ziele, und der Rückweg belegt: bei kaputtem apt kommt die Datei byte-identisch zurück.  ✔ **Der Neustart**: `system.reboot` setzt einen Zeitgeber über `systemd-run` ab, statt `systemctl reboot` im eigenen Prozess zu rufen; die Messrunde dazu steht in §2.3e, der Durchstich in §2.3f. `RebootConfirmTest` grün, sechs Brüche, alle beissend. **Offen und benannt:** dass die transiente Unit den Neustart überlebt, ist hier nicht messbar (§2.3e, letzter Absatz) |
-| 8 | `unattended-upgrades` — Zustand aus `apt-config dump`, Schalter | der wirksame Zustand stimmt, wenn ein fremdes Paket dazwischenschreibt |
+| 8 | ~~`unattended-upgrades` — Zustand aus `apt-config dump`, Schalter~~ **gebaut am 26. August 2026** | ✔ Der Zustand kommt aus `apt-config dump` und hat fünf Teile (Paket, Hauptschalter, zwei Abstände, Zeitgeber); `system.packages.unattended` schreibt ein Fragment und **liest nach**, ob es angekommen ist.  ✔ **Der fremde Schreiber ist der Normalfall, nicht der Sonderfall**: In diesem Container setzt `docker-disable-periodic-update` den Hauptschalter auf `0`, während `20auto-upgrades` beide Teilschalter auf `1` sagt (§2.3i).  ✔ `UnattendedStateTest` grün, acht Brüche, alle beissend |
 | 9 | Die Wächter brechen, voller Lauf von `tests/waechter-brechen.sh` | jeder der fünf Eingriffe beisst — einzeln **und** im Lauf |
 | 10 | Der Abnahmelauf (eigenes Dokument, §4) auf `cloudsrv24` | die acht Punkte aus §4 |
 

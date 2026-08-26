@@ -114,6 +114,7 @@ final class AgentOperationReachTest extends TestCase
         'system.packages.list' => 'Liest den Paketstand über apt-get -s; das Panel führt darüber keinen Bestand, und die Antwort ändert nichts.',
         'system.sources.list' => 'Liest die Paketquellen über apt-get indextargets und die Dateien unter /etc/apt — lesend, ohne Vorgang.',
         'system.packages.refresh' => 'Frischt die Paketlisten auf. Der Zustand danach steht in apts Listen und nicht im Bestand des Panels — gefragt wird er über system.packages.list.',
+        'system.packages.unattended' => 'Schaltet die Automatik von apt über ein Fragment in apt.conf.d; der Zustand steht in apts aufgelöster Sicht und nicht im Bestand des Panels — gefragt wird er über system.packages.list.',
         'system.packages.upgrade' => 'Setzt den Lauf als transiente Unit ab und tritt zur Seite; was er bewirkt hat, steht danach in der Liste und im Protokoll des Laufs. Ein Zustand im Panel entsteht dabei nicht.',
         'system.reboot' => 'Startet den Server neu. Es gibt keinen Zustand im Panel, der danach anders wäre — die Maschine ist fort und kommt wieder; was sich geändert hat, liest die nächste Anfrage an system.info und system.packages.list.',
         'system.sources.toggle' => 'Schaltet eine eigene Paketquelle über Enabled:; der Zustand steht in der Datei und nicht im Bestand des Panels — gefragt wird er über system.sources.list.',

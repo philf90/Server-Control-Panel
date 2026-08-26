@@ -1256,7 +1256,10 @@ Zeichenkette „systemctl" irgendwo in der Datei) und `PackageNameTest` (ein
 Paketname kommt aus der Antwort, die der Agent selbst gerade gelesen hat, und
 nicht aus einem Muster — gemessen an den Namen, die apt **als Option**
 schluckt; dazu: der benannte Lauf benutzt kein `--only-upgrade`, weil das ein
-noch nicht installiertes Paket wortlos überginge). Der Bruch selbst steht als
+noch nicht installiertes Paket wortlos überginge) und `UnattendedStateTest`
+(der Zustand der Automatik kommt aus `apt-config dump` und nicht aus der
+eigenen Datei; eine fehlende Zeile heisst **an** und nicht aus; das Ausschalten
+nimmt das Auffrischen der Listen nicht mit). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -1313,6 +1316,19 @@ namentlich genannte Stelle „ruft kein `apt-get update` mehr".
 
 > **Ein Aufruf, der in ein Skript umzieht, ist für einen Ausdruck über
 > PHP-Quelltext verschwunden — nicht harmlos geworden.**
+
+**Und derselbe ASCII-Anführungsstrich noch einmal, diesmal in einer Shell.**
+`tests/waechter-brechen.sh` liess sich eine halbe Stunde lang nicht von `bash`
+parsen, weil eine Überschrift `„aus"` schrieb statt `„aus\"`. **Acht Prüfungen
+über das Skript blieben dabei grün** — sie lesen seinen Text, statt ihn zu
+fahren.
+
+> **Ein Bruchskript, das sich nicht einliest, prüft keine einzige Regel — und
+> jede Prüfung darüber bleibt grün.**
+
+`BreakScriptTest::test_the_script_itself_parses` fährt seitdem `bash -n`. Sein
+Gegenbeweis steht **im Test** und nicht im Skript: Ein Eingriff müsste das
+Bruchskript selbst verändern, und das nimmt der Rückweg zu Recht aus.
 
 Dabei fiel ein Loch auf, das älter war: `apt-get -q update` traf der Ausdruck
 nicht, weil er `apt-get` unmittelbar vor `update` verlangte.

@@ -7,6 +7,8 @@ namespace App\Http\Controllers;
 use App\Models\Account;
 use App\Support\Audit\Audit;
 use App\Support\Operations\Operations;
+use App\Support\Time\Clock;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -207,6 +209,43 @@ final class UpdatesController extends Controller
     }
 
     /**
+     * Die unbeaufsichtigten Updates schalten.
+     *
+     * **Ein Wahrheitswert im Rumpf und kein Umfang.** Der Schalter hat zwei
+     * Stellungen; welche Einstellungen daraus werden, entscheidet der Agent
+     * (`SrvPanel\Agent\Unattended::fragment()`) und nicht diese
+     * Steuerung — sonst gäbe es zwei Fassungen der Entscheidung aus
+     * `docs/81 §3`, Frage 4, und die zweite veraltet.
+     *
+     * **Und der Erfolg wird im Agenten nachgelesen, nicht hier.** Ob die
+     * Einstellung wirkt, entscheidet `apt-config dump`; das Panel hat darauf
+     * keinen Blick, und ein zweiter hier wäre einer auf die eigene Datei.
+     */
+    public function unattended(Request $request, Operations $operations, Audit $audit): RedirectResponse
+    {
+        $daten = $request->validate(['enabled' => ['required', 'boolean']]);
+
+        $an = (bool) $daten['enabled'];
+        $account = $request->user();
+
+        $operation = $operations->dispatch(
+            'system.packages.unattended',
+            ['enabled' => $an],
+            account: $account instanceof Account ? $account : null,
+            message: $an
+                ? 'Unbeaufsichtigte Sicherheitsupdates einschalten'
+                : 'Unbeaufsichtigte Sicherheitsupdates ausschalten',
+        );
+
+        $audit->success('packages.unattended', context: [
+            'enabled' => $an,
+            'operation' => (int) $operation->id,
+        ]);
+
+        return redirect()->route('operations.show', $operation);
+    }
+
+    /**
      * Beide Operationen, und ein Ausfall trägt die Seite trotzdem.
      *
      * **Getrennt gefangen und nicht zusammen.** Die Quellen sind die
@@ -236,6 +275,23 @@ final class UpdatesController extends Controller
             $sources = $agent->call('system.sources.list', []);
         } catch (AgentException $exception) {
             $errors['sources'] = $exception->getMessage();
+        }
+
+        /*
+         * **Die beiden Zeitstempel der Automatik werden hier zu Text und
+         * nicht im Browser.** Der Agent liefert Unixzeit; ein
+         * `new Date(...).toLocaleString()` auf der Seite rechnete in der Zone
+         * des **Betrachters**, und daneben stünden Zeiten aus
+         * {@see Clock::display()} in der eingestellten Anzeigezone. Zwei
+         * Angaben in zwei Zonen nebeneinander, und niemand sieht es, solange
+         * beide zufällig dieselbe haben (`docs/40`).
+         */
+        if (is_array($packages) && isset($packages['unattended']['last']) && is_array($packages['unattended']['last'])) {
+            foreach ($packages['unattended']['last'] as $name => $zeit) {
+                $packages['unattended']['last'][$name] = is_int($zeit)
+                    ? Clock::display(Carbon::createFromTimestampUTC($zeit))
+                    : null;
+            }
         }
 
         return [

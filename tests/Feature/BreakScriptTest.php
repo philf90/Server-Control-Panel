@@ -440,6 +440,88 @@ final class BreakScriptTest extends TestCase
      * Block Python ist. Fehlt `python3`, ist das kein Grund zu schweigen —
      * dann kann das Bruchskript ohnehin nichts ausrichten.
      */
+    /**
+     * Und das Skript selbst liest sich ein.
+     *
+     * ## Der Fund, der diesen Fall ausgelöst hat
+     *
+     * Am 26. August 2026 stand in einer Überschrift:
+     *
+     *     echo "── UnattendedStateTest: eine fehlende Zeile als „aus" gelesen ──"
+     *
+     * Deutsche Anführungszeichen stehen in diesem Repo als `„…"` — die
+     * schliessende ist ein **gewöhnliches** `"`, und in einer Shell beendet sie
+     * die Zeichenkette. Alles danach wurde zu etwas anderem, und `bash -n`
+     * meldete den Fehler achtzig Zeilen später an einer Klammer, die nichts
+     * damit zu tun hatte.
+     *
+     * **Die vier Überschriften daneben machen es richtig** und schreiben
+     * `„aus\"`. Eine Gewohnheit, an die sich vier Stellen halten, ist trotzdem
+     * keine Regel, solange die fünfte sie brechen darf.
+     *
+     * ## Warum die anderen Fälle das nicht gefangen haben
+     *
+     * Weil sie den Text **lesen** und nicht die Shell fragen: Jeder Eingriff
+     * fand weiter seine Zielstelle, jeder Python-Block war gültig, jede Prüfung
+     * nannte einen Test, den es gibt. Nur ausführen liess sich das Ganze nicht.
+     *
+     * > **Ein Bruchskript, das sich nicht einliest, prüft keine einzige
+     * > Regel — und jede Prüfung darüber bleibt grün.**
+     */
+    public function test_the_script_itself_parses(): void
+    {
+        $pfad = $this->root().'/tests/waechter-brechen.sh';
+
+        $ausgabe = [];
+        $status = 0;
+        exec('bash -n '.escapeshellarg($pfad).' 2>&1', $ausgabe, $status);
+
+        if ($status === 127) {
+            $this->markTestSkipped('bash ist hier nicht da.');
+        }
+
+        /*
+         * **Die Gegenprobe, und sie steht hier statt im Bruchskript.** Ein
+         * Eingriff, der `tests/waechter-brechen.sh` selbst veränderte, liesse
+         * das Skript sich beim Laufen unter den Füssen wegziehen — und
+         * `test_every_touched_file_lies_on_the_way_back` nimmt es zu Recht vom
+         * Rückweg aus. Die Regel wird deshalb an einer Wegwerfdatei belegt.
+         *
+         * > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes
+         * > als Null steht.**
+         */
+        $kaputt = tempnam(sys_get_temp_dir(), 'waechter');
+
+        if ($kaputt === false) {
+            $this->fail('Kein Platz für die Zwischendatei.');
+        }
+
+        file_put_contents($kaputt, "echo \"eine fehlende Zeile als „aus\" gelesen\"\nif [ 1 ]; then\n");
+
+        $probe = [];
+        $probeStatus = 0;
+        exec('bash -n '.escapeshellarg($kaputt).' 2>&1', $probe, $probeStatus);
+
+        @unlink($kaputt);
+
+        $this->assertNotSame(0, $probeStatus,
+            'bash -n meldet nichts an einem Skript, das nachweislich kaputt ist — dann misst dieser Fall nichts.');
+
+        $this->assertSame(0, $status, implode("\n", array_merge(
+            ['tests/waechter-brechen.sh liest sich nicht ein:'],
+            $ausgabe,
+            [
+                '',
+                'Ein Skript, das die Shell nicht parst, führt keinen einzigen Eingriff aus — und',
+                'die übrigen Fälle hier bleiben grün, weil sie den Text lesen statt ihn zu fahren.',
+                '',
+                'Der häufigste Grund ist ein deutsches Anführungszeichen in einer Überschrift:',
+                'Die schliessende ist ein gewöhnliches " und beendet die Zeichenkette. Sie gehört',
+                'als \\" geschrieben.',
+            ],
+        )));
+    }
+
     public function test_every_embedded_block_is_valid_python(): void
     {
         $script = (string) file_get_contents($this->root().'/tests/waechter-brechen.sh');

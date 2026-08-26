@@ -9303,7 +9303,7 @@ vorher_datei resources/css/app.css
 python3 - <<'PY2'
 p = 'resources/css/app.css'
 s = open(p, encoding='utf-8').read()
-s = s.replace('.button-row + .quiet,\n.quiet + .notice,\n.quiet + .scrolls {', '.nichts-davon {', 1)
+s = s.replace('.button-row + .quiet,\n.quiet + .notice,\n.quiet + .scrolls,', '.nichts-davon,', 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/css/app.css "Fugen um den leisen Satz" &&
@@ -18484,6 +18484,157 @@ pruefe "Platzhalter im Wort" \
   CountedNounTest::test_no_word_for_counted_carries_a_placeholder failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CountedNounTest passed
+
+echo
+echo "── UnattendedStateTest: eine fehlende Zeile als „aus\" gelesen ──"
+#
+# apt.systemd.daily setzt AutoAptEnable=1 (# default is yes). Wer aus dem
+# Fehlen auf "aus" schliesst, meldet eine abgeschaltete Automatik auf jedem
+# frisch aufgesetzten Server.
+vorher_datei agent/src/Unattended.php
+python3 - <<'PY2'
+p = 'agent/src/Unattended.php'
+s = open(p, encoding='utf-8').read()
+alt = "return ($values[self::ENABLE] ?? '1') !== '0';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "return ($values[self::ENABLE] ?? '0') !== '0';", 1))
+PY2
+griff_datei agent/src/Unattended.php "fehlende Zeile als aus" &&
+pruefe "fehlende Zeile als aus" \
+  UnattendedStateTest::test_a_missing_master_switch_means_on failed
+wiederherstellen
+
+echo
+echo "── UnattendedStateTest: Listeneintraege als gewoehnliche Zuweisung ──"
+#
+# Das doppelte :: ist ein Listeneintrag. Wer es als Zuweisung liest, behaelt
+# nur den letzten — und die Seite meldet eine Herkunft, wo apt vier kennt.
+vorher_datei agent/src/Unattended.php
+python3 - <<'PY2'
+p = 'agent/src/Unattended.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if ($treffer['list'] === '::') {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            if (false) {", 1))
+PY2
+griff_datei agent/src/Unattended.php "Liste als Zuweisung" &&
+pruefe "Liste als Zuweisung" \
+  UnattendedStateTest::test_the_dump_is_read_as_values_and_lists failed
+wiederherstellen
+
+echo
+echo "── UnattendedStateTest: das Ausschalten nimmt das Auffrischen mit ──"
+#
+# Frage 4 aus docs/81 §3: Die Paketlisten aufzufrischen aendert nichts am
+# System und ist die Bedingung dafuer, dass die Anzeige nicht luegt.
+vorher_datei agent/src/Unattended.php
+python3 - <<'PY2'
+p = 'agent/src/Unattended.php'
+s = open(p, encoding='utf-8').read()
+alt = "            self::LISTS.' \"1\";',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "            self::LISTS.' \"'.($upgrade ? '1' : '0').'\";',", 1))
+PY2
+griff_datei agent/src/Unattended.php "Auffrischen faellt mit" &&
+pruefe "Auffrischen faellt mit" \
+  UnattendedStateTest::test_switching_off_keeps_the_lists_fresh failed
+wiederherstellen
+
+echo
+echo "── UnattendedStateTest: der automatische Neustart erlaubt ──"
+#
+# Ein Hosting-Server, der nachts um drei von selbst neu startet, ist ein
+# Ausfall mit guter Absicht.
+vorher_datei agent/src/Unattended.php
+python3 - <<'PY2'
+p = 'agent/src/Unattended.php'
+s = open(p, encoding='utf-8').read()
+alt = "            self::REBOOT.' \"false\";',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            self::REBOOT.' \"true\";',", 1))
+PY2
+griff_datei agent/src/Unattended.php "Neustart von selbst" &&
+pruefe "Neustart von selbst" \
+  UnattendedStateTest::test_the_fragment_never_allows_an_automatic_reboot failed
+wiederherstellen
+
+echo
+echo "── UnattendedStateTest: das Panel entscheidet die Herkuenfte ──"
+#
+# Das Panel betreibt die Automatik nicht, es konfiguriert die der Distribution.
+# Die Herkuenfte zu verengen waere eine Richtlinie im Namen des Betreibers.
+vorher_datei agent/src/Unattended.php
+python3 - <<'PY2'
+p = 'agent/src/Unattended.php'
+s = open(p, encoding='utf-8').read()
+alt = "            self::REBOOT.' \"false\";',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "            self::REBOOT.' \"false\";',\n            self::ORIGINS.':: \"${distro_id}:${distro_codename}-security\";',", 1))
+PY2
+griff_datei agent/src/Unattended.php "Herkuenfte im Fragment" &&
+pruefe "Herkuenfte im Fragment" \
+  UnattendedStateTest::test_the_fragment_does_not_decide_the_origins failed
+wiederherstellen
+
+echo
+echo "── UnattendedStateTest: geschrieben und nicht nachgelesen ──"
+#
+# Der Name der Datei ist ein Versuch und keine Zusage: apt liest nach ASCII
+# sortiert, und Ziffern stehen vor Buchstaben. Die Zusage ist das Nachlesen.
+vorher_datei agent/src/Ops/SystemPackagesUnattended.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemPackagesUnattended.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $wirksam = $this->effective($context);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(
+    alt, "        $wirksam = ['enabled' => true, 'lists_days' => 1, 'upgrade_days' => $an ? 1 : 0, 'setters' => []];", 1))
+PY2
+griff_datei agent/src/Ops/SystemPackagesUnattended.php "ohne Nachlesen" &&
+pruefe "ohne Nachlesen" \
+  UnattendedStateTest::test_the_switch_reads_back_after_writing failed
+wiederherstellen
+
+echo
+echo "── UnattendedStateTest: der Zustand aus der eigenen Datei ──"
+#
+# Falle 7 aus docs/81 §7, gemessen: 20auto-upgrades sagt fuer beide
+# Teilschalter "1", und die Automatik ist trotzdem aus.
+vorher_datei agent/src/Ops/SystemPackagesList.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemPackagesList.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $gelesen = Unattended::read($dump->stdout);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "        $gelesen = Unattended::read((string) @file_get_contents(Unattended::FILE));", 1))
+PY2
+griff_datei agent/src/Ops/SystemPackagesList.php "Zustand aus der eigenen Datei" &&
+pruefe "Zustand aus der eigenen Datei" \
+  UnattendedStateTest::test_no_value_is_read_from_our_own_file failed
+wiederherstellen
+
+echo
+echo "── UnattendedStateTest: der Weg zurueck aus der Paketierung ──"
+#
+# Der Schalter entfernt die Datei nicht — ausgeschaltet haelt sie weiterhin den
+# Hauptschalter. Ohne postremove bliebe sie beim purge liegen: die Luecke aus
+# docs/35.
+vorher_datei packaging/scripts/postremove.sh
+python3 - <<'PY2'
+p = 'packaging/scripts/postremove.sh'
+s = open(p, encoding='utf-8').read()
+alt = '    rm -f "${automatik}"\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '    : "${automatik}"\n', 1))
+PY2
+griff_datei packaging/scripts/postremove.sh "Weg zurueck gestrichen" &&
+pruefe "Weg zurueck gestrichen" \
+  UnattendedStateTest::test_the_way_back_is_in_the_packaging failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnattendedStateTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

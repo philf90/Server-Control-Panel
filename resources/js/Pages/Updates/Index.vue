@@ -60,6 +60,28 @@ const props = defineProps<{
     fresh: number
     reboot: { required: boolean | null; packages: string[] }
     leftovers: string[]
+
+    /**
+     * Der **wirksame** Zustand der Automatik, nicht der unserer Datei.
+     *
+     * `readable: false` heisst „apt-config liess sich nicht fragen" — etwas
+     * anderes als „die Automatik ist aus", und deshalb ein eigener Fall.
+     */
+    unattended:
+      | { readable: false; error: string }
+      | {
+          readable: true
+          installed: boolean
+          enabled: boolean
+          lists_days: number
+          upgrade_days: number
+          automatic_reboot: boolean
+          origins: string[]
+          managed: boolean
+          setters: string[]
+          /** Schon als Text — {@see Clock::display()} im Controller, nicht im Browser. */
+          last: { lists: string | null; upgrade: string | null }
+        }
   } | null
 
   sources: {
@@ -398,6 +420,114 @@ function installieren(modus: 'all' | 'security' | 'packages'): void {
      * Knopf dieser Stufe ist der Neustart, und wenn beides rot wäre, sagte die
      * Farbe nichts mehr.
      */
+    false,
+  )
+}
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════
+ * Die Automatik
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+
+/** Der wirksame Zustand, oder `null`, wenn apt sich nicht fragen liess. */
+const automatik = computed(() => {
+  const u = props.packages?.unattended
+
+  return u !== undefined && u.readable ? u : null
+})
+
+/**
+ * Was die Automatik gerade tut — in einem Satz und nicht in vier Zahlen.
+ *
+ * **Drei Zustände, und der dritte ist der, den es ohne M8 nicht gäbe:** Die
+ * beiden Teilschalter können auf „an" stehen und die Automatik trotzdem aus
+ * sein, weil eine fremde Datei den Hauptschalter auf `0` gesetzt hat. Genau
+ * so steht dieser Container da.
+ */
+const automatikSatz = computed((): { kind: 'ok' | 'warn' | 'neutral'; text: string } | null => {
+  const u = automatik.value
+
+  if (u === null) return null
+
+  if (!u.installed) {
+    return {
+      kind: 'neutral',
+      text: 'Das Paket unattended-upgrades ist nicht installiert — unbeaufsichtigt läuft nichts.',
+    }
+  }
+
+  if (!u.enabled) {
+    return {
+      kind: 'warn',
+      text: 'Der Hauptschalter von apt steht auf aus. Daran ändert keine andere Einstellung etwas.',
+    }
+  }
+
+  if (u.upgrade_days === 0) {
+    return {
+      kind: 'neutral',
+      text: 'Die Paketlisten werden aufgefrischt; installiert wird nichts von selbst.',
+    }
+  }
+
+  /*
+   * **Ein ganzer Satz und kein `counted()`.** Der Abstand steht mitten im
+   * Satz („alle 3 Tage") und nicht davor — `counted()` setzt die Zahl an den
+   * Anfang und kann das nicht. `CountedNounTest` lässt einen Satz, der sich
+   * als Ganzes ändert, ausdrücklich zu; was es nicht zulässt, sind zwei
+   * einzelne Wörter hinter einer Eins.
+   */
+  return {
+    kind: 'ok',
+    text: u.upgrade_days === 1
+      ? 'Es wird täglich unbeaufsichtigt installiert.'
+      : `Es wird alle ${u.upgrade_days} Tage unbeaufsichtigt installiert.`,
+  }
+})
+
+/**
+ * Ein Abstand in Tagen als Wort.
+ *
+ * **`0` heisst nie, und das steht als Wort da.** `apt.systemd.daily` vergleicht
+ * die Zahl mit dem Alter eines Zeitstempels; eine `0` schaltet den Teil ab. Wer
+ * „0 Tage" schriebe, läse sich wie „ständig".
+ */
+function tage(wert: number): string {
+  if (wert === 0) return 'nie'
+  if (wert === 1) return 'täglich'
+
+  return `alle ${wert} Tage`
+}
+
+/**
+ * Wann etwas zuletzt geschah — oder dass es noch nie geschah.
+ *
+ * **`null` ist keine fehlende Angabe, sondern eine.** `apt.systemd.daily` legt
+ * seine Zeitstempel erst beim ersten Lauf an; auf einem frisch aufgesetzten
+ * Server gibt es sie zu Recht nicht.
+ *
+ * **Und gerechnet wird hier nichts.** Der Text kommt fertig aus dem
+ * Controller, über `Clock::display()` in der eingestellten Anzeigezone; ein
+ * `toLocaleString()` an dieser Stelle rechnete in der Zone des Betrachters
+ * und stünde neben Zeiten in einer anderen (`docs/40`).
+ */
+function stempel(wert: string | null): string {
+  return wert === null ? 'noch nie' : wert
+}
+
+function schaltenAutomatik(an: boolean): void {
+  ask(
+    an
+      ? 'Sicherheitsupdates künftig unbeaufsichtigt installieren?\n'
+        + 'Das Paket unattended-upgrades wird dafür installiert, wenn es fehlt. '
+        + 'Neu gestartet wird dabei nie von selbst — der Neustart bleibt ein Knopf.\n'
+        + 'Welche Herkünfte dabei gelten, entscheidet die Distribution; sie stehen unten.'
+      : 'Unbeaufsichtigtes Installieren abschalten?\n'
+        + 'Die Paketlisten werden weiter täglich aufgefrischt — ohne das wäre die Zahl auf '
+        + 'dieser Seite irgendwann drei Wochen alt.',
+    an ? 'Einschalten' : 'Abschalten',
+    () => router.put('/updates/unattended', { enabled: an }),
     false,
   )
 }
@@ -847,6 +977,138 @@ const neustart = computed(() => {
             class="empty"
           >
             In keiner dieser Dateien steht ein Eintrag.
+          </p>
+        </template>
+      </Section>
+
+      <!--
+        **Der vierte Bereich zeigt den wirksamen Zustand und nicht unsere
+        Datei** (`docs/81 §6` Punkt 4, `§7` Falle 7).
+
+        Gemessen am 26. August 2026 in diesem Container: `20auto-upgrades` sagt
+        für beide Teilschalter `1`, und die Automatik ist trotzdem **aus** —
+        `docker-disable-periodic-update` setzt den Hauptschalter auf `0`.
+        Deshalb steht hier der Satz zuerst und die Zahlen darunter.
+      -->
+      <Section title="Unbeaufsichtigte Updates" full>
+        <p v-if="props.packages === null" class="empty">
+          Ohne den Paketstand ist über die Automatik nichts zu sagen.
+        </p>
+
+        <p v-else-if="!props.packages.unattended.readable" class="notice warn">
+          <span>
+            Der Zustand der Automatik liess sich nicht lesen:
+            {{ props.packages.unattended.error }}
+          </span>
+        </p>
+
+        <template v-else-if="automatik">
+          <p v-if="automatikSatz" class="notice" :class="automatikSatz.kind">
+            <span>{{ automatikSatz.text }}</span>
+          </p>
+
+          <!--
+            **Die Dateien, die den Hauptschalter setzen — als Erklärung.**
+
+            Sie stehen nur da, wenn die Automatik aus ist: Dann ist die Frage
+            „wer hat das getan?" die einzige, die weiterhilft. Die **letzte**
+            gewinnt, weil apt nach ASCII sortiert liest — und Ziffern stehen
+            vor Buchstaben, eine `99`-Datei verliert also gegen jede, die mit
+            einem Buchstaben beginnt.
+          -->
+          <p v-if="!automatik.enabled && automatik.setters.length > 0" class="notice neutral">
+            <!--
+              **Ein ganzer Satz und kein `counted()`.** Die Zahl steht hier
+              nicht vor dem Wort, sondern im Satzbau — „setzt eine Datei" gegen
+              „setzen zwei Dateien". `counted()` setzt die Zahl an den Anfang
+              und ergäbe „setzt 1 diese Datei"; genau so stand es beim ersten
+              Wurf auf dem Bild.
+            -->
+            <span>
+              <template v-if="automatik.setters.length === 1">
+                Den Hauptschalter setzt diese Datei:
+              </template>
+              <template v-else>
+                Den Hauptschalter setzen {{ automatik.setters.length }} Dateien, und die letzte gewinnt:
+              </template>
+              <span class="ident">{{ automatik.setters.join(', ') }}</span>
+            </span>
+          </p>
+
+          <div class="button-row">
+            <button
+              v-if="automatik.upgrade_days === 0 || !automatik.enabled || !automatik.installed"
+              type="button"
+              class="button"
+              @click="schaltenAutomatik(true)"
+            >
+              Unbeaufsichtigt installieren einschalten
+            </button>
+
+            <button
+              v-else
+              type="button"
+              class="button"
+              @click="schaltenAutomatik(false)"
+            >
+              Unbeaufsichtigt installieren abschalten
+            </button>
+          </div>
+
+          <div class="scrolls">
+            <table class="stacks">
+              <thead>
+                <tr>
+                  <th>Angabe</th>
+                  <th>Wirksam</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                <tr>
+                  <td data-column="Angabe">Paket unattended-upgrades</td>
+                  <td data-column="Wirksam">{{ automatik.installed ? 'installiert' : 'fehlt' }}</td>
+                </tr>
+                <tr>
+                  <td data-column="Angabe">Hauptschalter von apt</td>
+                  <td data-column="Wirksam">{{ automatik.enabled ? 'ein' : 'aus' }}</td>
+                </tr>
+                <tr>
+                  <td data-column="Angabe">Paketlisten auffrischen</td>
+                  <td data-column="Wirksam">{{ tage(automatik.lists_days) }}</td>
+                </tr>
+                <tr>
+                  <td data-column="Angabe">Unbeaufsichtigt installieren</td>
+                  <td data-column="Wirksam">{{ tage(automatik.upgrade_days) }}</td>
+                </tr>
+                <tr>
+                  <td data-column="Angabe">Neustart von selbst</td>
+                  <td data-column="Wirksam">{{ automatik.automatic_reboot ? 'ja' : 'nein' }}</td>
+                </tr>
+                <tr>
+                  <td data-column="Angabe">Zuletzt aufgefrischt</td>
+                  <td data-column="Wirksam">{{ stempel(automatik.last.lists) }}</td>
+                </tr>
+                <tr>
+                  <td data-column="Angabe">Zuletzt unbeaufsichtigt installiert</td>
+                  <td data-column="Wirksam">{{ stempel(automatik.last.upgrade) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!--
+            **Die Herkünfte stehen da, weil „unbeaufsichtigt" ohne sie nichts
+            heisst.** Gemessen: Ubuntus Vorgabe umfasst nicht nur `-security`,
+            sondern auch die Release-Tasche und zwei ESM-Herkünfte. Das Panel
+            setzt sie nicht — es betreibt die Automatik nicht, es konfiguriert
+            die der Distribution.
+          -->
+          <p v-if="automatik.origins.length > 0" class="notice neutral">
+            <span>
+              Unbeaufsichtigt kommt nur, was aus diesen Herkünften stammt:
+              <span class="ident">{{ automatik.origins.join(', ') }}</span>
+            </span>
           </p>
         </template>
       </Section>

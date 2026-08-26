@@ -62,6 +62,27 @@ final class Runner
         'repquota' => '/usr/sbin/repquota',
         'apt-get' => '/usr/bin/apt-get',
 
+        /*
+         * **Dazugekommen am 26. August 2026 für A1 Schritt 8**, und rein
+         * lesend: `apt-config dump` gibt apts **aufgelöste** Sicht auf seine
+         * Einstellungen aus.
+         *
+         * Gebraucht wird es für eine Frage, die anders nicht zu beantworten
+         * ist: Läuft die Automatik dieses Servers wirklich? Die eigene Datei
+         * sagt darüber nichts — `/etc/apt/apt.conf.d` wird nach ASCII sortiert
+         * gelesen, und die letzte Zuweisung gewinnt. Gemessen in diesem
+         * Container: `20auto-upgrades` sagt für beide Teilschalter `1`, und die
+         * Automatik ist trotzdem aus, weil `docker-disable-periodic-update` den
+         * Hauptschalter auf `0` setzt.
+         *
+         * > **Eine Auskunft aus der eigenen Datei ist keine über den wirksamen
+         * > Zustand.**
+         *
+         * Dieselbe Bauart wie `apt-get indextargets` für die Quellen: apt
+         * fragen statt apt nachrechnen.
+         */
+        'apt-config' => '/usr/bin/apt-config',
+
         // **Lesend, und es beantwortet die Frage, die `apt-get` sonst raten
         // müsste:** Welche der Pakete einer PHP-Version liegen schon da? Bis
         // P5b hat `php.version.install` das am Handler abgelesen —

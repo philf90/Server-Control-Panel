@@ -8,6 +8,7 @@ use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Op;
 use SrvPanel\Agent\Packages;
+use SrvPanel\Agent\Unattended;
 
 /**
  * Was auf diesem Server aktualisierbar ist — und was ein Update nach sich zöge.
@@ -53,6 +54,18 @@ final class SystemPackagesList implements Op
      * > tun".**
      */
     private const REBOOT_PROVIDER = 'update-notifier-common';
+
+    /**
+     * Das Paket, ohne das nichts unbeaufsichtigt läuft.
+     *
+     * `apt.systemd.daily` prüft in Zeile 494 `command -v unattended-upgrade`
+     * — ist es nicht da, geschieht nichts, gleich wie die Schalter stehen.
+     * Auf keinem der vier Zielabbilder ist es vorinstalliert (M8).
+     */
+    public const UNATTENDED_PACKAGE = 'unattended-upgrades';
+
+    /** Wo die Fragmente liegen, aus denen apt seine Einstellungen auflöst. */
+    public const APT_CONF_DIR = '/etc/apt/apt.conf.d';
 
     private const REBOOT_FLAG = '/run/reboot-required';
 
@@ -107,7 +120,111 @@ final class SystemPackagesList implements Op
             ...Packages::read($dist, $plain),
             'reboot' => $this->reboot($context),
             'leftovers' => $this->leftovers(),
+            'unattended' => $this->unattended($context),
         ];
+    }
+
+    /**
+     * Der **wirksame** Zustand der Automatik — nicht der unserer Datei.
+     *
+     * **Hier und nicht in einer eigenen Operation**, weil die Seite beides
+     * zusammen zeigt und der Griff billig ist: ein `apt-config dump`, ein
+     * `dpkg-query`, zwei `stat`. Die beiden `apt-get -s` darüber kosten ein
+     * Vielfaches.
+     *
+     * **Gefragt wird apt und nicht unsere Datei** (`docs/81 §7`, Falle 7).
+     * Gemessen am 26. August 2026 in diesem Container: `20auto-upgrades` sagt
+     * für beide Teilschalter `1`, und die Automatik ist trotzdem **aus** —
+     * `docker-disable-periodic-update` setzt den Hauptschalter auf `0`, und
+     * `apt.systemd.daily` steigt daran in Zeile 358 aus.
+     *
+     * > **Eine Auskunft aus der eigenen Datei ist keine über den wirksamen
+     * > Zustand.**
+     *
+     * @return array<string, mixed>
+     */
+    private function unattended(Context $context): array
+    {
+        $dump = $context->runner->run('apt-config', ['dump'], 30);
+
+        if (! $dump->successful()) {
+            /*
+             * **Keine Behauptung, wenn die Frage nicht durchkam.** Ein
+             * `installed: false` an dieser Stelle sähe aus wie „die Automatik
+             * ist aus" — das ist der Fehler, den `kernelStale()` seit P7
+             * vermeidet und den M7 für den Neustart noch einmal aufgeschrieben
+             * hat.
+             */
+            return ['readable' => false, 'error' => $dump->message()];
+        }
+
+        $gelesen = Unattended::read($dump->stdout);
+        $werte = $gelesen['values'];
+
+        // Der Rückgabewert wird nicht angesehen: Er ist 1, sobald das Paket
+        // unbekannt ist — also genau im gefragten Fall. Dieselbe Überlegung
+        // wie bei `update-notifier-common` eine Methode weiter oben.
+        $paket = $context->runner->run(
+            'dpkg-query',
+            ['-W', '-f=${db:Status-Status}', self::UNATTENDED_PACKAGE],
+            15,
+        );
+
+        return [
+            'readable' => true,
+            'installed' => trim($paket->stdout) === 'installed',
+            'enabled' => Unattended::enabled($werte),
+            'lists_days' => Unattended::interval($werte, Unattended::LISTS),
+            'upgrade_days' => Unattended::interval($werte, Unattended::UPGRADE),
+            'automatic_reboot' => ($werte[Unattended::REBOOT] ?? 'false') !== 'false',
+            'origins' => $gelesen['lists'][Unattended::ORIGINS] ?? [],
+            'managed' => is_file(Unattended::FILE),
+            'setters' => Unattended::setters($this->aptConfigFiles(), Unattended::ENABLE),
+            'last' => $this->stamps(),
+        ];
+    }
+
+    /**
+     * Die Fragmente unter `apt.conf.d`, Pfad zu Inhalt.
+     *
+     * Nur für die **Erklärung**, welche Datei einen Schlüssel setzt — der Wert
+     * kommt aus `apt-config dump`.
+     *
+     * @return array<string,string>
+     */
+    private function aptConfigFiles(): array
+    {
+        $dateien = [];
+
+        foreach (glob(self::APT_CONF_DIR.'/*') ?: [] as $pfad) {
+            if (is_file($pfad)) {
+                $dateien[$pfad] = (string) @file_get_contents($pfad);
+            }
+        }
+
+        return $dateien;
+    }
+
+    /**
+     * Wann die Automatik zuletzt etwas getan hat.
+     *
+     * `apt.systemd.daily` berührt je Teil eine Datei unter
+     * `/var/lib/apt/periodic` (Zeilen 450 und 493); mehr als ihr Änderungsdatum
+     * steht darin nicht. `null` heisst „noch nie" — und das ist auf einem
+     * frisch aufgesetzten Server die Wahrheit und kein Fehler.
+     *
+     * @return array<string, null|int>
+     */
+    private function stamps(): array
+    {
+        $stand = [];
+
+        foreach (Unattended::STAMPS as $name => $pfad) {
+            $zeit = @filemtime($pfad);
+            $stand[$name] = $zeit === false ? null : $zeit;
+        }
+
+        return $stand;
     }
 
     /**

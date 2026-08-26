@@ -232,6 +232,23 @@ Route::middleware('auth')->group(function (): void {
         ->name('updates.install');
 
     /*
+     * Die unbeaufsichtigten Updates schalten — A1 Schritt 8.
+     *
+     * **`PUT`, weil ein Zustand gesetzt wird** und nicht etwas ausgelöst: Ein
+     * zweiter Aufruf mit demselben Wert lässt den Server, wie er ist.
+     *
+     * **Der Wahrheitswert steht im Rumpf und nicht in der Adresse** — dort
+     * wird aus `false` das Wort `"false"`, und Laravels Regel `boolean` nimmt
+     * kein Wort (`docs/66`).
+     *
+     * **`can:operate-server`:** `docs/81 §3` Frage 2 gibt das Schalten der
+     * Automatik ausdrücklich nur dem Betreiber.
+     */
+    Route::put('/updates/unattended', [UpdatesController::class, 'unattended'])
+        ->middleware('can:operate-server')
+        ->name('updates.unattended');
+
+    /*
      * Den Server neu starten — A1 Schritt 7, zweite Hälfte.
      *
      * **`/server/reboot` und nicht `/updates/reboot`.** Der Anlass steht an

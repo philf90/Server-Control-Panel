@@ -3046,7 +3046,19 @@ tr:has(td.multiline) > td {
 :is(.field, .hint, .error, .scrolls, .pager, .cell-value, .button-row, .section-note) + .notice,
 .button-row + .quiet,
 .quiet + .notice,
-.quiet + .scrolls {
+.quiet + .scrolls,
+
+/*
+ * **Und beim siebten Mal war es die Automatik.**
+ *
+ * Auf der Updates-Seite steht seit dem 26. August eine Tabelle unmittelbar
+ * unter der Knopfreihe, die sie schaltet. Dieselbe Fuge, ein achter Name —
+ * und gemeldet hat es wieder der Wächter darunter und nicht das Auge.
+ *
+ * > **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit
+ * > der nächsten Ergänzung.**
+ */
+.button-row + .scrolls {
   margin-top: var(--block-gap);
 }
 

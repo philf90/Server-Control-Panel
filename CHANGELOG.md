@@ -21250,3 +21250,104 @@ an „Alle installieren" als an dem Satz, der ihn erklärt.
 
 > **Nähe ist eine Aussage über Zusammengehörigkeit, und sie gilt auch dann,
 > wenn sie niemand gemeint hat.**
+
+### A1 Schritt 8 — die unbeaufsichtigten Updates, und wer den Hauptschalter hält
+
+Die Updates-Seite hat einen vierten Bereich: was die Automatik von apt
+**wirklich** tut. `system.packages.unattended` schaltet sie.
+
+**Der wirksame Zustand hat fünf Teile**, und keiner davon steht in unserer
+Datei: ob `unattended-upgrades` installiert ist, der Hauptschalter
+`APT::Periodic::Enable`, die beiden Abstände in Tagen, und die Zeitgeber, die
+das tägliche Skript überhaupt anstossen. Gelesen wird über `apt-config dump` —
+apts eigene aufgelöste Sicht, so wie `apt-get indextargets` es für die Quellen
+ist.
+
+**Warum das nicht anders geht, steht live in diesem Container.**
+`/etc/apt/apt.conf.d/20auto-upgrades` sagt für **beide** Teilschalter `1`, und
+die Automatik läuft nicht: `docker-disable-periodic-update` setzt den
+Hauptschalter auf `0`, und `/usr/lib/apt/apt.systemd.daily` steigt daran in
+Zeile 358 aus, bevor es die anderen liest.
+
+> **Eine Auskunft aus der eigenen Datei ist keine über den wirksamen Zustand.**
+
+**Und die Regel, die überall steht, ist falsch.** „Eine Datei mit hoher Nummer
+gewinnt" — gemessen sortiert apt nach **ASCII**, und Ziffern stehen vor
+Buchstaben:
+
+    99-probe (Enable "7")  →  dump sagt "0"   (verloren)
+    zz-probe (Enable "7")  →  dump sagt "7"   (gewonnen)
+    ohne Prüfkörper        →  dump sagt "0"   (Gegenprobe)
+
+Die Datei des Panels heisst deshalb `zz-srvpanel-unattended`. Das ist ein
+Versuch und keine Zusage — die Zusage ist, dass die Operation nach dem
+Schreiben **nachliest** und abbricht, wenn der wirksame Wert nicht der gewollte
+ist. Sie nennt dann die Dateien, die denselben Schlüssel setzen, in der
+Ordnung, in der apt sie liest.
+
+> **Ein Namensschema, das „zuletzt" bedeuten soll, bedeutet es nur, solange
+> niemand einen Buchstaben davorschreibt.**
+
+> **Erfolg wird gelesen, nicht geglaubt.**
+
+**Eine fehlende Zeile heisst „an".** `apt.systemd.daily` setzt
+`AutoAptEnable=1  # default is yes`. Ein Leser, der aus dem Fehlen auf „aus"
+schlösse, meldete eine abgeschaltete Automatik auf jedem frisch aufgesetzten
+Server.
+
+> **Eine Vorgabe, die nirgends steht, steht im Programm — und nur dort.**
+
+**Zwei Einstellungen, verschieden scharf** (Frage 4 aus `docs/81 §3`): Die
+Paketlisten aufzufrischen bleibt an, auch wenn der Schalter aus ist — eine
+Zahl, die drei Wochen alt ist, ist schlimmer als keine. Unbeaufsichtigt zu
+installieren ist die scharfe Hälfte und folgt dem Schalter. Gemessen gegen
+echtes apt, beide Richtungen:
+
+    eingeschaltet   Enable 1 · Listen 1 · unbeaufsichtigt 1
+    ausgeschaltet   Enable 1 · Listen 1 · unbeaufsichtigt 0
+
+**Von selbst neu gestartet wird nie** — `Automatic-Reboot` steht in beiden
+Fassungen auf `false`.
+
+**Die Herkünfte setzt das Panel nicht, es zeigt sie.** Der Plan nahm an, die
+Vorgabe sei `${distro_id}:${distro_codename}-security`; gemessen sind es vier,
+darunter die Release-Tasche und zwei ESM-Herkünfte. Der Schluss hält — das
+eigene Depot ist nicht dabei —, die Prämisse war zu eng. Sie zu verengen wäre
+eine Richtlinienentscheidung im Namen des Betreibers.
+
+**Und der Weg zurück steht in der Paketierung.** Der Schalter entfernt die
+Datei nicht; ausgeschaltet hält sie weiterhin den Hauptschalter. Beim `purge`
+nimmt `postremove.sh` sie mit — sonst bliebe eine Datei liegen, die apt weiter
+liest, während das Panel, das sie geschrieben hat, fort ist. Die Lücke aus
+`docs/35`, diesmal vermieden statt später gefunden.
+
+### Ein Bruchskript, das sich nicht einliest, prüft nichts
+
+`tests/waechter-brechen.sh` liess sich eine halbe Stunde lang nicht von `bash`
+parsen, und **acht Prüfungen darüber blieben grün**: Jeder Eingriff fand seine
+Zielstelle, jeder Python-Block war gültig, jede Prüfung nannte einen Test, den
+es gibt. Nur ausführen liess sich das Ganze nicht.
+
+Die Ursache war eine Überschrift mit einem deutschen Anführungszeichen — die
+schliessende ist ein gewöhnliches `"` und beendet in einer Shell die
+Zeichenkette. Die vier Überschriften daneben schreiben `\"`; eine Gewohnheit,
+an die sich vier Stellen halten, ist trotzdem keine Regel, solange die fünfte
+sie brechen darf.
+
+> **Ein Bruchskript, das sich nicht einliest, prüft keine einzige Regel — und
+> jede Prüfung darüber bleibt grün.**
+
+`BreakScriptTest` fährt seitdem `bash -n` über das Skript, mit einer
+Gegenprobe an einer Wegwerfdatei: Der Eingriff dazu müsste das Bruchskript
+selbst verändern, und das nimmt der Rückweg zu Recht aus.
+
+### Und ein Satzbau, den nur das Bild gefunden hat
+
+Auf dem Bild stand „Den Hauptschalter setzt **1 diese Datei**". `counted()`
+setzt die Zahl **vor** das Wort — hier gehört sie in den Satzbau („setzt eine
+Datei" gegen „setzen zwei Dateien"). Es ist dieselbe Ursache wie beim `:count`
+zwei Schritte vorher, in ihrer zweiten Gestalt: nicht ein Platzhalter zu viel,
+sondern eine Zahl an der falschen Stelle.
+
+> **Ein Baustein, der die Zahl selbst setzt, passt nur in Sätze, die mit ihr
+> anfangen.**

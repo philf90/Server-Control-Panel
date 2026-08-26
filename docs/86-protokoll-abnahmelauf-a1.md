@@ -622,4 +622,66 @@ Derselbe Satz wie in `docs/78`, wo der erste Griff in
 hätte die Antwort im Quelltext gestanden, und beide Male ist zuerst getippt
 worden.
 
+---
+
+### Punkt 9b — geschaltet, und der wirksame Zustand folgt · **erfüllt**
+
+Vorgang **693**, `system.packages.unattended`, Argumente `{"enabled": false}`,
+Zustand `fertig`, Ausgabe **„ausgeschaltet"**, 20:38:17 begonnen und beendet.
+
+Danach aus **apts** Sicht:
+
+    APT::Periodic::Unattended-Upgrade "0"     ← vorher "1"
+    APT::Periodic::Enable "1"                 ← vorher gar nicht aufgeführt
+    /etc/apt/apt.conf.d/zz-srvpanel-unattended   550 Bytes, Aug 26 20:38
+
+**Die Seite zeigt, was `apt-config dump` zeigt**, und nicht den Inhalt der
+eigenen Datei. Das ist der Kern des Punktes, und er hält.
+
+---
+
+**Beobachtung 6 — beim Ausschalten ist ein Schalter angegangen.**
+
+`APT::Periodic::Enable` stand vor dem Griff in `apt-config dump` **überhaupt
+nicht** (nur `APT::Periodic ""`), danach auf `1`. Der Betreiber hat „die
+unbeaufsichtigten Updates aus" verlangt und bekommen — und dazu einen zweiten
+Schalter gesetzt, nach dem er nicht gefragt hat.
+
+Hier ist es folgenlos: Ohne die Zeile gilt die Vorgabe, und die ist `1`. Der Fall,
+in dem es zählt, ist der umgekehrte — ein Betreiber, der die periodische
+Maschinerie bewusst auf `0` gestellt hat, bekäme sie durch einen Griff an einem
+anderen Schalter zurück.
+
+> **Ein Schalter, der einen zweiten mitnimmt, ist von aussen nicht als zwei
+> Handlungen zu erkennen.**
+
+Ob das gewollt ist, entscheidet der Inhalt der Datei; 550 Bytes sind mehr als
+zwei Zeilen. **Ungemessen und benannt.**
+
+---
+
+**Der Aufruf des Agenten ist gelesen, nicht vermutet.**
+`/var/log/srvpanel/agent.log`:
+
+    "command":["/usr/bin/apt-get","-s","dist-upgrade"],"code":0
+    "command":["/usr/bin/apt-get","-s","upgrade"],"code":0
+    "command":["/usr/bin/apt-get","indextargets"],"code":0
+
+Blank, ohne Zusatzoption, ein Paar je `system.packages.list`. **Vierte Vermutung
+zum Unterschied 11 gegen 4, und die vierte Fehlanzeige.**
+
+Der Log gibt dazu die Zeiten in UTC: Eine Seite hat um `18:28:02Z` gerendert,
+also **20:28:02 CEST** — neunundzwanzig Sekunden vor der Shell-Messung von
+20:28:31, die vier ergab. Damit ist **Zeit als Erklärung ausgeschlossen**: Es ist
+derselbe Index in derselben Minute.
+
+Was übrig bleibt und noch nicht gemessen ist: der **Sandkasten** der Unit.
+`srvpanel-agentd.service` läuft mit `PrivateTmp`, `RestrictNamespaces`,
+`ProtectKernelTunables`, `ProtectControlGroups`, `LockPersonality` und
+`MemoryDenyWriteExecute` — und das ist genau das, was ein `env -i` aus einer
+Anmeldeschale **nicht** nachstellen kann.
+
+> **Eine Gegenprobe, die den Prüfling aus einer anderen Umgebung heraus ruft,
+> misst die andere Umgebung mit.**
+
 <!-- Wird während des Laufs weitergefüllt. -->

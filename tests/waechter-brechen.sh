@@ -17227,6 +17227,177 @@ pruefe "Abhaengigkeit ohne Begruendung" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FrontendDependencyTest passed
 
+echo "── ReleaseChannelTest: die Freigabenotiz wird wieder eine feste Zeile ──"
+#
+# Der Fehler, gegen den der Waechter gebaut ist: `--notes "Siehe CHANGELOG.md."`
+# — und der CHANGELOG fuehrte seit P0 nur [Unbereinigt], also keinen Abschnitt
+# zu irgendeiner Fassung. Der Verweis ging ins Leere, und gemerkt hat es
+# niemand, weil eine Freigabe ohne Verhaltensaenderung die Luecke nicht
+# spuerbar macht.
+vorher_datei .github/workflows/release.yml
+python3 - <<'PY2'
+p = '.github/workflows/release.yml'
+s = open(p, encoding='utf-8').read()
+alt = '              --notes-file "${RUNNER_TEMP}/notes.md" \\'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, '              --notes "Siehe CHANGELOG.md." \\', 1))
+PY2
+griff_datei .github/workflows/release.yml "Feste Freigabenotiz" &&
+pruefe "Feste Freigabenotiz" \
+  ReleaseChannelTest::test_the_release_notes_come_from_the_tag failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ReleaseChannelTest passed
+
+echo "── ReleaseChannelTest: der zweite Anlauf laesst die Notiz stehen ──"
+#
+# Gibt es das Release schon, laedt der Lauf die Dateien mit --clobber nach.
+# Taete er nur das, bliebe die Notiz des ersten Anlaufs stehen — zwei Wege, die
+# dieselbe Fassung veroeffentlichen und verschieden ueber sie Auskunft geben.
+vorher_datei .github/workflows/release.yml
+python3 - <<'PY2'
+p = '.github/workflows/release.yml'
+s = open(p, encoding='utf-8').read()
+alt = '            gh release edit "${GITHUB_REF_NAME}" --notes-file "${RUNNER_TEMP}/notes.md"\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei .github/workflows/release.yml "Notiz nur auf einem Weg" &&
+pruefe "Notiz nur auf einem Weg" \
+  ReleaseChannelTest::test_both_paths_publish_the_notes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ReleaseChannelTest passed
+
+echo "── ReleaseChannelTest: der Waechter ueber die Notiz wird nicht gerufen ──"
+#
+# Die Luecke, die dieses Projekt kennt: fertig gebaut, von nichts aufgerufen.
+# Ohne den Aufruf reicht der Lauf die Botschaft ungeprueft durch, und ein Tag
+# ohne Botschaft ergaebe ein Release ohne Notiz.
+vorher_datei .github/workflows/release.yml
+python3 - <<'PY2'
+p = '.github/workflows/release.yml'
+s = open(p, encoding='utf-8').read()
+alt = ('          packaging/release-notes.sh "${{ steps.release.outputs.version }}" \\\n'
+       '            < "${RUNNER_TEMP}/tag-message" > "${RUNNER_TEMP}/notes.md"')
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, '          cp "${RUNNER_TEMP}/tag-message" "${RUNNER_TEMP}/notes.md"', 1))
+PY2
+griff_datei .github/workflows/release.yml "Notiz-Waechter ungerufen" &&
+pruefe "Notiz-Waechter ungerufen" \
+  ReleaseChannelTest::test_the_release_notes_come_from_the_tag failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ReleaseChannelTest passed
+
+echo "── ReleaseChannelTest: eine leere Botschaft wird durchgelassen ──"
+#
+# Ein leichtgewichtiger Tag hat gar kein Tag-Objekt; die Botschaft kommt dann
+# leer beim Waechter an. Laesst er sie durch, entsteht ein Release, dessen
+# Notiz aus einer Leerzeile besteht.
+vorher_datei packaging/release-notes.sh
+python3 - <<'PY2'
+p = 'packaging/release-notes.sh'
+s = open(p, encoding='utf-8').read()
+alt = 'if [ -z "$BARE" ]; then'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if false; then', 1))
+PY2
+griff_datei packaging/release-notes.sh "Leere Botschaft durchgelassen" &&
+pruefe "Leere Botschaft durchgelassen" \
+  ReleaseChannelTest::test_a_tag_message_must_say_something failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ReleaseChannelTest passed
+
+echo "── ReleaseChannelTest: eine Botschaft aus nur der Fassung wird durchgelassen ──"
+#
+# `git tag -a v0.7.1-rc.4 -m 0.7.1-rc.4` ist der wahrscheinlichste Griff, wenn
+# es schnell gehen soll. Die Fassung steht im Titel des Releases schon; als
+# Notiz sagt sie nichts.
+vorher_datei packaging/release-notes.sh
+python3 - <<'PY2'
+p = 'packaging/release-notes.sh'
+s = open(p, encoding='utf-8').read()
+alt = 'if [ "$BARE" = "$VERSION" ] || [ "$BARE" = "v${VERSION}" ]; then'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if false; then', 1))
+PY2
+griff_datei packaging/release-notes.sh "Nur die Fassung durchgelassen" &&
+pruefe "Nur die Fassung durchgelassen" \
+  ReleaseChannelTest::test_a_tag_message_must_say_something failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ReleaseChannelTest passed
+
+echo "── ReleaseChannelTest: die Notiz kommt veraendert heraus ──"
+#
+# Der Waechter prueft nicht nur, dass etwas durchkommt, sondern dass es
+# dasselbe ist. Ein Skript, das am Text mitschreibt, veroeffentlichte etwas
+# anderes, als im Tag steht — und der Tag ist die Quelle, an der man es
+# nachliest.
+vorher_datei packaging/release-notes.sh
+python3 - <<'PY2'
+p = 'packaging/release-notes.sh'
+s = open(p, encoding='utf-8').read()
+alt = "printf '%s\\n' \"$NOTES\""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "printf '%s\\n' \"Siehe CHANGELOG.md.\"", 1))
+PY2
+griff_datei packaging/release-notes.sh "Notiz veraendert" &&
+pruefe "Notiz veraendert" \
+  ReleaseChannelTest::test_a_tag_message_must_say_something failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ReleaseChannelTest passed
+
+echo "── ReleaseChannelTest: die Tabelle faellt auf Annahmen zusammen ──"
+#
+# Der Pruefkoerper. Bliebe von den Ablehnungsfaellen nichts uebrig, liefe die
+# Tabelle weiter gruen und haette ueber die Abweisung nichts gesagt.
+#
+# Beim Bauen war dieser Eingriff einmal stumpf: Sein erster Ausdruck verschluckte
+# den Umbruch zwischen benachbarten Zeilen und traf deshalb nur jede zweite —
+# uebrig blieben genau die drei, die der Waechter verlangt.
+#
+# > Ein Eingriff, der die Regel nur bis an ihre Grenze verletzt, verletzt sie
+# > nicht.
+vorher_datei tests/Feature/ReleaseChannelTest.php
+python3 - <<'PY2'
+import re
+p = 'tests/Feature/ReleaseChannelTest.php'
+s = open(p, encoding='utf-8').read()
+# Nicht 'leer' — das steht auch in der Tabelle der Fassungen, und ein Eingriff,
+# der zwei Tabellen trifft, sagt ueber keine von beiden etwas.
+muster = (r"(?m)^ +'(nur ein Umbruch|nur Leerraum|nur die Fassung|"
+          r"nur die Fassung mit v|die Fassung mit Leerraum drum)' => \[.*\n")
+neu, n = re.subn(muster, '', s)
+assert n == 5, 'Zielstellen nicht vollzaehlig (%d statt 5) — der Bruch waere blind' % n
+open(p, 'w', encoding='utf-8').write(neu)
+PY2
+griff_datei tests/Feature/ReleaseChannelTest.php "Tabelle ohne Abweisung" &&
+pruefe "Tabelle ohne Abweisung" \
+  ReleaseChannelTest::test_the_table_covers_both_outcomes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ReleaseChannelTest passed
+
+echo "── ReleaseChannelTest: der Kommentar-Abstreifer ist tragend ──"
+#
+# Ohne ihn liest der Waechter den Kommentar mit, der den Befund erklaert — dort
+# steht `--notes "Siehe CHANGELOG.md."` als Zitat. Er meldete dann die behobene
+# Datei, und wer ihn gebaut hat, schaltet ihn ab. Genau so ist es beim ersten
+# Durchgang passiert.
+vorher_datei tests/Support/WithoutHashComments.php
+python3 - <<'PY2'
+p = 'tests/Support/WithoutHashComments.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if (preg_match('/^\\s*#/', $line) === 1) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '            if (false) {', 1))
+PY2
+griff_datei tests/Support/WithoutHashComments.php "Rauten-Abstreifer entfernt" &&
+pruefe "Rauten-Abstreifer entfernt" \
+  ReleaseChannelTest::test_the_release_notes_come_from_the_tag failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ReleaseChannelTest passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

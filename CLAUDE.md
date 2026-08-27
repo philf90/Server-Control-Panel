@@ -21,13 +21,23 @@ DNS.
 Protokoll **`docs/84`**. Im selben Lauf sind **A1 Schritt 1** (Punkt 11, M5 auf
 einem echten Server) und **A5** (Punkt 12) belegt.
 
-**P7b ist damit nicht fertig.** Von **A1** sind die Schritte 0 bis 9 gebaut
-(`docs/81 §9`) — **offen ist Schritt 10, der Abnahmelauf**: Er steht seit dem
-26. August als **`docs/85`** ausgeschrieben da und ist **nicht gefahren**. Ohne
-ihn ist A1 nicht abgenommen, und zwar aus einem Grund, der in seinem Punkt 5
-steht: Dass eine transiente Unit den Neustart von `srvpanel-worker` überlebt,
-wenn `srvpanel` selbst im Lauf steckt, behauptet dieses Projekt seit P0 und
-belegt hat es nur der eigene Gebrauch.
+**Der Abnahmelauf von A1 ist am 27. August 2026 gefahren** — auf `cloudsrv24`
+gegen `0.7.2-rc.3`, alle fünfzehn Punkte aus `docs/85`, das Protokoll ist
+**`docs/86`**. Die beiden Ausfälle sind genau die, die `docs/85 §6` zulässt
+(Punkt 4 ohne ablaufenden Schlüssel, Punkt 2 ohne Neuinstallation im Bestand).
+**Die Abnahme selbst ist eine Entscheidung des Betreibers und steht aus**; was
+ihr gegenübersteht, zählt `docs/86 §5` auf.
+
+**Punkt 5 ist der Grund, dass es diesen Lauf gab, und er ist zweifach belegt.**
+Dass eine transiente Unit den Neustart von `srvpanel-worker` überlebt, wenn
+`srvpanel` selbst im Lauf steckt, behauptet dieses Projekt seit P0 und belegt
+hatte es nur der eigene Gebrauch. Jetzt steht es auf zwei unabhängigen Wegen da:
+einmal durch den Neustart aus dem eigenen postinst-Skript, einmal durch
+`needrestart` in einem Lauf, in dem `srvpanel` gar nicht vorkam — dort traf es
+zusätzlich den Agenten.
+
+> **Ein Beleg, der zweimal auf verschiedenen Wegen entsteht, ist keine
+> Wiederholung — der zweite schliesst aus, dass der erste an seinem Weg hing.**
 
 Ebenfalls offen und benannt: die **Rollenteilung** aus `docs/81 §3` Frage 2 (die
 Updates-Seite gehört ganz dem Betreiber, `docs/81 §2.3h`); A3, A4 und A7 haben
@@ -954,14 +964,18 @@ Seite.** Das Theme wurde über `emulateMedia({ colorScheme })` umgestellt —
 Dazu: Ein leeres `schiebt` bedeutet erst etwas, wenn `rollt` daneben steht. Der
 erste Lauf gab nur das erste aus.
 
-**Was offen bleibt und benannt ist:** Teil 3 von M5 — `panel.update` liest nach
-dem Neustart seine eigene Fassung nach — hängt an Schritt 6 und steht bis dahin
-als Ausnahme in `AptResultTest`. **Schritt 0 ist nicht gefahren:** Die Messrunde
-fehlt auf Debian 12, Debian 13 und Ubuntu 22.04, und vier Fälle kamen im
-Container nicht vor (ein zurückgehaltenes Paket, ein Schlüssel **mit** Ablauf,
-eine Neuinstallation in `dist-upgrade`, ein `Requested-By`). Und **die Abnahme
-von Schritt 1 steht aus** — sie gehört auf einen echten Server. Im Container ist
-der Durchstich gegen echte apt-Ausgabe belegt, mehr nicht.
+**Was davon offen war, ist es nicht mehr** — und das stand hier bis zum
+27. August 2026 falsch. Teil 3 von M5 hing an Schritt 6 und ist mit ihm gebaut;
+die Ausnahme in `AptResultTest` ist fort. Die Messrunde auf Debian 12, Debian 13
+und Ubuntu 22.04 fährt der CI-Job `apt-messrunde`, samt der vier Fälle, die im
+Container nicht vorkamen — `docs/85 §5` führt sie ausdrücklich als „wer sie hier
+noch einmal misst, misst die CI". Und die Abnahme von Schritt 1 ist über Punkt 3
+des Abnahmelaufs belegt: `rc=0` bei toter Quelle, auf einem echten Server.
+
+> **Eine Zeile, die einen Zustand behauptet, veraltet ohne Vorwarnung — und
+> nichts prüft sie.** `DocLinkTest` hält, dass eine genannte Datei existiert,
+> nicht, dass stimmt, was über sie gesagt wird. Wer eine Stufe abschliesst,
+> liest die Sätze nach, die sie offen nannten.
 
 ---
 
@@ -969,7 +983,8 @@ der Durchstich gegen echte apt-Ausgabe belegt, mehr nicht.
 
 Die Schritte 3, 5 und 7 aus `docs/82` sind gebaut und zusammen mit A1 und A5 als
 **`v0.7.1-rc.1`** freigegeben. Der Abnahmelauf steht als **`docs/83`** und ist
-**nicht gefahren** — die Stufe ist damit nicht abgenommen.
+**am 25. August 2026 gefahren**; das Protokoll ist `docs/84`, und die Stufe ist
+seitdem abgenommen — der Abschnitt darunter beschreibt den Stand beim Bauen.
 
 **Schritt 3, die Kontenverwaltung.** Ein zweites Adminkonto entsteht ohne SSH;
 bis dahin war `srvpanel admin` der einzige Weg, und der braucht root — also
@@ -1569,17 +1584,21 @@ Adminfunktionen im Besonderen gilt, und was der neuen Sitzung mitzugeben ist.
 Sie ersetzt den Plan der Adminfunktionen nicht — der ist anderswo entstanden.
 
 Und aus P7b: **`85` der Abnahmelauf für A1** — fünfzehn Punkte auf einem echten
-Server, **noch nicht gefahren**. Punkt 5 ist der Grund, dass es ihn gibt: Dass
-eine transiente Unit den Neustart von `srvpanel-worker` überlebt, wenn `srvpanel`
-selbst im Lauf steckt, **behauptet dieses Projekt seit P0** und belegt hat es nur
-der eigene Gebrauch. §5 sagt, was der Lauf ausdrücklich nicht prüft, §6, welche
-zwei Punkte als „nicht messbar" ausfallen dürfen und welcher nicht, §7 was danach
-zu bauen bleibt. · **`80` die Bestandsaufnahme** · **`81` der Plan** (A1 vollständig,
+Server, **gefahren am 27. August 2026**. Punkt 5 ist der Grund, dass es ihn gibt:
+Dass eine transiente Unit den Neustart von `srvpanel-worker` überlebt, wenn
+`srvpanel` selbst im Lauf steckt, **behauptet dieses Projekt seit P0** und belegt
+hatte es nur der eigene Gebrauch. §5 sagt, was der Lauf ausdrücklich nicht prüft,
+§6, welche zwei Punkte als „nicht messbar" ausfallen dürfen und welcher nicht, §7
+was danach zu bauen bleibt — und **`86` das Protokoll dazu**: die fünfzehn Punkte
+mit ihren gemessenen Werten, vierzehn Befunde und siebzehn Beobachtungen, und in
+**§5** die Bilanz mit dem, was zwischen „gemessen" und „abgenommen" steht. Darin
+eine Familie, die als drei Einzelfälle dastand: Ein Vorgang, der einen Lauf nur
+**absetzt**, meldet `fertig` und sagt über dessen Ausgang nichts. · **`80` die Bestandsaufnahme** · **`81` der Plan** (A1 vollständig,
 die übrigen als Skizze) · **`82` Rollen und Konten** — der Plan von A9, mit den
 zwei Achsen, dem Aussperrschutz und der Netzbeschränkung; §2.4 ist einmal
 berichtigt worden, weil er eine Passworterzeugung auf dem Server vorsah, die
 dieses Panel seit P1 im Browser macht — und **`83` der Abnahmelauf für A9**:
-vierzehn Punkte auf einem echten Server, **noch nicht gefahren**. Zwei davon
+vierzehn Punkte auf einem echten Server, **gefahren am 25. August 2026**. Zwei davon
 sind der Grund, dass es ihn gibt: Punkt 8 geht den Rückweg `srvpanel admin`, den
 bisher niemand gegangen ist, und Punkt 9c misst hinter dem echten nginx, ob eine
 offene Sitzung endet, wenn ihre Adresse nicht mehr zugelassen ist. §5 sagt, was

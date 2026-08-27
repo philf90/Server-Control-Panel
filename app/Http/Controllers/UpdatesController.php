@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Account;
 use App\Support\Audit\Audit;
+use App\Support\Authorization\AdminAbility;
 use App\Support\Operations\Operations;
 use App\Support\Time\Clock;
 use Carbon\Carbon;
@@ -51,9 +52,14 @@ use SrvPanel\Agent\Ops\SystemPackagesUpgrade;
  */
 final class UpdatesController extends Controller
 {
-    public function show(Client $agent): Response
+    public function show(Request $request, Client $agent): Response
     {
-        return Inertia::render('Updates/Index', $this->read($agent));
+        $account = $request->user();
+
+        return Inertia::render('Updates/Index', $this->read(
+            $agent,
+            $account instanceof Account && $account->can(AdminAbility::OPERATE_SERVER),
+        ));
     }
 
     /**
@@ -246,6 +252,47 @@ final class UpdatesController extends Controller
     }
 
     /**
+     * Die Quellenliste ohne alles, was am Schlüssel hängt.
+     *
+     * **Gesetzt wird `null` und nicht ein leeres `keys`.** Vier Stellen der
+     * Seite lesen `key`: die Spalte selbst, der Text „in der Datei" bzw. der
+     * Pfad, die Zusammenfassung der ablaufenden Schlüssel und die der nicht
+     * lesbaren. Ein leeres `keys` liesse drei davon weiterlaufen und dabei
+     * „—" zeigen — also eine Aussage über den Schlüssel, wo gar keine
+     * gemacht werden soll.
+     *
+     * > **Ein leerer Wert sagt „nichts gefunden". Ein fehlender sagt „nicht
+     * > deine Frage". Das ist nicht dasselbe.**
+     *
+     * Nebenbei zwingt `null` den Übersetzer, jede der vier Stellen zu zeigen:
+     * Der Typ auf der Seite ist nullable, und `vue-tsc` findet, was ein
+     * Mensch übersieht.
+     *
+     * @param  array<string, mixed>  $sources
+     * @return array<string, mixed>
+     */
+    private static function withoutKeys(array $sources): array
+    {
+        if (! isset($sources['files']) || ! is_array($sources['files'])) {
+            return $sources;
+        }
+
+        foreach ($sources['files'] as $i => $datei) {
+            if (! is_array($datei) || ! isset($datei['entries']) || ! is_array($datei['entries'])) {
+                continue;
+            }
+
+            foreach ($datei['entries'] as $j => $eintrag) {
+                if (is_array($eintrag)) {
+                    $sources['files'][$i]['entries'][$j]['key'] = null;
+                }
+            }
+        }
+
+        return $sources;
+    }
+
+    /**
      * Beide Operationen, und ein Ausfall trägt die Seite trotzdem.
      *
      * **Getrennt gefangen und nicht zusammen.** Die Quellen sind die
@@ -257,9 +304,31 @@ final class UpdatesController extends Controller
      * > **Zwei Fragen, die einander erklären, dürfen nicht an derselben
      * > Antwort scheitern.**
      *
+     * **Und seit dem 27. August 2026 hängt am Payload die Rollenteilung**
+     * (`docs/81 §3` Frage 2). Zwei Stellen fallen für den Administrator weg,
+     * beide gemessen (`docs/81 §2.3l`); alles Übrige bleibt — Zahlen,
+     * Paketliste, zurückgehaltene samt Grund, Conffiles und der Zustand der
+     * Automatik gehören ausdrücklich auch ihm.
+     *
+     * **1. Die Schlüssel je Quelle.** Entschieden vom Betreiber, und nicht,
+     * weil ein Fingerabdruck geheim wäre — er steht in der Dokumentation
+     * jeder Distribution und auf Schlüsselservern. Ein Vertrauensanker ist
+     * nicht der Gegenstand des Administrators; wer ihn nicht schalten darf,
+     * muss ihn auch nicht lesen.
+     *
+     * > **Eine Angabe, die man weder braucht noch ändern darf, ist keine
+     * > Auskunft — sie ist eine Einladung, sie doch zu benutzen.**
+     *
+     * **2. Der Anteil für den Neustart.** `/server/reboot` bleibt beim
+     * Betreiber, also darf der Knopf gar nicht erst erscheinen
+     * (`AbilityReachTest`). Der Rechnername darin ist kein Geheimnis — er
+     * steht im Zertifikat und in der Adresszeile —, aber ein Wert, der nur da
+     * ist, weil ein Knopf ihn braucht, geht mit dem Knopf.
+     *
+     * @param  bool  $operator  Darf der Betrachter am Server drehen?
      * @return array<string, mixed>
      */
-    private function read(Client $agent): array
+    private function read(Client $agent, bool $operator): array
     {
         $packages = null;
         $sources = null;
@@ -294,6 +363,10 @@ final class UpdatesController extends Controller
             }
         }
 
+        if (! $operator && is_array($sources)) {
+            $sources = self::withoutKeys($sources);
+        }
+
         return [
             'packages' => $packages,
             'sources' => $sources,
@@ -306,7 +379,7 @@ final class UpdatesController extends Controller
              * Quellen, eine Handlung, und beide Male steht sie neben ihrem
              * Anlass statt in einem Menü.
              */
-            'reboot' => ServerController::prompt(),
+            'reboot' => $operator ? ServerController::prompt() : null,
 
             /*
              * **Hier stand eine `page_size` aus {@see Page::SIZE}, und sie ist

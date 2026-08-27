@@ -19138,6 +19138,156 @@ pruefe "Pfad ohne Deckung" \
   ShellCheckReachTest::test_every_path_the_step_names_covers_something failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ShellCheckReachTest passed
+echo
+echo "── OperatorControlTest: ein Installierknopf ohne seinen Waechter ──"
+#
+# Der Rueckfall der Rollenteilung vom 27. August 2026: Die Updates-Seite hat
+# zwei Leser — sie oeffnet sich ueber `inspect-server`, gedreht wird ueber
+# `operate-server`. Faellt das `v-if`, sieht der Administrator drei Knoepfe,
+# die ihm einen 403 einbringen.
+#
+# `AbilityReachTest` kann das nicht sehen: Er prueft die Ablage `can`, die eine
+# Seite ueber ihr eigenes Objekt schickt — diese Seite fragt die geteilte
+# `abilities`.
+vorher_datei resources/js/Pages/Updates/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Updates/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<div v-if="darfSchalten" class="button-row">\n              <button type="button" class="button primary"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '<div class="button-row">\n              <button type="button" class="button primary"'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Updates/Index.vue "Knopf ohne Waechter" &&
+pruefe "Knopf ohne Waechter" \
+  OperatorControlTest::test_a_control_for_a_stricter_route_sits_behind_its_ability failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperatorControlTest passed
+
+echo
+echo "── OperatorControlTest: die Seite liest einen Schluessel, den es nicht gibt ──"
+#
+# Ein unbekannter Schluessel in der geteilten Ablage ist wortlos `false`. Die
+# Seite saehe fuer den Betreiber aus wie fuer den Administrator — jeder Knopf
+# weg, und keine Meldung nirgends.
+#
+# Getroffen wird damit auch die Zuordnung Faehigkeit → Waechtervariable, die
+# der Test aus der Seite selbst liest: Ohne sie findet er die Variable nicht
+# mehr und haelt den Griff faelschlich fuer ungeschuetzt.
+vorher_datei resources/js/Pages/Updates/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Updates/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = "['operate-server'] === true"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "['operate_server'] === true", 1))
+PY2
+griff_datei resources/js/Pages/Updates/Index.vue "Schluessel ohne Ablage" &&
+pruefe "Schluessel ohne Ablage" \
+  OperatorControlTest::test_a_control_for_a_stricter_route_sits_behind_its_ability failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperatorControlTest passed
+
+echo
+echo "── SourceKeyFilterTest: der Filter wird nicht mehr gerufen ──"
+#
+# **Die Haelfte, die dem ersten Wurf gefehlt hat.** Der Wächter rechnete den
+# Filter nach und blieb gruen, als der Aufruf in `read()` gestrichen wurde —
+# er mass die Methode und nicht ihre Erreichbarkeit.
+vorher_datei app/Http/Controllers/UpdatesController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/UpdatesController.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (! $operator && is_array($sources)) {\n            $sources = self::withoutKeys($sources);\n        }\n\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/UpdatesController.php "Filter ohne Aufruf" &&
+pruefe "Filter ohne Aufruf" \
+  SourceKeyFilterTest::test_the_filter_is_reached_from_the_payload failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceKeyFilterTest passed
+
+echo
+echo "── SourceKeyFilterTest: der Filter laeuft fuer jeden ──"
+#
+# Die Gegenrichtung. Ohne sie bliebe der Waechter gruen, wenn jemand die
+# Bedingung streicht — dann saehe auch der Betreiber keine Schluessel mehr,
+# und das ist derselbe Fehler andersherum.
+vorher_datei app/Http/Controllers/UpdatesController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/UpdatesController.php'
+s = open(p, encoding='utf-8').read()
+alt = 'if (! $operator && is_array($sources)) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if (is_array($sources)) {', 1))
+PY2
+griff_datei app/Http/Controllers/UpdatesController.php "Filter ohne Bedingung" &&
+pruefe "Filter ohne Bedingung" \
+  SourceKeyFilterTest::test_the_filter_is_reached_from_the_payload failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceKeyFilterTest passed
+
+echo
+echo "── SourceKeyFilterTest: der Agent bekommt ein Feld dazu ──"
+#
+# **Der eigentliche Waechter.** Nicht, dass `key` faellt — das ist eine Zeile —,
+# sondern dass niemand ein Feld hinzufuegt, ohne zu entscheiden, ob der
+# Administrator es sehen darf.
+vorher_datei agent/src/Ops/SystemSourcesList.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemSourcesList.php'
+s = open(p, encoding='utf-8').read()
+alt = "                    'stanza' => $eintrag['stanza'],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = alt + "\n                    'trusted' => true,"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/SystemSourcesList.php "Feld ohne Entscheidung" &&
+pruefe "Feld ohne Entscheidung" \
+  SourceKeyFilterTest::test_the_agent_sends_no_field_this_test_does_not_know failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceKeyFilterTest passed
+
+echo
+echo "── InspectOnlyTest: der Neustart geht an jeden Admin ──"
+#
+# Der Rechnername ist kein Geheimnis. Aber ein Wert, der nur da ist, weil ein
+# Knopf ihn braucht, geht mit dem Knopf — bleibt er stehen, ist er das Stueck
+# Payload, an dem beim naechsten Merkmal niemand mehr denkt.
+vorher_datei app/Http/Controllers/UpdatesController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/UpdatesController.php'
+s = open(p, encoding='utf-8').read()
+alt = "'reboot' => $operator ? ServerController::prompt() : null,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'reboot' => ServerController::prompt(),", 1))
+PY2
+griff_datei app/Http/Controllers/UpdatesController.php "Neustart fuer jeden" &&
+pruefe "Neustart fuer jeden" \
+  InspectOnlyTest::test_the_reboot_prompt_is_the_operators_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InspectOnlyTest passed
+
+echo
+echo "── InspectOnlyTest: ein Griff der Seite verliert seine Faehigkeit ──"
+#
+# Der teuerste Rueckfall: Nicht die Anzeige ist falsch, sondern die Tuer. Der
+# Administrator darf dann wirklich installieren, und kein Bild zeigt es.
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+alt = "    Route::post('/updates/install', [UpdatesController::class, 'install'])\n        ->middleware('can:operate-server')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "    Route::post('/updates/install', [UpdatesController::class, 'install'])\n        ->middleware('can:inspect-server')"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei routes/web.php "Griff ohne Faehigkeit" &&
+pruefe "Griff ohne Faehigkeit" \
+  InspectOnlyTest::test_an_administrator_is_refused_on_every_action_of_the_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InspectOnlyTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

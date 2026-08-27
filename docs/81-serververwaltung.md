@@ -735,6 +735,11 @@ selbst schreibt (`3 upgraded, …`), und die steht im Protokoll des Laufs.
 
 ### 2.3h Was Schritt 6 offen lässt und benennt (26. August 2026)
 
+**Am 27. August 2026 gebaut** — §2.3l ist die Messrunde davor, und was daraus
+wurde, steht in §2.3m. Der Absatz darunter beschreibt den Stand von Schritt 8
+und bleibt als Begründung stehen: Er sagt, warum es ein eigener Schritt war und
+keine Zeile in diesem.
+
 **Die Rollen aus `docs/81 §3` Frage 2 sind nicht gebaut.** Dort steht, dass der
 Administrator Zahlen und Liste **sieht** und `refresh` auslösen darf; gebaut ist
 die ganze Seite als `can:operate-server`, also nur für den Betreiber. Das ist
@@ -1099,8 +1104,20 @@ hinter ihrer `can`-Ablage verschwinden müssen.
 **Die vier Bedienelemente hängen an vier Routen**, aus der Seite gemessen:
 `router.put('/updates/sources')`, `router.post('/updates/install')` (drei
 Knöpfe, ein Aufruf), `router.put('/updates/unattended')` und der
-`RebootButton`. `AbilityReachTest` verlangt für jedes, dass es gar nicht erst
-gezeigt wird, wenn der Betrachter es nicht drücken darf.
+`RebootButton`. Für jedes gilt die Regel aus A9: Ein Knopf, den der Betrachter
+nicht drücken darf, wird gar nicht erst gezeigt.
+
+> **Berichtigt am 27. August 2026, beim Bauen.** Hier stand, `AbilityReachTest`
+> *verlange* das für diese vier — er tut es nicht. Er prüft die Ablage `can`,
+> die eine Seite über ihr eigenes Objekt schickt; diese Seite fragt die
+> geteilte `abilities` und liegt damit ausserhalb seiner Reichweite. Die Regel
+> galt, der genannte Wächter hielt sie nicht.
+>
+> **Ein Wächter, den man als Deckung nennt, deckt erst, wenn man nachgesehen
+> hat, dass er hinsieht.**
+
+Gebaut wurde die Deckung deshalb mit: `OperatorControlTest` hält die Regel für
+jede Seite, deren Griffe strenger sind als sie selbst.
 
 ---
 
@@ -1185,6 +1202,85 @@ entschieden.**
 Begründungen bleiben stehen, weil eine Entscheidung ohne ihren Grund beim
 nächsten Anlass neu verhandelt wird — und weil zwei von ihnen einen Einwand
 enthalten, den man kennen muss, wenn man sie später ändern will.
+
+---
+
+### 2.3m Die Rollenteilung, gebaut (27. August 2026)
+
+Die Messung aus §2.3l hat gehalten: **zwei Routen, zwei Stellen im Payload,
+sieben Bedienelemente.** Es war kein Umbau.
+
+**Neu ist `inspect-server`** — die dritte Adminfähigkeit. `GET /updates` und
+`POST /updates/refresh` hängen daran; die vier ändernden Griffe bleiben auf
+`operate-server`. Die Voreinstellung von `AdminAbility` ist weiterhin der
+Betreiber, der Fehler fällt also zur sicheren Seite.
+
+**Aus dem Payload fallen zwei Stellen**, beide als `null` und nicht als leerer
+Wert:
+
+> **Ein leerer Wert sagt „nichts gefunden". Ein fehlender sagt „nicht deine
+> Frage". Das ist nicht dasselbe.**
+
+Vier Stellen der Seite lesen `key`; ein leeres `keys` liesse drei davon
+weiterlaufen und „—" zeigen. `null` zwingt ausserdem `vue-tsc`, jede Fundstelle
+zu nennen — es waren zehn, und die zehnte war der `RebootButton`.
+
+**Verschwinden tut die ganze Spalte und nicht ihr Inhalt** — dieselbe
+Begründung eine Ebene höher. Dasselbe für die Auswahlspalte der Paketliste: Sie
+speist ausschliesslich den Knopf „n ausgewählte installieren".
+
+**Und oben auf der Seite steht ein Satz, warum nichts geht.** `docs/46 §4`
+Kriterium 5 („ein fehlendes Bedienelement ist keine Auskunft") galt bisher je
+Zeile; hier gilt er für eine ganze Rolle. Er steht **einmal** und nicht bei
+jedem Griff — die Grenze ist keine Eigenschaft der einzelnen Handlung.
+
+#### Der Fund: der Zustand stimmte, und nichts hielt ihn
+
+`AbilityReachTest` erreicht diese Seite nicht (siehe die Berichtigung in
+§2.3l). Damit war der erste Fall der neuen Art — eine Seite, die sich unter
+einer schwächeren Fähigkeit öffnet — von keinem Wächter gedeckt.
+
+> **Ein Zustand, der stimmt und den nichts hält, ist von einem, der nicht
+> stimmt, nur durch Glück getrennt.**
+
+Drei Wächter schliessen das:
+
+| Wächter | hält | Art |
+|---|---|---|
+| `OperatorControlTest` | ein Griff zu einer strengeren Route steht in einem `v-if` auf ihre Fähigkeit | Vorlage, framework-frei |
+| `InspectOnlyTest` | vier Griffe geben dem Administrator 403 und dem Betreiber nicht; `refresh` gibt beiden auf | Wirkung an der Tür |
+| `SourceKeyFilterTest` | der Filter rechnet richtig, wird gerufen, und der Agent bekommt kein Feld ohne Entscheidung | Rechnung und Erreichbarkeit |
+
+`OperatorControlTest` liest die Zuordnung Fähigkeit → Wächtervariable **aus der
+Seite selbst**; eine Liste im Test wäre die zweite Fassung. Die Vorlage liest er
+mit einem Stapel und nicht rückwärts: Vorwärts ist jedes offene Element bekannt,
+wenn die Fundstelle kommt.
+
+`InspectOnlyTest` misst „nicht 403" und nicht „200" — diese Griffe brauchen
+einen Rumpf und einen Agenten, und ein Test, der Erfolg verlangte, prüfte den
+Agenten statt der Tür.
+
+#### Und ein Wächter, dem seine Hälfte fehlte
+
+`SourceKeyFilterTest` blieb **grün**, als der Aufruf des Filters in `read()`
+gestrichen wurde. Er mass die Methode und nicht ihre Erreichbarkeit — dieselbe
+Lücke wie bei dem Wächter aus P6, der einen Satz im Quelltext fand statt seiner
+Erreichbarkeit.
+
+> **Ein Wächter über eine Methode sagt nichts darüber, dass jemand sie ruft.**
+
+Sein Wert liegt ohnehin woanders: Er liest die Felder eines Eintrags aus
+`SystemSourcesList` und wird rot, sobald der Agent eines dazubekommt.
+
+> **Ein Filter über eine Liste, die wächst, ist eine Zusage über den Stand von
+> heute.**
+
+**Was hier nicht gemessen ist und benannt offen bleibt:** die Bilder. Die
+Ansicht des Administrators — drei Spalten weniger, sieben Griffe weniger, der
+Satz oben — ist bei 390 und 1440 px in beiden Themes **nicht** aufgenommen.
+Eine Tabelle, die Spalten verliert, ist bei 390 px eine andere Tabelle.
+
+Sieben Eingriffe stehen in `tests/waechter-brechen.sh`.
 
 ### Frage 1 — Darf das Panel eine fremde Paketquelle hinzufügen?
 

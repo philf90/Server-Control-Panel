@@ -39,9 +39,11 @@ zusätzlich den Agenten.
 > **Ein Beleg, der zweimal auf verschiedenen Wegen entsteht, ist keine
 > Wiederholung — der zweite schliesst aus, dass der erste an seinem Weg hing.**
 
-Ebenfalls offen und benannt: die **Rollenteilung** aus `docs/81 §3` Frage 2 (die
-Updates-Seite gehört ganz dem Betreiber, `docs/81 §2.3h`); A3, A4 und A7 haben
-weiterhin keine Stufe. Die sechzehn Befunde und sechs Beobachtungen des
+Die **Rollenteilung** aus `docs/81 §3` Frage 2 ist am **27. August 2026 gebaut**
+(`docs/81 §2.3m`): Die Updates-Seite gehört jetzt beiden — der Administrator
+sieht über `inspect-server`, gedreht wird über `operate-server`. **Ihre Bilder
+fehlen** und stehen dort benannt offen. A3, A4 und A7 haben weiterhin keine
+Stufe. Die sechzehn Befunde und sechs Beobachtungen des
 A9-Laufs stehen mit ihrer Baureihenfolge in `docs/84 §7`.
 
  P6 ist am **21. August 2026** auf `cloudsrv24`
@@ -1271,7 +1273,16 @@ deklariert einen Namen, der der Basisklasse gehört — er spiegelt deren
 `<style>`-Block einer `.vue` steht auf oberster Ebene und nicht im
 Vorlagenblock, wo der Übersetzer ihn wegwirft — die Regel, die
 `ClassReachTest` nicht halten konnte, weil er eine Zeichenkette suchte statt
-eines Blocks) und `ShellCheckReachTest` (jedes Shellskript unter `packaging/` kommt bei
+eines Blocks) und `OperatorControlTest` (ein Bedienelement, dessen Route strenger ist als die
+Seite selbst, steht in einem `v-if` auf ihre Fähigkeit — die Zuordnung
+Fähigkeit → Wächtervariable kommt aus der Seite und nicht aus einer Liste im
+Test, und die Vorlage wird mit einem Stapel gelesen statt rückwärts),
+`InspectOnlyTest` (dieselbe Grenze an der Tür: vier Griffe geben dem
+Administrator 403 und dem Betreiber nicht — gemessen wird „nicht 403" und nicht
+„200", sonst prüfte er den Agenten statt der Tür) und `SourceKeyFilterTest`
+(der Schlüsselfilter rechnet richtig, **wird gerufen**, und der Agent bekommt
+kein Feld dazu, ohne dass jemand entscheidet, ob der Administrator es sehen
+darf) und `ShellCheckReachTest` (jedes Shellskript unter `packaging/` kommt bei
 shellcheck vorbei, **und** jeder Pfad, den der Schritt nennt, deckt auch etwas —
 die zweite Richtung ist die, an der ein toter Eintrag wirklich entsteht) und
 `RebootConfirmTest` (der Neustart wird über `systemd-run`
@@ -2300,6 +2311,28 @@ Testen berücksichtigen:
 
     > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als
     > Null steht.**
+
+    **Und die Gegenprobe genügt nicht — gemessen am 27. August 2026.** In einer
+    Agentensitzung gibt PHPStan seinen ganzen Bericht als **eine** Zeile JSON
+    aus. Ein `grep -v 'not found'` darüber löscht dann nicht die Zeilen, die es
+    meint, sondern **den Bericht**; „nach dem Filter steht nichts mehr da" las
+    sich wie „sauber" und war „nichts gemessen". Zwei echte Meldungen über
+    fehlende Typangaben standen darin.
+
+    > **Ein Filter über eine einzeilige Ausgabe löscht nicht eine Zeile,
+    > sondern alles.**
+
+    Die Gegenprobe hat das nicht gefangen: Sie lief über eine Datei, deren
+    Bericht das gefilterte Wort zufällig nicht enthielt — der Filter schlug
+    also gar nicht zu, und die Zeile kam durch.
+
+    > **Eine Gegenprobe, die den Fall nicht enthält, in dem der Filter
+    > zuschlägt, belegt den Filter nicht.**
+
+    Gefiltert wird deshalb **nach dem Zerlegen** und nicht davor: `json.loads`
+    auf die Ausgabe, dann je Meldung über `identifier` entscheiden. Dann ist
+    „leer" auch wirklich leer, und ein `LEER` ohne Zerlegen ist eine Frage und
+    kein Ergebnis.
 
     **Und `tests/Support/` gehört in denselben Lauf wie `agent/src`.** Die
     Testdoppel dort hängen am Agenten und nicht am Framework, also läuft Stufe 6

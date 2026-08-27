@@ -21933,3 +21933,113 @@ Lauf je Endung ergibt `[alle .list][alle .sources]` — mit `docker.list` und
 > nicht.**
 
 Fünf Eingriffe stehen in `tests/waechter-brechen.sh`, alle beissend.
+
+### Die Rollenteilung der Updates-Seite — dieselbe Seite, zwei Leser
+
+`docs/81 §3` Frage 2 stand seit dem 26. August als offen benannt da: Die
+Updates-Seite gehörte ganz dem Betreiber. Sie gehört jetzt beiden — der
+Administrator **sieht** den Stand des Servers und **dreht** nicht an ihm.
+
+Der Schnitt läuft nicht durch die Seite, sondern durch die Fähigkeit. Neu ist
+`inspect-server` (die dritte Adminfähigkeit überhaupt); `GET /updates` und
+`POST /updates/refresh` hängen daran, die vier ändernden Griffe weiterhin an
+`operate-server`.
+
+**Zwei Stellen fallen aus dem Payload**, und beide sind begründet und nicht
+vorsichtshalber gestrichen: die Signaturschlüssel je Quelle und der Anteil für
+den Neustart-Knopf. Kein Fingerabdruck ist ein Geheimnis — er steht in der
+Dokumentation jeder Distribution und auf Schlüsselservern.
+
+> **Eine Angabe, die man weder braucht noch ändern darf, ist keine Auskunft —
+> sie ist eine Einladung, sie doch zu benutzen.**
+
+**Gesetzt wird `null` und nicht ein leeres `keys`.** Vier Stellen der Seite
+lesen `key`; ein leeres Feld liesse drei davon weiterlaufen und „—" zeigen, also
+eine Aussage über den Schlüssel, wo gar keine gemacht werden soll.
+
+> **Ein leerer Wert sagt „nichts gefunden". Ein fehlender sagt „nicht deine
+> Frage". Das ist nicht dasselbe.**
+
+Nebenbei zwingt `null` den Übersetzer, jede Fundstelle zu zeigen: `vue-tsc`
+nannte zehn, und die zehnte war der `RebootButton`.
+
+**Die ganze Spalte fällt weg und nicht ihr Inhalt.** Ein „—" in einer Zelle
+behauptet, es sei nachgesehen worden und nichts gefunden. Dasselbe gilt für die
+Auswahlspalte: Sie speist ausschliesslich den Knopf „n ausgewählte
+installieren", und ohne ihn ist ein Kästchen je Zeile eine Handlung, die zu
+nichts führt.
+
+**Und ein Satz oben auf der Seite sagt, warum nichts geht** — `docs/46 §4`
+Kriterium 5 gilt hier für eine ganze Rolle statt für eine Zeile. Er steht
+einmal und nicht bei jedem Griff: Die Grenze ist keine Eigenschaft der
+einzelnen Handlung, und dieselbe Begründung siebenmal wäre beim achten Griff
+vergessen.
+
+#### Der Zustand stimmte, und nichts hielt ihn
+
+`AbilityReachTest` verlangt seit A9, dass ein Knopf, den der Betrachter nicht
+drücken darf, gar nicht gezeigt wird — er prüft aber die Ablage `can`, die eine
+Seite über ihr eigenes Objekt schickt. Diese Seite fragt die geteilte
+`abilities`, und damit lag der erste Fall der neuen Art ausserhalb seiner
+Reichweite.
+
+> **Ein Zustand, der stimmt und den nichts hält, ist von einem, der nicht
+> stimmt, nur durch Glück getrennt.**
+
+`OperatorControlTest` schliesst das: Er liest je Seite, welche Fähigkeit ihre
+eigene Route verlangt, welche Griffe sie auslöst und was **deren** Routen
+verlangen — und besteht darauf, dass ein Bedienelement zur strengeren Route
+innerhalb eines `v-if` auf die strengere Fähigkeit steht. Die Zuordnung
+Fähigkeit → Wächtervariable kommt aus der Seite selbst; eine Liste im Test wäre
+die zweite Fassung, und die zweite veraltet.
+
+Gelesen wird die Vorlage mit einem **Stapel** und nicht rückwärts: Vorwärts ist
+jedes offene Element bekannt, wenn die Fundstelle kommt.
+
+`InspectOnlyTest` misst dieselbe Grenze an der Tür — vier Griffe geben dem
+Administrator 403, dem Betreiber nicht, und `/updates/refresh` gibt beiden auf.
+Gemessen wird dort „nicht 403" und nicht „200": Diese Griffe brauchen einen
+Rumpf und einen Agenten, und ein Test, der Erfolg verlangte, prüfte den Agenten
+statt der Tür.
+
+#### Ein Wächter über eine Methode sagt nichts darüber, dass jemand sie ruft
+
+`SourceKeyFilterTest` rechnete den Filter nach — und blieb **grün**, als der
+Aufruf in `read()` gestrichen wurde. Er mass die Methode und nicht ihre
+Erreichbarkeit; dieselbe Lücke wie bei dem Wächter aus P6, der einen Satz im
+Quelltext fand statt seiner Erreichbarkeit.
+
+> **Ein Wächter über eine Methode sagt nichts darüber, dass jemand sie ruft.**
+
+Sein eigentlicher Wert steht daneben und betrifft nicht `key`: Er liest die
+Felder eines Eintrags aus `SystemSourcesList` und wird rot, sobald der Agent
+eines dazubekommt. Dann fällt die Entscheidung — darf der Administrator es
+sehen? — beim Bauen und nicht bei einem Abnahmelauf.
+
+> **Ein Filter über eine Liste, die wächst, ist eine Zusage über den Stand von
+> heute.**
+
+Sieben Eingriffe stehen in `tests/waechter-brechen.sh`, alle beissend.
+
+#### Zwei Funde am eigenen Werkzeug
+
+**`DocblockAnchorTest` hat am Tag nach seinem Bau zweimal zugebissen**, beide
+Male an dieser Änderung: Eine neue Methode war zwischen `read()` und ihren
+Dokumentationsblock gerutscht, und in `AdminPayloadTest` stand ein zweiter Block
+unmittelbar über dem ersten. Beide Male beschrieb der obere seitdem nichts mehr,
+und PHPStan war zufrieden, weil beide dastanden.
+
+**Und ein `grep -v` hat einen ganzen PHPStan-Bericht verschluckt.** Die Ausgabe
+ist **eine** Zeile JSON; ein Filter gegen `not found` löscht damit nicht die
+Zeilen, die er meint, sondern den Bericht. „Nach dem Filter steht nichts mehr
+da" las sich wie „sauber" und war „nichts gemessen" — zwei echte Meldungen über
+fehlende Typangaben standen darin.
+
+> **Ein Filter über eine einzeilige Ausgabe löscht nicht eine Zeile, sondern
+> alles.**
+
+Gefunden hat es der zweite Lauf ohne Filter, nicht die Gegenprobe: Die hatte
+eine Datei genommen, deren Bericht das Wort zufällig nicht enthielt.
+
+> **Eine Gegenprobe, die den Fall nicht enthält, in dem der Filter zuschlägt,
+> belegt den Filter nicht.**

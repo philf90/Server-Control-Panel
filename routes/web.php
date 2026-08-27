@@ -180,7 +180,7 @@ Route::middleware('auth')->group(function (): void {
      * Lauf nicht mitnimmt.
      */
     Route::get('/updates', [UpdatesController::class, 'show'])
-        ->middleware('can:operate-server')
+        ->middleware('can:inspect-server')
         ->name('updates');
 
     /*
@@ -214,7 +214,7 @@ Route::middleware('auth')->group(function (): void {
      * mehr.
      */
     Route::post('/updates/refresh', [UpdatesController::class, 'refresh'])
-        ->middleware('can:operate-server')
+        ->middleware('can:inspect-server')
         ->name('updates.refresh');
 
     /*

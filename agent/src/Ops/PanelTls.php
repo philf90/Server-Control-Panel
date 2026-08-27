@@ -153,9 +153,18 @@ final class PanelTls implements Op
         $remaining = (int) ($parsed['validTo_time_t'] ?? 0) - time();
 
         if ($remaining <= self::RENEW_BEFORE_DAYS * 86400) {
-            return $remaining <= 0
-                ? 'es ist abgelaufen'
-                : sprintf('es läuft in %d Tagen ab', (int) ceil($remaining / 86400));
+            $tage = (int) ceil($remaining / 86400);
+
+            /*
+             * **`ceil` macht aus jeder angefangenen Stunde einen Tag**, und
+             * „in 1 Tagen" wäre damit zweimal falsch: die Mehrzahl und die
+             * Genauigkeit. Bei eins ist die Wahrheit „weniger als einer".
+             */
+            return match (true) {
+                $remaining <= 0 => 'es ist abgelaufen',
+                $tage === 1 => 'es läuft in weniger als einem Tag ab',
+                default => sprintf('es läuft in %d Tagen ab', $tage),
+            };
         }
 
         $covered = Names::fromCertificate($parsed);

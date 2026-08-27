@@ -314,4 +314,30 @@ final class UnattendedStateTest extends TestCase
     {
         return $this->withoutComments((string) file_get_contents(dirname(__DIR__, 2).'/'.$relativ));
     }
+
+    /**
+     * Aus einer Zahl von Tagen wird ein Satz und keine Mengenangabe.
+     *
+     * **Anlass ist „Listen alle 1 Tage"** aus dem Abnahmelauf zu A1 auf
+     * `cloudsrv24` (`docs/86`, Befund 11) — in der einen Meldung, die ein
+     * Betreiber liest, wenn seine Einstellung nicht wirkt.
+     *
+     * **Die Null ist der Fall, auf den es ankommt.** `apt.systemd.daily` liest
+     * `0` als „gar nicht", und „alle 0 Tage" legt das Gegenteil nahe: Es klingt
+     * nach ständig.
+     *
+     * > **Eine Zahl, die in ihrer Schreibweise das Gegenteil nahelegt, ist
+     * > schlimmer als eine falsche Mehrzahl.**
+     */
+    public function test_a_rhythm_reads_as_a_sentence(): void
+    {
+        $this->assertSame('nie', Unattended::rhythm(0));
+        $this->assertSame('täglich', Unattended::rhythm(1));
+        $this->assertSame('alle 2 Tage', Unattended::rhythm(2));
+        $this->assertSame('alle 7 Tage', Unattended::rhythm(7));
+
+        // Ein negativer Wert kommt aus einer kaputten Datei und heisst nichts
+        // anderes als null — „alle -1 Tage" wäre die schlechtere Auskunft.
+        $this->assertSame('nie', Unattended::rhythm(-1));
+    }
 }

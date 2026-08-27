@@ -15767,6 +15767,51 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AptResultTest passed
 
 echo
+echo "── CountedNounTest: die Mehrzahl klebt wieder an der Zahl (PHP) ──"
+#
+# Befund 11 aus docs/86, gesehen in der EINEN Meldung, die ein Betreiber liest,
+# wenn seine Einstellung nicht wirkt: „Listen alle 1 Tage, unbeaufsichtigt alle
+# 0 Tage". Der Waechter daneben las neun Monate lang nur .vue.
+#
+#   Ein Waechter, der eine Flaeche liest, sagt ueber die andere nichts.
+vorher_datei agent/src/Ops/SystemPackagesUnattended.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemPackagesUnattended.php'
+s = open(p, encoding='utf-8').read()
+alt = ".'Hauptschalter %s, Listen %s, unbeaufsichtigt %s. '"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, ".'Hauptschalter %s, Listen alle %d Tage, unbeaufsichtigt alle %d Tage. '", 1))
+PY2
+griff_datei agent/src/Ops/SystemPackagesUnattended.php "Mehrzahl an der Zahl in PHP" &&
+pruefe "Mehrzahl an der Zahl in PHP" \
+  CountedNounTest::test_no_php_message_glues_a_count_to_a_plural failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CountedNounTest passed
+
+echo
+echo "── UnattendedStateTest: der Rhythmus vergisst die Null ──"
+#
+# `apt.systemd.daily` liest 0 als „gar nicht". „alle 0 Tage" legt das Gegenteil
+# nahe — es klingt nach staendig.
+#
+#   Eine Zahl, die in ihrer Schreibweise das Gegenteil nahelegt, ist schlimmer
+#   als eine falsche Mehrzahl.
+vorher_datei agent/src/Unattended.php
+python3 - <<'PY2'
+p = 'agent/src/Unattended.php'
+s = open(p, encoding='utf-8').read()
+alt = "            $days <= 0 => 'nie',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Unattended.php "Rhythmus ohne die Null" &&
+pruefe "Rhythmus ohne die Null" \
+  UnattendedStateTest::test_a_rhythm_reads_as_a_sentence failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnattendedStateTest passed
+
+echo
 echo "── CountedNounTest: die Einzahl bringt ihren eigenen Artikel mit ──"
 #
 # `counted()` schreibt die Zahl davor, auch bei eins — aus „ein Paket" wird

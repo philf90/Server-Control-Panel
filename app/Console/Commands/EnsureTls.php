@@ -211,10 +211,12 @@ final class EnsureTls extends Command
             return false;
         }
 
+        $tage = intdiv($rest, 86400);
+
         $this->line(sprintf(
-            '  Die Oberfläche hat ein Zertifikat für %s, noch %d Tage gültig.',
+            '  Die Oberfläche hat ein Zertifikat für %s, noch %s gültig.',
             $name,
-            intdiv($rest, 86400),
+            $tage === 1 ? 'einen Tag' : sprintf('%d Tage', $tage),
         ));
 
         return true;

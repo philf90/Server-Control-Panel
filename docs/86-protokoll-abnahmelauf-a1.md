@@ -1222,4 +1222,93 @@ nicht einzeln.
 
 > **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr hergestellt.**
 
+---
+
+### Punkt 9 — vollständig, mitsamt der Nachlesung · **erfüllt**
+
+**Die Automatik ist wieder an.** Vorgang **700**, `{enabled: true}`, fertig,
+„eingeschaltet". Danach aus apts Sicht:
+
+    APT::Periodic::Enable "1" · Update-Package-Lists "1"
+    APT::Periodic::Unattended-Upgrade "1"
+    beide Timer wieder mit nächstem Termin (4h22min und 23h)
+
+Und der Fall, für den die Nachlesung gebaut ist, ist gemessen. Mit einer fremden
+Datei `zzz-abnahme-a1`, die `APT::Periodic::Enable "0"` setzt, meldet
+Vorgang **699** **fehlgeschlagen** bei Fortschritt **80 %**:
+
+    Die Einstellung ist geschrieben und wirkt nicht. Gewollt war „aus", apt
+    meldet: Hauptschalter aus, Listen alle 1 Tage, unbeaufsichtigt alle 0 Tage.
+    Diese Dateien setzen den Hauptschalter, und die letzte gewinnt:
+    /etc/apt/apt.conf.d/zz-srvpanel-unattended,
+    /etc/apt/apt.conf.d/zzz-abnahme-a1
+
+**Besser als die Vorschrift verlangt hat.** `docs/85` erwartet „ein Fehlschlag
+mit dem Namen `zzz-abnahme-a1`". Gekommen sind **beide** Dateien, die den
+Hauptschalter setzen, samt der Regel, welche gewinnt — der Betreiber sieht
+damit nicht nur den Störer, sondern warum er stört.
+
+Und **80 %** ist die ehrliche Zahl: Geschrieben ist geschrieben, gescheitert ist
+die Nachlesung. Ein Rückbau an dieser Stelle wäre ein zweiter Schreibvorgang,
+der selbst scheitern kann.
+
+> **Eine Auskunft aus der eigenen Datei ist keine über den wirksamen Zustand.**
+
+---
+
+**Befund 11 — „Listen alle 1 Tage", und der Wächter las nur `.vue`.**
+
+Der Satz oben ist der Beleg für Punkt 9 **und** ein Befund: In derselben
+Meldung steht „alle **1** Tage" und „alle **0** Tage". Die Null ist dabei die
+schlimmere von beiden — `apt.systemd.daily` liest `0` als **gar nicht**, und
+„alle 0 Tage" legt das Gegenteil nahe.
+
+> **Eine Zahl, die in ihrer Schreibweise das Gegenteil nahelegt, ist schlimmer
+> als eine falsche Mehrzahl.**
+
+`Unattended::rhythm()` macht daraus einen Satz: `nie` · `täglich` ·
+`alle N Tage`. Die Meldung liest sich jetzt „Hauptschalter aus, Listen täglich,
+unbeaufsichtigt nie."
+
+**Beim Auszählen kamen zwei weitere ans Licht**, beide operatorseitig und beide
+älter: „es läuft in **1 Tagen** ab" am Panelzertifikat (wo `ceil` aus jeder
+angefangenen Stunde einen Tag macht — dort ist die Wahrheit „weniger als
+einer") und „noch **1 Tage** gültig" in `srvpanel tls`.
+
+**Und `CountedNounTest` konnte keine davon sehen: Er liest ausschliesslich
+`.vue`.**
+
+> **Ein Wächter, der eine Fläche liest, sagt über die andere nichts — und meldet
+> für sie „alles in Ordnung".**
+
+Er liest jetzt auch `agent/src`, mit vier benannten Ausnahmen, deren Zahl aus
+einer Konstante kommt oder deren Zweig bei eins gar nicht erreicht wird — und
+mit der Gegenrichtung, die eine Ausnahme meldet, die nichts mehr deckt.
+
+**Was benannt offen bleibt: dreizehn Fundstellen unter `app/`.** Derselbe
+Ausdruck über `app/` meldet sie — `Acceptance`, `FileController`,
+`AuditController`, `CustomerController`, `CheckDns`. Sie gehören nicht zu A1 und
+werden nicht nebenbei mitgenommen; sie sind **gezählt**, und das ist der
+Unterschied.
+
+> **Ein Loch, das man zählt, ist kein Loch mehr — es ist eine Zahl, die kleiner
+> werden kann.**
+
+---
+
+**Beobachtung 11 — `git checkout --` hat zum dritten Mal an einem Tag Arbeit
+gekostet.**
+
+Beim Gegenprüfen eines Bruchs wurde die Datei mit `git checkout --`
+zurückgeholt — und damit auch die **eigene, noch nicht committete** Korrektur
+darin. Gefallen ist es dem Wächter auf, der danach rot blieb, obwohl der Bruch
+zurückgenommen war.
+
+Dreimal derselbe Handgriff an einem Tag heisst: Es fehlt keine Erinnerung,
+sondern eine Gewohnheit. **Gesichert wird mit `cp`, immer** — auch dann, wenn
+der Eingriff nur eine Zeile umfasst.
+
+> **Ein Rückweg, der stillschweigend etwas anderes mitnimmt, ist schlimmer als
+> keiner.**
+
 <!-- Wird während des Laufs weitergefüllt. -->

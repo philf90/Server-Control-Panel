@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
+use Tests\Support\WithoutPhpComments;
 
 /**
  * Eine Zahl und ein Wort, das nicht zu ihr passt.
@@ -31,6 +32,8 @@ use SplFileInfo;
  */
 final class CountedNounTest extends TestCase
 {
+    use WithoutPhpComments;
+
     /**
      * Mehrzahlwörter, die in dieser Oberfläche hinter einer Zahl stehen können.
      *
@@ -405,5 +408,161 @@ final class CountedNounTest extends TestCase
             preg_match($muster, "counted(n, 'Eintrag', 'Einträge')"),
             'Das Muster hält „Eintrag" für einen Artikel — es fehlt die Wortgrenze.',
         );
+    }
+
+    /**
+     * Und dieselbe Regel gilt für die Meldungen aus PHP.
+     *
+     * **Der Wächter oben las neun Monate lang nur `.vue`.** Gefunden hat den
+     * Rest der Abnahmelauf zu A1 auf `cloudsrv24` (`docs/86`, Befund 11), und
+     * zwar an der **einen** Meldung, die ein Betreiber zu sehen bekommt, wenn
+     * seine Einstellung nicht wirkt: „Hauptschalter aus, Listen alle 1 Tage,
+     * unbeaufsichtigt alle 0 Tage."
+     *
+     * > **Ein Wächter, der eine Fläche liest, sagt über die andere nichts — und
+     * > meldet für sie „alles in Ordnung".**
+     *
+     * Drei Stellen standen so da, alle drei operatorseitig: die Meldung oben,
+     * der Ablauf des Panelzertifikats und die Zeile von `srvpanel tls`.
+     *
+     * **Die Liste ist absichtlich kürzer als die für die Vorlagen.** „1 Zeichen"
+     * und „1 Treffer" sind richtiges Deutsch; ein Wort, dessen Einzahl gleich
+     * lautet, gehört hier nicht hinein, sonst meldet dieser Wächter Richtiges.
+     *
+     * > **Ein Wächter, der zu viel meldet, wird abgeschaltet.**
+     */
+    public function test_no_php_message_glues_a_count_to_a_plural(): void
+    {
+        /*
+         * **Nur Wörter, deren Einzahl anders lautet.** Alles andere wäre ein
+         * Fehlalarm auf einer richtigen Zeile.
+         */
+        $plurale = [
+            'Tage', 'Tagen', 'Zeilen', 'Einträge', 'Domains', 'Abonnements',
+            'Konten', 'Vorgänge', 'Dateien', 'Pakete', 'Quellen', 'Sekunden',
+            'Zertifikate', 'Datenbanken', 'Sicherungen', 'Zugänge', 'Spalten',
+        ];
+
+        $muster = '/%[ds]\s+(?:'.implode('|', $plurale).')\b/u';
+
+        /*
+         * **Die Ausnahmen, und jede nennt ihren Grund.** Der Ausdruck liest
+         * Text und sieht nicht, ob eine Zahl eine Konstante ist oder ob der
+         * Zweig bei eins gar nicht erreicht wird. Wo das so ist, steht es hier
+         * — mit dem Grund und nicht mit dem Dateinamen allein.
+         *
+         * > **Eine Positivliste ohne Begründung ist eine Liste von Dateien, die
+         * > jemand einmal müde war zu prüfen.**
+         */
+        $ausnahmen = [
+            'agent/src/Acme/Bundle.php' => 'MAX_CERTIFICATES ist eine Konstante grösser als eins',
+            'agent/src/Acme/Order.php' => 'die Frist ist eine Konstante in Sekunden, nie eine',
+            'agent/src/Ops/DbUserCreate.php' => 'MAX_DATABASES ist eine Konstante grösser als eins',
+            'agent/src/Pg/Console.php' => 'die Meldung entsteht nur, wenn es NICHT genau eine Zeile war — sie sagt es selbst',
+        ];
+
+        $treffer = [];
+        $gelesen = 0;
+        $gedeckt = [];
+
+        foreach ($this->phpSources() as $pfad => $quelltext) {
+            $gelesen++;
+
+            $zeilen = explode("\n", $quelltext);
+
+            foreach ($zeilen as $nummer => $zeile) {
+                if (preg_match($muster, $zeile) !== 1) {
+                    continue;
+                }
+
+                /*
+                 * **Wer die Einzahl in der Nähe entscheidet, ist fein raus** —
+                 * dieselbe Grobheit wie beim Wächter über die Vorlagen, nur
+                 * über ein Fenster statt über eine Zeile: In PHP steht die
+                 * Bedingung eines `match` oder eines Ternärs regelmässig ein
+                 * paar Zeilen über dem Zweig, der die Mehrzahl schreibt.
+                 */
+                $fenster = implode("\n", array_slice($zeilen, max(0, $nummer - 5), 6));
+
+                if (preg_match('/===\s*1\b/', $fenster) === 1) {
+                    continue;
+                }
+
+                if (array_key_exists($pfad, $ausnahmen)) {
+                    $gedeckt[$pfad] = true;
+
+                    continue;
+                }
+
+                $treffer[] = sprintf('%s:%d — %s', $pfad, $nummer + 1, trim($zeile));
+            }
+        }
+
+        // Ohne diese Zeile meldete ein kaputter Leser dieselbe leere Liste wie
+        // eine saubere Anwendung.
+        $this->assertGreaterThan(
+            30,
+            $gelesen,
+            'Es werden kaum Dateien unter agent/src gelesen — dann prüft dieser Test nichts.',
+        );
+
+        $this->assertSame(
+            [],
+            $treffer,
+            "Eine eingesetzte Zahl mit fest angehängtem Mehrzahlwort in einer Meldung:\n  ".
+            implode("\n  ", $treffer)."\n\n".
+            'Bei genau eins liest sich das als „1 Tage". Die Entscheidung über das Wort gehört '.
+            'an den Wert — und wo die Zahl null sein kann, gehört auch dieser Fall entschieden: '.
+            '„alle 0 Tage" klingt nach ständig und heisst nie.',
+        );
+
+        /*
+         * **Und die Gegenrichtung, denn dort verfällt eine Ausnahme wirklich.**
+         * Wird eine Meldung berichtigt oder fällt sie weg, deckt ihr Eintrag
+         * nichts mehr und bleibt trotzdem stehen — der nächste Leser hält ihn
+         * für eine geltende Erlaubnis.
+         */
+        $this->assertSame(
+            array_keys($ausnahmen),
+            array_keys($gedeckt),
+            'Eine Ausnahme deckt keine Fundstelle mehr — dann hebt sie nichts auf und gehört weg.',
+        );
+
+        // Die Gegenprobe: Das Muster findet die Form, gegen die es steht.
+        $this->assertSame(1, preg_match($muster, "sprintf('alle %d Tage', \$n)"));
+        $this->assertSame(0, preg_match($muster, "sprintf('alle %d Tag', \$n)"));
+        $this->assertSame(0, preg_match($muster, "sprintf('%d Zeichen', \$n)"));
+    }
+
+    /**
+     * Der Quelltext aller Meldungen — ohne Kommentare.
+     *
+     * **Die Kommentare müssen weg**, sonst meldet dieser Wächter jeden
+     * Dokumentblock, der einen früheren Fehler zitiert — und dieser hier tut
+     * das ausdrücklich.
+     *
+     * @return array<string, string>
+     */
+    private function phpSources(): array
+    {
+        $root = dirname(__DIR__, 2);
+        $gefunden = [];
+
+        foreach (['agent/src'] as $verzeichnis) {
+            /** @var SplFileInfo $datei */
+            foreach (new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($root.'/'.$verzeichnis, FilesystemIterator::SKIP_DOTS),
+            ) as $datei) {
+                if ($datei->isFile() && $datei->getExtension() === 'php') {
+                    $gefunden[str_replace($root.'/', '', $datei->getPathname())] = $this->withoutComments(
+                        (string) file_get_contents($datei->getPathname()),
+                    );
+                }
+            }
+        }
+
+        ksort($gefunden);
+
+        return $gefunden;
     }
 }

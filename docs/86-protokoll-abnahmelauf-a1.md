@@ -1892,4 +1892,85 @@ besteht.
 > **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
 > Keines von beiden ersetzt das andere.**
 
+---
+
+### Punkt 8b — Der eigene Lauf weist den zweiten ab · **erfüllt**
+
+Gemessen am 27. August 2026, 20:50 Uhr, mit drei Klicks aus drei Tabs und einem
+Beobachter daneben.
+
+    ══ VORHER ══ 20:50:09 · Protokoll 6965 Bytes · offen 5
+    20:50:11  units=0  log=6965
+    20:50:40  units=1  log=6965
+    20:50:49  units=0  log=9709
+    ══ NACHHER ══ 20:53:12 · Protokoll 9709 Bytes (+2744) · offen 0
+    ══ HÖCHSTZAHL GLEICHZEITIGER UNITS: 1 ══   (erwartet: 1)
+
+**Beide Hälften des Kriteriums stehen da, und sie sind zweierlei.**
+
+Die erste ist die Meldung. Vorgang **705** (20:50:41) und **706** (20:50:44),
+beide `fehlgeschlagen`:
+
+    Es läuft bereits ein Lauf des Panels, der Pakete anfasst
+    (srvpanel-update-291ffeda.service). Der nächste Versuch geht erst,
+    wenn er fertig ist.
+
+**Sie nennt die Unit und nicht eine PID**, und darauf kommt es an: `AptLock` hat
+zwei Zweige, und getroffen hat der auf den **eigenen laufenden Lauf** — nicht
+der auf die dpkg-Sperre, den Punkt 8a erzeugt hat. Zweimal dieselbe Unit, also
+kein Zufall.
+
+Die zweite ist die Zahl. **Höchstens eine Unit zu jedem Zeitpunkt**, über 180
+Sekunden im Sekundentakt abgetastet, obwohl dreimal gedrückt wurde. Der
+Zeitverlauf passt lückenlos: Die Unit erscheint um 20:50:40, die beiden
+abgewiesenen Drücke liegen um 20:50:41 und 20:50:44 mitten in ihrer Lebenszeit,
+und um 20:50:49 ist sie fort.
+
+> **Eine Meldung sagt, dass das Panel abgelehnt hat. Sie sagt nicht, dass nichts
+> entstanden ist.** Das ist eine zweite Frage und braucht eine zweite Messung.
+
+**Vorgang 704 ist dabei kein Widerspruch.** Er steht auf `fertig` nach drei
+Sekunden (20:50:37 → 20:50:40), weil er den Lauf **absetzt** und nicht ausführt;
+die Unit lebte danach noch acht Sekunden weiter. Genau deshalb ist die Frage von
+`AptLock` an `systemctl` gestellt und nicht an die Vorgangstabelle — dort stünde
+704 längst auf „fertig", während apt noch arbeitet.
+
+---
+
+**Beobachtung 15 — Punkt 5 ist ein zweites Mal belegt, auf einem anderen Weg.**
+
+Im Protokoll dieses Laufs steht:
+
+    Restarting services...
+      systemctl restart php8.3-fpm.service php8.4-fpm.service
+      postgresql@16-main.service srvpanel-agentd.service
+      srvpanel-metrics.service srvpanel-web.service srvpanel-worker.service
+    ...
+    apt-run: 5 von 5 Aktualisierungen eingespielt, 0 bleiben offen.
+
+**`needrestart` hat `srvpanel-worker` und `srvpanel-agentd` neu gestartet — und
+danach hat der Lauf noch seine Bilanzzeile geschrieben.**
+
+Das ist derselbe Nachweis wie in Punkt 5 und doch ein anderer. Dort steckte
+`srvpanel` selbst im Lauf, und der Neustart kam aus seinem eigenen
+postinst-Skript. Hier wurden **fünf Perl-Pakete** eingespielt, `srvpanel` war
+gar nicht dabei — `needrestart` hat die Dienste neu gestartet, weil sich
+Bibliotheken unter ihnen geändert haben, und der abgesetzte Lauf hat auch das
+überlebt. Diesmal traf es zusätzlich den **Agenten**.
+
+> **Ein Beleg, der zweimal auf verschiedenen Wegen entsteht, ist keine
+> Wiederholung — der zweite schliesst aus, dass der erste an seinem Weg hing.**
+
+Gesucht war das nicht. Es fiel aus einem Lauf heraus, dessen Zweck ein ganz
+anderer war.
+
+---
+
+**Punkt 5d bleibt offen, und das Fenster ist wieder zu.** Der dritte Klick kam
+drei Sekunden nach dem zweiten und war damit ein zweites 8b statt eines 5d; der
+Lauf war um 20:50:49 fertig, und seitdem steht `offen` auf 0. Es braucht eine
+Seite aus dem Verlauf, deren Knopfreihe noch steht — oder den Weg über die
+Kommandozeile, mit der Einschränkung, dass er das Skript misst und nicht den
+Knopf.
+
 <!-- Wird während des Laufs weitergefüllt. -->

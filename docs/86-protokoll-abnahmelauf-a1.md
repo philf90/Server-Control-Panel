@@ -1765,4 +1765,46 @@ Mal seit dem Upgrade messbar**.
 > Diesmal ist er von selbst gekommen, und die Reihenfolge hängt daran: Wer
 > installiert, schliesst das Fenster wieder.
 
+---
+
+### Punkt 11a, zweiter Teil: `/logs` mit der Quelle „Aktualisierungen installieren" · **erfüllt**
+
+| Lage | `dokument` | `gegenprobe` | `schiebt` | `rollt` | `versteckt` |
+|---|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | 0 | 1 · 850px | 0 |
+| 390 dunkel | 0 | **200/200** | 0 | 1 · 850px | 0 |
+| 1440 hell | 0 | **200/200** | 0 | 1 · 68px | 0 |
+| 1440 dunkel | 0 | **200/200** | 0 | 1 · 68px | 0 |
+
+Der Roller ist in allen vier Lagen derselbe:
+
+    div > div.frame > main.content > div.sections:2 > section.section:2 > pre.output
+
+**850 px bei 390 px sind eine getroffene Entscheidung und kein Rest.** Der
+scoped Block von `Logs/Index.vue` schreibt sie aus, und zwar mit ihrem Grund:
+Eine umgebrochene Zeile eines Protokolls ist unlesbar, weil man nicht mehr
+erkennt, wo ein Eintrag anfängt. `overflow: auto` und `white-space: pre` stehen
+dort ausdrücklich, wortgleich noch einmal in `Domains/Logs.vue`.
+
+**Und das ist der Grund, warum diese Zeile hier steht.** In `app.css` hat
+`.output` weder `overflow-x` noch `white-space`; die einzige Umbruchregel dort
+ist `.output > div`, und die erreicht ein `<pre>` mit blossem Text nicht. Wer
+nur das gemeinsame Stylesheet liest, hält das waagerechte Rollen für einen
+Nebeneffekt von `overflow-y: auto` — und meldet einen Befund, wo eine
+Entscheidung steht.
+
+> **Eine Regel, die im Bauteil steht, fehlt im gemeinsamen Stylesheet nicht —
+> sie steht woanders.**
+
+**Der Kopf der Seite belegt nebenbei Punkt 5.**
+
+    /var/log/srvpanel/upgrade.log · 7 KB · zuletzt 2026-08-27 11:09:29
+
+7 KB ist der Stand, den der Beobachter am Ende von Punkt 5 gemessen hat (6965
+Bytes), und `11:09:29` ist dessen letzte Sekunde. Die Seite zeigt die Datei **von
+vorn** — sichtbar ist der frühere Lauf über vier Pakete, der Lauf aus Punkt 5
+steht darunter. Damit ist die Hälfte nachgeholt, die Punkt 5 offengelassen hat:
+Das Protokoll ist nicht nur als Datei vollständig, sondern auch über die Seite.
+`lines=200` bei rund hundert Zeilen schneidet nichts ab.
+
 <!-- Wird während des Laufs weitergefüllt. -->

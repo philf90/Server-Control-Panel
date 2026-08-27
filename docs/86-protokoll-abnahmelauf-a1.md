@@ -365,7 +365,7 @@ gemessen.
 
 ---
 
-### Punkt 7 — Der Neustart, und was vor ihm steht (Kriterium 7)
+### Punkt 7 — Der Neustart, und was vor ihm steht (Kriterium 7) · **erfüllt**, Zustand 3 begründet nicht messbar
 
 **7b — die Meldung nennt die Pakete · erfüllt.**
 
@@ -1209,7 +1209,7 @@ Die `FLOCK`-Zeile daneben ist die Gegenprobe: Ohne sie wäre „POSIX steht in
 
 ---
 
-### Punkt 8b — Der eigene Lauf weist den zweiten ab · **nicht gemessen**
+### Punkt 8b — Der eigene Lauf weist den zweiten ab · **damals nicht gemessen, am 27. August nachgeholt**
 
 Der Lauf lief durch, bevor ein zweiter Druck möglich war:
 
@@ -2019,4 +2019,62 @@ dafür das Skript und nicht den Knopf. Einzeln wäre jeder die Hälfte.
 (`libproc2-0`, `procps`) — dieselbe Unterscheidung wie in Beobachtung 12, jetzt
 zum dritten Mal an einem anderen Tag und in einem anderen Modus.
 
-<!-- Wird während des Laufs weitergefüllt. -->
+---
+
+## 5. Wo der Lauf steht — 27. August 2026
+
+**Alle fünfzehn Punkte der Vorschrift sind gefahren.** Die Tabelle liest sich am
+Dokument ab und nicht aus dem Gedächtnis; wo ein Punkt zweimal vorkommt, gilt
+der spätere.
+
+| Punkt | Kriterium | Stand |
+|---|---|---|
+| 0, 0b | — | gemessen (§1, §2) |
+| 1 | 1 | **erfüllt** |
+| 2 | 2 | **halb** — der Bestand hatte keine Neuinstallation |
+| 2b | — | **erfüllt** (der zugelassene Ersatz für 2) |
+| 3, 3d, 3e | 3 (M5) | **erfüllt dem Wortlaut nach**, mit Befund 1 daneben |
+| 4 | 4 | **nicht messbar** — kein Schlüssel dieses Servers trägt ein Ablaufdatum |
+| 5, 5d | 5 | **erfüllt**, und zweifach belegt |
+| 6 | 6 | **erfüllt** |
+| 7, 7d | 7 | **erfüllt**; Zustand 3 begründet nicht messbar |
+| 8a, 8b | 8 | **erfüllt**, beide Zweige von `AptLock` getroffen |
+| 9 | — | **erfüllt**, mitsamt der Nachlesung |
+| 10 | `docs/81 §2.3h` P3 | **erfüllt** |
+| 11a | — | **erfüllt** — und vollständig, ein 11b entfällt |
+| 12 | — | **erfüllt** |
+
+**Die beiden Ausfälle sind genau die, die `docs/85 §6` zulässt** — Punkt 4 ohne
+ablaufenden Schlüssel und Punkt 2 ohne Neuinstallation. **Punkt 5 ist nicht
+ausgefallen**, sondern auf zwei unabhängigen Wegen belegt: einmal durch den
+Neustart aus dem eigenen postinst, einmal durch `needrestart` in einem Lauf, in
+dem `srvpanel` gar nicht vorkam.
+
+**Was zwischen „gemessen" und „abgenommen" steht, ist keine Messung mehr,
+sondern eine Entscheidung des Betreibers.** Diese Reste stehen dem gegenüber:
+
+1. **Befund 1** — der Vorgang meldet `fertig`, während eine Quelle ausgefallen
+   ist. Das ist der Grund, warum Punkt 3 lange „teilweise" hiess: Das Kriterium
+   verlangt, dass die tote Quelle **benannt** wird, und das tut die Seite
+   (Vorgang 690). Der Zustand des Vorgangs trägt den Ausgang trotzdem nicht.
+2. **Und derselbe Bau ist im Lauf noch zweimal aufgetaucht.** Vorgang 704 steht
+   auf `fertig`, während das Upgrade noch acht Sekunden lief; 5d steht auf
+   `fertig`, obwohl `apt-run` mit 3 endete. Dreimal dieselbe Form:
+
+   > **Ein Vorgang, der nur meldet, dass er abgesetzt wurde, sagt über den
+   > Ausgang dessen, was er abgesetzt hat, nichts — und `fertig` liest sich wie
+   > das Gegenteil.**
+
+   Das ist **eine** Aufgabe und nicht drei, und sie gehört entschieden, bevor
+   jemand sie an einer Stelle allein behebt.
+3. **Befund 4** — das `W:` zerreisst in der Anzeige; undiagnostiziert.
+4. **Befund 14** — die Fusszeile von `/logs` nennt ein Fenster, das es nicht
+   gibt. Gehört zu A5.
+5. **`docs/81 §2.3h` Punkt 1** bleibt unbeantwortet: Wie lange ein Lauf über
+   142 Pakete dauert, ist nicht gemessen — dieser Lauf hatte sechs und fünf.
+6. **Dreizehn gezählte Fundstellen** unter `app/` aus Befund 11.
+
+**Befund 13 ist im Lauf gebaut worden** und steht als einziger nicht mehr offen.
+
+> **Ein Protokoll ohne seine Lücken liest sich wie eine Abnahme.**
+

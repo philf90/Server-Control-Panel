@@ -1319,9 +1319,13 @@ der Eingriff nur eine Zeile umfasst.
 
 ## Gefahren gegen `0.7.2-rc.2` — 27. August 2026
 
-Der Lauf dieses Tages hat genau einen Gegenstand: Punkt 5. Er ist nur mit einer
-Fassung im Depot zu messen, in der `srvpanel` selbst steht, und die gab es erst
-mit `0.7.2-rc.3`.
+Der Lauf dieses Tages hat zwei Gegenstände, und der erste bedingt den zweiten.
+Punkt 5 ist nur mit einer Fassung im Depot zu messen, in der `srvpanel` selbst
+steht, und die gab es erst mit `0.7.2-rc.3`. Punkt 10 misst danach den Ausgang,
+den es **nur nach** Punkt 5 gibt: den Lauf, der nichts mehr zu tun findet.
+
+Beide sind vom Telefon aus gefahren — reines SSH, ohne Browser. Für Punkt 11
+gilt das nicht.
 
 ---
 
@@ -1437,5 +1441,103 @@ die nächste Fassung im Depot oder die beiden phasenverzögerten Pakete
 
 > **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr hergestellt.**
 > Diesmal andersherum: Er wird auch nicht nach ihr gemessen.
+
+---
+
+### Punkt 10 — `apt-run panel` vergleicht die Fassung · **erfüllt**
+
+Gemessen am 27. August 2026 auf `cloudsrv24`, in drei Teilen. Der mittlere ist
+der, ohne den die `3` des ersten nur eine Zahl wäre.
+
+**10a — das Kriterium.** `apt-run panel` frischt die Listen auf (sieben Quellen,
+alle `OK`), findet nichts Neueres und fällt sein eigenes Urteil:
+
+    srvpanel ist schon die neueste Version (0.7.2~rc.3).
+    0 aktualisiert, 0 neu installiert, 0 zu entfernen und 2 nicht aktualisiert.
+    apt-run: Der Lauf hat nichts verändert — Fassung vorher wie nachher: 0.7.2~rc.3.
+    rc=3
+
+Das ist der zweite der beiden zugelassenen Ausgänge. `docs/85` hat ihn
+vorhergesehen: Kommt Punkt 5 zuerst, ist die Fassung aktuell — gefragt ist
+nicht, ob aktualisiert wird, sondern ob **verglichen** wird.
+
+**10b — die Gegenprobe, und sie ist der eigentliche Beleg.** Derselbe apt-Lauf
+ohne den Vergleich, unmittelbar danach:
+
+    0 aktualisiert, 0 neu installiert, 0 zu entfernen und 2 nicht aktualisiert.
+    rc=0
+
+**Zwei Läufe, dieselbe Ausgabe, entgegengesetzte Urteile.** Das ist M5 an seiner
+vierten Stelle, nicht als Beschreibung, sondern als Messung: Der Rückgabewert
+von apt sagt „gut" zu einem Lauf, der nichts bewirkt hat. Genau darauf hat
+`panel.update` bis zum 26. August seine Erfolgsmeldung gestützt.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.** Hier steht die Null der Gegenprobe neben der Drei des Prüflings, und
+> erst dadurch ist die Drei ein Unterschied und keine Behauptung.
+
+**10c — der Weg, den der Betreiber wirklich geht.** `srvpanel update` setzt den
+Lauf als transiente Unit ab und kehrt sofort zurück:
+
+    Das Update läuft als srvpanel-update-7e8742ef.
+    Unit gesehen: ja · Zyklen: 3
+
+und `/var/log/srvpanel/update.log` endet mit derselben Bilanzzeile. Damit ist
+belegt, dass das Urteil dort ankommt, wo es gelesen wird — und nicht nur dort,
+wo es gefällt wird.
+
+**Was 10c nicht zeigen kann, und warum das kein Mangel ist:** den
+Rückgabewert. `--collect` räumt die Unit auch im Fehlerzustand ab, `systemctl
+status` findet danach nichts mehr. Eben deshalb schreibt `apt-run` sein Urteil
+als **Zeile** und verlässt sich nicht auf den Zustand der Unit — und eben
+deshalb wird die `rc` in 10a gemessen, wo sie unmittelbar dasteht.
+
+> **Ein Urteil, das nur im Zustand eines Prozesses steht, ist fort, sobald der
+> Prozess fort ist.**
+
+---
+
+**Beobachtung 12 — `2 nicht aktualisiert` und `0 bleiben offen` sind beide
+richtig.**
+
+Punkt 5 endete mit *„0 bleiben offen"*, und apt sagt hier in derselben Stunde
+*„2 nicht aktualisiert"*. Der Widerspruch ist keiner, und er war vorhergesagt:
+Im Kopf von `apt-run` steht seit dem 26. August, dass die beiden Zahlen
+verschiedene Fragen beantworten — apt zählt, was **dieser Aufruf** nicht
+angefasst hat, `offen()` zählt, was ein `dist-upgrade` noch täte. Die Differenz
+sind die zurückgehaltenen Pakete, hier die beiden phasenverzögerten
+(`libproc2-0`, `procps`).
+
+Vorhergesagt war es aus einer Messung im Container (142 gegen 140). Hier steht
+dieselbe Aussage auf einem echten Server mit einer anderen Ursache — dort
+Abhängigkeiten, hier Phasing.
+
+> **Eine Erklärung, die nur den Fall deckt, an dem sie entstand, ist eine
+> Beschreibung. Erst der zweite Fall macht sie zur Regel.**
+
+---
+
+**Beobachtung 13 — eine dauerhafte `W:`-Zeile, die keine Quelle meldet.**
+
+Jeder Auffrischlauf dieses Servers schreibt auf stderr:
+
+    W: …/ondrej/php/ubuntu dists/noble/InRelease: Signature by key 14AA…A6C
+       uses weak algorithm (rsa1024)
+
+`Apt::readFailures()` sieht sie nicht: Der Ausdruck ist auf
+`^[WE]: Failed to fetch` verankert, nicht auf `^W:`. Gegengeprüft am Quelltext
+**und** an der Wirkung — Punkt 3 hat auf demselben Server genau eine tote Quelle
+gemeldet und keine zweite dazuerfunden.
+
+**Das ist eine Gegenprobe, die keine Vorschrift herstellen musste.** Ein Wächter
+kann eine tote Quelle bauen; eine `W:`-Zeile, die **wie** ein Fehlschlag
+aussieht und keiner ist, liefert dieser Server bei jedem Lauf von selbst.
+
+Belegt ist damit der Anker, nicht die Vollständigkeit des Lesers — dass jede
+Form eines Fehlschlags erkannt wird, hält weiterhin `AptResultTest` mit eigenen
+Prüfkörpern. Beides zusammen ist die Aussage; keines von beiden allein.
+
+> **Ein falscher Treffer und ein verpasster Treffer sind zwei Fehler, und ein
+> Prüfkörper misst immer nur einen davon.**
 
 <!-- Wird während des Laufs weitergefüllt. -->

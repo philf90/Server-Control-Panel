@@ -1275,12 +1275,84 @@ Sein Wert liegt ohnehin woanders: Er liest die Felder eines Eintrags aus
 > **Ein Filter über eine Liste, die wächst, ist eine Zusage über den Stand von
 > heute.**
 
-**Was hier nicht gemessen ist und benannt offen bleibt:** die Bilder. Die
-Ansicht des Administrators — drei Spalten weniger, sieben Griffe weniger, der
-Satz oben — ist bei 390 und 1440 px in beiden Themes **nicht** aufgenommen.
-Eine Tabelle, die Spalten verliert, ist bei 390 px eine andere Tabelle.
-
 Sieben Eingriffe stehen in `tests/waechter-brechen.sh`.
+
+---
+
+### 2.3n Die Bilderrunde dazu (27. August 2026)
+
+Gefahren im Container gegen echte Daten: **141 aktualisierbare Pakete, davon
+118 Sicherheit, fünf Quelldateien.** Acht Lagen — zwei Rollen × 390/1440 px ×
+hell/dunkel —, gemessen mit `tests/bilder-messen.js`.
+
+**Der Betreiber ist die Gegenprobe und nicht die Zugabe.** „Drei Spalten
+weniger" sagt nichts, solange niemand gemessen hat, wie viele es vorher waren.
+
+| | Administrator | Betreiber |
+|---|---|---|
+| Paketliste | 4 Spalten | 5 |
+| Quellentabelle | 4 Spalten | 7 |
+| Automatik | 2 Spalten | 2 |
+| Kästchen | 0 | 21 |
+| Knöpfe | 4 | 9 |
+| Seitenhöhe bei 390 px | **7556 px** | 9496 px |
+| Seitenhöhe bei 1440 px | 2554 px | 2731 px |
+
+**Zwei Zahlen in diesem Dokument und im Änderungsprotokoll waren falsch, und
+zwar beide aus dem Kopf geschrieben.** Es sind **vier** Spalten und nicht drei
+(eine in der Paketliste, drei in der Quellentabelle), und **fünf** Knöpfe plus
+21 Kästchen und nicht „sieben Griffe".
+
+> **Eine Zahl, die man nicht gemessen hat, ist eine Schätzung mit dem Aussehen
+> einer Messung.**
+
+**Der eigentliche Befund ist die Höhe.** Bei 390 px ist die Seite des
+Administrators **1940 px kürzer** — gut zwei Telefonbildschirme weniger
+Rollen. `.stacks` stapelt je Zelle, eine Spalte weniger ist also eine Zeile
+weniger je Kärtchen; und die Fingerabdruckzelle trägt vierzig Hexziffern je
+Schlüssel. Dasselbe Verhältnis wie bei der Baumansicht aus `docs/46 §11.1`:
+
+> **Der Schnitt löst kein Navigationsproblem. Er löst ein Telefonproblem.**
+
+**Der waagerechte Überlauf ist in allen acht Lagen 0 px**, die Gegenprobe
+schlägt in allen acht mit `200/200` aus, und die Umstellung des Themas ist
+nicht geglaubt, sondern gemessen: Grund `rgb(255,255,255)` → `rgb(15,17,22)`,
+Text `rgb(58,63,73)` → `rgb(196,201,212)`.
+
+> **Eine Umstellung, die der Prüfling nicht liest, hat nichts umgestellt — und
+> das Bild daneben sieht aus wie ein Ergebnis.**
+
+Der eine Eintrag in `schiebt` ist keiner: `.account b` in der Seitenleiste
+schneidet mit Ellipse, und `overflow: hidden` erzeugt immer
+`scrollWidth > clientWidth`. Das Messmittel nennt das Gewollte mit, und das
+steht in seinem Kopf so.
+
+#### Der Fund stand im Bild und in keiner Zahl
+
+Bei 390 px las die Quellentabelle „Eintra" und darunter „g 1". Die Zelle
+„Datei" trägt einen Pfad — der braucht `overflow-wrap: anywhere`, weil er kein
+Leerzeichen hat — und daneben ein `<span class="quiet">· Eintrag 1</span>`.
+Der Umbruch vererbte sich.
+
+> **Ein Format, das für Bezeichner reicht, reicht nicht für Werte.**
+
+Das ist der vierte Fall dieses Satzes nach `psql -A -t`, `td .ident` und der
+Zeilentabelle des Datenbankmanagements. Ausgezählt betraf er **sechs Stellen
+auf drei Seiten** — „kommt neu dazu", „keine", „· Eintrag n", „· binär" —, also
+fehlte eine Stelle und nicht sechs Korrekturen. Die Antwort ist eine Regel in
+`app.css`; `MobileLayoutTest::test_a_quiet_note_beside_an_identifier_breaks_between_words`
+rechnet die Kaskade nach, und zwei Eingriffe brechen sie in beide Richtungen.
+
+`break-word` und nicht `normal`: Ein Wort, das allein nicht in die Zeile passt,
+muss weiter brechen dürfen, sonst wird aus einem Lesefehler ein Überlauf.
+
+**Was der Container nicht liefern konnte, und wie:** `system.packages.list`
+geht über `systemd-run`, damit Simulation und Einspielen von Bauart wegen
+denselben Weg nehmen — hier läuft kein systemd als PID 1, und die Frage ist zu
+Recht unbeantwortbar. Der Agent hat für diesen Lauf eine Attrappe in einer
+**eigenen Mount-Namespace** bekommen; ausserhalb ist `/usr/bin/systemd-run`
+unverändert. Gemessen wird die **Lage der Seite**, und die hängt nicht daran,
+woher die Zahlen kommen.
 
 ### Frage 1 — Darf das Panel eine fremde Paketquelle hinzufügen?
 

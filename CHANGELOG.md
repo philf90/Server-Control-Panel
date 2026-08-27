@@ -22043,3 +22043,59 @@ eine Datei genommen, deren Bericht das Wort zufällig nicht enthielt.
 
 > **Eine Gegenprobe, die den Fall nicht enthält, in dem der Filter zuschlägt,
 > belegt den Filter nicht.**
+
+### Die Bilderrunde dazu — und ein Wort, das mitten durchbrach
+
+Acht Lagen gegen echte Daten (141 aktualisierbare Pakete, davon 118 Sicherheit,
+fünf Quelldateien): zwei Rollen × 390/1440 px × hell/dunkel. Der Betreiber ist
+dabei die Gegenprobe und nicht die Zugabe — „drei Spalten weniger" sagt nichts,
+solange niemand gemessen hat, wie viele es vorher waren.
+
+**Und gemessen waren es vier.** Die Zahlen im Abschnitt darüber und in
+`docs/81 §2.3m` standen falsch: **vier** Spalten (eine in der Paketliste, drei
+in der Quellentabelle) und **fünf** Knöpfe plus 21 Kästchen — nicht „drei
+Spalten, sieben Griffe". Beide waren aus dem Kopf geschrieben.
+
+> **Eine Zahl, die man nicht gemessen hat, ist eine Schätzung mit dem Aussehen
+> einer Messung.**
+
+**Der eigentliche Befund ist die Höhe.** Bei 390 px ist die Seite des
+Administrators **1940 px kürzer** (7556 gegen 9496) — gut zwei
+Telefonbildschirme weniger Rollen. `.stacks` stapelt je Zelle; eine Spalte
+weniger ist eine Zeile weniger je Kärtchen, und die Fingerabdruckzelle trägt
+vierzig Hexziffern je Schlüssel.
+
+> **Der Schnitt löst kein Navigationsproblem. Er löst ein Telefonproblem.**
+
+Waagerechter Überlauf 0 px in allen acht Lagen, Gegenprobe `200/200` in allen
+acht, und die Themaumstellung ist gemessen statt geglaubt: Grund
+`rgb(255,255,255)` → `rgb(15,17,22)`.
+
+#### Der Fund stand im Bild und in keiner Zahl
+
+Bei 390 px las die Quellentabelle „Eintra" und darunter „g 1". Die Zelle
+„Datei" trägt einen Pfad — der braucht `overflow-wrap: anywhere`, weil er kein
+Leerzeichen hat — und daneben ein `<span class="quiet">· Eintrag 1</span>`. Der
+Umbruch vererbte sich auf den Fliesstext.
+
+> **Ein Format, das für Bezeichner reicht, reicht nicht für Werte.**
+
+Der vierte Fall dieses Satzes nach `psql -A -t`, `td .ident` und der
+Zeilentabelle des Datenbankmanagements. Ausgezählt betraf er sechs Stellen auf
+drei Seiten — „kommt neu dazu", „keine", „· Eintrag n", „· binär" —, also
+fehlte eine Stelle und nicht sechs Korrekturen.
+
+> **Ein Fehler, der an sechs Stellen unabhängig gemacht wurde, ist keine
+> Unachtsamkeit, sondern eine fehlende Stelle.**
+
+`break-word` und nicht `normal`: Ein Wort, das allein nicht in die Zeile passt,
+muss weiter brechen dürfen — sonst wird aus einem Lesefehler ein Überlauf.
+`MobileLayoutTest::test_a_quiet_note_beside_an_identifier_breaks_between_words`
+rechnet die Kaskade nach; zwei Eingriffe brechen sie in beide Richtungen, und
+die zweite ist die wichtigere: Eine Regel mit dem falschen Wert sieht im
+Quelltext aus wie die richtige.
+
+Keine Zahl hätte ihn gemeldet — der Überlauf war in allen acht Lagen 0 px.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**

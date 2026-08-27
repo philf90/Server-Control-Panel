@@ -478,6 +478,56 @@ final class MobileLayoutTest extends TestCase
         );
     }
 
+    /**
+     * Und der Zusatz neben der Kennung bricht an Wortgrenzen.
+     *
+     * **Gefunden im Bild und in keiner Zahl** (Bilderrunde zur Rollenteilung,
+     * 27. August 2026). Die Zelle „Datei" der Quellentabelle trägt einen Pfad
+     * — der braucht `anywhere`, weil er kein Leerzeichen hat — und daneben ein
+     * `<span class="quiet">· Eintrag 1</span>`. Der Umbruch vererbte sich, und
+     * bei 390 px stand „Eintra" und darunter „g 1".
+     *
+     * > **Ein Format, das für Bezeichner reicht, reicht nicht für Werte.**
+     *
+     * Das ist der vierte Fall dieses Satzes, und er betraf sechs Stellen auf
+     * drei Seiten — also fehlte eine Stelle und nicht sechs Korrekturen.
+     *
+     * **Warum `break-word` und nicht `normal`.** Ein Wort, das allein nicht in
+     * die Zeile passt, muss weiter brechen dürfen; sonst schiebt es die Seite,
+     * und aus einem Lesefehler würde ein Überlauf. `break-word` bricht erst
+     * dann — `anywhere` schon zwischen zwei Buchstaben, die nebeneinander
+     * Platz hätten.
+     *
+     * **Der Unterschied zum Test darüber ist der Gegenstand, nicht der Wert.**
+     * Dort geht es um die Zelle, hier um den Fliesstext darin; wer beide zu
+     * einer Behauptung zusammenzöge, bekäme einen Wächter, der bei jedem der
+     * beiden Fehler dieselbe Meldung gibt.
+     */
+    public function test_a_quiet_note_beside_an_identifier_breaks_between_words(): void
+    {
+        [$selector, $value, $seen] = $this->winner('overflow-wrap', $this->selectsQuietInStackedCell(...));
+
+        $this->assertGreaterThanOrEqual(
+            1,
+            $seen,
+            'Unter 720px erreicht keine `overflow-wrap`-Regel ein `.quiet` in einer gestapelten '.
+            'Kennungszelle — dann erbt der Fliesstext den Umbruch der Kennung, und dieser Test '.
+            'rechnet an nichts nach.',
+        );
+
+        $this->assertSame(
+            'break-word',
+            $value,
+            sprintf(
+                'Unter 720px gewinnt „%s" mit `overflow-wrap: %s` an einem `.quiet` in einer '.
+                'gestapelten Kennungszelle. Gebraucht wird `break-word`: Der Zusatz neben einer '.
+                'Kennung ist Fliesstext, und `anywhere` bricht ihn mitten im Wort.',
+                $selector,
+                $value ?? '(nichts)',
+            ),
+        );
+    }
+
     public function test_a_stacked_table_has_no_width_of_its_own(): void
     {
         [$selector, $value, $seen] = $this->winner('width', $this->selectsStackedTable(...));
@@ -1087,6 +1137,22 @@ final class MobileLayoutTest extends TestCase
             ['td', '.stacks td'],
             ['table', '.stacks', 'div', '.scrolls', 'tbody', 'tr'],
             ['.ident', '.multiline', '.pairs', 'thead'],
+        );
+    }
+
+    /**
+     * Trifft er den Fliesstext neben einer Kennung in einer gestapelten Zelle?
+     *
+     * Links steht `.quiet` und nicht die Zelle: Die Frage gilt dem Zusatz und
+     * nicht seinem Behälter.
+     */
+    private function selectsQuietInStackedCell(string $selector): bool
+    {
+        return $this->reaches(
+            $selector,
+            ['.quiet'],
+            ['.stacks', 'td', 'td.ident', '.ident'],
+            ['thead', '.pairs', '.multiline', 'th'],
         );
     }
 

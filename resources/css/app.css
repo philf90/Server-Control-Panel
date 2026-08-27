@@ -1265,6 +1265,34 @@ table.pairs {
   }
 
   /*
+   * **Ein `.quiet` in einer Kennungszelle ist Fliesstext und keine Kennung.**
+   *
+   * Gefunden in der Bilderrunde zur Rollenteilung am 27. August 2026, und
+   * zwar im Bild und nicht in einer Zahl: Bei 390 px stand in der
+   * Quellentabelle „Eintra" und darunter „g 1". Der Umbruch der Zelle gilt
+   * ihrem Inhalt — einem Pfad, der ohne Leerzeichen auskommt und deshalb
+   * `anywhere` braucht —, und er vererbt sich auf den Zusatz daneben.
+   *
+   * > **Ein Format, das für Bezeichner reicht, reicht nicht für Werte.**
+   *
+   * Das ist der vierte Fall dieses Satzes nach `psql -A -t`, `td .ident` und
+   * der Zeilentabelle des Datenbankmanagements — und deshalb steht die
+   * Antwort hier und nicht an den sechs Stellen, die es betrifft.
+   *
+   * > **Ein Fehler, der an sechs Stellen unabhängig gemacht wurde, ist keine
+   * > Unachtsamkeit, sondern eine fehlende Stelle.**
+   *
+   * **`break-word` und nicht `normal`.** Ein Wort, das allein nicht in die
+   * Zeile passt, bricht weiterhin, statt die Seite zu schieben — nur bricht
+   * es jetzt erst dann und nicht schon zwischen zwei Buchstaben, die
+   * nebeneinander Platz hätten.
+   */
+  .stacks td .ident .quiet,
+  .stacks td.ident .quiet {
+    overflow-wrap: break-word;
+  }
+
+  /*
    * Eine Marke bleibt eine Marke, auch in einer gestapelten Zelle.
    *
    * `.multiline` stellt Beschriftung und Inhalt untereinander und dehnt seine

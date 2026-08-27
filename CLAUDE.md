@@ -41,9 +41,10 @@ zusätzlich den Agenten.
 
 Die **Rollenteilung** aus `docs/81 §3` Frage 2 ist am **27. August 2026 gebaut**
 (`docs/81 §2.3m`): Die Updates-Seite gehört jetzt beiden — der Administrator
-sieht über `inspect-server`, gedreht wird über `operate-server`. **Ihre Bilder
-fehlen** und stehen dort benannt offen. A3, A4 und A7 haben weiterhin keine
-Stufe. Die sechzehn Befunde und sechs Beobachtungen des
+sieht über `inspect-server`, gedreht wird über `operate-server`. **Die
+Bilderrunde dazu ist gefahren** (`docs/81 §2.3n`): acht Lagen, Überlauf 0 px,
+Gegenprobe 200/200 — und bei 390 px ist die Ansicht des Administrators
+**1940 px kürzer**. A3, A4 und A7 haben weiterhin keine Stufe. Die sechzehn Befunde und sechs Beobachtungen des
 A9-Laufs stehen mit ihrer Baureihenfolge in `docs/84 §7`.
 
  P6 ist am **21. August 2026** auf `cloudsrv24`
@@ -2555,6 +2556,47 @@ Testen berücksichtigen:
   Lauf beim Laden, bevor irgendein Wächter rot werden kann. Gebrochen werden
   deshalb seine Teile: der Anker des Ausdrucks, die Aufzählung der Dateien und
   die Spiegelung der Basisklasse.
+- **Eine Seite mit echten Daten aufzunehmen braucht drei Dinge, und eines
+  fehlt hier.** Gemessen am 27. August 2026 für die Bilderrunde der
+  Rollenteilung: Der Agent läuft (siehe oben), `artisan serve` läuft, und
+  `/usr/lib/srvpanel/apt-run` muss aus `packaging/bin` dorthin installiert
+  sein — der Pfad steht absolut in der Positivliste. **Was fehlt, ist systemd
+  als PID 1:** `system.packages.list` geht über `systemd-run`, damit
+  Simulation und Einspielen von Bauart wegen denselben Weg nehmen, und ohne
+  Bus ist die Frage zu Recht unbeantwortbar.
+
+  Der Ausweg ist eine Attrappe in einer **eigenen Mount-Namespace** —
+  `unshare -m bash -c 'mount --bind <attrappe> /usr/bin/systemd-run; exec php
+  agent/bin/srvpanel-agentd serve …'`. Ausserhalb bleibt die echte Datei
+  unangetastet, und gemessen wird ohnehin die **Lage** der Seite und nicht,
+  woher die Zahlen kommen.
+
+  > **Ein Werkzeug, das dem Prüfling fehlt, ersetzt man in seiner Namespace und
+  > nicht im System — sonst misst der nächste Lauf den Ersatz.**
+
+  **Und der Prüfkörper wird hinterher weggeräumt**, `apt-run` eingeschlossen:
+  Genau daran war `SourceOwnershipTest` einen Tag zuvor in der CI rot und hier
+  grün.
+- **Playwright ist nicht installiert, Chromium schon.**
+  `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install --no-save playwright` holt
+  es in neun Sekunden; der ausführbare Pfad ist `/opt/pw-browsers/chromium`
+  **selbst** und nicht `…/chromium/chrome-linux/chrome` — der Name ist ein
+  Symlink auf die Binärdatei. Liegt das Aufnahmeskript im Scratchpad, löst
+  node `playwright` von dort auf und findet nichts: Der Import braucht den
+  absoluten Pfad.
+- **Die Anmeldung geht über zwei Seiten und nicht über eine.** Das Panel
+  verlangt den zweiten Faktor; er sitzt auf `/two-factor` im Feld `name="code"`
+  und **nicht** im Anmeldeformular. Gewartet wird auf dieses Feld und nicht auf
+  eine Adresse: Inertia navigiert über die History-API, und `waitForURL`
+  wartet auf ein `load`, das dabei nie kommt.
+
+  > **Eine Wartebedingung, die auf ein Ereignis zeigt, das der Prüfling nicht
+  > auslöst, läuft in die Zeitüberschreitung und sieht aus wie ein Fehler am
+  > Prüfling.**
+
+  Der Code wird **im Moment der Eingabe** geholt (`Totp::codeAt($secret,
+  intdiv(time(), Totp::PERIOD))`), nicht vorher — und `two_factor_last_step`
+  vor jedem Lauf auf `null`, sonst lehnt der zweite Lauf denselben Schritt ab.
 - **Der Hostname ist kurz.** `php_uname('n')` liefert nicht den vollen Namen —
   dafür gibt es `SrvPanel\Agent\Names::fqdn()` (oder `host()`, wenn ein Name
   gebraucht wird und `null` nicht taugt), und die ist die *einzige* Stelle, die

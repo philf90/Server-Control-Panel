@@ -19288,6 +19288,57 @@ pruefe "Griff ohne Faehigkeit" \
   InspectOnlyTest::test_an_administrator_is_refused_on_every_action_of_the_page failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" InspectOnlyTest passed
+echo
+echo "── MobileLayoutTest: der Zusatz erbt den Umbruch der Kennung ──"
+#
+# Der Fund der Bilderrunde zur Rollenteilung, 27. August 2026 — im Bild und in
+# keiner Zahl: Bei 390 px stand in der Quellentabelle „Eintra" und darunter
+# „g 1". Der Pfad in derselben Zelle braucht `anywhere`, der Zusatz daneben
+# nicht — und er erbte es.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = """  .stacks td .ident .quiet,
+  .stacks td.ident .quiet {
+    overflow-wrap: break-word;
+  }
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/css/app.css "Zusatz ohne eigene Regel" &&
+pruefe "Zusatz ohne eigene Regel" \
+  MobileLayoutTest::test_a_quiet_note_beside_an_identifier_breaks_between_words failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  MobileLayoutTest::test_a_quiet_note_beside_an_identifier_breaks_between_words passed
+
+echo
+echo "── MobileLayoutTest: der Zusatz bricht wieder mitten im Wort ──"
+#
+# Die Gegenrichtung, und die wichtigere: Eine Regel, die *da* ist und den
+# falschen Wert traegt, sieht im Quelltext aus wie die richtige. Ohne diesen
+# Eingriff bliebe der Waechter gruen, sobald irgendeine Regel das `.quiet`
+# erreicht.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = """  .stacks td .ident .quiet,
+  .stacks td.ident .quiet {
+    overflow-wrap: break-word;
+  }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = alt.replace('break-word', 'anywhere')
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/css/app.css "Zusatz bricht ueberall" &&
+pruefe "Zusatz bricht ueberall" \
+  MobileLayoutTest::test_a_quiet_note_beside_an_identifier_breaks_between_words failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  MobileLayoutTest::test_a_quiet_note_beside_an_identifier_breaks_between_words passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

@@ -1973,4 +1973,50 @@ Seite aus dem Verlauf, deren Knopfreihe noch steht — oder den Weg über die
 Kommandozeile, mit der Einschränkung, dass er das Skript misst und nicht den
 Knopf.
 
+---
+
+### Punkt 5d — Der Lauf, der nichts bewirkt, fällt sein eigenes Urteil · **erfüllt**
+
+Gemessen auf beiden Wegen, und beide zusammen ergeben erst den ganzen Punkt.
+
+**Weg A — über den Knopf.** Die Seite kam über den Verlauf zurück, ihre
+Knopfreihe stand noch, und „Alle installieren" ging durch. Danach:
+
+    0 aktualisiert, 0 neu installiert, 0 zu entfernen und 2 nicht aktualisiert.
+    apt-run: Der Lauf hat nichts verändert — offene Aktualisierungen vorher
+    wie nachher: 0.
+
+**Dass es ein neuer Lauf war und keine alte Zeile, entscheidet die letzte Zeile
+selbst:** Vorher endete `upgrade.log` auf *„5 von 5 Aktualisierungen eingespielt,
+0 bleiben offen."* — jetzt auf den Satz oben. Zwei verschiedene Ausgänge
+desselben Skripts, nacheinander in derselben Datei.
+
+**Weg B — über die Kommandozeile, mit der Gegenprobe daneben.**
+
+    ── 5d: apt-run all ──
+    0 aktualisiert, 0 neu installiert, 0 zu entfernen und 2 nicht aktualisiert.
+    apt-run: Der Lauf hat nichts verändert — … vorher wie nachher: 0.
+    rc=3
+
+    ── Gegenprobe: derselbe Lauf ohne Vergleich ──
+    0 aktualisiert, 0 neu installiert, 0 zu entfernen und 2 nicht aktualisiert.
+    rc=0
+
+**Dieselbe Ausgabe, entgegengesetzte Urteile.** Das ist M5 an seiner vierten
+Stelle, und zwar als Messung und nicht als Beschreibung: Der Rückgabewert von
+apt sagt „gut" zu einem Lauf, der nichts bewirkt hat — und genau darauf hat
+`panel.update` bis zum 26. August seine Erfolgsmeldung gestützt.
+
+> **Ein Lauf, der nichts bewirkt hat, endet mit 0 und sieht aus wie Erfolg.**
+
+**Warum beide Wege und nicht einer.** Weg A belegt, dass der **Knopf** bis zum
+Urteil durchkommt — er zeigt den Rückgabewert aber nicht, weil
+`system.packages.upgrade` den Lauf nur absetzt und auf `fertig` steht, während
+das Urteil danach in der transienten Unit fällt. Weg B zeigt die `3` und misst
+dafür das Skript und nicht den Knopf. Einzeln wäre jeder die Hälfte.
+
+**Und die `2 nicht aktualisiert` sind wieder die beiden phasenverzögerten**
+(`libproc2-0`, `procps`) — dieselbe Unterscheidung wie in Beobachtung 12, jetzt
+zum dritten Mal an einem anderen Tag und in einem anderen Modus.
+
 <!-- Wird während des Laufs weitergefüllt. -->

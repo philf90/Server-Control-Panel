@@ -1807,4 +1807,89 @@ steht darunter. Damit ist die Hälfte nachgeholt, die Punkt 5 offengelassen hat:
 Das Protokoll ist nicht nur als Datei vollständig, sondern auch über die Seite.
 `lines=200` bei rund hundert Zeilen schneidet nichts ab.
 
+---
+
+### Punkt 11a, dritter Teil: das Ende des Protokolls und der Dialog · **erfüllt**
+
+**Die Bilanzzeile steht im Bild.** Das Ende von `/logs` zeigt den Lauf aus
+Punkt 5 bis zur letzten Zeile:
+
+    libpython3.12t64:amd64 (3.12.3-1ubuntu0.16) wird eingerichtet ...
+    Trigger für systemd, man-db, libc-bin werden verarbeitet ...
+    Running kernel seems to be up-to-date.
+    Restarting services... · systemctl restart fail2ban.service
+    apt-run: 6 von 6 Aktualisierungen eingespielt, 0 bleiben offen.
+
+Damit ist die dritte Erwartung von Punkt 5 auch über die Seite belegt und nicht
+nur an der Datei: Der Teil **vor** dem Neustart, der Neustart selbst und die
+Bilanzzeile danach stehen zusammenhängend in einer Ansicht.
+
+**Der Bestätigungsdialog aus 7c**, vier Lagen:
+
+| Lage | `dokument` | `gegenprobe` | `schiebt` | `rollt` | `versteckt` |
+|---|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | 0 | 0 | 7 |
+| 390 dunkel | 0 | **200/200** | 0 | 0 | 7 |
+| 1440 hell | 0 | **200/200** | 0 | 1 · 480px | 1 |
+| 1440 dunkel | 0 | **200/200** | 0 | 1 · 480px | 1 |
+
+Der Roller ist wieder die Quellenliste unter dem Dialog, also derselbe wie im
+ersten Teil.
+
+**Und Befund 5 hält.** Bei 390 px stehen Feld, „Neustart auslösen" und
+„Abbrechen" auf **derselben** Breite — der Deckel `max-width: 32ch` fällt unter
+480 px weg, und die ausgefranste Spalte von damals ist fort. Der Knopf ist grau,
+solange das Feld leer ist; der Text nennt, was der Neustart mitnimmt, die
+60 Sekunden und den Griff, mit dem man ihn in dieser Zeit noch stoppt.
+
+**Damit ist Punkt 11a vollständig** — die Paketliste eingeschlossen, weil der
+Server zwischenzeitlich wieder fünf offene Aktualisierungen hatte. Ein 11b
+entfällt.
+
+---
+
+**Befund 14 — die Fusszeile von `/logs` nennt ein Fenster, das es nicht gibt,
+und bietet Zeilen an, die es nicht gibt.**
+
+Gemessen an `upgrade.log` mit **118** Zeilen:
+
+    118 Zeilen · gelesen wurden die letzten 500 Zeilen
+    [ Mehr Zeilen (200 → 400) ]
+
+**Beide Angaben sind falsch, und beide aus demselben Grund: Die Seite weiss
+nicht, wie viele Zeilen die Datei hat.**
+
+`window` ist keine Messung, sondern die Konstante `SystemLogsTail::MAX_LINES`.
+Der Agent liest immer ein Fenster von 500 Zeilen vom Ende her und sendet die
+500 unverändert mit — auch dann, wenn die Datei 118 Zeilen lang ist und das
+Fenster nie voll war. Der Satz behauptet damit einen Ausschnitt, wo der Leser
+das Ganze vor sich hat.
+
+> **Eine Grenze, die als Zahl mitgesendet wird, ohne dass jemand nachsieht, ob
+> sie erreicht wurde, ist eine Behauptung über die Datei und keine über den
+> Lauf.**
+
+Der Knopf hat dieselbe Wurzel: Er steht unter `props.lines < 500` und fragt
+nicht, ob es mehr zu holen gibt. Bei 118 Zeilen und einem Deckel von 200 sind
+bereits alle da; `mehr()` verdoppelt auf 400, der Agent liefert dieselben 118,
+und der Knopf heisst danach „Mehr Zeilen (400 → 500)". Dreimal drücken,
+dreimal nichts.
+
+> **Ein Knopf, der etwas anbietet, was es nicht gibt, ist schlimmer als keiner
+> — er sagt dem Leser, dass ihm etwas fehlt.**
+
+**Warum die naheliegende Ableitung nicht reicht.** „`matched < window` heisst,
+das Fenster war nicht voll" gilt **nur ohne Filter**: Mit Filter ist `matched`
+die Zahl der Treffer und nicht die der gelesenen Zeilen, und zwölf Treffer aus
+vollen 500 sähen genauso aus wie zwölf aus einer Datei mit zwölf Zeilen. Der
+Agent muss also mitsenden, wie viele Zeilen er **tatsächlich** gelesen hat; erst
+daran hängen beide Entscheidungen.
+
+**Nicht gebaut.** Der Befund gehört zu A5 und nicht zu A1 — gefunden hat ihn die
+Bilderrunde dieses Laufs, und das ist der Grund, dass sie nicht nur aus Zahlen
+besteht.
+
+> **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
+> Keines von beiden ersetzt das andere.**
+
 <!-- Wird während des Laufs weitergefüllt. -->

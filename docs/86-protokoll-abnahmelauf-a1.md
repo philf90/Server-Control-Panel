@@ -1674,4 +1674,95 @@ Konstante die einzige Stelle bleibt. Die Fahne hat PHP nicht auf jeder Bauart,
 und wo sie fehlt, gibt `glob()` `false` zurück — daraus wäre hier lautlos „gar
 keine Quelle" geworden.
 
+---
+
+### Punkt 11a — Bilder, erster Teil: `/updates` · **erfüllt**
+
+Gefahren am 27. August gegen `0.7.2-rc.3`, mit `tests/bilder-messen.js`, vier
+Lagen je Ansicht.
+
+| Lage | `dokument` | `gegenprobe` | `schiebt` | `rollt` | `versteckt` |
+|---|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | 0 | 0 | 6 |
+| 390 dunkel | 0 | **200/200** | 0 | 0 | 6 |
+| 1440 hell | 0 | **200/200** | 0 | 1 · 480px | 0 |
+| 1440 dunkel | 0 | **200/200** | 0 | 1 · 480px | 0 |
+
+**Die Gegenprobe schlägt in allen vier Lagen mit genau 200 aus.** Erst dadurch
+sind die Nullen daneben Messungen; ohne sie sähe eine Seite, die nicht schiebt,
+genauso aus wie ein Messmittel, das nichts misst. `stand` überall `2026-08-21` —
+also kein alter Aufsatz aus der Zwischenablage —, und `thema` trennt `light` von
+`dark`, womit auch die Falle aus A5 ausgeschlossen ist.
+
+**Der eine Roller ist benannt und nicht bloss gezählt.** Bei 1440 px:
+
+    480px  div > div.frame > main.content > div.sections:3 > section.section:2
+           > div.scrolls:2
+    <div class="scrolls"><table class="stacks"><thead><tr><th>Datei</th>
+    <th>Zustand</th><th>Adresse</th><th>Suiten</th><th>S…
+
+Das ist die **Quellenliste**, nicht die Paketliste, und der Behälter ist der
+dafür vorgesehene. `app.css` nimmt den Fall wörtlich vorweg: `.stacks` wirkt
+erst unter 720 px, darüber ist die Tabelle eine Tabelle, „und eine Tabelle mit
+sechs Spalten will auch auf 1024 px rollen können statt sich zu quetschen".
+Die Breite ist durch den Inhalt begrenzt — eine Adresse hat eine natürliche
+Länge.
+
+**Nachgesehen wurde er trotzdem, und aus einem Grund.** `rollt` heisst „darf",
+nicht „ist in Ordnung", und in P5c hat genau diese Kategorie ein echtes Loch
+verdeckt: eine bei 512 Zeichen gekürzte Textzelle machte den Inhalt 5710 px
+breit, und die Messung war grün.
+
+> **Eine Zelle, die rollen darf, hat keine Obergrenze — sie hat nur keine Zahl,
+> die sich beschwert.**
+
+**Die Asymmetrie zwischen den Breiten ist die erwartete.** Bei 390 px gibt es
+die breite Tabelle nicht — dort steht die Kärtchenform aus `docs/24`, die nicht
+rollt; dieselbe Ursache trägt `versteckt 6` gegen `0`, denn die Kärtchen führen
+ihre Spaltenbeschriftungen für die Vorlesesoftware mit.
+
+**Im Bild bei 390 px:** die Phasing-Meldung mit beiden Namen und dem Grund, die
+Conffile-Zeile mit zwei vollen Pfaden, beide sauber umbrochen — `grub.ucf-` /
+`dist` mitten in der Kennung, also die Regel aus `docs/46 §20.11` in ihrer
+dritten Fassung. Dazu „Kein Neustart nötig" grün, einen Tag nach Punkt 7d.
+
+**Was in dieser Runde noch aussteht:** `/logs` mit der Quelle
+„Aktualisierungen installieren" und der Bestätigungsdialog aus 7c.
+
+---
+
+**Beobachtung 14 — der rote Fehler in der Konsole gehört nicht zum Panel.**
+
+In drei der vier Aufnahmen stand ein `Uncaught Error` neben den Issues:
+
+    Uncaught Error: Search engine null is not supported.
+        getSearchEngineAnalyzer @ searchAnalyzer.js:2
+
+`searchAnalyzer.js` kommt in diesem Repo **nirgends** vor — nicht in `.js`,
+`.ts`, `.vue` oder `.php` —, und die Konsole führt die Datei mit dem Zeichen für
+eine Erweiterung. Es ist eine Browsererweiterung dieses Rechners und keine Zeile
+des Panels.
+
+**Aufgeschrieben wird es trotzdem**, weil ein roter Fehler auf einem Bild eines
+Abnahmelaufs sonst beim nächsten Durchsehen wieder verfolgt wird. Und mit einer
+Grenze: Das gilt für **diesen** Browser. Ein Fehler, den eine Erweiterung wirft,
+sagt über das Panel nichts — in beide Richtungen.
+
+> **Ein Bild aus einem fremden Browser trägt dessen Erweiterungen mit ins
+> Protokoll.**
+
+---
+
+**Der Zustand hat sich seit Punkt 12 geändert, und das öffnet zwei Punkte
+wieder.**
+
+Nach Punkt 5 stand `AKTUALISIERBAR` auf 0; bei dieser Runde sind es **5**, alle
+aus `noble-security`. Damit ist die Paketliste samt Knopfreihe fotografierbar —
+11a wird also vollständig und braucht kein 11b — und **5d und 8b sind zum ersten
+Mal seit dem Upgrade messbar**.
+
+> **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr hergestellt.**
+> Diesmal ist er von selbst gekommen, und die Reihenfolge hängt daran: Wer
+> installiert, schliesst das Fenster wieder.
+
 <!-- Wird während des Laufs weitergefüllt. -->

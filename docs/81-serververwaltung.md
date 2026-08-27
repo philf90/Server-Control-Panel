@@ -1073,6 +1073,101 @@ da — die CI hat genau die eine Zeile gemeldet.
 
 ---
 
+---
+
+### 2.3l Die Messrunde vor der Rollenteilung (27. August 2026)
+
+Gemessen, bevor eine Zeile entsteht — wie vor Schritt 6, Schritt 8 und A9. Die
+Vorgabe ist die Tabelle aus §3 Frage 2 mit ihren sieben Zeilen.
+
+**Der Bestand: sechs Routen, alle auf `can:operate-server`.**
+
+| Route | heute | nach Frage 2 |
+|---|---|---|
+| `GET /updates` | `operate-server` | **wechselt** — Zahlen, Liste und Quellen sieht auch der Administrator |
+| `POST /updates/refresh` | `operate-server` | **wechselt** |
+| `PUT /updates/sources` | `operate-server` | bleibt |
+| `POST /updates/install` | `operate-server` | bleibt |
+| `PUT /updates/unattended` | `operate-server` | bleibt |
+| `POST /server/reboot` | `operate-server` | bleibt |
+
+**Es sind zwei Routen und nicht sechs.** Der Schritt heisst „die Seite dem
+Administrator öffnen" und klingt nach einem Umbau; gemessen ist er eine
+Fähigkeit an zwei Stellen, eine gefilterte Ablage und vier Bedienelemente, die
+hinter ihrer `can`-Ablage verschwinden müssen.
+
+**Die vier Bedienelemente hängen an vier Routen**, aus der Seite gemessen:
+`router.put('/updates/sources')`, `router.post('/updates/install')` (drei
+Knöpfe, ein Aufruf), `router.put('/updates/unattended')` und der
+`RebootButton`. `AbilityReachTest` verlangt für jedes, dass es gar nicht erst
+gezeigt wird, wenn der Betrachter es nicht drücken darf.
+
+---
+
+**M1 — „ohne Schlüsselmaterial" ist wörtlich genommen schon erfüllt.**
+
+Frage 2 sagt, der Administrator sehe die Paketquellen „ohne Schlüsselmaterial".
+Gemessen am Payload trägt die Seite **kein** Schlüsselmaterial:
+`Sources::key()` gibt `kind` (`path` · `embedded` · `none`) und höchstens einen
+Dateipfad zurück, nie Bytes — ein eingebetteter PGP-Block wird als `embedded`
+gemeldet und nicht durchgereicht. `Keys` liefert `fingerprint`, `uid`, `expires`
+und `state`.
+
+**Ein Fingerabdruck ist kein Geheimnis.** Er steht in der Dokumentation jeder
+Distribution und auf öffentlichen Schlüsselservern; die `uid` ist der
+öffentliche Name des Signierenden. Wer sie sieht, kann nichts, was er ohne sie
+nicht könnte — die Adressen der Quellen stehen ohnehin daneben.
+
+> **Eine Anforderung, die einen Zustand verlangt, der schon besteht, sagt
+> entweder nichts oder etwas anderes als das, was dasteht.**
+
+Damit gibt es zwei ehrliche Lesarten, und die Entscheidung gehört dem
+Betreiber: **(a)** gemeint war das Schlüsselmaterial selbst — dann ist nichts zu
+tun ausser einem Wächter, der es festhält; **(b)** gemeint war die ganze
+Schlüsselspalte — dann verschwindet sie für den Administrator, nicht weil sie
+geheim wäre, sondern weil Vertrauensanker nicht sein Gegenstand sind.
+
+Dieselbe Lage wie bei A9, wo die Messung das Kriterium schon erfüllt vorfand:
+
+> **Ein Zustand, der stimmt und den nichts hält, ist von einem, der nicht
+> stimmt, nur durch Glück getrennt.**
+
+---
+
+**M2 — der Neustart reist im Payload der Updates-Seite mit.**
+
+`UpdatesController::read()` legt `reboot => ServerController::prompt()` bei,
+also `hostname` und `delay`, und die Seite zeigt daraus den `RebootButton`. Die
+Route `/server/reboot` bleibt nach Frage 2 beim Betreiber — der Knopf muss also
+weg, und mit ihm sinnvollerweise der Wert.
+
+**Der `hostname` ist dabei kein Geheimnis** — er steht im Zertifikat, in der
+Adresszeile und in `srvpanel version`. Was hier zählt, ist nicht der Wert,
+sondern der Knopf: `AbilityReachTest` besteht darauf, dass ein Bedienelement,
+das der Betrachter nicht drücken darf, gar nicht erst gezeigt wird.
+
+> **Ein Wert, der nur da ist, weil ein Knopf ihn braucht, gehört mit dem Knopf
+> fort — sonst bleibt er als Rest, den niemand mehr begründen kann.**
+
+---
+
+**M3 — die vier übrigen Nutzlasten sind unverdächtig, und das ist gemessen und
+nicht angenommen.**
+
+`packages` trägt die Zahlen, die Paketliste, die zurückgehaltenen samt Grund,
+die Conffiles und den Zustand der Automatik. Dass die Fassungen installierter
+Pakete verraten, welche bekannten Lücken dieser Server hat, steht seit Schritt 5
+als Begründung im `UpdatesController` — **Frage 2 hat das entschieden und
+zugelassen**: „Zahlen und Liste sehen: ja". Die Zeile ist damit keine offene
+Frage mehr, sondern eine getroffene Wahl.
+
+`errors` trägt die Meldungen zweier Agent-Operationen. `sources` und `reboot`
+sind oben behandelt.
+
+**Was daraus für den Bau folgt:** kein Umbau des Payloads, sondern **eine
+Filterung an genau zwei Stellen** — die Schlüsselspalte, falls (b), und der
+Neustart-Anteil. Alles Übrige bleibt, wie es ist.
+
 ## 3. Die vier Fragen — entschieden
 
 Vier Fragen, die den Zuschnitt ändern und nicht die Umsetzung. Ausformuliert am

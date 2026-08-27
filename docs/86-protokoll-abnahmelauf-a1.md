@@ -1637,9 +1637,41 @@ nicht da.
 > **Ein Filter, der stimmt, und ein Filter, den etwas hält, sehen heute gleich
 > aus — und morgen nicht mehr.**
 
-**Zu bauen:** die Aufzählung als Naht aus der Ops-Datei ziehen, so wie
-`Apt::sections()` und `Packages::inst()`, und ein Wächter mit selbstgebauten
-Dateien — darunter eine, die `ubuntu.sources.curtin.orig` heisst. Klein, und
-deshalb steht hier auch, dass er noch nicht gebaut ist.
+**Gebaut am 27. August.** `Sources::files()` ist die Naht, `Sources::EXTENSIONS`
+die einzige Stelle mit den Endungen, `SourceFileTest` der Wächter — mit acht
+Prüfkörpern, die gegen echtes apt gemessen sind (2.8.3, eigenes
+`Dir::Etc::sourceparts`): zwei gelesen, sechs **stumm** ignoriert, kein Wort auf
+stderr. Fünf Eingriffe in `tests/waechter-brechen.sh`, alle beissend, einzeln
+und im Lauf.
+
+**Und der Wächter hat sich beim Brechen zweimal selbst berichtigt** — das ist
+der Teil, der ohne die Brüche nicht passiert wäre.
+
+Der erste Prüfkörper legte `sources.list` **in** `sources.list.d`. Die
+Hauptdatei stand danach zweimal in der Liste, und das sah nach einem Fehler im
+Leser aus; es war einer im Prüfkörper, denn auf keinem Server liegt sie in ihrem
+eigenen Teilverzeichnis.
+
+> **Ein Prüfkörper, der eine Lage herstellt, die es nicht geben kann, verlangt
+> eine Änderung, die niemand braucht.**
+
+Der zweite wog schwerer, weil er nur beim Brechen sichtbar wurde: Der Fall über
+die Reihenfolge blieb **grün**, als das abschliessende `sort()` entfernt wurde.
+`glob()` sortiert von sich aus, und ein Lauf je Endung ergibt `[alle .list][alle
+.sources]` — mit `docker.list` neben `ubuntu.sources` war die falsche Folge
+zufällig auch die richtige. Erst `zz-docker.list` lässt die beiden Fassungen
+auseinandergehen.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+Zweimal derselbe Satz an einem Wächter, den ich gerade als Antwort auf einen
+Befund gebaut habe. Ein Wächter, den man nicht bricht, ist eine Behauptung —
+hier wären es zwei gewesen.
+
+**Nebenbei fiel `GLOB_BRACE` weg**: Gesucht wird je Endung einmal, damit die
+Konstante die einzige Stelle bleibt. Die Fahne hat PHP nicht auf jeder Bauart,
+und wo sie fehlt, gibt `glob()` `false` zurück — daraus wäre hier lautlos „gar
+keine Quelle" geworden.
 
 <!-- Wird während des Laufs weitergefüllt. -->

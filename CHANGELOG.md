@@ -21867,3 +21867,69 @@ Bedingung eines `match` in PHP regelmässig über ihrem Zweig steht.
 
 > **Ein Wächter, der zu viel meldet, wird abgeschaltet — und zwar von dem, der
 > ihn gebaut hat.**
+
+### Ein Filter, der stimmt, und ein Filter, den etwas hält
+
+Gefunden beim **Aufräumen** eines Abnahmelaufs und nicht beim Messen
+(`docs/86`, Befund 13). In `/etc/apt/sources.list.d` auf `cloudsrv24` liegt seit
+der Installation eine fünfte Datei:
+
+    ubuntu.sources.curtin.orig
+
+Sie stammt vom Ubuntu-Installer und ist keine Quelle. apt liest in diesem
+Verzeichnis nur `*.list` und `*.sources`; der Leser des Panels tat dasselbe, und
+die Rechnung ging auf — vier gelesene Dateien, sieben Ziele, sieben `OK:`-Zeilen.
+
+**Der Befund ist nicht, dass es falsch war, sondern dass nichts es hielt.**
+`SourceListTest` prüft zehn Fragen, alle über das *Zerlegen* einer Datei:
+Stanzas, die drei Formen von `Signed-By`, Kommentare, `Enabled`. Welche Dateien
+überhaupt in die Liste kommen, prüfte keine davon — der Ausdruck stand
+alleinstehend in einer Ops-Datei, wo ihn kein Wächter erreicht, weil `Context`
+`final` ist.
+
+> **Ein Filter, der stimmt, und ein Filter, den etwas hält, sehen heute gleich
+> aus — und morgen nicht mehr.**
+
+Ein `*` an dieser Stelle meldete dem Betreiber `ubuntu.sources.curtin.orig` als
+abgeschaltete Quelle — eine Zeile, die er nicht einschalten kann, weil apt die
+Datei nie ansieht.
+
+`Sources::files()` ist die Naht, `Sources::EXTENSIONS` die einzige Stelle mit
+den Endungen, und `SourceFileTest` der Wächter. Die Pfade sind **Argumente ohne
+Vorgabewert**: Läse er das echte `/etc/apt`, hinge sein Ergebnis daran, was auf
+der messenden Maschine gerade liegt — und genau daran war `SourceOwnershipTest`
+einen Tag zuvor in der CI rot und im Container grün.
+
+**Die Prüfkörper sind gegen echtes apt gemessen** (apt 2.8.3, eigenes
+`Dir::Etc::sourceparts`): Von acht Dateien holt apt genau zwei Ziele, die sechs
+anderen ignoriert es **stumm** — kein Wort auf stderr, Rückgabewert 0. Die
+Gegenprobe steht als eigener Fall im Wächter, weil sie sonst fehlte:
+
+> **Ein Prüfkörper, der nicht gelesen wird, kann auch kaputt sein — das sieht
+> gleich aus.**
+
+Dieselben Bytes noch einmal mit der Endung `.sources`, und apt holt drei Ziele.
+
+**Nebenbei fiel `GLOB_BRACE` weg.** Gesucht wird jetzt je Endung einmal — so ist
+die Konstante die einzige Stelle, an der die Endungen stehen, und die Fahne ist
+fort, die PHP nicht auf jeder Bauart hat. Wo sie fehlt, gibt `glob()` `false`
+zurück, und daraus wäre hier lautlos „gar keine Quelle" geworden.
+
+**Und der Wächter hat sich beim Brechen selbst berichtigt, zweimal.** Der erste
+Prüfkörper legte `sources.list` in `sources.list.d` — eine Lage, die es auf
+keinem Server gibt, und die Hauptdatei stand danach zweimal in der Liste. Das
+sah nach einem Fehler im Leser aus und war einer im Prüfkörper.
+
+> **Ein Prüfkörper, der eine Lage herstellt, die es nicht geben kann, verlangt
+> eine Änderung, die niemand braucht.**
+
+Der zweite wog schwerer: Der Fall über die Reihenfolge blieb **grün**, als das
+abschliessende `sort()` entfernt wurde. `glob()` sortiert von sich aus, und ein
+Lauf je Endung ergibt `[alle .list][alle .sources]` — mit `docker.list` und
+`ubuntu.sources` war die falsche Folge zufällig auch die richtige. Erst
+`zz-docker.list` lässt die beiden Fassungen auseinandergehen.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+Fünf Eingriffe stehen in `tests/waechter-brechen.sh`, alle beissend.

@@ -18147,6 +18147,122 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
 
 echo
+echo "── SourceFileTest: der Dateifilter liest alles ──"
+#
+# `docs/86` Befund 13. Auf cloudsrv24 liegt ein `ubuntu.sources.curtin.orig`
+# vom Ubuntu-Installer. Gemessen gegen echtes apt (27. August 2026, 2.8.3):
+# Von acht Dateien liest apt genau zwei, die sechs anderen ignoriert es STUMM
+# — kein Wort auf stderr, Rueckgabewert 0. Ein `*` an dieser Stelle meldete
+# dem Betreiber eine abgeschaltete Quelle, die er nicht einschalten kann.
+#
+#   Ein Filter, der stimmt, und ein Filter, den etwas haelt, sehen heute
+#   gleich aus — und morgen nicht mehr.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = "glob($parts.'/*.'.$endung)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "glob($parts.'/*')", 1))
+PY2
+griff_datei agent/src/Sources.php "Dateifilter liest alles" &&
+pruefe "Dateifilter liest alles" \
+  SourceFileTest::test_only_the_two_extensions_apt_reads_are_read failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceFileTest passed
+
+echo
+echo "── SourceFileTest: nur die erste Endung wird gelesen ──"
+#
+# Die Gegenrichtung, und die ist die, in der ein toter Eintrag wirklich
+# entsteht: Wer `EXTENSIONS` erweitert und die Schleife danebenstehen laesst,
+# bekommt eine Konstante, die etwas verspricht, was niemand einloest. Der
+# erste Fall waere eine Quelle, die auf der Seite fehlt — und fehlende Zeilen
+# faellt niemandem auf.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = 'foreach (self::EXTENSIONS as $endung)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'foreach ([self::EXTENSIONS[0]] as $endung)', 1))
+PY2
+griff_datei agent/src/Sources.php "nur die erste Endung" &&
+pruefe "nur die erste Endung" \
+  SourceFileTest::test_every_extension_of_the_constant_is_read failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceFileTest passed
+
+echo
+echo "── SourceFileTest: die Namensfolge faellt weg ──"
+#
+# `glob()` sortiert von sich aus, und gesucht wird je Endung einmal — ohne das
+# abschliessende `sort()` kaeme `[alle .list][alle .sources]` heraus statt
+# apts Reihenfolge. **Dieser Eingriff hat den Pruefkoerper des Waechters
+# berichtigt:** Mit `docker.list` und `ubuntu.sources` war die falsche Folge
+# zufaellig auch die richtige, und der Fall meldete gruen, was er pruefen
+# soll. Seit `zz-docker.list` gehen die beiden Fassungen auseinander.
+#
+#   Ein Pruefkoerper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall,
+#   misst nicht.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = "        sort($teile);\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Sources.php "Namensfolge faellt weg" &&
+pruefe "Namensfolge faellt weg" \
+  SourceFileTest::test_the_main_file_comes_first_and_the_parts_follow_in_name_order failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceFileTest passed
+
+echo
+echo "── SourceFileTest: eine fehlende Hauptdatei steht trotzdem da ──"
+#
+# Auf einem heutigen Ubuntu ist `sources.list` nur noch ein Hinweistext und
+# kann auch ganz fehlen. Ohne den `is_file`-Filter stuende ein Pfad in der
+# Liste, den es nicht gibt — und der Leser darueber liefe auf eine Datei zu,
+# die keiner geschrieben hat.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = 'static fn (string $pfad): bool => is_file($pfad),'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "static fn (string \\$pfad): bool => \\$pfad !== '',", 1))
+PY2
+griff_datei agent/src/Sources.php "fehlende Hauptdatei steht da" &&
+pruefe "fehlende Hauptdatei steht da" \
+  SourceFileTest::test_a_missing_main_file_is_left_out_without_taking_the_parts failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceFileTest passed
+
+echo
+echo "── SourceFileTest: die Operation sucht wieder selbst ──"
+#
+# Die Regression, die den Waechter wieder blind machte. In der Ops-Datei
+# erreicht ihn kein Test, weil `Context` `final` ist — genau dort stand der
+# Ausdruck bis zum 27. August. Zwei Fassungen liefen dann nebeneinander, und
+# die zweite ist die, die veraltet.
+vorher_datei agent/src/Ops/SystemSourcesList.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemSourcesList.php'
+s = open(p, encoding='utf-8').read()
+alt = 'return Sources::files(Sources::MAIN, Sources::PARTS);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "return array_values(array_filter([Sources::MAIN, ...(glob(Sources::PARTS.'/*') ?: [])], 'is_file'));"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/SystemSourcesList.php "Operation sucht wieder selbst" &&
+pruefe "Operation sucht wieder selbst" \
+  SourceFileTest::test_the_operation_asks_the_seam_instead_of_globbing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceFileTest passed
+
+echo
 echo "── FilterResetTest: ein Filter setzt die Blaetterung nicht zurueck ──"
 #
 # Wer auf Seite 5 von 8 steht und dann auf „nur Sicherheit" schaltet, sieht

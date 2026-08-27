@@ -343,16 +343,29 @@ ist.
 
 ### Punkt 5 — Ein Upgrade, das das Panel enthält (Kriterium 5)
 
-**Der Punkt, der A1 zum Scheitern bringen kann.** Vorher:
+**Der Punkt, der A1 zum Scheitern bringen kann.**
+
+**Zuerst auf der Seite „Jetzt nachsehen" drücken — und erst danach fragen, was
+in der Liste steht.** Die Reihenfolge ist nicht Bequemlichkeit: `apt-run all`
+frischt die Listen **nicht** auf, das tut auf dieser Seite allein jener Knopf.
+Wer vorher fragt, bekommt den Index von vorher.
 
 ```bash
 ssh cloudsrv24 'apt-get -s dist-upgrade | grep "^Inst srvpanel "'
 ssh cloudsrv24 'date -Is; sudo wc -c /var/log/srvpanel/upgrade.log 2>/dev/null || echo "noch keine"'
 ```
 
-**Steht `srvpanel` nicht in der Liste**, wird der Zustand hergestellt: eine
-Fassung zurücksetzen und das Depot nachziehen. Ohne `srvpanel` in der Liste
-prüft dieser Punkt einen gewöhnlichen Lauf und nicht den, um den es geht.
+**Steht `srvpanel` auch danach nicht in der Liste**, wird der Zustand
+hergestellt: eine Fassung zurücksetzen und das Depot nachziehen. Ohne `srvpanel`
+in der Liste prüft dieser Punkt einen gewöhnlichen Lauf und nicht den, um den es
+geht.
+
+> **Eine Vorprüfung, die vor dem Schritt läuft, der ihren Gegenstand herstellt,
+> misst den Zustand davor — und ihre Anweisung zeigt in die falsche Richtung.**
+> Am 27. August genau so passiert: Die Frage stand 45 Sekunden vor dem Lauf auf
+> „nein", und der Lauf hat `srvpanel` eingespielt. Wörtlich befolgt hätte diese
+> Vorschrift ein Rollback auf einer Maschine ausgelöst, auf der die neue Fassung
+> schon bereitlag.
 
 **5a — auslösen.** Auf `/updates` „Alle einspielen" drücken. **Die Uhrzeit
 notieren.**

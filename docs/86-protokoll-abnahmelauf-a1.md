@@ -1222,6 +1222,10 @@ nicht einzeln.
 
 > **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr hergestellt.**
 
+**Nachgetragen am 27. August:** Punkt 5 ist gefahren, und das Fenster ist
+ausgeblieben — der Lauf war nach **14 Sekunden** fertig. 8b wartet damit
+weiter, und seit dem Lauf auch Punkt 5d; beide stehen bei Punkt 5.
+
 ---
 
 ### Punkt 9 — vollständig, mitsamt der Nachlesung · **erfüllt**
@@ -1310,5 +1314,128 @@ der Eingriff nur eine Zeile umfasst.
 
 > **Ein Rückweg, der stillschweigend etwas anderes mitnimmt, ist schlimmer als
 > keiner.**
+
+---
+
+## Gefahren gegen `0.7.2-rc.2` — 27. August 2026
+
+Der Lauf dieses Tages hat genau einen Gegenstand: Punkt 5. Er ist nur mit einer
+Fassung im Depot zu messen, in der `srvpanel` selbst steht, und die gab es erst
+mit `0.7.2-rc.3`.
+
+---
+
+### Punkt 5 — Ein Upgrade, das das Panel enthält (Kriterium 5) · **erfüllt**
+
+**Das ist der Punkt, für den `docs/85` überhaupt geschrieben wurde.** Er belegt
+einen Satz, den dieses Projekt seit P0 behauptet und den nur der eigene Gebrauch
+gestützt hat: dass eine transiente Unit den Neustart von `srvpanel-worker`
+überlebt, wenn `srvpanel` selbst im Lauf steckt.
+
+Gemessen am 27. August 2026 gegen `0.7.2-rc.2`, aufgezeichnet von einem
+Beobachterskript, das vorher, während und nachher misst — und das Protokoll ab
+dem **Byteversatz vom Laufbeginn** ausgibt statt mit `tail -20`. Der Teil vor
+dem Neustart ist genau der, um den es geht; ein `tail` hätte ihn weggeschnitten.
+
+    ══ VORHER ══   11:08:31 · Fassung 0.7.2~rc.2 · Protokoll 3022 Bytes
+    ══ WÄHREND ══  11:09:16–11:09:30, acht Abtastungen im Zweisekundentakt
+                   Units: 1 durchgehend · Protokoll 3022 → 6965 Bytes (+3943)
+    ══ NACHHER ══  Dauer 14 s · Fassung 0.7.2~rc.3
+                   srvpanel-web · -worker · -agentd: active active active
+    ══ BILANZ ══   apt-run: 6 von 6 Aktualisierungen eingespielt, 0 bleiben offen.
+
+**Die drei Erwartungen aus `docs/85`, einzeln.**
+
+**1. Genau eine transiente Unit, und das Protokoll wächst.** Beides gemessen —
+`1` in allen acht Abtastungen, danach fort (`--collect`), und +3943 Bytes. Die
+Zahl daneben ist die Gegenprobe: Eine Unit, die steht und nichts schreibt, sieht
+in `list-units` genauso aus wie eine, die arbeitet.
+
+**2. Die letzte Zeile ist die Bilanzzeile.** Sie ist es, und sie ist der Beleg
+für den ganzen Punkt — aber nicht für sich allein, sondern durch das, was vor
+ihr steht:
+
+    srvpanel (0.7.2~rc.3) wird eingerichtet …
+    SrvPanel 0.7.2-rc.3 läuft.
+    python3.12-minimal … wird eingerichtet …
+    libpython3.12-stdlib … python3.12 … libpython3.12t64 …
+    Trigger werden verarbeitet · needrestart
+    apt-run: 6 von 6 Aktualisierungen eingespielt, 0 bleiben offen.
+
+Der Neustart liegt **zwischen** der ersten und der zweiten Zeile, und das ist
+nicht erschlossen, sondern nachgelesen: `packaging/scripts/postinstall.sh` ruft
+auf dem Update-Pfad einer eingerichteten Installation `restart_services` auf,
+und die startet `srvpanel-agentd`, `srvpanel-web`, **`srvpanel-worker`** und
+`srvpanel-metrics` neu. Danach stehen im Protokoll noch vier eingerichtete
+Pakete, die Trigger, `needrestart` — und erst dann die Zeile, die `apt-run`
+schreibt, **nachdem** `apt-get` zurückgekommen ist.
+
+> **Ein Beleg für den Weg ist keiner für das Ziel.** Dass die Unit abgesetzt
+> wurde, sagt nichts darüber, dass sie zu Ende gelaufen ist. Vier Pakete hinter
+> dem eigenen Neustart sagen es.
+
+**3. Das Protokoll ist vollständig lesbar, auch der Teil vor dem Neustart.**
+Für die **Datei** ist das gemessen: 3022 Bytes standen vorher da, 6965 nachher,
+und die Ausgabe ab Byte 3023 beginnt beim ersten Wort dieses Laufs und endet mit
+der Bilanzzeile. Es fehlt kein Stück. Die Lesung derselben Datei **über die
+Seite** (`/logs`, Quelle „Aktualisierungen installieren") ist damit nicht
+mitgemessen und steht als eigener Handgriff aus.
+
+**Punkt 2 aus `docs/81 §2.3h` ist damit beantwortet:** Ja, der Lauf geht nach
+dem Neustart weiter.
+
+**Punkt 1 ist es nicht.** Dort steht die Frage nach einem vollen Lauf über
+**142** Pakete; gemessen sind **14 Sekunden für sechs**. Das ist eine Zahl und
+keine Antwort — sie sagt, dass das Absetzen und das Weiterlaufen funktionieren,
+und nichts darüber, wie lange ein Betreiber im schlimmsten Fall wartet.
+
+> **Eine Messung an sechs Fällen beantwortet keine Frage, die nach
+> hundertzweiundvierzig gestellt ist — sie sieht nur aus wie eine Antwort,
+> solange die Zahl daneben nicht dasteht.**
+
+---
+
+**Befund 12 — Eine Vorprüfung, die vor dem Auffrischen läuft, misst den alten
+Index.**
+
+Das Beobachterskript begann mit der Frage aus `docs/85`, ob `srvpanel` in
+`apt-get -s dist-upgrade` steht. Um 11:08:31 stand es **nicht** darin.
+Fünfundvierzig Sekunden später hat derselbe Server es eingespielt.
+
+Beide Messungen stimmen. `apt-run all` frischt die Listen nicht auf — das ist
+eine Entscheidung im Skript, weil das Auffrischen auf der Seite dem Knopf
+„Jetzt nachsehen" folgt. Zwischen der Vorprüfung und dem Druck lag genau dieser
+Knopf, und erst danach führte der Index `srvpanel 0.7.2~rc.3`.
+
+**Die Anweisung daneben hätte Schaden angerichtet.** `docs/85` schreibt für den
+Fall „steht nicht in der Liste" vor, den Zustand herzustellen — eine Fassung
+zurückzusetzen. Wörtlich befolgt hätte der Lauf das Panel auf einer Maschine
+zurückgerollt, auf der die neue Fassung schon bereitlag.
+
+> **Eine Vorprüfung, die vor dem Schritt läuft, der ihren Gegenstand herstellt,
+> misst den Zustand davor — und ihre Anweisung zeigt in die falsche Richtung.**
+
+Die Prüfung gehört **hinter** „Jetzt nachsehen" und nicht davor. Ein Wächter
+kann das nicht halten; es ist eine Reihenfolge in einer Vorschrift, und die
+steht deshalb hier.
+
+---
+
+**Punkt 5d und Punkt 8b warten auf dasselbe Fenster.**
+
+Nach dem Lauf sind **0** Aktualisierungen offen. Damit ersetzt die Seite die
+ganze Knopfreihe durch „Es steht keine Aktualisierung an." — es gibt keinen
+Knopf mehr, den man ein zweites Mal drücken könnte, weder gleich danach (5d)
+noch während eines Laufs (8b).
+
+Und 14 Sekunden sind auch für 8b zu kurz gewesen: Zwischen Druck und Bilanzzeile
+lag kein Fenster, in dem ein zweiter Druck den ersten noch angetroffen hätte.
+Das ist **kein** Befund am Panel — ein Lauf, der schnell fertig ist, ist ein
+guter Lauf —, aber es heisst, dass beide Punkte eine neue Gelegenheit brauchen:
+die nächste Fassung im Depot oder die beiden phasenverzögerten Pakete
+(`libproc2-0`, `procps`), sobald Ubuntu sie freigibt.
+
+> **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr hergestellt.**
+> Diesmal andersherum: Er wird auch nicht nach ihr gemessen.
 
 <!-- Wird während des Laufs weitergefüllt. -->

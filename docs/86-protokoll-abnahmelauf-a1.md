@@ -2111,4 +2111,41 @@ Das ist die Kehrseite des Satzes aus `docs/59`, und sie ist die gefährlichere:
 Dort verdeckt ein Bild etwas, hier erfindet es eine Lücke. Für eine Anwesenheit
 genügt ein Bild; für eine Abwesenheit braucht es eine Messung.
 
+---
 
+**Beobachtung 17 — ein Griff in die falsche Datei, der etwas fand.**
+
+Nachgetragen am Abend des 27. August, nach der Freigabe von `0.7.2-rc.4`.
+
+Der Betreiber meldete das Update als eingespielt, und ich habe ihn nach
+`/var/log/srvpanel/update.log` geschickt — in der Erwartung, dort den ersten der
+beiden Ausgänge von `apt-run panel` zu finden, den Punkt 10 nicht messen konnte:
+*„Fassung `<alt>` wurde zu `<neu>`"*. Dort stand:
+
+    apt-run: Der Lauf hat nichts verändert — Fassung vorher wie nachher: 0.7.2~rc.3.
+
+**Die Zeile ist richtig und gehört zu einem anderen Lauf.** `PanelUpdate` leert
+die Datei zu Beginn jedes Laufs (`@unlink(self::LOG)`), sie trägt also genau
+einen — und das war Punkt 10c vom Mittag, als `rc.4` noch nicht im Depot lag.
+Eingespielt wurde `rc.4` danach von Hand mit `apt update && apt dist-upgrade`,
+und das steht in keiner der beiden Dateien, die das Panel selbst schreibt.
+
+> **Ein Griff in die falsche Datei, der etwas findet, ist schlimmer als einer,
+> der nichts findet.** Ein leerer fällt auf; ein plausibler wird gelesen.
+
+Das ist die Verschärfung des Satzes aus `docs/78` — dort war der Griff leer und
+sah aus wie ein Befund, hier war er voll und sah aus wie eine Antwort. Die
+Änderungszeiten haben es entschieden und nicht der Inhalt: `update.log` stand
+auf 11:42, `upgrade.log` auf 20:59.
+
+**Was daraus kein Befund wurde, ist ebenfalls nachgesehen worden.** Die Sorge,
+ein von Hand eingespieltes Update sei im Panel unsichtbar, trägt nicht:
+`/var/log/apt/history.log` steht in der Positivliste von `SrvPanel\Agent\Logs`,
+als Quelle **„Paketverwaltung"**. Die drei Fragen sind sauber getrennt — was das
+Panel getan hat, was `srvpanel update` getan hat, und was apt getan hat, wer
+immer es angestossen hat.
+
+**Und Punkt 10 bleibt davon unberührt.** Sein erster Ausgang ist auf einem
+echten Server weiterhin ungesehen; `docs/85` lässt aber beide ausdrücklich als
+Ergebnis gelten, weil gefragt ist, ob **verglichen** wird. Das ist keine Lücke
+im Kriterium, sondern eine Gelegenheit, die sich nicht ergeben hat.

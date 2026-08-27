@@ -2067,6 +2067,12 @@ sondern eine Entscheidung des Betreibers.** Diese Reste stehen dem gegenüber:
 
    Das ist **eine** Aufgabe und nicht drei, und sie gehört entschieden, bevor
    jemand sie an einer Stelle allein behebt.
+
+   **Was dabei nicht fehlt, ist der Weg zum Nachsehen.** Der Vorgang trägt in
+   seinem Ergebnis `unit` und `log` — der Betreiber wird also sehr wohl dorthin
+   gezeigt, wo der Lauf steht. Was fehlt, ist die Rückmeldung **danach**: Kein
+   Zustand, keine Meldung und keine Zahl ändert sich noch, wenn der abgesetzte
+   Lauf scheitert.
 3. **Befund 4** — das `W:` zerreisst in der Anzeige; undiagnostiziert.
 4. **Befund 14** — die Fusszeile von `/logs` nennt ein Fenster, das es nicht
    gibt. Gehört zu A5.
@@ -2077,4 +2083,32 @@ sondern eine Entscheidung des Betreibers.** Diese Reste stehen dem gegenüber:
 **Befund 13 ist im Lauf gebaut worden** und steht als einziger nicht mehr offen.
 
 > **Ein Protokoll ohne seine Lücken liest sich wie eine Abnahme.**
+
+---
+
+**Beobachtung 16 — eine Abwesenheit aus einem Bildausschnitt geschlossen.**
+
+Beim Durchsehen der Vorgangsseite von 704 fehlte der Abschnitt „Ergebnis", und
+ich habe daraus einen möglichen Befund mit Gewicht gemacht: Der Betreiber
+bekomme `fertig` und keinen Hinweis, wo der Lauf zu sehen ist.
+
+Die Gegenprobe hat ihn zuerst gestützt — Vorgang 703 zeigt den Abschnitt, also
+funktioniert er. Erst der Griff in die Datenbank hat entschieden:
+
+    704 → array:5 [ "unit" => "srvpanel-update-291ffeda",
+                    "log" => "/var/log/srvpanel/upgrade.log", … ]
+    703 → array:3 [ "unreachable" => [], "reached_everything" => true, … ]
+
+**Beide Werte sind gespeichert.** Der Controller reicht `result` unbedingt
+durch, die Seite rendert den Abschnitt auf einen wahren Wert — es gibt hier
+nichts zu beheben. Auf dem Bild war er nicht zu sehen, und das war alles, was
+das Bild sagen konnte.
+
+> **Ein Bild belegt, was darauf steht. Dass etwas nicht darauf steht, belegt es
+> nicht — darüber entscheidet der Ausschnitt.**
+
+Das ist die Kehrseite des Satzes aus `docs/59`, und sie ist die gefährlichere:
+Dort verdeckt ein Bild etwas, hier erfindet es eine Lücke. Für eine Anwesenheit
+genügt ein Bild; für eine Abwesenheit braucht es eine Messung.
+
 

@@ -1549,9 +1549,97 @@ und nicht `^W:`. Beobachtung 1 hatte die Wirkung, nicht die Ursache.
 
 ---
 
-### Punkt 12 — Aufräumen · **offen**
+### Punkt 12 — Aufräumen · **erfüllt**
 
-Steht als Nächstes an; die Prüfkörper dieses Laufs sind in den Punkten 3,
-6 und 9 einzeln benannt.
+Gemessen am 27. August 2026, in drei Teilen: hinsehen, abräumen, nachmessen.
+Der dritte ist der, den die Vorschrift nicht hatte — Abräumen ist eine Änderung,
+und jede Änderung ist ein neuer Anlass zu messen.
+
+**Die Zahl ist ein Paar und keine Null.**
+
+    vorher   4 Konfigurationsreste unter /etc
+    nachher  2 — /etc/default/grub.ucf-dist, /etc/ssh/sshd_config.ucf-dist
+
+**Vier wäre „ein Prüfkörper steht noch", null wäre „das Löschen war zu breit".**
+Die zwei, die bleiben, sind dieselben, die in Punkt 6 belegt haben, dass der
+Leser auch findet, was der Lauf nicht hingelegt hat. Deshalb ist über den vollen
+Pfad gelöscht worden und über kein Muster: `rm *.ucf-dist` hätte genau den Beleg
+mitgenommen, den Punkt 6 gebraucht hat.
+
+**Zwei Prüfkörper waren schon fort, und das Abräumen sagt es.**
+
+    war nicht da: /etc/apt/apt.conf.d/zzz-abnahme-a1
+    war nicht da: /etc/srvpanel/abnahme-a1.conf
+
+Beide hatten ihre eigenen Punkte zurückgenommen — Punkt 9 die Datei der
+Automatik, Punkt 3e die umbenannte Quelle. Ein stilles `rm -f` hätte hier
+dasselbe ausgegeben wie ein erfolgreiches Löschen, nämlich nichts.
+
+> **Ein Aufräumschritt, der „war nicht da" sagt, unterscheidet „schon
+> zurückgenommen" von „nie angelegt". Ein stiller sagt zu beidem nichts.**
+
+**Der wirksame Zustand der Automatik steht wieder auf an** — `Enable "1"`,
+`Update-Package-Lists "1"`, `Unattended-Upgrade "1"`, gefragt über `apt-config
+dump` und nicht über die eigene Datei.
+
+**Und das Auffrischen als Paar:**
+
+    rc=0 · Failed to fetch: 0 · W: insgesamt: 1
+
+Die Null bekommt ihre Bedeutung von der Eins daneben. `Failed to fetch: 0`
+allein hiesse auch „gar nicht hingesehen"; mit der Warnzeile daneben heisst es
+„gelesen und nichts gefunden". Die eine Zeile ist die Schlüsselwarnung der
+Sury-PPA aus Beobachtung 1.
+
+**`/run/reboot-required` fehlt, und das ist kein Rest.** Punkt 7b hatte die
+Datei mit `touch` hergestellt, Punkt 7d sie entfernt; 12a bestätigt das einen
+Tag später. Dass Punkt 5 sie nicht neu angelegt hat, passt zu seinen sechs
+Paketen — `srvpanel` und vier Python-Pakete rechtfertigen keinen Neustart, und
+`update-notifier-common` ist auf diesem Server installiert (belegt in Punkt 7d
+durch den Trockenlauf seiner Entfernung). Die fehlende Datei heisst hier also
+wirklich „kein Neustart nötig" und nicht „niemand schreibt sie".
+
+---
+
+**Befund 13 — der Dateifilter der Quellenliste ist richtig und von nichts
+gehalten.**
+
+In `/etc/apt/sources.list.d` liegt auf diesem Server eine fünfte Datei:
+
+    ubuntu.sources.curtin.orig
+
+Sie stammt vom Ubuntu-Installer und ist **keine Quelle** — apt liest in diesem
+Verzeichnis nur `*.list` und `*.sources`. Der Leser des Panels tut dasselbe
+(`glob(…'/*.{list,sources}', GLOB_BRACE)` in `SystemSourcesList`), und die
+Rechnung geht auf: vier gelesene Dateien ergeben sieben Ziele, und genau sieben
+`OK:`-Zeilen schreibt apt bei jedem Auffrischen dieses Laufs.
+
+**Der Befund ist nicht, dass es falsch wäre — sondern dass nichts es hält.**
+`SourceListTest` prüft zehn Fragen, alle über das *Zerlegen* einer Datei:
+Stanzas, die drei Formen von `Signed-By`, Kommentare, `Enabled`. **Welche
+Dateien überhaupt gelesen werden, prüft keine davon.** Der Ausdruck steht
+alleinstehend in einer Ops-Datei, wo ihn kein Wächter erreicht.
+
+Damit ist es dieselbe Fehlerklasse, die dieses Projekt seit P0 mindestens
+sechsmal bezahlt hat: eine Angabe, die auf etwas verweist, ohne dass ein Typ,
+ein Test oder ein Werkzeug den Bezug prüft. Ein `*` an dieser Stelle — beim
+Aufräumen, beim Umbau, beim „ich will auch `.list.d`-Fragmente sehen" — meldete
+dem Betreiber `ubuntu.sources.curtin.orig` als abgeschaltete Quelle, und
+niemand würde rot.
+
+**Bemerkenswert ist, wer den Prüfkörper stellt.** Diese Datei liegt seit der
+Installation da; sie ist die Gegenprobe, die eine Regression sofort sichtbar
+machen würde — nur sieht kein Test sie an. Derselbe Bau wie bei Beobachtung 1,
+wo die Warnzeile der Sury-PPA die Gegenprobe für den Fehlschlag-Anker stellt,
+und mit demselben Rest: Ein Prüfkörper, den nur der Server hat, ist in der CI
+nicht da.
+
+> **Ein Filter, der stimmt, und ein Filter, den etwas hält, sehen heute gleich
+> aus — und morgen nicht mehr.**
+
+**Zu bauen:** die Aufzählung als Naht aus der Ops-Datei ziehen, so wie
+`Apt::sections()` und `Packages::inst()`, und ein Wächter mit selbstgebauten
+Dateien — darunter eine, die `ubuntu.sources.curtin.orig` heisst. Klein, und
+deshalb steht hier auch, dass er noch nicht gebaut ist.
 
 <!-- Wird während des Laufs weitergefüllt. -->

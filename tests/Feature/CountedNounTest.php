@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
+use Tests\Support\WithoutPhpComments;
 
 /**
  * Eine Zahl und ein Wort, das nicht zu ihr passt.
@@ -31,6 +32,8 @@ use SplFileInfo;
  */
 final class CountedNounTest extends TestCase
 {
+    use WithoutPhpComments;
+
     /**
      * Mehrzahlwörter, die in dieser Oberfläche hinter einer Zahl stehen können.
      *
@@ -327,5 +330,239 @@ final class CountedNounTest extends TestCase
             preg_match($muster, "counted(n, 'Paket', 'Pakete')"),
             'Das Muster hält eine richtige Mengenangabe für einen Fehler.',
         );
+    }
+
+    /**
+     * Und kein Wort für die Einzahl bringt seinen eigenen Artikel mit.
+     *
+     * **`counted()` setzt die Zahl davor**, und zwar immer — auch bei eins.
+     * Ein `counted($n, 'ein Paket', 'Pakete')` ergibt damit „**1 ein Paket**",
+     * und das sieht niemand beim Bauen: Die Einzahl ist in der Entwicklung der
+     * Sonderfall und im Betrieb der Normalfall.
+     *
+     * > **Ein Plural, der immer stimmt, stimmt nur, solange niemand eine Zeile
+     * > anlegt** — und der Artikel daneben stimmt nur, solange es mehr als eine
+     * > gibt.
+     *
+     * **Gefunden am 26. August 2026 an fünf Stellen**, vier davon älter als der
+     * Tag (`docs/86`, Befund 9). Aufgefallen ist eine, die gerade neu war, und
+     * die anderen vier hat erst das Auszählen gebracht.
+     *
+     * > **Ein Fehler, der an fünf Stellen unabhängig gemacht wurde, ist keine
+     * > Unachtsamkeit, sondern eine fehlende Stelle.**
+     *
+     * **Der bestehende Wächter daneben konnte ihn nicht sehen.** Er fragt, ob
+     * eine Zahl an einer Mehrzahl klebt — „1 Zeilen". Hier klebt sie an einer
+     * richtigen Einzahl, die bloss zu viel mitbringt.
+     */
+    public function test_no_singular_for_counted_carries_its_own_article(): void
+    {
+        $muster = '/\bcounted\s*\([^,]+,\s*\x27(?:[Ee]in|[Ee]ine|[Dd]er|[Dd]ie|[Dd]as)\s/u';
+        $treffer = [];
+
+        foreach ($this->templates() as $pfad => $vorlage) {
+            if (preg_match($muster, $vorlage) === 1) {
+                $treffer[] = $pfad;
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $treffer,
+            "Hier bringt das Wort für die Einzahl seinen eigenen Artikel mit:\n  ".implode("\n  ", $treffer)."\n\n".
+            '`counted()` schreibt die Zahl davor, auch bei eins — daraus wird „1 ein Paket". '.
+            'Das Wort steht ohne Artikel da; wo der Satz einen braucht, gehört er in den '.
+            'umgebenden Text und nicht in das gezählte Wort.',
+        );
+
+        // Die Gegenprobe: Das Muster findet die Form, gegen die es geschrieben
+        // ist — und lässt die richtige in Ruhe.
+        $this->assertSame(
+            1,
+            preg_match($muster, "counted(n, 'ein Paket', 'Pakete')"),
+            'Das Muster findet den Artikel nicht — dann prüft dieser Fall nichts.',
+        );
+
+        $this->assertSame(
+            1,
+            preg_match($muster, "counted(n, 'Eine Konfigurationsdatei wartet', 'Konfigurationsdateien warten')"),
+            'Das Muster kennt nur die kleingeschriebene Form — am Satzanfang steht sie gross.',
+        );
+
+        $this->assertSame(
+            0,
+            preg_match($muster, "counted(n, 'Paket', 'Pakete')"),
+            'Das Muster hält eine richtige Einzahl für einen Fehler.',
+        );
+
+        /*
+         * **Und ein Wort, das mit „ein…" anfängt, ist kein Artikel.**
+         * „Eintrag" steht in diesem Repo fünfmal als Einzahl da; ohne die
+         * Wortgrenze im Ausdruck meldete dieser Wächter sie alle fünf.
+         *
+         * > **Ein Wächter, der zu viel meldet, wird abgeschaltet — und zwar von
+         * > dem, der ihn gebaut hat.**
+         */
+        $this->assertSame(
+            0,
+            preg_match($muster, "counted(n, 'Eintrag', 'Einträge')"),
+            'Das Muster hält „Eintrag" für einen Artikel — es fehlt die Wortgrenze.',
+        );
+    }
+
+    /**
+     * Und dieselbe Regel gilt für die Meldungen aus PHP.
+     *
+     * **Der Wächter oben las neun Monate lang nur `.vue`.** Gefunden hat den
+     * Rest der Abnahmelauf zu A1 auf `cloudsrv24` (`docs/86`, Befund 11), und
+     * zwar an der **einen** Meldung, die ein Betreiber zu sehen bekommt, wenn
+     * seine Einstellung nicht wirkt: „Hauptschalter aus, Listen alle 1 Tage,
+     * unbeaufsichtigt alle 0 Tage."
+     *
+     * > **Ein Wächter, der eine Fläche liest, sagt über die andere nichts — und
+     * > meldet für sie „alles in Ordnung".**
+     *
+     * Drei Stellen standen so da, alle drei operatorseitig: die Meldung oben,
+     * der Ablauf des Panelzertifikats und die Zeile von `srvpanel tls`.
+     *
+     * **Die Liste ist absichtlich kürzer als die für die Vorlagen.** „1 Zeichen"
+     * und „1 Treffer" sind richtiges Deutsch; ein Wort, dessen Einzahl gleich
+     * lautet, gehört hier nicht hinein, sonst meldet dieser Wächter Richtiges.
+     *
+     * > **Ein Wächter, der zu viel meldet, wird abgeschaltet.**
+     */
+    public function test_no_php_message_glues_a_count_to_a_plural(): void
+    {
+        /*
+         * **Nur Wörter, deren Einzahl anders lautet.** Alles andere wäre ein
+         * Fehlalarm auf einer richtigen Zeile.
+         */
+        $plurale = [
+            'Tage', 'Tagen', 'Zeilen', 'Einträge', 'Domains', 'Abonnements',
+            'Konten', 'Vorgänge', 'Dateien', 'Pakete', 'Quellen', 'Sekunden',
+            'Zertifikate', 'Datenbanken', 'Sicherungen', 'Zugänge', 'Spalten',
+        ];
+
+        $muster = '/%[ds]\s+(?:'.implode('|', $plurale).')\b/u';
+
+        /*
+         * **Die Ausnahmen, und jede nennt ihren Grund.** Der Ausdruck liest
+         * Text und sieht nicht, ob eine Zahl eine Konstante ist oder ob der
+         * Zweig bei eins gar nicht erreicht wird. Wo das so ist, steht es hier
+         * — mit dem Grund und nicht mit dem Dateinamen allein.
+         *
+         * > **Eine Positivliste ohne Begründung ist eine Liste von Dateien, die
+         * > jemand einmal müde war zu prüfen.**
+         */
+        $ausnahmen = [
+            'agent/src/Acme/Bundle.php' => 'MAX_CERTIFICATES ist eine Konstante grösser als eins',
+            'agent/src/Acme/Order.php' => 'die Frist ist eine Konstante in Sekunden, nie eine',
+            'agent/src/Ops/DbUserCreate.php' => 'MAX_DATABASES ist eine Konstante grösser als eins',
+            'agent/src/Pg/Console.php' => 'die Meldung entsteht nur, wenn es NICHT genau eine Zeile war — sie sagt es selbst',
+        ];
+
+        $treffer = [];
+        $gelesen = 0;
+        $gedeckt = [];
+
+        foreach ($this->phpSources() as $pfad => $quelltext) {
+            $gelesen++;
+
+            $zeilen = explode("\n", $quelltext);
+
+            foreach ($zeilen as $nummer => $zeile) {
+                if (preg_match($muster, $zeile) !== 1) {
+                    continue;
+                }
+
+                /*
+                 * **Wer die Einzahl in der Nähe entscheidet, ist fein raus** —
+                 * dieselbe Grobheit wie beim Wächter über die Vorlagen, nur
+                 * über ein Fenster statt über eine Zeile: In PHP steht die
+                 * Bedingung eines `match` oder eines Ternärs regelmässig ein
+                 * paar Zeilen über dem Zweig, der die Mehrzahl schreibt.
+                 */
+                $fenster = implode("\n", array_slice($zeilen, max(0, $nummer - 5), 6));
+
+                if (preg_match('/===\s*1\b/', $fenster) === 1) {
+                    continue;
+                }
+
+                if (array_key_exists($pfad, $ausnahmen)) {
+                    $gedeckt[$pfad] = true;
+
+                    continue;
+                }
+
+                $treffer[] = sprintf('%s:%d — %s', $pfad, $nummer + 1, trim($zeile));
+            }
+        }
+
+        // Ohne diese Zeile meldete ein kaputter Leser dieselbe leere Liste wie
+        // eine saubere Anwendung.
+        $this->assertGreaterThan(
+            30,
+            $gelesen,
+            'Es werden kaum Dateien unter agent/src gelesen — dann prüft dieser Test nichts.',
+        );
+
+        $this->assertSame(
+            [],
+            $treffer,
+            "Eine eingesetzte Zahl mit fest angehängtem Mehrzahlwort in einer Meldung:\n  ".
+            implode("\n  ", $treffer)."\n\n".
+            'Bei genau eins liest sich das als „1 Tage". Die Entscheidung über das Wort gehört '.
+            'an den Wert — und wo die Zahl null sein kann, gehört auch dieser Fall entschieden: '.
+            '„alle 0 Tage" klingt nach ständig und heisst nie.',
+        );
+
+        /*
+         * **Und die Gegenrichtung, denn dort verfällt eine Ausnahme wirklich.**
+         * Wird eine Meldung berichtigt oder fällt sie weg, deckt ihr Eintrag
+         * nichts mehr und bleibt trotzdem stehen — der nächste Leser hält ihn
+         * für eine geltende Erlaubnis.
+         */
+        $this->assertSame(
+            array_keys($ausnahmen),
+            array_keys($gedeckt),
+            'Eine Ausnahme deckt keine Fundstelle mehr — dann hebt sie nichts auf und gehört weg.',
+        );
+
+        // Die Gegenprobe: Das Muster findet die Form, gegen die es steht.
+        $this->assertSame(1, preg_match($muster, "sprintf('alle %d Tage', \$n)"));
+        $this->assertSame(0, preg_match($muster, "sprintf('alle %d Tag', \$n)"));
+        $this->assertSame(0, preg_match($muster, "sprintf('%d Zeichen', \$n)"));
+    }
+
+    /**
+     * Der Quelltext aller Meldungen — ohne Kommentare.
+     *
+     * **Die Kommentare müssen weg**, sonst meldet dieser Wächter jeden
+     * Dokumentblock, der einen früheren Fehler zitiert — und dieser hier tut
+     * das ausdrücklich.
+     *
+     * @return array<string, string>
+     */
+    private function phpSources(): array
+    {
+        $root = dirname(__DIR__, 2);
+        $gefunden = [];
+
+        foreach (['agent/src'] as $verzeichnis) {
+            /** @var SplFileInfo $datei */
+            foreach (new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($root.'/'.$verzeichnis, FilesystemIterator::SKIP_DOTS),
+            ) as $datei) {
+                if ($datei->isFile() && $datei->getExtension() === 'php') {
+                    $gefunden[str_replace($root.'/', '', $datei->getPathname())] = $this->withoutComments(
+                        (string) file_get_contents($datei->getPathname()),
+                    );
+                }
+            }
+        }
+
+        ksort($gefunden);
+
+        return $gefunden;
     }
 }

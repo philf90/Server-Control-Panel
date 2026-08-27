@@ -953,4 +953,362 @@ Gebaut und gemessen ist im Container, und das ist zweierlei.
 > **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
 > jemand ihn behoben hat.**
 
+---
+
+## Nachgesehen gegen `0.7.2-rc.2` — 26. August 2026
+
+`srvpanel version` meldet **`0.7.2-rc.2`**. Die Kacheln der Updates-Seite:
+
+    AKTUALISIERBAR 4 · DAVON SICHERHEIT 4 · DAVON NEU 0
+    ZURÜCKGEHALTEN 7 · WÜRDE ENTFERNT 0
+
+Gegen `0.7.2-rc.1` standen dort **11** und **0**. Beide Befunde greifen also, und
+zwar auf dem Server und nicht im Container.
+
+**Und die `7` belegt mehr als sich selbst.** Sie kann unter rc.1 gar nicht
+entstehen: Der Leser kannte damals nur `have been kept back`, und im Sandkasten
+des Agenten hielt apt ohnehin nichts zurück — beides musste sich ändern, damit
+diese Zahl dasteht. Damit ist die Frage beantwortet, die die Freigabenotiz
+ausdrücklich als ungemessen führte:
+
+> **`systemd-run --pipe --wait` trägt seine Ausgabe aus dem Agenten heraus
+> zurück.**
+
+Der Container konnte das grundsätzlich nicht zeigen — dort gibt es kein systemd.
+Belegt hat es keine eigene Messung, sondern eine Zahl, die ohne diesen Weg nicht
+dastünde.
+
+**Was hier noch nicht steht: die Namen.** Gesehen sind die Kacheln, nicht die
+Liste darunter und nicht die Meldung mit den sieben Namen. Ob der Grund richtig
+zugeordnet ist — Phasing und nicht Abhängigkeit —, ist damit **ungemessen**.
+
+> **Ein Kriterium, das nach einer Anzahl fragt, prüft nicht, was gezählt wurde.**
+
+Derselbe Satz hat in diesem Lauf schon zweimal gegolten, und beide Male hat erst
+die Liste die Frage entschieden.
+
+---
+
+**Die Namen sind nachgesehen — Befund 6 und 7 sind auf dem Server erfüllt.**
+
+Die Liste unter den Kacheln führt **vier** Zeilen, alle `libheif`, alle mit der
+Marke „Sicherheit" aus `Ubuntu:24.04/noble-security`. Die sieben stehen **nicht**
+darin, sondern in ihrer eigenen Meldung — und mit dem richtigen Grund:
+
+    Ubuntu spielt 7 Pakete stufenweise aus und hält es auf diesem Server noch
+    zurück: libproc2-0, libpython3.12-minimal, libpython3.12-stdlib,
+    libpython3.12t64, procps, python3.12, python3.12-minimal
+
+Sieben Namen, dieselben, die `apt-get -s upgrade` als „deferred due to phasing"
+führt. Der Grund ist als Phasing zugeordnet und nicht als Abhängigkeit; damit
+schickt die Seite den Betreiber nicht mehr auf den Knopf, der sie nicht holt.
+
+---
+
+**Befund 9 — „hält **es** zurück" bei sieben Paketen, und vier ältere Geschwister.**
+
+Der Satz oben ist der Prüfstein: `counted()` entscheidet über das Zahlwort, das
+Fürwort daneben stand fest auf `es`. Beim Nachzählen fiel auf, dass das die
+kleinere Hälfte war — **fünf** Aufrufe von `counted()` übergaben eine Einzahl
+**mit eigenem Artikel**:
+
+    counted(n, 'ein Paket', 'Pakete')                       → „1 ein Paket"
+    counted(n, 'Eine Konfigurationsdatei unter /etc wartet') → „1 Eine …"
+    counted(n, 'Ein Signaturschlüssel', …)                   → „1 Ein …"
+
+`counted()` schreibt die Zahl **immer** davor, auch bei eins. Vier der fünf sind
+älter als dieser Tag; aufgefallen ist die eine, die gerade neu war.
+
+> **Ein Fehler, der an fünf Stellen unabhängig gemacht wurde, ist keine
+> Unachtsamkeit, sondern eine fehlende Stelle.**
+
+**Und der bestehende Wächter konnte ihn nicht sehen.** `CountedNounTest` fragt,
+ob eine Zahl an einer *Mehrzahl* klebt — „1 Zeilen". Hier klebt sie an einer
+richtigen Einzahl, die bloss zu viel mitbringt.
+
+Dabei kam ein sechster Fall heraus, den keine Zahl trägt: Die Meldung über den
+fälligen Signaturschlüssel entschied ihr Zeitwort über `some(...)` und blieb
+damit im Singular — „2 Signaturschlüssel **ist** abgelaufen".
+
+> **Ein Zeitwort, das von einer anderen Frage abhängt als die Zahl daneben,
+> stimmt mit ihr nur zufällig überein.**
+
+Alle sechs behoben, der Wächter erweitert, ein Dauereingriff im Bruchskript.
+**Nachgesehen auf dem Server ist das noch nicht** — es geht mit der nächsten
+Fassung mit.
+
+---
+
+### Punkt 1 — Die drei Zahlen stimmen (Kriterium 1) · **erfüllt**
+
+Gemessen gegen `0.7.2-rc.2`:
+
+    aktualisierbar           4     Seite: 4
+    davon Sicherheit         4     Seite: 4
+    zurückgehalten           7     Seite: 7
+    Gegenprobe: showhold     0
+
+**Und die Vorschrift war an einer Stelle falsch.** `docs/85` verlangt als dritte
+Messung `apt-mark showhold | wc -l`. Das misst seit Befund 7 etwas anderes als
+die Kachel: `showhold` kennt nur ausdrücklich festgehaltene Pakete und sieht
+Phasing nie. Der Vergleich hätte `0` gegen `7` ergeben — und das liest sich wie
+ein Befund am Prüfling.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
+Gemessen wird stattdessen dieselbe Ausgabe, die auch der Agent liest: die Namen
+unter **beiden** Überschriften von `apt-get -s upgrade`. `showhold` steht als
+Gegenprobe daneben und muss `0` sein — sonst wäre die `7` womöglich aus einer
+ganz anderen Quelle.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+---
+
+### Punkt 2 — Eine Neuinstallation ist als solche zu sehen (Kriterium 2) · **halb**
+
+    LC_ALL=C apt-get -s dist-upgrade | grep '^Inst ' | grep -v '\['
+    (Ende)
+
+**Auf diesem Server gibt es heute keine Neuinstallation** — kein anstehendes
+Update zieht ein neues Paket mit, und „davon neu" steht deshalb zu Recht auf `0`.
+Herstellen liesse sich der Zustand nur, indem wirklich etwas installiert wird,
+und dafür ist ein Server mit Kundenwebsites der falsche Ort.
+
+**Die Form ist trotzdem belegt**, und zwar gegen echtes apt statt gegen eine
+ausgedachte Zeile:
+
+    Inst cowsay (3.03+dfsg2-8 Ubuntu:24.04/noble [all])
+
+Diese Zeile, wörtlich vom Server genommen, durch `Packages::inst()` gelesen:
+
+    name: cowsay · old: NULL · new: 3.03+dfsg2-8
+    origins: [Ubuntu:24.04/noble] · architecture: all · security: false
+
+Und mit der Gegenprobe daneben — dieselbe Frage an eine Zeile **mit** alter
+Fassung ergibt `old: '1.17.6-1ubuntu4.7'`. Über beide zusammen zählt `read()`
+**upgradable 2, fresh 1, security 1**.
+
+Das ist die Stelle, an der der Leser einen gemessenen Kommentar trägt: `old`
+steht bei einer Neuinstallation als **leere Zeichenkette** da und ist nicht fort,
+weil hinter ihr noch eine Gruppe mitspielt; `architecture` fehlt wirklich, weil
+sie am Ende steht. Beides gilt für diese echte Zeile.
+
+**Was damit nicht gemessen ist: die Anzeige.** Ob die Seite eine solche Zeile als
+„neu" zeigt statt mit einer erfundenen alten Fassung, ist offen — dafür müsste
+sie in `dist-upgrade` stehen, und das tut sie heute nicht.
+
+**Und die Vorschrift war hier irreführend.** `docs/85` nennt `apt-get install -s
+cowsay` als Ersatz und schreibt dazu, „die Liste der Seite entsteht aus derselben
+Simulation". Das stimmt nicht: Die Seite liest `-s dist-upgrade`, und `cowsay`
+erschiene dort nie.
+
+> **Ein Prüfkörper, der die Seite ohne den Gegenstand misst, misst die Seite und
+> nicht den Gegenstand.**
+
+Zwei Sätze, und der zweite ist der, auf den es ankommt: **Die Form ist auf dem
+Server belegt. Die Anzeige einer Neuinstallation ist nicht gemessen.** Die
+nächste Gelegenheit kommt von allein — sobald ein Upgrade eine neue Abhängigkeit
+mitbringt, steht sie in der Liste, und dann ist es ein Blick.
+
+---
+
+### Punkt 2b — Eine Quelle aus- und wieder einschalten · **erfüllt**
+
+Geschaltet wurde `php-sury.sources` und **nicht** `srvpanel.sources`: Die eigene
+Quelle abzuschalten nähme dem Panel den Blick auf seine eigenen Updates, und
+Punkt 5 hängt daran.
+
+Vorgang **694**, `system.sources.toggle`, Argumente
+`{path: …/php-sury.sources, stanza: 1, enabled: false}`, Ausgabe
+„Paketquelle ausschalten: php-sury.sources", fertig in einer Sekunde.
+
+    Ziele insgesamt      53  →  51  →  53
+    Datei                ohne  →  Enabled: no  →  Enabled: yes
+    Seite                an    →  abgeschaltet →  an
+
+**Die Datei bleibt stehen und wird nicht auskommentiert.** `Enabled: no` kommt
+als Zeile hinzu, alles andere — `URIs`, `Suites`, `Components`, `Signed-By` —
+steht unverändert da. Und beim Wiedereinschalten wird die Zeile nicht entfernt,
+sondern auf `yes` gesetzt: ausdrücklich statt abwesend.
+
+> **Eine Anzeige, die einen Zustand meldet, muss ihn auch wieder zurücknehmen —
+> sonst hat sie ihn nicht gemessen, sondern behalten.**
+
+---
+
+**Beobachtung 10 — meine Gegenprobe zählte eine andere Einheit als die Messung.**
+
+Erwartet hatte ich, die Gesamtzahl falle um die Zahl aus
+`apt-get indextargets | grep -c 'ondrej\|sury'`, also um **16**. Gemessen sind
+**2**.
+
+Der Fehler ist meiner: `grep -c` zählt **Zeilen**, `indextargets` gibt aber je
+Ziel ein Stanza aus, und der Name der Quelle steht darin mehrfach — URI,
+Repo-URI, Beschreibung, Kennung. Sechzehn Zeilen sind zwei Ziele.
+
+> **Eine Gegenprobe, die eine andere Einheit zählt als die Messung, bestätigt
+> nichts — sie nennt eine zweite Zahl.**
+
+**Die richtige Gegenprobe stand die ganze Zeit auf der Seite.** Die Quellenliste
+nennt die Ziele je Eintrag: `1 + 1 + 37 + 12 = 51`, und genau 51 misst
+`indextargets` im abgeschalteten Zustand. Die Seite rechnet damit Quelle für
+Quelle mit apt überein — eine schärfere Aussage als die, die der Lauf verlangt
+hat.
+
+> **Eine Zahl, die der Prüfling selbst je Zeile ausweist, ist eine bessere
+> Gegenprobe als eine, die man daneben baut.**
+
+---
+
+### Punkt 8a — Ein fremder Halter wird benannt (Kriterium 8) · **erfüllt**
+
+Vorgang **696**, `system.packages.upgrade`, `{mode: all, packages: []}`,
+**fehlgeschlagen** in derselben Sekunde:
+
+    Ein anderer Vorgang hält gerade die Paketsperre /var/lib/dpkg/lock-frontend
+    (python3, PID 575363) — das kann ein Lauf des Panels sein oder ein apt auf
+    der Kommandozeile. Der nächste Versuch geht erst, wenn er fertig ist.
+
+**Programmname und PID sind der Beleg**, nicht die Ablehnung: Sie zeigen, dass
+`/proc/locks` gelesen **und der Halter aufgelöst** wurde. „Etwas ist gesperrt"
+könnte auch ein Rateschluss sein. Die PID ist dieselbe, die der Prüfkörper
+selbst ausgegeben hat.
+
+---
+
+**Befund 10 — der Prüfkörper der Vorschrift nimmt die falsche Sperrfamilie.**
+
+`docs/85` schreibt für 8a `flock /var/lib/dpkg/lock-frontend sleep 90` vor.
+Gemessen am selben Inode, beide Familien nacheinander:
+
+    (1) flock   →   8: FLOCK  ADVISORY  WRITE 575346 fd:03:131426 0 EOF
+    (2) fcntl   →  14: POSIX  ADVISORY  WRITE 575363 fd:03:131426 0 EOF
+
+`AptLock::CONFLICTING` führt `POSIX` und `OFDLCK` und **nicht** `FLOCK` — mit
+der Begründung, dass die andere Familie apt gar nicht blockiert. Die Vorschrift
+hätte also eine Sperre gehalten, die niemanden stört; das Panel wäre losgelaufen,
+und das läse sich wie ein Befund am Prüfling.
+
+> **Ein Prüfkörper, der eine andere Sperre nimmt als die gemeinte, prüft die
+> gemeinte nicht.**
+
+Gemessen wird deshalb mit `fcntl.lockf` — derselben Familie, die dpkg nimmt.
+Die `FLOCK`-Zeile daneben ist die Gegenprobe: Ohne sie wäre „POSIX steht in
+`/proc/locks`" nur eine Zeile und kein Unterschied.
+
+---
+
+### Punkt 8b — Der eigene Lauf weist den zweiten ab · **nicht gemessen**
+
+Der Lauf lief durch, bevor ein zweiter Druck möglich war:
+
+    apt-run: 4 von 4 Aktualisierungen eingespielt, 0 bleiben offen.
+
+Genau die Zeile, die `apt-run` zusagt — Vorher und Nachher an derselben Frage
+gemessen, nicht am Rückgabewert. Die Unit war während des Laufs **einmal** in
+`systemctl list-units 'srvpanel-update-*'` und danach fort (`--collect`).
+
+**Und ein zweiter Anlauf geht heute nicht**, aus einem Grund im Quelltext: Bei
+`upgradable.length === 0` ersetzt die Seite die ganze Knopfreihe durch „Es steht
+keine Aktualisierung an." Es gibt keinen Knopf mehr, den man ein zweites Mal
+drücken könnte.
+
+**Das passt mit Punkt 5 zusammen.** Mit einer Fassung, in der `srvpanel` selbst
+in der Liste steht, ist Punkt 5 ein langlaufendes Upgrade des Panels — also
+genau das Fenster, das 8b braucht. Die beiden werden zusammen gemessen und
+nicht einzeln.
+
+> **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr hergestellt.**
+
+---
+
+### Punkt 9 — vollständig, mitsamt der Nachlesung · **erfüllt**
+
+**Die Automatik ist wieder an.** Vorgang **700**, `{enabled: true}`, fertig,
+„eingeschaltet". Danach aus apts Sicht:
+
+    APT::Periodic::Enable "1" · Update-Package-Lists "1"
+    APT::Periodic::Unattended-Upgrade "1"
+    beide Timer wieder mit nächstem Termin (4h22min und 23h)
+
+Und der Fall, für den die Nachlesung gebaut ist, ist gemessen. Mit einer fremden
+Datei `zzz-abnahme-a1`, die `APT::Periodic::Enable "0"` setzt, meldet
+Vorgang **699** **fehlgeschlagen** bei Fortschritt **80 %**:
+
+    Die Einstellung ist geschrieben und wirkt nicht. Gewollt war „aus", apt
+    meldet: Hauptschalter aus, Listen alle 1 Tage, unbeaufsichtigt alle 0 Tage.
+    Diese Dateien setzen den Hauptschalter, und die letzte gewinnt:
+    /etc/apt/apt.conf.d/zz-srvpanel-unattended,
+    /etc/apt/apt.conf.d/zzz-abnahme-a1
+
+**Besser als die Vorschrift verlangt hat.** `docs/85` erwartet „ein Fehlschlag
+mit dem Namen `zzz-abnahme-a1`". Gekommen sind **beide** Dateien, die den
+Hauptschalter setzen, samt der Regel, welche gewinnt — der Betreiber sieht
+damit nicht nur den Störer, sondern warum er stört.
+
+Und **80 %** ist die ehrliche Zahl: Geschrieben ist geschrieben, gescheitert ist
+die Nachlesung. Ein Rückbau an dieser Stelle wäre ein zweiter Schreibvorgang,
+der selbst scheitern kann.
+
+> **Eine Auskunft aus der eigenen Datei ist keine über den wirksamen Zustand.**
+
+---
+
+**Befund 11 — „Listen alle 1 Tage", und der Wächter las nur `.vue`.**
+
+Der Satz oben ist der Beleg für Punkt 9 **und** ein Befund: In derselben
+Meldung steht „alle **1** Tage" und „alle **0** Tage". Die Null ist dabei die
+schlimmere von beiden — `apt.systemd.daily` liest `0` als **gar nicht**, und
+„alle 0 Tage" legt das Gegenteil nahe.
+
+> **Eine Zahl, die in ihrer Schreibweise das Gegenteil nahelegt, ist schlimmer
+> als eine falsche Mehrzahl.**
+
+`Unattended::rhythm()` macht daraus einen Satz: `nie` · `täglich` ·
+`alle N Tage`. Die Meldung liest sich jetzt „Hauptschalter aus, Listen täglich,
+unbeaufsichtigt nie."
+
+**Beim Auszählen kamen zwei weitere ans Licht**, beide operatorseitig und beide
+älter: „es läuft in **1 Tagen** ab" am Panelzertifikat (wo `ceil` aus jeder
+angefangenen Stunde einen Tag macht — dort ist die Wahrheit „weniger als
+einer") und „noch **1 Tage** gültig" in `srvpanel tls`.
+
+**Und `CountedNounTest` konnte keine davon sehen: Er liest ausschliesslich
+`.vue`.**
+
+> **Ein Wächter, der eine Fläche liest, sagt über die andere nichts — und meldet
+> für sie „alles in Ordnung".**
+
+Er liest jetzt auch `agent/src`, mit vier benannten Ausnahmen, deren Zahl aus
+einer Konstante kommt oder deren Zweig bei eins gar nicht erreicht wird — und
+mit der Gegenrichtung, die eine Ausnahme meldet, die nichts mehr deckt.
+
+**Was benannt offen bleibt: dreizehn Fundstellen unter `app/`.** Derselbe
+Ausdruck über `app/` meldet sie — `Acceptance`, `FileController`,
+`AuditController`, `CustomerController`, `CheckDns`. Sie gehören nicht zu A1 und
+werden nicht nebenbei mitgenommen; sie sind **gezählt**, und das ist der
+Unterschied.
+
+> **Ein Loch, das man zählt, ist kein Loch mehr — es ist eine Zahl, die kleiner
+> werden kann.**
+
+---
+
+**Beobachtung 11 — `git checkout --` hat zum dritten Mal an einem Tag Arbeit
+gekostet.**
+
+Beim Gegenprüfen eines Bruchs wurde die Datei mit `git checkout --`
+zurückgeholt — und damit auch die **eigene, noch nicht committete** Korrektur
+darin. Gefallen ist es dem Wächter auf, der danach rot blieb, obwohl der Bruch
+zurückgenommen war.
+
+Dreimal derselbe Handgriff an einem Tag heisst: Es fehlt keine Erinnerung,
+sondern eine Gewohnheit. **Gesichert wird mit `cp`, immer** — auch dann, wenn
+der Eingriff nur eine Zeile umfasst.
+
+> **Ein Rückweg, der stillschweigend etwas anderes mitnimmt, ist schlimmer als
+> keiner.**
+
 <!-- Wird während des Laufs weitergefüllt. -->

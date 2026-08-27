@@ -21778,3 +21778,92 @@ und fand seinen Text nicht mehr. Gemeldet hat es nicht das Nachdenken, sondern
 
 > **Ein Eingriff, dessen Zielstelle umzieht, prüft nichts mehr — und sieht dabei
 > aus, als wäre die Regel abgesichert.**
+
+### Der Artikel neben einer Zahl stimmt nur, solange es mehr als eines gibt
+
+Gesehen auf `cloudsrv24` gegen `0.7.2-rc.2`, an einer Meldung, die einen Tag alt
+war: „Ubuntu spielt 7 Pakete stufenweise aus und hält **es** … zurück". Das
+Zahlwort entscheidet `counted()`, das Fürwort daneben stand fest.
+
+Beim Nachzählen war das die kleinere Hälfte. **Fünf** Aufrufe von `counted()`
+übergaben eine Einzahl **mit eigenem Artikel**:
+
+    counted(n, 'ein Paket', 'Pakete')                        → „1 ein Paket"
+    counted(n, 'Eine Konfigurationsdatei unter /etc wartet')  → „1 Eine …"
+    counted(n, 'Ein Signaturschlüssel', …)                    → „1 Ein …"
+
+`counted()` schreibt die Zahl **immer** davor, auch bei eins. Vier der fünf sind
+älter als der Tag, an dem es auffiel — und keine davon sieht man beim Bauen: Die
+Einzahl ist in der Entwicklung der Sonderfall und im Betrieb der Normalfall.
+
+> **Ein Fehler, der an fünf Stellen unabhängig gemacht wurde, ist keine
+> Unachtsamkeit, sondern eine fehlende Stelle.**
+
+**Der bestehende Wächter konnte ihn nicht sehen.** `CountedNounTest` fragt, ob
+eine Zahl an einer *Mehrzahl* klebt („1 Zeilen"); hier klebt sie an einer
+richtigen Einzahl, die bloss zu viel mitbringt. Er hat den Fall dazubekommen —
+mit Wortgrenze im Ausdruck, weil „Eintrag" fünfmal als Einzahl dasteht und ohne
+sie alle fünf gemeldet würden.
+
+> **Ein Wächter, der zu viel meldet, wird abgeschaltet — und zwar von dem, der
+> ihn gebaut hat.**
+
+**Ein sechster Fall kam dabei heraus, den keine Zahl trägt.** Die Meldung über
+den fälligen Signaturschlüssel entschied ihr Zeitwort über `some(…)` — also
+danach, **ob** einer abgelaufen ist, und nicht danach, **wie viele** es sind. Bei
+zwei Schlüsseln stand dort „2 Signaturschlüssel ist abgelaufen".
+
+> **Ein Zeitwort, das von einer anderen Frage abhängt als die Zahl daneben,
+> stimmt mit ihr nur zufällig überein.**
+
+### „Listen alle 1 Tage" — und der Wächter las nur Vorlagen
+
+Gesehen auf `cloudsrv24` in der **einen** Meldung, die ein Betreiber zu lesen
+bekommt, wenn seine Einstellung nicht wirkt (`docs/86`, Befund 11):
+
+    Hauptschalter aus, Listen alle 1 Tage, unbeaufsichtigt alle 0 Tage.
+
+Die Null ist dabei die schlimmere von beiden. `apt.systemd.daily` liest `0` als
+**gar nicht** — und „alle 0 Tage" legt das Gegenteil nahe: Es klingt nach
+ständig.
+
+> **Eine Zahl, die in ihrer Schreibweise das Gegenteil nahelegt, ist schlimmer
+> als eine falsche Mehrzahl.**
+
+`Unattended::rhythm()` macht daraus einen Satz: `nie` · `täglich` ·
+`alle N Tage`. Kein allgemeiner Pluralbildner — für „täglich" gibt es keine
+Regel, die sich aus „Tag" ableiten liesse, und wer sie erfände, bekäme bei der
+nächsten Einheit „1 Wochs".
+
+**Beim Auszählen kamen zwei weitere ans Licht**, beide älter und beide
+operatorseitig: „es läuft in **1 Tagen** ab" am Panelzertifikat — wo `ceil` aus
+jeder angefangenen Stunde einen Tag macht, die Wahrheit bei eins also „weniger
+als einer" ist — und „noch **1 Tage** gültig" in `srvpanel tls`.
+
+**Und `CountedNounTest` konnte keine davon sehen.** Er liest seit P5c
+ausschliesslich `.vue`.
+
+> **Ein Wächter, der eine Fläche liest, sagt über die andere nichts — und meldet
+> für sie „alles in Ordnung".**
+
+Er liest jetzt auch `agent/src`. Vier Ausnahmen stehen dort mit ihrem Grund —
+eine Konstante grösser als eins, ein Zweig, der bei eins gar nicht erreicht
+wird — und die Gegenrichtung meldet eine Ausnahme, die nichts mehr deckt. Ohne
+sie bliebe ein Eintrag stehen, nachdem seine Meldung längst berichtigt ist, und
+der nächste Leser hielte ihn für eine geltende Erlaubnis.
+
+**Dreizehn Fundstellen unter `app/` bleiben benannt und ungefixt.** Sie gehören
+nicht zu dieser Änderung und werden nicht nebenbei mitgenommen — sie sind
+gezählt.
+
+> **Ein Loch, das man zählt, ist kein Loch mehr — es ist eine Zahl, die kleiner
+> werden kann.**
+
+**Der erste Wurf des Ausdrucks meldete vierundzwanzig Stellen**, darunter die
+soeben berichtigten: `default => sprintf('alle %d Tage', $days)` ist richtig,
+weil dieser Zweig nur bei mehr als eins läuft. Er bekam dasselbe Fenster wie der
+Wächter über die Vorlagen — nur über fünf Zeilen statt über eine, weil die
+Bedingung eines `match` in PHP regelmässig über ihrem Zweig steht.
+
+> **Ein Wächter, der zu viel meldet, wird abgeschaltet — und zwar von dem, der
+> ihn gebaut hat.**

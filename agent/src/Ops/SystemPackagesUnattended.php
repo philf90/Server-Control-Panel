@@ -114,12 +114,12 @@ final class SystemPackagesUnattended implements Op
         if (! $stimmt) {
             throw AgentException::execFailed(sprintf(
                 'Die Einstellung ist geschrieben und wirkt nicht. Gewollt war „%s", apt meldet: '
-                .'Hauptschalter %s, Listen alle %d Tage, unbeaufsichtigt alle %d Tage. '
+                .'Hauptschalter %s, Listen %s, unbeaufsichtigt %s. '
                 .'Diese Dateien setzen den Hauptschalter, und die letzte gewinnt: %s',
                 $an ? 'ein' : 'aus',
                 $wirksam['enabled'] ? 'ein' : 'aus',
-                $wirksam['lists_days'],
-                $wirksam['upgrade_days'],
+                Unattended::rhythm($wirksam['lists_days']),
+                Unattended::rhythm($wirksam['upgrade_days']),
                 implode(', ', $wirksam['setters']),
             ), ['setters' => $wirksam['setters']]);
         }

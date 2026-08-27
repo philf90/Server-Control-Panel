@@ -173,6 +173,33 @@ final class Unattended
     }
 
     /**
+     * Aus einer Zahl von Tagen der Satz, den ein Mensch liest.
+     *
+     * **Anlass ist „Listen alle 1 Tage"**, gesehen im Abnahmelauf zu A1 auf
+     * `cloudsrv24` (`docs/86`, Befund 11) — in der einen Meldung, die ein
+     * Betreiber liest, wenn seine Einstellung nicht wirkt.
+     *
+     * **Die Null ist der wichtigere Fall.** `apt.systemd.daily` liest `0` als
+     * „gar nicht", und „alle 0 Tage" ist keine ungeschickte Mehrzahl, sondern
+     * eine Auskunft, die das Gegenteil nahelegt: Es klingt nach „ständig".
+     *
+     * > **Eine Zahl, die in ihrer Schreibweise das Gegenteil nahelegt, ist
+     * > schlimmer als eine falsche Mehrzahl.**
+     *
+     * Hier steht kein allgemeiner Pluralbildner: Für „täglich" gibt es keine
+     * Regel, die man aus „Tag" ableiten könnte, und wer sie erfände, bekäme bei
+     * der nächsten Einheit „1 Wochs".
+     */
+    public static function rhythm(int $days): string
+    {
+        return match (true) {
+            $days <= 0 => 'nie',
+            $days === 1 => 'täglich',
+            default => sprintf('alle %d Tage', $days),
+        };
+    }
+
+    /**
      * Welche Dateien diesen Schlüssel setzen — **zur Erklärung, nicht zur
      * Entscheidung.**
      *

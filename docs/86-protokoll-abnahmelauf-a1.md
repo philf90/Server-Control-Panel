@@ -248,6 +248,15 @@ Sury-PPA — und sagt daneben „alle Quellen erreicht". Der Leser unterscheidet
 also wirklich zwischen einer Warnung und einem Ausfall, und nicht nur im
 Quelltext.
 
+**Nachgetragen am 27. August: das ist der Anker und nicht die Zeilenart.**
+`Apt::readFailures()` sucht `^[WE]: Failed to fetch` und nicht `^W:`. Damit
+ist belegt, dass kein **falscher** Treffer entsteht — dass jede Form eines
+Fehlschlags **gefunden** wird, hält weiterhin `AptResultTest` mit eigenen
+Prüfkörpern.
+
+> **Ein falscher Treffer und ein verpasster Treffer sind zwei Fehler, und
+> ein Prüfkörper misst immer nur einen davon.**
+
 ---
 
 ### Punkt 4 — Ein ablaufender Schlüssel · **nicht messbar**
@@ -1517,27 +1526,32 @@ Abhängigkeiten, hier Phasing.
 
 ---
 
-**Beobachtung 13 — eine dauerhafte `W:`-Zeile, die keine Quelle meldet.**
+**Beobachtung 13 — ich habe eine Beobachtung ein zweites Mal aufgeschrieben.**
 
-Jeder Auffrischlauf dieses Servers schreibt auf stderr:
+Hier stand nach dem ersten Wurf eine „Beobachtung 13" über die
+Schlüsselwarnung der Sury-PPA: eine `W:`-Zeile, die wie ein Fehlschlag
+aussieht und keiner ist. Sie ist richtig — und sie steht seit dem
+26. August in **Beobachtung 1** und ihrer Auflösung bei Punkt 3e, dort
+sogar besser belegt, weil Vorgang 692 die Zeile führt und daneben „alle
+Quellen erreicht" sagt.
 
-    W: …/ondrej/php/ubuntu dists/noble/InRelease: Signature by key 14AA…A6C
-       uses weak algorithm (rsa1024)
+Entstanden ist sie, weil ich die Ausgabe von Punkt 10 gelesen habe und
+nicht das Dokument, an das ich sie anhänge. Genau so entstehen die zwei
+Fassungen, an denen dieses Projekt seit P5 zahlt — und die zweite ist die,
+die veraltet.
 
-`Apt::readFailures()` sieht sie nicht: Der Ausdruck ist auf
-`^[WE]: Failed to fetch` verankert, nicht auf `^W:`. Gegengeprüft am Quelltext
-**und** an der Wirkung — Punkt 3 hat auf demselben Server genau eine tote Quelle
-gemeldet und keine zweite dazuerfunden.
+> **Wer an ein Protokoll anbaut, liest es vorher. Sonst ist die neue
+> Beobachtung eine alte mit einer neuen Nummer.**
 
-**Das ist eine Gegenprobe, die keine Vorschrift herstellen musste.** Ein Wächter
-kann eine tote Quelle bauen; eine `W:`-Zeile, die **wie** ein Fehlschlag
-aussieht und keiner ist, liefert dieser Server bei jedem Lauf von selbst.
+Was aus dem zweiten Wurf **bleibt**, gehört zu Beobachtung 1 und ist dort
+eingetragen: dass der Anker im Quelltext `^[WE]: Failed to fetch` lautet
+und nicht `^W:`. Beobachtung 1 hatte die Wirkung, nicht die Ursache.
 
-Belegt ist damit der Anker, nicht die Vollständigkeit des Lesers — dass jede
-Form eines Fehlschlags erkannt wird, hält weiterhin `AptResultTest` mit eigenen
-Prüfkörpern. Beides zusammen ist die Aussage; keines von beiden allein.
+---
 
-> **Ein falscher Treffer und ein verpasster Treffer sind zwei Fehler, und ein
-> Prüfkörper misst immer nur einen davon.**
+### Punkt 12 — Aufräumen · **offen**
+
+Steht als Nächstes an; die Prüfkörper dieses Laufs sind in den Punkten 3,
+6 und 9 einzeln benannt.
 
 <!-- Wird während des Laufs weitergefüllt. -->

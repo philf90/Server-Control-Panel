@@ -248,6 +248,15 @@ Sury-PPA — und sagt daneben „alle Quellen erreicht". Der Leser unterscheidet
 also wirklich zwischen einer Warnung und einem Ausfall, und nicht nur im
 Quelltext.
 
+**Nachgetragen am 27. August: das ist der Anker und nicht die Zeilenart.**
+`Apt::readFailures()` sucht `^[WE]: Failed to fetch` und nicht `^W:`. Damit
+ist belegt, dass kein **falscher** Treffer entsteht — dass jede Form eines
+Fehlschlags **gefunden** wird, hält weiterhin `AptResultTest` mit eigenen
+Prüfkörpern.
+
+> **Ein falscher Treffer und ein verpasster Treffer sind zwei Fehler, und
+> ein Prüfkörper misst immer nur einen davon.**
+
 ---
 
 ### Punkt 4 — Ein ablaufender Schlüssel · **nicht messbar**
@@ -356,7 +365,7 @@ gemessen.
 
 ---
 
-### Punkt 7 — Der Neustart, und was vor ihm steht (Kriterium 7)
+### Punkt 7 — Der Neustart, und was vor ihm steht (Kriterium 7) · **erfüllt**, Zustand 3 begründet nicht messbar
 
 **7b — die Meldung nennt die Pakete · erfüllt.**
 
@@ -1200,7 +1209,7 @@ Die `FLOCK`-Zeile daneben ist die Gegenprobe: Ohne sie wäre „POSIX steht in
 
 ---
 
-### Punkt 8b — Der eigene Lauf weist den zweiten ab · **nicht gemessen**
+### Punkt 8b — Der eigene Lauf weist den zweiten ab · **damals nicht gemessen, am 27. August nachgeholt**
 
 Der Lauf lief durch, bevor ein zweiter Druck möglich war:
 
@@ -1221,6 +1230,10 @@ genau das Fenster, das 8b braucht. Die beiden werden zusammen gemessen und
 nicht einzeln.
 
 > **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr hergestellt.**
+
+**Nachgetragen am 27. August:** Punkt 5 ist gefahren, und das Fenster ist
+ausgeblieben — der Lauf war nach **14 Sekunden** fertig. 8b wartet damit
+weiter, und seit dem Lauf auch Punkt 5d; beide stehen bei Punkt 5.
 
 ---
 
@@ -1311,4 +1324,791 @@ der Eingriff nur eine Zeile umfasst.
 > **Ein Rückweg, der stillschweigend etwas anderes mitnimmt, ist schlimmer als
 > keiner.**
 
-<!-- Wird während des Laufs weitergefüllt. -->
+---
+
+## Gefahren gegen `0.7.2-rc.2` — 27. August 2026
+
+Der Lauf dieses Tages hat zwei Gegenstände, und der erste bedingt den zweiten.
+Punkt 5 ist nur mit einer Fassung im Depot zu messen, in der `srvpanel` selbst
+steht, und die gab es erst mit `0.7.2-rc.3`. Punkt 10 misst danach den Ausgang,
+den es **nur nach** Punkt 5 gibt: den Lauf, der nichts mehr zu tun findet.
+
+Beide sind vom Telefon aus gefahren — reines SSH, ohne Browser. Für Punkt 11
+gilt das nicht.
+
+---
+
+### Punkt 5 — Ein Upgrade, das das Panel enthält (Kriterium 5) · **erfüllt**
+
+**Das ist der Punkt, für den `docs/85` überhaupt geschrieben wurde.** Er belegt
+einen Satz, den dieses Projekt seit P0 behauptet und den nur der eigene Gebrauch
+gestützt hat: dass eine transiente Unit den Neustart von `srvpanel-worker`
+überlebt, wenn `srvpanel` selbst im Lauf steckt.
+
+Gemessen am 27. August 2026 gegen `0.7.2-rc.2`, aufgezeichnet von einem
+Beobachterskript, das vorher, während und nachher misst — und das Protokoll ab
+dem **Byteversatz vom Laufbeginn** ausgibt statt mit `tail -20`. Der Teil vor
+dem Neustart ist genau der, um den es geht; ein `tail` hätte ihn weggeschnitten.
+
+    ══ VORHER ══   11:08:31 · Fassung 0.7.2~rc.2 · Protokoll 3022 Bytes
+    ══ WÄHREND ══  11:09:16–11:09:30, acht Abtastungen im Zweisekundentakt
+                   Units: 1 durchgehend · Protokoll 3022 → 6965 Bytes (+3943)
+    ══ NACHHER ══  Dauer 14 s · Fassung 0.7.2~rc.3
+                   srvpanel-web · -worker · -agentd: active active active
+    ══ BILANZ ══   apt-run: 6 von 6 Aktualisierungen eingespielt, 0 bleiben offen.
+
+**Die drei Erwartungen aus `docs/85`, einzeln.**
+
+**1. Genau eine transiente Unit, und das Protokoll wächst.** Beides gemessen —
+`1` in allen acht Abtastungen, danach fort (`--collect`), und +3943 Bytes. Die
+Zahl daneben ist die Gegenprobe: Eine Unit, die steht und nichts schreibt, sieht
+in `list-units` genauso aus wie eine, die arbeitet.
+
+**2. Die letzte Zeile ist die Bilanzzeile.** Sie ist es, und sie ist der Beleg
+für den ganzen Punkt — aber nicht für sich allein, sondern durch das, was vor
+ihr steht:
+
+    srvpanel (0.7.2~rc.3) wird eingerichtet …
+    SrvPanel 0.7.2-rc.3 läuft.
+    python3.12-minimal … wird eingerichtet …
+    libpython3.12-stdlib … python3.12 … libpython3.12t64 …
+    Trigger werden verarbeitet · needrestart
+    apt-run: 6 von 6 Aktualisierungen eingespielt, 0 bleiben offen.
+
+Der Neustart liegt **zwischen** der ersten und der zweiten Zeile, und das ist
+nicht erschlossen, sondern nachgelesen: `packaging/scripts/postinstall.sh` ruft
+auf dem Update-Pfad einer eingerichteten Installation `restart_services` auf,
+und die startet `srvpanel-agentd`, `srvpanel-web`, **`srvpanel-worker`** und
+`srvpanel-metrics` neu. Danach stehen im Protokoll noch vier eingerichtete
+Pakete, die Trigger, `needrestart` — und erst dann die Zeile, die `apt-run`
+schreibt, **nachdem** `apt-get` zurückgekommen ist.
+
+> **Ein Beleg für den Weg ist keiner für das Ziel.** Dass die Unit abgesetzt
+> wurde, sagt nichts darüber, dass sie zu Ende gelaufen ist. Vier Pakete hinter
+> dem eigenen Neustart sagen es.
+
+**3. Das Protokoll ist vollständig lesbar, auch der Teil vor dem Neustart.**
+Für die **Datei** ist das gemessen: 3022 Bytes standen vorher da, 6965 nachher,
+und die Ausgabe ab Byte 3023 beginnt beim ersten Wort dieses Laufs und endet mit
+der Bilanzzeile. Es fehlt kein Stück. Die Lesung derselben Datei **über die
+Seite** (`/logs`, Quelle „Aktualisierungen installieren") ist damit nicht
+mitgemessen und steht als eigener Handgriff aus.
+
+**Punkt 2 aus `docs/81 §2.3h` ist damit beantwortet:** Ja, der Lauf geht nach
+dem Neustart weiter.
+
+**Punkt 1 ist es nicht.** Dort steht die Frage nach einem vollen Lauf über
+**142** Pakete; gemessen sind **14 Sekunden für sechs**. Das ist eine Zahl und
+keine Antwort — sie sagt, dass das Absetzen und das Weiterlaufen funktionieren,
+und nichts darüber, wie lange ein Betreiber im schlimmsten Fall wartet.
+
+> **Eine Messung an sechs Fällen beantwortet keine Frage, die nach
+> hundertzweiundvierzig gestellt ist — sie sieht nur aus wie eine Antwort,
+> solange die Zahl daneben nicht dasteht.**
+
+---
+
+**Befund 12 — Eine Vorprüfung, die vor dem Auffrischen läuft, misst den alten
+Index.**
+
+Das Beobachterskript begann mit der Frage aus `docs/85`, ob `srvpanel` in
+`apt-get -s dist-upgrade` steht. Um 11:08:31 stand es **nicht** darin.
+Fünfundvierzig Sekunden später hat derselbe Server es eingespielt.
+
+Beide Messungen stimmen. `apt-run all` frischt die Listen nicht auf — das ist
+eine Entscheidung im Skript, weil das Auffrischen auf der Seite dem Knopf
+„Jetzt nachsehen" folgt. Zwischen der Vorprüfung und dem Druck lag genau dieser
+Knopf, und erst danach führte der Index `srvpanel 0.7.2~rc.3`.
+
+**Die Anweisung daneben hätte Schaden angerichtet.** `docs/85` schreibt für den
+Fall „steht nicht in der Liste" vor, den Zustand herzustellen — eine Fassung
+zurückzusetzen. Wörtlich befolgt hätte der Lauf das Panel auf einer Maschine
+zurückgerollt, auf der die neue Fassung schon bereitlag.
+
+> **Eine Vorprüfung, die vor dem Schritt läuft, der ihren Gegenstand herstellt,
+> misst den Zustand davor — und ihre Anweisung zeigt in die falsche Richtung.**
+
+Die Prüfung gehört **hinter** „Jetzt nachsehen" und nicht davor. Ein Wächter
+kann das nicht halten; es ist eine Reihenfolge in einer Vorschrift, und die
+steht deshalb hier.
+
+---
+
+**Punkt 5d und Punkt 8b warten auf dasselbe Fenster.**
+
+Nach dem Lauf sind **0** Aktualisierungen offen. Damit ersetzt die Seite die
+ganze Knopfreihe durch „Es steht keine Aktualisierung an." — es gibt keinen
+Knopf mehr, den man ein zweites Mal drücken könnte, weder gleich danach (5d)
+noch während eines Laufs (8b).
+
+Und 14 Sekunden sind auch für 8b zu kurz gewesen: Zwischen Druck und Bilanzzeile
+lag kein Fenster, in dem ein zweiter Druck den ersten noch angetroffen hätte.
+Das ist **kein** Befund am Panel — ein Lauf, der schnell fertig ist, ist ein
+guter Lauf —, aber es heisst, dass beide Punkte eine neue Gelegenheit brauchen:
+die nächste Fassung im Depot oder die beiden phasenverzögerten Pakete
+(`libproc2-0`, `procps`), sobald Ubuntu sie freigibt.
+
+> **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr hergestellt.**
+> Diesmal andersherum: Er wird auch nicht nach ihr gemessen.
+
+---
+
+### Punkt 10 — `apt-run panel` vergleicht die Fassung · **erfüllt**
+
+Gemessen am 27. August 2026 auf `cloudsrv24`, in drei Teilen. Der mittlere ist
+der, ohne den die `3` des ersten nur eine Zahl wäre.
+
+**10a — das Kriterium.** `apt-run panel` frischt die Listen auf (sieben Quellen,
+alle `OK`), findet nichts Neueres und fällt sein eigenes Urteil:
+
+    srvpanel ist schon die neueste Version (0.7.2~rc.3).
+    0 aktualisiert, 0 neu installiert, 0 zu entfernen und 2 nicht aktualisiert.
+    apt-run: Der Lauf hat nichts verändert — Fassung vorher wie nachher: 0.7.2~rc.3.
+    rc=3
+
+Das ist der zweite der beiden zugelassenen Ausgänge. `docs/85` hat ihn
+vorhergesehen: Kommt Punkt 5 zuerst, ist die Fassung aktuell — gefragt ist
+nicht, ob aktualisiert wird, sondern ob **verglichen** wird.
+
+**10b — die Gegenprobe, und sie ist der eigentliche Beleg.** Derselbe apt-Lauf
+ohne den Vergleich, unmittelbar danach:
+
+    0 aktualisiert, 0 neu installiert, 0 zu entfernen und 2 nicht aktualisiert.
+    rc=0
+
+**Zwei Läufe, dieselbe Ausgabe, entgegengesetzte Urteile.** Das ist M5 an seiner
+vierten Stelle, nicht als Beschreibung, sondern als Messung: Der Rückgabewert
+von apt sagt „gut" zu einem Lauf, der nichts bewirkt hat. Genau darauf hat
+`panel.update` bis zum 26. August seine Erfolgsmeldung gestützt.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.** Hier steht die Null der Gegenprobe neben der Drei des Prüflings, und
+> erst dadurch ist die Drei ein Unterschied und keine Behauptung.
+
+**10c — der Weg, den der Betreiber wirklich geht.** `srvpanel update` setzt den
+Lauf als transiente Unit ab und kehrt sofort zurück:
+
+    Das Update läuft als srvpanel-update-7e8742ef.
+    Unit gesehen: ja · Zyklen: 3
+
+und `/var/log/srvpanel/update.log` endet mit derselben Bilanzzeile. Damit ist
+belegt, dass das Urteil dort ankommt, wo es gelesen wird — und nicht nur dort,
+wo es gefällt wird.
+
+**Was 10c nicht zeigen kann, und warum das kein Mangel ist:** den
+Rückgabewert. `--collect` räumt die Unit auch im Fehlerzustand ab, `systemctl
+status` findet danach nichts mehr. Eben deshalb schreibt `apt-run` sein Urteil
+als **Zeile** und verlässt sich nicht auf den Zustand der Unit — und eben
+deshalb wird die `rc` in 10a gemessen, wo sie unmittelbar dasteht.
+
+> **Ein Urteil, das nur im Zustand eines Prozesses steht, ist fort, sobald der
+> Prozess fort ist.**
+
+---
+
+**Beobachtung 12 — `2 nicht aktualisiert` und `0 bleiben offen` sind beide
+richtig.**
+
+Punkt 5 endete mit *„0 bleiben offen"*, und apt sagt hier in derselben Stunde
+*„2 nicht aktualisiert"*. Der Widerspruch ist keiner, und er war vorhergesagt:
+Im Kopf von `apt-run` steht seit dem 26. August, dass die beiden Zahlen
+verschiedene Fragen beantworten — apt zählt, was **dieser Aufruf** nicht
+angefasst hat, `offen()` zählt, was ein `dist-upgrade` noch täte. Die Differenz
+sind die zurückgehaltenen Pakete, hier die beiden phasenverzögerten
+(`libproc2-0`, `procps`).
+
+Vorhergesagt war es aus einer Messung im Container (142 gegen 140). Hier steht
+dieselbe Aussage auf einem echten Server mit einer anderen Ursache — dort
+Abhängigkeiten, hier Phasing.
+
+> **Eine Erklärung, die nur den Fall deckt, an dem sie entstand, ist eine
+> Beschreibung. Erst der zweite Fall macht sie zur Regel.**
+
+---
+
+**Beobachtung 13 — ich habe eine Beobachtung ein zweites Mal aufgeschrieben.**
+
+Hier stand nach dem ersten Wurf eine „Beobachtung 13" über die
+Schlüsselwarnung der Sury-PPA: eine `W:`-Zeile, die wie ein Fehlschlag
+aussieht und keiner ist. Sie ist richtig — und sie steht seit dem
+26. August in **Beobachtung 1** und ihrer Auflösung bei Punkt 3e, dort
+sogar besser belegt, weil Vorgang 692 die Zeile führt und daneben „alle
+Quellen erreicht" sagt.
+
+Entstanden ist sie, weil ich die Ausgabe von Punkt 10 gelesen habe und
+nicht das Dokument, an das ich sie anhänge. Genau so entstehen die zwei
+Fassungen, an denen dieses Projekt seit P5 zahlt — und die zweite ist die,
+die veraltet.
+
+> **Wer an ein Protokoll anbaut, liest es vorher. Sonst ist die neue
+> Beobachtung eine alte mit einer neuen Nummer.**
+
+Was aus dem zweiten Wurf **bleibt**, gehört zu Beobachtung 1 und ist dort
+eingetragen: dass der Anker im Quelltext `^[WE]: Failed to fetch` lautet
+und nicht `^W:`. Beobachtung 1 hatte die Wirkung, nicht die Ursache.
+
+---
+
+### Punkt 12 — Aufräumen · **erfüllt**
+
+Gemessen am 27. August 2026, in drei Teilen: hinsehen, abräumen, nachmessen.
+Der dritte ist der, den die Vorschrift nicht hatte — Abräumen ist eine Änderung,
+und jede Änderung ist ein neuer Anlass zu messen.
+
+**Die Zahl ist ein Paar und keine Null.**
+
+    vorher   4 Konfigurationsreste unter /etc
+    nachher  2 — /etc/default/grub.ucf-dist, /etc/ssh/sshd_config.ucf-dist
+
+**Vier wäre „ein Prüfkörper steht noch", null wäre „das Löschen war zu breit".**
+Die zwei, die bleiben, sind dieselben, die in Punkt 6 belegt haben, dass der
+Leser auch findet, was der Lauf nicht hingelegt hat. Deshalb ist über den vollen
+Pfad gelöscht worden und über kein Muster: `rm *.ucf-dist` hätte genau den Beleg
+mitgenommen, den Punkt 6 gebraucht hat.
+
+**Zwei Prüfkörper waren schon fort, und das Abräumen sagt es.**
+
+    war nicht da: /etc/apt/apt.conf.d/zzz-abnahme-a1
+    war nicht da: /etc/srvpanel/abnahme-a1.conf
+
+Beide hatten ihre eigenen Punkte zurückgenommen — Punkt 9 die Datei der
+Automatik, Punkt 3e die umbenannte Quelle. Ein stilles `rm -f` hätte hier
+dasselbe ausgegeben wie ein erfolgreiches Löschen, nämlich nichts.
+
+> **Ein Aufräumschritt, der „war nicht da" sagt, unterscheidet „schon
+> zurückgenommen" von „nie angelegt". Ein stiller sagt zu beidem nichts.**
+
+**Der wirksame Zustand der Automatik steht wieder auf an** — `Enable "1"`,
+`Update-Package-Lists "1"`, `Unattended-Upgrade "1"`, gefragt über `apt-config
+dump` und nicht über die eigene Datei.
+
+**Und das Auffrischen als Paar:**
+
+    rc=0 · Failed to fetch: 0 · W: insgesamt: 1
+
+Die Null bekommt ihre Bedeutung von der Eins daneben. `Failed to fetch: 0`
+allein hiesse auch „gar nicht hingesehen"; mit der Warnzeile daneben heisst es
+„gelesen und nichts gefunden". Die eine Zeile ist die Schlüsselwarnung der
+Sury-PPA aus Beobachtung 1.
+
+**`/run/reboot-required` fehlt, und das ist kein Rest.** Punkt 7b hatte die
+Datei mit `touch` hergestellt, Punkt 7d sie entfernt; 12a bestätigt das einen
+Tag später. Dass Punkt 5 sie nicht neu angelegt hat, passt zu seinen sechs
+Paketen — `srvpanel` und vier Python-Pakete rechtfertigen keinen Neustart, und
+`update-notifier-common` ist auf diesem Server installiert (belegt in Punkt 7d
+durch den Trockenlauf seiner Entfernung). Die fehlende Datei heisst hier also
+wirklich „kein Neustart nötig" und nicht „niemand schreibt sie".
+
+---
+
+**Befund 13 — der Dateifilter der Quellenliste ist richtig und von nichts
+gehalten.**
+
+In `/etc/apt/sources.list.d` liegt auf diesem Server eine fünfte Datei:
+
+    ubuntu.sources.curtin.orig
+
+Sie stammt vom Ubuntu-Installer und ist **keine Quelle** — apt liest in diesem
+Verzeichnis nur `*.list` und `*.sources`. Der Leser des Panels tut dasselbe
+(`glob(…'/*.{list,sources}', GLOB_BRACE)` in `SystemSourcesList`), und die
+Rechnung geht auf: vier gelesene Dateien ergeben sieben Ziele, und genau sieben
+`OK:`-Zeilen schreibt apt bei jedem Auffrischen dieses Laufs.
+
+**Der Befund ist nicht, dass es falsch wäre — sondern dass nichts es hält.**
+`SourceListTest` prüft zehn Fragen, alle über das *Zerlegen* einer Datei:
+Stanzas, die drei Formen von `Signed-By`, Kommentare, `Enabled`. **Welche
+Dateien überhaupt gelesen werden, prüft keine davon.** Der Ausdruck steht
+alleinstehend in einer Ops-Datei, wo ihn kein Wächter erreicht.
+
+Damit ist es dieselbe Fehlerklasse, die dieses Projekt seit P0 mindestens
+sechsmal bezahlt hat: eine Angabe, die auf etwas verweist, ohne dass ein Typ,
+ein Test oder ein Werkzeug den Bezug prüft. Ein `*` an dieser Stelle — beim
+Aufräumen, beim Umbau, beim „ich will auch `.list.d`-Fragmente sehen" — meldete
+dem Betreiber `ubuntu.sources.curtin.orig` als abgeschaltete Quelle, und
+niemand würde rot.
+
+**Bemerkenswert ist, wer den Prüfkörper stellt.** Diese Datei liegt seit der
+Installation da; sie ist die Gegenprobe, die eine Regression sofort sichtbar
+machen würde — nur sieht kein Test sie an. Derselbe Bau wie bei Beobachtung 1,
+wo die Warnzeile der Sury-PPA die Gegenprobe für den Fehlschlag-Anker stellt,
+und mit demselben Rest: Ein Prüfkörper, den nur der Server hat, ist in der CI
+nicht da.
+
+> **Ein Filter, der stimmt, und ein Filter, den etwas hält, sehen heute gleich
+> aus — und morgen nicht mehr.**
+
+**Gebaut am 27. August.** `Sources::files()` ist die Naht, `Sources::EXTENSIONS`
+die einzige Stelle mit den Endungen, `SourceFileTest` der Wächter — mit acht
+Prüfkörpern, die gegen echtes apt gemessen sind (2.8.3, eigenes
+`Dir::Etc::sourceparts`): zwei gelesen, sechs **stumm** ignoriert, kein Wort auf
+stderr. Fünf Eingriffe in `tests/waechter-brechen.sh`, alle beissend, einzeln
+und im Lauf.
+
+**Und der Wächter hat sich beim Brechen zweimal selbst berichtigt** — das ist
+der Teil, der ohne die Brüche nicht passiert wäre.
+
+Der erste Prüfkörper legte `sources.list` **in** `sources.list.d`. Die
+Hauptdatei stand danach zweimal in der Liste, und das sah nach einem Fehler im
+Leser aus; es war einer im Prüfkörper, denn auf keinem Server liegt sie in ihrem
+eigenen Teilverzeichnis.
+
+> **Ein Prüfkörper, der eine Lage herstellt, die es nicht geben kann, verlangt
+> eine Änderung, die niemand braucht.**
+
+Der zweite wog schwerer, weil er nur beim Brechen sichtbar wurde: Der Fall über
+die Reihenfolge blieb **grün**, als das abschliessende `sort()` entfernt wurde.
+`glob()` sortiert von sich aus, und ein Lauf je Endung ergibt `[alle .list][alle
+.sources]` — mit `docker.list` neben `ubuntu.sources` war die falsche Folge
+zufällig auch die richtige. Erst `zz-docker.list` lässt die beiden Fassungen
+auseinandergehen.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+Zweimal derselbe Satz an einem Wächter, den ich gerade als Antwort auf einen
+Befund gebaut habe. Ein Wächter, den man nicht bricht, ist eine Behauptung —
+hier wären es zwei gewesen.
+
+**Nebenbei fiel `GLOB_BRACE` weg**: Gesucht wird je Endung einmal, damit die
+Konstante die einzige Stelle bleibt. Die Fahne hat PHP nicht auf jeder Bauart,
+und wo sie fehlt, gibt `glob()` `false` zurück — daraus wäre hier lautlos „gar
+keine Quelle" geworden.
+
+---
+
+### Punkt 11a — Bilder, erster Teil: `/updates` · **erfüllt**
+
+Gefahren am 27. August gegen `0.7.2-rc.3`, mit `tests/bilder-messen.js`, vier
+Lagen je Ansicht.
+
+| Lage | `dokument` | `gegenprobe` | `schiebt` | `rollt` | `versteckt` |
+|---|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | 0 | 0 | 6 |
+| 390 dunkel | 0 | **200/200** | 0 | 0 | 6 |
+| 1440 hell | 0 | **200/200** | 0 | 1 · 480px | 0 |
+| 1440 dunkel | 0 | **200/200** | 0 | 1 · 480px | 0 |
+
+**Die Gegenprobe schlägt in allen vier Lagen mit genau 200 aus.** Erst dadurch
+sind die Nullen daneben Messungen; ohne sie sähe eine Seite, die nicht schiebt,
+genauso aus wie ein Messmittel, das nichts misst. `stand` überall `2026-08-21` —
+also kein alter Aufsatz aus der Zwischenablage —, und `thema` trennt `light` von
+`dark`, womit auch die Falle aus A5 ausgeschlossen ist.
+
+**Der eine Roller ist benannt und nicht bloss gezählt.** Bei 1440 px:
+
+    480px  div > div.frame > main.content > div.sections:3 > section.section:2
+           > div.scrolls:2
+    <div class="scrolls"><table class="stacks"><thead><tr><th>Datei</th>
+    <th>Zustand</th><th>Adresse</th><th>Suiten</th><th>S…
+
+Das ist die **Quellenliste**, nicht die Paketliste, und der Behälter ist der
+dafür vorgesehene. `app.css` nimmt den Fall wörtlich vorweg: `.stacks` wirkt
+erst unter 720 px, darüber ist die Tabelle eine Tabelle, „und eine Tabelle mit
+sechs Spalten will auch auf 1024 px rollen können statt sich zu quetschen".
+Die Breite ist durch den Inhalt begrenzt — eine Adresse hat eine natürliche
+Länge.
+
+**Nachgesehen wurde er trotzdem, und aus einem Grund.** `rollt` heisst „darf",
+nicht „ist in Ordnung", und in P5c hat genau diese Kategorie ein echtes Loch
+verdeckt: eine bei 512 Zeichen gekürzte Textzelle machte den Inhalt 5710 px
+breit, und die Messung war grün.
+
+> **Eine Zelle, die rollen darf, hat keine Obergrenze — sie hat nur keine Zahl,
+> die sich beschwert.**
+
+**Die Asymmetrie zwischen den Breiten ist die erwartete.** Bei 390 px gibt es
+die breite Tabelle nicht — dort steht die Kärtchenform aus `docs/24`, die nicht
+rollt; dieselbe Ursache trägt `versteckt 6` gegen `0`, denn die Kärtchen führen
+ihre Spaltenbeschriftungen für die Vorlesesoftware mit.
+
+**Im Bild bei 390 px:** die Phasing-Meldung mit beiden Namen und dem Grund, die
+Conffile-Zeile mit zwei vollen Pfaden, beide sauber umbrochen — `grub.ucf-` /
+`dist` mitten in der Kennung, also die Regel aus `docs/46 §20.11` in ihrer
+dritten Fassung. Dazu „Kein Neustart nötig" grün, einen Tag nach Punkt 7d.
+
+**Was in dieser Runde noch aussteht:** `/logs` mit der Quelle
+„Aktualisierungen installieren" und der Bestätigungsdialog aus 7c.
+
+---
+
+**Beobachtung 14 — der rote Fehler in der Konsole gehört nicht zum Panel.**
+
+In drei der vier Aufnahmen stand ein `Uncaught Error` neben den Issues:
+
+    Uncaught Error: Search engine null is not supported.
+        getSearchEngineAnalyzer @ searchAnalyzer.js:2
+
+`searchAnalyzer.js` kommt in diesem Repo **nirgends** vor — nicht in `.js`,
+`.ts`, `.vue` oder `.php` —, und die Konsole führt die Datei mit dem Zeichen für
+eine Erweiterung. Es ist eine Browsererweiterung dieses Rechners und keine Zeile
+des Panels.
+
+**Aufgeschrieben wird es trotzdem**, weil ein roter Fehler auf einem Bild eines
+Abnahmelaufs sonst beim nächsten Durchsehen wieder verfolgt wird. Und mit einer
+Grenze: Das gilt für **diesen** Browser. Ein Fehler, den eine Erweiterung wirft,
+sagt über das Panel nichts — in beide Richtungen.
+
+> **Ein Bild aus einem fremden Browser trägt dessen Erweiterungen mit ins
+> Protokoll.**
+
+---
+
+**Der Zustand hat sich seit Punkt 12 geändert, und das öffnet zwei Punkte
+wieder.**
+
+Nach Punkt 5 stand `AKTUALISIERBAR` auf 0; bei dieser Runde sind es **5**, alle
+aus `noble-security`. Damit ist die Paketliste samt Knopfreihe fotografierbar —
+11a wird also vollständig und braucht kein 11b — und **5d und 8b sind zum ersten
+Mal seit dem Upgrade messbar**.
+
+> **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr hergestellt.**
+> Diesmal ist er von selbst gekommen, und die Reihenfolge hängt daran: Wer
+> installiert, schliesst das Fenster wieder.
+
+---
+
+### Punkt 11a, zweiter Teil: `/logs` mit der Quelle „Aktualisierungen installieren" · **erfüllt**
+
+| Lage | `dokument` | `gegenprobe` | `schiebt` | `rollt` | `versteckt` |
+|---|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | 0 | 1 · 850px | 0 |
+| 390 dunkel | 0 | **200/200** | 0 | 1 · 850px | 0 |
+| 1440 hell | 0 | **200/200** | 0 | 1 · 68px | 0 |
+| 1440 dunkel | 0 | **200/200** | 0 | 1 · 68px | 0 |
+
+Der Roller ist in allen vier Lagen derselbe:
+
+    div > div.frame > main.content > div.sections:2 > section.section:2 > pre.output
+
+**850 px bei 390 px sind eine getroffene Entscheidung und kein Rest.** Der
+scoped Block von `Logs/Index.vue` schreibt sie aus, und zwar mit ihrem Grund:
+Eine umgebrochene Zeile eines Protokolls ist unlesbar, weil man nicht mehr
+erkennt, wo ein Eintrag anfängt. `overflow: auto` und `white-space: pre` stehen
+dort ausdrücklich, wortgleich noch einmal in `Domains/Logs.vue`.
+
+**Und das ist der Grund, warum diese Zeile hier steht.** In `app.css` hat
+`.output` weder `overflow-x` noch `white-space`; die einzige Umbruchregel dort
+ist `.output > div`, und die erreicht ein `<pre>` mit blossem Text nicht. Wer
+nur das gemeinsame Stylesheet liest, hält das waagerechte Rollen für einen
+Nebeneffekt von `overflow-y: auto` — und meldet einen Befund, wo eine
+Entscheidung steht.
+
+> **Eine Regel, die im Bauteil steht, fehlt im gemeinsamen Stylesheet nicht —
+> sie steht woanders.**
+
+**Der Kopf der Seite belegt nebenbei Punkt 5.**
+
+    /var/log/srvpanel/upgrade.log · 7 KB · zuletzt 2026-08-27 11:09:29
+
+7 KB ist der Stand, den der Beobachter am Ende von Punkt 5 gemessen hat (6965
+Bytes), und `11:09:29` ist dessen letzte Sekunde. Die Seite zeigt die Datei **von
+vorn** — sichtbar ist der frühere Lauf über vier Pakete, der Lauf aus Punkt 5
+steht darunter. Damit ist die Hälfte nachgeholt, die Punkt 5 offengelassen hat:
+Das Protokoll ist nicht nur als Datei vollständig, sondern auch über die Seite.
+`lines=200` bei rund hundert Zeilen schneidet nichts ab.
+
+---
+
+### Punkt 11a, dritter Teil: das Ende des Protokolls und der Dialog · **erfüllt**
+
+**Die Bilanzzeile steht im Bild.** Das Ende von `/logs` zeigt den Lauf aus
+Punkt 5 bis zur letzten Zeile:
+
+    libpython3.12t64:amd64 (3.12.3-1ubuntu0.16) wird eingerichtet ...
+    Trigger für systemd, man-db, libc-bin werden verarbeitet ...
+    Running kernel seems to be up-to-date.
+    Restarting services... · systemctl restart fail2ban.service
+    apt-run: 6 von 6 Aktualisierungen eingespielt, 0 bleiben offen.
+
+Damit ist die dritte Erwartung von Punkt 5 auch über die Seite belegt und nicht
+nur an der Datei: Der Teil **vor** dem Neustart, der Neustart selbst und die
+Bilanzzeile danach stehen zusammenhängend in einer Ansicht.
+
+**Der Bestätigungsdialog aus 7c**, vier Lagen:
+
+| Lage | `dokument` | `gegenprobe` | `schiebt` | `rollt` | `versteckt` |
+|---|---|---|---|---|---|
+| 390 hell | 0 | **200/200** | 0 | 0 | 7 |
+| 390 dunkel | 0 | **200/200** | 0 | 0 | 7 |
+| 1440 hell | 0 | **200/200** | 0 | 1 · 480px | 1 |
+| 1440 dunkel | 0 | **200/200** | 0 | 1 · 480px | 1 |
+
+Der Roller ist wieder die Quellenliste unter dem Dialog, also derselbe wie im
+ersten Teil.
+
+**Und Befund 5 hält.** Bei 390 px stehen Feld, „Neustart auslösen" und
+„Abbrechen" auf **derselben** Breite — der Deckel `max-width: 32ch` fällt unter
+480 px weg, und die ausgefranste Spalte von damals ist fort. Der Knopf ist grau,
+solange das Feld leer ist; der Text nennt, was der Neustart mitnimmt, die
+60 Sekunden und den Griff, mit dem man ihn in dieser Zeit noch stoppt.
+
+**Damit ist Punkt 11a vollständig** — die Paketliste eingeschlossen, weil der
+Server zwischenzeitlich wieder fünf offene Aktualisierungen hatte. Ein 11b
+entfällt.
+
+---
+
+**Befund 14 — die Fusszeile von `/logs` nennt ein Fenster, das es nicht gibt,
+und bietet Zeilen an, die es nicht gibt.**
+
+Gemessen an `upgrade.log` mit **118** Zeilen:
+
+    118 Zeilen · gelesen wurden die letzten 500 Zeilen
+    [ Mehr Zeilen (200 → 400) ]
+
+**Beide Angaben sind falsch, und beide aus demselben Grund: Die Seite weiss
+nicht, wie viele Zeilen die Datei hat.**
+
+`window` ist keine Messung, sondern die Konstante `SystemLogsTail::MAX_LINES`.
+Der Agent liest immer ein Fenster von 500 Zeilen vom Ende her und sendet die
+500 unverändert mit — auch dann, wenn die Datei 118 Zeilen lang ist und das
+Fenster nie voll war. Der Satz behauptet damit einen Ausschnitt, wo der Leser
+das Ganze vor sich hat.
+
+> **Eine Grenze, die als Zahl mitgesendet wird, ohne dass jemand nachsieht, ob
+> sie erreicht wurde, ist eine Behauptung über die Datei und keine über den
+> Lauf.**
+
+Der Knopf hat dieselbe Wurzel: Er steht unter `props.lines < 500` und fragt
+nicht, ob es mehr zu holen gibt. Bei 118 Zeilen und einem Deckel von 200 sind
+bereits alle da; `mehr()` verdoppelt auf 400, der Agent liefert dieselben 118,
+und der Knopf heisst danach „Mehr Zeilen (400 → 500)". Dreimal drücken,
+dreimal nichts.
+
+> **Ein Knopf, der etwas anbietet, was es nicht gibt, ist schlimmer als keiner
+> — er sagt dem Leser, dass ihm etwas fehlt.**
+
+**Warum die naheliegende Ableitung nicht reicht.** „`matched < window` heisst,
+das Fenster war nicht voll" gilt **nur ohne Filter**: Mit Filter ist `matched`
+die Zahl der Treffer und nicht die der gelesenen Zeilen, und zwölf Treffer aus
+vollen 500 sähen genauso aus wie zwölf aus einer Datei mit zwölf Zeilen. Der
+Agent muss also mitsenden, wie viele Zeilen er **tatsächlich** gelesen hat; erst
+daran hängen beide Entscheidungen.
+
+**Nicht gebaut.** Der Befund gehört zu A5 und nicht zu A1 — gefunden hat ihn die
+Bilderrunde dieses Laufs, und das ist der Grund, dass sie nicht nur aus Zahlen
+besteht.
+
+> **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
+> Keines von beiden ersetzt das andere.**
+
+---
+
+### Punkt 8b — Der eigene Lauf weist den zweiten ab · **erfüllt**
+
+Gemessen am 27. August 2026, 20:50 Uhr, mit drei Klicks aus drei Tabs und einem
+Beobachter daneben.
+
+    ══ VORHER ══ 20:50:09 · Protokoll 6965 Bytes · offen 5
+    20:50:11  units=0  log=6965
+    20:50:40  units=1  log=6965
+    20:50:49  units=0  log=9709
+    ══ NACHHER ══ 20:53:12 · Protokoll 9709 Bytes (+2744) · offen 0
+    ══ HÖCHSTZAHL GLEICHZEITIGER UNITS: 1 ══   (erwartet: 1)
+
+**Beide Hälften des Kriteriums stehen da, und sie sind zweierlei.**
+
+Die erste ist die Meldung. Vorgang **705** (20:50:41) und **706** (20:50:44),
+beide `fehlgeschlagen`:
+
+    Es läuft bereits ein Lauf des Panels, der Pakete anfasst
+    (srvpanel-update-291ffeda.service). Der nächste Versuch geht erst,
+    wenn er fertig ist.
+
+**Sie nennt die Unit und nicht eine PID**, und darauf kommt es an: `AptLock` hat
+zwei Zweige, und getroffen hat der auf den **eigenen laufenden Lauf** — nicht
+der auf die dpkg-Sperre, den Punkt 8a erzeugt hat. Zweimal dieselbe Unit, also
+kein Zufall.
+
+Die zweite ist die Zahl. **Höchstens eine Unit zu jedem Zeitpunkt**, über 180
+Sekunden im Sekundentakt abgetastet, obwohl dreimal gedrückt wurde. Der
+Zeitverlauf passt lückenlos: Die Unit erscheint um 20:50:40, die beiden
+abgewiesenen Drücke liegen um 20:50:41 und 20:50:44 mitten in ihrer Lebenszeit,
+und um 20:50:49 ist sie fort.
+
+> **Eine Meldung sagt, dass das Panel abgelehnt hat. Sie sagt nicht, dass nichts
+> entstanden ist.** Das ist eine zweite Frage und braucht eine zweite Messung.
+
+**Vorgang 704 ist dabei kein Widerspruch.** Er steht auf `fertig` nach drei
+Sekunden (20:50:37 → 20:50:40), weil er den Lauf **absetzt** und nicht ausführt;
+die Unit lebte danach noch acht Sekunden weiter. Genau deshalb ist die Frage von
+`AptLock` an `systemctl` gestellt und nicht an die Vorgangstabelle — dort stünde
+704 längst auf „fertig", während apt noch arbeitet.
+
+---
+
+**Beobachtung 15 — Punkt 5 ist ein zweites Mal belegt, auf einem anderen Weg.**
+
+Im Protokoll dieses Laufs steht:
+
+    Restarting services...
+      systemctl restart php8.3-fpm.service php8.4-fpm.service
+      postgresql@16-main.service srvpanel-agentd.service
+      srvpanel-metrics.service srvpanel-web.service srvpanel-worker.service
+    ...
+    apt-run: 5 von 5 Aktualisierungen eingespielt, 0 bleiben offen.
+
+**`needrestart` hat `srvpanel-worker` und `srvpanel-agentd` neu gestartet — und
+danach hat der Lauf noch seine Bilanzzeile geschrieben.**
+
+Das ist derselbe Nachweis wie in Punkt 5 und doch ein anderer. Dort steckte
+`srvpanel` selbst im Lauf, und der Neustart kam aus seinem eigenen
+postinst-Skript. Hier wurden **fünf Perl-Pakete** eingespielt, `srvpanel` war
+gar nicht dabei — `needrestart` hat die Dienste neu gestartet, weil sich
+Bibliotheken unter ihnen geändert haben, und der abgesetzte Lauf hat auch das
+überlebt. Diesmal traf es zusätzlich den **Agenten**.
+
+> **Ein Beleg, der zweimal auf verschiedenen Wegen entsteht, ist keine
+> Wiederholung — der zweite schliesst aus, dass der erste an seinem Weg hing.**
+
+Gesucht war das nicht. Es fiel aus einem Lauf heraus, dessen Zweck ein ganz
+anderer war.
+
+---
+
+**Punkt 5d bleibt offen, und das Fenster ist wieder zu.** Der dritte Klick kam
+drei Sekunden nach dem zweiten und war damit ein zweites 8b statt eines 5d; der
+Lauf war um 20:50:49 fertig, und seitdem steht `offen` auf 0. Es braucht eine
+Seite aus dem Verlauf, deren Knopfreihe noch steht — oder den Weg über die
+Kommandozeile, mit der Einschränkung, dass er das Skript misst und nicht den
+Knopf.
+
+---
+
+### Punkt 5d — Der Lauf, der nichts bewirkt, fällt sein eigenes Urteil · **erfüllt**
+
+Gemessen auf beiden Wegen, und beide zusammen ergeben erst den ganzen Punkt.
+
+**Weg A — über den Knopf.** Die Seite kam über den Verlauf zurück, ihre
+Knopfreihe stand noch, und „Alle installieren" ging durch. Danach:
+
+    0 aktualisiert, 0 neu installiert, 0 zu entfernen und 2 nicht aktualisiert.
+    apt-run: Der Lauf hat nichts verändert — offene Aktualisierungen vorher
+    wie nachher: 0.
+
+**Dass es ein neuer Lauf war und keine alte Zeile, entscheidet die letzte Zeile
+selbst:** Vorher endete `upgrade.log` auf *„5 von 5 Aktualisierungen eingespielt,
+0 bleiben offen."* — jetzt auf den Satz oben. Zwei verschiedene Ausgänge
+desselben Skripts, nacheinander in derselben Datei.
+
+**Weg B — über die Kommandozeile, mit der Gegenprobe daneben.**
+
+    ── 5d: apt-run all ──
+    0 aktualisiert, 0 neu installiert, 0 zu entfernen und 2 nicht aktualisiert.
+    apt-run: Der Lauf hat nichts verändert — … vorher wie nachher: 0.
+    rc=3
+
+    ── Gegenprobe: derselbe Lauf ohne Vergleich ──
+    0 aktualisiert, 0 neu installiert, 0 zu entfernen und 2 nicht aktualisiert.
+    rc=0
+
+**Dieselbe Ausgabe, entgegengesetzte Urteile.** Das ist M5 an seiner vierten
+Stelle, und zwar als Messung und nicht als Beschreibung: Der Rückgabewert von
+apt sagt „gut" zu einem Lauf, der nichts bewirkt hat — und genau darauf hat
+`panel.update` bis zum 26. August seine Erfolgsmeldung gestützt.
+
+> **Ein Lauf, der nichts bewirkt hat, endet mit 0 und sieht aus wie Erfolg.**
+
+**Warum beide Wege und nicht einer.** Weg A belegt, dass der **Knopf** bis zum
+Urteil durchkommt — er zeigt den Rückgabewert aber nicht, weil
+`system.packages.upgrade` den Lauf nur absetzt und auf `fertig` steht, während
+das Urteil danach in der transienten Unit fällt. Weg B zeigt die `3` und misst
+dafür das Skript und nicht den Knopf. Einzeln wäre jeder die Hälfte.
+
+**Und die `2 nicht aktualisiert` sind wieder die beiden phasenverzögerten**
+(`libproc2-0`, `procps`) — dieselbe Unterscheidung wie in Beobachtung 12, jetzt
+zum dritten Mal an einem anderen Tag und in einem anderen Modus.
+
+---
+
+## 5. Wo der Lauf steht — 27. August 2026
+
+**Alle fünfzehn Punkte der Vorschrift sind gefahren.** Die Tabelle liest sich am
+Dokument ab und nicht aus dem Gedächtnis; wo ein Punkt zweimal vorkommt, gilt
+der spätere.
+
+| Punkt | Kriterium | Stand |
+|---|---|---|
+| 0, 0b | — | gemessen (§1, §2) |
+| 1 | 1 | **erfüllt** |
+| 2 | 2 | **halb** — der Bestand hatte keine Neuinstallation |
+| 2b | — | **erfüllt** (der zugelassene Ersatz für 2) |
+| 3, 3d, 3e | 3 (M5) | **erfüllt dem Wortlaut nach**, mit Befund 1 daneben |
+| 4 | 4 | **nicht messbar** — kein Schlüssel dieses Servers trägt ein Ablaufdatum |
+| 5, 5d | 5 | **erfüllt**, und zweifach belegt |
+| 6 | 6 | **erfüllt** |
+| 7, 7d | 7 | **erfüllt**; Zustand 3 begründet nicht messbar |
+| 8a, 8b | 8 | **erfüllt**, beide Zweige von `AptLock` getroffen |
+| 9 | — | **erfüllt**, mitsamt der Nachlesung |
+| 10 | `docs/81 §2.3h` P3 | **erfüllt** |
+| 11a | — | **erfüllt** — und vollständig, ein 11b entfällt |
+| 12 | — | **erfüllt** |
+
+**Die beiden Ausfälle sind genau die, die `docs/85 §6` zulässt** — Punkt 4 ohne
+ablaufenden Schlüssel und Punkt 2 ohne Neuinstallation. **Punkt 5 ist nicht
+ausgefallen**, sondern auf zwei unabhängigen Wegen belegt: einmal durch den
+Neustart aus dem eigenen postinst, einmal durch `needrestart` in einem Lauf, in
+dem `srvpanel` gar nicht vorkam.
+
+**Was zwischen „gemessen" und „abgenommen" steht, ist keine Messung mehr,
+sondern eine Entscheidung des Betreibers.** Diese Reste stehen dem gegenüber:
+
+1. **Befund 1** — der Vorgang meldet `fertig`, während eine Quelle ausgefallen
+   ist. Das ist der Grund, warum Punkt 3 lange „teilweise" hiess: Das Kriterium
+   verlangt, dass die tote Quelle **benannt** wird, und das tut die Seite
+   (Vorgang 690). Der Zustand des Vorgangs trägt den Ausgang trotzdem nicht.
+2. **Und derselbe Bau ist im Lauf noch zweimal aufgetaucht.** Vorgang 704 steht
+   auf `fertig`, während das Upgrade noch acht Sekunden lief; 5d steht auf
+   `fertig`, obwohl `apt-run` mit 3 endete. Dreimal dieselbe Form:
+
+   > **Ein Vorgang, der nur meldet, dass er abgesetzt wurde, sagt über den
+   > Ausgang dessen, was er abgesetzt hat, nichts — und `fertig` liest sich wie
+   > das Gegenteil.**
+
+   Das ist **eine** Aufgabe und nicht drei, und sie gehört entschieden, bevor
+   jemand sie an einer Stelle allein behebt.
+
+   **Was dabei nicht fehlt, ist der Weg zum Nachsehen.** Der Vorgang trägt in
+   seinem Ergebnis `unit` und `log` — der Betreiber wird also sehr wohl dorthin
+   gezeigt, wo der Lauf steht. Was fehlt, ist die Rückmeldung **danach**: Kein
+   Zustand, keine Meldung und keine Zahl ändert sich noch, wenn der abgesetzte
+   Lauf scheitert.
+3. **Befund 4** — das `W:` zerreisst in der Anzeige; undiagnostiziert.
+4. **Befund 14** — die Fusszeile von `/logs` nennt ein Fenster, das es nicht
+   gibt. Gehört zu A5.
+5. **`docs/81 §2.3h` Punkt 1** bleibt unbeantwortet: Wie lange ein Lauf über
+   142 Pakete dauert, ist nicht gemessen — dieser Lauf hatte sechs und fünf.
+6. **Dreizehn gezählte Fundstellen** unter `app/` aus Befund 11.
+
+**Befund 13 ist im Lauf gebaut worden** und steht als einziger nicht mehr offen.
+
+> **Ein Protokoll ohne seine Lücken liest sich wie eine Abnahme.**
+
+---
+
+**Beobachtung 16 — eine Abwesenheit aus einem Bildausschnitt geschlossen.**
+
+Beim Durchsehen der Vorgangsseite von 704 fehlte der Abschnitt „Ergebnis", und
+ich habe daraus einen möglichen Befund mit Gewicht gemacht: Der Betreiber
+bekomme `fertig` und keinen Hinweis, wo der Lauf zu sehen ist.
+
+Die Gegenprobe hat ihn zuerst gestützt — Vorgang 703 zeigt den Abschnitt, also
+funktioniert er. Erst der Griff in die Datenbank hat entschieden:
+
+    704 → array:5 [ "unit" => "srvpanel-update-291ffeda",
+                    "log" => "/var/log/srvpanel/upgrade.log", … ]
+    703 → array:3 [ "unreachable" => [], "reached_everything" => true, … ]
+
+**Beide Werte sind gespeichert.** Der Controller reicht `result` unbedingt
+durch, die Seite rendert den Abschnitt auf einen wahren Wert — es gibt hier
+nichts zu beheben. Auf dem Bild war er nicht zu sehen, und das war alles, was
+das Bild sagen konnte.
+
+> **Ein Bild belegt, was darauf steht. Dass etwas nicht darauf steht, belegt es
+> nicht — darüber entscheidet der Ausschnitt.**
+
+Das ist die Kehrseite des Satzes aus `docs/59`, und sie ist die gefährlichere:
+Dort verdeckt ein Bild etwas, hier erfindet es eine Lücke. Für eine Anwesenheit
+genügt ein Bild; für eine Abwesenheit braucht es eine Messung.
+
+

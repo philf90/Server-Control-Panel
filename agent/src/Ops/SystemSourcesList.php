@@ -192,27 +192,22 @@ final class SystemSourcesList implements Op
     }
 
     /**
-     * Die Dateien, die apt liest — in derselben Reihenfolge.
+     * Die Dateien, die apt liest.
      *
-     * **`sources.list` gehört dazu, auch wenn es hier nur Kommentar ist.**
-     * Gemessen auf diesem Abbild: vier Zeilen, alle Kommentar, null Einträge.
-     * Auf einem älteren System steht dort der ganze Bestand, und wer die Datei
-     * weglässt, zeigt dem Betreiber eine leere Liste für einen Server, der
-     * Quellen hat.
+     * **Der Ausdruck stand bis zum 27. August 2026 hier**, und das war
+     * `docs/86` Befund 13: Er war richtig und von nichts gehalten.
+     * `SourceListTest` prüft zehn Fragen über das **Zerlegen** einer Datei und
+     * keine darüber, welche Dateien überhaupt gelesen werden — hier in einer
+     * Ops-Datei erreichte ihn kein Wächter, weil `Context` `final` ist.
      *
-     * > **Eine Datei, die auf dem eigenen System leer ist, ist damit nicht
-     * > überall leer.**
+     * {@see Sources::files()} ist die Naht, `SourceFileTest` der Wächter, und
+     * sein Prüfkörper heisst `ubuntu.sources.curtin.orig` — nach der Datei, die
+     * auf `cloudsrv24` seit der Installation liegt.
      *
      * @return list<string>
      */
     private function paths(): array
     {
-        $teile = glob(Sources::PARTS.'/*.{list,sources}', GLOB_BRACE) ?: [];
-        sort($teile);
-
-        return array_values(array_filter(
-            [Sources::MAIN, ...$teile],
-            static fn (string $p): bool => is_file($p),
-        ));
+        return Sources::files(Sources::MAIN, Sources::PARTS);
     }
 }

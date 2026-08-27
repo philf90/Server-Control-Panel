@@ -343,16 +343,29 @@ ist.
 
 ### Punkt 5 — Ein Upgrade, das das Panel enthält (Kriterium 5)
 
-**Der Punkt, der A1 zum Scheitern bringen kann.** Vorher:
+**Der Punkt, der A1 zum Scheitern bringen kann.**
+
+**Zuerst auf der Seite „Jetzt nachsehen" drücken — und erst danach fragen, was
+in der Liste steht.** Die Reihenfolge ist nicht Bequemlichkeit: `apt-run all`
+frischt die Listen **nicht** auf, das tut auf dieser Seite allein jener Knopf.
+Wer vorher fragt, bekommt den Index von vorher.
 
 ```bash
 ssh cloudsrv24 'apt-get -s dist-upgrade | grep "^Inst srvpanel "'
 ssh cloudsrv24 'date -Is; sudo wc -c /var/log/srvpanel/upgrade.log 2>/dev/null || echo "noch keine"'
 ```
 
-**Steht `srvpanel` nicht in der Liste**, wird der Zustand hergestellt: eine
-Fassung zurücksetzen und das Depot nachziehen. Ohne `srvpanel` in der Liste
-prüft dieser Punkt einen gewöhnlichen Lauf und nicht den, um den es geht.
+**Steht `srvpanel` auch danach nicht in der Liste**, wird der Zustand
+hergestellt: eine Fassung zurücksetzen und das Depot nachziehen. Ohne `srvpanel`
+in der Liste prüft dieser Punkt einen gewöhnlichen Lauf und nicht den, um den es
+geht.
+
+> **Eine Vorprüfung, die vor dem Schritt läuft, der ihren Gegenstand herstellt,
+> misst den Zustand davor — und ihre Anweisung zeigt in die falsche Richtung.**
+> Am 27. August genau so passiert: Die Frage stand 45 Sekunden vor dem Lauf auf
+> „nein", und der Lauf hat `srvpanel` eingespielt. Wörtlich befolgt hätte diese
+> Vorschrift ein Rollback auf einer Maschine ausgelöst, auf der die neue Fassung
+> schon bereitlag.
 
 **5a — auslösen.** Auf `/updates` „Alle einspielen" drücken. **Die Uhrzeit
 notieren.**
@@ -607,15 +620,41 @@ sind Kennungen.
 
 ### Punkt 12 — Aufräumen, und das gehört zum Lauf
 
+**Erst hinsehen, dann löschen.** Die Prüfkörper stehen namentlich in den
+Punkten 3, 6 und 9; gelöscht wird über den vollen Pfad und nie über ein Muster.
+Zwei `.ucf-dist` unter `/etc` gehören diesem Server und **bleiben** —
+`/etc/default/grub.ucf-dist` und `/etc/ssh/sshd_config.ucf-dist`. Sie sind der
+Beleg aus Punkt 6, dass der Leser auch findet, was der Lauf nicht hingelegt hat;
+ein Muster über `*.ucf-dist` nähme sie mit.
+
 ```bash
-ssh cloudsrv24 'ls -l /etc/apt/sources.list.d/'          # keine .abnahme mehr
-ssh cloudsrv24 'ls -l /etc/apt/apt.conf.d/ | grep abnahme'   # nichts
-ssh cloudsrv24 'ls -l /etc/srvpanel/*.dpkg-dist 2>&1'    # nichts
-ssh cloudsrv24 'ls -l /run/reboot-required* 2>&1'        # nur, was Punkt 5 hinterlassen hat
-ssh cloudsrv24 'sudo apt-get update; echo "rc=$?"'       # 0, keine W:-Zeile
+ls -l /etc/apt/sources.list.d/                                   # keine .abnahme mehr
+ls -l /etc/apt/apt.conf.d/ | grep -i abnahme                     # nichts
+find /etc \( -name '*.dpkg-dist' -o -name '*.ucf-dist' \) | sort   # nur die zwei echten
+ls -l /run/reboot-required* 2>&1                                 # nur, was Punkt 5 hinterlassen hat
 ```
 
-**Zurück:** alle fünf Ausgaben. Ein Lauf, der seinen Prüfkörper stehen lässt,
+**Und das Auffrischen zum Schluss, als Paar gemessen:**
+
+```bash
+apt-get -q update >/tmp/p12 2>&1; echo "rc=$?"
+echo "Failed to fetch: $(grep -c 'Failed to fetch' /tmp/p12)"
+echo "W: insgesamt:    $(grep -c '^W:' /tmp/p12)"
+```
+
+**Erwartet: `rc=0`, `Failed to fetch: 0` — und `W: insgesamt` grösser als
+null.** Hier stand bis zum 27. August „0, keine `W:`-Zeile", und das konnte
+dieser Server nie erfüllen: Die Sury-PPA signiert mit rsa1024, apt warnt bei
+jedem Lauf, und genau diese Zeile ist seit Beobachtung 1 die Gegenprobe dafür,
+dass eine Warnung kein Ausfall ist.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
+Die Null bekommt ihre Bedeutung erst durch die Zahl daneben: `Failed to fetch:
+0` neben `W: insgesamt: 1` heisst „gelesen und nichts gefunden". Allein hiesse
+es auch „gar nicht hingesehen".
+
+**Zurück:** alle Ausgaben. Ein Lauf, der seinen Prüfkörper stehen lässt,
 vergiftet den nächsten — dieselbe Regel wie im Bruchskript.
 
 ---

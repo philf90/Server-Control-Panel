@@ -50,6 +50,34 @@ final class Sources
     public const PARTS = '/etc/apt/sources.list.d';
 
     /**
+     * Die Endungen, die apt in {@see self::PARTS} überhaupt liest.
+     *
+     * **Gemessen und nicht nachgelesen** (27. August 2026, apt 2.8.3, mit
+     * eigenem `Dir::Etc::sourceparts`): Von acht Dateien liest apt genau zwei —
+     * `a.list` und `b.sources`. Die anderen sechs — `.sources.curtin.orig`,
+     * `.list.bak`, `.txt`, `.disabled`, `.sources.disabled`, `.list.disabled` —
+     * ignoriert es **stumm**: kein Wort auf stderr, kein Rückgabewert.
+     *
+     * Und die Gegenprobe sagt, dass die Endung entscheidet und nicht der
+     * Inhalt: Dieselben Bytes noch einmal als `c.sources` abgelegt, und apt
+     * holt drei Ziele statt zwei.
+     *
+     * > **Ein Prüfkörper, der nicht gelesen wird, kann auch kaputt sein — das
+     * > sieht gleich aus.**
+     *
+     * **Der Anlass ist `docs/86`, Befund 13.** Auf `cloudsrv24` liegt seit der
+     * Installation ein `ubuntu.sources.curtin.orig`. Der Filter war richtig und
+     * von nichts gehalten: `SourceListTest` prüft das **Zerlegen** einer Datei
+     * und nirgends, welche Dateien gelesen werden.
+     *
+     * > **Ein Filter, der stimmt, und ein Filter, den etwas hält, sehen heute
+     * > gleich aus — und morgen nicht mehr.**
+     *
+     * @var list<string>
+     */
+    public const EXTENSIONS = ['list', 'sources'];
+
+    /**
      * Die Quelldatei des Panels selbst.
      *
      * **Sie hat bis zum 26. August keine Konstante gehabt** — geschrieben wird
@@ -551,6 +579,55 @@ final class Sources
         }
 
         return '';
+    }
+
+    /**
+     * Die Dateien, die apt liest — in derselben Reihenfolge.
+     *
+     * **`sources.list` gehört dazu, auch wenn es hier nur Kommentar ist.**
+     * Gemessen auf diesem Abbild: vier Zeilen, alle Kommentar, null Einträge.
+     * Auf einem älteren System steht dort der ganze Bestand, und wer die Datei
+     * weglässt, zeigt dem Betreiber eine leere Liste für einen Server, der
+     * Quellen hat.
+     *
+     * > **Eine Datei, die auf dem eigenen System leer ist, ist damit nicht
+     * > überall leer.**
+     *
+     * **Die beiden Pfade sind Argumente und haben keine Vorgabe.** Sonst läse
+     * ein Wächter, der sie vergisst, das echte `/etc/apt` der messenden
+     * Maschine — und genau daran ist `SourceOwnershipTest` am 26. August in der
+     * CI rot und hier grün gewesen.
+     *
+     * > **Ein Test, dessen Ergebnis davon abhängt, was gerade nebenher liegt,
+     * > misst die Umgebung mit.**
+     *
+     * **Ein `glob` je Endung und kein `GLOB_BRACE`.** So ist
+     * {@see self::EXTENSIONS} die einzige Stelle, an der die Endungen stehen —
+     * und die Fahne fällt weg, die PHP nicht auf jeder Bauart hat: Wo sie
+     * fehlt, gibt `glob()` `false` zurück, und daraus würde hier lautlos „gar
+     * keine Quelle".
+     *
+     * @param  string  $main  Sonst {@see self::MAIN}
+     * @param  string  $parts  Sonst {@see self::PARTS}
+     * @return list<string>
+     */
+    public static function files(string $main, string $parts): array
+    {
+        $teile = [];
+
+        foreach (self::EXTENSIONS as $endung) {
+            $teile = [...$teile, ...(glob($parts.'/*.'.$endung) ?: [])];
+        }
+
+        // apt liest zuerst die Hauptdatei und dann das Verzeichnis in
+        // Namensfolge. Die Pfade teilen sich ihr Verzeichnis, ein Vergleich
+        // über den ganzen Pfad ist hier also einer über den Dateinamen.
+        sort($teile);
+
+        return array_values(array_filter(
+            [$main, ...$teile],
+            static fn (string $pfad): bool => is_file($pfad),
+        ));
     }
 
     /**

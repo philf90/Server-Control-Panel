@@ -243,7 +243,19 @@ Zahlen (*„N von M Aktualisierungen eingespielt, K bleiben offen"*).
 
 ## 5. Punkt 4 — Der Lauf, der nichts bewirkt, wird als solcher gemeldet
 
-Direkt nach Punkt 3 noch einmal „Alle installieren". Jetzt ist nichts mehr offen.
+Direkt nach Punkt 3 noch einmal „Alle installieren" — **ohne die Seite neu zu
+laden**. Jetzt ist nichts mehr offen.
+
+**Das Wort „ohne" ist der ganze Punkt, und es hat am 28. August gefehlt.** Die
+Paketsektion steht hinter `v-if="upgradable.length === 0"`; wer nach Punkt 3 neu
+lädt, sieht null offene Aktualisierungen und **keinen Knopf mehr** — der Griff,
+den dieser Punkt braucht, ist von dem Zustand entfernt, den er herstellt.
+
+> **Ein Kriterium, das einen Zustand herstellt, in dem sein eigener Griff
+> verschwindet, ist nicht messbar.**
+
+Die stehengebliebene Seite ist zugleich der Wirklichkeitsfall: Der Betreiber
+drückt, der Lauf endet, seine Ansicht ist alt, und er drückt noch einmal.
 
 Erwartet: `apt-run` endet mit 3 und schreibt *„Der Lauf hat nichts verändert
 — …"*; die Nachlese liest das als **Fehlschlag**, und der Vorgang steht auf

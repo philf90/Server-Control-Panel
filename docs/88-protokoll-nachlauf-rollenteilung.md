@@ -484,7 +484,104 @@ geschrieben haben.
 
 ---
 
-## 19. Wo der Lauf steht
+## 19. Das Urteil — und die Frage aus §12 ist entschieden
+
+Aus `/var/log/srvpanel/upgrade.log`, letzte Zeile:
+
+    apt-run: 17 von 17 Aktualisierungen eingespielt, 0 bleiben offen.
+
+Darüber, von apt selbst:
+
+    17 aktualisiert, 0 neu installiert, 0 zu entfernen und 0 nicht aktualisiert.
+
+| | |
+|---|---|
+| Kachel „Aktualisierbar" vor dem Lauf | **17** |
+| `M` in der Urteilszeile | **17** |
+| `K` (bleiben offen) | **0** |
+| Kachel danach | **0**, zurückgehalten **0** |
+
+**Befund 6 aus `docs/86` ist nicht zurück.** Seite und Lauf haben dieselbe Zahl
+gemeint — zwei Messungen an **einem** Ort. Die Bewegung aus §12 war Ubuntus
+stufenweise Ausspielung, die diese Maschine erreicht hat; `libproc2-0` und
+`procps` stehen in der Liste der siebzehn.
+
+> **Zwei Läufe desselben Befehls an zwei Orten sind zwei Messungen und nicht
+> eine** — und dass es diesmal einer war, sagt der Vergleich und nicht der
+> Quelltext.
+
+---
+
+## 20. Beobachtung 7 — Punkt 5 von A1 zum fünften Mal, und diesmal am eigenen Bau
+
+Im selben Log, nach den Triggern:
+
+    Restarting services...
+     systemctl restart srvpanel-agentd.service srvpanel-metrics.service
+                       srvpanel-web.service srvpanel-worker.service
+
+**`needrestart` hat `srvpanel-worker` mitten im Lauf neu gestartet** — und
+`AwaitDispatchedRun` läuft auf der Queue `operations`, die genau dieser Dienst
+bedient (`--queue=operations,default`). Die Nachlese hat den Neustart ihres
+**eigenen** Arbeiters überlebt und danach das Urteil eingetragen: 21:37:06,
+`fertig`.
+
+Das ist eine schärfere Form als die vier Belege aus `docs/86`. Dort überlebte
+die transiente **Unit** den Neustart; hier überlebt ihn zusätzlich der Job, der
+sie nachliest — und der ist am 28. August gebaut worden, ohne dass jemand diese
+Bedingung herstellen konnte.
+
+> **Ein Bau, der unter der Bedingung geprüft wird, für die er gedacht war,
+> braucht keine Erzählung mehr.**
+
+**Was dieser eine Lauf nicht belegt.** Der Job wartet fünfzehn Sekunden und
+läuft dann etwa eine — er stand also mit hoher Wahrscheinlichkeit **wartend** in
+der Datenbank, als der Neustart kam, und nicht mitten in einem Durchlauf. Der
+Arbeiter fährt mit `--tries=1`; ein Durchlauf, der im Neustart stirbt, wird
+nicht wiederholt, und die Kette hängt an genau diesem einen Job, der sich selbst
+neu einreiht.
+
+**Die Folge wäre still und falsch:** Der Vorgang bliebe auf `läuft` stehen, bis
+nach zwei Stunden `DEADLINE` greift — und würde dann als **fehlgeschlagen**
+gemeldet, obwohl der Lauf gelungen ist.
+
+> **Eine Kette, die an einem Glied hängt, ist so robust wie das Glied — und die
+> Messung, in der das Glied gerade nicht dran war, sagt darüber nichts.**
+
+Das ist kein Befund dieses Laufs, sondern eine benannte Grenze. Sie gehört zu
+Befund 4 bis 6 in dieselbe Liste dessen, was an der Nachlese noch zu tun ist.
+
+---
+
+## 21. Befund 7 — Punkt 4 verlangt einen Griff, den sein eigener Zustand entfernt
+
+`docs/87 §5` lautet: *„Direkt nach Punkt 3 noch einmal „Alle installieren".
+Jetzt ist nichts mehr offen."*
+
+**Der Knopf ist dann nicht mehr da.** Nach Befund 2 steht die ganze Paketsektion
+hinter `v-if="upgradable.length === 0"` / `<template v-else>`; bei null offenen
+Aktualisierungen — also in genau dem Zustand, den Punkt 4 herstellt — gibt es
+weder Tabelle noch Knopf.
+
+> **Ein Kriterium, das einen Zustand herstellt, in dem sein eigener Griff
+> verschwindet, ist nicht messbar.**
+
+**Der Zustand selbst ist richtig gebaut.** `apt-run` gäbe bei leerem Bestand
+`vorher = nachher` und endete mit 3; die Nachlese läse das als Fehlschlag. Was
+fehlt, ist der Weg dorthin.
+
+**Und die Vorschrift war um ein Wort daneben.** Der Griff existiert sehr wohl —
+auf einer Seite, die **nicht neu geladen** wurde. Genau das ist auch der
+Wirklichkeitsfall: Der Betreiber drückt, der Lauf endet, seine Seite steht noch
+auf dem alten Stand, und er drückt noch einmal. `docs/87 §5` trägt die
+Ergänzung.
+
+**Punkt 4 ist damit vertagt**, nicht ausgefallen — er braucht einen neuen
+Bestand, und den bringt der nächste Tag.
+
+---
+
+## 22. Wo der Lauf steht
 
 | Punkt | Stand |
 |---|---|
@@ -492,11 +589,11 @@ geschrieben haben.
 | 1b — die Tür | **erfüllt**, samt Vorgangsbeleg (§10) |
 | 2 — der Vorbehalt in der Liste | offen |
 | 3 — die Nachlese | **erfüllt** (§14) — mit drei Befunden daneben |
-| 4 — der Lauf ohne Wirkung | folgt unmittelbar auf 3 |
+| 4 — der Lauf ohne Wirkung | **vertagt** (§21) — braucht neuen Bestand und einen Druck ohne Neuladen |
 | 5 — das heile `W:` | offen |
 | 6 — die Zählwörter | offen |
 
-**Sechs Befunde: drei im Prüfmittel, drei im Panel.** Die ersten drei sassen in
+**Sieben Befunde: vier im Prüfmittel, drei im Panel.** Die ersten drei sassen in
 der Vorschrift, die letzten drei auf einer einzigen Seite — der des Vorgangs.
 
 **Sie sind eine Familie und keine drei Einzelfälle**, und die Familie ist

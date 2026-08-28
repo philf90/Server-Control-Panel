@@ -79,8 +79,9 @@ mitgezählt: dann sind es fünf Knöpfe.
 > **Ein Bedienelement, das an zwei Bedingungen hängt, belegt die eine nur,
 > solange die andere erfüllt ist.**
 
-**Und die Tür, nicht nur die Anzeige.** Als Administrator, über die
-Kommandozeile mit seiner Sitzung — oder ersatzweise durch Aufruf der Adresse:
+**Und die Tür, nicht nur die Anzeige.** Gemessen wird aus der Browserkonsole der
+angemeldeten Sitzung — damit geht die Anfrage durch das echte nginx, die echte
+Mittelschicht und die echte Sitzung, und nicht an ihnen vorbei.
 
     POST /updates/install     → 403
     PUT  /updates/sources     → 403
@@ -91,6 +92,42 @@ Kommandozeile mit seiner Sitzung — oder ersatzweise durch Aufruf der Adresse:
 Der letzte ist der wichtige: Er ist die einzige Handlung, die der Administrator
 auf dieser Seite hat, und ein Aufräumen, das ihn versehentlich mitnimmt, fällt
 sonst niemandem auf.
+
+**Der Rumpf ist leer, und das ist keine Bequemlichkeit.** Am Quelltext
+nachgesehen, bevor der Prüfkörper geschrieben wurde: Alle vier gesperrten
+Handlungen rufen `validate()` als erstes und verlangen Pflichtfelder —
+`mode`, `path`/`stanza`/`enabled`, `enabled`, und `hostname` sogar gegen den
+echten Rechnernamen. Ein leerer Rumpf trennt damit die beiden Ausgänge sauber:
+
+| | bedeutet |
+|---|---|
+| **403** | die Tür hat gehalten |
+| **422** | die Tür stand offen, und die Prüfung hat aufgefangen |
+
+**Keiner der beiden fasst den Server an.** Das ist der Grund, warum
+`POST /server/reboot` überhaupt gemessen werden darf: Wäre die Reihenfolge
+umgekehrt, prüfte dieser Punkt einen Neustart der Produktivmaschine.
+
+> **Ein Prüfkörper, der im Fehlerfall Schaden anrichtet, ist keiner — man fährt
+> ihn nicht, und dann ist der Punkt ungemessen.**
+
+**`POST /updates/refresh` ist der Sonderfall und nimmt nichts entgegen.** Es
+setzt sofort einen Vorgang ab. Für diese Route heisst „durchgelassen" deshalb
+wörtlich „hat einen Vorgang angelegt" — anders ist ihre Erreichbarkeit nicht zu
+belegen (`docs/62`, Punkt 11).
+
+**Die Gegenprobe ist derselbe Lauf als Betreiber**, und sie ist nicht optional.
+Ein Fehlschlag der CSRF-Prüfung gäbe **419** auf alle fünf — und 419 ist nicht
+403, läse sich also als „vier Türen stehen offen". Nur wenn derselbe Lauf als
+Betreiber **kein einziges** 403 liefert, hat der Prüfkörper die Mittelschicht
+überhaupt erreicht.
+
+> **Ein Prüfkörper, der aus dem falschen Grund scheitert, meldet den Prüfling
+> für etwas, das er zu Recht tut.**
+
+**Kein `X-Inertia` im Kopf.** Es erzeugt bei abweichendem Baustand einen **409**,
+und zwar **vor** der Policy — der Punkt wäre dann ungemessen und sähe aus wie
+ein Ergebnis (`docs/62`, Punkt 11).
 
 ---
 

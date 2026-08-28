@@ -355,20 +355,159 @@ fängt hier an.
 
 ---
 
-## 14. Wo der Lauf steht
+## 14. Punkt 3 — Die Nachlese trägt, und drei Dinge daneben nicht
+
+**Die Nachlese ist belegt.** Vorgang **720**, `system.packages.upgrade`, Modus
+`all`, ausgelöst vom Betreiber:
+
+| | |
+|---|---|
+| Begonnen | 2026-08-28 **21:36:33** |
+| Zustand um 21:36 | **`läuft`**, Beendet **`—`** |
+| Beendet | 2026-08-28 **21:37:06** |
+| Laufzeit | **33 Sekunden** |
+| Pakete | **17** |
+
+**Das ist das Nachher zu Vorgang 707** (§11), zwei Zeilen weiter in derselben
+Liste: dort `fertig` nach einer Sekunde, hier `läuft` über dreiunddreissig und
+`fertig` erst danach. Die transiente Unit hat ihr Urteil geschrieben, und
+`AwaitDispatchedRun` hat es gelesen.
+
+**Und die erste gemessene Laufzeit für `docs/81 §2.3h` Punkt 1:** 33 Sekunden
+für 17 Pakete. Das ist nicht die Zahl für 142, aber es ist eine, wo vorher keine
+stand — und sie macht `AwaitDispatchedRun::DEADLINE` von zwei Stunden zu einer
+grosszügigen und nicht zu einer geratenen Frist.
+
+---
+
+## 15. Befund 4 — Der Vorgang endet mit der Meldung „läuft"
+
+Auf der Seite von Vorgang 720 steht **in beiden Aufnahmen** derselbe grüne
+Kasten mit dem Wort **„läuft"** — auch um 21:37, als Zustand und Marke schon
+`fertig` sagen.
+
+Die Kette, am Quelltext ausgezählt:
+
+    SystemPackagesUpgrade.php:176   $context->progress(100, 'läuft');
+    OperationRecorder::dispatched() fasst `message` nicht an
+    OperationRecorder::succeed()    ruft finish(…, message: null)
+    OperationRecorder::finish()     'message' => $message === null
+                                        ? $this->operation->message : …
+
+**Ein `null` bedeutet dort „lass die alte stehen".** Die alte ist das Wort, mit
+dem der Agent den Lauf abgesetzt hat. Der Vorgang endet also mit einer grünen
+Meldung, die das Gegenteil seines Zustands behauptet.
+
+> **Eine Meldung, die den Zustand von vorhin trägt, widerspricht der Marke
+> daneben — und der Leser glaubt der Meldung, weil sie aus Worten besteht.**
+
+**Der Fehler ist älter als die Behebung und wird erst durch sie sichtbar.**
+Vorgang 707 trägt dieselbe Meldung; dort fiel sie nicht auf, weil der Zustand
+eine Sekunde später ohnehin falsch war.
+
+---
+
+## 16. Befund 5 — „Fortschritt 100 %" steht neben „läuft"
+
+Um 21:36, während der Vorgang lief, stand der Balken auf **voll** und darunter
+*„Fortschritt 100 %"*.
+
+**Und das ist genau der Wert, den `dispatched()` bewusst nicht setzt.** In
+seinem Dokumentblock steht:
+
+> **Kein `finished_at` und kein `progress: 100`.** Beide behaupteten ein Ende;
+> der Fortschritt bleibt, wo der Agent ihn gelassen hat.
+
+Der Agent hat ihn bei **100** gelassen — `progress(100, 'läuft')`, dieselbe
+Zeile wie in Befund 4. Die Entscheidung, ihn nicht zu setzen, läuft ins Leere.
+
+> **Ein Wert, den man bewusst nicht setzt, ist trotzdem gesetzt, wenn ihn vorher
+> jemand anders gesetzt hat.**
+
+Der Kommentar nennt die Bedingung — *„wo der Agent ihn gelassen hat"* — und
+niemand hat nachgesehen, wo das ist.
+
+---
+
+## 17. Befund 6 — Das Urteil steht im Ergebnis und auf keiner Seite
+
+`AwaitDispatchedRun` legt das Urteil ab:
+
+    $recorder->succeed([...$ergebnis, 'verdict' => $urteil]);
+
+`Operations/Show.vue` rendert `message`, `progress`, die Argumente und die
+Ausgabe — **`result` nicht**. Die Zeile, die `apt-run` geschrieben hat und
+derentwegen die ganze Nachlese gebaut wurde, ist damit im Payload und auf keiner
+Seite. Die Ausgabe daneben sagt *„Keine Ausgabe."*, und das stimmt: Ein
+abgesetzter Lauf schreibt in `upgrade.log` und nicht in den Vorgang.
+
+> **Ein Feld im Payload ist noch keine Spalte.**
+
+**Zum dritten Mal, und zum zweiten Mal in diesem Merkmal.** Genau dieser Satz
+steht in `docs/86 §5` über Form B — dort hat die Behebung der Vorgangs**liste**
+eine Marke gegeben. Die Detailseite hat niemand angesehen.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist an der nächsten wieder
+> da, wenn die Behebung nicht die Regel wurde.**
+
+**Und die Asymmetrie ist der eigentliche Befund.** Im Fehlerfall ruft die
+Nachlese `fail($urteil, …)`, und `fail()` reicht das Urteil als **Meldung**
+durch — dort steht es also. Im Erfolgsfall ruft sie `succeed()` mit `null`, und
+dann steht es nirgends.
+
+> **Ein Urteil, das nur im Fehlerfall sichtbar wird, ist keine Auskunft über den
+> Ausgang — es ist eine Fehlermeldung.**
+
+**Das trifft die Gegenprobe aus §12.** Die Urteilszeile sollte Kachel und Lauf
+vergleichen (*„N von M eingespielt, K bleiben offen"*); vom Panel aus ist sie
+nicht lesbar. Bis Befund 6 behoben ist, geht das nur über
+`cat /var/log/srvpanel/upgrade.log`.
+
+---
+
+## 18. Nicht entschieden — die transiente Unit war nie zu sehen
+
+`systemctl list-units 'srvpanel-update-*'` meldete dreimal
+`0 loaded units listed.`
+
+**Das ist kein Befund und kein Beleg.** `--collect` räumt die Unit ab, sobald
+sie fertig ist; nach 21:37:06 ist sie zu Recht fort. Ob die drei Aufrufe
+innerhalb der dreiunddreissig Sekunden lagen, geht aus der Aufnahme nicht
+hervor — sie trägt keine Uhrzeit.
+
+> **Ein leerer Treffer ohne Zeitstempel beantwortet eine Frage nach einem
+> Zeitraum nicht.**
+
+Entscheiden würde es ein Aufruf **während** eines Laufs, mit `date` davor. Der
+Weg steht ohnehin schon: Das Urteil in `upgrade.log` kann nur die Unit
+geschrieben haben.
+
+---
+
+## 19. Wo der Lauf steht
 
 | Punkt | Stand |
 |---|---|
 | 1a — der Administrator sieht die Seite | **erfüllt**, alle sieben Erwartungen (§1, §9) |
 | 1b — die Tür | **erfüllt**, samt Vorgangsbeleg (§10) |
 | 2 — der Vorbehalt in der Liste | offen |
-| 3 — die Nachlese | **jetzt fahrbar** — 17 Pakete stehen an, und §11 hat das Vorher |
+| 3 — die Nachlese | **erfüllt** (§14) — mit drei Befunden daneben |
 | 4 — der Lauf ohne Wirkung | folgt unmittelbar auf 3 |
 | 5 — das heile `W:` | offen |
 | 6 — die Zählwörter | offen |
 
-**Drei Befunde bisher, alle drei im Prüfmittel und keiner im Panel.** Das ist
-dasselbe Verhältnis wie in `docs/45`, `docs/48`, `docs/59` und `docs/84`.
+**Sechs Befunde: drei im Prüfmittel, drei im Panel.** Die ersten drei sassen in
+der Vorschrift, die letzten drei auf einer einzigen Seite — der des Vorgangs.
+
+**Sie sind eine Familie und keine drei Einzelfälle**, und die Familie ist
+dieselbe wie in `docs/86 §5`: **Was der Vorgang über seinen Ausgang sagt, sagt
+er falsch oder gar nicht.** Der Zustand stimmt seit dem 28. August; die Meldung
+daneben trägt das Wort von vorhin (Befund 4), der Balken die Zahl von vorhin
+(Befund 5), und das Urteil, das beide ersetzen würde, wird nicht gerendert
+(Befund 6).
+
+> **Eine Behebung, die den Zustand richtig macht, hat über die Anzeige daneben
+> nichts gesagt.**
 
 **Und zwei Dinge, die dieser Lauf nicht bestellt hat, aber gefunden hat:** das
 unhergestellte Vorher der Familie (§11) und zwei Kundendomains ohne Zertifikat

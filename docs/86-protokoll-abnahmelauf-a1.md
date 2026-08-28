@@ -343,6 +343,45 @@ zerrissen, an der eine Zeile überhaupt als Warnung erkennbar ist.
 von dieser Regel kommt oder aus dem gespeicherten Text, ist noch offen — die
 Antwort entscheidet, ob der Fix in `app.css` oder im Weg der Ausgabe steht.
 
+> **Beantwortet am 28. August 2026: der Text, nicht die CSS.**
+>
+> Gemessen gegen den echten `Runner` und echtes apt (`apt-get -q -s
+> dist-upgrade`, 34 001 Bytes), mit der vollständigen Ausgabe desselben Laufs
+> als Gegenprobe — sie geht nicht durch den Rahmenweg:
+>
+>     Zeilen im Ergebnis: 317   (Gegenprobe)
+>     Zeilen im Rahmen:   320
+>     Differenz:          +3
+>
+> > **Eine Messung braucht einen zweiten Weg zum selben Gegenstand, sonst misst
+> > sie sich selbst.**
+>
+> `Runner` liest mit `fread($pipe, 65536)` — Bytes und keine Zeilen. Die alte
+> Schleife machte daraus trotzdem welche:
+>
+>     foreach (explode("\n", rtrim($chunk, "\n")) as $line) { … }
+>
+> `rtrim` schneidet **nur hinten**. Endet ein Stück ohne seinen Umbruch, beginnt
+> das nächste damit, und `explode` liefert eine leere erste Zeile — daher die
+> drei. Fällt die Grenze mitten im Text, wird die Zeile in zwei zerrissen, und
+> das ist das `W`.
+>
+> > **Eine Stückgrenze ist keine Zeilengrenze — und wer je Stück Zeilen
+> > schreibt, macht aus jeder Grenze eine.**
+>
+> **Der auffällige Fall war der seltene.** Gesehen hat der Betreiber das
+> zerrissene `W:`; die eingeschobene Leerzeile stand schon bei Zeile 2 und ist
+> niemandem aufgefallen, weil eine leere Zeile in einer Programmausgabe wie
+> nichts aussieht.
+>
+> Behoben mit `SrvPanel\Agent\Lines`: ein Rest **je Kanal** — ein gemeinsamer
+> klebte das halbe Ende von `stdout` an den Anfang von `stderr` —, und was am
+> Ende ohne Umbruch übrig ist, wird trotzdem gesendet: Ausgerechnet die letzte
+> Zeile trägt bei `apt-run` das Urteil, an dem seit heute die Nachlese hängt.
+>
+> Danach dieselbe Messung: **317 gegen 317.** `LinesTest` hält es, vier
+> Eingriffe im Bruchskript, alle beissend.
+
 ---
 
 **Beobachtung 3 — Punkt 0b hat 0 gemessen, eine Stunde später sind es 7.**
@@ -2112,7 +2151,9 @@ sondern eine Entscheidung des Betreibers.** Diese Reste stehen dem gegenüber:
    gezeigt, wo der Lauf steht. Was fehlt, ist die Rückmeldung **danach**: Kein
    Zustand, keine Meldung und keine Zahl ändert sich noch, wenn der abgesetzte
    Lauf scheitert.
-3. **Befund 4** — das `W:` zerreisst in der Anzeige; undiagnostiziert.
+3. ~~**Befund 4** — das `W:` zerreisst in der Anzeige; undiagnostiziert.~~
+   **Diagnostiziert und behoben am 28. August 2026** — es war der Weg der
+   Ausgabe und nicht die CSS; die Messung steht oben beim Befund.
 4. **Befund 14** — die Fusszeile von `/logs` nennt ein Fenster, das es nicht
    gibt. Gehört zu A5.
 5. **`docs/81 §2.3h` Punkt 1** bleibt unbeantwortet: Wie lange ein Lauf über
@@ -2246,7 +2287,8 @@ Die Reihenfolge folgt der Wirkung und nicht der Nummer:
 
 1. **Die Familie** (§5, Punkte 1 und 2) — eine Aufgabe, an einer Stelle
    entschieden, bevor jemand sie an einer von dreien allein behebt.
-2. **Befund 4** — das zerrissene `W:` in der Anzeige, undiagnostiziert.
+2. ~~**Befund 4** — das zerrissene `W:` in der Anzeige, undiagnostiziert.~~
+   **Erledigt am 28. August 2026.**
 3. **`docs/81 §2.3h` Punkt 1** — die Dauer eines Laufs über 142 Pakete. Dieser
    Lauf hatte sechs und fünf; die Zahl ist eine Gelegenheit und keine Messung,
    die man herstellen kann.

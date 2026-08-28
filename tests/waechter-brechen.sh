@@ -19530,6 +19530,83 @@ pruefe "Liste ohne Vorbehalt" \
   OperationWarningTest::test_the_list_renders_the_caveat failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationWarningTest passed
+echo
+echo "── LinesTest: der Rest wird nicht gehalten ──"
+#
+# Befund 4 aus docs/86: Auf der Vorgangsseite stand `W` allein und `: …`
+# darunter. fread liefert Bytes und keine Zeilen; wer je Stueck Zeilen
+# schreibt, macht aus jeder Stueckgrenze eine Zeilengrenze.
+vorher_datei agent/src/Lines.php
+python3 - <<'PY2'
+p = 'agent/src/Lines.php'
+s = open(p, encoding='utf-8').read()
+alt = '        $this->rest[$channel] = substr($text, $letzter + 1);\n\n        return explode("\\n", substr($text, 0, $letzter));'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        return explode("\\n", rtrim($text, "\\n"));', 1))
+PY2
+griff_datei agent/src/Lines.php "Stueck ohne Rest" &&
+pruefe "Stueck ohne Rest" \
+  LinesTest::test_a_line_torn_by_a_chunk_boundary_comes_back_whole failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LinesTest passed
+
+echo
+echo "── LinesTest: die Kanaele teilen sich einen Rest ──"
+#
+# Zwei Stroeme, die sich einen Puffer teilen, erzeugen eine Zeile, die keiner
+# von beiden geschrieben hat — das halbe Ende von stdout am Anfang von stderr.
+vorher_datei agent/src/Lines.php
+python3 - <<'PY2'
+p = 'agent/src/Lines.php'
+s = open(p, encoding='utf-8').read()
+alt = "$text = ($this->rest[$channel] ?? '').$chunk;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "$text = ($this->rest['alle'] ?? '').$chunk; $channel = 'alle';"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Lines.php "Kanaele ohne eigenen Rest" &&
+pruefe "Kanaele ohne eigenen Rest" \
+  LinesTest::test_the_channels_keep_their_own_remainder failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LinesTest passed
+
+echo
+echo "── LinesTest: ein leerer Rest wird als Zeile gesendet ──"
+#
+# Dann haengt an jeder Ausgabe, die sauber mit einem Umbruch endet, eine leere
+# Zeile — also an fast jeder.
+vorher_datei agent/src/Lines.php
+python3 - <<'PY2'
+p = 'agent/src/Lines.php'
+s = open(p, encoding='utf-8').read()
+alt = "return $rest === '' ? null : $rest;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'return $rest;', 1))
+PY2
+griff_datei agent/src/Lines.php "Leerer Rest als Zeile" &&
+pruefe "Leerer Rest als Zeile" \
+  LinesTest::test_an_empty_remainder_is_not_a_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LinesTest passed
+
+echo
+echo "── LinesTest: der Runner gibt den Rest am Ende nicht heraus ──"
+#
+# Dann faellt ausgerechnet die letzte Zeile weg, wenn sie ohne Umbruch endet —
+# und bei apt-run steht dort das Urteil, an dem die Nachlese haengt.
+vorher_datei agent/src/Runner.php
+python3 - <<'PY2'
+p = 'agent/src/Runner.php'
+s = open(p, encoding='utf-8').read()
+alt = '$rest = $lines->flush($channel);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '$rest = null;', 1))
+PY2
+griff_datei agent/src/Runner.php "Runner ohne Rest" &&
+pruefe "Runner ohne Rest" \
+  LinesTest::test_the_runner_assembles_and_flushes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LinesTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

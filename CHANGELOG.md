@@ -22336,3 +22336,50 @@ Der Wächter hält deshalb alle drei Glieder: dass eine Operation überhaupt ein
 Vorbehalt meldet, dass der Controller ihn durchreicht, und dass die Vorlage ihn
 liest. Drei Eingriffe, alle beissend — der dritte ist genau dieser Irrtum als
 Bruch.
+
+### Befund 4 — es war der Text und nicht die CSS
+
+Auf der Vorgangsseite stand `W` allein und `: …` darunter — die Marke zerrissen,
+an der eine Zeile überhaupt als Warnung erkennbar ist. `docs/86` liess offen, ob
+der Umbruch aus `app.css` kommt oder aus dem gespeicherten Text; die Antwort
+entscheidet, wo der Fix steht.
+
+**Gemessen gegen den echten `Runner` und echtes apt** (`apt-get -q -s
+dist-upgrade`, 34 001 Bytes), mit der vollständigen Ausgabe desselben Laufs als
+Gegenprobe — sie geht nicht durch den Rahmenweg:
+
+    Zeilen im Ergebnis: 317   (Gegenprobe)
+    Zeilen im Rahmen:   320
+    Differenz:          +3
+
+> **Eine Messung braucht einen zweiten Weg zum selben Gegenstand, sonst misst
+> sie sich selbst.**
+
+`Runner` liest mit `fread($pipe, 65536)` — Bytes und keine Zeilen. Die Schleife
+machte daraus trotzdem welche: `explode("\n", rtrim($chunk, "\n"))`. `rtrim`
+schneidet **nur hinten**; endet ein Stück ohne seinen Umbruch, beginnt das
+nächste damit, und `explode` liefert eine leere erste Zeile. Fällt die Grenze
+mitten im Text, wird die Zeile in zwei zerrissen — das ist das `W`.
+
+> **Eine Stückgrenze ist keine Zeilengrenze — und wer je Stück Zeilen schreibt,
+> macht aus jeder Grenze eine.**
+
+**Der auffällige Fall war der seltene.** Gesehen hat der Betreiber das
+zerrissene `W:`; die eingeschobene Leerzeile stand schon bei Zeile 2 und ist
+niemandem aufgefallen, weil eine leere Zeile in einer Programmausgabe wie nichts
+aussieht.
+
+`SrvPanel\Agent\Lines` hält jetzt einen Rest **je Kanal** — ein gemeinsamer
+klebte das halbe Ende von `stdout` an den Anfang von `stderr`:
+
+> **Zwei Ströme, die sich einen Puffer teilen, erzeugen eine Zeile, die keiner
+> von beiden geschrieben hat.**
+
+Und was am Ende ohne Umbruch übrig ist, wird trotzdem gesendet: Ausgerechnet die
+letzte Zeile trägt bei `apt-run` das Urteil, an dem seit heute die Nachlese
+eines abgesetzten Laufs hängt.
+
+Dieselbe Messung danach: **317 gegen 317.** `LinesTest` hält es in sieben
+Fällen, darunter die Gegenprobe, die die **alte** Rechnung wörtlich nachbaut —
+ohne sie wäre der Test auch dann grün, wenn `feed()` schlicht jedes Stück ganz
+zurückgäbe. Vier Eingriffe im Bruchskript, alle beissend.

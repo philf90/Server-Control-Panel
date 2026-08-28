@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support\Operations;
 
 use App\Enums\OperationStatus;
+use App\Jobs\RunAgentOperation;
 use App\Models\Operation;
 use SrvPanel\Agent\Frame;
 
@@ -151,6 +152,34 @@ final class OperationRecorder
     public function succeed(array $result = []): void
     {
         $this->finish(OperationStatus::Succeeded, $result, null);
+    }
+
+    /**
+     * Der Aufruf ist durch, der Lauf noch nicht.
+     *
+     * **Das Ergebnis wird gespeichert, der Zustand bleibt `running`.** Drei
+     * Operationen setzen ihren Lauf über `systemd-run` ab und kehren zurück,
+     * bevor er fertig ist; bis zum 28. August 2026 rief
+     * {@see RunAgentOperation} darauf `succeed()`, und der Vorgang
+     * stand auf `fertig`, während `apt-get` noch lief (`docs/86 §5`).
+     *
+     * > **Ein Vorgang, der nur meldet, dass er abgesetzt wurde, sagt über den
+     * > Ausgang dessen, was er abgesetzt hat, nichts — und `fertig` liest sich
+     * > wie das Gegenteil.**
+     *
+     * **Kein `finished_at` und kein `progress: 100`.** Beide behaupteten ein
+     * Ende; der Fortschritt bleibt, wo der Agent ihn gelassen hat.
+     *
+     * @param  array<string,mixed>  $result
+     */
+    public function dispatched(array $result): void
+    {
+        $this->flush();
+
+        $this->operation->forceFill([
+            'status' => OperationStatus::Running,
+            'result' => $result === [] ? null : $result,
+        ])->save();
     }
 
     /** @param  array<string,mixed>  $context */

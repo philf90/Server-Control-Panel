@@ -22201,3 +22201,98 @@ Die Gesamtsumme steht damit auf **36–48 Wochen** statt 32–44.
 
 > **Eine Summe, aus der das Heimatlose fehlt, ist nicht kleiner — sie ist
 > unvollständig.**
+
+### Ein abgesetzter Lauf trägt seinen Ausgang nach
+
+Der grösste Rest aus `docs/86 §5`, und die Messung davor hat die Aufgabe
+kleiner und anders geschnitten, als das Protokoll sie beschrieb.
+
+**„Dreimal dieselbe Form" stimmt für das Symptom und nicht für die Ursache.**
+Ausgezählt am Quelltext sind es **zwei** Operationen in **zwei** Formen:
+`system.packages.upgrade` setzt ab und weiss nichts vom Ausgang (Form A);
+`system.packages.refresh` läuft vollständig und trägt den unvollständigen
+Ausgang bereits in seinem Ergebnis (Form B). `system.reboot` teilt Form A, hat
+aber kein Log — es gibt nichts nachzulesen, und sein Wort ist auch schon
+`abgesetzt` und nicht `läuft`. Und `panel.update` hat **gar keinen Vorgang**:
+Es läuft ausschliesslich über `srvpanel update` auf der Kommandozeile.
+
+> **Ein gemeinsames Symptom ist noch keine gemeinsame Ursache — und die
+> Zusammenfassung, die beides verschmilzt, spart die Unterscheidung ein, die
+> die Behebung braucht.**
+
+Gebaut ist damit **Form A**, für die eine Operation, an der sie wirklich beisst.
+
+**Kein `--wait`.** Es wäre die naheliegende Zeile und nähme genau das Merkmal
+zurück, das Punkt 5 des Abnahmelaufs belegt hat — dass die transiente Unit den
+Neustart von `srvpanel-worker` überlebt.
+
+> **Eine Behebung, die das Merkmal zurücknimmt, für das der Lauf gefahren wurde,
+> ist keine.**
+
+Stattdessen eine Nachlese: Der Agent markiert sein Ergebnis mit `dispatched`,
+`RunAgentOperation` ruft statt `succeed()` den neuen
+`OperationRecorder::dispatched()` — Ergebnis gespeichert, Zustand `running`, kein
+`finished_at` —, und `AwaitDispatchedRun` sieht alle fünfzehn Sekunden nach.
+
+**Ein Job und keine eigene Unit.** `QUEUE_CONNECTION=database`: Er liegt in der
+Tabelle `jobs` bis zu seinem `available_at` und überlebt damit beide Ereignisse,
+die hier vorkommen — den Neustart des Arbeiters durch ein Update, das das Panel
+selbst enthält, und einen ganzen Serverneustart.
+
+#### Zwei Quellen, und jede beantwortet genau eine Frage
+
+**Läuft noch etwas?** Das sagt `systemctl`. Und nur das: `--collect` räumt die
+Unit auch dann ab, wenn sie gescheitert ist.
+
+> **Ein Zustand, der nach dem Ende verschwindet, ist kein Urteil über das Ende.**
+
+**Wie ist es ausgegangen?** Das sagt die Zeile, die `apt-run` selbst schreibt —
+vier Formen, alle im Abnahmelauf gemessen. `Outcome` liest sie, `SystemRunOutcome`
+reicht sie durch; übergeben wird ein **Schlüssel** und kein Pfad, wie bei `Logs`.
+
+**Und sie wird ab dem eigenen Versatz gelesen.** `upgrade.log` sammelt Läufe,
+weil `systemd-run` mit `StandardOutput=append:` anhängt. Wer die letzte Zeile
+nimmt, nimmt womöglich das Urteil des vorigen — genau die Falle, die im
+Abnahmelauf eine Beobachtung gekostet hat.
+
+> **Ein Urteil in einer Datei, die mehrere Läufe sammelt, gehört an die Stelle
+> gebunden, an der der eigene Lauf begonnen hat.**
+
+Der Versatz wird beim Absetzen genommen, vor dem Lauf, und reist im Ergebnis mit.
+
+#### Die Frist fällt zur sicheren Seite
+
+Nach zwei Stunden gibt die Nachlese auf — und meldet **Fehlschlag**, nicht
+Erfolg.
+
+> **Ein Ausgang, der sich nicht feststellen liess, ist kein Erfolg.**
+
+Zwei Stunden, weil `docs/81 §2.3h` Punkt 1 bis heute nicht gemessen ist: Wie
+lange ein Lauf über 142 Pakete dauert, weiss niemand.
+
+> **Eine Frist, die man nicht gemessen hat, wird lang gewählt und nicht
+> plausibel.**
+
+#### Ein Wächter, den sein eigener Bruch überführt hat
+
+`DispatchedRunTest` hält die Naht über drei Dateien. Sein Fall „der Zweig kehrt
+zurück" suchte zuerst `if (…) { … return; }` als Ausdruck — und blieb **grün**,
+als der Eingriff das `return;` herausnahm: Das `.*?` lief über die schliessende
+Klammer hinaus bis zum nächsten `return;` in der Datei.
+
+> **Ein Wächter, der Wörter liest, sieht keine Klammern.**
+
+Er zählt die Klammern seitdem und nimmt den Rumpf des Blocks. Sechs Eingriffe
+stehen in `tests/waechter-brechen.sh`, alle beissend — der dritte erst nach
+dieser Berichtigung.
+
+**Und `GuardReachTest` hat einen Kommentar überführt**: Der Dokumentationsblock
+von `Outcome` versprach einen Wächter unter einem Namen, den es nicht gibt,
+während der gebaute `OutcomeTest` heisst. Ein Kommentar, der einen Test nennt,
+ist derselbe Verweis wie ein `can:` im Code — hier prüft ihn einer.
+
+**Was offen bleibt:** Form B — `system.packages.refresh` meldet `fertig`, während
+sein Ergebnis eine unerreichbare Quelle nennt. Sie braucht keine Nachlese,
+sondern eine Entscheidung darüber, welchen Zustand ein Vorgang bekommt, der
+teilweise gelungen ist; ein neuer Wert im Enum ist ansteckend, und `failed`
+überzeichnete. Und Form A ist auf einem echten Server noch nicht gemessen.

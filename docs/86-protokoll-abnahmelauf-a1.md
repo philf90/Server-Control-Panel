@@ -2068,6 +2068,32 @@ sondern eine Entscheidung des Betreibers.** Diese Reste stehen dem gegenüber:
    Das ist **eine** Aufgabe und nicht drei, und sie gehört entschieden, bevor
    jemand sie an einer Stelle allein behebt.
 
+   > **Berichtigt am 28. August 2026, beim Nachmessen vor dem Bauen.** „Dreimal
+   > dieselbe Form" stimmt für das Symptom und nicht für die Ursache. Gemessen
+   > am Quelltext sind es **zwei** Operationen in **zwei** Formen:
+   >
+   > | | als Vorgang? | Form |
+   > |---|---|---|
+   > | `system.packages.upgrade` (704, 5d) | ja | **A** — abgesetzt, Ausgang unbekannt |
+   > | `system.reboot` | ja | **A**, aber ohne Log — es gibt nichts nachzulesen, und sein Wort ist schon `abgesetzt` und nicht `läuft` |
+   > | `system.packages.refresh` (690) | ja | **B** — vollständig gelaufen, Ausgang unvollständig |
+   > | `panel.update` | **nein** — nur über `srvpanel update` auf der Kommandozeile | kein Vorgang, also auch kein Befund |
+   >
+   > **A** braucht eine Nachlese: Der Agent kehrt zurück, bevor die Arbeit
+   > fertig ist, und `RunAgentOperation` ruft `succeed()` auf einen Aufruf, der
+   > nur abgesetzt hat. **B** braucht keine — dort ist der Agent fertig, und
+   > sein Ergebnis trägt den unvollständigen Ausgang bereits (`unreachable`,
+   > `reached_everything`). Was fehlt, ist, dass der **Zustand** ihm folgt.
+   >
+   > > **Ein gemeinsames Symptom ist noch keine gemeinsame Ursache — und die
+   > > Zusammenfassung, die beides verschmilzt, spart die Unterscheidung ein,
+   > > die die Behebung braucht.**
+   >
+   > Der Satz oben — „eine Aufgabe und nicht drei" — hatte im Kern recht: Sie
+   > gehört an einer Stelle entschieden. Nur ist die Stelle für A eine andere
+   > als für B, und wer sie zusammen behebt, baut für B eine Maschinerie, die
+   > es dort nicht braucht.
+
    **Was dabei nicht fehlt, ist der Weg zum Nachsehen.** Der Vorgang trägt in
    seinem Ergebnis `unit` und `log` — der Betreiber wird also sehr wohl dorthin
    gezeigt, wo der Lauf steht. Was fehlt, ist die Rückmeldung **danach**: Kein

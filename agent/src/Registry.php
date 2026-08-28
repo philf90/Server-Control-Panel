@@ -99,6 +99,7 @@ use SrvPanel\Agent\Ops\SystemPackagesRefresh;
 use SrvPanel\Agent\Ops\SystemPackagesUnattended;
 use SrvPanel\Agent\Ops\SystemPackagesUpgrade;
 use SrvPanel\Agent\Ops\SystemReboot;
+use SrvPanel\Agent\Ops\SystemRunOutcome;
 use SrvPanel\Agent\Ops\SystemSourcesList;
 use SrvPanel\Agent\Ops\SystemSourcesToggle;
 use SrvPanel\Agent\Ops\WebIsolationProbe;
@@ -195,6 +196,7 @@ final class Registry
         $this->register(new SystemPackagesRefresh);
         $this->register(new SystemPackagesUnattended);
         $this->register(new SystemPackagesUpgrade);
+        $this->register(new SystemRunOutcome);
         $this->register(new SystemReboot);
         $this->register(new SystemSourcesList);
         $this->register(new SystemSourcesToggle);

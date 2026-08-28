@@ -19339,6 +19339,133 @@ pruefe "Zusatz bricht ueberall" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   MobileLayoutTest::test_a_quiet_note_beside_an_identifier_breaks_between_words passed
+echo
+echo "── DispatchedRunTest: die Marke faellt weg ──"
+#
+# Der Rueckfall von docs/86 §5: Ohne `dispatched` ruft RunAgentOperation wieder
+# `succeed()`, sobald der Agent zurueckkehrt — und der Vorgang steht auf
+# „fertig", waehrend apt-get noch laeuft.
+vorher_datei agent/src/Ops/SystemPackagesUpgrade.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemPackagesUpgrade.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'dispatched' => true,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Ops/SystemPackagesUpgrade.php "Lauf ohne Marke" &&
+pruefe "Lauf ohne Marke" \
+  DispatchedRunTest::test_whoever_marks_a_run_dispatched_names_it_and_its_offset failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DispatchedRunTest passed
+
+echo
+echo "── DispatchedRunTest: der Versatz faellt weg ──"
+#
+# Ohne ihn liest die Nachlese die letzte Zeile der Datei — und upgrade.log
+# sammelt Laeufe. Das Urteil des vorigen Laufs wuerde als das eigene gelesen
+# (docs/86, Beobachtung 17).
+vorher_datei agent/src/Ops/SystemPackagesUpgrade.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemPackagesUpgrade.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'log_offset' => $versatz,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Ops/SystemPackagesUpgrade.php "Lauf ohne Versatz" &&
+pruefe "Lauf ohne Versatz" \
+  DispatchedRunTest::test_whoever_marks_a_run_dispatched_names_it_and_its_offset failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DispatchedRunTest passed
+
+echo
+echo "── DispatchedRunTest: die Verzweigung kehrt nicht zurueck ──"
+#
+# Sie setzt die Nachlese an und laeuft dann weiter in succeed() — der Vorgang
+# ist fertig, und die Nachlese findet ihn nicht mehr auf `running`.
+#
+# **Dieser Eingriff hat einen Waechter ueberfuehrt**: Der erste Wurf suchte
+# `if (…) { … return; }` mit einem `.*?` und blieb gruen, weil der Ausdruck
+# ueber die schliessende Klammer hinaus bis zum naechsten `return;` lief.
+# Ein Waechter, der Woerter liest, sieht keine Klammern.
+vorher_datei app/Jobs/RunAgentOperation.php
+python3 - <<'PY2'
+p = 'app/Jobs/RunAgentOperation.php'
+s = open(p, encoding='utf-8').read()
+alt = """                    ->delay(now()->addSeconds(AwaitDispatchedRun::INTERVAL));
+
+                return;
+            }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """                    ->delay(now()->addSeconds(AwaitDispatchedRun::INTERVAL));
+            }"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Jobs/RunAgentOperation.php "Zweig ohne Rueckkehr" &&
+pruefe "Zweig ohne Rueckkehr" \
+  DispatchedRunTest::test_the_job_branches_before_it_reports_success failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DispatchedRunTest passed
+
+echo
+echo "── DispatchedRunTest: die Frist meldet Erfolg ──"
+#
+# Die naheliegende „Vereinfachung": Nach Ablauf der Frist einfach succeed().
+# Dann steht der Vorgang wieder auf fertig, ohne dass jemand nachgesehen hat.
+vorher_datei app/Jobs/AwaitDispatchedRun.php
+python3 - <<'PY2'
+p = 'app/Jobs/AwaitDispatchedRun.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $recorder->fail(\n            'Der Ausgang dieses Laufs liess sich nicht feststellen.'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        $recorder->succeed([]);\n        $recorder->fail(\n            'Der Ausgang dieses Laufs liess sich nicht feststellen.'"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Jobs/AwaitDispatchedRun.php "Frist meldet Erfolg" &&
+pruefe "Frist meldet Erfolg" \
+  DispatchedRunTest::test_an_expired_deadline_is_a_failure_and_not_a_success failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DispatchedRunTest passed
+
+echo
+echo "── OutcomeTest: der Praefix laeuft von apt-run weg ──"
+#
+# Die teuerste Naht dieses Bauteils: Der Leser faende nie ein Urteil und
+# meldete „laeuft noch", bis die Frist ablaeuft — ein Fehler, der wie Geduld
+# aussieht.
+vorher_datei agent/src/Outcome.php
+python3 - <<'PY2'
+p = 'agent/src/Outcome.php'
+s = open(p, encoding='utf-8').read()
+alt = "public const PREFIX = 'apt-run: ';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "public const PREFIX = 'aptrun: ';", 1))
+PY2
+griff_datei agent/src/Outcome.php "Praefix ohne Deckung" &&
+pruefe "Praefix ohne Deckung" \
+  OutcomeTest::test_the_prefix_is_the_one_apt_run_writes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
+
+echo
+echo "── OutcomeTest: der Versatz wird ignoriert ──"
+#
+# Die Gegenrichtung zum Versatz-Bruch oben, und zwar im Leser statt beim
+# Schreiber: Liest er immer von 0, findet er das Urteil des vorigen Laufs.
+vorher_datei agent/src/Outcome.php
+python3 - <<'PY2'
+p = 'agent/src/Outcome.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $von = $offset > $groesse ? 0 : $offset;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        $von = 0;", 1))
+PY2
+griff_datei agent/src/Outcome.php "Leser ohne Versatz" &&
+pruefe "Leser ohne Versatz" \
+  OutcomeTest::test_without_the_offset_an_earlier_run_would_be_read failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

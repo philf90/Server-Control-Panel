@@ -132,6 +132,20 @@ final class SystemPackagesUpgrade implements Op
 
         $unit = AptLock::UNIT_PREFIX.bin2hex(random_bytes(4));
 
+        /*
+         * **Wo dieser Lauf im Log anfängt.** `systemd-run` hängt mit
+         * `StandardOutput=append:` an, die Datei sammelt also Läufe. Wer
+         * hinterher die letzte Zeile liest, liest womöglich das Urteil des
+         * vorigen — die Falle, die im Abnahmelauf eine Beobachtung gekostet
+         * hat (`docs/86`, Beobachtung 17).
+         *
+         * > **Ein Urteil in einer Datei, die mehrere Läufe sammelt, gehört an
+         * > die Stelle gebunden, an der der eigene Lauf begonnen hat.**
+         *
+         * Genommen **vor** dem Absetzen, denn danach schreibt der Lauf schon.
+         */
+        $versatz = is_file(self::LOG) ? (filesize(self::LOG) ?: 0) : 0;
+
         $context->progress(40, 'Lauf wird abgesetzt');
 
         $result = $context->runner->run('systemd-run', array_merge([
@@ -162,6 +176,23 @@ final class SystemPackagesUpgrade implements Op
         $context->progress(100, 'läuft');
 
         return [
+            /*
+             * **Der Aufruf ist fertig, der Lauf ist es nicht.** Ohne diese
+             * Marke ruft {@see \App\Jobs\RunAgentOperation} `succeed()`,
+             * sobald der Agent zurückkehrt — und der Vorgang steht auf
+             * `fertig`, während `apt-get` noch läuft (`docs/86 §5`).
+             *
+             * > **Ein Vorgang, der nur meldet, dass er abgesetzt wurde, sagt
+             * > über den Ausgang dessen, was er abgesetzt hat, nichts.**
+             *
+             * Sie steht im **Ergebnis** und nicht in einer Liste im Panel: Das
+             * Ergebnis ist der Vertrag zwischen Agent und Anwendung, eine
+             * Liste wäre dessen zweite Fassung — und die zweite veraltet.
+             */
+            'dispatched' => true,
+            'run' => 'upgrade',
+            'log_offset' => $versatz,
+
             'unit' => $unit,
             'log' => self::LOG,
             'mode' => $mode,

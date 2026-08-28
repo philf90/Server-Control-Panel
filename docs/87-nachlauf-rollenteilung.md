@@ -226,6 +226,19 @@ Sie sind der Grund, warum `AwaitDispatchedRun::DEADLINE` auf zwei Stunden steht.
 wird trotzdem gemessen, nur die Dauer nicht. Dann bleibt Punkt 1 aus §2.3h
 weiter offen, und das gehört so notiert und nicht überspielt.
 
+**Und eine Gegenprobe, die nichts extra kostet: Befund 6 aus `docs/86`.** Die
+Kachel „Aktualisierbar" und der Lauf müssen dieselbe Zahl meinen. Notiert wird
+die Kachel **vor** dem Drücken und die Urteilszeile danach — sie nennt beide
+Zahlen (*„N von M Aktualisierungen eingespielt, K bleiben offen"*).
+
+| | heisst |
+|---|---|
+| M gleich der Kachel, K = 0 | zwei Messungen an **einem** Ort |
+| M kleiner als die Kachel | die Seite verspricht mehr, als der Lauf einspielt — Befund 6 ist zurück |
+
+> **Zwei Läufe desselben Befehls an zwei Orten sind zwei Messungen und nicht
+> eine.**
+
 ---
 
 ## 5. Punkt 4 — Der Lauf, der nichts bewirkt, wird als solcher gemeldet

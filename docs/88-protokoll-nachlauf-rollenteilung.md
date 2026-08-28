@@ -243,19 +243,135 @@ bei fünfzehn Paketen.
 
 ---
 
-## 9. Wo der Lauf steht
+## 9. Punkt 1a ist vollständig — die Gegenprobe bei siebzehn Paketen
+
+Nachgeholt, nachdem §8 den Bestand hergestellt hatte.
+
+| | Administrator | Betreiber |
+|---|---|---|
+| Paketliste, Spalten | **4** (Paket, Installiert, Neu, Herkunft) | **5** (dazu das Kästchen) |
+| Kästchen in der Kopfzeile | nein | ja |
+| Kästchen je Zeile | nein | ja |
+| Knopfreihe über dem Filter | keine | „Alle installieren", „0 ausgewählte installieren" |
+
+**„Nur Sicherheit installieren" fehlt beiden**, und zwar zu Recht: `davon
+Sicherheit` steht auf 0. Das ist genau der Fall, den `docs/87 §2` von der
+Zählung ausnimmt — sein Fehlen beim Administrator belegt hier nichts, und
+deshalb steht er nicht in der Tabelle.
+
+**Damit ist Punkt 1 erfüllt**, alle sieben Erwartungen gemessen.
+
+---
+
+## 10. Punkt 1b ist vollständig — der Vorgang, den der Statuscode nicht liefern konnte
+
+Im Verlauf von `/operations`:
+
+| Nummer | Aufgabe | Zustand | Ausgelöst von | Begonnen | Beendet |
+|---|---|---|---|---|---|
+| **719** | `system.packages.refresh` | fertig | **Zweite Verwaltung** | 20:18:35 | 20:18:36 |
+| **718** | `system.packages.refresh` | fertig | Administrator | 20:16:46 | 20:16:51 |
+
+**719 ist der Beleg.** „Nicht 403" sagt nur, dass die Tür nicht zugeschlagen
+hat; für eine Route ohne Rumpf heisst durchgelassen wörtlich „hat einen Vorgang
+angelegt", und dieser trägt den Namen des Administratorkontos.
+
+Die Laufzeiten sind nebenbei stimmig: 718 brauchte **fünf** Sekunden und hat die
+neuen Indizes geholt, 719 brauchte **eine** und fand sie frisch vor.
+
+---
+
+## 11. Beobachtung 4 — Das „Vorher" der Familie steht im selben Verlauf
+
+| Nummer | Aufgabe | Zustand | Ausgelöst von | Begonnen | Beendet |
+|---|---|---|---|---|---|
+| **707** | `system.packages.upgrade` | **fertig** | Administrator | 2026-08-27 20:59:39 | 20:59:40 |
+
+**Ein abgesetzter Upgrade-Lauf, `fertig` nach einer Sekunde.** Das ist Form A
+aus `docs/86 §5` im Betrieb, auf diesem Server, aus der Fassung vor der
+Behebung — und es steht schon da, ohne dass jemand es herstellen musste.
+
+Punkt 3 erzeugt das „Nachher" in derselben Liste. Die beiden Zeilen werden
+wenige Nummern auseinanderliegen und dieselbe Aufgabe tragen; der Unterschied
+ist dann keine Erzählung, sondern zwei Zeilen untereinander.
+
+> **Ein Vorher, das man nicht herstellen muss, weil es schon dasteht, ist der
+> beste Prüfkörper — es kann nicht auf den Fall zugeschnitten sein.**
+
+---
+
+## 12. Beobachtung 5 — Der Bestand hat sich noch einmal bewegt
+
+Zwischen den beiden Aufrufen der Seite:
+
+| | vorher | nachher |
+|---|---|---|
+| aktualisierbar | 15 | **17** |
+| zurückgehalten | 2 | **0** |
+| die Phasenmeldung | stand | **fort** |
+
+`libproc2-0` und `procps` sind von „zurückgehalten" nach „aktualisierbar"
+gewandert und stehen jetzt mit `Ubuntu:24.04/noble-updates` in der Liste.
+
+**Zwei Erklärungen kommen in Frage, und eine davon wäre ein Rückfall.** Ubuntus
+stufenweise Ausspielung kann diese Maschine erreicht haben — oder die Simulation
+lief an einem Ort ohne Phasing, und das wäre **Befund 6 aus `docs/86`** zurück:
+Die Seite verspräche dann mehr, als `apt-run all` einspielt.
+
+**Am Quelltext nachgesehen spricht der Mechanismus dagegen.**
+`Apt::simulate()` ruft
+
+    systemd-run --quiet --pipe --wait --collect … apt-run simulate
+
+— also dieselbe transiente Unit, in der auch `apt-run all` läuft. Der
+Namensraum, der `ischroot` rc=0 melden liess, liegt in diesem Weg nicht.
+
+**Punkt 3 entscheidet es umsonst.** Sagt die Seite 17 und spielt der Lauf 17
+ein, waren es zwei Messungen an einem Ort. Bleiben zwei offen, ist die Seite
+wieder der falsche Ort.
+
+> **Zwei Läufe desselben Befehls an zwei Orten sind zwei Messungen und nicht
+> eine** — und ob es diesmal einer war, sagt der Vergleich der beiden Zahlen
+> und nicht der Blick in den Quelltext.
+
+---
+
+## 13. Beobachtung 6 — Zwei Zertifikatsbestellungen stehen auf `fehlgeschlagen`
+
+| Nummer | Aufgabe | Zustand | Begonnen |
+|---|---|---|---|
+| 717 | `acme.certificate.issue` | **fehlgeschlagen** | 2026-08-28 09:33:34 |
+| 716 | `acme.certificate.issue` | **fehlgeschlagen** | 2026-08-28 09:33:33 |
+
+Sie folgen unmittelbar auf die acht Vorgänge (708–715) des
+`srvpanel vhost --sites` von heute morgen — vier Paare aus `php.pool.apply` und
+`web.site.apply`, also die vier Kundendomains. Zwei davon haben kein Zertifikat
+bekommen.
+
+**Das liegt ausserhalb dieses Laufs** (`docs/87 §9` nennt TLS nicht), und es
+gehört trotzdem notiert: Zwei Kundendomains laufen seit heute morgen ohne
+Zertifikat, und das überlebt diesen Nachlauf. Wer als nächstes TLS anfasst,
+fängt hier an.
+
+---
+
+## 14. Wo der Lauf steht
 
 | Punkt | Stand |
 |---|---|
-| 1a — der Administrator sieht die Seite | **erfüllt**; die zwei Erwartungen an der Paketliste sind seit §8 wieder herstellbar, die Hälfte des Administrators ist gemessen |
-| 1b — die Tür | **erfüllt**, bis auf den Vorgangsbeleg für `refresh` (§8) |
+| 1a — der Administrator sieht die Seite | **erfüllt**, alle sieben Erwartungen (§1, §9) |
+| 1b — die Tür | **erfüllt**, samt Vorgangsbeleg (§10) |
 | 2 — der Vorbehalt in der Liste | offen |
-| 3 — die Nachlese | **jetzt fahrbar** — 15 Pakete stehen an |
+| 3 — die Nachlese | **jetzt fahrbar** — 17 Pakete stehen an, und §11 hat das Vorher |
 | 4 — der Lauf ohne Wirkung | folgt unmittelbar auf 3 |
 | 5 — das heile `W:` | offen |
 | 6 — die Zählwörter | offen |
 
 **Drei Befunde bisher, alle drei im Prüfmittel und keiner im Panel.** Das ist
 dasselbe Verhältnis wie in `docs/45`, `docs/48`, `docs/59` und `docs/84`.
+
+**Und zwei Dinge, die dieser Lauf nicht bestellt hat, aber gefunden hat:** das
+unhergestellte Vorher der Familie (§11) und zwei Kundendomains ohne Zertifikat
+(§13).
 
 > **Ein Protokoll ohne seine Lücken liest sich wie eine Abnahme.**

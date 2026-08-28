@@ -22383,3 +22383,75 @@ Dieselbe Messung danach: **317 gegen 317.** `LinesTest` hält es in sieben
 Fällen, darunter die Gegenprobe, die die **alte** Rechnung wörtlich nachbaut —
 ohne sie wäre der Test auch dann grün, wenn `feed()` schlicht jedes Stück ganz
 zurückgäbe. Vier Eingriffe im Bruchskript, alle beissend.
+
+### Die dreizehn gezählten Stellen — und das Werkzeug, das fehlte
+
+Der Abnahmelauf von A1 hat dreizehn Fundstellen unter `app/` gezählt, an denen
+eine Zahl an einem Plural klebt (`docs/86`, Befund 11). Nachgezählt am
+28. August: weiterhin dreizehn, und sie zerfallen in drei Gruppen.
+
+**Drei waren wirklich falsch**, alle in `FileController`: „Von **1 Dateien** ist
+1 hochgeladen", „Das Archiv ist entpackt — **1 Einträge**" (zweimal). Sie sind
+nicht deshalb liegengeblieben, weil sie schwer wären, sondern weil das Werkzeug
+fehlte — die Oberfläche hat `counted()` seit P5c, PHP hatte nichts.
+
+> **Eine Regel ohne Werkzeug wird an jeder Stelle neu entschieden — und
+> irgendwann an einer nicht.**
+
+`App\Support\Language\Counted` ist das Gegenstück: dieselbe Signatur, dieselbe
+Bedingung, dieselbe Schreibweise der Zahl. `CountedTest` hält die beiden
+aneinander — verglichen wird die **Bedingung** und nicht das Ergebnis, weil das
+Ergebnis in zwei Sprachen entsteht. Kein `trans_choice()`: Ein
+Übersetzungsapparat für eine Sprache ist Verwaltung ohne Gegenwert.
+
+**Zwei können keine eins sein** und stehen als benannte Ausnahmen da, wie die
+vier im Agenten: die Ausfuhrgrenze des Protokolls (Konfiguration, Vorgabe
+50 000) und `Budget::DOMAINS`/`SECONDS` (25 und 240).
+
+**Einer war ein Fehlalarm des Wächters.** `CustomerController::cascadeMessage()`
+steht in einem `match (count($affected))` mit einem eigenen `1 =>`-Zweig — der
+`default` kann dort nie eins sein. Der Ausdruck kannte nur `=== 1`.
+
+> **Ein Wächter, der eine Schreibweise der Bedingung kennt, meldet die andere
+> als Fehler.**
+
+**Die sieben übrigen liegen auf der Kommandozeile**, und dort steht eine Frage,
+die nie jemand gestellt hat: `docs/19` heisst „Sprache der **Oberfläche**" und
+erwähnt die Kommandozeile mit keinem Wort. Sie stehen als Ausnahmen mit genau
+diesem Grund.
+
+**`CountedNounTest` liest seitdem auch `app/`** — bis dahin für PHP nur
+`agent/src`, und die dreizehn waren damit gezählt und nicht gehalten.
+
+#### Drei Funde am eigenen Vorgehen
+
+**Meine erste Zählung meldete null.** Ich hatte den Ausdruck des Wächters
+nachgebaut und dabei den für Vue genommen (`}}` vor dem Plural) statt den für
+PHP (`%d`) — samt der falschen Pluralliste. Aufgedeckt hat es die Gegenprobe
+über `agent/src`, wo vier bekannte Stellen liegen und meine Nachbildung
+ebenfalls null meldete.
+
+> **Eine Nachbildung eines Wächters ist nicht der Wächter — und ihre Null ist
+> seine nicht.**
+
+**Die Gegenrichtung des Wächters verglich eine Menge als Liste.** Die Funde
+kommen sortiert, die Ausnahmen in der Reihenfolge, in der jemand sie
+aufgeschrieben hat; sobald die Liste gruppiert war, meldete er „eine Ausnahme
+deckt nichts mehr" für eine Liste, in der jede etwas deckte.
+
+> **Ein Wächter, der eine Menge als Liste vergleicht, meldet die Reihenfolge und
+> nennt es einen Befund.**
+
+**Und mein eigener neuer Wächter hatte dieselbe Schwäche wie ein alter Bekannter
+dieses Repos.** Der Bruch, der `Counted::of(` zu `xCounted::of(` machte, blieb
+grün: `str_contains` findet den Namen auch im längeren Wort. Mit `\b` beisst er.
+
+> **Ein Wächter, der eine Zeichenkette sucht, findet sie auch dort, wo sie nur
+> ein Teil ist.**
+
+**Nebenbei hat die Änderung zwei Stellen gerissen, die an der alten Meldung
+hingen** — ein Feature-Test und ein Eingriff im Bruchskript. Beide sind
+nachgezogen, der Eingriff danach gegengeprüft.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand sie ändert.**

@@ -10420,7 +10420,10 @@ vorher_datei app/Http/Controllers/FileController.php
 python3 - <<'PY2'
 p = 'app/Http/Controllers/FileController.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace("'Von %d Dateien %s %d hochgeladen.'", "'Einige Dateien sind nicht hochgeladen.%s%s%s'")
+# Am 28. August 2026 nachgezogen: Die Meldung geht seitdem ueber Counted::of().
+alt = "'Von %s %s %d hochgeladen.',\n                Counted::of(count($incoming), 'Datei', 'Dateien'),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "'Einige Dateien sind nicht hochgeladen.%s%s%s',\n                '',")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei app/Http/Controllers/FileController.php "Zahl der gelungenen fehlt" &&
@@ -19607,6 +19610,80 @@ pruefe "Runner ohne Rest" \
   LinesTest::test_the_runner_assembles_and_flushes failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" LinesTest passed
+echo
+echo "── CountedTest: der Helfer entscheidet anders als die Oberflaeche ──"
+#
+# Zwei Fassungen derselben Regel laufen auseinander, wenn nichts sie haelt —
+# dann steht dieselbe Menge auf zwei Seiten desselben Panels verschieden da.
+vorher_datei app/Support/Language/Counted.php
+python3 - <<'PY2'
+p = 'app/Support/Language/Counted.php'
+s = open(p, encoding='utf-8').read()
+alt = '$value === 1 ? $one : $many'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '$value <= 1 ? $one : $many', 1))
+PY2
+griff_datei app/Support/Language/Counted.php "Helfer mit eigener Bedingung" &&
+pruefe "Helfer mit eigener Bedingung" \
+  CountedTest::test_one_gets_the_singular_and_everything_else_the_plural failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CountedTest passed
+
+echo
+echo "── CountedTest: die Zahl wird anders geschrieben ──"
+vorher_datei app/Support/Language/Counted.php
+python3 - <<'PY2'
+p = 'app/Support/Language/Counted.php'
+s = open(p, encoding='utf-8').read()
+alt = "number_format($value, 0, ',', '.')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '(string) $value', 1))
+PY2
+griff_datei app/Support/Language/Counted.php "Zahl ohne Trennung" &&
+pruefe "Zahl ohne Trennung" \
+  CountedTest::test_the_number_is_written_the_way_this_panel_writes_numbers failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CountedTest passed
+
+echo
+echo "── CountedTest: niemand ruft den Helfer ──"
+#
+# **Dieser Eingriff hat den Waechter ueberfuehrt.** Der erste Wurf suchte mit
+# str_contains und blieb gruen, weil `Counted::of(` auch in `xCounted::of(`
+# steckt. Ein Waechter, der eine Zeichenkette sucht, findet sie auch dort, wo
+# sie nur ein Teil ist.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+assert s.count('Counted::of(') == 3, 'Zielstellen nicht wie erwartet — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace('Counted::of(', 'xCounted::of('))
+PY2
+griff_datei app/Http/Controllers/FileController.php "Helfer ohne Aufrufer" &&
+pruefe "Helfer ohne Aufrufer" \
+  CountedTest::test_the_helper_is_used failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CountedTest passed
+
+echo
+echo "── CountedNounTest: der Waechter liest app/ nicht mehr ──"
+#
+# Bis zum 28. August las er fuer PHP nur agent/src — dreizehn Fundstellen unter
+# app/ waren damit gezaehlt und nicht gehalten. Ein Waechter, der eine Flaeche
+# liest, sagt ueber die andere nichts und meldet fuer sie „alles in Ordnung".
+vorher_datei tests/Feature/CountedNounTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/CountedNounTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "foreach (['agent/src', 'app'] as "
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "foreach (['agent/src'] as ", 1))
+PY2
+griff_datei tests/Feature/CountedNounTest.php "Waechter ohne app/" &&
+pruefe "Waechter ohne app/" \
+  CountedNounTest::test_no_php_message_glues_a_count_to_a_plural failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CountedNounTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

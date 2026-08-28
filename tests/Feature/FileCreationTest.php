@@ -283,11 +283,24 @@ final class FileCreationTest extends TestCase
             'Vorgang beim ersten ab, und was schon dalag, bleibt unerwähnt.',
         );
 
+        /*
+         * **Am 28. August 2026 auf `Counted::of()` umgestellt** (`docs/86`,
+         * Befund 11): „Von **1 Dateien** ist 1 hochgeladen." stand da, sobald
+         * jemand eine einzelne Datei hochlud. Die Zusage ist dieselbe — die
+         * Zahl der gelungenen steht in der Meldung —, nur die Form nicht.
+         */
         $this->assertStringContainsString(
-            "'Von %d Dateien %s %d hochgeladen.'",
+            "'Von %s %s %d hochgeladen.'",
             $quelle,
             'Die Zahl der gelungenen Dateien steht nicht in der Meldung. Ohne sie liest der '.
             'Kunde drei Fehler und weiss nicht, ob die anderen siebzehn durchkamen.',
+        );
+
+        $this->assertStringContainsString(
+            "Counted::of(count(\$incoming), 'Datei', 'Dateien')",
+            $quelle,
+            'Die Zahl klebt wieder am Wort. Bei einer einzelnen Datei liest der Kunde '
+            .'„Von 1 Dateien".',
         );
 
         /*

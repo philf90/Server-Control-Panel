@@ -1346,6 +1346,41 @@ Unterschied.
 > **Ein Loch, das man zählt, ist kein Loch mehr — es ist eine Zahl, die kleiner
 > werden kann.**
 
+> **Nachgezählt und abgearbeitet am 28. August 2026.** Es sind weiterhin
+> dreizehn, und sie zerfallen in drei Gruppen:
+>
+> **Drei waren wirklich falsch** — alle in `FileController` („Von **1 Dateien**
+> ist 1 hochgeladen", „entpackt — **1 Einträge**", zweimal). Sie sind nicht
+> deshalb liegengeblieben, weil sie schwer wären, sondern weil das Werkzeug
+> fehlte: Die Oberfläche hat `counted()` seit P5c, PHP hatte nichts.
+>
+> > **Eine Regel ohne Werkzeug wird an jeder Stelle neu entschieden — und
+> > irgendwann an einer nicht.**
+>
+> `App\Support\Language\Counted` ist das Gegenstück, mit derselben Signatur
+> und derselben Bedingung; `CountedTest` hält die beiden aneinander.
+>
+> **Zwei können keine eins sein** — die Ausfuhrgrenze des Protokolls (aus der
+> Konfiguration, Vorgabe 50 000) und `Budget::DOMAINS`/`SECONDS` (25 und 240).
+> Sie stehen als benannte Ausnahmen da, wie die vier im Agenten.
+>
+> **Und einer war ein Fehlalarm des Wächters.**
+> `CustomerController::cascadeMessage()` steht in einem
+> `match (count($affected))` mit einem eigenen `1 =>`-Zweig — der `default`
+> kann dort nie eins sein. Der Ausdruck kannte nur `=== 1`.
+>
+> > **Ein Wächter, der eine Schreibweise der Bedingung kennt, meldet die andere
+> > als Fehler.**
+>
+> **Die sieben übrigen liegen auf der Kommandozeile**, und dort steht eine
+> Frage, die nie jemand gestellt hat: `docs/19` heisst „Sprache der
+> **Oberfläche**" und erwähnt die Kommandozeile mit keinem Wort. Sie stehen als
+> Ausnahmen mit genau diesem Grund — benannt und sichtbar, solange die Frage
+> offen ist.
+>
+> **`CountedNounTest` liest seitdem auch `app/`.** Bis dahin las er für PHP nur
+> `agent/src`; die dreizehn waren gezählt und nicht gehalten.
+
 ---
 
 **Beobachtung 11 — `git checkout --` hat zum dritten Mal an einem Tag Arbeit

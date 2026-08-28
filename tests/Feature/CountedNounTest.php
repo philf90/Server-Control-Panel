@@ -459,6 +459,31 @@ final class CountedNounTest extends TestCase
             'agent/src/Acme/Order.php' => 'die Frist ist eine Konstante in Sekunden, nie eine',
             'agent/src/Ops/DbUserCreate.php' => 'MAX_DATABASES ist eine Konstante grösser als eins',
             'agent/src/Pg/Console.php' => 'die Meldung entsteht nur, wenn es NICHT genau eine Zeile war — sie sagt es selbst',
+
+            /*
+             * **Zwei Zahlen, die keine eins sein können.** Dieselbe Form wie
+             * die vier darüber: Der Ausdruck liest Text und sieht nicht, dass
+             * die Zahl aus einer Konstanten kommt.
+             */
+            'app/Http/Controllers/AuditController.php' => 'die Ausfuhrgrenze kommt aus der Konfiguration, Vorgabe 50 000',
+            'app/Console/Commands/CheckDns.php' => 'Budget::DOMAINS ist 25 und Budget::SECONDS 240 — beides Konstanten',
+
+            /*
+             * **Und sieben auf der Kommandozeile, deren Frage offen ist.**
+             *
+             * `docs/19` heisst „Sprache der **Oberfläche**" und erwähnt die
+             * Kommandozeile mit keinem Wort. Ob die Regel dort gilt, hat nie
+             * jemand entschieden — der Abnahmelauf von A1 hat diese Stellen
+             * mitgezählt, ohne die Frage zu stellen (`docs/86`, Befund 11).
+             *
+             * Sie stehen deshalb hier und nicht ungeprüft: benannt, mit ihrem
+             * Grund, und sichtbar, solange die Frage offen ist.
+             *
+             * > **Ein Loch, das man zählt, ist kein Loch mehr — es ist eine
+             * > Zahl, die kleiner werden kann.**
+             */
+            'app/Console/Commands/Acceptance.php' => 'Kommandozeile — ob docs/19 dort gilt, ist nicht entschieden',
+            'app/Console/Commands/AcceptanceWeb.php' => 'Kommandozeile — siehe Acceptance; schreibt heute „Vorgang/Vorgänge" als Behelf',
         ];
 
         $treffer = [];
@@ -484,7 +509,18 @@ final class CountedNounTest extends TestCase
                  */
                 $fenster = implode("\n", array_slice($zeilen, max(0, $nummer - 5), 6));
 
-                if (preg_match('/===\s*1\b/', $fenster) === 1) {
+                /*
+                 * **Und ein `match`-Arm für eins zählt genauso.** Gefunden am
+                 * 28. August 2026 beim Abarbeiten der dreizehn Fundstellen:
+                 * `CustomerController::cascadeMessage()` steht in einem
+                 * `match (count($affected))` mit einem eigenen `1 =>`-Zweig —
+                 * der `default` kann dort nie eins sein. Der Ausdruck kannte
+                 * nur `=== 1` und meldete ihn.
+                 *
+                 * > **Ein Wächter, der eine Schreibweise der Bedingung kennt,
+                 * > meldet die andere als Fehler.**
+                 */
+                if (preg_match('/===\s*1\b|^\s*1\s*=>/m', $fenster) === 1) {
                     continue;
                 }
 
@@ -501,9 +537,9 @@ final class CountedNounTest extends TestCase
         // Ohne diese Zeile meldete ein kaputter Leser dieselbe leere Liste wie
         // eine saubere Anwendung.
         $this->assertGreaterThan(
-            30,
+            200,
             $gelesen,
-            'Es werden kaum Dateien unter agent/src gelesen — dann prüft dieser Test nichts.',
+            'Es werden kaum Dateien unter agent/src und app gelesen — dann prüft dieser Test nichts.',
         );
 
         $this->assertSame(
@@ -522,9 +558,26 @@ final class CountedNounTest extends TestCase
          * nichts mehr und bleibt trotzdem stehen — der nächste Leser hält ihn
          * für eine geltende Erlaubnis.
          */
+        /*
+         * **Verglichen werden Mengen und keine Reihenfolgen.** Bis zum
+         * 28. August 2026 stand hier ein `assertSame` über zwei Listen: Die
+         * Funde kommen sortiert (`ksort` in `phpSources()`), die Ausnahmen in
+         * der Reihenfolge, in der jemand sie aufgeschrieben hat. Sobald die
+         * Liste gruppiert war — vier für den Agenten, zwei für Konstanten,
+         * zwei für die Kommandozeile —, meldete er „eine Ausnahme deckt nichts
+         * mehr" für eine Liste, in der jede etwas deckte.
+         *
+         * > **Ein Wächter, der eine Menge als Liste vergleicht, meldet die
+         * > Reihenfolge und nennt es einen Befund.**
+         */
+        $erklaert = array_keys($ausnahmen);
+        $deckend = array_keys($gedeckt);
+        sort($erklaert);
+        sort($deckend);
+
         $this->assertSame(
-            array_keys($ausnahmen),
-            array_keys($gedeckt),
+            $erklaert,
+            $deckend,
             'Eine Ausnahme deckt keine Fundstelle mehr — dann hebt sie nichts auf und gehört weg.',
         );
 
@@ -548,7 +601,7 @@ final class CountedNounTest extends TestCase
         $root = dirname(__DIR__, 2);
         $gefunden = [];
 
-        foreach (['agent/src'] as $verzeichnis) {
+        foreach (['agent/src', 'app'] as $verzeichnis) {
             /** @var SplFileInfo $datei */
             foreach (new RecursiveIteratorIterator(
                 new RecursiveDirectoryIterator($root.'/'.$verzeichnis, FilesystemIterator::SKIP_DOTS),

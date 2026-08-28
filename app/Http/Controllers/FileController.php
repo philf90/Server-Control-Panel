@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\Subscription;
 use App\Support\Audit\Audit;
 use App\Support\Files\Files;
+use App\Support\Language\Counted;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -608,8 +609,8 @@ final class FileController extends Controller
              * nicht, ob die anderen siebzehn durchgekommen sind.
              */
             $messages = [sprintf(
-                'Von %d Dateien %s %d hochgeladen.',
-                count($incoming),
+                'Von %s %s %d hochgeladen.',
+                Counted::of(count($incoming), 'Datei', 'Dateien'),
                 $done === 1 ? 'ist' : 'sind',
                 $done,
             )];
@@ -660,10 +661,13 @@ final class FileController extends Controller
 
         return to_route('files.index', ['subscription' => $subscription->id, 'path' => $data['target']])
             ->with('success', $uebergangen === 0
-                ? sprintf('Das Archiv ist entpackt — %d Einträge.', $result['written'] ?? 0)
+                ? sprintf(
+                    'Das Archiv ist entpackt — %s.',
+                    Counted::of((int) ($result['written'] ?? 0), 'Eintrag', 'Einträge'),
+                )
                 : sprintf(
-                    'Das Archiv ist entpackt — %d Einträge, %d übergangen, weil sie aus dem Zielverzeichnis herausführen.',
-                    $result['written'] ?? 0,
+                    'Das Archiv ist entpackt — %s, %d übergangen, weil sie aus dem Zielverzeichnis herausführen.',
+                    Counted::of((int) ($result['written'] ?? 0), 'Eintrag', 'Einträge'),
                     $uebergangen,
                 ));
     }

@@ -22455,3 +22455,113 @@ nachgezogen, der Eingriff danach gegengeprüft.
 
 > **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
 > wenn jemand sie ändert.**
+
+### Der Nachlauf ist ausgeschrieben — und ein Kommentar zeigte auf eine Unit, die es nicht gibt
+
+**`docs/87` steht, bevor er gefahren wird.** Sechs Punkte über das, was zwischen
+der Abnahme von A1 und `0.7.2-rc.5` gebaut wurde und **auf keinem Server stand**:
+die Rollenteilung der Updates-Seite samt der Tür dahinter, der Vorbehalt in der
+Vorgangsliste, die Nachlese eines abgesetzten Laufs, der Lauf ohne Wirkung, das
+heile `W:` und die Zählwörter. Zwei der Änderungen liegen auf dem Weg von allem
+— `Runner::run()` bei jeder Operation, `RunAgentOperation` bei jedem Vorgang —,
+und was daran falsch ist, ist nicht an A1 falsch.
+
+> **Ein Abnahmelauf ist Code, den niemand ausführt, bis es darauf ankommt.**
+
+**Beim Ausschreiben fiel ein Befund heraus, den kein Test halten konnte.** Der
+Kopf von `packaging/bin/apt-run` beschreibt den Aufruf, aus dem das Skript
+startet, und schrieb dort `--unit=srvpanel-upgrade-<hex>`. Es heisst
+`srvpanel-update-`, so wie `AptLock::UNIT_PREFIX` es sagt; die Zeile ist von
+keinem Code je erzeugt worden. Der Nachlauf hätte den Leser zu einer Unit
+geschickt, die es nicht gibt — und ein leerer Treffer liest sich wie ein
+Ergebnis.
+
+> **Ein leerer Griff in die falsche Datei sieht aus wie ein Befund.**
+
+Die Naht ist dieselbe wie bei `PhpSourceUriTest`: Was der Agent absetzt,
+beschreibt ein Skript, das er nicht liest.
+`AptLockReachTest::test_the_packaged_script_names_the_same_unit_prefix` hält sie
+jetzt, mit Untergrenze — verschwände der `--unit`-Aufruf aus dem Kopf, meldete
+die Prüfung sonst „in Ordnung" für eine Datei, in die niemand mehr gesehen hat.
+
+**Zwei Zahlen des Nachlaufs kamen fast aus dem Kopf statt aus dem Quelltext.**
+Nachgezählt an `Updates/Index.vue`: die Quellentabelle hat vier Spalten für den
+Administrator und sieben für den Betreiber, die Paketliste vier und fünf. Und
+„Nur Sicherheit installieren" steht bewusst **nicht** in der Liste der Knöpfe,
+die dem Administrator fehlen — er hängt zusätzlich an `packages.security > 0`
+und fehlt dann beiden.
+
+> **Ein Bedienelement, das an zwei Bedingungen hängt, belegt die eine nur,
+> solange die andere erfüllt ist.**
+
+**Und `docs/86 §5` und `CLAUDE.md` sagten beide noch, sechs Reste seien offen.**
+Vier davon sind am 28. August gebaut; offen bleiben Befund 14 (gehört zu A5) und
+die ungemessene Laufzeit. Beide Stellen tragen jetzt den Stand statt der
+Absicht.
+
+> **Eine Zeile, die einen Zustand behauptet, veraltet ohne Vorwarnung — und
+> nichts prüft sie.**
+
+### Was ein abgesetzter Vorgang über seinen Ausgang sagt — drei Befunde auf einer Seite
+
+Der Nachlauf zu `0.7.2-rc.5` hat am 28. August 2026 die Nachlese belegt: Vorgang
+720 stand dreiunddreissig Sekunden auf `läuft` und ging danach auf `fertig` —
+zwei Zeilen weiter in derselben Liste steht Vorgang 707 vom Vortag, `fertig`
+nach einer Sekunde. Der Zustand stimmt also.
+
+**Alles daneben sprach noch von vorhin.** Die drei Befunde sind eine Familie und
+dieselbe wie in `docs/86 §5`, nur eine Ebene weiter:
+
+> **Eine Behebung, die den Zustand richtig macht, hat über die Anzeige daneben
+> nichts gesagt.**
+
+**Der Vorgang endete unter einer grünen Meldung „läuft".** `SystemPackagesUpgrade`
+ruft `progress(100, 'läuft')` als letzte Handlung vor dem Absetzen; `succeed()`
+reichte `null` durch, und `finish()` liest ein `null` als „lass die alte stehen".
+Der Fehler ist älter als die Behebung und wurde erst durch sie sichtbar — vorher
+war der Zustand eine Sekunde später ohnehin falsch.
+
+**Der Balken stand auf 100 %, während der Lauf lief** — und das ist genau der
+Wert, den `dispatched()` bewusst *nicht* setzt. Sein Dokumentblock sagte, der
+Fortschritt bleibe, wo der Agent ihn gelassen hat; niemand hatte nachgesehen, wo
+das ist.
+
+> **Ein Wert, den man bewusst nicht setzt, ist trotzdem gesetzt, wenn ihn vorher
+> jemand anders gesetzt hat.**
+
+`dispatched()` setzt beides jetzt selbst. Der Agent hat mit seinen 100 % aus
+seiner Sicht recht — er ist fertig, er hat abgesetzt; nur ist seine Arbeit nicht
+die des Vorgangs, und auseinanderhalten kann die beiden allein die Stelle, die
+weiss, dass ein Lauf weiterläuft. Die neue Zahl ist **nicht gemessen und kann es
+nicht sein**: Ein Lauf in einer transienten Unit meldet nichts zurück. Sie ist
+der Verzicht auf eine Behauptung — nicht 100, weil das die Behauptung ist, und
+nicht 0, weil das Absetzen geschehen ist.
+
+**Und das Urteil erreichte den nicht, der zusieht.** Es steht im Ergebnis, die
+Seite rendert das Ergebnis, und trotzdem sah es niemand: `status`, `progress`
+und `message` kommen aus dem **Strom** eines offenen Vorgangs, `result` aus den
+Inertia-Eigenschaften — und die stehen fest, seit die Seite geladen wurde. Wer
+nach dem Drücken zusieht, hat sie geladen, als es noch kein Ergebnis gab.
+
+> **Ein Strom, der den Zustand nachführt und das Ergebnis nicht, zeigt ein Ende
+> ohne seinen Ausgang.**
+
+Die Nachlese reicht ihr Urteil deshalb als **Meldung** durch, und damit in beide
+Richtungen dasselbe. Im Fehlerfall stand es längst dort — `fail()` tut es seit
+jeher. Die Asymmetrie war der eigentliche Befund:
+
+> **Ein Urteil, das nur im Fehlerfall sichtbar wird, ist keine Auskunft über den
+> Ausgang — es ist eine Fehlermeldung.**
+
+`DispatchedDisplayTest` hält die drei Regeln, mit sechs Brüchen einzeln belegt.
+Seine letzte Prüfung ist ungewöhnlich: Sie misst, dass der Strom `result`
+**weiterhin nicht** trägt — die Begründung der Regel darüber. Träfe das eines
+Tages nicht mehr zu, meldet er, dass die Begründung veraltet ist, und nicht,
+dass der Code falsch wäre.
+
+**Nebenbei hat Pint die Falle aus `CLAUDE.md` an dem Satz vorgeführt, der vor
+ihr warnt.** Der Kommentar erklärte, warum ein `{@see \Voll\Qualifiziert}` im
+Dokumentblock dort nicht stehen darf — und aus dem Beispiel wurde ein
+`use Voll\Qualifiziert;` im Kopf der Klasse.
+
+> **Ein Beispiel, das eine Falle zeigt, steht in ihr.**

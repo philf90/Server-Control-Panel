@@ -56,6 +56,31 @@ final class OperationRecorder
     /** Was am Ende einer gekürzten Begründung steht — eine, die still endet, sieht vollständig aus. */
     private const SHORTENED = "\n… gekürzt; der vollständige Text steht im Protokoll des Agenten.";
 
+    /**
+     * Was ein abgesetzter Lauf über sich sagt, solange er läuft.
+     *
+     * Sie ersetzt das `läuft`, das der Agent als letztes Wort hinterlässt —
+     * das ist keine Auskunft, sondern eine Wiederholung der Marke daneben.
+     * Hier steht, **warum** der Vorgang offen ist und wo sein Ausgang später
+     * herkommt.
+     */
+    private const DISPATCHED_MESSAGE = 'Der Lauf ist abgesetzt und läuft weiter. Sein Ausgang wird nachgetragen, sobald er endet.';
+
+    /**
+     * Der Balken eines abgesetzten Laufs.
+     *
+     * **Diese Zahl ist nicht gemessen und kann es nicht sein.** Ein Lauf in
+     * einer transienten Unit meldet nichts zurück; zwischen dem Absetzen und
+     * der Urteilszeile weiss niemand, wie weit er ist. Sie ist der Verzicht
+     * auf eine Behauptung und keine Schätzung.
+     *
+     * **Warum nicht 100:** Das ist die Zahl, die den Befund erzeugt hat — ein
+     * voller Balken neben `läuft`. **Warum nicht 0:** Das Absetzen ist
+     * geschehen, und der Agent hat dafür gearbeitet; eine Null nähme das
+     * zurück.
+     */
+    private const DISPATCHED_PROGRESS = 50;
+
     private const FLUSH_INTERVAL = 0.25;
 
     private string $buffer = '';
@@ -148,10 +173,38 @@ final class OperationRecorder
         }
     }
 
-    /** @param  array<string,mixed>  $result */
-    public function succeed(array $result = []): void
+    /**
+     * Gelungen — und mit welchem Wortlaut, entscheidet der Aufrufer.
+     *
+     * **Die Meldung ist seit dem 28. August ein Argument und war es nicht.**
+     * Hier stand `null`, und {@see self::finish()} liest ein `null` als „lass
+     * die alte stehen". Die alte ist das letzte Wort des Agenten — bei
+     * achtundvierzig Operationen `fertig`, bei den absetzenden `läuft`. Ein
+     * Vorgang, der die Nachlese durchlaufen hat, endete damit unter einer
+     * grünen Meldung, die das Gegenteil seines Zustands behauptete
+     * (`docs/88`, Befund 4).
+     *
+     * > **Eine Meldung, die den Zustand von vorhin trägt, widerspricht der
+     * > Marke daneben — und der Leser glaubt der Meldung, weil sie aus Worten
+     * > besteht.**
+     *
+     * **Und sie ist der Weg, auf dem ein Urteil sichtbar wird.** Der Strom
+     * eines offenen Vorgangs überträgt `status`, `progress`, `message` und die
+     * Ausgabe — **`result` nicht**. Wer einem Vorgang beim Enden zusieht,
+     * bekommt das Ergebnis also nur durch Neuladen; was in der Meldung steht,
+     * sieht er sofort.
+     *
+     * Der Verweis auf den Controller steht hier bewusst als Fliesstext und
+     * nicht als Marke mit vollem Namensraum: Pint zieht daraus einen
+     * `use`-Eintrag, und der stünde dann in einer Klasse, die ihn nicht
+     * braucht. Der Satz selbst ist dieser Falle beim Schreiben zum Opfer
+     * gefallen — das Beispiel, das sie zeigen sollte, wurde importiert.
+     *
+     * @param  array<string,mixed>  $result
+     */
+    public function succeed(array $result = [], ?string $message = null): void
     {
-        $this->finish(OperationStatus::Succeeded, $result, null);
+        $this->finish(OperationStatus::Succeeded, $result, $message);
     }
 
     /**
@@ -167,8 +220,21 @@ final class OperationRecorder
      * > Ausgang dessen, was er abgesetzt hat, nichts — und `fertig` liest sich
      * > wie das Gegenteil.**
      *
-     * **Kein `finished_at` und kein `progress: 100`.** Beide behaupteten ein
-     * Ende; der Fortschritt bleibt, wo der Agent ihn gelassen hat.
+     * **Kein `finished_at`** — das behauptete ein Ende.
+     *
+     * **Und Fortschritt und Meldung setzt diese Stelle, statt sie zu lassen.**
+     * Hier stand „der Fortschritt bleibt, wo der Agent ihn gelassen hat", und
+     * niemand hatte nachgesehen, wo das ist: `SystemPackagesUpgrade` ruft als
+     * letzte Handlung `progress(100, 'läuft')`. Der Balken stand also voll,
+     * während der Lauf noch lief (`docs/88`, Befund 5).
+     *
+     * > **Ein Wert, den man bewusst nicht setzt, ist trotzdem gesetzt, wenn ihn
+     * > vorher jemand anders gesetzt hat.**
+     *
+     * **Der Agent hat mit seinen 100 % recht — aus seiner Sicht.** Er ist
+     * fertig; er hat abgesetzt. Nur ist seine Arbeit nicht die des Vorgangs,
+     * und die beiden auseinanderzuhalten kann nur diese Stelle: Sie ist die
+     * einzige, die weiss, dass ein Lauf weiterläuft.
      *
      * @param  array<string,mixed>  $result
      */
@@ -179,6 +245,8 @@ final class OperationRecorder
         $this->operation->forceFill([
             'status' => OperationStatus::Running,
             'result' => $result === [] ? null : $result,
+            'message' => self::DISPATCHED_MESSAGE,
+            'progress' => self::DISPATCHED_PROGRESS,
         ])->save();
     }
 

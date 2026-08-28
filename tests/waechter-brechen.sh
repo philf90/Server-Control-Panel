@@ -16066,6 +16066,49 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AptLockReachTest passed
 
 echo
+echo "── AptLockReachTest: der Kopf von apt-run nennt einen fremden Unitnamen ──"
+#
+# Der Anlass ist ein Kommentar, der acht Tage lang das Falsche sagte: Der Kopf
+# von packaging/bin/apt-run beschrieb den Aufruf, aus dem das Skript startet,
+# und schrieb dort srvpanel-upgrade-<hex>. Es heisst srvpanel-update-; die
+# Zeile ist von keinem Code je erzeugt worden. Wer ihr folgt, sucht eine Unit,
+# die es nicht gibt — und ein leerer Griff in die falsche Datei sieht aus wie
+# ein Befund.
+vorher_datei packaging/bin/apt-run
+python3 - <<'PY2'
+p = 'packaging/bin/apt-run'
+s = open(p, encoding='utf-8').read()
+alt = '--unit=srvpanel-update-<hex>'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '--unit=srvpanel-upgrade-<hex>', 1))
+PY2
+griff_datei packaging/bin/apt-run "fremder Unitname im Skriptkopf" &&
+pruefe "fremder Unitname im Skriptkopf" \
+  AptLockReachTest::test_the_packaged_script_names_the_same_unit_prefix failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptLockReachTest passed
+
+echo
+echo "── AptLockReachTest: der Kopf von apt-run nennt gar keine Unit mehr ──"
+#
+# Die Untergrenze. Faende der Ausdruck nichts mehr — weil der Kopf umgeschrieben
+# wurde oder die Schreibweise wechselte —, meldete die Pruefung „alles in
+# Ordnung" fuer eine Datei, in die niemand mehr gesehen hat.
+vorher_datei packaging/bin/apt-run
+python3 - <<'PY2'
+p = 'packaging/bin/apt-run'
+s = open(p, encoding='utf-8').read()
+alt = 'systemd-run --unit=srvpanel-update-<hex> --collect'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'systemd-run --collect', 1))
+PY2
+griff_datei packaging/bin/apt-run "kein Unitname im Skriptkopf" &&
+pruefe "kein Unitname im Skriptkopf" \
+  AptLockReachTest::test_the_packaged_script_names_the_same_unit_prefix failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptLockReachTest passed
+
+echo
 echo "── AptLockReachTest: der wartende Anwärter faellt durch den Ausdruck ──"
 #
 # /proc/locks führt blockierte Anwärter als Fortsetzungszeile mit `->`. Eine
@@ -19342,6 +19385,69 @@ pruefe "Zusatz bricht ueberall" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   MobileLayoutTest::test_a_quiet_note_beside_an_identifier_breaks_between_words passed
+echo
+echo "── DispatchedDisplayTest: der abgesetzte Lauf laesst die Meldung stehen ──"
+#
+# docs/88 Befund 4: Der Agent ruft progress(100, 'laeuft') als letzte Handlung,
+# succeed() reichte null durch, und finish() liest null als "lass die alte
+# stehen". Der Vorgang endete unter einer gruenen Meldung "laeuft", waehrend
+# Zustand und Marke daneben fertig sagten.
+vorher_datei app/Support/Operations/OperationRecorder.php
+python3 - <<'PY2'
+p = 'app/Support/Operations/OperationRecorder.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'message' => self::DISPATCHED_MESSAGE,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Operations/OperationRecorder.php "abgesetzter Lauf ohne eigene Meldung" &&
+pruefe "abgesetzter Lauf ohne eigene Meldung" \
+  DispatchedDisplayTest::test_a_dispatched_run_sets_its_own_message_and_progress failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DispatchedDisplayTest passed
+
+echo
+echo "── DispatchedDisplayTest: der Balken steht wieder auf 100 ──"
+#
+# docs/88 Befund 5: Ein voller Balken neben "laeuft". Die Zahl ist nicht
+# gemessen und kann es nicht sein — ein Lauf in einer transienten Unit meldet
+# nichts zurueck. Sie ist der Verzicht auf eine Behauptung, und 100 ist die
+# Behauptung.
+vorher_datei app/Support/Operations/OperationRecorder.php
+python3 - <<'PY2'
+p = 'app/Support/Operations/OperationRecorder.php'
+s = open(p, encoding='utf-8').read()
+alt = 'private const DISPATCHED_PROGRESS = 50;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'private const DISPATCHED_PROGRESS = 100;', 1))
+PY2
+griff_datei app/Support/Operations/OperationRecorder.php "Balken behauptet ein Ende" &&
+pruefe "Balken behauptet ein Ende" \
+  DispatchedDisplayTest::test_the_dispatched_progress_claims_no_end failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DispatchedDisplayTest passed
+
+echo
+echo "── DispatchedDisplayTest: der Erfolg reicht sein Urteil nicht durch ──"
+#
+# docs/88 Befund 6 und die Asymmetrie darin: fail() reicht das Urteil als
+# Begruendung durch, succeed() tat es nicht. Der Strom eines offenen Vorgangs
+# traegt result nicht — wer zusieht, saehe die Marke auf fertig springen und
+# darunter das Wort, mit dem der Agent ihn abgesetzt hat.
+vorher_datei app/Jobs/AwaitDispatchedRun.php
+python3 - <<'PY2'
+p = 'app/Jobs/AwaitDispatchedRun.php'
+s = open(p, encoding='utf-8').read()
+alt = "$recorder->succeed([...$ergebnis, 'verdict' => $urteil], $urteil);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$recorder->succeed([...$ergebnis, 'verdict' => $urteil]);", 1))
+PY2
+griff_datei app/Jobs/AwaitDispatchedRun.php "Urteil nur im Fehlerfall" &&
+pruefe "Urteil nur im Fehlerfall" \
+  DispatchedDisplayTest::test_the_follow_up_carries_its_verdict_both_ways failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DispatchedDisplayTest passed
+
 echo
 echo "── DispatchedRunTest: die Marke faellt weg ──"
 #

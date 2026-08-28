@@ -307,6 +307,47 @@ final class AptLockReachTest extends TestCase
     }
 
     /**
+     * Auch das Skript in der Paketierung nennt denselben Namen.
+     *
+     * **Der Anlass ist ein Kommentar, der acht Tage lang das Falsche sagte.**
+     * `packaging/bin/apt-run` beschreibt in seinem Kopf den Aufruf, aus dem es
+     * gestartet wird, und schrieb dort `--unit=srvpanel-upgrade-<hex>`. Es
+     * heisst `srvpanel-update-`; die Zeile darüber ist von keinem Code je
+     * erzeugt worden.
+     *
+     * Gefunden am 28. August 2026 beim Ausschreiben von `docs/87` — der
+     * Nachlauf wollte den Leser zu `systemctl list-units 'srvpanel-…-*'`
+     * schicken, und die Nummer stammte aus dem Kommentar.
+     *
+     * > **Ein leerer Griff in die falsche Datei sieht aus wie ein Befund.**
+     *
+     * {@see test_the_unit_name_is_built_from_the_constant} hält dieselbe Naht
+     * eine Datei weiter — dort für PHP, hier für die Shell. Sie ist dieselbe
+     * Naht wie in {@see PhpSourceUriTest}: Was der Agent absetzt, beschreibt
+     * ein Skript, das er nicht liest.
+     */
+    public function test_the_packaged_script_names_the_same_unit_prefix(): void
+    {
+        $script = (string) file_get_contents(dirname(__DIR__, 2).'/packaging/bin/apt-run');
+
+        preg_match_all('/--unit=([a-z0-9-]+-)</', $script, $treffer);
+
+        /*
+         * **Die Untergrenze zählt mit.** Fände der Ausdruck nichts mehr — weil
+         * der Kopf umgeschrieben wurde oder die Schreibweise wechselte —,
+         * meldete diese Prüfung „alles in Ordnung" für eine Datei, in die
+         * niemand mehr gesehen hat.
+         */
+        $this->assertNotSame([], $treffer[1],
+            'Der Kopf von apt-run nennt keinen --unit-Namen mehr — dann prüft dieser Wächter nichts.');
+
+        foreach ($treffer[1] as $prefix) {
+            $this->assertSame(AptLock::UNIT_PREFIX, $prefix,
+                'Der Kopf von apt-run nennt einen Unit-Namen, den kein Code erzeugt.');
+        }
+    }
+
+    /**
      * Ein laufender eigener Lauf wird erkannt.
      *
      * Die Zeile ist die Form von `systemctl list-units --plain --no-legend`.

@@ -5,7 +5,7 @@
 # Aufgerufen wird es ausschliesslich aus einer transienten systemd-Unit, die
 # `system.packages.upgrade` absetzt:
 #
-#     systemd-run --unit=srvpanel-upgrade-<hex> --collect \
+#     systemd-run --unit=srvpanel-update-<hex> --collect \
 #         --property=StandardOutput=append:/var/log/srvpanel/upgrade.log \
 #         /usr/lib/srvpanel/apt-run all
 #     /usr/lib/srvpanel/apt-run packages tar gzip

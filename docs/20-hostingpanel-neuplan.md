@@ -1275,15 +1275,21 @@ Sieben Vorschläge aus `docs/80 §6.1`, in dieser Reihenfolge:
   abgeschaltet (`docs/64`). Braucht die drei feineren Fähigkeiten aus
   `docs/82 §2.3` und kommt deshalb nach A9.
 - **A10 — Diagnose des Bestands** · 1 Woche. Knopf und Nachtlauf.
-- **A1 — Paketquellen und Systemupdates über apt** · 2–3 Wochen. Vollständig
-  ausgeplant in `docs/81` §2 bis §10, mit Abnahmekriterium (§4) und
-  Schrittfolge (§9).
+- **A1 — Paketquellen und Systemupdates über apt** · 2–3 Wochen ·
+  **abgenommen am 28. August 2026**. Ausgeplant in `docs/81` §2 bis §10, mit
+  Abnahmekriterium (§4) und Schrittfolge (§9); der Lauf ist `docs/85`, das
+  Protokoll `docs/86`, die Abnahme dessen §6. Die zwei Ausfälle sind die von
+  `docs/85 §6` zugelassenen; sechs Reste stehen in `docs/86 §5` benannt offen,
+  keiner davon ein Kriterienausfall.
 - **A11 — Neustart, Zeitzone des Servers, NTP** · 2–3 Tage.
 - **A6 — Zeitpläne des Servers, nur lesen** · 2–3 Tage.
 
 **Fertig, wenn** ein Betreiber Systemupdates einspielen, Dienste ansehen und
 Logs lesen kann, ohne sich anzumelden — und das Abnahmekriterium von A1
 (`docs/81 §4`, acht Punkte) auf einem echten Server erfüllt ist.
+
+**Stand am 28. August 2026: A5, A9 und A1 sind abgenommen**, die Rollenteilung
+der Updates-Seite ist gebaut. Offen sind A2, A10, A11 und A6.
 
 **Was hier ausdrücklich nicht dazugehört und noch keine Stufe hat:** die drei
 absichernden Vorschläge **A3** (Firewall über nftables), **A4** (Anmeldeschutz

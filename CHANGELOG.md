@@ -22099,3 +22099,46 @@ Keine Zahl hätte ihn gemeldet — der Überlauf war in allen acht Lagen 0 px.
 
 > **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
 > Betrachter.**
+
+### A1 ist abgenommen — 28. August 2026
+
+Der Lauf war am 27. August auf `cloudsrv24` gegen `0.7.2-rc.3`: fünfzehn Punkte
+aus `docs/85`, Protokoll `docs/86`, die Abnahme in dessen §6. Die beiden
+Ausfälle sind genau die, die `docs/85 §6` zulässt — Punkt 4 ohne ablaufenden
+Schlüssel, Punkt 2 ohne Neuinstallation im Bestand.
+
+**Punkt 5 ist der Grund, dass es diesen Lauf gab, und er ist zweifach belegt.**
+Dass eine transiente Unit den Neustart von `srvpanel-worker` überlebt, wenn
+`srvpanel` selbst im Lauf steckt, behauptet dieses Projekt seit P0; belegt hatte
+es nur der eigene Gebrauch. Jetzt steht es auf zwei unabhängigen Wegen da —
+einmal durch den Neustart aus dem eigenen postinst, einmal durch `needrestart`
+in einem Lauf, in dem `srvpanel` gar nicht vorkam.
+
+> **Ein Beleg, der zweimal auf verschiedenen Wegen entsteht, ist keine
+> Wiederholung — der zweite schliesst aus, dass der erste an seinem Weg hing.**
+
+**Sechs Reste bleiben benannt offen** (`docs/86 §5`), und die Abnahme macht
+keinen davon kleiner. Der grösste ist eine Familie und keine drei Einzelfälle:
+
+> **Ein Vorgang, der nur meldet, dass er abgesetzt wurde, sagt über den Ausgang
+> dessen, was er abgesetzt hat, nichts — und `fertig` liest sich wie das
+> Gegenteil.**
+
+Betroffen sind `PanelUpdate`, `SystemPackagesUpgrade` und `SystemReboot`, und
+**keine der drei übergibt `systemd-run` ein `--wait`** — das ist kein Versehen,
+sondern die tragende Eigenschaft, die Punkt 5 belegt. Ein `--wait` nachzutragen
+wäre nicht die Behebung, sondern die Rücknahme des Merkmals; gebraucht wird eine
+Nachlese, die den Ausgang der Unit später einträgt.
+
+> **Eine Behebung, die das Merkmal zurücknimmt, für das der Lauf gefahren wurde,
+> ist keine.**
+
+**Warum die Familie die Abnahme nicht aufhält:** Sie ist kein Kriterienausfall,
+sondern ein Befund *dieses* Laufs. Punkt 3 verlangt, dass eine tote Quelle
+**benannt** wird — und das tut die Seite.
+
+> **Ein Lauf, dessen Funde seine eigene Abnahme verhindern, wird beim nächsten
+> Mal weniger genau gefahren.**
+
+Damit sind in P7b **A5, A9 und A1 abgenommen**; offen bleiben A2, A10, A11 und
+A6, und A3, A4 sowie A7 haben weiterhin keine Stufe.

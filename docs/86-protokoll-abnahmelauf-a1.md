@@ -2149,3 +2149,69 @@ immer es angestossen hat.
 echten Server weiterhin ungesehen; `docs/85` lässt aber beide ausdrücklich als
 Ergebnis gelten, weil gefragt ist, ob **verglichen** wird. Das ist keine Lücke
 im Kriterium, sondern eine Gelegenheit, die sich nicht ergeben hat.
+
+---
+
+## 6. Die Abnahme — 28. August 2026
+
+**A1 ist abgenommen.** Entschieden vom Betreiber am 28. August 2026, auf der
+Grundlage dieses Protokolls: fünfzehn Punkte gefahren, zwei Ausfälle, und beide
+sind die, die `docs/85 §6` ausdrücklich zulässt.
+
+**Was die Abnahme trägt.** Die acht Kriterien aus `docs/85` sind dem Wortlaut
+nach erfüllt — einschliesslich Punkt 3, das verlangt, dass eine tote Quelle
+**benannt** wird, und nicht, dass der Vorgang daran scheitert. Punkt 5, der
+Grund für den ganzen Lauf, ist nicht nur erfüllt, sondern auf zwei unabhängigen
+Wegen belegt.
+
+> **Ein Beleg, der zweimal auf verschiedenen Wegen entsteht, ist keine
+> Wiederholung — der zweite schliesst aus, dass der erste an seinem Weg hing.**
+
+**Was die Abnahme nicht behauptet.** Die sechs Reste aus §5 sind nicht
+geschlossen und werden mit der Abnahme nicht kleiner. Sie stehen dort einzeln,
+und der grösste ist eine **Familie und keine drei Einzelfälle**:
+
+> **Ein Vorgang, der nur meldet, dass er abgesetzt wurde, sagt über den Ausgang
+> dessen, was er abgesetzt hat, nichts — und `fertig` liest sich wie das
+> Gegenteil.**
+
+### Warum die Familie die Abnahme nicht aufhält
+
+**Weil sie kein Kriterienausfall ist, sondern ein Befund *dieses* Laufs.** Ein
+Abnahmelauf, der nur bestätigt, was ohnehin geglaubt wurde, hat nichts geleistet;
+seine Funde sind sein Ertrag und nicht sein Widerspruch. Die Familie an die
+Abnahme zu binden verwechselt zwei Fragen — „erfüllt der Prüfling seine
+Kriterien?" und „ist alles gut?".
+
+> **Ein Lauf, dessen Funde seine eigene Abnahme verhindern, wird beim nächsten
+> Mal weniger genau gefahren.**
+
+**Und sie ist gemessen, nicht vermutet.** Betroffen sind genau drei
+Operationen — `PanelUpdate`, `SystemPackagesUpgrade`, `SystemReboot` —, und
+**keine von ihnen übergibt `systemd-run` ein `--wait`**. Das ist kein Versehen,
+sondern die tragende Eigenschaft: Punkt 5 dieses Laufs existiert, um zu belegen,
+dass die transiente Unit den Neustart von `srvpanel-worker` überlebt. Ein
+`--wait` nachzutragen wäre also nicht die Behebung, sondern die Rücknahme des
+Merkmals.
+
+> **Eine Behebung, die das Merkmal zurücknimmt, für das der Lauf gefahren wurde,
+> ist keine.**
+
+Was fehlt, ist eine **Nachlese**: etwas, das den Ausgang der Unit später liest
+und in den Vorgang einträgt. `Apt::simulate` zeigt daneben, dass der synchrone
+Fall mit `--wait --pipe` schon existiert — die drei sind bewusst die anderen.
+
+### Was danach zuerst kommt
+
+Die Reihenfolge folgt der Wirkung und nicht der Nummer:
+
+1. **Die Familie** (§5, Punkte 1 und 2) — eine Aufgabe, an einer Stelle
+   entschieden, bevor jemand sie an einer von dreien allein behebt.
+2. **Befund 4** — das zerrissene `W:` in der Anzeige, undiagnostiziert.
+3. **`docs/81 §2.3h` Punkt 1** — die Dauer eines Laufs über 142 Pakete. Dieser
+   Lauf hatte sechs und fünf; die Zahl ist eine Gelegenheit und keine Messung,
+   die man herstellen kann.
+4. **Die dreizehn gezählten Fundstellen** unter `app/` aus Befund 11.
+
+**Befund 14 gehört nicht hierher** — die Fusszeile von `/logs` nennt ein
+Fenster, das es nicht gibt, und das ist A5.

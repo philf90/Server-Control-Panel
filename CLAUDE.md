@@ -21,12 +21,24 @@ DNS.
 Protokoll **`docs/84`**. Im selben Lauf sind **A1 Schritt 1** (Punkt 11, M5 auf
 einem echten Server) und **A5** (Punkt 12) belegt.
 
-**Der Abnahmelauf von A1 ist am 27. August 2026 gefahren** — auf `cloudsrv24`
-gegen `0.7.2-rc.3`, alle fünfzehn Punkte aus `docs/85`, das Protokoll ist
-**`docs/86`**. Die beiden Ausfälle sind genau die, die `docs/85 §6` zulässt
-(Punkt 4 ohne ablaufenden Schlüssel, Punkt 2 ohne Neuinstallation im Bestand).
-**Die Abnahme selbst ist eine Entscheidung des Betreibers und steht aus**; was
-ihr gegenübersteht, zählt `docs/86 §5` auf.
+**A1 ist am 28. August 2026 abgenommen** — der Lauf war am 27. August auf
+`cloudsrv24` gegen `0.7.2-rc.3`, alle fünfzehn Punkte aus `docs/85`, das
+Protokoll ist **`docs/86`**, die Abnahme selbst steht in dessen §6. Die beiden
+Ausfälle sind genau die, die `docs/85 §6` zulässt (Punkt 4 ohne ablaufenden
+Schlüssel, Punkt 2 ohne Neuinstallation im Bestand).
+
+**Sechs Reste bleiben benannt offen und sind kein Kriterienausfall**
+(`docs/86 §5`). Der grösste ist eine Familie und keine drei Einzelfälle:
+
+> **Ein Vorgang, der nur meldet, dass er abgesetzt wurde, sagt über den Ausgang
+> dessen, was er abgesetzt hat, nichts — und `fertig` liest sich wie das
+> Gegenteil.**
+
+Sie trifft `PanelUpdate`, `SystemPackagesUpgrade` und `SystemReboot`; **keine
+der drei übergibt `--wait`, und das ist tragend** — Punkt 5 gibt es genau
+deshalb, dass der Lauf den Neustart des Panels überlebt. Die Behebung ist
+deshalb keine Fahne, sondern eine Nachlese, die den Ausgang der transienten
+Unit später einträgt.
 
 **Punkt 5 ist der Grund, dass es diesen Lauf gab, und er ist zweifach belegt.**
 Dass eine transiente Unit den Neustart von `srvpanel-worker` überlebt, wenn
@@ -1602,10 +1614,11 @@ Dass eine transiente Unit den Neustart von `srvpanel-worker` überlebt, wenn
 hatte es nur der eigene Gebrauch. §5 sagt, was der Lauf ausdrücklich nicht prüft,
 §6, welche zwei Punkte als „nicht messbar" ausfallen dürfen und welcher nicht, §7
 was danach zu bauen bleibt — und **`86` das Protokoll dazu**: die fünfzehn Punkte
-mit ihren gemessenen Werten, vierzehn Befunde und siebzehn Beobachtungen, und in
-**§5** die Bilanz mit dem, was zwischen „gemessen" und „abgenommen" steht. Darin
-eine Familie, die als drei Einzelfälle dastand: Ein Vorgang, der einen Lauf nur
-**absetzt**, meldet `fertig` und sagt über dessen Ausgang nichts. · **`80` die Bestandsaufnahme** · **`81` der Plan** (A1 vollständig,
+mit ihren gemessenen Werten, vierzehn Befunde und siebzehn Beobachtungen, in
+**§5** die Bilanz mit den sechs Resten und in **§6 die Abnahme vom 28. August
+2026** samt der Begründung, warum die Familie sie nicht aufhält. Diese Familie
+stand als drei Einzelfälle da: Ein Vorgang, der einen Lauf nur **absetzt**,
+meldet `fertig` und sagt über dessen Ausgang nichts. · **`80` die Bestandsaufnahme** · **`81` der Plan** (A1 vollständig,
 die übrigen als Skizze) · **`82` Rollen und Konten** — der Plan von A9, mit den
 zwei Achsen, dem Aussperrschutz und der Netzbeschränkung; §2.4 ist einmal
 berichtigt worden, weil er eine Passworterzeugung auf dem Server vorsah, die

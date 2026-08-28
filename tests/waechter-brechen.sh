@@ -16066,6 +16066,49 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AptLockReachTest passed
 
 echo
+echo "── AptLockReachTest: der Kopf von apt-run nennt einen fremden Unitnamen ──"
+#
+# Der Anlass ist ein Kommentar, der acht Tage lang das Falsche sagte: Der Kopf
+# von packaging/bin/apt-run beschrieb den Aufruf, aus dem das Skript startet,
+# und schrieb dort srvpanel-upgrade-<hex>. Es heisst srvpanel-update-; die
+# Zeile ist von keinem Code je erzeugt worden. Wer ihr folgt, sucht eine Unit,
+# die es nicht gibt — und ein leerer Griff in die falsche Datei sieht aus wie
+# ein Befund.
+vorher_datei packaging/bin/apt-run
+python3 - <<'PY2'
+p = 'packaging/bin/apt-run'
+s = open(p, encoding='utf-8').read()
+alt = '--unit=srvpanel-update-<hex>'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '--unit=srvpanel-upgrade-<hex>', 1))
+PY2
+griff_datei packaging/bin/apt-run "fremder Unitname im Skriptkopf" &&
+pruefe "fremder Unitname im Skriptkopf" \
+  AptLockReachTest::test_the_packaged_script_names_the_same_unit_prefix failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptLockReachTest passed
+
+echo
+echo "── AptLockReachTest: der Kopf von apt-run nennt gar keine Unit mehr ──"
+#
+# Die Untergrenze. Faende der Ausdruck nichts mehr — weil der Kopf umgeschrieben
+# wurde oder die Schreibweise wechselte —, meldete die Pruefung „alles in
+# Ordnung" fuer eine Datei, in die niemand mehr gesehen hat.
+vorher_datei packaging/bin/apt-run
+python3 - <<'PY2'
+p = 'packaging/bin/apt-run'
+s = open(p, encoding='utf-8').read()
+alt = 'systemd-run --unit=srvpanel-update-<hex> --collect'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'systemd-run --collect', 1))
+PY2
+griff_datei packaging/bin/apt-run "kein Unitname im Skriptkopf" &&
+pruefe "kein Unitname im Skriptkopf" \
+  AptLockReachTest::test_the_packaged_script_names_the_same_unit_prefix failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptLockReachTest passed
+
+echo
 echo "── AptLockReachTest: der wartende Anwärter faellt durch den Ausdruck ──"
 #
 # /proc/locks führt blockierte Anwärter als Fortsetzungszeile mit `->`. Eine

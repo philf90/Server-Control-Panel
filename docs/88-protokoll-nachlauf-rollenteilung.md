@@ -1,0 +1,174 @@
+# Protokoll des Nachlaufs zu `0.7.2-rc.5`
+
+Gefahren auf `cloudsrv24` am **28. August 2026** gegen `0.7.2-rc.5`. Der Lauf
+ist `docs/87`. Er ist **keine** zweite Abnahme von A1 (`docs/86 §6`), sondern
+ein Nachsehen über sechs Dinge, die zwischen der Abnahme und dieser Fassung
+gebaut wurden und auf keinem Server standen.
+
+---
+
+## 0. Was vorher dastand
+
+    srvpanel version                        0.7.2-rc.5
+    systemctl is-active srvpanel-worker     active
+    systemctl is-active srvpanel-agentd     active
+    ls -l /var/log/srvpanel/upgrade.log     0 Bytes, 28. Aug 00:00
+
+Der Versatz für Punkt 3 ist damit **0** — die Datei ist um Mitternacht rotiert
+worden.
+
+**Der Stand des Servers:** aktualisierbar 0, davon Sicherheit 0, davon neu 0,
+zurückgehalten 2 (`libproc2-0`, `procps` — Ubuntus stufenweise Ausspielung),
+würde entfernt 0. Dazu zwei Konfigurationsdateien, die auf eine Entscheidung
+warten (`/etc/default/grub.ucf-dist`, `/etc/ssh/sshd_config.ucf-dist`) — die
+Spur der `--force-confold`-Läufe vom 27. und 28. August.
+
+---
+
+## 1. Punkt 1a — Der Administrator sieht die Updates-Seite
+
+**Fünf Erwartungen gemessen, vier davon schlüssig, zwei nicht herstellbar.**
+
+Gemessen als **Zweite Verwaltung** (Rolle Administrator, zweiter Faktor
+eingerichtet), Gegenprobe als **Administrator** (das Konto mit der Rolle
+Betreiber).
+
+| | Administrator | Betreiber | Urteil |
+|---|---|---|---|
+| `/updates` öffnet | ja, kein 403 | ja | **erfüllt** |
+| Der Rollensatz oben | steht | — | **erfüllt** |
+| Quellentabelle | **4** Spalten | **7** Spalten | **erfüllt** |
+| „Server neu starten" | fehlt | steht | **erfüllt** |
+| Automatikschalter | fehlt | steht | **erfüllt** |
+| Paketliste, Spalten | — | — | **nicht herstellbar** |
+| „Alle installieren", „n ausgewählte" | — | — | **nicht herstellbar** |
+
+Der Satz steht wörtlich so, wie der Lauf ihn verlangt: *„Sie sehen den Stand
+dieses Servers. Ändern — installieren, Quellen schalten, die Automatik
+umstellen, neu starten — ist dem Betreiber vorbehalten."*
+
+Die vier Spalten des Administrators sind Datei, Zustand, Adresse, Suiten; die
+drei zusätzlichen des Betreibers sind Schlüssel, Fingerabdruck, Schalten.
+
+**Die beiden Knöpfe sind schlüssig gemessen, und das ist nicht selbstverständlich.**
+Beide sitzen in einem Abschnitt, der in **beiden** Ansichten steht — über dem
+Neustartknopf steht in beiden *„Kein Neustart nötig"*, über dem Schalter in
+beiden *„Es wird täglich unbeaufsichtigt installiert."* samt der Tabelle
+darunter. Ihr Fehlen ist deshalb ein Unterschied und kein leerer Abschnitt.
+
+---
+
+## 2. Befund 1 — `systemctl is-active srvpanel` fragt nach einer Unit, die es nicht gibt
+
+`docs/87 §1` liess vor dem ersten Punkt dies notieren:
+
+    systemctl is-active srvpanel srvpanel-worker srvpanel-agentd
+
+Die Antwort war `inactive`, `active`, `active` — und das erste `inactive` sieht
+aus wie ein abgeschalteter Dienst. **Es gibt keine `srvpanel.service`.**
+Ausgezählt über `packaging/systemd/` und `nfpm.yaml`: `srvpanel-agentd`,
+`srvpanel-web`, `srvpanel-worker`, `srvpanel-metrics`, `srvpanel-usage`,
+`srvpanel-tls`, `srvpanel-cron`, `srvpanel-dns` — und keine ohne Zusatz. Die
+Weboberfläche läuft als **`srvpanel-web`**; über `grep` im ganzen Repo kommt
+`srvpanel.service` null mal vor.
+
+`systemctl is-active` beantwortet eine Frage nach einer unbekannten Unit nicht
+mit einem Fehler, sondern mit `inactive`.
+
+> **Ein Werkzeug, das nach einem Ding gefragt wird, das es nicht gibt,
+> antwortet trotzdem — und seine Antwort sieht aus wie ein Befund.**
+
+Das ist dieselbe Familie wie M5 an drei Stellen (`docs/81 §2.1a`, `docs/86`):
+Eine Auskunft, die „nicht nachgesehen" bedeutet, ist von „nichts zu tun" nicht
+zu unterscheiden. Hier ist es die Umkehrung — „gibt es nicht" liest sich wie
+„läuft nicht".
+
+**Der Befund steckt im Prüfmittel und nicht im Prüfling.** Das Panel lief die
+ganze Zeit; der Browser daneben zeigte es.
+
+---
+
+## 3. Befund 2 — Die Bestandsabhängigkeit galt einem Knopf und gilt dem ganzen Abschnitt
+
+`docs/87 §2` nimmt „Nur Sicherheit installieren" ausdrücklich aus der Zählung,
+weil er zusätzlich an `packages.security > 0` hängt und dann **beiden** Rollen
+fehlt. Der Satz stimmt und war zu eng gefasst. Am Quelltext nachgesehen:
+
+    <p v-if="props.packages.upgradable.length === 0" class="empty">
+      Es steht keine Aktualisierung an.
+    </p>
+    <template v-else>
+      <div v-if="darfSchalten" class="button-row"> … </div>
+      … die Paketliste …
+    </template>
+
+**Die ganze Paketsektion hängt am Bestand** — die Tabelle mitsamt ihrer
+Kästchenspalte und alle drei Installierknöpfe. Bei `aktualisierbar 0` steht in
+beiden Ansichten dieselbe eine Zeile, und der Unterschied, den Punkt 1 messen
+soll, ist an dieser Stelle gar nicht vorhanden.
+
+> **Eine Ausnahme, die man für einen Fall aufschreibt, ist falsch gefasst, wenn
+> dieselbe Bedingung über dem ganzen Abschnitt steht.**
+
+Ich hatte die Bedingung am einzelnen Knopf gelesen und nicht nachgesehen, was
+über ihm steht.
+
+---
+
+## 4. Beobachtung 1 — Die zwei Schlüsselmeldungen verschwinden ohne eigenen Wächter
+
+Der Betreiber liest über der Quellentabelle *„5 Signaturschlüssel liessen sich
+nicht lesen — das ist etwas anderes, als hätte die Quelle keinen: …"*. Beim
+Administrator steht sie nicht.
+
+**Sie ist nicht durch ein `v-if` verborgen.** `unlesbar` filtert auf
+`e.key !== null && !e.key.readable`, `faellig` läuft über `eintrag.key?.keys ?? []`
+— mit dem `key = null`, das `withoutKeys()` setzt, laufen beide leer.
+
+**Das ist die richtige Bauart und keine Nachlässigkeit.** Ein
+`v-if="darfSchalten"` an diesen beiden Meldungen wäre eine zweite Fassung
+derselben Regel, und die zweite ist die, die beim Umbau stehenbleibt. Der
+Filter ist die eine Stelle, und `SourceKeyFilterTest` hält ihn — samt der
+Richtung, dass kein neues Feld zum Agenten kommt, ohne dass jemand entscheidet,
+ob der Administrator es sehen darf.
+
+Notiert wird es trotzdem, weil die Form der aus A9 bekannten Falle gleicht:
+*Eine Sicherheit, die aus einer Eigenschaft der Daten folgt und nicht aus einer
+Prüfung, hält genau so lange, bis jemand die Daten ändert.* Der Unterschied ist,
+dass die Eigenschaft hier von einem geprüften Filter hergestellt wird und nicht
+zufällig besteht.
+
+---
+
+## 5. Beobachtung 2 — Der Lauf davor hat den Bestand geleert, den dieser Lauf braucht
+
+Am 27. August standen auf diesem Server **141** aktualisierbare Pakete; der
+Abnahmelauf von A1 und das Update auf `0.7.2-rc.5` haben sie eingespielt. Heute
+sind es 0.
+
+Daran hängt mehr als Punkt 1: **Punkt 3** (ein abgesetzter Lauf meldet nicht
+sofort „fertig") und **Punkt 4** (der Lauf, der nichts bewirkt) brauchen beide
+den Knopf „Alle installieren", und den gibt es bei leerem Bestand nicht. Auch
+die drei Laufzeitzahlen aus `docs/81 §2.3h` Punkt 1 sind so nicht zu messen.
+
+> **Ein Lauf, der einen Bestand braucht, wird von dem Lauf davor geleert.**
+
+Die Automatik arbeitet dagegen: *Zuletzt unbeaufsichtigt installiert
+2026-08-28 06:10:10*, täglich. Warten stellt den Zustand also nicht verlässlich
+her — es verbraucht ihn.
+
+---
+
+## 6. Wo der Lauf steht
+
+| Punkt | Stand |
+|---|---|
+| 1a — der Administrator sieht die Seite | **erfüllt**, mit zwei nicht herstellbaren Erwartungen |
+| 1b — die Tür | offen |
+| 2 — der Vorbehalt in der Liste | offen |
+| 3 — die Nachlese | **braucht Bestand** |
+| 4 — der Lauf ohne Wirkung | **braucht Bestand** |
+| 5 — das heile `W:` | offen |
+| 6 — die Zählwörter | offen |
+
+> **Ein Protokoll ohne seine Lücken liest sich wie eine Abnahme.**

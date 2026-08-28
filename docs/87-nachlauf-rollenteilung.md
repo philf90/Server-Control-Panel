@@ -41,8 +41,17 @@ Panel — nicht über `srvpanel admin`, denn das legt einen Betreiber an.
 **Notiert wird vor dem ersten Punkt:**
 
     srvpanel version
-    systemctl is-active srvpanel srvpanel-worker srvpanel-agentd
+    systemctl is-active srvpanel-web srvpanel-worker srvpanel-agentd
     ls -l /var/log/srvpanel/upgrade.log        # Groesse — sie ist der Versatz
+
+**Die Weboberfläche heisst `srvpanel-web`.** Hier stand bis zum 28. August
+`srvpanel`, und das ist keine Unit dieses Systems — `systemctl is-active`
+antwortet darauf mit `inactive` statt mit einem Fehler, und das liest sich wie
+ein abgeschalteter Dienst. Der Lauf hat genau das gemeldet, während das Panel
+im Browser daneben stand.
+
+> **Ein Werkzeug, das nach einem Ding gefragt wird, das es nicht gibt,
+> antwortet trotzdem — und seine Antwort sieht aus wie ein Befund.**
 
 ---
 
@@ -70,14 +79,28 @@ das Kästchen), und die vier Knöpfe samt Schalter.
 > nicht.** „Drei Spalten weniger" sagt nichts, solange niemand gemessen hat,
 > wie viele es vorher waren.
 
-**„Nur Sicherheit installieren" steht bewusst nicht in dieser Liste.** Er hängt
-zusätzlich an `props.packages.security > 0` — ist gerade nichts an Sicherheit
-offen, fehlt er **beiden** Rollen, und sein Fehlen beim Administrator belegt
-dann nichts. Steht die Kachel „Sicherheit" über 0, gehört er dazu und wird
-mitgezählt: dann sind es fünf Knöpfe.
+**Die ganze Paketsektion hängt am Bestand, und das entscheidet über vier der
+sieben Erwartungen.** Berichtigt am 28. August, nachdem der Lauf sie umgeworfen
+hat: Der erste Wurf nahm nur „Nur Sicherheit installieren" aus (er hängt
+zusätzlich an `packages.security > 0`). Über ihm steht aber
 
-> **Ein Bedienelement, das an zwei Bedingungen hängt, belegt die eine nur,
-> solange die andere erfüllt ist.**
+    <p v-if="props.packages.upgradable.length === 0">Es steht keine Aktualisierung an.</p>
+    <template v-else> … die drei Knöpfe und die Paketliste … </template>
+
+— bei `aktualisierbar 0` sind **Tabelle und alle drei Installierknöpfe** in
+beiden Ansichten fort, und der Unterschied ist an dieser Stelle nicht
+vorhanden.
+
+> **Eine Ausnahme, die man für einen Fall aufschreibt, ist falsch gefasst, wenn
+> dieselbe Bedingung über dem ganzen Abschnitt steht.**
+
+**Vor dem Lauf wird deshalb der Bestand gelesen** — die Kachel „Aktualisierbar".
+Steht sie auf 0, sind die Erwartungen 4 und der Knopfteil von 5 **nicht
+herstellbar** und werden als solche notiert, statt als erfüllt zu gelten. Die
+schlüssigen bleiben: der Rollensatz, die Quellentabelle, der Neustartknopf und
+der Automatikschalter — die drei letzten sitzen in Abschnitten, die in beiden
+Ansichten stehen, ihr Fehlen ist also ein Unterschied und kein leerer
+Abschnitt.
 
 **Und die Tür, nicht nur die Anzeige.** Gemessen wird aus der Browserkonsole der
 angemeldeten Sitzung — damit geht die Anfrage durch das echte nginx, die echte

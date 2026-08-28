@@ -19466,6 +19466,70 @@ pruefe "Leser ohne Versatz" \
   OutcomeTest::test_without_the_offset_an_earlier_run_would_be_read failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
+echo
+echo "── OperationWarningTest: keine Operation meldet mehr einen Vorbehalt ──"
+#
+# Form B aus docs/86 §5: Ein apt-get update mit einer toten Quelle ist `fertig`
+# — und das ist richtig. Was fehlte, war die Sicht. Ohne `warning` steht die
+# tote Quelle wieder nur im Ergebnis, das man aufschlagen muss.
+vorher_datei agent/src/Ops/SystemPackagesRefresh.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemPackagesRefresh.php'
+s = open(p, encoding='utf-8').read()
+alt = """            'warning' => $apt->reachedEverything()
+                ? null
+                : 'Nicht erreicht: '.$apt->summary(),
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Ops/SystemPackagesRefresh.php "Lauf ohne Vorbehalt" &&
+pruefe "Lauf ohne Vorbehalt" \
+  OperationWarningTest::test_at_least_one_operation_reports_a_caveat failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperationWarningTest passed
+
+echo
+echo "── OperationWarningTest: der Controller reicht ihn nicht durch ──"
+vorher_datei app/Http/Controllers/OperationController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/OperationController.php'
+s = open(p, encoding='utf-8').read()
+alt = """            'warning' => is_array($operation->result)
+                && is_string($operation->result['warning'] ?? null)
+                    ? $operation->result['warning']
+                    : null,
+
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/OperationController.php "Zeile ohne Vorbehalt" &&
+pruefe "Zeile ohne Vorbehalt" \
+  OperationWarningTest::test_the_row_carries_the_caveat_in_its_own_field failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperationWarningTest passed
+
+echo
+echo "── OperationWarningTest: die Liste zeigt ihn nicht ──"
+#
+# **Die Haelfte, die still bricht** — und genau der Irrtum, mit dem dieser
+# Schritt begonnen hat: Ich hatte angenommen, `message` stehe schon in der
+# Zeile. Es steht im Payload, und keine Spalte rendert es. Ein Feld im Payload
+# ist noch keine Spalte.
+vorher_datei resources/js/Pages/Operations/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Operations/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '                  <Badge v-if="row.warning" kind="warn">{{ row.warning }}</Badge>\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Pages/Operations/Index.vue "Liste ohne Vorbehalt" &&
+pruefe "Liste ohne Vorbehalt" \
+  OperationWarningTest::test_the_list_renders_the_caveat failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperationWarningTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

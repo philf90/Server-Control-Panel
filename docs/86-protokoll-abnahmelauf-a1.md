@@ -2093,6 +2093,19 @@ sondern eine Entscheidung des Betreibers.** Diese Reste stehen dem gegenüber:
    > gehört an einer Stelle entschieden. Nur ist die Stelle für A eine andere
    > als für B, und wer sie zusammen behebt, baut für B eine Maschinerie, die
    > es dort nicht braucht.
+   >
+   > **Beide sind am 28. August 2026 gebaut.** A als Nachlese
+   > (`AwaitDispatchedRun`, `Outcome`, `system.run.outcome`); B als das, was
+   > der Betreiber entschieden hat — **der Zustand bleibt, der Vorbehalt wird
+   > sichtbar**. Ein Lauf, der getan hat, worum man ihn bat, ist gelungen, auch
+   > wenn er dabei etwas zu melden hat; was fehlte, war nicht der Zustand,
+   > sondern die Sicht.
+   >
+   > **Und dabei fiel ein Irrtum von mir auf.** Ich hatte dem Betreiber zur
+   > Entscheidung geschrieben, die Meldung stehe „schon in der Zeile" — sie
+   > steht im Payload, und keine der sechs Spalten rendert sie.
+   >
+   > > **Ein Feld im Payload ist noch keine Spalte.**
 
    **Was dabei nicht fehlt, ist der Weg zum Nachsehen.** Der Vorgang trägt in
    seinem Ergebnis `unit` und `log` — der Betreiber wird also sehr wohl dorthin

@@ -22296,3 +22296,43 @@ sein Ergebnis eine unerreichbare Quelle nennt. Sie braucht keine Nachlese,
 sondern eine Entscheidung darüber, welchen Zustand ein Vorgang bekommt, der
 teilweise gelungen ist; ein neuer Wert im Enum ist ansteckend, und `failed`
 überzeichnete. Und Form A ist auf einem echten Server noch nicht gemessen.
+
+### Form B — der Zustand bleibt, der Vorbehalt wird sichtbar
+
+Entschieden vom Betreiber am 28. August 2026, nachdem die Kosten der drei Wege
+ausgezählt waren.
+
+Ein `apt-get update`, bei dem eine von fünf Quellen ausfiel, hat vier Listen
+frisch geholt und sagt, welche fehlt. Der Vorgang steht auf `fertig` — und das
+ist richtig.
+
+> **Ein Lauf, der getan hat, worum man ihn bat, ist gelungen — auch wenn er
+> dabei etwas zu melden hat.**
+
+Kein neuer Wert im Enum also. `system.packages.refresh` meldet stattdessen ein
+`warning`, `OperationController::row()` reicht es durch, und die Vorgangsliste
+zeigt es als Marke neben der Aufgabe. **Nicht über `message`:** Dort steht,
+*was* der Vorgang ist; wer die Warnung dorthin schriebe, nähme der Zeile ihre
+Auskunft, um eine zweite hineinzulegen.
+
+**Beim Zählen ist die Ansteckung kleiner ausgefallen als befürchtet** — ein
+neuer Enum-Wert hätte sechs Stellen gekostet, nicht dreissig: `open()` vergleicht
+mit `===` und wäre unberührt, `label()` ist ein exhaustives `match`, einen Filter
+nach Zustand gibt es auf der Seite nicht, und `.badge.neutral` steht schon da.
+Die eine unauffällige Folge wäre gewesen, dass `srvpanel acceptance` seine
+„erledigt"-Zahl über `Succeeded` zählt.
+
+> **Eine Ansteckung, die man schätzt, ist grösser als eine, die man zählt.**
+
+#### Der Irrtum, mit dem dieser Schritt begann
+
+Ich hatte dem Betreiber zur Entscheidung geschrieben, die Meldung stehe „schon
+in der Zeile". Sie steht im Payload — und keine der sechs Spalten rendert sie.
+Aufgefallen ist es erst beim Bauen, beim Blick in die Vorlage.
+
+> **Ein Feld im Payload ist noch keine Spalte.**
+
+Der Wächter hält deshalb alle drei Glieder: dass eine Operation überhaupt einen
+Vorbehalt meldet, dass der Controller ihn durchreicht, und dass die Vorlage ihn
+liest. Drei Eingriffe, alle beissend — der dritte ist genau dieser Irrtum als
+Bruch.

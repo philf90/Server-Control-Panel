@@ -77,6 +77,29 @@ final class SystemPackagesRefresh implements Op
             'unreachable' => $apt->unreachable,
             'reached_everything' => $apt->reachedEverything(),
             'summary' => $apt->summary(),
+
+            /*
+             * **Der Vorbehalt, unter dem dieser Lauf gelungen ist.**
+             *
+             * Der Vorgang stand auf `fertig`, während eine Quelle ausgefallen
+             * war (`docs/86 §5`, Vorgang 690). Das ist **kein** Fehlschlag —
+             * vier von fünf Listen sind frisch, und welche fehlt, steht hier;
+             * ein Wiederholen hülfe nicht, wenn die Quelle wirklich weg ist.
+             * Und es ist auch kein abgesetzter Lauf: Diese Operation ist
+             * fertig, wenn sie zurückkehrt.
+             *
+             * > **Ein Lauf, der getan hat, worum man ihn bat, ist gelungen —
+             * > auch wenn er dabei etwas zu melden hat.**
+             *
+             * Was fehlte, war nicht der Zustand, sondern dass man es sieht:
+             * Die Vorgangsliste zeigt `label` und `status`, und die Meldung
+             * über die tote Quelle stand nur im Ergebnis, das man aufschlagen
+             * muss. `warning` ist das Feld, das sie in die Zeile bringt —
+             * entschieden vom Betreiber am 28. August 2026.
+             */
+            'warning' => $apt->reachedEverything()
+                ? null
+                : 'Nicht erreicht: '.$apt->summary(),
         ];
     }
 }

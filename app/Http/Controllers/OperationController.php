@@ -194,6 +194,25 @@ final class OperationController extends Controller
             'label' => $task?->label() ?? $operation->type,
             'status' => $operation->status->value,
             'status_label' => $operation->status->label(),
+
+            /*
+             * **Der Vorbehalt, unter dem ein gelungener Lauf gelungen ist.**
+             *
+             * Ein `apt-get update`, bei dem eine von fünf Quellen ausfiel, ist
+             * `fertig` — und das ist richtig. Sichtbar war es trotzdem nicht:
+             * Die Liste zeigt Aufgabe und Zustand, und die tote Quelle stand
+             * allein im Ergebnis, das man aufschlagen muss (`docs/86 §5`,
+             * Vorgang 690).
+             *
+             * **Nicht über `message`.** Dort steht, *was* der Vorgang ist
+             * („Paketlisten auffrischen"); wer die Warnung dorthin schriebe,
+             * nähme der Zeile ihre Auskunft, um eine zweite hineinzulegen.
+             */
+            'warning' => is_array($operation->result)
+                && is_string($operation->result['warning'] ?? null)
+                    ? $operation->result['warning']
+                    : null,
+
             'open' => $operation->open(),
             'progress' => $operation->progress,
             'message' => $operation->message,

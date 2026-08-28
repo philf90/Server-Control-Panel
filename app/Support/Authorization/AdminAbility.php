@@ -73,6 +73,24 @@ final class AdminAbility
     public const MANAGE_SETTINGS = 'manage-settings';
 
     /**
+     * Den Zustand des Servers ansehen und die Paketlisten auffrischen.
+     *
+     * **Getrennt von {@see self::OPERATE_SERVER}, weil die Achse eine andere
+     * ist.** `docs/81 §3` Frage 2: Der Betreiber hat nicht nach „lesen gegen
+     * schreiben" geteilt, sondern nach dem Gegenstand — der Administrator
+     * verwaltet Kunden und Abonnements und sieht dabei, woran der Server
+     * steht, ohne an ihm zu drehen.
+     *
+     * > **Meine Aufteilung trennte nach dem Verb, seine nach dem Gegenstand.**
+     *
+     * **`refresh` gehört hierher und ist trotzdem eine Handlung.** Es
+     * verändert keinen Paketstand, sondern nur, wie aktuell die Frage danach
+     * ist — wer die Zahlen sehen darf, muss sie auch auffrischen dürfen, sonst
+     * sieht er einen Stand von gestern und kann nichts dagegen tun.
+     */
+    public const INSPECT_SERVER = 'inspect-server';
+
+    /**
      * Jede Adminfähigkeit mit ihrer Rolle und dem Grund dafür.
      *
      * Die Gates entstehen aus dieser Liste — eine Fähigkeit, die hier nicht
@@ -88,6 +106,15 @@ final class AdminAbility
                 'reason' => 'Einstellungen, die keines der drei Merkmale tragen: kein Geheimnis, kein '
                     .'Weg zu root, keine Wirkung auf alle Kunden. Der Administrator verwaltet Kunden '
                     .'und Abonnements — dazu gehört, das Panel dafür einrichten zu können.',
+            ],
+            self::INSPECT_SERVER => [
+                'role' => AdminRole::Administrator,
+                'reason' => 'Ansehen, woran der Server steht, und die Paketlisten auffrischen — '
+                    .'ohne etwas an ihm zu ändern. Keines der drei Merkmale aus docs/20 §6.1: Die '
+                    .'Versionen installierter Pakete sind kein Geheimnis, das Auffrischen ist kein '
+                    .'Weg zu root, und für die Kunden ändert sich dabei nichts. Dass die Versionen '
+                    .'verraten, welche bekannten Lücken dieser Server hat, ist gesehen und in '
+                    .'docs/81 §3 Frage 2 ausdrücklich zugelassen worden.',
             ],
             self::OPERATE_SERVER => [
                 'role' => AdminRole::Operator,
@@ -129,6 +156,13 @@ final class AdminAbility
             'settings/general' => 'Die Anzeigezeitzone des Panels (docs/40). Sie ändert, wie ein '
                 .'Zeitstempel dargestellt wird, und sonst nichts — kein Geheimnis, kein Weg zu root, '
                 .'und für einen Kunden ändert sich dadurch nichts an seinem Betrieb.',
+            'updates' => 'Zahlen, Paketliste und Quellen ansehen (docs/81 §3 Frage 2). Der '
+                .'Payload ist für diesen Betrachter gefiltert: keine Schlüsselspalte und kein '
+                .'Anteil für den Neustart. Die vier ändernden Routen dieser Seite bleiben beim '
+                .'Betreiber.',
+            'updates/refresh' => 'Die Paketlisten auffrischen. Es ändert keinen Paketstand, sondern '
+                .'nur, wie aktuell die Frage danach ist — wer die Zahlen sehen darf und sie nicht '
+                .'auffrischen kann, sieht einen Stand von gestern und kann nichts dagegen tun.',
         ];
     }
 }

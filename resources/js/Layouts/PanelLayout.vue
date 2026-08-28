@@ -288,7 +288,7 @@ const navigation = computed(() => {
        * Dieses Projekt hat den Ort eines Menüpunkts dreimal falsch gehabt, und
        * jedes Mal hat es der Betreiber gemeldet und kein Test.
        */
-      { name: 'Updates', href: '/updates', icon: 'updates', ability: 'operate-server' },
+      { name: 'Updates', href: '/updates', icon: 'updates', ability: 'inspect-server' },
 
       /*
        * **Konten steht bei „Server" und nicht bei „Verwaltung".** Wer hier

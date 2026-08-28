@@ -113,6 +113,10 @@ final class AgentOperationReachTest extends TestCase
         'system.logs.tail' => 'Liest die letzten Zeilen eines Protokolls des Servers — lesend, ohne Vorgang.',
         'system.packages.list' => 'Liest den Paketstand über apt-get -s; das Panel führt darüber keinen Bestand, und die Antwort ändert nichts.',
         'system.sources.list' => 'Liest die Paketquellen über apt-get indextargets und die Dateien unter /etc/apt — lesend, ohne Vorgang.',
+        'system.run.outcome' => 'Liest das Urteil eines abgesetzten Laufs aus seinem Log — '
+            .'die Nachlese aus AwaitDispatchedRun. Sie ändert nichts; sie entscheidet den '
+            .'Zustand des Vorgangs, und der Lebenslauf des abgesetzten Laufs läuft danach '
+            .'über dessen eigene Operation.',
         'system.packages.refresh' => 'Frischt die Paketlisten auf. Der Zustand danach steht in apts Listen und nicht im Bestand des Panels — gefragt wird er über system.packages.list.',
         'system.packages.unattended' => 'Schaltet die Automatik von apt über ein Fragment in apt.conf.d; der Zustand steht in apts aufgelöster Sicht und nicht im Bestand des Panels — gefragt wird er über system.packages.list.',
         'system.packages.upgrade' => 'Setzt den Lauf als transiente Unit ab und tritt zur Seite; was er bewirkt hat, steht danach in der Liste und im Protokoll des Laufs. Ein Zustand im Panel entsteht dabei nicht.',

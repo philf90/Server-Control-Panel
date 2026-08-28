@@ -97,6 +97,35 @@ final class RunAgentOperation implements ShouldQueue
                 static fn (): bool => $operation->cancelRequested(),
             );
 
+            /*
+             * **Ein Aufruf, der nur abgesetzt hat, ist noch kein Ergebnis.**
+             * `system.packages.upgrade` schickt seinen Lauf über `systemd-run`
+             * fort und kehrt zurück, bevor er fertig ist — kein `--wait`, denn
+             * genau das ist das Merkmal, das Punkt 5 des Abnahmelaufs von A1
+             * belegt hat. Bis zum 28. August 2026 stand der Vorgang danach auf
+             * `fertig`, während `apt-get` noch lief (`docs/86 §5`).
+             *
+             * > **Ein Vorgang, der nur meldet, dass er abgesetzt wurde, sagt
+             * > über den Ausgang dessen, was er abgesetzt hat, nichts — und
+             * > `fertig` liest sich wie das Gegenteil.**
+             *
+             * **Gefragt wird das Ergebnis und nicht eine Liste von Namen.** Das
+             * Ergebnis ist der Vertrag zwischen Agent und Anwendung; eine Liste
+             * hier wäre dessen zweite Fassung, und die zweite veraltet.
+             *
+             * Der Lebenslauf bleibt dabei aus — er gehört an den Ausgang und
+             * nicht an das Absetzen. {@see AwaitDispatchedRun} ruft ihn, wenn
+             * das Urteil dasteht.
+             */
+            if (($result['dispatched'] ?? false) === true) {
+                $recorder->dispatched($result);
+
+                AwaitDispatchedRun::dispatch($operation->id, time())
+                    ->delay(now()->addSeconds(AwaitDispatchedRun::INTERVAL));
+
+                return;
+            }
+
             $recorder->succeed($result);
 
             // Erst jetzt ändert sich der Zustand des Abonnements. Vorher wäre

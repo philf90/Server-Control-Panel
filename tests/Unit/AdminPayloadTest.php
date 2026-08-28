@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Support\Authorization\AdminAbility;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\WithoutPhpComments;
 
@@ -252,6 +253,17 @@ final class AdminPayloadTest extends TestCase
     /**
      * Routen mit einer Adminfähigkeit: Pfad => Fähigkeit.
      *
+     * **Die Namen kommen aus {@see AdminAbility::abilities()} und nicht aus
+     * diesem Ausdruck.** Bis zum 27. August 2026 standen sie hier als
+     * `(operate-server|manage-settings)` fest. Beim Bau der dritten Fähigkeit
+     * fiel `/updates` damit aus `$routen` heraus — und der Wächter meldete
+     * nicht „ich kenne diese Fähigkeit nicht", sondern der Menüpunkt erfinde
+     * eine. Eine falsche Meldung ist teurer als keine, weil sie den Leser
+     * dorthin schickt, wo nichts ist.
+     *
+     * > **Ein Wächter mit einer eigenen Liste der Namen prüft, woran sein
+     * > Verfasser gedacht hat — und die nächste Fähigkeit sieht er nicht.**
+     *
      * @return array<string, string>
      */
     private function guardedRoutes(): array
@@ -260,7 +272,13 @@ final class AdminPayloadTest extends TestCase
         $routen = [];
 
         preg_match_all(
-            "/Route::get\('([^']+)'[^;]*?->middleware\(\[?'can:(operate-server|manage-settings)'/s",
+            sprintf(
+                "/Route::get\('([^']+)'[^;]*?->middleware\(\[?'can:(%s)'/s",
+                implode('|', array_map(
+                    static fn (string $ability): string => preg_quote($ability, '/'),
+                    array_keys(AdminAbility::abilities()),
+                )),
+            ),
             $quelle, $treffer, PREG_SET_ORDER,
         );
 

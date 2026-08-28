@@ -388,6 +388,9 @@ final class Runner
         stream_set_blocking($pipes[2], false);
 
         $output = ['stdout' => '', 'stderr' => ''];
+
+        // Der Zusammensetzer der Zeilen — je Kanal ein eigener Rest.
+        $lines = new Lines;
         $truncated = false;
         $deadline = $startedAt + $timeout;
         $timedOut = false;
@@ -440,8 +443,17 @@ final class Runner
                     $truncated = true;
                 }
 
+                /*
+                 * **Eine Stückgrenze ist keine Zeilengrenze.** Hier stand
+                 * `explode("\n", rtrim($chunk, "\n"))`, und `rtrim` schneidet
+                 * nur hinten: Endete ein Stück ohne seinen Umbruch, begann das
+                 * nächste damit, und heraus fiel eine leere Zeile — oder, wenn
+                 * die Grenze mitten im Text lag, eine zerrissene. Gemessen am
+                 * 28. August 2026 gegen echtes apt: 320 Rahmenzeilen gegen 317
+                 * wirkliche ({@see Lines}, Befund 4 aus `docs/86`).
+                 */
                 if ($onOutput !== null) {
-                    foreach (explode("\n", rtrim($chunk, "\n")) as $line) {
+                    foreach ($lines->feed($channel, $chunk) as $line) {
                         $onOutput($channel, $line);
                     }
                 }
@@ -478,6 +490,22 @@ final class Runner
                 'Der Rückgabecode von %s ging verloren — ein Signalbehandler hat den Kindprozess geerntet.',
                 $program,
             ));
+        }
+
+        /*
+         * **Was ohne abschliessenden Umbruch endete, geht nicht verloren.**
+         * {@see Lines} hält den Rest zurück, bis ein Umbruch kommt — kommt
+         * keiner mehr, ist er trotzdem eine Zeile. Ohne das fiele ausgerechnet
+         * die letzte weg, und bei `apt-run` steht dort das Urteil.
+         */
+        if ($onOutput !== null) {
+            foreach (['stdout', 'stderr'] as $channel) {
+                $rest = $lines->flush($channel);
+
+                if ($rest !== null) {
+                    $onOutput($channel, $rest);
+                }
+            }
         }
 
         $this->journal->command($command, $timedOut || $aborted ? null : $code, $duration);

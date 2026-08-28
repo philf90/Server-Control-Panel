@@ -735,6 +735,11 @@ selbst schreibt (`3 upgraded, …`), und die steht im Protokoll des Laufs.
 
 ### 2.3h Was Schritt 6 offen lässt und benennt (26. August 2026)
 
+**Am 27. August 2026 gebaut** — §2.3l ist die Messrunde davor, und was daraus
+wurde, steht in §2.3m. Der Absatz darunter beschreibt den Stand von Schritt 8
+und bleibt als Begründung stehen: Er sagt, warum es ein eigener Schritt war und
+keine Zeile in diesem.
+
 **Die Rollen aus `docs/81 §3` Frage 2 sind nicht gebaut.** Dort steht, dass der
 Administrator Zahlen und Liste **sieht** und `refresh` auslösen darf; gebaut ist
 die ganze Seite als `can:operate-server`, also nur für den Betreiber. Das ist
@@ -1073,6 +1078,113 @@ da — die CI hat genau die eine Zeile gemeldet.
 
 ---
 
+---
+
+### 2.3l Die Messrunde vor der Rollenteilung (27. August 2026)
+
+Gemessen, bevor eine Zeile entsteht — wie vor Schritt 6, Schritt 8 und A9. Die
+Vorgabe ist die Tabelle aus §3 Frage 2 mit ihren sieben Zeilen.
+
+**Der Bestand: sechs Routen, alle auf `can:operate-server`.**
+
+| Route | heute | nach Frage 2 |
+|---|---|---|
+| `GET /updates` | `operate-server` | **wechselt** — Zahlen, Liste und Quellen sieht auch der Administrator |
+| `POST /updates/refresh` | `operate-server` | **wechselt** |
+| `PUT /updates/sources` | `operate-server` | bleibt |
+| `POST /updates/install` | `operate-server` | bleibt |
+| `PUT /updates/unattended` | `operate-server` | bleibt |
+| `POST /server/reboot` | `operate-server` | bleibt |
+
+**Es sind zwei Routen und nicht sechs.** Der Schritt heisst „die Seite dem
+Administrator öffnen" und klingt nach einem Umbau; gemessen ist er eine
+Fähigkeit an zwei Stellen, eine gefilterte Ablage und vier Bedienelemente, die
+hinter ihrer `can`-Ablage verschwinden müssen.
+
+**Die vier Bedienelemente hängen an vier Routen**, aus der Seite gemessen:
+`router.put('/updates/sources')`, `router.post('/updates/install')` (drei
+Knöpfe, ein Aufruf), `router.put('/updates/unattended')` und der
+`RebootButton`. Für jedes gilt die Regel aus A9: Ein Knopf, den der Betrachter
+nicht drücken darf, wird gar nicht erst gezeigt.
+
+> **Berichtigt am 27. August 2026, beim Bauen.** Hier stand, `AbilityReachTest`
+> *verlange* das für diese vier — er tut es nicht. Er prüft die Ablage `can`,
+> die eine Seite über ihr eigenes Objekt schickt; diese Seite fragt die
+> geteilte `abilities` und liegt damit ausserhalb seiner Reichweite. Die Regel
+> galt, der genannte Wächter hielt sie nicht.
+>
+> **Ein Wächter, den man als Deckung nennt, deckt erst, wenn man nachgesehen
+> hat, dass er hinsieht.**
+
+Gebaut wurde die Deckung deshalb mit: `OperatorControlTest` hält die Regel für
+jede Seite, deren Griffe strenger sind als sie selbst.
+
+---
+
+**M1 — „ohne Schlüsselmaterial" ist wörtlich genommen schon erfüllt.**
+
+Frage 2 sagt, der Administrator sehe die Paketquellen „ohne Schlüsselmaterial".
+Gemessen am Payload trägt die Seite **kein** Schlüsselmaterial:
+`Sources::key()` gibt `kind` (`path` · `embedded` · `none`) und höchstens einen
+Dateipfad zurück, nie Bytes — ein eingebetteter PGP-Block wird als `embedded`
+gemeldet und nicht durchgereicht. `Keys` liefert `fingerprint`, `uid`, `expires`
+und `state`.
+
+**Ein Fingerabdruck ist kein Geheimnis.** Er steht in der Dokumentation jeder
+Distribution und auf öffentlichen Schlüsselservern; die `uid` ist der
+öffentliche Name des Signierenden. Wer sie sieht, kann nichts, was er ohne sie
+nicht könnte — die Adressen der Quellen stehen ohnehin daneben.
+
+> **Eine Anforderung, die einen Zustand verlangt, der schon besteht, sagt
+> entweder nichts oder etwas anderes als das, was dasteht.**
+
+Damit gibt es zwei ehrliche Lesarten, und die Entscheidung gehört dem
+Betreiber: **(a)** gemeint war das Schlüsselmaterial selbst — dann ist nichts zu
+tun ausser einem Wächter, der es festhält; **(b)** gemeint war die ganze
+Schlüsselspalte — dann verschwindet sie für den Administrator, nicht weil sie
+geheim wäre, sondern weil Vertrauensanker nicht sein Gegenstand sind.
+
+Dieselbe Lage wie bei A9, wo die Messung das Kriterium schon erfüllt vorfand:
+
+> **Ein Zustand, der stimmt und den nichts hält, ist von einem, der nicht
+> stimmt, nur durch Glück getrennt.**
+
+---
+
+**M2 — der Neustart reist im Payload der Updates-Seite mit.**
+
+`UpdatesController::read()` legt `reboot => ServerController::prompt()` bei,
+also `hostname` und `delay`, und die Seite zeigt daraus den `RebootButton`. Die
+Route `/server/reboot` bleibt nach Frage 2 beim Betreiber — der Knopf muss also
+weg, und mit ihm sinnvollerweise der Wert.
+
+**Der `hostname` ist dabei kein Geheimnis** — er steht im Zertifikat, in der
+Adresszeile und in `srvpanel version`. Was hier zählt, ist nicht der Wert,
+sondern der Knopf: `AbilityReachTest` besteht darauf, dass ein Bedienelement,
+das der Betrachter nicht drücken darf, gar nicht erst gezeigt wird.
+
+> **Ein Wert, der nur da ist, weil ein Knopf ihn braucht, gehört mit dem Knopf
+> fort — sonst bleibt er als Rest, den niemand mehr begründen kann.**
+
+---
+
+**M3 — die vier übrigen Nutzlasten sind unverdächtig, und das ist gemessen und
+nicht angenommen.**
+
+`packages` trägt die Zahlen, die Paketliste, die zurückgehaltenen samt Grund,
+die Conffiles und den Zustand der Automatik. Dass die Fassungen installierter
+Pakete verraten, welche bekannten Lücken dieser Server hat, steht seit Schritt 5
+als Begründung im `UpdatesController` — **Frage 2 hat das entschieden und
+zugelassen**: „Zahlen und Liste sehen: ja". Die Zeile ist damit keine offene
+Frage mehr, sondern eine getroffene Wahl.
+
+`errors` trägt die Meldungen zweier Agent-Operationen. `sources` und `reboot`
+sind oben behandelt.
+
+**Was daraus für den Bau folgt:** kein Umbau des Payloads, sondern **eine
+Filterung an genau zwei Stellen** — die Schlüsselspalte, falls (b), und der
+Neustart-Anteil. Alles Übrige bleibt, wie es ist.
+
 ## 3. Die vier Fragen — entschieden
 
 Vier Fragen, die den Zuschnitt ändern und nicht die Umsetzung. Ausformuliert am
@@ -1090,6 +1202,157 @@ entschieden.**
 Begründungen bleiben stehen, weil eine Entscheidung ohne ihren Grund beim
 nächsten Anlass neu verhandelt wird — und weil zwei von ihnen einen Einwand
 enthalten, den man kennen muss, wenn man sie später ändern will.
+
+---
+
+### 2.3m Die Rollenteilung, gebaut (27. August 2026)
+
+Die Messung aus §2.3l hat gehalten: **zwei Routen, zwei Stellen im Payload,
+sieben Bedienelemente.** Es war kein Umbau.
+
+**Neu ist `inspect-server`** — die dritte Adminfähigkeit. `GET /updates` und
+`POST /updates/refresh` hängen daran; die vier ändernden Griffe bleiben auf
+`operate-server`. Die Voreinstellung von `AdminAbility` ist weiterhin der
+Betreiber, der Fehler fällt also zur sicheren Seite.
+
+**Aus dem Payload fallen zwei Stellen**, beide als `null` und nicht als leerer
+Wert:
+
+> **Ein leerer Wert sagt „nichts gefunden". Ein fehlender sagt „nicht deine
+> Frage". Das ist nicht dasselbe.**
+
+Vier Stellen der Seite lesen `key`; ein leeres `keys` liesse drei davon
+weiterlaufen und „—" zeigen. `null` zwingt ausserdem `vue-tsc`, jede Fundstelle
+zu nennen — es waren zehn, und die zehnte war der `RebootButton`.
+
+**Verschwinden tut die ganze Spalte und nicht ihr Inhalt** — dieselbe
+Begründung eine Ebene höher. Dasselbe für die Auswahlspalte der Paketliste: Sie
+speist ausschliesslich den Knopf „n ausgewählte installieren".
+
+**Und oben auf der Seite steht ein Satz, warum nichts geht.** `docs/46 §4`
+Kriterium 5 („ein fehlendes Bedienelement ist keine Auskunft") galt bisher je
+Zeile; hier gilt er für eine ganze Rolle. Er steht **einmal** und nicht bei
+jedem Griff — die Grenze ist keine Eigenschaft der einzelnen Handlung.
+
+#### Der Fund: der Zustand stimmte, und nichts hielt ihn
+
+`AbilityReachTest` erreicht diese Seite nicht (siehe die Berichtigung in
+§2.3l). Damit war der erste Fall der neuen Art — eine Seite, die sich unter
+einer schwächeren Fähigkeit öffnet — von keinem Wächter gedeckt.
+
+> **Ein Zustand, der stimmt und den nichts hält, ist von einem, der nicht
+> stimmt, nur durch Glück getrennt.**
+
+Drei Wächter schliessen das:
+
+| Wächter | hält | Art |
+|---|---|---|
+| `OperatorControlTest` | ein Griff zu einer strengeren Route steht in einem `v-if` auf ihre Fähigkeit | Vorlage, framework-frei |
+| `InspectOnlyTest` | vier Griffe geben dem Administrator 403 und dem Betreiber nicht; `refresh` gibt beiden auf | Wirkung an der Tür |
+| `SourceKeyFilterTest` | der Filter rechnet richtig, wird gerufen, und der Agent bekommt kein Feld ohne Entscheidung | Rechnung und Erreichbarkeit |
+
+`OperatorControlTest` liest die Zuordnung Fähigkeit → Wächtervariable **aus der
+Seite selbst**; eine Liste im Test wäre die zweite Fassung. Die Vorlage liest er
+mit einem Stapel und nicht rückwärts: Vorwärts ist jedes offene Element bekannt,
+wenn die Fundstelle kommt.
+
+`InspectOnlyTest` misst „nicht 403" und nicht „200" — diese Griffe brauchen
+einen Rumpf und einen Agenten, und ein Test, der Erfolg verlangte, prüfte den
+Agenten statt der Tür.
+
+#### Und ein Wächter, dem seine Hälfte fehlte
+
+`SourceKeyFilterTest` blieb **grün**, als der Aufruf des Filters in `read()`
+gestrichen wurde. Er mass die Methode und nicht ihre Erreichbarkeit — dieselbe
+Lücke wie bei dem Wächter aus P6, der einen Satz im Quelltext fand statt seiner
+Erreichbarkeit.
+
+> **Ein Wächter über eine Methode sagt nichts darüber, dass jemand sie ruft.**
+
+Sein Wert liegt ohnehin woanders: Er liest die Felder eines Eintrags aus
+`SystemSourcesList` und wird rot, sobald der Agent eines dazubekommt.
+
+> **Ein Filter über eine Liste, die wächst, ist eine Zusage über den Stand von
+> heute.**
+
+Sieben Eingriffe stehen in `tests/waechter-brechen.sh`.
+
+---
+
+### 2.3n Die Bilderrunde dazu (27. August 2026)
+
+Gefahren im Container gegen echte Daten: **141 aktualisierbare Pakete, davon
+118 Sicherheit, fünf Quelldateien.** Acht Lagen — zwei Rollen × 390/1440 px ×
+hell/dunkel —, gemessen mit `tests/bilder-messen.js`.
+
+**Der Betreiber ist die Gegenprobe und nicht die Zugabe.** „Drei Spalten
+weniger" sagt nichts, solange niemand gemessen hat, wie viele es vorher waren.
+
+| | Administrator | Betreiber |
+|---|---|---|
+| Paketliste | 4 Spalten | 5 |
+| Quellentabelle | 4 Spalten | 7 |
+| Automatik | 2 Spalten | 2 |
+| Kästchen | 0 | 21 |
+| Knöpfe | 4 | 9 |
+| Seitenhöhe bei 390 px | **7556 px** | 9496 px |
+| Seitenhöhe bei 1440 px | 2554 px | 2731 px |
+
+**Zwei Zahlen in diesem Dokument und im Änderungsprotokoll waren falsch, und
+zwar beide aus dem Kopf geschrieben.** Es sind **vier** Spalten und nicht drei
+(eine in der Paketliste, drei in der Quellentabelle), und **fünf** Knöpfe plus
+21 Kästchen und nicht „sieben Griffe".
+
+> **Eine Zahl, die man nicht gemessen hat, ist eine Schätzung mit dem Aussehen
+> einer Messung.**
+
+**Der eigentliche Befund ist die Höhe.** Bei 390 px ist die Seite des
+Administrators **1940 px kürzer** — gut zwei Telefonbildschirme weniger
+Rollen. `.stacks` stapelt je Zelle, eine Spalte weniger ist also eine Zeile
+weniger je Kärtchen; und die Fingerabdruckzelle trägt vierzig Hexziffern je
+Schlüssel. Dasselbe Verhältnis wie bei der Baumansicht aus `docs/46 §11.1`:
+
+> **Der Schnitt löst kein Navigationsproblem. Er löst ein Telefonproblem.**
+
+**Der waagerechte Überlauf ist in allen acht Lagen 0 px**, die Gegenprobe
+schlägt in allen acht mit `200/200` aus, und die Umstellung des Themas ist
+nicht geglaubt, sondern gemessen: Grund `rgb(255,255,255)` → `rgb(15,17,22)`,
+Text `rgb(58,63,73)` → `rgb(196,201,212)`.
+
+> **Eine Umstellung, die der Prüfling nicht liest, hat nichts umgestellt — und
+> das Bild daneben sieht aus wie ein Ergebnis.**
+
+Der eine Eintrag in `schiebt` ist keiner: `.account b` in der Seitenleiste
+schneidet mit Ellipse, und `overflow: hidden` erzeugt immer
+`scrollWidth > clientWidth`. Das Messmittel nennt das Gewollte mit, und das
+steht in seinem Kopf so.
+
+#### Der Fund stand im Bild und in keiner Zahl
+
+Bei 390 px las die Quellentabelle „Eintra" und darunter „g 1". Die Zelle
+„Datei" trägt einen Pfad — der braucht `overflow-wrap: anywhere`, weil er kein
+Leerzeichen hat — und daneben ein `<span class="quiet">· Eintrag 1</span>`.
+Der Umbruch vererbte sich.
+
+> **Ein Format, das für Bezeichner reicht, reicht nicht für Werte.**
+
+Das ist der vierte Fall dieses Satzes nach `psql -A -t`, `td .ident` und der
+Zeilentabelle des Datenbankmanagements. Ausgezählt betraf er **sechs Stellen
+auf drei Seiten** — „kommt neu dazu", „keine", „· Eintrag n", „· binär" —, also
+fehlte eine Stelle und nicht sechs Korrekturen. Die Antwort ist eine Regel in
+`app.css`; `MobileLayoutTest::test_a_quiet_note_beside_an_identifier_breaks_between_words`
+rechnet die Kaskade nach, und zwei Eingriffe brechen sie in beide Richtungen.
+
+`break-word` und nicht `normal`: Ein Wort, das allein nicht in die Zeile passt,
+muss weiter brechen dürfen, sonst wird aus einem Lesefehler ein Überlauf.
+
+**Was der Container nicht liefern konnte, und wie:** `system.packages.list`
+geht über `systemd-run`, damit Simulation und Einspielen von Bauart wegen
+denselben Weg nehmen — hier läuft kein systemd als PID 1, und die Frage ist zu
+Recht unbeantwortbar. Der Agent hat für diesen Lauf eine Attrappe in einer
+**eigenen Mount-Namespace** bekommen; ausserhalb ist `/usr/bin/systemd-run`
+unverändert. Gemessen wird die **Lage der Seite**, und die hängt nicht daran,
+woher die Zahlen kommen.
 
 ### Frage 1 — Darf das Panel eine fremde Paketquelle hinzufügen?
 
@@ -1437,11 +1700,11 @@ CI.
 | 3 | ~~`system.packages.list` mit dem Leser und `InstLineTest`~~ **erledigt am 26. August 2026** | ✔ Über drei Läufe gegen die Kommandozeile gemessen (`dist-upgrade` ganz, mit Sperrmarkierung, gemischt mit `Remv` und Neuinstallation): alle fünf Zahlen gleich, und **jeder** Zähler mindestens einmal ungleich null |
 | 4 | ~~`system.sources.list` über `indextargets` **und** die Dateien~~ **erledigt am 26. August 2026** | ✔ `ubuntu.sources:1` auf `Enabled: no` — der Eintrag steht weiter in den Dateien (`AUS`, 0 Ziele), die Ziele fallen von 16 auf 4 für diese Datei, und `:2` behält Nummer **und** Ziele. Dazu die dritte Lage: zwei eingeschaltete Quellen ohne Ziel (PPAs, 403 am Proxy)  **4b am selben Tag nachgezogen:** Fingerabdruck und Ablauf je Schlüssel — sie standen in der Beschreibung der Operation und fehlten im „fertig, wenn“. Damit ist Abnahmepunkt 4 gebaut. |
 | 5 | ~~Die Seite, beide Themes, 390 px gemessen~~ **erledigt am 26. August 2026** | ✔ Vier Lagen gegen die **echte** Seite mit laufendem Agenten: `dokument=0`, Gegenprobe 200/200, `schiebt=0`. Und ein Befund, den diese Messung nicht sieht — siehe §2.3c |
-| 6 | ~~`system.packages.upgrade` über `systemd-run`; dazu **Teil 3 von M5**~~ **gebaut am 26. August 2026** | ✔ `system.packages.refresh` und `system.packages.upgrade` (`all` · `security` · benannte), beide über `AptLock`; der Lauf geht als transiente Unit an `packaging/bin/apt-run`, und **das Skript zählt vorher und nachher** — vier Ausgänge gegen echtes apt gemessen (§2.3g).  ✔ **Teil 3 von M5**: `panel.update` läuft jetzt über dasselbe Skript im Modus `panel` und vergleicht die installierte Fassung statt eines Rückgabewerts; die Ausnahme in `AptResultTest` ist fort.  ✔ `PackageNameTest` grün, fünf Brüche, alle beissend. **Abgenommen ist er nicht** — die drei Punkte aus §2.3h gehören auf einen echten Server |
+| 6 | ~~`system.packages.upgrade` über `systemd-run`; dazu **Teil 3 von M5**~~ **gebaut am 26. August 2026** | ✔ `system.packages.refresh` und `system.packages.upgrade` (`all` · `security` · benannte), beide über `AptLock`; der Lauf geht als transiente Unit an `packaging/bin/apt-run`, und **das Skript zählt vorher und nachher** — vier Ausgänge gegen echtes apt gemessen (§2.3g).  ✔ **Teil 3 von M5**: `panel.update` läuft jetzt über dasselbe Skript im Modus `panel` und vergleicht die installierte Fassung statt eines Rückgabewerts; die Ausnahme in `AptResultTest` ist fort.  ✔ `PackageNameTest` grün, fünf Brüche, alle beissend.  ✔ **Auf einem echten Server nachgeholt am 27. August** (Schritt 10): von den drei Punkten aus §2.3h ist Punkt 2 beantwortet und Punkt 3 gemessen; **Punkt 1 — die Dauer über 142 Pakete — bleibt offen**, dieser Lauf hatte sechs und fünf |
 | 7 | ~~`system.sources.toggle` und der Neustart-Knopf~~ **erledigt am 26. August 2026** | ✔ **Die Quelle**: `SourceOwnershipTest` grün, sechs Brüche, alle beissend; gemessen durch echtes apt — 16 → 5 → 16 Ziele, und der Rückweg belegt: bei kaputtem apt kommt die Datei byte-identisch zurück.  ✔ **Der Neustart**: `system.reboot` setzt einen Zeitgeber über `systemd-run` ab, statt `systemctl reboot` im eigenen Prozess zu rufen; die Messrunde dazu steht in §2.3e, der Durchstich in §2.3f. `RebootConfirmTest` grün, sechs Brüche, alle beissend. **Offen und benannt:** dass die transiente Unit den Neustart überlebt, ist hier nicht messbar (§2.3e, letzter Absatz) |
 | 8 | ~~`unattended-upgrades` — Zustand aus `apt-config dump`, Schalter~~ **gebaut am 26. August 2026** | ✔ Der Zustand kommt aus `apt-config dump` und hat fünf Teile (Paket, Hauptschalter, zwei Abstände, Zeitgeber); `system.packages.unattended` schreibt ein Fragment und **liest nach**, ob es angekommen ist.  ✔ **Der fremde Schreiber ist der Normalfall, nicht der Sonderfall**: In diesem Container setzt `docker-disable-periodic-update` den Hauptschalter auf `0`, während `20auto-upgrades` beide Teilschalter auf `1` sagt (§2.3i).  ✔ `UnattendedStateTest` grün, acht Brüche, alle beissend |
 | 9 | ~~Die Wächter brechen, voller Lauf von `tests/waechter-brechen.sh`~~ **erledigt am 26. August 2026** | ✔ **1524 Prüfungen, `FEHLT: 0`, „Alle Wächter beissen."** — und nach den beiden neuen Eingriffen zu `ShellCheckReachTest` ein zweites Mal mit **1527, `FEHLT: 0`**. Der Baum davor und danach ist beide Male derselbe.  ✔ Die drei Brüche, die das Skript nicht fahren kann (`BreakScriptTest`, `ChangelogTest` in beiden Richtungen), von Hand gefahren und jeder rot mit seiner eigenen Meldung.  ✔ Der Befund des Laufs steckte nicht in einem Eingriff, sondern in der Umgebung: `AI_AGENT` und `CLAUDECODE` verpacken die Ausgabe von PHPUnit als JSON, und damit war **jede** Prüfung „unlesbar" (§2.3j) |
-| 10 | ~~Der Abnahmelauf auf `cloudsrv24`~~ **gefahren am 27. August 2026**, Protokoll `docs/86-protokoll-abnahmelauf-a1.md` | ✔ **Alle fünfzehn Punkte gefahren.** Die zwei Ausfälle sind genau die zugelassenen (4 ohne ablaufenden Schlüssel, 2 ohne Neuinstallation im Bestand).  ✔ **Punkt 5 ist nicht ausgefallen**, sondern zweifach auf unabhängigen Wegen belegt — postinst und `needrestart`.  ✔ Die drei Dinge aus §2.3h: Punkt 2 beantwortet, Punkt 3 gemessen; **Punkt 1 bleibt offen** — die Dauer über 142 Pakete, dieser Lauf hatte sechs und fünf.  ✔ Ein Befund am Code (13), im Lauf gebaut und als `0.7.2-rc.4` ausgeliefert. **Die Abnahme selbst ist eine Entscheidung des Betreibers und steht aus**; was ihr gegenübersteht, zählt `docs/86 §5` auf |
+| 10 | ~~Der Abnahmelauf auf `cloudsrv24`~~ **gefahren am 27. August 2026**, Protokoll `docs/86-protokoll-abnahmelauf-a1.md` | ✔ **Alle fünfzehn Punkte gefahren.** Die zwei Ausfälle sind genau die zugelassenen (4 ohne ablaufenden Schlüssel, 2 ohne Neuinstallation im Bestand).  ✔ **Punkt 5 ist nicht ausgefallen**, sondern zweifach auf unabhängigen Wegen belegt — postinst und `needrestart`.  ✔ Die drei Dinge aus §2.3h: Punkt 2 beantwortet, Punkt 3 gemessen; **Punkt 1 bleibt offen** — die Dauer über 142 Pakete, dieser Lauf hatte sechs und fünf.  ✔ Ein Befund am Code (13), im Lauf gebaut und als `0.7.2-rc.4` ausgeliefert.  ✔ **Abgenommen am 28. August 2026** durch den Betreiber (`docs/86 §6`), mit den sechs Resten aus `docs/86 §5` als benannt offen |
 
 **Schritt 0 und Schritt 1 kommen vor allem anderen.** Schritt 1 ist ein Befund
 an bestehendem Code und wartet nicht auf ein neues Merkmal.
@@ -1804,8 +2067,19 @@ Wochen**.
 
 **Vorschlag zur Teilung** — eine Änderung an `docs/20`, und die trifft der
 Betreiber, nicht dieses Dokument. _Überholt: §12.1 darunter trägt, was
-entschieden wurde. Die Tabelle bleibt als Zuschnitt richtig — welche Vorschläge
-zusammengehören und was sie kosten —, nur ihre Namen nicht._
+entschieden wurde._
+
+> **Diese Tabelle ist seit dem 28. August 2026 auch im Zuschnitt überholt und
+> nicht mehr nur in den Namen.** A9 ist am 24. August nach P7b gezogen, A7 stand
+> längst in P9 — von „P9c Absicherung" bleiben A3 und A4.
+>
+> **Und ihr Name „P9b" ist heute vergeben, an etwas anderes.** Er gehört seit
+> dem 28. August der Absicherung; „Kundenfähigkeit" ist nie entstanden, weil P9
+> ungeteilt blieb. Wer hier liest, liest einen Vorschlag von damals und nicht
+> den Plan.
+>
+> **Ein Name, der in einem überholten Vorschlag steht, wird nicht frei — er
+> wird zweideutig.**
 
 | Stufe | Inhalt | Dauer |
 |---|---|---|
@@ -1836,14 +2110,32 @@ Serververwaltungssatz in P9 zeigt dorthin statt ihn ein zweites Mal zu führen.
 
 | Stufe | Inhalt | Wann |
 |---|---|---|
-| **P7b — Serververwaltung** | A5, A2, A10, A1, A11, A6 | **entschieden**, vor P8 |
+| **P7b — Serververwaltung** | A5, A2, A10, A1, A11, A6, A8, A3 (erster Wurf) | **entschieden**, vor P8 |
 | **P8** | Sicherungen und Wiederherstellung | unverändert |
-| **P9** | Kundenfähigkeit nach `docs/20 §9`, **ohne** den Serververwaltungssatz | unverändert |
-| _(ohne Stufe)_ | A3, A4, A7 — Firewall, Fail2ban, Schwellen | **offen**, Vorschlag: eigene Stufe nach P9 |
+| **P9** | Kundenfähigkeit nach `docs/20 §9`, **ohne** den Serververwaltungssatz — **A7 steht darin** | unverändert |
+| **P9b — Absicherung des Servers** | A3 (zweiter Wurf), A4 | **entschieden am 28. August 2026**, zwischen P9 und P10 |
 
-**Drei der vier absichernden Vorschläge haben weiterhin keinen Ort.** Sie
-stehen in `docs/20 §9` unter P7b als „hat noch keine Stufe" — benannt und ohne
-Stufe, statt stillschweigend irgendwohin geschoben.
+**Am 28. August 2026 hat alles einen Ort bekommen — und dabei fiel ein
+Widerspruch heraus.** Hier stand, **drei** absichernde Vorschläge hätten keinen,
+und **A7** war der dritte. Das war falsch: `docs/20 §9` führt A7 in der
+Aufzählung von P9 („Ressourcenüberwachung des Servers, Schwellen,
+Benachrichtigungen (E-Mail, Webhook)") und nennt sechzig Zeilen weiter in
+derselben Datei nur „Firewall und Fail2ban" als ohne Stufe. Diese Tabelle und
+`CLAUDE.md` hatten die Drei-Version übernommen.
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.**
+
+**A3 ist geteilt, und zwar dort, wo `docs/80` ihn schon teilt.** Der erste Wurf
+ist reine Anzeige und gehört nach P7b: Seit P5b öffnet das Panel 3306 und 5432
+und sagt in der Oberfläche, die Firewall sei nicht seine Sache — es öffnet also
+einen Port und kann nicht sagen, ob er erreichbar ist. Der zweite Wurf schreibt
+und kann aussperren; er steht in P9b.
+
+**Warum P9b vor P10 liegt und nicht darin:** P10 enthält den vollständigen
+Angriffsdurchgang und den externen Sicherheits-Review.
+
+> **Eine Härtungsstufe, die selbst noch baut, prüft ihr eigenes Werk.**
 
 **A9 ist am 24. August daraus herausgelöst und in P7b vorgezogen worden**, an
 die zweite Stelle nach A5. Der Grund ist der Satz aus §11 selbst: Wer eine

@@ -21,12 +21,24 @@ DNS.
 Protokoll **`docs/84`**. Im selben Lauf sind **A1 Schritt 1** (Punkt 11, M5 auf
 einem echten Server) und **A5** (Punkt 12) belegt.
 
-**Der Abnahmelauf von A1 ist am 27. August 2026 gefahren** — auf `cloudsrv24`
-gegen `0.7.2-rc.3`, alle fünfzehn Punkte aus `docs/85`, das Protokoll ist
-**`docs/86`**. Die beiden Ausfälle sind genau die, die `docs/85 §6` zulässt
-(Punkt 4 ohne ablaufenden Schlüssel, Punkt 2 ohne Neuinstallation im Bestand).
-**Die Abnahme selbst ist eine Entscheidung des Betreibers und steht aus**; was
-ihr gegenübersteht, zählt `docs/86 §5` auf.
+**A1 ist am 28. August 2026 abgenommen** — der Lauf war am 27. August auf
+`cloudsrv24` gegen `0.7.2-rc.3`, alle fünfzehn Punkte aus `docs/85`, das
+Protokoll ist **`docs/86`**, die Abnahme selbst steht in dessen §6. Die beiden
+Ausfälle sind genau die, die `docs/85 §6` zulässt (Punkt 4 ohne ablaufenden
+Schlüssel, Punkt 2 ohne Neuinstallation im Bestand).
+
+**Sechs Reste bleiben benannt offen und sind kein Kriterienausfall**
+(`docs/86 §5`). Der grösste ist eine Familie und keine drei Einzelfälle:
+
+> **Ein Vorgang, der nur meldet, dass er abgesetzt wurde, sagt über den Ausgang
+> dessen, was er abgesetzt hat, nichts — und `fertig` liest sich wie das
+> Gegenteil.**
+
+Sie trifft `PanelUpdate`, `SystemPackagesUpgrade` und `SystemReboot`; **keine
+der drei übergibt `--wait`, und das ist tragend** — Punkt 5 gibt es genau
+deshalb, dass der Lauf den Neustart des Panels überlebt. Die Behebung ist
+deshalb keine Fahne, sondern eine Nachlese, die den Ausgang der transienten
+Unit später einträgt.
 
 **Punkt 5 ist der Grund, dass es diesen Lauf gab, und er ist zweifach belegt.**
 Dass eine transiente Unit den Neustart von `srvpanel-worker` überlebt, wenn
@@ -39,9 +51,12 @@ zusätzlich den Agenten.
 > **Ein Beleg, der zweimal auf verschiedenen Wegen entsteht, ist keine
 > Wiederholung — der zweite schliesst aus, dass der erste an seinem Weg hing.**
 
-Ebenfalls offen und benannt: die **Rollenteilung** aus `docs/81 §3` Frage 2 (die
-Updates-Seite gehört ganz dem Betreiber, `docs/81 §2.3h`); A3, A4 und A7 haben
-weiterhin keine Stufe. Die sechzehn Befunde und sechs Beobachtungen des
+Die **Rollenteilung** aus `docs/81 §3` Frage 2 ist am **27. August 2026 gebaut**
+(`docs/81 §2.3m`): Die Updates-Seite gehört jetzt beiden — der Administrator
+sieht über `inspect-server`, gedreht wird über `operate-server`. **Die
+Bilderrunde dazu ist gefahren** (`docs/81 §2.3n`): acht Lagen, Überlauf 0 px,
+Gegenprobe 200/200 — und bei 390 px ist die Ansicht des Administrators
+**1940 px kürzer**. **Seit dem 28. August hat jeder Vorschlag einen Ort** — A8 und A3s erster Wurf in P7b, A3s zweiter und A4 in der neuen Stufe **P9b** vor P10, A7 stand längst in P9. Die sechzehn Befunde und sechs Beobachtungen des
 A9-Laufs stehen mit ihrer Baureihenfolge in `docs/84 §7`.
 
  P6 ist am **21. August 2026** auf `cloudsrv24`
@@ -816,8 +831,23 @@ Bruch hat dabei ein Loch in ihm selbst gefunden — der Ausdruck kannte
 > **Ein Wächter, der nur die gewohnte Schreibweise kennt, prüft die Gewohnheit
 > und nicht die Regel.**
 
-**Offen bleibt, wohin A3, A4 und A7 gehören** — Firewall, Fail2ban, Schwellen.
-Sie stehen in `docs/20 §9` unter P7b als „hat noch keine Stufe".
+**Seit dem 28. August 2026 hat jeder Vorschlag einen Ort** (`docs/81 §12.1`).
+**A7 hatte ihn längst** — er steht in der Aufzählung von P9 als
+„Ressourcenüberwachung des Servers, Schwellen, Benachrichtigungen"; dass er
+unter P7b als „hat noch keine Stufe" geführt wurde, war ein Widerspruch im
+selben Dokument, das sechzig Zeilen weiter nur „Firewall und Fail2ban" nennt.
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.**
+
+**A3 ist geteilt:** der erste Wurf (nur Anzeige — welche Ports lauschen) nach
+P7b, weil das Panel seit P5b 3306 und 5432 öffnet und nicht sagen kann, ob sie
+erreichbar sind; der zweite Wurf und **A4** in die neue Stufe **P9b**, zwischen
+P9 und P10.
+
+> **Eine Härtungsstufe, die selbst noch baut, prüft ihr eigenes Werk.** P10
+> enthält den Angriffsdurchgang und den externen Review — was dort entsteht,
+> wird von dem Durchgang begutachtet, der es hätte prüfen sollen.
 
 Der Plan ist **`docs/81`** (A1 vollständig, die übrigen als Skizze), die
 Bestandsaufnahme **`docs/80`**, die Übergabe **`docs/79`**.
@@ -1271,7 +1301,16 @@ deklariert einen Namen, der der Basisklasse gehört — er spiegelt deren
 `<style>`-Block einer `.vue` steht auf oberster Ebene und nicht im
 Vorlagenblock, wo der Übersetzer ihn wegwirft — die Regel, die
 `ClassReachTest` nicht halten konnte, weil er eine Zeichenkette suchte statt
-eines Blocks) und `ShellCheckReachTest` (jedes Shellskript unter `packaging/` kommt bei
+eines Blocks) und `OperatorControlTest` (ein Bedienelement, dessen Route strenger ist als die
+Seite selbst, steht in einem `v-if` auf ihre Fähigkeit — die Zuordnung
+Fähigkeit → Wächtervariable kommt aus der Seite und nicht aus einer Liste im
+Test, und die Vorlage wird mit einem Stapel gelesen statt rückwärts),
+`InspectOnlyTest` (dieselbe Grenze an der Tür: vier Griffe geben dem
+Administrator 403 und dem Betreiber nicht — gemessen wird „nicht 403" und nicht
+„200", sonst prüfte er den Agenten statt der Tür) und `SourceKeyFilterTest`
+(der Schlüsselfilter rechnet richtig, **wird gerufen**, und der Agent bekommt
+kein Feld dazu, ohne dass jemand entscheidet, ob der Administrator es sehen
+darf) und `ShellCheckReachTest` (jedes Shellskript unter `packaging/` kommt bei
 shellcheck vorbei, **und** jeder Pfad, den der Schritt nennt, deckt auch etwas —
 die zweite Richtung ist die, an der ein toter Eintrag wirklich entsteht) und
 `RebootConfirmTest` (der Neustart wird über `systemd-run`
@@ -1590,10 +1629,11 @@ Dass eine transiente Unit den Neustart von `srvpanel-worker` überlebt, wenn
 hatte es nur der eigene Gebrauch. §5 sagt, was der Lauf ausdrücklich nicht prüft,
 §6, welche zwei Punkte als „nicht messbar" ausfallen dürfen und welcher nicht, §7
 was danach zu bauen bleibt — und **`86` das Protokoll dazu**: die fünfzehn Punkte
-mit ihren gemessenen Werten, vierzehn Befunde und siebzehn Beobachtungen, und in
-**§5** die Bilanz mit dem, was zwischen „gemessen" und „abgenommen" steht. Darin
-eine Familie, die als drei Einzelfälle dastand: Ein Vorgang, der einen Lauf nur
-**absetzt**, meldet `fertig` und sagt über dessen Ausgang nichts. · **`80` die Bestandsaufnahme** · **`81` der Plan** (A1 vollständig,
+mit ihren gemessenen Werten, vierzehn Befunde und siebzehn Beobachtungen, in
+**§5** die Bilanz mit den sechs Resten und in **§6 die Abnahme vom 28. August
+2026** samt der Begründung, warum die Familie sie nicht aufhält. Diese Familie
+stand als drei Einzelfälle da: Ein Vorgang, der einen Lauf nur **absetzt**,
+meldet `fertig` und sagt über dessen Ausgang nichts. · **`80` die Bestandsaufnahme** · **`81` der Plan** (A1 vollständig,
 die übrigen als Skizze) · **`82` Rollen und Konten** — der Plan von A9, mit den
 zwei Achsen, dem Aussperrschutz und der Netzbeschränkung; §2.4 ist einmal
 berichtigt worden, weil er eine Passworterzeugung auf dem Server vorsah, die
@@ -2301,6 +2341,28 @@ Testen berücksichtigen:
     > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als
     > Null steht.**
 
+    **Und die Gegenprobe genügt nicht — gemessen am 27. August 2026.** In einer
+    Agentensitzung gibt PHPStan seinen ganzen Bericht als **eine** Zeile JSON
+    aus. Ein `grep -v 'not found'` darüber löscht dann nicht die Zeilen, die es
+    meint, sondern **den Bericht**; „nach dem Filter steht nichts mehr da" las
+    sich wie „sauber" und war „nichts gemessen". Zwei echte Meldungen über
+    fehlende Typangaben standen darin.
+
+    > **Ein Filter über eine einzeilige Ausgabe löscht nicht eine Zeile,
+    > sondern alles.**
+
+    Die Gegenprobe hat das nicht gefangen: Sie lief über eine Datei, deren
+    Bericht das gefilterte Wort zufällig nicht enthielt — der Filter schlug
+    also gar nicht zu, und die Zeile kam durch.
+
+    > **Eine Gegenprobe, die den Fall nicht enthält, in dem der Filter
+    > zuschlägt, belegt den Filter nicht.**
+
+    Gefiltert wird deshalb **nach dem Zerlegen** und nicht davor: `json.loads`
+    auf die Ausgabe, dann je Meldung über `identifier` entscheiden. Dann ist
+    „leer" auch wirklich leer, und ein `LEER` ohne Zerlegen ist eine Frage und
+    kein Ergebnis.
+
     **Und `tests/Support/` gehört in denselben Lauf wie `agent/src`.** Die
     Testdoppel dort hängen am Agenten und nicht am Framework, also läuft Stufe 6
     auch über sie sauber durch. Wer das trennt, sieht die teuerste Meldung
@@ -2522,6 +2584,47 @@ Testen berücksichtigen:
   Lauf beim Laden, bevor irgendein Wächter rot werden kann. Gebrochen werden
   deshalb seine Teile: der Anker des Ausdrucks, die Aufzählung der Dateien und
   die Spiegelung der Basisklasse.
+- **Eine Seite mit echten Daten aufzunehmen braucht drei Dinge, und eines
+  fehlt hier.** Gemessen am 27. August 2026 für die Bilderrunde der
+  Rollenteilung: Der Agent läuft (siehe oben), `artisan serve` läuft, und
+  `/usr/lib/srvpanel/apt-run` muss aus `packaging/bin` dorthin installiert
+  sein — der Pfad steht absolut in der Positivliste. **Was fehlt, ist systemd
+  als PID 1:** `system.packages.list` geht über `systemd-run`, damit
+  Simulation und Einspielen von Bauart wegen denselben Weg nehmen, und ohne
+  Bus ist die Frage zu Recht unbeantwortbar.
+
+  Der Ausweg ist eine Attrappe in einer **eigenen Mount-Namespace** —
+  `unshare -m bash -c 'mount --bind <attrappe> /usr/bin/systemd-run; exec php
+  agent/bin/srvpanel-agentd serve …'`. Ausserhalb bleibt die echte Datei
+  unangetastet, und gemessen wird ohnehin die **Lage** der Seite und nicht,
+  woher die Zahlen kommen.
+
+  > **Ein Werkzeug, das dem Prüfling fehlt, ersetzt man in seiner Namespace und
+  > nicht im System — sonst misst der nächste Lauf den Ersatz.**
+
+  **Und der Prüfkörper wird hinterher weggeräumt**, `apt-run` eingeschlossen:
+  Genau daran war `SourceOwnershipTest` einen Tag zuvor in der CI rot und hier
+  grün.
+- **Playwright ist nicht installiert, Chromium schon.**
+  `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install --no-save playwright` holt
+  es in neun Sekunden; der ausführbare Pfad ist `/opt/pw-browsers/chromium`
+  **selbst** und nicht `…/chromium/chrome-linux/chrome` — der Name ist ein
+  Symlink auf die Binärdatei. Liegt das Aufnahmeskript im Scratchpad, löst
+  node `playwright` von dort auf und findet nichts: Der Import braucht den
+  absoluten Pfad.
+- **Die Anmeldung geht über zwei Seiten und nicht über eine.** Das Panel
+  verlangt den zweiten Faktor; er sitzt auf `/two-factor` im Feld `name="code"`
+  und **nicht** im Anmeldeformular. Gewartet wird auf dieses Feld und nicht auf
+  eine Adresse: Inertia navigiert über die History-API, und `waitForURL`
+  wartet auf ein `load`, das dabei nie kommt.
+
+  > **Eine Wartebedingung, die auf ein Ereignis zeigt, das der Prüfling nicht
+  > auslöst, läuft in die Zeitüberschreitung und sieht aus wie ein Fehler am
+  > Prüfling.**
+
+  Der Code wird **im Moment der Eingabe** geholt (`Totp::codeAt($secret,
+  intdiv(time(), Totp::PERIOD))`), nicht vorher — und `two_factor_last_step`
+  vor jedem Lauf auf `null`, sonst lehnt der zweite Lauf denselben Schritt ab.
 - **Der Hostname ist kurz.** `php_uname('n')` liefert nicht den vollen Namen —
   dafür gibt es `SrvPanel\Agent\Names::fqdn()` (oder `host()`, wenn ein Name
   gebraucht wird und `null` nicht taugt), und die ist die *einzige* Stelle, die

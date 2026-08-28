@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3'
+import { Head, router, usePage } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Section from '../../Components/Section.vue'
@@ -43,12 +43,18 @@ interface Entry {
   suites: string
   components: string
   owned: boolean
+  /**
+   * `null` heisst „nicht deine Frage" — der Administrator bekommt die
+   * Schlüssel gar nicht erst geschickt ({@link UpdatesController::read}).
+   * Ein leeres `keys` wäre eine Aussage über den Schlüssel; hier wird keine
+   * gemacht.
+   */
   key: {
     kind: string
     path: string | null
     readable: boolean
     keys: { fingerprint: string | null; uid: string | null; expires: number | null; state: string }[]
-  }
+  } | null
 }
 
 const props = defineProps<{
@@ -92,8 +98,31 @@ const props = defineProps<{
   errors: Record<string, string>
 
   /** Der Rechnername zum Bestätigen und die Wartezeit — {@see ServerController::prompt()}. */
-  reboot: { hostname: string; delay: number }
+  /**
+   * `null` für den Administrator: `/server/reboot` gehört dem Betreiber,
+   * also erscheint der Knopf gar nicht erst — und was nur er braucht,
+   * geht mit ihm.
+   */
+  reboot: { hostname: string; delay: number } | null
 }>()
+
+/**
+ * Darf der Betrachter am Server drehen?
+ *
+ * **Gefragt wird die geteilte Ablage `abilities` und nicht `can`** — `can`
+ * gehört den Seiten, die eine eigene über ihr Objekt schicken, und ein
+ * Seitenwert überschreibt den geteilten (`docs/82` Schritt 5).
+ *
+ * Diese Seite hat seit dem 27. August 2026 zwei Leser: Der Administrator
+ * sieht sie über `inspect-server`, drehen darf nur der Betreiber. Was er
+ * nicht drücken darf, wird gar nicht erst gezeigt — `AbilityReachTest`
+ * verlangt beide Richtungen, und ein Knopf, der einen 403 einbringt, ist
+ * keine Auskunft, sondern eine Sackgasse.
+ */
+const page = usePage()
+const darfSchalten = computed(
+  (): boolean => ((page.props.abilities ?? {}) as Record<string, boolean>)['operate-server'] === true,
+)
 
 /*
  * **Die Kacheln stehen auch dann da, wenn sie null sagen.** Eine Reihe, deren
@@ -289,8 +318,14 @@ function schalten(datei: string, eintrag: Entry): void {
   })
 }
 
-/** Woher der Schlüssel kommt — als Satz und nicht als Kennung. */
+/**
+ * Woher der Schlüssel kommt — als Satz und nicht als Kennung.
+ *
+ * Der leere Satz ist kein Fall der Anzeige: Ohne `key` steht die Spalte gar
+ * nicht da, und die Funktion wird nicht gerufen.
+ */
 function schluessel(eintrag: Entry): string {
+  if (eintrag.key === null) return ''
   if (!eintrag.key.readable) return 'nicht lesbar'
   if (eintrag.key.kind === 'path') return eintrag.key.path ?? ''
   if (eintrag.key.kind === 'embedded') return 'in der Datei'
@@ -323,7 +358,7 @@ const faellig = computed(() => {
 
   for (const datei of props.sources?.files ?? []) {
     for (const eintrag of datei.entries) {
-      for (const k of eintrag.key.keys) {
+      for (const k of eintrag.key?.keys ?? []) {
         if (k.state === 'soon' || k.state === 'expired') {
           treffer.push({ datei: datei.path, stanza: eintrag.stanza, state: k.state, uid: k.uid, expires: k.expires })
         }
@@ -337,7 +372,7 @@ const faellig = computed(() => {
 /** Quellen, deren Schlüssel sich nicht lesen liess — etwas anderes als „keiner". */
 const unlesbar = computed(() =>
   (props.sources?.files ?? []).flatMap((datei) =>
-    datei.entries.filter((e) => !e.key.readable).map((e) => `${datei.path}:${e.stanza}`),
+    datei.entries.filter((e) => e.key !== null && !e.key.readable).map((e) => `${datei.path}:${e.stanza}`),
   ),
 )
 
@@ -584,6 +619,25 @@ const neustart = computed(() => {
     </template>
 
     <!--
+      **Ein fehlendes Bedienelement ist keine Auskunft** (`docs/46 §4`,
+      Kriterium 5). Für den Administrator fallen auf dieser Seite sieben
+      Griffe und drei Spalten weg; ohne diesen Satz sähe er eine Seite, auf
+      der nichts geht, und suchte den Fehler bei sich.
+
+      **Er steht einmal oben und nicht bei jedem Griff.** Die Grenze ist keine
+      Eigenschaft der einzelnen Handlung, sondern der Rolle — dieselbe
+      Begründung siebenmal wäre siebenmal dieselbe Auskunft und beim
+      achten Griff vergessen.
+    -->
+    <p v-if="!darfSchalten" class="notice">
+      <span>
+        Sie sehen den Stand dieses Servers. Ändern — installieren, Quellen
+        schalten, die Automatik umstellen, neu starten — ist dem Betreiber
+        vorbehalten.
+      </span>
+    </p>
+
+    <!--
       Kein Zusatz für „steht unter dem Seitenkopf": Das erledigt
       `.page-head + .tiles` in app.css, und eine eigene Klasse dafür wäre
       deren zweite Fassung.
@@ -644,7 +698,11 @@ const neustart = computed(() => {
             > **Vor jedem neuen Merkmal: Wo sucht jemand diese Handlung, und
             > steht sie dort?**
           -->
-          <RebootButton :hostname="props.reboot.hostname" :delay="props.reboot.delay" />
+          <RebootButton
+            v-if="props.reboot"
+            :hostname="props.reboot.hostname"
+            :delay="props.reboot.delay"
+          />
 
           <!--
             **Zurückgehalten und „würde entfernt" stehen als Satz da und nicht
@@ -713,7 +771,7 @@ const neustart = computed(() => {
               Der dritte trägt seine Zahl im Wort: Er ist der einzige, dessen
               Umfang von einer Auswahl abhängt, die man beim Lesen nicht sieht.
             -->
-            <div class="button-row">
+            <div v-if="darfSchalten" class="button-row">
               <button type="button" class="button primary" @click="installieren('all')">
                 Alle installieren
               </button>
@@ -787,7 +845,13 @@ const neustart = computed(() => {
                     Seiten etwas anderes als das, was man vor sich sieht — und
                     dafür gibt es den Knopf „Alle installieren" daneben.
                   -->
-                  <th>
+                  <!--
+                    **Die Auswahl geht mit dem Knopf, für den es sie gibt.**
+                    Sie speist ausschliesslich „n ausgewählte installieren";
+                    ohne den ist ein Kästchen je Zeile eine Handlung, die zu
+                    nichts führt.
+                  -->
+                  <th v-if="darfSchalten">
                     <input
                       type="checkbox"
                       class="check"
@@ -811,7 +875,7 @@ const neustart = computed(() => {
                     ein `<span>` mit Beschriftung mit; beides ist in einer Zelle
                     falsch, in der der Name schon danebensteht.
                   -->
-                  <td data-column="Auswahl">
+                  <td v-if="darfSchalten" data-column="Auswahl">
                     <input
                       type="checkbox"
                       class="check"
@@ -924,9 +988,16 @@ const neustart = computed(() => {
                   <th>Zustand</th>
                   <th>Adresse</th>
                   <th>Suiten</th>
-                  <th>Schlüssel</th>
-                  <th>Fingerabdruck</th>
-                  <th>Schalten</th>
+                  <!--
+                    **Die ganze Spalte fällt weg und nicht ihr Inhalt**
+                    (`docs/81 §3` Frage 2). Ein „—" in einer Zelle behauptet,
+                    es sei nachgesehen worden und nichts gefunden; hier ist
+                    gar nicht gefragt worden. Dasselbe gilt für „Schalten": Ein
+                    leeres Feld neben jeder Zeile liest sich wie ein Ausfall.
+                  -->
+                  <th v-if="darfSchalten">Schlüssel</th>
+                  <th v-if="darfSchalten">Fingerabdruck</th>
+                  <th v-if="darfSchalten">Schalten</th>
                 </tr>
               </thead>
 
@@ -961,12 +1032,20 @@ const neustart = computed(() => {
                       Gestaltungssystem vorbei; zwei Spalten sind dieselbe
                       Auskunft ohne eigene Regel.
                     -->
-                    <td data-column="Schlüssel" class="ident">{{ schluessel(eintrag) }}</td>
+                    <td v-if="darfSchalten" data-column="Schlüssel" class="ident">{{ schluessel(eintrag) }}</td>
 
-                    <td data-column="Fingerabdruck" class="ident">
-                      <span v-if="eintrag.key.keys.length === 0" class="quiet">—</span>
+                    <!--
+                      **Dieselbe Bedingung wie an der Kopfzeile und nicht
+                      `eintrag.key`.** Zwei Bedingungen, die heute dasselbe
+                      sagen, sind zwei — und wenn eine von beiden sich ändert,
+                      steht die Tabelle mit ungleich vielen Spalten da. Was
+                      die Zellen zählt, ist `darfSchalten`; dass dahinter ein
+                      Schlüssel liegt, ist eine Zusage des Payloads.
+                    -->
+                    <td v-if="darfSchalten" data-column="Fingerabdruck" class="ident">
+                      <span v-if="(eintrag.key?.keys.length ?? 0) === 0" class="quiet">—</span>
 
-                      <template v-for="k in eintrag.key.keys" :key="k.fingerprint ?? k.uid ?? k.expires ?? 0">
+                      <template v-for="k in eintrag.key?.keys ?? []" :key="k.fingerprint ?? k.uid ?? k.expires ?? 0">
                         <Badge v-if="k.state === 'expired'" kind="critical">abgelaufen</Badge>
                         <Badge v-else-if="k.state === 'soon'" kind="warn">läuft bald ab</Badge>
                         <span class="quiet">{{ abdruck(k.fingerprint) }}</span>
@@ -979,7 +1058,7 @@ const neustart = computed(() => {
                       Auskunft (`docs/46 §4`, Kriterium 5): Wer die Quelle
                       abschalten will, sucht sonst weiter.
                     -->
-                    <td data-column="Schalten">
+                    <td v-if="darfSchalten" data-column="Schalten">
                       <button
                         v-if="eintrag.owned"
                         type="button"
@@ -1065,7 +1144,7 @@ const neustart = computed(() => {
             </span>
           </p>
 
-          <div class="button-row">
+          <div v-if="darfSchalten" class="button-row">
             <button
               v-if="automatik.upgrade_days === 0 || !automatik.enabled || !automatik.installed"
               type="button"

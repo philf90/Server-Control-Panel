@@ -343,6 +343,45 @@ zerrissen, an der eine Zeile überhaupt als Warnung erkennbar ist.
 von dieser Regel kommt oder aus dem gespeicherten Text, ist noch offen — die
 Antwort entscheidet, ob der Fix in `app.css` oder im Weg der Ausgabe steht.
 
+> **Beantwortet am 28. August 2026: der Text, nicht die CSS.**
+>
+> Gemessen gegen den echten `Runner` und echtes apt (`apt-get -q -s
+> dist-upgrade`, 34 001 Bytes), mit der vollständigen Ausgabe desselben Laufs
+> als Gegenprobe — sie geht nicht durch den Rahmenweg:
+>
+>     Zeilen im Ergebnis: 317   (Gegenprobe)
+>     Zeilen im Rahmen:   320
+>     Differenz:          +3
+>
+> > **Eine Messung braucht einen zweiten Weg zum selben Gegenstand, sonst misst
+> > sie sich selbst.**
+>
+> `Runner` liest mit `fread($pipe, 65536)` — Bytes und keine Zeilen. Die alte
+> Schleife machte daraus trotzdem welche:
+>
+>     foreach (explode("\n", rtrim($chunk, "\n")) as $line) { … }
+>
+> `rtrim` schneidet **nur hinten**. Endet ein Stück ohne seinen Umbruch, beginnt
+> das nächste damit, und `explode` liefert eine leere erste Zeile — daher die
+> drei. Fällt die Grenze mitten im Text, wird die Zeile in zwei zerrissen, und
+> das ist das `W`.
+>
+> > **Eine Stückgrenze ist keine Zeilengrenze — und wer je Stück Zeilen
+> > schreibt, macht aus jeder Grenze eine.**
+>
+> **Der auffällige Fall war der seltene.** Gesehen hat der Betreiber das
+> zerrissene `W:`; die eingeschobene Leerzeile stand schon bei Zeile 2 und ist
+> niemandem aufgefallen, weil eine leere Zeile in einer Programmausgabe wie
+> nichts aussieht.
+>
+> Behoben mit `SrvPanel\Agent\Lines`: ein Rest **je Kanal** — ein gemeinsamer
+> klebte das halbe Ende von `stdout` an den Anfang von `stderr` —, und was am
+> Ende ohne Umbruch übrig ist, wird trotzdem gesendet: Ausgerechnet die letzte
+> Zeile trägt bei `apt-run` das Urteil, an dem seit heute die Nachlese hängt.
+>
+> Danach dieselbe Messung: **317 gegen 317.** `LinesTest` hält es, vier
+> Eingriffe im Bruchskript, alle beissend.
+
 ---
 
 **Beobachtung 3 — Punkt 0b hat 0 gemessen, eine Stunde später sind es 7.**
@@ -1307,6 +1346,41 @@ Unterschied.
 > **Ein Loch, das man zählt, ist kein Loch mehr — es ist eine Zahl, die kleiner
 > werden kann.**
 
+> **Nachgezählt und abgearbeitet am 28. August 2026.** Es sind weiterhin
+> dreizehn, und sie zerfallen in drei Gruppen:
+>
+> **Drei waren wirklich falsch** — alle in `FileController` („Von **1 Dateien**
+> ist 1 hochgeladen", „entpackt — **1 Einträge**", zweimal). Sie sind nicht
+> deshalb liegengeblieben, weil sie schwer wären, sondern weil das Werkzeug
+> fehlte: Die Oberfläche hat `counted()` seit P5c, PHP hatte nichts.
+>
+> > **Eine Regel ohne Werkzeug wird an jeder Stelle neu entschieden — und
+> > irgendwann an einer nicht.**
+>
+> `App\Support\Language\Counted` ist das Gegenstück, mit derselben Signatur
+> und derselben Bedingung; `CountedTest` hält die beiden aneinander.
+>
+> **Zwei können keine eins sein** — die Ausfuhrgrenze des Protokolls (aus der
+> Konfiguration, Vorgabe 50 000) und `Budget::DOMAINS`/`SECONDS` (25 und 240).
+> Sie stehen als benannte Ausnahmen da, wie die vier im Agenten.
+>
+> **Und einer war ein Fehlalarm des Wächters.**
+> `CustomerController::cascadeMessage()` steht in einem
+> `match (count($affected))` mit einem eigenen `1 =>`-Zweig — der `default`
+> kann dort nie eins sein. Der Ausdruck kannte nur `=== 1`.
+>
+> > **Ein Wächter, der eine Schreibweise der Bedingung kennt, meldet die andere
+> > als Fehler.**
+>
+> **Die sieben übrigen liegen auf der Kommandozeile**, und dort steht eine
+> Frage, die nie jemand gestellt hat: `docs/19` heisst „Sprache der
+> **Oberfläche**" und erwähnt die Kommandozeile mit keinem Wort. Sie stehen als
+> Ausnahmen mit genau diesem Grund — benannt und sichtbar, solange die Frage
+> offen ist.
+>
+> **`CountedNounTest` liest seitdem auch `app/`.** Bis dahin las er für PHP nur
+> `agent/src`; die dreizehn waren gezählt und nicht gehalten.
+
 ---
 
 **Beobachtung 11 — `git checkout --` hat zum dritten Mal an einem Tag Arbeit
@@ -2068,12 +2142,53 @@ sondern eine Entscheidung des Betreibers.** Diese Reste stehen dem gegenüber:
    Das ist **eine** Aufgabe und nicht drei, und sie gehört entschieden, bevor
    jemand sie an einer Stelle allein behebt.
 
+   > **Berichtigt am 28. August 2026, beim Nachmessen vor dem Bauen.** „Dreimal
+   > dieselbe Form" stimmt für das Symptom und nicht für die Ursache. Gemessen
+   > am Quelltext sind es **zwei** Operationen in **zwei** Formen:
+   >
+   > | | als Vorgang? | Form |
+   > |---|---|---|
+   > | `system.packages.upgrade` (704, 5d) | ja | **A** — abgesetzt, Ausgang unbekannt |
+   > | `system.reboot` | ja | **A**, aber ohne Log — es gibt nichts nachzulesen, und sein Wort ist schon `abgesetzt` und nicht `läuft` |
+   > | `system.packages.refresh` (690) | ja | **B** — vollständig gelaufen, Ausgang unvollständig |
+   > | `panel.update` | **nein** — nur über `srvpanel update` auf der Kommandozeile | kein Vorgang, also auch kein Befund |
+   >
+   > **A** braucht eine Nachlese: Der Agent kehrt zurück, bevor die Arbeit
+   > fertig ist, und `RunAgentOperation` ruft `succeed()` auf einen Aufruf, der
+   > nur abgesetzt hat. **B** braucht keine — dort ist der Agent fertig, und
+   > sein Ergebnis trägt den unvollständigen Ausgang bereits (`unreachable`,
+   > `reached_everything`). Was fehlt, ist, dass der **Zustand** ihm folgt.
+   >
+   > > **Ein gemeinsames Symptom ist noch keine gemeinsame Ursache — und die
+   > > Zusammenfassung, die beides verschmilzt, spart die Unterscheidung ein,
+   > > die die Behebung braucht.**
+   >
+   > Der Satz oben — „eine Aufgabe und nicht drei" — hatte im Kern recht: Sie
+   > gehört an einer Stelle entschieden. Nur ist die Stelle für A eine andere
+   > als für B, und wer sie zusammen behebt, baut für B eine Maschinerie, die
+   > es dort nicht braucht.
+   >
+   > **Beide sind am 28. August 2026 gebaut.** A als Nachlese
+   > (`AwaitDispatchedRun`, `Outcome`, `system.run.outcome`); B als das, was
+   > der Betreiber entschieden hat — **der Zustand bleibt, der Vorbehalt wird
+   > sichtbar**. Ein Lauf, der getan hat, worum man ihn bat, ist gelungen, auch
+   > wenn er dabei etwas zu melden hat; was fehlte, war nicht der Zustand,
+   > sondern die Sicht.
+   >
+   > **Und dabei fiel ein Irrtum von mir auf.** Ich hatte dem Betreiber zur
+   > Entscheidung geschrieben, die Meldung stehe „schon in der Zeile" — sie
+   > steht im Payload, und keine der sechs Spalten rendert sie.
+   >
+   > > **Ein Feld im Payload ist noch keine Spalte.**
+
    **Was dabei nicht fehlt, ist der Weg zum Nachsehen.** Der Vorgang trägt in
    seinem Ergebnis `unit` und `log` — der Betreiber wird also sehr wohl dorthin
    gezeigt, wo der Lauf steht. Was fehlt, ist die Rückmeldung **danach**: Kein
    Zustand, keine Meldung und keine Zahl ändert sich noch, wenn der abgesetzte
    Lauf scheitert.
-3. **Befund 4** — das `W:` zerreisst in der Anzeige; undiagnostiziert.
+3. ~~**Befund 4** — das `W:` zerreisst in der Anzeige; undiagnostiziert.~~
+   **Diagnostiziert und behoben am 28. August 2026** — es war der Weg der
+   Ausgabe und nicht die CSS; die Messung steht oben beim Befund.
 4. **Befund 14** — die Fusszeile von `/logs` nennt ein Fenster, das es nicht
    gibt. Gehört zu A5.
 5. **`docs/81 §2.3h` Punkt 1** bleibt unbeantwortet: Wie lange ein Lauf über
@@ -2149,3 +2264,70 @@ immer es angestossen hat.
 echten Server weiterhin ungesehen; `docs/85` lässt aber beide ausdrücklich als
 Ergebnis gelten, weil gefragt ist, ob **verglichen** wird. Das ist keine Lücke
 im Kriterium, sondern eine Gelegenheit, die sich nicht ergeben hat.
+
+---
+
+## 6. Die Abnahme — 28. August 2026
+
+**A1 ist abgenommen.** Entschieden vom Betreiber am 28. August 2026, auf der
+Grundlage dieses Protokolls: fünfzehn Punkte gefahren, zwei Ausfälle, und beide
+sind die, die `docs/85 §6` ausdrücklich zulässt.
+
+**Was die Abnahme trägt.** Die acht Kriterien aus `docs/85` sind dem Wortlaut
+nach erfüllt — einschliesslich Punkt 3, das verlangt, dass eine tote Quelle
+**benannt** wird, und nicht, dass der Vorgang daran scheitert. Punkt 5, der
+Grund für den ganzen Lauf, ist nicht nur erfüllt, sondern auf zwei unabhängigen
+Wegen belegt.
+
+> **Ein Beleg, der zweimal auf verschiedenen Wegen entsteht, ist keine
+> Wiederholung — der zweite schliesst aus, dass der erste an seinem Weg hing.**
+
+**Was die Abnahme nicht behauptet.** Die sechs Reste aus §5 sind nicht
+geschlossen und werden mit der Abnahme nicht kleiner. Sie stehen dort einzeln,
+und der grösste ist eine **Familie und keine drei Einzelfälle**:
+
+> **Ein Vorgang, der nur meldet, dass er abgesetzt wurde, sagt über den Ausgang
+> dessen, was er abgesetzt hat, nichts — und `fertig` liest sich wie das
+> Gegenteil.**
+
+### Warum die Familie die Abnahme nicht aufhält
+
+**Weil sie kein Kriterienausfall ist, sondern ein Befund *dieses* Laufs.** Ein
+Abnahmelauf, der nur bestätigt, was ohnehin geglaubt wurde, hat nichts geleistet;
+seine Funde sind sein Ertrag und nicht sein Widerspruch. Die Familie an die
+Abnahme zu binden verwechselt zwei Fragen — „erfüllt der Prüfling seine
+Kriterien?" und „ist alles gut?".
+
+> **Ein Lauf, dessen Funde seine eigene Abnahme verhindern, wird beim nächsten
+> Mal weniger genau gefahren.**
+
+**Und sie ist gemessen, nicht vermutet.** Betroffen sind genau drei
+Operationen — `PanelUpdate`, `SystemPackagesUpgrade`, `SystemReboot` —, und
+**keine von ihnen übergibt `systemd-run` ein `--wait`**. Das ist kein Versehen,
+sondern die tragende Eigenschaft: Punkt 5 dieses Laufs existiert, um zu belegen,
+dass die transiente Unit den Neustart von `srvpanel-worker` überlebt. Ein
+`--wait` nachzutragen wäre also nicht die Behebung, sondern die Rücknahme des
+Merkmals.
+
+> **Eine Behebung, die das Merkmal zurücknimmt, für das der Lauf gefahren wurde,
+> ist keine.**
+
+Was fehlt, ist eine **Nachlese**: etwas, das den Ausgang der Unit später liest
+und in den Vorgang einträgt. `Apt::simulate` zeigt daneben, dass der synchrone
+Fall mit `--wait --pipe` schon existiert — die drei sind bewusst die anderen.
+
+### Was danach zuerst kommt
+
+Die Reihenfolge folgt der Wirkung und nicht der Nummer:
+
+1. **Die Familie** (§5, Punkte 1 und 2) — eine Aufgabe, an einer Stelle
+   entschieden, bevor jemand sie an einer von dreien allein behebt.
+2. ~~**Befund 4** — das zerrissene `W:` in der Anzeige, undiagnostiziert.~~
+   **Erledigt am 28. August 2026.**
+3. **`docs/81 §2.3h` Punkt 1** — die Dauer eines Laufs über 142 Pakete. Dieser
+   Lauf hatte sechs und fünf; die Zahl ist eine Gelegenheit und keine Messung,
+   die man herstellen kann.
+4. **Die dreizehn gezählten Fundstellen** unter `app/` aus Befund 11.
+
+**Befund 14 gehört nicht hierher** — die Fusszeile von `/logs` nennt ein
+Fenster, das es nicht gibt, und das ist A5.

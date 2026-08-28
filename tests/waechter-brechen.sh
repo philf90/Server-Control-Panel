@@ -10420,7 +10420,10 @@ vorher_datei app/Http/Controllers/FileController.php
 python3 - <<'PY2'
 p = 'app/Http/Controllers/FileController.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace("'Von %d Dateien %s %d hochgeladen.'", "'Einige Dateien sind nicht hochgeladen.%s%s%s'")
+# Am 28. August 2026 nachgezogen: Die Meldung geht seitdem ueber Counted::of().
+alt = "'Von %s %s %d hochgeladen.',\n                Counted::of(count($incoming), 'Datei', 'Dateien'),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "'Einige Dateien sind nicht hochgeladen.%s%s%s',\n                '',")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei app/Http/Controllers/FileController.php "Zahl der gelungenen fehlt" &&
@@ -19138,6 +19141,549 @@ pruefe "Pfad ohne Deckung" \
   ShellCheckReachTest::test_every_path_the_step_names_covers_something failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ShellCheckReachTest passed
+echo
+echo "── OperatorControlTest: ein Installierknopf ohne seinen Waechter ──"
+#
+# Der Rueckfall der Rollenteilung vom 27. August 2026: Die Updates-Seite hat
+# zwei Leser — sie oeffnet sich ueber `inspect-server`, gedreht wird ueber
+# `operate-server`. Faellt das `v-if`, sieht der Administrator drei Knoepfe,
+# die ihm einen 403 einbringen.
+#
+# `AbilityReachTest` kann das nicht sehen: Er prueft die Ablage `can`, die eine
+# Seite ueber ihr eigenes Objekt schickt — diese Seite fragt die geteilte
+# `abilities`.
+vorher_datei resources/js/Pages/Updates/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Updates/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<div v-if="darfSchalten" class="button-row">\n              <button type="button" class="button primary"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '<div class="button-row">\n              <button type="button" class="button primary"'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Updates/Index.vue "Knopf ohne Waechter" &&
+pruefe "Knopf ohne Waechter" \
+  OperatorControlTest::test_a_control_for_a_stricter_route_sits_behind_its_ability failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperatorControlTest passed
+
+echo
+echo "── OperatorControlTest: die Seite liest einen Schluessel, den es nicht gibt ──"
+#
+# Ein unbekannter Schluessel in der geteilten Ablage ist wortlos `false`. Die
+# Seite saehe fuer den Betreiber aus wie fuer den Administrator — jeder Knopf
+# weg, und keine Meldung nirgends.
+#
+# Getroffen wird damit auch die Zuordnung Faehigkeit → Waechtervariable, die
+# der Test aus der Seite selbst liest: Ohne sie findet er die Variable nicht
+# mehr und haelt den Griff faelschlich fuer ungeschuetzt.
+vorher_datei resources/js/Pages/Updates/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Updates/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = "['operate-server'] === true"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "['operate_server'] === true", 1))
+PY2
+griff_datei resources/js/Pages/Updates/Index.vue "Schluessel ohne Ablage" &&
+pruefe "Schluessel ohne Ablage" \
+  OperatorControlTest::test_a_control_for_a_stricter_route_sits_behind_its_ability failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperatorControlTest passed
+
+echo
+echo "── SourceKeyFilterTest: der Filter wird nicht mehr gerufen ──"
+#
+# **Die Haelfte, die dem ersten Wurf gefehlt hat.** Der Wächter rechnete den
+# Filter nach und blieb gruen, als der Aufruf in `read()` gestrichen wurde —
+# er mass die Methode und nicht ihre Erreichbarkeit.
+vorher_datei app/Http/Controllers/UpdatesController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/UpdatesController.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (! $operator && is_array($sources)) {\n            $sources = self::withoutKeys($sources);\n        }\n\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/UpdatesController.php "Filter ohne Aufruf" &&
+pruefe "Filter ohne Aufruf" \
+  SourceKeyFilterTest::test_the_filter_is_reached_from_the_payload failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceKeyFilterTest passed
+
+echo
+echo "── SourceKeyFilterTest: der Filter laeuft fuer jeden ──"
+#
+# Die Gegenrichtung. Ohne sie bliebe der Waechter gruen, wenn jemand die
+# Bedingung streicht — dann saehe auch der Betreiber keine Schluessel mehr,
+# und das ist derselbe Fehler andersherum.
+vorher_datei app/Http/Controllers/UpdatesController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/UpdatesController.php'
+s = open(p, encoding='utf-8').read()
+alt = 'if (! $operator && is_array($sources)) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if (is_array($sources)) {', 1))
+PY2
+griff_datei app/Http/Controllers/UpdatesController.php "Filter ohne Bedingung" &&
+pruefe "Filter ohne Bedingung" \
+  SourceKeyFilterTest::test_the_filter_is_reached_from_the_payload failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceKeyFilterTest passed
+
+echo
+echo "── SourceKeyFilterTest: der Agent bekommt ein Feld dazu ──"
+#
+# **Der eigentliche Waechter.** Nicht, dass `key` faellt — das ist eine Zeile —,
+# sondern dass niemand ein Feld hinzufuegt, ohne zu entscheiden, ob der
+# Administrator es sehen darf.
+vorher_datei agent/src/Ops/SystemSourcesList.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemSourcesList.php'
+s = open(p, encoding='utf-8').read()
+alt = "                    'stanza' => $eintrag['stanza'],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = alt + "\n                    'trusted' => true,"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/SystemSourcesList.php "Feld ohne Entscheidung" &&
+pruefe "Feld ohne Entscheidung" \
+  SourceKeyFilterTest::test_the_agent_sends_no_field_this_test_does_not_know failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceKeyFilterTest passed
+
+echo
+echo "── InspectOnlyTest: der Neustart geht an jeden Admin ──"
+#
+# Der Rechnername ist kein Geheimnis. Aber ein Wert, der nur da ist, weil ein
+# Knopf ihn braucht, geht mit dem Knopf — bleibt er stehen, ist er das Stueck
+# Payload, an dem beim naechsten Merkmal niemand mehr denkt.
+vorher_datei app/Http/Controllers/UpdatesController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/UpdatesController.php'
+s = open(p, encoding='utf-8').read()
+alt = "'reboot' => $operator ? ServerController::prompt() : null,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'reboot' => ServerController::prompt(),", 1))
+PY2
+griff_datei app/Http/Controllers/UpdatesController.php "Neustart fuer jeden" &&
+pruefe "Neustart fuer jeden" \
+  InspectOnlyTest::test_the_reboot_prompt_is_the_operators_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InspectOnlyTest passed
+
+echo
+echo "── InspectOnlyTest: ein Griff der Seite verliert seine Faehigkeit ──"
+#
+# Der teuerste Rueckfall: Nicht die Anzeige ist falsch, sondern die Tuer. Der
+# Administrator darf dann wirklich installieren, und kein Bild zeigt es.
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+alt = "    Route::post('/updates/install', [UpdatesController::class, 'install'])\n        ->middleware('can:operate-server')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "    Route::post('/updates/install', [UpdatesController::class, 'install'])\n        ->middleware('can:inspect-server')"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei routes/web.php "Griff ohne Faehigkeit" &&
+pruefe "Griff ohne Faehigkeit" \
+  InspectOnlyTest::test_an_administrator_is_refused_on_every_action_of_the_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InspectOnlyTest passed
+echo
+echo "── MobileLayoutTest: der Zusatz erbt den Umbruch der Kennung ──"
+#
+# Der Fund der Bilderrunde zur Rollenteilung, 27. August 2026 — im Bild und in
+# keiner Zahl: Bei 390 px stand in der Quellentabelle „Eintra" und darunter
+# „g 1". Der Pfad in derselben Zelle braucht `anywhere`, der Zusatz daneben
+# nicht — und er erbte es.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = """  .stacks td .ident .quiet,
+  .stacks td.ident .quiet {
+    overflow-wrap: break-word;
+  }
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/css/app.css "Zusatz ohne eigene Regel" &&
+pruefe "Zusatz ohne eigene Regel" \
+  MobileLayoutTest::test_a_quiet_note_beside_an_identifier_breaks_between_words failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  MobileLayoutTest::test_a_quiet_note_beside_an_identifier_breaks_between_words passed
+
+echo
+echo "── MobileLayoutTest: der Zusatz bricht wieder mitten im Wort ──"
+#
+# Die Gegenrichtung, und die wichtigere: Eine Regel, die *da* ist und den
+# falschen Wert traegt, sieht im Quelltext aus wie die richtige. Ohne diesen
+# Eingriff bliebe der Waechter gruen, sobald irgendeine Regel das `.quiet`
+# erreicht.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = """  .stacks td .ident .quiet,
+  .stacks td.ident .quiet {
+    overflow-wrap: break-word;
+  }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = alt.replace('break-word', 'anywhere')
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/css/app.css "Zusatz bricht ueberall" &&
+pruefe "Zusatz bricht ueberall" \
+  MobileLayoutTest::test_a_quiet_note_beside_an_identifier_breaks_between_words failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  MobileLayoutTest::test_a_quiet_note_beside_an_identifier_breaks_between_words passed
+echo
+echo "── DispatchedRunTest: die Marke faellt weg ──"
+#
+# Der Rueckfall von docs/86 §5: Ohne `dispatched` ruft RunAgentOperation wieder
+# `succeed()`, sobald der Agent zurueckkehrt — und der Vorgang steht auf
+# „fertig", waehrend apt-get noch laeuft.
+vorher_datei agent/src/Ops/SystemPackagesUpgrade.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemPackagesUpgrade.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'dispatched' => true,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Ops/SystemPackagesUpgrade.php "Lauf ohne Marke" &&
+pruefe "Lauf ohne Marke" \
+  DispatchedRunTest::test_whoever_marks_a_run_dispatched_names_it_and_its_offset failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DispatchedRunTest passed
+
+echo
+echo "── DispatchedRunTest: der Versatz faellt weg ──"
+#
+# Ohne ihn liest die Nachlese die letzte Zeile der Datei — und upgrade.log
+# sammelt Laeufe. Das Urteil des vorigen Laufs wuerde als das eigene gelesen
+# (docs/86, Beobachtung 17).
+vorher_datei agent/src/Ops/SystemPackagesUpgrade.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemPackagesUpgrade.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'log_offset' => $versatz,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Ops/SystemPackagesUpgrade.php "Lauf ohne Versatz" &&
+pruefe "Lauf ohne Versatz" \
+  DispatchedRunTest::test_whoever_marks_a_run_dispatched_names_it_and_its_offset failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DispatchedRunTest passed
+
+echo
+echo "── DispatchedRunTest: die Verzweigung kehrt nicht zurueck ──"
+#
+# Sie setzt die Nachlese an und laeuft dann weiter in succeed() — der Vorgang
+# ist fertig, und die Nachlese findet ihn nicht mehr auf `running`.
+#
+# **Dieser Eingriff hat einen Waechter ueberfuehrt**: Der erste Wurf suchte
+# `if (…) { … return; }` mit einem `.*?` und blieb gruen, weil der Ausdruck
+# ueber die schliessende Klammer hinaus bis zum naechsten `return;` lief.
+# Ein Waechter, der Woerter liest, sieht keine Klammern.
+vorher_datei app/Jobs/RunAgentOperation.php
+python3 - <<'PY2'
+p = 'app/Jobs/RunAgentOperation.php'
+s = open(p, encoding='utf-8').read()
+alt = """                    ->delay(now()->addSeconds(AwaitDispatchedRun::INTERVAL));
+
+                return;
+            }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """                    ->delay(now()->addSeconds(AwaitDispatchedRun::INTERVAL));
+            }"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Jobs/RunAgentOperation.php "Zweig ohne Rueckkehr" &&
+pruefe "Zweig ohne Rueckkehr" \
+  DispatchedRunTest::test_the_job_branches_before_it_reports_success failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DispatchedRunTest passed
+
+echo
+echo "── DispatchedRunTest: die Frist meldet Erfolg ──"
+#
+# Die naheliegende „Vereinfachung": Nach Ablauf der Frist einfach succeed().
+# Dann steht der Vorgang wieder auf fertig, ohne dass jemand nachgesehen hat.
+vorher_datei app/Jobs/AwaitDispatchedRun.php
+python3 - <<'PY2'
+p = 'app/Jobs/AwaitDispatchedRun.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $recorder->fail(\n            'Der Ausgang dieses Laufs liess sich nicht feststellen.'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        $recorder->succeed([]);\n        $recorder->fail(\n            'Der Ausgang dieses Laufs liess sich nicht feststellen.'"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Jobs/AwaitDispatchedRun.php "Frist meldet Erfolg" &&
+pruefe "Frist meldet Erfolg" \
+  DispatchedRunTest::test_an_expired_deadline_is_a_failure_and_not_a_success failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DispatchedRunTest passed
+
+echo
+echo "── OutcomeTest: der Praefix laeuft von apt-run weg ──"
+#
+# Die teuerste Naht dieses Bauteils: Der Leser faende nie ein Urteil und
+# meldete „laeuft noch", bis die Frist ablaeuft — ein Fehler, der wie Geduld
+# aussieht.
+vorher_datei agent/src/Outcome.php
+python3 - <<'PY2'
+p = 'agent/src/Outcome.php'
+s = open(p, encoding='utf-8').read()
+alt = "public const PREFIX = 'apt-run: ';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "public const PREFIX = 'aptrun: ';", 1))
+PY2
+griff_datei agent/src/Outcome.php "Praefix ohne Deckung" &&
+pruefe "Praefix ohne Deckung" \
+  OutcomeTest::test_the_prefix_is_the_one_apt_run_writes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
+
+echo
+echo "── OutcomeTest: der Versatz wird ignoriert ──"
+#
+# Die Gegenrichtung zum Versatz-Bruch oben, und zwar im Leser statt beim
+# Schreiber: Liest er immer von 0, findet er das Urteil des vorigen Laufs.
+vorher_datei agent/src/Outcome.php
+python3 - <<'PY2'
+p = 'agent/src/Outcome.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $von = $offset > $groesse ? 0 : $offset;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        $von = 0;", 1))
+PY2
+griff_datei agent/src/Outcome.php "Leser ohne Versatz" &&
+pruefe "Leser ohne Versatz" \
+  OutcomeTest::test_without_the_offset_an_earlier_run_would_be_read failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
+echo
+echo "── OperationWarningTest: keine Operation meldet mehr einen Vorbehalt ──"
+#
+# Form B aus docs/86 §5: Ein apt-get update mit einer toten Quelle ist `fertig`
+# — und das ist richtig. Was fehlte, war die Sicht. Ohne `warning` steht die
+# tote Quelle wieder nur im Ergebnis, das man aufschlagen muss.
+vorher_datei agent/src/Ops/SystemPackagesRefresh.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemPackagesRefresh.php'
+s = open(p, encoding='utf-8').read()
+alt = """            'warning' => $apt->reachedEverything()
+                ? null
+                : 'Nicht erreicht: '.$apt->summary(),
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Ops/SystemPackagesRefresh.php "Lauf ohne Vorbehalt" &&
+pruefe "Lauf ohne Vorbehalt" \
+  OperationWarningTest::test_at_least_one_operation_reports_a_caveat failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperationWarningTest passed
+
+echo
+echo "── OperationWarningTest: der Controller reicht ihn nicht durch ──"
+vorher_datei app/Http/Controllers/OperationController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/OperationController.php'
+s = open(p, encoding='utf-8').read()
+alt = """            'warning' => is_array($operation->result)
+                && is_string($operation->result['warning'] ?? null)
+                    ? $operation->result['warning']
+                    : null,
+
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/OperationController.php "Zeile ohne Vorbehalt" &&
+pruefe "Zeile ohne Vorbehalt" \
+  OperationWarningTest::test_the_row_carries_the_caveat_in_its_own_field failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperationWarningTest passed
+
+echo
+echo "── OperationWarningTest: die Liste zeigt ihn nicht ──"
+#
+# **Die Haelfte, die still bricht** — und genau der Irrtum, mit dem dieser
+# Schritt begonnen hat: Ich hatte angenommen, `message` stehe schon in der
+# Zeile. Es steht im Payload, und keine Spalte rendert es. Ein Feld im Payload
+# ist noch keine Spalte.
+vorher_datei resources/js/Pages/Operations/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Operations/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '                  <Badge v-if="row.warning" kind="warn">{{ row.warning }}</Badge>\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Pages/Operations/Index.vue "Liste ohne Vorbehalt" &&
+pruefe "Liste ohne Vorbehalt" \
+  OperationWarningTest::test_the_list_renders_the_caveat failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperationWarningTest passed
+echo
+echo "── LinesTest: der Rest wird nicht gehalten ──"
+#
+# Befund 4 aus docs/86: Auf der Vorgangsseite stand `W` allein und `: …`
+# darunter. fread liefert Bytes und keine Zeilen; wer je Stueck Zeilen
+# schreibt, macht aus jeder Stueckgrenze eine Zeilengrenze.
+vorher_datei agent/src/Lines.php
+python3 - <<'PY2'
+p = 'agent/src/Lines.php'
+s = open(p, encoding='utf-8').read()
+alt = '        $this->rest[$channel] = substr($text, $letzter + 1);\n\n        return explode("\\n", substr($text, 0, $letzter));'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        return explode("\\n", rtrim($text, "\\n"));', 1))
+PY2
+griff_datei agent/src/Lines.php "Stueck ohne Rest" &&
+pruefe "Stueck ohne Rest" \
+  LinesTest::test_a_line_torn_by_a_chunk_boundary_comes_back_whole failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LinesTest passed
+
+echo
+echo "── LinesTest: die Kanaele teilen sich einen Rest ──"
+#
+# Zwei Stroeme, die sich einen Puffer teilen, erzeugen eine Zeile, die keiner
+# von beiden geschrieben hat — das halbe Ende von stdout am Anfang von stderr.
+vorher_datei agent/src/Lines.php
+python3 - <<'PY2'
+p = 'agent/src/Lines.php'
+s = open(p, encoding='utf-8').read()
+alt = "$text = ($this->rest[$channel] ?? '').$chunk;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "$text = ($this->rest['alle'] ?? '').$chunk; $channel = 'alle';"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Lines.php "Kanaele ohne eigenen Rest" &&
+pruefe "Kanaele ohne eigenen Rest" \
+  LinesTest::test_the_channels_keep_their_own_remainder failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LinesTest passed
+
+echo
+echo "── LinesTest: ein leerer Rest wird als Zeile gesendet ──"
+#
+# Dann haengt an jeder Ausgabe, die sauber mit einem Umbruch endet, eine leere
+# Zeile — also an fast jeder.
+vorher_datei agent/src/Lines.php
+python3 - <<'PY2'
+p = 'agent/src/Lines.php'
+s = open(p, encoding='utf-8').read()
+alt = "return $rest === '' ? null : $rest;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'return $rest;', 1))
+PY2
+griff_datei agent/src/Lines.php "Leerer Rest als Zeile" &&
+pruefe "Leerer Rest als Zeile" \
+  LinesTest::test_an_empty_remainder_is_not_a_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LinesTest passed
+
+echo
+echo "── LinesTest: der Runner gibt den Rest am Ende nicht heraus ──"
+#
+# Dann faellt ausgerechnet die letzte Zeile weg, wenn sie ohne Umbruch endet —
+# und bei apt-run steht dort das Urteil, an dem die Nachlese haengt.
+vorher_datei agent/src/Runner.php
+python3 - <<'PY2'
+p = 'agent/src/Runner.php'
+s = open(p, encoding='utf-8').read()
+alt = '$rest = $lines->flush($channel);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '$rest = null;', 1))
+PY2
+griff_datei agent/src/Runner.php "Runner ohne Rest" &&
+pruefe "Runner ohne Rest" \
+  LinesTest::test_the_runner_assembles_and_flushes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LinesTest passed
+echo
+echo "── CountedTest: der Helfer entscheidet anders als die Oberflaeche ──"
+#
+# Zwei Fassungen derselben Regel laufen auseinander, wenn nichts sie haelt —
+# dann steht dieselbe Menge auf zwei Seiten desselben Panels verschieden da.
+vorher_datei app/Support/Language/Counted.php
+python3 - <<'PY2'
+p = 'app/Support/Language/Counted.php'
+s = open(p, encoding='utf-8').read()
+alt = '$value === 1 ? $one : $many'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '$value <= 1 ? $one : $many', 1))
+PY2
+griff_datei app/Support/Language/Counted.php "Helfer mit eigener Bedingung" &&
+pruefe "Helfer mit eigener Bedingung" \
+  CountedTest::test_one_gets_the_singular_and_everything_else_the_plural failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CountedTest passed
+
+echo
+echo "── CountedTest: die Zahl wird anders geschrieben ──"
+vorher_datei app/Support/Language/Counted.php
+python3 - <<'PY2'
+p = 'app/Support/Language/Counted.php'
+s = open(p, encoding='utf-8').read()
+alt = "number_format($value, 0, ',', '.')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '(string) $value', 1))
+PY2
+griff_datei app/Support/Language/Counted.php "Zahl ohne Trennung" &&
+pruefe "Zahl ohne Trennung" \
+  CountedTest::test_the_number_is_written_the_way_this_panel_writes_numbers failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CountedTest passed
+
+echo
+echo "── CountedTest: niemand ruft den Helfer ──"
+#
+# **Dieser Eingriff hat den Waechter ueberfuehrt.** Der erste Wurf suchte mit
+# str_contains und blieb gruen, weil `Counted::of(` auch in `xCounted::of(`
+# steckt. Ein Waechter, der eine Zeichenkette sucht, findet sie auch dort, wo
+# sie nur ein Teil ist.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+assert s.count('Counted::of(') == 3, 'Zielstellen nicht wie erwartet — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace('Counted::of(', 'xCounted::of('))
+PY2
+griff_datei app/Http/Controllers/FileController.php "Helfer ohne Aufrufer" &&
+pruefe "Helfer ohne Aufrufer" \
+  CountedTest::test_the_helper_is_used failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CountedTest passed
+
+echo
+echo "── CountedNounTest: der Waechter liest app/ nicht mehr ──"
+#
+# Bis zum 28. August las er fuer PHP nur agent/src — dreizehn Fundstellen unter
+# app/ waren damit gezaehlt und nicht gehalten. Ein Waechter, der eine Flaeche
+# liest, sagt ueber die andere nichts und meldet fuer sie „alles in Ordnung".
+vorher_datei tests/Feature/CountedNounTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/CountedNounTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "foreach (['agent/src', 'app'] as "
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "foreach (['agent/src'] as ", 1))
+PY2
+griff_datei tests/Feature/CountedNounTest.php "Waechter ohne app/" &&
+pruefe "Waechter ohne app/" \
+  CountedNounTest::test_no_php_message_glues_a_count_to_a_plural failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CountedNounTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

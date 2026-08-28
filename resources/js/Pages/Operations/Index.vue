@@ -15,6 +15,15 @@ interface Row {
   label: string
   status: string
   status_label: string
+
+  /**
+   * Der Vorbehalt, unter dem ein gelungener Lauf gelungen ist — oder `null`.
+   *
+   * Ein `apt-get update` mit einer toten Quelle ist `fertig` und bleibt es;
+   * was fehlte, war, dass man die Quelle sieht, ohne den Vorgang aufzuschlagen
+   * ({@link OperationController::row}).
+   */
+  warning: string | null
   open: boolean
   progress: number
   message: string | null
@@ -162,9 +171,20 @@ function start(task: TaskEntry): void {
                 <td data-column="Nummer" class="ident">
                   <Link :href="`/operations/${row.id}`" class="link">{{ row.id }}</Link>
                 </td>
+                <!--
+                  **Der Vorbehalt steht bei der Aufgabe und nicht beim
+                  Zustand.** Der Zustand ist `fertig`, und das stimmt; eine
+                  Marke daneben, die etwas anderes sagt, wäre ein Widerspruch
+                  in derselben Zelle. Hier liest er sich als das, was er ist:
+                  eine Anmerkung zu dem, was der Lauf getan hat.
+
+                  Die Zelle stapelt ohnehin (`.multiline`) — eine dritte Zeile
+                  kostet bei 390 px nichts, was die Spalte nicht schon hätte.
+                -->
                 <td data-column="Aufgabe" class="multiline">
                   <Link :href="`/operations/${row.id}`" class="link">{{ row.label }}</Link>
                   <span class="op">{{ row.type }}</span>
+                  <Badge v-if="row.warning" kind="warn">{{ row.warning }}</Badge>
                 </td>
                 <td data-column="Zustand">
                   <Badge :kind="rang(row.status)" :running="row.open">

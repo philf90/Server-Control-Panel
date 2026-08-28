@@ -21933,3 +21933,525 @@ Lauf je Endung ergibt `[alle .list][alle .sources]` — mit `docker.list` und
 > nicht.**
 
 Fünf Eingriffe stehen in `tests/waechter-brechen.sh`, alle beissend.
+
+### Die Rollenteilung der Updates-Seite — dieselbe Seite, zwei Leser
+
+`docs/81 §3` Frage 2 stand seit dem 26. August als offen benannt da: Die
+Updates-Seite gehörte ganz dem Betreiber. Sie gehört jetzt beiden — der
+Administrator **sieht** den Stand des Servers und **dreht** nicht an ihm.
+
+Der Schnitt läuft nicht durch die Seite, sondern durch die Fähigkeit. Neu ist
+`inspect-server` (die dritte Adminfähigkeit überhaupt); `GET /updates` und
+`POST /updates/refresh` hängen daran, die vier ändernden Griffe weiterhin an
+`operate-server`.
+
+**Zwei Stellen fallen aus dem Payload**, und beide sind begründet und nicht
+vorsichtshalber gestrichen: die Signaturschlüssel je Quelle und der Anteil für
+den Neustart-Knopf. Kein Fingerabdruck ist ein Geheimnis — er steht in der
+Dokumentation jeder Distribution und auf Schlüsselservern.
+
+> **Eine Angabe, die man weder braucht noch ändern darf, ist keine Auskunft —
+> sie ist eine Einladung, sie doch zu benutzen.**
+
+**Gesetzt wird `null` und nicht ein leeres `keys`.** Vier Stellen der Seite
+lesen `key`; ein leeres Feld liesse drei davon weiterlaufen und „—" zeigen, also
+eine Aussage über den Schlüssel, wo gar keine gemacht werden soll.
+
+> **Ein leerer Wert sagt „nichts gefunden". Ein fehlender sagt „nicht deine
+> Frage". Das ist nicht dasselbe.**
+
+Nebenbei zwingt `null` den Übersetzer, jede Fundstelle zu zeigen: `vue-tsc`
+nannte zehn, und die zehnte war der `RebootButton`.
+
+**Die ganze Spalte fällt weg und nicht ihr Inhalt.** Ein „—" in einer Zelle
+behauptet, es sei nachgesehen worden und nichts gefunden. Dasselbe gilt für die
+Auswahlspalte: Sie speist ausschliesslich den Knopf „n ausgewählte
+installieren", und ohne ihn ist ein Kästchen je Zeile eine Handlung, die zu
+nichts führt.
+
+**Und ein Satz oben auf der Seite sagt, warum nichts geht** — `docs/46 §4`
+Kriterium 5 gilt hier für eine ganze Rolle statt für eine Zeile. Er steht
+einmal und nicht bei jedem Griff: Die Grenze ist keine Eigenschaft der
+einzelnen Handlung, und dieselbe Begründung siebenmal wäre beim achten Griff
+vergessen.
+
+#### Der Zustand stimmte, und nichts hielt ihn
+
+`AbilityReachTest` verlangt seit A9, dass ein Knopf, den der Betrachter nicht
+drücken darf, gar nicht gezeigt wird — er prüft aber die Ablage `can`, die eine
+Seite über ihr eigenes Objekt schickt. Diese Seite fragt die geteilte
+`abilities`, und damit lag der erste Fall der neuen Art ausserhalb seiner
+Reichweite.
+
+> **Ein Zustand, der stimmt und den nichts hält, ist von einem, der nicht
+> stimmt, nur durch Glück getrennt.**
+
+`OperatorControlTest` schliesst das: Er liest je Seite, welche Fähigkeit ihre
+eigene Route verlangt, welche Griffe sie auslöst und was **deren** Routen
+verlangen — und besteht darauf, dass ein Bedienelement zur strengeren Route
+innerhalb eines `v-if` auf die strengere Fähigkeit steht. Die Zuordnung
+Fähigkeit → Wächtervariable kommt aus der Seite selbst; eine Liste im Test wäre
+die zweite Fassung, und die zweite veraltet.
+
+Gelesen wird die Vorlage mit einem **Stapel** und nicht rückwärts: Vorwärts ist
+jedes offene Element bekannt, wenn die Fundstelle kommt.
+
+`InspectOnlyTest` misst dieselbe Grenze an der Tür — vier Griffe geben dem
+Administrator 403, dem Betreiber nicht, und `/updates/refresh` gibt beiden auf.
+Gemessen wird dort „nicht 403" und nicht „200": Diese Griffe brauchen einen
+Rumpf und einen Agenten, und ein Test, der Erfolg verlangte, prüfte den Agenten
+statt der Tür.
+
+#### Ein Wächter über eine Methode sagt nichts darüber, dass jemand sie ruft
+
+`SourceKeyFilterTest` rechnete den Filter nach — und blieb **grün**, als der
+Aufruf in `read()` gestrichen wurde. Er mass die Methode und nicht ihre
+Erreichbarkeit; dieselbe Lücke wie bei dem Wächter aus P6, der einen Satz im
+Quelltext fand statt seiner Erreichbarkeit.
+
+> **Ein Wächter über eine Methode sagt nichts darüber, dass jemand sie ruft.**
+
+Sein eigentlicher Wert steht daneben und betrifft nicht `key`: Er liest die
+Felder eines Eintrags aus `SystemSourcesList` und wird rot, sobald der Agent
+eines dazubekommt. Dann fällt die Entscheidung — darf der Administrator es
+sehen? — beim Bauen und nicht bei einem Abnahmelauf.
+
+> **Ein Filter über eine Liste, die wächst, ist eine Zusage über den Stand von
+> heute.**
+
+Sieben Eingriffe stehen in `tests/waechter-brechen.sh`, alle beissend.
+
+#### Zwei Funde am eigenen Werkzeug
+
+**`DocblockAnchorTest` hat am Tag nach seinem Bau zweimal zugebissen**, beide
+Male an dieser Änderung: Eine neue Methode war zwischen `read()` und ihren
+Dokumentationsblock gerutscht, und in `AdminPayloadTest` stand ein zweiter Block
+unmittelbar über dem ersten. Beide Male beschrieb der obere seitdem nichts mehr,
+und PHPStan war zufrieden, weil beide dastanden.
+
+**Und ein `grep -v` hat einen ganzen PHPStan-Bericht verschluckt.** Die Ausgabe
+ist **eine** Zeile JSON; ein Filter gegen `not found` löscht damit nicht die
+Zeilen, die er meint, sondern den Bericht. „Nach dem Filter steht nichts mehr
+da" las sich wie „sauber" und war „nichts gemessen" — zwei echte Meldungen über
+fehlende Typangaben standen darin.
+
+> **Ein Filter über eine einzeilige Ausgabe löscht nicht eine Zeile, sondern
+> alles.**
+
+Gefunden hat es der zweite Lauf ohne Filter, nicht die Gegenprobe: Die hatte
+eine Datei genommen, deren Bericht das Wort zufällig nicht enthielt.
+
+> **Eine Gegenprobe, die den Fall nicht enthält, in dem der Filter zuschlägt,
+> belegt den Filter nicht.**
+
+### Die Bilderrunde dazu — und ein Wort, das mitten durchbrach
+
+Acht Lagen gegen echte Daten (141 aktualisierbare Pakete, davon 118 Sicherheit,
+fünf Quelldateien): zwei Rollen × 390/1440 px × hell/dunkel. Der Betreiber ist
+dabei die Gegenprobe und nicht die Zugabe — „drei Spalten weniger" sagt nichts,
+solange niemand gemessen hat, wie viele es vorher waren.
+
+**Und gemessen waren es vier.** Die Zahlen im Abschnitt darüber und in
+`docs/81 §2.3m` standen falsch: **vier** Spalten (eine in der Paketliste, drei
+in der Quellentabelle) und **fünf** Knöpfe plus 21 Kästchen — nicht „drei
+Spalten, sieben Griffe". Beide waren aus dem Kopf geschrieben.
+
+> **Eine Zahl, die man nicht gemessen hat, ist eine Schätzung mit dem Aussehen
+> einer Messung.**
+
+**Der eigentliche Befund ist die Höhe.** Bei 390 px ist die Seite des
+Administrators **1940 px kürzer** (7556 gegen 9496) — gut zwei
+Telefonbildschirme weniger Rollen. `.stacks` stapelt je Zelle; eine Spalte
+weniger ist eine Zeile weniger je Kärtchen, und die Fingerabdruckzelle trägt
+vierzig Hexziffern je Schlüssel.
+
+> **Der Schnitt löst kein Navigationsproblem. Er löst ein Telefonproblem.**
+
+Waagerechter Überlauf 0 px in allen acht Lagen, Gegenprobe `200/200` in allen
+acht, und die Themaumstellung ist gemessen statt geglaubt: Grund
+`rgb(255,255,255)` → `rgb(15,17,22)`.
+
+#### Der Fund stand im Bild und in keiner Zahl
+
+Bei 390 px las die Quellentabelle „Eintra" und darunter „g 1". Die Zelle
+„Datei" trägt einen Pfad — der braucht `overflow-wrap: anywhere`, weil er kein
+Leerzeichen hat — und daneben ein `<span class="quiet">· Eintrag 1</span>`. Der
+Umbruch vererbte sich auf den Fliesstext.
+
+> **Ein Format, das für Bezeichner reicht, reicht nicht für Werte.**
+
+Der vierte Fall dieses Satzes nach `psql -A -t`, `td .ident` und der
+Zeilentabelle des Datenbankmanagements. Ausgezählt betraf er sechs Stellen auf
+drei Seiten — „kommt neu dazu", „keine", „· Eintrag n", „· binär" —, also
+fehlte eine Stelle und nicht sechs Korrekturen.
+
+> **Ein Fehler, der an sechs Stellen unabhängig gemacht wurde, ist keine
+> Unachtsamkeit, sondern eine fehlende Stelle.**
+
+`break-word` und nicht `normal`: Ein Wort, das allein nicht in die Zeile passt,
+muss weiter brechen dürfen — sonst wird aus einem Lesefehler ein Überlauf.
+`MobileLayoutTest::test_a_quiet_note_beside_an_identifier_breaks_between_words`
+rechnet die Kaskade nach; zwei Eingriffe brechen sie in beide Richtungen, und
+die zweite ist die wichtigere: Eine Regel mit dem falschen Wert sieht im
+Quelltext aus wie die richtige.
+
+Keine Zahl hätte ihn gemeldet — der Überlauf war in allen acht Lagen 0 px.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+### A1 ist abgenommen — 28. August 2026
+
+Der Lauf war am 27. August auf `cloudsrv24` gegen `0.7.2-rc.3`: fünfzehn Punkte
+aus `docs/85`, Protokoll `docs/86`, die Abnahme in dessen §6. Die beiden
+Ausfälle sind genau die, die `docs/85 §6` zulässt — Punkt 4 ohne ablaufenden
+Schlüssel, Punkt 2 ohne Neuinstallation im Bestand.
+
+**Punkt 5 ist der Grund, dass es diesen Lauf gab, und er ist zweifach belegt.**
+Dass eine transiente Unit den Neustart von `srvpanel-worker` überlebt, wenn
+`srvpanel` selbst im Lauf steckt, behauptet dieses Projekt seit P0; belegt hatte
+es nur der eigene Gebrauch. Jetzt steht es auf zwei unabhängigen Wegen da —
+einmal durch den Neustart aus dem eigenen postinst, einmal durch `needrestart`
+in einem Lauf, in dem `srvpanel` gar nicht vorkam.
+
+> **Ein Beleg, der zweimal auf verschiedenen Wegen entsteht, ist keine
+> Wiederholung — der zweite schliesst aus, dass der erste an seinem Weg hing.**
+
+**Sechs Reste bleiben benannt offen** (`docs/86 §5`), und die Abnahme macht
+keinen davon kleiner. Der grösste ist eine Familie und keine drei Einzelfälle:
+
+> **Ein Vorgang, der nur meldet, dass er abgesetzt wurde, sagt über den Ausgang
+> dessen, was er abgesetzt hat, nichts — und `fertig` liest sich wie das
+> Gegenteil.**
+
+Betroffen sind `PanelUpdate`, `SystemPackagesUpgrade` und `SystemReboot`, und
+**keine der drei übergibt `systemd-run` ein `--wait`** — das ist kein Versehen,
+sondern die tragende Eigenschaft, die Punkt 5 belegt. Ein `--wait` nachzutragen
+wäre nicht die Behebung, sondern die Rücknahme des Merkmals; gebraucht wird eine
+Nachlese, die den Ausgang der Unit später einträgt.
+
+> **Eine Behebung, die das Merkmal zurücknimmt, für das der Lauf gefahren wurde,
+> ist keine.**
+
+**Warum die Familie die Abnahme nicht aufhält:** Sie ist kein Kriterienausfall,
+sondern ein Befund *dieses* Laufs. Punkt 3 verlangt, dass eine tote Quelle
+**benannt** wird — und das tut die Seite.
+
+> **Ein Lauf, dessen Funde seine eigene Abnahme verhindern, wird beim nächsten
+> Mal weniger genau gefahren.**
+
+Damit sind in P7b **A5, A9 und A1 abgenommen**; offen bleiben A2, A10, A11 und
+A6, und A3, A4 sowie A7 haben weiterhin keine Stufe.
+
+### Jeder Vorschlag hat einen Ort — und einer hatte ihn längst
+
+Der Betreiber hat am 28. August 2026 gefragt, wo A3, A4 und A7 am besten
+hingehören und ob Inhalte davon schon in späteren Stufen stehen. Die zweite
+Hälfte der Frage war die ergiebigere.
+
+**A7 hatte längst eine Stufe, und `docs/20 §9` widersprach sich darüber selbst.**
+Der P7b-Block führte „die drei absichernden Vorschläge A3, A4 und A7" als ohne
+Stufe; sechzig Zeilen weiter nennt der P9-Block nur „Firewall und Fail2ban" —
+und die Aufzählung von P9 trägt „Ressourcenüberwachung des Servers, Schwellen,
+Benachrichtigungen (E-Mail, Webhook)", also A7, bis auf die Kanäle wörtlich.
+`CLAUDE.md` und `docs/81 §12.1` hatten die Drei-Version übernommen.
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.**
+
+Kein Wächter kann das sehen: `DocLinkTest` hält, dass eine genannte Datei
+existiert, nicht, dass zwei Sätze über dieselbe Sache dasselbe sagen.
+
+**Die P9-Zeile war ausserdem dünner als A7.** Ihr fehlten die Entprellung, die
+Begründung des zweiten Kanals — *eine Meldung über einen Ausfall, die über den
+ausgefallenen Weg geht, kommt nicht an* — und vier Auslöser, die es erst seit
+P7b gibt: Dienst tot und Timer ohne nächsten Termin aus A2, offene
+Sicherheitsupdates und der ablaufende Signaturschlüssel aus A1. Sie zeigt jetzt
+auf `docs/80` statt zu paraphrasieren.
+
+> **Eine Zusammenfassung, die neben dem Ausgeschriebenen steht, veraltet gegen
+> es — und gelesen wird die kürzere.**
+
+**A3 ist geteilt, und zwar dort, wo `docs/80` ihn schon teilte.** Der erste
+Wurf ist reine Anzeige und steht jetzt in P7b: Seit P5b liefert das Panel den
+Fernzugriff auf MariaDB und PostgreSQL aus, öffnet also 3306 und 5432 — und
+sagt an genau dieser Stelle in der Oberfläche, die Firewall sei nicht seine
+Sache. Es öffnet einen Port und kann nicht sagen, ob er erreichbar ist. Vier
+Tage, lesend, kein Aussperrrisiko.
+
+**Der zweite Wurf und A4 stehen in der neuen Stufe P9b**, zwischen P9 und P10.
+Der Name folgt P7b: Eine Stufe, die zwischen zwei bestehende gehört, trägt den
+Buchstaben der davor.
+
+> **Eine Härtungsstufe, die selbst noch baut, prüft ihr eigenes Werk.**
+
+P10 enthält den vollständigen Angriffsdurchgang und den externen
+Sicherheits-Review. Eine Firewall, die in P10 entsteht, wird von genau dem
+Durchgang begutachtet, der sie hätte prüfen sollen. `docs/80 §6.2` lässt „nach
+P10" weiterhin zu, wenn der Server hinter einer Cloud-Firewall steht — dann
+läuft P10s Durchgang gegen ein Panel ohne eigene Firewall, was die
+vorsichtigere Annahme ist.
+
+**A8 ist beim Nachlesen mit herausgefallen** — die IP-Adressen des Servers
+standen in `docs/81 §11` als „eigenständig; P7 ist fertig" und damit nirgends.
+Zwei bis drei Tage, jetzt in P7b: Sie beantworten die erste Rückfrage, wenn der
+DNS-Abgleich „zeigt woandershin" meldet — gegen **was** hat er verglichen?
+
+Die Gesamtsumme steht damit auf **36–48 Wochen** statt 32–44.
+
+> **Eine Summe, aus der das Heimatlose fehlt, ist nicht kleiner — sie ist
+> unvollständig.**
+
+### Ein abgesetzter Lauf trägt seinen Ausgang nach
+
+Der grösste Rest aus `docs/86 §5`, und die Messung davor hat die Aufgabe
+kleiner und anders geschnitten, als das Protokoll sie beschrieb.
+
+**„Dreimal dieselbe Form" stimmt für das Symptom und nicht für die Ursache.**
+Ausgezählt am Quelltext sind es **zwei** Operationen in **zwei** Formen:
+`system.packages.upgrade` setzt ab und weiss nichts vom Ausgang (Form A);
+`system.packages.refresh` läuft vollständig und trägt den unvollständigen
+Ausgang bereits in seinem Ergebnis (Form B). `system.reboot` teilt Form A, hat
+aber kein Log — es gibt nichts nachzulesen, und sein Wort ist auch schon
+`abgesetzt` und nicht `läuft`. Und `panel.update` hat **gar keinen Vorgang**:
+Es läuft ausschliesslich über `srvpanel update` auf der Kommandozeile.
+
+> **Ein gemeinsames Symptom ist noch keine gemeinsame Ursache — und die
+> Zusammenfassung, die beides verschmilzt, spart die Unterscheidung ein, die
+> die Behebung braucht.**
+
+Gebaut ist damit **Form A**, für die eine Operation, an der sie wirklich beisst.
+
+**Kein `--wait`.** Es wäre die naheliegende Zeile und nähme genau das Merkmal
+zurück, das Punkt 5 des Abnahmelaufs belegt hat — dass die transiente Unit den
+Neustart von `srvpanel-worker` überlebt.
+
+> **Eine Behebung, die das Merkmal zurücknimmt, für das der Lauf gefahren wurde,
+> ist keine.**
+
+Stattdessen eine Nachlese: Der Agent markiert sein Ergebnis mit `dispatched`,
+`RunAgentOperation` ruft statt `succeed()` den neuen
+`OperationRecorder::dispatched()` — Ergebnis gespeichert, Zustand `running`, kein
+`finished_at` —, und `AwaitDispatchedRun` sieht alle fünfzehn Sekunden nach.
+
+**Ein Job und keine eigene Unit.** `QUEUE_CONNECTION=database`: Er liegt in der
+Tabelle `jobs` bis zu seinem `available_at` und überlebt damit beide Ereignisse,
+die hier vorkommen — den Neustart des Arbeiters durch ein Update, das das Panel
+selbst enthält, und einen ganzen Serverneustart.
+
+#### Zwei Quellen, und jede beantwortet genau eine Frage
+
+**Läuft noch etwas?** Das sagt `systemctl`. Und nur das: `--collect` räumt die
+Unit auch dann ab, wenn sie gescheitert ist.
+
+> **Ein Zustand, der nach dem Ende verschwindet, ist kein Urteil über das Ende.**
+
+**Wie ist es ausgegangen?** Das sagt die Zeile, die `apt-run` selbst schreibt —
+vier Formen, alle im Abnahmelauf gemessen. `Outcome` liest sie, `SystemRunOutcome`
+reicht sie durch; übergeben wird ein **Schlüssel** und kein Pfad, wie bei `Logs`.
+
+**Und sie wird ab dem eigenen Versatz gelesen.** `upgrade.log` sammelt Läufe,
+weil `systemd-run` mit `StandardOutput=append:` anhängt. Wer die letzte Zeile
+nimmt, nimmt womöglich das Urteil des vorigen — genau die Falle, die im
+Abnahmelauf eine Beobachtung gekostet hat.
+
+> **Ein Urteil in einer Datei, die mehrere Läufe sammelt, gehört an die Stelle
+> gebunden, an der der eigene Lauf begonnen hat.**
+
+Der Versatz wird beim Absetzen genommen, vor dem Lauf, und reist im Ergebnis mit.
+
+#### Die Frist fällt zur sicheren Seite
+
+Nach zwei Stunden gibt die Nachlese auf — und meldet **Fehlschlag**, nicht
+Erfolg.
+
+> **Ein Ausgang, der sich nicht feststellen liess, ist kein Erfolg.**
+
+Zwei Stunden, weil `docs/81 §2.3h` Punkt 1 bis heute nicht gemessen ist: Wie
+lange ein Lauf über 142 Pakete dauert, weiss niemand.
+
+> **Eine Frist, die man nicht gemessen hat, wird lang gewählt und nicht
+> plausibel.**
+
+#### Ein Wächter, den sein eigener Bruch überführt hat
+
+`DispatchedRunTest` hält die Naht über drei Dateien. Sein Fall „der Zweig kehrt
+zurück" suchte zuerst `if (…) { … return; }` als Ausdruck — und blieb **grün**,
+als der Eingriff das `return;` herausnahm: Das `.*?` lief über die schliessende
+Klammer hinaus bis zum nächsten `return;` in der Datei.
+
+> **Ein Wächter, der Wörter liest, sieht keine Klammern.**
+
+Er zählt die Klammern seitdem und nimmt den Rumpf des Blocks. Sechs Eingriffe
+stehen in `tests/waechter-brechen.sh`, alle beissend — der dritte erst nach
+dieser Berichtigung.
+
+**Und `GuardReachTest` hat einen Kommentar überführt**: Der Dokumentationsblock
+von `Outcome` versprach einen Wächter unter einem Namen, den es nicht gibt,
+während der gebaute `OutcomeTest` heisst. Ein Kommentar, der einen Test nennt,
+ist derselbe Verweis wie ein `can:` im Code — hier prüft ihn einer.
+
+**Was offen bleibt:** Form B — `system.packages.refresh` meldet `fertig`, während
+sein Ergebnis eine unerreichbare Quelle nennt. Sie braucht keine Nachlese,
+sondern eine Entscheidung darüber, welchen Zustand ein Vorgang bekommt, der
+teilweise gelungen ist; ein neuer Wert im Enum ist ansteckend, und `failed`
+überzeichnete. Und Form A ist auf einem echten Server noch nicht gemessen.
+
+### Form B — der Zustand bleibt, der Vorbehalt wird sichtbar
+
+Entschieden vom Betreiber am 28. August 2026, nachdem die Kosten der drei Wege
+ausgezählt waren.
+
+Ein `apt-get update`, bei dem eine von fünf Quellen ausfiel, hat vier Listen
+frisch geholt und sagt, welche fehlt. Der Vorgang steht auf `fertig` — und das
+ist richtig.
+
+> **Ein Lauf, der getan hat, worum man ihn bat, ist gelungen — auch wenn er
+> dabei etwas zu melden hat.**
+
+Kein neuer Wert im Enum also. `system.packages.refresh` meldet stattdessen ein
+`warning`, `OperationController::row()` reicht es durch, und die Vorgangsliste
+zeigt es als Marke neben der Aufgabe. **Nicht über `message`:** Dort steht,
+*was* der Vorgang ist; wer die Warnung dorthin schriebe, nähme der Zeile ihre
+Auskunft, um eine zweite hineinzulegen.
+
+**Beim Zählen ist die Ansteckung kleiner ausgefallen als befürchtet** — ein
+neuer Enum-Wert hätte sechs Stellen gekostet, nicht dreissig: `open()` vergleicht
+mit `===` und wäre unberührt, `label()` ist ein exhaustives `match`, einen Filter
+nach Zustand gibt es auf der Seite nicht, und `.badge.neutral` steht schon da.
+Die eine unauffällige Folge wäre gewesen, dass `srvpanel acceptance` seine
+„erledigt"-Zahl über `Succeeded` zählt.
+
+> **Eine Ansteckung, die man schätzt, ist grösser als eine, die man zählt.**
+
+#### Der Irrtum, mit dem dieser Schritt begann
+
+Ich hatte dem Betreiber zur Entscheidung geschrieben, die Meldung stehe „schon
+in der Zeile". Sie steht im Payload — und keine der sechs Spalten rendert sie.
+Aufgefallen ist es erst beim Bauen, beim Blick in die Vorlage.
+
+> **Ein Feld im Payload ist noch keine Spalte.**
+
+Der Wächter hält deshalb alle drei Glieder: dass eine Operation überhaupt einen
+Vorbehalt meldet, dass der Controller ihn durchreicht, und dass die Vorlage ihn
+liest. Drei Eingriffe, alle beissend — der dritte ist genau dieser Irrtum als
+Bruch.
+
+### Befund 4 — es war der Text und nicht die CSS
+
+Auf der Vorgangsseite stand `W` allein und `: …` darunter — die Marke zerrissen,
+an der eine Zeile überhaupt als Warnung erkennbar ist. `docs/86` liess offen, ob
+der Umbruch aus `app.css` kommt oder aus dem gespeicherten Text; die Antwort
+entscheidet, wo der Fix steht.
+
+**Gemessen gegen den echten `Runner` und echtes apt** (`apt-get -q -s
+dist-upgrade`, 34 001 Bytes), mit der vollständigen Ausgabe desselben Laufs als
+Gegenprobe — sie geht nicht durch den Rahmenweg:
+
+    Zeilen im Ergebnis: 317   (Gegenprobe)
+    Zeilen im Rahmen:   320
+    Differenz:          +3
+
+> **Eine Messung braucht einen zweiten Weg zum selben Gegenstand, sonst misst
+> sie sich selbst.**
+
+`Runner` liest mit `fread($pipe, 65536)` — Bytes und keine Zeilen. Die Schleife
+machte daraus trotzdem welche: `explode("\n", rtrim($chunk, "\n"))`. `rtrim`
+schneidet **nur hinten**; endet ein Stück ohne seinen Umbruch, beginnt das
+nächste damit, und `explode` liefert eine leere erste Zeile. Fällt die Grenze
+mitten im Text, wird die Zeile in zwei zerrissen — das ist das `W`.
+
+> **Eine Stückgrenze ist keine Zeilengrenze — und wer je Stück Zeilen schreibt,
+> macht aus jeder Grenze eine.**
+
+**Der auffällige Fall war der seltene.** Gesehen hat der Betreiber das
+zerrissene `W:`; die eingeschobene Leerzeile stand schon bei Zeile 2 und ist
+niemandem aufgefallen, weil eine leere Zeile in einer Programmausgabe wie nichts
+aussieht.
+
+`SrvPanel\Agent\Lines` hält jetzt einen Rest **je Kanal** — ein gemeinsamer
+klebte das halbe Ende von `stdout` an den Anfang von `stderr`:
+
+> **Zwei Ströme, die sich einen Puffer teilen, erzeugen eine Zeile, die keiner
+> von beiden geschrieben hat.**
+
+Und was am Ende ohne Umbruch übrig ist, wird trotzdem gesendet: Ausgerechnet die
+letzte Zeile trägt bei `apt-run` das Urteil, an dem seit heute die Nachlese
+eines abgesetzten Laufs hängt.
+
+Dieselbe Messung danach: **317 gegen 317.** `LinesTest` hält es in sieben
+Fällen, darunter die Gegenprobe, die die **alte** Rechnung wörtlich nachbaut —
+ohne sie wäre der Test auch dann grün, wenn `feed()` schlicht jedes Stück ganz
+zurückgäbe. Vier Eingriffe im Bruchskript, alle beissend.
+
+### Die dreizehn gezählten Stellen — und das Werkzeug, das fehlte
+
+Der Abnahmelauf von A1 hat dreizehn Fundstellen unter `app/` gezählt, an denen
+eine Zahl an einem Plural klebt (`docs/86`, Befund 11). Nachgezählt am
+28. August: weiterhin dreizehn, und sie zerfallen in drei Gruppen.
+
+**Drei waren wirklich falsch**, alle in `FileController`: „Von **1 Dateien** ist
+1 hochgeladen", „Das Archiv ist entpackt — **1 Einträge**" (zweimal). Sie sind
+nicht deshalb liegengeblieben, weil sie schwer wären, sondern weil das Werkzeug
+fehlte — die Oberfläche hat `counted()` seit P5c, PHP hatte nichts.
+
+> **Eine Regel ohne Werkzeug wird an jeder Stelle neu entschieden — und
+> irgendwann an einer nicht.**
+
+`App\Support\Language\Counted` ist das Gegenstück: dieselbe Signatur, dieselbe
+Bedingung, dieselbe Schreibweise der Zahl. `CountedTest` hält die beiden
+aneinander — verglichen wird die **Bedingung** und nicht das Ergebnis, weil das
+Ergebnis in zwei Sprachen entsteht. Kein `trans_choice()`: Ein
+Übersetzungsapparat für eine Sprache ist Verwaltung ohne Gegenwert.
+
+**Zwei können keine eins sein** und stehen als benannte Ausnahmen da, wie die
+vier im Agenten: die Ausfuhrgrenze des Protokolls (Konfiguration, Vorgabe
+50 000) und `Budget::DOMAINS`/`SECONDS` (25 und 240).
+
+**Einer war ein Fehlalarm des Wächters.** `CustomerController::cascadeMessage()`
+steht in einem `match (count($affected))` mit einem eigenen `1 =>`-Zweig — der
+`default` kann dort nie eins sein. Der Ausdruck kannte nur `=== 1`.
+
+> **Ein Wächter, der eine Schreibweise der Bedingung kennt, meldet die andere
+> als Fehler.**
+
+**Die sieben übrigen liegen auf der Kommandozeile**, und dort steht eine Frage,
+die nie jemand gestellt hat: `docs/19` heisst „Sprache der **Oberfläche**" und
+erwähnt die Kommandozeile mit keinem Wort. Sie stehen als Ausnahmen mit genau
+diesem Grund.
+
+**`CountedNounTest` liest seitdem auch `app/`** — bis dahin für PHP nur
+`agent/src`, und die dreizehn waren damit gezählt und nicht gehalten.
+
+#### Drei Funde am eigenen Vorgehen
+
+**Meine erste Zählung meldete null.** Ich hatte den Ausdruck des Wächters
+nachgebaut und dabei den für Vue genommen (`}}` vor dem Plural) statt den für
+PHP (`%d`) — samt der falschen Pluralliste. Aufgedeckt hat es die Gegenprobe
+über `agent/src`, wo vier bekannte Stellen liegen und meine Nachbildung
+ebenfalls null meldete.
+
+> **Eine Nachbildung eines Wächters ist nicht der Wächter — und ihre Null ist
+> seine nicht.**
+
+**Die Gegenrichtung des Wächters verglich eine Menge als Liste.** Die Funde
+kommen sortiert, die Ausnahmen in der Reihenfolge, in der jemand sie
+aufgeschrieben hat; sobald die Liste gruppiert war, meldete er „eine Ausnahme
+deckt nichts mehr" für eine Liste, in der jede etwas deckte.
+
+> **Ein Wächter, der eine Menge als Liste vergleicht, meldet die Reihenfolge und
+> nennt es einen Befund.**
+
+**Und mein eigener neuer Wächter hatte dieselbe Schwäche wie ein alter Bekannter
+dieses Repos.** Der Bruch, der `Counted::of(` zu `xCounted::of(` machte, blieb
+grün: `str_contains` findet den Namen auch im längeren Wort. Mit `\b` beisst er.
+
+> **Ein Wächter, der eine Zeichenkette sucht, findet sie auch dort, wo sie nur
+> ein Teil ist.**
+
+**Nebenbei hat die Änderung zwei Stellen gerissen, die an der alten Meldung
+hingen** — ein Feature-Test und ein Eingriff im Bruchskript. Beide sind
+nachgezogen, der Eingriff danach gegengeprüft.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand sie ändert.**

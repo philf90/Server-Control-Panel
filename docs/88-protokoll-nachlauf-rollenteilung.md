@@ -336,7 +336,7 @@ wieder der falsche Ort.
 
 ---
 
-## 13. Beobachtung 6 — Zwei Zertifikatsbestellungen stehen auf `fehlgeschlagen`
+## 13. Beobachtung 6 — Zwei rote Zeilen, die ein richtiges Verhalten melden
 
 | Nummer | Aufgabe | Zustand | Begonnen |
 |---|---|---|---|
@@ -348,10 +348,33 @@ Sie folgen unmittelbar auf die acht Vorgänge (708–715) des
 `web.site.apply`, also die vier Kundendomains. Zwei davon haben kein Zertifikat
 bekommen.
 
-**Das liegt ausserhalb dieses Laufs** (`docs/87 §9` nennt TLS nicht), und es
-gehört trotzdem notiert: Zwei Kundendomains laufen seit heute morgen ohne
-Zertifikat, und das überlebt diesen Nachlauf. Wer als nächstes TLS anfasst,
-fängt hier an.
+> **Hier stand „zwei Kundendomains laufen ohne Zertifikat, das überlebt diesen
+> Nachlauf" — und das war falsch.** Die vier Domains sind `cloudlab24.de`,
+> `cloudlab24.ipv64.de`, **`p6-abnahme.invalid`** und **`p6-b.invalid`**. Die
+> beiden letzten sind Prüfkörper aus dem Abnahmedurchgang von P6, und `.invalid`
+> ist nach **RFC 2606 reserviert** — der Name kann nicht auflösen, und Let's
+> Encrypt weist die Bestellung zu Recht ab. Es gibt hier nichts zu beheben.
+
+**Und das ist der zweite Fehlalarm mit denselben zwei Namen.** `docs/78 §5` hat
+am 24. August dasselbe verbucht: *„die zwei Bestellungen aus `vhost --sites`
+galten Namen unter `.invalid` und sind zu Recht abgewiesen worden"*. Damals hat
+es einen Umweg im Protokoll gekostet, heute eine Zeile, die den Betreiber auf
+eine Baustelle zeigte, die es nicht gibt.
+
+> **Ein rotes Feld, das ein richtiges Verhalten meldet, kostet jedes Mal wieder,
+> solange nichts danebensteht, dass es richtig ist.**
+
+**Am Quelltext nachgesehen kennt das Panel keine reservierten Endungen.**
+Weder `app/` noch `agent/src/` erwähnen `.invalid`, `.test`, `.example` oder
+`.localhost`; die Zertifikatsautomatik bestellt für jede Domain und trägt den
+Fehlschlag ein.
+
+**Als Vorschlag notiert und nicht gebaut:** Eine Domain unter einer nach RFC 2606
+reservierten Endung bekommt gar keine Bestellung, und die Seite sagt, warum.
+Das nähme dieser Sorte Zeile die Verwechslungsgefahr — sie hat in fünf Tagen
+zweimal Zeit gekostet. Der Betreiber hat am 28. August entschieden, dass es
+nicht dringend ist; hier steht es, damit es nicht ein drittes Mal neu entdeckt
+wird.
 
 ---
 
@@ -682,7 +705,7 @@ daneben trägt das Wort von vorhin (Befund 4), der Balken die Zahl von vorhin
 > nichts gesagt.**
 
 **Und zwei Dinge, die dieser Lauf nicht bestellt hat, aber gefunden hat:** das
-unhergestellte Vorher der Familie (§11) und zwei Kundendomains ohne Zertifikat
-(§13).
+unhergestellte Vorher der Familie (§11) und zwei rote Zeilen, die kein Befund
+sind (§13).
 
 > **Ein Protokoll ohne seine Lücken liest sich wie eine Abnahme.**

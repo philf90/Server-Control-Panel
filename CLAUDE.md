@@ -56,7 +56,7 @@ Die **Rollenteilung** aus `docs/81 §3` Frage 2 ist am **27. August 2026 gebaut*
 sieht über `inspect-server`, gedreht wird über `operate-server`. **Die
 Bilderrunde dazu ist gefahren** (`docs/81 §2.3n`): acht Lagen, Überlauf 0 px,
 Gegenprobe 200/200 — und bei 390 px ist die Ansicht des Administrators
-**1940 px kürzer**. A3, A4 und A7 haben weiterhin keine Stufe. Die sechzehn Befunde und sechs Beobachtungen des
+**1940 px kürzer**. **Seit dem 28. August hat jeder Vorschlag einen Ort** — A8 und A3s erster Wurf in P7b, A3s zweiter und A4 in der neuen Stufe **P9b** vor P10, A7 stand längst in P9. Die sechzehn Befunde und sechs Beobachtungen des
 A9-Laufs stehen mit ihrer Baureihenfolge in `docs/84 §7`.
 
  P6 ist am **21. August 2026** auf `cloudsrv24`
@@ -831,8 +831,23 @@ Bruch hat dabei ein Loch in ihm selbst gefunden — der Ausdruck kannte
 > **Ein Wächter, der nur die gewohnte Schreibweise kennt, prüft die Gewohnheit
 > und nicht die Regel.**
 
-**Offen bleibt, wohin A3, A4 und A7 gehören** — Firewall, Fail2ban, Schwellen.
-Sie stehen in `docs/20 §9` unter P7b als „hat noch keine Stufe".
+**Seit dem 28. August 2026 hat jeder Vorschlag einen Ort** (`docs/81 §12.1`).
+**A7 hatte ihn längst** — er steht in der Aufzählung von P9 als
+„Ressourcenüberwachung des Servers, Schwellen, Benachrichtigungen"; dass er
+unter P7b als „hat noch keine Stufe" geführt wurde, war ein Widerspruch im
+selben Dokument, das sechzig Zeilen weiter nur „Firewall und Fail2ban" nennt.
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.**
+
+**A3 ist geteilt:** der erste Wurf (nur Anzeige — welche Ports lauschen) nach
+P7b, weil das Panel seit P5b 3306 und 5432 öffnet und nicht sagen kann, ob sie
+erreichbar sind; der zweite Wurf und **A4** in die neue Stufe **P9b**, zwischen
+P9 und P10.
+
+> **Eine Härtungsstufe, die selbst noch baut, prüft ihr eigenes Werk.** P10
+> enthält den Angriffsdurchgang und den externen Review — was dort entsteht,
+> wird von dem Durchgang begutachtet, der es hätte prüfen sollen.
 
 Der Plan ist **`docs/81`** (A1 vollständig, die übrigen als Skizze), die
 Bestandsaufnahme **`docs/80`**, die Übergabe **`docs/79`**.

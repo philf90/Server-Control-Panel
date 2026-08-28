@@ -1242,7 +1242,7 @@ Eintragseditor, DNSSEC, AXFR, NOTIFY — und das Schreiben in fremde Zonen über
 die vorhandenen Anbieter-Zugangsdaten. Das letzte ist der naheliegende nächste
 Schritt und eine eigene Entscheidung (`docs/72 §4`).
 
-### P7b — Serververwaltung · ~7,5 Wochen · (0.8.x)
+### P7b — Serververwaltung · ~9 Wochen · (0.8.x)
 
 > **Dazugekommen am 24. August 2026, entschieden vom Betreiber.** Diese Stufe
 > stand bis dahin als ein Aufzählungspunkt in P9 („Serververwaltung für den
@@ -1283,19 +1283,50 @@ Sieben Vorschläge aus `docs/80 §6.1`, in dieser Reihenfolge:
   keiner davon ein Kriterienausfall.
 - **A11 — Neustart, Zeitzone des Servers, NTP** · 2–3 Tage.
 - **A6 — Zeitpläne des Servers, nur lesen** · 2–3 Tage.
+- **A8 — IP-Adressen des Servers** · 2–3 Tage · **eingeordnet am 28. August
+  2026**. Welche Adressen der Server hat, welche der DNS-Abgleich als Soll
+  nimmt, welche die Vorgabe für neue Domains ist. Sie stand als „eigenständig"
+  da und damit nirgends; sie beantwortet die erste Rückfrage, wenn P7s Abgleich
+  „zeigt woandershin" meldet — gegen **was** hat er verglichen?
+- **A3, erster Wurf — welche Ports lauschen** · 4 Tage · **eingeordnet am
+  28. August 2026**, und nur dieser erste Wurf. Er ist **reine Anzeige**:
+  `ss -ltnp`, welches Regelwerk läuft, und ob die Ports, die das Panel geöffnet
+  hat, von aussen erreichbar sind.
+
+  **Der Grund, dass er hierher gehört und nicht in die Absicherung:** Seit P5b
+  liefert das Panel den Fernzugriff auf MariaDB und PostgreSQL aus und öffnet
+  damit 3306 und 5432 — und sagt an genau dieser Stelle in der Oberfläche, die
+  Firewall sei nicht seine Sache (`docs/36:838`). Das ist ehrlich und trotzdem
+  eine halbe Auskunft: **Das Panel öffnet einen Port und kann nicht sagen, ob
+  er erreichbar ist.**
+
+  Er schreibt nichts und kann deshalb niemanden aussperren. Die Falle ist keine
+  technische, sondern eine der Ehrlichkeit — steht eine Cloud-Firewall davor,
+  die das Panel nicht sieht, ist „Port offen" falsch. Was vorher zu messen ist,
+  steht in `docs/80` A3.
 
 **Fertig, wenn** ein Betreiber Systemupdates einspielen, Dienste ansehen und
 Logs lesen kann, ohne sich anzumelden — und das Abnahmekriterium von A1
 (`docs/81 §4`, acht Punkte) auf einem echten Server erfüllt ist.
 
 **Stand am 28. August 2026: A5, A9 und A1 sind abgenommen**, die Rollenteilung
-der Updates-Seite ist gebaut. Offen sind A2, A10, A11 und A6.
+der Updates-Seite ist gebaut. Offen sind A2, A10, A11, A6, A8 und der erste
+Wurf von A3.
 
-**Was hier ausdrücklich nicht dazugehört und noch keine Stufe hat:** die drei
-absichernden Vorschläge **A3** (Firewall über nftables), **A4** (Anmeldeschutz
-über fail2ban) und **A7** (Schwellen und Benachrichtigungen), zusammen rund vier
-Wochen. `docs/81 §12.1` schlägt für sie eine eigene Stufe nach P9 vor;
-**entschieden ist das nicht.**
+**Was hier ausdrücklich nicht dazugehört:** der **zweite** Wurf von **A3** —
+der, der schreibt — und **A4** (Anmeldeschutz über fail2ban). Beide stehen seit
+dem 28. August 2026 in **P9b**, unten.
+
+> **Berichtigt am 28. August 2026.** Hier stand, **drei** Vorschläge hätten
+> keine Stufe, und **A7** war der dritte. Das war falsch, und der Widerspruch
+> stand sechzig Zeilen weiter im selben Dokument: P9 führt „Ressourcen­über­
+> wachung des Servers, Schwellen, Benachrichtigungen (E-Mail, Webhook)" in
+> seiner Aufzählung — das **ist** A7 — und nennt in seiner eigenen Notiz nur
+> „Firewall und Fail2ban" als ohne Stufe. `CLAUDE.md` und `docs/81 §12.1`
+> hatten die Drei-Version übernommen.
+>
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.**
 
 > **A9 stand bis zum 24. August in dieser Gruppe und ist herausgelöst worden.**
 > Sie war die folgenreichste darin: Sie teilt den Admin in Betreiber und
@@ -1325,21 +1356,82 @@ funktionieren — geprüft durch einen automatisierten Lauf, nicht von Hand.
   30 Tage, aus der verdichteten Tabelle statt aus dem Ringpuffer
 - Auswertung der Zugriffs-Logs je Domain als Nachtlauf, mit Aufbewahrungsfrist
 - Ressourcenüberwachung des Servers, Schwellen, Benachrichtigungen (E-Mail,
-  Webhook)
+  Webhook) — **das ist A7**, und ausgeschrieben steht er in `docs/80`. Diese
+  Zeile war dünner als er: Es fehlten die **Entprellung** (eine Platte, die um
+  die Schwelle pendelt, sind 400 Mails), die Begründung des zweiten Kanals —
+  *eine Meldung über einen Ausfall, die über den ausgefallenen Weg geht, kommt
+  nicht an*, und der Mailversand läuft über diesen Server — samt der Anzeige
+  „zuletzt erfolgreich zugestellt", weil ein Kanal, der schweigt, von einem,
+  der nichts zu melden hat, sonst nicht zu unterscheiden ist.
+
+  **Und seine Auslöserliste ist seit P7b gewachsen:** Dienst tot und Timer ohne
+  nächsten Termin kommen aus A2, offene Sicherheitsupdates und der ablaufende
+  Signaturschlüssel aus A1. Wer A7 baut, liest die Liste in `docs/80` und nicht
+  diese Zeile.
 - Benachrichtigungen an Kunden: Kontingent erreicht, Zertifikat läuft ab,
   Sicherung fehlgeschlagen
 - Branding: Logo, Farben, Fußzeile, Absenderadresse, eigene Panel-Domain
 - ~~Serververwaltung für den Admin~~ — **seit dem 24. August 2026 eine eigene
   Stufe, P7b**, und damit vor P8 statt hier. Der Punkt bleibt als Zeile stehen
   und nicht als stille Streichung: Wer P9 plant, soll sehen, wohin er gegangen
-  ist. Was von ihm noch keine Stufe hat, sind Firewall und Fail2ban — siehe
-  dort.
+  ist. Firewall und Fail2ban hatten bis zum 28. August 2026 keine Stufe; sie
+  stehen jetzt in **P9b**, unten.
 - API v1 mit OpenAPI-Beschreibung und Tokens; darüber Abonnement anlegen,
   ändern, sperren, löschen
 - Dokumentation: Betreiberhandbuch, Kundenhilfe in der Oberfläche
 
 **Fertig, wenn** ein fremder Kunde das Panel benutzen kann, ohne zu fragen —
 gemessen an einem Durchlauf mit einer Person, die das Projekt nicht kennt.
+
+### P9b — Absicherung des Servers · ~3 Wochen · (0.10.x)
+
+> **Entschieden am 28. August 2026 vom Betreiber.** `docs/81 §12.1` schlug
+> „eine eigene Stufe nach P9" vor und liess sie offen; `docs/80 §6.2` nannte
+> sie „P9c" und rechnete A7 und A9 mit. Beide sind inzwischen anderswo — A9 in
+> P7b, A7 in P9 —, es bleiben zwei.
+>
+> **Der Name folgt P7b:** eine Stufe, die zwischen zwei bestehende gehört, trägt
+> den Buchstaben der davor. Nicht „P10a", denn sie kommt **vor** P10, und der
+> Unterschied ist hier der ganze Grund.
+
+- **A3, zweiter Wurf — die Firewall schreiben** · 1,5 Wochen. In eine **eigene**
+  nftables-Tabelle, die den Bestand nicht anfasst. Der erste Wurf (Anzeige) ist
+  in P7b.
+- **A4 — Anmeldeschutz über fail2ban** · 1 Woche. Jails lesen, Sperren zählen,
+  entsperren, eine eigene Jail für das Panel-Log. Der Entsperren-Knopf ohne
+  Prüfung wäre „beliebige Zeichenkette an fail2ban": Die Adresse gehört
+  validiert, der Jailname kommt aus der gelesenen Liste.
+
+**Warum vor P10 und nicht darin.** P10 enthält den vollständigen
+Angriffsdurchgang und den **externen Sicherheits-Review**. Eine Firewall, die in
+P10 entsteht, wird von genau dem Durchgang begutachtet, der sie hätte prüfen
+sollen.
+
+> **Eine Härtungsstufe, die selbst noch baut, prüft ihr eigenes Werk.**
+
+**Die Falle dieser Stufe ist das Aussperren.** Eine Firewall über das Panel zu
+verwalten heisst, sich über das Panel aussperren zu können. Jede Änderung
+braucht eine **Rücknahme nach Zeit** — der neue Regelsatz gilt, und wenn niemand
+innerhalb von zwei Minuten bestätigt, stellt eine transiente Unit den alten
+wieder her.
+
+> **Ein Rückweg, der voraussetzt, dass man noch drankommt, ist keiner für den
+> Fall, dass genau dieser Vorgang einen aussperrt.**
+
+Derselbe Satz wie beim `sshd` in P6 und bei der Netzbeschränkung aus A9, an
+einer dritten Sache. Und die transiente Unit ist dieselbe Bauart wie in A1 —
+mitsamt der Familie aus `docs/86 §5`, die dort noch offen ist: Ein Vorgang, der
+nur absetzt, sagt über den Ausgang nichts. Hier wäre das teurer als bei einem
+Upgrade.
+
+**Fertig, wenn** ein Regelsatz über das Panel gesetzt wird, die Bestätigung
+ausbleibt und der alte Zustand von selbst zurückkommt — gemessen auf einem
+echten Server, mit einer Verbindung, die dabei wirklich abreisst.
+
+**Sie darf auch nach P10 kommen** (`docs/80 §6.2`), wenn der Server ohnehin
+hinter einer Cloud-Firewall steht — **aber dann als Entscheidung und nicht als
+Versäumnis**, und P10s Angriffsdurchgang läuft dann gegen ein Panel ohne
+eigene Firewall. Das ist die vorsichtigere Annahme und deshalb kein Fehler.
 
 ### P10 — Härtung und Freigabe · 3–4 Wochen · (1.0)
 
@@ -1352,7 +1444,13 @@ gemessen an einem Durchlauf mit einer Person, die das Projekt nicht kennt.
   (§4.2)
 - Freigabe 1.0
 
-**Summe: 32–44 Wochen** bis 1.0. Die Zahl ist ehrlich gemeint, nicht
+**Summe: 36–48 Wochen** bis 1.0 — am 28. August 2026 um vier Wochen
+fortgeschrieben: **P9b** (rund drei) sowie A8 und der erste Wurf von A3 in P7b
+(zusammen gut eine). Die Zahl wächst, weil Arbeit einen Ort bekommen hat, die
+vorher keinen hatte — nicht, weil neue dazugekommen wäre.
+
+> **Eine Summe, aus der das Heimatlose fehlt, ist nicht kleiner — sie ist
+> unvollständig.** Die Zahl ist ehrlich gemeint, nicht
 verhandelt: Ein Hosting-Panel ist kein Feature, sondern ein Betriebssystem-
 Aufsatz mit einer Fläche für Fremde.
 

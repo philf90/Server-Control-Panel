@@ -2067,8 +2067,19 @@ Wochen**.
 
 **Vorschlag zur Teilung** — eine Änderung an `docs/20`, und die trifft der
 Betreiber, nicht dieses Dokument. _Überholt: §12.1 darunter trägt, was
-entschieden wurde. Die Tabelle bleibt als Zuschnitt richtig — welche Vorschläge
-zusammengehören und was sie kosten —, nur ihre Namen nicht._
+entschieden wurde._
+
+> **Diese Tabelle ist seit dem 28. August 2026 auch im Zuschnitt überholt und
+> nicht mehr nur in den Namen.** A9 ist am 24. August nach P7b gezogen, A7 stand
+> längst in P9 — von „P9c Absicherung" bleiben A3 und A4.
+>
+> **Und ihr Name „P9b" ist heute vergeben, an etwas anderes.** Er gehört seit
+> dem 28. August der Absicherung; „Kundenfähigkeit" ist nie entstanden, weil P9
+> ungeteilt blieb. Wer hier liest, liest einen Vorschlag von damals und nicht
+> den Plan.
+>
+> **Ein Name, der in einem überholten Vorschlag steht, wird nicht frei — er
+> wird zweideutig.**
 
 | Stufe | Inhalt | Dauer |
 |---|---|---|
@@ -2099,14 +2110,32 @@ Serververwaltungssatz in P9 zeigt dorthin statt ihn ein zweites Mal zu führen.
 
 | Stufe | Inhalt | Wann |
 |---|---|---|
-| **P7b — Serververwaltung** | A5, A2, A10, A1, A11, A6 | **entschieden**, vor P8 |
+| **P7b — Serververwaltung** | A5, A2, A10, A1, A11, A6, A8, A3 (erster Wurf) | **entschieden**, vor P8 |
 | **P8** | Sicherungen und Wiederherstellung | unverändert |
-| **P9** | Kundenfähigkeit nach `docs/20 §9`, **ohne** den Serververwaltungssatz | unverändert |
-| _(ohne Stufe)_ | A3, A4, A7 — Firewall, Fail2ban, Schwellen | **offen**, Vorschlag: eigene Stufe nach P9 |
+| **P9** | Kundenfähigkeit nach `docs/20 §9`, **ohne** den Serververwaltungssatz — **A7 steht darin** | unverändert |
+| **P9b — Absicherung des Servers** | A3 (zweiter Wurf), A4 | **entschieden am 28. August 2026**, zwischen P9 und P10 |
 
-**Drei der vier absichernden Vorschläge haben weiterhin keinen Ort.** Sie
-stehen in `docs/20 §9` unter P7b als „hat noch keine Stufe" — benannt und ohne
-Stufe, statt stillschweigend irgendwohin geschoben.
+**Am 28. August 2026 hat alles einen Ort bekommen — und dabei fiel ein
+Widerspruch heraus.** Hier stand, **drei** absichernde Vorschläge hätten keinen,
+und **A7** war der dritte. Das war falsch: `docs/20 §9` führt A7 in der
+Aufzählung von P9 („Ressourcenüberwachung des Servers, Schwellen,
+Benachrichtigungen (E-Mail, Webhook)") und nennt sechzig Zeilen weiter in
+derselben Datei nur „Firewall und Fail2ban" als ohne Stufe. Diese Tabelle und
+`CLAUDE.md` hatten die Drei-Version übernommen.
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.**
+
+**A3 ist geteilt, und zwar dort, wo `docs/80` ihn schon teilt.** Der erste Wurf
+ist reine Anzeige und gehört nach P7b: Seit P5b öffnet das Panel 3306 und 5432
+und sagt in der Oberfläche, die Firewall sei nicht seine Sache — es öffnet also
+einen Port und kann nicht sagen, ob er erreichbar ist. Der zweite Wurf schreibt
+und kann aussperren; er steht in P9b.
+
+**Warum P9b vor P10 liegt und nicht darin:** P10 enthält den vollständigen
+Angriffsdurchgang und den externen Sicherheits-Review.
+
+> **Eine Härtungsstufe, die selbst noch baut, prüft ihr eigenes Werk.**
 
 **A9 ist am 24. August daraus herausgelöst und in P7b vorgezogen worden**, an
 die zweite Stelle nach A5. Der Grund ist der Satz aus §11 selbst: Wer eine

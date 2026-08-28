@@ -22142,3 +22142,62 @@ sondern ein Befund *dieses* Laufs. Punkt 3 verlangt, dass eine tote Quelle
 
 Damit sind in P7b **A5, A9 und A1 abgenommen**; offen bleiben A2, A10, A11 und
 A6, und A3, A4 sowie A7 haben weiterhin keine Stufe.
+
+### Jeder Vorschlag hat einen Ort — und einer hatte ihn längst
+
+Der Betreiber hat am 28. August 2026 gefragt, wo A3, A4 und A7 am besten
+hingehören und ob Inhalte davon schon in späteren Stufen stehen. Die zweite
+Hälfte der Frage war die ergiebigere.
+
+**A7 hatte längst eine Stufe, und `docs/20 §9` widersprach sich darüber selbst.**
+Der P7b-Block führte „die drei absichernden Vorschläge A3, A4 und A7" als ohne
+Stufe; sechzig Zeilen weiter nennt der P9-Block nur „Firewall und Fail2ban" —
+und die Aufzählung von P9 trägt „Ressourcenüberwachung des Servers, Schwellen,
+Benachrichtigungen (E-Mail, Webhook)", also A7, bis auf die Kanäle wörtlich.
+`CLAUDE.md` und `docs/81 §12.1` hatten die Drei-Version übernommen.
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.**
+
+Kein Wächter kann das sehen: `DocLinkTest` hält, dass eine genannte Datei
+existiert, nicht, dass zwei Sätze über dieselbe Sache dasselbe sagen.
+
+**Die P9-Zeile war ausserdem dünner als A7.** Ihr fehlten die Entprellung, die
+Begründung des zweiten Kanals — *eine Meldung über einen Ausfall, die über den
+ausgefallenen Weg geht, kommt nicht an* — und vier Auslöser, die es erst seit
+P7b gibt: Dienst tot und Timer ohne nächsten Termin aus A2, offene
+Sicherheitsupdates und der ablaufende Signaturschlüssel aus A1. Sie zeigt jetzt
+auf `docs/80` statt zu paraphrasieren.
+
+> **Eine Zusammenfassung, die neben dem Ausgeschriebenen steht, veraltet gegen
+> es — und gelesen wird die kürzere.**
+
+**A3 ist geteilt, und zwar dort, wo `docs/80` ihn schon teilte.** Der erste
+Wurf ist reine Anzeige und steht jetzt in P7b: Seit P5b liefert das Panel den
+Fernzugriff auf MariaDB und PostgreSQL aus, öffnet also 3306 und 5432 — und
+sagt an genau dieser Stelle in der Oberfläche, die Firewall sei nicht seine
+Sache. Es öffnet einen Port und kann nicht sagen, ob er erreichbar ist. Vier
+Tage, lesend, kein Aussperrrisiko.
+
+**Der zweite Wurf und A4 stehen in der neuen Stufe P9b**, zwischen P9 und P10.
+Der Name folgt P7b: Eine Stufe, die zwischen zwei bestehende gehört, trägt den
+Buchstaben der davor.
+
+> **Eine Härtungsstufe, die selbst noch baut, prüft ihr eigenes Werk.**
+
+P10 enthält den vollständigen Angriffsdurchgang und den externen
+Sicherheits-Review. Eine Firewall, die in P10 entsteht, wird von genau dem
+Durchgang begutachtet, der sie hätte prüfen sollen. `docs/80 §6.2` lässt „nach
+P10" weiterhin zu, wenn der Server hinter einer Cloud-Firewall steht — dann
+läuft P10s Durchgang gegen ein Panel ohne eigene Firewall, was die
+vorsichtigere Annahme ist.
+
+**A8 ist beim Nachlesen mit herausgefallen** — die IP-Adressen des Servers
+standen in `docs/81 §11` als „eigenständig; P7 ist fertig" und damit nirgends.
+Zwei bis drei Tage, jetzt in P7b: Sie beantworten die erste Rückfrage, wenn der
+DNS-Abgleich „zeigt woandershin" meldet — gegen **was** hat er verglichen?
+
+Die Gesamtsumme steht damit auf **36–48 Wochen** statt 32–44.
+
+> **Eine Summe, aus der das Heimatlose fehlt, ist nicht kleiner — sie ist
+> unvollständig.**

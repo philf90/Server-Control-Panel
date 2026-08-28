@@ -2127,10 +2127,13 @@ dem `srvpanel` gar nicht vorkam.
 **Was zwischen „gemessen" und „abgenommen" steht, ist keine Messung mehr,
 sondern eine Entscheidung des Betreibers.** Diese Reste stehen dem gegenüber:
 
-1. **Befund 1** — der Vorgang meldet `fertig`, während eine Quelle ausgefallen
-   ist. Das ist der Grund, warum Punkt 3 lange „teilweise" hiess: Das Kriterium
-   verlangt, dass die tote Quelle **benannt** wird, und das tut die Seite
-   (Vorgang 690). Der Zustand des Vorgangs trägt den Ausgang trotzdem nicht.
+1. ~~**Befund 1** — der Vorgang meldet `fertig`, während eine Quelle
+   ausgefallen ist.~~ Das war der Grund, warum Punkt 3 lange „teilweise" hiess:
+   Das Kriterium verlangt, dass die tote Quelle **benannt** wird, und das tut
+   die Seite (Vorgang 690). Der Zustand des Vorgangs trug den Ausgang trotzdem
+   nicht. **Entschieden und gebaut am 28. August 2026** als Form B — der
+   Zustand bleibt, der Vorbehalt wird sichtbar; die Begründung steht in
+   Punkt 2.
 2. **Und derselbe Bau ist im Lauf noch zweimal aufgetaucht.** Vorgang 704 steht
    auf `fertig`, während das Upgrade noch acht Sekunden lief; 5d steht auf
    `fertig`, obwohl `apt-run` mit 3 endete. Dreimal dieselbe Form:
@@ -2193,9 +2196,42 @@ sondern eine Entscheidung des Betreibers.** Diese Reste stehen dem gegenüber:
    gibt. Gehört zu A5.
 5. **`docs/81 §2.3h` Punkt 1** bleibt unbeantwortet: Wie lange ein Lauf über
    142 Pakete dauert, ist nicht gemessen — dieser Lauf hatte sechs und fünf.
-6. **Dreizehn gezählte Fundstellen** unter `app/` aus Befund 11.
+6. ~~**Dreizehn gezählte Fundstellen** unter `app/` aus Befund 11.~~
+   **Behoben am 28. August 2026.** Was fehlte, war nicht die Sorgfalt, sondern
+   das Werkzeug: `useCounted.ts` gibt es seit P6 für die Oberfläche, für PHP
+   gab es nichts. `App\Support\Language\Counted` ist es jetzt, und
+   `CountedNounTest` prüft beide Richtungen.
 
-**Befund 13 ist im Lauf gebaut worden** und steht als einziger nicht mehr offen.
+   > **Ein Fehler, der an dreizehn Stellen unabhängig gemacht wurde, ist keine
+   > Unachtsamkeit, sondern ein fehlendes Werkzeug.**
+
+   **Sieben weitere Stellen stehen als benannte Ausnahmen da** — sechsmal
+   `Acceptance`, einmal `AcceptanceWeb`. Sie schreiben auf die Kommandozeile,
+   und ob `docs/19` die überhaupt bindet, ist nicht entschieden. Die Frage
+   steht offen und nicht die Stellen.
+
+**Befund 13 ist im Lauf selbst gebaut worden** und stand am Tag der Abnahme als
+einziger nicht mehr offen.
+
+**Stand am 28. August 2026 — vier der sechs sind gebaut.** Offen bleiben genau
+zwei, und beide sind Fragen und keine Baustellen:
+
+| | Stand |
+|---|---|
+| 1 · Befund 1 (Form B) | gebaut |
+| 2 · die Familie (Form A) | gebaut |
+| 3 · Befund 4 | gebaut |
+| 4 · Befund 14 | **offen** — gehört zu A5 und nicht hierher |
+| 5 · `docs/81 §2.3h` Punkt 1 | **offen** — die Laufzeit ist nicht messbar ohne Rückstand |
+| 6 · die dreizehn Stellen | gebaut |
+
+**Und keine der vier Behebungen hat einen Server gesehen.** Sie sind im
+Container geprüft, gegen echtes apt und einen laufenden Agenten, aber ohne
+systemd als PID 1 — die Nachlese lief nur gegen eine Attrappe. Der Nachlauf
+dazu ist ausgeschrieben, bevor er gefahren wird.
+
+> **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+> jemand ihn behoben hat.**
 
 > **Ein Protokoll ohne seine Lücken liest sich wie eine Abnahme.**
 
@@ -2264,6 +2300,29 @@ immer es angestossen hat.
 echten Server weiterhin ungesehen; `docs/85` lässt aber beide ausdrücklich als
 Ergebnis gelten, weil gefragt ist, ob **verglichen** wird. Das ist keine Lücke
 im Kriterium, sondern eine Gelegenheit, die sich nicht ergeben hat.
+
+> **Sie hat sich am 28. August 2026 ergeben.** Bei der Installation von
+> `0.7.2-rc.5` über `srvpanel update` auf `cloudsrv24`:
+>
+>     apt-run: Fassung 0.7.2~rc.4 wurde zu 0.7.2~rc.5.
+>
+> Damit sind **beide** Ausgänge von `apt-run panel` auf einem echten Server
+> gesehen — der zweite („der Lauf hat nichts verändert") am 27. August, der
+> erste jetzt. Und die Zeile stand ohne Verwechslungsgefahr da, weil
+> `PanelUpdate` die Datei zu Beginn leert: Sie trug genau diesen einen Lauf.
+>
+> **Der Weg war bewusst gewählt.** Ein `apt dist-upgrade` von Hand hätte
+> dasselbe Paket installiert und in keiner der beiden Dateien gestanden, die
+> das Panel schreibt — genau der Griff, der am Abend des 27. August in die
+> Irre geführt hat (Beobachtung 17).
+>
+> > **Eine Gelegenheit, die sich nicht herstellen lässt, verpasst man auch,
+> > indem man den bequemeren Weg nimmt.**
+>
+> **Nebenbei ein vierter Beleg für Punkt 5**, auf dem schon bekannten Weg und
+> deshalb keine neue Unabhängigkeit: Die transiente Unit hat den Neustart des
+> Panels überlebt und ihr Urteil **danach** geschrieben. Genau darauf stützt
+> sich seit dem 28. August die Nachlese eines abgesetzten Laufs.
 
 ---
 

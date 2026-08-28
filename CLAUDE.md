@@ -27,18 +27,45 @@ Protokoll ist **`docs/86`**, die Abnahme selbst steht in dessen §6. Die beiden
 Ausfälle sind genau die, die `docs/85 §6` zulässt (Punkt 4 ohne ablaufenden
 Schlüssel, Punkt 2 ohne Neuinstallation im Bestand).
 
-**Sechs Reste bleiben benannt offen und sind kein Kriterienausfall**
-(`docs/86 §5`). Der grösste ist eine Familie und keine drei Einzelfälle:
+**Sechs Reste blieben benannt offen und waren kein Kriterienausfall**
+(`docs/86 §5`); **vier davon sind am 28. August gebaut**. Der grösste war eine
+Familie und keine drei Einzelfälle:
 
 > **Ein Vorgang, der nur meldet, dass er abgesetzt wurde, sagt über den Ausgang
 > dessen, was er abgesetzt hat, nichts — und `fertig` liest sich wie das
 > Gegenteil.**
 
-Sie trifft `PanelUpdate`, `SystemPackagesUpgrade` und `SystemReboot`; **keine
-der drei übergibt `--wait`, und das ist tragend** — Punkt 5 gibt es genau
-deshalb, dass der Lauf den Neustart des Panels überlebt. Die Behebung ist
-deshalb keine Fahne, sondern eine Nachlese, die den Ausgang der transienten
-Unit später einträgt.
+**Sie zerfällt beim Nachmessen in zwei.** „Dreimal dieselbe Form" stimmt für das
+Symptom und nicht für die Ursache: `system.packages.upgrade` und `system.reboot`
+setzen ab und kennen den Ausgang nicht (**Form A**), `system.packages.refresh`
+ist fertig und trägt den unvollständigen Ausgang schon im Ergebnis (**Form B**).
+`panel.update` hat gar keinen Vorgang.
+
+> **Ein gemeinsames Symptom ist noch keine gemeinsame Ursache — und die
+> Zusammenfassung, die beides verschmilzt, spart die Unterscheidung ein, die die
+> Behebung braucht.**
+
+**Keine der absetzenden Operationen übergibt `--wait`, und das ist tragend** —
+Punkt 5 gibt es genau dafür, dass der Lauf den Neustart des Panels überlebt. A
+ist deshalb keine Fahne, sondern eine Nachlese: `AwaitDispatchedRun` liest alle
+fünfzehn Sekunden das Urteil, das `apt-run` ohnehin schreibt, **ab dem Versatz
+des eigenen Laufs** — `upgrade.log` sammelt Läufe, und `--collect` räumt die Unit
+auch im Fehlerfall ab.
+
+> **Ein Zustand, der nach dem Ende verschwindet, ist kein Urteil über das
+> Ende.**
+
+B braucht davon nichts: Der Betreiber hat entschieden, dass **der Zustand bleibt
+und der Vorbehalt sichtbar wird**. Was fehlte, war nicht der Zustand, sondern die
+Sicht — die Meldung stand im Payload, und keine der sechs Spalten hat sie
+gerendert.
+
+> **Ein Feld im Payload ist noch keine Spalte.**
+
+**Offen bleiben genau zwei:** Befund 14 (die Fusszeile von `/logs`, gehört zu A5)
+und die ungemessene Laufzeit über 142 Pakete (`docs/81 §2.3h` Punkt 1). **Und
+keine der vier Behebungen hat einen Server gesehen** — der Nachlauf dazu ist
+`docs/87`, ausgeschrieben vor dem Fahren.
 
 **Punkt 5 ist der Grund, dass es diesen Lauf gab, und er ist zweifach belegt.**
 Dass eine transiente Unit den Neustart von `srvpanel-worker` überlebt, wenn

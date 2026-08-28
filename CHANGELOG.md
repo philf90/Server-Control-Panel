@@ -22455,3 +22455,49 @@ nachgezogen, der Eingriff danach gegengeprüft.
 
 > **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
 > wenn jemand sie ändert.**
+
+### Der Nachlauf ist ausgeschrieben — und ein Kommentar zeigte auf eine Unit, die es nicht gibt
+
+**`docs/87` steht, bevor er gefahren wird.** Sechs Punkte über das, was zwischen
+der Abnahme von A1 und `0.7.2-rc.5` gebaut wurde und **auf keinem Server stand**:
+die Rollenteilung der Updates-Seite samt der Tür dahinter, der Vorbehalt in der
+Vorgangsliste, die Nachlese eines abgesetzten Laufs, der Lauf ohne Wirkung, das
+heile `W:` und die Zählwörter. Zwei der Änderungen liegen auf dem Weg von allem
+— `Runner::run()` bei jeder Operation, `RunAgentOperation` bei jedem Vorgang —,
+und was daran falsch ist, ist nicht an A1 falsch.
+
+> **Ein Abnahmelauf ist Code, den niemand ausführt, bis es darauf ankommt.**
+
+**Beim Ausschreiben fiel ein Befund heraus, den kein Test halten konnte.** Der
+Kopf von `packaging/bin/apt-run` beschreibt den Aufruf, aus dem das Skript
+startet, und schrieb dort `--unit=srvpanel-upgrade-<hex>`. Es heisst
+`srvpanel-update-`, so wie `AptLock::UNIT_PREFIX` es sagt; die Zeile ist von
+keinem Code je erzeugt worden. Der Nachlauf hätte den Leser zu einer Unit
+geschickt, die es nicht gibt — und ein leerer Treffer liest sich wie ein
+Ergebnis.
+
+> **Ein leerer Griff in die falsche Datei sieht aus wie ein Befund.**
+
+Die Naht ist dieselbe wie bei `PhpSourceUriTest`: Was der Agent absetzt,
+beschreibt ein Skript, das er nicht liest.
+`AptLockReachTest::test_the_packaged_script_names_the_same_unit_prefix` hält sie
+jetzt, mit Untergrenze — verschwände der `--unit`-Aufruf aus dem Kopf, meldete
+die Prüfung sonst „in Ordnung" für eine Datei, in die niemand mehr gesehen hat.
+
+**Zwei Zahlen des Nachlaufs kamen fast aus dem Kopf statt aus dem Quelltext.**
+Nachgezählt an `Updates/Index.vue`: die Quellentabelle hat vier Spalten für den
+Administrator und sieben für den Betreiber, die Paketliste vier und fünf. Und
+„Nur Sicherheit installieren" steht bewusst **nicht** in der Liste der Knöpfe,
+die dem Administrator fehlen — er hängt zusätzlich an `packages.security > 0`
+und fehlt dann beiden.
+
+> **Ein Bedienelement, das an zwei Bedingungen hängt, belegt die eine nur,
+> solange die andere erfüllt ist.**
+
+**Und `docs/86 §5` und `CLAUDE.md` sagten beide noch, sechs Reste seien offen.**
+Vier davon sind am 28. August gebaut; offen bleiben Befund 14 (gehört zu A5) und
+die ungemessene Laufzeit. Beide Stellen tragen jetzt den Stand statt der
+Absicht.
+
+> **Eine Zeile, die einen Zustand behauptet, veraltet ohne Vorwarnung — und
+> nichts prüft sie.**

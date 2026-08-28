@@ -120,16 +120,33 @@ sonst niemandem auf.
 nachgesehen, bevor der Prüfkörper geschrieben wurde: Alle vier gesperrten
 Handlungen rufen `validate()` als erstes und verlangen Pflichtfelder —
 `mode`, `path`/`stanza`/`enabled`, `enabled`, und `hostname` sogar gegen den
-echten Rechnernamen. Ein leerer Rumpf trennt damit die beiden Ausgänge sauber:
+echten Rechnernamen. Ein leerer Rumpf kann also nichts auslösen:
 
 | | bedeutet |
 |---|---|
 | **403** | die Tür hat gehalten |
-| **422** | die Tür stand offen, und die Prüfung hat aufgefangen |
+| **302** (`0 (opaqueredirect)`) | die Tür stand offen, und die Prüfung hat zurückgeleitet |
 
 **Keiner der beiden fasst den Server an.** Das ist der Grund, warum
 `POST /server/reboot` überhaupt gemessen werden darf: Wäre die Reihenfolge
 umgekehrt, prüfte dieser Punkt einen Neustart der Produktivmaschine.
+
+**Hier stand bis zum 28. August „422", und das war falsch.** Gemessen wurde
+`302` — `bootstrap/app.php` setzt
+`shouldRenderJsonWhen(fn ($request) => $request->is('api/*'))`, und damit gibt
+es JSON ausserhalb von `api/*` nicht, gleich was im `Accept` steht. Ein
+`ValidationException` leitet dort zurück. Der `403` bleibt einer, weil er ein
+Status ist und kein Format.
+
+> **Eine Kopfzeile, die ein Format erbittet, entscheidet nichts, wenn die
+> Anwendung das Format an den Pfad gebunden hat.**
+
+**Und daraus folgt eine Grenze dieses Prüfkörpers, die man kennen muss:** Ein
+`0 (opaqueredirect)` unterscheidet nicht zwischen „die Prüfung hat
+zurückgeleitet" und „es ist durchgelaufen und hat weitergeleitet". Für die vier
+gesperrten Handlungen trennt das die Pflichtfeldprüfung; für
+`POST /updates/refresh` trennt es nichts — dort ist der **Vorgang in
+`/operations`** der Beleg und nicht der Statuscode.
 
 > **Ein Prüfkörper, der im Fehlerfall Schaden anrichtet, ist keiner — man fährt
 > ihn nicht, und dann ist der Punkt ungemessen.**

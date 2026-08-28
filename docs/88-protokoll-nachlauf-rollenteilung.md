@@ -159,16 +159,103 @@ her — es verbraucht ihn.
 
 ---
 
-## 6. Wo der Lauf steht
+## 6. Punkt 1b — Die Tür
+
+**Erfüllt.** Gemessen aus der Browserkonsole der angemeldeten Sitzung, durch das
+echte nginx, mit leerem Rumpf.
+
+| | Betreiber (Gegenprobe) | Administrator |
+|---|---|---|
+| `POST /updates/install` | `0 (opaqueredirect)` | **403** |
+| `PUT /updates/sources` | `0 (opaqueredirect)` | **403** |
+| `PUT /updates/unattended` | `0 (opaqueredirect)` | **403** |
+| `POST /server/reboot` | `0 (opaqueredirect)` | **403** |
+| `POST /updates/refresh` | `0 (opaqueredirect)` | `0 (opaqueredirect)` |
+
+**Die Gegenprobe trägt.** Kein einziges 403 beim Betreiber — der Prüfkörper hat
+die Mittelschicht also erreicht und die CSRF-Prüfung bestanden. Wäre sie
+gescheitert, stünden dort fünfmal 419, und 419 ist nicht 403: Der Lauf daneben
+läse sich als „vier Türen stehen offen".
+
+**Der Server ist nicht neu gestartet**, und das ist der Beleg für die
+Sicherheitsüberlegung aus `docs/87 §2`: `hostname` ist Pflichtfeld und wird
+gegen den echten Namen geprüft, bevor irgendetwas abgesetzt wird.
+
+---
+
+## 7. Befund 3 — Der zweite Ausgang ist 302 und nicht 422
+
+`docs/87 §2` führte eine Tabelle: 403 heisst „Tür hielt", **422** heisst „Tür
+offen, Prüfung hat aufgefangen". Gemessen wurde kein einziges 422, sondern
+durchweg `0 (opaqueredirect)` — also 3xx.
+
+Der Grund steht in `bootstrap/app.php`:
+
+    $exceptions->shouldRenderJsonWhen(
+        fn (Request $request) => $request->is('api/*'),
+    );
+
+**JSON gibt es in dieser Anwendung nur unter `api/*`.** Ausserhalb davon nimmt
+ein `ValidationException` den HTML-Weg und leitet zurück, gleich was der
+Aufrufer im `Accept` erbittet. Der `403` bleibt einer, weil er ein Status ist
+und kein Format — deshalb hat das Kriterium trotzdem funktioniert.
+
+> **Eine Kopfzeile, die ein Format erbittet, entscheidet nichts, wenn die
+> Anwendung das Format an den Pfad gebunden hat.**
+
+**Die Grenze, die daraus folgt, wiegt mehr als der falsche Wert.** Ein
+`0 (opaqueredirect)` unterscheidet nicht zwischen „die Prüfung hat
+zurückgeleitet" und „es ist durchgelaufen und hat weitergeleitet". Für die vier
+gesperrten Handlungen trennt das die Pflichtfeldprüfung. Für
+`POST /updates/refresh` trennt es **nichts** — und genau dort behauptet der Lauf
+etwas.
+
+---
+
+## 8. Beobachtung 3 — Die Gegenprobe hat den Bestand hergestellt, der fehlte
+
+Zwischen den beiden Läufen ist die Kachel **„Aktualisierbar" von 0 auf 15
+gesprungen**, und in der Paketliste stehen fünfzehn `php8.4-*` aus
+`PPA for PHP:24.04/noble`, installiert `8.4.24-1+ubuntu24.04.1+deb.sury.org+1`,
+neu `8.4.25-…`.
+
+Dazwischen lag genau eine Handlung, die apts Listen anfassen kann: das
+`POST /updates/refresh` der Gegenprobe. Sury hat in der Zwischenzeit 8.4.25
+veröffentlicht, und der Vorgang hat es geholt.
+
+**Das ist zugleich der einzige verlässliche Beleg, dass `refresh` durchgelassen
+wurde** — der Statuscode kann es nach Befund 3 nicht sein. Für eine Route, die
+nichts entgegennimmt, heisst „durchgelassen" wörtlich „hat einen Vorgang
+angelegt" (`docs/62`, Punkt 11); nachzusehen ist das in `/operations`, und dort
+gehören **zwei** Vorgänge `system.packages.refresh` zu stehen — einer je Lauf,
+der zweite auf das Konto *Zweite Verwaltung*. Erst der zweite belegt die Zeile
+„**nicht** 403" für den Administrator.
+
+**Damit sind die beiden nicht herstellbaren Erwartungen aus §1 wieder
+herstellbar** — und die Hälfte des Administrators ist im selben Bild schon
+gemessen: Die Paketliste zeigt ihm **vier** Spalten (Paket, Installiert, Neu,
+Herkunft), **kein Kästchen** in der Kopfzeile, **keines je Zeile**, und über dem
+Filter steht **keine Knopfreihe**. Was fehlt, ist die Gegenprobe des Betreibers
+bei fünfzehn Paketen.
+
+> **Eine Gelegenheit, die man nicht herstellen kann, stellt sich manchmal von
+> selbst her — und dann misst man sie, statt auf die geplante zu warten.**
+
+---
+
+## 9. Wo der Lauf steht
 
 | Punkt | Stand |
 |---|---|
-| 1a — der Administrator sieht die Seite | **erfüllt**, mit zwei nicht herstellbaren Erwartungen |
-| 1b — die Tür | offen |
+| 1a — der Administrator sieht die Seite | **erfüllt**; die zwei Erwartungen an der Paketliste sind seit §8 wieder herstellbar, die Hälfte des Administrators ist gemessen |
+| 1b — die Tür | **erfüllt**, bis auf den Vorgangsbeleg für `refresh` (§8) |
 | 2 — der Vorbehalt in der Liste | offen |
-| 3 — die Nachlese | **braucht Bestand** |
-| 4 — der Lauf ohne Wirkung | **braucht Bestand** |
+| 3 — die Nachlese | **jetzt fahrbar** — 15 Pakete stehen an |
+| 4 — der Lauf ohne Wirkung | folgt unmittelbar auf 3 |
 | 5 — das heile `W:` | offen |
 | 6 — die Zählwörter | offen |
+
+**Drei Befunde bisher, alle drei im Prüfmittel und keiner im Panel.** Das ist
+dasselbe Verhältnis wie in `docs/45`, `docs/48`, `docs/59` und `docs/84`.
 
 > **Ein Protokoll ohne seine Lücken liest sich wie eine Abnahme.**

@@ -429,39 +429,62 @@ niemand hat nachgesehen, wo das ist.
 
 ---
 
-## 17. Befund 6 — Das Urteil steht im Ergebnis und auf keiner Seite
+## 17. Befund 6 — Das Urteil erreicht den nicht, der zusieht
 
 `AwaitDispatchedRun` legt das Urteil ab:
 
     $recorder->succeed([...$ergebnis, 'verdict' => $urteil]);
 
-`Operations/Show.vue` rendert `message`, `progress`, die Argumente und die
-Ausgabe — **`result` nicht**. Die Zeile, die `apt-run` geschrieben hat und
-derentwegen die ganze Nachlese gebaut wurde, ist damit im Payload und auf keiner
-Seite. Die Ausgabe daneben sagt *„Keine Ausgabe."*, und das stimmt: Ein
+Auf der Seite von Vorgang 720 steht kein Abschnitt „Ergebnis" — weder um 21:36
+noch um 21:37. Die Ausgabe daneben sagt *„Keine Ausgabe."*, und das stimmt: Ein
 abgesetzter Lauf schreibt in `upgrade.log` und nicht in den Vorgang.
 
-> **Ein Feld im Payload ist noch keine Spalte.**
+> **Der erste Wortlaut dieses Befundes war falsch und stand eine Stunde lang so
+> da.** Er lautete „`Show.vue` rendert `result` nicht". Am Quelltext nachgesehen
+> gibt es den Abschnitt sehr wohl:
+>
+>     <Section v-if="props.operation.result" title="Ergebnis" full>
+>
+> und `OperationController::show()` reicht `result` auch durch. Beides war nie
+> das Problem.
 
-**Zum dritten Mal, und zum zweiten Mal in diesem Merkmal.** Genau dieser Satz
-steht in `docs/86 §5` über Form B — dort hat die Behebung der Vorgangs**liste**
-eine Marke gegeben. Die Detailseite hat niemand angesehen.
+**Der Mechanismus ist ein anderer, und er ist schärfer.** Die Seite bezieht
+`status`, `progress` und `message` aus dem **Strom** eines offenen Vorgangs —
+`result` dagegen aus den Inertia-Eigenschaften, und die stehen fest, seit die
+Seite geladen wurde. `useOperationStream` überträgt vier Felder:
 
-> **Ein Fehler, den man an einer Stelle behoben hat, ist an der nächsten wieder
-> da, wenn die Behebung nicht die Regel wurde.**
+    status · status_label · progress · message   (+ die Ausgabe)
+
+**`result` ist nicht dabei.** Wer nach dem Drücken auf der Vorgangsseite landet
+und zusieht, hat sie geladen, als es noch kein Ergebnis gab. Er sieht die Marke
+auf `fertig` springen — und der Abschnitt, der das Urteil trüge, erscheint nie,
+weil nichts die Eigenschaften nachführt.
+
+> **Ein Strom, der den Zustand nachführt und das Ergebnis nicht, zeigt ein Ende
+> ohne seinen Ausgang.**
+
+Sichtbar wird es erst durch **Neuladen** — also durch eine Handlung, zu der
+nichts auffordert, weil die Seite ja fertig aussieht.
 
 **Und die Asymmetrie ist der eigentliche Befund.** Im Fehlerfall ruft die
 Nachlese `fail($urteil, …)`, und `fail()` reicht das Urteil als **Meldung**
-durch — dort steht es also. Im Erfolgsfall ruft sie `succeed()` mit `null`, und
-dann steht es nirgends.
+durch — die reist über den Strom, steht also sofort da. Im Erfolgsfall ruft sie
+`succeed()` mit `null`, und `finish()` liest ein `null` als „lass die alte
+stehen".
 
 > **Ein Urteil, das nur im Fehlerfall sichtbar wird, ist keine Auskunft über den
 > Ausgang — es ist eine Fehlermeldung.**
 
 **Das trifft die Gegenprobe aus §12.** Die Urteilszeile sollte Kachel und Lauf
-vergleichen (*„N von M eingespielt, K bleiben offen"*); vom Panel aus ist sie
-nicht lesbar. Bis Befund 6 behoben ist, geht das nur über
-`cat /var/log/srvpanel/upgrade.log`.
+vergleichen (*„N von M eingespielt, K bleiben offen"*); wer zusieht, bekommt sie
+nicht. Am 28. August ging das nur über `cat /var/log/srvpanel/upgrade.log`.
+
+**Zum dritten Mal derselbe Satz, und zum zweiten Mal in diesem Merkmal.** Er
+steht in `docs/86 §5` über Form B — dort hat die Behebung der Vorgangs**liste**
+eine Marke gegeben, und die Detailseite hat niemand angesehen.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist an der nächsten wieder
+> da, wenn die Behebung nicht die Regel wurde.**
 
 ---
 
@@ -581,7 +604,59 @@ Bestand, und den bringt der nächste Tag.
 
 ---
 
-## 22. Wo der Lauf steht
+## 22. Die drei Panel-Befunde sind behoben — 28. August 2026
+
+Gebaut, bevor der Lauf weiterging: Ein Rest des Laufs, der dreimal dieselbe
+Lücke protokolliert, misst nicht mehr als einmal.
+
+| Befund | Behebung |
+|---|---|
+| 4 · Meldung „läuft" nach dem Ende | `dispatched()` setzt `DISPATCHED_MESSAGE`; `succeed()` nimmt eine Meldung entgegen |
+| 5 · Balken auf 100 neben `läuft` | `dispatched()` setzt `DISPATCHED_PROGRESS = 50` |
+| 6 · Urteil erreicht den Zusehenden nicht | die Nachlese reicht es als **Meldung** durch — die reist über den Strom |
+
+**Der Kern ist eine Zuständigkeit und keine drei Zeilen.** Der Agent hat mit
+seinen 100 % aus seiner Sicht recht: Er ist fertig, er hat abgesetzt. Nur ist
+seine Arbeit nicht die des Vorgangs — und auseinanderhalten kann die beiden
+allein die Stelle, die weiss, dass ein Lauf weiterläuft. Das ist `dispatched()`.
+
+**Die neue Zahl ist ausdrücklich keine Messung.** Ein Lauf in einer transienten
+Unit meldet nichts zurück; zwischen Absetzen und Urteil weiss niemand, wie weit
+er ist. Sie ist der Verzicht auf eine Behauptung — nicht 100, weil das die
+Behauptung ist, und nicht 0, weil das Absetzen geschehen ist und der Agent dafür
+gearbeitet hat.
+
+**`DispatchedDisplayTest` hält die drei Regeln**, sechs Brüche einzeln belegt:
+Meldung weg, Fortschritt weg, Balken auf 100, Urteil nur im Fehlerfall,
+`succeed()` ohne Meldungsparameter, und der Strom trägt plötzlich `result`.
+
+**Der letzte ist ungewöhnlich, und mit Absicht.** Er misst, dass der Strom
+`result` **weiterhin nicht** trägt — also die Begründung der Regel darüber.
+Träfe das eines Tages nicht mehr zu, meldet er, dass die **Begründung** veraltet
+ist, und nicht, dass der Code falsch wäre.
+
+> **Eine Regel, deren Begründung von einer Bedingung abhängt, veraltet mit ihr —
+> und nichts prüft das, solange die Bedingung nur im Kommentar steht.**
+
+**Und Pint hat die Falle aus `CLAUDE.md` an dem Satz vorgeführt, der vor ihr
+warnt.** Der Kommentar erklärte, warum ein `{@see \Voll\Qualifiziert}` im
+Dokumentblock dort nicht stehen darf — und der Formatierer machte aus dem
+Beispiel ein `use Voll\Qualifiziert;` im Kopf der Klasse.
+
+> **Ein Beispiel, das eine Falle zeigt, steht in ihr.**
+
+**Was das für den Rest des Laufs heisst.** Punkt 4 ist der erste, der auf die
+Behebung trifft: Er endet auf `fehlgeschlagen`, und dort stand das Urteil schon
+immer. Punkt 2 dagegen misst Form B und ist von den drei Befunden unberührt.
+**Beide brauchen eine neue Fassung auf dem Server** — was hier steht, ist im
+Container gebaut und hat `cloudsrv24` nicht gesehen.
+
+> **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+> jemand ihn behoben hat.**
+
+---
+
+## 23. Wo der Lauf steht
 
 | Punkt | Stand |
 |---|---|

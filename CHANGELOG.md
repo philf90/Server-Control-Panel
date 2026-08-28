@@ -22501,3 +22501,67 @@ Absicht.
 
 > **Eine Zeile, die einen Zustand behauptet, veraltet ohne Vorwarnung — und
 > nichts prüft sie.**
+
+### Was ein abgesetzter Vorgang über seinen Ausgang sagt — drei Befunde auf einer Seite
+
+Der Nachlauf zu `0.7.2-rc.5` hat am 28. August 2026 die Nachlese belegt: Vorgang
+720 stand dreiunddreissig Sekunden auf `läuft` und ging danach auf `fertig` —
+zwei Zeilen weiter in derselben Liste steht Vorgang 707 vom Vortag, `fertig`
+nach einer Sekunde. Der Zustand stimmt also.
+
+**Alles daneben sprach noch von vorhin.** Die drei Befunde sind eine Familie und
+dieselbe wie in `docs/86 §5`, nur eine Ebene weiter:
+
+> **Eine Behebung, die den Zustand richtig macht, hat über die Anzeige daneben
+> nichts gesagt.**
+
+**Der Vorgang endete unter einer grünen Meldung „läuft".** `SystemPackagesUpgrade`
+ruft `progress(100, 'läuft')` als letzte Handlung vor dem Absetzen; `succeed()`
+reichte `null` durch, und `finish()` liest ein `null` als „lass die alte stehen".
+Der Fehler ist älter als die Behebung und wurde erst durch sie sichtbar — vorher
+war der Zustand eine Sekunde später ohnehin falsch.
+
+**Der Balken stand auf 100 %, während der Lauf lief** — und das ist genau der
+Wert, den `dispatched()` bewusst *nicht* setzt. Sein Dokumentblock sagte, der
+Fortschritt bleibe, wo der Agent ihn gelassen hat; niemand hatte nachgesehen, wo
+das ist.
+
+> **Ein Wert, den man bewusst nicht setzt, ist trotzdem gesetzt, wenn ihn vorher
+> jemand anders gesetzt hat.**
+
+`dispatched()` setzt beides jetzt selbst. Der Agent hat mit seinen 100 % aus
+seiner Sicht recht — er ist fertig, er hat abgesetzt; nur ist seine Arbeit nicht
+die des Vorgangs, und auseinanderhalten kann die beiden allein die Stelle, die
+weiss, dass ein Lauf weiterläuft. Die neue Zahl ist **nicht gemessen und kann es
+nicht sein**: Ein Lauf in einer transienten Unit meldet nichts zurück. Sie ist
+der Verzicht auf eine Behauptung — nicht 100, weil das die Behauptung ist, und
+nicht 0, weil das Absetzen geschehen ist.
+
+**Und das Urteil erreichte den nicht, der zusieht.** Es steht im Ergebnis, die
+Seite rendert das Ergebnis, und trotzdem sah es niemand: `status`, `progress`
+und `message` kommen aus dem **Strom** eines offenen Vorgangs, `result` aus den
+Inertia-Eigenschaften — und die stehen fest, seit die Seite geladen wurde. Wer
+nach dem Drücken zusieht, hat sie geladen, als es noch kein Ergebnis gab.
+
+> **Ein Strom, der den Zustand nachführt und das Ergebnis nicht, zeigt ein Ende
+> ohne seinen Ausgang.**
+
+Die Nachlese reicht ihr Urteil deshalb als **Meldung** durch, und damit in beide
+Richtungen dasselbe. Im Fehlerfall stand es längst dort — `fail()` tut es seit
+jeher. Die Asymmetrie war der eigentliche Befund:
+
+> **Ein Urteil, das nur im Fehlerfall sichtbar wird, ist keine Auskunft über den
+> Ausgang — es ist eine Fehlermeldung.**
+
+`DispatchedDisplayTest` hält die drei Regeln, mit sechs Brüchen einzeln belegt.
+Seine letzte Prüfung ist ungewöhnlich: Sie misst, dass der Strom `result`
+**weiterhin nicht** trägt — die Begründung der Regel darüber. Träfe das eines
+Tages nicht mehr zu, meldet er, dass die Begründung veraltet ist, und nicht,
+dass der Code falsch wäre.
+
+**Nebenbei hat Pint die Falle aus `CLAUDE.md` an dem Satz vorgeführt, der vor
+ihr warnt.** Der Kommentar erklärte, warum ein `{@see \Voll\Qualifiziert}` im
+Dokumentblock dort nicht stehen darf — und aus dem Beispiel wurde ein
+`use Voll\Qualifiziert;` im Kopf der Klasse.
+
+> **Ein Beispiel, das eine Falle zeigt, steht in ihr.**

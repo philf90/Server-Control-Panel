@@ -130,7 +130,21 @@ final class AwaitDispatchedRun implements ShouldQueue
             return;
         }
 
-        $recorder->succeed([...$ergebnis, 'verdict' => $urteil]);
+        /*
+         * **Das Urteil ist die Meldung und nicht nur ein Feld.** Es steht
+         * ohnehin im Ergebnis; sichtbar wird es dadurch nur für den, der die
+         * Seite neu lädt — der Strom überträgt `status`, `progress`, `message`
+         * und die Ausgabe, `result` nicht (`docs/88`, Befund 6). Wer dem
+         * Vorgang beim Enden zusieht, sähe sonst eine Marke, die auf `fertig`
+         * springt, und darunter das Wort, mit dem der Agent ihn abgesetzt hat.
+         *
+         * Im Fehlerfall stand es längst dort — `fail()` reicht es als
+         * Begründung durch. Das war die eigentliche Lücke:
+         *
+         * > **Ein Urteil, das nur im Fehlerfall sichtbar wird, ist keine
+         * > Auskunft über den Ausgang — es ist eine Fehlermeldung.**
+         */
+        $recorder->succeed([...$ergebnis, 'verdict' => $urteil], $urteil);
         $lifecycles->afterSuccess($operation);
     }
 

@@ -323,8 +323,14 @@ vorkommt, belegt nichts — dann ist der Prüfkörper falsch.
 
 Zwei Meldungen, beide über die Oberfläche:
 
-1. **Eine einzelne Datei**, deren Hochladen scheitert → *„Von **1 Datei** ist 0
+1. **Eine einzelne Datei**, deren Hochladen scheitert → *„Von **1 Datei** sind 0
    hochgeladen."* und nicht „1 Dateien".
+
+   **Das Verb ist „sind" und nicht „ist"** — es richtet sich nach der Zahl der
+   hochgeladenen (`$done === 1 ? 'ist' : 'sind'`), und bei jeder Zahl ausser
+   eins steht der Plural. Hier stand bis zum 30. August „ist": Ich hatte den
+   erwarteten Satz aus dem Kopf geschrieben statt aus dem Quelltext. Geprüft
+   wird das **Zählwort**, nicht das Verb.
 2. Ein Archiv mit **einem** Eintrag entpacken → *„Das Archiv ist entpackt —
    **1 Eintrag**."*
 

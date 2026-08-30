@@ -912,7 +912,51 @@ andere Bedienung als einer, der es tut. Notiert, nicht gebaut — der Wert
 
 ---
 
-## 31. Wo der Lauf steht
+## 31. Punkt 6 ist vollständig — 30. August 2026
+
+Über den Weg aus `docs/87 §7`: `IMG_4633.jpeg` hochgeladen, gelöscht, ein
+Verzeichnis dieses Namens angelegt, dieselbe Datei noch einmal hochgeladen.
+
+    Das Formular wurde nicht gespeichert.
+    Von 1 Datei sind 0 hochgeladen.
+    IMG_4633.jpeg: Dort steht ein Verzeichnis.
+
+**„1 Datei"** — Einzahl, wie `Counted::of()` sie bildet. Zusammen mit dem
+Archivsatz aus §28 ist Punkt 6 damit erfüllt.
+
+**Nebenbei belegt die Aufnahme `docs/19 §6`:** Der Satz steht in der roten
+Zusammenfassung oben und nicht am Feld, und das Feld trägt keine eigene
+Meldung. Das prüft `FieldErrorTest` im Quelltext — hier steht es im Bild.
+
+---
+
+## 32. Befund 10 — Der erwartete Satz war aus dem Kopf geschrieben
+
+`docs/87 §7` verlangte *„Von 1 Datei **ist** 0 hochgeladen."* Gemessen wurde
+**„sind"**, und der Quelltext hat recht:
+
+    $done === 1 ? 'ist' : 'sind'
+
+Das Verb richtet sich nach der Zahl der **hochgeladenen** — hier null —, und im
+Deutschen steht bei jeder Zahl ausser eins der Plural. Der Prüfling war nie
+falsch; meine Erwartung war es.
+
+**Der Schaden wäre ein falsches Rot gewesen.** Wer den Satz Wort für Wort
+vergleicht, meldet einen Befund an einer Stelle, die stimmt — und Punkt 6 fragt
+gar nicht nach dem Verb, sondern nach dem **Zählwort**.
+
+> **Ein erwarteter Wortlaut, den man aus dem Kopf schreibt, prüft das
+> Gedächtnis mit.**
+
+**Es ist der sechste Befund im Prüfmittel und der dritte derselben Bauart** —
+nach Befund 3 (ein Statuscode, den diese Anwendung nie liefert) und Befund 9
+(ein Fehlschlag, den der Prüfling nicht erzeugt). Alle drei entstanden dadurch,
+dass ich eine Erwartung aufgeschrieben habe, ohne die Stelle zu lesen, die sie
+erzeugt.
+
+---
+
+## 33. Wo der Lauf steht
 
 | Punkt | Stand |
 |---|---|
@@ -922,9 +966,10 @@ andere Bedienung als einer, der es tut. Notiert, nicht gebaut — der Wert
 | 3 — die Nachlese | **erfüllt** (§14) — mit drei Befunden daneben |
 | 4 — der Lauf ohne Wirkung | **vertagt** (§21) — braucht neuen Bestand und einen Druck ohne Neuladen |
 | 5 — das heile `W:` | **erfüllt** (§23) |
-| 6 — die Zählwörter | **halb erfüllt** (§28) — das Archiv ja, das Hochladen nicht herstellbar (§29) |
+| 6 — die Zählwörter | **erfüllt** (§28, §31) |
 
-**Neun Befunde: fünf im Prüfmittel, vier im Panel.** Die ersten drei sassen in
+**Zehn Befunde: sechs im Prüfmittel, vier im Panel.** Fünf der sechs Punkte sind
+erfüllt; offen bleibt allein Punkt 4, und der wartet auf Paketbestand. Die ersten drei sassen in
 der Vorschrift, die letzten drei auf einer einzigen Seite — der des Vorgangs.
 
 **Sie sind eine Familie und keine drei Einzelfälle**, und die Familie ist

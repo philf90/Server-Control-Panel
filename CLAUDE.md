@@ -1678,6 +1678,17 @@ Protokolls steht bewusst **nicht** im Dokument — `docs/81` hat einmal eine
 genannt, die einem anderen Dokument gehörte, und `DocLinkTest` konnte das nicht
 sehen.
 
+Und weiter aus P7b: **`87` der Nachlauf zu `0.7.2-rc.5`** — sechs Punkte auf
+`cloudsrv24`, die nachsehen, ob die vier Behebungen aus `docs/86 §5` auf einem
+echten Server wirken — mit **`88`** als Protokoll dazu: **elf Befunde, sieben im
+Prüfmittel und vier im Panel**, alle vier behoben; fünf der sechs Punkte
+erfüllt, Punkt 4 wartet auf Paketbestand. Und **`89` die Messrunde vor A2** —
+Dienste und Timer, gemessen gegen echtes systemd 255 in einer eigenen Namespace:
+§1 wie dieser Container einen Systemmanager bekommt, §2 dass ein Timer nur sechs
+der neun Felder von `ServiceStatus` beantwortet, §3 die Messung, die den Entwurf
+entscheidet, §6 der eigene Fehler dieser Runde und §7 was auf dem Zielserver
+offen bleibt.
+
 Und **`65` der Serverlauf zu `v0.6.0-rc.20`** — die elf Punkte, mit denen die
 sieben Befunde der zweiten Runde und die drei Wünsche auf einem echten Server
 geprüft werden, samt den drei Dingen, die der Aufsatz im Container
@@ -2120,7 +2131,7 @@ Testen berücksichtigen:
 
   > **Dieselbe Messung kann aufs Pixel stimmen und trotzdem nichts über die
   > Ansicht sagen.**
-- **kein nginx, kein PHP-FPM, kein Agent, kein systemd.** Operationen laufen
+- **kein nginx, kein PHP-FPM.** Operationen laufen
   gegen Attrappen. Zwei Fehler sind nur aufgefallen, weil die CI nginx *hat*
   und dieser Container nicht — Tests, die Systemzustand annehmen, gehören
   abgesichert. Vorlagen werden deshalb **als Text** geprüft
@@ -2209,6 +2220,30 @@ Testen berücksichtigen:
   > braucht einen Versuch.** Derselbe Satz zum sechsten Mal, diesmal an dem
   > Werkzeug, dessen Fehlen die Arbeitsweise dieses Repositorys neun Monate
   > lang bestimmt hat.
+
+- **systemd gibt es hier auch — es ist nur nicht PID 1.** Hier stand
+  „kein systemd", und seit dem 27. August genauer „was fehlt, ist systemd als
+  PID 1"; das erste ist falsch, das zweite die halbe Wahrheit. Installiert sind
+  **systemd 255** samt `systemctl`, `systemd-run`, `busctl` und `dbus-daemon`,
+  und unter `/lib/systemd/system` liegen 273 Units. In einer eigenen PID- und
+  Mount-Namespace läuft der Systemmanager als PID 1 — `unshare -m -p -f
+  --mount-proc bash -c 'mount -t cgroup2 none /sys/fs/cgroup; exec
+  /usr/lib/systemd/systemd --system --unit=basic.target'` —, meldet
+  `is-system-running: running` und fährt echte Timer mit echten Terminen.
+  Gesprochen wird mit ihm über `nsenter -t <pid> -m -p -- systemctl …`.
+  Gemessen am 30. August 2026 für A2 (`docs/89 §1`); der Benutzer-Manager
+  (`systemd --user`) trägt **nicht** und endet stumm mit Rückgabe 1.
+
+  Drei Handgriffe: Der Manager schreibt sein Log in **seine** Namespace —
+  draussen sieht es aus, als sei er gestorben, nachgesehen wird mit `ps`. Die
+  Namespace hat **ihr eigenes `/run`**, Unit-Dateien müssen von innen
+  geschrieben werden, und genau deshalb verschwinden sie mit ihr. Und der erste
+  Anlauf hat `/run/systemd/system` **draussen** angelegt — daran erkennt
+  `sd_booted()`, ob systemd läuft, und der Container hielt sich danach für
+  gebootet.
+
+  > **Ein Prüfkörper, der zufällig eine Zusage des Systems ist, richtet mehr an
+  > als eine Datei zuviel.**
 
 - **Den Agenten gibt es hier auch — er muss nur gestartet werden.** Hier stand
   „kein Agent", und das war eine Aussage über den *laufenden* Dienst, nicht über
@@ -2628,6 +2663,11 @@ Testen berücksichtigen:
 
   > **Ein Werkzeug, das dem Prüfling fehlt, ersetzt man in seiner Namespace und
   > nicht im System — sonst misst der nächste Lauf den Ersatz.**
+
+  **Seit dem 30. August gibt es dafür auch den echten Weg** — ein systemd als
+  PID 1 in einer eigenen Namespace (siehe oben). Die Attrappe bleibt trotzdem
+  der günstigere Griff, wenn nur die **Lage** einer Seite gemessen wird: Sie
+  kostet einen Bind-Mount statt eines laufenden Init.
 
   **Und der Prüfkörper wird hinterher weggeräumt**, `apt-run` eingeschlossen:
   Genau daran war `SourceOwnershipTest` einen Tag zuvor in der CI rot und hier

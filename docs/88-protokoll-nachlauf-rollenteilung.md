@@ -679,19 +679,100 @@ Container gebaut und hat `cloudsrv24` nicht gesehen.
 
 ---
 
-## 23. Wo der Lauf steht
+## 23. Punkt 2 und Punkt 5 — beide erfüllt, in einem Griff
+
+Gemessen am **30. August 2026** gegen `0.7.2-rc.6`, mit der Wegwerfquelle aus
+`docs/87 §3`. Vorgang **721**, `system.packages.refresh`, ausgelöst vom
+Betreiber, 13:50:03 → 13:50:13.
+
+**Punkt 2 — der Vorbehalt steht in der Liste.** Auf `/operations`, ohne den
+Vorgang zu öffnen, steht unter der Aufgabe eine bernsteinfarbene Marke:
+
+    Nicht erreicht: https://nachlauf.invalid/apt/ (Could not resolve 'nachlauf.invalid')
+
+Daneben der Zustand **`fertig`** und nicht `fehlgeschlagen` — die Entscheidung
+des Betreibers vom 28. August, unverändert wirksam.
+
+> **Ein Lauf, der getan hat, worum man ihn bat, ist gelungen — auch wenn er
+> dabei etwas zu melden hat.**
+
+**Punkt 5 — das `W:` steht heil da.** Drei Zeilen in der Ausgabe, jede **in
+einer** Zeile, keine mit `W` allein und `: …` darunter:
+
+    W: https://ppa.launchpadcontent.net/…/InRelease: Signature by key … uses weak algorithm (rsa1024)
+    W: Failed to fetch https://nachlauf.invalid/apt/dists/noble/InRelease  Could not resolve 'nachlauf.invalid'
+    W: Some index files failed to download. They have been ignored, or old ones used instead.
+
+Die Zeile mit dem schwachen Schlüssel ist ein Zugabe-Prüfkörper: Sie stand schon
+vorher da und ist die längste der drei — genau die, die ein Zeilenumbruch am
+ehesten zerrisse. **Befund 4 aus `docs/86` hält auf dem Server.**
+
+**Der Prüfkörper hat sich bewährt.** Die Wegwerfquelle hat in einem Lauf beide
+Punkte hergestellt, keine vorhandene Datei angefasst, und `.invalid` hat sofort
+aus dem Auflöser geantwortet statt in eine Zeitüberschreitung zu laufen.
+
+---
+
+## 24. Befund 8 — Dieselbe Auskunft, zwei Farben und zwei Texte
+
+**Dieselbe Tatsache steht an zwei Orten und sieht verschieden aus.**
+
+| | Text | Farbe |
+|---|---|---|
+| Vorgangsliste | „**N**icht erreicht: …" | **bernstein** (`kind="warn"`) |
+| Detailseite | „**n**icht erreicht: …" | **grün** (`class="ok"`) |
+
+**Die Farbe zuerst, weil sie schwerer wiegt.** `Show.vue` malt die Meldung nach
+dem **Zustand** und nicht nach ihrem Inhalt:
+
+    const rang = … status === 'succeeded' ? 'ok' : …
+    <p v-if="message" class="notice" :class="rang === 'critical' ? 'critical' : 'ok'">
+
+Ein Vorbehalt auf einem gelungenen Lauf wird damit **grün** — in der Farbe, die
+sagt, es sei nichts zu sehen. Genau das nimmt die Entscheidung vom 28. August
+zurück: *der Zustand bleibt, der Vorbehalt wird **sichtbar***.
+
+> **Dieselbe Auskunft in zwei Farben sagt zweimal etwas anderes — und die grüne
+> gewinnt, weil sie oben steht.**
+
+**Und der Text steht zweimal im Quelltext**, sechsundzwanzig Zeilen auseinander
+in derselben Datei:
+
+    SystemPackagesRefresh.php:72   progress(100, 'nicht erreicht: '.$apt->summary())
+    SystemPackagesRefresh.php:100  'warning' => 'Nicht erreicht: '.$apt->summary()
+
+**Der Controller verbietet ausdrücklich, was der Agent hier tut.** Im
+Dokumentblock von `warning` steht:
+
+> **Nicht über `message`.** Dort steht, *was* der Vorgang ist („Paketlisten
+> auffrischen"); wer die Warnung dorthin schriebe, nähme der Zeile ihre
+> Auskunft, um eine zweite hineinzulegen.
+
+Der Agent schreibt sie über `progress()` genau dorthin. Die Regel stand im
+Panel, der Verstoss im Agenten, und nichts hält die beiden aneinander.
+
+> **Eine Regel, die an einer Stelle steht und an der anderen gebrochen wird,
+> ist keine Regel, sondern eine Notiz.**
+
+**Es ist die vierte Ausprägung der Familie**, die dieser Lauf verfolgt: Der
+Zustand stimmt, die Liste stimmt seit dem 28. August — und die Seite, auf der
+man nachsieht, malt den Vorbehalt in der Farbe des Erfolgs.
+
+---
+
+## 25. Wo der Lauf steht
 
 | Punkt | Stand |
 |---|---|
 | 1a — der Administrator sieht die Seite | **erfüllt**, alle sieben Erwartungen (§1, §9) |
 | 1b — die Tür | **erfüllt**, samt Vorgangsbeleg (§10) |
-| 2 — der Vorbehalt in der Liste | offen |
+| 2 — der Vorbehalt in der Liste | **erfüllt** (§23) |
 | 3 — die Nachlese | **erfüllt** (§14) — mit drei Befunden daneben |
 | 4 — der Lauf ohne Wirkung | **vertagt** (§21) — braucht neuen Bestand und einen Druck ohne Neuladen |
-| 5 — das heile `W:` | offen |
+| 5 — das heile `W:` | **erfüllt** (§23) |
 | 6 — die Zählwörter | offen |
 
-**Sieben Befunde: vier im Prüfmittel, drei im Panel.** Die ersten drei sassen in
+**Acht Befunde: vier im Prüfmittel, vier im Panel.** Die ersten drei sassen in
 der Vorschrift, die letzten drei auf einer einzigen Seite — der des Vorgangs.
 
 **Sie sind eine Familie und keine drei Einzelfälle**, und die Familie ist

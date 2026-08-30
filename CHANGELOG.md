@@ -22711,3 +22711,64 @@ hat eine vierte gebaut, und der Eingriff brach ab, statt zu greifen.
 
 > **Ein Eingriff, der eine genaue Zahl festhält, misst den Bestand und nicht
 > seine eigene Wirksamkeit.**
+
+### A2 Schritt 1 — ein Timer sah aus wie ein Dienst, der nie lief
+
+Der Leser für `systemctl show` steht als `SrvPanel\Agent\Units` und beantwortet
+Dienste **und** Timer. `ServiceStatus` fragt ihn und entscheidet selbst nichts
+mehr.
+
+**Was er ablöst, war seit P0 falsch, ohne je aufzufallen.** Die neun
+Eigenschaften, die diese Operation fragt, beantwortet ein `.timer` nur zu sechst:
+`MainPID`, `ExecMainStartTimestamp` und `NRestarts` stehen bei ihm nicht als
+leerer Wert in der Ausgabe, sondern gar nicht. Gelesen wurden sie mit `?? 0` und
+`?? ''`.
+
+> **Ein Timer sah durch `service.status` aus wie ein Dienst, der nie lief — und
+> nichts an der Antwort sagte, dass die Frage nicht passte.**
+
+`null` heisst deshalb jetzt „diese Unit kennt das Feld nicht" und `0` „gemessen,
+und der Wert ist null". Ein Dienst, der gerade nicht läuft, hat `MainPID=0`; ein
+Timer hat keine PID. Das war bisher dieselbe Zahl.
+
+**Und die Regel, an der A2 hängt, wäre beim ersten Wurf falsch geworden.** Der
+nächste Termin eines Timers steht in zwei Feldern, und keines sagt allein etwas:
+Bei `OnCalendar` trägt ihn `NextElapseUSecRealtime` und die monotone Spalte steht
+auf `0`; bei `OnBootSec` ist die Realtime-Spalte **leer** und der Termin steht
+als Dauer daneben; ohne Termin ist sie leer und die andere `infinity`.
+
+> **Zwei Felder, von denen jedes im gesunden Fall leer oder null sein darf, sagen
+> einzeln nichts — erst das Paar sagt, ob ein Termin existiert.**
+
+Die naheliegende Regel „leere Realtime-Spalte heisst kein Termin" hätte jeden
+Panel-Timer unmittelbar nach einem Neustart als Schaden gemeldet — dann liegt
+`OnBootSec` vor der nächsten Kalenderzeit. Umgeworfen hat sie die Gegenprobe und
+nicht das Nachdenken.
+
+`ActiveState` taugt für die Frage nicht: Es steht beim gesunden wie beim kaputten
+Timer auf `active`. Der Satz steht seit dem 19. August in `CLAUDE.md` und ist
+seit dieser Runde gemessen statt behauptet.
+
+**Gefragt wird `show` und nicht `list-timers`**, obwohl das für Timer bequemer
+wäre: Ein von Hand gestoppter Timer verschwindet aus `list-timers --all`
+vollständig, während `show` ihn weiter beantwortet. Genau diesen Schaden soll A2
+sichtbar machen.
+
+> **Eine Liste, die nur zeigt, was läuft, kann das Fehlende nicht melden.**
+
+**Kein Datum, und das mit Absicht.** Die Werte, aus denen die Frage entschieden
+wird — leer, `0`, `infinity`, eine Dauer —, sind von der Zeitzone unabhängig. Der
+Zeitstempel ist es nicht: `systemctl` druckt ihn in der Zone des Servers, und der
+Agent setzt `TZ` nicht. `--timestamp=unix` hilft nur zur Hälfte, es erreicht
+`ExecMainStartTimestamp` und nicht `NextElapseUSecRealtime`.
+
+> **Eine Frage, die ohne Rechnung zu beantworten ist, wird nicht an eine Rechnung
+> gehängt** — sonst nimmt deren Fehlschlag die Antwort mit.
+
+Die Option steht deshalb auch nicht im Aufruf: Gemessen ist sie nur gegen
+systemd 255, die Zielplattformen fahren 249 bis 257, und lehnte eine ältere
+Fassung sie ab, käme keine einzige Zeile zurück — dann meldete **jede** Unit
+„nicht installiert".
+
+`UnitStateTest` hält die Regeln an dreizehn Fällen, deren Prüfkörper wörtlich aus
+der Messung stammen; acht Eingriffe im Bruchskript belegen, dass sie beissen.

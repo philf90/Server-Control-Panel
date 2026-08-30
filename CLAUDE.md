@@ -2425,6 +2425,22 @@ Testen berücksichtigen:
     „leer" auch wirklich leer, und ein `LEER` ohne Zerlegen ist eine Frage und
     kein Ergebnis.
 
+    **Und das Zerlegen genügt auch nicht — gemessen am 30. August 2026.** In
+    einer Agentensitzung verpackt das Gestell die Ausgabe von PHPStan und
+    ersetzt sie durch `{"tool":"phpstan","result":"passed","errors":0}` —
+    `--error-format=json` kommt gar nicht erst durch. Ein Leser, der darin
+    `files` sucht, findet nichts und meldet „0 Meldungen", und das sieht aus
+    wie ein sauberer Lauf. Die Antwort ist dieselbe, die
+    `tests/waechter-brechen.sh` seit dem 26. August für PHPUnit gibt:
+    `env -u AI_AGENT -u CLAUDECODE` davor.
+
+    > **Eine Verpackung, die das angeforderte Format durch ein eigenes ersetzt,
+    > ist kein Formatfehler — sie ist ein Ergebnis, das von einem sauberen Lauf
+    > nicht zu unterscheiden ist.**
+
+    Gefangen hat es nur die Gegenprobe: ein absichtliches `strlen(42)`, das
+    eine Zeile erzeugen **muss**. Ohne sie wäre der Lauf als grün durchgegangen.
+
     **Und `tests/Support/` gehört in denselben Lauf wie `agent/src`.** Die
     Testdoppel dort hängen am Agenten und nicht am Framework, also läuft Stufe 6
     auch über sie sauber durch. Wer das trennt, sieht die teuerste Meldung

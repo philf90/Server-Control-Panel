@@ -19961,6 +19961,161 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CountedNounTest passed
 
 echo
+echo "== UnitStateTest: der Leser fuer systemctl show =="
+#
+# Die Regeln stammen aus der Messrunde vom 30. August 2026 (docs/89), gefahren
+# gegen echtes systemd 255 in einer eigenen Namespace. Sie lassen sich hier
+# nicht wiederholen -- der Laeufer hat keinen Init --, und genau deshalb haelt
+# sie ein Waechter mit gemessenen Pruefkoerpern statt einer Messung.
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $monotonic = $values['NextElapseUSecMonotonic'] ?? '';
+
+        return $monotonic !== ''
+            && $monotonic !== self::NEVER
+            && $monotonic !== self::OTHER_FIELD;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        return false;", 1))
+PY2
+griff_datei agent/src/Units.php "hasNext vergisst die monotone Spalte" &&
+pruefe "hasNext vergisst die monotone Spalte" \
+  UnitStateTest::test_the_pair_decides_whether_a_next_date_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitStateTest: infinity gilt als Dauer =="
+#
+# infinity ist der Wert, den systemd fuer -nie- schreibt. Wer ihn nicht
+# ausnimmt, meldet jeden Timer ohne Termin als gesund -- also genau den
+# Schaden, den A2 sichtbar machen soll.
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = "            && $monotonic !== self::NEVER\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "", 1))
+PY2
+griff_datei agent/src/Units.php "infinity gilt als Dauer" &&
+pruefe "infinity gilt als Dauer" \
+  UnitStateTest::test_the_pair_decides_whether_a_next_date_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitStateTest: ein fehlendes Feld wird zur gemessenen Null =="
+#
+# Der Fehler, den dieser Leser abloest: Ein Timer beantwortet MainPID,
+# NRestarts und ExecMainStartTimestamp gar nicht, und -?? 0- machte daraus
+# einen Dienst, der nie lief.
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return array_key_exists($key, $values) ? (int) $values[$key] : null;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        return (int) ($values[$key] ?? 0);", 1))
+PY2
+griff_datei agent/src/Units.php "fehlendes Feld als Null" &&
+pruefe "fehlendes Feld als Null" \
+  UnitStateTest::test_a_timer_has_no_pid_no_restarts_and_no_start failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitStateTest: ein leerer Zeitstempel bleibt eine leere Zeichenkette =="
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return $wert === '' ? null : $wert;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        return $wert;", 1))
+PY2
+griff_datei agent/src/Units.php "leerer Zeitstempel als Zeichenkette" &&
+pruefe "leerer Zeitstempel als Zeichenkette" \
+  UnitStateTest::test_a_timer_has_no_pid_no_restarts_and_no_start failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitStateTest: die Art kommt nicht mehr aus dem Namen =="
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return $punkt === false ? 'other' : substr($id, $punkt + 1);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        return 'service';", 1))
+PY2
+griff_datei agent/src/Units.php "Art nicht aus dem Namen" &&
+pruefe "Art nicht aus dem Namen" \
+  UnitStateTest::test_the_kind_comes_from_the_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitStateTest: getrennt wird an jedem Gleichheitszeichen =="
+#
+# Eine Description darf eines enthalten, und systemctl show maskiert nichts.
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = "            [$key, $value] = explode('=', $line, 2);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            [$key, $value] = array_pad(explode('=', $line), 2, '');"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Units.php "Trennung an jedem Gleichheitszeichen" &&
+pruefe "Trennung an jedem Gleichheitszeichen" \
+  UnitStateTest::test_a_value_may_contain_the_separator failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitStateTest: die monotone Spalte faellt aus der Abfrage =="
+#
+# Fehlte sie, stuende has_next auf einer halben Auskunft -- und zwar wortlos,
+# weil eine nicht gefragte Eigenschaft in der Ausgabe genauso fehlt wie eine,
+# die es nicht gibt.
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'NextElapseUSecMonotonic',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "", 1))
+PY2
+griff_datei agent/src/Units.php "monotone Spalte nicht gefragt" &&
+pruefe "monotone Spalte nicht gefragt" \
+  UnitStateTest::test_the_query_asks_for_both_elapse_fields failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitStateTest: die Operation holt die Timer aus der Liste =="
+#
+# Gemessen: Ein von Hand gestoppter Timer verschwindet aus list-timers --all
+# vollstaendig, waehrend show ihn weiter beantwortet.
+vorher_datei agent/src/Ops/ServiceStatus.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/ServiceStatus.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'show',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'list-timers',", 1))
+PY2
+griff_datei agent/src/Ops/ServiceStatus.php "Timer aus der Liste" &&
+pruefe "Timer aus der Liste" \
+  UnitStateTest::test_the_operation_does_not_ask_the_timer_list failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

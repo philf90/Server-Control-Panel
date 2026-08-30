@@ -850,7 +850,69 @@ $vorbehalt` geworden. Nachgezogen und einzeln nachgeprüft.
 
 ---
 
-## 28. Wo der Lauf steht
+## 28. Punkt 6 — die zweite Hälfte erfüllt, die erste nicht herstellbar
+
+Gemessen am **30. August 2026** gegen `0.7.2-rc.6`, als Kunde in der Sicht des
+Abonnements `p6-b.invalid`.
+
+**Erfüllt:** *„Das Archiv ist entpackt — **1 Eintrag**."* Einzahl, wie
+`Counted::of()` sie bildet.
+
+**Nicht herstellbar:** *„Von 1 Datei ist 0 hochgeladen."* Der Betreiber hat
+dieselbe Datei mehrfach hochgeladen und jedes Mal *„Die Datei ist
+hochgeladen."* gelesen.
+
+---
+
+## 29. Befund 9 — Ein vergebener Name ist kein Fehlschlag
+
+`docs/87 §7` verlangte, „eine Datei hochzuladen, deren Name schon vergeben ist,
+sodass sie scheitert". **Am Quelltext nachgesehen scheitert dabei nichts.**
+`FilesUpload` schreibt in eine Übergangsdatei und legt sie dann ab:
+
+    if (! @rename($temporary, $path)) { … }
+
+`rename()` **überschreibt** einen vorhandenen Eintrag wortlos. Eine Prüfung auf
+`file_exists` gibt es an keiner Stelle der Operation.
+
+> **Ein Kriterium, das einen Fehlschlag verlangt, muss einen benennen, den der
+> Prüfling auch erzeugt.**
+
+**Es ist der fünfte Befund im Prüfmittel** und derselbe Bau wie Befund 7: Beide
+verlangen einen Zustand, den es so nicht gibt — dort war der Griff fort, hier
+der Fehlschlag.
+
+**Der Weg, der trägt**, steht jetzt in `docs/87 §7`: ein Ziel, an dem ein
+**Verzeichnis** steht. `FilesUpload` wirft dort `Dort steht ein Verzeichnis.`,
+und das ist genau ein Fehlschlag bei genau einer Datei.
+
+---
+
+## 30. Beobachtung 9 — Das Panel weiss, dass es überschrieben hat, und sagt es nicht
+
+Dieselbe Operation gibt zurück:
+
+    return ['entry' => Entry::of($path), 'created' => $existing === null];
+
+**Der Unterschied ist also bekannt** — und die Oberfläche sagt in beiden Fällen
+denselben Satz:
+
+    $done === 1 ? 'Die Datei ist hochgeladen.' : …
+
+Ein Kunde, der `index.php` in sein `httpdocs` lädt, ersetzt damit die laufende
+Datei, und die Meldung liest sich wie ein Neuanlegen.
+
+> **Eine Auskunft, die zwei verschiedene Vorgänge gleich benennt, verschweigt
+> den gefährlicheren.**
+
+**Das ist eine Entscheidung des Betreibers und kein Fehler**, den man
+nebenbeibehebt: Ein Dateimanager, der beim Überschreiben zurückfragt, ist eine
+andere Bedienung als einer, der es tut. Notiert, nicht gebaut — der Wert
+`created` liegt bereit, falls die Meldung ihn eines Tages tragen soll.
+
+---
+
+## 31. Wo der Lauf steht
 
 | Punkt | Stand |
 |---|---|
@@ -860,9 +922,9 @@ $vorbehalt` geworden. Nachgezogen und einzeln nachgeprüft.
 | 3 — die Nachlese | **erfüllt** (§14) — mit drei Befunden daneben |
 | 4 — der Lauf ohne Wirkung | **vertagt** (§21) — braucht neuen Bestand und einen Druck ohne Neuladen |
 | 5 — das heile `W:` | **erfüllt** (§23) |
-| 6 — die Zählwörter | offen |
+| 6 — die Zählwörter | **halb erfüllt** (§28) — das Archiv ja, das Hochladen nicht herstellbar (§29) |
 
-**Acht Befunde: vier im Prüfmittel, vier im Panel.** Die ersten drei sassen in
+**Neun Befunde: fünf im Prüfmittel, vier im Panel.** Die ersten drei sassen in
 der Vorschrift, die letzten drei auf einer einzigen Seite — der des Vorgangs.
 
 **Sie sind eine Familie und keine drei Einzelfälle**, und die Familie ist

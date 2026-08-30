@@ -323,10 +323,32 @@ vorkommt, belegt nichts — dann ist der Prüfkörper falsch.
 
 Zwei Meldungen, beide über die Oberfläche:
 
-1. **Eine einzelne Datei** hochladen, deren Name schon vergeben ist, sodass sie
-   scheitert → *„Von **1 Datei** ist 0 hochgeladen."* und nicht „1 Dateien".
+1. **Eine einzelne Datei**, deren Hochladen scheitert → *„Von **1 Datei** ist 0
+   hochgeladen."* und nicht „1 Dateien".
 2. Ein Archiv mit **einem** Eintrag entpacken → *„Das Archiv ist entpackt —
    **1 Eintrag**."*
+
+**Der erste Wurf verlangte einen Namen, der schon vergeben ist — und das ist
+kein Fehlschlag.** `FilesUpload` schreibt in eine Übergangsdatei und legt sie
+mit `rename()` an ihren Platz; das **überschreibt** einen vorhandenen Eintrag
+wortlos. Am 30. August hat der Betreiber dieselbe Datei mehrfach hochgeladen und
+jedes Mal *„Die Datei ist hochgeladen."* gelesen (`docs/88`, Befund 9).
+
+> **Ein Kriterium, das einen Fehlschlag verlangt, muss einen benennen, den der
+> Prüfling auch erzeugt.**
+
+**Der Fehlschlag, der sich verlässlich herstellen lässt**, ist ein Ziel, an dem
+ein **Verzeichnis** steht — `FilesUpload` wirft dort
+`Dort steht ein Verzeichnis.`:
+
+1. Die Datei einmal hochladen und im Verzeichnisbaum nachsehen, **welchen Namen
+   sie bekommen hat** (vom Telefon kommt er nicht aus der Anzeige).
+2. Sie löschen und ein **Verzeichnis** mit genau diesem Namen anlegen.
+3. Dieselbe Datei noch einmal hochladen.
+
+Erwartet: *„Von **1 Datei** ist 0 hochgeladen."* und darunter
+*„&lt;name&gt;: Dort steht ein Verzeichnis."* Danach das Verzeichnis wieder
+entfernen.
 
 ---
 

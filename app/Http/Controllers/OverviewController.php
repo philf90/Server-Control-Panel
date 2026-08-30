@@ -23,6 +23,7 @@ use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Catalog;
 use SrvPanel\Agent\Client;
 use SrvPanel\Agent\Pg\Clusters;
 
@@ -539,17 +540,60 @@ final class OverviewController extends Controller
         return trim(str_replace(['%', ' '], '', $letzter['v'])) === '' ? $fallback : trim(explode(' ', $letzter['v'])[0]);
     }
 
-    /** @return list<array<string,mixed>> */
+    /**
+     * Die tragenden Dienste — die Auswahl kommt aus {@see Catalog::essential()}.
+     *
+     * **Hier standen bis zum 30. August 2026 drei Namen im Quelltext.** Sie
+     * waren die dritte von zehn Stellen, an denen Unitnamen lagen, und
+     * `ServiceAction` führte eine vierte. Die Auswahl ist jetzt eine Eigenschaft
+     * der Unit und keine dieser Methode; was die Titelseite zeigt, ändert man
+     * damit im Katalog und nicht hier.
+     *
+     * @return list<array<string,mixed>>
+     */
     private function services(Client $agent): array
     {
-        $units = ['srvpanel-agentd.service', 'nginx.service', 'mariadb.service'];
         $rows = [];
 
-        foreach ($units as $unit) {
-            $rows[] = $this->status($agent, $unit);
+        foreach (Catalog::essential() as $kandidaten) {
+            $rows[] = $this->existing($agent, $kandidaten);
         }
 
         return array_merge($rows, $this->postgresUnits($agent));
+    }
+
+    /**
+     * Von mehreren Namen derselben Aufgabe die, die es gibt.
+     *
+     * `mariadb.service` und `mysql.service` sind zwei Geschmacksrichtungen
+     * derselben Aufgabe, `ssh` und `sshd` dieselbe Unit unter zwei Namen. Der
+     * Katalog nennt deshalb **Kandidaten** und nicht Zusagen; welcher davon da
+     * ist, weiss nur der Server.
+     *
+     * Gefragt wird der Reihe nach, und der erste, den es gibt, gewinnt. Gibt es
+     * keinen, steht die Antwort auf den ersten Kandidaten — dann meldet die
+     * Zeile „nicht installiert" unter dem Namen, den ein Betreiber erwartet.
+     *
+     * **Auf einem MariaDB-Server kostet das keinen Aufruf mehr als vorher**:
+     * Der erste Kandidat antwortet, und der zweite wird nicht gefragt.
+     *
+     * @param  list<string>  $kandidaten
+     * @return array<string,mixed>
+     */
+    private function existing(Client $agent, array $kandidaten): array
+    {
+        $erste = null;
+
+        foreach ($kandidaten as $unit) {
+            $zeile = $this->status($agent, $unit);
+            $erste ??= $zeile;
+
+            if (($zeile['present'] ?? false) === true) {
+                return $zeile;
+            }
+        }
+
+        return $erste ?? ['unit' => '', 'present' => false, 'active_state' => 'unbekannt', 'description' => ''];
     }
 
     /**

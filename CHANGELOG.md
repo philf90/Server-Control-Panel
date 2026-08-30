@@ -22772,3 +22772,73 @@ Fassung sie ab, käme keine einzige Zeile zurück — dann meldete **jede** Unit
 
 `UnitStateTest` hält die Regeln an dreizehn Fällen, deren Prüfkörper wörtlich aus
 der Messung stammen; acht Eingriffe im Bruchskript belegen, dass sie beissen.
+
+### A2 Schritt 2 — die Unitnamen lagen in zehn Dateien
+
+`SrvPanel\Agent\Catalog` ist die eine Stelle, an der steht, welche systemd-Units
+dieses Panel betreibt oder braucht. Zwölf eigene aus der Paketierung, dazu
+Webserver, Datenbank, SFTP und Cron.
+
+**Die Skizze sprach von zwei Stellen; nachgezählt waren es zehn.**
+`OverviewController` trug drei feste Namen, `ServiceAction` vier Muster, und
+dazwischen lagen `WebserverDetect`, `DbRemoteAccess`, `SftpAccess`,
+`PhpVersions`, `NginxApply`, `PanelTls`, `Unattended` und `Task`.
+
+> **Zwei Listen, die dasselbe meinen, laufen auseinander — und keine von beiden
+> ist der Ort, an dem man nachsieht.**
+
+**Der Katalog nennt Kandidaten und keine Zusagen.** `ssh.service` und
+`sshd.service` sind dieselbe Unit unter zwei Namen, `mariadb.service` und
+`mysql.service` zwei Geschmacksrichtungen derselben Aufgabe. Welche davon es
+gibt, entscheidet nicht die Liste: `systemctl show` beantwortet eine unbekannte
+Unit mit `LoadState=not-found`.
+
+> **Eine Unit, die es nicht gibt, beantwortet sich selbst.** Der Katalog muss
+> nicht wissen, was installiert ist — nur, was in Frage kommt.
+
+Deshalb steht dort keine zweite Auflösung von `ssh` gegen `sshd` neben der in
+`SftpAccess`, wo sie gemessen wurde, und keine zweite Geschmackserkennung neben
+der in `DbRemoteAccess`. Die versionierten Units (`php8.3-fpm.service`,
+`postgresql@16-main.service`) stehen bewusst nicht drin — ihre Namen baut, wer
+sie kennt.
+
+**Steuern ist etwas anderes als Zeigen.** Jeder Eintrag sagt, ob `service.action`
+ihn anfassen darf; die Positivliste selbst bleibt, wo eine Sicherheitsgrenze
+hingehört. `UnitCatalogTest` hält beide in beiden Richtungen aneinander und
+fragt dafür `ServiceAction::allows()` — die Entscheidung, die im Betrieb fällt,
+statt einer Abschrift davon.
+
+> **Eine Liste, die etwas erlaubt, und eine, die etwas zeigt, sind nicht
+> dieselbe Liste — aber sie dürfen einander nicht widersprechen.**
+
+`ssh` und `cron` sind namentlich ausgenommen und stehen zusätzlich als eigener
+Fall da: Fiele ihr Katalogeintrag weg, prüfte die Schleife darüber sie nicht
+mehr und bliebe grün.
+
+**Die Übersicht zeigt weiter dieselben drei Zeilen**, holt ihre Auswahl aber aus
+`Catalog::essential()`. Sie ist eine Eigenschaft der Unit und keine der Seite —
+sonst wüsste eine Klasse des Agenten, welche Ansicht das Panel gerade zeichnet.
+Von mehreren Kandidaten gewinnt der, den es gibt; auf einem MariaDB-Server
+kostet das keinen Aufruf mehr als vorher, weil der erste antwortet.
+
+**Zwei Befunde, beide gemessen und beide nicht behoben.**
+
+Der erste: `ServiceAction::ALLOWED_UNITS` führt `php*-fpm.service`, und der
+Vergleicher kennt Sterne nur am **Ende** eines Musters. Ein Stern in der Mitte
+fällt in den Gleichheitsvergleich, und das Einzige, was der Eintrag je erlauben
+könnte, ist eine Unit, die wörtlich so heisst — die lässt `Guard::unitName()`
+nicht durch. Der Eintrag hat nie etwas erlaubt.
+
+> **Ein Muster in einer Positivliste, das die Liste selbst nicht auflösen kann,
+> ist kein Eintrag — es ist eine Behauptung.**
+
+Es fehlt auch niemandem: Der einzige Aufrufer von `service.action` ist `Setup`,
+und der schickt keine PHP-Unit. Behoben wird es hier nicht, weil die beiden Wege
+in entgegengesetzte Richtungen zeigen — den Eintrag streichen nimmt eine
+Erlaubnis weg, den Vergleicher erweitern gibt eine dazu.
+
+Der zweite: `mariadb.service` ist steuerbar, `mysql.service` nicht, obwohl
+`DbRemoteAccess` beide neu startet. Auch das bleibt, wie es ist — eine
+Sicherheitsgrenze weitet man auf Ansage und nicht als Nebenwirkung eines Umbaus.
+Beide Zustände sind als Fall festgehalten, damit eine Änderung daran eine
+bewusste ist.

@@ -20116,6 +20116,200 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
+echo "== UnitCatalogTest: eine eigene Unit faellt aus dem Katalog =="
+#
+# Bis zum 30. August standen Unitnamen in zehn Dateien, und neun der eigenen
+# zwoelf in keiner Anzeige. Der Katalog wird gegen packaging/systemd gehalten.
+vorher_datei agent/src/Catalog.php
+python3 - <<'PY2'
+p = 'agent/src/Catalog.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'srvpanel-dns.timer',\n"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """""", 1))
+PY2
+griff_datei agent/src/Catalog.php "eigene Unit fehlt im Katalog" &&
+pruefe "eigene Unit fehlt im Katalog" \
+  UnitCatalogTest::test_the_catalogue_knows_every_packaged_unit failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
+echo "== UnitCatalogTest: der Katalog nennt eine Unit, die es nicht gibt =="
+#
+# Die Gegenrichtung -- hier entsteht der tote Eintrag wirklich: Bei einer
+# Umbenennung traegt man den neuen Namen nach und der alte bleibt liegen.
+vorher_datei agent/src/Catalog.php
+python3 - <<'PY2'
+p = 'agent/src/Catalog.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'srvpanel-dns.timer',"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        'srvpanel-dns.timer',
+        'srvpanel-nichts.service',""", 1))
+PY2
+griff_datei agent/src/Catalog.php "Katalog nennt eine Unit ohne Datei" &&
+pruefe "Katalog nennt eine Unit ohne Datei" \
+  UnitCatalogTest::test_every_unit_the_catalogue_names_is_packaged failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
+echo "== UnitCatalogTest: ssh wird steuerbar =="
+#
+# Damit liesse sich der Zugang zum Server abschalten. SftpAccess sagt das
+# seit P6 im Kopf seiner Klasse; hier wird es gemessen.
+vorher_datei agent/src/Catalog.php
+python3 - <<'PY2'
+p = 'agent/src/Catalog.php'
+s = open(p, encoding='utf-8').read()
+alt = """'sftp' => array_fill_keys(SftpAccess::UNITS, false),"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """'sftp' => array_fill_keys(SftpAccess::UNITS, true),""", 1))
+PY2
+griff_datei agent/src/Catalog.php "ssh gilt als steuerbar" &&
+pruefe "ssh gilt als steuerbar" \
+  UnitCatalogTest::test_what_the_catalogue_calls_controlled_is_allowed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
+echo "== UnitCatalogTest: nginx gilt als nicht steuerbar =="
+#
+# Die andere Richtung: Was der Katalog nicht steuert, muss ServiceAction
+# ablehnen -- sonst sagen die beiden Listen Verschiedenes.
+vorher_datei agent/src/Catalog.php
+python3 - <<'PY2'
+p = 'agent/src/Catalog.php'
+s = open(p, encoding='utf-8').read()
+alt = """'webserver' => ['nginx.service' => true],"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """'webserver' => ['nginx.service' => false],""", 1))
+PY2
+griff_datei agent/src/Catalog.php "nginx gilt als nicht steuerbar" &&
+pruefe "nginx gilt als nicht steuerbar" \
+  UnitCatalogTest::test_what_the_catalogue_does_not_control_is_denied failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
+echo "== UnitCatalogTest: die SFTP-Namen werden abgeschrieben =="
+#
+# ssh gegen sshd ist in docs/50 gemessen und steht in SftpAccess. Eine zweite
+# Fassung daneben ist die, die veraltet.
+vorher_datei agent/src/Catalog.php
+python3 - <<'PY2'
+p = 'agent/src/Catalog.php'
+s = open(p, encoding='utf-8').read()
+alt = """'sftp' => array_fill_keys(SftpAccess::UNITS, false),"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """'sftp' => ['ssh.service' => false, 'sshd.service' => false],""", 1))
+PY2
+griff_datei agent/src/Catalog.php "SFTP-Namen abgeschrieben" &&
+pruefe "SFTP-Namen abgeschrieben" \
+  UnitCatalogTest::test_the_sftp_names_come_from_where_they_were_measured failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
+echo "== UnitCatalogTest: eine Unit steht zweimal im Katalog =="
+
+vorher_datei agent/src/Catalog.php
+python3 - <<'PY2'
+p = 'agent/src/Catalog.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'srvpanel-dns.timer',"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        'srvpanel-dns.timer',
+        'srvpanel-web.service',""", 1))
+PY2
+griff_datei agent/src/Catalog.php "Unit steht doppelt" &&
+pruefe "Unit steht doppelt" \
+  UnitCatalogTest::test_no_unit_stands_in_the_catalogue_twice failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
+echo "== UnitCatalogTest: die Positivliste laesst ssh durch =="
+#
+# Der Eingriff sitzt in der Positivliste selbst und nicht im Katalog -- er
+# belegt, dass der Waechter die Durchsetzung prueft und nicht die Absicht.
+vorher_datei agent/src/Ops/ServiceAction.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/ServiceAction.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'srvpanel-*',"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        'srvpanel-*',
+        'ssh.service',""", 1))
+PY2
+griff_datei agent/src/Ops/ServiceAction.php "Positivliste laesst ssh durch" &&
+pruefe "Positivliste laesst ssh durch" \
+  UnitCatalogTest::test_neither_ssh_nor_cron_can_ever_be_controlled failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
+echo "== UnitCatalogTest: die Positivliste verliert nginx =="
+
+vorher_datei agent/src/Ops/ServiceAction.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/ServiceAction.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'nginx.service',\n"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """""", 1))
+PY2
+griff_datei agent/src/Ops/ServiceAction.php "Positivliste ohne nginx" &&
+pruefe "Positivliste ohne nginx" \
+  UnitCatalogTest::test_what_the_catalogue_calls_controlled_is_allowed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
+echo "== UnitCatalogTest: die Uebersicht baut ihre Liste wieder selbst =="
+#
+# Ein Waechter ueber den Katalog allein saehe das nicht: Die Liste daneben
+# waere vollstaendig richtig -- sie waere nur eine zweite.
+vorher_datei app/Http/Controllers/OverviewController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/OverviewController.php'
+s = open(p, encoding='utf-8').read()
+alt = """        foreach (Catalog::essential() as $kandidaten) {
+            $rows[] = $this->existing($agent, $kandidaten);
+        }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        foreach ([['srvpanel-agentd.service'], ['nginx.service'], ['mariadb.service']] as $kandidaten) {
+            $rows[] = $this->existing($agent, $kandidaten);
+        }""", 1))
+PY2
+griff_datei app/Http/Controllers/OverviewController.php "Uebersicht mit eigener Liste" &&
+pruefe "Uebersicht mit eigener Liste" \
+  UnitCatalogTest::test_the_overview_carries_no_list_of_its_own failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
+echo "== UnitCatalogTest: mysql gilt als steuerbar =="
+#
+# Die Ungleichheit zwischen mariadb und mysql ist der Bestand und kein Entwurf.
+# Wer sie beim Aufraeumen geradezieht, weitet eine Sicherheitsgrenze -- und
+# genau das soll auffallen.
+vorher_datei agent/src/Catalog.php
+python3 - <<'PY2'
+p = 'agent/src/Catalog.php'
+s = open(p, encoding='utf-8').read()
+alt = "'mariadb.service' => true, 'mysql.service' => false"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'mariadb.service' => true, 'mysql.service' => true", 1))
+PY2
+griff_datei agent/src/Catalog.php "mysql gilt als steuerbar" &&
+pruefe "mysql gilt als steuerbar" \
+  UnitCatalogTest::test_what_the_catalogue_calls_controlled_is_allowed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

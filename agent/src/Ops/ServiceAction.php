@@ -48,7 +48,7 @@ final class ServiceAction implements Op
         $unit = Guard::unitName($args['unit'] ?? null);
         $action = Guard::enum($args['action'] ?? null, self::ACTIONS, 'action');
 
-        if (! $this->allowed($unit)) {
+        if (! self::allows($unit)) {
             throw AgentException::denied(sprintf('Die Unit %s darf das Panel nicht steuern.', $unit));
         }
 
@@ -63,7 +63,14 @@ final class ServiceAction implements Op
         ];
     }
 
-    private function allowed(string $unit): bool
+    /**
+     * Darf diese Unit gesteuert werden?
+     *
+     * Öffentlich und statisch, damit `UnitCatalogTest` die **tatsächliche**
+     * Entscheidung fragen kann statt sie nachzubauen. Ein Wächter, der die
+     * Regel zum zweiten Mal aufschreibt, prüft seine eigene Abschrift.
+     */
+    public static function allows(string $unit): bool
     {
         foreach (self::ALLOWED_UNITS as $pattern) {
             if (str_ends_with($pattern, '*')) {

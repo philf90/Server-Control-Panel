@@ -19386,6 +19386,91 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   MobileLayoutTest::test_a_quiet_note_beside_an_identifier_breaks_between_words passed
 echo
+echo "── DispatchedDisplayTest: die Meldung folgt wieder dem Zustand ──"
+#
+# docs/88 Befund 8: Die Vorgangsliste zeigte "Nicht erreicht: ..."
+# bernsteinfarben, die Detailseite dieselbe Auskunft gruen - weil ein gelungener
+# Lauf ok ist und die Meldung dem Zustand folgte statt ihrem Inhalt. Gruen ist
+# die Farbe, die sagt, es sei nichts zu sehen.
+vorher_datei resources/js/Pages/Operations/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Operations/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = ':class="notizart"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, ':class="rang"', 1))
+PY2
+griff_datei resources/js/Pages/Operations/Show.vue "Meldung folgt dem Zustand" &&
+pruefe "Meldung folgt dem Zustand" \
+  DispatchedDisplayTest::test_a_reservation_is_not_painted_in_the_colour_of_success failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DispatchedDisplayTest passed
+
+echo
+echo "── DispatchedDisplayTest: der Klient wirft das Ergebnis wieder weg ──"
+#
+# Der Server schickt beim Schliessen ein done mit status und result. Bis zum
+# 30. August las der Klient daraus nur den Status - wer einem Vorgang beim Enden
+# zusah, bekam den Ausgang deshalb erst beim Neuladen.
+#
+# Ein Feld, das gesendet und nicht gelesen wird, ist von einem, das niemand
+# sendet, nicht zu unterscheiden.
+vorher_datei resources/js/Composables/useOperationStream.ts
+python3 - <<'PY2'
+p = 'resources/js/Composables/useOperationStream.ts'
+s = open(p, encoding='utf-8').read()
+alt = '    result.value = payload.result ?? null\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Composables/useOperationStream.ts "Klient verwirft das Ergebnis" &&
+pruefe "Klient verwirft das Ergebnis" \
+  DispatchedDisplayTest::test_the_client_keeps_the_result_of_the_closing_event failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DispatchedDisplayTest passed
+
+echo
+echo "── DispatchedDisplayTest: das Schlussereignis traegt das Ergebnis nicht mehr ──"
+#
+# Die andere Seite derselben Naht. Faellt result aus dem done, liest der Klient
+# undefined - und zwar wortlos.
+vorher_datei app/Http/Controllers/OperationStreamController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/OperationStreamController.php'
+s = open(p, encoding='utf-8').read()
+alt = "                    'result' => $operation->result,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/OperationStreamController.php "Schlussereignis ohne Ergebnis" &&
+pruefe "Schlussereignis ohne Ergebnis" \
+  DispatchedDisplayTest::test_the_client_keeps_the_result_of_the_closing_event failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DispatchedDisplayTest passed
+
+echo
+echo "── DispatchedDisplayTest: der Vorbehalt steht wieder zweimal ──"
+#
+# Zweiter Teil von Befund 8: Der Satz stand sechsundzwanzig Zeilen auseinander
+# zweimal in derselben Datei - einmal klein als Fortschrittsmeldung, einmal
+# gross als warning. Die Oberflaeche zeigte beide, und sie unterschieden sich im
+# ersten Buchstaben.
+vorher_datei agent/src/Ops/SystemPackagesRefresh.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemPackagesRefresh.php'
+s = open(p, encoding='utf-8').read()
+alt = "$context->progress(100, $vorbehalt ?? 'Alle Quellen erreicht');"
+neu = "$context->progress(100, $apt->reachedEverything() ? 'alle Quellen erreicht' : 'nicht erreicht: '.$apt->summary());"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/SystemPackagesRefresh.php "Vorbehalt zweimal geschrieben" &&
+pruefe "Vorbehalt zweimal geschrieben" \
+  DispatchedDisplayTest::test_the_reservation_is_written_once failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DispatchedDisplayTest passed
+
+echo
 echo "── DispatchedDisplayTest: der abgesetzte Lauf laesst die Meldung stehen ──"
 #
 # docs/88 Befund 4: Der Agent ruft progress(100, 'laeuft') als letzte Handlung,
@@ -19585,10 +19670,7 @@ vorher_datei agent/src/Ops/SystemPackagesRefresh.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/SystemPackagesRefresh.php'
 s = open(p, encoding='utf-8').read()
-alt = """            'warning' => $apt->reachedEverything()
-                ? null
-                : 'Nicht erreicht: '.$apt->summary(),
-"""
+alt = "            'warning' => $vorbehalt,\n"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
 PY2

@@ -760,7 +760,97 @@ man nachsieht, malt den Vorbehalt in der Farbe des Erfolgs.
 
 ---
 
-## 25. Wo der Lauf steht
+## 25. Befund 8 ist behoben — und der Mechanismus von Befund 6 stand zweimal falsch da
+
+Gebaut am 30. August 2026, vor Punkt 6.
+
+| | Behebung |
+|---|---|
+| Die Farbe | `Show.vue` färbt die Meldung nach ihrem **Inhalt**: liegt ein Vorbehalt vor, ist sie bernsteinfarben |
+| Der doppelte Text | `SystemPackagesRefresh` baut den Satz **einmal** und benutzt ihn für Meldung und `warning` |
+| Der Vorbehalt beim Zusehen | der Klient **behält** das Ergebnis des Schlussereignisses |
+
+**Und dabei ist der Mechanismus von Befund 6 zum zweiten Mal berichtigt worden.**
+Er stand bisher zweimal falsch da:
+
+| Wurf | Behauptung | gemessen |
+|---|---|---|
+| 1 | „`Show.vue` rendert `result` nicht" | falsch — es gibt einen Abschnitt „Ergebnis" |
+| 2 | „der Strom trägt `result` nicht" | falsch — das `done`-Ereignis trägt es |
+| 3 | **der Klient liest daraus nur `status`** | gemessen am Quelltext |
+
+`OperationStreamController` schickt beim Schliessen ein `done` mit `status`
+**und** `result`. `useOperationStream` las
+
+    JSON.parse(…) as { status: string }
+
+und liess den Rest fallen.
+
+> **Ein Feld, das gesendet und nicht gelesen wird, ist von einem, das niemand
+> sendet, nicht zu unterscheiden.**
+
+**Zweimal denselben Mechanismus falsch zu benennen ist der eigentliche Befund
+über mich.** Beide Male stand die Behauptung im Protokoll, bevor ich die Stelle
+gelesen hatte, die sie betrifft — einmal `Show.vue`, einmal den Stromsender.
+
+> **Eine Erklärung, die man vor der Messung aufschreibt, ist eine Vermutung mit
+> Fussnote — und sie liest sich hinterher wie ein Ergebnis.**
+
+**Die Behebung von Befund 6 bleibt trotzdem stehen.** Das Urteil als Meldung zu
+führen ist richtig: Es reist im laufenden Strom, nicht erst im Schlussereignis,
+und ein Vorgang, der sein Urteil im letzten Moment nachreicht, hätte bis dahin
+das Wort von vorhin getragen.
+
+---
+
+## 26. Wie dieser Wächter seine eigene Begründung überführt hat
+
+`DispatchedDisplayTest` hatte seit dem 28. August eine ungewöhnliche letzte
+Prüfung: Sie misst nicht die Regel, sondern deren **Begründung** — „der Strom
+trägt `result` nicht". Als der Klient `result` behielt, wurde sie rot mit:
+
+    Der Strom trägt jetzt das Ergebnis. Dann ist die Begründung in
+    DispatchedDisplayTest veraltet und gehört nachgezogen — der Code ist es
+    nicht.
+
+**Sie hat genau das getan, wofür sie gebaut wurde**, und zwar an einer
+Begründung, die schon beim Schreiben falsch war. Die Prüfung heisst jetzt
+`test_the_client_keeps_the_result_of_the_closing_event` und misst beide Seiten
+der Naht: dass der Server das Ergebnis schickt und dass der Klient es behält.
+
+> **Eine Regel, deren Begründung von einer Bedingung abhängt, veraltet mit ihr —
+> und nichts prüft das, solange die Bedingung nur im Kommentar steht.**
+
+---
+
+## 27. Beobachtung 8 — Zweimal an einem Tag ist ein Satz über eine Regel in sie gelaufen
+
+**Beim Bau der Behebung, zweimal:**
+
+1. Ein Kommentar warnte, ein `{@see \Voll\Qualifiziert}` gehöre nicht in einen
+   Dokumentblock, weil Pint daraus einen `use`-Eintrag macht. **Pint machte aus
+   dem Beispiel einen `use`-Eintrag.**
+2. Ein Wächter suchte den alten Farbausdruck als Zeichenkette in `Show.vue` und
+   war rot — weil der Kommentar, der die neue Regel **erklärt**, den alten
+   Ausdruck wörtlich zitiert.
+
+> **Ein Satz, der eine Regel erklärt, enthält sie — und ein Werkzeug, das die
+> Regel sucht, findet den Satz.**
+
+Der zweite ist behoben, indem der Wächter die **Bindung** sucht (`:class="rang
+===`) statt des Ausdrucks: Die steht nur in der Vorlage und nie im Fliesstext.
+
+**Und ein bestehender Eingriff ist mitgegangen.** `BreakScriptTest` meldete, dass
+der Eingriff zu `OperationWarningTest` seinen Text nicht mehr findet — er zielte
+auf `'warning' => $apt->reachedEverything()`, und daraus ist `'warning' =>
+$vorbehalt` geworden. Nachgezogen und einzeln nachgeprüft.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand sie ändert.**
+
+---
+
+## 28. Wo der Lauf steht
 
 | Punkt | Stand |
 |---|---|

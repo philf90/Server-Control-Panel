@@ -22565,3 +22565,60 @@ Dokumentblock dort nicht stehen darf — und aus dem Beispiel wurde ein
 `use Voll\Qualifiziert;` im Kopf der Klasse.
 
 > **Ein Beispiel, das eine Falle zeigt, steht in ihr.**
+
+### Dieselbe Auskunft in zwei Farben — und ein Mechanismus, der zweimal falsch dastand
+
+**Befund 8 des Nachlaufs.** Die Vorgangsliste zeigte *„Nicht erreicht: …"*
+bernsteinfarben, die Detailseite dieselbe Auskunft **grün** — weil `Show.vue`
+die Meldung nach dem **Zustand** färbte und ein gelungener Lauf `ok` ist. Grün
+ist die Farbe, die sagt, es sei nichts zu sehen; damit nahm die Seite genau die
+Entscheidung des Betreibers vom 28. August zurück, nach der der Zustand bleibt
+und der Vorbehalt **sichtbar** wird.
+
+> **Dieselbe Auskunft in zwei Farben sagt zweimal etwas anderes — und die grüne
+> gewinnt, weil sie oben steht.**
+
+Die Meldung folgt jetzt ihrem Inhalt. Und der Satz stand **zweimal im
+Quelltext**, sechsundzwanzig Zeilen auseinander in derselben Datei — einmal
+klein als Fortschrittsmeldung, einmal gross als `warning`. Er wird einmal gebaut
+und zweimal benutzt.
+
+**Der Klient warf das Ergebnis des Schlussereignisses weg.** Der Strom schickt
+beim Schliessen ein `done` mit `status` **und** `result`; `useOperationStream`
+las daraus `as { status: string }` und liess den Rest fallen. Wer einem Vorgang
+beim Enden zusah, bekam den Ausgang deshalb erst beim Neuladen.
+
+> **Ein Feld, das gesendet und nicht gelesen wird, ist von einem, das niemand
+> sendet, nicht zu unterscheiden.**
+
+**Damit ist der Mechanismus von Befund 6 zum zweiten Mal berichtigt.** Er stand
+erst als „`Show.vue` rendert `result` nicht" (falsch — den Abschnitt gibt es),
+dann als „der Strom trägt `result` nicht" (falsch — das `done` trägt es), und
+erst jetzt gemessen: Der Klient liest ihn nicht.
+
+> **Eine Erklärung, die man vor der Messung aufschreibt, ist eine Vermutung mit
+> Fussnote — und sie liest sich hinterher wie ein Ergebnis.**
+
+Die Behebung von Befund 6 bleibt: Das Urteil als **Meldung** zu führen ist
+richtig, weil es im laufenden Strom reist und nicht erst im Schlussereignis.
+
+**Der Wächter hat seine eigene Begründung überführt.** `DispatchedDisplayTest`
+hatte eine Prüfung, die nicht die Regel misst, sondern deren Voraussetzung. Als
+der Klient `result` behielt, meldete sie *„die Begründung ist veraltet — der
+Code ist es nicht"*. Genau das war der Fall.
+
+> **Eine Regel, deren Begründung von einer Bedingung abhängt, veraltet mit ihr —
+> und nichts prüft das, solange die Bedingung nur im Kommentar steht.**
+
+**Und zweimal an einem Tag ist ein Satz über eine Regel in sie gelaufen.** Pint
+machte aus dem `{@see …}`-Beispiel eines Kommentars, der vor genau dieser Falle
+warnt, einen `use`-Eintrag. Und ein neuer Wächter war rot, weil der Kommentar,
+der die neue Farbregel erklärt, den alten Ausdruck wörtlich zitiert.
+
+> **Ein Satz, der eine Regel erklärt, enthält sie — und ein Werkzeug, das die
+> Regel sucht, findet den Satz.**
+
+Er sucht seitdem die **Bindung** (`:class="rang ===`) statt des Ausdrucks: Die
+steht nur in der Vorlage. Dazu hat `BreakScriptTest` einen bestehenden Eingriff
+überführt, dessen Zielstelle sich geändert hatte — nachgezogen und einzeln
+nachgeprüft.

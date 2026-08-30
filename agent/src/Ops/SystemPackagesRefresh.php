@@ -69,9 +69,20 @@ final class SystemPackagesRefresh implements Op
          * Fortschrittsmeldung sähe aus, als sei etwas ausgefallen. Der Satz
          * steht deshalb hier und die Namen daneben.
          */
-        $context->progress(100, $apt->reachedEverything()
-            ? 'alle Quellen erreicht'
-            : 'nicht erreicht: '.$apt->summary());
+        /*
+         * **Ein Satz und nicht zwei.** Bis zum 30. August stand er zweimal in
+         * dieser Datei — hier kleingeschrieben, sechsundzwanzig Zeilen weiter
+         * gross —, und die Vorgangsliste zeigte „Nicht erreicht: …", die
+         * Detailseite „nicht erreicht: …" (`docs/88`, Befund 8).
+         *
+         * > **Zwei Fassungen desselben Satzes laufen auseinander, und die
+         * > zweite ist die, die beim Nachziehen vergessen wird.**
+         */
+        $vorbehalt = $apt->reachedEverything()
+            ? null
+            : 'Nicht erreicht: '.$apt->summary();
+
+        $context->progress(100, $vorbehalt ?? 'Alle Quellen erreicht');
 
         return [
             'unreachable' => $apt->unreachable,
@@ -97,9 +108,7 @@ final class SystemPackagesRefresh implements Op
              * muss. `warning` ist das Feld, das sie in die Zeile bringt —
              * entschieden vom Betreiber am 28. August 2026.
              */
-            'warning' => $apt->reachedEverything()
-                ? null
-                : 'Nicht erreicht: '.$apt->summary(),
+            'warning' => $vorbehalt,
         ];
     }
 }

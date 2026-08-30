@@ -166,22 +166,106 @@ final class DispatchedDisplayTest extends TestCase
     }
 
     /**
-     * Der Strom trägt `result` nicht — und deshalb muss die Meldung es tragen.
+     * Der Klient wirft das Ergebnis des Schlussereignisses nicht mehr weg.
      *
-     * **Das ist die Begründung der Regel darüber, als Messung.** Fügte jemand
-     * `result` dem Strom hinzu, wäre der Umweg über die Meldung entbehrlich;
-     * solange nicht, ist er die einzige Auskunft, die ein Zusehender bekommt.
-     * Der Wächter meldet dann, dass die Begründung veraltet ist — und nicht,
-     * dass der Code falsch wäre.
+     * ## Diese Prüfung hat ihre eigene Begründung überführt
+     *
+     * Sie hiess bis zum 30. August `test_the_stream_still_does_not_carry_the_result`
+     * und behauptete, der Strom trage `result` nicht — deshalb müsse die
+     * Meldung das Urteil tragen. **Beides war falsch gemessen.**
+     * `OperationStreamController` schickt beim Schliessen ein `done` mit
+     * `status` **und** `result`; der Klient las daraus
+     * `as { status: string }` und liess den Rest fallen.
+     *
+     * > **Ein Feld, das gesendet und nicht gelesen wird, ist von einem, das
+     * > niemand sendet, nicht zu unterscheiden.**
+     *
+     * Der Wächter hat trotzdem geleistet, wofür er gebaut wurde: Als der
+     * Klient `result` behielt, meldete er **„die Begründung ist veraltet"** und
+     * nicht „der Code ist falsch". Genau das war der Fall.
+     *
+     * ## Was jetzt gehalten wird
+     *
+     * Der Klient **behält** `result` aus dem Schlussereignis. Daran hängt der
+     * Vorbehalt auf der Detailseite: Ohne ihn sähe ein Zuschauer ihn erst beim
+     * Neuladen, weil die Seite geladen wurde, als es ihn noch nicht gab.
      */
-    public function test_the_stream_still_does_not_carry_the_result(): void
+    public function test_the_client_keeps_the_result_of_the_closing_event(): void
     {
         $strom = $this->source('resources/js/Composables/useOperationStream.ts');
 
         $this->assertStringContainsString('progress: payload.progress', $strom,
             'Der Strom trägt den Fortschritt nicht mehr — dieser Wächter liest die falsche Stelle.');
 
-        $this->assertStringNotContainsString('result', $strom,
-            'Der Strom trägt jetzt das Ergebnis. Dann ist die Begründung in DispatchedDisplayTest veraltet und gehört nachgezogen — der Code ist es nicht.');
+        $this->assertSame(1, preg_match('/result\.value\s*=\s*payload\.result/', $strom),
+            'Der Klient behält das Ergebnis des Schlussereignisses nicht — dann sieht ein Zuschauer den Vorbehalt erst beim Neuladen.');
+
+        /*
+         * **Und der Server schickt es auch weiterhin.** Die Zeile darüber
+         * prüfte lange den Klienten und nannte den Server als Grund; hier steht
+         * der Server selbst. Fiele `result` aus dem `done`, läse der Klient
+         * `undefined` — und zwar wortlos.
+         */
+        $this->assertSame(1, preg_match(
+            '/\x27done\x27.*?\x27result\x27 => \$operation->result/s',
+            $this->source('app/Http/Controllers/OperationStreamController.php'),
+        ), 'Das Schlussereignis trägt das Ergebnis nicht mehr — dann liest der Klient undefined.');
+    }
+
+    /**
+     * Die Meldung wird nach ihrem Inhalt gefärbt und nicht nach dem Zustand.
+     *
+     * **Der Anlass ist Befund 8** (`docs/88 §24`): Die Vorgangsliste zeigte
+     * „Nicht erreicht: …" bernsteinfarben, die Detailseite dieselbe Auskunft
+     * **grün** — weil ein gelungener Lauf `ok` ist und die Meldung dem Zustand
+     * folgte.
+     *
+     * > **Dieselbe Auskunft in zwei Farben sagt zweimal etwas anderes — und die
+     * > grüne gewinnt, weil sie oben steht.**
+     *
+     * Das nahm die Entscheidung des Betreibers vom 28. August zurück: Der
+     * Zustand bleibt, der **Vorbehalt wird sichtbar**. Grün ist die Farbe, die
+     * sagt, es sei nichts zu sehen.
+     */
+    public function test_a_reservation_is_not_painted_in_the_colour_of_success(): void
+    {
+        $seite = (string) file_get_contents(dirname(__DIR__, 2).'/resources/js/Pages/Operations/Show.vue');
+
+        /*
+         * **Gesucht wird die Bindung und nicht der Ausdruck.** Der erste Wurf
+         * suchte den Vergleich als blosse Zeichenkette — und war rot, weil der
+         * Kommentar in `Show.vue`, der diese Regel **erklärt**, sie wörtlich
+         * zitiert.
+         *
+         * > **Ein Satz, der eine Regel erklärt, enthält sie — und ein Werkzeug,
+         * > das die Regel sucht, findet den Satz.**
+         *
+         * Am selben Tag ist Pint in dieselbe Falle gelaufen, an einem Kommentar
+         * über Pint. Ein `:class="` steht nur in der Vorlage.
+         */
+        $this->assertSame(0, preg_match('/:class="rang ===/', $seite),
+            'Die Meldung folgt wieder dem Zustand — dann wird ein Vorbehalt grün.');
+
+        $this->assertSame(1, preg_match("/warnung\\.value === null \\? 'ok' : 'warn'/", $seite),
+            'Die Meldung unterscheidet nicht mehr, ob ein Vorbehalt vorliegt.');
+    }
+
+    /**
+     * Der Vorbehalt steht einmal im Quelltext und nicht zweimal.
+     *
+     * **Zweiter Teil von Befund 8.** `SystemPackagesRefresh` schrieb den Satz
+     * sechsundzwanzig Zeilen auseinander zweimal — einmal klein als
+     * Fortschrittsmeldung, einmal gross als `warning`. Die Oberfläche zeigte
+     * beide, und sie unterschieden sich im ersten Buchstaben.
+     */
+    public function test_the_reservation_is_written_once(): void
+    {
+        $quelle = $this->source('agent/src/Ops/SystemPackagesRefresh.php');
+
+        $this->assertSame(1, preg_match_all("/'Nicht erreicht: '/", $quelle),
+            'Der Vorbehalt steht mehr als einmal im Quelltext — zwei Fassungen desselben Satzes laufen auseinander.');
+
+        $this->assertSame(0, preg_match("/'nicht erreicht: '/", $quelle),
+            'Die kleingeschriebene Fassung ist zurück — dann zeigen Liste und Detailseite wieder zwei Texte.');
     }
 }

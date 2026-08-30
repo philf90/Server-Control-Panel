@@ -32,6 +32,9 @@ interface Operation {
   cancel_requested: boolean
   payload: Record<string, unknown> | null
   result: Record<string, unknown> | null
+
+  /* Der Vorbehalt, unter dem ein gelungener Lauf gelungen ist — wie in der Liste. */
+  warning: string | null
   output: string
 }
 
@@ -69,6 +72,41 @@ const rang = computed<'ok' | 'warn' | 'critical' | 'neutral'>(() => {
   if (status.value === 'failed' || status.value === 'cancelled') return 'critical'
 
   return 'neutral'
+})
+
+/*
+ * **Der Vorbehalt, und zwar auch für den, der zusieht.**
+ *
+ * Er steht im Ergebnis, und das Ergebnis kommt aus zwei Richtungen: aus den
+ * Eigenschaften der Seite, die seit dem Laden feststehen, und aus dem
+ * abschliessenden Ereignis des Stroms. Ohne das zweite sähe ein Zuschauer den
+ * Vorbehalt erst beim Neuladen — die Seite war schon geladen, als es ihn noch
+ * nicht gab.
+ */
+const warnung = computed<string | null>(() => {
+  const ausStrom = live?.result.value?.warning
+
+  return typeof ausStrom === 'string' ? ausStrom : props.operation.warning
+})
+
+/*
+ * **Die Farbe der Meldung folgt ihrem Inhalt und nicht dem Zustand.**
+ *
+ * Bis zum 30. August stand hier `rang === 'critical' ? 'critical' : 'ok'`. Ein
+ * gelungener Lauf ist `ok`, also grün — und ein Vorbehalt auf einem gelungenen
+ * Lauf wurde damit in der Farbe gemalt, die sagt, es sei nichts zu sehen. Die
+ * Liste zeigte dieselbe Auskunft bernsteinfarben (`docs/88`, Befund 8).
+ *
+ * > **Dieselbe Auskunft in zwei Farben sagt zweimal etwas anderes — und die
+ * > grüne gewinnt, weil sie oben steht.**
+ *
+ * Das nahm die Entscheidung des Betreibers vom 28. August zurück: Der Zustand
+ * bleibt, der **Vorbehalt wird sichtbar**.
+ */
+const notizart = computed<'ok' | 'warn' | 'critical'>(() => {
+  if (rang.value === 'critical') return 'critical'
+
+  return warnung.value === null ? 'ok' : 'warn'
 })
 
 // Der Wunsch bleibt stehen, bis die Seite neu geladen wird — der Ereignisstrom
@@ -120,7 +158,7 @@ watch(output, () => {
       laufende Programm beendet hat.
     </p>
 
-    <p v-if="message" class="notice" :class="rang === 'critical' ? 'critical' : 'ok'">{{ message }}</p>
+    <p v-if="message" class="notice" :class="notizart">{{ message }}</p>
 
     <div class="sections">
       <Section title="Gegenstand">

@@ -88,6 +88,17 @@ const PATHS: Record<string, string> = {
    */
   updates: 'M4 15v4a2 2 0 002 2h12a2 2 0 002-2v-4M12 3v12M8 7l4-4 4 4',
 
+  /*
+   * Dienste: drei gestapelte Balken mit je einem Punkt links — die Form, in der
+   * jedes Werkzeug seit jeher einen Dienst zeichnet.
+   *
+   * **Keine Zahnräder.** Das Zahnrad heisst hier „Einstellungen"; ein Dienst
+   * ist kein Ort, an dem man dreht, sondern einer, an dem man nachsieht. Und
+   * keine Uhr, obwohl die halbe Seite Timer sind: Das Zeichen steht für beide
+   * Bereiche, und eine Uhr sagte, es ginge nur um die.
+   */
+  services: 'M4 5h16v4H4zM4 15h16v4H4zM7 7h.01M7 17h.01',
+
   // PHP-Versionen: spitze Klammern, das Zeichen für Quelltext.
   php: 'M8.5 8L5 12l3.5 4M15.5 8L19 12l-3.5 4',
 

@@ -136,18 +136,28 @@ final class Units
         $values = self::pairs($lines);
         $kind = self::kind($values['Id'] ?? $unit);
         $timer = $kind === 'timer';
+        $present = ($values['LoadState'] ?? 'not-found') !== 'not-found';
 
         return [
             'unit' => $unit,
             'kind' => $kind,
-            'present' => ($values['LoadState'] ?? 'not-found') !== 'not-found',
-            'description' => $values['Description'] ?? '',
+            'present' => $present,
+
+            // **Was systemd über eine Unit sagt, die es nicht gibt, ist keine
+            // Messung.** Gemessen: `Description` ist dann der erfragte Name
+            // selbst, `MainPID` steht auf `0` und `NRestarts` ebenfalls. Gibt
+            // man das weiter, wiederholt eine Anzeige den Unitnamen in der
+            // Beschreibungsspalte und meldet „0 Neustarts" für etwas, das gar
+            // nicht installiert ist — beides sieht aus wie eine Auskunft.
+            //
+            // Gefunden hat das kein Wächter, sondern der Blick auf das Bild.
+            'description' => $present ? ($values['Description'] ?? '') : '',
             'active_state' => $values['ActiveState'] ?? 'unknown',
             'sub_state' => $values['SubState'] ?? 'unknown',
             'unit_file_state' => $values['UnitFileState'] ?? 'unknown',
-            'pid' => self::number($values, 'MainPID'),
-            'restarts' => self::number($values, 'NRestarts'),
-            'since' => self::text($values, 'ExecMainStartTimestamp'),
+            'pid' => $present ? self::number($values, 'MainPID') : null,
+            'restarts' => $present ? self::number($values, 'NRestarts') : null,
+            'since' => $present ? self::text($values, 'ExecMainStartTimestamp') : null,
 
             // Nur ein Timer trägt diese drei. Bei allem anderen steht dort
             // `null` und nicht `false` — „hat keinen Termin" und „kann keinen
@@ -156,6 +166,53 @@ final class Units
             'triggers' => $timer ? ($values['Unit'] ?? null) : null,
             'has_next' => $timer ? self::hasNext($values) : null,
         ];
+    }
+
+    /**
+     * Mehrere Units aus **einem** Aufruf.
+     *
+     * Gemessen am 30. August 2026: `systemctl show a b c` beantwortet alle drei
+     * in der gefragten Reihenfolge, die Blöcke durch eine **Leerzeile** getrennt,
+     * und eine unbekannte Unit bekommt einen eigenen Block mit
+     * `LoadState=not-found`. Neunzehn Units kosten damit einen Prozess und nicht
+     * neunzehn.
+     *
+     * **Gelesen wird `stdout` roh und nicht über `Result::lines()`.** Der Helfer
+     * wirft leere Zeilen weg — also genau das, was hier die Trennung ist.
+     *
+     * > **Ein Helfer, der Leerzeilen wegwirft, nimmt die Trennung mit, die als
+     * > Leerzeile geschrieben ist.**
+     *
+     * **Zugeordnet wird über die Reihenfolge und nicht über `Id`.** Fragt man
+     * zwei Namen derselben Unit — `ssh.service` und `sshd.service` —, kommen
+     * zwei Blöcke mit demselben `Id` zurück; über `Id` verlöre man einen von
+     * beiden. Stimmt die Zahl der Blöcke nicht mit der Zahl der Fragen überein,
+     * wird das gemeldet und nicht geraten: Eine verschobene Zuordnung wäre
+     * stiller Unsinn statt eines Fehlers.
+     *
+     * @param  list<string>  $units  Die Namen in der Reihenfolge, in der gefragt wurde
+     * @return list<array<string,mixed>>
+     */
+    public static function readMany(array $units, string $stdout): array
+    {
+        $blocks = preg_split("/\n\s*\n/", trim($stdout)) ?: [];
+        $blocks = array_values(array_filter($blocks, static fn (string $b): bool => trim($b) !== ''));
+
+        if (count($blocks) !== count($units)) {
+            throw AgentException::badRequest(sprintf(
+                'systemctl hat %d Blöcke auf %d Units geantwortet.',
+                count($blocks),
+                count($units),
+            ));
+        }
+
+        $rows = [];
+
+        foreach ($units as $index => $unit) {
+            $rows[] = self::read($unit, explode("\n", $blocks[$index]));
+        }
+
+        return $rows;
     }
 
     /**

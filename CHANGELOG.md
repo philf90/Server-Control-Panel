@@ -22842,3 +22842,66 @@ Der zweite: `mariadb.service` ist steuerbar, `mysql.service` nicht, obwohl
 Sicherheitsgrenze weitet man auf Ansage und nicht als Nebenwirkung eines Umbaus.
 Beide Zustände sind als Fall festgehalten, damit eine Änderung daran eine
 bewusste ist.
+
+### A2 Schritt 3 — die Seite, und zwei Funde, die keine Zahl gemeldet hat
+
+`/services` zeigt die sechzehn Units des Katalogs — zwölf eigene und vier
+fremde. Bis dahin standen neun der eigenen zwölf in keiner Anzeige;
+`srvpanel-worker` konnte stillstehen, und man sah es an hängenden Vorgängen
+statt an einer Zeile.
+
+**Ein Aufruf statt neunzehn.** Gemessen: `systemctl show a b c` beantwortet alle
+in einem Lauf, die Blöcke durch eine Leerzeile getrennt und in der gefragten
+Reihenfolge. Gelesen wird `stdout` roh — `Result::lines()` wirft leere Zeilen
+weg, also genau das, was hier die Trennung ist.
+
+> **Ein Helfer, der Leerzeilen wegwirft, nimmt die Trennung mit, die als
+> Leerzeile geschrieben ist.**
+
+Zugeordnet wird über die **Reihenfolge** und nicht über `Id`: Zwei Namen
+derselben Unit — `ssh.service` und `sshd.service` — ergeben zwei Blöcke mit
+demselben `Id`. Stimmt die Zahl der Blöcke nicht mit der Zahl der Fragen, wird
+das gemeldet und nicht geraten.
+
+**Die Timer stehen eigens**, weil ein Timer kein Dienst mit weniger Feldern ist:
+keine PID, kein Neustartzähler, kein Startzeitpunkt, dafür ein Termin. Die Farbe
+folgt dem Termin und nicht `ActiveState` — der steht beim gesunden wie beim
+kaputten Timer auf `active`, und wer die Farbe daran hängt, malt beide grün. Der
+Schaden steht als Satz da („kein nächster Termin") und nicht als Zahl.
+
+Das Datum kommt aus `systemctl list-timers --output=json`, wo systemd es selbst
+als rohe Mikrosekunden ausrechnet. **Diese zweite Frage darf fehlschlagen, ohne
+die erste mitzunehmen** — sie ist nur gegen systemd 255 gemessen. Bleibt sie
+aus, fehlt das Datum, und die Auskunft, an der das Abnahmekriterium hängt, steht
+trotzdem da. „Kein Termin" und „Termin unbekannt" sind deshalb zwei Zellen: das
+erste ein Schaden, das zweite eine Lücke im Messmittel.
+
+Formatiert wird auf dem **Server** über `Clock` (`docs/40`); ein
+`toLocaleString` auf der Seite nähme die Zone des Betrachters. Gefunden hat das
+`DisplayTimeZoneTest` — einer von sieben Wächtern, die an der neuen Seite
+zugebissen haben, bevor sie ein Mensch gesehen hat.
+
+**Und zwei Funde kamen erst aus dem Bild.** Eine Unit, die es nicht gibt,
+beantwortet `Description` mit dem erfragten Namen und `NRestarts` mit `0`. Die
+Seite zeigte daraus eine Beschreibungsspalte, die den Unitnamen wiederholt, und
+„0 Neustarts" für etwas, das nicht installiert ist.
+
+> **Ein Wert, den systemd für eine Unit liefert, die es nicht gibt, ist keine
+> Messung.**
+
+Behoben im Leser und nicht auf der Seite, damit es für jeden Betrachter gilt.
+Keine Zahl hat das gemeldet: `dokument` stand in allen vier Lagen auf 0 px, die
+Gegenprobe auf 200/200.
+
+> **Das Bild sagt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt. Keines
+> von beiden ersetzt das andere.**
+
+**Der Menüpunkt steht zwischen „Logs" und „Updates".** Die Gruppe liest sich als
+Vergangenheit, Gegenwart, Zukunft, Rechte: „Vorgänge", „Protokoll" und „Logs"
+sagen, was war; „Dienste", was jetzt läuft; „Updates", was ansteht; „Konten", wer
+darf. Die Seite gehört `inspect-server` wie die Updates — der Administrator
+sieht, gedreht wird mit `operate-server`, und diese Stufe dreht nichts.
+
+Gemessen bei 390 und 1440 px in beiden Themes: `dokument = 0 px`, Gegenprobe
+200/200, `schiebt = 0`, bei 390 px rollen die beiden Tabellenbehälter wie
+gewollt (342 px und 378 px).

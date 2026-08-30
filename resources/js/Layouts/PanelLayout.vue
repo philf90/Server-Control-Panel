@@ -272,6 +272,27 @@ const navigation = computed(() => {
       { name: 'Logs', href: '/logs', icon: 'logfile', ability: 'operate-server' },
 
       /*
+       * **„Dienste" steht zwischen „Logs" und „Updates", und das ist die
+       * Begründung.** Die Gruppe liest sich als Vergangenheit, Gegenwart,
+       * Zukunft, Rechte: „Vorgänge", „Protokoll" und „Logs" sagen, was war;
+       * „Dienste" sagt, was **jetzt** läuft; „Updates", was ansteht; „Konten",
+       * wer darf.
+       *
+       * **Nicht unten bei „PHP-Versionen" und „Datenbankserver".** Dort geht
+       * jemand hin, um etwas einzustellen. Hierher geht er, weil etwas nicht
+       * funktioniert und er wissen will, ob ein Dienst steht — dieselbe Frage
+       * wie bei „Logs", und sie gehört daneben.
+       *
+       *   Vor jedem neuen Merkmal: Wo sucht jemand diese Handlung, und steht
+       *   sie dort?
+       *
+       * Dieses Projekt hat den Ort eines Menüpunkts dreimal falsch gehabt —
+       * Dateimanager, SFTP-Zugang, „Job anlegen" —, und jedes Mal hat es der
+       * Betreiber gemeldet und kein Test.
+       */
+      { name: 'Dienste', href: '/services', icon: 'services', ability: 'inspect-server' },
+
+      /*
        * **„Updates" schliesst die Reihe, die den Zustand dieses Servers
        * beschreibt** — „Vorgänge" sagt, was gerade läuft, „Protokoll", was das
        * Panel getan hat, „Logs", was auf dem Server steht, und „Updates", was

@@ -218,7 +218,15 @@ final class UnitStateTest extends TestCase
         $zeile = Units::read('nicht-vorhanden.service', self::FEHLT);
 
         $this->assertFalse($zeile['present']);
-        $this->assertSame(0, $zeile['pid'], 'Eine fehlende Unit beantwortet MainPID mit 0 — gemessen.');
+
+        // **Gemessen antwortet systemd hier `MainPID=0`, `NRestarts=0` und mit
+        // dem erfragten Namen als `Description`.** Das ist keine Auskunft über
+        // die Unit, sondern eine Vorgabe für eine, die es nicht gibt — und wer
+        // sie weitergibt, meldet „0 Neustarts" für etwas, das nicht installiert
+        // ist. Gefunden hat das der Blick auf das Bild und kein Wächter.
+        $this->assertNull($zeile['pid'], 'Eine fehlende Unit hat keine PID — auch keine 0.');
+        $this->assertNull($zeile['restarts'], 'Null Neustarts sind hier keine Messung.');
+        $this->assertSame('', $zeile['description'], 'Die Beschreibung ist der Name selbst — also keine.');
         $this->assertNull($zeile['since'], 'Ein leerer Zeitstempel ist kein Zeitpunkt.');
     }
 

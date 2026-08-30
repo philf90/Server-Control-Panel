@@ -173,6 +173,38 @@ final class Catalog
     }
 
     /**
+     * Von mehreren Kandidaten derselben Aufgabe der, den es gibt.
+     *
+     * `mariadb.service` und `mysql.service` sind zwei Geschmacksrichtungen,
+     * `ssh` und `sshd` dieselbe Unit unter zwei Namen. Ungefiltert stünde beides
+     * doppelt auf der Seite — gemessen am 30. August: `systemctl show` mit zwei
+     * Namen derselben Unit antwortet mit **zwei** Blöcken, die denselben `Id`
+     * tragen.
+     *
+     * Gibt es keinen, gewinnt der erste. Dann meldet die Zeile „nicht
+     * installiert" unter dem Namen, den ein Betreiber erwartet, statt unter dem
+     * zuletzt geprüften.
+     *
+     * **Gefragt wird über einen Rückruf und nicht über eine fertige Liste**,
+     * damit ein Aufrufer, der jede Antwort einzeln holen muss, nach dem ersten
+     * Treffer aufhören kann. Die Regel steht damit einmal da, und beide
+     * Aufrufer zahlen nur, was sie brauchen.
+     *
+     * @param  list<string>  $candidates
+     * @param  callable(string):bool  $present
+     */
+    public static function pick(array $candidates, callable $present): ?string
+    {
+        foreach ($candidates as $unit) {
+            if ($present($unit)) {
+                return $unit;
+            }
+        }
+
+        return $candidates[0] ?? null;
+    }
+
+    /**
      * Darf `service.action` diese Unit anfassen?
      *
      * Die Antwort ist eine **Absicht** und keine Durchsetzung: Gefragt wird

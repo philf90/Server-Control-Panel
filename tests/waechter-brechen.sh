@@ -20310,6 +20310,159 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
+echo "== ServicesViewTest: die Farbe folgt dem Zustand statt dem Termin =="
+#
+# Gemessen gegen systemd 255: Der gesunde und der kaputte Timer stehen beide
+# auf active. Wer die Farbe daran haengt, malt beide gruen.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = """  if (!zeile.present) return 'neutral'
+  if (zeile.kind === 'timer' && zeile.has_next === false) return 'critical'
+  if (zeile.active_state === 'active') return 'ok'"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """  if (!zeile.present) return 'neutral'
+  if (zeile.active_state === 'active') return 'ok'
+  if (zeile.kind === 'timer' && zeile.has_next === false) return 'critical'""", 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "Farbe folgt dem Zustand" &&
+pruefe "Farbe folgt dem Zustand" \
+  ServicesViewTest::test_the_colour_of_a_timer_follows_its_next_date failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
+
+echo
+echo "== ServicesViewTest: kein Termin und unbekannt sehen gleich aus =="
+#
+# Das erste ist ein Schaden, das zweite eine Luecke im Messmittel. Dieselbe
+# Zelle fuer beides machte aus jeder Luecke einen Befund.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = """  return zeile.next_elapse ?? 'unbekannt'"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """  return zeile.next_elapse ?? '—'""", 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "kein Termin gleich unbekannt" &&
+pruefe "kein Termin gleich unbekannt" \
+  ServicesViewTest::test_a_missing_date_is_not_the_same_as_no_date failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
+
+echo
+echo "== ServicesViewTest: die Seite rechnet die Zeit selbst =="
+#
+# toLocaleString nimmt die Zone des Betrachters; die Anzeigezone steht in den
+# Einstellungen, und Clock ist die einzige Stelle, die daraus eine Anzeige macht.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = """  return zeile.next_elapse ?? 'unbekannt'"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """  return new Date(zeile.next_elapse ?? 0).toLocaleString('de-DE')""", 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "Seite rechnet die Zeit" &&
+pruefe "Seite rechnet die Zeit" \
+  ServicesViewTest::test_the_date_is_formatted_on_the_server failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
+
+echo
+echo "== ServicesViewTest: Dienste und Timer in einem Bereich =="
+#
+# Ein Timer hat keine PID, keinen Neustartzaehler und keinen Startzeitpunkt.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = """      <Section
+        title="Timer"
+        full"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """      <div
+        title="Timer"
+        full""", 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "ein Bereich statt zwei" &&
+pruefe "ein Bereich statt zwei" \
+  ServicesViewTest::test_services_and_timers_are_two_sections failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
+
+echo
+echo "== ServicesViewTest: ein schweigender Agent sieht aus wie ein leerer Server =="
+
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = """    <p v-if="!live" class="notice critical">"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """    <p v-if="false" class="notice critical">""", 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "schweigender Agent" &&
+pruefe "schweigender Agent" \
+  ServicesViewTest::test_a_silent_agent_is_told_apart_from_an_empty_server failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
+
+echo
+echo "== ServicesViewTest: der Termin wird nicht mehr auf dem Server formatiert =="
+
+vorher_datei app/Http/Controllers/ServicesController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/ServicesController.php'
+s = open(p, encoding='utf-8').read()
+alt = """                ? Clock::display(CarbonImmutable::createFromTimestampUTC($sekunden))"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """                ? (string) $sekunden""", 1))
+PY2
+griff_datei app/Http/Controllers/ServicesController.php "Termin nicht auf dem Server" &&
+pruefe "Termin nicht auf dem Server" \
+  ServicesViewTest::test_the_date_is_formatted_on_the_server failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
+
+echo
+echo "== UnitStateTest: eine fehlende Unit meldet 0 Neustarts =="
+#
+# Was systemd ueber eine Unit sagt, die es nicht gibt, ist keine Messung:
+# NRestarts steht dann auf 0, und die Seite las daraus -nie neugestartet-.
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = """            'restarts' => $present ? self::number($values, 'NRestarts') : null,"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            'restarts' => self::number($values, 'NRestarts'),""", 1))
+PY2
+griff_datei agent/src/Units.php "fehlende Unit mit 0 Neustarts" &&
+pruefe "fehlende Unit mit 0 Neustarts" \
+  UnitStateTest::test_a_missing_unit_is_reported_as_absent failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitStateTest: eine fehlende Unit traegt ihren Namen als Beschreibung =="
+
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = """            'description' => $present ? ($values['Description'] ?? '') : '',"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            'description' => $values['Description'] ?? '',""", 1))
+PY2
+griff_datei agent/src/Units.php "Name als Beschreibung" &&
+pruefe "Name als Beschreibung" \
+  UnitStateTest::test_a_missing_unit_is_reported_as_absent failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

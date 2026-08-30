@@ -156,6 +156,11 @@ final class AdminAbility
             'settings/general' => 'Die Anzeigezeitzone des Panels (docs/40). Sie ändert, wie ein '
                 .'Zeitstempel dargestellt wird, und sonst nichts — kein Geheimnis, kein Weg zu root, '
                 .'und für einen Kunden ändert sich dadurch nichts an seinem Betrieb.',
+            'services' => 'Den Zustand der Dienste und Timer ansehen (A2). Zu sehen sind '
+                .'Unitnamen aus dem Katalog, Zustände und Beschreibungen von systemd — kein '
+                .'Geheimnis des Betreibers und kein Weg zu root. Wer Kunden verwaltet, muss '
+                .'sehen dürfen, ob der Webserver läuft; gedreht wird mit operate-server, und '
+                .'diese Route dreht nichts.',
             'updates' => 'Zahlen, Paketliste und Quellen ansehen (docs/81 §3 Frage 2). Der '
                 .'Payload ist für diesen Betrachter gefiltert: keine Schlüsselspalte und kein '
                 .'Anteil für den Neustart. Die vier ändernden Routen dieser Seite bleiben beim '

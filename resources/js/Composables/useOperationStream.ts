@@ -35,6 +35,18 @@ export interface OperationState {
 export interface OperationStream {
   state: Ref<OperationState | null>
   output: Ref<string>
+
+  /*
+   * **Das Ergebnis des abschliessenden Ereignisses — bis zum 30. August
+   * weggeworfen.** Der Server schickt es seit jeher (`done` trägt `status` und
+   * `result`); hier stand `as { status: string }`, und alles andere fiel unter
+   * den Tisch. Wer einem Vorgang beim Enden zusah, bekam den Ausgang deshalb
+   * erst beim Neuladen (`docs/88`, Befund 6 und 8).
+   *
+   * > **Ein Feld, das gesendet und nicht gelesen wird, ist von einem, das
+   * > niemand sendet, nicht zu unterscheiden.**
+   */
+  result: Ref<Record<string, unknown> | null>
   finished: Ref<boolean>
   failed: Ref<boolean>
   close: () => void
@@ -47,6 +59,7 @@ interface StatePayload extends OperationState {
 export function useOperationStream(operationId: number): OperationStream {
   const state = ref<OperationState | null>(null)
   const output = ref('')
+  const result = ref<Record<string, unknown> | null>(null)
   const finished = ref(false)
   const failed = ref(false)
 
@@ -73,8 +86,12 @@ export function useOperationStream(operationId: number): OperationStream {
   })
 
   source.addEventListener('done', (event) => {
-    const payload = JSON.parse((event as MessageEvent).data) as { status: string }
+    const payload = JSON.parse((event as MessageEvent).data) as {
+      status: string
+      result: Record<string, unknown> | null
+    }
 
+    result.value = payload.result ?? null
     finished.value = true
     failed.value = payload.status === 'failed'
     source.close()
@@ -86,5 +103,5 @@ export function useOperationStream(operationId: number): OperationStream {
 
   onUnmounted(close)
 
-  return { state, output, finished, failed, close }
+  return { state, output, result, finished, failed, close }
 }

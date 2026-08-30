@@ -288,9 +288,14 @@ final class FileCreationTest extends TestCase
          * Befund 11): „Von **1 Dateien** ist 1 hochgeladen." stand da, sobald
          * jemand eine einzelne Datei hochlud. Die Zusage ist dieselbe — die
          * Zahl der gelungenen steht in der Meldung —, nur die Form nicht.
+         *
+         * **Am 30. August um `%s` erweitert** (`docs/88`, Beobachtung 9): Der
+         * Zusatz über das Ersetzen hängt hinten dran, und er entsteht an einer
+         * Stelle. `UploadReplacementTest` hält ihn; hier steht weiter nur die
+         * Zusage über die **Zahl**.
          */
         $this->assertStringContainsString(
-            "'Von %s %s %d hochgeladen.'",
+            "'Von %s %s %d hochgeladen%s.'",
             $quelle,
             'Die Zahl der gelungenen Dateien steht nicht in der Meldung. Ohne sie liest der '.
             'Kunde drei Fehler und weiss nicht, ob die anderen siebzehn durchkamen.',

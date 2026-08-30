@@ -173,9 +173,43 @@ ein Ergebnis (`docs/62`, Punkt 11).
 
 ## 3. Punkt 2 — Der Vorbehalt steht in der Liste
 
-**Hergestellt** wird der Zustand, indem eine Quelle unerreichbar gemacht wird —
-derselbe Griff wie in `docs/86` Punkt 3: die Sury-Zeile auf eine tote Adresse
-zeigen lassen, `apt-get update` erzwingen, danach zurückstellen.
+**Hergestellt** wird der Zustand mit einer **zusätzlichen** Quelle, die nicht
+erreichbar ist — und ausdrücklich **nicht**, indem eine vorhandene verbogen wird.
+
+    cat > /etc/apt/sources.list.d/zz-nachlauf.sources <<'EOF'
+    Types: deb
+    URIs: https://nachlauf.invalid/apt
+    Suites: noble
+    Components: main
+    EOF
+
+**Warum nicht die Sury-Zeile, wie `docs/86` Punkt 3 es tat.** Dort war der
+Eingriff der Gegenstand; hier ist er nur Mittel. Eine verbogene
+`php-sury.sources` nimmt dem Server bis zum Zurückstellen die Fähigkeit, PHP zu
+installieren — und wenn das Zurückstellen ausfällt, bleibt der Schaden. Eine
+Datei, die es vorher nicht gab, wird gelöscht und ist fort.
+
+> **Ein Prüfkörper, der einen benutzten Zustand verändert, muss zurückgeräumt
+> werden; einer, der einen neuen anlegt, muss nur entfernt werden.**
+
+**Die Stanza muss wohlgeformt sein, und das ist die eigentliche Gefahr.** Eine
+unerreichbare Quelle erzeugt ein `W:` und apt macht weiter — eine **kaputte
+Datei** lässt `apt-get update` hart scheitern und trifft jeden weiteren Lauf.
+Die fünf Zeilen oben sind das Format, das `packaging/php-source.sh` selbst
+schreibt, ohne `Signed-By`: Bis zur Signaturprüfung kommt es nie, weil das Holen
+vorher fehlschlägt.
+
+**`.invalid` ist mit Absicht gewählt.** Nach RFC 2606 kann der Name nicht
+auflösen — der Fehlschlag kommt sofort aus dem Auflöser, statt in eine
+Zeitüberschreitung zu laufen. Dieselbe Endung, die am 28. August zweimal für
+einen Befund gehalten wurde (`docs/88 §13`), ist hier genau das richtige
+Werkzeug.
+
+**Punkt 5 fällt im selben Griff an.** Die `W:`-Zeilen, die diese Quelle
+erzeugt, sind der Prüfkörper für die heile Zeile — ein Lauf, zwei Punkte.
+
+**Zurückgeräumt** wird mit `rm /etc/apt/sources.list.d/zz-nachlauf.sources`,
+danach „Jetzt nachsehen" für die Gegenprobe.
 
 1. Als Betreiber „Jetzt nachsehen" drücken.
 2. **Auf der Vorgangsliste `/operations`**, ohne den Vorgang zu öffnen: Neben
@@ -267,8 +301,8 @@ Erwartet: `apt-run` endet mit 3 und schreibt *„Der Lauf hat nichts verändert
 
 ## 6. Punkt 5 — Das `W:` steht heil da
 
-Auf der Vorgangsseite eines Laufs, dessen Ausgabe eine `W:`-Zeile enthält —
-Punkt 2 stellt so eine her, wenn eine Quelle einen schwachen Schlüssel hat.
+Auf der Vorgangsseite des Laufs aus Punkt 2 — die Wegwerfquelle dort erzeugt
+genau die `W:`-Zeilen, die dieser Punkt braucht. Zwei Punkte, ein Griff.
 
 Erwartet: `W: https://…` steht **in einer Zeile**, nicht als `W` allein mit
 `: …` darunter.
@@ -289,10 +323,38 @@ vorkommt, belegt nichts — dann ist der Prüfkörper falsch.
 
 Zwei Meldungen, beide über die Oberfläche:
 
-1. **Eine einzelne Datei** hochladen, deren Name schon vergeben ist, sodass sie
-   scheitert → *„Von **1 Datei** ist 0 hochgeladen."* und nicht „1 Dateien".
+1. **Eine einzelne Datei**, deren Hochladen scheitert → *„Von **1 Datei** sind 0
+   hochgeladen."* und nicht „1 Dateien".
+
+   **Das Verb ist „sind" und nicht „ist"** — es richtet sich nach der Zahl der
+   hochgeladenen (`$done === 1 ? 'ist' : 'sind'`), und bei jeder Zahl ausser
+   eins steht der Plural. Hier stand bis zum 30. August „ist": Ich hatte den
+   erwarteten Satz aus dem Kopf geschrieben statt aus dem Quelltext. Geprüft
+   wird das **Zählwort**, nicht das Verb.
 2. Ein Archiv mit **einem** Eintrag entpacken → *„Das Archiv ist entpackt —
    **1 Eintrag**."*
+
+**Der erste Wurf verlangte einen Namen, der schon vergeben ist — und das ist
+kein Fehlschlag.** `FilesUpload` schreibt in eine Übergangsdatei und legt sie
+mit `rename()` an ihren Platz; das **überschreibt** einen vorhandenen Eintrag
+wortlos. Am 30. August hat der Betreiber dieselbe Datei mehrfach hochgeladen und
+jedes Mal *„Die Datei ist hochgeladen."* gelesen (`docs/88`, Befund 9).
+
+> **Ein Kriterium, das einen Fehlschlag verlangt, muss einen benennen, den der
+> Prüfling auch erzeugt.**
+
+**Der Fehlschlag, der sich verlässlich herstellen lässt**, ist ein Ziel, an dem
+ein **Verzeichnis** steht — `FilesUpload` wirft dort
+`Dort steht ein Verzeichnis.`:
+
+1. Die Datei einmal hochladen und im Verzeichnisbaum nachsehen, **welchen Namen
+   sie bekommen hat** (vom Telefon kommt er nicht aus der Anzeige).
+2. Sie löschen und ein **Verzeichnis** mit genau diesem Namen anlegen.
+3. Dieselbe Datei noch einmal hochladen.
+
+Erwartet: *„Von **1 Datei** ist 0 hochgeladen."* und darunter
+*„&lt;name&gt;: Dort steht ein Verzeichnis."* Danach das Verzeichnis wieder
+entfernen.
 
 ---
 

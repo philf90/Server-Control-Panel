@@ -679,19 +679,369 @@ Container gebaut und hat `cloudsrv24` nicht gesehen.
 
 ---
 
-## 23. Wo der Lauf steht
+## 23. Punkt 2 und Punkt 5 — beide erfüllt, in einem Griff
+
+Gemessen am **30. August 2026** gegen `0.7.2-rc.6`, mit der Wegwerfquelle aus
+`docs/87 §3`. Vorgang **721**, `system.packages.refresh`, ausgelöst vom
+Betreiber, 13:50:03 → 13:50:13.
+
+**Punkt 2 — der Vorbehalt steht in der Liste.** Auf `/operations`, ohne den
+Vorgang zu öffnen, steht unter der Aufgabe eine bernsteinfarbene Marke:
+
+    Nicht erreicht: https://nachlauf.invalid/apt/ (Could not resolve 'nachlauf.invalid')
+
+Daneben der Zustand **`fertig`** und nicht `fehlgeschlagen` — die Entscheidung
+des Betreibers vom 28. August, unverändert wirksam.
+
+> **Ein Lauf, der getan hat, worum man ihn bat, ist gelungen — auch wenn er
+> dabei etwas zu melden hat.**
+
+**Punkt 5 — das `W:` steht heil da.** Drei Zeilen in der Ausgabe, jede **in
+einer** Zeile, keine mit `W` allein und `: …` darunter:
+
+    W: https://ppa.launchpadcontent.net/…/InRelease: Signature by key … uses weak algorithm (rsa1024)
+    W: Failed to fetch https://nachlauf.invalid/apt/dists/noble/InRelease  Could not resolve 'nachlauf.invalid'
+    W: Some index files failed to download. They have been ignored, or old ones used instead.
+
+Die Zeile mit dem schwachen Schlüssel ist ein Zugabe-Prüfkörper: Sie stand schon
+vorher da und ist die längste der drei — genau die, die ein Zeilenumbruch am
+ehesten zerrisse. **Befund 4 aus `docs/86` hält auf dem Server.**
+
+**Der Prüfkörper hat sich bewährt.** Die Wegwerfquelle hat in einem Lauf beide
+Punkte hergestellt, keine vorhandene Datei angefasst, und `.invalid` hat sofort
+aus dem Auflöser geantwortet statt in eine Zeitüberschreitung zu laufen.
+
+---
+
+## 24. Befund 8 — Dieselbe Auskunft, zwei Farben und zwei Texte
+
+**Dieselbe Tatsache steht an zwei Orten und sieht verschieden aus.**
+
+| | Text | Farbe |
+|---|---|---|
+| Vorgangsliste | „**N**icht erreicht: …" | **bernstein** (`kind="warn"`) |
+| Detailseite | „**n**icht erreicht: …" | **grün** (`class="ok"`) |
+
+**Die Farbe zuerst, weil sie schwerer wiegt.** `Show.vue` malt die Meldung nach
+dem **Zustand** und nicht nach ihrem Inhalt:
+
+    const rang = … status === 'succeeded' ? 'ok' : …
+    <p v-if="message" class="notice" :class="rang === 'critical' ? 'critical' : 'ok'">
+
+Ein Vorbehalt auf einem gelungenen Lauf wird damit **grün** — in der Farbe, die
+sagt, es sei nichts zu sehen. Genau das nimmt die Entscheidung vom 28. August
+zurück: *der Zustand bleibt, der Vorbehalt wird **sichtbar***.
+
+> **Dieselbe Auskunft in zwei Farben sagt zweimal etwas anderes — und die grüne
+> gewinnt, weil sie oben steht.**
+
+**Und der Text steht zweimal im Quelltext**, sechsundzwanzig Zeilen auseinander
+in derselben Datei:
+
+    SystemPackagesRefresh.php:72   progress(100, 'nicht erreicht: '.$apt->summary())
+    SystemPackagesRefresh.php:100  'warning' => 'Nicht erreicht: '.$apt->summary()
+
+**Der Controller verbietet ausdrücklich, was der Agent hier tut.** Im
+Dokumentblock von `warning` steht:
+
+> **Nicht über `message`.** Dort steht, *was* der Vorgang ist („Paketlisten
+> auffrischen"); wer die Warnung dorthin schriebe, nähme der Zeile ihre
+> Auskunft, um eine zweite hineinzulegen.
+
+Der Agent schreibt sie über `progress()` genau dorthin. Die Regel stand im
+Panel, der Verstoss im Agenten, und nichts hält die beiden aneinander.
+
+> **Eine Regel, die an einer Stelle steht und an der anderen gebrochen wird,
+> ist keine Regel, sondern eine Notiz.**
+
+**Es ist die vierte Ausprägung der Familie**, die dieser Lauf verfolgt: Der
+Zustand stimmt, die Liste stimmt seit dem 28. August — und die Seite, auf der
+man nachsieht, malt den Vorbehalt in der Farbe des Erfolgs.
+
+---
+
+## 25. Befund 8 ist behoben — und der Mechanismus von Befund 6 stand zweimal falsch da
+
+Gebaut am 30. August 2026, vor Punkt 6.
+
+| | Behebung |
+|---|---|
+| Die Farbe | `Show.vue` färbt die Meldung nach ihrem **Inhalt**: liegt ein Vorbehalt vor, ist sie bernsteinfarben |
+| Der doppelte Text | `SystemPackagesRefresh` baut den Satz **einmal** und benutzt ihn für Meldung und `warning` |
+| Der Vorbehalt beim Zusehen | der Klient **behält** das Ergebnis des Schlussereignisses |
+
+**Und dabei ist der Mechanismus von Befund 6 zum zweiten Mal berichtigt worden.**
+Er stand bisher zweimal falsch da:
+
+| Wurf | Behauptung | gemessen |
+|---|---|---|
+| 1 | „`Show.vue` rendert `result` nicht" | falsch — es gibt einen Abschnitt „Ergebnis" |
+| 2 | „der Strom trägt `result` nicht" | falsch — das `done`-Ereignis trägt es |
+| 3 | **der Klient liest daraus nur `status`** | gemessen am Quelltext |
+
+`OperationStreamController` schickt beim Schliessen ein `done` mit `status`
+**und** `result`. `useOperationStream` las
+
+    JSON.parse(…) as { status: string }
+
+und liess den Rest fallen.
+
+> **Ein Feld, das gesendet und nicht gelesen wird, ist von einem, das niemand
+> sendet, nicht zu unterscheiden.**
+
+**Zweimal denselben Mechanismus falsch zu benennen ist der eigentliche Befund
+über mich.** Beide Male stand die Behauptung im Protokoll, bevor ich die Stelle
+gelesen hatte, die sie betrifft — einmal `Show.vue`, einmal den Stromsender.
+
+> **Eine Erklärung, die man vor der Messung aufschreibt, ist eine Vermutung mit
+> Fussnote — und sie liest sich hinterher wie ein Ergebnis.**
+
+**Die Behebung von Befund 6 bleibt trotzdem stehen.** Das Urteil als Meldung zu
+führen ist richtig: Es reist im laufenden Strom, nicht erst im Schlussereignis,
+und ein Vorgang, der sein Urteil im letzten Moment nachreicht, hätte bis dahin
+das Wort von vorhin getragen.
+
+---
+
+## 26. Wie dieser Wächter seine eigene Begründung überführt hat
+
+`DispatchedDisplayTest` hatte seit dem 28. August eine ungewöhnliche letzte
+Prüfung: Sie misst nicht die Regel, sondern deren **Begründung** — „der Strom
+trägt `result` nicht". Als der Klient `result` behielt, wurde sie rot mit:
+
+    Der Strom trägt jetzt das Ergebnis. Dann ist die Begründung in
+    DispatchedDisplayTest veraltet und gehört nachgezogen — der Code ist es
+    nicht.
+
+**Sie hat genau das getan, wofür sie gebaut wurde**, und zwar an einer
+Begründung, die schon beim Schreiben falsch war. Die Prüfung heisst jetzt
+`test_the_client_keeps_the_result_of_the_closing_event` und misst beide Seiten
+der Naht: dass der Server das Ergebnis schickt und dass der Klient es behält.
+
+> **Eine Regel, deren Begründung von einer Bedingung abhängt, veraltet mit ihr —
+> und nichts prüft das, solange die Bedingung nur im Kommentar steht.**
+
+---
+
+## 27. Beobachtung 8 — Zweimal an einem Tag ist ein Satz über eine Regel in sie gelaufen
+
+**Beim Bau der Behebung, zweimal:**
+
+1. Ein Kommentar warnte, ein `{@see \Voll\Qualifiziert}` gehöre nicht in einen
+   Dokumentblock, weil Pint daraus einen `use`-Eintrag macht. **Pint machte aus
+   dem Beispiel einen `use`-Eintrag.**
+2. Ein Wächter suchte den alten Farbausdruck als Zeichenkette in `Show.vue` und
+   war rot — weil der Kommentar, der die neue Regel **erklärt**, den alten
+   Ausdruck wörtlich zitiert.
+
+> **Ein Satz, der eine Regel erklärt, enthält sie — und ein Werkzeug, das die
+> Regel sucht, findet den Satz.**
+
+Der zweite ist behoben, indem der Wächter die **Bindung** sucht (`:class="rang
+===`) statt des Ausdrucks: Die steht nur in der Vorlage und nie im Fliesstext.
+
+**Und ein bestehender Eingriff ist mitgegangen.** `BreakScriptTest` meldete, dass
+der Eingriff zu `OperationWarningTest` seinen Text nicht mehr findet — er zielte
+auf `'warning' => $apt->reachedEverything()`, und daraus ist `'warning' =>
+$vorbehalt` geworden. Nachgezogen und einzeln nachgeprüft.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand sie ändert.**
+
+---
+
+## 28. Punkt 6 — die zweite Hälfte erfüllt, die erste nicht herstellbar
+
+Gemessen am **30. August 2026** gegen `0.7.2-rc.6`, als Kunde in der Sicht des
+Abonnements `p6-b.invalid`.
+
+**Erfüllt:** *„Das Archiv ist entpackt — **1 Eintrag**."* Einzahl, wie
+`Counted::of()` sie bildet.
+
+**Nicht herstellbar:** *„Von 1 Datei ist 0 hochgeladen."* Der Betreiber hat
+dieselbe Datei mehrfach hochgeladen und jedes Mal *„Die Datei ist
+hochgeladen."* gelesen.
+
+---
+
+## 29. Befund 9 — Ein vergebener Name ist kein Fehlschlag
+
+`docs/87 §7` verlangte, „eine Datei hochzuladen, deren Name schon vergeben ist,
+sodass sie scheitert". **Am Quelltext nachgesehen scheitert dabei nichts.**
+`FilesUpload` schreibt in eine Übergangsdatei und legt sie dann ab:
+
+    if (! @rename($temporary, $path)) { … }
+
+`rename()` **überschreibt** einen vorhandenen Eintrag wortlos. Eine Prüfung auf
+`file_exists` gibt es an keiner Stelle der Operation.
+
+> **Ein Kriterium, das einen Fehlschlag verlangt, muss einen benennen, den der
+> Prüfling auch erzeugt.**
+
+**Es ist der fünfte Befund im Prüfmittel** und derselbe Bau wie Befund 7: Beide
+verlangen einen Zustand, den es so nicht gibt — dort war der Griff fort, hier
+der Fehlschlag.
+
+**Der Weg, der trägt**, steht jetzt in `docs/87 §7`: ein Ziel, an dem ein
+**Verzeichnis** steht. `FilesUpload` wirft dort `Dort steht ein Verzeichnis.`,
+und das ist genau ein Fehlschlag bei genau einer Datei.
+
+---
+
+## 30. Beobachtung 9 — Das Panel weiss, dass es überschrieben hat, und sagt es nicht
+
+Dieselbe Operation gibt zurück:
+
+    return ['entry' => Entry::of($path), 'created' => $existing === null];
+
+**Der Unterschied ist also bekannt** — und die Oberfläche sagt in beiden Fällen
+denselben Satz:
+
+    $done === 1 ? 'Die Datei ist hochgeladen.' : …
+
+Ein Kunde, der `index.php` in sein `httpdocs` lädt, ersetzt damit die laufende
+Datei, und die Meldung liest sich wie ein Neuanlegen.
+
+> **Eine Auskunft, die zwei verschiedene Vorgänge gleich benennt, verschweigt
+> den gefährlicheren.**
+
+**Das ist eine Entscheidung des Betreibers und kein Fehler**, den man
+nebenbeibehebt: Ein Dateimanager, der beim Überschreiben zurückfragt, ist eine
+andere Bedienung als einer, der es tut. Notiert, nicht gebaut — der Wert
+`created` liegt bereit, falls die Meldung ihn eines Tages tragen soll.
+
+---
+
+## 31. Punkt 6 ist vollständig — 30. August 2026
+
+Über den Weg aus `docs/87 §7`: `IMG_4633.jpeg` hochgeladen, gelöscht, ein
+Verzeichnis dieses Namens angelegt, dieselbe Datei noch einmal hochgeladen.
+
+    Das Formular wurde nicht gespeichert.
+    Von 1 Datei sind 0 hochgeladen.
+    IMG_4633.jpeg: Dort steht ein Verzeichnis.
+
+**„1 Datei"** — Einzahl, wie `Counted::of()` sie bildet. Zusammen mit dem
+Archivsatz aus §28 ist Punkt 6 damit erfüllt.
+
+**Nebenbei belegt die Aufnahme `docs/19 §6`:** Der Satz steht in der roten
+Zusammenfassung oben und nicht am Feld, und das Feld trägt keine eigene
+Meldung. Das prüft `FieldErrorTest` im Quelltext — hier steht es im Bild.
+
+---
+
+## 32. Befund 10 — Der erwartete Satz war aus dem Kopf geschrieben
+
+`docs/87 §7` verlangte *„Von 1 Datei **ist** 0 hochgeladen."* Gemessen wurde
+**„sind"**, und der Quelltext hat recht:
+
+    $done === 1 ? 'ist' : 'sind'
+
+Das Verb richtet sich nach der Zahl der **hochgeladenen** — hier null —, und im
+Deutschen steht bei jeder Zahl ausser eins der Plural. Der Prüfling war nie
+falsch; meine Erwartung war es.
+
+**Der Schaden wäre ein falsches Rot gewesen.** Wer den Satz Wort für Wort
+vergleicht, meldet einen Befund an einer Stelle, die stimmt — und Punkt 6 fragt
+gar nicht nach dem Verb, sondern nach dem **Zählwort**.
+
+> **Ein erwarteter Wortlaut, den man aus dem Kopf schreibt, prüft das
+> Gedächtnis mit.**
+
+**Es ist der sechste Befund im Prüfmittel und der dritte derselben Bauart** —
+nach Befund 3 (ein Statuscode, den diese Anwendung nie liefert) und Befund 9
+(ein Fehlschlag, den der Prüfling nicht erzeugt). Alle drei entstanden dadurch,
+dass ich eine Erwartung aufgeschrieben habe, ohne die Stelle zu lesen, die sie
+erzeugt.
+
+---
+
+## 33. Beobachtung 9 ist entschieden und gebaut — 30. August 2026
+
+Der Betreiber hat entschieden: **Die Meldung unterscheidet, das Protokoll trägt
+es mit, und es wird nicht zurückgefragt.**
+
+| | |
+|---|---|
+| Meldung | *„Die Datei ist hochgeladen und hat eine vorhandene ersetzt."* |
+| bei mehreren | *„5 Dateien sind hochgeladen, 2 davon haben eine vorhandene ersetzt."* |
+| Protokoll | `file.uploaded` trägt `replaced` |
+| Rückfrage | **nein** — sie bräuchte eine Frage vor der Tat, und dazwischen ändert sich der Bestand |
+
+**Der Ausdruck ist der von `create()`**, das `created` seit P6 genau so liest.
+Der erste Wurf hatte `?? true` und damit die stille Richtung; er liest jetzt
+`?? false`.
+
+> **Ein Vorbehalt, der ausbleibt, fällt niemandem auf; einer, der zu oft
+> erscheint, meldet sich beim ersten Kunden.**
+
+**Der Wächter hat beim Gegenprüfen zweimal danebengegriffen**, und beide Male
+war es dieselbe Familie: Er suchte `$result['created']` in der ganzen Datei —
+dieselbe Zeile steht in `create()` —, und er zählte den Satz über das Ersetzen
+als Zeichenkette, obwohl Einzahl und Mehrzahl zu Recht beide in einer Methode
+stehen. Beides misst jetzt den **Rumpf der Methode**.
+
+> **Ein Wächter, der eine Zeichenkette in einer ganzen Datei sucht, findet sie
+> auch dort, wo sie einem anderen gehört.**
+
+---
+
+## 34. Befund 11 — Der Eingriff, den ich eingetragen habe, war nicht der, den ich belegt hatte
+
+**Der volle Lauf des Bruchskripts hat zwei Prüfungen ohne Biss gemeldet**, beide
+aus der Arbeit dieses Tages, und die erste ist die lehrreiche.
+
+**Der Eingriff zu Befund 8** setzt `:class="rang"` an die Stelle von
+`:class="notizart"`. Belegt hatte ich ihn mit dem **alten Ausdruck**
+(`:class="rang === 'critical' ? …"`), und beim Eintragen ins Skript habe ich ihn
+verkürzt — ohne ihn noch einmal zu fahren.
+
+> **Ein Eingriff, den man beim Eintragen umschreibt, ist nicht der, den man
+> belegt hat.**
+
+**Und die Verkürzung war die bessere.** `:class="rang"` ist die Form, in die
+jemand beim Vereinfachen zurückfällt, und der Wächter sah sie nicht: Er prüfte
+die **Abwesenheit** von `:class="rang ===`.
+
+> **Ein Wächter, der die Abwesenheit eines Wortlauts prüft, deckt nur die eine
+> Rückfallform, an die sein Verfasser gedacht hat.**
+
+Er nennt die Bindung jetzt **positiv** — steht dort etwas anderes als
+`notizart`, folgt die Farbe nicht mehr dem Inhalt. Beide Formen sind gemessen,
+beide beissen.
+
+**Die zweite ohne Biss war ein Eingriff, der eine Zahl festhielt.** Der zu
+`CountedTest` prüft vor dem Bruch `s.count('Counted::of(') == 3`; die Behebung
+von Beobachtung 9 hat eine **vierte** Aufrufstelle gebaut, und der Eingriff
+brach ab, statt zu greifen — obwohl er wirksam gewesen wäre.
+
+> **Ein Eingriff, der eine genaue Zahl festhält, misst den Bestand und nicht
+> seine eigene Wirksamkeit.**
+
+Er verlangt jetzt „mindestens eine". Das ist genau die Frage, für die die
+Zusicherung da ist: Ein Bruch, dessen Zielstelle fort ist, wäre blind.
+
+**Beides hat der volle Lauf gefunden und keine Einzelprüfung** — dasselbe wie am
+23. August, als ein Eingriff durch eine zweite Regel daneben stumpf wurde.
+
+> **Ein Eingriff, der einzeln beisst, beisst nicht unbedingt im Lauf.**
+
+---
+
+## 35. Wo der Lauf steht
 
 | Punkt | Stand |
 |---|---|
 | 1a — der Administrator sieht die Seite | **erfüllt**, alle sieben Erwartungen (§1, §9) |
 | 1b — die Tür | **erfüllt**, samt Vorgangsbeleg (§10) |
-| 2 — der Vorbehalt in der Liste | offen |
+| 2 — der Vorbehalt in der Liste | **erfüllt** (§23) |
 | 3 — die Nachlese | **erfüllt** (§14) — mit drei Befunden daneben |
 | 4 — der Lauf ohne Wirkung | **vertagt** (§21) — braucht neuen Bestand und einen Druck ohne Neuladen |
-| 5 — das heile `W:` | offen |
-| 6 — die Zählwörter | offen |
+| 5 — das heile `W:` | **erfüllt** (§23) |
+| 6 — die Zählwörter | **erfüllt** (§28, §31) |
 
-**Sieben Befunde: vier im Prüfmittel, drei im Panel.** Die ersten drei sassen in
+**Zehn Befunde: sechs im Prüfmittel, vier im Panel.** Fünf der sechs Punkte sind
+erfüllt; offen bleibt allein Punkt 4, und der wartet auf Paketbestand. Die ersten drei sassen in
 der Vorschrift, die letzten drei auf einer einzigen Seite — der des Vorgangs.
 
 **Sie sind eine Familie und keine drei Einzelfälle**, und die Familie ist

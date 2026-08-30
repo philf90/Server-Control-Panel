@@ -10421,7 +10421,7 @@ python3 - <<'PY2'
 p = 'app/Http/Controllers/FileController.php'
 s = open(p, encoding='utf-8').read()
 # Am 28. August 2026 nachgezogen: Die Meldung geht seitdem ueber Counted::of().
-alt = "'Von %s %s %d hochgeladen.',\n                Counted::of(count($incoming), 'Datei', 'Dateien'),"
+alt = "'Von %s %s %d hochgeladen%s.',\n                Counted::of(count($incoming), 'Datei', 'Dateien'),"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 s = s.replace(alt, "'Einige Dateien sind nicht hochgeladen.%s%s%s',\n                '',")
 open(p, 'w', encoding='utf-8').write(s)
@@ -19386,6 +19386,173 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   MobileLayoutTest::test_a_quiet_note_beside_an_identifier_breaks_between_words passed
 echo
+echo "── UploadReplacementTest: der Agent sagt nicht mehr, ob er ersetzt hat ──"
+#
+# docs/88 Beobachtung 9: FilesUpload legt mit rename() ab, und das ueberschreibt
+# wortlos. Der Agent gibt zurueck, was er vorgefunden hat; faellt das Feld weg,
+# faellt die Meldung still auf "ersetzt" zurueck und jedes Anlegen behauptete
+# eine Zerstoerung.
+vorher_datei agent/src/Ops/FilesUpload.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesUpload.php'
+s = open(p, encoding='utf-8').read()
+alt = "'created' => $existing === null"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'created' => true", 1))
+PY2
+griff_datei agent/src/Ops/FilesUpload.php "Agent verschweigt das Ersetzen" &&
+pruefe "Agent verschweigt das Ersetzen" \
+  UploadReplacementTest::test_the_agent_reports_whether_it_replaced_something failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UploadReplacementTest passed
+
+echo
+echo "── UploadReplacementTest: der Controller wertet created nicht aus ──"
+#
+# Der Anker traegt das folgende \$done++, weil derselbe Ausdruck auch in
+# create() steht - seit P6 und zu Recht. Genau daran ist der erste Wurf dieses
+# Eingriffs vorbeigelaufen.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+alt = "$created = ($result['created'] ?? false) === true;\n\n                $done++;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$created = true;\n\n                $done++;", 1))
+PY2
+griff_datei app/Http/Controllers/FileController.php "Hochladen ohne created" &&
+pruefe "Hochladen ohne created" \
+  UploadReplacementTest::test_the_controller_counts_replacements failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UploadReplacementTest passed
+
+echo
+echo "── UploadReplacementTest: das Protokoll traegt den Unterschied nicht ──"
+#
+# Die Meldung liest jemand in dem Moment, in dem er ohnehin hinsieht. Das
+# Protokoll liest jemand Wochen spaeter und fragt, wohin eine Datei
+# verschwunden ist.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+alt = "                    'replaced' => ! $created,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/FileController.php "Protokoll ohne replaced" &&
+pruefe "Protokoll ohne replaced" \
+  UploadReplacementTest::test_the_audit_entry_carries_the_difference failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UploadReplacementTest passed
+
+echo
+echo "── UploadReplacementTest: der Satz steht ausserhalb der einen Stelle ──"
+#
+# Zwei Fassungen desselben Satzes waren einen Tag vorher Befund 8 an
+# SystemPackagesRefresh. Hier wird der Zusatz an zwei Stellen gebraucht und darf
+# deshalb nur an einer entstehen.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+alt = "            ? 'Die Datei ist hochgeladen'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            ? 'Die Datei ist hochgeladen und hat eine vorhandene ersetzt'"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Http/Controllers/FileController.php "Satz an zwei Stellen" &&
+pruefe "Satz an zwei Stellen" \
+  UploadReplacementTest::test_the_wording_about_replacing_exists_once failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UploadReplacementTest passed
+
+echo
+echo "── DispatchedDisplayTest: die Meldung folgt wieder dem Zustand ──"
+#
+# docs/88 Befund 8: Die Vorgangsliste zeigte "Nicht erreicht: ..."
+# bernsteinfarben, die Detailseite dieselbe Auskunft gruen - weil ein gelungener
+# Lauf ok ist und die Meldung dem Zustand folgte statt ihrem Inhalt. Gruen ist
+# die Farbe, die sagt, es sei nichts zu sehen.
+vorher_datei resources/js/Pages/Operations/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Operations/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = ':class="notizart"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, ':class="rang"', 1))
+PY2
+griff_datei resources/js/Pages/Operations/Show.vue "Meldung folgt dem Zustand" &&
+pruefe "Meldung folgt dem Zustand" \
+  DispatchedDisplayTest::test_a_reservation_is_not_painted_in_the_colour_of_success failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DispatchedDisplayTest passed
+
+echo
+echo "── DispatchedDisplayTest: der Klient wirft das Ergebnis wieder weg ──"
+#
+# Der Server schickt beim Schliessen ein done mit status und result. Bis zum
+# 30. August las der Klient daraus nur den Status - wer einem Vorgang beim Enden
+# zusah, bekam den Ausgang deshalb erst beim Neuladen.
+#
+# Ein Feld, das gesendet und nicht gelesen wird, ist von einem, das niemand
+# sendet, nicht zu unterscheiden.
+vorher_datei resources/js/Composables/useOperationStream.ts
+python3 - <<'PY2'
+p = 'resources/js/Composables/useOperationStream.ts'
+s = open(p, encoding='utf-8').read()
+alt = '    result.value = payload.result ?? null\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Composables/useOperationStream.ts "Klient verwirft das Ergebnis" &&
+pruefe "Klient verwirft das Ergebnis" \
+  DispatchedDisplayTest::test_the_client_keeps_the_result_of_the_closing_event failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DispatchedDisplayTest passed
+
+echo
+echo "── DispatchedDisplayTest: das Schlussereignis traegt das Ergebnis nicht mehr ──"
+#
+# Die andere Seite derselben Naht. Faellt result aus dem done, liest der Klient
+# undefined - und zwar wortlos.
+vorher_datei app/Http/Controllers/OperationStreamController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/OperationStreamController.php'
+s = open(p, encoding='utf-8').read()
+alt = "                    'result' => $operation->result,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/OperationStreamController.php "Schlussereignis ohne Ergebnis" &&
+pruefe "Schlussereignis ohne Ergebnis" \
+  DispatchedDisplayTest::test_the_client_keeps_the_result_of_the_closing_event failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DispatchedDisplayTest passed
+
+echo
+echo "── DispatchedDisplayTest: der Vorbehalt steht wieder zweimal ──"
+#
+# Zweiter Teil von Befund 8: Der Satz stand sechsundzwanzig Zeilen auseinander
+# zweimal in derselben Datei - einmal klein als Fortschrittsmeldung, einmal
+# gross als warning. Die Oberflaeche zeigte beide, und sie unterschieden sich im
+# ersten Buchstaben.
+vorher_datei agent/src/Ops/SystemPackagesRefresh.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemPackagesRefresh.php'
+s = open(p, encoding='utf-8').read()
+alt = "$context->progress(100, $vorbehalt ?? 'Alle Quellen erreicht');"
+neu = "$context->progress(100, $apt->reachedEverything() ? 'alle Quellen erreicht' : 'nicht erreicht: '.$apt->summary());"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/SystemPackagesRefresh.php "Vorbehalt zweimal geschrieben" &&
+pruefe "Vorbehalt zweimal geschrieben" \
+  DispatchedDisplayTest::test_the_reservation_is_written_once failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DispatchedDisplayTest passed
+
+echo
 echo "── DispatchedDisplayTest: der abgesetzte Lauf laesst die Meldung stehen ──"
 #
 # docs/88 Befund 4: Der Agent ruft progress(100, 'laeuft') als letzte Handlung,
@@ -19585,10 +19752,7 @@ vorher_datei agent/src/Ops/SystemPackagesRefresh.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/SystemPackagesRefresh.php'
 s = open(p, encoding='utf-8').read()
-alt = """            'warning' => $apt->reachedEverything()
-                ? null
-                : 'Nicht erreicht: '.$apt->summary(),
-"""
+alt = "            'warning' => $vorbehalt,\n"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
 PY2
@@ -19762,7 +19926,12 @@ vorher_datei app/Http/Controllers/FileController.php
 python3 - <<'PY2'
 p = 'app/Http/Controllers/FileController.php'
 s = open(p, encoding='utf-8').read()
-assert s.count('Counted::of(') == 3, 'Zielstellen nicht wie erwartet — der Bruch waere blind'
+# **Keine genaue Zahl.** Hier stand `== 3`, und am 30. August kam eine vierte
+# Aufrufstelle dazu — der Eingriff brach ab, obwohl er wirksam gewesen waere.
+#
+# > **Ein Eingriff, der eine genaue Zahl festhaelt, misst den Bestand und nicht
+# > seine eigene Wirksamkeit.**
+assert s.count('Counted::of(') >= 1, 'Keine Zielstelle mehr — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace('Counted::of(', 'xCounted::of('))
 PY2
 griff_datei app/Http/Controllers/FileController.php "Helfer ohne Aufrufer" &&

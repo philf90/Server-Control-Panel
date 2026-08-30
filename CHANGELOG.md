@@ -22565,3 +22565,149 @@ Dokumentblock dort nicht stehen darf — und aus dem Beispiel wurde ein
 `use Voll\Qualifiziert;` im Kopf der Klasse.
 
 > **Ein Beispiel, das eine Falle zeigt, steht in ihr.**
+
+### Dieselbe Auskunft in zwei Farben — und ein Mechanismus, der zweimal falsch dastand
+
+**Befund 8 des Nachlaufs.** Die Vorgangsliste zeigte *„Nicht erreicht: …"*
+bernsteinfarben, die Detailseite dieselbe Auskunft **grün** — weil `Show.vue`
+die Meldung nach dem **Zustand** färbte und ein gelungener Lauf `ok` ist. Grün
+ist die Farbe, die sagt, es sei nichts zu sehen; damit nahm die Seite genau die
+Entscheidung des Betreibers vom 28. August zurück, nach der der Zustand bleibt
+und der Vorbehalt **sichtbar** wird.
+
+> **Dieselbe Auskunft in zwei Farben sagt zweimal etwas anderes — und die grüne
+> gewinnt, weil sie oben steht.**
+
+Die Meldung folgt jetzt ihrem Inhalt. Und der Satz stand **zweimal im
+Quelltext**, sechsundzwanzig Zeilen auseinander in derselben Datei — einmal
+klein als Fortschrittsmeldung, einmal gross als `warning`. Er wird einmal gebaut
+und zweimal benutzt.
+
+**Der Klient warf das Ergebnis des Schlussereignisses weg.** Der Strom schickt
+beim Schliessen ein `done` mit `status` **und** `result`; `useOperationStream`
+las daraus `as { status: string }` und liess den Rest fallen. Wer einem Vorgang
+beim Enden zusah, bekam den Ausgang deshalb erst beim Neuladen.
+
+> **Ein Feld, das gesendet und nicht gelesen wird, ist von einem, das niemand
+> sendet, nicht zu unterscheiden.**
+
+**Damit ist der Mechanismus von Befund 6 zum zweiten Mal berichtigt.** Er stand
+erst als „`Show.vue` rendert `result` nicht" (falsch — den Abschnitt gibt es),
+dann als „der Strom trägt `result` nicht" (falsch — das `done` trägt es), und
+erst jetzt gemessen: Der Klient liest ihn nicht.
+
+> **Eine Erklärung, die man vor der Messung aufschreibt, ist eine Vermutung mit
+> Fussnote — und sie liest sich hinterher wie ein Ergebnis.**
+
+Die Behebung von Befund 6 bleibt: Das Urteil als **Meldung** zu führen ist
+richtig, weil es im laufenden Strom reist und nicht erst im Schlussereignis.
+
+**Der Wächter hat seine eigene Begründung überführt.** `DispatchedDisplayTest`
+hatte eine Prüfung, die nicht die Regel misst, sondern deren Voraussetzung. Als
+der Klient `result` behielt, meldete sie *„die Begründung ist veraltet — der
+Code ist es nicht"*. Genau das war der Fall.
+
+> **Eine Regel, deren Begründung von einer Bedingung abhängt, veraltet mit ihr —
+> und nichts prüft das, solange die Bedingung nur im Kommentar steht.**
+
+**Und zweimal an einem Tag ist ein Satz über eine Regel in sie gelaufen.** Pint
+machte aus dem `{@see …}`-Beispiel eines Kommentars, der vor genau dieser Falle
+warnt, einen `use`-Eintrag. Und ein neuer Wächter war rot, weil der Kommentar,
+der die neue Farbregel erklärt, den alten Ausdruck wörtlich zitiert.
+
+> **Ein Satz, der eine Regel erklärt, enthält sie — und ein Werkzeug, das die
+> Regel sucht, findet den Satz.**
+
+Er sucht seitdem die **Bindung** (`:class="rang ===`) statt des Ausdrucks: Die
+steht nur in der Vorlage. Dazu hat `BreakScriptTest` einen bestehenden Eingriff
+überführt, dessen Zielstelle sich geändert hatte — nachgezogen und einzeln
+nachgeprüft.
+
+### Ein Hochladen legt an oder zerstört — und beides hiess gleich
+
+**Beobachtung 9 des Nachlaufs, entschieden vom Betreiber am 30. August 2026.**
+`FilesUpload` schreibt in eine Übergangsdatei und legt sie mit `rename()` an
+ihren Platz; das **überschreibt** einen vorhandenen Eintrag wortlos. Der Agent
+gibt seit jeher zurück, was er vorgefunden hat (`created`), und der Controller
+warf es weg: Die Meldung sagte in beiden Fällen *„Die Datei ist hochgeladen."*,
+und das Protokoll schrieb `file.uploaded` mit dem Pfad und sonst nichts.
+
+Ein Kunde, der `index.php` in sein `httpdocs` lädt, ersetzt damit die laufende
+Datei seiner Website.
+
+> **Eine Auskunft, die zwei verschiedene Vorgänge gleich benennt, verschweigt
+> den gefährlicheren.**
+
+**Das Protokoll wiegt dabei schwerer als die Meldung.** Die Meldung liest jemand
+in dem Moment, in dem er ohnehin hinsieht; das Protokoll liest jemand Wochen
+später und fragt, wohin eine Datei verschwunden ist. `file.uploaded` trägt
+seitdem `replaced`.
+
+**Keine Rückfrage, und das ist entschieden und nicht vergessen.** Sie bräuchte,
+dass die Seite **vor** dem Hochladen weiss, welche Namen kollidieren — also eine
+zusätzliche Frage an den Agenten, und zwischen Frage und Tat läge ein Fenster,
+in dem sich der Bestand ändert. Auf dem Telefon käme sie pro Datei. Das ist eine
+andere Bedienung und gehört geplant.
+
+**Der Ausdruck ist der von `create()`**, das `created` seit P6 genau so liest —
+zwei Formen für dieselbe Frage in einer Datei wären die zweite Fassung. Der
+erste Wurf hatte `?? true` und damit die stille Richtung; er liest jetzt
+`?? false`:
+
+> **Ein Vorbehalt, der ausbleibt, fällt niemandem auf; einer, der zu oft
+> erscheint, meldet sich beim ersten Kunden.**
+
+**Der Satz über das Ersetzen entsteht an einer Stelle** und wird an zweien
+gebraucht, im Erfolgssatz und im Fehlerzweig — zwei Fassungen wären der Befund
+des Vortages noch einmal.
+
+**Und der Wächter dazu hat beim Gegenprüfen zweimal danebengegriffen.** Er
+suchte `$result['created']` in der ganzen Datei und blieb beim Bruch grün:
+Dieselbe Zeile steht in `create()`, seit P6 und zu Recht.
+
+> **Ein Wächter, der eine Zeichenkette in einer ganzen Datei sucht, findet sie
+> auch dort, wo sie einem anderen gehört.**
+
+Und er zählte den Satz über das Ersetzen als Zeichenkette — Einzahl und Mehrzahl
+stehen beide in derselben Methode, was richtig ist. Die Regel lautet nicht
+„einmal im Text", sondern „an einer Stelle":
+
+> **Ein Wächter, der eine Zeichenkette zählt, zählt auch die Beugung mit.**
+
+Beides misst jetzt den **Rumpf der Methode**. Dafür ist der Klammerzähler aus
+`DispatchedDisplayTest` nach `Tests\Support\MethodBody` gewandert, statt ein
+zweites Mal abgeschrieben zu werden — sieben weitere Kopien stehen weiterhin in
+`tests/` und sind als eigene Aufgabe notiert.
+
+**Zwei bestehende Stellen sind mitgegangen**, beide gemeldet und nicht gesucht:
+`FileCreationTest` hing am alten Format der Sammelmeldung, und ein Eingriff im
+Bruchskript zeigte auf denselben Text. Nachgezogen und einzeln nachgeprüft.
+
+### Zwei Eingriffe ohne Biss — und der eine hat ein Loch im Wächter gezeigt
+
+Der volle Lauf des Bruchskripts meldete zwei Prüfungen ohne Biss, beide aus der
+Arbeit desselben Tages.
+
+**Der Eingriff zur Farbregel war nicht der, mit dem sie belegt wurde.** Gemessen
+hatte ich mit dem alten Ausdruck; ins Skript geschrieben habe ich die kürzere
+Form `:class="rang"` — ohne sie noch einmal zu fahren.
+
+> **Ein Eingriff, den man beim Eintragen umschreibt, ist nicht der, den man
+> belegt hat.**
+
+**Und die Verkürzung war die bessere.** Sie ist die Form, in die jemand beim
+Vereinfachen zurückfällt, und der Wächter sah sie nicht: Er prüfte die
+**Abwesenheit** von `:class="rang ===`.
+
+> **Ein Wächter, der die Abwesenheit eines Wortlauts prüft, deckt nur die eine
+> Rückfallform, an die sein Verfasser gedacht hat.**
+
+Er nennt die Bindung seitdem positiv — steht dort etwas anderes als `notizart`,
+folgt die Farbe nicht mehr ihrem Inhalt. Beide Formen sind gemessen.
+
+**Der zweite hielt eine genaue Zahl fest.** Die Zusicherung vor dem Bruch
+verlangte drei Aufrufstellen von `Counted::of(`; die Behebung des Überschreibens
+hat eine vierte gebaut, und der Eingriff brach ab, statt zu greifen.
+
+> **Ein Eingriff, der eine genaue Zahl festhält, misst den Bestand und nicht
+> seine eigene Wirksamkeit.**

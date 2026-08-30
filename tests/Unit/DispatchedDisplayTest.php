@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use Tests\Support\MethodBody;
 use Tests\Support\WithoutPhpComments;
 
 /**
@@ -46,6 +47,7 @@ use Tests\Support\WithoutPhpComments;
  */
 final class DispatchedDisplayTest extends TestCase
 {
+    use MethodBody;
     use WithoutPhpComments;
 
     private function source(string $relative): string
@@ -56,45 +58,11 @@ final class DispatchedDisplayTest extends TestCase
     }
 
     /**
-     * Der Rumpf einer Methode, über Klammern gezählt.
-     *
-     * **Nicht über einen Ausdruck bis zum nächsten `}`.** Genau daran ist der
-     * dritte Bruch von `DispatchedRunTest` am 28. August vorbeigelaufen: Ein
-     * `.*?` hinter der öffnenden Klammer läuft über das Ende der Methode hinaus
-     * bis zum nächsten Treffer, und der Wächter prüfte fremden Code.
-     */
-    private function body(string $source, string $signature): string
-    {
-        $start = strpos($source, $signature);
-
-        $this->assertNotFalse($start, sprintf('%s steht nicht im Quelltext.', $signature));
-
-        $open = strpos($source, '{', $start);
-        $this->assertNotFalse($open, sprintf('%s hat keinen Rumpf.', $signature));
-
-        $tiefe = 0;
-
-        for ($i = $open; $i < strlen($source); $i++) {
-            if ($source[$i] === '{') {
-                $tiefe++;
-            } elseif ($source[$i] === '}') {
-                $tiefe--;
-
-                if ($tiefe === 0) {
-                    return substr($source, $open, $i - $open + 1);
-                }
-            }
-        }
-
-        $this->fail(sprintf('Der Rumpf von %s endet nicht.', $signature));
-    }
-
-    /**
      * `dispatched()` setzt Meldung und Fortschritt — und lässt sie nicht stehen.
      */
     public function test_a_dispatched_run_sets_its_own_message_and_progress(): void
     {
-        $rumpf = $this->body(
+        $rumpf = $this->methodBody(
             $this->source('app/Support/Operations/OperationRecorder.php'),
             'public function dispatched(',
         );

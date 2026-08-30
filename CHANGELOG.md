@@ -22622,3 +22622,63 @@ Er sucht seitdem die **Bindung** (`:class="rang ===`) statt des Ausdrucks: Die
 steht nur in der Vorlage. Dazu hat `BreakScriptTest` einen bestehenden Eingriff
 überführt, dessen Zielstelle sich geändert hatte — nachgezogen und einzeln
 nachgeprüft.
+
+### Ein Hochladen legt an oder zerstört — und beides hiess gleich
+
+**Beobachtung 9 des Nachlaufs, entschieden vom Betreiber am 30. August 2026.**
+`FilesUpload` schreibt in eine Übergangsdatei und legt sie mit `rename()` an
+ihren Platz; das **überschreibt** einen vorhandenen Eintrag wortlos. Der Agent
+gibt seit jeher zurück, was er vorgefunden hat (`created`), und der Controller
+warf es weg: Die Meldung sagte in beiden Fällen *„Die Datei ist hochgeladen."*,
+und das Protokoll schrieb `file.uploaded` mit dem Pfad und sonst nichts.
+
+Ein Kunde, der `index.php` in sein `httpdocs` lädt, ersetzt damit die laufende
+Datei seiner Website.
+
+> **Eine Auskunft, die zwei verschiedene Vorgänge gleich benennt, verschweigt
+> den gefährlicheren.**
+
+**Das Protokoll wiegt dabei schwerer als die Meldung.** Die Meldung liest jemand
+in dem Moment, in dem er ohnehin hinsieht; das Protokoll liest jemand Wochen
+später und fragt, wohin eine Datei verschwunden ist. `file.uploaded` trägt
+seitdem `replaced`.
+
+**Keine Rückfrage, und das ist entschieden und nicht vergessen.** Sie bräuchte,
+dass die Seite **vor** dem Hochladen weiss, welche Namen kollidieren — also eine
+zusätzliche Frage an den Agenten, und zwischen Frage und Tat läge ein Fenster,
+in dem sich der Bestand ändert. Auf dem Telefon käme sie pro Datei. Das ist eine
+andere Bedienung und gehört geplant.
+
+**Der Ausdruck ist der von `create()`**, das `created` seit P6 genau so liest —
+zwei Formen für dieselbe Frage in einer Datei wären die zweite Fassung. Der
+erste Wurf hatte `?? true` und damit die stille Richtung; er liest jetzt
+`?? false`:
+
+> **Ein Vorbehalt, der ausbleibt, fällt niemandem auf; einer, der zu oft
+> erscheint, meldet sich beim ersten Kunden.**
+
+**Der Satz über das Ersetzen entsteht an einer Stelle** und wird an zweien
+gebraucht, im Erfolgssatz und im Fehlerzweig — zwei Fassungen wären der Befund
+des Vortages noch einmal.
+
+**Und der Wächter dazu hat beim Gegenprüfen zweimal danebengegriffen.** Er
+suchte `$result['created']` in der ganzen Datei und blieb beim Bruch grün:
+Dieselbe Zeile steht in `create()`, seit P6 und zu Recht.
+
+> **Ein Wächter, der eine Zeichenkette in einer ganzen Datei sucht, findet sie
+> auch dort, wo sie einem anderen gehört.**
+
+Und er zählte den Satz über das Ersetzen als Zeichenkette — Einzahl und Mehrzahl
+stehen beide in derselben Methode, was richtig ist. Die Regel lautet nicht
+„einmal im Text", sondern „an einer Stelle":
+
+> **Ein Wächter, der eine Zeichenkette zählt, zählt auch die Beugung mit.**
+
+Beides misst jetzt den **Rumpf der Methode**. Dafür ist der Klammerzähler aus
+`DispatchedDisplayTest` nach `Tests\Support\MethodBody` gewandert, statt ein
+zweites Mal abgeschrieben zu werden — sieben weitere Kopien stehen weiterhin in
+`tests/` und sind als eigene Aufgabe notiert.
+
+**Zwei bestehende Stellen sind mitgegangen**, beide gemeldet und nicht gesucht:
+`FileCreationTest` hing am alten Format der Sammelmeldung, und ein Eingriff im
+Bruchskript zeigte auf denselben Text. Nachgezogen und einzeln nachgeprüft.

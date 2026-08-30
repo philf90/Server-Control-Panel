@@ -956,7 +956,37 @@ erzeugt.
 
 ---
 
-## 33. Wo der Lauf steht
+## 33. Beobachtung 9 ist entschieden und gebaut — 30. August 2026
+
+Der Betreiber hat entschieden: **Die Meldung unterscheidet, das Protokoll trägt
+es mit, und es wird nicht zurückgefragt.**
+
+| | |
+|---|---|
+| Meldung | *„Die Datei ist hochgeladen und hat eine vorhandene ersetzt."* |
+| bei mehreren | *„5 Dateien sind hochgeladen, 2 davon haben eine vorhandene ersetzt."* |
+| Protokoll | `file.uploaded` trägt `replaced` |
+| Rückfrage | **nein** — sie bräuchte eine Frage vor der Tat, und dazwischen ändert sich der Bestand |
+
+**Der Ausdruck ist der von `create()`**, das `created` seit P6 genau so liest.
+Der erste Wurf hatte `?? true` und damit die stille Richtung; er liest jetzt
+`?? false`.
+
+> **Ein Vorbehalt, der ausbleibt, fällt niemandem auf; einer, der zu oft
+> erscheint, meldet sich beim ersten Kunden.**
+
+**Der Wächter hat beim Gegenprüfen zweimal danebengegriffen**, und beide Male
+war es dieselbe Familie: Er suchte `$result['created']` in der ganzen Datei —
+dieselbe Zeile steht in `create()` —, und er zählte den Satz über das Ersetzen
+als Zeichenkette, obwohl Einzahl und Mehrzahl zu Recht beide in einer Methode
+stehen. Beides misst jetzt den **Rumpf der Methode**.
+
+> **Ein Wächter, der eine Zeichenkette in einer ganzen Datei sucht, findet sie
+> auch dort, wo sie einem anderen gehört.**
+
+---
+
+## 34. Wo der Lauf steht
 
 | Punkt | Stand |
 |---|---|

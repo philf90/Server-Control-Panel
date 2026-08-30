@@ -548,6 +548,7 @@ final class FileController extends Controller
         $incoming = $request->file('files');
 
         $done = 0;
+        $replaced = 0;
         $failed = [];
 
         foreach ($incoming as $file) {
@@ -585,12 +586,48 @@ final class FileController extends Controller
             }
 
             try {
-                $this->files->upload($subscription, Storage::disk('local')->path($staged), $target);
+                $result = $this->files->upload($subscription, Storage::disk('local')->path($staged), $target);
+
+                /*
+                 * **Ein Hochladen legt an oder zerstört, und bis zum
+                 * 30. August hiess beides gleich.** `rename()` schiebt die
+                 * Übergangsdatei über einen vorhandenen Eintrag; der Agent
+                 * gibt das als `created` zurück, und diese Stelle warf es weg
+                 * (`docs/88`, Beobachtung 9).
+                 *
+                 * **Derselbe Ausdruck wie beim Anlegen** — `create()` liest
+                 * `created` seit P6 auf genau diese Weise, und zwei Formen für
+                 * dieselbe Frage in einer Datei wären die zweite Fassung.
+                 *
+                 * **Fehlt das Feld, gilt „nicht angelegt", also ersetzt.** Der
+                 * erste Wurf hatte `?? true` und damit die stille Richtung: Ein
+                 * Vorbehalt, der ausbleibt, fällt niemandem auf; einer, der zu
+                 * oft erscheint, meldet sich beim ersten Kunden.
+                 *
+                 * > **Wenn eine Zuordnung schiefgehen kann, entscheidet die
+                 * > Richtung, in die sie schiefgeht.**
+                 */
+                $created = ($result['created'] ?? false) === true;
 
                 $done++;
 
+                if (! $created) {
+                    $replaced++;
+                }
+
+                /*
+                 * **`replaced` gehört ins Protokoll und nicht nur in die
+                 * Meldung.** Die Meldung liest jemand in dem Moment, in dem er
+                 * ohnehin hinsieht; das Protokoll liest jemand Wochen später
+                 * und fragt, wohin eine Datei verschwunden ist.
+                 *
+                 * > **Ein Protokoll, das Anlegen und Ersetzen gleich benennt,
+                 * > kann die Frage, die man ihm später stellt, nicht
+                 * > beantworten.**
+                 */
                 $this->audit->record('file.uploaded', subscriptionId: (int) $subscription->id, context: [
                     'path' => $target,
+                    'replaced' => ! $created,
                 ]);
             } catch (AgentException $exception) {
                 $failed[$name] = $exception->getMessage();
@@ -609,10 +646,11 @@ final class FileController extends Controller
              * nicht, ob die anderen siebzehn durchgekommen sind.
              */
             $messages = [sprintf(
-                'Von %s %s %d hochgeladen.',
+                'Von %s %s %d hochgeladen%s.',
                 Counted::of(count($incoming), 'Datei', 'Dateien'),
                 $done === 1 ? 'ist' : 'sind',
                 $done,
+                self::replacedNote($done, $replaced),
             )];
 
             foreach ($failed as $name => $reason) {
@@ -622,10 +660,35 @@ final class FileController extends Controller
             throw ValidationException::withMessages(['files' => $messages]);
         }
 
+        $satz = $done === 1
+            ? 'Die Datei ist hochgeladen'
+            : sprintf('%s sind hochgeladen', Counted::of($done, 'Datei', 'Dateien'));
+
         return to_route('files.index', ['subscription' => $subscription->id, 'path' => $data['path']])
-            ->with('success', $done === 1
-                ? 'Die Datei ist hochgeladen.'
-                : sprintf('%d Dateien sind hochgeladen.', $done));
+            ->with('success', $satz.self::replacedNote($done, $replaced).'.');
+    }
+
+    /**
+     * Der Zusatz über das Ersetzen — oder nichts.
+     *
+     * **Er steht an einer Stelle und wird an zweien gebraucht**, im
+     * Erfolgssatz und im Fehlerzweig. Zwei Fassungen desselben Satzes wären
+     * genau der Befund, der einen Tag vorher an `SystemPackagesRefresh`
+     * gefunden wurde: Dort stand er sechsundzwanzig Zeilen auseinander zweimal
+     * und unterschied sich im ersten Buchstaben (`docs/88`, Befund 8).
+     *
+     * **Ohne den abschliessenden Punkt**, damit der Aufrufer ihn anhängt — der
+     * Satz endet einmal und nicht zweimal.
+     */
+    private static function replacedNote(int $done, int $replaced): string
+    {
+        if ($replaced === 0) {
+            return '';
+        }
+
+        return $done === 1
+            ? ' und hat eine vorhandene ersetzt'
+            : sprintf(', %d davon haben eine vorhandene ersetzt', $replaced);
     }
 
     /**

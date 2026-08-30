@@ -10421,7 +10421,7 @@ python3 - <<'PY2'
 p = 'app/Http/Controllers/FileController.php'
 s = open(p, encoding='utf-8').read()
 # Am 28. August 2026 nachgezogen: Die Meldung geht seitdem ueber Counted::of().
-alt = "'Von %s %s %d hochgeladen.',\n                Counted::of(count($incoming), 'Datei', 'Dateien'),"
+alt = "'Von %s %s %d hochgeladen%s.',\n                Counted::of(count($incoming), 'Datei', 'Dateien'),"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 s = s.replace(alt, "'Einige Dateien sind nicht hochgeladen.%s%s%s',\n                '',")
 open(p, 'w', encoding='utf-8').write(s)
@@ -19385,6 +19385,88 @@ pruefe "Zusatz bricht ueberall" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   MobileLayoutTest::test_a_quiet_note_beside_an_identifier_breaks_between_words passed
+echo
+echo "── UploadReplacementTest: der Agent sagt nicht mehr, ob er ersetzt hat ──"
+#
+# docs/88 Beobachtung 9: FilesUpload legt mit rename() ab, und das ueberschreibt
+# wortlos. Der Agent gibt zurueck, was er vorgefunden hat; faellt das Feld weg,
+# faellt die Meldung still auf "ersetzt" zurueck und jedes Anlegen behauptete
+# eine Zerstoerung.
+vorher_datei agent/src/Ops/FilesUpload.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/FilesUpload.php'
+s = open(p, encoding='utf-8').read()
+alt = "'created' => $existing === null"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'created' => true", 1))
+PY2
+griff_datei agent/src/Ops/FilesUpload.php "Agent verschweigt das Ersetzen" &&
+pruefe "Agent verschweigt das Ersetzen" \
+  UploadReplacementTest::test_the_agent_reports_whether_it_replaced_something failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UploadReplacementTest passed
+
+echo
+echo "── UploadReplacementTest: der Controller wertet created nicht aus ──"
+#
+# Der Anker traegt das folgende \$done++, weil derselbe Ausdruck auch in
+# create() steht - seit P6 und zu Recht. Genau daran ist der erste Wurf dieses
+# Eingriffs vorbeigelaufen.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+alt = "$created = ($result['created'] ?? false) === true;\n\n                $done++;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$created = true;\n\n                $done++;", 1))
+PY2
+griff_datei app/Http/Controllers/FileController.php "Hochladen ohne created" &&
+pruefe "Hochladen ohne created" \
+  UploadReplacementTest::test_the_controller_counts_replacements failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UploadReplacementTest passed
+
+echo
+echo "── UploadReplacementTest: das Protokoll traegt den Unterschied nicht ──"
+#
+# Die Meldung liest jemand in dem Moment, in dem er ohnehin hinsieht. Das
+# Protokoll liest jemand Wochen spaeter und fragt, wohin eine Datei
+# verschwunden ist.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+alt = "                    'replaced' => ! $created,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/FileController.php "Protokoll ohne replaced" &&
+pruefe "Protokoll ohne replaced" \
+  UploadReplacementTest::test_the_audit_entry_carries_the_difference failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UploadReplacementTest passed
+
+echo
+echo "── UploadReplacementTest: der Satz steht ausserhalb der einen Stelle ──"
+#
+# Zwei Fassungen desselben Satzes waren einen Tag vorher Befund 8 an
+# SystemPackagesRefresh. Hier wird der Zusatz an zwei Stellen gebraucht und darf
+# deshalb nur an einer entstehen.
+vorher_datei app/Http/Controllers/FileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/FileController.php'
+s = open(p, encoding='utf-8').read()
+alt = "            ? 'Die Datei ist hochgeladen'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            ? 'Die Datei ist hochgeladen und hat eine vorhandene ersetzt'"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Http/Controllers/FileController.php "Satz an zwei Stellen" &&
+pruefe "Satz an zwei Stellen" \
+  UploadReplacementTest::test_the_wording_about_replacing_exists_once failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UploadReplacementTest passed
+
 echo
 echo "── DispatchedDisplayTest: die Meldung folgt wieder dem Zustand ──"
 #

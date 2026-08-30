@@ -19926,7 +19926,12 @@ vorher_datei app/Http/Controllers/FileController.php
 python3 - <<'PY2'
 p = 'app/Http/Controllers/FileController.php'
 s = open(p, encoding='utf-8').read()
-assert s.count('Counted::of(') == 3, 'Zielstellen nicht wie erwartet — der Bruch waere blind'
+# **Keine genaue Zahl.** Hier stand `== 3`, und am 30. August kam eine vierte
+# Aufrufstelle dazu — der Eingriff brach ab, obwohl er wirksam gewesen waere.
+#
+# > **Ein Eingriff, der eine genaue Zahl festhaelt, misst den Bestand und nicht
+# > seine eigene Wirksamkeit.**
+assert s.count('Counted::of(') >= 1, 'Keine Zielstelle mehr — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace('Counted::of(', 'xCounted::of('))
 PY2
 griff_datei app/Http/Controllers/FileController.php "Helfer ohne Aufrufer" &&

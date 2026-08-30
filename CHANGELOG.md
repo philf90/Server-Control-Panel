@@ -22682,3 +22682,32 @@ zweites Mal abgeschrieben zu werden — sieben weitere Kopien stehen weiterhin i
 **Zwei bestehende Stellen sind mitgegangen**, beide gemeldet und nicht gesucht:
 `FileCreationTest` hing am alten Format der Sammelmeldung, und ein Eingriff im
 Bruchskript zeigte auf denselben Text. Nachgezogen und einzeln nachgeprüft.
+
+### Zwei Eingriffe ohne Biss — und der eine hat ein Loch im Wächter gezeigt
+
+Der volle Lauf des Bruchskripts meldete zwei Prüfungen ohne Biss, beide aus der
+Arbeit desselben Tages.
+
+**Der Eingriff zur Farbregel war nicht der, mit dem sie belegt wurde.** Gemessen
+hatte ich mit dem alten Ausdruck; ins Skript geschrieben habe ich die kürzere
+Form `:class="rang"` — ohne sie noch einmal zu fahren.
+
+> **Ein Eingriff, den man beim Eintragen umschreibt, ist nicht der, den man
+> belegt hat.**
+
+**Und die Verkürzung war die bessere.** Sie ist die Form, in die jemand beim
+Vereinfachen zurückfällt, und der Wächter sah sie nicht: Er prüfte die
+**Abwesenheit** von `:class="rang ===`.
+
+> **Ein Wächter, der die Abwesenheit eines Wortlauts prüft, deckt nur die eine
+> Rückfallform, an die sein Verfasser gedacht hat.**
+
+Er nennt die Bindung seitdem positiv — steht dort etwas anderes als `notizart`,
+folgt die Farbe nicht mehr ihrem Inhalt. Beide Formen sind gemessen.
+
+**Der zweite hielt eine genaue Zahl fest.** Die Zusicherung vor dem Bruch
+verlangte drei Aufrufstellen von `Counted::of(`; die Behebung des Überschreibens
+hat eine vierte gebaut, und der Eingriff brach ab, statt zu greifen.
+
+> **Ein Eingriff, der eine genaue Zahl festhält, misst den Bestand und nicht
+> seine eigene Wirksamkeit.**

@@ -200,19 +200,27 @@ final class DispatchedDisplayTest extends TestCase
         $seite = (string) file_get_contents(dirname(__DIR__, 2).'/resources/js/Pages/Operations/Show.vue');
 
         /*
-         * **Gesucht wird die Bindung und nicht der Ausdruck.** Der erste Wurf
-         * suchte den Vergleich als blosse Zeichenkette — und war rot, weil der
-         * Kommentar in `Show.vue`, der diese Regel **erklärt**, sie wörtlich
-         * zitiert.
+         * **Gefragt wird, woran die Meldung ihre Farbe bindet — nicht, welcher
+         * Ausdruck fehlt.**
          *
-         * > **Ein Satz, der eine Regel erklärt, enthält sie — und ein Werkzeug,
-         * > das die Regel sucht, findet den Satz.**
+         * Der erste Wurf suchte den alten Vergleich als Zeichenkette und war
+         * rot, weil der Kommentar in `Show.vue`, der diese Regel **erklärt**,
+         * sie wörtlich zitiert. Der zweite suchte `:class="rang ===` — und
+         * liess damit `:class="rang"` durch, also genau die Form, in die
+         * jemand beim Vereinfachen zurückfällt. Der Lauf des Bruchskripts hat
+         * das am 30. August gemeldet.
          *
-         * Am selben Tag ist Pint in dieselbe Falle gelaufen, an einem Kommentar
-         * über Pint. Ein `:class="` steht nur in der Vorlage.
+         * > **Ein Wächter, der die Abwesenheit eines Wortlauts prüft, deckt nur
+         * > die eine Rückfallform, an die sein Verfasser gedacht hat.**
+         *
+         * Die Bindung positiv zu nennen deckt beide und jede weitere: Steht
+         * dort etwas anderes als `notizart`, folgt die Farbe nicht mehr dem
+         * Inhalt.
          */
-        $this->assertSame(0, preg_match('/:class="rang ===/', $seite),
-            'Die Meldung folgt wieder dem Zustand — dann wird ein Vorbehalt grün.');
+        $this->assertSame(1, preg_match(
+            '/<p v-if="message" class="notice" :class="notizart">/',
+            $seite,
+        ), 'Die Meldung bindet ihre Farbe nicht mehr an notizart — dann folgt sie wieder etwas anderem als ihrem Inhalt.');
 
         $this->assertSame(1, preg_match("/warnung\\.value === null \\? 'ok' : 'warn'/", $seite),
             'Die Meldung unterscheidet nicht mehr, ob ein Vorbehalt vorliegt.');

@@ -986,7 +986,49 @@ stehen. Beides misst jetzt den **Rumpf der Methode**.
 
 ---
 
-## 34. Wo der Lauf steht
+## 34. Befund 11 — Der Eingriff, den ich eingetragen habe, war nicht der, den ich belegt hatte
+
+**Der volle Lauf des Bruchskripts hat zwei Prüfungen ohne Biss gemeldet**, beide
+aus der Arbeit dieses Tages, und die erste ist die lehrreiche.
+
+**Der Eingriff zu Befund 8** setzt `:class="rang"` an die Stelle von
+`:class="notizart"`. Belegt hatte ich ihn mit dem **alten Ausdruck**
+(`:class="rang === 'critical' ? …"`), und beim Eintragen ins Skript habe ich ihn
+verkürzt — ohne ihn noch einmal zu fahren.
+
+> **Ein Eingriff, den man beim Eintragen umschreibt, ist nicht der, den man
+> belegt hat.**
+
+**Und die Verkürzung war die bessere.** `:class="rang"` ist die Form, in die
+jemand beim Vereinfachen zurückfällt, und der Wächter sah sie nicht: Er prüfte
+die **Abwesenheit** von `:class="rang ===`.
+
+> **Ein Wächter, der die Abwesenheit eines Wortlauts prüft, deckt nur die eine
+> Rückfallform, an die sein Verfasser gedacht hat.**
+
+Er nennt die Bindung jetzt **positiv** — steht dort etwas anderes als
+`notizart`, folgt die Farbe nicht mehr dem Inhalt. Beide Formen sind gemessen,
+beide beissen.
+
+**Die zweite ohne Biss war ein Eingriff, der eine Zahl festhielt.** Der zu
+`CountedTest` prüft vor dem Bruch `s.count('Counted::of(') == 3`; die Behebung
+von Beobachtung 9 hat eine **vierte** Aufrufstelle gebaut, und der Eingriff
+brach ab, statt zu greifen — obwohl er wirksam gewesen wäre.
+
+> **Ein Eingriff, der eine genaue Zahl festhält, misst den Bestand und nicht
+> seine eigene Wirksamkeit.**
+
+Er verlangt jetzt „mindestens eine". Das ist genau die Frage, für die die
+Zusicherung da ist: Ein Bruch, dessen Zielstelle fort ist, wäre blind.
+
+**Beides hat der volle Lauf gefunden und keine Einzelprüfung** — dasselbe wie am
+23. August, als ein Eingriff durch eine zweite Regel daneben stumpf wurde.
+
+> **Ein Eingriff, der einzeln beisst, beisst nicht unbedingt im Lauf.**
+
+---
+
+## 35. Wo der Lauf steht
 
 | Punkt | Stand |
 |---|---|

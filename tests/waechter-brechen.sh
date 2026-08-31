@@ -20824,17 +20824,19 @@ echo "== OperationOriginTest: der Vorgang bekommt keine Herkunft mehr =="
 # 31. August 2026 fuehrte von dort kein Weg zurueck. Ohne diese eine Zeile ist
 # er wieder fort — und zwar wortlos, denn eine fehlende Herkunft sieht aus wie
 # ein Vorgang der Automatik.
-vorher_datei app/Support/Operations/Operations.php
+vorher_datei app/Models/Operation.php
 python3 - <<'PY2'
-p = 'app/Support/Operations/Operations.php'
+p = 'app/Models/Operation.php'
 s = open(p, encoding='utf-8').read()
-alt = "            'origin' => $this->origin(),\n"
+alt = """            if ($operation->origin === null) {
+                $operation->origin = Origin::current();
+            }"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '            $operation->task = $operation->task;', 1))
 PY2
-griff_datei app/Support/Operations/Operations.php "Vorgang ohne Herkunft" &&
+griff_datei app/Models/Operation.php "Vorgang ohne Herkunft" &&
 pruefe "Vorgang ohne Herkunft" \
-  OperationOriginTest::test_the_origin_is_taken_in_one_place failed
+  OperationOriginTest::test_the_origin_is_taken_on_the_model failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
@@ -20844,15 +20846,15 @@ echo "== OperationOriginTest: die Herkunft bekommt einen Rueckfall =="
 # `url()->previous()` faellt der Reihe nach auf den Referer und dann auf die
 # Wurzel zurueck. Ein Vorgang der Zertifikatsautomatik truege damit `/`, und die
 # Seite boete einen Weg zurueck dorthin, wo niemand war.
-vorher_datei app/Support/Operations/Operations.php
+vorher_datei app/Support/Operations/Origin.php
 python3 - <<'PY2'
-p = 'app/Support/Operations/Operations.php'
+p = 'app/Support/Operations/Origin.php'
 s = open(p, encoding='utf-8').read()
 alt = "        $previous = $request->session()->previousUrl();"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, "        $previous = url()->previous();", 1))
 PY2
-griff_datei app/Support/Operations/Operations.php "Herkunft mit Rueckfall" &&
+griff_datei app/Support/Operations/Origin.php "Herkunft mit Rueckfall" &&
 pruefe "Herkunft mit Rueckfall" \
   OperationOriginTest::test_the_origin_has_no_fallback failed
 wiederherstellen
@@ -20864,9 +20866,9 @@ echo "== OperationOriginTest: ohne Sitzung wird trotzdem gefragt =="
 # Die Konsole und die Warteschlange setzen ohne Sitzung ab. Ohne diese Frage
 # wirft `session()` dort — ein Vorgang der Automatik stuerbe an der Herkunft,
 # die es nicht gibt.
-vorher_datei app/Support/Operations/Operations.php
+vorher_datei app/Support/Operations/Origin.php
 python3 - <<'PY2'
-p = 'app/Support/Operations/Operations.php'
+p = 'app/Support/Operations/Origin.php'
 s = open(p, encoding='utf-8').read()
 alt = """        if (! $request->hasSession()) {
             return null;
@@ -20876,7 +20878,7 @@ alt = """        if (! $request->hasSession()) {
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
 PY2
-griff_datei app/Support/Operations/Operations.php "Herkunft ohne Sitzungsfrage" &&
+griff_datei app/Support/Operations/Origin.php "Herkunft ohne Sitzungsfrage" &&
 pruefe "Herkunft ohne Sitzungsfrage" \
   OperationOriginTest::test_without_a_session_there_is_no_origin failed
 wiederherstellen
@@ -21114,6 +21116,27 @@ pruefe "Kennung ohne Bedingung an der Zelle" \
   MobileTableTest::test_an_identifier_in_a_pairs_cell_belongs_to_the_cell failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MobileTableTest passed
+
+echo
+echo "== OperationOriginTest: eine anlegende Stelle setzt die Herkunft selbst =="
+#
+# Die Gegenrichtung, und sie ist die, die am 31. August gefehlt hat. Der alte
+# Wächter fragte, ob *eine* Stelle die Herkunft setzt — und uebersah, dass es
+# sechzehn anlegende Stellen gibt. Auf cloudsrv24 gemessen: Vorgang 727 trug
+# `/updates`, Vorgang 729 nichts, beide von einer Seite ausgeloest.
+vorher_datei app/Support/Databases/Dumps.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/Dumps.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'subject_id' => $dump->id,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt + "\n            'origin' => '/irgendwo',", 1))
+PY2
+griff_datei app/Support/Databases/Dumps.php "zweite Fassung der Herkunft" &&
+pruefe "zweite Fassung der Herkunft" \
+  OperationOriginTest::test_the_origin_is_taken_on_the_model failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

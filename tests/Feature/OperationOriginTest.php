@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\OperationSubject;
+use FilesystemIterator;
 use PHPUnit\Framework\TestCase;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 use Tests\Support\WithoutMarkupComments;
 use Tests\Support\WithoutPhpComments;
 
@@ -60,27 +63,164 @@ final class OperationOriginTest extends TestCase
     }
 
     /**
-     * Die Herkunft wird an **einer** Stelle genommen.
+     * Wo Vorgänge entstehen — jede Stelle, die eine Zeile anlegt.
      *
-     * Einundzwanzig Aufrufstellen, die sie einzeln mitgäben, wären
-     * einundzwanzig Gelegenheiten, sie zu vergessen — und die vergessene fiele
-     * niemandem auf, weil eine fehlende Herkunft aussieht wie ein Vorgang der
-     * Automatik.
+     * @return list<string>
      */
-    public function test_the_origin_is_taken_in_one_place(): void
+    private function schreiber(): array
     {
-        $quelle = $this->withoutComments($this->quelle('app/Support/Operations/Operations.php'));
+        $treffer = [];
+        $wurzel = $this->repo().'/app';
 
-        $this->assertStringContainsString(
-            "'origin' => \$this->origin(),",
-            $quelle,
-            'Der Vorgang bekommt seine Herkunft nicht beim Absetzen.',
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($wurzel, FilesystemIterator::SKIP_DOTS)
         );
 
-        $this->assertStringContainsString(
-            'previousUrl()',
+        foreach ($iterator as $datei) {
+            if (! $datei->isFile() || $datei->getExtension() !== 'php') {
+                continue;
+            }
+
+            $quelle = $this->withoutComments((string) file_get_contents($datei->getPathname()));
+
+            // **Alle drei Schreibweisen, die im Repo vorkommen.** Der erste
+            // Wurf kannte nur `Operation::query()->create(` und
+            // `Operation::create(` — und übersah damit ausgerechnet
+            // `Operations::dispatch()`, das `new Operation([…])` schreibt.
+            //
+            // > Ein Ausdruck, der die gewohnte Schreibweise kennt, prüft die
+            // > Gewohnheit und nicht die Regel.
+            if (preg_match('/(new Operation\(|Operation::(query\(\)->)?create\()/', $quelle) === 1) {
+                $treffer[] = substr($datei->getPathname(), strlen($this->repo()) + 1);
+            }
+        }
+
+        sort($treffer);
+
+        return $treffer;
+    }
+
+    /**
+     * Die Argumentblöcke jeder anlegenden Stelle einer Datei.
+     *
+     * **Gezählt wird über Klammern und nicht über Zeilen** — der erste Wurf
+     * suchte `'origin' =>` in der **ganzen** Datei und meldete
+     * `OperationController`, weil der die Herkunft im Payload der Seite
+     * *liest*: `'origin' => $operation->origin,`.
+     *
+     * > **Ein Ausdruck, der eine Zuweisung sucht, findet jede Lesestelle mit,
+     * > solange er den Zusammenhang nicht abgrenzt.**
+     *
+     * Schliesst eine Klammer nicht, meldet das der Aufrufer als Fehlschlag und
+     * nicht als leeren Block: Ein Block, den dieser Leser nicht findet, ist
+     * einer, in dem er nichts sieht — und das sähe aus wie „in Ordnung".
+     *
+     * @return list<string>
+     */
+    private function anlagen(string $quelle): array
+    {
+        $bloecke = [];
+        $stelle = 0;
+
+        while (preg_match(
+            '/(new Operation\(|Operation::(query\(\)->)?create\()/',
             $quelle,
-            'Die Herkunft kommt nicht aus der Sitzung.',
+            $treffer,
+            PREG_OFFSET_CAPTURE,
+            $stelle,
+        ) === 1) {
+            $offen = (int) $treffer[0][1] + strlen((string) $treffer[0][0]) - 1;
+            $tiefe = 0;
+            $ende = null;
+
+            for ($i = $offen, $n = strlen($quelle); $i < $n; $i++) {
+                $zeichen = $quelle[$i];
+
+                if ($zeichen === '(' || $zeichen === '[') {
+                    $tiefe++;
+                } elseif ($zeichen === ')' || $zeichen === ']') {
+                    $tiefe--;
+
+                    if ($tiefe === 0) {
+                        $ende = $i;
+
+                        break;
+                    }
+                }
+            }
+
+            self::assertIsInt($ende, 'Eine anlegende Stelle hat keine schliessende Klammer — dieser Leser misst dort nichts.');
+
+            $bloecke[] = substr($quelle, $offen, $ende - $offen + 1);
+            $stelle = $ende;
+        }
+
+        return $bloecke;
+    }
+
+    /**
+     * Die Herkunft wird am **Modell** genommen und nicht am Aufrufer.
+     *
+     * ## Der Befund, gegen den dieser Fall in seiner heutigen Form steht
+     *
+     * **Bis zum 31. August 2026 hiess dieser Fall genauso und prüfte etwas
+     * anderes:** dass `Operations::dispatch()` die Herkunft setzt. Das tat es —
+     * und war eine von **sechzehn** Stellen, die Vorgänge anlegen. Gemessen auf
+     * `cloudsrv24` (`docs/94 §6`): Vorgang 727 über `Operations::dispatch()`
+     * trug `← /updates`, Vorgang 729 über `Dumps::dispatch()` trug nichts.
+     * Beide waren von einer Seite aus ausgelöst worden.
+     *
+     * > **Ein Wächter, der prüft, dass *eine* Stelle es tut, hat nicht geprüft,
+     * > dass es *nur eine* Stelle gibt.**
+     *
+     * ## Was er jetzt hält
+     *
+     * Beide Richtungen, und die zweite ist die, die gefehlt hat:
+     *
+     * 1. Das Modell setzt sie in `booted()`.
+     * 2. **Keine** anlegende Stelle setzt sie selbst — sonst gäbe es eine
+     *    zweite Fassung derselben Regel, und die zweite veraltet.
+     *
+     * Die Untergrenze zählt die Schreiber: Findet der Ausdruck nur noch eine
+     * Handvoll, ist er ins Leere gelaufen und die zweite Richtung sagt nichts
+     * mehr.
+     */
+    public function test_the_origin_is_taken_on_the_model(): void
+    {
+        $modell = $this->withoutComments($this->quelle('app/Models/Operation.php'));
+
+        $this->assertMatchesRegularExpression(
+            '/static::creating\(function \(Operation \$operation\): void \{\s*if \(\$operation->origin === null\) \{\s*\$operation->origin = Origin::current\(\);/',
+            $modell,
+            'Das Modell setzt die Herkunft nicht mehr beim Anlegen — dann bekommt sie nur noch, wer daran denkt.',
+        );
+
+        $schreiber = $this->schreiber();
+
+        $this->assertGreaterThan(
+            8,
+            count($schreiber),
+            'Es werden kaum anlegende Stellen gefunden — dann prüft die Gegenrichtung nichts.',
+        );
+
+        $eigenmaechtig = [];
+
+        foreach ($schreiber as $pfad) {
+            foreach ($this->anlagen($this->withoutComments($this->quelle($pfad))) as $anlage) {
+                if (str_contains($anlage, "'origin' =>")) {
+                    $eigenmaechtig[] = $pfad;
+
+                    break;
+                }
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $eigenmaechtig,
+            "Diese Stellen setzen die Herkunft selbst, obwohl das Modell es tut:\n  "
+            .implode("\n  ", $eigenmaechtig)
+            ."\n\nZwei Fassungen derselben Regel laufen auseinander, und die zweite ist die, die veraltet.",
         );
     }
 
@@ -96,7 +236,13 @@ final class OperationOriginTest extends TestCase
      */
     public function test_the_origin_has_no_fallback(): void
     {
-        $quelle = $this->withoutComments($this->quelle('app/Support/Operations/Operations.php'));
+        $quelle = $this->withoutComments($this->quelle('app/Support/Operations/Origin.php'));
+
+        $this->assertStringContainsString(
+            'previousUrl()',
+            $quelle,
+            'Die Herkunft kommt nicht aus der Sitzung.',
+        );
 
         $this->assertStringNotContainsString(
             'url()->previous()',
@@ -110,15 +256,13 @@ final class OperationOriginTest extends TestCase
      *
      * Die Konsole, die Warteschlange und jeder Lauf der Automatik setzen ohne
      * Sitzung ab. Dort ist `null` die Wahrheit — ein Wert, den man erfände,
-     * sähe aus wie eine Auskunft.
+     * sähe aus wie eine Auskunft. Und `session()` würfe dort.
      */
     public function test_without_a_session_there_is_no_origin(): void
     {
-        $quelle = $this->withoutComments($this->quelle('app/Support/Operations/Operations.php'));
-
         $this->assertStringContainsString(
             'hasSession()',
-            $quelle,
+            $this->withoutComments($this->quelle('app/Support/Operations/Origin.php')),
             'Ein Lauf der Automatik bekäme eine Herkunft, die es nicht gibt.',
         );
     }

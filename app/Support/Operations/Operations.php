@@ -40,7 +40,6 @@ final class Operations
             'status' => OperationStatus::Queued,
             'progress' => 0,
             'message' => $message,
-            'origin' => $this->origin(),
         ]);
 
         // Ausdrücklich gesetzt statt der Klammer überlassen: Ein Vorgang des
@@ -52,60 +51,5 @@ final class Operations
         RunAgentOperation::dispatch((int) $operation->id);
 
         return $operation;
-    }
-
-    /**
-     * Von welcher Seite aus dieser Vorgang ausgelöst wurde — oder `null`.
-     *
-     * **Gefragt wird die Sitzung und nicht `url()->previous()`.** Der Helfer
-     * fällt der Reihe nach auf den `Referer` und dann auf die Wurzel der
-     * Anwendung zurück; ein Vorgang der Zertifikatsautomatik trüge damit `/`
-     * als Herkunft, und die Vorgangsseite böte einen Weg zurück zu einer Seite,
-     * an der niemand war.
-     *
-     * > **Ein Rückfall, der immer etwas liefert, macht aus „unbekannt" eine
-     * > falsche Auskunft.**
-     *
-     * Geschrieben wird der Wert von der Mittelschicht `RememberPageUrl` — und
-     * zwar nur bei einem echten Seitenaufruf des Panels. Ihr Name steht hier
-     * als Fliesstext und nicht als `{@see}`: Pint macht daraus einen
-     * `use`-Eintrag, und ein unbenutzter Import ist genau die Zeile, die beim
-     * nächsten Aufräumen wieder verschwindet. Eine
-     * Weiterleitung, ein Abruf im Hintergrund und der Vorgangskanal stehen dort
-     * nicht.
-     *
-     * **Ein Pfad und keine volle Adresse:** Das Panel ist unter mehreren Namen
-     * erreichbar, und eine Adresse mit Rechnernamen wäre unter dem zweiten
-     * falsch.
-     */
-    private function origin(): ?string
-    {
-        $request = request();
-
-        // Ohne Sitzung gibt es keine Herkunft. Das trifft die Konsole, die
-        // Warteschlange und jeden Lauf der Automatik — dort ist `null` die
-        // Wahrheit und kein fehlender Wert.
-        if (! $request->hasSession()) {
-            return null;
-        }
-
-        $previous = $request->session()->previousUrl();
-
-        if (! is_string($previous) || $previous === '') {
-            return null;
-        }
-
-        $pfad = parse_url($previous, PHP_URL_PATH);
-
-        if (! is_string($pfad) || ! str_starts_with($pfad, '/')) {
-            return null;
-        }
-
-        $frage = parse_url($previous, PHP_URL_QUERY);
-        $ganz = is_string($frage) && $frage !== '' ? $pfad.'?'.$frage : $pfad;
-
-        // **Verworfen und nicht abgeschnitten.** Ein halber Pfad führt
-        // irgendwohin, und irgendwohin ist schlechter als nirgendwohin.
-        return mb_strlen($ganz) > 255 ? null : $ganz;
     }
 }

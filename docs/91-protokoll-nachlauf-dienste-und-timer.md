@@ -693,9 +693,177 @@ allein, und dort sind es zwanzig Punkte in vier Gruppen.
 
 ---
 
-## 16 · Was noch aussteht
+## 16 · Punkt 10 — erfüllt, beide Richtungen
 
-Die Punkte 10 und 11 aus `docs/90`, und Befund 5.
+| | Vorgang | Meldung |
+|---|---|---|
+| mit der Wegwerfquelle | 723, **fertig** | **bernstein** — „Nicht erreicht: http://nicht.erreichbar.invalid/ubuntu/ (Could not resolve …)" |
+| nach dem Aufräumen | 724, **fertig** | **grün** — „Alle Quellen erreicht" |
+
+Form B aus `docs/86 §5`, genau wie gebaut: **fertig mit Vorbehalt**, und der
+Vorbehalt hat seine eigene Zeile — mit der Quelle *und* dem Grund.
+
+> **Ein Feld im Payload ist noch keine Spalte.**
+
+### Ein Beleg, den kein Kriterium bestellt hat
+
+Nach dem Aufräumen steht in `apt-get update` weiterhin eine `W:`-Zeile:
+
+    W: https://ppa.launchpadcontent.net/ondrej/php/ubuntu/dists/noble/InRelease:
+       Signature by key 14AA40EC… uses weak algorithm (rsa1024)
+
+**Und Vorgang 724 meldet trotzdem grün.** Nachgesehen statt vermutet:
+`Apt::readFailures()` fängt `/^[WE]: Failed to fetch (\S+)\s*(.*?)\s*$/D` —
+also ausdrücklich nur „Failed to fetch" und nicht jede `W:`-Zeile. Die
+Sury-Warnung sagt „erreicht, aber schwach signiert" und ist keine
+Unerreichbarkeit.
+
+Hätte der Leser bloss `W:` gezählt, stünde die Meldung auf diesem Server **jeden
+Tag** auf bernstein.
+
+> **Ein Leser, der eine Warnung zählt statt sie zu lesen, meldet denselben
+> Vorbehalt jeden Tag — und danach sieht ihn niemand mehr an.**
+
+Im Container war das nicht messbar; dort gibt es die Sury-Warnung nicht.
+
+**Als Beobachtung, nicht als Befund:** Dass ein Depot mit rsa1024 signiert, sieht
+heute niemand im Panel. `system.packages.refresh` beantwortet „habe ich alle
+Quellen erreicht" und nicht „sind sie sicher"; beides in einen Vorbehalt zu
+werfen wäre schlechter. Die Frage gehört zu A3 in P9b.
+
+---
+
+## 17 · Punkt 11 — gefahren, **nicht** erfüllt
+
+Sieben Pakete standen an, der Punkt war also fahrbar.
+
+| | Vorgang | Zustand | Meldung |
+|---|---|---|---|
+| erster Lauf | 725 | **fertig** | grün — „7 von 7 Aktualisierungen eingespielt, 0 bleiben offen." |
+| zweiter Lauf | 726 | **fehlgeschlagen** | rot — „Der Lauf hat nichts verändert — offene Aktualisierungen vorher wie nachher: 0." |
+
+Der erste Lauf ist Form A aus `docs/86 §5` in Ordnung: Der absetzende Vorgang
+trägt seinen Ausgang nach.
+
+**Der zweite verletzt das Kriterium.** Es lautete: „Der zweite Lauf meldet, dass
+er nichts verändert hat, und **nicht** einen Fehlschlag." Gemessen meldet er
+**beides** — der Satz stimmt, der Zustand nicht. Der Fortschritt blieb bei 50 %
+stehen, weil der Vorgang in den Fehlerzweig ging.
+
+### Befund 6 — „nichts zu tun" und „nicht geschafft" heissen gleich
+
+Die Ursache steht an zwei Stellen, und beide sind bewusst geschrieben.
+
+`packaging/bin/apt-run:206`:
+
+    if [ "$vorher" = "$nachher" ]; then
+        echo "$NAME: Der Lauf hat nichts verändert — $einheit vorher wie nachher: $nachher."
+        exit 3
+    fi
+
+`agent/src/Outcome.php:70`:
+
+    public const BAD = [
+        'apt-get endete mit ',
+        'Der Lauf hat nichts verändert',
+    ];
+
+Der Kommentar über der Zeile in `apt-run` nennt **drei** Ursachen — veraltete
+Paketlisten (M5), eine abgeschaltete Quelle, ein bereits aktuelles Paket. Alle
+drei sind echte Fehlschläge, und dafür gibt es das Skript.
+
+**Der vierte Fall fehlt in der Aufzählung:** `vorher = nachher = 0`. Da war
+nichts einzuspielen.
+
+Und er ist von den drei anderen **an der Zahl unterscheidbar — sie steht in der
+Meldung**:
+
+| | Urteil |
+|---|---|
+| `vorher 7, nachher 7` | Fehlschlag — sollte sieben einspielen, hat null geschafft |
+| `vorher 0, nachher 0` | kein Fehlschlag — es stand nichts an |
+
+`Outcome::BAD` liest aber nur den **Anfang** des Satzes.
+
+> **Ein Urteil, das seine Zahl mitbringt und nur an seinem Anfang gelesen wird,
+> wirft die Unterscheidung weg, die es trägt.**
+
+**Eine Ebene tiefer ist es die Spiegelung von M5**, dem Befund, mit dem P7b
+angefangen hat:
+
+> **Ein Rückgabewert, der „nichts zu tun" und „nicht geschafft" gleich benennt,
+> ist derselbe Fehler wie einer, der einen Fehlschlag nicht tragen kann — nur in
+> die andere Richtung.** Bei M5 gab `apt-get update` eine `0` für einen Lauf, der
+> jede Quelle verfehlt hatte; hier gibt `apt-run` eine `3` für einen Lauf, dem
+> nichts zu tun blieb.
+
+**Warum es zählt:** Ein Server mit eingeschalteter Automatik hat den Fall
+regelmässig. Nach der dritten Woche mit roten Vorgängen, die nichts bedeuten,
+sieht niemand mehr einen roten Vorgang an.
+
+**Wohin die Behebung gehört:** in `apt-run` und nicht in den Leser. Das Skript
+weiss, ob `vorher` null war, und `exit 3` ist schon dort falsch — wer es von Hand
+fährt, bekommt heute Rückgabewert 3 für einen Lauf ohne Anlass. Das berührt die
+Paketierung und braucht eine neue Fassung. Der Fassungsmodus (`--fassung`) bleibt
+unberührt: Dort ist `nachher` eine Versionsnummer und nie `0`.
+
+---
+
+## 18 · Bilanz — A2 ist abgenommen
+
+`docs/90 §14`: **Abgenommen ist A2, wenn Punkt 4 erfüllt ist.** Er ist es, und
+die beiden Ausschlusskriterien stehen grün.
+
+| Punkt | | |
+|---|---|---|
+| 1 | die Seite, sechzehn Zeilen | ✓ |
+| 2 | ein Aufruf, neunzehn Blöcke | ✓ **Ausschlusskriterium** |
+| 3 | die vier Termine | ✓ |
+| **4** | **ein Timer ohne Termin ist erkennbar** | ✓ **das Kriterium der Stufe** |
+| 5 | Anzeigezone statt UTC | ✓ |
+| 6 | eine Unit, die es nicht gibt | — nicht herstellbar, `docs/90 §14` lässt es zu |
+| 7 | die Übersicht unverändert | ✓ **Ausschlusskriterium** |
+| 8 | die neue Navigation | ✓ |
+| 9 | Administrator ja, Kunde nein | ✓ |
+| 10 | die Behebungen aus `docs/86 §5` | ✓ |
+| 11 | derselbe Lauf zweimal | **✗ Befund 6** |
+
+**Sechs Befunde, und fünf davon stecken im Prüfling.** Das ist die Umkehrung von
+`docs/45`, `docs/48`, `docs/59` und `docs/84`, wo die Mehrheit im Prüfmittel lag.
+
+| | |
+|---|---|
+| 1 · der gesunde Server meldete vier Schäden | Prüfling · **behoben** |
+| 2 · „Alle Dienste laufen" | Prüfling · **behoben** |
+| 3 · der Zustand bei 390 px angeschnitten | Prüfling · **behoben** |
+| 4 · die Vorschrift zu Punkt 4 (c) | Prüfmittel · berichtigt |
+| 5 · die Übersicht sagt „active" | Prüfling · **offen** |
+| 6 · „nichts zu tun" meldet fehlgeschlagen | Prüfling · **offen** |
+
+Dazu zwei berichtigte Erwartungen, die der Prüfling nicht erfüllen konnte (§1
+„loaded **und** active", Punkt 1 „jede Unit zeigt eine PID") — mit Befund 4 sind
+das **drei desselben Musters**, und alle drei standen in der Unit-Datei.
+
+> **Wer eine Erwartung an eine Unit aufschreibt, liest vorher ihre Unit-Datei.**
+
+**Warum diesmal mehr im Prüfling steckt als im Prüfmittel:** Die Vorschrift war
+vor dem Lauf ausgeschrieben und das Messmittel lag als geprüftes Werkzeug im
+Repo. Was blieb, war eine **neue Seite** — und die hatte ihre Fehler dort, wo
+kein Wächter hinsah: in einer Bauart, die im Prüfstand nicht vorkam
+(`Type=oneshot`), und in einer Tabelle ohne Form.
+
+---
+
+## 19 · Was noch aussteht
+
+**Befund 5** (die Übersicht sagt „active") und **Befund 6** („nichts zu tun"
+meldet fehlgeschlagen). Beide sind am Prüfling, beide brauchen eine neue
+Fassung — Befund 6 auch ein neues Paket, weil er `packaging/bin/apt-run`
+berührt.
+
+Und der Rest aus `docs/88`, den Punkt 11 nun eingelöst hat: Er hat auf
+Paketbestand gewartet, ihn bekommen und einen Befund geliefert. Genau dafür war
+er da.
 
 **Punkt 4 hängt an Befund 3.** Er trägt das Abnahmekriterium der ganzen Stufe,
 und er wird auf einem Telefon gelesen werden — die Reihenfolge ist also: erst

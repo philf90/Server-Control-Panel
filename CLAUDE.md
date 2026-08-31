@@ -1715,8 +1715,35 @@ er durch ist und welche zwei Punkte als „nicht herstellbar" ausfallen dürfen 
 und **`91` das Protokoll dazu**: §1 der gemessene Ausgangszustand (systemd 255
 auf dem Server, sechzehn Zeilen aus neunzehn Kandidaten), §2 die Messrunde, die
 Befund 1 nötig gemacht hat, §3 der Befund selbst mit seinen sechs Wächtern und
-acht Brüchen, §4 was noch aussteht. **Der Lauf ist nicht durch** — §1 ist
-gemessen, die Punkte 1 bis 11 stehen aus.
+acht Brüchen, §4 was noch aussteht. **Der Lauf ist nicht durch** — **A2 ist am
+31. August 2026 abgenommen** — auf `cloudsrv24` gegen `0.7.3-rc.3`, Punkt 4
+erfüllt und beide Ausschlusskriterien (2 und 7) grün. Punkt 6 fiel als „nicht
+herstellbar" aus, Punkt 11 ist **nicht** erfüllt (Befund 6).
+
+**Sechs Befunde, fünf davon im Prüfling** — die Umkehrung von `docs/45`,
+`docs/48`, `docs/59` und `docs/84`. Der Grund ist kein besseres Auge: Die
+Vorschrift war vor dem Lauf ausgeschrieben und das Messmittel lag als geprüftes
+Werkzeug im Repo. Was blieb, war eine **neue Seite** — und die hatte ihre Fehler
+dort, wo kein Wächter hinsah.
+
+**Offen bleiben zwei, beide am Prüfling.** Befund 5: Die Übersicht druckt
+`active_state` roh, also „active", wo die Dienste-Seite „läuft" sagt —
+`WordChoiceTest` kann es nicht sehen, weil der Wert zur Laufzeit entsteht. Befund
+6 ist die Spiegelung von M5, dem Befund, mit dem P7b anfing:
+
+> **Ein Rückgabewert, der „nichts zu tun" und „nicht geschafft" gleich benennt,
+> ist derselbe Fehler wie einer, der einen Fehlschlag nicht tragen kann — nur in
+> die andere Richtung.**
+
+`apt-run` gibt `exit 3` für einen Lauf, dem nichts zu tun blieb, und
+`Outcome::BAD` liest den Satz nur an seinem Anfang — die Zahl, die den Fall
+unterscheidet, steht in der Meldung und wird weggeworfen.
+
+**Und drei Kriterien konnte der Prüfling nicht erfüllen**, alle drei aus
+derselben Ursache: Sie standen in der Unit-Datei, die ich nicht gelesen hatte
+(`Type=oneshot` bei vieren, `RandomizedDelaySec=1h` bei einem).
+
+> **Wer eine Erwartung an eine Unit aufschreibt, liest vorher ihre Unit-Datei.**
 
 Und **`65` der Serverlauf zu `v0.6.0-rc.20`** — die elf Punkte, mit denen die
 sieben Befunde der zweiten Runde und die drei Wünsche auf einem echten Server

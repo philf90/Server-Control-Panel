@@ -56,24 +56,44 @@ srvpanel version
 # b) Die Fassung von systemd — sie entscheidet Punkt 3
 systemctl --version | head -1
 
-# c) Welche Units es auf diesem Server wirklich gibt
-for u in srvpanel-agentd srvpanel-web srvpanel-worker srvpanel-metrics \
-         srvpanel-usage srvpanel-tls srvpanel-cron srvpanel-dns; do
-  printf '%-26s %s\n' "$u.service" "$(systemctl is-active "$u.service" 2>&1)"
-done
-for u in srvpanel-usage srvpanel-tls srvpanel-cron srvpanel-dns; do
-  printf '%-26s %s\n' "$u.timer" "$(systemctl is-active "$u.timer" 2>&1)"
-done
-for u in nginx.service mariadb.service mysql.service ssh.service sshd.service \
+# c) Welche Units es auf diesem Server wirklich gibt — und in welchem Zustand
+#
+# **Gefragt wird LoadState und nicht `is-active`.** Der erste Wurf dieses
+# Blocks nahm `systemctl is-active`, und der druckt für eine Unit, die es
+# **gar nicht gibt**, ebenfalls `inactive`. Zwölf Zeilen `inactive` lasen sich
+# dann wie „installiert, aber gestoppt" und bedeuteten „nicht vorhanden".
+#
+#   Ein Wert, der zwei Zustände gleich benennt, misst keinen von beiden.
+#
+# Aufgefallen ist das am 31. August, weil der Block versehentlich auf einem
+# Rechner ohne SrvPanel lief — und die Ausgabe sah aus wie ein Server, auf dem
+# alles gestoppt ist.
+for u in srvpanel-agentd.service srvpanel-web.service srvpanel-worker.service \
+         srvpanel-metrics.service srvpanel-usage.service srvpanel-usage.timer \
+         srvpanel-tls.service srvpanel-tls.timer srvpanel-cron.service \
+         srvpanel-cron.timer srvpanel-dns.service srvpanel-dns.timer \
+         nginx.service mariadb.service mysql.service ssh.service sshd.service \
          cron.service crond.service; do
-  printf '%-26s %s\n' "$u" "$(systemctl show "$u" --property=LoadState --value)"
+  printf '%-26s %-10s %s\n' "$u" \
+    "$(systemctl show "$u" --property=LoadState --value)" \
+    "$(systemctl show "$u" --property=ActiveState --value)"
 done
 ```
 
-**Erwartet:** `0.7.3-rc.1`; systemd irgendwo zwischen 249 und 257; die acht
-eigenen Dienste und vier Timer `active`; von den fremden **je Rolle genau einer**
-`loaded` — `nginx.service`, eine der beiden Datenbankunits, eine der beiden
-SSH-Units, eine der beiden Cron-Units.
+**Und zuerst die Frage, ob es der richtige Rechner ist.** `srvpanel version`
+muss antworten; meldet die Shell *„Kommando nicht gefunden"*, ist das Panel dort
+nicht installiert, und jede weitere Zeile misst eine fremde Maschine.
+
+**Erwartet:** `0.7.3-rc.1`; systemd irgendwo zwischen 249 und 257; die zwölf
+eigenen Units `loaded` **und** `active`; von den fremden **je Rolle mindestens
+einer** `loaded` — `nginx.service`, eine der beiden Datenbankunits, eine der
+beiden SSH-Units, eine der beiden Cron-Units.
+
+**„Je Rolle mindestens einer" und nicht „genau einer".** Gemessen am 31. August
+auf einem Debian 13: `ssh.service` **und** `sshd.service` sind dort **beide**
+`loaded` — die zweite ist ein Alias mit eigener Unit-Datei. Auf der Seite darf
+trotzdem nur **eine** Zeile stehen, und das ist die schärfere Probe für
+`Catalog::pick()` als alles, was der Container hergab.
 
 **Aufschreiben, welche.** Punkt 1 vergleicht die Seite damit, und ohne diese
 Liste prüft er sich selbst.

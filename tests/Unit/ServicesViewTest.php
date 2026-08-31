@@ -37,6 +37,26 @@ final class ServicesViewTest extends TestCase
     }
 
     /**
+     * Der Rumpf einer Funktion der Seite — von ihrer Zeile bis zur nächsten.
+     *
+     * Grob genug für einen Wächter über eine Reihenfolge und bewusst kein
+     * Parser: Was er nicht findet, meldet er als Fehlschlag und nicht als
+     * leeren Rumpf, in dem jede Suche nichts ergibt.
+     */
+    private static function rumpfVon(string $quelle, string $name): string
+    {
+        $anfang = strpos($quelle, 'function '.$name.'(');
+
+        self::assertIsInt($anfang, 'Die Seite hat keine Funktion '.$name.'.');
+
+        $ende = strpos($quelle, "\n}", $anfang);
+
+        self::assertIsInt($ende, 'Der Rumpf von '.$name.' hört nirgends auf.');
+
+        return substr($quelle, $anfang, $ende - $anfang);
+    }
+
+    /**
      * Die Farbe folgt dem Termin und nicht dem Zustand von systemd.
      *
      * Geprüft wird die **Reihenfolge**: `has_next` muss vor `active_state`
@@ -113,6 +133,82 @@ final class ServicesViewTest extends TestCase
      * In einer gemeinsamen Tabelle stünden bei ihm drei Spalten leer und eine
      * bei allen anderen.
      */
+    /**
+     * Ein Dienst, den ein Timer startet, darf stillstehen.
+     *
+     * **Der Befund vom 31. August 2026 auf `cloudsrv24`.** Vier der eigenen
+     * zwölf Dienste sind `Type=oneshot` und stehen zwischen ihren Läufen auf
+     * `inactive`; die erste Fassung dieser Seite malte sie rot und meldete
+     * darüber „4 Dienste laufen nicht" — auf einem Server, an dem nichts fehlte.
+     *
+     * Das ist derselbe Fehler wie beim Timer, nur spiegelverkehrt: Dort sieht
+     * der kaputte gesund aus, hier der gesunde kaputt.
+     *
+     * Geprüft wird die **Bedingung** und nicht das Wort: Die Nachsicht hängt an
+     * `inactive` und nicht an „nicht aktiv". Stünde dort `!== 'active'`, deckte
+     * sie einen gescheiterten Lauf mit zu — und `failed` ist der Zustand, in dem
+     * ein oneshot-Dienst nach einem Fehlschlag steht (gemessen, `docs/91 §2`).
+     */
+    public function test_a_service_a_timer_starts_may_stand_still(): void
+    {
+        $quelle = $this->withoutMarkupComments(self::quelle(self::SEITE));
+
+        // **Gefragt wird je Rumpf und nicht in der ganzen Datei.** Der erste
+        // Wurf suchte die Bedingung irgendwo auf der Seite — und blieb grün,
+        // als der Bruchlauf sie aus `rang` entfernte und in `zustand`
+        // stehenliess. Gefunden hat das nicht das Nachdenken, sondern der
+        // Eingriff.
+        //
+        // > Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald die
+        // > Zeichenkette irgendwo steht.
+        foreach (['rang', 'zustand'] as $funktion) {
+            $this->assertStringContainsString(
+                "zeile.scheduled === true && zeile.active_state === 'inactive'",
+                self::rumpfVon($quelle, $funktion),
+                'Ohne diese Bedingung in '.$funktion.' ist ein wartender oneshot-Dienst ein Schaden.',
+            );
+        }
+
+        // **Gemessen wird im Rumpf von `zustand` und nicht in der ganzen
+        // Datei.** Der erste Wurf dieses Wächters verglich zwei Fundstellen aus
+        // *zwei* Funktionen — die Nachsicht aus `rang`, den Fehlschlag aus
+        // `zustand` — und meldete eine Reihenfolge, die es so nicht gibt.
+        //
+        // > Zwei Fundstellen aus zwei Funktionen haben keine Reihenfolge
+        // > zueinander.
+        $rumpf = self::rumpfVon($quelle, 'zustand');
+
+        $nachsicht = strpos($rumpf, 'zeile.scheduled === true');
+        $gescheitert = strpos($rumpf, "zeile.active_state === 'failed'");
+
+        $this->assertIsInt($nachsicht, 'Die Nachsicht steht nicht in der Zustandsspalte.');
+        $this->assertIsInt($gescheitert, 'Der Fehlschlag steht nicht in der Zustandsspalte.');
+        $this->assertLessThan(
+            $nachsicht,
+            $gescheitert,
+            'Die Nachsicht steht vor dem Fehlschlag — dann liest sich ein gescheiterter Lauf als „wartet".',
+        );
+    }
+
+    /**
+     * Die Meldung zählt, was die Farbe sagt.
+     *
+     * Zwei Fassungen derselben Regel laufen auseinander, und die zweite ist die,
+     * die veraltet: Die erste Fassung dieser Seite färbte über `rang` und zählte
+     * über `active_state`. Nach der Behebung waren vier Zeilen grün — und
+     * darüber stand weiter „4 Dienste laufen nicht".
+     */
+    public function test_the_notice_counts_what_the_colour_says(): void
+    {
+        $quelle = $this->withoutMarkupComments(self::quelle(self::SEITE));
+
+        $this->assertMatchesRegularExpression(
+            '/const gestoppt = computed\(.{0,120}rang\(/s',
+            $quelle,
+            'Die Meldung zählt an der Farbe vorbei.',
+        );
+    }
+
     public function test_services_and_timers_are_two_sections(): void
     {
         $controller = self::quelle(self::CONTROLLER);

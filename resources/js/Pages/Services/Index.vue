@@ -30,6 +30,15 @@ type Unit = {
   has_next: boolean | null
 
   /**
+   * Ob ein Timer diesen Dienst startet — `null` bei allem, was kein Dienst ist.
+   *
+   * Vier der eigenen zwölf sind `Type=oneshot` und stehen zwischen ihren Läufen
+   * auf `inactive`. Ohne dieses Feld sähe der gesunde Server aus wie ein
+   * kaputter.
+   */
+  scheduled: boolean | null
+
+  /**
    * Der nächste Termin, **fertig formatiert vom Server**.
    *
    * Nicht als Zahl: `toLocaleString` im Browser nimmt die Zone des Betrachters,
@@ -54,12 +63,22 @@ const props = defineProps<{
  * ist der Satz, um den es auf dieser Seite geht: `ActiveState` steht beim
  * gesunden wie beim kaputten Timer auf `active` (gemessen gegen systemd 255,
  * `docs/89 §3`). Wer die Farbe an `active_state` hängt, malt beide grün.
+ *
+ * **Und derselbe Satz spiegelverkehrt, gemessen auf `cloudsrv24` am 31. August
+ * 2026:** Ein Dienst, den ein Timer startet, steht zwischen seinen Läufen auf
+ * `inactive` — vier der eigenen zwölf sind so gebaut. Wer die Farbe allein an
+ * `active_state` hängt, malt den gesunden Server viermal rot.
+ *
+ * `failed` bleibt davon unberührt: Ein oneshot-Dienst, dessen letzter Lauf
+ * scheiterte, meldet `failed` und nicht `inactive` — gemessen, mit einem
+ * eigenen Prüfkörper je Fall.
  */
 function rang(zeile: Unit): 'ok' | 'warn' | 'critical' | 'neutral' {
   if (!zeile.present) return 'neutral'
   if (zeile.kind === 'timer' && zeile.has_next === false) return 'critical'
   if (zeile.active_state === 'active') return 'ok'
   if (zeile.active_state === 'activating') return 'warn'
+  if (zeile.scheduled === true && zeile.active_state === 'inactive') return 'ok'
   return 'critical'
 }
 
@@ -75,6 +94,7 @@ function zustand(zeile: Unit): string {
   if (zeile.active_state === 'active') return zeile.sub_state === 'running' ? 'läuft' : 'bereit'
   if (zeile.active_state === 'activating') return 'startet neu'
   if (zeile.active_state === 'failed') return 'fehlgeschlagen'
+  if (zeile.scheduled === true && zeile.active_state === 'inactive') return 'wartet auf seinen Timer'
   return 'gestoppt'
 }
 
@@ -92,9 +112,16 @@ function termin(zeile: Unit): string {
 }
 
 const kaputt = computed(() => props.timers.filter((t) => t.present && t.has_next === false).length)
-const gestoppt = computed(
-  () => props.services.filter((s) => s.present && s.active_state !== 'active').length,
-)
+/**
+ * Wie viele Dienste nicht tun, was sie sollen.
+ *
+ * **Gezählt wird über `rang` und nicht über `active_state`.** Eine zweite
+ * Fassung derselben Regel ist die, die veraltet: Die erste Fassung dieser Zeile
+ * fragte `active_state !== 'active'` und meldete damit auf einem gesunden
+ * Server „4 Dienste laufen nicht", während dieselben vier Zeilen daneben
+ * längst grün waren.
+ */
+const gestoppt = computed(() => props.services.filter((s) => rang(s) === 'critical').length)
 </script>
 
 <template>

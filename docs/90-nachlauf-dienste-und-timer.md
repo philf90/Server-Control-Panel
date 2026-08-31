@@ -85,9 +85,25 @@ muss antworten; meldet die Shell *„Kommando nicht gefunden"*, ist das Panel do
 nicht installiert, und jede weitere Zeile misst eine fremde Maschine.
 
 **Erwartet:** `0.7.3-rc.1`; systemd irgendwo zwischen 249 und 257; die zwölf
-eigenen Units `loaded` **und** `active`; von den fremden **je Rolle mindestens
-einer** `loaded` — `nginx.service`, eine der beiden Datenbankunits, eine der
-beiden SSH-Units, eine der beiden Cron-Units.
+eigenen Units `loaded`; von den fremden **je Rolle mindestens einer** `loaded` —
+`nginx.service`, eine der beiden Datenbankunits, eine der beiden SSH-Units, eine
+der beiden Cron-Units.
+
+**Und `active` erwartet hier nur, wer die Bauart nicht kennt.** Bis zum
+31. August stand an dieser Stelle „die zwölf eigenen Units `loaded` **und**
+`active`", und das ist für **vier** von ihnen unerfüllbar: `srvpanel-usage`,
+`srvpanel-tls`, `srvpanel-cron` und `srvpanel-dns` sind `Type=oneshot`. Sie
+laufen, wenn ihr Timer sie startet, und stehen dazwischen auf `inactive` — das
+ist ihr gesunder Zustand, und ihre vier Timer stehen `active` daneben.
+
+Erwartet sind deshalb **acht** eigene Units `active`, **vier** `inactive` mit
+laufendem Timer.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
+Gemessen hat der Lauf dann genau das — und dabei einen Befund **am Prüfling**
+gebracht: Die Seite malte die vier wartenden Dienste rot und meldete darüber
+„4 Dienste laufen nicht". Er ist behoben, bevor Punkt 1 gefahren wird.
 
 **„Je Rolle mindestens einer" und nicht „genau einer".** Gemessen am 31. August
 auf einem Debian 13: `ssh.service` **und** `sshd.service` sind dort **beide**

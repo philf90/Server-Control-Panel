@@ -1351,7 +1351,18 @@ schluckt; dazu: der benannte Lauf benutzt kein `--only-upgrade`, weil das ein
 noch nicht installiertes Paket wortlos überginge) und `UnattendedStateTest`
 (der Zustand der Automatik kommt aus `apt-config dump` und nicht aus der
 eigenen Datei; eine fehlende Zeile heisst **an** und nicht aus; das Ausschalten
-nimmt das Auffrischen der Listen nicht mit). Der Bruch selbst steht als
+nimmt das Auffrischen der Listen nicht mit) und `UnitStateTest` (der Leser für
+`systemctl show`, mit gemessenen Prüfkörpern statt erfundenen — dazu die
+Zuordnung Dienst ↔ Timer: sie kommt aus `Triggers` **am Timer**, überlebt einen
+gestoppten Timer, und `markScheduled` **wird gerufen** und rechnet nicht bloss
+richtig) und `UnitCatalogTest` (jede paketierte Unit steht im Katalog und jede
+im Katalog ist paketiert — beide Richtungen, weil ein toter Eintrag bei einer
+Umbenennung entsteht) und `ServicesViewTest` (die Farbe einer Zeile folgt dem
+nächsten Termin und nicht `ActiveState`, und ein Dienst, den ein Timer startet,
+darf stillstehen — gefragt wird je **Funktionsrumpf**, weil eine Zeichenkette
+irgendwo auf der Seite nichts über die Funktion sagt, in der sie wirken soll)
+und `NavGroupTest` (jede Gruppe der Navigation trennt an der Grenze, an der auch
+die Route trennt). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -1693,7 +1704,12 @@ von A2 auf `cloudsrv24`: elf Punkte, von denen Punkt 4 das Kriterium trägt
 Ausschlusskriterium ist (der Mehrfachleser ist gegen **drei** Units gemessen
 und fragt auf dem Server **neunzehn**; passt die Blockzahl nicht, gibt die
 ganze Seite einen 500er). §13 sagt, was er ausdrücklich nicht prüft, §14, wann
-er durch ist und welche zwei Punkte als „nicht herstellbar" ausfallen dürfen.
+er durch ist und welche zwei Punkte als „nicht herstellbar" ausfallen dürfen —
+und **`91` das Protokoll dazu**: §1 der gemessene Ausgangszustand (systemd 255
+auf dem Server, sechzehn Zeilen aus neunzehn Kandidaten), §2 die Messrunde, die
+Befund 1 nötig gemacht hat, §3 der Befund selbst mit seinen sechs Wächtern und
+acht Brüchen, §4 was noch aussteht. **Der Lauf ist nicht durch** — §1 ist
+gemessen, die Punkte 1 bis 11 stehen aus.
 
 Und **`65` der Serverlauf zu `v0.6.0-rc.20`** — die elf Punkte, mit denen die
 sieben Befunde der zweiten Runde und die drei Wünsche auf einem echten Server

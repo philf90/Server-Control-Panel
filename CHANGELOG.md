@@ -22940,6 +22940,73 @@ Dienste-Seite —, kommt mit Begründung dazu und nicht als Erbe aus P0.
 steuerbar, und die zwölf eigenen tun es. Drei Eingriffe im Bruchskript sind
 umgehängt und neu belegt — der geprüfte war ein anderer als der eingetragene.
 
+### Der gesunde Server meldete vier Schäden — der Timer-Fehler spiegelverkehrt
+
+Gefunden auf `cloudsrv24` beim Aufnehmen des Ausgangszustands für den Nachlauf
+zu `0.7.3-rc.1` (`docs/91 §1`). Vier der zwölf eigenen Dienste sind
+`Type=oneshot` — `srvpanel-usage`, `srvpanel-tls`, `srvpanel-cron` und
+`srvpanel-dns`. Sie laufen, wenn ihr Timer sie startet, und stehen dazwischen
+auf `inactive`. Genau so standen sie da, und der Server war in Ordnung.
+
+Die Seite hat daraus vier rote Zeilen mit dem Wort „gestoppt" gemacht und
+darüber „4 Dienste laufen nicht" gesetzt.
+
+> **Ein Dienst, den ein Timer startet, läuft zwischen seinen Läufen nicht — das
+> ist keine Störung, sondern seine Bauart.**
+
+Das ist derselbe Fehler, dessentwegen es A2 gibt, nur andersherum: Dort sieht
+der kaputte Timer gesund aus, hier der gesunde Dienst kaputt. Beide Male hängt
+eine Anzeige an `ActiveState`, einem Feld, das für **eine** Bauart eine Auskunft
+ist.
+
+**Kein Wächter konnte ihn sehen**, und das ist die eigentliche Lehre: Die
+Prüfkörper von `UnitStateTest` stammen aus der Messrunde vom 30. August, und
+dort gab es einen laufenden Dienst, vier Timer und eine fehlende Unit — **keinen
+oneshot-Dienst**. Die Bauart, die auf dem Zielserver in vier von zwölf Fällen
+vorkommt, kam im Prüfstand nicht vor.
+
+> **Ein Prüfstand, dem eine Bauart fehlt, ist über sie nicht still — er ist
+> grün.**
+
+**`Units::markScheduled()`** trägt jetzt an jedem Dienst nach, ob ein Timer aus
+derselben Antwort ihn startet, und `SystemUnitsList` ruft es. Gefragt wird
+`Triggers` **am Timer** und nicht `TriggeredBy` am Dienst: Gemessen gegen
+systemd 255 in beide Richtungen entsteht `TriggeredBy` erst beim Aktivieren des
+Timers und verschwindet, sobald er stoppt.
+
+> **Eine Eigenschaft, die nur dasteht, solange der andere läuft, beantwortet
+> nicht „wozu gehört dieser Dienst", sondern „läuft der andere gerade".**
+
+Ein gestoppter Timer machte seinen oneshot-Dienst sonst wieder zu einem
+Dauerdienst, und die Seite malte den Dienst rot für einen Schaden, der dem Timer
+gehört und in dessen eigener Zeile schon steht. `Triggers` kommt aus der
+Unit-Datei, steht in allen drei Zuständen da und wird für die Timer ohnehin
+gelesen — die Zuordnung kostet weder eine zweite Frage an systemd noch eine
+Liste in diesem Repo.
+
+Die Nachsicht hängt ausdrücklich an `inactive` und nicht an „nicht aktiv": Ein
+oneshot-Dienst, dessen letzter Lauf scheiterte, steht auf `failed`, und das
+bleibt ein Schaden (gemessen mit einem eigenen Prüfkörper je Fall).
+
+**Und die Meldung zählt seitdem über `rang` statt über `active_state`.** Ohne
+diesen Schritt wären nach der Behebung vier Zeilen grün gewesen und darüber
+hätte weiter „4 Dienste laufen nicht" gestanden.
+
+> **Zwei Fassungen derselben Regel laufen auseinander, und die zweite ist die,
+> die veraltet.**
+
+Sechs Wächter, acht Brüche, jeder einzeln belegt. Einer davon hat einen Fehler
+im frisch gebauten Wächter gefunden — er suchte die Bedingung irgendwo auf der
+Seite und blieb grün, als der Eingriff sie aus `rang` entfernte und in `zustand`
+stehenliess.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald die Zeichenkette
+> irgendwo steht.**
+
+Und `docs/90 §1` hat eine Erwartung verloren, die der Prüfling nicht erfüllen
+kann: „die zwölf eigenen Units `loaded` **und** `active`". Erwartet sind acht
+`active` und vier `inactive` mit laufendem Timer.
+
 ### Die Gruppe „Server" hatte dreizehn Punkte — jetzt sind es zwei Gruppen
 
 Vom Betreiber entschieden am 30. August 2026. „Betrieb" trägt sechs Punkte

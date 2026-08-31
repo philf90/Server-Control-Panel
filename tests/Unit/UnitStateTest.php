@@ -7,6 +7,7 @@ namespace Tests\Unit;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use SrvPanel\Agent\Units;
+use Tests\Support\WithoutPhpComments;
 
 /**
  * Der Leser für `systemctl show` — und die Regel, an der A2 hängt.
@@ -38,6 +39,8 @@ use SrvPanel\Agent\Units;
  */
 final class UnitStateTest extends TestCase
 {
+    use WithoutPhpComments;
+
     /**
      * Ein laufender Dienst. Gemessen an `mess-laeuft.service`.
      *
@@ -110,6 +113,46 @@ final class UnitStateTest extends TestCase
         'LoadState=loaded',
         'ActiveState=inactive',
         'SubState=dead',
+        'UnitFileState=static',
+    ];
+
+    /**
+     * Ein oneshot-Dienst zwischen zwei Läufen. Gemessen an `probe-a.service`.
+     *
+     * Er ist **gesund** — der Timer hat ihn gestartet, er lief durch, und
+     * danach steht er wieder auf `inactive`. Vier der eigenen zwölf Dienste
+     * sind so gebaut, und auf `cloudsrv24` standen am 31. August 2026 alle vier
+     * genau so da.
+     */
+    private const ONESHOT_WARTET = [
+        'MainPID=0',
+        'NRestarts=0',
+        'ExecMainStartTimestamp=',
+        'Id=probe-a.service',
+        'Description=Sonde A oneshot mit Timer',
+        'LoadState=loaded',
+        'ActiveState=inactive',
+        'SubState=dead',
+        'UnitFileState=static',
+    ];
+
+    /**
+     * Ein oneshot-Dienst, dessen letzter Lauf scheiterte. Gemessen an
+     * `probe-d.service`.
+     *
+     * Der Unterschied zum Fall darüber ist `ActiveState`: **`failed` und nicht
+     * `inactive`.** Daran hängt, dass die Nachsicht für wartende Dienste einen
+     * echten Schaden nicht mitverdeckt.
+     */
+    private const ONESHOT_GESCHEITERT = [
+        'MainPID=0',
+        'NRestarts=0',
+        'ExecMainStartTimestamp=Mon 2026-08-31 08:09:56 UTC',
+        'Id=probe-d.service',
+        'Description=Sonde D oneshot scheitert',
+        'LoadState=loaded',
+        'ActiveState=failed',
+        'SubState=failed',
         'UnitFileState=static',
     ];
 
@@ -250,6 +293,129 @@ final class UnitStateTest extends TestCase
         $this->assertContains('NextElapseUSecRealtime', Units::FIELDS);
         $this->assertContains('NextElapseUSecMonotonic', Units::FIELDS);
         $this->assertContains('Unit', Units::FIELDS);
+    }
+
+    /**
+     * Ein Dienst, den ein Timer startet, ist als solcher erkennbar.
+     *
+     * **Das ist der Befund vom 31. August 2026 auf `cloudsrv24`.** Vier der
+     * eigenen zwölf Dienste sind `Type=oneshot`; zwischen ihren Läufen stehen
+     * sie auf `inactive`, und die Seite hat daraus vier rote Zeilen und die
+     * Meldung „4 Dienste laufen nicht" gemacht — auf einem gesunden Server.
+     */
+    public function test_a_service_a_timer_starts_is_marked_as_scheduled(): void
+    {
+        $zeilen = Units::markScheduled([
+            Units::read('probe-a.service', self::ONESHOT_WARTET),
+            Units::read('probe-a.timer', self::TIMER_KALENDER),
+        ]);
+
+        $this->assertTrue($zeilen[0]['scheduled'], 'Der Timer startet genau diesen Dienst.');
+
+        // `null` und nicht `false`: Ein Timer kann von keinem Timer gestartet
+        // werden, und das ist etwas anderes als „wird nicht" — dieselbe
+        // Unterscheidung wie bei `pid` und `has_next`.
+        $this->assertNull($zeilen[1]['scheduled'], 'Ein Timer beantwortet die Frage gar nicht.');
+    }
+
+    /**
+     * Ein Dauerdienst ohne Timer bleibt, was er ist.
+     *
+     * Ohne diesen Fall stünde die Nachsicht ohne Gegenprobe da: Ein
+     * `markScheduled`, das jeden Dienst markiert, sähe im Fall darüber genauso
+     * aus — und `srvpanel-worker` dürfte danach stillstehen, ohne dass es
+     * jemand meldet.
+     */
+    public function test_a_service_without_a_timer_is_not_marked(): void
+    {
+        $zeilen = Units::markScheduled([
+            Units::read('mess-laeuft.service', self::DIENST),
+            Units::read('probe-a.timer', self::TIMER_KALENDER),
+        ]);
+
+        $this->assertFalse($zeilen[0]['scheduled'], 'Kein Timer nennt diesen Dienst.');
+    }
+
+    /**
+     * Ein gescheiterter Lauf bleibt ein Schaden, auch wenn ein Timer startet.
+     *
+     * Gemessen: Ein oneshot-Dienst, dessen `ExecStart` mit einem Fehler endet,
+     * steht auf `failed` und nicht auf `inactive`. Die Nachsicht der Seite hängt
+     * deshalb ausdrücklich an `inactive` und nicht an „nicht aktiv".
+     */
+    public function test_a_failed_run_is_still_failed(): void
+    {
+        $zeilen = Units::markScheduled([
+            Units::read('probe-d.service', self::ONESHOT_GESCHEITERT),
+            Units::read('probe-d.timer', self::TIMER_KALENDER),
+        ]);
+
+        $this->assertSame('failed', $zeilen[0]['active_state']);
+    }
+
+    /**
+     * Die Zuordnung überlebt einen gestoppten Timer.
+     *
+     * **Das ist der Grund, warum sie aus `Triggers` am Timer kommt und nicht
+     * aus `TriggeredBy` am Dienst.** Gemessen gegen systemd 255 in beide
+     * Richtungen: `TriggeredBy` entsteht beim Aktivieren des Timers und
+     * verschwindet, sobald er stoppt — `Triggers` steht in allen drei Zuständen
+     * da, weil es aus der Unit-Datei kommt.
+     *
+     * Käme sie von der anderen Seite, machte ein von Hand gestoppter Timer
+     * seinen oneshot-Dienst wieder zu einem Dauerdienst, und die Seite malte
+     * den Dienst rot für einen Schaden, der dem Timer gehört und in dessen
+     * eigener Zeile schon steht.
+     */
+    public function test_the_pairing_survives_a_stopped_timer(): void
+    {
+        $zeilen = Units::markScheduled([
+            Units::read('probe-a.service', self::ONESHOT_WARTET),
+            Units::read('probe-a.timer', self::TIMER_GESTOPPT),
+        ]);
+
+        $this->assertTrue($zeilen[0]['scheduled'], 'Ein gestoppter Timer nennt seinen Dienst weiter.');
+        $this->assertFalse($zeilen[1]['has_next'], 'Der Schaden gehört in die Zeile des Timers.');
+    }
+
+    /**
+     * Die Zuordnung **wird gerufen** und rechnet nicht nur richtig.
+     *
+     * Dieselbe Lehre wie bei `SourceKeyFilterTest`: Ein Leser, der stimmt und
+     * den niemand aufruft, ist von einem, den es nicht gibt, an der Anzeige
+     * nicht zu unterscheiden. Die Fälle darüber prüfen die Rechnung; dieser
+     * prüft, dass sie im Weg steht.
+     */
+    public function test_the_operation_actually_pairs_the_rows(): void
+    {
+        $quelle = file_get_contents(__DIR__.'/../../agent/src/Ops/SystemUnitsList.php');
+
+        $this->assertIsString($quelle);
+        $this->assertStringContainsString(
+            'Units::markScheduled(',
+            $this->withoutComments($quelle),
+            'Die Zeilen werden nicht gepaart — jeder oneshot-Dienst steht dann als gestoppt da.',
+        );
+    }
+
+    /**
+     * Gefragt wird der Timer und nicht der Dienst.
+     *
+     * Geprüft am Quelltext **ohne Kommentare**: Der Kopf von `markScheduled`
+     * führt `TriggeredBy` in einer Tabelle, und ein Wächter, der die ganze
+     * Datei durchsucht, bisse an der Begründung statt an der Regel.
+     */
+    public function test_the_query_does_not_ask_the_service_side(): void
+    {
+        $quelle = file_get_contents(__DIR__.'/../../agent/src/Units.php');
+
+        $this->assertIsString($quelle);
+        $this->assertNotContains('TriggeredBy', Units::FIELDS);
+        $this->assertStringNotContainsString(
+            'TriggeredBy',
+            $this->withoutComments($quelle),
+            'TriggeredBy steht nur da, solange der Timer läuft — es beantwortet die Frage nicht.',
+        );
     }
 
     /**

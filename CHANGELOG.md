@@ -22905,3 +22905,37 @@ sieht, gedreht wird mit `operate-server`, und diese Stufe dreht nichts.
 Gemessen bei 390 und 1440 px in beiden Themes: `dokument = 0 px`, Gegenprobe
 200/200, `schiebt = 0`, bei 390 px rollen die beiden Tabellenbehälter wie
 gewollt (342 px und 378 px).
+
+### Die Positivliste führt jetzt, was benutzt wird — vier Einträge werden einer
+
+Vom Betreiber entschieden am 30. August 2026, nachdem zwei Befunde aus A2
+Schritt 2 vorlagen. `ServiceAction::ALLOWED_UNITS` trägt nur noch `srvpanel-*`.
+
+**`php*-fpm.service` hat nie etwas erlaubt.** Der Vergleicher löst einen Stern
+nur am Ende eines Musters auf; ein Stern in der Mitte fällt in den
+Gleichheitsvergleich, und eine Unit, die wörtlich so heisst, lässt
+`Guard::unitName()` gar nicht erst durch.
+
+> **Ein Muster in einer Positivliste, das die Liste selbst nicht auflösen kann,
+> ist kein Eintrag — es ist eine Behauptung.**
+
+Gefährlich war er in genau einer Richtung: Hätte jemand später den Vergleicher
+erweitert, wäre PHP-FPM stillschweigend steuerbar geworden.
+
+**`nginx.service` und `mariadb.service` haben etwas erlaubt, das niemand
+benutzt.** Ausgezählt: Der einzige Aufrufer von `service.action` ist `Setup`,
+und der schickt `srvpanel-web`, `-worker` und `-metrics`. nginx wird über
+`PanelTls` und `NginxApply` neu geladen, die Datenbank über `DbRemoteAccess` —
+alle drei über eng gefasste Operationen, die genau eine Handlung kennen.
+
+> **Eine Positivliste, die mehr erlaubt, als irgendwer benutzt, beschreibt eine
+> Absicht und nicht den Gebrauch.**
+
+Damit ist auch die Ungleichheit zwischen `mariadb.service` und `mysql.service`
+aufgelöst, und zwar nach unten: Beide sind nicht steuerbar, statt beide zu
+erlauben. Was ein späterer Schritt braucht — Knöpfe je Unit auf der
+Dienste-Seite —, kommt mit Begründung dazu und nicht als Erbe aus P0.
+
+`UnitCatalogTest` hält das in beide Richtungen: keine fremde Unit gilt als
+steuerbar, und die zwölf eigenen tun es. Drei Eingriffe im Bruchskript sind
+umgehängt und neu belegt — der geprüfte war ein anderer als der eingetragene.

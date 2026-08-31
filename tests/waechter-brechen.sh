@@ -20174,7 +20174,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== UnitCatalogTest: nginx gilt als nicht steuerbar =="
+echo "== UnitCatalogTest: nginx gilt wieder als steuerbar =="
 #
 # Die andere Richtung: Was der Katalog nicht steuert, muss ServiceAction
 # ablehnen -- sonst sagen die beiden Listen Verschiedenes.
@@ -20182,13 +20182,13 @@ vorher_datei agent/src/Catalog.php
 python3 - <<'PY2'
 p = 'agent/src/Catalog.php'
 s = open(p, encoding='utf-8').read()
-alt = """'webserver' => ['nginx.service' => true],"""
+alt = """'webserver' => ['nginx.service' => false],"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, """'webserver' => ['nginx.service' => false],""", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """'webserver' => ['nginx.service' => true],""", 1))
 PY2
-griff_datei agent/src/Catalog.php "nginx gilt als nicht steuerbar" &&
-pruefe "nginx gilt als nicht steuerbar" \
-  UnitCatalogTest::test_what_the_catalogue_does_not_control_is_denied failed
+griff_datei agent/src/Catalog.php "nginx gilt wieder als steuerbar" &&
+pruefe "nginx gilt wieder als steuerbar" \
+  UnitCatalogTest::test_nothing_foreign_counts_as_controlled failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
@@ -20250,19 +20250,19 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== UnitCatalogTest: die Positivliste verliert nginx =="
+echo "== UnitCatalogTest: die Positivliste bekommt einen fremden Eintrag =="
 
 vorher_datei agent/src/Ops/ServiceAction.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/ServiceAction.php'
 s = open(p, encoding='utf-8').read()
-alt = """        'nginx.service',\n"""
+alt = """        'srvpanel-*',\n"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, """""", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        'srvpanel-*',\n        'nginx.service',\n""", 1))
 PY2
-griff_datei agent/src/Ops/ServiceAction.php "Positivliste ohne nginx" &&
-pruefe "Positivliste ohne nginx" \
-  UnitCatalogTest::test_what_the_catalogue_calls_controlled_is_allowed failed
+griff_datei agent/src/Ops/ServiceAction.php "Positivliste mit fremdem Eintrag" &&
+pruefe "Positivliste mit fremdem Eintrag" \
+  UnitCatalogTest::test_the_allowlist_carries_only_what_is_used failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
@@ -20290,7 +20290,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== UnitCatalogTest: mysql gilt als steuerbar =="
+echo "== UnitCatalogTest: die Datenbank gilt wieder als steuerbar =="
 #
 # Die Ungleichheit zwischen mariadb und mysql ist der Bestand und kein Entwurf.
 # Wer sie beim Aufraeumen geradezieht, weitet eine Sicherheitsgrenze -- und
@@ -20299,12 +20299,12 @@ vorher_datei agent/src/Catalog.php
 python3 - <<'PY2'
 p = 'agent/src/Catalog.php'
 s = open(p, encoding='utf-8').read()
-alt = "'mariadb.service' => true, 'mysql.service' => false"
+alt = "'mariadb.service' => false, 'mysql.service' => false"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, "'mariadb.service' => true, 'mysql.service' => true", 1))
 PY2
-griff_datei agent/src/Catalog.php "mysql gilt als steuerbar" &&
-pruefe "mysql gilt als steuerbar" \
+griff_datei agent/src/Catalog.php "Datenbank gilt wieder als steuerbar" &&
+pruefe "Datenbank gilt wieder als steuerbar" \
   UnitCatalogTest::test_what_the_catalogue_calls_controlled_is_allowed failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed

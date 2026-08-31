@@ -185,36 +185,61 @@ final class UnitCatalogTest extends TestCase
     }
 
     /**
-     * **Ein toter Eintrag in der Positivliste, festgehalten und nicht behoben.**
+     * Die Positivliste führt genau das, was benutzt wird.
      *
-     * `ServiceAction::ALLOWED_UNITS` führt `php*-fpm.service`. Der Vergleicher
-     * kennt Sterne aber nur am **Ende** eines Musters; ein Stern in der Mitte
-     * fällt in den Gleichheitsvergleich, und keine Unit heisst wörtlich
-     * `php*-fpm.service`. Der Eintrag hat also nie etwas erlaubt.
+     * **Am 30. August 2026 vom Betreiber entschieden.** Bis dahin standen dort
+     * vier Einträge; drei waren ungenutzt und einer wirkungslos.
      *
-     * > **Ein Muster in einer Positivliste, das die Liste selbst nicht auflösen
-     * > kann, ist kein Eintrag — es ist eine Behauptung.**
+     * `php*-fpm.service` hat nie etwas erlaubt — der Vergleicher löst einen
+     * Stern nur am Ende auf, und eine Unit, die wörtlich so heisst, lässt
+     * `Guard::unitName()` nicht durch. `nginx.service` und `mariadb.service`
+     * haben etwas erlaubt, das niemand benutzt: Der einzige Aufrufer von
+     * `service.action` ist `Setup`, und der schickt eigene Units. Beide
+     * Dienste werden über eigene, eng gefasste Operationen bedient.
      *
-     * Gemessen ist auch, dass es niemandem fehlt: Der einzige Aufrufer von
-     * `service.action` ist `Setup`, und der schickt keine PHP-Unit.
+     * > **Eine Positivliste, die mehr erlaubt, als irgendwer benutzt,
+     * > beschreibt eine Absicht und nicht den Gebrauch.**
      *
-     * Behoben wird das hier **nicht**, weil die beiden Wege in entgegengesetzte
-     * Richtungen zeigen — den Eintrag zu streichen nimmt eine Erlaubnis weg,
-     * den Vergleicher zu erweitern gibt eine dazu. Das entscheidet der
-     * Betreiber. Bis dahin hält dieser Fall den gemessenen Zustand fest, damit
-     * eine Änderung daran eine bewusste ist und keine Nebenwirkung.
+     * Dieser Fall hält die Kürzung fest: Was ein späterer Schritt braucht,
+     * kommt mit Begründung dazu — und wird hier sichtbar, statt sich als
+     * Nebenwirkung einzuschleichen.
      */
-    public function test_the_php_fpm_pattern_currently_matches_nothing(): void
+    public function test_the_allowlist_carries_only_what_is_used(): void
     {
-        $this->assertFalse(ServiceAction::allows('php8.3-fpm.service'));
-        $this->assertFalse(ServiceAction::allows('php8.4-fpm.service'));
-        // Das Einzige, was dieses Muster je erlauben kann, ist eine Unit, die
-        // wörtlich `php*-fpm.service` heisst — und die kann es nicht geben, weil
-        // `Guard::unitName()` den Stern nicht durchlässt. Genau das macht den
-        // Eintrag tot statt bloss ungenau.
-        $this->assertTrue(
-            ServiceAction::allows('php*-fpm.service'),
-            'Der Wortlaut des Musters trifft sich selbst — fällt das weg, ist der Vergleicher ein anderer.',
+        foreach (['nginx.service', 'mariadb.service', 'mysql.service', 'php8.3-fpm.service'] as $unit) {
+            $this->assertFalse(
+                ServiceAction::allows($unit),
+                $unit.' ist wieder steuerbar — das ist eine Erweiterung der Sicherheitsgrenze.',
+            );
+        }
+
+        // Und die Gegenrichtung: Ohne sie wäre eine leere Liste auch grün.
+        $this->assertTrue(ServiceAction::allows('srvpanel-worker.service'));
+        $this->assertTrue(ServiceAction::allows('srvpanel-agentd.service'));
+    }
+
+    /**
+     * Nur die eigenen Units gelten als steuerbar.
+     *
+     * Der Katalog und die Positivliste stimmen darin überein — geprüft wird
+     * das oben in beide Richtungen. Hier steht die Zahl, damit ein Umbau, der
+     * eine fremde Unit still auf `true` setzt, auch dann auffällt, wenn er die
+     * Positivliste gleich mitändert.
+     */
+    public function test_nothing_foreign_counts_as_controlled(): void
+    {
+        $fremdeGesteuert = array_values(array_filter(
+            Catalog::all(),
+            static fn (array $zeile): bool => ! $zeile['own'] && $zeile['controlled'],
+        ));
+
+        $this->assertSame(
+            [],
+            array_column($fremdeGesteuert, 'unit'),
+            'Eine fremde Unit gilt als steuerbar — dann ist das eine Entscheidung, die jemand treffen muss.',
         );
+
+        $eigeneGesteuert = array_filter(Catalog::all(), static fn (array $z): bool => $z['controlled']);
+        $this->assertCount(12, $eigeneGesteuert, 'Die zwölf eigenen Units sind steuerbar — sonst prüft das nichts.');
     }
 }

@@ -92,13 +92,17 @@ final class Catalog
     /**
      * Fremde Units je Aufgabe, und je Unit, ob das Panel sie steuern darf.
      *
-     * **Die Flagge sitzt an der Unit und nicht an der Aufgabe**, weil
-     * `mariadb.service` steuerbar ist und `mysql.service` nicht. Das ist kein
-     * Entwurf, sondern der Bestand: `ServiceAction` führt seit P5 nur MariaDB,
-     * und `DbRemoteAccess` startet beide auf einem anderen Weg neu. Die
-     * Ungleichheit gehört benannt und nicht stillschweigend beim Umbau
-     * geradegezogen — eine Sicherheitsgrenze weitet man auf Ansage und nicht
-     * als Nebenwirkung.
+     * **Keine davon ist steuerbar, und das ist am 30. August 2026 entschieden
+     * worden.** Bis dahin stand `mariadb.service` in der Positivliste und
+     * `mysql.service` nicht, obwohl `DbRemoteAccess` beide neu startet — eine
+     * Ungleichheit, die niemand entschieden hatte. Ausgezählt hat sie auch
+     * niemand gebraucht: Der einzige Aufrufer von `service.action` ist `Setup`,
+     * und der schickt nur eigene Units.
+     *
+     * Die Flagge bleibt trotzdem an der Unit und nicht an der Aufgabe: Ein
+     * späterer Schritt, der Knöpfe je Unit baut, entscheidet je Unit, und eine
+     * Flagge an der Rolle zwänge ihn, zwei Geschmacksrichtungen gleich zu
+     * behandeln, ohne das zu meinen.
      *
      * Eine Methode und keine Konstante, weil die SFTP-Namen von
      * {@see SftpAccess} kommen und eine Konstante keinen Aufruf enthalten darf.
@@ -108,8 +112,8 @@ final class Catalog
     public static function foreign(): array
     {
         return [
-            'webserver' => ['nginx.service' => true],
-            'database' => ['mariadb.service' => true, 'mysql.service' => false],
+            'webserver' => ['nginx.service' => false],
+            'database' => ['mariadb.service' => false, 'mysql.service' => false],
             'sftp' => array_fill_keys(SftpAccess::UNITS, false),
             'cron' => ['cron.service' => false, 'crond.service' => false],
         ];

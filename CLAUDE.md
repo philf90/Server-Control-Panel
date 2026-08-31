@@ -1687,7 +1687,13 @@ Dienste und Timer, gemessen gegen echtes systemd 255 in einer eigenen Namespace:
 §1 wie dieser Container einen Systemmanager bekommt, §2 dass ein Timer nur sechs
 der neun Felder von `ServiceStatus` beantwortet, §3 die Messung, die den Entwurf
 entscheidet, §6 der eigene Fehler dieser Runde und §7 was auf dem Zielserver
-offen bleibt.
+offen bleibt. Und **`90` der Nachlauf zu `0.7.3-rc.1`** — die Abnahme
+von A2 auf `cloudsrv24`: elf Punkte, von denen Punkt 4 das Kriterium trägt
+(ein Timer ohne Termin ist als kaputt erkennbar) und Punkt 2 ein
+Ausschlusskriterium ist (der Mehrfachleser ist gegen **drei** Units gemessen
+und fragt auf dem Server **neunzehn**; passt die Blockzahl nicht, gibt die
+ganze Seite einen 500er). §13 sagt, was er ausdrücklich nicht prüft, §14, wann
+er durch ist und welche zwei Punkte als „nicht herstellbar" ausfallen dürfen.
 
 Und **`65` der Serverlauf zu `v0.6.0-rc.20`** — die elf Punkte, mit denen die
 sieben Befunde der zweiten Runde und die drei Wünsche auf einem echten Server

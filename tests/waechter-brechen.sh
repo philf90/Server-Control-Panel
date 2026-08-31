@@ -20463,6 +20463,98 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
+echo "== NavGroupTest: eine Einstellung kommt dazu =="
+#
+# Die Untergrenze: Ohne die Zahlen waeren beide Richtungen auch dann gruen,
+# wenn der Ausdruck des Lesers gar nichts faende.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = """    { group: 'Einstellungen', items: [
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, """    { group: 'Einstellungen', items: [
+      { name: 'Mailversand2', href: '/settings/mail2', icon: 'mail' },
+""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Einstellung kommt dazu" &&
+pruefe "Einstellung kommt dazu" \
+  NavGroupTest::test_the_comparison_has_something_to_compare failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NavGroupTest passed
+
+echo
+echo "== NavGroupTest: eine Einstellung faellt weg =="
+
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = """      { name: 'Zertifikat', href: '/settings/tls', icon: 'tls', ability: 'operate-server' },
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, """""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Einstellung faellt weg" &&
+pruefe "Einstellung faellt weg" \
+  NavGroupTest::test_the_comparison_has_something_to_compare failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NavGroupTest passed
+
+echo
+echo "== NavGroupTest: ein fremder Punkt steht in Einstellungen =="
+#
+# Die Gegenrichtung -- ohne sie wuechse die Gruppe ueber Jahre zu einem
+# zweiten Topf, genau dem, aus dem sie entstanden ist.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = """      { name: 'Allgemein', href: '/settings/general', icon: 'general', ability: 'manage-settings' },"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, """      { name: 'Allgemein', href: '/general', icon: 'general', ability: 'manage-settings' },""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "fremder Punkt in Einstellungen" &&
+pruefe "fremder Punkt in Einstellungen" \
+  NavGroupTest::test_the_settings_group_carries_nothing_else failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NavGroupTest passed
+
+echo
+echo "== NavGroupTest: die beiden Gruppen wachsen wieder zusammen =="
+#
+# **Zwei Haelften, und das ist der Punkt.** Der erste Wurf entfernte nur die
+# schliessende Klammer; die Gruppenzeile stand weiter da, der Leser sah weiter
+# zwei Gruppen, und der Eingriff veraenderte die Datei, ohne die Regel zu
+# verletzen. Ein Eingriff, der wirkt und nichts belegt, ist der teuerste.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = """    ] },
+
+    /*
+     * **Alles, was man einstellt"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, """    /*
+     * **Alles, was man einstellt""", 1)
+alt2 = """    { group: 'Einstellungen', items: [
+"""
+assert s.count(alt2) == 1, 'Zweite Zielstelle nicht eindeutig'
+s = s.replace(alt2, """""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Gruppen wachsen zusammen" &&
+pruefe "Gruppen wachsen zusammen" \
+  NavGroupTest::test_no_group_grows_back_into_a_pot failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NavGroupTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

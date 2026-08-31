@@ -248,7 +248,25 @@ const navigation = computed(() => {
       // liegt in welchem Abonnement" ist eine Frage des Betreibers.
       { name: 'Datenbanken', href: '/databases', icon: 'databases' },
     ] },
-    { group: 'Server', items: [
+    /*
+     * **„Betrieb" und „Einstellungen" waren bis zum 30. August 2026 eine
+     * Gruppe namens „Server" — mit dreizehn Punkten.**
+     *
+     * Geteilt wird an der Linie, die die Adresse ohnehin zieht: Was unter
+     * `/settings/…` liegt, ist eine Einstellung; alles andere sagt, was auf
+     * diesem Server geschieht. Damit ist die Zuordnung nicht Geschmack,
+     * sondern **prüfbar** — `NavGroupTest` hält sie in beide Richtungen.
+     *
+     * Das ist die Antwort auf einen Fehler, den dieses Projekt dreimal hatte
+     * (Dateimanager, SFTP-Zugang, „Job anlegen"): Der Ort eines Menüpunkts hing
+     * an einem Urteil, das kein Test halten konnte. Eine Gruppe, deren Grenze
+     * aus der Route folgt, kann einer.
+     *
+     * Der Quelltext hat die Grenze übrigens schon gekannt — im Kommentar zu
+     * „Updates" steht seit A1: „Nicht unten bei PHP-Versionen und
+     * Datenbankserver. Die sind Einstellungen." Sie war gedacht und nie gezogen.
+     */
+    { group: 'Betrieb', items: [
       { name: 'Vorgänge', href: '/operations', icon: 'operations' },
       { name: 'Protokoll', href: '/audit', icon: 'log' },
 
@@ -320,21 +338,39 @@ const navigation = computed(() => {
        *   Vor jedem neuen Merkmal: Wo sucht jemand diese Handlung, und steht
        *   sie dort?
        *
-       * **Der Eintrag steht heute auch beim Administrator, und der bekommt
-       * darauf einen 403.** Das ist kein Versehen, sondern der Zustand nach
-       * A9 Schritt 2: Diese Navigation kommt aus dem Kontotyp, und seit die
-       * Gates über die Rolle auflösen, gilt das für sechs Einträge daneben
-       * genauso — „PHP-Versionen" bis „DNS-Zugang". Schritt 5 gibt allen
-       * sieben dieselbe Antwort aus der Policy statt aus dem Kontotyp
-       * (`docs/82 §7`). Hier eine eigene Bedingung auf die Rolle zu setzen,
-       * wäre deren zweite Fassung — und die zweite veraltet.
+       * **Hier stand bis zum 30. August 2026, der Eintrag erscheine auch beim
+       * Administrator und gebe ihm einen 403.** Das galt zwischen A9 Schritt 2
+       * und Schritt 5 und gilt seitdem nicht mehr: Die Navigation siebt über
+       * `darf()` an der geteilten Fähigkeitsablage, und `ability` steht an
+       * diesem Eintrag wie an jedem anderen.
+       *
+       * > **Ein Kommentar, der einen Zustand beschreibt, veraltet ohne
+       * > Vorwarnung — und nichts prüft ihn.** Gefunden hat das kein Wächter,
+       * sondern der Umbau der Gruppe, der diese Zeilen anfasste.
        */
       { name: 'Konten', href: '/accounts', icon: 'accounts', ability: 'operate-server' },
 
+    ] },
+
+    /*
+     * **Alles, was man einstellt — und genau das, was unter `/settings/…`
+     * liegt.**
+     *
+     * Die eine Ausnahme steht in `NavGroupTest` benannt: `/settings/profile`
+     * ist „Mein Konto" und gehört in die Gruppe „Konto". Es ist keine
+     * Einstellung dieses Servers, sondern die des Betrachters — wer sein
+     * Passwort ändern will, sucht sie bei sich und nicht beim Mailversand.
+     */
+    { group: 'Einstellungen', items: [
       /*
-       * **Neben „Konten", und das ist die Begründung.** Das eine sagt, *wer*
-       * an diesen Server darf, das andere *von wo*. Zwei Hälften derselben
-       * Frage; wer die eine sucht, sucht die andere gleich mit.
+       * **„Zugang" steht hier und nicht bei „Konten", obwohl es dorthin
+       * gehörte.** Das eine sagt, *wer* an diesen Server darf, das andere *von
+       * wo* — zwei Hälften derselben Frage.
+       *
+       * Den Ausschlag gibt die Adresse: `/settings/access`. Eine Gruppe, deren
+       * Grenze aus der Route folgt, ist prüfbar; eine, die an einem Urteil
+       * hängt, ist es nicht. Wer die beiden zusammen haben will, zieht zuerst
+       * die Route nach `/access` um — dann folgt das Menü von selbst.
        */
       { name: 'Zugang', href: '/settings/access', icon: 'access', ability: 'operate-server' },
 
@@ -344,7 +380,8 @@ const navigation = computed(() => {
       /*
        * **Dasselbe Zeichen wie „Datenbanken", und mit Absicht.** Die beiden
        * Einträge stehen in verschiedenen Gruppen — „Verwaltung" führt zu den
-       * Datenbanken der Kunden, „Server" zu dem Dienst, auf dem sie liegen.
+       * Datenbanken der Kunden, „Einstellungen" zu dem Dienst, auf dem sie
+       * liegen.
        * Ein zweites, ähnliches Zeichen zu zeichnen hiesse, einen Unterschied
        * anzudeuten, den die Gruppe schon macht.
        */

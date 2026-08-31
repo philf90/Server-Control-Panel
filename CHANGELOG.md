@@ -22939,3 +22939,52 @@ Dienste-Seite —, kommt mit Begründung dazu und nicht als Erbe aus P0.
 `UnitCatalogTest` hält das in beide Richtungen: keine fremde Unit gilt als
 steuerbar, und die zwölf eigenen tun es. Drei Eingriffe im Bruchskript sind
 umgehängt und neu belegt — der geprüfte war ein anderer als der eingetragene.
+
+### Die Gruppe „Server" hatte dreizehn Punkte — jetzt sind es zwei Gruppen
+
+Vom Betreiber entschieden am 30. August 2026. „Betrieb" trägt sechs Punkte
+(Vorgänge, Protokoll, Logs, Dienste, Updates, Konten), „Einstellungen" sieben
+(Zugang, Allgemein, PHP-Versionen, Datenbankserver, Mailversand, Zertifikat,
+DNS-Zugang). „Verwaltung" bleibt bei fünf.
+
+**Die Trennlinie ist die Adresse**, und das ist der eigentliche Punkt: Was unter
+`/settings/…` liegt, ist eine Einstellung. Damit hängt die Zuordnung nicht an
+einem Urteil, sondern an der Route — und `NavGroupTest` kann sie in beide
+Richtungen halten.
+
+> **Eine Gruppe, deren Grenze aus der Route folgt, kann ein Wächter halten;
+> eine, die an einem Urteil hängt, nicht.**
+
+Das ist die Antwort auf einen Fehler, den dieses Projekt dreimal hatte —
+Dateimanager, SFTP-Zugang, „Job anlegen" —, und jedes Mal hat es der Betreiber
+gemeldet und kein Test. Die Frage *wo sucht jemand diese Handlung* bleibt eine
+für Menschen; gehalten wird nur die eine Grenze, die sich ableiten lässt.
+
+Der Quelltext kannte sie längst: Im Kommentar zu „Updates" steht seit A1 „Nicht
+unten bei PHP-Versionen und Datenbankserver. Die sind Einstellungen." Sie war
+gedacht und nie gezogen.
+
+**Eine benannte Ausnahme:** `/settings/profile` ist „Mein Konto" und steht in der
+Gruppe „Konto" — keine Einstellung dieses Servers, sondern die des Betrachters.
+
+**Und ein offener Punkt, benannt statt geduldet.** Die Kundennavigation führt
+unter „Konto" neun Punkte — derselbe Topf eine Stufe kleiner. Er steht als
+Ausnahme in `NavGroupTest::ZU_GROSS`, nicht als höhere Schwelle.
+
+> **Eine Ausnahme, die man aufschreibt, ist ein offener Punkt; eine Schwelle,
+> die man höher setzt, ist keiner mehr.**
+
+**Drei Funde beim Bauen, alle von Wächtern.** Ein Kommentar bei „Konten"
+behauptete, der Eintrag erscheine auch beim Administrator und gebe ihm einen
+403 — das galt zwischen A9 Schritt 2 und Schritt 5 und seitdem nicht mehr; die
+Navigation siebt über die geteilte Fähigkeitsablage. Der erste Wurf des
+Wächters zählte über beide Navigationen und kam auf elf Punkte in „Konto", weil
+Kunde und Betreiber je eine Gruppe dieses Namens führen. Und `DocblockAnchorTest`
+hat gemeldet, dass eine neue Konstante zwischen einen Dokumentationsblock und
+seine Deklaration gerutscht war.
+
+> **Zwei Listen mit gleich benannten Gruppen sind eine Liste, sobald man nur die
+> Namen liest.**
+
+Gemessen bei 390 und 1440 px in beiden Themes: `dokument = 0 px`, Gegenprobe
+200/200, `schiebt = 0`.

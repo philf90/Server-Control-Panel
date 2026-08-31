@@ -22711,3 +22711,280 @@ hat eine vierte gebaut, und der Eingriff brach ab, statt zu greifen.
 
 > **Ein Eingriff, der eine genaue Zahl festhält, misst den Bestand und nicht
 > seine eigene Wirksamkeit.**
+
+### A2 Schritt 1 — ein Timer sah aus wie ein Dienst, der nie lief
+
+Der Leser für `systemctl show` steht als `SrvPanel\Agent\Units` und beantwortet
+Dienste **und** Timer. `ServiceStatus` fragt ihn und entscheidet selbst nichts
+mehr.
+
+**Was er ablöst, war seit P0 falsch, ohne je aufzufallen.** Die neun
+Eigenschaften, die diese Operation fragt, beantwortet ein `.timer` nur zu sechst:
+`MainPID`, `ExecMainStartTimestamp` und `NRestarts` stehen bei ihm nicht als
+leerer Wert in der Ausgabe, sondern gar nicht. Gelesen wurden sie mit `?? 0` und
+`?? ''`.
+
+> **Ein Timer sah durch `service.status` aus wie ein Dienst, der nie lief — und
+> nichts an der Antwort sagte, dass die Frage nicht passte.**
+
+`null` heisst deshalb jetzt „diese Unit kennt das Feld nicht" und `0` „gemessen,
+und der Wert ist null". Ein Dienst, der gerade nicht läuft, hat `MainPID=0`; ein
+Timer hat keine PID. Das war bisher dieselbe Zahl.
+
+**Und die Regel, an der A2 hängt, wäre beim ersten Wurf falsch geworden.** Der
+nächste Termin eines Timers steht in zwei Feldern, und keines sagt allein etwas:
+Bei `OnCalendar` trägt ihn `NextElapseUSecRealtime` und die monotone Spalte steht
+auf `0`; bei `OnBootSec` ist die Realtime-Spalte **leer** und der Termin steht
+als Dauer daneben; ohne Termin ist sie leer und die andere `infinity`.
+
+> **Zwei Felder, von denen jedes im gesunden Fall leer oder null sein darf, sagen
+> einzeln nichts — erst das Paar sagt, ob ein Termin existiert.**
+
+Die naheliegende Regel „leere Realtime-Spalte heisst kein Termin" hätte jeden
+Panel-Timer unmittelbar nach einem Neustart als Schaden gemeldet — dann liegt
+`OnBootSec` vor der nächsten Kalenderzeit. Umgeworfen hat sie die Gegenprobe und
+nicht das Nachdenken.
+
+`ActiveState` taugt für die Frage nicht: Es steht beim gesunden wie beim kaputten
+Timer auf `active`. Der Satz steht seit dem 19. August in `CLAUDE.md` und ist
+seit dieser Runde gemessen statt behauptet.
+
+**Gefragt wird `show` und nicht `list-timers`**, obwohl das für Timer bequemer
+wäre: Ein von Hand gestoppter Timer verschwindet aus `list-timers --all`
+vollständig, während `show` ihn weiter beantwortet. Genau diesen Schaden soll A2
+sichtbar machen.
+
+> **Eine Liste, die nur zeigt, was läuft, kann das Fehlende nicht melden.**
+
+**Kein Datum, und das mit Absicht.** Die Werte, aus denen die Frage entschieden
+wird — leer, `0`, `infinity`, eine Dauer —, sind von der Zeitzone unabhängig. Der
+Zeitstempel ist es nicht: `systemctl` druckt ihn in der Zone des Servers, und der
+Agent setzt `TZ` nicht. `--timestamp=unix` hilft nur zur Hälfte, es erreicht
+`ExecMainStartTimestamp` und nicht `NextElapseUSecRealtime`.
+
+> **Eine Frage, die ohne Rechnung zu beantworten ist, wird nicht an eine Rechnung
+> gehängt** — sonst nimmt deren Fehlschlag die Antwort mit.
+
+Die Option steht deshalb auch nicht im Aufruf: Gemessen ist sie nur gegen
+systemd 255, die Zielplattformen fahren 249 bis 257, und lehnte eine ältere
+Fassung sie ab, käme keine einzige Zeile zurück — dann meldete **jede** Unit
+„nicht installiert".
+
+`UnitStateTest` hält die Regeln an dreizehn Fällen, deren Prüfkörper wörtlich aus
+der Messung stammen; acht Eingriffe im Bruchskript belegen, dass sie beissen.
+
+### A2 Schritt 2 — die Unitnamen lagen in zehn Dateien
+
+`SrvPanel\Agent\Catalog` ist die eine Stelle, an der steht, welche systemd-Units
+dieses Panel betreibt oder braucht. Zwölf eigene aus der Paketierung, dazu
+Webserver, Datenbank, SFTP und Cron.
+
+**Die Skizze sprach von zwei Stellen; nachgezählt waren es zehn.**
+`OverviewController` trug drei feste Namen, `ServiceAction` vier Muster, und
+dazwischen lagen `WebserverDetect`, `DbRemoteAccess`, `SftpAccess`,
+`PhpVersions`, `NginxApply`, `PanelTls`, `Unattended` und `Task`.
+
+> **Zwei Listen, die dasselbe meinen, laufen auseinander — und keine von beiden
+> ist der Ort, an dem man nachsieht.**
+
+**Der Katalog nennt Kandidaten und keine Zusagen.** `ssh.service` und
+`sshd.service` sind dieselbe Unit unter zwei Namen, `mariadb.service` und
+`mysql.service` zwei Geschmacksrichtungen derselben Aufgabe. Welche davon es
+gibt, entscheidet nicht die Liste: `systemctl show` beantwortet eine unbekannte
+Unit mit `LoadState=not-found`.
+
+> **Eine Unit, die es nicht gibt, beantwortet sich selbst.** Der Katalog muss
+> nicht wissen, was installiert ist — nur, was in Frage kommt.
+
+Deshalb steht dort keine zweite Auflösung von `ssh` gegen `sshd` neben der in
+`SftpAccess`, wo sie gemessen wurde, und keine zweite Geschmackserkennung neben
+der in `DbRemoteAccess`. Die versionierten Units (`php8.3-fpm.service`,
+`postgresql@16-main.service`) stehen bewusst nicht drin — ihre Namen baut, wer
+sie kennt.
+
+**Steuern ist etwas anderes als Zeigen.** Jeder Eintrag sagt, ob `service.action`
+ihn anfassen darf; die Positivliste selbst bleibt, wo eine Sicherheitsgrenze
+hingehört. `UnitCatalogTest` hält beide in beiden Richtungen aneinander und
+fragt dafür `ServiceAction::allows()` — die Entscheidung, die im Betrieb fällt,
+statt einer Abschrift davon.
+
+> **Eine Liste, die etwas erlaubt, und eine, die etwas zeigt, sind nicht
+> dieselbe Liste — aber sie dürfen einander nicht widersprechen.**
+
+`ssh` und `cron` sind namentlich ausgenommen und stehen zusätzlich als eigener
+Fall da: Fiele ihr Katalogeintrag weg, prüfte die Schleife darüber sie nicht
+mehr und bliebe grün.
+
+**Die Übersicht zeigt weiter dieselben drei Zeilen**, holt ihre Auswahl aber aus
+`Catalog::essential()`. Sie ist eine Eigenschaft der Unit und keine der Seite —
+sonst wüsste eine Klasse des Agenten, welche Ansicht das Panel gerade zeichnet.
+Von mehreren Kandidaten gewinnt der, den es gibt; auf einem MariaDB-Server
+kostet das keinen Aufruf mehr als vorher, weil der erste antwortet.
+
+**Zwei Befunde, beide gemessen und beide nicht behoben.**
+
+Der erste: `ServiceAction::ALLOWED_UNITS` führt `php*-fpm.service`, und der
+Vergleicher kennt Sterne nur am **Ende** eines Musters. Ein Stern in der Mitte
+fällt in den Gleichheitsvergleich, und das Einzige, was der Eintrag je erlauben
+könnte, ist eine Unit, die wörtlich so heisst — die lässt `Guard::unitName()`
+nicht durch. Der Eintrag hat nie etwas erlaubt.
+
+> **Ein Muster in einer Positivliste, das die Liste selbst nicht auflösen kann,
+> ist kein Eintrag — es ist eine Behauptung.**
+
+Es fehlt auch niemandem: Der einzige Aufrufer von `service.action` ist `Setup`,
+und der schickt keine PHP-Unit. Behoben wird es hier nicht, weil die beiden Wege
+in entgegengesetzte Richtungen zeigen — den Eintrag streichen nimmt eine
+Erlaubnis weg, den Vergleicher erweitern gibt eine dazu.
+
+Der zweite: `mariadb.service` ist steuerbar, `mysql.service` nicht, obwohl
+`DbRemoteAccess` beide neu startet. Auch das bleibt, wie es ist — eine
+Sicherheitsgrenze weitet man auf Ansage und nicht als Nebenwirkung eines Umbaus.
+Beide Zustände sind als Fall festgehalten, damit eine Änderung daran eine
+bewusste ist.
+
+### A2 Schritt 3 — die Seite, und zwei Funde, die keine Zahl gemeldet hat
+
+`/services` zeigt die sechzehn Units des Katalogs — zwölf eigene und vier
+fremde. Bis dahin standen neun der eigenen zwölf in keiner Anzeige;
+`srvpanel-worker` konnte stillstehen, und man sah es an hängenden Vorgängen
+statt an einer Zeile.
+
+**Ein Aufruf statt neunzehn.** Gemessen: `systemctl show a b c` beantwortet alle
+in einem Lauf, die Blöcke durch eine Leerzeile getrennt und in der gefragten
+Reihenfolge. Gelesen wird `stdout` roh — `Result::lines()` wirft leere Zeilen
+weg, also genau das, was hier die Trennung ist.
+
+> **Ein Helfer, der Leerzeilen wegwirft, nimmt die Trennung mit, die als
+> Leerzeile geschrieben ist.**
+
+Zugeordnet wird über die **Reihenfolge** und nicht über `Id`: Zwei Namen
+derselben Unit — `ssh.service` und `sshd.service` — ergeben zwei Blöcke mit
+demselben `Id`. Stimmt die Zahl der Blöcke nicht mit der Zahl der Fragen, wird
+das gemeldet und nicht geraten.
+
+**Die Timer stehen eigens**, weil ein Timer kein Dienst mit weniger Feldern ist:
+keine PID, kein Neustartzähler, kein Startzeitpunkt, dafür ein Termin. Die Farbe
+folgt dem Termin und nicht `ActiveState` — der steht beim gesunden wie beim
+kaputten Timer auf `active`, und wer die Farbe daran hängt, malt beide grün. Der
+Schaden steht als Satz da („kein nächster Termin") und nicht als Zahl.
+
+Das Datum kommt aus `systemctl list-timers --output=json`, wo systemd es selbst
+als rohe Mikrosekunden ausrechnet. **Diese zweite Frage darf fehlschlagen, ohne
+die erste mitzunehmen** — sie ist nur gegen systemd 255 gemessen. Bleibt sie
+aus, fehlt das Datum, und die Auskunft, an der das Abnahmekriterium hängt, steht
+trotzdem da. „Kein Termin" und „Termin unbekannt" sind deshalb zwei Zellen: das
+erste ein Schaden, das zweite eine Lücke im Messmittel.
+
+Formatiert wird auf dem **Server** über `Clock` (`docs/40`); ein
+`toLocaleString` auf der Seite nähme die Zone des Betrachters. Gefunden hat das
+`DisplayTimeZoneTest` — einer von sieben Wächtern, die an der neuen Seite
+zugebissen haben, bevor sie ein Mensch gesehen hat.
+
+**Und zwei Funde kamen erst aus dem Bild.** Eine Unit, die es nicht gibt,
+beantwortet `Description` mit dem erfragten Namen und `NRestarts` mit `0`. Die
+Seite zeigte daraus eine Beschreibungsspalte, die den Unitnamen wiederholt, und
+„0 Neustarts" für etwas, das nicht installiert ist.
+
+> **Ein Wert, den systemd für eine Unit liefert, die es nicht gibt, ist keine
+> Messung.**
+
+Behoben im Leser und nicht auf der Seite, damit es für jeden Betrachter gilt.
+Keine Zahl hat das gemeldet: `dokument` stand in allen vier Lagen auf 0 px, die
+Gegenprobe auf 200/200.
+
+> **Das Bild sagt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt. Keines
+> von beiden ersetzt das andere.**
+
+**Der Menüpunkt steht zwischen „Logs" und „Updates".** Die Gruppe liest sich als
+Vergangenheit, Gegenwart, Zukunft, Rechte: „Vorgänge", „Protokoll" und „Logs"
+sagen, was war; „Dienste", was jetzt läuft; „Updates", was ansteht; „Konten", wer
+darf. Die Seite gehört `inspect-server` wie die Updates — der Administrator
+sieht, gedreht wird mit `operate-server`, und diese Stufe dreht nichts.
+
+Gemessen bei 390 und 1440 px in beiden Themes: `dokument = 0 px`, Gegenprobe
+200/200, `schiebt = 0`, bei 390 px rollen die beiden Tabellenbehälter wie
+gewollt (342 px und 378 px).
+
+### Die Positivliste führt jetzt, was benutzt wird — vier Einträge werden einer
+
+Vom Betreiber entschieden am 30. August 2026, nachdem zwei Befunde aus A2
+Schritt 2 vorlagen. `ServiceAction::ALLOWED_UNITS` trägt nur noch `srvpanel-*`.
+
+**`php*-fpm.service` hat nie etwas erlaubt.** Der Vergleicher löst einen Stern
+nur am Ende eines Musters auf; ein Stern in der Mitte fällt in den
+Gleichheitsvergleich, und eine Unit, die wörtlich so heisst, lässt
+`Guard::unitName()` gar nicht erst durch.
+
+> **Ein Muster in einer Positivliste, das die Liste selbst nicht auflösen kann,
+> ist kein Eintrag — es ist eine Behauptung.**
+
+Gefährlich war er in genau einer Richtung: Hätte jemand später den Vergleicher
+erweitert, wäre PHP-FPM stillschweigend steuerbar geworden.
+
+**`nginx.service` und `mariadb.service` haben etwas erlaubt, das niemand
+benutzt.** Ausgezählt: Der einzige Aufrufer von `service.action` ist `Setup`,
+und der schickt `srvpanel-web`, `-worker` und `-metrics`. nginx wird über
+`PanelTls` und `NginxApply` neu geladen, die Datenbank über `DbRemoteAccess` —
+alle drei über eng gefasste Operationen, die genau eine Handlung kennen.
+
+> **Eine Positivliste, die mehr erlaubt, als irgendwer benutzt, beschreibt eine
+> Absicht und nicht den Gebrauch.**
+
+Damit ist auch die Ungleichheit zwischen `mariadb.service` und `mysql.service`
+aufgelöst, und zwar nach unten: Beide sind nicht steuerbar, statt beide zu
+erlauben. Was ein späterer Schritt braucht — Knöpfe je Unit auf der
+Dienste-Seite —, kommt mit Begründung dazu und nicht als Erbe aus P0.
+
+`UnitCatalogTest` hält das in beide Richtungen: keine fremde Unit gilt als
+steuerbar, und die zwölf eigenen tun es. Drei Eingriffe im Bruchskript sind
+umgehängt und neu belegt — der geprüfte war ein anderer als der eingetragene.
+
+### Die Gruppe „Server" hatte dreizehn Punkte — jetzt sind es zwei Gruppen
+
+Vom Betreiber entschieden am 30. August 2026. „Betrieb" trägt sechs Punkte
+(Vorgänge, Protokoll, Logs, Dienste, Updates, Konten), „Einstellungen" sieben
+(Zugang, Allgemein, PHP-Versionen, Datenbankserver, Mailversand, Zertifikat,
+DNS-Zugang). „Verwaltung" bleibt bei fünf.
+
+**Die Trennlinie ist die Adresse**, und das ist der eigentliche Punkt: Was unter
+`/settings/…` liegt, ist eine Einstellung. Damit hängt die Zuordnung nicht an
+einem Urteil, sondern an der Route — und `NavGroupTest` kann sie in beide
+Richtungen halten.
+
+> **Eine Gruppe, deren Grenze aus der Route folgt, kann ein Wächter halten;
+> eine, die an einem Urteil hängt, nicht.**
+
+Das ist die Antwort auf einen Fehler, den dieses Projekt dreimal hatte —
+Dateimanager, SFTP-Zugang, „Job anlegen" —, und jedes Mal hat es der Betreiber
+gemeldet und kein Test. Die Frage *wo sucht jemand diese Handlung* bleibt eine
+für Menschen; gehalten wird nur die eine Grenze, die sich ableiten lässt.
+
+Der Quelltext kannte sie längst: Im Kommentar zu „Updates" steht seit A1 „Nicht
+unten bei PHP-Versionen und Datenbankserver. Die sind Einstellungen." Sie war
+gedacht und nie gezogen.
+
+**Eine benannte Ausnahme:** `/settings/profile` ist „Mein Konto" und steht in der
+Gruppe „Konto" — keine Einstellung dieses Servers, sondern die des Betrachters.
+
+**Und ein offener Punkt, benannt statt geduldet.** Die Kundennavigation führt
+unter „Konto" neun Punkte — derselbe Topf eine Stufe kleiner. Er steht als
+Ausnahme in `NavGroupTest::ZU_GROSS`, nicht als höhere Schwelle.
+
+> **Eine Ausnahme, die man aufschreibt, ist ein offener Punkt; eine Schwelle,
+> die man höher setzt, ist keiner mehr.**
+
+**Drei Funde beim Bauen, alle von Wächtern.** Ein Kommentar bei „Konten"
+behauptete, der Eintrag erscheine auch beim Administrator und gebe ihm einen
+403 — das galt zwischen A9 Schritt 2 und Schritt 5 und seitdem nicht mehr; die
+Navigation siebt über die geteilte Fähigkeitsablage. Der erste Wurf des
+Wächters zählte über beide Navigationen und kam auf elf Punkte in „Konto", weil
+Kunde und Betreiber je eine Gruppe dieses Namens führen. Und `DocblockAnchorTest`
+hat gemeldet, dass eine neue Konstante zwischen einen Dokumentationsblock und
+seine Deklaration gerutscht war.
+
+> **Zwei Listen mit gleich benannten Gruppen sind eine Liste, sobald man nur die
+> Namen liest.**
+
+Gemessen bei 390 und 1440 px in beiden Themes: `dokument = 0 px`, Gegenprobe
+200/200, `schiebt = 0`.

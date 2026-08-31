@@ -102,6 +102,7 @@ use SrvPanel\Agent\Ops\SystemReboot;
 use SrvPanel\Agent\Ops\SystemRunOutcome;
 use SrvPanel\Agent\Ops\SystemSourcesList;
 use SrvPanel\Agent\Ops\SystemSourcesToggle;
+use SrvPanel\Agent\Ops\SystemUnitsList;
 use SrvPanel\Agent\Ops\WebIsolationProbe;
 use SrvPanel\Agent\Ops\WebLogrotate;
 use SrvPanel\Agent\Ops\WebLogsTail;
@@ -199,6 +200,7 @@ final class Registry
         $this->register(new SystemRunOutcome);
         $this->register(new SystemReboot);
         $this->register(new SystemSourcesList);
+        $this->register(new SystemUnitsList);
         $this->register(new SystemSourcesToggle);
 
         $this->register(new WebLogrotate);

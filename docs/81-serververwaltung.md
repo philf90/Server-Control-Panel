@@ -1760,6 +1760,14 @@ dass das Panel sie ausgelöst hat.
 
 ### A2 — Dienste und Timer · 1 Woche
 
+> **Die Messrunde ist gefahren und steht als `docs/89`** — 30. August 2026,
+> gegen echtes systemd 255 in einer eigenen Namespace. Drei Annahmen dieser
+> Skizze sind dort gemessen und eine ist umgeworfen: Ein Timer beantwortet nur
+> **sechs** der neun Felder, die `ServiceStatus` fragt, und die drei anderen
+> fehlen in der Ausgabe ganz. `ActiveState` ist beim gesunden wie beim kaputten
+> Timer `active`. Und der nächste Termin steht in **zwei** Feldern, von denen
+> jedes im gesunden Fall leer oder null sein darf — nur das Paar sagt etwas.
+
 **Was.** Alle Units, die das Panel betreibt oder braucht — heute drei fest
 verdrahtet (`OverviewController` Zeile 503) und vier Muster in
 `ServiceAction::ALLOWED_UNITS`. Es fehlen `postgresql`, `ssh`, `cron` und die

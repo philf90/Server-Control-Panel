@@ -26,6 +26,7 @@ use App\Http\Controllers\PhpSettingsController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ServerController;
+use App\Http\Controllers\ServicesController;
 use App\Http\Controllers\SftpController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\SubscriptionDnsController;
@@ -179,6 +180,22 @@ Route::middleware('auth')->group(function (): void {
      * Schritt 6 und braucht `systemd-run`, damit ein Neustart des Panels den
      * Lauf nicht mitnimmt.
      */
+    /*
+     * Die Dienste und Timer dieses Servers — A2.
+     *
+     * **`inspect-server` wie bei den Updates.** Der Administrator sieht den
+     * Zustand; gedreht wird mit `operate-server`, und diese Stufe dreht nichts.
+     * Zu sehen sind Unitnamen aus dem Katalog und Beschreibungen von systemd —
+     * kein Geheimnis des Betreibers.
+     *
+     * **Nur `GET`.** Start, Stopp und Neustart hängen an `service.action` und
+     * kommen mit ihrer eigenen Fähigkeit; ein Knopf, der einen Dienst anhält,
+     * gehört nicht in denselben Schritt wie die erste Ansicht.
+     */
+    Route::get('/services', [ServicesController::class, 'show'])
+        ->middleware('can:inspect-server')
+        ->name('services');
+
     Route::get('/updates', [UpdatesController::class, 'show'])
         ->middleware('can:inspect-server')
         ->name('updates');

@@ -25,12 +25,45 @@ final class ServiceAction implements Op
 {
     private const ACTIONS = ['start', 'stop', 'restart', 'reload', 'enable', 'disable'];
 
-    /** @var list<string> Genaue Namen oder Präfixe mit Stern am Ende. */
+    /**
+     * Was gesteuert werden darf.
+     *
+     * **Nur die eigenen Units, und das ist am 30. August 2026 entschieden
+     * worden.** Bis dahin standen hier vier Einträge; drei davon waren
+     * ungenutzt und einer war wirkungslos.
+     *
+     * `php*-fpm.service` hat **nie** etwas erlaubt: Der Vergleicher unten löst
+     * einen Stern nur am Ende eines Musters auf, ein Stern in der Mitte fällt
+     * in den Gleichheitsvergleich — und eine Unit, die wörtlich so heisst,
+     * lässt {@see Guard::unitName()} gar nicht erst durch.
+     *
+     * > **Ein Muster in einer Positivliste, das die Liste selbst nicht auflösen
+     * > kann, ist kein Eintrag — es ist eine Behauptung.**
+     *
+     * Gefährlich war er in genau einer Richtung: Hätte jemand später den
+     * Vergleicher erweitert, wäre PHP-FPM stillschweigend steuerbar geworden,
+     * ohne dass das jemand entschieden hat.
+     *
+     * `nginx.service` und `mariadb.service` haben etwas erlaubt, das niemand
+     * benutzt. Ausgezählt: Der einzige Aufrufer dieser Operation ist
+     * `Setup`, und der schickt `srvpanel-web`, `-worker` und `-metrics`.
+     * Beide Dienste werden über eigene, eng gefasste Operationen bedient —
+     * nginx über {@see PanelTls} und `NginxApply` (ohne `{@see}`, weil Pint
+     * daraus sonst einen `use`-Eintrag macht, den nur dieser Satz braucht),
+     * die Datenbank über {@see DbRemoteAccess}. Dort steht auch der Grund,
+     * warum: Ein `reload` nach einer geschriebenen Datei ist etwas anderes als
+     * ein `stop` aus der Oberfläche.
+     *
+     * > **Eine Positivliste, die mehr erlaubt, als irgendwer benutzt,
+     * > beschreibt eine Absicht und nicht den Gebrauch.**
+     *
+     * Was ein späterer Schritt braucht — Knöpfe je Unit auf der Dienste-Seite —
+     * kommt hier mit Begründung dazu und nicht als Erbe aus P0.
+     *
+     * @var list<string> Genaue Namen oder Präfixe mit Stern am Ende.
+     */
     private const ALLOWED_UNITS = [
         'srvpanel-*',
-        'nginx.service',
-        'mariadb.service',
-        'php*-fpm.service',
     ];
 
     public static function name(): string
@@ -48,7 +81,7 @@ final class ServiceAction implements Op
         $unit = Guard::unitName($args['unit'] ?? null);
         $action = Guard::enum($args['action'] ?? null, self::ACTIONS, 'action');
 
-        if (! $this->allowed($unit)) {
+        if (! self::allows($unit)) {
             throw AgentException::denied(sprintf('Die Unit %s darf das Panel nicht steuern.', $unit));
         }
 
@@ -63,7 +96,14 @@ final class ServiceAction implements Op
         ];
     }
 
-    private function allowed(string $unit): bool
+    /**
+     * Darf diese Unit gesteuert werden?
+     *
+     * Öffentlich und statisch, damit `UnitCatalogTest` die **tatsächliche**
+     * Entscheidung fragen kann statt sie nachzubauen. Ein Wächter, der die
+     * Regel zum zweiten Mal aufschreibt, prüft seine eigene Abschrift.
+     */
+    public static function allows(string $unit): bool
     {
         foreach (self::ALLOWED_UNITS as $pattern) {
             if (str_ends_with($pattern, '*')) {

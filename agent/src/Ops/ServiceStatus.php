@@ -7,29 +7,28 @@ namespace SrvPanel\Agent\Ops;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Guard;
 use SrvPanel\Agent\Op;
+use SrvPanel\Agent\Units;
 
 /**
- * Zustand einer systemd-Unit.
+ * Zustand einer systemd-Unit — eines Dienstes oder eines Timers.
  *
  * Abgefragt wird mit `systemctl show --property=…`, nicht mit `systemctl
  * status`: Die Spaltenansicht ist für Menschen gemacht, und ein Spaltenparser
  * bricht an der ersten Unit-Beschreibung, die aussieht wie ein Statuswort.
  * `show` liefert Schlüssel=Wert je Zeile und ist damit eindeutig.
+ *
+ * **Und nicht mit `systemctl list-timers`, obwohl das für Timer bequemer
+ * wäre.** Gemessen am 30. August 2026 (`docs/89 §3`): Ein von Hand gestoppter
+ * Timer verschwindet aus `list-timers --all` vollständig, während `show` ihn
+ * weiter beantwortet. Genau diesen Schaden soll A2 sichtbar machen.
+ *
+ * > **Eine Liste, die nur zeigt, was läuft, kann das Fehlende nicht melden.**
+ *
+ * Das Lesen selbst steht in {@see Units} — es ist die eigentliche Arbeit, und
+ * dort lässt es sich ohne laufendes systemd prüfen.
  */
 final class ServiceStatus implements Op
 {
-    private const FIELDS = [
-        'Id',
-        'Description',
-        'LoadState',
-        'ActiveState',
-        'SubState',
-        'UnitFileState',
-        'MainPID',
-        'ExecMainStartTimestamp',
-        'NRestarts',
-    ];
-
     public static function name(): string
     {
         return 'service.status';
@@ -47,33 +46,13 @@ final class ServiceStatus implements Op
         $result = $context->runner->run('systemctl', [
             'show',
             $unit,
-            '--property='.implode(',', self::FIELDS),
+            '--property='.implode(',', Units::FIELDS),
             '--no-pager',
         ], 15);
 
         // `systemctl show` beantwortet auch eine unbekannte Unit mit Code 0 und
         // LoadState=not-found. Der Rückgabecode taugt hier also nicht als
-        // Prüfung — der LoadState schon.
-        $values = [];
-
-        foreach ($result->lines() as $line) {
-            if (! str_contains($line, '=')) {
-                continue;
-            }
-            [$key, $value] = explode('=', $line, 2);
-            $values[$key] = $value;
-        }
-
-        return [
-            'unit' => $unit,
-            'present' => ($values['LoadState'] ?? 'not-found') !== 'not-found',
-            'description' => $values['Description'] ?? '',
-            'active_state' => $values['ActiveState'] ?? 'unknown',
-            'sub_state' => $values['SubState'] ?? 'unknown',
-            'unit_file_state' => $values['UnitFileState'] ?? 'unknown',
-            'pid' => (int) ($values['MainPID'] ?? 0),
-            'restarts' => (int) ($values['NRestarts'] ?? 0),
-            'since' => $values['ExecMainStartTimestamp'] ?? '',
-        ];
+        // Prüfung — der LoadState schon, und den liest der Leser.
+        return Units::read($unit, $result->lines());
     }
 }

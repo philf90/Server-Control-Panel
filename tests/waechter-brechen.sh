@@ -19961,6 +19961,600 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CountedNounTest passed
 
 echo
+echo "== UnitStateTest: der Leser fuer systemctl show =="
+#
+# Die Regeln stammen aus der Messrunde vom 30. August 2026 (docs/89), gefahren
+# gegen echtes systemd 255 in einer eigenen Namespace. Sie lassen sich hier
+# nicht wiederholen -- der Laeufer hat keinen Init --, und genau deshalb haelt
+# sie ein Waechter mit gemessenen Pruefkoerpern statt einer Messung.
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $monotonic = $values['NextElapseUSecMonotonic'] ?? '';
+
+        return $monotonic !== ''
+            && $monotonic !== self::NEVER
+            && $monotonic !== self::OTHER_FIELD;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        return false;", 1))
+PY2
+griff_datei agent/src/Units.php "hasNext vergisst die monotone Spalte" &&
+pruefe "hasNext vergisst die monotone Spalte" \
+  UnitStateTest::test_the_pair_decides_whether_a_next_date_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitStateTest: infinity gilt als Dauer =="
+#
+# infinity ist der Wert, den systemd fuer -nie- schreibt. Wer ihn nicht
+# ausnimmt, meldet jeden Timer ohne Termin als gesund -- also genau den
+# Schaden, den A2 sichtbar machen soll.
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = "            && $monotonic !== self::NEVER\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "", 1))
+PY2
+griff_datei agent/src/Units.php "infinity gilt als Dauer" &&
+pruefe "infinity gilt als Dauer" \
+  UnitStateTest::test_the_pair_decides_whether_a_next_date_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitStateTest: ein fehlendes Feld wird zur gemessenen Null =="
+#
+# Der Fehler, den dieser Leser abloest: Ein Timer beantwortet MainPID,
+# NRestarts und ExecMainStartTimestamp gar nicht, und -?? 0- machte daraus
+# einen Dienst, der nie lief.
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return array_key_exists($key, $values) ? (int) $values[$key] : null;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        return (int) ($values[$key] ?? 0);", 1))
+PY2
+griff_datei agent/src/Units.php "fehlendes Feld als Null" &&
+pruefe "fehlendes Feld als Null" \
+  UnitStateTest::test_a_timer_has_no_pid_no_restarts_and_no_start failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitStateTest: ein leerer Zeitstempel bleibt eine leere Zeichenkette =="
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return $wert === '' ? null : $wert;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        return $wert;", 1))
+PY2
+griff_datei agent/src/Units.php "leerer Zeitstempel als Zeichenkette" &&
+pruefe "leerer Zeitstempel als Zeichenkette" \
+  UnitStateTest::test_a_timer_has_no_pid_no_restarts_and_no_start failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitStateTest: die Art kommt nicht mehr aus dem Namen =="
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return $punkt === false ? 'other' : substr($id, $punkt + 1);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        return 'service';", 1))
+PY2
+griff_datei agent/src/Units.php "Art nicht aus dem Namen" &&
+pruefe "Art nicht aus dem Namen" \
+  UnitStateTest::test_the_kind_comes_from_the_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitStateTest: getrennt wird an jedem Gleichheitszeichen =="
+#
+# Eine Description darf eines enthalten, und systemctl show maskiert nichts.
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = "            [$key, $value] = explode('=', $line, 2);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            [$key, $value] = array_pad(explode('=', $line), 2, '');"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Units.php "Trennung an jedem Gleichheitszeichen" &&
+pruefe "Trennung an jedem Gleichheitszeichen" \
+  UnitStateTest::test_a_value_may_contain_the_separator failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitStateTest: die monotone Spalte faellt aus der Abfrage =="
+#
+# Fehlte sie, stuende has_next auf einer halben Auskunft -- und zwar wortlos,
+# weil eine nicht gefragte Eigenschaft in der Ausgabe genauso fehlt wie eine,
+# die es nicht gibt.
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'NextElapseUSecMonotonic',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "", 1))
+PY2
+griff_datei agent/src/Units.php "monotone Spalte nicht gefragt" &&
+pruefe "monotone Spalte nicht gefragt" \
+  UnitStateTest::test_the_query_asks_for_both_elapse_fields failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitStateTest: die Operation holt die Timer aus der Liste =="
+#
+# Gemessen: Ein von Hand gestoppter Timer verschwindet aus list-timers --all
+# vollstaendig, waehrend show ihn weiter beantwortet.
+vorher_datei agent/src/Ops/ServiceStatus.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/ServiceStatus.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'show',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'list-timers',", 1))
+PY2
+griff_datei agent/src/Ops/ServiceStatus.php "Timer aus der Liste" &&
+pruefe "Timer aus der Liste" \
+  UnitStateTest::test_the_operation_does_not_ask_the_timer_list failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitCatalogTest: eine eigene Unit faellt aus dem Katalog =="
+#
+# Bis zum 30. August standen Unitnamen in zehn Dateien, und neun der eigenen
+# zwoelf in keiner Anzeige. Der Katalog wird gegen packaging/systemd gehalten.
+vorher_datei agent/src/Catalog.php
+python3 - <<'PY2'
+p = 'agent/src/Catalog.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'srvpanel-dns.timer',\n"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """""", 1))
+PY2
+griff_datei agent/src/Catalog.php "eigene Unit fehlt im Katalog" &&
+pruefe "eigene Unit fehlt im Katalog" \
+  UnitCatalogTest::test_the_catalogue_knows_every_packaged_unit failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
+echo "== UnitCatalogTest: der Katalog nennt eine Unit, die es nicht gibt =="
+#
+# Die Gegenrichtung -- hier entsteht der tote Eintrag wirklich: Bei einer
+# Umbenennung traegt man den neuen Namen nach und der alte bleibt liegen.
+vorher_datei agent/src/Catalog.php
+python3 - <<'PY2'
+p = 'agent/src/Catalog.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'srvpanel-dns.timer',"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        'srvpanel-dns.timer',
+        'srvpanel-nichts.service',""", 1))
+PY2
+griff_datei agent/src/Catalog.php "Katalog nennt eine Unit ohne Datei" &&
+pruefe "Katalog nennt eine Unit ohne Datei" \
+  UnitCatalogTest::test_every_unit_the_catalogue_names_is_packaged failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
+echo "== UnitCatalogTest: ssh wird steuerbar =="
+#
+# Damit liesse sich der Zugang zum Server abschalten. SftpAccess sagt das
+# seit P6 im Kopf seiner Klasse; hier wird es gemessen.
+vorher_datei agent/src/Catalog.php
+python3 - <<'PY2'
+p = 'agent/src/Catalog.php'
+s = open(p, encoding='utf-8').read()
+alt = """'sftp' => array_fill_keys(SftpAccess::UNITS, false),"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """'sftp' => array_fill_keys(SftpAccess::UNITS, true),""", 1))
+PY2
+griff_datei agent/src/Catalog.php "ssh gilt als steuerbar" &&
+pruefe "ssh gilt als steuerbar" \
+  UnitCatalogTest::test_what_the_catalogue_calls_controlled_is_allowed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
+echo "== UnitCatalogTest: nginx gilt wieder als steuerbar =="
+#
+# Die andere Richtung: Was der Katalog nicht steuert, muss ServiceAction
+# ablehnen -- sonst sagen die beiden Listen Verschiedenes.
+vorher_datei agent/src/Catalog.php
+python3 - <<'PY2'
+p = 'agent/src/Catalog.php'
+s = open(p, encoding='utf-8').read()
+alt = """'webserver' => ['nginx.service' => false],"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """'webserver' => ['nginx.service' => true],""", 1))
+PY2
+griff_datei agent/src/Catalog.php "nginx gilt wieder als steuerbar" &&
+pruefe "nginx gilt wieder als steuerbar" \
+  UnitCatalogTest::test_nothing_foreign_counts_as_controlled failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
+echo "== UnitCatalogTest: die SFTP-Namen werden abgeschrieben =="
+#
+# ssh gegen sshd ist in docs/50 gemessen und steht in SftpAccess. Eine zweite
+# Fassung daneben ist die, die veraltet.
+vorher_datei agent/src/Catalog.php
+python3 - <<'PY2'
+p = 'agent/src/Catalog.php'
+s = open(p, encoding='utf-8').read()
+alt = """'sftp' => array_fill_keys(SftpAccess::UNITS, false),"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """'sftp' => ['ssh.service' => false, 'sshd.service' => false],""", 1))
+PY2
+griff_datei agent/src/Catalog.php "SFTP-Namen abgeschrieben" &&
+pruefe "SFTP-Namen abgeschrieben" \
+  UnitCatalogTest::test_the_sftp_names_come_from_where_they_were_measured failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
+echo "== UnitCatalogTest: eine Unit steht zweimal im Katalog =="
+
+vorher_datei agent/src/Catalog.php
+python3 - <<'PY2'
+p = 'agent/src/Catalog.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'srvpanel-dns.timer',"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        'srvpanel-dns.timer',
+        'srvpanel-web.service',""", 1))
+PY2
+griff_datei agent/src/Catalog.php "Unit steht doppelt" &&
+pruefe "Unit steht doppelt" \
+  UnitCatalogTest::test_no_unit_stands_in_the_catalogue_twice failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
+echo "== UnitCatalogTest: die Positivliste laesst ssh durch =="
+#
+# Der Eingriff sitzt in der Positivliste selbst und nicht im Katalog -- er
+# belegt, dass der Waechter die Durchsetzung prueft und nicht die Absicht.
+vorher_datei agent/src/Ops/ServiceAction.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/ServiceAction.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'srvpanel-*',"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        'srvpanel-*',
+        'ssh.service',""", 1))
+PY2
+griff_datei agent/src/Ops/ServiceAction.php "Positivliste laesst ssh durch" &&
+pruefe "Positivliste laesst ssh durch" \
+  UnitCatalogTest::test_neither_ssh_nor_cron_can_ever_be_controlled failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
+echo "== UnitCatalogTest: die Positivliste bekommt einen fremden Eintrag =="
+
+vorher_datei agent/src/Ops/ServiceAction.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/ServiceAction.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'srvpanel-*',\n"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        'srvpanel-*',\n        'nginx.service',\n""", 1))
+PY2
+griff_datei agent/src/Ops/ServiceAction.php "Positivliste mit fremdem Eintrag" &&
+pruefe "Positivliste mit fremdem Eintrag" \
+  UnitCatalogTest::test_the_allowlist_carries_only_what_is_used failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
+echo "== UnitCatalogTest: die Uebersicht baut ihre Liste wieder selbst =="
+#
+# Ein Waechter ueber den Katalog allein saehe das nicht: Die Liste daneben
+# waere vollstaendig richtig -- sie waere nur eine zweite.
+vorher_datei app/Http/Controllers/OverviewController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/OverviewController.php'
+s = open(p, encoding='utf-8').read()
+alt = """        foreach (Catalog::essential() as $kandidaten) {
+            $rows[] = $this->existing($agent, $kandidaten);
+        }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        foreach ([['srvpanel-agentd.service'], ['nginx.service'], ['mariadb.service']] as $kandidaten) {
+            $rows[] = $this->existing($agent, $kandidaten);
+        }""", 1))
+PY2
+griff_datei app/Http/Controllers/OverviewController.php "Uebersicht mit eigener Liste" &&
+pruefe "Uebersicht mit eigener Liste" \
+  UnitCatalogTest::test_the_overview_carries_no_list_of_its_own failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
+echo "== UnitCatalogTest: die Datenbank gilt wieder als steuerbar =="
+#
+# Die Ungleichheit zwischen mariadb und mysql ist der Bestand und kein Entwurf.
+# Wer sie beim Aufraeumen geradezieht, weitet eine Sicherheitsgrenze -- und
+# genau das soll auffallen.
+vorher_datei agent/src/Catalog.php
+python3 - <<'PY2'
+p = 'agent/src/Catalog.php'
+s = open(p, encoding='utf-8').read()
+alt = "'mariadb.service' => false, 'mysql.service' => false"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'mariadb.service' => true, 'mysql.service' => true", 1))
+PY2
+griff_datei agent/src/Catalog.php "Datenbank gilt wieder als steuerbar" &&
+pruefe "Datenbank gilt wieder als steuerbar" \
+  UnitCatalogTest::test_what_the_catalogue_calls_controlled_is_allowed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
+echo "== ServicesViewTest: die Farbe folgt dem Zustand statt dem Termin =="
+#
+# Gemessen gegen systemd 255: Der gesunde und der kaputte Timer stehen beide
+# auf active. Wer die Farbe daran haengt, malt beide gruen.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = """  if (!zeile.present) return 'neutral'
+  if (zeile.kind === 'timer' && zeile.has_next === false) return 'critical'
+  if (zeile.active_state === 'active') return 'ok'"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """  if (!zeile.present) return 'neutral'
+  if (zeile.active_state === 'active') return 'ok'
+  if (zeile.kind === 'timer' && zeile.has_next === false) return 'critical'""", 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "Farbe folgt dem Zustand" &&
+pruefe "Farbe folgt dem Zustand" \
+  ServicesViewTest::test_the_colour_of_a_timer_follows_its_next_date failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
+
+echo
+echo "== ServicesViewTest: kein Termin und unbekannt sehen gleich aus =="
+#
+# Das erste ist ein Schaden, das zweite eine Luecke im Messmittel. Dieselbe
+# Zelle fuer beides machte aus jeder Luecke einen Befund.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = """  return zeile.next_elapse ?? 'unbekannt'"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """  return zeile.next_elapse ?? '—'""", 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "kein Termin gleich unbekannt" &&
+pruefe "kein Termin gleich unbekannt" \
+  ServicesViewTest::test_a_missing_date_is_not_the_same_as_no_date failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
+
+echo
+echo "== ServicesViewTest: die Seite rechnet die Zeit selbst =="
+#
+# toLocaleString nimmt die Zone des Betrachters; die Anzeigezone steht in den
+# Einstellungen, und Clock ist die einzige Stelle, die daraus eine Anzeige macht.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = """  return zeile.next_elapse ?? 'unbekannt'"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """  return new Date(zeile.next_elapse ?? 0).toLocaleString('de-DE')""", 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "Seite rechnet die Zeit" &&
+pruefe "Seite rechnet die Zeit" \
+  ServicesViewTest::test_the_date_is_formatted_on_the_server failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
+
+echo
+echo "== ServicesViewTest: Dienste und Timer in einem Bereich =="
+#
+# Ein Timer hat keine PID, keinen Neustartzaehler und keinen Startzeitpunkt.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = """      <Section
+        title="Timer"
+        full"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """      <div
+        title="Timer"
+        full""", 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "ein Bereich statt zwei" &&
+pruefe "ein Bereich statt zwei" \
+  ServicesViewTest::test_services_and_timers_are_two_sections failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
+
+echo
+echo "== ServicesViewTest: ein schweigender Agent sieht aus wie ein leerer Server =="
+
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = """    <p v-if="!live" class="notice critical">"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """    <p v-if="false" class="notice critical">""", 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "schweigender Agent" &&
+pruefe "schweigender Agent" \
+  ServicesViewTest::test_a_silent_agent_is_told_apart_from_an_empty_server failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
+
+echo
+echo "== ServicesViewTest: der Termin wird nicht mehr auf dem Server formatiert =="
+
+vorher_datei app/Http/Controllers/ServicesController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/ServicesController.php'
+s = open(p, encoding='utf-8').read()
+alt = """                ? Clock::display(CarbonImmutable::createFromTimestampUTC($sekunden))"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """                ? (string) $sekunden""", 1))
+PY2
+griff_datei app/Http/Controllers/ServicesController.php "Termin nicht auf dem Server" &&
+pruefe "Termin nicht auf dem Server" \
+  ServicesViewTest::test_the_date_is_formatted_on_the_server failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
+
+echo
+echo "== UnitStateTest: eine fehlende Unit meldet 0 Neustarts =="
+#
+# Was systemd ueber eine Unit sagt, die es nicht gibt, ist keine Messung:
+# NRestarts steht dann auf 0, und die Seite las daraus -nie neugestartet-.
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = """            'restarts' => $present ? self::number($values, 'NRestarts') : null,"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            'restarts' => self::number($values, 'NRestarts'),""", 1))
+PY2
+griff_datei agent/src/Units.php "fehlende Unit mit 0 Neustarts" &&
+pruefe "fehlende Unit mit 0 Neustarts" \
+  UnitStateTest::test_a_missing_unit_is_reported_as_absent failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitStateTest: eine fehlende Unit traegt ihren Namen als Beschreibung =="
+
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = """            'description' => $present ? ($values['Description'] ?? '') : '',"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            'description' => $values['Description'] ?? '',""", 1))
+PY2
+griff_datei agent/src/Units.php "Name als Beschreibung" &&
+pruefe "Name als Beschreibung" \
+  UnitStateTest::test_a_missing_unit_is_reported_as_absent failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== NavGroupTest: eine Einstellung kommt dazu =="
+#
+# Die Untergrenze: Ohne die Zahlen waeren beide Richtungen auch dann gruen,
+# wenn der Ausdruck des Lesers gar nichts faende.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = """    { group: 'Einstellungen', items: [
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, """    { group: 'Einstellungen', items: [
+      { name: 'Mailversand2', href: '/settings/mail2', icon: 'mail' },
+""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Einstellung kommt dazu" &&
+pruefe "Einstellung kommt dazu" \
+  NavGroupTest::test_the_comparison_has_something_to_compare failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NavGroupTest passed
+
+echo
+echo "== NavGroupTest: eine Einstellung faellt weg =="
+
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = """      { name: 'Zertifikat', href: '/settings/tls', icon: 'tls', ability: 'operate-server' },
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, """""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Einstellung faellt weg" &&
+pruefe "Einstellung faellt weg" \
+  NavGroupTest::test_the_comparison_has_something_to_compare failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NavGroupTest passed
+
+echo
+echo "== NavGroupTest: ein fremder Punkt steht in Einstellungen =="
+#
+# Die Gegenrichtung -- ohne sie wuechse die Gruppe ueber Jahre zu einem
+# zweiten Topf, genau dem, aus dem sie entstanden ist.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = """      { name: 'Allgemein', href: '/settings/general', icon: 'general', ability: 'manage-settings' },"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, """      { name: 'Allgemein', href: '/general', icon: 'general', ability: 'manage-settings' },""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "fremder Punkt in Einstellungen" &&
+pruefe "fremder Punkt in Einstellungen" \
+  NavGroupTest::test_the_settings_group_carries_nothing_else failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NavGroupTest passed
+
+echo
+echo "== NavGroupTest: die beiden Gruppen wachsen wieder zusammen =="
+#
+# **Zwei Haelften, und das ist der Punkt.** Der erste Wurf entfernte nur die
+# schliessende Klammer; die Gruppenzeile stand weiter da, der Leser sah weiter
+# zwei Gruppen, und der Eingriff veraenderte die Datei, ohne die Regel zu
+# verletzen. Ein Eingriff, der wirkt und nichts belegt, ist der teuerste.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = """    ] },
+
+    /*
+     * **Alles, was man einstellt"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, """    /*
+     * **Alles, was man einstellt""", 1)
+alt2 = """    { group: 'Einstellungen', items: [
+"""
+assert s.count(alt2) == 1, 'Zweite Zielstelle nicht eindeutig'
+s = s.replace(alt2, """""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Gruppen wachsen zusammen" &&
+pruefe "Gruppen wachsen zusammen" \
+  NavGroupTest::test_no_group_grows_back_into_a_pot failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NavGroupTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

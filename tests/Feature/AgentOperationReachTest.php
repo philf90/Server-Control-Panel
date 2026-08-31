@@ -110,6 +110,7 @@ final class AgentOperationReachTest extends TestCase
         'webserver.detect' => 'Schaut nach, welcher Webserver läuft.',
         'web.logs.tail' => 'Liest die letzten Zeilen eines Protokolls.',
         'system.logs.list' => 'Zählt die Protokolle des Servers auf; das Panel führt darüber keinen Bestand.',
+        'system.units.list' => 'Liest den Zustand der Units aus dem Katalog; das Panel führt darüber keinen Bestand.',
         'system.logs.tail' => 'Liest die letzten Zeilen eines Protokolls des Servers — lesend, ohne Vorgang.',
         'system.packages.list' => 'Liest den Paketstand über apt-get -s; das Panel führt darüber keinen Bestand, und die Antwort ändert nichts.',
         'system.sources.list' => 'Liest die Paketquellen über apt-get indextargets und die Dateien unter /etc/apt — lesend, ohne Vorgang.',

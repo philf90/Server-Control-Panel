@@ -1331,7 +1331,10 @@ Vorlagenblock, wo der Übersetzer ihn wegwirft — die Regel, die
 eines Blocks) und `OperatorControlTest` (ein Bedienelement, dessen Route strenger ist als die
 Seite selbst, steht in einem `v-if` auf ihre Fähigkeit — die Zuordnung
 Fähigkeit → Wächtervariable kommt aus der Seite und nicht aus einer Liste im
-Test, und die Vorlage wird mit einem Stapel gelesen statt rückwärts),
+Test, und die Vorlage wird mit einem Stapel gelesen statt rückwärts; **ein
+wörtlicher `href` zählt seit dem 31. August mit**, denn ein Verweis führt
+genauso zu einem 403 wie ein Knopf, und was er nicht halten kann, steht in
+seinem Kopf als Frage),
 `InspectOnlyTest` (dieselbe Grenze an der Tür: vier Griffe geben dem
 Administrator 403 und dem Betreiber nicht — gemessen wird „nicht 403" und nicht
 „200", sonst prüfte er den Agenten statt der Tür) und `SourceKeyFilterTest`

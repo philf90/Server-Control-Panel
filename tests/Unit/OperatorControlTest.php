@@ -38,6 +38,34 @@ use Tests\Support\WithoutPhpComments;
  * **Die Zuordnung Fähigkeit → Wächtervariable kommt aus der Seite selbst.**
  * Eine Liste im Test wäre die zweite Fassung, und die zweite veraltet: Sie
  * bliebe grün für eine Seite, die ihre Variable umbenennt.
+ *
+ * ## Ein Verweis ist ein Bedienelement
+ *
+ * Bis zum 31. August 2026 sah dieser Test nur `@click`-Griffe, deren Rumpf ein
+ * `router.post|put|patch|delete` enthält. Ein `<Link href="/services">` führt
+ * genauso zu einem 403 und war für ihn nicht da — die Übersicht hat am
+ * 31. August den ersten bekommen.
+ *
+ * > **Ein Wächter, der die gewohnte Schreibweise kennt, prüft die Gewohnheit
+ * > und nicht die Regel.**
+ *
+ * Gemessen vor der Erweiterung: In `resources/js/Pages` stehen **drei**
+ * wörtliche Verweise auf fähigkeitsgeschützte Routen, alle drei auf
+ * Kontoseiten, die dieselbe Fähigkeit schon selbst verlangen.
+ *
+ * ## Was er nicht hält, und warum
+ *
+ * Eine Seite wird nur geprüft, wenn sie für die nötige Fähigkeit **eine
+ * Wächtervariable erklärt**. Fehlt die, wird übersprungen — und das ist für
+ * die drei Kontoseiten richtig (ihre eigene Route verlangt die Fähigkeit) und
+ * für eine Seite, die den Verweis einfach ungeschützt zeigt, falsch.
+ *
+ * Zu unterscheiden wären die beiden nur über die Fähigkeit der **eigenen**
+ * Route, und die Kette Seitenname → Controller → Pfad → Fähigkeit gibt es in
+ * diesem Repo nicht. Das steht hier als Frage und nicht als Zusage.
+ *
+ * > **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und
+ * > nicht als Zusage.**
  */
 final class OperatorControlTest extends TestCase
 {
@@ -139,6 +167,36 @@ final class OperatorControlTest extends TestCase
     }
 
     /**
+     * Die wörtlichen Verweise einer Vorlage: Zielpfad => Fundstellen.
+     *
+     * **Nur wörtliche.** Ein `:href="`/subscriptions/${id}/…`"` lässt sich hier
+     * nicht auflösen, und ein Ausdruck, der rät, meldete Löcher, die es nicht
+     * gibt — dieses Repo hat sich das mit `RevealTest` schon einmal geleistet.
+     * Der abschliessende Schrägstrich fällt weg, damit `/services` und
+     * `/services/` dasselbe Ziel sind.
+     *
+     * @return array<string, list<int>>
+     */
+    private function linksIn(string $template): array
+    {
+        preg_match_all('/\bhref="([^"{`$]+)"/', $template, $treffer, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+
+        $verweise = [];
+
+        foreach ($treffer as $t) {
+            $ziel = rtrim($t[1][0], '/');
+
+            if ($ziel === '') {
+                continue;
+            }
+
+            $verweise[$ziel][] = (int) $t[0][1];
+        }
+
+        return $verweise;
+    }
+
+    /**
      * Steht die Fundstelle innerhalb eines Elements mit diesem `v-if`?
      *
      * **Ein Stapel und keine Rückwärtssuche.** Vorwärts gelesen ist jedes
@@ -235,8 +293,10 @@ final class OperatorControlTest extends TestCase
                     continue;
                 }
 
-                // Verlangt die Seite selbst schon diese Fähigkeit, ist jeder
-                // Betrachter berechtigt — dann gibt es nichts zu verstecken.
+                // Erklärt die Seite für diese Fähigkeit keine Wächtervariable,
+                // unterscheidet sie ihre Betrachter nicht — dann gibt es hier
+                // nichts zu verstecken. Was diese Bedingung nicht trennt, steht
+                // im Kopf dieser Klasse als offene Frage.
                 if (! isset($waechter[$noetig])) {
                     continue;
                 }
@@ -249,6 +309,28 @@ final class OperatorControlTest extends TestCase
                             '%s: %s() ruft %s (%s) und steht nicht in `v-if="%s"`',
                             basename(dirname($pfad)).'/'.basename($pfad),
                             $name,
+                            $ziel,
+                            $noetig,
+                            $waechter[$noetig],
+                        );
+                    }
+                }
+            }
+
+            foreach ($this->linksIn($template) as $ziel => $stellen) {
+                $noetig = $routen[$ziel] ?? null;
+
+                if ($noetig === null || ! isset($waechter[$noetig])) {
+                    continue;
+                }
+
+                $geprueft++;
+
+                foreach ($stellen as $offset) {
+                    if (! $this->guarded($template, $offset, $waechter[$noetig])) {
+                        $offen[] = sprintf(
+                            '%s: der Verweis auf %s (%s) steht nicht in `v-if="%s"`',
+                            basename(dirname($pfad)).'/'.basename($pfad),
                             $ziel,
                             $noetig,
                             $waechter[$noetig],

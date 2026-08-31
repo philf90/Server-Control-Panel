@@ -19211,6 +19211,26 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperatorControlTest passed
 
 echo
+echo "── OperatorControlTest: der Verweis auf die Dienste ohne seinen Waechter ──"
+#
+# Die Uebersicht verlangt selbst keine Faehigkeit, /services verlangt
+# inspect-server. Ohne das v-if sieht ein Betrachter einen Verweis, der ihm
+# einen 403 einbringt — und bis zum 31. August sah dieser Test nur @click.
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Overview.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<Link v-if="darfDienste" class="button small" href="/services">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<Link class="button small" href="/services">', 1))
+PY2
+griff_datei resources/js/Pages/Overview.vue "Verweis ohne Waechter" &&
+pruefe "Verweis ohne Waechter" \
+  OperatorControlTest::test_a_control_for_a_stricter_route_sits_behind_its_ability failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperatorControlTest passed
+
+echo
 echo "── OperatorControlTest: die Seite liest einen Schluessel, den es nicht gibt ──"
 #
 # Ein unbekannter Schluessel in der geteilten Ablage ist wortlos `false`. Die

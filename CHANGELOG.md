@@ -22940,6 +22940,46 @@ Dienste-Seite —, kommt mit Begründung dazu und nicht als Erbe aus P0.
 steuerbar, und die zwölf eigenen tun es. Drei Eingriffe im Bruchskript sind
 umgehängt und neu belegt — der geprüfte war ein anderer als der eingetragene.
 
+### Der Bereich „Dienste" auf der Übersicht zeigte drei von sechzehn und sagte es nicht
+
+Er führt die tragenden Dienste (`Catalog::essential()`) — den Agenten, den
+Webserver, die Datenbank. Seit A2 gibt es sechzehn Zeilen und vier Timer mit
+ihren Terminen auf `/services`, und an der Stelle, an der die Frage „und die
+anderen dreizehn?" entsteht, stand keine Antwort. Der Menüpunkt beantwortet sie
+erst dem, der ihn sucht — und dreimal hat dieses Projekt einen Ort falsch
+gehabt, dreimal hat es der Betreiber gemeldet und kein Test.
+
+Der `actions`-Platz des Bereichskopfs ist ausdrücklich dafür da („ein Verweis
+auf die volle Liste"). Der Verweis steht hinter `inspect-server`: Die Übersicht
+verlangt selbst keine Fähigkeit, `/services` verlangt eine, und ein Verweis, der
+nur einen 403 einbringt, ist keine Auskunft, sondern eine Sackgasse.
+
+Gemessen mit dem echten Markup und **beiden** gebauten Stylesheets, vier Lagen:
+Überlauf `0 px` überall, Gegenprobe `216/216`, der Kopf bleibt bei 390 px eine
+Zeile (55 px), der Knopf bekommt dort seine Höhe von 44 px. Bilder in beiden
+Themes angesehen.
+
+**Und `OperatorControlTest` hat den Verweis nicht gesehen.** Er suchte
+`@click`-Griffe, deren Rumpf ein `router.post|put|patch|delete` enthält; ein
+`<Link href="/services">` führt genauso zu einem 403 und war für ihn nicht da.
+
+> **Ein Wächter, der die gewohnte Schreibweise kennt, prüft die Gewohnheit und
+> nicht die Regel.**
+
+Gemessen vor der Erweiterung: drei wörtliche Verweise auf fähigkeitsgeschützte
+Routen im ganzen Seitenbaum, alle drei auf Kontoseiten, die dieselbe Fähigkeit
+schon selbst verlangen. Der Wächter zählt sie seitdem mit, und der Bruch dazu
+ist belegt.
+
+Was er weiter **nicht** hält, steht jetzt in seinem Kopf: Eine Seite ohne
+Wächtervariable für die nötige Fähigkeit wird übersprungen. Zu unterscheiden
+wären „die Seite verlangt sie selbst" und „die Seite zeigt den Verweis einfach"
+nur über die Fähigkeit der eigenen Route, und die Kette Seitenname → Controller
+→ Pfad → Fähigkeit gibt es in diesem Repo nicht.
+
+> **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
+> als Zusage.**
+
 ### Der gesunde Server meldete vier Schäden — der Timer-Fehler spiegelverkehrt
 
 Gefunden auf `cloudsrv24` beim Aufnehmen des Ausgangszustands für den Nachlauf

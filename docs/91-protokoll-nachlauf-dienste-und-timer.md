@@ -219,10 +219,178 @@ Fundstellen aus **zwei** Funktionen.
 
 ---
 
-## 4 · Was noch aussteht
+## 4 · Punkt 1 — erfüllt
 
-Die Punkte 1 bis 11 aus `docs/90`. Sie werden gegen die Fassung gefahren, die
-diese Behebung enthält — gegen `0.7.3-rc.1` wäre Punkt 1 gegen eine Seite
-gemessen, von der schon feststeht, dass sie vier Zeilen falsch färbt.
+Gefahren am 31. August 2026 auf `cloudsrv24` gegen **`0.7.3-rc.2`**, im Browser
+eines iPhones, über den Menüpunkt „Dienste" in der Gruppe „Betrieb".
+
+| Erwartung | gemessen |
+|---|---|
+| zwei Bereiche | Dienste und Timer ✓ |
+| zwölf Dienstzeilen | acht eigene, dann `nginx`, `mariadb`, `ssh`, `cron` ✓ |
+| vier Timerzeilen | `usage`, `tls`, `cron`, `dns` ✓ |
+| keine Unit doppelt | kein `mysql`, kein `sshd` ✓ |
+| die vier oneshot-Dienste grün, „wartet auf seinen Timer" | ✓ |
+| keine gelbe Meldung | ✓ |
+
+**Das Zusammenfallen ist damit auf einem Server belegt und nicht an Attrappen.**
+Auf `cloudsrv24` sind `mysql.service` **und** `mariadb.service`, `ssh.service`
+**und** `sshd.service` alle vier `loaded active` (§1) — `Catalog::pick()` musste
+also wirklich wählen, und die Seite zeigt aus neunzehn Kandidaten sechzehn
+Zeilen.
+
+**Und die Behebung aus §3 ist angekommen.** Vier Zeilen, die gegen `rc.1` rot mit
+„gestoppt" dastanden und eine gelbe Meldung über sich hatten, stehen jetzt grün
+mit „wartet auf seinen Timer" und ohne Meldung.
+
+---
+
+## 5 · Befund 2 — „Alle Dienste laufen" stimmt nicht mehr
+
+**Am Prüfling, vor dem Lauf angekündigt und im Bild belegt.**
+
+Steht nichts an, schreibt die Seite **„Alle Dienste laufen, und jeder Timer hat
+einen Termin."** Direkt darunter stehen vier Zeilen mit „wartet auf seinen
+Timer". Vier der zwölf laufen gerade **nicht**, und das ist ihr gesunder Zustand.
+
+> **Ein Satz, der beruhigen soll, darf nicht das Gegenteil dessen behaupten, was
+> drei Zeilen tiefer steht.**
+
+Der Satz stammt aus der Zeit vor der Behebung, als „läuft" und „in Ordnung"
+dasselbe waren. Seit §3 sind es zwei Dinge — und die Meldung ist die Stelle, an
+der der alte Sprachgebrauch stehengeblieben ist.
+
+> **Eine Behebung ändert, was ein Wort bedeutet — und die Sätze, die es
+> benutzen, ändert sie nicht mit.**
+
+---
+
+## 6 · Befund 3 — Der Zustand ist bei 390 px angeschnitten
+
+**Am Prüfling, gefunden am Bild und nachgemessen.**
+
+Gemessen mit dem echten Markup und beiden gebauten Stylesheets, dunkel bei
+390 px (Gegenprobe 216, Dokumentüberlauf 0):
+
+| | sichtbar | Inhalt | rollt |
+|---|---|---|---|
+| Dienste (fünf Spalten) | 358 px | **1005 px** | 647 px |
+| Timer (vier Spalten) | 358 px | **744 px** | 386 px |
+
+| Marke | Breite | ragt über den Rand |
+|---|---|---|
+| „wartet auf seinen Timer" | 208 px | **58 px** |
+| „kein nächster Termin" | 186 px | **10 px** |
+
+**Die zweite Zeile ist der Befund.** „kein nächster Termin" ist der Satz, an dem
+das Abnahmekriterium von A2 hängt — Punkt 4 verlangt, dass ein Timer ohne Termin
+erkennbar ist, „ohne dass man die Zahl deuten muss". Bei 390 px liest man
+`kein nächster Termi`, und der Rest steht hinter dem Rand.
+
+> **Ein Satz, der einen Schaden benennt, ist bei der Breite, bei der man ihn
+> liest, angeschnitten — und zehn Pixel sind genug dafür.**
+
+Das Dokument schiebt dabei **nicht**: Beide Tabellen liegen in `.scrolls` und
+rollen wie entworfen. Die Messung, die dieses Projekt seit `v0.4.0-rc.4` fährt,
+meldet hier zu Recht `0`.
+
+> **Eine Zahl, die am Dokument misst, sagt nichts über eine Zelle, die selbst
+> rollen darf.** Derselbe Satz wie am 11. August, an derselben Art Behälter.
+
+**Was fehlt, ist die Kärtchenform.** Die Übersichtsseite trägt für dieselbe Art
+Tabelle `class="stacks"`; die Dienste-Seite hat sie nicht. Behoben und gemessen
+in §7.
+
+---
+
+## 7 · Befund 2 und 3 sind behoben — und es war keine Entscheidung, sondern eine Auslassung
+
+**Ausgezählt am 31. August 2026 über `resources/js`:** 25 Tabellen tragen
+`stacks`, 25 tragen `pairs`, eine trägt `rows` — und **keine einzige** steht ohne
+Form da, ausser den beiden der Dienste-Seite.
+
+Damit war Befund 3 keine Gestaltungsfrage. Ich hatte gefragt, ob die Kärtchenform
+hierher passt und was sie kostet; die Frage war falsch gestellt.
+
+> **Eine Voreinstellung, die niemand getroffen hat, sieht aus wie eine
+> Entscheidung.**
+
+**Und der Grund, warum sie ausblieb, steht in `app.css`.** Der Kommentar über
+`.scrolls` nannte „Für Messwerte: Dateisysteme, Prozesse, **Dienste**" — und die
+Übersicht stapelt genau diese drei Tabellen, seit es sie gibt. Ich habe die
+Seite nach dem Kommentar gebaut und nicht nach dem Code.
+
+> **Eine Zeile im Kommentar, die eine Konvention behauptet, veraltet ohne
+> Vorwarnung — und der Code daneben sagt seit langem etwas anderes.**
+
+### Was die Behebung kostet, gemessen
+
+Acht Lagen, echtes Markup mit allen sechzehn Zeilen, beide gebauten
+Stylesheets, Gegenprobe 216 überall:
+
+| | Höhe bei 390 px | „kein nächster Termin" | 1440 px |
+|---|---|---|---|
+| vorher | 1084 px | ragt **+10 px** über den Rand | 987 px |
+| nachher | **3608 px** | **−15 px**, vollständig sichtbar | **987 px** |
+
+**Auf dem Bildschirm kostet es nichts** — 987 px vor wie nach, `schiebt: []`.
+`.stacks` wirkt erst unter 720 px. Bezahlt wird bei 390 px mit **2524 px** mehr
+Höhe, also gut drei Bildschirmen.
+
+> **Ein Preis, den nur die schmale Ansicht zahlt, ist kein Preis der Seite,
+> sondern einer der Breite.**
+
+`schiebt` meldet nachher `[thead, tr, thead, tr]` — das gewollte
+`.stacks thead`, das unter 720 px ausgeblendet wird.
+
+**Nicht gemessen und benannt offen:** ob `PID` und `Neustarts` auf einem Telefon
+überhaupt hingehören. Zwölfmal `NEUSTARTS 0` untereinander ist ein guter Teil
+der 2524 px, und für eine Spalte, die je Zeile ausgeblendet wird, hat `app.css`
+heute keinen Mechanismus. Wer das anfasst, misst zuerst.
+
+### Befund 2
+
+Die Meldung heisst jetzt **„Jeder Dienst ist in Ordnung, und jeder Timer hat
+einen Termin."** — „läuft" und „in Ordnung" sind seit §3 zweierlei.
+
+### Der Wächter, und die drei Fehler in ihm selbst
+
+**`MobileTableTest`** hält drei Richtungen: jede Tabelle nennt ihre Form, jede
+Form ist in `app.css` gestaltet, und jede gestapelte Zelle trägt ihre
+Beschriftung. Drei Eingriffe, alle belegt.
+
+**Sein erster Lauf war zweimal rot, und beide Male gehörte der Fehler ihm.**
+
+1. Er verlangte `^\s*\.pairs` — die Regel heisst `table.pairs`.
+   > **Ein Ausdruck, der die gewohnte Schreibweise kennt, prüft die Gewohnheit
+   > und nicht die Regel.**
+2. Er meldete sechs Zellen ohne `data-column` aus sechs Seiten, alle sechs zu
+   Recht so geschrieben: `app.css` führt „die Zelle ohne Beschriftung — der
+   Knopf am Zeilenende" ausdrücklich.
+   > **Ein Wächter, der zu viel meldet, wird abgeschaltet — und zwar von dem,
+   > der ihn gebaut hat.**
+
+   Und der erste Versuch, das zu berichtigen, war auch falsch: `strip_tags()`
+   liess „Bearbeiten" stehen.
+   > **Ein Wächter, der Marken abstreift, hält den Text darin für Inhalt.**
+
+**Und der dritte Fehler steckte im Bruch.** Der Eingriff zu „eine Form ohne
+Regel" benannte allein `table.pairs {` um und biss nicht — `table.pairs
+td.ident {` blieb stehen und beantwortete die Frage „gibt es eine Regel?"
+weiter mit ja.
+
+> **Eine zweite Regel für dieselbe Hülle macht die Frage „gibt es eine?"
+> stumpf.** Zum zweiten Mal in dieser Stufe, nach der Untergrenze in §3.
+
+---
+
+## 8 · Was noch aussteht
+
+Die Punkte 2 bis 11 aus `docs/90`, und die Befunde 2 und 3.
+
+**Punkt 4 hängt an Befund 3.** Er trägt das Abnahmekriterium der ganzen Stufe,
+und er wird auf einem Telefon gelesen werden — die Reihenfolge ist also: erst
+Befund 3, dann Punkt 4, sonst misst der Punkt eine Anzeige, von der schon
+feststeht, dass sie ihren eigenen Satz abschneidet.
 
 > **Ein Punkt, den man gegen einen bekannten Fehler misst, misst den Fehler.**

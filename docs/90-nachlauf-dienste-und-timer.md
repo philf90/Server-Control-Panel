@@ -130,8 +130,23 @@ des Menüpunkts ist Teil dessen, was hier geprüft wird.
 - Im zweiten **vier** Zeilen: die vier eigenen Timer.
 - **Keine Unit steht doppelt.** Insbesondere nicht `ssh.service` *und*
   `sshd.service`, nicht `mariadb.service` *und* `mysql.service`.
-- Die Zeilen der eigenen Units zeigen einen **Zustand**, eine **PID** und eine
+- Die Zeilen der eigenen Units zeigen einen **Zustand** und eine
   **Beschreibung**, die systemd geliefert hat — keine leeren Striche.
+- **Vier der acht eigenen Dienste stehen auf „wartet auf seinen Timer" und sind
+  grün:** `srvpanel-usage`, `srvpanel-tls`, `srvpanel-cron`, `srvpanel-dns`.
+  Über der Tabelle steht **keine gelbe Meldung**.
+
+**Die PID gehört ausdrücklich nicht in diese Liste, und das ist eine Berichtigung
+vom 31. August 2026.** Hier stand „einen Zustand, eine **PID** und eine
+Beschreibung … keine leeren Striche". Ein `Type=oneshot` hat keinen
+Hauptprozess: `MainPID` steht auf `0`, `ExecMainStartTimestamp` ist leer, und die
+Seite zeigt in beiden Spalten zu Recht einen Strich. Gemessen mit einem eigenen
+Prüfkörper gegen systemd 255.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
+Erwartet sind also **vier** Zeilen mit einer PID (`srvpanel-agentd`,
+`srvpanel-web`, `srvpanel-worker`, `srvpanel-metrics`) und vier ohne.
 
 **Was ein Fehlschlag bedeutet.** Stehen achtzehn oder neunzehn Zeilen da, fällt
 `Catalog::pick()` nicht zusammen — dann ist die Rolle nicht erkannt, oder
@@ -139,8 +154,13 @@ des Menüpunkts ist Teil dessen, was hier geprüft wird.
 eine Unit, die das Paket nicht ablegt (was `UnitCatalogTest` halten sollte).
 
 **Und der Fall, der im Container nicht vorkam:** Steht bei einer eigenen Unit
-`nicht installiert`, obwohl `systemctl is-active` sie oben als `active` gemeldet
-hat, dann stimmt die Zuordnung der Blöcke nicht — und das ist Punkt 2.
+`nicht installiert`, obwohl §1 sie oben als `loaded` gemeldet hat, dann stimmt
+die Zuordnung der Blöcke nicht — und das ist Punkt 2.
+
+**Der Fall, der `0.7.3-rc.1` gekostet hat.** Stünde bei den vier oneshot-Diensten
+`gestoppt` in Rot und darüber „4 Dienste laufen nicht", wäre die Behebung aus
+`docs/91 §3` nicht angekommen — dann ist entweder `rc.2` nicht installiert oder
+`Units::markScheduled()` findet die Zuordnung auf diesem Server nicht.
 
 ---
 

@@ -22940,6 +22940,51 @@ Dienste-Seite —, kommt mit Begründung dazu und nicht als Erbe aus P0.
 steuerbar, und die zwölf eigenen tun es. Drei Eingriffe im Bruchskript sind
 umgehängt und neu belegt — der geprüfte war ein anderer als der eingetragene.
 
+### Zwei Tabellen ohne Form — der eine Satz, der A2 trägt, war angeschnitten
+
+Gefunden auf `cloudsrv24` an Punkt 1 des Nachlaufs (`docs/91 §6`). Bei 390 px ist
+die Dienstetabelle 1005 px breit bei 358 px sichtbar, und **„kein nächster
+Termin" ragte zehn Pixel über den rechten Rand** ihres Rollbehälters — der eine
+Satz, an dem das Abnahmekriterium von A2 hängt. Das Dokument schob dabei nicht.
+
+> **Eine Zahl, die am Dokument misst, sagt nichts über eine Zelle, die selbst
+> rollen darf.**
+
+**Es war keine Gestaltungsfrage, sondern eine Auslassung.** Ausgezählt über
+`resources/js`: 25 Tabellen tragen `stacks`, 25 tragen `pairs`, eine trägt
+`rows` — und keine einzige steht ohne Form da, ausser den beiden der
+Dienste-Seite.
+
+> **Eine Voreinstellung, die niemand getroffen hat, sieht aus wie eine
+> Entscheidung.**
+
+**Und der Grund steht in `app.css`.** Der Kommentar über `.scrolls` nannte „Für
+Messwerte: Dateisysteme, Prozesse, **Dienste**" — und die Übersicht stapelt genau
+diese drei Tabellen, seit es sie gibt. Die Seite ist nach dem Kommentar gebaut
+worden und nicht nach dem Code; er ist berichtigt.
+
+> **Eine Zeile im Kommentar, die eine Konvention behauptet, veraltet ohne
+> Vorwarnung — und der Code daneben sagt seit langem etwas anderes.**
+
+Gemessen in acht Lagen mit allen sechzehn Zeilen, Gegenprobe 216: Die Marke steht
+jetzt mit 15 px Luft im Behälter, und bei 1440 px kostet die Änderung **nichts**
+(987 px vorher wie nachher). Bezahlt wird bei 390 px mit 2524 px mehr Höhe.
+Offen und benannt: ob `PID` und `Neustarts` auf ein Telefon gehören.
+
+**Die Meldung heisst jetzt „Jeder Dienst ist in Ordnung"** statt „Alle Dienste
+laufen" — sie stand drei Zeilen über vier Diensten, die zu Recht nicht liefen.
+
+**`MobileTableTest`** hält die Regel seitdem in drei Richtungen, mit drei
+Eingriffen. Sein erster Lauf war zweimal rot, und beide Male gehörte der Fehler
+ihm: Er verlangte `.pairs`, wo die Regel `table.pairs` heisst, und er meldete
+sechs Zellen ohne `data-column`, die `app.css` ausdrücklich führt — die Zelle mit
+dem Knopf am Zeilenende. Der dritte Fehler steckte im Bruch: Er benannte allein
+`table.pairs {` um, und `table.pairs td.ident {` beantwortete die Frage weiter
+mit ja.
+
+> **Eine zweite Regel für dieselbe Hülle macht die Frage „gibt es eine?"
+> stumpf.**
+
 ### Ein Eingriff, der an der Untergrenze beisst, hat über die Regel nichts gesagt
 
 Der volle Bruchlauf in der CI hat gemeldet, was der Einzellauf nicht sehen

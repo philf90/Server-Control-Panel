@@ -151,12 +151,34 @@ const gestoppt = computed(() => props.services.filter((s) => rang(s) === 'critic
       sucht ihn als Zeichenkette, und ein Kommentar, der die Regel zitiert,
       verletzt sie für einen Wächter, der Wörter liest.
     -->
-    <p v-else class="notice">Alle Dienste laufen, und jeder Timer hat einen Termin.</p>
+    <!--
+      **„In Ordnung" und „läuft" sind seit dem 31. August zweierlei.** Hier stand
+      „Alle Dienste laufen", und auf `cloudsrv24` stand der Satz drei Zeilen über
+      vier Diensten, die gerade nicht liefen — weil ihr Timer sie startet und sie
+      dazwischen warten.
+
+      Eine Behebung ändert, was ein Wort bedeutet; die Sätze, die es benutzen,
+      ändert sie nicht mit.
+    -->
+    <p v-else class="notice">Jeder Dienst ist in Ordnung, und jeder Timer hat einen Termin.</p>
 
     <div class="sections">
       <Section title="Dienste" full>
         <div class="scrolls">
-          <table>
+          <!--
+            **`stacks`, und das war eine Auslassung und keine Entscheidung.**
+            Fünfundzwanzig Tabellen dieses Panels tragen es, diese und die der
+            Timer trugen es als einzige nicht — und der Kommentar in `app.css`
+            nennt „Dienste" ausdrücklich als `scrolls`-Fall, während die
+            Übersicht ihre Dienstetabelle seit jeher stapelt.
+
+            Gemessen auf `cloudsrv24` bei 390 px: Die Tabelle ist 1005 px breit
+            bei 358 px sichtbar, und „kein nächster Termin" — der Satz, an dem
+            das Abnahmekriterium von A2 hängt — ragte zehn Pixel über den Rand.
+            Das Dokument schob dabei nicht; ein Rollbehälter hat keine
+            Obergrenze, er hat nur keine Zahl, die sich beschwert.
+          -->
+          <table class="stacks">
             <thead>
               <tr>
                 <th>Unit</th>
@@ -168,11 +190,11 @@ const gestoppt = computed(() => props.services.filter((s) => rang(s) === 'critic
             </thead>
             <tbody>
               <tr v-for="zeile in services" :key="zeile.unit">
-                <td><span class="ident">{{ zeile.unit }}</span></td>
-                <td><span class="badge" :class="rang(zeile)">{{ zustand(zeile) }}</span></td>
-                <td>{{ zeile.pid === null || zeile.pid === 0 ? '—' : zeile.pid }}</td>
-                <td>{{ zeile.restarts === null ? '—' : zeile.restarts }}</td>
-                <td>{{ zeile.description || '—' }}</td>
+                <td data-column="Unit"><span class="ident">{{ zeile.unit }}</span></td>
+                <td data-column="Zustand"><span class="badge" :class="rang(zeile)">{{ zustand(zeile) }}</span></td>
+                <td data-column="PID">{{ zeile.pid === null || zeile.pid === 0 ? '—' : zeile.pid }}</td>
+                <td data-column="Neustarts">{{ zeile.restarts === null ? '—' : zeile.restarts }}</td>
+                <td data-column="Beschreibung" class="quiet">{{ zeile.description || '—' }}</td>
               </tr>
             </tbody>
           </table>
@@ -185,7 +207,7 @@ const gestoppt = computed(() => props.services.filter((s) => rang(s) === 'critic
         note="Ein Timer ohne nächsten Termin ist abgeschaltet und meldet trotzdem „active“. Deshalb steht hier der Termin und nicht der Zustand von systemd."
       >
         <div class="scrolls">
-          <table>
+          <table class="stacks">
             <thead>
               <tr>
                 <th>Unit</th>
@@ -196,10 +218,10 @@ const gestoppt = computed(() => props.services.filter((s) => rang(s) === 'critic
             </thead>
             <tbody>
               <tr v-for="zeile in timers" :key="zeile.unit">
-                <td><span class="ident">{{ zeile.unit }}</span></td>
-                <td><span class="badge" :class="rang(zeile)">{{ zustand(zeile) }}</span></td>
-                <td>{{ termin(zeile) }}</td>
-                <td><span class="ident">{{ zeile.triggers || '—' }}</span></td>
+                <td data-column="Unit"><span class="ident">{{ zeile.unit }}</span></td>
+                <td data-column="Zustand"><span class="badge" :class="rang(zeile)">{{ zustand(zeile) }}</span></td>
+                <td data-column="Nächster Termin">{{ termin(zeile) }}</td>
+                <td data-column="Startet"><span class="ident">{{ zeile.triggers || '—' }}</span></td>
               </tr>
             </tbody>
           </table>

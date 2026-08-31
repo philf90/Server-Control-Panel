@@ -384,9 +384,486 @@ weiter mit ja.
 
 ---
 
-## 8 · Was noch aussteht
+## 8 · Punkt 2 — erfüllt
 
-Die Punkte 2 bis 11 aus `docs/90`, und die Befunde 2 und 3.
+Gefahren auf `cloudsrv24` gegen `0.7.3-rc.3`, mit genau dem Aufruf, den der
+Agent macht.
+
+| | erwartet | gemessen |
+|---|---|---|
+| Blöcke (`awk RS=""`) | 19 | **19** |
+| `Id=`-Zeilen | 19 | **19** |
+
+**Das ist das Ausschlusskriterium der Stufe.** Die Blocktrennung von
+`systemctl show a b c` war gegen **drei** Units gemessen (`docs/89 §4`); hier
+sind es neunzehn. Passt die Zahl nicht, wirft `Units::readMany()` — mit Absicht,
+weil eine verschobene Zuordnung stiller Unsinn wäre —, und die ganze Seite gibt
+einen 500er statt einer falschen Zeile.
+
+> **Eine Zusicherung, die im Container hält, ist auf dem Server eine Vermutung —
+> bis jemand sie dort misst.**
+
+Neunzehn und nicht sechzehn: Der Agent fragt **alle** Kandidaten und lässt erst
+danach die zusammenfallen, die dieselbe Rolle haben. Dass `ssh.service` und
+`sshd.service` zwei Blöcke mit **demselben `Id`** ergeben, ist gemessen und
+richtig — gezählt werden Blöcke und nicht verschiedene Namen.
+
+---
+
+## 9 · Punkt 3 — erfüllt
+
+Gefahren am 31. August 2026 gegen `0.7.3-rc.3`.
+
+**(a) `--output=json` trägt auf systemd 255.** Die Antwort ist eine Liste mit
+`unit` und `next`; `next` sind rohe Mikrosekunden seit 1970. Nachgerechnet:
+
+| | `next` | umgerechnet | `NEXT` aus (b) |
+|---|---|---|---|
+| `srvpanel-cron.timer` | 1788174020727199 | 2026-08-31 13:00:20 CEST | 13:00:20 CEST ✓ |
+| `srvpanel-dns.timer` | 1788174053776401 | 2026-08-31 13:00:53 CEST | 13:00:53 CEST ✓ |
+
+**(c) Auf der Seite:** alle vier **bereit**, keiner `—`, keiner `unbekannt`.
+
+**Verglichen werden konnte nur einer von vieren, und das gehört aufgeschrieben.**
+Zwischen Terminal (≈13:00) und Seite (13:01) sind die drei schnellen Timer
+**gefeuert** und stehen einen Takt weiter — `cron` 13:00:20 → 13:05:15, `dns`
+13:00:53 → 13:16:36, `usage` 13:01:16 → 13:15:15. Die neuen Werte passen auf
+Takt und Streuung, belegen aber nicht die Gleichheit, um die es ging.
+
+> **Ein Vergleich zweier Messungen, zwischen denen der Gegenstand weiterläuft,
+> belegt nur den Teil, der stillsteht.**
+
+Der Teil, der stillsteht, ist `srvpanel-tls.timer` — täglich, bis zum nächsten
+Morgen ruhig —, und er stimmt **auf die Sekunde**: `2026-09-01 00:48:49` hier
+wie dort.
+
+**Und die Anzeigezone ist damit nebenbei belegt:** `00:48:49` auf der Seite
+gegen `00:48:49 CEST` im Terminal — Europe/Berlin und nicht UTC.
+
+### Eine Beobachtung, die keinen Befund ergibt und trotzdem zählt
+
+Im JSON steht `"next":1788174020727199,"left":1788174020727199` — **`left`
+trägt denselben Wert wie `next`**. Und `passed` ist `1188143340330` µs, also
+**13,8 Tage**, während die Tabelle daneben „4min 19s ago" druckt.
+
+Beide Felder heissen also nicht, was ihr Name verspricht. Woran es liegt, ist
+hier **nicht** gemessen, und das steht als Lücke da und nicht als Erklärung.
+
+Für dieses Panel geht es gut aus: `SystemUnitsList::schedule()` liest
+ausschliesslich `unit` und `next`. Das war Vorsicht und kein Wissen.
+
+> **Ein Feld, dessen Name etwas anderes verspricht als sein Wert, ist
+> gefährlicher als eines, das fehlt.**
+
+---
+
+## 10 · Punkt 4 — erfüllt. Das Abnahmekriterium von A2 steht.
+
+**(b) Der Zustand ist hergestellt** — `systemctl stop srvpanel-tls.timer`:
+
+    NextElapseUSecRealtime=
+    NextElapseUSecMonotonic=infinity
+    ActiveState=inactive
+    SubState=dead
+
+Genau die vier Werte, die `docs/89 §3` als „kein Termin" gemessen hat.
+
+**Auf der Seite, alle drei Belege:**
+
+1. `srvpanel-tls.timer` trägt die Marke **„kein nächster Termin"** in **Rot** —
+   nicht „gestoppt", nicht „nicht installiert".
+2. Spalte Nächster Termin: **`—`**, nicht `unbekannt`.
+3. Oben in Bernstein: **„1 Timer hat keinen nächsten Termin und meldet trotzdem
+   „active"."**
+
+Der dritte ist der eigentliche Beleg: Die Meldung **zählt** den Zustand und
+benennt ihn, ohne dass man eine Zahl deutet. Das ist der Wortlaut des
+Kriteriums aus `docs/81 §A2`.
+
+**(c) Der Rückweg ist belegt und nicht angenommen:** Nach `systemctl start` steht
+der Timer wieder auf **bereit** mit Datum, und die bernsteinfarbene Meldung ist
+fort.
+
+> **Eine Anzeige, die einen Zustand meldet, muss ihn auch wieder zurücknehmen —
+> sonst hat sie ihn nicht gemessen, sondern behalten.**
+
+### Befund 4 — die Vorschrift zu (c) war falsch
+
+Sie verlangte „derselbe `NEXT`-Wert wie in (a), **oder ein späterer**".
+Gemessen: vorher `00:48:49`, nachher **`00:46:26`** — zwei Minuten
+dreiundzwanzig **früher**.
+
+`srvpanel-tls.timer` trägt `RandomizedDelaySec=1h`, und die Streuung wird bei
+**jeder** Aktivierung neu gezogen. Beide Werte liegen in derselben Stunde nach
+`OnCalendar=daily`; ein früherer Termin ist genauso richtig wie ein späterer.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
+Zum **dritten** Mal in diesem Lauf, nach „die zwölf eigenen Units `loaded` und
+`active`" (§1) und „jede eigene Unit zeigt eine PID" (Punkt 1). Dreimal
+derselbe Fehlertyp heisst: Es fehlt kein besseres Auge, sondern ein Handgriff.
+
+> **Wer eine Erwartung an eine Unit aufschreibt, liest vorher ihre Unit-Datei.**
+> Alle drei Fehler standen dort: `Type=oneshot` bei vieren,
+> `RandomizedDelaySec=1h` bei diesem einen.
+
+---
+
+## 11 · Punkt 5 — erfüllt, und die Seite trägt ihre Gegenprobe selbst
+
+| | gemessen |
+|---|---|
+| Zeitzone unter Einstellungen → Allgemein | **Europe/Berlin** |
+| „Gespeichert" | `2026-08-31 11:09:20 UTC` |
+| „Angezeigt" | `2026-08-31 13:09:20 CEST (UTC+02:00)` |
+| `date -u` / `date` auf dem Server | `11:08 UTC` / `13:08 CEST` |
+
+**Die Gegenprobe, die `docs/90 §6` verlangt, war nicht nötig.** Sie sollte die
+Zone kurz umstellen, falls Anzeigezone und UTC zusammenfallen und der Vergleich
+deshalb nichts sagt. Hier fallen sie nicht zusammen — und die Einstellungsseite
+zeigt **denselben Augenblick zweimal**, genau zwei Stunden auseinander.
+
+> **Eine Anzeige, die ihren Rohwert neben ihr Ergebnis stellt, belegt die
+> Umrechnung, ohne dass jemand daran drehen muss.**
+
+Die Termine aus Punkt 3 fügen sich ein: `00:48:49` ist CEST; wäre die Anzeige
+UTC, stünde dort der Vortag.
+
+---
+
+## 12 · Punkt 6 — nicht prüfbar, und das ist kein Ausfall
+
+Auf diesem Server zeigt **keine** Zeile „nicht installiert". Der Grund ist
+`Catalog::pick()`: Für jede der vier fremden Rollen ist ein Kandidat vorhanden
+(`nginx`, `mariadb`, `ssh`, `cron`), der fehlende fällt weg, bevor eine Zeile
+entsteht. `crond.service` stand in §1 als `not-found` da und taucht auf der
+Seite gar nicht auf.
+
+`docs/90 §7` lässt das ausdrücklich zu. Der Fall ist in `UnitStateTest` mit
+gemessenen Prüfkörpern gehalten: `FEHLT` liefert `pid: null`, `restarts: null`,
+`description: ''` — und der Wächter hält, dass daraus keine `0` und kein
+wiederholter Unitname wird.
+
+> **Ein Zustand, den die Umgebung nicht zulässt, wird nicht dadurch hergestellt,
+> dass man nichts tut.**
+
+Herstellbar wäre er nur, indem man einen laufenden Dienst entfernt — ein
+Prüfkörper, der teurer ist als die Auskunft, die er brächte.
+
+---
+
+## 13 · Punkt 7 — erfüllt
+
+Auf `/` zeigt der Bereich „Dienste" **vier** Zeilen, alle `active`:
+
+| Unit | Beschreibung |
+|---|---|
+| `srvpanel-agentd.service` | SrvPanel — privilegierter Agent |
+| `nginx.service` | A high performance web server and a reverse proxy server |
+| `mariadb.service` | MariaDB 10.11.14 database server |
+| `postgresql@16-main.service` | PostgreSQL Cluster 16-main |
+
+Die drei aus `Catalog::essential()` plus der Cluster, den das Kriterium
+ausdrücklich zulässt. **Keine** Zeile `mysql.service` — `pick()` fällt auch hier
+zusammen. Nicht sechzehn Zeilen. Und der neue Verweis **„Alle Dienste"** steht im
+Bereichskopf.
+
+### Befund 5 — dieselbe Tatsache, zwei Vokabulare
+
+**Am Prüfling, gefunden am Bild.** Die Übersicht schreibt **`active`**, die
+Dienste-Seite schreibt für dieselbe Unit **„läuft"**:
+
+    Overview.vue:676   {{ service.present ? service.active_state : 'nicht installiert' }}
+
+**Erstens ist `active` englisch.** `docs/19 §4a` bindet Texte der Oberfläche auf
+Deutsch. `WordChoiceTest` kann das nicht sehen: Der Wert kommt zur Laufzeit vom
+Server und steht als Zeichenkette nirgends in der Vorlage.
+
+> **Ein Wort, das erst zur Laufzeit entsteht, entgeht jedem Wächter, der
+> Zeichenketten liest.**
+
+**Zweitens ist es eine zweite Fassung derselben Regel**, und die ärmere:
+`dienstRang()` fragt `active_state === 'active'` und kennt weder `activating`
+noch die Nachsicht für Dienste, die ein Timer startet. Heute fällt das nicht auf,
+weil `essential()` keinen `Type=oneshot` enthält — käme je einer dazu, stünde er
+rot mit dem Wort `inactive` da. Das ist genau der Befund aus §3, nur latent.
+
+> **Zwei Fassungen derselben Regel laufen auseinander, und die zweite ist die,
+> die veraltet.** Zum dritten Mal in dieser Stufe.
+
+**Vor A2 gab es die zweite Stelle nicht.** Die Übersicht war die einzige Anzeige
+eines Unit-Zustands; die Divergenz ist erst durch diese Stufe entstanden.
+
+> **Eine Stufe, die eine zweite Anzeige für dieselbe Sache baut, erzeugt die
+> Abweichung, die sie danach halten muss.**
+
+Zu bauen: `rang()` und `zustand()` an eine geteilte Stelle, beide Seiten lesen
+sie, und ein Wächter hält, dass keine Vorlage `active_state` roh rendert.
+
+---
+
+## 14 · Punkt 8 — erfüllt
+
+Als Betreiber bei 390 px, Schublade offen und bis ans Ende gerollt. Vier Gruppen
+in der Reihenfolge aus `docs/90 §9`:
+
+| Gruppe | gesehen |
+|---|---|
+| Verwaltung | Kunden · Pläne · Abonnements · Domains · Datenbanken |
+| **Betrieb** | Vorgänge · Protokoll · Logs · **Dienste** · Updates · Konten |
+| **Einstellungen** | Zugang · Allgemein · PHP-Versionen · Datenbankserver · Mailversand · Zertifikat · DNS-Zugang |
+| Konto | Mein Konto |
+
+Alle vier Überschriften lesbar, kein waagerechtes Rollen, „Mein Konto"
+erreichbar.
+
+**Der Messwert, nach dem der Punkt ausdrücklich fragt:** Die Schublade braucht
+bei 390 px **zwei Bildschirme** — das erste Bild endet bei „Konten", „Mein Konto"
+steht auf dem zweiten. Kein Ausfall, aber die Zahl, an der die Frage hängt, ob
+als Nächstes die Kundennavigation (neun Punkte unter „Konto") geteilt wird.
+
+### Eine Verwechslung, die keine wurde
+
+Im Fuss der Schublade steht **„Administrator"**. Das liest sich wie ein Befund:
+Ein Administrator dürfte die sieben `operate-server`-Punkte unter Einstellungen
+nicht sehen, und `AbilityReachTest` verlangt das.
+
+Nachgesehen in `PanelLayout.vue:574` steht dort `{{ account.name }}` — der
+**Name** des Kontos und nicht seine Rolle. Das Konto heisst „Administrator" und
+ist der Betreiber.
+
+> **Ein Wort, das auch eine Rolle sein könnte, ist noch keine — nachgesehen wird
+> im Quelltext und nicht im Kopf.**
+
+Für Punkt 9(a) heisst das: Das zweite Adminkonto aus dem A9-Lauf ist ein
+anderes, und die Probe der Rollenteilung ist, dass dort unter Einstellungen nur
+**Allgemein** (`manage-settings`) steht.
+
+---
+
+## 15 · Punkt 9 — erfüllt
+
+| | gemessen |
+|---|---|
+| (a) Administrator („Zweite Verwaltung") | Seite lädt, „Dienste" im Menü |
+| (b) Kunde → `/services` | **403** |
+| (c) Kunde → `/domains` | **200**, drei Domains, Knopf da |
+
+**Die Gegenprobe hat sich gelohnt:** Dieselbe Sitzung, dasselbe Konto, zwei
+verschiedene Ergebnisse. Der 403 kommt von der fehlenden Fähigkeit und nicht von
+einer abgelaufenen Anmeldung.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+**(a) zeigt mehr, als das Kriterium abgefragt hat.** Gegen die Fähigkeiten aus
+`routes/web.php` gehalten, fehlen dem Administrator **neun** Menüpunkte und
+bleibt **einer**:
+
+| | Administrator | Betreiber |
+|---|---|---|
+| Betrieb | Vorgänge · Protokoll · **Dienste** · Updates | + Logs + Konten |
+| Einstellungen | nur **Allgemein** (`manage-settings`) | + sechs `operate-server` |
+
+Keiner davon ist im Code als Sonderfall geschrieben — das ist der Beleg, dass
+die Navigation aus der Policy kommt und nicht aus dem Kontotyp (A9 Schritt 5).
+
+Dass der Administrator PID und Neustarts sieht, ist kein Befund:
+`ServicesController` hält im Kopf fest, dass hier kein Geheimnis des Betreibers
+steht — Unitnamen aus dem Katalog, Beschreibungen von systemd.
+
+**Und die 403-Seite ist die entworfene:** „Kein Zutritt — Dieser Bereich gehört
+einer Rolle, die dieses Konto nicht hat", mit dem Weg zurück. `docs/84` hatte
+notiert, dass `resources/views/errors/` gar nicht existierte und jeder 403
+Laravels englische Vorgabeseite war; A9 hat das zum entworfenen Zustand gemacht,
+und hier steht der Beleg auf einem Server.
+
+### Die offene Frage aus Punkt 8 ist damit beantwortet
+
+Die Kundenschublade trägt **neun** Punkte unter „Konto" — Abonnements, Domains,
+Datenbanken, Dateien, SFTP-Zugang, Cronjobs, Vorgänge, Protokoll, Mein Konto —
+und sie passen bei 390 px auf **einen** Bildschirm, ohne zu rollen.
+
+`docs/90 §9` fragte, ob die Kundennavigation als Nächstes geteilt werden muss.
+**Gemessen: nein.** Die zwei Bildschirme sind ein Problem der Betreiberschublade
+allein, und dort sind es zwanzig Punkte in vier Gruppen.
+
+> **Eine Frage nach „ist es zu viel geworden" wird an der Ansicht gemessen, die
+> es betrifft — und nicht an der, die daneben liegt.**
+
+---
+
+## 16 · Punkt 10 — erfüllt, beide Richtungen
+
+| | Vorgang | Meldung |
+|---|---|---|
+| mit der Wegwerfquelle | 723, **fertig** | **bernstein** — „Nicht erreicht: http://nicht.erreichbar.invalid/ubuntu/ (Could not resolve …)" |
+| nach dem Aufräumen | 724, **fertig** | **grün** — „Alle Quellen erreicht" |
+
+Form B aus `docs/86 §5`, genau wie gebaut: **fertig mit Vorbehalt**, und der
+Vorbehalt hat seine eigene Zeile — mit der Quelle *und* dem Grund.
+
+> **Ein Feld im Payload ist noch keine Spalte.**
+
+### Ein Beleg, den kein Kriterium bestellt hat
+
+Nach dem Aufräumen steht in `apt-get update` weiterhin eine `W:`-Zeile:
+
+    W: https://ppa.launchpadcontent.net/ondrej/php/ubuntu/dists/noble/InRelease:
+       Signature by key 14AA40EC… uses weak algorithm (rsa1024)
+
+**Und Vorgang 724 meldet trotzdem grün.** Nachgesehen statt vermutet:
+`Apt::readFailures()` fängt `/^[WE]: Failed to fetch (\S+)\s*(.*?)\s*$/D` —
+also ausdrücklich nur „Failed to fetch" und nicht jede `W:`-Zeile. Die
+Sury-Warnung sagt „erreicht, aber schwach signiert" und ist keine
+Unerreichbarkeit.
+
+Hätte der Leser bloss `W:` gezählt, stünde die Meldung auf diesem Server **jeden
+Tag** auf bernstein.
+
+> **Ein Leser, der eine Warnung zählt statt sie zu lesen, meldet denselben
+> Vorbehalt jeden Tag — und danach sieht ihn niemand mehr an.**
+
+Im Container war das nicht messbar; dort gibt es die Sury-Warnung nicht.
+
+**Als Beobachtung, nicht als Befund:** Dass ein Depot mit rsa1024 signiert, sieht
+heute niemand im Panel. `system.packages.refresh` beantwortet „habe ich alle
+Quellen erreicht" und nicht „sind sie sicher"; beides in einen Vorbehalt zu
+werfen wäre schlechter. Die Frage gehört zu A3 in P9b.
+
+---
+
+## 17 · Punkt 11 — gefahren, **nicht** erfüllt
+
+Sieben Pakete standen an, der Punkt war also fahrbar.
+
+| | Vorgang | Zustand | Meldung |
+|---|---|---|---|
+| erster Lauf | 725 | **fertig** | grün — „7 von 7 Aktualisierungen eingespielt, 0 bleiben offen." |
+| zweiter Lauf | 726 | **fehlgeschlagen** | rot — „Der Lauf hat nichts verändert — offene Aktualisierungen vorher wie nachher: 0." |
+
+Der erste Lauf ist Form A aus `docs/86 §5` in Ordnung: Der absetzende Vorgang
+trägt seinen Ausgang nach.
+
+**Der zweite verletzt das Kriterium.** Es lautete: „Der zweite Lauf meldet, dass
+er nichts verändert hat, und **nicht** einen Fehlschlag." Gemessen meldet er
+**beides** — der Satz stimmt, der Zustand nicht. Der Fortschritt blieb bei 50 %
+stehen, weil der Vorgang in den Fehlerzweig ging.
+
+### Befund 6 — „nichts zu tun" und „nicht geschafft" heissen gleich
+
+Die Ursache steht an zwei Stellen, und beide sind bewusst geschrieben.
+
+`packaging/bin/apt-run:206`:
+
+    if [ "$vorher" = "$nachher" ]; then
+        echo "$NAME: Der Lauf hat nichts verändert — $einheit vorher wie nachher: $nachher."
+        exit 3
+    fi
+
+`agent/src/Outcome.php:70`:
+
+    public const BAD = [
+        'apt-get endete mit ',
+        'Der Lauf hat nichts verändert',
+    ];
+
+Der Kommentar über der Zeile in `apt-run` nennt **drei** Ursachen — veraltete
+Paketlisten (M5), eine abgeschaltete Quelle, ein bereits aktuelles Paket. Alle
+drei sind echte Fehlschläge, und dafür gibt es das Skript.
+
+**Der vierte Fall fehlt in der Aufzählung:** `vorher = nachher = 0`. Da war
+nichts einzuspielen.
+
+Und er ist von den drei anderen **an der Zahl unterscheidbar — sie steht in der
+Meldung**:
+
+| | Urteil |
+|---|---|
+| `vorher 7, nachher 7` | Fehlschlag — sollte sieben einspielen, hat null geschafft |
+| `vorher 0, nachher 0` | kein Fehlschlag — es stand nichts an |
+
+`Outcome::BAD` liest aber nur den **Anfang** des Satzes.
+
+> **Ein Urteil, das seine Zahl mitbringt und nur an seinem Anfang gelesen wird,
+> wirft die Unterscheidung weg, die es trägt.**
+
+**Eine Ebene tiefer ist es die Spiegelung von M5**, dem Befund, mit dem P7b
+angefangen hat:
+
+> **Ein Rückgabewert, der „nichts zu tun" und „nicht geschafft" gleich benennt,
+> ist derselbe Fehler wie einer, der einen Fehlschlag nicht tragen kann — nur in
+> die andere Richtung.** Bei M5 gab `apt-get update` eine `0` für einen Lauf, der
+> jede Quelle verfehlt hatte; hier gibt `apt-run` eine `3` für einen Lauf, dem
+> nichts zu tun blieb.
+
+**Warum es zählt:** Ein Server mit eingeschalteter Automatik hat den Fall
+regelmässig. Nach der dritten Woche mit roten Vorgängen, die nichts bedeuten,
+sieht niemand mehr einen roten Vorgang an.
+
+**Wohin die Behebung gehört:** in `apt-run` und nicht in den Leser. Das Skript
+weiss, ob `vorher` null war, und `exit 3` ist schon dort falsch — wer es von Hand
+fährt, bekommt heute Rückgabewert 3 für einen Lauf ohne Anlass. Das berührt die
+Paketierung und braucht eine neue Fassung. Der Fassungsmodus (`--fassung`) bleibt
+unberührt: Dort ist `nachher` eine Versionsnummer und nie `0`.
+
+---
+
+## 18 · Bilanz — A2 ist abgenommen
+
+`docs/90 §14`: **Abgenommen ist A2, wenn Punkt 4 erfüllt ist.** Er ist es, und
+die beiden Ausschlusskriterien stehen grün.
+
+| Punkt | | |
+|---|---|---|
+| 1 | die Seite, sechzehn Zeilen | ✓ |
+| 2 | ein Aufruf, neunzehn Blöcke | ✓ **Ausschlusskriterium** |
+| 3 | die vier Termine | ✓ |
+| **4** | **ein Timer ohne Termin ist erkennbar** | ✓ **das Kriterium der Stufe** |
+| 5 | Anzeigezone statt UTC | ✓ |
+| 6 | eine Unit, die es nicht gibt | — nicht herstellbar, `docs/90 §14` lässt es zu |
+| 7 | die Übersicht unverändert | ✓ **Ausschlusskriterium** |
+| 8 | die neue Navigation | ✓ |
+| 9 | Administrator ja, Kunde nein | ✓ |
+| 10 | die Behebungen aus `docs/86 §5` | ✓ |
+| 11 | derselbe Lauf zweimal | **✗ Befund 6** |
+
+**Sechs Befunde, und fünf davon stecken im Prüfling.** Das ist die Umkehrung von
+`docs/45`, `docs/48`, `docs/59` und `docs/84`, wo die Mehrheit im Prüfmittel lag.
+
+| | |
+|---|---|
+| 1 · der gesunde Server meldete vier Schäden | Prüfling · **behoben** |
+| 2 · „Alle Dienste laufen" | Prüfling · **behoben** |
+| 3 · der Zustand bei 390 px angeschnitten | Prüfling · **behoben** |
+| 4 · die Vorschrift zu Punkt 4 (c) | Prüfmittel · berichtigt |
+| 5 · die Übersicht sagt „active" | Prüfling · **offen** |
+| 6 · „nichts zu tun" meldet fehlgeschlagen | Prüfling · **offen** |
+
+Dazu zwei berichtigte Erwartungen, die der Prüfling nicht erfüllen konnte (§1
+„loaded **und** active", Punkt 1 „jede Unit zeigt eine PID") — mit Befund 4 sind
+das **drei desselben Musters**, und alle drei standen in der Unit-Datei.
+
+> **Wer eine Erwartung an eine Unit aufschreibt, liest vorher ihre Unit-Datei.**
+
+**Warum diesmal mehr im Prüfling steckt als im Prüfmittel:** Die Vorschrift war
+vor dem Lauf ausgeschrieben und das Messmittel lag als geprüftes Werkzeug im
+Repo. Was blieb, war eine **neue Seite** — und die hatte ihre Fehler dort, wo
+kein Wächter hinsah: in einer Bauart, die im Prüfstand nicht vorkam
+(`Type=oneshot`), und in einer Tabelle ohne Form.
+
+---
+
+## 19 · Was noch aussteht
+
+**Befund 5** (die Übersicht sagt „active") und **Befund 6** („nichts zu tun"
+meldet fehlgeschlagen). Beide sind am Prüfling, beide brauchen eine neue
+Fassung — Befund 6 auch ein neues Paket, weil er `packaging/bin/apt-run`
+berührt.
+
+Und der Rest aus `docs/88`, den Punkt 11 nun eingelöst hat: Er hat auf
+Paketbestand gewartet, ihn bekommen und einen Befund geliefert. Genau dafür war
+er da.
 
 **Punkt 4 hängt an Befund 3.** Er trägt das Abnahmekriterium der ganzen Stufe,
 und er wird auf einem Telefon gelesen werden — die Reihenfolge ist also: erst
@@ -394,3 +871,171 @@ Befund 3, dann Punkt 4, sonst misst der Punkt eine Anzeige, von der schon
 feststeht, dass sie ihren eigenen Satz abschneidet.
 
 > **Ein Punkt, den man gegen einen bekannten Fehler misst, misst den Fehler.**
+
+---
+
+## 20 · Befund 5 und 6 sind behoben — und ein siebter fiel dabei heraus
+
+Gebaut am **31. August 2026**, ohne Server; was hier steht, ist im Container
+gemessen und gehört in einen Nachlauf auf `cloudsrv24`.
+
+### 20.1 Befund 5 — zwei Seiten, ein Server, zwei Auskünfte
+
+Die Übersicht druckte `service.active_state`, also wörtlich **`active`**. Die
+Dienste-Seite sagte für denselben Zustand **`läuft`**, für einen wartenden
+oneshot-Dienst **`wartet auf seinen Timer`** und für einen Timer ohne Termin
+**`kein nächster Termin`**.
+
+> **Dieselbe Grösse in zwei Fassungen anzuzeigen ist keine doppelte Auskunft,
+> sondern eine widersprüchliche.**
+
+`WordChoiceTest` konnte es nicht sehen, und das ist der Grund für den neuen
+Wächter: Das englische Wort steht **nirgends im Quelltext**. Es entsteht zur
+Laufzeit aus einem Feld, das der Agent liefert.
+
+**Behoben ist es nicht durch eine zweite Übersetzung, sondern durch eine
+gemeinsame Stelle.** `resources/js/Composables/useUnitState.ts` trägt `rang()`
+und `zustand()`; beide Seiten rufen sie. Die Übersicht hatte vorher ein eigenes
+`dienstRang()`, das die Nachsicht für oneshot-Dienste nicht kannte — sie hätte
+denselben Befund 1 noch einmal bekommen, sobald jemand ihn dort bemerkt hätte.
+
+**Und der Umzug hat einen Wächter rot gemacht, der nichts Kaputtes fand.** Drei
+Fälle von `ServicesViewTest` zeigten auf `Pages/Services/Index.vue`, wo die
+Regeln nicht mehr stehen.
+
+> **Ein Wächter, der beim Aufräumen zubeisst, wird beim Aufräumen
+> abgeschaltet.**
+
+Die Antwort war nicht, ihn abzuschwächen, sondern ihn dorthin zu zeigen, wo die
+Regel jetzt steht. Was die **Seite** entscheidet — zwei Bereiche, der schweigende
+Agent, das Datum vom Server, die Meldung über `rang` — bleibt an der Seite.
+
+**Dabei ist ein zweiter Wächter stumpf geworden, und das hat kein Test
+gemeldet.** `test_the_colour_of_a_timer_follows_its_next_date` prüft, dass der
+Termin **vor** `active_state` gefragt wird. Gemessen wurde über die ganze Datei
+— und seit dem Umzug steht die Bedingung im Helfer `ohneTermin()`, der **oben**
+definiert ist. Sie war damit immer zuerst da, auch bei verkehrter Reihenfolge.
+
+> **Ein Wächter über eine Reihenfolge wird stumpf, sobald einer der beiden
+> Ausdrücke in einen Helfer zieht, der weiter oben steht.**
+
+Gemeldet hat es der Bruchlauf und nicht der Wächter: Sein Eingriff fand seinen
+Text nicht mehr. Gemessen wird jetzt im Rumpf von `rang()`.
+
+**Dazu ein neuer Wächter für die Regel selbst**
+(`ServicesViewTest::test_no_page_prints_a_raw_unit_state`): Keine der 70 `.vue`
+druckt `active_state`, `sub_state` oder `load_state` in einer Ausgabe. Die
+Untergrenze steht daneben — beide Seiten, die Units zeigen, müssen `zustand(`
+rufen.
+
+### 20.2 Befund 6 — „nichts zu tun" und „nicht geschafft"
+
+`apt-run` schrieb für beide Fälle denselben Satz und endete mit `3`:
+
+    apt-run: Der Lauf hat nichts verändert — offene Aktualisierungen vorher wie nachher: 0.
+
+Auf `cloudsrv24` gemessen (§17): Der zweite Druck auf denselben Knopf meldete
+`fehlgeschlagen`, mit der `0` im eigenen Satz.
+
+> **Ein Urteil, das seine Zahl mitbringt und nur an seinem Anfang gelesen wird,
+> wirft die Unterscheidung weg, die es trägt.**
+
+**Behoben im Skript und nicht im Leser**, und der Leser brauchte dafür keine
+Zeile: Sein Kopf sah den Fall vorher — ein Urteil, das nicht in `Outcome::BAD`
+steht, ist ein Erfolg mit einer Meldung.
+
+> **Eine Voreinstellung, die zur sicheren Seite fällt, trägt den Fall, den
+> niemand vorhergesehen hat — und den, den jemand vorhergesehen und nicht
+> gebaut hat, ebenso.**
+
+**Die Nachsicht ist ausdrücklich auf den Zählmodus beschränkt.** Bei `--fassung`
+ist `nachher` eine Versionsnummer und nie `0`; dort bleibt „vorher wie nachher"
+ein Fehlschlag, denn eine Fassung, die sich nicht ändert, war der Grund des
+Laufs. Beide Hälften haben ihren Eingriff im Bruchskript.
+
+**Und der Prüfkörper von `OutcomeTest` hielt den Fehler fest, statt ihn zu
+melden.** Er stand dort wörtlich als `…vorher wie nachher: 0.` — und die
+Behauptung daneben erklärte ihn für einen Fehlschlag.
+
+> **Ein Prüfkörper, der den Fehler enthält, hält ihn fest statt ihn zu melden —
+> wenn die Behauptung daneben ihn für richtig erklärt.**
+
+### 20.3 Befund 7 — 59 px, gefunden von der Bilderrunde zu A und B
+
+Die Vorgangsseite hat mit `docs/92` A und B eine Zeile für ihren Gegenstand
+bekommen. Der erste Wurf schrieb
+
+    <td class="right"><a class="link ident">…</a></td>
+
+und **schob das Dokument bei 390 px um 59 px aus dem Bild**. Die Zelle daneben —
+`<td class="right ident name">` — brach im selben Tabellenkörper richtig um.
+
+Der Grund steht in `app.css` zweimal ausgeschrieben: `table.pairs td.right.ident`
+löst die Zelle aus ihrem `flex: none` und erlaubt den Umbruch. Eine Kennung, die
+nur *in* der Zelle steht, erreicht diese Ausnahme nicht, und
+`td .ident { white-space: nowrap }` gewinnt.
+
+> **Eine Ausnahme, die für die Zelle geschrieben ist, gilt nicht für das, was in
+> ihr steht — und beide sehen im Markup gleich aus.**
+
+Das ist die **vierte** Wiederholung desselben Fehlers an derselben Tabelle.
+Behoben ist er nicht durch eine fünfte Regel in `app.css`, sondern durch die
+Klasse an der Zelle: Der Verweis erbt die Schrift über `.link { font: inherit }`.
+
+**`MobileTableTest::test_an_identifier_in_a_pairs_cell_belongs_to_the_cell`
+hält die Regel — und hat beim ersten Lauf sofort eine zweite Stelle gefunden**,
+die es seit P6 gibt: `Subscriptions/CronRuns.vue`. Dort zeigt dieselbe Zelle
+einmal einen gesprochenen Satz und einmal den Cron-Ausdruck; ein festes `ident`
+machte aus dem Satz Monoschrift. Sie trägt die Klasse jetzt an einer Bedingung,
+als Objektschlüssel, damit `ClassReachTest` sie sieht.
+
+### 20.4 Die Messwerte
+
+Gemessen im Container mit echtem Markup und **beiden** gebauten Stylesheets,
+Chromium, je Lage mit Gegenprobe.
+
+| Lage | vor der Behebung | nach der Behebung | Gegenprobe |
+|---|---|---|---|
+| hell 390 | **59 px** | 0 px | 200/200 |
+| hell 1440 | 0 px | 0 px | 200/200 |
+| dunkel 390 | **59 px** | 0 px | 200/200 |
+| dunkel 1440 | 0 px | 0 px | 200/200 |
+
+**Die erste Fassung dieser Messung war keine.** Der Aufsatz lag als
+`public/brotkruemel.html` und lud die Stylesheets über `/build/assets/…`; unter
+`file://` zeigt der führende Schrägstrich auf die Wurzel des Dateisystems. Die
+Seite war **ungestaltet**, meldete 66 px, und die Gegenprobe daneben schlug aus.
+
+> **Eine Messung, bei der der Prüfling gar nicht geladen wurde, sieht aus wie
+> ein Ergebnis — die Gegenprobe belegt nur, dass die Messung rechnet, nicht dass
+> sie ihren Gegenstand hat.**
+
+Gemerkt hat es nicht das Bild und nicht die Zahl, sondern die Frage nach der
+**berechneten** Eigenschaft: `overflow-wrap` stand auf `normal`, wo `app.css`
+`anywhere` schreibt. Seitdem liest der Aufsatz die Stylesheets relativ, und der
+Prüfkörper ist danach aus `public/` weggeräumt.
+
+**Und das Bild hat gesagt, was die Zahl nicht konnte.** Bei 0 px Überlauf nahm
+der Brotkrümel trotzdem **drei Zeilen**, weil er
+`/updates?nur=sicherheit&herkunft=…&name=…` vollständig zeigte.
+
+> **Eine Beschriftung, die den ganzen Zustand nennt, sagt nicht mehr, wo man war
+> — sie sagt nur, dass es kompliziert war.**
+
+Gezeigt wird jetzt der Pfad ohne seine Frage; der **Verweis** behält sie, damit
+der Filter beim Zurückgehen wiederkommt. Beide Richtungen haben ihren Eingriff.
+
+### 20.5 Was das für den nächsten Nachlauf heisst
+
+Keine dieser Behebungen hat einen Server gesehen. Zu messen bleibt:
+
+1. **Befund 5** — die Übersicht zeigt für dieselbe Unit denselben Satz wie die
+   Dienste-Seite, und ein wartender oneshot-Dienst ist auf **beiden** grün.
+2. **Befund 6** — derselbe Knopf zweimal: der zweite Lauf meldet `fertig` mit
+   dem Vorbehalt „Es stand nichts an", und die transiente Unit steht nicht auf
+   `failed`. Dazu die Gegenprobe an `--fassung`.
+3. **Befund 7** — die Vorgangsseite eines Vorgangs mit langem Gegenstand bei
+   390 px, gemessen an der echten Seite und nicht am Aufsatz.
+4. **A und B** — der Weg zurück führt dorthin, wo man war, und der Gegenstand
+   ist von der Vorgangsseite aus erreichbar. Ein Vorgang der
+   Zertifikatsautomatik trägt **keine** Herkunft.

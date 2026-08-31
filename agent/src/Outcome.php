@@ -72,6 +72,27 @@ final class Outcome
         'Der Lauf hat nichts verändert',
     ];
 
+    /*
+     * **Und der vierte Fall steht bewusst nicht hier: „Es stand nichts an".**
+     *
+     * Bis zum 31. August 2026 gab es ihn nicht — `apt-run` schrieb auch für
+     * einen Lauf ohne Anlass „Der Lauf hat nichts verändert" und endete mit 3.
+     * Auf `cloudsrv24` gemessen (`docs/91 §17`): Der zweite Druck auf denselben
+     * Knopf meldete `fehlgeschlagen`, mit der Zahl `0` im eigenen Satz.
+     *
+     * > **Ein Urteil, das seine Zahl mitbringt und nur an seinem Anfang gelesen
+     * > wird, wirft die Unterscheidung weg, die es trägt.**
+     *
+     * **Behoben wurde es im Skript und nicht hier**, und dieser Leser brauchte
+     * dafür keine Zeile: Sein Kopf sah den Fall vorher — ein Urteil, das hier
+     * nicht steht, ist ein Erfolg mit einer Meldung. Der neue Satz kommt also
+     * als grüner Vorbehalt an, ohne dass jemand ihn eintragen musste.
+     *
+     * > **Eine Voreinstellung, die zur sicheren Seite fällt, trägt den Fall,
+     * > den niemand vorhergesehen hat — und den, den jemand vorhergesehen und
+     * > nicht gebaut hat, ebenso.**
+     */
+
     /**
      * Was nach dem Versatz noch im Log steht — Zeile für Zeile.
      *

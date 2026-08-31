@@ -61,6 +61,58 @@ enum OperationSubject: string
     }
 
     /**
+     * Wie der Gegenstand in einer Zeile heisst.
+     *
+     * **Bei der Sicherung ist es der Name der Datenbank und nicht ihr eigener.**
+     * `storage_name` ist ein Dateiname mit Zeitstempel; wer eine Sicherung
+     * wiedererkennt, erkennt sie an der Datenbank, aus der sie stammt.
+     * `database_name` wird beim Anlegen abgeschrieben und überlebt deshalb die
+     * Datenbank — was hier genau richtig ist: Der Vorgang, der sie gelöscht
+     * hat, ist der Grund, aus dem sie fehlt.
+     */
+    public function nameOf(Model $subject): string
+    {
+        return match ($this) {
+            self::Domain, self::Database => is_string($subject->getAttribute('name'))
+                ? $subject->getAttribute('name')
+                : '',
+            self::Dump => is_string($subject->getAttribute('database_name'))
+                ? $subject->getAttribute('database_name')
+                : '',
+        };
+    }
+
+    /**
+     * Wo man ihn ansieht — oder `null`, wenn es dafür keine Seite gibt.
+     *
+     * **Die Sicherung hat keine eigene Seite.** `/databases/{db}/dumps/{dump}`
+     * ist ein Herunterladen und kein Ort; gezeigt wird sie auf der Seite ihrer
+     * Datenbank, und dorthin führt der Verweis. Fehlt die Datenbank, führt er
+     * nirgendwohin — und das ist besser als irgendwohin.
+     *
+     * **Die Pfade stehen hier und nicht in der Vorlage.** Eine Zeichenkette,
+     * die auf eine Route zeigt, ohne dass etwas den Bezug prüft, ist der Fehler,
+     * den dieses Projekt sechsmal eingeholt hat; `OperationOriginTest` löst
+     * jeden dieser Pfade gegen die angemeldeten Routen auf.
+     */
+    public function pathTo(Model $subject): ?string
+    {
+        $id = $subject->getKey();
+
+        if (! is_int($id) && ! is_string($id)) {
+            return null;
+        }
+
+        return match ($this) {
+            self::Domain => '/domains/'.$id,
+            self::Database => '/databases/'.$id,
+            self::Dump => is_int($subject->getAttribute('database_id'))
+                ? '/databases/'.$subject->getAttribute('database_id')
+                : null,
+        };
+    }
+
+    /**
      * Der Gegenstand eines Vorgangs, oder `null`.
      *
      * `null` heisst hier zweierlei, und beides ist in Ordnung: Der Vorgang

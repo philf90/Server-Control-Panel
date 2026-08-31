@@ -295,4 +295,138 @@ final class MobileTableTest extends TestCase
 
         return $rumpfe;
     }
+
+    /**
+     * In einer Bezeichnungstabelle trägt die **Zelle** ihre Kennung.
+     *
+     * ## Der Befund, gegen den es diese Regel gibt
+     *
+     * Gemessen am 31. August 2026 bei 390 px an der Vorgangsseite, die mit
+     * ihrem Gegenstand eine Zeile bekommen hat: `<td class="right">` mit einem
+     * `<a class="link ident">` darin schob das Dokument um **59 px** aus dem
+     * Bild. Die Zelle daneben — `<td class="right ident name">` — brach im
+     * selben Tabellenkörper richtig um.
+     *
+     * Der Grund steht in `app.css` zweimal: `table.pairs td.right.ident` löst
+     * die Zelle aus ihrem `flex: none` und erlaubt den Umbruch. Eine Kennung,
+     * die nur *in* der Zelle steht, erreicht diese Ausnahme nicht — und
+     * `td .ident { white-space: nowrap }` gewinnt.
+     *
+     * > **Eine Ausnahme, die für die Zelle geschrieben ist, gilt nicht für das,
+     * > was in ihr steht — und beide sehen im Markup gleich aus.**
+     *
+     * Das ist die **vierte** Wiederholung desselben Fehlers an derselben
+     * Tabelle; über beiden Regeln in `app.css` steht die Lehre schon
+     * ausgeschrieben. Deshalb steht sie jetzt als Wächter da und nicht als
+     * dritter Kommentar.
+     *
+     * ## Was er nicht hält
+     *
+     * Ob die Zelle danach wirklich umbricht. Das ist eine Messung im Browser
+     * und keine Eigenschaft des Markups — sie steht in `docs/91 §18`.
+     */
+    public function test_an_identifier_in_a_pairs_cell_belongs_to_the_cell(): void
+    {
+        $falsch = [];
+        $gepruefte = 0;
+
+        foreach ($this->templates() as $pfad) {
+            $quelle = $this->withoutMarkupComments((string) file_get_contents($pfad));
+
+            foreach ($this->pairedBodies($quelle) as $rumpf) {
+                foreach ($this->cells($rumpf) as [$auf, $inhalt]) {
+                    $gepruefte++;
+
+                    // Die Zelle selbst trägt `ident` — dann greift die
+                    // Ausnahme, und was darin steht, ist gleichgültig.
+                    //
+                    // **Auch als Objektschlüssel.** Eine Zelle, die einmal
+                    // einen gesprochenen Satz und einmal eine Kennung zeigt,
+                    // trägt die Klasse an einer Bedingung: `:class="{ ident:
+                    // … }"`. Ein Ausdruck wäre hier falsch — `ClassReachTest`
+                    // kann eine Klasse aus einer Variablen nicht auflösen —,
+                    // und ein festes `ident` machte aus dem Satz Monoschrift.
+                    if (preg_match('/\bclass="[^"]*\bident\b/', $auf) === 1
+                        || preg_match('/:class="\{[^"]*\bident\s*:/', $auf) === 1) {
+                        continue;
+                    }
+
+                    if (preg_match('/\bclass="[^"]*\bident\b/', $inhalt) === 1) {
+                        $falsch[] = basename($pfad).': '.trim($auf);
+                    }
+                }
+            }
+        }
+
+        $this->assertGreaterThan(
+            40,
+            $gepruefte,
+            'Es wurden kaum Zellen gelesen — dann prüft dieser Test fast nichts.',
+        );
+
+        $this->assertSame(
+            [],
+            $falsch,
+            "Diese Zellen einer `pairs`-Tabelle tragen eine Kennung, ohne selbst eine zu sein:\n"
+            .implode("\n", $falsch)
+            ."\n\nBei 390 px hält `table.pairs td.right.ident` die Zelle davon ab, die Seite zu "
+            .'schieben — eine Kennung *in* der Zelle erreicht diese Ausnahme nicht. Die Klasse '
+            .'gehört an das `<td>`; der Verweis darin erbt die Schrift über `.link { font: inherit }`.',
+        );
+    }
+
+    /**
+     * Die Rümpfe aller `pairs`-Tabellen einer Vorlage.
+     *
+     * Dieselbe Machart wie {@see self::stackedBodies()} und aus demselben
+     * Grund kein Parser: Was er nicht findet, prüft er nicht — und die
+     * Untergrenze daneben meldet, wenn das zu oft passiert.
+     *
+     * @return list<string>
+     */
+    private function pairedBodies(string $quelle): array
+    {
+        $rumpfe = [];
+        $stelle = 0;
+
+        while (preg_match('/<table\b[^>]*class="[^"]*\bpairs\b[^"]*"[^>]*>/s', $quelle, $t, PREG_OFFSET_CAPTURE, $stelle) === 1) {
+            $anfang = (int) $t[0][1] + strlen($t[0][0]);
+            $ende = strpos($quelle, '</table>', $anfang);
+
+            if ($ende === false) {
+                break;
+            }
+
+            $rumpfe[] = substr($quelle, $anfang, $ende - $anfang);
+            $stelle = $ende;
+        }
+
+        return $rumpfe;
+    }
+
+    /**
+     * Die Zellen eines Tabellenkörpers — als Paar aus Anfangsmarke und Inhalt.
+     *
+     * @return list<array{string, string}>
+     */
+    private function cells(string $rumpf): array
+    {
+        $zellen = [];
+        $stelle = 0;
+
+        while (preg_match('/<td\b[^>]*>/s', $rumpf, $t, PREG_OFFSET_CAPTURE, $stelle) === 1) {
+            $auf = (string) $t[0][0];
+            $anfang = (int) $t[0][1] + strlen($auf);
+            $ende = strpos($rumpf, '</td>', $anfang);
+
+            if ($ende === false) {
+                break;
+            }
+
+            $zellen[] = [$auf, substr($rumpf, $anfang, $ende - $anfang)];
+            $stelle = $ende;
+        }
+
+        return $zellen;
+    }
 }

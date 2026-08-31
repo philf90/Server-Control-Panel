@@ -23172,3 +23172,138 @@ seine Deklaration gerutscht war.
 
 Gemessen bei 390 und 1440 px in beiden Themes: `dokument = 0 px`, Gegenprobe
 200/200, `schiebt = 0`.
+
+### Von einer Vorgangsseite führte kein Weg zurück
+
+Einundzwanzig Weiterleitungen aus sieben Controllern enden auf
+`operations.show`, und der Brotkrümel dort trug genau **eine** Verknüpfung:
+`Vorgänge`, also die Liste *aller* Vorgänge. Wer eine Domain anlegte, fand von
+dort nicht zur Domain; wer Pakete einspielte, nicht zurück zu den Updates.
+
+Gemeldet hat es der Betreiber am 31. August 2026, und zwar beim **Erklären**:
+Die Frage war, wie man denselben Knopf ein zweites Mal drückt, und die Antwort
+lautete „mit dem Zurück-Knopf des Browsers".
+
+> **Ein Weg, den man nur erklären kann, indem man den Browser zu Hilfe nimmt,
+> ist keiner, den die Anwendung anbietet.**
+
+**Zwei Wege, zwei Fragen.** `operations.origin` sagt „wo war ich",
+`subject_type`/`subject_id` sagen „worum ging es". Ein Vorgang hat oft beides
+und einer der Automatik keines von beiden — deshalb sind es zwei Felder und
+nicht eines.
+
+**Die Herkunft wird an einer Stelle genommen**, in `Operations::dispatch()`.
+Einundzwanzig Aufrufstellen, die sie einzeln mitgäben, wären einundzwanzig
+Gelegenheiten, sie zu vergessen — und die vergessene fiele niemandem auf, weil
+eine fehlende Herkunft aussieht wie ein Vorgang der Automatik.
+
+**Und sie kommt aus der Sitzung, nicht aus `url()->previous()`.** Der Helfer
+fällt der Reihe nach auf den `Referer` und dann auf die Wurzel der Anwendung
+zurück; ein Vorgang der Zertifikatsautomatik trüge damit `/` als Herkunft, und
+die Seite böte einen Weg zurück dorthin, wo niemand war.
+
+> **Ein Rückfall, der immer etwas liefert, macht aus „unbekannt" eine falsche
+> Auskunft.**
+
+Gespeichert wird ein **Pfad** und keine volle Adresse: Das Panel ist unter
+mehreren Namen erreichbar, und eine Adresse mit Rechnernamen wäre unter dem
+zweiten falsch. Was länger als 255 Zeichen ist, wird **verworfen und nicht
+abgeschnitten** — ein halber Pfad führt irgendwohin, und irgendwohin ist
+schlechter als nirgendwohin.
+
+**`subject_type` und `subject_id` gibt es seit dem 4. August 2026, und bis heute
+hat sie keine Oberfläche gelesen.** Derselbe Fall wie `context` im Protokoll
+(`docs/66`):
+
+> **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht von
+> einem zu unterscheiden, das es nicht gibt.**
+
+`OperationSubject` beantwortet jetzt zwei Fragen mehr — wie der Gegenstand
+heisst und wo man ihn ansieht. Eine Sicherung hat keine eigene Seite; gezeigt
+wird sie auf der Seite ihrer Datenbank, und fehlt die, steht der Name **ohne**
+Verknüpfung da. Das ist eine Auskunft und keine Sackgasse.
+
+**Was das nicht behebt** — dass man überhaupt weggetragen wird — steht als
+`docs/92` und ist in `docs/20 §9` für P9 vorgemerkt.
+
+**Und die Bilderrunde hat zwei Fehler gefunden, die kein Test finden konnte.**
+Der erste schob die Seite bei 390 px um **59 px** aus dem Bild: Die neue Zeile
+schrieb `<td class="right">` mit einem `<a class="link ident">` darin.
+`table.pairs td.right.ident` löst die Zelle aus ihrem `flex: none`; eine
+Kennung, die nur *in* ihr steht, erreicht die Ausnahme nicht.
+
+> **Eine Ausnahme, die für die Zelle geschrieben ist, gilt nicht für das, was in
+> ihr steht — und beide sehen im Markup gleich aus.**
+
+Das ist die vierte Wiederholung desselben Fehlers an derselben Tabelle;
+`MobileTableTest` hält die Regel jetzt und hat beim ersten Lauf sofort eine
+zweite Stelle gefunden, die es seit P6 gibt.
+
+Der zweite hatte **keine Zahl**: Bei 0 px Überlauf nahm der Brotkrümel drei
+Zeilen, weil er `/updates?nur=…&herkunft=…&name=…` vollständig zeigte.
+
+> **Eine Beschriftung, die den ganzen Zustand nennt, sagt nicht mehr, wo man war
+> — sie sagt nur, dass es kompliziert war.**
+
+Gezeigt wird der Pfad ohne seine Frage; der Verweis behält sie, damit der Filter
+beim Zurückgehen wiederkommt.
+
+### Zwei Seiten, ein Server, zwei Auskünfte über denselben Dienst
+
+Befund 5 aus `docs/91`. Die Übersicht druckte `service.active_state`, also
+wörtlich **`active`** — englisch, wo `docs/19 §4a` Deutsch bindet, und ärmer als
+die Dienste-Seite daneben, die für denselben Zustand `läuft` sagte.
+
+> **Dieselbe Grösse in zwei Fassungen anzuzeigen ist keine doppelte Auskunft,
+> sondern eine widersprüchliche.**
+
+`WordChoiceTest` konnte es nicht sehen: Das englische Wort steht **nirgends im
+Quelltext**, es entsteht zur Laufzeit aus einem Feld des Agenten.
+
+Behoben ist es nicht durch eine zweite Übersetzung, sondern durch eine
+gemeinsame Stelle — `useUnitState.ts` trägt `rang()` und `zustand()`, beide
+Seiten rufen sie. Die Übersicht hatte vorher ein eigenes `dienstRang()`, das die
+Nachsicht für `Type=oneshot`-Dienste nicht kannte; sie hätte Befund 1 noch
+einmal bekommen, sobald jemand ihn dort bemerkt hätte.
+
+**Der Umzug hat einen Wächter rot gemacht, der nichts Kaputtes fand** — die
+bekannte Falle. Die Antwort war nicht, ihn abzuschwächen, sondern ihn dorthin zu
+zeigen, wo die Regel jetzt steht. **Und ein zweiter ist dabei stumpf geworden,
+ohne rot zu werden:** `has_next === false` steht seit dem Umzug im Helfer
+`ohneTermin()`, und der ist **oben** definiert — über die ganze Datei gemessen
+war der Termin damit immer zuerst da, auch bei verkehrter Reihenfolge in `rang`.
+
+> **Ein Wächter über eine Reihenfolge wird stumpf, sobald einer der beiden
+> Ausdrücke in einen Helfer zieht, der weiter oben steht.**
+
+Gemeldet hat es der Bruchlauf und nicht der Wächter: Sein Eingriff fand seinen
+Text nicht mehr.
+
+### „Nichts zu tun" meldete „fehlgeschlagen"
+
+Befund 6 aus `docs/91`, gemessen auf `cloudsrv24`: Der zweite Druck auf denselben
+Knopf meldete `fehlgeschlagen` — mit der Zahl `0` im eigenen Satz. `apt-run`
+schrieb für „es stand nichts an" und für „es hat nicht geklappt" **denselben**
+Satz und endete beide Male mit `3`.
+
+> **Ein Urteil, das seine Zahl mitbringt und nur an seinem Anfang gelesen wird,
+> wirft die Unterscheidung weg, die es trägt.**
+
+Behoben ist es im Skript und nicht im Leser, und der Leser brauchte dafür keine
+Zeile: Was nicht in `Outcome::BAD` steht, ist bei ihm ein Erfolg mit einer
+Meldung.
+
+> **Eine Voreinstellung, die zur sicheren Seite fällt, trägt den Fall, den
+> niemand vorhergesehen hat — und den, den jemand vorhergesehen und nicht gebaut
+> hat, ebenso.**
+
+Die Nachsicht ist ausdrücklich auf den Zählmodus beschränkt: Bei `--fassung` ist
+`nachher` eine Versionsnummer und nie `0`, und dort bleibt „vorher wie nachher"
+ein Fehlschlag — eine Fassung, die sich nicht ändert, war der Grund des Laufs.
+
+**Und der Prüfkörper von `OutcomeTest` hielt den Fehler fest, statt ihn zu
+melden.** Er stand dort wörtlich als `…vorher wie nachher: 0.`, und die
+Behauptung daneben erklärte ihn für einen Fehlschlag.
+
+> **Ein Prüfkörper, der den Fehler enthält, hält ihn fest statt ihn zu melden —
+> wenn die Behauptung daneben ihn für richtig erklärt.**

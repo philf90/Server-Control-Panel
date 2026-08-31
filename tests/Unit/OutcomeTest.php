@@ -20,10 +20,25 @@ final class OutcomeTest extends TestCase
 {
     use WithoutPhpComments;
 
-    /** Die vier Ausgänge, wie `apt-run` sie schreibt. */
+    /**
+     * Die fünf Ausgänge, wie `apt-run` sie schreibt.
+     *
+     * **Der Prüfkörper `wirkungslos` stand hier bis zum 31. August 2026 mit
+     * einer `0` — und dieser Wächter behauptete daneben, das sei ein
+     * Fehlschlag.** Genau diese Zeile hat auf `cloudsrv24` einen roten Vorgang
+     * erzeugt, obwohl nichts anstand (`docs/91 §17`).
+     *
+     * > **Ein Prüfkörper, der den Fehler enthält, hält ihn fest statt ihn zu
+     * > melden — wenn die Behauptung daneben ihn für richtig erklärt.**
+     *
+     * Er trägt jetzt eine Zahl grösser null, denn das ist der Fall, den er
+     * meint: Es stand etwas an, und es ist nichts angekommen. Der Fall mit der
+     * Null steht daneben als `nichts_offen` und ist **kein** Fehlschlag.
+     */
     private const ECHT = [
         'gescheitert' => 'apt-run: apt-get endete mit 100. offene Aktualisierungen: vorher 5, jetzt 5.',
-        'wirkungslos' => 'apt-run: Der Lauf hat nichts verändert — offene Aktualisierungen vorher wie nachher: 0.',
+        'wirkungslos' => 'apt-run: Der Lauf hat nichts verändert — offene Aktualisierungen vorher wie nachher: 7.',
+        'nichts_offen' => 'apt-run: Es stand nichts an — offene Aktualisierungen: 0.',
         'panel' => 'apt-run: Fassung 0.7.2~rc.3 wurde zu 0.7.2~rc.4.',
         'pakete' => 'apt-run: 5 von 5 Aktualisierungen eingespielt, 0 bleiben offen.',
     ];
@@ -55,7 +70,7 @@ final class OutcomeTest extends TestCase
         file_put_contents($pfad, "Reading package lists...\n".self::ECHT['wirkungslos']."\n", FILE_APPEND);
 
         $this->assertSame(
-            'Der Lauf hat nichts verändert — offene Aktualisierungen vorher wie nachher: 0.',
+            substr(self::ECHT['wirkungslos'], strlen(Outcome::PREFIX)),
             Outcome::verdict(Outcome::lines($pfad, $versatz)),
         );
     }
@@ -117,19 +132,59 @@ final class OutcomeTest extends TestCase
     }
 
     /**
-     * Welche der vier Formen ein Fehlschlag ist.
+     * Welche der fünf Formen ein Fehlschlag ist.
      *
      * **Beide Richtungen in einem Fall.** Ein `failed()`, das immer `true`
      * sagt, bestünde die eine Hälfte genauso.
+     *
+     * **Und `nichts_offen` ist die Zeile, um die es seit dem 31. August geht.**
+     * „Nichts zu tun" und „nicht geschafft" sind zwei Ausgänge, und nur einer
+     * ist ein Fehlschlag — die Spiegelung von M5, dem Befund, mit dem P7b
+     * angefangen hat.
      */
-    public function test_two_of_the_four_verdicts_are_failures(): void
+    public function test_two_of_the_five_verdicts_are_failures(): void
     {
         $ab = static fn (string $zeile): string => substr($zeile, strlen(Outcome::PREFIX));
 
         $this->assertTrue(Outcome::failed($ab(self::ECHT['gescheitert'])));
         $this->assertTrue(Outcome::failed($ab(self::ECHT['wirkungslos'])));
+        $this->assertFalse(Outcome::failed($ab(self::ECHT['nichts_offen'])));
         $this->assertFalse(Outcome::failed($ab(self::ECHT['panel'])));
         $this->assertFalse(Outcome::failed($ab(self::ECHT['pakete'])));
+    }
+
+    /**
+     * `apt-run` unterscheidet die beiden Fälle, und zwar an der Zahl.
+     *
+     * Gehalten wird am Skript und nicht am Leser: Der Leser braucht dafür keine
+     * Zeile — was nicht in `BAD` steht, ist bei ihm ein Erfolg mit einer
+     * Meldung. Der Fehler steckte allein darin, dass das Skript beide Fälle
+     * gleich benannte und mit `3` endete.
+     */
+    public function test_the_script_tells_nothing_pending_from_nothing_changed(): void
+    {
+        $skript = (string) file_get_contents(dirname(__DIR__, 2).'/packaging/bin/apt-run');
+
+        $this->assertStringContainsString(
+            'Es stand nichts an',
+            $skript,
+            'Ein Lauf ohne Anlass meldet wieder „Der Lauf hat nichts verändert" — und damit einen Fehlschlag.',
+        );
+
+        // Der Ausstieg muss `0` sein und ausdrücklich auf den Zählmodus
+        // beschränkt: Bei `--fassung` ist `nachher` eine Versionsnummer und nie
+        // null, und dort bleibt „vorher wie nachher" ein Fehlschlag.
+        $this->assertMatchesRegularExpression(
+            '/\[ "\$mass" = offen \].*?\[ "\$nachher" -eq 0 \]/s',
+            $skript,
+            'Die Nachsicht ist nicht auf den Zählmodus beschränkt.',
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/Es stand nichts an[^\n]*\n\s*exit 0\n/',
+            $skript,
+            'Ein Lauf ohne Anlass endet nicht mit 0 — dann steht die Unit auf `failed`.',
+        );
     }
 
     /**

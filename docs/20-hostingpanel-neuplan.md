@@ -1378,6 +1378,21 @@ funktionieren — geprüft durch einen automatisierten Lauf, nicht von Hand.
   stehen jetzt in **P9b**, unten.
 - API v1 mit OpenAPI-Beschreibung und Tokens; darüber Abonnement anlegen,
   ändern, sperren, löschen
+- **Ein Vorgang ohne Weiterleitung** — ausgeschrieben in `docs/92`, vorgemerkt
+  am 31. August 2026. Wer heute eine Aktion auslöst, landet auf der
+  Vorgangsseite: **21** Weiterleitungen aus sieben Controllern, und der
+  Brotkrümel dort führt zur Vorgangsliste und nicht zurück. Gefunden hat es der
+  Betreiber, und zwar beim **Erklären** — die Antwort auf „wie drücke ich
+  denselben Knopf noch einmal" lautete „mit dem Zurück-Knopf des Browsers".
+
+  Der schlimmste Teil ist am selben Tag behoben (Herkunft im Brotkrümel,
+  Gegenstand auf der Seite). Was bleibt, ist der **Umweg selbst**: Man bleibt
+  künftig, wo man ist, und ein Streifen zeigt den Lauf. `docs/92 §4` nennt die
+  vier Fragen, die das zu einer Stufe machen und nicht zu einem Nachmittag —
+  allen voran der Log-Strom, der auf jeder Seite mitliefe.
+
+  **Hierher und nicht früher**, weil das Abnahmekriterium dieser Stufe genau
+  der Durchgang ist, in dem so etwas auffällt.
 - Dokumentation: Betreiberhandbuch, Kundenhilfe in der Oberfläche
 
 **Fertig, wenn** ein fremder Kunde das Panel benutzen kann, ohne zu fragen —

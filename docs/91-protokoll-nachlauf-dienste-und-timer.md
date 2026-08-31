@@ -641,9 +641,61 @@ anderes, und die Probe der Rollenteilung ist, dass dort unter Einstellungen nur
 
 ---
 
-## 15 · Was noch aussteht
+## 15 · Punkt 9 — erfüllt
 
-Die Punkte 9 bis 11 aus `docs/90`, und Befund 5.
+| | gemessen |
+|---|---|
+| (a) Administrator („Zweite Verwaltung") | Seite lädt, „Dienste" im Menü |
+| (b) Kunde → `/services` | **403** |
+| (c) Kunde → `/domains` | **200**, drei Domains, Knopf da |
+
+**Die Gegenprobe hat sich gelohnt:** Dieselbe Sitzung, dasselbe Konto, zwei
+verschiedene Ergebnisse. Der 403 kommt von der fehlenden Fähigkeit und nicht von
+einer abgelaufenen Anmeldung.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+**(a) zeigt mehr, als das Kriterium abgefragt hat.** Gegen die Fähigkeiten aus
+`routes/web.php` gehalten, fehlen dem Administrator **neun** Menüpunkte und
+bleibt **einer**:
+
+| | Administrator | Betreiber |
+|---|---|---|
+| Betrieb | Vorgänge · Protokoll · **Dienste** · Updates | + Logs + Konten |
+| Einstellungen | nur **Allgemein** (`manage-settings`) | + sechs `operate-server` |
+
+Keiner davon ist im Code als Sonderfall geschrieben — das ist der Beleg, dass
+die Navigation aus der Policy kommt und nicht aus dem Kontotyp (A9 Schritt 5).
+
+Dass der Administrator PID und Neustarts sieht, ist kein Befund:
+`ServicesController` hält im Kopf fest, dass hier kein Geheimnis des Betreibers
+steht — Unitnamen aus dem Katalog, Beschreibungen von systemd.
+
+**Und die 403-Seite ist die entworfene:** „Kein Zutritt — Dieser Bereich gehört
+einer Rolle, die dieses Konto nicht hat", mit dem Weg zurück. `docs/84` hatte
+notiert, dass `resources/views/errors/` gar nicht existierte und jeder 403
+Laravels englische Vorgabeseite war; A9 hat das zum entworfenen Zustand gemacht,
+und hier steht der Beleg auf einem Server.
+
+### Die offene Frage aus Punkt 8 ist damit beantwortet
+
+Die Kundenschublade trägt **neun** Punkte unter „Konto" — Abonnements, Domains,
+Datenbanken, Dateien, SFTP-Zugang, Cronjobs, Vorgänge, Protokoll, Mein Konto —
+und sie passen bei 390 px auf **einen** Bildschirm, ohne zu rollen.
+
+`docs/90 §9` fragte, ob die Kundennavigation als Nächstes geteilt werden muss.
+**Gemessen: nein.** Die zwei Bildschirme sind ein Problem der Betreiberschublade
+allein, und dort sind es zwanzig Punkte in vier Gruppen.
+
+> **Eine Frage nach „ist es zu viel geworden" wird an der Ansicht gemessen, die
+> es betrifft — und nicht an der, die daneben liegt.**
+
+---
+
+## 16 · Was noch aussteht
+
+Die Punkte 10 und 11 aus `docs/90`, und Befund 5.
 
 **Punkt 4 hängt an Befund 3.** Er trägt das Abnahmekriterium der ganzen Stufe,
 und er wird auf einem Telefon gelesen werden — die Reihenfolge ist also: erst

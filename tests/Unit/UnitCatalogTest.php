@@ -34,7 +34,15 @@ use SrvPanel\Agent\Ops\SftpAccess;
  */
 final class UnitCatalogTest extends TestCase
 {
-    /** Die Units, die das Paket wirklich ablegt. */
+    /**
+     * Die Units, die das Paket wirklich ablegt.
+     *
+     * Die Marke steht auf einer eigenen Zeile: In einem einzeiligen Block ist
+     * `@return` Fliesstext, und die Angabe wäre damit weg — PHPStan meldet dann
+     * „no value type specified", und zwar erst in der CI.
+     *
+     * @return list<string>
+     */
     private static function packaged(): array
     {
         $verzeichnis = dirname(__DIR__, 2).'/packaging/systemd';

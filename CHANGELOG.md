@@ -23307,3 +23307,51 @@ Behauptung daneben erklärte ihn für einen Fehlschlag.
 
 > **Ein Prüfkörper, der den Fehler enthält, hält ihn fest statt ihn zu melden —
 > wenn die Behauptung daneben ihn für richtig erklärt.**
+
+### Die Herkunft stand an einer von sechzehn Stellen
+
+Gefunden vom Nachlauf zu `0.7.3-rc.4` auf `cloudsrv24` (`docs/94 §6b`). Vorgang
+727 (`system.packages.upgrade`) trug im Brotkrümel `← /updates`, Vorgang 729
+(`db.dump.create`) trug nichts — beide von einer Seite aus ausgelöst.
+
+`Dumps::dispatch()` legt seine Zeile mit `Operation::query()->create()` selbst
+an und geht nicht durch `Operations::dispatch()`. Ausgezählt über `app/`:
+**sechzehn** anlegende Stellen, davon **eine** mit Herkunft.
+
+> **Ein Wächter, der prüft, dass *eine* Stelle es tut, hat nicht geprüft, dass
+> es *nur eine* Stelle gibt.**
+
+Der Wächter hiess `test_the_origin_is_taken_in_one_place` und prüfte genau das
+nicht: Er suchte die Zeile in `Operations.php` und fand sie.
+
+**Warum der Gegenstand da war und die Herkunft nicht** — und das sagt auch, wo
+die Behebung hingehört: `subject_type` weiss jede Stelle anders, denn nur der
+Aufrufer kennt den Gegenstand seines Vorgangs. `origin` ist überall dasselbe.
+
+> **Was jede Stelle anders weiss, gehört an die Stelle. Was überall dasselbe
+> ist, gehört an eine — und die muss eine sein, an der niemand vorbeikommt.**
+
+Das Modell ist diese Stelle. `Operation::booted()` setzt die Herkunft jetzt im
+`creating`-Ereignis, wenn sie noch leer ist — dort steht seit `docs/35` schon
+`subscription_name` aus genau demselben Grund. Der Kommentar daneben nannte
+**sechs** anlegende Stellen; die Zahl war veraltet, und ich habe die Herkunft
+nach ihr entworfen.
+
+> **Eine Zahl im Kommentar altert mit dem Code, den sie zählt, und nichts meldet
+> es.**
+
+`Origin::current()` trägt das Lesen; `Operations` hat seine private Methode
+verloren, damit keine zweite Fassung entsteht. Ein Aufrufer, der die Herkunft
+ausdrücklich mitgibt, wird nicht überschrieben — er weiss mehr als die Sitzung.
+
+**Der neue Wächter hält beide Richtungen**, und beim Gegenprüfen hatte er zwei
+eigene Fehler. Der erste Ausdruck kannte `Operation::query()->create(` und
+`Operation::create(` und übersah ausgerechnet `new Operation([…])`; der zweite
+suchte `'origin' =>` in der ganzen Datei und meldete `OperationController`, der
+die Herkunft im Payload der Seite *liest*.
+
+> **Ein Ausdruck, der eine Zuweisung sucht, findet jede Lesestelle mit, solange
+> er den Zusammenhang nicht abgrenzt.**
+
+Gemessen wird jetzt im Argumentblock jeder anlegenden Stelle, über Klammern
+gezählt.

@@ -221,14 +221,121 @@ bisher nirgends geregelt.
 
 ---
 
+## 6b · Befund 4 — die Herkunft stand an einer von sechzehn Stellen
+
+**Gefunden von Punkt 4c.** Vorgang 729 (`db.dump.create`, ausgelöst auf
+`/databases/{id}`) zeigt die Zeile **Sicherung → `p1136_test`** als Verknüpfung
+— aber **kein `←`** im Brotkrümel. Vorgang 727 (`system.packages.upgrade`) trug
+`← /updates`. Beide waren von einer Seite aus ausgelöst worden.
+
+Der Grund: `Dumps::dispatch()` legt seine Zeile mit
+`Operation::query()->create()` selbst an und geht nicht durch
+`Operations::dispatch()` — und dort stand die Herkunft. Ausgezählt über `app/`:
+**sechzehn** anlegende Stellen, davon **eine** mit Herkunft.
+
+> **Ein Wächter, der prüft, dass *eine* Stelle es tut, hat nicht geprüft, dass
+> es *nur eine* Stelle gibt.**
+
+`OperationOriginTest::test_the_origin_is_taken_in_one_place` hiess so und prüfte
+das nicht: Er suchte `'origin' => $this->origin(),` in `Operations.php` und fand
+es. Im PR zu #194 steht daneben, einundzwanzig Aufrufstellen wären
+einundzwanzig Gelegenheiten zu vergessen — geschrieben, ohne nachzuzählen, wie
+viele es wirklich sind.
+
+### Warum der Gegenstand da war und die Herkunft nicht
+
+| | Art | gehört wohin |
+|---|---|---|
+| `subject_type`/`subject_id` | **jede Stelle weiss es anders** — nur der Aufrufer kennt den Gegenstand | an jede Stelle, richtig gebaut |
+| `origin` | **überall dasselbe** — die Sitzung weiss es, unabhängig vom Aufrufer | an **eine**, und die war keine |
+
+> **Was jede Stelle anders weiss, gehört an die Stelle. Was überall dasselbe
+> ist, gehört an eine — und die muss eine sein, an der niemand vorbeikommt.**
+
+### Behoben am Modell, mit einem Präzedenzfall in derselben Methode
+
+`Operation::booted()` setzt die Herkunft jetzt im `creating`-Ereignis, wenn sie
+noch leer ist. Dort steht seit `docs/35` schon `subscription_name` aus genau
+demselben Grund — und der Kommentar sagte das wörtlich, mit der Zahl **sechs**.
+
+**Die Zahl war veraltet, und das hat den Befund verdeckt:** Ich habe die
+Herkunft nach ihr entworfen.
+
+> **Eine Zahl im Kommentar altert mit dem Code, den sie zählt, und nichts meldet
+> es.**
+
+`App\Support\Operations\Origin::current()` trägt das Lesen; `Operations` hat
+seine private Methode verloren, damit es keine zweite Fassung gibt.
+
+### Der Wächter hält jetzt beide Richtungen
+
+`test_the_origin_is_taken_on_the_model` prüft, dass das Modell sie setzt **und**
+dass keine der anlegenden Stellen sie selbst setzt. Beide Eingriffe beissen.
+
+**Zwei Fehler in ihm selbst, beide beim Gegenprüfen gefunden:**
+
+Der erste Ausdruck kannte `Operation::query()->create(` und `Operation::create(`
+— und übersah ausgerechnet `Operations::dispatch()`, das `new Operation([…])`
+schreibt.
+
+> **Ein Ausdruck, der die gewohnte Schreibweise kennt, prüft die Gewohnheit und
+> nicht die Regel.**
+
+Der zweite suchte `'origin' =>` in der **ganzen** Datei und meldete
+`OperationController` — der die Herkunft im Payload der Seite *liest*.
+
+> **Ein Ausdruck, der eine Zuweisung sucht, findet jede Lesestelle mit, solange
+> er den Zusammenhang nicht abgrenzt.**
+
+Gemessen wird jetzt im Argumentblock jeder anlegenden Stelle, über Klammern
+gezählt; schliesst eine nicht, meldet der Leser einen Fehlschlag statt eines
+leeren Blocks.
+
+### Und ein Fehler beim Gegenprüfen selbst
+
+Der erste Eingriff für die Gegenrichtung traf eine Zielstelle, die es zweimal
+gibt — die `assert`-Zeile schlug fehl, der Eingriff wurde **nicht** angewandt,
+und der Testlauf daneben meldete `OK (1 test)`.
+
+> **Ein Eingriff, der nicht angewandt wurde, und ein Wächter, der nicht
+> zubeisst, sehen im Protokoll gleich aus.**
+
+---
+
 ## 7 · Stand
 
 | Punkt | | |
 |---|---|---|
 | 1 | Befund 5 — dieselbe Unit, dasselbe Wort | ✓ (Gleichlauf im Wechsel nicht herstellbar, §2) |
 | 2 | Befund 6 — derselbe Knopf zweimal | ✓ |
-| 3 | Befund 7 — 390 px an der echten Seite | offen |
-| 4 | A und B — der Weg zurück | teilweise, siehe §5 |
+| 3 | Befund 7 — 390 px an der echten Seite | **nicht herstellbar** |
+| 4 | A und B — der Weg zurück | 4a ✓ · 4b nicht herstellbar · 4c **Befund 4** · 4d erst nach der Behebung |
 
-**Drei Befunde und ein Wunsch**, dazu drei Fehler in der Vorschrift, die vor dem
-Lauf gefunden wurden. Befund 1 ist meiner, Befund 2 und 3 sind am Prüfling.
+**Vier Befunde und ein Wunsch**, dazu drei Fehler in der Vorschrift, die vor dem
+Lauf gefunden wurden. Befund 1 ist meiner, Befund 2, 3 und 4 sind am Prüfling —
+und Befund 4 ist der schwerste, weil er die Zusage trifft, die der PR gemacht
+hat.
+
+### Drei Kriterien, die dieser Server nicht erfüllen kann
+
+Punkt 1 (kein `Type=oneshot` auf der Übersicht), Punkt 3 (kein Gegenstand über
+25 Zeichen) und Punkt 4b (kein Filter in der Adresse). Alle drei hätte ein Blick
+in den Quelltext vor dem Schreiben gezeigt.
+
+> **Ein Lauf, dessen Kriterien man aus dem Merkmal ableitet statt aus dem
+> Server, misst das Merkmal am Wunsch und nicht am Bestand.**
+
+**Punkt 4b ist dabei die interessanteste Absage:** Die Filter auf `/updates`
+sind `ref`s über einem `computed` und stehen nie in der Adresse. Damit ist das
+`split('?')` im Brotkrümel **heute unbenutzt** — nicht falsch, aber belegt nur
+im Container. Und der neue Rückweg kann auf dieser Seite den Filter
+grundsätzlich nicht wiederherstellen, weil der Filter den Browser nie verlässt.
+
+### Was gegen `rc.5` zu messen bleibt
+
+1. **4c vollständig** — eine Sicherung zeigt `←` **und** den Gegenstand.
+2. **4d** — ein Vorgang ohne Sitzung (`srvpanel tls --renew`) zeigt kein `←`.
+   Vor der Behebung war das nicht messbar: Vorgang 729 zeigte kein `←` *mit*
+   Sitzung, und damit sahen Erfolgs- und Fehlerfall gleich aus.
+3. **Befund 3** — die Herkunft nach einer Navigation mit dem Zurück-Knopf.
+   Unbehoben und benannt.

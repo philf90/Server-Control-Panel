@@ -1366,11 +1366,14 @@ darf stillstehen — gefragt wird je **Funktionsrumpf**, weil eine Zeichenkette
 irgendwo auf der Seite nichts über die Funktion sagt, in der sie wirken soll)
 und `NavGroupTest` (jede Gruppe der Navigation trennt an der Grenze, an der auch
 die Route trennt) und `OperationOriginTest` (von einer
-Vorgangsseite führt ein Weg zurück: die Herkunft wird an **einer** Stelle
-genommen, kommt aus der Sitzung und nicht aus einem Helfer mit Rückfall, und
-jeder Pfad, den `OperationSubject` nennt, ist eine angemeldete **GET**-Route —
-gefragt wird `routes/web.php` als Text, weil der Wächter ohne Framework laufen
-muss) und `MobileTableTest` (jede Tabelle nennt ihre Form —
+Vorgangsseite führt ein Weg zurück: die Herkunft wird am **Modell** genommen und
+von **keiner** der sechzehn anlegenden Stellen selbst — beide Richtungen, denn
+die erste allein hat den Befund aus `docs/94 §6b` nicht gesehen; sie kommt aus
+der Sitzung und nicht aus einem Helfer mit Rückfall, und jeder Pfad, den
+`OperationSubject` nennt, ist eine angemeldete **GET**-Route — gefragt wird
+`routes/web.php` als Text, weil der Wächter ohne Framework laufen muss, und die
+anlegenden Stellen werden über **alle drei** Schreibweisen gesucht, im
+Argumentblock und nicht in der ganzen Datei) und `MobileTableTest` (jede Tabelle nennt ihre Form —
 `stacks`, `pairs` oder `rows` —, jede Form ist in `app.css` gestaltet, und jede
 gestapelte Zelle trägt ihre Beschriftung; die Zelle mit dem Knopf am Zeilenende
 darf ohne, und das wird an ihrem **Inhalt** entschieden und nicht an einer
@@ -1851,6 +1854,27 @@ Seite war ungestaltet, meldete 66 px, und die Gegenprobe daneben schlug aus.
 Gemerkt hat es nicht das Bild und nicht die Zahl, sondern die Frage nach der
 **berechneten** Eigenschaft: `overflow-wrap` stand auf `normal`, wo `app.css`
 `anywhere` schreibt.
+
+**Und der Nachlauf hat gezeigt, dass die Herkunft an einer von sechzehn Stellen
+stand** (`docs/94 §6b`, gemessen am 31. August auf `cloudsrv24`): Vorgang 727
+trug `← /updates`, Vorgang 729 nichts, beide von einer Seite ausgelöst.
+`Dumps::dispatch()` und vierzehn weitere legen ihre Zeile selbst an.
+
+> **Ein Wächter, der prüft, dass *eine* Stelle es tut, hat nicht geprüft, dass
+> es *nur eine* Stelle gibt.**
+
+Der Unterschied zum Gegenstand sagt, wo die Behebung hingehört:
+
+> **Was jede Stelle anders weiss, gehört an die Stelle. Was überall dasselbe
+> ist, gehört an eine — und die muss eine sein, an der niemand vorbeikommt.**
+
+Das Modell ist sie: `Operation::booted()` setzt die Herkunft im
+`creating`-Ereignis, wie `subscription_name` seit `docs/35`. Dessen Kommentar
+nannte **sechs** anlegende Stellen — die Zahl war veraltet, und der erste Wurf
+der Herkunft ist nach ihr entworfen worden.
+
+> **Eine Zahl im Kommentar altert mit dem Code, den sie zählt, und nichts meldet
+> es.**
 
 **Was das nicht behebt — dass man überhaupt weggetragen wird — steht als
 `docs/92` und ist in `docs/20 §9` für P9 vorgemerkt.**

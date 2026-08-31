@@ -410,9 +410,108 @@ richtig — gezählt werden Blöcke und nicht verschiedene Namen.
 
 ---
 
-## 9 · Was noch aussteht
+## 9 · Punkt 3 — erfüllt
 
-Die Punkte 3 bis 11 aus `docs/90`.
+Gefahren am 31. August 2026 gegen `0.7.3-rc.3`.
+
+**(a) `--output=json` trägt auf systemd 255.** Die Antwort ist eine Liste mit
+`unit` und `next`; `next` sind rohe Mikrosekunden seit 1970. Nachgerechnet:
+
+| | `next` | umgerechnet | `NEXT` aus (b) |
+|---|---|---|---|
+| `srvpanel-cron.timer` | 1788174020727199 | 2026-08-31 13:00:20 CEST | 13:00:20 CEST ✓ |
+| `srvpanel-dns.timer` | 1788174053776401 | 2026-08-31 13:00:53 CEST | 13:00:53 CEST ✓ |
+
+**(c) Auf der Seite:** alle vier **bereit**, keiner `—`, keiner `unbekannt`.
+
+**Verglichen werden konnte nur einer von vieren, und das gehört aufgeschrieben.**
+Zwischen Terminal (≈13:00) und Seite (13:01) sind die drei schnellen Timer
+**gefeuert** und stehen einen Takt weiter — `cron` 13:00:20 → 13:05:15, `dns`
+13:00:53 → 13:16:36, `usage` 13:01:16 → 13:15:15. Die neuen Werte passen auf
+Takt und Streuung, belegen aber nicht die Gleichheit, um die es ging.
+
+> **Ein Vergleich zweier Messungen, zwischen denen der Gegenstand weiterläuft,
+> belegt nur den Teil, der stillsteht.**
+
+Der Teil, der stillsteht, ist `srvpanel-tls.timer` — täglich, bis zum nächsten
+Morgen ruhig —, und er stimmt **auf die Sekunde**: `2026-09-01 00:48:49` hier
+wie dort.
+
+**Und die Anzeigezone ist damit nebenbei belegt:** `00:48:49` auf der Seite
+gegen `00:48:49 CEST` im Terminal — Europe/Berlin und nicht UTC.
+
+### Eine Beobachtung, die keinen Befund ergibt und trotzdem zählt
+
+Im JSON steht `"next":1788174020727199,"left":1788174020727199` — **`left`
+trägt denselben Wert wie `next`**. Und `passed` ist `1188143340330` µs, also
+**13,8 Tage**, während die Tabelle daneben „4min 19s ago" druckt.
+
+Beide Felder heissen also nicht, was ihr Name verspricht. Woran es liegt, ist
+hier **nicht** gemessen, und das steht als Lücke da und nicht als Erklärung.
+
+Für dieses Panel geht es gut aus: `SystemUnitsList::schedule()` liest
+ausschliesslich `unit` und `next`. Das war Vorsicht und kein Wissen.
+
+> **Ein Feld, dessen Name etwas anderes verspricht als sein Wert, ist
+> gefährlicher als eines, das fehlt.**
+
+---
+
+## 10 · Punkt 4 — erfüllt. Das Abnahmekriterium von A2 steht.
+
+**(b) Der Zustand ist hergestellt** — `systemctl stop srvpanel-tls.timer`:
+
+    NextElapseUSecRealtime=
+    NextElapseUSecMonotonic=infinity
+    ActiveState=inactive
+    SubState=dead
+
+Genau die vier Werte, die `docs/89 §3` als „kein Termin" gemessen hat.
+
+**Auf der Seite, alle drei Belege:**
+
+1. `srvpanel-tls.timer` trägt die Marke **„kein nächster Termin"** in **Rot** —
+   nicht „gestoppt", nicht „nicht installiert".
+2. Spalte Nächster Termin: **`—`**, nicht `unbekannt`.
+3. Oben in Bernstein: **„1 Timer hat keinen nächsten Termin und meldet trotzdem
+   „active"."**
+
+Der dritte ist der eigentliche Beleg: Die Meldung **zählt** den Zustand und
+benennt ihn, ohne dass man eine Zahl deutet. Das ist der Wortlaut des
+Kriteriums aus `docs/81 §A2`.
+
+**(c) Der Rückweg ist belegt und nicht angenommen:** Nach `systemctl start` steht
+der Timer wieder auf **bereit** mit Datum, und die bernsteinfarbene Meldung ist
+fort.
+
+> **Eine Anzeige, die einen Zustand meldet, muss ihn auch wieder zurücknehmen —
+> sonst hat sie ihn nicht gemessen, sondern behalten.**
+
+### Befund 4 — die Vorschrift zu (c) war falsch
+
+Sie verlangte „derselbe `NEXT`-Wert wie in (a), **oder ein späterer**".
+Gemessen: vorher `00:48:49`, nachher **`00:46:26`** — zwei Minuten
+dreiundzwanzig **früher**.
+
+`srvpanel-tls.timer` trägt `RandomizedDelaySec=1h`, und die Streuung wird bei
+**jeder** Aktivierung neu gezogen. Beide Werte liegen in derselben Stunde nach
+`OnCalendar=daily`; ein früherer Termin ist genauso richtig wie ein späterer.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
+Zum **dritten** Mal in diesem Lauf, nach „die zwölf eigenen Units `loaded` und
+`active`" (§1) und „jede eigene Unit zeigt eine PID" (Punkt 1). Dreimal
+derselbe Fehlertyp heisst: Es fehlt kein besseres Auge, sondern ein Handgriff.
+
+> **Wer eine Erwartung an eine Unit aufschreibt, liest vorher ihre Unit-Datei.**
+> Alle drei Fehler standen dort: `Type=oneshot` bei vieren,
+> `RandomizedDelaySec=1h` bei diesem einen.
+
+---
+
+## 11 · Was noch aussteht
+
+Die Punkte 5 bis 11 aus `docs/90` — Punkt 5 ist über Punkt 3 schon zur Hälfte beantwortet.
 
 **Punkt 4 hängt an Befund 3.** Er trägt das Abnahmekriterium der ganzen Stufe,
 und er wird auf einem Telefon gelesen werden — die Reihenfolge ist also: erst

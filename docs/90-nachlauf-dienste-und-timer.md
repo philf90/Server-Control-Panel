@@ -296,9 +296,17 @@ systemctl start srvpanel-tls.timer
 systemctl list-timers --all --no-pager | grep srvpanel-tls
 ```
 
-**Erwartet zu (c):** derselbe `NEXT`-Wert wie in (a), oder ein späterer — und auf
-der neu geladenen Seite wieder **bereit** mit Datum, und **keine** bernsteinfarbene
-Meldung mehr.
+**Erwartet zu (c):** **irgendein** `NEXT`-Wert in derselben Stunde nach
+Mitternacht — und auf der neu geladenen Seite wieder **bereit** mit Datum, und
+**keine** bernsteinfarbene Meldung mehr.
+
+**Und hier stand bis zum 31. August „derselbe Wert wie in (a), oder ein
+späterer".** Das ist falsch: `srvpanel-tls.timer` trägt `RandomizedDelaySec=1h`,
+und die Streuung wird bei **jeder** Aktivierung neu gezogen. Gemessen wurde
+`00:48:49` vorher und `00:46:26` nachher — zwei Minuten dreiundzwanzig früher,
+und beides richtig.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
 
 > **Eine Anzeige, die einen Zustand meldet, muss ihn auch wieder zurücknehmen —
 > sonst hat sie ihn nicht gemessen, sondern behalten.**

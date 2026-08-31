@@ -219,6 +219,78 @@ Der Fortschrittsbalken berührt ausserdem eine offene Entscheidung: **bindet
 `docs/19` die Kommandozeile?** Farbe, Balken und Wortwahl im Terminal sind
 bisher nirgends geregelt.
 
+### Warum ein naives „warten" es schlechter machen kann
+
+Heute übergibt der Befehl sauber: Unit, Logpfad, Rückweg. Wartet er stattdessen
+und stirbt dabei, sieht der Betreiber einen Befehl, der hängt und dann abbricht.
+
+> **Eine Verbesserung, die im Fehlerfall weniger liefert als der Zustand davor,
+> ist keine.**
+
+Deshalb steht die Messung vor dem Bau und nicht daneben.
+
+### M1 — die Messung, die den Entwurf entscheidet
+
+**Der Wrapper ruft `/opt/srvpanel/current/artisan`, also über den Symlink.** Wo
+der Autoloader eines laufenden Prozesses danach wurzelt, entscheidet, ob eine
+Warteschleife überhaupt Code nachladen kann. Das ist nicht nachlesbar, sondern
+zu messen — und zwar **beim nächsten Update**, weil es einen echten Wechsel
+braucht.
+
+**Vorher:**
+
+    BISHER=$(readlink -f /opt/srvpanel/current)
+    echo "$BISHER"
+    srvpanel version
+
+    cd "$BISHER"
+    nohup /opt/srvpanel/bin/php -r '
+    $alt = getenv("BISHER");
+    $bis = time() + 300;
+    while (time() < $bis) {
+        printf("%s  pid=%d  cwd=%s  artisan=%d  log=%d\n",
+            date("H:i:s"), getmypid(),
+            (@getcwd() ?: "FORT"),
+            (int) is_readable($alt."/artisan"),
+            (int) is_readable("/var/log/srvpanel/upgrade.log"));
+        sleep(5);
+    }' > /tmp/ueberlebt.log 2>&1 &
+
+**Dann** `srvpanel update`, **danach** `cat /tmp/ueberlebt.log` und
+`srvpanel version`.
+
+**Beide Pfade sind absolut und gehen nicht durch den Symlink** — das ist der
+Punkt. Die erste Fassung dieser Vorschrift fragte
+`is_readable("/opt/srvpanel/current/composer.json")` und hatte kein `cd`:
+
+> **Eine Spalte, die ihren Wert nicht annehmen kann, ist keine Messung.**
+
+`current` zeigt nach dem Wechsel auf die **neue** Fassung und ist immer lesbar;
+`cwd` stand auf `/root` und wäre nie `FORT` geworden. Beide hätten „alles in
+Ordnung" gemeldet, gleich was geschieht.
+
+| Spalte | beantwortet |
+|---|---|
+| Zeilen bis zum Ende | überlebt der Prozess den Neustart überhaupt |
+| `cwd=FORT` | wird das alte Fassungsverzeichnis unter ihm abgeräumt |
+| `artisan=0` | kann er danach noch aus **seiner** Fassung nachladen |
+
+**Die Gegenprobe ist `srvpanel version` vorher und nachher.** Sind sie gleich,
+hat kein Wechsel stattgefunden — dann misst der Lauf nichts, und drei Spalten
+voller Einsen bedeuten nichts.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+**Was aus dem Ergebnis folgt:**
+
+- `artisan=0` nach dem Wechsel → die Warteschleife darf **nichts** nachladen.
+  Alles, was sie braucht, wird vor dem Absetzen geladen. Das ist eine
+  Bauvorschrift, die man vorher kennen muss — nachträglich fällt sie als
+  Absturz mitten im Update auf.
+- Der Prozess stirbt sofort → die Vorgabe bleibt, wie sie ist, und der Ausgang
+  kommt über einen zweiten Griff statt über eine Warteschleife.
+
 ---
 
 ## 6b · Befund 4 — die Herkunft stand an einer von sechzehn Stellen

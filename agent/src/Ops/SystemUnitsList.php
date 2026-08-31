@@ -66,7 +66,12 @@ final class SystemUnitsList implements Op
             ['--property='.implode(',', Units::FIELDS), '--no-pager'],
         ), 30);
 
-        $zeilen = Units::readMany($namen, $antwort->stdout);
+        // **Erst lesen, dann paaren.** Ein Dienst, den ein Timer startet,
+        // steht zwischen seinen Läufen auf `inactive` — vier der eigenen zwölf
+        // sind `Type=oneshot`. Die Zuordnung kommt aus `Triggers` am Timer und
+        // damit aus derselben einen Antwort; der Kopf von `markScheduled`
+        // begründet, warum nicht aus `TriggeredBy` am Dienst.
+        $zeilen = Units::markScheduled(Units::readMany($namen, $antwort->stdout));
         /** @var array<string,array<string,mixed>> $nachName */
         $nachName = array_combine($namen, $zeilen);
 

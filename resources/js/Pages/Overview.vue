@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Link, router } from '@inertiajs/vue3'
+import { Link, router, usePage } from '@inertiajs/vue3'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import ActionIcon from '../Components/ActionIcon.vue'
 import Bar from '../Components/Bar.vue'
@@ -46,6 +46,23 @@ interface Process {
   state: string
   user: number
 }
+
+/**
+ * Darf der Betrachter die volle Dienstliste sehen?
+ *
+ * **Gefragt wird die geteilte Ablage `abilities` und nicht `can`** — `can`
+ * gehört den Seiten, die eine eigene über ihr Objekt schicken, und ein
+ * Seitenwert überschreibt den geteilten (`docs/82` Schritt 5).
+ *
+ * Diese Seite verlangt selbst **keine** Fähigkeit; `/services` verlangt
+ * `inspect-server`. Ein Verweis, der nur einen 403 einbringt, ist keine
+ * Auskunft, sondern eine Sackgasse — `OperatorControlTest` verlangt deshalb,
+ * dass er in einem `v-if` darauf steht.
+ */
+const seite = usePage()
+const darfDienste = computed(
+  (): boolean => ((seite.props.abilities ?? {}) as Record<string, boolean>)['inspect-server'] === true,
+)
 
 const props = defineProps<{
   server: {
@@ -630,6 +647,22 @@ const headline = props.server.reachable
       </Section>
 
       <Section title="Dienste" wide>
+        <!--
+          **Drei von sechzehn.** Hier stehen die tragenden Dienste
+          (`Catalog::essential()`) — der Agent, der Webserver, die Datenbank.
+          Die volle Liste samt Timern und ihren nächsten Terminen steht auf
+          `/services`, und der `actions`-Platz ist genau dafür da: „ein Verweis
+          auf die volle Liste".
+
+          Ohne ihn steht die Frage „und die anderen dreizehn?" an der Stelle, an
+          der sie entsteht, ohne Antwort — der Menüpunkt beantwortet sie erst
+          dem, der ihn sucht. Dreimal hat dieses Projekt einen Ort falsch
+          gehabt, und dreimal hat es der Betreiber gemeldet und kein Test.
+        -->
+        <template #actions>
+          <Link v-if="darfDienste" class="button small" href="/services">Alle Dienste</Link>
+        </template>
+
         <div class="scrolls">
           <table class="stacks">
             <thead>

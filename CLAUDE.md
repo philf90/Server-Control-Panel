@@ -1331,7 +1331,10 @@ Vorlagenblock, wo der Übersetzer ihn wegwirft — die Regel, die
 eines Blocks) und `OperatorControlTest` (ein Bedienelement, dessen Route strenger ist als die
 Seite selbst, steht in einem `v-if` auf ihre Fähigkeit — die Zuordnung
 Fähigkeit → Wächtervariable kommt aus der Seite und nicht aus einer Liste im
-Test, und die Vorlage wird mit einem Stapel gelesen statt rückwärts),
+Test, und die Vorlage wird mit einem Stapel gelesen statt rückwärts; **ein
+wörtlicher `href` zählt seit dem 31. August mit**, denn ein Verweis führt
+genauso zu einem 403 wie ein Knopf, und was er nicht halten kann, steht in
+seinem Kopf als Frage),
 `InspectOnlyTest` (dieselbe Grenze an der Tür: vier Griffe geben dem
 Administrator 403 und dem Betreiber nicht — gemessen wird „nicht 403" und nicht
 „200", sonst prüfte er den Agenten statt der Tür) und `SourceKeyFilterTest`
@@ -1351,7 +1354,18 @@ schluckt; dazu: der benannte Lauf benutzt kein `--only-upgrade`, weil das ein
 noch nicht installiertes Paket wortlos überginge) und `UnattendedStateTest`
 (der Zustand der Automatik kommt aus `apt-config dump` und nicht aus der
 eigenen Datei; eine fehlende Zeile heisst **an** und nicht aus; das Ausschalten
-nimmt das Auffrischen der Listen nicht mit). Der Bruch selbst steht als
+nimmt das Auffrischen der Listen nicht mit) und `UnitStateTest` (der Leser für
+`systemctl show`, mit gemessenen Prüfkörpern statt erfundenen — dazu die
+Zuordnung Dienst ↔ Timer: sie kommt aus `Triggers` **am Timer**, überlebt einen
+gestoppten Timer, und `markScheduled` **wird gerufen** und rechnet nicht bloss
+richtig) und `UnitCatalogTest` (jede paketierte Unit steht im Katalog und jede
+im Katalog ist paketiert — beide Richtungen, weil ein toter Eintrag bei einer
+Umbenennung entsteht) und `ServicesViewTest` (die Farbe einer Zeile folgt dem
+nächsten Termin und nicht `ActiveState`, und ein Dienst, den ein Timer startet,
+darf stillstehen — gefragt wird je **Funktionsrumpf**, weil eine Zeichenkette
+irgendwo auf der Seite nichts über die Funktion sagt, in der sie wirken soll)
+und `NavGroupTest` (jede Gruppe der Navigation trennt an der Grenze, an der auch
+die Route trennt). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -1687,7 +1701,18 @@ Dienste und Timer, gemessen gegen echtes systemd 255 in einer eigenen Namespace:
 §1 wie dieser Container einen Systemmanager bekommt, §2 dass ein Timer nur sechs
 der neun Felder von `ServiceStatus` beantwortet, §3 die Messung, die den Entwurf
 entscheidet, §6 der eigene Fehler dieser Runde und §7 was auf dem Zielserver
-offen bleibt.
+offen bleibt. Und **`90` der Nachlauf zu `0.7.3-rc.1`** — die Abnahme
+von A2 auf `cloudsrv24`: elf Punkte, von denen Punkt 4 das Kriterium trägt
+(ein Timer ohne Termin ist als kaputt erkennbar) und Punkt 2 ein
+Ausschlusskriterium ist (der Mehrfachleser ist gegen **drei** Units gemessen
+und fragt auf dem Server **neunzehn**; passt die Blockzahl nicht, gibt die
+ganze Seite einen 500er). §13 sagt, was er ausdrücklich nicht prüft, §14, wann
+er durch ist und welche zwei Punkte als „nicht herstellbar" ausfallen dürfen —
+und **`91` das Protokoll dazu**: §1 der gemessene Ausgangszustand (systemd 255
+auf dem Server, sechzehn Zeilen aus neunzehn Kandidaten), §2 die Messrunde, die
+Befund 1 nötig gemacht hat, §3 der Befund selbst mit seinen sechs Wächtern und
+acht Brüchen, §4 was noch aussteht. **Der Lauf ist nicht durch** — §1 ist
+gemessen, die Punkte 1 bis 11 stehen aus.
 
 Und **`65` der Serverlauf zu `v0.6.0-rc.20`** — die elf Punkte, mit denen die
 sieben Befunde der zweiten Runde und die drei Wünsche auf einem echten Server

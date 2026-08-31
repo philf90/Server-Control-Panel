@@ -22940,6 +22940,145 @@ Dienste-Seite —, kommt mit Begründung dazu und nicht als Erbe aus P0.
 steuerbar, und die zwölf eigenen tun es. Drei Eingriffe im Bruchskript sind
 umgehängt und neu belegt — der geprüfte war ein anderer als der eingetragene.
 
+### Ein Eingriff, der an der Untergrenze beisst, hat über die Regel nichts gesagt
+
+Der volle Bruchlauf in der CI hat gemeldet, was der Einzellauf nicht sehen
+konnte: Der Eingriff „die Seite liest einen Schluessel, den es nicht gibt" biss
+nicht mehr. Er schreibt in `Updates/Index.vue` `operate_server` statt
+`operate-server` — ein Schlüssel, den die geteilte Ablage nicht kennt, ist
+wortlos `false`, und die Seite verliert jeden Knopf, ohne es zu sagen.
+
+Rot wurde davon aber nie diese Regel, sondern die **Untergrenze** von
+`test_a_control_for_a_stricter_route_sits_behind_its_ability`: Die Updates-Seite
+war die einzige, die dort etwas zu prüfen beitrug, und ohne ihre
+Wächtervariable zählte der Test null. Der Verweis der Übersicht auf `/services`
+hat einen zweiten Beitrag dazugestellt — Untergrenze 1 statt 0, und der Eingriff
+war still.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand neben seiner Regel eine zweite baut, die dieselbe Frage
+> beantwortet.**
+
+Das ist derselbe Satz wie am 23. August an `.toggle:has(input:disabled)`, und
+die Lehre daneben ist die eigentliche:
+
+> **Ein Eingriff, der an der Untergrenze eines Wächters beisst, hat über dessen
+> Regel nichts gesagt.**
+
+`test_every_ability_key_a_page_reads_exists` fragt jetzt den Schlüssel selbst:
+Jeder wörtliche Griff in die geteilte Ablage — drei heute, in `Updates/Index`,
+`Overview` und `RebootButton` — nennt eine Fähigkeit, die es in
+`AdminAbility::abilities()` gibt. Er kommt ohne eine Untergrenze von anderswo
+aus, und der Eingriff zeigt ihn rot. Gesucht wird unter `resources/js` und nicht
+nur unter `Pages`: `RebootButton.vue` liest die Ablage und ist keine Seite.
+
+### Der Bereich „Dienste" auf der Übersicht zeigte drei von sechzehn und sagte es nicht
+
+Er führt die tragenden Dienste (`Catalog::essential()`) — den Agenten, den
+Webserver, die Datenbank. Seit A2 gibt es sechzehn Zeilen und vier Timer mit
+ihren Terminen auf `/services`, und an der Stelle, an der die Frage „und die
+anderen dreizehn?" entsteht, stand keine Antwort. Der Menüpunkt beantwortet sie
+erst dem, der ihn sucht — und dreimal hat dieses Projekt einen Ort falsch
+gehabt, dreimal hat es der Betreiber gemeldet und kein Test.
+
+Der `actions`-Platz des Bereichskopfs ist ausdrücklich dafür da („ein Verweis
+auf die volle Liste"). Der Verweis steht hinter `inspect-server`: Die Übersicht
+verlangt selbst keine Fähigkeit, `/services` verlangt eine, und ein Verweis, der
+nur einen 403 einbringt, ist keine Auskunft, sondern eine Sackgasse.
+
+Gemessen mit dem echten Markup und **beiden** gebauten Stylesheets, vier Lagen:
+Überlauf `0 px` überall, Gegenprobe `216/216`, der Kopf bleibt bei 390 px eine
+Zeile (55 px), der Knopf bekommt dort seine Höhe von 44 px. Bilder in beiden
+Themes angesehen.
+
+**Und `OperatorControlTest` hat den Verweis nicht gesehen.** Er suchte
+`@click`-Griffe, deren Rumpf ein `router.post|put|patch|delete` enthält; ein
+`<Link href="/services">` führt genauso zu einem 403 und war für ihn nicht da.
+
+> **Ein Wächter, der die gewohnte Schreibweise kennt, prüft die Gewohnheit und
+> nicht die Regel.**
+
+Gemessen vor der Erweiterung: drei wörtliche Verweise auf fähigkeitsgeschützte
+Routen im ganzen Seitenbaum, alle drei auf Kontoseiten, die dieselbe Fähigkeit
+schon selbst verlangen. Der Wächter zählt sie seitdem mit, und der Bruch dazu
+ist belegt.
+
+Was er weiter **nicht** hält, steht jetzt in seinem Kopf: Eine Seite ohne
+Wächtervariable für die nötige Fähigkeit wird übersprungen. Zu unterscheiden
+wären „die Seite verlangt sie selbst" und „die Seite zeigt den Verweis einfach"
+nur über die Fähigkeit der eigenen Route, und die Kette Seitenname → Controller
+→ Pfad → Fähigkeit gibt es in diesem Repo nicht.
+
+> **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
+> als Zusage.**
+
+### Der gesunde Server meldete vier Schäden — der Timer-Fehler spiegelverkehrt
+
+Gefunden auf `cloudsrv24` beim Aufnehmen des Ausgangszustands für den Nachlauf
+zu `0.7.3-rc.1` (`docs/91 §1`). Vier der zwölf eigenen Dienste sind
+`Type=oneshot` — `srvpanel-usage`, `srvpanel-tls`, `srvpanel-cron` und
+`srvpanel-dns`. Sie laufen, wenn ihr Timer sie startet, und stehen dazwischen
+auf `inactive`. Genau so standen sie da, und der Server war in Ordnung.
+
+Die Seite hat daraus vier rote Zeilen mit dem Wort „gestoppt" gemacht und
+darüber „4 Dienste laufen nicht" gesetzt.
+
+> **Ein Dienst, den ein Timer startet, läuft zwischen seinen Läufen nicht — das
+> ist keine Störung, sondern seine Bauart.**
+
+Das ist derselbe Fehler, dessentwegen es A2 gibt, nur andersherum: Dort sieht
+der kaputte Timer gesund aus, hier der gesunde Dienst kaputt. Beide Male hängt
+eine Anzeige an `ActiveState`, einem Feld, das für **eine** Bauart eine Auskunft
+ist.
+
+**Kein Wächter konnte ihn sehen**, und das ist die eigentliche Lehre: Die
+Prüfkörper von `UnitStateTest` stammen aus der Messrunde vom 30. August, und
+dort gab es einen laufenden Dienst, vier Timer und eine fehlende Unit — **keinen
+oneshot-Dienst**. Die Bauart, die auf dem Zielserver in vier von zwölf Fällen
+vorkommt, kam im Prüfstand nicht vor.
+
+> **Ein Prüfstand, dem eine Bauart fehlt, ist über sie nicht still — er ist
+> grün.**
+
+**`Units::markScheduled()`** trägt jetzt an jedem Dienst nach, ob ein Timer aus
+derselben Antwort ihn startet, und `SystemUnitsList` ruft es. Gefragt wird
+`Triggers` **am Timer** und nicht `TriggeredBy` am Dienst: Gemessen gegen
+systemd 255 in beide Richtungen entsteht `TriggeredBy` erst beim Aktivieren des
+Timers und verschwindet, sobald er stoppt.
+
+> **Eine Eigenschaft, die nur dasteht, solange der andere läuft, beantwortet
+> nicht „wozu gehört dieser Dienst", sondern „läuft der andere gerade".**
+
+Ein gestoppter Timer machte seinen oneshot-Dienst sonst wieder zu einem
+Dauerdienst, und die Seite malte den Dienst rot für einen Schaden, der dem Timer
+gehört und in dessen eigener Zeile schon steht. `Triggers` kommt aus der
+Unit-Datei, steht in allen drei Zuständen da und wird für die Timer ohnehin
+gelesen — die Zuordnung kostet weder eine zweite Frage an systemd noch eine
+Liste in diesem Repo.
+
+Die Nachsicht hängt ausdrücklich an `inactive` und nicht an „nicht aktiv": Ein
+oneshot-Dienst, dessen letzter Lauf scheiterte, steht auf `failed`, und das
+bleibt ein Schaden (gemessen mit einem eigenen Prüfkörper je Fall).
+
+**Und die Meldung zählt seitdem über `rang` statt über `active_state`.** Ohne
+diesen Schritt wären nach der Behebung vier Zeilen grün gewesen und darüber
+hätte weiter „4 Dienste laufen nicht" gestanden.
+
+> **Zwei Fassungen derselben Regel laufen auseinander, und die zweite ist die,
+> die veraltet.**
+
+Sechs Wächter, acht Brüche, jeder einzeln belegt. Einer davon hat einen Fehler
+im frisch gebauten Wächter gefunden — er suchte die Bedingung irgendwo auf der
+Seite und blieb grün, als der Eingriff sie aus `rang` entfernte und in `zustand`
+stehenliess.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald die Zeichenkette
+> irgendwo steht.**
+
+Und `docs/90 §1` hat eine Erwartung verloren, die der Prüfling nicht erfüllen
+kann: „die zwölf eigenen Units `loaded` **und** `active`". Erwartet sind acht
+`active` und vier `inactive` mit laufendem Timer.
+
 ### Die Gruppe „Server" hatte dreizehn Punkte — jetzt sind es zwei Gruppen
 
 Vom Betreiber entschieden am 30. August 2026. „Betrieb" trägt sechs Punkte

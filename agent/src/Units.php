@@ -216,6 +216,83 @@ final class Units
     }
 
     /**
+     * Trägt an jedem Dienst nach, ob ein Timer ihn startet.
+     *
+     * ## Warum das gebraucht wird
+     *
+     * Vier der zwölf eigenen Dienste sind `Type=oneshot` — `srvpanel-usage`,
+     * `srvpanel-tls`, `srvpanel-cron` und `srvpanel-dns`. Zwischen zwei Läufen
+     * stehen sie auf `inactive`, und das ist ihr **gesunder** Zustand. Auf
+     * `cloudsrv24` gemessen (31. August 2026, gegen `0.7.3-rc.1`): alle vier
+     * `inactive`, ihre vier Timer `active`, der Server in Ordnung.
+     *
+     * Die erste Fassung der Seite hat daraus vier rote Zeilen und die Meldung
+     * „4 Dienste laufen nicht" gemacht — derselbe Fehler wie beim Timer, nur
+     * spiegelverkehrt: Dort sieht der kaputte gesund aus, hier der gesunde
+     * kaputt.
+     *
+     * > **Ein Dienst, den ein Timer startet, läuft zwischen seinen Läufen
+     * > nicht — das ist keine Störung, sondern seine Bauart.**
+     *
+     * ## Warum `Triggers` am Timer und nicht `TriggeredBy` am Dienst
+     *
+     * Gemessen gegen systemd 255 mit eigenen Prüfkörpern, in beide Richtungen
+     * (`docs/91 §2`):
+     *
+     * | Zustand des Timers | `TriggeredBy` am Dienst | `Triggers` am Timer |
+     * |---|---|---|
+     * | nie gestartet | leer | der Dienst |
+     * | gestartet | der Timer | der Dienst |
+     * | wieder gestoppt | leer | der Dienst |
+     *
+     * `TriggeredBy` entsteht erst beim **Aktivieren** des Timers und
+     * verschwindet, sobald er stoppt. Ein von Hand gestoppter Timer machte
+     * seinen oneshot-Dienst damit wieder zu einem Dauerdienst; die Seite würde
+     * den Dienst rot malen für einen Schaden, der dem Timer gehört und in
+     * dessen eigener Zeile schon steht.
+     *
+     * > **Eine Eigenschaft, die nur dasteht, solange der andere läuft,
+     * > beantwortet nicht „wozu gehört dieser Dienst", sondern „läuft der
+     * > andere gerade".**
+     *
+     * `Triggers` kommt aus der Unit-Datei und steht in allen drei Zuständen da.
+     * Für die Timer wird es ohnehin schon gelesen — diese Zuordnung kostet
+     * weder eine zweite Frage an systemd noch eine Liste in diesem Repo.
+     *
+     * @param  list<array<string,mixed>>  $rows
+     * @return list<array<string,mixed>>
+     */
+    public static function markScheduled(array $rows): array
+    {
+        $vonEinemTimer = [];
+
+        foreach ($rows as $zeile) {
+            if (($zeile['kind'] ?? null) !== 'timer') {
+                continue;
+            }
+
+            $ziel = $zeile['triggers'] ?? null;
+
+            if (is_string($ziel) && $ziel !== '') {
+                $vonEinemTimer[$ziel] = true;
+            }
+        }
+
+        foreach ($rows as $index => $zeile) {
+            $name = $zeile['unit'] ?? null;
+
+            // `null` bei allem, was kein Dienst ist — dieselbe Regel wie bei
+            // `triggers` und `has_next`: Ein Timer kann nicht von einem Timer
+            // gestartet werden, und das ist etwas anderes als „wird nicht".
+            $rows[$index]['scheduled'] = ($zeile['kind'] ?? null) === 'service'
+                ? is_string($name) && isset($vonEinemTimer[$name])
+                : null;
+        }
+
+        return $rows;
+    }
+
+    /**
      * Hat dieser Timer einen nächsten Termin?
      *
      * Beide Felder werden gefragt, weil jedes für sich im gesunden Fall leer

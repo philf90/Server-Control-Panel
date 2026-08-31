@@ -19211,15 +19211,42 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperatorControlTest passed
 
 echo
+echo "── OperatorControlTest: der Verweis auf die Dienste ohne seinen Waechter ──"
+#
+# Die Uebersicht verlangt selbst keine Faehigkeit, /services verlangt
+# inspect-server. Ohne das v-if sieht ein Betrachter einen Verweis, der ihm
+# einen 403 einbringt — und bis zum 31. August sah dieser Test nur @click.
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Overview.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<Link v-if="darfDienste" class="button small" href="/services">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<Link class="button small" href="/services">', 1))
+PY2
+griff_datei resources/js/Pages/Overview.vue "Verweis ohne Waechter" &&
+pruefe "Verweis ohne Waechter" \
+  OperatorControlTest::test_a_control_for_a_stricter_route_sits_behind_its_ability failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperatorControlTest passed
+
+echo
 echo "── OperatorControlTest: die Seite liest einen Schluessel, den es nicht gibt ──"
 #
 # Ein unbekannter Schluessel in der geteilten Ablage ist wortlos `false`. Die
 # Seite saehe fuer den Betreiber aus wie fuer den Administrator — jeder Knopf
 # weg, und keine Meldung nirgends.
 #
-# Getroffen wird damit auch die Zuordnung Faehigkeit → Waechtervariable, die
-# der Test aus der Seite selbst liest: Ohne sie findet er die Variable nicht
-# mehr und haelt den Griff faelschlich fuer ungeschuetzt.
+# **Gezielt wird seit dem 31. August auf die Regel und nicht auf die
+# Untergrenze.** Bis dahin nannte dieser Eingriff
+# test_a_control_for_a_stricter_route_sits_behind_its_ability, und der war rot,
+# weil die Updates-Seite die einzige war, die dort etwas beitrug: Ohne ihre
+# Waechtervariable zaehlte er null. Der Verweis der Uebersicht auf /services hat
+# einen zweiten Beitrag dazugestellt, die Untergrenze stand auf 1, und der
+# Eingriff biss nicht mehr — gemeldet vom vollen Lauf in der CI.
+#
+#   Ein Eingriff, der an der Untergrenze eines Waechters beisst, hat ueber
+#   dessen Regel nichts gesagt.
 vorher_datei resources/js/Pages/Updates/Index.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Updates/Index.vue'
@@ -19230,7 +19257,7 @@ open(p, 'w', encoding='utf-8').write(s.replace(alt, "['operate_server'] === true
 PY2
 griff_datei resources/js/Pages/Updates/Index.vue "Schluessel ohne Ablage" &&
 pruefe "Schluessel ohne Ablage" \
-  OperatorControlTest::test_a_control_for_a_stricter_route_sits_behind_its_ability failed
+  OperatorControlTest::test_every_ability_key_a_page_reads_exists failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperatorControlTest passed
 
@@ -20097,6 +20124,111 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
+echo "== UnitStateTest: jeder Dienst gilt als von einem Timer gestartet =="
+#
+# Dann ist die Nachsicht keine Regel mehr, sondern eine Voreinstellung:
+# srvpanel-worker duerfte stillstehen, ohne dass es jemand meldet.
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = "                ? is_string($name) && isset($vonEinemTimer[$name])"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                ? is_string($name)", 1))
+PY2
+griff_datei agent/src/Units.php "jeder Dienst gilt als geplant" &&
+pruefe "jeder Dienst gilt als geplant" \
+  UnitStateTest::test_a_service_without_a_timer_is_not_marked failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitStateTest: kein Timer traegt seinen Dienst ein =="
+#
+# Die Zuordnung laeuft dann ins Leere, und jeder oneshot-Dienst steht auf einem
+# gesunden Server als gestoppt da — genau der Befund vom 31. August 2026.
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = "                $vonEinemTimer[$ziel] = true;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                unset($vonEinemTimer[$ziel]);", 1))
+PY2
+griff_datei agent/src/Units.php "kein Timer traegt ein" &&
+pruefe "kein Timer traegt ein" \
+  UnitStateTest::test_a_service_a_timer_starts_is_marked_as_scheduled failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitStateTest: ein Timer bekommt false statt null =="
+#
+# „Wird nicht von einem Timer gestartet" und „kann gar nicht" sind zwei
+# Auskuenfte. Dieselbe Unterscheidung wie bei pid und has_next.
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = """                ? is_string($name) && isset($vonEinemTimer[$name])
+                : null;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """                ? is_string($name) && isset($vonEinemTimer[$name])
+                : false;""", 1))
+PY2
+griff_datei agent/src/Units.php "Timer bekommt false" &&
+pruefe "Timer bekommt false" \
+  UnitStateTest::test_a_service_a_timer_starts_is_marked_as_scheduled failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitStateTest: die Abfrage nimmt TriggeredBy dazu =="
+#
+# Gemessen: TriggeredBy entsteht beim Aktivieren des Timers und verschwindet,
+# sobald er stoppt. Wer daran zuordnet, verliert die Zuordnung mit dem Timer.
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'NextElapseUSecRealtime',
+        'NextElapseUSecMonotonic',
+        'Unit',
+    ];"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        'NextElapseUSecRealtime',
+        'NextElapseUSecMonotonic',
+        'Unit',
+        'TriggeredBy',
+    ];""", 1))
+PY2
+griff_datei agent/src/Units.php "TriggeredBy in der Abfrage" &&
+pruefe "TriggeredBy in der Abfrage" \
+  UnitStateTest::test_the_query_does_not_ask_the_service_side failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitStateTest: die Operation paart die Zeilen nicht mehr =="
+#
+# Der Leser rechnet dann weiter richtig und steht in keinem Weg. Ein Wert, den
+# niemand holt, ist von einem, den es nicht gibt, an der Anzeige nicht zu
+# unterscheiden.
+vorher_datei agent/src/Ops/SystemUnitsList.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemUnitsList.php'
+s = open(p, encoding='utf-8').read()
+alt = "$zeilen = Units::markScheduled(Units::readMany($namen, $antwort->stdout));"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$zeilen = Units::readMany($namen, $antwort->stdout);", 1))
+PY2
+griff_datei agent/src/Ops/SystemUnitsList.php "Zeilen werden nicht gepaart" &&
+pruefe "Zeilen werden nicht gepaart" \
+  UnitStateTest::test_the_operation_actually_pairs_the_rows failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
 echo "== UnitStateTest: die Operation holt die Timer aus der Liste =="
 #
 # Gemessen: Ein von Hand gestoppter Timer verschwindet aus list-timers --all
@@ -20389,6 +20521,69 @@ PY2
 griff_datei resources/js/Pages/Services/Index.vue "ein Bereich statt zwei" &&
 pruefe "ein Bereich statt zwei" \
   ServicesViewTest::test_services_and_timers_are_two_sections failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
+
+echo
+echo "== ServicesViewTest: ein wartender oneshot-Dienst wird rot =="
+#
+# Vier der eigenen zwoelf Dienste sind Type=oneshot und stehen zwischen ihren
+# Laeufen auf inactive. Ohne die Nachsicht meldet die Seite auf einem gesunden
+# Server vier Schaeden.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = """  if (zeile.active_state === 'activating') return 'warn'
+  if (zeile.scheduled === true && zeile.active_state === 'inactive') return 'ok'
+  return 'critical'"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """  if (zeile.active_state === 'activating') return 'warn'
+  return 'critical'""", 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "wartender oneshot wird rot" &&
+pruefe "wartender oneshot wird rot" \
+  ServicesViewTest::test_a_service_a_timer_starts_may_stand_still failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
+
+echo
+echo "== ServicesViewTest: die Nachsicht steht vor dem Fehlschlag =="
+#
+# Dann liest sich ein gescheiterter Lauf als „wartet auf seinen Timer" — der
+# Schaden verschwindet hinter der Nachsicht, die ihn nicht meinen sollte.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = """  if (zeile.active_state === 'failed') return 'fehlgeschlagen'
+  if (zeile.scheduled === true && zeile.active_state === 'inactive') return 'wartet auf seinen Timer'"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """  if (zeile.scheduled === true && zeile.active_state === 'inactive') return 'wartet auf seinen Timer'
+  if (zeile.active_state === 'failed') return 'fehlgeschlagen'""", 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "Nachsicht vor dem Fehlschlag" &&
+pruefe "Nachsicht vor dem Fehlschlag" \
+  ServicesViewTest::test_a_service_a_timer_starts_may_stand_still failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
+
+echo
+echo "== ServicesViewTest: die Meldung zaehlt an der Farbe vorbei =="
+#
+# Zwei Fassungen derselben Regel: Nach der Behebung waeren vier Zeilen gruen und
+# darueber stuende weiter „4 Dienste laufen nicht".
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = "const gestoppt = computed(() => props.services.filter((s) => rang(s) === 'critical').length)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "const gestoppt = computed(\n  () => props.services.filter((s) => s.present && s.active_state !== 'active').length,\n)", 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "Meldung zaehlt an der Farbe vorbei" &&
+pruefe "Meldung zaehlt an der Farbe vorbei" \
+  ServicesViewTest::test_the_notice_counts_what_the_colour_says failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 

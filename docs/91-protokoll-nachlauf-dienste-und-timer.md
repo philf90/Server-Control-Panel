@@ -509,9 +509,52 @@ derselbe Fehlertyp heisst: Es fehlt kein besseres Auge, sondern ein Handgriff.
 
 ---
 
-## 11 · Was noch aussteht
+## 11 · Punkt 5 — erfüllt, und die Seite trägt ihre Gegenprobe selbst
 
-Die Punkte 5 bis 11 aus `docs/90` — Punkt 5 ist über Punkt 3 schon zur Hälfte beantwortet.
+| | gemessen |
+|---|---|
+| Zeitzone unter Einstellungen → Allgemein | **Europe/Berlin** |
+| „Gespeichert" | `2026-08-31 11:09:20 UTC` |
+| „Angezeigt" | `2026-08-31 13:09:20 CEST (UTC+02:00)` |
+| `date -u` / `date` auf dem Server | `11:08 UTC` / `13:08 CEST` |
+
+**Die Gegenprobe, die `docs/90 §6` verlangt, war nicht nötig.** Sie sollte die
+Zone kurz umstellen, falls Anzeigezone und UTC zusammenfallen und der Vergleich
+deshalb nichts sagt. Hier fallen sie nicht zusammen — und die Einstellungsseite
+zeigt **denselben Augenblick zweimal**, genau zwei Stunden auseinander.
+
+> **Eine Anzeige, die ihren Rohwert neben ihr Ergebnis stellt, belegt die
+> Umrechnung, ohne dass jemand daran drehen muss.**
+
+Die Termine aus Punkt 3 fügen sich ein: `00:48:49` ist CEST; wäre die Anzeige
+UTC, stünde dort der Vortag.
+
+---
+
+## 12 · Punkt 6 — nicht prüfbar, und das ist kein Ausfall
+
+Auf diesem Server zeigt **keine** Zeile „nicht installiert". Der Grund ist
+`Catalog::pick()`: Für jede der vier fremden Rollen ist ein Kandidat vorhanden
+(`nginx`, `mariadb`, `ssh`, `cron`), der fehlende fällt weg, bevor eine Zeile
+entsteht. `crond.service` stand in §1 als `not-found` da und taucht auf der
+Seite gar nicht auf.
+
+`docs/90 §7` lässt das ausdrücklich zu. Der Fall ist in `UnitStateTest` mit
+gemessenen Prüfkörpern gehalten: `FEHLT` liefert `pid: null`, `restarts: null`,
+`description: ''` — und der Wächter hält, dass daraus keine `0` und kein
+wiederholter Unitname wird.
+
+> **Ein Zustand, den die Umgebung nicht zulässt, wird nicht dadurch hergestellt,
+> dass man nichts tut.**
+
+Herstellbar wäre er nur, indem man einen laufenden Dienst entfernt — ein
+Prüfkörper, der teurer ist als die Auskunft, die er brächte.
+
+---
+
+## 13 · Was noch aussteht
+
+Die Punkte 7 bis 11 aus `docs/90`.
 
 **Punkt 4 hängt an Befund 3.** Er trägt das Abnahmekriterium der ganzen Stufe,
 und er wird auf einem Telefon gelesen werden — die Reihenfolge ist also: erst

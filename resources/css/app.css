@@ -1143,9 +1143,25 @@ table.pairs {
  * Tabellen auf einer schmalen Fläche — zwei Muster, und nur diese zwei.
  *
  * **`.scrolls` — die Tabelle bleibt eine Tabelle und rollt waagerecht.**
- * Für Messwerte: Dateisysteme, Prozesse, Dienste. Dort steht in jeder Spalte
- * eine Zahl derselben Art, und der Vergleich *zwischen* den Zeilen ist der
- * Zweck der Ansicht. Aufgebrochen in Kärtchen wäre genau dieser Vergleich weg.
+ * Der Rollbehälter, den unter 720px jede Tabelle trägt und über 720px die
+ * breiten brauchen.
+ *
+ * **Und hier stand bis zum 31. August 2026 etwas anderes:** „Für Messwerte:
+ * Dateisysteme, Prozesse, Dienste. Dort steht in jeder Spalte eine Zahl
+ * derselben Art, und der Vergleich *zwischen* den Zeilen ist der Zweck der
+ * Ansicht." Der Gedanke stimmt — nur folgt ihm keine Tabelle dieses Panels:
+ * Die Übersicht stapelt ihre Dateisysteme, ihre Prozesse **und ihre Dienste**,
+ * seit es sie gibt. Ausgezählt am 31. August: 25 Tabellen mit `stacks`, 25 mit
+ * `pairs`, eine mit `rows` — und **keine einzige** mit `scrolls` allein.
+ *
+ * > **Eine Zeile im Kommentar, die eine Konvention behauptet, veraltet ohne
+ * > Vorwarnung — und der Code daneben sagt seit langem etwas anderes.**
+ *
+ * Bezahlt hat das die Dienste-Seite: Sie ist nach diesem Satz gebaut worden,
+ * bekam als einzige eine Tabelle ohne Klasse, und auf `cloudsrv24` ragte
+ * „kein nächster Termin" bei 390px zehn Pixel über den Rand — der eine Satz,
+ * an dem das Abnahmekriterium von A2 hängt. `MobileTableTest` hält die Regel
+ * seitdem, statt sie hier nur zu behaupten.
  *
  * **`.stacks` — jede Zeile wird zu einem Kärtchen.**
  * Für Verzeichnisse: Kunden, Pläne, Vorgänge, Protokoll. Dort ist die Zeile

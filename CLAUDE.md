@@ -1365,7 +1365,11 @@ nächsten Termin und nicht `ActiveState`, und ein Dienst, den ein Timer startet,
 darf stillstehen — gefragt wird je **Funktionsrumpf**, weil eine Zeichenkette
 irgendwo auf der Seite nichts über die Funktion sagt, in der sie wirken soll)
 und `NavGroupTest` (jede Gruppe der Navigation trennt an der Grenze, an der auch
-die Route trennt). Der Bruch selbst steht als
+die Route trennt) und `MobileTableTest` (jede Tabelle nennt ihre Form —
+`stacks`, `pairs` oder `rows` —, jede Form ist in `app.css` gestaltet, und jede
+gestapelte Zelle trägt ihre Beschriftung; die Zelle mit dem Knopf am Zeilenende
+darf ohne, und das wird an ihrem **Inhalt** entschieden und nicht an einer
+Ausnahmeliste). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 

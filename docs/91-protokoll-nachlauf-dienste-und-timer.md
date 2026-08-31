@@ -298,15 +298,93 @@ meldet hier zu Recht `0`.
 > rollen darf.** Derselbe Satz wie am 11. August, an derselben Art Behälter.
 
 **Was fehlt, ist die Kärtchenform.** Die Übersichtsseite trägt für dieselbe Art
-Tabelle `class="stacks"` und stapelt bei 390 px zu Kärtchen; die Dienste-Seite
-hat sie nicht. Was das an Höhe kostet, ist hier **nicht** gemessen — `docs/46`
-hat für zwanzig Tabellen 4992 px gestapelt gegen 964 px als Baum gerechnet, und
-zwölf Zeilen mit fünf Feldern sind eine andere Rechnung. Wer das anfasst, misst
-zuerst.
+Tabelle `class="stacks"`; die Dienste-Seite hat sie nicht. Behoben und gemessen
+in §7.
 
 ---
 
-## 7 · Was noch aussteht
+## 7 · Befund 2 und 3 sind behoben — und es war keine Entscheidung, sondern eine Auslassung
+
+**Ausgezählt am 31. August 2026 über `resources/js`:** 25 Tabellen tragen
+`stacks`, 25 tragen `pairs`, eine trägt `rows` — und **keine einzige** steht ohne
+Form da, ausser den beiden der Dienste-Seite.
+
+Damit war Befund 3 keine Gestaltungsfrage. Ich hatte gefragt, ob die Kärtchenform
+hierher passt und was sie kostet; die Frage war falsch gestellt.
+
+> **Eine Voreinstellung, die niemand getroffen hat, sieht aus wie eine
+> Entscheidung.**
+
+**Und der Grund, warum sie ausblieb, steht in `app.css`.** Der Kommentar über
+`.scrolls` nannte „Für Messwerte: Dateisysteme, Prozesse, **Dienste**" — und die
+Übersicht stapelt genau diese drei Tabellen, seit es sie gibt. Ich habe die
+Seite nach dem Kommentar gebaut und nicht nach dem Code.
+
+> **Eine Zeile im Kommentar, die eine Konvention behauptet, veraltet ohne
+> Vorwarnung — und der Code daneben sagt seit langem etwas anderes.**
+
+### Was die Behebung kostet, gemessen
+
+Acht Lagen, echtes Markup mit allen sechzehn Zeilen, beide gebauten
+Stylesheets, Gegenprobe 216 überall:
+
+| | Höhe bei 390 px | „kein nächster Termin" | 1440 px |
+|---|---|---|---|
+| vorher | 1084 px | ragt **+10 px** über den Rand | 987 px |
+| nachher | **3608 px** | **−15 px**, vollständig sichtbar | **987 px** |
+
+**Auf dem Bildschirm kostet es nichts** — 987 px vor wie nach, `schiebt: []`.
+`.stacks` wirkt erst unter 720 px. Bezahlt wird bei 390 px mit **2524 px** mehr
+Höhe, also gut drei Bildschirmen.
+
+> **Ein Preis, den nur die schmale Ansicht zahlt, ist kein Preis der Seite,
+> sondern einer der Breite.**
+
+`schiebt` meldet nachher `[thead, tr, thead, tr]` — das gewollte
+`.stacks thead`, das unter 720 px ausgeblendet wird.
+
+**Nicht gemessen und benannt offen:** ob `PID` und `Neustarts` auf einem Telefon
+überhaupt hingehören. Zwölfmal `NEUSTARTS 0` untereinander ist ein guter Teil
+der 2524 px, und für eine Spalte, die je Zeile ausgeblendet wird, hat `app.css`
+heute keinen Mechanismus. Wer das anfasst, misst zuerst.
+
+### Befund 2
+
+Die Meldung heisst jetzt **„Jeder Dienst ist in Ordnung, und jeder Timer hat
+einen Termin."** — „läuft" und „in Ordnung" sind seit §3 zweierlei.
+
+### Der Wächter, und die drei Fehler in ihm selbst
+
+**`MobileTableTest`** hält drei Richtungen: jede Tabelle nennt ihre Form, jede
+Form ist in `app.css` gestaltet, und jede gestapelte Zelle trägt ihre
+Beschriftung. Drei Eingriffe, alle belegt.
+
+**Sein erster Lauf war zweimal rot, und beide Male gehörte der Fehler ihm.**
+
+1. Er verlangte `^\s*\.pairs` — die Regel heisst `table.pairs`.
+   > **Ein Ausdruck, der die gewohnte Schreibweise kennt, prüft die Gewohnheit
+   > und nicht die Regel.**
+2. Er meldete sechs Zellen ohne `data-column` aus sechs Seiten, alle sechs zu
+   Recht so geschrieben: `app.css` führt „die Zelle ohne Beschriftung — der
+   Knopf am Zeilenende" ausdrücklich.
+   > **Ein Wächter, der zu viel meldet, wird abgeschaltet — und zwar von dem,
+   > der ihn gebaut hat.**
+
+   Und der erste Versuch, das zu berichtigen, war auch falsch: `strip_tags()`
+   liess „Bearbeiten" stehen.
+   > **Ein Wächter, der Marken abstreift, hält den Text darin für Inhalt.**
+
+**Und der dritte Fehler steckte im Bruch.** Der Eingriff zu „eine Form ohne
+Regel" benannte allein `table.pairs {` um und biss nicht — `table.pairs
+td.ident {` blieb stehen und beantwortete die Frage „gibt es eine Regel?"
+weiter mit ja.
+
+> **Eine zweite Regel für dieselbe Hülle macht die Frage „gibt es eine?"
+> stumpf.** Zum zweiten Mal in dieser Stufe, nach der Untergrenze in §3.
+
+---
+
+## 8 · Was noch aussteht
 
 Die Punkte 2 bis 11 aus `docs/90`, und die Befunde 2 und 3.
 

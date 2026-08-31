@@ -19211,6 +19211,74 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperatorControlTest passed
 
 echo
+echo "── MobileTableTest: eine Tabelle ohne Form ──"
+#
+# Genau der Befund vom 31. August: Ohne stacks rollt sie bei 390 px waagerecht,
+# und „kein nächster Termin" ragt zehn Pixel ueber den Rand — der eine Satz, an
+# dem das Abnahmekriterium von A2 haengt. Das Dokument schiebt dabei nicht.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<table class="stacks">\n            <thead>\n              <tr>\n                <th>Unit</th>\n                <th>Zustand</th>\n                <th>PID</th>'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace('<table class="stacks">', '<table>'), 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "Tabelle ohne Form" &&
+pruefe "Tabelle ohne Form" \
+  MobileTableTest::test_every_table_names_its_shape failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileTableTest passed
+
+echo
+echo "── MobileTableTest: eine gestapelte Zelle ohne ihre Beschriftung ──"
+#
+# Der Spaltenkopf ist unter 720 px ausgeblendet; ohne data-column steht dort ein
+# Wert, und nichts sagt, was er bedeutet.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<td data-column="Zustand"><span class="badge" :class="rang(zeile)">{{ zustand(zeile) }}</span></td>'
+assert s.count(alt) == 2, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<td><span class="badge" :class="rang(zeile)">{{ zustand(zeile) }}</span></td>', 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "Zelle ohne Beschriftung" &&
+pruefe "Zelle ohne Beschriftung" \
+  MobileTableTest::test_a_stacked_cell_carries_its_column_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileTableTest passed
+
+echo
+echo "── MobileTableTest: eine Form ohne Regel in app.css ──"
+#
+# Die Gegenrichtung. Wer eine Form umbenennt, traegt den neuen Namen in die
+# Vorlagen nach — und die Regel bleibt unter dem alten liegen.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+import re
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+# **Jede Fundstelle und nicht nur die erste.** Der erste Wurf benannte allein
+# `table.pairs {` um und biss nicht: `table.pairs td.ident {` blieb stehen und
+# beantwortete die Frage „gibt es eine Regel?" weiter mit ja.
+#
+#   Eine zweite Regel fuer dieselbe Huelle macht die Frage „gibt es eine?"
+#   stumpf.
+#
+# Und es ist der Fall, den es wirklich gibt: Wer eine Form umbenennt, benennt
+# sie im Stylesheet vollstaendig um und vergisst die Vorlagen.
+n = len(re.findall(r'\.pairs\b', s))
+assert n >= 3, 'Zielstelle nicht gefunden — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(re.sub(r'\.pairs\b', '.paare', s))
+PY2
+griff_datei resources/css/app.css "Form ohne Regel" &&
+pruefe "Form ohne Regel" \
+  MobileTableTest::test_every_shape_is_styled failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileTableTest passed
+
+echo
 echo "── OperatorControlTest: der Verweis auf die Dienste ohne seinen Waechter ──"
 #
 # Die Uebersicht verlangt selbst keine Faehigkeit, /services verlangt

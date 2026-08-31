@@ -602,9 +602,48 @@ sie, und ein Wächter hält, dass keine Vorlage `active_state` roh rendert.
 
 ---
 
-## 14 · Was noch aussteht
+## 14 · Punkt 8 — erfüllt
 
-Die Punkte 8 bis 11 aus `docs/90`, und Befund 5.
+Als Betreiber bei 390 px, Schublade offen und bis ans Ende gerollt. Vier Gruppen
+in der Reihenfolge aus `docs/90 §9`:
+
+| Gruppe | gesehen |
+|---|---|
+| Verwaltung | Kunden · Pläne · Abonnements · Domains · Datenbanken |
+| **Betrieb** | Vorgänge · Protokoll · Logs · **Dienste** · Updates · Konten |
+| **Einstellungen** | Zugang · Allgemein · PHP-Versionen · Datenbankserver · Mailversand · Zertifikat · DNS-Zugang |
+| Konto | Mein Konto |
+
+Alle vier Überschriften lesbar, kein waagerechtes Rollen, „Mein Konto"
+erreichbar.
+
+**Der Messwert, nach dem der Punkt ausdrücklich fragt:** Die Schublade braucht
+bei 390 px **zwei Bildschirme** — das erste Bild endet bei „Konten", „Mein Konto"
+steht auf dem zweiten. Kein Ausfall, aber die Zahl, an der die Frage hängt, ob
+als Nächstes die Kundennavigation (neun Punkte unter „Konto") geteilt wird.
+
+### Eine Verwechslung, die keine wurde
+
+Im Fuss der Schublade steht **„Administrator"**. Das liest sich wie ein Befund:
+Ein Administrator dürfte die sieben `operate-server`-Punkte unter Einstellungen
+nicht sehen, und `AbilityReachTest` verlangt das.
+
+Nachgesehen in `PanelLayout.vue:574` steht dort `{{ account.name }}` — der
+**Name** des Kontos und nicht seine Rolle. Das Konto heisst „Administrator" und
+ist der Betreiber.
+
+> **Ein Wort, das auch eine Rolle sein könnte, ist noch keine — nachgesehen wird
+> im Quelltext und nicht im Kopf.**
+
+Für Punkt 9(a) heisst das: Das zweite Adminkonto aus dem A9-Lauf ist ein
+anderes, und die Probe der Rollenteilung ist, dass dort unter Einstellungen nur
+**Allgemein** (`manage-settings`) steht.
+
+---
+
+## 15 · Was noch aussteht
+
+Die Punkte 9 bis 11 aus `docs/90`, und Befund 5.
 
 **Punkt 4 hängt an Befund 3.** Er trägt das Abnahmekriterium der ganzen Stufe,
 und er wird auf einem Telefon gelesen werden — die Reihenfolge ist also: erst

@@ -100,9 +100,15 @@ Mal drücken.
 **c — die Unit dahinter.** Der Lauf wird über `systemd-run` abgesetzt; `--collect`
 räumt sie ab. Solange sie noch da ist:
 
-    systemctl list-units 'srvpanel-apt-*' --all
+    systemctl list-units 'srvpanel-update-*' --all
 
 Erwartet: keine Unit auf `failed`.
+
+**Der Präfix stand hier erst als `srvpanel-apt-*`, und das war geraten.**
+`AptLock::UNIT_PREFIX` lautet `srvpanel-update-`; das Muster hätte nie etwas
+gefunden, und ein leeres Ergebnis liest sich wie „keine Unit auf failed".
+
+> **Ein Muster, das nichts findet, beantwortet jede Frage mit Ja.**
 
 **d — die Gegenprobe, und sie ist die wichtigere Hälfte.** Die Nachsicht gilt
 **nur** im Zählmodus. Bei `--fassung` ist `nachher` eine Versionsnummer und nie
@@ -116,6 +122,31 @@ auf einem Stand, der schon der neueste ist. Erwartet: **Fehlschlag**, nicht
 
 > **Eine Nachsicht, die man nicht an ihrer Grenze misst, ist eine Vermutung über
 > ihre Grenze.**
+
+**Und was dieser Punkt belegt, ist enger als es klingt.** Er zeigt, dass die
+Behebung von Befund 6 **nicht in den Fassungsmodus geleckt** ist — nicht, dass
+der Fassungsmodus richtig entscheidet. Am Skript nachgesehen (31. August):
+
+| | `vorher` | `nachher` | Urteil heute |
+|---|---|---|---|
+| schon aktuell | `0.7.3-rc.4` | `0.7.3-rc.4` | Fehlschlag |
+| Einspielen misslungen | `0.7.3-rc.3` | `0.7.3-rc.3` | Fehlschlag |
+
+Die beiden sind **an der gemessenen Grösse nicht zu unterscheiden**, und das ist
+dieselbe Lage wie bei Befund 6 — nur ohne die Zahl, die dort die Unterscheidung
+trug. Eine Versionsnummer ist nie `0`; es gibt keinen Wert, an dem „es stand
+nichts an" ablesbar wäre.
+
+Dass der Fall trotzdem zum Fehlschlag fällt, ist deshalb **keine
+Unachtsamkeit, sondern die sichere Richtung**: Wer nicht unterscheiden kann,
+meldet lieber einmal zu viel. Ablesbar **wäre** es — `apt-get -s install
+--only-upgrade srvpanel` sagt vor dem Lauf, ob überhaupt etwas ansteht —, aber
+das ist eine Änderung und keine Messung. Sie steht als Frage in §7 und wird in
+diesem Lauf nicht gebaut.
+
+> **Ein Fall, den man nicht unterscheiden kann, und einer, den man nicht
+> unterscheiden will, sehen im Code gleich aus — der Unterschied steht im
+> Kommentar oder nirgends.**
 
 ---
 
@@ -198,3 +229,20 @@ ohne Wirkung meldete Erfolg — schlimmer als der Zustand vorher.
 Punkt 3 darf als „nicht herstellbar" ausfallen, wenn sich kein hinreichend
 langer Gegenstand ergibt, ohne Bestand anzulegen. Dann bleibt er benannt offen
 und nicht abgehakt.
+
+---
+
+## 7 · Die eine Frage, die dieser Lauf aufwirft und nicht entscheidet
+
+**Soll `srvpanel update` auf einem schon aktuellen Stand einen Fehlschlag
+melden?**
+
+Heute tut es das, und §2d belegt es. Der Grund ist gut (die sichere Richtung,
+siehe dort), aber er ist nicht der einzige mögliche: `apt-get -s install
+--only-upgrade srvpanel` wüsste vor dem Lauf, ob etwas ansteht, und dann liesse
+sich „schon aktuell" von „nicht geschafft" trennen — genau wie Befund 6 es im
+Zählmodus tut.
+
+Das ist eine Entscheidung des Betreibers und keine des Laufs. Sie hängt daran,
+wie oft `srvpanel update` auf einem aktuellen Stand läuft: von Hand selten, aus
+einem nächtlichen Skript jede Nacht.

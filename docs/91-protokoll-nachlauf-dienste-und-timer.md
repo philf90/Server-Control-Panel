@@ -871,3 +871,171 @@ Befund 3, dann Punkt 4, sonst misst der Punkt eine Anzeige, von der schon
 feststeht, dass sie ihren eigenen Satz abschneidet.
 
 > **Ein Punkt, den man gegen einen bekannten Fehler misst, misst den Fehler.**
+
+---
+
+## 20 · Befund 5 und 6 sind behoben — und ein siebter fiel dabei heraus
+
+Gebaut am **31. August 2026**, ohne Server; was hier steht, ist im Container
+gemessen und gehört in einen Nachlauf auf `cloudsrv24`.
+
+### 20.1 Befund 5 — zwei Seiten, ein Server, zwei Auskünfte
+
+Die Übersicht druckte `service.active_state`, also wörtlich **`active`**. Die
+Dienste-Seite sagte für denselben Zustand **`läuft`**, für einen wartenden
+oneshot-Dienst **`wartet auf seinen Timer`** und für einen Timer ohne Termin
+**`kein nächster Termin`**.
+
+> **Dieselbe Grösse in zwei Fassungen anzuzeigen ist keine doppelte Auskunft,
+> sondern eine widersprüchliche.**
+
+`WordChoiceTest` konnte es nicht sehen, und das ist der Grund für den neuen
+Wächter: Das englische Wort steht **nirgends im Quelltext**. Es entsteht zur
+Laufzeit aus einem Feld, das der Agent liefert.
+
+**Behoben ist es nicht durch eine zweite Übersetzung, sondern durch eine
+gemeinsame Stelle.** `resources/js/Composables/useUnitState.ts` trägt `rang()`
+und `zustand()`; beide Seiten rufen sie. Die Übersicht hatte vorher ein eigenes
+`dienstRang()`, das die Nachsicht für oneshot-Dienste nicht kannte — sie hätte
+denselben Befund 1 noch einmal bekommen, sobald jemand ihn dort bemerkt hätte.
+
+**Und der Umzug hat einen Wächter rot gemacht, der nichts Kaputtes fand.** Drei
+Fälle von `ServicesViewTest` zeigten auf `Pages/Services/Index.vue`, wo die
+Regeln nicht mehr stehen.
+
+> **Ein Wächter, der beim Aufräumen zubeisst, wird beim Aufräumen
+> abgeschaltet.**
+
+Die Antwort war nicht, ihn abzuschwächen, sondern ihn dorthin zu zeigen, wo die
+Regel jetzt steht. Was die **Seite** entscheidet — zwei Bereiche, der schweigende
+Agent, das Datum vom Server, die Meldung über `rang` — bleibt an der Seite.
+
+**Dabei ist ein zweiter Wächter stumpf geworden, und das hat kein Test
+gemeldet.** `test_the_colour_of_a_timer_follows_its_next_date` prüft, dass der
+Termin **vor** `active_state` gefragt wird. Gemessen wurde über die ganze Datei
+— und seit dem Umzug steht die Bedingung im Helfer `ohneTermin()`, der **oben**
+definiert ist. Sie war damit immer zuerst da, auch bei verkehrter Reihenfolge.
+
+> **Ein Wächter über eine Reihenfolge wird stumpf, sobald einer der beiden
+> Ausdrücke in einen Helfer zieht, der weiter oben steht.**
+
+Gemeldet hat es der Bruchlauf und nicht der Wächter: Sein Eingriff fand seinen
+Text nicht mehr. Gemessen wird jetzt im Rumpf von `rang()`.
+
+**Dazu ein neuer Wächter für die Regel selbst**
+(`ServicesViewTest::test_no_page_prints_a_raw_unit_state`): Keine der 70 `.vue`
+druckt `active_state`, `sub_state` oder `load_state` in einer Ausgabe. Die
+Untergrenze steht daneben — beide Seiten, die Units zeigen, müssen `zustand(`
+rufen.
+
+### 20.2 Befund 6 — „nichts zu tun" und „nicht geschafft"
+
+`apt-run` schrieb für beide Fälle denselben Satz und endete mit `3`:
+
+    apt-run: Der Lauf hat nichts verändert — offene Aktualisierungen vorher wie nachher: 0.
+
+Auf `cloudsrv24` gemessen (§17): Der zweite Druck auf denselben Knopf meldete
+`fehlgeschlagen`, mit der `0` im eigenen Satz.
+
+> **Ein Urteil, das seine Zahl mitbringt und nur an seinem Anfang gelesen wird,
+> wirft die Unterscheidung weg, die es trägt.**
+
+**Behoben im Skript und nicht im Leser**, und der Leser brauchte dafür keine
+Zeile: Sein Kopf sah den Fall vorher — ein Urteil, das nicht in `Outcome::BAD`
+steht, ist ein Erfolg mit einer Meldung.
+
+> **Eine Voreinstellung, die zur sicheren Seite fällt, trägt den Fall, den
+> niemand vorhergesehen hat — und den, den jemand vorhergesehen und nicht
+> gebaut hat, ebenso.**
+
+**Die Nachsicht ist ausdrücklich auf den Zählmodus beschränkt.** Bei `--fassung`
+ist `nachher` eine Versionsnummer und nie `0`; dort bleibt „vorher wie nachher"
+ein Fehlschlag, denn eine Fassung, die sich nicht ändert, war der Grund des
+Laufs. Beide Hälften haben ihren Eingriff im Bruchskript.
+
+**Und der Prüfkörper von `OutcomeTest` hielt den Fehler fest, statt ihn zu
+melden.** Er stand dort wörtlich als `…vorher wie nachher: 0.` — und die
+Behauptung daneben erklärte ihn für einen Fehlschlag.
+
+> **Ein Prüfkörper, der den Fehler enthält, hält ihn fest statt ihn zu melden —
+> wenn die Behauptung daneben ihn für richtig erklärt.**
+
+### 20.3 Befund 7 — 59 px, gefunden von der Bilderrunde zu A und B
+
+Die Vorgangsseite hat mit `docs/92` A und B eine Zeile für ihren Gegenstand
+bekommen. Der erste Wurf schrieb
+
+    <td class="right"><a class="link ident">…</a></td>
+
+und **schob das Dokument bei 390 px um 59 px aus dem Bild**. Die Zelle daneben —
+`<td class="right ident name">` — brach im selben Tabellenkörper richtig um.
+
+Der Grund steht in `app.css` zweimal ausgeschrieben: `table.pairs td.right.ident`
+löst die Zelle aus ihrem `flex: none` und erlaubt den Umbruch. Eine Kennung, die
+nur *in* der Zelle steht, erreicht diese Ausnahme nicht, und
+`td .ident { white-space: nowrap }` gewinnt.
+
+> **Eine Ausnahme, die für die Zelle geschrieben ist, gilt nicht für das, was in
+> ihr steht — und beide sehen im Markup gleich aus.**
+
+Das ist die **vierte** Wiederholung desselben Fehlers an derselben Tabelle.
+Behoben ist er nicht durch eine fünfte Regel in `app.css`, sondern durch die
+Klasse an der Zelle: Der Verweis erbt die Schrift über `.link { font: inherit }`.
+
+**`MobileTableTest::test_an_identifier_in_a_pairs_cell_belongs_to_the_cell`
+hält die Regel — und hat beim ersten Lauf sofort eine zweite Stelle gefunden**,
+die es seit P6 gibt: `Subscriptions/CronRuns.vue`. Dort zeigt dieselbe Zelle
+einmal einen gesprochenen Satz und einmal den Cron-Ausdruck; ein festes `ident`
+machte aus dem Satz Monoschrift. Sie trägt die Klasse jetzt an einer Bedingung,
+als Objektschlüssel, damit `ClassReachTest` sie sieht.
+
+### 20.4 Die Messwerte
+
+Gemessen im Container mit echtem Markup und **beiden** gebauten Stylesheets,
+Chromium, je Lage mit Gegenprobe.
+
+| Lage | vor der Behebung | nach der Behebung | Gegenprobe |
+|---|---|---|---|
+| hell 390 | **59 px** | 0 px | 200/200 |
+| hell 1440 | 0 px | 0 px | 200/200 |
+| dunkel 390 | **59 px** | 0 px | 200/200 |
+| dunkel 1440 | 0 px | 0 px | 200/200 |
+
+**Die erste Fassung dieser Messung war keine.** Der Aufsatz lag als
+`public/brotkruemel.html` und lud die Stylesheets über `/build/assets/…`; unter
+`file://` zeigt der führende Schrägstrich auf die Wurzel des Dateisystems. Die
+Seite war **ungestaltet**, meldete 66 px, und die Gegenprobe daneben schlug aus.
+
+> **Eine Messung, bei der der Prüfling gar nicht geladen wurde, sieht aus wie
+> ein Ergebnis — die Gegenprobe belegt nur, dass die Messung rechnet, nicht dass
+> sie ihren Gegenstand hat.**
+
+Gemerkt hat es nicht das Bild und nicht die Zahl, sondern die Frage nach der
+**berechneten** Eigenschaft: `overflow-wrap` stand auf `normal`, wo `app.css`
+`anywhere` schreibt. Seitdem liest der Aufsatz die Stylesheets relativ, und der
+Prüfkörper ist danach aus `public/` weggeräumt.
+
+**Und das Bild hat gesagt, was die Zahl nicht konnte.** Bei 0 px Überlauf nahm
+der Brotkrümel trotzdem **drei Zeilen**, weil er
+`/updates?nur=sicherheit&herkunft=…&name=…` vollständig zeigte.
+
+> **Eine Beschriftung, die den ganzen Zustand nennt, sagt nicht mehr, wo man war
+> — sie sagt nur, dass es kompliziert war.**
+
+Gezeigt wird jetzt der Pfad ohne seine Frage; der **Verweis** behält sie, damit
+der Filter beim Zurückgehen wiederkommt. Beide Richtungen haben ihren Eingriff.
+
+### 20.5 Was das für den nächsten Nachlauf heisst
+
+Keine dieser Behebungen hat einen Server gesehen. Zu messen bleibt:
+
+1. **Befund 5** — die Übersicht zeigt für dieselbe Unit denselben Satz wie die
+   Dienste-Seite, und ein wartender oneshot-Dienst ist auf **beiden** grün.
+2. **Befund 6** — derselbe Knopf zweimal: der zweite Lauf meldet `fertig` mit
+   dem Vorbehalt „Es stand nichts an", und die transiente Unit steht nicht auf
+   `failed`. Dazu die Gegenprobe an `--fassung`.
+3. **Befund 7** — die Vorgangsseite eines Vorgangs mit langem Gegenstand bei
+   390 px, gemessen an der echten Seite und nicht am Aufsatz.
+4. **A und B** — der Weg zurück führt dorthin, wo man war, und der Gegenstand
+   ist von der Vorgangsseite aus erreichbar. Ein Vorgang der
+   Zertifikatsautomatik trägt **keine** Herkunft.

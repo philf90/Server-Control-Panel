@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\OperationStatus;
+use App\Enums\OperationSubject;
 use App\Jobs\RunAgentOperation;
 use App\Models\Account;
 use App\Models\Operation;
@@ -174,8 +175,60 @@ final class OperationController extends Controller
                 'payload' => $operation->payload,
                 'result' => $operation->result,
                 'output' => $operation->output ?? '',
+
+                /*
+                 * **Zwei Wege weg von dieser Seite, und sie beantworten zwei
+                 * Fragen.** `origin` sagt „wo war ich", `subject` sagt „worum
+                 * ging es" — ein Vorgang hat oft beides, und ein Vorgang der
+                 * Automatik keines von beiden.
+                 *
+                 * Bis zum 31. August 2026 gab es keinen: Der Brotkrümel führte
+                 * zur Vorgangsliste, und der Weg zurück war der Zurück-Knopf
+                 * des Browsers (`docs/91 §17`, `docs/92`).
+                 */
+                'origin' => $operation->origin,
+                'subject' => $this->subject($operation),
             ],
         ]);
+    }
+
+    /**
+     * Wovon der Vorgang handelt — Art, Name und der Weg dorthin.
+     *
+     * **`subject_type` und `subject_id` gibt es seit dem 4. August 2026, und
+     * bis zum 31. hat sie keine Oberfläche gelesen.** Dasselbe wie bei `context`
+     * im Protokoll (`docs/66`):
+     *
+     * > **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht
+     * > von einem zu unterscheiden, das es nicht gibt.**
+     *
+     * `null` heisst zweierlei und beides ist in Ordnung: Der Vorgang handelt
+     * von nichts Einzelnem, oder der Gegenstand ist fort — und dann ist oft
+     * genau dieser Vorgang der Grund.
+     *
+     * @return array{label: string, name: string, path: string|null}|null
+     */
+    private function subject(Operation $operation): ?array
+    {
+        $art = $operation->subject_type === null
+            ? null
+            : OperationSubject::tryFrom($operation->subject_type);
+
+        if ($art === null) {
+            return null;
+        }
+
+        $modell = OperationSubject::tryResolve($operation->subject_type, $operation->subject_id);
+
+        if ($modell === null) {
+            return null;
+        }
+
+        return [
+            'label' => $art->label(),
+            'name' => $art->nameOf($modell),
+            'path' => $art->pathTo($modell),
+        ];
     }
 
     /** @return array<string, mixed> */

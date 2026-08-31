@@ -1365,11 +1365,20 @@ nächsten Termin und nicht `ActiveState`, und ein Dienst, den ein Timer startet,
 darf stillstehen — gefragt wird je **Funktionsrumpf**, weil eine Zeichenkette
 irgendwo auf der Seite nichts über die Funktion sagt, in der sie wirken soll)
 und `NavGroupTest` (jede Gruppe der Navigation trennt an der Grenze, an der auch
-die Route trennt) und `MobileTableTest` (jede Tabelle nennt ihre Form —
+die Route trennt) und `OperationOriginTest` (von einer
+Vorgangsseite führt ein Weg zurück: die Herkunft wird an **einer** Stelle
+genommen, kommt aus der Sitzung und nicht aus einem Helfer mit Rückfall, und
+jeder Pfad, den `OperationSubject` nennt, ist eine angemeldete **GET**-Route —
+gefragt wird `routes/web.php` als Text, weil der Wächter ohne Framework laufen
+muss) und `MobileTableTest` (jede Tabelle nennt ihre Form —
 `stacks`, `pairs` oder `rows` —, jede Form ist in `app.css` gestaltet, und jede
 gestapelte Zelle trägt ihre Beschriftung; die Zelle mit dem Knopf am Zeilenende
 darf ohne, und das wird an ihrem **Inhalt** entschieden und nicht an einer
-Ausnahmeliste). Der Bruch selbst steht als
+Ausnahmeliste; **seit dem 31. August** trägt in einer `pairs`-Tabelle die
+**Zelle** ihre Kennung und nicht das, was in ihr steht — die Ausnahme
+`table.pairs td.right.ident` erreicht ein Kind nicht, und ein Objektschlüssel
+`:class="{ ident: … }"` zählt mit, weil eine Zelle einmal einen Satz und einmal
+eine Kennung zeigen darf). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -1715,10 +1724,11 @@ er durch ist und welche zwei Punkte als „nicht herstellbar" ausfallen dürfen 
 und **`91` das Protokoll dazu**: §1 der gemessene Ausgangszustand (systemd 255
 auf dem Server, sechzehn Zeilen aus neunzehn Kandidaten), §2 die Messrunde, die
 Befund 1 nötig gemacht hat, §3 der Befund selbst mit seinen sechs Wächtern und
-acht Brüchen, §4 was noch aussteht. **Der Lauf ist nicht durch** — **A2 ist am
-31. August 2026 abgenommen** — auf `cloudsrv24` gegen `0.7.3-rc.3`, Punkt 4
-erfüllt und beide Ausschlusskriterien (2 und 7) grün. Punkt 6 fiel als „nicht
-herstellbar" aus, Punkt 11 ist **nicht** erfüllt (Befund 6).
+acht Brüchen, §18 die Bilanz, §19 was ausstand und **§20 die Behebungen vom
+31. August**. **A2 ist am 31. August 2026 abgenommen** — auf `cloudsrv24` gegen
+`0.7.3-rc.3`, Punkt 4 erfüllt und beide Ausschlusskriterien (2 und 7) grün.
+Punkt 6 fiel als „nicht herstellbar" aus, Punkt 11 ist **nicht** erfüllt
+(Befund 6).
 
 **Sechs Befunde, fünf davon im Prüfling** — die Umkehrung von `docs/45`,
 `docs/48`, `docs/59` und `docs/84`. Der Grund ist kein besseres Auge: Die
@@ -1726,24 +1736,126 @@ Vorschrift war vor dem Lauf ausgeschrieben und das Messmittel lag als geprüftes
 Werkzeug im Repo. Was blieb, war eine **neue Seite** — und die hatte ihre Fehler
 dort, wo kein Wächter hinsah.
 
-**Offen bleiben zwei, beide am Prüfling.** Befund 5: Die Übersicht druckt
-`active_state` roh, also „active", wo die Dienste-Seite „läuft" sagt —
-`WordChoiceTest` kann es nicht sehen, weil der Wert zur Laufzeit entsteht. Befund
-6 ist die Spiegelung von M5, dem Befund, mit dem P7b anfing:
+**Die beiden offenen Befunde sind am 31. August gebaut** (`docs/91 §20`), und
+**keiner von beiden hat einen Server gesehen** — was zu messen bleibt, steht dort
+in §20.5.
+
+**Befund 5** war nicht eine falsche Übersetzung, sondern eine fehlende Stelle:
+Die Übersicht druckte `active_state` roh — also „active", wo die Dienste-Seite
+„läuft" sagt — und hatte daneben ein eigenes `dienstRang()`, dem die Nachsicht
+für `Type=oneshot` fehlte.
+
+> **Dieselbe Grösse in zwei Fassungen anzuzeigen ist keine doppelte Auskunft,
+> sondern eine widersprüchliche.**
+
+`WordChoiceTest` konnte es nicht sehen, weil das englische Wort nirgends im
+Quelltext steht; es entsteht zur Laufzeit. `useUnitState.ts` trägt jetzt `rang()`
+und `zustand()` für beide Seiten, `ServicesViewTest` hält, dass keine der 70
+`.vue` einen Rohwert von systemd ausgibt.
+
+**Der Umzug hat einen Wächter stumpf gemacht, ohne ihn rot zu machen** — die
+gefährlichere Hälfte der bekannten Aufräumfalle. Die Reihenfolge „Termin vor
+Zustand" wurde über die ganze Datei gemessen, und seit dem Umzug steht der
+Termin im Helfer `ohneTermin()`, der **oben** definiert ist:
+
+> **Ein Wächter über eine Reihenfolge wird stumpf, sobald einer der beiden
+> Ausdrücke in einen Helfer zieht, der weiter oben steht.**
+
+Gemeldet hat es der Bruchlauf und nicht der Wächter: Sein Eingriff fand seinen
+Text nicht mehr. Gemessen wird jetzt im Rumpf von `rang()`.
+
+**Befund 6** ist die Spiegelung von M5, dem Befund, mit dem P7b anfing:
 
 > **Ein Rückgabewert, der „nichts zu tun" und „nicht geschafft" gleich benennt,
 > ist derselbe Fehler wie einer, der einen Fehlschlag nicht tragen kann — nur in
 > die andere Richtung.**
 
-`apt-run` gibt `exit 3` für einen Lauf, dem nichts zu tun blieb, und
+`apt-run` gab `exit 3` für einen Lauf, dem nichts zu tun blieb, und
 `Outcome::BAD` liest den Satz nur an seinem Anfang — die Zahl, die den Fall
-unterscheidet, steht in der Meldung und wird weggeworfen.
+unterscheidet, stand in der Meldung und wurde weggeworfen. Behoben ist es **im
+Skript und nicht im Leser**, und der Leser brauchte dafür keine Zeile:
+
+> **Eine Voreinstellung, die zur sicheren Seite fällt, trägt den Fall, den
+> niemand vorhergesehen hat — und den, den jemand vorhergesehen und nicht gebaut
+> hat, ebenso.**
+
+**Und der Prüfkörper von `OutcomeTest` hielt den Fehler fest, statt ihn zu
+melden** — er stand dort wörtlich als `…vorher wie nachher: 0.`, und die
+Behauptung daneben erklärte ihn für einen Fehlschlag.
+
+> **Ein Prüfkörper, der den Fehler enthält, hält ihn fest statt ihn zu melden —
+> wenn die Behauptung daneben ihn für richtig erklärt.**
 
 **Und drei Kriterien konnte der Prüfling nicht erfüllen**, alle drei aus
 derselben Ursache: Sie standen in der Unit-Datei, die ich nicht gelesen hatte
 (`Type=oneshot` bei vieren, `RandomizedDelaySec=1h` bei einem).
 
 > **Wer eine Erwartung an eine Unit aufschreibt, liest vorher ihre Unit-Datei.**
+
+---
+
+## Von einer Vorgangsseite führte kein Weg zurück — 31. August 2026
+
+**Gemeldet hat es der Betreiber beim Erklären**, nicht beim Benutzen: Die Frage
+war, wie man denselben Knopf ein zweites Mal drückt, und die Antwort lautete
+„mit dem Zurück-Knopf des Browsers". Einundzwanzig Weiterleitungen aus sieben
+Controllern enden auf `operations.show`, und der Brotkrümel dort trug genau
+**eine** Verknüpfung: die Liste *aller* Vorgänge.
+
+> **Ein Weg, den man nur erklären kann, indem man den Browser zu Hilfe nimmt,
+> ist keiner, den die Anwendung anbietet.**
+
+**Zwei Wege, zwei Fragen.** `operations.origin` sagt „wo war ich",
+`subject_type`/`subject_id` sagen „worum ging es". Ein Vorgang hat oft beides und
+einer der Automatik keines von beiden. Die Herkunft wird an **einer** Stelle
+genommen — einundzwanzig Aufrufstellen wären einundzwanzig Gelegenheiten, sie zu
+vergessen, und die vergessene fiele niemandem auf, weil eine fehlende Herkunft
+aussieht wie ein Vorgang der Automatik. Sie kommt aus der Sitzung und **nicht**
+aus `url()->previous()`:
+
+> **Ein Rückfall, der immer etwas liefert, macht aus „unbekannt" eine falsche
+> Auskunft.**
+
+**`subject_type` und `subject_id` gibt es seit dem 4. August 2026, und bis zum
+31. hat sie keine Oberfläche gelesen** — derselbe Fall wie `context` im
+Protokoll (`docs/66`). Das Feld war von aussen nicht von einem zu unterscheiden,
+das es nicht gibt.
+
+**Und die Bilderrunde hat zwei Fehler gefunden, die kein Test finden konnte.**
+Der erste schob die Seite bei 390 px um **59 px** aus dem Bild: Die neue Zeile
+schrieb `<td class="right">` mit einem `<a class="link ident">` darin.
+
+> **Eine Ausnahme, die für die Zelle geschrieben ist, gilt nicht für das, was in
+> ihr steht — und beide sehen im Markup gleich aus.**
+
+Das ist die **vierte** Wiederholung desselben Fehlers an derselben Tabelle;
+behoben ist er nicht durch eine fünfte Regel in `app.css`, sondern durch die
+Klasse an der Zelle. `MobileTableTest` hält die Regel jetzt und hat beim ersten
+Lauf sofort eine zweite Stelle gefunden, die es seit P6 gibt.
+
+Der zweite hatte **keine Zahl**: Bei 0 px Überlauf nahm der Brotkrümel drei
+Zeilen, weil er den ganzen Pfad mitsamt Filterwerten zeigte.
+
+> **Eine Beschriftung, die den ganzen Zustand nennt, sagt nicht mehr, wo man war
+> — sie sagt nur, dass es kompliziert war.**
+
+**Und die erste Fassung dieser Messung war keine.** Der Aufsatz lag als
+`public/brotkruemel.html` und lud die Stylesheets über `/build/assets/…`; unter
+`file://` zeigt der führende Schrägstrich auf die Wurzel des Dateisystems. Die
+Seite war ungestaltet, meldete 66 px, und die Gegenprobe daneben schlug aus.
+
+> **Eine Messung, bei der der Prüfling gar nicht geladen wurde, sieht aus wie
+> ein Ergebnis — die Gegenprobe belegt nur, dass die Messung rechnet, nicht dass
+> sie ihren Gegenstand hat.**
+
+Gemerkt hat es nicht das Bild und nicht die Zahl, sondern die Frage nach der
+**berechneten** Eigenschaft: `overflow-wrap` stand auf `normal`, wo `app.css`
+`anywhere` schreibt.
+
+**Was das nicht behebt — dass man überhaupt weggetragen wird — steht als
+`docs/92` und ist in `docs/20 §9` für P9 vorgemerkt.**
+
+---
 
 Und **`65` der Serverlauf zu `v0.6.0-rc.20`** — die elf Punkte, mit denen die
 sieben Befunde der zweiten Runde und die drei Wünsche auf einem echten Server

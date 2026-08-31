@@ -58,7 +58,7 @@ class Operation extends Model
 
     /** @var list<string> */
     protected $fillable = [
-        'subscription_id', 'subject_type', 'subject_id', 'account_id', 'type',
+        'subscription_id', 'subject_type', 'subject_id', 'origin', 'account_id', 'type',
         'task', 'status', 'progress', 'message', 'payload', 'result', 'output',
     ];
 

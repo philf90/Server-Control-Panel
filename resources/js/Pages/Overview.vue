@@ -4,6 +4,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import ActionIcon from '../Components/ActionIcon.vue'
 import Bar from '../Components/Bar.vue'
 import Section from '../Components/Section.vue'
+import { rang, zustand } from '../Composables/useUnitState'
 import Badge from '../Components/Badge.vue'
 import FormErrors from '../Components/FormErrors.vue'
 import RebootButton from '../Components/RebootButton.vue'
@@ -118,11 +119,13 @@ function uptimeText(seconds: number): string {
  * dieses Panel kennt, und nicht jeder gehört auf jeden Server. Rot dafür
  * schickt jemanden auf die Suche nach etwas, das nie da war.
  */
-function dienstRang(service: Service): 'ok' | 'critical' | 'neutral' {
-  if (!service.present) return 'neutral'
-
-  return service.active_state === 'active' ? 'ok' : 'critical'
-}
+/*
+ * **Hier stand bis zum 31. August 2026 eine zweite Fassung von `rang`.** Sie
+ * kannte weder `activating` noch die Nachsicht für Dienste, die ein Timer
+ * startet — Befund 5 aus `docs/91 §13`. Was diese Seite über ihre Zeilen weiss,
+ * steht jetzt in `useUnitState`; was sie **nicht** wissen kann, steht dort als
+ * Frage.
+ */
 
 /*
  * Der Kernel steht in der Kopfzeile — und der Hinweis nur, wenn er einer ist.
@@ -672,9 +675,14 @@ const headline = props.server.reachable
               <tr v-for="service in services" :key="service.unit">
                 <td data-column="Unit" class="ident name">{{ service.unit }}</td>
                 <td data-column="Zustand">
-                  <Badge :kind="dienstRang(service)">
-                    {{ service.present ? service.active_state : 'nicht installiert' }}
-                  </Badge>
+                  <!--
+                    **Der Zustand in Worten und nicht als Rohwert.** Hier stand
+                    `service.active_state`, also „active" — englisch, und
+                    `docs/19 §4a` bindet die Texte dieser Oberfläche auf
+                    Deutsch. `WordChoiceTest` konnte es nicht sehen: Das Wort
+                    entsteht zur Laufzeit und steht nirgends in der Vorlage.
+                  -->
+                  <Badge :kind="rang(service)">{{ zustand(service) }}</Badge>
                 </td>
                 <td data-column="Beschreibung" class="quiet">{{ service.description }}</td>
               </tr>

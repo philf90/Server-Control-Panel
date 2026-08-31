@@ -36,6 +36,23 @@ interface Operation {
   /* Der Vorbehalt, unter dem ein gelungener Lauf gelungen ist — wie in der Liste. */
   warning: string | null
   output: string
+
+  /**
+   * Von welcher Seite aus der Vorgang ausgelöst wurde — als Pfad, oder `null`.
+   *
+   * `null` heisst „von keiner": Die Zertifikatsautomatik und der
+   * Cron-Einsammler setzen ohne Sitzung ab.
+   */
+  origin: string | null
+
+  /**
+   * Wovon er handelt — oder `null`, wenn von nichts Einzelnem.
+   *
+   * `path` ist eigens `null`-fähig: Eine Sicherung hat keine eigene Seite, und
+   * wenn ihre Datenbank fort ist, führt der Verweis nirgendwohin. Dann steht
+   * der Name ohne Verknüpfung da — das ist eine Auskunft und keine Sackgasse.
+   */
+  subject: { label: string; name: string; path: string | null } | null
 }
 
 const props = defineProps<{ operation: Operation }>()
@@ -121,6 +138,22 @@ function cancel(): void {
   })
 }
 
+/*
+ * **Die Beschriftung ist der Pfad ohne seine Frage — der Verweis trägt sie.**
+ *
+ * Gemessen am 31. August 2026 bei 390 px an
+ * `/updates?nur=sicherheit&herkunft=security.debian.org&name=linux-image-amd64`:
+ * Der volle Pfad nimmt **drei Zeilen** über dem Seitentitel. Er schiebt nichts —
+ * `.ident` bricht —, aber drei Zeilen Filterwerte sind keine Ortsangabe.
+ *
+ * > **Eine Beschriftung, die den ganzen Zustand nennt, sagt nicht mehr, wo man
+ * > war — sie sagt nur, dass es kompliziert war.**
+ *
+ * Der Verweis behält die Frage: Wer zurückgeht, findet seinen Filter wieder.
+ * Gezeigt wird, was er wiedererkennt.
+ */
+const herkunft = computed(() => (props.operation.origin ?? '').split('?')[0])
+
 const box = ref<HTMLElement | null>(null)
 
 // Mitlaufen lassen, solange etwas kommt. Ohne das müsste beim Zusehen jemand
@@ -136,7 +169,34 @@ watch(output, () => {
   <Head :title="`Vorgang ${props.operation.id}`" />
 
   <PanelLayout :title="props.operation.label">
+    <!--
+      **Der Weg zurück steht vor der Vorgangsliste und nicht dahinter.**
+
+      Bis zum 31. August 2026 trug dieser Brotkrümel eine einzige Verknüpfung —
+      `Vorgänge`, also die Liste *aller* Vorgänge. Wer eine Domain anlegte, fand
+      von hier nicht zur Domain; wer Pakete einspielte, nicht zurück zu den
+      Updates. Einundzwanzig Weiterleitungen aus sieben Controllern enden hier.
+
+      Gemeldet hat es der Betreiber beim **Erklären**: Die Antwort auf „wie
+      drücke ich denselben Knopf noch einmal" lautete „mit dem Zurück-Knopf des
+      Browsers".
+
+      > Ein Weg, den man nur erklären kann, indem man den Browser zu Hilfe
+      > nimmt, ist keiner, den die Anwendung anbietet.
+
+      **Der Pfad steht als Kennung und nicht als Beschriftung.** Plan §7.2 führt
+      Monospace ausdrücklich für Pfade; eine Zuordnung Pfad → Menütitel wäre
+      eine zweite Fassung der Navigation, und die zweite veraltet.
+
+      Was das **nicht** behebt — dass man überhaupt weggetragen wird — steht in
+      `docs/92` und ist für P9 vorgemerkt.
+    -->
     <template #breadcrumb>
+      <template v-if="props.operation.origin">
+        <Link :href="props.operation.origin" class="link">
+          ← <span class="ident">{{ herkunft }}</span>
+        </Link> ·
+      </template>
       <Link href="/operations" class="link">Vorgänge</Link> ·
       <span class="ident">{{ props.operation.type }}</span> · Nummer {{ props.operation.id }}
     </template>
@@ -165,6 +225,39 @@ watch(output, () => {
         <table class="pairs">
           <tbody>
             <tr><td class="quiet">Aufgabe</td><td class="right ident name">{{ props.operation.type }}</td></tr>
+
+            <!--
+              **Wovon der Vorgang handelt.** `subject_type` und `subject_id`
+              gibt es seit dem 4. August 2026, und bis zum 31. hat sie keine
+              Oberfläche gelesen — derselbe Fall wie `context` im Protokoll:
+              Ein Feld, das geschrieben und nie gelesen wird, ist von aussen
+              nicht von einem zu unterscheiden, das es nicht gibt.
+            -->
+            <tr v-if="props.operation.subject">
+              <td class="quiet">{{ props.operation.subject.label }}</td>
+
+              <!--
+                **`ident` steht an der Zelle und nicht am Verweis.** Der erste
+                Wurf schrieb `<td class="right">` mit einem `<a class="link
+                ident">` darin — gemessen bei 390 px schob das die Seite um
+                **59 px** aus dem Bild. `table.pairs td.right.ident` löst die
+                Zelle aus ihrem `flex: none` und erlaubt den Umbruch; eine
+                Kennung, die nur *in* der Zelle steht, erreicht diese Ausnahme
+                nicht, und `td .ident { white-space: nowrap }` gewinnt.
+
+                > Eine Ausnahme, die für die Zelle geschrieben ist, gilt nicht
+                > für das, was in ihr steht — und beide sehen im Markup gleich
+                > aus.
+
+                Der Verweis erbt die Schrift über `.link { font: inherit }`.
+              -->
+              <td class="right ident">
+                <Link v-if="props.operation.subject.path" :href="props.operation.subject.path" class="link">
+                  {{ props.operation.subject.name }}
+                </Link>
+                <span v-else>{{ props.operation.subject.name }}</span>
+              </td>
+            </tr>
             <tr>
               <td class="quiet">Zustand</td>
               <td class="right"><Badge :kind="rang" :running="open">{{ label }}</Badge></td>

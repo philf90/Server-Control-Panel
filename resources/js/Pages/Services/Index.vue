@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Section from '../../Components/Section.vue'
 import { counted } from '../../Composables/useCounted'
+import { rang, zustand } from '../../Composables/useUnitState'
 
 /**
  * Eine Zeile, wie `system.units.list` sie liefert.
@@ -56,47 +57,13 @@ const props = defineProps<{
   error: string | null
 }>()
 
-/**
- * Der Rang einer Zeile — er entscheidet die Farbe.
- *
- * **Ein Timer ohne nächsten Termin ist kaputt, obwohl er `active` meldet.** Das
- * ist der Satz, um den es auf dieser Seite geht: `ActiveState` steht beim
- * gesunden wie beim kaputten Timer auf `active` (gemessen gegen systemd 255,
- * `docs/89 §3`). Wer die Farbe an `active_state` hängt, malt beide grün.
- *
- * **Und derselbe Satz spiegelverkehrt, gemessen auf `cloudsrv24` am 31. August
- * 2026:** Ein Dienst, den ein Timer startet, steht zwischen seinen Läufen auf
- * `inactive` — vier der eigenen zwölf sind so gebaut. Wer die Farbe allein an
- * `active_state` hängt, malt den gesunden Server viermal rot.
- *
- * `failed` bleibt davon unberührt: Ein oneshot-Dienst, dessen letzter Lauf
- * scheiterte, meldet `failed` und nicht `inactive` — gemessen, mit einem
- * eigenen Prüfkörper je Fall.
+/*
+ * **`rang` und `zustand` stehen seit dem 31. August 2026 in
+ * `useUnitState`.** Sie standen hier, und die Übersicht hatte eine zweite,
+ * ärmere Fassung — Befund 5 aus `docs/91 §13`. Eine Stufe, die eine zweite
+ * Anzeige für dieselbe Sache baut, erzeugt die Abweichung, die sie danach
+ * halten muss.
  */
-function rang(zeile: Unit): 'ok' | 'warn' | 'critical' | 'neutral' {
-  if (!zeile.present) return 'neutral'
-  if (zeile.kind === 'timer' && zeile.has_next === false) return 'critical'
-  if (zeile.active_state === 'active') return 'ok'
-  if (zeile.active_state === 'activating') return 'warn'
-  if (zeile.scheduled === true && zeile.active_state === 'inactive') return 'ok'
-  return 'critical'
-}
-
-/**
- * Was in der Zustandsspalte steht.
- *
- * Für einen kaputten Timer ein **Satz** und keine Zahl: Das Abnahmekriterium
- * verlangt, dass er erkennbar ist, ohne dass man etwas deuten muss.
- */
-function zustand(zeile: Unit): string {
-  if (!zeile.present) return 'nicht installiert'
-  if (zeile.kind === 'timer' && zeile.has_next === false) return 'kein nächster Termin'
-  if (zeile.active_state === 'active') return zeile.sub_state === 'running' ? 'läuft' : 'bereit'
-  if (zeile.active_state === 'activating') return 'startet neu'
-  if (zeile.active_state === 'failed') return 'fehlgeschlagen'
-  if (zeile.scheduled === true && zeile.active_state === 'inactive') return 'wartet auf seinen Timer'
-  return 'gestoppt'
-}
 
 /**
  * Der nächste Termin.

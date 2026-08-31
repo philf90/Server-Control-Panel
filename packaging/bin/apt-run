@@ -203,10 +203,44 @@ if [ "$rueckgabe" -ne 0 ]; then
     exit "$rueckgabe"
 fi
 
+# **Nichts zu tun ist kein Fehlschlag, und das ist eine Berichtigung vom
+# 31. August 2026.**
+#
+# Bis dahin stand hier nur der Block darunter, und er traf auch den Fall, in dem
+# gar nichts anstand: `vorher` und `nachher` beide null. Auf `cloudsrv24`
+# gemessen (`docs/91 §17`) — der zweite Lauf desselben Knopfes meldete
+# `fehlgeschlagen`, mit dem Satz „offene Aktualisierungen vorher wie nachher: 0".
+#
+#   Ein Urteil, das seine Zahl mitbringt und nur an seinem Anfang gelesen wird,
+#   wirft die Unterscheidung weg, die es trägt.
+#
+# Und eine Ebene tiefer ist es die Spiegelung von M5, dem Befund, mit dem P7b
+# angefangen hat:
+#
+#   Ein Rückgabewert, der „nichts zu tun" und „nicht geschafft" gleich benennt,
+#   ist derselbe Fehler wie einer, der einen Fehlschlag nicht tragen kann — nur
+#   in die andere Richtung.
+#
+# Warum es zählt: Ein Server mit eingeschalteter Automatik hat den Fall
+# regelmässig. Nach der dritten Woche mit roten Vorgängen, die nichts bedeuten,
+# sieht niemand mehr einen roten Vorgang an.
+#
+# **Nur im Zählmodus.** Bei `--fassung` ist `nachher` eine Versionsnummer und nie
+# `0`; dort bleibt „vorher wie nachher" ein Fehlschlag, denn eine Fassung, die
+# sich nicht ändert, war der Grund des Laufs.
+if [ "$mass" = offen ] && [ "$vorher" = "$nachher" ] && [ "$nachher" -eq 0 ]; then
+    echo "$NAME: Es stand nichts an — $einheit: 0."
+    exit 0
+fi
+
 if [ "$vorher" = "$nachher" ]; then
     # **Der Fall, für den es dieses Skript gibt.** Er tritt ein, wenn die
     # Paketlisten veraltet sind (M5), wenn eine Quelle abgeschaltet ist, oder
     # wenn ein Name zwar bekannt, aber schon aktuell war.
+    #
+    # Der vierte Fall — es stand gar nichts an — steht darüber und ist keiner
+    # von diesen: Dort sollte nichts geschehen, hier sollte etwas geschehen und
+    # ist ausgeblieben.
     echo "$NAME: Der Lauf hat nichts verändert — $einheit vorher wie nachher: $nachher."
     exit 3
 fi

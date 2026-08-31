@@ -72,9 +72,19 @@ function dauer(ms: number): string {
           <tbody>
             <tr>
               <td class="quiet">Zeitplan</td>
-              <td class="right">
+              <!--
+                **`ident` gehört an die Zelle, aber nur im zweiten Fall.**
+                `table.pairs td.right.ident` löst die Zelle bei 390 px aus ihrem
+                `flex: none`; eine Kennung, die nur *in* ihr steht, erreicht die
+                Ausnahme nicht (gemessen am 31. August 2026 an der
+                Vorgangsseite: 59 px Überlauf). Der gesprochene Satz ist keine
+                Kennung und bekommt deshalb keine Monoschrift — die Klasse hängt
+                an der Bedingung und steht als Objektschlüssel, damit
+                `ClassReachTest` sie sieht.
+              -->
+              <td class="right" :class="{ ident: !props.job.spoken }">
                 <template v-if="props.job.spoken">{{ props.job.spoken }}</template>
-                <span v-else class="ident">{{ props.job.expression }}</span>
+                <template v-else>{{ props.job.expression }}</template>
               </td>
             </tr>
           </tbody>

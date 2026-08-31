@@ -20514,19 +20514,19 @@ echo "== ServicesViewTest: die Farbe folgt dem Zustand statt dem Termin =="
 #
 # Gemessen gegen systemd 255: Der gesunde und der kaputte Timer stehen beide
 # auf active. Wer die Farbe daran haengt, malt beide gruen.
-vorher_datei resources/js/Pages/Services/Index.vue
+vorher_datei resources/js/Composables/useUnitState.ts
 python3 - <<'PY2'
-p = 'resources/js/Pages/Services/Index.vue'
+p = 'resources/js/Composables/useUnitState.ts'
 s = open(p, encoding='utf-8').read()
-alt = """  if (!zeile.present) return 'neutral'
-  if (zeile.kind === 'timer' && zeile.has_next === false) return 'critical'
-  if (zeile.active_state === 'active') return 'ok'"""
+alt = """  if (!unit.present) return 'neutral'
+  if (ohneTermin(unit)) return 'critical'
+  if (unit.active_state === 'active') return 'ok'"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, """  if (!zeile.present) return 'neutral'
-  if (zeile.active_state === 'active') return 'ok'
-  if (zeile.kind === 'timer' && zeile.has_next === false) return 'critical'""", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """  if (!unit.present) return 'neutral'
+  if (unit.active_state === 'active') return 'ok'
+  if (ohneTermin(unit)) return 'critical'""", 1))
 PY2
-griff_datei resources/js/Pages/Services/Index.vue "Farbe folgt dem Zustand" &&
+griff_datei resources/js/Composables/useUnitState.ts "Farbe folgt dem Zustand" &&
 pruefe "Farbe folgt dem Zustand" \
   ServicesViewTest::test_the_colour_of_a_timer_follows_its_next_date failed
 wiederherstellen
@@ -20598,18 +20598,18 @@ echo "== ServicesViewTest: ein wartender oneshot-Dienst wird rot =="
 # Vier der eigenen zwoelf Dienste sind Type=oneshot und stehen zwischen ihren
 # Laeufen auf inactive. Ohne die Nachsicht meldet die Seite auf einem gesunden
 # Server vier Schaeden.
-vorher_datei resources/js/Pages/Services/Index.vue
+vorher_datei resources/js/Composables/useUnitState.ts
 python3 - <<'PY2'
-p = 'resources/js/Pages/Services/Index.vue'
+p = 'resources/js/Composables/useUnitState.ts'
 s = open(p, encoding='utf-8').read()
-alt = """  if (zeile.active_state === 'activating') return 'warn'
-  if (zeile.scheduled === true && zeile.active_state === 'inactive') return 'ok'
-  return 'critical'"""
+alt = """  if (unit.active_state === 'activating') return 'warn'
+  if (wartet(unit)) return 'ok'
+"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, """  if (zeile.active_state === 'activating') return 'warn'
-  return 'critical'""", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """  if (unit.active_state === 'activating') return 'warn'
+""", 1))
 PY2
-griff_datei resources/js/Pages/Services/Index.vue "wartender oneshot wird rot" &&
+griff_datei resources/js/Composables/useUnitState.ts "wartender oneshot wird rot" &&
 pruefe "wartender oneshot wird rot" \
   ServicesViewTest::test_a_service_a_timer_starts_may_stand_still failed
 wiederherstellen
@@ -20620,17 +20620,17 @@ echo "== ServicesViewTest: die Nachsicht steht vor dem Fehlschlag =="
 #
 # Dann liest sich ein gescheiterter Lauf als „wartet auf seinen Timer" — der
 # Schaden verschwindet hinter der Nachsicht, die ihn nicht meinen sollte.
-vorher_datei resources/js/Pages/Services/Index.vue
+vorher_datei resources/js/Composables/useUnitState.ts
 python3 - <<'PY2'
-p = 'resources/js/Pages/Services/Index.vue'
+p = 'resources/js/Composables/useUnitState.ts'
 s = open(p, encoding='utf-8').read()
-alt = """  if (zeile.active_state === 'failed') return 'fehlgeschlagen'
-  if (zeile.scheduled === true && zeile.active_state === 'inactive') return 'wartet auf seinen Timer'"""
+alt = """  if (unit.active_state === 'failed') return 'fehlgeschlagen'
+  if (wartet(unit)) return 'wartet auf seinen Timer'"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, """  if (zeile.scheduled === true && zeile.active_state === 'inactive') return 'wartet auf seinen Timer'
-  if (zeile.active_state === 'failed') return 'fehlgeschlagen'""", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """  if (wartet(unit)) return 'wartet auf seinen Timer'
+  if (unit.active_state === 'failed') return 'fehlgeschlagen'""", 1))
 PY2
-griff_datei resources/js/Pages/Services/Index.vue "Nachsicht vor dem Fehlschlag" &&
+griff_datei resources/js/Composables/useUnitState.ts "Nachsicht vor dem Fehlschlag" &&
 pruefe "Nachsicht vor dem Fehlschlag" \
   ServicesViewTest::test_a_service_a_timer_starts_may_stand_still failed
 wiederherstellen
@@ -20816,6 +20816,304 @@ pruefe "Gruppen wachsen zusammen" \
   NavGroupTest::test_no_group_grows_back_into_a_pot failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NavGroupTest passed
+
+echo
+echo "== OperationOriginTest: der Vorgang bekommt keine Herkunft mehr =="
+#
+# Einundzwanzig Weiterleitungen enden auf der Vorgangsseite, und bis zum
+# 31. August 2026 fuehrte von dort kein Weg zurueck. Ohne diese eine Zeile ist
+# er wieder fort — und zwar wortlos, denn eine fehlende Herkunft sieht aus wie
+# ein Vorgang der Automatik.
+vorher_datei app/Support/Operations/Operations.php
+python3 - <<'PY2'
+p = 'app/Support/Operations/Operations.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'origin' => $this->origin(),\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Operations/Operations.php "Vorgang ohne Herkunft" &&
+pruefe "Vorgang ohne Herkunft" \
+  OperationOriginTest::test_the_origin_is_taken_in_one_place failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
+
+echo
+echo "== OperationOriginTest: die Herkunft bekommt einen Rueckfall =="
+#
+# `url()->previous()` faellt der Reihe nach auf den Referer und dann auf die
+# Wurzel zurueck. Ein Vorgang der Zertifikatsautomatik truege damit `/`, und die
+# Seite boete einen Weg zurueck dorthin, wo niemand war.
+vorher_datei app/Support/Operations/Operations.php
+python3 - <<'PY2'
+p = 'app/Support/Operations/Operations.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $previous = $request->session()->previousUrl();"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        $previous = url()->previous();", 1))
+PY2
+griff_datei app/Support/Operations/Operations.php "Herkunft mit Rueckfall" &&
+pruefe "Herkunft mit Rueckfall" \
+  OperationOriginTest::test_the_origin_has_no_fallback failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
+
+echo
+echo "== OperationOriginTest: ohne Sitzung wird trotzdem gefragt =="
+#
+# Die Konsole und die Warteschlange setzen ohne Sitzung ab. Ohne diese Frage
+# wirft `session()` dort — ein Vorgang der Automatik stuerbe an der Herkunft,
+# die es nicht gibt.
+vorher_datei app/Support/Operations/Operations.php
+python3 - <<'PY2'
+p = 'app/Support/Operations/Operations.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if (! $request->hasSession()) {
+            return null;
+        }
+
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Operations/Operations.php "Herkunft ohne Sitzungsfrage" &&
+pruefe "Herkunft ohne Sitzungsfrage" \
+  OperationOriginTest::test_without_a_session_there_is_no_origin failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
+
+echo
+echo "== OperationOriginTest: die Herkunft steht da und ist keine Verknuepfung =="
+#
+# Ein Pfad, der nur dasteht, ist kein Weg zurueck — er ist ein Hinweis, den man
+# abtippen muesste. Genau das war der Befund: Die Antwort auf „wie drueck ich
+# denselben Knopf noch einmal" lautete „mit dem Zurueck-Knopf des Browsers".
+vorher_datei resources/js/Pages/Operations/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Operations/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = """        <Link :href="props.operation.origin" class="link">
+          ← <span class="ident">{{ herkunft }}</span>
+        </Link> ·"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, """        <span class="link">
+          ← <span class="ident">{{ herkunft }}</span>
+        </span> ·""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Operations/Show.vue "Herkunft ohne Verknuepfung" &&
+pruefe "Herkunft ohne Verknuepfung" \
+  OperationOriginTest::test_the_breadcrumb_links_the_origin failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
+
+echo
+echo "== OperationOriginTest: der Gegenstand zeigt auf eine Route, die es nicht gibt =="
+#
+# Der Fehler, den dieses Repo sechsmal eingeholt hat: eine Zeichenkette, die auf
+# etwas verweist, ohne dass ein Typ, ein Test oder ein Werkzeug den Bezug
+# prueft. Hier entsteht er bei einer Umbenennung der Route.
+vorher_datei app/Enums/OperationSubject.php
+python3 - <<'PY2'
+p = 'app/Enums/OperationSubject.php'
+s = open(p, encoding='utf-8').read()
+alt = "            self::Domain => '/domains/'.$id,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            self::Domain => '/domain/'.$id,", 1))
+PY2
+griff_datei app/Enums/OperationSubject.php "Gegenstand ohne Route" &&
+pruefe "Gegenstand ohne Route" \
+  OperationOriginTest::test_every_path_the_subject_names_is_a_route failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
+
+echo
+echo "== OperationOriginTest: die Seite liest den Gegenstand nicht mehr =="
+#
+# `subject_type` und `subject_id` gab es seit dem 4. August 2026, und bis zum
+# 31. hat sie keine Oberflaeche gelesen — derselbe Fall wie `context` im
+# Protokoll: Ein Feld, das geschrieben und nie gelesen wird, ist von aussen
+# nicht von einem zu unterscheiden, das es nicht gibt.
+vorher_datei resources/js/Pages/Operations/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Operations/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = """                <Link v-if="props.operation.subject.path" :href="props.operation.subject.path" class="link">
+                  {{ props.operation.subject.name }}
+                </Link>
+                <span v-else>{{ props.operation.subject.name }}</span>"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, """                <span class="ident">—</span>""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Operations/Show.vue "Gegenstand ungelesen" &&
+pruefe "Gegenstand ungelesen" \
+  OperationOriginTest::test_the_page_reads_the_subject failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
+
+echo
+echo "== ServicesViewTest: die Uebersicht druckt den Rohwert wieder =="
+#
+# Befund 5 aus docs/91: Die Uebersicht zeigte `active`, die Dienste-Seite
+# daneben `laeuft` — zwei Seiten, ein Server, zwei Auskuenfte. `WordChoiceTest`
+# kann das nicht sehen, weil das englische Wort nirgends im Quelltext steht.
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Overview.vue'
+s = open(p, encoding='utf-8').read()
+alt = "<Badge :kind=\"rang(service)\">{{ zustand(service) }}</Badge>"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "<Badge :kind=\"rang(service)\">{{ service.active_state }}</Badge>", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Overview.vue "Rohwert in der Uebersicht" &&
+pruefe "Rohwert in der Uebersicht" \
+  ServicesViewTest::test_no_page_prints_a_raw_unit_state failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
+
+echo
+echo "== OutcomeTest: ein Lauf ohne Anlass ist wieder ein Fehlschlag =="
+#
+# Befund 6 aus docs/91, gemessen auf cloudsrv24: Der zweite Druck auf denselben
+# Knopf meldete `fehlgeschlagen` — mit der Zahl `0` im eigenen Satz. „Nichts zu
+# tun" und „nicht geschafft" sind zwei Ausgaenge, und nur einer ist ein
+# Fehlschlag.
+vorher_datei packaging/bin/apt-run
+python3 - <<'PY2'
+p = 'packaging/bin/apt-run'
+s = open(p, encoding='utf-8').read()
+alt = """if [ "$mass" = offen ] && [ "$vorher" = "$nachher" ] && [ "$nachher" -eq 0 ]; then
+    echo "$NAME: Es stand nichts an — $einheit: 0."
+    exit 0
+fi
+
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei packaging/bin/apt-run "Lauf ohne Anlass als Fehlschlag" &&
+pruefe "Lauf ohne Anlass als Fehlschlag" \
+  OutcomeTest::test_the_script_tells_nothing_pending_from_nothing_changed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
+
+echo
+echo "== OutcomeTest: die Nachsicht gilt auch fuer --fassung =="
+#
+# **Die zweite Haelfte, und sie ist die gefaehrlichere.** Bei `--fassung` ist
+# `nachher` eine Versionsnummer und nie `0`; faellt die Beschraenkung auf den
+# Zaehlmodus weg, wuerde ein Panel-Update, das die Fassung nicht aendert, als
+# Erfolg gemeldet — und genau das war der Grund des Laufs.
+vorher_datei packaging/bin/apt-run
+python3 - <<'PY2'
+p = 'packaging/bin/apt-run'
+s = open(p, encoding='utf-8').read()
+alt = 'if [ "$mass" = offen ] && [ "$vorher" = "$nachher" ] && [ "$nachher" -eq 0 ]; then'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, 'if [ "$vorher" = "$nachher" ]; then', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei packaging/bin/apt-run "Nachsicht ohne Zaehlmodus" &&
+pruefe "Nachsicht ohne Zaehlmodus" \
+  OutcomeTest::test_the_script_tells_nothing_pending_from_nothing_changed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
+
+echo
+echo "== OperationOriginTest: die Beschriftung traegt die ganze Frage =="
+#
+# Gemessen am 31. August 2026 bei 390 px an
+# /updates?nur=sicherheit&herkunft=security.debian.org&name=linux-image-amd64:
+# Der volle Pfad nimmt drei Zeilen ueber dem Seitentitel. Er schiebt nichts,
+# aber drei Zeilen Filterwerte sind keine Ortsangabe.
+vorher_datei resources/js/Pages/Operations/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Operations/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = "const herkunft = computed(() => (props.operation.origin ?? '').split('?')[0])"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "const herkunft = computed(() => props.operation.origin ?? '')", 1))
+PY2
+griff_datei resources/js/Pages/Operations/Show.vue "Beschriftung mit ganzer Frage" &&
+pruefe "Beschriftung mit ganzer Frage" \
+  OperationOriginTest::test_the_breadcrumb_links_the_origin failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
+
+echo
+echo "== OperationOriginTest: der Verweis zeigt auf den gekuerzten Pfad =="
+#
+# Die Gegenrichtung: Wer zurueckgeht, landete dann auf einer ungefilterten
+# Liste — der Filter, den er gerade gesetzt hatte, waere fort.
+vorher_datei resources/js/Pages/Operations/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Operations/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<Link :href="props.operation.origin" class="link">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<Link :href="herkunft" class="link">', 1))
+PY2
+griff_datei resources/js/Pages/Operations/Show.vue "Verweis ohne Frage" &&
+pruefe "Verweis ohne Frage" \
+  OperationOriginTest::test_the_breadcrumb_links_the_origin failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
+
+echo
+echo "== MobileTableTest: eine Kennung *in* der Zelle statt an ihr =="
+#
+# Der Befund vom 31. August, 59 px bei 390 px: `table.pairs td.right.ident`
+# loest die Zelle aus ihrem `flex: none`. Eine Kennung, die nur in ihr steht,
+# erreicht die Ausnahme nicht — und `td .ident { white-space: nowrap }` gewinnt.
+vorher_datei resources/js/Pages/Operations/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Operations/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = """              <td class="right ident">
+                <Link v-if="props.operation.subject.path" :href="props.operation.subject.path" class="link">
+                  {{ props.operation.subject.name }}
+                </Link>
+                <span v-else>{{ props.operation.subject.name }}</span>
+              </td>"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """              <td class="right">
+                <Link v-if="props.operation.subject.path" :href="props.operation.subject.path" class="link ident">
+                  {{ props.operation.subject.name }}
+                </Link>
+                <span v-else class="ident">{{ props.operation.subject.name }}</span>
+              </td>""", 1))
+PY2
+griff_datei resources/js/Pages/Operations/Show.vue "Kennung in der Zelle" &&
+pruefe "Kennung in der Zelle" \
+  MobileTableTest::test_an_identifier_in_a_pairs_cell_belongs_to_the_cell failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileTableTest passed
+
+echo
+echo "== MobileTableTest: der Objektschluessel wird zur festen Klasse =="
+#
+# Die andere Haelfte der Regel: Eine Zelle, die einmal einen gesprochenen Satz
+# und einmal eine Kennung zeigt, traegt `ident` an einer Bedingung. Ein festes
+# `ident` machte aus dem Satz Monoschrift; **kein** `ident` schiebt die Seite.
+vorher_datei resources/js/Pages/Subscriptions/CronRuns.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/CronRuns.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<td class="right" :class="{ ident: !props.job.spoken }">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, '<td class="right">', 1)
+alt2 = '                <template v-else>{{ props.job.expression }}</template>'
+assert s.count(alt2) == 1, 'Zweite Zielstelle nicht eindeutig'
+s = s.replace(alt2, '                <span v-else class="ident">{{ props.job.expression }}</span>', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/CronRuns.vue "Kennung ohne Bedingung an der Zelle" &&
+pruefe "Kennung ohne Bedingung an der Zelle" \
+  MobileTableTest::test_an_identifier_in_a_pairs_cell_belongs_to_the_cell failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileTableTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

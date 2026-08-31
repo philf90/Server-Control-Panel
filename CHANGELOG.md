@@ -22940,6 +22940,38 @@ Dienste-Seite —, kommt mit Begründung dazu und nicht als Erbe aus P0.
 steuerbar, und die zwölf eigenen tun es. Drei Eingriffe im Bruchskript sind
 umgehängt und neu belegt — der geprüfte war ein anderer als der eingetragene.
 
+### Ein Eingriff, der an der Untergrenze beisst, hat über die Regel nichts gesagt
+
+Der volle Bruchlauf in der CI hat gemeldet, was der Einzellauf nicht sehen
+konnte: Der Eingriff „die Seite liest einen Schluessel, den es nicht gibt" biss
+nicht mehr. Er schreibt in `Updates/Index.vue` `operate_server` statt
+`operate-server` — ein Schlüssel, den die geteilte Ablage nicht kennt, ist
+wortlos `false`, und die Seite verliert jeden Knopf, ohne es zu sagen.
+
+Rot wurde davon aber nie diese Regel, sondern die **Untergrenze** von
+`test_a_control_for_a_stricter_route_sits_behind_its_ability`: Die Updates-Seite
+war die einzige, die dort etwas zu prüfen beitrug, und ohne ihre
+Wächtervariable zählte der Test null. Der Verweis der Übersicht auf `/services`
+hat einen zweiten Beitrag dazugestellt — Untergrenze 1 statt 0, und der Eingriff
+war still.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand neben seiner Regel eine zweite baut, die dieselbe Frage
+> beantwortet.**
+
+Das ist derselbe Satz wie am 23. August an `.toggle:has(input:disabled)`, und
+die Lehre daneben ist die eigentliche:
+
+> **Ein Eingriff, der an der Untergrenze eines Wächters beisst, hat über dessen
+> Regel nichts gesagt.**
+
+`test_every_ability_key_a_page_reads_exists` fragt jetzt den Schlüssel selbst:
+Jeder wörtliche Griff in die geteilte Ablage — drei heute, in `Updates/Index`,
+`Overview` und `RebootButton` — nennt eine Fähigkeit, die es in
+`AdminAbility::abilities()` gibt. Er kommt ohne eine Untergrenze von anderswo
+aus, und der Eingriff zeigt ihn rot. Gesucht wird unter `resources/js` und nicht
+nur unter `Pages`: `RebootButton.vue` liest die Ablage und ist keine Seite.
+
 ### Der Bereich „Dienste" auf der Übersicht zeigte drei von sechzehn und sagte es nicht
 
 Er führt die tragenden Dienste (`Catalog::essential()`) — den Agenten, den

@@ -19237,9 +19237,16 @@ echo "── OperatorControlTest: die Seite liest einen Schluessel, den es nicht
 # Seite saehe fuer den Betreiber aus wie fuer den Administrator — jeder Knopf
 # weg, und keine Meldung nirgends.
 #
-# Getroffen wird damit auch die Zuordnung Faehigkeit → Waechtervariable, die
-# der Test aus der Seite selbst liest: Ohne sie findet er die Variable nicht
-# mehr und haelt den Griff faelschlich fuer ungeschuetzt.
+# **Gezielt wird seit dem 31. August auf die Regel und nicht auf die
+# Untergrenze.** Bis dahin nannte dieser Eingriff
+# test_a_control_for_a_stricter_route_sits_behind_its_ability, und der war rot,
+# weil die Updates-Seite die einzige war, die dort etwas beitrug: Ohne ihre
+# Waechtervariable zaehlte er null. Der Verweis der Uebersicht auf /services hat
+# einen zweiten Beitrag dazugestellt, die Untergrenze stand auf 1, und der
+# Eingriff biss nicht mehr — gemeldet vom vollen Lauf in der CI.
+#
+#   Ein Eingriff, der an der Untergrenze eines Waechters beisst, hat ueber
+#   dessen Regel nichts gesagt.
 vorher_datei resources/js/Pages/Updates/Index.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Updates/Index.vue'
@@ -19250,7 +19257,7 @@ open(p, 'w', encoding='utf-8').write(s.replace(alt, "['operate_server'] === true
 PY2
 griff_datei resources/js/Pages/Updates/Index.vue "Schluessel ohne Ablage" &&
 pruefe "Schluessel ohne Ablage" \
-  OperatorControlTest::test_a_control_for_a_stricter_route_sits_behind_its_ability failed
+  OperatorControlTest::test_every_ability_key_a_page_reads_exists failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperatorControlTest passed
 

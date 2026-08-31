@@ -248,6 +248,32 @@ final class OperatorControlTest extends TestCase
         return false;
     }
 
+    /**
+     * Jede `.vue` unter `resources/js` — Seiten wie Komponenten.
+     *
+     * Weiter als {@see self::pages()}, und mit Grund: `RebootButton.vue` liest
+     * die geteilte Ablage und ist keine Seite.
+     *
+     * @return list<string>
+     */
+    private function templates(): array
+    {
+        $treffer = [];
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($this->repo().'/resources/js'),
+        );
+
+        foreach ($iterator as $datei) {
+            if ($datei->isFile() && $datei->getExtension() === 'vue') {
+                $treffer[] = $datei->getPathname();
+            }
+        }
+
+        sort($treffer);
+
+        return $treffer;
+    }
+
     /** @return list<string> */
     private function pages(): array
     {
@@ -265,6 +291,75 @@ final class OperatorControlTest extends TestCase
         sort($treffer);
 
         return $treffer;
+    }
+
+    /**
+     * Jeder Schlüssel, den eine Vorlage aus der geteilten Ablage liest, gibt es.
+     *
+     * **Ein unbekannter Schlüssel ist wortlos `false`.** `abilities` kommt als
+     * gewöhnliches Objekt im Payload; `abilities['operate_server']` mit
+     * Unterstrich statt Bindestrich ergibt `undefined`, der Vergleich mit
+     * `true` ergibt `false`, und die Seite sieht für den Betreiber aus wie für
+     * den Administrator — jeder Knopf fort, und keine Meldung nirgends.
+     *
+     * ## Warum es diese Prüfung erst seit dem 31. August 2026 gibt
+     *
+     * Den Fall gab es im Bruchskript längst, und er biss — aber nicht an dieser
+     * Regel, sondern an der **Untergrenze** von
+     * `test_a_control_for_a_stricter_route_sits_behind_its_ability`: Die
+     * Updates-Seite war die einzige, die dort etwas zu prüfen beitrug, und mit
+     * kaputtem Schlüssel fand der Test ihre Wächtervariable nicht mehr, zählte
+     * null und wurde deshalb rot.
+     *
+     * Der Verweis der Übersicht auf `/services` hat einen zweiten Beitrag
+     * dazugestellt. Damit steht die Untergrenze auf 1, wenn die Updates-Seite
+     * bricht — und der Eingriff biss nicht mehr.
+     *
+     * > **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht —
+     * > auch, wenn jemand neben seiner Regel eine zweite baut, die dieselbe
+     * > Frage beantwortet.**
+     *
+     * Die eigentliche Lehre ist aber eine über den Eingriff selbst: Er hat nie
+     * belegt, dass ein kaputter Schlüssel **als solcher** auffällt, sondern nur,
+     * dass danach nichts mehr zu prüfen war.
+     *
+     * > **Ein Eingriff, der an der Untergrenze eines Wächters beisst, hat über
+     * > dessen Regel nichts gesagt.**
+     *
+     * Diese Prüfung fragt den Schlüssel selbst und kommt ohne Untergrenze von
+     * anderswo aus.
+     */
+    public function test_every_ability_key_a_page_reads_exists(): void
+    {
+        $bekannt = array_keys(AdminAbility::abilities());
+        $gelesen = 0;
+        $unbekannt = [];
+
+        foreach ($this->templates() as $pfad) {
+            $quelle = (string) file_get_contents($pfad);
+
+            // Nur die wörtlichen Griffe in die geteilte Ablage. `PanelLayout`
+            // schlägt über `item.ability` nach, und dass dort eine gültige
+            // Fähigkeit steht, hält `AdminPayloadTest` an der Navigation.
+            preg_match_all("/\babilities[^;\n]*?\)\['([^']+)'\]/", $quelle, $treffer);
+
+            foreach ($treffer[1] as $schluessel) {
+                $gelesen++;
+
+                if (! in_array($schluessel, $bekannt, true)) {
+                    $unbekannt[] = sprintf('%s liest `%s`', basename($pfad), $schluessel);
+                }
+            }
+        }
+
+        $this->assertGreaterThan(0, $gelesen,
+            'Keine Vorlage liest die geteilte Ablage — dann prüft dieser Test nichts.');
+
+        $this->assertSame([], $unbekannt, sprintf(
+            "Diese Schlüssel gibt es in der geteilten Ablage nicht:\n\n  %s\n\n"
+            .'Ein unbekannter Schlüssel ist wortlos `false` — die Seite verliert jeden Knopf, ohne es zu sagen.',
+            implode("\n  ", $unbekannt),
+        ));
     }
 
     public function test_a_control_for_a_stricter_route_sits_behind_its_ability(): void

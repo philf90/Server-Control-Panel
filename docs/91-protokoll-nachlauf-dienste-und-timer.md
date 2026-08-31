@@ -552,9 +552,59 @@ Prüfkörper, der teurer ist als die Auskunft, die er brächte.
 
 ---
 
-## 13 · Was noch aussteht
+## 13 · Punkt 7 — erfüllt
 
-Die Punkte 7 bis 11 aus `docs/90`.
+Auf `/` zeigt der Bereich „Dienste" **vier** Zeilen, alle `active`:
+
+| Unit | Beschreibung |
+|---|---|
+| `srvpanel-agentd.service` | SrvPanel — privilegierter Agent |
+| `nginx.service` | A high performance web server and a reverse proxy server |
+| `mariadb.service` | MariaDB 10.11.14 database server |
+| `postgresql@16-main.service` | PostgreSQL Cluster 16-main |
+
+Die drei aus `Catalog::essential()` plus der Cluster, den das Kriterium
+ausdrücklich zulässt. **Keine** Zeile `mysql.service` — `pick()` fällt auch hier
+zusammen. Nicht sechzehn Zeilen. Und der neue Verweis **„Alle Dienste"** steht im
+Bereichskopf.
+
+### Befund 5 — dieselbe Tatsache, zwei Vokabulare
+
+**Am Prüfling, gefunden am Bild.** Die Übersicht schreibt **`active`**, die
+Dienste-Seite schreibt für dieselbe Unit **„läuft"**:
+
+    Overview.vue:676   {{ service.present ? service.active_state : 'nicht installiert' }}
+
+**Erstens ist `active` englisch.** `docs/19 §4a` bindet Texte der Oberfläche auf
+Deutsch. `WordChoiceTest` kann das nicht sehen: Der Wert kommt zur Laufzeit vom
+Server und steht als Zeichenkette nirgends in der Vorlage.
+
+> **Ein Wort, das erst zur Laufzeit entsteht, entgeht jedem Wächter, der
+> Zeichenketten liest.**
+
+**Zweitens ist es eine zweite Fassung derselben Regel**, und die ärmere:
+`dienstRang()` fragt `active_state === 'active'` und kennt weder `activating`
+noch die Nachsicht für Dienste, die ein Timer startet. Heute fällt das nicht auf,
+weil `essential()` keinen `Type=oneshot` enthält — käme je einer dazu, stünde er
+rot mit dem Wort `inactive` da. Das ist genau der Befund aus §3, nur latent.
+
+> **Zwei Fassungen derselben Regel laufen auseinander, und die zweite ist die,
+> die veraltet.** Zum dritten Mal in dieser Stufe.
+
+**Vor A2 gab es die zweite Stelle nicht.** Die Übersicht war die einzige Anzeige
+eines Unit-Zustands; die Divergenz ist erst durch diese Stufe entstanden.
+
+> **Eine Stufe, die eine zweite Anzeige für dieselbe Sache baut, erzeugt die
+> Abweichung, die sie danach halten muss.**
+
+Zu bauen: `rang()` und `zustand()` an eine geteilte Stelle, beide Seiten lesen
+sie, und ein Wächter hält, dass keine Vorlage `active_state` roh rendert.
+
+---
+
+## 14 · Was noch aussteht
+
+Die Punkte 8 bis 11 aus `docs/90`, und Befund 5.
 
 **Punkt 4 hängt an Befund 3.** Er trägt das Abnahmekriterium der ganzen Stufe,
 und er wird auf einem Telefon gelesen werden — die Reihenfolge ist also: erst

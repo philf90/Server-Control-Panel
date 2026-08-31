@@ -384,9 +384,35 @@ weiter mit ja.
 
 ---
 
-## 8 · Was noch aussteht
+## 8 · Punkt 2 — erfüllt
 
-Die Punkte 2 bis 11 aus `docs/90`, und die Befunde 2 und 3.
+Gefahren auf `cloudsrv24` gegen `0.7.3-rc.3`, mit genau dem Aufruf, den der
+Agent macht.
+
+| | erwartet | gemessen |
+|---|---|---|
+| Blöcke (`awk RS=""`) | 19 | **19** |
+| `Id=`-Zeilen | 19 | **19** |
+
+**Das ist das Ausschlusskriterium der Stufe.** Die Blocktrennung von
+`systemctl show a b c` war gegen **drei** Units gemessen (`docs/89 §4`); hier
+sind es neunzehn. Passt die Zahl nicht, wirft `Units::readMany()` — mit Absicht,
+weil eine verschobene Zuordnung stiller Unsinn wäre —, und die ganze Seite gibt
+einen 500er statt einer falschen Zeile.
+
+> **Eine Zusicherung, die im Container hält, ist auf dem Server eine Vermutung —
+> bis jemand sie dort misst.**
+
+Neunzehn und nicht sechzehn: Der Agent fragt **alle** Kandidaten und lässt erst
+danach die zusammenfallen, die dieselbe Rolle haben. Dass `ssh.service` und
+`sshd.service` zwei Blöcke mit **demselben `Id`** ergeben, ist gemessen und
+richtig — gezählt werden Blöcke und nicht verschiedene Namen.
+
+---
+
+## 9 · Was noch aussteht
+
+Die Punkte 3 bis 11 aus `docs/90`.
 
 **Punkt 4 hängt an Befund 3.** Er trägt das Abnahmekriterium der ganzen Stufe,
 und er wird auf einem Telefon gelesen werden — die Reihenfolge ist also: erst

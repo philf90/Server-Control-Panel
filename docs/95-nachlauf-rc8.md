@@ -343,6 +343,14 @@ document.documentElement.scrollWidth - document.documentElement.clientWidth
 
 Erwartet: **200**. Danach neu laden.
 
+> **Und vor jedem Lauf dieser Gegenprobe ebenso.** Sie bemisst sich am
+> gegenwärtigen `scrollWidth`; läuft sie ein zweites Mal ohne Neuladen, ist ihr
+> eigener Block von eben schon Teil des Masses, und heraus kommen 400. Genau so
+> gemessen am 1. September (`docs/96 §8`).
+>
+> **Ein Prüfkörper, der sich am gegenwärtigen Zustand bemisst, verändert den
+> Zustand, an dem er sich bemisst — beim zweiten Lauf misst er sich selbst.**
+
 ---
 
 ## 9 · Was dieser Lauf ausdrücklich **nicht** prüft

@@ -502,30 +502,40 @@ eingehalten und nicht unterschritten. Der Domainname bricht in seine eigene
 Zeile unter die Beschriftung, statt die Zeile zu weiten; genau dafür trägt die
 Zelle ihre Kennung (`docs/94`, vierte Wiederholung derselben Ausnahme).
 
-### Was an Punkt 8 offen bleibt
-
-**Die Gegenprobe.** Ohne den 200-px-Block daneben ist die Null keine Messung,
-sondern eine Zahl — dieselbe, die auch ein Messstand liefert, der gar nicht bei
-390 px steht oder die Seite nach dem Breitenwechsel nicht neu geladen hat.
-
-> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
-> steht.**
-
-Das ist kein Zweifel an der Seite, sondern die Regel, die dieses Repo an sich
-selbst anlegt. Nachzuholen sind zwei Zeilen:
+### Die Gegenprobe — und was sie über sich selbst gesagt hat
 
     document.body.insertAdjacentHTML('beforeend',
       '<div style="width:' + (document.documentElement.scrollWidth + 200) + 'px;height:1px"></div>');
     document.documentElement.scrollWidth - document.documentElement.clientWidth
+    400
 
-Erwartet **200**, danach neu laden.
+**Der Prüfkörper schlägt aus, und damit ist die Null von oben eine Messung** —
+sie ist nicht die Zahl eines Messstands, der gar nichts sehen kann.
+
+**Erwartet waren 200, gemessen sind 400**, und das ist kein Fehler an der Seite,
+sondern die Form des Prüfkörpers: Er bemisst sich am **gegenwärtigen**
+`scrollWidth`. Beim ersten Lauf ist das die Breite des Dokuments, also entsteht
+ein Überhang von 200. Läuft er ein zweites Mal ohne Neuladen, ist der eigene
+Block von eben schon Teil des Masses, und der neue liegt 200 px darüber — 400.
+
+> **Ein Prüfkörper, der sich am gegenwärtigen Zustand bemisst, verändert den
+> Zustand, an dem er sich bemisst — beim zweiten Lauf misst er sich selbst.**
+
+Das ist dieselbe Familie wie die berichtigte Vorschrift aus `docs/58 §12`, nur
+von der anderen Seite: Dort war ein fester Block bei 1440 px keine Gegenprobe
+mehr, weil er nicht mehr das Breiteste war; hier ist ein relativer Block beim
+zweiten Lauf zu breit. **`tests/bilder-messen.js` ist davon nicht betroffen** —
+es misst je Aufnahme in einer frisch geladenen Seite. Es trifft nur den Griff von
+Hand in der Konsole, und die Abhilfe ist ein Neuladen davor.
+
+`docs/95 §8` sagt das jetzt dazu. **Punkt 8 ist erfüllt.**
 
 ---
 
 ## Bilanz
 
-**Der Lauf ist durch.** Die Pflichtpunkte aus `docs/95 §10` sind 1, 2, 3, 5, 6
-und 7.
+**Der Lauf ist durch, und alle acht Punkte sind gefahren.** Die Pflichtpunkte
+aus `docs/95 §10` sind 1, 2, 3, 5, 6 und 7.
 
 | Punkt | | |
 |---|---|---|
@@ -538,7 +548,7 @@ und 7.
 | 5 | Herkunft und Gegenstand | erfüllt |
 | 6 | der Zurück-Knopf | erfüllt |
 | 7 | ein Vorgang ohne Seite | erfüllt |
-| 8 | 390 px, beide Themen | 0 px, Gegenprobe offen → **Befund 13** |
+| 8 | 390 px, beide Themen | erfüllt — 0 px, Gegenprobe 400 → **Befund 13** |
 
 **Sechs Befunde, und fünf davon stecken im Prüfmittel oder in der Vorschrift:**
 9 (die Gegenprobe fragt an der Sache vorbei), 11 (die Messvorschrift zählt
@@ -561,7 +571,6 @@ Quelltext zu vermeiden gewesen.**
   Sprung `rc.9` → `rc.10`.
 - **Befund 10 und 12** sind gebaut und haben keinen Server gesehen; sie liegen
   in `rc.10`.
-- **Die Gegenprobe zu Punkt 8** — zwei Zeilen in derselben Konsole.
 - **Die Zeile `Paketlisten aufgefrischt; jede Quelle hat geantwortet.`** gilt für
   die gefragten Quellen und nicht für die vorhandenen (§4b). Kein Befund dieses
   Laufs, sondern ein Vorschlag.

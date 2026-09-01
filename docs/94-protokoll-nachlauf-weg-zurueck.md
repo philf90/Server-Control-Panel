@@ -811,9 +811,35 @@ sondern ihre Gegenrichtung — „ruft kein `apt-get update` mehr".
 > **Eine Ausnahme, deren Begründung fällt, fällt mit ihr — und dass sie
 > liegenbleibt, meldet nur der Wächter, der die Gegenrichtung prüft.**
 
-Die Liste ist damit leer, und die Untergrenze daneben musste von `> 1` auf `> 0`
-— sie zählte die Stelle **und** die Ausnahme. Das ist die bekannte Aufräumfalle
-dieses Repos zum vierten Mal.
+Die Untergrenze daneben musste von `> 1` auf `> 0` — sie zählte die Stelle
+**und** die Ausnahme. Das ist die bekannte Aufräumfalle dieses Repos zum vierten
+Mal.
+
+**Und die leere Liste hat es nicht überlebt.** Sie stand einen Nachmittag lang
+als `[]` da, mit dem Vermerk, sie sei „die Stelle, an der eine künftige Ausnahme
+ihren Grund hinterlegt". PHPStan in der CI hat das abgelehnt:
+`array_key_exists()` gegen ein `array{}` ist immer falsch.
+
+> **Eine leere Positivliste ist kein Mechanismus, sondern eine Verzierung.**
+
+Denselben Satz hat dieses Repo schon in P7b Schritt 2 von PHPStan bekommen, und
+er steht seitdem in `CLAUDE.md`. Ich habe ihn trotzdem zweimal geschrieben —
+einmal als Vermerk an der Liste, einmal in diesem Protokoll.
+
+### Und warum die CI ihn gefunden hat und mein Lauf nicht
+
+**PHPStan ist vor dem Push gefahren worden, aber über `agent/` statt über den
+Zweig.** Die drei geänderten Dateien dort waren sauber; `tests/Unit/AptResultTest.php`
+ist ebenfalls geändert, braucht kein Laravel und war nicht im Lauf. Der Grund war
+eine Gewohnheit mit einer richtigen Begründung: Ohne larastan meldet PHPStan über
+`app/` hunderte Scheinfehler, also fährt man ihn hier über `agent/`.
+
+> **Ein Werkzeug, das man über die gewohnten Pfade fährt, prüft die Gewohnheit
+> und nicht die Änderung** — auch dann, wenn es für die Gewohnheit einen guten
+> Grund gibt. Der Grund deckt `app/` und nicht `tests/`.
+
+Nachgemessen: Derselbe Aufruf über die geänderte Testdatei meldet die Zeile
+wortgleich, mit derselben Kennung `function.impossibleType`.
 
 **Vierzehn Bruch-Eingriffe auf die beiden Dateien, alle beissen** — vor und nach
 Pint gefahren.

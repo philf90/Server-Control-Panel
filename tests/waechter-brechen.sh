@@ -15765,7 +15765,7 @@ open(p, 'w', encoding='utf-8').write(s.replace(alt, "['upgrade', '-qq'], $timeou
 PY2
 griff_datei agent/src/Apt.php "der Ausdruck trifft Apt nicht mehr" &&
 pruefe "der Ausdruck trifft Apt nicht mehr" \
-  AptResultTest::test_the_home_and_every_exception_are_reached_by_the_scan failed
+  AptResultTest::test_the_home_is_reached_by_the_scan failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AptResultTest passed
 

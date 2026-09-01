@@ -23531,7 +23531,18 @@ der Mangel.
 `OutcomeTest` streift die Kommentarzeilen jetzt ab (`WithoutHashComments`, den es
 seit dem 26. August gibt und den sechs andere Wächter schon benutzten). Und die
 Gegenrichtung von `AptResultTest` hat eine tot gewordene Ausnahme gemeldet —
-`apt-run` ruft kein `apt-get update` mehr.
+`apt-run` ruft kein `apt-get update` mehr. Die zurückbleibende **leere** Liste
+hat PHPStan abgelehnt, und zwar zu Recht:
+
+> **Eine leere Positivliste ist kein Mechanismus, sondern eine Verzierung.**
+
+Sie ist mitsamt ihrer Abfrage fort. Gefunden hat es die CI und nicht der Lauf
+davor — der ging über `agent/`, weil PHPStan dort ohne larastan brauchbar ist,
+und nicht über die geänderten Dateien des Zweigs.
+
+> **Ein Werkzeug, das man über die gewohnten Pfade fährt, prüft die Gewohnheit
+> und nicht die Änderung** — auch dann, wenn es für die Gewohnheit einen guten
+> Grund gibt.
 
 ### Die Herkunft kommt von der Seite und nicht mehr aus der Sitzung
 

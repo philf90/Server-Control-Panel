@@ -569,3 +569,67 @@ vor offen und braucht `rc.7` → `rc.8`.
 
 > **Ein Lauf ohne den Vorgang, gegen den er sich behaupten soll, prüft die
 > Behauptung nicht.**
+
+---
+
+## 8b · Der Befund an der Behebung — shellcheck hat den Zweig rot gemacht
+
+Der PR zu §8 kam mit rotem `Shell-Skripte` zurück. Zweimal **SC2317**, „Command
+appears to be unreachable", auf den Rümpfen von `offen()` und `fassung()` —
+also auf den beiden Funktionen, die dieses Skript überhaupt tragen.
+
+```
+In packaging/bin/apt-run line 111:
+    apt-get -s dist-upgrade 2>/dev/null | grep -c '^Inst ' || true
+    ^-- SC2317 (info): Command appears to be unreachable.
+```
+
+**Der Befund ist nicht das `exit 0`, sondern das, was es sichtbar gemacht hat.**
+Gerufen wurden die beiden seit ihrem ersten Tag über `vorher=$($mass)` — einen
+Namen in einer Variablen. Für shellcheck ist das kein Aufruf; es hat die Rümpfe
+nie als erreichbar gesehen. Gemeldet hat es das trotzdem nicht, solange das
+Skript am Ende **durchfallen** konnte: Eine Datei, die ihr Ende erreicht, könnte
+eingebunden werden, und dann rufe der Einbindende die Funktionen eben selbst.
+Mit dem `exit 0` aus §8 fiel diese Annahme weg.
+
+Gemessen in beide Richtungen, damit die Ursache nicht geraten ist:
+
+| Prüfkörper | SC2317 |
+|---|---|
+| Fassung vor §8 | keine |
+| Fassung vor §8, nur ein `exit 0` angehängt | **zwei** |
+| Fassung aus §8, nur das letzte `exit 0` entfernt | keine |
+
+> **Ein Aufruf über einen Namen in einer Variablen ist für ein Werkzeug keiner —
+> gemeldet wird er erst, wenn nichts mehr die Annahme trägt, dass jemand ihn von
+> aussen macht.**
+
+**Behoben ist es am Aufruf und nicht mit einer Unterdrückung.** Ein
+`# shellcheck disable=SC2317` hätte die Meldung genommen und die Blindheit
+gelassen: Ab da wäre auch wirklich toter Code in diesen beiden Funktionen nicht
+mehr aufgefallen. Stattdessen steht die Fallunterscheidung jetzt als `messen()`
+da, `$mass` ist wieder das, was es an den zwei Vergleichen weiter unten ohnehin
+war — ein Schalter und kein Befehl.
+
+Belegt ist der Umbau an fünf Wegen mit Attrappen für `apt-get` und
+`dpkg-query`, weil eine Fallunterscheidung, die still auf den falschen Zweig
+fällt, dieselbe Ausgabe hätte wie vorher, nur mit der falschen Zahl:
+
+| Aufruf | Meldung | rc |
+|---|---|---|
+| `all`, nichts offen | `Es stand nichts an — offene Aktualisierungen: 0.` | 0 |
+| `all`, 2 offen, 0 danach | `2 von 2 Aktualisierungen eingespielt, 0 bleiben offen.` | 0 |
+| `all`, 2 offen, 2 danach | `Der Lauf hat nichts verändert — … vorher wie nachher: 2.` | 3 |
+| `panel`, Fassung wechselt | `Fassung 0.7.3-rc.6 wurde zu 0.7.3-rc.7.` | 0 |
+| `panel`, Fassung bleibt | `Der Lauf hat nichts verändert — Fassung … 0.7.3-rc.6.` | 3 |
+
+### Und der eigentliche Fehler war ein Handgriff, nicht eine Zeile
+
+**shellcheck ist in diesem Container installiert.** Vor dem Push ist
+`bash -n packaging/bin/apt-run` gefahren worden und sonst nichts — geprüft
+wurde, ob die Datei sich einlesen lässt, und nicht, was die CI an ihr prüft. Der
+Aufruf steht wörtlich in `ci.yml` und war einmal Kopieren.
+
+> **Ein Werkzeug, das die CI fährt und das lokal daneben liegt, wird nicht durch
+> ein anderes ersetzt, das eine ähnliche Frage stellt.** `bash -n` beantwortet
+> „parst es", shellcheck „stimmt es" — die zweite Frage hat die Runde gekostet.

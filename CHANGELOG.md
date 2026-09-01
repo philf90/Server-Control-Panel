@@ -23454,3 +23454,35 @@ schon installierte.
 
 > **Eine Behebung an dem Werkzeug, das die Behebung ausliefert, wirkt erst eine
 > Fassung später.**
+
+### Zwei Funktionen, die nie sichtbar gerufen wurden
+
+Die Behebung darüber machte den Zweig rot: zweimal `SC2317` („Command appears
+to be unreachable") auf den Rümpfen von `offen()` und `fassung()` — den beiden
+Funktionen, die `apt-run` trägt.
+
+Der Befund ist nicht das `exit 0` am Ende, sondern das, was es sichtbar gemacht
+hat. Gerufen wurden die beiden seit ihrem ersten Tag über `vorher=$($mass)`,
+einen Namen in einer Variablen; für shellcheck ist das kein Aufruf. Gemeldet hat
+es das trotzdem nicht, solange das Skript am Ende **durchfallen** konnte — eine
+Datei, die ihr Ende erreicht, könnte eingebunden werden, und dann rufe der
+Einbindende die Funktionen eben selbst. Mit dem `exit 0` fiel diese Annahme weg.
+In beide Richtungen gemessen: die alte Fassung mit einem angehängten `exit 0`
+meldet beide, die neue ohne das letzte `exit 0` keine.
+
+> **Ein Aufruf über einen Namen in einer Variablen ist für ein Werkzeug keiner —
+> gemeldet wird er erst, wenn nichts mehr die Annahme trägt, dass jemand ihn von
+> aussen macht.**
+
+Behoben am Aufruf und nicht mit `# shellcheck disable`: Die Unterdrückung hätte
+die Meldung genommen und die Blindheit gelassen. Die Fallunterscheidung steht
+jetzt als `messen()` da, `$mass` ist wieder ein Schalter und kein Befehl. Belegt
+an fünf Wegen mit Attrappen für `apt-get` und `dpkg-query`, weil ein still
+falscher Zweig dieselbe Ausgabe hätte wie vorher, nur mit der falschen Zahl.
+
+**Der eigentliche Fehler war ein Handgriff.** shellcheck liegt in diesem
+Container; vor dem Push ist nur `bash -n` gefahren worden.
+
+> **Ein Werkzeug, das die CI fährt und das lokal daneben liegt, wird nicht durch
+> ein anderes ersetzt, das eine ähnliche Frage stellt.** `bash -n` beantwortet
+> „parst es", shellcheck „stimmt es".

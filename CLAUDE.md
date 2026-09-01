@@ -2537,6 +2537,28 @@ Testen berücksichtigen:
     ein eigener Regelsatz; wer dort alles anschaltet, bekommt Meldungen zu
     Stellen, die Pint in Ruhe lässt (`) {}` an einem leeren Konstruktor zum
     Beispiel).
+  - **shellcheck ist hier installiert, und zwar ohne Zutun** — `shellcheck
+    0.9.0` liegt als `/usr/bin/shellcheck`. Hier stand dazu nichts, und das hat
+    am 1. September 2026 eine CI-Runde gekostet: Der Zweig kam mit rotem
+    `Shell-Skripte` zurück (zweimal `SC2317` in `packaging/bin/apt-run`),
+    nachdem vor dem Push nur `bash -n` gefahren worden war. Der Aufruf steht
+    wörtlich in `ci.yml` und ist einmal Kopieren:
+
+        shellcheck -e SC1091 packaging/bin/*
+
+    > **Ein Werkzeug, das die CI fährt und das lokal daneben liegt, wird nicht
+    > durch ein anderes ersetzt, das eine ähnliche Frage stellt.** `bash -n`
+    > beantwortet „parst es", shellcheck „stimmt es".
+
+    Und der Befund selbst gilt über die Shell hinaus: Gerufen wurden zwei
+    Funktionen über `$($mass)`, einen Namen in einer Variablen. Gemeldet hat
+    shellcheck das erst, als das Skript am Ende ausdrücklich mit `exit` endete —
+    solange es durchfallen konnte, nahm es an, jemand binde die Datei ein und
+    rufe sie selbst (in beide Richtungen gemessen, `docs/94 §8b`).
+
+    > **Ein Aufruf über einen Namen in einer Variablen ist für ein Werkzeug
+    > keiner — gemeldet wird er erst, wenn nichts mehr die Annahme trägt, dass
+    > jemand ihn von aussen macht.**
   - **`phpstan.phar` gibt es genauso, und zwar von derselben Stelle.** Oben
     stand neun Monate lang „nachinstallieren geht auch nicht", und das war eine
     Aussage über `composer install` — nicht über PHPStan. `curl -sSL -o

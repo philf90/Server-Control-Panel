@@ -1,6 +1,48 @@
 import { createApp, h, type DefineComponent } from 'vue'
-import { createInertiaApp } from '@inertiajs/vue3'
+import { createInertiaApp, router } from '@inertiajs/vue3'
 import '../css/app.css'
+
+/**
+ * Jede Anfrage sagt, von welcher Seite sie kommt.
+ *
+ * ## Der Fehler, den das behebt
+ *
+ * Bis zum 1. September 2026 hat der **Server** die Herkunft geführt:
+ * `RememberPageUrl` schreibt bei jeder Inertia-GET-Anfrage `previousUrl`, und
+ * `Origin::current()` las sie. Das veraltet bei jeder Navigation, die der
+ * Server nicht sieht — und der Zurück-Knopf des Browsers ist genau eine
+ * solche: Inertia stellt aus dem History-Zustand her, es kommt keine Anfrage.
+ *
+ * Gemessen auf `cloudsrv24` am 31. August (`docs/94 §5`): Vorgang 728 trug
+ * `← /operations/727`, obwohl sein Knopf auf `/updates` steht.
+ *
+ * > **Eine Herkunft, die der Server führt, veraltet bei jeder Navigation, die
+ * > der Server nicht sieht.**
+ *
+ * **Und die Ironie gehört zum Befund:** Der Weg, den der Brotkrümel ersetzen
+ * soll — der Zurück-Knopf —, ist genau der, der ihn falsch macht.
+ *
+ * ## Warum hier und nicht an den Aufrufstellen
+ *
+ * Die Seite kennt ihre eigene Adresse, und sie weiss es an **einer** Stelle:
+ * hier. Einundzwanzig Aufrufstellen wären einundzwanzig Gelegenheiten, es zu
+ * vergessen — und die vergessene fiele niemandem auf, weil eine fehlende
+ * Herkunft aussieht wie ein Vorgang der Automatik. Das ist derselbe Schluss wie
+ * bei `Operation::booted()`, nur auf der anderen Seite der Leitung.
+ *
+ * ## Was der Server damit tut
+ *
+ * **Er glaubt ihr nicht.** `Origin::current()` prüft den Wert, und zwar
+ * strenger als vorher: Ein Wert aus fremder Hand kann `/\evil.example/x`
+ * lauten, und das ist im Browser eine **fremde** Adresse (gemessen mit dem
+ * URL-Parser: `https://evil.example/x`), die jede Prüfung auf „fängt mit einem
+ * Schrägstrich an" besteht.
+ */
+router.on('before', (ereignis) => {
+  // `location` steht hier noch auf der Seite, von der die Anfrage ausgeht —
+  // gewechselt wird erst nach der Antwort.
+  ereignis.detail.visit.headers['X-Srvpanel-Origin'] = window.location.pathname + window.location.search
+})
 
 createInertiaApp({
   title: (titel) => (titel ? `${titel} · SrvPanel` : 'SrvPanel'),

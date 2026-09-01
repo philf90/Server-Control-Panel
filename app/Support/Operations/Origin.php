@@ -44,19 +44,53 @@ namespace App\Support\Operations;
  * Das Panel ist unter mehreren Namen erreichbar, und eine gespeicherte Adresse
  * mit Rechnernamen wäre unter dem zweiten falsch.
  *
- * ## Was diese Klasse nicht kann
+ * ## Warum die Seite sie schickt und nicht die Sitzung sie führt
  *
- * **Eine Navigation sehen, die der Server nicht sieht.** `previousUrl()` steht
- * auf der letzten Seite, die das Panel gerendert hat. Geht jemand mit dem
- * Zurück-Knopf des Browsers, stellt Inertia aus dem History-Zustand her, es
- * kommt keine Anfrage, und die Herkunft veraltet (`docs/94 §5`).
+ * **Bis zum 1. September 2026 stand hier `previousUrl()`, und das war Befund 3
+ * aus `docs/94 §5`.** Die Sitzung steht auf der letzten Seite, die das Panel
+ * *gerendert* hat. Geht jemand mit dem Zurück-Knopf des Browsers, stellt
+ * Inertia aus dem History-Zustand her, es kommt keine Anfrage — und die
+ * Herkunft veraltet.
+ *
+ * Gemessen auf `cloudsrv24`: Vorgang 728 trug `← /operations/727`, obwohl sein
+ * Knopf auf `/updates` steht.
  *
  * > **Eine Herkunft, die der Server führt, veraltet bei jeder Navigation, die
  * > der Server nicht sieht.**
  *
- * Das ist benannt und nicht behoben: Die Behebung hiesse, die Adresse der
- * absetzenden Seite vom Browser mitzuschicken, und das ist eine Entscheidung
- * über die Übertragung und nicht über diese Klasse.
+ * Geschickt wird sie jetzt von der Seite, über {@see self::HEADER}, aus einem
+ * Abfangpunkt in `resources/js/app.ts`. Eine Stelle bleibt eine Stelle — nur
+ * steht sie am anderen Ende der Leitung.
+ *
+ * ## Und deshalb ist die Prüfung strenger geworden
+ *
+ * Ein Wert aus fremder Hand ist kein selbst gesetzter. Was vorher genügte —
+ * `parse_url` und „fängt mit einem Schrägstrich an" — genügt jetzt nicht:
+ *
+ * > **Eine Prüfung, die für einen selbst gesetzten Wert genügt, genügt nicht
+ * > für denselben Wert aus fremder Hand.**
+ *
+ * Gemessen am 1. September 2026 mit dem URL-Parser, den auch der Browser
+ * benutzt, gegen `https://panel.example/`:
+ *
+ *     /updates                -> panel.example      harmlos
+ *     //evil.example/x        -> evil.example       FREMD
+ *     /\evil.example/x        -> evil.example       FREMD
+ *     /<TAB>/evil.example/x   -> evil.example       FREMD
+ *     / /evil.example/x       -> panel.example      harmlos
+ *     /%2fevil.example/x      -> panel.example      harmlos
+ *
+ * Drei Mechanismen, drei Regeln: Der Browser liest `//` als Anfang eines
+ * Rechnernamens, er normalisiert `\` zu `/`, und er **entfernt** Tab, LF und
+ * CR vor dem Parsen — aus `/<TAB>/x` wird damit `//x`.
+ *
+ * **`parse_url` hat zwei der drei zufällig entschärft** (es streicht den Host
+ * und ersetzt Steuerzeichen durch `_`) und den mittleren durchgelassen. Auf
+ * einen solchen Zufall wird hier nichts mehr gebaut: Geprüft wird die
+ * Zeichenkette selbst, ohne Umweg.
+ *
+ * > **Eine Prüfung, die aus einem Nebeneffekt folgt, ist keine — sie ist ein
+ * > Zustand, der sich mit der nächsten Fassung ändern darf.**
  */
 final class Origin
 {
@@ -70,6 +104,15 @@ final class Origin
     public const MAX = 255;
 
     /**
+     * Die Kopfzeile, in der die Seite ihre eigene Adresse mitschickt.
+     *
+     * **Die Naht zu `resources/js/app.ts`.** Liefen die beiden auseinander,
+     * käme nie eine Herkunft an — und ein Vorgang ohne `←` sieht aus wie einer
+     * der Automatik, nicht wie ein Fehler. `OperationOriginTest` hält sie.
+     */
+    public const HEADER = 'X-Srvpanel-Origin';
+
+    /**
      * Der Pfad, von dem die laufende Anfrage kam — oder `null`.
      *
      * `null` heisst „von keiner Seite" und ist die Wahrheit für die Konsole,
@@ -78,28 +121,56 @@ final class Origin
      */
     public static function current(): ?string
     {
-        $request = request();
+        return self::pfad(request()->header(self::HEADER));
+    }
 
-        // Ohne Sitzung gibt es keine Herkunft, und `session()` würfe hier.
-        if (! $request->hasSession()) {
+    /**
+     * Ein mitgeschickter Wert — oder `null`, wenn er keiner ist.
+     *
+     * **Rein und öffentlich, damit ein Wächter sie mit eigenen Prüfkörpern
+     * messen kann.** Die Zeichenketten, an denen sie hängt, stammen aus einer
+     * Messung mit dem URL-Parser und nicht aus einer Vorstellung davon, was ein
+     * Angreifer schicken könnte.
+     */
+    public static function pfad(?string $roh): ?string
+    {
+        if (! is_string($roh) || $roh === '') {
             return null;
         }
 
-        $previous = $request->session()->previousUrl();
-
-        if (! is_string($previous) || $previous === '') {
+        // Zuerst die Länge: Eine Kopfzeile darf beliebig gross sein, und was
+        // nicht in die Spalte passt, wird **verworfen und nicht abgeschnitten**
+        // — ein halber Pfad führt irgendwohin, und irgendwohin ist schlechter
+        // als nirgendwohin.
+        if (mb_strlen($roh) > self::MAX) {
             return null;
         }
 
-        $pfad = parse_url($previous, PHP_URL_PATH);
-
-        if (! is_string($pfad) || ! str_starts_with($pfad, '/')) {
+        // Ein Pfad und keine Adresse: `https://…` und `evil.example/x` fallen
+        // hier, ohne dass jemand nach einem Schema suchen muss.
+        if (! str_starts_with($roh, '/')) {
             return null;
         }
 
-        $frage = parse_url($previous, PHP_URL_QUERY);
-        $ganz = is_string($frage) && $frage !== '' ? $pfad.'?'.$frage : $pfad;
+        // `//host/x` — der Browser liest das zweite Zeichen als Anfang eines
+        // Rechnernamens.
+        if (str_starts_with($roh, '//')) {
+            return null;
+        }
 
-        return mb_strlen($ganz) > self::MAX ? null : $ganz;
+        // `\` normalisiert der Browser zu `/`; `/\host/x` ist damit dasselbe
+        // wie `//host/x`. In einem Pfad dieses Panels kommt kein einziger vor.
+        if (str_contains($roh, '\\')) {
+            return null;
+        }
+
+        // Tab, LF und CR **entfernt** der Parser vor dem Parsen — aus `/<TAB>/x`
+        // wird `//x`. Die übrigen Steuerzeichen gehören ohnehin nicht in eine
+        // Kopfzeile.
+        if (preg_match('/[\x00-\x1F\x7F]/', $roh) === 1) {
+            return null;
+        }
+
+        return $roh;
     }
 }

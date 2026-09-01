@@ -82,23 +82,39 @@ final class AptResultTest extends TestCase
      * Vermerk „Teil 3 von M5, Schritt 6" — die Schuld ist eingelöst, und die
      * Zeile ist fort.
      *
-     * **Dafür steht jetzt eine andere da, und sie ist eine andere Art
-     * Ausnahme:** `SrvPanel\Agent\Ops\SystemPackagesUpgrade::RUNNER`
-     * ruft `apt-get update` in einer Shell und **prüft seinen Rückgabewert
-     * bewusst nicht** — es vergleicht statt dessen die installierte Fassung
-     * vor und nach dem Lauf. Das ist nicht dieselbe Prüfung wie {@see Apt},
-     * aber es beantwortet dieselbe Frage, und zwar strenger:
+     * **Am 26. August kam `packaging/bin/apt-run` dazu, und am 1. September ist
+     * auch diese Zeile fort.** Ihre Begründung lautete, der Rückgabewert werde
+     * bewusst nicht gelesen, weil die Fassung vor und nach dem Lauf strenger
+     * antworte — *„wenn die Fassung danach dieselbe ist, ist es gleichgültig,
+     * warum."*
      *
-     * > **Wenn die Fassung danach dieselbe ist, ist es gleichgültig, warum.**
+     * Befund 2 aus `docs/94 §4` hat genau diesen Satz zurückgenommen: Es ist
+     * **nicht** gleichgültig, denn „es gab nichts Neues" ist kein Fehlschlag.
+     * Die Auffrischung steht seitdem in `PanelUpdate` und geht über
+     * {@see Apt} wie jede andere.
      *
-     * @var array<string,string>
+     * > **Eine Ausnahme, deren Begründung fällt, fällt mit ihr — und dass sie
+     * > liegenbleibt, meldet nur der Wächter, der die Gegenrichtung prüft.**
+     *
+     * Gemeldet hat es hier `test_the_home_is_reached_by_the_scan`:
+     * „ruft kein `apt-get update` mehr". Ohne diese zweite Richtung stünde die
+     * tote Zeile bis zur nächsten Umbenennung.
+     *
+     * **Und die leere Liste ist mit ihr gefallen.** Sie stand hier einen
+     * Nachmittag lang als `[]`, mit dem Vermerk, sie sei „die Stelle, an der
+     * eine künftige Ausnahme ihren Grund hinterlegt". PHPStan hat das
+     * abgelehnt: `array_key_exists()` gegen ein `array{}` ist immer falsch —
+     * eine Abfrage, die nichts entscheiden kann.
+     *
+     * > **Eine leere Positivliste ist kein Mechanismus, sondern eine
+     * > Verzierung.**
+     *
+     * Denselben Satz hat dieses Repo schon einmal von PHPStan bekommen, an
+     * einem frisch gebauten Wächter in P7b Schritt 2 — und er stand seitdem in
+     * `CLAUDE.md`. Wer hier wieder eine Ausnahme braucht, legt die Liste
+     * zusammen mit ihrem ersten Eintrag neu an; eine Liste ohne Eintrag hält
+     * den Platz nicht frei, sie sieht nur so aus.
      */
-    private const EXCEPTIONS = [
-        'packaging/bin/apt-run' => 'Ruft `apt-get update` im Modus `panel` und liest seinen Rückgabewert '
-            .'ausdrücklich nicht. Entschieden wird an der installierten Fassung vor und nach dem Lauf — '
-            .'sie fällt gleich aus, ob eine Quelle tot war, ob die Listen alt waren oder ob es nichts '
-            .'Neues gab. Teil 3 von M5, docs/81 §2.1b.',
-    ];
 
     /**
      * Woran ein Aufruf erkannt wird.
@@ -149,7 +165,7 @@ final class AptResultTest extends TestCase
 
             $found += $hits;
 
-            if ($path === self::HOME || array_key_exists($path, self::EXCEPTIONS)) {
+            if ($path === self::HOME) {
                 continue;
             }
 
@@ -157,12 +173,20 @@ final class AptResultTest extends TestCase
         }
 
         // Ein Ausdruck, der nichts findet, ist kein bestandener Test.
-        $this->assertGreaterThan(1, $found, 'Es wird kaum ein Aufruf gefunden — dann prüft dieser Test nichts.');
+        //
+        // **`0` und nicht mehr `1`, seit dem 1. September 2026.** Die Grenze
+        // zählte die Stelle **und** die eine Ausnahme; mit deren Wegfall wäre
+        // sie unerreichbar geworden, und der Wächter meldete Rot für genau die
+        // Ordnung, die er durchsetzen soll. Das ist die bekannte Falle dieses
+        // Repos — die Untergrenze zählt dort, wo die Regel stehen *darf*, und
+        // stehen darf sie hier nur noch an einer Stelle.
+        $this->assertGreaterThan(0, $found, 'Es wird kein Aufruf gefunden — dann prüft dieser Test nichts.');
 
         $this->assertSame([], $strays, sprintf(
             "Diese Stellen rufen `apt-get update`, ohne über %s zu gehen:\n\n  %s\n\n"
             .'Der Rückgabewert allein kann eine unerreichbare Quelle nicht melden (M5). Wer hier '
-            .'eine Stelle braucht, trägt sie mit ihrem Grund in AptResultTest::EXCEPTIONS ein.',
+            .'eine Stelle braucht, legt in diesem Test eine Ausnahmeliste an — mit dem Grund als Wert '
+            .'und mit einer Gegenrichtung, die einen tot gewordenen Eintrag meldet.',
             self::HOME,
             implode("\n  ", $strays),
         ));
@@ -178,11 +202,11 @@ final class AptResultTest extends TestCase
      * > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als
      * > Null steht.**
      */
-    public function test_the_home_and_every_exception_are_reached_by_the_scan(): void
+    public function test_the_home_is_reached_by_the_scan(): void
     {
         $files = $this->phpFiles();
 
-        foreach (array_merge([self::HOME], array_keys(self::EXCEPTIONS)) as $path) {
+        foreach ([self::HOME] as $path) {
             $this->assertArrayHasKey($path, $files, $path.' gibt es nicht mehr.');
 
             $this->assertGreaterThan(0, $this->updateCallSites($files[$path]), sprintf(

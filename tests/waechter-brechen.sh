@@ -15765,7 +15765,7 @@ open(p, 'w', encoding='utf-8').write(s.replace(alt, "['upgrade', '-qq'], $timeou
 PY2
 griff_datei agent/src/Apt.php "der Ausdruck trifft Apt nicht mehr" &&
 pruefe "der Ausdruck trifft Apt nicht mehr" \
-  AptResultTest::test_the_home_and_every_exception_are_reached_by_the_scan failed
+  AptResultTest::test_the_home_is_reached_by_the_scan failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AptResultTest passed
 
@@ -15989,15 +15989,20 @@ echo "── PhpSourceUriTest: der Leser liest nicht mehr nur am Zeilenanfang �
 # (docs/81 §2.1). Eine Fortsetzungszeile beginnt mit einem Leerzeichen und ist
 # **kein** Feld — wer den Anker wegnimmt, holt sich eine Adresse aus dem
 # Schlüsselblock.
-vorher_datei agent/src/PhpVersions.php
+#
+# **Der Leser ist am 1. September nach `Sources` gezogen** (Befund 2,
+# `docs/94 §9`) — er hat mit PHP nie etwas zu tun gehabt, und `PanelUpdate`
+# stellt dieselbe Frage fuer die eigene Quelle des Panels. `PhpSourceUriTest`
+# haelt weiter die Naht zur Paketierung und damit auch diese Regel.
+vorher_datei agent/src/Sources.php
 python3 - <<'PY2'
-p = 'agent/src/PhpVersions.php'
+p = 'agent/src/Sources.php'
 s = open(p, encoding='utf-8').read()
 alt = r"'/^URIs:\s*(.*?)\s*$/D'"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, r"'/URIs:\s*(.*?)\s*$/D'", 1))
 PY2
-griff_datei agent/src/PhpVersions.php "URIs ohne Anker am Zeilenanfang" &&
+griff_datei agent/src/Sources.php "URIs ohne Anker am Zeilenanfang" &&
 pruefe "URIs ohne Anker am Zeilenanfang" \
   PhpSourceUriTest::test_a_folded_block_does_not_become_a_field failed
 wiederherstellen
@@ -20850,9 +20855,9 @@ vorher_datei app/Support/Operations/Origin.php
 python3 - <<'PY2'
 p = 'app/Support/Operations/Origin.php'
 s = open(p, encoding='utf-8').read()
-alt = "        $previous = $request->session()->previousUrl();"
+alt = "        return self::pfad(request()->header(self::HEADER));"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, "        $previous = url()->previous();", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        return self::pfad(url()->previous());", 1))
 PY2
 griff_datei app/Support/Operations/Origin.php "Herkunft mit Rueckfall" &&
 pruefe "Herkunft mit Rueckfall" \
@@ -20861,28 +20866,71 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
 echo
-echo "== OperationOriginTest: ohne Sitzung wird trotzdem gefragt =="
+echo "== OperationOriginTest: die Kopfzeile heisst am anderen Ende anders =="
 #
-# Die Konsole und die Warteschlange setzen ohne Sitzung ab. Ohne diese Frage
-# wirft `session()` dort — ein Vorgang der Automatik stuerbe an der Herkunft,
-# die es nicht gibt.
+# **Die teuerste Naht dieses Merkmals.** Laufen die beiden Namen auseinander,
+# kommt nie eine Herkunft an — und ein Vorgang ohne `←` sieht aus wie einer der
+# Automatik und nicht wie ein Fehler. Der Ausfall waere also stumm.
+vorher_datei resources/js/app.ts
+python3 - <<'PY2'
+p = 'resources/js/app.ts'
+s = open(p, encoding='utf-8').read()
+alt = "headers['X-Srvpanel-Origin']"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "headers['X-Srvpanel-Herkunft']", 1))
+PY2
+griff_datei resources/js/app.ts "Kopfzeile laeuft auseinander" &&
+pruefe "Kopfzeile laeuft auseinander" \
+  OperationOriginTest::test_the_header_is_the_same_at_both_ends failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
+
+echo
+echo "== OperationOriginTest: eine fremde Adresse kommt als Herkunft durch =="
+#
+# **Gemessen am 1. September 2026** mit dem URL-Parser, den auch der Browser
+# benutzt: `/\evil.example/x` loest gegen `https://panel.example/` zu
+# `https://evil.example/x` auf — und besteht jede Pruefung auf „faengt mit einem
+# Schraegstrich an". Der Brotkruemel fuehrte damit aus dem Panel heraus.
+#
+# > Eine Pruefung, die fuer einen selbst gesetzten Wert genuegt, genuegt nicht
+# > fuer denselben Wert aus fremder Hand.
 vorher_datei app/Support/Operations/Origin.php
 python3 - <<'PY2'
 p = 'app/Support/Operations/Origin.php'
 s = open(p, encoding='utf-8').read()
-alt = """        if (! $request->hasSession()) {
-            return null;
-        }
-
-"""
-assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+zeilen = s.split('\n')
+treffer = [k for k, z in enumerate(zeilen) if 'str_contains' in z and 'roh' in z]
+assert len(treffer) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+del zeilen[treffer[0]:treffer[0] + 3]
+open(p, 'w', encoding='utf-8').write('\n'.join(zeilen))
 PY2
-griff_datei app/Support/Operations/Origin.php "Herkunft ohne Sitzungsfrage" &&
-pruefe "Herkunft ohne Sitzungsfrage" \
-  OperationOriginTest::test_without_a_session_there_is_no_origin failed
+griff_datei app/Support/Operations/Origin.php "fremde Adresse als Herkunft" &&
+pruefe "fremde Adresse als Herkunft" \
+  OriginHeaderTest::test_a_foreign_address_never_reaches_the_column failed
 wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
+pruefe "  … zurückgesetzt wieder grün" OriginHeaderTest passed
+
+echo
+echo "== OriginHeaderTest: das Modell ueberschreibt eine gesetzte Herkunft =="
+#
+# `booted()` setzt sie nur, wenn sie leer ist. Ohne die Bedingung verloere eine
+# Stelle, die es besser weiss, ihre Angabe — und zwar wortlos.
+vorher_datei app/Models/Operation.php
+python3 - <<'PY2'
+p = 'app/Models/Operation.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if ($operation->origin === null) {
+                $operation->origin = Origin::current();
+            }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            $operation->origin = Origin::current();", 1))
+PY2
+griff_datei app/Models/Operation.php "gesetzte Herkunft ueberschrieben" &&
+pruefe "gesetzte Herkunft ueberschrieben" \
+  OriginHeaderTest::test_an_origin_that_is_already_set_survives failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OriginHeaderTest passed
 
 echo
 echo "== OperationOriginTest: die Herkunft steht da und ist keine Verknuepfung =="
@@ -20986,8 +21034,8 @@ vorher_datei packaging/bin/apt-run
 python3 - <<'PY2'
 p = 'packaging/bin/apt-run'
 s = open(p, encoding='utf-8').read()
-alt = """if [ "$mass" = offen ] && [ "$vorher" = "$nachher" ] && [ "$nachher" -eq 0 ]; then
-    echo "$NAME: Es stand nichts an — $einheit: 0."
+alt = """if [ "$anstand" -eq 0 ] && [ "$vorher" = "$nachher" ]; then
+    echo "$NAME: Es stand nichts an — $einheit unverändert: $nachher."
     exit 0
 fi
 
@@ -21002,19 +21050,25 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
-echo "== OutcomeTest: die Nachsicht gilt auch fuer --fassung =="
+echo "== OutcomeTest: die Nachsicht wieder auf einen Modus beschraenkt =="
 #
-# **Die zweite Haelfte, und sie ist die gefaehrlichere.** Bei `--fassung` ist
-# `nachher` eine Versionsnummer und nie `0`; faellt die Beschraenkung auf den
-# Zaehlmodus weg, wuerde ein Panel-Update, das die Fassung nicht aendert, als
-# Erfolg gemeldet — und genau das war der Grund des Laufs.
+# **Hier stand bis zum 1. September 2026 das Gegenteil.** Der Eingriff nahm die
+# Beschraenkung auf den Zaehlmodus *weg* und erwartete Rot; die Begruendung
+# lautete, bei `--fassung` sei `nachher` eine Versionsnummer und nie `0`.
+#
+# Das stimmte und war die falsche Frage. Gefragt gehoert nicht, ob sich ein
+# Zaehlerstand ablesen laesst, sondern ob ueberhaupt etwas anstand — und das
+# fragt `ansteht` seit Befund 2 (`docs/94 §4`) in allen drei Modi.
+#
+# > Ein Bruch, der eine Beschraenkung schuetzt, schuetzt sie auch dann noch,
+# > wenn sie selbst der Fehler ist.
 vorher_datei packaging/bin/apt-run
 python3 - <<'PY2'
 p = 'packaging/bin/apt-run'
 s = open(p, encoding='utf-8').read()
-alt = 'if [ "$mass" = offen ] && [ "$vorher" = "$nachher" ] && [ "$nachher" -eq 0 ]; then'
+alt = 'if [ "$anstand" -eq 0 ] && [ "$vorher" = "$nachher" ]; then'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-s = s.replace(alt, 'if [ "$vorher" = "$nachher" ]; then', 1)
+s = s.replace(alt, 'if [ "$anstand" -eq 0 ] && [ "$mass" = offen ] && [ "$vorher" = "$nachher" ]; then', 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei packaging/bin/apt-run "Nachsicht ohne Zaehlmodus" &&
@@ -21265,17 +21319,20 @@ echo "== OutcomeTest: eine Fortschrittszeile traegt wieder den Praefix =="
 #
 # > Ein Leser, der „die letzte Zeile" nimmt, liest waehrend des Laufs die
 # > erste.
-vorher_datei packaging/bin/apt-run
+#
+# **Der Gegenstand ist am 1. September umgezogen** — `PanelUpdate` frischt auf
+# und schreibt die Zeile, weil nur dort je Quelle gelesen wird (Befund 2).
+vorher_datei agent/src/Ops/PanelUpdate.php
 python3 - <<'PY2'
-p = 'packaging/bin/apt-run'
+p = 'agent/src/Ops/PanelUpdate.php'
 s = open(p, encoding='utf-8').read()
-alt = "        echo 'Paketlisten werden aufgefrischt.'"
+alt = "'Paketlisten aufgefrischt;"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '        echo "$NAME: Paketlisten werden aufgefrischt."', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'apt-run: Paketlisten aufgefrischt;", 1))
 PY2
-griff_datei packaging/bin/apt-run "Fortschritt mit Praefix" &&
+griff_datei agent/src/Ops/PanelUpdate.php "Fortschritt mit Praefix" &&
 pruefe "Fortschritt mit Praefix" \
-  OutcomeTest::test_every_prefixed_line_ends_the_run failed
+  OutcomeTest::test_the_refresh_still_reaches_the_log_without_the_prefix failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
@@ -21288,9 +21345,9 @@ vorher_datei packaging/bin/apt-run
 python3 - <<'PY2'
 p = 'packaging/bin/apt-run'
 s = open(p, encoding='utf-8').read()
-alt = '    echo "$NAME: Es stand nichts an — $einheit: 0."\n    exit 0\n'
+alt = '    echo "$NAME: Es stand nichts an — $einheit unverändert: $nachher."\n    exit 0\n'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '    echo "$NAME: Es stand nichts an — $einheit: 0."\n', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '    echo "$NAME: Es stand nichts an — $einheit unverändert: $nachher."\n', 1))
 PY2
 griff_datei packaging/bin/apt-run "Urteil ohne exit" &&
 pruefe "Urteil ohne exit" \
@@ -21303,17 +21360,84 @@ echo "== OutcomeTest: die Fortschrittsmeldung verschwindet ganz =="
 #
 # Die Gegenrichtung, damit die Regel nicht auch dadurch zu erfuellen ist, dass
 # der Betreiber die Meldung gar nicht mehr sieht.
+vorher_datei agent/src/Ops/PanelUpdate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PanelUpdate.php'
+s = open(p, encoding='utf-8').read()
+i = s.index('@file_put_contents(')
+j = s.index(');', i) + 3
+open(p, 'w', encoding='utf-8').write(s[:i] + s[j:])
+PY2
+griff_datei agent/src/Ops/PanelUpdate.php "Fortschrittsmeldung fort" &&
+pruefe "Fortschrittsmeldung fort" \
+  OutcomeTest::test_the_refresh_still_reaches_the_log_without_the_prefix failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
+
+echo
+echo "== OutcomeTest: apt-run frischt wieder selbst auf =="
+#
+# Die dritte Richtung derselben Naht: Stuende die Meldung an beiden Stellen,
+# erschiene sie zweimal — und die zweite kaeme aus einem Lauf, der gar nicht
+# mehr auffrischt.
 vorher_datei packaging/bin/apt-run
 python3 - <<'PY2'
 p = 'packaging/bin/apt-run'
 s = open(p, encoding='utf-8').read()
-alt = "        echo 'Paketlisten werden aufgefrischt.'\n"
+alt = "        mass=fassung\n"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+neu = "        echo 'Paketlisten werden aufgefrischt.'\n        apt-get -q update || true\n\n" + alt
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
 PY2
-griff_datei packaging/bin/apt-run "Fortschrittsmeldung fort" &&
-pruefe "Fortschrittsmeldung fort" \
-  OutcomeTest::test_the_progress_lines_are_still_there_without_the_prefix failed
+griff_datei packaging/bin/apt-run "apt-run frischt wieder auf" &&
+pruefe "apt-run frischt wieder auf" \
+  OutcomeTest::test_the_refresh_still_reaches_the_log_without_the_prefix failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
+
+echo
+echo "== OutcomeTest: anstand wird erst nach dem Lauf gemessen =="
+#
+# **Die Reihenfolge ist die Regel.** Danach gemessen sagt `anstand` nichts
+# darueber, was vorher anstand — es waere immer 0, und jeder Lauf meldete „es
+# stand nichts an". Das ist M5, nur in Gruen.
+vorher_datei packaging/bin/apt-run
+python3 - <<'PY2'
+p = 'packaging/bin/apt-run'
+s = open(p, encoding='utf-8').read()
+alt = 'vorher=$(messen)\nanstand=$(ansteht "$@")\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, 'vorher=$(messen)\n', 1)
+alt2 = 'nachher=$(messen)\n'
+assert s.count(alt2) == 1, 'Zweite Zielstelle nicht eindeutig'
+s = s.replace(alt2, 'nachher=$(messen)\nanstand=$(ansteht "$@")\n', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei packaging/bin/apt-run "anstand nach dem Lauf" &&
+pruefe "anstand nach dem Lauf" \
+  OutcomeTest::test_what_is_pending_comes_from_a_simulation_of_the_same_run failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
+
+echo
+echo "== OutcomeTest: ansteht liest apts Klartext statt der Marke =="
+#
+# **Genau der Entwurf, den Befund 2 vorschlug.** Der Satz „ist schon die neueste
+# Version" steht im Protokoll und sah nach der fehlenden Auskunft aus — apt
+# uebersetzt ihn aber (gemessen am deutschen Katalog von apt 2.8.3), und ein
+# Ausdruck darueber prueft die Sprache des Servers statt seines Zustands.
+vorher_datei packaging/bin/apt-run
+python3 - <<'PY2'
+p = 'packaging/bin/apt-run'
+s = open(p, encoding='utf-8').read()
+alt = 'ansteht() {\n    apt-get -s "$@" 2>/dev/null | grep -c \'^Inst \''
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = 'ansteht() {\n    apt-get -s "$@" 2>/dev/null | grep -c \'is already the newest version\''
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei packaging/bin/apt-run "ansteht liest Klartext" &&
+pruefe "ansteht liest Klartext" \
+  OutcomeTest::test_what_the_script_reads_from_apt_is_a_marker_and_not_prose failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 

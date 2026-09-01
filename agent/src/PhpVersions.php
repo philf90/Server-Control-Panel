@@ -155,18 +155,12 @@ final class PhpVersions
      * > Zustand.** Hier ist die Datei der wirksame Zustand: Genau sie liest
      * > apt.
      *
-     * ## Warum das kein deb822-Leser ist
+     * ## Der Leser steht seit dem 1. September 2026 in `Sources`
      *
-     * `docs/81 §2.1b` entscheidet ausdrücklich gegen einen — `Signed-By:` kann
-     * ein über vierzig Zeilen gefalteter PGP-Block sein, eine Datei mehrere
-     * Stanzas tragen, `Suites:` mehrere Suiten. Gelesen wird hier **ein Feld
-     * einer Datei, die das Panel selbst geschrieben hat**, und dafür genügt die
-     * eine Eigenschaft, die deb822 zusichert: Ein fortgesetzter Wert beginnt
-     * mit einem Leerzeichen. Ein `URIs:` am Zeilenanfang ist deshalb immer ein
-     * Feldname und nie die Fortsetzung eines anderen.
-     *
-     * Mehrere Stanzas mit je eigenem `URIs:` kommen trotzdem alle mit: Wer die
-     * Datei von Hand erweitert hat, soll nicht die Hälfte der Antwort bekommen.
+     * Er ist hier entstanden, weil PHP ihn zuerst brauchte, und hat mit PHP
+     * nichts zu tun; `PanelUpdate` stellt dieselbe Frage für die eigene
+     * Paketquelle des Panels. Was bleibt, ist die **Vorgabedatei** — und die
+     * ist die Naht zur Paketierung, die `PhpSourceUriTest` hält.
      *
      * Leer, wenn es die Datei nicht gibt — auf Debian 13 kommt PHP 8.4 aus der
      * Distribution, und dort richtet das Paket gar keine Quelle ein. **Leer
@@ -178,28 +172,7 @@ final class PhpVersions
      */
     public static function sourceUris(string $file = self::SOURCE_FILE): array
     {
-        if (! is_file($file)) {
-            return [];
-        }
-
-        $uris = [];
-
-        foreach (explode("\n", (string) file_get_contents($file)) as $line) {
-            if (preg_match('/^URIs:\s*(.*?)\s*$/D', rtrim($line, "\r"), $match) !== 1) {
-                continue;
-            }
-
-            // deb822 erlaubt mehrere Adressen in einem Feld, durch Leerraum
-            // getrennt. Eine einzelne Zeichenkette zurückzugeben hiesse, bei
-            // zweien die zweite zu verlieren.
-            foreach (preg_split('/\s+/', $match[1]) ?: [] as $uri) {
-                if ($uri !== '') {
-                    $uris[] = $uri;
-                }
-            }
-        }
-
-        return array_values(array_unique($uris));
+        return Sources::uris($file);
     }
 
     /** Ist diese Version auf dem System vorhanden? */

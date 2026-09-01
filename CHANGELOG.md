@@ -23486,3 +23486,86 @@ Container; vor dem Push ist nur `bash -n` gefahren worden.
 > **Ein Werkzeug, das die CI fährt und das lokal daneben liegt, wird nicht durch
 > ein anderes ersetzt, das eine ähnliche Frage stellt.** `bash -n` beantwortet
 > „parst es", shellcheck „stimmt es".
+
+### Ein Lauf, bei dem nichts anstand, ist kein Fehlschlag mehr — in allen drei Modi
+
+Befund 2 aus `docs/94 §4`. `apt-run` fragt vor dem Lauf, ob überhaupt etwas
+ansteht — `apt-get -s` mit **denselben Argumenten**, gezählt an `^Inst `. Die
+Nachsicht hing bis dahin an `[ "$mass" = offen ] && … && [ "$nachher" -eq 0 ]`,
+und diese Beschränkung war selbst der Fehler.
+
+> **Ein Wert, der eine Frage nur in einem Modus beantwortet, ist in den anderen
+> keine Antwort, sondern ein Zufall.**
+
+**Nicht am Klartext gelesen.** Der naheliegende Satz — „srvpanel ist schon die
+neueste Version" — steht im Protokoll und ist **übersetzt**: Gemessen gegen den
+deutschen Katalog von apt 2.8.3 kommt er in einem seiner 387 Einträge vor,
+`Inst ` in keinem. Auf dem Server deutsch, im Container englisch; ein Ausdruck
+darüber hätte auf genau einer der beiden Maschinen funktioniert.
+
+> **Ein Satz, den apt übersetzt, ist keine Schnittstelle.**
+
+**Und die Simulation allein hätte M5 wieder aufgerissen.** Bei veralteten Listen
+sieht apt nichts Anstehendes — „war schon aktuell" und „die Quelle ist tot"
+lassen sich von innen nicht unterscheiden.
+
+> **Eine Unterscheidung, die der Gefragte selbst nicht treffen kann, muss vor
+> der Frage getroffen werden.**
+
+Die Auffrischung ist deshalb nach `PanelUpdate` gezogen: `Apt::refresh()` liest
+je Quelle, `hitting()` fragt nach der eigenen, und bei einer toten wird gar nicht
+erst abgesetzt — mit der Meldung, die an die Quelle zeigt statt ans Paket. Der
+deb822-Leser dafür heisst jetzt `Sources::uris()` statt `PhpVersions::sourceUris()`;
+er hat mit PHP nie etwas zu tun gehabt.
+
+Damit ist ein Satz im Kopf von `PanelUpdate` zurückgenommen: Dass die
+Fassungsfrage in allen drei Fällen gleich ausfällt, stand dort als Vorzug und ist
+der Mangel.
+
+**Ein Wächter war dabei grün, weil der Kommentar die entfernte Zeile zitierte.**
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+> steht — und ein Kommentar, der die entfernte Zeile zitiert, stellt sie für ihn
+> wieder her.**
+
+`OutcomeTest` streift die Kommentarzeilen jetzt ab (`WithoutHashComments`, den es
+seit dem 26. August gibt und den sechs andere Wächter schon benutzten). Und die
+Gegenrichtung von `AptResultTest` hat eine tot gewordene Ausnahme gemeldet —
+`apt-run` ruft kein `apt-get update` mehr. Die zurückbleibende **leere** Liste
+hat PHPStan abgelehnt, und zwar zu Recht:
+
+> **Eine leere Positivliste ist kein Mechanismus, sondern eine Verzierung.**
+
+Sie ist mitsamt ihrer Abfrage fort. Gefunden hat es die CI und nicht der Lauf
+davor — der ging über `agent/`, weil PHPStan dort ohne larastan brauchbar ist,
+und nicht über die geänderten Dateien des Zweigs.
+
+> **Ein Werkzeug, das man über die gewohnten Pfade fährt, prüft die Gewohnheit
+> und nicht die Änderung** — auch dann, wenn es für die Gewohnheit einen guten
+> Grund gibt.
+
+### Die Herkunft kommt von der Seite und nicht mehr aus der Sitzung
+
+Befund 3 aus `docs/94 §5`. `previousUrl` steht auf der letzten Seite, die der
+Server **gerendert** hat; der Zurück-Knopf des Browsers rendert keine, und die
+Herkunft veraltete. Auf `cloudsrv24` gemessen: Vorgang 728 trug
+`← /operations/727`, obwohl sein Knopf auf `/updates` steht.
+
+Ein `router.on('before')` in `app.ts` hängt `X-Srvpanel-Origin` an jede
+Inertia-Anfrage. Eine Stelle bleibt eine Stelle — sie steht nur am anderen Ende
+der Leitung.
+
+**Und damit wird die Prüfung strenger.** Gemessen mit dem URL-Parser des
+Browsers: `/\evil.example/x` löst zu `https://evil.example/x` auf und bestand
+jede Prüfung auf „fängt mit einem Schrägstrich an". Zwei weitere Formen hatte
+`parse_url` zufällig entschärft.
+
+> **Eine Prüfung, die für einen selbst gesetzten Wert genügt, genügt nicht für
+> denselben Wert aus fremder Hand.**
+
+> **Eine Prüfung, die aus einem Nebeneffekt folgt, ist keine — sie ist ein
+> Zustand, der sich mit der nächsten Fassung ändern darf.**
+
+`OriginHeaderTest` misst dazu die **Wirkung** statt des Textes: Kopfzeile rein,
+Spalte raus, samt der drei Gegenrichtungen. Was kein Test halten kann — dass das
+Ereignis im Browser wirklich feuert — steht als Frage in `docs/94 §10`.

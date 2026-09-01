@@ -294,6 +294,18 @@ keinen Aufruf mehr enthält, und dass die eine erlaubte Stelle noch einen hat.
 Der Wächter war die ganze Zeit richtig. Falsch war nur der Handgriff im
 Abnahmelauf, und der ist in `docs/95 §3` ersetzt.
 
+**Der berichtigte Griff ist auf demselben Server nachgefahren worden und gibt
+nichts aus.** Damit ist Punkt 3 mit dem richtigen Werkzeug belegt und nicht bloss
+erklärt.
+
+Und die Gegenprobe dazu ist die falsche Messung selbst: Der ungefilterte Griff
+hat fünf Zeilen gefunden, der gefilterte keine. Eine leere Ausgabe heisst hier
+also „alle Treffer sind Kommentare" und nicht „der Griff findet nichts".
+
+> **Die falsche Messung war die Gegenprobe der richtigen** — sie belegt, dass
+> der Ausdruck überhaupt trifft, und ohne sie wäre die leere Ausgabe von einer
+> kaputten Leitung nicht zu unterscheiden.
+
 ---
 
 ## 4 bis 8

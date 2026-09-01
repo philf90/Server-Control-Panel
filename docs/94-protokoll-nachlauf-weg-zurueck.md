@@ -291,6 +291,91 @@ voller Einsen bedeuten nichts.
 - Der Prozess stirbt sofort → die Vorgabe bleibt, wie sie ist, und der Ausgang
   kommt über einen zweiten Griff statt über eine Warteschleife.
 
+### M1 — gemessen am 1. September 2026, quer über `rc.4` → `rc.5`
+
+    05:41:02  pid=934334  cwd=/opt/srvpanel/releases/0.7.3-rc.4  artisan=1  log=1
+    …
+    05:41:37  pid=934334  cwd=/opt/srvpanel/releases/0.7.3-rc.4  artisan=1  log=1
+    05:41:42  pid=934334  cwd=FORT                               artisan=0  log=1
+    …
+    05:42:17  pid=934334  cwd=FORT                               artisan=0  log=1
+
+**Gegenprobe:** `srvpanel version` stand vorher auf `0.7.3-rc.4`, nachher auf
+`0.7.3-rc.5`. Der Wechsel hat stattgefunden; die Nullen bedeuten etwas.
+
+| | |
+|---|---|
+| **Der Prozess überlebt** | dieselbe PID vor und nach dem Umschalten, fünfzig Sekunden weiter noch am Leben |
+| `cwd=FORT` ab 05:41:42 | das alte Fassungsverzeichnis wird unter ihm abgeräumt |
+| `artisan=0` ab 05:41:42 | er kann **nichts** mehr aus seiner Fassung nachladen |
+| `log=1` durchgehend | das Log bleibt lesbar |
+
+**Die Meldung „diese Sitzung endet vorher" war falsch.** Sie stand seit P0 im
+Kopf der Klasse und in der Ausgabe an den Betreiber, und niemand hat sie
+geprüft — der Befehl hat nie gewartet, also konnte es nie auffallen.
+
+> **Ein Satz, den die Oberfläche behauptet und den niemand gemessen hat, ist
+> eine Vermutung mit Fussnote.**
+
+### M2 — die Lücke in M1, gemessen im selben Zug
+
+Der Messprozess lief als **root**. `srvpanel update` läuft über `setpriv` als
+**`srvpanel`**, und `update.log` legt eine root-Unit an.
+
+> **Ein Leseversuch als root sagt nichts über einen als `srvpanel`.**
+
+Derselbe Schnitt wie beim ACME-Befund aus `docs/78` — dort war der Weg das
+Problem, hier wäre es der Modus gewesen.
+
+    -rw-r--r-- 1 root root 2739 Sep  1 07:41 /var/log/srvpanel/update.log
+    setpriv --reuid=srvpanel … test -r … → lesbar
+
+`/var/log/srvpanel` gehört `srvpanel` (0750), die Datei ist `0644`. Der Entwurf
+trägt.
+
+### Wunsch 1 ist gebaut
+
+`srvpanel update` wartet jetzt, zeigt die Zeilen des Laufs, nennt am Ende das
+Urteil und **gibt den passenden Rückgabewert zurück**. `--no-wait` setzt nur ab
+wie bisher.
+
+**Drei Entscheidungen, die aus den Messungen folgen:**
+
+1. **`vorladen()` steht vor dem Absetzen.** `agent/` liegt im
+   Fassungsverzeichnis, und M1 sagt `artisan=0`. Ein `class_exists()` nach dem
+   Umschalten scheitert lautlos, und der Befehl stürbe mitten im Update.
+2. **Versatz 0 genügt.** `PanelUpdate` leert sein Log mit `@unlink()` im
+   Agenten, **vor** `systemd-run` — synchron beim Absetzen. Ein Urteil eines
+   früheren Laufs ist damit nicht zu erwischen. Der Wächter hält beide Dateien
+   zusammen: Zöge das Leeren in die Unit, läse der Befehl beim ersten Blick ein
+   fremdes Urteil.
+3. **Kein Fortschrittsbalken.** `apt` nennt keinen Anteil, und dieser Befehl
+   kennt auch keinen.
+
+   > **Ein Balken, der keinen Anteil kennt, behauptet einen.**
+
+   Gezeigt werden die Zeilen selbst, sobald sie im Log stehen — das ist der
+   Fortschritt, den es wirklich gibt.
+
+**Und die abgelaufene Frist ist kein Erfolg.** Ein Rückgabewert kennt kein „ich
+weiss es nicht".
+
+> **Ein Rückgabewert, der „ich weiss es nicht" nicht ausdrücken kann, muss sich
+> entscheiden — und die sichere Seite ist die, die den Aufrufer anhalten
+> lässt.**
+
+**Beim Gegenprüfen: ein Eingriff, der wirkte und nichts belegte.** Der erste
+Wurf des fünften Bruchs schob `@unlink` nur näher an `systemd-run` — textlich
+immer noch davor, die Regel also eingehalten. Der Wächter blieb zu Recht grün,
+und das sah aus wie ein stumpfer Wächter.
+
+> **Ein Eingriff, der wirkt und nichts belegt, sieht aus wie einer, der
+> beisst.**
+
+**Was der Wächter nicht hält:** dass der Prozess den Neustart wirklich
+überlebt. Das ist eine Eigenschaft des Servers und keine des Quelltextes — sie
+steht als M1 hier und nicht als Zusage im Test.
+
 ---
 
 ## 6b · Befund 4 — die Herkunft stand an einer von sechzehn Stellen

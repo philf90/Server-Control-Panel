@@ -23355,3 +23355,65 @@ die Herkunft im Payload der Seite *liest*.
 
 Gemessen wird jetzt im Argumentblock jeder anlegenden Stelle, über Klammern
 gezählt.
+
+### `srvpanel update` sagt jetzt, wie es ausgegangen ist
+
+Vom Betreiber am 31. August 2026 gemeldet: Der Befehl druckte Unit und Logpfad
+und endete — was der Lauf bewirkt hat, stand nur im Log. Und er gab **`SUCCESS`
+zurück, auch wenn der Lauf scheiterte**: `srvpanel update && …` in einem Skript
+bekam für ein misslungenes Update ein `ok`.
+
+Das ist Form A aus `docs/86 §5` an der einen Stelle, die die Behebung nie
+bekommen hat. `AwaitDispatchedRun` liest das Urteil seit dem 28. August für die
+Vorgänge des Panels nach; die Kommandozeile blieb aussen vor.
+
+> **Ein Vorgang, der nur meldet, dass er abgesetzt wurde, sagt über den Ausgang
+> dessen, was er abgesetzt hat, nichts.**
+
+**Warum das lange als unmöglich galt.** Im Kopf der Klasse stand: „Der Lauf
+beendet den Prozess, der ihn angestoßen hat", und dasselbe sagte die Meldung an
+den Betreiber. Gemessen hatte es niemand — der Befehl hat nie gewartet, also
+konnte es nie auffallen. Am 1. September auf `cloudsrv24` quer über den Wechsel
+von `0.7.3-rc.4` auf `-rc.5` (`docs/94 §6`, M1): **dieselbe PID vor und nach dem
+Umschalten, fünfzig Sekunden weiter noch am Leben.** Der Satz war falsch.
+
+> **Ein Satz, den die Oberfläche behauptet und den niemand gemessen hat, ist
+> eine Vermutung mit Fussnote.**
+
+Dieselbe Messung nennt aber auch die Bauvorschrift: `cwd=FORT` und `artisan=0`
+ab dem Umschalten. Das Paket räumt die alte Fassung ab, und `agent/` liegt
+darin. **Alles, was die Warteschleife braucht, wird vor dem Absetzen geladen** —
+ein `class_exists()` danach scheitert lautlos, und der Befehl stürbe mitten im
+Update.
+
+**Versatz 0 genügt**, und das ist kein Zufall: `PanelUpdate` leert sein Log mit
+`@unlink()` im Agenten, **vor** `systemd-run`. Ein Urteil eines früheren Laufs
+ist damit nicht zu erwischen. Der Wächter hält beide Dateien zusammen — zöge das
+Leeren in die Unit, läse der Befehl beim ersten Blick ein fremdes Urteil.
+
+**Kein Fortschrittsbalken.** `apt` nennt keinen Anteil, und dieser Befehl kennt
+auch keinen.
+
+> **Ein Balken, der keinen Anteil kennt, behauptet einen.**
+
+Gezeigt werden die Zeilen selbst, sobald sie im Log stehen. Am Ende steht das
+Urteil mit seinen Fassungsnummern — die stehen dort schon, `apt-run` schreibt
+„Fassung 0.7.3~rc.4 wurde zu 0.7.3~rc.5."
+
+**Eine abgelaufene Frist ist kein Erfolg.** Nach fünfzehn Minuten ohne Urteil
+endet der Befehl mit einem Fehlschlag und der Auskunft, dass der Lauf
+weitergeht — er hat nur aufgehört zuzusehen.
+
+> **Ein Rückgabewert, der „ich weiss es nicht" nicht ausdrücken kann, muss sich
+> entscheiden — und die sichere Seite ist die, die den Aufrufer anhalten
+> lässt.**
+
+**Die Vorgabe ist das Warten**, `--no-wait` setzt nur ab wie bisher. Der Fall,
+der stillschweigend das Falsche tat, war der ohne Fahne.
+
+**Und beim Gegenprüfen ein Eingriff, der wirkte und nichts belegte:** Der erste
+Wurf schob `@unlink` nur näher an `systemd-run` — textlich immer noch davor, die
+Regel also eingehalten.
+
+> **Ein Eingriff, der wirkt und nichts belegt, sieht aus wie einer, der
+> beisst.**

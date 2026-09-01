@@ -129,14 +129,27 @@ vor dieser Fassung.
 
 ```
 grep -n 'Paketlisten' /var/log/srvpanel/update.log
-grep -c 'apt-get.*update' /usr/lib/srvpanel/apt-run
+grep -n 'apt-get.*update' /usr/lib/srvpanel/apt-run | grep -v ':[[:space:]]*#'
 ```
 
 **Erwartet:**
 
 - Im Protokoll steht `Paketlisten aufgefrischt; jede Quelle hat geantwortet.`
   **ohne** `apt-run: ` davor — sonst läse der Leser sie als Urteil (Befund 5).
-- `apt-run` enthält **null** Aufrufe von `apt-get update`.
+- Der zweite Griff gibt **nichts** aus: `apt-run` enthält keinen Aufruf von
+  `apt-get update` mehr.
+
+> **Berichtigt am 1. September 2026, nachdem die erste Fassung gefahren war**
+> (`docs/96 §3`, Befund 11). Sie schrieb `grep -c` über den rohen Text und
+> erwartete `0`; gemessen wurden **5**, und alle fünf sind Kommentare. In diesem
+> Repo hält jede Behebung ihren Vorzustand im Kommentar fest — ein roher Zähler
+> über eine entfernte Zeile findet sie zuverlässig wieder.
+>
+> **Ein Prüfmittel, das eine Zeichenkette sucht, zählt die Kommentare mit.**
+>
+> Ausgegeben werden jetzt die Zeilen statt einer Zahl: Eine Zahl sagt, wie viele
+> passen — nicht, ob eine davon ein Aufruf ist. Ein Kommentar am Zeilenende
+> bliebe damit sichtbar, statt still mitgezählt zu werden.
 
 Beide Hälften derselben Naht: Stünde die Meldung an beiden Stellen, erschiene
 sie zweimal, und die zweite käme aus einem Lauf, der gar nicht mehr auffrischt.

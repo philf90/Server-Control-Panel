@@ -1447,6 +1447,19 @@ Kommentarzeilen ab, bevor er sucht** — genauso wie `WithoutPhpComments` es fü
 PHP tut. Belegt in beide Richtungen: mit der verbotenen Zeile *nur im Kommentar*
 bleibt der Wächter grün, roh gelesen wäre er fälschlich rot.
 
+**Und das gilt nicht nur für Wächter, sondern für jede Messung an diesen
+Quellen.** Am selben 1. September verlangte `docs/95 §3` `grep -c
+'apt-get.*update'` über `apt-run` und erwartete `0`; gemessen wurden **5**, und
+alle fünf sind Kommentare (`docs/96 §3`). Derselbe Kommentar in derselben Datei
+am selben Tag — einmal ein Wächter, der fälschlich grün blieb, einmal eine
+Messung, die fälschlich rot meldete.
+
+> **Derselbe Kommentar, der einen Wächter fälschlich grün hält, macht eine
+> Messung fälschlich rot.**
+
+Und eine Zahl ist dafür die falsche Form: Sie sagt, wie viele Zeilen passen,
+nicht ob eine davon ein Aufruf ist. Eine Messvorschrift gibt die **Zeilen** aus.
+
 **Und derselbe Fehler eine Ebene tiefer, am 26. August 2026:** `PartialReloadTest`
 las PHP **byteweise** und hielt jedes `"` für den Anfang einer Zeichenkette.
 Deutsche Anführungszeichen stehen in diesem Repo als `„…"` — die öffnende ist

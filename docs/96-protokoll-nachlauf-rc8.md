@@ -255,11 +255,50 @@ Richtung.
 
 ---
 
-## 3 bis 8
+## 3 · Punkt 3 — die Auffrischung steht im Protokoll und kommt nicht aus `apt-run`
 
-Offen. **Punkt 3 ist zur Hälfte belegt** (§1b): Die Auffrischung steht als
-`Paketlisten aufgefrischt; jede Quelle hat geantwortet.` im Protokoll, ohne
-`apt-run: ` davor. Die zweite Hälfte ist der `grep` über `apt-run`.
+    grep -n 'Paketlisten' /var/log/srvpanel/update.log
+    1:Paketlisten aufgefrischt; jede Quelle hat geantwortet.
+    2:Paketlisten werden gelesen…
+
+    grep -c 'apt-get.*update' /usr/lib/srvpanel/apt-run
+    5
+
+**Beide Hälften sind erfüllt.** Zeile 1 ist die Meldung aus `PanelUpdate`, ohne
+`apt-run: ` davor — sie kommt also nicht als Urteil an. Zeile 2 ist apts eigene
+Ausgabe und gehört dazu.
+
+Und die `5` ist **kein** Treffer: Alle fünf Zeilen sind Kommentare (45, 117, 118,
+125, 215). Aufrufe sind es null.
+
+### Befund 11 — die Messvorschrift zählt die Kommentare mit
+
+`docs/95 §3` schrieb `grep -c` über den rohen Text. In diesem Repo hält **jede**
+Behebung ihren Vorzustand im Kommentar fest; ein roher Zähler über eine
+entfernte Zeile findet sie deshalb zuverlässig wieder.
+
+> **Ein Prüfmittel, das eine Zeichenkette sucht, zählt die Kommentare mit — und
+> in diesem Repo zitiert jede Behebung ihren Vorzustand im Kommentar.**
+
+**Es ist derselbe Kommentar wie am selben Tag bei `OutcomeTest`, nur mit
+umgekehrtem Vorzeichen.** Dort blieb ein Wächter grün, weil die Zeile, die das
+Entfernte erklärt, es wörtlich hinschreibt; hier meldet eine Messung rot, aus
+genau demselben Grund.
+
+> **Derselbe Kommentar, der einen Wächter fälschlich grün hält, macht eine
+> Messung fälschlich rot.**
+
+**Gebaut wurde dafür nichts, und das ist der Punkt:** `AptResultTest` streift die
+Kommentare seit dem 26. August ab und hält beide Richtungen — dass `apt-run`
+keinen Aufruf mehr enthält, und dass die eine erlaubte Stelle noch einen hat.
+Der Wächter war die ganze Zeit richtig. Falsch war nur der Handgriff im
+Abnahmelauf, und der ist in `docs/95 §3` ersetzt.
+
+---
+
+## 4 bis 8
+
+Offen.
 
 ---
 

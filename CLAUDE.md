@@ -1365,7 +1365,13 @@ nächsten Termin und nicht `ActiveState`, und ein Dienst, den ein Timer startet,
 darf stillstehen — gefragt wird je **Funktionsrumpf**, weil eine Zeichenkette
 irgendwo auf der Seite nichts über die Funktion sagt, in der sie wirken soll)
 und `NavGroupTest` (jede Gruppe der Navigation trennt an der Grenze, an der auch
-die Route trennt) und `OperationOriginTest` (von einer
+die Route trennt) und `UpdateWaitTest` (`srvpanel update` liest das
+Urteil seines Laufs nach und gibt den passenden Rückgabewert zurück; geladen
+wird **vor** dem Absetzen, weil das Fassungsverzeichnis danach fort ist, und
+eine abgelaufene Frist ist kein Erfolg — gemessen wird die **Reihenfolge** und
+im Rumpf nach der Schleife, nicht das Wort irgendwo in der Datei; was er nicht
+halten kann, steht als M1 in `docs/94` und nicht als Zusage im Test)
+und `OperationOriginTest` (von einer
 Vorgangsseite führt ein Weg zurück: die Herkunft wird am **Modell** genommen und
 von **keiner** der sechzehn anlegenden Stellen selbst — beide Richtungen, denn
 die erste allein hat den Befund aus `docs/94 §6b` nicht gesehen; sie kommt aus
@@ -2149,6 +2155,16 @@ Auf dem Zielserver:
 srvpanel setup|update|version|metrics|usage|cron-runs|tls|dns|dns-check
          |db|vhost|admin|access|acceptance|acceptance-web|acceptance-db
 ```
+
+**`srvpanel update` wartet seit dem 1. September 2026** und gibt den
+Rückgabewert seines Laufs zurück; `--no-wait` setzt nur ab. Dass der CLI-Prozess
+den Symlink-Wechsel überlebt, ist gemessen (`docs/94 §6`, M1) — der Satz „diese
+Sitzung endet vorher" stand seit P0 als ungeprüfte Vermutung da. Dieselbe
+Messung sagt auch, dass er danach **nichts mehr nachladen kann**: `agent/` liegt
+im Fassungsverzeichnis, und das ist abgeräumt.
+
+> **Ein Satz, den die Oberfläche behauptet und den niemand gemessen hat, ist
+> eine Vermutung mit Fussnote.**
 
 Die Wahrheit ist der `case`-Zweig in `packaging/bin/srvpanel`; `PackagingTest`
 und `CommandReachTest` lesen ihn genau dort statt aus einer Liste im Test. Hier

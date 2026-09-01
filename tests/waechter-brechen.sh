@@ -21139,6 +21139,123 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
 echo
+echo "== UpdateWaitTest: der Rueckgabewert kommt nicht mehr aus dem Urteil =="
+#
+# Form A aus docs/86 §5 an der Kommandozeile: `srvpanel update && …` bekam fuer
+# ein misslungenes Update ein `ok`, weil der Befehl nur das Absetzen meldete.
+vorher_datei app/Console/Commands/Update.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Update.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (Outcome::failed($urteil)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        if (false) {", 1))
+PY2
+griff_datei app/Console/Commands/Update.php "Rueckgabewert ohne Urteil" &&
+pruefe "Rueckgabewert ohne Urteil" \
+  UpdateWaitTest::test_the_exit_code_comes_from_the_verdict failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
+
+echo
+echo "== UpdateWaitTest: vorgeladen wird erst nach dem Absetzen =="
+#
+# Die Bauvorschrift aus M1 (docs/94 §6): Nach dem Umschalten ist das
+# Fassungsverzeichnis fort, und agent/ liegt darin. Ein class_exists() danach
+# scheitert lautlos — und der Befehl stuerbe mitten im Update.
+vorher_datei app/Console/Commands/Update.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Update.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if ($warten) {
+            $this->vorladen();
+        }
+
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, '', 1)
+alt2 = "        $unit = is_string($result['unit'] ?? null) ? $result['unit'] : '?';"
+assert s.count(alt2) == 1, 'Zweite Zielstelle nicht eindeutig'
+open(p, 'w', encoding='utf-8').write(s.replace(alt2, "        $this->vorladen();\n" + alt2, 1))
+PY2
+griff_datei app/Console/Commands/Update.php "vorgeladen nach dem Absetzen" &&
+pruefe "vorgeladen nach dem Absetzen" \
+  UpdateWaitTest::test_everything_the_wait_needs_is_loaded_before_dispatch failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
+
+echo
+echo "== UpdateWaitTest: eine abgelaufene Frist gilt als Erfolg =="
+#
+# Ein Rueckgabewert kennt kein „ich weiss es nicht". Er faellt zur Seite, die
+# den Aufrufer anhalten laesst — sonst macht ein Skript weiter, obwohl nichts
+# belegt ist.
+vorher_datei app/Console/Commands/Update.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Update.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $this->line(sprintf('  Zustand:   systemctl status %s', $unit));
+
+        return self::FAILURE;
+    }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace('return self::FAILURE;', 'return self::SUCCESS;'), 1))
+PY2
+griff_datei app/Console/Commands/Update.php "Frist meldet Erfolg" &&
+pruefe "Frist meldet Erfolg" \
+  UpdateWaitTest::test_an_expired_deadline_is_not_a_success failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
+
+echo
+echo "== UpdateWaitTest: Warten ist nicht mehr die Vorgabe =="
+#
+# Der Fall, der stillschweigend das Falsche tat, war der ohne Fahne. Eine
+# Vorgabe, die zurueckfaellt, laesst den Befund bestehen — nur mit einer Fahne
+# daneben.
+vorher_datei app/Console/Commands/Update.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Update.php'
+s = open(p, encoding='utf-8').read()
+alt = "$warten = $this->option('no-wait') !== true;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$warten = $this->option('no-wait') === true;", 1))
+PY2
+griff_datei app/Console/Commands/Update.php "Warten nicht mehr Vorgabe" &&
+pruefe "Warten nicht mehr Vorgabe" \
+  UpdateWaitTest::test_waiting_is_the_default_and_can_be_turned_off failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
+
+echo
+echo "== UpdateWaitTest: das Log wird erst nach dem Absetzen geleert =="
+#
+# **Der erste Wurf dieses Eingriffs hat gewirkt und nichts belegt.** Er schob
+# `@unlink` nur naeher an den Aufruf — textlich immer noch davor, die Regel also
+# eingehalten. Der Wächter blieb zu Recht gruen, und das sah aus wie ein
+# stumpfer Wächter.
+#
+# > Ein Eingriff, der wirkt und nichts belegt, sieht aus wie einer, der beisst.
+#
+# Er steht deshalb hinter `run('systemd-run')` und nicht davor.
+vorher_datei agent/src/Ops/PanelUpdate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PanelUpdate.php'
+s = open(p, encoding='utf-8').read()
+alt = '        @unlink(self::LOG);\n\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, '', 1)
+alt2 = "        if (! $result->successful()) {"
+assert s.count(alt2) == 1, 'Zweite Zielstelle nicht eindeutig'
+open(p, 'w', encoding='utf-8').write(s.replace(alt2, '        @unlink(self::LOG);\n\n' + alt2, 1))
+PY2
+griff_datei agent/src/Ops/PanelUpdate.php "Log erst nach dem Absetzen geleert" &&
+pruefe "Log erst nach dem Absetzen geleert" \
+  UpdateWaitTest::test_the_log_is_emptied_before_the_run_is_dispatched failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

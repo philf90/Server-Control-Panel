@@ -524,6 +524,17 @@ heil wie kaputt (im Container gegen echtes Chromium gemessen).
 > **Ein Prüfkörper, der nur auf der heilen Seite ausschlägt, belegt die Messung
 > dort, wo sie niemand braucht.**
 
+**Und dieselbe Familie von der anderen Seite, gemessen am 1. September 2026**
+(`docs/96 §8`): Von Hand in der Konsole gefahren, ein zweites Mal ohne Neuladen,
+ergibt derselbe Prüfkörper **400** statt 200 — sein eigener Block von eben ist
+dann schon Teil des Masses.
+
+> **Ein Prüfkörper, der sich am gegenwärtigen Zustand bemisst, verändert den
+> Zustand, an dem er sich bemisst — beim zweiten Lauf misst er sich selbst.**
+
+`tests/bilder-messen.js` ist davon nicht betroffen; es misst je Aufnahme in einer
+frisch geladenen Seite. Wer von Hand misst, lädt vorher neu.
+
 ---
 
 ## Der Serverlauf zu `v0.6.0-rc.20` — 21. August 2026

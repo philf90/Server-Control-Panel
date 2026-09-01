@@ -488,14 +488,26 @@ sind `ref`s über einem `computed` und stehen nie in der Adresse. Damit ist das
 im Container. Und der neue Rückweg kann auf dieser Seite den Filter
 grundsätzlich nicht wiederherstellen, weil der Filter den Browser nie verlässt.
 
-### Was gegen `rc.5` zu messen bleibt
+### Was zu messen bleibt
 
 1. **4c vollständig** — eine Sicherung zeigt `←` **und** den Gegenstand.
-2. **4d** — ein Vorgang ohne Sitzung (`srvpanel tls --renew`) zeigt kein `←`.
-   Vor der Behebung war das nicht messbar: Vorgang 729 zeigte kein `←` *mit*
-   Sitzung, und damit sahen Erfolgs- und Fehlerfall gleich aus.
+2. **4d** — ein Vorgang ohne Seite zeigt kein `←`. Vor der Behebung war das
+   nicht messbar: Vorgang 729 zeigte kein `←` *mit* Sitzung, und damit sahen
+   Erfolgs- und Fehlerfall gleich aus.
 3. **Befund 3** — die Herkunft nach einer Navigation mit dem Zurück-Knopf.
-   Unbehoben und benannt.
+
+**Alle drei stehen als Punkte im Nachlauf zu `rc.8`**, zusammen mit M1, Befund 5
+und Befund 2. Zwei davon haben beim Ausschreiben ihren Prüfkörper gewechselt:
+
+- **4d nennt jetzt `srvpanel vhost --sites` und nicht `srvpanel tls --renew`.**
+  Das Erneuern legt nur bei einem **fälligen** Zertifikat einen Vorgang an;
+  `ApplyVhost::sites()` legt für jede Kundendomain einen an, ohne Bedingung.
+- **4c und Befund 3 laufen über die Datenbankseite und nicht über `/updates`.**
+  Bei null offenen Aktualisierungen gibt es dort weder Tabelle noch Knopf
+  (`docs/88 §21`) — eine Sicherung lässt sich dagegen beliebig oft auslösen.
+
+> **Ein Prüfkörper, der einen Zustand braucht, den der Lauf davor verbraucht,
+> gehört an einen Gegenstand, der nachwächst.**
 
 ---
 

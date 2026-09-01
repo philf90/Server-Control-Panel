@@ -1736,6 +1736,27 @@ Protokolls steht bewusst **nicht** im Dokument — `docs/81` hat einmal eine
 genannt, die einem anderen Dokument gehörte, und `DocLinkTest` konnte das nicht
 sehen.
 
+Und **`95` der Nachlauf zu `0.7.3-rc.8`** — ausgeschrieben am 1. September 2026
+**vor** dem Fahren: acht Punkte, von denen Punkt 1 den ganzen Lauf trägt (M1 und
+Befund 5 in einem Zug, belegt an der **Dauer** und nicht an der Fassungsnummer)
+und Punkt 4 nicht ausfallen darf (die tote eigene Quelle bricht ab, statt
+„nichts verändert" zu melden — die einzige Stelle, an der belegt wird, dass
+Befund 2 M5 nicht wieder aufgerissen hat). §0 sagt, in welcher Reihenfolge er zu
+fahren ist und warum, §9 was er ausdrücklich nicht prüft, §10 wann er durch ist.
+**Zwei Punkte haben beim Ausschreiben ihren Prüfkörper gewechselt** — 4d nennt
+`srvpanel vhost --sites` statt `srvpanel tls --renew`, weil das Erneuern nur bei
+einem fälligen Zertifikat einen Vorgang anlegt, und 4c läuft über die
+Datenbankseite statt über `/updates`, weil es dort bei null offenen
+Aktualisierungen weder Tabelle noch Knopf gibt.
+
+> **Ein Prüfkörper, der einen Zustand braucht, den der Lauf davor verbraucht,
+> gehört an einen Gegenstand, der nachwächst.**
+
+**Und Punkt 4b ist eine Frage und kein Kriterium**, gefunden beim Ausschreiben:
+`Enabled: no` ist nicht dasselbe wie unerreichbar. Eine **abgeschaltete** Quelle
+erzeugt keinen Fehlschlag, `Apt::hitting()` greift nicht — und gemeldet würde
+„Es stand nichts an", während die eigene Paketquelle aus ist.
+
 Und weiter aus P7b: **`87` der Nachlauf zu `0.7.2-rc.5`** — sechs Punkte auf
 `cloudsrv24`, die nachsehen, ob die vier Behebungen aus `docs/86 §5` auf einem
 echten Server wirken — mit **`88`** als Protokoll dazu: **elf Befunde, sieben im

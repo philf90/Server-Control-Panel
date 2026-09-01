@@ -15989,15 +15989,20 @@ echo "── PhpSourceUriTest: der Leser liest nicht mehr nur am Zeilenanfang �
 # (docs/81 §2.1). Eine Fortsetzungszeile beginnt mit einem Leerzeichen und ist
 # **kein** Feld — wer den Anker wegnimmt, holt sich eine Adresse aus dem
 # Schlüsselblock.
-vorher_datei agent/src/PhpVersions.php
+#
+# **Der Leser ist am 1. September nach `Sources` gezogen** (Befund 2,
+# `docs/94 §9`) — er hat mit PHP nie etwas zu tun gehabt, und `PanelUpdate`
+# stellt dieselbe Frage fuer die eigene Quelle des Panels. `PhpSourceUriTest`
+# haelt weiter die Naht zur Paketierung und damit auch diese Regel.
+vorher_datei agent/src/Sources.php
 python3 - <<'PY2'
-p = 'agent/src/PhpVersions.php'
+p = 'agent/src/Sources.php'
 s = open(p, encoding='utf-8').read()
 alt = r"'/^URIs:\s*(.*?)\s*$/D'"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, r"'/URIs:\s*(.*?)\s*$/D'", 1))
 PY2
-griff_datei agent/src/PhpVersions.php "URIs ohne Anker am Zeilenanfang" &&
+griff_datei agent/src/Sources.php "URIs ohne Anker am Zeilenanfang" &&
 pruefe "URIs ohne Anker am Zeilenanfang" \
   PhpSourceUriTest::test_a_folded_block_does_not_become_a_field failed
 wiederherstellen

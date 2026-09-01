@@ -841,6 +841,25 @@ eine Gewohnheit mit einer richtigen Begründung: Ohne larastan meldet PHPStan ü
 Nachgemessen: Derselbe Aufruf über die geänderte Testdatei meldet die Zeile
 wortgleich, mit derselben Kennung `function.impossibleType`.
 
+### Und derselbe Fehler ein zweites Mal, eine Datei weiter
+
+**Der Bruchlauf meldete `1 Prüfung(en) ohne Biss`:** „URIs ohne Anker am
+Zeilenanfang — Eingriff hat nichts geändert". Sein Ziel war
+`PhpVersions::sourceUris()`, und der Ausdruck ist mit dem Leser nach
+`Sources::uris()` gezogen.
+
+Gefahren hatte ich vorher die Eingriffe auf `apt-run`, `PanelUpdate`, `Origin`,
+`app.ts`, `Operation` und `Dumps` — die Dateien, an die ich beim Bauen dachte.
+`PhpVersions.php` hat dieser Zweig ebenfalls geändert.
+
+> **Welche Eingriffe man fährt, sagt nicht das Gedächtnis, sondern der Zweig.**
+> Der Satz steht seit dem 23. August in `CLAUDE.md`, und er ist an demselben Tag
+> zweimal fällig geworden: einmal für PHPStan, einmal für das Bruchskript.
+
+Nachgeholt über **alle** Eingriffe, deren `vorher_datei` eine Datei dieses
+Zweiges nennt — aus `git diff --name-only` und nicht aus dem Kopf: **37, alle
+beissen.**
+
 **Vierzehn Bruch-Eingriffe auf die beiden Dateien, alle beissen** — vor und nach
 Pint gefahren.
 

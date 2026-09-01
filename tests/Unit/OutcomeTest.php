@@ -230,4 +230,96 @@ final class OutcomeTest extends TestCase
             );
         }
     }
+
+    /**
+     * Auf jede Zeile mit dem Präfix folgt ein `exit`.
+     *
+     * ## Der Befund, gegen den es diesen Fall gibt
+     *
+     * **Gemessen auf `cloudsrv24` am 1. September 2026** (`docs/94 §8`).
+     * `apt-run` schrieb im Fassungsmodus zwei **Fortschrittszeilen** mit
+     * demselben Präfix wie sein Urteil — `apt-run: Paketlisten werden
+     * aufgefrischt.` als allererste Zeile des Laufs.
+     *
+     * {@see Outcome::verdict()} nimmt die **letzte** Zeile mit dem Präfix. Am
+     * Ende eines Laufs ist das richtig; während des Laufs ist die letzte auch
+     * die erste.
+     *
+     * > **Ein Leser, der „die letzte Zeile" nimmt, liest während des Laufs die
+     * > erste.**
+     *
+     * `srvpanel update` meldete damit nach zwei Sekunden „Paketlisten werden
+     * aufgefrischt." als Urteil, grün, mit Rückgabewert 0 — die Warteschleife
+     * war in genau dem Modus wirkungslos, für den sie gebaut wurde.
+     *
+     * ## Warum diese Form und nicht eine Positivliste
+     *
+     * Eine Liste der fünf Urteilssätze in PHP wäre eine zweite Fassung dessen,
+     * was `apt-run` schreibt — und die zweite veraltet. Gehalten wird
+     * stattdessen die **Eigenschaft**, die ein Urteil von einer Meldung
+     * unterscheidet: Es beendet den Lauf.
+     *
+     * Kommt eine sechste Urteilsform dazu, ist sie von selbst gedeckt. Kommt
+     * eine dritte Fortschrittszeile dazu, meldet dieser Fall sie.
+     */
+    public function test_every_prefixed_line_ends_the_run(): void
+    {
+        $zeilen = explode("\n", (string) file_get_contents(dirname(__DIR__, 2).'/packaging/bin/apt-run'));
+
+        $mit = [];
+
+        foreach ($zeilen as $nummer => $zeile) {
+            if (! str_contains($zeile, 'echo "$NAME:')) {
+                continue;
+            }
+
+            $mit[] = $nummer;
+
+            $naechste = trim($zeilen[$nummer + 1] ?? '');
+
+            $this->assertStringStartsWith(
+                'exit',
+                $naechste,
+                sprintf(
+                    "Zeile %d trägt den Präfix und beendet den Lauf nicht:\n  %s\n  → %s\n\n"
+                    .'Der Leser nimmt die letzte Zeile mit dem Präfix — während des Laufs ist das '
+                    .'diese hier, und der Vorgang meldet sie als Urteil.',
+                    $nummer + 1,
+                    trim($zeile),
+                    $naechste === '' ? '(nichts)' : $naechste,
+                ),
+            );
+        }
+
+        $this->assertGreaterThan(
+            4,
+            count($mit),
+            'Es werden kaum Zeilen mit dem Präfix gefunden — dann prüft dieser Test nichts.',
+        );
+    }
+
+    /**
+     * Und die Fortschrittszeilen tragen ihn nicht.
+     *
+     * Die Gegenrichtung: Der Fassungsmodus **frischt auf** und sagt es auch —
+     * nur eben ohne den Präfix, der das Urteil markiert. Ohne diesen Fall wäre
+     * die Regel darüber auch dadurch zu erfüllen, dass die Meldung ganz
+     * verschwindet.
+     */
+    public function test_the_progress_lines_are_still_there_without_the_prefix(): void
+    {
+        $skript = (string) file_get_contents(dirname(__DIR__, 2).'/packaging/bin/apt-run');
+
+        $this->assertStringContainsString(
+            "echo 'Paketlisten werden aufgefrischt.'",
+            $skript,
+            'Die Meldung ist ganz verschwunden — der Betreiber sieht nicht mehr, dass aufgefrischt wird.',
+        );
+
+        $this->assertStringNotContainsString(
+            '$NAME: Paketlisten werden aufgefrischt.',
+            $skript,
+            'Die Fortschrittszeile trägt den Präfix wieder — dann liest der Leser sie als Urteil.',
+        );
+    }
 }

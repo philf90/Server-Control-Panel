@@ -21256,6 +21256,68 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
 
 echo
+echo "== OutcomeTest: eine Fortschrittszeile traegt wieder den Praefix =="
+#
+# **Der Zustand vom Morgen des 1. September 2026**, wortwoertlich. `srvpanel
+# update` meldete nach zwei Sekunden „Paketlisten werden aufgefrischt." als
+# Urteil, gruen, mit Rueckgabewert 0 — die Warteschleife war in genau dem Modus
+# wirkungslos, fuer den sie gebaut wurde.
+#
+# > Ein Leser, der „die letzte Zeile" nimmt, liest waehrend des Laufs die
+# > erste.
+vorher_datei packaging/bin/apt-run
+python3 - <<'PY2'
+p = 'packaging/bin/apt-run'
+s = open(p, encoding='utf-8').read()
+alt = "        echo 'Paketlisten werden aufgefrischt.'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        echo "$NAME: Paketlisten werden aufgefrischt."', 1))
+PY2
+griff_datei packaging/bin/apt-run "Fortschritt mit Praefix" &&
+pruefe "Fortschritt mit Praefix" \
+  OutcomeTest::test_every_prefixed_line_ends_the_run failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
+
+echo
+echo "== OutcomeTest: ein Urteil ohne exit =="
+#
+# Die Regel gilt in beide Richtungen: Was den Praefix traegt, beendet den Lauf.
+# Ein Urteil, das weiterlaeuft, wuerde von der naechsten Zeile ueberschrieben.
+vorher_datei packaging/bin/apt-run
+python3 - <<'PY2'
+p = 'packaging/bin/apt-run'
+s = open(p, encoding='utf-8').read()
+alt = '    echo "$NAME: Es stand nichts an — $einheit: 0."\n    exit 0\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '    echo "$NAME: Es stand nichts an — $einheit: 0."\n', 1))
+PY2
+griff_datei packaging/bin/apt-run "Urteil ohne exit" &&
+pruefe "Urteil ohne exit" \
+  OutcomeTest::test_every_prefixed_line_ends_the_run failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
+
+echo
+echo "== OutcomeTest: die Fortschrittsmeldung verschwindet ganz =="
+#
+# Die Gegenrichtung, damit die Regel nicht auch dadurch zu erfuellen ist, dass
+# der Betreiber die Meldung gar nicht mehr sieht.
+vorher_datei packaging/bin/apt-run
+python3 - <<'PY2'
+p = 'packaging/bin/apt-run'
+s = open(p, encoding='utf-8').read()
+alt = "        echo 'Paketlisten werden aufgefrischt.'\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei packaging/bin/apt-run "Fortschrittsmeldung fort" &&
+pruefe "Fortschrittsmeldung fort" \
+  OutcomeTest::test_the_progress_lines_are_still_there_without_the_prefix failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

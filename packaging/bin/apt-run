@@ -88,7 +88,11 @@ NAME=apt-run
 MARKE='### srvpanel apt-run::'
 
 fehler() {
-    echo "$NAME: $1" >&2
+    # **`Aufruf falsch — ` steht davor, damit der Leser es als Fehlschlag
+    # erkennt.** Diese Zeile geht auf stderr, und stderr landet im selben Log:
+    # Ohne einen Anfang, den `Outcome::BAD` kennt, gälte ein falscher Aufruf
+    # als Erfolg mit einer Meldung.
+    echo "$NAME: Aufruf falsch — $1" >&2
     exit 2
 }
 
@@ -125,6 +129,30 @@ fassung() {
     dpkg-query -W -f='${Version}' srvpanel 2>/dev/null || echo unbekannt
 }
 
+# Das Mass dieses Laufs — eine der beiden Funktionen darüber.
+#
+# **Ein `if` und kein `$mass` als Befehl.** Bis zum 1. September 2026 stand an
+# den beiden Messstellen `$($mass)`, und ein Funktionsname in einer Variablen
+# ist für ein Werkzeug kein Aufruf: shellcheck hielt die Rümpfe von `offen`
+# und `fassung` für unerreichbar (SC2317). Gemeldet hat es das erst, als
+# dieses Skript am Ende ausdrücklich mit `exit` endete — solange es
+# durchfallen konnte, nahm shellcheck an, jemand binde die Datei ein und rufe
+# sie selbst.
+#
+# > **Ein Aufruf über einen Namen in einer Variablen ist für ein Werkzeug
+# > keiner — gemeldet wird er erst, wenn nichts mehr die Annahme trägt, dass
+# > jemand ihn von aussen macht.**
+#
+# `$mass` bleibt, was es an den beiden Vergleichen weiter unten ohnehin schon
+# war: ein Schalter und kein Befehl.
+messen() {
+    if [ "$mass" = fassung ]; then
+        fassung
+    else
+        offen
+    fi
+}
+
 [ $# -ge 1 ] || fehler 'Aufruf: apt-run all | apt-run packages <name> ... | apt-run panel | apt-run simulate'
 
 modus=$1
@@ -157,8 +185,12 @@ case $modus in
         #
         # Der Rückgabewert dieses Laufs wird bewusst nicht geprüft — er trägt
         # nichts (M5). Geprüft wird die Fassung, weiter unten.
-        echo "$NAME: Paketlisten werden aufgefrischt."
-        apt-get -q update || echo "$NAME: apt-get update endete ungleich 0 — der Lauf geht weiter, entschieden wird an der Fassung."
+        # **Ohne Präfix, und das ist eine Zusage.** `$NAME:` markiert das
+        # Urteil und nichts sonst — siehe den Kopf dieser Datei. Diese beiden
+        # Zeilen sind Fortschritt: Sie stehen unter apts eigener Ausgabe im
+        # Log, wo sie hingehören.
+        echo 'Paketlisten werden aufgefrischt.'
+        apt-get -q update || echo 'apt-get update endete ungleich 0 — der Lauf geht weiter, entschieden wird an der Fassung.'
 
         mass=fassung
         einheit='Fassung'
@@ -191,12 +223,12 @@ case $modus in
         ;;
 esac
 
-vorher=$($mass)
+vorher=$(messen)
 
 apt-get -q -y -o Dpkg::Use-Pty=0 -o Dpkg::Options::=--force-confold "$@"
 rueckgabe=$?
 
-nachher=$($mass)
+nachher=$(messen)
 
 if [ "$rueckgabe" -ne 0 ]; then
     echo "$NAME: apt-get endete mit $rueckgabe. $einheit: vorher $vorher, jetzt $nachher."
@@ -245,8 +277,13 @@ if [ "$vorher" = "$nachher" ]; then
     exit 3
 fi
 
+# **Beide Zweige enden ausdrücklich**, obwohl das Skript hier ohnehin aufhört.
+# Damit gilt ohne Ausnahme: Auf eine Zeile mit `$NAME:` folgt ein `exit` — und
+# genau das hält `OutcomeTest`.
 if [ "$mass" = fassung ]; then
     echo "$NAME: Fassung $vorher wurde zu $nachher."
-else
-    echo "$NAME: $((vorher - nachher)) von $vorher Aktualisierungen eingespielt, $nachher bleiben offen."
+    exit 0
 fi
+
+echo "$NAME: $((vorher - nachher)) von $vorher Aktualisierungen eingespielt, $nachher bleiben offen."
+exit 0

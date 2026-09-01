@@ -496,3 +496,140 @@ grundsätzlich nicht wiederherstellen, weil der Filter den Browser nie verlässt
    Sitzung, und damit sahen Erfolgs- und Fehlerfall gleich aus.
 3. **Befund 3** — die Herkunft nach einer Navigation mit dem Zurück-Knopf.
    Unbehoben und benannt.
+
+---
+
+## 8 · Befund 5 — der Präfix markierte jede Meldung, nicht das Urteil
+
+**Gefahren am 1. September 2026 auf `cloudsrv24`, gegen `0.7.3-rc.6` — der
+erste Lauf des neuen Befehls.** Er endete nach zwei Sekunden:
+
+    Das Update läuft als srvpanel-update-a2e0b3dd.
+    Das Panel startet dabei neu. Dieser Befehl liest mit und nennt am Ende den Ausgang.
+
+      apt-run: Paketlisten werden aufgefrischt.        ← mitgelesen
+
+      Paketlisten werden aufgefrischt.                 ← als Urteil ausgegeben, grün
+
+    Rückgabewert: 0
+
+`Outcome::verdict()` nimmt die **letzte** Zeile mit dem Präfix `apt-run: `. Am
+Ende eines Laufs ist das richtig — währenddessen ist die letzte auch die erste.
+
+> **Ein Leser, der „die letzte Zeile" nimmt, liest während des Laufs die
+> erste.**
+
+**Die Warteschleife war damit in genau dem Modus wirkungslos, für den sie
+gebaut wurde.** Ausgezählt in `apt-run`: sieben Zeilen tragen den Präfix, fünf
+davon beenden den Lauf. Die beiden anderen stehen ausschliesslich im
+Fassungsmodus — also dort, wo `srvpanel update` liest. `system.packages.upgrade`
+schreibt keine, und `AwaitDispatchedRun` konnte den Fehler deshalb nie sehen.
+
+> **Ein Präfix, der jede Zeile eines Werkzeugs markiert, unterscheidet die
+> Meldung nicht vom Urteil.**
+
+### Behoben im Skript, und die Regel ist jetzt eine Eigenschaft
+
+Die beiden Fortschrittszeilen tragen den Präfix nicht mehr; sie stehen
+unprefixed im Log, wo apts eigene Ausgabe steht. Dazu zwei Kleinigkeiten, die
+die Regel ausnahmslos machen: `fehler()` schreibt `Aufruf falsch — …` (und
+steht damit in `Outcome::BAD`, statt als grünes Urteil durchzugehen), und die
+beiden durchfallenden Urteile enden ausdrücklich mit `exit 0`.
+
+**Gehalten wird die Eigenschaft und keine Liste.** Eine Aufzählung der fünf
+Urteilssätze in PHP wäre eine zweite Fassung dessen, was `apt-run` schreibt —
+und die zweite veraltet. `OutcomeTest::test_every_prefixed_line_ends_the_run`
+prüft stattdessen, was ein Urteil von einer Meldung unterscheidet: **Es beendet
+den Lauf.** Eine sechste Urteilsform ist damit von selbst gedeckt, eine dritte
+Fortschrittszeile fällt auf.
+
+Die Gegenrichtung steht daneben: Die Meldung muss noch da sein, nur ohne
+Präfix. Sonst wäre die Regel auch dadurch zu erfüllen, dass der Betreiber
+nichts mehr sieht.
+
+### Was das für die nächste Fassung heisst
+
+**Das Update von `rc.6` auf `rc.7` wird den Fehler noch einmal zeigen** — und
+das ist keine gescheiterte Behebung. Der Befehl, der ein Update ausführt, ist
+immer der **schon installierte**: `rc.6`s `Update.php` liest `rc.6`s `apt-run`.
+Erst der Sprung von `rc.7` auf `rc.8` läuft mit beiden behobenen Teilen.
+
+> **Eine Behebung an dem Werkzeug, das die Behebung ausliefert, wirkt erst eine
+> Fassung später.**
+
+Ein Ausweg wäre eine Ausnahmeliste im Leser für die zwei bekannten Sätze — also
+eine zweite Fassung von Wissen über `apt-run`, für genau einen Zyklus. Sie ist
+bewusst nicht gebaut.
+
+### Und M1 ist damit weiterhin ungeprüft
+
+Dieser Lauf hat nichts installiert und nichts umgeschaltet. Ob die Warteschleife
+einen echten Symlink-Wechsel übersteht — ob `vorladen()` reicht —, ist nach wie
+vor offen und braucht `rc.7` → `rc.8`.
+
+> **Ein Lauf ohne den Vorgang, gegen den er sich behaupten soll, prüft die
+> Behauptung nicht.**
+
+---
+
+## 8b · Der Befund an der Behebung — shellcheck hat den Zweig rot gemacht
+
+Der PR zu §8 kam mit rotem `Shell-Skripte` zurück. Zweimal **SC2317**, „Command
+appears to be unreachable", auf den Rümpfen von `offen()` und `fassung()` —
+also auf den beiden Funktionen, die dieses Skript überhaupt tragen.
+
+```
+In packaging/bin/apt-run line 111:
+    apt-get -s dist-upgrade 2>/dev/null | grep -c '^Inst ' || true
+    ^-- SC2317 (info): Command appears to be unreachable.
+```
+
+**Der Befund ist nicht das `exit 0`, sondern das, was es sichtbar gemacht hat.**
+Gerufen wurden die beiden seit ihrem ersten Tag über `vorher=$($mass)` — einen
+Namen in einer Variablen. Für shellcheck ist das kein Aufruf; es hat die Rümpfe
+nie als erreichbar gesehen. Gemeldet hat es das trotzdem nicht, solange das
+Skript am Ende **durchfallen** konnte: Eine Datei, die ihr Ende erreicht, könnte
+eingebunden werden, und dann rufe der Einbindende die Funktionen eben selbst.
+Mit dem `exit 0` aus §8 fiel diese Annahme weg.
+
+Gemessen in beide Richtungen, damit die Ursache nicht geraten ist:
+
+| Prüfkörper | SC2317 |
+|---|---|
+| Fassung vor §8 | keine |
+| Fassung vor §8, nur ein `exit 0` angehängt | **zwei** |
+| Fassung aus §8, nur das letzte `exit 0` entfernt | keine |
+
+> **Ein Aufruf über einen Namen in einer Variablen ist für ein Werkzeug keiner —
+> gemeldet wird er erst, wenn nichts mehr die Annahme trägt, dass jemand ihn von
+> aussen macht.**
+
+**Behoben ist es am Aufruf und nicht mit einer Unterdrückung.** Ein
+`# shellcheck disable=SC2317` hätte die Meldung genommen und die Blindheit
+gelassen: Ab da wäre auch wirklich toter Code in diesen beiden Funktionen nicht
+mehr aufgefallen. Stattdessen steht die Fallunterscheidung jetzt als `messen()`
+da, `$mass` ist wieder das, was es an den zwei Vergleichen weiter unten ohnehin
+war — ein Schalter und kein Befehl.
+
+Belegt ist der Umbau an fünf Wegen mit Attrappen für `apt-get` und
+`dpkg-query`, weil eine Fallunterscheidung, die still auf den falschen Zweig
+fällt, dieselbe Ausgabe hätte wie vorher, nur mit der falschen Zahl:
+
+| Aufruf | Meldung | rc |
+|---|---|---|
+| `all`, nichts offen | `Es stand nichts an — offene Aktualisierungen: 0.` | 0 |
+| `all`, 2 offen, 0 danach | `2 von 2 Aktualisierungen eingespielt, 0 bleiben offen.` | 0 |
+| `all`, 2 offen, 2 danach | `Der Lauf hat nichts verändert — … vorher wie nachher: 2.` | 3 |
+| `panel`, Fassung wechselt | `Fassung 0.7.3-rc.6 wurde zu 0.7.3-rc.7.` | 0 |
+| `panel`, Fassung bleibt | `Der Lauf hat nichts verändert — Fassung … 0.7.3-rc.6.` | 3 |
+
+### Und der eigentliche Fehler war ein Handgriff, nicht eine Zeile
+
+**shellcheck ist in diesem Container installiert.** Vor dem Push ist
+`bash -n packaging/bin/apt-run` gefahren worden und sonst nichts — geprüft
+wurde, ob die Datei sich einlesen lässt, und nicht, was die CI an ihr prüft. Der
+Aufruf steht wörtlich in `ci.yml` und war einmal Kopieren.
+
+> **Ein Werkzeug, das die CI fährt und das lokal daneben liegt, wird nicht durch
+> ein anderes ersetzt, das eine ähnliche Frage stellt.** `bash -n` beantwortet
+> „parst es", shellcheck „stimmt es" — die zweite Frage hat die Runde gekostet.

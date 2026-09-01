@@ -21326,6 +21326,71 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
 
 echo
+echo "== AptResultTest: die eigene Quelle wird erst nach dem Auffrischen gefragt =="
+#
+# Gemessen am 1. September 2026 auf cloudsrv24 (docs/96 §4b): Mit Enabled: no an
+# der eigenen Quelle meldete srvpanel update gruen "Es stand nichts an". Nach dem
+# Auffrischen ist die Frage wirkungslos — eine abgeschaltete Quelle erzeugt
+# keinen Fehlschlag.
+vorher_datei agent/src/Ops/PanelUpdate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PanelUpdate.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $uris = Sources::enabledUris(Sources::PANEL_SOURCE);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "        $uris = [];", 1)
+alt2 = "        $refresh = Apt::refresh($context);"
+assert s.count(alt2) == 1, 'Zweite Zielstelle nicht eindeutig'
+open(p, 'w', encoding='utf-8').write(s.replace(alt2, alt2 + "\n        $uris = Sources::enabledUris(Sources::PANEL_SOURCE);", 1))
+PY2
+griff_datei agent/src/Ops/PanelUpdate.php "Quelle erst nach dem Auffrischen gefragt" &&
+pruefe "Quelle erst nach dem Auffrischen gefragt" \
+  AptResultTest::test_the_panels_own_source_is_in_force_before_the_refresh failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptResultTest passed
+
+echo
+echo "== AptResultTest: hitting() bekommt wieder alle Adressen =="
+#
+# Eine abgeschaltete Stanza kann keinen Fehlschlag erzeugt haben; sie mitzufuehren
+# hiesse, in den Meldungen nach einer Quelle zu suchen, die apt nie angefasst hat.
+vorher_datei agent/src/Ops/PanelUpdate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PanelUpdate.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $unreachable = $refresh->hitting($uris);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        $unreachable = $refresh->hitting(Sources::uris(Sources::PANEL_SOURCE));", 1))
+PY2
+griff_datei agent/src/Ops/PanelUpdate.php "Schuldfrage ueber alle Adressen" &&
+pruefe "Schuldfrage ueber alle Adressen" \
+  AptResultTest::test_the_panels_own_source_is_in_force_before_the_refresh failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptResultTest passed
+
+echo
+echo "== SourceListTest: enabledUris uebergeht Enabled =="
+#
+# Ohne diese Frage zaehlt eine abgeschaltete Quelle als Adresse in Kraft — und
+# der Abbruch bliebe aus, fuer den es sie gibt.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if (! $stanza['enabled']) {
+                continue;
+            }
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "", 1))
+PY2
+griff_datei agent/src/Sources.php "enabledUris uebergeht Enabled" &&
+pruefe "enabledUris uebergeht Enabled" \
+  SourceListTest::test_only_the_enabled_stanzas_name_an_address failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
+
+echo
 echo "== UpdateWaitTest: der Vorbehalt haengt an nichts =="
 #
 # Gemessen am 1. September 2026 auf cloudsrv24 (docs/96 §2): Unter dem gruenen

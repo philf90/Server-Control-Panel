@@ -23490,6 +23490,46 @@ Datei: Denselben Satz gibt es ein zweites Mal, und dort gehört er hin.
 > Funktion, in der sie wirken soll.**
 
 
+### Eine abgeschaltete eigene Paketquelle meldete „du bist aktuell"
+
+**Gemessen am 1. September 2026 auf `cloudsrv24`** (`docs/96 §4b`), als Frage
+ohne Sollantwort ausgeschrieben und mit einem Befund beantwortet: Mit
+`Enabled: no` an `/etc/apt/sources.list.d/srvpanel.sources` meldete
+`srvpanel update` grün *„Es stand nichts an — Fassung unverändert:
+0.7.3~rc.9."*
+
+Das ist M5 in einer dritten Gestalt, und jede einzelne Stufe antwortet dabei
+richtig: apt holt eine abgeschaltete Quelle gar nicht erst, also gibt es keine
+`W:`-Zeile; `Apt::readFailures()` findet nichts, also gibt `hitting()` `null`;
+die Simulation sieht mangels neuer Listen nichts Anstehendes; die Fassung ist
+vorher wie nachher dieselbe.
+
+> **Eine Quelle, die nicht gefragt wird, antwortet nicht falsch — sie fehlt, und
+> das sieht aus wie Zustimmung.**
+
+`Sources::enabledUris()` liest die Adressen der **eingeschalteten** Stanzas, über
+`Sources::stanzas()` — `Enabled:` ist eine Eigenschaft einer Stanza und ohne
+deren Grenzen nicht zu beantworten. Bei `Sources::uris()` genügt dafür der Anker
+am Zeilenanfang; hier nicht, und der Kopf sagt warum.
+
+`PanelUpdate` fragt damit **vor** der Auffrischung, ob die eigene Quelle
+überhaupt in Kraft ist. Die Reihenfolge ist das Tragende: Stünde die Frage
+danach, wäre sie wirkungslos, denn eine abgeschaltete Quelle erzeugt keinen
+Fehlschlag. Der Wächter misst deshalb die Reihenfolge und nicht den Aufruf.
+
+**Zwei Zustände, zwei Meldungen** — „die Datei fehlt" und „es ist keine
+eingeschaltete Quelle mit Adresse übrig" haben verschiedene Abhilfen, und eine
+Meldung, die beide nennt, schickt den Leser an zwei Orte.
+
+Und `hitting()` bekommt seitdem die eingeschalteten Adressen: Eine abgeschaltete
+Stanza kann keinen Fehlschlag erzeugt haben.
+
+**Was bleibt:** Die Zeile `Paketlisten aufgefrischt; jede Quelle hat
+geantwortet.` gilt für die Quellen, die apt gefragt hat — nicht für die, die es
+gibt. Nach dieser Änderung kommt ein Lauf mit abgeschalteter eigener Quelle gar
+nicht mehr bis zu ihr.
+
+
 ### Der Präfix markierte jede Meldung, nicht das Urteil
 
 Gemessen auf `cloudsrv24` am 1. September 2026, im ersten Lauf des neuen

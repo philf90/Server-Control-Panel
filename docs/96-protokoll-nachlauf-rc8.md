@@ -308,7 +308,88 @@ also „alle Treffer sind Kommentare" und nicht „der Griff findet nichts".
 
 ---
 
-## 4 bis 8
+## 4 · Punkt 4 — die tote eigene Quelle bricht ab
+
+    URIs: https://gibtesnicht.invalid/srvpanel
+    srvpanel update
+
+    Die Paketquelle des Panels https://gibtesnicht.invalid/srvpanel/ ist nicht
+    erreichbar: Could not resolve 'gibtesnicht.invalid'. Ohne sie kennt apt nur
+    die alten Paketlisten, und ein Update fände nichts Neues — es wurde deshalb
+    nicht begonnen.
+    rc=1
+
+**Erfüllt, und in allen vier Teilen.** Die Meldung nennt die Quelle beim Namen
+und den Grund von apt; der Abbruch liegt **vor** dem Absetzen (die Zeile „Das
+Update läuft als …" fehlt, es gibt also keine Unit); der Rückgabewert ist `1`;
+und der Rückweg ist belegt — `diff … && echo 'zurueck'` hat `zurueck` gedruckt.
+
+Damit ist gezeigt, dass Befund 2 M5 nicht wieder aufgerissen hat: Die
+Simulation, die „es stand nichts an" trägt, steht hinter einer Prüfung, die eine
+tote eigene Quelle abfängt.
+
+---
+
+## 4b · Die Frage ohne Sollantwort — und die Antwort ist ein Befund
+
+`Sources::uris(PANEL_SOURCE)` vorher: `["https://repo.cloudsrv24.de/apt"]` — eine
+Adresse, die Datei ist also die richtige.
+
+Danach, mit `Enabled: no`:
+
+    Paketlisten aufgefrischt; jede Quelle hat geantwortet.
+    srvpanel ist schon die neueste Version (0.7.3~rc.9).
+    apt-run: Es stand nichts an — Fassung unverändert: 0.7.3~rc.9.
+
+    Es stand nichts an — Fassung unverändert: 0.7.3~rc.9.        (grün)
+    rc=0
+
+### Befund 12 — das Panel meldet „du bist aktuell", während seine Quelle aus ist
+
+**Die Lücke aus `docs/95 §4b` ist echt.** Und sie ist M5 in einer dritten
+Gestalt, in der jede einzelne Stufe richtig antwortet:
+
+1. apt holt eine abgeschaltete Quelle gar nicht erst → keine `W:`-Zeile.
+2. `Apt::readFailures()` findet nichts → `hitting()` gibt `null`.
+3. Die Simulation sieht mangels neuer Listen nichts Anstehendes → `ansteht = 0`.
+4. Die Fassung ist vorher wie nachher dieselbe → „Es stand nichts an."
+
+> **Eine Quelle, die nicht gefragt wird, antwortet nicht falsch — sie fehlt, und
+> das sieht aus wie Zustimmung.**
+
+**Und die Auffrischungszeile lügt mit.** `Paketlisten aufgefrischt; jede Quelle
+hat geantwortet.` stimmt für die Quellen, die apt **gefragt** hat — die eigene
+war nicht darunter.
+
+> **Eine Zusage über „jede Quelle" gilt für die, die gefragt wurden, und nicht
+> für die, die es gibt.**
+
+### Die Behebung
+
+`Sources::enabledUris()` liest die Adressen der **eingeschalteten** Stanzas —
+über `Sources::stanzas()`, denn `Enabled:` ist eine Eigenschaft einer Stanza und
+ohne deren Grenzen nicht zu beantworten. `PanelUpdate` fragt damit **vor** der
+Auffrischung, ob die eigene Quelle überhaupt in Kraft ist, und unterscheidet
+zwei Zustände mit zwei Meldungen: die Datei fehlt, oder es ist keine
+eingeschaltete Quelle mit Adresse übrig.
+
+Die Reihenfolge ist das Tragende: Stünde die Frage danach, wäre sie wirkungslos.
+`AptResultTest::test_the_panels_own_source_is_in_force_before_the_refresh` misst
+deshalb die Reihenfolge und nicht den Aufruf.
+
+Und `hitting()` bekommt seitdem die **eingeschalteten** Adressen. Eine
+abgeschaltete Stanza kann keinen Fehlschlag erzeugt haben; sie mitzuführen
+hiesse, in den Meldungen nach einer Quelle zu suchen, die apt nie angefasst hat.
+
+**Nicht behoben ist die Auffrischungszeile.** Sie steht weiter so da; nach dieser
+Änderung kommt ein Lauf mit abgeschalteter eigener Quelle gar nicht mehr bis zu
+ihr, und für die übrigen Quellen stimmt sie. Wer sie schärfer haben will, müsste
+die Zahl der gefragten Quellen nennen — das ist ein eigener Vorschlag und kein
+Befund dieses Laufs.
+
+---
+
+## 5 bis 8
 
 Offen.
 

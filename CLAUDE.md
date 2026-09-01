@@ -1790,10 +1790,18 @@ Aktualisierungen weder Tabelle noch Knopf gibt.
 > **Ein Prüfkörper, der einen Zustand braucht, den der Lauf davor verbraucht,
 > gehört an einen Gegenstand, der nachwächst.**
 
-**Und Punkt 4b ist eine Frage und kein Kriterium**, gefunden beim Ausschreiben:
-`Enabled: no` ist nicht dasselbe wie unerreichbar. Eine **abgeschaltete** Quelle
-erzeugt keinen Fehlschlag, `Apt::hitting()` greift nicht — und gemeldet würde
-„Es stand nichts an", während die eigene Paketquelle aus ist.
+**Und Punkt 4b war eine Frage und kein Kriterium**, gefunden beim Ausschreiben:
+`Enabled: no` ist nicht dasselbe wie unerreichbar. **Gefahren am 1. September
+ist die Antwort ein Befund** (`docs/96 §4b`): Eine abgeschaltete Quelle erzeugt
+keinen Fehlschlag, `Apt::hitting()` greift nicht, und das Panel meldete grün
+„Es stand nichts an", während die eigene Paketquelle aus war.
+
+> **Eine Quelle, die nicht gefragt wird, antwortet nicht falsch — sie fehlt, und
+> das sieht aus wie Zustimmung.**
+
+`Sources::enabledUris()` liest seitdem die Adressen der eingeschalteten Stanzas,
+und `PanelUpdate` fragt **vor** der Auffrischung. Die Reihenfolge ist das
+Tragende und nicht der Aufruf: danach wäre die Frage wirkungslos.
 
 Und weiter aus P7b: **`87` der Nachlauf zu `0.7.2-rc.5`** — sechs Punkte auf
 `cloudsrv24`, die nachsehen, ob die vier Behebungen aus `docs/86 §5` auf einem

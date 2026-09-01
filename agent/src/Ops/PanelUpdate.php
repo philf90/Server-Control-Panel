@@ -98,13 +98,61 @@ final class PanelUpdate implements Op
          * Das Vorbild ist `PhpVersionInstall` und der Wortlaut seiner Meldung
          * mit ihm: Der Betreiber soll an der Quelle suchen und nicht am Paket.
          */
+        /*
+         * **Zuerst: Ist die eigene Quelle überhaupt in Kraft?**
+         *
+         * Diese Frage steht **vor** der Auffrischung, und das ist tragend. Eine
+         * abgeschaltete Quelle holt apt gar nicht erst; sie erzeugt keinen
+         * Fehlschlag, {@see Apt::hitting()} findet nichts, und die Simulation
+         * danach sieht mangels neuer Listen nichts Anstehendes. Der Betreiber
+         * läse „Es stand nichts an" — gemessen am 1. September 2026 auf
+         * `cloudsrv24` (`docs/96 §4b`).
+         *
+         * > **Eine Quelle, die nicht gefragt wird, antwortet nicht falsch — sie
+         * > fehlt, und das sieht aus wie Zustimmung.**
+         *
+         * **Zwei Zustände, zwei Meldungen.** „Es gibt keine Datei" und „die
+         * Datei ist aus" haben verschiedene Abhilfen, und eine Meldung, die
+         * beide nennt, schickt den Leser an zwei Orte.
+         */
+        if (! is_file(Sources::PANEL_SOURCE)) {
+            throw AgentException::execFailed(
+                sprintf(
+                    'Die Paketquelle des Panels ist nicht eingerichtet: %s fehlt. Ohne sie kann apt '
+                    .'keine neue Fassung finden — es wurde deshalb nicht begonnen.',
+                    Sources::PANEL_SOURCE,
+                ),
+                ['source' => Sources::PANEL_SOURCE],
+            );
+        }
+
+        $uris = Sources::enabledUris(Sources::PANEL_SOURCE);
+
+        if ($uris === []) {
+            throw AgentException::execFailed(
+                sprintf(
+                    'Die Paketquelle des Panels ist abgeschaltet: in %s ist keine eingeschaltete Quelle '
+                    .'mit Adresse übrig. Ohne sie kann apt keine neue Fassung finden — es wurde deshalb '
+                    .'nicht begonnen.',
+                    Sources::PANEL_SOURCE,
+                ),
+                ['source' => Sources::PANEL_SOURCE],
+            );
+        }
+
         $refresh = Apt::refresh($context);
 
         if (! $refresh->result->successful()) {
             throw AgentException::execFailed('apt-get update ist fehlgeschlagen: '.$refresh->result->message());
         }
 
-        $unreachable = $refresh->hitting(Sources::uris(Sources::PANEL_SOURCE));
+        /*
+         * **Gefragt wird mit den eingeschalteten Adressen und nicht mit allen.**
+         * Eine abgeschaltete Stanza kann keinen Fehlschlag erzeugt haben; sie
+         * hier mitzuführen hiesse, in den Meldungen nach einer Quelle zu suchen,
+         * die apt nie angefasst hat.
+         */
+        $unreachable = $refresh->hitting($uris);
 
         if ($unreachable !== null) {
             throw AgentException::execFailed(

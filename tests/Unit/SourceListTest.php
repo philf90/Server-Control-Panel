@@ -364,4 +364,101 @@ final class SourceListTest extends TestCase
         $this->assertTrue($stanzas[2]['enabled']);
         $this->assertTrue($hatZiel(3), 'Die dritte hat eines — sonst misst der Vergleich nichts.');
     }
+
+    /**
+     * Und die Adressen, die wirklich in Kraft sind.
+     *
+     * ## Der Befund, gegen den es diesen Fall gibt
+     *
+     * **Gemessen am 1. September 2026 auf `cloudsrv24`** (`docs/96 §4b`): Mit
+     * `Enabled: no` an der eigenen Quelle meldete `srvpanel update` grün „Es
+     * stand nichts an". apt holt eine abgeschaltete Quelle gar nicht erst, also
+     * erzeugt sie keinen Fehlschlag — und die Simulation danach sieht mangels
+     * neuer Listen nichts Anstehendes.
+     *
+     * > **Eine Quelle, die nicht gefragt wird, antwortet nicht falsch — sie
+     * > fehlt, und das sieht aus wie Zustimmung.**
+     *
+     * ## Was hier gemessen wird
+     *
+     * Beide Richtungen: Eine eingeschaltete Stanza muss ihre Adresse liefern —
+     * sonst bestünde ein `return []` diesen Fall zur Hälfte —, und eine
+     * abgeschaltete darf es nicht. Dazu die drei Formen, an denen ein Leser
+     * bricht: das fehlende Feld (apts Vorgabe ist **ein**), zwei Adressen in
+     * einem Feld, und eine Datei, die es gar nicht gibt.
+     */
+    public function test_only_the_enabled_stanzas_name_an_address(): void
+    {
+        $datei = sys_get_temp_dir().'/srvpanel-sources-'.getmypid().'.sources';
+
+        $schreibe = static function (string $inhalt) use ($datei): string {
+            file_put_contents($datei, $inhalt);
+
+            return $datei;
+        };
+
+        try {
+            $this->assertSame(
+                ['https://repo.example/apt'],
+                Sources::enabledUris($schreibe('Types: deb
+URIs: https://repo.example/apt
+Suites: beta
+')),
+                'Ohne `Enabled:` ist eine Stanza eingeschaltet — apts Vorgabe.',
+            );
+
+            $this->assertSame(
+                [],
+                Sources::enabledUris($schreibe('Types: deb
+URIs: https://repo.example/apt
+Suites: beta
+Enabled: no
+')),
+                'Eine abgeschaltete Quelle ist keine Adresse in Kraft — genau das war der Befund.',
+            );
+
+            $this->assertSame(
+                ['https://zwei.example/apt'],
+                Sources::enabledUris($schreibe(
+                    'Types: deb
+URIs: https://eins.example/apt
+Suites: beta
+Enabled: no
+'
+                    .'
+'
+                    .'Types: deb
+URIs: https://zwei.example/apt
+Suites: beta
+'
+                )),
+                'Von zwei Stanzas zählt die eingeschaltete — und nur sie.',
+            );
+
+            $this->assertSame(
+                ['https://a.example/apt', 'https://b.example/apt'],
+                Sources::enabledUris($schreibe('Types: deb
+URIs: https://a.example/apt https://b.example/apt
+Suites: beta
+')),
+                'deb822 erlaubt mehrere Adressen in einem Feld; eine davon zu verlieren hiesse, eine tote Quelle nicht zu bemerken.',
+            );
+
+            $this->assertSame(
+                [],
+                Sources::enabledUris($schreibe('Types: deb
+Suites: beta
+')),
+                'Eine Stanza ohne Adresse nennt keine.',
+            );
+        } finally {
+            @unlink($datei);
+        }
+
+        $this->assertSame(
+            [],
+            Sources::enabledUris($datei),
+            'Eine Datei, die es nicht gibt, nennt keine Adresse — und wirft nicht.',
+        );
+    }
 }

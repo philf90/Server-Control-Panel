@@ -469,9 +469,102 @@ Prüfmittel, und alle drei wären beim Ausschreiben zu vermeiden gewesen.
 `nameOf()` gibt für `Domain` das Feld `name` zurück, und ein Domainname darf 63
 Zeichen je Label tragen. `docs/95 §8` ist entsprechend berichtigt.
 
-Die Überlaufmessung selbst bleibt fahrbar und steht aus. Was das Bild schon
-zeigt: Der Brotkrümel nimmt auf diesem Telefon **zwei** Zeilen — die Grenze aus
-`docs/94 §6b` ist eingehalten und nicht unterschritten.
+### Gemessen mit dem berichtigten Prüfkörper
+
+Vorgang **745**, `web.site.apply`, Gegenstand
+`domain-mit-richtig-langem-namen.invalid` — **achtunddreissig Zeichen**, also
+deutlich über den 25, an denen `docs/94` Punkt 3 als „nicht herstellbar"
+ausgefallen war.
+
+Bei 390 × 844, in **beiden** Themen:
+
+    (dunkel)
+    document.documentElement.scrollWidth - document.documentElement.clientWidth
+    0
+
+    srvpanelTheme('light')
+    undefined
+    document.documentElement.scrollWidth - document.documentElement.clientWidth
+    0
+
+`undefined` ist dabei die Antwort einer Funktion ohne Rückgabewert und nicht die
+eines fehlenden Aufrufs — ein Name, den es nicht gibt, endet mit einem
+`ReferenceError`. Der Umschalter ist also gelaufen, und das ist hier die Frage:
+`app.css` kennt keine `prefers-color-scheme`-Regel, sondern hängt allein an
+`data-theme` am `<html>`.
+
+> **Eine Umstellung, die der Prüfling nicht liest, hat nichts umgestellt — und
+> das Bild daneben sieht aus wie ein Ergebnis.** (`docs/A5`, die Bildrunde, die
+> zweimal hell gemessen hat.)
+
+Der Brotkrümel nimmt **zwei** Zeilen — die Grenze aus `docs/94 §6b` ist
+eingehalten und nicht unterschritten. Der Domainname bricht in seine eigene
+Zeile unter die Beschriftung, statt die Zeile zu weiten; genau dafür trägt die
+Zelle ihre Kennung (`docs/94`, vierte Wiederholung derselben Ausnahme).
+
+### Was an Punkt 8 offen bleibt
+
+**Die Gegenprobe.** Ohne den 200-px-Block daneben ist die Null keine Messung,
+sondern eine Zahl — dieselbe, die auch ein Messstand liefert, der gar nicht bei
+390 px steht oder die Seite nach dem Breitenwechsel nicht neu geladen hat.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+Das ist kein Zweifel an der Seite, sondern die Regel, die dieses Repo an sich
+selbst anlegt. Nachzuholen sind zwei Zeilen:
+
+    document.body.insertAdjacentHTML('beforeend',
+      '<div style="width:' + (document.documentElement.scrollWidth + 200) + 'px;height:1px"></div>');
+    document.documentElement.scrollWidth - document.documentElement.clientWidth
+
+Erwartet **200**, danach neu laden.
+
+---
+
+## Bilanz
+
+**Der Lauf ist durch.** Die Pflichtpunkte aus `docs/95 §10` sind 1, 2, 3, 5, 6
+und 7.
+
+| Punkt | | |
+|---|---|---|
+| 1 | M1 und Befund 5 | erfüllt bis auf `rc=0` → **Befund 8** |
+| 1b | der Sprung rc.8 → rc.9 | Befund 8 **nicht** geprüft; Befund 2 und 5 belegt |
+| 2 | Befund 2 | erfüllt → **Befund 9, 10** |
+| 3 | die Auffrischung | erfüllt → **Befund 11** |
+| 4 | die tote eigene Quelle | erfüllt |
+| 4b | die abgeschaltete Quelle | **Befund 12** |
+| 5 | Herkunft und Gegenstand | erfüllt |
+| 6 | der Zurück-Knopf | erfüllt |
+| 7 | ein Vorgang ohne Seite | erfüllt |
+| 8 | 390 px, beide Themen | 0 px, Gegenprobe offen → **Befund 13** |
+
+**Sechs Befunde, und fünf davon stecken im Prüfmittel oder in der Vorschrift:**
+9 (die Gegenprobe fragt an der Sache vorbei), 11 (die Messvorschrift zählt
+Kommentare mit), 13 (die Länge des Prüfkörpers angenommen statt nachgesehen) —
+dazu die falsche Erwartung an §1b und die Zahl in meinem ersten Bericht zu
+Punkt 1. Im Prüfling stecken drei: 8, 10 und 12.
+
+Das ist wieder das Verhältnis aus `docs/45`, `docs/48`, `docs/59` und `docs/84`
+und nicht das aus `docs/91`. Der Unterschied zu `docs/91` ist benennbar: Dort
+lag das Messmittel als geprüftes Werkzeug im Repo. Hier waren es Handgriffe, die
+ich beim Ausschreiben erfunden habe — und **alle drei wären durch Nachsehen am
+Quelltext zu vermeiden gewesen.**
+
+> **Eine Vorschrift, die eine Eigenschaft des Prüflings annimmt, prüft die
+> Annahme mit — und meldet ihren eigenen Irrtum als Befund am Prüfling.**
+
+### Was offen bleibt
+
+- **Befund 8** ist behoben und ungeprüft. Sein einziger Prüfkörper ist der
+  Sprung `rc.9` → `rc.10`.
+- **Befund 10 und 12** sind gebaut und haben keinen Server gesehen; sie liegen
+  in `rc.10`.
+- **Die Gegenprobe zu Punkt 8** — zwei Zeilen in derselben Konsole.
+- **Die Zeile `Paketlisten aufgefrischt; jede Quelle hat geantwortet.`** gilt für
+  die gefragten Quellen und nicht für die vorhandenen (§4b). Kein Befund dieses
+  Laufs, sondern ein Vorschlag.
 
 ---
 

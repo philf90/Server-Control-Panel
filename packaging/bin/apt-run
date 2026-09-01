@@ -153,6 +153,35 @@ messen() {
     fi
 }
 
+# Wie viele Pakete dieser Lauf einspielen würde — vor dem Lauf gefragt.
+#
+# **Das ist Befund 2 aus `docs/94 §4`.** Die Unterscheidung „war schon aktuell"
+# gegen „hat es nicht geschafft" entsteht im Lauf und wurde weggeworfen: Der
+# Zählmodus konnte sie an `nachher -eq 0` ablesen, `--fassung` nicht, denn eine
+# Versionsnummer ist nie null.
+#
+# > **Eine Unterscheidung, die im Lauf schon dasteht, muss nicht hergestellt
+# > werden — nur gelesen.**
+#
+# **Gefragt wird apt in der Simulation und nicht sein Klartext.** Die
+# naheliegende Quelle wäre der Satz, der im Protokoll drei Zeilen über dem
+# Urteil steht — „srvpanel ist schon die neueste Version (0.7.3~rc.4)." Er ist
+# **übersetzt**. Gemessen am 1. September 2026 gegen den deutschen Katalog von
+# apt 2.8.3: `Inst ` kommt in keinem seiner 387 Einträge vor, „is already the
+# newest version" schon, und der Zähler ist in beiden Sprachen derselbe (6 für
+# ein anstehendes Paket, 0 für ein aktuelles).
+#
+# > **Ein Satz, den apt übersetzt, ist keine Schnittstelle** — ein Ausdruck
+# > darüber prüft die Sprache des Servers und nicht seinen Zustand.
+#
+# **Mit denselben Argumenten wie der echte Lauf.** Eine Simulation, die etwas
+# anderes fragt als das, was gleich ausgeführt wird, beantwortet eine andere
+# Frage — derselbe Grund, aus dem `offen()` genau den `dist-upgrade` fragt, den
+# auch die Seite zeigt.
+ansteht() {
+    apt-get -s "$@" 2>/dev/null | grep -c '^Inst ' || true
+}
+
 [ $# -ge 1 ] || fehler 'Aufruf: apt-run all | apt-run packages <name> ... | apt-run panel | apt-run simulate'
 
 modus=$1
@@ -179,19 +208,27 @@ case $modus in
         set -- install "$@"
         ;;
     panel)
-        # **Hier wird aufgefrischt und im anderen Modus nicht.** Das Einspielen
-        # folgt auf der Seite dem Knopf „Jetzt nachsehen"; das Update des Panels
-        # kommt von der Kommandozeile, und dort gibt es keinen solchen Knopf.
+        # **Hier wurde bis zum 1. September 2026 aufgefrischt, und das ist mit
+        # Befund 2 (`docs/94 §4`) nach `PanelUpdate` gezogen.**
         #
-        # Der Rückgabewert dieses Laufs wird bewusst nicht geprüft — er trägt
-        # nichts (M5). Geprüft wird die Fassung, weiter unten.
-        # **Ohne Präfix, und das ist eine Zusage.** `$NAME:` markiert das
-        # Urteil und nichts sonst — siehe den Kopf dieser Datei. Diese beiden
-        # Zeilen sind Fortschritt: Sie stehen unter apts eigener Ausgabe im
-        # Log, wo sie hingehören.
-        echo 'Paketlisten werden aufgefrischt.'
-        apt-get -q update || echo 'apt-get update endete ungleich 0 — der Lauf geht weiter, entschieden wird an der Fassung.'
-
+        # Der Grund ist nicht der Ort, sondern das Urteil darüber: Dieses Skript
+        # konnte den Rückgabewert von `apt-get update` nicht prüfen (M5 — er
+        # trägt nichts) und die `W:`-Zeilen ebensowenig. Gemessen am 1.
+        # September gegen apt 2.8.3: Eine tote Quelle erzeugt **drei** davon,
+        # und eine der drei („Download is performed unsandboxed…") hat mit
+        # Quellen gar nichts zu tun. Ein Zähler darüber meldet mal richtig, mal
+        # zuviel.
+        #
+        # `Apt::readFailures()` liest sie richtig, seit A1 und mit drei
+        # ausgeschriebenen Fallen im Kopf. Ein zweiter Leser hier wäre eine
+        # zweite Fassung derselben Regel.
+        #
+        # > **Eine Auskunft, die anderswo schon richtig gelesen wird, holt man
+        # > sich von dort — auch wenn der Aufruf daneben stünde.**
+        #
+        # Für dieses Skript heisst das: Wenn `panel` läuft, sind die Listen
+        # frisch und ihre Frische ist geprüft. Erst damit darf `ansteht` weiter
+        # unten „es stand nichts an" bedeuten und nicht „apt weiss es nicht".
         mass=fassung
         einheit='Fassung'
         set -- install --only-upgrade srvpanel
@@ -224,6 +261,7 @@ case $modus in
 esac
 
 vorher=$(messen)
+anstand=$(ansteht "$@")
 
 apt-get -q -y -o Dpkg::Use-Pty=0 -o Dpkg::Options::=--force-confold "$@"
 rueckgabe=$?
@@ -257,11 +295,23 @@ fi
 # regelmässig. Nach der dritten Woche mit roten Vorgängen, die nichts bedeuten,
 # sieht niemand mehr einen roten Vorgang an.
 #
-# **Nur im Zählmodus.** Bei `--fassung` ist `nachher` eine Versionsnummer und nie
-# `0`; dort bleibt „vorher wie nachher" ein Fehlschlag, denn eine Fassung, die
-# sich nicht ändert, war der Grund des Laufs.
-if [ "$mass" = offen ] && [ "$vorher" = "$nachher" ] && [ "$nachher" -eq 0 ]; then
-    echo "$NAME: Es stand nichts an — $einheit: 0."
+# **In allen drei Modi, und das ist Befund 2 aus `docs/94 §4`.** Bis zum
+# 1. September 2026 stand hier `[ "$mass" = offen ] && … && [ "$nachher" -eq 0 ]`,
+# und diese Beschränkung war selbst der Fehler: Sie liest die Frage „stand etwas
+# an?" an einem Wert ab, der sie nur für `all` beantwortet. Bei `packages`
+# bleiben andere Aktualisierungen offen, bei `panel` ist `nachher` eine
+# Versionsnummer — beide Male sah „war schon aktuell" aus wie „hat es nicht
+# geschafft".
+#
+# > **Ein Wert, der eine Frage nur in einem Modus beantwortet, ist in den
+# > anderen keine Antwort, sondern ein Zufall.**
+#
+# Gefragt wird jetzt `ansteht`, und die Bedingung nennt den Modus nicht
+# mehr. Beide Hälften sind nötig: `anstand` sagt, dass nichts anstand, und
+# `vorher = nachher`, dass auch nichts geschehen ist — hätte ein Lauf ohne
+# Anlass doch etwas verändert, gehört das gemeldet und nicht beschwiegen.
+if [ "$anstand" -eq 0 ] && [ "$vorher" = "$nachher" ]; then
+    echo "$NAME: Es stand nichts an — $einheit unverändert: $nachher."
     exit 0
 fi
 

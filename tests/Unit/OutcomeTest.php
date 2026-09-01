@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use SrvPanel\Agent\Outcome;
+use Tests\Support\WithoutHashComments;
 use Tests\Support\WithoutPhpComments;
 
 /**
@@ -18,6 +19,7 @@ use Tests\Support\WithoutPhpComments;
  */
 final class OutcomeTest extends TestCase
 {
+    use WithoutHashComments;
     use WithoutPhpComments;
 
     /**
@@ -163,7 +165,9 @@ final class OutcomeTest extends TestCase
      */
     public function test_the_script_tells_nothing_pending_from_nothing_changed(): void
     {
-        $skript = (string) file_get_contents(dirname(__DIR__, 2).'/packaging/bin/apt-run');
+        $skript = $this->withoutHashComments(
+            (string) file_get_contents(dirname(__DIR__, 2).'/packaging/bin/apt-run')
+        );
 
         $this->assertStringContainsString(
             'Es stand nichts an',
@@ -171,19 +175,72 @@ final class OutcomeTest extends TestCase
             'Ein Lauf ohne Anlass meldet wieder „Der Lauf hat nichts verändert" — und damit einen Fehlschlag.',
         );
 
-        // Der Ausstieg muss `0` sein und ausdrücklich auf den Zählmodus
-        // beschränkt: Bei `--fassung` ist `nachher` eine Versionsnummer und nie
-        // null, und dort bleibt „vorher wie nachher" ein Fehlschlag.
-        $this->assertMatchesRegularExpression(
-            '/\[ "\$mass" = offen \].*?\[ "\$nachher" -eq 0 \]/s',
+        /*
+         * **Die Nachsicht gilt in allen drei Modi, und bis zum 1. September
+         * 2026 stand hier das Gegenteil.**
+         *
+         * Dieser Wächter verlangte ausdrücklich `[ "$mass" = offen ]` — mit der
+         * Begründung, bei `--fassung` sei `nachher` eine Versionsnummer und nie
+         * null. Das stimmt und war die falsche Frage: Gefragt gehört nicht, ob
+         * sich der Zählerstand ablesen lässt, sondern ob überhaupt etwas
+         * anstand. Befund 2 aus `docs/94 §4`.
+         *
+         * > **Ein Wächter kann eine Beschränkung festhalten, die selbst der
+         * > Fehler ist — und dann ist er das Letzte, was sich ändert.**
+         */
+        $this->assertDoesNotMatchRegularExpression(
+            '/if \[ "\$anstand" -eq 0 \][^\n]*\$mass/',
             $skript,
-            'Die Nachsicht ist nicht auf den Zählmodus beschränkt.',
+            'Die Nachsicht ist wieder auf einen Modus beschränkt — „es stand nichts an" gilt in allen dreien.',
         );
 
         $this->assertMatchesRegularExpression(
-            '/Es stand nichts an[^\n]*\n\s*exit 0\n/',
+            '/if \[ "\$anstand" -eq 0 \] && \[ "\$vorher" = "\$nachher" \]; then\n\s*echo[^\n]*Es stand nichts an[^\n]*\n\s*exit 0\n/',
             $skript,
-            'Ein Lauf ohne Anlass endet nicht mit 0 — dann steht die Unit auf `failed`.',
+            'Der Zweig „es stand nichts an" fragt nicht mehr `$anstand`, oder er endet nicht mit 0 — dann '
+            .'steht die Unit auf `failed`.',
+        );
+    }
+
+    /**
+     * Und `anstand` kommt aus einer Simulation mit denselben Argumenten.
+     *
+     * **Die Gegenrichtung.** Ohne sie wäre die Regel darüber auch dadurch zu
+     * erfüllen, dass `anstand` immer `0` ist — dann meldete jeder Lauf „es
+     * stand nichts an", auch der gescheiterte. Das ist M5, nur in Grün.
+     *
+     * `"$@"` und keine eigene Argumentliste: Eine Simulation, die etwas anderes
+     * fragt als das, was gleich ausgeführt wird, beantwortet eine andere Frage.
+     */
+    public function test_what_is_pending_comes_from_a_simulation_of_the_same_run(): void
+    {
+        $skript = $this->withoutHashComments(
+            (string) file_get_contents(dirname(__DIR__, 2).'/packaging/bin/apt-run')
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/ansteht\(\) \{\n\s*apt-get -s "\$@"[^\n]*grep -c \S*\^Inst /',
+            $skript,
+            '`ansteht` fragt apt nicht mehr in der Simulation mit denselben Argumenten.',
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/^anstand=\$\(ansteht "\$@"\)$/m',
+            $skript,
+            '`anstand` wird nicht mehr vor dem Lauf gemessen — danach gemessen wäre es eine andere Zahl.',
+        );
+
+        // Vor dem Lauf und nicht danach: Die Reihenfolge ist die Regel, nicht
+        // das Vorkommen.
+        $vor = strpos($skript, 'anstand=$(ansteht');
+        $lauf = strpos($skript, 'apt-get -q -y -o Dpkg::Use-Pty=0');
+
+        $this->assertIsInt($vor);
+        $this->assertIsInt($lauf);
+        $this->assertLessThan(
+            $lauf,
+            $vor,
+            '`anstand` wird erst nach dem Lauf gemessen — dann sagt es nichts darüber, was vorher anstand.',
         );
     }
 
@@ -299,27 +356,106 @@ final class OutcomeTest extends TestCase
     }
 
     /**
-     * Und die Fortschrittszeilen tragen ihn nicht.
+     * Und die Auffrischung steht weiter im Protokoll, ohne Präfix.
      *
-     * Die Gegenrichtung: Der Fassungsmodus **frischt auf** und sagt es auch —
-     * nur eben ohne den Präfix, der das Urteil markiert. Ohne diesen Fall wäre
-     * die Regel darüber auch dadurch zu erfüllen, dass die Meldung ganz
-     * verschwindet.
+     * Die Gegenrichtung zu der Regel darüber: Ohne diesen Fall wäre sie auch
+     * dadurch zu erfüllen, dass die Meldung ganz verschwindet und der Betreiber
+     * nichts mehr sieht.
+     *
+     * **Der Gegenstand ist am 1. September 2026 umgezogen**, und dieser Wächter
+     * mit ihm. Bis dahin schrieb `apt-run` die Zeile; seit Befund 2
+     * (`docs/94 §4`) frischt `PanelUpdate` auf, weil nur dort je Quelle gelesen
+     * wird — und schreibt sie selbst ins Protokoll, das `srvpanel update`
+     * mitliest.
+     *
+     * > **Ein Wächter, dessen Gegenstand umzieht, wird stumpf und nicht rot,
+     * > wenn man ihn an seinem alten Ort stehenlässt.** Hier ist er rot
+     * > geworden, weil er an einer Zeichenkette hing, die es nicht mehr gibt —
+     * > das ist der glückliche Fall.
      */
-    public function test_the_progress_lines_are_still_there_without_the_prefix(): void
+    public function test_the_refresh_still_reaches_the_log_without_the_prefix(): void
     {
-        $skript = (string) file_get_contents(dirname(__DIR__, 2).'/packaging/bin/apt-run');
+        $quelle = (string) file_get_contents(dirname(__DIR__, 2).'/agent/src/Ops/PanelUpdate.php');
 
-        $this->assertStringContainsString(
-            "echo 'Paketlisten werden aufgefrischt.'",
-            $skript,
-            'Die Meldung ist ganz verschwunden — der Betreiber sieht nicht mehr, dass aufgefrischt wird.',
+        $this->assertMatchesRegularExpression(
+            '/file_put_contents\(\s*self::LOG,[^;]*Paketlisten aufgefrischt/',
+            $quelle,
+            'Die Auffrischung steht nicht mehr im Protokoll — der Betreiber sieht nicht mehr, dass sie stattfand.',
         );
 
         $this->assertStringNotContainsString(
-            '$NAME: Paketlisten werden aufgefrischt.',
-            $skript,
-            'Die Fortschrittszeile trägt den Präfix wieder — dann liest der Leser sie als Urteil.',
+            Outcome::PREFIX.'Paketlisten',
+            $quelle,
+            'Die Fortschrittszeile trägt den Präfix — dann liest der Leser sie als Urteil.',
         );
+
+        // Und die alte Stelle schreibt sie nicht mehr: Stünde sie an beiden,
+        // erschiene sie zweimal, und die zweite käme aus einem Lauf, der gar
+        // nicht mehr auffrischt.
+        $skript = (string) file_get_contents(dirname(__DIR__, 2).'/packaging/bin/apt-run');
+
+        $this->assertStringNotContainsString(
+            'Paketlisten werden aufgefrischt',
+            $skript,
+            'Auch `apt-run` meldet noch eine Auffrischung — es frischt aber keine mehr auf.',
+        );
+    }
+
+    /**
+     * Was das Skript aus apts Ausgabe liest, ist eine Marke und kein Satz.
+     *
+     * **Befund 2 wollte den Klartext lesen** (`docs/94 §4`): Drei Zeilen über
+     * dem Urteil steht *„srvpanel ist schon die neueste Version (…)"*, und das
+     * sah nach der fehlenden Auskunft aus. Gemessen am 1. September 2026 gegen
+     * den deutschen Katalog von apt 2.8.3:
+     *
+     *     „%s is already the newest version (%s)."  -> übersetzt
+     *     „Inst "                                   -> 0 von 387 Einträgen
+     *
+     * Auf `cloudsrv24` kommt der Satz deutsch heraus, im Container englisch.
+     * Ein Ausdruck darüber hätte auf genau einer der beiden Maschinen
+     * funktioniert — und auf der anderen wortlos nichts gefunden.
+     *
+     * > **Ein Satz, den apt übersetzt, ist keine Schnittstelle.**
+     *
+     * Gehalten wird die Form und keine Liste: Was hier aus apts Ausgabe gelesen
+     * wird, steht am **Zeilenanfang** und ist **ein grossgeschriebenes Wort** —
+     * so schreibt apt seine Marken (`Inst`, `Conf`, `Remv`), und so schreibt es
+     * keine Prosa.
+     */
+    public function test_what_the_script_reads_from_apt_is_a_marker_and_not_prose(): void
+    {
+        // Ohne die Kommentarzeilen: Der Kopf dieser Datei **erklärt**, warum
+        // kein Klartext gelesen wird, und nennt dabei den Klartext.
+        $skript = $this->withoutHashComments(
+            (string) file_get_contents(dirname(__DIR__, 2).'/packaging/bin/apt-run')
+        );
+
+        $this->assertSame(
+            1,
+            preg_match_all("/\\bgrep\\b[^|\n]*?'([^']*)'/", $skript, $treffer) > 0 ? 1 : 0,
+            'In `apt-run` steht kein `grep` mit einem Muster mehr — dann prüft dieser Test nichts.',
+        );
+
+        $muster = $treffer[1];
+
+        $this->assertGreaterThan(
+            1,
+            count($muster),
+            'Es wird kaum ein Muster gefunden — dann prüft dieser Test nichts.',
+        );
+
+        foreach ($muster as $eines) {
+            $this->assertMatchesRegularExpression(
+                '/^\^[A-Z][A-Za-z-]*\s*$/D',
+                $eines,
+                sprintf(
+                    '`apt-run` liest apts Ausgabe mit dem Muster %s. Das ist keine Marke am Zeilenanfang, '
+                    .'sondern Prosa — und apt übersetzt Prosa: Der Ausdruck prüft dann die Sprache des '
+                    .'Servers und nicht seinen Zustand.',
+                    var_export($eines, true),
+                ),
+            );
+        }
     }
 }

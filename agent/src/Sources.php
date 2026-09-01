@@ -89,6 +89,67 @@ final class Sources
     public const PANEL_SOURCE = '/etc/apt/sources.list.d/srvpanel.sources';
 
     /**
+     * Die Adressen aus dem Feld `URIs:` einer deb822-Quelldatei.
+     *
+     * **Hier und nicht in `PhpVersions`, seit dem 1. September 2026.** Der
+     * Leser ist seit A1 dort entstanden, weil PHP ihn zuerst brauchte — und er
+     * hat mit PHP nichts zu tun. Als `PanelUpdate` dieselbe Frage für
+     * {@see self::PANEL_SOURCE} stellen musste, hätte der Aufruf
+     * `PhpVersions::sourceUris(Sources::PANEL_SOURCE)` gelautet: derselbe
+     * Verweis-ohne-Bezug, den dieses Projekt an Kommentaren, Policies und
+     * Zertifikaten schon sechsmal bezahlt hat.
+     *
+     * > **Ein Name, der den ersten Aufrufer nennt, wird beim zweiten zur
+     * > falschen Auskunft.**
+     *
+     * `PhpVersions::sourceUris()` reicht seitdem hierher durch und bleibt der
+     * Ort, an dem die **Vorgabedatei** von PHP steht —
+     * `PhpSourceUriTest` hält weiter deren Naht zur Paketierung.
+     *
+     * ## Warum das kein deb822-Leser ist
+     *
+     * `docs/81 §2.1b` entscheidet ausdrücklich gegen einen. Gelesen wird **ein
+     * Feld einer Datei, die das Panel selbst geschrieben hat**, und dafür
+     * genügt die eine Eigenschaft, die deb822 zusichert: Ein fortgesetzter Wert
+     * beginnt mit einem Leerzeichen. Ein `URIs:` am Zeilenanfang ist deshalb
+     * immer ein Feldname und nie die Fortsetzung eines anderen.
+     *
+     * Mehrere Stanzas mit je eigenem `URIs:` kommen alle mit: Wer die Datei von
+     * Hand erweitert hat, soll nicht die Hälfte der Antwort bekommen.
+     *
+     * **Leer heisst „keine eigene Quelle" und nicht „nicht nachgesehen".** Der
+     * Aufrufer kann dann keine Quelle als schuldig benennen, und das ist
+     * richtig so.
+     *
+     * @return list<string>
+     */
+    public static function uris(string $datei): array
+    {
+        if (! is_file($datei)) {
+            return [];
+        }
+
+        $uris = [];
+
+        foreach (explode("\n", (string) file_get_contents($datei)) as $zeile) {
+            if (preg_match('/^URIs:\s*(.*?)\s*$/D', rtrim($zeile, "\r"), $treffer) !== 1) {
+                continue;
+            }
+
+            // deb822 erlaubt mehrere Adressen in einem Feld, durch Leerraum
+            // getrennt. Eine einzelne Zeichenkette zurückzugeben hiesse, bei
+            // zweien die zweite zu verlieren.
+            foreach (preg_split('/\s+/', $treffer[1]) ?: [] as $uri) {
+                if ($uri !== '') {
+                    $uris[] = $uri;
+                }
+            }
+        }
+
+        return array_values(array_unique($uris));
+    }
+
+    /**
      * Die Dateien, in die das Panel schreiben darf.
      *
      * **Der Hebel, um den es hier geht.** Wer eine Paketquelle kontrolliert,

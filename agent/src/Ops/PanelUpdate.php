@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Apt;
 use SrvPanel\Agent\AptLock;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Op;
+use SrvPanel\Agent\Sources;
 
 /**
  * Das Update des Panels — außerhalb der eigenen Kontrollgruppe.
@@ -59,9 +61,81 @@ final class PanelUpdate implements Op
          */
         AptLock::ensureFree($context);
 
-        $context->progress(10, 'Update wird abgesetzt');
+        $context->progress(10, 'Paketlisten auffrischen');
 
         @unlink(self::LOG);
+
+        /*
+         * **Aufgefrischt wird hier und nicht mehr in `apt-run`** — seit dem
+         * 1. September 2026, und das ist die zweite Hälfte von Befund 2 aus
+         * `docs/94 §4`.
+         *
+         * Der Befund lautete: Ein Lauf, bei dem gar nichts anstand, meldet
+         * einen Fehlschlag. Er liess sich im Skript **nicht** beheben, und der
+         * Grund ist der Satz, der bis heute im Kopf dieser Methode stand:
+         *
+         *   Diese eine Frage ersetzt jede Prüfung am Rückgabewert von
+         *   `apt-get update`: Sie fällt gleich aus, ob eine Quelle tot war, ob
+         *   die Listen alt waren oder ob es schlicht nichts Neues gibt.
+         *
+         * **Genau das ist der Preis, den Befund 2 zurückfordert.** „Es gibt
+         * nichts Neues" ist kein Fehlschlag, die anderen beiden sind einer —
+         * und apt beantwortet alle drei mit derselben Auskunft, in der
+         * Simulation wie im Klartext. Wer in `apt-run` „schon aktuell" gelten
+         * liesse, machte aus einer toten Quelle eine grüne Meldung: M5 zurück,
+         * eine Ebene höher.
+         *
+         * > **Eine Unterscheidung, die der Gefragte selbst nicht treffen kann,
+         * > muss vor der Frage getroffen werden.**
+         *
+         * Hier ist sie zu treffen und dort nicht: `Apt` liest die Fehlschläge
+         * **je Quelle** (`readFailures()`), und `hitting()` sagt, ob die eigene
+         * darunter war. In der transienten Unit steht davon nichts zur
+         * Verfügung — ein zweiter Leser in der Shell wäre eine zweite Fassung
+         * derselben Regel, mitsamt den drei Fallen, die im Kopf von
+         * {@see Apt::readFailures()} stehen.
+         *
+         * Das Vorbild ist `PhpVersionInstall` und der Wortlaut seiner Meldung
+         * mit ihm: Der Betreiber soll an der Quelle suchen und nicht am Paket.
+         */
+        $refresh = Apt::refresh($context);
+
+        if (! $refresh->result->successful()) {
+            throw AgentException::execFailed('apt-get update ist fehlgeschlagen: '.$refresh->result->message());
+        }
+
+        $unreachable = $refresh->hitting(Sources::uris(Sources::PANEL_SOURCE));
+
+        if ($unreachable !== null) {
+            throw AgentException::execFailed(
+                sprintf(
+                    'Die Paketquelle des Panels %s ist nicht erreichbar: %s. Ohne sie kennt apt nur die '
+                    .'alten Paketlisten, und ein Update fände nichts Neues — es wurde deshalb nicht '
+                    .'begonnen.',
+                    $unreachable['base'],
+                    $unreachable['reason'],
+                ),
+                ['source' => $unreachable['base'], 'reason' => $unreachable['reason']],
+            );
+        }
+
+        /*
+         * **Der Betreiber liest das Protokoll und nicht diese Antwort.**
+         * `srvpanel update` sieht ausschliesslich in {@see self::LOG} nach, und
+         * bis heute stand die Auffrischung dort — sie kam aus `apt-run`. Fiele
+         * sie ersatzlos fort, verschwände für ihn ein Schritt, der stattgefunden
+         * hat.
+         *
+         * Ohne Präfix, wie die Fortschrittszeilen davor: `apt-run: ` markiert
+         * das Urteil und nichts sonst (Befund 5, `docs/94 §8`).
+         */
+        @file_put_contents(
+            self::LOG,
+            'Paketlisten aufgefrischt; jede Quelle hat geantwortet.'."\n",
+            FILE_APPEND
+        );
+
+        $context->progress(30, 'Update wird abgesetzt');
 
         /*
          * **Hier stand ein `apt-get update -qq && apt-get install …`, und das
@@ -82,12 +156,28 @@ final class PanelUpdate implements Op
          * > **Wenn die Fassung danach dieselbe ist, ist es gleichgültig,
          * > warum.**
          *
-         * Diese eine Frage ersetzt jede Prüfung am Rückgabewert von `apt-get
-         * update`: Sie fällt gleich aus, ob eine Quelle tot war, ob die Listen
-         * alt waren oder ob es schlicht nichts Neues gibt. Und sie ist an der
-         * einzigen Stelle gestellt, die sie stellen kann — in der transienten
-         * Unit, die den Neustart des Agenten überlebt. Wer sie hier stellte,
-         * wartete auf ein Update, das genau diesen Prozess beendet.
+         * Sie ist an der einzigen Stelle gestellt, die sie stellen kann — in
+         * der transienten Unit, die den Neustart des Agenten überlebt. Wer sie
+         * hier stellte, wartete auf ein Update, das genau diesen Prozess
+         * beendet.
+         *
+         * **Hier stand bis zum 1. September 2026 ein Satz zuviel**, und Befund 2
+         * aus `docs/94 §4` hat ihn zurückgenommen:
+         *
+         *   Diese eine Frage ersetzt jede Prüfung am Rückgabewert von
+         *   `apt-get update`: Sie fällt gleich aus, ob eine Quelle tot war, ob
+         *   die Listen alt waren oder ob es schlicht nichts Neues gibt.
+         *
+         * Der erste Halbsatz stimmt, der zweite ist der Fehler: Dass die Frage
+         * in allen drei Fällen gleich ausfällt, war als Vorzug aufgeschrieben
+         * und ist der Mangel. Der dritte Fall ist kein Fehlschlag, und ein
+         * Betreiber, dessen Panel aktuell ist, bekam einen roten Vorgang.
+         *
+         * > **Ein Verlust an Unterscheidung, den man als Einfachheit
+         * > aufschreibt, wird erst dann als Fehler sichtbar, wenn jemand die
+         * > Unterscheidung braucht.**
+         *
+         * Getroffen wird sie jetzt oben, vor dem Absetzen.
          */
         $result = $context->runner->run('systemd-run', [
             '--unit='.$unit,

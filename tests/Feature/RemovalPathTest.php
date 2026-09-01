@@ -150,6 +150,12 @@ final class RemovalPathTest extends TestCase
         // wo ein privater Schlüssel liegenblieb, den niemand entfernen konnte.
         'sftp.key.apply' => 'Der Weg zurück ist dieselbe Operation mit leerer `keys`-Liste: Sie entfernt /etc/srvpanel/ssh/<benutzer>, statt sie zu leeren — eine leere Datei sähe aus wie „Zugang eingerichtet, keine Schlüssel" und ist dasselbe wie „kein Zugang".',
         'sftp.access' => 'Der Weg zurück ist dieselbe Operation mit leerer `accesses`-Liste; sie nimmt den verwalteten Block aus sshd_config. Die Datei selbst gehört OpenSSH und der Distribution und wird nie entfernt — angefasst wird nur, was zwischen den Marken steht (docs/57 §6).',
+
+        // **P7b, Befund 2 aus `docs/94 §4`.** Seit dem 1. September frischt
+        // `panel.update` die Paketlisten selbst auf — weil nur hier je Quelle
+        // gelesen wird — und schreibt eine Zeile darüber ins Protokoll, damit
+        // der Betreiber den Schritt weiter sieht.
+        'panel.update' => 'Schreibt eine Zeile nach /var/log/srvpanel/update.log — ein Protokoll und keine Ablage. Zwei Wege zurück, beide gebaut: Die Operation leert die Datei zu Beginn jedes Laufs selbst (`@unlink`, und daran hängt der Versatz 0 des Lesers in `srvpanel update`), und packaging/etc/logrotate nimmt /var/log/srvpanel/*.log mit — täglich, dreissig Stände.',
     ];
 
     /** Was im Quelltext einer Operation bedeutet, dass sie etwas auf die Platte legt. */

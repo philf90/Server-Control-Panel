@@ -697,3 +697,194 @@ derentwillen Wunsch 1 gebaut wurde.
 
 > **Ein Lauf, der vor dem Vorgang endet, gegen den er sich behaupten soll, prüft
 > die Behauptung nicht** — auch dann nicht, wenn er dabei erfolgreich aussieht.
+
+---
+
+## 9 · Befund 2 gebaut — und beim Bauen zerfiel er in zwei Hälften
+
+`docs/94 §4` schrieb vor: „`apt-run` liest im Fassungsmodus die Zeile `ist schon
+die neueste Version` und meldet dann ‚Es stand nichts an' statt eines
+Fehlschlags." **Beide Hälften dieses Satzes waren falsch**, und das hat der Bau
+gezeigt.
+
+### Die erste Hälfte: der Satz ist übersetzt
+
+Gemessen am 1. September 2026 gegen den deutschen Katalog von apt 2.8.3, gelesen
+aus dem `.deb` des installierten apt:
+
+| | Katalogeinträge | im Lauf |
+|---|---|---|
+| `%s is already the newest version (%s).` | **1** — `%s ist schon die neueste Version (%s).` | deutsch auf `cloudsrv24`, englisch hier |
+| `Inst ` | **0 von 387** | `Inst` in beiden Sprachen, Zähler 6 gegen 6 |
+
+Ein Ausdruck über den Satz hätte auf genau einer der beiden Maschinen
+funktioniert und auf der anderen wortlos nichts gefunden.
+
+> **Ein Satz, den apt übersetzt, ist keine Schnittstelle.**
+
+Gefragt wird deshalb `apt-get -s "$@"` — dieselbe Simulation, die `offen()` seit
+A1 fährt, mit **denselben Argumenten wie der echte Lauf**. `ansteht()` zählt
+`^Inst `.
+
+### Die zweite Hälfte: „im Fassungsmodus" war die falsche Einschränkung
+
+Die alte Nachsicht hing an `[ "$mass" = offen ] && … && [ "$nachher" -eq 0 ]`,
+und `OutcomeTest` verlangte diese Beschränkung ausdrücklich. Sie liest die Frage
+„stand etwas an?" an einem Wert ab, der sie **nur für `all`** beantwortet: Bei
+`packages` bleiben andere Aktualisierungen offen, bei `panel` ist `nachher` eine
+Versionsnummer.
+
+> **Ein Wert, der eine Frage nur in einem Modus beantwortet, ist in den anderen
+> keine Antwort, sondern ein Zufall.**
+
+> **Ein Wächter kann eine Beschränkung festhalten, die selbst der Fehler ist —
+> und dann ist er das Letzte, was sich ändert.**
+
+### Und der Bau hätte M5 wieder aufgerissen
+
+**Die Simulation kann „war schon aktuell" nicht von „die Listen sind zu alt"
+unterscheiden** — bei veralteten Listen sieht apt nichts Anstehendes und schreibt
+denselben Satz. Wer die Nachsicht so in den Fassungsmodus liesse, machte aus
+einer toten Paketquelle eine **grüne** Meldung: M5 zurück, eine Ebene höher.
+
+> **Eine Unterscheidung, die der Gefragte selbst nicht treffen kann, muss vor
+> der Frage getroffen werden.**
+
+`apt-run` konnte sie nicht treffen. Der Rückgabewert von `apt-get update` trägt
+nichts (M5), und die `W:`-Zeilen ebensowenig: Gemessen erzeugt **eine** tote
+Quelle **drei** davon, und eine der drei („Download is performed unsandboxed…")
+hat mit Quellen nichts zu tun. `Apt::readFailures()` liest sie seit A1 richtig,
+mit drei ausgeschriebenen Fallen im Kopf.
+
+> **Eine Auskunft, die anderswo schon richtig gelesen wird, holt man sich von
+> dort — auch wenn der Aufruf daneben stünde.**
+
+**Deshalb ist die Auffrischung nach `PanelUpdate` gezogen.** Sie geht jetzt über
+`Apt::refresh()`, und `hitting(Sources::uris(Sources::PANEL_SOURCE))` fragt, ob
+die **eigene** Quelle darunter war; wenn ja, wird gar nicht erst abgesetzt. Das
+Vorbild ist `PhpVersionInstall` samt dem Wortlaut seiner Meldung: Der Betreiber
+soll an der Quelle suchen und nicht am Paket.
+
+Der deb822-Leser dafür stand in `PhpVersions::sourceUris()` — er hat mit PHP
+nichts zu tun und heisst jetzt `Sources::uris()`; `PhpVersions` reicht durch.
+
+> **Ein Name, der den ersten Aufrufer nennt, wird beim zweiten zur falschen
+> Auskunft.**
+
+### Ein Satz im Quelltext ist damit zurückgenommen
+
+Im Kopf von `PanelUpdate` stand seit Schritt 6:
+
+> Diese eine Frage ersetzt jede Prüfung am Rückgabewert von `apt-get update`:
+> Sie fällt gleich aus, ob eine Quelle tot war, ob die Listen alt waren oder ob
+> es schlicht nichts Neues gibt.
+
+Der erste Halbsatz stimmt, der zweite ist der Fehler: Dass die Frage in allen
+drei Fällen gleich ausfällt, war als **Vorzug** aufgeschrieben und ist der
+Mangel.
+
+> **Ein Verlust an Unterscheidung, den man als Einfachheit aufschreibt, wird
+> erst dann als Fehler sichtbar, wenn jemand die Unterscheidung braucht.**
+
+### Was der Bau an den Wächtern gefunden hat
+
+**Ein Wächter war grün, weil mein eigener Kommentar die entfernte Zeile
+zitierte.** `test_the_script_tells_nothing_pending_from_nothing_changed` suchte
+`[ "$mass" = offen ]` im ganzen Skript — und die Zeile, die erklärt, dass es das
+nicht mehr gibt, schreibt es wörtlich hin.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+> steht — und ein Kommentar, der die entfernte Zeile zitiert, stellt sie für ihn
+> wieder her.**
+
+Das wiegt in diesem Repo schwerer als anderswo, weil hier **jede** Behebung ihren
+Vorzustand im Kommentar festhält. `Tests\Support\WithoutHashComments` gibt es
+seit dem 26. August genau dafür; sechs Wächter benutzen ihn, `OutcomeTest` nicht.
+Jetzt schon — belegt in beide Richtungen: mit der verbotenen Bedingung **nur im
+Kommentar** bleibt er grün, roh gelesen wäre er fälschlich rot.
+
+**Und zwei Wächter haben eine tot gewordene Ausnahme gemeldet.**
+`AptResultTest::EXCEPTIONS` führte `packaging/bin/apt-run` mit genau der
+Begründung, die oben zurückgenommen ist. Gemeldet hat es nicht die Regel,
+sondern ihre Gegenrichtung — „ruft kein `apt-get update` mehr".
+
+> **Eine Ausnahme, deren Begründung fällt, fällt mit ihr — und dass sie
+> liegenbleibt, meldet nur der Wächter, der die Gegenrichtung prüft.**
+
+Die Liste ist damit leer, und die Untergrenze daneben musste von `> 1` auf `> 0`
+— sie zählte die Stelle **und** die Ausnahme. Das ist die bekannte Aufräumfalle
+dieses Repos zum vierten Mal.
+
+**Vierzehn Bruch-Eingriffe auf die beiden Dateien, alle beissen** — vor und nach
+Pint gefahren.
+
+---
+
+## 10 · Befund 3 gebaut — die Herkunft kommt jetzt von der Seite
+
+`RememberPageUrl` schreibt `previousUrl` bei jeder Inertia-GET-Anfrage. Der
+Zurück-Knopf des Browsers erzeugt keine, Inertia stellt aus dem History-Zustand
+her — und die Herkunft veraltet.
+
+Geschickt wird sie jetzt von der Seite: ein `router.on('before')` in
+`resources/js/app.ts` hängt `X-Srvpanel-Origin` an **jede** Inertia-Anfrage, aus
+`window.location.pathname + search`. `Origin::current()` liest die Kopfzeile
+statt der Sitzung, ohne Rückfall.
+
+**Eine Stelle bleibt eine Stelle** — sie steht nur am anderen Ende der Leitung.
+Einundzwanzig Aufrufstellen wären einundzwanzig Gelegenheiten zu vergessen, und
+die vergessene fiele niemandem auf: Eine fehlende Herkunft sieht aus wie ein
+Vorgang der Automatik.
+
+### Und damit wird die Prüfung strenger — das ist der eigentliche Fund
+
+Der Wert kommt jetzt aus **fremder Hand**. Gemessen am 1. September 2026 mit dem
+URL-Parser, den auch der Browser benutzt, gegen `https://panel.example/`:
+
+| Kopfzeile | löst auf zu | alte Prüfung |
+|---|---|---|
+| `/updates` | `panel.example` | durch — richtig |
+| `//evil.example/x` | **evil.example** | `parse_url` streicht den Host — zufällig harmlos |
+| `/\evil.example/x` | **evil.example** | **kommt durch — die Lücke** |
+| `/<TAB>/evil.example/x` | **evil.example** | `parse_url` ersetzt durch `_` — zufällig harmlos |
+| `/ /evil.example/x` | `panel.example` | durch — richtig |
+| `/%2fevil.example/x` | `panel.example` | durch — richtig |
+
+Drei Mechanismen: Der Browser liest `//` als Anfang eines Rechnernamens, er
+normalisiert `\` zu `/`, und er **entfernt** Tab, LF und CR vor dem Parsen.
+
+> **Eine Prüfung, die für einen selbst gesetzten Wert genügt, genügt nicht für
+> denselben Wert aus fremder Hand.**
+
+**Zwei der drei hatte `parse_url` zufällig entschärft.** Darauf wird nichts mehr
+gebaut: `Origin::pfad()` prüft die Zeichenkette selbst — Länge, führender
+Schrägstrich, kein `//`, kein Rückstrich, kein Steuerzeichen.
+
+> **Eine Prüfung, die aus einem Nebeneffekt folgt, ist keine — sie ist ein
+> Zustand, der sich mit der nächsten Fassung ändern darf.**
+
+### Und ein Wächter, der die Wirkung misst statt des Textes
+
+`OperationOriginTest` läuft ohne Framework und hält, was am Text zu halten ist:
+den Namen der Kopfzeile an beiden Enden, die Rechnung von `Origin::pfad()` an
+dreizehn **gemessenen** Fällen, die Herkunft am Modell. Keines davon belegt, dass
+am Ende ein Wert in der Spalte steht.
+
+> **Ein Wächter über den Quelltext sagt, dass die Teile zusammenpassen. Dass sie
+> zusammen etwas tun, sagt er nicht.**
+
+`OriginHeaderTest` misst genau das: Kopfzeile rein, Spalte raus — und die drei
+Gegenrichtungen (ohne Kopfzeile bleibt sie leer, eine fremde Adresse kommt nicht
+an, eine schon gesetzte Herkunft überlebt).
+
+**Sieben Bruch-Eingriffe, alle beissen.**
+
+### Was daran nicht gemessen ist
+
+**Kein Browser hat das gefahren.** Dass `router.on('before')` bei einer
+`router.post`-Anfrage wirklich feuert und `window.location` dabei noch auf der
+absetzenden Seite steht, ist aus der Typdefinition von Inertia 3.6 gelesen und
+nicht beobachtet. Das gehört in den Nachlauf auf `cloudsrv24`.
+
+> **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
+> als Zusage.**

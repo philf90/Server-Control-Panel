@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\OperationSubject;
+use App\Support\Operations\Origin;
 use FilesystemIterator;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -238,33 +240,147 @@ final class OperationOriginTest extends TestCase
     {
         $quelle = $this->withoutComments($this->quelle('app/Support/Operations/Origin.php'));
 
-        $this->assertStringContainsString(
-            'previousUrl()',
-            $quelle,
-            'Die Herkunft kommt nicht aus der Sitzung.',
-        );
-
         $this->assertStringNotContainsString(
             'url()->previous()',
             $quelle,
             'Der Rückfall auf die Wurzel macht aus „von keiner Seite" ein „von der Übersicht".',
         );
+
+        /*
+         * **Und auch nicht aus der Sitzung — seit dem 1. September 2026.**
+         *
+         * Hier stand bis dahin das Gegenteil: `previousUrl()` **musste**
+         * vorkommen. Befund 3 aus `docs/94 §5` hat gezeigt, warum das die
+         * falsche Quelle ist — sie steht auf der letzten Seite, die der Server
+         * *gerendert* hat, und der Zurück-Knopf des Browsers rendert keine.
+         *
+         * Zwei Quellen wären hier schlimmer als eine falsche: Ein Rückfall auf
+         * die Sitzung träfe genau den Fall, den die Kopfzeile behebt, und wäre
+         * dann wieder veraltet — nur seltener und damit schwerer zu finden.
+         */
+        $this->assertStringNotContainsString(
+            'previousUrl()',
+            $quelle,
+            'Die Herkunft fällt wieder auf die Sitzung zurück — und die veraltet beim Zurück-Knopf.',
+        );
     }
 
     /**
-     * Ohne Sitzung gibt es keine Herkunft.
+     * Die Kopfzeile heisst an beiden Enden gleich.
+     *
+     * **Die teuerste Naht dieses Merkmals.** Liefen die beiden auseinander,
+     * käme nie eine Herkunft an — und ein Vorgang ohne `←` sieht aus wie einer
+     * der Automatik und nicht wie ein Fehler. Der Ausfall wäre also **stumm**,
+     * und genau dafür gibt es diesen Test.
+     */
+    public function test_the_header_is_the_same_at_both_ends(): void
+    {
+        $quelle = $this->withoutComments($this->quelle('app/Support/Operations/Origin.php'));
+
+        $this->assertSame(
+            1,
+            preg_match("/public const HEADER = '([^']+)'/", $quelle, $treffer),
+            'In `Origin` steht keine Kopfzeile mehr — dann weiss dieser Test nicht, wogegen er hält.',
+        );
+
+        $name = $treffer[1];
+
+        $app = $this->quelle('resources/js/app.ts');
+
+        $this->assertStringContainsString(
+            "headers['".$name."']",
+            $app,
+            sprintf('`app.ts` schickt die Kopfzeile %s nicht — die Herkunft käme nie an.', $name),
+        );
+
+        // Und sie wird aus der Adresse der Seite gefüllt und nicht aus etwas,
+        // das der Server ohnehin schon weiss.
+        $this->assertMatchesRegularExpression(
+            "/headers\['".preg_quote($name, '/')."'\] = window\.location\.pathname/",
+            $app,
+            'Die Kopfzeile wird nicht aus der Adresse der Seite gefüllt.',
+        );
+
+        $this->assertStringContainsString(
+            "router.on('before'",
+            $app,
+            'Die Kopfzeile hängt nicht mehr an jeder Anfrage — dann trägt sie nur, woran jemand gedacht hat.',
+        );
+    }
+
+    /**
+     * Ohne Kopfzeile gibt es keine Herkunft.
      *
      * Die Konsole, die Warteschlange und jeder Lauf der Automatik setzen ohne
-     * Sitzung ab. Dort ist `null` die Wahrheit — ein Wert, den man erfände,
-     * sähe aus wie eine Auskunft. Und `session()` würfe dort.
+     * Seite ab. Dort ist `null` die Wahrheit — ein Wert, den man erfände, sähe
+     * aus wie eine Auskunft.
      */
-    public function test_without_a_session_there_is_no_origin(): void
+    public function test_without_a_page_there_is_no_origin(): void
     {
-        $this->assertStringContainsString(
-            'hasSession()',
-            $this->withoutComments($this->quelle('app/Support/Operations/Origin.php')),
-            'Ein Lauf der Automatik bekäme eine Herkunft, die es nicht gibt.',
-        );
+        $this->assertNull(Origin::pfad(null), 'Ohne Kopfzeile entsteht eine Herkunft.');
+        $this->assertNull(Origin::pfad(''), 'Eine leere Kopfzeile wird zu einer Herkunft.');
+    }
+
+    /**
+     * Was aus fremder Hand kommt, wird geprüft — und zwar an gemessenen Fällen.
+     *
+     * **Die Prüfkörper sind gemessen und nicht erdacht.** Am 1. September 2026
+     * mit dem URL-Parser, den auch der Browser benutzt, gegen
+     * `https://panel.example/` aufgelöst; „fremd" heisst, dass der Rechnername
+     * danach ein anderer ist.
+     *
+     * > **Eine Prüfung, die für einen selbst gesetzten Wert genügt, genügt
+     * > nicht für denselben Wert aus fremder Hand.**
+     *
+     * Die drei harmlosen stehen daneben, weil eine Prüfung, die alles ablehnt,
+     * dieselbe leere Liste liefert wie eine, die richtig rechnet.
+     *
+     * @param  bool  $erlaubt  Ob der Wert als Herkunft durchgehen darf
+     */
+    #[DataProvider('herkuenfte')]
+    public function test_a_value_that_leaves_the_panel_is_refused(string $wert, bool $erlaubt): void
+    {
+        $ergebnis = Origin::pfad($wert);
+
+        if ($erlaubt) {
+            $this->assertSame($wert, $ergebnis, sprintf('%s ist ein Pfad dieses Panels und wird abgelehnt.', $wert));
+
+            return;
+        }
+
+        $this->assertNull($ergebnis, sprintf(
+            '%s kommt als Herkunft durch — im Browser führt das aus dem Panel heraus.',
+            var_export($wert, true),
+        ));
+    }
+
+    /**
+     * @return array<string,array{0:string,1:bool}>
+     */
+    public static function herkuenfte(): array
+    {
+        return [
+            // Aufgelöst zu panel.example — harmlos.
+            'ein Pfad' => ['/updates', true],
+            'mit Frage' => ['/updates?nur=sicherheit&name=linux-image-amd64', true],
+            'mit Leerzeichen' => ['/ /evil.example/x', true],
+            'kodierter Schrägstrich' => ['/%2fevil.example/x', true],
+
+            // Aufgelöst zu evil.example — der Browser liest einen Rechnernamen.
+            'zwei Schrägstriche' => ['//evil.example/x', false],
+            'Schrägstrich und Rückstrich' => ['/\\evil.example/x', false],
+            'Tabulator dazwischen' => ["/\t/evil.example/x", false],
+            'Zeilenumbruch dazwischen' => ["/\n/evil.example/x", false],
+            'Wagenrücklauf dazwischen' => ["/\r/evil.example/x", false],
+
+            // Gar kein Pfad.
+            'volle Adresse' => ['https://evil.example/x', false],
+            'anderes Schema' => ['javascript:alert(1)', false],
+            'ohne Schrägstrich' => ['updates', false],
+
+            // Länger als die Spalte: verworfen und nicht abgeschnitten.
+            'zu lang' => ['/'.str_repeat('a', Origin::MAX), false],
+        ];
     }
 
     /**

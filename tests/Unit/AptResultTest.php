@@ -82,23 +82,32 @@ final class AptResultTest extends TestCase
      * Vermerk „Teil 3 von M5, Schritt 6" — die Schuld ist eingelöst, und die
      * Zeile ist fort.
      *
-     * **Dafür steht jetzt eine andere da, und sie ist eine andere Art
-     * Ausnahme:** `SrvPanel\Agent\Ops\SystemPackagesUpgrade::RUNNER`
-     * ruft `apt-get update` in einer Shell und **prüft seinen Rückgabewert
-     * bewusst nicht** — es vergleicht statt dessen die installierte Fassung
-     * vor und nach dem Lauf. Das ist nicht dieselbe Prüfung wie {@see Apt},
-     * aber es beantwortet dieselbe Frage, und zwar strenger:
+     * **Am 26. August kam `packaging/bin/apt-run` dazu, und am 1. September ist
+     * auch diese Zeile fort.** Ihre Begründung lautete, der Rückgabewert werde
+     * bewusst nicht gelesen, weil die Fassung vor und nach dem Lauf strenger
+     * antworte — *„wenn die Fassung danach dieselbe ist, ist es gleichgültig,
+     * warum."*
      *
-     * > **Wenn die Fassung danach dieselbe ist, ist es gleichgültig, warum.**
+     * Befund 2 aus `docs/94 §4` hat genau diesen Satz zurückgenommen: Es ist
+     * **nicht** gleichgültig, denn „es gab nichts Neues" ist kein Fehlschlag.
+     * Die Auffrischung steht seitdem in `PanelUpdate` und geht über
+     * {@see Apt} wie jede andere.
+     *
+     * > **Eine Ausnahme, deren Begründung fällt, fällt mit ihr — und dass sie
+     * > liegenbleibt, meldet nur der Wächter, der die Gegenrichtung prüft.**
+     *
+     * Gemeldet hat es hier `test_the_home_and_every_exception_are_reached_by_the_scan`:
+     * „ruft kein `apt-get update` mehr". Ohne diese zweite Richtung stünde die
+     * tote Zeile bis zur nächsten Umbenennung.
+     *
+     * Die Liste ist damit **leer, und das ist kein Mangel** — sie ist die
+     * Stelle, an der eine künftige Ausnahme ihren Grund hinterlegt. Ohne
+     * Eintrag prüft `test_every_call_of_apt_get_update_goes_through_one_place`
+     * schlicht, dass es keine gibt.
      *
      * @var array<string,string>
      */
-    private const EXCEPTIONS = [
-        'packaging/bin/apt-run' => 'Ruft `apt-get update` im Modus `panel` und liest seinen Rückgabewert '
-            .'ausdrücklich nicht. Entschieden wird an der installierten Fassung vor und nach dem Lauf — '
-            .'sie fällt gleich aus, ob eine Quelle tot war, ob die Listen alt waren oder ob es nichts '
-            .'Neues gab. Teil 3 von M5, docs/81 §2.1b.',
-    ];
+    private const EXCEPTIONS = [];
 
     /**
      * Woran ein Aufruf erkannt wird.
@@ -157,7 +166,14 @@ final class AptResultTest extends TestCase
         }
 
         // Ein Ausdruck, der nichts findet, ist kein bestandener Test.
-        $this->assertGreaterThan(1, $found, 'Es wird kaum ein Aufruf gefunden — dann prüft dieser Test nichts.');
+        //
+        // **`0` und nicht mehr `1`, seit dem 1. September 2026.** Die Grenze
+        // zählte die Stelle **und** die eine Ausnahme; mit deren Wegfall wäre
+        // sie unerreichbar geworden, und der Wächter meldete Rot für genau die
+        // Ordnung, die er durchsetzen soll. Das ist die bekannte Falle dieses
+        // Repos — die Untergrenze zählt dort, wo die Regel stehen *darf*, und
+        // stehen darf sie hier nur noch an einer Stelle.
+        $this->assertGreaterThan(0, $found, 'Es wird kein Aufruf gefunden — dann prüft dieser Test nichts.');
 
         $this->assertSame([], $strays, sprintf(
             "Diese Stellen rufen `apt-get update`, ohne über %s zu gehen:\n\n  %s\n\n"

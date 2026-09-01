@@ -1379,7 +1379,11 @@ der Sitzung und nicht aus einem Helfer mit Rückfall, und jeder Pfad, den
 `OperationSubject` nennt, ist eine angemeldete **GET**-Route — gefragt wird
 `routes/web.php` als Text, weil der Wächter ohne Framework laufen muss, und die
 anlegenden Stellen werden über **alle drei** Schreibweisen gesucht, im
-Argumentblock und nicht in der ganzen Datei) und `MobileTableTest` (jede Tabelle nennt ihre Form —
+Argumentblock und nicht in der ganzen Datei) und `OriginHeaderTest` (die Herkunft
+kommt an — gemessen an der **Wirkung** und nicht am Quelltext: Kopfzeile rein,
+Spalte raus, samt der drei Gegenrichtungen; ein Wächter über den Quelltext sagt,
+dass die Teile zusammenpassen, nicht dass sie zusammen etwas tun) und
+`MobileTableTest` (jede Tabelle nennt ihre Form —
 `stacks`, `pairs` oder `rows` —, jede Form ist in `app.css` gestaltet, und jede
 gestapelte Zelle trägt ihre Beschriftung; die Zelle mit dem Knopf am Zeilenende
 darf ohne, und das wird an ihrem **Inhalt** entschieden und nicht an einer
@@ -1422,6 +1426,24 @@ lautet `(?<![=!<>])=(?!=)`.
 
 > **Ein Ausdruck, der eine Zuweisung sucht, findet jeden Vergleich mit, solange
 > er das Gleichheitszeichen nicht abgrenzt.**
+
+**Und dieselbe Blindheit noch einmal am 1. September 2026, aus dem Grund, der
+dieses Repo besonders trifft: dem eigenen Kommentar.**
+`OutcomeTest` verlangte `[ "$mass" = offen ]` in `apt-run` — und blieb grün,
+nachdem die Bedingung entfernt war, weil die Zeile, die *erklärt*, dass es sie
+nicht mehr gibt, sie wörtlich hinschreibt.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+> steht — und ein Kommentar, der die entfernte Zeile zitiert, stellt sie für ihn
+> wieder her.**
+
+Das wiegt hier schwerer als anderswo, weil **jede** Behebung in diesem Repo
+ihren Vorzustand im Kommentar festhält. `Tests\Support\WithoutHashComments` gibt
+es seit dem 26. August genau dafür; sechs Wächter benutzten ihn, `OutcomeTest`
+nicht. **Wer einen Wächter über ein Shellskript oder YAML baut, streift die
+Kommentarzeilen ab, bevor er sucht** — genauso wie `WithoutPhpComments` es für
+PHP tut. Belegt in beide Richtungen: mit der verbotenen Zeile *nur im Kommentar*
+bleibt der Wächter grün, roh gelesen wäre er fälschlich rot.
 
 **Und derselbe Fehler eine Ebene tiefer, am 26. August 2026:** `PartialReloadTest`
 las PHP **byteweise** und hielt jedes `"` für den Anfang einer Zeichenkette.

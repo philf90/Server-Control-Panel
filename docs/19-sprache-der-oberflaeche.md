@@ -71,6 +71,46 @@ etwas geschieht.
    erzählen, und sie dürfen die alten Wörter nennen — sie tragen die Geschichte
    der Entscheidung. Die Vorgabe gilt für Text, den ein Browser anzeigt.
 
+7. **Die Kommandozeile ist nicht die Oberfläche.** Entschieden vom Betreiber am
+   1. September 2026: `srvpanel …` **muss** die Sprache dieses Dokuments nicht
+   führen. Deutsch und Englisch sind dort beide zulässig, und die Liste der
+   verbrauchten Wörter in §3 bindet sie nicht.
+
+   **Der Anlass war eine Frage, die seit dem Wunsch nach einem Fortschrittsbalken
+   offen stand** und die dieses Dokument bis dahin zweimal verschieden
+   beantwortete: Punkt 6 sagt „Text, den ein Browser anzeigt", §4a sagt „jeder
+   Text der Oberfläche" — und `WordChoiceTest` las ganz `app/`, also auch
+   `app/Console/Commands/`.
+
+   > **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander,
+   > und keine von beiden ist der Ort, an dem man nachsieht.**
+
+   **Wer die Adressaten unterscheidet, sieht warum.** Die Oberfläche liest ein
+   Kunde, der von Hosting so viel weiss, wie er zum Bestellen brauchte. Die
+   Kommandozeile liest ein Betreiber mit root-Rechten, und dort steht der Text
+   zwischen den Ausgaben von `apt`, `systemctl` und `dpkg` — die englisch sind
+   und es bleiben.
+
+   **Gemessen am 1. September 2026, und der Befund gab den Ausschlag:** In den
+   sechzehn Dateien unter `app/Console/Commands/` stehen 1201
+   Zeichenkettenliterale, und **keines** davon trifft die Liste aus §3. Die
+   Kommandozeile spricht trotzdem schon ein anderes Deutsch als die Oberfläche —
+   `apt-run` schreibt `Fassung 0.7.3~rc.7 wurde zu …`, und `srvpanel update`
+   druckt das wörtlich, während jede Seite „Version" sagt. Durchgelassen hat das
+   kein Urteil, sondern der Umstand, dass der Satz in einem Shellskript steht,
+   das der Wächter nicht liest.
+
+   > **Eine Regel, die eine Datei nicht liest, gilt für den Satz nicht — auch
+   > wenn er am Ende auf demselben Bildschirm steht.**
+
+   Was das kostet, ist benannt und angenommen: Dieselbe Sache kann auf der Seite
+   und auf der Konsole verschieden heissen. Was es bringt, ist, dass eine
+   Meldung neben `apt`s eigener Ausgabe stehen darf, ohne übersetzt zu werden.
+
+   **`WordChoiceTest` nimmt `app/Console/Commands/` seit diesem Tag aus** — sonst
+   sagte das Dokument das eine und der Wächter das andere, und das ist die
+   Fehlerklasse, die dieses Projekt am häufigsten bezahlt hat.
+
 ## 3. Die Liste der verbrauchten Wörter
 
 Verbindlich, weil mechanisch geprüft: `tests/Feature/WordChoiceTest.php` liest

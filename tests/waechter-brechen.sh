@@ -4128,6 +4128,49 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" WordChoiceTest passed
 
 echo
+echo "── WordChoiceTest: das verbrauchte Wort steht ausserhalb der Kommandozeile ──"
+#
+# **Die Regel gilt weiter, nur nicht mehr ueberall.** `docs/19 §2.7` nimmt seit
+# dem 1. September 2026 `app/Console/Commands/` aus — die Kommandozeile fuehrt
+# die Sprache der Oberflaeche nicht. Ohne diesen Eingriff waere die Ausnahme
+# auch dadurch zu erfuellen, dass der Waechter gar nichts mehr liest.
+vorher_datei app/Support/Operations/Origin.php
+python3 - <<'PY2'
+p = 'app/Support/Operations/Origin.php'
+s = open(p, encoding='utf-8').read()
+alt = '    public const HEADER ='
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "    public const WORTPROBE = 'Die Fassung wurde eingespielt.';\n\n" + alt
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Operations/Origin.php "verbrauchtes Wort ausserhalb der Kommandos" &&
+pruefe "verbrauchtes Wort ausserhalb der Kommandos" \
+  WordChoiceTest::test_no_displayed_php_string_uses_a_spent_word failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" WordChoiceTest passed
+
+echo
+echo "── WordChoiceTest: die Ausnahme fuer die Kommandozeile zeigt ins Leere ──"
+#
+# **Die Gegenrichtung, und sie ist hier die wichtigere.** Zieht das Verzeichnis
+# um oder wird es leer, filtert die Ausnahme nichts mehr heraus — und der
+# Waechter erzwingt wieder eine Sprache, die niemand von der Kommandozeile
+# verlangt. Eine Ausnahme, die ins Leere zeigt, faellt sonst nie auf.
+vorher_datei tests/Feature/WordChoiceTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/WordChoiceTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/app/Console/Commands/'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/app/Gibtesnicht/'", 1))
+PY2
+griff_datei tests/Feature/WordChoiceTest.php "Ausnahme der Kommandozeile ins Leere" &&
+pruefe "Ausnahme der Kommandozeile ins Leere" \
+  WordChoiceTest::test_no_displayed_php_string_uses_a_spent_word failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" WordChoiceTest passed
+
+echo
 echo "── DbUsageScopeTest: die Messung siebt fremde Schemata nicht aus ──"
 #
 # `information_schema.tables` kennt jedes Schema des Servers: `mysql` mit der

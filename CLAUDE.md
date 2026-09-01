@@ -1610,6 +1610,29 @@ Rückmeldung (§6):** Der Satz eines Fehlers steht oben in der Zusammenfassung,
 das Feld trägt nur `aria-invalid`, und Erfolg wird **nie** am Feld gemeldet.
 `FieldErrorTest` prüft alle drei Richtungen. Kurz:
 
+- **Die Kommandozeile ist nicht die Oberfläche** (§2.7, entschieden am
+  1. September 2026): `srvpanel …` muss diese Sprache nicht führen, deutsch und
+  englisch sind beide zulässig, und die Liste der verbrauchten Wörter bindet sie
+  nicht. Der Betreiber liest dort zwischen den Ausgaben von `apt`, `systemctl`
+  und `dpkg`. **`WordChoiceTest` nimmt `app/Console/Commands/` deshalb aus** —
+  sonst sagte das Dokument das eine und der Wächter das andere.
+
+  Die Frage stand seit dem Wunsch nach einem Fortschrittsbalken offen, und
+  `docs/19` beantwortete sie an zwei Stellen verschieden (§2.6 „Text, den ein
+  Browser anzeigt", §4a „jeder Text der Oberfläche"), während der Wächter ganz
+  `app/` las.
+
+  > **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander,
+  > und keine von beiden ist der Ort, an dem man nachsieht.**
+
+  **Gemessen gab den Ausschlag ein Befund und keine Meinung:** 1201
+  Zeichenkettenliterale in sechzehn Kommandodateien, **null** Treffer der
+  Wortliste — die Ausnahme ändert heute nichts. Die Kommandozeile spricht
+  trotzdem längst ein anderes Deutsch als die Oberfläche: `apt-run` schreibt
+  `Fassung …`, `srvpanel update` druckt es wörtlich, jede Seite sagt „Version".
+
+  > **Eine Regel, die eine Datei nicht liest, gilt für den Satz nicht — auch
+  > wenn er am Ende auf demselben Bildschirm steht.**
 - **Kommentare, Dokumentation und alle Texte der Oberfläche: deutsch.
   Bezeichner: englisch** (§4a) — das schliesst CSS-Klassen, Datenattribute,
   Komponentennamen und ihre Eigenschaften ein und wird von `ClassNameTest`
@@ -1735,6 +1758,27 @@ Dringlichkeit (§7). Die Nummer des
 Protokolls steht bewusst **nicht** im Dokument — `docs/81` hat einmal eine
 genannt, die einem anderen Dokument gehörte, und `DocLinkTest` konnte das nicht
 sehen.
+
+Und **`95` der Nachlauf zu `0.7.3-rc.8`** — ausgeschrieben am 1. September 2026
+**vor** dem Fahren: acht Punkte, von denen Punkt 1 den ganzen Lauf trägt (M1 und
+Befund 5 in einem Zug, belegt an der **Dauer** und nicht an der Fassungsnummer)
+und Punkt 4 nicht ausfallen darf (die tote eigene Quelle bricht ab, statt
+„nichts verändert" zu melden — die einzige Stelle, an der belegt wird, dass
+Befund 2 M5 nicht wieder aufgerissen hat). §0 sagt, in welcher Reihenfolge er zu
+fahren ist und warum, §9 was er ausdrücklich nicht prüft, §10 wann er durch ist.
+**Zwei Punkte haben beim Ausschreiben ihren Prüfkörper gewechselt** — 4d nennt
+`srvpanel vhost --sites` statt `srvpanel tls --renew`, weil das Erneuern nur bei
+einem fälligen Zertifikat einen Vorgang anlegt, und 4c läuft über die
+Datenbankseite statt über `/updates`, weil es dort bei null offenen
+Aktualisierungen weder Tabelle noch Knopf gibt.
+
+> **Ein Prüfkörper, der einen Zustand braucht, den der Lauf davor verbraucht,
+> gehört an einen Gegenstand, der nachwächst.**
+
+**Und Punkt 4b ist eine Frage und kein Kriterium**, gefunden beim Ausschreiben:
+`Enabled: no` ist nicht dasselbe wie unerreichbar. Eine **abgeschaltete** Quelle
+erzeugt keinen Fehlschlag, `Apt::hitting()` greift nicht — und gemeldet würde
+„Es stand nichts an", während die eigene Paketquelle aus ist.
 
 Und weiter aus P7b: **`87` der Nachlauf zu `0.7.2-rc.5`** — sechs Punkte auf
 `cloudsrv24`, die nachsehen, ob die vier Behebungen aus `docs/86 §5` auf einem

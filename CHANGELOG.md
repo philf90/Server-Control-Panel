@@ -23569,3 +23569,37 @@ jede Prüfung auf „fängt mit einem Schrägstrich an". Zwei weitere Formen hat
 `OriginHeaderTest` misst dazu die **Wirkung** statt des Textes: Kopfzeile rein,
 Spalte raus, samt der drei Gegenrichtungen. Was kein Test halten kann — dass das
 Ereignis im Browser wirklich feuert — steht als Frage in `docs/94 §10`.
+
+### Die Kommandozeile führt die Sprache der Oberfläche nicht
+
+Entschieden vom Betreiber am 1. September 2026, `docs/19 §2.7`: `srvpanel …`
+darf deutsch oder englisch sein, und die Liste der verbrauchten Wörter bindet es
+nicht. Der Betreiber liest dort zwischen den Ausgaben von `apt`, `systemctl` und
+`dpkg`.
+
+**Die Frage stand seit dem Wunsch nach einem Fortschrittsbalken offen** — und
+`docs/19` beantwortete sie an zwei Stellen verschieden: §2.6 sagt „Text, den ein
+Browser anzeigt", §4a „jeder Text der Oberfläche". `WordChoiceTest` las
+unterdessen ganz `app/`, also auch die Kommandos.
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.**
+
+**Den Ausschlag gab ein Befund und keine Meinung.** Gemessen: 1201
+Zeichenkettenliterale in sechzehn Kommandodateien, **null** Treffer der
+Wortliste — die Ausnahme ändert heute nichts. Die Kommandozeile spricht trotzdem
+längst ein anderes Deutsch als die Oberfläche: `apt-run` schreibt `Fassung …`,
+`srvpanel update` druckt es wörtlich, und jede Seite sagt „Version".
+Durchgelassen hat das kein Urteil, sondern der Umstand, dass der Satz in einem
+Shellskript steht, das der Wächter nicht liest.
+
+> **Eine Regel, die eine Datei nicht liest, gilt für den Satz nicht — auch wenn
+> er am Ende auf demselben Bildschirm steht.**
+
+`WordChoiceTest` nimmt `app/Console/Commands/` seitdem aus, mit der
+Gegenrichtung daneben: Zeigt die Ausnahme ins Leere, erzwingt der Wächter
+wieder eine Sprache, die niemand verlangt — und das meldet er jetzt. Drei
+Richtungen belegt, zwei davon als Bruch im Skript.
+
+Was das kostet, ist benannt und angenommen: Dieselbe Sache kann auf der Seite
+und auf der Konsole verschieden heissen.

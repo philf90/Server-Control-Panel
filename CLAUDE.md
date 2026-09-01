@@ -1610,6 +1610,29 @@ Rückmeldung (§6):** Der Satz eines Fehlers steht oben in der Zusammenfassung,
 das Feld trägt nur `aria-invalid`, und Erfolg wird **nie** am Feld gemeldet.
 `FieldErrorTest` prüft alle drei Richtungen. Kurz:
 
+- **Die Kommandozeile ist nicht die Oberfläche** (§2.7, entschieden am
+  1. September 2026): `srvpanel …` muss diese Sprache nicht führen, deutsch und
+  englisch sind beide zulässig, und die Liste der verbrauchten Wörter bindet sie
+  nicht. Der Betreiber liest dort zwischen den Ausgaben von `apt`, `systemctl`
+  und `dpkg`. **`WordChoiceTest` nimmt `app/Console/Commands/` deshalb aus** —
+  sonst sagte das Dokument das eine und der Wächter das andere.
+
+  Die Frage stand seit dem Wunsch nach einem Fortschrittsbalken offen, und
+  `docs/19` beantwortete sie an zwei Stellen verschieden (§2.6 „Text, den ein
+  Browser anzeigt", §4a „jeder Text der Oberfläche"), während der Wächter ganz
+  `app/` las.
+
+  > **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander,
+  > und keine von beiden ist der Ort, an dem man nachsieht.**
+
+  **Gemessen gab den Ausschlag ein Befund und keine Meinung:** 1201
+  Zeichenkettenliterale in sechzehn Kommandodateien, **null** Treffer der
+  Wortliste — die Ausnahme ändert heute nichts. Die Kommandozeile spricht
+  trotzdem längst ein anderes Deutsch als die Oberfläche: `apt-run` schreibt
+  `Fassung …`, `srvpanel update` druckt es wörtlich, jede Seite sagt „Version".
+
+  > **Eine Regel, die eine Datei nicht liest, gilt für den Satz nicht — auch
+  > wenn er am Ende auf demselben Bildschirm steht.**
 - **Kommentare, Dokumentation und alle Texte der Oberfläche: deutsch.
   Bezeichner: englisch** (§4a) — das schliesst CSS-Klassen, Datenattribute,
   Komponentennamen und ihre Eigenschaften ein und wird von `ClassNameTest`

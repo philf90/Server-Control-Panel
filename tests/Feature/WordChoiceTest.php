@@ -337,12 +337,51 @@ final class WordChoiceTest extends TestCase
         ));
     }
 
+    /**
+     * Die Kommandozeile ist nicht die Oberfläche.
+     *
+     * **Entschieden vom Betreiber am 1. September 2026** (`docs/19 §2.7`):
+     * `srvpanel …` muss die Sprache dieses Dokuments nicht führen, deutsch und
+     * englisch sind dort beide zulässig. Bis dahin las dieser Wächter ganz
+     * `app/` — und das Dokument beantwortete die Frage an zwei Stellen
+     * verschieden (§2.6 „Text, den ein Browser anzeigt", §4a „jeder Text der
+     * Oberfläche").
+     *
+     * > **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen
+     * > auseinander, und keine von beiden ist der Ort, an dem man nachsieht.**
+     *
+     * **Heute ändert die Ausnahme nichts**, und das ist gemessen: 1201
+     * Zeichenkettenliterale in sechzehn Dateien, **null** Treffer. Sie nimmt
+     * eine Fessel weg, die niemand spürte — und verhindert, dass jemand später
+     * eine Meldung neben `apt`s eigener Ausgabe übersetzen muss.
+     *
+     * @var string
+     */
+    private const KOMMANDOZEILE = '/app/Console/Commands/';
+
     /** @return list<string> */
     private function phpFiles(): array
     {
-        $files = $this->files(dirname(__DIR__, 2).'/app', 'php');
+        $alle = $this->files(dirname(__DIR__, 2).'/app', 'php');
+
+        $files = array_values(array_filter(
+            $alle,
+            static fn (string $pfad): bool => ! str_contains($pfad, self::KOMMANDOZEILE),
+        ));
 
         $this->assertGreaterThan(20, count($files), 'Es werden kaum PHP-Dateien gelesen — dann prüft dieser Test nichts.');
+
+        // **Die Gegenrichtung, und sie ist hier die wichtigere.** Zieht das
+        // Verzeichnis um oder wird es leer, filtert die Zeile oben nichts mehr
+        // heraus — und der Wächter erzwingt wieder eine Sprache, die niemand
+        // von der Kommandozeile verlangt. Eine Ausnahme, die ins Leere zeigt,
+        // fällt sonst nie auf.
+        $this->assertGreaterThan(
+            count($files),
+            count($alle),
+            'Die Ausnahme für die Kommandozeile trifft keine Datei mehr — '
+            .self::KOMMANDOZEILE.' ist umgezogen oder leer.',
+        );
 
         return $files;
     }

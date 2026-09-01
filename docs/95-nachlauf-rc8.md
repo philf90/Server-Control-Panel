@@ -101,17 +101,27 @@ Vor dieser Fassung stand dort `Der Lauf hat nichts verändert — Fassung vorher
 wie nachher: …` mit `rc=3`, und die Unit auf `failed`. Gemessen am 27. August
 (`docs/94 §4`).
 
-**Gegenprobe im selben Schritt** — der Vorgang darf auch im Panel nicht rot
-sein:
+**Gegenprobe im selben Schritt** — die transiente Unit darf nicht rot sein. Der
+Name steht in der Zeile „Das Update läuft als …":
 
 ```
-srvpanel tinker --execute='
-  $o = App\Models\Operation::withoutGlobalScopes()->latest("id")->first();
-  echo $o->id, " ", $o->type, " ", $o->status->value, " ", $o->message, PHP_EOL;'
+journalctl -u srvpanel-update-<kennung> --no-pager | tail -5
 ```
 
-Erwartet: `succeeded`. **Ein grünes Urteil auf der Konsole und ein roter Vorgang
-im Panel wären zwei Antworten auf dieselbe Frage.**
+Erwartet: **keine** Zeile `Failed with result 'exit-code'` und kein
+`status=3/NOTIMPLEMENTED`. **Ein grünes Urteil auf der Konsole und eine rote
+Unit wären zwei Antworten auf dieselbe Frage** — und genau das war der Zustand
+vor dieser Fassung.
+
+> **Berichtigt am 1. September 2026, nachdem die erste Fassung gefahren
+> war** (`docs/96 §2`, Befund 9). Sie las den neuesten Vorgang aus der
+> Datenbank und erwartete `succeeded` — `srvpanel update` legt aber gar keinen
+> Vorgang an: Es ruft `panel.update` unmittelbar über den Agenten, und das Panel
+> hat für die eigene Aktualisierung keine Fläche. Zurück kam eine fremde Zeile
+> vom Vortag, und sie stand auf `succeeded`.
+>
+> **Eine Frage nach dem neuesten Datensatz beantwortet, welcher der neueste ist
+> — nicht, ob der gesuchte darunter ist.**
 
 ---
 

@@ -23461,6 +23461,35 @@ beide Richtungen: mit `return` statt `exit` rot, und mit der verbotenen Zeile
 **nur im Kommentar** grün — während ein roher Leser sie fände.
 
 
+### Der Vorbehalt stand unter einem Lauf, der nichts eingespielt hat
+
+**Gemessen am 1. September 2026 auf `cloudsrv24`** (`docs/96 §2`). Unter dem
+grünen `Es stand nichts an — Fassung unverändert: 0.7.3~rc.9.` stand der Satz
+„Antwortet die Bereitschaftsprüfung danach nicht, setzt das Paket selbst auf die
+vorige Version zurück."
+
+Es hat aber nichts entpackt: kein `dpkg`, also keine Kopie unter
+`/opt/srvpanel/rollback`, keine Bereitschaftsprüfung, kein Rückweg.
+
+> **Zwei Sätze über denselben Lauf, von denen einer eine Installation
+> voraussetzt, die der andere ausschliesst.**
+
+`Outcome::unchanged()` unterscheidet den Fall jetzt, und `urteilen()` druckt den
+Vorbehalt nur noch darunter. Im Zweig für `--no-wait` bleibt er stehen — dort ist
+der Ausgang unbekannt, und er gilt.
+
+**Die Naht zu `apt-run` wird gehalten**, mit abgestreiften Kommentaren: Sonst
+hielte die Zeile, die den alten Satz zitiert, ihn für den Wächter am Leben.
+Läuft sie trotzdem auseinander, antwortet `unchanged()` mit `false` — ein
+Vorbehalt zuviel statt eines fehlenden.
+
+Der Wächter über die Seite misst im **Rumpf von `urteilen()`** und nicht in der
+Datei: Denselben Satz gibt es ein zweites Mal, und dort gehört er hin.
+
+> **Ein Wächter, der eine Zeichenkette in der Datei sucht, sagt nichts über die
+> Funktion, in der sie wirken soll.**
+
+
 ### Der Präfix markierte jede Meldung, nicht das Urteil
 
 Gemessen auf `cloudsrv24` am 1. September 2026, im ersten Lauf des neuen

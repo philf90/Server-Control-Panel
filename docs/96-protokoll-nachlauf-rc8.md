@@ -181,13 +181,85 @@ braucht, ist danach wiederhergestellt: Auf `rc.9` steht nichts mehr an.
 
 ---
 
-## 2 bis 8
+## 2 · Punkt 2 — Befund 2 auf dem Server
 
-Offen. Punkt 3 ist zur Hälfte schon belegt (§1b); die zweite Hälfte ist der
-`grep` über `apt-run`.
+Gefahren nach §1b, auf `0.7.3-rc.9`, Unit `srvpanel-update-a5a80d58`.
 
-Punkt 2 ist nach dem Lauf von §1b wieder fahrbar — mit `0.7.3~rc.9` in der
-erwarteten Zeile statt `0.7.3~rc.8`.
+    srvpanel ist schon die neueste Version (0.7.3~rc.9).
+    0 aktualisiert, 0 neu installiert, 0 zu entfernen und 9 nicht aktualisiert.
+    apt-run: Es stand nichts an — Fassung unverändert: 0.7.3~rc.9.
+
+    Es stand nichts an — Fassung unverändert: 0.7.3~rc.9.        (grün)
+    rc=0
+
+**Das Kriterium ist erfüllt.** Vor dieser Fassung stand dort `Der Lauf hat
+nichts verändert — Fassung vorher wie nachher: …`, rot, mit `rc=3` und der Unit
+auf `failed` (`docs/94 §4`). Befund 2 ist damit auf einem echten Server belegt,
+in beiden Hälften: Die Auffrischung steht als eigene Zeile im Protokoll, und der
+Lauf ohne Anlass ist kein Fehlschlag mehr.
+
+**Und ein Nebenbefund zu Befund 8, der keiner ist:** Dieser Lauf ist der erste
+mit `rc.9`s `exit()` — er lief durch und endete mit `0`. Das belegt, dass der
+Ausstieg im gewöhnlichen Fall nichts kaputt macht, und **nicht**, dass er den
+Fall trägt, für den es ihn gibt: Hier wurde kein Fassungsverzeichnis abgeräumt,
+der Autolader hatte seine Dateien.
+
+> **Ein Prüfkörper ohne die Bedingung, gegen die gebaut wurde, misst den Bau und
+> nicht die Bedingung.**
+
+### Befund 9 — die Gegenprobe von Punkt 2 fragt an der Sache vorbei
+
+`docs/95 §2` liest den neuesten Vorgang und erwartet `succeeded`. Gemessen:
+
+    729 db.dump.create succeeded fertig
+
+**Vorgang 729 stammt vom 31. August** (er steht in `docs/94 §6b`), und
+`db.dump.create` ist nicht das, was hier lief. Der Grund: `srvpanel update` ruft
+`panel.update` **unmittelbar über den Agenten** und legt keinen Vorgang an — das
+Panel hat für die eigene Aktualisierung gar keine Fläche, sie läuft
+ausschliesslich über die Kommandozeile.
+
+Die Gegenprobe hat also nach einer Zeile gesucht, die es nicht geben kann, eine
+fremde gefunden und **grün gemeldet**.
+
+> **Eine Frage nach dem neuesten Datensatz beantwortet, welcher der neueste ist
+> — nicht, ob der gesuchte darunter ist.**
+
+Sie ist in `docs/95 §2` ersetzt worden: Gefragt wird das Journal der transienten
+Unit, denn dort steht der Rückgabewert von `apt-run`, an dem der Fehlschlag
+hing.
+
+### Befund 10 — der Vorbehalt stand unter einem Lauf, der nichts eingespielt hat
+
+Unter dem grünen Urteil stand:
+
+    Antwortet die Bereitschaftsprüfung danach nicht, setzt das Paket selbst auf
+    die vorige Version zurück.
+
+Es hat aber nichts entpackt: kein `dpkg`, also keine Kopie unter
+`/opt/srvpanel/rollback`, keine Bereitschaftsprüfung, kein Rückweg. Der Satz
+verspricht ein Netz, das niemand gespannt hat — direkt unter der Zeile, die
+gerade gesagt hat, dass die Fassung unverändert ist.
+
+> **Zwei Sätze über denselben Lauf, von denen einer eine Installation
+> voraussetzt, die der andere ausschliesst.**
+
+**Behoben:** `Outcome::unchanged()` unterscheidet den Fall, und `urteilen()`
+druckt den Vorbehalt nur noch darunter. Im Zweig für `--no-wait` bleibt er
+stehen — dort ist der Ausgang unbekannt, und der Vorbehalt gilt.
+
+Die Naht zu `apt-run` ist gehalten (`Outcome::UNCHANGED` gegen den Satz im
+Skript, Kommentare abgestreift). Läuft sie auseinander, antwortet `unchanged()`
+mit `false` — ein Vorbehalt zuviel statt eines fehlenden, also die richtige
+Richtung.
+
+---
+
+## 3 bis 8
+
+Offen. **Punkt 3 ist zur Hälfte belegt** (§1b): Die Auffrischung steht als
+`Paketlisten aufgefrischt; jede Quelle hat geantwortet.` im Protokoll, ohne
+`apt-run: ` davor. Die zweite Hälfte ist der `grep` über `apt-run`.
 
 ---
 

@@ -199,6 +199,54 @@ final class UpdateWaitTest extends TestCase
     }
 
     /**
+     * Der Vorbehalt steht nur unter einem Lauf, der etwas eingespielt hat.
+     *
+     * ## Der Befund, gegen den es diesen Fall gibt
+     *
+     * **Gemessen am 1. September 2026 auf `cloudsrv24`** (`docs/96 §2`): Unter
+     * dem grünen `Es stand nichts an — Fassung unverändert: 0.7.3~rc.9.` stand
+     * der Satz über die Bereitschaftsprüfung und den Rückweg. Es hat aber nichts
+     * entpackt — keine Kopie unter `/opt/srvpanel/rollback`, keine Prüfung.
+     *
+     * > **Zwei Sätze über denselben Lauf, von denen einer eine Installation
+     * > voraussetzt, die der andere ausschliesst.**
+     *
+     * ## Warum im Rumpf von `urteilen()` und nicht in der Datei
+     *
+     * Denselben Satz gibt es ein zweites Mal, im Zweig für `--no-wait`. Dort
+     * gehört er hin: Der Lauf ist abgesetzt und sein Ausgang unbekannt, der
+     * Vorbehalt gilt also. Ein Wächter über die ganze Datei fände ihn und wäre
+     * zufrieden.
+     *
+     * > **Ein Wächter, der eine Zeichenkette in der Datei sucht, sagt nichts
+     * > über die Funktion, in der sie wirken soll.**
+     */
+    public function test_the_caveat_hangs_on_the_verdict(): void
+    {
+        $quelle = $this->quelle();
+
+        $anfang = strpos($quelle, 'private function urteilen(');
+
+        $this->assertIsInt($anfang, 'Es gibt keine Stelle mehr, die das Urteil ausgibt.');
+
+        $rumpf = substr($quelle, $anfang);
+
+        $wache = strpos($rumpf, 'if (! Outcome::unchanged($urteil)) {');
+        $satz = strpos($rumpf, 'Antwortet die Bereitschaftsprüfung');
+
+        $this->assertIsInt($satz, 'Der Vorbehalt steht nicht mehr in `urteilen()`.');
+        $this->assertIsInt(
+            $wache,
+            'Der Vorbehalt hängt an keiner Frage — dann verspricht er einen Rückweg auch dort, wo nichts eingespielt wurde.',
+        );
+        $this->assertLessThan(
+            $satz,
+            $wache,
+            'Die Frage steht nach dem Vorbehalt — dann ist der Satz schon gedruckt.',
+        );
+    }
+
+    /**
      * Wer nicht warten will, sagt es — und die Vorgabe ist das Warten.
      *
      * **Die Vorgabe ist die Umkehrung des alten Verhaltens**, und das ist

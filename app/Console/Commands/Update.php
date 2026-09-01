@@ -265,8 +265,24 @@ final class Update extends Command
         }
 
         $this->info('  '.$urteil);
-        $this->newLine();
-        $this->comment('  Antwortet die Bereitschaftsprüfung danach nicht, setzt das Paket selbst auf die vorige Version zurück.');
+
+        /*
+         * **Der Vorbehalt gilt nur für einen Lauf, der etwas eingespielt hat.**
+         * Wo nichts anstand, hat dpkg nicht gearbeitet: Es liegt keine Kopie
+         * unter `/opt/srvpanel/rollback`, und es läuft keine
+         * Bereitschaftsprüfung. Der Satz verspräche ein Netz, das niemand
+         * gespannt hat — unter einer Zeile, die gerade gesagt hat, dass die
+         * Fassung unverändert ist.
+         *
+         * > **Zwei Sätze über denselben Lauf, von denen einer eine Installation
+         * > voraussetzt, die der andere ausschliesst.**
+         *
+         * Gemessen am 1. September 2026 auf `cloudsrv24` (`docs/96 §2`).
+         */
+        if (! Outcome::unchanged($urteil)) {
+            $this->newLine();
+            $this->comment('  Antwortet die Bereitschaftsprüfung danach nicht, setzt das Paket selbst auf die vorige Version zurück.');
+        }
 
         return self::SUCCESS;
     }

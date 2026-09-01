@@ -123,6 +123,20 @@ final class Outcome
      */
 
     /**
+     * Der Anfang des Urteils, das einen Lauf ohne Anlass meldet.
+     *
+     * **Er steht bewusst nicht in {@see self::BAD}** — ein Lauf, dem nichts zu
+     * tun blieb, ist kein Fehlschlag; genau das war Befund 6 aus `docs/91 §20`.
+     * Hier steht er, weil ein *Erfolg* nicht immer dasselbe bedeutet: Wo nichts
+     * eingespielt wurde, ist auch nichts zurückzunehmen.
+     *
+     * Die Zeichenkette ist die Naht zu `apt-run`. Läuft sie auseinander,
+     * antwortet {@see self::unchanged()} mit `false` — und das ist die richtige
+     * Richtung: Ein Vorbehalt zuviel ist harmloser als einer, der fehlt.
+     */
+    public const UNCHANGED = 'Es stand nichts an';
+
+    /**
      * Was nach dem Versatz noch im Log steht — Zeile für Zeile.
      *
      * **Der Pfad kommt nicht von aussen.** Er wird vom Aufrufer aus einer
@@ -221,5 +235,25 @@ final class Outcome
         }
 
         return false;
+    }
+
+    /**
+     * Hat dieser Lauf gar nichts eingespielt?
+     *
+     * **Gefragt wird das, wo eine Meldung von einer Installation ausgeht.** Der
+     * Hinweis auf die Bereitschaftsprüfung und den Rückweg gilt nur für einen
+     * Lauf, der ein Paket entpackt hat — sonst wurde weder eine Kopie gelegt
+     * noch etwas geprüft, und der Satz verspricht ein Netz, das gar nicht
+     * gespannt ist.
+     *
+     * Gemessen am 1. September 2026 auf `cloudsrv24` (`docs/96 §2`): Der Satz
+     * stand unter „Es stand nichts an — Fassung unverändert: 0.7.3~rc.9."
+     *
+     * > **Zwei Sätze über denselben Lauf, von denen einer eine Installation
+     * > voraussetzt, die der andere ausschliesst.**
+     */
+    public static function unchanged(string $verdict): bool
+    {
+        return str_starts_with($verdict, self::UNCHANGED);
     }
 }

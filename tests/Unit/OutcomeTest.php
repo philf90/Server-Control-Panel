@@ -156,6 +156,57 @@ final class OutcomeTest extends TestCase
     }
 
     /**
+     * Und einer der fünf sagt, dass gar nichts eingespielt wurde.
+     *
+     * ## Der Befund, gegen den es diesen Fall gibt
+     *
+     * **Gemessen am 1. September 2026 auf `cloudsrv24`** (`docs/96 §2`, Punkt 2
+     * des Laufs). Unter dem grünen `Es stand nichts an — Fassung unverändert:
+     * 0.7.3~rc.9.` stand der Vorbehalt „Antwortet die Bereitschaftsprüfung
+     * danach nicht, setzt das Paket selbst auf die vorige Version zurück."
+     *
+     * Es hat aber nichts entpackt: keine Kopie unter `/opt/srvpanel/rollback`,
+     * keine Bereitschaftsprüfung, kein Rückweg.
+     *
+     * > **Zwei Sätze über denselben Lauf, von denen einer eine Installation
+     * > voraussetzt, die der andere ausschliesst.**
+     *
+     * ## Beide Richtungen, und die Naht dazu
+     *
+     * Ein `unchanged()`, das immer `true` sagt, nähme den Vorbehalt auch dem
+     * Lauf weg, der ihn braucht. Geprüft wird deshalb an allen fünf Urteilen —
+     * und daran, dass `apt-run` den Satz wirklich so schreibt: Läuft die Naht
+     * auseinander, fällt der Fehler zur harmlosen Seite (ein Vorbehalt zuviel),
+     * und genau deshalb würde ihn sonst niemand bemerken.
+     */
+    public function test_one_of_the_five_verdicts_installed_nothing(): void
+    {
+        $ab = static fn (string $zeile): string => substr($zeile, strlen(Outcome::PREFIX));
+
+        $this->assertTrue(Outcome::unchanged($ab(self::ECHT['nichts_offen'])));
+
+        $this->assertTrue(
+            Outcome::unchanged('Es stand nichts an — Fassung unverändert: 0.7.3~rc.9.'),
+            'Der Fassungsmodus wird nicht erkannt — und genau ihn hat der Lauf gemessen.',
+        );
+
+        $this->assertFalse(Outcome::unchanged($ab(self::ECHT['panel'])));
+        $this->assertFalse(Outcome::unchanged($ab(self::ECHT['pakete'])));
+        $this->assertFalse(Outcome::unchanged($ab(self::ECHT['wirkungslos'])));
+        $this->assertFalse(Outcome::unchanged($ab(self::ECHT['gescheitert'])));
+
+        $skript = $this->withoutHashComments(
+            (string) file_get_contents(dirname(__DIR__, 2).'/packaging/bin/apt-run')
+        );
+
+        $this->assertStringContainsString(
+            Outcome::UNCHANGED,
+            $skript,
+            'Die Naht ist auseinandergelaufen: `apt-run` schreibt diesen Satz nicht mehr.',
+        );
+    }
+
+    /**
      * `apt-run` unterscheidet die beiden Fälle, und zwar an der Zahl.
      *
      * Gehalten wird am Skript und nicht am Leser: Der Leser braucht dafür keine

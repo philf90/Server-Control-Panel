@@ -891,7 +891,7 @@ URL-Parser, den auch der Browser benutzt, gegen `https://panel.example/`:
 | `/updates` | `panel.example` | durch — richtig |
 | `//evil.example/x` | **evil.example** | `parse_url` streicht den Host — zufällig harmlos |
 | `/\evil.example/x` | **evil.example** | **kommt durch — die Lücke** |
-| `/<TAB>/evil.example/x` | **evil.example** | `parse_url` ersetzt durch `_` — zufällig harmlos |
+| `/{Tab}/evil.example/x` | **evil.example** | `parse_url` ersetzt durch `_` — zufällig harmlos |
 | `/ /evil.example/x` | `panel.example` | durch — richtig |
 | `/%2fevil.example/x` | `panel.example` | durch — richtig |
 

@@ -302,10 +302,26 @@ und 6 ein `←` **zeigen**, sagt sein Fehlen hier etwas.
 ## 8 · Punkt 8 — die Vorgangsseite bei 390 px, mit Herkunft und Gegenstand
 
 `docs/94` Punkt 3 fiel als „nicht herstellbar" aus, weil kein Gegenstand über 25
-Zeichen zu bekommen war. Eine Sicherung trägt den Namen der Datenbank samt
-Zeitstempel — der ist länger.
+Zeichen zu bekommen war.
 
-Am Vorgang aus Punkt 5, im Browser bei 390 px, in **beiden** Themes:
+**Gemessen wird an einer Domain und nicht an einer Sicherung.**
+`OperationSubject::nameOf()` gibt für `Domain` das Feld `name` zurück, und ein
+Domainname darf 63 Zeichen je Label tragen. Ausgelöst wird der Vorgang über die
+Domainseite (etwa **Server-Block schreiben**); je länger der Name, desto besser
+der Prüfkörper.
+
+> **Berichtigt am 1. September 2026, nachdem die Punkte 5 bis 7 gefahren waren**
+> (`docs/96 §8`, Befund 13). Hier stand „eine Sicherung trägt den Namen der
+> Datenbank samt Zeitstempel — der ist länger"; gemessen sind es zehn Zeichen
+> (`p1136_test`). Das ist keine Überraschung, sondern eine Entscheidung, die im
+> Quelltext begründet steht: `nameOf()` gibt für eine Sicherung ausdrücklich
+> `database_name` und **nicht** `storage_name` zurück.
+>
+> **Ein Prüfkörper, dessen Länge man annimmt, statt sie am Quelltext
+> nachzusehen, ist eine Vermutung mit Fussnote.**
+
+Am Vorgang mit dem längsten Gegenstand, im Browser bei 390 px, in **beiden**
+Themes:
 
 ```
 document.documentElement.scrollWidth - document.documentElement.clientWidth

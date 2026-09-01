@@ -389,9 +389,89 @@ Befund dieses Laufs.
 
 ---
 
-## 5 bis 8
+## 5 · Punkt 5 — Befund 4 vollständig
 
-Offen.
+Vorgang **732**, `db.dump.create`, ausgelöst über **Sicherung erstellen** auf
+`/databases/37`.
+
+| Erwartung | gemessen |
+|---|---|
+| `← /databases/37` im Brotkrümel, als Verknüpfung | steht da, verknüpft |
+| Zeile **Sicherung** mit dem Namen, verknüpft | `p1136_test`, verknüpft |
+
+**Erfüllt.** Vorgang 729 vom 31. August zeigte den Gegenstand und kein `←`
+(`docs/94 §6b`); beides zusammen ist der Beleg, dass Befund 4 behoben ist — und
+dass `Operation::booted()` die Herkunft an der einen Stelle setzt, an der
+niemand vorbeikommt.
+
+---
+
+## 6 · Punkt 6 — der Zurück-Knopf des Browsers
+
+Vorgang **733**, achtundzwanzig Sekunden nach 732, nach einem Druck auf den
+Zurück-Knopf des Browsers und einem zweiten **Sicherung erstellen**.
+
+**Der Brotkrümel trägt wieder `← /databases/37`** — und nicht
+`← /operations/732`.
+
+**Erfüllt, und dieser Punkt trägt mehr als sein Kriterium.** Er ist der einzige
+Beleg, dass `router.on('before')` bei `router.post` überhaupt feuert; bis hierher
+stand das aus Inertias Typdefinition gelesen da und nicht beobachtet. Trüge 733
+gar kein `←`, wäre der Entwurf von Befund 3 falsch gewesen.
+
+> **Eine Herkunft, die der Server führt, veraltet bei jeder Navigation, die der
+> Server nicht sieht.** Inertia stellt `/databases/37` aus dem History-Zustand
+> her; der Server sieht davon nichts.
+
+---
+
+## 7 · Punkt 7 — ein Vorgang ohne Seite zeigt kein `←`
+
+    srvpanel vhost --sites
+    4 Server-Blöcke der Kundendomains eingereiht.
+
+    741 web.site.apply origin=NULL
+    740 php.pool.apply  origin=NULL
+    739 web.site.apply  origin=NULL
+
+**Erfüllt**, alle drei. `null` heisst „von keiner Seite" und ist die Wahrheit für
+die Konsole, die Warteschlange und jeden Lauf der Automatik.
+
+**Und das sagt erst durch die Punkte 5 und 6 etwas.** Vor der Behebung zeigte
+auch ein Vorgang *mit* Sitzung kein `←` — Erfolgs- und Fehlerfall sahen gleich
+aus.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+---
+
+## 8 · Punkt 8 — der Prüfkörper ist der falsche
+
+### Befund 13 — die Vorschrift hat die Länge des Gegenstands angenommen
+
+`docs/95 §8` schrieb: *„Eine Sicherung trägt den Namen der Datenbank samt
+Zeitstempel — der ist länger."* Gemessen steht dort `p1136_test`, **zehn
+Zeichen**.
+
+Und das ist keine Überraschung, sondern eine Entscheidung, die im Quelltext
+begründet steht: `OperationSubject::nameOf()` gibt für eine Sicherung
+ausdrücklich `database_name` zurück und **nicht** `storage_name` — *„wer eine
+Sicherung wiedererkennt, erkennt sie an der Datenbank, aus der sie stammt."*
+
+> **Ein Prüfkörper, dessen Länge man annimmt, statt sie am Quelltext
+> nachzusehen, ist eine Vermutung mit Fussnote.**
+
+Dasselbe Muster wie Befund 9 und 11: dritter Fund dieses Laufs am eigenen
+Prüfmittel, und alle drei wären beim Ausschreiben zu vermeiden gewesen.
+
+**Der richtige Prüfkörper ist eine Domain und keine Sicherung.**
+`nameOf()` gibt für `Domain` das Feld `name` zurück, und ein Domainname darf 63
+Zeichen je Label tragen. `docs/95 §8` ist entsprechend berichtigt.
+
+Die Überlaufmessung selbst bleibt fahrbar und steht aus. Was das Bild schon
+zeigt: Der Brotkrümel nimmt auf diesem Telefon **zwei** Zeilen — die Grenze aus
+`docs/94 §6b` ist eingehalten und nicht unterschritten.
 
 ---
 

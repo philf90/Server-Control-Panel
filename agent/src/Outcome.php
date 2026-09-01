@@ -50,11 +50,32 @@ namespace SrvPanel\Agent;
 final class Outcome
 {
     /**
-     * Das Präfix, mit dem `apt-run` jede seiner Meldungen versieht.
+     * Das Präfix, mit dem `apt-run` **sein Urteil** versieht — und nichts sonst.
      *
      * Es steht dort als `NAME=apt-run`, und `OutcomeTest` hält die beiden
      * aneinander — liefen sie auseinander, fände dieser Leser nichts und
      * meldete „noch kein Urteil", bis die Frist abläuft.
+     *
+     * ## „Jede Meldung" stand hier, und es war falsch
+     *
+     * **Gemessen auf `cloudsrv24` am 1. September 2026** (`docs/94 §8`): Der
+     * Fassungsmodus schrieb zwei Fortschrittszeilen mit demselben Präfix —
+     * `apt-run: Paketlisten werden aufgefrischt.` als erstes, lange vor dem
+     * Ende. {@see self::verdict()} nimmt die **letzte** solche Zeile, und
+     * während des Laufs ist die letzte auch die erste.
+     *
+     * > **Ein Leser, der „die letzte Zeile" nimmt, liest während des Laufs die
+     * > erste.**
+     *
+     * `srvpanel update` meldete damit nach zwei Sekunden `Paketlisten werden
+     * aufgefrischt.` als Urteil, grün, mit Rückgabewert 0. Der einzige Modus
+     * mit solchen Zeilen war `panel` — also genau der, für den die
+     * Warteschleife gebaut wurde; `system.packages.upgrade` schreibt keine, und
+     * `AwaitDispatchedRun` konnte es deshalb nie sehen.
+     *
+     * **Behoben ist es im Skript**: Die beiden Zeilen tragen den Präfix nicht
+     * mehr. Seitdem gilt ohne Ausnahme — auf eine Zeile mit `apt-run: ` folgt
+     * ein `exit`, und `OutcomeTest` hält das.
      */
     public const PREFIX = 'apt-run: ';
 
@@ -70,6 +91,14 @@ final class Outcome
     public const BAD = [
         'apt-get endete mit ',
         'Der Lauf hat nichts verändert',
+
+        /*
+         * **Ein falscher Aufruf ist ein Fehlschlag und kein Erfolg mit
+         * Meldung.** `apt-run`s `fehler()` schreibt auf stderr, und stderr
+         * landet im selben Log; ohne diesen Eintrag käme ein vertippter Aufruf
+         * als grünes Urteil zurück.
+         */
+        'Aufruf falsch — ',
     ];
 
     /*

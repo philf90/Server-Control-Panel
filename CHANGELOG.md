@@ -23417,3 +23417,40 @@ Regel also eingehalten.
 
 > **Ein Eingriff, der wirkt und nichts belegt, sieht aus wie einer, der
 > beisst.**
+
+### Der Präfix markierte jede Meldung, nicht das Urteil
+
+Gemessen auf `cloudsrv24` am 1. September 2026, im ersten Lauf des neuen
+`srvpanel update`: Er endete nach zwei Sekunden und meldete **„Paketlisten
+werden aufgefrischt."** als Urteil — grün, mit Rückgabewert 0.
+
+`Outcome::verdict()` nimmt die **letzte** Zeile mit dem Präfix `apt-run: `. Am
+Ende eines Laufs ist das richtig; währenddessen ist die letzte auch die erste.
+
+> **Ein Leser, der „die letzte Zeile" nimmt, liest während des Laufs die
+> erste.**
+
+Ausgezählt: Sieben Zeilen in `apt-run` tragen den Präfix, **fünf davon beenden
+den Lauf**. Die beiden anderen sind Fortschrittsmeldungen und stehen
+ausschliesslich im Fassungsmodus — also genau dort, wo `srvpanel update` liest.
+`system.packages.upgrade` schreibt keine, und `AwaitDispatchedRun` konnte den
+Fehler deshalb nie sehen.
+
+> **Ein Präfix, der jede Zeile eines Werkzeugs markiert, unterscheidet die
+> Meldung nicht vom Urteil.**
+
+Behoben im Skript: Die Fortschrittszeilen tragen den Präfix nicht mehr, `fehler()`
+schreibt `Aufruf falsch — …` (und zählt damit als Fehlschlag statt als grünes
+Urteil), und die beiden durchfallenden Urteile enden ausdrücklich.
+
+**Gehalten wird die Eigenschaft und keine Liste.** Eine Aufzählung der fünf
+Urteilssätze in PHP wäre eine zweite Fassung dessen, was `apt-run` schreibt.
+`OutcomeTest` prüft, was ein Urteil von einer Meldung unterscheidet: Es beendet
+den Lauf. Eine sechste Urteilsform ist damit von selbst gedeckt.
+
+**Das Update auf die nächste Fassung zeigt den Fehler noch einmal**, und das ist
+keine gescheiterte Behebung: Der Befehl, der ein Update ausführt, ist immer der
+schon installierte.
+
+> **Eine Behebung an dem Werkzeug, das die Behebung ausliefert, wirkt erst eine
+> Fassung später.**

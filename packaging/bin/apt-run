@@ -88,7 +88,11 @@ NAME=apt-run
 MARKE='### srvpanel apt-run::'
 
 fehler() {
-    echo "$NAME: $1" >&2
+    # **`Aufruf falsch — ` steht davor, damit der Leser es als Fehlschlag
+    # erkennt.** Diese Zeile geht auf stderr, und stderr landet im selben Log:
+    # Ohne einen Anfang, den `Outcome::BAD` kennt, gaelte ein falscher Aufruf
+    # als Erfolg mit einer Meldung.
+    echo "$NAME: Aufruf falsch — $1" >&2
     exit 2
 }
 
@@ -157,8 +161,12 @@ case $modus in
         #
         # Der Rückgabewert dieses Laufs wird bewusst nicht geprüft — er trägt
         # nichts (M5). Geprüft wird die Fassung, weiter unten.
-        echo "$NAME: Paketlisten werden aufgefrischt."
-        apt-get -q update || echo "$NAME: apt-get update endete ungleich 0 — der Lauf geht weiter, entschieden wird an der Fassung."
+        # **Ohne Praefix, und das ist eine Zusage.** `$NAME:` markiert das
+        # Urteil und nichts sonst — siehe den Kopf dieser Datei. Diese beiden
+        # Zeilen sind Fortschritt: Sie stehen unter apts eigener Ausgabe im
+        # Log, wo sie hingehoeren.
+        echo 'Paketlisten werden aufgefrischt.'
+        apt-get -q update || echo 'apt-get update endete ungleich 0 — der Lauf geht weiter, entschieden wird an der Fassung.'
 
         mass=fassung
         einheit='Fassung'
@@ -245,8 +253,13 @@ if [ "$vorher" = "$nachher" ]; then
     exit 3
 fi
 
+# **Beide Zweige enden ausdruecklich**, obwohl das Skript hier ohnehin aufhoert.
+# Damit gilt ohne Ausnahme: Auf eine Zeile mit `$NAME:` folgt ein `exit` — und
+# genau das haelt `OutcomeTest`.
 if [ "$mass" = fassung ]; then
     echo "$NAME: Fassung $vorher wurde zu $nachher."
-else
-    echo "$NAME: $((vorher - nachher)) von $vorher Aktualisierungen eingespielt, $nachher bleiben offen."
+    exit 0
 fi
+
+echo "$NAME: $((vorher - nachher)) von $vorher Aktualisierungen eingespielt, $nachher bleiben offen."
+exit 0

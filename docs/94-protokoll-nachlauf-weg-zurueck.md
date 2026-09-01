@@ -496,3 +496,76 @@ grundsätzlich nicht wiederherstellen, weil der Filter den Browser nie verlässt
    Sitzung, und damit sahen Erfolgs- und Fehlerfall gleich aus.
 3. **Befund 3** — die Herkunft nach einer Navigation mit dem Zurück-Knopf.
    Unbehoben und benannt.
+
+---
+
+## 8 · Befund 5 — der Präfix markierte jede Meldung, nicht das Urteil
+
+**Gefahren am 1. September 2026 auf `cloudsrv24`, gegen `0.7.3-rc.6` — der
+erste Lauf des neuen Befehls.** Er endete nach zwei Sekunden:
+
+    Das Update läuft als srvpanel-update-a2e0b3dd.
+    Das Panel startet dabei neu. Dieser Befehl liest mit und nennt am Ende den Ausgang.
+
+      apt-run: Paketlisten werden aufgefrischt.        ← mitgelesen
+
+      Paketlisten werden aufgefrischt.                 ← als Urteil ausgegeben, grün
+
+    Rückgabewert: 0
+
+`Outcome::verdict()` nimmt die **letzte** Zeile mit dem Präfix `apt-run: `. Am
+Ende eines Laufs ist das richtig — währenddessen ist die letzte auch die erste.
+
+> **Ein Leser, der „die letzte Zeile" nimmt, liest während des Laufs die
+> erste.**
+
+**Die Warteschleife war damit in genau dem Modus wirkungslos, für den sie
+gebaut wurde.** Ausgezählt in `apt-run`: sieben Zeilen tragen den Präfix, fünf
+davon beenden den Lauf. Die beiden anderen stehen ausschliesslich im
+Fassungsmodus — also dort, wo `srvpanel update` liest. `system.packages.upgrade`
+schreibt keine, und `AwaitDispatchedRun` konnte den Fehler deshalb nie sehen.
+
+> **Ein Präfix, der jede Zeile eines Werkzeugs markiert, unterscheidet die
+> Meldung nicht vom Urteil.**
+
+### Behoben im Skript, und die Regel ist jetzt eine Eigenschaft
+
+Die beiden Fortschrittszeilen tragen den Präfix nicht mehr; sie stehen
+unprefixed im Log, wo apts eigene Ausgabe steht. Dazu zwei Kleinigkeiten, die
+die Regel ausnahmslos machen: `fehler()` schreibt `Aufruf falsch — …` (und
+steht damit in `Outcome::BAD`, statt als grünes Urteil durchzugehen), und die
+beiden durchfallenden Urteile enden ausdrücklich mit `exit 0`.
+
+**Gehalten wird die Eigenschaft und keine Liste.** Eine Aufzählung der fünf
+Urteilssätze in PHP wäre eine zweite Fassung dessen, was `apt-run` schreibt —
+und die zweite veraltet. `OutcomeTest::test_every_prefixed_line_ends_the_run`
+prüft stattdessen, was ein Urteil von einer Meldung unterscheidet: **Es beendet
+den Lauf.** Eine sechste Urteilsform ist damit von selbst gedeckt, eine dritte
+Fortschrittszeile fällt auf.
+
+Die Gegenrichtung steht daneben: Die Meldung muss noch da sein, nur ohne
+Präfix. Sonst wäre die Regel auch dadurch zu erfüllen, dass der Betreiber
+nichts mehr sieht.
+
+### Was das für die nächste Fassung heisst
+
+**Das Update von `rc.6` auf `rc.7` wird den Fehler noch einmal zeigen** — und
+das ist keine gescheiterte Behebung. Der Befehl, der ein Update ausführt, ist
+immer der **schon installierte**: `rc.6`s `Update.php` liest `rc.6`s `apt-run`.
+Erst der Sprung von `rc.7` auf `rc.8` läuft mit beiden behobenen Teilen.
+
+> **Eine Behebung an dem Werkzeug, das die Behebung ausliefert, wirkt erst eine
+> Fassung später.**
+
+Ein Ausweg wäre eine Ausnahmeliste im Leser für die zwei bekannten Sätze — also
+eine zweite Fassung von Wissen über `apt-run`, für genau einen Zyklus. Sie ist
+bewusst nicht gebaut.
+
+### Und M1 ist damit weiterhin ungeprüft
+
+Dieser Lauf hat nichts installiert und nichts umgeschaltet. Ob die Warteschleife
+einen echten Symlink-Wechsel übersteht — ob `vorladen()` reicht —, ist nach wie
+vor offen und braucht `rc.7` → `rc.8`.
+
+> **Ein Lauf ohne den Vorgang, gegen den er sich behaupten soll, prüft die
+> Behauptung nicht.**

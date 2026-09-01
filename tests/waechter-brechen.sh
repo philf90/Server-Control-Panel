@@ -21326,6 +21326,131 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
 
 echo
+echo "== AptResultTest: die eigene Quelle wird erst nach dem Auffrischen gefragt =="
+#
+# Gemessen am 1. September 2026 auf cloudsrv24 (docs/96 §4b): Mit Enabled: no an
+# der eigenen Quelle meldete srvpanel update gruen "Es stand nichts an". Nach dem
+# Auffrischen ist die Frage wirkungslos — eine abgeschaltete Quelle erzeugt
+# keinen Fehlschlag.
+vorher_datei agent/src/Ops/PanelUpdate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PanelUpdate.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $uris = Sources::enabledUris(Sources::PANEL_SOURCE);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "        $uris = [];", 1)
+alt2 = "        $refresh = Apt::refresh($context);"
+assert s.count(alt2) == 1, 'Zweite Zielstelle nicht eindeutig'
+open(p, 'w', encoding='utf-8').write(s.replace(alt2, alt2 + "\n        $uris = Sources::enabledUris(Sources::PANEL_SOURCE);", 1))
+PY2
+griff_datei agent/src/Ops/PanelUpdate.php "Quelle erst nach dem Auffrischen gefragt" &&
+pruefe "Quelle erst nach dem Auffrischen gefragt" \
+  AptResultTest::test_the_panels_own_source_is_in_force_before_the_refresh failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptResultTest passed
+
+echo
+echo "== AptResultTest: hitting() bekommt wieder alle Adressen =="
+#
+# Eine abgeschaltete Stanza kann keinen Fehlschlag erzeugt haben; sie mitzufuehren
+# hiesse, in den Meldungen nach einer Quelle zu suchen, die apt nie angefasst hat.
+vorher_datei agent/src/Ops/PanelUpdate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PanelUpdate.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $unreachable = $refresh->hitting($uris);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        $unreachable = $refresh->hitting(Sources::uris(Sources::PANEL_SOURCE));", 1))
+PY2
+griff_datei agent/src/Ops/PanelUpdate.php "Schuldfrage ueber alle Adressen" &&
+pruefe "Schuldfrage ueber alle Adressen" \
+  AptResultTest::test_the_panels_own_source_is_in_force_before_the_refresh failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptResultTest passed
+
+echo
+echo "== SourceListTest: enabledUris uebergeht Enabled =="
+#
+# Ohne diese Frage zaehlt eine abgeschaltete Quelle als Adresse in Kraft — und
+# der Abbruch bliebe aus, fuer den es sie gibt.
+vorher_datei agent/src/Sources.php
+python3 - <<'PY2'
+p = 'agent/src/Sources.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if (! $stanza['enabled']) {
+                continue;
+            }
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "", 1))
+PY2
+griff_datei agent/src/Sources.php "enabledUris uebergeht Enabled" &&
+pruefe "enabledUris uebergeht Enabled" \
+  SourceListTest::test_only_the_enabled_stanzas_name_an_address failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
+
+echo
+echo "== UpdateWaitTest: der Vorbehalt haengt an nichts =="
+#
+# Gemessen am 1. September 2026 auf cloudsrv24 (docs/96 §2): Unter dem gruenen
+# "Es stand nichts an — Fassung unveraendert" stand der Satz ueber die
+# Bereitschaftspruefung und den Rueckweg. Es hat aber nichts entpackt.
+vorher_datei app/Console/Commands/Update.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Update.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (! Outcome::unchanged($urteil)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        if (true) {", 1))
+PY2
+griff_datei app/Console/Commands/Update.php "Vorbehalt ohne Frage" &&
+pruefe "Vorbehalt ohne Frage" \
+  UpdateWaitTest::test_the_caveat_hangs_on_the_verdict failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
+
+echo
+echo "== OutcomeTest: unchanged() sagt zu jedem Urteil ja =="
+#
+# Ein unchanged(), das immer ja sagt, naehme den Vorbehalt auch dem Lauf weg,
+# der ihn braucht — der Fehler faellt dann zur unsicheren Seite.
+vorher_datei agent/src/Outcome.php
+python3 - <<'PY2'
+p = 'agent/src/Outcome.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return str_starts_with($verdict, self::UNCHANGED);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        return true;", 1))
+PY2
+griff_datei agent/src/Outcome.php "unchanged sagt immer ja" &&
+pruefe "unchanged sagt immer ja" \
+  OutcomeTest::test_one_of_the_five_verdicts_installed_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
+
+echo
+echo "== OutcomeTest: die Naht zu apt-run laeuft auseinander =="
+#
+# Der Satz steht danach nur noch im Kommentar — roh gelesen faende ein Waechter
+# ihn, mit abgestreiften Kommentaren nicht. Der Fehler faellt hier zur harmlosen
+# Seite (ein Vorbehalt zuviel), und genau deshalb bemerkte ihn sonst niemand.
+vorher_datei packaging/bin/apt-run
+python3 - <<'PY2'
+p = 'packaging/bin/apt-run'
+s = open(p, encoding='utf-8').read()
+alt = '    echo "$NAME: Es stand nichts an — $einheit unverändert: $nachher."'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '    # Frueher: Es stand nichts an\n    echo "$NAME: Nichts zu tun — $einheit unverändert: $nachher."'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei packaging/bin/apt-run "Naht zu apt-run gerissen" &&
+pruefe "Naht zu apt-run gerissen" \
+  OutcomeTest::test_one_of_the_five_verdicts_installed_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
+
+echo
 echo "== UpdateWaitTest: Warten ist nicht mehr die Vorgabe =="
 #
 # Der Fall, der stillschweigend das Falsche tat, war der ohne Fahne. Eine

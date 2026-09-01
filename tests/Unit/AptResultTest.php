@@ -440,4 +440,63 @@ final class AptResultTest extends TestCase
 
         return $files;
     }
+
+    /**
+     * M5 von der dritten Seite: eine Quelle, die gar nicht gefragt wurde.
+     *
+     * ## Der Befund, gegen den es diesen Fall gibt
+     *
+     * **Gemessen am 1. September 2026 auf `cloudsrv24`** (`docs/96 §4b`). Mit
+     * `Enabled: no` an der eigenen Quelle meldete `srvpanel update` grün „Es
+     * stand nichts an — Fassung unverändert: 0.7.3~rc.9."
+     *
+     * apt holt eine abgeschaltete Quelle nicht, also gibt es keine `W:`-Zeile,
+     * also findet `Apt::hitting()` nichts — und die Simulation danach sieht
+     * mangels neuer Listen nichts Anstehendes. Jede einzelne Stufe antwortet
+     * richtig, und heraus kommt eine falsche Auskunft.
+     *
+     * Der Verweis steht als Fliesstext: Pint machte aus einem `{@see}` mit
+     * vollem Namen einen `use`-Eintrag, und dieser Wächter kommt ohne aus.
+     *
+     * > **Eine Quelle, die nicht gefragt wird, antwortet nicht falsch — sie
+     * > fehlt, und das sieht aus wie Zustimmung.**
+     *
+     * ## Warum die Reihenfolge das Messbare ist
+     *
+     * Stünde die Frage **nach** der Auffrischung, wäre sie wirkungslos: Der
+     * Lauf käme sauber durch, `hitting()` fände nichts, und nichts hielte ihn
+     * auf. Der Aufruf allein sagt darüber nichts — dieselbe Zeile an der
+     * falschen Stelle ist keine Prüfung.
+     *
+     * **Und gefragt wird mit den eingeschalteten Adressen.** Eine abgeschaltete
+     * Stanza kann keinen Fehlschlag erzeugt haben; sie in `hitting()`
+     * mitzuführen hiesse, in den Meldungen nach einer Quelle zu suchen, die apt
+     * nie angefasst hat.
+     */
+    public function test_the_panels_own_source_is_in_force_before_the_refresh(): void
+    {
+        $source = $this->withoutComments(
+            (string) file_get_contents(dirname(__DIR__, 2).'/agent/src/Ops/PanelUpdate.php')
+        );
+
+        $frage = strpos($source, 'Sources::enabledUris(Sources::PANEL_SOURCE)');
+        $auffrischen = strpos($source, 'Apt::refresh(');
+
+        $this->assertIsInt(
+            $frage,
+            'Niemand fragt mehr, ob die eigene Quelle überhaupt eingeschaltet ist — dann meldet ein Update „Es stand nichts an", während die Quelle aus ist.',
+        );
+        $this->assertIsInt($auffrischen, 'Es wird gar nicht mehr aufgefrischt.');
+        $this->assertLessThan(
+            $auffrischen,
+            $frage,
+            'Gefragt wird nach dem Auffrischen — dort ist die Frage wirkungslos, denn eine abgeschaltete Quelle erzeugt keinen Fehlschlag.',
+        );
+
+        $this->assertStringContainsString(
+            '$refresh->hitting($uris)',
+            $source,
+            'Die Schuldfrage geht nicht über die eingeschalteten Adressen — dann wird eine Quelle beschuldigt, die apt nie angefasst hat.',
+        );
+    }
 }

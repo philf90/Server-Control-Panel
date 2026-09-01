@@ -101,17 +101,27 @@ Vor dieser Fassung stand dort `Der Lauf hat nichts verändert — Fassung vorher
 wie nachher: …` mit `rc=3`, und die Unit auf `failed`. Gemessen am 27. August
 (`docs/94 §4`).
 
-**Gegenprobe im selben Schritt** — der Vorgang darf auch im Panel nicht rot
-sein:
+**Gegenprobe im selben Schritt** — die transiente Unit darf nicht rot sein. Der
+Name steht in der Zeile „Das Update läuft als …":
 
 ```
-srvpanel tinker --execute='
-  $o = App\Models\Operation::withoutGlobalScopes()->latest("id")->first();
-  echo $o->id, " ", $o->type, " ", $o->status->value, " ", $o->message, PHP_EOL;'
+journalctl -u srvpanel-update-<kennung> --no-pager | tail -5
 ```
 
-Erwartet: `succeeded`. **Ein grünes Urteil auf der Konsole und ein roter Vorgang
-im Panel wären zwei Antworten auf dieselbe Frage.**
+Erwartet: **keine** Zeile `Failed with result 'exit-code'` und kein
+`status=3/NOTIMPLEMENTED`. **Ein grünes Urteil auf der Konsole und eine rote
+Unit wären zwei Antworten auf dieselbe Frage** — und genau das war der Zustand
+vor dieser Fassung.
+
+> **Berichtigt am 1. September 2026, nachdem die erste Fassung gefahren
+> war** (`docs/96 §2`, Befund 9). Sie las den neuesten Vorgang aus der
+> Datenbank und erwartete `succeeded` — `srvpanel update` legt aber gar keinen
+> Vorgang an: Es ruft `panel.update` unmittelbar über den Agenten, und das Panel
+> hat für die eigene Aktualisierung keine Fläche. Zurück kam eine fremde Zeile
+> vom Vortag, und sie stand auf `succeeded`.
+>
+> **Eine Frage nach dem neuesten Datensatz beantwortet, welcher der neueste ist
+> — nicht, ob der gesuchte darunter ist.**
 
 ---
 
@@ -119,14 +129,27 @@ im Panel wären zwei Antworten auf dieselbe Frage.**
 
 ```
 grep -n 'Paketlisten' /var/log/srvpanel/update.log
-grep -c 'apt-get.*update' /usr/lib/srvpanel/apt-run
+grep -n 'apt-get.*update' /usr/lib/srvpanel/apt-run | grep -v ':[[:space:]]*#'
 ```
 
 **Erwartet:**
 
 - Im Protokoll steht `Paketlisten aufgefrischt; jede Quelle hat geantwortet.`
   **ohne** `apt-run: ` davor — sonst läse der Leser sie als Urteil (Befund 5).
-- `apt-run` enthält **null** Aufrufe von `apt-get update`.
+- Der zweite Griff gibt **nichts** aus: `apt-run` enthält keinen Aufruf von
+  `apt-get update` mehr.
+
+> **Berichtigt am 1. September 2026, nachdem die erste Fassung gefahren war**
+> (`docs/96 §3`, Befund 11). Sie schrieb `grep -c` über den rohen Text und
+> erwartete `0`; gemessen wurden **5**, und alle fünf sind Kommentare. In diesem
+> Repo hält jede Behebung ihren Vorzustand im Kommentar fest — ein roher Zähler
+> über eine entfernte Zeile findet sie zuverlässig wieder.
+>
+> **Ein Prüfmittel, das eine Zeichenkette sucht, zählt die Kommentare mit.**
+>
+> Ausgegeben werden jetzt die Zeilen statt einer Zahl: Eine Zahl sagt, wie viele
+> passen — nicht, ob eine davon ein Aufruf ist. Ein Kommentar am Zeilenende
+> bliebe damit sichtbar, statt still mitgezählt zu werden.
 
 Beide Hälften derselben Naht: Stünde die Meldung an beiden Stellen, erschiene
 sie zweimal, und die zweite käme aus einem Lauf, der gar nicht mehr auffrischt.
@@ -279,10 +302,26 @@ und 6 ein `←` **zeigen**, sagt sein Fehlen hier etwas.
 ## 8 · Punkt 8 — die Vorgangsseite bei 390 px, mit Herkunft und Gegenstand
 
 `docs/94` Punkt 3 fiel als „nicht herstellbar" aus, weil kein Gegenstand über 25
-Zeichen zu bekommen war. Eine Sicherung trägt den Namen der Datenbank samt
-Zeitstempel — der ist länger.
+Zeichen zu bekommen war.
 
-Am Vorgang aus Punkt 5, im Browser bei 390 px, in **beiden** Themes:
+**Gemessen wird an einer Domain und nicht an einer Sicherung.**
+`OperationSubject::nameOf()` gibt für `Domain` das Feld `name` zurück, und ein
+Domainname darf 63 Zeichen je Label tragen. Ausgelöst wird der Vorgang über die
+Domainseite (etwa **Server-Block schreiben**); je länger der Name, desto besser
+der Prüfkörper.
+
+> **Berichtigt am 1. September 2026, nachdem die Punkte 5 bis 7 gefahren waren**
+> (`docs/96 §8`, Befund 13). Hier stand „eine Sicherung trägt den Namen der
+> Datenbank samt Zeitstempel — der ist länger"; gemessen sind es zehn Zeichen
+> (`p1136_test`). Das ist keine Überraschung, sondern eine Entscheidung, die im
+> Quelltext begründet steht: `nameOf()` gibt für eine Sicherung ausdrücklich
+> `database_name` und **nicht** `storage_name` zurück.
+>
+> **Ein Prüfkörper, dessen Länge man annimmt, statt sie am Quelltext
+> nachzusehen, ist eine Vermutung mit Fussnote.**
+
+Am Vorgang mit dem längsten Gegenstand, im Browser bei 390 px, in **beiden**
+Themes:
 
 ```
 document.documentElement.scrollWidth - document.documentElement.clientWidth
@@ -303,6 +342,14 @@ document.documentElement.scrollWidth - document.documentElement.clientWidth
 ```
 
 Erwartet: **200**. Danach neu laden.
+
+> **Und vor jedem Lauf dieser Gegenprobe ebenso.** Sie bemisst sich am
+> gegenwärtigen `scrollWidth`; läuft sie ein zweites Mal ohne Neuladen, ist ihr
+> eigener Block von eben schon Teil des Masses, und heraus kommen 400. Genau so
+> gemessen am 1. September (`docs/96 §8`).
+>
+> **Ein Prüfkörper, der sich am gegenwärtigen Zustand bemisst, verändert den
+> Zustand, an dem er sich bemisst — beim zweiten Lauf misst er sich selbst.**
 
 ---
 

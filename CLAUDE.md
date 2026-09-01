@@ -524,6 +524,17 @@ heil wie kaputt (im Container gegen echtes Chromium gemessen).
 > **Ein Prüfkörper, der nur auf der heilen Seite ausschlägt, belegt die Messung
 > dort, wo sie niemand braucht.**
 
+**Und dieselbe Familie von der anderen Seite, gemessen am 1. September 2026**
+(`docs/96 §8`): Von Hand in der Konsole gefahren, ein zweites Mal ohne Neuladen,
+ergibt derselbe Prüfkörper **400** statt 200 — sein eigener Block von eben ist
+dann schon Teil des Masses.
+
+> **Ein Prüfkörper, der sich am gegenwärtigen Zustand bemisst, verändert den
+> Zustand, an dem er sich bemisst — beim zweiten Lauf misst er sich selbst.**
+
+`tests/bilder-messen.js` ist davon nicht betroffen; es misst je Aufnahme in einer
+frisch geladenen Seite. Wer von Hand misst, lädt vorher neu.
+
 ---
 
 ## Der Serverlauf zu `v0.6.0-rc.20` — 21. August 2026
@@ -1447,6 +1458,19 @@ Kommentarzeilen ab, bevor er sucht** — genauso wie `WithoutPhpComments` es fü
 PHP tut. Belegt in beide Richtungen: mit der verbotenen Zeile *nur im Kommentar*
 bleibt der Wächter grün, roh gelesen wäre er fälschlich rot.
 
+**Und das gilt nicht nur für Wächter, sondern für jede Messung an diesen
+Quellen.** Am selben 1. September verlangte `docs/95 §3` `grep -c
+'apt-get.*update'` über `apt-run` und erwartete `0`; gemessen wurden **5**, und
+alle fünf sind Kommentare (`docs/96 §3`). Derselbe Kommentar in derselben Datei
+am selben Tag — einmal ein Wächter, der fälschlich grün blieb, einmal eine
+Messung, die fälschlich rot meldete.
+
+> **Derselbe Kommentar, der einen Wächter fälschlich grün hält, macht eine
+> Messung fälschlich rot.**
+
+Und eine Zahl ist dafür die falsche Form: Sie sagt, wie viele Zeilen passen,
+nicht ob eine davon ein Aufruf ist. Eine Messvorschrift gibt die **Zeilen** aus.
+
 **Und derselbe Fehler eine Ebene tiefer, am 26. August 2026:** `PartialReloadTest`
 las PHP **byteweise** und hielt jedes `"` für den Anfang einer Zeichenkette.
 Deutsche Anführungszeichen stehen in diesem Repo als `„…"` — die öffnende ist
@@ -1777,10 +1801,18 @@ Aktualisierungen weder Tabelle noch Knopf gibt.
 > **Ein Prüfkörper, der einen Zustand braucht, den der Lauf davor verbraucht,
 > gehört an einen Gegenstand, der nachwächst.**
 
-**Und Punkt 4b ist eine Frage und kein Kriterium**, gefunden beim Ausschreiben:
-`Enabled: no` ist nicht dasselbe wie unerreichbar. Eine **abgeschaltete** Quelle
-erzeugt keinen Fehlschlag, `Apt::hitting()` greift nicht — und gemeldet würde
-„Es stand nichts an", während die eigene Paketquelle aus ist.
+**Und Punkt 4b war eine Frage und kein Kriterium**, gefunden beim Ausschreiben:
+`Enabled: no` ist nicht dasselbe wie unerreichbar. **Gefahren am 1. September
+ist die Antwort ein Befund** (`docs/96 §4b`): Eine abgeschaltete Quelle erzeugt
+keinen Fehlschlag, `Apt::hitting()` greift nicht, und das Panel meldete grün
+„Es stand nichts an", während die eigene Paketquelle aus war.
+
+> **Eine Quelle, die nicht gefragt wird, antwortet nicht falsch — sie fehlt, und
+> das sieht aus wie Zustimmung.**
+
+`Sources::enabledUris()` liest seitdem die Adressen der eingeschalteten Stanzas,
+und `PanelUpdate` fragt **vor** der Auffrischung. Die Reihenfolge ist das
+Tragende und nicht der Aufruf: danach wäre die Frage wirkungslos.
 
 Und weiter aus P7b: **`87` der Nachlauf zu `0.7.2-rc.5`** — sechs Punkte auf
 `cloudsrv24`, die nachsehen, ob die vier Behebungen aus `docs/86 §5` auf einem
@@ -2253,6 +2285,24 @@ gibt 255, `exit` gibt 0, bei gleicher Ausgabe.
 
 > **Ein Server ist nicht die einzige Stelle, an der ein Serverfehler messbar
 > ist — er ist die, an der er zuerst auffällt.**
+
+**Und der Sprung `rc.8` → `rc.9` am selben Abend hat die Behebung nicht geprüft,
+sondern meine Erwartung** (`docs/96 §1b`): dieselbe Kaskade, wieder `rc=255`,
+jeder Rahmen bis `{main}` unter `releases/0.7.3-rc.8/`. Wartend ist der Prozess,
+der den Befehl ausführt, und der kommt aus `current` **zum Zeitpunkt des
+Aufrufs**.
+
+> **Der Prüfling einer Aktualisierung ist die installierte Fassung und nicht die
+> eingespielte.** Eine Behebung an der Warteschleife lässt sich deshalb
+> grundsätzlich erst eine Fassung später belegen; einen früheren Prüfkörper gibt
+> es nicht.
+
+Derselbe Satz stand eine Stunde vorher schon im Protokoll — dort kam die erste
+graue Zeile aus `rc.7`s `apt-run`, weil die installierte Fassung ihr eigenes
+Skript liest.
+
+> **Ein Satz, den man in einem Protokoll festhält, prüft die nächste Erwartung
+> nicht von selbst.**
 
 > **Ein Satz, den die Oberfläche behauptet und den niemand gemessen hat, ist
 > eine Vermutung mit Fussnote.**

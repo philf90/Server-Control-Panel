@@ -176,6 +176,60 @@ final class Sources
     }
 
     /**
+     * Die Adressen der **eingeschalteten** Quellen einer Datei.
+     *
+     * ## Der Befund, gegen den es sie gibt
+     *
+     * **Gemessen am 1. September 2026 auf `cloudsrv24`** (`docs/96 §4b`). Mit
+     * `Enabled: no` an der eigenen Quelle meldete `srvpanel update` grün
+     * „Es stand nichts an — Fassung unverändert: 0.7.3~rc.9."
+     *
+     * Das ist M5 in einer dritten Gestalt: apt holt eine abgeschaltete Quelle
+     * gar nicht erst, also erzeugt sie keinen Fehlschlag, {@see Apt::hitting()}
+     * findet nichts — und die Simulation danach sieht mangels neuer Listen
+     * nichts Anstehendes.
+     *
+     * > **Eine Quelle, die nicht gefragt wird, antwortet nicht falsch — sie
+     * > fehlt, und das sieht aus wie Zustimmung.**
+     *
+     * ## Warum hier ein deb822-Leser steht und bei {@see self::uris()} nicht
+     *
+     * Dort ist die Frage „welche Adressen nennt diese Datei", und dafür genügt
+     * der Anker am Zeilenanfang. `Enabled:` ist dagegen eine Eigenschaft
+     * **einer Stanza** und ohne deren Grenzen nicht zu beantworten. Gelesen
+     * wird deshalb über {@see self::stanzas()} — den gibt es seit P7b, und er
+     * ist geprüft.
+     *
+     * **Leer heisst „keine Quelle in Kraft".** Ob die Datei fehlt, alle Stanzas
+     * aus sind oder keine eine Adresse nennt, entscheidet der Aufrufer: Er
+     * allein weiss, welche Meldung sein Leser braucht.
+     *
+     * @return list<string>
+     */
+    public static function enabledUris(string $datei): array
+    {
+        if (! is_file($datei)) {
+            return [];
+        }
+
+        $uris = [];
+
+        foreach (self::stanzas((string) file_get_contents($datei)) as $stanza) {
+            if (! $stanza['enabled']) {
+                continue;
+            }
+
+            foreach (preg_split('/\s+/', trim($stanza['fields']['URIs'] ?? '')) ?: [] as $uri) {
+                if ($uri !== '' && ! in_array($uri, $uris, true)) {
+                    $uris[] = $uri;
+                }
+            }
+        }
+
+        return $uris;
+    }
+
+    /**
      * Darf in diese Datei geschrieben werden?
      *
      * **`realpath()` erweitert die Annahme, es verengt sie nicht** — und hier

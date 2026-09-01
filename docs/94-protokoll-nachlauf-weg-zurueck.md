@@ -633,3 +633,67 @@ Aufruf steht wörtlich in `ci.yml` und war einmal Kopieren.
 > **Ein Werkzeug, das die CI fährt und das lokal daneben liegt, wird nicht durch
 > ein anderes ersetzt, das eine ähnliche Frage stellt.** `bash -n` beantwortet
 > „parst es", shellcheck „stimmt es" — die zweite Frage hat die Runde gekostet.
+
+---
+
+## 8c · Der Sprung `rc.6` → `rc.7` — die Vorhersage ist gemessen
+
+Gefahren auf `cloudsrv24` am 1. September 2026, unmittelbar nach der Freigabe
+von `0.7.3-rc.7`:
+
+```
+  Das Update läuft als srvpanel-update-99a88bd6.
+  Das Panel startet dabei neu. Dieser Befehl liest mit und nennt am Ende den Ausgang.
+
+    apt-run: Paketlisten werden aufgefrischt.     ← mitgelesen, grau
+
+    Paketlisten werden aufgefrischt.              ← als Urteil ausgegeben, grün
+
+  Antwortet die Bereitschaftsprüfung danach nicht, setzt das Paket selbst auf
+  die vorige Version zurück.
+```
+
+Danach: `srvpanel version` → **`0.7.3-rc.7`**.
+
+**§8 hat genau das vorhergesagt, und es ist keine gescheiterte Behebung.** Der
+Befehl, der ein Update ausführt, ist immer der **schon installierte**: `rc.6`s
+`Update.php` hat `rc.6`s `apt-run` gelesen, und dort trug die Fortschrittszeile
+den Präfix noch. `Outcome::verdict()` nahm sie beim ersten Takt der Schleife —
+nach drei Sekunden — für das Urteil, `Outcome::failed()` fand sie nicht in
+`BAD`, und `urteilen()` gab `SUCCESS` zurück.
+
+> **Eine Behebung an dem Werkzeug, das die Behebung ausliefert, wirkt erst eine
+> Fassung später.** Zweimal belegt: einmal als Vorhersage in §8, einmal als
+> Messung hier.
+
+### Und die gefährliche Hälfte dieses Laufs
+
+**Das Urteil war falsch gelesen und im Ergebnis richtig.** Das Update ist
+durchgelaufen, die Fassung steht auf `rc.7`, und `SUCCESS` war der Rückgabewert,
+den ein richtig gelesener Lauf auch gegeben hätte. Nichts an dieser Ausgabe
+unterscheidet den einen Fall vom anderen.
+
+> **Ein falsches Verfahren, dessen Ergebnis zufällig stimmt, sieht von aussen
+> aus wie ein richtiges — und wer nur auf das Ergebnis sieht, hält es für
+> belegt.**
+
+Deshalb steht hier die **Zeitmarke** und nicht die Fassungsnummer als Beleg: Der
+Befehl kam nach rund drei Sekunden zurück, während `apt-get` noch lief. Ein
+richtig gelesener Lauf wäre bis zum echten Urteil geblieben und hätte
+`Fassung 0.7.3~rc.6 wurde zu 0.7.3~rc.7.` genannt — mit den beiden Nummern, um
+derentwillen Wunsch 1 gebaut wurde.
+
+### Was der nächste Sprung als Erster prüft
+
+**`rc.7` → `rc.8` ist der erste Lauf mit beiden behobenen Hälften** — `rc.7`s
+`Update.php` liest `rc.7`s `apt-run`. Er prüft damit in einem Zug:
+
+1. **Befund 5 behoben** — das Urteil nennt beide Fassungsnummern, und der Befehl
+   bleibt bis dahin.
+2. **M1** — ob die Warteschleife den Symlink-Wechsel wirklich übersteht, also ob
+   `vorladen()` reicht. Das ist bis heute ungeprüft: Der Lauf von heute Morgen
+   ist ausgestiegen, **bevor** das Paket umgeschaltet hat, und dieser hier
+   ebenso.
+
+> **Ein Lauf, der vor dem Vorgang endet, gegen den er sich behaupten soll, prüft
+> die Behauptung nicht** — auch dann nicht, wenn er dabei erfolgreich aussieht.

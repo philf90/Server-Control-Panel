@@ -139,6 +139,66 @@ final class UpdateWaitTest extends TestCase
     }
 
     /**
+     * Die Warteschleife kehrt nicht zurück — sie beendet den Prozess.
+     *
+     * ## Der Befund, gegen den es diese Hälfte gibt
+     *
+     * Am 1. September 2026 auf `cloudsrv24` (`docs/96 §1`): Der Befehl hat den
+     * Symlink-Wechsel überlebt, sein Urteil grün gedruckt — und ist danach an
+     * zwei Fatals gestorben. `rc=255` für ein gelungenes Update.
+     *
+     * Der Grund liegt nicht im eigenen Code: Laravel lädt nach `handle()`
+     * weiter nach, und der Autolader dieses Prozesses zeigt in das abgeräumte
+     * Fassungsverzeichnis. `Update::vorladen()` deckt die Warteschleife und kann
+     * den Abbau nicht decken.
+     *
+     * Der Verweis steht als Fliesstext und nicht als `{@see}` mit vollem Namen:
+     * Pint macht daraus einen `use`-Eintrag, und dieser Wächter läuft ohne
+     * Framework — er läge damit still, wofür es ihn gibt.
+     *
+     * > **Eine Positivliste über das, was ein fremdes Framework nach dem
+     * > eigenen Code nachlädt, wächst, während man sie füllt.** Im Nachbau
+     * > fehlte zuerst `ConsoleTerminateEvent`; mit ihm vorgeladen traten vier
+     * > neue an seine Stelle.
+     *
+     * ## Was hier gemessen wird
+     *
+     * Dass der Ausgang der Warteschleife den Prozess **selbst** beendet, und
+     * dass es keinen zweiten Weg an `exit` vorbei gibt. Die Kommentare sind
+     * abgestreift — sonst hielte die Zeile, die den alten Zustand zitiert, ihn
+     * für diesen Wächter am Leben.
+     *
+     * ## Was er nicht hält
+     *
+     * Dass der Prozess damit wirklich sauber endet. Das ist eine Eigenschaft
+     * von PHP und Laravel und keine des Quelltextes — gemessen im Container
+     * gegen eine Fassung, die sich mitten im Lauf selbst abräumt: mit `return`
+     * `rc=255`, mit `exit` `rc=0`, bei gleicher Ausgabe.
+     */
+    public function test_the_wait_ends_the_process_itself(): void
+    {
+        $quelle = $this->quelle();
+
+        $this->assertSame(
+            1,
+            substr_count($quelle, '$this->mitlesen('),
+            'Die Warteschleife wird nicht genau einmal gerufen — ein zweiter Aufruf käme an dieser Prüfung vorbei.',
+        );
+
+        $this->assertStringContainsString(
+            'exit($this->mitlesen(',
+            $quelle,
+            'Die Warteschleife kehrt zurück, statt zu beenden — dann läuft Laravels Abbau in ein Verzeichnis, das es nicht mehr gibt.',
+        );
+
+        $this->assertStringNotContainsString(
+            'return $this->mitlesen(',
+            $quelle,
+            'Es gibt weiter einen Rückweg aus der Warteschleife — und der ist genau der Weg in die Kaskade.',
+        );
+    }
+
+    /**
      * Wer nicht warten will, sagt es — und die Vorgabe ist das Warten.
      *
      * **Die Vorgabe ist die Umkehrung des alten Verhaltens**, und das ist

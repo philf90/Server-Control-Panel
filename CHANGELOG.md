@@ -23418,6 +23418,49 @@ Regel also eingehalten.
 > **Ein Eingriff, der wirkt und nichts belegt, sieht aus wie einer, der
 > beisst.**
 
+### Und die Warteschleife kehrt nicht mehr zurück
+
+**Gefunden am 1. September 2026 auf `cloudsrv24`, beim ersten Sprung mit beiden
+behobenen Hälften** (`0.7.3-rc.7` → `-rc.8`, `docs/96 §1`). Der Befehl hat den
+Symlink-Wechsel überlebt, sein Urteil grün gedruckt — und ist danach an zwei
+aufeinanderfolgenden fatalen Fehlern gestorben. `rc=255` für ein Update, das
+gelungen ist.
+
+> **Ein Rückgabewert, der einen gelungenen Lauf als Fehlschlag meldet, ist
+> derselbe Fehler wie einer, der einen misslungenen als Erfolg meldet — nur in
+> die andere Richtung.**
+
+Dasselbe Paar wie Befund 6 aus `docs/91 §20` und wie M5, mit dem P7b angefangen
+hat.
+
+**Die Bauvorschrift von oben deckt die Warteschleife und nicht den Abbau.**
+Laravel lädt nach `handle()` weiter nach — `Kernel::terminate()`, das Rendern
+eines Fehlers, das Rendern des Fehlers am Fehler —, und der Autolader dieses
+Prozesses zeigt in das abgeräumte Fassungsverzeichnis.
+
+**Nachgebaut im Container**, mit einer hartverlinkten Wegwerf-Fassung, die sich
+mitten im Lauf selbst abräumt: mit `return` dieselbe Kaskade und `rc=255`, mit
+`exit()` dieselbe Ausgabe und `rc=0`. Ein vorangestellter Autolader hat
+mitgeschrieben, was noch gesucht wurde; der erste Name war
+`Symfony\Component\Console\Event\ConsoleTerminateEvent`.
+
+**Die Liste zu verlängern wäre keine Behebung, und auch das ist gemessen:** Mit
+diesen Namen vorgeladen kommt der Lauf nicht durch, sondern nennt vier neue.
+
+> **Eine Positivliste über das, was ein fremdes Framework nach dem eigenen Code
+> nachlädt, wächst, während man sie füllt.**
+
+Sie wüchse ausserdem mit jeder Fassung von Laravel und Symfony weiter, ohne dass
+etwas es meldete — der Fehler zeigt sich nur auf einem Server, im Moment eines
+echten Updates.
+
+Der Ausgang der Warteschleife beendet deshalb den Prozess selbst. Es ist der
+erste `exit()` in `app/`, und er steht dort mit seiner Begründung.
+`UpdateWaitTest::test_the_wait_ends_the_process_itself` hält das, gebrochen in
+beide Richtungen: mit `return` statt `exit` rot, und mit der verbotenen Zeile
+**nur im Kommentar** grün — während ein roher Leser sie fände.
+
+
 ### Der Präfix markierte jede Meldung, nicht das Urteil
 
 Gemessen auf `cloudsrv24` am 1. September 2026, im ersten Lauf des neuen

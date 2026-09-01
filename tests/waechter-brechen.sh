@@ -21305,6 +21305,27 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
 
 echo
+echo "== UpdateWaitTest: die Warteschleife kehrt zurueck, statt zu beenden =="
+#
+# Gemessen am 1. September 2026 auf cloudsrv24 (docs/96 §1): Nach dem
+# Symlink-Wechsel zeigt der Autolader dieses Prozesses in ein Verzeichnis, das
+# es nicht mehr gibt. Laravels Abbau laedt weiter nach und stirbt an einer
+# Kaskade — rc=255 fuer ein gelungenes Update.
+vorher_datei app/Console/Commands/Update.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Update.php'
+s = open(p, encoding='utf-8').read()
+alt = "        exit($this->mitlesen($log, $unit));"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        return $this->mitlesen($log, $unit);", 1))
+PY2
+griff_datei app/Console/Commands/Update.php "Rueckweg aus der Warteschleife" &&
+pruefe "Rueckweg aus der Warteschleife" \
+  UpdateWaitTest::test_the_wait_ends_the_process_itself failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
+
+echo
 echo "== UpdateWaitTest: Warten ist nicht mehr die Vorgabe =="
 #
 # Der Fall, der stillschweigend das Falsche tat, war der ohne Fahne. Eine

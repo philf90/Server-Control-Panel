@@ -1369,7 +1369,9 @@ die Route trennt) und `UpdateWaitTest` (`srvpanel update` liest das
 Urteil seines Laufs nach und gibt den passenden Rückgabewert zurück; geladen
 wird **vor** dem Absetzen, weil das Fassungsverzeichnis danach fort ist, und
 eine abgelaufene Frist ist kein Erfolg — gemessen wird die **Reihenfolge** und
-im Rumpf nach der Schleife, nicht das Wort irgendwo in der Datei; was er nicht
+im Rumpf nach der Schleife, nicht das Wort irgendwo in der Datei; **und die
+Warteschleife kehrt nicht zurück, sondern beendet den Prozess**, weil das
+Vorladen den Abbau des Frameworks nicht decken kann; was er nicht
 halten kann, steht als M1 in `docs/94` und nicht als Zusage im Test)
 und `OperationOriginTest` (von einer
 Vorgangsseite führt ein Weg zurück: die Herkunft wird am **Modell** genommen und
@@ -2229,6 +2231,29 @@ Sitzung endet vorher" stand seit P0 als ungeprüfte Vermutung da. Dieselbe
 Messung sagt auch, dass er danach **nichts mehr nachladen kann**: `agent/` liegt
 im Fassungsverzeichnis, und das ist abgeräumt.
 
+**Und genau daran ist der erste echte Sprung gestorben** — `0.7.3-rc.7` →
+`-rc.8` am 1. September auf `cloudsrv24` (`docs/96 §1`): Urteil grün gedruckt,
+danach zwei fatale Fehler, **`rc=255` für ein gelungenes Update**. Nicht der
+eigene Code hat nachgeladen, sondern Laravels Abbau nach `handle()`.
+
+> **Ein Rückgabewert, der einen gelungenen Lauf als Fehlschlag meldet, ist
+> derselbe Fehler wie einer, der einen misslungenen als Erfolg meldet — nur in
+> die andere Richtung.**
+
+Das Vorladen zu verlängern ist keine Antwort, und das ist gemessen: Mit den drei
+fehlenden Namen vorgeladen traten **vier neue** an ihre Stelle.
+
+> **Eine Positivliste über das, was ein fremdes Framework nach dem eigenen Code
+> nachlädt, wächst, während man sie füllt.**
+
+Der Ausgang der Warteschleife beendet den Prozess deshalb selbst — der erste
+`exit()` in `app/`. Nachgebaut wurde beides im Container, mit einer
+hartverlinkten Wegwerf-Fassung, die sich mitten im Lauf selbst abräumt: `return`
+gibt 255, `exit` gibt 0, bei gleicher Ausgabe.
+
+> **Ein Server ist nicht die einzige Stelle, an der ein Serverfehler messbar
+> ist — er ist die, an der er zuerst auffällt.**
+
 > **Ein Satz, den die Oberfläche behauptet und den niemand gemessen hat, ist
 > eine Vermutung mit Fussnote.**
 
@@ -2984,6 +3009,27 @@ Testen berücksichtigen:
   **Und der Prüfkörper wird hinterher weggeräumt**, `apt-run` eingeschlossen:
   Genau daran war `SourceOwnershipTest` einen Tag zuvor in der CI rot und hier
   grün.
+- **Ein Symlink-Wechsel mitten im Lauf ist hier messbar — es braucht keinen
+  Server.** Am 1. September 2026 gemessen, nachdem `docs/96 §1` einen Abbruch
+  auf `cloudsrv24` gezeigt hatte: eine **hartverlinkte** Wegwerf-Fassung
+  (`cp -al` von `vendor bootstrap app config routes database agent storage
+  artisan` nach `/home/user/faux/releases/rcA`, `current` als Symlink darauf),
+  darin ein Kommando, das sich mitten im eigenen Lauf **selbst** abräumt und
+  danach weiterdruckt. Heraus kommt Zeile für Zeile dieselbe Kaskade wie auf dem
+  Server, samt Rückgabewert.
+
+  `cp -al` kostet dabei nichts — die 3,5 GB unter `vendor/` sind Namen und keine
+  Kopien —, und ein `rm -rf` darauf nimmt nur diese Namen mit. Das Repo bleibt
+  unberührt.
+
+  **Und welcher Name zuerst fehlt, sagt kein Nachdenken, sondern ein
+  vorangestellter Autolader**: `spl_autoload_register($f, true, true)` schreibt
+  jede gesuchte Klasse mit. Hinten angestellt sieht er nichts — Composers Lader
+  *wirft*, bevor die Kette weiterläuft.
+
+  > **Ein Beobachter am Ende einer Kette, die vorher abbricht, beobachtet
+  > nichts.**
+
 - **Playwright ist nicht installiert, Chromium schon.**
   `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install --no-save playwright` holt
   es in neun Sekunden; der ausführbare Pfad ist `/opt/pw-browsers/chromium`

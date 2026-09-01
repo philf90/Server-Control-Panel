@@ -59,6 +59,22 @@ use SrvPanel\Agent\Outcome;
  * Deshalb steht {@see self::vorladen()} vor dem Aufruf des Agenten und nicht
  * daneben.
  *
+ * ## Und das reicht nur bis zum eigenen Code
+ *
+ * **Die Bauvorschrift oben deckt die Warteschleife und nicht den Abbau.** Am
+ * 1. September 2026 hat der erste Sprung mit beiden behobenen Hälften
+ * (`0.7.3-rc.7` → `-rc.8`, `docs/96 §1`) das Urteil gedruckt und ist danach
+ * gestorben: Laravel lädt nach `handle()` weiter nach, und jede dieser Dateien
+ * liegt im abgeräumten Verzeichnis.
+ *
+ * Der Befehl gab damit `255` für ein Update zurück, das gelungen ist — die
+ * Umkehrung des Befundes, gegen den es die Warteschleife überhaupt gibt.
+ *
+ * Die Antwort ist nicht, die Liste in `vorladen()` zu verlängern: Sie ist
+ * gemessen gewachsen, während sie gefüllt wurde. Die Antwort steht am Ende von
+ * {@see self::handle()} — der Prozess beendet sich selbst, bevor das Framework
+ * dazu kommt.
+ *
  * ## Warum Versatz 0 genügt
  *
  * {@see PanelUpdate} leert sein Log mit `@unlink()` **im Agenten, vor
@@ -131,7 +147,35 @@ final class Update extends Command
         $this->line('  Das Panel startet dabei neu. Dieser Befehl liest mit und nennt am Ende den Ausgang.');
         $this->newLine();
 
-        return $this->mitlesen($log, $unit);
+        /*
+         * **Hier endet der Prozess, statt zurückzukehren.**
+         *
+         * Nach dem Umschalten ist das Fassungsverzeichnis fort, und der
+         * Autolader dieses Prozesses zeigt hinein. Alles, was Laravel *nach*
+         * `handle()` noch nachlädt, findet seine Datei nicht mehr — und der
+         * Befehl stirbt an einer Kaskade, nachdem er sein Urteil schon gedruckt
+         * hat. Gemessen am 1. September 2026 auf `cloudsrv24` beim Sprung
+         * `rc.7` → `rc.8`: grünes Urteil, dann zwei Fatals, `rc=255` für ein
+         * gelungenes Update.
+         *
+         * > **Ein Rückgabewert, der einen gelungenen Lauf als Fehlschlag
+         * > meldet, ist derselbe Fehler wie einer, der einen misslungenen als
+         * > Erfolg meldet — nur in die andere Richtung.**
+         *
+         * {@see self::vorladen()} kann das nicht decken: Es lädt, was die
+         * Warteschleife braucht, und der Abbau gehört dem Framework. Im
+         * Nachbau war der erste fehlende Name
+         * `Symfony\Component\Console\Event\ConsoleTerminateEvent`; mit ihm
+         * vorgeladen traten vier neue an seine Stelle.
+         *
+         * > **Eine Positivliste über das, was ein fremdes Framework nach dem
+         * > eigenen Code nachlädt, wächst, während man sie füllt.**
+         *
+         * `exit()` überspringt `Kernel::terminate()` und damit jedes Nachladen.
+         * Die Ausgabe steht zu diesem Zeitpunkt vollständig auf dem Kanal —
+         * gemessen: dieselben Zeilen, `rc=0`.
+         */
+        exit($this->mitlesen($log, $unit));
     }
 
     /**

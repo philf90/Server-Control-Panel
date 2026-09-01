@@ -130,14 +130,64 @@ in beide Richtungen: mit `return` statt `exit` rot, und mit der verbotenen Zeile
 **nur im Kommentar** grün, während ein roher Leser sie fände. Genau dafür trägt
 der Wächter `WithoutPhpComments`.
 
-**Gemessen ist die Behebung im Container und nicht auf dem Server.** Ob sie beim
-nächsten echten Sprung trägt, sagt erst `rc.9`.
+**Gemessen ist die Behebung im Container und nicht auf dem Server.** Wann sie
+sich auf einem zeigen kann, steht in §1b — und es ist eine Fassung später, als
+hier zuerst stand.
+
+---
+
+## 1b · Der Sprung `rc.8` → `rc.9` hat Befund 8 **nicht** geprüft
+
+**Gefahren am 1. September um 20:03:11**, Unit `srvpanel-update-c3a05a15`, durch
+in achtzehn Sekunden. Das Urteil steht grün da — `Fassung 0.7.3~rc.8 wurde zu
+0.7.3~rc.9.` —, danach dieselbe Kaskade wie beim Sprung davor und wieder
+`rc=255`. `srvpanel version` meldet `0.7.3-rc.9`.
+
+**Das ist kein Fehlschlag der Behebung, sondern ein Fehler in meiner Erwartung.**
+Die Behebung ist Teil von `rc.9`. Wartend war der Prozess, der den Befehl
+ausführt, und der kam aus `/opt/srvpanel/current` **zum Zeitpunkt des Aufrufs** —
+also aus `rc.8`, wo am Ende der Warteschleife noch `return` steht. Die
+Rückverfolgung sagt es wörtlich: jeder Rahmen bis `#19 {main}` liegt unter
+`/opt/srvpanel/releases/0.7.3-rc.8/`.
+
+> **Der Prüfling einer Aktualisierung ist die installierte Fassung und nicht die
+> eingespielte.**
+
+**Und der Hinweis stand schon in Punkt 1, aufgeschrieben und nicht angewandt:**
+Dort war die erste graue Zeile `Paketlisten werden aufgefrischt.` — aus `rc.7`s
+`apt-run`, weil die installierte Fassung ihr eigenes Skript liest. Derselbe Satz,
+eine Stunde später an derselben Naht übersehen.
+
+> **Ein Satz, den man in einem Protokoll festhält, prüft die nächste Erwartung
+> nicht von selbst.**
+
+**Eine Behebung an der Warteschleife lässt sich damit grundsätzlich erst eine
+Fassung später belegen.** Für Befund 8 ist das der Sprung `rc.9` → `rc.10`; ein
+früherer Prüfkörper existiert nicht.
+
+### Was der Lauf trotzdem belegt hat
+
+**Befund 2 lebt auf dem Server.** Die erste graue Zeile lautet jetzt
+`Paketlisten aufgefrischt; jede Quelle hat geantwortet.` — geschrieben von
+`PanelUpdate` im Agenten, **ohne** `apt-run: ` davor. Damit ist die erste Hälfte
+von Punkt 3 nebenbei erfüllt, und die Auffrischung kommt nachweislich nicht mehr
+aus `apt-run`.
+
+**Befund 5 ein zweites Mal.** Der Befehl blieb über den ganzen Lauf, hat die
+Zeilen von apt mitgelesen und das Urteil mit beiden Fassungsnummern gedruckt.
+
+**Und `1 aktualisiert` heisst, dass etwas anstand** — der Zustand, den Punkt 2
+braucht, ist danach wiederhergestellt: Auf `rc.9` steht nichts mehr an.
 
 ---
 
 ## 2 bis 8
 
-Offen. Der Zustand nach Punkt 1 ist der, den Punkt 2 braucht.
+Offen. Punkt 3 ist zur Hälfte schon belegt (§1b); die zweite Hälfte ist der
+`grep` über `apt-run`.
+
+Punkt 2 ist nach dem Lauf von §1b wieder fahrbar — mit `0.7.3~rc.9` in der
+erwarteten Zeile statt `0.7.3~rc.8`.
 
 ---
 

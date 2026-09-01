@@ -2254,6 +2254,24 @@ gibt 255, `exit` gibt 0, bei gleicher Ausgabe.
 > **Ein Server ist nicht die einzige Stelle, an der ein Serverfehler messbar
 > ist — er ist die, an der er zuerst auffällt.**
 
+**Und der Sprung `rc.8` → `rc.9` am selben Abend hat die Behebung nicht geprüft,
+sondern meine Erwartung** (`docs/96 §1b`): dieselbe Kaskade, wieder `rc=255`,
+jeder Rahmen bis `{main}` unter `releases/0.7.3-rc.8/`. Wartend ist der Prozess,
+der den Befehl ausführt, und der kommt aus `current` **zum Zeitpunkt des
+Aufrufs**.
+
+> **Der Prüfling einer Aktualisierung ist die installierte Fassung und nicht die
+> eingespielte.** Eine Behebung an der Warteschleife lässt sich deshalb
+> grundsätzlich erst eine Fassung später belegen; einen früheren Prüfkörper gibt
+> es nicht.
+
+Derselbe Satz stand eine Stunde vorher schon im Protokoll — dort kam die erste
+graue Zeile aus `rc.7`s `apt-run`, weil die installierte Fassung ihr eigenes
+Skript liest.
+
+> **Ein Satz, den man in einem Protokoll festhält, prüft die nächste Erwartung
+> nicht von selbst.**
+
 > **Ein Satz, den die Oberfläche behauptet und den niemand gemessen hat, ist
 > eine Vermutung mit Fussnote.**
 

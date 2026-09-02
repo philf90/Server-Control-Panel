@@ -24277,6 +24277,169 @@ seiner Tabellen.
 
 Zwei Wächter, elf Brüche.
 
+### Ein Eingriff verlor seinen Biss, weil ich die Nummer vergeben habe, die er brauchte
+
+**Der Bruchlauf der CI meldete eine Prüfung ohne Biss**, und der Grund stand im
+Kommentar daneben — als Zusage:
+
+> `docs/99` ist keine Lücke, sondern ausserhalb: Diese Nummer wird es nicht
+> geben.
+
+Der Eingriff baut einen Verweis auf ein Dokument ein, **das es nicht geben
+darf**; findet `DocLinkTest` es doch, bricht nichts. Am selben Tag ist `docs/99`
+der Nachlauf zu A10 geworden, weil die Reihe schlicht bei 98 angekommen war.
+
+**Das ist der zweite Fall derselben Art.** Beim ersten war es `docs/39`, vergeben
+am 10. August 2026 im selben Wurf, in dem der Eingriff entstand. Damals wurde die
+Nummer verschoben und für unerreichbar erklärt — der Mechanismus blieb derselbe.
+
+> **Eine Zusage über die Zukunft ist kein Mechanismus.**
+
+> **Ein Bruch, dessen Gegenstand von aussen kommt, wird von aussen repariert —
+> und meldet das nicht.**
+
+**Der erste Versuch, es zu beheben, war selbst der Fehler noch einmal.** Die
+Nummer wurde auf `docs/9999` gesetzt — weiter aus dem Weg, dachte ich. Gemessen
+blieb `DocLinkTest` daraufhin **grün**: Er sucht `~docs/(\d{2})~` und liest aus
+`9999` die Ziffern `99` — also genau das Dokument, das es jetzt gibt. Der
+Eingriff lief durch, ohne etwas zu brechen, mit einer neuen Ursache und
+demselben Ergebnis.
+
+> **Eine Nummer, die weiter aus dem Weg liegt, ist nicht sicherer — sie wird vom
+> Leser auf ihre ersten zwei Ziffern gekürzt.**
+
+Genommen ist jetzt die Nummer `00`: zweistellig, damit der Leser sie überhaupt
+sieht, und am **unteren** Ende, weil die Reihe nach oben wächst. Wie sie hier
+geschrieben steht, ist kein Zufall — `ChangelogTest` prüft dieselbe Regel im
+Änderungsprotokoll und hat diesen Absatz beim ersten Wurf abgewiesen, weil er
+den Verweis ausgeschrieben trug. Die Mechanik, um die es hier geht, hat sich
+also unmittelbar an ihrem eigenen Text gezeigt.
+**`BreakScriptTest::test_every_placeholder_number_stays_free`** hält sie — in
+vier Richtungen: die Nummer ist vergeben, sie ist nicht zweistellig, kein
+Eingriff benutzt sie, die Marke ist fort. Alle vier von Hand gebrochen und
+belegt; der Bruch kann nicht im Skript stehen, weil er das Skript selbst ändern
+müsste.
+
+Damit ist aus „diese Nummer wird es nicht geben" ein Test geworden, der den Tag
+meldet, an dem jemand sie doch vergibt.
+
+### MariaDB setzt eine Vorgabe ein, die in keiner Migration steht — und sie hätte Punkt 8 gekippt
+
+**Die CI hat `findings` auf Ubuntu 22.04 nicht anlegen können:**
+
+    SQLSTATE[42000]: 1067 Invalid default value for 'measured_at'
+
+Die Tabelle hat zwei `TIMESTAMP NOT NULL`. Gegen SQLite läuft das durch — 3008
+Tests waren grün —, und MariaDB tut dort zweierlei, ohne dass es irgendwo
+geschrieben steht. **Gemessen gegen 10.11.14 mit
+`explicit_defaults_for_timestamp = 0`**, nicht nachgelesen:
+
+- Die **erste** solche Spalte bekommt
+  `DEFAULT current_timestamp() ON UPDATE current_timestamp()`.
+- Die **zweite** bekommt `DEFAULT '0000-00-00 00:00:00'` — der laute Teil, an
+  dem die CI abbrach.
+
+**Der laute Teil ist der harmlosere.** Dieselbe Zeile, dasselbe `UPDATE`, das
+nur `measured_at` fortschreibt:
+
+| | `first_seen_at` vorher | nachher |
+|---|---|---|
+| `timestamp` | `2026-09-01 03:00:00` | **`2026-09-02 21:16:21`** |
+| `datetime` | `2026-09-01 03:00:00` | `2026-09-01 03:00:00` |
+
+Der Nachtlauf schreibt jede gefundene Zeile fort. Mit `timestamp` wäre „steht
+seit" also **jede Nacht** auf die Wanduhr gesprungen — und Punkt 8 des
+Abnahmekriteriums, der genau das misst und nicht ausfallen darf, wäre auf keinem
+Server je erfüllbar gewesen. Auf einer Maschine mit der anderen Einstellung wäre
+die CI dabei grün geblieben.
+
+> **Eine Vorgabe, die die Datenbank selbst einsetzt, steht in keiner Migration —
+> und ein Test gegen SQLite sieht sie nie.**
+
+Das ist der Satz aus `docs/45` von der anderen Seite: Dort prüfte ein Test die
+Längengrenze der falschen Datenbank, hier eine Vorgabe, die es in der falschen
+gar nicht gibt.
+
+`first_seen_at` und `measured_at` sind seitdem `dateTime` — ohne implizite
+Vorgabe, ohne `ON UPDATE`, auf jeder Zielplattform gleich.
+**`TimestampDefaultTest`** hält die Regel: Eine `timestamp()` ohne `nullable()`
+trägt entweder ein `useCurrent()` — dann ist die Vorgabe ausdrücklich gewollt
+und steht da — oder sie ist eine `dateTime()`.
+
+**Zwei bestehende Spalten stehen mit Grund in seiner Ausnahmeliste**
+(`cron_runs.started_at`, `domain_dns_checks.checked_at`): Beide sind die einzige
+nicht-nullbare `timestamp` ihrer Tabelle, und beide werden nie fortgeschrieben,
+ohne dass der Wert dabei selbst gesetzt wird. Ihre Tabellen liegen auf laufenden
+Servern; ein `ALTER` dafür gehört in einen eigenen Schritt und nicht in den, der
+A10 baut. Der Wächter prüft die Ausnahmeliste in **beide** Richtungen — ein
+Eintrag ohne Spalte ist der tote Freibrief, der beim nächsten Umbau etwas
+anderes deckt.
+
+**Und die Begründung des Wächters war beim ersten Wurf selbst ungeprüft.** Sie
+behauptete, ohne das Abstreifen der Kommentare fände der Ausdruck sich selbst im
+Kommentar der Migration wieder. Nachgemessen: roh 25 Treffer, ohne Kommentare
+dieselben 25 — heute ändert es nichts. Es bleibt trotzdem stehen, weil in diesem
+Repo jede Behebung ihren Vorzustand im Kommentar festhält; der Satz nennt jetzt
+die Messung statt der Vermutung.
+
+> **Eine Begründung, die plausibel klingt und nicht gemessen ist, ist eine
+> Vermutung mit Fussnote** — auch dann, wenn die Regel darüber stimmt.
+
+### Einundzwanzig Typmeldungen, die hier keiner sehen konnte — weil niemand hinsah
+
+**Die CI hat A10 an `Statische Prüfung` rot gemeldet**, einundzwanzigmal, alle in
+den neuen Wächtern und keine im Panel. Hier war vorher grün — und das lag nicht
+am Werkzeug, sondern an zwei Handgriffen an ihm.
+
+**Der erste: gefahren wurde über die geänderten `app/`-Pfade und nicht über die
+geänderten `tests/`-Pfade.** `phpstan.neon` führt `tests` in seinen `paths`; der
+Lauf von Hand nannte die Verzeichnisse, an die man beim Bauen denkt.
+
+> **Ein Werkzeug, das man über die gewohnten Pfade fährt, prüft die Gewohnheit
+> und nicht die Änderung.**
+
+**Der zweite ist der teurere: Der Filter hat genau die Kennung weggeworfen, um
+die es ging.** Ohne larastan meldet PHPStan hier jede Laravel-Klasse als
+`class.notFound`, und der Filter warf alles weg, was auf `notFound` endet — also
+auch `property.notFound`, und das sind acht der einundzwanzig. Er löschte nicht
+Rauschen, sondern den Befund.
+
+> **Ein Filter, der nach der Endung einer Kennung geht, trifft jede Kennung mit
+> dieser Endung — auch die, die man sucht.** Gefiltert wird jetzt gegen eine
+> Liste ganzer Kennungen (`class.notFound`, `method.notFound`, …), nicht gegen
+> ein Muster.
+
+Belegt in beide Richtungen: Auf dem eingecheckten Stand meldet der Lauf hier
+**dieselben einundzwanzig**, nach der Behebung **null** — und die Gegenprobe mit
+einem absichtlichen `strlen(42)` schlägt weiter an.
+
+**Was die Meldungen sagten, war überwiegend richtig.** Acht davon trafen dieselbe
+Naht: Eine Attrappe zählt mit, ihre Zählung steht in einer öffentlichen
+Eigenschaft, und der Rückgabetyp des Helfers nennt nur die Schnittstelle. Die
+anonyme Klasse hat keinen Namen, den man hinschreiben könnte — die Schnittmenge
+mit einer Objektform nennt sie trotzdem vollständig
+(`Check&object{laeufe: int, gesehen: Carbon|null}`).
+
+> **Ein Rückgabetyp, der nur die Schnittstelle nennt, verliert die Zählung, die
+> die Attrappe führt.**
+
+**Und eine Meldung hat einen Wächter verbessert.** `is_subclass_of()` lief über
+`Catalog::CHECKS` — sechs Zeichenketten, deren Klassen PHPStan liest, also eine
+Frage mit bekannter Antwort. Am **Verzeichnis** ist sie es nicht: Dort entsteht
+der Fehler wirklich, als Datei in `Checks/`, die die Schnittstelle nicht umsetzt.
+Der Wächter fragt seitdem dort.
+
+> **Eine Prüfung, deren Antwort der Typprüfer schon kennt, misst nichts — die
+> Seite, auf der er sie nicht kennt, ist die interessante.**
+
+Die leere Ausnahmeliste von `DiagnoseSeamTest` bekommt dieselbe Naht wie
+`BrowserDialogTest::exempt()`: einen Zugriff mit ihrem Typ statt mit ihrem
+Inhalt. Eine leere Konstante hat den Typ `array{}`, und `isset()` darauf ist
+heute unmöglich und morgen nicht.
+
+> **Ein Typ, der aus dem heutigen Inhalt geschlossen wird, verbietet den
+> morgigen.**
+
 ### Der Nachlauf zu A10 ist ausgeschrieben — und drei seiner Kriterien waren falsch
 
 **`docs/99` steht, bevor er gefahren wird.** Acht Punkte auf `cloudsrv24` gegen

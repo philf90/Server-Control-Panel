@@ -42,7 +42,10 @@ final class CertificateVerdictTest extends TestCase
         return Carbon::parse('2026-09-02 03:00:00');
     }
 
-    /** @return array<string, mixed> die Antwort von `acme.certificate.info` */
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed> die Antwort von `acme.certificate.info`
+     */
     private function info(array $overrides = []): array
     {
         return $overrides + [
@@ -66,7 +69,7 @@ final class CertificateVerdictTest extends TestCase
         $verdict = Certificates::judge(
             $this->rows(),
             ['kunde.invalid' => $this->info()],
-            function (string $name) use (&$gefragt): ?string {
+            function (string $name) use (&$gefragt): string {
                 $gefragt[] = $name;
 
                 return self::FP_DATEI;
@@ -91,7 +94,7 @@ final class CertificateVerdictTest extends TestCase
         $verdict = Certificates::judge(
             $this->rows(),
             ['kunde.invalid' => $this->info(['valid_to' => $this->now()->getTimestamp() - 3600])],
-            function () use (&$gefragt): ?string {
+            function () use (&$gefragt): string {
                 $gefragt++;
 
                 return self::FP_DATEI;
@@ -109,7 +112,7 @@ final class CertificateVerdictTest extends TestCase
         $verdict = Certificates::judge(
             $this->rows(),
             ['kunde.invalid' => ['present' => false, 'reason' => 'Es liegt kein Zertifikat unter /etc/srvpanel/tls/certs/kunde.invalid/fullchain.pem.']],
-            fn (): ?string => self::FP_DATEI,
+            fn (): string => self::FP_DATEI,
             $this->now(),
         );
 
@@ -123,7 +126,7 @@ final class CertificateVerdictTest extends TestCase
         $verdict = Certificates::judge(
             $this->rows(),
             ['kunde.invalid' => $this->info(['names' => ['kunde.invalid']])],
-            fn (): ?string => self::FP_DATEI,
+            fn (): string => self::FP_DATEI,
             $this->now(),
         );
 
@@ -158,7 +161,7 @@ final class CertificateVerdictTest extends TestCase
         $verdict = Certificates::judge(
             $this->rows(),
             ['kunde.invalid' => $this->info()],
-            fn (): ?string => self::FP_ANDERS,
+            fn (): string => self::FP_ANDERS,
             $this->now(),
         );
 
@@ -214,7 +217,7 @@ final class CertificateVerdictTest extends TestCase
         Certificates::judge(
             $this->rows(),
             ['kunde.invalid' => $this->info(['fingerprint' => null])],
-            fn (): ?string => self::FP_DATEI,
+            fn (): string => self::FP_DATEI,
             $this->now(),
         );
     }

@@ -5211,14 +5211,36 @@ echo "── DocLinkTest: eine Dokumentnummer, die es nicht gibt ──"
 # > **Ein Bruch, dessen Gegenstand von aussen kommt, wird von aussen repariert
 # > — und meldet das nicht.**
 #
-# `docs/99` ist keine Lücke, sondern ausserhalb: Diese Nummer wird es nicht
-# geben, und wer sie doch vergibt, liest hier, warum das eine schlechte Idee
-# ist.
+# **Und dann ist es am 2. September 2026 ein zweites Mal passiert**, mit der
+# Nummer, die diese Zeilen für unerreichbar erklärten: `docs/99` ist der
+# Nachlauf zu A10 geworden, weil die Reihe schlicht bei 98 angekommen war. Die
+# Fassnote „diese Nummer wird es nicht geben" war eine Zusage über die Zukunft,
+# und niemand hat sie gehalten — die CI hat den stumpfen Eingriff gemeldet,
+# nicht der Bruch selbst.
+#
+# > **Eine Lücke, die man für unerreichbar erklärt, ist trotzdem eine Lücke —
+# > und eine Zusage über die Zukunft ist kein Mechanismus.**
+#
+# **Vierstellig geht nicht, und das ist gemessen.** `DocLinkTest` sucht
+# `~docs/(\d{2})~` — aus `docs/9999` liest er `99`, und das Dokument gibt es
+# seit heute. Der Eingriff lief damit durch, ohne etwas zu brechen: derselbe
+# stumpfe Eingriff, nur mit einer anderen Ursache.
+#
+# > **Eine Nummer, die weiter aus dem Weg liegt, ist nicht sicherer — sie wird
+# > vom Leser auf ihre ersten zwei Ziffern gekürzt.**
+#
+# Genommen ist deshalb `docs/00`: zweistellig, damit der Leser sie überhaupt
+# sieht, und am **unteren** Ende, weil die Reihe nach oben wächst. **Gehalten
+# wird sie** von `BreakScriptTest::test_every_placeholder_number_stays_free` —
+# er liest die Marke unten und meldet den Tag, an dem jemand die Nummer vergibt.
+# Wer ein Dokument schreibt, nimmt die nächste freie — nicht diese.
+#
+# PLATZHALTER-NUMMERN: 00
 vorher_datei docs/38-postgresql.md
 python3 - <<'PY2'
 p = 'docs/38-postgresql.md'
 s = open(p, encoding='utf-8').read()
-s = s.replace('im Zuschnitt von `docs/36 §12`', 'im Zuschnitt von `docs/99 §12`')
+s = s.replace('im Zuschnitt von `docs/36 §12`', 'im Zuschnitt von `docs/00 §12`')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei docs/38-postgresql.md "Nummer eines Dokuments, das es nicht gibt" &&
@@ -23152,6 +23174,49 @@ pruefe "Waechter sucht die Erwaehnung" \
   ManagedBlockDriftTest::test_exactly_one_check_writes_the_block_integrity failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
+
+echo
+echo "== TimestampDefaultTest: die Spalte wird wieder eine timestamp =="
+#
+# Gemessen gegen MariaDB 10.11.14: Die erste TIMESTAMP NOT NULL einer Tabelle
+# bekommt ein ON UPDATE current_timestamp(), das niemand geschrieben hat — ein
+# Lauf, der nur measured_at fortschreibt, schoebe first_seen_at auf die Wanduhr.
+# Gegen SQLite faellt davon nichts auf.
+vorher_datei database/migrations/2026_09_02_120000_create_findings_table.php
+python3 - <<'PY2'
+p = 'database/migrations/2026_09_02_120000_create_findings_table.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $table->dateTime('first_seen_at');"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            $table->timestamp('first_seen_at');""", 1))
+PY2
+griff_datei database/migrations/2026_09_02_120000_create_findings_table.php "Spalte wieder timestamp" &&
+pruefe "Spalte wieder timestamp" \
+  TimestampDefaultTest::test_a_column_the_database_fills_in_is_named failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimestampDefaultTest passed
+
+echo
+echo "== TimestampDefaultTest: ein toter Eintrag in der Ausnahmeliste =="
+#
+# Die Gegenrichtung, und die ist die, an der ein toter Eintrag wirklich
+# entsteht: Wird eine Spalte umgestellt, bleibt ihr Freibrief stehen und deckt
+# beim naechsten Mal etwas anderes.
+vorher_datei tests/Unit/TimestampDefaultTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/TimestampDefaultTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'cron_runs.started_at' =>"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        'gibt_es_nicht.wann' => 'veraltet',
+        'cron_runs.started_at' =>"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Unit/TimestampDefaultTest.php "toter Eintrag in der Ausnahmeliste" &&
+pruefe "toter Eintrag in der Ausnahmeliste" \
+  TimestampDefaultTest::test_every_exemption_names_a_column_that_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimestampDefaultTest passed
 
 echo
 echo "== DiagnosePageTest: der Administrator bekommt den Wortlaut der Werkzeuge =="

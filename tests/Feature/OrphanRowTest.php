@@ -43,12 +43,18 @@ final class OrphanRowTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @param list<string> $cron */
+    /**
+     * @param  list<string>  $konten
+     * @param  list<string>  $cron
+     */
     private function host(array $konten = [], array $cron = []): Host
     {
         return new class($konten, $cron) implements Host
         {
-            /** @param list<string> $konten */
+            /**
+             * @param  list<string>  $konten
+             * @param  list<string>  $cron
+             */
             public function __construct(private readonly array $konten, private readonly array $cron) {}
 
             public function uidOf(string $user): ?int

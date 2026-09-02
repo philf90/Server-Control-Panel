@@ -43,6 +43,7 @@ final class DiagnoseRunTest extends TestCase
      * `Settings` ist `final` — deshalb gibt es {@see RunLog} überhaupt:
      * „Eine Klasse, die sich nicht ersetzen lässt, hat keinen Test."
      */
+    /** @return RunLog&object{eingetragen: Carbon|null, laeufe: int} */
     private function runLog(): RunLog
     {
         return new class implements RunLog
@@ -64,7 +65,16 @@ final class DiagnoseRunTest extends TestCase
         };
     }
 
-    /** @param list<FindingCheck> $writes */
+    /**
+     * Eine Prüfung, die mitzählt — und das steht im Typ.
+     *
+     * **Ein Rückgabetyp, der nur die Schnittstelle nennt, verliert die
+     * Zählung.** Die anonyme Klasse hat keinen Namen, den man hinschreiben
+     * könnte; die Schnittmenge mit einer Objektform nennt sie vollständig.
+     *
+     * @param  list<FindingCheck>  $writes
+     * @return Check&object{laeufe: int, gesehen: Carbon|null}
+     */
     private function check(array $writes, ?callable $work = null): Check
     {
         return new class($writes, $work) implements Check
@@ -73,7 +83,10 @@ final class DiagnoseRunTest extends TestCase
 
             public ?Carbon $gesehen = null;
 
-            /** @param list<FindingCheck> $writes */
+            /**
+             * @param  list<FindingCheck>  $writes
+             * @param  (callable(): void)|null  $work
+             */
             public function __construct(private readonly array $writes, private $work) {}
 
             public function writes(): array
@@ -159,7 +172,7 @@ final class DiagnoseRunTest extends TestCase
         $this->assertSame($dateien, $katalog, 'Der Katalog und das Verzeichnis laufen auseinander.');
         $this->assertGreaterThanOrEqual(6, count($katalog), 'Zu wenige Prüfungen — der Ausdruck misst nichts.');
 
-        foreach ($katalog as $klasse) {
+        foreach ($dateien as $klasse) {
             $this->assertTrue(is_subclass_of($klasse, Check::class), $klasse.' ist keine Prüfung.');
         }
     }

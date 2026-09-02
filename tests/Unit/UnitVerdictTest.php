@@ -52,7 +52,10 @@ final class UnitVerdictTest extends TestCase
         "return 'critical'",
     ];
 
-    /** @return array<string, mixed> eine Zeile, wie `system.units.list` sie liefert */
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed> eine Zeile, wie `system.units.list` sie liefert
+     */
     private function row(array $overrides = []): array
     {
         return $overrides + [

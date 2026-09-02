@@ -129,7 +129,7 @@ final class DiagnoseSeamTest extends TestCase
             foreach (array_keys($check->reasons()) as $reason) {
                 $schluessel = $check->value.'/'.$reason;
 
-                if (isset(self::SPRACHLOS[$schluessel])) {
+                if (isset($this->sprachlos()[$schluessel])) {
                     $this->assertArrayNotHasKey($schluessel, $gesprochen, sprintf(
                         '%s hat einen Sprecher bekommen — dann gehört der Eintrag aus SPRACHLOS heraus.',
                         $schluessel,
@@ -176,4 +176,25 @@ final class DiagnoseSeamTest extends TestCase
      * @var array<string, string>
      */
     private const SPRACHLOS = [];
+
+    /**
+     * Die Ausnahmeliste, mit ihrem Typ statt mit ihrem Inhalt.
+     *
+     * **Eine leere Konstante hat den Typ `array{}`**, und PHPStan meldet darauf
+     * „Offset string in isset() does not exist" — richtig für den heutigen
+     * Inhalt und falsch für den Zweck: Die Liste steht da, damit jemand etwas
+     * einträgt. Dieselbe Naht wie in `BrowserDialogTest::exempt()`.
+     *
+     * > **Ein Typ, der aus dem heutigen Inhalt geschlossen wird, verbietet den
+     * > morgigen.**
+     *
+     * @return array<string, string>
+     */
+    private function sprachlos(): array
+    {
+        /** @var array<string, string> $liste */
+        $liste = self::SPRACHLOS;
+
+        return $liste;
+    }
 }

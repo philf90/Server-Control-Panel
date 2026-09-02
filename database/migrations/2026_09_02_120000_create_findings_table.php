@@ -82,8 +82,30 @@ return new class extends Migration
              * Grund anfasst, verschöbe sonst die Auskunft — und niemand merkte
              * es. Derselbe Grund wie bei `domain_dns_checks.checked_at`.
              */
-            $table->timestamp('first_seen_at');
-            $table->timestamp('measured_at');
+            /*
+             * **`datetime` und nicht `timestamp` — gemessen am 2. September
+             * 2026 gegen MariaDB 10.11.14.** Steht
+             * `explicit_defaults_for_timestamp` auf `0`, gibt MariaDB der
+             * **ersten** `TIMESTAMP NOT NULL` einer Tabelle ein
+             * `DEFAULT current_timestamp() ON UPDATE current_timestamp()`, das
+             * niemand geschrieben hat — und jeder Lauf, der nur `measured_at`
+             * fortschreibt, schöbe damit `first_seen_at` auf die Wanduhr. Genau
+             * das misst Punkt 8 des Abnahmekriteriums, und genau das dürfte
+             * dann nie erfüllt sein.
+             *
+             * Gemessen als Paar: dieselbe Zeile, dasselbe `UPDATE`, das nur
+             * `measured_at` setzt — `timestamp` sprang von `2026-09-01 03:00:00`
+             * auf `2026-09-02 21:16:21`, `datetime` blieb stehen. Die
+             * **zweite** `TIMESTAMP NOT NULL` bekommt daneben
+             * `DEFAULT '0000-00-00 00:00:00'`, und das weist mindestens eine
+             * Zielplattform mit `1067 Invalid default value` ab — der laute
+             * Teil, an dem die CI es gefunden hat.
+             *
+             * > **Eine Vorgabe, die die Datenbank selbst einsetzt, steht in
+             * > keiner Migration — und der Test gegen SQLite sieht sie nie.**
+             */
+            $table->dateTime('first_seen_at');
+            $table->dateTime('measured_at');
 
             $table->timestamps();
 

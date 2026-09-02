@@ -30,6 +30,15 @@ use SrvPanel\Agent\Ops\SubscriptionProvision;
  */
 final class SystemUserVerdictTest extends TestCase
 {
+    /**
+     * Die Attrappe zählt mit, wonach gefragt wurde — und das steht im Typ.
+     *
+     * **Ein Rückgabetyp, der nur die Schnittstelle nennt, verliert die Zählung.**
+     * Die anonyme Klasse hat keinen Namen, den man hinschreiben könnte; die
+     * Schnittmenge mit einer Objektform nennt sie trotzdem vollständig.
+     *
+     * @return Host&object{gefragt: list<string>}
+     */
     private function host(?int $uid, ?int $owner): Host
     {
         return new class($uid, $owner) implements Host

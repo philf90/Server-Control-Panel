@@ -23530,6 +23530,25 @@ gibt. Nach dieser Änderung kommt ein Lauf mit abgeschalteter eigener Quelle gar
 nicht mehr bis zu ihr.
 
 
+### `league/commonmark` 2.9.0 → 2.10.0
+
+**Vier Advisories, alle am 1. September 2026 zwischen 20:17 und 20:28 UTC
+gemeldet** — drei Denial-of-Service und eine XSS-Umgehung im
+`AttributesExtension` über ein U+000C. Betroffen ist alles unter 2.10.0.
+
+Das Paket ist **transitiv**: `laravel/framework` verlangt `^2.8.1`, und dieses
+Panel benutzt es nirgends — kein `Str::markdown`, keine Markdown-Mail, kein
+`@markdown` in einer Ansicht. Der Lock steigt trotzdem, denn der CI-Schritt
+„Schwachstellen und Lizenzen" sperrt sonst **jeden** Beitrag, gleich was er
+ändert.
+
+> **Eine Sperre, die an einer Abhängigkeit hängt und nicht an der Änderung,
+> steht vor jedem Beitrag, bis jemand sie wegnimmt.**
+
+Der Lock ändert sich um sechs Zeilen; `composer.json` bleibt unberührt, und
+`composer audit` meldet danach „No security vulnerability advisories found."
+
+
 ### Der Präfix markierte jede Meldung, nicht das Urteil
 
 Gemessen auf `cloudsrv24` am 1. September 2026, im ersten Lauf des neuen

@@ -625,6 +625,20 @@ Ergänzung.
 **Punkt 4 ist damit vertagt**, nicht ausgefallen — er braucht einen neuen
 Bestand, und den bringt der nächste Tag.
 
+> **Nachgetragen am 2. September 2026: „vertagt" war die falsche Auskunft.** Er
+> hat nicht auf Paketbestand gewartet, sondern auf eine neue Vorschrift. Die
+> Erwartung, die hier oben steht — `exit 3`, *„Der Lauf hat nichts verändert"*,
+> Vorgang `fehlgeschlagen` — ist seit dem 31. August **Befund 6** (`docs/91
+> §20`); ein Lauf, dem nichts zu tun blieb, ist kein Fehlschlag. Der Punkt hätte
+> also das geprüft, was inzwischen als Fehler behoben ist. `docs/87 §5` ist neu
+> geschrieben und hält den alten Wortlaut als Zitat.
+>
+> **Ein Kriterium, dessen Erwartung inzwischen ein Befund ist, prüft nicht mehr
+> den Prüfling, sondern das Datum seiner Niederschrift.**
+>
+> Und die Aufgabe stand seitdem als „braucht Paketbestand" im Verzeichnis — vier
+> Tage lang eine Wartestellung, die auf nichts wartete.
+
 ---
 
 ## 22. Die drei Panel-Befunde sind behoben — 28. August 2026

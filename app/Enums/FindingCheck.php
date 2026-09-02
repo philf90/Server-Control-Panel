@@ -40,10 +40,16 @@ use SrvPanel\Agent\Catalog;
  * {@see FindingState::Unknown} — nie `Ok`. Ein Diagnoselauf, der bei totem
  * Agenten Entwarnung gibt, ist schlimmer als keiner (`docs/44`).
  *
- * Zwei Prüfungen kennen ihn **nicht**, und das ist kein Versehen:
- * {@see self::OrphanRow} fragt allein den eigenen Bestand, und
+ * Drei Prüfungen kennen ihn **nicht**, und das ist kein Versehen:
+ * {@see self::OrphanRow} fragt allein den eigenen Bestand,
+ * {@see self::SystemUser} allein die eigene Maschine, und
  * {@see self::TlsWire} ist die einzige, die über das Netz geht — dort ist
  * „nicht erreichbar" der gemessene Zustand und keine ausgefallene Messung.
+ *
+ * **Die dritte ist beim Bauen von Schritt 5 dazugekommen.** `system.user` trug
+ * `unreachable`, weil fast jede Prüfung ihn trägt; ausgesprochen hätte ihn
+ * niemand. Ein Grund ohne Sprecher ist ein toter Eintrag — dieselbe Art, die
+ * bei einer Umbenennung entsteht.
  *
  * ## Vierzehn Schlüssel für neun Prüfungen
  *
@@ -317,16 +323,32 @@ enum FindingCheck: string
                 ...$unreachable,
             ],
 
+            /*
+             * **Kein `unreachable`, und das ist beim Bauen entschieden worden.**
+             * Diese Prüfung fragt `/etc/passwd` und `stat` — beides beantwortet
+             * die Maschine ohne Umweg, und eine Antwort, die es nicht gibt, ist
+             * hier der gemessene Zustand („den Benutzer gibt es nicht") und
+             * keine ausgefallene Messung. Ein Grund, den niemand aussprechen
+             * kann, ist ein toter Eintrag.
+             *
+             * `root_missing` meint das Dokumentenverzeichnis und nicht die
+             * Wurzel: Die gehört `root:root` und steht auf `0755`, weil ihr
+             * Zugriffsbit der Schalter von `subscription.suspend` ist
+             * (`SubscriptionState`). Dem Kunden gehört `httpdocs`.
+             */
             self::SystemUser => [
                 'missing' => [
                     'state' => FindingState::Fail,
                     'text' => 'Den Systembenutzer dieses Abonnements gibt es nicht.',
                 ],
+                'root_missing' => [
+                    'state' => FindingState::Fail,
+                    'text' => 'Das Dokumentenverzeichnis dieses Abonnements liegt nicht mehr da.',
+                ],
                 'wrong_owner' => [
                     'state' => FindingState::Fail,
-                    'text' => 'Das Wurzelverzeichnis dieses Abonnements gehört einem anderen Benutzer.',
+                    'text' => 'Das Dokumentenverzeichnis dieses Abonnements gehört einem anderen Benutzer.',
                 ],
-                ...$unreachable,
             ],
 
             /*

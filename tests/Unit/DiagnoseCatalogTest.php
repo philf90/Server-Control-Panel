@@ -35,6 +35,16 @@ final class DiagnoseCatalogTest extends TestCase
         // antwortet, ist hier der gemessene Zustand und keine ausgefallene
         // Messung. Sie hat dafür `no_answer`.
         'tls.wire',
+
+        // Fragt allein die eigene Maschine — `/etc/passwd` und `stat`. Eine
+        // Antwort, die es nicht gibt, ist auch hier der gemessene Zustand
+        // („den Benutzer gibt es nicht") und keine ausgefallene Messung.
+        //
+        // **Beim Bauen von Schritt 5 dazugekommen.** Der Eintrag trug
+        // `unreachable`, weil fast jede Prüfung ihn trägt; ausgesprochen hätte
+        // ihn niemand — und genau das hat dieser Wächter zusammen mit
+        // `DiagnoseSeamTest` gemeldet.
+        'system.user',
     ];
 
     public function test_every_check_knows_at_least_one_reason(): void

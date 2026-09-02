@@ -23970,6 +23970,81 @@ Gegenrichtung steht daneben: Ein Kommentar, der `root` nennt, verschluckt kein
 > **Ein Prüfkörper, der den Bruch nicht sieht, hat den Wächter nicht belegt —
 > und welcher Prüfkörper ihn sieht, sagt der Bruch und nicht der Entwurf.**
 
+### A10 Schritt 5 — die vier Prüfungen, die kein Systemrecht brauchen
+
+Units und Termine, Zertifikate, Systembenutzer und verwaiste Zeilen
+(`docs/98 §3` D, E, G, H). Sie fragen, was A2, P4 und `docs/35` gebaut haben,
+und bauen nichts davon neu: `Units` liest die Zeilen von `system.units.list`,
+`Certificates` wählt über `CertificateChoice::effective()` dasselbe Zertifikat
+aus, nach dem `web.site.apply` den Block baut, und `Orphans` fragt
+`CertificatePrune` statt einer eigenen Abfrage — die zweite Fassung meldete den
+privaten Schlüssel unter einer laufenden Website als Rest.
+
+**Die Frage an die Leitung ist gemessen, nicht angenommen** (`docs/81 §2.3o`
+M23). M18 hatte die SNI-Falle mit `openssl s_client` nachgestellt; A10 fragt aus
+PHP, und das ist ein anderes Werkzeug an derselben Frage. Nachgemessen gegen
+dasselbe Gestell: `stream_socket_client` mit `peer_name` trifft den richtigen
+Block in 7 ms, ohne SNI kommt der Vorgabeblock — **und ein Name, für den es
+keinen Block gibt, fällt ebenfalls dorthin.** Genau das ist `not_served`.
+
+**Verglichen wird der Fingerabdruck.** Nicht das Ablaufdatum, das zwei
+Zertifikate derselben Stunde teilen, und nicht die Seriennummer, die nur je
+Aussteller eindeutig ist — dieses Panel erzeugt selbstsignierte Zertifikate.
+`acme.certificate.info` nennt ihn seitdem; über einer `fullchain.pem` liefert
+`openssl_x509_fingerprint` gemessen den Leaf, also das, was auch über die
+Leitung kommt.
+
+**Die Leitung wird nur für Domains gefragt, deren Datei in Ordnung ist** —
+Frage 3 aus `docs/98 §9`, mit c entschieden. Ein abgelaufenes Zertifikat wird
+auch über die Leitung abgelaufen ausgeliefert; zwei Befunde für eine Ursache
+sind die Falle aus §4. Der Wächter zählt deshalb die **Aufrufe** und nicht die
+Antworten.
+
+**Drei Funde beim Bauen, jeder hätte jede Nacht eine Zeile erzeugt.**
+
+`docs/98 §3 G` verlangt, dass dem Systembenutzer „seine Wurzel unter
+`/var/www/vhosts`" gehört — die gehört absichtlich `root:root`, weil ihr
+Zugriffsbit der Schalter von `subscription.suspend` ist. Dem Kunden gehört
+`httpdocs`. Wörtlich gebaut hätte der Nachtlauf **jedes** Abonnement als
+`wrong_owner` gemeldet.
+
+> **Eine Erwartung, die man an ein Verzeichnis aufschreibt, liest vorher nach,
+> wem die Vorlage es gibt.**
+
+`Catalog::pick()` fällt auf den ersten Kandidaten einer Rolle zurück, wenn
+keiner installiert ist: Auf einem Server ohne MariaDB kommt `mariadb.service`
+mit `present: false` zurück. Über die **Anwesenheit** fremder Units sagt A10
+deshalb nichts — das Panel installiert sie nicht, und welche Unit eine Rolle
+bedient, entscheidet der Betreiber. Für die eigenen bleibt `not_installed`.
+
+Und `system_users` führt jede Nummer für immer (`docs/35`). Eine Zeile ohne
+Abonnement ist der Normalzustand nach jedem Rückbau; ein Rest ist erst das
+**Unix-Konto**, das es dazu noch gibt — dann hat `subscription.remove` sein
+`userdel` nicht getan, und die uid wartet auf den nächsten Kunden.
+
+**Zwei Wächter haben den Katalog berichtigt, bevor er im Repo stand.**
+`system.user` trug `unreachable`, weil fast jede Prüfung ihn trägt —
+ausgesprochen hätte ihn niemand: Diese Prüfung fragt `/etc/passwd` und `stat`,
+und eine Antwort, die es nicht gibt, ist dort der gemessene Zustand. Umgekehrt
+sprach `Units` `unreachable` aus, ohne es zu führen. Beides hat die neue
+Gegenrichtung von `DiagnoseSeamTest` gemeldet: **jeder Grund im Katalog hat
+einen Sprecher.**
+
+Drei Gründe haben noch keinen und stehen mit Datum und Begründung in seiner
+Ausnahmeliste — `block_missing`, `foreign_line` und `line_missing` gehören zu
+`docs/98 §3 C` Frage 3, dem Vergleich eines verwalteten Bereichs mit dem
+Sollzustand. Der braucht die Zeilen aus der Datei (die kennt nur der Agent) und
+den Sollzustand (den kennt nur das Panel) und passt damit in keinen der beiden
+Schritte. Der Kopf von `ManagedBlockIntegrityTest` nannte dafür Schritt 5; das
+war eine Verortung an der halben Frage.
+
+> **Ein Eintrag, der auf einen Schritt zeigt, wird falsch, sobald der Schritt
+> die Voraussetzung nicht mitbringt.**
+
+Vier Wächter, vierzehn Brüche. `Certificate::nameCovers()` und
+`Lifecycle::userName()` sind aus ihren Klassen herausgezogen, damit die
+Diagnose dieselbe Regel benutzt und keine zweite schreibt.
+
 ### Die Kommandozeile führt die Sprache der Oberfläche nicht
 
 Entschieden vom Betreiber am 1. September 2026, `docs/19 §2.7`: `srvpanel …`

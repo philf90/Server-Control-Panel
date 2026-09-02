@@ -1756,6 +1756,51 @@ statt eine dritte zu sein. Der Satz aus `docs/42` gilt hier zum zweiten Mal an
 derselben Datei: Damals waren es zwei Schreiber ohne gemeinsame Sperre, jetzt
 zwei Leser ohne gemeinsame Zählung.
 
+#### M23 — die Frage an die Leitung, aus PHP und mit Fingerabdruck (gefunden beim Bauen von Schritt 5)
+
+M18 hat die SNI-Falle mit `openssl s_client` nachgestellt. A10 fragt die Leitung
+aber nicht mit einem Programm, sondern aus PHP — `openssl` steht nicht im
+Positivverzeichnis und müsste dafür auch nicht (`docs/98 §9`, Frage 3). Das ist
+ein **anderes Werkzeug an derselben Frage**, und damit ungemessen.
+
+> **Eine Messung mit einem anderen Werkzeug als dem gebauten belegt das gebaute
+> nicht.**
+
+Nachgemessen am 2. September gegen dasselbe Gestell wie M18 — zwei
+`server`-Blöcke auf `127.0.0.1:8443`, der Vorgabeblock auf
+`vorgabeblock.invalid`, der zweite auf `kunde.mess.invalid` —, gefragt mit
+`stream_socket_client` und `peer_name`/`SNI_enabled`:
+
+| | Antwort | gegen die Datei |
+|---|---|---|
+| mit SNI auf `kunde.mess.invalid` | `CN = kunde.mess.invalid`, 7 ms | **gleich** |
+| dieselbe gegen ein fremdes Zertifikat | — | **verschieden** (Gegenprobe) |
+| **ohne** SNI, derselbe Name | `CN = vorgabeblock.invalid`, 4 ms | verschieden — wäre ein Befund |
+| mit SNI auf einen Namen, den **kein Block** kennt | `CN = vorgabeblock.invalid` | verschieden — wäre ein Befund |
+| Port, auf dem nichts lauscht | `Connection refused`, 0 ms | keine Antwort |
+| Port, der lauscht und kein TLS spricht | Fehlschlag, **leere** Meldung, 1 ms | keine Antwort |
+
+**Drei Dinge entscheiden daran den Bau.**
+
+**Der Name ohne eigenen Block fällt auf den Vorgabeblock** — er wird also nicht
+etwa abgewiesen, sondern freundlich falsch beantwortet. Genau das ist der Fall,
+für den es `not_served` gibt: Die Datei liegt gültig da, und der Server liefert
+sie nicht aus, weil sein Block fehlt oder nicht neu geladen wurde.
+
+**Verglichen wird der Fingerabdruck und nicht die Seriennummer.** Beide
+unterscheiden die gemessenen Zertifikate (openssl vergibt zufällige Seriennummern),
+aber eine Seriennummer ist nur je Aussteller eindeutig, und dieses Panel erzeugt
+selbstsignierte Zertifikate. `openssl_x509_fingerprint` beantwortet dieselbe Frage
+ohne diesen Vorbehalt — und über einer `fullchain.pem` liefert es gemessen den
+**Leaf** und nicht das Zwischenzertifikat, also genau das, was auch über die
+Leitung kommt.
+
+**Ein Port ohne TLS meldet einen Fehlschlag mit leerer Meldung.** Wer die
+Fehlermeldung als `detail` durchreicht, schreibt eine leere Zeile hin. Der Grund
+trägt die Auskunft, nicht das Werkzeug.
+
+---
+
 #### Was diese Runde über sich selbst gelernt hat
 
 **Sechs Fehler, fünf davon im Prüfmittel** — dasselbe Verhältnis wie in

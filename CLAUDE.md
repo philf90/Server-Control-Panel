@@ -1339,7 +1339,18 @@ deklariert einen Namen, der der Basisklasse gehört — er spiegelt deren
 `<style>`-Block einer `.vue` steht auf oberster Ebene und nicht im
 Vorlagenblock, wo der Übersetzer ihn wegwirft — die Regel, die
 `ClassReachTest` nicht halten konnte, weil er eine Zeichenkette suchte statt
-eines Blocks) und `SiteFileIntegrityTest` (die Zusagen einer Vorlage werden am
+eines Blocks) und `UnitVerdictTest` (ein Timer ohne Termin ist **ein** Befund
+und nicht zwei; über die Anwesenheit **fremder** Units sagt die Diagnose nichts,
+weil `Catalog::pick()` auf den ersten Kandidaten zurückfällt — dazu ein
+Schnappschuss von `rang()`, damit Seite und Nachtlauf nicht unbemerkt
+auseinandergehen) und `CertificateVerdictTest` (die Leitung wird nur gefragt,
+wenn die Datei in Ordnung ist — gezählt werden die **Aufrufe** und nicht die
+Antworten, und verglichen wird der Fingerabdruck) und `SystemUserVerdictTest`
+(gefragt wird das **Dokumentenverzeichnis** und nicht die Wurzel: Die gehört
+`root:root`, weil ihr Zugriffsbit der Schalter von `subscription.suspend` ist)
+und `OrphanRowTest` (gemeldet und nicht gelöscht — und eine Reservierung ohne
+Abonnement ist kein Rest, das Unix-Konto daneben schon) und
+`SiteFileIntegrityTest` (die Zusagen einer Vorlage werden am
 **Anfang einer Anweisung** geprüft und nicht als Zeichenkette — an den beiden
 Formen aus M3, in denen `grep` grün bleibt und die Anweisung fort ist) und
 `PromiseReachTest` (die Zusage einer Vorlage ist genau die **Schnittmenge**

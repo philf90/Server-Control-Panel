@@ -30,6 +30,11 @@ final class DiagnoseWriteTest extends TestCase
         'chmod(', 'chown(', 'chgrp(', 'touch(', 'symlink(', 'copy(',
         'ManagedBlock::put(', 'ManagedBlock::render(', 'ManagedBlock::validated(',
         'ensureRuntime(', 'systemctl', 'systemd-run',
+
+        // Schritt 5: Was im Panel schreibt, schreibt über Eloquent — und
+        // `CertificatePrune::forget()` ist der Griff, der einen privaten
+        // Schlüssel vergisst. Gemeldet und nicht gelöscht (`docs/36 §5`).
+        '->delete(', '->forget(', '->update(', '->save(',
     ];
 
     /** Was der Agent hier rufen darf — lesende Programme, und nur diese. */
@@ -43,6 +48,16 @@ final class DiagnoseWriteTest extends TestCase
         return [
             $root.'/agent/src/Ops/SystemDiagnose.php',
             $root.'/agent/src/Diagnose/Verdict.php',
+
+            // Schritt 5: die vier Prüfungen im Panel. Sie schreiben so wenig
+            // wie die Operation — `Orphans` meldet ausdrücklich und löscht
+            // nicht, obwohl `CertificatePrune::forget()` einen Griff dafür hat.
+            $root.'/app/Support/Diagnose/Checks/Units.php',
+            $root.'/app/Support/Diagnose/Checks/Certificates.php',
+            $root.'/app/Support/Diagnose/Checks/SystemUsers.php',
+            $root.'/app/Support/Diagnose/Checks/Orphans.php',
+            $root.'/app/Support/Diagnose/LocalHost.php',
+            $root.'/app/Support/Diagnose/TlsWire.php',
         ];
     }
 
@@ -69,7 +84,7 @@ final class DiagnoseWriteTest extends TestCase
             }
         }
 
-        $this->assertSame(2, $geprueft);
+        $this->assertSame(8, $geprueft);
     }
 
     /**

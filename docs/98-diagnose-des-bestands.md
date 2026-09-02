@@ -384,7 +384,7 @@ noch gelesen wird.
 | **2** | ~~`ManagedBlock` bekommt seinen **lesenden** Integritätsblick~~ **gebaut am 2. September 2026** — `inspect()`, fünf Zustände, gehalten am Schreibweg | die eine Prüfung, die es heute nur im Schreibweg gibt (M15) |
 | **3** | ~~Die Operation `system.diagnose` im Agenten: A, C, F, I~~ **gebaut am 2. September 2026** — das Urteil steht getrennt vom Aufruf in `Diagnose\Verdict`, geprüft an den gemessenen Ausgaben | die Prüfungen, die Systemrechte brauchen |
 | **4** | ~~B — die Dateien des Panels gegen die Zusagen ihrer Vorlage~~ **gebaut am 2. September 2026** — `Statements` schneidet, `PROMISED` sagt zu, `PromiseReachTest` hält beides als Schnittmenge aneinander | der Punkt, der M3 beantwortet; Tiefe nach Frage 4 |
-| **5** | D, E, G, H in `app/` — sie fragen, was A2, P4 und `docs/35` gebaut haben | kein Systemrecht nötig |
+| **5** | ~~D, E, G, H in `app/`~~ **gebaut am 2. September 2026** — vier `Check`, das Urteil je Prüfung rein und ohne Agent, die Frage an die Leitung über `Wire` | kein Systemrecht nötig |
 | **6** | Kommando, Dienst und Timer, samt Frist | erst wenn es etwas zu fahren gibt |
 | **7** | Die Seite — Liste, `unknown` sichtbar, „steht seit" | zuletzt, wie in diesem Projekt üblich |
 | **8** | Der Nachlauf auf `cloudsrv24` gegen das Kriterium aus §7 | eine Stufe gilt erst als fertig, wenn sie gemessen ist |
@@ -569,9 +569,13 @@ die Absicht; die Brüche kommen mit dem Bau in `tests/waechter-brechen.sh`.
 | `FindingIdentityTest` | **gebaut** — die Kennung ist `check`+`subject`+`reason` und enthält `detail` **nicht**; gemessen an der Wirkung über zwei Läufe. Dazu: ein Ausfall löscht keinen Befund, ein behobener verschwindet, ein unbekannter Grund kommt nicht in die Datenbank, und der Wortlaut wird vor der Spalte gekürzt |
 | `FindingStateTest` | **gebaut** — vier Zustände, `unknown` trägt `neutral` und steht zwischen `warn` und `fail`, nur `ok` bleibt stumm, kein Hinweis ausser dem von `ok` gibt Entwarnung, und die Tabelle hat **keine** Spalte für die Schwere |
 | `ValidatorVerdictTest` | **gebaut** — die drei Prüfer werden am **Rückgabewert** gewertet und nicht an `syntax is ok`; die Prüfkörper sind die gemessenen Ausgaben (M4, M5), und er sucht die Zeichenkette als **verbotene**, ohne Kommentare |
-| `ManagedBlockIntegrityTest` | **gebaut** — der lesende Blick meldet `BEGIN` ohne `END`, `END` ohne `BEGIN` und den doppelten Block an den neun Formen aus M14, **und er zählt wie der Schreiber**: Wo `without()` wirft, sagt `inspect()` `begin_without_end`, nirgends sonst. Die fremde Zeile hält er ausdrücklich **nicht** — die kennt nur, wer den Sollzustand hat, und das ist Schritt 5 |
+| `ManagedBlockIntegrityTest` | **gebaut** — der lesende Blick meldet `BEGIN` ohne `END`, `END` ohne `BEGIN` und den doppelten Block an den neun Formen aus M14, **und er zählt wie der Schreiber**: Wo `without()` wirft, sagt `inspect()` `begin_without_end`, nirgends sonst. Die fremde Zeile hält er ausdrücklich **nicht** — sie braucht neben dem Sollzustand auch die Zeilen aus der Datei und steht deshalb in §11 |
 | `SiteFileIntegrityTest` | **gebaut** — die Zusagen der Vorlage werden am **Anfang einer Anweisung** geprüft und nicht als Zeichenkette; die Prüfkörper sind beide M3-Formen, mit der `grep`-Gegenprobe aus M21 im Test, und die Operation wird am Rumpf gehalten, dass sie den Schnitt fragt |
 | `PromiseReachTest` | **gebaut** — die Zusage einer Vorlage ist genau die Schnittmenge dessen, was jede ihrer Formen ausgibt: zu gross meldet jede Nacht jede heile Domain, zu klein meldet nichts |
+| `UnitVerdictTest` | **gebaut** — ein Timer ohne Termin ist **ein** Befund und nicht zwei, ein Dienst, den ein Timer startet, darf stillstehen, `activating` ist nachts keiner, und über die Anwesenheit **fremder** Units sagt A10 nichts; dazu ein Schnappschuss von `rang()`, damit Seite und Nachtlauf nicht unbemerkt auseinandergehen |
+| `CertificateVerdictTest` | **gebaut** — die Leitung wird nur gefragt, wenn die Datei in Ordnung ist (gezählt werden die **Aufrufe**), verglichen wird der Fingerabdruck, und dreissig Tage sind `warn` |
+| `SystemUserVerdictTest` | **gebaut** — gefragt wird das **Dokumentenverzeichnis** und nicht die Wurzel: Die gehört `root:root`, und wer sie fragte, meldete jedes Abonnement |
+| `OrphanRowTest` | **gebaut** — gemeldet und nicht gelöscht; eine Reservierung ohne Abonnement ist kein Rest, das Unix-Konto daneben schon |
 | `DiagnoseCatalogTest` | **gebaut** — jede Prüfung kennt Gründe, jeder Grund trägt Schwere und Satz, `unreachable` ergibt überall `unknown`, und wer ihn **nicht** führt, steht mit Begründung da (beide Richtungen, weil ein toter Eintrag bei einer Umbenennung entsteht) |
 | `QuotaVerdictTest` | **gebaut** — die dritte Zeile der Tabelle aus §3 F ist `not_enforced`, gemessen an den Ausgaben aus M10/M11; der Rückgabewert von `quotaon` entscheidet nichts, beide Kanäle werden gelesen, nur die Benutzerquota zählt |
 | `KeyVerdictTest` | **gebaut** — der schlechteste Schlüssel zählt, in beide Richtungen |
@@ -633,3 +637,16 @@ Absichtserklärung bleibt.
 - **Der Wortlaut über Fassungen hinweg.** M7 belegt, dass keiner der drei
   Prüfer übersetzt — das ist eine Zusage über die Programme und keine über ihre
   Fassungen. Deshalb wird der Wortlaut gezeigt und nicht gedeutet.
+- **§3 C Frage 3 — der Vergleich mit dem Sollzustand** (`block_missing`,
+  `foreign_line`, `line_missing`). Er braucht **beides**: die Zeilen aus der
+  Datei, die nur der Agent lesen kann (`pg_hba.conf` ist `0640
+  postgres:postgres`), und den Sollzustand, den nur das Panel kennt
+  (`RemoteAccess::orphans()`, `SshdConfig::lines()`). Damit passt er weder in
+  Schritt 3 noch in Schritt 5, und §8 führt ihn in keinem von beiden. Die drei
+  Gründe stehen mit Datum in `DiagnoseSeamTest::SPRACHLOS`; der Wächter
+  besteht darauf, dass sie herauskommen, sobald jemand sie ausspricht.
+
+  > **Ein Eintrag, der auf einen Schritt zeigt, wird falsch, sobald der
+  > Schritt die Voraussetzung nicht mitbringt.** Der Kopf von
+  > `ManagedBlockIntegrityTest` nannte dafür Schritt 5 — eine Verortung an der
+  > Frage „wer kennt den Sollzustand" allein.

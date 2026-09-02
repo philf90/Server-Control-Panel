@@ -3524,8 +3524,8 @@ python3 - <<'PY2'
 p = 'app/Support/Subscriptions/Lifecycle.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    "        return $this->name(max(self::FIRST_USER, ((int) SystemUser::query()->max('number')) + 1));",
-    "        return $this->name(max(self::FIRST_USER, ((int) Subscription::query()->max('id')) + 1));",
+    "        return self::userName(max(self::FIRST_USER, ((int) SystemUser::query()->max('number')) + 1));",
+    "        return self::userName(max(self::FIRST_USER, ((int) Subscription::query()->max('id')) + 1));",
 )
 open(p, 'w', encoding='utf-8').write(s)
 PY2
@@ -3553,8 +3553,8 @@ s = s.replace(
                     'claimed_at' => now(),
                 ]);
 
-                return $this->name($number);""",
-    """                return $this->name($number);""",
+                return self::userName($number);""",
+    """                return self::userName($number);""",
 )
 open(p, 'w', encoding='utf-8').write(s)
 PY2
@@ -22530,6 +22530,276 @@ pruefe "web.file mit fremdem Grund" \
   DiagnoseSeamTest::test_every_reason_the_agent_speaks_is_known_to_the_panel failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
+
+echo
+echo "== UnitVerdictTest: ein startender Dienst wird gemeldet =="
+#
+# Vier Type=oneshot-Dienste dieses Pakets stehen waehrend ihres Laufs auf
+# `activating`, und srvpanel-usage.timer feuert alle fuenfzehn Minuten. Als
+# Befund waere das jede Nacht eine Zeile ueber einen Dienst, der tut, was er soll.
+vorher_datei app/Support/Diagnose/Checks/Units.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if ($active === 'active' || $active === 'activating') {"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            if ($active === 'active') {""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Units.php "startender Dienst gemeldet" &&
+pruefe "startender Dienst gemeldet" \
+  UnitVerdictTest::test_a_service_that_is_starting_is_not_a_finding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitVerdictTest passed
+
+echo
+echo "== UnitVerdictTest: derselbe Schaden steht zweimal da =="
+#
+# Ein gestoppter Timer meldet `inactive` UND keinen Termin. Ohne den Ausstieg
+# stuende er als Zustand und als Termin da — zwei Zeilen fuer einen Schaden.
+vorher_datei app/Support/Diagnose/Checks/Units.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = """                $schedule[] = self::finding($name, 'no_next', $detail);
+
+                continue;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """                $schedule[] = self::finding($name, 'no_next', $detail);""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Units.php "Schaden zweimal gemeldet" &&
+pruefe "Schaden zweimal gemeldet" \
+  UnitVerdictTest::test_a_stopped_timer_is_one_finding_and_not_two failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitVerdictTest passed
+
+echo
+echo "== UnitVerdictTest: die fremde Unit, die es nicht gibt, wird gemeldet =="
+#
+# Catalog::pick() faellt auf den ersten Kandidaten zurueck: Auf einem Server ohne
+# MariaDB kaeme mariadb.service als not-found zurueck — jede Nacht.
+vorher_datei app/Support/Diagnose/Checks/Units.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = """                if (($unit['own'] ?? false) === true) {
+                    $state[] = self::finding($name, 'not_installed', 'LoadState=not-found');
+                }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """                $state[] = self::finding($name, 'not_installed', 'LoadState=not-found');""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Units.php "fremde Unit gemeldet" &&
+pruefe "fremde Unit gemeldet" \
+  UnitVerdictTest::test_a_foreign_unit_that_is_absent_is_not_a_finding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitVerdictTest passed
+
+echo
+echo "== UnitVerdictTest: die Seite urteilt anders als die Nacht annimmt =="
+#
+# Der Stolperdraht: Aendert sich rang(), ist zu entscheiden, ob der Nachtlauf
+# mitzieht. Ohne ihn liefen die beiden Fassungen unbemerkt auseinander.
+vorher_datei resources/js/Composables/useUnitState.ts
+python3 - <<'PY2'
+p = 'resources/js/Composables/useUnitState.ts'
+s = open(p, encoding='utf-8').read()
+alt = """  if (unit.active_state === 'activating') return 'warn'"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """  if (unit.active_state === 'activating') return 'ok'""", 1))
+PY2
+griff_datei resources/js/Composables/useUnitState.ts "Seite urteilt anders" &&
+pruefe "Seite urteilt anders" \
+  UnitVerdictTest::test_the_page_still_judges_the_way_the_night_assumes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitVerdictTest passed
+
+echo
+echo "== CertificateVerdictTest: die Leitung wird immer gefragt =="
+#
+# Frage 3 aus docs/98 §9, mit c entschieden: Ein abgelaufenes Zertifikat wird
+# auch ueber die Leitung abgelaufen ausgeliefert — zwei Befunde fuer eine Ursache.
+vorher_datei app/Support/Diagnose/Checks/Certificates.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Certificates.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if ($verdict !== null) {
+                $file[] = ['subject' => $row['name']] + $verdict;
+
+                continue;
+            }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            if ($verdict !== null) {
+                $file[] = ['subject' => $row['name']] + $verdict;
+            }""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Certificates.php "Leitung immer gefragt" &&
+pruefe "Leitung immer gefragt" \
+  CertificateVerdictTest::test_the_wire_is_not_asked_when_the_file_is_already_a_finding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateVerdictTest passed
+
+echo
+echo "== CertificateVerdictTest: verglichen wird das Ablaufdatum =="
+#
+# Zwei Zertifikate derselben Stunde tragen dasselbe Ablaufdatum; der
+# Fingerabdruck ist der Vergleich, den M23 belegt hat.
+vorher_datei app/Support/Diagnose/Checks/Certificates.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Certificates.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if (strcasecmp($stored, $served) !== 0) {"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        if (false) {""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Certificates.php "Fingerabdruck nicht verglichen" &&
+pruefe "Fingerabdruck nicht verglichen" \
+  CertificateVerdictTest::test_a_different_certificate_on_the_wire failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateVerdictTest passed
+
+echo
+echo "== CertificateVerdictTest: die Frist ist nicht dreissig Tage =="
+vorher_datei app/Support/Diagnose/Checks/Certificates.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Certificates.php'
+s = open(p, encoding='utf-8').read()
+alt = """    public const EXPIRING_DAYS = 30;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """    public const EXPIRING_DAYS = 7;""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Certificates.php "Frist nicht dreissig Tage" &&
+pruefe "Frist nicht dreissig Tage" \
+  CertificateVerdictTest::test_the_expiring_window_is_thirty_days failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateVerdictTest passed
+
+echo
+echo "== SystemUserVerdictTest: gefragt wird die Wurzel statt httpdocs =="
+#
+# Die Wurzel gehoert root:root — ihr Zugriffsbit ist der Schalter von
+# subscription.suspend. Wer sie fragt, meldet jedes Abonnement als wrong_owner.
+vorher_datei app/Support/Diagnose/Checks/SystemUsers.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/SystemUsers.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $root = SubscriptionProvision::VHOSTS.'/'.$subscription.'/'.SubscriptionProvision::DOCUMENT_ROOT;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        $root = SubscriptionProvision::VHOSTS.'/'.$subscription;""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/SystemUsers.php "Wurzel statt httpdocs gefragt" &&
+pruefe "Wurzel statt httpdocs gefragt" \
+  SystemUserVerdictTest::test_the_question_goes_to_the_document_root failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SystemUserVerdictTest passed
+
+echo
+echo "== OrphanRowTest: die Reservierung selbst gilt als Rest =="
+#
+# system_users fuehrt jede Nummer fuer immer (docs/35). Eine Zeile ohne
+# Abonnement ist der Normalzustand nach jedem Rueckbau — gemeldet stuende sie
+# jede Nacht da. Ein Rest ist erst das Unix-Konto daneben.
+vorher_datei app/Support/Diagnose/Checks/Orphans.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Orphans.php'
+s = open(p, encoding='utf-8').read()
+alt = """                if (isset($held[$user]) || $this->host->uidOf($user) === null) {"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """                if (isset($held[$user])) {""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Orphans.php "Reservierung gilt als Rest" &&
+pruefe "Reservierung gilt als Rest" \
+  OrphanRowTest::test_a_reserved_number_without_an_account_is_not_a_finding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OrphanRowTest passed
+
+echo
+echo "== DiagnoseWriteTest: die Diagnose raeumt auf =="
+#
+# docs/98 §5.1: Ein Diagnoselauf, der schreibt, ist der naechste Schreiber in
+# derselben Datei. CertificatePrune::forget() haette den Griff dafuer.
+vorher_datei app/Support/Diagnose/Checks/Orphans.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Orphans.php'
+s = open(p, encoding='utf-8').read()
+alt = """        foreach ($plan['removable'] as $storage) {"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        foreach ($plan['removable'] as $storage) {
+            $this->prune->forget($storage);""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Orphans.php "Diagnose raeumt auf" &&
+pruefe "Diagnose raeumt auf" \
+  DiagnoseWriteTest::test_no_diagnose_file_writes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseWriteTest passed
+
+echo
+echo "== DiagnoseSeamTest: eine Pruefung im Panel spricht einen fremden Grund =="
+vorher_datei app/Support/Diagnose/Checks/SystemUsers.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/SystemUsers.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'system.user' => ['missing', 'wrong_owner', 'root_missing'],"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        'system.user' => ['missing', 'wrong_owner', 'root_missing', 'verschollen'],""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/SystemUsers.php "fremder Grund im Panel" &&
+pruefe "fremder Grund im Panel" \
+  DiagnoseSeamTest::test_every_reason_a_panel_check_speaks_is_known failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
+
+echo
+echo "== DiagnoseSeamTest: ein Grund im Katalog verliert seinen Sprecher =="
+vorher_datei app/Support/Diagnose/Checks/Units.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'unit.schedule' => ['no_next', FindingCheck::UNREACHABLE],"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        'unit.schedule' => [FindingCheck::UNREACHABLE],""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Units.php "Grund ohne Sprecher" &&
+pruefe "Grund ohne Sprecher" \
+  DiagnoseSeamTest::test_every_reason_in_the_catalogue_has_a_speaker failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
+
+echo
+echo "== DiagnoseSeamTest: ein sprachloser Grund bekommt einen Sprecher =="
+#
+# Die andere Richtung der Ausnahmeliste: Wer C-3 baut, nimmt den Eintrag
+# heraus — sonst bleibt er stehen und niemand merkt es.
+vorher_datei app/Support/Diagnose/Checks/Orphans.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Orphans.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'orphan.row' => ['certificate', 'system_user', 'cron_file'],"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        'orphan.row' => ['certificate', 'system_user', 'cron_file'],
+        'block.integrity' => ['foreign_line'],"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Orphans.php "sprachloser Grund bekommt Sprecher" &&
+pruefe "sprachloser Grund bekommt Sprecher" \
+  DiagnoseSeamTest::test_every_reason_in_the_catalogue_has_a_speaker failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
+
+echo
+echo "== DiagnoseCatalogTest: system.user ohne unreachable und ohne Begruendung =="
+vorher_datei tests/Unit/DiagnoseCatalogTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DiagnoseCatalogTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'system.user',
+    ];"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """    ];""", 1))
+PY2
+griff_datei tests/Unit/DiagnoseCatalogTest.php "system.user ohne Begruendung" &&
+pruefe "system.user ohne Begruendung" \
+  DiagnoseCatalogTest::test_a_check_without_unreachable_is_named failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

@@ -24119,6 +24119,63 @@ dem `app/` ihn zum ersten Mal nennt.
 Ein Wächter, neun Brüche. PHPStan hat am Entwurf drei nicht mitgezogene
 Typangaben gefunden — dort, wo er in diesem Repo voll wirksam ist.
 
+### A10 Schritt 6 — der Nachtlauf
+
+`srvpanel diagnose` fährt alle Prüfungen der Bestandsdiagnose, und
+`srvpanel-diagnose.timer` tut es täglich. Damit gibt es zum ersten Mal etwas,
+das die sechs Prüfungen aus den Schritten 3 bis 5b überhaupt ausführt.
+
+**Ein Zeitstempel für alle.** Er entsteht im Kommando und nicht in den
+Prüfungen: Sonst stünden auf der Seite so viele Werte für „zuletzt gemessen",
+wie es Prüfungen gibt, und sie unterschieden sich um Millisekunden.
+
+**Eine gescheiterte Prüfung hält den Lauf nicht auf — und löscht nichts.** Was
+eine Prüfung selbst als Ausfall kennt, meldet sie als `unreachable`. Was im
+Lauf ankommt, ist etwas anderes: eine Ausnahme, die niemand vorgesehen hat. Sie
+wird festgehalten, der Lauf geht weiter, und die alten Befunde dieser Prüfung
+bleiben stehen — sie sind nicht widerlegt, sondern ungeprüft.
+
+**Der Rückgabewert sagt etwas über den Lauf und nicht über den Server.** Ein
+Server mit Befunden ist kein gescheiterter Lauf; sonst stünde die Unit nach dem
+ersten `fail` dauerhaft auf `failed`, und die Diagnose meldete sich selbst als
+Schaden. `1` heisst: Eine Prüfung ist gar nicht durchgelaufen.
+
+> **Ein Rückgabewert, der einen gefundenen Schaden als Fehlschlag meldet, macht
+> aus dem Boten den Schuldigen.**
+
+**Die sieben Schlüssel des Agenten kommen in einem Aufruf.** `Checks\Agent`
+holt sie über `system.diagnose`, und welche das sind, leitet er aus
+`SystemDiagnose::CHECKS` ab statt es abzuschreiben — eine Liste liefe weg,
+sobald der Agent eine Prüfung dazubekommt, und die neue fehlte still.
+`block.integrity` ist ausgenommen: Den schreibt `ManagedBlocks`, weil er den
+Sollzustand braucht.
+
+**Die Frist steht in der Unit und ist gerechnet.** `TimeoutStartSec=1800`. Die
+Prüfer sind billig — zusammen unter 100 ms (`docs/81 §2.3o` M17). Teuer ist die
+Frage an die Leitung: eine TLS-Verbindung je Domain mit fünf Sekunden
+Zeitlimit. 1800 Sekunden decken damit den Fall, dass **jede** von 360 Domains
+schweigt, und darüber soll der Deckel greifen — genau dafür gibt es ihn.
+`OneshotDeadlineTest` rechnet nach, dass er unter dem Takt liegt.
+
+**Täglich und nicht stündlich** (`docs/98 §4`): Ein Zustand, der sich über
+Nacht nicht ändert, braucht keinen stündlichen Blick.
+
+**Und ein Wächter aus 5b hat zu grob gefragt.** Er suchte
+`FindingCheck::BlockIntegrity` als Zeichenkette und hielt `Checks\Agent` für
+einen zweiten Schreiber — dabei nennt der den Schlüssel, um ihn aus seinem
+Sammelaufruf zu **entfernen**.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+> steht — und rot, sobald sie an der falschen Stelle steht.** Beide Male misst
+> er nicht die Regel.
+
+Gefragt wird jetzt der **Schreibaufruf**. Was er dann nicht mehr sieht — einen
+Schreiber, der den Schlüssel aus einer Variablen nimmt, genau wie `Agent` —
+misst `DiagnoseRunTest` an `writes()`. Zwei Wächter, zwei Blickrichtungen, und
+das steht in beiden Köpfen.
+
+Zwei Wächter, neun Brüche.
+
 ### Die Kommandozeile führt die Sprache der Oberfläche nicht
 
 Entschieden vom Betreiber am 1. September 2026, `docs/19 §2.7`: `srvpanel …`

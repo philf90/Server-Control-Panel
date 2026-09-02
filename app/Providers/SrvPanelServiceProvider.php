@@ -7,6 +7,10 @@ namespace App\Providers;
 use App\Enums\AccountType;
 use App\Models\Account;
 use App\Support\Authorization\AdminAbility;
+use App\Support\Diagnose\Catalog as DiagnoseCatalog;
+use App\Support\Diagnose\Check as DiagnoseCheck;
+use App\Support\Diagnose\FindingLog;
+use App\Support\Diagnose\Run as DiagnoseRun;
 use App\Support\Dns\AgentMeasurement;
 use App\Support\Dns\Measurement;
 use App\Support\Metrics\Collector;
@@ -37,6 +41,17 @@ final class SrvPanelServiceProvider extends ServiceProvider
         $this->app->singleton(Client::class, static fn (): Client => new Client(
             (string) config('srvpanel.agent.socket'),
             (int) config('srvpanel.agent.timeout'),
+        ));
+
+        /*
+         * **Der Nachtlauf der Bestandsdiagnose** (A10 Schritt 6). Die Liste der
+         * Prüfungen steht in {@see DiagnoseCatalog} und nicht hier: Sie ist eine
+         * fachliche Aufzählung und keine Verdrahtung, und die Seite aus Schritt 7
+         * liest dieselbe.
+         */
+        $this->app->bind(DiagnoseRun::class, static fn ($app): DiagnoseRun => new DiagnoseRun(
+            array_map(static fn (string $check): DiagnoseCheck => $app->make($check), DiagnoseCatalog::CHECKS),
+            $app->make(FindingLog::class),
         ));
 
         $this->app->singleton(Store::class, static fn (): Store => new Store(

@@ -386,7 +386,7 @@ noch gelesen wird.
 | **4** | ~~B — die Dateien des Panels gegen die Zusagen ihrer Vorlage~~ **gebaut am 2. September 2026** — `Statements` schneidet, `PROMISED` sagt zu, `PromiseReachTest` hält beides als Schnittmenge aneinander | der Punkt, der M3 beantwortet; Tiefe nach Frage 4 |
 | **5** | ~~D, E, G, H in `app/`~~ **gebaut am 2. September 2026** — vier `Check`, das Urteil je Prüfung rein und ohne Agent, die Frage an die Leitung über `Wire` | kein Systemrecht nötig |
 | **5b** | ~~C Frage 3 — die Zeilen eines verwalteten Bereichs gegen den Sollzustand~~ **gebaut am 2. September 2026** — der Agent gibt seine Zeilen heraus, das Panel vergleicht mit `RemoteAccess` und `SshdConfig::lines()` | fiel zwischen 3 und 5: Die Zeilen kennt nur der Agent, den Sollzustand nur das Panel |
-| **6** | Kommando, Dienst und Timer, samt Frist | erst wenn es etwas zu fahren gibt |
+| **6** | ~~Kommando, Dienst und Timer, samt Frist~~ **gebaut am 2. September 2026** — `srvpanel diagnose`, ein Zeitstempel für alle, `TimeoutStartSec=1800` gerechnet aus der teuersten Frage | erst wenn es etwas zu fahren gibt |
 | **7** | Die Seite — Liste, `unknown` sichtbar, „steht seit" | zuletzt, wie in diesem Projekt üblich |
 | **8** | Der Nachlauf auf `cloudsrv24` gegen das Kriterium aus §7 | eine Stufe gilt erst als fertig, wenn sie gemessen ist |
 
@@ -583,8 +583,9 @@ die Absicht; die Brüche kommen mit dem Bau in `tests/waechter-brechen.sh`.
 | `KeyVerdictTest` | **gebaut** — der schlechteste Schlüssel zählt, in beide Richtungen |
 | `DiagnoseSeamTest` | **gebaut** — jeder Grund, den der Agent ausspricht, ist dem Panel bekannt (`Verdict::REASONS` gegen `FindingCheck`), die Schlüssel der Operation sind die mit Urteilen, und `unreachable` ist auf beiden Seiten dasselbe Wort |
 | `DiagnoseWriteTest` | **gebaut** — keine Prüfung schreibt: `mutating()` ist falsch, keine der beiden Dateien ruft `put`, `render`, `file_put_contents`, `mkdir` oder `ensureRuntime`, und jedes gerufene Programm ist ein Leser samt seinem Schalter (`quotaon -p`, `nginx -t`) — gelesen ohne Kommentare, an der Aufrufstelle |
-| `OneshotDeadlineTest` | vorhanden — der neue Dienst kommt dazu |
-| `UnitCatalogTest` | vorhanden — die neue Unit steht im Katalog und im Paket |
+| `DiagnoseRunTest` | **gebaut** — ein Zeitstempel für alle, eine Ausnahme hält den Lauf nicht auf, der Katalog nennt jede Prüfung und nur solche, und **jeder Schlüssel hat genau einen Schreiber** (gemessen an `writes()`, nicht an einer Liste im Test) |
+| `OneshotDeadlineTest` | **erfüllt** — der neue Dienst nennt seine Frist, und sie liegt unter dem Takt |
+| `UnitCatalogTest` | **erfüllt** — die beiden neuen Units stehen im Katalog und im Paket, in beide Richtungen |
 
 > **Nachgetragen am 2. September, beim Bauen.** `FindingLog` steht in dieser
 > Tabelle nicht als eigener Wächter, und das ist Absicht: Seine Regel — „derselbe

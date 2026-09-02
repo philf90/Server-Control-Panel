@@ -1,0 +1,55 @@
+[Unit]
+Description=SrvPanel — den Bestand des Servers prüfen
+Documentation=https://repo.cloudsrv24.de/
+After=srvpanel-agentd.service
+Requires=srvpanel-agentd.service
+
+[Service]
+# Type=oneshot und kein Restart: Der Timer startet den nächsten Lauf.
+Type=oneshot
+User=srvpanel
+Group=srvpanel
+WorkingDirectory=/opt/srvpanel/current
+ExecStart=/opt/srvpanel/bin/php artisan srvpanel:diagnose
+
+# **Täglicher Takt, also eine halbe Stunde Frist.**
+#
+# Ein `Type=oneshot` **ohne** eigene Angabe läuft ohne Frist — gemessen am
+# 22. August 2026 auf cloudsrv24: `TimeoutStartUSec=infinity` (`docs/74`,
+# Befund 4). Hängt so ein Lauf, bleibt die Unit in `activating`, und systemd
+# startet sie beim nächsten Termin **nicht noch einmal**.
+#
+# **Die Zahl kommt aus der teuersten Frage dieses Laufs.** Die Prüfer sind
+# billig — zusammen unter 100 ms (`docs/81 §2.3o` M17). Teuer ist die Frage an
+# die Leitung: eine TLS-Verbindung je Domain, mit fünf Sekunden Zeitlimit
+# (`App\Support\Diagnose\TlsWire`). 1800 Sekunden decken damit den Fall, dass
+# **jede** von 360 Domains schweigt — und darüber soll der Deckel greifen, denn
+# genau dafür gibt es ihn.
+#
+#   Ein Deckel gegen das Hängenbleiben muss nicht knapp sein — er muss endlich
+#   sein.
+#
+# Er liegt unter dem Takt des Timers, damit ein Hänger höchstens einen Termin
+# kostet. `OneshotDeadlineTest` rechnet beides nach.
+TimeoutStartSec=1800
+
+# Dieser Lauf fragt den Agenten, öffnet eine TLS-Verbindung zum eigenen
+# Webserver und schreibt in die Datenbank. Mehr braucht er nicht — und mehr
+# bekommt er nicht.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+ReadWritePaths=/var/lib/srvpanel /var/log/srvpanel
+
+MemoryMax=192M
+TasksMax=32

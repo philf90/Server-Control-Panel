@@ -17053,9 +17053,9 @@ vorher_datei packaging/bin/srvpanel
 python3 - <<'PY2'
 p = 'packaging/bin/srvpanel'
 s = open(p, encoding='utf-8').read()
-alt = '|admin|access|version)'
+alt = '|admin|access|version|diagnose)'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '|admin|version)', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '|admin|version|diagnose)', 1))
 PY2
 griff_datei packaging/bin/srvpanel "Wrapper ohne access" &&
 pruefe "Wrapper ohne access" \
@@ -17073,9 +17073,9 @@ vorher_datei packaging/bin/srvpanel
 python3 - <<'PY2'
 p = 'packaging/bin/srvpanel'
 s = open(p, encoding='utf-8').read()
-alt = '|admin|access|version)'
+alt = '|admin|access|version|diagnose)'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '|admin|access|version|dns-verify)', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '|admin|access|version|diagnose|dns-verify)', 1))
 PY2
 griff_datei packaging/bin/srvpanel "Wrapper mit totem Eintrag" &&
 pruefe "Wrapper mit totem Eintrag" \
@@ -17093,7 +17093,7 @@ python3 - <<'PY2'
 p = 'packaging/bin/srvpanel'
 s = open(p, encoding='utf-8').read()
 alt = ('setup|update|metrics|usage|cron-runs|tls|dns|dns-check|db|vhost|'
-       'acceptance|acceptance-web|acceptance-db|admin|access|version)')
+       'acceptance|acceptance-web|acceptance-db|admin|access|version|diagnose)')
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, 'setup)', 1))
 PY2
@@ -22966,6 +22966,184 @@ pruefe "ManagedBlocks nicht im Wachbereich" \
   DiagnoseWriteTest::test_no_diagnose_file_writes failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseWriteTest passed
+
+echo
+echo "== DiagnoseRunTest: jede Pruefung nimmt sich ihren eigenen Zeitpunkt =="
+#
+# Dann staenden auf der Seite so viele Werte fuer "zuletzt gemessen", wie es
+# Pruefungen gibt, und sie unterschieden sich um Millisekunden.
+vorher_datei app/Support/Diagnose/Run.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Run.php'
+s = open(p, encoding='utf-8').read()
+alt = """                $check->run($measuredAt, $this->log);"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """                $check->run(Carbon::now(), $this->log);""", 1))
+PY2
+griff_datei app/Support/Diagnose/Run.php "eigener Zeitpunkt je Pruefung" &&
+pruefe "eigener Zeitpunkt je Pruefung" \
+  DiagnoseRunTest::test_every_check_sees_the_same_moment failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
+
+echo
+echo "== DiagnoseRunTest: eine Ausnahme nimmt den Rest des Laufs mit =="
+vorher_datei app/Support/Diagnose/Run.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Run.php'
+s = open(p, encoding='utf-8').read()
+alt = """            } catch (Throwable $error) {
+                $failed[$name] = $error->getMessage();
+            }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            } catch (Throwable $error) {
+                $failed[$name] = $error->getMessage();
+
+                break;
+            }""", 1))
+PY2
+griff_datei app/Support/Diagnose/Run.php "Ausnahme haelt den Lauf an" &&
+pruefe "Ausnahme haelt den Lauf an" \
+  DiagnoseRunTest::test_a_failing_check_does_not_stop_the_others failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
+
+echo
+echo "== DiagnoseRunTest: eine Pruefung steht nicht im Katalog =="
+#
+# Eine Pruefung, die niemand faehrt, ist Code ohne Wirkung — und von aussen
+# nicht von einer zu unterscheiden, die es nicht gibt.
+vorher_datei app/Support/Diagnose/Catalog.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Catalog.php'
+s = open(p, encoding='utf-8').read()
+alt = """        SystemUsers::class,
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Diagnose/Catalog.php "Pruefung fehlt im Katalog" &&
+pruefe "Pruefung fehlt im Katalog" \
+  DiagnoseRunTest::test_the_catalogue_names_every_check_that_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
+
+echo
+echo "== DiagnoseRunTest: der Sammelaufruf holt auch block.integrity =="
+#
+# FindingLog::replace() ersetzt alle Zeilen einer Pruefung. Zwei Schreiber
+# loeschten einander die Befunde weg.
+vorher_datei app/Support/Diagnose/Checks/Agent.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Agent.php'
+s = open(p, encoding='utf-8').read()
+alt = """        return array_values(array_filter(
+            SystemDiagnose::CHECKS,
+            static fn (string $key): bool => $key !== FindingCheck::BlockIntegrity->value,
+        ));"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        return array_values(SystemDiagnose::CHECKS);""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Agent.php "Sammelaufruf holt block.integrity" &&
+pruefe "Sammelaufruf holt block.integrity" \
+  DiagnoseRunTest::test_the_agent_call_leaves_the_managed_blocks_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
+
+echo
+echo "== DiagnoseRunTest: ein Schluessel des Agenten wird von niemandem geholt =="
+vorher_datei app/Support/Diagnose/Checks/Agent.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Agent.php'
+s = open(p, encoding='utf-8').read()
+alt = """            static fn (string $key): bool => $key !== FindingCheck::BlockIntegrity->value,"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """            static fn (string $key): bool => $key !== FindingCheck::BlockIntegrity->value && $key !== FindingCheck::AptKey->value,"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Agent.php "Schluessel wird nicht geholt" &&
+pruefe "Schluessel wird nicht geholt" \
+  DiagnoseRunTest::test_the_agent_call_leaves_the_managed_blocks_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
+
+echo
+echo "== OneshotDeadlineTest: der Nachtlauf hat keine Frist =="
+#
+# Ein Type=oneshot ohne eigene Angabe laeuft ohne Frist — gemessen auf
+# cloudsrv24: TimeoutStartUSec=infinity. Ein Haenger nimmt alle folgenden mit.
+vorher_datei packaging/systemd/srvpanel-diagnose.service
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-diagnose.service'
+s = open(p, encoding='utf-8').read()
+alt = """TimeoutStartSec=1800"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """# TimeoutStartSec entfernt""", 1))
+PY2
+griff_datei packaging/systemd/srvpanel-diagnose.service "Nachtlauf ohne Frist" &&
+pruefe "Nachtlauf ohne Frist" \
+  OneshotDeadlineTest failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OneshotDeadlineTest passed
+
+echo
+echo "== UnitCatalogTest: die neuen Units stehen nicht im Katalog =="
+#
+# Dann zeigt die Dienste-Seite sie nicht — und die Diagnose saehe sich selbst
+# nicht, obwohl sie jeden anderen Timer prueft.
+vorher_datei agent/src/Catalog.php
+python3 - <<'PY2'
+p = 'agent/src/Catalog.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'srvpanel-diagnose.service',
+        'srvpanel-diagnose.timer',
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Catalog.php "neue Units nicht im Katalog" &&
+pruefe "neue Units nicht im Katalog" \
+  UnitCatalogTest failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
+echo "== PackagingTest: der Wrapper kennt das neue Kommando nicht =="
+#
+# Auf dem Server wird daraus "Command not defined" fuer einen Namen, den die
+# Unit selbst aufruft.
+vorher_datei packaging/bin/srvpanel
+python3 - <<'PY2'
+p = 'packaging/bin/srvpanel'
+s = open(p, encoding='utf-8').read()
+alt = """|access|version|diagnose)"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """|access|version)""", 1))
+PY2
+griff_datei packaging/bin/srvpanel "Wrapper ohne diagnose" &&
+pruefe "Wrapper ohne diagnose" \
+  PackagingTest::test_the_wrapper_knows_every_command_of_the_panel failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PackagingTest passed
+
+echo
+echo "== ManagedBlockDriftTest: der Waechter sucht die Erwaehnung statt des Aufrufs =="
+#
+# `Agent` nennt block.integrity, um ihn auszuschliessen. Ein Waechter, der die
+# Zeichenkette sucht, haelt das fuer einen zweiten Schreiber.
+vorher_datei tests/Unit/ManagedBlockDriftTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/ManagedBlockDriftTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """            foreach (['$log->replace(FindingCheck::BlockIntegrity', '$log->unreachable(FindingCheck::BlockIntegrity'] as $aufruf) {"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            foreach (['FindingCheck::BlockIntegrity'] as $aufruf) {""", 1))
+PY2
+griff_datei tests/Unit/ManagedBlockDriftTest.php "Waechter sucht die Erwaehnung" &&
+pruefe "Waechter sucht die Erwaehnung" \
+  ManagedBlockDriftTest::test_exactly_one_check_writes_the_block_integrity failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

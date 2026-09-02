@@ -124,8 +124,21 @@ final class ManagedBlockDriftTest extends TestCase
         foreach (glob($verzeichnis.'/*.php') ?: [] as $datei) {
             $quelle = $this->withoutComments((string) file_get_contents($datei));
 
-            if (str_contains($quelle, 'FindingCheck::BlockIntegrity')) {
-                $schreiber[] = basename($datei, '.php');
+            // **Der Schreibaufruf und nicht die Erwähnung.** `Agent` nennt
+            // den Schlüssel, um ihn aus seinem Sammelaufruf zu **entfernen** —
+            // ein Wächter, der die Zeichenkette sucht, hielte das für einen
+            // zweiten Schreiber. Gefragt wird deshalb `$log->replace(` und
+            // `$log->unreachable(` mit diesem Schlüssel.
+            //
+            // Was er nicht sieht: einen Schreiber, der den Schlüssel aus einer
+            // Variablen nimmt — genau das tut `Agent`. Diese Richtung misst
+            // `DiagnoseRunTest::test_no_key_has_two_writers` an `writes()`.
+            foreach (['$log->replace(FindingCheck::BlockIntegrity', '$log->unreachable(FindingCheck::BlockIntegrity'] as $aufruf) {
+                if (str_contains($quelle, $aufruf)) {
+                    $schreiber[] = basename($datei, '.php');
+
+                    break;
+                }
             }
         }
 

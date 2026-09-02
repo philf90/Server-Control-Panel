@@ -57,6 +57,12 @@ final class DiagnoseWriteTest extends TestCase
             $root.'/app/Support/Diagnose/Checks/SystemUsers.php',
             $root.'/app/Support/Diagnose/Checks/Orphans.php',
             $root.'/app/Support/Diagnose/Checks/ManagedBlocks.php',
+            $root.'/app/Support/Diagnose/Checks/Agent.php',
+
+            // Schritt 6: der Lauf selbst. Er faellt kein Urteil und schreibt
+            // nichts — aber er ist die Stelle, an der ein "und dann repariere
+            // es" am naechsten laege.
+            $root.'/app/Support/Diagnose/Run.php',
             $root.'/app/Support/Diagnose/LocalHost.php',
             $root.'/app/Support/Diagnose/TlsWire.php',
         ];
@@ -85,7 +91,7 @@ final class DiagnoseWriteTest extends TestCase
             }
         }
 
-        $this->assertSame(9, $geprueft);
+        $this->assertSame(11, $geprueft);
     }
 
     /**

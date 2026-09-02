@@ -1339,7 +1339,10 @@ deklariert einen Namen, der der Basisklasse gehört — er spiegelt deren
 `<style>`-Block einer `.vue` steht auf oberster Ebene und nicht im
 Vorlagenblock, wo der Übersetzer ihn wegwirft — die Regel, die
 `ClassReachTest` nicht halten konnte, weil er eine Zeichenkette suchte statt
-eines Blocks) und `ManagedBlockDriftTest` (die fremde Zeile in einem
+eines Blocks) und `DiagnoseRunTest` (ein Zeitstempel für alle Prüfungen einer
+Nacht, eine Ausnahme hält den Lauf nicht auf, und **jeder Schlüssel hat genau
+einen Schreiber** — gemessen an `writes()` und nicht an einer Liste im Test)
+und `ManagedBlockDriftTest` (die fremde Zeile in einem
 verwalteten Bereich wird von unserer unterschieden, **in beide Richtungen** —
 ein Befund je Art und nicht je Zeile, der Sollzustand kommt aus der Vorlage und
 wird nicht nachgebaut, und genau **eine** Prüfung schreibt `block.integrity`,
@@ -2388,7 +2391,7 @@ php artisan migrate
 Auf dem Zielserver:
 ```
 srvpanel setup|update|version|metrics|usage|cron-runs|tls|dns|dns-check
-         |db|vhost|admin|access|acceptance|acceptance-web|acceptance-db
+         |db|vhost|admin|access|diagnose|acceptance|acceptance-web|acceptance-db
 ```
 
 **`srvpanel update` wartet seit dem 1. September 2026** und gibt den

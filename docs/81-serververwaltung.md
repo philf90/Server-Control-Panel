@@ -1704,6 +1704,30 @@ Der erste Anlauf war rot und lag nicht daran: Es fehlten `.env` und der
 App-Schlüssel, und `MissingAppKeyException` sieht in der Zusammenfassung aus wie
 ein Rechteproblem.
 
+#### M21 — eine Zeichenkettensuche fängt den Schaden aus M3 nicht
+
+Nachgemessen am 2. September, als `docs/98` Frage 4 zur Entscheidung anstand.
+Prüfkörper ist die Datei aus M3, Fall 2 — die, die `nginx -t` mit `rc=0`
+durchlässt:
+
+    index index.php index.html          <- das Semikolon fehlt
+    access_log /var/log/nginx/mess.log;
+
+| Frage | Antwort |
+|---|---|
+| `grep -c access_log` | **1** — die Zeichenkette steht da |
+| an `;`, `{`, `}` zerlegt, erstes Wort je Anweisung | `server`, `listen`, `server_name`, `index`, `root` — **`access_log` fehlt** |
+
+> **Eine Anweisung, die zum Argument der vorigen geworden ist, steht wörtlich
+> noch da.** Wer nach der Zeichenkette sucht, findet sie; wer nach der Anweisung
+> sucht, nicht.
+
+Das ist derselbe Satz wie bei `ClassReachTest` und `OutcomeTest` — ein Wächter,
+der eine Zeichenkette sucht, ist grün, sobald sie irgendwo steht —, hier an einer
+Konfigurationsdatei statt an PHP oder einer Shell. Ohne diese Messung wäre die
+Prüfung aus `docs/98 §3 B` als Textsuche gebaut worden und hätte Punkt 5 des
+Abnahmekriteriums nicht erfüllt.
+
 #### Was diese Runde über sich selbst gelernt hat
 
 **Sechs Fehler, fünf davon im Prüfmittel** — dasselbe Verhältnis wie in

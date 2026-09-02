@@ -147,6 +147,26 @@ Zeichenkette im Speicher.
 > **Ein Wächter über den erzeugten Text sagt nichts über die Datei, die
 > dasteht.**
 
+**Und die Frage wird an den Anfang einer Anweisung gestellt und nicht an die
+Datei.** Nachgemessen am 2. September gegen den Prüfkörper aus M3, Fall 2 — die
+Form, die `nginx -t` mit `rc=0` durchlässt:
+
+    index index.php index.html          <- das Semikolon fehlt
+    access_log /var/log/nginx/mess.log;
+
+`grep access_log` findet die Zeichenkette und meldet Grün; die Domain schreibt
+trotzdem kein Protokoll, weil `access_log` zum **Argument** von `index` geworden
+ist. Zerlegt man die Datei an `;`, `{` und `}` und nimmt je Anweisung das erste
+Wort, bleiben `server`, `listen`, `server_name`, `index`, `root` — und
+`access_log` fehlt, wie es soll.
+
+> **Eine Anweisung, die zum Argument der vorigen geworden ist, steht wörtlich
+> noch da.** Wer nach der Zeichenkette sucht, findet sie; wer nach der Anweisung
+> sucht, nicht.
+
+Das ist **kein nginx-Parser** und soll keiner werden — es ist ein Schnitt an drei
+Zeichen. Was er nicht kann, steht in §11.
+
 Die Tiefe dieser Prüfung ist **Frage 4** in §9.
 
 ### C · Die verwalteten Blöcke — `block.integrity`
@@ -450,17 +470,41 @@ Frist, und wie lange sie an einer stillen Adresse steht, ist ungemessen (M19).
 | **b** | beides nachts, mit einer harten Frist je Domain |
 | **c** | beides nachts, aber die Leitung nur für Domains, deren Datei `ok` ist |
 
-> **Eine Empfehlung: a.** Die Datei fängt jeden Fall, den das Panel selbst
-> verursacht hat; die Leitung fängt zusätzlich den falsch konfigurierten
-> Vorgabeblock — und genau der ist der Fall, den man beim Nachsehen sucht und
-> nicht nachts gemeldet bekommen muss.
+> **Berichtigt am 2. September 2026, noch vor der Entscheidung.** Hier stand
+> „Empfehlung: a", und die Begründung war das Hängen an einer stillen Adresse.
+> Nachgesehen trägt sie nicht: `Runner::run()` erzwingt seine Frist mit `SIGTERM`
+> und danach `SIGKILL`, und eine Runde über die Leitung braucht hier gar kein
+> Programm — `stream_socket_client` mit `peer_name` und `capture_peer_cert` tut
+> es, und der Agent benutzt genau dieses Muster seit P7 zweimal in
+> `Acme/Dns/`. `openssl` steht **nicht** im Positivverzeichnis und müsste es
+> dafür auch nicht.
+>
+> **Eine Sorge, die eine gebaute Vorkehrung übersieht, ist keine.**
+
+**Was nur die Leitung fängt, ist ein echter Fall und einer, den dieses Projekt
+schon hatte:** Die Datei liegt gültig da, und der Server liefert sie nicht aus —
+weil der Block nicht nachgeladen wurde, weil der `server`-Block für den Namen
+fehlt und die Anfrage auf den Vorgabeblock fällt, oder weil im Vhost ein anderer
+Pfad steht. `docs/78` hat den Satz dafür:
+
+> **Ein Beleg für den Weg ist keiner für das Ziel.**
+
+> **Eine Empfehlung: c.** Beides nachts, die Leitung aber nur für Domains, deren
+> **Datei** `ok` ist. Der Grund ist nicht mehr der Aufwand — vier Handshakes
+> kosten nichts — sondern §4: Ein abgelaufenes Zertifikat wird auch über die
+> Leitung abgelaufen ausgeliefert, und das ergäbe **zwei Befunde für eine
+> Ursache**. Wer die Datei schon rot gemeldet hat, braucht die Leitung nicht
+> auch noch zu fragen.
+>
+> **a bleibt vertretbar**, wenn die Lücke oben bewusst in Kauf genommen wird;
+> **b** ist einfacher zu bauen und meldet dafür doppelt.
 
 ### Frage 4 — Wie tief prüft B die Dateien des Panels?
 
 | | |
 |---|---|
 | **a** | **da und nicht leer** — fängt den gelöschten Vhost, nicht das fehlende Semikolon |
-| **b** | **plus die Zusagen der Vorlage** — dieselben Fragen, die `SiteTemplateTest` und `PhpIsolationTest` an den erzeugten Text stellen, an die Datei gestellt |
+| **b** | **plus die Zusagen der Vorlage**, gefragt **an den Anfang einer Anweisung** — dieselben Fragen, die `SiteTemplateTest` und `PhpIsolationTest` an den erzeugten Text stellen, an die zerlegte Datei gestellt |
 | **c** | **voller Abgleich gegen einen frischen Rendervorgang** |
 
 **c ist der Vollständige und der Teure**, und er hat einen Haken, der ihn hier
@@ -470,8 +514,18 @@ damit den Sollzustand aus dem Bestand neu bauen — jede Änderung an
 Nacht einen Befund für jede Domain, die seither nicht neu geschrieben wurde.
 Das ist die Falle aus §4 in Reinform.
 
-> **Eine Empfehlung: b.** Es ist das, was Punkt 5 des Abnahmekriteriums
-> verlangt, und es kommt ohne eine zweite Fassung der Vorlage aus.
+> **Eine Empfehlung: b — aber zerlegt und nicht als Textsuche.** Am
+> 2. September nachgemessen: `grep access_log` findet die Zeichenkette auch in
+> der Datei, in der `access_log` zum Argument von `index` geworden ist (§3 B).
+> **So gebaut hätte b Punkt 5 des Abnahmekriteriums nicht erfüllt**, und der
+> Wächter dazu wäre grün gewesen.
+>
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+> steht.** Derselbe Satz wie bei `ClassReachTest` und `OutcomeTest`, hier an
+> einer Konfigurationsdatei.
+>
+> Es kommt weiterhin ohne eine zweite Fassung der Vorlage aus — der Unterschied
+> ist ein Schnitt an `;`, `{` und `}` vor der Frage.
 
 ### Frage 5 — Wer sieht die Seite?
 
@@ -501,6 +555,7 @@ die Absicht; die Brüche kommen mit dem Bau in `tests/waechter-brechen.sh`.
 | `FindingStateTest` | vier Zustände, und ein nicht erreichbarer Agent ergibt `unknown` und nie `ok` — in beide Richtungen |
 | `ValidatorVerdictTest` | die drei Prüfer werden am **Rückgabewert** gewertet und nicht an `syntax is ok`; er sucht die Zeichenkette ausdrücklich als **verbotene** und streift Kommentare ab |
 | `ManagedBlockIntegrityTest` | der lesende Blick meldet `BEGIN` ohne `END`, den doppelten Block und die fremde Zeile — an den neun Formen aus M14 |
+| `SiteFileIntegrityTest` | die Zusagen der Vorlage werden am **Anfang einer Anweisung** geprüft und nicht als Zeichenkette — der Prüfkörper ist die Datei aus M3 Fall 2, in der `grep` grün und die Anweisung fort ist |
 | `DiagnoseCatalogTest` | jeder `check` hat eine Prüfung, jede Prüfung einen `check`, und jeder `reason` steht in der Liste seines `check` — beide Richtungen, weil ein toter Eintrag bei einer Umbenennung entsteht |
 | `QuotaVerdictTest` | die dritte Zeile der Tabelle aus §3 F ist `fail` — gemessen an gebauten Prüfkörpern, nicht an erfundenen |
 | `DiagnoseWriteTest` | keine Prüfung schreibt: keine der beteiligten Klassen ruft `put`, `render`, `file_put_contents` oder eine mutierende Operation |
@@ -527,6 +582,12 @@ Absichtserklärung bleibt.
 - **Die absolute Laufzeit von A13 auf `cloudsrv24`** — die Art der Kosten ist
   gemessen (M20), die Zahl nicht: Die Platte dieses Containers ist nicht die des
   Servers. Sie entscheidet den Takt des zweiten Timers.
+- **Was der Schnitt an `;`, `{` und `}` nicht kann** (§3 B). Er zählt kein
+  `include`, er kennt keine Anführungszeichen und keine `#`-Kommentare mit einem
+  Semikolon darin, und er sagt nichts über die **Reihenfolge** oder die
+  Argumente einer Anweisung. Er beantwortet genau eine Frage: steht die zugesagte
+  Anweisung als Anweisung da. Wer mehr will, baut einen Parser — und dann ist es
+  eine zweite Fassung von nginx.
 - **Der Wortlaut über Fassungen hinweg.** M7 belegt, dass keiner der drei
   Prüfer übersetzt — das ist eine Zusage über die Programme und keine über ihre
   Fassungen. Deshalb wird der Wortlaut gezeigt und nicht gedeutet.

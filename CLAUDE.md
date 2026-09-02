@@ -2509,12 +2509,48 @@ Testen berücksichtigen:
 
   > **Dieselbe Messung kann aufs Pixel stimmen und trotzdem nichts über die
   > Ansicht sagen.**
-- **kein nginx, kein PHP-FPM.** Operationen laufen
-  gegen Attrappen. Zwei Fehler sind nur aufgefallen, weil die CI nginx *hat*
-  und dieser Container nicht — Tests, die Systemzustand annehmen, gehören
-  abgesichert. Vorlagen werden deshalb **als Text** geprüft
-  (`SiteTemplateTest`, `PhpIsolationTest`): Der Standardschutz ist eine
-  Eigenschaft der erzeugten Zeichenkette.
+- **nginx, php-fpm, sshd und die Quota-Werkzeuge gibt es hier auch — sie sind
+  nur nicht installiert.** Hier stand „kein nginx, kein PHP-FPM", und das war
+  eine Aussage über den Auslieferungszustand. Gemessen am 2. September 2026 für
+  A10 (`docs/81 §2.3o`): `apt-get install nginx openssh-server quota` holt
+  **nginx 1.24.0**, **OpenSSH 9.6p1** und **quota-tools 4.06** aus dem
+  Ubuntu-Archiv, und damit sind `nginx -t`, `sshd -t` und `quotaon -p` hier
+  messbar.
+
+  **PHP braucht einen Handgriff mehr, und ohne ihn scheitert der ganze Lauf.**
+  `php8.3-fpm` löst auf die gesperrte Sury-PPA auf; apt verwirft daran **alle**
+  Pakete des Aufrufs, auch die längst geholten. Festgenagelt gehen sie durch —
+  und zwar **alle fünf** zusammen, sonst zieht `php8.3-common` wieder Sury nach:
+
+      V=8.3.6-0ubuntu0.24.04.10
+      apt-get install -y php8.3-fpm=$V php8.3-common=$V php8.3-cli=$V \
+                         php8.3-opcache=$V php8.3-readline=$V
+
+  > **Ein Abbruch, der nach dem ersten Fehlschlag alles verwirft, macht aus
+  > einem gesperrten Paket eine gesperrte Umgebung.** Derselbe Satz wie bei
+  > `composer install --no-dev`, diesmal an apt.
+
+  **Zwei Fallen beim Messen, beide bezahlt.** Dieser Container hat **kein
+  IPv6** — die nginx-Vorgabeseite trägt `listen [::]:80`, und `nginx -t` gibt
+  darauf `rc=1` auf einer unberührten Konfiguration. Und `sshd -t` gibt
+  `rc=255`, solange `/run/sshd` fehlt. Wer den Erfolgsfall nicht erst
+  herstellt, misst seinen Prüfkörper gegen ein rc, das schon vorher rot war.
+
+  **Und der Kernel kann keine Quota erzwingen.** Ein Wegwerf-ext4 im Loop mit
+  `usrquota` trägt für die Zustände „keine Quotadatei" und „Datei da, Quota
+  aus"; `quotaon` scheitert an `Quota format not supported in kernel`, und ein
+  `mkfs.ext4 -O quota` lässt sich nicht einhängen. Die Zustände mit
+  **erzwungener** Quota bleiben hier ungemessen.
+
+  Operationen laufen weiter gegen Attrappen, und Vorlagen werden weiter **als
+  Text** geprüft (`SiteTemplateTest`, `PhpIsolationTest`): Der Standardschutz
+  ist eine Eigenschaft der erzeugten Zeichenkette. Zwei Fehler sind nur
+  aufgefallen, weil die CI nginx *hat* und dieser Container nicht — Tests, die
+  Systemzustand annehmen, gehören abgesichert.
+
+  > **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite
+  > braucht einen Versuch.** Derselbe Satz wie bei MariaDB, beim `sshd`, bei
+  > PowerDNS, bei PHPStan, bei Composer und beim Bruchskript.
 - **Die Ratenbegrenzung greift beim Aufnehmen von Screenshots.** Drei
   Anmeldungen hintereinander sperren die Adresse (§6.4) — eine Anmeldung für
   alle Aufnahmen, dann `emulateMedia` und `setViewportSize` umschalten. Und

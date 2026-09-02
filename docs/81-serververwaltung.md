@@ -1354,6 +1354,342 @@ Recht unbeantwortbar. Der Agent hat für diesen Lauf eine Attrappe in einer
 unverändert. Gemessen wird die **Lage der Seite**, und die hängt nicht daran,
 woher die Zahlen kommen.
 
+### 2.3o Die Messrunde vor A10 (2. September 2026)
+
+Gemessen, bevor eine Zeile entsteht — wie vor Schritt 6, Schritt 8, der
+Rollenteilung und A2. Die Vorgabe sind die fünf Punkte aus `docs/97 §3`.
+
+**A10 fragt vier Werkzeuge, und dieser Container hatte keines davon.** Nach dem
+Muster von MariaDB, `sshd`, PowerDNS, PHPStan und Composer war das der erste
+Versuch und nicht die erste Ausrede: `nginx 1.24.0`, `OpenSSH 9.6p1`,
+`php-fpm 8.3.6` und `quota-tools 4.06` liegen alle im Ubuntu-Archiv.
+
+**Der erste Anlauf hat trotzdem nichts installiert, und das ist eine bekannte
+Form.** `apt-get install nginx openssh-server php8.3-fpm quota` endet mit
+`rc=100` und **null** eingespielten Paketen: `php8.3-fpm` löst auf die
+gesperrte Sury-PPA auf, und apt verwirft daran den ganzen Lauf. Getrennt
+gefahren gehen die drei anderen sofort durch; PHP braucht **alle fünf**
+`php8.3-*` auf die Archivfassung festgenagelt, sonst zieht `php8.3-common`
+wieder Sury nach.
+
+> **Ein Abbruch, der nach dem ersten Fehlschlag alles verwirft, macht aus einem
+> gesperrten Paket eine gesperrte Umgebung.** Derselbe Satz wie bei
+> `composer install --no-dev`, diesmal an apt.
+
+---
+
+**M1 — beide „heilen" Fälle waren rot, und zwar aus Umgebungsgründen.**
+
+| Prüfer | unberührte Konfiguration | warum |
+|---|---|---|
+| `nginx -t` | **rc=1** | `socket() [::]:80 failed (97: Address family not supported)` — dieser Container hat kein IPv6, die Vorgabeseite trägt `listen [::]:80` |
+| `sshd -t` | **rc=255** | `Missing privilege separation directory: /run/sshd` |
+
+Damit hat der erste Durchgang **nichts** gemessen: Der Syntax-Prüfkörper stand
+neben einem rc, das schon vorher 1 war.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.** Zum dritten Mal in diesem Projekt (`docs/84` Punkt 8, `docs/89 §6`)
+> — und hier an beiden Prüflingen zugleich.
+
+Hergestellt wurde der Erfolgsfall mit `mkdir /run/sshd` und einer
+auskommentierten `listen [::]:80`-Zeile, **belegt** vor der Messung. Danach:
+`nginx -t` rc=0, `sshd -t` rc=0.
+
+Der Satz dahinter gilt über diesen Container hinaus und ist der erste, den A10
+tragen muss:
+
+> **Alle drei Prüfer beantworten mehr als die Frage nach der Datei.** Sie sagen
+> nicht „ist die Konfiguration in Ordnung", sondern „könnte ich damit jetzt
+> hier starten" — und das ist eine Frage an die Maschine.
+
+**M2 — `nginx -t` ruft `socket()`, aber es bindet nicht.** Die erste Deutung von
+M1 lautete „`nginx -t` belegt die Ports", und die Gegenprobe hat sie umgeworfen:
+Mit einem fremden Prozess auf `127.0.0.1:8099` (belegt über `ss`) und einem
+`listen 127.0.0.1:8099` in der Konfiguration meldet `nginx -t` **rc=0**. Es legt
+den Socket an — daran scheitert eine Adressfamilie, die es nicht gibt — und
+bindet ihn nicht. Ohne root scheitert es zusätzlich an `/run/nginx.pid`.
+
+**M3 — `nginx -t` lässt ein fehlendes Semikolon in zwei von vier Formen durch.**
+Das ist der teuerste Fund dieser Runde, weil das Panel mit `SiteTemplate` genau
+solche Dateien schreibt.
+
+| Prüfkörper | rc | Ausgabe |
+|---|---|---|
+| `server_name a;` **ohne** `;`, danach ein zweites `server_name` | **0** | **keine** |
+| `index …` **ohne** `;`, danach `access_log` | **0** | **keine** |
+| abgeschnittene Datei, schliessende Klammer fehlt | 1 | `[emerg] unexpected end of file, expecting "}" in <datei>:<zeile>` |
+| `listen 8081` **ohne** `;`, danach `server_name` | 1 | `[emerg] invalid parameter "server_name" in <datei>:<zeile>` |
+
+In den ersten beiden Fällen verschluckt der Block eine Anweisung: Aus
+`server_name a.invalid` + `server_name b.invalid;` werden **drei** Servernamen,
+darunter das Wort `server_name`; aus `index` + `access_log` wird eine Domain,
+die **kein Zugriffsprotokoll mehr schreibt**. Beides ohne ein Byte Ausgabe.
+
+> **`nginx -t` prüft, ob die Datei eine Bedeutung hat — nicht, ob es die
+> gemeinte ist.**
+
+Und welche der vier Formen auffällt, entscheidet die **Nachbarschaft** und nicht
+die Regel: Dieselbe Auslassung ist einmal ein `[emerg]` und einmal lautlos, je
+nachdem, was in der nächsten Zeile steht.
+
+**M4 — „syntax is ok" und „test failed" stehen im selben Lauf nebeneinander.**
+Der IPv6-Fall aus M1 druckt beide Zeilen; wer auf `syntax is ok` prüft, meldet
+Grün für einen Lauf, der mit rc=1 endete. Umgekehrt fehlt die Zeile im Fall des
+fehlenden Zertifikats ganz — **auch ihr Fehlen sagt nichts.**
+
+**M5 — der Kanal sagt bei keinem der drei etwas.** Alle drei schreiben alles auf
+`stderr`, ihre Erfolgsmeldung eingeschlossen. `stdout` blieb in **allen**
+gemessenen Fällen 0 Byte.
+
+| | heil | Konfigurationsfehler | Umgebungsfehler |
+|---|---|---|---|
+| `nginx -t` | rc=0, 132 B auf stderr | rc=1 | rc=1 |
+| `sshd -t` | rc=0, **0 B** | rc=255 | rc=255 (privsep) · **rc=1** (Hostkey) |
+| `php-fpm -t` | rc=0, `NOTICE …` auf stderr | rc=78 | ungemessen |
+
+Ein Leser, der „stderr ist nicht leer" als Fehlschlag nimmt, meldet nginx und
+php-fpm dauerhaft kaputt; einer, der „es kam Ausgabe" nimmt, trifft nur bei
+sshd. Es bleibt der Rückgabewert — und der trennt bei `sshd -t` den
+Konfigurationsfehler nicht vom Umgebungsfehler: 255 steht für beides.
+
+**M6 — `sshd -t` ohne root findet den Konfigurationsfehler unverändert und
+erfindet einen, wenn keiner da ist.** Gemessen als Paar, mit demselben
+Prüfkörper:
+
+| | heile Datei | `GibtEsNicht ja` in der Datei |
+|---|---|---|
+| als root | rc=0, keine Ausgabe | rc=255, `line 133: Bad configuration option: GibtEsNicht` |
+| als `mess` | **rc=1**, `no hostkeys available -- exiting.` | rc=255, **byteweise dieselbe Meldung** |
+
+Die Datei wird vor den Hostkeys gelesen, und der erste Fehler gewinnt. Damit ist
+`docs/97 §3` Punkt 2 beantwortet, und die Antwort ist nicht die erwartete:
+
+> **Ein Prüfer ohne die Rechte seines Dienstes meldet dessen Fehler richtig — und
+> seinen eigenen Mangel als dessen Fehler.** Das falsche Rot steht am heilen
+> Fall und nicht am kaputten.
+
+**M7 — keiner der drei übersetzt.** Gemessen an den mitgelieferten
+Übersetzungsdateien: `nginx-core` **0**, `openssh-server` **0**, `php8.3-fpm`
+**0** `.mo`-Dateien; Gegenproben `apt` **43**, `coreutils` **45**.
+
+Die **erste** Fassung dieser Messung war keine. Sie zählte `gettext`-Symbole aus
+`objdump -T` und ergab 0 — auch für `ls` und `apt-get`, die beide nachweislich
+übersetzen.
+
+> **Eine Messung, die beim Gegenbeweis dasselbe sagt wie beim Beweis, misst
+> nicht.**
+
+Damit gilt die Lehre aus `docs/94` (`Inst` war sprachunabhängig, *„is already the
+newest version"* nicht) für diese drei Prüfer **nicht** — ihr Wortlaut ist auf
+jedem System derselbe. Das ist eine Zusage über die Programme und keine über
+ihre Fassungen; `nginx` hat seine Meldungen zwischen Fassungen schon geändert.
+
+**M8 — der Ort steht im Wortlaut, und seine Form ist je Programm und je
+Fehlerart verschieden.**
+
+| Prüfer | Fall | wie der Ort dasteht |
+|---|---|---|
+| nginx | Syntax | `… in /etc/nginx/sites-enabled/x.conf:4` |
+| nginx | fehlendes Zertifikat | der Pfad im Meldungstext, **keine Zeile** |
+| php-fpm | Parse | `[/etc/php/8.3/fpm/pool.d/x.conf:4]` |
+| php-fpm | fehlender Benutzer | `[pool messuser]` — **der Pool, keine Datei** |
+| sshd | unbekannte Anweisung | `/etc/ssh/sshd_config: line 133:` |
+| sshd | ungültiger Wert | `/etc/ssh/sshd_config line 133:` — **ohne Doppelpunkt** |
+
+Die letzten beiden Zeilen sind dasselbe Programm in derselben Fassung.
+
+**M9 — der Wortlaut ist bei zwei von dreien in jedem Lauf ein anderer.** Die
+`[warn]`- und `[emerg]`-Zeilen von nginx tragen Datum **und Prozessnummer**
+(`2026/09/02 10:12:50 [warn] 8896#8896:`), jede Zeile von php-fpm ein Datum
+(`[02-Sep-2026 10:12:50]`); sshd trägt weder noch. Zwei Läufe an derselben
+kaputten Datei ergeben deshalb zwei verschiedene Texte.
+
+> **Der Wortlaut eines Prüfers taugt nicht als Kennung eines Befundes.** Ein
+> Lauf, der sagen will „dasselbe wie gestern", fände jede Meldung neu — und ein
+> Diagnoselauf, der jede Nacht alles neu meldet, wird nach zwei Wochen nicht
+> mehr gelesen.
+
+Das ist der Fund, der die Kernfrage aus `docs/97 §3` entscheidet: Ein Befund
+braucht eine Kennung, die **nicht** sein Text ist.
+
+---
+
+#### Die Quota
+
+**M10 — `quotaon -p` gibt in jedem herstellbaren Zustand `rc=0` zurück.** Und der
+Kanal wechselt mit dem Zustand:
+
+| Zustand | rc | Kanal | Wortlaut |
+|---|---|---|---|
+| Einhängepunkt ohne `usrquota` | **0** | stderr, 69 B | `Mountpoint (or device) / not found or has no quota enabled.` |
+| `usrquota` gesetzt, Quotadatei fehlt | **0** | stdout, 151 B | `user quota on … is off` |
+| Quotadatei da, `quotaon` nicht gelaufen | **0** | stdout, 151 B | `user quota on … is off` |
+
+> **Ein Rückgabewert, der einen Fehlschlag nicht tragen kann, ist keine Prüfung.**
+> M5 aus A1, an einem zweiten Werkzeug — und diesmal wandert auch noch der Kanal.
+
+**M11 — der Leseversuch, auf den `docs/41` das Panel gestellt hat, geht grün,
+sobald die Quotadatei da ist.** Gemessen als Paar auf einem Wegwerf-ext4 im Loop
+(`mount -o loop,usrquota`, Zustand über `/proc/mounts` belegt):
+
+| Zustand | `quotaon -p` | `repquota -s` |
+|---|---|---|
+| Quotadatei fehlt (der Fall von `cloudsrv24`, `docs/41`) | `is off` | **rc=1**, `Cannot open quotafile` |
+| Quotadatei da, Quota **aus** | `is off` | **rc=0**, volle Tabelle |
+| Gegenprobe: Datei wieder fort | `is off` | **rc=1** |
+
+Die Gegenprobe schlägt in beide Richtungen aus, und die beiden Werkzeuge sind in
+der mittleren Zeile verschiedener Meinung. `Settings::diskQuota()` liest den
+Leseversuch — also den, der dort Ja sagt.
+
+> **Ein Leseversuch belegt, dass etwas zu lesen war — nicht, dass es gilt.**
+> `docs/41` hat das Panel vom Optionslesen auf den Leseversuch gestellt, weil
+> die Option nichts beweist. Der Leseversuch beweist eine Stufe mehr und immer
+> noch nicht die gemeinte.
+
+Der Zustand ist keiner, den man sich ausdenken muss: Die Quotadatei überlebt
+jeden Neustart, `quotaon` läuft bei jedem — bleibt seine Unit aus, liegt die
+Datei da und nichts wird erzwungen.
+
+**Und `quotaon` steht nicht in `Runner::PROGRAMS`.** Der Agent kennt heute
+`setquota` und `repquota`. Wer den Zustand messen will, trägt es ein.
+
+**M12 — was dieser Container nicht kann, und das bleibt eine Lücke.** `quotaon`
+scheitert hier an `Quota format not supported in kernel`, und ein ext4 mit dem
+eingebauten Quota-Merkmal (`mkfs.ext4 -O quota`) lässt sich nicht einhängen. Die
+Zustände **„Quota an, Benutzer ohne Grenze"** und **„Quota an, Benutzer mit
+Grenze"** sind hier nicht herstellbar und **ungemessen**. Der erste Anlauf hat
+sie scheinbar gemessen — gegen ein Verzeichnis, das gar nicht eingehängt war.
+
+> **Eine Messung an einem Prüfkörper, der nicht dasteht, sieht aus wie ein
+> Ergebnis.** Gemerkt hat es die Zeile `wrong fs type, bad option, bad
+> superblock` über den drei Messungen, nicht die Messungen selbst.
+
+---
+
+#### Die verwalteten Blöcke
+
+**M13 — es sind zwei und nicht fünf.** `docs/97 §3` nennt `SiteTemplate`, `Hba`,
+`PgRemoteAccess`, `sshd_config` und `srvpanel.conf` in einer Aufzählung.
+Ausgezählt am Quelltext tragen genau **zwei** Dateien die Marken aus
+`ManagedBlock`: `/etc/ssh/sshd_config` und `pg_hba.conf`. Die übrigen sind
+**ganze Dateien, die dem Panel gehören** — `/etc/nginx/srvpanel.d/*.conf`,
+`/etc/nginx/conf.d/srvpanel-sites.conf`, `/etc/cron.d/srvpanel-*`, die
+php-fpm-Pools, `/etc/apt/sources.list.d/srvpanel.sources`,
+`/etc/apt/apt.conf.d/zz-srvpanel-unattended`.
+
+> **Zwei Arten von Eigentum, die in einer Aufzählung nebeneinanderstehen,
+> bekommen dieselbe Prüfung — und die passt auf keine von beiden.** Bei einem
+> Block lautet die Frage „steht unser Bereich unversehrt in einer fremden
+> Datei"; bei einer eigenen Datei lautet sie „ist sie überhaupt noch da und ist
+> es unsere".
+
+**M14 — `managed()` gibt bei vier verschiedenen Zuständen dieselbe leere Liste
+zurück, und einer davon ist der Normalzustand.** Gemessen framework-frei gegen
+neun Formen:
+
+| Prüfkörper | `managed()` | Marken |
+|---|---|---|
+| heil | 2 Zeilen | `BEGIN`+`END` |
+| Block ganz entfernt | **0** | keine |
+| `BEGIN` von Hand entfernt | **0** | nur `END` |
+| Marke im Wortlaut verändert | **0** | nur `END` |
+| Datei leer | **0** | keine |
+| `END` von Hand entfernt | **2 Zeilen**, unverändert | nur `BEGIN` |
+| eine Zeile im Block fort | 1 Zeile | beide |
+| fremde Zeile im Block | **3 Zeilen** — die fremde als unsere | beide |
+| Block zweimal | 2 Zeilen — **der zweite still übergangen** | beide |
+
+**M15 — der eine Zustand, den `ManagedBlock` selbst für fatal hält, ist über den
+Leseweg unsichtbar.** Regel 5 der Klasse lautet „`BEGIN` ohne `END` ist ein
+Abbruch und keine Reparatur", und `without()` wirft dafür eine Ausnahme mit
+Datei und Zeilennummer. `without()` steht im **Schreib**weg. `managed()` liefert
+in genau diesem Fall die Zeilen, als wäre nichts.
+
+> **Ein Diagnoselauf, der nichts schreibt, kommt an der Prüfung nicht vorbei,
+> die nur der Schreiber macht.**
+
+**M16 — und die gefährlichste Zeile kommt als unsere zurück.** Ein
+`host alles alle 0.0.0.0/0 trust`, das jemand **innerhalb** der Marken
+einträgt, zählt `managed()` zum verwalteten Bereich. Wer den Bereich gegen den
+Sollzustand hält, sieht es; wer nur zählt, nicht. Die Maschinerie dafür gibt es
+schon: `RemoteAccess::orphans()` und `::missing()` vergleichen die gelesenen
+Zeilen gegen den Bestand, und `srvpanel db` zeigt es seit P5b.
+
+---
+
+#### Was ein Nachtlauf kostet
+
+**M17 — die Prüfer sind billig.** Mittel aus je fünf Läufen:
+
+| Griff | ms |
+|---|---|
+| `nginx -t` | 4 |
+| `sshd -t` | 7 |
+| `php-fpm -t` | 20 |
+| `repquota -s /` | 2 |
+| `quotaon -p /` | 1 |
+| `openssl x509` aus der **Datei** | 25 |
+| `openssl s_client` gegen `127.0.0.1` | 34 |
+
+Auf `cloudsrv24` mit vier Domains sind das drei Prüfer, zwei Quota-Griffe, vier
+Zertifikate aus der Datei und die Unit-Abfrage, die A2 schon gebaut hat — die
+Runde ist **nicht** an den Prüfern teuer.
+
+**M18 — die SNI-Falle aus `docs/78` ist nachgestellt und trifft.** Zwei
+`server`-Blöcke auf `127.0.0.1:8443`, der Vorgabeblock mit
+`CN = vorgabeblock.invalid`, der zweite für `kunde.mess.invalid`:
+
+    ohne -servername  → subject=CN = vorgabeblock.invalid   (gültig, 30 Tage)
+    mit  -servername  → subject=CN = kunde.mess.invalid
+
+Daraus folgt die Trennung, die A10 vor der ersten Zeile treffen muss:
+
+> **Die Frage an die Datei und die Frage an die Leitung sind zwei Fragen.**
+> „Liegt ein gültiges Zertifikat für diesen Namen auf der Platte" beantwortet
+> `openssl_x509_parse` — ohne Prozess, ohne Netz, und `AcmeCertificateInfo` und
+> `PanelTlsInfo` tun das seit P4. „Liefert der Server es auch aus" braucht SNI,
+> eine Runde über das Netz und eine Frist.
+
+**M19 — und die Frist ist hier nicht messbar.** Ein Port, der schweigt, sollte
+den Lauf hängen lassen; `203.0.113.1:443` antwortete nach 120 ms mit `rc=0`. Das
+war der Proxy dieses Containers und nicht die Leitung. Wie lange ein Nachtlauf
+an einer stillen Adresse steht, bleibt **ungemessen** und gehört auf den
+Zielserver.
+
+---
+
+#### Was diese Runde über sich selbst gelernt hat
+
+**Fünf Fehler, vier davon im Prüfmittel** — dasselbe Verhältnis wie in
+`docs/45`, `docs/48`, `docs/59`, `docs/84` und `docs/96`, und keiner davon ist
+durch Nachdenken aufgefallen:
+
+| | Fehler | gefunden durch |
+|---|---|---|
+| M1 | beide Erfolgsfälle waren rot, der erste Durchgang mass nichts | die unberührte Konfiguration mitgemessen |
+| M2 | „`nginx -t` belegt die Ports" | die Gegenprobe mit einem fremden Prozess auf dem Port |
+| M7 | die Symbolzählung sagte 0 für ein Programm, das übersetzt | die Gegenprobe an `ls` und `apt-get` |
+| M12 | drei Quota-Zustände gegen ein nicht eingehängtes Verzeichnis | die Fehlerzeile des `mount` darüber |
+| — | `systemctl show` für 19 Units „in 2 ms" | rc=1, *„System has not been booted with systemd"* |
+
+Der letzte ist der billigste und der lehrreichste: Gemessen waren die Kosten
+eines **Fehlschlags**, und sie sahen aus wie ein gutes Ergebnis.
+
+> **Eine Zahl, die schnell ist, weil nichts geschehen ist, sieht aus wie eine
+> Zahl, die schnell ist, weil es billig war.**
+
+**Und der Prüfkörper ist weggeräumt und das ist belegt:** die vier
+`mess-*.conf` fort, `sshd_config` und die nginx-Vorgabeseite über `cp -a`
+zurück und mit `diff -q` gegengeprüft, der Benutzer `mess` gelöscht, der
+Loop-Mount ausgehängt (`0` Zeilen in `/proc/mounts`), nginx angehalten (`0`
+Ports auf 8443). Die vier **Pakete** bleiben liegen; was sie an einem Testlauf
+ändern, ist eigens nachzusehen — `SourceOwnershipTest` war am 26. August genau
+daran in der CI rot und hier grün.
+
+---
+
 ### Frage 1 — Darf das Panel eine fremde Paketquelle hinzufügen?
 
 > **Entschieden am 24. August 2026: nein.** Der Betreiber hat den Vorschlag
@@ -1792,6 +2128,25 @@ in den Agenten.
 ---
 
 ### A10 — Diagnose des Bestands · 1 Woche
+
+> **Die Messrunde ist gefahren und steht als §2.3o** — 2. September 2026, im
+> Container gegen echtes `nginx 1.24.0`, `OpenSSH 9.6p1`, `php-fpm 8.3.6` und
+> `quota-tools 4.06`. **Der ausgeschriebene Plan ist `docs/98`.**
+>
+> Vier Annahmen dieser Skizze sind dort gemessen und drei sind umgeworfen.
+> `nginx -t` lässt ein fehlendes Semikolon in zwei von vier Formen mit `rc=0`
+> und **ohne ein Byte Ausgabe** durch — es prüft, ob die Datei eine Bedeutung
+> hat, nicht ob es die gemeinte ist. Der Leseversuch, auf den `docs/41` das
+> Panel für die Quota gestellt hat, geht grün, sobald die Quotadatei dasteht,
+> auch wenn die Quota aus ist. Und es gibt **zwei** verwaltete Blöcke und nicht
+> fünf; die übrigen sind ganze Dateien, die dem Panel gehören, und das ist eine
+> andere Frage mit einer anderen Antwort.
+>
+> **Die Kernfrage — was ist die Form eines Befundes — entscheidet M9:** Der
+> Wortlaut zweier der drei Prüfer trägt in jeder Zeile ein Datum, nginx dazu die
+> Prozessnummer. Zwei Läufe an derselben kaputten Datei ergeben zwei
+> verschiedene Texte, und ein Befund braucht deshalb eine Kennung, die nicht
+> sein Text ist.
 
 **Was.** Ein Knopf und ein Nachtlauf: `nginx -t`, `php-fpm -t`, `sshd -t`, Agent
 erreichbar, **jeder Timer mit nächstem Termin**, Zertifikate gültig und für den

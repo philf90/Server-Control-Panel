@@ -24277,6 +24277,60 @@ seiner Tabellen.
 
 Zwei Wächter, elf Brüche.
 
+### Der Nachlauf zu A10 ist ausgeschrieben — und drei seiner Kriterien waren falsch
+
+**`docs/99` steht, bevor er gefahren wird.** Acht Punkte auf `cloudsrv24` gegen
+das Kriterium aus `docs/98 §7`, jeder in derselben Form: Zustand herstellen,
+belegen, dass er da ist, fahren, lesen, zurückbauen, noch einmal fahren. Der
+zweite Lauf ist kein Aufräumen.
+
+> **Eine Anzeige, die einen Zustand meldet, muss ihn auch wieder zurücknehmen —
+> sonst hat sie ihn nicht gemessen, sondern behalten.**
+
+**Beim Ausschreiben sind drei der acht Punkte umgefallen**, und alle drei hätten
+den Prüfling für etwas gemeldet, das er zu Recht tut. Gefunden hat sie kein
+Nachdenken, sondern der Blick in den Quelltext, den `docs/95 §0` seit dem
+1. September vor jedem Lauf verlangt.
+
+**Punkt 7** verlangte, dass bei angehaltenem Agenten *jede* Prüfung auf
+`unknown` steht. **Zwei der sechs fragen den Agenten gar nicht:** `SystemUsers`
+und `Orphans` nehmen `Host` und die Datenbank und messen weiter. Dazu bekommt
+`tls.wire` dann keine Zeile — die Leitung wird nur gefragt, wenn die Datei in
+Ordnung ist, und ohne Agent gibt es keine Datei, über die zu urteilen wäre.
+
+**Punkt 3** erwartete einen gestoppten Timer unter `unit.state`. `Units::judge()`
+fragt aber in der Reihenfolge „gibt es die Unit, hat ein Timer einen Termin, wie
+ist der Zustand" — ein gestoppter Timer fällt in den zweiten Zweig und erscheint
+als `unit.schedule` mit dem Grund `no_next`. Wer beim Messen nach `unit.state`
+sucht, findet nichts und schreibt einen Ausfall auf, den es nicht gibt.
+
+**Punkt 2** entfernt einen verwalteten Bereich von Hand. Ohne einen Sollzustand
+ergibt das **zu Recht** keinen Befund (`ManagedBlocks::judge()`: kein Block und
+nichts zu tun ist der Normalzustand) — auf einem Server ohne einen einzigen
+SFTP-Schlüssel misst der Punkt den Normalzustand und liest sich wie ein Ausfall.
+Der Lauf belegt deshalb vorher, dass der Bereich nicht leer ist.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
+**Und der Prüfkörper von Punkt 5 kommt aus einer Messung und nicht aus einem
+Einfall.** M3 hat vier Formen eines fehlenden Semikolons gemessen; zwei gehen mit
+`rc=0` und ohne ein Byte Ausgabe durch, zwei nicht — und welche das ist,
+entscheidet die **Nachbarschaft** und nicht die Regel. Der Lauf nimmt Form 1
+(`server_name` ohne Semikolon, die nächste Zeile wird zu einem Namen) und
+**belegt beides**: dass die Zeile ihr Semikolon verloren hat, und dass
+`nginx -t` trotzdem `rc=0` gibt. Gibt der Prüfer dort `rc=1`, wird die Stelle
+gewechselt und nicht das Kriterium.
+
+Punkt 8 erbt diesen Schaden und ändert nur den **Wortlaut** — ein zweites
+`server_name` verliert sein Semikolon, `check`, `subject` und `reason` bleiben
+dieselben. Genau daran hängt M9.
+
+§7 des Plans nennt die drei Berichtigungen jetzt mit Verweis, statt sie ein
+zweites Mal zu führen.
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.**
+
 ### Die Kommandozeile führt die Sprache der Oberfläche nicht
 
 Entschieden vom Betreiber am 1. September 2026, `docs/19 §2.7`: `srvpanel …`

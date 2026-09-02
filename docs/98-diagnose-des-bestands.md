@@ -374,6 +374,16 @@ Punkte 2 und 5 sind die, um derentwillen es diesen Lauf gibt.
 ist als ein Aufruf der drei Prüfer; der zweite, dass der Lauf in zwei Wochen
 noch gelesen wird.
 
+> **Drei dieser Punkte sind beim Ausschreiben des Laufs berichtigt worden**
+> (2. September 2026, `docs/99 §0`) — Punkt 7, weil zwei der sechs Prüfungen den
+> Agenten gar nicht fragen und deshalb weitermessen; Punkt 3, weil ein
+> gestoppter Timer unter `unit.schedule` und nicht unter `unit.state` erscheint;
+> Punkt 2, weil ein entfernter Bereich ohne einen Sollzustand zu Recht keinen
+> Befund ergibt. **Der Wortlaut dort gilt**, und hier steht der Verweis, damit
+> es nicht zwei Fassungen gibt.
+>
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
 ---
 
 ## 8. Die Schritte
@@ -388,7 +398,7 @@ noch gelesen wird.
 | **5b** | ~~C Frage 3 — die Zeilen eines verwalteten Bereichs gegen den Sollzustand~~ **gebaut am 2. September 2026** — der Agent gibt seine Zeilen heraus, das Panel vergleicht mit `RemoteAccess` und `SshdConfig::lines()` | fiel zwischen 3 und 5: Die Zeilen kennt nur der Agent, den Sollzustand nur das Panel |
 | **6** | ~~Kommando, Dienst und Timer, samt Frist~~ **gebaut am 2. September 2026** — `srvpanel diagnose`, ein Zeitstempel für alle, `TimeoutStartSec=1800` gerechnet aus der teuersten Frage | erst wenn es etwas zu fahren gibt |
 | **7** | ~~Die Seite — Liste, `unknown` sichtbar, „steht seit"~~ **gebaut am 2. September 2026** — `/diagnose`, der Wortlaut nur für den Betreiber, und der Lauf hält seinen Zeitpunkt fest | zuletzt, wie in diesem Projekt üblich |
-| **8** | Der Nachlauf auf `cloudsrv24` gegen das Kriterium aus §7 | eine Stufe gilt erst als fertig, wenn sie gemessen ist |
+| **8** | Der Nachlauf auf `cloudsrv24` gegen das Kriterium aus §7 — **ausgeschrieben am 2. September 2026 als `docs/99`**, gefahren wird er dort | eine Stufe gilt erst als fertig, wenn sie gemessen ist |
 
 ---
 

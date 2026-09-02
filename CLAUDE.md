@@ -1894,6 +1894,17 @@ und `render()` den ganzen Bereich entfernt.
 > Wächter, der Leser und Schreiber an der **Wirkung** aneinanderhält — nicht am
 > Quelltext, und nicht das Nachdenken.
 
+Und **`99` der Nachlauf zu A10** — der Abnahmelauf für die Bestandsdiagnose,
+ausgeschrieben am 2. September 2026 **vor** dem Fahren: §0 sagt, was vor dem Lauf
+gelesen wird, und nennt die **drei Kriterien, die dabei umgefallen sind** — Punkt
+7 (zwei der sechs Prüfungen fragen den Agenten nicht und messen weiter), Punkt 3
+(ein gestoppter Timer erscheint unter `unit.schedule`, nicht unter `unit.state`)
+und Punkt 2 (ein entfernter Bereich ohne Sollzustand ist zu Recht kein Befund).
+§9 sagt, was er ausdrücklich nicht prüft, §10, wann er durch ist und welche
+Punkte ausfallen dürfen — **5 und 8 nicht**.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
 Und **`97` die Übergabe an A10** — der Stand von P7b (vier abgenommen, fünf
 offen), was A10 ist, **was vor dem Plan zu messen ist**, die vier frischen
 Prüfmittel-Fallen vom 1./2. September, der Zustand von `cloudsrv24` samt dem,

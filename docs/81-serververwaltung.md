@@ -1660,9 +1660,53 @@ Zielserver.
 
 ---
 
+#### M20 — was A13 kosten würde, und warum die erste Zahl falsch war
+
+Nachgemessen am 2. September, weil `docs/98` Frage 2 daran hängt. Prüfkörper ist
+ein echter PHP-Baum: `vendor/` mit **25 985 Dateien**, davon **16 932 PHP** und
+**79 MB** PHP-Quelltext. Die Gegenprobe ist ein Köder mit `0777`, frischer
+Änderungszeit und `eval(base64_decode` — alle drei Griffe finden ihn.
+
+| Griff | erster Lauf | zweiter Lauf |
+|---|---|---|
+| `find -perm 0777` | 78 ms | — |
+| `find -mtime -1` | 81 ms | — |
+| `grep -rl 'eval(base64_decode'` | **13 136 ms** | **135 ms** |
+
+**Die erste Zahl war nicht die Laufzeit des Griffs, sondern die des kalten
+Zwischenspeichers.** Getrennt gemessen: das Laufen über 26 000 Einträge kostet
+58 ms, das Lesen über eine fertige Liste 127 ms — zusammen also nicht 13
+Sekunden. Was 13 Sekunden gekostet hat, war das **einmalige Lesen von 79 MB von
+der Platte**.
+
+> **Eine Messung, die man nur einmal fährt, misst den Zwischenspeicher mit — und
+> ob sie ihn kalt oder warm erwischt, sagt sie nicht.**
+
+Die Zahl **transportiert nicht** auf den Zielserver: Die Platte dieses
+Containers ist nicht seine. Was transportiert, ist die Form — und die entscheidet
+die Frage:
+
+> **Die beiden `find`-Griffe fragen die Metadaten, der Textgriff liest den
+> ganzen Bestand des Kunden.** Das sind zwei Arten von Kosten und nicht zwei
+> Grössen derselben.
+
+Und nachts um vier ist der Zwischenspeicher kalt: Ein Webspace, den seit Stunden
+niemand angefasst hat, steht nicht mehr im Seitenspeicher. Der Nachtlauf bekommt
+also den ersten Wert und nicht den zweiten.
+
+#### Was die vier neuen Pakete an einem Testlauf ändern: nichts
+
+Nachgesehen, weil `SourceOwnershipTest` am 26. August genau an so etwas in der CI
+rot und hier grün war. Voller Lauf mit `nginx`, `openssh-server`, `php8.3-fpm`
+und `quota` installiert: **2807 grün, 0 Ausfälle**, `rc=0`, 150 s.
+
+Der erste Anlauf war rot und lag nicht daran: Es fehlten `.env` und der
+App-Schlüssel, und `MissingAppKeyException` sieht in der Zusammenfassung aus wie
+ein Rechteproblem.
+
 #### Was diese Runde über sich selbst gelernt hat
 
-**Fünf Fehler, vier davon im Prüfmittel** — dasselbe Verhältnis wie in
+**Sechs Fehler, fünf davon im Prüfmittel** — dasselbe Verhältnis wie in
 `docs/45`, `docs/48`, `docs/59`, `docs/84` und `docs/96`, und keiner davon ist
 durch Nachdenken aufgefallen:
 
@@ -1673,6 +1717,7 @@ durch Nachdenken aufgefallen:
 | M7 | die Symbolzählung sagte 0 für ein Programm, das übersetzt | die Gegenprobe an `ls` und `apt-get` |
 | M12 | drei Quota-Zustände gegen ein nicht eingehängtes Verzeichnis | die Fehlerzeile des `mount` darüber |
 | — | `systemctl show` für 19 Units „in 2 ms" | rc=1, *„System has not been booted with systemd"* |
+| M20 | „A13 braucht 13 Sekunden" | der zweite Lauf desselben Griffs: 135 ms |
 
 Der letzte ist der billigste und der lehrreichste: Gemessen waren die Kosten
 eines **Fehlschlags**, und sie sahen aus wie ein gutes Ergebnis.
@@ -2413,8 +2458,30 @@ Liste.
 | **A11** | ~~Neustart~~ **am 26. August 2026 gebaut** (Schritt 7); Zeitzone des Servers und NTP **neben** der Anzeigezeitzone aus `docs/40`, Rechnername nur anzeigen | mit A1, Schritt 7 — die Nachbarn landen in `ServerController` |
 | **A6** | Leseansicht von `/etc/crontab`, `/etc/cron.d`, `cron.daily` und `cron.weekly` | mit A2 |
 | **A8** | Welche Adressen der Server hat, welche der DNS-Abgleich als Soll nimmt | eigenständig; P7 ist fertig |
-| **A12** | Wartungsmodus: alle Kundenseiten auf 503, Panel erreichbar | mit A1 |
-| **A13** | Die billige Hälfte des Malware-Scans: 0777, frisch geänderte PHP-Dateien, `eval(base64_decode` als Textsuche | mit A10 |
+| **A12** | Wartungsmodus: alle Kundenseiten auf 503, Panel erreichbar | ~~mit A1~~ — **entschieden am 2. September 2026: eigener Punkt in P7b, hinter A10** |
+| **A13** | Die billige Hälfte des Malware-Scans: 0777, frisch geänderte PHP-Dateien, `eval(base64_decode` als Textsuche | ~~mit A10~~ — **entschieden am 2. September 2026: reitet nicht mit; Laufzeit auf `cloudsrv24` messen** |
+
+**A12 hatte seit dem 28. August keine Stufenzeile mehr.** „mit A1" war eine
+Verortung an einer Stufe, und die ist abgenommen; damit stand A12 nirgends. Der
+Betreiber hat es am 2. September als **eigenen Punkt hinter A10** eingeordnet,
+und der Grund ist der Zuschnitt und nicht der Aufwand:
+
+> **A10 ist die Stufe, deren erste Regel „schreibt nichts" lautet.** A12
+> schreibt — es stellt jede Kundendomain auf 503. Eine Stufe, in der die eine
+> Hälfte schreibt und die andere nicht, ist genau die Vermischung, die §12.1 bei
+> A3 schon einmal aufgelöst hat.
+
+**A13 reitet nicht mit, und die Messung dazu ist gefahren** (§2.3o M20). Die
+beiden `find`-Griffe fragen Metadaten und kosten unter 100 ms; der Textgriff
+liest den **ganzen** PHP-Bestand des Kunden von der Platte. Das sind zwei Arten
+von Kosten, und der Nachtlauf von A10 ist für die erste gebaut.
+
+> **Ein `check`, der den Bestand des Kunden liest, gehört nicht in denselben
+> Lauf wie einer, der eine Konfigurationsdatei prüft — auch wenn beide dieselbe
+> Form von Befund erzeugen.**
+
+Die Form des Befundes aus `docs/98 §2` trägt A13 trotzdem ohne Änderung; was
+sich unterscheidet, ist der Takt und nicht die Zeile.
 
 ---
 
@@ -2473,7 +2540,7 @@ Serververwaltungssatz in P9 zeigt dorthin statt ihn ein zweites Mal zu führen.
 
 | Stufe | Inhalt | Wann |
 |---|---|---|
-| **P7b — Serververwaltung** | A5, A2, A10, A1, A11, A6, A8, A3 (erster Wurf) | **entschieden**, vor P8 |
+| **P7b — Serververwaltung** | A5, A2, A10, **A12**, A1, A11, A6, A8, A3 (erster Wurf) | **entschieden**, vor P8; A12 am 2. September dazu |
 | **P8** | Sicherungen und Wiederherstellung | unverändert |
 | **P9** | Kundenfähigkeit nach `docs/20 §9`, **ohne** den Serververwaltungssatz — **A7 steht darin** | unverändert |
 | **P9b — Absicherung des Servers** | A3 (zweiter Wurf), A4 | **entschieden am 28. August 2026**, zwischen P9 und P10 |

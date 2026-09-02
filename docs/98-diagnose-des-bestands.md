@@ -310,6 +310,8 @@ Drei Dinge folgen daraus, und sie sind der Grund für die Form aus §2:
 - **Kein Malware-Scan.** A13 ist die billige Hälfte davon und steht als
   **Frage 2** in §9.
 - **Keine Reparatur** (§5.1).
+- **Kein Wartungsmodus.** A12 ist am 2. September als eigener Punkt hinter A10
+  eingeordnet worden, und zwar aus demselben Grund wie §5.1: A12 schreibt.
 - **Keine Historie.** Gespeichert wird der gegenwärtige Zustand je Kennung mit
   einem „steht seit", nicht jeder Lauf. Eine Verlaufskurve ist P9.
 - **Keine Prüfung fremder Dienste über ihre Konfiguration hinaus.** Ob MariaDB
@@ -371,6 +373,11 @@ dem sie hängen.**
 
 ### Frage 1 — Wohin gehört A12?
 
+> **Entschieden am 2. September 2026: eigener Punkt in P7b, hinter A10.** Der
+> Betreiber hat den Vorschlag angenommen; `docs/81 §11` und `§12.1` tragen es.
+> A10 bleibt damit die Stufe, die nichts schreibt.
+
+
 `docs/81 §11` verortet **A12** (Wartungsmodus: alle Kundenseiten auf 503, das
 Panel erreichbar) mit „mit A1". **A1 ist am 28. August abgenommen**, und A12
 steht damit in keiner Stufenzeile — es ist weder gebaut noch irgendwo
@@ -393,6 +400,22 @@ die `docs/81 §12.1` bei A3 aufgelöst hat.
 > „schreibt nichts" lautet.
 
 ### Frage 2 — Reitet A13 mit A10 mit?
+
+> **Entschieden am 2. September 2026: nein — und die Messung ist gefahren.**
+> Sie steht als `docs/81 §2.3o` M20 und begründet die Antwort schärfer als der
+> Vorschlag darunter. Gegen einen echten PHP-Baum von 16 932 Dateien und 79 MB:
+> die beiden `find`-Griffe **78** und **81 ms**, der Textgriff **13 136 ms** —
+> und im zweiten Lauf **135 ms**. Die erste Zahl war der kalte
+> Zwischenspeicher, und nachts um vier ist er kalt.
+>
+> **Der Unterschied ist keine Grösse, sondern eine Art:** Die `find`-Griffe
+> fragen Metadaten, der Textgriff liest den ganzen Bestand des Kunden von der
+> Platte. Was auf `cloudsrv24` noch zu messen bleibt, ist die absolute Zahl —
+> die Platte dieses Containers ist nicht seine.
+>
+> **Die Form des Befundes aus §2 trägt A13 ohne Änderung.** Was sich
+> unterscheidet, ist der Takt: ein eigener Timer und nicht dieser.
+
 
 `docs/81 §11` führt **A13** — die billige Hälfte des Malware-Scans: Dateien mit
 `0777`, frisch geänderte PHP-Dateien, `eval(base64_decode` als Textsuche — mit
@@ -498,9 +521,12 @@ Absichtserklärung bleibt.
   Kernel dieses Containers kann keine Quota erzwingen. Die Tabelle in §3 F hat
   für ihre erste Zeile **keine Messung**, nur die Symmetrie der übrigen.
 - **Die Laufzeit von A13** — ungemessen, und Frage 2 hängt daran.
-- **Was die vier neu eingespielten Pakete an einem Testlauf ändern.** Sie liegen
-  seit dieser Runde im Container; `SourceOwnershipTest` war am 26. August genau
-  an so etwas in der CI rot und hier grün.
+- ~~**Was die vier neu eingespielten Pakete an einem Testlauf ändern.**~~
+  **Nachgesehen am 2. September: nichts.** Voller Lauf mit allen vieren
+  installiert — 2807 grün, 0 Ausfälle, `rc=0` (`docs/81 §2.3o`).
+- **Die absolute Laufzeit von A13 auf `cloudsrv24`** — die Art der Kosten ist
+  gemessen (M20), die Zahl nicht: Die Platte dieses Containers ist nicht die des
+  Servers. Sie entscheidet den Takt des zweiten Timers.
 - **Der Wortlaut über Fassungen hinweg.** M7 belegt, dass keiner der drei
   Prüfer übersetzt — das ist eine Zusage über die Programme und keine über ihre
   Fassungen. Deshalb wird der Wortlaut gezeigt und nicht gedeutet.

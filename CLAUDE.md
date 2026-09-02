@@ -1785,6 +1785,68 @@ Protokolls steht bewusst **nicht** im Dokument — `docs/81` hat einmal eine
 genannt, die einem anderen Dokument gehörte, und `DocLinkTest` konnte das nicht
 sehen.
 
+Und **`98` der Plan von A10** — die Diagnose des Bestands, geschrieben am
+2. September 2026 **nach** der Messrunde (`docs/81 §2.3o`): §2 die Form eines
+Befundes, §3 neun Prüfungen mit dem, was jede **nicht** kann, §7 acht
+Abnahmepunkte (5 und 8 dürfen nicht ausfallen), §9 die fünf Fragen an den
+Betreiber — die ersten beiden sind am 2. September entschieden.
+
+**Die Messrunde hat vier Annahmen umgeworfen, und drei davon tragen den Plan.**
+
+> **`nginx -t` prüft, ob die Datei eine Bedeutung hat — nicht, ob es die
+> gemeinte ist.** Ein fehlendes Semikolon geht in **zwei von vier** gemessenen
+> Formen mit `rc=0` und **ohne ein Byte Ausgabe** durch; der Block verliert
+> dabei still eine Anweisung — einmal das Zugriffsprotokoll der Domain, einmal
+> ihre Servernamen. Damit ist der Prüfer notwendig und nicht hinreichend.
+
+> **Ein Befund braucht eine Kennung, die nicht sein Text ist.** Jede
+> `[emerg]`-Zeile von nginx trägt Datum **und Prozessnummer**, jede Zeile von
+> php-fpm ein Datum. Zwei Läufe an derselben kaputten Datei ergeben zwei
+> verschiedene Texte — ein Lauf, der „dasselbe wie gestern" sagen will, fände
+> jede Meldung neu.
+
+> **Ein Leseversuch belegt, dass etwas zu lesen war — nicht, dass es gilt.**
+> `repquota` gibt `rc=0` und eine volle Tabelle, sobald die Quotadatei dasteht,
+> auch wenn die Quota **aus** ist; `quotaon -p` sagt daneben `is off`. `docs/41`
+> hat das Panel vom Optionslesen auf den Leseversuch gestellt, weil die Option
+> nichts beweist — der Leseversuch beweist eine Stufe mehr und immer noch nicht
+> die gemeinte.
+
+Dazu zwei über die Werkzeuge, die A10 benutzen will:
+
+> **Ein Diagnoselauf, der nichts schreibt, kommt an der Prüfung nicht vorbei,
+> die nur der Schreiber macht.** `ManagedBlock` hält ein `BEGIN` ohne `END` für
+> fatal und wirft dafür — in `without()`, also im **Schreib**weg. `managed()`
+> liefert in genau diesem Fall die Zeilen, als wäre nichts, und gibt bei vier
+> ganz verschiedenen Zuständen dieselbe leere Liste zurück, von denen einer der
+> Normalzustand ist.
+
+> **Alle drei Prüfer beantworten mehr als die Frage nach der Datei.** Sie sagen
+> „könnte ich damit **jetzt hier** starten", und das ist eine Frage an die
+> Maschine: In diesem Container gab `nginx -t` auf einer unberührten
+> Konfiguration `rc=1` (kein IPv6) und `sshd -t` `rc=255` (kein `/run/sshd`). Ein
+> Befund daraus kann wahr und trotzdem nicht behebbar sein.
+
+**Sechs Fehler hatte die Runde, fünf davon im Prüfmittel** — und keinen hat das
+Nachdenken gefunden, alle die Gegenprobe. Zwei Schlussfolgerungen sind dabei
+umgeworfen worden, nachdem sie schon dastanden: „`nginx -t` belegt die Ports"
+(es ruft `socket()` und bindet nicht) und „A13 braucht 13 Sekunden" (der zweite
+Lauf desselben Griffs: 135 ms — die erste Zahl war der kalte Zwischenspeicher).
+
+> **Eine Messung, die man nur einmal fährt, misst den Zwischenspeicher mit — und
+> ob sie ihn kalt oder warm erwischt, sagt sie nicht.**
+
+**A12 und A13 sind am 2. September verortet.** A12 (Wartungsmodus) stand seit
+der Abnahme von A1 in keiner Stufenzeile — „mit A1" war eine Verortung an einer
+Stufe, die es nicht mehr gibt. Es ist jetzt ein eigener Punkt in P7b **hinter**
+A10, weil A12 schreibt und A10 die Stufe ist, deren erste Regel „schreibt
+nichts" lautet. A13 reitet **nicht** mit: Seine beiden `find`-Griffe kosten unter
+100 ms, sein Textgriff liest den ganzen PHP-Bestand des Kunden von der Platte.
+
+> **Ein `check`, der den Bestand des Kunden liest, gehört nicht in denselben
+> Lauf wie einer, der eine Konfigurationsdatei prüft — auch wenn beide dieselbe
+> Form von Befund erzeugen.**
+
 Und **`97` die Übergabe an A10** — der Stand von P7b (vier abgenommen, fünf
 offen), was A10 ist, **was vor dem Plan zu messen ist**, die vier frischen
 Prüfmittel-Fallen vom 1./2. September, der Zustand von `cloudsrv24` samt dem,

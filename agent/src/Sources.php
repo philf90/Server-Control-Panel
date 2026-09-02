@@ -180,14 +180,18 @@ final class Sources
      *
      * ## Der Befund, gegen den es sie gibt
      *
-     * **Gemessen am 1. September 2026 auf `cloudsrv24`** (`docs/96 §4b`). Mit
-     * `Enabled: no` an der eigenen Quelle meldete `srvpanel update` grün
-     * „Es stand nichts an — Fassung unverändert: 0.7.3~rc.9."
+     * **Der Fehler ist am Quelltext hergeleitet, die Wirkung dieses Lesers ist
+     * gemessen** (`docs/96 §4b`). Der Prüfkörper hat den Zustand zweimal nicht
+     * hergestellt (Befund 14) — `sed -i` meldet Erfolg, auch wenn sein Muster
+     * nirgends passt, und die Quelldatei des Panels trägt keine
+     * `Enabled:`-Zeile. Beim dritten Mal, mit belegtem Zustand, bricht das
+     * Update ab.
      *
-     * Das ist M5 in einer dritten Gestalt: apt holt eine abgeschaltete Quelle
+     * Die Herleitung steht: apt holt eine abgeschaltete Quelle
      * gar nicht erst, also erzeugt sie keinen Fehlschlag, {@see Apt::hitting()}
      * findet nichts — und die Simulation danach sieht mangels neuer Listen
-     * nichts Anstehendes.
+     * nichts Anstehendes. Das Panel meldete dann „Es stand nichts an", während
+     * seine eigene Quelle aus ist. **Beobachtet ist dieser Ablauf nicht.**
      *
      * > **Eine Quelle, die nicht gefragt wird, antwortet nicht falsch — sie
      * > fehlt, und das sieht aus wie Zustimmung.**

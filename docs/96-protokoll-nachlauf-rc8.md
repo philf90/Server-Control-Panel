@@ -181,6 +181,49 @@ braucht, ist danach wiederhergestellt: Auf `rc.9` steht nichts mehr an.
 
 ---
 
+## 1c · Der Sprung `rc.9` → `rc.10` — Befund 8 und 10 sind belegt
+
+**Gefahren am 2. September um 09:27:57**, Unit `srvpanel-update-53b4fa16`, durch
+um **09:28:12**.
+
+    apt-run: Fassung 0.7.3~rc.9 wurde zu 0.7.3~rc.10.
+
+    Fassung 0.7.3~rc.9 wurde zu 0.7.3~rc.10.                     (grün)
+    Antwortet die Bereitschaftsprüfung danach nicht, …           (bernstein)
+    rc=0
+    09:28:12
+    0.7.3-rc.10
+
+**`rc=0`, und danach nichts.** Keine Kaskade, kein `Handler.php`, kein
+`FatalError.php`. **Befund 8 ist behoben und auf einem echten Server belegt** —
+und das war nur bei diesem einen Sprung zu haben: Wartend war `rc.9`s
+`Update.php`, also die erste Fassung, die den Ausstieg trägt.
+
+Der Nachbau im Container hat damit gehalten, was er versprach: `return` gibt 255,
+`exit` gibt 0, bei gleicher Ausgabe — und auf dem Server ebenso.
+
+> **Ein Server ist nicht die einzige Stelle, an der ein Serverfehler messbar ist
+> — er ist die, an der er zuerst auffällt.**
+
+### Und Befund 10 gleich mit
+
+Unmittelbar danach, auf `rc.10`, Unit `srvpanel-update-f1851548`:
+
+    srvpanel ist schon die neueste Version (0.7.3~rc.10).
+    apt-run: Es stand nichts an — Fassung unverändert: 0.7.3~rc.10.
+
+    Es stand nichts an — Fassung unverändert: 0.7.3~rc.10.       (grün)
+    rc=0
+
+**Die bernsteinfarbene Zeile fehlt** — und beim Sprung darüber stand sie. Damit
+ist beides belegt: dass der Vorbehalt unter einem Lauf mit Installation steht und
+unter einem ohne nicht.
+
+> **Zwei Läufe, von denen einer den Satz trägt und der andere nicht, belegen die
+> Unterscheidung — einer allein belegt nur, dass er gedruckt werden kann.**
+
+---
+
 ## 2 · Punkt 2 — Befund 2 auf dem Server
 
 Gefahren nach §1b, auf `0.7.3-rc.9`, Unit `srvpanel-update-a5a80d58`.
@@ -344,10 +387,79 @@ Danach, mit `Enabled: no`:
     Es stand nichts an — Fassung unverändert: 0.7.3~rc.9.        (grün)
     rc=0
 
-### Befund 12 — das Panel meldet „du bist aktuell", während seine Quelle aus ist
+### Befund 14 — der Prüfkörper hat den Zustand nie hergestellt
 
-**Die Lücke aus `docs/95 §4b` ist echt.** Und sie ist M5 in einer dritten
-Gestalt, in der jede einzelne Stufe richtig antwortet:
+**Hier stand bis zum 2. September, die Lücke sei gemessen. Sie ist es nicht.**
+
+Der Handgriff aus `docs/95 §4b` lautete
+
+    sed -i 's/^Enabled:.*/Enabled: no/' …/srvpanel.sources \
+      || printf 'Enabled: no\n' >> …/srvpanel.sources
+
+und **`sed -i` meldet Erfolg, auch wenn sein Muster nirgends passt** — der `||`
+läuft dann nie. `packaging/install.sh` schreibt die Datei ohne `Enabled:`-Zeile
+(Zeilen 78–85). Die Quelle war in **beiden** Läufen unverändert eingeschaltet.
+
+Im Container nachgemessen, mit Gegenprobe: ohne vorhandene Zeile Rückgabewert
+`0` und Datei unverändert; mit `Enabled: yes` darin greift dasselbe `sed`.
+
+> **Ein `sed`, das nichts findet, meldet Erfolg — und der Rückfall, der daran
+> hängt, läuft nie.**
+
+Gefallen ist es erst beim zweiten Lauf, gegen `rc.10`: Dort hätte die Behebung
+abbrechen müssen, und die Ausgabe war **Zeile für Zeile dieselbe** wie beim Lauf
+ohne jede Vorbereitung — bis auf die Kennung der Unit.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.** Beim ersten Mal sah das Ergebnis nach dem erwarteten Befund aus,
+> weil es zufällig genauso aussieht wie „nichts anstehend".
+
+**Und die Vorbereitung wurde nicht geprüft.** `docs/78` hat genau das als Lehre
+festgehalten — gefunden wurden die Fehler jenes Laufs *„durch Messen der
+Vorbereitung statt sie vorauszusetzen"*. Hier stand kein `grep` danach.
+
+`docs/95 §4b` ist berichtigt: gesetzt wird jetzt unbedingt, und der Zustand wird
+vor der Messung belegt.
+
+### Der berichtigte Prüfkörper — gefahren am 2. September gegen `rc.10`
+
+    grep -n '^Enabled:' /etc/apt/sources.list.d/srvpanel.sources
+    7:Enabled: no                       ← der Zustand, BEVOR gemessen wird
+
+    srvpanel update
+    Die Paketquelle des Panels ist abgeschaltet: in /etc/apt/sources.list.d/
+    srvpanel.sources ist keine eingeschaltete Quelle mit Adresse übrig. Ohne sie
+    kann apt keine neue Fassung finden — es wurde deshalb nicht begonnen.
+    rc=1
+
+**Die Behebung greift, und in allen vier Teilen.** Die Meldung nennt die Datei
+und den Zustand; sie ist die Zeile für „abgeschaltet" und nicht die für „fehlt",
+die Unterscheidung trifft also; der Abbruch liegt **vor** dem Absetzen (die Zeile
+„Das Update läuft als …" fehlt, es gibt keine Unit); und der Rückgabewert ist
+`1`.
+
+**Und diesmal steht der Zustand belegt daneben.** Das ist der ganze Unterschied
+zu den beiden Läufen davor: dieselbe Absicht, dieselbe Erwartung — und erst der
+`grep` macht aus der Absicht eine Messung.
+
+> **Eine Vorbereitung, die man nicht belegt, ist keine Bedingung der Messung,
+> sondern eine Hoffnung daneben.**
+
+**Was das belegt und was nicht.** Belegt ist die **Behebung**. Der Fehler selbst
+— dass `rc.9` und älter hier grün „Es stand nichts an" gemeldet hätten — bleibt
+hergeleitet: Auf dieser Maschine läuft `rc.10`, und die alte Fassung ist fort.
+
+> **Der Prüfling einer Aktualisierung ist die installierte Fassung und nicht die
+> eingespielte** — derselbe Satz wie in §1b, hier von der anderen Seite: Was
+> behoben ist, lässt sich nicht mehr kaputt vorführen.
+
+Zurückgeholt wurde mit `cp -a` aus der Sicherung; die Gegenprobe `diff … &&
+echo 'zurueck'` steht in der Aufnahme nicht.
+
+### Befund 12 — der Fehler bleibt hergeleitet
+
+**Der Ablauf steht am Quelltext**, und jede einzelne Stufe antwortet dabei
+richtig:
 
 1. apt holt eine abgeschaltete Quelle gar nicht erst → keine `W:`-Zeile.
 2. `Apt::readFailures()` findet nichts → `hitting()` gibt `null`.
@@ -357,9 +469,13 @@ Gestalt, in der jede einzelne Stufe richtig antwortet:
 > **Eine Quelle, die nicht gefragt wird, antwortet nicht falsch — sie fehlt, und
 > das sieht aus wie Zustimmung.**
 
-**Und die Auffrischungszeile lügt mit.** `Paketlisten aufgefrischt; jede Quelle
-hat geantwortet.` stimmt für die Quellen, die apt **gefragt** hat — die eigene
-war nicht darunter.
+**Beobachtet ist das nicht** (Befund 14), und der Unterschied ist keiner der
+Höflichkeit: Ob apt bei einer abgeschalteten Quelle wirklich schweigt, statt
+etwa eine eigene Meldung zu schreiben, hat niemand gesehen.
+
+**Und die Auffrischungszeile lügt dann mit.** `Paketlisten aufgefrischt; jede
+Quelle hat geantwortet.` stimmt für die Quellen, die apt **gefragt** hat — die
+eigene wäre nicht darunter.
 
 > **Eine Zusage über „jede Quelle" gilt für die, die gefragt wurden, und nicht
 > für die, die es gibt.**
@@ -541,20 +657,22 @@ aus `docs/95 §10` sind 1, 2, 3, 5, 6 und 7.
 |---|---|---|
 | 1 | M1 und Befund 5 | erfüllt bis auf `rc=0` → **Befund 8** |
 | 1b | der Sprung rc.8 → rc.9 | Befund 8 **nicht** geprüft; Befund 2 und 5 belegt |
+| 1c | der Sprung rc.9 → rc.10 | **Befund 8 und 10 belegt**, `rc=0` |
 | 2 | Befund 2 | erfüllt → **Befund 9, 10** |
 | 3 | die Auffrischung | erfüllt → **Befund 11** |
 | 4 | die tote eigene Quelle | erfüllt |
-| 4b | die abgeschaltete Quelle | **Befund 12** |
+| 4b | die abgeschaltete Quelle | zweimal **nicht hergestellt** → **Befund 14**; beim dritten Mal die Behebung belegt |
 | 5 | Herkunft und Gegenstand | erfüllt |
 | 6 | der Zurück-Knopf | erfüllt |
 | 7 | ein Vorgang ohne Seite | erfüllt |
 | 8 | 390 px, beide Themen | erfüllt — 0 px, Gegenprobe 400 → **Befund 13** |
 
-**Sechs Befunde, und fünf davon stecken im Prüfmittel oder in der Vorschrift:**
+**Sieben Befunde, und vier davon stecken im Prüfmittel oder in der Vorschrift:**
 9 (die Gegenprobe fragt an der Sache vorbei), 11 (die Messvorschrift zählt
-Kommentare mit), 13 (die Länge des Prüfkörpers angenommen statt nachgesehen) —
-dazu die falsche Erwartung an §1b und die Zahl in meinem ersten Bericht zu
-Punkt 1. Im Prüfling stecken drei: 8, 10 und 12.
+Kommentare mit), 13 (die Länge des Prüfkörpers angenommen statt nachgesehen) und
+**14** (der Prüfkörper hat den Zustand nie hergestellt) — dazu die falsche
+Erwartung an §1b und die Zahl in meinem ersten Bericht zu Punkt 1. Im Prüfling
+stecken drei: 8, 10 und 12.
 
 Das ist wieder das Verhältnis aus `docs/45`, `docs/48`, `docs/59` und `docs/84`
 und nicht das aus `docs/91`. Der Unterschied zu `docs/91` ist benennbar: Dort
@@ -567,10 +685,10 @@ Quelltext zu vermeiden gewesen.**
 
 ### Was offen bleibt
 
-- **Befund 8** ist behoben und ungeprüft. Sein einziger Prüfkörper ist der
-  Sprung `rc.9` → `rc.10`.
-- **Befund 10 und 12** sind gebaut und haben keinen Server gesehen; sie liegen
-  in `rc.10`.
+- **Befund 8 und 10 sind belegt** (§1c) und damit erledigt.
+- **Befund 12: die Behebung ist belegt, der Fehler bleibt hergeleitet.** Mit dem
+  berichtigten Prüfkörper bricht `rc.10` ab, `rc=1`, ohne Unit. Dass die alte
+  Fassung hier grün gemeldet hätte, ist nicht mehr zu zeigen — sie ist fort.
 - **Die Zeile `Paketlisten aufgefrischt; jede Quelle hat geantwortet.`** gilt für
   die gefragten Quellen und nicht für die vorhandenen (§4b). Kein Befund dieses
   Laufs, sondern ein Vorschlag.

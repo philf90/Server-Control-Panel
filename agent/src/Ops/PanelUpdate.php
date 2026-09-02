@@ -105,8 +105,12 @@ final class PanelUpdate implements Op
          * abgeschaltete Quelle holt apt gar nicht erst; sie erzeugt keinen
          * Fehlschlag, {@see Apt::hitting()} findet nichts, und die Simulation
          * danach sieht mangels neuer Listen nichts Anstehendes. Der Betreiber
-         * läse „Es stand nichts an" — gemessen am 1. September 2026 auf
-         * `cloudsrv24` (`docs/96 §4b`).
+         * läse „Es stand nichts an".
+         *
+         * **Der Fehler ist hergeleitet, die Behebung belegt** (`docs/96 §4b`).
+         * Der Prüfkörper hat den Zustand zweimal nicht hergestellt (Befund 14);
+         * beim dritten Mal bricht `0.7.3-rc.10` mit dieser Meldung ab, `rc=1`,
+         * ohne Unit.
          *
          * > **Eine Quelle, die nicht gefragt wird, antwortet nicht falsch — sie
          * > fehlt, und das sieht aus wie Zustimmung.**

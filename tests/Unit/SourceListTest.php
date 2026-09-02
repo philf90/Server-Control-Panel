@@ -370,11 +370,11 @@ final class SourceListTest extends TestCase
      *
      * ## Der Befund, gegen den es diesen Fall gibt
      *
-     * **Gemessen am 1. September 2026 auf `cloudsrv24`** (`docs/96 §4b`): Mit
-     * `Enabled: no` an der eigenen Quelle meldete `srvpanel update` grün „Es
-     * stand nichts an". apt holt eine abgeschaltete Quelle gar nicht erst, also
+     * **Am Quelltext hergeleitet und nicht beobachtet** (`docs/96 §4b`,
+     * Befund 14): apt holt eine abgeschaltete Quelle gar nicht erst, also
      * erzeugt sie keinen Fehlschlag — und die Simulation danach sieht mangels
-     * neuer Listen nichts Anstehendes.
+     * neuer Listen nichts Anstehendes. Der Prüfkörper auf `cloudsrv24` hat den
+     * Zustand nie hergestellt.
      *
      * > **Eine Quelle, die nicht gefragt wird, antwortet nicht falsch — sie
      * > fehlt, und das sieht aus wie Zustimmung.**

@@ -275,15 +275,17 @@ Zahlen (*„N von M Aktualisierungen eingespielt, K bleiben offen"*).
 
 ---
 
-## 5. Punkt 4 — Der Lauf, der nichts bewirkt, wird als solcher gemeldet
+## 5. Punkt 4 — Ein Lauf ohne Anlass ist kein Fehlschlag
+
+**Neu geschrieben am 2. September 2026.** Was hier bis dahin stand, ist unten
+festgehalten; es liess sich nicht mehr fahren, und zwar aus zwei Gründen
+übereinander.
+
+### Der Griff
 
 Direkt nach Punkt 3 noch einmal „Alle installieren" — **ohne die Seite neu zu
-laden**. Jetzt ist nichts mehr offen.
-
-**Das Wort „ohne" ist der ganze Punkt, und es hat am 28. August gefehlt.** Die
-Paketsektion steht hinter `v-if="upgradable.length === 0"`; wer nach Punkt 3 neu
-lädt, sieht null offene Aktualisierungen und **keinen Knopf mehr** — der Griff,
-den dieser Punkt braucht, ist von dem Zustand entfernt, den er herstellt.
+laden**. Die Paketsektion steht hinter `v-if="upgradable.length === 0"`; wer neu
+lädt, sieht null offene Aktualisierungen und **keinen Knopf mehr**.
 
 > **Ein Kriterium, das einen Zustand herstellt, in dem sein eigener Griff
 > verschwindet, ist nicht messbar.**
@@ -291,11 +293,54 @@ den dieser Punkt braucht, ist von dem Zustand entfernt, den er herstellt.
 Die stehengebliebene Seite ist zugleich der Wirklichkeitsfall: Der Betreiber
 drückt, der Lauf endet, seine Ansicht ist alt, und er drückt noch einmal.
 
-Erwartet: `apt-run` endet mit 3 und schreibt *„Der Lauf hat nichts verändert
-— …"*; die Nachlese liest das als **Fehlschlag**, und der Vorgang steht auf
-`fehlgeschlagen` mit genau dieser Zeile als Begründung.
+### Was erwartet wird
 
-**Das ist der Punkt, an dem `rc.4` „fertig" gemeldet hat** (`docs/86`, Punkt 5d).
+Der Vorgang steht auf **`fertig`**, und seine Meldung lautet
+
+    Es stand nichts an — offene Aktualisierungen: 0.
+
+Nicht `fehlgeschlagen`, und nicht *„Der Lauf hat nichts verändert"*.
+
+### Warum die Erwartung umgedreht ist
+
+**Die alte Fassung dieses Punktes verlangte genau das, was seitdem als Befund 6
+behoben ist** (`docs/91 §20`, 31. August 2026). `apt-run` gab `exit 3` für einen
+Lauf, dem nichts zu tun blieb, und `Outcome::BAD` las den Satz nur an seinem
+Anfang — die Zahl, die den Fall unterscheidet, stand in der Meldung und wurde
+weggeworfen. Auf `cloudsrv24` meldete der zweite Druck auf denselben Knopf
+`fehlgeschlagen`, mit der `0` im eigenen Satz.
+
+> **Ein Rückgabewert, der „nichts zu tun" und „nicht geschafft" gleich benennt,
+> ist derselbe Fehler wie einer, der einen Fehlschlag nicht tragen kann — nur in
+> die andere Richtung.**
+
+Damit stand hier ein Kriterium, dessen Erfüllung inzwischen ein Fehler wäre.
+
+> **Ein Kriterium, dessen Erwartung inzwischen ein Befund ist, prüft nicht mehr
+> den Prüfling, sondern das Datum seiner Niederschrift.**
+
+### Was der Punkt jetzt noch trägt — und warum er nicht entfällt
+
+Auf der **Kommandozeile** ist dieser Fall am 1. September belegt (`docs/96 §2`):
+grünes *„Es stand nichts an — Fassung unverändert: 0.7.3~rc.9."* mit `rc=0`.
+
+**Über das Panel ist er es nicht**, und das ist keine Doppelung: `srvpanel
+update` legt gar keinen Vorgang an — es ruft `panel.update` unmittelbar über den
+Agenten (`docs/96 §2`, Befund 9). Was hier gemessen wird, ist deshalb der einzige
+Weg, auf dem eine `system.packages.upgrade` ohne Anlass als Vorgang sichtbar
+wird: Zustand, Meldung und Farbe in der Oberfläche.
+
+> **Zwei Wege zu derselben Operation sind nicht zwei Messungen desselben — sie
+> sind zwei Messungen.**
+
+### Was vorher hier stand
+
+> Erwartet: `apt-run` endet mit 3 und schreibt *„Der Lauf hat nichts verändert
+> — …"*; die Nachlese liest das als **Fehlschlag**, und der Vorgang steht auf
+> `fehlgeschlagen` mit genau dieser Zeile als Begründung.
+
+Das war der Punkt, an dem `rc.4` „fertig" gemeldet hat (`docs/86`, Punkt 5d) —
+richtig für seinen Tag, und seit dem 31. August die falsche Hälfte.
 
 ---
 

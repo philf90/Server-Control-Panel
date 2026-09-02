@@ -205,11 +205,32 @@ Das ist zu messen und nicht zu vermuten:
 srvpanel tinker --execute='
   echo json_encode(SrvPanel\Agent\Sources::uris(
       SrvPanel\Agent\Sources::PANEL_SOURCE)), PHP_EOL;'
-sed -i 's/^Enabled:.*/Enabled: no/' /etc/apt/sources.list.d/srvpanel.sources \
-  || printf 'Enabled: no\n' >> /etc/apt/sources.list.d/srvpanel.sources
+
+S=/etc/apt/sources.list.d/srvpanel.sources
+if grep -q '^Enabled:' "$S"; then
+    sed -i 's/^Enabled:.*/Enabled: no/' "$S"
+else
+    printf 'Enabled: no\n' >> "$S"
+fi
+grep -n '^Enabled:' "$S"          # der Zustand, BEVOR gemessen wird
+
 srvpanel update; echo "rc=$?"
-cp -a /root/srvpanel.sources.bak /etc/apt/sources.list.d/srvpanel.sources
+cp -a /root/srvpanel.sources.bak "$S"
+diff /root/srvpanel.sources.bak "$S" && echo 'zurueck'
 ```
+
+> **Berichtigt am 2. September 2026, nachdem der Punkt zweimal gefahren war**
+> (`docs/96 §4b`, Befund 14). Hier stand
+> `sed -i 's/^Enabled:.*/…/' … || printf …` — und **`sed -i` meldet Erfolg, auch
+> wenn sein Muster nirgends passt**, der `||` läuft also nie. Die Quelldatei des
+> Panels trägt gar keine `Enabled:`-Zeile (`packaging/install.sh` 78–85), und
+> der Zustand ist in beiden Läufen nie entstanden.
+>
+> **Ein `sed`, das nichts findet, meldet Erfolg — und der Rückfall, der daran
+> hängt, läuft nie.**
+>
+> Der `grep` danach ist deshalb Teil des Punktes und keine Bequemlichkeit: Ohne
+> ihn misst man eine Vorbereitung, die man vorausgesetzt hat.
 
 **Erwartet wird nichts** — dieser Punkt hat keine Sollantwort, er stellt eine
 Frage. Meldet der Lauf `Es stand nichts an`, ist das ein **Befund**: Das Panel

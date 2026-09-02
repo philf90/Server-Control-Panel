@@ -23492,11 +23492,11 @@ Datei: Denselben Satz gibt es ein zweites Mal, und dort gehört er hin.
 
 ### Eine abgeschaltete eigene Paketquelle meldete „du bist aktuell"
 
-**Gemessen am 1. September 2026 auf `cloudsrv24`** (`docs/96 §4b`), als Frage
-ohne Sollantwort ausgeschrieben und mit einem Befund beantwortet: Mit
-`Enabled: no` an `/etc/apt/sources.list.d/srvpanel.sources` meldete
-`srvpanel update` grün *„Es stand nichts an — Fassung unverändert:
-0.7.3~rc.9."*
+**Am Quelltext hergeleitet, nicht beobachtet** (`docs/96 §4b`) — in `docs/95 §4b`
+als Frage ohne Sollantwort ausgeschrieben, und der Prüfkörper hat den Zustand
+zweimal nicht hergestellt (Befund 14). Mit `Enabled: no` an
+`/etc/apt/sources.list.d/srvpanel.sources` meldete `srvpanel update` grün *„Es
+stand nichts an"*, statt abzubrechen.
 
 Das ist M5 in einer dritten Gestalt, und jede einzelne Stufe antwortet dabei
 richtig: apt holt eine abgeschaltete Quelle gar nicht erst, also gibt es keine
@@ -23528,6 +23528,25 @@ Stanza kann keinen Fehlschlag erzeugt haben.
 geantwortet.` gilt für die Quellen, die apt gefragt hat — nicht für die, die es
 gibt. Nach dieser Änderung kommt ein Lauf mit abgeschalteter eigener Quelle gar
 nicht mehr bis zu ihr.
+
+
+### `league/commonmark` 2.9.0 → 2.10.0
+
+**Vier Advisories, alle am 1. September 2026 zwischen 20:17 und 20:28 UTC
+gemeldet** — drei Denial-of-Service und eine XSS-Umgehung im
+`AttributesExtension` über ein U+000C. Betroffen ist alles unter 2.10.0.
+
+Das Paket ist **transitiv**: `laravel/framework` verlangt `^2.8.1`, und dieses
+Panel benutzt es nirgends — kein `Str::markdown`, keine Markdown-Mail, kein
+`@markdown` in einer Ansicht. Der Lock steigt trotzdem, denn der CI-Schritt
+„Schwachstellen und Lizenzen" sperrt sonst **jeden** Beitrag, gleich was er
+ändert.
+
+> **Eine Sperre, die an einer Abhängigkeit hängt und nicht an der Änderung,
+> steht vor jedem Beitrag, bis jemand sie wegnimmt.**
+
+Der Lock ändert sich um sechs Zeilen; `composer.json` bleibt unberührt, und
+`composer audit` meldet danach „No security vulnerability advisories found."
 
 
 ### Der Präfix markierte jede Meldung, nicht das Urteil

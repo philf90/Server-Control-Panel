@@ -1785,6 +1785,12 @@ Protokolls steht bewusst **nicht** im Dokument — `docs/81` hat einmal eine
 genannt, die einem anderen Dokument gehörte, und `DocLinkTest` konnte das nicht
 sehen.
 
+Und **`97` die Übergabe an A10** — der Stand von P7b (vier abgenommen, fünf
+offen), was A10 ist, **was vor dem Plan zu messen ist**, die vier frischen
+Prüfmittel-Fallen vom 1./2. September, der Zustand von `cloudsrv24` samt dem,
+was dort belegt ist und was nicht, und was die neue Sitzung zuerst tut. Sie
+ersetzt `docs/81` nicht.
+
 Und **`95` der Nachlauf zu `0.7.3-rc.8`** — ausgeschrieben am 1. September 2026
 **vor** dem Fahren: acht Punkte, von denen Punkt 1 den ganzen Lauf trägt (M1 und
 Befund 5 in einem Zug, belegt an der **Dauer** und nicht an der Fassungsnummer)
@@ -1802,10 +1808,9 @@ Aktualisierungen weder Tabelle noch Knopf gibt.
 > gehört an einen Gegenstand, der nachwächst.**
 
 **Und Punkt 4b war eine Frage und kein Kriterium**, gefunden beim Ausschreiben:
-`Enabled: no` ist nicht dasselbe wie unerreichbar. **Gefahren am 1. September
-ist die Antwort ein Befund** (`docs/96 §4b`): Eine abgeschaltete Quelle erzeugt
-keinen Fehlschlag, `Apt::hitting()` greift nicht, und das Panel meldete grün
-„Es stand nichts an", während die eigene Paketquelle aus war.
+`Enabled: no` ist nicht dasselbe wie unerreichbar. Eine abgeschaltete Quelle
+erzeugt keinen Fehlschlag, `Apt::hitting()` greift nicht — das Panel meldete dann
+grün „Es stand nichts an", während die eigene Paketquelle aus ist.
 
 > **Eine Quelle, die nicht gefragt wird, antwortet nicht falsch — sie fehlt, und
 > das sieht aus wie Zustimmung.**
@@ -1813,6 +1818,30 @@ keinen Fehlschlag, `Apt::hitting()` greift nicht, und das Panel meldete grün
 `Sources::enabledUris()` liest seitdem die Adressen der eingeschalteten Stanzas,
 und `PanelUpdate` fragt **vor** der Auffrischung. Die Reihenfolge ist das
 Tragende und nicht der Aufruf: danach wäre die Frage wirkungslos.
+
+**Beobachtet ist davon nichts, und das stand hier bis zum 2. September falsch**
+(`docs/96 §4b`, Befund 14). Der Prüfkörper hat den Zustand zweimal nicht
+hergestellt: `sed -i 's/^Enabled:.*/…/' … || printf …` — und **`sed -i` meldet
+Erfolg, auch wenn sein Muster nirgends passt**, der Rückfall läuft also nie. Die
+Quelldatei des Panels trägt gar keine `Enabled:`-Zeile.
+
+> **Ein `sed`, das nichts findet, meldet Erfolg — und der Rückfall, der daran
+> hängt, läuft nie.**
+
+Gefallen ist es erst, als der Lauf gegen die **behobene** Fassung Zeile für Zeile
+dasselbe zeigte wie ein Lauf ohne jede Vorbereitung.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht** — und beim ersten Mal sieht sein Ergebnis wie der erwartete Befund aus.
+
+Wer eine Vorbereitung von Hand trifft, **belegt sie, bevor er misst**. `docs/78`
+hat genau das schon einmal als Lehre festgehalten.
+
+**Mit belegtem Zustand gefahren, bricht `0.7.3-rc.10` ab** — `rc=1`, ohne Unit.
+Damit ist die **Behebung** gemessen; der Fehler selbst bleibt hergeleitet, denn
+auf dieser Maschine läuft die behobene Fassung.
+
+> **Was behoben ist, lässt sich nicht mehr kaputt vorführen.**
 
 Und weiter aus P7b: **`87` der Nachlauf zu `0.7.2-rc.5`** — sechs Punkte auf
 `cloudsrv24`, die nachsehen, ob die vier Behebungen aus `docs/86 §5` auf einem

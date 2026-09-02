@@ -22885,10 +22885,18 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
 
 echo
-echo "== ManagedBlockDriftTest: eine zweite Pruefung schreibt block.integrity =="
+echo "== DiagnoseRunTest: eine zweite Pruefung schreibt block.integrity =="
 #
 # FindingLog::replace() ersetzt alle Zeilen einer Pruefung — die zweite loeschte
 # die Befunde der ersten, und welche zuletzt liefe, entschiede die Reihenfolge.
+#
+# **Der Eingriff zeigte bis Schritt 6 auf ManagedBlockDriftTest.** Der sucht
+# seitdem den Schreib*aufruf* statt der Erwaehnung — richtig, und damit sieht
+# er eine Zusage in writes() nicht mehr. Gemessen wird sie von DiagnoseRunTest
+# an writes() selbst, und dorthin zeigt der Eingriff jetzt.
+#
+#   Ein Bruch verliert sein Ziel nicht nur, wenn der Code umzieht — auch, wenn
+#   sein Waechter praeziser wird.
 vorher_datei app/Support/Diagnose/Checks/Orphans.php
 python3 - <<'PY2'
 p = 'app/Support/Diagnose/Checks/Orphans.php'
@@ -22906,9 +22914,9 @@ open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
 PY2
 griff_datei app/Support/Diagnose/Checks/Orphans.php "zweiter Schreiber" &&
 pruefe "zweiter Schreiber" \
-  ManagedBlockDriftTest::test_exactly_one_check_writes_the_block_integrity failed
+  DiagnoseRunTest::test_no_key_has_two_writers failed
 wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
+pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
 
 echo
 echo "== DiagnoseSeamTest: ein sprachloser Grund steht wieder in der Ausnahmeliste =="
@@ -23144,6 +23152,224 @@ pruefe "Waechter sucht die Erwaehnung" \
   ManagedBlockDriftTest::test_exactly_one_check_writes_the_block_integrity failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
+
+echo
+echo "== DiagnosePageTest: der Administrator bekommt den Wortlaut der Werkzeuge =="
+#
+# docs/98 §9 Frage 5, mit b entschieden. Der Wortlaut traegt bei php-fpm
+# Poolnamen und Pfade, bei nginx Zertifikatspfade und in einem verwalteten
+# Bereich die Regeln fremder Kunden.
+vorher_datei app/Http/Controllers/DiagnoseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DiagnoseController.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $wortlaut = Gate::allows('operate-server');"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        $wortlaut = true;""", 1))
+PY2
+griff_datei app/Http/Controllers/DiagnoseController.php "Administrator sieht den Wortlaut" &&
+pruefe "Administrator sieht den Wortlaut" \
+  DiagnosePageTest::test_the_administrator_sees_the_finding_without_the_verbatim_output failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
+
+echo
+echo "== DiagnosePageTest: der Wortlaut wird geschickt und nur ausgeblendet =="
+#
+# Ein v-if im Browser verbirgt den Text und schickt ihn trotzdem — er stuende
+# im Payload jeder Antwort.
+vorher_datei app/Http/Controllers/DiagnoseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DiagnoseController.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if ($wortlaut) {
+                $zeile['detail'] = $finding->detail;
+            }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            $zeile['detail'] = $finding->detail;""", 1))
+PY2
+griff_datei app/Http/Controllers/DiagnoseController.php "Wortlaut nur ausgeblendet" &&
+pruefe "Wortlaut nur ausgeblendet" \
+  DiagnosePageTest::test_the_verbatim_output_is_nowhere_in_the_administrators_answer failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
+
+echo
+echo "== DiagnosePageTest: die Seite steht jedem offen =="
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+alt = """    Route::get('/diagnose', [DiagnoseController::class, 'show'])
+        ->middleware('can:inspect-server')"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """    Route::get('/diagnose', [DiagnoseController::class, 'show'])""", 1))
+PY2
+griff_datei routes/web.php "Seite ohne Faehigkeit" &&
+pruefe "Seite ohne Faehigkeit" \
+  DiagnosePageTest::test_a_customer_does_not_reach_the_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
+
+echo
+echo "== DiagnosePageTest: der schlimmste Befund steht nicht zuerst =="
+#
+# Wer eine Seite mit dreissig Zeilen oeffnet, liest die ersten.
+vorher_datei app/Http/Controllers/DiagnoseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DiagnoseController.php'
+s = open(p, encoding='utf-8').read()
+alt = """            return [$b['rank'], $a['check'], $a['subject']] <=> [$a['rank'], $b['check'], $b['subject']];"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            return [$a['check'], $a['subject']] <=> [$b['check'], $b['subject']];""", 1))
+PY2
+griff_datei app/Http/Controllers/DiagnoseController.php "Reihenfolge ohne Schwere" &&
+pruefe "Reihenfolge ohne Schwere" \
+  DiagnosePageTest::test_the_worst_finding_stands_first failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
+
+echo
+echo "== DiagnosePageTest: die leere Liste sagt nicht, ob gemessen wurde =="
+#
+# Punkt 1 des Abnahmekriteriums haengt daran: Eine Seite, die nichts meldet,
+# muss sagen, ob sie geschwiegen oder nicht gemessen hat.
+vorher_datei app/Http/Controllers/DiagnoseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DiagnoseController.php'
+s = open(p, encoding='utf-8').read()
+alt = """Clock::displayText($runs->lastRunAt())"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """null""", 1))
+PY2
+griff_datei app/Http/Controllers/DiagnoseController.php "kein Zeitpunkt des Laufs" &&
+pruefe "kein Zeitpunkt des Laufs" \
+  DiagnosePageTest::test_a_run_without_findings_still_says_when_it_ran failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
+
+echo
+echo "== DiagnoseRunTest: der Lauf haelt seinen Zeitpunkt nur im Erfolgsfall fest =="
+#
+# Dann behauptete die Seite nach einer gescheiterten Pruefung, seit Tagen habe
+# niemand gemessen.
+vorher_datei app/Support/Diagnose/Run.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Run.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $this->runs->record($measuredAt);"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        if ($failed === []) {
+            $this->runs->record($measuredAt);
+        }"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/Run.php "Zeitpunkt nur im Erfolgsfall" &&
+pruefe "Zeitpunkt nur im Erfolgsfall" \
+  DiagnoseRunTest::test_a_failing_check_does_not_stop_the_others failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
+
+echo
+echo "== DiagnoseRunTest: eingetragen wird now() statt des Zeitpunkts der Befunde =="
+#
+# Dann stuende neben einer Zeile von 03:00:07 ein "zuletzt gemessen 03:00:09",
+# und die beiden waeren dieselbe Messung.
+vorher_datei app/Support/Diagnose/Run.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Run.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $this->runs->record($measuredAt);"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        $this->runs->record(Carbon::now()->addHour());""", 1))
+PY2
+griff_datei app/Support/Diagnose/Run.php "now() statt Zeitpunkt der Befunde" &&
+pruefe "now() statt Zeitpunkt der Befunde" \
+  DiagnoseRunTest::test_every_check_sees_the_same_moment failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
+
+echo
+echo "== DiagnoseViewTest: die Spalte zeigt den letzten Lauf statt des ersten =="
+#
+# Punkt 8 des Abnahmekriteriums haengt daran: Ohne "steht seit" saehe niemand
+# mehr, wie lange etwas schon so ist.
+vorher_datei resources/js/Pages/Diagnose/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Diagnose/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = """                  {{ zeile.first_seen_at ?? '—' }}"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """                  {{ zeile.measured_at ?? '—' }}""", 1))
+PY2
+griff_datei resources/js/Pages/Diagnose/Index.vue "Spalte zeigt den letzten Lauf" &&
+pruefe "Spalte zeigt den letzten Lauf" \
+  DiagnoseViewTest::test_the_column_shows_the_first_sighting_and_not_the_last failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseViewTest passed
+
+echo
+echo "== DiagnoseViewTest: die leere Liste gilt vor dem ersten Lauf als Entwarnung =="
+vorher_datei resources/js/Pages/Diagnose/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Diagnose/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = """    <p v-if="!gemessen" class="notice warn">
+      Die Bestandsdiagnose ist auf diesem Server noch nie gelaufen. Die leere Liste unten
+      heisst deshalb nicht „alles in Ordnung", sondern „noch nicht nachgesehen".
+    </p>
+
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Pages/Diagnose/Index.vue "leere Liste als Entwarnung" &&
+pruefe "leere Liste als Entwarnung" \
+  DiagnoseViewTest::test_an_empty_list_before_the_first_run_is_not_an_all_clear failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseViewTest passed
+
+echo
+echo "== DiagnoseViewTest: der Wortlaut bricht nicht um =="
+#
+# Ein pre bricht von sich aus nicht; bei 390 px rollt die Zelle dann waagerecht,
+# und das Dokument meldet dafuer keine Zahl.
+vorher_datei resources/js/Pages/Diagnose/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Diagnose/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = """  white-space: pre-wrap;
+  overflow-wrap: anywhere;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """  overflow-x: auto;""", 1))
+PY2
+griff_datei resources/js/Pages/Diagnose/Index.vue "Wortlaut ohne Umbruch" &&
+pruefe "Wortlaut ohne Umbruch" \
+  DiagnoseViewTest::test_the_verbatim_output_wraps failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseViewTest passed
+
+echo
+echo "== DiagnoseViewTest: die Seite misst selbst =="
+#
+# Der Lauf hat eine Frist von 1800 Sekunden. Was so lange dauern darf, gehoert
+# an einen Timer und nicht an eine Anfrage, auf die jemand wartet.
+vorher_datei app/Http/Controllers/DiagnoseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DiagnoseController.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $wortlaut = Gate::allows('operate-server');"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        $wortlaut = Gate::allows('operate-server');
+        // Ein Aufruf an den Agenten beim Oeffnen der Seite.
+        $unbenutzt = 'system.diagnose';"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Http/Controllers/DiagnoseController.php "Seite misst selbst" &&
+pruefe "Seite misst selbst" \
+  DiagnoseViewTest::test_the_page_asks_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseViewTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

@@ -24176,6 +24176,107 @@ das steht in beiden Köpfen.
 
 Zwei Wächter, neun Brüche.
 
+### A10 Schritt 7 — die Seite
+
+`/diagnose` zeigt, was an diesem Server nicht stimmt: Prüfung, Ort, Zustand,
+Befund und seit wann er steht. Sie fragt nichts — sie liest, was der Nachtlauf
+hinterlassen hat. Der hat eine Frist von 1800 Sekunden, und was so lange dauern
+darf, gehört an einen Timer und nicht an eine Anfrage, auf die jemand wartet.
+Einen Knopf „jetzt prüfen" gibt es deshalb bewusst nicht.
+
+**Die Rollenteilung ist die aus Frage 5, mit b entschieden.** Der Administrator
+sieht die Liste: `subject` nennt den Ort, und der Satz zum Grund ist unsere
+Formulierung. Den ungekürzten Wortlaut der Werkzeuge sieht der Betreiber — dort
+stehen bei php-fpm Poolnamen und Pfade, bei nginx Zertifikatspfade und in einem
+verwalteten Bereich die Regeln fremder Kunden.
+
+**Gefiltert wird im Controller und nicht auf der Seite.** Ein `v-if` verbärge
+den Text und schickte ihn trotzdem.
+
+> **Was der Betrachter nicht sehen darf, wird nicht ausgeblendet, sondern nicht
+> geschickt.**
+
+**Der Fund beim Bauen: Ein heiler Server hat null Befunde — und dann konnte die
+Seite nicht sagen, wann zuletzt gemessen wurde.** Punkt 1 des
+Abnahmekriteriums verlangt die Angabe aber genau für diesen Fall: Dieselbe leere
+Liste bedeutet „nichts gefunden" und „nie gemessen", und nur eine der beiden
+Bedeutungen ist eine Entwarnung. Der Lauf hält seinen Zeitpunkt seitdem fest —
+**am Ende und auch dann, wenn eine Prüfung gescheitert ist**: Gelaufen ist er,
+und was er nicht messen konnte, steht als Befund oder als Fehlschlag daneben.
+
+Festgehalten wird über `Diagnose\RunLog`, und das ist keine Verzierung:
+`Settings` ist `final` und lässt sich in keinem Test ersetzen.
+
+> **Eine Klasse, die sich nicht ersetzen lässt, hat keinen Test — und der Weg
+> dahinter auch nicht.**
+
+Die Regel, die einen Wächter braucht, ist ohnehin nicht „der Wert steht in der
+Datenbank", sondern **wann** er geschrieben wird. Dieselbe Naht wie bei `Host`
+und `Wire`.
+
+**Und ein Wächter hat sich beim ersten Lauf selbst überführt.** Er schneidet
+den Vorlagenblock der Seite heraus und endete am **ersten** `</template>` — in
+dieser Seite steht ein `<template v-if>` für einen bedingten Satz, und das
+schliesst genauso. Der Ausschnitt war 822 Zeichen lang statt der ganzen Vorlage,
+und drei Behauptungen fielen über Text, der einfach nicht darin lag.
+
+> **Ein Leser, der am ersten schliessenden Zeichen aufhört, liest bis zur ersten
+> Verschachtelung — und meldet das, was danach fehlt, als Befund.** Derselbe
+> Fehler wie bei `ManagedBlock::managed()` (M22), nur in einer `.vue`.
+
+Der Menüpunkt steht hinter „Updates" und schliesst die Reihe über den Zustand
+dieses Servers: „Dienste" sagt, was läuft, „Updates", was ansteht, „Diagnose",
+was daneben nicht stimmt. Sein Zeichen ist eine Messkurve — keine Lupe, weil der
+Kreis mit Griff neben `dns` im Vorbeigehen gleich aussieht, und kein
+Warndreieck, weil das Zeichen auch dann dasteht, wenn nichts gefunden wurde.
+
+**Und der volle Bruchlauf zu Schritt 6 hat einen Eingriff überführt, den
+Schritt 6 selbst stumpf gemacht hat.** Er gibt einer zweiten Prüfung
+`block.integrity` in ihrer `writes()`-Zusage und erwartete, dass
+`ManagedBlockDriftTest` das meldet. Der sucht seit Schritt 6 den
+Schreib**aufruf** statt der Erwähnung — richtig, und damit sieht er eine Zusage
+in `writes()` nicht mehr. Gemessen wird sie von `DiagnoseRunTest`, und dorthin
+zeigt der Eingriff jetzt.
+
+> **Ein Bruch verliert sein Ziel nicht nur, wenn der Code umzieht — auch, wenn
+> sein Wächter präziser wird.**
+
+**Die Bilderrunde hat zwei Fehler gefunden, und keiner hatte eine Zahl.**
+
+Der erste: Eine gestapelte Zelle ist eine Flexbox mit `space-between`. Der Satz
+und der Wortlaut darunter wurden damit **zwei Spalten**, und bei 390 px brach
+jede Zeichen für Zeichen um — `Der` / `Timer` / `hat` neben `ActiveS` /
+`tate=in`. Der Überlauf war dabei 0. Dieselbe Falle, die `NoticeChildrenTest`
+für eine Meldung hält, eine Zeile weiter; `app.css` hat dafür längst
+`.stacks td.multiline`.
+
+Der zweite: Bei 1440 px war die Tabelle **2405 px** breit bei 1140 px Behälter.
+Zur Einordnung am selben Tag gemessen — `/services` und `/operations` haben dort
+**Überstand 0**. Keine andere Seite dieses Panels rollt bei 1440 px, und dies
+wäre die erste gewesen.
+
+> **Ein Rollbehälter, den nur eine Seite braucht, ist kein Merkmal des
+> Bausteins, sondern ein Befund über diese Seite.**
+
+Getrieben hat es der Wortlaut: `app.css` gibt einer Tabelle im Rollbehälter
+`width: max-content`, und ein `pre` wird so breit wie seine längste Zeile.
+Gemessen: ohne Deckel 2405 px, nur der Wortlaut gedeckelt 1711 px, die
+Befundspalte auf 38 Zeichen gedeckelt **1140 px** — also bündig.
+
+**Und der erste Deckel war falsch gesetzt.** Er lag auch auf der Ort-Spalte, und
+die Messung meldete prompt `schiebt: td.place`: `td .ident` steht in `app.css`
+auf `white-space: nowrap`, damit eine Kennung lesbar bleibt.
+
+> **Ein Deckel über einem Inhalt, der nicht brechen darf, ist keine Grenze — er
+> ist ein Überlauf.**
+
+Gegengeprobt mit einer gewöhnlichen Domain statt des 56-Zeichen-Prüfkörpers:
+Überstand 0. Bleibt eine Kennung so lang, dass es nicht mehr passt, rollt der
+Behälter — die Antwort dieses Panels auf breite Inhalte, und sie gilt für jede
+seiner Tabellen.
+
+Zwei Wächter, elf Brüche.
+
 ### Die Kommandozeile führt die Sprache der Oberfläche nicht
 
 Entschieden vom Betreiber am 1. September 2026, `docs/19 §2.7`: `srvpanel …`

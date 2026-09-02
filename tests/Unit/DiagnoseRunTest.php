@@ -10,6 +10,7 @@ use App\Support\Diagnose\Check;
 use App\Support\Diagnose\Checks\Agent;
 use App\Support\Diagnose\FindingLog;
 use App\Support\Diagnose\Run;
+use App\Support\Diagnose\RunLog;
 use Illuminate\Support\Carbon;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -36,6 +37,33 @@ use SrvPanel\Agent\Ops\SystemDiagnose;
  */
 final class DiagnoseRunTest extends TestCase
 {
+    /**
+     * Ein Buch, das sich merkt, was es wann eingetragen bekam.
+     *
+     * `Settings` ist `final` — deshalb gibt es {@see RunLog} überhaupt:
+     * „Eine Klasse, die sich nicht ersetzen lässt, hat keinen Test."
+     */
+    private function runLog(): RunLog
+    {
+        return new class implements RunLog
+        {
+            public ?Carbon $eingetragen = null;
+
+            public int $laeufe = 0;
+
+            public function record(Carbon $ranAt): void
+            {
+                $this->eingetragen = $ranAt;
+                $this->laeufe++;
+            }
+
+            public function lastRunAt(): ?string
+            {
+                return $this->eingetragen?->toDateTimeString();
+            }
+        };
+    }
+
     /** @param list<FindingCheck> $writes */
     private function check(array $writes, ?callable $work = null): Check
     {
@@ -71,7 +99,8 @@ final class DiagnoseRunTest extends TestCase
         $b = $this->check([FindingCheck::OrphanRow]);
         $at = Carbon::parse('2026-09-02 03:00:00');
 
-        $ergebnis = (new Run([$a, $b], new FindingLog))->all($at);
+        $buch = $this->runLog();
+        $ergebnis = (new Run([$a, $b], new FindingLog, $buch))->all($at);
 
         $this->assertSame(1, $a->laeufe);
         $this->assertSame(1, $b->laeufe);
@@ -79,6 +108,11 @@ final class DiagnoseRunTest extends TestCase
         $this->assertTrue($at->equalTo($b->gesehen), '„Zuletzt gemessen" wäre damit eine Frage mit zwei Antworten.');
         $this->assertSame($at, $ergebnis['measured_at']);
         $this->assertSame([], $ergebnis['failed']);
+
+        // **Derselbe Zeitpunkt auch im Buch.** Ein `now()` beim Eintragen
+        // stünde neben einer Zeile von 03:00:07 als „zuletzt gemessen
+        // 03:00:09" — und die beiden wären dieselbe Messung.
+        $this->assertSame($at->toDateTimeString(), $buch->lastRunAt());
     }
 
     public function test_a_failing_check_does_not_stop_the_others(): void
@@ -88,12 +122,18 @@ final class DiagnoseRunTest extends TestCase
         });
         $danach = $this->check([FindingCheck::OrphanRow]);
 
-        $ergebnis = (new Run([$kaputt, $danach], new FindingLog))->all(Carbon::parse('2026-09-02 03:00:00'));
+        $buch = $this->runLog();
+        $ergebnis = (new Run([$kaputt, $danach], new FindingLog, $buch))->all(Carbon::parse('2026-09-02 03:00:00'));
 
         $this->assertSame(1, $danach->laeufe, 'Eine Ausnahme in der ersten Prüfung hat die zweite mitgenommen.');
         $this->assertCount(1, $ergebnis['failed']);
         $this->assertSame('so nicht', array_values($ergebnis['failed'])[0]);
         $this->assertCount(1, $ergebnis['ran']);
+
+        // **Gelaufen ist der Lauf.** Ihn nur im Erfolgsfall festzuhalten hiesse,
+        // dass die Seite nach einer gescheiterten Prüfung behauptet, seit Tagen
+        // habe niemand gemessen.
+        $this->assertSame(1, $buch->laeufe, 'Ein Lauf mit einer gescheiterten Prüfung wird nicht festgehalten.');
     }
 
     /**

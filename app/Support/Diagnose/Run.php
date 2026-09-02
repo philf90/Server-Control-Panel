@@ -41,6 +41,7 @@ final class Run
     public function __construct(
         private readonly array $checks,
         private readonly FindingLog $log,
+        private readonly RunLog $runs,
     ) {}
 
     /**
@@ -63,6 +64,19 @@ final class Run
                 $failed[$name] = $error->getMessage();
             }
         }
+
+        /*
+         * **Der Zeitpunkt wird festgehalten, auch wenn eine Prüfung gescheitert
+         * ist.** Gelaufen ist der Lauf; was er nicht messen konnte, steht als
+         * Befund oder als Fehlschlag daneben. Ihn nur im Erfolgsfall zu
+         * schreiben hiesse, dass die Seite nach einer gescheiterten Prüfung
+         * behauptet, seit Tagen habe niemand gemessen.
+         *
+         * **Am Ende und nicht am Anfang**: Ein Lauf, der auf halbem Weg
+         * abgeschossen wird, hat nicht gemessen — und soll es auch nicht
+         * behaupten.
+         */
+        $this->runs->record($measuredAt);
 
         return ['measured_at' => $measuredAt, 'ran' => $ran, 'failed' => $failed];
     }

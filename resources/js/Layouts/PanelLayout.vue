@@ -330,6 +330,25 @@ const navigation = computed(() => {
       { name: 'Updates', href: '/updates', icon: 'updates', ability: 'inspect-server' },
 
       /*
+       * **„Diagnose" steht hinter „Updates" und schliesst die Reihe über den
+       * Zustand dieses Servers.** „Dienste" sagt, was läuft; „Updates", was
+       * ansteht; „Diagnose", was daneben nicht stimmt — die Frage, die man
+       * stellt, wenn die anderen drei nichts erklären.
+       *
+       * **Nicht davor.** Wer hierher geht, hat meist schon einen Verdacht;
+       * diese Seite ist die breite Frage nach dem ganzen Bestand und nicht der
+       * erste Blick. Und nicht unten bei „PHP-Versionen": Dort stellt man
+       * etwas ein, hier sieht man nach.
+       *
+       *   Vor jedem neuen Merkmal: Wo sucht jemand diese Handlung, und steht
+       *   sie dort?
+       *
+       * Dieses Projekt hat den Ort eines Menüpunkts dreimal falsch gehabt, und
+       * jedes Mal hat es der Betreiber gemeldet und kein Test.
+       */
+      { name: 'Diagnose', href: '/diagnose', icon: 'diagnose', ability: 'inspect-server' },
+
+      /*
        * **Konten steht bei „Server" und nicht bei „Verwaltung".** Wer hier
        * steht, verwaltet diesen Server — die Liste ist ein Stück davon und
        * nicht ein Stück Kundenverwaltung. Nebenan: „Vorgänge", „Protokoll",

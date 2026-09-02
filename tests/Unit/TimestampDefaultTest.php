@@ -131,14 +131,27 @@ final class TimestampDefaultTest extends TestCase
     /**
      * Die Ausnahmeliste, mit ihrem Typ statt mit ihrem Inhalt.
      *
+     * **Der Rückgabetyp tut das allein, und die `@var`-Zeile darunter war
+     * falsch.** `BrowserDialogTest::exempt()` hat eine — dort ist die Liste
+     * **leer**, und ohne die Zeile hätte `isset()` auf einem `array{}` keinen
+     * Schlüssel, den es geben könnte. Hier steht etwas drin: Der Wert hat die
+     * genaue Form der beiden Einträge, und ein `@var array<string, string>`
+     * darüber ist keine Verengung, sondern eine Erweiterung — PHPStan weist das
+     * mit `varTag.nativeType` ab.
+     *
+     * > **Ein Muster, das man von einer Stelle übernimmt, bringt deren
+     * > Voraussetzung nicht mit.**
+     *
+     * Der deklarierte Rückgabetyp reicht in beide Lagen: Die Form der Einträge
+     * ist ein Untertyp von `array<string, string>`, ein leeres `array{}` auch —
+     * und der Aufrufer sieht nur den weiten Typ, `isset()` ist damit nie
+     * unmöglich.
+     *
      * @return array<string, string>
      */
     private function exempt(): array
     {
-        /** @var array<string, string> $liste */
-        $liste = self::EXEMPT;
-
-        return $liste;
+        return self::EXEMPT;
     }
 
     /**

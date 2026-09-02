@@ -24366,6 +24366,17 @@ Vorgabe, ohne `ON UPDATE`, auf jeder Zielplattform gleich.
 trägt entweder ein `useCurrent()` — dann ist die Vorgabe ausdrücklich gewollt
 und steht da — oder sie ist eine `dateTime()`.
 
+**Und die Ausnahmeliste hat ihr Muster von der falschen Stelle geholt.** Der
+Zugriff darauf stand als `/** @var array<string, string> */` über einer lokalen
+Variablen — abgeschrieben von `BrowserDialogTest::exempt()`, wo die Liste
+**leer** ist und die Zeile genau deshalb dasteht. Hier stehen zwei Einträge
+drin: Der Wert hat ihre genaue Form, und die Erweiterung darüber ist keine
+Verengung. PHPStan hat es mit `varTag.nativeType` abgewiesen, und der
+deklarierte Rückgabetyp tut die Arbeit ohnehin allein — in beiden Lagen.
+
+> **Ein Muster, das man von einer Stelle übernimmt, bringt deren Voraussetzung
+> nicht mit.**
+
 **Zwei bestehende Spalten stehen mit Grund in seiner Ausnahmeliste**
 (`cron_runs.started_at`, `domain_dns_checks.checked_at`): Beide sind die einzige
 nicht-nullbare `timestamp` ihrer Tabelle, und beide werden nie fortgeschrieben,

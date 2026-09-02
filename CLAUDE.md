@@ -1785,6 +1785,12 @@ Protokolls steht bewusst **nicht** im Dokument — `docs/81` hat einmal eine
 genannt, die einem anderen Dokument gehörte, und `DocLinkTest` konnte das nicht
 sehen.
 
+Und **`97` die Übergabe an A10** — der Stand von P7b (vier abgenommen, fünf
+offen), was A10 ist, **was vor dem Plan zu messen ist**, die vier frischen
+Prüfmittel-Fallen vom 1./2. September, der Zustand von `cloudsrv24` samt dem,
+was dort belegt ist und was nicht, und was die neue Sitzung zuerst tut. Sie
+ersetzt `docs/81` nicht.
+
 Und **`95` der Nachlauf zu `0.7.3-rc.8`** — ausgeschrieben am 1. September 2026
 **vor** dem Fahren: acht Punkte, von denen Punkt 1 den ganzen Lauf trägt (M1 und
 Befund 5 in einem Zug, belegt an der **Dauer** und nicht an der Fassungsnummer)

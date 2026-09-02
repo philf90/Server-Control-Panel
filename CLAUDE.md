@@ -1339,7 +1339,12 @@ deklariert einen Namen, der der Basisklasse gehört — er spiegelt deren
 `<style>`-Block einer `.vue` steht auf oberster Ebene und nicht im
 Vorlagenblock, wo der Übersetzer ihn wegwirft — die Regel, die
 `ClassReachTest` nicht halten konnte, weil er eine Zeichenkette suchte statt
-eines Blocks) und `ValidatorVerdictTest` (die drei Prüfer werden am
+eines Blocks) und `SiteFileIntegrityTest` (die Zusagen einer Vorlage werden am
+**Anfang einer Anweisung** geprüft und nicht als Zeichenkette — an den beiden
+Formen aus M3, in denen `grep` grün bleibt und die Anweisung fort ist) und
+`PromiseReachTest` (die Zusage einer Vorlage ist genau die **Schnittmenge**
+dessen, was jede ihrer Formen ausgibt — zu gross meldet jede Nacht jede heile
+Domain, zu klein meldet nichts) und `ValidatorVerdictTest` (die drei Prüfer werden am
 Rückgabewert gewertet und nie an `syntax is ok` — die Prüfkörper sind die
 gemessenen Ausgaben, und die Zeichenkette wird im Rumpf ohne Kommentare als
 verbotene gesucht) und `QuotaVerdictTest` (die Quota wird aus **beiden**

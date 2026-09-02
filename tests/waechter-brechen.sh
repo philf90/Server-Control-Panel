@@ -22361,13 +22361,173 @@ vorher_datei agent/src/Ops/SystemDiagnose.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/SystemDiagnose.php'
 s = open(p, encoding='utf-8').read()
-alt = """    public const CHECKS = ['web.config', 'php.config', 'ssh.config', 'block.integrity', 'quota.state', 'apt.key'];"""
+alt = """    public const CHECKS = ['web.config', 'php.config', 'ssh.config', 'web.file', 'php.file', 'block.integrity', 'quota.state', 'apt.key'];"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace("'apt.key']", "'apt.key', 'mond.phase']"), 1))
 PY2
 griff_datei agent/src/Ops/SystemDiagnose.php "Schluessel ohne Urteil" &&
 pruefe "Schluessel ohne Urteil" \
   DiagnoseSeamTest::test_the_operation_accepts_exactly_the_keys_with_verdicts failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
+
+echo
+echo "== SiteFileIntegrityTest: der Schnitt sieht die verschluckte Anweisung nicht =="
+#
+# M3 Fall 1: server_name ohne Semikolon verschluckt das naechste server_name.
+# Die erste Frage ("steht sie als Anweisung da") sieht das nicht — nur die
+# zweite ("steht sie als Argument einer anderen").
+vorher_datei agent/src/Diagnose/Statements.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Statements.php'
+s = open(p, encoding='utf-8').read()
+alt = """            foreach (array_slice($words, 1) as $argument) {
+                if (in_array($argument, $promised, true)) {
+                    $swallowed[$argument] = $words[0];
+                }
+            }
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Diagnose/Statements.php "verschluckte Anweisung uebersehen" &&
+pruefe "verschluckte Anweisung uebersehen" \
+  SiteFileIntegrityTest::test_a_swallowed_directive_is_lost_although_grep_finds_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
+
+echo
+echo "== SiteFileIntegrityTest: der Schnitt zaehlt Kommentare mit =="
+#
+# Ein Kommentar, der die verlorene Anweisung nennt, stellt sie wieder her —
+# derselbe Fehler wie bei OutcomeTest am 1. September, andersherum.
+vorher_datei agent/src/Diagnose/Statements.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Statements.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $bare = preg_replace('/#[^\\n]*/', '', $content) ?? $content;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        $bare = $content;""", 1))
+PY2
+griff_datei agent/src/Diagnose/Statements.php "Kommentare zaehlen mit" &&
+pruefe "Kommentare zaehlen mit" \
+  SiteFileIntegrityTest::test_a_comment_does_not_restore_a_lost_directive failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
+
+echo
+echo "== SiteFileIntegrityTest: die Operation sucht die Zeichenkette =="
+#
+# Genau die Textsuche, die M21 gruen gezeigt hat, waehrend die Domain kein
+# Protokoll mehr schrieb.
+vorher_datei agent/src/Ops/SystemDiagnose.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemDiagnose.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $verdict = Verdict::file($content, $content === null ? [] : Statements::lostInNginx($content, SiteTemplate::PROMISED));"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """            $lost = [];
+            foreach (SiteTemplate::PROMISED as $directive) {
+                if ($content !== null && ! str_contains($content, $directive)) {
+                    $lost[] = $directive.' fehlt';
+                }
+            }
+            $verdict = Verdict::file($content, $lost);"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/SystemDiagnose.php "Operation sucht Zeichenkette" &&
+pruefe "Operation sucht Zeichenkette" \
+  SiteFileIntegrityTest::test_the_operation_asks_the_statements_and_not_a_string failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
+
+echo
+echo "== SiteFileIntegrityTest: eine leere Datei gilt als heil =="
+vorher_datei agent/src/Diagnose/Verdict.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Verdict.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if (trim($content) === '') {
+            return ['reason' => 'empty', 'detail' => null];
+        }
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Diagnose/Verdict.php "leere Datei als heil" &&
+pruefe "leere Datei als heil" \
+  SiteFileIntegrityTest::test_the_verdict_of_a_file failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
+
+echo
+echo "== PromiseReachTest: die Zusage ist groesser als die Vorlage =="
+#
+# 'deny' steht nur in der ausliefernden Form. Zugesagt, meldete die Diagnose
+# jede Nacht jede gesperrte und jede weiterleitende Domain.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+alt = """    public const PROMISED = ['server', 'listen', 'server_name', 'access_log', 'error_log', 'location', 'root', 'default_type', 'return'];"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace("'return']", "'return', 'deny']"), 1))
+PY2
+griff_datei agent/src/SiteTemplate.php "Zusage groesser als Vorlage" &&
+pruefe "Zusage groesser als Vorlage" \
+  PromiseReachTest::test_the_site_promise_is_exactly_what_every_form_emits failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
+
+echo
+echo "== PromiseReachTest: die Zusage ist kleiner als die Vorlage =="
+#
+# access_log steht in jeder Form — nicht zugesagt, bliebe M3 Fall 2 stumm.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+alt = """    public const PROMISED = ['server', 'listen', 'server_name', 'access_log', 'error_log', 'location', 'root', 'default_type', 'return'];"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace("'access_log', ", ''), 1))
+PY2
+griff_datei agent/src/SiteTemplate.php "Zusage kleiner als Vorlage" &&
+pruefe "Zusage kleiner als Vorlage" \
+  PromiseReachTest::test_the_site_promise_is_exactly_what_every_form_emits failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
+
+echo
+echo "== PromiseReachTest: die Pool-Zusage verliert die Abschottung =="
+vorher_datei agent/src/PoolTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/PoolTemplate.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'php_admin_value[open_basedir]', 'php_admin_value[disable_functions]',
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        'php_admin_value[disable_functions]',
+""", 1))
+PY2
+griff_datei agent/src/PoolTemplate.php "Pool-Zusage ohne open_basedir" &&
+pruefe "Pool-Zusage ohne open_basedir" \
+  PromiseReachTest::test_the_pool_promise_carries_the_isolation failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
+
+echo
+echo "== DiagnoseSeamTest: web.file spricht einen Grund, den das Panel nicht kennt =="
+vorher_datei agent/src/Diagnose/Verdict.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Verdict.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'web.file' => ['missing', 'empty', 'directive_lost', self::UNREACHABLE],"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        'web.file' => ['missing', 'empty', 'directive_lost', 'verschluckt', self::UNREACHABLE],""", 1))
+PY2
+griff_datei agent/src/Diagnose/Verdict.php "web.file mit fremdem Grund" &&
+pruefe "web.file mit fremdem Grund" \
+  DiagnoseSeamTest::test_every_reason_the_agent_speaks_is_known_to_the_panel failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
 

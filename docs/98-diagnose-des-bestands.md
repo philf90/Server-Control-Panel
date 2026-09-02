@@ -383,7 +383,7 @@ noch gelesen wird.
 | **1** | ~~Der Befund als Form: Enum, Modell, Migration, die Kennung~~ **gebaut am 2. September 2026** | alles andere hängt daran; die Form lässt sich später nicht billig ändern |
 | **2** | ~~`ManagedBlock` bekommt seinen **lesenden** Integritätsblick~~ **gebaut am 2. September 2026** — `inspect()`, fünf Zustände, gehalten am Schreibweg | die eine Prüfung, die es heute nur im Schreibweg gibt (M15) |
 | **3** | ~~Die Operation `system.diagnose` im Agenten: A, C, F, I~~ **gebaut am 2. September 2026** — das Urteil steht getrennt vom Aufruf in `Diagnose\Verdict`, geprüft an den gemessenen Ausgaben | die Prüfungen, die Systemrechte brauchen |
-| **4** | B — die Dateien des Panels gegen die Zusagen ihrer Vorlage | der Punkt, der M3 beantwortet; Tiefe nach Frage 4 |
+| **4** | ~~B — die Dateien des Panels gegen die Zusagen ihrer Vorlage~~ **gebaut am 2. September 2026** — `Statements` schneidet, `PROMISED` sagt zu, `PromiseReachTest` hält beides als Schnittmenge aneinander | der Punkt, der M3 beantwortet; Tiefe nach Frage 4 |
 | **5** | D, E, G, H in `app/` — sie fragen, was A2, P4 und `docs/35` gebaut haben | kein Systemrecht nötig |
 | **6** | Kommando, Dienst und Timer, samt Frist | erst wenn es etwas zu fahren gibt |
 | **7** | Die Seite — Liste, `unknown` sichtbar, „steht seit" | zuletzt, wie in diesem Projekt üblich |
@@ -570,7 +570,8 @@ die Absicht; die Brüche kommen mit dem Bau in `tests/waechter-brechen.sh`.
 | `FindingStateTest` | **gebaut** — vier Zustände, `unknown` trägt `neutral` und steht zwischen `warn` und `fail`, nur `ok` bleibt stumm, kein Hinweis ausser dem von `ok` gibt Entwarnung, und die Tabelle hat **keine** Spalte für die Schwere |
 | `ValidatorVerdictTest` | **gebaut** — die drei Prüfer werden am **Rückgabewert** gewertet und nicht an `syntax is ok`; die Prüfkörper sind die gemessenen Ausgaben (M4, M5), und er sucht die Zeichenkette als **verbotene**, ohne Kommentare |
 | `ManagedBlockIntegrityTest` | **gebaut** — der lesende Blick meldet `BEGIN` ohne `END`, `END` ohne `BEGIN` und den doppelten Block an den neun Formen aus M14, **und er zählt wie der Schreiber**: Wo `without()` wirft, sagt `inspect()` `begin_without_end`, nirgends sonst. Die fremde Zeile hält er ausdrücklich **nicht** — die kennt nur, wer den Sollzustand hat, und das ist Schritt 5 |
-| `SiteFileIntegrityTest` | die Zusagen der Vorlage werden am **Anfang einer Anweisung** geprüft und nicht als Zeichenkette — der Prüfkörper ist die Datei aus M3 Fall 2, in der `grep` grün und die Anweisung fort ist |
+| `SiteFileIntegrityTest` | **gebaut** — die Zusagen der Vorlage werden am **Anfang einer Anweisung** geprüft und nicht als Zeichenkette; die Prüfkörper sind beide M3-Formen, mit der `grep`-Gegenprobe aus M21 im Test, und die Operation wird am Rumpf gehalten, dass sie den Schnitt fragt |
+| `PromiseReachTest` | **gebaut** — die Zusage einer Vorlage ist genau die Schnittmenge dessen, was jede ihrer Formen ausgibt: zu gross meldet jede Nacht jede heile Domain, zu klein meldet nichts |
 | `DiagnoseCatalogTest` | **gebaut** — jede Prüfung kennt Gründe, jeder Grund trägt Schwere und Satz, `unreachable` ergibt überall `unknown`, und wer ihn **nicht** führt, steht mit Begründung da (beide Richtungen, weil ein toter Eintrag bei einer Umbenennung entsteht) |
 | `QuotaVerdictTest` | **gebaut** — die dritte Zeile der Tabelle aus §3 F ist `not_enforced`, gemessen an den Ausgaben aus M10/M11; der Rückgabewert von `quotaon` entscheidet nichts, beide Kanäle werden gelesen, nur die Benutzerquota zählt |
 | `KeyVerdictTest` | **gebaut** — der schlechteste Schlüssel zählt, in beide Richtungen |
@@ -586,6 +587,19 @@ die Absicht; die Brüche kommen mit dem Bau in `tests/waechter-brechen.sh`.
 > zweiter Wächter über den Quelltext wäre genau der, der beim ersten Wurf grün
 > geblieben wäre: Dort stand ein `updateOrCreate`, das `first_seen_at` bei jedem
 > Lauf mitschrieb, und ein Kommentar daneben, der das Gegenteil behauptete.
+
+> **Nachgetragen am 2. September, beim Bauen von Schritt 4.** Zwei Wächter
+> haben ihren Gegenstand berichtigt, bevor er im Repo stand. `PromiseReachTest`
+> meldete am Entwurf „überall, aber nicht zugesagt: `return`" — die Liste
+> zählte acht Anweisungen, die Schnittmenge neun: `return` steht in jeder Form,
+> als Standardschutz, Sperre, Weiterleitung oder Umlenkung auf HTTPS. Und der
+> Bruch „Kommentare zählen mit" blieb am ersten Prüfkörper des Kommentar-Tests
+> grün: Ein Kommentar beginnt mit `#`, und ohne Abstreifen ist `#` das erste
+> Wort — wiederhergestellt wird eine Anweisung nur von einem Kommentar, in dem
+> ein `;` **vor** ihr steht. Genau der ist jetzt der Prüfkörper.
+>
+> **Ein Prüfkörper, der den Bruch nicht sieht, hat den Wächter nicht belegt —
+> und welcher Prüfkörper ihn sieht, sagt der Bruch und nicht der Entwurf.**
 
 **Zwei davon sind die, die wirklich zubeissen müssen:** `FindingIdentityTest`,
 weil M9 sonst still zurückkommt, und `DiagnoseWriteTest`, weil §5.1 sonst eine
@@ -610,9 +624,12 @@ Absichtserklärung bleibt.
 - **Was der Schnitt an `;`, `{` und `}` nicht kann** (§3 B). Er zählt kein
   `include`, er kennt keine Anführungszeichen und keine `#`-Kommentare mit einem
   Semikolon darin, und er sagt nichts über die **Reihenfolge** oder die
-  Argumente einer Anweisung. Er beantwortet genau eine Frage: steht die zugesagte
-  Anweisung als Anweisung da. Wer mehr will, baut einen Parser — und dann ist es
-  eine zweite Fassung von nginx.
+  Argumente einer Anweisung. Er beantwortet zwei Fragen: steht die zugesagte
+  Anweisung als Anweisung da — und steht sie nirgends als **Argument** einer
+  anderen. **Die zweite ist beim Bauen dazugekommen** (2. September): Sie fängt
+  M3 Fall 1, das `server_name`, das ein zweites verschluckt — hier stand bis
+  dahin, dass 4b diese Form nicht sieht. Wer mehr will, baut einen Parser — und
+  dann ist es eine zweite Fassung von nginx.
 - **Der Wortlaut über Fassungen hinweg.** M7 belegt, dass keiner der drei
   Prüfer übersetzt — das ist eine Zusage über die Programme und keine über ihre
   Fassungen. Deshalb wird der Wortlaut gezeigt und nicht gedeutet.

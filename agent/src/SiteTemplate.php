@@ -47,6 +47,34 @@ final class SiteTemplate
     public const DEFAULT_BODY_MB = 64;
 
     /**
+     * Was diese Vorlage in **jeder** ihrer Formen zusagt (A10 Schritt 4).
+     *
+     * Die Bestandsdiagnose fragt die Datei auf dem Datenträger, ob diese
+     * Anweisungen noch **als Anweisung** dastehen — nicht als Zeichenkette
+     * (`docs/81 §2.3o` M3, M21). Was hier steht, muss in der gesperrten, der
+     * weiterleitenden und der ausliefernden Form gleichermassen vorkommen;
+     * `PromiseReachTest` hält die Liste gegen jede Form in beide Richtungen.
+     * Wer eine Anweisung ergänzt, die in allen Formen steht, trägt sie hier
+     * nach — sonst meldet der Wächter, dass die Zusage kleiner ist als die
+     * Vorlage.
+     *
+     * **`root` und `default_type` stehen darin, weil die Prüfadresse sie
+     * trägt** — der Block oberhalb der Fallunterscheidung, der jeder Domain
+     * ihr Zertifikat ermöglicht. `deny`, `try_files` und `include` stehen
+     * **nicht** darin: Sie gehören der ausliefernden Form allein.
+     *
+     * **Und `return` steht darin, weil jede Form eines hat** — die
+     * ausliefernde den Standardschutz (`return 404` für PHP in einem
+     * Upload-Verzeichnis), die gesperrte ihre 503, die weiterleitende ihren
+     * Code, die mit Zertifikat ihre 301 auf HTTPS. Es ist der Eintrag, den
+     * der Wächter in die Liste gesetzt hat und nicht der Entwurf: Der erste
+     * Wurf zählte acht Anweisungen, die Schnittmenge neun.
+     *
+     * @var list<string>
+     */
+    public const PROMISED = ['server', 'listen', 'server_name', 'access_log', 'error_log', 'location', 'root', 'default_type', 'return'];
+
+    /**
      * Der Server-Block — mit HTTPS, sobald ein Zertifikat dafür daliegt.
      *
      * **Welches Zertifikat, sagt das Panel — wo es liegt, weiss der Agent.**

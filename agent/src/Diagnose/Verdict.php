@@ -68,6 +68,8 @@ final class Verdict
         'web.config' => ['invalid', self::UNREACHABLE],
         'php.config' => ['invalid', self::UNREACHABLE],
         'ssh.config' => ['invalid', self::UNREACHABLE],
+        'web.file' => ['missing', 'empty', 'directive_lost', self::UNREACHABLE],
+        'php.file' => ['missing', 'empty', 'directive_lost', self::UNREACHABLE],
         'block.integrity' => ['begin_without_end', 'end_without_begin', 'duplicate_block', self::UNREACHABLE],
         'quota.state' => ['off', 'not_enforced', self::UNREACHABLE],
         'apt.key' => ['missing', 'expired', 'expiring', self::UNREACHABLE],
@@ -125,6 +127,38 @@ final class Verdict
         }
 
         return $repquota->successful() ? 'not_enforced' : 'off';
+    }
+
+    /**
+     * Was eine Datei des Panels über sich sagt — da, leer, oder ohne ihre Zusagen.
+     *
+     * `$content` ist `null`, wenn die Datei nicht zu lesen war; ob das „fehlt"
+     * oder „nicht lesbar" heisst, entscheidet der Aufrufer, denn nur er weiss,
+     * ob sie da sein müsste. `$lost` kommt aus {@see Statements}: die
+     * zugesagten Anweisungen, die nicht mehr als Anweisung dastehen.
+     *
+     * **`empty` vor `directive_lost`.** Eine leere Datei verliert auch jede
+     * Anweisung; gemeldet wird der Zustand, den der Betreiber sieht, wenn er
+     * die Datei öffnet — und nicht acht Zeilen darüber, was alles fehlt.
+     *
+     * @param  list<string>  $lost
+     * @return null|array{reason: string, detail: null|string}
+     */
+    public static function file(?string $content, array $lost): ?array
+    {
+        if ($content === null) {
+            return ['reason' => 'missing', 'detail' => null];
+        }
+
+        if (trim($content) === '') {
+            return ['reason' => 'empty', 'detail' => null];
+        }
+
+        if ($lost !== []) {
+            return ['reason' => 'directive_lost', 'detail' => implode("\n", $lost)];
+        }
+
+        return null;
     }
 
     /**

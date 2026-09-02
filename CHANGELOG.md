@@ -23914,6 +23914,62 @@ es vormacht.
 > **Ein Wächter, den man vor dem Formatierer prüft, ist nicht der, der ins
 > Repo geht.**
 
+### A10 Schritt 4 — die Dateien des Panels, gefragt an den Anfang einer Anweisung
+
+`nginx -t` lässt ein fehlendes Semikolon in zwei von vier Formen mit `rc=0`
+und ohne ein Byte Ausgabe durch (`docs/81 §2.3o` M3); die nächste Anweisung
+wird zum Argument der vorigen und steht wörtlich noch in der Datei. M21 hat
+gemessen, dass eine Textsuche genau dort grün bleibt. Frage 4 aus `docs/98 §9`
+ist deshalb mit **b, zerlegt** entschieden, und das ist gebaut.
+
+**`Diagnose\Statements` schneidet an `;`, `{` und `}`** und nimmt je Anweisung
+das erste Wort — und für die verschluckte Form die übrigen: Steht eine
+zugesagte Anweisung als **Argument** einer anderen, ist sie verloren. Damit
+fängt der Schnitt auch M3 Fall 1, das `server_name`, das ein zweites
+verschluckt — die Form, die `docs/98 §11` bis heute als nicht fangbar führte.
+Kein Parser: keine Anführungszeichen, kein `include`, keine Reihenfolge, keine
+Argumente. Die Pool-Datei ist INI und bekommt einen zweiten Schnitt — dort
+fehlt kein Semikolon, dort fehlt eine Zeile.
+
+**Die Vorlage sagt einmal zu, was sie zusagt.** `SiteTemplate::PROMISED` und
+`PoolTemplate::PROMISED` stehen neben der Vorlage; die Diagnose fragt die Datei
+danach, und `PromiseReachTest` hält die Liste gegen jede Renderform — **als
+Schnittmenge, in beide Richtungen**: Eine Zusage, die grösser ist als die
+Vorlage, meldet jede Nacht jede heile Domain; eine, die kleiner ist, meldet
+nichts. `root` und `default_type` sind zugesagt, weil die Prüfadresse für das
+Zertifikat sie in jeder Form trägt; `deny`, `try_files` und `include` sind es
+nicht, weil sie der ausliefernden Form gehören. **Und `return` ist zugesagt, weil
+der Wächter es verlangt hat:** Es steht in jeder Form — Standardschutz, Sperre,
+Weiterleitung, Umlenkung auf HTTPS —, und der erste Wurf der Liste hatte es
+nicht. Die Schnittmenge hat den Entwurf berichtigt, bevor er im Repo stand.
+
+**Die Domains kommen vom Panel, die Pfade nicht.** `web.file` nimmt Namen,
+`php.file` nimmt Paare aus Version und Benutzer; aus beiden wird über
+`Site::CONF_DIR` und `PhpVersions::poolFile()` der Pfad, den das Panel selbst
+geschrieben hat. Nur so lässt sich „die Datei fehlt" melden — wer das
+Verzeichnis abliest, sieht eine fehlende Datei nicht. Der Gegenstand einer
+Pool-Datei ist die Datei und nicht die Domain: Ein Pool gehört zum Abonnement.
+
+**Drei Zustände je Datei**: `missing`, `empty`, `directive_lost` — und `empty`
+vor `directive_lost`, weil der Betreiber beim Öffnen die leere Datei sieht und
+nicht acht Zeilen darüber, was alles fehlt.
+
+Zwei Wächter, acht Brüche: `SiteFileIntegrityTest` an den beiden M3-Formen
+(mit der `grep`-Gegenprobe aus M21 im Test), `PromiseReachTest` als Naht.
+
+**Und ein Bruch hat seinen Wächter berichtigt, bevor beide im Repo standen.**
+Der erste Prüfkörper des Kommentar-Tests — `# hier stand einmal: access_log …`
+vor der Messdatei — blieb grün, als das Abstreifen der Kommentare fort war: Ein
+Kommentar beginnt mit `#`, und ohne Abstreifen ist `#` das erste Wort; die
+Anweisung dahinter wird zum Argument und nicht zur Anweisung. Wiederhergestellt
+wird sie nur, wenn im Kommentar ein `;` **vor** ihr steht — ein Kommentar, der
+zwei alte Zeilen zitiert. Genau der ist jetzt der Prüfkörper, und die
+Gegenrichtung steht daneben: Ein Kommentar, der `root` nennt, verschluckt kein
+`root`.
+
+> **Ein Prüfkörper, der den Bruch nicht sieht, hat den Wächter nicht belegt —
+> und welcher Prüfkörper ihn sieht, sagt der Bruch und nicht der Entwurf.**
+
 ### Die Kommandozeile führt die Sprache der Oberfläche nicht
 
 Entschieden vom Betreiber am 1. September 2026, `docs/19 §2.7`: `srvpanel …`

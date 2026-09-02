@@ -131,7 +131,8 @@ enum FindingCheck: string
     {
         return match ($this) {
             self::WebConfig, self::PhpConfig, self::SshConfig, self::BlockIntegrity => 'Datei',
-            self::WebFile, self::PhpFile, self::TlsFile, self::TlsWire => 'Domain',
+            self::WebFile, self::TlsFile, self::TlsWire => 'Domain',
+            self::PhpFile => 'Datei',
             self::UnitState, self::UnitSchedule => 'Unit',
             self::QuotaState => 'Verzeichnis',
             self::SystemUser => 'Abonnement',

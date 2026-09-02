@@ -6,7 +6,9 @@ namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Diagnose\Statements;
 use SrvPanel\Agent\Diagnose\Verdict;
+use SrvPanel\Agent\DomainName;
 use SrvPanel\Agent\Guard;
 use SrvPanel\Agent\Keys;
 use SrvPanel\Agent\ManagedBlock;
@@ -15,8 +17,11 @@ use SrvPanel\Agent\Op;
 use SrvPanel\Agent\Pg\Server;
 use SrvPanel\Agent\Pg\Session;
 use SrvPanel\Agent\PhpVersions;
+use SrvPanel\Agent\PoolTemplate;
 use SrvPanel\Agent\Result;
 use SrvPanel\Agent\Runner;
+use SrvPanel\Agent\Site;
+use SrvPanel\Agent\SiteTemplate;
 use SrvPanel\Agent\Sources;
 use SrvPanel\Agent\Ssh\SshdConfig;
 
@@ -69,7 +74,16 @@ use SrvPanel\Agent\Ssh\SshdConfig;
 final class SystemDiagnose implements Op
 {
     /** @var list<string> */
-    public const CHECKS = ['web.config', 'php.config', 'ssh.config', 'block.integrity', 'quota.state', 'apt.key'];
+    public const CHECKS = ['web.config', 'php.config', 'ssh.config', 'web.file', 'php.file', 'block.integrity', 'quota.state', 'apt.key'];
+
+    /**
+     * Wie viele Gegenstände ein Aufruf für `web.file` und `php.file` tragen darf.
+     *
+     * Wie {@see SshdConfig::MAX_ACCESSES} keine Kapazitätsaussage, sondern ein
+     * Riegel: Was hier ankommt, wird Name für Name zu einem Pfad, der geöffnet
+     * wird.
+     */
+    public const MAX_SUBJECTS = 2048;
 
     /** Der Gegenstand von `web.config` — die Datei, die `nginx -t` ohne `-c` liest. */
     public const NGINX_CONF = '/etc/nginx/nginx.conf';
@@ -109,6 +123,8 @@ final class SystemDiagnose implements Op
                 'web.config' => $this->webConfig($context),
                 'php.config' => $this->phpConfig($context),
                 'ssh.config' => $this->sshConfig($context),
+                'web.file' => $this->webFiles($args),
+                'php.file' => $this->phpFiles($args),
                 'block.integrity' => $this->blocks($context),
                 'quota.state' => $this->quota($context),
                 'apt.key' => $this->aptKey($context),
@@ -201,6 +217,110 @@ final class SystemDiagnose implements Op
         $reason = Verdict::validator($result);
 
         return $reason === null ? [] : [$this->finding($subject, $reason, $result->message())];
+    }
+
+    // ------------------------------------------------------------------ B
+
+    /**
+     * Die Vhost-Dateien der genannten Domains — gegen die Zusagen der Vorlage.
+     *
+     * **Die Domains kommen vom Panel, die Pfade nicht.** Aus jedem Namen wird
+     * über {@see Site::CONF_DIR} der Pfad, den `web.site.apply` geschrieben
+     * hat; ein Name geht durch {@see DomainName::normalize()} wie überall.
+     * Nur so lässt sich „die Datei fehlt" überhaupt melden — wer das
+     * Verzeichnis abliest, sieht eine fehlende Datei nicht.
+     *
+     * **Gefragt wird an den Anfang einer Anweisung** ({@see Statements}), nicht
+     * an die Zeichenkette: `nginx -t` lässt ein fehlendes Semikolon in zwei
+     * von vier Formen mit `rc=0` durch, und `grep` fände die verschluckte
+     * Anweisung noch (`docs/81 §2.3o` M3, M21).
+     *
+     * @param  array<string, mixed>  $args
+     * @return list<array{subject: string, reason: string, detail: null|string}>
+     */
+    private function webFiles(array $args): array
+    {
+        $findings = [];
+
+        foreach ($this->subjects($args['domains'] ?? null, 'domains') as $raw) {
+            $domain = DomainName::normalize($raw);
+            $content = $this->readOwn(Site::CONF_DIR.'/'.$domain.'.conf');
+            $verdict = Verdict::file($content, $content === null ? [] : Statements::lostInNginx($content, SiteTemplate::PROMISED));
+
+            if ($verdict !== null) {
+                $findings[] = $this->finding($domain, $verdict['reason'], $verdict['detail']);
+            }
+        }
+
+        return $findings;
+    }
+
+    /**
+     * Die Pool-Dateien — je Abonnement und Version, gegen die Abschottung.
+     *
+     * Die Pool-Datei ist INI und kein nginx: Dort fehlt kein Semikolon, dort
+     * fehlt eine Zeile. Der Gegenstand ist der Pfad und nicht die Domain, weil
+     * ein Pool zum Abonnement gehört und nicht zu einer seiner Domains.
+     *
+     * **Der Benutzer wird hier nicht geprüft, weil `poolFile()` es tut** — über
+     * `SubscriptionProvision::systemUser()`, dieselbe Frage wie beim Anlegen.
+     * Ein Name, der kein `p` mit vier bis neun Ziffern ist, wird nie zu einem
+     * Pfad; die Version geht vorher durch `PhpVersions::normalize()`.
+     *
+     * @param  array<string, mixed>  $args
+     * @return list<array{subject: string, reason: string, detail: null|string}>
+     */
+    private function phpFiles(array $args): array
+    {
+        $findings = [];
+
+        foreach ($this->subjects($args['pools'] ?? null, 'pools') as $pool) {
+            if (! is_array($pool)) {
+                throw AgentException::badRequest('pools: jeder Eintrag nennt version und user.');
+            }
+
+            $path = PhpVersions::poolFile(PhpVersions::normalize($pool['version'] ?? null), (string) ($pool['user'] ?? ''));
+            $content = $this->readOwn($path);
+            $verdict = Verdict::file($content, $content === null ? [] : Statements::lostInIni($content, PoolTemplate::PROMISED));
+
+            if ($verdict !== null) {
+                $findings[] = $this->finding($path, $verdict['reason'], $verdict['detail']);
+            }
+        }
+
+        return $findings;
+    }
+
+    /**
+     * Eine Liste von Gegenständen aus den Argumenten — gedeckelt.
+     *
+     * @return list<mixed>
+     */
+    private function subjects(mixed $value, string $field): array
+    {
+        if (! is_array($value)) {
+            throw AgentException::badRequest($field.' muss eine Liste sein.');
+        }
+
+        if (count($value) > self::MAX_SUBJECTS) {
+            throw AgentException::badRequest(sprintf('%s: zu viele Einträge (%d, erlaubt sind %d).', $field, count($value), self::MAX_SUBJECTS));
+        }
+
+        return array_values($value);
+    }
+
+    /**
+     * Eine eigene Datei des Panels lesen — `null`, wenn sie nicht da ist.
+     *
+     * Ohne Sperre: Diese Dateien schreibt nur das Panel, und zwar ganz oder
+     * gar nicht. Ein Lauf, der genau in den Augenblick eines Schreibvorgangs
+     * fällt, liest den alten oder den neuen Stand — nie einen halben.
+     */
+    private function readOwn(string $path): ?string
+    {
+        $content = @file_get_contents($path);
+
+        return $content === false ? null : $content;
     }
 
     // ------------------------------------------------------------------ C

@@ -376,7 +376,7 @@ noch gelesen wird.
 | | Was | Warum in dieser Reihenfolge |
 |---|---|---|
 | **1** | ~~Der Befund als Form: Enum, Modell, Migration, die Kennung~~ **gebaut am 2. September 2026** | alles andere hängt daran; die Form lässt sich später nicht billig ändern |
-| **2** | `ManagedBlock` bekommt seinen **lesenden** Integritätsblick | die eine Prüfung, die es heute nur im Schreibweg gibt (M15) |
+| **2** | ~~`ManagedBlock` bekommt seinen **lesenden** Integritätsblick~~ **gebaut am 2. September 2026** — `inspect()`, fünf Zustände, gehalten am Schreibweg | die eine Prüfung, die es heute nur im Schreibweg gibt (M15) |
 | **3** | Die Operation `system.diagnose` im Agenten: A, C, F, I | die Prüfungen, die Systemrechte brauchen |
 | **4** | B — die Dateien des Panels gegen die Zusagen ihrer Vorlage | der Punkt, der M3 beantwortet; Tiefe nach Frage 4 |
 | **5** | D, E, G, H in `app/` — sie fragen, was A2, P4 und `docs/35` gebaut haben | kein Systemrecht nötig |
@@ -564,7 +564,7 @@ die Absicht; die Brüche kommen mit dem Bau in `tests/waechter-brechen.sh`.
 | `FindingIdentityTest` | **gebaut** — die Kennung ist `check`+`subject`+`reason` und enthält `detail` **nicht**; gemessen an der Wirkung über zwei Läufe. Dazu: ein Ausfall löscht keinen Befund, ein behobener verschwindet, ein unbekannter Grund kommt nicht in die Datenbank, und der Wortlaut wird vor der Spalte gekürzt |
 | `FindingStateTest` | **gebaut** — vier Zustände, `unknown` trägt `neutral` und steht zwischen `warn` und `fail`, nur `ok` bleibt stumm, kein Hinweis ausser dem von `ok` gibt Entwarnung, und die Tabelle hat **keine** Spalte für die Schwere |
 | `ValidatorVerdictTest` | die drei Prüfer werden am **Rückgabewert** gewertet und nicht an `syntax is ok`; er sucht die Zeichenkette ausdrücklich als **verbotene** und streift Kommentare ab |
-| `ManagedBlockIntegrityTest` | der lesende Blick meldet `BEGIN` ohne `END`, den doppelten Block und die fremde Zeile — an den neun Formen aus M14 |
+| `ManagedBlockIntegrityTest` | **gebaut** — der lesende Blick meldet `BEGIN` ohne `END`, `END` ohne `BEGIN` und den doppelten Block an den neun Formen aus M14, **und er zählt wie der Schreiber**: Wo `without()` wirft, sagt `inspect()` `begin_without_end`, nirgends sonst. Die fremde Zeile hält er ausdrücklich **nicht** — die kennt nur, wer den Sollzustand hat, und das ist Schritt 5 |
 | `SiteFileIntegrityTest` | die Zusagen der Vorlage werden am **Anfang einer Anweisung** geprüft und nicht als Zeichenkette — der Prüfkörper ist die Datei aus M3 Fall 2, in der `grep` grün und die Anweisung fort ist |
 | `DiagnoseCatalogTest` | **gebaut** — jede Prüfung kennt Gründe, jeder Grund trägt Schwere und Satz, `unreachable` ergibt überall `unknown`, und wer ihn **nicht** führt, steht mit Begründung da (beide Richtungen, weil ein toter Eintrag bei einer Umbenennung entsteht) |
 | `QuotaVerdictTest` | die dritte Zeile der Tabelle aus §3 F ist `fail` — gemessen an gebauten Prüfkörpern, nicht an erfundenen |

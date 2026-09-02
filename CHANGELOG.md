@@ -23775,6 +23775,62 @@ Wendung **verneinend** benutzte. Geändert wurde der Satz und nicht die Regel:
 
 > **Ein Wächter über Prosa prüft den Wortlaut und nicht die Aussage.**
 
+### A10 Schritt 2 — der lesende Blick auf einen verwalteten Bereich
+
+Den einen Zustand, den `ManagedBlock` selbst für fatal hält — ein `BEGIN` ohne
+`END` —, sah bis heute nur der Schreibweg: `without()` wirft dafür, `managed()`
+liefert die Zeilen, als wäre nichts (`docs/81 §2.3o` M15). Und `managed()` gab
+bei vier verschiedenen Schäden dieselbe leere Liste zurück, von denen einer der
+Normalzustand ist (M14).
+
+> **Ein Diagnoselauf, der nichts schreibt, kommt an der Prüfung nicht vorbei,
+> die nur der Schreiber macht.**
+
+**`ManagedBlock::inspect()` ist die Antwort — als eigene Methode und nicht als
+Verschärfung von `managed()`.** Den Grund nennt `PgServerInfo::hbaRules()` seit
+P5b: Diese Auskunft soll auch dann antworten, wenn wenig dasteht, weil ein
+Betreiber die Datei gerade von Hand repariert. Für eine Auskunft ist die leere
+Liste Nachsicht; für eine Diagnose wäre sie Entwarnung.
+
+> **Zwei Aufrufer derselben Methode brauchen entgegengesetzte Nachsicht — und
+> wer sie an der Methode ändert, bricht den einen, während er den anderen
+> baut.**
+
+Fünf Zustände: `absent`, `intact`, `begin_without_end`, `end_without_begin`,
+`duplicate`. Der vierte ist neu und kein Versehen — `BEGIN` entfernt und Marke
+verändert hinterlassen beide ein `END` ohne `BEGIN`, die Zeilen bleiben für den
+Dienst wirksam, verwaltet werden sie von niemandem, und der nächste
+Schreibvorgang hängt einen **zweiten** Bereich ans Ende. `FindingCheck` kennt
+ihn seitdem als Grund.
+
+**Der Leser zählt wie der Schreiber.** Erstes `BEGIN`, erstes `END` danach — so
+liest `without()`, so liest `inspect()`. `ManagedBlockIntegrityTest` hält beide
+aneinander an der **Wirkung**: Jeder der neun Prüfkörper aus M14 geht durch
+`render()` und durch `inspect()`, und wo der eine wirft, sagt der andere
+`begin_without_end` — nirgends sonst.
+
+> **Zwei Leser derselben Marken, die verschieden zählen, sind zwei Fassungen
+> derselben Regel — und die zweite ist die, die veraltet.**
+
+Was `inspect()` **nicht** sagt: ob eine Zeile fremd ist oder fehlt. Das weiss
+nur, wer den Sollzustand kennt, und der liegt im Panel
+(`RemoteAccess::orphans()`, `::missing()`). Die Form prüft der Agent, den
+Inhalt das Panel — Schritt 5.
+
+Acht Brüche, alle belegt und im Bruchskript.
+
+**Und der erste Lauf des Wächters hat einen Fehler gefunden, der seit P5b im
+Bestand steht.** `managed()` brach am **ersten** `# END srvpanel`, wo immer es
+stand; `without()` sucht das erste `END` **nach** dem `BEGIN`. Ein verirrtes
+`END` über dem Bereich ergab damit im Leser eine leere Liste und im Schreiber
+einen heilen Bereich — und `PgRoleRemove` baut sein `$keep` aus dem Leser und
+ruft danach `render()`: Mit einer leeren Liste hätte es den ganzen Bereich
+entfernt, jede Fernzugriffsregel wortlos, und der Vorgang hätte `fertig`
+gemeldet (`docs/81 §2.3o` M22).
+
+Behoben mit einer Bedingung in `managed()`; `inspect()` liest darüber und ist
+damit keine dritte Lesart.
+
 ### Die Kommandozeile führt die Sprache der Oberfläche nicht
 
 Entschieden vom Betreiber am 1. September 2026, `docs/19 §2.7`: `srvpanel …`

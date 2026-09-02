@@ -306,7 +306,26 @@ final class ManagedBlock
                 continue;
             }
 
-            if ($trimmed === self::END) {
+            /*
+             * **Nur ein END nach dem BEGIN beendet den Bereich — wie in
+             * without().** Bis zum 2. September 2026 brach diese Schleife am
+             * ersten END, wo immer es stand; ein verirrtes `# END srvpanel`
+             * **vor** dem Bereich ergab damit eine leere Liste, während
+             * without() denselben Bereich heil vorfand. Gefunden hat es
+             * `ManagedBlockIntegrityTest`, der Leser und Schreiber
+             * aneinanderhält (`docs/81 §2.3o` M22).
+             *
+             * Was das angerichtet hätte: `PgRoleRemove` baut sein `$keep` aus
+             * dieser Liste und ruft danach render() — mit einer leeren Liste
+             * entfernt render() den ganzen Bereich. Eine Zeile Unrat über dem
+             * Block und eine Rollenlöschung hätten jede Fernzugriffsregel
+             * wortlos mitgenommen.
+             *
+             * > **Zwei Leser derselben Marken, die verschieden zählen, sind
+             * > zwei Fassungen derselben Regel — und die zweite ist die, die
+             * > veraltet.**
+             */
+            if ($inside && $trimmed === self::END) {
                 break;
             }
 
@@ -316,6 +335,104 @@ final class ManagedBlock
         }
 
         return $lines;
+    }
+
+    /**
+     * Was von aussen über den Bereich zu sagen ist — ohne ihn anzufassen.
+     *
+     * ## Warum das eine eigene Methode ist und keine Verschärfung von managed()
+     *
+     * Gemessen am 2. September 2026 (`docs/81 §2.3o` M14, M15): {@see self::managed()}
+     * gibt bei **vier** verschiedenen Zuständen dieselbe leere Liste zurück —
+     * Block entfernt, `BEGIN` entfernt, Marke verändert, Datei leer —, und einer
+     * davon ist der Normalzustand. Und den einen Zustand, den Regel 5 für fatal
+     * erklärt, ein `BEGIN` ohne `END`, sieht nur {@see self::without()}: Das
+     * steht im **Schreib**weg. Wer liest, bekommt die Zeilen, als wäre nichts.
+     *
+     * > **Ein Diagnoselauf, der nichts schreibt, kommt an der Prüfung nicht
+     * > vorbei, die nur der Schreiber macht.**
+     *
+     * Die Prüfung `managed()` selbst strenger zu machen wäre der falsche Weg,
+     * und `PgServerInfo::hbaRules()` sagt seit P5b, warum: Diese Operation soll
+     * auch dann antworten, wenn wenig dasteht — ein Betreiber, der die Datei
+     * gerade von Hand repariert, hat sie einen Augenblick lang gar nicht. Für
+     * eine Auskunft ist die leere Liste Nachsicht; für eine Diagnose wäre sie
+     * Entwarnung.
+     *
+     * > **Zwei Aufrufer derselben Methode brauchen entgegengesetzte Nachsicht —
+     * > und wer sie an der Methode ändert, bricht den einen, während er den
+     * > anderen baut.**
+     *
+     * ## Was sie sagt und was nicht
+     *
+     * Sie liest die Marken **so wie {@see self::without()}** — erstes `BEGIN`,
+     * erstes `END` danach — damit Leser und Schreiber denselben Bereich meinen.
+     * `ManagedBlockIntegrityTest` hält die beiden aneinander: Wo `without()`
+     * wirft, sagt diese Methode `begin_without_end`, und nirgends sonst.
+     *
+     * Sie sagt **nichts über den Inhalt**. Ob eine Zeile fremd ist oder fehlt,
+     * weiss nur, wer den Sollzustand kennt, und der liegt im Panel
+     * (`RemoteAccess::orphans()`, `::missing()`). Hier steht die Form.
+     *
+     * Die fünf Zustände:
+     *
+     * | `state` | wann |
+     * |---|---|
+     * | `absent` | keine Marke — der Normalzustand, solange nichts zu verwalten ist |
+     * | `intact` | genau ein `BEGIN`, danach ein `END` |
+     * | `begin_without_end` | ein `BEGIN`, und danach kein `END` — Regel 5 |
+     * | `end_without_begin` | ein `END` ohne `BEGIN` davor: Was zwischen Bestand und Marke steht, verwaltet niemand mehr, und der nächste Schreibvorgang hängt einen **zweiten** Bereich ans Ende |
+     * | `duplicate` | mehr als ein `BEGIN` — den zweiten übergeht `managed()` stillschweigend (M14) |
+     *
+     * `lines` sind die Zeilen des ersten Bereichs, wie {@see self::managed()}
+     * sie liefert; bei `absent` und `end_without_begin` leer. `begin_lines`
+     * nennt jedes `BEGIN` mit seiner Zeilennummer (1 = die erste), damit ein
+     * Befund den Ort tragen kann und nicht nur die Datei.
+     *
+     * @return array{state: 'absent'|'intact'|'begin_without_end'|'end_without_begin'|'duplicate', begin_lines: list<int>, end_line: int|null, lines: list<string>}
+     */
+    public static function inspect(string $content): array
+    {
+        $begins = [];
+        $end = null;
+        $strayEnd = null;
+
+        foreach (explode("\n", $content) as $index => $line) {
+            $trimmed = trim($line);
+
+            if ($trimmed === self::BEGIN) {
+                $begins[] = $index + 1;
+
+                continue;
+            }
+
+            if ($trimmed !== self::END) {
+                continue;
+            }
+
+            // Dasselbe Ende wie in without(): das erste END nach dem ersten
+            // BEGIN. Ein END davor gehört zu keinem Bereich.
+            if ($begins !== [] && $end === null) {
+                $end = $index + 1;
+            } elseif ($begins === [] && $strayEnd === null) {
+                $strayEnd = $index + 1;
+            }
+        }
+
+        $state = match (true) {
+            count($begins) > 1 => 'duplicate',
+            $begins === [] && $strayEnd !== null => 'end_without_begin',
+            $begins === [] => 'absent',
+            $end === null => 'begin_without_end',
+            default => 'intact',
+        };
+
+        return [
+            'state' => $state,
+            'begin_lines' => $begins,
+            'end_line' => $end,
+            'lines' => $begins === [] ? [] : self::managed($content),
+        ];
     }
 
     /** Die Endung der Sperrdatei — neben der Datei, nie darauf (Regel 2). */

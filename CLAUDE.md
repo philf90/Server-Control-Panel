@@ -1339,7 +1339,11 @@ deklariert einen Namen, der der Basisklasse gehört — er spiegelt deren
 `<style>`-Block einer `.vue` steht auf oberster Ebene und nicht im
 Vorlagenblock, wo der Übersetzer ihn wegwirft — die Regel, die
 `ClassReachTest` nicht halten konnte, weil er eine Zeichenkette suchte statt
-eines Blocks) und `OperatorControlTest` (ein Bedienelement, dessen Route strenger ist als die
+eines Blocks) und `ManagedBlockIntegrityTest` (der lesende Blick auf einen
+verwalteten Bereich zählt wie der schreibende — gehalten an der **Wirkung**,
+jeder der neun Prüfkörper geht durch `render()` und `inspect()`; sein erster
+Lauf hat M22 gefunden, einen Leser, der seit P5b am ersten `END` brach, wo immer
+es stand) und `OperatorControlTest` (ein Bedienelement, dessen Route strenger ist als die
 Seite selbst, steht in einem `v-if` auf ihre Fähigkeit — die Zuordnung
 Fähigkeit → Wächtervariable kommt aus der Seite und nicht aus einer Liste im
 Test, und die Vorlage wird mit einem Stapel gelesen statt rückwärts; **ein
@@ -1846,6 +1850,17 @@ nichts" lautet. A13 reitet **nicht** mit: Seine beiden `find`-Griffe kosten unte
 > **Ein `check`, der den Bestand des Kunden liest, gehört nicht in denselben
 > Lauf wie einer, der eine Konfigurationsdatei prüft — auch wenn beide dieselbe
 > Form von Befund erzeugen.**
+
+**Und Schritt 2 hat beim Bauen einen Fehler aus P5b gefunden** (`docs/81 §2.3o`
+M22): `managed()` brach am ersten `# END srvpanel`, `without()` suchte das erste
+nach dem `BEGIN` — ein verirrtes `END` über dem Bereich machte den Leser leer und
+liess den Schreiber heil. `PgRoleRemove` hätte daraus ein leeres `$keep` gebaut
+und `render()` den ganzen Bereich entfernt.
+
+> **Zwei Leser derselben Marken, die verschieden zählen, sind zwei Fassungen
+> derselben Regel — und die zweite ist die, die veraltet.** Gefunden hat es der
+> Wächter, der Leser und Schreiber an der **Wirkung** aneinanderhält — nicht am
+> Quelltext, und nicht das Nachdenken.
 
 Und **`97` die Übergabe an A10** — der Stand von P7b (vier abgenommen, fünf
 offen), was A10 ist, **was vor dem Plan zu messen ist**, die vier frischen

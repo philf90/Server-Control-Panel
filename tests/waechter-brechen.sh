@@ -21980,6 +21980,180 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
 
 echo
+echo "== ManagedBlockIntegrityTest: der Leser uebersieht ein BEGIN ohne END =="
+#
+# Der Zustand, den Regel 5 fuer fatal erklaert, und den vor Schritt 2 nur der
+# Schreibweg sah (docs/81 §2.3o M15). Ein Leser, der ihn uebersieht, ist der
+# alte managed()-Leser mit einem neuen Namen.
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $end === null => 'begin_without_end',\n"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/ManagedBlock.php "Leser uebersieht BEGIN ohne END" &&
+pruefe "Leser uebersieht BEGIN ohne END" \
+  ManagedBlockIntegrityTest::test_the_reader_agrees_with_the_writer_on_a_missing_end failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
+
+echo
+echo "== ManagedBlockIntegrityTest: der zweite Bereich bleibt unbemerkt =="
+#
+# managed() uebergeht einen zweiten Block stillschweigend (M14) -- und genau
+# so sieht ein halb durchgelaufener Schreibvorgang aus.
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+alt = """            count($begins) > 1 => 'duplicate',"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            false => 'duplicate',""", 1))
+PY2
+griff_datei agent/src/ManagedBlock.php "zweiter Bereich unbemerkt" &&
+pruefe "zweiter Bereich unbemerkt" \
+  ManagedBlockIntegrityTest::test_every_form_from_the_measurement_round_gets_its_verdict failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
+
+echo
+echo "== ManagedBlockIntegrityTest: ein END ohne BEGIN gilt als 'kein Bereich' =="
+#
+# Der Zustand, den BEGIN-entfernt und Marke-veraendert beide hinterlassen: Die
+# Zeilen bleiben fuer den Dienst wirksam, verwaltet werden sie von niemandem,
+# und der naechste Schreibvorgang haengt einen zweiten Bereich ans Ende.
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $begins === [] && $strayEnd !== null => 'end_without_begin',\n"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/ManagedBlock.php "END ohne BEGIN als absent" &&
+pruefe "END ohne BEGIN als absent" \
+  ManagedBlockIntegrityTest::test_every_form_from_the_measurement_round_gets_its_verdict failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
+
+echo
+echo "== ManagedBlockIntegrityTest: die Zeilennummern zaehlen ab 0 =="
+#
+# Der Betreiber sucht die Zeile in seinem Editor, und without() zaehlt ab 1.
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+alt = """                $begins[] = $index + 1;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """                $begins[] = $index;""", 1))
+PY2
+griff_datei agent/src/ManagedBlock.php "Zeilen ab 0" &&
+pruefe "Zeilen ab 0" \
+  ManagedBlockIntegrityTest::test_begin_lines_are_one_based_and_name_every_begin failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
+
+echo
+echo "== ManagedBlockIntegrityTest: der Leser liefert andere Zeilen als managed() =="
+#
+# Zwei Lesarten desselben Inhalts sind zwei Fassungen derselben Regel.
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+alt = """            'lines' => $begins === [] ? [] : self::managed($content),"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            'lines' => $begins === [] ? [] : array_slice(self::managed($content), 1),""", 1))
+PY2
+griff_datei agent/src/ManagedBlock.php "eigene Lesart der Zeilen" &&
+pruefe "eigene Lesart der Zeilen" \
+  ManagedBlockIntegrityTest::test_the_lines_are_those_of_managed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
+
+echo
+echo "== ManagedBlockIntegrityTest: der Leser fasst eine Datei an =="
+#
+# Die Unterschrift nimmt einen Inhalt und keinen Pfad; wer "nur kurz" einen
+# Pfad durchreicht, hat einen zweiten Leser neben read() gebaut -- ohne Sperre.
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $begins = [];
+        $end = null;
+        $strayEnd = null;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        if (is_file($content)) {
+            $content = (string) @file_get_contents($content);
+        }
+
+        $begins = [];
+        $end = null;
+        $strayEnd = null;"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/ManagedBlock.php "Leser liest Datei" &&
+pruefe "Leser liest Datei" \
+  ManagedBlockIntegrityTest::test_inspect_touches_no_file failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
+
+echo
+echo "== ManagedBlockIntegrityTest: der Leser wirft wie der Schreiber =="
+#
+# Ein Leser, der bei BEGIN ohne END wirft, ist without() mit neuem Namen --
+# und eine Diagnose, die an ihrem ersten Fund abbricht, meldet die anderen
+# dreizehn Pruefungen nicht mehr.
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+alt = """        return [
+            'state' => $state,"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        if ($state === 'begin_without_end') {
+            throw AgentException::execFailed('BEGIN ohne END.');
+        }
+
+        return [
+            'state' => $state,"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/ManagedBlock.php "Leser wirft" &&
+pruefe "Leser wirft" \
+  ManagedBlockIntegrityTest::test_inspect_never_throws failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
+
+echo
+echo "== ManagedBlockIntegrityTest: managed() bricht wieder am ersten END =="
+#
+# M22: Ein verirrtes END vor dem Bereich machte managed() leer, waehrend
+# without() den Bereich heil vorfand. PgRoleRemove haette daraus ein leeres
+# $keep gebaut und render() den ganzen Bereich entfernt.
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if ($inside && $trimmed === self::END) {
+                break;
+            }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            if ($trimmed === self::END) {
+                break;
+            }""", 1))
+PY2
+griff_datei agent/src/ManagedBlock.php "managed() bricht am ersten END" &&
+pruefe "managed() bricht am ersten END" \
+  ManagedBlockIntegrityTest::test_a_stray_end_before_the_block_is_ignored_by_both failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

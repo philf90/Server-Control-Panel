@@ -205,6 +205,10 @@ enum FindingCheck: string
                     'state' => FindingState::Fail,
                     'text' => 'Der verwaltete Bereich hat einen Anfang und kein Ende. Wo er aufhört, ist nicht zu erkennen.',
                 ],
+                'end_without_begin' => [
+                    'state' => FindingState::Fail,
+                    'text' => 'Der verwaltete Bereich hat ein Ende und keinen Anfang. Was davor steht, verwaltet niemand mehr, und der nächste Schreibvorgang legt einen zweiten Bereich an.',
+                ],
                 'block_missing' => [
                     'state' => FindingState::Fail,
                     'text' => 'Der verwaltete Bereich fehlt, obwohl es Regeln gibt, die darin stehen müssten.',

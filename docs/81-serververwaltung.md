@@ -1728,6 +1728,34 @@ Konfigurationsdatei statt an PHP oder einer Shell. Ohne diese Messung wäre die
 Prüfung aus `docs/98 §3 B` als Textsuche gebaut worden und hätte Punkt 5 des
 Abnahmekriteriums nicht erfüllt.
 
+#### M22 — die beiden Leser der Marken zählten verschieden (gefunden beim Bauen von Schritt 2)
+
+Gefunden am 2. September 2026 vom ersten Lauf des Wächters, der Leser und
+Schreiber aneinanderhält — und nicht durch Nachdenken. Prüfkörper: ein
+verirrtes `# END srvpanel` **vor** dem heilen Bereich.
+
+| | `managed()` (Leser) | `without()` (Schreiber) |
+|---|---|---|
+| bis zum 2. September | bricht am **ersten** `END`, wo immer es steht → **leere Liste** | sucht das erste `END` **nach** dem `BEGIN` → findet den Bereich heil |
+
+Gemessen im Bestand, unverändert: `managed()` gibt `[]`, `render()` daneben
+ersetzt den Bereich, als wäre nichts.
+
+**Was das angerichtet hätte.** `PgRoleRemove` baut sein `$keep` aus `managed()`
+und ruft danach `render($content, $keep)`. Mit einer leeren Liste entfernt
+`render()` den ganzen Bereich — eine Zeile Unrat über dem Block und eine
+Rollenlöschung hätten jede Fernzugriffsregel wortlos mitgenommen, und der
+Vorgang hätte `fertig` gemeldet.
+
+> **Zwei Leser derselben Marken, die verschieden zählen, sind zwei Fassungen
+> derselben Regel — und die zweite ist die, die veraltet.**
+
+Behoben in `managed()` mit einer Bedingung: Ein `END` zählt erst nach dem
+`BEGIN`. `inspect()` liest über `managed()` und bekommt damit dieselbe Lesart,
+statt eine dritte zu sein. Der Satz aus `docs/42` gilt hier zum zweiten Mal an
+derselben Datei: Damals waren es zwei Schreiber ohne gemeinsame Sperre, jetzt
+zwei Leser ohne gemeinsame Zählung.
+
 #### Was diese Runde über sich selbst gelernt hat
 
 **Sechs Fehler, fünf davon im Prüfmittel** — dasselbe Verhältnis wie in

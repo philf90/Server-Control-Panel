@@ -1831,6 +1831,12 @@ dasselbe zeigte wie ein Lauf ohne jede Vorbereitung.
 Wer eine Vorbereitung von Hand trifft, **belegt sie, bevor er misst**. `docs/78`
 hat genau das schon einmal als Lehre festgehalten.
 
+**Mit belegtem Zustand gefahren, bricht `0.7.3-rc.10` ab** — `rc=1`, ohne Unit.
+Damit ist die **Behebung** gemessen; der Fehler selbst bleibt hergeleitet, denn
+auf dieser Maschine läuft die behobene Fassung.
+
+> **Was behoben ist, lässt sich nicht mehr kaputt vorführen.**
+
 Und weiter aus P7b: **`87` der Nachlauf zu `0.7.2-rc.5`** — sechs Punkte auf
 `cloudsrv24`, die nachsehen, ob die vier Behebungen aus `docs/86 §5` auf einem
 echten Server wirken — mit **`88`** als Protokoll dazu: **elf Befunde, sieben im

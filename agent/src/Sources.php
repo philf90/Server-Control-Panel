@@ -180,10 +180,12 @@ final class Sources
      *
      * ## Der Befund, gegen den es sie gibt
      *
-     * **Am Quelltext hergeleitet und nicht gemessen** (`docs/96 §4b`, Befund 14):
-     * Der Prüfkörper auf `cloudsrv24` hat den Zustand nie hergestellt — `sed -i`
-     * meldet Erfolg, auch wenn sein Muster nirgends passt, und die Quelldatei
-     * des Panels trägt gar keine `Enabled:`-Zeile.
+     * **Der Fehler ist am Quelltext hergeleitet, die Wirkung dieses Lesers ist
+     * gemessen** (`docs/96 §4b`). Der Prüfkörper hat den Zustand zweimal nicht
+     * hergestellt (Befund 14) — `sed -i` meldet Erfolg, auch wenn sein Muster
+     * nirgends passt, und die Quelldatei des Panels trägt keine
+     * `Enabled:`-Zeile. Beim dritten Mal, mit belegtem Zustand, bricht das
+     * Update ab.
      *
      * Die Herleitung steht: apt holt eine abgeschaltete Quelle
      * gar nicht erst, also erzeugt sie keinen Fehlschlag, {@see Apt::hitting()}

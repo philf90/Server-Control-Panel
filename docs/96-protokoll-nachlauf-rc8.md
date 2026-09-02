@@ -421,7 +421,42 @@ Vorbereitung statt sie vorauszusetzen"*. Hier stand kein `grep` danach.
 `docs/95 §4b` ist berichtigt: gesetzt wird jetzt unbedingt, und der Zustand wird
 vor der Messung belegt.
 
-### Befund 12 — hergeleitet, nicht beobachtet
+### Der berichtigte Prüfkörper — gefahren am 2. September gegen `rc.10`
+
+    grep -n '^Enabled:' /etc/apt/sources.list.d/srvpanel.sources
+    7:Enabled: no                       ← der Zustand, BEVOR gemessen wird
+
+    srvpanel update
+    Die Paketquelle des Panels ist abgeschaltet: in /etc/apt/sources.list.d/
+    srvpanel.sources ist keine eingeschaltete Quelle mit Adresse übrig. Ohne sie
+    kann apt keine neue Fassung finden — es wurde deshalb nicht begonnen.
+    rc=1
+
+**Die Behebung greift, und in allen vier Teilen.** Die Meldung nennt die Datei
+und den Zustand; sie ist die Zeile für „abgeschaltet" und nicht die für „fehlt",
+die Unterscheidung trifft also; der Abbruch liegt **vor** dem Absetzen (die Zeile
+„Das Update läuft als …" fehlt, es gibt keine Unit); und der Rückgabewert ist
+`1`.
+
+**Und diesmal steht der Zustand belegt daneben.** Das ist der ganze Unterschied
+zu den beiden Läufen davor: dieselbe Absicht, dieselbe Erwartung — und erst der
+`grep` macht aus der Absicht eine Messung.
+
+> **Eine Vorbereitung, die man nicht belegt, ist keine Bedingung der Messung,
+> sondern eine Hoffnung daneben.**
+
+**Was das belegt und was nicht.** Belegt ist die **Behebung**. Der Fehler selbst
+— dass `rc.9` und älter hier grün „Es stand nichts an" gemeldet hätten — bleibt
+hergeleitet: Auf dieser Maschine läuft `rc.10`, und die alte Fassung ist fort.
+
+> **Der Prüfling einer Aktualisierung ist die installierte Fassung und nicht die
+> eingespielte** — derselbe Satz wie in §1b, hier von der anderen Seite: Was
+> behoben ist, lässt sich nicht mehr kaputt vorführen.
+
+Zurückgeholt wurde mit `cp -a` aus der Sicherung; die Gegenprobe `diff … &&
+echo 'zurueck'` steht in der Aufnahme nicht.
+
+### Befund 12 — der Fehler bleibt hergeleitet
 
 **Der Ablauf steht am Quelltext**, und jede einzelne Stufe antwortet dabei
 richtig:
@@ -626,7 +661,7 @@ aus `docs/95 §10` sind 1, 2, 3, 5, 6 und 7.
 | 2 | Befund 2 | erfüllt → **Befund 9, 10** |
 | 3 | die Auffrischung | erfüllt → **Befund 11** |
 | 4 | die tote eigene Quelle | erfüllt |
-| 4b | die abgeschaltete Quelle | **nicht hergestellt** → Befund 12 (hergeleitet), **Befund 14** |
+| 4b | die abgeschaltete Quelle | zweimal **nicht hergestellt** → **Befund 14**; beim dritten Mal die Behebung belegt |
 | 5 | Herkunft und Gegenstand | erfüllt |
 | 6 | der Zurück-Knopf | erfüllt |
 | 7 | ein Vorgang ohne Seite | erfüllt |
@@ -651,9 +686,9 @@ Quelltext zu vermeiden gewesen.**
 ### Was offen bleibt
 
 - **Befund 8 und 10 sind belegt** (§1c) und damit erledigt.
-- **Befund 12 ist gebaut, hergeleitet und unbeobachtet.** Weder der Fehler noch
-  seine Behebung sind je gesehen worden — der Prüfkörper hat den Zustand nie
-  hergestellt (Befund 14). Der berichtigte Handgriff steht in `docs/95 §4b`.
+- **Befund 12: die Behebung ist belegt, der Fehler bleibt hergeleitet.** Mit dem
+  berichtigten Prüfkörper bricht `rc.10` ab, `rc=1`, ohne Unit. Dass die alte
+  Fassung hier grün gemeldet hätte, ist nicht mehr zu zeigen — sie ist fort.
 - **Die Zeile `Paketlisten aufgefrischt; jede Quelle hat geantwortet.`** gilt für
   die gefragten Quellen und nicht für die vorhandenen (§4b). Kein Befund dieses
   Laufs, sondern ein Vorschlag.

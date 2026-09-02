@@ -107,8 +107,10 @@ final class PanelUpdate implements Op
          * danach sieht mangels neuer Listen nichts Anstehendes. Der Betreiber
          * läse „Es stand nichts an".
          *
-         * **Hergeleitet und nicht beobachtet** (`docs/96 §4b`, Befund 14): Der
-         * Prüfkörper auf `cloudsrv24` hat den Zustand nie hergestellt.
+         * **Der Fehler ist hergeleitet, die Behebung belegt** (`docs/96 §4b`).
+         * Der Prüfkörper hat den Zustand zweimal nicht hergestellt (Befund 14);
+         * beim dritten Mal bricht `0.7.3-rc.10` mit dieser Meldung ab, `rc=1`,
+         * ohne Unit.
          *
          * > **Eine Quelle, die nicht gefragt wird, antwortet nicht falsch — sie
          * > fehlt, und das sieht aus wie Zustimmung.**

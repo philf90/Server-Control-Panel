@@ -22764,27 +22764,6 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
 
 echo
-echo "== DiagnoseSeamTest: ein sprachloser Grund bekommt einen Sprecher =="
-#
-# Die andere Richtung der Ausnahmeliste: Wer C-3 baut, nimmt den Eintrag
-# heraus — sonst bleibt er stehen und niemand merkt es.
-vorher_datei app/Support/Diagnose/Checks/Orphans.php
-python3 - <<'PY2'
-p = 'app/Support/Diagnose/Checks/Orphans.php'
-s = open(p, encoding='utf-8').read()
-alt = """        'orphan.row' => ['certificate', 'system_user', 'cron_file'],"""
-assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-neu = """        'orphan.row' => ['certificate', 'system_user', 'cron_file'],
-        'block.integrity' => ['foreign_line'],"""
-open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
-PY2
-griff_datei app/Support/Diagnose/Checks/Orphans.php "sprachloser Grund bekommt Sprecher" &&
-pruefe "sprachloser Grund bekommt Sprecher" \
-  DiagnoseSeamTest::test_every_reason_in_the_catalogue_has_a_speaker failed
-wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
-
-echo
 echo "== DiagnoseCatalogTest: system.user ohne unreachable und ohne Begruendung =="
 vorher_datei tests/Unit/DiagnoseCatalogTest.php
 python3 - <<'PY2'
@@ -22800,6 +22779,193 @@ pruefe "system.user ohne Begruendung" \
   DiagnoseCatalogTest::test_a_check_without_unreachable_is_named failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
+
+echo
+echo "== ManagedBlockDriftTest: die fremde Zeile kommt als unsere zurueck =="
+#
+# Der Fund aus M16: Ein `host all all 0.0.0.0/0 trust` innerhalb der Marken
+# oeffnet jede Datenbank dieses Servers fuer jeden — und liest sich als unsere.
+vorher_datei app/Support/Diagnose/Checks/ManagedBlocks.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/ManagedBlocks.php'
+s = open(p, encoding='utf-8').read()
+alt = """            array_values(array_filter($managed, static fn (string $line): bool => ! isset($inWanted[$line]))),"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            [],""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/ManagedBlocks.php "fremde Zeile uebersehen" &&
+pruefe "fremde Zeile uebersehen" \
+  ManagedBlockDriftTest::test_a_foreign_line_is_told_apart_from_ours failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
+
+echo
+echo "== ManagedBlockDriftTest: der Abgleich kennt nur eine Richtung =="
+#
+# Die Haelfte, die srvpanel db im August 2026 gekostet hat: Ein gescheiterter
+# Schreibvorgang liess seine Zeile im Bestand stehen, und die Datei hatte nichts.
+vorher_datei app/Support/Diagnose/Checks/ManagedBlocks.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/ManagedBlocks.php'
+s = open(p, encoding='utf-8').read()
+alt = """            array_values(array_filter($wanted, static fn (string $line): bool => ! isset($inManaged[$line]))),"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            [],""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/ManagedBlocks.php "Abgleich nur in eine Richtung" &&
+pruefe "Abgleich nur in eine Richtung" \
+  ManagedBlockDriftTest::test_a_line_from_the_inventory_that_is_gone_is_named failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
+
+echo
+echo "== ManagedBlockDriftTest: je Zeile ein Befund statt je Art =="
+#
+# Die Kennung ist check+subject+reason. Drei fremde Zeilen ergaeben dreimal
+# dieselbe Kennung — und damit eine Zeile, in der nur die letzte steht.
+vorher_datei app/Support/Diagnose/Checks/ManagedBlocks.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/ManagedBlocks.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if ($foreign !== []) {
+            $findings[] = self::finding($path, 'foreign_line', self::wortlaut('Nicht aus dem Bestand', $foreign));
+        }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        foreach ($foreign as $line) {
+            $findings[] = self::finding($path, 'foreign_line', $line);
+        }"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/ManagedBlocks.php "je Zeile ein Befund" &&
+pruefe "je Zeile ein Befund" \
+  ManagedBlockDriftTest::test_three_foreign_lines_are_one_finding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
+
+echo
+echo "== ManagedBlockDriftTest: der fehlende Block wird auch ohne Bestand gemeldet =="
+#
+# Ein Server ohne Fernzugriff und ohne SFTP-Schluessel hat keinen Bereich in
+# diesen Dateien. Jede Nacht eine Zeile darueber ist die Falle aus docs/98 §4.
+vorher_datei app/Support/Diagnose/Checks/ManagedBlocks.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/ManagedBlocks.php'
+s = open(p, encoding='utf-8').read()
+alt = """            return $missing === []
+                ? []
+                : [self::finding($path, 'block_missing', self::wortlaut('Im Bestand stehen', $missing))];"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """            return [self::finding($path, 'block_missing', self::wortlaut('Im Bestand stehen', $missing))];"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/ManagedBlocks.php "fehlender Block ohne Bestand" &&
+pruefe "fehlender Block ohne Bestand" \
+  ManagedBlockDriftTest::test_no_block_and_nothing_wanted_is_not_a_finding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
+
+echo
+echo "== ManagedBlockDriftTest: der Sollzustand wird nachgebaut =="
+#
+# SshdConfig::lines() baut genau die Zeilen, die sftp.access schreiben wuerde.
+# Wer sie hier nachschreibt, hat eine zweite Fassung — und die veraltet.
+vorher_datei app/Support/Diagnose/Checks/ManagedBlocks.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/ManagedBlocks.php'
+s = open(p, encoding='utf-8').read()
+alt = """            SystemDiagnose::ROLE_SSHD => self::compare($managed, SshdConfig::lines($this->sftp->accesses())),"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """            SystemDiagnose::ROLE_SSHD => self::compare($managed, ['Match User p1000', 'ChrootDirectory /var/www/vhosts']),"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/ManagedBlocks.php "Sollzustand nachgebaut" &&
+pruefe "Sollzustand nachgebaut" \
+  ManagedBlockDriftTest::test_the_desired_state_comes_from_the_template failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
+
+echo
+echo "== ManagedBlockDriftTest: eine zweite Pruefung schreibt block.integrity =="
+#
+# FindingLog::replace() ersetzt alle Zeilen einer Pruefung — die zweite loeschte
+# die Befunde der ersten, und welche zuletzt liefe, entschiede die Reihenfolge.
+vorher_datei app/Support/Diagnose/Checks/Orphans.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Orphans.php'
+s = open(p, encoding='utf-8').read()
+alt = """    public function writes(): array
+    {
+        return [FindingCheck::OrphanRow];
+    }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """    public function writes(): array
+    {
+        return [FindingCheck::OrphanRow, FindingCheck::BlockIntegrity];
+    }"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Orphans.php "zweiter Schreiber" &&
+pruefe "zweiter Schreiber" \
+  ManagedBlockDriftTest::test_exactly_one_check_writes_the_block_integrity failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
+
+echo
+echo "== DiagnoseSeamTest: ein sprachloser Grund steht wieder in der Ausnahmeliste =="
+#
+# Die Liste ist leer, und das ist eine Aussage. Ein Eintrag darin, dessen Grund
+# einen Sprecher hat, ist genau der tote Eintrag, den sie verhindern soll.
+vorher_datei tests/Unit/DiagnoseSeamTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DiagnoseSeamTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """    private const SPRACHLOS = [];"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """    private const SPRACHLOS = ['block.integrity/foreign_line' => 'veraltet'];"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Unit/DiagnoseSeamTest.php "veralteter Eintrag in SPRACHLOS" &&
+pruefe "veralteter Eintrag in SPRACHLOS" \
+  DiagnoseSeamTest::test_every_reason_in_the_catalogue_has_a_speaker failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
+
+echo
+echo "== ManagedBlockDriftTest: die Rolle wird am Pfad geraten =="
+#
+# pg_hba.conf liegt nicht ueberall gleich. Ein Vergleich am Dateinamen taete bei
+# der ersten Distribution mit anderem Ablageort still das Falsche.
+vorher_datei app/Support/Diagnose/Checks/ManagedBlocks.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/ManagedBlocks.php'
+s = open(p, encoding='utf-8').read()
+alt = """            SystemDiagnose::ROLE_HBA => [$this->remote->orphans($managed), $this->remote->missing($managed)],"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """            'pg_hba.conf' => [$this->remote->orphans($managed), $this->remote->missing($managed)],"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/ManagedBlocks.php "Rolle am Pfad geraten" &&
+pruefe "Rolle am Pfad geraten" \
+  ManagedBlockDriftTest::test_the_roles_are_the_same_words_on_both_sides failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
+
+echo
+echo "== DiagnoseWriteTest: die neue Pruefung steht nicht im Wachbereich =="
+vorher_datei tests/Unit/DiagnoseWriteTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DiagnoseWriteTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $root.'/app/Support/Diagnose/Checks/ManagedBlocks.php',
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei tests/Unit/DiagnoseWriteTest.php "ManagedBlocks nicht im Wachbereich" &&
+pruefe "ManagedBlocks nicht im Wachbereich" \
+  DiagnoseWriteTest::test_no_diagnose_file_writes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseWriteTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

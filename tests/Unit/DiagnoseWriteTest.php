@@ -56,6 +56,7 @@ final class DiagnoseWriteTest extends TestCase
             $root.'/app/Support/Diagnose/Checks/Certificates.php',
             $root.'/app/Support/Diagnose/Checks/SystemUsers.php',
             $root.'/app/Support/Diagnose/Checks/Orphans.php',
+            $root.'/app/Support/Diagnose/Checks/ManagedBlocks.php',
             $root.'/app/Support/Diagnose/LocalHost.php',
             $root.'/app/Support/Diagnose/TlsWire.php',
         ];
@@ -84,7 +85,7 @@ final class DiagnoseWriteTest extends TestCase
             }
         }
 
-        $this->assertSame(8, $geprueft);
+        $this->assertSame(9, $geprueft);
     }
 
     /**

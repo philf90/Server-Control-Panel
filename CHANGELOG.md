@@ -24045,6 +24045,80 @@ Vier Wächter, vierzehn Brüche. `Certificate::nameCovers()` und
 `Lifecycle::userName()` sind aus ihren Klassen herausgezogen, damit die
 Diagnose dieselbe Regel benutzt und keine zweite schreibt.
 
+### A10 Schritt 5b — was in den Marken steht, und was dort stehen sollte
+
+`docs/98 §3 C` stellt drei Fragen an einen verwalteten Bereich. Zwei
+beantwortet der Agent seit Schritt 2: Steht das Markenpaar vollständig da, und
+steht es genau einmal da. Die dritte ist die, für die es die Prüfung eigentlich
+gibt — **stimmen die Zeilen mit dem Sollzustand?**
+
+> **Eine fremde Zeile innerhalb der Marken kommt heute als unsere zurück.**
+> (`docs/81 §2.3o` M16)
+
+Ein `host all all 0.0.0.0/0 trust` in `pg_hba.conf` liest sich damit als Zeile
+des Panels und öffnet jede Datenbank dieses Servers für jeden.
+
+**Sie fiel zwischen zwei Schritte, weil sie beides braucht.** Die Zeilen aus
+der Datei kennt nur der Agent — `pg_hba.conf` ist `0640 postgres:postgres`. Den
+Sollzustand kennt nur das Panel. Schritt 3 hatte das eine, Schritt 5 das
+andere, und in `docs/98 §8` stand sie in keinem von beiden; drei Gründe lagen
+seit dem 2. September ohne Sprecher im Katalog.
+
+**Der Agent wirft seine Zeilen nicht mehr weg.** `ManagedBlock::inspect()`
+liest sie ohnehin; `system.diagnose` gibt sie neben den Befunden heraus, je
+Datei mit ihrer **Rolle** — `pg_hba.conf` liegt nicht auf jeder Distribution am
+selben Ort, und ein Vergleich am Dateinamen täte beim ersten anderen Ablageort
+still das Falsche. Eine Datei, die nicht zu lesen war, steht nicht darin: Sonst
+läse das Panel eine leere Zeilenliste als „der Block ist leer" und meldete jede
+Regel des Bestands als fehlend — aus „nicht gemessen" würde ein Befund.
+
+**Der Sollzustand wird nicht nachgebaut.** Für `pg_hba.conf` fragt die Prüfung
+`RemoteAccess::orphans()` und `::missing()` — dieselben Methoden, die
+`srvpanel db` seit P5b benutzt. Für `sshd_config` baut `SshdConfig::lines()` aus
+den Zugängen genau die Zeilen, die `sftp.access` schreiben würde. Verglichen
+wird also das Erzeugte mit dem Dastehenden.
+
+> **Ein Sollzustand, den man für den Vergleich neu formuliert, ist eine zweite
+> Fassung — und die zweite ist die, die veraltet.**
+
+**Und beide Richtungen, weil das dieses Projekt schon einmal gekostet hat.**
+Bis zum 11. August 2026 sah der Abgleich in `srvpanel db` nur Zeilen ohne
+Bestand; die andere Hälfte fand der Abnahmelauf: Ein gescheiterter
+Schreibvorgang liess seine Zeile im Bestand stehen, das Panel zeigte
+„erreichbar von …", und in der Datei stand nichts.
+
+**Eine Prüfung hat genau einen Schreiber, und das ist der Grund für den
+Zuschnitt.** `FindingLog::replace()` ersetzt alle Zeilen einer Prüfung — was
+der Lauf nicht mehr nennt, ist behoben. Zwei Klassen, die `block.integrity`
+schrieben, löschten einander die Befunde weg, und welche zuletzt liefe,
+entschiede die Reihenfolge des Nachtlaufs. Deshalb reicht `ManagedBlocks` die
+Befunde des Agenten zur Form durch, statt sie ein zweites Mal zu fällen, und
+schreibt beides in einem Zug.
+
+**Ein Befund je Art und nicht je Zeile.** Die Kennung ist
+`check`+`subject`+`reason`; drei fremde Zeilen in einer Datei sind ein Schaden
+und keine drei. Welche es sind, steht im Wortlaut.
+
+**Und ein Eingriff aus Schritt 5 ist mit entfernt worden.** Er gab
+`foreign_line` einen zweiten Sprecher und erwartete, dass der Wächter das
+meldet — weil der Grund in der Ausnahmeliste stand. Seit 5b hat er einen
+echten, und die Liste ist leer.
+
+> **Ein Bruch, dessen Voraussetzung wegfällt, wird nicht falsch — er wird
+> wirkungslos.** Seinen Fall prüft jetzt ein Eingriff von der anderen Seite:
+> ein Eintrag in der Ausnahmeliste, dessen Grund einen Sprecher hat.
+
+**Und `system.diagnose` steht nicht mehr in der Liste der ungerufenen
+Operationen.** Der Eintrag war auf Schritt 6 datiert; erreicht hat den Namen
+5b. `AgentOperationReachTest` hat das selbst eingefordert, in dem Augenblick, in
+dem `app/` ihn zum ersten Mal nennt.
+
+> **Ein datierter Eintrag, der sagt, wann er verschwindet, muss nicht raten —
+> der Wächter merkt es.**
+
+Ein Wächter, neun Brüche. PHPStan hat am Entwurf drei nicht mitgezogene
+Typangaben gefunden — dort, wo er in diesem Repo voll wirksam ist.
+
 ### Die Kommandozeile führt die Sprache der Oberfläche nicht
 
 Entschieden vom Betreiber am 1. September 2026, `docs/19 §2.7`: `srvpanel …`

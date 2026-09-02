@@ -1339,7 +1339,11 @@ deklariert einen Namen, der der Basisklasse gehört — er spiegelt deren
 `<style>`-Block einer `.vue` steht auf oberster Ebene und nicht im
 Vorlagenblock, wo der Übersetzer ihn wegwirft — die Regel, die
 `ClassReachTest` nicht halten konnte, weil er eine Zeichenkette suchte statt
-eines Blocks) und `UnitVerdictTest` (ein Timer ohne Termin ist **ein** Befund
+eines Blocks) und `ManagedBlockDriftTest` (die fremde Zeile in einem
+verwalteten Bereich wird von unserer unterschieden, **in beide Richtungen** —
+ein Befund je Art und nicht je Zeile, der Sollzustand kommt aus der Vorlage und
+wird nicht nachgebaut, und genau **eine** Prüfung schreibt `block.integrity`,
+weil `replace()` alle Zeilen einer Prüfung ersetzt) und `UnitVerdictTest` (ein Timer ohne Termin ist **ein** Befund
 und nicht zwei; über die Anwesenheit **fremder** Units sagt die Diagnose nichts,
 weil `Catalog::pick()` auf den ersten Kandidaten zurückfällt — dazu ein
 Schnappschuss von `rang()`, damit Seite und Nachtlauf nicht unbemerkt

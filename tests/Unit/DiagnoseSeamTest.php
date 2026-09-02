@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Enums\FindingCheck;
 use App\Support\Diagnose\Checks\Certificates;
+use App\Support\Diagnose\Checks\ManagedBlocks;
 use App\Support\Diagnose\Checks\Orphans;
 use App\Support\Diagnose\Checks\SystemUsers;
 use App\Support\Diagnose\Checks\Units;
@@ -153,6 +154,7 @@ final class DiagnoseSeamTest extends TestCase
     private const PANEL_REASONS = [
         'Units' => Units::REASONS,
         'Certificates' => Certificates::REASONS,
+        'ManagedBlocks' => ManagedBlocks::REASONS,
         'SystemUsers' => SystemUsers::REASONS,
         'Orphans' => Orphans::REASONS,
     ];
@@ -160,27 +162,18 @@ final class DiagnoseSeamTest extends TestCase
     /**
      * Gründe, die es gibt und die noch niemand ausspricht — mit Datum und Grund.
      *
-     * **Alle drei gehören zu `docs/98 §3 C` Frage 3**, dem Vergleich eines
-     * verwalteten Bereichs mit dem Sollzustand. Er braucht beides: die Zeilen
-     * aus der Datei (die kennt nur der Agent — `pg_hba.conf` ist `0640
-     * postgres:postgres`) und den Sollzustand (den kennt nur das Panel —
-     * `RemoteAccess::orphans()`, `SshdConfig::lines()`). Damit passt er weder in
-     * Schritt 3 noch in Schritt 5, und `docs/98 §8` führt ihn in keinem von
-     * beiden.
-     *
-     * Der Kopf von `ManagedBlockIntegrityTest` nannte dafür Schritt 5 — das war
-     * eine Verortung an der Frage „wer kennt den Sollzustand" und übersah, dass
-     * die Zeilen aus dem Agenten kommen müssen.
+     * **Leer, und das ist eine Aussage.** Hier standen bis zum 2. September 2026
+     * die drei Gründe von `docs/98 §3 C` Frage 3; Schritt 5b hat sie
+     * ausgesprochen. Die Liste bleibt stehen, weil der nächste Grund ohne
+     * Sprecher wieder einen Ort braucht — und weil sie zeigt, dass ein leerer
+     * Eintrag hier eine Entscheidung ist und kein Vergessen.
      *
      * > **Ein Eintrag, der auf einen Schritt zeigt, wird falsch, sobald der
-     * > Schritt die Voraussetzung nicht mitbringt.**
+     * > Schritt die Voraussetzung nicht mitbringt.** Der Eintrag nannte einmal
+     * > Schritt 5 — eine Verortung an der halben Frage: Den Sollzustand kennt
+     * > das Panel, die Zeilen der Datei kennt nur der Agent.
      *
-     * Wer sie baut, nimmt die Einträge hier heraus — dieser Wächter besteht
-     * darauf.
+     * @var array<string, string>
      */
-    private const SPRACHLOS = [
-        'block.integrity/block_missing' => '2026-09-02: docs/98 §3 C Frage 3',
-        'block.integrity/foreign_line' => '2026-09-02: docs/98 §3 C Frage 3',
-        'block.integrity/line_missing' => '2026-09-02: docs/98 §3 C Frage 3',
-    ];
+    private const SPRACHLOS = [];
 }

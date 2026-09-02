@@ -85,6 +85,20 @@ final class SystemDiagnose implements Op
      */
     public const MAX_SUBJECTS = 2048;
 
+    /**
+     * Wozu ein verwalteter Bereich gehört.
+     *
+     * Der Gegenstand eines Befundes bleibt der **Pfad** — den zeigt die Seite.
+     * Die Rolle sagt dem Panel, welcher Sollzustand für diese Datei gilt, und
+     * ist damit die Antwort auf eine Frage, die es sich sonst am Pfad
+     * zusammenreimen müsste. `pg_hba.conf` liegt nicht überall gleich; ein
+     * Vergleich am Dateinamen wäre eine Regel, die bei der ersten Distribution
+     * mit anderem Ablageort still das Falsche tut.
+     */
+    public const ROLE_SSHD = 'sshd';
+
+    public const ROLE_HBA = 'pg_hba';
+
     /** Der Gegenstand von `web.config` — die Datei, die `nginx -t` ohne `-c` liest. */
     public const NGINX_CONF = '/etc/nginx/nginx.conf';
 
@@ -104,7 +118,10 @@ final class SystemDiagnose implements Op
     }
 
     /**
-     * @return array{checks: array<string, list<array{subject: string, reason: string, detail: null|string}>>}
+     * @return array{
+     *     checks: array<string, list<array{subject: string, reason: string, detail: null|string}>>,
+     *     managed: list<array{path: string, role: string, present: bool, lines: list<string>}>,
+     * }
      */
     public function execute(array $args, Context $context): array
     {
@@ -115,9 +132,24 @@ final class SystemDiagnose implements Op
         }
 
         $checks = [];
+        $managed = [];
 
         foreach (array_values(array_unique($wanted)) as $check) {
             $key = Guard::enum($check, self::CHECKS, 'checks');
+
+            /*
+             * **Diese eine Prüfung hat zwei Ausgänge, und deshalb steht sie
+             * nicht im `match`.** Ihre Befunde sagen, ob die Marken heil sind;
+             * ihre Zeilen sagen, was darin steht — und ob das richtig ist,
+             * entscheidet der Sollzustand, den nur das Panel kennt. Beides in
+             * einen Rückgabewert zu pressen hiesse, die Form aller anderen
+             * Prüfungen für eine zu verbiegen.
+             */
+            if ($key === 'block.integrity') {
+                [$checks[$key], $managed] = $this->blocks($context);
+
+                continue;
+            }
 
             $checks[$key] = match ($key) {
                 'web.config' => $this->webConfig($context),
@@ -125,7 +157,6 @@ final class SystemDiagnose implements Op
                 'ssh.config' => $this->sshConfig($context),
                 'web.file' => $this->webFiles($args),
                 'php.file' => $this->phpFiles($args),
-                'block.integrity' => $this->blocks($context),
                 'quota.state' => $this->quota($context),
                 'apt.key' => $this->aptKey($context),
                 // Unerreichbar — Guard::enum() lässt nur CHECKS durch. Der Zweig
@@ -135,7 +166,7 @@ final class SystemDiagnose implements Op
             };
         }
 
-        return ['checks' => $checks];
+        return ['checks' => $checks, 'managed' => $managed];
     }
 
     // ------------------------------------------------------------------ A
@@ -335,13 +366,17 @@ final class SystemDiagnose implements Op
      * **Gelesen wird unter der Sperre**, wie jede Leserin dieser Klasse — die
      * Sperre liegt neben der Datei und schreibt nichts hinein.
      *
-     * @return list<array{subject: string, reason: string, detail: null|string}>
+     * @return array{
+     *     0: list<array{subject: string, reason: string, detail: null|string}>,
+     *     1: list<array{path: string, role: string, present: bool, lines: list<string>}>,
+     * }
      */
     private function blocks(Context $context): array
     {
         $findings = [];
+        $managed = [];
 
-        foreach ($this->managedFiles($context) as $path => $error) {
+        foreach ($this->managedFiles($context) as [$path, $role, $error]) {
             if ($error !== null) {
                 $findings[] = $this->finding($path, Verdict::UNREACHABLE, $error);
 
@@ -365,9 +400,30 @@ final class SystemDiagnose implements Op
                     $inspected['end_line'] === null ? '–' : (string) $inspected['end_line'],
                 ));
             }
+
+            /*
+             * **Die Zeilen gehen mit, und nur die gelesenen.**
+             *
+             * Was in den Marken steht, ist erst dann ein Befund, wenn jemand
+             * weiss, was dort stehen *sollte* — und das weiss nur das Panel
+             * (`docs/98 §3 C` Frage 3). Der Agent liest die Zeilen ohnehin;
+             * sie wegzuwerfen zwänge das Panel, die Datei ein zweites Mal
+             * lesen zu lassen, und `pg_hba.conf` ist `0640 postgres:postgres`.
+             *
+             * **Eine Datei, die nicht zu lesen war, steht hier nicht.** Sonst
+             * läse das Panel eine leere Zeilenliste als „der Block ist leer"
+             * und meldete jede Regel des Bestands als fehlend — aus „nicht
+             * gemessen" würde ein Befund.
+             */
+            $managed[] = [
+                'path' => $path,
+                'role' => $role,
+                'present' => $inspected['state'] !== 'absent',
+                'lines' => $inspected['lines'],
+            ];
         }
 
-        return $findings;
+        return [$findings, $managed];
     }
 
     /**
@@ -380,20 +436,25 @@ final class SystemDiagnose implements Op
      * Gegenstand, über den etwas zu sagen wäre, und bekäme sonst jede Nacht
      * ein `unreachable` für eine Datei, die es zu Recht nicht gibt.
      *
-     * @return array<string, null|string>
+     * **Eine Liste und keine Zuordnung Pfad → Fehler.** Seit Schritt 5b trägt
+     * jeder Eintrag seine Rolle mit, damit das Panel den Sollzustand nicht am
+     * Dateinamen erraten muss; ein Pfad als Schlüssel liesse dafür keinen
+     * Platz, ohne eine zweite Liste danebenzustellen.
+     *
+     * @return list<array{0: string, 1: string, 2: null|string}> je Datei Pfad, Rolle und der Grund, warum sie nicht zu haben war
      */
     private function managedFiles(Context $context): array
     {
-        $files = [SshdConfig::FILE => null];
+        $files = [[SshdConfig::FILE, self::ROLE_SSHD, null]];
 
         if ($this->server->primaryCluster($context) === null) {
             return $files;
         }
 
         try {
-            $files[$this->server->hbaFile($context, $this->session)] = null;
+            $files[] = [$this->server->hbaFile($context, $this->session), self::ROLE_HBA, null];
         } catch (AgentException $error) {
-            $files['pg_hba.conf'] = $error->getMessage();
+            $files[] = ['pg_hba.conf', self::ROLE_HBA, $error->getMessage()];
         }
 
         return $files;

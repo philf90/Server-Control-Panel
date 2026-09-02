@@ -307,10 +307,6 @@ final class AgentOperationReachTest extends TestCase
             .'Sitzung mit einem `Account`), die Operation ist also überflüssig geworden statt '
             .'vergessen. Ob sie angeschlossen oder entfernt wird, ist eine Entscheidung mit '
             .'TLS-Folgen und gehört dem Betreiber.',
-        'system.diagnose' => 'Gebaut am 2. September 2026 als Schritt 3 von A10 (`docs/98 §8`). Der '
-            .'Rufer ist das Kommando aus Schritt 6 und die Seite aus Schritt 7; bis dahin ruft '
-            .'`app/` den Namen nirgends. Dieser Eintrag geht mit Schritt 6 — und dieser Wächter '
-            .'fordert das selbst ein, sobald der Name in `app/` steht.',
     ];
 
     public function test_every_operation_the_panel_sends_exists_in_the_agent(): void

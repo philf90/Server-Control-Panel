@@ -498,6 +498,18 @@ Agent-Aufrufe, die gar keine Vorgangszeile anlegen.
 - **Das Löschen von Adminkonten** (§1.1) — solange das Protokoll den Handelnden
   über `nullOnDelete()` verliert, ist Sperren die ehrlichere Antwort. Wer es
   später bauen will, löst zuerst die Frage, wie der Name im Protokoll bleibt.
+
+  **Die Frage ist am 2. September 2026 beantwortet, und der Plan steht als
+  `docs/98`**: eine Abschrift des Namens auf der Protokollzeile selbst, wie
+  `subscription_name` seit `docs/35`. Diese Zeile hier gilt, bis Schritt 5
+  jenes Plans gebaut ist — **gebaut ist nichts**.
+
+  Nachgemessen wurde dabei, dass dieser Abschnitt eine Auskunft schützt, die
+  keine Oberfläche als Name anzeigt: `/audit` hat gar keine Spalte dafür, der
+  CSV-Export schreibt die nackte Kennung.
+
+  > **Ein Verbot, das eine Auskunft schützt, die niemand anzeigt, schützt eine
+  > Absicht und keine Auskunft.**
 - **A3, A4 und A7** haben weiterhin keine Stufe (`docs/20 §9`). A9 ist mit
   dieser Entscheidung aus dieser Gruppe herausgelöst.
 - **Ob zwei Rollen genügen** (§4). Die Entscheidung ist getroffen und

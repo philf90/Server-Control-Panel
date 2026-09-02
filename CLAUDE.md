@@ -1785,6 +1785,53 @@ Protokolls steht bewusst **nicht** im Dokument — `docs/81` hat einmal eine
 genannt, die einem anderen Dokument gehörte, und `DocLinkTest` konnte das nicht
 sehen.
 
+Und **`98` das Löschen von Adminkonten** — ausgeschrieben am 2. September 2026
+auf Frage des Betreibers, **gebaut ist nichts**. Er löst Entscheidung 1 aus
+`docs/82` ab: Konten werden nicht gesperrt, sondern gelöscht, und was sie getan
+haben, bleibt als **Abschrift des Namens auf der Protokollzeile** stehen — wie
+`subscription_name` seit `docs/35`. §1 ist der gemessene Bestand (fünf Verweise
+auf ein Konto, davon einer **ohne Fremdschlüssel**: `sessions.user_id`), §2 die
+vier Entscheidungen des Betreibers, §3 der Bau, §6 das Abnahmekriterium mit elf
+Punkten, §7 die neun Schritte, §8 die Wächter und §9 was benannt offen bleibt.
+
+**Zwei Funde tragen den Plan.** Der erste macht den bestehenden Bann schwächer,
+als er beim Treffen war: `/audit` hat für den Handelnden **gar keine Spalte**,
+und der CSV-Export schreibt unter „Konto" die nackte Kennung. Der Bann aus
+`docs/82 §1.1` schützt damit eine Auskunft, die niemand sieht.
+
+> **Ein Verbot, das eine Auskunft schützt, die niemand anzeigt, schützt eine
+> Absicht und keine Auskunft.**
+
+> **Löschen und Vergessen sind zwei Dinge. Die Zeile darf verschwinden; was sie
+> getan hat, darf es nicht.**
+
+Der zweite entscheidet die Bauart und schliesst den naheliegenden Entwurf aus —
+alle Zeilen eines gelöschten Kontos mit einem Sammelnamen wie „gelöschter
+Benutzer" zu versehen. **`account_id = NULL` trägt hier schon eine Bedeutung:**
+`App\Console\Commands\Access` schreibt seinen Eintrag ohne Konto und begründet
+es daneben (*„Auf der Kommandozeile ist niemand angemeldet; ein Eintrag, der
+sich einen Handelnden ausdenkt, wäre schlechter als einer ohne"*), und
+`Operations::dispatch()` tut dasselbe für jede Automatik. Ein Sammelname
+beschriftete damit jeden Cron-Lauf als gelöschten Benutzer.
+
+> **Eine Null, die schon eine Bedeutung trägt, kann keine zweite bekommen — die
+> beiden Fälle sehen danach gleich aus.**
+
+Als **Anzeige** ist „gelöscht" trotzdem richtig, und genau dafür lohnt die
+Spalte: Kennung leer **und** Abschrift leer heisst „System", Kennung leer und
+Abschrift gesetzt heisst „Anna Berger (gelöscht)". Ohne die Spalte fallen beide
+Zustände zusammen.
+
+**Der letzte Betreiber braucht dafür nichts Neues.** `LastOperator::permits()`
+fragt seit A9 nach dem **Zielzustand** und nennt das Löschen im eigenen Kopf als
+den dritten der drei Wege; es ist ein Aufruf und kein Mechanismus. Ein
+„initialer Betreiber" wird ausdrücklich **nicht** gebaut — die Eigenschaft, die
+man will, heisst nicht „dieses Konto überlebt", sondern „mindestens ein aktiver
+Betreiber überlebt", und die übersteht Umbenennung, Übergabe und Weggang. Die
+Selbstlöschung ist verboten und gehört **nicht** in `LastOperator`: Wer sich als
+Betreiber Nr. 2 von 2 löscht, sperrt niemanden aus und schiesst sich trotzdem
+ins Knie.
+
 Und **`97` die Übergabe an A10** — der Stand von P7b (vier abgenommen, fünf
 offen), was A10 ist, **was vor dem Plan zu messen ist**, die vier frischen
 Prüfmittel-Fallen vom 1./2. September, der Zustand von `cloudsrv24` samt dem,

@@ -2805,8 +2805,18 @@ Testen berücksichtigen:
     ein eigener Regelsatz; wer dort alles anschaltet, bekommt Meldungen zu
     Stellen, die Pint in Ruhe lässt (`) {}` an einem leeren Konstruktor zum
     Beispiel).
-  - **shellcheck ist hier installiert, und zwar ohne Zutun** — `shellcheck
-    0.9.0` liegt als `/usr/bin/shellcheck`. Hier stand dazu nichts, und das hat
+  - **shellcheck holt man sich, und es geht in einem Aufruf.** Hier stand seit
+    dem 1. September „ist hier installiert, und zwar ohne Zutun"; am
+    2. September lag es in einem frischen Container **nicht** (`which
+    shellcheck` leer). `apt-get install -y shellcheck` holt dieselbe Fassung
+    0.9.0 aus dem Ubuntu-Archiv, in Sekunden.
+
+    > **Eine Aussage über den Auslieferungszustand eines Containers gilt für
+    > den Container, in dem sie gemessen wurde.** Das ist derselbe Satz wie bei
+    > nginx und MariaDB, nur andersherum: Dort stand „gibt es nicht" für etwas,
+    > das man holen kann, hier stand „ist da" für etwas, das man holen muss.
+
+    Die Fassung 0.9.0 lag hier ursprünglich als `/usr/bin/shellcheck`. Das hat
     am 1. September 2026 eine CI-Runde gekostet: Der Zweig kam mit rotem
     `Shell-Skripte` zurück (zweimal `SC2317` in `packaging/bin/apt-run`),
     nachdem vor dem Push nur `bash -n` gefahren worden war. Der Aufruf steht

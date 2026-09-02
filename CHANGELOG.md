@@ -23701,6 +23701,80 @@ jede Prüfung auf „fängt mit einem Schrägstrich an". Zwei weitere Formen hat
 Spalte raus, samt der drei Gegenrichtungen. Was kein Test halten kann — dass das
 Ereignis im Browser wirklich feuert — steht als Frage in `docs/94 §10`.
 
+### A10 Schritt 1 — die Form eines Befundes, und warum sie zuerst kommt
+
+Die Bestandsdiagnose (`docs/98`) fängt nicht mit einer Seite an, sondern mit
+der Frage, was ein Befund überhaupt ist. Sie lässt sich hinterher nicht billig
+ändern: An ihr hängt, ob die Seite eine Liste zeigt oder Prosa, und ob ein
+Nachtlauf „dasselbe wie gestern" sagen kann.
+
+**Die Messrunde davor** (`docs/81 §2.3o`) hat sie entschieden. Jede
+`[emerg]`-Zeile von nginx trägt Datum **und Prozessnummer**, jede Zeile von
+php-fpm ein Datum; zwei Läufe an derselben kaputten Datei ergeben zwei Texte.
+
+> **Ein Befund braucht eine Kennung, die nicht sein Text ist.**
+
+Die Kennung ist deshalb `check` + `subject` + `reason`, und die Datenbank hält
+sie über einen `unique`-Index — nicht der Code, der schreibt. Sonst hinge
+Punkt 8 des Abnahmekriteriums daran, dass niemand daneben eine zweite
+Schreibstelle baut.
+
+**Vier Zustände und nicht drei.** `unknown` heisst „die Messung hat nichts
+ergeben" und nicht „es ist nichts"; das Vorbild ist `DnsRecordState::Unreachable`
+aus P7. Antwortet der Agent nicht, steht jede Prüfung auf `unknown` und keine
+auf `ok` — ein Diagnoselauf, der bei totem Agenten Entwarnung gibt, ist
+schlimmer als keiner. Das ist derselbe Fehler wie das
+`catch (Throwable) { return []; }` aus `docs/44`, nur eine Stufe früher.
+
+**Die Schwere steht nicht in der Tabelle.** Sie folgt aus `check` und `reason`
+(`FindingCheck::state()`), und eine Spalte daneben wäre die zweite Fassung
+derselben Regel. Wer einen Fall findet, in dem derselbe Grund verschieden
+schwer wiegt, gibt ihm einen eigenen Grund:
+
+> **Wenn zwei Fälle denselben Grund und verschiedene Schwere haben, sind es
+> zwei Gründe.**
+
+**Und der erste Wurf des Schreibwegs war falsch, mit einem Kommentar daneben,
+der das Gegenteil behauptete.** `FindingLog::record()` benutzte
+`updateOrCreate($schlüssel, $werte)` mit `first_seen_at` in `$werte` — Laravel
+nimmt diese Liste für **beide** Wege (`firstOrNew()->fill()->save()`), also
+hätte jeder Lauf das „steht seit" auf heute gezogen, jede Nacht aufs Neue. Der
+Kommentar sagte, der Wert wirke „nur beim Anlegen".
+
+> **Ein Kommentar, der eine Zusage des Frameworks behauptet, ist keine Prüfung
+> — er ist eine Zeile, die aussieht wie eine.**
+
+Gefunden hat es der Wächter beim ersten Lauf, und zwar nur, weil er die
+**Wirkung** über zwei Läufe misst und nicht den Quelltext. Ein Wächter, der
+nachsähe, ob `detail` in der Schlüsselliste steht, wäre grün geblieben.
+
+**Neu:** `App\Enums\FindingState` (vier Zustände mit Marke, Rang und Hinweis),
+`App\Enums\FindingCheck` (vierzehn Prüfungen mit ihren Gründen, je Grund eine
+Schwere und ein Satz in unserer Formulierung), `App\Models\Finding`, die
+Tabelle `findings` und `App\Support\Diagnose\FindingLog` als einzige
+Schreibstelle. Dazu eine `FindingFactory` — `FactoryDefaultTest` hat sie
+eingefordert, und zwar zu Recht: Ein Modell mit einer Pflicht-Aufzählungsspalte
+und ohne Factory baut im Test eine Zeile, die es so nie gibt.
+
+**Die Tabelle trägt bewusst kein `subscription_id` und kein
+`BelongsToSubscription`.** Ein Befund gehört dem Server und keinem Kunden; die
+Grenze sitzt an der Route und nicht an der Abfrage. Das ist die Ausnahme von
+der dritten Grenze und steht deshalb ausgeschrieben in der Migration.
+
+**Drei Wächter, sechzehn Brüche, alle belegt.** `FindingIdentityTest` misst die
+Wirkung über zwei Nächte, `DiagnoseCatalogTest` hält den Katalog in beiden
+Richtungen (auch: welche Prüfung `unreachable` **nicht** führt, steht mit
+Begründung da), `FindingStateTest` hält die vier Zustände und dass die Tabelle
+keine Spalte für die Schwere hat — gelesen wird die Migration **ohne ihre
+Kommentare**, sonst fände er das Wort in der Zeile, die erklärt, warum es die
+Spalte nicht gibt.
+
+**Und einer der Wächter hat an einem richtigen Satz zugebissen.** Die Regel
+„kein Hinweis ausser dem von `ok` gibt Entwarnung" traf einen Satz, der die
+Wendung **verneinend** benutzte. Geändert wurde der Satz und nicht die Regel:
+
+> **Ein Wächter über Prosa prüft den Wortlaut und nicht die Aussage.**
+
 ### Die Kommandozeile führt die Sprache der Oberfläche nicht
 
 Entschieden vom Betreiber am 1. September 2026, `docs/19 §2.7`: `srvpanel …`

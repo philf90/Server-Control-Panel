@@ -375,7 +375,7 @@ noch gelesen wird.
 
 | | Was | Warum in dieser Reihenfolge |
 |---|---|---|
-| **1** | Der Befund als Form: Enum, Modell, Migration, die Kennung | alles andere hängt daran; die Form lässt sich später nicht billig ändern |
+| **1** | ~~Der Befund als Form: Enum, Modell, Migration, die Kennung~~ **gebaut am 2. September 2026** | alles andere hängt daran; die Form lässt sich später nicht billig ändern |
 | **2** | `ManagedBlock` bekommt seinen **lesenden** Integritätsblick | die eine Prüfung, die es heute nur im Schreibweg gibt (M15) |
 | **3** | Die Operation `system.diagnose` im Agenten: A, C, F, I | die Prüfungen, die Systemrechte brauchen |
 | **4** | B — die Dateien des Panels gegen die Zusagen ihrer Vorlage | der Punkt, der M3 beantwortet; Tiefe nach Frage 4 |
@@ -460,6 +460,10 @@ Falle aus §4 beschreibt.
 
 ### Frage 3 — Gehört die Frage an die Leitung in den Nachtlauf?
 
+> **Entschieden am 2. September 2026: c.** Beides nachts, die Leitung nur für
+> Domains, deren Datei `ok` ist. Der Betreiber hat die berichtigte Empfehlung
+> angenommen.
+
 Für Zertifikate (§3 E). Die Frage an die **Datei** ist billig und offline; die
 an die **Leitung** braucht SNI, eine Runde über das Netz je Domain und eine
 Frist, und wie lange sie an einer stillen Adresse steht, ist ungemessen (M19).
@@ -501,6 +505,9 @@ Pfad steht. `docs/78` hat den Satz dafür:
 
 ### Frage 4 — Wie tief prüft B die Dateien des Panels?
 
+> **Entschieden am 2. September 2026: b, zerlegt.** Gefragt wird an den Anfang
+> einer Anweisung und nicht an die Datei — der Grund ist M21.
+
 | | |
 |---|---|
 | **a** | **da und nicht leer** — fängt den gelöschten Vhost, nicht das fehlende Semikolon |
@@ -529,6 +536,9 @@ Das ist die Falle aus §4 in Reinform.
 
 ### Frage 5 — Wer sieht die Seite?
 
+> **Entschieden am 2. September 2026: b.** Der Administrator sieht die Liste,
+> der Betreiber zusätzlich `detail`.
+
 `detail` trägt den ungekürzten Wortlaut der Werkzeuge (§5.4).
 
 | | |
@@ -551,16 +561,24 @@ die Absicht; die Brüche kommen mit dem Bau in `tests/waechter-brechen.sh`.
 
 | Wächter | Regel |
 |---|---|
-| `FindingIdentityTest` | die Kennung ist `check`+`subject`+`reason` und enthält `detail` **nicht** — gemessen an der Wirkung: zwei Läufe mit verschiedenem Wortlaut ergeben eine Zeile |
-| `FindingStateTest` | vier Zustände, und ein nicht erreichbarer Agent ergibt `unknown` und nie `ok` — in beide Richtungen |
+| `FindingIdentityTest` | **gebaut** — die Kennung ist `check`+`subject`+`reason` und enthält `detail` **nicht**; gemessen an der Wirkung über zwei Läufe. Dazu: ein Ausfall löscht keinen Befund, ein behobener verschwindet, ein unbekannter Grund kommt nicht in die Datenbank, und der Wortlaut wird vor der Spalte gekürzt |
+| `FindingStateTest` | **gebaut** — vier Zustände, `unknown` trägt `neutral` und steht zwischen `warn` und `fail`, nur `ok` bleibt stumm, kein Hinweis ausser dem von `ok` gibt Entwarnung, und die Tabelle hat **keine** Spalte für die Schwere |
 | `ValidatorVerdictTest` | die drei Prüfer werden am **Rückgabewert** gewertet und nicht an `syntax is ok`; er sucht die Zeichenkette ausdrücklich als **verbotene** und streift Kommentare ab |
 | `ManagedBlockIntegrityTest` | der lesende Blick meldet `BEGIN` ohne `END`, den doppelten Block und die fremde Zeile — an den neun Formen aus M14 |
 | `SiteFileIntegrityTest` | die Zusagen der Vorlage werden am **Anfang einer Anweisung** geprüft und nicht als Zeichenkette — der Prüfkörper ist die Datei aus M3 Fall 2, in der `grep` grün und die Anweisung fort ist |
-| `DiagnoseCatalogTest` | jeder `check` hat eine Prüfung, jede Prüfung einen `check`, und jeder `reason` steht in der Liste seines `check` — beide Richtungen, weil ein toter Eintrag bei einer Umbenennung entsteht |
+| `DiagnoseCatalogTest` | **gebaut** — jede Prüfung kennt Gründe, jeder Grund trägt Schwere und Satz, `unreachable` ergibt überall `unknown`, und wer ihn **nicht** führt, steht mit Begründung da (beide Richtungen, weil ein toter Eintrag bei einer Umbenennung entsteht) |
 | `QuotaVerdictTest` | die dritte Zeile der Tabelle aus §3 F ist `fail` — gemessen an gebauten Prüfkörpern, nicht an erfundenen |
 | `DiagnoseWriteTest` | keine Prüfung schreibt: keine der beteiligten Klassen ruft `put`, `render`, `file_put_contents` oder eine mutierende Operation |
 | `OneshotDeadlineTest` | vorhanden — der neue Dienst kommt dazu |
 | `UnitCatalogTest` | vorhanden — die neue Unit steht im Katalog und im Paket |
+
+> **Nachgetragen am 2. September, beim Bauen.** `FindingLog` steht in dieser
+> Tabelle nicht als eigener Wächter, und das ist Absicht: Seine Regel — „derselbe
+> Schaden über zwei Nächte ergibt eine Zeile" — ist keine Eigenschaft seines
+> Quelltextes, sondern seiner Wirkung, und die misst `FindingIdentityTest`. Ein
+> zweiter Wächter über den Quelltext wäre genau der, der beim ersten Wurf grün
+> geblieben wäre: Dort stand ein `updateOrCreate`, das `first_seen_at` bei jedem
+> Lauf mitschrieb, und ein Kommentar daneben, der das Gegenteil behauptete.
 
 **Zwei davon sind die, die wirklich zubeissen müssen:** `FindingIdentityTest`,
 weil M9 sonst still zurückkommt, und `DiagnoseWriteTest`, weil §5.1 sonst eine

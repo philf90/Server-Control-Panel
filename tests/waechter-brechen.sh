@@ -21631,6 +21631,355 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
+echo "== FindingIdentityTest: first_seen_at bei jedem Lauf neu =="
+#
+# Die Kennung eines Befundes ist check+subject+reason. Bleibt first_seen_at
+# nicht stehen, zieht jeder Lauf das "steht seit" auf heute -- Punkt 8 des
+# Abnahmekriteriums scheitert genau an der Stelle, fuer die es ihn gibt.
+# Die erste Fassung hatte diesen Fehler: updateOrCreate nimmt seine zweite
+# Liste fuer beide Wege.
+vorher_datei app/Support/Diagnose/FindingLog.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/FindingLog.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if (! $finding->exists) {
+            $finding->first_seen_at = $measuredAt;
+        }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        $finding->first_seen_at = $measuredAt;""", 1))
+PY2
+griff_datei app/Support/Diagnose/FindingLog.php "steht seit wandert mit" &&
+pruefe "steht seit wandert mit" \
+  FindingIdentityTest::test_the_same_damage_over_two_nights_is_one_row failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
+
+echo
+echo "== FindingIdentityTest: der Wortlaut wird Teil der Kennung =="
+#
+# Jede [emerg]-Zeile von nginx traegt Datum und Prozessnummer, jede Zeile von
+# php-fpm ein Datum (docs/81 §2.3o M9). Gehoerte detail zur Kennung, ergaebe
+# derselbe Schaden jede Nacht eine neue Zeile.
+vorher_datei app/Support/Diagnose/FindingLog.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/FindingLog.php'
+s = open(p, encoding='utf-8').read()
+alt = """            'reason' => $reason,
+        ]);"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """            'reason' => $reason,
+            'detail' => $detail,
+        ]);"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/FindingLog.php "detail in der Kennung" &&
+pruefe "detail in der Kennung" \
+  FindingIdentityTest::test_the_same_damage_over_two_nights_is_one_row failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
+
+echo
+echo "== FindingIdentityTest: eine ausgefallene Pruefung loescht =="
+#
+# Die Haelfte, die still bricht. Ein Lauf, der bei einem Fehlschlag
+# "nichts gefunden" meldete, machte aus "nicht gemessen" ein "alles in
+# Ordnung" -- der Fehler aus docs/44 -- und mit ihm verschwaenden genau die
+# Befunde, die dann niemand mehr sieht.
+vorher_datei app/Support/Diagnose/FindingLog.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/FindingLog.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $this->record($check, $subject, FindingCheck::UNREACHABLE, $detail, $measuredAt);
+        }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = alt + """
+
+        $this->forgetMissing($check, array_map(
+            static fn (string $s): string => $s.'|'.FindingCheck::UNREACHABLE,
+            $subjects,
+        ));"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/FindingLog.php "Ausfall loescht Befunde" &&
+pruefe "Ausfall loescht Befunde" \
+  FindingIdentityTest::test_an_unreachable_check_removes_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
+
+echo
+echo "== FindingIdentityTest: ein unbekannter Grund kommt durch =="
+#
+# Der Grund kommt aus dem Code, der den Befund anlegt, und nie von aussen.
+# Ein unbekannter ist ein Programmierfehler und soll einer bleiben -- sonst
+# steht auf der Seite eine Zeile, zu der es keinen Satz gibt.
+vorher_datei app/Support/Diagnose/FindingLog.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/FindingLog.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $check->state($finding['reason']);\n"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Diagnose/FindingLog.php "unbekannter Grund durchgelassen" &&
+pruefe "unbekannter Grund durchgelassen" \
+  FindingIdentityTest::test_an_unknown_reason_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
+
+echo
+echo "== FindingIdentityTest: ein behobener Befund bleibt stehen =="
+#
+# Punkt 2 des Abnahmekriteriums: Nach dem Zurueckliegen ist der Befund im
+# uebernaechsten Lauf fort. Ohne das haeuft die Seite an, was einmal war.
+vorher_datei app/Support/Diagnose/FindingLog.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/FindingLog.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $this->forgetMissing($check, $seen);\n"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Diagnose/FindingLog.php "behobener Befund bleibt" &&
+pruefe "behobener Befund bleibt" \
+  FindingIdentityTest::test_what_a_run_no_longer_names_is_gone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
+
+echo
+echo "== FindingIdentityTest: der Wortlaut wird nicht gekuerzt =="
+#
+# docs/45: Die Begruendung passte nicht in ihre Spalte, die PDOException riss
+# den catch-Zweig mit, und der Vorgang meldete "vermutlich
+# Zeitueberschreitung". Ein Fehlerweg, der selbst fehlschlagen kann, ist
+# keiner.
+vorher_datei app/Models/Finding.php
+python3 - <<'PY2'
+p = 'app/Models/Finding.php'
+s = open(p, encoding='utf-8').read()
+alt = """return mb_strimwidth(trim($detail), 0, self::DETAIL_MAX, '…');"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """return trim($detail);""", 1))
+PY2
+griff_datei app/Models/Finding.php "Wortlaut ungekuerzt" &&
+pruefe "Wortlaut ungekuerzt" \
+  FindingIdentityTest::test_an_overlong_detail_is_cut_before_it_is_written failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
+
+echo
+echo "== DiagnoseCatalogTest: unreachable ergibt Ok =="
+#
+# Die Regel, an der alles haengt. Ein Diagnoselauf, der bei totem Agenten
+# Entwarnung gibt, ist schlimmer als keiner (docs/44).
+vorher_datei app/Enums/FindingCheck.php
+python3 - <<'PY2'
+p = 'app/Enums/FindingCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = """            self::UNREACHABLE => [
+                'state' => FindingState::Unknown,"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """            self::UNREACHABLE => [
+                'state' => FindingState::Ok,"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Enums/FindingCheck.php "unreachable ergibt Ok" &&
+pruefe "unreachable ergibt Ok" \
+  DiagnoseCatalogTest::test_unreachable_always_means_unknown failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
+
+echo
+echo "== DiagnoseCatalogTest: eine Pruefung verliert ihr unreachable =="
+#
+# Die Gegenrichtung. Ohne sie fiele eine neue Pruefung, die den Grund zu
+# tragen vergisst, niemandem auf -- sie meldete bei einem Ausfall nichts.
+vorher_datei app/Enums/FindingCheck.php
+python3 - <<'PY2'
+p = 'app/Enums/FindingCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = """                'text' => 'Der Signaturschlüssel läuft demnächst ab.',
+                ],
+                ...$unreachable,"""
+if s.count(alt) != 1:
+    alt = """                    'text' => 'Der Signaturschlüssel läuft demnächst ab.',
+                ],
+                ...$unreachable,"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace("""
+                ...$unreachable,""", ''), 1))
+PY2
+griff_datei app/Enums/FindingCheck.php "Pruefung ohne unreachable" &&
+pruefe "Pruefung ohne unreachable" \
+  DiagnoseCatalogTest::test_a_check_without_unreachable_is_named failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
+
+echo
+echo "== DiagnoseCatalogTest: ein Grund urteilt Ok =="
+#
+# Ein Befund ist der Ort, an dem etwas nicht stimmt. Ein Ok erzeugt keine
+# Zeile -- stuende es in der Liste, haette jemand eine Zeile gebaut, die auf
+# der Seite steht und nichts meldet.
+vorher_datei app/Enums/FindingCheck.php
+python3 - <<'PY2'
+p = 'app/Enums/FindingCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = """                'off' => [
+                    'state' => FindingState::Fail,"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """                'off' => [
+                    'state' => FindingState::Ok,"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Enums/FindingCheck.php "Grund urteilt Ok" &&
+pruefe "Grund urteilt Ok" \
+  DiagnoseCatalogTest::test_no_reason_judges_something_to_be_fine failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
+
+echo
+echo "== DiagnoseCatalogTest: ein Grund in deutscher Schreibweise =="
+#
+# Bezeichner sind englisch (docs/19 §4a), und der Schluessel steht im
+# unique-Index. Eine gemischte Schreibweise faellt sonst erst auf, wenn
+# jemand den Befund suchen will.
+vorher_datei app/Enums/FindingCheck.php
+python3 - <<'PY2'
+p = 'app/Enums/FindingCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = "'no_next' => ["
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'keinTermin' => [", 1))
+PY2
+griff_datei app/Enums/FindingCheck.php "Grund deutsch geschrieben" &&
+pruefe "Grund deutsch geschrieben" \
+  DiagnoseCatalogTest::test_the_keys_fit_their_columns failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
+
+echo
+echo "== DiagnoseCatalogTest: ein Satz ist keiner =="
+#
+# Der Administrator sieht subject und diesen Satz; der Wortlaut des Werkzeugs
+# bleibt dem Betreiber (docs/98 §9 Frage 5). Ein Fragment waere fuer ihn die
+# ganze Auskunft.
+vorher_datei app/Enums/FindingCheck.php
+python3 - <<'PY2'
+p = 'app/Enums/FindingCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = "'text' => 'Der Timer hat keinen nächsten Termin. Er ist abgeschaltet und sieht aus wie eingeschaltet.',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'text' => 'kein nächster Termin',", 1))
+PY2
+griff_datei app/Enums/FindingCheck.php "Satzfragment als Auskunft" &&
+pruefe "Satzfragment als Auskunft" \
+  DiagnoseCatalogTest::test_every_sentence_reads_like_one failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
+
+echo
+echo "== FindingStateTest: Unknown bekommt die Marke critical =="
+#
+# "Nicht gemessen" ist kein Zustand, sondern eine Abwesenheit. Ein rotes
+# Signal behauptete, es sei etwas kaputt, und schickte den Betreiber auf die
+# Suche nach einem Schaden, den niemand gemessen hat.
+vorher_datei app/Enums/FindingState.php
+python3 - <<'PY2'
+p = 'app/Enums/FindingState.php'
+s = open(p, encoding='utf-8').read()
+alt = "self::Unknown => 'neutral',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "self::Unknown => 'critical',", 1))
+PY2
+griff_datei app/Enums/FindingState.php "Unknown als kritisch" &&
+pruefe "Unknown als kritisch" \
+  FindingStateTest::test_every_state_carries_its_own_badge failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
+
+echo
+echo "== FindingStateTest: Unknown rutscht unter Warn =="
+#
+# Eine Pruefung, die nicht gelaufen ist, kann alles verbergen -- auch ein
+# Fail. Sie gehoert weit nach oben und trotzdem unter das, was gemessen
+# kaputt ist.
+vorher_datei app/Enums/FindingState.php
+python3 - <<'PY2'
+p = 'app/Enums/FindingState.php'
+s = open(p, encoding='utf-8').read()
+alt = "self::Unknown => 2,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "self::Unknown => 0,", 1))
+PY2
+griff_datei app/Enums/FindingState.php "Unknown unter Warn" &&
+pruefe "Unknown unter Warn" \
+  FindingStateTest::test_the_order_puts_a_measured_failure_first failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
+
+echo
+echo "== FindingStateTest: Unknown erzeugt keine Zeile mehr =="
+#
+# Der Ausfall einer Pruefung muss auf der Seite stehen. Sonst sieht er aus
+# wie Entwarnung, und das ist genau der Zustand, gegen den es den vierten
+# Zustand gibt.
+vorher_datei app/Enums/FindingState.php
+python3 - <<'PY2'
+p = 'app/Enums/FindingState.php'
+s = open(p, encoding='utf-8').read()
+alt = "return $this !== self::Ok;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "return $this === self::Fail || $this === self::Warn;"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Enums/FindingState.php "Unknown bleibt stumm" &&
+pruefe "Unknown bleibt stumm" \
+  FindingStateTest::test_only_ok_stays_silent failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
+
+echo
+echo "== FindingStateTest: der Hinweis zu Unknown gibt Entwarnung =="
+#
+# Derselbe Satz wie bei DnsRecordState::hint(): Ein Hinweis, der bei
+# "nicht gemessen" zum Nichtstun einlaedt, ist die Fehlmeldung, gegen die es
+# den vierten Zustand gibt.
+vorher_datei app/Enums/FindingState.php
+python3 - <<'PY2'
+p = 'app/Enums/FindingState.php'
+s = open(p, encoding='utf-8').read()
+alt = "weder im Guten noch im Schlechten."
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "alles ist wohl in Ordnung.", 1))
+PY2
+griff_datei app/Enums/FindingState.php "Entwarnung bei Unknown" &&
+pruefe "Entwarnung bei Unknown" \
+  FindingStateTest::test_no_hint_but_the_first_gives_the_all_clear failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
+
+echo
+echo "== FindingStateTest: die Tabelle bekommt eine state-Spalte =="
+#
+# Die Schwere folgt aus check und reason. Eine Spalte daneben ist die zweite
+# Fassung derselben Regel, und die zweite ist die, die veraltet.
+vorher_datei database/migrations/2026_09_02_120000_create_findings_table.php
+python3 - <<'PY2'
+p = 'database/migrations/2026_09_02_120000_create_findings_table.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $table->string('reason', 64);"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = alt + """
+            $table->string('state', 16);"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei database/migrations/2026_09_02_120000_create_findings_table.php "state als Spalte" &&
+pruefe "state als Spalte" \
+  FindingStateTest::test_the_table_has_no_column_for_the_state failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

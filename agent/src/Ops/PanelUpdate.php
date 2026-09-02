@@ -105,8 +105,10 @@ final class PanelUpdate implements Op
          * abgeschaltete Quelle holt apt gar nicht erst; sie erzeugt keinen
          * Fehlschlag, {@see Apt::hitting()} findet nichts, und die Simulation
          * danach sieht mangels neuer Listen nichts Anstehendes. Der Betreiber
-         * läse „Es stand nichts an" — gemessen am 1. September 2026 auf
-         * `cloudsrv24` (`docs/96 §4b`).
+         * läse „Es stand nichts an".
+         *
+         * **Hergeleitet und nicht beobachtet** (`docs/96 §4b`, Befund 14): Der
+         * Prüfkörper auf `cloudsrv24` hat den Zustand nie hergestellt.
          *
          * > **Eine Quelle, die nicht gefragt wird, antwortet nicht falsch — sie
          * > fehlt, und das sieht aus wie Zustimmung.**

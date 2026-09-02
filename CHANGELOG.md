@@ -23492,11 +23492,11 @@ Datei: Denselben Satz gibt es ein zweites Mal, und dort gehört er hin.
 
 ### Eine abgeschaltete eigene Paketquelle meldete „du bist aktuell"
 
-**Gemessen am 1. September 2026 auf `cloudsrv24`** (`docs/96 §4b`), als Frage
-ohne Sollantwort ausgeschrieben und mit einem Befund beantwortet: Mit
-`Enabled: no` an `/etc/apt/sources.list.d/srvpanel.sources` meldete
-`srvpanel update` grün *„Es stand nichts an — Fassung unverändert:
-0.7.3~rc.9."*
+**Am Quelltext hergeleitet, nicht beobachtet** (`docs/96 §4b`) — in `docs/95 §4b`
+als Frage ohne Sollantwort ausgeschrieben, und der Prüfkörper hat den Zustand
+zweimal nicht hergestellt (Befund 14). Mit `Enabled: no` an
+`/etc/apt/sources.list.d/srvpanel.sources` meldete `srvpanel update` grün *„Es
+stand nichts an"*, statt abzubrechen.
 
 Das ist M5 in einer dritten Gestalt, und jede einzelne Stufe antwortet dabei
 richtig: apt holt eine abgeschaltete Quelle gar nicht erst, also gibt es keine

@@ -446,9 +446,10 @@ final class AptResultTest extends TestCase
      *
      * ## Der Befund, gegen den es diesen Fall gibt
      *
-     * **Gemessen am 1. September 2026 auf `cloudsrv24`** (`docs/96 §4b`). Mit
-     * `Enabled: no` an der eigenen Quelle meldete `srvpanel update` grün „Es
-     * stand nichts an — Fassung unverändert: 0.7.3~rc.9."
+     * **Am Quelltext hergeleitet und nicht beobachtet** (`docs/96 §4b`,
+     * Befund 14): Der Prüfkörper auf `cloudsrv24` hat den Zustand nie
+     * hergestellt, weil `sed -i` auch dann Erfolg meldet, wenn sein Muster
+     * nirgends passt.
      *
      * apt holt eine abgeschaltete Quelle nicht, also gibt es keine `W:`-Zeile,
      * also findet `Apt::hitting()` nichts — und die Simulation danach sieht

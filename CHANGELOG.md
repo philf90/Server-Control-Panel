@@ -23831,6 +23831,89 @@ gemeldet (`docs/81 §2.3o` M22).
 Behoben mit einer Bedingung in `managed()`; `inspect()` liest darüber und ist
 damit keine dritte Lesart.
 
+### A10 Schritt 3 — `system.diagnose`, und ein Urteil, das nicht am Aufruf hängt
+
+Die Operation prüft, was Systemrechte braucht: die drei Prüfer (`web.config`,
+`php.config`, `ssh.config`), die Form der beiden verwalteten Bereiche
+(`block.integrity`), die Quota (`quota.state`) und den Signaturschlüssel der
+eigenen Paketquelle (`apt.key`). Übergeben wird eine Liste von Schlüsseln;
+kein Pfad und keine Unit kommen von aussen.
+
+**Das Urteil ist vom Aufruf getrennt, und der Grund ist ein fehlendes
+Testdoppel.** Es gibt in diesem Repo keines für den `Runner`, und das ist
+Absicht: `AptResultTest` prüft den Leser an einem selbstgebauten `Result` mit
+Rückgabe 0, nicht den Aufruf. `Diagnose\Verdict` ist deshalb eine Sammlung
+reiner Funktionen über das, was ein Werkzeug gesagt hat — und die Prüfkörper
+der Wächter sind die **gemessenen Ausgaben** aus `docs/81 §2.3o`, Byte für
+Byte: der nginx-Lauf, der `syntax is ok` und `test failed` in dieselbe Ausgabe
+schreibt (M4); die drei Quota-Zustände vom Wegwerf-ext4 (M10, M11); das stumme
+`rc=0` von `sshd -t`.
+
+**Die drei Prüfer werden allein am Rückgabewert gewertet.** Nicht am Kanal —
+alle drei schreiben auf stderr, auch ihre Erfolgsmeldung —, und nicht an der
+Zeichenkette `syntax is ok`: Die steht bei nginx auch in einem Lauf, der mit
+`rc=1` endet. `ValidatorVerdictTest` hält das am Rumpf ohne Kommentare, weil
+der Kommentar darüber genau diese Zeichenketten zitiert, um zu erklären, warum
+sie nicht gelesen werden.
+
+**Die Quota wird aus beiden Werkzeugen beurteilt, und die dritte Zeile ist
+`fail`.** `quotaon -p` sagt, ob erzwungen wird; `repquota` sagt, ob eine Datei
+lesbar ist. Liegt die Datei und sagt `quotaon` `is off`, ist das
+`not_enforced` — der Zustand, den das Panel bis A10 als Entwarnung gelesen
+hat. Der Rückgabewert von `quotaon -p` wird dabei **nicht** angesehen; er ist
+in jedem gemessenen Zustand `0`. `quotaon` steht seitdem im Positivverzeichnis,
+gerufen nur mit `-p`.
+
+**`sshd -t` bekommt sein `/run/sshd` nicht angelegt.** `SftpAccess` tut das,
+weil es schreiben darf; die Diagnose meldet stattdessen `unreachable` mit dem
+Grund. Ein Diagnoselauf, der schreibt, ist der nächste Schreiber in derselben
+Datei — `DiagnoseWriteTest` hält das an beiden Dateien, ohne Kommentare, und
+an jedem gerufenen Programm samt seinen Schaltern: `quotaon` ohne `-p`
+schaltet, `nginx` ohne `-t` startet.
+
+**Die Naht zum Panel ist gehalten.** `FindingLog` wirft für einen Grund, den
+die Prüfung nicht kennt — aber der Grund kommt aus dem Agenten, und der kennt
+den Katalog nicht. `Verdict::REASONS` nennt je Prüfung, was der Agent
+ausspricht, und `DiagnoseSeamTest` hält es gegen `FindingCheck`: reisst das,
+wirft der Nachtlauf, und zwar nachts.
+
+**Und die Schlüsselprüfung ist umgezogen.** `SystemSourcesList::key()` war
+privat; A10 braucht dieselbe Frage für die eigene Paketquelle, und eine zweite
+Fassung wäre die, die veraltet. Sie heisst jetzt `Keys::inspect()`, beide
+rufen sie, und `KeyExpiryTest` zählt seine beiden Wege dort — mit der
+Ergänzung, dass die Operation `gpg` nicht wieder selbst ruft. **Den Bruch zu
+diesem Wächter hat der Umzug stumpf gemacht, und `BreakScriptTest` hat es
+gemeldet:** Sein Eingriff fand seinen Text nicht mehr, weil die gezählte
+Quelle jetzt `Keys.php` ist. Er zeigt seitdem dorthin — und beisst dort, weil
+der Dokumentblock von `inspect()` `self::ARGUMENTS` nennt und ohne
+Abstreifer aus zwei Stellen drei würden.
+
+**Was die Operation nicht tut:** Sie sagt nicht, ob eine Zeile im verwalteten
+Bereich fremd ist oder fehlt (das weiss nur das Panel, Schritt 5), und sie
+fragt `pg_hba.conf` nur, wenn ein Cluster läuft — ein Server ohne PostgreSQL
+bekäme sonst jede Nacht ein `unreachable` für eine Datei, die es zu Recht
+nicht gibt. Der Rufer kommt mit Schritt 6; bis dahin steht `system.diagnose`
+datiert in `AgentOperationReachTest::UNREACHED`, und der Wächter fordert den
+Eintrag selbst wieder ein, sobald `app/` den Namen nennt.
+
+**Fünf Wächter, elf Brüche**: `ValidatorVerdictTest`, `QuotaVerdictTest`,
+`KeyVerdictTest`, `DiagnoseWriteTest`, `DiagnoseSeamTest`. PHPStan hat am
+Entwurf eine Meldung gefunden — ein `match` ohne `default` über einem Wert,
+den `Guard::enum()` zwar begrenzt, der Typprüfer aber nicht kennt —, behoben,
+bevor sie eine CI-Runde kostete.
+
+**Und der erste volle Lauf nach dem Formatierer war rot, an der Falle, die
+`CLAUDE.md` seit dem 25. August beschreibt.** `{@see \App\Support\Diagnose\FindingLog}`
+im Dokumentblock von `Verdict` wurde durch Pint zu `use App\Support\Diagnose\FindingLog;`
+— und damit hing die framework-freie Klasse am Panel. Gemeldet hat es
+`AgentIndependenceTest`, nicht das Nachdenken; die 43 Wächter davor waren
+grün, weil keiner von ihnen den Agenten lädt, wie der Server ihn lädt. Die
+Namen stehen jetzt ohne `{@see}` und ohne Namensraum im Text, wie `Units.php`
+es vormacht.
+
+> **Ein Wächter, den man vor dem Formatierer prüft, ist nicht der, der ins
+> Repo geht.**
+
 ### Die Kommandozeile führt die Sprache der Oberfläche nicht
 
 Entschieden vom Betreiber am 1. September 2026, `docs/19 §2.7`: `srvpanel …`

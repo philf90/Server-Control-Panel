@@ -1339,7 +1339,16 @@ deklariert einen Namen, der der Basisklasse gehört — er spiegelt deren
 `<style>`-Block einer `.vue` steht auf oberster Ebene und nicht im
 Vorlagenblock, wo der Übersetzer ihn wegwirft — die Regel, die
 `ClassReachTest` nicht halten konnte, weil er eine Zeichenkette suchte statt
-eines Blocks) und `ManagedBlockIntegrityTest` (der lesende Blick auf einen
+eines Blocks) und `ValidatorVerdictTest` (die drei Prüfer werden am
+Rückgabewert gewertet und nie an `syntax is ok` — die Prüfkörper sind die
+gemessenen Ausgaben, und die Zeichenkette wird im Rumpf ohne Kommentare als
+verbotene gesucht) und `QuotaVerdictTest` (die Quota wird aus **beiden**
+Werkzeugen beurteilt, und „Datei da, Quota aus" ist `fail`; der Rückgabewert
+von `quotaon -p` entscheidet nichts, weil er in jedem gemessenen Zustand `0`
+ist) und `DiagnoseWriteTest` (die Diagnose schreibt nichts — an jedem gerufenen
+Programm samt Schalter gehalten, nicht an einer Absichtserklärung) und
+`DiagnoseSeamTest` (jeder Grund, den der Agent ausspricht, ist dem Panel
+bekannt — sonst wirft der Nachtlauf, und zwar nachts) und `ManagedBlockIntegrityTest` (der lesende Blick auf einen
 verwalteten Bereich zählt wie der schreibende — gehalten an der **Wirkung**,
 jeder der neun Prüfkörper geht durch `render()` und `inspect()`; sein erster
 Lauf hat M22 gefunden, einen Leser, der seit P5b am ersten `END` brach, wo immer

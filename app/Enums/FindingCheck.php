@@ -133,7 +133,7 @@ enum FindingCheck: string
             self::WebConfig, self::PhpConfig, self::SshConfig, self::BlockIntegrity => 'Datei',
             self::WebFile, self::PhpFile, self::TlsFile, self::TlsWire => 'Domain',
             self::UnitState, self::UnitSchedule => 'Unit',
-            self::QuotaState => 'Einhängepunkt',
+            self::QuotaState => 'Verzeichnis',
             self::SystemUser => 'Abonnement',
             self::OrphanRow => 'Zeile',
             self::AptKey => 'Schlüssel',

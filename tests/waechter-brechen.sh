@@ -18591,17 +18591,22 @@ echo
 echo "── KeyExpiryTest: der Kommentar-Abstreifer ist tragend ──"
 #
 # Ohne ihn zaehlt der Waechter seinen eigenen Gegenstand mit: Der Dokumentblock
-# ueber der Methode nennt Keys::ARGUMENTS, und aus zwei Stellen werden drei.
+# ueber der Methode nennt self::ARGUMENTS, und aus zwei Stellen werden drei.
 # Gemessen — ohne Abstreifer rot, mit ihm gruen, an derselben heilen Quelle.
+#
+# **Seit dem 2. September 2026 zeigt der Eingriff auf Keys.php**: Die Methode
+# ist mit A10 Schritt 3 von SystemSourcesList nach Keys::inspect() umgezogen,
+# und BreakScriptTest hat gemeldet, dass dieser Eingriff seinen Text nicht mehr
+# fand — genau der Fall, fuer den es diese Pruefung gibt.
 vorher_datei tests/Unit/KeyExpiryTest.php
 python3 - <<'PY2'
 p = 'tests/Unit/KeyExpiryTest.php'
 s = open(p, encoding='utf-8').read()
 alt = """        $quelle = $this->withoutComments(
-            (string) file_get_contents(dirname(__DIR__, 2).'/agent/src/Ops/SystemSourcesList.php'),
+            (string) file_get_contents(dirname(__DIR__, 2).'/agent/src/Keys.php'),
         );"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-neu = "        $quelle = (string) file_get_contents(dirname(__DIR__, 2).'/agent/src/Ops/SystemSourcesList.php');"
+neu = "        $quelle = (string) file_get_contents(dirname(__DIR__, 2).'/agent/src/Keys.php');"
 open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
 PY2
 griff_datei tests/Unit/KeyExpiryTest.php "Kommentar-Abstreifer entfernt" &&
@@ -22152,6 +22157,219 @@ pruefe "managed() bricht am ersten END" \
   ManagedBlockIntegrityTest::test_a_stray_end_before_the_block_is_ignored_by_both failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
+
+echo
+echo "== ValidatorVerdictTest: das Urteil liest 'syntax is ok' statt des Rueckgabewerts =="
+#
+# M4: nginx schreibt 'syntax is ok' auch in einen Lauf, der mit rc=1 endet.
+# Ein Leser, der die Zeile sucht, meldet Gruen fuer einen gescheiterten Lauf.
+vorher_datei agent/src/Diagnose/Verdict.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Verdict.php'
+s = open(p, encoding='utf-8').read()
+alt = """        return $result->code === 0 ? null : 'invalid';"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        return str_contains($result->stderr, 'syntax is ok') || $result->stderr === '' ? null : 'invalid';"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Diagnose/Verdict.php "Urteil liest syntax is ok" &&
+pruefe "Urteil liest syntax is ok" \
+  ValidatorVerdictTest::test_every_measured_output_gets_the_verdict_of_its_return_code failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ValidatorVerdictTest passed
+
+echo
+echo "== ValidatorVerdictTest: der Kanal entscheidet =="
+#
+# M5: alle drei schreiben auf stderr, auch im Erfolgsfall; sshd schreibt im
+# Erfolgsfall nichts.
+vorher_datei agent/src/Diagnose/Verdict.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Verdict.php'
+s = open(p, encoding='utf-8').read()
+alt = """        return $result->code === 0 ? null : 'invalid';"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        return $result->code === 0 && trim($result->stderr) === '' ? null : 'invalid';"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Diagnose/Verdict.php "Kanal entscheidet" &&
+pruefe "Kanal entscheidet" \
+  ValidatorVerdictTest::test_the_channel_decides_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ValidatorVerdictTest passed
+
+echo
+echo "== QuotaVerdictTest: die dritte Zeile wird zur Entwarnung =="
+#
+# M11: Datei da, Quota aus — der Zustand, den das Panel bis A10 als
+# Entwarnung gelesen hat.
+vorher_datei agent/src/Diagnose/Verdict.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Verdict.php'
+s = open(p, encoding='utf-8').read()
+alt = """        return $repquota->successful() ? 'not_enforced' : 'off';"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        return $repquota->successful() ? null : 'off';""", 1))
+PY2
+griff_datei agent/src/Diagnose/Verdict.php "dritte Zeile als Entwarnung" &&
+pruefe "dritte Zeile als Entwarnung" \
+  QuotaVerdictTest::test_every_measured_pair_gets_its_verdict failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuotaVerdictTest passed
+
+echo
+echo "== QuotaVerdictTest: das Urteil traut dem Rueckgabewert von quotaon =="
+#
+# M10: er ist in jedem gemessenen Zustand 0.
+vorher_datei agent/src/Diagnose/Verdict.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Verdict.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $text = $quotaon->stdout."\\n".$quotaon->stderr;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        if ($quotaon->code !== 0) {
+            return self::UNREACHABLE;
+        }
+
+        $text = $quotaon->stdout."\\n".$quotaon->stderr;"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Diagnose/Verdict.php "quotaon-Rueckgabewert entscheidet" &&
+pruefe "quotaon-Rueckgabewert entscheidet" \
+  QuotaVerdictTest::test_the_return_code_of_quotaon_decides_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuotaVerdictTest passed
+
+echo
+echo "== QuotaVerdictTest: nur stdout wird gelesen =="
+#
+# M10: ohne Mount-Option antwortet quotaon auf stderr.
+vorher_datei agent/src/Diagnose/Verdict.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Verdict.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $text = $quotaon->stdout."\\n".$quotaon->stderr;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        $text = $quotaon->stdout;""", 1))
+PY2
+griff_datei agent/src/Diagnose/Verdict.php "nur stdout gelesen" &&
+pruefe "nur stdout gelesen" \
+  QuotaVerdictTest::test_both_channels_are_read failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuotaVerdictTest passed
+
+echo
+echo "== KeyVerdictTest: ein abgelaufener Schluessel neben einem gueltigen faellt durch =="
+vorher_datei agent/src/Diagnose/Verdict.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Verdict.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if ($state === 'expired') {
+                return 'expired';
+            }
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Diagnose/Verdict.php "abgelaufener Schluessel uebersehen" &&
+pruefe "abgelaufener Schluessel uebersehen" \
+  KeyVerdictTest::test_an_expired_key_is_expired failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" KeyVerdictTest passed
+
+echo
+echo "== DiagnoseWriteTest: die Diagnose legt /run/sshd an =="
+#
+# Die eine Zeile, die verlockend war (docs/98 §5.1).
+vorher_datei agent/src/Ops/SystemDiagnose.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemDiagnose.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if (! is_dir(SftpAccess::RUNTIME)) {"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        if (! is_dir(SftpAccess::RUNTIME)) {
+            @mkdir(SftpAccess::RUNTIME, 0o755, true);
+        }
+
+        if (! is_dir(SftpAccess::RUNTIME)) {"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/SystemDiagnose.php "Diagnose legt /run/sshd an" &&
+pruefe "Diagnose legt /run/sshd an" \
+  DiagnoseWriteTest::test_no_diagnose_file_writes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseWriteTest passed
+
+echo
+echo "== DiagnoseWriteTest: quotaon ohne -p =="
+#
+# Ohne -p schaltet quotaon die Quota ein.
+vorher_datei agent/src/Ops/SystemDiagnose.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemDiagnose.php'
+s = open(p, encoding='utf-8').read()
+alt = """->run('quotaon', ['-p', $device], 30)"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """->run('quotaon', ['-u', $device], 30)""", 1))
+PY2
+griff_datei agent/src/Ops/SystemDiagnose.php "quotaon ohne -p" &&
+pruefe "quotaon ohne -p" \
+  DiagnoseWriteTest::test_every_program_called_is_a_reader failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseWriteTest passed
+
+echo
+echo "== DiagnoseWriteTest: die Operation erklaert sich als schreibend =="
+vorher_datei agent/src/Ops/SystemDiagnose.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemDiagnose.php'
+s = open(p, encoding='utf-8').read()
+alt = """    public static function mutating(): bool
+    {
+        return false;
+    }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace('return false;', 'return true;'), 1))
+PY2
+griff_datei agent/src/Ops/SystemDiagnose.php "Diagnose als schreibend erklaert" &&
+pruefe "Diagnose als schreibend erklaert" \
+  DiagnoseWriteTest::test_the_operation_declares_itself_read_only failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseWriteTest passed
+
+echo
+echo "== DiagnoseSeamTest: der Agent spricht einen Grund aus, den das Panel nicht kennt =="
+#
+# FindingLog wuerfe nachts.
+vorher_datei agent/src/Diagnose/Verdict.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Verdict.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'quota.state' => ['off', 'not_enforced', self::UNREACHABLE],"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        'quota.state' => ['off', 'not_enforced', 'erfunden', self::UNREACHABLE],""", 1))
+PY2
+griff_datei agent/src/Diagnose/Verdict.php "unbekannter Grund im Agenten" &&
+pruefe "unbekannter Grund im Agenten" \
+  DiagnoseSeamTest::test_every_reason_the_agent_speaks_is_known_to_the_panel failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
+
+echo
+echo "== DiagnoseSeamTest: die Operation nimmt einen Schluessel ohne Urteil =="
+vorher_datei agent/src/Ops/SystemDiagnose.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemDiagnose.php'
+s = open(p, encoding='utf-8').read()
+alt = """    public const CHECKS = ['web.config', 'php.config', 'ssh.config', 'block.integrity', 'quota.state', 'apt.key'];"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace("'apt.key']", "'apt.key', 'mond.phase']"), 1))
+PY2
+griff_datei agent/src/Ops/SystemDiagnose.php "Schluessel ohne Urteil" &&
+pruefe "Schluessel ohne Urteil" \
+  DiagnoseSeamTest::test_the_operation_accepts_exactly_the_keys_with_verdicts failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

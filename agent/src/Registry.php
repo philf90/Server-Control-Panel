@@ -91,6 +91,7 @@ use SrvPanel\Agent\Ops\SubscriptionRemove;
 use SrvPanel\Agent\Ops\SubscriptionResume;
 use SrvPanel\Agent\Ops\SubscriptionSuspend;
 use SrvPanel\Agent\Ops\SubscriptionUsage;
+use SrvPanel\Agent\Ops\SystemDiagnose;
 use SrvPanel\Agent\Ops\SystemInfo;
 use SrvPanel\Agent\Ops\SystemLogsList;
 use SrvPanel\Agent\Ops\SystemLogsTail;
@@ -201,6 +202,7 @@ final class Registry
         $this->register(new SystemReboot);
         $this->register(new SystemSourcesList);
         $this->register(new SystemUnitsList);
+        $this->register(new SystemDiagnose);
         $this->register(new SystemSourcesToggle);
 
         $this->register(new WebLogrotate);

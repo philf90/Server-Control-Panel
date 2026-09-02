@@ -72,6 +72,12 @@ final class AgentOperationReachTest extends TestCase
         'files.compress' => 'Siehe files.write.',
         'files.search' => 'Siehe files.list.',
 
+        // **A10: die Diagnose des Bestands.** Sie liest und urteilt; ein
+        // Lebenslauf hätte nichts zu verwalten. Die Befunde landen über
+        // `FindingLog` im Panel — das ist ein Modell, aber keines, das der
+        // Agent kennt.
+        'system.diagnose' => 'Liest den Bestand und schreibt nichts. Der Befund ist das Ergebnis, nicht ein Zustand des Agenten.',
+
         /*
          * **P6 Schritt 8: der SFTP-Zugang.** Kein Lebenslauf, und der Grund ist
          * derselbe wie bei `pg.remote.access`: Der Dienst ruft unmittelbar auf,
@@ -301,6 +307,10 @@ final class AgentOperationReachTest extends TestCase
             .'Sitzung mit einem `Account`), die Operation ist also überflüssig geworden statt '
             .'vergessen. Ob sie angeschlossen oder entfernt wird, ist eine Entscheidung mit '
             .'TLS-Folgen und gehört dem Betreiber.',
+        'system.diagnose' => 'Gebaut am 2. September 2026 als Schritt 3 von A10 (`docs/98 §8`). Der '
+            .'Rufer ist das Kommando aus Schritt 6 und die Seite aus Schritt 7; bis dahin ruft '
+            .'`app/` den Namen nirgends. Dieser Eintrag geht mit Schritt 6 — und dieser Wächter '
+            .'fordert das selbst ein, sobald der Name in `app/` steht.',
     ];
 
     public function test_every_operation_the_panel_sends_exists_in_the_agent(): void

@@ -144,6 +144,13 @@ contents:
   - src: ./packaging/systemd/srvpanel-dns.timer
     dst: /lib/systemd/system/srvpanel-dns.timer
 
+  # Das Ziel, das alle Dauerdienste und Takte zusammenfasst. Es ist der eine
+  # Griff für das ganze Panel — und der Grund, dass es ihn gibt, steht in der
+  # Datei selbst: Ein `stop` des Agenten nahm Worker und Metrik mit, und ein
+  # `start` holte sie nicht zurück.
+  - src: ./packaging/systemd/srvpanel.target
+    dst: /lib/systemd/system/srvpanel.target
+
   - src: ./packaging/bin/php
     dst: /opt/srvpanel/bin/php
     file_info:

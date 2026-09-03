@@ -2,6 +2,11 @@
 Description=SrvPanel — tägliche Prüfung des Bestands
 Documentation=https://repo.cloudsrv24.de/
 
+# Gehört zu `srvpanel.target`: Ein `stop` oder `restart` des Ziels nimmt
+# diese Unit mit. Ohne diese Zeile wäre das Ziel ein Griff, der nur
+# anschaltet — und das ist ein halber Griff.
+PartOf=srvpanel.target
+
 [Timer]
 # **Täglich und nicht stündlich** (`docs/98 §4`). Ein Zustand, der sich über
 # Nacht nicht ändert, braucht keinen stündlichen Blick — und ein Lauf, der bei

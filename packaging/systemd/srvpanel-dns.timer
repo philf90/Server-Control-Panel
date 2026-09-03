@@ -2,6 +2,11 @@
 Description=SrvPanel — regelmässiger DNS-Abgleich der Domains
 Documentation=https://repo.cloudsrv24.de/
 
+# Gehört zu `srvpanel.target`: Ein `stop` oder `restart` des Ziels nimmt
+# diese Unit mit. Ohne diese Zeile wäre das Ziel ein Griff, der nur
+# anschaltet — und das ist ein halber Griff.
+PartOf=srvpanel.target
+
 [Timer]
 # Fünf Minuten nach dem Start. Derselbe Versatz wie bei den anderen Timern: In
 # den ersten Minuten fährt der Server hoch, und ein Abgleich, der auf einen noch

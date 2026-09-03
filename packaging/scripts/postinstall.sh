@@ -195,6 +195,24 @@ restart_services() {
     systemctl enable --now srvpanel-cron.timer >/dev/null 2>&1 || true
     systemctl enable --now srvpanel-dns.timer >/dev/null 2>&1 || true
     systemctl enable --now srvpanel-diagnose.timer >/dev/null 2>&1 || true
+
+    # Das Ziel zuletzt und mit `--now`.
+    #
+    # **`--now` steht hier wegen der Anzeige und nicht wegen der Wirkung.**
+    # Hier stand zuerst, ein `stop` auf ein nie gestartetes Ziel übertrage
+    # nichts an die Units, die `PartOf=` auf es zeigen. Gemessen gegen
+    # systemd 255 ist das falsch: Es überträgt (Prüfkörper angehalten,
+    # Gegenprobe ohne `PartOf=` blieb stehen). Der Griff wirkte also auch
+    # ohne `--now`.
+    #
+    # Was ohne `--now` bliebe, ist ein Ziel, das `inactive` meldet, während
+    # jede seiner Units läuft — derselbe Fehler wie ein Timer, der `active`
+    # meldet und keinen Termin hat, nur andersherum.
+    #
+    # Zuletzt, weil hier alles schon läuft: Der Start des Ziels ist dann für
+    # jede seiner Units ein Leerlauf. Andersherum startete es sie selbst, und
+    # die Zeilen darüber setzten unmittelbar danach ein `restart` hinterher.
+    systemctl enable --now srvpanel.target >/dev/null 2>&1 || true
 }
 
 # Zurück auf die vorige Fassung: Symlink umlegen, Dienste mit ihr starten.

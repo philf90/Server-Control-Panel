@@ -24920,3 +24920,74 @@ Richtungen belegt, zwei davon als Bruch im Skript.
 
 Was das kostet, ist benannt und angenommen: Dieselbe Sache kann auf der Seite
 und auf der Konsole verschieden heissen.
+
+### `srvpanel.target` — ein Griff für das ganze Panel, und zwei Begründungen, die falsch waren
+
+**Gefunden hat es die Bestandsdiagnose selbst**, in Punkt 7 des A10-Nachlaufs.
+Der Punkt hält den Agenten an und misst, was die Prüfungen dann melden.
+Angehalten war er schnell wieder; danach standen `srvpanel-worker` und
+`srvpanel-metrics` still, und ein `start` des Agenten holte sie **nicht**
+zurück. Beide tragen `Requires=srvpanel-agentd.service` — und diese Angabe
+überträgt das Anhalten, nicht das Starten. `Restart=always` half nicht: Das
+greift, wenn ein Prozess von selbst endet, nicht wenn systemd die Unit
+absichtlich angehalten hat.
+
+Der Worker ist die Warteschlange. Ohne ihn bleibt jeder Vorgang auf „wartet"
+stehen — kein Zertifikat wird bestellt, kein Server-Block geschrieben, kein
+Update abgesetzt. Es gäbe keine Fehlermeldung, nur Stillstand.
+
+> **Eine Abhängigkeit, die das Anhalten überträgt und das Starten nicht,
+> hinterlässt einen Zustand, den nur der herstellt, der ihn auch beheben
+> müsste.**
+
+`srvpanel.target` führt die vier Dauerdienste und die fünf Timer, jede dieser
+neun Units trägt `PartOf=srvpanel.target`. `Wants=` sagt, was das Ziel startet,
+`PartOf=`, was es anhält; fehlte das zweite, wäre es ein Griff, der nur
+anschaltet. **Die Timer und ausdrücklich nicht die Dienste dahinter** — ein
+`srvpanel-usage.service` in der Liste liefe bei jedem `start` sofort los, fünf
+Läufe auf einen Schlag, von denen keiner fällig war.
+
+**Zwei Begründungen standen zuerst da und waren beide falsch.** Beide sind
+gegen echtes systemd 255 in einer eigenen Namespace nachgemessen worden, jede
+mit Gegenprobe.
+
+Die erste stand im postinst: `--now` sei nötig, weil ein `stop` auf ein nie
+gestartetes Ziel nichts an die Units mit `PartOf=` überträgt. Es überträgt —
+der Prüfkörper wurde angehalten, die Gegenprobe ohne `PartOf=` blieb stehen.
+`--now` bleibt trotzdem, aber wegen der Anzeige: Ohne ihn meldete das Ziel
+`inactive`, während jede seiner Units läuft.
+
+Die zweite stand in der Zieldatei: Ein Ziel mit `Requires=` nähme die übrigen
+Units mit, wenn eine nicht hochkommt. Sie laufen. Gemessen wird `Requires=` →
+Ziel bleibt `inactive`, `systemctl start` gibt 1 zurück, die übrigen Units
+laufen; `Wants=` → Ziel wird `active`, Rückgabewert 0, dieselben Units laufen.
+`Wants=` bleibt die richtige Wahl — mit `Requires=` löge das Ziel über den
+Zustand, den es anzeigen soll.
+
+> **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist auch
+> dann falsch, wenn der Handgriff daneben richtig ist — und er hält länger als
+> der Handgriff, weil ihn der Nächste liest und glaubt.**
+
+**Und der erste Prüfkörper war keiner.** Ein `Type=simple` mit
+`ExecStart=/bin/false` gilt als gestartet, sobald der Prozess forkt; der
+Fehlschlag kommt danach und erreicht den Startauftrag nie. `Requires=` und
+`Wants=` zeigten damit Zeile für Zeile dasselbe. Erst ein `Type=oneshot`
+scheitert im Startauftrag und trennt die beiden Fälle.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+**Und beim Aufräumen der Messung wäre der Container beinahe als sauber
+durchgegangen.** Der Beleg für das `[Install]`-Stück ist ein `systemctl enable`
+im Namespace — und `/etc` liegt nicht darin, der Symlink landete auf dem Host.
+Nachgesehen wurde mit `ls -la … | head`, und der Name steht alphabetisch hinter
+der zehnten Zeile.
+
+> **Eine abgeschnittene Liste sieht aus wie eine vollständige — sie sagt nicht,
+> wo sie aufhört.**
+
+`UnitTargetTest` hält beide Richtungen, und **der Sollzustand kommt aus den
+Unit-Dateien und nicht aus einer Liste im Test**: Ein `.service` gehört ins
+Ziel, wenn er kein `Type=oneshot` ist, jeder `.timer` gehört hinein. Dazu, dass
+das Paket die Datei ablegt und die Installation sie anschaltet. Fünf Eingriffe
+im Bruchskript, alle einzeln belegt.

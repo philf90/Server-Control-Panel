@@ -1,0 +1,54 @@
+[Unit]
+Description=SrvPanel — alle Dauerdienste und Takte des Panels
+Documentation=https://repo.cloudsrv24.de/
+
+# **Der eine Griff für das ganze Panel** (A10-Nachlauf, 3. September 2026).
+#
+# Gefunden hat es die Bestandsdiagnose selbst, in Punkt 7: Nach einem
+# `systemctl stop srvpanel-agentd` standen `srvpanel-worker` und
+# `srvpanel-metrics` still — und ein `start` des Agenten holte sie **nicht**
+# zurück. Beide tragen `Requires=srvpanel-agentd.service`, und diese Angabe
+# überträgt das Anhalten, nicht das Starten. `Restart=always` half nicht: Das
+# greift, wenn ein Prozess von selbst endet, nicht wenn systemd die Unit
+# absichtlich angehalten hat.
+#
+# Der Worker ist die Warteschlange. Ohne ihn bleibt jeder Vorgang auf „wartet"
+# stehen — kein Zertifikat wird bestellt, kein Server-Block geschrieben, kein
+# Update abgesetzt. Es gäbe keine Fehlermeldung, nur Stillstand.
+#
+# > **Eine Abhängigkeit, die das Anhalten überträgt und das Starten nicht,
+# > hinterlässt einen Zustand, den nur der herstellt, der ihn auch beheben
+# > müsste.**
+#
+# **`Wants=` und nicht `Requires=`, und der Unterschied ist gemessen**
+# (systemd 255, eigene Namespace, mit Gegenprobe). Hier stand zuerst, ein Ziel
+# mit `Requires=` nähme die übrigen Units mit, wenn eine nicht hochkommt. Das
+# ist falsch — sie laufen. Was wirklich geschieht:
+#
+#   Requires=  ->  Ziel bleibt `inactive`, `systemctl start` gibt 1 zurück,
+#                  die übrigen Units laufen trotzdem
+#   Wants=     ->  Ziel wird `active`, Rückgabewert 0, dieselben Units laufen
+#
+# Mit `Requires=` meldete das Ziel also `inactive`, während drei von vier
+# Diensten laufen — der Griff löge über den Zustand, den er anzeigen soll. Was
+# tatsächlich läuft, sagt die Bestandsdiagnose über `unit.state` und nicht
+# diese Datei; dieses Ziel sagt, was gestartet werden *soll*.
+Wants=srvpanel-agentd.service
+Wants=srvpanel-web.service
+Wants=srvpanel-worker.service
+Wants=srvpanel-metrics.service
+
+# **Die Timer, und ausdrücklich nicht die Dienste dahinter.** Ein
+# `srvpanel-usage.service` in dieser Liste liefe bei jedem
+# `systemctl start srvpanel.target` sofort los — fünf Läufe auf einen Schlag,
+# von denen keiner fällig war. Was ein Timer startet, startet der Timer.
+Wants=srvpanel-usage.timer
+Wants=srvpanel-tls.timer
+Wants=srvpanel-cron.timer
+Wants=srvpanel-dns.timer
+Wants=srvpanel-diagnose.timer
+
+After=srvpanel-agentd.service
+
+[Install]
+WantedBy=multi-user.target

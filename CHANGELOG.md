@@ -24323,6 +24323,48 @@ müsste.
 Damit ist aus „diese Nummer wird es nicht geben" ein Test geworden, der den Tag
 meldet, an dem jemand sie doch vergibt.
 
+### Zwei von drei Nähten waren nie verdrahtet — der erste echte Lauf kam nicht bis zur ersten Messung
+
+**Punkt 1 des Abnahmelaufs, am 3. September 2026 auf `cloudsrv24` gegen
+0.7.3-rc.11.** `srvpanel diagnose` brach nach 158 ms ab, `rc=1`:
+
+    Target [App\Support\Diagnose\Wire] is not instantiable while building
+    [App\Console\Commands\Diagnose, …, App\Support\Diagnose\Checks\Certificates]
+
+Die Diagnose hat **drei** Nähte, weil sich die echten Klassen in keinem Test
+ersetzen lassen: `LocalHost` fragt das Dateisystem, `TlsWire` öffnet eine
+Verbindung, `Settings` ist `final`. Gebunden war genau **eine** — `RunLog` aus
+Schritt 7, weil sie zuletzt entstand. `Wire` und `Host` aus Schritt 5 waren es
+nie.
+
+> **Eine Naht, die niemand verdrahtet, ist keine Naht — sie ist ein Loch, das
+> erst der erste echte Lauf findet.**
+
+**Kein einziger Test hat es gesehen, und das ist die eigentliche Lehre.** Die
+Wächter der Prüfungen rufen `judge()` ohne Container, `DiagnoseRunTest` baut
+`Run` aus handgemachten Attrappen, und `DiagnosePageTest` liest nur die Tabelle.
+Jeder von ihnen setzt seinen Gegenstand selbst zusammen.
+
+> **Ein Test, der seinen Gegenstand selbst zusammensetzt, prüft ihn — und nicht
+> den Weg, auf dem er im Betrieb entsteht.**
+
+Das ist die Familie, die dieses Repo seit P0 verfolgt, in ihrer teuersten Form:
+eine Zeichenkette — hier ein Klassenname im Katalog —, deren Bezug nichts prüft.
+`AgentOperationReachTest` hält es für Operationsnamen, `PolicyReachTest` für
+Policies, `CommandReachTest` für Kommandos. Für die Bindungen des Containers
+hielt es niemand.
+
+**`DiagnoseWiringTest` misst seitdem die Wirkung und nicht den Provider.** Er
+baut jede Prüfung des Katalogs über den Container, dazu `Run` und das Kommando
+selbst — und fragt in der Gegenrichtung, ob jede Schnittstelle, die ein
+Konstruktor verlangt, auch **abgelegt** ist. Die erste Frage kann zufällig
+gelingen, wenn Laravel eine einzige Umsetzung findet; die zweite ist die Zusage,
+auf die sich der nächste verlässt.
+
+Belegt an beiden Löchern von heute: ohne die `Wire`-Bindung meldet der Wächter
+wörtlich die Zeile des Servers, ohne die `Host`-Bindung nennt er `SystemUsers`
+**und** `Orphans`.
+
 ### MariaDB setzt eine Vorgabe ein, die in keiner Migration steht — und sie hätte Punkt 8 gekippt
 
 **Die CI hat `findings` auf Ubuntu 22.04 nicht anlegen können:**

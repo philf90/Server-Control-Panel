@@ -24489,6 +24489,222 @@ ihn nicht mehr braucht: Sollte eine künftige Fassung von `gpg` doch etwas
 ablegen wollen, legt sie es dort ab und nicht in `/root/.gnupg`, wo es danach
 niemand erklären kann.
 
+### Das Protokoll des A10-Nachlaufs — und die Nummer, die niemand lesen konnte
+
+**`docs/100` ist angelegt**, nachdem Punkt 1 des Abnahmelaufs gefahren war. Die
+Punkte 2 bis 8 stehen aus, und das steht dort oben und nicht am Ende: Ein
+Protokoll ohne seine Lücken liest sich wie eine Abnahme.
+
+**M19 ist beantwortet**: Der ganze Nachtlauf kostet **391 ms** über alle sechs
+Prüfungen. Die Frist von 1800 Sekunden ist damit um drei Grössenordnungen
+grosszügig — sie ist keine Schranke für den Regelfall, sondern eine gegen einen
+Lauf, der hängt. Genau so war sie gemeint, und jetzt ist es gemessen statt
+geschätzt.
+
+**Drei der vier Befunde stecken im Prüfling** — die Umkehrung von `docs/45`,
+`docs/48`, `docs/59` und `docs/84`, und dieselbe Lage wie bei A2 aus demselben
+Grund: Die Vorschrift war vor dem Lauf ausgeschrieben und dreimal berichtigt,
+das Messmittel lag als geprüftes Werkzeug im Repo. Was blieb, war neuer Code.
+Alle drei sitzen an derselben Art Stelle:
+
+> **Drei Fehler an drei Nähten zwischen zwei Dateien** — Katalog und Container,
+> Vorlage und Leser, Aufruf und Ablageort. Jeder für sich war in Ordnung; keiner
+> der 3011 Wächter stand dazwischen.
+
+**Der vierte hat sich beim Anlegen dieser Datei selbst gemeldet.**
+`DocLinkTest` las Dokumentnummern mit einem Ausdruck über genau zwei Ziffern.
+Bei der ersten dreistellig benannten Datei meldete er sie als Verweis auf ein
+Dokument, das es seit dem Repo-Übergang nicht gibt — die Datei lag da, gelesen
+wurden ihre ersten zwei Ziffern.
+
+> **Ein Ausdruck, der die gewohnte Stellenzahl kennt, prüft die Gewohnheit und
+> nicht die Regel.**
+
+Das ist derselbe Satz, den dieses Repo über Schreibweisen längst hat
+(`apt-get -q update`, `\App\Enums\AccountType::Admin`) — hier über die
+Stellenzahl.
+
+**Belegt in drei Richtungen**, weil eine Erweiterung, die man nur am heilen Fall
+misst, eine Verzierung ist: der bestehende Bestand grün, ein dreistelliges
+Dokument, das es gibt, grün, ein dreistelliges, das es nicht gibt, rot mit
+seiner Nummer.
+
+**Und die Erweiterung allein war zu grob.** `{2,3}` ist gierig: Aus einem Text
+über die Zahl 9999 — er steht seit dem 2. September im Changelog — wurde damit
+ein Verweis auf ein Dokument 999, das niemand geschrieben hat.
+
+> **Ein Ausdruck, der zu viel liest, meldet einen Verweis, den niemand
+> geschrieben hat.**
+
+Beide Leser tragen deshalb eine Ziffernabgrenzung. Eine vierstellige Zahl ist
+damit **gar kein** Verweis, und das ist die richtige Auskunft: Ein Dokument mit
+vier Stellen gibt es nicht. Wer eines anlegt, erweitert dort — die Grenze steht
+im Kopf des Wächters, statt sich als Zusage zu lesen.
+
+**„Beide Leser" ist der eigentliche Befund.** Der Eintrag über die Erweiterung
+fiel eine Minute nach ihr an seiner eigenen Nummer durch: `ChangelogTest` trägt
+einen zweiten Ausdruck über dieselbe Frage, mit derselben Annahme. Erweitert war
+der erste.
+
+> **Zwei Fassungen derselben Regel laufen auseinander, und die zweite ist die,
+> die veraltet.**
+
+`DocumentNumberReaderTest` hält das seitdem, und zwar **ohne die Familie
+aufzuzählen**: Er sucht im Quelltext der Wächter die Ausdrücke, die eine
+Dokumentnummer lesen, und misst jeden an denselben drei Fällen — zweistellig,
+dreistellig, vierstellig. Ein dritter Leser, den morgen jemand schreibt, kommt
+damit von selbst in die Messung.
+
+> **Ein Wächter über eine Familie von Ausdrücken darf die Familie nicht
+> aufzählen, sonst prüft er das Erinnerungsvermögen.**
+
+Was er nicht kann, steht in seinem Kopf: Er findet nur Leser, die ihren Ausdruck
+als einfaches Literal schreiben. Belegt ist er daran, dass ein
+zurückgebliebener Leser zwei der drei Fälle rot macht.
+
+**Und er hat eine zweite Fassung derselben Regel freigelegt.**
+`BreakScriptTest::test_every_placeholder_number_stays_free` verlangte eine
+zweistellige Platzhalternummer und begründete das mit dem Wortlaut des
+Ausdrucks in `DocLinkTest`. Als der dreistellig wurde, stimmte die Begründung
+nicht mehr, während die Zeile weiter grün war — der stumme Halbteil der
+bekannten Aufräumfalle.
+
+Gefragt wird deshalb jetzt der Ausdruck selbst, aus `DocLinkTest` gelesen und
+nicht nachgebaut: Liest er die Platzhalternummer als genau diese Nummer? Belegt
+in beide Richtungen — mit einem einstelligen Ausdruck meldet er die gekürzte
+Ziffer, ohne jeden Ausdruck meldet er, dass es ihn nicht mehr gibt.
+
+**Und die berichtigte Fassung hat den Absatz, der davon erzählt, gleich zweimal
+gefangen.** Er zitierte die Meldung wörtlich — mitsamt der gekürzten Nummer, und
+die liest der Wächter als Verweis. Dieselbe Familie wie `OutcomeTest` am
+1. September, nur in Prosa statt im Kommentar:
+
+> **Ein Text, der eine Meldung über einen toten Verweis zitiert, enthält den
+> toten Verweis.**
+
+In Markdown die Codeblöcke zu überspringen wäre keine Lösung, sondern ein Loch:
+Dort stehen Verweise, die genauso verrotten. Der Wächter bleibt, wie er ist, und
+seine Grenze steht jetzt in seinem Kopf; wer eine solche Meldung festhalten
+will, schreibt die Nummer ohne ihr `docs/`.
+
+### Ein Zustand hiess nach einer Handlung — `Warn` heisst jetzt „Auffällig"
+
+**Gemeldet hat es der Betreiber beim Lesen einer Zusammenfassung auf dem
+Server**, mitten im A10-Nachlauf, und kein Wächter. Die vier Zustände eines
+Befundes hiessen „In Ordnung", **„Sieht jemand hin"**, „Kaputt" und „Nicht
+gemessen". Drei davon benennen einen Zustand des Gegenstands; der zweite benennt
+eine Handlung — und dazu eine, die jemand vielleicht tut.
+
+> **Ein Zustand, der als Handlung benannt ist, steht in einer Spalte, in der
+> sonst Zustände stehen — und liest sich als Aufforderung, wo eine Auskunft
+> gemeint ist.**
+
+**„Auffällig" und nicht „Warnung":** Eine Warnung ist eine Art Meldung und kein
+Zustand; neben „In Ordnung" und „Kaputt" wechselt sie die Ebene. Und nicht
+„Läuft ab" oder „Wird kaputtgehen" — von den fünf Gründen, die auf `Warn`
+fallen, sind nur zwei eine Vorhersage. Die anderen drei gehen nie kaputt: eine
+fehlende Regel im verwalteten Bereich, eine unbekannte Unit, eine verwaiste
+Zeile. Sie weichen ab.
+
+> **Ein Wort für eine Schwere muss jeden Grund tragen, der auf sie fällt, und
+> nicht den, an den man beim Benennen gerade denkt.**
+
+**Die Marke steht an genau einer Stelle**, und deshalb war die Änderung eine
+Zeile: `FindingState::label()`. Seite und Konsole lesen dieselbe.
+
+**Gehalten wird die Regel jetzt an der Form**, weil der Sinn sich nicht prüfen
+lässt: höchstens zwei Wörter, und kein unbestimmtes Fürwort („jemand", „man",
+„wer"). Das Fürwort ist das Merkmal, an dem sich eine Handlung von einem Zustand
+unterscheiden lässt, ohne Deutsch zu parsen — ein Zustand hat keinen Handelnden;
+die Länge fängt den Rest.
+
+> **Ein Wächter über Prosa prüft die Form und nicht den Sinn.**
+
+Was er nicht kann, steht in seinem Kopf: „Bald kaputt" wäre zwei Wörter ohne
+Fürwort und trotzdem eine Vorhersage statt eines Zustands. Belegt ist er an
+beiden Hälften einzeln — die alte Marke fällt über die Länge, ein
+„Jemand hinsehen" über das Fürwort.
+
+Der Hinweis daneben ist ausdrücklich nicht betroffen; er darf ein Satz sein. Er
+ist trotzdem geschärft worden: „Noch ist nichts kaputt" stimmte für ein
+ablaufendes Zertifikat und nicht für eine verwaiste Zeile, die nie kaputtgeht.
+
+### Die Zusage einer Vhost-Datei wird je Form gefragt und nicht als Schnittmenge
+
+**Der Abnahmelauf hat die Grenze bezahlt** (`docs/99 §5`, 3. September 2026 auf
+`cloudsrv24`). Punkt 5 verlangt den Fall, in dem `nginx -t` eine Datei für
+gültig hält und eine Anweisung trotzdem verloren ist. Gemessen wurde an der
+echten Vorlage, Zeile für Zeile: **Von fünfundzwanzig Anweisungen lässt der
+Prüfer genau eine Auslassung durchgehen** — die `index`-Zeile, und verschluckt
+wird, was darauf folgt: `client_max_body_size`.
+
+`SiteTemplate::PROMISED` war die **Schnittmenge** aller Formen und deckte elf
+dieser fünfundzwanzig Anweisungen. `client_max_body_size` gehört zu den
+vierzehn anderen. Die Prüfung schwieg also — zu Recht, denn sie prüft, was sie
+zusagt.
+
+> **Eine Zusage über neun Anweisungen sagt über die siebzehn daneben nichts —
+> und die stille Form des Schadens traf genau eine davon.**
+
+**Die Antwort ist nicht eine grössere Schnittmenge, sondern keine.** Die Form
+ist bekannt, wenn die Datei geschrieben wird, und sie ist bekannt, wenn sie
+geprüft wird — `PROMISED_BY_FORM` nennt sie je Form, `PROMISED_WITH_TLS` legt
+dazu, was ein Zertifikat mitbringt. Eine grössere Schnittmenge ginge nicht: Eine
+Weiterleitungsdomain hat kein `index` und kein `fastcgi_pass`, und der
+Nachtlauf meldete ab morgen jede heile Weiterleitung als kaputt.
+
+**Gemessen und nicht aufgezählt.** Jede Liste ist die Ausgabe von
+`Statements::heads()` über das Rendering ihrer Form; `PromiseReachTest` rechnet
+sie in beide Richtungen nach. Die Zahlen: gesperrt und weiterleitend je 9,
+statisch 15, mit PHP 20; ein Zertifikat legt vier `ssl_`-Anweisungen dazu und
+nimmt keine weg.
+
+**`add_header` steht in keiner Zusage, und das ist eine Entscheidung.** Es
+erscheint nur, wenn `Trust::hsts()` zustimmt, und das hängt am **Inhalt** des
+Zertifikats — ein selbstsigniertes bekommt kein HSTS. Gemessen mit einem
+Wegwerf-Blatt einer Wegwerf-Autorität (im Speicher erzeugt, wie in
+`SiteTemplateTest`) ist `add_header` der einzige Unterschied zwischen HSTS an
+und aus.
+
+> **Eine Anweisung, deren Anwesenheit von einem Wert und nicht von der Form
+> abhängt, ist keine Zusage der Form.**
+
+**Woher die Form kommt, ist die eigentliche Entscheidung.** Nicht aus der Datei:
+Wer sie dort abliest — „steht `fastcgi_pass` drin, dann ist es eine
+PHP-Domain" — verliert die Zusage mit dem Schaden, denn genau die verschluckte
+Anweisung fällt aus der Erwartung heraus.
+
+> **Eine Zusage, die aus dem Prüfling abgeleitet wird, schrumpft mit seinem
+> Schaden.**
+
+Sie kommt vom Panel, und zwar von der Stelle, die schreibt:
+`WebLifecycle::form()` baut sie aus **demselben** Payload, den `web.site.apply`
+schickt, und fragt `SiteTemplate::formOf()`. Diese Methode ist neu und hat
+`render()` sein `match` abgenommen — die Reihenfolge (gesperrt vor
+weiterleitend vor PHP) stand vorher nur dort und wäre im Panel ein zweites Mal
+entstanden.
+
+**Ob ein Zertifikat ausgeliefert wird, entscheidet dagegen der Agent** — über
+`Store::existing()`, dieselbe Frage wie beim Schreiben. Das Panel kennt die
+Zuordnung, aber nicht, ob die Datei daliegt; sagte es „mit TLS" und der Block
+hätte keinen 443er, meldete die Diagnose jede Nacht vier fehlende
+`ssl_`-Anweisungen an einer heilen Domain.
+
+**Eine unbekannte Form fällt auf die Schnittmenge zurück und nicht auf die
+grösste Liste** — der Fehler fällt zur sicheren Seite. Eine Form, die es nicht
+gibt, wird dagegen abgewiesen: Sonst hiesse „falsch geschrieben" dasselbe wie
+„nicht mitgeschickt", und der Unterschied ist eine kleinere Zusage.
+
+**Belegt am Prüfkörper des Servers.** `PromiseReachTest` nimmt der gerenderten
+PHP-Form ihr `index`-Semikolon und hält beide Zusagen daneben: Die Schnittmenge
+**schweigt**, die Zusage der Form meldet
+`client_max_body_size fehlt als Anweisung`. Eine Null ist nur dann eine
+Messung, wenn daneben etwas anderes als Null steht.
+
+Dazu zwei Wächter über die Herkunft: einer an der Wirkung (dieselbe verstümmelte
+Datei verliert als PHP-Form etwas und als statische nichts) und einer am
+Quelltext (`$content` geht nicht in die Wahl der Zusage ein).
+
 ### MariaDB setzt eine Vorgabe ein, die in keiner Migration steht — und sie hätte Punkt 8 gekippt
 
 **Die CI hat `findings` auf Ubuntu 22.04 nicht anlegen können:**

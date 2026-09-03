@@ -59,6 +59,37 @@ final class Statements
     }
 
     /**
+     * Die ersten Wörter aller Anweisungen — je Name einmal.
+     *
+     * **Das ist der Sollzustand von der anderen Seite.** {@see self::lostInNginx()}
+     * fragt eine Datei, ob eine zugesagte Anweisung noch dasteht; diese
+     * Methode sagt umgekehrt, welche Anweisungen ein Text überhaupt führt. Aus
+     * ihr entsteht die Zusage einer Vorlage — gelesen aus dem, was die Vorlage
+     * schreibt, und nicht aus einer Liste daneben.
+     *
+     * > **Ein Sollzustand, den man für den Vergleich neu formuliert, ist eine
+     * > zweite Fassung — und die zweite ist die, die veraltet.**
+     *
+     * Sortiert, damit zwei Vorlagen vergleichbar sind, ohne dass die
+     * Reihenfolge im Text mitredet.
+     *
+     * @return list<string>
+     */
+    public static function heads(string $content): array
+    {
+        $heads = [];
+
+        foreach (self::nginx($content) as $words) {
+            $heads[$words[0]] = true;
+        }
+
+        $names = array_keys($heads);
+        sort($names);
+
+        return $names;
+    }
+
+    /**
      * Die Schlüssel einer INI-Datei — was vor dem `=` steht.
      *
      * Abschnittsköpfe (`[p1001]`) und Kommentare (`;`) zählen nicht. Ein

@@ -7,6 +7,7 @@ namespace SrvPanel\Agent;
 use SrvPanel\Agent\Acme\HttpChallenge;
 use SrvPanel\Agent\Acme\Store;
 use SrvPanel\Agent\Acme\Trust;
+use SrvPanel\Agent\Diagnose\Statements;
 use SrvPanel\Agent\Ops\PanelVhost;
 
 /**
@@ -74,6 +75,92 @@ final class SiteTemplate
      */
     public const PROMISED = ['server', 'listen', 'server_name', 'access_log', 'error_log', 'location', 'root', 'default_type', 'return'];
 
+    /** Die vier Formen, die {@see self::render()} unterscheidet. */
+    public const FORM_SUSPENDED = 'suspended';
+
+    public const FORM_REDIRECT = 'redirect';
+
+    public const FORM_PHP = 'php';
+
+    public const FORM_STATIC = 'static';
+
+    /**
+     * Was jede **einzelne** Form zusagt (A10, 3. September 2026).
+     *
+     * ## Warum die Schnittmenge zu klein war
+     *
+     * {@see self::PROMISED} ist die Schnittmenge aller Formen, und sie war die
+     * vorsichtige Wahl: zu gross gefasst meldete der Nachtlauf jede heile
+     * Weiterleitungsdomain als kaputt. Der Preis dafür ist im Abnahmelauf
+     * fällig geworden (`docs/99 §5`, `cloudsrv24`): Von den fünfundzwanzig
+     * Anweisungen einer PHP-Domain deckte die Schnittmenge **elf**, und die
+     * einzige Stelle, an der `nginx -t` einen fehlenden Semikolon still
+     * durchlässt, kostet eine der vierzehn anderen — `client_max_body_size`,
+     * verschluckt von `index`.
+     *
+     * > **Eine Zusage über neun Anweisungen sagt über die siebzehn daneben
+     * > nichts — und die stille Form des Schadens traf genau eine davon.**
+     *
+     * Die Antwort ist nicht eine grössere Schnittmenge, sondern **keine**: Die
+     * Form ist bekannt, wenn die Datei geschrieben wird, und sie ist bekannt,
+     * wenn sie geprüft wird. Gefragt wird deshalb je Form.
+     *
+     * ## Gemessen und nicht aufgezählt
+     *
+     * Jede dieser Listen ist die Ausgabe von {@see Statements::heads()} über
+     * das Rendering ihrer Form; `PromiseReachTest` rechnet sie in beide
+     * Richtungen nach und wird rot, sobald die Vorlage eine Anweisung ergänzt
+     * oder verliert. Dass `suspended` und `redirect` dieselben neun führen,
+     * steht hier zweimal da, weil es zwei Messungen sind, die
+     * übereinstimmen — und nicht ein Eintrag, der für beide gilt.
+     *
+     * @var array<string, list<string>>
+     */
+    public const PROMISED_BY_FORM = [
+        self::FORM_SUSPENDED => ['access_log', 'default_type', 'error_log', 'listen', 'location', 'return', 'root', 'server', 'server_name'],
+        self::FORM_REDIRECT => ['access_log', 'default_type', 'error_log', 'listen', 'location', 'return', 'root', 'server', 'server_name'],
+        self::FORM_PHP => ['access_log', 'client_max_body_size', 'default_type', 'deny', 'error_log', 'fastcgi_index', 'fastcgi_param', 'fastcgi_pass', 'fastcgi_read_timeout', 'fastcgi_split_path_info', 'include', 'index', 'listen', 'location', 'log_not_found', 'return', 'root', 'server', 'server_name', 'try_files'],
+        self::FORM_STATIC => ['access_log', 'client_max_body_size', 'default_type', 'deny', 'error_log', 'include', 'index', 'listen', 'location', 'log_not_found', 'return', 'root', 'server', 'server_name', 'try_files'],
+    ];
+
+    /**
+     * Was ein Zertifikat dazulegt — und zwar in **jeder** Form.
+     *
+     * Gemessen am 3. September 2026: Der Block auf 443 nimmt vier Anweisungen
+     * dazu und **keine** weg. Port 80 verliert seinen Inhalt an den
+     * gesicherten Block und bekommt {@see self::toHttps()}, dessen `location`
+     * und `return` jede Form ohnehin führt.
+     *
+     * **`add_header` steht bewusst nicht darin.** Es erscheint nur, wenn
+     * {@see Trust::hsts()} zustimmt, und das hängt am **Inhalt** des
+     * Zertifikats: Ein selbstsigniertes bekommt kein HSTS. Gemessen mit einem
+     * Wegwerf-Zertifikat einer Autorität ist `add_header` der einzige
+     * Unterschied zwischen HSTS an und aus.
+     *
+     * > **Eine Anweisung, deren Anwesenheit von einem Wert und nicht von der
+     * > Form abhängt, ist keine Zusage der Form.**
+     *
+     * @var list<string>
+     */
+    public const PROMISED_WITH_TLS = ['ssl_certificate', 'ssl_certificate_key', 'ssl_prefer_server_ciphers', 'ssl_protocols'];
+
+    /**
+     * Die Zusage für eine Form — mit Zertifikat oder ohne.
+     *
+     * **Eine unbekannte Form fällt auf die Schnittmenge zurück und nicht auf
+     * die grösste Liste.** Der Fehler fällt damit zur sicheren Seite: Eine
+     * Zusage, die zu klein ist, meldet einen Schaden zu wenig; eine, die zu
+     * gross ist, meldet jede Nacht jede heile Domain.
+     *
+     * @return list<string>
+     */
+    public static function promised(?string $form, bool $tls): array
+    {
+        $base = self::PROMISED_BY_FORM[$form] ?? self::PROMISED;
+
+        return $tls ? array_values(array_unique([...$base, ...self::PROMISED_WITH_TLS])) : $base;
+    }
+
     /**
      * Der Server-Block — mit HTTPS, sobald ein Zertifikat dafür daliegt.
      *
@@ -120,9 +207,9 @@ final class SiteTemplate
          */
         $challenge = HttpChallenge::nginxLocation();
 
-        $body = match (true) {
-            $site->suspended => self::suspended(),
-            $site->redirectTarget !== null => self::redirect($site),
+        $body = match (self::formOf($site)) {
+            self::FORM_SUSPENDED => self::suspended(),
+            self::FORM_REDIRECT => self::redirect($site),
             default => self::serving($site),
         };
 
@@ -148,6 +235,28 @@ final class SiteTemplate
         }
         {$secure}
         CONF;
+    }
+
+    /**
+     * Welche Form diese Domain bekommt.
+     *
+     * **Die Reihenfolge ist tragend und steht deshalb hier und nicht zweimal.**
+     * Eine gesperrte Domain mit Weiterleitung wird gesperrt ausgeliefert, nicht
+     * weitergeleitet — die Sperre gewinnt. {@see self::render()} fragt diese
+     * Methode, und die Bestandsdiagnose fragt sie über das Panel ebenfalls; ein
+     * zweites `match` daneben wäre die Fassung, die beim nächsten Zustand
+     * vergessen wird.
+     *
+     * @return self::FORM_*
+     */
+    public static function formOf(Site $site): string
+    {
+        return match (true) {
+            $site->suspended => self::FORM_SUSPENDED,
+            $site->redirectTarget !== null => self::FORM_REDIRECT,
+            $site->phpVersion !== null => self::FORM_PHP,
+            default => self::FORM_STATIC,
+        };
     }
 
     /**

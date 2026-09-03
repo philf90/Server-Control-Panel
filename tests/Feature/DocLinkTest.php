@@ -171,13 +171,60 @@ final class DocLinkTest extends TestCase
      * andere, nur trifft sie hier nicht den Dateinamen, sondern die Nummer —
      * ein Dokument, das nie geschrieben oder wieder entfernt wurde, fällt
      * niemandem auf.
+     *
+     * ## Zwei Stellen oder drei, und warum das nicht egal ist
+     *
+     * Bis zum 3. September 2026 stand hier `\d{2}`, und das war keine Grenze,
+     * sondern eine Gewohnheit: Es gab schlicht noch kein dreistelliges
+     * Dokument. Gemessen an dem Tag, an dem das erste entstand:
+     *
+     *     docs/100-wegwerf-messung.md nennt docs/10, dieses Dokument gibt es nicht.
+     *
+     * Die Datei lag da. Gelesen wurden ihre ersten zwei Ziffern, gesucht wurde
+     * ein Dokument, das es seit dem Repo-Übergang nicht gibt — der Wächter
+     * meldete also einen Verweis als tot, der auf das Dokument zeigte, in dem
+     * er stand.
+     *
+     * > **Ein Ausdruck, der die gewohnte Stellenzahl kennt, prüft die
+     * > Gewohnheit und nicht die Regel.**
+     *
+     * `{2,3}` ist gierig, ein `docs/99 §5` liest sich also weiter als `99`.
+     *
+     * **Und das `(?!\d)` dahinter ist nicht Zierrat, sondern das, was ein
+     * falsches Rot verhindert.** Ohne es liest sich eine längere Zahl als ihre
+     * ersten drei Ziffern — aus einem Text über `9999` wurde ein Verweis auf
+     * ein Dokument `999`, das es nicht gibt. Mit ihm ist eine vierstellige
+     * Zahl **gar kein** Verweis, und das ist die richtige Auskunft: Ein
+     * Dokument mit vier Stellen gibt es nicht.
+     *
+     * > **Ein Ausdruck, der zu viel liest, meldet einen Verweis, den niemand
+     * > geschrieben hat.**
+     *
+     * Wer ein vierstelliges Dokument anlegt, erweitert hier — bis dahin wäre
+     * es ungeprüft, und diese Grenze steht hier, statt sich als Zusage zu
+     * lesen.
+     *
+     * ## Was er nicht kann
+     *
+     * **Er unterscheidet einen Verweis nicht von einem Zitat.** Ein Dokument,
+     * das die Meldung dieses Wächters festhält, enthält damit den toten
+     * Verweis, von dem sie handelt — und wird dafür gemeldet. Genau das ist
+     * dem Protokoll des A10-Nachlaufs am 3. September 2026 zweimal passiert,
+     * in demselben Absatz.
+     *
+     * > **Ein Text, der eine Meldung über einen toten Verweis zitiert, enthält
+     * > den toten Verweis.**
+     *
+     * Codeblöcke zu überspringen wäre keine Lösung, sondern ein Loch: Dort
+     * stehen Verweise, die genauso verrotten. Wer eine solche Meldung
+     * festhalten will, schreibt die Nummer ohne ihr `docs/`.
      */
     public function test_every_document_mentioned_by_number_exists(): void
     {
         $numbers = [];
 
         foreach ($this->markdownFiles() as $file) {
-            preg_match_all('~docs/(\d{2})~', (string) file_get_contents($file), $matches);
+            preg_match_all('~docs/(\d{2,3})(?!\d)~', (string) file_get_contents($file), $matches);
 
             foreach ($matches[1] as $number) {
                 // Nach Nummer abgelegt und nicht angehängt: Die Meldung soll die

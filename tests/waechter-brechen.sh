@@ -5221,13 +5221,22 @@ echo "── DocLinkTest: eine Dokumentnummer, die es nicht gibt ──"
 # > **Eine Lücke, die man für unerreichbar erklärt, ist trotzdem eine Lücke —
 # > und eine Zusage über die Zukunft ist kein Mechanismus.**
 #
-# **Vierstellig geht nicht, und das ist gemessen.** `DocLinkTest` sucht
-# `~docs/(\d{2})~` — aus `docs/9999` liest er `99`, und das Dokument gibt es
-# seit heute. Der Eingriff lief damit durch, ohne etwas zu brechen: derselbe
-# stumpfe Eingriff, nur mit einer anderen Ursache.
+# **Vierstellig geht nicht, und das ist gemessen.** `DocLinkTest` liest die
+# Nummer mit einem Ausdruck fester Stellenzahl — aus einer laengeren nimmt er
+# die ersten Stellen, und das Dokument dazu gibt es seit heute. Der Eingriff
+# lief damit durch, ohne etwas zu brechen: derselbe stumpfe Eingriff, nur mit
+# einer anderen Ursache.
 #
 # > **Eine Nummer, die weiter aus dem Weg liegt, ist nicht sicherer — sie wird
-# > vom Leser auf ihre ersten zwei Ziffern gekürzt.**
+# > vom Leser gekuerzt.**
+#
+# **Seit dem 3. September liest er zwei ODER drei Stellen**, weil das erste
+# dreistellige Dokument entstanden ist. Diese Zeilen nennen die Stellenzahl
+# deshalb nicht mehr: Sie waeren eine zweite Fassung des Ausdrucks, und die
+# zweite ist die, die veraltet — genau das ist der Begruendung in
+# `BreakScriptTest` an dem Tag passiert. Gehalten wird die Beziehung dort
+# jetzt an der Wirkung: Der Waechter liest den Ausdruck aus `DocLinkTest` und
+# fragt, ob er die Platzhalternummer ganz liest.
 #
 # Genommen ist deshalb `docs/00`: zweistellig, damit der Leser sie überhaupt
 # sieht, und am **unteren** Ende, weil die Reihe nach oben wächst. **Gehalten
@@ -5248,6 +5257,73 @@ pruefe "Nummer eines Dokuments, das es nicht gibt" \
   DocLinkTest::test_every_document_mentioned_by_number_exists failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DocLinkTest passed
+
+echo
+echo "── FindingStateTest: die Marke benennt wieder eine Handlung ──"
+#
+# Genau der Zustand bis zum 3. September 2026: Warn hiess "Sieht jemand hin" —
+# eine Handlung in einer Spalte, in der sonst Zustaende stehen. Gemeldet hat es
+# der Betreiber beim Lesen einer Zusammenfassung auf dem Server, kein Waechter.
+vorher_datei app/Enums/FindingState.php
+python3 - <<'PY2'
+p = 'app/Enums/FindingState.php'
+s = open(p, encoding='utf-8').read()
+alt = "self::Warn => 'Auffällig',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "self::Warn => 'Sieht jemand hin',", 1))
+PY2
+griff_datei app/Enums/FindingState.php "Marke benennt eine Handlung" &&
+pruefe "Marke benennt eine Handlung" \
+  FindingStateTest::test_a_label_names_a_state_and_not_an_action failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
+
+echo
+echo "── DocLinkTest: der Leser kennt wieder nur zwei Stellen ──"
+#
+# Am 3. September 2026 entstand mit dem Protokoll des A10-Nachlaufs das erste
+# dreistellige Dokument — und der Leser meldete es als Verweis auf ein
+# Dokument, das es nicht gibt, weil er die Nummer nach zwei Ziffern abschnitt.
+# Die Datei lag da.
+#
+# > **Ein Ausdruck, der die gewohnte Stellenzahl kennt, prueft die Gewohnheit
+# > und nicht die Regel.**
+vorher_datei tests/Feature/DocLinkTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/DocLinkTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "docs/(\\d{2,3})(?!\\d)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "docs/(\\d{2})", 1))
+PY2
+griff_datei tests/Feature/DocLinkTest.php "Leser kennt nur zwei Stellen" &&
+pruefe "Leser kennt nur zwei Stellen" \
+  DocLinkTest::test_every_document_mentioned_by_number_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DocLinkTest passed
+
+echo
+echo "── DocumentNumberReaderTest: ein zweiter Leser bleibt zurueck ──"
+#
+# Der eigentliche Befund vom 3. September: Es sind zwei Leser derselben Frage.
+# DocLinkTest war erweitert, ChangelogTest nicht — und der Changelog-Eintrag
+# ueber die Erweiterung fiel eine Minute spaeter an seiner eigenen Nummer durch.
+#
+# > **Zwei Fassungen derselben Regel laufen auseinander, und die zweite ist die,
+# > die veraltet.**
+vorher_datei tests/Feature/ChangelogTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/ChangelogTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "docs\\/(\\d{2,3})(?!\\d)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "docs\\/(\\d{2})", 1))
+PY2
+griff_datei tests/Feature/ChangelogTest.php "zweiter Leser bleibt zurueck" &&
+pruefe "zweiter Leser bleibt zurueck" \
+  DocumentNumberReaderTest failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DocumentNumberReaderTest passed
 
 echo
 echo "── PgNameTest: das Präfix haengt wieder am Abonnement ──"
@@ -22446,10 +22522,10 @@ vorher_datei agent/src/Ops/SystemDiagnose.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/SystemDiagnose.php'
 s = open(p, encoding='utf-8').read()
-alt = """            $verdict = Verdict::file($content, $content === null ? [] : Statements::lostInNginx($content, SiteTemplate::PROMISED));"""
+alt = """            $verdict = Verdict::file($content, $content === null ? [] : Statements::lostInNginx($content, $promised));"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 neu = """            $lost = [];
-            foreach (SiteTemplate::PROMISED as $directive) {
+            foreach ($promised as $directive) {
                 if ($content !== null && ! str_contains($content, $directive)) {
                     $lost[] = $directive.' fehlt';
                 }
@@ -23504,6 +23580,66 @@ pruefe "Seite misst selbst" \
   DiagnoseViewTest::test_the_page_asks_nothing failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseViewTest passed
+
+echo
+echo "== SiteFileIntegrityTest: die Zusage kommt wieder aus dem Inhalt =="
+#
+# Die Falle vom 3. September 2026: Wer die Form aus der Datei abliest, verliert
+# die Zusage mit dem Schaden — die verschluckte Anweisung faellt aus der
+# Erwartung heraus, und der Befund bleibt aus.
+vorher_datei agent/src/Ops/SystemDiagnose.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemDiagnose.php'
+s = open(p, encoding='utf-8').read()
+alt = "            $promised = SiteTemplate::promised($form, $tls);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            $promised = SiteTemplate::promised($content !== null && str_contains($content, 'fastcgi_pass') ? SiteTemplate::FORM_PHP : SiteTemplate::FORM_STATIC, $tls);"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/SystemDiagnose.php "Zusage aus dem Inhalt" &&
+pruefe "Zusage aus dem Inhalt" \
+  SiteFileIntegrityTest::test_the_body_does_not_read_the_content_to_choose_the_promise failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
+
+echo
+echo "== PromiseReachTest: die Zusage einer Form ist zu klein =="
+#
+# Die Haelfte, die den Abnahmelauf gekostet hat: Eine Zusage, die eine
+# Anweisung der Form nicht nennt, laesst genau deren Verlust durchgehen.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+alt = "'fastcgi_pass', "
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/SiteTemplate.php "Zusage der Form zu klein" &&
+pruefe "Zusage der Form zu klein" \
+  PromiseReachTest::test_every_form_promises_exactly_what_it_emits failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
+
+echo
+echo "== PromiseReachTest: add_header wird zur Zusage der Form =="
+#
+# add_header haengt am Inhalt des Zertifikats und nicht an der Form: Ein
+# selbstsigniertes bekommt kein HSTS. Steht es in der Zusage, meldet der
+# Nachtlauf jede Domain ohne HSTS als kaputt.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+alt = "public const PROMISED_WITH_TLS = ['ssl_certificate',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "public const PROMISED_WITH_TLS = ['add_header', 'ssl_certificate',", 1))
+PY2
+griff_datei agent/src/SiteTemplate.php "add_header in der Zusage" &&
+pruefe "add_header in der Zusage" \
+  PromiseReachTest::test_hsts_is_not_a_promise_of_the_form failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
 
 echo
 echo "== AptKeyReadTest: gpg legt seinen Schluesselbund wieder an =="

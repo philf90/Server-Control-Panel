@@ -116,6 +116,59 @@ final class FindingStateTest extends TestCase
     }
 
     /**
+     * Ein Zustand wird als Zustand benannt und nicht als Handlung.
+     *
+     * ## Der Fehler, den es dafür gebraucht hat
+     *
+     * `Warn` hiess bis zum 3. September 2026 **„Sieht jemand hin"**. Gemeldet
+     * hat es der Betreiber beim Lesen einer Zusammenfassung auf dem Server:
+     * Die drei anderen Marken benennen einen Zustand des Gegenstands, diese
+     * eine eine Handlung — und dazu eine, die jemand vielleicht tut.
+     *
+     * > **Ein Zustand, der als Handlung benannt ist, steht in einer Spalte, in
+     * > der sonst Zustände stehen — und liest sich als Aufforderung, wo eine
+     * > Auskunft gemeint ist.**
+     *
+     * ## Was er hält, und was nicht
+     *
+     * **Zwei Wörter, keine unbestimmte Person.** Ein unbestimmtes Fürwort
+     * („jemand", „man", „wer") ist das Merkmal, an dem sich eine Handlung von
+     * einem Zustand unterscheiden lässt, ohne Deutsch zu parsen: Ein Zustand
+     * hat keinen Handelnden. Die Länge fängt den Rest — ein Satz braucht mehr
+     * als zwei Wörter, ein Zustand nicht.
+     *
+     * Was er **nicht** kann, ist die Aussage. „Bald kaputt" wäre zwei Wörter
+     * ohne Fürwort und trotzdem eine Vorhersage statt eines Zustands; darüber
+     * steht im Kopf von {@see FindingState::label()}, warum das hier falsch
+     * wäre.
+     *
+     * > **Ein Wächter über Prosa prüft die Form und nicht den Sinn.**
+     *
+     * Der Hinweis daneben ist ausdrücklich **nicht** betroffen: Er darf ein
+     * Satz sein, er soll ja sagen, was zu tun ist.
+     */
+    public function test_a_label_names_a_state_and_not_an_action(): void
+    {
+        $fuerwoerter = ['jemand', 'man', 'wer', 'du', 'sie', 'niemand'];
+
+        foreach (FindingState::cases() as $state) {
+            $woerter = preg_split('/\s+/', trim($state->label())) ?: [];
+
+            $this->assertLessThanOrEqual(2, count($woerter), sprintf(
+                'Die Marke „%s" ist ein Satz und keine Benennung eines Zustands.',
+                $state->label(),
+            ));
+
+            foreach ($woerter as $wort) {
+                $this->assertNotContains(mb_strtolower($wort), $fuerwoerter, sprintf(
+                    'Die Marke „%s" nennt eine unbestimmte Person — dann benennt sie eine Handlung und keinen Zustand.',
+                    $state->label(),
+                ));
+            }
+        }
+    }
+
+    /**
      * Die Schwere steht **nicht** in der Tabelle.
      *
      * Sie folgt aus `check` und `reason` ({@see FindingCheck::state()}).

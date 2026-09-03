@@ -1027,28 +1027,38 @@ final class BreakScriptTest extends TestCase
 
         $this->assertNotSame([], $nummern, 'Die Marke nennt keine Nummer — dann misst dieser Wächter nichts.');
 
+        $muster = $this->documentNumberPattern();
+
         foreach ($nummern as $nummer) {
             /*
-             * **Zweistellig, und das ist gemessen.** `DocLinkTest` sucht
-             * `~docs/(\d{2})~`; aus einem `docs/9999` liest er `99`. Eine
-             * Nummer, die weiter aus dem Weg zu liegen scheint, wird also auf
-             * ihre ersten zwei Ziffern gekürzt — und der Eingriff lief am
-             * 2. September 2026 genau deshalb ein zweites Mal durch, ohne
-             * etwas zu brechen.
+             * **Der Leser muss die Nummer ganz lesen, und das wird gemessen
+             * statt behauptet.** `DocLinkTest` sucht `docs/` plus eine feste
+             * Zahl von Ziffern; was darüber hinausgeht, schneidet er ab. Aus
+             * `docs/9999` wurde am 2. September 2026 ein `99`, das Dokument
+             * dazu gibt es, und der Eingriff lief ohne Biss durch.
              *
              * > **Eine Nummer, die weiter aus dem Weg liegt, ist nicht sicherer
              * > — sie wird vom Leser gekürzt.**
+             *
+             * Hier stand dafür bis zum 3. September `^\d{2}$` samt der
+             * Begründung „DocLinkTest liest `docs/(\d{2})`". Das war eine
+             * zweite Fassung jenes Ausdrucks — und als er dreistellig wurde,
+             * stimmte die Begründung nicht mehr, während die Zeile weiter
+             * grün war. Gefragt wird deshalb der Ausdruck selbst: Liest er
+             * `docs/<nummer>` als genau diese Nummer?
              */
-            $this->assertSame(
-                1,
-                preg_match('/^\d{2}$/', $nummer),
-                sprintf(
-                    '%s ist keine zweistellige Nummer. DocLinkTest liest docs/(\d{2}) — '
-                    .'eine längere wird auf ihre ersten zwei Ziffern gekürzt, und der Eingriff '
-                    .'bricht dann etwas anderes oder nichts.',
-                    $nummer,
-                ),
-            );
+            $gelesen = null;
+
+            if (preg_match($muster, 'docs/'.$nummer, $wie) === 1) {
+                $gelesen = $wie[1];
+            }
+
+            $this->assertSame($nummer, $gelesen, sprintf(
+                'DocLinkTest liest aus docs/%s die Nummer %s. Der Eingriff bricht dann etwas '
+                .'anderes oder nichts — die Platzhalter-Nummer muss der Ausdruck ganz lesen.',
+                $nummer,
+                $gelesen ?? '(gar nichts)',
+            ));
 
             // **Gefragt wird über die Nummer und nicht über den Dateinamen** —
             // genau wie DocLinkTest selbst es tut: `docs/37` findet
@@ -1148,5 +1158,29 @@ final class BreakScriptTest extends TestCase
             .'und lässt die Lücke für den nächsten stehen.',
             implode("\n  ", $eigene[0]),
         ));
+    }
+
+    /**
+     * Der Ausdruck, mit dem {@see DocLinkTest} eine Dokumentnummer liest.
+     *
+     * **Gelesen und nicht nachgebaut.** Ein zweiter Ausdruck derselben Regel
+     * wäre der, der beim nächsten Mal veraltet — und diese Stelle hat genau
+     * das schon einmal getan.
+     */
+    private function documentNumberPattern(): string
+    {
+        $quelle = (string) file_get_contents($this->root().'/tests/Feature/DocLinkTest.php');
+
+        // Der Aufruf, wie er dort steht: `preg_match_all('~docs/(\d{2,3})~', …`.
+        // Gefangen wird das Ausdrucksliteral zwischen den Hochkommata, samt
+        // seinen Trennzeichen — es geht danach unverändert an `preg_match()`.
+        $ausdruck = "#preg_match_all\\('(?<muster>[^']*docs/[^']*)'#";
+
+        $this->assertSame(1, preg_match($ausdruck, $quelle, $treffer), implode("\n", [
+            'In DocLinkTest steht kein preg_match_all über docs/<nummer> mehr.',
+            'Ohne ihn misst dieser Wächter die Platzhalter-Nummer gegen nichts.',
+        ]));
+
+        return $treffer['muster'];
     }
 }

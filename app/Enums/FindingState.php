@@ -57,11 +57,34 @@ enum FindingState: string
     /** Nicht geprüft — über den Gegenstand ist damit nichts gesagt. */
     case Unknown = 'unknown';
 
+    /**
+     * Die vier Zustände, wie sie auf der Seite und in der Konsole stehen.
+     *
+     * **`Warn` hiess bis zum 3. September 2026 „Sieht jemand hin".** Gemeldet
+     * hat es der Betreiber beim Lesen einer Zusammenfassung auf dem Server, und
+     * der Einwand trifft die Form und nicht den Geschmack: Die drei anderen
+     * benennen einen **Zustand des Gegenstands**, dieser eine eine Handlung —
+     * und dazu eine, die jemand vielleicht tut.
+     *
+     * > **Ein Zustand, der als Handlung benannt ist, steht in einer Spalte, in
+     * > der sonst Zustände stehen — und liest sich als Aufforderung, wo eine
+     * > Auskunft gemeint ist.**
+     *
+     * **„Auffällig" und nicht „Warnung":** Eine Warnung ist eine Art Meldung
+     * und kein Zustand; in einer Spalte neben „In Ordnung" und „Kaputt" wechselt
+     * sie die Ebene. Und nicht „Läuft ab" oder „Wird kaputtgehen": Von den fünf
+     * Gründen, die auf `Warn` fallen, sind nur zwei eine Vorhersage. Die
+     * anderen drei — eine fehlende Regel im verwalteten Bereich, eine
+     * unbekannte Unit, eine verwaiste Zeile — gehen nie kaputt; sie weichen ab.
+     *
+     * > **Ein Wort für eine Schwere muss jeden Grund tragen, der auf sie fällt,
+     * > und nicht den, an den man beim Benennen gerade denkt.**
+     */
     public function label(): string
     {
         return match ($this) {
             self::Ok => 'In Ordnung',
-            self::Warn => 'Sieht jemand hin',
+            self::Warn => 'Auffällig',
             self::Fail => 'Kaputt',
             self::Unknown => 'Nicht gemessen',
         };
@@ -78,7 +101,7 @@ enum FindingState: string
     {
         return match ($this) {
             self::Ok => 'Der Gegenstand ist geprüft und in Ordnung.',
-            self::Warn => 'Noch ist nichts kaputt. Wer jetzt hinsieht, hat Zeit.',
+            self::Warn => 'Nichts davon ist kaputt — es weicht vom Sollzustand ab. Wer jetzt hinsieht, hat Zeit.',
             self::Fail => 'Hier ist gerade etwas kaputt.',
             self::Unknown => 'Diese Prüfung ist nicht durchgelaufen. Über den Gegenstand ist damit nichts gesagt — weder im Guten noch im Schlechten.',
         };

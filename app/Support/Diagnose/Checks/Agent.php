@@ -13,6 +13,7 @@ use App\Models\Subscription;
 use App\Support\Diagnose\Check;
 use App\Support\Diagnose\FindingLog;
 use App\Support\Tenancy\Tenancy;
+use App\Support\Web\WebLifecycle;
 use Illuminate\Support\Carbon;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
@@ -70,6 +71,7 @@ final class Agent implements Check
     public function __construct(
         private readonly Client $agent,
         private readonly Tenancy $tenancy,
+        private readonly WebLifecycle $web,
     ) {}
 
     public function writes(): array
@@ -123,13 +125,19 @@ final class Agent implements Check
      * Verzeichnis, für die beiden Dateiprüfungen sind es die Gegenstände, die
      * gefragt worden wären.
      *
-     * @param  array{domains: list<string>, pools: list<array{version: string, user: string}>}  $subjects
+     * @param  array{domains: list<array{name: string, form: string, certificate: null|string}>, pools: list<array{version: string, user: string}>}  $subjects
      * @return list<string>
      */
     private static function subjectsOf(FindingCheck $check, array $subjects): array
     {
         return match ($check) {
-            FindingCheck::WebFile => $subjects['domains'],
+            // **Der Gegenstand bleibt der Name**, auch wenn der Aufruf mehr
+            // mitschickt: Eine Zeile „nicht gemessen" nennt die Domain und
+            // nicht ihre Form.
+            FindingCheck::WebFile => array_map(
+                static fn (array $domain): string => $domain['name'],
+                $subjects['domains'],
+            ),
             FindingCheck::PhpFile => array_map(
                 static fn (array $pool): string => $pool['user'].' / PHP '.$pool['version'],
                 $subjects['pools'],
@@ -146,17 +154,19 @@ final class Agent implements Check
      * Paar aus Benutzer und Version entdoppelt, wie es `php.pool.apply` beim
      * Schreiben ohnehin tut.
      *
-     * @return array{domains: list<string>, pools: list<array{version: string, user: string}>}
+     * @return array{domains: list<array{name: string, form: string, certificate: null|string}>, pools: list<array{version: string, user: string}>}
      */
     private function subjects(): array
     {
-        /** @var list<string> $domains */
+        /** @var list<array{name: string, form: string, certificate: null|string}> $domains */
         $domains = [];
 
         /** @var array<string, array{version: string, user: string}> $pools */
         $pools = [];
 
-        $this->tenancy->withoutRestriction(static function () use (&$domains, &$pools): void {
+        $web = $this->web;
+
+        $this->tenancy->withoutRestriction(static function () use (&$domains, &$pools, $web): void {
             $usable = array_fill_keys(
                 Subscription::query()->whereIn('status', SubscriptionStatus::usableValues())->pluck('id')->all(),
                 true,
@@ -179,7 +189,14 @@ final class Agent implements Check
                     continue;
                 }
 
-                $domains[] = (string) $domain->name;
+                /*
+                 * **Die Form geht mit, und sie kommt von der Stelle, die
+                 * schreibt** ({@see WebLifecycle::form()}). Bis zum
+                 * 3. September schickte diese Zeile nur den Namen, und der
+                 * Agent prüfte gegen die Schnittmenge aller Formen — neun
+                 * Anweisungen von fünfundzwanzig (`docs/99 §5`).
+                 */
+                $domains[] = $web->form($domain);
 
                 $user = (string) ($users[$subscription] ?? '');
                 $version = (string) ($domain->php_version ?? '');

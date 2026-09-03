@@ -24,6 +24,8 @@ use App\Support\Tls\CertificateChoice;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\DocumentRoot;
 use SrvPanel\Agent\DomainName;
+use SrvPanel\Agent\Site;
+use SrvPanel\Agent\SiteTemplate;
 
 /**
  * Der Lebenslauf einer Website — und die Argumente, die den Agenten erreichen.
@@ -110,6 +112,38 @@ final class WebLifecycle implements AfterOperation
             // Was hier hinausgeht, ist ein Name und kein Pfad; den Ablageort
             // baut der Agent (`docs/34 §2.1`).
             'certificate' => $this->certificate($domain)?->storage_name,
+        ];
+    }
+
+    /**
+     * Welche Form der Vorlage diese Domain bekommt — für die Bestandsdiagnose.
+     *
+     * **Gefragt wird über {@see self::payload()} und {@see SiteTemplate::formOf()}**
+     * und nicht über die Spalten. Der Grund ist derselbe wie überall in dieser
+     * Klasse: Die Form entscheidet die Vorlage, und wer sie im Panel ein
+     * zweites Mal ausrechnet, hat eine Fassung, die beim nächsten Zustand
+     * veraltet. Die Sperre steht zum Beispiel am **Abonnement** und nicht an
+     * der Domain — eine Zeile `$domain->status === Suspended` daneben wäre
+     * genau die Schleife, die `payload()` sich oben verboten hat.
+     *
+     * **Der Zertifikatsname geht mit, und die Entscheidung darüber nicht.**
+     * Das Panel weiss, welches Zertifikat *zugeordnet* ist; ob die Datei
+     * daliegt, weiss nur der Agent, und er fragt dieselbe Stelle wie beim
+     * Schreiben.
+     *
+     * @return array{name: string, form: string, certificate: null|string}
+     */
+    public function form(Domain $domain): array
+    {
+        $payload = $this->payload($domain);
+
+        /** @var null|string $certificate */
+        $certificate = $payload['certificate'] ?? null;
+
+        return [
+            'name' => (string) $domain->name,
+            'form' => SiteTemplate::formOf(Site::fromArgs($payload)),
+            'certificate' => $certificate,
         ];
     }
 

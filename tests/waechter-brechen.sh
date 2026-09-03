@@ -23176,6 +23176,50 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
 
 echo
+echo "== DiagnoseWiringTest: die Naht zur Leitung ist nicht verdrahtet =="
+#
+# Genau der Zustand vom 3. September 2026: `Wire` war nie gebunden, und der
+# erste Lauf auf einem echten Server starb an „Target [Wire] is not
+# instantiable", bevor er etwas gemessen hat. Kein Test hat es gesehen, weil
+# alle die Pruefungen selbst zusammensetzen.
+vorher_datei app/Providers/SrvPanelServiceProvider.php
+python3 - <<'PY2'
+p = 'app/Providers/SrvPanelServiceProvider.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $this->app->bind(DiagnoseWire::class, TlsWire::class);
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Providers/SrvPanelServiceProvider.php "Wire nicht verdrahtet" &&
+pruefe "Wire nicht verdrahtet" \
+  DiagnoseWiringTest::test_the_container_builds_every_check_of_the_catalogue failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseWiringTest passed
+
+echo
+echo "== DiagnoseWiringTest: die Naht zur Maschine ist nicht verdrahtet =="
+#
+# Dieselbe Luecke eine Zeile weiter: `Host` haette den Lauf an SystemUsers
+# erwischt, wenn Certificates ihn nicht schon vorher beendet haette. Die
+# Gegenrichtung fragt nicht „laesst es sich bauen", sondern „ist die Bindung
+# abgelegt" — darauf verlaesst sich der naechste, der eine Pruefung ergaenzt.
+vorher_datei app/Providers/SrvPanelServiceProvider.php
+python3 - <<'PY2'
+p = 'app/Providers/SrvPanelServiceProvider.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $this->app->bind(DiagnoseHost::class, LocalHost::class);
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Providers/SrvPanelServiceProvider.php "Host nicht verdrahtet" &&
+pruefe "Host nicht verdrahtet" \
+  DiagnoseWiringTest::test_every_interface_a_check_asks_for_is_bound failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseWiringTest passed
+
+echo
 echo "== TimestampDefaultTest: die Spalte wird wieder eine timestamp =="
 #
 # Gemessen gegen MariaDB 10.11.14: Die erste TIMESTAMP NOT NULL einer Tabelle

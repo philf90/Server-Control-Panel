@@ -10,9 +10,13 @@ use App\Support\Authorization\AdminAbility;
 use App\Support\Diagnose\Catalog as DiagnoseCatalog;
 use App\Support\Diagnose\Check as DiagnoseCheck;
 use App\Support\Diagnose\FindingLog;
+use App\Support\Diagnose\Host as DiagnoseHost;
+use App\Support\Diagnose\LocalHost;
 use App\Support\Diagnose\Run as DiagnoseRun;
 use App\Support\Diagnose\RunLog as DiagnoseRunLog;
 use App\Support\Diagnose\SettingsRunLog;
+use App\Support\Diagnose\TlsWire;
+use App\Support\Diagnose\Wire as DiagnoseWire;
 use App\Support\Dns\AgentMeasurement;
 use App\Support\Dns\Measurement;
 use App\Support\Metrics\Collector;
@@ -51,7 +55,31 @@ final class SrvPanelServiceProvider extends ServiceProvider
          * fachliche Aufzählung und keine Verdrahtung, und die Seite aus Schritt 7
          * liest dieselbe.
          */
-        // Die Naht fuer "wann wurde zuletzt gemessen" (A10 Schritt 7).
+        /*
+         * **Die drei Nähte der Diagnose.**
+         *
+         * Sie sind da, weil sich die echten Klassen in keinem Test ersetzen
+         * lassen: `LocalHost` fragt das Dateisystem, `TlsWire` öffnet eine
+         * Verbindung, `Settings` ist `final`. Jede davon ist eine Schnittstelle,
+         * und **eine Schnittstelle ohne Bindung ist im Container nicht
+         * baubar** — der Lauf stirbt dann an der ersten Prüfung, die sie
+         * braucht.
+         *
+         * **Zwei davon haben genau das getan** (`docs/99`, Punkt 1, auf
+         * `cloudsrv24` gegen 0.7.3-rc.11): `Wire` kam aus Schritt 5 und wurde
+         * nie gebunden, `Host` ebenso; gebunden war nur `RunLog` aus Schritt 7,
+         * weil es zuletzt entstand. Der erste Lauf brach mit
+         * „Target [Wire] is not instantiable" ab, bevor er etwas gemessen hat.
+         *
+         * > **Eine Naht, die niemand verdrahtet, ist keine Naht — sie ist ein
+         * > Loch, das erst der erste echte Lauf findet.**
+         *
+         * Gesehen hat es kein Test, weil jeder die Prüfungen selbst
+         * zusammensetzt und keiner sie über den Container baut.
+         * `DiagnoseWiringTest` tut jetzt genau das.
+         */
+        $this->app->bind(DiagnoseHost::class, LocalHost::class);
+        $this->app->bind(DiagnoseWire::class, TlsWire::class);
         $this->app->bind(DiagnoseRunLog::class, SettingsRunLog::class);
 
         $this->app->bind(DiagnoseRun::class, static fn ($app): DiagnoseRun => new DiagnoseRun(

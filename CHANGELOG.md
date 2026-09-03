@@ -24408,6 +24408,87 @@ Einrückung eines Tages aufgibt.
 Bereiche mit Rumpf. Der Fehler traf allein die Datei, deren Format eine
 Verschachtelung hat.
 
+### `gpg` legt sein Heimverzeichnis nicht an — und `apt.key` hat nie etwas gemessen
+
+**Punkt 1 des Abnahmelaufs, 3. September 2026 auf `cloudsrv24`.** Die
+Bestandsdiagnose meldete `apt.key` als **nicht gemessen**. Der Aufruf von Hand,
+Zeichen für Zeichen der, den der Agent macht, sagt warum:
+
+    gpg: keyblock resource '/var/lib/srvpanel/gnupg/pubring.kbx': No such file or directory
+    gpg: Fatal: /var/lib/srvpanel/gnupg: directory does not exist!
+    rc=2
+
+**Diesen Ort legt niemand an** — in der Paketierung steht er nicht. Im Kopf von
+`Keys::HOME` stand dafür der Satz, der es erklären sollte:
+
+> „`gpg` legt sein Heimverzeichnis an, auch wenn es nur liest — und stirbt mit
+> `rc=2`, wenn es das nicht kann."
+
+Die zweite Hälfte stimmt und ist gemessen. Die erste ist ihr Gegenteil, und
+gebaut wurde auf sie.
+
+> **Eine Messung und der Schluss daraus sind zwei Dinge — und aufgeschrieben
+> wird der Schluss.**
+
+**Die Folge war grösser als eine Prüfung.** `Keys::inspect()` gab damit auf
+jedem Server `readable: false` zurück: Die Diagnose sah den Signaturschlüssel
+nie, und die **Quellenseite** kannte zu keiner Quelle einen — sie ruft dieselbe
+Stelle. Ein Schlüssel, der in vier Wochen abläuft, wäre unbemerkt abgelaufen,
+und das ist genau der Fall, für den `docs/81 §4` Punkt 4 diese Prüfung bestellt
+hat: `apt-get update` bricht daran, und weil es mit `0` endet (M5), merkt es
+niemand.
+
+**Und beim Nachmessen fiel die zweite Hälfte heraus, die A10 an der Wurzel
+trifft.** In ein Heimverzeichnis, das es gibt, schreibt `gpg --show-keys` seinen
+Hausrat: `pubring.kbx` **und** `trustdb.gpg`, bei jedem ersten Lauf.
+
+> **Ein Programm, das seinen Gegenstand nur liest, schreibt trotzdem — sein
+> Arbeitsverzeichnis legt es beim ersten Mal an.**
+
+Die erste Regel dieser Stufe lautet, dass die Diagnose nichts schreibt.
+`DiagnoseWriteTest` hält das an jedem gerufenen Programm samt Schaltern — und
+auf dieser Ebene ist `--show-keys` eine lesende Frage.
+
+> **Ein Wächter über die Schalter eines Programms sieht nicht, was das Programm
+> neben seinem Gegenstand anlegt.**
+
+**Zwei Schalter nehmen beides weg, und sie sind einzeln gemessen**:
+`--no-keyring` lässt die `pubring.kbx` weg, `--trust-model always` die
+`trustdb.gpg`. Zusammen schreibt der Aufruf nichts und braucht **kein**
+Heimverzeichnis — gemessen gegen `packaging/srvpanel-archive-keyring.gpg`, also
+gegen genau den Bund, den `Signed-By` auf einem Server nennt:
+
+| | Heimverzeichnis fehlt | Heimverzeichnis da |
+|---|---|---|
+| ohne die Schalter | `rc=2`, nichts gelesen | `rc=0`, legt zwei Dateien an |
+| mit den Schaltern | `rc=0`, ein Schlüssel | `rc=0`, legt nichts an |
+
+An der Auskunft ändern sie nichts, und auch das ist gemessen und nicht
+begründet: Die Ausgabe ist mit und ohne die beiden Zeile für Zeile identisch.
+`--show-keys` prüft keine Signatur, und `Keys::read()` liest Kennung,
+Fingerabdruck und Ablauf — an keiner Stelle die Gültigkeitsspalte, auf die ein
+Vertrauensmodell wirkt.
+
+**`AptKeyReadTest` fährt `gpg` wirklich**, und das ist hier kein Übermut: Ob ein
+Schalter das Anlegen verhindert, steht in keinem Quelltext dieses Repos, sondern
+im Dateisystem, nachdem der Aufruf durch ist. Ein Wächter über die Schalterliste
+wäre eine zweite Fassung von `Keys::ARGUMENTS`, und die zweite ist die, die
+veraltet. Sein Prüfkörper liegt im Repo, es entsteht also kein Schlüsselmaterial
+dafür.
+
+Seine dritte Prüfung — dass die Schalter die Antwort nicht ändern — hat dabei
+ihre eigene Lehre bezahlt: In ihrer ersten Fassung lief der Vergleichslauf gegen
+ein vorhandenes und der gemessene gegen ein fehlendes Heimverzeichnis. Damit
+wurde sie rot, sobald der Aufruf gar nicht durchkam, und beantwortete zwei
+Fragen auf einmal.
+
+> **Eine Messung, die zwei Dinge zusammenwirft, belegt keines von beiden.**
+
+**Der Ort `/var/lib/srvpanel/gnupg` bleibt trotzdem stehen**, obwohl der Aufruf
+ihn nicht mehr braucht: Sollte eine künftige Fassung von `gpg` doch etwas
+ablegen wollen, legt sie es dort ab und nicht in `/root/.gnupg`, wo es danach
+niemand erklären kann.
+
 ### MariaDB setzt eine Vorgabe ein, die in keiner Migration steht — und sie hätte Punkt 8 gekippt
 
 **Die CI hat `findings` auf Ubuntu 22.04 nicht anlegen können:**

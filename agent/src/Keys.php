@@ -46,19 +46,70 @@ final class Keys
     /**
      * Das Heimverzeichnis, das `gpg` bekommt.
      *
-     * **`gpg` legt sein Heimverzeichnis an, auch wenn es nur liest** — und
-     * stirbt mit `rc=2`, wenn es das nicht kann (gemessen: `--no-options`,
-     * `--homedir` auf einen fehlenden Pfad und ein unbeschreibbares `HOME`
-     * scheitern alle drei). Einen nur-lesenden Aufruf gibt es nicht.
+     * **Hier stand bis zum 3. September 2026 das Gegenteil dessen, was
+     * `gpg` tut**, und der Satz hat die Prüfung `apt.key` von ihrem ersten
+     * Tag an unbrauchbar gemacht: „`gpg` legt sein Heimverzeichnis an, auch
+     * wenn es nur liest." Es legt es **nicht** an — es stirbt daran:
      *
-     * Deshalb ein eigener Ort statt `/root/.gnupg`: Eine lesende Frage soll
-     * keinen Schlüsselbund in root's Heimverzeichnis anlegen, den danach
-     * niemand erklären kann.
+     *     gpg: keyblock resource '…/gnupg/pubring.kbx': No such file or directory
+     *     gpg: Fatal: /var/lib/srvpanel/gnupg: directory does not exist!
+     *     rc=2
+     *
+     * Und diesen Ort legt niemand an: In der Paketierung steht er nicht.
+     * Damit gab `Keys::inspect()` auf jedem Server `readable: false` zurück —
+     * die Bestandsdiagnose meldete `apt.key` als **nicht gemessen**, und die
+     * Quellenseite kannte zu keiner Quelle einen Schlüssel. Gefunden hat es
+     * der Abnahmelauf (`docs/99`, Punkt 1, `cloudsrv24`, 0.7.3-rc.12).
+     *
+     * Die Messung, aus der der falsche Satz entstand, stimmte sogar — ein
+     * fehlender `--homedir` scheitert mit `rc=2`. Nur der **Schluss** daraus
+     * war verkehrt herum.
+     *
+     * > **Eine Messung und der Schluss daraus sind zwei Dinge — und
+     * > aufgeschrieben wird der Schluss.**
+     *
+     * **Der Ort bleibt trotzdem stehen**, obwohl der Aufruf ihn seit den
+     * Schaltern unten nicht mehr braucht: Sollte eine künftige Fassung von
+     * `gpg` doch etwas ablegen wollen, legt sie es hier ab und nicht in
+     * `/root/.gnupg`, wo es danach niemand erklären kann.
      */
     public const HOME = '/var/lib/srvpanel/gnupg';
 
-    /** @var list<string> */
-    public const ARGUMENTS = ['--batch', '--no-tty', '--show-keys', '--with-colons'];
+    /**
+     * Der Aufruf, der wirklich nur liest.
+     *
+     * `--show-keys` ist die lesende Frage, und trotzdem legt `gpg` neben ihr
+     * seinen Hausrat an: in ein frisches Heimverzeichnis geschrieben werden
+     * `pubring.kbx` **und** `trustdb.gpg` (gemessen, gpg 2.4.4).
+     *
+     * > **Ein Programm, das seinen Gegenstand nur liest, schreibt trotzdem —
+     * > sein Arbeitsverzeichnis legt es beim ersten Mal an.**
+     *
+     * Zwei Schalter nehmen beides weg, und sie sind einzeln gemessen:
+     * `--no-keyring` lässt `pubring.kbx` weg, `--trust-model always` die
+     * `trustdb.gpg`. Zusammen schreibt der Aufruf **nichts** und braucht
+     * **kein** Heimverzeichnis — auch dann nicht, wenn `--homedir` auf einen
+     * Pfad zeigt, den es nicht gibt.
+     *
+     * Gemessen am 3. September 2026 gegen
+     * `packaging/srvpanel-archive-keyring.gpg`, also gegen genau den Bund,
+     * den `Signed-By` auf einem Server nennt:
+     *
+     * | | Heimverzeichnis fehlt | Heimverzeichnis da |
+     * |---|---|---|
+     * | ohne die Schalter | `rc=2`, nichts gelesen | `rc=0`, legt zwei Dateien an |
+     * | mit den Schaltern | `rc=0`, ein Schlüssel | `rc=0`, legt nichts an |
+     *
+     * **Am Urteil ändern sie nichts**, und auch das ist gemessen: Die
+     * Ausgabe mit und ohne die beiden Schalter ist Zeile für Zeile
+     * identisch. `--show-keys` prüft keine Signatur, und
+     * {@see self::read()} liest Kennung, Fingerabdruck und Ablauf — an
+     * keiner Stelle die Gültigkeitsspalte, auf die ein Vertrauensmodell
+     * wirkt.
+     *
+     * @var list<string>
+     */
+    public const ARGUMENTS = ['--batch', '--no-tty', '--show-keys', '--with-colons', '--no-keyring', '--trust-model', 'always'];
 
     /** `pub` und `sub` — beide führen einen Fingerabdruck. */
     private const KEY_LINE = '/^(?<art>pub|sub):[^:]*:[^:]*:[^:]*:(?<keyid>[^:]*):(?<created>[^:]*):(?<expires>[^:]*):/';

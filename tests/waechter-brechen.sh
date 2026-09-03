@@ -23506,6 +23506,47 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseViewTest passed
 
 echo
+echo "== AptKeyReadTest: gpg legt seinen Schluesselbund wieder an =="
+#
+# Genau der Zustand vom 3. September 2026: Ohne --no-keyring schreibt gpg eine
+# pubring.kbx in sein Heimverzeichnis — und ohne Heimverzeichnis stirbt der
+# Aufruf mit rc=2, was auf cloudsrv24 dazu gefuehrt hat, dass apt.key seit dem
+# ersten Tag "nicht gemessen" meldete.
+vorher_datei agent/src/Keys.php
+python3 - <<'PY2'
+p = 'agent/src/Keys.php'
+s = open(p, encoding='utf-8').read()
+alt = "'--with-colons', '--no-keyring', '--trust-model', 'always'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'--with-colons', '--trust-model', 'always'", 1))
+PY2
+griff_datei agent/src/Keys.php "gpg legt einen Schluesselbund an" &&
+pruefe "gpg legt einen Schluesselbund an" \
+  AptKeyReadTest::test_the_call_writes_nothing_into_an_existing_home_directory failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptKeyReadTest passed
+
+echo
+echo "== AptKeyReadTest: gpg legt seine trustdb wieder an =="
+#
+# Die zweite Haelfte, und sie ist einzeln gemessen: --trust-model always laesst
+# die trustdb.gpg weg, --no-keyring die pubring.kbx. Ein Schalter allein genuegt
+# nicht.
+vorher_datei agent/src/Keys.php
+python3 - <<'PY2'
+p = 'agent/src/Keys.php'
+s = open(p, encoding='utf-8').read()
+alt = "'--with-colons', '--no-keyring', '--trust-model', 'always'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'--with-colons', '--no-keyring'", 1))
+PY2
+griff_datei agent/src/Keys.php "gpg legt eine trustdb an" &&
+pruefe "gpg legt eine trustdb an" \
+  AptKeyReadTest::test_the_call_needs_no_home_directory failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptKeyReadTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

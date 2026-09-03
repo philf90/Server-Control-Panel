@@ -168,6 +168,60 @@ final class Keys
     }
 
     /**
+     * Der Schlüssel einer Quelle — Art, Ablauf, Lesbarkeit.
+     *
+     * **Bis zum 2. September 2026 war das eine private Methode von
+     * `SystemSourcesList`.** A10 braucht dieselbe Frage für die eigene
+     * Paketquelle (`apt.key`, `docs/98 §3 I`), und eine zweite Fassung wäre
+     * die, die veraltet. Hier steht sie einmal; beide rufen sie.
+     *
+     * **Zwei Wege in dasselbe `gpg`.** Ein Pfad geht als Argument hinein, ein
+     * eingebetteter Block über stdin — beide gemessen (`docs/81 §2.3b`, Q7).
+     * Der Aufruf ist derselbe und steht als {@see self::ARGUMENTS} einmal da.
+     *
+     * **Ein Fehlschlag ist kein leeres Ergebnis.** Ein Pfad, den es nicht gibt,
+     * endet mit `rc=2` — und „keine Schlüssel gefunden" sähe aus wie „dieser
+     * Quelle fehlt der Schlüssel", was etwas ganz anderes heisst. Er kommt
+     * deshalb als `readable: false` zurück und nicht als leere Liste.
+     *
+     * > **Eine leere Liste, die „nicht nachgesehen" bedeutet, sieht aus wie
+     * > „nichts da".**
+     *
+     * @param  array<string, string>  $felder
+     * @return array{kind: string, path: null|string, keys: list<array{fingerprint: null|string, keyid: string, created: null|int, expires: null|int, uid: null|string, state: string}>, readable: bool}
+     */
+    public static function inspect(Context $context, array $felder, string $block): array
+    {
+        $art = Sources::key($felder);
+
+        if ($art['kind'] === 'none') {
+            return $art + ['keys' => [], 'readable' => true];
+        }
+
+        $lauf = $art['kind'] === 'path'
+            ? $context->runner->run('gpg', [...self::ARGUMENTS, '--homedir', self::HOME, (string) $art['path']], 20)
+            : $context->runner->run(
+                'gpg',
+                [...self::ARGUMENTS, '--homedir', self::HOME],
+                20,
+                input: self::unfold($felder['Signed-By'] ?? '', Sources::folded($block, 'Signed-By')),
+            );
+
+        if (! $lauf->successful()) {
+            return $art + ['keys' => [], 'readable' => false];
+        }
+
+        $jetzt = time();
+        $schluessel = [];
+
+        foreach (self::read($lauf->stdout) as $eine) {
+            $schluessel[] = $eine + ['state' => self::state($eine['expires'], $jetzt)];
+        }
+
+        return $art + ['keys' => $schluessel, 'readable' => true];
+    }
+
+    /**
      * Einen eingebetteten `Signed-By:`-Block auffalten.
      *
      * **Drei Formen, alle drei gemessen** (`docs/81 §2.3b`, Q7): ein Pfad, ein

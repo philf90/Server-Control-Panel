@@ -80,7 +80,7 @@ final class Lifecycle implements AfterOperation
      */
     public function nextSystemUser(): string
     {
-        return $this->name(max(self::FIRST_USER, ((int) SystemUser::query()->max('number')) + 1));
+        return self::userName(max(self::FIRST_USER, ((int) SystemUser::query()->max('number')) + 1));
     }
 
     /**
@@ -127,7 +127,7 @@ final class Lifecycle implements AfterOperation
                     'claimed_at' => now(),
                 ]);
 
-                return $this->name($number);
+                return self::userName($number);
             } catch (UniqueConstraintViolationException) {
                 continue;
             }
@@ -141,8 +141,13 @@ final class Lifecycle implements AfterOperation
      *
      * Beides zu speichern wäre eine zweite Fassung derselben Wahrheit; das
      * Präfix zweimal zu schreiben wäre dieselbe Regel an zwei Orten.
+     *
+     * **Öffentlich und statisch seit A10 Schritt 5.** Die Bestandsdiagnose
+     * fragt für jede reservierte Nummer, ob es ihr Unix-Konto noch gibt
+     * (`docs/98 §3 H`) — und sie braucht dafür denselben Namen, nicht einen
+     * zweiten, der zufällig gleich aussieht.
      */
-    private function name(int $number): string
+    public static function userName(int $number): string
     {
         return 'p'.$number;
     }

@@ -1339,7 +1339,43 @@ deklariert einen Namen, der der Basisklasse gehört — er spiegelt deren
 `<style>`-Block einer `.vue` steht auf oberster Ebene und nicht im
 Vorlagenblock, wo der Übersetzer ihn wegwirft — die Regel, die
 `ClassReachTest` nicht halten konnte, weil er eine Zeichenkette suchte statt
-eines Blocks) und `OperatorControlTest` (ein Bedienelement, dessen Route strenger ist als die
+eines Blocks) und `DiagnoseRunTest` (ein Zeitstempel für alle Prüfungen einer
+Nacht, eine Ausnahme hält den Lauf nicht auf, und **jeder Schlüssel hat genau
+einen Schreiber** — gemessen an `writes()` und nicht an einer Liste im Test)
+und `ManagedBlockDriftTest` (die fremde Zeile in einem
+verwalteten Bereich wird von unserer unterschieden, **in beide Richtungen** —
+ein Befund je Art und nicht je Zeile, der Sollzustand kommt aus der Vorlage und
+wird nicht nachgebaut, und genau **eine** Prüfung schreibt `block.integrity`,
+weil `replace()` alle Zeilen einer Prüfung ersetzt) und `UnitVerdictTest` (ein Timer ohne Termin ist **ein** Befund
+und nicht zwei; über die Anwesenheit **fremder** Units sagt die Diagnose nichts,
+weil `Catalog::pick()` auf den ersten Kandidaten zurückfällt — dazu ein
+Schnappschuss von `rang()`, damit Seite und Nachtlauf nicht unbemerkt
+auseinandergehen) und `CertificateVerdictTest` (die Leitung wird nur gefragt,
+wenn die Datei in Ordnung ist — gezählt werden die **Aufrufe** und nicht die
+Antworten, und verglichen wird der Fingerabdruck) und `SystemUserVerdictTest`
+(gefragt wird das **Dokumentenverzeichnis** und nicht die Wurzel: Die gehört
+`root:root`, weil ihr Zugriffsbit der Schalter von `subscription.suspend` ist)
+und `OrphanRowTest` (gemeldet und nicht gelöscht — und eine Reservierung ohne
+Abonnement ist kein Rest, das Unix-Konto daneben schon) und
+`SiteFileIntegrityTest` (die Zusagen einer Vorlage werden am
+**Anfang einer Anweisung** geprüft und nicht als Zeichenkette — an den beiden
+Formen aus M3, in denen `grep` grün bleibt und die Anweisung fort ist) und
+`PromiseReachTest` (die Zusage einer Vorlage ist genau die **Schnittmenge**
+dessen, was jede ihrer Formen ausgibt — zu gross meldet jede Nacht jede heile
+Domain, zu klein meldet nichts) und `ValidatorVerdictTest` (die drei Prüfer werden am
+Rückgabewert gewertet und nie an `syntax is ok` — die Prüfkörper sind die
+gemessenen Ausgaben, und die Zeichenkette wird im Rumpf ohne Kommentare als
+verbotene gesucht) und `QuotaVerdictTest` (die Quota wird aus **beiden**
+Werkzeugen beurteilt, und „Datei da, Quota aus" ist `fail`; der Rückgabewert
+von `quotaon -p` entscheidet nichts, weil er in jedem gemessenen Zustand `0`
+ist) und `DiagnoseWriteTest` (die Diagnose schreibt nichts — an jedem gerufenen
+Programm samt Schalter gehalten, nicht an einer Absichtserklärung) und
+`DiagnoseSeamTest` (jeder Grund, den der Agent ausspricht, ist dem Panel
+bekannt — sonst wirft der Nachtlauf, und zwar nachts) und `ManagedBlockIntegrityTest` (der lesende Blick auf einen
+verwalteten Bereich zählt wie der schreibende — gehalten an der **Wirkung**,
+jeder der neun Prüfkörper geht durch `render()` und `inspect()`; sein erster
+Lauf hat M22 gefunden, einen Leser, der seit P5b am ersten `END` brach, wo immer
+es stand) und `OperatorControlTest` (ein Bedienelement, dessen Route strenger ist als die
 Seite selbst, steht in einem `v-if` auf ihre Fähigkeit — die Zuordnung
 Fähigkeit → Wächtervariable kommt aus der Seite und nicht aus einer Liste im
 Test, und die Vorlage wird mit einem Stapel gelesen statt rückwärts; **ein
@@ -1784,6 +1820,90 @@ Dringlichkeit (§7). Die Nummer des
 Protokolls steht bewusst **nicht** im Dokument — `docs/81` hat einmal eine
 genannt, die einem anderen Dokument gehörte, und `DocLinkTest` konnte das nicht
 sehen.
+
+Und **`98` der Plan von A10** — die Diagnose des Bestands, geschrieben am
+2. September 2026 **nach** der Messrunde (`docs/81 §2.3o`): §2 die Form eines
+Befundes, §3 neun Prüfungen mit dem, was jede **nicht** kann, §7 acht
+Abnahmepunkte (5 und 8 dürfen nicht ausfallen), §9 die fünf Fragen an den
+Betreiber — die ersten beiden sind am 2. September entschieden.
+
+**Die Messrunde hat vier Annahmen umgeworfen, und drei davon tragen den Plan.**
+
+> **`nginx -t` prüft, ob die Datei eine Bedeutung hat — nicht, ob es die
+> gemeinte ist.** Ein fehlendes Semikolon geht in **zwei von vier** gemessenen
+> Formen mit `rc=0` und **ohne ein Byte Ausgabe** durch; der Block verliert
+> dabei still eine Anweisung — einmal das Zugriffsprotokoll der Domain, einmal
+> ihre Servernamen. Damit ist der Prüfer notwendig und nicht hinreichend.
+
+> **Ein Befund braucht eine Kennung, die nicht sein Text ist.** Jede
+> `[emerg]`-Zeile von nginx trägt Datum **und Prozessnummer**, jede Zeile von
+> php-fpm ein Datum. Zwei Läufe an derselben kaputten Datei ergeben zwei
+> verschiedene Texte — ein Lauf, der „dasselbe wie gestern" sagen will, fände
+> jede Meldung neu.
+
+> **Ein Leseversuch belegt, dass etwas zu lesen war — nicht, dass es gilt.**
+> `repquota` gibt `rc=0` und eine volle Tabelle, sobald die Quotadatei dasteht,
+> auch wenn die Quota **aus** ist; `quotaon -p` sagt daneben `is off`. `docs/41`
+> hat das Panel vom Optionslesen auf den Leseversuch gestellt, weil die Option
+> nichts beweist — der Leseversuch beweist eine Stufe mehr und immer noch nicht
+> die gemeinte.
+
+Dazu zwei über die Werkzeuge, die A10 benutzen will:
+
+> **Ein Diagnoselauf, der nichts schreibt, kommt an der Prüfung nicht vorbei,
+> die nur der Schreiber macht.** `ManagedBlock` hält ein `BEGIN` ohne `END` für
+> fatal und wirft dafür — in `without()`, also im **Schreib**weg. `managed()`
+> liefert in genau diesem Fall die Zeilen, als wäre nichts, und gibt bei vier
+> ganz verschiedenen Zuständen dieselbe leere Liste zurück, von denen einer der
+> Normalzustand ist.
+
+> **Alle drei Prüfer beantworten mehr als die Frage nach der Datei.** Sie sagen
+> „könnte ich damit **jetzt hier** starten", und das ist eine Frage an die
+> Maschine: In diesem Container gab `nginx -t` auf einer unberührten
+> Konfiguration `rc=1` (kein IPv6) und `sshd -t` `rc=255` (kein `/run/sshd`). Ein
+> Befund daraus kann wahr und trotzdem nicht behebbar sein.
+
+**Sechs Fehler hatte die Runde, fünf davon im Prüfmittel** — und keinen hat das
+Nachdenken gefunden, alle die Gegenprobe. Zwei Schlussfolgerungen sind dabei
+umgeworfen worden, nachdem sie schon dastanden: „`nginx -t` belegt die Ports"
+(es ruft `socket()` und bindet nicht) und „A13 braucht 13 Sekunden" (der zweite
+Lauf desselben Griffs: 135 ms — die erste Zahl war der kalte Zwischenspeicher).
+
+> **Eine Messung, die man nur einmal fährt, misst den Zwischenspeicher mit — und
+> ob sie ihn kalt oder warm erwischt, sagt sie nicht.**
+
+**A12 und A13 sind am 2. September verortet.** A12 (Wartungsmodus) stand seit
+der Abnahme von A1 in keiner Stufenzeile — „mit A1" war eine Verortung an einer
+Stufe, die es nicht mehr gibt. Es ist jetzt ein eigener Punkt in P7b **hinter**
+A10, weil A12 schreibt und A10 die Stufe ist, deren erste Regel „schreibt
+nichts" lautet. A13 reitet **nicht** mit: Seine beiden `find`-Griffe kosten unter
+100 ms, sein Textgriff liest den ganzen PHP-Bestand des Kunden von der Platte.
+
+> **Ein `check`, der den Bestand des Kunden liest, gehört nicht in denselben
+> Lauf wie einer, der eine Konfigurationsdatei prüft — auch wenn beide dieselbe
+> Form von Befund erzeugen.**
+
+**Und Schritt 2 hat beim Bauen einen Fehler aus P5b gefunden** (`docs/81 §2.3o`
+M22): `managed()` brach am ersten `# END srvpanel`, `without()` suchte das erste
+nach dem `BEGIN` — ein verirrtes `END` über dem Bereich machte den Leser leer und
+liess den Schreiber heil. `PgRoleRemove` hätte daraus ein leeres `$keep` gebaut
+und `render()` den ganzen Bereich entfernt.
+
+> **Zwei Leser derselben Marken, die verschieden zählen, sind zwei Fassungen
+> derselben Regel — und die zweite ist die, die veraltet.** Gefunden hat es der
+> Wächter, der Leser und Schreiber an der **Wirkung** aneinanderhält — nicht am
+> Quelltext, und nicht das Nachdenken.
+
+Und **`99` der Nachlauf zu A10** — der Abnahmelauf für die Bestandsdiagnose,
+ausgeschrieben am 2. September 2026 **vor** dem Fahren: §0 sagt, was vor dem Lauf
+gelesen wird, und nennt die **drei Kriterien, die dabei umgefallen sind** — Punkt
+7 (zwei der sechs Prüfungen fragen den Agenten nicht und messen weiter), Punkt 3
+(ein gestoppter Timer erscheint unter `unit.schedule`, nicht unter `unit.state`)
+und Punkt 2 (ein entfernter Bereich ohne Sollzustand ist zu Recht kein Befund).
+§9 sagt, was er ausdrücklich nicht prüft, §10, wann er durch ist und welche
+Punkte ausfallen dürfen — **5 und 8 nicht**.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
 
 Und **`97` die Übergabe an A10** — der Stand von P7b (vier abgenommen, fünf
 offen), was A10 ist, **was vor dem Plan zu messen ist**, die vier frischen
@@ -2282,7 +2402,7 @@ php artisan migrate
 Auf dem Zielserver:
 ```
 srvpanel setup|update|version|metrics|usage|cron-runs|tls|dns|dns-check
-         |db|vhost|admin|access|acceptance|acceptance-web|acceptance-db
+         |db|vhost|admin|access|diagnose|acceptance|acceptance-web|acceptance-db
 ```
 
 **`srvpanel update` wartet seit dem 1. September 2026** und gibt den
@@ -2509,12 +2629,48 @@ Testen berücksichtigen:
 
   > **Dieselbe Messung kann aufs Pixel stimmen und trotzdem nichts über die
   > Ansicht sagen.**
-- **kein nginx, kein PHP-FPM.** Operationen laufen
-  gegen Attrappen. Zwei Fehler sind nur aufgefallen, weil die CI nginx *hat*
-  und dieser Container nicht — Tests, die Systemzustand annehmen, gehören
-  abgesichert. Vorlagen werden deshalb **als Text** geprüft
-  (`SiteTemplateTest`, `PhpIsolationTest`): Der Standardschutz ist eine
-  Eigenschaft der erzeugten Zeichenkette.
+- **nginx, php-fpm, sshd und die Quota-Werkzeuge gibt es hier auch — sie sind
+  nur nicht installiert.** Hier stand „kein nginx, kein PHP-FPM", und das war
+  eine Aussage über den Auslieferungszustand. Gemessen am 2. September 2026 für
+  A10 (`docs/81 §2.3o`): `apt-get install nginx openssh-server quota` holt
+  **nginx 1.24.0**, **OpenSSH 9.6p1** und **quota-tools 4.06** aus dem
+  Ubuntu-Archiv, und damit sind `nginx -t`, `sshd -t` und `quotaon -p` hier
+  messbar.
+
+  **PHP braucht einen Handgriff mehr, und ohne ihn scheitert der ganze Lauf.**
+  `php8.3-fpm` löst auf die gesperrte Sury-PPA auf; apt verwirft daran **alle**
+  Pakete des Aufrufs, auch die längst geholten. Festgenagelt gehen sie durch —
+  und zwar **alle fünf** zusammen, sonst zieht `php8.3-common` wieder Sury nach:
+
+      V=8.3.6-0ubuntu0.24.04.10
+      apt-get install -y php8.3-fpm=$V php8.3-common=$V php8.3-cli=$V \
+                         php8.3-opcache=$V php8.3-readline=$V
+
+  > **Ein Abbruch, der nach dem ersten Fehlschlag alles verwirft, macht aus
+  > einem gesperrten Paket eine gesperrte Umgebung.** Derselbe Satz wie bei
+  > `composer install --no-dev`, diesmal an apt.
+
+  **Zwei Fallen beim Messen, beide bezahlt.** Dieser Container hat **kein
+  IPv6** — die nginx-Vorgabeseite trägt `listen [::]:80`, und `nginx -t` gibt
+  darauf `rc=1` auf einer unberührten Konfiguration. Und `sshd -t` gibt
+  `rc=255`, solange `/run/sshd` fehlt. Wer den Erfolgsfall nicht erst
+  herstellt, misst seinen Prüfkörper gegen ein rc, das schon vorher rot war.
+
+  **Und der Kernel kann keine Quota erzwingen.** Ein Wegwerf-ext4 im Loop mit
+  `usrquota` trägt für die Zustände „keine Quotadatei" und „Datei da, Quota
+  aus"; `quotaon` scheitert an `Quota format not supported in kernel`, und ein
+  `mkfs.ext4 -O quota` lässt sich nicht einhängen. Die Zustände mit
+  **erzwungener** Quota bleiben hier ungemessen.
+
+  Operationen laufen weiter gegen Attrappen, und Vorlagen werden weiter **als
+  Text** geprüft (`SiteTemplateTest`, `PhpIsolationTest`): Der Standardschutz
+  ist eine Eigenschaft der erzeugten Zeichenkette. Zwei Fehler sind nur
+  aufgefallen, weil die CI nginx *hat* und dieser Container nicht — Tests, die
+  Systemzustand annehmen, gehören abgesichert.
+
+  > **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite
+  > braucht einen Versuch.** Derselbe Satz wie bei MariaDB, beim `sshd`, bei
+  > PowerDNS, bei PHPStan, bei Composer und beim Bruchskript.
 - **Die Ratenbegrenzung greift beim Aufnehmen von Screenshots.** Drei
   Anmeldungen hintereinander sperren die Adresse (§6.4) — eine Anmeldung für
   alle Aufnahmen, dann `emulateMedia` und `setViewportSize` umschalten. Und
@@ -2707,8 +2863,18 @@ Testen berücksichtigen:
     ein eigener Regelsatz; wer dort alles anschaltet, bekommt Meldungen zu
     Stellen, die Pint in Ruhe lässt (`) {}` an einem leeren Konstruktor zum
     Beispiel).
-  - **shellcheck ist hier installiert, und zwar ohne Zutun** — `shellcheck
-    0.9.0` liegt als `/usr/bin/shellcheck`. Hier stand dazu nichts, und das hat
+  - **shellcheck holt man sich, und es geht in einem Aufruf.** Hier stand seit
+    dem 1. September „ist hier installiert, und zwar ohne Zutun"; am
+    2. September lag es in einem frischen Container **nicht** (`which
+    shellcheck` leer). `apt-get install -y shellcheck` holt dieselbe Fassung
+    0.9.0 aus dem Ubuntu-Archiv, in Sekunden.
+
+    > **Eine Aussage über den Auslieferungszustand eines Containers gilt für
+    > den Container, in dem sie gemessen wurde.** Das ist derselbe Satz wie bei
+    > nginx und MariaDB, nur andersherum: Dort stand „gibt es nicht" für etwas,
+    > das man holen kann, hier stand „ist da" für etwas, das man holen muss.
+
+    Die Fassung 0.9.0 lag hier ursprünglich als `/usr/bin/shellcheck`. Das hat
     am 1. September 2026 eine CI-Runde gekostet: Der Zweig kam mit rotem
     `Shell-Skripte` zurück (zweimal `SC2317` in `packaging/bin/apt-run`),
     nachdem vor dem Push nur `bash -n` gefahren worden war. Der Aufruf steht

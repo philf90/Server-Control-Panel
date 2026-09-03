@@ -23701,6 +23701,810 @@ jede Prüfung auf „fängt mit einem Schrägstrich an". Zwei weitere Formen hat
 Spalte raus, samt der drei Gegenrichtungen. Was kein Test halten kann — dass das
 Ereignis im Browser wirklich feuert — steht als Frage in `docs/94 §10`.
 
+### A10 Schritt 1 — die Form eines Befundes, und warum sie zuerst kommt
+
+Die Bestandsdiagnose (`docs/98`) fängt nicht mit einer Seite an, sondern mit
+der Frage, was ein Befund überhaupt ist. Sie lässt sich hinterher nicht billig
+ändern: An ihr hängt, ob die Seite eine Liste zeigt oder Prosa, und ob ein
+Nachtlauf „dasselbe wie gestern" sagen kann.
+
+**Die Messrunde davor** (`docs/81 §2.3o`) hat sie entschieden. Jede
+`[emerg]`-Zeile von nginx trägt Datum **und Prozessnummer**, jede Zeile von
+php-fpm ein Datum; zwei Läufe an derselben kaputten Datei ergeben zwei Texte.
+
+> **Ein Befund braucht eine Kennung, die nicht sein Text ist.**
+
+Die Kennung ist deshalb `check` + `subject` + `reason`, und die Datenbank hält
+sie über einen `unique`-Index — nicht der Code, der schreibt. Sonst hinge
+Punkt 8 des Abnahmekriteriums daran, dass niemand daneben eine zweite
+Schreibstelle baut.
+
+**Vier Zustände und nicht drei.** `unknown` heisst „die Messung hat nichts
+ergeben" und nicht „es ist nichts"; das Vorbild ist `DnsRecordState::Unreachable`
+aus P7. Antwortet der Agent nicht, steht jede Prüfung auf `unknown` und keine
+auf `ok` — ein Diagnoselauf, der bei totem Agenten Entwarnung gibt, ist
+schlimmer als keiner. Das ist derselbe Fehler wie das
+`catch (Throwable) { return []; }` aus `docs/44`, nur eine Stufe früher.
+
+**Die Schwere steht nicht in der Tabelle.** Sie folgt aus `check` und `reason`
+(`FindingCheck::state()`), und eine Spalte daneben wäre die zweite Fassung
+derselben Regel. Wer einen Fall findet, in dem derselbe Grund verschieden
+schwer wiegt, gibt ihm einen eigenen Grund:
+
+> **Wenn zwei Fälle denselben Grund und verschiedene Schwere haben, sind es
+> zwei Gründe.**
+
+**Und der erste Wurf des Schreibwegs war falsch, mit einem Kommentar daneben,
+der das Gegenteil behauptete.** `FindingLog::record()` benutzte
+`updateOrCreate($schlüssel, $werte)` mit `first_seen_at` in `$werte` — Laravel
+nimmt diese Liste für **beide** Wege (`firstOrNew()->fill()->save()`), also
+hätte jeder Lauf das „steht seit" auf heute gezogen, jede Nacht aufs Neue. Der
+Kommentar sagte, der Wert wirke „nur beim Anlegen".
+
+> **Ein Kommentar, der eine Zusage des Frameworks behauptet, ist keine Prüfung
+> — er ist eine Zeile, die aussieht wie eine.**
+
+Gefunden hat es der Wächter beim ersten Lauf, und zwar nur, weil er die
+**Wirkung** über zwei Läufe misst und nicht den Quelltext. Ein Wächter, der
+nachsähe, ob `detail` in der Schlüsselliste steht, wäre grün geblieben.
+
+**Neu:** `App\Enums\FindingState` (vier Zustände mit Marke, Rang und Hinweis),
+`App\Enums\FindingCheck` (vierzehn Prüfungen mit ihren Gründen, je Grund eine
+Schwere und ein Satz in unserer Formulierung), `App\Models\Finding`, die
+Tabelle `findings` und `App\Support\Diagnose\FindingLog` als einzige
+Schreibstelle. Dazu eine `FindingFactory` — `FactoryDefaultTest` hat sie
+eingefordert, und zwar zu Recht: Ein Modell mit einer Pflicht-Aufzählungsspalte
+und ohne Factory baut im Test eine Zeile, die es so nie gibt.
+
+**Die Tabelle trägt bewusst kein `subscription_id` und kein
+`BelongsToSubscription`.** Ein Befund gehört dem Server und keinem Kunden; die
+Grenze sitzt an der Route und nicht an der Abfrage. Das ist die Ausnahme von
+der dritten Grenze und steht deshalb ausgeschrieben in der Migration.
+
+**Drei Wächter, sechzehn Brüche, alle belegt.** `FindingIdentityTest` misst die
+Wirkung über zwei Nächte, `DiagnoseCatalogTest` hält den Katalog in beiden
+Richtungen (auch: welche Prüfung `unreachable` **nicht** führt, steht mit
+Begründung da), `FindingStateTest` hält die vier Zustände und dass die Tabelle
+keine Spalte für die Schwere hat — gelesen wird die Migration **ohne ihre
+Kommentare**, sonst fände er das Wort in der Zeile, die erklärt, warum es die
+Spalte nicht gibt.
+
+**Und einer der Wächter hat an einem richtigen Satz zugebissen.** Die Regel
+„kein Hinweis ausser dem von `ok` gibt Entwarnung" traf einen Satz, der die
+Wendung **verneinend** benutzte. Geändert wurde der Satz und nicht die Regel:
+
+> **Ein Wächter über Prosa prüft den Wortlaut und nicht die Aussage.**
+
+### A10 Schritt 2 — der lesende Blick auf einen verwalteten Bereich
+
+Den einen Zustand, den `ManagedBlock` selbst für fatal hält — ein `BEGIN` ohne
+`END` —, sah bis heute nur der Schreibweg: `without()` wirft dafür, `managed()`
+liefert die Zeilen, als wäre nichts (`docs/81 §2.3o` M15). Und `managed()` gab
+bei vier verschiedenen Schäden dieselbe leere Liste zurück, von denen einer der
+Normalzustand ist (M14).
+
+> **Ein Diagnoselauf, der nichts schreibt, kommt an der Prüfung nicht vorbei,
+> die nur der Schreiber macht.**
+
+**`ManagedBlock::inspect()` ist die Antwort — als eigene Methode und nicht als
+Verschärfung von `managed()`.** Den Grund nennt `PgServerInfo::hbaRules()` seit
+P5b: Diese Auskunft soll auch dann antworten, wenn wenig dasteht, weil ein
+Betreiber die Datei gerade von Hand repariert. Für eine Auskunft ist die leere
+Liste Nachsicht; für eine Diagnose wäre sie Entwarnung.
+
+> **Zwei Aufrufer derselben Methode brauchen entgegengesetzte Nachsicht — und
+> wer sie an der Methode ändert, bricht den einen, während er den anderen
+> baut.**
+
+Fünf Zustände: `absent`, `intact`, `begin_without_end`, `end_without_begin`,
+`duplicate`. Der vierte ist neu und kein Versehen — `BEGIN` entfernt und Marke
+verändert hinterlassen beide ein `END` ohne `BEGIN`, die Zeilen bleiben für den
+Dienst wirksam, verwaltet werden sie von niemandem, und der nächste
+Schreibvorgang hängt einen **zweiten** Bereich ans Ende. `FindingCheck` kennt
+ihn seitdem als Grund.
+
+**Der Leser zählt wie der Schreiber.** Erstes `BEGIN`, erstes `END` danach — so
+liest `without()`, so liest `inspect()`. `ManagedBlockIntegrityTest` hält beide
+aneinander an der **Wirkung**: Jeder der neun Prüfkörper aus M14 geht durch
+`render()` und durch `inspect()`, und wo der eine wirft, sagt der andere
+`begin_without_end` — nirgends sonst.
+
+> **Zwei Leser derselben Marken, die verschieden zählen, sind zwei Fassungen
+> derselben Regel — und die zweite ist die, die veraltet.**
+
+Was `inspect()` **nicht** sagt: ob eine Zeile fremd ist oder fehlt. Das weiss
+nur, wer den Sollzustand kennt, und der liegt im Panel
+(`RemoteAccess::orphans()`, `::missing()`). Die Form prüft der Agent, den
+Inhalt das Panel — Schritt 5.
+
+Acht Brüche, alle belegt und im Bruchskript.
+
+**Und der erste Lauf des Wächters hat einen Fehler gefunden, der seit P5b im
+Bestand steht.** `managed()` brach am **ersten** `# END srvpanel`, wo immer es
+stand; `without()` sucht das erste `END` **nach** dem `BEGIN`. Ein verirrtes
+`END` über dem Bereich ergab damit im Leser eine leere Liste und im Schreiber
+einen heilen Bereich — und `PgRoleRemove` baut sein `$keep` aus dem Leser und
+ruft danach `render()`: Mit einer leeren Liste hätte es den ganzen Bereich
+entfernt, jede Fernzugriffsregel wortlos, und der Vorgang hätte `fertig`
+gemeldet (`docs/81 §2.3o` M22).
+
+Behoben mit einer Bedingung in `managed()`; `inspect()` liest darüber und ist
+damit keine dritte Lesart.
+
+### A10 Schritt 3 — `system.diagnose`, und ein Urteil, das nicht am Aufruf hängt
+
+Die Operation prüft, was Systemrechte braucht: die drei Prüfer (`web.config`,
+`php.config`, `ssh.config`), die Form der beiden verwalteten Bereiche
+(`block.integrity`), die Quota (`quota.state`) und den Signaturschlüssel der
+eigenen Paketquelle (`apt.key`). Übergeben wird eine Liste von Schlüsseln;
+kein Pfad und keine Unit kommen von aussen.
+
+**Das Urteil ist vom Aufruf getrennt, und der Grund ist ein fehlendes
+Testdoppel.** Es gibt in diesem Repo keines für den `Runner`, und das ist
+Absicht: `AptResultTest` prüft den Leser an einem selbstgebauten `Result` mit
+Rückgabe 0, nicht den Aufruf. `Diagnose\Verdict` ist deshalb eine Sammlung
+reiner Funktionen über das, was ein Werkzeug gesagt hat — und die Prüfkörper
+der Wächter sind die **gemessenen Ausgaben** aus `docs/81 §2.3o`, Byte für
+Byte: der nginx-Lauf, der `syntax is ok` und `test failed` in dieselbe Ausgabe
+schreibt (M4); die drei Quota-Zustände vom Wegwerf-ext4 (M10, M11); das stumme
+`rc=0` von `sshd -t`.
+
+**Die drei Prüfer werden allein am Rückgabewert gewertet.** Nicht am Kanal —
+alle drei schreiben auf stderr, auch ihre Erfolgsmeldung —, und nicht an der
+Zeichenkette `syntax is ok`: Die steht bei nginx auch in einem Lauf, der mit
+`rc=1` endet. `ValidatorVerdictTest` hält das am Rumpf ohne Kommentare, weil
+der Kommentar darüber genau diese Zeichenketten zitiert, um zu erklären, warum
+sie nicht gelesen werden.
+
+**Die Quota wird aus beiden Werkzeugen beurteilt, und die dritte Zeile ist
+`fail`.** `quotaon -p` sagt, ob erzwungen wird; `repquota` sagt, ob eine Datei
+lesbar ist. Liegt die Datei und sagt `quotaon` `is off`, ist das
+`not_enforced` — der Zustand, den das Panel bis A10 als Entwarnung gelesen
+hat. Der Rückgabewert von `quotaon -p` wird dabei **nicht** angesehen; er ist
+in jedem gemessenen Zustand `0`. `quotaon` steht seitdem im Positivverzeichnis,
+gerufen nur mit `-p`.
+
+**`sshd -t` bekommt sein `/run/sshd` nicht angelegt.** `SftpAccess` tut das,
+weil es schreiben darf; die Diagnose meldet stattdessen `unreachable` mit dem
+Grund. Ein Diagnoselauf, der schreibt, ist der nächste Schreiber in derselben
+Datei — `DiagnoseWriteTest` hält das an beiden Dateien, ohne Kommentare, und
+an jedem gerufenen Programm samt seinen Schaltern: `quotaon` ohne `-p`
+schaltet, `nginx` ohne `-t` startet.
+
+**Die Naht zum Panel ist gehalten.** `FindingLog` wirft für einen Grund, den
+die Prüfung nicht kennt — aber der Grund kommt aus dem Agenten, und der kennt
+den Katalog nicht. `Verdict::REASONS` nennt je Prüfung, was der Agent
+ausspricht, und `DiagnoseSeamTest` hält es gegen `FindingCheck`: reisst das,
+wirft der Nachtlauf, und zwar nachts.
+
+**Und die Schlüsselprüfung ist umgezogen.** `SystemSourcesList::key()` war
+privat; A10 braucht dieselbe Frage für die eigene Paketquelle, und eine zweite
+Fassung wäre die, die veraltet. Sie heisst jetzt `Keys::inspect()`, beide
+rufen sie, und `KeyExpiryTest` zählt seine beiden Wege dort — mit der
+Ergänzung, dass die Operation `gpg` nicht wieder selbst ruft. **Den Bruch zu
+diesem Wächter hat der Umzug stumpf gemacht, und `BreakScriptTest` hat es
+gemeldet:** Sein Eingriff fand seinen Text nicht mehr, weil die gezählte
+Quelle jetzt `Keys.php` ist. Er zeigt seitdem dorthin — und beisst dort, weil
+der Dokumentblock von `inspect()` `self::ARGUMENTS` nennt und ohne
+Abstreifer aus zwei Stellen drei würden.
+
+**Was die Operation nicht tut:** Sie sagt nicht, ob eine Zeile im verwalteten
+Bereich fremd ist oder fehlt (das weiss nur das Panel, Schritt 5), und sie
+fragt `pg_hba.conf` nur, wenn ein Cluster läuft — ein Server ohne PostgreSQL
+bekäme sonst jede Nacht ein `unreachable` für eine Datei, die es zu Recht
+nicht gibt. Der Rufer kommt mit Schritt 6; bis dahin steht `system.diagnose`
+datiert in `AgentOperationReachTest::UNREACHED`, und der Wächter fordert den
+Eintrag selbst wieder ein, sobald `app/` den Namen nennt.
+
+**Fünf Wächter, elf Brüche**: `ValidatorVerdictTest`, `QuotaVerdictTest`,
+`KeyVerdictTest`, `DiagnoseWriteTest`, `DiagnoseSeamTest`. PHPStan hat am
+Entwurf eine Meldung gefunden — ein `match` ohne `default` über einem Wert,
+den `Guard::enum()` zwar begrenzt, der Typprüfer aber nicht kennt —, behoben,
+bevor sie eine CI-Runde kostete.
+
+**Und der erste volle Lauf nach dem Formatierer war rot, an der Falle, die
+`CLAUDE.md` seit dem 25. August beschreibt.** `{@see \App\Support\Diagnose\FindingLog}`
+im Dokumentblock von `Verdict` wurde durch Pint zu `use App\Support\Diagnose\FindingLog;`
+— und damit hing die framework-freie Klasse am Panel. Gemeldet hat es
+`AgentIndependenceTest`, nicht das Nachdenken; die 43 Wächter davor waren
+grün, weil keiner von ihnen den Agenten lädt, wie der Server ihn lädt. Die
+Namen stehen jetzt ohne `{@see}` und ohne Namensraum im Text, wie `Units.php`
+es vormacht.
+
+> **Ein Wächter, den man vor dem Formatierer prüft, ist nicht der, der ins
+> Repo geht.**
+
+### A10 Schritt 4 — die Dateien des Panels, gefragt an den Anfang einer Anweisung
+
+`nginx -t` lässt ein fehlendes Semikolon in zwei von vier Formen mit `rc=0`
+und ohne ein Byte Ausgabe durch (`docs/81 §2.3o` M3); die nächste Anweisung
+wird zum Argument der vorigen und steht wörtlich noch in der Datei. M21 hat
+gemessen, dass eine Textsuche genau dort grün bleibt. Frage 4 aus `docs/98 §9`
+ist deshalb mit **b, zerlegt** entschieden, und das ist gebaut.
+
+**`Diagnose\Statements` schneidet an `;`, `{` und `}`** und nimmt je Anweisung
+das erste Wort — und für die verschluckte Form die übrigen: Steht eine
+zugesagte Anweisung als **Argument** einer anderen, ist sie verloren. Damit
+fängt der Schnitt auch M3 Fall 1, das `server_name`, das ein zweites
+verschluckt — die Form, die `docs/98 §11` bis heute als nicht fangbar führte.
+Kein Parser: keine Anführungszeichen, kein `include`, keine Reihenfolge, keine
+Argumente. Die Pool-Datei ist INI und bekommt einen zweiten Schnitt — dort
+fehlt kein Semikolon, dort fehlt eine Zeile.
+
+**Die Vorlage sagt einmal zu, was sie zusagt.** `SiteTemplate::PROMISED` und
+`PoolTemplate::PROMISED` stehen neben der Vorlage; die Diagnose fragt die Datei
+danach, und `PromiseReachTest` hält die Liste gegen jede Renderform — **als
+Schnittmenge, in beide Richtungen**: Eine Zusage, die grösser ist als die
+Vorlage, meldet jede Nacht jede heile Domain; eine, die kleiner ist, meldet
+nichts. `root` und `default_type` sind zugesagt, weil die Prüfadresse für das
+Zertifikat sie in jeder Form trägt; `deny`, `try_files` und `include` sind es
+nicht, weil sie der ausliefernden Form gehören. **Und `return` ist zugesagt, weil
+der Wächter es verlangt hat:** Es steht in jeder Form — Standardschutz, Sperre,
+Weiterleitung, Umlenkung auf HTTPS —, und der erste Wurf der Liste hatte es
+nicht. Die Schnittmenge hat den Entwurf berichtigt, bevor er im Repo stand.
+
+**Die Domains kommen vom Panel, die Pfade nicht.** `web.file` nimmt Namen,
+`php.file` nimmt Paare aus Version und Benutzer; aus beiden wird über
+`Site::CONF_DIR` und `PhpVersions::poolFile()` der Pfad, den das Panel selbst
+geschrieben hat. Nur so lässt sich „die Datei fehlt" melden — wer das
+Verzeichnis abliest, sieht eine fehlende Datei nicht. Der Gegenstand einer
+Pool-Datei ist die Datei und nicht die Domain: Ein Pool gehört zum Abonnement.
+
+**Drei Zustände je Datei**: `missing`, `empty`, `directive_lost` — und `empty`
+vor `directive_lost`, weil der Betreiber beim Öffnen die leere Datei sieht und
+nicht acht Zeilen darüber, was alles fehlt.
+
+Zwei Wächter, acht Brüche: `SiteFileIntegrityTest` an den beiden M3-Formen
+(mit der `grep`-Gegenprobe aus M21 im Test), `PromiseReachTest` als Naht.
+
+**Und ein Bruch hat seinen Wächter berichtigt, bevor beide im Repo standen.**
+Der erste Prüfkörper des Kommentar-Tests — `# hier stand einmal: access_log …`
+vor der Messdatei — blieb grün, als das Abstreifen der Kommentare fort war: Ein
+Kommentar beginnt mit `#`, und ohne Abstreifen ist `#` das erste Wort; die
+Anweisung dahinter wird zum Argument und nicht zur Anweisung. Wiederhergestellt
+wird sie nur, wenn im Kommentar ein `;` **vor** ihr steht — ein Kommentar, der
+zwei alte Zeilen zitiert. Genau der ist jetzt der Prüfkörper, und die
+Gegenrichtung steht daneben: Ein Kommentar, der `root` nennt, verschluckt kein
+`root`.
+
+> **Ein Prüfkörper, der den Bruch nicht sieht, hat den Wächter nicht belegt —
+> und welcher Prüfkörper ihn sieht, sagt der Bruch und nicht der Entwurf.**
+
+### A10 Schritt 5 — die vier Prüfungen, die kein Systemrecht brauchen
+
+Units und Termine, Zertifikate, Systembenutzer und verwaiste Zeilen
+(`docs/98 §3` D, E, G, H). Sie fragen, was A2, P4 und `docs/35` gebaut haben,
+und bauen nichts davon neu: `Units` liest die Zeilen von `system.units.list`,
+`Certificates` wählt über `CertificateChoice::effective()` dasselbe Zertifikat
+aus, nach dem `web.site.apply` den Block baut, und `Orphans` fragt
+`CertificatePrune` statt einer eigenen Abfrage — die zweite Fassung meldete den
+privaten Schlüssel unter einer laufenden Website als Rest.
+
+**Die Frage an die Leitung ist gemessen, nicht angenommen** (`docs/81 §2.3o`
+M23). M18 hatte die SNI-Falle mit `openssl s_client` nachgestellt; A10 fragt aus
+PHP, und das ist ein anderes Werkzeug an derselben Frage. Nachgemessen gegen
+dasselbe Gestell: `stream_socket_client` mit `peer_name` trifft den richtigen
+Block in 7 ms, ohne SNI kommt der Vorgabeblock — **und ein Name, für den es
+keinen Block gibt, fällt ebenfalls dorthin.** Genau das ist `not_served`.
+
+**Verglichen wird der Fingerabdruck.** Nicht das Ablaufdatum, das zwei
+Zertifikate derselben Stunde teilen, und nicht die Seriennummer, die nur je
+Aussteller eindeutig ist — dieses Panel erzeugt selbstsignierte Zertifikate.
+`acme.certificate.info` nennt ihn seitdem; über einer `fullchain.pem` liefert
+`openssl_x509_fingerprint` gemessen den Leaf, also das, was auch über die
+Leitung kommt.
+
+**Die Leitung wird nur für Domains gefragt, deren Datei in Ordnung ist** —
+Frage 3 aus `docs/98 §9`, mit c entschieden. Ein abgelaufenes Zertifikat wird
+auch über die Leitung abgelaufen ausgeliefert; zwei Befunde für eine Ursache
+sind die Falle aus §4. Der Wächter zählt deshalb die **Aufrufe** und nicht die
+Antworten.
+
+**Drei Funde beim Bauen, jeder hätte jede Nacht eine Zeile erzeugt.**
+
+`docs/98 §3 G` verlangt, dass dem Systembenutzer „seine Wurzel unter
+`/var/www/vhosts`" gehört — die gehört absichtlich `root:root`, weil ihr
+Zugriffsbit der Schalter von `subscription.suspend` ist. Dem Kunden gehört
+`httpdocs`. Wörtlich gebaut hätte der Nachtlauf **jedes** Abonnement als
+`wrong_owner` gemeldet.
+
+> **Eine Erwartung, die man an ein Verzeichnis aufschreibt, liest vorher nach,
+> wem die Vorlage es gibt.**
+
+`Catalog::pick()` fällt auf den ersten Kandidaten einer Rolle zurück, wenn
+keiner installiert ist: Auf einem Server ohne MariaDB kommt `mariadb.service`
+mit `present: false` zurück. Über die **Anwesenheit** fremder Units sagt A10
+deshalb nichts — das Panel installiert sie nicht, und welche Unit eine Rolle
+bedient, entscheidet der Betreiber. Für die eigenen bleibt `not_installed`.
+
+Und `system_users` führt jede Nummer für immer (`docs/35`). Eine Zeile ohne
+Abonnement ist der Normalzustand nach jedem Rückbau; ein Rest ist erst das
+**Unix-Konto**, das es dazu noch gibt — dann hat `subscription.remove` sein
+`userdel` nicht getan, und die uid wartet auf den nächsten Kunden.
+
+**Zwei Wächter haben den Katalog berichtigt, bevor er im Repo stand.**
+`system.user` trug `unreachable`, weil fast jede Prüfung ihn trägt —
+ausgesprochen hätte ihn niemand: Diese Prüfung fragt `/etc/passwd` und `stat`,
+und eine Antwort, die es nicht gibt, ist dort der gemessene Zustand. Umgekehrt
+sprach `Units` `unreachable` aus, ohne es zu führen. Beides hat die neue
+Gegenrichtung von `DiagnoseSeamTest` gemeldet: **jeder Grund im Katalog hat
+einen Sprecher.**
+
+Drei Gründe haben noch keinen und stehen mit Datum und Begründung in seiner
+Ausnahmeliste — `block_missing`, `foreign_line` und `line_missing` gehören zu
+`docs/98 §3 C` Frage 3, dem Vergleich eines verwalteten Bereichs mit dem
+Sollzustand. Der braucht die Zeilen aus der Datei (die kennt nur der Agent) und
+den Sollzustand (den kennt nur das Panel) und passt damit in keinen der beiden
+Schritte. Der Kopf von `ManagedBlockIntegrityTest` nannte dafür Schritt 5; das
+war eine Verortung an der halben Frage.
+
+> **Ein Eintrag, der auf einen Schritt zeigt, wird falsch, sobald der Schritt
+> die Voraussetzung nicht mitbringt.**
+
+Vier Wächter, vierzehn Brüche. `Certificate::nameCovers()` und
+`Lifecycle::userName()` sind aus ihren Klassen herausgezogen, damit die
+Diagnose dieselbe Regel benutzt und keine zweite schreibt.
+
+### A10 Schritt 5b — was in den Marken steht, und was dort stehen sollte
+
+`docs/98 §3 C` stellt drei Fragen an einen verwalteten Bereich. Zwei
+beantwortet der Agent seit Schritt 2: Steht das Markenpaar vollständig da, und
+steht es genau einmal da. Die dritte ist die, für die es die Prüfung eigentlich
+gibt — **stimmen die Zeilen mit dem Sollzustand?**
+
+> **Eine fremde Zeile innerhalb der Marken kommt heute als unsere zurück.**
+> (`docs/81 §2.3o` M16)
+
+Ein `host all all 0.0.0.0/0 trust` in `pg_hba.conf` liest sich damit als Zeile
+des Panels und öffnet jede Datenbank dieses Servers für jeden.
+
+**Sie fiel zwischen zwei Schritte, weil sie beides braucht.** Die Zeilen aus
+der Datei kennt nur der Agent — `pg_hba.conf` ist `0640 postgres:postgres`. Den
+Sollzustand kennt nur das Panel. Schritt 3 hatte das eine, Schritt 5 das
+andere, und in `docs/98 §8` stand sie in keinem von beiden; drei Gründe lagen
+seit dem 2. September ohne Sprecher im Katalog.
+
+**Der Agent wirft seine Zeilen nicht mehr weg.** `ManagedBlock::inspect()`
+liest sie ohnehin; `system.diagnose` gibt sie neben den Befunden heraus, je
+Datei mit ihrer **Rolle** — `pg_hba.conf` liegt nicht auf jeder Distribution am
+selben Ort, und ein Vergleich am Dateinamen täte beim ersten anderen Ablageort
+still das Falsche. Eine Datei, die nicht zu lesen war, steht nicht darin: Sonst
+läse das Panel eine leere Zeilenliste als „der Block ist leer" und meldete jede
+Regel des Bestands als fehlend — aus „nicht gemessen" würde ein Befund.
+
+**Der Sollzustand wird nicht nachgebaut.** Für `pg_hba.conf` fragt die Prüfung
+`RemoteAccess::orphans()` und `::missing()` — dieselben Methoden, die
+`srvpanel db` seit P5b benutzt. Für `sshd_config` baut `SshdConfig::lines()` aus
+den Zugängen genau die Zeilen, die `sftp.access` schreiben würde. Verglichen
+wird also das Erzeugte mit dem Dastehenden.
+
+> **Ein Sollzustand, den man für den Vergleich neu formuliert, ist eine zweite
+> Fassung — und die zweite ist die, die veraltet.**
+
+**Und beide Richtungen, weil das dieses Projekt schon einmal gekostet hat.**
+Bis zum 11. August 2026 sah der Abgleich in `srvpanel db` nur Zeilen ohne
+Bestand; die andere Hälfte fand der Abnahmelauf: Ein gescheiterter
+Schreibvorgang liess seine Zeile im Bestand stehen, das Panel zeigte
+„erreichbar von …", und in der Datei stand nichts.
+
+**Eine Prüfung hat genau einen Schreiber, und das ist der Grund für den
+Zuschnitt.** `FindingLog::replace()` ersetzt alle Zeilen einer Prüfung — was
+der Lauf nicht mehr nennt, ist behoben. Zwei Klassen, die `block.integrity`
+schrieben, löschten einander die Befunde weg, und welche zuletzt liefe,
+entschiede die Reihenfolge des Nachtlaufs. Deshalb reicht `ManagedBlocks` die
+Befunde des Agenten zur Form durch, statt sie ein zweites Mal zu fällen, und
+schreibt beides in einem Zug.
+
+**Ein Befund je Art und nicht je Zeile.** Die Kennung ist
+`check`+`subject`+`reason`; drei fremde Zeilen in einer Datei sind ein Schaden
+und keine drei. Welche es sind, steht im Wortlaut.
+
+**Und ein Eingriff aus Schritt 5 ist mit entfernt worden.** Er gab
+`foreign_line` einen zweiten Sprecher und erwartete, dass der Wächter das
+meldet — weil der Grund in der Ausnahmeliste stand. Seit 5b hat er einen
+echten, und die Liste ist leer.
+
+> **Ein Bruch, dessen Voraussetzung wegfällt, wird nicht falsch — er wird
+> wirkungslos.** Seinen Fall prüft jetzt ein Eingriff von der anderen Seite:
+> ein Eintrag in der Ausnahmeliste, dessen Grund einen Sprecher hat.
+
+**Und `system.diagnose` steht nicht mehr in der Liste der ungerufenen
+Operationen.** Der Eintrag war auf Schritt 6 datiert; erreicht hat den Namen
+5b. `AgentOperationReachTest` hat das selbst eingefordert, in dem Augenblick, in
+dem `app/` ihn zum ersten Mal nennt.
+
+> **Ein datierter Eintrag, der sagt, wann er verschwindet, muss nicht raten —
+> der Wächter merkt es.**
+
+Ein Wächter, neun Brüche. PHPStan hat am Entwurf drei nicht mitgezogene
+Typangaben gefunden — dort, wo er in diesem Repo voll wirksam ist.
+
+### A10 Schritt 6 — der Nachtlauf
+
+`srvpanel diagnose` fährt alle Prüfungen der Bestandsdiagnose, und
+`srvpanel-diagnose.timer` tut es täglich. Damit gibt es zum ersten Mal etwas,
+das die sechs Prüfungen aus den Schritten 3 bis 5b überhaupt ausführt.
+
+**Ein Zeitstempel für alle.** Er entsteht im Kommando und nicht in den
+Prüfungen: Sonst stünden auf der Seite so viele Werte für „zuletzt gemessen",
+wie es Prüfungen gibt, und sie unterschieden sich um Millisekunden.
+
+**Eine gescheiterte Prüfung hält den Lauf nicht auf — und löscht nichts.** Was
+eine Prüfung selbst als Ausfall kennt, meldet sie als `unreachable`. Was im
+Lauf ankommt, ist etwas anderes: eine Ausnahme, die niemand vorgesehen hat. Sie
+wird festgehalten, der Lauf geht weiter, und die alten Befunde dieser Prüfung
+bleiben stehen — sie sind nicht widerlegt, sondern ungeprüft.
+
+**Der Rückgabewert sagt etwas über den Lauf und nicht über den Server.** Ein
+Server mit Befunden ist kein gescheiterter Lauf; sonst stünde die Unit nach dem
+ersten `fail` dauerhaft auf `failed`, und die Diagnose meldete sich selbst als
+Schaden. `1` heisst: Eine Prüfung ist gar nicht durchgelaufen.
+
+> **Ein Rückgabewert, der einen gefundenen Schaden als Fehlschlag meldet, macht
+> aus dem Boten den Schuldigen.**
+
+**Die sieben Schlüssel des Agenten kommen in einem Aufruf.** `Checks\Agent`
+holt sie über `system.diagnose`, und welche das sind, leitet er aus
+`SystemDiagnose::CHECKS` ab statt es abzuschreiben — eine Liste liefe weg,
+sobald der Agent eine Prüfung dazubekommt, und die neue fehlte still.
+`block.integrity` ist ausgenommen: Den schreibt `ManagedBlocks`, weil er den
+Sollzustand braucht.
+
+**Die Frist steht in der Unit und ist gerechnet.** `TimeoutStartSec=1800`. Die
+Prüfer sind billig — zusammen unter 100 ms (`docs/81 §2.3o` M17). Teuer ist die
+Frage an die Leitung: eine TLS-Verbindung je Domain mit fünf Sekunden
+Zeitlimit. 1800 Sekunden decken damit den Fall, dass **jede** von 360 Domains
+schweigt, und darüber soll der Deckel greifen — genau dafür gibt es ihn.
+`OneshotDeadlineTest` rechnet nach, dass er unter dem Takt liegt.
+
+**Täglich und nicht stündlich** (`docs/98 §4`): Ein Zustand, der sich über
+Nacht nicht ändert, braucht keinen stündlichen Blick.
+
+**Und ein Wächter aus 5b hat zu grob gefragt.** Er suchte
+`FindingCheck::BlockIntegrity` als Zeichenkette und hielt `Checks\Agent` für
+einen zweiten Schreiber — dabei nennt der den Schlüssel, um ihn aus seinem
+Sammelaufruf zu **entfernen**.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+> steht — und rot, sobald sie an der falschen Stelle steht.** Beide Male misst
+> er nicht die Regel.
+
+Gefragt wird jetzt der **Schreibaufruf**. Was er dann nicht mehr sieht — einen
+Schreiber, der den Schlüssel aus einer Variablen nimmt, genau wie `Agent` —
+misst `DiagnoseRunTest` an `writes()`. Zwei Wächter, zwei Blickrichtungen, und
+das steht in beiden Köpfen.
+
+Zwei Wächter, neun Brüche.
+
+### A10 Schritt 7 — die Seite
+
+`/diagnose` zeigt, was an diesem Server nicht stimmt: Prüfung, Ort, Zustand,
+Befund und seit wann er steht. Sie fragt nichts — sie liest, was der Nachtlauf
+hinterlassen hat. Der hat eine Frist von 1800 Sekunden, und was so lange dauern
+darf, gehört an einen Timer und nicht an eine Anfrage, auf die jemand wartet.
+Einen Knopf „jetzt prüfen" gibt es deshalb bewusst nicht.
+
+**Die Rollenteilung ist die aus Frage 5, mit b entschieden.** Der Administrator
+sieht die Liste: `subject` nennt den Ort, und der Satz zum Grund ist unsere
+Formulierung. Den ungekürzten Wortlaut der Werkzeuge sieht der Betreiber — dort
+stehen bei php-fpm Poolnamen und Pfade, bei nginx Zertifikatspfade und in einem
+verwalteten Bereich die Regeln fremder Kunden.
+
+**Gefiltert wird im Controller und nicht auf der Seite.** Ein `v-if` verbärge
+den Text und schickte ihn trotzdem.
+
+> **Was der Betrachter nicht sehen darf, wird nicht ausgeblendet, sondern nicht
+> geschickt.**
+
+**Der Fund beim Bauen: Ein heiler Server hat null Befunde — und dann konnte die
+Seite nicht sagen, wann zuletzt gemessen wurde.** Punkt 1 des
+Abnahmekriteriums verlangt die Angabe aber genau für diesen Fall: Dieselbe leere
+Liste bedeutet „nichts gefunden" und „nie gemessen", und nur eine der beiden
+Bedeutungen ist eine Entwarnung. Der Lauf hält seinen Zeitpunkt seitdem fest —
+**am Ende und auch dann, wenn eine Prüfung gescheitert ist**: Gelaufen ist er,
+und was er nicht messen konnte, steht als Befund oder als Fehlschlag daneben.
+
+Festgehalten wird über `Diagnose\RunLog`, und das ist keine Verzierung:
+`Settings` ist `final` und lässt sich in keinem Test ersetzen.
+
+> **Eine Klasse, die sich nicht ersetzen lässt, hat keinen Test — und der Weg
+> dahinter auch nicht.**
+
+Die Regel, die einen Wächter braucht, ist ohnehin nicht „der Wert steht in der
+Datenbank", sondern **wann** er geschrieben wird. Dieselbe Naht wie bei `Host`
+und `Wire`.
+
+**Und ein Wächter hat sich beim ersten Lauf selbst überführt.** Er schneidet
+den Vorlagenblock der Seite heraus und endete am **ersten** `</template>` — in
+dieser Seite steht ein `<template v-if>` für einen bedingten Satz, und das
+schliesst genauso. Der Ausschnitt war 822 Zeichen lang statt der ganzen Vorlage,
+und drei Behauptungen fielen über Text, der einfach nicht darin lag.
+
+> **Ein Leser, der am ersten schliessenden Zeichen aufhört, liest bis zur ersten
+> Verschachtelung — und meldet das, was danach fehlt, als Befund.** Derselbe
+> Fehler wie bei `ManagedBlock::managed()` (M22), nur in einer `.vue`.
+
+Der Menüpunkt steht hinter „Updates" und schliesst die Reihe über den Zustand
+dieses Servers: „Dienste" sagt, was läuft, „Updates", was ansteht, „Diagnose",
+was daneben nicht stimmt. Sein Zeichen ist eine Messkurve — keine Lupe, weil der
+Kreis mit Griff neben `dns` im Vorbeigehen gleich aussieht, und kein
+Warndreieck, weil das Zeichen auch dann dasteht, wenn nichts gefunden wurde.
+
+**Und der volle Bruchlauf zu Schritt 6 hat einen Eingriff überführt, den
+Schritt 6 selbst stumpf gemacht hat.** Er gibt einer zweiten Prüfung
+`block.integrity` in ihrer `writes()`-Zusage und erwartete, dass
+`ManagedBlockDriftTest` das meldet. Der sucht seit Schritt 6 den
+Schreib**aufruf** statt der Erwähnung — richtig, und damit sieht er eine Zusage
+in `writes()` nicht mehr. Gemessen wird sie von `DiagnoseRunTest`, und dorthin
+zeigt der Eingriff jetzt.
+
+> **Ein Bruch verliert sein Ziel nicht nur, wenn der Code umzieht — auch, wenn
+> sein Wächter präziser wird.**
+
+**Die Bilderrunde hat zwei Fehler gefunden, und keiner hatte eine Zahl.**
+
+Der erste: Eine gestapelte Zelle ist eine Flexbox mit `space-between`. Der Satz
+und der Wortlaut darunter wurden damit **zwei Spalten**, und bei 390 px brach
+jede Zeichen für Zeichen um — `Der` / `Timer` / `hat` neben `ActiveS` /
+`tate=in`. Der Überlauf war dabei 0. Dieselbe Falle, die `NoticeChildrenTest`
+für eine Meldung hält, eine Zeile weiter; `app.css` hat dafür längst
+`.stacks td.multiline`.
+
+Der zweite: Bei 1440 px war die Tabelle **2405 px** breit bei 1140 px Behälter.
+Zur Einordnung am selben Tag gemessen — `/services` und `/operations` haben dort
+**Überstand 0**. Keine andere Seite dieses Panels rollt bei 1440 px, und dies
+wäre die erste gewesen.
+
+> **Ein Rollbehälter, den nur eine Seite braucht, ist kein Merkmal des
+> Bausteins, sondern ein Befund über diese Seite.**
+
+Getrieben hat es der Wortlaut: `app.css` gibt einer Tabelle im Rollbehälter
+`width: max-content`, und ein `pre` wird so breit wie seine längste Zeile.
+Gemessen: ohne Deckel 2405 px, nur der Wortlaut gedeckelt 1711 px, die
+Befundspalte auf 38 Zeichen gedeckelt **1140 px** — also bündig.
+
+**Und der erste Deckel war falsch gesetzt.** Er lag auch auf der Ort-Spalte, und
+die Messung meldete prompt `schiebt: td.place`: `td .ident` steht in `app.css`
+auf `white-space: nowrap`, damit eine Kennung lesbar bleibt.
+
+> **Ein Deckel über einem Inhalt, der nicht brechen darf, ist keine Grenze — er
+> ist ein Überlauf.**
+
+Gegengeprobt mit einer gewöhnlichen Domain statt des 56-Zeichen-Prüfkörpers:
+Überstand 0. Bleibt eine Kennung so lang, dass es nicht mehr passt, rollt der
+Behälter — die Antwort dieses Panels auf breite Inhalte, und sie gilt für jede
+seiner Tabellen.
+
+Zwei Wächter, elf Brüche.
+
+### Ein Eingriff verlor seinen Biss, weil ich die Nummer vergeben habe, die er brauchte
+
+**Der Bruchlauf der CI meldete eine Prüfung ohne Biss**, und der Grund stand im
+Kommentar daneben — als Zusage:
+
+> `docs/99` ist keine Lücke, sondern ausserhalb: Diese Nummer wird es nicht
+> geben.
+
+Der Eingriff baut einen Verweis auf ein Dokument ein, **das es nicht geben
+darf**; findet `DocLinkTest` es doch, bricht nichts. Am selben Tag ist `docs/99`
+der Nachlauf zu A10 geworden, weil die Reihe schlicht bei 98 angekommen war.
+
+**Das ist der zweite Fall derselben Art.** Beim ersten war es `docs/39`, vergeben
+am 10. August 2026 im selben Wurf, in dem der Eingriff entstand. Damals wurde die
+Nummer verschoben und für unerreichbar erklärt — der Mechanismus blieb derselbe.
+
+> **Eine Zusage über die Zukunft ist kein Mechanismus.**
+
+> **Ein Bruch, dessen Gegenstand von aussen kommt, wird von aussen repariert —
+> und meldet das nicht.**
+
+**Der erste Versuch, es zu beheben, war selbst der Fehler noch einmal.** Die
+Nummer wurde auf `docs/9999` gesetzt — weiter aus dem Weg, dachte ich. Gemessen
+blieb `DocLinkTest` daraufhin **grün**: Er sucht `~docs/(\d{2})~` und liest aus
+`9999` die Ziffern `99` — also genau das Dokument, das es jetzt gibt. Der
+Eingriff lief durch, ohne etwas zu brechen, mit einer neuen Ursache und
+demselben Ergebnis.
+
+> **Eine Nummer, die weiter aus dem Weg liegt, ist nicht sicherer — sie wird vom
+> Leser auf ihre ersten zwei Ziffern gekürzt.**
+
+Genommen ist jetzt die Nummer `00`: zweistellig, damit der Leser sie überhaupt
+sieht, und am **unteren** Ende, weil die Reihe nach oben wächst. Wie sie hier
+geschrieben steht, ist kein Zufall — `ChangelogTest` prüft dieselbe Regel im
+Änderungsprotokoll und hat diesen Absatz beim ersten Wurf abgewiesen, weil er
+den Verweis ausgeschrieben trug. Die Mechanik, um die es hier geht, hat sich
+also unmittelbar an ihrem eigenen Text gezeigt.
+**`BreakScriptTest::test_every_placeholder_number_stays_free`** hält sie — in
+vier Richtungen: die Nummer ist vergeben, sie ist nicht zweistellig, kein
+Eingriff benutzt sie, die Marke ist fort. Alle vier von Hand gebrochen und
+belegt; der Bruch kann nicht im Skript stehen, weil er das Skript selbst ändern
+müsste.
+
+Damit ist aus „diese Nummer wird es nicht geben" ein Test geworden, der den Tag
+meldet, an dem jemand sie doch vergibt.
+
+### MariaDB setzt eine Vorgabe ein, die in keiner Migration steht — und sie hätte Punkt 8 gekippt
+
+**Die CI hat `findings` auf Ubuntu 22.04 nicht anlegen können:**
+
+    SQLSTATE[42000]: 1067 Invalid default value for 'measured_at'
+
+Die Tabelle hat zwei `TIMESTAMP NOT NULL`. Gegen SQLite läuft das durch — 3008
+Tests waren grün —, und MariaDB tut dort zweierlei, ohne dass es irgendwo
+geschrieben steht. **Gemessen gegen 10.11.14 mit
+`explicit_defaults_for_timestamp = 0`**, nicht nachgelesen:
+
+- Die **erste** solche Spalte bekommt
+  `DEFAULT current_timestamp() ON UPDATE current_timestamp()`.
+- Die **zweite** bekommt `DEFAULT '0000-00-00 00:00:00'` — der laute Teil, an
+  dem die CI abbrach.
+
+**Der laute Teil ist der harmlosere.** Dieselbe Zeile, dasselbe `UPDATE`, das
+nur `measured_at` fortschreibt:
+
+| | `first_seen_at` vorher | nachher |
+|---|---|---|
+| `timestamp` | `2026-09-01 03:00:00` | **`2026-09-02 21:16:21`** |
+| `datetime` | `2026-09-01 03:00:00` | `2026-09-01 03:00:00` |
+
+Der Nachtlauf schreibt jede gefundene Zeile fort. Mit `timestamp` wäre „steht
+seit" also **jede Nacht** auf die Wanduhr gesprungen — und Punkt 8 des
+Abnahmekriteriums, der genau das misst und nicht ausfallen darf, wäre auf keinem
+Server je erfüllbar gewesen. Auf einer Maschine mit der anderen Einstellung wäre
+die CI dabei grün geblieben.
+
+> **Eine Vorgabe, die die Datenbank selbst einsetzt, steht in keiner Migration —
+> und ein Test gegen SQLite sieht sie nie.**
+
+Das ist der Satz aus `docs/45` von der anderen Seite: Dort prüfte ein Test die
+Längengrenze der falschen Datenbank, hier eine Vorgabe, die es in der falschen
+gar nicht gibt.
+
+`first_seen_at` und `measured_at` sind seitdem `dateTime` — ohne implizite
+Vorgabe, ohne `ON UPDATE`, auf jeder Zielplattform gleich.
+**`TimestampDefaultTest`** hält die Regel: Eine `timestamp()` ohne `nullable()`
+trägt entweder ein `useCurrent()` — dann ist die Vorgabe ausdrücklich gewollt
+und steht da — oder sie ist eine `dateTime()`.
+
+**Und die Ausnahmeliste hat ihr Muster von der falschen Stelle geholt.** Der
+Zugriff darauf stand als `/** @var array<string, string> */` über einer lokalen
+Variablen — abgeschrieben von `BrowserDialogTest::exempt()`, wo die Liste
+**leer** ist und die Zeile genau deshalb dasteht. Hier stehen zwei Einträge
+drin: Der Wert hat ihre genaue Form, und die Erweiterung darüber ist keine
+Verengung. PHPStan hat es mit `varTag.nativeType` abgewiesen, und der
+deklarierte Rückgabetyp tut die Arbeit ohnehin allein — in beiden Lagen.
+
+> **Ein Muster, das man von einer Stelle übernimmt, bringt deren Voraussetzung
+> nicht mit.**
+
+**Zwei bestehende Spalten stehen mit Grund in seiner Ausnahmeliste**
+(`cron_runs.started_at`, `domain_dns_checks.checked_at`): Beide sind die einzige
+nicht-nullbare `timestamp` ihrer Tabelle, und beide werden nie fortgeschrieben,
+ohne dass der Wert dabei selbst gesetzt wird. Ihre Tabellen liegen auf laufenden
+Servern; ein `ALTER` dafür gehört in einen eigenen Schritt und nicht in den, der
+A10 baut. Der Wächter prüft die Ausnahmeliste in **beide** Richtungen — ein
+Eintrag ohne Spalte ist der tote Freibrief, der beim nächsten Umbau etwas
+anderes deckt.
+
+**Und die Begründung des Wächters war beim ersten Wurf selbst ungeprüft.** Sie
+behauptete, ohne das Abstreifen der Kommentare fände der Ausdruck sich selbst im
+Kommentar der Migration wieder. Nachgemessen: roh 25 Treffer, ohne Kommentare
+dieselben 25 — heute ändert es nichts. Es bleibt trotzdem stehen, weil in diesem
+Repo jede Behebung ihren Vorzustand im Kommentar festhält; der Satz nennt jetzt
+die Messung statt der Vermutung.
+
+> **Eine Begründung, die plausibel klingt und nicht gemessen ist, ist eine
+> Vermutung mit Fussnote** — auch dann, wenn die Regel darüber stimmt.
+
+### Einundzwanzig Typmeldungen, die hier keiner sehen konnte — weil niemand hinsah
+
+**Die CI hat A10 an `Statische Prüfung` rot gemeldet**, einundzwanzigmal, alle in
+den neuen Wächtern und keine im Panel. Hier war vorher grün — und das lag nicht
+am Werkzeug, sondern an zwei Handgriffen an ihm.
+
+**Der erste: gefahren wurde über die geänderten `app/`-Pfade und nicht über die
+geänderten `tests/`-Pfade.** `phpstan.neon` führt `tests` in seinen `paths`; der
+Lauf von Hand nannte die Verzeichnisse, an die man beim Bauen denkt.
+
+> **Ein Werkzeug, das man über die gewohnten Pfade fährt, prüft die Gewohnheit
+> und nicht die Änderung.**
+
+**Der zweite ist der teurere: Der Filter hat genau die Kennung weggeworfen, um
+die es ging.** Ohne larastan meldet PHPStan hier jede Laravel-Klasse als
+`class.notFound`, und der Filter warf alles weg, was auf `notFound` endet — also
+auch `property.notFound`, und das sind acht der einundzwanzig. Er löschte nicht
+Rauschen, sondern den Befund.
+
+> **Ein Filter, der nach der Endung einer Kennung geht, trifft jede Kennung mit
+> dieser Endung — auch die, die man sucht.** Gefiltert wird jetzt gegen eine
+> Liste ganzer Kennungen (`class.notFound`, `method.notFound`, …), nicht gegen
+> ein Muster.
+
+Belegt in beide Richtungen: Auf dem eingecheckten Stand meldet der Lauf hier
+**dieselben einundzwanzig**, nach der Behebung **null** — und die Gegenprobe mit
+einem absichtlichen `strlen(42)` schlägt weiter an.
+
+**Was die Meldungen sagten, war überwiegend richtig.** Acht davon trafen dieselbe
+Naht: Eine Attrappe zählt mit, ihre Zählung steht in einer öffentlichen
+Eigenschaft, und der Rückgabetyp des Helfers nennt nur die Schnittstelle. Die
+anonyme Klasse hat keinen Namen, den man hinschreiben könnte — die Schnittmenge
+mit einer Objektform nennt sie trotzdem vollständig
+(`Check&object{laeufe: int, gesehen: Carbon|null}`).
+
+> **Ein Rückgabetyp, der nur die Schnittstelle nennt, verliert die Zählung, die
+> die Attrappe führt.**
+
+**Und eine Meldung hat einen Wächter verbessert.** `is_subclass_of()` lief über
+`Catalog::CHECKS` — sechs Zeichenketten, deren Klassen PHPStan liest, also eine
+Frage mit bekannter Antwort. Am **Verzeichnis** ist sie es nicht: Dort entsteht
+der Fehler wirklich, als Datei in `Checks/`, die die Schnittstelle nicht umsetzt.
+Der Wächter fragt seitdem dort.
+
+> **Eine Prüfung, deren Antwort der Typprüfer schon kennt, misst nichts — die
+> Seite, auf der er sie nicht kennt, ist die interessante.**
+
+Die leere Ausnahmeliste von `DiagnoseSeamTest` bekommt dieselbe Naht wie
+`BrowserDialogTest::exempt()`: einen Zugriff mit ihrem Typ statt mit ihrem
+Inhalt. Eine leere Konstante hat den Typ `array{}`, und `isset()` darauf ist
+heute unmöglich und morgen nicht.
+
+> **Ein Typ, der aus dem heutigen Inhalt geschlossen wird, verbietet den
+> morgigen.**
+
+### Der Nachlauf zu A10 ist ausgeschrieben — und drei seiner Kriterien waren falsch
+
+**`docs/99` steht, bevor er gefahren wird.** Acht Punkte auf `cloudsrv24` gegen
+das Kriterium aus `docs/98 §7`, jeder in derselben Form: Zustand herstellen,
+belegen, dass er da ist, fahren, lesen, zurückbauen, noch einmal fahren. Der
+zweite Lauf ist kein Aufräumen.
+
+> **Eine Anzeige, die einen Zustand meldet, muss ihn auch wieder zurücknehmen —
+> sonst hat sie ihn nicht gemessen, sondern behalten.**
+
+**Beim Ausschreiben sind drei der acht Punkte umgefallen**, und alle drei hätten
+den Prüfling für etwas gemeldet, das er zu Recht tut. Gefunden hat sie kein
+Nachdenken, sondern der Blick in den Quelltext, den `docs/95 §0` seit dem
+1. September vor jedem Lauf verlangt.
+
+**Punkt 7** verlangte, dass bei angehaltenem Agenten *jede* Prüfung auf
+`unknown` steht. **Zwei der sechs fragen den Agenten gar nicht:** `SystemUsers`
+und `Orphans` nehmen `Host` und die Datenbank und messen weiter. Dazu bekommt
+`tls.wire` dann keine Zeile — die Leitung wird nur gefragt, wenn die Datei in
+Ordnung ist, und ohne Agent gibt es keine Datei, über die zu urteilen wäre.
+
+**Punkt 3** erwartete einen gestoppten Timer unter `unit.state`. `Units::judge()`
+fragt aber in der Reihenfolge „gibt es die Unit, hat ein Timer einen Termin, wie
+ist der Zustand" — ein gestoppter Timer fällt in den zweiten Zweig und erscheint
+als `unit.schedule` mit dem Grund `no_next`. Wer beim Messen nach `unit.state`
+sucht, findet nichts und schreibt einen Ausfall auf, den es nicht gibt.
+
+**Punkt 2** entfernt einen verwalteten Bereich von Hand. Ohne einen Sollzustand
+ergibt das **zu Recht** keinen Befund (`ManagedBlocks::judge()`: kein Block und
+nichts zu tun ist der Normalzustand) — auf einem Server ohne einen einzigen
+SFTP-Schlüssel misst der Punkt den Normalzustand und liest sich wie ein Ausfall.
+Der Lauf belegt deshalb vorher, dass der Bereich nicht leer ist.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
+**Und der Prüfkörper von Punkt 5 kommt aus einer Messung und nicht aus einem
+Einfall.** M3 hat vier Formen eines fehlenden Semikolons gemessen; zwei gehen mit
+`rc=0` und ohne ein Byte Ausgabe durch, zwei nicht — und welche das ist,
+entscheidet die **Nachbarschaft** und nicht die Regel. Der Lauf nimmt Form 1
+(`server_name` ohne Semikolon, die nächste Zeile wird zu einem Namen) und
+**belegt beides**: dass die Zeile ihr Semikolon verloren hat, und dass
+`nginx -t` trotzdem `rc=0` gibt. Gibt der Prüfer dort `rc=1`, wird die Stelle
+gewechselt und nicht das Kriterium.
+
+Punkt 8 erbt diesen Schaden und ändert nur den **Wortlaut** — ein zweites
+`server_name` verliert sein Semikolon, `check`, `subject` und `reason` bleiben
+dieselben. Genau daran hängt M9.
+
+§7 des Plans nennt die drei Berichtigungen jetzt mit Verweis, statt sie ein
+zweites Mal zu führen.
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.**
+
 ### Die Kommandozeile führt die Sprache der Oberfläche nicht
 
 Entschieden vom Betreiber am 1. September 2026, `docs/19 §2.7`: `srvpanel …`

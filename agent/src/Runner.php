@@ -60,6 +60,14 @@ final class Runner
         'groupdel' => '/usr/sbin/groupdel',
         'setquota' => '/usr/sbin/setquota',
         'repquota' => '/usr/sbin/repquota',
+
+        // **Dazugekommen am 2. September 2026 für A10.** `quotaon -p` ist die
+        // einzige Frage, die beantwortet, ob die Quota **erzwungen** wird —
+        // `repquota` beantwortet nur, ob eine Quotadatei lesbar ist, und geht
+        // grün, sobald sie daliegt, auch wenn die Quota aus ist (`docs/81
+        // §2.3o` M11). Gerufen wird es ausschliesslich mit `-p`; der Agent
+        // schaltet damit nichts.
+        'quotaon' => '/usr/sbin/quotaon',
         'apt-get' => '/usr/bin/apt-get',
 
         /*

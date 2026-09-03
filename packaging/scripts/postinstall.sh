@@ -194,6 +194,7 @@ restart_services() {
     systemctl enable --now srvpanel-tls.timer >/dev/null 2>&1 || true
     systemctl enable --now srvpanel-cron.timer >/dev/null 2>&1 || true
     systemctl enable --now srvpanel-dns.timer >/dev/null 2>&1 || true
+    systemctl enable --now srvpanel-diagnose.timer >/dev/null 2>&1 || true
 }
 
 # Zurück auf die vorige Fassung: Symlink umlegen, Dienste mit ihr starten.

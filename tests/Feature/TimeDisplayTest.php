@@ -45,6 +45,12 @@ final class TimeDisplayTest extends TestCase
             .'und die Einstellung eine andere ist. Die Zone steht in der Kopfzeile, die Werte bleiben, '
             .'wie sie gespeichert sind.',
 
+        'app/Support/Diagnose/SettingsRunLog.php' => 'Derselbe Fall wie `Settings` darunter: '
+            .'Der Zeitpunkt eines Laufs geht als Text in `settings` und liegt dort in UTC. Gezeigt '
+            .'wird er im `DiagnoseController` über `Clock::displayText()`. Eine Zeit in der '
+            .'Anzeigezone zu speichern hiesse, den Bestand von einer Einstellung abhängig zu '
+            .'machen, die sich ändern darf.',
+
         'app/Support/Settings/Settings.php' => 'Hier wird geschrieben und nicht angezeigt: `checked_at` '
             .'und `changed_at` gehen als Text in `settings` und liegen dort in UTC. Wer sie später '
             .'zeigt, dreht sie an der Lesestelle mit `Clock::displayText()` — eine Zeit in der '

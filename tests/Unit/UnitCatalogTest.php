@@ -91,8 +91,8 @@ final class UnitCatalogTest extends TestCase
      */
     public function test_the_comparison_has_something_to_compare(): void
     {
-        $this->assertCount(12, Catalog::OWN, 'Acht Dienste und vier Timer — gemessen an packaging/systemd.');
-        $this->assertCount(12, self::packaged());
+        $this->assertCount(14, Catalog::OWN, 'Neun Dienste und fünf Timer — gemessen an packaging/systemd.');
+        $this->assertCount(14, self::packaged());
     }
 
     public function test_what_the_catalogue_calls_controlled_is_allowed(): void
@@ -248,6 +248,6 @@ final class UnitCatalogTest extends TestCase
         );
 
         $eigeneGesteuert = array_filter(Catalog::all(), static fn (array $z): bool => $z['controlled']);
-        $this->assertCount(12, $eigeneGesteuert, 'Die zwölf eigenen Units sind steuerbar — sonst prüft das nichts.');
+        $this->assertCount(14, $eigeneGesteuert, 'Die vierzehn eigenen Units sind steuerbar — sonst prüft das nichts.');
     }
 }

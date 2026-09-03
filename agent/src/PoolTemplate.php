@@ -66,6 +66,25 @@ final class PoolTemplate
      */
     public const SHARED_PATHS = ['/usr/share/php/'];
 
+    /**
+     * Was diese Vorlage zusagt — die Schlüssel der Abschottung (A10 Schritt 4).
+     *
+     * Die Bestandsdiagnose fragt die Pool-Datei auf dem Datenträger, ob diese
+     * Schlüssel noch dastehen. Es sind die, an denen `PhpIsolationTest` den
+     * erzeugten Text misst: Wer die Datei um einen davon kürzt, öffnet die
+     * Abschottung eines Kunden. `PromiseReachTest` hält die Liste gegen die
+     * Vorlage.
+     *
+     * @var list<string>
+     */
+    public const PROMISED = [
+        'user', 'group',
+        'listen', 'listen.owner', 'listen.group', 'listen.mode',
+        'security.limit_extensions',
+        'php_admin_value[open_basedir]', 'php_admin_value[disable_functions]',
+        'php_admin_value[upload_tmp_dir]', 'php_admin_value[sys_temp_dir]', 'php_admin_value[session.save_path]',
+    ];
+
     public static function render(string $subscription, string $user, string $version, int $maxChildren): string
     {
         $root = Ops\SubscriptionProvision::VHOSTS.'/'.$subscription;

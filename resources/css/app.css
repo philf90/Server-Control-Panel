@@ -3093,6 +3093,15 @@ tr:has(td.multiline) > td {
 .quiet + .scrolls,
 
 /*
+ * **Und beim achten Mal steht der Hinweis unter der Tabelle.**
+ *
+ * Auf der Diagnose-Seite folgt dem Rollbehälter ein leiser Satz — „den
+ * ungekürzten Wortlaut sieht der Betreiber". Dieselbe Fuge, ein neunter Name,
+ * und gemeldet hat es wieder der Wächter und nicht das Auge.
+ */
+.scrolls + .quiet,
+
+/*
  * **Und beim siebten Mal war es die Automatik.**
  *
  * Auf der Updates-Seite steht seit dem 26. August eine Tabelle unmittelbar

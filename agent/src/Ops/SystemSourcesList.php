@@ -115,7 +115,7 @@ final class SystemSourcesList implements Op
                     'uris' => $felder['URIs'] ?? '',
                     'suites' => $felder['Suites'] ?? '',
                     'components' => $felder['Components'] ?? '',
-                    'key' => $this->key($context, $felder, $eintrag['block']),
+                    'key' => Keys::inspect($context, $felder, $eintrag['block']),
 
                     /*
                      * **Ob geschaltet werden darf, sagt der Agent und nicht
@@ -140,55 +140,6 @@ final class SystemSourcesList implements Op
         }
 
         return $dateien;
-    }
-
-    /**
-     * Der Schlüssel einer Stanza, mit Fingerabdruck und Ablauf.
-     *
-     * **Zwei Wege in dasselbe `gpg`.** Ein Pfad geht als Argument hinein, ein
-     * eingebetteter Block über stdin — beide gemessen (`docs/81 §2.3b`, Q7).
-     * Der Aufruf ist derselbe und steht als {@see Keys::ARGUMENTS} einmal da.
-     *
-     * **Ein Fehlschlag ist kein leeres Ergebnis.** Ein Pfad, den es nicht gibt,
-     * endet mit `rc=2` — und „keine Schlüssel gefunden" sähe aus wie „dieser
-     * Quelle fehlt der Schlüssel", was etwas ganz anderes heisst. Er kommt
-     * deshalb als `unreadable` zurück und nicht als leere Liste.
-     *
-     * > **Eine leere Liste, die „nicht nachgesehen" bedeutet, sieht aus wie
-     * > „nichts da".**
-     *
-     * @param  array<string, string>  $felder
-     * @return array<string, mixed>
-     */
-    private function key(Context $context, array $felder, string $block): array
-    {
-        $art = Sources::key($felder);
-
-        if ($art['kind'] === 'none') {
-            return $art + ['keys' => [], 'readable' => true];
-        }
-
-        $lauf = $art['kind'] === 'path'
-            ? $context->runner->run('gpg', [...Keys::ARGUMENTS, '--homedir', Keys::HOME, (string) $art['path']], 20)
-            : $context->runner->run(
-                'gpg',
-                [...Keys::ARGUMENTS, '--homedir', Keys::HOME],
-                20,
-                input: Keys::unfold($felder['Signed-By'] ?? '', Sources::folded($block, 'Signed-By')),
-            );
-
-        if (! $lauf->successful()) {
-            return $art + ['keys' => [], 'readable' => false];
-        }
-
-        $jetzt = time();
-        $schluessel = [];
-
-        foreach (Keys::read($lauf->stdout) as $eine) {
-            $schluessel[] = $eine + ['state' => Keys::state($eine['expires'], $jetzt)];
-        }
-
-        return $art + ['keys' => $schluessel, 'readable' => true];
     }
 
     /**

@@ -234,16 +234,37 @@ final class KeyExpiryTest extends TestCase
          *   Ein Wächter, der eine Zeichenkette sucht, findet sie auch in dem
          *   Satz, der sie erklärt.
          */
-        $quelle = $this->withoutComments(
+        /*
+         * **Seit dem 2. September 2026 liegt der Aufruf in `Keys::inspect()`
+         * und nicht mehr in der Operation.** A10 braucht dieselbe Frage für die
+         * eigene Paketquelle, und eine zweite Fassung wäre die, die veraltet
+         * (`docs/98 §3 I`). Dieser Wächter zählt deshalb dort — und hält an
+         * der Operation, dass sie den Aufruf nicht wieder bei sich hat.
+         */
+        $operation = $this->withoutComments(
             (string) file_get_contents(dirname(__DIR__, 2).'/agent/src/Ops/SystemSourcesList.php'),
+        );
+        $quelle = $this->withoutComments(
+            (string) file_get_contents(dirname(__DIR__, 2).'/agent/src/Keys.php'),
         );
 
         $this->assertSame(
             0,
-            substr_count($quelle, "'--with-colons'"),
+            substr_count($operation, "'--with-colons'"),
             'Der Aufruf gehört als Keys::ARGUMENTS an eine Stelle und nicht ausgeschrieben in die Operation.',
         );
-        $this->assertSame(2, substr_count($quelle, 'Keys::ARGUMENTS'), 'Beide Wege — Pfad und stdin — benutzen ihn.');
+
+        // In Keys steht das Literal genau einmal: in der Definition der
+        // Konstante. Ein zweites Mal wäre der ausgeschriebene Aufruf.
+        $this->assertSame(
+            1,
+            substr_count($quelle, "'--with-colons'"),
+            'Das Literal steht in Keys mehr als einmal — einmal ist die Konstante, jedes weitere ein ausgeschriebener Aufruf.',
+        );
+
+        $this->assertSame(0, substr_count($operation, "'gpg'"), 'Die Operation ruft gpg wieder selbst — der Aufruf gehört nach Keys::inspect().');
+        $this->assertStringContainsString('Keys::inspect(', $operation, 'Die Operation fragt Keys::inspect() nicht mehr.');
+        $this->assertSame(2, substr_count($quelle, 'self::ARGUMENTS'), 'Beide Wege — Pfad und stdin — benutzen ihn.');
     }
 
     /**

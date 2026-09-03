@@ -165,6 +165,12 @@ final class AdminAbility
                 .'Payload ist für diesen Betrachter gefiltert: keine Schlüsselspalte und kein '
                 .'Anteil für den Neustart. Die vier ändernden Routen dieser Seite bleiben beim '
                 .'Betreiber.',
+            'diagnose' => 'Die Befunde der Bestandsdiagnose ansehen (A10 Schritt 7). Der '
+                .'Payload ist für diesen Betrachter gefiltert: `subject` nennt den Ort und der '
+                .'Satz zum Grund ist unsere Formulierung, den ungekürzten Wortlaut der '
+                .'Werkzeuge bekommt nur der Betreiber. Wer Kunden verwaltet, muss sehen '
+                .'dürfen, ob eine Vhost-Datei fehlt oder ein Zertifikat abläuft; die Seite '
+                .'ändert nichts, und einen Knopf hat sie nicht.',
             'updates/refresh' => 'Die Paketlisten auffrischen. Es ändert keinen Paketstand, sondern '
                 .'nur, wie aktuell die Frage danach ist — wer die Zahlen sehen darf und sie nicht '
                 .'auffrischen kann, sieht einen Stand von gestern und kann nichts dagegen tun.',

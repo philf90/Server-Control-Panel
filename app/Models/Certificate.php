@@ -155,24 +155,49 @@ class Certificate extends Model
      */
     public function covers(string $name): bool
     {
+        return self::nameCovers($this->coveredNames(), $name);
+    }
+
+    /**
+     * Dieselbe Frage an Namen, die nicht aus dieser Zeile kommen.
+     *
+     * **Die Bestandsdiagnose fragt die Datei und nicht die Zeile** (A10
+     * Schritt 5, `docs/98 §3 E`): Was ein Zertifikat wirklich deckt, steht in
+     * seinem `subjectAltName`, und den liest `acme.certificate.info` von der
+     * Platte. Die Spalte `names` daneben ist eine Abschrift vom Tag der
+     * Ausstellung; wer sie fragte, vergliche die Datenbank mit sich selbst.
+     *
+     * Die Regel bleibt trotzdem eine. Ein zweiter Platzhaltervergleich in
+     * `app/Support/Diagnose` wäre die Fassung, die veraltet — und er verrechnete
+     * sich an derselben Stelle wie jeder andere.
+     *
+     * @param  list<string>  $covered  die Namen, die das Zertifikat führt
+     */
+    public static function nameCovers(array $covered, string $name): bool
+    {
         $wanted = strtolower(rtrim(trim($name), '.'));
 
         if ($wanted === '') {
             return false;
         }
 
-        foreach ($this->coveredNames() as $covered) {
-            if ($covered === $wanted) {
+        foreach ($covered as $entry) {
+            // Auch hier normalisiert, obwohl {@see self::coveredNames()} es
+            // schon tut: Der zweite Aufrufer bekommt seine Namen aus einem
+            // Zertifikat auf der Platte, und die ist durch nichts gegangen.
+            $entry = strtolower(rtrim(trim($entry), '.'));
+
+            if ($entry === $wanted) {
                 return true;
             }
 
-            if (! str_starts_with($covered, '*.')) {
+            if (! str_starts_with($entry, '*.')) {
                 continue;
             }
 
             // `*.example.de` → `.example.de`. Der Punkt bleibt stehen: Ohne ihn
             // deckte der Platzhalter auch `notexample.de`.
-            $suffix = substr($covered, 1);
+            $suffix = substr($entry, 1);
 
             if (! str_ends_with($wanted, $suffix)) {
                 continue;

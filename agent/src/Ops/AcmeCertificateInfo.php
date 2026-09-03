@@ -43,7 +43,8 @@ final class AcmeCertificateInfo implements Op
             return ['present' => false, 'reason' => 'Es liegt kein Zertifikat unter '.$path.'.'];
         }
 
-        $parsed = openssl_x509_parse((string) file_get_contents($path));
+        $pem = (string) file_get_contents($path);
+        $parsed = openssl_x509_parse($pem);
 
         if (! is_array($parsed)) {
             return ['present' => false, 'reason' => 'Das Zertifikat unter '.$path.' lässt sich nicht lesen.'];
@@ -58,6 +59,19 @@ final class AcmeCertificateInfo implements Op
             'key' => $this->store->key($name),
             'issuer' => is_array($issuer) ? (string) ($issuer['CN'] ?? '') : '',
 
+            /*
+             * **Der Fingerabdruck der Datei — für die Frage an die Leitung.**
+             * A10 vergleicht ihn mit dem, was der Webserver für denselben Namen
+             * mit SNI ausliefert (`docs/98 §3 E`). Der Fingerabdruck und nicht
+             * die Seriennummer: Die ist nur je Aussteller eindeutig, und dieses
+             * Panel erzeugt selbstsignierte Zertifikate.
+             *
+             * Gemessen (`docs/81 §2.3o` M23): Über einer `fullchain.pem`
+             * liefert `openssl_x509_fingerprint` den **Leaf** — also genau das,
+             * was auch über die Leitung kommt.
+             */
+            'fingerprint' => self::fingerprint($pem),
+
             // Aussteller gleich Inhaber heisst selbstsigniert heisst kein HSTS
             // (docs/27 §7). Dieselbe Frage beantwortet `panel.tls.info` für die
             // Oberfläche; hier steht sie für eine Kundendomain.
@@ -66,5 +80,19 @@ final class AcmeCertificateInfo implements Op
             'valid_to' => (int) ($parsed['validTo_time_t'] ?? 0),
             'names' => Names::fromCertificate($parsed)['dns'],
         ];
+    }
+
+    /**
+     * Der Fingerabdruck des ersten Zertifikats in einer PEM-Datei.
+     *
+     * Grossgeschrieben, weil die Gegenseite denselben Vergleich anstellt und
+     * `openssl_x509_fingerprint` klein schreibt — zwei Schreibweisen ergäben
+     * zwei Zeichenketten, die nie gleich sind.
+     */
+    private static function fingerprint(string $pem): ?string
+    {
+        $fingerprint = @openssl_x509_fingerprint($pem, 'sha256');
+
+        return $fingerprint === false || $fingerprint === '' ? null : strtoupper($fingerprint);
     }
 }

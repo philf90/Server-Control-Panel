@@ -72,6 +72,12 @@ final class AgentOperationReachTest extends TestCase
         'files.compress' => 'Siehe files.write.',
         'files.search' => 'Siehe files.list.',
 
+        // **A10: die Diagnose des Bestands.** Sie liest und urteilt; ein
+        // Lebenslauf hätte nichts zu verwalten. Die Befunde landen über
+        // `FindingLog` im Panel — das ist ein Modell, aber keines, das der
+        // Agent kennt.
+        'system.diagnose' => 'Liest den Bestand und schreibt nichts. Der Befund ist das Ergebnis, nicht ein Zustand des Agenten.',
+
         /*
          * **P6 Schritt 8: der SFTP-Zugang.** Kein Lebenslauf, und der Grund ist
          * derselbe wie bei `pg.remote.access`: Der Dienst ruft unmittelbar auf,

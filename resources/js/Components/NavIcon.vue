@@ -99,6 +99,20 @@ const PATHS: Record<string, string> = {
    */
   services: 'M4 5h16v4H4zM4 15h16v4H4zM7 7h.01M7 17h.01',
 
+  /*
+   * Diagnose: eine Kurve, wie sie ein Messgerät schreibt.
+   *
+   * **Keine Lupe.** Der Kreis mit Griff sähe neben `dns` — Kreis mit Linie
+   * nach rechts — im Vorbeigehen gleich aus, und zwei Kreise nebeneinander
+   * unterscheidet in einer Menüspalte niemand. **Kein Warndreieck**: Das
+   * Zeichen steht auch dann da, wenn nichts gefunden wurde, und ein Menü, das
+   * dauernd warnt, warnt nicht mehr — derselbe Grund wie bei `updates`.
+   *
+   * Die Kurve sagt „gemessen" und nicht „kaputt", und genau das ist diese
+   * Seite: Sie zeigt einen Messwert, auch wenn er unauffällig ist.
+   */
+  diagnose: 'M3 12h4l2.5-6 4 12 2.5-6H21',
+
   // PHP-Versionen: spitze Klammern, das Zeichen für Quelltext.
   php: 'M8.5 8L5 12l3.5 4M15.5 8L19 12l-3.5 4',
 

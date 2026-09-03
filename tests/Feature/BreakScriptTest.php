@@ -962,6 +962,119 @@ final class BreakScriptTest extends TestCase
         );
     }
 
+    /**
+     * Eine Nummer, die ein Eingriff für frei hält, bleibt frei.
+     *
+     * ## Warum es diesen Wächter gibt
+     *
+     * Ein Eingriff dieses Skripts baut einen Verweis auf ein Dokument ein, das
+     * es **nicht geben darf** — sonst hat `DocLinkTest` nichts zu melden und
+     * der Eingriff beisst nicht. Das ist zweimal passiert, beide Male ohne
+     * jede Meldung:
+     *
+     * - `docs/39` wurde am 10. August 2026 vergeben, im selben Wurf, in dem der
+     *   Eingriff entstand.
+     * - `docs/99` wurde am 2. September 2026 der Nachlauf zu A10 — und der
+     *   Kommentar daneben erklärte diese Nummer ausdrücklich für unerreichbar.
+     *   Gemeldet hat es die CI, nicht der Bruch.
+     *
+     * > **Eine Zusage über die Zukunft ist kein Mechanismus** — und ein Bruch,
+     * > dessen Gegenstand von aussen kommt, wird von aussen repariert, ohne das
+     * > zu melden.
+     *
+     * ## Was er nicht kann
+     *
+     * Er hält die Nummer nicht frei — er meldet den Tag, an dem sie vergeben
+     * wird. Mehr ist von hier aus nicht zu haben: Welche Nummer ein Dokument
+     * bekommt, entscheidet, wer es schreibt.
+     *
+     * ## Der Bruch
+     *
+     * **Er steht nicht im Skript, und das geht auch nicht** — er müsste die
+     * Marke im Skript ändern, und `wiederherstellen()` fasst `tests/` zu Recht
+     * nicht an. Von Hand, am 2. September 2026 in allen vier Richtungen
+     * gefahren:
+     *
+     *     # 1 · die Nummer ist vergeben
+     *     sed -i 's/^# PLATZHALTER-NUMMERN: 00$/# PLATZHALTER-NUMMERN: 98/' tests/waechter-brechen.sh
+     *     # 2 · sie ist nicht zweistellig
+     *     sed -i 's/^# PLATZHALTER-NUMMERN: 00$/# PLATZHALTER-NUMMERN: 9999/' tests/waechter-brechen.sh
+     *     # 3 · kein Eingriff benutzt sie
+     *     sed -i 's/^# PLATZHALTER-NUMMERN: 00$/# PLATZHALTER-NUMMERN: 01/' tests/waechter-brechen.sh
+     *     # 4 · die Marke ist fort
+     *     sed -i '/^# PLATZHALTER-NUMMERN: 00$/d' tests/waechter-brechen.sh
+     *
+     *     ./vendor/bin/phpunit --filter test_every_placeholder_number_stays_free
+     *     git checkout -- tests/waechter-brechen.sh
+     *
+     * Und der Eingriff selbst, gegengeprüft am selben Tag: Mit `docs/9999`
+     * blieb `DocLinkTest` **grün** (er las `99`, und das Dokument gibt es), mit
+     * `docs/00` meldet er „docs/38-postgresql.md nennt docs/00, dieses Dokument
+     * gibt es nicht."
+     */
+    public function test_every_placeholder_number_stays_free(): void
+    {
+        $script = (string) file_get_contents($this->root().'/tests/waechter-brechen.sh');
+
+        $this->assertSame(
+            1,
+            preg_match('/^# PLATZHALTER-NUMMERN: ([0-9 ]+)$/m', $script, $treffer),
+            'Die Marke mit den Platzhalter-Nummern ist fort — dann hält nichts mehr die Lücke, '
+            .'aus der ein Eingriff seinen Biss zieht.',
+        );
+
+        $nummern = preg_split('/\s+/', trim($treffer[1])) ?: [];
+
+        $this->assertNotSame([], $nummern, 'Die Marke nennt keine Nummer — dann misst dieser Wächter nichts.');
+
+        foreach ($nummern as $nummer) {
+            /*
+             * **Zweistellig, und das ist gemessen.** `DocLinkTest` sucht
+             * `~docs/(\d{2})~`; aus einem `docs/9999` liest er `99`. Eine
+             * Nummer, die weiter aus dem Weg zu liegen scheint, wird also auf
+             * ihre ersten zwei Ziffern gekürzt — und der Eingriff lief am
+             * 2. September 2026 genau deshalb ein zweites Mal durch, ohne
+             * etwas zu brechen.
+             *
+             * > **Eine Nummer, die weiter aus dem Weg liegt, ist nicht sicherer
+             * > — sie wird vom Leser gekürzt.**
+             */
+            $this->assertSame(
+                1,
+                preg_match('/^\d{2}$/', $nummer),
+                sprintf(
+                    '%s ist keine zweistellige Nummer. DocLinkTest liest docs/(\d{2}) — '
+                    .'eine längere wird auf ihre ersten zwei Ziffern gekürzt, und der Eingriff '
+                    .'bricht dann etwas anderes oder nichts.',
+                    $nummer,
+                ),
+            );
+
+            // **Gefragt wird über die Nummer und nicht über den Dateinamen** —
+            // genau wie DocLinkTest selbst es tut: `docs/37` findet
+            // `37-postgresql.md`, und der Titel dahinter ändert sich.
+            $dateien = glob($this->root().'/docs/'.$nummer.'-*.md') ?: [];
+
+            $this->assertSame([], $dateien, sprintf(
+                'docs/%s ist vergeben (%s). Ein Eingriff in tests/waechter-brechen.sh baut daraus '
+                .'einen Verweis auf ein Dokument, das es nicht geben darf — mit dieser Datei beisst '
+                .'er nicht mehr. Entweder bekommt das Dokument eine andere Nummer, oder der Eingriff '
+                .'und diese Marke bekommen eine neue.',
+                $nummer,
+                implode(', ', array_map('basename', $dateien)),
+            ));
+
+            // **Und der Eingriff benutzt sie auch wirklich.** Eine Marke, die
+            // eine Nummer nennt, die im Skript nicht vorkommt, hält eine Lücke
+            // frei, aus der niemand etwas zieht — die Verzierung, vor der
+            // `docs/81 §2.3` warnt.
+            $this->assertStringContainsString('docs/'.$nummer, $script, sprintf(
+                'Die Marke hält docs/%s frei, aber kein Eingriff verweist darauf.',
+                $nummer,
+            ));
+        }
+    }
+
     public function test_every_touched_file_lies_on_the_way_back(): void
     {
         $script = (string) file_get_contents($this->root().'/tests/waechter-brechen.sh');

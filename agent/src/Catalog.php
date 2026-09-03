@@ -87,6 +87,8 @@ final class Catalog
         'srvpanel-cron.timer',
         'srvpanel-dns.service',
         'srvpanel-dns.timer',
+        'srvpanel-diagnose.service',
+        'srvpanel-diagnose.timer',
     ];
 
     /**

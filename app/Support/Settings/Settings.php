@@ -85,6 +85,21 @@ final class Settings
     /** Die Netze, aus denen sich ein Adminkonto anmelden darf (A9 Schritt 7). */
     private const ADMIN_NETWORKS = 'admin.networks';
 
+    /**
+     * Wann die Bestandsdiagnose zuletzt gelaufen ist (A10 Schritt 7).
+     *
+     * **Warum das nicht aus den Befunden kommt.** Ein `ok` erzeugt keine Zeile
+     * (`docs/98 §4`), und auf einem heilen Server ist die Tabelle leer — dann
+     * gäbe es kein `measured_at`, aus dem sich „zuletzt gemessen" ablesen
+     * liesse. Genau das verlangt aber Punkt 1 des Abnahmekriteriums, und zwar
+     * für **den** Fall: Eine Seite, die nichts meldet, muss sagen, ob sie
+     * geschwiegen oder nicht gemessen hat.
+     *
+     * > **Eine leere Liste, die zwei Dinge bedeuten kann, bedeutet keins von
+     * > beiden.**
+     */
+    private const DIAGNOSE = 'diagnose';
+
     private ?MailSettings $mail = null;
 
     /** @var list<string>|null */
@@ -331,6 +346,32 @@ final class Settings
                 'reason' => $available ? null : $reason,
                 'checked_at' => now()->toDateTimeString(),
             ]],
+        );
+    }
+
+    /**
+     * Wann der Nachtlauf zuletzt gefahren ist — `null`, wenn noch nie.
+     *
+     * `null` heisst „noch nie gemessen" und nicht „nichts gefunden". Vor dem
+     * ersten Lauf schweigt die Seite, statt Entwarnung zu geben — dieselbe
+     * Regel wie bei {@see self::diskQuota()}.
+     */
+    public function diagnoseRunAt(): ?string
+    {
+        $at = $this->read(self::DIAGNOSE)['ran_at'] ?? null;
+
+        return is_string($at) ? $at : null;
+    }
+
+    /** Den Zeitpunkt eines Laufs festhalten — mit dem Wert, den der Lauf trägt. */
+    public function saveDiagnoseRun(string $ranAt): void
+    {
+        Setting::query()->updateOrCreate(
+            ['key' => self::DIAGNOSE],
+            // Derselbe Wert, den die Befunde tragen, und nicht `now()`: Sonst
+            // stünde neben einer Zeile von 03:00:07 ein „zuletzt gemessen
+            // 03:00:09", und die beiden wären dieselbe Messung.
+            ['value' => ['ran_at' => $ranAt]],
         );
     }
 

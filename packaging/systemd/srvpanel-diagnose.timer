@@ -1,0 +1,19 @@
+[Unit]
+Description=SrvPanel — tägliche Prüfung des Bestands
+Documentation=https://repo.cloudsrv24.de/
+
+[Timer]
+# **Täglich und nicht stündlich** (`docs/98 §4`). Ein Zustand, der sich über
+# Nacht nicht ändert, braucht keinen stündlichen Blick — und ein Lauf, der bei
+# jedem Mal etwas meldet, wird nach zwei Wochen nicht mehr gelesen.
+OnCalendar=daily
+
+# Ein Server, der über Nacht aus war, prüft nach dem Einschalten nach.
+Persistent=true
+
+# Eine Stunde Streuung: Der Lauf ist nicht dringend, und zwanzig Server sollen
+# nicht in derselben Sekunde ihren Webserver nach Zertifikaten fragen.
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target

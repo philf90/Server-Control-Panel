@@ -3524,8 +3524,8 @@ python3 - <<'PY2'
 p = 'app/Support/Subscriptions/Lifecycle.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    "        return $this->name(max(self::FIRST_USER, ((int) SystemUser::query()->max('number')) + 1));",
-    "        return $this->name(max(self::FIRST_USER, ((int) Subscription::query()->max('id')) + 1));",
+    "        return self::userName(max(self::FIRST_USER, ((int) SystemUser::query()->max('number')) + 1));",
+    "        return self::userName(max(self::FIRST_USER, ((int) Subscription::query()->max('id')) + 1));",
 )
 open(p, 'w', encoding='utf-8').write(s)
 PY2
@@ -3553,8 +3553,8 @@ s = s.replace(
                     'claimed_at' => now(),
                 ]);
 
-                return $this->name($number);""",
-    """                return $this->name($number);""",
+                return self::userName($number);""",
+    """                return self::userName($number);""",
 )
 open(p, 'w', encoding='utf-8').write(s)
 PY2
@@ -5211,14 +5211,36 @@ echo "── DocLinkTest: eine Dokumentnummer, die es nicht gibt ──"
 # > **Ein Bruch, dessen Gegenstand von aussen kommt, wird von aussen repariert
 # > — und meldet das nicht.**
 #
-# `docs/99` ist keine Lücke, sondern ausserhalb: Diese Nummer wird es nicht
-# geben, und wer sie doch vergibt, liest hier, warum das eine schlechte Idee
-# ist.
+# **Und dann ist es am 2. September 2026 ein zweites Mal passiert**, mit der
+# Nummer, die diese Zeilen für unerreichbar erklärten: `docs/99` ist der
+# Nachlauf zu A10 geworden, weil die Reihe schlicht bei 98 angekommen war. Die
+# Fassnote „diese Nummer wird es nicht geben" war eine Zusage über die Zukunft,
+# und niemand hat sie gehalten — die CI hat den stumpfen Eingriff gemeldet,
+# nicht der Bruch selbst.
+#
+# > **Eine Lücke, die man für unerreichbar erklärt, ist trotzdem eine Lücke —
+# > und eine Zusage über die Zukunft ist kein Mechanismus.**
+#
+# **Vierstellig geht nicht, und das ist gemessen.** `DocLinkTest` sucht
+# `~docs/(\d{2})~` — aus `docs/9999` liest er `99`, und das Dokument gibt es
+# seit heute. Der Eingriff lief damit durch, ohne etwas zu brechen: derselbe
+# stumpfe Eingriff, nur mit einer anderen Ursache.
+#
+# > **Eine Nummer, die weiter aus dem Weg liegt, ist nicht sicherer — sie wird
+# > vom Leser auf ihre ersten zwei Ziffern gekürzt.**
+#
+# Genommen ist deshalb `docs/00`: zweistellig, damit der Leser sie überhaupt
+# sieht, und am **unteren** Ende, weil die Reihe nach oben wächst. **Gehalten
+# wird sie** von `BreakScriptTest::test_every_placeholder_number_stays_free` —
+# er liest die Marke unten und meldet den Tag, an dem jemand die Nummer vergibt.
+# Wer ein Dokument schreibt, nimmt die nächste freie — nicht diese.
+#
+# PLATZHALTER-NUMMERN: 00
 vorher_datei docs/38-postgresql.md
 python3 - <<'PY2'
 p = 'docs/38-postgresql.md'
 s = open(p, encoding='utf-8').read()
-s = s.replace('im Zuschnitt von `docs/36 §12`', 'im Zuschnitt von `docs/99 §12`')
+s = s.replace('im Zuschnitt von `docs/36 §12`', 'im Zuschnitt von `docs/00 §12`')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei docs/38-postgresql.md "Nummer eines Dokuments, das es nicht gibt" &&
@@ -17053,9 +17075,9 @@ vorher_datei packaging/bin/srvpanel
 python3 - <<'PY2'
 p = 'packaging/bin/srvpanel'
 s = open(p, encoding='utf-8').read()
-alt = '|admin|access|version)'
+alt = '|admin|access|version|diagnose)'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '|admin|version)', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '|admin|version|diagnose)', 1))
 PY2
 griff_datei packaging/bin/srvpanel "Wrapper ohne access" &&
 pruefe "Wrapper ohne access" \
@@ -17073,9 +17095,9 @@ vorher_datei packaging/bin/srvpanel
 python3 - <<'PY2'
 p = 'packaging/bin/srvpanel'
 s = open(p, encoding='utf-8').read()
-alt = '|admin|access|version)'
+alt = '|admin|access|version|diagnose)'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '|admin|access|version|dns-verify)', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '|admin|access|version|diagnose|dns-verify)', 1))
 PY2
 griff_datei packaging/bin/srvpanel "Wrapper mit totem Eintrag" &&
 pruefe "Wrapper mit totem Eintrag" \
@@ -17093,7 +17115,7 @@ python3 - <<'PY2'
 p = 'packaging/bin/srvpanel'
 s = open(p, encoding='utf-8').read()
 alt = ('setup|update|metrics|usage|cron-runs|tls|dns|dns-check|db|vhost|'
-       'acceptance|acceptance-web|acceptance-db|admin|access|version)')
+       'acceptance|acceptance-web|acceptance-db|admin|access|version|diagnose)')
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, 'setup)', 1))
 PY2
@@ -18591,17 +18613,22 @@ echo
 echo "── KeyExpiryTest: der Kommentar-Abstreifer ist tragend ──"
 #
 # Ohne ihn zaehlt der Waechter seinen eigenen Gegenstand mit: Der Dokumentblock
-# ueber der Methode nennt Keys::ARGUMENTS, und aus zwei Stellen werden drei.
+# ueber der Methode nennt self::ARGUMENTS, und aus zwei Stellen werden drei.
 # Gemessen — ohne Abstreifer rot, mit ihm gruen, an derselben heilen Quelle.
+#
+# **Seit dem 2. September 2026 zeigt der Eingriff auf Keys.php**: Die Methode
+# ist mit A10 Schritt 3 von SystemSourcesList nach Keys::inspect() umgezogen,
+# und BreakScriptTest hat gemeldet, dass dieser Eingriff seinen Text nicht mehr
+# fand — genau der Fall, fuer den es diese Pruefung gibt.
 vorher_datei tests/Unit/KeyExpiryTest.php
 python3 - <<'PY2'
 p = 'tests/Unit/KeyExpiryTest.php'
 s = open(p, encoding='utf-8').read()
 alt = """        $quelle = $this->withoutComments(
-            (string) file_get_contents(dirname(__DIR__, 2).'/agent/src/Ops/SystemSourcesList.php'),
+            (string) file_get_contents(dirname(__DIR__, 2).'/agent/src/Keys.php'),
         );"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-neu = "        $quelle = (string) file_get_contents(dirname(__DIR__, 2).'/agent/src/Ops/SystemSourcesList.php');"
+neu = "        $quelle = (string) file_get_contents(dirname(__DIR__, 2).'/agent/src/Keys.php');"
 open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
 PY2
 griff_datei tests/Unit/KeyExpiryTest.php "Kommentar-Abstreifer entfernt" &&
@@ -21629,6 +21656,1785 @@ pruefe "ansteht liest Klartext" \
   OutcomeTest::test_what_the_script_reads_from_apt_is_a_marker_and_not_prose failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
+
+echo
+echo "== FindingIdentityTest: first_seen_at bei jedem Lauf neu =="
+#
+# Die Kennung eines Befundes ist check+subject+reason. Bleibt first_seen_at
+# nicht stehen, zieht jeder Lauf das "steht seit" auf heute -- Punkt 8 des
+# Abnahmekriteriums scheitert genau an der Stelle, fuer die es ihn gibt.
+# Die erste Fassung hatte diesen Fehler: updateOrCreate nimmt seine zweite
+# Liste fuer beide Wege.
+vorher_datei app/Support/Diagnose/FindingLog.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/FindingLog.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if (! $finding->exists) {
+            $finding->first_seen_at = $measuredAt;
+        }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        $finding->first_seen_at = $measuredAt;""", 1))
+PY2
+griff_datei app/Support/Diagnose/FindingLog.php "steht seit wandert mit" &&
+pruefe "steht seit wandert mit" \
+  FindingIdentityTest::test_the_same_damage_over_two_nights_is_one_row failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
+
+echo
+echo "== FindingIdentityTest: der Wortlaut wird Teil der Kennung =="
+#
+# Jede [emerg]-Zeile von nginx traegt Datum und Prozessnummer, jede Zeile von
+# php-fpm ein Datum (docs/81 §2.3o M9). Gehoerte detail zur Kennung, ergaebe
+# derselbe Schaden jede Nacht eine neue Zeile.
+vorher_datei app/Support/Diagnose/FindingLog.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/FindingLog.php'
+s = open(p, encoding='utf-8').read()
+alt = """            'reason' => $reason,
+        ]);"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """            'reason' => $reason,
+            'detail' => $detail,
+        ]);"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/FindingLog.php "detail in der Kennung" &&
+pruefe "detail in der Kennung" \
+  FindingIdentityTest::test_the_same_damage_over_two_nights_is_one_row failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
+
+echo
+echo "== FindingIdentityTest: eine ausgefallene Pruefung loescht =="
+#
+# Die Haelfte, die still bricht. Ein Lauf, der bei einem Fehlschlag
+# "nichts gefunden" meldete, machte aus "nicht gemessen" ein "alles in
+# Ordnung" -- der Fehler aus docs/44 -- und mit ihm verschwaenden genau die
+# Befunde, die dann niemand mehr sieht.
+vorher_datei app/Support/Diagnose/FindingLog.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/FindingLog.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $this->record($check, $subject, FindingCheck::UNREACHABLE, $detail, $measuredAt);
+        }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = alt + """
+
+        $this->forgetMissing($check, array_map(
+            static fn (string $s): string => $s.'|'.FindingCheck::UNREACHABLE,
+            $subjects,
+        ));"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/FindingLog.php "Ausfall loescht Befunde" &&
+pruefe "Ausfall loescht Befunde" \
+  FindingIdentityTest::test_an_unreachable_check_removes_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
+
+echo
+echo "== FindingIdentityTest: ein unbekannter Grund kommt durch =="
+#
+# Der Grund kommt aus dem Code, der den Befund anlegt, und nie von aussen.
+# Ein unbekannter ist ein Programmierfehler und soll einer bleiben -- sonst
+# steht auf der Seite eine Zeile, zu der es keinen Satz gibt.
+vorher_datei app/Support/Diagnose/FindingLog.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/FindingLog.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $check->state($finding['reason']);\n"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Diagnose/FindingLog.php "unbekannter Grund durchgelassen" &&
+pruefe "unbekannter Grund durchgelassen" \
+  FindingIdentityTest::test_an_unknown_reason_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
+
+echo
+echo "== FindingIdentityTest: ein behobener Befund bleibt stehen =="
+#
+# Punkt 2 des Abnahmekriteriums: Nach dem Zurueckliegen ist der Befund im
+# uebernaechsten Lauf fort. Ohne das haeuft die Seite an, was einmal war.
+vorher_datei app/Support/Diagnose/FindingLog.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/FindingLog.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $this->forgetMissing($check, $seen);\n"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Diagnose/FindingLog.php "behobener Befund bleibt" &&
+pruefe "behobener Befund bleibt" \
+  FindingIdentityTest::test_what_a_run_no_longer_names_is_gone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
+
+echo
+echo "== FindingIdentityTest: der Wortlaut wird nicht gekuerzt =="
+#
+# docs/45: Die Begruendung passte nicht in ihre Spalte, die PDOException riss
+# den catch-Zweig mit, und der Vorgang meldete "vermutlich
+# Zeitueberschreitung". Ein Fehlerweg, der selbst fehlschlagen kann, ist
+# keiner.
+vorher_datei app/Models/Finding.php
+python3 - <<'PY2'
+p = 'app/Models/Finding.php'
+s = open(p, encoding='utf-8').read()
+alt = """return mb_strimwidth(trim($detail), 0, self::DETAIL_MAX, '…');"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """return trim($detail);""", 1))
+PY2
+griff_datei app/Models/Finding.php "Wortlaut ungekuerzt" &&
+pruefe "Wortlaut ungekuerzt" \
+  FindingIdentityTest::test_an_overlong_detail_is_cut_before_it_is_written failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
+
+echo
+echo "== DiagnoseCatalogTest: unreachable ergibt Ok =="
+#
+# Die Regel, an der alles haengt. Ein Diagnoselauf, der bei totem Agenten
+# Entwarnung gibt, ist schlimmer als keiner (docs/44).
+vorher_datei app/Enums/FindingCheck.php
+python3 - <<'PY2'
+p = 'app/Enums/FindingCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = """            self::UNREACHABLE => [
+                'state' => FindingState::Unknown,"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """            self::UNREACHABLE => [
+                'state' => FindingState::Ok,"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Enums/FindingCheck.php "unreachable ergibt Ok" &&
+pruefe "unreachable ergibt Ok" \
+  DiagnoseCatalogTest::test_unreachable_always_means_unknown failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
+
+echo
+echo "== DiagnoseCatalogTest: eine Pruefung verliert ihr unreachable =="
+#
+# Die Gegenrichtung. Ohne sie fiele eine neue Pruefung, die den Grund zu
+# tragen vergisst, niemandem auf -- sie meldete bei einem Ausfall nichts.
+vorher_datei app/Enums/FindingCheck.php
+python3 - <<'PY2'
+p = 'app/Enums/FindingCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = """                'text' => 'Der Signaturschlüssel läuft demnächst ab.',
+                ],
+                ...$unreachable,"""
+if s.count(alt) != 1:
+    alt = """                    'text' => 'Der Signaturschlüssel läuft demnächst ab.',
+                ],
+                ...$unreachable,"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace("""
+                ...$unreachable,""", ''), 1))
+PY2
+griff_datei app/Enums/FindingCheck.php "Pruefung ohne unreachable" &&
+pruefe "Pruefung ohne unreachable" \
+  DiagnoseCatalogTest::test_a_check_without_unreachable_is_named failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
+
+echo
+echo "== DiagnoseCatalogTest: ein Grund urteilt Ok =="
+#
+# Ein Befund ist der Ort, an dem etwas nicht stimmt. Ein Ok erzeugt keine
+# Zeile -- stuende es in der Liste, haette jemand eine Zeile gebaut, die auf
+# der Seite steht und nichts meldet.
+vorher_datei app/Enums/FindingCheck.php
+python3 - <<'PY2'
+p = 'app/Enums/FindingCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = """                'off' => [
+                    'state' => FindingState::Fail,"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """                'off' => [
+                    'state' => FindingState::Ok,"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Enums/FindingCheck.php "Grund urteilt Ok" &&
+pruefe "Grund urteilt Ok" \
+  DiagnoseCatalogTest::test_no_reason_judges_something_to_be_fine failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
+
+echo
+echo "== DiagnoseCatalogTest: ein Grund in deutscher Schreibweise =="
+#
+# Bezeichner sind englisch (docs/19 §4a), und der Schluessel steht im
+# unique-Index. Eine gemischte Schreibweise faellt sonst erst auf, wenn
+# jemand den Befund suchen will.
+vorher_datei app/Enums/FindingCheck.php
+python3 - <<'PY2'
+p = 'app/Enums/FindingCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = "'no_next' => ["
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'keinTermin' => [", 1))
+PY2
+griff_datei app/Enums/FindingCheck.php "Grund deutsch geschrieben" &&
+pruefe "Grund deutsch geschrieben" \
+  DiagnoseCatalogTest::test_the_keys_fit_their_columns failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
+
+echo
+echo "== DiagnoseCatalogTest: ein Satz ist keiner =="
+#
+# Der Administrator sieht subject und diesen Satz; der Wortlaut des Werkzeugs
+# bleibt dem Betreiber (docs/98 §9 Frage 5). Ein Fragment waere fuer ihn die
+# ganze Auskunft.
+vorher_datei app/Enums/FindingCheck.php
+python3 - <<'PY2'
+p = 'app/Enums/FindingCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = "'text' => 'Der Timer hat keinen nächsten Termin. Er ist abgeschaltet und sieht aus wie eingeschaltet.',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'text' => 'kein nächster Termin',", 1))
+PY2
+griff_datei app/Enums/FindingCheck.php "Satzfragment als Auskunft" &&
+pruefe "Satzfragment als Auskunft" \
+  DiagnoseCatalogTest::test_every_sentence_reads_like_one failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
+
+echo
+echo "== FindingStateTest: Unknown bekommt die Marke critical =="
+#
+# "Nicht gemessen" ist kein Zustand, sondern eine Abwesenheit. Ein rotes
+# Signal behauptete, es sei etwas kaputt, und schickte den Betreiber auf die
+# Suche nach einem Schaden, den niemand gemessen hat.
+vorher_datei app/Enums/FindingState.php
+python3 - <<'PY2'
+p = 'app/Enums/FindingState.php'
+s = open(p, encoding='utf-8').read()
+alt = "self::Unknown => 'neutral',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "self::Unknown => 'critical',", 1))
+PY2
+griff_datei app/Enums/FindingState.php "Unknown als kritisch" &&
+pruefe "Unknown als kritisch" \
+  FindingStateTest::test_every_state_carries_its_own_badge failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
+
+echo
+echo "== FindingStateTest: Unknown rutscht unter Warn =="
+#
+# Eine Pruefung, die nicht gelaufen ist, kann alles verbergen -- auch ein
+# Fail. Sie gehoert weit nach oben und trotzdem unter das, was gemessen
+# kaputt ist.
+vorher_datei app/Enums/FindingState.php
+python3 - <<'PY2'
+p = 'app/Enums/FindingState.php'
+s = open(p, encoding='utf-8').read()
+alt = "self::Unknown => 2,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "self::Unknown => 0,", 1))
+PY2
+griff_datei app/Enums/FindingState.php "Unknown unter Warn" &&
+pruefe "Unknown unter Warn" \
+  FindingStateTest::test_the_order_puts_a_measured_failure_first failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
+
+echo
+echo "== FindingStateTest: Unknown erzeugt keine Zeile mehr =="
+#
+# Der Ausfall einer Pruefung muss auf der Seite stehen. Sonst sieht er aus
+# wie Entwarnung, und das ist genau der Zustand, gegen den es den vierten
+# Zustand gibt.
+vorher_datei app/Enums/FindingState.php
+python3 - <<'PY2'
+p = 'app/Enums/FindingState.php'
+s = open(p, encoding='utf-8').read()
+alt = "return $this !== self::Ok;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "return $this === self::Fail || $this === self::Warn;"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Enums/FindingState.php "Unknown bleibt stumm" &&
+pruefe "Unknown bleibt stumm" \
+  FindingStateTest::test_only_ok_stays_silent failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
+
+echo
+echo "== FindingStateTest: der Hinweis zu Unknown gibt Entwarnung =="
+#
+# Derselbe Satz wie bei DnsRecordState::hint(): Ein Hinweis, der bei
+# "nicht gemessen" zum Nichtstun einlaedt, ist die Fehlmeldung, gegen die es
+# den vierten Zustand gibt.
+vorher_datei app/Enums/FindingState.php
+python3 - <<'PY2'
+p = 'app/Enums/FindingState.php'
+s = open(p, encoding='utf-8').read()
+alt = "weder im Guten noch im Schlechten."
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "alles ist wohl in Ordnung.", 1))
+PY2
+griff_datei app/Enums/FindingState.php "Entwarnung bei Unknown" &&
+pruefe "Entwarnung bei Unknown" \
+  FindingStateTest::test_no_hint_but_the_first_gives_the_all_clear failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
+
+echo
+echo "== FindingStateTest: die Tabelle bekommt eine state-Spalte =="
+#
+# Die Schwere folgt aus check und reason. Eine Spalte daneben ist die zweite
+# Fassung derselben Regel, und die zweite ist die, die veraltet.
+vorher_datei database/migrations/2026_09_02_120000_create_findings_table.php
+python3 - <<'PY2'
+p = 'database/migrations/2026_09_02_120000_create_findings_table.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $table->string('reason', 64);"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = alt + """
+            $table->string('state', 16);"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei database/migrations/2026_09_02_120000_create_findings_table.php "state als Spalte" &&
+pruefe "state als Spalte" \
+  FindingStateTest::test_the_table_has_no_column_for_the_state failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
+
+echo
+echo "== ManagedBlockIntegrityTest: der Leser uebersieht ein BEGIN ohne END =="
+#
+# Der Zustand, den Regel 5 fuer fatal erklaert, und den vor Schritt 2 nur der
+# Schreibweg sah (docs/81 §2.3o M15). Ein Leser, der ihn uebersieht, ist der
+# alte managed()-Leser mit einem neuen Namen.
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $end === null => 'begin_without_end',\n"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/ManagedBlock.php "Leser uebersieht BEGIN ohne END" &&
+pruefe "Leser uebersieht BEGIN ohne END" \
+  ManagedBlockIntegrityTest::test_the_reader_agrees_with_the_writer_on_a_missing_end failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
+
+echo
+echo "== ManagedBlockIntegrityTest: der zweite Bereich bleibt unbemerkt =="
+#
+# managed() uebergeht einen zweiten Block stillschweigend (M14) -- und genau
+# so sieht ein halb durchgelaufener Schreibvorgang aus.
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+alt = """            count($begins) > 1 => 'duplicate',"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            false => 'duplicate',""", 1))
+PY2
+griff_datei agent/src/ManagedBlock.php "zweiter Bereich unbemerkt" &&
+pruefe "zweiter Bereich unbemerkt" \
+  ManagedBlockIntegrityTest::test_every_form_from_the_measurement_round_gets_its_verdict failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
+
+echo
+echo "== ManagedBlockIntegrityTest: ein END ohne BEGIN gilt als 'kein Bereich' =="
+#
+# Der Zustand, den BEGIN-entfernt und Marke-veraendert beide hinterlassen: Die
+# Zeilen bleiben fuer den Dienst wirksam, verwaltet werden sie von niemandem,
+# und der naechste Schreibvorgang haengt einen zweiten Bereich ans Ende.
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $begins === [] && $strayEnd !== null => 'end_without_begin',\n"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/ManagedBlock.php "END ohne BEGIN als absent" &&
+pruefe "END ohne BEGIN als absent" \
+  ManagedBlockIntegrityTest::test_every_form_from_the_measurement_round_gets_its_verdict failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
+
+echo
+echo "== ManagedBlockIntegrityTest: die Zeilennummern zaehlen ab 0 =="
+#
+# Der Betreiber sucht die Zeile in seinem Editor, und without() zaehlt ab 1.
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+alt = """                $begins[] = $index + 1;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """                $begins[] = $index;""", 1))
+PY2
+griff_datei agent/src/ManagedBlock.php "Zeilen ab 0" &&
+pruefe "Zeilen ab 0" \
+  ManagedBlockIntegrityTest::test_begin_lines_are_one_based_and_name_every_begin failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
+
+echo
+echo "== ManagedBlockIntegrityTest: der Leser liefert andere Zeilen als managed() =="
+#
+# Zwei Lesarten desselben Inhalts sind zwei Fassungen derselben Regel.
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+alt = """            'lines' => $begins === [] ? [] : self::managed($content),"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            'lines' => $begins === [] ? [] : array_slice(self::managed($content), 1),""", 1))
+PY2
+griff_datei agent/src/ManagedBlock.php "eigene Lesart der Zeilen" &&
+pruefe "eigene Lesart der Zeilen" \
+  ManagedBlockIntegrityTest::test_the_lines_are_those_of_managed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
+
+echo
+echo "== ManagedBlockIntegrityTest: der Leser fasst eine Datei an =="
+#
+# Die Unterschrift nimmt einen Inhalt und keinen Pfad; wer "nur kurz" einen
+# Pfad durchreicht, hat einen zweiten Leser neben read() gebaut -- ohne Sperre.
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $begins = [];
+        $end = null;
+        $strayEnd = null;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        if (is_file($content)) {
+            $content = (string) @file_get_contents($content);
+        }
+
+        $begins = [];
+        $end = null;
+        $strayEnd = null;"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/ManagedBlock.php "Leser liest Datei" &&
+pruefe "Leser liest Datei" \
+  ManagedBlockIntegrityTest::test_inspect_touches_no_file failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
+
+echo
+echo "== ManagedBlockIntegrityTest: der Leser wirft wie der Schreiber =="
+#
+# Ein Leser, der bei BEGIN ohne END wirft, ist without() mit neuem Namen --
+# und eine Diagnose, die an ihrem ersten Fund abbricht, meldet die anderen
+# dreizehn Pruefungen nicht mehr.
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+alt = """        return [
+            'state' => $state,"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        if ($state === 'begin_without_end') {
+            throw AgentException::execFailed('BEGIN ohne END.');
+        }
+
+        return [
+            'state' => $state,"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/ManagedBlock.php "Leser wirft" &&
+pruefe "Leser wirft" \
+  ManagedBlockIntegrityTest::test_inspect_never_throws failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
+
+echo
+echo "== ManagedBlockIntegrityTest: managed() bricht wieder am ersten END =="
+#
+# M22: Ein verirrtes END vor dem Bereich machte managed() leer, waehrend
+# without() den Bereich heil vorfand. PgRoleRemove haette daraus ein leeres
+# $keep gebaut und render() den ganzen Bereich entfernt.
+vorher_datei agent/src/ManagedBlock.php
+python3 - <<'PY2'
+p = 'agent/src/ManagedBlock.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if ($inside && $trimmed === self::END) {
+                break;
+            }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            if ($trimmed === self::END) {
+                break;
+            }""", 1))
+PY2
+griff_datei agent/src/ManagedBlock.php "managed() bricht am ersten END" &&
+pruefe "managed() bricht am ersten END" \
+  ManagedBlockIntegrityTest::test_a_stray_end_before_the_block_is_ignored_by_both failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
+
+echo
+echo "== ValidatorVerdictTest: das Urteil liest 'syntax is ok' statt des Rueckgabewerts =="
+#
+# M4: nginx schreibt 'syntax is ok' auch in einen Lauf, der mit rc=1 endet.
+# Ein Leser, der die Zeile sucht, meldet Gruen fuer einen gescheiterten Lauf.
+vorher_datei agent/src/Diagnose/Verdict.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Verdict.php'
+s = open(p, encoding='utf-8').read()
+alt = """        return $result->code === 0 ? null : 'invalid';"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        return str_contains($result->stderr, 'syntax is ok') || $result->stderr === '' ? null : 'invalid';"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Diagnose/Verdict.php "Urteil liest syntax is ok" &&
+pruefe "Urteil liest syntax is ok" \
+  ValidatorVerdictTest::test_every_measured_output_gets_the_verdict_of_its_return_code failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ValidatorVerdictTest passed
+
+echo
+echo "== ValidatorVerdictTest: der Kanal entscheidet =="
+#
+# M5: alle drei schreiben auf stderr, auch im Erfolgsfall; sshd schreibt im
+# Erfolgsfall nichts.
+vorher_datei agent/src/Diagnose/Verdict.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Verdict.php'
+s = open(p, encoding='utf-8').read()
+alt = """        return $result->code === 0 ? null : 'invalid';"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        return $result->code === 0 && trim($result->stderr) === '' ? null : 'invalid';"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Diagnose/Verdict.php "Kanal entscheidet" &&
+pruefe "Kanal entscheidet" \
+  ValidatorVerdictTest::test_the_channel_decides_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ValidatorVerdictTest passed
+
+echo
+echo "== QuotaVerdictTest: die dritte Zeile wird zur Entwarnung =="
+#
+# M11: Datei da, Quota aus — der Zustand, den das Panel bis A10 als
+# Entwarnung gelesen hat.
+vorher_datei agent/src/Diagnose/Verdict.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Verdict.php'
+s = open(p, encoding='utf-8').read()
+alt = """        return $repquota->successful() ? 'not_enforced' : 'off';"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        return $repquota->successful() ? null : 'off';""", 1))
+PY2
+griff_datei agent/src/Diagnose/Verdict.php "dritte Zeile als Entwarnung" &&
+pruefe "dritte Zeile als Entwarnung" \
+  QuotaVerdictTest::test_every_measured_pair_gets_its_verdict failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuotaVerdictTest passed
+
+echo
+echo "== QuotaVerdictTest: das Urteil traut dem Rueckgabewert von quotaon =="
+#
+# M10: er ist in jedem gemessenen Zustand 0.
+vorher_datei agent/src/Diagnose/Verdict.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Verdict.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $text = $quotaon->stdout."\\n".$quotaon->stderr;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        if ($quotaon->code !== 0) {
+            return self::UNREACHABLE;
+        }
+
+        $text = $quotaon->stdout."\\n".$quotaon->stderr;"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Diagnose/Verdict.php "quotaon-Rueckgabewert entscheidet" &&
+pruefe "quotaon-Rueckgabewert entscheidet" \
+  QuotaVerdictTest::test_the_return_code_of_quotaon_decides_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuotaVerdictTest passed
+
+echo
+echo "== QuotaVerdictTest: nur stdout wird gelesen =="
+#
+# M10: ohne Mount-Option antwortet quotaon auf stderr.
+vorher_datei agent/src/Diagnose/Verdict.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Verdict.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $text = $quotaon->stdout."\\n".$quotaon->stderr;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        $text = $quotaon->stdout;""", 1))
+PY2
+griff_datei agent/src/Diagnose/Verdict.php "nur stdout gelesen" &&
+pruefe "nur stdout gelesen" \
+  QuotaVerdictTest::test_both_channels_are_read failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuotaVerdictTest passed
+
+echo
+echo "== KeyVerdictTest: ein abgelaufener Schluessel neben einem gueltigen faellt durch =="
+vorher_datei agent/src/Diagnose/Verdict.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Verdict.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if ($state === 'expired') {
+                return 'expired';
+            }
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Diagnose/Verdict.php "abgelaufener Schluessel uebersehen" &&
+pruefe "abgelaufener Schluessel uebersehen" \
+  KeyVerdictTest::test_an_expired_key_is_expired failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" KeyVerdictTest passed
+
+echo
+echo "== DiagnoseWriteTest: die Diagnose legt /run/sshd an =="
+#
+# Die eine Zeile, die verlockend war (docs/98 §5.1).
+vorher_datei agent/src/Ops/SystemDiagnose.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemDiagnose.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if (! is_dir(SftpAccess::RUNTIME)) {"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        if (! is_dir(SftpAccess::RUNTIME)) {
+            @mkdir(SftpAccess::RUNTIME, 0o755, true);
+        }
+
+        if (! is_dir(SftpAccess::RUNTIME)) {"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/SystemDiagnose.php "Diagnose legt /run/sshd an" &&
+pruefe "Diagnose legt /run/sshd an" \
+  DiagnoseWriteTest::test_no_diagnose_file_writes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseWriteTest passed
+
+echo
+echo "== DiagnoseWriteTest: quotaon ohne -p =="
+#
+# Ohne -p schaltet quotaon die Quota ein.
+vorher_datei agent/src/Ops/SystemDiagnose.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemDiagnose.php'
+s = open(p, encoding='utf-8').read()
+alt = """->run('quotaon', ['-p', $device], 30)"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """->run('quotaon', ['-u', $device], 30)""", 1))
+PY2
+griff_datei agent/src/Ops/SystemDiagnose.php "quotaon ohne -p" &&
+pruefe "quotaon ohne -p" \
+  DiagnoseWriteTest::test_every_program_called_is_a_reader failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseWriteTest passed
+
+echo
+echo "== DiagnoseWriteTest: die Operation erklaert sich als schreibend =="
+vorher_datei agent/src/Ops/SystemDiagnose.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemDiagnose.php'
+s = open(p, encoding='utf-8').read()
+alt = """    public static function mutating(): bool
+    {
+        return false;
+    }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace('return false;', 'return true;'), 1))
+PY2
+griff_datei agent/src/Ops/SystemDiagnose.php "Diagnose als schreibend erklaert" &&
+pruefe "Diagnose als schreibend erklaert" \
+  DiagnoseWriteTest::test_the_operation_declares_itself_read_only failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseWriteTest passed
+
+echo
+echo "== DiagnoseSeamTest: der Agent spricht einen Grund aus, den das Panel nicht kennt =="
+#
+# FindingLog wuerfe nachts.
+vorher_datei agent/src/Diagnose/Verdict.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Verdict.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'quota.state' => ['off', 'not_enforced', self::UNREACHABLE],"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        'quota.state' => ['off', 'not_enforced', 'erfunden', self::UNREACHABLE],""", 1))
+PY2
+griff_datei agent/src/Diagnose/Verdict.php "unbekannter Grund im Agenten" &&
+pruefe "unbekannter Grund im Agenten" \
+  DiagnoseSeamTest::test_every_reason_the_agent_speaks_is_known_to_the_panel failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
+
+echo
+echo "== DiagnoseSeamTest: die Operation nimmt einen Schluessel ohne Urteil =="
+vorher_datei agent/src/Ops/SystemDiagnose.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemDiagnose.php'
+s = open(p, encoding='utf-8').read()
+alt = """    public const CHECKS = ['web.config', 'php.config', 'ssh.config', 'web.file', 'php.file', 'block.integrity', 'quota.state', 'apt.key'];"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace("'apt.key']", "'apt.key', 'mond.phase']"), 1))
+PY2
+griff_datei agent/src/Ops/SystemDiagnose.php "Schluessel ohne Urteil" &&
+pruefe "Schluessel ohne Urteil" \
+  DiagnoseSeamTest::test_the_operation_accepts_exactly_the_keys_with_verdicts failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
+
+echo
+echo "== SiteFileIntegrityTest: der Schnitt sieht die verschluckte Anweisung nicht =="
+#
+# M3 Fall 1: server_name ohne Semikolon verschluckt das naechste server_name.
+# Die erste Frage ("steht sie als Anweisung da") sieht das nicht — nur die
+# zweite ("steht sie als Argument einer anderen").
+vorher_datei agent/src/Diagnose/Statements.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Statements.php'
+s = open(p, encoding='utf-8').read()
+alt = """            foreach (array_slice($words, 1) as $argument) {
+                if (in_array($argument, $promised, true)) {
+                    $swallowed[$argument] = $words[0];
+                }
+            }
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Diagnose/Statements.php "verschluckte Anweisung uebersehen" &&
+pruefe "verschluckte Anweisung uebersehen" \
+  SiteFileIntegrityTest::test_a_swallowed_directive_is_lost_although_grep_finds_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
+
+echo
+echo "== SiteFileIntegrityTest: der Schnitt zaehlt Kommentare mit =="
+#
+# Ein Kommentar, der die verlorene Anweisung nennt, stellt sie wieder her —
+# derselbe Fehler wie bei OutcomeTest am 1. September, andersherum.
+vorher_datei agent/src/Diagnose/Statements.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Statements.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $bare = preg_replace('/#[^\\n]*/', '', $content) ?? $content;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        $bare = $content;""", 1))
+PY2
+griff_datei agent/src/Diagnose/Statements.php "Kommentare zaehlen mit" &&
+pruefe "Kommentare zaehlen mit" \
+  SiteFileIntegrityTest::test_a_comment_does_not_restore_a_lost_directive failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
+
+echo
+echo "== SiteFileIntegrityTest: die Operation sucht die Zeichenkette =="
+#
+# Genau die Textsuche, die M21 gruen gezeigt hat, waehrend die Domain kein
+# Protokoll mehr schrieb.
+vorher_datei agent/src/Ops/SystemDiagnose.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemDiagnose.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $verdict = Verdict::file($content, $content === null ? [] : Statements::lostInNginx($content, SiteTemplate::PROMISED));"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """            $lost = [];
+            foreach (SiteTemplate::PROMISED as $directive) {
+                if ($content !== null && ! str_contains($content, $directive)) {
+                    $lost[] = $directive.' fehlt';
+                }
+            }
+            $verdict = Verdict::file($content, $lost);"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/SystemDiagnose.php "Operation sucht Zeichenkette" &&
+pruefe "Operation sucht Zeichenkette" \
+  SiteFileIntegrityTest::test_the_operation_asks_the_statements_and_not_a_string failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
+
+echo
+echo "== SiteFileIntegrityTest: eine leere Datei gilt als heil =="
+vorher_datei agent/src/Diagnose/Verdict.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Verdict.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if (trim($content) === '') {
+            return ['reason' => 'empty', 'detail' => null];
+        }
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Diagnose/Verdict.php "leere Datei als heil" &&
+pruefe "leere Datei als heil" \
+  SiteFileIntegrityTest::test_the_verdict_of_a_file failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
+
+echo
+echo "== PromiseReachTest: die Zusage ist groesser als die Vorlage =="
+#
+# 'deny' steht nur in der ausliefernden Form. Zugesagt, meldete die Diagnose
+# jede Nacht jede gesperrte und jede weiterleitende Domain.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+alt = """    public const PROMISED = ['server', 'listen', 'server_name', 'access_log', 'error_log', 'location', 'root', 'default_type', 'return'];"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace("'return']", "'return', 'deny']"), 1))
+PY2
+griff_datei agent/src/SiteTemplate.php "Zusage groesser als Vorlage" &&
+pruefe "Zusage groesser als Vorlage" \
+  PromiseReachTest::test_the_site_promise_is_exactly_what_every_form_emits failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
+
+echo
+echo "== PromiseReachTest: die Zusage ist kleiner als die Vorlage =="
+#
+# access_log steht in jeder Form — nicht zugesagt, bliebe M3 Fall 2 stumm.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+alt = """    public const PROMISED = ['server', 'listen', 'server_name', 'access_log', 'error_log', 'location', 'root', 'default_type', 'return'];"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace("'access_log', ", ''), 1))
+PY2
+griff_datei agent/src/SiteTemplate.php "Zusage kleiner als Vorlage" &&
+pruefe "Zusage kleiner als Vorlage" \
+  PromiseReachTest::test_the_site_promise_is_exactly_what_every_form_emits failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
+
+echo
+echo "== PromiseReachTest: die Pool-Zusage verliert die Abschottung =="
+vorher_datei agent/src/PoolTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/PoolTemplate.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'php_admin_value[open_basedir]', 'php_admin_value[disable_functions]',
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        'php_admin_value[disable_functions]',
+""", 1))
+PY2
+griff_datei agent/src/PoolTemplate.php "Pool-Zusage ohne open_basedir" &&
+pruefe "Pool-Zusage ohne open_basedir" \
+  PromiseReachTest::test_the_pool_promise_carries_the_isolation failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
+
+echo
+echo "== DiagnoseSeamTest: web.file spricht einen Grund, den das Panel nicht kennt =="
+vorher_datei agent/src/Diagnose/Verdict.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Verdict.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'web.file' => ['missing', 'empty', 'directive_lost', self::UNREACHABLE],"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        'web.file' => ['missing', 'empty', 'directive_lost', 'verschluckt', self::UNREACHABLE],""", 1))
+PY2
+griff_datei agent/src/Diagnose/Verdict.php "web.file mit fremdem Grund" &&
+pruefe "web.file mit fremdem Grund" \
+  DiagnoseSeamTest::test_every_reason_the_agent_speaks_is_known_to_the_panel failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
+
+echo
+echo "== UnitVerdictTest: ein startender Dienst wird gemeldet =="
+#
+# Vier Type=oneshot-Dienste dieses Pakets stehen waehrend ihres Laufs auf
+# `activating`, und srvpanel-usage.timer feuert alle fuenfzehn Minuten. Als
+# Befund waere das jede Nacht eine Zeile ueber einen Dienst, der tut, was er soll.
+vorher_datei app/Support/Diagnose/Checks/Units.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if ($active === 'active' || $active === 'activating') {"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            if ($active === 'active') {""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Units.php "startender Dienst gemeldet" &&
+pruefe "startender Dienst gemeldet" \
+  UnitVerdictTest::test_a_service_that_is_starting_is_not_a_finding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitVerdictTest passed
+
+echo
+echo "== UnitVerdictTest: derselbe Schaden steht zweimal da =="
+#
+# Ein gestoppter Timer meldet `inactive` UND keinen Termin. Ohne den Ausstieg
+# stuende er als Zustand und als Termin da — zwei Zeilen fuer einen Schaden.
+vorher_datei app/Support/Diagnose/Checks/Units.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = """                $schedule[] = self::finding($name, 'no_next', $detail);
+
+                continue;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """                $schedule[] = self::finding($name, 'no_next', $detail);""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Units.php "Schaden zweimal gemeldet" &&
+pruefe "Schaden zweimal gemeldet" \
+  UnitVerdictTest::test_a_stopped_timer_is_one_finding_and_not_two failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitVerdictTest passed
+
+echo
+echo "== UnitVerdictTest: die fremde Unit, die es nicht gibt, wird gemeldet =="
+#
+# Catalog::pick() faellt auf den ersten Kandidaten zurueck: Auf einem Server ohne
+# MariaDB kaeme mariadb.service als not-found zurueck — jede Nacht.
+vorher_datei app/Support/Diagnose/Checks/Units.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = """                if (($unit['own'] ?? false) === true) {
+                    $state[] = self::finding($name, 'not_installed', 'LoadState=not-found');
+                }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """                $state[] = self::finding($name, 'not_installed', 'LoadState=not-found');""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Units.php "fremde Unit gemeldet" &&
+pruefe "fremde Unit gemeldet" \
+  UnitVerdictTest::test_a_foreign_unit_that_is_absent_is_not_a_finding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitVerdictTest passed
+
+echo
+echo "== UnitVerdictTest: die Seite urteilt anders als die Nacht annimmt =="
+#
+# Der Stolperdraht: Aendert sich rang(), ist zu entscheiden, ob der Nachtlauf
+# mitzieht. Ohne ihn liefen die beiden Fassungen unbemerkt auseinander.
+vorher_datei resources/js/Composables/useUnitState.ts
+python3 - <<'PY2'
+p = 'resources/js/Composables/useUnitState.ts'
+s = open(p, encoding='utf-8').read()
+alt = """  if (unit.active_state === 'activating') return 'warn'"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """  if (unit.active_state === 'activating') return 'ok'""", 1))
+PY2
+griff_datei resources/js/Composables/useUnitState.ts "Seite urteilt anders" &&
+pruefe "Seite urteilt anders" \
+  UnitVerdictTest::test_the_page_still_judges_the_way_the_night_assumes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitVerdictTest passed
+
+echo
+echo "== CertificateVerdictTest: die Leitung wird immer gefragt =="
+#
+# Frage 3 aus docs/98 §9, mit c entschieden: Ein abgelaufenes Zertifikat wird
+# auch ueber die Leitung abgelaufen ausgeliefert — zwei Befunde fuer eine Ursache.
+vorher_datei app/Support/Diagnose/Checks/Certificates.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Certificates.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if ($verdict !== null) {
+                $file[] = ['subject' => $row['name']] + $verdict;
+
+                continue;
+            }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            if ($verdict !== null) {
+                $file[] = ['subject' => $row['name']] + $verdict;
+            }""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Certificates.php "Leitung immer gefragt" &&
+pruefe "Leitung immer gefragt" \
+  CertificateVerdictTest::test_the_wire_is_not_asked_when_the_file_is_already_a_finding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateVerdictTest passed
+
+echo
+echo "== CertificateVerdictTest: verglichen wird das Ablaufdatum =="
+#
+# Zwei Zertifikate derselben Stunde tragen dasselbe Ablaufdatum; der
+# Fingerabdruck ist der Vergleich, den M23 belegt hat.
+vorher_datei app/Support/Diagnose/Checks/Certificates.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Certificates.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if (strcasecmp($stored, $served) !== 0) {"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        if (false) {""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Certificates.php "Fingerabdruck nicht verglichen" &&
+pruefe "Fingerabdruck nicht verglichen" \
+  CertificateVerdictTest::test_a_different_certificate_on_the_wire failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateVerdictTest passed
+
+echo
+echo "== CertificateVerdictTest: die Frist ist nicht dreissig Tage =="
+vorher_datei app/Support/Diagnose/Checks/Certificates.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Certificates.php'
+s = open(p, encoding='utf-8').read()
+alt = """    public const EXPIRING_DAYS = 30;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """    public const EXPIRING_DAYS = 7;""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Certificates.php "Frist nicht dreissig Tage" &&
+pruefe "Frist nicht dreissig Tage" \
+  CertificateVerdictTest::test_the_expiring_window_is_thirty_days failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateVerdictTest passed
+
+echo
+echo "== SystemUserVerdictTest: gefragt wird die Wurzel statt httpdocs =="
+#
+# Die Wurzel gehoert root:root — ihr Zugriffsbit ist der Schalter von
+# subscription.suspend. Wer sie fragt, meldet jedes Abonnement als wrong_owner.
+vorher_datei app/Support/Diagnose/Checks/SystemUsers.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/SystemUsers.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $root = SubscriptionProvision::VHOSTS.'/'.$subscription.'/'.SubscriptionProvision::DOCUMENT_ROOT;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        $root = SubscriptionProvision::VHOSTS.'/'.$subscription;""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/SystemUsers.php "Wurzel statt httpdocs gefragt" &&
+pruefe "Wurzel statt httpdocs gefragt" \
+  SystemUserVerdictTest::test_the_question_goes_to_the_document_root failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SystemUserVerdictTest passed
+
+echo
+echo "== OrphanRowTest: die Reservierung selbst gilt als Rest =="
+#
+# system_users fuehrt jede Nummer fuer immer (docs/35). Eine Zeile ohne
+# Abonnement ist der Normalzustand nach jedem Rueckbau — gemeldet stuende sie
+# jede Nacht da. Ein Rest ist erst das Unix-Konto daneben.
+vorher_datei app/Support/Diagnose/Checks/Orphans.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Orphans.php'
+s = open(p, encoding='utf-8').read()
+alt = """                if (isset($held[$user]) || $this->host->uidOf($user) === null) {"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """                if (isset($held[$user])) {""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Orphans.php "Reservierung gilt als Rest" &&
+pruefe "Reservierung gilt als Rest" \
+  OrphanRowTest::test_a_reserved_number_without_an_account_is_not_a_finding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OrphanRowTest passed
+
+echo
+echo "== DiagnoseWriteTest: die Diagnose raeumt auf =="
+#
+# docs/98 §5.1: Ein Diagnoselauf, der schreibt, ist der naechste Schreiber in
+# derselben Datei. CertificatePrune::forget() haette den Griff dafuer.
+vorher_datei app/Support/Diagnose/Checks/Orphans.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Orphans.php'
+s = open(p, encoding='utf-8').read()
+alt = """        foreach ($plan['removable'] as $storage) {"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        foreach ($plan['removable'] as $storage) {
+            $this->prune->forget($storage);""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Orphans.php "Diagnose raeumt auf" &&
+pruefe "Diagnose raeumt auf" \
+  DiagnoseWriteTest::test_no_diagnose_file_writes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseWriteTest passed
+
+echo
+echo "== DiagnoseSeamTest: eine Pruefung im Panel spricht einen fremden Grund =="
+vorher_datei app/Support/Diagnose/Checks/SystemUsers.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/SystemUsers.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'system.user' => ['missing', 'wrong_owner', 'root_missing'],"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        'system.user' => ['missing', 'wrong_owner', 'root_missing', 'verschollen'],""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/SystemUsers.php "fremder Grund im Panel" &&
+pruefe "fremder Grund im Panel" \
+  DiagnoseSeamTest::test_every_reason_a_panel_check_speaks_is_known failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
+
+echo
+echo "== DiagnoseSeamTest: ein Grund im Katalog verliert seinen Sprecher =="
+vorher_datei app/Support/Diagnose/Checks/Units.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'unit.schedule' => ['no_next', FindingCheck::UNREACHABLE],"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        'unit.schedule' => [FindingCheck::UNREACHABLE],""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Units.php "Grund ohne Sprecher" &&
+pruefe "Grund ohne Sprecher" \
+  DiagnoseSeamTest::test_every_reason_in_the_catalogue_has_a_speaker failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
+
+echo
+echo "== DiagnoseCatalogTest: system.user ohne unreachable und ohne Begruendung =="
+vorher_datei tests/Unit/DiagnoseCatalogTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DiagnoseCatalogTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'system.user',
+    ];"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """    ];""", 1))
+PY2
+griff_datei tests/Unit/DiagnoseCatalogTest.php "system.user ohne Begruendung" &&
+pruefe "system.user ohne Begruendung" \
+  DiagnoseCatalogTest::test_a_check_without_unreachable_is_named failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
+
+echo
+echo "== ManagedBlockDriftTest: die fremde Zeile kommt als unsere zurueck =="
+#
+# Der Fund aus M16: Ein `host all all 0.0.0.0/0 trust` innerhalb der Marken
+# oeffnet jede Datenbank dieses Servers fuer jeden — und liest sich als unsere.
+vorher_datei app/Support/Diagnose/Checks/ManagedBlocks.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/ManagedBlocks.php'
+s = open(p, encoding='utf-8').read()
+alt = """            array_values(array_filter($managed, static fn (string $line): bool => ! isset($inWanted[$line]))),"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            [],""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/ManagedBlocks.php "fremde Zeile uebersehen" &&
+pruefe "fremde Zeile uebersehen" \
+  ManagedBlockDriftTest::test_a_foreign_line_is_told_apart_from_ours failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
+
+echo
+echo "== ManagedBlockDriftTest: der Abgleich kennt nur eine Richtung =="
+#
+# Die Haelfte, die srvpanel db im August 2026 gekostet hat: Ein gescheiterter
+# Schreibvorgang liess seine Zeile im Bestand stehen, und die Datei hatte nichts.
+vorher_datei app/Support/Diagnose/Checks/ManagedBlocks.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/ManagedBlocks.php'
+s = open(p, encoding='utf-8').read()
+alt = """            array_values(array_filter($wanted, static fn (string $line): bool => ! isset($inManaged[$line]))),"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            [],""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/ManagedBlocks.php "Abgleich nur in eine Richtung" &&
+pruefe "Abgleich nur in eine Richtung" \
+  ManagedBlockDriftTest::test_a_line_from_the_inventory_that_is_gone_is_named failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
+
+echo
+echo "== ManagedBlockDriftTest: je Zeile ein Befund statt je Art =="
+#
+# Die Kennung ist check+subject+reason. Drei fremde Zeilen ergaeben dreimal
+# dieselbe Kennung — und damit eine Zeile, in der nur die letzte steht.
+vorher_datei app/Support/Diagnose/Checks/ManagedBlocks.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/ManagedBlocks.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if ($foreign !== []) {
+            $findings[] = self::finding($path, 'foreign_line', self::wortlaut('Nicht aus dem Bestand', $foreign));
+        }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        foreach ($foreign as $line) {
+            $findings[] = self::finding($path, 'foreign_line', $line);
+        }"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/ManagedBlocks.php "je Zeile ein Befund" &&
+pruefe "je Zeile ein Befund" \
+  ManagedBlockDriftTest::test_three_foreign_lines_are_one_finding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
+
+echo
+echo "== ManagedBlockDriftTest: der fehlende Block wird auch ohne Bestand gemeldet =="
+#
+# Ein Server ohne Fernzugriff und ohne SFTP-Schluessel hat keinen Bereich in
+# diesen Dateien. Jede Nacht eine Zeile darueber ist die Falle aus docs/98 §4.
+vorher_datei app/Support/Diagnose/Checks/ManagedBlocks.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/ManagedBlocks.php'
+s = open(p, encoding='utf-8').read()
+alt = """            return $missing === []
+                ? []
+                : [self::finding($path, 'block_missing', self::wortlaut('Im Bestand stehen', $missing))];"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """            return [self::finding($path, 'block_missing', self::wortlaut('Im Bestand stehen', $missing))];"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/ManagedBlocks.php "fehlender Block ohne Bestand" &&
+pruefe "fehlender Block ohne Bestand" \
+  ManagedBlockDriftTest::test_no_block_and_nothing_wanted_is_not_a_finding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
+
+echo
+echo "== ManagedBlockDriftTest: der Sollzustand wird nachgebaut =="
+#
+# SshdConfig::lines() baut genau die Zeilen, die sftp.access schreiben wuerde.
+# Wer sie hier nachschreibt, hat eine zweite Fassung — und die veraltet.
+vorher_datei app/Support/Diagnose/Checks/ManagedBlocks.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/ManagedBlocks.php'
+s = open(p, encoding='utf-8').read()
+alt = """            SystemDiagnose::ROLE_SSHD => self::compare($managed, SshdConfig::lines($this->sftp->accesses())),"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """            SystemDiagnose::ROLE_SSHD => self::compare($managed, ['Match User p1000', 'ChrootDirectory /var/www/vhosts']),"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/ManagedBlocks.php "Sollzustand nachgebaut" &&
+pruefe "Sollzustand nachgebaut" \
+  ManagedBlockDriftTest::test_the_desired_state_comes_from_the_template failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
+
+echo
+echo "== DiagnoseRunTest: eine zweite Pruefung schreibt block.integrity =="
+#
+# FindingLog::replace() ersetzt alle Zeilen einer Pruefung — die zweite loeschte
+# die Befunde der ersten, und welche zuletzt liefe, entschiede die Reihenfolge.
+#
+# **Der Eingriff zeigte bis Schritt 6 auf ManagedBlockDriftTest.** Der sucht
+# seitdem den Schreib*aufruf* statt der Erwaehnung — richtig, und damit sieht
+# er eine Zusage in writes() nicht mehr. Gemessen wird sie von DiagnoseRunTest
+# an writes() selbst, und dorthin zeigt der Eingriff jetzt.
+#
+#   Ein Bruch verliert sein Ziel nicht nur, wenn der Code umzieht — auch, wenn
+#   sein Waechter praeziser wird.
+vorher_datei app/Support/Diagnose/Checks/Orphans.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Orphans.php'
+s = open(p, encoding='utf-8').read()
+alt = """    public function writes(): array
+    {
+        return [FindingCheck::OrphanRow];
+    }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """    public function writes(): array
+    {
+        return [FindingCheck::OrphanRow, FindingCheck::BlockIntegrity];
+    }"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Orphans.php "zweiter Schreiber" &&
+pruefe "zweiter Schreiber" \
+  DiagnoseRunTest::test_no_key_has_two_writers failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
+
+echo
+echo "== DiagnoseSeamTest: ein sprachloser Grund steht wieder in der Ausnahmeliste =="
+#
+# Die Liste ist leer, und das ist eine Aussage. Ein Eintrag darin, dessen Grund
+# einen Sprecher hat, ist genau der tote Eintrag, den sie verhindern soll.
+vorher_datei tests/Unit/DiagnoseSeamTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DiagnoseSeamTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """    private const SPRACHLOS = [];"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """    private const SPRACHLOS = ['block.integrity/foreign_line' => 'veraltet'];"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Unit/DiagnoseSeamTest.php "veralteter Eintrag in SPRACHLOS" &&
+pruefe "veralteter Eintrag in SPRACHLOS" \
+  DiagnoseSeamTest::test_every_reason_in_the_catalogue_has_a_speaker failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
+
+echo
+echo "== ManagedBlockDriftTest: die Rolle wird am Pfad geraten =="
+#
+# pg_hba.conf liegt nicht ueberall gleich. Ein Vergleich am Dateinamen taete bei
+# der ersten Distribution mit anderem Ablageort still das Falsche.
+vorher_datei app/Support/Diagnose/Checks/ManagedBlocks.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/ManagedBlocks.php'
+s = open(p, encoding='utf-8').read()
+alt = """            SystemDiagnose::ROLE_HBA => [$this->remote->orphans($managed), $this->remote->missing($managed)],"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """            'pg_hba.conf' => [$this->remote->orphans($managed), $this->remote->missing($managed)],"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/ManagedBlocks.php "Rolle am Pfad geraten" &&
+pruefe "Rolle am Pfad geraten" \
+  ManagedBlockDriftTest::test_the_roles_are_the_same_words_on_both_sides failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
+
+echo
+echo "== DiagnoseWriteTest: die neue Pruefung steht nicht im Wachbereich =="
+vorher_datei tests/Unit/DiagnoseWriteTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DiagnoseWriteTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $root.'/app/Support/Diagnose/Checks/ManagedBlocks.php',
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei tests/Unit/DiagnoseWriteTest.php "ManagedBlocks nicht im Wachbereich" &&
+pruefe "ManagedBlocks nicht im Wachbereich" \
+  DiagnoseWriteTest::test_no_diagnose_file_writes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseWriteTest passed
+
+echo
+echo "== DiagnoseRunTest: jede Pruefung nimmt sich ihren eigenen Zeitpunkt =="
+#
+# Dann staenden auf der Seite so viele Werte fuer "zuletzt gemessen", wie es
+# Pruefungen gibt, und sie unterschieden sich um Millisekunden.
+vorher_datei app/Support/Diagnose/Run.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Run.php'
+s = open(p, encoding='utf-8').read()
+alt = """                $check->run($measuredAt, $this->log);"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """                $check->run(Carbon::now(), $this->log);""", 1))
+PY2
+griff_datei app/Support/Diagnose/Run.php "eigener Zeitpunkt je Pruefung" &&
+pruefe "eigener Zeitpunkt je Pruefung" \
+  DiagnoseRunTest::test_every_check_sees_the_same_moment failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
+
+echo
+echo "== DiagnoseRunTest: eine Ausnahme nimmt den Rest des Laufs mit =="
+vorher_datei app/Support/Diagnose/Run.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Run.php'
+s = open(p, encoding='utf-8').read()
+alt = """            } catch (Throwable $error) {
+                $failed[$name] = $error->getMessage();
+            }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            } catch (Throwable $error) {
+                $failed[$name] = $error->getMessage();
+
+                break;
+            }""", 1))
+PY2
+griff_datei app/Support/Diagnose/Run.php "Ausnahme haelt den Lauf an" &&
+pruefe "Ausnahme haelt den Lauf an" \
+  DiagnoseRunTest::test_a_failing_check_does_not_stop_the_others failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
+
+echo
+echo "== DiagnoseRunTest: eine Pruefung steht nicht im Katalog =="
+#
+# Eine Pruefung, die niemand faehrt, ist Code ohne Wirkung — und von aussen
+# nicht von einer zu unterscheiden, die es nicht gibt.
+vorher_datei app/Support/Diagnose/Catalog.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Catalog.php'
+s = open(p, encoding='utf-8').read()
+alt = """        SystemUsers::class,
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Diagnose/Catalog.php "Pruefung fehlt im Katalog" &&
+pruefe "Pruefung fehlt im Katalog" \
+  DiagnoseRunTest::test_the_catalogue_names_every_check_that_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
+
+echo
+echo "== DiagnoseRunTest: der Sammelaufruf holt auch block.integrity =="
+#
+# FindingLog::replace() ersetzt alle Zeilen einer Pruefung. Zwei Schreiber
+# loeschten einander die Befunde weg.
+vorher_datei app/Support/Diagnose/Checks/Agent.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Agent.php'
+s = open(p, encoding='utf-8').read()
+alt = """        return array_values(array_filter(
+            SystemDiagnose::CHECKS,
+            static fn (string $key): bool => $key !== FindingCheck::BlockIntegrity->value,
+        ));"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        return array_values(SystemDiagnose::CHECKS);""", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Agent.php "Sammelaufruf holt block.integrity" &&
+pruefe "Sammelaufruf holt block.integrity" \
+  DiagnoseRunTest::test_the_agent_call_leaves_the_managed_blocks_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
+
+echo
+echo "== DiagnoseRunTest: ein Schluessel des Agenten wird von niemandem geholt =="
+vorher_datei app/Support/Diagnose/Checks/Agent.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Agent.php'
+s = open(p, encoding='utf-8').read()
+alt = """            static fn (string $key): bool => $key !== FindingCheck::BlockIntegrity->value,"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """            static fn (string $key): bool => $key !== FindingCheck::BlockIntegrity->value && $key !== FindingCheck::AptKey->value,"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Agent.php "Schluessel wird nicht geholt" &&
+pruefe "Schluessel wird nicht geholt" \
+  DiagnoseRunTest::test_the_agent_call_leaves_the_managed_blocks_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
+
+echo
+echo "== OneshotDeadlineTest: der Nachtlauf hat keine Frist =="
+#
+# Ein Type=oneshot ohne eigene Angabe laeuft ohne Frist — gemessen auf
+# cloudsrv24: TimeoutStartUSec=infinity. Ein Haenger nimmt alle folgenden mit.
+vorher_datei packaging/systemd/srvpanel-diagnose.service
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-diagnose.service'
+s = open(p, encoding='utf-8').read()
+alt = """TimeoutStartSec=1800"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """# TimeoutStartSec entfernt""", 1))
+PY2
+griff_datei packaging/systemd/srvpanel-diagnose.service "Nachtlauf ohne Frist" &&
+pruefe "Nachtlauf ohne Frist" \
+  OneshotDeadlineTest failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OneshotDeadlineTest passed
+
+echo
+echo "== UnitCatalogTest: die neuen Units stehen nicht im Katalog =="
+#
+# Dann zeigt die Dienste-Seite sie nicht — und die Diagnose saehe sich selbst
+# nicht, obwohl sie jeden anderen Timer prueft.
+vorher_datei agent/src/Catalog.php
+python3 - <<'PY2'
+p = 'agent/src/Catalog.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'srvpanel-diagnose.service',
+        'srvpanel-diagnose.timer',
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Catalog.php "neue Units nicht im Katalog" &&
+pruefe "neue Units nicht im Katalog" \
+  UnitCatalogTest failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
+
+echo
+echo "== PackagingTest: der Wrapper kennt das neue Kommando nicht =="
+#
+# Auf dem Server wird daraus "Command not defined" fuer einen Namen, den die
+# Unit selbst aufruft.
+vorher_datei packaging/bin/srvpanel
+python3 - <<'PY2'
+p = 'packaging/bin/srvpanel'
+s = open(p, encoding='utf-8').read()
+alt = """|access|version|diagnose)"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """|access|version)""", 1))
+PY2
+griff_datei packaging/bin/srvpanel "Wrapper ohne diagnose" &&
+pruefe "Wrapper ohne diagnose" \
+  PackagingTest::test_the_wrapper_knows_every_command_of_the_panel failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PackagingTest passed
+
+echo
+echo "== ManagedBlockDriftTest: der Waechter sucht die Erwaehnung statt des Aufrufs =="
+#
+# `Agent` nennt block.integrity, um ihn auszuschliessen. Ein Waechter, der die
+# Zeichenkette sucht, haelt das fuer einen zweiten Schreiber.
+vorher_datei tests/Unit/ManagedBlockDriftTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/ManagedBlockDriftTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """            foreach (['$log->replace(FindingCheck::BlockIntegrity', '$log->unreachable(FindingCheck::BlockIntegrity'] as $aufruf) {"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            foreach (['FindingCheck::BlockIntegrity'] as $aufruf) {""", 1))
+PY2
+griff_datei tests/Unit/ManagedBlockDriftTest.php "Waechter sucht die Erwaehnung" &&
+pruefe "Waechter sucht die Erwaehnung" \
+  ManagedBlockDriftTest::test_exactly_one_check_writes_the_block_integrity failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
+
+echo
+echo "== TimestampDefaultTest: die Spalte wird wieder eine timestamp =="
+#
+# Gemessen gegen MariaDB 10.11.14: Die erste TIMESTAMP NOT NULL einer Tabelle
+# bekommt ein ON UPDATE current_timestamp(), das niemand geschrieben hat — ein
+# Lauf, der nur measured_at fortschreibt, schoebe first_seen_at auf die Wanduhr.
+# Gegen SQLite faellt davon nichts auf.
+vorher_datei database/migrations/2026_09_02_120000_create_findings_table.php
+python3 - <<'PY2'
+p = 'database/migrations/2026_09_02_120000_create_findings_table.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $table->dateTime('first_seen_at');"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            $table->timestamp('first_seen_at');""", 1))
+PY2
+griff_datei database/migrations/2026_09_02_120000_create_findings_table.php "Spalte wieder timestamp" &&
+pruefe "Spalte wieder timestamp" \
+  TimestampDefaultTest::test_a_column_the_database_fills_in_is_named failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimestampDefaultTest passed
+
+echo
+echo "== TimestampDefaultTest: ein toter Eintrag in der Ausnahmeliste =="
+#
+# Die Gegenrichtung, und die ist die, an der ein toter Eintrag wirklich
+# entsteht: Wird eine Spalte umgestellt, bleibt ihr Freibrief stehen und deckt
+# beim naechsten Mal etwas anderes.
+vorher_datei tests/Unit/TimestampDefaultTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/TimestampDefaultTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'cron_runs.started_at' =>"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        'gibt_es_nicht.wann' => 'veraltet',
+        'cron_runs.started_at' =>"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Unit/TimestampDefaultTest.php "toter Eintrag in der Ausnahmeliste" &&
+pruefe "toter Eintrag in der Ausnahmeliste" \
+  TimestampDefaultTest::test_every_exemption_names_a_column_that_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimestampDefaultTest passed
+
+echo
+echo "== DiagnosePageTest: der Administrator bekommt den Wortlaut der Werkzeuge =="
+#
+# docs/98 §9 Frage 5, mit b entschieden. Der Wortlaut traegt bei php-fpm
+# Poolnamen und Pfade, bei nginx Zertifikatspfade und in einem verwalteten
+# Bereich die Regeln fremder Kunden.
+vorher_datei app/Http/Controllers/DiagnoseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DiagnoseController.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $wortlaut = Gate::allows('operate-server');"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        $wortlaut = true;""", 1))
+PY2
+griff_datei app/Http/Controllers/DiagnoseController.php "Administrator sieht den Wortlaut" &&
+pruefe "Administrator sieht den Wortlaut" \
+  DiagnosePageTest::test_the_administrator_sees_the_finding_without_the_verbatim_output failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
+
+echo
+echo "== DiagnosePageTest: der Wortlaut wird geschickt und nur ausgeblendet =="
+#
+# Ein v-if im Browser verbirgt den Text und schickt ihn trotzdem — er stuende
+# im Payload jeder Antwort.
+vorher_datei app/Http/Controllers/DiagnoseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DiagnoseController.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if ($wortlaut) {
+                $zeile['detail'] = $finding->detail;
+            }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            $zeile['detail'] = $finding->detail;""", 1))
+PY2
+griff_datei app/Http/Controllers/DiagnoseController.php "Wortlaut nur ausgeblendet" &&
+pruefe "Wortlaut nur ausgeblendet" \
+  DiagnosePageTest::test_the_verbatim_output_is_nowhere_in_the_administrators_answer failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
+
+echo
+echo "== DiagnosePageTest: die Seite steht jedem offen =="
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+alt = """    Route::get('/diagnose', [DiagnoseController::class, 'show'])
+        ->middleware('can:inspect-server')"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """    Route::get('/diagnose', [DiagnoseController::class, 'show'])""", 1))
+PY2
+griff_datei routes/web.php "Seite ohne Faehigkeit" &&
+pruefe "Seite ohne Faehigkeit" \
+  DiagnosePageTest::test_a_customer_does_not_reach_the_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
+
+echo
+echo "== DiagnosePageTest: der schlimmste Befund steht nicht zuerst =="
+#
+# Wer eine Seite mit dreissig Zeilen oeffnet, liest die ersten.
+vorher_datei app/Http/Controllers/DiagnoseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DiagnoseController.php'
+s = open(p, encoding='utf-8').read()
+alt = """            return [$b['rank'], $a['check'], $a['subject']] <=> [$a['rank'], $b['check'], $b['subject']];"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            return [$a['check'], $a['subject']] <=> [$b['check'], $b['subject']];""", 1))
+PY2
+griff_datei app/Http/Controllers/DiagnoseController.php "Reihenfolge ohne Schwere" &&
+pruefe "Reihenfolge ohne Schwere" \
+  DiagnosePageTest::test_the_worst_finding_stands_first failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
+
+echo
+echo "== DiagnosePageTest: die leere Liste sagt nicht, ob gemessen wurde =="
+#
+# Punkt 1 des Abnahmekriteriums haengt daran: Eine Seite, die nichts meldet,
+# muss sagen, ob sie geschwiegen oder nicht gemessen hat.
+vorher_datei app/Http/Controllers/DiagnoseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DiagnoseController.php'
+s = open(p, encoding='utf-8').read()
+alt = """Clock::displayText($runs->lastRunAt())"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """null""", 1))
+PY2
+griff_datei app/Http/Controllers/DiagnoseController.php "kein Zeitpunkt des Laufs" &&
+pruefe "kein Zeitpunkt des Laufs" \
+  DiagnosePageTest::test_a_run_without_findings_still_says_when_it_ran failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
+
+echo
+echo "== DiagnoseRunTest: der Lauf haelt seinen Zeitpunkt nur im Erfolgsfall fest =="
+#
+# Dann behauptete die Seite nach einer gescheiterten Pruefung, seit Tagen habe
+# niemand gemessen.
+vorher_datei app/Support/Diagnose/Run.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Run.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $this->runs->record($measuredAt);"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        if ($failed === []) {
+            $this->runs->record($measuredAt);
+        }"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/Run.php "Zeitpunkt nur im Erfolgsfall" &&
+pruefe "Zeitpunkt nur im Erfolgsfall" \
+  DiagnoseRunTest::test_a_failing_check_does_not_stop_the_others failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
+
+echo
+echo "== DiagnoseRunTest: eingetragen wird now() statt des Zeitpunkts der Befunde =="
+#
+# Dann stuende neben einer Zeile von 03:00:07 ein "zuletzt gemessen 03:00:09",
+# und die beiden waeren dieselbe Messung.
+vorher_datei app/Support/Diagnose/Run.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Run.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $this->runs->record($measuredAt);"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        $this->runs->record(Carbon::now()->addHour());""", 1))
+PY2
+griff_datei app/Support/Diagnose/Run.php "now() statt Zeitpunkt der Befunde" &&
+pruefe "now() statt Zeitpunkt der Befunde" \
+  DiagnoseRunTest::test_every_check_sees_the_same_moment failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
+
+echo
+echo "== DiagnoseViewTest: die Spalte zeigt den letzten Lauf statt des ersten =="
+#
+# Punkt 8 des Abnahmekriteriums haengt daran: Ohne "steht seit" saehe niemand
+# mehr, wie lange etwas schon so ist.
+vorher_datei resources/js/Pages/Diagnose/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Diagnose/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = """                  {{ zeile.first_seen_at ?? '—' }}"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """                  {{ zeile.measured_at ?? '—' }}""", 1))
+PY2
+griff_datei resources/js/Pages/Diagnose/Index.vue "Spalte zeigt den letzten Lauf" &&
+pruefe "Spalte zeigt den letzten Lauf" \
+  DiagnoseViewTest::test_the_column_shows_the_first_sighting_and_not_the_last failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseViewTest passed
+
+echo
+echo "== DiagnoseViewTest: die leere Liste gilt vor dem ersten Lauf als Entwarnung =="
+vorher_datei resources/js/Pages/Diagnose/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Diagnose/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = """    <p v-if="!gemessen" class="notice warn">
+      Die Bestandsdiagnose ist auf diesem Server noch nie gelaufen. Die leere Liste unten
+      heisst deshalb nicht „alles in Ordnung", sondern „noch nicht nachgesehen".
+    </p>
+
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Pages/Diagnose/Index.vue "leere Liste als Entwarnung" &&
+pruefe "leere Liste als Entwarnung" \
+  DiagnoseViewTest::test_an_empty_list_before_the_first_run_is_not_an_all_clear failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseViewTest passed
+
+echo
+echo "== DiagnoseViewTest: der Wortlaut bricht nicht um =="
+#
+# Ein pre bricht von sich aus nicht; bei 390 px rollt die Zelle dann waagerecht,
+# und das Dokument meldet dafuer keine Zahl.
+vorher_datei resources/js/Pages/Diagnose/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Diagnose/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = """  white-space: pre-wrap;
+  overflow-wrap: anywhere;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """  overflow-x: auto;""", 1))
+PY2
+griff_datei resources/js/Pages/Diagnose/Index.vue "Wortlaut ohne Umbruch" &&
+pruefe "Wortlaut ohne Umbruch" \
+  DiagnoseViewTest::test_the_verbatim_output_wraps failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseViewTest passed
+
+echo
+echo "== DiagnoseViewTest: die Seite misst selbst =="
+#
+# Der Lauf hat eine Frist von 1800 Sekunden. Was so lange dauern darf, gehoert
+# an einen Timer und nicht an eine Anfrage, auf die jemand wartet.
+vorher_datei app/Http/Controllers/DiagnoseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DiagnoseController.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $wortlaut = Gate::allows('operate-server');"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        $wortlaut = Gate::allows('operate-server');
+        // Ein Aufruf an den Agenten beim Oeffnen der Seite.
+        $unbenutzt = 'system.diagnose';"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Http/Controllers/DiagnoseController.php "Seite misst selbst" &&
+pruefe "Seite misst selbst" \
+  DiagnoseViewTest::test_the_page_asks_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseViewTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

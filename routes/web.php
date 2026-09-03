@@ -12,6 +12,7 @@ use App\Http\Controllers\CronController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\DatabaseSettingsController;
+use App\Http\Controllers\DiagnoseController;
 use App\Http\Controllers\DnsSettingsController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\FileController;
@@ -199,6 +200,27 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/updates', [UpdatesController::class, 'show'])
         ->middleware('can:inspect-server')
         ->name('updates');
+
+    /*
+     * Die Bestandsdiagnose — A10 Schritt 7.
+     *
+     * **`inspect-server` wie bei „Dienste" und „Updates".** Der Administrator
+     * sieht, **dass** etwas nicht stimmt und woran: `subject` nennt den Ort,
+     * und der Satz zum Grund ist unsere Formulierung. Den ungekürzten Wortlaut
+     * der Werkzeuge bekommt nur der Betreiber — dort stehen bei php-fpm
+     * Poolnamen und Pfade und bei nginx Zertifikatspfade, also dieselbe Art
+     * Inhalt, deretwegen `/logs` ihm allein gehört (`docs/98 §9` Frage 5, mit
+     * **b** entschieden).
+     *
+     * **Nur `GET`.** Diese Seite liest ausschliesslich; A10 repariert nichts
+     * (`docs/98 §5.1`), und einen Knopf „jetzt prüfen" gibt es bewusst nicht:
+     * Der Lauf hat eine Frist von 1800 Sekunden, und was so lange dauern darf,
+     * gehört an einen Timer und nicht an eine Anfrage, die auf eine Antwort
+     * wartet.
+     */
+    Route::get('/diagnose', [DiagnoseController::class, 'show'])
+        ->middleware('can:inspect-server')
+        ->name('diagnose');
 
     /*
      * Eine eigene Paketquelle schalten — A1 Schritt 7.

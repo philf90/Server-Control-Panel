@@ -24489,6 +24489,104 @@ ihn nicht mehr braucht: Sollte eine künftige Fassung von `gpg` doch etwas
 ablegen wollen, legt sie es dort ab und nicht in `/root/.gnupg`, wo es danach
 niemand erklären kann.
 
+### Das Protokoll des A10-Nachlaufs — und die Nummer, die niemand lesen konnte
+
+**`docs/100` ist angelegt**, nachdem Punkt 1 des Abnahmelaufs gefahren war. Die
+Punkte 2 bis 8 stehen aus, und das steht dort oben und nicht am Ende: Ein
+Protokoll ohne seine Lücken liest sich wie eine Abnahme.
+
+**M19 ist beantwortet**: Der ganze Nachtlauf kostet **391 ms** über alle sechs
+Prüfungen. Die Frist von 1800 Sekunden ist damit um drei Grössenordnungen
+grosszügig — sie ist keine Schranke für den Regelfall, sondern eine gegen einen
+Lauf, der hängt. Genau so war sie gemeint, und jetzt ist es gemessen statt
+geschätzt.
+
+**Drei der vier Befunde stecken im Prüfling** — die Umkehrung von `docs/45`,
+`docs/48`, `docs/59` und `docs/84`, und dieselbe Lage wie bei A2 aus demselben
+Grund: Die Vorschrift war vor dem Lauf ausgeschrieben und dreimal berichtigt,
+das Messmittel lag als geprüftes Werkzeug im Repo. Was blieb, war neuer Code.
+Alle drei sitzen an derselben Art Stelle:
+
+> **Drei Fehler an drei Nähten zwischen zwei Dateien** — Katalog und Container,
+> Vorlage und Leser, Aufruf und Ablageort. Jeder für sich war in Ordnung; keiner
+> der 3011 Wächter stand dazwischen.
+
+**Der vierte hat sich beim Anlegen dieser Datei selbst gemeldet.**
+`DocLinkTest` las Dokumentnummern mit einem Ausdruck über genau zwei Ziffern.
+Bei der ersten dreistellig benannten Datei meldete er sie als Verweis auf ein
+Dokument, das es seit dem Repo-Übergang nicht gibt — die Datei lag da, gelesen
+wurden ihre ersten zwei Ziffern.
+
+> **Ein Ausdruck, der die gewohnte Stellenzahl kennt, prüft die Gewohnheit und
+> nicht die Regel.**
+
+Das ist derselbe Satz, den dieses Repo über Schreibweisen längst hat
+(`apt-get -q update`, `\App\Enums\AccountType::Admin`) — hier über die
+Stellenzahl.
+
+**Belegt in drei Richtungen**, weil eine Erweiterung, die man nur am heilen Fall
+misst, eine Verzierung ist: der bestehende Bestand grün, ein dreistelliges
+Dokument, das es gibt, grün, ein dreistelliges, das es nicht gibt, rot mit
+seiner Nummer.
+
+**Und die Erweiterung allein war zu grob.** `{2,3}` ist gierig: Aus einem Text
+über die Zahl 9999 — er steht seit dem 2. September im Changelog — wurde damit
+ein Verweis auf ein Dokument 999, das niemand geschrieben hat.
+
+> **Ein Ausdruck, der zu viel liest, meldet einen Verweis, den niemand
+> geschrieben hat.**
+
+Beide Leser tragen deshalb eine Ziffernabgrenzung. Eine vierstellige Zahl ist
+damit **gar kein** Verweis, und das ist die richtige Auskunft: Ein Dokument mit
+vier Stellen gibt es nicht. Wer eines anlegt, erweitert dort — die Grenze steht
+im Kopf des Wächters, statt sich als Zusage zu lesen.
+
+**„Beide Leser" ist der eigentliche Befund.** Der Eintrag über die Erweiterung
+fiel eine Minute nach ihr an seiner eigenen Nummer durch: `ChangelogTest` trägt
+einen zweiten Ausdruck über dieselbe Frage, mit derselben Annahme. Erweitert war
+der erste.
+
+> **Zwei Fassungen derselben Regel laufen auseinander, und die zweite ist die,
+> die veraltet.**
+
+`DocumentNumberReaderTest` hält das seitdem, und zwar **ohne die Familie
+aufzuzählen**: Er sucht im Quelltext der Wächter die Ausdrücke, die eine
+Dokumentnummer lesen, und misst jeden an denselben drei Fällen — zweistellig,
+dreistellig, vierstellig. Ein dritter Leser, den morgen jemand schreibt, kommt
+damit von selbst in die Messung.
+
+> **Ein Wächter über eine Familie von Ausdrücken darf die Familie nicht
+> aufzählen, sonst prüft er das Erinnerungsvermögen.**
+
+Was er nicht kann, steht in seinem Kopf: Er findet nur Leser, die ihren Ausdruck
+als einfaches Literal schreiben. Belegt ist er daran, dass ein
+zurückgebliebener Leser zwei der drei Fälle rot macht.
+
+**Und er hat eine zweite Fassung derselben Regel freigelegt.**
+`BreakScriptTest::test_every_placeholder_number_stays_free` verlangte eine
+zweistellige Platzhalternummer und begründete das mit dem Wortlaut des
+Ausdrucks in `DocLinkTest`. Als der dreistellig wurde, stimmte die Begründung
+nicht mehr, während die Zeile weiter grün war — der stumme Halbteil der
+bekannten Aufräumfalle.
+
+Gefragt wird deshalb jetzt der Ausdruck selbst, aus `DocLinkTest` gelesen und
+nicht nachgebaut: Liest er die Platzhalternummer als genau diese Nummer? Belegt
+in beide Richtungen — mit einem einstelligen Ausdruck meldet er die gekürzte
+Ziffer, ohne jeden Ausdruck meldet er, dass es ihn nicht mehr gibt.
+
+**Und die berichtigte Fassung hat den Absatz, der davon erzählt, gleich zweimal
+gefangen.** Er zitierte die Meldung wörtlich — mitsamt der gekürzten Nummer, und
+die liest der Wächter als Verweis. Dieselbe Familie wie `OutcomeTest` am
+1. September, nur in Prosa statt im Kommentar:
+
+> **Ein Text, der eine Meldung über einen toten Verweis zitiert, enthält den
+> toten Verweis.**
+
+In Markdown die Codeblöcke zu überspringen wäre keine Lösung, sondern ein Loch:
+Dort stehen Verweise, die genauso verrotten. Der Wächter bleibt, wie er ist, und
+seine Grenze steht jetzt in seinem Kopf; wer eine solche Meldung festhalten
+will, schreibt die Nummer ohne ihr `docs/`.
+
 ### MariaDB setzt eine Vorgabe ein, die in keiner Migration steht — und sie hätte Punkt 8 gekippt
 
 **Die CI hat `findings` auf Ubuntu 22.04 nicht anlegen können:**

@@ -130,9 +130,21 @@ final class ChangelogTest extends TestCase
         return $files;
     }
 
+    /**
+     * Zwei oder drei Stellen, mit Ziffernabgrenzung — dieselbe Frage misst
+     * `DocumentNumberReaderTest` an allen Lesern zugleich.
+     *
+     * **Dieser Ausdruck ist der zweite Leser derselben Regel**, und er war am
+     * 3. September 2026 genau der, der zurückblieb: `DocLinkTest` war schon
+     * erweitert, hier stand noch `\d{2}`, und der Eintrag über die Erweiterung
+     * fiel an seiner eigenen Nummer durch.
+     *
+     * > **Zwei Fassungen derselben Regel laufen auseinander, und die zweite ist
+     * > die, die veraltet.**
+     */
     public function test_every_referenced_document_exists(): void
     {
-        preg_match_all('/`?docs\/(\d{2})/', $this->changelog(), $matches);
+        preg_match_all('/`?docs\/(\d{2,3})(?!\d)/', $this->changelog(), $matches);
 
         $numbers = array_unique($matches[1]);
 

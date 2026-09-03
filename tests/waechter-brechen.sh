@@ -5221,13 +5221,22 @@ echo "── DocLinkTest: eine Dokumentnummer, die es nicht gibt ──"
 # > **Eine Lücke, die man für unerreichbar erklärt, ist trotzdem eine Lücke —
 # > und eine Zusage über die Zukunft ist kein Mechanismus.**
 #
-# **Vierstellig geht nicht, und das ist gemessen.** `DocLinkTest` sucht
-# `~docs/(\d{2})~` — aus `docs/9999` liest er `99`, und das Dokument gibt es
-# seit heute. Der Eingriff lief damit durch, ohne etwas zu brechen: derselbe
-# stumpfe Eingriff, nur mit einer anderen Ursache.
+# **Vierstellig geht nicht, und das ist gemessen.** `DocLinkTest` liest die
+# Nummer mit einem Ausdruck fester Stellenzahl — aus einer laengeren nimmt er
+# die ersten Stellen, und das Dokument dazu gibt es seit heute. Der Eingriff
+# lief damit durch, ohne etwas zu brechen: derselbe stumpfe Eingriff, nur mit
+# einer anderen Ursache.
 #
 # > **Eine Nummer, die weiter aus dem Weg liegt, ist nicht sicherer — sie wird
-# > vom Leser auf ihre ersten zwei Ziffern gekürzt.**
+# > vom Leser gekuerzt.**
+#
+# **Seit dem 3. September liest er zwei ODER drei Stellen**, weil das erste
+# dreistellige Dokument entstanden ist. Diese Zeilen nennen die Stellenzahl
+# deshalb nicht mehr: Sie waeren eine zweite Fassung des Ausdrucks, und die
+# zweite ist die, die veraltet — genau das ist der Begruendung in
+# `BreakScriptTest` an dem Tag passiert. Gehalten wird die Beziehung dort
+# jetzt an der Wirkung: Der Waechter liest den Ausdruck aus `DocLinkTest` und
+# fragt, ob er die Platzhalternummer ganz liest.
 #
 # Genommen ist deshalb `docs/00`: zweistellig, damit der Leser sie überhaupt
 # sieht, und am **unteren** Ende, weil die Reihe nach oben wächst. **Gehalten
@@ -5248,6 +5257,53 @@ pruefe "Nummer eines Dokuments, das es nicht gibt" \
   DocLinkTest::test_every_document_mentioned_by_number_exists failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DocLinkTest passed
+
+echo
+echo "── DocLinkTest: der Leser kennt wieder nur zwei Stellen ──"
+#
+# Am 3. September 2026 entstand mit dem Protokoll des A10-Nachlaufs das erste
+# dreistellige Dokument — und der Leser meldete es als Verweis auf ein
+# Dokument, das es nicht gibt, weil er die Nummer nach zwei Ziffern abschnitt.
+# Die Datei lag da.
+#
+# > **Ein Ausdruck, der die gewohnte Stellenzahl kennt, prueft die Gewohnheit
+# > und nicht die Regel.**
+vorher_datei tests/Feature/DocLinkTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/DocLinkTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "docs/(\\d{2,3})(?!\\d)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "docs/(\\d{2})", 1))
+PY2
+griff_datei tests/Feature/DocLinkTest.php "Leser kennt nur zwei Stellen" &&
+pruefe "Leser kennt nur zwei Stellen" \
+  DocLinkTest::test_every_document_mentioned_by_number_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DocLinkTest passed
+
+echo
+echo "── DocumentNumberReaderTest: ein zweiter Leser bleibt zurueck ──"
+#
+# Der eigentliche Befund vom 3. September: Es sind zwei Leser derselben Frage.
+# DocLinkTest war erweitert, ChangelogTest nicht — und der Changelog-Eintrag
+# ueber die Erweiterung fiel eine Minute spaeter an seiner eigenen Nummer durch.
+#
+# > **Zwei Fassungen derselben Regel laufen auseinander, und die zweite ist die,
+# > die veraltet.**
+vorher_datei tests/Feature/ChangelogTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/ChangelogTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "docs\\/(\\d{2,3})(?!\\d)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "docs\\/(\\d{2})", 1))
+PY2
+griff_datei tests/Feature/ChangelogTest.php "zweiter Leser bleibt zurueck" &&
+pruefe "zweiter Leser bleibt zurueck" \
+  DocumentNumberReaderTest failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DocumentNumberReaderTest passed
 
 echo
 echo "── PgNameTest: das Präfix haengt wieder am Abonnement ──"

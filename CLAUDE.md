@@ -1905,6 +1905,38 @@ Punkte ausfallen dürfen — **5 und 8 nicht**.
 
 > **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
 
+Und **`docs/100` das Protokoll dazu** — angelegt am 3. September 2026, nachdem
+Punkt 1 gefahren war. **Die Punkte 2 bis 8 stehen aus**, und das steht dort
+oben und nicht am Ende: Ein Protokoll ohne seine Lücken liest sich wie eine
+Abnahme. §1 hat den Punkt und seine Messwerte (M19 ist beantwortet — der ganze
+Nachtlauf kostet **391 ms**, die Frist von 1800 Sekunden ist um drei
+Grössenordnungen grosszügig), §2 die vier Befunde mit ihren Lehren, §3 die eine
+Zeile, die über den **Server** etwas sagt, §4 die Bilanz und §5 was offen ist.
+
+**Drei der vier Befunde stecken im Prüfling** — die Umkehrung von `docs/45`,
+`docs/48`, `docs/59` und `docs/84`, und dieselbe Lage wie bei A2 aus demselben
+Grund: Die Vorschrift war vor dem Lauf ausgeschrieben, das Messmittel lag als
+geprüftes Werkzeug im Repo. Was blieb, war **neuer Code**. Alle drei sitzen an
+derselben Art Stelle:
+
+> **Drei Fehler an drei Nähten zwischen zwei Dateien** — Katalog und Container,
+> Vorlage und Leser, Aufruf und Ablageort. Jeder für sich war in Ordnung; keiner
+> der 3011 Wächter stand dazwischen.
+
+**Der vierte hat sich beim Anlegen dieses Protokolls selbst gemeldet.**
+`DocLinkTest` las Dokumentnummern mit genau zwei Ziffern — bei der ersten
+dreistelligen Datei meldete er sie als Verweis auf ein Dokument, das es nicht
+gibt, obwohl die Datei dalag.
+
+> **Ein Ausdruck, der die gewohnte Stellenzahl kennt, prüft die Gewohnheit und
+> nicht die Regel.**
+
+Und die berichtigte Fassung hat den Absatz, der davon erzählt, gleich zweimal
+gefangen: Er zitierte die Meldung wörtlich, mitsamt der gekürzten Nummer.
+
+> **Ein Text, der eine Meldung über einen toten Verweis zitiert, enthält den
+> toten Verweis.**
+
 Und **`97` die Übergabe an A10** — der Stand von P7b (vier abgenommen, fünf
 offen), was A10 ist, **was vor dem Plan zu messen ist**, die vier frischen
 Prüfmittel-Fallen vom 1./2. September, der Zustand von `cloudsrv24` samt dem,

@@ -271,14 +271,28 @@ weil die Anweisung beliebig viele Namen nimmt, wird die nächste Zeile zu einem
 davon. `nginx -t` gibt `rc=0` **ohne ein Byte Ausgabe**, und der Block hat
 lautlos eine Anweisung verloren.
 
+**Der Ort ist `/etc/nginx/srvpanel.d/<domain>.conf`** und nicht
+`sites-available`. Hier stand bis zum 3. September das zweite, und der Lauf ist
+daran aufgelaufen: In `sites-available` liegt auf `cloudsrv24` genau eine Datei,
+`default`. `Site::CONF_DIR` ist das Verzeichnis, das `web.site.apply` schreibt,
+und `SystemDiagnose::webFiles()` liest von dort.
+
+> **Ein Pfad in einer Vorschrift, den niemand gegen den Quelltext hält, ist eine
+> Vermutung mit Fussnote.**
+
 ```
+ls -1 /etc/nginx/srvpanel.d/
 D=<domain>
-cp /etc/nginx/sites-available/$D /root/$D.abnahme
-grep -n 'server_name' /etc/nginx/sites-available/$D
-sed -i '0,/^\(\s*server_name [^;]*\);/s//\1/' /etc/nginx/sites-available/$D
-grep -n -A2 'server_name' /etc/nginx/sites-available/$D
+cp /etc/nginx/srvpanel.d/$D.conf /root/$D.conf.abnahme
+grep -n 'server_name' /etc/nginx/srvpanel.d/$D.conf
+sed -i '0,/^\(\s*server_name [^;]*\);/s//\1/' /etc/nginx/srvpanel.d/$D.conf
+grep -n -A3 'server_name' /etc/nginx/srvpanel.d/$D.conf
 nginx -t; echo "rc=$?"
 ```
+
+**Getroffen wird das erste `server_name`, also das des Blocks auf Port 80** —
+`0,/…/` ersetzt genau einmal. Verschluckt wird damit das `access_log`, das in
+der Vorlage darauf folgt.
 
 **Belegt wird beides, und beides ist tragend:** dass die Zeile ihr Semikolon
 verloren hat, **und** dass `nginx -t` trotzdem `rc=0` gibt.
@@ -295,7 +309,18 @@ srvpanel diagnose
 ```
 
 **Erwartet:** `check=web.file`, `subject=<domain>`, `reason=directive_lost`. Der
-Wortlaut nennt die verschluckte Anweisung — und den sieht nur der Betreiber. Der
+Wortlaut nennt die verschluckte Anweisung — und den sieht nur der Betreiber.
+
+**Und dass er sie überhaupt nennen kann, ist eine Entscheidung im Leser.** Eine
+Domain mit TLS hat **zwei** Blöcke, und beide führen `access_log`. Ein Prüfer,
+der nur fragte „steht die Anweisung irgendwo in der Datei?", bliebe hier still —
+der Block auf 443 trägt sie ja weiter. {@see Statements::lostInNginx()} fragt
+deshalb zweierlei: ob eine zugesagte Anweisung als Kopf fehlt, **und** ob sie als
+**Argument** einer anderen auftaucht. Das zweite trifft hier zu und ist der
+Grund, dass Punkt 5 auf einer TLS-Domain überhaupt messbar ist.
+
+> **Eine Zusage, die zweimal eingelöst wird, ist gegen den Verlust einer der
+> beiden blind — es sei denn, gefragt wird, wo die verlorene gelandet ist.** Der
 Administrator sieht dieselbe Zeile mit Ort, Zustand und Satz, aber ohne den
 Wortlaut; auch das gehört ins Protokoll, weil es Frage 5 aus `docs/98 §9` ist.
 

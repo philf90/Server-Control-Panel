@@ -24991,3 +24991,57 @@ Unit-Dateien und nicht aus einer Liste im Test**: Ein `.service` gehört ins
 Ziel, wenn er kein `Type=oneshot` ist, jeder `.timer` gehört hinein. Dazu, dass
 das Paket die Datei ablegt und die Installation sie anschaltet. Fünf Eingriffe
 im Bruchskript, alle einzeln belegt.
+
+### A10 ist abgenommen — 3. September 2026
+
+Auf `cloudsrv24` gegen `0.7.3-rc.11` bis `0.7.3-rc.14`, **alle acht Punkte aus
+`docs/99` erfüllt**, beide Ausschlusskriterien (5 und 8) darunter, keiner als
+„nicht herstellbar" ausgefallen. Das Protokoll ist `docs/100` — es hat je Punkt
+den gemessenen Wert und nicht das Urteil „erfüllt" allein.
+
+**Punkt 5 trägt die Stufe**, und er ist der einzige, der sie tragen kann: Eine
+Vhost-Datei verliert das Semikolon ihrer `index`-Zeile, `nginx -t` gibt `rc=0` —
+und die Diagnose meldet `web.file | directive_lost | client_max_body_size fehlt
+als Anweisung`. Ohne diesen Punkt wäre A10 ein Aufruf von `nginx -t` mit einer
+Seite davor.
+
+**Punkt 8 ist der andere:** Derselbe Schaden über zwei Läufe behält `id` 11 und
+`first_seen_at` `17:26:48Z`, während `measured_at` vorrückt und der Wortlaut von
+einer auf zwei Zeilen wächst. Eine Zeile, nicht zwei.
+
+> **Die Kennung eines Befundes ist `check` + `subject` + `reason` — der Wortlaut
+> gehört nicht dazu.**
+
+**Zehn Befunde, sechs davon im Prüfling** — die Umkehrung von `docs/45`,
+`docs/48`, `docs/59` und `docs/84`, wo die Mehrheit im Prüfmittel steckte, und
+dieselbe Lage wie bei A2 aus demselben Grund: Die Vorschrift war vor dem Lauf
+ausgeschrieben und dreimal berichtigt, das Messmittel lag als geprüftes Werkzeug
+im Repo. Was blieb, war neuer Code.
+
+> **Fehler an Nähten zwischen zwei Dateien** — Katalog und Container, Vorlage
+> und Leser, Aufruf und Ablageort, Vorlage und Zusage, Unit und Unit. Jede Seite
+> für sich war in Ordnung; kein Wächter stand dazwischen.
+
+**Der teuerste Befund des Nachmittags steckte in der Vorschrift**, nicht im
+Panel. Jeder Rückbau war mit `nginx -t` abgenommen worden — und genau diesen
+Schaden sieht `nginx -t` nicht. Die Sicherung von Punkt 5 trug ihn schon;
+gefunden hat es die Diagnose, auf einer Datei, die der Prüfer für gültig hielt,
+in einer Lage, die niemand gestellt hat.
+
+> **Ein Rückbau, den man mit dem Prüfer misst, den der Schaden nicht auslöst,
+> ist nicht gemessen.**
+
+Behoben ist die Datei über `srvpanel vhost --sites` — und auch das im zweiten
+Anlauf: Der Befehl meldet „eingereiht", geschrieben wird vom Arbeiter, und der
+erste Blick fiel Sekunden später auf die alte Datei. Form A aus `docs/86 §5`.
+
+**Und ein Befund war keiner.** Zu Punkt 6 hatte ich einen `tls.wire`-Eintrag
+vorhergesagt, der nicht kam: Findet die Datei einen Befund, wird die Leitung gar
+nicht erst gefragt, und `CertificateVerdictTest` hält genau das. Hätte die
+Vorhersage im Protokoll gestanden, wäre aus richtigem Verhalten ein Mangel
+geworden.
+
+**Offen und benannt bleiben drei Dinge, keines ein Kriterienausfall:** der Rest
+aus P7 (`orphan.row` / `tls.cloudlab24.de`), das hochgeladene Wegwerfzertifikat
+aus Punkt 6 (läuft am 13. September von selbst aus), und die Behebung zu
+Befund 10 — `srvpanel.target` — hat noch keinen Server gesehen.

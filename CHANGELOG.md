@@ -24629,6 +24629,82 @@ Der Hinweis daneben ist ausdrücklich nicht betroffen; er darf ein Satz sein. Er
 ist trotzdem geschärft worden: „Noch ist nichts kaputt" stimmte für ein
 ablaufendes Zertifikat und nicht für eine verwaiste Zeile, die nie kaputtgeht.
 
+### Die Zusage einer Vhost-Datei wird je Form gefragt und nicht als Schnittmenge
+
+**Der Abnahmelauf hat die Grenze bezahlt** (`docs/99 §5`, 3. September 2026 auf
+`cloudsrv24`). Punkt 5 verlangt den Fall, in dem `nginx -t` eine Datei für
+gültig hält und eine Anweisung trotzdem verloren ist. Gemessen wurde an der
+echten Vorlage, Zeile für Zeile: **Von fünfundzwanzig Anweisungen lässt der
+Prüfer genau eine Auslassung durchgehen** — die `index`-Zeile, und verschluckt
+wird, was darauf folgt: `client_max_body_size`.
+
+`SiteTemplate::PROMISED` war die **Schnittmenge** aller Formen und deckte elf
+dieser fünfundzwanzig Anweisungen. `client_max_body_size` gehört zu den
+vierzehn anderen. Die Prüfung schwieg also — zu Recht, denn sie prüft, was sie
+zusagt.
+
+> **Eine Zusage über neun Anweisungen sagt über die siebzehn daneben nichts —
+> und die stille Form des Schadens traf genau eine davon.**
+
+**Die Antwort ist nicht eine grössere Schnittmenge, sondern keine.** Die Form
+ist bekannt, wenn die Datei geschrieben wird, und sie ist bekannt, wenn sie
+geprüft wird — `PROMISED_BY_FORM` nennt sie je Form, `PROMISED_WITH_TLS` legt
+dazu, was ein Zertifikat mitbringt. Eine grössere Schnittmenge ginge nicht: Eine
+Weiterleitungsdomain hat kein `index` und kein `fastcgi_pass`, und der
+Nachtlauf meldete ab morgen jede heile Weiterleitung als kaputt.
+
+**Gemessen und nicht aufgezählt.** Jede Liste ist die Ausgabe von
+`Statements::heads()` über das Rendering ihrer Form; `PromiseReachTest` rechnet
+sie in beide Richtungen nach. Die Zahlen: gesperrt und weiterleitend je 9,
+statisch 15, mit PHP 20; ein Zertifikat legt vier `ssl_`-Anweisungen dazu und
+nimmt keine weg.
+
+**`add_header` steht in keiner Zusage, und das ist eine Entscheidung.** Es
+erscheint nur, wenn `Trust::hsts()` zustimmt, und das hängt am **Inhalt** des
+Zertifikats — ein selbstsigniertes bekommt kein HSTS. Gemessen mit einem
+Wegwerf-Blatt einer Wegwerf-Autorität (im Speicher erzeugt, wie in
+`SiteTemplateTest`) ist `add_header` der einzige Unterschied zwischen HSTS an
+und aus.
+
+> **Eine Anweisung, deren Anwesenheit von einem Wert und nicht von der Form
+> abhängt, ist keine Zusage der Form.**
+
+**Woher die Form kommt, ist die eigentliche Entscheidung.** Nicht aus der Datei:
+Wer sie dort abliest — „steht `fastcgi_pass` drin, dann ist es eine
+PHP-Domain" — verliert die Zusage mit dem Schaden, denn genau die verschluckte
+Anweisung fällt aus der Erwartung heraus.
+
+> **Eine Zusage, die aus dem Prüfling abgeleitet wird, schrumpft mit seinem
+> Schaden.**
+
+Sie kommt vom Panel, und zwar von der Stelle, die schreibt:
+`WebLifecycle::form()` baut sie aus **demselben** Payload, den `web.site.apply`
+schickt, und fragt `SiteTemplate::formOf()`. Diese Methode ist neu und hat
+`render()` sein `match` abgenommen — die Reihenfolge (gesperrt vor
+weiterleitend vor PHP) stand vorher nur dort und wäre im Panel ein zweites Mal
+entstanden.
+
+**Ob ein Zertifikat ausgeliefert wird, entscheidet dagegen der Agent** — über
+`Store::existing()`, dieselbe Frage wie beim Schreiben. Das Panel kennt die
+Zuordnung, aber nicht, ob die Datei daliegt; sagte es „mit TLS" und der Block
+hätte keinen 443er, meldete die Diagnose jede Nacht vier fehlende
+`ssl_`-Anweisungen an einer heilen Domain.
+
+**Eine unbekannte Form fällt auf die Schnittmenge zurück und nicht auf die
+grösste Liste** — der Fehler fällt zur sicheren Seite. Eine Form, die es nicht
+gibt, wird dagegen abgewiesen: Sonst hiesse „falsch geschrieben" dasselbe wie
+„nicht mitgeschickt", und der Unterschied ist eine kleinere Zusage.
+
+**Belegt am Prüfkörper des Servers.** `PromiseReachTest` nimmt der gerenderten
+PHP-Form ihr `index`-Semikolon und hält beide Zusagen daneben: Die Schnittmenge
+**schweigt**, die Zusage der Form meldet
+`client_max_body_size fehlt als Anweisung`. Eine Null ist nur dann eine
+Messung, wenn daneben etwas anderes als Null steht.
+
+Dazu zwei Wächter über die Herkunft: einer an der Wirkung (dieselbe verstümmelte
+Datei verliert als PHP-Form etwas und als statische nichts) und einer am
+Quelltext (`$content` geht nicht in die Wahl der Zusage ein).
+
 ### MariaDB setzt eine Vorgabe ein, die in keiner Migration steht — und sie hätte Punkt 8 gekippt
 
 **Die CI hat `findings` auf Ubuntu 22.04 nicht anlegen können:**

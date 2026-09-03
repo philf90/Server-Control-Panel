@@ -22522,10 +22522,10 @@ vorher_datei agent/src/Ops/SystemDiagnose.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/SystemDiagnose.php'
 s = open(p, encoding='utf-8').read()
-alt = """            $verdict = Verdict::file($content, $content === null ? [] : Statements::lostInNginx($content, SiteTemplate::PROMISED));"""
+alt = """            $verdict = Verdict::file($content, $content === null ? [] : Statements::lostInNginx($content, $promised));"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 neu = """            $lost = [];
-            foreach (SiteTemplate::PROMISED as $directive) {
+            foreach ($promised as $directive) {
                 if ($content !== null && ! str_contains($content, $directive)) {
                     $lost[] = $directive.' fehlt';
                 }
@@ -23580,6 +23580,66 @@ pruefe "Seite misst selbst" \
   DiagnoseViewTest::test_the_page_asks_nothing failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseViewTest passed
+
+echo
+echo "== SiteFileIntegrityTest: die Zusage kommt wieder aus dem Inhalt =="
+#
+# Die Falle vom 3. September 2026: Wer die Form aus der Datei abliest, verliert
+# die Zusage mit dem Schaden — die verschluckte Anweisung faellt aus der
+# Erwartung heraus, und der Befund bleibt aus.
+vorher_datei agent/src/Ops/SystemDiagnose.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemDiagnose.php'
+s = open(p, encoding='utf-8').read()
+alt = "            $promised = SiteTemplate::promised($form, $tls);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            $promised = SiteTemplate::promised($content !== null && str_contains($content, 'fastcgi_pass') ? SiteTemplate::FORM_PHP : SiteTemplate::FORM_STATIC, $tls);"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/SystemDiagnose.php "Zusage aus dem Inhalt" &&
+pruefe "Zusage aus dem Inhalt" \
+  SiteFileIntegrityTest::test_the_body_does_not_read_the_content_to_choose_the_promise failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
+
+echo
+echo "== PromiseReachTest: die Zusage einer Form ist zu klein =="
+#
+# Die Haelfte, die den Abnahmelauf gekostet hat: Eine Zusage, die eine
+# Anweisung der Form nicht nennt, laesst genau deren Verlust durchgehen.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+alt = "'fastcgi_pass', "
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/SiteTemplate.php "Zusage der Form zu klein" &&
+pruefe "Zusage der Form zu klein" \
+  PromiseReachTest::test_every_form_promises_exactly_what_it_emits failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
+
+echo
+echo "== PromiseReachTest: add_header wird zur Zusage der Form =="
+#
+# add_header haengt am Inhalt des Zertifikats und nicht an der Form: Ein
+# selbstsigniertes bekommt kein HSTS. Steht es in der Zusage, meldet der
+# Nachtlauf jede Domain ohne HSTS als kaputt.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+alt = "public const PROMISED_WITH_TLS = ['ssl_certificate',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "public const PROMISED_WITH_TLS = ['add_header', 'ssl_certificate',", 1))
+PY2
+griff_datei agent/src/SiteTemplate.php "add_header in der Zusage" &&
+pruefe "add_header in der Zusage" \
+  PromiseReachTest::test_hsts_is_not_a_promise_of_the_form failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
 
 echo
 echo "== AptKeyReadTest: gpg legt seinen Schluesselbund wieder an =="

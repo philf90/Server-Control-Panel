@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent\Ops;
 
+use SrvPanel\Agent\Acme\Store;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Diagnose\Statements;
@@ -105,6 +106,7 @@ final class SystemDiagnose implements Op
     public function __construct(
         private readonly Session $session = new Session,
         private readonly Server $server = new Server,
+        private readonly Store $store = new Store,
     ) {}
 
     public static function name(): string
@@ -274,9 +276,34 @@ final class SystemDiagnose implements Op
         $findings = [];
 
         foreach ($this->subjects($args['domains'] ?? null, 'domains') as $raw) {
-            $domain = DomainName::normalize($raw);
+            [$name, $form, $certificate] = $this->webSubject($raw);
+
+            $domain = DomainName::normalize($name);
             $content = $this->readOwn(Site::CONF_DIR.'/'.$domain.'.conf');
-            $verdict = Verdict::file($content, $content === null ? [] : Statements::lostInNginx($content, SiteTemplate::PROMISED));
+
+            /*
+             * **Ob ein Zertifikat ausgeliefert wird, entscheidet dieselbe
+             * Frage wie beim Schreiben** — {@see Store::existing()}, und nicht
+             * das Panel: Es kennt die Zuordnung, aber nicht, ob die Datei
+             * daliegt. Sagte das Panel „mit TLS" und der Block hätte keinen
+             * 443er, meldete die Diagnose jede Nacht vier fehlende
+             * `ssl_`-Anweisungen an einer heilen Domain.
+             */
+            $tls = $certificate !== null && $this->store->existing($certificate) !== null;
+
+            /*
+             * **Die Zusage kommt aus der Form und nicht aus dem Inhalt.** Wer
+             * sie aus `$content` ableitete — etwa „steht `fastcgi_pass` drin,
+             * dann ist es eine PHP-Domain" —, verlöre sie mit dem Schaden:
+             * Genau die verschluckte Anweisung fiele aus der Erwartung heraus,
+             * und der Befund bliebe aus.
+             *
+             * > **Eine Zusage, die aus dem Prüfling abgeleitet wird, schrumpft
+             * > mit seinem Schaden.**
+             */
+            $promised = SiteTemplate::promised($form, $tls);
+
+            $verdict = Verdict::file($content, $content === null ? [] : Statements::lostInNginx($content, $promised));
 
             if ($verdict !== null) {
                 $findings[] = $this->finding($domain, $verdict['reason'], $verdict['detail']);
@@ -284,6 +311,47 @@ final class SystemDiagnose implements Op
         }
 
         return $findings;
+    }
+
+    /**
+     * Name, Form und Zertifikatsname eines Gegenstands von `web.file`.
+     *
+     * **Ein blosser Name bleibt zulässig** und fällt auf die Schnittmenge
+     * zurück ({@see SiteTemplate::promised()}). Das ist keine Bequemlichkeit:
+     * Ein Panel, das die Form nicht mitschickt, soll eine kleinere Zusage
+     * bekommen und nicht einen Abbruch der ganzen Prüfung.
+     *
+     * Eine Form, die es nicht gibt, ist dagegen ein Fehler des Aufrufers und
+     * wird abgewiesen — sonst hiesse „falsch geschrieben" dasselbe wie „nicht
+     * mitgeschickt", und der Unterschied ist eine kleinere Zusage.
+     *
+     * @return array{0: string, 1: null|string, 2: null|string}
+     */
+    private function webSubject(mixed $raw): array
+    {
+        if (! is_array($raw)) {
+            return [(string) $raw, null, null];
+        }
+
+        $name = $raw['name'] ?? null;
+
+        if (! is_string($name) || $name === '') {
+            throw AgentException::badRequest('domains: jeder Eintrag nennt name.');
+        }
+
+        $form = $raw['form'] ?? null;
+
+        if ($form !== null && ! isset(SiteTemplate::PROMISED_BY_FORM[$form])) {
+            throw AgentException::badRequest(sprintf('domains: %s ist keine Form dieser Vorlage.', is_string($form) ? $form : gettype($form)));
+        }
+
+        $certificate = $raw['certificate'] ?? null;
+
+        if ($certificate !== null && ! is_string($certificate)) {
+            throw AgentException::badRequest('domains: certificate ist ein Name oder nichts.');
+        }
+
+        return [$name, $form, $certificate === '' ? null : $certificate];
     }
 
     /**

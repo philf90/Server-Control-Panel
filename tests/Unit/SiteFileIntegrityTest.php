@@ -159,7 +159,7 @@ final class SiteFileIntegrityTest extends TestCase
         $php = $this->methodBody($source, 'private function phpFiles(');
 
         $this->assertStringContainsString('Statements::lostInNginx(', $web);
-        $this->assertStringContainsString('SiteTemplate::PROMISED', $web);
+        $this->assertStringContainsString('SiteTemplate::promised(', $web);
         $this->assertStringContainsString('Statements::lostInIni(', $php);
         $this->assertStringContainsString('PoolTemplate::PROMISED', $php);
 
@@ -167,5 +167,95 @@ final class SiteFileIntegrityTest extends TestCase
             $this->assertStringNotContainsString('str_contains(', $body, 'Eine Textsuche — genau die, die M21 grün gezeigt hat.');
             $this->assertStringNotContainsString('strpos(', $body);
         }
+    }
+
+    /**
+     * Die Zusage kommt aus der Form und nicht aus dem Inhalt der Datei.
+     *
+     * ## Die Falle, gegen die es diesen Wächter gibt
+     *
+     * Seit dem 3. September 2026 fragt `web.file` je Form (`docs/99 §5`), und
+     * der naheliegende Weg dorthin wäre gewesen, die Form aus der Datei
+     * abzulesen: „steht `fastcgi_pass` drin, dann ist es eine PHP-Domain".
+     * Das wäre genau der Schaden, der sich selbst verbirgt — die verschluckte
+     * Anweisung fiele aus der Erwartung heraus, und der Befund bliebe aus.
+     *
+     * > **Eine Zusage, die aus dem Prüfling abgeleitet wird, schrumpft mit
+     * > seinem Schaden.**
+     *
+     * ## Gemessen an der Wirkung
+     *
+     * Der Prüfkörper ist eine PHP-Domain, die ihr `fastcgi_pass` verloren hat.
+     * Gegen die Zusage **ihrer Form** ist das ein Verlust; gegen eine Zusage,
+     * die aus dem Inhalt entstünde, wäre es keiner — dort käme `fastcgi_pass`
+     * gar nicht vor.
+     *
+     * Und die Gegenrichtung steht daneben, weil eine Zusage, die alles meldet,
+     * genauso wertlos ist: Dieselbe Datei als **statische** Form gelesen
+     * verliert nichts, denn eine statische Domain hat kein `fastcgi_pass`.
+     */
+    public function test_the_promise_comes_from_the_form_and_not_from_the_file(): void
+    {
+        $verstuemmelt = implode("\n", [
+            'server {',
+            '    listen 80;',
+            '    server_name beispiel.de;',
+            '    access_log /var/log/a.log;',
+            '    error_log /var/log/e.log;',
+            '    location / { root /srv; default_type text/plain; return 404; }',
+            '    index index.php;',
+            '    client_max_body_size 64m;',
+            '    location ~ /\\. { deny all; log_not_found off; }',
+            '    location ~ \\.php$ {',
+            '        try_files $uri =404;',
+            '        fastcgi_split_path_info ^(.+\\.php)(/.*)$;',
+            '        fastcgi_index index.php;',
+            '        include fastcgi_params;',
+            '        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;',
+            '        fastcgi_read_timeout 300s;',
+            '    }',
+            '}',
+        ]);
+
+        $alsPhp = Statements::lostInNginx($verstuemmelt, SiteTemplate::promised(SiteTemplate::FORM_PHP, false));
+        $alsStatisch = Statements::lostInNginx($verstuemmelt, SiteTemplate::promised(SiteTemplate::FORM_STATIC, false));
+
+        $this->assertSame(['fastcgi_pass fehlt als Anweisung'], $alsPhp, implode("\n", [
+            'Die Zusage der PHP-Form nennt das fehlende fastcgi_pass nicht.',
+            'Dann ist der Prüfkörper falsch oder die Zusage zu klein.',
+        ]));
+
+        $this->assertSame([], $alsStatisch, implode("\n", [
+            'Dieselbe Datei verliert als statische Form etwas.',
+            'Eine statische Domain hat kein fastcgi_pass — die Zusage ist dann zu gross,',
+            'und der Nachtlauf meldete jede heile statische Domain.',
+        ]));
+    }
+
+    /**
+     * Und die Form kommt vom Panel, nicht aus dem Verzeichnis.
+     *
+     * Gehalten am Quelltext, weil es eine Aussage über die **Herkunft** ist
+     * und nicht über einen Wert: Im Rumpf von `webFiles()` darf `$content`
+     * nicht in die Wahl der Zusage eingehen.
+     */
+    public function test_the_body_does_not_read_the_content_to_choose_the_promise(): void
+    {
+        $source = $this->withoutComments((string) file_get_contents((string) (new \ReflectionClass(SystemDiagnose::class))->getFileName()));
+        $web = $this->methodBody($source, 'private function webFiles(');
+
+        $zeile = null;
+
+        foreach (explode("\n", $web) as $line) {
+            if (str_contains($line, 'SiteTemplate::promised(')) {
+                $zeile = $line;
+            }
+        }
+
+        $this->assertNotNull($zeile, 'Im Rumpf steht kein Aufruf von SiteTemplate::promised() mehr.');
+        $this->assertStringNotContainsString('$content', (string) $zeile, implode("\n", [
+            'Die Zusage wird aus dem Inhalt der geprüften Datei gewählt.',
+            'Damit schrumpft sie mit dem Schaden, den sie finden soll.',
+        ]));
     }
 }

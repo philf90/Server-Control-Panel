@@ -266,63 +266,65 @@ und `END`, letztere als `–`.
 **Der Punkt, der B von A trennt.** Fällt er aus, ist A10 ein Aufruf von
 `nginx -t` mit einer Seite davor.
 
-Der Prüfkörper ist **M3 Form 1**: `server_name` verliert sein Semikolon, und
-weil die Anweisung beliebig viele Namen nimmt, wird die nächste Zeile zu einem
-davon. `nginx -t` gibt `rc=0` **ohne ein Byte Ausgabe**, und der Block hat
-lautlos eine Anweisung verloren.
+**Der Prüfkörper ist gemessen und nicht gewählt** — am 3. September 2026 auf
+`cloudsrv24`, indem **jede** Anweisung der Datei einzeln um ihr Semikolon
+gebracht und `nginx -t` daneben gelesen wurde. Von fünfundzwanzig Anweisungen
+lässt der Prüfer **genau eine** Auslassung durchgehen:
 
-**Der Ort ist `/etc/nginx/srvpanel.d/<domain>.conf`** und nicht
-`sites-available`. Hier stand bis zum 3. September das zweite, und der Lauf ist
-daran aufgelaufen: In `sites-available` liegt auf `cloudsrv24` genau eine Datei,
-`default`. `Site::CONF_DIR` ist das Verzeichnis, das `web.site.apply` schreibt,
-und `SystemDiagnose::webFiles()` liest von dort.
+    24  rc=0   index index.php index.html index.htm;
 
-> **Ein Pfad in einer Vorschrift, den niemand gegen den Quelltext hält, ist eine
-> Vermutung mit Fussnote.**
+Verschluckt wird, was darauf folgt: `client_max_body_size`.
+
+**M3 Form 1 (`server_name` ohne Semikolon) trägt hier nicht**, und der Grund
+gehört ins Protokoll: In M3s handgebauter Datei folgte auf `server_name` ein
+zweites `server_name` — verschluckt wurde ein kurzes Wort. In der Vorlage,
+die dieses Panel schreibt, folgt ein `access_log` mit einem **64 Zeichen**
+langen Pfad, und `server_names_hash_bucket_size` steht auf 64. Der Prüfer
+bricht dann mit `[emerg] could not build server_names_hash` ab.
+
+> **Eine Form, deren Lautstärke von der Länge eines Werts abhängt, ist nicht
+> „laut" oder „still" — sie ist beides, je nach Bestand.**
+
+> **Eine Messung an einem selbstgebauten Prüfkörper sagt über die Datei, die
+> das Panel schreibt, nur so viel, wie die beiden gemeinsam haben.**
 
 ```
 ls -1 /etc/nginx/srvpanel.d/
 D=<domain>
 cp /etc/nginx/srvpanel.d/$D.conf /root/$D.conf.abnahme
-grep -n 'server_name' /etc/nginx/srvpanel.d/$D.conf
-sed -i '0,/^\(\s*server_name [^;]*\);/s//\1/' /etc/nginx/srvpanel.d/$D.conf
-grep -n -A3 'server_name' /etc/nginx/srvpanel.d/$D.conf
+sed -i '0,/^\(\s*index [^;]*\);/s//\1/' /etc/nginx/srvpanel.d/$D.conf
+grep -n -A3 'index ' /etc/nginx/srvpanel.d/$D.conf
 nginx -t; echo "rc=$?"
 ```
 
-**Getroffen wird das erste `server_name`, also das des Blocks auf Port 80** —
-`0,/…/` ersetzt genau einmal. Verschluckt wird damit das `access_log`, das in
-der Vorlage darauf folgt.
-
 **Belegt wird beides, und beides ist tragend:** dass die Zeile ihr Semikolon
-verloren hat, **und** dass `nginx -t` trotzdem `rc=0` gibt.
+verloren hat, **und** dass `nginx -t` `rc=0` gibt.
 
 > **Ein Prüfer, der die Datei für gültig hält, ist die ganze Voraussetzung
 > dieses Punktes.**
 
-Gibt `nginx -t` hier `rc=1`, ist es eine der beiden lauten M3-Formen — dann
-wird **die Stelle gewechselt und nicht das Kriterium**. Welche Form auffällt,
-entscheidet die Nachbarschaft und nicht die Regel.
+**Die Domain muss die PHP- oder die statische Form haben** — nur sie führen
+`index`. Eine Weiterleitung und eine gesperrte Domain haben die Zeile nicht.
 
 ```
 srvpanel diagnose
 ```
 
-**Erwartet:** `check=web.file`, `subject=<domain>`, `reason=directive_lost`. Der
-Wortlaut nennt die verschluckte Anweisung — und den sieht nur der Betreiber.
+**Erwartet:** `check=web.file`, `subject=<domain>`,
+`reason=directive_lost`, und der Wortlaut nennt
+`client_max_body_size` — entweder als fehlend oder als Argument von `index`.
+Den Wortlaut sieht nur der Betreiber; der Administrator sieht dieselbe Zeile mit
+Ort, Zustand und Satz, aber ohne ihn. Auch das gehört ins Protokoll, weil es
+Frage 5 aus `docs/98 §9` ist.
 
-**Und dass er sie überhaupt nennen kann, ist eine Entscheidung im Leser.** Eine
-Domain mit TLS hat **zwei** Blöcke, und beide führen `access_log`. Ein Prüfer,
-der nur fragte „steht die Anweisung irgendwo in der Datei?", bliebe hier still —
-der Block auf 443 trägt sie ja weiter. {@see Statements::lostInNginx()} fragt
-deshalb zweierlei: ob eine zugesagte Anweisung als Kopf fehlt, **und** ob sie als
-**Argument** einer anderen auftaucht. Das zweite trifft hier zu und ist der
-Grund, dass Punkt 5 auf einer TLS-Domain überhaupt messbar ist.
+**Und dass die Prüfung das überhaupt finden kann, ist erst seit dem
+3. September so.** Bis dahin fragte sie die **Schnittmenge** aller Formen der
+Vorlage — neun Anweisungen —, und `client_max_body_size` gehört zu den
+vierzehn, die keine Zusage deckte. Der erste Lauf dieses Punktes hat genau das
+gefunden: nicht einen Fehler im Leser, sondern eine Zusage, die zu klein war.
 
-> **Eine Zusage, die zweimal eingelöst wird, ist gegen den Verlust einer der
-> beiden blind — es sei denn, gefragt wird, wo die verlorene gelandet ist.** Der
-Administrator sieht dieselbe Zeile mit Ort, Zustand und Satz, aber ohne den
-Wortlaut; auch das gehört ins Protokoll, weil es Frage 5 aus `docs/98 §9` ist.
+> **Eine Zusage über neun Anweisungen sagt über die siebzehn daneben nichts —
+> und die stille Form des Schadens traf genau eine davon.**
 
 **Die Datei bleibt für Punkt 8 kaputt.** Zurückgebaut wird dort.
 

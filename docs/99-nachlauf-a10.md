@@ -376,12 +376,27 @@ zurück.
 > Liste und nicht mit einem Fehler.**
 
 **Dann wird der Wortlaut geändert, ohne die Kennung zu ändern.** In derselben
-Datei verliert ein **zweites** `server_name` sein Semikolon; damit nennt der
+Datei verliert zusätzlich das `server_name` sein Semikolon; damit nennt der
 Wortlaut zwei verschluckte Anweisungen statt einer, während `check`, `subject`
 und `reason` dieselben bleiben.
 
+**Der Ort ist `/etc/nginx/srvpanel.d/<domain>.conf`** — hier stand bis zum
+3. September `sites-available`, derselbe falsche Pfad wie in §5. Ein Fehler, den
+man an einer Stelle behoben hat, ist an der nächsten wieder da, wenn die
+Behebung nicht die Regel wurde.
+
+**Und `nginx -t` gibt hier `rc=1`, das ist erwartet.** Der zweite Eingriff ist
+eine **laute** Form: Verschluckt wird ein Pfad, der als Servername zu lang für
+`server_names_hash_bucket_size` ist (§5). Ein zweiter Befund `web.config` kommt
+deshalb dazu und gehört ins Protokoll — Punkt 8 misst ihn nicht. Gemessen wird
+die **Kennung der einen `web.file`-Zeile** über zwei Läufe.
+
+> **Ein Prüfkörper, der einen zweiten Schaden erzeugt, ist deshalb kein
+> schlechter — er ist einer, dessen Nebenwirkung man aufschreibt, statt sie für
+> einen Befund zu halten.**
+
 ```
-sed -i '0,/^\(\s*server_name [^;]*\);/s//\1/' /etc/nginx/sites-available/$D
+sed -i '0,/^\(\s*server_name [^;]*\);/s//\1/' /etc/nginx/srvpanel.d/$D.conf
 nginx -t; echo "rc=$?"
 srvpanel diagnose
 ```
@@ -397,11 +412,15 @@ Wortlaut ist der neue.
 **Der Rückbau:**
 
 ```
-cp /root/$D.abnahme /etc/nginx/sites-available/$D
+cp /root/$D.conf.abnahme /etc/nginx/srvpanel.d/$D.conf
 nginx -t; echo "rc=$?"
 systemctl reload nginx
 srvpanel diagnose
 ```
+
+**Erst `nginx -t`, dann der Reload** — aus demselben Grund wie `sshd -t` in
+Punkt 2: Ein Reload mit einer abgelehnten Datei lässt nginx zwar weiterlaufen,
+aber die Prüfung davor sagt, ob der Rückbau überhaupt getragen hat.
 
 **Erwartet:** die Zeile ist fort.
 

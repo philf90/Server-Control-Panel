@@ -23176,6 +23176,31 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
 
 echo
+echo "== ManagedBlockDriftTest: der Vergleich stolpert wieder ueber die Einrueckung =="
+#
+# Genau der Zustand vom 3. September 2026: SshdConfig::block() rueckt den Rumpf
+# eines Match-Blocks ein, ManagedBlock::managed() gibt jede Zeile getrimmt
+# zurueck — ohne Normalisierung fiel jede Rumpfzeile durch, und zwar in beide
+# Richtungen zugleich. Jeder Server mit einem SFTP-Zugang haette das jede Nacht
+# gemeldet.
+vorher_datei app/Support/Diagnose/Checks/ManagedBlocks.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/ManagedBlocks.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $managed = array_map(trim(...), $managed);
+        $wanted = array_map(trim(...), $wanted);
+
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/ManagedBlocks.php "Vergleich ohne Normalisierung" &&
+pruefe "Vergleich ohne Normalisierung" \
+  ManagedBlockDriftTest::test_the_indentation_of_the_template_is_not_a_finding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
+
+echo
 echo "== DiagnoseWiringTest: die Naht zur Leitung ist nicht verdrahtet =="
 #
 # Genau der Zustand vom 3. September 2026: `Wire` war nie gebunden, und der
@@ -23479,6 +23504,47 @@ pruefe "Seite misst selbst" \
   DiagnoseViewTest::test_the_page_asks_nothing failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseViewTest passed
+
+echo
+echo "== AptKeyReadTest: gpg legt seinen Schluesselbund wieder an =="
+#
+# Genau der Zustand vom 3. September 2026: Ohne --no-keyring schreibt gpg eine
+# pubring.kbx in sein Heimverzeichnis — und ohne Heimverzeichnis stirbt der
+# Aufruf mit rc=2, was auf cloudsrv24 dazu gefuehrt hat, dass apt.key seit dem
+# ersten Tag "nicht gemessen" meldete.
+vorher_datei agent/src/Keys.php
+python3 - <<'PY2'
+p = 'agent/src/Keys.php'
+s = open(p, encoding='utf-8').read()
+alt = "'--with-colons', '--no-keyring', '--trust-model', 'always'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'--with-colons', '--trust-model', 'always'", 1))
+PY2
+griff_datei agent/src/Keys.php "gpg legt einen Schluesselbund an" &&
+pruefe "gpg legt einen Schluesselbund an" \
+  AptKeyReadTest::test_the_call_writes_nothing_into_an_existing_home_directory failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptKeyReadTest passed
+
+echo
+echo "== AptKeyReadTest: gpg legt seine trustdb wieder an =="
+#
+# Die zweite Haelfte, und sie ist einzeln gemessen: --trust-model always laesst
+# die trustdb.gpg weg, --no-keyring die pubring.kbx. Ein Schalter allein genuegt
+# nicht.
+vorher_datei agent/src/Keys.php
+python3 - <<'PY2'
+p = 'agent/src/Keys.php'
+s = open(p, encoding='utf-8').read()
+alt = "'--with-colons', '--no-keyring', '--trust-model', 'always'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'--with-colons', '--no-keyring'", 1))
+PY2
+griff_datei agent/src/Keys.php "gpg legt eine trustdb an" &&
+pruefe "gpg legt eine trustdb an" \
+  AptKeyReadTest::test_the_call_needs_no_home_directory failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AptKeyReadTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

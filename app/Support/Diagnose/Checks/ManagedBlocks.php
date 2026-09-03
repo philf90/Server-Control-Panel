@@ -200,6 +200,37 @@ final class ManagedBlocks implements Check
      */
     public static function compare(array $managed, array $wanted): array
     {
+        /*
+         * **Verglichen wird der Inhalt einer Zeile und nicht ihre Einrückung.**
+         *
+         * Die beiden Seiten formatieren dieselbe Zeile verschieden, und zwar
+         * mit Absicht: {@see \SrvPanel\Agent\Ssh\SshdConfig::block()} rückt
+         * den Rumpf eines `Match`-Blocks um vier Leerzeichen ein, weil sshd so
+         * gelesen wird, und {@see \SrvPanel\Agent\ManagedBlock::managed()}
+         * gibt jede Zeile **getrimmt** zurück, weil es die Marken finden und
+         * Kommentare überspringen muss.
+         *
+         * **Ohne diese Normalisierung fiel jede Rumpfzeile durch** — und zwar
+         * in beide Richtungen zugleich: Am 3. September 2026 meldete der erste
+         * Lauf auf `cloudsrv24` (`docs/99`, Punkt 1) genau dieselben sechzehn
+         * Zeilen einmal als `foreign_line` und einmal als `line_missing`.
+         * `Match User p1136` stand in keiner der beiden Listen: Die Zeile steht
+         * auf Spalte 0 und passte deshalb zusammen.
+         *
+         * > **Zwei Leser derselben Zeilen, von denen einer die Einrückung
+         * > wegwirft, vergleichen zwei Schreibweisen desselben Inhalts.**
+         *
+         * Das ist M22 eine Ebene tiefer: Dort zählten zwei Leser die **Marken**
+         * verschieden, hier formatieren zwei Schreiber dieselbe **Zeile**
+         * verschieden.
+         *
+         * Verloren geht dabei nichts: Eine fremde Zeile bleibt fremd, wenn sie
+         * anderen Inhalt hat. Nur eine, die sich allein in ihrer Einrückung
+         * unterscheidet, gilt jetzt als dieselbe — und das ist sie auch.
+         */
+        $managed = array_map(trim(...), $managed);
+        $wanted = array_map(trim(...), $wanted);
+
         $inWanted = array_fill_keys($wanted, true);
         $inManaged = array_fill_keys($managed, true);
 

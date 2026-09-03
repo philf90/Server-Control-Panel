@@ -79,6 +79,50 @@ final class ManagedBlockDriftTest extends TestCase
     }
 
     /**
+     * Die Einrückung ist keine Auskunft — und das ist am echten Block gemessen.
+     *
+     * **Der Prüfkörper ist die Lage vom 3. September 2026 auf `cloudsrv24`**
+     * (`docs/99`, Punkt 1). Die eine Seite kommt aus
+     * {@see SshdConfig::block()} und ist eingerückt, weil sshd so gelesen wird;
+     * die andere ist dieselbe Liste getrimmt, denn genau so gibt
+     * `ManagedBlock::managed()` sie zurück.
+     *
+     * Ohne die Normalisierung in {@see ManagedBlocks::compare()} fiel **jede**
+     * Rumpfzeile durch, und zwar in beide Richtungen zugleich: derselbe Inhalt
+     * einmal als `foreign_line` und einmal als `line_missing`. `Match User …`
+     * stand in keiner der beiden Listen — die Zeile steht auf Spalte 0.
+     *
+     * > **Zwei Leser derselben Zeilen, von denen einer die Einrückung
+     * > wegwirft, vergleichen zwei Schreibweisen desselben Inhalts.**
+     *
+     * **Warum der Wächter daneben es nicht sah:**
+     * `test_the_order_of_the_lines_is_not_a_finding` trägt seit Schritt 5b eine
+     * eingerückte Zeile — aber auf **beiden** Seiten.
+     *
+     * > **Ein Prüfkörper, der die Einrückung auf beide Seiten legt, kann den
+     * > Unterschied nicht sehen, den nur eine Seite macht.**
+     */
+    public function test_the_indentation_of_the_template_is_not_a_finding(): void
+    {
+        $wanted = SshdConfig::block('p1136', '/var/www/vhosts/kunde.invalid');
+
+        // Wie der Agent sie zurückgibt: getrimmt.
+        $managed = array_map(trim(...), $wanted);
+
+        // **Die Untergrenze.** Ohne sie liefe der Vergleich über zwei leere
+        // Listen und meldete richtig nichts, ohne etwas gesehen zu haben.
+        $eingerueckt = array_filter($wanted, static fn (string $line): bool => $line !== trim($line));
+
+        $this->assertGreaterThanOrEqual(
+            5,
+            count($eingerueckt),
+            'Die Vorlage rückt nichts mehr ein — dann misst dieser Prüfkörper den Unterschied nicht, um den es geht.',
+        );
+
+        $this->assertSame([[], []], ManagedBlocks::compare($managed, $wanted));
+    }
+
+    /**
      * Der Sollzustand kommt aus der Vorlage und wird nicht nachgebaut.
      *
      * Gehalten am Quelltext: Wer hier eine eigene `Match User`-Zeile schriebe,

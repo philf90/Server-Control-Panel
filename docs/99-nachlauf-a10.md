@@ -127,6 +127,31 @@ Aufnahme aus einem früheren Lauf liest, findet dort noch das alte Wort.)*
 
 ---
 
+### Ein Rückbau wird mit der Diagnose abgenommen und nicht mit dem Prüfer
+
+**Gelernt am 3. September 2026, mitten im Lauf.** Nach Punkt 8 stand
+`web.file` weiter auf `directive_lost`, obwohl die Datei zurückgelegt und
+`nginx -t` mit `rc=0` geantwortet hatte. Nachgesehen: Sicherung **und** Datei
+trugen dieselbe fehlende Semikolonstelle. Der Rückweg über eine Sicherung war
+damit verbaut, und keine der Abnahmen davor hätte es gemerkt.
+
+> **Ein Rückbau, den man mit dem Prüfer misst, den der Schaden nicht auslöst,
+> ist nicht gemessen.**
+
+Das trifft jeden Punkt dieses Laufs, der eine Datei anfasst: `nginx -t` ist die
+Voraussetzung des Schadens und nicht sein Nachweis. **Abgenommen wird ein
+Rückbau deshalb mit `srvpanel diagnose`** — die Zeile muss fort sein, nicht
+`rc=0` dastehen.
+
+**Und wenn eine Sicherung nicht mehr trägt**, schreibt das Panel den Block aus
+dem Bestand neu: `srvpanel vhost --sites`. Das ist der bessere Rückweg, weil er
+nicht von einer Datei abhängt, deren Zustand niemand gemessen hat.
+
+> **Eine Sicherung, die man vor dem Eingriff nimmt, ist nur dann ein Rückweg,
+> wenn der Zustand davor heil war.**
+
+---
+
 ## 1 · Punkt 1 — ein heiler Server meldet nichts
 
 ```

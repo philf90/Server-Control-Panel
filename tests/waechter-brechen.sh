@@ -5259,6 +5259,26 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DocLinkTest passed
 
 echo
+echo "── FindingStateTest: die Marke benennt wieder eine Handlung ──"
+#
+# Genau der Zustand bis zum 3. September 2026: Warn hiess "Sieht jemand hin" —
+# eine Handlung in einer Spalte, in der sonst Zustaende stehen. Gemeldet hat es
+# der Betreiber beim Lesen einer Zusammenfassung auf dem Server, kein Waechter.
+vorher_datei app/Enums/FindingState.php
+python3 - <<'PY2'
+p = 'app/Enums/FindingState.php'
+s = open(p, encoding='utf-8').read()
+alt = "self::Warn => 'Auffällig',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "self::Warn => 'Sieht jemand hin',", 1))
+PY2
+griff_datei app/Enums/FindingState.php "Marke benennt eine Handlung" &&
+pruefe "Marke benennt eine Handlung" \
+  FindingStateTest::test_a_label_names_a_state_and_not_an_action failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
+
+echo
 echo "── DocLinkTest: der Leser kennt wieder nur zwei Stellen ──"
 #
 # Am 3. September 2026 entstand mit dem Protokoll des A10-Nachlaufs das erste

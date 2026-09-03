@@ -24587,6 +24587,48 @@ Dort stehen Verweise, die genauso verrotten. Der Wächter bleibt, wie er ist, un
 seine Grenze steht jetzt in seinem Kopf; wer eine solche Meldung festhalten
 will, schreibt die Nummer ohne ihr `docs/`.
 
+### Ein Zustand hiess nach einer Handlung — `Warn` heisst jetzt „Auffällig"
+
+**Gemeldet hat es der Betreiber beim Lesen einer Zusammenfassung auf dem
+Server**, mitten im A10-Nachlauf, und kein Wächter. Die vier Zustände eines
+Befundes hiessen „In Ordnung", **„Sieht jemand hin"**, „Kaputt" und „Nicht
+gemessen". Drei davon benennen einen Zustand des Gegenstands; der zweite benennt
+eine Handlung — und dazu eine, die jemand vielleicht tut.
+
+> **Ein Zustand, der als Handlung benannt ist, steht in einer Spalte, in der
+> sonst Zustände stehen — und liest sich als Aufforderung, wo eine Auskunft
+> gemeint ist.**
+
+**„Auffällig" und nicht „Warnung":** Eine Warnung ist eine Art Meldung und kein
+Zustand; neben „In Ordnung" und „Kaputt" wechselt sie die Ebene. Und nicht
+„Läuft ab" oder „Wird kaputtgehen" — von den fünf Gründen, die auf `Warn`
+fallen, sind nur zwei eine Vorhersage. Die anderen drei gehen nie kaputt: eine
+fehlende Regel im verwalteten Bereich, eine unbekannte Unit, eine verwaiste
+Zeile. Sie weichen ab.
+
+> **Ein Wort für eine Schwere muss jeden Grund tragen, der auf sie fällt, und
+> nicht den, an den man beim Benennen gerade denkt.**
+
+**Die Marke steht an genau einer Stelle**, und deshalb war die Änderung eine
+Zeile: `FindingState::label()`. Seite und Konsole lesen dieselbe.
+
+**Gehalten wird die Regel jetzt an der Form**, weil der Sinn sich nicht prüfen
+lässt: höchstens zwei Wörter, und kein unbestimmtes Fürwort („jemand", „man",
+„wer"). Das Fürwort ist das Merkmal, an dem sich eine Handlung von einem Zustand
+unterscheiden lässt, ohne Deutsch zu parsen — ein Zustand hat keinen Handelnden;
+die Länge fängt den Rest.
+
+> **Ein Wächter über Prosa prüft die Form und nicht den Sinn.**
+
+Was er nicht kann, steht in seinem Kopf: „Bald kaputt" wäre zwei Wörter ohne
+Fürwort und trotzdem eine Vorhersage statt eines Zustands. Belegt ist er an
+beiden Hälften einzeln — die alte Marke fällt über die Länge, ein
+„Jemand hinsehen" über das Fürwort.
+
+Der Hinweis daneben ist ausdrücklich nicht betroffen; er darf ein Satz sein. Er
+ist trotzdem geschärft worden: „Noch ist nichts kaputt" stimmte für ein
+ablaufendes Zertifikat und nicht für eine verwaiste Zeile, die nie kaputtgeht.
+
 ### MariaDB setzt eine Vorgabe ein, die in keiner Migration steht — und sie hätte Punkt 8 gekippt
 
 **Die CI hat `findings` auf Ubuntu 22.04 nicht anlegen können:**

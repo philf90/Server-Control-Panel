@@ -119,8 +119,11 @@ Gelesen wird an **zwei** Stellen, und beide gehören ins Protokoll: die Ausgabe
 des Kommandos und die Seite `/diagnose`. Sie beantworten verschiedene Fragen —
 das Kommando, ob der Lauf durchkam; die Seite, ob der Befund ankommt.
 
-Die Zustände heissen auf beiden **In Ordnung**, **Sieht jemand hin**, **Kaputt**
-und **Nicht gemessen**; das Kommando zählt sie am Ende seiner Ausgabe.
+Die Zustände heissen auf beiden **In Ordnung**, **Auffällig**, **Kaputt** und
+**Nicht gemessen**; das Kommando zählt sie am Ende seiner Ausgabe.
+
+*(Bis zum 3. September 2026 hiess der zweite „Sieht jemand hin". Wer eine
+Aufnahme aus einem früheren Lauf liest, findet dort noch das alte Wort.)*
 
 ---
 

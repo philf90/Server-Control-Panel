@@ -24365,6 +24365,49 @@ Belegt an beiden Löchern von heute: ohne die `Wire`-Bindung meldet der Wächter
 wörtlich die Zeile des Servers, ohne die `Host`-Bindung nennt er `SystemUsers`
 **und** `Orphans`.
 
+### Zwei Leser derselben Zeilen, und einer wirft die Einrückung weg
+
+**Punkt 1 des Abnahmelaufs, am 3. September 2026 auf `cloudsrv24` gegen
+0.7.3-rc.12** — der Lauf kam diesmal durch und meldete für
+`/etc/ssh/sshd_config` **zwei** Befunde auf einmal: `foreign_line` und
+`line_missing`, und beide nannten **dieselben sechzehn Zeilen**. Eine Zeile
+fehlt und steht gleichzeitig zuviel da: Das kann kein Zustand einer Datei sein.
+
+`SshdConfig::block()` rückt den Rumpf eines `Match`-Bereichs um vier Leerzeichen
+ein — acht Zeilen je Zugang, und auf diesem Server stehen zwei Zugänge.
+`ManagedBlock::managed()` gibt die Zeilen **getrimmt** zurück, weil es sie zum
+Vergleichen liest. `ManagedBlocks::compare()` bildete daraus eine
+Mengendifferenz über die rohen Zeichenketten — also fiel jede Rumpfzeile in
+beide Richtungen zugleich durch. Durchgekommen ist genau die eine Zeile, die
+auf Spalte 0 steht: `Match User p1136`.
+
+> **Zwei Leser derselben Zeilen, von denen einer die Einrückung wegwirft,
+> vergleichen zwei Schreibweisen desselben Inhalts.**
+
+`compare()` trimmt seitdem **beide** Seiten, bevor es vergleicht. Die Einrückung
+ist eine Sache der Datei und keine des Inhalts — sshd liest den Bereich mit ihr
+und ohne sie gleich.
+
+**Der Wächter daneben konnte es nicht sehen, und der Grund ist lehrreich.**
+`ManagedBlockDriftTest::test_the_order_of_the_lines_is_not_a_finding` trägt seit
+Schritt 5b eine eingerückte Zeile im Prüfkörper — aber auf **beiden** Seiten.
+Damit hebt sich der Unterschied auf, um den es geht.
+
+> **Ein Prüfkörper, der die Einrückung auf beide Seiten legt, kann den
+> Unterschied nicht sehen, den nur eine Seite macht.**
+
+`test_the_indentation_of_the_template_is_not_a_finding` misst deshalb an der
+echten Vorlage statt an einer erfundenen Zeile: Die eine Seite ist
+`SshdConfig::block()`, die andere dieselbe Liste getrimmt — genau die Lage,
+die der Server hatte. Die Untergrenze zählt die eingerückten Zeilen mit, damit
+der Prüfkörper nicht stillschweigend verschwindet, falls die Vorlage die
+Einrückung eines Tages aufgibt.
+
+**PostgreSQL war nie betroffen**, und das ist gemessen und nicht vermutet:
+`Hba::rule()` schreibt seine Zeilen ohne Einrückung, `pg_hba.conf` kennt keine
+Bereiche mit Rumpf. Der Fehler traf allein die Datei, deren Format eine
+Verschachtelung hat.
+
 ### MariaDB setzt eine Vorgabe ein, die in keiner Migration steht — und sie hätte Punkt 8 gekippt
 
 **Die CI hat `findings` auf Ubuntu 22.04 nicht anlegen können:**

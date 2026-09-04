@@ -2556,7 +2556,7 @@ Liste.
 | **A6** | Leseansicht von `/etc/crontab`, `/etc/cron.d`, `cron.daily` und `cron.weekly` | mit A2 |
 | **A8** | Welche Adressen der Server hat, welche der DNS-Abgleich als Soll nimmt | eigenständig; P7 ist fertig |
 | **A12** | Wartungsmodus: alle Kundenseiten auf 503, Panel erreichbar | ~~mit A1~~ — **entschieden am 2. September 2026: eigener Punkt in P7b, hinter A10** |
-| **A13** | Die billige Hälfte des Malware-Scans: 0777, frisch geänderte PHP-Dateien, `eval(base64_decode` als Textsuche | ~~mit A10~~ — **entschieden am 2. September 2026: reitet nicht mit; Laufzeit auf `cloudsrv24` messen** |
+| **A13** | Die billige Hälfte des Malware-Scans: 0777, frisch geänderte PHP-Dateien, `eval(base64_decode` als Textsuche | ~~mit A10~~ — **reitet nicht mit** (2. September); **vorgeschlagen für P9b**, siehe unten — nicht entschieden |
 
 **A12 hatte seit dem 28. August keine Stufenzeile mehr.** „mit A1" war eine
 Verortung an einer Stufe, und die ist abgenommen; damit stand A12 nirgends. Der
@@ -2579,6 +2579,45 @@ von Kosten, und der Nachtlauf von A10 ist für die erste gebaut.
 
 Die Form des Befundes aus `docs/98 §2` trägt A13 trotzdem ohne Änderung; was
 sich unterscheidet, ist der Takt und nicht die Zeile.
+
+#### A13 hat seit dem 2. September keine Stufenzeile — ein Vorschlag
+
+**Nachgetragen am 4. September 2026, nach der Abnahme von A10.** „Reitet nicht
+mit" ist eine Antwort auf die Frage, ob A13 zu A10 gehört, und keine Verortung.
+Seitdem steht A13 nirgends — dieselbe Lage, in der A12 am 28. August war, und
+sie ist hier ein zweites Mal entstanden.
+
+> **Ein Vorschlag ohne Stufenzeile wird nicht abgelehnt — er wird vergessen.**
+
+**Vorgeschlagen: P9b, zusammen mit A3s zweitem Wurf und A4.** Die Entscheidung
+trifft der Betreiber; hier stehen die Gründe.
+
+**Was dafür spricht.** P9b heisst „Absicherung des Servers", und A13 ist eine
+Sicherheitsprüfung — kein Verwaltungsmerkmal. Vor allem aber: Seine Befunde
+sind von der Sorte, vor der `docs/98 §4` warnt — „diese Datei hat 0777" ist
+wahr und meistens harmlos. Solche Meldungen brauchen einen **Weg nach
+draussen**, und den baut A7 (Schwellen und Benachrichtigungen, P9). Vor A7
+gebaut, meldete A13 an eine Seite, auf die niemand sieht; nach A7 gibt es den
+Kanal schon.
+
+> **Ein Befund, der niemanden erreicht, ist eine Zeile in einer Tabelle.**
+
+**Was es nicht kostet.** A10 hat die Form des Befundes festgeschrieben, und A13
+trägt sie ohne Änderung — Warten verliert nichts. Was A13 zusätzlich braucht,
+ist ein eigener Timer, und der ist eine Unit-Datei.
+
+**Der Einwand, und warum er hier nicht trägt.** P9b enthält sonst nur
+Schreibendes (A3 Wurf 2, A4), A13 liest — also dieselbe Vermischung, die A12
+aus A10 herausgelöst hat? Nein: Dort war „schreibt nichts" die **ausgesprochene
+erste Regel der Stufe**, und eine schreibende Hälfte hätte sie aufgehoben. P9b
+gibt keine solche Zusage.
+
+> **Ein Zuschnitt, der eine Zusage der Stufe verletzt, ist ein anderer Fall als
+> einer, der nur ungleiche Teile nebeneinanderlegt.**
+
+**Was nicht auf P9b wartet, ist die Messung.** Die Laufzeit auf `cloudsrv24` ist
+die Zahl, die den Takt entscheidet, und sie ist eine Stunde Arbeit; die Platte
+dieses Containers ist nicht seine. Sie kann bei jedem Serverlauf mitfahren.
 
 ---
 
@@ -2640,7 +2679,7 @@ Serververwaltungssatz in P9 zeigt dorthin statt ihn ein zweites Mal zu führen.
 | **P7b — Serververwaltung** | A5, A2, A10, **A12**, A1, A11, A6, A8, A3 (erster Wurf) | **entschieden**, vor P8; A12 am 2. September dazu |
 | **P8** | Sicherungen und Wiederherstellung | unverändert |
 | **P9** | Kundenfähigkeit nach `docs/20 §9`, **ohne** den Serververwaltungssatz — **A7 steht darin** | unverändert |
-| **P9b — Absicherung des Servers** | A3 (zweiter Wurf), A4 | **entschieden am 28. August 2026**, zwischen P9 und P10 |
+| **P9b — Absicherung des Servers** | A3 (zweiter Wurf), A4, **A13** | **entschieden am 28. August 2026**, zwischen P9 und P10; A13 ist ein **Vorschlag** vom 4. September (§11) und noch nicht entschieden |
 
 **Am 28. August 2026 hat alles einen Ort bekommen — und dabei fiel ein
 Widerspruch heraus.** Hier stand, **drei** absichernde Vorschläge hätten keinen,

@@ -1878,6 +1878,16 @@ Lauf desselben Griffs: 135 ms — die erste Zahl war der kalte Zwischenspeicher)
 > **Eine Messung, die man nur einmal fährt, misst den Zwischenspeicher mit — und
 > ob sie ihn kalt oder warm erwischt, sagt sie nicht.**
 
+**A13 ist am 4. September als Vorschlag verortet** (`docs/81 §11`): P9b,
+zusammen mit A3s zweitem Wurf und A4 — **entschieden ist es nicht.** „Reitet
+nicht mit" war eine Antwort auf die Frage, ob A13 zu A10 gehört, und keine
+Stufenzeile; seit dem 2. September stand er nirgends. Der Grund für den
+Vorschlag ist nicht die Verwandtschaft, sondern der Empfänger: Seine Befunde
+sind die Sorte, vor der `docs/98 §4` warnt („diese Datei hat 0777" ist wahr und
+meistens harmlos), und einen Weg nach draussen baut erst A7.
+
+> **Ein Befund, der niemanden erreicht, ist eine Zeile in einer Tabelle.**
+
 **A12 und A13 sind am 2. September verortet.** A12 (Wartungsmodus) stand seit
 der Abnahme von A1 in keiner Stufenzeile — „mit A1" war eine Verortung an einer
 Stufe, die es nicht mehr gibt. Es ist jetzt ein eigener Punkt in P7b **hinter**

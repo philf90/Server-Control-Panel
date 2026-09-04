@@ -107,6 +107,7 @@ use SrvPanel\Agent\Ops\SystemUnitsList;
 use SrvPanel\Agent\Ops\WebIsolationProbe;
 use SrvPanel\Agent\Ops\WebLogrotate;
 use SrvPanel\Agent\Ops\WebLogsTail;
+use SrvPanel\Agent\Ops\WebMaintenanceSet;
 use SrvPanel\Agent\Ops\WebserverDetect;
 use SrvPanel\Agent\Ops\WebSiteApply;
 use SrvPanel\Agent\Ops\WebSiteRemove;
@@ -187,6 +188,7 @@ final class Registry
         $this->register(new WebserverDetect);
         $this->register(new WebSiteApply);
         $this->register(new WebSiteRemove);
+        $this->register(new WebMaintenanceSet);
         $this->register(new WebLogsTail);
 
         // Die Protokolle des Servers — Positivliste in SrvPanel\Agent\Logs.

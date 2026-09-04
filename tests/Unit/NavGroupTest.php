@@ -217,7 +217,7 @@ final class NavGroupTest extends TestCase
         $betrieb = array_filter($eintraege, static fn (array $e): bool => $e['gruppe'] === 'Betrieb');
 
         $this->assertCount(7, $einstellungen, 'Die Gruppe „Einstellungen" trägt sieben Punkte.');
-        $this->assertCount(7, $betrieb, 'Die Gruppe „Betrieb" trägt sieben Punkte.');
+        $this->assertCount(8, $betrieb, 'Die Gruppe „Betrieb" trägt acht Punkte — seit A12 auch den Wartungsmodus.');
     }
 
     /**

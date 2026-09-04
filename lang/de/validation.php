@@ -174,6 +174,7 @@ return [
         'day_of_week' => 'Wochentag',
         'description' => 'Beschreibung',
         'enabled' => 'Eingeschaltet',
+        'until' => 'Voraussichtlich bis',
         'direction' => 'Richtung',
         'directory' => 'Verzeichnis',
         'dump' => 'Sicherung',

@@ -25189,3 +25189,54 @@ die **Erwartung** und nicht die Datei.
 Zeilen: dass die Ausnahme zwischen dem Setzen und der Entscheidung steht. Davor
 überschriebe das Setzen sie, danach käme sie zu spät — und beide Fassungen sähen
 im Text fast gleich aus. Sieben Eingriffe im Bruchskript, jeder einzeln belegt.
+
+### A12 Schritt 2 — der Schalter, und zwei Wächter, die sich selbst nicht gemessen haben
+
+`web.maintenance.set` legt die Flagdatei an oder entfernt sie; `MaintenanceMode`
+ruft unmittelbar auf, `Settings` hält fest, was das Panel darüber weiss, und die
+Seite `/maintenance` schaltet. Kein Vorgang: Das Schalten dauert zwei
+Millisekunden, und eine Anzeige mit „wartet · läuft · fertig" wäre eine über
+nichts.
+
+**Der Menüpunkt steht in „Betrieb" und nicht in „Einstellungen"** — die
+Gruppengrenze zieht die Adresse, und `/maintenance` liegt nicht unter
+`/settings/`. Und er steht im Menü und nicht als Abschnitt unter etwas anderem:
+Der Schalter nimmt jede Kundenwebsite vom Netz, und dieses Projekt hat den Ort
+eines Menüpunkts dreimal falsch gehabt.
+
+**`Clock` hat zwei Methoden bekommen und nicht der Controller.** Die
+voraussichtliche Endzeit wird in Ortszeit eingegeben und als UTC abgelegt; die
+Umrechnung gehört an die eine Stelle, die aus UTC eine Anzeige macht und eine
+Grenze zurück. `docs/40` hat einmal bezahlt, dass die Hälfte, die still bricht,
+die mitrechnende ist.
+
+**Und der Reach-Wächter hat den Zuschnitt des Schritts entschieden.** Der erste
+Wurf war die Operation allein — `AgentOperationReachTest` meldete sie sofort:
+*„Code, der als root läuft und zu dem es keinen Weg gibt, ist Angriffsfläche
+ohne Nutzen."* Die Panel-Seite gehörte damit in denselben Commit, und das war
+richtig.
+
+**Zwei Befunde an meinen eigenen Wächtern, beide beim Brechen gefunden.**
+
+Der erste hiess `test_the_result_is_read_back_and_not_echoed` und mass das
+nicht: Die Ausnahme kommt aus `turnOff()`, weil `unlink()` fehlschlägt — die
+Nachlese danach wird gar nicht erreicht. Sie fängt den Fall, dass ein Schreiben
+*gelingt* und die Datei trotzdem fehlt, und der ist nicht herstellbar.
+
+> **Ein Test, der nach dem benannt ist, was er absichern soll, statt nach dem,
+> was er misst, ist eine Zusage über eine Zeile, die er nie ausführt.**
+
+Der zweite blieb **grün, als die Typprüfung entfernt war**. Der Grund: Die
+Nachlese vergleicht strikt (`$ist !== $enabled`), also passt `true` nie zu
+`'1'` — es fliegt eine Ausnahme, nur eben `exec_failed` statt `bad_request`.
+Der Unterschied ist einer, den der Aufrufer sieht: „so nicht" gegen „hat nicht
+geklappt".
+
+> **Ein Wächter, der nur zählt, dass etwas geworfen wurde, ist grün, sobald
+> irgendetwas fliegt — auch das Falsche.**
+
+`MaintenanceSwitchTest` hält sieben Regeln, darunter dass die Vorgabe des
+Ablageorts derselbe Pfad ist, den die Wache im Server-Block nennt, und dass er
+unter `/var/spool` liegt — unter `/var/lib/srvpanel` käme der nginx-Worker nicht
+hindurch, die Wache prüfte immer „liegt nicht", und der Schalter täte nichts.
+Vier Eingriffe im Bruchskript, jeder einzeln belegt.

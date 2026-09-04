@@ -23918,6 +23918,84 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
+echo "== MaintenanceSwitchTest: das zweite Ausschalten bricht ab =="
+#
+# unlink() gibt fuer eine Datei, die nicht da ist, false zurueck. Wer das fuer
+# einen Fehlschlag nimmt, macht aus dem zweiten Klick einen Abbruch.
+vorher_datei agent/src/Ops/WebMaintenanceSet.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebMaintenanceSet.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if (! is_file($this->flag)) {\n            return;\n        }\n\n"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "", 1))
+PY2
+griff_datei agent/src/Ops/WebMaintenanceSet.php "das zweite Ausschalten bricht ab" &&
+pruefe "das zweite Ausschalten bricht ab" \
+  MaintenanceSwitchTest::test_switching_off_twice_is_not_a_failure failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceSwitchTest passed
+
+echo
+echo "== MaintenanceSwitchTest: der Wahrheitswert wird nicht geprueft =="
+#
+# '0', '' und null sind in PHP alle falsch-artig: Ein leeres Feld schaltete den
+# Modus aus, ohne dass jemand das gemeint haette. Der Waechter prueft die ART
+# der Ausnahme — ohne das bliebe er gruen, weil die Nachlese strikt vergleicht.
+vorher_datei agent/src/Ops/WebMaintenanceSet.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebMaintenanceSet.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (! is_bool($enabled)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        if (false) {", 1))
+PY2
+griff_datei agent/src/Ops/WebMaintenanceSet.php "der Wahrheitswert wird nicht geprueft" &&
+pruefe "der Wahrheitswert wird nicht geprueft" \
+  MaintenanceSwitchTest::test_it_refuses_anything_that_is_not_a_boolean failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceSwitchTest passed
+
+echo
+echo "== MaintenanceSwitchTest: die Flagdatei zieht unter /var/lib =="
+#
+# Dort ist 0750 srvpanel:srvpanel, und der nginx-Worker kommt nicht hindurch
+# (docs/78). Die Wache praefte dann immer "liegt nicht", und der Schalter taete
+# nichts — ohne dass irgendetwas rot wuerde.
+vorher_datei agent/src/Maintenance.php
+python3 - <<'PY2'
+p = 'agent/src/Maintenance.php'
+s = open(p, encoding='utf-8').read()
+alt = "public const FLAG = '/var/spool/srvpanel/wartung';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "public const FLAG = '/var/lib/srvpanel/wartung';", 1))
+PY2
+griff_datei agent/src/Maintenance.php "die Flagdatei zieht unter /var/lib" &&
+pruefe "die Flagdatei zieht unter /var/lib" \
+  MaintenanceSwitchTest::test_the_flag_lies_where_nginx_can_reach_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceSwitchTest passed
+
+echo
+echo "== MaintenanceSwitchTest: die Vorgabe weicht vom Pfad der Wache ab =="
+#
+# Zwei Listen, die dasselbe meinen, laufen auseinander: Das Panel schaltete eine
+# Datei, auf die nginx nicht sieht.
+vorher_datei agent/src/Ops/WebMaintenanceSet.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebMaintenanceSet.php'
+s = open(p, encoding='utf-8').read()
+alt = "private readonly string $flag = Maintenance::FLAG"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "private readonly string $flag = '/var/spool/srvpanel/wartungsmodus'", 1))
+PY2
+griff_datei agent/src/Ops/WebMaintenanceSet.php "die Vorgabe weicht vom Pfad der Wache ab" &&
+pruefe "die Vorgabe weicht vom Pfad der Wache ab" \
+  MaintenanceSwitchTest::test_the_default_is_the_path_the_guard_names failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceSwitchTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

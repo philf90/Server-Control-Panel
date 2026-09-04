@@ -177,6 +177,51 @@ final class Clock
     }
 
     /**
+     * Ein Zeitpunkt auf die Minute genau, für ein Eingabefeld.
+     *
+     * **Dieselbe Richtung wie {@see self::displayText()}, nur ohne Sekunden.**
+     * Ein Feld, in das jemand `2026-09-04 16:00` tippt, bekommt seinen eigenen
+     * Wert zurück und nicht `16:00:00` — sonst schiene bei jedem Aufruf etwas
+     * geändert, was niemand geändert hat.
+     *
+     * Nicht durch Abschneiden von {@see self::displayText()}: Das wäre eine
+     * zweite Regel über dasselbe Format, und die zweite ist die, die veraltet.
+     */
+    public static function minute(?string $utc): ?string
+    {
+        if ($utc === null || $utc === '') {
+            return null;
+        }
+
+        try {
+            return CarbonImmutable::parse($utc, 'UTC')->setTimezone(self::zone())->format('Y-m-d H:i');
+        } catch (Throwable) {
+            return $utc;
+        }
+    }
+
+    /**
+     * Und zurück: ein eingegebener Zeitpunkt aus der Anzeigezone nach UTC.
+     *
+     * **Die Gegenrichtung zu {@see self::minute()} und aus demselben Grund wie
+     * {@see self::boundaryToUtc()}.** Wer „16:00" eingibt, meint 16:00 auf
+     * seiner Uhr; ohne diese Drehung stünde der Wert als UTC in der Tabelle und
+     * die Anzeige machte daraus 18:00. Das ist die Hälfte, die still bricht —
+     * `docs/40 §3.2` hat sie einmal bezahlt.
+     *
+     * Ein unlesbarer Wert kommt als `null` zurück; der Aufrufer lässt die
+     * Angabe dann weg, statt eine erfundene abzulegen.
+     */
+    public static function minuteToUtc(string $local): ?string
+    {
+        try {
+            return CarbonImmutable::parse($local, self::zone())->setTimezone('UTC')->format('Y-m-d H:i:s');
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
      * Die Zone setzen.
      *
      * **Geprüft wird hier und nicht beim Lesen** (siehe {@see self::zone()}):

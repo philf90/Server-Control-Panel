@@ -23622,21 +23622,30 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
 
 echo
-echo "== PromiseReachTest: add_header wird zur Zusage der Form =="
+echo "== PromiseReachTest: der HSTS-Header wird zur Zusage der Form =="
 #
-# add_header haengt am Inhalt des Zertifikats und nicht an der Form: Ein
-# selbstsigniertes bekommt kein HSTS. Steht es in der Zusage, meldet der
-# Nachtlauf jede Domain ohne HSTS als kaputt.
+# **Dieser Eingriff hiess bis zum 4. September „add_header wird zur Zusage der
+# Form" und ist an A12 stumpf geworden** — die Wache des Wartungsmodus schreibt
+# `add_header` seitdem in jeder Form, es steht also zu Recht in jeder Zusage.
+# Der Eingriff veraenderte die Datei weiter nachweislich und biss nicht mehr.
+#
+#   Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+#   wenn jemand die Regel daneben aendert, die er gemeint hat.
+#
+# Gemeint war und ist: Der HSTS-Header haengt am Inhalt des Zertifikats und
+# nicht an der Form — ein selbstsigniertes bekommt keinen. Steht er in einer
+# Zusage, meldet der Nachtlauf jede Domain ohne HSTS als kaputt. Gebrochen wird
+# deshalb jetzt der Header und nicht mehr der Name der Anweisung.
 vorher_datei agent/src/SiteTemplate.php
 python3 - <<'PY2'
 p = 'agent/src/SiteTemplate.php'
 s = open(p, encoding='utf-8').read()
 alt = "public const PROMISED_WITH_TLS = ['ssl_certificate',"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, "public const PROMISED_WITH_TLS = ['add_header', 'ssl_certificate',", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "public const PROMISED_WITH_TLS = ['Strict-Transport-Security', 'ssl_certificate',", 1))
 PY2
-griff_datei agent/src/SiteTemplate.php "add_header in der Zusage" &&
-pruefe "add_header in der Zusage" \
+griff_datei agent/src/SiteTemplate.php "HSTS-Header in der Zusage" &&
+pruefe "HSTS-Header in der Zusage" \
   PromiseReachTest::test_hsts_is_not_a_promise_of_the_form failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed

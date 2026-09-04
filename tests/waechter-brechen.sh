@@ -24005,6 +24005,83 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceSwitchTest passed
 
 echo
+echo "== DateInputTest: das Datumsfeld wird wieder ein Textfeld =="
+#
+# Der gemeldete Fehler selbst: Ein `type="text"` fuer eine Form, die
+# Bindestriche braucht. Auf dem Telefon ist das Feld damit nicht ausfuellbar.
+vorher_datei resources/js/Pages/Maintenance/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Maintenance/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'v-model="form.until_date"\n            type="date"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'v-model="form.until_date"\n            type="text"', 1))
+PY2
+griff_datei resources/js/Pages/Maintenance/Index.vue "das Datumsfeld wird wieder ein Textfeld" &&
+pruefe "das Datumsfeld wird wieder ein Textfeld" \
+  DateInputTest::test_every_date_format_rule_has_an_input_that_can_produce_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DateInputTest passed
+
+echo
+echo "== DateInputTest: ein Feld verlangt Datum und Uhrzeit zugleich =="
+#
+# Die Form, die kein Eingabetyp hergibt — `datetime-local` traegt ein `T` statt
+# des Leerzeichens. Sie gehoert auf zwei Felder.
+vorher_datei app/Http/Controllers/MaintenanceController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/MaintenanceController.php'
+s = open(p, encoding='utf-8').read()
+alt = "'until_date' => ['nullable', 'required_with:until_time', 'date_format:Y-m-d'],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'until_date' => ['nullable', 'date_format:Y-m-d H:i'],", 1))
+PY2
+griff_datei app/Http/Controllers/MaintenanceController.php "ein Feld verlangt Datum und Uhrzeit zugleich" &&
+pruefe "ein Feld verlangt Datum und Uhrzeit zugleich" \
+  DateInputTest::test_no_field_asks_for_a_date_and_a_time_at_once failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DateInputTest passed
+
+echo
+echo "== DateInputTest: der Ausdruck ueber die Eingabefelder laeuft ins Leere =="
+#
+# Die Untergrenze. Ohne sie waeren beide Pruefungen darueber gruen, ohne etwas
+# gemessen zu haben — eine Null, neben der nichts anderes als Null steht.
+vorher_datei tests/Unit/DateInputTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DateInputTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/<input\\b[^>]*>/'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/<eingabefeld\\b[^>]*>/'", 1))
+PY2
+griff_datei tests/Unit/DateInputTest.php "der Ausdruck ueber die Eingabefelder laeuft ins Leere" &&
+pruefe "der Ausdruck ueber die Eingabefelder laeuft ins Leere" \
+  DateInputTest::test_both_expressions_find_the_known_fields failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DateInputTest passed
+
+echo
+echo "== MaintenanceSeamTest: hinaus geht wieder der abgelegte Wert =="
+#
+# Der zweite Befund vom 4. September: Abgelegt ist UTC mit Sekunden, der Agent
+# nimmt `Y-m-d H:i` ohne. Der abgelegte Wert kommt dort nicht durch — und waere
+# er durchgekommen, stuende auf der Wartungsseite die falsche Stunde.
+vorher_datei app/Support/Web/WebLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Web/WebLifecycle.php'
+s = open(p, encoding='utf-8').read()
+alt = "'maintenance_until' => Clock::minute($this->settings->maintenance()['until']),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'maintenance_until' => $this->settings->maintenance()['until'],", 1))
+PY2
+griff_datei app/Support/Web/WebLifecycle.php "hinaus geht wieder der abgelegte Wert" &&
+pruefe "hinaus geht wieder der abgelegte Wert" \
+  MaintenanceSeamTest::test_the_local_time_goes_out_and_not_the_stored_one failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceSeamTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

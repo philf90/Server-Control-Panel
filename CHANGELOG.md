@@ -25278,3 +25278,71 @@ dieselbe Sache lesen sich wie zwei Sachen. Jetzt einer.
 
 > **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
 > Keines von beiden ersetzt das andere.**
+
+### A12 — zwei Befunde am selben Feld, und keinen davon hat ein Test gefunden
+
+Gemeldet hat den ersten der Betreiber, beim ersten Versuch, den Wartungsmodus
+**auf dem Telefon** einzuschalten. Der zweite fiel beim Beheben des ersten auf.
+Das Protokoll ist `docs/102`.
+
+**Das Feld „Voraussichtlich bis" war auf dem Telefon nicht ausfüllbar.** Es war
+ein Textfeld für die Form `Y-m-d H:i` mit `inputmode="numeric"`, und die
+Zifferntastatur von iOS gibt weder Bindestrich noch Doppelpunkt noch Leerzeichen
+her. Auf dem Bildschirmfoto steht `20260904` — nicht umständlich, sondern gar
+nicht zu füllen.
+
+> **Ein Format, das kein Eingabetyp hergibt, ist auf dem Telefon nicht tippbar —
+> und `inputmode` gibt weniger Zeichen her, als das Format verlangt.**
+
+Auf `/audit` stand das richtige Paar seit P2 da: `date_format:Y-m-d` neben einem
+`type="date"`. Die Vermeidung war nur nie die Regel geworden — derselbe Satz wie
+beim Menüpunkt, der dreimal zu tief lag.
+
+Gebaut sind jetzt **zwei** Felder, `type="date"` und `type="time"`, mit je einer
+eigenen Regel und `required_with` in beide Richtungen; zusammengesetzt wird in
+der Steuerung und nicht in der Seite. Ein dritter Typ kommt nicht in Frage, und
+das ist keine Meinung: `datetime-local` trägt zwischen Datum und Uhrzeit ein `T`
+statt des Leerzeichens. `DateInputTest` hält die Regel für jede Regel
+`date_format:X` unter `app/Http` und meldet ein zusammengesetztes Format mit dem
+Grund, statt es zu dulden.
+
+**Und die Endzeit kam beim Agenten überhaupt nicht an.** `Clock::minuteToUtc()`
+legt `Y-m-d H:i:s` ab — mit Sekunden, denn ein abgelegter Zeitpunkt ist ein
+Zeitpunkt. `Maintenance::UNTIL` verlangt `Y-m-d H:i` — ohne, denn es ist ein
+Satz auf einer Seite. Hinaus ging der **abgelegte** Wert: Sobald eine Endzeit
+gesetzt war, wies der Agent jedes `web.site.apply` ab, für jede Domain. Und wäre
+er durchgekommen, stünde auf der Wartungsseite die UTC-Zeit unter dem Wort
+„Uhr".
+
+> **Ein Wert, der abgelegt ist, wird zu einer Auskunft erst durch die Umrechnung
+> — und die Stelle, an der niemand von uns hinsieht, ist die, an der sie
+> fehlt.**
+
+Beide Fehler behebt dieselbe Zeile: `Clock::minute()` in
+`WebLifecycle::payload()` liefert Ortszeit **in** der Form, die der Agent
+annimmt.
+
+**Warum nichts das gemeldet hat.** `MaintenanceGuardTest` füttert
+`Maintenance::until()` mit einem selbst geschriebenen `'2026-09-04 16:00'`, die
+Prüfungen um `MaintenanceMode` sprechen mit einem Doppel. Beide Seiten waren
+geprüft; geprüft war nie, dass die eine der anderen etwas gibt, das sie annimmt.
+
+> **Zwei Prüfungen, die je eine Seite einer Naht mit einem selbst geschriebenen
+> Wert füttern, prüfen die Naht nicht — sie prüfen zweimal denselben
+> Prüfkörper.**
+
+`MaintenanceSeamTest` misst deshalb an der **Wirkung**: Der Wert geht durch
+`Site::fromArgs()`, also durch die Tür, an der er auf dem Server ankommt, und
+die Gegenrichtung belegt, dass der abgelegte Wert dort nicht durchkommt. **Beim
+ersten Lauf war diese Gegenrichtung keine** — sie war grün, weil `fromArgs`
+zwei Zeilen früher an einem fehlenden `system_user` flog. Sie nennt die Meldung
+seitdem beim Namen.
+
+**Und die Bilderrunde hat eine Falle des Messmittels gezeigt.** Chromium
+schreibt in ein `type="date"` die Schreibweise **seiner Oberflächensprache**:
+Das erste Bild las `mm/dd/yyyy` und ein AM/PM-Feld. `locale: 'de-DE'` am Kontext
+ändert daran nichts — erst `--lang=de-DE` beim Start zeigt, was ein deutsches
+Gerät zeigt, nämlich `tt.mm.jjjj` und 24 Stunden.
+
+> **Ein Bild, das in der Sprache des Prüfstands aufgenommen wurde, sagt über die
+> Anzeige auf dem Gerät des Lesers nichts.**

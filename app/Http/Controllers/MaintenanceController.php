@@ -42,18 +42,25 @@ final class MaintenanceController extends Controller
     {
         $stand = $settings->maintenance();
 
+        /*
+         * **Die Anzeige rechnet um, die Ablage nicht.** Gespeichert ist UTC;
+         * was hier hinausgeht, ist Ortszeit — und zwar über {@see Clock} und
+         * nicht über eine zweite Umrechnung daneben. `docs/40` hat einmal
+         * gekostet, dass die Hälfte, die still bricht, die mitrechnende Grenze
+         * ist.
+         *
+         * **Zerlegt wird der fertige Anzeigewert und nicht der abgelegte.** Die
+         * Umrechnung bleibt damit an einer Stelle; hier steht nur noch ein
+         * Schnitt an dem Leerzeichen, das `Clock::minute()` selbst setzt.
+         */
+        $lokal = Clock::minute($stand['until']);
+        $teile = $lokal === null ? ['', ''] : explode(' ', $lokal, 2);
+
         return Inertia::render('Maintenance/Index', [
             'maintenance' => [
                 'enabled' => $stand['enabled'],
-
-                /*
-                 * **Die Anzeige rechnet um, die Ablage nicht.** Gespeichert ist
-                 * UTC; was hier hinausgeht, ist Ortszeit — und zwar über
-                 * {@see Clock} und nicht über eine zweite Umrechnung daneben.
-                 * `docs/40` hat einmal gekostet, dass die Hälfte, die still
-                 * bricht, die mitrechnende Grenze ist.
-                 */
-                'until' => Clock::minute($stand['until']),
+                'until_date' => $teile[0],
+                'until_time' => $teile[1] ?? '',
                 'zone' => Clock::label(),
             ],
         ]);
@@ -76,25 +83,55 @@ final class MaintenanceController extends Controller
             'enabled' => ['required', 'boolean'],
 
             /*
+             * **Zwei Felder und nicht eines** — gemeldet vom Betreiber am
+             * 4. September 2026, auf dem Telefon.
+             *
+             * Der erste Wurf war ein Textfeld für `Y-m-d H:i` mit
+             * `inputmode="numeric"`. Die Zifferntastatur von iOS gibt weder
+             * Bindestrich noch Doppelpunkt noch Leerzeichen her: Das Feld war
+             * dort nicht ausfüllbar, und zwar gar nicht — nicht bloss
+             * umständlich.
+             *
+             * > **Ein Format, das kein Eingabetyp hergibt, ist auf dem Telefon
+             * > nicht tippbar** — und `datetime-local` gibt es nicht her, denn
+             * > sein Wert trägt ein `T` statt des Leerzeichens.
+             *
+             * `date` und `time` sind die beiden Typen, die es hergeben, und
+             * Safari zeigt das Datum von sich aus deutsch. Auf `/audit` steht
+             * dasselbe Paar seit P2 richtig da — **die Vermeidung war nur nie
+             * die Regel geworden**; jetzt hält es {@see \Tests\Unit\DateInputTest}.
+             *
              * **`date_format` und nicht `date`.** Die Angabe reist bis in eine
              * nginx-Zeichenkette; der Agent prüft sie dort ein zweites Mal
              * gegen dieselbe Form. Zwei Prüfungen sind keine Verdopplung,
              * sondern die beiden Seiten einer Grenze — die zweite steht im
              * Code, der als root läuft, und der verlässt sich auf niemanden.
              *
+             * **Beide oder keines**, über `required_with` in beide Richtungen:
+             * Ein Datum ohne Uhrzeit ergäbe „ab 2026-09-04 Uhr".
+             *
              * **Eine Zeit in der Vergangenheit ist erlaubt.** Sie ist eine
              * Auskunft und keine Steuerung; wer sich verschätzt hat, soll sie
              * nicht erst korrigieren müssen. Dass sie überschritten ist, meldet
              * die Bestandsdiagnose.
              */
-            'until' => ['nullable', 'date_format:Y-m-d H:i'],
+            'until_date' => ['nullable', 'required_with:until_time', 'date_format:Y-m-d'],
+            'until_time' => ['nullable', 'required_with:until_date', 'date_format:H:i'],
         ], [
-            'until.date_format' => 'Die voraussichtliche Endzeit muss die Form JJJJ-MM-TT HH:MM haben.',
+            'until_date.date_format' => 'Das Datum muss die Form JJJJ-MM-TT haben.',
+            'until_time.date_format' => 'Die Uhrzeit muss die Form HH:MM haben.',
         ]);
 
         $enabled = (bool) $daten['enabled'];
-        $eingabe = $daten['until'] ?? null;
-        $until = is_string($eingabe) && $eingabe !== '' ? Clock::minuteToUtc($eingabe) : null;
+        $datum = $daten['until_date'] ?? null;
+        $zeit = $daten['until_time'] ?? null;
+
+        // Zusammengesetzt wird hier und nicht in der Seite: Das Format, das
+        // hinausgeht, ist eine Eigenschaft dieser Grenze, und die Seite hätte
+        // sonst eine zweite Fassung davon.
+        $until = is_string($datum) && is_string($zeit) && $datum !== '' && $zeit !== ''
+            ? Clock::minuteToUtc($datum.' '.$zeit)
+            : null;
 
         $ergebnis = $mode->set($enabled, $until);
 

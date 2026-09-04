@@ -7,17 +7,19 @@ import PanelLayout from '../../Layouts/PanelLayout.vue'
 /**
  * Der Wartungsmodus — A12, `docs/101 §6`.
  *
- * **`until` kommt als Ortszeit an und geht als Ortszeit hinaus.** Die
- * Umrechnung nach UTC macht `Clock` und niemand sonst; eine zweite hier wäre
- * die Fassung, die veraltet.
+ * **Datum und Uhrzeit kommen als Ortszeit an und gehen als Ortszeit hinaus.**
+ * Die Umrechnung nach UTC macht `Clock` und niemand sonst; eine zweite hier
+ * wäre die Fassung, die veraltet. Zusammengesetzt wird die Steuerung — auch das
+ * wäre hier eine zweite Fassung des Formats.
  */
 const props = defineProps<{
-  maintenance: { enabled: boolean; until: string | null; zone: string }
+  maintenance: { enabled: boolean; until_date: string; until_time: string; zone: string }
 }>()
 
 const form = useForm({
   enabled: props.maintenance.enabled,
-  until: props.maintenance.until ?? '',
+  until_date: props.maintenance.until_date,
+  until_time: props.maintenance.until_time,
 })
 
 /**
@@ -62,16 +64,32 @@ function absenden(an: boolean): void {
           schaltet zu diesem Zeitpunkt ab — das war eine Entscheidung: Ein
           Fenster, dessen Ende ein Zeitgeber herstellt, endet nicht, wenn der
           Zeitgeber ausfällt, und dann bliebe jede Website unbegrenzt auf 503.
+
+          **Zwei Felder mit den Typen, die das Format hergeben** — gemeldet vom
+          Betreiber am 4. September 2026: Das Textfeld mit `inputmode="numeric"`
+          öffnete auf dem iPhone die Zifferntastatur, und die kennt weder
+          Bindestrich noch Doppelpunkt noch Leerzeichen. `Y-m-d H:i` war dort
+          nicht tippbar — nicht umständlich, sondern gar nicht.
+
+          `type="date"` und `type="time"` bringen den passenden Auswähler mit
+          und zeigen das Datum in der Schreibweise des Geräts — deutsch also
+          `04.09.2026`, während der Wert `2026-09-04` bleibt.
         -->
         <label class="field">
           <span>Voraussichtlich bis</span>
           <input
-            v-model="form.until"
-            type="text"
-            inputmode="numeric"
-            autocomplete="off"
-            placeholder="2026-09-04 16:00"
-            :aria-invalid="Boolean(form.errors.until)"
+            v-model="form.until_date"
+            type="date"
+            :aria-invalid="Boolean(form.errors.until_date)"
+          >
+        </label>
+
+        <label class="field">
+          <span>Uhrzeit</span>
+          <input
+            v-model="form.until_time"
+            type="time"
+            :aria-invalid="Boolean(form.errors.until_time)"
           >
         </label>
 

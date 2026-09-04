@@ -25134,3 +25134,58 @@ gleich „mit". Und `nginx -t … | tail -1` liest den Rückgabewert von `tail`.
 Info · Warnung · Störung, mehrere gleichzeitig —, getrennt von A12 nach
 demselben Kriterium, das A12 aus A10 gelöst hat: A12 schreibt Vhost-Dateien,
 eine Ankündigung ist Text in einer Tabelle.
+
+### A12 Schritt 1 — die Wache in der Vorlage, und zwei Wächter, die sie sofort gefunden hat
+
+`SiteTemplate` trägt seit dem 4. September 2026 die Wache des Wartungsmodus, in
+der Form, die `docs/81 §2.3p` gemessen hat: auf Serverebene, mit einer Ausnahme
+für die ACME-Prüfadresse, und mit `add_header` in einer benannten
+Fehler-`location` statt im `if`. Sie steht in **jedem** Server-Block jeder Form
+— bei einer Domain mit Zertifikat also zweimal.
+
+**Der Block weiss dabei nicht, ob Wartung ist.** Er weiss nur, was er sagen
+soll, falls sie es ist; die Entscheidung trifft nginx an der Flagdatei, bei
+jeder Anfrage neu. Deshalb schaltet A12 eine Datei und schreibt keine neun
+Blöcke um.
+
+**Die Endzeit reist als geprüfter Wert und nicht als Text.**
+`Maintenance::UNTIL` lässt nur `JJJJ-MM-TT HH:MM` durch — die Angabe landet als
+Zeichenkette *in* einer nginx-Zeile, und ein Apostroph darin beendete sie. Das
+ist die erste Grenze und keine Höflichkeit.
+
+**Gegen echtes nginx 1.24.0 nachgemessen**, alle drei Formen, jede mit
+Gegenprobe: mit Flagdatei geben `/` und `/test.php` 503 und die Prüfadresse 200,
+ohne sie 200/404 beziehungsweise 200/502 und 200. `Retry-After: 3600` kommt an,
+und die Zeitangabe steht **nur** in der Fassung, die eine hat.
+
+**Zwei bestehende Wächter haben die Änderung sofort gefunden**, und der zweite
+ist der interessantere.
+
+`PromiseReachTest::test_the_site_promise_is_exactly_what_every_form_emits` war
+rot, weil `PROMISED` die vier neuen Anweisungen nicht kannte — richtig so, die
+Schnittmenge ist gewachsen.
+
+Und `test_hsts_is_not_a_promise_of_the_form` mass HSTS daran, dass es
+`add_header` **hinzufügt**. Die Wache fügt dieselbe Anweisung jetzt in jeder
+Form hinzu; auf Ebene der Namen war „HSTS hat seinen Header geschrieben" von
+„HSTS hat nichts getan" nicht mehr zu unterscheiden.
+
+> **Ein Wächter, der misst, was ein Merkmal hinzufügt, wird stumpf, sobald ein
+> anderes Merkmal dasselbe hinzufügt.**
+
+Er misst seitdem die **Anweisung** und nicht ihr erstes Wort — und das ist
+zugleich die schärfere Frage: Vorher hätte auch ein beliebiger anderer Header
+den Test bestanden.
+
+**Und eine Regel über gemessene Prüfkörper.** `SiteFileIntegrityTest` hält
+einen Block aus der A10-Messrunde; er verliert jetzt fünf Anweisungen statt
+einer, weil er weder den Standardschutz noch die Wache trägt. Nachgezogen wurde
+die **Erwartung** und nicht die Datei.
+
+> **Eine gemessene Datei ist ein Beleg und keine Vorlage — wer sie an eine neue
+> Erwartung anpasst, hat die Messung verloren.**
+
+`MaintenanceGuardTest` hält sieben Regeln, darunter die **Reihenfolge** der vier
+Zeilen: dass die Ausnahme zwischen dem Setzen und der Entscheidung steht. Davor
+überschriebe das Setzen sie, danach käme sie zu spät — und beide Fassungen sähen
+im Text fast gleich aus. Sieben Eingriffe im Bruchskript, jeder einzeln belegt.

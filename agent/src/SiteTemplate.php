@@ -71,9 +71,15 @@ final class SiteTemplate
      * der Wächter in die Liste gesetzt hat und nicht der Entwurf: Der erste
      * Wurf zählte acht Anweisungen, die Schnittmenge neun.
      *
+     * **Seit A12 stehen vier weitere darin** — `set`, `if`, `error_page` und
+     * `add_header` kommen aus der Wache des Wartungsmodus
+     * ({@see Maintenance::nginxGuard()}), und die steht in jedem Server-Block
+     * jeder Form. Sie sind damit Teil der Schnittmenge und nicht eine
+     * Eigenschaft einer einzelnen Form.
+     *
      * @var list<string>
      */
-    public const PROMISED = ['server', 'listen', 'server_name', 'access_log', 'error_log', 'location', 'root', 'default_type', 'return'];
+    public const PROMISED = ['server', 'listen', 'server_name', 'access_log', 'error_log', 'location', 'root', 'default_type', 'return', 'set', 'if', 'error_page', 'add_header'];
 
     /** Die vier Formen, die {@see self::render()} unterscheidet. */
     public const FORM_SUSPENDED = 'suspended';
@@ -117,10 +123,10 @@ final class SiteTemplate
      * @var array<string, list<string>>
      */
     public const PROMISED_BY_FORM = [
-        self::FORM_SUSPENDED => ['access_log', 'default_type', 'error_log', 'listen', 'location', 'return', 'root', 'server', 'server_name'],
-        self::FORM_REDIRECT => ['access_log', 'default_type', 'error_log', 'listen', 'location', 'return', 'root', 'server', 'server_name'],
-        self::FORM_PHP => ['access_log', 'client_max_body_size', 'default_type', 'deny', 'error_log', 'fastcgi_index', 'fastcgi_param', 'fastcgi_pass', 'fastcgi_read_timeout', 'fastcgi_split_path_info', 'include', 'index', 'listen', 'location', 'log_not_found', 'return', 'root', 'server', 'server_name', 'try_files'],
-        self::FORM_STATIC => ['access_log', 'client_max_body_size', 'default_type', 'deny', 'error_log', 'include', 'index', 'listen', 'location', 'log_not_found', 'return', 'root', 'server', 'server_name', 'try_files'],
+        self::FORM_SUSPENDED => ['access_log', 'add_header', 'default_type', 'error_log', 'error_page', 'if', 'listen', 'location', 'return', 'root', 'server', 'server_name', 'set'],
+        self::FORM_REDIRECT => ['access_log', 'add_header', 'default_type', 'error_log', 'error_page', 'if', 'listen', 'location', 'return', 'root', 'server', 'server_name', 'set'],
+        self::FORM_PHP => ['access_log', 'add_header', 'client_max_body_size', 'default_type', 'deny', 'error_log', 'error_page', 'fastcgi_index', 'fastcgi_param', 'fastcgi_pass', 'fastcgi_read_timeout', 'fastcgi_split_path_info', 'if', 'include', 'index', 'listen', 'location', 'log_not_found', 'return', 'root', 'server', 'server_name', 'set', 'try_files'],
+        self::FORM_STATIC => ['access_log', 'add_header', 'client_max_body_size', 'default_type', 'deny', 'error_log', 'error_page', 'if', 'include', 'index', 'listen', 'location', 'log_not_found', 'return', 'root', 'server', 'server_name', 'set', 'try_files'],
     ];
 
     /**
@@ -207,6 +213,19 @@ final class SiteTemplate
          */
         $challenge = HttpChallenge::nginxLocation();
 
+        /*
+         * **Die Wache steht in beiden Server-Blöcken und auf Serverebene.**
+         *
+         * Auf Serverebene, weil ein `if` in `location /` die verschachtelte
+         * PHP-`location` nicht abdeckt — gemessen (`docs/81 §2.3p` M25):
+         * statische Dateien 503, PHP weiter bedient. In beiden Blöcken, weil
+         * ohne Zertifikat der Port-80-Block der Inhaltsblock ist und mit
+         * Zertifikat der auf 443.
+         *
+         * Ihre Begründung Zeile für Zeile steht in {@see Maintenance}.
+         */
+        $wartung = Maintenance::nginxGuard($site->maintenanceUntil);
+
         $body = match (self::formOf($site)) {
             self::FORM_SUSPENDED => self::suspended(),
             self::FORM_REDIRECT => self::redirect($site),
@@ -216,7 +235,7 @@ final class SiteTemplate
         // Mit Zertifikat beantwortet Port 80 nur noch die Prüfung und leitet
         // weiter; der Inhalt steht dann im 443er Block.
         $plain = $tls === null ? $body : self::toHttps();
-        $secure = $tls === null ? '' : self::secure($site, $names, $tls, $body);
+        $secure = $tls === null ? '' : self::secure($site, $names, $tls, $body, $wartung);
 
         return <<<CONF
         {$header}
@@ -228,6 +247,8 @@ final class SiteTemplate
 
             access_log {$site->accessLog()};
             error_log  {$site->errorLog()};
+
+        {$wartung}
 
         {$challenge}
 
@@ -297,7 +318,7 @@ final class SiteTemplate
      *
      * @param  array{certificate: string, key: string}  $tls
      */
-    private static function secure(Site $site, string $names, array $tls, string $body): string
+    private static function secure(Site $site, string $names, array $tls, string $body, string $wartung): string
     {
         /*
          * **HSTS erst, wenn ein Browser dem Zertifikat trauen kann** — und
@@ -336,6 +357,8 @@ final class SiteTemplate
             ssl_protocols       TLSv1.2 TLSv1.3;
             ssl_prefer_server_ciphers off;
         {$strict}
+        {$wartung}
+
         {$body}
         }
 

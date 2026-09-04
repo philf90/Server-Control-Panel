@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use SrvPanel\Agent\Diagnose\Statements;
 use SrvPanel\Agent\Diagnose\Verdict;
+use SrvPanel\Agent\Maintenance;
 use SrvPanel\Agent\Ops\SystemDiagnose;
 use SrvPanel\Agent\PoolTemplate;
 use SrvPanel\Agent\SiteTemplate;
@@ -68,18 +69,38 @@ final class SiteFileIntegrityTest extends TestCase
      *
      * Der Prüfkörper ist derselbe wie M3 Fall 2 — ein Wächter, der auch dort
      * `access_log` meldete, meldete jede Nacht jede Domain, und das ist die
-     * Falle aus `docs/98 §4`. **Was die Messdatei trotzdem verliert, ist
-     * `return`:** Sie ist eine Datei der Messrunde und keine des Panels, und
-     * sie trägt den Standardschutz nicht, den jede Renderform hat. Dass das
-     * ihr einziger Verlust ist, gehört zur Behauptung — dass eine heile Datei
-     * des Panels gar nichts verliert, hält `PromiseReachTest` an jeder Form.
+     * Falle aus `docs/98 §4`. **Was die Messdatei trotzdem verliert, ist alles,
+     * was sie nie hatte:** Sie ist eine Datei der Messrunde und keine des
+     * Panels — sie trägt weder den Standardschutz (`return`) noch die Wache des
+     * Wartungsmodus (`set`, `if`, `error_page`, `add_header`, seit A12). Dass
+     * es **genau diese fünf** sind, gehört zur Behauptung; dass eine heile
+     * Datei des Panels gar nichts verliert, hält `PromiseReachTest` an jeder
+     * Form.
+     *
+     * **Die Messdatei selbst wird dabei nicht nachgezogen, und das ist die
+     * Regel dahinter.** `M3_FALL_2` ist eine am 2. September gemessene Ausgabe
+     * (`docs/81 §2.3o`) und kein Prüfkörper, den man pflegt. Wer sie ergänzt,
+     * damit ein Test grün wird, verändert einen Beleg.
+     *
+     * > **Eine gemessene Datei ist ein Beleg und keine Vorlage — wer sie an
+     * > eine neue Erwartung anpasst, hat die Messung verloren.**
      */
     public function test_the_same_file_with_its_semicolon_loses_only_what_it_never_had(): void
     {
         $heil = str_replace("index index.php index.html\n", "index index.php index.html;\n", self::M3_FALL_2);
 
         $this->assertNotSame(self::M3_FALL_2, $heil, 'Der Prüfkörper ist unverändert — die Gegenprobe misst nichts.');
-        $this->assertSame(['return fehlt als Anweisung'], Statements::lostInNginx($heil, SiteTemplate::PROMISED));
+
+        $verloren = Statements::lostInNginx($heil, SiteTemplate::PROMISED);
+        sort($verloren);
+
+        $this->assertSame([
+            'add_header fehlt als Anweisung',
+            'error_page fehlt als Anweisung',
+            'if fehlt als Anweisung',
+            'return fehlt als Anweisung',
+            'set fehlt als Anweisung',
+        ], $verloren);
     }
 
     /**
@@ -202,6 +223,13 @@ final class SiteFileIntegrityTest extends TestCase
             '    server_name beispiel.de;',
             '    access_log /var/log/a.log;',
             '    error_log /var/log/e.log;',
+
+            // **Die Wache kommt aus ihrer Quelle und wird nicht nachgebaut.**
+            // Seit A12 gehören ihre vier Anweisungen zu jeder Zusage; stünden
+            // sie hier abgeschrieben, prüfte dieser Prüfkörper die Abschrift.
+            // Weggelassen ist genau eine Anweisung, und das ist `fastcgi_pass`.
+            Maintenance::nginxGuard(null),
+
             '    location / { root /srv; default_type text/plain; return 404; }',
             '    index index.php;',
             '    client_max_body_size 64m;',

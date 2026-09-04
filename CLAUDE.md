@@ -1446,7 +1446,24 @@ Ausnahmeliste; **seit dem 31. August** trägt in einer `pairs`-Tabelle die
 **Zelle** ihre Kennung und nicht das, was in ihr steht — die Ausnahme
 `table.pairs td.right.ident` erreicht ein Kind nicht, und ein Objektschlüssel
 `:class="{ ident: … }"` zählt mit, weil eine Zelle einmal einen Satz und einmal
-eine Kennung zeigen darf). Der Bruch selbst steht als
+eine Kennung zeigen darf) und `DateInputTest` (jede Regel `date_format:X` unter
+`app/Http` hat ein `<input>`, dessen `type` das Format hergibt — und ein
+zusammengesetztes Format meldet er **mit dem Grund**, statt es zu dulden, denn
+`datetime-local` trägt ein `T` statt des Leerzeichens; die Untergrenze steht an
+**beiden** Ausdrücken, dem über die Steuerungen und dem über die Eingabefelder)
+und `MaintenanceSeamTest` (was das Panel als Endzeit hinausgibt, kommt am Agenten
+an — gemessen an der **Wirkung** durch `Site::fromArgs()`, also durch die Tür,
+und mit der Gegenrichtung, dass der **abgelegte** Wert dort nicht durchkommt;
+sie nennt die erwartete Meldung beim Namen, weil sie beim ersten Lauf an einer
+anderen Hürde grün war; **seit dem 4. September** misst sie auch die Zone —
+`Clock::labelAt()` und nicht `label()`, denn Berlin heisst im Januar anders als
+im Juli, und gemessen wird an einem festen Zeitpunkt statt an `now()`, sonst
+wäre die Prüfung ein halbes Jahr grün und ein halbes Jahr rot) und
+`MaintenanceRoundTripTest` (was der Betreiber eintippt, kommt in der
+eingestellten Zone zurück — gemessen mit einem **Versatz** und mit einer zweiten
+Zone daneben, weil eine Prüfzone ohne Versatz eine fehlende Umrechnung wie eine
+gelungene aussehen liesse; was er nicht kann — den Weg durch `POST`, der den
+Agenten braucht — steht in seinem Kopf als Frage). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -2198,6 +2215,57 @@ derselben Ursache: Sie standen in der Unit-Datei, die ich nicht gelesen hatte
 (`Type=oneshot` bei vieren, `RandomizedDelaySec=1h` bei einem).
 
 > **Wer eine Erwartung an eine Unit aufschreibt, liest vorher ihre Unit-Datei.**
+
+---
+
+## Zwei Befunde an einem Feld — 4. September 2026
+
+Gemeldet hat den ersten der Betreiber, beim ersten Versuch, den Wartungsmodus
+**auf dem Telefon** einzuschalten; den zweiten fand das Beheben des ersten. Das
+Protokoll ist `docs/102`.
+
+**Das Feld „Voraussichtlich bis" war dort nicht ausfüllbar** — ein Textfeld für
+`Y-m-d H:i` mit `inputmode="numeric"`, und die Zifferntastatur von iOS gibt
+weder Bindestrich noch Doppelpunkt noch Leerzeichen her.
+
+> **Ein Format, das kein Eingabetyp hergibt, ist auf dem Telefon nicht tippbar —
+> und `inputmode` gibt weniger Zeichen her, als das Format verlangt.**
+
+Auf `/audit` stand das richtige Paar seit P2 da. Die Vermeidung war nur nie die
+Regel geworden — derselbe Satz wie beim Menüpunkt, der dreimal zu tief lag.
+
+**Und die Endzeit kam beim Agenten überhaupt nicht an.**
+`Clock::minuteToUtc()` legt `Y-m-d H:i:s` ab, `Maintenance::UNTIL` verlangt
+`Y-m-d H:i`; hinaus ging der abgelegte Wert. Sobald eine Endzeit gesetzt war,
+wies der Agent **jedes** `web.site.apply` ab — jede Domain, jedes Mal. Und wäre
+er durchgekommen, stünde auf der Wartungsseite die UTC-Zeit unter dem Wort
+„Uhr".
+
+> **Ein Wert, der abgelegt ist, wird zu einer Auskunft erst durch die Umrechnung
+> — und die Stelle, an der niemand von uns hinsieht, ist die, an der sie
+> fehlt.**
+
+Beide Seiten waren geprüft — `MaintenanceGuardTest` mit einem selbst
+geschriebenen `'2026-09-04 16:00'`, `MaintenanceMode` gegen ein Doppel.
+
+> **Zwei Prüfungen, die je eine Seite einer Naht mit einem selbst geschriebenen
+> Wert füttern, prüfen die Naht nicht — sie prüfen zweimal denselben
+> Prüfkörper.**
+
+**Und die Zone steht seitdem neben der Zeit**, entschieden vom Betreiber: Ein
+Besucher einer Kundenwebsite kennt die Anzeigezeitzone nicht. Zwei Messungen
+haben den Entwurf getragen — die Abkürzung hat über alle Zeitzonen von PHP
+**drei** Formen (Buchstaben, `+03`, `+0530`), und sie gehört zum genannten
+Zeitpunkt und nicht zu „jetzt", weil Berlin im Januar `CET` heisst und im Juli
+`CEST`.
+
+> **Eine Form, die man an der eigenen Zone abliest, ist eine von dreien.**
+
+> **Eine Zonenangabe, die für „jetzt" gilt, gehört nicht neben einen Zeitpunkt,
+> der woanders liegt.**
+
+> **Eine Zeitangabe mit ihrer Zone bleibt wahr, auch wenn die Zone sich seither
+> geändert hat — eine ohne wird still falsch.**
 
 ---
 
@@ -3465,6 +3533,16 @@ Testen berücksichtigen:
   - Nach jeder Aufnahme `scrollWidth - clientWidth` messen. Ein waagerechter
     Überlauf bei 390px sieht auf dem Bild nach nichts aus und ist auf dem
     Telefon der ganze Unterschied.
+  - **Ein Datumsfeld zeigt die Sprache des Browsers und nicht die der Seite.**
+    Chromium schreibt in ein `type="date"` die Schreibweise seiner
+    **Oberflächensprache**; hier ist die englisch, und das Bild las `mm/dd/yyyy`
+    mit einem AM/PM-Feld. `locale: 'de-DE'` am Kontext ändert daran nichts (es
+    setzt `Accept-Language` und `navigator.language`) — es braucht
+    `args: ['--lang=de-DE']` beim Start. Dann steht dort `tt.mm.jjjj` und ein
+    24-Stunden-Feld, gemessen am 4. September 2026.
+
+    > **Ein Bild, das in der Sprache des Prüfstands aufgenommen wurde, sagt über
+    > die Anzeige auf dem Gerät des Lesers nichts.**
   - **Kein `| head` über dem Messlauf.** `head` schliesst die Leitung nach der
     ersten Zeile, node stirbt am SIGPIPE — und die Aufnahmen der übrigen drei
     Lagen sind dann die des **vorigen** Laufs. Am 23. August genau so passiert:

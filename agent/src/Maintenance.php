@@ -76,6 +76,26 @@ final class Maintenance
     public const UNTIL = '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/D';
 
     /**
+     * Die Form, in der die Zone dieser Endzeit ankommen darf.
+     *
+     * **Gemessen und nicht abgelesen.** Über alle Zeitzonen von PHP, in beiden
+     * Hälften des Jahres, hat die Abkürzung drei Formen: Buchstaben (`GMT`,
+     * `CEST`, `EEST`, höchstens fünf), einen kurzen Versatz (`+03`, `-11`) und
+     * einen langen (`+0530`). Wer sie an der eigenen Zone abliest, kennt eine
+     * von dreien und weist die anderen beiden ab.
+     *
+     * Dazu die Sonderform `UTC` ohne Klammer: Die Beschriftung des Panels
+     * (`App\Support\Time\Clock::label()`, hier bewusst ohne `@see` — der
+     * Agent bindet nichts aus der Anwendung ein, und Pint machte aus einer
+     * Marke einen `use`-Eintrag) lässt den Zusatz dort weg, weil
+     * `UTC (UTC+00:00)` sich selbst erklärt.
+     *
+     * Dieselbe Grenze wie bei {@see self::UNTIL}: Der Wert landet als Text *in*
+     * einer nginx-Zeichenkette.
+     */
+    public const ZONE = '/^(?:UTC|(?:[A-Za-z]{1,5}|[+-]\d{2}(?:\d{2})?) \(UTC[+-]\d{2}:\d{2}\))$/D';
+
+    /**
      * Die geprüfte Endzeit — oder `null`, wenn keine mitkam.
      *
      * Eine Angabe, die die Form nicht hält, ist ein Programmierfehler des
@@ -99,6 +119,30 @@ final class Maintenance
     }
 
     /**
+     * Die geprüfte Zone dieser Endzeit — oder `null`, wenn keine mitkam.
+     *
+     * **Fehlt sie, entfällt der Zusatz und nichts weiter.** Eine Endzeit ohne
+     * Zone ist der Zustand vor dem 4. September 2026 und bleibt lesbar; eine
+     * Zone, die die Form nicht hält, ist ein Programmierfehler des Panels und
+     * wird abgewiesen — dieselbe Richtung wie bei {@see self::until()}.
+     */
+    public static function zone(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (! is_string($value) || preg_match(self::ZONE, $value) !== 1) {
+            throw AgentException::badRequest(
+                'Die Zeitzone der Endzeit muss die Form „CEST (UTC+02:00)" haben.',
+                ['maintenance_zone' => is_scalar($value) ? (string) $value : gettype($value)],
+            );
+        }
+
+        return $value;
+    }
+
+    /**
      * Die Wache für einen Server-Block, samt ihrer benannten Fehler-location.
      *
      * **Die Ausnahme kommt aus {@see HttpChallenge::PREFIX} und wird nicht
@@ -106,11 +150,11 @@ final class Maintenance
      * auseinander — und die zweite ist die, die veraltet. `preg_quote` macht
      * daraus einen Ausdruck; nginx spricht PCRE, die Ausgabe passt also.
      */
-    public static function nginxGuard(?string $until): string
+    public static function nginxGuard(?string $until, ?string $zone): string
     {
         $flag = self::FLAG;
         $prefix = preg_quote(HttpChallenge::PREFIX);
-        $page = self::page($until);
+        $page = self::page($until, $zone);
 
         return <<<CONF
             # **Wartungsmodus.** Liegt die Datei, antwortet diese Domain mit 503
@@ -143,14 +187,17 @@ final class Maintenance
      * sich an den Betreiber" — das ist die Sperrseite, und die verlangt vom
      * Leser etwas. Bei einer Wartung gibt es für ihn nichts zu tun.
      */
-    private static function page(?string $until): string
+    private static function page(?string $until, ?string $zone): string
     {
-        $satz = $until === null
+        // „2026-09-04 16:00 Uhr CEST (UTC+02:00)" — ohne Zone endet es nach „Uhr".
+        $zeitpunkt = $until === null ? null : rtrim($until.' Uhr '.($zone ?? ''));
+
+        $satz = $zeitpunkt === null
             ? 'Diese Website ist wegen Wartungsarbeiten vorübergehend nicht erreichbar.'
             : sprintf(
                 'Diese Website ist wegen Wartungsarbeiten vorübergehend nicht erreichbar. '.
-                'Voraussichtlich ab %s Uhr wieder erreichbar.',
-                $until,
+                'Voraussichtlich ab %s wieder erreichbar.',
+                $zeitpunkt,
             );
 
         return '<!doctype html><html lang=de><head><meta charset=utf-8>'.

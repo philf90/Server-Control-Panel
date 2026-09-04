@@ -23916,9 +23916,9 @@ vorher_datei agent/src/SiteTemplate.php
 python3 - <<'PY2'
 p = 'agent/src/SiteTemplate.php'
 s = open(p, encoding='utf-8').read()
-alt = "$wartung = Maintenance::nginxGuard($site->maintenanceUntil);"
+alt = "$wartung = Maintenance::nginxGuard($site->maintenanceUntil, $site->maintenanceZone);"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, "$wartung = Maintenance::nginxGuard(null);", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$wartung = Maintenance::nginxGuard(null, null);", 1))
 PY2
 griff_datei agent/src/SiteTemplate.php "die Endzeit kommt im Block nicht an" &&
 pruefe "die Endzeit kommt im Block nicht an" \
@@ -24003,6 +24003,181 @@ pruefe "die Vorgabe weicht vom Pfad der Wache ab" \
   MaintenanceSwitchTest::test_the_default_is_the_path_the_guard_names failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceSwitchTest passed
+
+echo
+echo "== DateInputTest: das Datumsfeld wird wieder ein Textfeld =="
+#
+# Der gemeldete Fehler selbst: Ein `type="text"` fuer eine Form, die
+# Bindestriche braucht. Auf dem Telefon ist das Feld damit nicht ausfuellbar.
+vorher_datei resources/js/Pages/Maintenance/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Maintenance/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'v-model="form.until_date"\n            type="date"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'v-model="form.until_date"\n            type="text"', 1))
+PY2
+griff_datei resources/js/Pages/Maintenance/Index.vue "das Datumsfeld wird wieder ein Textfeld" &&
+pruefe "das Datumsfeld wird wieder ein Textfeld" \
+  DateInputTest::test_every_date_format_rule_has_an_input_that_can_produce_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DateInputTest passed
+
+echo
+echo "== DateInputTest: ein Feld verlangt Datum und Uhrzeit zugleich =="
+#
+# Die Form, die kein Eingabetyp hergibt — `datetime-local` traegt ein `T` statt
+# des Leerzeichens. Sie gehoert auf zwei Felder.
+vorher_datei app/Http/Controllers/MaintenanceController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/MaintenanceController.php'
+s = open(p, encoding='utf-8').read()
+alt = "'until_date' => ['nullable', 'required_with:until_time', 'date_format:Y-m-d'],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'until_date' => ['nullable', 'date_format:Y-m-d H:i'],", 1))
+PY2
+griff_datei app/Http/Controllers/MaintenanceController.php "ein Feld verlangt Datum und Uhrzeit zugleich" &&
+pruefe "ein Feld verlangt Datum und Uhrzeit zugleich" \
+  DateInputTest::test_no_field_asks_for_a_date_and_a_time_at_once failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DateInputTest passed
+
+echo
+echo "== DateInputTest: der Ausdruck ueber die Eingabefelder laeuft ins Leere =="
+#
+# Die Untergrenze. Ohne sie waeren beide Pruefungen darueber gruen, ohne etwas
+# gemessen zu haben — eine Null, neben der nichts anderes als Null steht.
+vorher_datei tests/Unit/DateInputTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/DateInputTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "'/<input\\b[^>]*>/'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'/<eingabefeld\\b[^>]*>/'", 1))
+PY2
+griff_datei tests/Unit/DateInputTest.php "der Ausdruck ueber die Eingabefelder laeuft ins Leere" &&
+pruefe "der Ausdruck ueber die Eingabefelder laeuft ins Leere" \
+  DateInputTest::test_both_expressions_find_the_known_fields failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DateInputTest passed
+
+echo
+echo "== MaintenanceSeamTest: hinaus geht wieder der abgelegte Wert =="
+#
+# Der zweite Befund vom 4. September: Abgelegt ist UTC mit Sekunden, der Agent
+# nimmt `Y-m-d H:i` ohne. Der abgelegte Wert kommt dort nicht durch — und waere
+# er durchgekommen, stuende auf der Wartungsseite die falsche Stunde.
+vorher_datei app/Support/Web/WebLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Web/WebLifecycle.php'
+s = open(p, encoding='utf-8').read()
+alt = "'maintenance_until' => Clock::minute($this->settings->maintenance()['until']),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'maintenance_until' => $this->settings->maintenance()['until'],", 1))
+PY2
+griff_datei app/Support/Web/WebLifecycle.php "hinaus geht wieder der abgelegte Wert" &&
+pruefe "hinaus geht wieder der abgelegte Wert" \
+  MaintenanceSeamTest::test_the_local_time_goes_out_and_not_the_stored_one failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceSeamTest passed
+
+echo
+echo "== ClockTest: die Beschriftung kommt von jetzt statt vom Zeitpunkt =="
+#
+# Die Sommerzeit. Dieselbe Zone heisst im Januar anders als im Juli; mit `now()`
+# geben beide gemessenen Zeitpunkte denselben Wert, und einer der beiden ist
+# immer falsch — gleich, wann der Lauf faehrt.
+vorher_datei app/Support/Time/Clock.php
+python3 - <<'PY2'
+p = 'app/Support/Time/Clock.php'
+s = open(p, encoding='utf-8').read()
+alt = "return self::describe(CarbonImmutable::parse($utc, 'UTC')->setTimezone(self::zone()));"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "return self::describe(CarbonImmutable::now(self::zone()));", 1))
+PY2
+griff_datei app/Support/Time/Clock.php "die Beschriftung kommt von jetzt statt vom Zeitpunkt" &&
+pruefe "die Beschriftung kommt von jetzt statt vom Zeitpunkt" \
+  ClockTest::test_the_label_belongs_to_the_moment_and_not_to_now failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ClockTest passed
+
+echo
+echo "== MaintenanceSeamTest: die Zone gehoert zu einem anderen Zeitpunkt =="
+#
+# Ein fester Sommer-Zeitpunkt statt der Endzeit: Eine Endzeit im Januar bekaeme
+# damit die Abkuerzung des Sommers. Ein Bruch auf `label()` waere saisonal — er
+# biesse nur im Sommer.
+vorher_datei app/Support/Web/WebLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Web/WebLifecycle.php'
+s = open(p, encoding='utf-8').read()
+alt = "'maintenance_zone' => Clock::labelAt($this->settings->maintenance()['until']),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'maintenance_zone' => Clock::labelAt('2026-07-15 12:00:00'),", 1))
+PY2
+griff_datei app/Support/Web/WebLifecycle.php "die Zone gehoert zu einem anderen Zeitpunkt" &&
+pruefe "die Zone gehoert zu einem anderen Zeitpunkt" \
+  MaintenanceSeamTest::test_the_zone_belongs_to_the_end_time_and_not_to_the_run failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceSeamTest passed
+
+echo
+echo "== MaintenanceGuardTest: der Ausdruck kennt nur die eigene Zeitzone =="
+#
+# Nur Buchstaben: Colombo (+0530) und Kathmandu (+0545) waeren damit abgewiesen,
+# und der Betreiber laese eine Meldung ueber einen Programmierfehler, wo er nur
+# eine Zeitzone eingestellt hat.
+vorher_datei agent/src/Maintenance.php
+python3 - <<'PY2'
+p = 'agent/src/Maintenance.php'
+s = open(p, encoding='utf-8').read()
+alt = "(?:[A-Za-z]{1,5}|[+-]\\d{2}(?:\\d{2})?)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "[A-Za-z]{1,5}", 1))
+PY2
+griff_datei agent/src/Maintenance.php "der Ausdruck kennt nur die eigene Zeitzone" &&
+pruefe "der Ausdruck kennt nur die eigene Zeitzone" \
+  MaintenanceGuardTest::test_every_measured_shape_of_a_zone_is_accepted failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
+
+echo
+echo "== MaintenanceGuardTest: die Zone wird ungeprueft durchgereicht =="
+#
+# Sie landet als Text *in* einer nginx-Zeichenkette. Ein Apostroph darin beendet
+# sie, und aus einer Auskunft wird eine Anweisung.
+vorher_datei agent/src/Maintenance.php
+python3 - <<'PY2'
+p = 'agent/src/Maintenance.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (! is_string($value) || preg_match(self::ZONE, $value) !== 1) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        if (! is_string($value)) {", 1))
+PY2
+griff_datei agent/src/Maintenance.php "die Zone wird ungeprueft durchgereicht" &&
+pruefe "die Zone wird ungeprueft durchgereicht" \
+  MaintenanceGuardTest::test_a_zone_that_is_not_a_zone_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
+
+echo
+echo "== MaintenanceRoundTripTest: die Seite zeigt den abgelegten Wert =="
+#
+# Ohne die Drehung stuende auf der Seite die UTC-Zeit — der Betreiber tippt
+# 16:00 ein und liest danach 14:00.
+vorher_datei app/Http/Controllers/MaintenanceController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/MaintenanceController.php'
+s = open(p, encoding='utf-8').read()
+alt = "$lokal = Clock::minute($stand['until']);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$lokal = $stand['until'];", 1))
+PY2
+griff_datei app/Http/Controllers/MaintenanceController.php "die Seite zeigt den abgelegten Wert" &&
+pruefe "die Seite zeigt den abgelegten Wert" \
+  MaintenanceRoundTripTest::test_what_was_typed_comes_back_in_the_display_zone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceRoundTripTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

@@ -224,7 +224,7 @@ final class SiteTemplate
          *
          * Ihre Begründung Zeile für Zeile steht in {@see Maintenance}.
          */
-        $wartung = Maintenance::nginxGuard($site->maintenanceUntil);
+        $wartung = Maintenance::nginxGuard($site->maintenanceUntil, $site->maintenanceZone);
 
         $body = match (self::formOf($site)) {
             self::FORM_SUSPENDED => self::suspended(),

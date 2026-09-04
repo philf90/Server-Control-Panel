@@ -162,8 +162,19 @@ kann.
 Ein Bereich auf der Serverseite, unter `can:operate-server`:
 
 - ein Schalter, an/aus
-- ein Feld **„voraussichtlich bis"**, leer erlaubt, in der Anzeigezeitzone
-  eingegeben und als UTC abgelegt — über `Clock` und nicht daran vorbei
+- **zwei** Felder für „voraussichtlich bis" — `type="date"` und `type="time"`,
+  beide leer erlaubt oder beide gefüllt, in der Anzeigezeitzone eingegeben und
+  als UTC abgelegt — über `Clock` und nicht daran vorbei
+
+  > **Ein Format, das kein Eingabetyp hergibt, ist auf dem Telefon nicht
+  > tippbar.** Der erste Wurf war **ein** Textfeld für `Y-m-d H:i` mit
+  > `inputmode="numeric"`; die Zifferntastatur von iOS kennt weder Bindestrich
+  > noch Doppelpunkt noch Leerzeichen, und das Feld war dort nicht ausfüllbar.
+  > Gemeldet hat es der Betreiber am 4. September 2026, `docs/102 §2`.
+- der Satz auf der Wartungsseite nennt die Zone mit: „ab 2026-09-04 16:00 Uhr
+  CEST (UTC+02:00)". Ein Besucher kennt die Anzeigezeitzone des Betreibers
+  nicht — und eine Zeitangabe mit ihrer Zone bleibt wahr, auch wenn die Zone
+  sich seither geändert hat
 - solange er an ist, ein Streifen auf **jeder** Seite des Betreibers und des
   Administrators: „Der Wartungsmodus ist eingeschaltet."
 

@@ -228,7 +228,7 @@ final class SiteFileIntegrityTest extends TestCase
             // Seit A12 gehören ihre vier Anweisungen zu jeder Zusage; stünden
             // sie hier abgeschrieben, prüfte dieser Prüfkörper die Abschrift.
             // Weggelassen ist genau eine Anweisung, und das ist `fastcgi_pass`.
-            Maintenance::nginxGuard(null),
+            Maintenance::nginxGuard(null, null),
 
             '    location / { root /srv; default_type text/plain; return 404; }',
             '    index index.php;',

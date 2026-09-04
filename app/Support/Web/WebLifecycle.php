@@ -20,6 +20,7 @@ use App\Support\Operations\Lifecycles;
 use App\Support\Settings\Settings;
 use App\Support\Subscriptions\Lifecycle;
 use App\Support\Tenancy\Tenancy;
+use App\Support\Time\Clock;
 use App\Support\Tls\AcmeSettings;
 use App\Support\Tls\CertificateChoice;
 use SrvPanel\Agent\AgentException;
@@ -109,11 +110,42 @@ final class WebLifecycle implements AfterOperation
              * ein Wahrheitswert, müsste jedes Umschalten alle Blöcke neu
              * schreiben — und genau das soll A12 nicht.
              *
-             * Der Wert geht als `Y-m-d H:i` hinaus, geprüft vom Agenten gegen
-             * {@see \SrvPanel\Agent\Maintenance::UNTIL}: Er landet als Text
-             * *in* einer nginx-Zeichenkette.
+             * **Hinaus geht die Anzeige und nicht die Ablage** — und bis zum
+             * 4. September 2026 stand hier das Gegenteil.
+             *
+             * Abgelegt ist UTC mit Sekunden (`Clock::minuteToUtc()`); der Agent
+             * prüft gegen {@see \SrvPanel\Agent\Maintenance::UNTIL}, und das
+             * ist `Y-m-d H:i` **ohne** Sekunden. Der abgelegte Wert kam dort
+             * also gar nicht durch: Sobald eine Endzeit gesetzt war, wies der
+             * Agent jedes `web.site.apply` ab — jede Domain, jedes Mal.
+             *
+             * Und wäre er durchgekommen, stünde auf der Wartungsseite die
+             * UTC-Zeit unter dem Wort „Uhr" — zwei Stunden vor der, die der
+             * Betreiber eingetippt hat.
+             *
+             * > **Ein Wert, der abgelegt ist, wird zu einer Auskunft erst durch
+             * > die Umrechnung — und die Stelle, an der niemand von uns
+             * > hinsieht, ist die, an der sie fehlt.**
+             *
+             * Zwei Fehler an derselben Naht, und beide behebt dieselbe Zeile:
+             * {@see Clock::minute()} liefert Ortszeit **in** der Form, die der
+             * Agent annimmt. Gehalten von
+             * {@see \Tests\Feature\MaintenanceSeamTest}, gemessen an der
+             * Wirkung und nicht am Quelltext.
              */
-            'maintenance_until' => $this->settings->maintenance()['until'],
+            'maintenance_until' => Clock::minute($this->settings->maintenance()['until']),
+
+            /*
+             * **Die Zone gehört zur Zeit und nicht zu „jetzt".** Sie kommt
+             * deshalb aus {@see Clock::labelAt()} und nicht aus `label()`:
+             * Berlin heisst im Juli `CEST (UTC+02:00)` und im Januar `CET
+             * (UTC+01:00)`, und eine Endzeit im Winter, im Sommer gesetzt,
+             * bekäme sonst die Abkürzung des Sommers.
+             *
+             * Beide Felder hängen an demselben abgelegten Wert: Ohne Endzeit
+             * ist auch die Zone `null`, und der Satz endet nach dem Grund.
+             */
+            'maintenance_zone' => Clock::labelAt($this->settings->maintenance()['until']),
 
             // **Eine Erlaubnis, keine Anweisung.** Ob HSTS gewollt ist, weiss
             // nur das Panel — es kennt den Testbetrieb, dessen Wurzel kein

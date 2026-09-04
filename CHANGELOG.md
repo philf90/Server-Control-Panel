@@ -25278,3 +25278,114 @@ dieselbe Sache lesen sich wie zwei Sachen. Jetzt einer.
 
 > **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
 > Keines von beiden ersetzt das andere.**
+
+### A12 — zwei Befunde am selben Feld, und keinen davon hat ein Test gefunden
+
+Gemeldet hat den ersten der Betreiber, beim ersten Versuch, den Wartungsmodus
+**auf dem Telefon** einzuschalten. Der zweite fiel beim Beheben des ersten auf.
+Das Protokoll ist `docs/102`.
+
+**Das Feld „Voraussichtlich bis" war auf dem Telefon nicht ausfüllbar.** Es war
+ein Textfeld für die Form `Y-m-d H:i` mit `inputmode="numeric"`, und die
+Zifferntastatur von iOS gibt weder Bindestrich noch Doppelpunkt noch Leerzeichen
+her. Auf dem Bildschirmfoto steht `20260904` — nicht umständlich, sondern gar
+nicht zu füllen.
+
+> **Ein Format, das kein Eingabetyp hergibt, ist auf dem Telefon nicht tippbar —
+> und `inputmode` gibt weniger Zeichen her, als das Format verlangt.**
+
+Auf `/audit` stand das richtige Paar seit P2 da: `date_format:Y-m-d` neben einem
+`type="date"`. Die Vermeidung war nur nie die Regel geworden — derselbe Satz wie
+beim Menüpunkt, der dreimal zu tief lag.
+
+Gebaut sind jetzt **zwei** Felder, `type="date"` und `type="time"`, mit je einer
+eigenen Regel und `required_with` in beide Richtungen; zusammengesetzt wird in
+der Steuerung und nicht in der Seite. Ein dritter Typ kommt nicht in Frage, und
+das ist keine Meinung: `datetime-local` trägt zwischen Datum und Uhrzeit ein `T`
+statt des Leerzeichens. `DateInputTest` hält die Regel für jede Regel
+`date_format:X` unter `app/Http` und meldet ein zusammengesetztes Format mit dem
+Grund, statt es zu dulden.
+
+**Und die Endzeit kam beim Agenten überhaupt nicht an.** `Clock::minuteToUtc()`
+legt `Y-m-d H:i:s` ab — mit Sekunden, denn ein abgelegter Zeitpunkt ist ein
+Zeitpunkt. `Maintenance::UNTIL` verlangt `Y-m-d H:i` — ohne, denn es ist ein
+Satz auf einer Seite. Hinaus ging der **abgelegte** Wert: Sobald eine Endzeit
+gesetzt war, wies der Agent jedes `web.site.apply` ab, für jede Domain. Und wäre
+er durchgekommen, stünde auf der Wartungsseite die UTC-Zeit unter dem Wort
+„Uhr".
+
+> **Ein Wert, der abgelegt ist, wird zu einer Auskunft erst durch die Umrechnung
+> — und die Stelle, an der niemand von uns hinsieht, ist die, an der sie
+> fehlt.**
+
+Beide Fehler behebt dieselbe Zeile: `Clock::minute()` in
+`WebLifecycle::payload()` liefert Ortszeit **in** der Form, die der Agent
+annimmt.
+
+**Warum nichts das gemeldet hat.** `MaintenanceGuardTest` füttert
+`Maintenance::until()` mit einem selbst geschriebenen `'2026-09-04 16:00'`, die
+Prüfungen um `MaintenanceMode` sprechen mit einem Doppel. Beide Seiten waren
+geprüft; geprüft war nie, dass die eine der anderen etwas gibt, das sie annimmt.
+
+> **Zwei Prüfungen, die je eine Seite einer Naht mit einem selbst geschriebenen
+> Wert füttern, prüfen die Naht nicht — sie prüfen zweimal denselben
+> Prüfkörper.**
+
+`MaintenanceSeamTest` misst deshalb an der **Wirkung**: Der Wert geht durch
+`Site::fromArgs()`, also durch die Tür, an der er auf dem Server ankommt, und
+die Gegenrichtung belegt, dass der abgelegte Wert dort nicht durchkommt. **Beim
+ersten Lauf war diese Gegenrichtung keine** — sie war grün, weil `fromArgs`
+zwei Zeilen früher an einem fehlenden `system_user` flog. Sie nennt die Meldung
+seitdem beim Namen.
+
+**Und die Bilderrunde hat eine Falle des Messmittels gezeigt.** Chromium
+schreibt in ein `type="date"` die Schreibweise **seiner Oberflächensprache**:
+Das erste Bild las `mm/dd/yyyy` und ein AM/PM-Feld. `locale: 'de-DE'` am Kontext
+ändert daran nichts — erst `--lang=de-DE` beim Start zeigt, was ein deutsches
+Gerät zeigt, nämlich `tt.mm.jjjj` und 24 Stunden.
+
+> **Ein Bild, das in der Sprache des Prüfstands aufgenommen wurde, sagt über die
+> Anzeige auf dem Gerät des Lesers nichts.**
+
+### Die Wartungsseite nennt jetzt die Zone — und zwei Messungen, die den Entwurf getragen haben
+
+Entschieden vom Betreiber am 4. September 2026: Der Satz lautet „Voraussichtlich
+ab 2026-09-04 16:00 Uhr **CEST (UTC+02:00)** wieder erreichbar." Ein Besucher
+einer Kundenwebsite kennt die Anzeigezeitzone des Betreibers nicht — und sie
+macht den Satz haltbar:
+
+> **Eine Zeitangabe mit ihrer Zone bleibt wahr, auch wenn die Zone sich seither
+> geändert hat — eine ohne wird still falsch.**
+
+**Die Zone gehört zum Zeitpunkt und nicht zu „jetzt".** Berlin heisst im Juli
+`CEST (UTC+02:00)` und im Januar `CET (UTC+01:00)`; `Clock::label()` beschriftet
+den Augenblick des Schreibens, und eine Endzeit im Winter, im Sommer gesetzt,
+bekäme damit die Abkürzung des Sommers. Dafür gibt es `Clock::labelAt()` — beide
+Wege gehen durch **eine** Formatierung, sonst liefe die zweite auseinander.
+
+> **Eine Zonenangabe, die für „jetzt" gilt, gehört nicht neben einen Zeitpunkt,
+> der woanders liegt.**
+
+**Und die Form der Abkürzung ist gemessen und nicht abgelesen.** Über alle
+Zeitzonen von PHP, in beiden Hälften des Jahres, hat sie drei Formen: Buchstaben
+(höchstens fünf), einen kurzen Versatz (`+03`) und einen langen (`+0530`). Ein
+Ausdruck nur für `CEST (UTC+02:00)` wiese Colombo und Kathmandu ab — und der
+Betreiber läse eine Meldung über einen Programmierfehler, wo er nur eine
+Zeitzone eingestellt hat.
+
+> **Eine Form, die man an der eigenen Zone abliest, ist eine von dreien.**
+
+Geprüft wird sie im Agenten gegen `Maintenance::ZONE`, aus demselben Grund wie
+die Endzeit: Der Wert landet als Text *in* einer nginx-Zeichenkette.
+
+**`MaintenanceRoundTripTest` hält, was der Betreiber verlangt hat:** Was
+eingetippt wird, kommt in der eingestellten Zone zurück — gemessen mit einem
+Versatz und mit einer zweiten Zone daneben, in der dieselbe Ablage `10:00 · EDT
+(UTC-04:00)` heisst. Eine Prüfzone ohne Versatz liesse eine fehlende Umrechnung
+wie eine gelungene aussehen.
+
+**Zwei bestehende Wächter haben beim Bauen zugebissen**, beide an dokumentierten
+Fallen: Pint machte aus einem `{@see \App\Support\Time\Clock}` im Dokumentblock
+des Agenten einen `use`-Eintrag (`AgentIndependenceTest`), und der Eingriff auf
+`Maintenance::nginxGuard()` fand seinen Text nicht mehr, weil der Aufruf ein
+zweites Argument bekommen hat (`BreakScriptTest`).

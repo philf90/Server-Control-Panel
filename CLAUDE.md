@@ -1878,6 +1878,46 @@ Lauf desselben Griffs: 135 ms — die erste Zahl war der kalte Zwischenspeicher)
 > **Eine Messung, die man nur einmal fährt, misst den Zwischenspeicher mit — und
 > ob sie ihn kalt oder warm erwischt, sagt sie nicht.**
 
+Und **`101` der Plan von A12** — der Wartungsmodus, geschrieben am 4. September
+2026 **nach** der Messrunde (`docs/81 §2.3p`): §2 die fünf Entscheidungen des
+Betreibers, §3 die gemessene Form der Wache, §5 was die Bestandsdiagnose dazu
+prüft, §7 acht Abnahmepunkte (3 und 4 dürfen nicht ausfallen), §9 was A12
+ausdrücklich nicht wird.
+
+**Die Messrunde hat den Entwurf umgeworfen, und zwar dreimal.** Ein `if` auf
+Serverebene nimmt die ACME-Prüfadresse mit (M24) — während einer Wartung stürbe
+jede Zertifikatserneuerung. Ein `if` in `location /` deckt die **verschachtelte**
+PHP-`location` nicht ab (M25): statische Dateien 503, PHP weiter bedient. Und
+`add_header` ist in einem `if` auf Serverebene nicht erlaubt (M27).
+
+> **Ein Prüfer, der beide Fassungen für gültig hält, sagt über die Wirkung
+> nichts — und die kaputte ist die, die man zuerst schreibt.** Beide kaputten
+> Varianten bestehen `nginx -t` mit `rc=0` (M26).
+
+Getragen hat erst eine Ausnahme für die Prüfadresse plus eine benannte
+Fehler-location (M28), gemessen mit `Retry-After: 3600` beim Klienten und mit
+der Gegenprobe, dass ein **echter** 503 der Anwendung unverändert durchgeht.
+**Damit entfällt der Rundlauf über alle Vhost-Dateien:** Geschaltet wird eine
+Flagdatei, nicht neun Blöcke — und die Wache steht dafür dauerhaft in jedem
+Kundenblock, was `PROMISED_BY_FORM` aus A10 zu einem Befund statt einer stillen
+Lücke macht.
+
+**Die Automatik ist gestrichen, und zwar vom Betreiber.** Ein nginx-Block kennt
+die Uhr nicht; ein Fenster mit Wirkung bräuchte einen Zeitgeber an beiden
+Rändern, und fiele der aus, bliebe jede Kundenwebsite unbegrenzt auf 503.
+Geblieben ist die Zeitangabe als **„voraussichtlich bis"** — ohne Wirkung, und
+die Bestandsdiagnose meldet ein überschrittenes Ende.
+
+> **Ein Fenster, dessen Ende ein Zeitgeber herstellt, endet nicht, wenn der
+> Zeitgeber ausfällt — und der Ausfall sieht aus wie ein laufendes Fenster.**
+
+**A14 ist am 4. September entstanden und verortet** — Ankündigungen im Panel als
+farbiger Banner ganz oben, Kategorien Info · Warnung · Störung, mehrere
+gleichzeitig; P7b hinter A12 (`docs/81 §11`). Getrennt von A12 nach demselben
+Kriterium, das A12 aus A10 gelöst hat: A12 schreibt neun Vhost-Dateien, eine
+Ankündigung ist Text in einer Tabelle. Ihr Sichtbarkeitsfenster ist dabei
+gefahrlos, weil es ein Filter beim Lesen ist und kein Zeitgeber.
+
 **A13 ist am 4. September als Vorschlag verortet** (`docs/81 §11`): P9b,
 zusammen mit A3s zweitem Wurf und A4 — **entschieden ist es nicht.** „Reitet
 nicht mit" war eine Antwort auf die Frage, ob A13 zu A10 gehört, und keine

@@ -25078,3 +25078,59 @@ Dasselbe Update hat nebenbei zwei ältere Befunde ein weiteres Mal gegengeprüft
 `Paketlisten aufgefrischt; jede Quelle hat geantwortet` ist M5, und dass
 `srvpanel update` den Neustart des Panels überlebt und am Ende das Urteil seines
 Laufs nennt (`rc=0`, `Fassung 0.7.3~rc.14 wurde zu 0.7.3~rc.15`), ist M1.
+
+### Die Messrunde vor A12 — und drei Entwürfe, die sie umgeworfen hat
+
+Gefahren am 4. September 2026 gegen nginx 1.24.0, bevor eine Zeile A12 entsteht.
+Der Prüfkörper ist die **echte** Vorlage, über `SiteTemplate::render()` aus dem
+Agenten-Autoloader gerendert und nicht von Hand geschrieben; zwei erzwungene
+Änderungen daran sind benannt und betreffen Adressfamilie und Port.
+
+Anlass war die Entscheidung des Betreibers, die **Automatik zu streichen**: Ohne
+Fensterautomatik ist der Wartungsmodus nur noch einmal an und einmal aus — und
+dafür lohnt der Blick, ob es den Rundlauf über alle Vhost-Dateien braucht oder
+ob eine Flagdatei genügt, die nginx selbst prüft.
+
+**M24 — ein `if` auf Serverebene nimmt die ACME-Prüfadresse mit.** Es läuft in
+der Rewrite-Phase, also vor der Auswahl der `location`; die eigene `location ^~`
+der Prüfadresse kommt gar nicht zum Zug. Während einer Wartung stürbe jede
+Zertifikatserneuerung — dieselbe Annahme, die `docs/32` schon einmal falsch
+getroffen hat.
+
+**M25 — ein `if` in `location /` deckt PHP nicht ab.** `location ~ \.php$` steht
+**innerhalb** von `location /`, und ein `if` der äusseren gilt für die innere
+nicht. Gemessen: statische Datei 503, `.php` durchgereicht. Der auffällige Fall
+war richtig und der stille nicht.
+
+**M26 — und `nginx -t` unterscheidet die beiden nicht.** Beide kaputten
+Fassungen geben `rc=0`.
+
+> **Ein Prüfer, der beide Fassungen für gültig hält, sagt über die Wirkung
+> nichts — und die kaputte ist die, die man zuerst schreibt.**
+
+**M27/M28 — getragen hat erst eine Ausnahme plus eine benannte
+Fehler-location.** `add_header` ist in einem `if` auf Serverebene nicht erlaubt
+(`rc=1`); mit `error_page 503 @wartung` kommt `Retry-After: 3600` beim Klienten
+an, `.php` und `/` geben 503 und die Prüfadresse 200. Die Gegenprobe, die diese
+Form trägt: Ein **echter** 503 der Anwendung geht bei ausgeschalteter Wartung
+unverändert durch — `return` mit Rumpf umgeht `error_page`, und
+`fastcgi_intercept_errors` steht per Vorgabe aus.
+
+**Damit entfällt eine ganze Frage des Entwurfs:** Geschaltet wird **eine** Datei
+und nicht neun Blöcke — keine Warteschlange, keine halb umgestellten Domains.
+Der Preis ist die Wache dauerhaft in jedem Kundenblock, und das ist genau der
+Fall, für den A10s Zusage je Form gebaut ist: Eine Domain ohne Wache wird ein
+Befund statt einer stillen Lücke.
+
+**Zwei Fehler am Messmittel, beide von der Gegenprobe gefangen.** `include
+fastcgi_params` löst relativ zum Verzeichnis der Konfigurationsdatei auf und
+nicht gegen `-p` — nginx kam nicht hoch, alle Werte standen auf `000`, „ohne"
+gleich „mit". Und `nginx -t … | tail -1` liest den Rückgabewert von `tail`.
+
+> **Ein Rückgabewert am Ende einer Pipeline gehört dem letzten Glied.**
+
+`docs/101` ist der Plan, der daraus entstanden ist. `docs/81 §11` hat dabei
+**A14** bekommen — Ankündigungen im Panel als farbiger Banner, Kategorien
+Info · Warnung · Störung, mehrere gleichzeitig —, getrennt von A12 nach
+demselben Kriterium, das A12 aus A10 gelöst hat: A12 schreibt Vhost-Dateien,
+eine Ankündigung ist Text in einer Tabelle.

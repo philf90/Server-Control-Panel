@@ -1832,6 +1832,92 @@ daran in der CI rot und hier grün.
 
 ---
 
+### 2.3p Die Messrunde vor A12 (4. September 2026)
+
+Gefahren, bevor eine Zeile entsteht, und sie hat den Entwurf umgeworfen. Die
+Frage kam aus der Entscheidung des Betreibers, die **Automatik zu streichen**:
+Ohne Fensterautomatik ist der Wartungsmodus nur noch einmal an und einmal aus —
+und dafür lohnt der Blick, ob es den Rundlauf über alle Vhost-Dateien überhaupt
+braucht oder ob eine **Flagdatei** genügt, die nginx selbst prüft.
+
+**Der Prüfkörper ist die echte Vorlage.** Gerendert über
+`SiteTemplate::render()` aus dem Agenten-Autoloader, ohne Framework — nicht von
+Hand geschrieben. Zwei erzwungene Änderungen daran, beide benannt: `listen
+[::]:80` fällt weg (dieser Container hat kein IPv6) und Port 80 wird 8080. Beide
+betreffen Adressfamilie und Port, nicht die Auswahl der `location` und nicht die
+Auswertung von `if` — also genau das nicht, worum es geht.
+
+> **Eine Messung an einem selbstgebauten Prüfkörper sagt über die Datei, die das
+> Panel schreibt, nur so viel, wie die beiden gemeinsam haben.**
+
+**M24 — ein `if` auf Serverebene nimmt die ACME-Prüfadresse mit.** Gemessen mit
+gesetzter Flagdatei: `/` gibt 503, und `/.well-known/acme-challenge/…` gibt
+**ebenfalls 503**. Ein `if` im Server-Block läuft in der Rewrite-Phase, also
+**vor** der Auswahl der `location`; die eigene `location ^~` der Prüfadresse
+kommt gar nicht mehr zum Zug. Während einer Wartung stürbe damit jede
+Zertifikatserneuerung — dieselbe Annahme, die `docs/32` schon einmal falsch
+getroffen hat.
+
+**M25 — ein `if` in `location /` deckt PHP nicht ab.** `location ~ \.php$` steht
+**innerhalb** von `location /`, und ein `if` der äusseren gilt für die innere
+nicht. Gemessen: `/index.html` → 503, `/test.php` → **502**, also an fastcgi
+durchgereicht. Hier läuft kein php-fpm; auf einem Server mit einem stünde dort
+200, und die Seite liefe während der Wartung weiter.
+
+> **Ein Fehler, den man am auffälligen Fall entdeckt, ist selten auf den
+> auffälligen Fall beschränkt** — hier andersherum: Der auffällige Fall
+> (statische Datei) war richtig, und der stille (PHP) war es nicht.
+
+**M26 — und `nginx -t` unterscheidet die beiden nicht.** Beide kaputten
+Varianten geben `rc=0`. Der Prüfer sagt, dass die Datei eine Bedeutung hat, und
+nicht, ob es die gemeinte ist — derselbe Satz wie in `docs/81 §2.3o`, hier an
+einer Wache statt an einer fehlenden Anweisung.
+
+> **Ein Prüfer, der beide Fassungen für gültig hält, sagt über die Wirkung
+> nichts — und die kaputte ist die, die man zuerst schreibt.**
+
+**M27 — `add_header` ist in einem `if` auf Serverebene nicht erlaubt.** `nginx -t`
+gibt `rc=1` mit *„add_header directive is not allowed here"*. Die Wegewahl
+derselben Variante trägt dagegen vollständig, sobald der Header herausgenommen
+wird: `/` 503, `.php` 503, ACME 200.
+
+**M28 — die tragfähige Form ist eine Ausnahme plus eine benannte
+Fehler-location.** Drei `if` auf Serverebene setzen eine Variable, die zweite
+nimmt die Prüfadresse ausdrücklich zurück, und `error_page 503 @wartung` liefert
+Rumpf und Header:
+
+    ohne Flagdatei:  /  200   ·  .php 502  ·  ACME 200
+    mit  Flagdatei:  /  503   ·  .php 503  ·  ACME 200
+    Retry-After: 3600         ·  nginx -t rc=0
+
+**Die Gegenprobe, die diese Form trägt:** Ein **echter** 503 der Anwendung geht
+bei ausgeschalteter Wartung unverändert durch — `return` mit Rumpf umgeht
+`error_page`, und `fastcgi_intercept_errors` steht per Vorgabe aus. Ohne diese
+Probe wäre offen, ob die Wartungsseite künftig jeden 503 überschreibt.
+
+**Was die Runde an der Aufgabe ändert:** Frage 3 aus der Vorbesprechung
+(halb umgestellte Domains) **entfällt** — geschaltet wird eine Datei, nicht neun
+Blöcke. Der Preis ist die Wache dauerhaft in jedem Kundenblock, und
+`PROMISED_BY_FORM` wächst um `set`, `if`, `error_page` und die benannte
+`location`. Das ist der Fall, für den A10s Zusage je Form gebaut ist: Eine
+Domain, der die Wache fehlt, wird damit ein Befund statt einer stillen Lücke.
+
+**Und zwei Fehler am Messmittel, beide von der Gegenprobe gefangen.** Der erste:
+`include fastcgi_params` löst relativ zum Verzeichnis der Konfigurationsdatei
+auf und nicht gegen `-p`; nginx kam nicht hoch, und alle Werte standen auf
+`000` — „ohne" und „mit" gleich, also nichts gemessen. Der zweite: `nginx -t …
+| tail -1` liest den Rückgabewert von `tail` und nicht den von nginx, und der
+ist immer 0.
+
+> **Ein Rückgabewert am Ende einer Pipeline gehört dem letzten Glied.**
+
+**Der Prüfkörper ist weggeräumt und das ist belegt:** `/var/www/vhosts/p1000`
+fort, `/var/spool/srvpanel` fort, kein nginx-Prozess mehr, Arbeitsbaum
+unverändert. Das **Paket** nginx bleibt liegen — es lag schon vor dieser Runde
+da, aus `§2.3o`.
+
+---
+
 ### Frage 1 — Darf das Panel eine fremde Paketquelle hinzufügen?
 
 > **Entschieden am 24. August 2026: nein.** Der Betreiber hat den Vorschlag
@@ -2556,6 +2642,7 @@ Liste.
 | **A6** | Leseansicht von `/etc/crontab`, `/etc/cron.d`, `cron.daily` und `cron.weekly` | mit A2 |
 | **A8** | Welche Adressen der Server hat, welche der DNS-Abgleich als Soll nimmt | eigenständig; P7 ist fertig |
 | **A12** | Wartungsmodus: alle Kundenseiten auf 503, Panel erreichbar | ~~mit A1~~ — **entschieden am 2. September 2026: eigener Punkt in P7b, hinter A10** |
+| **A14** | Ankündigungen im Panel: farbiger Banner ganz oben, Kategorie Info · Warnung · Störung, mehrere gleichzeitig | **P7b, hinter A12** — entschieden am 4. September 2026 |
 | **A13** | Die billige Hälfte des Malware-Scans: 0777, frisch geänderte PHP-Dateien, `eval(base64_decode` als Textsuche | ~~mit A10~~ — **reitet nicht mit** (2. September); **vorgeschlagen für P9b**, siehe unten — nicht entschieden |
 
 **A12 hatte seit dem 28. August keine Stufenzeile mehr.** „mit A1" war eine
@@ -2579,6 +2666,62 @@ von Kosten, und der Nachtlauf von A10 ist für die erste gebaut.
 
 Die Form des Befundes aus `docs/98 §2` trägt A13 trotzdem ohne Änderung; was
 sich unterscheidet, ist der Takt und nicht die Zeile.
+
+#### A14 — Ankündigungen im Panel · 3–5 Tage
+
+**Neu am 4. September 2026**, aus der Besprechung zu A12. Der Betreiber
+schreibt eine Ankündigung, und sie erscheint im Panel — als **farbiger Banner
+ganz oben auf der Seite**, eingefärbt nach ihrer Kategorie. **Mehrere
+gleichzeitig sind möglich.** Kein eigenes Fenster, keine Seite, die man
+aufsuchen muss.
+
+**Drei Kategorien: Info · Warnung · Störung.** Die Wörter sind der Punkt und
+nicht die Farben: Der Nachtlauf von A10 benennt seine Zustände seit dem
+3. September `In Ordnung · Auffällig · Kaputt · Nicht gemessen`. Zwei Skalen
+nebeneinander, die verschiedene Wörter für dasselbe benutzen, sind eine
+Fehlerquelle — die Ankündigung teilt sich die **Farbmarken** aus `app.css` und
+nicht die Wörter.
+
+**Warum das von A12 getrennt ist, und zwar nach dem Kriterium des Betreibers.**
+A12 schreibt neun Vhost-Dateien und lädt nginx neu; eine Ankündigung ist Text in
+einer Tabelle. Eine Tabelle, in der eine Zeile harmlos ist und die nächste den
+Webserver umschreibt, ist genau die Vermischung, die §12.1 bei A3 und A10 schon
+zweimal aufgelöst hat.
+
+**Die Verbindung geht nur in eine Richtung:** Ein Wartungsmodus **kann** seine
+Ankündigung erzeugen (Kategorie Warnung, mit der voraussichtlichen Endzeit im
+Text). Eine Ankündigung allein bewirkt am Webserver nichts.
+
+**Das Sichtbarkeitsfenster ist hier gefahrlos**, und das ist der Unterschied zu
+A12: Ein `where von <= jetzt <= bis` ist ein **Filter beim Lesen** und kein
+Zeitgeber, der etwas verändern muss.
+
+> **Ein Fenster, das beim Lesen ausgewertet wird, braucht keinen Zeitgeber.
+> Eines, das beim Ablauf etwas verändern muss, braucht einen — und der kann
+> ausfallen.**
+
+**Was vor dem Plan zu entscheiden ist:**
+
+- **Publikum je Ankündigung wählbar** (Betreiber · Administrator · Kunde) oder
+  immer alle? *Vorschlag: wählbar.*
+- **Adressierung global** oder je Abonnement? *Vorschlag: global; je Abonnement
+  ist ein zweites Merkmal und gehört eher zu A7.*
+- **Wegklicken?** Das ist ein Lesezustand je Konto, also eine eigene Tabelle.
+  *Vorschlag: erst nicht — eine Ankündigung mit Fenster verschwindet von
+  selbst.*
+
+**Was vor dem Plan zu messen ist:** Was ein Streifen über dem Inhalt bei 390 px
+an Höhe kostet, und was **mehrere übereinander** kosten. Das ist eine Zahl und
+keine Meinung; der Aufsatz dafür liegt als `tests/bilder-messen.js` im Repo.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+**Und keine Ankündigung auf der 503-Seite.** Die sieht ein Website-Besucher, die
+Ankündigung ein Panel-Nutzer — zwei Publika, und eine Vermischung brächte
+Betreibertext vor fremde Augen.
+
+---
 
 #### A13 hat seit dem 2. September keine Stufenzeile — ein Vorschlag
 
@@ -2676,7 +2819,7 @@ Serververwaltungssatz in P9 zeigt dorthin statt ihn ein zweites Mal zu führen.
 
 | Stufe | Inhalt | Wann |
 |---|---|---|
-| **P7b — Serververwaltung** | A5, A2, A10, **A12**, A1, A11, A6, A8, A3 (erster Wurf) | **entschieden**, vor P8; A12 am 2. September dazu |
+| **P7b — Serververwaltung** | A5, A2, A10, **A12**, **A14**, A1, A11, A6, A8, A3 (erster Wurf) | **entschieden**, vor P8; A12 am 2. September dazu, A14 am 4. September |
 | **P8** | Sicherungen und Wiederherstellung | unverändert |
 | **P9** | Kundenfähigkeit nach `docs/20 §9`, **ohne** den Serververwaltungssatz — **A7 steht darin** | unverändert |
 | **P9b — Absicherung des Servers** | A3 (zweiter Wurf), A4, **A13** | **entschieden am 28. August 2026**, zwischen P9 und P10; A13 ist ein **Vorschlag** vom 4. September (§11) und noch nicht entschieden |

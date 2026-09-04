@@ -234,13 +234,33 @@ final class PromiseReachTest extends TestCase
     /**
      * HSTS ist eine Eigenschaft des Zertifikats und keine der Form.
      *
-     * `add_header` steht in keiner Zusage, und das ist eine Entscheidung:
-     * {@see Trust::hsts()} liest den **Inhalt** der
-     * Zertifikatsdatei — ein selbstsigniertes bekommt kein HSTS. Die
-     * Bestandsdiagnose bekommt die Form und nicht den Aussteller.
+     * {@see Trust::hsts()} liest den **Inhalt** der Zertifikatsdatei — ein
+     * selbstsigniertes bekommt kein HSTS. Die Bestandsdiagnose bekommt die
+     * Form und nicht den Aussteller.
      *
      * > **Eine Anweisung, deren Anwesenheit von einem Wert und nicht von der
      * > Form abhängt, ist keine Zusage der Form.**
+     *
+     * ## Warum dieser Wächter am 4. September umgebaut wurde
+     *
+     * Er mass HSTS daran, dass es `add_header` **hinzufügt**, und die Wache des
+     * Wartungsmodus (A12) fügt dieselbe Anweisung seitdem in jeder Form hinzu.
+     * Der Unterschied zwischen „HSTS hat seinen Header geschrieben" und „HSTS
+     * hat nichts getan" war damit auf Ebene der **Namen** nicht mehr sichtbar —
+     * der Wächter wäre rot geworden, ohne dass eine Regel verletzt war, und
+     * grün geblieben, wenn HSTS aufgehört hätte zu wirken.
+     *
+     * > **Ein Wächter, der misst, was ein Merkmal hinzufügt, wird stumpf,
+     * > sobald ein anderes Merkmal dasselbe hinzufügt.**
+     *
+     * Gemessen wird deshalb die **Anweisung** und nicht ihr erstes Wort. Das
+     * ist zugleich die schärfere Frage: Vorher hätte auch ein beliebiger
+     * anderer Header den Test bestanden.
+     *
+     * `add_header` **darf** seit A12 in einer Zusage stehen, und muss es sogar:
+     * Die Wache schreibt es unbedingt, eine Datei ohne es ist kaputt. Was nicht
+     * zugesagt werden darf, ist der HSTS-Header selbst — und der ist keine
+     * Anweisung, sondern ihr Argument.
      *
      * **Gemessen und nicht behauptet:** Der Prüfkörper ist ein Wegwerf-Blatt,
      * das eine Wegwerf-Autorität signiert hat — im Speicher erzeugt, wie in
@@ -250,14 +270,24 @@ final class PromiseReachTest extends TestCase
     {
         $args = ['certificate' => 'beispiel.de', 'hsts' => true] + $this->basis();
 
-        $aus = $this->heads(SiteTemplate::render(Site::fromArgs($args), $this->store()));
-        $an = $this->heads(SiteTemplate::render(Site::fromArgs($args), $this->store($this->signedByAnAuthority())));
+        $ausText = SiteTemplate::render(Site::fromArgs($args), $this->store());
+        $anText = SiteTemplate::render(Site::fromArgs($args), $this->store($this->signedByAnAuthority()));
 
-        $this->assertSame(['add_header'], array_values(array_diff($an, $aus)), 'HSTS ändert etwas anderes als den einen Header.');
+        // Die Gegenprobe zuerst: Ohne sie wäre nicht zu unterscheiden, ob HSTS
+        // nichts ändert oder ob der Prüfkörper beide Male derselbe ist.
+        $this->assertStringContainsString('Strict-Transport-Security', $anText, 'Der Prüfkörper mit vertrauenswürdigem Zertifikat trägt kein HSTS — dann misst dieser Test nichts.');
+        $this->assertStringNotContainsString('Strict-Transport-Security', $ausText, 'Ein selbstsigniertes Zertifikat bekommt HSTS.');
+
+        // Und am Namen der Anweisung ändert HSTS nichts: `add_header` steht
+        // wegen der Wache ohnehin schon da.
+        $aus = $this->heads($ausText);
+        $an = $this->heads($anText);
+
+        $this->assertSame([], array_values(array_diff($an, $aus)), 'HSTS legt eine Anweisung dazu, die keine Zusage kennt.');
         $this->assertSame([], array_values(array_diff($aus, $an)), 'HSTS nimmt eine Anweisung weg.');
 
         foreach ([SiteTemplate::PROMISED, SiteTemplate::PROMISED_WITH_TLS, ...array_values(SiteTemplate::PROMISED_BY_FORM)] as $liste) {
-            $this->assertNotContains('add_header', $liste, 'add_header steht in einer Zusage — es hängt am Zertifikat und nicht an der Form.');
+            $this->assertNotContains('Strict-Transport-Security', $liste, 'Der HSTS-Header steht in einer Zusage — er hängt am Aussteller und nicht an der Form.');
         }
     }
 

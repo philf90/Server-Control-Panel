@@ -79,6 +79,20 @@ const PATHS: Record<string, string> = {
   logfile: 'M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6',
 
   /*
+   * Wartungsmodus: ein Schild mit einem waagerechten Balken.
+   *
+   * **Kein Werkzeug und kein Schraubenschlüssel.** Der Punkt heisst
+   * „Wartungsmodus" und nicht „Wartung" — er bedeutet nicht, dass jemand
+   * arbeitet, sondern dass gerade **niemand durchkommt**. Ein Schild mit einem
+   * Riegel sagt das; ein Schraubenschlüssel sagt das Gegenteil und stünde
+   * ausserdem neben „Dienste" wie ein zweiter Einstellungspunkt.
+   *
+   * **Und kein Ausrufezeichen**, aus demselben Grund wie bei `updates`: Das
+   * Zeichen steht auch dann da, wenn der Modus aus ist.
+   */
+  maintenance: 'M12 3l7 3v5c0 4-3 7-7 9-4-2-7-5-7-9V6zM8 11h8',
+
+  /*
    * Updates: ein Kasten mit einem Pfeil nach oben heraus.
    *
    * **Kein Pfeil im Kreis** — den trägt `operations` schon, und die beiden

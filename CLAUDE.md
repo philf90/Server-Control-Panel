@@ -1878,6 +1878,56 @@ Lauf desselben Griffs: 135 ms — die erste Zahl war der kalte Zwischenspeicher)
 > **Eine Messung, die man nur einmal fährt, misst den Zwischenspeicher mit — und
 > ob sie ihn kalt oder warm erwischt, sagt sie nicht.**
 
+Und **`101` der Plan von A12** — der Wartungsmodus, geschrieben am 4. September
+2026 **nach** der Messrunde (`docs/81 §2.3p`): §2 die fünf Entscheidungen des
+Betreibers, §3 die gemessene Form der Wache, §5 was die Bestandsdiagnose dazu
+prüft, §7 acht Abnahmepunkte (3 und 4 dürfen nicht ausfallen), §9 was A12
+ausdrücklich nicht wird.
+
+**Die Messrunde hat den Entwurf umgeworfen, und zwar dreimal.** Ein `if` auf
+Serverebene nimmt die ACME-Prüfadresse mit (M24) — während einer Wartung stürbe
+jede Zertifikatserneuerung. Ein `if` in `location /` deckt die **verschachtelte**
+PHP-`location` nicht ab (M25): statische Dateien 503, PHP weiter bedient. Und
+`add_header` ist in einem `if` auf Serverebene nicht erlaubt (M27).
+
+> **Ein Prüfer, der beide Fassungen für gültig hält, sagt über die Wirkung
+> nichts — und die kaputte ist die, die man zuerst schreibt.** Beide kaputten
+> Varianten bestehen `nginx -t` mit `rc=0` (M26).
+
+Getragen hat erst eine Ausnahme für die Prüfadresse plus eine benannte
+Fehler-location (M28), gemessen mit `Retry-After: 3600` beim Klienten und mit
+der Gegenprobe, dass ein **echter** 503 der Anwendung unverändert durchgeht.
+**Damit entfällt der Rundlauf über alle Vhost-Dateien:** Geschaltet wird eine
+Flagdatei, nicht neun Blöcke — und die Wache steht dafür dauerhaft in jedem
+Kundenblock, was `PROMISED_BY_FORM` aus A10 zu einem Befund statt einer stillen
+Lücke macht.
+
+**Die Automatik ist gestrichen, und zwar vom Betreiber.** Ein nginx-Block kennt
+die Uhr nicht; ein Fenster mit Wirkung bräuchte einen Zeitgeber an beiden
+Rändern, und fiele der aus, bliebe jede Kundenwebsite unbegrenzt auf 503.
+Geblieben ist die Zeitangabe als **„voraussichtlich bis"** — ohne Wirkung, und
+die Bestandsdiagnose meldet ein überschrittenes Ende.
+
+> **Ein Fenster, dessen Ende ein Zeitgeber herstellt, endet nicht, wenn der
+> Zeitgeber ausfällt — und der Ausfall sieht aus wie ein laufendes Fenster.**
+
+**A14 ist am 4. September entstanden und verortet** — Ankündigungen im Panel als
+farbiger Banner ganz oben, Kategorien Info · Warnung · Störung, mehrere
+gleichzeitig; P7b hinter A12 (`docs/81 §11`). Getrennt von A12 nach demselben
+Kriterium, das A12 aus A10 gelöst hat: A12 schreibt neun Vhost-Dateien, eine
+Ankündigung ist Text in einer Tabelle. Ihr Sichtbarkeitsfenster ist dabei
+gefahrlos, weil es ein Filter beim Lesen ist und kein Zeitgeber.
+
+**A13 ist am 4. September als Vorschlag verortet** (`docs/81 §11`): P9b,
+zusammen mit A3s zweitem Wurf und A4 — **entschieden ist es nicht.** „Reitet
+nicht mit" war eine Antwort auf die Frage, ob A13 zu A10 gehört, und keine
+Stufenzeile; seit dem 2. September stand er nirgends. Der Grund für den
+Vorschlag ist nicht die Verwandtschaft, sondern der Empfänger: Seine Befunde
+sind die Sorte, vor der `docs/98 §4` warnt („diese Datei hat 0777" ist wahr und
+meistens harmlos), und einen Weg nach draussen baut erst A7.
+
+> **Ein Befund, der niemanden erreicht, ist eine Zeile in einer Tabelle.**
+
 **A12 und A13 sind am 2. September verortet.** A12 (Wartungsmodus) stand seit
 der Abnahme von A1 in keiner Stufenzeile — „mit A1" war eine Verortung an einer
 Stufe, die es nicht mehr gibt. Es ist jetzt ein eigener Punkt in P7b **hinter**
@@ -1919,10 +1969,10 @@ die Frist von 1800 Sekunden ist um drei Grössenordnungen grosszügig), §9 die
 zehn Befunde mit ihren Lehren, §10 die zwei Zeilen, die über den **Server** etwas
 sagen, §11 die Bilanz und §12 was offen bleibt.
 
-**A10 ist damit abgenommen.** Offen und benannt bleiben drei Dinge, keines ein
-Kriterienausfall: der Rest aus P7 (`orphan.row` / `tls.cloudlab24.de`), das
+**A10 ist damit abgenommen.** Offen und benannt bleiben zwei Dinge, keines ein
+Kriterienausfall: der Rest aus P7 (`orphan.row` / `tls.cloudlab24.de`) und das
 hochgeladene Wegwerfzertifikat aus Punkt 6 (läuft am 13. September von selbst
-aus), und **die Behebung zu Befund 10 hat keinen Server gesehen**.
+aus).
 
 **Sechs der zehn Befunde stecken im Prüfling** — die Umkehrung von `docs/45`,
 `docs/48`, `docs/59` und `docs/84`, und dieselbe Lage wie bei A2 aus demselben
@@ -1959,6 +2009,17 @@ Begründungen dazu standen zuerst da und waren beide falsch**, beide gegen
 systemd 255 nachgemessen: Ein `stop` auf ein nie gestartetes Ziel überträgt sehr
 wohl, und ein Ziel mit `Requires=` nimmt die übrigen Units nicht mit — es bleibt
 selbst `inactive` und gibt 1 zurück, während sie laufen.
+
+**Am 4. September 2026 auf `cloudsrv24` gegen `0.7.3-rc.15` nachgemessen**
+(`docs/100 §9.10`): `stop` des Ziels legt alle vier Dienste hin, `start` holt
+sie zurück, und ein `stop`/`start` des **Agenten allein** lässt Worker und
+Metrik weiterhin liegen — das Ziel behebt die Ursache nicht, es gibt den Griff,
+der ihren Zustand aufhebt. **Und die erste Messung war keine:** ohne `sleep`
+stand da `active · deactivating · deactivating · deactivating`, weil der Agent
+über sein `Before=` beim Anhalten zuletzt geht.
+
+> **Ein `is-active` unmittelbar nach dem `stop` misst den Übergang und nicht den
+> Zustand.**
 
 > **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist auch dann
 > falsch, wenn der Handgriff daneben richtig ist — und er hält länger als der

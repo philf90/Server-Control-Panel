@@ -290,6 +290,20 @@ const navigation = computed(() => {
       { name: 'Logs', href: '/logs', icon: 'logfile', ability: 'operate-server' },
 
       /*
+       * **Der Wartungsmodus steht in „Betrieb" und nicht in
+       * „Einstellungen".** Die Gruppengrenze zieht die Adresse, und
+       * `/maintenance` liegt nicht unter `/settings/` — er sagt, was **jetzt**
+       * auf diesem Server geschieht, wie „Dienste" gleich darunter.
+       *
+       * **Und er steht im Menü und nicht als Abschnitt auf einer anderen
+       * Seite.** Der Schalter nimmt jede Kundenwebsite vom Netz; dieses
+       * Projekt hat den Ort eines Menüpunkts dreimal falsch gehabt —
+       * Dateimanager, SFTP-Zugang, „Job anlegen" —, und jedes Mal hat es der
+       * Betreiber gemeldet und kein Test.
+       */
+      { name: 'Wartungsmodus', href: '/maintenance', icon: 'maintenance', ability: 'operate-server' },
+
+      /*
        * **„Dienste" steht zwischen „Logs" und „Updates", und das ist die
        * Begründung.** Die Gruppe liest sich als Vergangenheit, Gegenwart,
        * Zukunft, Rechte: „Vorgänge", „Protokoll" und „Logs" sagen, was war;

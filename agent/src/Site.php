@@ -62,6 +62,16 @@ final class Site
         public readonly bool $suspended,
         public readonly bool $hsts,
         public readonly ?string $certificate,
+
+        /**
+         * Die voraussichtliche Endzeit der Wartung — als **Text für die
+         * Seite** und nicht als Schalter.
+         *
+         * Ob Wartung ist, entscheidet die Flagdatei bei jeder Anfrage
+         * ({@see Maintenance::FLAG}). Der Block weiss nur, was er sagen soll,
+         * falls sie es ist — deshalb steht hier kein Wahrheitswert.
+         */
+        public readonly ?string $maintenanceUntil,
     ) {}
 
     /**
@@ -98,6 +108,7 @@ final class Site
             redirectTarget: $redirect,
             redirectCode: self::redirectCode($args['redirect_code'] ?? null),
             suspended: (bool) ($args['suspended'] ?? false),
+            maintenanceUntil: Maintenance::until($args['maintenance_until'] ?? null),
 
             /*
              * **Eine Erlaubnis, keine Anweisung.** Ob ein Jahr erzwungenes

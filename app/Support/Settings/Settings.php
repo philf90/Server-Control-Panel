@@ -6,6 +6,7 @@ namespace App\Support\Settings;
 
 use App\Models\Setting;
 use App\Support\Authorization\AdminNetwork;
+use App\Support\Time\Clock;
 use App\Support\Web\PhpSelection;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Schema;
@@ -99,6 +100,17 @@ final class Settings
      * > beiden.**
      */
     private const DIAGNOSE = 'diagnose';
+
+    /**
+     * Der Wartungsmodus: ob er an ist, und bis wann er voraussichtlich läuft.
+     *
+     * **Die Wahrheit für nginx ist die Flagdatei und nicht diese Zeile.**
+     * Geschaltet wird die Datei; hier steht, was das Panel darüber weiss — für
+     * die Anzeige und für die Bestandsdiagnose, die ein überschrittenes Ende
+     * meldet. Dass die beiden auseinanderlaufen können, ist kein Versehen,
+     * sondern der Grund, aus dem A10 danach fragt.
+     */
+    private const MAINTENANCE = 'maintenance';
 
     private ?MailSettings $mail = null;
 
@@ -346,6 +358,36 @@ final class Settings
                 'reason' => $available ? null : $reason,
                 'checked_at' => now()->toDateTimeString(),
             ]],
+        );
+    }
+
+    /**
+     * Was das Panel über den Wartungsmodus weiss.
+     *
+     * `until` ist ein Zeitpunkt in UTC oder `null` — die Anzeige macht daraus
+     * {@see Clock} eine Ortszeit, und nur dort. Ein
+     * bereits formatierter Wert hier wäre die zweite Fassung, und die veraltet
+     * mit der nächsten Zeitzonenänderung.
+     *
+     * @return array{enabled: bool, until: null|string}
+     */
+    public function maintenance(): array
+    {
+        $row = $this->read(self::MAINTENANCE);
+        $until = $row['until'] ?? null;
+
+        return [
+            'enabled' => ($row['enabled'] ?? false) === true,
+            'until' => is_string($until) && $until !== '' ? $until : null,
+        ];
+    }
+
+    /** Den Wartungsmodus festhalten — nachdem der Agent geschaltet hat. */
+    public function saveMaintenance(bool $enabled, ?string $until): void
+    {
+        Setting::query()->updateOrCreate(
+            ['key' => self::MAINTENANCE],
+            ['value' => ['enabled' => $enabled, 'until' => $until]],
         );
     }
 

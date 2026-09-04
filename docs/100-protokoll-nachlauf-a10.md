@@ -692,6 +692,30 @@ einer Liste im Test: Ein `.service` gehört ins Ziel, wenn er kein
 `Type=oneshot` ist, jeder `.timer` gehört hinein. Fünf Eingriffe im
 Bruchskript, alle einzeln belegt.
 
+**Auf `cloudsrv24` nachgemessen am 4. September 2026** gegen `0.7.3-rc.15`:
+
+    systemctl status  → active since 08:48:09, enabled; preset: enabled
+    systemctl show -p Wants → neun Units: vier .service, fünf .timer,
+                              kein Type=oneshot darunter
+
+    stop srvpanel.target;  sleep 3 → inactive inactive inactive inactive
+    start srvpanel.target; sleep 3 → active   active   active   active
+
+    stop + start srvpanel-agentd   → worker und metrics bleiben inactive
+
+Die letzte Zeile ist die wichtigste: **Das Ziel behebt die Ursache nicht.** Ein
+`Requires=` überträgt weiterhin nur das Anhalten; das Ziel gibt den Griff, der
+den Zustand wieder aufhebt, und nicht eine Reparatur der Abhängigkeit.
+
+**Und die erste Messung war keine.** Sie stand ohne `sleep` da und ergab
+`active · deactivating · deactivating · deactivating`: Der Agent trägt
+`Before=srvpanel-worker.service srvpanel-metrics.service`, geht beim Anhalten
+also zuletzt, und `systemctl stop` auf das Ziel kehrt zurück, bevor die
+übertragenen Aufträge durch sind.
+
+> **Ein `is-active` unmittelbar nach dem `stop` misst den Übergang und nicht den
+> Zustand.**
+
 ---
 
 ## 10 · Was der Lauf über den **Server** gefunden hat
@@ -792,12 +816,7 @@ wäre aus richtigem Verhalten ein Mangel geworden.
   **liest**, ist belegt (ed25519, Fingerabdruck `58EE…3E86`, und
   `/var/lib/srvpanel/gnupg` existiert weiterhin nicht); dass sie bei einem
   ablaufenden Schlüssel auch **meldet**, ist es nicht.
-- **`srvpanel.target` hat keinen Server gesehen.** Gemessen ist es gegen
-  systemd 255 in einer eigenen Namespace, samt `systemd-analyze verify` und dem
-  `enable`; auf `cloudsrv24` ist es noch nicht ausgeliefert. Was dort zu messen
-  bleibt: dass `systemctl stop srvpanel.target` alle neun Units mitnimmt, dass
-  `start` sie zurückholt, und dass ein `stop`/`start` des **Agenten** allein
-  Worker und Metrik weiterhin liegenlässt — das Ziel behebt die Ursache nicht,
-  es gibt den Griff, der sie aufhebt.
-- **Die Kette bis zu einem echten Serverlauf des Ziels** ist damit der nächste
-  Schritt, und er gehört zum nächsten Nachlauf und nicht zu diesem.
+
+**Ein vierter Punkt stand hier bis zum 4. September und ist gemessen:**
+`srvpanel.target` hatte keinen Server gesehen. Jetzt hat es einen — die Messung
+steht in §9.10.

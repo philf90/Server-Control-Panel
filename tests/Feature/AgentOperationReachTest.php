@@ -79,6 +79,20 @@ final class AgentOperationReachTest extends TestCase
         'system.diagnose' => 'Liest den Bestand und schreibt nichts. Der Befund ist das Ergebnis, nicht ein Zustand des Agenten.',
 
         /*
+         * **A12: der Wartungsmodus.** Kein Lebenslauf, und kein Vorgang: Die
+         * Operation legt eine Datei an oder entfernt sie, nginx liest sie bei
+         * der nächsten Anfrage, und der Agent sieht unmittelbar nach. Ein
+         * Vorgang mit „wartet · läuft · fertig" für zwei Millisekunden wäre
+         * eine Anzeige über nichts.
+         *
+         * Was das Panel führt, ist die Einstellung `maintenance`; die Datei ist
+         * ihr Abbild und kein zweiter Bestand. Dass die beiden auseinanderlaufen
+         * können, meldet die Bestandsdiagnose — das ist der Grund, aus dem sie
+         * danach fragt.
+         */
+        'web.maintenance.set' => 'Schaltet die Flagdatei des Wartungsmodus. App\\Support\\Web\\MaintenanceMode ruft unmittelbar auf — der Betreiber soll die Meldung an seinem Schalter lesen.',
+
+        /*
          * **P6 Schritt 8: der SFTP-Zugang.** Kein Lebenslauf, und der Grund ist
          * derselbe wie bei `pg.remote.access`: Der Dienst ruft unmittelbar auf,
          * weil der Sollzustand beim *Ausführen* aus dem Bestand entsteht und

@@ -25041,7 +25041,240 @@ nicht erst gefragt, und `CertificateVerdictTest` hält genau das. Hätte die
 Vorhersage im Protokoll gestanden, wäre aus richtigem Verhalten ein Mangel
 geworden.
 
-**Offen und benannt bleiben drei Dinge, keines ein Kriterienausfall:** der Rest
-aus P7 (`orphan.row` / `tls.cloudlab24.de`), das hochgeladene Wegwerfzertifikat
-aus Punkt 6 (läuft am 13. September von selbst aus), und die Behebung zu
-Befund 10 — `srvpanel.target` — hat noch keinen Server gesehen.
+**Offen und benannt bleiben zwei Dinge, keines ein Kriterienausfall:** der Rest
+aus P7 (`orphan.row` / `tls.cloudlab24.de`) und das hochgeladene
+Wegwerfzertifikat aus Punkt 6 (läuft am 13. September von selbst aus).
+
+### `srvpanel.target` auf einem echten Server — und die erste Messung war keine
+
+Gegen `0.7.3-rc.15` auf `cloudsrv24`, am 4. September 2026. Damit ist der letzte
+offene Punkt aus `docs/100 §12` gemessen: Das Ziel hatte bis dahin nur systemd
+in einer Namespace gesehen.
+
+    systemctl status  → active since 08:48:09, enabled; preset: enabled
+    systemctl show -p Wants → neun Units: vier .service, fünf .timer,
+                              kein Type=oneshot darunter
+
+    stop srvpanel.target;  sleep 3 → inactive inactive inactive inactive
+    start srvpanel.target; sleep 3 → active   active   active   active
+
+    stop + start srvpanel-agentd   → worker und metrics bleiben inactive
+
+Die letzte Zeile ist die wichtigste, und sie ist kein Mangel: **Das Ziel behebt
+die Ursache nicht.** `Requires=` überträgt weiterhin nur das Anhalten; das Ziel
+gibt den Griff, der den entstandenen Zustand wieder aufhebt.
+
+**Die erste Fassung dieser Messung war keine.** Sie stand ohne `sleep` da und
+ergab `active · deactivating · deactivating · deactivating` — der Agent trägt
+`Before=srvpanel-worker.service srvpanel-metrics.service`, geht beim Anhalten
+also zuletzt, und `systemctl stop` auf das Ziel kehrt zurück, bevor die
+übertragenen Aufträge durch sind. Belegt war damit, dass die Übertragung
+*stattfindet*, nicht dass sie ankommt.
+
+> **Ein `is-active` unmittelbar nach dem `stop` misst den Übergang und nicht den
+> Zustand.**
+
+Dasselbe Update hat nebenbei zwei ältere Befunde ein weiteres Mal gegengeprüft:
+`Paketlisten aufgefrischt; jede Quelle hat geantwortet` ist M5, und dass
+`srvpanel update` den Neustart des Panels überlebt und am Ende das Urteil seines
+Laufs nennt (`rc=0`, `Fassung 0.7.3~rc.14 wurde zu 0.7.3~rc.15`), ist M1.
+
+### Die Messrunde vor A12 — und drei Entwürfe, die sie umgeworfen hat
+
+Gefahren am 4. September 2026 gegen nginx 1.24.0, bevor eine Zeile A12 entsteht.
+Der Prüfkörper ist die **echte** Vorlage, über `SiteTemplate::render()` aus dem
+Agenten-Autoloader gerendert und nicht von Hand geschrieben; zwei erzwungene
+Änderungen daran sind benannt und betreffen Adressfamilie und Port.
+
+Anlass war die Entscheidung des Betreibers, die **Automatik zu streichen**: Ohne
+Fensterautomatik ist der Wartungsmodus nur noch einmal an und einmal aus — und
+dafür lohnt der Blick, ob es den Rundlauf über alle Vhost-Dateien braucht oder
+ob eine Flagdatei genügt, die nginx selbst prüft.
+
+**M24 — ein `if` auf Serverebene nimmt die ACME-Prüfadresse mit.** Es läuft in
+der Rewrite-Phase, also vor der Auswahl der `location`; die eigene `location ^~`
+der Prüfadresse kommt gar nicht zum Zug. Während einer Wartung stürbe jede
+Zertifikatserneuerung — dieselbe Annahme, die `docs/32` schon einmal falsch
+getroffen hat.
+
+**M25 — ein `if` in `location /` deckt PHP nicht ab.** `location ~ \.php$` steht
+**innerhalb** von `location /`, und ein `if` der äusseren gilt für die innere
+nicht. Gemessen: statische Datei 503, `.php` durchgereicht. Der auffällige Fall
+war richtig und der stille nicht.
+
+**M26 — und `nginx -t` unterscheidet die beiden nicht.** Beide kaputten
+Fassungen geben `rc=0`.
+
+> **Ein Prüfer, der beide Fassungen für gültig hält, sagt über die Wirkung
+> nichts — und die kaputte ist die, die man zuerst schreibt.**
+
+**M27/M28 — getragen hat erst eine Ausnahme plus eine benannte
+Fehler-location.** `add_header` ist in einem `if` auf Serverebene nicht erlaubt
+(`rc=1`); mit `error_page 503 @wartung` kommt `Retry-After: 3600` beim Klienten
+an, `.php` und `/` geben 503 und die Prüfadresse 200. Die Gegenprobe, die diese
+Form trägt: Ein **echter** 503 der Anwendung geht bei ausgeschalteter Wartung
+unverändert durch — `return` mit Rumpf umgeht `error_page`, und
+`fastcgi_intercept_errors` steht per Vorgabe aus.
+
+**Damit entfällt eine ganze Frage des Entwurfs:** Geschaltet wird **eine** Datei
+und nicht neun Blöcke — keine Warteschlange, keine halb umgestellten Domains.
+Der Preis ist die Wache dauerhaft in jedem Kundenblock, und das ist genau der
+Fall, für den A10s Zusage je Form gebaut ist: Eine Domain ohne Wache wird ein
+Befund statt einer stillen Lücke.
+
+**Zwei Fehler am Messmittel, beide von der Gegenprobe gefangen.** `include
+fastcgi_params` löst relativ zum Verzeichnis der Konfigurationsdatei auf und
+nicht gegen `-p` — nginx kam nicht hoch, alle Werte standen auf `000`, „ohne"
+gleich „mit". Und `nginx -t … | tail -1` liest den Rückgabewert von `tail`.
+
+> **Ein Rückgabewert am Ende einer Pipeline gehört dem letzten Glied.**
+
+`docs/101` ist der Plan, der daraus entstanden ist. `docs/81 §11` hat dabei
+**A14** bekommen — Ankündigungen im Panel als farbiger Banner, Kategorien
+Info · Warnung · Störung, mehrere gleichzeitig —, getrennt von A12 nach
+demselben Kriterium, das A12 aus A10 gelöst hat: A12 schreibt Vhost-Dateien,
+eine Ankündigung ist Text in einer Tabelle.
+
+### A12 Schritt 1 — die Wache in der Vorlage, und zwei Wächter, die sie sofort gefunden hat
+
+`SiteTemplate` trägt seit dem 4. September 2026 die Wache des Wartungsmodus, in
+der Form, die `docs/81 §2.3p` gemessen hat: auf Serverebene, mit einer Ausnahme
+für die ACME-Prüfadresse, und mit `add_header` in einer benannten
+Fehler-`location` statt im `if`. Sie steht in **jedem** Server-Block jeder Form
+— bei einer Domain mit Zertifikat also zweimal.
+
+**Der Block weiss dabei nicht, ob Wartung ist.** Er weiss nur, was er sagen
+soll, falls sie es ist; die Entscheidung trifft nginx an der Flagdatei, bei
+jeder Anfrage neu. Deshalb schaltet A12 eine Datei und schreibt keine neun
+Blöcke um.
+
+**Die Endzeit reist als geprüfter Wert und nicht als Text.**
+`Maintenance::UNTIL` lässt nur `JJJJ-MM-TT HH:MM` durch — die Angabe landet als
+Zeichenkette *in* einer nginx-Zeile, und ein Apostroph darin beendete sie. Das
+ist die erste Grenze und keine Höflichkeit.
+
+**Gegen echtes nginx 1.24.0 nachgemessen**, alle drei Formen, jede mit
+Gegenprobe: mit Flagdatei geben `/` und `/test.php` 503 und die Prüfadresse 200,
+ohne sie 200/404 beziehungsweise 200/502 und 200. `Retry-After: 3600` kommt an,
+und die Zeitangabe steht **nur** in der Fassung, die eine hat.
+
+**Zwei bestehende Wächter haben die Änderung sofort gefunden**, und der zweite
+ist der interessantere.
+
+`PromiseReachTest::test_the_site_promise_is_exactly_what_every_form_emits` war
+rot, weil `PROMISED` die vier neuen Anweisungen nicht kannte — richtig so, die
+Schnittmenge ist gewachsen.
+
+Und `test_hsts_is_not_a_promise_of_the_form` mass HSTS daran, dass es
+`add_header` **hinzufügt**. Die Wache fügt dieselbe Anweisung jetzt in jeder
+Form hinzu; auf Ebene der Namen war „HSTS hat seinen Header geschrieben" von
+„HSTS hat nichts getan" nicht mehr zu unterscheiden.
+
+> **Ein Wächter, der misst, was ein Merkmal hinzufügt, wird stumpf, sobald ein
+> anderes Merkmal dasselbe hinzufügt.**
+
+Er misst seitdem die **Anweisung** und nicht ihr erstes Wort — und das ist
+zugleich die schärfere Frage: Vorher hätte auch ein beliebiger anderer Header
+den Test bestanden.
+
+**Und eine Regel über gemessene Prüfkörper.** `SiteFileIntegrityTest` hält
+einen Block aus der A10-Messrunde; er verliert jetzt fünf Anweisungen statt
+einer, weil er weder den Standardschutz noch die Wache trägt. Nachgezogen wurde
+die **Erwartung** und nicht die Datei.
+
+> **Eine gemessene Datei ist ein Beleg und keine Vorlage — wer sie an eine neue
+> Erwartung anpasst, hat die Messung verloren.**
+
+`MaintenanceGuardTest` hält sieben Regeln, darunter die **Reihenfolge** der vier
+Zeilen: dass die Ausnahme zwischen dem Setzen und der Entscheidung steht. Davor
+überschriebe das Setzen sie, danach käme sie zu spät — und beide Fassungen sähen
+im Text fast gleich aus. Sieben Eingriffe im Bruchskript, jeder einzeln belegt.
+
+### A12 Schritt 2 — der Schalter, und zwei Wächter, die sich selbst nicht gemessen haben
+
+`web.maintenance.set` legt die Flagdatei an oder entfernt sie; `MaintenanceMode`
+ruft unmittelbar auf, `Settings` hält fest, was das Panel darüber weiss, und die
+Seite `/maintenance` schaltet. Kein Vorgang: Das Schalten dauert zwei
+Millisekunden, und eine Anzeige mit „wartet · läuft · fertig" wäre eine über
+nichts.
+
+**Der Menüpunkt steht in „Betrieb" und nicht in „Einstellungen"** — die
+Gruppengrenze zieht die Adresse, und `/maintenance` liegt nicht unter
+`/settings/`. Und er steht im Menü und nicht als Abschnitt unter etwas anderem:
+Der Schalter nimmt jede Kundenwebsite vom Netz, und dieses Projekt hat den Ort
+eines Menüpunkts dreimal falsch gehabt.
+
+**`Clock` hat zwei Methoden bekommen und nicht der Controller.** Die
+voraussichtliche Endzeit wird in Ortszeit eingegeben und als UTC abgelegt; die
+Umrechnung gehört an die eine Stelle, die aus UTC eine Anzeige macht und eine
+Grenze zurück. `docs/40` hat einmal bezahlt, dass die Hälfte, die still bricht,
+die mitrechnende ist.
+
+**Und der Reach-Wächter hat den Zuschnitt des Schritts entschieden.** Der erste
+Wurf war die Operation allein — `AgentOperationReachTest` meldete sie sofort:
+*„Code, der als root läuft und zu dem es keinen Weg gibt, ist Angriffsfläche
+ohne Nutzen."* Die Panel-Seite gehörte damit in denselben Commit, und das war
+richtig.
+
+**Zwei Befunde an meinen eigenen Wächtern, beide beim Brechen gefunden.**
+
+Der erste hiess `test_the_result_is_read_back_and_not_echoed` und mass das
+nicht: Die Ausnahme kommt aus `turnOff()`, weil `unlink()` fehlschlägt — die
+Nachlese danach wird gar nicht erreicht. Sie fängt den Fall, dass ein Schreiben
+*gelingt* und die Datei trotzdem fehlt, und der ist nicht herstellbar.
+
+> **Ein Test, der nach dem benannt ist, was er absichern soll, statt nach dem,
+> was er misst, ist eine Zusage über eine Zeile, die er nie ausführt.**
+
+Der zweite blieb **grün, als die Typprüfung entfernt war**. Der Grund: Die
+Nachlese vergleicht strikt (`$ist !== $enabled`), also passt `true` nie zu
+`'1'` — es fliegt eine Ausnahme, nur eben `exec_failed` statt `bad_request`.
+Der Unterschied ist einer, den der Aufrufer sieht: „so nicht" gegen „hat nicht
+geklappt".
+
+> **Ein Wächter, der nur zählt, dass etwas geworfen wurde, ist grün, sobald
+> irgendetwas fliegt — auch das Falsche.**
+
+`MaintenanceSwitchTest` hält sieben Regeln, darunter dass die Vorgabe des
+Ablageorts derselbe Pfad ist, den die Wache im Server-Block nennt, und dass er
+unter `/var/spool` liegt — unter `/var/lib/srvpanel` käme der nginx-Worker nicht
+hindurch, die Wache prüfte immer „liegt nicht", und der Schalter täte nichts.
+Vier Eingriffe im Bruchskript, jeder einzeln belegt.
+
+### Die Bilderrunde zu A12 — und zwei Befunde, die keine Zahl hatten
+
+Gefahren am 4. September 2026 an der **echten Seite**: `artisan serve`,
+Anmeldung mit zweitem Faktor, Playwright im vorinstallierten Chromium. Vier
+Lagen — hell und dunkel, 390 px und 1440 px — und beide Zustände des Schalters.
+
+**Gemessen mit der Vorschrift aus dem Repo und nicht mit einer Kopie.** Der
+erste Wurf des Aufnahmeskripts hatte die Messung **nachgebaut**; sie lädt jetzt
+`tests/bilder-messen.js` in die Seite und ruft `bilderMessen()`. Eine zweite
+Fassung derselben Regel wäre die, die veraltet — und `OverflowProbeTest` hält
+die eine im Repo, über eine Kopie daneben sagt er nichts.
+
+Alle acht Aufnahmen: `dokument: 0`, `schiebt: []`, Gegenprobe `200/200`. Und der
+`stand` des Messmittels steht im Ergebnis, wie es die Vorschrift verlangt.
+
+**Der erste Durchgang war trotzdem unvollständig, und die Zahl hat es nicht
+gesagt.** Alle vier Aufnahmen zeigten den **ausgeschalteten** Zustand — die
+Lage mit zwei Knöpfen nebeneinander und der roten Meldung war nie gemessen.
+
+> **Ein Prüfkörper, der die Seite ohne den Gegenstand misst, misst die Seite und
+> nicht den Gegenstand.**
+
+Nachgeholt: eingeschaltet, beide Themen, beide Breiten — ebenfalls 0.
+
+**Zwei Befunde hat kein Wert gemeldet, sondern der Blick.**
+
+Die **Zeitzone stand am Ende eines Satzes über etwas anderes** („Erscheint auf
+der Wartungsseite … Zeiten in UTC"). Wer eine Uhrzeit eintippt, liest das nicht
+mehr; bei einer Zeitangabe ist die Zone die wichtigste Nebenauskunft und gehört
+dorthin, wo getippt wird. Sie steht jetzt unmittelbar unter dem Feld.
+
+Und **zwei Absätze sagten dasselbe**: „Erscheint auf der Wartungsseite" und drei
+Zeilen später „sie ist nur der Satz auf der Wartungsseite". Zwei Absätze über
+dieselbe Sache lesen sich wie zwei Sachen. Jetzt einer.
+
+> **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
+> Keines von beiden ersetzt das andere.**

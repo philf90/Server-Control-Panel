@@ -22567,9 +22567,9 @@ vorher_datei agent/src/SiteTemplate.php
 python3 - <<'PY2'
 p = 'agent/src/SiteTemplate.php'
 s = open(p, encoding='utf-8').read()
-alt = """    public const PROMISED = ['server', 'listen', 'server_name', 'access_log', 'error_log', 'location', 'root', 'default_type', 'return'];"""
+alt = """    public const PROMISED = ['server', 'listen', 'server_name', 'access_log', 'error_log', 'location', 'root', 'default_type', 'return', 'set', 'if', 'error_page', 'add_header'];"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace("'return']", "'return', 'deny']"), 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace("'add_header']", "'add_header', 'deny']"), 1))
 PY2
 griff_datei agent/src/SiteTemplate.php "Zusage groesser als Vorlage" &&
 pruefe "Zusage groesser als Vorlage" \
@@ -22585,7 +22585,7 @@ vorher_datei agent/src/SiteTemplate.php
 python3 - <<'PY2'
 p = 'agent/src/SiteTemplate.php'
 s = open(p, encoding='utf-8').read()
-alt = """    public const PROMISED = ['server', 'listen', 'server_name', 'access_log', 'error_log', 'location', 'root', 'default_type', 'return'];"""
+alt = """    public const PROMISED = ['server', 'listen', 'server_name', 'access_log', 'error_log', 'location', 'root', 'default_type', 'return', 'set', 'if', 'error_page', 'add_header'];"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace("'access_log', ", ''), 1))
 PY2
@@ -23622,21 +23622,30 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
 
 echo
-echo "== PromiseReachTest: add_header wird zur Zusage der Form =="
+echo "== PromiseReachTest: der HSTS-Header wird zur Zusage der Form =="
 #
-# add_header haengt am Inhalt des Zertifikats und nicht an der Form: Ein
-# selbstsigniertes bekommt kein HSTS. Steht es in der Zusage, meldet der
-# Nachtlauf jede Domain ohne HSTS als kaputt.
+# **Dieser Eingriff hiess bis zum 4. September „add_header wird zur Zusage der
+# Form" und ist an A12 stumpf geworden** — die Wache des Wartungsmodus schreibt
+# `add_header` seitdem in jeder Form, es steht also zu Recht in jeder Zusage.
+# Der Eingriff veraenderte die Datei weiter nachweislich und biss nicht mehr.
+#
+#   Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+#   wenn jemand die Regel daneben aendert, die er gemeint hat.
+#
+# Gemeint war und ist: Der HSTS-Header haengt am Inhalt des Zertifikats und
+# nicht an der Form — ein selbstsigniertes bekommt keinen. Steht er in einer
+# Zusage, meldet der Nachtlauf jede Domain ohne HSTS als kaputt. Gebrochen wird
+# deshalb jetzt der Header und nicht mehr der Name der Anweisung.
 vorher_datei agent/src/SiteTemplate.php
 python3 - <<'PY2'
 p = 'agent/src/SiteTemplate.php'
 s = open(p, encoding='utf-8').read()
 alt = "public const PROMISED_WITH_TLS = ['ssl_certificate',"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, "public const PROMISED_WITH_TLS = ['add_header', 'ssl_certificate',", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "public const PROMISED_WITH_TLS = ['Strict-Transport-Security', 'ssl_certificate',", 1))
 PY2
-griff_datei agent/src/SiteTemplate.php "add_header in der Zusage" &&
-pruefe "add_header in der Zusage" \
+griff_datei agent/src/SiteTemplate.php "HSTS-Header in der Zusage" &&
+pruefe "HSTS-Header in der Zusage" \
   PromiseReachTest::test_hsts_is_not_a_promise_of_the_form failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
@@ -23781,6 +23790,219 @@ pruefe "Installation schaltet das Ziel nicht an" \
   UnitTargetTest::test_the_installation_enables_the_target failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitTargetTest passed
+
+echo
+echo "== MaintenanceGuardTest: die Wache fehlt ganz =="
+#
+# Ohne sie liefe jede Domain waehrend der Wartung weiter — und nginx -t
+# saehe davon nichts (docs/81 §2.3p, M26).
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+alt = "        {$wartung}\n\n        {$challenge}"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        {$challenge}", 1))
+PY2
+griff_datei agent/src/SiteTemplate.php "die Wache fehlt ganz" &&
+pruefe "die Wache fehlt ganz" \
+  MaintenanceGuardTest::test_every_form_carries_the_guard failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
+
+echo
+echo "== MaintenanceGuardTest: die Ausnahme steht zu spaet =="
+#
+# Steht sie hinter der Entscheidung, kommt sie zu spaet: Die ACME-Pruefadresse
+# bekaeme 503, und waehrend jeder Wartung stuerbe die Zertifikatserneuerung (M24).
+vorher_datei agent/src/Maintenance.php
+python3 - <<'PY2'
+p = 'agent/src/Maintenance.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if (\\$uri ~ ^{$prefix}/) { set \\$wartung 0; }
+            if (\\$wartung = 1) { return 503; }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            if (\\$wartung = 1) { return 503; }
+            if (\\$uri ~ ^{$prefix}/) { set \\$wartung 0; }""", 1))
+PY2
+griff_datei agent/src/Maintenance.php "die Ausnahme steht zu spaet" &&
+pruefe "die Ausnahme steht zu spaet" \
+  MaintenanceGuardTest::test_the_challenge_exception_stands_between_the_switch_and_the_verdict failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
+
+echo
+echo "== MaintenanceGuardTest: die Ausnahme nennt einen eigenen Pfad =="
+#
+# Zwei Listen, die dasselbe meinen, laufen auseinander. Zoege HttpChallenge::PREFIX
+# um, stuerbe die Erneuerung bei jeder Wartung — und kein Pruefer saehe es.
+vorher_datei agent/src/Maintenance.php
+python3 - <<'PY2'
+p = 'agent/src/Maintenance.php'
+s = open(p, encoding='utf-8').read()
+alt = "$prefix = preg_quote(HttpChallenge::PREFIX);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$prefix = preg_quote('/.well-known/acme-pruefung');", 1))
+PY2
+griff_datei agent/src/Maintenance.php "die Ausnahme nennt einen eigenen Pfad" &&
+pruefe "die Ausnahme nennt einen eigenen Pfad" \
+  MaintenanceGuardTest::test_the_exception_names_the_challenge_prefix_itself failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
+
+echo
+echo "== MaintenanceGuardTest: die Wache fehlt im HTTPS-Block =="
+#
+# Der zweite Block ist der, an dem es haengt: Bei einer Domain mit Zertifikat
+# steht der Inhalt dort. Der einfache Fall ohne Zertifikat waere richtig.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+alt = "        {$strict}\n        {$wartung}\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        {$strict}\n", 1))
+PY2
+griff_datei agent/src/SiteTemplate.php "die Wache fehlt im HTTPS-Block" &&
+pruefe "die Wache fehlt im HTTPS-Block" \
+  MaintenanceGuardTest::test_the_guard_stands_in_every_server_block failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
+
+echo
+echo "== MaintenanceGuardTest: die Endzeit wird nicht geprueft =="
+#
+# Sie landet als Text in einer nginx-Zeichenkette. Ein Apostroph darin beendet
+# sie, und aus einer Auskunft wird eine Konfigurationszeile.
+vorher_datei agent/src/Maintenance.php
+python3 - <<'PY2'
+p = 'agent/src/Maintenance.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (! is_string($value) || preg_match(self::UNTIL, $value) !== 1) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        if (! is_string($value)) {", 1))
+PY2
+griff_datei agent/src/Maintenance.php "die Endzeit wird nicht geprueft" &&
+pruefe "die Endzeit wird nicht geprueft" \
+  MaintenanceGuardTest::test_a_malformed_end_time_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
+
+echo
+echo "== MaintenanceGuardTest: die Wache steht in keiner Zusage =="
+#
+# Dann waere eine Domain ohne Wache eine stille Luecke: nginx -t sieht sie nicht,
+# und die Bestandsdiagnose fragt die Zusage.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+alt = "'server_name', 'set'],"
+assert s.count(alt) == 2, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'server_name'],", 1))
+PY2
+griff_datei agent/src/SiteTemplate.php "die Wache steht in keiner Zusage" &&
+pruefe "die Wache steht in keiner Zusage" \
+  MaintenanceGuardTest::test_the_guard_is_promised_by_every_form failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
+
+echo
+echo "== MaintenanceGuardTest: die Endzeit kommt im Block nicht an =="
+#
+# Dann stuende auf jeder Wartungsseite die Form ohne Zeitangabe — und das Feld
+# im Panel waere eine Eingabe ohne Wirkung.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+alt = "$wartung = Maintenance::nginxGuard($site->maintenanceUntil);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$wartung = Maintenance::nginxGuard(null);", 1))
+PY2
+griff_datei agent/src/SiteTemplate.php "die Endzeit kommt im Block nicht an" &&
+pruefe "die Endzeit kommt im Block nicht an" \
+  MaintenanceGuardTest::test_the_template_never_learns_whether_maintenance_is_on failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
+
+echo
+echo "== MaintenanceSwitchTest: das zweite Ausschalten bricht ab =="
+#
+# unlink() gibt fuer eine Datei, die nicht da ist, false zurueck. Wer das fuer
+# einen Fehlschlag nimmt, macht aus dem zweiten Klick einen Abbruch.
+vorher_datei agent/src/Ops/WebMaintenanceSet.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebMaintenanceSet.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if (! is_file($this->flag)) {\n            return;\n        }\n\n"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "", 1))
+PY2
+griff_datei agent/src/Ops/WebMaintenanceSet.php "das zweite Ausschalten bricht ab" &&
+pruefe "das zweite Ausschalten bricht ab" \
+  MaintenanceSwitchTest::test_switching_off_twice_is_not_a_failure failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceSwitchTest passed
+
+echo
+echo "== MaintenanceSwitchTest: der Wahrheitswert wird nicht geprueft =="
+#
+# '0', '' und null sind in PHP alle falsch-artig: Ein leeres Feld schaltete den
+# Modus aus, ohne dass jemand das gemeint haette. Der Waechter prueft die ART
+# der Ausnahme — ohne das bliebe er gruen, weil die Nachlese strikt vergleicht.
+vorher_datei agent/src/Ops/WebMaintenanceSet.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebMaintenanceSet.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (! is_bool($enabled)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        if (false) {", 1))
+PY2
+griff_datei agent/src/Ops/WebMaintenanceSet.php "der Wahrheitswert wird nicht geprueft" &&
+pruefe "der Wahrheitswert wird nicht geprueft" \
+  MaintenanceSwitchTest::test_it_refuses_anything_that_is_not_a_boolean failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceSwitchTest passed
+
+echo
+echo "== MaintenanceSwitchTest: die Flagdatei zieht unter /var/lib =="
+#
+# Dort ist 0750 srvpanel:srvpanel, und der nginx-Worker kommt nicht hindurch
+# (docs/78). Die Wache praefte dann immer "liegt nicht", und der Schalter taete
+# nichts — ohne dass irgendetwas rot wuerde.
+vorher_datei agent/src/Maintenance.php
+python3 - <<'PY2'
+p = 'agent/src/Maintenance.php'
+s = open(p, encoding='utf-8').read()
+alt = "public const FLAG = '/var/spool/srvpanel/wartung';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "public const FLAG = '/var/lib/srvpanel/wartung';", 1))
+PY2
+griff_datei agent/src/Maintenance.php "die Flagdatei zieht unter /var/lib" &&
+pruefe "die Flagdatei zieht unter /var/lib" \
+  MaintenanceSwitchTest::test_the_flag_lies_where_nginx_can_reach_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceSwitchTest passed
+
+echo
+echo "== MaintenanceSwitchTest: die Vorgabe weicht vom Pfad der Wache ab =="
+#
+# Zwei Listen, die dasselbe meinen, laufen auseinander: Das Panel schaltete eine
+# Datei, auf die nginx nicht sieht.
+vorher_datei agent/src/Ops/WebMaintenanceSet.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebMaintenanceSet.php'
+s = open(p, encoding='utf-8').read()
+alt = "private readonly string $flag = Maintenance::FLAG"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "private readonly string $flag = '/var/spool/srvpanel/wartungsmodus'", 1))
+PY2
+griff_datei agent/src/Ops/WebMaintenanceSet.php "die Vorgabe weicht vom Pfad der Wache ab" &&
+pruefe "die Vorgabe weicht vom Pfad der Wache ab" \
+  MaintenanceSwitchTest::test_the_default_is_the_path_the_guard_names failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceSwitchTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

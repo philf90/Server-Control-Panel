@@ -17,6 +17,7 @@ use App\Models\Subscription;
 use App\Support\Audit\Audit;
 use App\Support\Operations\AfterOperation;
 use App\Support\Operations\Lifecycles;
+use App\Support\Settings\Settings;
 use App\Support\Subscriptions\Lifecycle;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tls\AcmeSettings;
@@ -51,6 +52,7 @@ final class WebLifecycle implements AfterOperation
         private readonly AcmeSettings $tls,
         private readonly CertificateChoice $choice,
         private readonly Audit $audit,
+        private readonly Settings $settings,
     ) {}
 
     /**
@@ -98,6 +100,20 @@ final class WebLifecycle implements AfterOperation
              * nie aus der Zeile, die sie ändert.
              */
             'suspended' => $subscription?->status->usable() === false,
+
+            /*
+             * **Der Text der Wartungsseite und nicht ihr Schalter** (A12).
+             *
+             * Ob Wartung ist, entscheidet die Flagdatei bei jeder Anfrage; der
+             * Block weiss nur, was er sagen soll, falls sie es ist. Stünde hier
+             * ein Wahrheitswert, müsste jedes Umschalten alle Blöcke neu
+             * schreiben — und genau das soll A12 nicht.
+             *
+             * Der Wert geht als `Y-m-d H:i` hinaus, geprüft vom Agenten gegen
+             * {@see \SrvPanel\Agent\Maintenance::UNTIL}: Er landet als Text
+             * *in* einer nginx-Zeichenkette.
+             */
+            'maintenance_until' => $this->settings->maintenance()['until'],
 
             // **Eine Erlaubnis, keine Anweisung.** Ob HSTS gewollt ist, weiss
             // nur das Panel — es kennt den Testbetrieb, dessen Wurzel kein

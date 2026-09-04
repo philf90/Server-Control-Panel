@@ -20,6 +20,7 @@ use App\Http\Controllers\GeneralSettingsController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\LogsController;
 use App\Http\Controllers\MailSettingsController;
+use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\OperationController;
 use App\Http\Controllers\OperationStreamController;
 use App\Http\Controllers\OverviewController;
@@ -200,6 +201,31 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/updates', [UpdatesController::class, 'show'])
         ->middleware('can:inspect-server')
         ->name('updates');
+
+    /*
+     * Der Wartungsmodus — A12.
+     *
+     * **Eine eigene Seite und kein Bereich unter etwas anderem.** Der Schalter
+     * nimmt jede Kundenwebsite vom Netz; dieses Projekt hat den Ort eines
+     * Menüpunkts dreimal falsch gehabt, und jedes Mal hat es der Betreiber
+     * gemeldet und kein Test.
+     *
+     * **Nicht unter `/settings/`, und das ist die Gruppengrenze.** Der
+     * Wartungsmodus sagt, was **jetzt** auf diesem Server geschieht — wie
+     * „Dienste" daneben. `NavGroupTest` hält die Zuordnung an der Adresse.
+     *
+     * **`can:operate-server` für beide Hälften, und hier nicht
+     * `inspect-server`.** Bei „Dienste" und „Updates" sieht der Administrator
+     * zu und der Betreiber dreht; hier gibt es nichts zuzusehen, was ohne die
+     * Handlung Sinn ergäbe — die Seite *ist* der Schalter.
+     */
+    Route::get('/maintenance', [MaintenanceController::class, 'index'])
+        ->middleware('can:operate-server')
+        ->name('maintenance');
+
+    Route::post('/maintenance', [MaintenanceController::class, 'update'])
+        ->middleware('can:operate-server')
+        ->name('maintenance.update');
 
     /*
      * Die Bestandsdiagnose — A10 Schritt 7.

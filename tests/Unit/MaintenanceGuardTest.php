@@ -216,6 +216,49 @@ final class MaintenanceGuardTest extends TestCase
     }
 
     /**
+     * Die Zone kommt in **allen** Formen durch, die es wirklich gibt.
+     *
+     * Gemessen über alle Zeitzonen von PHP, in beiden Hälften des Jahres: Die
+     * Abkürzung ist entweder aus Buchstaben (höchstens fünf), ein kurzer
+     * Versatz (`+03`) oder ein langer (`+0530`) — dazu `UTC` allein, weil
+     * `Clock::label()` den Zusatz dort weglässt.
+     *
+     * > **Eine Form, die man an der eigenen Zone abliest, ist eine von
+     * > dreien.** Ein Ausdruck nur für `CEST (UTC+02:00)` wiese Colombo und
+     * Kathmandu ab — und der Betreiber läse eine Meldung über einen
+     * Programmierfehler, wo er nur eine Zeitzone eingestellt hat.
+     */
+    public function test_every_measured_shape_of_a_zone_is_accepted(): void
+    {
+        foreach (['CEST (UTC+02:00)', 'CET (UTC+01:00)', 'UTC', 'GMT (UTC+00:00)',
+            'EEST (UTC+03:00)', '+0530 (UTC+05:30)', '+03 (UTC+03:00)', '-11 (UTC-11:00)'] as $form) {
+            $this->assertSame($form, Maintenance::zone($form));
+        }
+
+        $this->assertNull(Maintenance::zone(null));
+        $this->assertNull(Maintenance::zone(''));
+    }
+
+    /**
+     * Und die Gegenrichtung: Was die Form nicht hält, kommt nicht durch.
+     *
+     * Der Wert landet als Text *in* einer nginx-Zeichenkette — ein Apostroph
+     * darin beendete sie, und aus einer Auskunft würde eine Anweisung.
+     */
+    public function test_a_zone_that_is_not_a_zone_is_refused(): void
+    {
+        foreach (["CEST'; return 200 'weg", "CEST (UTC+02:00)\nreturn 200;", 'Europe/Berlin',
+            'MITTELEUROPA (UTC+02:00)', 'CEST (UTC+2)', 'CEST(UTC+02:00)', '2026-09-04 16:00'] as $boese) {
+            try {
+                Maintenance::zone($boese);
+                $this->fail('Angenommen: '.$boese);
+            } catch (AgentException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
+
+    /**
      * Die vier Anweisungen der Wache stehen in der Zusage **jeder** Form.
      *
      * Ohne sie wäre eine Domain ohne Wache eine stille Lücke: `nginx -t` sieht
@@ -223,7 +266,7 @@ final class MaintenanceGuardTest extends TestCase
      */
     public function test_the_guard_is_promised_by_every_form(): void
     {
-        $ausDerWache = Statements::heads(Maintenance::nginxGuard(null));
+        $ausDerWache = Statements::heads(Maintenance::nginxGuard(null, null));
 
         $this->assertNotSame([], $ausDerWache, 'Die Wache führt keine Anweisung — dann misst dieser Fall nichts.');
 

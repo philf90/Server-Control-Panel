@@ -106,12 +106,48 @@ final class Clock
      */
     public static function label(): string
     {
-        $now = CarbonImmutable::now(self::zone());
-        $abbreviation = $now->format('T');
+        return self::describe(CarbonImmutable::now(self::zone()));
+    }
+
+    /**
+     * Dieselbe Angabe, aber für **einen bestimmten Zeitpunkt**.
+     *
+     * **Der Unterschied ist die Sommerzeit, und er ist kein Randfall.** Berlin
+     * heisst im Juli `CEST (UTC+02:00)` und im Januar `CET (UTC+01:00)`. Wer
+     * eine Endzeit im Januar setzt und dabei {@see self::label()} danebenlegt,
+     * schreibt eine Uhrzeit aus dem Winter mit der Abkürzung des Sommers.
+     *
+     * > **Eine Zonenangabe, die für „jetzt" gilt, gehört nicht neben einen
+     * > Zeitpunkt, der woanders liegt.**
+     *
+     * `null` bleibt `null`: Ohne Zeitpunkt gibt es nichts zu beschriften.
+     */
+    public static function labelAt(?string $utc): ?string
+    {
+        if ($utc === null || $utc === '') {
+            return null;
+        }
+
+        try {
+            return self::describe(CarbonImmutable::parse($utc, 'UTC')->setTimezone(self::zone()));
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Die eine Fassung der Beschriftung — beide Wege gehen hier durch.
+     *
+     * Stünde sie zweimal da, liefe die zweite irgendwann auseinander; das ist
+     * in diesem Repo oft genug bezahlt worden.
+     */
+    private static function describe(CarbonImmutable $at): string
+    {
+        $abbreviation = $at->format('T');
 
         return $abbreviation === 'UTC'
             ? $abbreviation
-            : sprintf('%s (UTC%s)', $abbreviation, $now->format('P'));
+            : sprintf('%s (UTC%s)', $abbreviation, $at->format('P'));
     }
 
     /**

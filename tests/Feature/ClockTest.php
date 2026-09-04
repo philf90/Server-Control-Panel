@@ -212,4 +212,50 @@ final class ClockTest extends TestCase
 
         $this->assertSame(0, $found('2026-08-11'), 'Die Zeile wird an ihrem UTC-Tag gefunden statt an ihrem Ortszeit-Tag.');
     }
+
+    /**
+     * Die Beschriftung eines **Zeitpunkts** und nicht die von „jetzt".
+     *
+     * **Die Sommerzeit ist hier kein Randfall, sondern der ganze Grund.**
+     * Dieselbe Zone heisst im Januar anders als im Juli; eine Angabe, die für
+     * den Augenblick des Schreibens gilt, steht dann falsch neben einer Zeit,
+     * die woanders liegt.
+     *
+     * Gemessen an zwei festen Zeitpunkten und nicht an `now()`: Sonst hinge das
+     * Ergebnis daran, wann dieser Lauf gefahren wird.
+     */
+    public function test_the_label_belongs_to_the_moment_and_not_to_now(): void
+    {
+        Clock::store('Europe/Berlin');
+
+        $this->assertSame('CET (UTC+01:00)', Clock::labelAt('2026-01-15 15:00:00'));
+        $this->assertSame('CEST (UTC+02:00)', Clock::labelAt('2026-07-15 15:00:00'));
+    }
+
+    /** Ohne Zeitpunkt keine Beschriftung — und ein unlesbarer Wert erfindet keine. */
+    public function test_a_label_without_a_moment_is_null(): void
+    {
+        Clock::store('Europe/Berlin');
+
+        $this->assertNull(Clock::labelAt(null));
+        $this->assertNull(Clock::labelAt(''));
+        $this->assertNull(Clock::labelAt('übermorgen'));
+    }
+
+    /**
+     * Beide Wege geben dieselbe Form — sonst wären es zwei Fassungen.
+     *
+     * `label()` beschriftet „jetzt", `labelAt()` einen genannten Zeitpunkt.
+     * Gemessen wird die **Form** und nicht der Wert: Welcher der beiden gerade
+     * gilt, hängt am Tag des Laufs.
+     */
+    public function test_both_ways_write_the_zone_the_same(): void
+    {
+        Clock::store('Europe/Berlin');
+
+        $form = '/^[A-Za-z]{1,5} \(UTC[+-]\d{2}:\d{2}\)$/D';
+
+        $this->assertMatchesRegularExpression($form, Clock::label());
+        $this->assertMatchesRegularExpression($form, (string) Clock::labelAt('2026-07-15 15:00:00'));
+    }
 }

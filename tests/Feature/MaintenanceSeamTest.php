@@ -147,8 +147,54 @@ final class MaintenanceSeamTest extends TestCase
 
         $konfiguration = SiteTemplate::render(Site::fromArgs(app(WebLifecycle::class)->payload($domain)));
 
-        self::assertStringContainsString('Voraussichtlich ab 2026-09-04 16:00 Uhr', $konfiguration);
+        self::assertStringContainsString(
+            'Voraussichtlich ab 2026-09-04 16:00 Uhr CEST (UTC+02:00) wieder erreichbar.',
+            $konfiguration,
+        );
         self::assertStringNotContainsString('14:00', $konfiguration);
+    }
+
+    /**
+     * Die Zone gehört zum genannten Zeitpunkt und nicht zum Tag des Laufs.
+     *
+     * **Eine Endzeit im Januar bekommt `CET`, auch wenn gerade Sommer ist.**
+     * Gemessen an einem festen Zeitpunkt: Hinge das Ergebnis an `now()`, wäre
+     * diese Prüfung ein halbes Jahr lang grün und ein halbes Jahr lang rot.
+     */
+    public function test_the_zone_belongs_to_the_end_time_and_not_to_the_run(): void
+    {
+        $this->ablegen('2026-01-15 16:00');
+        $domain = $this->domain();
+
+        $args = app(WebLifecycle::class)->payload($domain);
+
+        self::assertSame('2026-01-15 16:00', $args['maintenance_until']);
+        self::assertSame('CET (UTC+01:00)', $args['maintenance_zone']);
+
+        self::assertStringContainsString(
+            'ab 2026-01-15 16:00 Uhr CET (UTC+01:00) wieder erreichbar.',
+            SiteTemplate::render(Site::fromArgs($args)),
+        );
+    }
+
+    /**
+     * Die Gegenrichtung — eine Zone, die die Form nicht hält, kommt nicht durch.
+     *
+     * Sie landet als Text *in* einer nginx-Zeichenkette; das ist dieselbe
+     * Grenze wie bei der Endzeit und keine Höflichkeit.
+     */
+    public function test_a_zone_that_is_not_a_zone_is_refused_at_that_door(): void
+    {
+        $this->ablegen('2026-09-04 16:00');
+        $domain = $this->domain();
+
+        $args = app(WebLifecycle::class)->payload($domain);
+        $args['maintenance_zone'] = "CEST'; return 200 'weg";
+
+        $this->expectException(AgentException::class);
+        $this->expectExceptionMessage('Die Zeitzone der Endzeit muss die Form „CEST (UTC+02:00)" haben.');
+
+        Site::fromArgs($args);
     }
 
     /** Ohne Endzeit geht nichts hinaus — und der Block sagt dann nur den Grund. */

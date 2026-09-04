@@ -135,6 +135,18 @@ final class WebLifecycle implements AfterOperation
              */
             'maintenance_until' => Clock::minute($this->settings->maintenance()['until']),
 
+            /*
+             * **Die Zone gehört zur Zeit und nicht zu „jetzt".** Sie kommt
+             * deshalb aus {@see Clock::labelAt()} und nicht aus `label()`:
+             * Berlin heisst im Juli `CEST (UTC+02:00)` und im Januar `CET
+             * (UTC+01:00)`, und eine Endzeit im Winter, im Sommer gesetzt,
+             * bekäme sonst die Abkürzung des Sommers.
+             *
+             * Beide Felder hängen an demselben abgelegten Wert: Ohne Endzeit
+             * ist auch die Zone `null`, und der Satz endet nach dem Grund.
+             */
+            'maintenance_zone' => Clock::labelAt($this->settings->maintenance()['until']),
+
             // **Eine Erlaubnis, keine Anweisung.** Ob HSTS gewollt ist, weiss
             // nur das Panel — es kennt den Testbetrieb, dessen Wurzel kein
             // Browser kennt. Ob das Zertifikat es hergibt, sieht der Agent

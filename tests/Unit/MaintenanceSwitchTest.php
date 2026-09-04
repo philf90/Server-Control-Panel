@@ -206,7 +206,7 @@ final class MaintenanceSwitchTest extends TestCase
 
         $this->assertNotNull($parameter, 'Der Ablageort ist nicht mehr einsetzbar — dann misst dieser Wächter etwas anderes.');
         $this->assertSame(Maintenance::FLAG, $parameter->getDefaultValue());
-        $this->assertStringContainsString(Maintenance::FLAG, Maintenance::nginxGuard(null));
+        $this->assertStringContainsString(Maintenance::FLAG, Maintenance::nginxGuard(null, null));
     }
 
     /**

@@ -25346,3 +25346,46 @@ Gerät zeigt, nämlich `tt.mm.jjjj` und 24 Stunden.
 
 > **Ein Bild, das in der Sprache des Prüfstands aufgenommen wurde, sagt über die
 > Anzeige auf dem Gerät des Lesers nichts.**
+
+### Die Wartungsseite nennt jetzt die Zone — und zwei Messungen, die den Entwurf getragen haben
+
+Entschieden vom Betreiber am 4. September 2026: Der Satz lautet „Voraussichtlich
+ab 2026-09-04 16:00 Uhr **CEST (UTC+02:00)** wieder erreichbar." Ein Besucher
+einer Kundenwebsite kennt die Anzeigezeitzone des Betreibers nicht — und sie
+macht den Satz haltbar:
+
+> **Eine Zeitangabe mit ihrer Zone bleibt wahr, auch wenn die Zone sich seither
+> geändert hat — eine ohne wird still falsch.**
+
+**Die Zone gehört zum Zeitpunkt und nicht zu „jetzt".** Berlin heisst im Juli
+`CEST (UTC+02:00)` und im Januar `CET (UTC+01:00)`; `Clock::label()` beschriftet
+den Augenblick des Schreibens, und eine Endzeit im Winter, im Sommer gesetzt,
+bekäme damit die Abkürzung des Sommers. Dafür gibt es `Clock::labelAt()` — beide
+Wege gehen durch **eine** Formatierung, sonst liefe die zweite auseinander.
+
+> **Eine Zonenangabe, die für „jetzt" gilt, gehört nicht neben einen Zeitpunkt,
+> der woanders liegt.**
+
+**Und die Form der Abkürzung ist gemessen und nicht abgelesen.** Über alle
+Zeitzonen von PHP, in beiden Hälften des Jahres, hat sie drei Formen: Buchstaben
+(höchstens fünf), einen kurzen Versatz (`+03`) und einen langen (`+0530`). Ein
+Ausdruck nur für `CEST (UTC+02:00)` wiese Colombo und Kathmandu ab — und der
+Betreiber läse eine Meldung über einen Programmierfehler, wo er nur eine
+Zeitzone eingestellt hat.
+
+> **Eine Form, die man an der eigenen Zone abliest, ist eine von dreien.**
+
+Geprüft wird sie im Agenten gegen `Maintenance::ZONE`, aus demselben Grund wie
+die Endzeit: Der Wert landet als Text *in* einer nginx-Zeichenkette.
+
+**`MaintenanceRoundTripTest` hält, was der Betreiber verlangt hat:** Was
+eingetippt wird, kommt in der eingestellten Zone zurück — gemessen mit einem
+Versatz und mit einer zweiten Zone daneben, in der dieselbe Ablage `10:00 · EDT
+(UTC-04:00)` heisst. Eine Prüfzone ohne Versatz liesse eine fehlende Umrechnung
+wie eine gelungene aussehen.
+
+**Zwei bestehende Wächter haben beim Bauen zugebissen**, beide an dokumentierten
+Fallen: Pint machte aus einem `{@see \App\Support\Time\Clock}` im Dokumentblock
+des Agenten einen `use`-Eintrag (`AgentIndependenceTest`), und der Eingriff auf
+`Maintenance::nginxGuard()` fand seinen Text nicht mehr, weil der Aufruf ein
+zweites Argument bekommen hat (`BreakScriptTest`).

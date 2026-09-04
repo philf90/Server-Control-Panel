@@ -72,6 +72,23 @@ final class Site
          * falls sie es ist — deshalb steht hier kein Wahrheitswert.
          */
         public readonly ?string $maintenanceUntil,
+
+        /**
+         * Die Zone, in der diese Endzeit gilt — `CEST (UTC+02:00)`.
+         *
+         * **Sie steht neben der Zeit, weil die Wartungsseite die einzige
+         * Fläche dieses Panels ist, die jemand liest, der die Einstellung nicht
+         * kennt.** Ein Besucher hat keinen Zugang zur Anzeigezeitzone des
+         * Betreibers; ohne die Angabe liest er eine Uhrzeit ohne Bezugspunkt.
+         *
+         * Und sie hält den Satz haltbar: Ändert der Betreiber später seine
+         * Anzeigezone, nennt ein Block, der noch nicht neu geschrieben ist,
+         * weiterhin **denselben Augenblick** — nur in der alten Zone.
+         *
+         * > **Eine Zeitangabe mit ihrer Zone bleibt wahr, auch wenn die Zone
+         * > sich seither geändert hat — eine ohne wird still falsch.**
+         */
+        public readonly ?string $maintenanceZone,
     ) {}
 
     /**
@@ -109,6 +126,7 @@ final class Site
             redirectCode: self::redirectCode($args['redirect_code'] ?? null),
             suspended: (bool) ($args['suspended'] ?? false),
             maintenanceUntil: Maintenance::until($args['maintenance_until'] ?? null),
+            maintenanceZone: Maintenance::zone($args['maintenance_zone'] ?? null),
 
             /*
              * **Eine Erlaubnis, keine Anweisung.** Ob ein Jahr erzwungenes

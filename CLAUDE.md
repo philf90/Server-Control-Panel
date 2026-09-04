@@ -1455,7 +1455,15 @@ und `MaintenanceSeamTest` (was das Panel als Endzeit hinausgibt, kommt am Agente
 an — gemessen an der **Wirkung** durch `Site::fromArgs()`, also durch die Tür,
 und mit der Gegenrichtung, dass der **abgelegte** Wert dort nicht durchkommt;
 sie nennt die erwartete Meldung beim Namen, weil sie beim ersten Lauf an einer
-anderen Hürde grün war). Der Bruch selbst steht als
+anderen Hürde grün war; **seit dem 4. September** misst sie auch die Zone —
+`Clock::labelAt()` und nicht `label()`, denn Berlin heisst im Januar anders als
+im Juli, und gemessen wird an einem festen Zeitpunkt statt an `now()`, sonst
+wäre die Prüfung ein halbes Jahr grün und ein halbes Jahr rot) und
+`MaintenanceRoundTripTest` (was der Betreiber eintippt, kommt in der
+eingestellten Zone zurück — gemessen mit einem **Versatz** und mit einer zweiten
+Zone daneben, weil eine Prüfzone ohne Versatz eine fehlende Umrechnung wie eine
+gelungene aussehen liesse; was er nicht kann — den Weg durch `POST`, der den
+Agenten braucht — steht in seinem Kopf als Frage). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -2243,6 +2251,21 @@ geschriebenen `'2026-09-04 16:00'`, `MaintenanceMode` gegen ein Doppel.
 > **Zwei Prüfungen, die je eine Seite einer Naht mit einem selbst geschriebenen
 > Wert füttern, prüfen die Naht nicht — sie prüfen zweimal denselben
 > Prüfkörper.**
+
+**Und die Zone steht seitdem neben der Zeit**, entschieden vom Betreiber: Ein
+Besucher einer Kundenwebsite kennt die Anzeigezeitzone nicht. Zwei Messungen
+haben den Entwurf getragen — die Abkürzung hat über alle Zeitzonen von PHP
+**drei** Formen (Buchstaben, `+03`, `+0530`), und sie gehört zum genannten
+Zeitpunkt und nicht zu „jetzt", weil Berlin im Januar `CET` heisst und im Juli
+`CEST`.
+
+> **Eine Form, die man an der eigenen Zone abliest, ist eine von dreien.**
+
+> **Eine Zonenangabe, die für „jetzt" gilt, gehört nicht neben einen Zeitpunkt,
+> der woanders liegt.**
+
+> **Eine Zeitangabe mit ihrer Zone bleibt wahr, auch wenn die Zone sich seither
+> geändert hat — eine ohne wird still falsch.**
 
 ---
 

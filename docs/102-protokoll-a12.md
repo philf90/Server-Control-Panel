@@ -120,6 +120,64 @@ Hürde als der gemeinten. Sie nennt die Meldung seitdem beim Namen.
 
 ---
 
+## 3b · Die Zone steht jetzt neben der Zeit
+
+**Entschieden vom Betreiber am 4. September 2026**, nachdem die Frage aus §3
+gestellt war: Der Satz auf der Wartungsseite nennt die Zone.
+
+> Diese Website ist wegen Wartungsarbeiten vorübergehend nicht erreichbar.
+> Voraussichtlich ab **2026-09-04 16:00 Uhr CEST (UTC+02:00)** wieder erreichbar.
+
+**Der Grund ist nicht nur die Höflichkeit gegenüber dem Besucher.** Die
+Wartungsseite ist die einzige Fläche dieses Panels, die jemand liest, der die
+Anzeigezeitzone des Betreibers nicht kennt — und sie macht den Satz haltbar:
+
+> **Eine Zeitangabe mit ihrer Zone bleibt wahr, auch wenn die Zone sich seither
+> geändert hat — eine ohne wird still falsch.**
+
+Ändert der Betreiber später seine Anzeigezone, nennt ein Block, der noch nicht
+neu geschrieben ist, weiterhin **denselben Augenblick**, nur in der alten Zone.
+Ohne die Angabe wäre er still falsch geworden.
+
+### Zwei Dinge, die dabei gemessen wurden
+
+**Die Zone gehört zum Zeitpunkt und nicht zu „jetzt".** Berlin heisst im Juli
+`CEST (UTC+02:00)` und im Januar `CET (UTC+01:00)`. `Clock::label()` beschriftet
+den Augenblick des Schreibens; eine Endzeit im Winter, im Sommer gesetzt, bekäme
+damit die Abkürzung des Sommers. Dafür gibt es jetzt `Clock::labelAt()`, und
+beide Wege gehen durch **eine** Formatierung.
+
+> **Eine Zonenangabe, die für „jetzt" gilt, gehört nicht neben einen Zeitpunkt,
+> der woanders liegt.**
+
+**Die Form der Abkürzung ist gemessen und nicht abgelesen.** Über alle
+Zeitzonen von PHP, in beiden Hälften des Jahres, hat sie **drei** Formen:
+Buchstaben (`GMT`, `CEST`, `EEST` — höchstens fünf), einen kurzen Versatz
+(`+03`, `-11`) und einen langen (`+0530`). Ein Ausdruck, der nur `CEST
+(UTC+02:00)` kennt, wiese Colombo und Kathmandu ab — und der Betreiber läse eine
+Meldung über einen Programmierfehler, wo er nur eine Zeitzone eingestellt hat.
+
+> **Eine Form, die man an der eigenen Zone abliest, ist eine von dreien.**
+
+Geprüft wird sie im Agenten gegen `Maintenance::ZONE`, aus demselben Grund wie
+die Endzeit: Der Wert landet als Text *in* einer nginx-Zeichenkette.
+
+### Und der Rundlauf ist jetzt gehalten
+
+`MaintenanceRoundTripTest` misst, was der Betreiber verlangt hat: Was eingetippt
+wird, kommt in der eingestellten Zone zurück. Gemessen mit einem **Versatz** und
+mit einer zweiten Zone daneben — dieselbe Ablage liest sich in `America/New_York`
+als `10:00 · EDT (UTC-04:00)`.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.** Mit `UTC` als Prüfzone sähe eine fehlende Umrechnung wie eine
+> gelungene aus.
+
+**Was er nicht kann:** den vollen Weg durch `POST /maintenance`. Der geht über
+den Agenten, und den gibt es im Prüfstand nicht — er steht als Punkt 2 in §5.
+
+---
+
 ## 4 · Die Bilderrunde zu den zwei Feldern
 
 Vier Lagen, `dokument: 0 px` in allen vieren, Gegenprobe `200/200` in allen

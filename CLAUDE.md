@@ -1919,10 +1919,10 @@ die Frist von 1800 Sekunden ist um drei Grössenordnungen grosszügig), §9 die
 zehn Befunde mit ihren Lehren, §10 die zwei Zeilen, die über den **Server** etwas
 sagen, §11 die Bilanz und §12 was offen bleibt.
 
-**A10 ist damit abgenommen.** Offen und benannt bleiben drei Dinge, keines ein
-Kriterienausfall: der Rest aus P7 (`orphan.row` / `tls.cloudlab24.de`), das
+**A10 ist damit abgenommen.** Offen und benannt bleiben zwei Dinge, keines ein
+Kriterienausfall: der Rest aus P7 (`orphan.row` / `tls.cloudlab24.de`) und das
 hochgeladene Wegwerfzertifikat aus Punkt 6 (läuft am 13. September von selbst
-aus), und **die Behebung zu Befund 10 hat keinen Server gesehen**.
+aus).
 
 **Sechs der zehn Befunde stecken im Prüfling** — die Umkehrung von `docs/45`,
 `docs/48`, `docs/59` und `docs/84`, und dieselbe Lage wie bei A2 aus demselben
@@ -1959,6 +1959,17 @@ Begründungen dazu standen zuerst da und waren beide falsch**, beide gegen
 systemd 255 nachgemessen: Ein `stop` auf ein nie gestartetes Ziel überträgt sehr
 wohl, und ein Ziel mit `Requires=` nimmt die übrigen Units nicht mit — es bleibt
 selbst `inactive` und gibt 1 zurück, während sie laufen.
+
+**Am 4. September 2026 auf `cloudsrv24` gegen `0.7.3-rc.15` nachgemessen**
+(`docs/100 §9.10`): `stop` des Ziels legt alle vier Dienste hin, `start` holt
+sie zurück, und ein `stop`/`start` des **Agenten allein** lässt Worker und
+Metrik weiterhin liegen — das Ziel behebt die Ursache nicht, es gibt den Griff,
+der ihren Zustand aufhebt. **Und die erste Messung war keine:** ohne `sleep`
+stand da `active · deactivating · deactivating · deactivating`, weil der Agent
+über sein `Before=` beim Anhalten zuletzt geht.
+
+> **Ein `is-active` unmittelbar nach dem `stop` misst den Übergang und nicht den
+> Zustand.**
 
 > **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist auch dann
 > falsch, wenn der Handgriff daneben richtig ist — und er hält länger als der

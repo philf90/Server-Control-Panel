@@ -25041,7 +25041,40 @@ nicht erst gefragt, und `CertificateVerdictTest` hält genau das. Hätte die
 Vorhersage im Protokoll gestanden, wäre aus richtigem Verhalten ein Mangel
 geworden.
 
-**Offen und benannt bleiben drei Dinge, keines ein Kriterienausfall:** der Rest
-aus P7 (`orphan.row` / `tls.cloudlab24.de`), das hochgeladene Wegwerfzertifikat
-aus Punkt 6 (läuft am 13. September von selbst aus), und die Behebung zu
-Befund 10 — `srvpanel.target` — hat noch keinen Server gesehen.
+**Offen und benannt bleiben zwei Dinge, keines ein Kriterienausfall:** der Rest
+aus P7 (`orphan.row` / `tls.cloudlab24.de`) und das hochgeladene
+Wegwerfzertifikat aus Punkt 6 (läuft am 13. September von selbst aus).
+
+### `srvpanel.target` auf einem echten Server — und die erste Messung war keine
+
+Gegen `0.7.3-rc.15` auf `cloudsrv24`, am 4. September 2026. Damit ist der letzte
+offene Punkt aus `docs/100 §12` gemessen: Das Ziel hatte bis dahin nur systemd
+in einer Namespace gesehen.
+
+    systemctl status  → active since 08:48:09, enabled; preset: enabled
+    systemctl show -p Wants → neun Units: vier .service, fünf .timer,
+                              kein Type=oneshot darunter
+
+    stop srvpanel.target;  sleep 3 → inactive inactive inactive inactive
+    start srvpanel.target; sleep 3 → active   active   active   active
+
+    stop + start srvpanel-agentd   → worker und metrics bleiben inactive
+
+Die letzte Zeile ist die wichtigste, und sie ist kein Mangel: **Das Ziel behebt
+die Ursache nicht.** `Requires=` überträgt weiterhin nur das Anhalten; das Ziel
+gibt den Griff, der den entstandenen Zustand wieder aufhebt.
+
+**Die erste Fassung dieser Messung war keine.** Sie stand ohne `sleep` da und
+ergab `active · deactivating · deactivating · deactivating` — der Agent trägt
+`Before=srvpanel-worker.service srvpanel-metrics.service`, geht beim Anhalten
+also zuletzt, und `systemctl stop` auf das Ziel kehrt zurück, bevor die
+übertragenen Aufträge durch sind. Belegt war damit, dass die Übertragung
+*stattfindet*, nicht dass sie ankommt.
+
+> **Ein `is-active` unmittelbar nach dem `stop` misst den Übergang und nicht den
+> Zustand.**
+
+Dasselbe Update hat nebenbei zwei ältere Befunde ein weiteres Mal gegengeprüft:
+`Paketlisten aufgefrischt; jede Quelle hat geantwortet` ist M5, und dass
+`srvpanel update` den Neustart des Panels überlebt und am Ende das Urteil seines
+Laufs nennt (`rc=0`, `Fassung 0.7.3~rc.14 wurde zu 0.7.3~rc.15`), ist M1.

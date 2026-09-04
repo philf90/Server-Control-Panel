@@ -23683,6 +23683,106 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AptKeyReadTest passed
 
 echo
+echo "== UnitTargetTest: eine Unit faellt aus dem Ziel =="
+#
+# Das Ziel ist der eine Griff fuer das ganze Panel. Fehlt ein Dauerdienst
+# darin, holt ein `start srvpanel.target` ihn nicht zurueck -- genau die Lage,
+# die den A10-Nachlauf zu Punkt 7 gefunden hat.
+vorher_datei packaging/systemd/srvpanel.target
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel.target'
+s = open(p, encoding='utf-8').read()
+alt = """Wants=srvpanel-worker.service\n"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """""", 1))
+PY2
+griff_datei packaging/systemd/srvpanel.target "Dauerdienst fehlt im Ziel" &&
+pruefe "Dauerdienst fehlt im Ziel" \
+  UnitTargetTest::test_the_target_wants_every_long_running_unit failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitTargetTest passed
+
+echo
+echo "== UnitTargetTest: ein Timer-Dienst steht im Ziel =="
+#
+# `srvpanel-usage.service` ist `Type=oneshot` und gehoert seinem Timer. Im Ziel
+# liefe er bei jedem `systemctl start srvpanel.target` sofort los -- fuenf
+# Laeufe auf einen Schlag, von denen keiner faellig war.
+vorher_datei packaging/systemd/srvpanel.target
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel.target'
+s = open(p, encoding='utf-8').read()
+alt = """Wants=srvpanel-usage.timer"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """Wants=srvpanel-usage.service
+Wants=srvpanel-usage.timer""", 1))
+PY2
+griff_datei packaging/systemd/srvpanel.target "Timer-Dienst steht im Ziel" &&
+pruefe "Timer-Dienst steht im Ziel" \
+  UnitTargetTest::test_the_target_wants_no_service_a_timer_starts failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitTargetTest passed
+
+echo
+echo "== UnitTargetTest: eine Unit gehoert nicht mehr zum Ziel =="
+#
+# Die andere Haelfte: `Wants=` sagt, was das Ziel startet, `PartOf=`, was es
+# anhaelt. Ohne das zweite waere das Ziel ein Griff, der nur anschaltet.
+vorher_datei packaging/systemd/srvpanel-worker.service
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-worker.service'
+s = open(p, encoding='utf-8').read()
+alt = """PartOf=srvpanel.target\n"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """""", 1))
+PY2
+griff_datei packaging/systemd/srvpanel-worker.service "Unit ohne PartOf" &&
+pruefe "Unit ohne PartOf" \
+  UnitTargetTest::test_every_unit_of_the_target_belongs_to_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitTargetTest passed
+
+echo
+echo "== UnitTargetTest: das Ziel wird nicht paketiert =="
+#
+# Eine Unit, die kein Paket ablegt, gibt es auf dem Server nicht -- und der
+# Griff waere einer, den nur dieses Repository kennt.
+vorher_datei packaging/nfpm.yaml
+python3 - <<'PY2'
+p = 'packaging/nfpm.yaml'
+s = open(p, encoding='utf-8').read()
+alt = """  - src: ./packaging/systemd/srvpanel.target
+    dst: /lib/systemd/system/srvpanel.target
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """""", 1))
+PY2
+griff_datei packaging/nfpm.yaml "Ziel nicht paketiert" &&
+pruefe "Ziel nicht paketiert" \
+  UnitTargetTest::test_the_target_is_packaged failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitTargetTest passed
+
+echo
+echo "== UnitTargetTest: die Installation schaltet das Ziel nicht an =="
+#
+# Ohne `enable --now` meldete das Ziel `inactive`, waehrend jede seiner Units
+# laeuft -- und nach einem Neustart kaeme es gar nicht wieder.
+vorher_datei packaging/scripts/postinstall.sh
+python3 - <<'PY2'
+p = 'packaging/scripts/postinstall.sh'
+s = open(p, encoding='utf-8').read()
+alt = """    systemctl enable --now srvpanel.target >/dev/null 2>&1 || true\n"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """""", 1))
+PY2
+griff_datei packaging/scripts/postinstall.sh "Installation schaltet das Ziel nicht an" &&
+pruefe "Installation schaltet das Ziel nicht an" \
+  UnitTargetTest::test_the_installation_enables_the_target failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitTargetTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

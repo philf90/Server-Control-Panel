@@ -3,6 +3,11 @@ Description=SrvPanel — PHP-FPM-Pool der Panel-Oberfläche
 Documentation=https://repo.cloudsrv24.de/
 After=network.target
 
+# Gehört zu `srvpanel.target`: Ein `stop` oder `restart` des Ziels nimmt
+# diese Unit mit. Ohne diese Zeile wäre das Ziel ein Griff, der nur
+# anschaltet — und das ist ein halber Griff.
+PartOf=srvpanel.target
+
 [Service]
 Type=notify
 ExecStart=/opt/srvpanel/bin/php-fpm --nodaemonize --fpm-config /etc/srvpanel/fpm.conf

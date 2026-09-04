@@ -2,6 +2,11 @@
 Description=SrvPanel — Speichermessung im Viertelstundentakt
 Documentation=https://repo.cloudsrv24.de/
 
+# Gehört zu `srvpanel.target`: Ein `stop` oder `restart` des Ziels nimmt
+# diese Unit mit. Ohne diese Zeile wäre das Ziel ein Griff, der nur
+# anschaltet — und das ist ein halber Griff.
+PartOf=srvpanel.target
+
 [Timer]
 # Fünf Minuten nach dem Start und danach alle fünfzehn Minuten. Der Versatz
 # nach dem Booten ist Absicht: In den ersten Minuten fährt der Server hoch,

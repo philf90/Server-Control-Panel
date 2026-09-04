@@ -4,6 +4,11 @@ Documentation=https://repo.cloudsrv24.de/
 After=network.target
 Before=srvpanel-worker.service srvpanel-metrics.service
 
+# Gehört zu `srvpanel.target`: Ein `stop` oder `restart` des Ziels nimmt
+# diese Unit mit. Ohne diese Zeile wäre das Ziel ein Griff, der nur
+# anschaltet — und das ist ein halber Griff.
+PartOf=srvpanel.target
+
 [Service]
 Type=simple
 # `pcre.jit=0`, und zwar wegen MemoryDenyWriteExecute weiter unten.

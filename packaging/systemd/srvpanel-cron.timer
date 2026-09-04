@@ -2,6 +2,11 @@
 Description=SrvPanel — die Läufe der Cronjobs einsammeln
 Documentation=https://repo.cloudsrv24.de/
 
+# Gehört zu `srvpanel.target`: Ein `stop` oder `restart` des Ziels nimmt
+# diese Unit mit. Ohne diese Zeile wäre das Ziel ein Griff, der nur
+# anschaltet — und das ist ein halber Griff.
+PartOf=srvpanel.target
+
 [Timer]
 # Zwei Minuten nach dem Start und danach alle fünf Minuten. Der Versatz nach dem
 # Booten ist derselbe Gedanke wie bei srvpanel-usage.timer: In den ersten

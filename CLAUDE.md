@@ -27,6 +27,12 @@ Protokoll ist **`docs/86`**, die Abnahme selbst steht in dessen §6. Die beiden
 Ausfälle sind genau die, die `docs/85 §6` zulässt (Punkt 4 ohne ablaufenden
 Schlüssel, Punkt 2 ohne Neuinstallation im Bestand).
 
+**A10 ist am 3. September 2026 abgenommen** — auf `cloudsrv24` gegen
+`0.7.3-rc.11` bis `0.7.3-rc.14`, **alle acht Punkte aus `docs/99`** erfüllt,
+beide Ausschlusskriterien (5 und 8) darunter, keiner als „nicht herstellbar"
+ausgefallen. Der Lauf ist `docs/99`, das Protokoll **`docs/100`**. Zehn Befunde,
+**sechs davon im Prüfling** — die Einzelheiten stehen weiter unten.
+
 **Sechs Reste blieben benannt offen und waren kein Kriterienausfall**
 (`docs/86 §5`); **vier davon sind am 28. August gebaut**. Der grösste war eine
 Familie und keine drei Einzelfälle:
@@ -1905,25 +1911,69 @@ Punkte ausfallen dürfen — **5 und 8 nicht**.
 
 > **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
 
-Und **`docs/100` das Protokoll dazu** — angelegt am 3. September 2026, nachdem
-Punkt 1 gefahren war. **Die Punkte 2 bis 8 stehen aus**, und das steht dort
-oben und nicht am Ende: Ein Protokoll ohne seine Lücken liest sich wie eine
-Abnahme. §1 hat den Punkt und seine Messwerte (M19 ist beantwortet — der ganze
-Nachtlauf kostet **391 ms**, die Frist von 1800 Sekunden ist um drei
-Grössenordnungen grosszügig), §2 die vier Befunde mit ihren Lehren, §3 die eine
-Zeile, die über den **Server** etwas sagt, §4 die Bilanz und §5 was offen ist.
+Und **`docs/100` das Protokoll dazu** — **alle acht Punkte sind am 3. September
+2026 gefahren und erfüllt**, beide Ausschlusskriterien (5 und 8) darunter, und
+keiner ist als „nicht herstellbar" ausgefallen. §1 bis §8 haben je Punkt den
+**gemessenen** Wert (M19 ist beantwortet — der ganze Nachtlauf kostet **391 ms**,
+die Frist von 1800 Sekunden ist um drei Grössenordnungen grosszügig), §9 die
+zehn Befunde mit ihren Lehren, §10 die zwei Zeilen, die über den **Server** etwas
+sagen, §11 die Bilanz und §12 was offen bleibt.
 
-**Drei der vier Befunde stecken im Prüfling** — die Umkehrung von `docs/45`,
+**A10 ist damit abgenommen.** Offen und benannt bleiben drei Dinge, keines ein
+Kriterienausfall: der Rest aus P7 (`orphan.row` / `tls.cloudlab24.de`), das
+hochgeladene Wegwerfzertifikat aus Punkt 6 (läuft am 13. September von selbst
+aus), und **die Behebung zu Befund 10 hat keinen Server gesehen**.
+
+**Sechs der zehn Befunde stecken im Prüfling** — die Umkehrung von `docs/45`,
 `docs/48`, `docs/59` und `docs/84`, und dieselbe Lage wie bei A2 aus demselben
 Grund: Die Vorschrift war vor dem Lauf ausgeschrieben, das Messmittel lag als
-geprüftes Werkzeug im Repo. Was blieb, war **neuer Code**. Alle drei sitzen an
+geprüftes Werkzeug im Repo. Was blieb, war **neuer Code**. Sie sitzen alle an
 derselben Art Stelle:
 
-> **Drei Fehler an drei Nähten zwischen zwei Dateien** — Katalog und Container,
-> Vorlage und Leser, Aufruf und Ablageort. Jeder für sich war in Ordnung; keiner
-> der 3011 Wächter stand dazwischen.
+> **Fehler an Nähten zwischen zwei Dateien** — Katalog und Container, Vorlage
+> und Leser, Aufruf und Ablageort, Vorlage und Zusage, Unit und Unit. Jede Seite
+> für sich war in Ordnung; kein Wächter stand dazwischen.
 
-**Der vierte hat sich beim Anlegen dieses Protokolls selbst gemeldet.**
+**Der grösste hat die Stufe verändert, bevor sie abgenommen war.** Die Zusage
+einer Vhost-Datei war die **Schnittmenge** aller vier Formen — neun Anweisungen,
+wo eine PHP-Domain zwanzig ausgibt. Gemessen an der echten Vorlage lässt
+`nginx -t` genau **eine** Auslassung durchgehen, die `index`-Zeile, und
+verschluckt `client_max_body_size` — und die lag ausserhalb der Schnittmenge.
+
+> **Eine Zusage über neun Anweisungen sagt über die siebzehn daneben nichts —
+> und die stille Form des Schadens traf genau eine davon.**
+
+**Und der letzte Befund kam aus dem Lauf selbst.** Punkt 7 hält den Agenten an;
+danach standen `srvpanel-worker` und `srvpanel-metrics` still, und ein `start`
+des Agenten holte sie **nicht** zurück. `Requires=` überträgt das Anhalten und
+nicht das Starten; der Worker ist die Warteschlange, und ohne ihn bleibt jeder
+Vorgang wortlos auf „wartet" stehen.
+
+> **Eine Abhängigkeit, die das Anhalten überträgt und das Starten nicht,
+> hinterlässt einen Zustand, den nur der herstellt, der ihn auch beheben
+> müsste.**
+
+Gebaut ist `srvpanel.target` (Variante A, entschieden vom Betreiber) — die vier
+Dauerdienste und die fünf Timer, jede der neun Units mit `PartOf=`. **Zwei
+Begründungen dazu standen zuerst da und waren beide falsch**, beide gegen
+systemd 255 nachgemessen: Ein `stop` auf ein nie gestartetes Ziel überträgt sehr
+wohl, und ein Ziel mit `Requires=` nimmt die übrigen Units nicht mit — es bleibt
+selbst `inactive` und gibt 1 zurück, während sie laufen.
+
+> **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist auch dann
+> falsch, wenn der Handgriff daneben richtig ist — und er hält länger als der
+> Handgriff, weil ihn der Nächste liest und glaubt.**
+
+**Der teuerste Befund des Nachmittags steckte in der Vorschrift.** Jeder Rückbau
+war mit `nginx -t` abgenommen worden — und genau diesen Schaden sieht `nginx -t`
+nicht; das ist der Grund, aus dem es Punkt 5 gibt. Die Sicherung trug ihn schon,
+gefunden hat es die Diagnose, und `srvpanel vhost --sites` hat ihn behoben —
+nach der Warteschlange und nicht in derselben Sekunde (Form A aus `docs/86 §5`).
+
+> **Ein Rückbau, den man mit dem Prüfer misst, den der Schaden nicht auslöst,
+> ist nicht gemessen.**
+
+**Ein Befund hat sich beim Anlegen des Protokolls selbst gemeldet.**
 `DocLinkTest` las Dokumentnummern mit genau zwei Ziffern — bei der ersten
 dreistelligen Datei meldete er sie als Verweis auf ein Dokument, das es nicht
 gibt, obwohl die Datei dalag.
@@ -1936,6 +1986,12 @@ gefangen: Er zitierte die Meldung wörtlich, mitsamt der gekürzten Nummer.
 
 > **Ein Text, der eine Meldung über einen toten Verweis zitiert, enthält den
 > toten Verweis.**
+
+**Und ein Befund war keiner.** Zu Punkt 6 hatte ich einen `tls.wire`-Eintrag
+vorhergesagt, der nicht kam: Findet die Datei einen Befund, wird die Leitung gar
+nicht erst gefragt, und `CertificateVerdictTest` hält genau das. Hätte die
+Vorhersage im Protokoll gestanden, wäre aus richtigem Verhalten ein Mangel
+geworden.
 
 Und **`97` die Übergabe an A10** — der Stand von P7b (vier abgenommen, fünf
 offen), was A10 ist, **was vor dem Plan zu messen ist**, die vier frischen

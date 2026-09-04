@@ -2,6 +2,11 @@
 Description=SrvPanel — tägliche Prüfung des Zertifikats
 Documentation=https://repo.cloudsrv24.de/
 
+# Gehört zu `srvpanel.target`: Ein `stop` oder `restart` des Ziels nimmt
+# diese Unit mit. Ohne diese Zeile wäre das Ziel ein Griff, der nur
+# anschaltet — und das ist ein halber Griff.
+PartOf=srvpanel.target
+
 [Timer]
 # Täglich, obwohl ein Zertifikat 397 Tage gilt. Der Takt richtet sich nicht
 # nach der Laufzeit, sondern nach der Frist davor: Erneuert wird ab 30 Tagen

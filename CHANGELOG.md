@@ -24920,3 +24920,128 @@ Richtungen belegt, zwei davon als Bruch im Skript.
 
 Was das kostet, ist benannt und angenommen: Dieselbe Sache kann auf der Seite
 und auf der Konsole verschieden heissen.
+
+### `srvpanel.target` — ein Griff für das ganze Panel, und zwei Begründungen, die falsch waren
+
+**Gefunden hat es die Bestandsdiagnose selbst**, in Punkt 7 des A10-Nachlaufs.
+Der Punkt hält den Agenten an und misst, was die Prüfungen dann melden.
+Angehalten war er schnell wieder; danach standen `srvpanel-worker` und
+`srvpanel-metrics` still, und ein `start` des Agenten holte sie **nicht**
+zurück. Beide tragen `Requires=srvpanel-agentd.service` — und diese Angabe
+überträgt das Anhalten, nicht das Starten. `Restart=always` half nicht: Das
+greift, wenn ein Prozess von selbst endet, nicht wenn systemd die Unit
+absichtlich angehalten hat.
+
+Der Worker ist die Warteschlange. Ohne ihn bleibt jeder Vorgang auf „wartet"
+stehen — kein Zertifikat wird bestellt, kein Server-Block geschrieben, kein
+Update abgesetzt. Es gäbe keine Fehlermeldung, nur Stillstand.
+
+> **Eine Abhängigkeit, die das Anhalten überträgt und das Starten nicht,
+> hinterlässt einen Zustand, den nur der herstellt, der ihn auch beheben
+> müsste.**
+
+`srvpanel.target` führt die vier Dauerdienste und die fünf Timer, jede dieser
+neun Units trägt `PartOf=srvpanel.target`. `Wants=` sagt, was das Ziel startet,
+`PartOf=`, was es anhält; fehlte das zweite, wäre es ein Griff, der nur
+anschaltet. **Die Timer und ausdrücklich nicht die Dienste dahinter** — ein
+`srvpanel-usage.service` in der Liste liefe bei jedem `start` sofort los, fünf
+Läufe auf einen Schlag, von denen keiner fällig war.
+
+**Zwei Begründungen standen zuerst da und waren beide falsch.** Beide sind
+gegen echtes systemd 255 in einer eigenen Namespace nachgemessen worden, jede
+mit Gegenprobe.
+
+Die erste stand im postinst: `--now` sei nötig, weil ein `stop` auf ein nie
+gestartetes Ziel nichts an die Units mit `PartOf=` überträgt. Es überträgt —
+der Prüfkörper wurde angehalten, die Gegenprobe ohne `PartOf=` blieb stehen.
+`--now` bleibt trotzdem, aber wegen der Anzeige: Ohne ihn meldete das Ziel
+`inactive`, während jede seiner Units läuft.
+
+Die zweite stand in der Zieldatei: Ein Ziel mit `Requires=` nähme die übrigen
+Units mit, wenn eine nicht hochkommt. Sie laufen. Gemessen wird `Requires=` →
+Ziel bleibt `inactive`, `systemctl start` gibt 1 zurück, die übrigen Units
+laufen; `Wants=` → Ziel wird `active`, Rückgabewert 0, dieselben Units laufen.
+`Wants=` bleibt die richtige Wahl — mit `Requires=` löge das Ziel über den
+Zustand, den es anzeigen soll.
+
+> **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist auch
+> dann falsch, wenn der Handgriff daneben richtig ist — und er hält länger als
+> der Handgriff, weil ihn der Nächste liest und glaubt.**
+
+**Und der erste Prüfkörper war keiner.** Ein `Type=simple` mit
+`ExecStart=/bin/false` gilt als gestartet, sobald der Prozess forkt; der
+Fehlschlag kommt danach und erreicht den Startauftrag nie. `Requires=` und
+`Wants=` zeigten damit Zeile für Zeile dasselbe. Erst ein `Type=oneshot`
+scheitert im Startauftrag und trennt die beiden Fälle.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+**Und beim Aufräumen der Messung wäre der Container beinahe als sauber
+durchgegangen.** Der Beleg für das `[Install]`-Stück ist ein `systemctl enable`
+im Namespace — und `/etc` liegt nicht darin, der Symlink landete auf dem Host.
+Nachgesehen wurde mit `ls -la … | head`, und der Name steht alphabetisch hinter
+der zehnten Zeile.
+
+> **Eine abgeschnittene Liste sieht aus wie eine vollständige — sie sagt nicht,
+> wo sie aufhört.**
+
+`UnitTargetTest` hält beide Richtungen, und **der Sollzustand kommt aus den
+Unit-Dateien und nicht aus einer Liste im Test**: Ein `.service` gehört ins
+Ziel, wenn er kein `Type=oneshot` ist, jeder `.timer` gehört hinein. Dazu, dass
+das Paket die Datei ablegt und die Installation sie anschaltet. Fünf Eingriffe
+im Bruchskript, alle einzeln belegt.
+
+### A10 ist abgenommen — 3. September 2026
+
+Auf `cloudsrv24` gegen `0.7.3-rc.11` bis `0.7.3-rc.14`, **alle acht Punkte aus
+`docs/99` erfüllt**, beide Ausschlusskriterien (5 und 8) darunter, keiner als
+„nicht herstellbar" ausgefallen. Das Protokoll ist `docs/100` — es hat je Punkt
+den gemessenen Wert und nicht das Urteil „erfüllt" allein.
+
+**Punkt 5 trägt die Stufe**, und er ist der einzige, der sie tragen kann: Eine
+Vhost-Datei verliert das Semikolon ihrer `index`-Zeile, `nginx -t` gibt `rc=0` —
+und die Diagnose meldet `web.file | directive_lost | client_max_body_size fehlt
+als Anweisung`. Ohne diesen Punkt wäre A10 ein Aufruf von `nginx -t` mit einer
+Seite davor.
+
+**Punkt 8 ist der andere:** Derselbe Schaden über zwei Läufe behält `id` 11 und
+`first_seen_at` `17:26:48Z`, während `measured_at` vorrückt und der Wortlaut von
+einer auf zwei Zeilen wächst. Eine Zeile, nicht zwei.
+
+> **Die Kennung eines Befundes ist `check` + `subject` + `reason` — der Wortlaut
+> gehört nicht dazu.**
+
+**Zehn Befunde, sechs davon im Prüfling** — die Umkehrung von `docs/45`,
+`docs/48`, `docs/59` und `docs/84`, wo die Mehrheit im Prüfmittel steckte, und
+dieselbe Lage wie bei A2 aus demselben Grund: Die Vorschrift war vor dem Lauf
+ausgeschrieben und dreimal berichtigt, das Messmittel lag als geprüftes Werkzeug
+im Repo. Was blieb, war neuer Code.
+
+> **Fehler an Nähten zwischen zwei Dateien** — Katalog und Container, Vorlage
+> und Leser, Aufruf und Ablageort, Vorlage und Zusage, Unit und Unit. Jede Seite
+> für sich war in Ordnung; kein Wächter stand dazwischen.
+
+**Der teuerste Befund des Nachmittags steckte in der Vorschrift**, nicht im
+Panel. Jeder Rückbau war mit `nginx -t` abgenommen worden — und genau diesen
+Schaden sieht `nginx -t` nicht. Die Sicherung von Punkt 5 trug ihn schon;
+gefunden hat es die Diagnose, auf einer Datei, die der Prüfer für gültig hielt,
+in einer Lage, die niemand gestellt hat.
+
+> **Ein Rückbau, den man mit dem Prüfer misst, den der Schaden nicht auslöst,
+> ist nicht gemessen.**
+
+Behoben ist die Datei über `srvpanel vhost --sites` — und auch das im zweiten
+Anlauf: Der Befehl meldet „eingereiht", geschrieben wird vom Arbeiter, und der
+erste Blick fiel Sekunden später auf die alte Datei. Form A aus `docs/86 §5`.
+
+**Und ein Befund war keiner.** Zu Punkt 6 hatte ich einen `tls.wire`-Eintrag
+vorhergesagt, der nicht kam: Findet die Datei einen Befund, wird die Leitung gar
+nicht erst gefragt, und `CertificateVerdictTest` hält genau das. Hätte die
+Vorhersage im Protokoll gestanden, wäre aus richtigem Verhalten ein Mangel
+geworden.
+
+**Offen und benannt bleiben drei Dinge, keines ein Kriterienausfall:** der Rest
+aus P7 (`orphan.row` / `tls.cloudlab24.de`), das hochgeladene Wegwerfzertifikat
+aus Punkt 6 (läuft am 13. September von selbst aus), und die Behebung zu
+Befund 10 — `srvpanel.target` — hat noch keinen Server gesehen.

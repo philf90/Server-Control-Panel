@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SrvPanel\Agent\Acme;
 
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Maintenance;
 use SrvPanel\Agent\Ops\PanelVhost;
 use SrvPanel\Agent\SiteTemplate;
 
@@ -72,6 +73,32 @@ final class HttpChallenge implements Challenge
 
     /** Der Pfad aus der Adresse — er ist Teil des Ablageorts, siehe oben. */
     public const PREFIX = '/.well-known/acme-challenge';
+
+    /**
+     * Die Zeichen, aus denen ein Token bestehen darf.
+     *
+     * Nicht erfunden: RFC 8555 §8.1 schreibt vor, dass ein Token nur Zeichen
+     * des base64url-Alphabets enthält. **Das ist der Teil, an dem etwas hängt**
+     * — kein `/`, kein `.`, kein `?`, also weder ein Ausbruch aus dem Pfad noch
+     * eine Abfrage dahinter.
+     *
+     * Als Zeichenklasse und nicht als fertiger Ausdruck, weil zwei Leser ihn
+     * verschieden brauchen: {@see self::TOKEN} setzt die Länge dazu,
+     * {@see Maintenance} nur ein `+`.
+     */
+    public const TOKEN_CHARS = '[A-Za-z0-9_-]';
+
+    /**
+     * Die volle Form, wie die Prüfdatei sie verlangt.
+     *
+     * Die Grenzen 16 und 128 sind die dieses Panels und weit genug für die 43
+     * Zeichen, die Let's Encrypt schickt. Sie stehen **hier** und nicht in der
+     * Wache des Wartungsmodus: Dort entschiede eine zu enge Grenze darüber, ob
+     * eine Erneuerung während einer Wartung durchkommt, und der Fehler fiele
+     * zur falschen Seite — ein zu kurzer Token wird vom Leser hier ohnehin
+     * abgewiesen, ein abgewiesener Token dort kostet ein Zertifikat.
+     */
+    public const TOKEN = self::TOKEN_CHARS.'{16,128}';
 
     /** Die Datei liegt sofort — hier zählen Sekunden, nicht Minuten. */
     public const PATIENCE_SECONDS = 30;
@@ -180,7 +207,7 @@ final class HttpChallenge implements Challenge
      */
     private function file(string $token): string
     {
-        if (preg_match('/^[A-Za-z0-9_-]{16,128}$/D', $token) !== 1) {
+        if (preg_match('/^'.self::TOKEN.'$/D', $token) !== 1) {
             throw AgentException::badRequest('Unzulässiger Token für die Prüfdatei.', ['token' => $token]);
         }
 

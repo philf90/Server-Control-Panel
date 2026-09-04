@@ -196,6 +196,88 @@ Browsers zeigt, was ein deutsches Gerät zeigt: **`tt.mm.jjjj`** und ein
 
 ---
 
+## 6 · Befund 3 — die Prüfadresse gab 503, aber nur über HTTPS
+
+**Der Lauf mit eingeschaltetem Modus hat Punkt 3 zu Fall gebracht**, und der
+Weg dorthin ist die eigentliche Lehre.
+
+Gemessen auf `cloudsrv24` gegen `0.7.3-rc.17`, `cloudlab24.ipv64.de`:
+
+| Griff | gemessen |
+| --- | --- |
+| `http /` | 503 |
+| `https /` | 503 (Seite mit Zeit **und** Zone, `Retry-After: 3600`) |
+| **`http` ACME** | **404** |
+| **`https` ACME** | **503** |
+
+Dieselbe Wache, wörtlich identisch in beiden Blöcken (`nginx -T` gelesen) — und
+zwei verschiedene Ausgänge.
+
+### Die Ursache
+
+`try_files $uri $uri/ /index.php?$query_string` einer PHP-Domain ist eine
+**innere Umleitung**. nginx durchläuft die Rewrite-Phase des Servers dabei
+**noch einmal**, jetzt mit `$uri` = `/index.php`. Beim zweiten Durchgang passt
+die Ausnahme nicht mehr, `$wartung` wird wieder 1, und die Wache greift.
+
+> **Ein `if` auf Serverebene läuft bei jeder inneren Umleitung noch einmal — und
+> die Ausnahme, die beim ersten Mal griff, greift beim zweiten nicht mehr.**
+
+Auf Port 80 fiel es nicht auf, weil dort die eigene `location ^~` von
+`HttpChallenge` die Anfrage abfängt, bevor `try_files` sie umleiten kann.
+
+> **Zwei Blöcke mit derselben Wache verhalten sich verschieden, wenn nur einer
+> die `location` trägt, die die innere Umleitung verhindert.**
+
+### Wie er gefunden wurde
+
+**Nicht durch Nachdenken.** Der erste Nachbau — die Wache isoliert, mit
+ACME-`location` — gab 404 und damit das Richtige. Der zweite — der Rumpf des
+HTTPS-Blocks ohne ACME-`location` — gab **auch** 404. Erst der dritte, mit dem
+**PHP**-Rumpf statt des statischen, reproduzierte die 503.
+
+> **Ein Prüfkörper, der eine andere Form misst als die des Prüflings, misst die
+> falsche — und sein Grün liest sich wie ein Freispruch.**
+
+### Die Behebung, gemessen gegen nginx 1.24.0
+
+Die Ausnahme fragt `$request_uri` statt `$uri`: die **ursprüngliche** Adresse,
+die eine innere Umleitung nicht verändert. Weil sie dafür unnormalisiert ist,
+endet der Ausdruck am Token.
+
+| mit Flagdatei | vorher | nachher |
+| --- | --- | --- |
+| `/` | 503 | 503 |
+| ACME, echter Token | **503** | **599** *(= Handler erreicht)* |
+| ACME mit `?x=1` | 503 | 599 |
+| ACME mit `../index.php` | 503 | **503** |
+| ACME mit Unterpfad | 503 | **503** |
+
+Die Zeichen des Tokens kommen aus `HttpChallenge::TOKEN_CHARS` — base64url nach
+RFC 8555 §8.1, also kein `/`, kein `.`, kein `?`. Eine Abfrage dahinter ist
+zugelassen, obwohl die Norm keine kennt: Sie kann keinen Pfad öffnen, und
+
+> **eine verpasste Ausnahme kostet ein Zertifikat, eine zu weite einen Blick auf
+> die Website.**
+
+### Und ein zweiter Befund, den die Behebung ausgelöst hat
+
+Der erste Wurf schrieb `{16,128}` in die Bedingung. nginx verlangt dafür
+Anführungszeichen — und `Statements::nginx()` aus A10 zerlegt eine Datei an
+`;`, `{` und `}`, **ohne Anführungszeichen zu kennen**. Drei Wächter aus A10
+sind sofort rot geworden; ohne sie hätte der Nachtlauf für **jede heile Domain**
+erfundene Anweisungen gemeldet.
+
+> **Ein Ausdruck, der in eine Datei geht, die ein anderer Leser zerlegt, meidet
+> dessen Trennzeichen — oder der Leser muss sie verstehen.**
+
+Gebaut ist die billigere Hälfte: Die Vorlagen meiden die Zeichen, und
+`SiteFileIntegrityTest::test_no_template_hides_a_separator_in_a_quoted_string`
+hält das an allen vier Formen. **Dass der Leser Anführungszeichen verstünde,
+bleibt offen** — es steht in §5.
+
+---
+
 ## 5 · Was offen ist
 
 Die Punkte 2 bis 8 aus `docs/101 §7`, darunter beide Ausschlusskriterien
@@ -208,3 +290,15 @@ Die Punkte 2 bis 8 aus `docs/101 §7`, darunter beide Ausschlusskriterien
 3. ausschalten, dieselben Werte wie in §1, `nginx -t` mit `rc=0` und **ohne
    Reload**
 4. die zwei Prüfungen der Bestandsdiagnose (`docs/101 §5`) — noch nicht gebaut
+
+Dazu zwei Dinge, die dieser Lauf aufgeworfen und nicht erledigt hat:
+
+- **`Statements::nginx()` kennt keine Anführungszeichen.** Ein `;`, `{` oder `}`
+  in einer Zeichenkette zerreisst die Zerlegung, und der Nachtlauf meldete
+  daraufhin erfundene Anweisungen. Heute meiden die Vorlagen die Zeichen und ein
+  Wächter hält das; der Leser selbst ist unverändert. Wer ihn anfasst, gehört zu
+  A10 und nicht zu A12.
+- **Die Prüfadresse steht nur im Block auf Port 80.** Das ist richtig — HTTP-01
+  fragt nichts anderes —, aber es ist der Grund, dass sich die beiden Blöcke
+  verschieden verhalten haben. Ob sie auch im HTTPS-Block stehen sollte, ist
+  eine Frage an A12 und keine Zusage.

@@ -2252,6 +2252,35 @@ geschriebenen `'2026-09-04 16:00'`, `MaintenanceMode` gegen ein Doppel.
 > Wert füttern, prüfen die Naht nicht — sie prüfen zweimal denselben
 > Prüfkörper.**
 
+**Und ein dritter kam beim Fahren des Laufs: Die ACME-Prüfadresse gab während
+einer Wartung 503 — aber nur über HTTPS.** Dieselbe Wache, wörtlich identisch in
+beiden Server-Blöcken, und zwei Ausgänge. Die Ursache ist
+`try_files $uri $uri/ /index.php` einer PHP-Domain: eine **innere Umleitung**,
+bei der nginx die Rewrite-Phase des Servers **noch einmal** durchläuft — mit
+`$uri` = `/index.php`.
+
+> **Ein `if` auf Serverebene läuft bei jeder inneren Umleitung noch einmal — und
+> die Ausnahme, die beim ersten Mal griff, greift beim zweiten nicht mehr.**
+
+> **Zwei Blöcke mit derselben Wache verhalten sich verschieden, wenn nur einer
+> die `location` trägt, die die innere Umleitung verhindert.**
+
+Gefunden hat es der **dritte** Nachbau: Die Wache isoliert gab 404, der Rumpf
+des HTTPS-Blocks ohne ACME-`location` auch — erst mit dem **PHP**-Rumpf statt
+des statischen kam die 503.
+
+> **Ein Prüfkörper, der eine andere Form misst als die des Prüflings, misst die
+> falsche — und sein Grün liest sich wie ein Freispruch.**
+
+Die Ausnahme fragt seitdem `$request_uri`. **Der erste Wurf davon hat einen
+zweiten Befund ausgelöst:** `{16,128}` braucht in einer nginx-Bedingung
+Anführungszeichen, und `Statements::nginx()` aus A10 zerlegt an `;{}` **ohne
+sie zu kennen** — drei A10-Wächter wurden sofort rot, sonst hätte der Nachtlauf
+für jede heile Domain erfundene Anweisungen gemeldet.
+
+> **Ein Ausdruck, der in eine Datei geht, die ein anderer Leser zerlegt, meidet
+> dessen Trennzeichen — oder der Leser muss sie verstehen.**
+
 **Und die Zone steht seitdem neben der Zeit**, entschieden vom Betreiber: Ein
 Besucher einer Kundenwebsite kennt die Anzeigezeitzone nicht. Zwei Messungen
 haben den Entwurf getragen — die Abkürzung hat über alle Zeitzonen von PHP

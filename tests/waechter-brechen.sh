@@ -24180,6 +24180,26 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceRoundTripTest passed
 
 echo
+echo "== DateInputTest: das Datumsfeld nimmt wieder die ganze Zeile =="
+#
+# Gemessen bei 390 px: 358 px breit, gebraucht 176. Ein Feld mit fester
+# Zeichenzahl, das ueber die halbe Breite hinaus leer bleibt, sieht aus wie
+# eines, in das mehr hineingehoert.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.field input[type="date"],\n.field input[type="time"] {\n  max-width: max-content;\n}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.field input[type="date"],\n.field input[type="time"] {\n  border-radius: var(--radius);\n}', 1))
+PY2
+griff_datei resources/css/app.css "das Datumsfeld nimmt wieder die ganze Zeile" &&
+pruefe "das Datumsfeld nimmt wieder die ganze Zeile" \
+  DateInputTest::test_a_date_or_time_field_is_capped_in_the_stylesheet failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DateInputTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

@@ -206,6 +206,45 @@ final class DateInputTest extends TestCase
     }
 
     /**
+     * Und es ist so breit wie sein Inhalt und nicht wie die Zeile.
+     *
+     * **Gemeldet vom Betreiber am 4. September 2026**, auf dem Telefon.
+     * Gemessen bei 390 px: beide Felder 358 px breit, gebraucht haben sie 176
+     * (`tt.mm.jjjj`) und 138 (`--:--`). Ein Feld mit fester Zeichenzahl, das
+     * über die halbe Breite hinaus leer bleibt, sieht aus wie eines, in das
+     * mehr hineingehört.
+     *
+     * Geprüft wird die **Deckelung** und nicht ihr Wert: Die Breite dieser
+     * Steuerungen macht das Gerät, und eine Zahl im Stylesheet schnitte auf dem
+     * nächsten ab. Was der Wächter nicht kann, ist messen, ob sie greift — das
+     * tut die Bilderrunde.
+     */
+    public function test_a_date_or_time_field_is_capped_in_the_stylesheet(): void
+    {
+        $css = (string) file_get_contents(__DIR__.'/../../resources/css/app.css');
+
+        $benutzt = [];
+
+        foreach ($this->inputs() as $feld) {
+            if (in_array($feld['type'], self::TYPE_FOR_FORMAT, true)) {
+                $benutzt[$feld['type']] = true;
+            }
+        }
+
+        self::assertNotSame([], $benutzt, 'Keine Seite benutzt ein Datums- oder Zeitfeld — dann misst dieser Fall nichts.');
+
+        foreach (array_keys($benutzt) as $typ) {
+            $muster = sprintf('/input\[type="%s"\][^{]*\{[^}]*max-width/', $typ);
+
+            self::assertMatchesRegularExpression($muster, $css, sprintf(
+                'app.css deckelt `input[type="%s"]` nicht. Das Feld nimmt dann die ganze Zeile, '.
+                'obwohl sein Inhalt eine feste Zeichenzahl hat.',
+                $typ,
+            ));
+        }
+    }
+
+    /**
      * Die Untergrenze — an beiden Ausdrücken.
      *
      * Läuft einer von beiden ins Leere, sind die Prüfungen darüber grün, ohne

@@ -75,20 +75,32 @@ function absenden(an: boolean): void {
           >
         </label>
 
+        <!--
+          **Die Zone steht unmittelbar am Feld und nicht am Ende eines Satzes
+          über etwas anderes.** In der Bilderrunde vom 4. September stand sie
+          hinter zwei Sätzen zur Wirkung der Angabe — wer eine Uhrzeit eintippt,
+          liest das nicht mehr. Bei einer Zeitangabe ist die Zone die
+          wichtigste Nebenauskunft, und sie gehört dorthin, wo getippt wird.
+        -->
         <p class="hint">
-          Erscheint auf der Wartungsseite: „Voraussichtlich ab … Uhr wieder erreichbar."
-          Leer lassen, wenn keine Angabe gemacht werden soll. Zeiten in
-          {{ props.maintenance.zone }}.
+          Zeiten in {{ props.maintenance.zone }}. Leer lassen, wenn keine Angabe
+          gemacht werden soll.
         </p>
 
         <!--
           **Kein Zeitgeber, und das steht hier statt in einer Fussnote.** Wer
           das Feld ausfüllt, erwartet sonst, dass es etwas tut.
+
+          **Ein Absatz und nicht zwei:** Der erste Wurf sagte „Erscheint auf der
+          Wartungsseite" und drei Zeilen später noch einmal „sie ist nur der Satz
+          auf der Wartungsseite". Zwei Absätze über dieselbe Sache lesen sich wie
+          zwei Sachen.
         -->
         <p class="hint">
-          Die Angabe schaltet nichts ab und nichts wieder an — sie ist nur der Satz
-          auf der Wartungsseite. Ausgeschaltet wird von Hand. Ist die Zeit
-          überschritten und der Modus noch an, meldet es die Bestandsdiagnose.
+          Der Satz auf der Wartungsseite lautet dann „Voraussichtlich ab … Uhr
+          wieder erreichbar." Die Angabe schaltet nichts ab und nichts wieder an —
+          ausgeschaltet wird von Hand. Ist die Zeit überschritten und der Modus
+          noch an, meldet es die Bestandsdiagnose.
         </p>
 
         <div class="button-row">

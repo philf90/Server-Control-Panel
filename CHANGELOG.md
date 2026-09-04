@@ -25240,3 +25240,41 @@ Ablageorts derselbe Pfad ist, den die Wache im Server-Block nennt, und dass er
 unter `/var/spool` liegt — unter `/var/lib/srvpanel` käme der nginx-Worker nicht
 hindurch, die Wache prüfte immer „liegt nicht", und der Schalter täte nichts.
 Vier Eingriffe im Bruchskript, jeder einzeln belegt.
+
+### Die Bilderrunde zu A12 — und zwei Befunde, die keine Zahl hatten
+
+Gefahren am 4. September 2026 an der **echten Seite**: `artisan serve`,
+Anmeldung mit zweitem Faktor, Playwright im vorinstallierten Chromium. Vier
+Lagen — hell und dunkel, 390 px und 1440 px — und beide Zustände des Schalters.
+
+**Gemessen mit der Vorschrift aus dem Repo und nicht mit einer Kopie.** Der
+erste Wurf des Aufnahmeskripts hatte die Messung **nachgebaut**; sie lädt jetzt
+`tests/bilder-messen.js` in die Seite und ruft `bilderMessen()`. Eine zweite
+Fassung derselben Regel wäre die, die veraltet — und `OverflowProbeTest` hält
+die eine im Repo, über eine Kopie daneben sagt er nichts.
+
+Alle acht Aufnahmen: `dokument: 0`, `schiebt: []`, Gegenprobe `200/200`. Und der
+`stand` des Messmittels steht im Ergebnis, wie es die Vorschrift verlangt.
+
+**Der erste Durchgang war trotzdem unvollständig, und die Zahl hat es nicht
+gesagt.** Alle vier Aufnahmen zeigten den **ausgeschalteten** Zustand — die
+Lage mit zwei Knöpfen nebeneinander und der roten Meldung war nie gemessen.
+
+> **Ein Prüfkörper, der die Seite ohne den Gegenstand misst, misst die Seite und
+> nicht den Gegenstand.**
+
+Nachgeholt: eingeschaltet, beide Themen, beide Breiten — ebenfalls 0.
+
+**Zwei Befunde hat kein Wert gemeldet, sondern der Blick.**
+
+Die **Zeitzone stand am Ende eines Satzes über etwas anderes** („Erscheint auf
+der Wartungsseite … Zeiten in UTC"). Wer eine Uhrzeit eintippt, liest das nicht
+mehr; bei einer Zeitangabe ist die Zone die wichtigste Nebenauskunft und gehört
+dorthin, wo getippt wird. Sie steht jetzt unmittelbar unter dem Feld.
+
+Und **zwei Absätze sagten dasselbe**: „Erscheint auf der Wartungsseite" und drei
+Zeilen später „sie ist nur der Satz auf der Wartungsseite". Zwei Absätze über
+dieselbe Sache lesen sich wie zwei Sachen. Jetzt einer.
+
+> **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
+> Keines von beiden ersetzt das andere.**

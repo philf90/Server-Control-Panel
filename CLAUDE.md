@@ -2225,6 +2225,50 @@ derselben Ursache: Sie standen in der Unit-Datei, die ich nicht gelesen hatte
 
 ---
 
+## A12 ist abgenommen — 5. September 2026
+
+Auf `cloudsrv24` gegen `0.7.3-rc.19`, **alle acht Punkte aus `docs/101 §7`**,
+beide Ausschlusskriterien darunter, keiner als „nicht herstellbar" ausgefallen.
+Der Plan ist `docs/101`, das Protokoll **`docs/102`**.
+
+**Punkt 8 ist der Beleg, für den es A10 gibt.** Eine einzige Zeile aus einem von
+zwei Server-Blöcken entfernt — die ACME-Ausnahme —, `nginx -t` gibt `rc=0`, und
+die Bestandsdiagnose meldet trotzdem `web.file / guard_missing` mit der
+fehlenden Zeile im Wortlaut. Nach dem Zurückholen ist der Befund fort.
+
+**Und die Zusage je Anweisungsname konnte das nicht.** Gemessen: Wird die
+*ganze* Wache entfernt, meldet `directive_lost` vier Anweisungen; wird **nur die
+ACME-Zeile** entfernt, meldet sie nichts — `if` steht ja weiterhin dreimal in
+der Datei.
+
+> **Eine Zusage über Anweisungsnamen sieht eine fehlende Zeile nicht, wenn ihr
+> Name noch anderswo vorkommt.**
+
+**Vier Sätze über das Messen hat dieser Lauf gekostet**, jeder an einem
+Prüfkörper und keiner am Prüfling:
+
+> **Ein Prüfkörper ohne Frist ist keiner — er misst, bis jemand ihn abbricht.**
+
+> **Eine Messung, die ihren Zustand nicht mitdruckt, ist von einer, die ihn
+> nicht hatte, nicht zu unterscheiden.** Punkt 2 und 3 liefen zuerst in zwei
+> getrennten Blöcken ohne die Flagdatei daneben; beide Werte wären auch bei
+> **ausgeschaltetem** Modus so herausgekommen.
+
+> **Eine Null, die auch von einem anderen Befehl kommen könnte, ist keine
+> Messung.** Beim Einfügen war ein `rm` in die Ersetzung eines `printf`
+> gerutscht.
+
+> **Eine Zahl in einer Erwartung, die man nicht gezählt hat, ist eine Vermutung
+> mit Anspruch.** `$request_uri` steht dreimal in einer Vhost-Datei mit
+> Zertifikat und nicht zweimal — die Umleitung nach HTTPS trägt es auch.
+
+**Was benannt offen bleibt** (`docs/102 §9`): der Rest aus P7 und das
+Wegwerfzertifikat aus `docs/100 §6`; dass `Statements::nginx()` keine
+Anführungszeichen kennt (gehört zu A10, nicht zu A12); und die Frage, ob die
+ACME-`location` auch im HTTPS-Block stehen sollte.
+
+---
+
 ## Zwei Befunde an einem Feld — 4. September 2026
 
 Gemeldet hat den ersten der Betreiber, beim ersten Versuch, den Wartungsmodus

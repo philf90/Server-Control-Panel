@@ -25663,10 +25663,31 @@ keiner am Prüfling; sie stehen in `docs/102 §9` und in `CLAUDE.md`.
   wächst von 195 px auf **214 px**, der Inhalt beginnt bei 279 statt 260 px, und
   die Einrückung nimmt 32 px Breite — rund acht Zeichen je Zeile. Das trifft nur
   Texte, die ohnehin auf zwei Zeilen geklammert werden.
-- **Die Fuge zwischen zwei Bändern ist damit erklärt statt geduldet.** Sie stand
-  als Ausnahme in `BlockSpacingTest::OPEN_SEAMS`, weil der Abstand aus dem Rand
-  kam; mit `display: flex` und `gap` greift der reguläre Zweig des Wächters, und
-  die Ausnahme ist fort.
+- **Die Fuge zwischen zwei Bändern trägt jetzt ein `gap` an der Hülle.** Sie
+  stand bis Schritt 2 als Ausnahme in `BlockSpacingTest::OPEN_SEAMS`.
+
+  Hier stand, mit `display: flex` und `gap` greife der reguläre Zweig jenes
+  Wächters und die Ausnahme sei deshalb fort. **Beides ist falsch, und der
+  Bruchlauf hat es gemeldet.** Fort ist die Ausnahme seit Schritt 3, weil das
+  Markup nach `Bands.vue` gezogen ist — und dort schreibt es **ein** `<div
+  class="band">` unter `v-for`. Ein Wächter, der benachbarte Tags im Text
+  liest, sieht dort kein Paar.
+
+  > **Zwei Elemente, die ein `v-for` erzeugt, sind Nachbarn auf dem Bildschirm
+  > und keine im Quelltext.**
+
+  Der naheliegende Handgriff — ein `v-for`-Element als seinen eigenen Nachbarn
+  zu zählen — meldet dort **falsch**: `.bands` steht in den drei Seiten, die
+  die Komponente benutzen, also in einer anderen Datei; innerhalb von
+  `Bands.vue` hat das Band gar kein Elternteil. Gemessen: genau ein Fund,
+  `band + band`, und er wäre unbegründet.
+
+  > **Ein Wächter, der über die Dateigrenze nicht hinaussieht, meldet den
+  > Abstand als fehlend, den das Elternteil in der anderen Datei macht.**
+
+  `AnnouncementBandTest::test_the_hull_stacks_its_bands_with_a_gap` hält die
+  Regel jetzt dort, wo beide Seiten in derselben Frage stehen — zwei Brüche,
+  `display: flex` weg und `gap: 0`, beide beissen.
 - **`AnnouncementBandTest` misst die Kante jetzt an beiden Bausteinen.** Ein
   Wächter, der nur `.band` liest, bliebe grün, wenn `.notice` umzöge — und dann
   sagten zwei Bausteine dasselbe wieder auf zwei Arten. Beide Richtungen
@@ -25727,3 +25748,23 @@ keiner am Prüfling; sie stehen in `docs/102 §9` und in `CLAUDE.md`.
 
   > **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite
   > braucht einen Versuch.**
+
+### Zwei eigene Brüche, die nicht bissen
+
+- **Der Bruchlauf hat zwei Eingriffe dieser Runde gemeldet, und beide waren
+  meine.** Einer liess sich gar nicht anwenden („Zielstelle nicht eindeutig"),
+  einer lief durch und liess seinen Wächter grün. Gefunden hat sie kein
+  Nachdenken, sondern der volle Lauf in der CI.
+- **Der erste ist der Kommentar dieses Repos in seiner Umkehrung.** Der Eingriff
+  zielte auf `Announcement::onLoginPage()`; der Dokumentblock darüber nennt
+  denselben Aufruf als `{@see …}`, also stand die Zeichenkette zweimal da, und
+  die Sicherung des Skripts hat den Eingriff zu Recht verweigert. Gezielt wird
+  jetzt auf den ganzen Ausdruck.
+
+  > **Derselbe Kommentar, der einen Wächter fälschlich grün hält, macht einen
+  > Bruch blind.**
+
+- **Der zweite zeigte auf einen Wächter, der die Frage nicht beantworten kann.**
+  Er nahm der Hülle ihr `display: flex` und erwartete einen Fund von
+  `BlockSpacingTest` — siehe den Abschnitt darüber. Er zeigt jetzt auf den
+  Wächter, der die Regel halten kann.

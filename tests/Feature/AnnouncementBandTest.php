@@ -72,6 +72,69 @@ final class AnnouncementBandTest extends TestCase
             .'liegen die Bänder aufeinander — und der Überlauf bleibt dabei 0 (M2).');
     }
 
+    /**
+     * Die Hülle stapelt ihre Bänder mit einer echten Fuge.
+     *
+     * **Diese Regel steht hier, weil `BlockSpacingTest` sie nicht halten
+     * kann** — und das ist gemessen, nicht vermutet. Zwei Bänder sind auf dem
+     * Bildschirm Nachbarn und in keiner Vorlage: `Bands.vue` schreibt **ein**
+     * `<div class="band">` unter `v-for`, und ein Wächter, der benachbarte
+     * Tags im Text liest, sieht dort kein Paar.
+     *
+     * > **Zwei Elemente, die ein `v-for` erzeugt, sind Nachbarn auf dem
+     * > Bildschirm und keine im Quelltext.**
+     *
+     * Und der naheliegende Handgriff — ein `v-for`-Element als seinen eigenen
+     * Nachbarn zu zählen — meldet dort **falsch**: Die Hülle `.bands` steht in
+     * den drei Seiten, die diese Komponente benutzen, also in einer anderen
+     * Datei. Innerhalb von `Bands.vue` hat das Band gar kein Elternteil, und
+     * die Fuge, die das `gap` der Hülle macht, ist von dort nicht zu sehen.
+     * Gemessen am 5. September 2026: genau ein Fund, `band + band`, und er
+     * wäre unbegründet.
+     *
+     * > **Ein Wächter, der über die Dateigrenze nicht hinaussieht, meldet den
+     * > Abstand als fehlend, den das Elternteil in der anderen Datei macht.**
+     *
+     * Gehalten wird deshalb hier, wo beide Seiten in derselben Frage stehen:
+     * Die Hülle stapelt (`display: flex|grid`, keine Zeile), und sie setzt ein
+     * `gap`, das nicht null ist.
+     */
+    public function test_the_hull_stacks_its_bands_with_a_gap(): void
+    {
+        $block = $this->rule('.bands');
+
+        self::assertMatchesRegularExpression('/display:\s*(?:inline-)?(?:flex|grid);/', $block,
+            'Ohne `display: flex` oder `grid` wirkt das `gap` der Hülle nicht, und die Bänder '
+            .'kleben aneinander — sichtbar nur auf einem Bild, denn der Überlauf bleibt 0.');
+
+        self::assertMatchesRegularExpression('/flex-direction:\s*column;/', $block,
+            'Die Bänder stehen untereinander. Läge die Hülle in der Waagerechten, träfe das '
+            .'`gap` die falsche Achse.');
+
+        self::assertMatchesRegularExpression('/(?:^|;|\s)(?:row-)?gap:\s*(?!0\b|0px)\S+;/', $block,
+            'Die Hülle setzt die Fuge zwischen zwei Bändern. Ein `gap: 0` wäre keine.');
+    }
+
+    /**
+     * Ein Regelblock aus `app.css`, an seinem Selektor allein.
+     *
+     * Ohne Kommentare: Dieses Repo hält in jeder Behebung ihren Vorzustand im
+     * Kommentar fest, und ein Wächter, der eine Zeichenkette sucht, ist grün,
+     * sobald sie irgendwo steht (`CLAUDE.md`).
+     */
+    private function rule(string $selektor): string
+    {
+        $css = (string) preg_replace('#/\*.*?\*/#su', '', $this->css());
+
+        self::assertSame(
+            1,
+            preg_match('/(^|\n)'.preg_quote($selektor, '/').'\s*\{([^{}]*)\}/s', $css, $treffer),
+            sprintf('`%s` steht nicht als eigener Selektor in app.css — der Ausdruck misst nichts.', $selektor),
+        );
+
+        return $treffer[2];
+    }
+
     /** Jedes Band steht in der Hülle und keines daneben. */
     public function test_every_band_lives_inside_the_hull(): void
     {

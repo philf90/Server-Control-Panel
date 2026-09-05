@@ -24609,9 +24609,12 @@ vorher_datei app/Http/Controllers/Auth/LoginController.php
 python3 - <<'PY2'
 p = 'app/Http/Controllers/Auth/LoginController.php'
 s = open(p, encoding='utf-8').read()
-alt = 'Announcement::onLoginPage()'
+# Der blosse Methodenname steht zweimal — der Dokumentblock darueber nennt
+# ihn als `{@see …}`. Gezielt wird deshalb auf den ganzen Ausdruck.
+alt = 'Announcement::bannerRows(Announcement::onLoginPage())'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, 'Announcement::visibleTo(null)', 1))
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, 'Announcement::bannerRows(Announcement::visibleTo(null))', 1))
 PY2
 griff_datei app/Http/Controllers/Auth/LoginController.php "die Anmeldeseite zeigt jede Kategorie" &&
 pruefe "die Anmeldeseite zeigt jede Kategorie" \
@@ -24645,8 +24648,14 @@ pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 echo
 echo "== AnnouncementBandTest: die Huelle verliert ihre Fugen =="
 #
-# Ohne `display: flex` und `gap` liegen die Baender wieder aneinander, und
-# die Fuge waere nur noch als Ausnahme in BlockSpacingTest zu erklaeren.
+# Ohne `display: flex` wirkt das `gap` nicht, und die Baender kleben
+# aneinander — auf einem Bild sichtbar, im Ueberlauf nicht.
+#
+# Gezielt wird auf AnnouncementBandTest und nicht auf BlockSpacingTest: Der
+# sieht diese Nachbarschaft gar nicht. `Bands.vue` schreibt ein einziges
+# `<div class="band">` unter `v-for`, und die Huelle steht in einer anderen
+# Datei. Dieser Eingriff lief deshalb ins Leere, bis der Waechter dastand,
+# der die Frage beantworten kann.
 vorher_datei resources/css/app.css
 python3 - <<'PY2'
 p = 'resources/css/app.css'
@@ -24659,9 +24668,31 @@ open(p, 'w', encoding='utf-8').write(s[:i] + block.replace('  display: flex;\n',
 PY2
 griff_datei resources/css/app.css "die Hülle verliert ihre Fugen" &&
 pruefe "die Hülle verliert ihre Fugen" \
-  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
+  AnnouncementBandTest::test_the_hull_stacks_its_bands_with_a_gap failed
 wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
+pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
+
+echo
+echo "== AnnouncementBandTest: die Fuge steht auf null =="
+#
+# Die andere Haelfte derselben Regel, und die stillere: `display: flex` bleibt
+# stehen, das `gap` ist tot. Ein Eingriff, der nur die Anzeige-Eigenschaft
+# nimmt, laesst diesen Fall offen.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+i = s.index('.bands {')
+j = s.index('\n}', i)
+block = s[i:j]
+assert block.count('gap: 8px;') == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s[:i] + block.replace('gap: 8px;', 'gap: 0;') + s[j:])
+PY2
+griff_datei resources/css/app.css "die Fuge steht auf null" &&
+pruefe "die Fuge steht auf null" \
+  AnnouncementBandTest::test_the_hull_stacks_its_bands_with_a_gap failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

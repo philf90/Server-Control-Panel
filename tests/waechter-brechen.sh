@@ -24274,9 +24274,9 @@ open(p, 'w', encoding='utf-8').write(s.replace(alt, ";", 1))
 PY2
 griff_datei agent/src/Ops/SystemDiagnose.php "die Wache wird nicht mehr gegen die Datei gehalten" &&
 pruefe "die Wache wird nicht mehr gegen die Datei gehalten" \
-  DiagnoseSeamTest::test_every_reason_in_the_catalogue_has_a_speaker failed
+  MaintenanceVerdictTest::test_the_web_file_check_asks_the_guard failed
 wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
+pruefe "  … zurückgesetzt wieder grün" MaintenanceVerdictTest passed
 
 echo
 echo "== MaintenanceVerdictTest: gezaehlt wird nicht mehr je Server-Block =="
@@ -24302,15 +24302,19 @@ echo "== MaintenanceVerdictTest: der Sollzustand wird nachgebaut =="
 #
 # Zwei Fassungen derselben sechs Zeilen laufen auseinander — und die
 # auseinandergelaufene entscheidet dann jede Nacht ueber jede Domain.
-vorher_datei agent/src/Maintenance.php
+#
+# Gebrochen wird die **Pruefung** und nicht guardLines(): Solange es eine
+# Quelle gibt, bewegt ein Eingriff dort beide Seiten zugleich und faellt
+# niemandem auf. Genau das hat der erste Wurf dieses Eingriffs gezeigt.
+vorher_datei agent/src/Diagnose/Verdict.php
 python3 - <<'PY2'
-p = 'agent/src/Maintenance.php'
+p = 'agent/src/Diagnose/Verdict.php'
 s = open(p, encoding='utf-8').read()
-alt = "            'error_page 503 @wartung;',"
+alt = "foreach (Maintenance::guardLines() as $expected) {"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'error_page 503 @wartungsmodus;',", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "foreach (['set $wartung 0;', 'error_page 503 @wartungsmodus;'] as $expected) {", 1))
 PY2
-griff_datei agent/src/Maintenance.php "der Sollzustand wird nachgebaut" &&
+griff_datei agent/src/Diagnose/Verdict.php "der Sollzustand wird nachgebaut" &&
 pruefe "der Sollzustand wird nachgebaut" \
   MaintenanceVerdictTest::test_an_intact_file_is_no_finding failed
 wiederherstellen

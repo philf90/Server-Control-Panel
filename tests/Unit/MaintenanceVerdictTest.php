@@ -9,8 +9,10 @@ use SrvPanel\Agent\Acme\Store;
 use SrvPanel\Agent\Diagnose\Statements;
 use SrvPanel\Agent\Diagnose\Verdict;
 use SrvPanel\Agent\Maintenance;
+use SrvPanel\Agent\Ops\SystemDiagnose;
 use SrvPanel\Agent\Site;
 use SrvPanel\Agent\SiteTemplate;
+use Tests\Support\MethodBody;
 
 /**
  * `guard_missing` — die Wache in jedem Block, gemessen an der Datei
@@ -38,6 +40,8 @@ use SrvPanel\Agent\SiteTemplate;
  */
 final class MaintenanceVerdictTest extends TestCase
 {
+    use MethodBody;
+
     private ?string $root = null;
 
     /** @return array<string, mixed> */
@@ -144,6 +148,33 @@ final class MaintenanceVerdictTest extends TestCase
     {
         $this->assertNull(Verdict::guard(''));
         $this->assertNull(Verdict::guard("# nur ein Kommentar\n"));
+    }
+
+    /**
+     * Und `web.file` **fragt** sie — nicht nur: es gäbe sie.
+     *
+     * **Die Lücke, die dieser Fall schliesst, hat der Bruchlauf gefunden.** Der
+     * erste Eingriff dazu entfernte den Aufruf aus {@see SystemDiagnose} und
+     * blieb grün: Jede andere Prüfung liest den Grund aus `Verdict::REASONS`,
+     * und die Konstante steht ja weiterhin da. Eine Prüfung, die nie gerufen
+     * wird, ist von einer, die es nicht gibt, nicht zu unterscheiden.
+     *
+     * > **Ein Urteil, das niemand einholt, ist von einem, das es nicht gibt,
+     * > nicht zu unterscheiden.**
+     *
+     * Gefragt wird im **Rumpf** der Methode und nicht in der ganzen Datei: Der
+     * Name in einem Kommentar daneben ist kein Aufruf.
+     */
+    public function test_the_web_file_check_asks_the_guard(): void
+    {
+        $quelle = (string) file_get_contents(__DIR__.'/../../agent/src/Ops/SystemDiagnose.php');
+        $rumpf = $this->methodBody($quelle, 'private function webFiles(');
+
+        $this->assertStringContainsString(
+            'Verdict::guard(',
+            $rumpf,
+            'web.file holt das Urteil über die Wache nicht ein — die Prüfung liefe dann nie.',
+        );
     }
 
     /** Der Grund steht im Katalog des Agenten — sonst wirft der Nachtlauf. */

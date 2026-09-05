@@ -44,10 +44,11 @@ final class ClassNameTest extends TestCase
      * die in CSS und HTML zu Hause ist (`nav`, `sr`, `sub`, `op`).
      */
     private const VOCABULARY = [
-        'account', 'action', 'active', 'address', 'after', 'agent', 'area', 'arrow', 'aside', 'badge', 'band', 'bar',
+        'account', 'action', 'active', 'address', 'after', 'agent', 'area', 'arrow', 'aside', 'badge', 'band', 'bands', 'bar',
         'back', 'blank',
         'block', 'branch', 'breadcrumb', 'button', 'cell', 'check', 'choice', 'choices', 'codes',
-        'code', 'comment', 'confirmation', 'content', 'critical', 'crumbs', 'cursor', 'danger', 'dependent',
+        'clamped', 'code', 'comment', 'confirmation', 'content', 'critical', 'crumbs', 'cursor', 'danger',
+        'dependent',
         'description', 'detail',
         'place',
         'finding',
@@ -62,7 +63,7 @@ final class ClassNameTest extends TestCase
         'narrow', 'nav', 'neutral', 'note', 'notice', 'obstacle', 'ok', 'on', 'op',
         'open', 'operator', 'output', 'over', 'page', 'pager', 'pair', 'paired', 'pairs', 'password', 'path',
         'permissions', 'property', 'punctuation',
-        'postscript', 'primary', 'progress', 'quiet', 'rail', 'release',
+        'postscript', 'primary', 'progress', 'quiet', 'rail', 'rank', 'release',
         'readout', 'reveal', 'right', 'row', 'rows', 'rules', 'running', 'scrim', 'scrolls',
         'search', 'second', 'section', 'sections', 'selection', 'sheet', 'short', 'signin', 'signout',
         'small',

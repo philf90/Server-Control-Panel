@@ -158,6 +158,22 @@ final class BlockSpacingTest extends TestCase
     private const OPEN_SEAMS = [
         'arrow + label',
         'button + button',
+
+        /*
+         * **Zwei Ankündigungen kleben nicht — dazwischen steht eine Linie von
+         * drei Pixeln** (A14, `docs/103 §4.2`). `.band` trägt
+         * `border-bottom: 3px solid` in der Farbe seines Ranges, und die steht
+         * gegen den Seitengrund bei 6,24:1 bis 6,79:1 (`docs/81 §2.3q` M4).
+         *
+         * Ein Abstand daneben wäre nicht nur überflüssig, sondern falsch: Die
+         * Bänder sollen als **ein** Block ganz oben lesen und nicht als drei
+         * schwebende Kärtchen; ihre Trennung ist die Linie und nicht die Lücke.
+         *
+         * Gemessen am 5. September 2026 an der echten Seite: drei Bänder,
+         * 0–65, 65–130, 130–195 bei 390 px, jede Fuge eine sichtbare
+         * Randlinie.
+         */
+        'band + band',
         'button-row + button',
         'button-row + form',
         /*

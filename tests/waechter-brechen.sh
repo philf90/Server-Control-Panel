@@ -24420,6 +24420,105 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementAudienceTest passed
 
 echo
+echo "== AnnouncementBandTest: ein zweites Element nimmt die Rasterzeile =="
+#
+# Der Befund aus docs/81 §2.3q M2 in seiner Ursache: `grid-row: 1` an
+# mehreren Geschwistern legt sie in dieselbe Zelle. Drei Baender liegen dann
+# bei 1440 px aufeinander, sichtbar ist nur das letzte — und der waagerechte
+# Ueberlauf steht dabei auf 0. Kein Waechter ueber den Ueberlauf sieht das.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.band {\n  display: flex;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.band {\n  grid-row: 1;\n  display: flex;', 1))
+PY2
+griff_datei resources/css/app.css "ein zweites Element nimmt die Rasterzeile" &&
+pruefe "ein zweites Element nimmt die Rasterzeile" \
+  AnnouncementBandTest::test_only_one_selector_takes_the_first_grid_row failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
+
+echo
+echo "== AnnouncementBandTest: die Klammer zaehlt nicht mehr Zeilen =="
+#
+# M8: 40 Zeichen je Zeile bei 390 px, 160 bei 1440 px. Eine Grenze, die nicht
+# ueber Zeilen geht, ist auf zwei Breiten zwei verschiedene Grenzen.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '  -webkit-line-clamp: 2;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '  max-height: 3em;', 1))
+PY2
+griff_datei resources/css/app.css "die Klammer zählt nicht mehr Zeilen" &&
+pruefe "die Klammer zählt nicht mehr Zeilen" \
+  AnnouncementBandTest::test_the_clamp_counts_lines_and_not_characters failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
+
+echo
+echo "== AnnouncementBandTest: ein Rang verliert seinen Rand =="
+#
+# M9: Die Flaeche allein traegt den Rang nicht — zwischen Warnung und Stoerung
+# liegen im hellen Thema nur DeltaE 3,8.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.band.warn {\n  color: var(--warn);\n  background: var(--warn-surface);\n  border-color: var(--warn);\n}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '.band.warn {\n  color: var(--warn);\n  background: var(--warn-surface);\n}'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/css/app.css "ein Rang verliert seinen Rand" &&
+pruefe "ein Rang verliert seinen Rand" \
+  AnnouncementBandTest::test_every_rank_carries_surface_border_and_text_colour failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
+
+echo
+echo "== AnnouncementBandTest: das Rangwort faellt weg =="
+#
+# Farbe allein traegt fuer jemanden mit Rot-Gruen-Schwaeche gar nichts
+# (WCAG 1.4.1) — deshalb steht die Kategorie als Wort im Streifen.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<b class="rank">{{ hinweis.rank }}</b> '
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "das Rangwort fällt weg" &&
+pruefe "das Rangwort fällt weg" \
+  AnnouncementBandTest::test_the_rank_is_also_a_word failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
+
+echo
+echo "== AnnouncementShareTest: der Verschluss wird ein fertiger Wert =="
+#
+# M5, gemessen an den Abfragen: Ein fertiger Wert in share() laeuft auch bei
+# einem partiellen Nachladen, das ihn gar nicht mitschickt. Die Uebersicht
+# laedt mit ihrem Selbstlauf alle dreissig Sekunden nach.
+vorher_datei app/Http/Middleware/HandleInertiaRequests.php
+python3 - <<'PY2'
+p = 'app/Http/Middleware/HandleInertiaRequests.php'
+s = open(p, encoding='utf-8').read()
+alt = "'announcements' => fn (): array => "
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'announcements' => ", 1))
+PY2
+griff_datei app/Http/Middleware/HandleInertiaRequests.php "der Verschluss wird ein fertiger Wert" &&
+pruefe "der Verschluss wird ein fertiger Wert" \
+  AnnouncementShareTest::test_a_partial_reload_does_not failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementShareTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

@@ -217,7 +217,7 @@ sind die beiden, für die es diese Stufe gibt.
 |---|---|---|
 | 1 | Eine Ankündigung anlegen und sie erscheint | Streifen oben, Kategorie als Wort, Farbe der Marke |
 | 2 | Drei gleichzeitig | **drei Streifen untereinander**, keiner verdeckt — der Befund aus M2 |
-| 3 | **Drei bei 390 px** *(Ausschluss)* | ≤ 189 px zusammen, `schiebt = 0`, Gegenprobe schlägt an |
+| 3 | **Drei bei 390 px** *(Ausschluss)* | **jedes Band gleich hoch, gleich wie lang sein Text ist** — gemessen 65 px je Band, 195 px zusammen; `schiebt = 0`, Gegenprobe schlägt an |
 | 4 | 500 Zeichen | im Streifen zwei Zeilen, Verweis auf den vollen Text, der Text vollständig auf `/announcements` |
 | 5 | Publikum | ein Kundenkonto sieht die Kundenankündigung und nicht die für Admins |
 | 6 | **Das Fenster** *(Ausschluss)* | mit Anzeigezone auf `Europe/Berlin` gesetzt: sichtbar **während** der eingetippten Ortszeit, davor und danach nicht |
@@ -230,6 +230,24 @@ gelungene (M7).
 
 > **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
 > nicht.**
+
+**Punkt 3 misst eine Eigenschaft und nicht eine Zahl.** Die Zahl allein wäre
+willkürlich; was die Zeilenklammer zusagt, ist die **Unabhängigkeit von der
+Textlänge** — ein Band mit 500 Zeichen ist so hoch wie eines mit 60. Die Zahl
+steht daneben, damit ein Ausreisser auffällt.
+
+**Und sie ist beim Bauen einmal berichtigt worden.** Sie lautete „≤ 189 px",
+gerechnet aus M8 — dort trugen die Prüfkörper aber noch **kein Rangwort**; das
+verlangt M9, und M9 kam nach M8. Der erste Wurf gab dem Wort ein eigenes
+Flexkind, es brach bei 390 px in eine eigene Zeile, und drei Bänder kosteten
+**264 px**. Im Textfluss kostet dasselbe Wort nichts.
+
+> **Ein Wort, das als eigenes Flexkind steht, nimmt auf der schmalen Fläche eine
+> ganze Zeile — auch wenn es vier Zeichen hat.**
+
+> **Ein Budget, das aus einer Messung ohne das spätere Merkmal stammt, ist kein
+> Budget mehr — und ein Kriterium, das der Prüfling nicht erfüllen kann, prüft
+> den Verfasser.**
 
 **Punkt 2 braucht die breite Ansicht.** Der Fehler aus M2 zeigt sich bei
 1440 px und **nicht** bei 390 px — dort stapeln dieselben drei korrekt. Ein

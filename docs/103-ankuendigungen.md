@@ -285,6 +285,11 @@ die übrigen. Ein Streifen verschwindet dabei nicht.
 Acht Punkte, auf einem echten Server. **3 und 6 dürfen nicht ausfallen** — sie
 sind die beiden, für die es diese Stufe gibt.
 
+**Als Befehlsfolge steht der Lauf in `docs/104`**, ausgeschrieben vor dem
+Fahren. Dort ist auch nachzulesen, was der Vorflug an diesem Kriterium
+berichtigt hat — Punkt 4 war nicht erfüllbar — und welche Zahl der Lauf
+entscheidet.
+
 | | | |
 |---|---|---|
 | 1 | Eine Ankündigung anlegen und sie erscheint | Streifen oben, Kategorie als Wort, Farbe der Marke |

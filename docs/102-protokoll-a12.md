@@ -278,18 +278,72 @@ bleibt offen** — es steht in §5.
 
 ---
 
+## 7 · Der Lauf gegen `0.7.3-rc.18` — 5. September 2026
+
+Gefahren auf `cloudsrv24`, `cloudlab24.ipv64.de`, nach `srvpanel update` und
+`srvpanel vhost --sites` (fünf Blöcke, `nginx -t` mit `rc=0`).
+
+| Griff | mit Wartung | ohne Wartung |
+| --- | --- | --- |
+| `http /` | **503** | 301 |
+| `https /` | **503** | 200 |
+| `http` ACME | 404 | 404 |
+| `https` ACME | **404** | 404 |
+| Flagdatei | `-rw-r--r-- root root 286` | fehlt |
+| `nginx`-PID | **908382** | **908382** |
+
+Dazu der Rumpf der Wartungsseite:
+
+> Voraussichtlich ab **2026-09-05 13:35 Uhr CEST (UTC+02:00)** wieder erreichbar.
+
+**`https` ACME war gegen `rc.17` noch 503** — damit ist Befund 3 auf einem
+echten Server behoben und nicht nur im Nachbau.
+
+**Und die PID belegt Punkt 5 der Vorgehensweise**: Sie ist vor und nach dem
+Schalten dieselbe. Die Wache liest die Flagdatei bei jeder Anfrage; nginx wird
+dabei nicht angefasst, weder neu geladen noch neu gestartet.
+
+### Was damit erfüllt ist — und was nicht
+
+Erfüllt sind **Punkt 1** (503 mit dem Wortlaut der Seite), **Punkt 4** (die
+Domain ist eine PHP-Domain, und sie antwortet mit 503 statt mit ihrem Inhalt)
+und **Punkt 5** (das Panel war während der ganzen Wartung bedienbar — der Modus
+ist über die Seite ein- und ausgeschaltet worden).
+
+**Punkt 3 ist nicht erfüllt, und das ist kein Formalismus.** Er verlangt
+ausdrücklich `200` mit einer **echten** Prüfdatei und nicht `404`. Gemessen
+wurde `404` — und auf Port 80 ist dieser Wert vor und nach der Behebung
+derselbe:
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+Ein `404` schliesst aus, dass die Wache greift. Er schliesst nicht aus, dass die
+Prüfadresse aus einem ganz anderen Grund nichts ausliefert — ein falscher `root`
+sähe genauso aus. Nur eine liegende Datei unterscheidet die beiden Fälle.
+
+**Punkt 2 ist halb**: Die Richtung *mit* Zeitangabe steht oben. Die
+Gegenrichtung — eingeschaltet **ohne** Zeitangabe, und der Satz fehlt — ist auf
+dem Server nicht gemessen, sondern nur im Nachbau.
+
+---
+
 ## 5 · Was offen ist
 
 Die Punkte 2 bis 8 aus `docs/101 §7`, darunter beide Ausschlusskriterien
 (3 und 4). Zu fahren sind sie in dieser Reihenfolge, jeder Griff mit Frist:
 
-1. einschalten über die Seite, danach `https /` → `503`, ACME → `404`,
-   Flagdatei vorhanden
-2. `Retry-After: 3600` und die Wartungsseite mit der Zeitangabe — **das ist
-   zugleich die Gegenprobe zu Befund 2 auf einem echten Server**
-3. ausschalten, dieselben Werte wie in §1, `nginx -t` mit `rc=0` und **ohne
-   Reload**
-4. die zwei Prüfungen der Bestandsdiagnose (`docs/101 §5`) — noch nicht gebaut
+Nach dem Lauf in §7 stehen aus `docs/101 §7` noch offen:
+
+1. **Punkt 3** — `200` mit einer echten Prüfdatei über Port 80, samt Gegenprobe,
+   dass ein Name ohne Datei daneben weiter `404` gibt
+2. **Punkt 2**, Gegenrichtung — eingeschaltet ohne Zeitangabe, und der Satz
+   fehlt im Rumpf
+3. **Punkt 6**, zweite Hälfte — eine Domain, die *während* der Wartung angelegt
+   wurde, liefert nach dem Ausschalten aus
+4. **Punkt 7** — ein gesperrtes Abonnement bleibt nach dem Ausschalten gesperrt
+5. **Punkt 8** — `guard_missing` in der Bestandsdiagnose; die beiden Prüfungen
+   aus `docs/101 §5` sind noch nicht gebaut
 
 Dazu zwei Dinge, die dieser Lauf aufgeworfen und nicht erledigt hat:
 

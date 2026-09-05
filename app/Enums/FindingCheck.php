@@ -103,6 +103,16 @@ enum FindingCheck: string
     /** Der Signaturschlüssel der eigenen Paketquelle. */
     case AptKey = 'apt.key';
 
+    /**
+     * Der Wartungsmodus, gemessen an seiner eigenen Ankündigung.
+     *
+     * **Das ist, was von der gestrichenen Automatik übrigbleibt** (`docs/101
+     * §2`) — und es ist ehrlicher als sie: Der Nachtlauf meldet am Morgen, was
+     * der Betreiber am Abend vergessen hat. Niemand verlässt sich auf einen
+     * Zeitgeber, dessen Ausfall wie ein laufendes Fenster aussähe.
+     */
+    case MaintenanceWindow = 'maintenance.window';
+
     /** Der Grund, der überall „die Prüfung lief nicht" heisst. */
     public const UNREACHABLE = 'unreachable';
 
@@ -123,6 +133,7 @@ enum FindingCheck: string
             self::SystemUser => 'Systembenutzer',
             self::OrphanRow => 'Zeile ohne Gegenstand',
             self::AptKey => 'Signaturschlüssel der Paketquelle',
+            self::MaintenanceWindow => 'Wartungsmodus',
         };
     }
 
@@ -144,6 +155,7 @@ enum FindingCheck: string
             self::SystemUser => 'Abonnement',
             self::OrphanRow => 'Zeile',
             self::AptKey => 'Schlüssel',
+            self::MaintenanceWindow => 'Server',
         };
     }
 
@@ -183,7 +195,7 @@ enum FindingCheck: string
              * — die nächste Anweisung wird zum Argument der vorigen und ist
              * damit wirkungslos (`docs/81 §2.3o` M3, M21).
              */
-            self::WebFile, self::PhpFile => [
+            self::PhpFile => [
                 'missing' => [
                     'state' => FindingState::Fail,
                     'text' => 'Die Datei, die zu dieser Domain gehört, liegt nicht mehr da.',
@@ -195,6 +207,42 @@ enum FindingCheck: string
                 'directive_lost' => [
                     'state' => FindingState::Fail,
                     'text' => 'Eine Anweisung, die die Vorlage zusagt, steht nicht mehr als Anweisung in der Datei.',
+                ],
+                ...$unreachable,
+            ],
+
+            /*
+             * **`guard_missing` gibt es nur hier**, und der geteilte Zweig
+             * darüber ist deshalb aufgetrennt: Die Wache des Wartungsmodus
+             * steht in nginx und nicht in einem PHP-Pool. `DiagnoseSeamTest`
+             * hat das gemeldet, als beide Prüfungen den Grund noch teilten —
+             * ein Grund, den niemand ausspricht, ist ein toter Eintrag.
+             */
+            self::WebFile => [
+                'missing' => [
+                    'state' => FindingState::Fail,
+                    'text' => 'Die Datei, die zu dieser Domain gehört, liegt nicht mehr da.',
+                ],
+                'empty' => [
+                    'state' => FindingState::Fail,
+                    'text' => 'Die Datei ist leer.',
+                ],
+                'directive_lost' => [
+                    'state' => FindingState::Fail,
+                    'text' => 'Eine Anweisung, die die Vorlage zusagt, steht nicht mehr als Anweisung in der Datei.',
+                ],
+
+                /*
+                 * **Der Grund daneben, und er sieht, was die Zusage nicht
+                 * sieht.** Gemessen am 5. September 2026: Fehlt allein die
+                 * Zeile mit der ACME-Ausnahme, meldet `directive_lost` nichts
+                 * — `if` steht ja weiterhin dreimal in der Datei. Während einer
+                 * Wartung stürbe damit jede Zertifikatserneuerung, und
+                 * `nginx -t` gäbe dabei `rc=0`.
+                 */
+                'guard_missing' => [
+                    'state' => FindingState::Fail,
+                    'text' => 'Die Wache des Wartungsmodus fehlt in mindestens einem Server-Block dieser Datei.',
                 ],
                 ...$unreachable,
             ],
@@ -385,6 +433,27 @@ enum FindingCheck: string
                     'text' => 'Der Signaturschlüssel läuft demnächst ab.',
                 ],
                 ...$unreachable,
+            ],
+
+            /*
+             * **Auffällig und nicht Kaputt.** Eine überschrittene Ankündigung
+             * ist kein Schaden am Server: Die Websites antworten genau so, wie
+             * der Betreiber es geschaltet hat. Falsch ist der Satz, den ihre
+             * Besucher lesen — und der wird mit jeder Stunde falscher.
+             */
+            self::MaintenanceWindow => [
+                'overdue' => [
+                    'state' => FindingState::Warn,
+                    'text' => 'Der Wartungsmodus ist an, und die angekündigte Endzeit ist vorbei.',
+                ],
+
+                /*
+                 * **Und kein `unreachable`.** Diese Prüfung fragt kein Werkzeug
+                 * und keine Leitung, sondern zwei Werte aus den Einstellungen —
+                 * die antworten oder der ganze Lauf antwortet nicht. Ein Grund,
+                 * den niemand ausspricht, ist ein toter Eintrag;
+                 * `DiagnoseSeamTest` hat ihn gemeldet, als er hier stand.
+                 */
             ],
         };
     }

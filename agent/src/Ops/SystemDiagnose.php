@@ -303,7 +303,14 @@ final class SystemDiagnose implements Op
              */
             $promised = SiteTemplate::promised($form, $tls);
 
-            $verdict = Verdict::file($content, $content === null ? [] : Statements::lostInNginx($content, $promised));
+            /*
+             * **Die Wache erst nach der Zusage**, und das ist die Reihenfolge
+             * aus {@see Verdict::file()} eine Stufe weiter: Eine Datei, die
+             * fehlt oder leer ist, hat auch keine Wache — gemeldet wird der
+             * Zustand, den der Betreiber sieht, wenn er sie öffnet.
+             */
+            $verdict = Verdict::file($content, $content === null ? [] : Statements::lostInNginx($content, $promised))
+                ?? ($content === null ? null : Verdict::guard($content));
 
             if ($verdict !== null) {
                 $findings[] = $this->finding($domain, $verdict['reason'], $verdict['detail']);

@@ -7,6 +7,7 @@ namespace App\Support\Diagnose;
 use App\Enums\FindingCheck;
 use App\Support\Diagnose\Checks\Agent;
 use App\Support\Diagnose\Checks\Certificates;
+use App\Support\Diagnose\Checks\MaintenanceWindow;
 use App\Support\Diagnose\Checks\ManagedBlocks;
 use App\Support\Diagnose\Checks\Orphans;
 use App\Support\Diagnose\Checks\SystemUsers;
@@ -47,6 +48,7 @@ final class Catalog
         Certificates::class,
         SystemUsers::class,
         Orphans::class,
+        MaintenanceWindow::class,
     ];
 
     /**

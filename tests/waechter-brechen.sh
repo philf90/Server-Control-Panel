@@ -22522,7 +22522,8 @@ vorher_datei agent/src/Ops/SystemDiagnose.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/SystemDiagnose.php'
 s = open(p, encoding='utf-8').read()
-alt = """            $verdict = Verdict::file($content, $content === null ? [] : Statements::lostInNginx($content, $promised));"""
+alt = """            $verdict = Verdict::file($content, $content === null ? [] : Statements::lostInNginx($content, $promised))
+                ?? ($content === null ? null : Verdict::guard($content));"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 neu = """            $lost = [];
             foreach ($promised as $directive) {
@@ -22619,9 +22620,9 @@ vorher_datei agent/src/Diagnose/Verdict.php
 python3 - <<'PY2'
 p = 'agent/src/Diagnose/Verdict.php'
 s = open(p, encoding='utf-8').read()
-alt = """        'web.file' => ['missing', 'empty', 'directive_lost', self::UNREACHABLE],"""
+alt = """        'web.file' => ['missing', 'empty', 'directive_lost', 'guard_missing', self::UNREACHABLE],"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, """        'web.file' => ['missing', 'empty', 'directive_lost', 'verschluckt', self::UNREACHABLE],""", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        'web.file' => ['missing', 'empty', 'directive_lost', 'guard_missing', 'verschluckt', self::UNREACHABLE],""", 1))
 PY2
 griff_datei agent/src/Diagnose/Verdict.php "web.file mit fremdem Grund" &&
 pruefe "web.file mit fremdem Grund" \
@@ -22867,13 +22868,13 @@ vorher_datei tests/Unit/DiagnoseCatalogTest.php
 python3 - <<'PY2'
 p = 'tests/Unit/DiagnoseCatalogTest.php'
 s = open(p, encoding='utf-8').read()
-alt = """        'system.user',
+alt = """        'maintenance.window',
     ];"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, """    ];""", 1))
 PY2
-griff_datei tests/Unit/DiagnoseCatalogTest.php "system.user ohne Begruendung" &&
-pruefe "system.user ohne Begruendung" \
+griff_datei tests/Unit/DiagnoseCatalogTest.php "eine Pruefung ohne unreachable ohne Begruendung" &&
+pruefe "eine Pruefung ohne unreachable ohne Begruendung" \
   DiagnoseCatalogTest::test_a_check_without_unreachable_is_named failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
@@ -23819,11 +23820,11 @@ vorher_datei agent/src/Maintenance.php
 python3 - <<'PY2'
 p = 'agent/src/Maintenance.php'
 s = open(p, encoding='utf-8').read()
-alt = """            if (\\$request_uri ~ ^{$prefix}/{$token}(\\?.*)?$) { set \\$wartung 0; }
-            if (\\$wartung = 1) { return 503; }"""
+alt = """            {$ausnahme}
+            {$urteil}"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, """            if (\\$wartung = 1) { return 503; }
-            if (\\$request_uri ~ ^{$prefix}/{$token}(\\?.*)?$) { set \\$wartung 0; }""", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            {$urteil}
+            {$ausnahme}""", 1))
 PY2
 griff_datei agent/src/Maintenance.php "die Ausnahme steht zu spaet" &&
 pruefe "die Ausnahme steht zu spaet" \
@@ -24209,9 +24210,9 @@ vorher_datei agent/src/Maintenance.php
 python3 - <<'PY2'
 p = 'agent/src/Maintenance.php'
 s = open(p, encoding='utf-8').read()
-alt = 'if (\\$request_uri ~ ^{$prefix}/{$token}(\\?.*)?$)'
+alt = "sprintf('if ($request_uri ~ ^%s/%s(\\?.*)?$) { set $wartung 0; }', $prefix, $token),"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if (\\$uri ~ ^{$prefix}/)', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "sprintf('if ($uri ~ ^%s/)', $prefix), // token: $token", 1))
 PY2
 griff_datei agent/src/Maintenance.php "die Ausnahme fragt wieder die gerade gueltige Adresse" &&
 pruefe "die Ausnahme fragt wieder die gerade gueltige Adresse" \
@@ -24256,6 +24257,83 @@ pruefe "ein Trenner versteckt sich im Anfuehrungszeichen" \
   SiteFileIntegrityTest::test_no_template_hides_a_separator_in_a_quoted_string failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
+
+echo
+echo "== MaintenanceVerdictTest: die Wache wird nicht mehr gegen die Datei gehalten =="
+#
+# Ohne diese Pruefung sieht die Bestandsdiagnose eine halbe Wache nicht: Fehlt
+# allein die ACME-Ausnahme, meldet die Zusage je Anweisungsname nichts, und die
+# Zertifikatserneuerung stirbt waehrend jeder Wartung.
+vorher_datei agent/src/Ops/SystemDiagnose.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemDiagnose.php'
+s = open(p, encoding='utf-8').read()
+alt = "\n                ?? ($content === null ? null : Verdict::guard($content));"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, ";", 1))
+PY2
+griff_datei agent/src/Ops/SystemDiagnose.php "die Wache wird nicht mehr gegen die Datei gehalten" &&
+pruefe "die Wache wird nicht mehr gegen die Datei gehalten" \
+  DiagnoseSeamTest::test_every_reason_in_the_catalogue_has_a_speaker failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
+
+echo
+echo "== MaintenanceVerdictTest: gezaehlt wird nicht mehr je Server-Block =="
+#
+# Eine Domain mit Zertifikat hat zwei Bloecke, und der Inhalt steht im zweiten.
+# Wer nur fragt "steht die Zeile irgendwo", spricht eine halbe Wache frei.
+vorher_datei agent/src/Diagnose/Verdict.php
+python3 - <<'PY2'
+p = 'agent/src/Diagnose/Verdict.php'
+s = open(p, encoding='utf-8').read()
+alt = "if (($seen[$expected] ?? 0) < $blocks) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "if (($seen[$expected] ?? 0) < 1) {", 1))
+PY2
+griff_datei agent/src/Diagnose/Verdict.php "gezaehlt wird nicht mehr je Server-Block" &&
+pruefe "gezaehlt wird nicht mehr je Server-Block" \
+  MaintenanceVerdictTest::test_a_guard_in_only_one_of_two_blocks_is_a_finding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceVerdictTest passed
+
+echo
+echo "== MaintenanceVerdictTest: der Sollzustand wird nachgebaut =="
+#
+# Zwei Fassungen derselben sechs Zeilen laufen auseinander — und die
+# auseinandergelaufene entscheidet dann jede Nacht ueber jede Domain.
+vorher_datei agent/src/Maintenance.php
+python3 - <<'PY2'
+p = 'agent/src/Maintenance.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'error_page 503 @wartung;',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'error_page 503 @wartungsmodus;',", 1))
+PY2
+griff_datei agent/src/Maintenance.php "der Sollzustand wird nachgebaut" &&
+pruefe "der Sollzustand wird nachgebaut" \
+  MaintenanceVerdictTest::test_an_intact_file_is_no_finding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceVerdictTest passed
+
+echo
+echo "== MaintenanceOverdueTest: gemessen wird wieder gegen jetzt =="
+#
+# Ein Lauf, der now() fragt, haengt daran, wann jemand ihn startet — und die
+# Zeile daneben ("zuletzt gemessen um …") nennt dann eine andere Messung.
+vorher_datei app/Support/Diagnose/Checks/MaintenanceWindow.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/MaintenanceWindow.php'
+s = open(p, encoding='utf-8').read()
+alt = "if ($until->greaterThanOrEqualTo($measuredAt)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "if ($until->greaterThanOrEqualTo(CarbonImmutable::now())) {", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/MaintenanceWindow.php "gemessen wird wieder gegen jetzt" &&
+pruefe "gemessen wird wieder gegen jetzt" \
+  MaintenanceOverdueTest::test_the_run_is_judged_against_its_own_timestamp failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceOverdueTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

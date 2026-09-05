@@ -140,9 +140,40 @@ kosten 189 px statt bis zu 819 px.
 > **Eine Klammer über Zeilen ist auf jeder Breite dieselbe Regel. Eine über
 > Zeichen ist es nicht** — 40 Zeichen je Zeile bei 390 px, 160 bei 1440 px.
 
-**Der volle Text steht auf der Verwaltungsseite** (§5), und der Verweis im
-Streifen führt dorthin. Kein Aufklapper im Streifen: Das wäre ein Zustand je
-Betrachter, und der Betreiber hat das Wegklicken ausdrücklich nicht bestellt.
+**Der volle Text steht auf einer eigenen Leseseite** — `/announcements/{id}` —,
+und **das ganze Band** ist der Verweis dorthin. Kein Aufklapper im Streifen: Das
+wäre ein Zustand je Betrachter, und der Betreiber hat das Wegklicken
+ausdrücklich nicht bestellt.
+
+**Hier stand bis zum 5. September: „Der volle Text steht auf der
+Verwaltungsseite (§5), und der Verweis im Streifen führt dorthin."** Das war
+zweimal falsch, und gefunden hat es der Vorflug zum Abnahmelauf. Der Verweis war
+nie gebaut — und sein Ziel steht hinter `operate-server`: Kunde, Administrator
+und der Unangemeldete auf der Anmeldeseite hätten dort einen 403 bekommen, also
+genau die drei Gruppen, für die er da war.
+
+> **Ein Verweis auf einen Ort, den der Leser nicht betreten darf, ist kein Weg
+> zum Text — er ist eine zweite Sackgasse.**
+
+**Die Leseseite fragt die Sichtbarkeit nicht selbst.** Angemeldet gilt
+`Announcement::visibleTo()`, unangemeldet `Announcement::onLoginPage()` — beides
+die Mengen, die der Leser als Streifen ohnehin vor sich hat. Sie liegt deshalb
+**ausserhalb der `auth`-Klammer** und gibt für alles andere **404 und nicht
+403**: Ein 403 bestätigte die Existenz.
+
+> **Eine öffentliche Route ist dann keine Preisgabe, wenn sie genau das
+> ungekürzt zeigt, was anderswo schon gekürzt öffentlich steht.**
+
+**Und der Verweis sitzt an der Fläche und nicht im Text.** Der erste Wurf setzte
+ein „mehr" ans Textende, innerhalb der Zeilenklammer — die schnitt es genau dann
+weg, wenn der Text lang ist, also im einzigen Fall, für den es das „mehr" gibt.
+Ein eigenes Flexkind daneben kostete bei 390 px eine ganze Zeile je Band (an
+derselben Stelle für das Rangwort gemessen, M9). Die Fläche kostet **nichts**:
+Gemessen am 5. September in acht Lagen — `div` und `a` ergeben Zeile für Zeile
+dieselbe Höhe.
+
+> **Ein Weiterlesen, das mit dem Text abgeschnitten wird, fehlt genau dann, wenn
+> man es braucht.**
 
 ### 4.4 Die Anmeldeseite
 
@@ -259,7 +290,7 @@ sind die beiden, für die es diese Stufe gibt.
 | 1 | Eine Ankündigung anlegen und sie erscheint | Streifen oben, Kategorie als Wort, Farbe der Marke |
 | 2 | Drei gleichzeitig | **drei Streifen untereinander**, keiner verdeckt — der Befund aus M2 |
 | 3 | **Drei bei 390 px** *(Ausschluss)* | **jedes Band gleich hoch, gleich wie lang sein Text ist** — gemessen 62 px je Band, 214 px mit der Hülle; `schiebt = 0`, Gegenprobe schlägt an |
-| 4 | 500 Zeichen | im Streifen zwei Zeilen, Verweis auf den vollen Text, der Text vollständig auf `/announcements` |
+| 4 | 500 Zeichen | im Streifen zwei Zeilen; **als Kunde** das Band anklicken und den vollen Text auf `/announcements/{id}` lesen — ohne 403 |
 | 5 | Publikum | ein Kundenkonto sieht die Kundenankündigung und nicht die für Admins |
 | 6 | **Das Fenster** *(Ausschluss)* | mit Anzeigezone auf `Europe/Berlin` gesetzt: sichtbar **während** der eingetippten Ortszeit, davor und danach nicht |
 | 7 | Störung auf der Anmeldeseite | abgemeldet sichtbar; eine Ankündigung der Kategorie Info dort **nicht** |
@@ -289,6 +320,22 @@ Flexkind, es brach bei 390 px in eine eigene Zeile, und drei Bänder kosteten
 > **Ein Budget, das aus einer Messung ohne das spätere Merkmal stammt, ist kein
 > Budget mehr — und ein Kriterium, das der Prüfling nicht erfüllen kann, prüft
 > den Verfasser.**
+
+**Und die Zahl von Punkt 3 ist am 5. September nachgemessen worden — die
+Eigenschaft hält, die Hüllenzahl nicht.** Gegen das gebaute Stylesheet bei
+390 px, drei Bänder: 60, 120, 250 und 500 Zeichen ergeben **alle 62 px je Band**
+und 226 px für die Hülle. Der Streifen als Verweis kostet dabei **nichts** —
+`div` und `a` sind in acht Lagen Zeile für Zeile gleich.
+
+Die 214 px im Kriterium stammen aus einer Messung an der **echten Seite**, meine
+226 aus einem Wegwerf-Aufsatz; welche für den Server gilt, entscheidet der Lauf.
+Getragen ist davon die **Differenz** und nicht der absolute Wert:
+
+> **Eine Differenz zweier Messungen unter denselben Bedingungen trägt, auch wenn
+> die absoluten Werte an der Umgebung hängen.**
+
+Gemessen wird im Lauf deshalb zuerst die Eigenschaft — 60 gegen 500 Zeichen,
+dieselbe Höhe — und die Zahl daneben, damit ein Ausreisser auffällt.
 
 **Punkt 2 braucht die breite Ansicht.** Der Fehler aus M2 zeigt sich bei
 1440 px und **nicht** bei 390 px — dort stapeln dieselben drei korrekt. Ein

@@ -169,4 +169,42 @@ final class AnnouncementWindowTest extends TestCase
         self::assertCount(1, Announcement::visibleTo($konto, Carbon::parse('2026-01-01 12:00', 'UTC')));
         self::assertCount(0, Announcement::visibleTo($konto, Carbon::parse('2026-06-01 12:00', 'UTC')));
     }
+
+    /**
+     * Die Leseseite stellt die Sichtbarkeitsfrage nicht selbst.
+     *
+     * **Sie ist der dritte Leser derselben Regel** — nach der geteilten
+     * Nutzlast und der Anmeldeseite. Baute sie ihre eigene Abfrage, gäbe es
+     * die Regel zweimal, und die zweite ist die, die veraltet: Ein Publikum
+     * mehr, ein Fenster anders gerechnet, und die Leseseite zeigte etwas, das
+     * im Streifen gar nicht stand.
+     *
+     * > **Ein zweiter Leser, der seine eigene Frage stellt, ist eine zweite
+     * > Fassung der Regel.**
+     *
+     * Gemessen am Rumpf von `show()` und nicht an der ganzen Datei: `index()`
+     * fragt zu Recht `Announcement::query()`, denn der Betreiber sieht dort
+     * auch, was gerade niemand sieht.
+     */
+    public function test_the_reading_page_asks_the_same_two_questions(): void
+    {
+        $quelle = (string) file_get_contents(
+            dirname(__DIR__, 2).'/app/Http/Controllers/AnnouncementController.php',
+        );
+
+        self::assertSame(
+            1,
+            preg_match('/public function show\(.*?\n    \}/s', $quelle, $rumpf),
+            'Der Ausdruck findet show() nicht mehr — dieser Wächter misst dann nichts.',
+        );
+
+        self::assertStringContainsString('Announcement::visibleTo(', $rumpf[0],
+            'Angemeldet gilt dieselbe Menge wie im Streifen.');
+        self::assertStringContainsString('Announcement::onLoginPage(', $rumpf[0],
+            'Unangemeldet gilt dieselbe Menge wie auf der Anmeldeseite — Störungen im Fenster.');
+        self::assertStringNotContainsString('Announcement::query(', $rumpf[0],
+            'Eine eigene Abfrage wäre die zweite Fassung der Sichtbarkeitsregel.');
+        self::assertStringContainsString('abort(404)', $rumpf[0],
+            'Ein 403 bestätigte die Existenz. Wer Kennungen durchprobiert, soll nichts erfahren.');
+    }
 }

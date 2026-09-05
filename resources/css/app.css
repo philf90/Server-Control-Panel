@@ -4976,6 +4976,21 @@ td.text {
    */
   border-left: 3px solid;
   border-radius: var(--radius);
+
+  /*
+   * **Das Band ist ein Verweis, und es sieht keiner aus.**
+   *
+   * Die Fläche führt auf den vollen Wortlaut (`docs/103 §4.3`) — ein „mehr" am
+   * Textende hätte die Zeilenklammer genau dann weggeschnitten, wenn der Text
+   * lang ist, also im einzigen Fall, für den es das „mehr" gibt. Farbe und
+   * Unterstreichung eines Verweises würden hier aber den Rang überschreiben,
+   * und der steht auf drei Trägern (M9), von denen die Textfarbe einer ist.
+   *
+   * > **Ein Verweis, der die Farbe seines Trägers überschreibt, nimmt der
+   * > Fläche die Aussage, für die es sie gibt.**
+   */
+  color: inherit;
+  text-decoration: none;
 }
 
 .band.ok {

@@ -135,6 +135,45 @@ final class AnnouncementBandTest extends TestCase
         return $treffer[2];
     }
 
+    /**
+     * Das Band ist der Verweis, und der Rang überlebt ihn.
+     *
+     * **Der erste Wurf setzte ein „mehr" ans Textende, innerhalb der
+     * Zeilenklammer** — und damit schnitt die Klammer es genau dann weg, wenn
+     * der Text lang ist, also im einzigen Fall, für den es das „mehr" gibt.
+     *
+     * > **Ein Weiterlesen, das mit dem Text abgeschnitten wird, fehlt genau
+     * > dann, wenn man es braucht.**
+     *
+     * Ein eigenes Flexkind daneben kostet bei 390 px eine ganze Zeile je Band
+     * (an genau dieser Stelle für das Rangwort gemessen, `docs/81 §2.3q` M9),
+     * und Punkt 3 des Abnahmekriteriums ist ein Ausschlusskriterium über diese
+     * Höhe. Die Fläche selbst kostet nichts.
+     *
+     * **Und sie darf nicht aussehen wie ein Verweis.** Der Rang steht auf drei
+     * Trägern — Fläche, Rand, Textfarbe —, und die Linkfarbe nähme ihm den
+     * dritten.
+     */
+    public function test_the_band_itself_is_the_link(): void
+    {
+        $vorlage = $this->template($this->bands());
+
+        self::assertMatchesRegularExpression('/<Link\b[^>]*\bclass="band"/s', $vorlage,
+            'Das Band selbst trägt den Verweis. Ein „mehr" im Text wird von der Zeilenklammer '
+            .'abgeschnitten, ein eigenes Flexkind kostet bei 390 px eine Zeile je Band.');
+
+        self::assertStringContainsString('/announcements/', $vorlage,
+            'Der Verweis führt auf die Leseseite mit dem vollen Wortlaut.');
+
+        $block = $this->rule('.band');
+
+        self::assertStringContainsString('color: inherit;', $block,
+            'Ein <a> erbt die Linkfarbe und überschreibt damit die Textfarbe des Rangs — '
+            .'einen von drei Trägern (M9).');
+        self::assertStringContainsString('text-decoration: none;', $block,
+            'Eine Unterstreichung über zwei geklammerten Zeilen ist kein Hinweis, sondern Lärm.');
+    }
+
     /** Jedes Band steht in der Hülle und keines daneben. */
     public function test_every_band_lives_inside_the_hull(): void
     {

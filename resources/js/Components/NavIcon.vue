@@ -93,6 +93,20 @@ const PATHS: Record<string, string> = {
   maintenance: 'M12 3l7 3v5c0 4-3 7-7 9-4-2-7-5-7-9V6zM8 11h8',
 
   /*
+   * Ankündigungen: ein Sprachrohr, das nach rechts oben zeigt.
+   *
+   * **Keine Glocke.** Die steht überall für „Benachrichtigung an mich" — eine
+   * Ankündigung geht in die andere Richtung: Der Betreiber spricht, und die
+   * anderen hören. Und die Glocke wäre für A7 vergeben, das Schwellen und
+   * Benachrichtigungen bringt.
+   *
+   * **Kein Ausrufezeichen und kein „i" im Kreis.** Beide behaupten einen Rang,
+   * und den trägt hier die Kategorie — ein Zeichen, das immer „wichtig" sagt,
+   * sagt es auch für eine Info.
+   */
+  announcement: 'M4 9v6h3l6 4V5L7 9zM17 9a4 4 0 010 6',
+
+  /*
    * Updates: ein Kasten mit einem Pfeil nach oben heraus.
    *
    * **Kein Pfeil im Kreis** — den trägt `operations` schon, und die beiden

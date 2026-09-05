@@ -22,6 +22,7 @@
  */
 import { Link, router, usePage } from '@inertiajs/vue3'
 import Confirmation from '../Components/Confirmation.vue'
+import Bands from '../Components/Bands.vue'
 import MarkIcon from '../Components/MarkIcon.vue'
 import NavIcon from '../Components/NavIcon.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -291,7 +292,26 @@ const navigation = computed(() => {
      * „Updates" steht seit A1: „Nicht unten bei PHP-Versionen und
      * Datenbankserver. Die sind Einstellungen." Sie war gedacht und nie gezogen.
      */
-    { group: 'Betrieb', items: [
+    /*
+     * **„Verlauf" ist am 5. September aus „Betrieb" herausgelöst worden**, und
+     * die Trennlinie stand schon im Kommentar an „Logs": *Die drei sagen, was
+     * passiert ist.* „Betrieb" sagt, was **jetzt** ist und was ansteht.
+     *
+     * **Der Anlass war eine Zahl und die Einsicht dahinter.** Mit
+     * „Ankündigungen" trug „Betrieb" neun Punkte, und acht ist die gesetzte
+     * Grenze aus {@link NavGroupTest} — sie liegt über den sieben, die die
+     * grösste sonst hat, und unter den dreizehn, die die alte Gruppe „Server"
+     * einmal hatte, ohne dass es jemand bemerkte.
+     *
+     * > **Eine Ausnahme, die man aufschreibt, ist ein offener Punkt; eine
+     * > Schwelle, die man höher setzt, ist keiner mehr.**
+     *
+     * Die Ausnahmeliste war deshalb der falsche Weg: Sie ist für Gruppen, über
+     * die der Betreiber noch nicht entschieden hat — „Betrieb" hat er am
+     * 30. August selbst geschnitten. Entschieden hat er die Teilung am
+     * 5. September.
+     */
+    { group: 'Verlauf', items: [
       { name: 'Vorgänge', href: '/operations', icon: 'operations' },
       { name: 'Protokoll', href: '/audit', icon: 'log' },
 
@@ -313,6 +333,9 @@ const navigation = computed(() => {
        *   sie dort?
        */
       { name: 'Logs', href: '/logs', icon: 'logfile', ability: 'operate-server' },
+    ] },
+
+    { group: 'Betrieb', items: [
 
       /*
        * **Der Wartungsmodus steht in „Betrieb" und nicht in
@@ -327,6 +350,22 @@ const navigation = computed(() => {
        * Betreiber gemeldet und kein Test.
        */
       { name: 'Wartungsmodus', href: '/maintenance', icon: 'maintenance', ability: 'operate-server' },
+
+      /*
+       * **„Ankündigungen" steht neben dem Wartungsmodus, und das ist die
+       * Antwort auf die Frage, wo jemand sie sucht.**
+       *
+       * Nicht in „Einstellungen": Eine Ankündigung ist nichts, was man einmal
+       * einstellt — sie ist eine Handlung mit einem Anlass. Und der häufigste
+       * Anlass steht direkt darüber; `docs/103` nennt die Verbindung
+       * ausdrücklich einseitig: Ein Wartungsmodus **kann** seine Ankündigung
+       * erzeugen, eine Ankündigung bewirkt am Webserver nichts.
+       *
+       * Dieses Projekt hat den Ort eines Menüpunkts dreimal falsch gehabt, und
+       * jedes Mal hat es der Betreiber gemeldet und kein Test — deshalb steht
+       * die Überlegung hier und nicht nur im Kopf.
+       */
+      { name: 'Ankündigungen', href: '/announcements', icon: 'announcement', ability: 'operate-server' },
 
       /*
        * **„Dienste" steht zwischen „Logs" und „Updates", und das ist die
@@ -536,15 +575,7 @@ onBeforeUnmount(() => {
         Reihenfolge macht das Modell und nicht die Seite, damit sie nicht in
         zwei Fassungen auseinanderläuft.
       -->
-      <div v-for="hinweis in announcements" :key="hinweis.id" class="band" :class="hinweis.badge">
-        <!--
-          **Das Rangwort steht im Textfluss und nicht daneben.** Der erste Wurf
-          gab ihm ein eigenes Flexkind; bei 390 px bricht es dann in eine eigene
-          Zeile und kostet 21 px je Band — drei Ankündigungen 264 px statt der
-          189 px, die `docs/81 §2.3q` M8 als Budget gemessen hat.
-        -->
-        <span class="clamped"><b class="rank">{{ hinweis.rank }}</b> {{ hinweis.body }}</span>
-      </div>
+      <Bands :items="announcements" />
     </div>
 
     <!--

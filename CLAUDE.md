@@ -3677,16 +3677,37 @@ Testen berücksichtigen:
   - Nach jeder Aufnahme `scrollWidth - clientWidth` messen. Ein waagerechter
     Überlauf bei 390px sieht auf dem Bild nach nichts aus und ist auf dem
     Telefon der ganze Unterschied.
-  - **Ein Datumsfeld zeigt die Sprache des Browsers und nicht die der Seite.**
-    Chromium schreibt in ein `type="date"` die Schreibweise seiner
-    **Oberflächensprache**; hier ist die englisch, und das Bild las `mm/dd/yyyy`
-    mit einem AM/PM-Feld. `locale: 'de-DE'` am Kontext ändert daran nichts (es
-    setzt `Accept-Language` und `navigator.language`) — es braucht
-    `args: ['--lang=de-DE']` beim Start. Dann steht dort `tt.mm.jjjj` und ein
-    24-Stunden-Feld, gemessen am 4. September 2026.
+  - **Ein Datumsfeld zeigt die Sprache des Browsers und nicht die der Seite** —
+    und **in diesem Container ist sie nicht umstellbar.** Chromium schreibt in
+    ein `type="date"` die Schreibweise seiner Oberflächensprache; das Bild liest
+    `mm/dd/yyyy` und `09/13/2026`.
+
+    Hier stand bis zum 5. September 2026, `args: ['--lang=de-DE']` behebe das
+    und sei am 4. September gemessen. **Nachgemessen in drei Fassungen stimmt
+    das nicht:**
+
+    | Start | `navigator.language` | Feld zeigt |
+    |---|---|---|
+    | ohne Fahnen | `en-US` | `mm/dd/yyyy` |
+    | `--lang=de-DE` | `en-US` | `mm/dd/yyyy` |
+    | `--lang` **und** `--accept-lang` | `de-DE` | `mm/dd/yyyy` |
+
+    `--lang` allein ändert nicht einmal `navigator.language`; erst mit
+    `--accept-lang` tut es das — und **die Schreibweise des Feldes folgt
+    trotzdem nicht.** Sie hängt am Sprachpaket der Oberfläche, und dieses
+    Chromium bringt nur `en-US` mit.
 
     > **Ein Bild, das in der Sprache des Prüfstands aufgenommen wurde, sagt über
     > die Anzeige auf dem Gerät des Lesers nichts.**
+
+    Was daraus folgt: **Ein amerikanisches Datum auf einem Bild aus diesem
+    Container ist kein Befund.** Wer die deutsche Schreibweise belegen will,
+    braucht ein anderes Chromium — im Panel selbst ist nichts zu ändern, das
+    Feld ist ein `type="date"` und die Schreibweise gehört dem Gerät.
+
+    > **Eine Zeile, die eine Behebung behauptet, ist teurer als eine, die eine
+    > Grenze benennt — sie lässt den Nächsten glauben, er habe den Fehler
+    > gemacht.**
   - **Kein `| head` über dem Messlauf.** `head` schliesst die Leitung nach der
     ersten Zeile, node stirbt am SIGPIPE — und die Aufnahmen der übrigen drei
     Lagen sind dann die des **vorigen** Laufs. Am 23. August genau so passiert:

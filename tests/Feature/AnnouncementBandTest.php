@@ -138,8 +138,24 @@ final class AnnouncementBandTest extends TestCase
     /** Und das Wort daneben — Farbe allein trägt für niemanden mit Rot-Grün-Schwäche. */
     public function test_the_rank_is_also_a_word(): void
     {
-        self::assertStringContainsString('class="rank"', $this->template($this->layout()),
+        self::assertStringContainsString('class="rank"', $this->template($this->bands()),
             'Die Kategorie steht als Wort im Streifen und nicht nur als Farbe (M9, WCAG 1.4.1).');
+    }
+
+    /**
+     * Die Komponente, die einen Streifen rendert.
+     *
+     * **Sie liest `Bands.vue` und nicht mehr das Layout.** Das Markup ist am
+     * 5. September dorthin gezogen, weil drei Orte es brauchen — das Panel, die
+     * Anmeldeseite und die Zweitfaktorseite. Dieser Wächter zeigte danach auf
+     * eine Datei, in der sein Text nicht mehr steht, und war damit stumpf.
+     *
+     * > **Ein Wächter, dessen Gegenstand umzieht, wird stumpf und nicht rot —
+     * > gemeldet hat es der volle Lauf und nicht der Umbau.**
+     */
+    private function bands(): string
+    {
+        return (string) file_get_contents(dirname(__DIR__, 2).'/resources/js/Components/Bands.vue');
     }
 
     /**

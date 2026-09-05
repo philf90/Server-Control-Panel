@@ -160,20 +160,21 @@ final class BlockSpacingTest extends TestCase
         'button + button',
 
         /*
-         * **Zwei Ankündigungen kleben nicht — dazwischen steht eine Linie von
-         * drei Pixeln** (A14, `docs/103 §4.2`). `.band` trägt
-         * `border-bottom: 3px solid` in der Farbe seines Ranges, und die steht
-         * gegen den Seitengrund bei 6,24:1 bis 6,79:1 (`docs/81 §2.3q` M4).
+         * **Zwei Feldreihen kleben nicht — der Abstand sitzt in ihren
+         * Kindern.** `.field-row` ist ein Flexcontainer ohne eigenen Rand;
+         * jedes `.field` darin trägt `margin-top: 16px`, und in einem
+         * Flexcontainer fällt dieser Rand nicht aus der Box heraus.
          *
-         * Ein Abstand daneben wäre nicht nur überflüssig, sondern falsch: Die
-         * Bänder sollen als **ein** Block ganz oben lesen und nicht als drei
-         * schwebende Kärtchen; ihre Trennung ist die Linie und nicht die Lücke.
+         * Gemessen am 5. September 2026 auf `/announcements` bei 1440 px: Die
+         * Blöcke berühren sich auf den Pixel (Fuge **0**), zwischen den
+         * sichtbaren Feldern liegen **16 px** — genau so viel wie zwischen zwei
+         * `.field` sonst auch.
          *
-         * Gemessen am 5. September 2026 an der echten Seite: drei Bänder,
-         * 0–65, 65–130, 130–195 bei 390 px, jede Fuge eine sichtbare
-         * Randlinie.
+         * > **Eine Fuge zwischen zwei Blöcken misst nicht, was der Leser als
+         * > Abstand sieht — wenn den die Kinder tragen.**
          */
-        'band + band',
+        'field-row + field-row',
+
         'button-row + button',
         'button-row + form',
         /*

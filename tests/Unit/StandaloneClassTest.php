@@ -69,6 +69,7 @@ final class StandaloneClassTest extends TestCase
         'rank' => 'das Wort der Kategorie im Text eines .band',
         'right' => 'eine rechtsbündige Zelle',
         'short' => 'ein .code, dessen Inhalt eine bekannte Länge hat',
+        'text' => 'eine Tabellenzelle, die einen Satz trägt und keine Kennung',
         'verb' => 'der zweite Teil einer Knopfbeschriftung im Seitenkopf',
     ];
 

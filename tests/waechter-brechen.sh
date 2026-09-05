@@ -24484,15 +24484,15 @@ echo "== AnnouncementBandTest: das Rangwort faellt weg =="
 #
 # Farbe allein traegt fuer jemanden mit Rot-Gruen-Schwaeche gar nichts
 # (WCAG 1.4.1) — deshalb steht die Kategorie als Wort im Streifen.
-vorher_datei resources/js/Layouts/PanelLayout.vue
+vorher_datei resources/js/Components/Bands.vue
 python3 - <<'PY2'
-p = 'resources/js/Layouts/PanelLayout.vue'
+p = 'resources/js/Components/Bands.vue'
 s = open(p, encoding='utf-8').read()
 alt = '<b class="rank">{{ hinweis.rank }}</b> '
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
 PY2
-griff_datei resources/js/Layouts/PanelLayout.vue "das Rangwort fällt weg" &&
+griff_datei resources/js/Components/Bands.vue "das Rangwort fällt weg" &&
 pruefe "das Rangwort fällt weg" \
   AnnouncementBandTest::test_the_rank_is_also_a_word failed
 wiederherstellen
@@ -24517,6 +24517,47 @@ pruefe "der Verschluss wird ein fertiger Wert" \
   AnnouncementShareTest::test_a_partial_reload_does_not failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementShareTest passed
+
+echo
+echo "== AnnouncementPageTest: die Seite steht hinter manage-settings =="
+#
+# Der Plan hat das einmal so gesagt, mit der Begruendung „ist Text in einer
+# Tabelle". docs/20 §6.1 ordnet nach der Wirkung: kritisch ist unter anderem,
+# was „alle Kunden mitnimmt" — und eine Ankuendigung erreicht jeden Kunden.
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+i = s.index("Route::get('/announcements'")
+j = s.index('->name(', i)
+block = s[i:j]
+assert block.count('can:operate-server') == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s[:i] + block.replace('can:operate-server', 'can:manage-settings') + s[j:])
+PY2
+griff_datei routes/web.php "die Seite steht hinter manage-settings" &&
+pruefe "die Seite steht hinter manage-settings" \
+  AnnouncementPageTest::test_an_administrator_is_turned_away failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementPageTest passed
+
+echo
+echo "== AnnouncementPageTest: die Anmeldeseite zeigt jede Kategorie =="
+#
+# Die stille Haelfte ist die, die zuviel zeigt: Was auf der Anmeldeseite steht,
+# steht vor jedem, der die Adresse kennt.
+vorher_datei app/Http/Controllers/Auth/LoginController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/Auth/LoginController.php'
+s = open(p, encoding='utf-8').read()
+alt = 'Announcement::onLoginPage()'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'Announcement::visibleTo(null)', 1))
+PY2
+griff_datei app/Http/Controllers/Auth/LoginController.php "die Anmeldeseite zeigt jede Kategorie" &&
+pruefe "die Anmeldeseite zeigt jede Kategorie" \
+  AnnouncementPageTest::test_the_login_page_carries_incidents_only failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementPageTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

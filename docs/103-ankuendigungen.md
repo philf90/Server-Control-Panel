@@ -135,9 +135,31 @@ Einbindung — und genau deshalb steht sie hier und nicht als Nebensatz.
 
 ## 5 · Die Verwaltung
 
-Eine Seite unter `/announcements`, hinter **`manage-settings`**. Nicht
-`operate-server`: Eine Ankündigung dreht nichts am Server, sie ist Text in einer
-Tabelle — dieselbe Art Griff wie die Anzeigezeitzone.
+Eine Seite unter `/announcements`, hinter **`operate-server`**.
+
+**Hier stand `manage-settings`, und das war falsch.** Die Begründung lautete
+„eine Ankündigung dreht nichts am Server, sie ist Text in einer Tabelle —
+dieselbe Art Griff wie die Anzeigezeitzone". Sie ordnet nach dem, was der Griff
+**anfasst**, und `docs/20 §6.1` ordnet nach dem, was er **bewirkt**: kritisch
+ist unter anderem, was „alle Kunden mitnimmt".
+
+Eine Ankündigung mit dem Publikum „Kunde" erscheint bei **jedem** Kunden, im
+Namen des Betreibers. Und Entscheidung 4 setzt Störungen auf die Anmeldeseite —
+also vor jeden, der die Adresse kennt, ohne Anmeldung. Das ist ein
+Veröffentlichungsrecht und keine Einstellung.
+
+> **Eine Fähigkeit bemisst sich nicht daran, was ein Griff anfasst, sondern
+> daran, wen er erreicht.**
+
+**Keine Teilung wie bei „Updates" und „Dienste".** Dort sieht der Administrator
+zu und der Betreiber dreht, weil das Zusehen für sich einen Wert hat. Hier hat
+es keinen: Was angekündigt ist, sieht ein Administrator ohnehin als Streifen —
+sein Publikum steht in der Ankündigung. Eine zweite Ansicht derselben Sache
+wäre eine Seite ohne eigene Frage.
+
+Wenn der Betreiber Administratoren das Ankündigen geben will, ist das eine Zeile
+in `routes/web.php` und ein Eintrag mit Begründung in
+`AdminAbility::administratorRoutes()`.
 
 Sie zeigt die Ankündigungen mit Kategorie, Fenster, Publikum und Zustand, und
 sie ist der **Ort des vollen Textes**, auf den der gekürzte Streifen zeigt.

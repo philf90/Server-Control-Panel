@@ -151,6 +151,25 @@ return [
      * hier, und jeder Eintrag hier wird validiert.
      */
     'attributes' => [
+
+        /*
+         * Die Ankündigungen (A14). **Eigene Bezeichner und keine geteilten:**
+         * `until_date` heisst hier schon „Voraussichtlich bis" — vom
+         * Wartungsmodus, wo es das Ende eines Fensters meint. Auf der
+         * Ankündigungsseite meint es das Ende der Sichtbarkeit.
+         *
+         * > **Derselbe Bezeichner an zwei Orten, der Verschiedenes bedeutet,
+         * > ist kein geteilter Name — er ist zwei Namen, die zufällig gleich
+         * > geschrieben sind.**
+         */
+        'category' => 'Kategorie',
+        'body' => 'Text',
+        'visible_from_date' => 'Sichtbar ab',
+        'visible_from_time' => 'Uhrzeit',
+        'visible_until_date' => 'Sichtbar bis',
+        'visible_until_time' => 'Uhrzeit',
+        'audiences' => 'Publikum',
+        'audiences.*' => 'Publikum',
         'action' => 'Aktion',
         'active' => 'Aktiv',
         'algorithm' => 'Verfahren',

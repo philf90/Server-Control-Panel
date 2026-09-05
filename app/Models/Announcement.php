@@ -138,6 +138,34 @@ final class Announcement extends Model
             ->get();
     }
 
+    /**
+     * Die Form, in der eine Ankündigung als Streifen reist.
+     *
+     * **Eine Stelle für drei Leser** — die geteilte Nutzlast, die Anmeldeseite
+     * und die Zweitfaktorseite. Läge die Abbildung an den Aufrufstellen, wäre
+     * sie dort dreimal geschrieben, und die vergessene fiele niemandem auf:
+     * Ein fehlendes `rank` ist ein Streifen ohne sein Wort, und den sieht man
+     * nur auf einem Bild.
+     *
+     * > **Was überall dasselbe ist, gehört an eine Stelle — und die muss eine
+     * > sein, an der niemand vorbeikommt.**
+     *
+     * @param  Collection<int, self>  $ankuendigungen
+     * @return list<array<string, mixed>>
+     */
+    public static function bannerRows(Collection $ankuendigungen): array
+    {
+        return $ankuendigungen
+            ->map(static fn (self $a): array => [
+                'id' => $a->id,
+                'badge' => $a->category->badge(),
+                'rank' => $a->category->label(),
+                'body' => $a->body,
+            ])
+            ->values()
+            ->all();
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {

@@ -216,14 +216,7 @@ final class HandleInertiaRequests extends Middleware
              * Dieselbe Form wie `flash` daneben, und aus demselben Grund.
              */
             'announcements' => fn (): array => $account instanceof Account
-                ? Announcement::visibleTo($account)
-                    ->map(static fn (Announcement $a): array => [
-                        'id' => $a->id,
-                        'badge' => $a->category->badge(),
-                        'rank' => $a->category->label(),
-                        'body' => $a->body,
-                    ])
-                    ->all()
+                ? Announcement::bannerRows(Announcement::visibleTo($account))
                 : [],
 
             // Die Passwortrichtlinie steht auf jeder Seite bereit, weil ein

@@ -25486,3 +25486,30 @@ zugeschlagen, diesmal an einem Helfer im neuen Feature-Test.
 **Und fünf Eingriffe des Bruchskripts sind durch den Umbau stumpf geworden** —
 `BreakScriptTest` hat jeden einzelnen gemeldet, alle fünf zeigen jetzt auf ihren
 neuen Ort.
+
+### A12 ist abgenommen — der Wartungsmodus, 5. September 2026
+
+Auf `cloudsrv24` gegen `0.7.3-rc.19`, alle acht Punkte aus `docs/101 §7`, beide
+Ausschlusskriterien darunter. Das Protokoll ist `docs/102`.
+
+**Punkt 8 ist der Beleg, für den es A10 gibt.** Eine einzige Zeile aus einem von
+zwei Server-Blöcken entfernt — die ACME-Ausnahme —, `nginx -t` gibt `rc=0`, und
+die Bestandsdiagnose meldet trotzdem `web.file / cloudlab24.ipv64.de /
+guard_missing` mit der fehlenden Zeile im Wortlaut. Nach dem Zurückholen ist der
+Befund fort.
+
+**Punkt 3 brauchte zwei Anläufe.** Der erste mass `404` und war kein Beleg: Auf
+Port 80 ist dieser Wert vor und nach der Behebung derselbe. Erst eine abgelegte
+Prüfdatei trennt „die Wache greift nicht" von „die Prüfadresse liefert aus
+einem anderen Grund nichts" — gemessen mit `200` und dem Rumpf
+`pruefkoerper-a12`, während dieselbe Domain daneben mit 503 antwortet.
+
+**Punkt 7 hat einen Prüfkörper gekostet.** Der erste Versuch gab `000` — kein
+Befund am Prüfling, sondern die Messung an der falschen Hürde: Die Domain trägt
+ein selbstsigniertes Wegwerfzertifikat, und curl bricht bei der Prüfung ab,
+bevor es je einen Statuscode gibt. Mit `-k` gemessen steht da `503` und
+„Vorübergehend nicht erreichbar" — der Sperrzustand hat die Wartung überlebt und
+ist nicht zurückgespielt worden.
+
+Vier Sätze über das Messen sind dabei entstanden, jeder an einem Prüfkörper und
+keiner am Prüfling; sie stehen in `docs/102 §9` und in `CLAUDE.md`.

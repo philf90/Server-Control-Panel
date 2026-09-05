@@ -361,18 +361,123 @@ liefert die Domain wieder aus).
 
 ---
 
-## 5 · Was offen ist
+## 8 · Punkt 8 — der Beleg, dass A10 die Lücke deckt
+
+Gefahren am 5. September 2026 gegen `0.7.3-rc.19`. Aus dem Block von
+`cloudlab24.ipv64.de` wurde **eine einzige Zeile** von Hand entfernt — die
+ACME-Ausnahme, und nur im ersten der beiden Blöcke.
+
+| | vorher | mit entfernter Zeile | nach dem Zurückholen |
+| --- | --- | --- | --- |
+| `grep -c request_uri` | 3 | **2** | 3 |
+| `nginx -t` | `rc=0` | **`rc=0`** | `rc=0` |
+| Auffällig | 2 | 2 | 2 |
+| **Kaputt** | 0 | **1** | 0 |
+
+Und der Befund mit Namen, Ort und Wortlaut:
+
+```
+web.file  cloudlab24.ipv64.de  guard_missing
+    2 Server-Block(e), und diese Zeile(n) der Wache fehlen in mindestens einem:
+    if ($request_uri ~ ^/\.well\-known/acme\-challenge/[A-Za-z0-9_-]+(\?.*)?$) { set $wartung 0; }
+```
+
+**Damit ist Punkt 8 erfüllt** — und das ist der Beleg, für den es A10 gibt: Der
+Prüfer winkt durch, die Diagnose meldet trotzdem, und der Befund verschwindet,
+sobald die Zeile zurück ist.
+
+Die beiden „Auffällig" daneben sind die benannten Reste: `orphan.row /
+tls.cloudlab24.de` aus P7 und das hochgeladene Wegwerfzertifikat aus
+`docs/100 §6` (`tls.file / p6-b.invalid`, gültig bis 13. September).
+
+### Zwei Korrekturen an der Vorschrift, beide meine
+
+**Die erwartete Zahl war falsch.** Ich hatte „war 2, muss jetzt 1 sein"
+geschrieben und nur die beiden Wachen gezählt; `$request_uri` steht ein drittes
+Mal in der Umleitung nach HTTPS (`return 301 https://$host$request_uri;`).
+Gemessen an der Vorlage sind es **3**.
+
+> **Eine Zahl in einer Erwartung, die man nicht gezählt hat, ist eine Vermutung
+> mit Anspruch.**
+
+**Und der erste Lauf hat nur die Anzahl gemessen.** „Kaputt: 1" sagt, dass etwas
+kaputt ist, nicht was — die Ausgangslage hatte null Kaputt, der Unterschied war
+also fast sicher unserer. Punkt 8 nennt den Grund aber beim Namen, und dieses
+Projekt hat den Satz dafür seit P4:
+
+> **Ein Kriterium, das nach einer Anzahl fragt, prüft nicht, was gezählt
+> wurde.**
+
+Der zweite Lauf listet den Befund selbst, und erst er ist der Beleg.
+
+---
+
+## 9 · Bilanz — A12 ist abgenommen
 
 Die Punkte 2 bis 8 aus `docs/101 §7`, darunter beide Ausschlusskriterien
 (3 und 4). Zu fahren sind sie in dieser Reihenfolge, jeder Griff mit Frist:
 
-Nach dem Lauf in §7 stehen aus `docs/101 §7` noch offen:
+**Alle acht Punkte aus `docs/101 §7` sind am 5. September 2026 auf `cloudsrv24`
+gemessen und erfüllt**, beide Ausschlusskriterien (3 und 4) darunter, keiner als
+„nicht herstellbar" ausgefallen.
 
-1. **Punkt 6**, zweite Hälfte — eine Domain, die *während* der Wartung angelegt
-   wurde, liefert nach dem Ausschalten aus
-2. **Punkt 7** — ein gesperrtes Abonnement bleibt nach dem Ausschalten gesperrt
-3. **Punkt 8** — `guard_missing` in der Bestandsdiagnose; die beiden Prüfungen
-   aus `docs/101 §5` sind noch nicht gebaut, und das ist der nächste Bauschritt
+| Punkt | gemessen |
+| --- | --- |
+| 1 · Kundendomain 503, mit Wortlaut | `https /` → 503, Seite „Wartungsarbeiten" |
+| 2 · Zeitangabe im Rumpf, beide Richtungen | mit: Satz mit Zeit und Zone · ohne: `grep -c` → 0 bei „Wartungsarbeiten" → 1 |
+| 3 · ACME liefert weiter aus *(Ausschluss)* | `200` mit dem Rumpf `pruefkoerper-a12`, daneben `404` ohne Datei |
+| 4 · PHP-Domain antwortet 503 *(Ausschluss)* | `cloudlab24.ipv64.de` ist PHP (§6) und gab 503 |
+| 5 · Panel bleibt erreichbar | der Modus ist über die Seite ein- und ausgeschaltet worden |
+| 6 · Ausgeschaltet liefert wieder aus | während der Wartung angelegt: „Wartungsarbeiten" → danach „Diese Domain ist eingerichtet", `200` |
+| 7 · Gesperrtes Abonnement bleibt gesperrt | `503` und „Vorübergehend nicht erreichbar" nach der Wartung |
+| 8 · Diagnose meldet `guard_missing` | `nginx -t` `rc=0`, Befund mit Name, Ort und Wortlaut (§8) |
+
+### Punkt 7 hat einen Prüfkörper gekostet
+
+Der erste Versuch gab `000` und einen leeren Titel — kein Befund am Prüfling,
+sondern meine Messung an der falschen Hürde: `p6-b.invalid` trägt das
+hochgeladene Wegwerfzertifikat aus `docs/100 §6`, und curl bricht bei der
+Prüfung ab, bevor es je einen Statuscode gibt (`curl: (60) SSL certificate
+problem: self-signed certificate`, `rc=60`).
+
+> **Eine Gegenprobe, die an einer anderen Hürde scheitert als der gemeinten, hat
+> die gemeinte nicht geprüft.**
+
+Mit `-k` gemessen — die Frage gilt dem Statuscode der Anwendung und nicht dem
+Zertifikat — steht da `503` und „Vorübergehend nicht erreichbar". **Die Meldung
+ohne `-k` steht mit im Protokoll**, sonst bliebe eine Null darin, die niemand
+erklärt.
+
+### Was benannt offen bleibt
+
+Keines davon ist ein Kriterienausfall:
+
+- Der Rest aus P7 (`orphan.row` / `tls.cloudlab24.de`) und das hochgeladene
+  Wegwerfzertifikat aus `docs/100 §6` — beide stehen seit dem 3. September als
+  „Auffällig" da, das Zertifikat läuft am 13. September von selbst aus.
+- **`Statements::nginx()` kennt keine Anführungszeichen.** Ein `;`, `{` oder `}`
+  in einer Zeichenkette zerreisst die Zerlegung. Heute meiden die Vorlagen die
+  Zeichen und `SiteFileIntegrityTest` hält das; der Leser selbst ist unverändert.
+  Wer ihn anfasst, gehört zu A10 und nicht zu A12.
+- **Die Prüfadresse steht nur im Block auf Port 80.** Das ist richtig — HTTP-01
+  fragt nichts anderes —, aber es ist der Grund, dass sich die beiden Blöcke in
+  §6 verschieden verhalten haben. Ob sie auch im HTTPS-Block stehen sollte, ist
+  eine Frage und keine Zusage.
+
+### Was dieser Lauf über das Messen gelehrt hat
+
+Vier Sätze, alle an einem Prüfkörper bezahlt und alle über A12 hinaus gültig:
+
+> **Ein Prüfkörper ohne Frist ist keiner — er misst, bis jemand ihn abbricht.**
+
+> **Eine Messung, die ihren Zustand nicht mitdruckt, ist von einer, die ihn nicht
+> hatte, nicht zu unterscheiden.**
+
+> **Eine Null, die auch von einem anderen Befehl kommen könnte, ist keine
+> Messung.**
+
+> **Eine Zahl in einer Erwartung, die man nicht gezählt hat, ist eine Vermutung
+> mit Anspruch.**
 
 Dazu zwei Dinge, die dieser Lauf aufgeworfen und nicht erledigt hat:
 

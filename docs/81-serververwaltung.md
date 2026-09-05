@@ -2641,7 +2641,7 @@ Liste.
 | **A11** | ~~Neustart~~ **am 26. August 2026 gebaut** (Schritt 7); Zeitzone des Servers und NTP **neben** der Anzeigezeitzone aus `docs/40`, Rechnername nur anzeigen | mit A1, Schritt 7 — die Nachbarn landen in `ServerController` |
 | **A6** | Leseansicht von `/etc/crontab`, `/etc/cron.d`, `cron.daily` und `cron.weekly` | mit A2 |
 | **A8** | Welche Adressen der Server hat, welche der DNS-Abgleich als Soll nimmt | eigenständig; P7 ist fertig |
-| **A12** | Wartungsmodus: alle Kundenseiten auf 503, Panel erreichbar | ~~mit A1~~ — **entschieden am 2. September 2026: eigener Punkt in P7b, hinter A10** |
+| **A12** | Wartungsmodus: alle Kundenseiten auf 503, Panel erreichbar | **abgenommen am 5. September 2026** auf `cloudsrv24` gegen `0.7.3-rc.19` — alle acht Punkte aus `docs/101 §7`, das Protokoll ist `docs/102` |
 | **A14** | Ankündigungen im Panel: farbiger Banner ganz oben, Kategorie Info · Warnung · Störung, mehrere gleichzeitig | **P7b, hinter A12** — entschieden am 4. September 2026 |
 | **A13** | Die billige Hälfte des Malware-Scans: 0777, frisch geänderte PHP-Dateien, `eval(base64_decode` als Textsuche | ~~mit A10~~ — **reitet nicht mit** (2. September); **vorgeschlagen für P9b**, siehe unten — nicht entschieden |
 

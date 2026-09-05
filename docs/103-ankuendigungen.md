@@ -102,9 +102,28 @@ Das ist keine Verschönerung, sondern der Befund aus M2: Zwei Geschwister mit
 bekommt dort die Ränge, die `.notice` seit P2 führt. Ein Baustein, den zwei
 Stellen benutzen, gehört nicht in eine Komponente.
 
-**Mitsamt dem Rand.** `.notice` trägt `border-left: 3px solid`, `.band` heute
+**Mitsamt dem Rand — und zwar demselben.** `.notice` trägt
+`border-left: 3px solid`, `.band` trug als Sichtwechsel-Streifen
 `border-bottom: 1px solid`. Erbt der Streifen nur die Fläche, bleibt vom
 Rangsignal die Lasur mit ΔE 3,8 übrig (M9).
+
+**Am 5. September ist daraus dieselbe Kante geworden**, entschieden vom
+Betreiber, nachdem fünf Formen nebeneinander standen. Die Hülle rückt die
+Bänder ein (`display: flex`, `gap: 8px`, `padding: 12px 16px`), und der Rand
+sitzt links mit drei Pixeln und einer Rundung — wie bei `.notice`.
+
+> **Zwei Formen für dieselbe Aussage sind keine Vielfalt, sondern eine Regel,
+> die an einer Stelle vergessen wurde.**
+
+**Gemessen, was es kostet** (390 × 844, echtes Panel, beide Themes): Die Hülle
+wächst von 195 px auf **214 px**, der Inhalt beginnt bei 279 statt 260 px. Und
+die Fassung nimmt 32 px Breite, also rund **acht Zeichen je Zeile** — bei zwei
+Zeilen sechzehn weniger Auskunft. Das trifft nur Texte, die ohnehin geklammert
+werden.
+
+**Die Fuge ist damit erklärt statt geduldet:** Vorher stand `band + band` als
+Ausnahme in `BlockSpacingTest::OPEN_SEAMS`, weil der Abstand aus dem Rand kam.
+Mit `flex` und `gap` greift der reguläre Zweig des Wächters.
 
 > **Ein Rang, der aus drei Trägern besteht — Fläche, Rand, Textfarbe —, verliert
 > beim Umzug den, den niemand aufgeschrieben hat.**
@@ -239,7 +258,7 @@ sind die beiden, für die es diese Stufe gibt.
 |---|---|---|
 | 1 | Eine Ankündigung anlegen und sie erscheint | Streifen oben, Kategorie als Wort, Farbe der Marke |
 | 2 | Drei gleichzeitig | **drei Streifen untereinander**, keiner verdeckt — der Befund aus M2 |
-| 3 | **Drei bei 390 px** *(Ausschluss)* | **jedes Band gleich hoch, gleich wie lang sein Text ist** — gemessen 65 px je Band, 195 px zusammen; `schiebt = 0`, Gegenprobe schlägt an |
+| 3 | **Drei bei 390 px** *(Ausschluss)* | **jedes Band gleich hoch, gleich wie lang sein Text ist** — gemessen 62 px je Band, 214 px mit der Hülle; `schiebt = 0`, Gegenprobe schlägt an |
 | 4 | 500 Zeichen | im Streifen zwei Zeilen, Verweis auf den vollen Text, der Text vollständig auf `/announcements` |
 | 5 | Publikum | ein Kundenkonto sieht die Kundenankündigung und nicht die für Admins |
 | 6 | **Das Fenster** *(Ausschluss)* | mit Anzeigezone auf `Europe/Berlin` gesetzt: sichtbar **während** der eingetippten Ortszeit, davor und danach nicht |

@@ -4895,6 +4895,35 @@ td.text {
 .bands {
   grid-column: 1 / -1;
   grid-row: 1;
+
+  /*
+   * **Getrennte Blöcke und keine bündigen Streifen** — entschieden vom
+   * Betreiber am 5. September 2026, nachdem fünf Formen nebeneinander standen.
+   *
+   * Der Grund ist keine Vorliebe, sondern eine doppelte Formensprache: Eine
+   * Meldung im Inhalt (`.notice`) trug einen 3-px-Rand **links** und eine
+   * Rundung, ein Band oben einen 3-px-Rand **unten** und keine. Beide sagen
+   * dasselbe — ein Rang aus Fläche, Rand und Textfarbe.
+   *
+   * > **Zwei Formen für dieselbe Aussage sind keine Vielfalt, sondern eine
+   * > Regel, die an einer Stelle vergessen wurde.**
+   *
+   * **Gemessen, was es kostet** (390 × 844, echtes Panel, beide Themes): Die
+   * Hülle wächst von 195 px auf **214 px**, der Inhalt beginnt bei 279 statt
+   * 260 px. Und die Fassung nimmt 32 px Breite — rund **acht Zeichen je
+   * Zeile**, bei zwei Zeilen also sechzehn weniger Auskunft. Das trifft nur
+   * Texte, die ohnehin geklammert werden; der volle Satz steht auf
+   * `/announcements`.
+   *
+   * **Und die Fuge ist damit erklärt statt geduldet.** Vorher stand
+   * `band + band` als Ausnahme in `BlockSpacingTest::OPEN_SEAMS`, weil der
+   * Abstand aus dem Rand kam. Mit `display: flex` und `gap` greift der
+   * reguläre Zweig des Wächters, und die Ausnahme ist fort.
+   */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
 }
 
 /*
@@ -4931,17 +4960,22 @@ td.text {
    * > **Ein Rang, der aus drei Trägern besteht, verliert beim Umzug den, den
    * > niemand aufgeschrieben hat.**
    *
-   * **Die Seite des Randes folgt der Form, die Stärke dem Rang.** `.notice` trägt
-   * `border-left: 3px` — bei einer Meldung im Textfluss steht die Kante dort, wo
-   * das Auge die Zeile beginnt. Ein Band ist so breit wie der Bildschirm; drei
-   * Pixel an seinem linken Rand wären ein Strich, den niemand mit dem Band in
-   * Verbindung bringt. Unten läuft er über die ganze Breite.
+   * **Derselbe Rand wie `.notice`, und das ist der ganze Punkt.** Links, drei
+   * Pixel, mit der Rundung daneben — ein Band oben und eine Meldung im Inhalt
+   * sind dieselbe Aussage und tragen sie jetzt gleich.
    *
-   * Es bleiben damit **drei** Pixel und nicht das eine, das `.band` als
-   * Sichtwechsel-Streifen hatte: Die Stärke ist der Träger, den M9 gemessen
-   * hat, und die Seite ist es nicht.
+   * Hier stand bis zum 5. September `border-bottom`, mit der Begründung, ein
+   * Band sei so breit wie der Bildschirm und drei Pixel an seinem linken Rand
+   * wären ein Strich, den niemand damit in Verbindung bringt. Das galt, solange
+   * das Band bündig anlag. Seit die Hülle es einrückt, liegt die Kante dort, wo
+   * das Auge die Zeile beginnt — genau wie bei `.notice`.
+   *
+   * > **Eine Begründung, die an einer Form hängt, gilt nicht mehr, wenn die
+   * > Form sich ändert — und sie bleibt trotzdem stehen, wenn niemand sie
+   * > mitzieht.**
    */
-  border-bottom: 3px solid;
+  border-left: 3px solid;
+  border-radius: var(--radius);
 }
 
 .band.ok {

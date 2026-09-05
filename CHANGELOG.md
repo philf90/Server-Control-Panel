@@ -25651,3 +25651,30 @@ keiner am Prüfling; sie stehen in `docs/102 §9` und in `CLAUDE.md`.
   amerikanisches Datum auf einem Bild aus diesem Container ist damit **kein
   Befund** — die alte Zeile hätte den Nächsten glauben lassen, er habe den
   Fehler gemacht.
+
+### A14 — eine Formensprache statt zweier
+
+- **Der Streifen trägt jetzt denselben Rand wie eine Meldung im Inhalt** —
+  links, drei Pixel, mit Rundung. Entschieden vom Betreiber am 5. September
+  2026, nachdem fünf Darstellungsformen nebeneinander standen. Vorher trug ein
+  Band die Kante unten und eine `.notice` sie links, obwohl beide dasselbe sagen:
+  einen Rang aus Fläche, Rand und Textfarbe.
+- **Gemessen, was es kostet** (390 × 844, echtes Panel, beide Themes): Die Hülle
+  wächst von 195 px auf **214 px**, der Inhalt beginnt bei 279 statt 260 px, und
+  die Einrückung nimmt 32 px Breite — rund acht Zeichen je Zeile. Das trifft nur
+  Texte, die ohnehin auf zwei Zeilen geklammert werden.
+- **Die Fuge zwischen zwei Bändern ist damit erklärt statt geduldet.** Sie stand
+  als Ausnahme in `BlockSpacingTest::OPEN_SEAMS`, weil der Abstand aus dem Rand
+  kam; mit `display: flex` und `gap` greift der reguläre Zweig des Wächters, und
+  die Ausnahme ist fort.
+- **`AnnouncementBandTest` misst die Kante jetzt an beiden Bausteinen.** Ein
+  Wächter, der nur `.band` liest, bliebe grün, wenn `.notice` umzöge — und dann
+  sagten zwei Bausteine dasselbe wieder auf zwei Arten. Beide Richtungen
+  gebrochen, beide beissen.
+- **Und die Begründung im CSS ist mitgezogen.** Sie argumentierte für den Rand
+  unten: „Ein Band ist so breit wie der Bildschirm; drei Pixel an seinem linken
+  Rand wären ein Strich, den niemand damit in Verbindung bringt." Das galt,
+  solange das Band bündig anlag.
+
+  > **Eine Begründung, die an einer Form hängt, gilt nicht mehr, wenn die Form
+  > sich ändert — und sie bleibt trotzdem stehen, wenn niemand sie mitzieht.**

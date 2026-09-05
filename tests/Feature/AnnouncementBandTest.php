@@ -130,9 +130,26 @@ final class AnnouncementBandTest extends TestCase
                 "Der Rang `$rang` braucht Fläche, Rand und Textfarbe — die Fläche allein trägt ihn nicht (M9).");
         }
 
-        // Und der Rand hat die Stärke von `.notice` und nicht die eine Linie,
-        // die `.band` als Sichtwechsel-Streifen hatte.
-        self::assertMatchesRegularExpression('/\.band \{[^}]*border-bottom: 3px solid;/s', $this->css());
+        /*
+         * **Und der Rand ist derselbe wie bei `.notice` — nicht bloss gleich
+         * stark, sondern gleich.** Seit dem 5. September tragen Band und
+         * Meldung dieselbe Kante: links, drei Pixel. Vorher stand hier
+         * `border-bottom`, und diese Zeile hielt die Stärke fest, während die
+         * Seite auseinanderlief.
+         *
+         * > **Zwei Formen für dieselbe Aussage sind keine Vielfalt, sondern
+         * > eine Regel, die an einer Stelle vergessen wurde.**
+         *
+         * Gemessen an **beiden** Bausteinen und nicht nur an einem: Zöge
+         * `.notice` um, wäre die Gleichheit wieder fort, und ein Wächter, der
+         * nur `.band` liest, bliebe grün.
+         */
+        foreach (['.band', '.notice'] as $baustein) {
+            self::assertMatchesRegularExpression(
+                '/'.preg_quote($baustein, '/').' \{[^}]*border-left: 3px solid;/s',
+                $this->css(),
+                "`$baustein` trägt die Kante links und drei Pixel stark — Band und Meldung sagen dasselbe.");
+        }
     }
 
     /** Und das Wort daneben — Farbe allein trägt für niemanden mit Rot-Grün-Schwäche. */

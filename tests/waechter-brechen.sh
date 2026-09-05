@@ -24560,6 +24560,50 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementPageTest passed
 
 echo
+echo "== AnnouncementBandTest: die Meldung zieht um, das Band bleibt =="
+#
+# Die stille Richtung. Ein Waechter, der nur `.band` liest, bleibt gruen,
+# wenn `.notice` seine Kante wechselt — und dann sagen zwei Bausteine
+# dasselbe wieder auf zwei Arten.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+i = s.index('.notice {')
+j = s.index('\n}', i)
+block = s[i:j]
+assert block.count('border-left: 3px solid;') == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s[:i] + block.replace('border-left: 3px solid;', 'border-bottom: 3px solid;') + s[j:])
+PY2
+griff_datei resources/css/app.css "die Meldung zieht um, das Band bleibt" &&
+pruefe "die Meldung zieht um, das Band bleibt" \
+  AnnouncementBandTest::test_every_rank_carries_surface_border_and_text_colour failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
+
+echo
+echo "== AnnouncementBandTest: die Huelle verliert ihre Fugen =="
+#
+# Ohne `display: flex` und `gap` liegen die Baender wieder aneinander, und
+# die Fuge waere nur noch als Ausnahme in BlockSpacingTest zu erklaeren.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+i = s.index('.bands {')
+j = s.index('\n}', i)
+block = s[i:j]
+assert block.count('gap: 8px;') == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s[:i] + block.replace('  display: flex;\n', '') + s[j:])
+PY2
+griff_datei resources/css/app.css "die Hülle verliert ihre Fugen" &&
+pruefe "die Hülle verliert ihre Fugen" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

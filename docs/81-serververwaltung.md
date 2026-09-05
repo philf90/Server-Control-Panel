@@ -2178,18 +2178,69 @@ Zeilenzahl war es nicht — gezählt sind es **sieben**. Sie ist berichtigt.
 
 > **Eine Zahl neben einer gemessenen Zahl sieht aus wie gemessen.**
 
+#### M9 · Den Rang trägt nicht die Fläche
+
+Nachgetragen auf die Frage des Betreibers, ob die Kategorien auch verschiedene
+Hintergründe haben. Sie haben — aber als **Lasur und nicht als Farbfläche**:
+Alle drei Marken sind `rgba(…, 0.09–0.14)`, sie tönen den Grund und ersetzen
+ihn nicht.
+
+| Fläche gegen den Seitengrund | hell | dunkel |
+|---|---|---|
+| Info `--ok-surface` | 1,16:1 | 1,28:1 |
+| Warnung `--warn-surface` | 1,18:1 | 1,26:1 |
+| Störung `--critical-surface` | 1,16:1 | 1,24:1 |
+
+Und gegeneinander, als ΔE (ab etwa 2,3 sieht das Auge einen Unterschied):
+
+| | hell | dunkel |
+|---|---|---|
+| Info ./. Warnung | 6,2 | 12,6 |
+| **Warnung ./. Störung** | **3,8** | 7,4 |
+| Info ./. Störung | 7,8 | 14,7 |
+
+Alle drei sind unterscheidbar. **Das schwächste Paar ist im hellen Thema aber
+ausgerechnet Warnung gegen Störung** — die beiden, die auseinanderzuhalten am
+meisten zählt, liegen am dichtesten beieinander.
+
+> **Eine Skala, deren zwei kritischste Stufen am ähnlichsten aussehen, ist an
+> der Stelle am schwächsten, an der sie am meisten leisten muss.**
+
+Den Rang tragen deshalb die anderen beiden Träger, und die sind kräftig: der
+**Rand** (6,24–6,79:1 gegen den Grund, M4) und die **Textfarbe** (5,40–5,87:1
+auf der eigenen Fläche, M4).
+
+**Daraus zwei Dinge, die der Plan nicht übersehen darf.**
+
+`.notice` trägt `border-left: 3px solid` — drei Pixel an der Seite. `.band`
+trägt `border-bottom: 1px solid` — ein Pixel unten. Erbt der Streifen die Ränge
+aus `.notice`, ohne den Rand mitzunehmen, bleibt vom Rangsignal die Lasur mit
+ΔE 3,8 übrig.
+
+> **Ein Rang, der aus drei Trägern besteht, verliert beim Umzug den, den
+> niemand aufgeschrieben hat.**
+
+Und die Kategorie gehört **als Wort** in den Streifen. Bei ΔE 3,8 ist Farbe
+allein kein tragfähiger Unterschied — für jemanden mit Rot-Grün-Schwäche gar
+keiner (WCAG 1.4.1). Der Entwurf in §11 sagt das bereits („Die Wörter sind der
+Punkt und nicht die Farben"); die Messung sagt, warum das keine Haltung ist,
+sondern eine Notwendigkeit.
+
 #### Was diese Runde für den Plan bedeutet
 
 1. **Eine Hülle über allem** trägt Sichtwechsel-Band und Ankündigungen; kein
    zweites Geschwister mit `grid-row: 1` (M2).
 2. **`.band` bekommt die Ränge, die `.notice` schon hat**, und die Regel zieht
    nach `app.css` — ein geteilter Baustein gehört nicht in ein `<style scoped>`
-   (M1, M4).
+   (M1, M4). **Mitsamt dem Rand von `.notice`**, nicht nur der Fläche: Die
+   Fläche allein trägt zwischen Warnung und Störung nur ΔE 3,8 (M9).
 3. **Als Verschluss in `share()`**, nicht als fertiger Wert (M5).
 4. **Kein Mechanismus gegen das partielle Nachladen** — der Klient hält die
    Eigenschaft (M6).
 5. **Der Filter rechnet in UTC**, die Eingabe geht über `Clock` (M7).
-6. **Gedeckelt wird über Zeilen und nicht über Zeichen** — eine
+6. **Die Kategorie steht als Wort im Streifen**, nicht nur als Farbe — die
+   Messung in M9 macht daraus eine Notwendigkeit statt einer Haltung.
+7. **Gedeckelt wird über Zeilen und nicht über Zeichen** — eine
    Zweizeilen-Klammer hält jedes Band bei 390 px auf 63 px, gleich wie lang der
    Text ist; drei kosten dann 189 px statt bis zu 819 px (M3, M8).
 
@@ -2926,7 +2977,7 @@ Liste.
 | **A6** | Leseansicht von `/etc/crontab`, `/etc/cron.d`, `cron.daily` und `cron.weekly` | mit A2 |
 | **A8** | Welche Adressen der Server hat, welche der DNS-Abgleich als Soll nimmt | eigenständig; P7 ist fertig |
 | **A12** | Wartungsmodus: alle Kundenseiten auf 503, Panel erreichbar | **abgenommen am 5. September 2026** auf `cloudsrv24` gegen `0.7.3-rc.19` — alle acht Punkte aus `docs/101 §7`, das Protokoll ist `docs/102` |
-| **A14** | Ankündigungen im Panel: farbiger Banner ganz oben, Kategorie Info · Warnung · Störung, mehrere gleichzeitig | **P7b, hinter A12** — entschieden am 4. September 2026 |
+| **A14** | Ankündigungen im Panel: farbiger Banner ganz oben, Kategorie Info · Warnung · Störung, mehrere gleichzeitig | **P7b, hinter A12** — entschieden am 4. September 2026; die Messrunde ist `§2.3q`, der Plan **`docs/103`** |
 | **A13** | Die billige Hälfte des Malware-Scans: 0777, frisch geänderte PHP-Dateien, `eval(base64_decode` als Textsuche | ~~mit A10~~ — **reitet nicht mit** (2. September); **vorgeschlagen für P9b**, siehe unten — nicht entschieden |
 
 **A12 hatte seit dem 28. August keine Stufenzeile mehr.** „mit A1" war eine
@@ -3014,6 +3065,11 @@ Themes mit Reserve.
 **Und keine Ankündigung auf der 503-Seite.** Die sieht ein Website-Besucher, die
 Ankündigung ein Panel-Nutzer — zwei Publika, und eine Vermischung brächte
 Betreibertext vor fremde Augen.
+
+**Der Plan steht seit dem 5. September als `docs/103`** — geschrieben nach der
+Messrunde und nach vier Entscheidungen des Betreibers: alle gleichzeitig
+sichtbar, 500 Zeichen in der Ablage mit Kürzung über eine Zeilenklammer,
+Publikum je Ankündigung wählbar, und Störungen auch auf der Anmeldeseite.
 
 ---
 

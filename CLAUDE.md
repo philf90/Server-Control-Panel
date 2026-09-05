@@ -1902,6 +1902,70 @@ Lauf desselben Griffs: 135 ms — die erste Zahl war der kalte Zwischenspeicher)
 > **Eine Messung, die man nur einmal fährt, misst den Zwischenspeicher mit — und
 > ob sie ihn kalt oder warm erwischt, sagt sie nicht.**
 
+Und **`103` der Plan von A14** — die Ankündigungen im Panel, geschrieben am
+5. September 2026 **nach** der Messrunde (`docs/81 §2.3q`): §1 die neun
+Messungen, die den Entwurf schon entschieden haben, §2 die vier Entscheidungen
+des Betreibers, §4 die gemessene Form, §8 acht Abnahmepunkte (3 und 6 dürfen
+nicht ausfallen), §10 was A14 ausdrücklich nicht wird.
+
+**Die Messrunde hat den Entwurf zweimal umgeworfen, und einmal ohne eine Zahl.**
+`.frame` ist ein Raster mit zwei Zeilen, `.band` nimmt `grid-row: 1`
+ausdrücklich — **drei Bänder liegen bei 1440 px deshalb aufeinander**, sichtbar
+ist nur das letzte, und `schiebt` steht dabei auf `0`. Bei 390 px stapeln
+dieselben drei korrekt.
+
+> **Ein `grid-row`, das ein Element ausdrücklich nimmt, nimmt jedes Geschwister
+> in dieselbe Zelle — und „mehrere gleichzeitig" heisst dann „übereinander".**
+
+> **Ein Fehler, den nur die breite Ansicht hat, entgeht einer Prüfung, die auf
+> die schmale zielt.** Zum zweiten Mal nach dem A9-Lauf.
+
+Der zweite: **die Form gibt es schon zweimal** — `.band` hat die Stelle und
+einen Rang, `.notice` hat vier Ränge und die falsche Stelle. A14 braucht damit
+**keine neue Farbe**; alle zwölf Kontrastwerte liegen zwischen 5,40:1 und
+9,21:1. Den Rang trägt dabei nicht die Fläche: Zwischen Warnung und Störung
+liegen im hellen Thema nur **ΔE 3,8**, und das ist ausgerechnet das Paar, auf
+das es ankommt.
+
+> **Ein Rang, der aus drei Trägern besteht — Fläche, Rand, Textfarbe —, verliert
+> beim Umzug den, den niemand aufgeschrieben hat.**
+
+**Und eine Grenze in Zeichen ist auf zwei Breiten zwei Grenzen:** 40 Zeichen je
+Zeile bei 390 px, 160 bei 1440 px. 500 Zeichen sind auf dem Telefon 273 px, also
+32 % des Bildschirms; drei davon füllen ihn ganz. Gemessen trägt eine
+**Zweizeilen-Klammer** — damit ergibt bei 390 px jede Länge von 60 bis 500
+Zeichen dieselben 63 px.
+
+> **Eine Klammer über Zeilen ist auf jeder Breite dieselbe Regel. Eine über
+> Zeichen ist es nicht.**
+
+**Zwei Fallen baut der Plan dadurch nicht.** Ein fertiger Wert in
+`HandleInertiaRequests::share()` wird auch bei einem partiellen Nachladen
+berechnet, das ihn gar nicht mitschickt — ein Verschluss nicht (gemessen an den
+Abfragen: voll 2, partiell 1). Und gegen das partielle Nachladen braucht es
+keinen Mechanismus: Der Server schickt von sechzehn Eigenschaften zwei, der
+Klient hält die übrigen.
+
+> **Ein fertiger Wert in `share()` läuft bei jeder Anfrage, auch bei einer, die
+> ihn gar nicht mitschickt.**
+
+**Drei eigene Prüfkörper haben in dieser Runde danebengemessen**, jeder mit
+einem Ergebnis, das nach einem Befund aussah:
+
+> **Ein Prüfkörper, der die Deckkraft wegwirft, misst die Farbe vor dem
+> Überblenden — und die sieht niemand.** Die Flächen sind `rgba(…, 0.1)`;
+> ohne Überblendung kam sechsmal `1.00:1` heraus, also „fällt durch" für einen
+> Zustand, der in Ordnung ist.
+
+> **Ein Prüfstand, der mehrere Anfragen in einem Prozess fährt, misst den
+> Zustand, den die vorige hinterlassen hat — php-fpm tut das nicht.**
+> `Inertia\ResponseFactory` ist ein Singleton; zwei Anfragen in einer
+> Testmethode teilen sich seinen Zustand.
+
+> **Eine Zahl neben einer gemessenen Zahl sieht aus wie gemessen.** „280 Zeichen
+> = 168 px (vier Zeilen)" — die Höhe war gemessen, die Zeilenzahl nicht; es sind
+> sieben.
+
 Und **`101` der Plan von A12** — der Wartungsmodus, geschrieben am 4. September
 2026 **nach** der Messrunde (`docs/81 §2.3p`): §2 die fünf Entscheidungen des
 Betreibers, §3 die gemessene Form der Wache, §5 was die Bestandsdiagnose dazu

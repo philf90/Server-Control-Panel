@@ -24340,6 +24340,86 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceOverdueTest passed
 
 echo
+echo "== AnnouncementWindowTest: das Fenster rechnet in der Anzeigezone =="
+#
+# Der Fehler, den docs/81 §2.3q M7 vor dem Bau gemessen hat: Rechnet der
+# Vergleich in der Anzeigezone statt in UTC, ist die Ankuendigung genau
+# waehrend ihres eigenen Fensters unsichtbar und erscheint um den Versatz zu
+# frueh. In UTC waeren beide Vergleiche gleich — deshalb misst der Waechter
+# mit Europe/Berlin und Asia/Kolkata.
+vorher_datei app/Models/Announcement.php
+python3 - <<'PY2'
+p = 'app/Models/Announcement.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return static function (Builder $query) use ($at): void {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = alt + "\n            $at = $at->copy()->setTimezone(\\App\\Support\\Time\\Clock::zone());"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Models/Announcement.php "das Fenster rechnet in der Anzeigezone" &&
+pruefe "das Fenster rechnet in der Anzeigezone" \
+  AnnouncementWindowTest::test_an_announcement_is_visible_during_its_own_window failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementWindowTest passed
+
+echo
+echo "== AnnouncementAudienceTest: der Filter fragt das Publikum nicht =="
+#
+# Ohne die Bedingung sieht jeder alles. Die Haelfte, die still bricht — ein
+# Hinweis zur Verwaltung stuende dann vor jedem Kunden.
+vorher_datei app/Models/Announcement.php
+python3 - <<'PY2'
+p = 'app/Models/Announcement.php'
+s = open(p, encoding='utf-8').read()
+alt = "->whereJsonContains('audiences', AnnouncementAudience::of($account)->value)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Models/Announcement.php "der Filter fragt das Publikum nicht" &&
+pruefe "der Filter fragt das Publikum nicht" \
+  AnnouncementAudienceTest::test_it_reaches_its_audience_and_no_other failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementAudienceTest passed
+
+echo
+echo "== AnnouncementAudienceTest: die Rolle wird nicht gefragt =="
+#
+# A9 hat zwei Achsen — Typ und Rolle. Wer nur den Typ fragt, macht jeden
+# Administrator zum Betreiber und zeigt ihm, was nur dem Betreiber gilt.
+vorher_datei app/Enums/AnnouncementAudience.php
+python3 - <<'PY2'
+p = 'app/Enums/AnnouncementAudience.php'
+s = open(p, encoding='utf-8').read()
+alt = "return $account->isOperator() ? self::Operator : self::Administrator;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'return self::Operator;', 1))
+PY2
+griff_datei app/Enums/AnnouncementAudience.php "die Rolle wird nicht gefragt" &&
+pruefe "die Rolle wird nicht gefragt" \
+  AnnouncementAudienceTest::test_an_account_maps_to_exactly_its_own_audience failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementAudienceTest passed
+
+echo
+echo "== AnnouncementAudienceTest: die Anmeldeseite filtert die Kategorie nicht =="
+#
+# Die stille Haelfte ist die, die zuviel zeigt: Was auf der Anmeldeseite
+# steht, steht vor jedem, der die Adresse kennt.
+vorher_datei app/Models/Announcement.php
+python3 - <<'PY2'
+p = 'app/Models/Announcement.php'
+s = open(p, encoding='utf-8').read()
+alt = "->where('category', AnnouncementCategory::Incident->value)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Models/Announcement.php "die Anmeldeseite filtert die Kategorie nicht" &&
+pruefe "die Anmeldeseite filtert die Kategorie nicht" \
+  AnnouncementAudienceTest::test_the_login_page_shows_incidents_only failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementAudienceTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

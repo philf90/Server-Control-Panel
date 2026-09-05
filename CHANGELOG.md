@@ -25678,3 +25678,52 @@ keiner am Prüfling; sie stehen in `docs/102 §9` und in `CLAUDE.md`.
 
   > **Eine Begründung, die an einer Form hängt, gilt nicht mehr, wenn die Form
   > sich ändert — und sie bleibt trotzdem stehen, wenn niemand sie mitzieht.**
+
+### Ein Modell führt jede gecastete Spalte als `@property`
+
+- **Der Anlass ist eine rote CI und nicht ein Gedanke.** `Announcement` castete
+  `category` auf eine Aufzählung und führte die Spalte nicht als `@property`;
+  larastan liest die Typen einer Spalte aus diesem Block und nicht aus
+  `casts()`, sah dort eine Zeichenkette und meldete fünfzehn Zeilen der Form
+  *„Cannot call method rank() on string"*. Neunzehn von zwanzig Modellen
+  hielten die Regel, und nichts hat sie durchgesetzt.
+
+  > **Eine Regel, die neunzehn Dateien einhalten und nichts durchsetzt, ist
+  > keine Regel, sondern eine Gewohnheit — und die zwanzigste Datei bricht
+  > sie.**
+
+- **Die teurere Hälfte: ein bestehender Wächter wurde davon stumm.**
+  `FactoryDefaultTest` liest `casts()` und fragt **danach** den
+  `@property`-Block, ob die Spalte diesen Typ führt; findet er die Zeile nicht,
+  überspringt er die Spalte. Für `Announcement` hiess das nicht „eine Spalte ist
+  in Ordnung", sondern „null Spalten geprüft". Dass dort nichts Kaputtes lag,
+  war Glück.
+
+  > **Ein Wächter, der seine Frage aus einem Block liest, den nichts erzwingt,
+  > ist für eine Datei ohne diesen Block stumm — und die Stummheit sieht aus wie
+  > Zustimmung.**
+
+- **`ModelPropertyTest` hält es jetzt**, framework-frei und mit Untergrenze: 19
+  Modelle, 70 gecastete Spalten. Drei Brüche, alle beissen — die fehlende Zeile,
+  die namentlich genannte Spalte, und der Ausdruck, der `casts()` nicht mehr
+  trifft (dann meldet der Wächter 0 statt 70 und sieht aus wie erfüllt).
+- **Er hat beim ersten Lauf eine zweite Spalte gefunden.**
+  `Subscription::disk_quota_enforced` trägt drei Werte — ja, nein, **nicht
+  nachgesehen** — und stand nicht im Block. Sie ist als `bool|null` nachgetragen.
+- **Und sein erster Ausdruck meldete zehn Modelle, von denen neun in Ordnung
+  waren.** Er verlangte den Typ als `\S+`, und `array<string, mixed>|null` trägt
+  ein Leerzeichen.
+
+  > **Ein Ausdruck, der die gewohnte Schreibweise kennt, prüft die Gewohnheit
+  > und nicht die Regel.**
+
+- **PHPStan läuft seit dem 5. September 2026 auch für `app/` in diesem
+  Container.** Hier stand, er tauge nur für `agent/`, weil larastan fehlt —
+  gemessen ist die Sperre schmaler: `composer install --prefer-source` **synct
+  larastan in den Cache** und scheitert allein an `phpstan/phpstan`, das als
+  Zipball über `api.github.com` kommt. Der Klon aus dem Cache plus die
+  `phpstan.phar` von den GitHub-Releases ergeben einen Lauf, der die fünfzehn
+  CI-Meldungen Zeile für Zeile reproduziert. Der Weg steht in `CLAUDE.md`.
+
+  > **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite
+  > braucht einen Versuch.**

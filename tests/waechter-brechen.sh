@@ -5671,6 +5671,66 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PgClusterTest passed
 
 echo
+echo "── ModelPropertyTest: eine gecastete Spalte ohne ihre Eigenschaft ──"
+#
+# Genau der Fehler, der A14 eine rote CI gekostet hat. `Announcement` castete
+# `category` auf eine Aufzaehlung und fuehrte die Spalte nicht als
+# `@property` — larastan liest die Typen aus diesem Block und nicht aus
+# `casts()`, sah dort eine Zeichenkette und meldete fuenfzehn Zeilen der Form
+# „Cannot call method rank() on string". Neunzehn Modelle hielten die Regel
+# aus Gewohnheit, und nichts hat sie durchgesetzt.
+vorher_datei app/Models/Announcement.php
+python3 - <<'PY2'
+p = 'app/Models/Announcement.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(" * @property AnnouncementCategory $category\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Models/Announcement.php "gecastete Spalte ohne @property" &&
+pruefe "gecastete Spalte ohne @property" \
+  ModelPropertyTest::test_every_cast_column_is_declared_as_a_property failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ModelPropertyTest passed
+
+echo
+echo "── ModelPropertyTest: die Spalte, die diesen Wächter gebraucht hat ──"
+#
+# `disk_quota_enforced` hat drei Werte — ja, nein, nicht nachgesehen — und
+# stand nicht im Block. Der namentliche Fall haelt das fest, damit eine
+# Umbenennung nicht bloss den Zaehler senkt.
+vorher_datei app/Models/Subscription.php
+python3 - <<'PY2'
+p = 'app/Models/Subscription.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(" * @property bool|null $disk_quota_enforced\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Models/Subscription.php "die gefundene Spalte fehlt wieder" &&
+pruefe "die gefundene Spalte fehlt wieder" \
+  ModelPropertyTest::test_the_column_that_this_guard_found_is_declared failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ModelPropertyTest passed
+
+echo
+echo "── ModelPropertyTest: der Ausdruck über casts() läuft ins Leere ──"
+#
+# Die Untergrenze. Trifft der Ausdruck `casts()` nicht mehr, meldet dieser
+# Waechter nichts und sieht aus wie erfuellt — dieselbe Falle, in die dieses
+# Vorgehen schon dreimal gelaufen ist. Gemessen: 0 statt 70 Spalten.
+vorher_datei tests/Feature/ModelPropertyTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/ModelPropertyTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("protected function casts\\(\\): array", "protected function gussformen(): array")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/ModelPropertyTest.php "der Ausdruck trifft casts() nicht mehr" &&
+pruefe "der Ausdruck trifft casts() nicht mehr" \
+  ModelPropertyTest::test_every_cast_column_is_declared_as_a_property failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ModelPropertyTest passed
+
+echo
 echo "── FactoryDefaultTest: eine Spalte, die die Factory nicht baut ──"
 #
 # Genau der Fehler aus Lauf 463. `engine` traegt `default('mariadb')` in der

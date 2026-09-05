@@ -69,6 +69,7 @@ final class AnnouncementAudienceTest extends TestCase
             'administrator' => Account::factory()->administrator()->create(),
             'customer' => Account::factory()->customer()->create(),
             'additional' => Account::factory()->additional()->create(),
+            default => throw new \LogicException('Unbekannter Kontozustand: '.$zustand),
         };
     }
 

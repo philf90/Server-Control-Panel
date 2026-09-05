@@ -49,6 +49,7 @@ use Illuminate\Support\Carbon;
  * @property array<string, mixed>|null $quota_overrides
  * @property int|null $disk_used_mb
  * @property Carbon|null $disk_usage_measured_at
+ * @property bool|null $disk_quota_enforced
  * @property Carbon|null $suspended_at
  * @property bool $suspended_with_customer
  * @property-read Customer|null $customer

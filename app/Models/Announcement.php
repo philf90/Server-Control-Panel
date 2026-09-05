@@ -49,6 +49,15 @@ use Illuminate\Support\Collection;
  *
  * Die Gegenprobe schlägt in genau **einer** der drei Zeilen aus — der einzigen,
  * in der es zählt. Ein Prüfstand ohne Versatz sähe hier nichts.
+ *
+ * @property int $id
+ * @property AnnouncementCategory $category
+ * @property string $body
+ * @property Carbon|null $visible_from
+ * @property Carbon|null $visible_until
+ * @property list<string> $audiences
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  */
 final class Announcement extends Model
 {

@@ -2226,6 +2226,42 @@ keiner (WCAG 1.4.1). Der Entwurf in §11 sagt das bereits („Die Wörter sind d
 Punkt und nicht die Farben"); die Messung sagt, warum das keine Haltung ist,
 sondern eine Notwendigkeit.
 
+#### M10 · Warum `Info` grün ist und nicht grau
+
+Gemessen beim Bau von Schritt 1, weil die Frage vorher richtig gestellt war und
+falsch beantwortet zu werden drohte. `.notice.neutral` beschreibt sich in
+`app.css` selbst so:
+
+> „Eine Meldung ohne Rang — sie sagt, was gleich passiert, und nicht, dass etwas
+> gut oder schlecht steht."
+
+Das ist wörtlich eine Ankündigung der Kategorie **Info**, und „grün heisst, es
+ist etwas gut" ist ein guter Einwand gegen `--ok`. Gemessen trägt er trotzdem
+nicht:
+
+| | Fläche gegen den Grund | ΔE | Rand |
+|---|---|---|---|
+| `neutral` hell | 1,04:1 | **1,8** | 4,15:1 |
+| `neutral` dunkel | 1,05:1 | 3,0 | 4,95:1 |
+| `ok` hell | 1,16:1 | 7,0 | 6,24:1 |
+| `ok` dunkel | 1,28:1 | 13,9 | 9,21:1 |
+
+**ΔE 1,8 liegt unter der Wahrnehmungsschwelle von 2,3.** Im hellen Thema ist die
+Fläche von `neutral` (`--surface`, `#fafafb`) von der Seite (`#ffffff`) nicht zu
+unterscheiden; getragen würde der Streifen allein von einer grauen Haarlinie.
+
+> **Eine Marke, die als „ohne Rang" gedacht ist, ist im hellen Thema von der
+> Seite nicht zu unterscheiden — sie taugt für eine Meldung im Inhalt und nicht
+> für einen Streifen, der auffallen soll.**
+
+`.notice.neutral` steht im Inhalt, wo der Seitenkopf darüber und die Tabelle
+darunter die Kante ohnehin zeichnen. Ein Band ganz oben hat diese Nachbarn
+nicht.
+
+**Info bleibt damit `ok`.** Der Einwand ist richtig und die Antwort auf ihn ist
+nicht die graue Marke, sondern das **Wort** im Streifen (M9): Dort steht „Info",
+und niemand muss aus der Farbe schliessen, was gemeint ist.
+
 #### Was diese Runde für den Plan bedeutet
 
 1. **Eine Hülle über allem** trägt Sichtwechsel-Band und Ankündigungen; kein

@@ -60,13 +60,16 @@ final class StandaloneClassTest extends TestCase
     private const CONTEXT_BOUND = [
         'aside' => 'die schmale Hälfte eines .split',
         'cell' => 'eine Zelle in .rows',
+        'clamped' => 'der Text einer Ankündigung in einem .band, über zwei Zeilen geklammert',
         'code' => 'ein textarea in einem .field',
         'multiline' => 'eine Zelle, die mehrere Zeilen trägt',
         'name' => 'die Namensspalte einer Zelle',
         'narrow' => 'ein .field in einer .field-row',
         'pairs' => 'eine Tabelle aus Bezeichnung und Wert',
+        'rank' => 'das Wort der Kategorie im Text eines .band',
         'right' => 'eine rechtsbündige Zelle',
         'short' => 'ein .code, dessen Inhalt eine bekannte Länge hat',
+        'text' => 'eine Tabellenzelle, die einen Satz trägt und keine Kennung',
         'verb' => 'der zweite Teil einer Knopfbeschriftung im Seitenkopf',
     ];
 

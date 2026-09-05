@@ -215,9 +215,18 @@ final class NavGroupTest extends TestCase
 
         $einstellungen = array_filter($eintraege, static fn (array $e): bool => $e['gruppe'] === self::EINSTELLUNGEN);
         $betrieb = array_filter($eintraege, static fn (array $e): bool => $e['gruppe'] === 'Betrieb');
+        $verlauf = array_filter($eintraege, static fn (array $e): bool => $e['gruppe'] === 'Verlauf');
 
         $this->assertCount(7, $einstellungen, 'Die Gruppe „Einstellungen" trägt sieben Punkte.');
-        $this->assertCount(8, $betrieb, 'Die Gruppe „Betrieb" trägt acht Punkte — seit A12 auch den Wartungsmodus.');
+
+        /*
+         * **Sechs und drei seit dem 5. September 2026.** „Betrieb" trug acht und
+         * wäre mit „Ankündigungen" auf neun gewachsen; herausgelöst ist, was
+         * sagt, **was war** — Vorgänge, Protokoll, Logs. Die Trennlinie stand
+         * schon im Kommentar an „Logs", die Zahl hat sie nur fällig gemacht.
+         */
+        $this->assertCount(6, $betrieb, 'Die Gruppe „Betrieb" trägt sechs Punkte — was jetzt ist und was ansteht.');
+        $this->assertCount(3, $verlauf, 'Die Gruppe „Verlauf" trägt drei Punkte — was war.');
     }
 
     /**

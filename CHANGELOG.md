@@ -25558,3 +25558,213 @@ keiner am Prüfling; sie stehen in `docs/102 §9` und in `CLAUDE.md`.
   nachher", weil nichts lief); und zwei Anfragen in einer Testmethode, die sich
   Inertias Singleton teilten. Dazu eine Zahl, die neben einer gemessenen stand
   und nicht gemessen war — „280 Zeichen = vier Zeilen"; es sind sieben.
+
+### A14 — die Ablage und der Streifen (Schritte 1 und 2)
+
+- **`announcements`** trägt Kategorie, Text, Sichtbarkeitsfenster in UTC und
+  Publikum. Kein Agent, keine Datei, kein Neuladen von nginx — der Zuschnitt,
+  mit dem der Betreiber A14 von A12 getrennt hat. `dateTime` und nicht
+  `timestamp`, aus dem Grund, den `findings` schon bezahlt hat.
+- **`Announcement::visibleTo()`** ist die eine Stelle, die das Fenster
+  auswertet, und **`AnnouncementAudience::of()`** die eine, die ein Konto einem
+  Publikum zuordnet — sie fragt beide Achsen aus A9. Ein Kundenkonto, das durch
+  einen Fehler `operator` trüge, ist damit trotzdem Kunde.
+- **`Info` ist grün und nicht grau, und das ist gemessen.** Der Einwand liegt
+  nahe: `.notice.neutral` nennt sich selbst „eine Meldung ohne Rang", und das
+  ist wörtlich eine Info. Gemessen trägt er nicht — die Fläche von `neutral`
+  steht im hellen Thema bei **ΔE 1,8** gegen die Seite, unter der
+  Wahrnehmungsschwelle von 2,3. Ein Info-Streifen wäre dort von der Seite nicht
+  zu unterscheiden.
+- **`.bands` nimmt die Rasterzeile**, und `.band` ist aus dem `<style scoped>`
+  des Layouts nach `app.css` gezogen — mitsamt den drei Rängen und dem Rand in
+  der Stärke von `.notice`. Die Seite des Randes folgt der Form (unten statt
+  links, weil ein Band so breit ist wie der Bildschirm), die Stärke dem Rang.
+- **Das Rangwort steht im Textfluss und nicht daneben.** Der erste Wurf gab ihm
+  ein eigenes Flexkind; bei 390 px bricht es dann in eine eigene Zeile und
+  kostet 21 px je Band — drei Ankündigungen 264 px statt 195. Damit ist auch das
+  Abnahmekriterium berichtigt: Es nannte 189 px aus einer Messung, in der es das
+  Rangwort noch gar nicht gab.
+- **In `share()` als Verschluss**, nicht als fertiger Wert. Die Übersichtsseite
+  lädt mit ihrem Selbstlauf alle dreissig Sekunden `only: ['tiles']` nach; ohne
+  den Verschluss liefe die Abfrage jedes Mal für eine Antwort, die der Server
+  verwirft.
+- **Gemessen an der echten Seite**, beide Themes: bei 390 px jedes Band 65 px,
+  gleich wie lang sein Text ist; drei zusammen 195 px, `schiebt` 0 bei
+  anschlagender Gegenprobe.
+- **Vier Wächter, 27 Fälle, zehn Brüche** — alle beissen, jede Datei danach
+  byte-identisch zurück. `AnnouncementShareTest` misst dabei die **Wirkung** und
+  nicht das Wort: gezählt werden die Abfragen unter beiden Anfragearten, denn
+  `fn () =>` steht in derselben Datei dreimal für `flash`.
+- **Drei bestehende Wächter haben zugebissen**, jeder zu Recht — `ClassNameTest`
+  kannte `bands`, `rank` und `clamped` nicht; `StandaloneClassTest` wollte für
+  die zwei kontextgebundenen eine Begründung; `BlockSpacingTest` kannte die
+  Nachbarschaft `band + band` nicht. Bei der letzten ist die Ausnahme die
+  richtige Antwort: Zwischen zwei Ankündigungen steht eine Linie von drei
+  Pixeln, und ein Abstand daneben wäre nicht überflüssig, sondern falsch.
+
+### A14 — die Verwaltung und die Anmeldeseite (Schritt 3)
+
+- **`/announcements` steht hinter `operate-server`** und nicht hinter
+  `manage-settings`, wie der Plan zuerst sagte. Seine Begründung — „eine
+  Ankündigung dreht nichts am Server, sie ist Text in einer Tabelle" — ordnet
+  nach dem, was der Griff **anfasst**; `docs/20 §6.1` ordnet nach dem, was er
+  **bewirkt**: kritisch ist unter anderem, was „alle Kunden mitnimmt". Eine
+  Ankündigung erreicht jeden Kunden im Namen des Betreibers, und eine Störung
+  steht auf der Anmeldeseite vor jedem, der die Adresse kennt.
+- **Die Gruppe „Betrieb" ist geteilt**, entschieden vom Betreiber. Mit
+  „Ankündigungen" trug sie neun Punkte, und acht ist die gesetzte Grenze;
+  herausgelöst ist **„Verlauf"** — Vorgänge, Protokoll, Logs. Die Trennlinie
+  stand schon im Kommentar an „Logs": *Die drei sagen, was passiert ist.* Die
+  Ausnahmeliste war der falsche Weg — sie ist für Gruppen, über die der
+  Betreiber noch nicht entschieden hat.
+- **`Bands.vue` rendert den Streifen für drei Orte**, `Announcement::bannerRows()`
+  ist die eine Stelle für seine Form. Login und Zweitfaktor tragen ihn gefiltert
+  auf `incident`; sie tragen `PanelLayout` nicht, das ist also eine zweite
+  Einbindung und keine Folge.
+- **Vier Befunde hat erst das Bild gebracht, keiner hatte eine Zahl.** `.choice`
+  gab es in `app.css` nicht — die Klasse war erfunden statt nachgesehen, und die
+  Kästchen streckten sich über die Breite; die Hausform ist `.choices` mit
+  `.toggle`. Die Tabelle stand ausserhalb des Bildes, weil `.scrolls > table`
+  `width: max-content` setzt und eine 500-Zeichen-Zelle die Spalte auf **1087 px**
+  zog. Und Felder wurden rot, ohne dass ein Wort sagte warum.
+- **Die Anmeldeseite rollte senkrecht um genau die Höhe des Bandes** — 65 px bei
+  390 px, 44 px bei 1440 px. `.signin` nahm `100dvh` für sich, der Streifen kam
+  obendrauf. Derselbe Fehler, den `dvh` in `.frame` verhindern soll: *man rollt,
+  obwohl nichts zu rollen wäre.* `.signin-frame` teilt die Höhe jetzt.
+- **Sechs weitere fand der volle Lauf.** Der teuerste war eine Namenskollision:
+  `until_date` heisst global schon „Voraussichtlich bis", vom Wartungsmodus.
+  Behoben nicht durch Überschreiben am Aufruf — das lesen `AttributeNameTest`
+  und `AttributeLabelTest` verschieden —, sondern durch eindeutige Namen
+  (`visible_from_date`, `visible_until_date`, …).
+- **Zweimal dieselbe Lehre am eigenen Werkzeug:** Der eigene Wächter und der
+  eigene Bruch-Eingriff zeigten auf `PanelLayout.vue`, nachdem das Markup nach
+  `Bands.vue` gezogen war. Beide wurden **stumpf und nicht rot**; gemeldet hat
+  es der volle Lauf und nicht der Umbau.
+- **Ein Prüfkörper scheiterte an der falschen Hürde:** `/announcements/1` gibt
+  404, weil die Modellbindung **vor** `can:` läuft — beim Betreiber wurde daraus
+  ein falsches Grün, weil 404 nicht 403 ist.
+- **Und eine Zeile in `CLAUDE.md` ist berichtigt:** `args: ['--lang=de-DE']`
+  gibt im Datumsfeld **nicht** die deutsche Schreibweise. In drei Fassungen
+  nachgemessen — die Fahne ändert ohne `--accept-lang` nicht einmal
+  `navigator.language`, und die Schreibweise folgt auch dann nicht; sie hängt am
+  Sprachpaket der Oberfläche, und dieses Chromium bringt nur `en-US` mit. Ein
+  amerikanisches Datum auf einem Bild aus diesem Container ist damit **kein
+  Befund** — die alte Zeile hätte den Nächsten glauben lassen, er habe den
+  Fehler gemacht.
+
+### A14 — eine Formensprache statt zweier
+
+- **Der Streifen trägt jetzt denselben Rand wie eine Meldung im Inhalt** —
+  links, drei Pixel, mit Rundung. Entschieden vom Betreiber am 5. September
+  2026, nachdem fünf Darstellungsformen nebeneinander standen. Vorher trug ein
+  Band die Kante unten und eine `.notice` sie links, obwohl beide dasselbe sagen:
+  einen Rang aus Fläche, Rand und Textfarbe.
+- **Gemessen, was es kostet** (390 × 844, echtes Panel, beide Themes): Die Hülle
+  wächst von 195 px auf **214 px**, der Inhalt beginnt bei 279 statt 260 px, und
+  die Einrückung nimmt 32 px Breite — rund acht Zeichen je Zeile. Das trifft nur
+  Texte, die ohnehin auf zwei Zeilen geklammert werden.
+- **Die Fuge zwischen zwei Bändern trägt jetzt ein `gap` an der Hülle.** Sie
+  stand bis Schritt 2 als Ausnahme in `BlockSpacingTest::OPEN_SEAMS`.
+
+  Hier stand, mit `display: flex` und `gap` greife der reguläre Zweig jenes
+  Wächters und die Ausnahme sei deshalb fort. **Beides ist falsch, und der
+  Bruchlauf hat es gemeldet.** Fort ist die Ausnahme seit Schritt 3, weil das
+  Markup nach `Bands.vue` gezogen ist — und dort schreibt es **ein** `<div
+  class="band">` unter `v-for`. Ein Wächter, der benachbarte Tags im Text
+  liest, sieht dort kein Paar.
+
+  > **Zwei Elemente, die ein `v-for` erzeugt, sind Nachbarn auf dem Bildschirm
+  > und keine im Quelltext.**
+
+  Der naheliegende Handgriff — ein `v-for`-Element als seinen eigenen Nachbarn
+  zu zählen — meldet dort **falsch**: `.bands` steht in den drei Seiten, die
+  die Komponente benutzen, also in einer anderen Datei; innerhalb von
+  `Bands.vue` hat das Band gar kein Elternteil. Gemessen: genau ein Fund,
+  `band + band`, und er wäre unbegründet.
+
+  > **Ein Wächter, der über die Dateigrenze nicht hinaussieht, meldet den
+  > Abstand als fehlend, den das Elternteil in der anderen Datei macht.**
+
+  `AnnouncementBandTest::test_the_hull_stacks_its_bands_with_a_gap` hält die
+  Regel jetzt dort, wo beide Seiten in derselben Frage stehen — zwei Brüche,
+  `display: flex` weg und `gap: 0`, beide beissen.
+- **`AnnouncementBandTest` misst die Kante jetzt an beiden Bausteinen.** Ein
+  Wächter, der nur `.band` liest, bliebe grün, wenn `.notice` umzöge — und dann
+  sagten zwei Bausteine dasselbe wieder auf zwei Arten. Beide Richtungen
+  gebrochen, beide beissen.
+- **Und die Begründung im CSS ist mitgezogen.** Sie argumentierte für den Rand
+  unten: „Ein Band ist so breit wie der Bildschirm; drei Pixel an seinem linken
+  Rand wären ein Strich, den niemand damit in Verbindung bringt." Das galt,
+  solange das Band bündig anlag.
+
+  > **Eine Begründung, die an einer Form hängt, gilt nicht mehr, wenn die Form
+  > sich ändert — und sie bleibt trotzdem stehen, wenn niemand sie mitzieht.**
+
+### Ein Modell führt jede gecastete Spalte als `@property`
+
+- **Der Anlass ist eine rote CI und nicht ein Gedanke.** `Announcement` castete
+  `category` auf eine Aufzählung und führte die Spalte nicht als `@property`;
+  larastan liest die Typen einer Spalte aus diesem Block und nicht aus
+  `casts()`, sah dort eine Zeichenkette und meldete fünfzehn Zeilen der Form
+  *„Cannot call method rank() on string"*. Neunzehn von zwanzig Modellen
+  hielten die Regel, und nichts hat sie durchgesetzt.
+
+  > **Eine Regel, die neunzehn Dateien einhalten und nichts durchsetzt, ist
+  > keine Regel, sondern eine Gewohnheit — und die zwanzigste Datei bricht
+  > sie.**
+
+- **Die teurere Hälfte: ein bestehender Wächter wurde davon stumm.**
+  `FactoryDefaultTest` liest `casts()` und fragt **danach** den
+  `@property`-Block, ob die Spalte diesen Typ führt; findet er die Zeile nicht,
+  überspringt er die Spalte. Für `Announcement` hiess das nicht „eine Spalte ist
+  in Ordnung", sondern „null Spalten geprüft". Dass dort nichts Kaputtes lag,
+  war Glück.
+
+  > **Ein Wächter, der seine Frage aus einem Block liest, den nichts erzwingt,
+  > ist für eine Datei ohne diesen Block stumm — und die Stummheit sieht aus wie
+  > Zustimmung.**
+
+- **`ModelPropertyTest` hält es jetzt**, framework-frei und mit Untergrenze: 19
+  Modelle, 70 gecastete Spalten. Drei Brüche, alle beissen — die fehlende Zeile,
+  die namentlich genannte Spalte, und der Ausdruck, der `casts()` nicht mehr
+  trifft (dann meldet der Wächter 0 statt 70 und sieht aus wie erfüllt).
+- **Er hat beim ersten Lauf eine zweite Spalte gefunden.**
+  `Subscription::disk_quota_enforced` trägt drei Werte — ja, nein, **nicht
+  nachgesehen** — und stand nicht im Block. Sie ist als `bool|null` nachgetragen.
+- **Und sein erster Ausdruck meldete zehn Modelle, von denen neun in Ordnung
+  waren.** Er verlangte den Typ als `\S+`, und `array<string, mixed>|null` trägt
+  ein Leerzeichen.
+
+  > **Ein Ausdruck, der die gewohnte Schreibweise kennt, prüft die Gewohnheit
+  > und nicht die Regel.**
+
+- **PHPStan läuft seit dem 5. September 2026 auch für `app/` in diesem
+  Container.** Hier stand, er tauge nur für `agent/`, weil larastan fehlt —
+  gemessen ist die Sperre schmaler: `composer install --prefer-source` **synct
+  larastan in den Cache** und scheitert allein an `phpstan/phpstan`, das als
+  Zipball über `api.github.com` kommt. Der Klon aus dem Cache plus die
+  `phpstan.phar` von den GitHub-Releases ergeben einen Lauf, der die fünfzehn
+  CI-Meldungen Zeile für Zeile reproduziert. Der Weg steht in `CLAUDE.md`.
+
+  > **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite
+  > braucht einen Versuch.**
+
+### Zwei eigene Brüche, die nicht bissen
+
+- **Der Bruchlauf hat zwei Eingriffe dieser Runde gemeldet, und beide waren
+  meine.** Einer liess sich gar nicht anwenden („Zielstelle nicht eindeutig"),
+  einer lief durch und liess seinen Wächter grün. Gefunden hat sie kein
+  Nachdenken, sondern der volle Lauf in der CI.
+- **Der erste ist der Kommentar dieses Repos in seiner Umkehrung.** Der Eingriff
+  zielte auf `Announcement::onLoginPage()`; der Dokumentblock darüber nennt
+  denselben Aufruf als `{@see …}`, also stand die Zeichenkette zweimal da, und
+  die Sicherung des Skripts hat den Eingriff zu Recht verweigert. Gezielt wird
+  jetzt auf den ganzen Ausdruck.
+
+  > **Derselbe Kommentar, der einen Wächter fälschlich grün hält, macht einen
+  > Bruch blind.**
+
+- **Der zweite zeigte auf einen Wächter, der die Frage nicht beantworten kann.**
+  Er nahm der Hülle ihr `display: flex` und erwartete einen Fund von
+  `BlockSpacingTest` — siehe den Abschnitt darüber. Er zeigt jetzt auf den
+  Wächter, der die Regel halten kann.

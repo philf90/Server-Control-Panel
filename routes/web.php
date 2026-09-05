@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\AccessSettingsController;
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
@@ -226,6 +227,35 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/maintenance', [MaintenanceController::class, 'update'])
         ->middleware('can:operate-server')
         ->name('maintenance.update');
+
+    /*
+     * Die Ankündigungen — A14 Schritt 3.
+     *
+     * **`operate-server` und nicht `manage-settings`.** Der Plan hat das einmal
+     * andersherum gesagt, mit der Begründung „ist Text in einer Tabelle" — sie
+     * ordnet nach dem, was der Griff anfasst, und `docs/20 §6.1` ordnet nach
+     * dem, was er bewirkt: kritisch ist unter anderem, was „alle Kunden
+     * mitnimmt". Eine Ankündigung erreicht jeden Kunden, im Namen des
+     * Betreibers, und eine Störung steht auf der Anmeldeseite vor jedem, der
+     * die Adresse kennt.
+     *
+     * > **Eine Fähigkeit bemisst sich nicht daran, was ein Griff anfasst,
+     * > sondern daran, wen er erreicht.**
+     *
+     * Ohne Eintrag in {@see \App\Support\Authorization\AdminAbility::administratorRoutes()}
+     * — das ist kein Versehen: Ein Administrator erreicht diese Seite nicht.
+     */
+    Route::get('/announcements', [AnnouncementController::class, 'index'])
+        ->middleware('can:operate-server')
+        ->name('announcements');
+
+    Route::post('/announcements', [AnnouncementController::class, 'store'])
+        ->middleware('can:operate-server')
+        ->name('announcements.store');
+
+    Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy'])
+        ->middleware('can:operate-server')
+        ->name('announcements.destroy');
 
     /*
      * Die Bestandsdiagnose — A10 Schritt 7.

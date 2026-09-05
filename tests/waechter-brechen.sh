@@ -5671,6 +5671,66 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PgClusterTest passed
 
 echo
+echo "── ModelPropertyTest: eine gecastete Spalte ohne ihre Eigenschaft ──"
+#
+# Genau der Fehler, der A14 eine rote CI gekostet hat. `Announcement` castete
+# `category` auf eine Aufzaehlung und fuehrte die Spalte nicht als
+# `@property` — larastan liest die Typen aus diesem Block und nicht aus
+# `casts()`, sah dort eine Zeichenkette und meldete fuenfzehn Zeilen der Form
+# „Cannot call method rank() on string". Neunzehn Modelle hielten die Regel
+# aus Gewohnheit, und nichts hat sie durchgesetzt.
+vorher_datei app/Models/Announcement.php
+python3 - <<'PY2'
+p = 'app/Models/Announcement.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(" * @property AnnouncementCategory $category\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Models/Announcement.php "gecastete Spalte ohne @property" &&
+pruefe "gecastete Spalte ohne @property" \
+  ModelPropertyTest::test_every_cast_column_is_declared_as_a_property failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ModelPropertyTest passed
+
+echo
+echo "── ModelPropertyTest: die Spalte, die diesen Wächter gebraucht hat ──"
+#
+# `disk_quota_enforced` hat drei Werte — ja, nein, nicht nachgesehen — und
+# stand nicht im Block. Der namentliche Fall haelt das fest, damit eine
+# Umbenennung nicht bloss den Zaehler senkt.
+vorher_datei app/Models/Subscription.php
+python3 - <<'PY2'
+p = 'app/Models/Subscription.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(" * @property bool|null $disk_quota_enforced\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Models/Subscription.php "die gefundene Spalte fehlt wieder" &&
+pruefe "die gefundene Spalte fehlt wieder" \
+  ModelPropertyTest::test_the_column_that_this_guard_found_is_declared failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ModelPropertyTest passed
+
+echo
+echo "── ModelPropertyTest: der Ausdruck über casts() läuft ins Leere ──"
+#
+# Die Untergrenze. Trifft der Ausdruck `casts()` nicht mehr, meldet dieser
+# Waechter nichts und sieht aus wie erfuellt — dieselbe Falle, in die dieses
+# Vorgehen schon dreimal gelaufen ist. Gemessen: 0 statt 70 Spalten.
+vorher_datei tests/Feature/ModelPropertyTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/ModelPropertyTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("protected function casts\\(\\): array", "protected function gussformen(): array")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/ModelPropertyTest.php "der Ausdruck trifft casts() nicht mehr" &&
+pruefe "der Ausdruck trifft casts() nicht mehr" \
+  ModelPropertyTest::test_every_cast_column_is_declared_as_a_property failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ModelPropertyTest passed
+
+echo
 echo "── FactoryDefaultTest: eine Spalte, die die Factory nicht baut ──"
 #
 # Genau der Fehler aus Lauf 463. `engine` traegt `default('mariadb')` in der
@@ -24338,6 +24398,301 @@ pruefe "gemessen wird wieder gegen jetzt" \
   MaintenanceOverdueTest::test_the_run_is_judged_against_its_own_timestamp failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceOverdueTest passed
+
+echo
+echo "== AnnouncementWindowTest: das Fenster rechnet in der Anzeigezone =="
+#
+# Der Fehler, den docs/81 §2.3q M7 vor dem Bau gemessen hat: Rechnet der
+# Vergleich in der Anzeigezone statt in UTC, ist die Ankuendigung genau
+# waehrend ihres eigenen Fensters unsichtbar und erscheint um den Versatz zu
+# frueh. In UTC waeren beide Vergleiche gleich — deshalb misst der Waechter
+# mit Europe/Berlin und Asia/Kolkata.
+vorher_datei app/Models/Announcement.php
+python3 - <<'PY2'
+p = 'app/Models/Announcement.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return static function (Builder $query) use ($at): void {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = alt + "\n            $at = $at->copy()->setTimezone(\\App\\Support\\Time\\Clock::zone());"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Models/Announcement.php "das Fenster rechnet in der Anzeigezone" &&
+pruefe "das Fenster rechnet in der Anzeigezone" \
+  AnnouncementWindowTest::test_an_announcement_is_visible_during_its_own_window failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementWindowTest passed
+
+echo
+echo "== AnnouncementAudienceTest: der Filter fragt das Publikum nicht =="
+#
+# Ohne die Bedingung sieht jeder alles. Die Haelfte, die still bricht — ein
+# Hinweis zur Verwaltung stuende dann vor jedem Kunden.
+vorher_datei app/Models/Announcement.php
+python3 - <<'PY2'
+p = 'app/Models/Announcement.php'
+s = open(p, encoding='utf-8').read()
+alt = "->whereJsonContains('audiences', AnnouncementAudience::of($account)->value)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Models/Announcement.php "der Filter fragt das Publikum nicht" &&
+pruefe "der Filter fragt das Publikum nicht" \
+  AnnouncementAudienceTest::test_it_reaches_its_audience_and_no_other failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementAudienceTest passed
+
+echo
+echo "== AnnouncementAudienceTest: die Rolle wird nicht gefragt =="
+#
+# A9 hat zwei Achsen — Typ und Rolle. Wer nur den Typ fragt, macht jeden
+# Administrator zum Betreiber und zeigt ihm, was nur dem Betreiber gilt.
+vorher_datei app/Enums/AnnouncementAudience.php
+python3 - <<'PY2'
+p = 'app/Enums/AnnouncementAudience.php'
+s = open(p, encoding='utf-8').read()
+alt = "return $account->isOperator() ? self::Operator : self::Administrator;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'return self::Operator;', 1))
+PY2
+griff_datei app/Enums/AnnouncementAudience.php "die Rolle wird nicht gefragt" &&
+pruefe "die Rolle wird nicht gefragt" \
+  AnnouncementAudienceTest::test_an_account_maps_to_exactly_its_own_audience failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementAudienceTest passed
+
+echo
+echo "== AnnouncementAudienceTest: die Anmeldeseite filtert die Kategorie nicht =="
+#
+# Die stille Haelfte ist die, die zuviel zeigt: Was auf der Anmeldeseite
+# steht, steht vor jedem, der die Adresse kennt.
+vorher_datei app/Models/Announcement.php
+python3 - <<'PY2'
+p = 'app/Models/Announcement.php'
+s = open(p, encoding='utf-8').read()
+alt = "->where('category', AnnouncementCategory::Incident->value)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Models/Announcement.php "die Anmeldeseite filtert die Kategorie nicht" &&
+pruefe "die Anmeldeseite filtert die Kategorie nicht" \
+  AnnouncementAudienceTest::test_the_login_page_shows_incidents_only failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementAudienceTest passed
+
+echo
+echo "== AnnouncementBandTest: ein zweites Element nimmt die Rasterzeile =="
+#
+# Der Befund aus docs/81 §2.3q M2 in seiner Ursache: `grid-row: 1` an
+# mehreren Geschwistern legt sie in dieselbe Zelle. Drei Baender liegen dann
+# bei 1440 px aufeinander, sichtbar ist nur das letzte — und der waagerechte
+# Ueberlauf steht dabei auf 0. Kein Waechter ueber den Ueberlauf sieht das.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.band {\n  display: flex;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.band {\n  grid-row: 1;\n  display: flex;', 1))
+PY2
+griff_datei resources/css/app.css "ein zweites Element nimmt die Rasterzeile" &&
+pruefe "ein zweites Element nimmt die Rasterzeile" \
+  AnnouncementBandTest::test_only_one_selector_takes_the_first_grid_row failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
+
+echo
+echo "== AnnouncementBandTest: die Klammer zaehlt nicht mehr Zeilen =="
+#
+# M8: 40 Zeichen je Zeile bei 390 px, 160 bei 1440 px. Eine Grenze, die nicht
+# ueber Zeilen geht, ist auf zwei Breiten zwei verschiedene Grenzen.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '  -webkit-line-clamp: 2;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '  max-height: 3em;', 1))
+PY2
+griff_datei resources/css/app.css "die Klammer zählt nicht mehr Zeilen" &&
+pruefe "die Klammer zählt nicht mehr Zeilen" \
+  AnnouncementBandTest::test_the_clamp_counts_lines_and_not_characters failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
+
+echo
+echo "== AnnouncementBandTest: ein Rang verliert seinen Rand =="
+#
+# M9: Die Flaeche allein traegt den Rang nicht — zwischen Warnung und Stoerung
+# liegen im hellen Thema nur DeltaE 3,8.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.band.warn {\n  color: var(--warn);\n  background: var(--warn-surface);\n  border-color: var(--warn);\n}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '.band.warn {\n  color: var(--warn);\n  background: var(--warn-surface);\n}'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/css/app.css "ein Rang verliert seinen Rand" &&
+pruefe "ein Rang verliert seinen Rand" \
+  AnnouncementBandTest::test_every_rank_carries_surface_border_and_text_colour failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
+
+echo
+echo "== AnnouncementBandTest: das Rangwort faellt weg =="
+#
+# Farbe allein traegt fuer jemanden mit Rot-Gruen-Schwaeche gar nichts
+# (WCAG 1.4.1) — deshalb steht die Kategorie als Wort im Streifen.
+vorher_datei resources/js/Components/Bands.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/Bands.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<b class="rank">{{ hinweis.rank }}</b> '
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Components/Bands.vue "das Rangwort fällt weg" &&
+pruefe "das Rangwort fällt weg" \
+  AnnouncementBandTest::test_the_rank_is_also_a_word failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
+
+echo
+echo "== AnnouncementShareTest: der Verschluss wird ein fertiger Wert =="
+#
+# M5, gemessen an den Abfragen: Ein fertiger Wert in share() laeuft auch bei
+# einem partiellen Nachladen, das ihn gar nicht mitschickt. Die Uebersicht
+# laedt mit ihrem Selbstlauf alle dreissig Sekunden nach.
+vorher_datei app/Http/Middleware/HandleInertiaRequests.php
+python3 - <<'PY2'
+p = 'app/Http/Middleware/HandleInertiaRequests.php'
+s = open(p, encoding='utf-8').read()
+alt = "'announcements' => fn (): array => "
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'announcements' => ", 1))
+PY2
+griff_datei app/Http/Middleware/HandleInertiaRequests.php "der Verschluss wird ein fertiger Wert" &&
+pruefe "der Verschluss wird ein fertiger Wert" \
+  AnnouncementShareTest::test_a_partial_reload_does_not failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementShareTest passed
+
+echo
+echo "== AnnouncementPageTest: die Seite steht hinter manage-settings =="
+#
+# Der Plan hat das einmal so gesagt, mit der Begruendung „ist Text in einer
+# Tabelle". docs/20 §6.1 ordnet nach der Wirkung: kritisch ist unter anderem,
+# was „alle Kunden mitnimmt" — und eine Ankuendigung erreicht jeden Kunden.
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+i = s.index("Route::get('/announcements'")
+j = s.index('->name(', i)
+block = s[i:j]
+assert block.count('can:operate-server') == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s[:i] + block.replace('can:operate-server', 'can:manage-settings') + s[j:])
+PY2
+griff_datei routes/web.php "die Seite steht hinter manage-settings" &&
+pruefe "die Seite steht hinter manage-settings" \
+  AnnouncementPageTest::test_an_administrator_is_turned_away failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementPageTest passed
+
+echo
+echo "== AnnouncementPageTest: die Anmeldeseite zeigt jede Kategorie =="
+#
+# Die stille Haelfte ist die, die zuviel zeigt: Was auf der Anmeldeseite steht,
+# steht vor jedem, der die Adresse kennt.
+vorher_datei app/Http/Controllers/Auth/LoginController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/Auth/LoginController.php'
+s = open(p, encoding='utf-8').read()
+# Der blosse Methodenname steht zweimal — der Dokumentblock darueber nennt
+# ihn als `{@see …}`. Gezielt wird deshalb auf den ganzen Ausdruck.
+alt = 'Announcement::bannerRows(Announcement::onLoginPage())'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, 'Announcement::bannerRows(Announcement::visibleTo(null))', 1))
+PY2
+griff_datei app/Http/Controllers/Auth/LoginController.php "die Anmeldeseite zeigt jede Kategorie" &&
+pruefe "die Anmeldeseite zeigt jede Kategorie" \
+  AnnouncementPageTest::test_the_login_page_carries_incidents_only failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementPageTest passed
+
+echo
+echo "== AnnouncementBandTest: die Meldung zieht um, das Band bleibt =="
+#
+# Die stille Richtung. Ein Waechter, der nur `.band` liest, bleibt gruen,
+# wenn `.notice` seine Kante wechselt — und dann sagen zwei Bausteine
+# dasselbe wieder auf zwei Arten.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+i = s.index('.notice {')
+j = s.index('\n}', i)
+block = s[i:j]
+assert block.count('border-left: 3px solid;') == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s[:i] + block.replace('border-left: 3px solid;', 'border-bottom: 3px solid;') + s[j:])
+PY2
+griff_datei resources/css/app.css "die Meldung zieht um, das Band bleibt" &&
+pruefe "die Meldung zieht um, das Band bleibt" \
+  AnnouncementBandTest::test_every_rank_carries_surface_border_and_text_colour failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
+
+echo
+echo "== AnnouncementBandTest: die Huelle verliert ihre Fugen =="
+#
+# Ohne `display: flex` wirkt das `gap` nicht, und die Baender kleben
+# aneinander — auf einem Bild sichtbar, im Ueberlauf nicht.
+#
+# Gezielt wird auf AnnouncementBandTest und nicht auf BlockSpacingTest: Der
+# sieht diese Nachbarschaft gar nicht. `Bands.vue` schreibt ein einziges
+# `<div class="band">` unter `v-for`, und die Huelle steht in einer anderen
+# Datei. Dieser Eingriff lief deshalb ins Leere, bis der Waechter dastand,
+# der die Frage beantworten kann.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+i = s.index('.bands {')
+j = s.index('\n}', i)
+block = s[i:j]
+assert block.count('gap: 8px;') == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s[:i] + block.replace('  display: flex;\n', '') + s[j:])
+PY2
+griff_datei resources/css/app.css "die Hülle verliert ihre Fugen" &&
+pruefe "die Hülle verliert ihre Fugen" \
+  AnnouncementBandTest::test_the_hull_stacks_its_bands_with_a_gap failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
+
+echo
+echo "== AnnouncementBandTest: die Fuge steht auf null =="
+#
+# Die andere Haelfte derselben Regel, und die stillere: `display: flex` bleibt
+# stehen, das `gap` ist tot. Ein Eingriff, der nur die Anzeige-Eigenschaft
+# nimmt, laesst diesen Fall offen.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+i = s.index('.bands {')
+j = s.index('\n}', i)
+block = s[i:j]
+assert block.count('gap: 8px;') == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s[:i] + block.replace('gap: 8px;', 'gap: 0;') + s[j:])
+PY2
+griff_datei resources/css/app.css "die Fuge steht auf null" &&
+pruefe "die Fuge steht auf null" \
+  AnnouncementBandTest::test_the_hull_stacks_its_bands_with_a_gap failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

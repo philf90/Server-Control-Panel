@@ -4503,6 +4503,37 @@ p:not([class]) {
    Abstände je Feld.
    ═══════════════════════════════════════════════════════════════════════ */
 
+/*
+ * **Der Rahmen der Anmeldung teilt die Höhe zwischen Streifen und Formular.**
+ *
+ * Gemessen am 5. September 2026, als der Störungsstreifen aus A14 dazukam: Ohne
+ * ihn rollte die Anmeldeseite um genau die Höhe des Bandes — 65 px bei 390 px,
+ * 44 px bei 1440 px. `.signin` nahm `100dvh` für sich, und der Streifen kam
+ * obendrauf.
+ *
+ * Das ist derselbe Fehler, den `dvh` in `.frame` verhindern soll: **man rollt,
+ * obwohl nichts zu rollen wäre.** Die Adressleiste eines Telefons war dort der
+ * Anlass; hier ist es ein Geschwister, das der Höhe nicht mitgeteilt wurde.
+ *
+ * > **Eine Höhe, die sich am Fenster bemisst, kennt ihre Geschwister nicht —
+ * > und jedes, das dazukommt, macht die Seite genau um sich selbst zu lang.**
+ */
+.signin-frame {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+/*
+ * Im Rahmen nimmt das Formular, was übrig ist. `min-height: 0` daneben, weil
+ * ein Flexkind sonst nicht unter seine Inhaltshöhe darf — dieselbe Ausnahme
+ * wie bei `.ident` und `.clamped`, nur in der anderen Achse.
+ */
+.signin-frame .signin {
+  flex: 1;
+  min-height: 0;
+}
+
 .signin {
   min-height: 100dvh;
   display: flex;
@@ -4812,6 +4843,203 @@ p:not([class]) {
 .notice.neutral {
   background: var(--surface);
   border-color: var(--control-line);
+}
+
+/*
+ * Eine Zelle, die einen Satz trägt und keine Kennung.
+ *
+ * **`.scrolls > table` setzt `width: max-content`**, damit eine Tabelle mit
+ * sechs Spalten rollen darf statt sich zu quetschen. Der Preis steht in
+ * `docs/46 §20.13`: Eine Zelle, die rollen darf, hat keine Obergrenze — dort
+ * machte eine bei 512 Zeichen gekürzte Textzelle den Inhalt **5710 px** breit
+ * statt 1907.
+ *
+ * > **Eine Zelle, die rollen darf, hat keine Obergrenze — sie hat nur keine
+ * > Zahl, die sich beschwert.**
+ *
+ * Hier ist es der Text einer Ankündigung: bis 500 Zeichen, und gemessen am
+ * 5. September 2026 zog er die Spalte auf **1087 px** und die Tabelle über
+ * ihren Behälter hinaus. Die Auskunft daneben — Fenster, Publikum, Zustand —
+ * stand damit ausserhalb des Bildes, und der Knopf am Zeilenende auch.
+ *
+ * `48ch` ist eine Leseweite und keine Pixelzahl: Sie hängt an der Schriftgrösse
+ * und nicht an einer Annahme über den Bildschirm.
+ */
+td.text {
+  max-width: 48ch;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Bänder — der Streifen ganz oben (A14, docs/103 §4)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/*
+ * **Eine Hülle, und darin alle Bänder.**
+ *
+ * Der Rahmen ist ein Raster mit zwei Zeilen, und ein Band nahm bisher
+ * `grid-row: 1` für sich. Gemessen (docs/81 §2.3q M2): Drei Geschwister mit
+ * derselben Zeile liegen bei 1440 px **aufeinander** — sichtbar ist nur das
+ * letzte, und der waagerechte Überlauf steht dabei auf 0. Bei 390 px stapeln
+ * dieselben drei korrekt, weil die schmale Fläche das Raster aufgibt.
+ *
+ * > **Ein `grid-row`, das ein Element ausdrücklich nimmt, nimmt jedes
+ * > Geschwister in dieselbe Zelle — und „mehrere gleichzeitig" heisst dann
+ * > „übereinander".**
+ *
+ * > **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+ * > Betrachter.** Kein Wächter über den Überlauf konnte ihn sehen.
+ *
+ * Die Gegenprobe steht in derselben Messung: dieselben drei in einer Hülle
+ * ergeben 0–42, 42–105, 105–147, und die Rasterzeile wächst auf 147 px.
+ */
+.bands {
+  grid-column: 1 / -1;
+  grid-row: 1;
+
+  /*
+   * **Getrennte Blöcke und keine bündigen Streifen** — entschieden vom
+   * Betreiber am 5. September 2026, nachdem fünf Formen nebeneinander standen.
+   *
+   * Der Grund ist keine Vorliebe, sondern eine doppelte Formensprache: Eine
+   * Meldung im Inhalt (`.notice`) trug einen 3-px-Rand **links** und eine
+   * Rundung, ein Band oben einen 3-px-Rand **unten** und keine. Beide sagen
+   * dasselbe — ein Rang aus Fläche, Rand und Textfarbe.
+   *
+   * > **Zwei Formen für dieselbe Aussage sind keine Vielfalt, sondern eine
+   * > Regel, die an einer Stelle vergessen wurde.**
+   *
+   * **Gemessen, was es kostet** (390 × 844, echtes Panel, beide Themes): Die
+   * Hülle wächst von 195 px auf **214 px**, der Inhalt beginnt bei 279 statt
+   * 260 px. Und die Fassung nimmt 32 px Breite — rund **acht Zeichen je
+   * Zeile**, bei zwei Zeilen also sechzehn weniger Auskunft. Das trifft nur
+   * Texte, die ohnehin geklammert werden; der volle Satz steht auf
+   * `/announcements`.
+   *
+   * **Und die Fuge ist damit erklärt statt geduldet.** Vorher stand
+   * `band + band` als Ausnahme in `BlockSpacingTest::OPEN_SEAMS`, weil der
+   * Abstand aus dem Rand kam. Mit `display: flex` und `gap` greift der
+   * reguläre Zweig des Wächters, und die Ausnahme ist fort.
+   */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+/*
+ * Ein Band — der Sichtwechsel aus P6 und die Ankündigungen aus A14.
+ *
+ * **Es stand bis zum 5. September 2026 im `<style scoped>` des Layouts.** Dort
+ * war es richtig, solange es genau eines gab; mit A14 benutzen es zwei Stellen,
+ * und ein geteilter Baustein gehört nach app.css — dieselbe Regel wie für
+ * Tabelle, Feld, Marke, Balken und Meldung.
+ */
+.band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 24px;
+  font-size: var(--text-table);
+
+  /*
+   * Der Text bricht, bevor er die Seite schiebt — derselbe Grund wie bei
+   * `.notice`: Was in einem Band steht, schreibt der Betreiber, und eine Regel,
+   * die jede Ankündigung einzeln bräuchte, gilt für die nächste nicht.
+   */
+  overflow-wrap: anywhere;
+
+  /*
+   * **Der Rang steht auf drei Trägern: Fläche, Rand und Textfarbe.**
+   *
+   * Gemessen (docs/81 §2.3q M9): Die Flächen allein tragen ihn nicht. Gegen den
+   * Seitengrund stehen sie bei 1,16:1 bis 1,28:1, und untereinander liegen
+   * Warnung und Störung im hellen Thema bei **ΔE 3,8** — unterscheidbar, aber das
+   * schwächste der drei Paare und ausgerechnet das, auf das es ankommt.
+   *
+   * > **Ein Rang, der aus drei Trägern besteht, verliert beim Umzug den, den
+   * > niemand aufgeschrieben hat.**
+   *
+   * **Derselbe Rand wie `.notice`, und das ist der ganze Punkt.** Links, drei
+   * Pixel, mit der Rundung daneben — ein Band oben und eine Meldung im Inhalt
+   * sind dieselbe Aussage und tragen sie jetzt gleich.
+   *
+   * Hier stand bis zum 5. September `border-bottom`, mit der Begründung, ein
+   * Band sei so breit wie der Bildschirm und drei Pixel an seinem linken Rand
+   * wären ein Strich, den niemand damit in Verbindung bringt. Das galt, solange
+   * das Band bündig anlag. Seit die Hülle es einrückt, liegt die Kante dort, wo
+   * das Auge die Zeile beginnt — genau wie bei `.notice`.
+   *
+   * > **Eine Begründung, die an einer Form hängt, gilt nicht mehr, wenn die
+   * > Form sich ändert — und sie bleibt trotzdem stehen, wenn niemand sie
+   * > mitzieht.**
+   */
+  border-left: 3px solid;
+  border-radius: var(--radius);
+}
+
+.band.ok {
+  color: var(--ok);
+  background: var(--ok-surface);
+  border-color: var(--ok);
+}
+
+.band.warn {
+  color: var(--warn);
+  background: var(--warn-surface);
+  border-color: var(--warn);
+}
+
+.band.critical {
+  color: var(--critical);
+  background: var(--critical-surface);
+  border-color: var(--critical);
+}
+
+/*
+ * Das Wort des Ranges — „Info", „Warnung", „Störung".
+ *
+ * **Es steht da, weil die Farbe allein den Rang nicht trägt** (M9): ΔE 3,8
+ * zwischen Warnung und Störung, und für jemanden mit Rot-Grün-Schwäche gar
+ * nichts (WCAG 1.4.1).
+ *
+ * **Es steht im Textfluss und nicht als eigenes Flexkind daneben.** Gemessen am
+ * ersten Wurf: Daneben bricht es bei 390 px in eine eigene Zeile und kostet
+ * 21 px je Band — drei Ankündigungen 264 px statt der 189 px, die M8 als Budget
+ * gemessen hat. Im Fluss teilt es die erste Zeile mit dem Text, und die Klammer
+ * darüber gilt für beide.
+ *
+ * > **Ein Wort, das als eigenes Flexkind steht, nimmt auf der schmalen Fläche
+ * > eine ganze Zeile — auch wenn es vier Zeichen hat.**
+ */
+.band .rank {
+  color: var(--text-strong);
+}
+
+/*
+ * Der Text einer Ankündigung — auf zwei Zeilen geklammert.
+ *
+ * **Über Zeilen und nicht über Zeichen, und das ist gemessen**
+ * (docs/81 §2.3q M8): Bei 390 px passen rund 40 Zeichen in eine Zeile, bei
+ * 1440 px rund 160 — ein Faktor vier. Eine Ankündigung von 500 Zeichen nimmt
+ * auf dem Telefon 273 px, also 32 % eines 844 px hohen Bildschirms; drei davon
+ * füllen ihn ganz.
+ *
+ * > **Eine Klammer über Zeilen ist auf jeder Breite dieselbe Regel. Eine über
+ * > Zeichen ist es nicht.**
+ *
+ * Mit der Klammer ergibt bei 390 px jede Länge von 60 bis 500 Zeichen dieselben
+ * 63 px, und drei Ankündigungen kosten 189 px statt bis zu 819 px.
+ *
+ * `min-width: 0`, weil ein Flexkind sonst nicht unter seine Inhaltsbreite darf
+ * — dieselbe Ausnahme wie bei `.ident` und beim Bereichstitel aus docs/46.
+ */
+.band .clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  min-width: 0;
+  overflow: hidden;
 }
 
 /*

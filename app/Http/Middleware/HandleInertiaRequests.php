@@ -6,6 +6,7 @@ namespace App\Http\Middleware;
 
 use App\Enums\SubscriptionStatus;
 use App\Models\Account;
+use App\Models\Announcement;
 use App\Models\Subscription;
 use App\Support\Audit\Impersonation;
 use App\Support\Authorization\AdminAbility;
@@ -193,6 +194,30 @@ final class HandleInertiaRequests extends Middleware
             // Admin, der vergisst, in wessen Sicht er ist, tut sonst im Namen
             // eines Kunden Dinge, die er für seine eigenen hält.
             'impersonation' => $this->impersonation($request),
+
+            /*
+             * Die Ankündigungen des Betreibers (A14, `docs/103 §7`).
+             *
+             * **Als Verschluss und nicht als fertiger Wert, und das ist
+             * gemessen** (`docs/81 §2.3q` M5). Ein fertiger Wert in `share()`
+             * wird auch bei einem partiellen Nachladen berechnet, das ihn gar
+             * nicht mitschickt — gezählt an den Abfragen: voller Besuch 2,
+             * partielles Nachladen 1, und die eine war die des fertigen Werts.
+             *
+             * > **Ein fertiger Wert in `share()` läuft bei jeder Anfrage, auch
+             * > bei einer, die ihn gar nicht mitschickt. Ein Verschluss läuft
+             * > nur, wenn er gesendet wird.**
+             *
+             * Das ist hier nicht theoretisch: Die Übersichtsseite lädt mit
+             * ihrem Selbstlauf alle dreissig Sekunden `only: ['tiles']` nach.
+             * Ohne den Verschluss liefe die Abfrage jedes Mal für eine Antwort,
+             * die der Server verwirft.
+             *
+             * Dieselbe Form wie `flash` daneben, und aus demselben Grund.
+             */
+            'announcements' => fn (): array => $account instanceof Account
+                ? Announcement::bannerRows(Announcement::visibleTo($account))
+                : [],
 
             // Die Passwortrichtlinie steht auf jeder Seite bereit, weil ein
             // Passwortfeld überall auftauchen kann — beim Anlegen eines

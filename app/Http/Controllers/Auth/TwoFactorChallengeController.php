@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Auth;
 use App\Enums\AuditResult;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
+use App\Models\Announcement;
 use App\Support\Audit\Audit;
 use App\Support\Auth\LoginThrottle;
 use App\Support\Auth\RecoveryCodes;
@@ -61,7 +62,23 @@ final class TwoFactorChallengeController extends Controller
             return redirect()->route('login');
         }
 
-        return Inertia::render('Auth/TwoFactorChallenge');
+        return Inertia::render('Auth/TwoFactorChallenge', [
+            /*
+             * **Störungen stehen auch hier, und das ist eine Entscheidung des
+             * Betreibers** (`docs/103 §2`, Entscheidung 4): genau der Fall, in
+             * dem die Auskunft zählt — wenn das Panel klemmt, steht sie auf der
+             * Seite, die man dann sieht.
+             *
+             * **Nur `incident` und ohne Publikum.** Wer nicht angemeldet ist,
+             * hat keins; die Grenze zieht hier die Kategorie und sonst nichts
+             * ({@see Announcement::onLoginPage()}).
+             *
+             * > **Was auf der Anmeldeseite steht, steht vor jedem, der die
+             * > Adresse kennt.** Die Beschränkung auf diese eine Kategorie
+             * begrenzt den Kreis, hebt ihn nicht auf.
+             */
+            'incidents' => Announcement::bannerRows(Announcement::onLoginPage()),
+        ]);
     }
 
     public function store(Request $request, LoginThrottle $throttle, Audit $audit): RedirectResponse

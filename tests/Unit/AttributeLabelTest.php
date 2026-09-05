@@ -70,6 +70,10 @@ final class AttributeLabelTest extends TestCase
             'und kein Name. Der allgemeine Name ist hier der bessere.',
         'Databases/Show.vue:cidr' => 'Die Beschriftung trägt einen eingesetzten Wert '.
             '(„Erreichbar von — für {{ … }}") und steht damit nicht fest.',
+        'Announcements/Index.vue:audiences' => 'Die Beschriftung gehört dem einzelnen Kästchen '.
+            '(„Betreiber", „Administrator", „Kunde") und nicht dem Feld. Das Feld ist die Gruppe, '.
+            'und ihr Name steht als eigener `span` darüber: „Publikum". Wer „Das Feld Publikum muss …" '.
+            'liest, findet ihn dort.',
     ];
 
     /** Jede sichtbare Beschriftung stimmt mit dem Namen überein, den der Server benutzt. */

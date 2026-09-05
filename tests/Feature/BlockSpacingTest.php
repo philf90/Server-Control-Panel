@@ -158,6 +158,23 @@ final class BlockSpacingTest extends TestCase
     private const OPEN_SEAMS = [
         'arrow + label',
         'button + button',
+
+        /*
+         * **Zwei Feldreihen kleben nicht — der Abstand sitzt in ihren
+         * Kindern.** `.field-row` ist ein Flexcontainer ohne eigenen Rand;
+         * jedes `.field` darin trägt `margin-top: 16px`, und in einem
+         * Flexcontainer fällt dieser Rand nicht aus der Box heraus.
+         *
+         * Gemessen am 5. September 2026 auf `/announcements` bei 1440 px: Die
+         * Blöcke berühren sich auf den Pixel (Fuge **0**), zwischen den
+         * sichtbaren Feldern liegen **16 px** — genau so viel wie zwischen zwei
+         * `.field` sonst auch.
+         *
+         * > **Eine Fuge zwischen zwei Blöcken misst nicht, was der Leser als
+         * > Abstand sieht — wenn den die Kinder tragen.**
+         */
+        'field-row + field-row',
+
         'button-row + button',
         'button-row + form',
         /*

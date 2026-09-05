@@ -3037,13 +3037,12 @@ Testen berücksichtigen:
   alle Aufnahmen, dann `emulateMedia` und `setViewportSize` umschalten. Und
   Inertia schickt über XHR: `networkidle` kommt zurück, bevor die Antwort da
   ist; gewartet wird auf die Adresse.
-- **PHPStan ist hier nicht lauffähig — und zwar, weil er nicht installiert
-  ist.** `vendor/bin/phpstan` gibt es schlicht nicht; der Aufruf endet mit
-  Rückgabewert 127. Nachinstallieren geht auch nicht: `composer install`
-  scheitert an „Could not authenticate against github.com", der Proxy dieses
-  Containers lässt die Paketquelle nicht durch. Er läuft in der CI;
-  `composer pruefe` schlägt deshalb lokal fehl. Einzeln `pint` und
-  `php artisan test` aufrufen.
+- **`vendor/bin/phpstan` gibt es hier nicht, PHPStan läuft trotzdem.**
+  `composer install` scheitert an „Could not authenticate against github.com" —
+  der Proxy lässt genau dieses eine Paket nicht durch, und `composer pruefe`
+  schlägt deshalb lokal fehl. Einzeln `pint` und `php artisan test` aufrufen,
+  PHPStan über den Weg weiter unten (`phpstan.phar` plus larastan aus dem
+  Composer-Cache) — der prüft seit dem 5. September 2026 auch `app/`.
 
   **Und manchmal geht auch das nicht.** In der Sitzung vom 5. August gab es
   `vendor/` überhaupt nicht — kein Pint, kein PHPUnit, `php artisan` bricht
@@ -3266,19 +3265,55 @@ Testen berücksichtigen:
     sperrt der Proxy.
 
     **Die Projektdatei `phpstan.neon` taugt dafür nicht** — sie bindet larastan
-    ein, und ohne `vendor/` bricht der Lauf mit „is missing or is not readable"
-    ab. Eine dreizeilige Wegwerfdatei im Scratchpad (`level: 6`,
-    `treatPhpDocTypesAsCertain: false`) und `-c` darauf genügt.
+    über `vendor/larastan/larastan/extension.neon` ein, und liegt das dort
+    nicht, bricht der Lauf mit „is missing or is not readable" ab. Eine
+    Wegwerfdatei im Scratchpad (`level: 6`, `treatPhpDocTypesAsCertain: false`)
+    und `-c` darauf genügt; wer larastan dazuholt, bindet dieselbe Zeile darin
+    ein — siehe den nächsten Punkt.
 
     > **„Es ist nicht da" und „es geht nicht" sind zwei Sätze, und der zweite
     > braucht einen Versuch.** Derselbe Satz wie bei MariaDB und beim `sshd` —
     > diesmal an einem Werkzeug, das in dieser Datei als unerreichbar geführt
     > wurde.
-  - **PHPStan taugt nur für `agent/`.** Ohne `vendor/` fehlt larastan, und
-    jedes `Model::query()` und jede Spalte gilt als undefiniert — hunderte
-    Meldungen, die nichts bedeuten. Unterhalb von `agent/` gibt es kein
-    Framework, und dort läuft Stufe 6 sauber durch. Genau so gefunden:
-    `array_values()` auf einer Liste, die schon eine ist.
+  - **PHPStan läuft hier für das ganze Repo — seit dem 5. September 2026.**
+    Hier stand „taugt nur für `agent/`", weil ohne larastan jede Spalte und
+    jedes `Model::query()` als undefiniert gilt. Das galt für den Aufruf, wie
+    man ihn tippt; **die Sperre ist schmaler.** `composer install
+    --prefer-source` **synct larastan in den Cache** und scheitert allein an
+    `phpstan/phpstan` — das kommt als Zipball über `api.github.com`, und dort
+    antwortet der Proxy mit 403. Drei Handgriffe drehen das um:
+
+        git clone --shared \\
+          ~/.cache/composer/vcs/https---github.com-larastan-larastan.git \\
+          vendor/larastan/larastan
+        (cd vendor/larastan/larastan && git checkout v3.10.0)
+        curl -sSL -o phpstan.phar \\
+          https://github.com/phpstan/phpstan/releases/download/2.2.7/phpstan.phar
+
+    Larastans einzige weitere Abhängigkeit, `iamcal/sql-parser`, liegt schon in
+    `vendor/`. Gefahren wird mit einer Wegwerfdatei im Scratchpad, die
+    `vendor/larastan/larastan/extension.neon` einbindet, und — das ist das
+    Tragende — mit **`--autoload-file`** und nicht mit `bootstrapFiles`:
+
+        env -u AI_AGENT -u CLAUDECODE php -d memory_limit=4G phpstan.phar \\
+          analyse -c <neon> --autoload-file=<lader.php> --no-progress \\
+          --error-format=raw app agent/src config routes tests
+
+    > **Ein Autolader in `bootstrapFiles` kommt zu spät.** Der DI-Container von
+    > PHPStan wird davor gebaut; larastans `sqlParser` fehlt dann, und die
+    > Meldung lautet „Invalid configuration" und nicht „Klasse nicht gefunden".
+
+    **Und die leere Ausgabe ist ohne Gegenprobe keine Messung** — hier gleich
+    zweimal am selben Nachmittag: einmal, weil das Gestell der Agentensitzung
+    die Ausgabe verpackte (daher `env -u AI_AGENT -u CLAUDECODE`), und einmal,
+    weil das Ergebnis wirklich sauber war. Unterschieden hat sie erst der
+    zurückgestellte Fehler: die `@property`-Zeile wieder falsch gestellt, und
+    dieselben sieben Zeilen standen wieder da.
+
+    Was das wert ist, zeigt der erste Lauf: Er hat die fünfzehn CI-Meldungen zu
+    A14 Zeile für Zeile reproduziert, **bevor** eine Behebung geschrieben war —
+    und danach in der frisch gebauten Behebung ein `array_values()` auf einer
+    Liste gefunden, die schon eine ist.
 
     **Und die Dateiliste kommt aus dem Zweig und nicht aus dem Gedächtnis.**
     Am 22. August 2026 hat die CI acht PHPStan-Meldungen zu P7 gebracht, jede
@@ -3677,16 +3712,37 @@ Testen berücksichtigen:
   - Nach jeder Aufnahme `scrollWidth - clientWidth` messen. Ein waagerechter
     Überlauf bei 390px sieht auf dem Bild nach nichts aus und ist auf dem
     Telefon der ganze Unterschied.
-  - **Ein Datumsfeld zeigt die Sprache des Browsers und nicht die der Seite.**
-    Chromium schreibt in ein `type="date"` die Schreibweise seiner
-    **Oberflächensprache**; hier ist die englisch, und das Bild las `mm/dd/yyyy`
-    mit einem AM/PM-Feld. `locale: 'de-DE'` am Kontext ändert daran nichts (es
-    setzt `Accept-Language` und `navigator.language`) — es braucht
-    `args: ['--lang=de-DE']` beim Start. Dann steht dort `tt.mm.jjjj` und ein
-    24-Stunden-Feld, gemessen am 4. September 2026.
+  - **Ein Datumsfeld zeigt die Sprache des Browsers und nicht die der Seite** —
+    und **in diesem Container ist sie nicht umstellbar.** Chromium schreibt in
+    ein `type="date"` die Schreibweise seiner Oberflächensprache; das Bild liest
+    `mm/dd/yyyy` und `09/13/2026`.
+
+    Hier stand bis zum 5. September 2026, `args: ['--lang=de-DE']` behebe das
+    und sei am 4. September gemessen. **Nachgemessen in drei Fassungen stimmt
+    das nicht:**
+
+    | Start | `navigator.language` | Feld zeigt |
+    |---|---|---|
+    | ohne Fahnen | `en-US` | `mm/dd/yyyy` |
+    | `--lang=de-DE` | `en-US` | `mm/dd/yyyy` |
+    | `--lang` **und** `--accept-lang` | `de-DE` | `mm/dd/yyyy` |
+
+    `--lang` allein ändert nicht einmal `navigator.language`; erst mit
+    `--accept-lang` tut es das — und **die Schreibweise des Feldes folgt
+    trotzdem nicht.** Sie hängt am Sprachpaket der Oberfläche, und dieses
+    Chromium bringt nur `en-US` mit.
 
     > **Ein Bild, das in der Sprache des Prüfstands aufgenommen wurde, sagt über
     > die Anzeige auf dem Gerät des Lesers nichts.**
+
+    Was daraus folgt: **Ein amerikanisches Datum auf einem Bild aus diesem
+    Container ist kein Befund.** Wer die deutsche Schreibweise belegen will,
+    braucht ein anderes Chromium — im Panel selbst ist nichts zu ändern, das
+    Feld ist ein `type="date"` und die Schreibweise gehört dem Gerät.
+
+    > **Eine Zeile, die eine Behebung behauptet, ist teurer als eine, die eine
+    > Grenze benennt — sie lässt den Nächsten glauben, er habe den Fehler
+    > gemacht.**
   - **Kein `| head` über dem Messlauf.** `head` schliesst die Leitung nach der
     ersten Zeile, node stirbt am SIGPIPE — und die Aufnahmen der übrigen drei
     Lagen sind dann die des **vorigen** Laufs. Am 23. August genau so passiert:

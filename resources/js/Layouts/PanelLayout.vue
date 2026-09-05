@@ -22,10 +22,18 @@
  */
 import { Link, router, usePage } from '@inertiajs/vue3'
 import Confirmation from '../Components/Confirmation.vue'
+import Bands from '../Components/Bands.vue'
 import MarkIcon from '../Components/MarkIcon.vue'
 import NavIcon from '../Components/NavIcon.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { announcement } from '../Composables/useAnnounce'
+/*
+ * **Als `flashMeldung` und nicht als `announcement`.** Beides heisst in diesem
+ * Panel etwas anderes: `announcement()` ist die grüne Erfolgsmeldung eines
+ * Vorgangs (`docs/19 §6.3`), `announcements` sind die Ankündigungen des
+ * Betreibers (A14). Ohne den Aliasnamen stünden hier zwei Bezeichner, die sich
+ * um ein `s` unterscheiden und nichts miteinander zu tun haben.
+ */
+import { announcement as flashMeldung } from '../Composables/useAnnounce'
 
 defineProps<{ title: string; subline?: string }>()
 
@@ -35,6 +43,24 @@ const account = computed(
   () => page.props.account as { name: string; is_admin: boolean; has_active_subscription: boolean } | null,
 )
 const impersonation = computed(() => page.props.impersonation as { active: boolean; admin: string } | null)
+
+/*
+ * Die Ankündigungen des Betreibers (A14).
+ *
+ * **Sie kommen aus der geteilten Nutzlast und werden hier nicht sortiert.** Die
+ * Reihenfolge — dringendste zuerst — macht {@link Announcement::visibleTo()};
+ * eine zweite Sortierung hier wäre die zweite Fassung derselben Regel, und die
+ * zweite ist die, die veraltet.
+ *
+ * **Der Rückfall auf die leere Liste ist tragend.** Beim partiellen Nachladen
+ * schickt der Server geteilte Eigenschaften gar nicht mit (gemessen,
+ * `docs/81 §2.3q` M6) — der Klient hält dann die vorige. Fehlt sie beim ersten
+ * Aufbau, ist `announcements.length` ohne Rückfall ein Fehler und nicht eine
+ * Null.
+ */
+const announcements = computed(
+  () => (page.props.announcements ?? []) as { id: number; badge: string; rank: string; body: string }[],
+)
 
 /*
  * Die Erfolgsmeldung steht hier und nicht auf jeder Seite.
@@ -49,7 +75,7 @@ const impersonation = computed(() => page.props.impersonation as { active: boole
  * `role="status"` und nicht `alert`: Es ist eine Bestätigung und keine
  * Warnung — ein Screenreader liest sie vor, ohne die Arbeit zu unterbrechen.
  */
-const gemeldet = announcement()
+const gemeldet = flashMeldung()
 
 /*
  * **Zwei Quellen, ein Ort.** `flash.success` kommt aus einer Inertia-Antwort;
@@ -266,7 +292,26 @@ const navigation = computed(() => {
      * „Updates" steht seit A1: „Nicht unten bei PHP-Versionen und
      * Datenbankserver. Die sind Einstellungen." Sie war gedacht und nie gezogen.
      */
-    { group: 'Betrieb', items: [
+    /*
+     * **„Verlauf" ist am 5. September aus „Betrieb" herausgelöst worden**, und
+     * die Trennlinie stand schon im Kommentar an „Logs": *Die drei sagen, was
+     * passiert ist.* „Betrieb" sagt, was **jetzt** ist und was ansteht.
+     *
+     * **Der Anlass war eine Zahl und die Einsicht dahinter.** Mit
+     * „Ankündigungen" trug „Betrieb" neun Punkte, und acht ist die gesetzte
+     * Grenze aus {@link NavGroupTest} — sie liegt über den sieben, die die
+     * grösste sonst hat, und unter den dreizehn, die die alte Gruppe „Server"
+     * einmal hatte, ohne dass es jemand bemerkte.
+     *
+     * > **Eine Ausnahme, die man aufschreibt, ist ein offener Punkt; eine
+     * > Schwelle, die man höher setzt, ist keiner mehr.**
+     *
+     * Die Ausnahmeliste war deshalb der falsche Weg: Sie ist für Gruppen, über
+     * die der Betreiber noch nicht entschieden hat — „Betrieb" hat er am
+     * 30. August selbst geschnitten. Entschieden hat er die Teilung am
+     * 5. September.
+     */
+    { group: 'Verlauf', items: [
       { name: 'Vorgänge', href: '/operations', icon: 'operations' },
       { name: 'Protokoll', href: '/audit', icon: 'log' },
 
@@ -288,6 +333,9 @@ const navigation = computed(() => {
        *   sie dort?
        */
       { name: 'Logs', href: '/logs', icon: 'logfile', ability: 'operate-server' },
+    ] },
+
+    { group: 'Betrieb', items: [
 
       /*
        * **Der Wartungsmodus steht in „Betrieb" und nicht in
@@ -302,6 +350,22 @@ const navigation = computed(() => {
        * Betreiber gemeldet und kein Test.
        */
       { name: 'Wartungsmodus', href: '/maintenance', icon: 'maintenance', ability: 'operate-server' },
+
+      /*
+       * **„Ankündigungen" steht neben dem Wartungsmodus, und das ist die
+       * Antwort auf die Frage, wo jemand sie sucht.**
+       *
+       * Nicht in „Einstellungen": Eine Ankündigung ist nichts, was man einmal
+       * einstellt — sie ist eine Handlung mit einem Anlass. Und der häufigste
+       * Anlass steht direkt darüber; `docs/103` nennt die Verbindung
+       * ausdrücklich einseitig: Ein Wartungsmodus **kann** seine Ankündigung
+       * erzeugen, eine Ankündigung bewirkt am Webserver nichts.
+       *
+       * Dieses Projekt hat den Ort eines Menüpunkts dreimal falsch gehabt, und
+       * jedes Mal hat es der Betreiber gemeldet und kein Test — deshalb steht
+       * die Überlegung hier und nicht nur im Kopf.
+       */
+      { name: 'Ankündigungen', href: '/announcements', icon: 'announcement', ability: 'operate-server' },
 
       /*
        * **„Dienste" steht zwischen „Logs" und „Updates", und das ist die
@@ -497,12 +561,21 @@ onBeforeUnmount(() => {
       den Rückweg bei sich — ein Wechsel, aus dem man suchen muss, ist einer,
       den jemand vergisst.
     -->
-    <div v-if="impersonation?.active" class="band">
-      <span>
-        Sie arbeiten in der Sicht dieses Kunden.
-        Angemeldet als <b>{{ account?.name }}</b>, gewechselt von <b>{{ impersonation.admin }}</b>.
-      </span>
-      <button type="button" class="button small" @click="stopImpersonation">Zurück zur Verwaltung</button>
+    <div v-if="impersonation?.active || announcements.length" class="bands">
+      <div v-if="impersonation?.active" class="band warn">
+        <span>
+          Sie arbeiten in der Sicht dieses Kunden.
+          Angemeldet als <b>{{ account?.name }}</b>, gewechselt von <b>{{ impersonation.admin }}</b>.
+        </span>
+        <button type="button" class="button small" @click="stopImpersonation">Zurück zur Verwaltung</button>
+      </div>
+
+      <!--
+        Die Ankündigungen des Betreibers (A14). Dringendste zuerst — die
+        Reihenfolge macht das Modell und nicht die Seite, damit sie nicht in
+        zwei Fassungen auseinanderläuft.
+      -->
+      <Bands :items="announcements" />
     </div>
 
     <!--
@@ -696,19 +769,6 @@ onBeforeUnmount(() => {
  * schon einmal 591px hohe Kopfzeilen erzeugt hat. Dort war die Antwort, das
  * Raster aufzugeben; hier reicht es, nicht zählen zu lassen.
  */
-.band {
-  grid-column: 1 / -1;
-  grid-row: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 10px 24px;
-  font-size: var(--text-table);
-  color: var(--warn);
-  background: var(--warn-surface);
-  border-bottom: 1px solid var(--warn);
-}
 
 /* ── Das Rail ─────────────────────────────────────────────────────────── */
 .rail {
@@ -1017,7 +1077,15 @@ onBeforeUnmount(() => {
 
   .band {
     flex-wrap: wrap;
-    padding-top: calc(10px + env(safe-area-inset-top));
+  }
+
+  /*
+   * Die sichere Fläche trägt die **Hülle** und nicht mehr das erste Band.
+   * Läge sie am Band, bekäme jedes einzelne den Abstand — und drei
+   * Ankündigungen ergäben drei Kerben statt einer.
+   */
+  .bands {
+    padding-top: env(safe-area-inset-top);
   }
 
   .content {

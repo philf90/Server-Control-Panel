@@ -102,9 +102,28 @@ Das ist keine Verschönerung, sondern der Befund aus M2: Zwei Geschwister mit
 bekommt dort die Ränge, die `.notice` seit P2 führt. Ein Baustein, den zwei
 Stellen benutzen, gehört nicht in eine Komponente.
 
-**Mitsamt dem Rand.** `.notice` trägt `border-left: 3px solid`, `.band` heute
+**Mitsamt dem Rand — und zwar demselben.** `.notice` trägt
+`border-left: 3px solid`, `.band` trug als Sichtwechsel-Streifen
 `border-bottom: 1px solid`. Erbt der Streifen nur die Fläche, bleibt vom
 Rangsignal die Lasur mit ΔE 3,8 übrig (M9).
+
+**Am 5. September ist daraus dieselbe Kante geworden**, entschieden vom
+Betreiber, nachdem fünf Formen nebeneinander standen. Die Hülle rückt die
+Bänder ein (`display: flex`, `gap: 8px`, `padding: 12px 16px`), und der Rand
+sitzt links mit drei Pixeln und einer Rundung — wie bei `.notice`.
+
+> **Zwei Formen für dieselbe Aussage sind keine Vielfalt, sondern eine Regel,
+> die an einer Stelle vergessen wurde.**
+
+**Gemessen, was es kostet** (390 × 844, echtes Panel, beide Themes): Die Hülle
+wächst von 195 px auf **214 px**, der Inhalt beginnt bei 279 statt 260 px. Und
+die Fassung nimmt 32 px Breite, also rund **acht Zeichen je Zeile** — bei zwei
+Zeilen sechzehn weniger Auskunft. Das trifft nur Texte, die ohnehin geklammert
+werden.
+
+**Die Fuge ist damit erklärt statt geduldet:** Vorher stand `band + band` als
+Ausnahme in `BlockSpacingTest::OPEN_SEAMS`, weil der Abstand aus dem Rand kam.
+Mit `flex` und `gap` greift der reguläre Zweig des Wächters.
 
 > **Ein Rang, der aus drei Trägern besteht — Fläche, Rand, Textfarbe —, verliert
 > beim Umzug den, den niemand aufgeschrieben hat.**
@@ -135,9 +154,31 @@ Einbindung — und genau deshalb steht sie hier und nicht als Nebensatz.
 
 ## 5 · Die Verwaltung
 
-Eine Seite unter `/announcements`, hinter **`manage-settings`**. Nicht
-`operate-server`: Eine Ankündigung dreht nichts am Server, sie ist Text in einer
-Tabelle — dieselbe Art Griff wie die Anzeigezeitzone.
+Eine Seite unter `/announcements`, hinter **`operate-server`**.
+
+**Hier stand `manage-settings`, und das war falsch.** Die Begründung lautete
+„eine Ankündigung dreht nichts am Server, sie ist Text in einer Tabelle —
+dieselbe Art Griff wie die Anzeigezeitzone". Sie ordnet nach dem, was der Griff
+**anfasst**, und `docs/20 §6.1` ordnet nach dem, was er **bewirkt**: kritisch
+ist unter anderem, was „alle Kunden mitnimmt".
+
+Eine Ankündigung mit dem Publikum „Kunde" erscheint bei **jedem** Kunden, im
+Namen des Betreibers. Und Entscheidung 4 setzt Störungen auf die Anmeldeseite —
+also vor jeden, der die Adresse kennt, ohne Anmeldung. Das ist ein
+Veröffentlichungsrecht und keine Einstellung.
+
+> **Eine Fähigkeit bemisst sich nicht daran, was ein Griff anfasst, sondern
+> daran, wen er erreicht.**
+
+**Keine Teilung wie bei „Updates" und „Dienste".** Dort sieht der Administrator
+zu und der Betreiber dreht, weil das Zusehen für sich einen Wert hat. Hier hat
+es keinen: Was angekündigt ist, sieht ein Administrator ohnehin als Streifen —
+sein Publikum steht in der Ankündigung. Eine zweite Ansicht derselben Sache
+wäre eine Seite ohne eigene Frage.
+
+Wenn der Betreiber Administratoren das Ankündigen geben will, ist das eine Zeile
+in `routes/web.php` und ein Eintrag mit Begründung in
+`AdminAbility::administratorRoutes()`.
 
 Sie zeigt die Ankündigungen mit Kategorie, Fenster, Publikum und Zustand, und
 sie ist der **Ort des vollen Textes**, auf den der gekürzte Streifen zeigt.
@@ -217,7 +258,7 @@ sind die beiden, für die es diese Stufe gibt.
 |---|---|---|
 | 1 | Eine Ankündigung anlegen und sie erscheint | Streifen oben, Kategorie als Wort, Farbe der Marke |
 | 2 | Drei gleichzeitig | **drei Streifen untereinander**, keiner verdeckt — der Befund aus M2 |
-| 3 | **Drei bei 390 px** *(Ausschluss)* | ≤ 189 px zusammen, `schiebt = 0`, Gegenprobe schlägt an |
+| 3 | **Drei bei 390 px** *(Ausschluss)* | **jedes Band gleich hoch, gleich wie lang sein Text ist** — gemessen 62 px je Band, 214 px mit der Hülle; `schiebt = 0`, Gegenprobe schlägt an |
 | 4 | 500 Zeichen | im Streifen zwei Zeilen, Verweis auf den vollen Text, der Text vollständig auf `/announcements` |
 | 5 | Publikum | ein Kundenkonto sieht die Kundenankündigung und nicht die für Admins |
 | 6 | **Das Fenster** *(Ausschluss)* | mit Anzeigezone auf `Europe/Berlin` gesetzt: sichtbar **während** der eingetippten Ortszeit, davor und danach nicht |
@@ -231,6 +272,24 @@ gelungene (M7).
 > **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
 > nicht.**
 
+**Punkt 3 misst eine Eigenschaft und nicht eine Zahl.** Die Zahl allein wäre
+willkürlich; was die Zeilenklammer zusagt, ist die **Unabhängigkeit von der
+Textlänge** — ein Band mit 500 Zeichen ist so hoch wie eines mit 60. Die Zahl
+steht daneben, damit ein Ausreisser auffällt.
+
+**Und sie ist beim Bauen einmal berichtigt worden.** Sie lautete „≤ 189 px",
+gerechnet aus M8 — dort trugen die Prüfkörper aber noch **kein Rangwort**; das
+verlangt M9, und M9 kam nach M8. Der erste Wurf gab dem Wort ein eigenes
+Flexkind, es brach bei 390 px in eine eigene Zeile, und drei Bänder kosteten
+**264 px**. Im Textfluss kostet dasselbe Wort nichts.
+
+> **Ein Wort, das als eigenes Flexkind steht, nimmt auf der schmalen Fläche eine
+> ganze Zeile — auch wenn es vier Zeichen hat.**
+
+> **Ein Budget, das aus einer Messung ohne das spätere Merkmal stammt, ist kein
+> Budget mehr — und ein Kriterium, das der Prüfling nicht erfüllen kann, prüft
+> den Verfasser.**
+
 **Punkt 2 braucht die breite Ansicht.** Der Fehler aus M2 zeigt sich bei
 1440 px und **nicht** bei 390 px — dort stapeln dieselben drei korrekt. Ein
 Punkt, der nur schmal misst, geht daran vorbei.
@@ -242,19 +301,33 @@ Punkt, der nur schmal misst, geht daran vorbei.
 Für jede Regel einer, und jeder wird gegen den Fehler gebrochen, den er fangen
 soll.
 
-| Wächter | hält |
-|---|---|
-| `AnnouncementRowTest` | genau **eine** Hülle nimmt `grid-row: 1`; kein Geschwister daneben — die Regel aus M2, gemessen am Layout und nicht an einer Liste im Test |
-| `AnnouncementRankTest` | jede Kategorie trägt Fläche **und** Rand **und** Wort; ein Rang, dem einer der drei fehlt, ist rot (M9) |
-| `AnnouncementClampTest` | die Kürzung steht als Zeilenklammer in `app.css` und nicht als Zeichenzahl im Controller (M8) |
-| `AnnouncementShareTest` | der Schlüssel in `share()` ist ein Verschluss — gemessen an der **Wirkung** (Abfragezähler unter beiden Anfragearten), nicht am Wort `fn` im Quelltext (M5) |
-| `AnnouncementWindowTest` | der Filter rechnet in UTC, gemessen mit einem **Versatz** und einer zweiten Zone daneben (M7) |
-| `AnnouncementAudienceTest` | jedes Publikum trennt an derselben Grenze wie die Rollen aus A9, in beide Richtungen |
-| `AnnouncementLoginTest` | auf den zwei Auth-Seiten erscheint **nur** `incident` — beide Richtungen, denn die stille Hälfte ist die, die zuviel zeigt |
+**Gebaut sind fünf und nicht die sieben, die hier zuerst standen** — nicht
+weil Regeln weggefallen wären, sondern weil drei von ihnen **denselben
+Baustein** beschreiben und einzeln je zwei Zeilen gewesen wären. Die Liste
+steht so, wie sie im Repo liegt; eine Planliste, die nicht stimmt, ist
+schlimmer als keine.
+
+| Wächter | Fälle | hält |
+|---|---|---|
+| `AnnouncementBandTest` | 5 | genau **eine** Hülle nimmt `grid-row: 1` (M2) · die Kürzung zählt Zeilen und nicht Zeichen (M8) · jeder Rang trägt Fläche, Rand **und** Textfarbe, und die Kategorie steht als Wort (M9) — die drei, die zuerst `AnnouncementRowTest`, `AnnouncementClampTest` und `AnnouncementRankTest` heissen sollten |
+| `AnnouncementShareTest` | 3 | der Schlüssel in `share()` ist ein Verschluss — gemessen an der **Wirkung** (Abfragezähler unter beiden Anfragearten), nicht am Wort `fn` im Quelltext (M5); und die Eigenschaft fehlt beim partiellen Nachladen, statt als leere Liste dazustehen (M6) |
+| `AnnouncementWindowTest` | 7 | der Filter rechnet in UTC, gemessen mit einem **Versatz** und einer zweiten Zone daneben (M7) |
+| `AnnouncementAudienceTest` | 12 | jedes Publikum trennt an derselben Grenze wie die Rollen aus A9, in beide Richtungen **in einem Fall** — ein eigener Fall für die Gegenrichtung wird beim nächsten Publikum vergessen |
+| `AnnouncementPageTest` | 12 | die Tür der Verwaltungsseite (Administrator und Kunde bekommen 403, der Betreiber nicht) und der Streifen der Anmeldeseite — beide Richtungen, denn die stille Hälfte ist die, die zuviel zeigt |
 
 **`AnnouncementShareTest` misst die Wirkung und nicht das Wort.** Ein Wächter,
 der `fn () =>` als Zeichenkette sucht, ist grün, sobald es irgendwo in der Datei
 steht — dieses Repo hat diesen Fehler oft genug bezahlt.
+
+**Und `AnnouncementPageTest` hat seinen Prüfkörper einmal an der falschen Hürde
+verloren.** Er rief `DELETE /announcements/1`; die Modellbindung läuft **vor**
+`can:`, also gab eine Kennung, die es nicht gibt, **404** statt 403 — beim
+Betreiber wurde daraus ein falsches Grün, weil 404 nicht 403 ist.
+
+> **Eine Gegenprobe, die an einer anderen Hürde scheitert als der gemeinten, hat
+> die gemeinte nicht geprüft.**
+
+Er legt die Zeile jetzt an und prüft ausdrücklich, dass **keine** 404 kommt.
 
 ---
 

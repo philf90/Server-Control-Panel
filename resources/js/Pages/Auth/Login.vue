@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Bands from '../../Components/Bands.vue'
 import { useForm, Head, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import EyeIcon from '../../Components/EyeIcon.vue'
@@ -28,6 +29,10 @@ import FormErrors from '../../Components/FormErrors.vue'
  * Version, die niemand ablesen kann, auch niemand meldet.
  */
 
+defineProps<{
+  incidents: { id: number; badge: string; rank: string; body: string }[]
+}>()
+
 const form = useForm({
   email: '',
   password: '',
@@ -49,6 +54,14 @@ function submit(): void {
 
 <template>
   <Head title="Anmeldung" />
+
+  <!--
+    Störungen des Betreibers, ganz oben (A14, `docs/103 §4.4`). Diese Seite
+    trägt `PanelLayout` nicht — deshalb steht der Streifen hier ein zweites
+    Mal, und deshalb ist er eine Komponente und kein Markup.
+  -->
+  <div class="signin-frame">
+    <Bands :items="incidents" />
 
   <main class="signin">
     <FormErrors />
@@ -136,6 +149,7 @@ function submit(): void {
       <span class="version">{{ version }}</span>
     </p>
   </main>
+  </div>
 </template>
 
 <style scoped>

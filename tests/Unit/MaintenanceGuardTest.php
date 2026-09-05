@@ -113,9 +113,55 @@ final class MaintenanceGuardTest extends TestCase
         $conf = SiteTemplate::render(Site::fromArgs($this->forms()[SiteTemplate::FORM_STATIC]));
 
         $this->assertStringContainsString(
-            'if ($uri ~ ^'.preg_quote(HttpChallenge::PREFIX).'/)',
+            '^'.preg_quote(HttpChallenge::PREFIX).'/'.HttpChallenge::TOKEN_CHARS.'+(\\?.*)?$',
             $conf,
-            'Die Ausnahme nennt einen anderen Pfad als HttpChallenge::PREFIX.',
+            'Die Ausnahme nennt einen anderen Pfad oder andere Tokenzeichen als HttpChallenge.',
+        );
+    }
+
+    /**
+     * Und sie fragt die **ursprüngliche** Adresse, nicht die gerade gültige.
+     *
+     * ## Der Fund, der diese Prüfung ausgelöst hat
+     *
+     * Am 4. September 2026 auf `cloudsrv24` gemessen: Die Prüfadresse gab
+     * während einer Wartung **503** statt 404 — aber nur im HTTPS-Block, nicht
+     * im Block auf Port 80.
+     *
+     * Der Grund ist `try_files $uri $uri/ /index.php` einer PHP-Domain. Das ist
+     * eine **innere Umleitung**, und nginx durchläuft die Rewrite-Phase des
+     * Servers dabei noch einmal — mit `$uri` = `/index.php`. Beim zweiten
+     * Durchgang passt die Ausnahme nicht mehr, `$wartung` wird wieder 1, und
+     * die Wache greift.
+     *
+     * > **Ein `if` auf Serverebene läuft bei jeder inneren Umleitung noch
+     * > einmal — und die Ausnahme, die beim ersten Mal griff, greift beim
+     * > zweiten nicht mehr.**
+     *
+     * Auf Port 80 fiel es nicht auf, weil dort die `location ^~` von
+     * {@see HttpChallenge} die Anfrage abfängt, bevor `try_files` sie umleiten
+     * kann.
+     *
+     * > **Zwei Blöcke mit derselben Wache verhalten sich verschieden, wenn nur
+     * > einer die `location` trägt, die die innere Umleitung verhindert.**
+     *
+     * ## Was diese Prüfung nicht kann
+     *
+     * Sie liest den erzeugten Text und nicht nginx. Dass `$request_uri` eine
+     * innere Umleitung übersteht, ist gegen nginx 1.24.0 gemessen und steht in
+     * `docs/102 §6` — hier hielte es nichts.
+     */
+    public function test_the_exception_asks_the_original_address(): void
+    {
+        $conf = SiteTemplate::render(Site::fromArgs($this->forms()[SiteTemplate::FORM_PHP]));
+
+        $this->assertStringContainsString('if ($request_uri ~ ^', $conf);
+
+        $this->assertStringNotContainsString(
+            'if ($uri ~ ^'.preg_quote(HttpChallenge::PREFIX),
+            $conf,
+            '`$uri` ändert sich bei einer inneren Umleitung — die Ausnahme wäre beim '.
+            'zweiten Durchgang fort, und die Zertifikatserneuerung stürbe während jeder Wartung.',
         );
     }
 

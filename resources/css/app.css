@@ -3870,6 +3870,31 @@ p:not([class]) {
   border-radius: var(--radius);
 }
 
+/*
+ * Ein Datums- oder Zeitfeld ist so breit wie sein Inhalt und nicht so breit wie
+ * die Zeile.
+ *
+ * **Gemeldet vom Betreiber am 4. September 2026**, auf dem Telefon. Gemessen
+ * bei 390 px: Beide Felder waren **358 px** breit, gebraucht haben sie **176**
+ * (`tt.mm.jjjj`) und **138** (`--:--`). Ein Eingabefeld mit fester Zeichenzahl,
+ * das über die halbe Breite hinaus leer bleibt, sieht aus wie eines, in das
+ * mehr hineingehört.
+ *
+ * **`max-content` und keine Zahl**, und das ist der tragende Teil: Die Breite
+ * dieser Steuerungen macht das Gerät — Safari auf iOS schreibt `tt.mm.jjjj`
+ * anders als Chromium, und eine hier gemessene Zahl schnitte dort ab.
+ *
+ * > **Eine Breite, die man an einem Gerät misst, gilt für dieses Gerät.**
+ *
+ * `max-width` und nicht `width`: Bleibt weniger Platz als der Inhalt braucht —
+ * eine schmale Spalte, eine grosse Schrift —, schrumpft das Feld weiter mit,
+ * statt die Zeile zu schieben.
+ */
+.field input[type="date"],
+.field input[type="time"] {
+  max-width: max-content;
+}
+
 .field textarea {
   min-height: 92px;
   resize: vertical;

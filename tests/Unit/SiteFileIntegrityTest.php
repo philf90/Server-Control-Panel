@@ -11,6 +11,7 @@ use SrvPanel\Agent\Diagnose\Verdict;
 use SrvPanel\Agent\Maintenance;
 use SrvPanel\Agent\Ops\SystemDiagnose;
 use SrvPanel\Agent\PoolTemplate;
+use SrvPanel\Agent\Site;
 use SrvPanel\Agent\SiteTemplate;
 use Tests\Support\MethodBody;
 use Tests\Support\WithoutPhpComments;
@@ -149,6 +150,89 @@ final class SiteFileIntegrityTest extends TestCase
     }
 
     /** Ein INI-Kommentar mit dem Schlüssel zählt nicht — und `[p1001]` ist kein Schlüssel. */
+    /**
+     * Keine Vorlage schreibt einen Trenner des Lesers in ein Anführungszeichen.
+     *
+     * ## Der Fund, der diese Prüfung ausgelöst hat
+     *
+     * {@see Statements::nginx()} zerlegt eine Datei an `;`, `{` und `}` — und
+     * kennt Anführungszeichen **nicht**. Am 4. September 2026 sollte die Wache
+     * des Wartungsmodus eine Bedingung mit `{16,128}` bekommen; nginx verlangt
+     * für Klammern in einer Bedingung Anführungszeichen, und der Leser zerriss
+     * die Zeile daran. Der Nachtlauf hätte für **jede heile Domain** erfundene
+     * Anweisungen gemeldet.
+     *
+     * > **Ein Ausdruck, der in eine Datei geht, die ein anderer Leser zerlegt,
+     * > meidet dessen Trennzeichen — oder der Leser muss sie verstehen.**
+     *
+     * Gehalten wird die billigere Hälfte: Die Vorlagen meiden die Zeichen. Dass
+     * der Leser sie verstünde, wäre die andere und ist offen — sie steht als
+     * Frage in `docs/102 §6` und nicht als Zusage hier.
+     */
+    public function test_no_template_hides_a_separator_in_a_quoted_string(): void
+    {
+        $basis = ['subscription' => 'p1000', 'user' => 'p1000', 'domain' => 'beispiel.de'];
+
+        $formen = [
+            SiteTemplate::FORM_SUSPENDED => $basis + ['document_root' => 'httpdocs', 'suspended' => true],
+            SiteTemplate::FORM_REDIRECT => $basis + ['redirect_target' => 'https://ziel.example'],
+            SiteTemplate::FORM_PHP => $basis + ['document_root' => 'httpdocs', 'php_version' => '8.4'],
+            SiteTemplate::FORM_STATIC => $basis + ['document_root' => 'httpdocs'],
+        ];
+
+        $zitate = 0;
+
+        foreach ($formen as $form => $args) {
+            $conf = SiteTemplate::render(Site::fromArgs($args + [
+                'maintenance_until' => '2026-09-04 23:35',
+                'maintenance_zone' => 'CEST (UTC+02:00)',
+            ]));
+
+            foreach (explode("\n", $conf) as $nummer => $zeile) {
+                $offen = null;
+                $laenge = strlen($zeile);
+
+                for ($i = 0; $i < $laenge; $i++) {
+                    $zeichen = $zeile[$i];
+
+                    if ($offen === null && ($zeichen === '"' || $zeichen === "'")) {
+                        $offen = $zeichen;
+
+                        continue;
+                    }
+
+                    if ($offen === $zeichen) {
+                        $offen = null;
+                        $zitate++;
+
+                        continue;
+                    }
+
+                    if ($offen !== null && str_contains(';{}', $zeichen)) {
+                        self::fail(sprintf(
+                            "%s, Zeile %d: %s steht in einem Anführungszeichen.\n\n%s\n\n".
+                            'Statements::nginx() zerlegt daran und meldet erfundene Anweisungen.',
+                            $form,
+                            $nummer + 1,
+                            $zeichen,
+                            trim($zeile),
+                        ));
+                    }
+                }
+            }
+        }
+
+        /*
+         * **Die Untergrenze, und sie ist hier keine Formsache.** Fände der
+         * Leser gar keine Zeichenkette, käme er nie in den Zweig, der etwas
+         * meldet — und die Prüfung wäre grün, ohne hingesehen zu haben.
+         *
+         * > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes
+         * > als Null steht.**
+         */
+        self::assertGreaterThan(0, $zitate, 'Keine der vier Formen schreibt eine Zeichenkette — dann misst dieser Fall nichts.');
+    }
+
     public function test_ini_comments_and_sections_are_not_keys(): void
     {
         $this->assertSame(['user'], Statements::ini("; user = p1\n[p1]\nuser = p1\n"));

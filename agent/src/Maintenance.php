@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SrvPanel\Agent;
 
 use SrvPanel\Agent\Acme\HttpChallenge;
+use SrvPanel\Agent\Diagnose\Statements;
 
 /**
  * Der Wartungsmodus — die Wache im Server-Block und die Datei, die sie schaltet
@@ -145,15 +146,61 @@ final class Maintenance
     /**
      * Die Wache für einen Server-Block, samt ihrer benannten Fehler-location.
      *
-     * **Die Ausnahme kommt aus {@see HttpChallenge::PREFIX} und wird nicht
-     * danebengeschrieben.** Zwei Listen, die dasselbe meinen, laufen
-     * auseinander — und die zweite ist die, die veraltet. `preg_quote` macht
-     * daraus einen Ausdruck; nginx spricht PCRE, die Ausgabe passt also.
+     * **Die Ausnahme kommt aus {@see HttpChallenge::PREFIX} und
+     * {@see HttpChallenge::TOKEN} und wird nicht danebengeschrieben.** Zwei
+     * Listen, die dasselbe meinen, laufen auseinander — und die zweite ist die,
+     * die veraltet. `preg_quote` macht daraus einen Ausdruck; nginx spricht
+     * PCRE, die Ausgabe passt also.
+     *
+     * ## `$request_uri` und nicht `$uri` — gemessen am 4. September 2026
+     *
+     * Der erste Wurf fragte `$uri`, und auf `cloudsrv24` gab die Prüfadresse
+     * während einer Wartung **503** statt 404 — aber nur im HTTPS-Block, nicht
+     * im Block auf Port 80.
+     *
+     * Der Grund ist `try_files $uri $uri/ /index.php` einer PHP-Domain: Das ist
+     * eine **innere Umleitung**, und nginx durchläuft die Rewrite-Phase des
+     * Servers dabei **noch einmal** — mit `$uri` = `/index.php`. Beim zweiten
+     * Durchgang passt die Ausnahme nicht mehr, `$wartung` wird wieder 1, und
+     * die Wache greift.
+     *
+     * > **Ein `if` auf Serverebene läuft bei jeder inneren Umleitung noch
+     * > einmal — und die Ausnahme, die beim ersten Mal griff, greift beim
+     * > zweiten nicht mehr.**
+     *
+     * Auf Port 80 fiel es nicht auf, weil dort die eigene `location ^~` von
+     * {@see HttpChallenge} die Anfrage abfängt, bevor `try_files` sie umleiten
+     * kann — zwei Blöcke mit derselben Wache, verschieden im Ausgang.
+     *
+     * `$request_uri` ist die **ursprüngliche** Adresse und ändert sich bei einer
+     * inneren Umleitung nicht. Weil sie dafür unnormalisiert ist, endet der
+     * Ausdruck am Token: `..` und ein Unterpfad kommen darin nicht vor, und
+     * niemand kann sich über einen ACME-Pfad an der Wartungsseite vorbeischreiben.
+     *
+     * Eine Abfrage dahinter ist zugelassen, obwohl RFC 8555 §8.3 keine kennt:
+     * Sie kann keinen Pfad öffnen — `$uri` ist da längst abgetrennt —, und der
+     * Fehler soll zur sicheren Seite fallen. **Eine verpasste Ausnahme kostet
+     * ein Zertifikat, eine zu weite einen Blick auf die Website.**
+     *
+     * **Und er trägt keine Längengrenze, sondern nur ein `+`.** Nicht aus
+     * Bequemlichkeit: `{16,128}` müsste in Anführungszeichen stehen, damit
+     * nginx die Klammern nicht als Blockgrenzen liest — und
+     * {@see Statements::nginx()} zerlegt eine Datei
+     * an `;{}`, **ohne Anführungszeichen zu kennen**. Der Nachtlauf von A10
+     * meldete daraufhin erfundene Anweisungen für jede heile Domain.
+     *
+     * > **Ein Ausdruck, der in eine Datei geht, die ein anderer Leser zerlegt,
+     * > meidet dessen Trennzeichen — oder der Leser muss sie verstehen.**
+     *
+     * Die Länge fehlt hier nichts: Sicherheit trägt die **Zeichenklasse**
+     * (kein `/`, kein `.`, kein `?`), und ein zu kurzer Token wird von
+     * {@see HttpChallenge} abgewiesen, sobald er eine Datei sucht.
      */
     public static function nginxGuard(?string $until, ?string $zone): string
     {
         $flag = self::FLAG;
         $prefix = preg_quote(HttpChallenge::PREFIX);
+        $token = HttpChallenge::TOKEN_CHARS.'+';
         $page = self::page($until, $zone);
 
         return <<<CONF
@@ -165,7 +212,7 @@ final class Maintenance
             # verschachtelte PHP-location nicht ab (M25).
             set \$wartung 0;
             if (-f {$flag}) { set \$wartung 1; }
-            if (\$uri ~ ^{$prefix}/) { set \$wartung 0; }
+            if (\$request_uri ~ ^{$prefix}/{$token}(\?.*)?$) { set \$wartung 0; }
             if (\$wartung = 1) { return 503; }
 
             # `add_header` ist in einem `if` auf Serverebene nicht erlaubt (M27)

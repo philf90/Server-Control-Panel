@@ -782,7 +782,7 @@ python3 - <<'PY'
 p = 'agent/src/Acme/HttpChallenge.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    "        if (preg_match('/^[A-Za-z0-9_-]{16,128}$/D', $token) !== 1) {\n"
+    "        if (preg_match('/^'.self::TOKEN.'$/D', $token) !== 1) {\n"
     "            throw AgentException::badRequest('Unzulässiger Token für die Prüfdatei.', ['token' => $token]);\n"
     "        }\n\n",
     '',
@@ -23819,11 +23819,11 @@ vorher_datei agent/src/Maintenance.php
 python3 - <<'PY2'
 p = 'agent/src/Maintenance.php'
 s = open(p, encoding='utf-8').read()
-alt = """            if (\\$uri ~ ^{$prefix}/) { set \\$wartung 0; }
+alt = """            if (\\$request_uri ~ ^{$prefix}/{$token}(\\?.*)?$) { set \\$wartung 0; }
             if (\\$wartung = 1) { return 503; }"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, """            if (\\$wartung = 1) { return 503; }
-            if (\\$uri ~ ^{$prefix}/) { set \\$wartung 0; }""", 1))
+            if (\\$request_uri ~ ^{$prefix}/{$token}(\\?.*)?$) { set \\$wartung 0; }""", 1))
 PY2
 griff_datei agent/src/Maintenance.php "die Ausnahme steht zu spaet" &&
 pruefe "die Ausnahme steht zu spaet" \
@@ -24178,6 +24178,84 @@ pruefe "die Seite zeigt den abgelegten Wert" \
   MaintenanceRoundTripTest::test_what_was_typed_comes_back_in_the_display_zone failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceRoundTripTest passed
+
+echo
+echo "== DateInputTest: das Datumsfeld nimmt wieder die ganze Zeile =="
+#
+# Gemessen bei 390 px: 358 px breit, gebraucht 176. Ein Feld mit fester
+# Zeichenzahl, das ueber die halbe Breite hinaus leer bleibt, sieht aus wie
+# eines, in das mehr hineingehoert.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.field input[type="date"],\n.field input[type="time"] {\n  max-width: max-content;\n}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.field input[type="date"],\n.field input[type="time"] {\n  border-radius: var(--radius);\n}', 1))
+PY2
+griff_datei resources/css/app.css "das Datumsfeld nimmt wieder die ganze Zeile" &&
+pruefe "das Datumsfeld nimmt wieder die ganze Zeile" \
+  DateInputTest::test_a_date_or_time_field_is_capped_in_the_stylesheet failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DateInputTest passed
+
+echo
+echo "== MaintenanceGuardTest: die Ausnahme fragt wieder die gerade gueltige Adresse =="
+#
+# Der Fund vom 4. September: `try_files ... /index.php` ist eine innere
+# Umleitung, und nginx durchlaeuft die Rewrite-Phase dabei noch einmal — mit
+# `$uri` = /index.php. Die Ausnahme ist dann fort, und die Pruefadresse gibt 503.
+vorher_datei agent/src/Maintenance.php
+python3 - <<'PY2'
+p = 'agent/src/Maintenance.php'
+s = open(p, encoding='utf-8').read()
+alt = 'if (\\$request_uri ~ ^{$prefix}/{$token}(\\?.*)?$)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if (\\$uri ~ ^{$prefix}/)', 1))
+PY2
+griff_datei agent/src/Maintenance.php "die Ausnahme fragt wieder die gerade gueltige Adresse" &&
+pruefe "die Ausnahme fragt wieder die gerade gueltige Adresse" \
+  MaintenanceGuardTest::test_the_exception_asks_the_original_address failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
+
+echo
+echo "== MaintenanceGuardTest: die Ausnahme nennt eigene Tokenzeichen =="
+#
+# Zwei Ausdruecke, die dasselbe meinen, laufen auseinander — und der zweite
+# entscheidet, ob eine Erneuerung waehrend einer Wartung durchkommt.
+vorher_datei agent/src/Maintenance.php
+python3 - <<'PY2'
+p = 'agent/src/Maintenance.php'
+s = open(p, encoding='utf-8').read()
+alt = "$token = HttpChallenge::TOKEN_CHARS.'+';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$token = '[a-z0-9]+';", 1))
+PY2
+griff_datei agent/src/Maintenance.php "die Ausnahme nennt eigene Tokenzeichen" &&
+pruefe "die Ausnahme nennt eigene Tokenzeichen" \
+  MaintenanceGuardTest::test_the_exception_names_the_challenge_prefix_itself failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
+
+echo
+echo "== SiteFileIntegrityTest: ein Trenner versteckt sich im Anfuehrungszeichen =="
+#
+# Statements::nginx() zerlegt an ; { } und kennt keine Anfuehrungszeichen. Der
+# Nachtlauf meldete daraufhin erfundene Anweisungen fuer jede heile Domain.
+vorher_datei agent/src/Maintenance.php
+python3 - <<'PY2'
+p = 'agent/src/Maintenance.php'
+s = open(p, encoding='utf-8').read()
+alt = "$token = HttpChallenge::TOKEN_CHARS.'+';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$token = '\"'.HttpChallenge::TOKEN.'\"';", 1))
+PY2
+griff_datei agent/src/Maintenance.php "ein Trenner versteckt sich im Anfuehrungszeichen" &&
+pruefe "ein Trenner versteckt sich im Anfuehrungszeichen" \
+  SiteFileIntegrityTest::test_no_template_hides_a_separator_in_a_quoted_string failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

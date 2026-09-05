@@ -25389,3 +25389,56 @@ Fallen: Pint machte aus einem `{@see \App\Support\Time\Clock}` im Dokumentblock
 des Agenten einen `use`-Eintrag (`AgentIndependenceTest`), und der Eingriff auf
 `Maintenance::nginxGuard()` fand seinen Text nicht mehr, weil der Aufruf ein
 zweites Argument bekommen hat (`BreakScriptTest`).
+
+### Die Prüfadresse gab während einer Wartung 503 — aber nur über HTTPS
+
+Gemessen am 4. September 2026 auf `cloudsrv24` gegen `0.7.3-rc.17`. Dieselbe
+Wache, wörtlich identisch in beiden Server-Blöcken, und zwei verschiedene
+Ausgänge: `http` ACME → 404, `https` ACME → **503**.
+
+**Die Ursache ist `try_files $uri $uri/ /index.php` einer PHP-Domain.** Das ist
+eine innere Umleitung, und nginx durchläuft die Rewrite-Phase des Servers dabei
+noch einmal — mit `$uri` = `/index.php`. Beim zweiten Durchgang passt die
+Ausnahme für die ACME-Prüfadresse nicht mehr, `$wartung` wird wieder 1, und die
+Wache greift.
+
+> **Ein `if` auf Serverebene läuft bei jeder inneren Umleitung noch einmal — und
+> die Ausnahme, die beim ersten Mal griff, greift beim zweiten nicht mehr.**
+
+Auf Port 80 fiel es nicht auf, weil dort die eigene `location ^~` von
+`HttpChallenge` die Anfrage abfängt, bevor `try_files` sie umleiten kann.
+
+> **Zwei Blöcke mit derselben Wache verhalten sich verschieden, wenn nur einer
+> die `location` trägt, die die innere Umleitung verhindert.**
+
+**Gefunden hat es kein Nachdenken, sondern der dritte Nachbau.** Die Wache
+isoliert: 404, also richtig. Der Rumpf des HTTPS-Blocks ohne ACME-`location`:
+auch 404. Erst mit dem **PHP**-Rumpf statt des statischen kam die 503.
+
+> **Ein Prüfkörper, der eine andere Form misst als die des Prüflings, misst die
+> falsche — und sein Grün liest sich wie ein Freispruch.**
+
+Die Ausnahme fragt seitdem `$request_uri` — die ursprüngliche Adresse, die eine
+innere Umleitung nicht verändert. Weil sie dafür unnormalisiert ist, endet der
+Ausdruck am Token; die Zeichen kommen aus `HttpChallenge::TOKEN_CHARS`
+(base64url nach RFC 8555 §8.1), also kein `/`, kein `.`, kein `?`. Eine Abfrage
+dahinter ist zugelassen, obwohl die Norm keine kennt: Sie kann keinen Pfad
+öffnen, und eine verpasste Ausnahme kostet ein Zertifikat, eine zu weite einen
+Blick auf die Website. Gemessen gegen nginx 1.24.0 in fünf Lagen.
+
+**Und die Behebung hat einen zweiten Befund ausgelöst.** Der erste Wurf schrieb
+`{16,128}` in die Bedingung; nginx verlangt dafür Anführungszeichen, und
+`Statements::nginx()` aus A10 zerlegt eine Datei an `;`, `{` und `}` **ohne
+Anführungszeichen zu kennen**. Drei Wächter aus A10 sind sofort rot geworden —
+ohne sie hätte der Nachtlauf für jede heile Domain erfundene Anweisungen
+gemeldet.
+
+> **Ein Ausdruck, der in eine Datei geht, die ein anderer Leser zerlegt, meidet
+> dessen Trennzeichen — oder der Leser muss sie verstehen.**
+
+Gebaut ist die billigere Hälfte: Die Vorlagen meiden die Zeichen, und
+`SiteFileIntegrityTest` hält das an allen vier Formen. Dass der Leser sie
+verstünde, bleibt offen und steht in `docs/102 §5`.
+
+**Und zwei bestehende Eingriffe des Bruchskripts sind dabei stumpf geworden** —
+`BreakScriptTest` hat beide gemeldet, weil ihr Zieltext umgezogen war.

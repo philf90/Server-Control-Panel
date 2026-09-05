@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SrvPanel\Agent\Diagnose;
 
 use SrvPanel\Agent\Keys;
+use SrvPanel\Agent\Maintenance;
 use SrvPanel\Agent\ManagedBlock;
 use SrvPanel\Agent\Ops\SystemDiagnose;
 use SrvPanel\Agent\Result;
@@ -68,7 +69,7 @@ final class Verdict
         'web.config' => ['invalid', self::UNREACHABLE],
         'php.config' => ['invalid', self::UNREACHABLE],
         'ssh.config' => ['invalid', self::UNREACHABLE],
-        'web.file' => ['missing', 'empty', 'directive_lost', self::UNREACHABLE],
+        'web.file' => ['missing', 'empty', 'directive_lost', 'guard_missing', self::UNREACHABLE],
         'php.file' => ['missing', 'empty', 'directive_lost', self::UNREACHABLE],
         'block.integrity' => ['begin_without_end', 'end_without_begin', 'duplicate_block', self::UNREACHABLE],
         'quota.state' => ['off', 'not_enforced', self::UNREACHABLE],
@@ -159,6 +160,79 @@ final class Verdict
         }
 
         return null;
+    }
+
+    /**
+     * Steht die Wache des Wartungsmodus in **jedem** Server-Block der Datei?
+     *
+     * ## Warum das die Zusage je Anweisungsname nicht kann
+     *
+     * Gemessen am 5. September 2026: Wird die **ganze** Wache aus einem Block
+     * entfernt, meldet `directive_lost` vier fehlende Anweisungen — das reicht.
+     * Wird **nur die Zeile mit der ACME-Ausnahme** entfernt, meldet die Zusage
+     * **nichts**: `if` steht ja weiterhin dreimal in der Datei.
+     *
+     * > **Eine Zusage über Anweisungsnamen sieht eine fehlende Zeile nicht,
+     * > wenn ihr Name noch anderswo vorkommt.**
+     *
+     * Und genau diese Zeile ist die teuerste: Ohne sie antwortet die
+     * Prüfadresse von ACME während jeder Wartung mit 503, `nginx -t` gibt
+     * `rc=0`, und die Zertifikatserneuerung stirbt lautlos (M24).
+     *
+     * ## Wie verglichen wird
+     *
+     * Zeile für Zeile gegen {@see Maintenance::guardLines()} — den Sollzustand
+     * aus der Vorlage und nicht aus einer zweiten Liste. Verglichen wird ohne
+     * Einrückung, weil sie im Block von der Verschachtelung abhängt, und
+     * **gezählt** wird gegen die Zahl der Server-Blöcke: Eine Domain mit
+     * Zertifikat hat zwei, und eine Wache, die nur in einem steht, ist der
+     * Fall, den `MaintenanceGuardTest` am Rendern schon einmal gefunden hat.
+     *
+     * **Ohne Server-Block kein Urteil.** Eine Datei ohne `server {` ist kaputt
+     * oder leer — das sagt {@see self::file()}, und zwar in der Sprache, in der
+     * der Betreiber sie sieht.
+     *
+     * @return null|array{reason: 'guard_missing', detail: string}
+     */
+    public static function guard(string $content): ?array
+    {
+        $blocks = preg_match_all('/^\s*server\s*\{/m', $content);
+
+        if ($blocks === false || $blocks === 0) {
+            return null;
+        }
+
+        /** @var array<string, int> $seen */
+        $seen = [];
+
+        foreach (explode("\n", $content) as $line) {
+            $trimmed = trim($line);
+
+            if ($trimmed !== '') {
+                $seen[$trimmed] = ($seen[$trimmed] ?? 0) + 1;
+            }
+        }
+
+        $missing = [];
+
+        foreach (Maintenance::guardLines() as $expected) {
+            if (($seen[$expected] ?? 0) < $blocks) {
+                $missing[] = $expected;
+            }
+        }
+
+        if ($missing === []) {
+            return null;
+        }
+
+        return [
+            'reason' => 'guard_missing',
+            'detail' => sprintf(
+                "%d Server-Block(e), und diese Zeile(n) der Wache fehlen in mindestens einem:\n%s",
+                $blocks,
+                implode("\n", $missing),
+            ),
+        ];
     }
 
     /**

@@ -198,9 +198,7 @@ final class Maintenance
      */
     public static function nginxGuard(?string $until, ?string $zone): string
     {
-        $flag = self::FLAG;
-        $prefix = preg_quote(HttpChallenge::PREFIX);
-        $token = HttpChallenge::TOKEN_CHARS.'+';
+        [$setzen, $flagge, $ausnahme, $urteil, $seite, $ort] = self::guardLines();
         $page = self::page($until, $zone);
 
         return <<<CONF
@@ -210,20 +208,64 @@ final class Maintenance
             #
             # Auf Serverebene und nicht in `location /`: Dort deckte es die
             # verschachtelte PHP-location nicht ab (M25).
-            set \$wartung 0;
-            if (-f {$flag}) { set \$wartung 1; }
-            if (\$request_uri ~ ^{$prefix}/{$token}(\?.*)?$) { set \$wartung 0; }
-            if (\$wartung = 1) { return 503; }
+            {$setzen}
+            {$flagge}
+            {$ausnahme}
+            {$urteil}
 
             # `add_header` ist in einem `if` auf Serverebene nicht erlaubt (M27)
             # — Rumpf und Header stehen deshalb hier.
-            error_page 503 @wartung;
-            location @wartung {
+            {$seite}
+            {$ort}
                 add_header Retry-After 3600 always;
                 default_type text/html;
                 return 503 '{$page}';
             }
         CONF;
+    }
+
+    /**
+     * Die Zeilen der Wache, die von Zeit und Zone **unabhängig** sind.
+     *
+     * ## Warum es sie gibt
+     *
+     * Die Bestandsdiagnose vergleicht damit, was in einer Vhost-Datei
+     * tatsächlich steht (`docs/101 §5`, Grund `guard_missing`). Sie **darf
+     * dafür nicht die Seite mitnehmen**: Ändert der Betreiber die Endzeit,
+     * tragen die Blöcke sie erst nach dem Rundlauf der Warteschlange, und eine
+     * Prüfung über die ganze Wache meldete solange jede heile Domain.
+     *
+     * > **Ein Sollzustand, der sich häufiger ändert als der Prüfling, meldet
+     * > den Abstand und nicht den Schaden.**
+     *
+     * ## Warum sie hier steht und nicht in der Prüfung
+     *
+     * Der Sollzustand kommt aus der Vorlage und wird nicht nachgebaut — dieselbe
+     * Regel, an der `PROMISED_BY_FORM` in {@see SiteTemplate} hängt. Eine
+     * zweite Fassung dieser sechs Zeilen liefe auseinander, und die
+     * auseinandergelaufene entschiede dann jede Nacht über jede Domain.
+     *
+     * **Warum die `location`-Zeile mitzählt:** Ohne sie beantwortet
+     * `error_page 503 @wartung` ins Leere, und nginx liefert seine eigene
+     * 503-Seite aus — ohne `Retry-After` und ohne die Zeitangabe. Das ist ein
+     * Schaden, den weder `nginx -t` noch die Zusage je Anweisungsname sieht.
+     *
+     * @return array{0: string, 1: string, 2: string, 3: string, 4: string, 5: string}
+     */
+    public static function guardLines(): array
+    {
+        $flag = self::FLAG;
+        $prefix = preg_quote(HttpChallenge::PREFIX);
+        $token = HttpChallenge::TOKEN_CHARS.'+';
+
+        return [
+            'set $wartung 0;',
+            sprintf('if (-f %s) { set $wartung 1; }', $flag),
+            sprintf('if ($request_uri ~ ^%s/%s(\?.*)?$) { set $wartung 0; }', $prefix, $token),
+            'if ($wartung = 1) { return 503; }',
+            'error_page 503 @wartung;',
+            'location @wartung {',
+        ];
     }
 
     /**

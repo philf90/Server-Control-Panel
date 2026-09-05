@@ -25442,3 +25442,47 @@ verstünde, bleibt offen und steht in `docs/102 §5`.
 
 **Und zwei bestehende Eingriffe des Bruchskripts sind dabei stumpf geworden** —
 `BreakScriptTest` hat beide gemeldet, weil ihr Zieltext umgezogen war.
+
+### Die Bestandsdiagnose sieht jetzt eine halbe Wache — `docs/101 §5` ist gebaut
+
+Zwei Befunde, und der erste hat seinen Grund in einer Messung vom 5. September
+2026: Wird die **ganze** Wache des Wartungsmodus aus einem Server-Block
+entfernt, meldet die Zusage je Anweisungsname vier fehlende Anweisungen. Wird
+**nur die Zeile mit der ACME-Ausnahme** entfernt, meldet sie **nichts** — `if`
+steht ja weiterhin dreimal in der Datei.
+
+> **Eine Zusage über Anweisungsnamen sieht eine fehlende Zeile nicht, wenn ihr
+> Name noch anderswo vorkommt.**
+
+Und diese Zeile ist die teuerste von allen: Ohne sie antwortet die Prüfadresse
+von ACME während jeder Wartung mit 503, `nginx -t` gibt dabei `rc=0` (M26), und
+die Zertifikatserneuerung stirbt lautlos.
+
+`Verdict::guard()` vergleicht deshalb **Zeile für Zeile** gegen
+`Maintenance::guardLines()` — den Sollzustand aus der Vorlage und nicht aus
+einer zweiten Liste — und zählt je Server-Block: Eine Domain mit Zertifikat hat
+zwei, und eine Wache in nur einem davon ist ein Befund. Die Seite bleibt dabei
+aussen vor, weil sie die Endzeit trägt:
+
+> **Ein Sollzustand, der sich häufiger ändert als der Prüfling, meldet den
+> Abstand und nicht den Schaden.**
+
+Der zweite Befund ist `maintenance.window` / `overdue` — **das, was von der
+gestrichenen Automatik übrigbleibt**, und er ist ehrlicher als sie: Der
+Nachtlauf meldet am Morgen, was der Betreiber am Abend vergessen hat, statt sich
+auf einen Zeitgeber zu verlassen, dessen Ausfall wie ein laufendes Fenster
+aussähe. Auffällig und nicht Kaputt: Die Websites antworten genau so, wie
+geschaltet — falsch ist nur der Satz, den ihre Besucher lesen.
+
+**Drei bestehende Wächter haben beim Bauen zugebissen.** `DiagnoseSeamTest`
+meldete `php.file/guard_missing` als Grund ohne Sprecher — `web.file` und
+`php.file` teilten sich einen Zweig, und ein PHP-Pool hat keine Wache; der Zweig
+ist seitdem aufgetrennt. Derselbe Wächter und `DiagnoseCatalogTest` meldeten
+zusammen ein `unreachable` an `maintenance.window`, das niemand ausspricht — die
+Prüfung fragt zwei Werte aus den Einstellungen und kein Werkzeug. Und der
+`run()`-Zusammenstoss mit `PHPUnit\Framework\TestCase` hat zum sechsten Mal
+zugeschlagen, diesmal an einem Helfer im neuen Feature-Test.
+
+**Und fünf Eingriffe des Bruchskripts sind durch den Umbau stumpf geworden** —
+`BreakScriptTest` hat jeden einzelnen gemeldet, alle fünf zeigen jetzt auf ihren
+neuen Ort.

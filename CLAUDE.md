@@ -1463,7 +1463,14 @@ wäre die Prüfung ein halbes Jahr grün und ein halbes Jahr rot) und
 eingestellten Zone zurück — gemessen mit einem **Versatz** und mit einer zweiten
 Zone daneben, weil eine Prüfzone ohne Versatz eine fehlende Umrechnung wie eine
 gelungene aussehen liesse; was er nicht kann — den Weg durch `POST`, der den
-Agenten braucht — steht in seinem Kopf als Frage). Der Bruch selbst steht als
+Agenten braucht — steht in seinem Kopf als Frage) und `MaintenanceVerdictTest`
+(die Wache steht in **jedem** Server-Block, gemessen Zeile für Zeile gegen
+`Maintenance::guardLines()` und gezählt gegen die Zahl der Blöcke — die Zusage
+je Anweisungsname sieht eine fehlende Zeile nicht, wenn ihr Name noch anderswo
+vorkommt, und beide Richtungen stehen deshalb in **einem** Fall) und
+`MaintenanceOverdueTest` (der Nachtlauf misst die Ankündigung gegen den
+Zeitpunkt **des Laufs** und nicht gegen `now()` — derselbe Bestand, zwei Läufe,
+zwei Ergebnisse). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 

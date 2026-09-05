@@ -45,6 +45,16 @@ final class DiagnoseCatalogTest extends TestCase
         // ihn niemand — und genau das hat dieser Wächter zusammen mit
         // `DiagnoseSeamTest` gemeldet.
         'system.user',
+
+        // Fragt zwei Werte aus den eigenen Einstellungen und sonst nichts.
+        // Sie antworten, oder der ganze Nachtlauf antwortet nicht — es gibt
+        // kein Werkzeug dazwischen, das schweigen könnte.
+        //
+        // **Beim Bauen von A12 dazugekommen**, und derselbe Weg wie bei
+        // `system.user`: Der Eintrag trug zuerst `unreachable`, weil fast jede
+        // Prüfung ihn trägt. Gemeldet haben es dieser Wächter und
+        // `DiagnoseSeamTest` zusammen.
+        'maintenance.window',
     ];
 
     public function test_every_check_knows_at_least_one_reason(): void

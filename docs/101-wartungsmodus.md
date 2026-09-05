@@ -136,19 +136,44 @@ durch (`docs/78`).
 
 ## 5 · Was die Bestandsdiagnose dazu prüft
 
-Zwei Befunde in der Familie von A10, beide unter dem Schlüssel `web.file`
-beziehungsweise einem neuen `web.maintenance`:
+**Gebaut am 5. September 2026.** Zwei Befunde in der Familie von A10 — der eine
+als Grund von `web.file`, der andere unter einem eigenen Schlüssel
+`maintenance.window`:
 
 | Grund | wann | Zustand |
 |---|---|---|
-| `guard_missing` | ein Kundenblock trägt die Wache nicht | Kaputt |
-| `overdue` | Wartungsmodus an, angekündigtes Ende überschritten | Auffällig |
+| `web.file` / `guard_missing` | ein Kundenblock trägt die Wache nicht | Kaputt |
+| `maintenance.window` / `overdue` | Wartungsmodus an, angekündigtes Ende überschritten | Auffällig |
+
+**Warum nicht beide unter einem Schlüssel:** Ein Befund braucht einen
+Gegenstand, und die beiden haben verschiedene — die Domain und den Server.
+`guard_missing` gehört deshalb zu `web.file`, das je Domain ohnehin schon
+läuft; `overdue` bekommt einen eigenen Schlüssel. **Und `maintenance.window`
+trägt kein `unreachable`:** Es fragt zwei Werte aus den eigenen Einstellungen
+und kein Werkzeug, das schweigen könnte.
 
 **Der erste ist der Ersatz für den Prüfer, der nichts sieht.** M26 hat gemessen,
-dass `nginx -t` eine fehlende oder halbe Wache durchwinkt. Die Zusage je Form
-aus A10 kann es: `PROMISED_BY_FORM` wächst um `set`, `if`, `error_page` und die
-benannte `location`, und `Statements::lostInNginx()` rechnet in beide Richtungen
-nach.
+dass `nginx -t` eine fehlende oder halbe Wache durchwinkt.
+
+**Die Zusage je Form kann es nur zur Hälfte, und das ist gemessen.** Wird die
+*ganze* Wache aus einem Block entfernt, meldet `directive_lost` vier fehlende
+Anweisungen. Wird **nur die Zeile mit der ACME-Ausnahme** entfernt, meldet sie
+nichts — `if` steht ja weiterhin dreimal in der Datei.
+
+> **Eine Zusage über Anweisungsnamen sieht eine fehlende Zeile nicht, wenn ihr
+> Name noch anderswo vorkommt.**
+
+Und genau diese Zeile ist die teuerste: Ohne sie stirbt während jeder Wartung
+die Zertifikatserneuerung. `Verdict::guard()` vergleicht deshalb **Zeile für
+Zeile** gegen `Maintenance::guardLines()` — den Sollzustand aus der Vorlage und
+nicht aus einer zweiten Liste — und zählt je Server-Block: Eine Domain mit
+Zertifikat hat zwei, und eine Wache in nur einem davon ist ein Befund.
+
+`guardLines()` lässt die Seite bewusst weg. Sie trägt die Endzeit, und die
+ändert sich häufiger als der Block:
+
+> **Ein Sollzustand, der sich häufiger ändert als der Prüfling, meldet den
+> Abstand und nicht den Schaden.**
 
 **Der zweite ist das, was von der gestrichenen Automatik übrigbleibt** — und er
 ist ehrlicher als sie. Der Nachtlauf meldet am Morgen, was der Betreiber am

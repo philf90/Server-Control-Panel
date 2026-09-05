@@ -25558,3 +25558,46 @@ keiner am Prüfling; sie stehen in `docs/102 §9` und in `CLAUDE.md`.
   nachher", weil nichts lief); und zwei Anfragen in einer Testmethode, die sich
   Inertias Singleton teilten. Dazu eine Zahl, die neben einer gemessenen stand
   und nicht gemessen war — „280 Zeichen = vier Zeilen"; es sind sieben.
+
+### A14 — die Ablage und der Streifen (Schritte 1 und 2)
+
+- **`announcements`** trägt Kategorie, Text, Sichtbarkeitsfenster in UTC und
+  Publikum. Kein Agent, keine Datei, kein Neuladen von nginx — der Zuschnitt,
+  mit dem der Betreiber A14 von A12 getrennt hat. `dateTime` und nicht
+  `timestamp`, aus dem Grund, den `findings` schon bezahlt hat.
+- **`Announcement::visibleTo()`** ist die eine Stelle, die das Fenster
+  auswertet, und **`AnnouncementAudience::of()`** die eine, die ein Konto einem
+  Publikum zuordnet — sie fragt beide Achsen aus A9. Ein Kundenkonto, das durch
+  einen Fehler `operator` trüge, ist damit trotzdem Kunde.
+- **`Info` ist grün und nicht grau, und das ist gemessen.** Der Einwand liegt
+  nahe: `.notice.neutral` nennt sich selbst „eine Meldung ohne Rang", und das
+  ist wörtlich eine Info. Gemessen trägt er nicht — die Fläche von `neutral`
+  steht im hellen Thema bei **ΔE 1,8** gegen die Seite, unter der
+  Wahrnehmungsschwelle von 2,3. Ein Info-Streifen wäre dort von der Seite nicht
+  zu unterscheiden.
+- **`.bands` nimmt die Rasterzeile**, und `.band` ist aus dem `<style scoped>`
+  des Layouts nach `app.css` gezogen — mitsamt den drei Rängen und dem Rand in
+  der Stärke von `.notice`. Die Seite des Randes folgt der Form (unten statt
+  links, weil ein Band so breit ist wie der Bildschirm), die Stärke dem Rang.
+- **Das Rangwort steht im Textfluss und nicht daneben.** Der erste Wurf gab ihm
+  ein eigenes Flexkind; bei 390 px bricht es dann in eine eigene Zeile und
+  kostet 21 px je Band — drei Ankündigungen 264 px statt 195. Damit ist auch das
+  Abnahmekriterium berichtigt: Es nannte 189 px aus einer Messung, in der es das
+  Rangwort noch gar nicht gab.
+- **In `share()` als Verschluss**, nicht als fertiger Wert. Die Übersichtsseite
+  lädt mit ihrem Selbstlauf alle dreissig Sekunden `only: ['tiles']` nach; ohne
+  den Verschluss liefe die Abfrage jedes Mal für eine Antwort, die der Server
+  verwirft.
+- **Gemessen an der echten Seite**, beide Themes: bei 390 px jedes Band 65 px,
+  gleich wie lang sein Text ist; drei zusammen 195 px, `schiebt` 0 bei
+  anschlagender Gegenprobe.
+- **Vier Wächter, 27 Fälle, zehn Brüche** — alle beissen, jede Datei danach
+  byte-identisch zurück. `AnnouncementShareTest` misst dabei die **Wirkung** und
+  nicht das Wort: gezählt werden die Abfragen unter beiden Anfragearten, denn
+  `fn () =>` steht in derselben Datei dreimal für `flash`.
+- **Drei bestehende Wächter haben zugebissen**, jeder zu Recht — `ClassNameTest`
+  kannte `bands`, `rank` und `clamped` nicht; `StandaloneClassTest` wollte für
+  die zwei kontextgebundenen eine Begründung; `BlockSpacingTest` kannte die
+  Nachbarschaft `band + band` nicht. Bei der letzten ist die Ausnahme die
+  richtige Antwort: Zwischen zwei Ankündigungen steht eine Linie von drei
+  Pixeln, und ein Abstand daneben wäre nicht überflüssig, sondern falsch.

@@ -1918,6 +1918,341 @@ da, aus `§2.3o`.
 
 ---
 
+### 2.3q Die Messrunde vor A14 (5. September 2026)
+
+Gefahren, bevor eine Zeile Plan entstand — nach dem Vorbild von `§2.3o` und
+`§2.3p`. **Der A14-Eintrag in §11 verlangte genau eine Messung** („was ein
+Streifen bei 390 px an Höhe kostet, und was mehrere übereinander kosten"). Die
+Runde hat sie erbracht und **vier weitere Fragen beantwortet, von denen zwei den
+Entwurf umwerfen.**
+
+Gemessen im Container gegen das **echte Panel** — `artisan serve`, angemeldeter
+Betreiber, gebautes Stylesheet, Chromium bei 390 und 1440 px. Kein Aufsatz mit
+handgeschriebenem Markup: `.band` ist ein `<style scoped>` im Layout, und für
+solche Regeln gilt der Aufsatz nicht (`CLAUDE.md`, „Diese Umgebung").
+
+#### M1 · Die Form gibt es schon, und zwar zweimal
+
+`PanelLayout.vue` ist das **einzige** Layout; **48 von 50 Seiten** benutzen es,
+die zwei Ausnahmen sind `Auth/Login.vue` und `Auth/TwoFactorChallenge.vue`.
+Ein Streifen dort ist damit **eine Stelle** und nicht fünfzig.
+
+Und die Form ist gebaut:
+
+| | wo | Ränge | Ort |
+|---|---|---|---|
+| `.band` | `PanelLayout.vue`, `<style scoped>` | **einer**, fest auf `--warn` | über allem, `grid-row: 1` |
+| `.notice` | `app.css` | vier — `ok` `warn` `critical` `neutral` | im Inhalt, unter dem Seitenkopf |
+
+Die drei Kategorien von A14 sind also **keine neue Skala**, sondern drei der
+vier, die `.notice` seit P2 führt. Was fehlt, ist nicht die Farbe, sondern die
+Verbindung: `.band` kann einen Rang und steht am richtigen Ort, `.notice` kann
+vier Ränge und steht am falschen.
+
+> **Ein Baustein, der die Stelle hat, und einer, der die Ränge hat, sind
+> zusammen keine zwei Drittel der Arbeit — sie sind die Entscheidung, welcher
+> von beiden erweitert wird.**
+
+#### M2 · Der teuerste Fund: drei Ankündigungen sind ein Streifen
+
+`.frame` ist ein Raster mit **zwei** Zeilen (`grid-template-rows: auto 1fr`),
+und `.band` nimmt `grid-row: 1` ausdrücklich. Drei Bänder nebeneinander ins
+Markup gesetzt und bei 1440 px gemessen:
+
+```
+grid-template-rows : 63px 1293.5px
+band mess-info         oben    0  unten   63  hoch  63
+band mess-warn         oben    0  unten   63  hoch  63
+band mess-critical     oben    0  unten   63  hoch  63
+Dokument schiebt   : 0 px
+```
+
+**Alle drei liegen aufeinander.** `elementFromPoint` in der Mitte des Streifens
+liefert `band mess-critical` — sichtbar ist die letzte, die beiden davor sind
+verdeckt. Bei **390 px stapeln dieselben drei korrekt** (0–42, 42–210,
+210–252), weil die schmale Fläche das Raster aufgibt.
+
+> **Ein Fehler, den nur die breite Ansicht hat, entgeht einer Prüfung, die auf
+> die schmale zielt.** Derselbe Satz wie im A9-Lauf, hier an einer anderen
+> Regel.
+
+Und er hat **keine Zahl**: `schiebt` steht in beiden Lagen auf `0`, die
+Gegenprobe schlägt mit `200` an. Die Überlaufmessung kann diesen Fehler
+grundsätzlich nicht sehen.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+**Die Gegenprobe belegt die Diagnose.** Dieselben drei Bänder in *einer* Hülle,
+die die Rasterzeile nimmt, bei 1440 px:
+
+```
+grid-template-rows : 147px 1293.5px
+band mess-info         oben    0  unten   42  hoch  42
+band mess-warn         oben   42  unten  105  hoch  63
+band mess-critical     oben  105  unten  147  hoch  42
+```
+
+> **Ein `grid-row`, das ein Element ausdrücklich nimmt, nimmt jedes Geschwister
+> in dieselbe Zelle — und „mehrere gleichzeitig" heisst dann „übereinander".**
+
+Damit ist die Bauform entschieden, bevor der Plan sie vorschlägt: **eine Hülle
+über allem**, die das Band der Sichtwechsel *und* die Ankündigungen trägt. Zwei
+Geschwister mit `grid-row: 1` wären derselbe Fehler noch einmal.
+
+#### M3 · Was ein Streifen bei 390 px kostet — die verlangte Messung
+
+Gemessen bei **390 × 844** (iPhone 14 Pro), am echten Panel, mit Gegenprobe
+`200 px`:
+
+| | Höhe |
+|---|---|
+| Band, ein Satz (`Wartungsfenster heute 22:00–23:00 Uhr (MESZ).`) | **42 px** |
+| Band, ein Betreiberabsatz von 280 Zeichen | **168 px** (sieben Zeilen) |
+| Band, ein Satz | 42 px |
+| **drei zusammen** | **252 px** = **30 % des Bildschirms** |
+| Kopfzeile darüber | 65 px |
+| **Inhalt beginnt bei** | **317 px** — 38 % der Höhe, bevor etwas zu lesen ist |
+
+`Dokument schiebt: 0 px` in jeder Lage. Der Preis ist also **senkrecht und
+nicht waagerecht** — dieselbe Lage wie bei der Baumansicht aus `docs/46 §11.1`.
+
+> **Der Streifen löst kein Platzproblem in der Breite. Er kostet Höhe, und
+> Höhe ist auf dem Telefon das Knappe.**
+
+Bei 1440 px kosten dieselben drei **147 px**; der lange Absatz ist dort 63 px
+statt 168. **Die Länge des Textes entscheidet die Höhe, und sie ist auf dem
+Telefon vier Mal so teuer.** Eine Ankündigung ohne Längengrenze ist damit eine
+Entscheidung und keine Kleinigkeit.
+
+#### M4 · Die Ränge tragen den Kontrast schon — in beiden Themes
+
+Gerechnet und nicht geschätzt, an den **berechneten** Farben der echten Seite
+(WCAG: 4,5:1 für Text, 3:1 für die Grenze eines Bedienelements):
+
+| Rang | hell Text/Fläche | hell Rand | dunkel Text/Fläche | dunkel Rand |
+|---|---|---|---|---|
+| `ok` (Info) | 5,40:1 ✔ | 6,24:1 ✔ | 7,22:1 ✔ | 9,21:1 ✔ |
+| `warn` (Warnung) | 5,54:1 ✔ | 6,52:1 ✔ | 7,12:1 ✔ | 9,00:1 ✔ |
+| `critical` (Störung) | 5,87:1 ✔ | 6,79:1 ✔ | 6,25:1 ✔ | 7,72:1 ✔ |
+
+**A14 braucht keine neue Farbe** — die sechs Marken stehen seit P2 in `app.css`
+und tragen alle zwölf Werte mit Reserve.
+
+**Die erste Fassung dieser Messung war keine**, und der Fehler ist lehrreich:
+Sie las `getComputedStyle().backgroundColor` und rechnete daraus — die Flächen
+sind aber `rgba(…, 0.1)`, also **halbdurchsichtig**. Ohne Überblendung ist die
+Flächenfarbe zahlengleich mit der Textfarbe, und heraus kam sechsmal `1.00:1`,
+also „fällt durch" für einen Zustand, der in Ordnung ist.
+
+> **Ein Prüfkörper, der die Deckkraft wegwirft, misst die Farbe vor dem
+> Überblenden — und die sieht niemand.**
+
+#### M5 · Ein fertiger Wert in `share()` wird auch berechnet, wenn niemand ihn bekommt
+
+`HandleInertiaRequests::share()` ist die eine Stelle, über die etwas auf **jede**
+Seite kommt. Zwei Sonden hineingesetzt — eine als fertiger Wert, eine als
+Verschluss, beide mit einer echten Abfrage — und je Anfrageart in einer eigenen
+Testmethode gemessen:
+
+| | Eigenschaften | Abfragen | davon Sonde |
+|---|---|---|---|
+| voller Besuch | 16 | 9 | **2** (Wert **und** Verschluss) |
+| `only: ['tiles']` | 2 | 3 | **1** (nur der Wert) |
+
+> **Ein fertiger Wert in `share()` läuft bei jeder Anfrage, auch bei einer, die
+> ihn gar nicht mitschickt. Ein Verschluss läuft nur, wenn er gesendet wird.**
+
+Die Ankündigungen gehören deshalb als `fn () => …` in `share()`, genau wie
+`flash` es seit P1 macht — sonst fragte die Übersichtsseite mit ihrem Selbstlauf
+alle dreissig Sekunden eine Tabelle ab, deren Antwort sie verwirft.
+
+**Die Messung musste dafür je Anfrage eine eigene Testmethode bekommen.**
+`Inertia\ResponseFactory` ist ein Singleton; zwei Anfragen in einer Testmethode
+teilen sich seinen Zustand, und die zweite wertet den Verschluss nicht mehr aus.
+
+> **Ein Prüfstand, der mehrere Anfragen in einem Prozess fährt, misst den
+> Zustand, den die vorige hinterlassen hat — php-fpm tut das nicht.**
+
+#### M6 · Ein Banner überlebt das partielle Nachladen
+
+Genau ein Ort im Panel lädt partiell nach (`Overview.vue`, `only: ['tiles']`).
+Am echten Panel gemessen, mit Zählung der Anfrage als Gegenprobe:
+
+```
+partielle Anfragen : 1 tiles
+Server sendete     : [errors tiles]
+vorher             : {"konto":"Messkonto","fassung":"Quellbaum","menue":22}
+nachher            : {"konto":"Messkonto","fassung":"Quellbaum","menue":22}
+```
+
+**Der Server schickt von sechzehn Eigenschaften zwei**, jede geteilte fällt weg
+— `impersonation` eingeschlossen. **Der Klient behält sie trotzdem:**
+`mergeProps` in `@inertiajs/core` 3.6.1 macht `{ ...alt, ...neu }`, sobald der
+Besuch partiell ist und die Komponente dieselbe.
+
+> **Eine geteilte Eigenschaft, die der Server beim partiellen Nachladen nicht
+> schickt, ist nicht fort — der Klient hält die vorige.** Ohne diese Messung
+> wäre der Entwurf um einen Mechanismus grösser geworden, den es nicht braucht.
+
+**Der erste Versuch war keine Messung:** Er wollte das Nachladen über
+`window.__inertia.router` auslösen, den es dort nicht gibt — „vorher = nachher"
+kam heraus, weil **gar nichts** geladen wurde.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.** Erst der Zähler der partiellen Anfragen daneben macht die
+> Gleichheit zu einem Ergebnis.
+
+#### M7 · Das Sichtbarkeitsfenster rechnet in UTC, und die Gegenprobe zeigt, was sonst passiert
+
+`app.timezone` ist `UTC`, `now()` liefert UTC, die Spalten liegen in UTC. Mit
+der Anzeigezone auf `Europe/Berlin` (CEST, +02:00) gemessen:
+
+```
+getippt        : 2026-09-05 13:00 bis 14:00 (Ortszeit)
+abgelegt       : 2026-09-05 11:00:00 bis 12:00:00 (UTC)
+zurückgelesen  : 2026-09-05 13:00 bis 14:00
+```
+
+| jetzt | UTC-Vergleich | Ortszeit-Vergleich |
+|---|---|---|
+| 13:30 Ortszeit — **mitten im Fenster** | **ja** | **nein** |
+| 12:30 Ortszeit — davor | nein | nein |
+| 14:30 Ortszeit — danach | nein | nein |
+
+Der Rundlauf über `Clock::minuteToUtc()` und `Clock::minute()` trägt. Und die
+Gegenprobe schlägt in genau **einer** der drei Zeilen aus — der einzigen, in der
+es zählt:
+
+> **Ein Fenster, dessen Filter in der Anzeigezone rechnet, ist genau während
+> seiner eigenen Laufzeit unsichtbar und erscheint um den Versatz zu früh.**
+
+**Die Zone musste dafür einen Versatz haben.** In diesem Container steht die
+Anzeigezone auf UTC, und dort sind beide Vergleiche gleich — eine fehlende
+Umrechnung sähe aus wie eine gelungene. Derselbe Grund, aus dem
+`MaintenanceRoundTripTest` seit dem 4. September mit zwei Zonen misst.
+
+#### M8 · Eine Grenze in Zeichen ist auf zwei Breiten zwei Grenzen
+
+Nachgetragen, nachdem der Betreiber „Grenze bei 500, im Banner gekürzt"
+entschieden hatte — **die Grenze wollte gemessen sein und nicht geraten.** Zehn
+Bänder mit 60 bis 500 Zeichen, dieselbe Vorlage, beide Breiten:
+
+| Zeichen | 390 px | | 1440 px | |
+|---|---|---|---|---|
+| | Höhe | Zeilen | Höhe | Zeilen |
+| 60 | 63 px | 2 | 42 px | 1 |
+| 160 | 105 px | 4 | 42 px | 1 |
+| 280 | 168 px | 7 | 63 px | 2 |
+| 500 | **273 px** | 12 | 84 px | 3 |
+
+**Rund 40 Zeichen je Zeile bei 390 px, rund 160 bei 1440 px** — ein Faktor
+vier. Eine Ankündigung von 500 Zeichen nimmt auf dem Telefon **273 px**, also
+32 % eines 844 px hohen Bildschirms; drei davon füllen ihn ganz.
+
+> **Eine Grenze in Zeichen ist auf zwei Breiten zwei verschiedene Grenzen** —
+> sie ist entweder auf dem Telefon zu lang oder am Schreibtisch zu kurz.
+
+**Gemessen trägt stattdessen eine Zeilenklammer.** Mit
+`-webkit-line-clamp: 2` auf dem Text:
+
+| Zeichen | 390 px | 1440 px |
+|---|---|---|
+| 60 … 500 | **63 px, jedes Mal** | 42 px (kurz) bis 63 px |
+
+Bei 390 px ergibt **jede** Länge von 60 bis 500 Zeichen dieselben 63 px; der
+volle Text wäre dort 252 px hoch, sichtbar sind 42 px. Drei Ankündigungen
+kosten damit **189 px statt bis zu 819 px** — und die Höhe hängt nicht mehr
+davon ab, was jemand tippt.
+
+> **Eine Klammer über Zeilen ist auf jeder Breite dieselbe Regel. Eine über
+> Zeichen ist es nicht.**
+
+Die 500 Zeichen bleiben damit eine Grenze der **Ablage** und nicht des
+Aussehens; das Aussehen deckelt die Klammer, und der volle Text braucht seinen
+Ort.
+
+**Und diese Messung hat einen Fehler in der Runde selbst gefunden.** Oben stand
+zuerst „280 Zeichen = 168 px (vier Zeilen)". Die Höhe war gemessen, die
+Zeilenzahl war es nicht — gezählt sind es **sieben**. Sie ist berichtigt.
+
+> **Eine Zahl neben einer gemessenen Zahl sieht aus wie gemessen.**
+
+#### M9 · Den Rang trägt nicht die Fläche
+
+Nachgetragen auf die Frage des Betreibers, ob die Kategorien auch verschiedene
+Hintergründe haben. Sie haben — aber als **Lasur und nicht als Farbfläche**:
+Alle drei Marken sind `rgba(…, 0.09–0.14)`, sie tönen den Grund und ersetzen
+ihn nicht.
+
+| Fläche gegen den Seitengrund | hell | dunkel |
+|---|---|---|
+| Info `--ok-surface` | 1,16:1 | 1,28:1 |
+| Warnung `--warn-surface` | 1,18:1 | 1,26:1 |
+| Störung `--critical-surface` | 1,16:1 | 1,24:1 |
+
+Und gegeneinander, als ΔE (ab etwa 2,3 sieht das Auge einen Unterschied):
+
+| | hell | dunkel |
+|---|---|---|
+| Info ./. Warnung | 6,2 | 12,6 |
+| **Warnung ./. Störung** | **3,8** | 7,4 |
+| Info ./. Störung | 7,8 | 14,7 |
+
+Alle drei sind unterscheidbar. **Das schwächste Paar ist im hellen Thema aber
+ausgerechnet Warnung gegen Störung** — die beiden, die auseinanderzuhalten am
+meisten zählt, liegen am dichtesten beieinander.
+
+> **Eine Skala, deren zwei kritischste Stufen am ähnlichsten aussehen, ist an
+> der Stelle am schwächsten, an der sie am meisten leisten muss.**
+
+Den Rang tragen deshalb die anderen beiden Träger, und die sind kräftig: der
+**Rand** (6,24–6,79:1 gegen den Grund, M4) und die **Textfarbe** (5,40–5,87:1
+auf der eigenen Fläche, M4).
+
+**Daraus zwei Dinge, die der Plan nicht übersehen darf.**
+
+`.notice` trägt `border-left: 3px solid` — drei Pixel an der Seite. `.band`
+trägt `border-bottom: 1px solid` — ein Pixel unten. Erbt der Streifen die Ränge
+aus `.notice`, ohne den Rand mitzunehmen, bleibt vom Rangsignal die Lasur mit
+ΔE 3,8 übrig.
+
+> **Ein Rang, der aus drei Trägern besteht, verliert beim Umzug den, den
+> niemand aufgeschrieben hat.**
+
+Und die Kategorie gehört **als Wort** in den Streifen. Bei ΔE 3,8 ist Farbe
+allein kein tragfähiger Unterschied — für jemanden mit Rot-Grün-Schwäche gar
+keiner (WCAG 1.4.1). Der Entwurf in §11 sagt das bereits („Die Wörter sind der
+Punkt und nicht die Farben"); die Messung sagt, warum das keine Haltung ist,
+sondern eine Notwendigkeit.
+
+#### Was diese Runde für den Plan bedeutet
+
+1. **Eine Hülle über allem** trägt Sichtwechsel-Band und Ankündigungen; kein
+   zweites Geschwister mit `grid-row: 1` (M2).
+2. **`.band` bekommt die Ränge, die `.notice` schon hat**, und die Regel zieht
+   nach `app.css` — ein geteilter Baustein gehört nicht in ein `<style scoped>`
+   (M1, M4). **Mitsamt dem Rand von `.notice`**, nicht nur der Fläche: Die
+   Fläche allein trägt zwischen Warnung und Störung nur ΔE 3,8 (M9).
+3. **Als Verschluss in `share()`**, nicht als fertiger Wert (M5).
+4. **Kein Mechanismus gegen das partielle Nachladen** — der Klient hält die
+   Eigenschaft (M6).
+5. **Der Filter rechnet in UTC**, die Eingabe geht über `Clock` (M7).
+6. **Die Kategorie steht als Wort im Streifen**, nicht nur als Farbe — die
+   Messung in M9 macht daraus eine Notwendigkeit statt einer Haltung.
+7. **Gedeckelt wird über Zeilen und nicht über Zeichen** — eine
+   Zweizeilen-Klammer hält jedes Band bei 390 px auf 63 px, gleich wie lang der
+   Text ist; drei kosten dann 189 px statt bis zu 819 px (M3, M8).
+
+**Was diese Runde ausdrücklich nicht misst** und was der Plan beantworten muss:
+ob eine Ankündigung auf `Auth/Login.vue` und `Auth/TwoFactorChallenge.vue`
+erscheinen soll — beide tragen `PanelLayout` nicht, ein Streifen dort ist also
+Arbeit und keine Folge (M1). Und ob mehrere Ankündigungen überhaupt
+gleichzeitig sichtbar sein sollen oder nur die dringendste: M3 sagt, was drei
+kosten, nicht, ob drei richtig sind.
+
+---
+
 ### Frage 1 — Darf das Panel eine fremde Paketquelle hinzufügen?
 
 > **Entschieden am 24. August 2026: nein.** Der Betreiber hat den Vorschlag
@@ -2642,7 +2977,7 @@ Liste.
 | **A6** | Leseansicht von `/etc/crontab`, `/etc/cron.d`, `cron.daily` und `cron.weekly` | mit A2 |
 | **A8** | Welche Adressen der Server hat, welche der DNS-Abgleich als Soll nimmt | eigenständig; P7 ist fertig |
 | **A12** | Wartungsmodus: alle Kundenseiten auf 503, Panel erreichbar | **abgenommen am 5. September 2026** auf `cloudsrv24` gegen `0.7.3-rc.19` — alle acht Punkte aus `docs/101 §7`, das Protokoll ist `docs/102` |
-| **A14** | Ankündigungen im Panel: farbiger Banner ganz oben, Kategorie Info · Warnung · Störung, mehrere gleichzeitig | **P7b, hinter A12** — entschieden am 4. September 2026 |
+| **A14** | Ankündigungen im Panel: farbiger Banner ganz oben, Kategorie Info · Warnung · Störung, mehrere gleichzeitig | **P7b, hinter A12** — entschieden am 4. September 2026; die Messrunde ist `§2.3q`, der Plan **`docs/103`** |
 | **A13** | Die billige Hälfte des Malware-Scans: 0777, frisch geänderte PHP-Dateien, `eval(base64_decode` als Textsuche | ~~mit A10~~ — **reitet nicht mit** (2. September); **vorgeschlagen für P9b**, siehe unten — nicht entschieden |
 
 **A12 hatte seit dem 28. August keine Stufenzeile mehr.** „mit A1" war eine
@@ -2710,16 +3045,31 @@ Zeitgeber, der etwas verändern muss.
   *Vorschlag: erst nicht — eine Ankündigung mit Fenster verschwindet von
   selbst.*
 
-**Was vor dem Plan zu messen ist:** Was ein Streifen über dem Inhalt bei 390 px
-an Höhe kostet, und was **mehrere übereinander** kosten. Das ist eine Zahl und
-keine Meinung; der Aufsatz dafür liegt als `tests/bilder-messen.js` im Repo.
+**Was vor dem Plan zu messen war, ist gemessen — die Runde steht als `§2.3q`**
+(5. September 2026). Sie hat die verlangte Zahl gebracht (ein Streifen 42 px,
+drei zusammen 252 px = 30 % eines 844 px hohen Bildschirms) **und vier weitere
+Fragen beantwortet, von denen zwei den Entwurf umwerfen.**
+
+Der teuerste Fund ist keiner mit einer Zahl: **Drei Bänder mit `grid-row: 1`
+liegen bei 1440 px aufeinander**, sichtbar ist nur das letzte, und `schiebt`
+steht dabei auf `0`.
 
 > **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
 > Betrachter.**
 
+Und der zweite: **die Form gibt es schon zweimal** — `.band` hat die Stelle und
+einen Rang, `.notice` hat vier Ränge und die falsche Stelle. A14 braucht damit
+**keine neue Farbe**; die sechs Marken tragen alle zwölf Kontrastwerte in beiden
+Themes mit Reserve.
+
 **Und keine Ankündigung auf der 503-Seite.** Die sieht ein Website-Besucher, die
 Ankündigung ein Panel-Nutzer — zwei Publika, und eine Vermischung brächte
 Betreibertext vor fremde Augen.
+
+**Der Plan steht seit dem 5. September als `docs/103`** — geschrieben nach der
+Messrunde und nach vier Entscheidungen des Betreibers: alle gleichzeitig
+sichtbar, 500 Zeichen in der Ablage mit Kürzung über eine Zeilenklammer,
+Publikum je Ankündigung wählbar, und Störungen auch auf der Anmeldeseite.
 
 ---
 

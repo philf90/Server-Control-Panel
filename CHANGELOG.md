@@ -25513,3 +25513,48 @@ ist nicht zurückgespielt worden.
 
 Vier Sätze über das Messen sind dabei entstanden, jeder an einem Prüfkörper und
 keiner am Prüfling; sie stehen in `docs/102 §9` und in `CLAUDE.md`.
+
+### A14 — der Plan, und was die Messrunde davor umgeworfen hat
+
+- **Die Messrunde vor A14** (`docs/81 §2.3q`) ist am 5. September 2026 gefahren,
+  bevor eine Zeile Plan entstand. Der A14-Eintrag verlangte **eine** Messung —
+  was ein Streifen bei 390 px an Höhe kostet. Sie ist erbracht (42 px einzeln,
+  252 px zu dritt = 30 % eines 844 px hohen Bildschirms), und acht weitere
+  Fragen sind beantwortet.
+- **Drei Bänder mit `grid-row: 1` liegen bei 1440 px aufeinander.** `.frame` ist
+  ein Raster mit zwei Zeilen; sichtbar ist nur das letzte Band, und `schiebt`
+  steht dabei auf `0` — die Überlaufmessung kann diesen Fehler grundsätzlich
+  nicht sehen. Bei 390 px stapeln dieselben drei korrekt, weil die schmale
+  Fläche das Raster aufgibt. Die Gegenprobe mit einer Hülle ergibt 0–42, 42–105,
+  105–147.
+- **Die Form gibt es schon zweimal.** `.band` hat die Stelle und einen Rang,
+  `.notice` hat vier Ränge und die falsche Stelle. A14 braucht **keine neue
+  Farbe**: alle zwölf Kontrastwerte liegen zwischen 5,40:1 und 9,21:1, gefordert
+  sind 4,5:1 und 3:1.
+- **Den Rang trägt nicht die Fläche.** Gegen den Seitengrund haben die drei
+  Flächen nur 1,16:1 bis 1,28:1, und untereinander liegen Warnung und Störung im
+  hellen Thema bei ΔE 3,8 — unterscheidbar, aber das schwächste der drei Paare
+  und ausgerechnet das, auf das es ankommt. Getragen wird der Rang vom Rand und
+  von der Textfarbe, und deshalb steht die Kategorie künftig als **Wort** im
+  Streifen.
+- **Eine Grenze in Zeichen ist auf zwei Breiten zwei Grenzen** — 40 Zeichen je
+  Zeile bei 390 px, 160 bei 1440 px. Eine Zweizeilen-Klammer hält bei 390 px
+  jede Länge von 60 bis 500 Zeichen auf 63 px; drei Ankündigungen kosten damit
+  189 px statt bis zu 819 px.
+- **Ein fertiger Wert in `share()` läuft auch bei einem partiellen Nachladen,
+  das ihn nicht mitschickt** — ein Verschluss nicht (Abfragen: voll 2,
+  partiell 1). Und gegen das partielle Nachladen braucht es keinen Mechanismus:
+  Der Server sendet von sechzehn Eigenschaften zwei, der Klient hält die
+  übrigen.
+- **Der Plan steht als `docs/103`**, mit vier Entscheidungen des Betreibers:
+  alle Ankündigungen gleichzeitig sichtbar, 500 Zeichen in der Ablage mit
+  Kürzung über die Zeilenklammer, Publikum je Ankündigung wählbar, und
+  Störungen auch auf der Anmeldeseite. Der letzte Punkt ist im Plan als das
+  benannt, was er ist: Was dort steht, steht vor jedem, der die Adresse kennt.
+- **Drei eigene Prüfkörper haben in dieser Runde danebengemessen**, jeder mit
+  einem Ergebnis, das nach einem Befund aussah: eine Kontrastrechnung, die die
+  Deckkraft der halbdurchsichtigen Flächen wegwarf (sechsmal `1.00:1`); ein
+  Nachladen über einen Router, den es auf `window` nicht gibt („vorher =
+  nachher", weil nichts lief); und zwei Anfragen in einer Testmethode, die sich
+  Inertias Singleton teilten. Dazu eine Zahl, die neben einer gemessenen stand
+  und nicht gemessen war — „280 Zeichen = vier Zeilen"; es sind sieben.

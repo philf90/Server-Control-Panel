@@ -2008,7 +2008,7 @@ Gemessen bei **390 × 844** (iPhone 14 Pro), am echten Panel, mit Gegenprobe
 | | Höhe |
 |---|---|
 | Band, ein Satz (`Wartungsfenster heute 22:00–23:00 Uhr (MESZ).`) | **42 px** |
-| Band, ein Betreiberabsatz von 280 Zeichen | **168 px** (vier Zeilen) |
+| Band, ein Betreiberabsatz von 280 Zeichen | **168 px** (sieben Zeilen) |
 | Band, ein Satz | 42 px |
 | **drei zusammen** | **252 px** = **30 % des Bildschirms** |
 | Kopfzeile darüber | 65 px |
@@ -2132,6 +2132,52 @@ Anzeigezone auf UTC, und dort sind beide Vergleiche gleich — eine fehlende
 Umrechnung sähe aus wie eine gelungene. Derselbe Grund, aus dem
 `MaintenanceRoundTripTest` seit dem 4. September mit zwei Zonen misst.
 
+#### M8 · Eine Grenze in Zeichen ist auf zwei Breiten zwei Grenzen
+
+Nachgetragen, nachdem der Betreiber „Grenze bei 500, im Banner gekürzt"
+entschieden hatte — **die Grenze wollte gemessen sein und nicht geraten.** Zehn
+Bänder mit 60 bis 500 Zeichen, dieselbe Vorlage, beide Breiten:
+
+| Zeichen | 390 px | | 1440 px | |
+|---|---|---|---|---|
+| | Höhe | Zeilen | Höhe | Zeilen |
+| 60 | 63 px | 2 | 42 px | 1 |
+| 160 | 105 px | 4 | 42 px | 1 |
+| 280 | 168 px | 7 | 63 px | 2 |
+| 500 | **273 px** | 12 | 84 px | 3 |
+
+**Rund 40 Zeichen je Zeile bei 390 px, rund 160 bei 1440 px** — ein Faktor
+vier. Eine Ankündigung von 500 Zeichen nimmt auf dem Telefon **273 px**, also
+32 % eines 844 px hohen Bildschirms; drei davon füllen ihn ganz.
+
+> **Eine Grenze in Zeichen ist auf zwei Breiten zwei verschiedene Grenzen** —
+> sie ist entweder auf dem Telefon zu lang oder am Schreibtisch zu kurz.
+
+**Gemessen trägt stattdessen eine Zeilenklammer.** Mit
+`-webkit-line-clamp: 2` auf dem Text:
+
+| Zeichen | 390 px | 1440 px |
+|---|---|---|
+| 60 … 500 | **63 px, jedes Mal** | 42 px (kurz) bis 63 px |
+
+Bei 390 px ergibt **jede** Länge von 60 bis 500 Zeichen dieselben 63 px; der
+volle Text wäre dort 252 px hoch, sichtbar sind 42 px. Drei Ankündigungen
+kosten damit **189 px statt bis zu 819 px** — und die Höhe hängt nicht mehr
+davon ab, was jemand tippt.
+
+> **Eine Klammer über Zeilen ist auf jeder Breite dieselbe Regel. Eine über
+> Zeichen ist es nicht.**
+
+Die 500 Zeichen bleiben damit eine Grenze der **Ablage** und nicht des
+Aussehens; das Aussehen deckelt die Klammer, und der volle Text braucht seinen
+Ort.
+
+**Und diese Messung hat einen Fehler in der Runde selbst gefunden.** Oben stand
+zuerst „280 Zeichen = 168 px (vier Zeilen)". Die Höhe war gemessen, die
+Zeilenzahl war es nicht — gezählt sind es **sieben**. Sie ist berichtigt.
+
+> **Eine Zahl neben einer gemessenen Zahl sieht aus wie gemessen.**
+
 #### Was diese Runde für den Plan bedeutet
 
 1. **Eine Hülle über allem** trägt Sichtwechsel-Band und Ankündigungen; kein
@@ -2143,8 +2189,9 @@ Umrechnung sähe aus wie eine gelungene. Derselbe Grund, aus dem
 4. **Kein Mechanismus gegen das partielle Nachladen** — der Klient hält die
    Eigenschaft (M6).
 5. **Der Filter rechnet in UTC**, die Eingabe geht über `Clock` (M7).
-6. **Die Textlänge ist eine Entscheidung**, keine Kleinigkeit: 280 Zeichen sind
-   bei 390 px 168 px hoch, drei Ankündigungen 30 % des Bildschirms (M3).
+6. **Gedeckelt wird über Zeilen und nicht über Zeichen** — eine
+   Zweizeilen-Klammer hält jedes Band bei 390 px auf 63 px, gleich wie lang der
+   Text ist; drei kosten dann 189 px statt bis zu 819 px (M3, M8).
 
 **Was diese Runde ausdrücklich nicht misst** und was der Plan beantworten muss:
 ob eine Ankündigung auf `Auth/Login.vue` und `Auth/TwoFactorChallenge.vue`

@@ -180,6 +180,8 @@ final class SiteFileIntegrityTest extends TestCase
             SiteTemplate::FORM_STATIC => $basis + ['document_root' => 'httpdocs'],
         ];
 
+        $zitate = 0;
+
         foreach ($formen as $form => $args) {
             $conf = SiteTemplate::render(Site::fromArgs($args + [
                 'maintenance_until' => '2026-09-04 23:35',
@@ -201,6 +203,7 @@ final class SiteFileIntegrityTest extends TestCase
 
                     if ($offen === $zeichen) {
                         $offen = null;
+                        $zitate++;
 
                         continue;
                     }
@@ -219,7 +222,15 @@ final class SiteFileIntegrityTest extends TestCase
             }
         }
 
-        self::assertTrue(true);
+        /*
+         * **Die Untergrenze, und sie ist hier keine Formsache.** Fände der
+         * Leser gar keine Zeichenkette, käme er nie in den Zweig, der etwas
+         * meldet — und die Prüfung wäre grün, ohne hingesehen zu haben.
+         *
+         * > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes
+         * > als Null steht.**
+         */
+        self::assertGreaterThan(0, $zitate, 'Keine der vier Formen schreibt eine Zeichenkette — dann misst dieser Fall nichts.');
     }
 
     public function test_ini_comments_and_sections_are_not_keys(): void

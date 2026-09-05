@@ -282,19 +282,33 @@ Punkt, der nur schmal misst, geht daran vorbei.
 Für jede Regel einer, und jeder wird gegen den Fehler gebrochen, den er fangen
 soll.
 
-| Wächter | hält |
-|---|---|
-| `AnnouncementRowTest` | genau **eine** Hülle nimmt `grid-row: 1`; kein Geschwister daneben — die Regel aus M2, gemessen am Layout und nicht an einer Liste im Test |
-| `AnnouncementRankTest` | jede Kategorie trägt Fläche **und** Rand **und** Wort; ein Rang, dem einer der drei fehlt, ist rot (M9) |
-| `AnnouncementClampTest` | die Kürzung steht als Zeilenklammer in `app.css` und nicht als Zeichenzahl im Controller (M8) |
-| `AnnouncementShareTest` | der Schlüssel in `share()` ist ein Verschluss — gemessen an der **Wirkung** (Abfragezähler unter beiden Anfragearten), nicht am Wort `fn` im Quelltext (M5) |
-| `AnnouncementWindowTest` | der Filter rechnet in UTC, gemessen mit einem **Versatz** und einer zweiten Zone daneben (M7) |
-| `AnnouncementAudienceTest` | jedes Publikum trennt an derselben Grenze wie die Rollen aus A9, in beide Richtungen |
-| `AnnouncementLoginTest` | auf den zwei Auth-Seiten erscheint **nur** `incident` — beide Richtungen, denn die stille Hälfte ist die, die zuviel zeigt |
+**Gebaut sind fünf und nicht die sieben, die hier zuerst standen** — nicht
+weil Regeln weggefallen wären, sondern weil drei von ihnen **denselben
+Baustein** beschreiben und einzeln je zwei Zeilen gewesen wären. Die Liste
+steht so, wie sie im Repo liegt; eine Planliste, die nicht stimmt, ist
+schlimmer als keine.
+
+| Wächter | Fälle | hält |
+|---|---|---|
+| `AnnouncementBandTest` | 5 | genau **eine** Hülle nimmt `grid-row: 1` (M2) · die Kürzung zählt Zeilen und nicht Zeichen (M8) · jeder Rang trägt Fläche, Rand **und** Textfarbe, und die Kategorie steht als Wort (M9) — die drei, die zuerst `AnnouncementRowTest`, `AnnouncementClampTest` und `AnnouncementRankTest` heissen sollten |
+| `AnnouncementShareTest` | 3 | der Schlüssel in `share()` ist ein Verschluss — gemessen an der **Wirkung** (Abfragezähler unter beiden Anfragearten), nicht am Wort `fn` im Quelltext (M5); und die Eigenschaft fehlt beim partiellen Nachladen, statt als leere Liste dazustehen (M6) |
+| `AnnouncementWindowTest` | 7 | der Filter rechnet in UTC, gemessen mit einem **Versatz** und einer zweiten Zone daneben (M7) |
+| `AnnouncementAudienceTest` | 12 | jedes Publikum trennt an derselben Grenze wie die Rollen aus A9, in beide Richtungen **in einem Fall** — ein eigener Fall für die Gegenrichtung wird beim nächsten Publikum vergessen |
+| `AnnouncementPageTest` | 12 | die Tür der Verwaltungsseite (Administrator und Kunde bekommen 403, der Betreiber nicht) und der Streifen der Anmeldeseite — beide Richtungen, denn die stille Hälfte ist die, die zuviel zeigt |
 
 **`AnnouncementShareTest` misst die Wirkung und nicht das Wort.** Ein Wächter,
 der `fn () =>` als Zeichenkette sucht, ist grün, sobald es irgendwo in der Datei
 steht — dieses Repo hat diesen Fehler oft genug bezahlt.
+
+**Und `AnnouncementPageTest` hat seinen Prüfkörper einmal an der falschen Hürde
+verloren.** Er rief `DELETE /announcements/1`; die Modellbindung läuft **vor**
+`can:`, also gab eine Kennung, die es nicht gibt, **404** statt 403 — beim
+Betreiber wurde daraus ein falsches Grün, weil 404 nicht 403 ist.
+
+> **Eine Gegenprobe, die an einer anderen Hürde scheitert als der gemeinten, hat
+> die gemeinte nicht geprüft.**
+
+Er legt die Zeile jetzt an und prüft ausdrücklich, dass **keine** 404 kommt.
 
 ---
 

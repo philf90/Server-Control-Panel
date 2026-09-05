@@ -25601,3 +25601,53 @@ keiner am Prüfling; sie stehen in `docs/102 §9` und in `CLAUDE.md`.
   Nachbarschaft `band + band` nicht. Bei der letzten ist die Ausnahme die
   richtige Antwort: Zwischen zwei Ankündigungen steht eine Linie von drei
   Pixeln, und ein Abstand daneben wäre nicht überflüssig, sondern falsch.
+
+### A14 — die Verwaltung und die Anmeldeseite (Schritt 3)
+
+- **`/announcements` steht hinter `operate-server`** und nicht hinter
+  `manage-settings`, wie der Plan zuerst sagte. Seine Begründung — „eine
+  Ankündigung dreht nichts am Server, sie ist Text in einer Tabelle" — ordnet
+  nach dem, was der Griff **anfasst**; `docs/20 §6.1` ordnet nach dem, was er
+  **bewirkt**: kritisch ist unter anderem, was „alle Kunden mitnimmt". Eine
+  Ankündigung erreicht jeden Kunden im Namen des Betreibers, und eine Störung
+  steht auf der Anmeldeseite vor jedem, der die Adresse kennt.
+- **Die Gruppe „Betrieb" ist geteilt**, entschieden vom Betreiber. Mit
+  „Ankündigungen" trug sie neun Punkte, und acht ist die gesetzte Grenze;
+  herausgelöst ist **„Verlauf"** — Vorgänge, Protokoll, Logs. Die Trennlinie
+  stand schon im Kommentar an „Logs": *Die drei sagen, was passiert ist.* Die
+  Ausnahmeliste war der falsche Weg — sie ist für Gruppen, über die der
+  Betreiber noch nicht entschieden hat.
+- **`Bands.vue` rendert den Streifen für drei Orte**, `Announcement::bannerRows()`
+  ist die eine Stelle für seine Form. Login und Zweitfaktor tragen ihn gefiltert
+  auf `incident`; sie tragen `PanelLayout` nicht, das ist also eine zweite
+  Einbindung und keine Folge.
+- **Vier Befunde hat erst das Bild gebracht, keiner hatte eine Zahl.** `.choice`
+  gab es in `app.css` nicht — die Klasse war erfunden statt nachgesehen, und die
+  Kästchen streckten sich über die Breite; die Hausform ist `.choices` mit
+  `.toggle`. Die Tabelle stand ausserhalb des Bildes, weil `.scrolls > table`
+  `width: max-content` setzt und eine 500-Zeichen-Zelle die Spalte auf **1087 px**
+  zog. Und Felder wurden rot, ohne dass ein Wort sagte warum.
+- **Die Anmeldeseite rollte senkrecht um genau die Höhe des Bandes** — 65 px bei
+  390 px, 44 px bei 1440 px. `.signin` nahm `100dvh` für sich, der Streifen kam
+  obendrauf. Derselbe Fehler, den `dvh` in `.frame` verhindern soll: *man rollt,
+  obwohl nichts zu rollen wäre.* `.signin-frame` teilt die Höhe jetzt.
+- **Sechs weitere fand der volle Lauf.** Der teuerste war eine Namenskollision:
+  `until_date` heisst global schon „Voraussichtlich bis", vom Wartungsmodus.
+  Behoben nicht durch Überschreiben am Aufruf — das lesen `AttributeNameTest`
+  und `AttributeLabelTest` verschieden —, sondern durch eindeutige Namen
+  (`visible_from_date`, `visible_until_date`, …).
+- **Zweimal dieselbe Lehre am eigenen Werkzeug:** Der eigene Wächter und der
+  eigene Bruch-Eingriff zeigten auf `PanelLayout.vue`, nachdem das Markup nach
+  `Bands.vue` gezogen war. Beide wurden **stumpf und nicht rot**; gemeldet hat
+  es der volle Lauf und nicht der Umbau.
+- **Ein Prüfkörper scheiterte an der falschen Hürde:** `/announcements/1` gibt
+  404, weil die Modellbindung **vor** `can:` läuft — beim Betreiber wurde daraus
+  ein falsches Grün, weil 404 nicht 403 ist.
+- **Und eine Zeile in `CLAUDE.md` ist berichtigt:** `args: ['--lang=de-DE']`
+  gibt im Datumsfeld **nicht** die deutsche Schreibweise. In drei Fassungen
+  nachgemessen — die Fahne ändert ohne `--accept-lang` nicht einmal
+  `navigator.language`, und die Schreibweise folgt auch dann nicht; sie hängt am
+  Sprachpaket der Oberfläche, und dieses Chromium bringt nur `en-US` mit. Ein
+  amerikanisches Datum auf einem Bild aus diesem Container ist damit **kein
+  Befund** — die alte Zeile hätte den Nächsten glauben lassen, er habe den
+  Fehler gemacht.

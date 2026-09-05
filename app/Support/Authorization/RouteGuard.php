@@ -117,6 +117,10 @@ final class RouteGuard
                 'kind' => self::AUTHENTICATED,
                 'reason' => 'Abschalten des eigenen zweiten Faktors — nur mit gültigem Code und für Administratoren gar nicht.',
             ],
+            'GET announcements/{announcement}' => [
+                'kind' => self::OPEN,
+                'reason' => 'Eine Ankündigung im vollen Wortlaut. Offen, weil der Streifen auf der Anmeldeseite Störungen an jeden zeigt, der die Adresse kennt, und dabei bei zwei Zeilen klammert — ein Verweis hinter auth schickte genau diesen Leser auf die Anmeldung statt zum Text. Neu sichtbar wird nichts: Für einen Gast fragt der Controller dieselbe Menge ab, die auch den Streifen dort füllt (Störungen im Fenster), für ein Konto dieselbe wie die geteilte Nutzlast. Alles andere ist ein 404 und kein 403, damit die Kennung nicht die Existenz verrät.',
+            ],
             'GET health' => [
                 'kind' => self::OPEN,
                 'reason' => 'Die Bereitschaftsprüfung läuft, während das Paket umschaltet — da ist niemand angemeldet. Sie gibt Versionsnummern und einen Bereitschaftszustand heraus, sonst nichts.',

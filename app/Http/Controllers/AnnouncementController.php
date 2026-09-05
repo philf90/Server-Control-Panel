@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\AnnouncementAudience;
 use App\Enums\AnnouncementCategory;
+use App\Models\Account;
 use App\Models\Announcement;
 use App\Support\Audit\Audit;
 use App\Support\Time\Clock;
@@ -40,6 +41,67 @@ use Inertia\Response;
  */
 final class AnnouncementController extends Controller
 {
+    /**
+     * Eine einzelne Ankündigung im vollen Wortlaut — für jeden, den sie erreicht.
+     *
+     * ## Warum es diese Seite gibt
+     *
+     * Der Streifen klammert bei zwei Zeilen; das sind bei 390 px rund 80 von
+     * 500 Zeichen. `docs/103 §4.3` versprach dafür einen Verweis „auf die
+     * Verwaltungsseite" — und die steht hinter `operate-server`. Kunde,
+     * Administrator und der Unangemeldete auf der Anmeldeseite hätten dort
+     * einen 403 bekommen, also genau die drei Gruppen, für die der Verweis da
+     * war.
+     *
+     * > **Ein Verweis auf einen Ort, den der Leser nicht betreten darf, ist
+     * > kein Weg zum Text — er ist eine zweite Sackgasse.**
+     *
+     * ## Wer was sieht, entscheidet dieselbe Stelle wie beim Streifen
+     *
+     * **Angemeldet**: was {@see Announcement::visibleTo()} liefert — Fenster
+     * und Publikum. **Unangemeldet**: was
+     * {@see Announcement::onLoginPage()} liefert, also Störungen im Fenster
+     * und sonst nichts. Beides sind die Mengen, die der Leser als Streifen
+     * ohnehin schon vor sich hat; diese Seite zeigt nur denselben Text
+     * ungekürzt.
+     *
+     * > **Eine Leseseite, die eine eigene Frage stellt, ist eine zweite
+     * > Fassung der Sichtbarkeitsregel — und die zweite ist die, die
+     * > veraltet.**
+     *
+     * ## 404 und nicht 403
+     *
+     * Ein 403 bestätigte die Existenz. Wer eine Kennung durchprobiert, soll
+     * nicht erfahren, dass es Ankündigung 7 gibt und sie ihn nur nichts
+     * angeht.
+     */
+    public function show(Request $request, Announcement $announcement): Response
+    {
+        $konto = $request->user();
+
+        $sichtbar = $konto instanceof Account
+            ? Announcement::visibleTo($konto)
+            : Announcement::onLoginPage();
+
+        if (! $sichtbar->contains(static fn (Announcement $a): bool => $a->is($announcement))) {
+            abort(404);
+        }
+
+        return Inertia::render('Announcements/Show', [
+            'announcement' => [
+                'rank' => $announcement->category->label(),
+                'badge' => $announcement->category->badge(),
+                'body' => $announcement->body,
+            ],
+
+            // Angemeldet führt der Weg zurück ins Panel, unangemeldet zur
+            // Anmeldung — die einzige Seite, die der Leser dann kennt.
+            'back' => $konto instanceof Account
+                ? ['url' => route('overview'), 'label' => 'Zur Übersicht']
+                : ['url' => route('login'), 'label' => 'Zur Anmeldung'],
+        ]);
+    }
+
     public function index(): Response
     {
         return Inertia::render('Announcements/Index', [

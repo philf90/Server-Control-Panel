@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\AnnouncementAudience;
 use App\Enums\AnnouncementCategory;
 use App\Models\Account;
 use App\Models\Announcement;
@@ -138,6 +139,110 @@ final class AnnouncementPageTest extends TestCase
                 ->component('Auth/Login')
                 ->has('incidents', 1)
                 ->where('incidents.0.badge', AnnouncementCategory::Incident->badge())
+                ->etc());
+    }
+
+    /**
+     * Die Leseseite zeigt jedem genau das, was sein Streifen zeigt.
+     *
+     * **Der Anlass ist ein Kriterium, das der Prüfling nicht erfüllen konnte.**
+     * `docs/103 §4.3` versprach einen Verweis „auf die Verwaltungsseite", und
+     * die steht hinter `operate-server`: Kunde, Administrator und der
+     * Unangemeldete hätten dort einen 403 bekommen — also genau die drei
+     * Gruppen, für die der Verweis da war.
+     *
+     * > **Ein Verweis auf einen Ort, den der Leser nicht betreten darf, ist
+     * > kein Weg zum Text — er ist eine zweite Sackgasse.**
+     *
+     * **404 und nicht 403**, damit die Kennung nicht die Existenz verrät.
+     *
+     * @param  'operator'|'administrator'|'customer'|'guest'  $wer
+     */
+    #[DataProvider('leser')]
+    public function test_the_reading_page_shows_what_the_band_shows(
+        string $wer,
+        string $publikum,
+        int $erwartet,
+    ): void {
+        $ankuendigung = Announcement::factory()
+            ->incident()
+            ->forAudiences([AnnouncementAudience::from($publikum)])
+            ->create();
+
+        $anfrage = $wer === 'guest'
+            ? $this
+            : $this->actingAs(match ($wer) {
+                'operator' => Account::factory()->admin()->create(),
+                'administrator' => Account::factory()->administrator()->create(),
+                'customer' => Account::factory()->customer()->create(),
+                default => throw new \LogicException('Unbekannter Leser: '.$wer),
+            });
+
+        $anfrage->get('/announcements/'.$ankuendigung->id)->assertStatus($erwartet);
+    }
+
+    /**
+     * Wer die Leseseite erreicht und wer nicht.
+     *
+     * **Ein Gast steht zweimal darin**, und das ist der Kern: Eine Störung
+     * erreicht ihn über die Anmeldeseite, eine Ankündigung für Kunden nicht —
+     * `onLoginPage()` filtert die Kategorie und **nicht** das Publikum.
+     *
+     * @return iterable<string, array{string, string, int}>
+     */
+    public static function leser(): iterable
+    {
+        yield 'Betreiber, an Betreiber' => ['operator', 'operator', 200];
+        yield 'Betreiber, an Kunden' => ['operator', 'customer', 404];
+        yield 'Administrator, an Administratoren' => ['administrator', 'administrator', 200];
+        yield 'Administrator, an Kunden' => ['administrator', 'customer', 404];
+        yield 'Kunde, an Kunden' => ['customer', 'customer', 200];
+        yield 'Kunde, an Betreiber' => ['customer', 'operator', 404];
+        yield 'Gast, Störung' => ['guest', 'operator', 200];
+    }
+
+    /**
+     * Eine Störung ausserhalb ihres Fensters ist auch als Adresse fort.
+     *
+     * Die stille Hälfte: Ein Fenster, das nur den Streifen filtert und nicht
+     * die Leseseite, hält eine abgelaufene Störung unter ihrer Kennung
+     * beliebig lange lesbar.
+     */
+    public function test_a_closed_window_closes_the_reading_page_too(): void
+    {
+        $ankuendigung = Announcement::factory()->incident()->create([
+            'visible_until' => now()->subHour(),
+        ]);
+
+        $this->get('/announcements/'.$ankuendigung->id)->assertStatus(404);
+    }
+
+    /**
+     * Ein Gast bekommt auf der Leseseite keine Information über den Server.
+     *
+     * Sie liegt ausserhalb der `auth`-Klammer; ohne diese Prüfung wäre die
+     * Frage, was `share()` einem Gast mitgibt, nur durch Hinsehen beantwortet.
+     *
+     * **Gefragt wird nach dem Inhalt und nicht nach dem Schlüssel**, und das
+     * ist beim ersten Wurf schiefgegangen: `missing('abilities')` war rot,
+     * weil `share()` einem Gast die **leere Liste** gibt — derselbe Rückfall
+     * an der Grenze wie bei `incidents`, damit kein `v-for` auf `undefined`
+     * läuft.
+     *
+     * > **Ein Schlüssel, der mit leerem Wert dasteht, ist kein Leck — und eine
+     * > Prüfung auf seine Abwesenheit prüft die Bauart statt der Preisgabe.**
+     */
+    public function test_the_reading_page_tells_a_guest_nothing_about_the_server(): void
+    {
+        $ankuendigung = Announcement::factory()->incident()->create();
+
+        $this->get('/announcements/'.$ankuendigung->id)
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Announcements/Show')
+                ->where('back.url', route('login'))
+                ->where('abilities', [])
+                ->where('account', null)
                 ->etc());
     }
 

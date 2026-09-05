@@ -75,6 +75,27 @@ Route::post('/logout', [LoginController::class, 'destroy'])
     ->name('logout');
 
 /*
+ * Eine Ankündigung im vollen Wortlaut (A14, `docs/103 §4.3`).
+ *
+ * **Ausserhalb der `auth`-Klammer, und das ist die Absicht.** Der Streifen auf
+ * der Anmeldeseite zeigt Störungen an jeden, der die Adresse kennt — das hat der
+ * Betreiber so entschieden. Er klammert dabei bei zwei Zeilen; bei 390 px sind
+ * das rund 80 von 500 Zeichen. Ein Verweis, der hinter `auth` führte, schickte
+ * genau diesen Leser auf die Anmeldung, statt ihm die Störung zu Ende zu
+ * erzählen.
+ *
+ * **Neu sichtbar wird dadurch nichts.** Der Controller fragt für einen Gast
+ * dieselbe Menge ab, die auch den Streifen der Anmeldeseite füllt
+ * ({@see Announcement::onLoginPage()}) — Störungen im Fenster und sonst nichts.
+ * Alles andere ist für ihn ein 404.
+ *
+ * > **Eine öffentliche Route ist dann keine Preisgabe, wenn sie genau das
+ * > ungekürzt zeigt, was anderswo schon gekürzt öffentlich steht.**
+ */
+Route::get('/announcements/{announcement}', [AnnouncementController::class, 'show'])
+    ->name('announcements.show');
+
+/*
  * Alles Weitere setzt ein Konto voraus.
  *
  * Die Gruppe ist kein Komfort, sondern die Voreinstellung: Eine neue Route

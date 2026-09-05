@@ -17,6 +17,22 @@
 # Fläche, und der Ausdruck fand diese Fundstelle. Der Wächter sah richtig aus
 # und war es nicht — gemerkt hat es nur der Bruch.
 #
+# **Wer einen Eingriff schreibt, zielt nicht auf einen blossen Namen.** Dieses
+# Repo hält in jeder Behebung ihren Vorzustand im Kommentar fest, und jeder
+# Dokumentblock nennt seine Nachbarn als `{@see …}`. Ein Eingriff auf
+# `Announcement::onLoginPage()` findet die Zeichenkette deshalb zweimal, bricht
+# an seinem eigenen `assert` ab und meldet „Eingriff hat nichts geändert" — am
+# 5. September 2026 dreimal an einem Tag passiert. Gezielt wird auf den ganzen
+# Ausdruck (`: Announcement::onLoginPage();`), nicht auf den Namen darin.
+#
+# > **Derselbe Kommentar, der einen Wächter fälschlich grün hält, macht einen
+# > Bruch blind.**
+#
+# **Und ein Eingriff zeigt auf einen Wächter, der die Frage beantworten kann.**
+# Am selben Tag nahm einer der Hülle ihr `display: flex` und erwartete einen
+# Fund von `BlockSpacingTest` — der liest benachbarte Tags im Vorlagentext, und
+# ein `v-for` erzeugt kein Paar. Er lief durch und liess seinen Wächter grün.
+#
 # Das Skript ändert Dateien unter resources/, app/, agent/ und packaging/ und
 # stellt sie wieder her. Es verweigert den Start, wenn dort schon etwas geändert
 # ist, und räumt auch nach einem Abbruch auf.
@@ -24669,6 +24685,89 @@ PY2
 griff_datei resources/css/app.css "die Hülle verliert ihre Fugen" &&
 pruefe "die Hülle verliert ihre Fugen" \
   AnnouncementBandTest::test_the_hull_stacks_its_bands_with_a_gap failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
+
+echo
+echo "== AnnouncementPageTest: der Gast bekommt die Menge des Angemeldeten =="
+#
+# Die Leseseite liegt ausserhalb der auth-Klammer, damit der Streifen der
+# Anmeldeseite seine Stoerung zu Ende erzaehlen kann. Faellt der Gast auf
+# visibleTo(null) zurueck, sieht er statt der oeffentlichen Stoerungen alles,
+# was gerade im Fenster steht.
+#
+# Gezielt wird auf den ganzen Ausdruck: Der Dokumentblock nennt
+# `Announcement::onLoginPage()` als {@see …}, der blosse Name steht zweimal da.
+vorher_datei app/Http/Controllers/AnnouncementController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AnnouncementController.php'
+s = open(p, encoding='utf-8').read()
+alt = ': Announcement::onLoginPage();'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, ': Announcement::visibleTo(null);', 1))
+PY2
+griff_datei app/Http/Controllers/AnnouncementController.php "der Gast sieht zuviel" &&
+pruefe "der Gast sieht zuviel" \
+  AnnouncementPageTest::test_the_reading_page_shows_what_the_band_shows failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementPageTest passed
+
+echo
+echo "== AnnouncementWindowTest: die Leseseite antwortet mit 403 =="
+#
+# Ein 403 bestaetigt die Existenz. Wer Kennungen durchprobiert, soll nicht
+# erfahren, dass es Ankuendigung 7 gibt und sie ihn nur nichts angeht.
+vorher_datei app/Http/Controllers/AnnouncementController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AnnouncementController.php'
+s = open(p, encoding='utf-8').read()
+alt = '            abort(404);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '            abort(403);', 1))
+PY2
+griff_datei app/Http/Controllers/AnnouncementController.php "403 statt 404" &&
+pruefe "403 statt 404" \
+  AnnouncementWindowTest::test_the_reading_page_asks_the_same_two_questions failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementWindowTest passed
+
+echo
+echo "== AnnouncementBandTest: das Band ist wieder ein div =="
+#
+# Der Verweis sass zuerst als „mehr" am Textende, innerhalb der Zeilenklammer
+# — und wurde damit genau dann abgeschnitten, wenn der Text lang ist.
+vorher_datei resources/js/Components/Bands.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/Bands.vue'
+s = open(p, encoding='utf-8').read()
+alt = '  <Link\n    v-for'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '  <div\n    v-for', 1))
+PY2
+griff_datei resources/js/Components/Bands.vue "kein Verweis am Band" &&
+pruefe "kein Verweis am Band" \
+  AnnouncementBandTest::test_the_band_itself_is_the_link failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
+
+echo
+echo "== AnnouncementBandTest: der Rang verliert seine Farbe an den Verweis =="
+#
+# Ein <a> erbt die Linkfarbe. Der Rang steht auf drei Traegern — Flaeche, Rand,
+# Textfarbe (M9) —, und die Linkfarbe naehme ihm den dritten.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+i = s.index('.band {')
+j = s.index('\n}', i)
+block = s[i:j]
+assert block.count('  color: inherit;') == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s[:i] + block.replace('  color: inherit;\n', '') + s[j:])
+PY2
+griff_datei resources/css/app.css "Linkfarbe überschreibt den Rang" &&
+pruefe "Linkfarbe überschreibt den Rang" \
+  AnnouncementBandTest::test_the_band_itself_is_the_link failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 

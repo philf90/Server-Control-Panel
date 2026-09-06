@@ -25967,3 +25967,43 @@ keiner am Prüfling; sie stehen in `docs/102 §9` und in `CLAUDE.md`.
 
 - Gegen die echte Seite gefahren, 390 px:
   `dokument=0 gegenprobe=200 (soll 200) schiebt=0 rollt=0 versteckt=6`.
+
+### A14 ist abgenommen — 6. September 2026
+
+- **Auf `cloudsrv24` gegen `0.7.3-rc.20` bis `0.7.3-rc.22`, alle acht Punkte
+  aus `docs/103 §8`**, beide Ausschlusskriterien (3 und 6) darunter, keiner als
+  „nicht herstellbar" ausgefallen. Der Lauf ist `docs/104`, das Protokoll
+  **`docs/105`**.
+
+- **Punkt 3 misst eine Eigenschaft und hat sie belegt.** Drei Bänder bei genau
+  390 px, zweimal gemessen: mit 120 und mit 500 Zeichen je **62 px**, die Hülle
+  je **214 px**, `schiebt = 0`, Gegenprobe **200**. Der vierfache Text ändert
+  an der Höhe nichts.
+
+- **Die Bilderrunde in vier Lagen**, auf `/announcements`: `dokument = 0` und
+  Gegenprobe 200 in allen vieren, `schiebt = 0`, beide Themen über den
+  Umschalter des Panels gestellt.
+
+- **Zehn Befunde, fünf im Prüfling** — dasselbe Verhältnis wie bei A10 und A2
+  und aus demselben Grund: Die Vorschrift war vor dem Lauf ausgeschrieben, die
+  Messmittel lagen als geprüfte Werkzeuge im Repo. Was blieb, war neuer Code.
+
+  **Vier der fünf hat der Betreiber beim Benutzen gemeldet** und keine Messung.
+  Der letzte ist der, der offen bleibt: **Eine Ankündigung lässt sich nicht
+  ändern.** `docs/103 §10` zählt auf, was A14 nicht wird — Bearbeiten steht
+  dort nicht.
+
+  > **Eine Aufzählung dessen, was ein Merkmal nicht wird, ist nur dann eine
+  > Entscheidung, wenn das Fehlende darin steht — sonst ist sie eine Lücke mit
+  > Überschrift.**
+
+- **Und eine Erwartung der Vorschrift stimmte auf dem Server nicht.** Für die
+  Bilderrunde bei 1440 px war `rollt=1` angesagt; gemessen wurde 0. Ein Roller
+  taucht nur auf, wenn er auch überläuft — im Container war die Tabelle 43 px
+  breiter als ihr Behälter, auf dem Server passt sie hinein.
+
+  > **Eine Erwartung aus einer Messung unter anderen Bedingungen ist eine
+  > Vermutung, auch wenn sie aus einer Messung stammt.**
+
+- **Der Prüfstand ist abgeräumt und das ist belegt:**
+  `Announcement::count()` gibt 0, die Zahl von vor dem Lauf.

@@ -214,6 +214,22 @@ in `routes/web.php` und ein Eintrag mit Begründung in
 Sie zeigt die Ankündigungen mit Kategorie, Fenster, Publikum und Zustand, und
 sie ist der **Ort des vollen Textes**, auf den der gekürzte Streifen zeigt.
 
+**Geändert wird über `/announcements/{id}/edit`, seit dem 6. September 2026.**
+Dass es diesen Weg braucht, ist ein Befund des Abnahmelaufs (`docs/105 §10.4`)
+und keine Erweiterung: Bis dahin gab es `store` und `destroy` und nichts
+dazwischen, und der Umweg über Löschen und Neuanlegen gibt der Ankündigung eine
+neue Kennung — der Streifen ist ein **Verweis** auf `/announcements/{id}`, und
+ein Kunde mit dem alten Verweis bekäme einen 404.
+
+Die Felder stehen dafür als Komponente `AnnouncementForm` an einer Stelle; die
+Anlegeseite bleibt, wo sie ist. **Die Kategorie darf mitgeändert werden**,
+entschieden vom Betreiber: Aus einer Info eine Störung zu machen heisst, dass
+sie ab sofort auf der Anmeldeseite steht — genau der Schnitt, der die Fähigkeit
+dieser Seite auf `operate-server` gelegt hat.
+
+Eine Änderung steht als `announcement.change` im Protokoll, mit den Feldern, die
+sich geändert haben, und ihrem Wortlaut vorher und nachher.
+
 Felder je Ankündigung:
 
 | Feld | Form |

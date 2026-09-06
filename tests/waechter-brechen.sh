@@ -558,6 +558,142 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FieldErrorTest passed
 
 echo
+echo "── FieldErrorTest: die Zusammenfassung fällt aus der geteilten Komponente ──"
+#
+# Die Gegenrichtung zum Fall darueber: Seit AnnouncementForm beides mitbringt —
+# Markierung und Zusammenfassung —, muss der Waechter beide Haelften seiner
+# Frage ueber Komponenten aufloesen. Tut er es nur bei einer, prueft er zwei
+# verschiedene Baeume.
+vorher_datei resources/js/Components/AnnouncementForm.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/AnnouncementForm.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('<FormErrors />', '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Components/AnnouncementForm.vue "Komponente ohne Zusammenfassung" &&
+pruefe "Komponente ohne Zusammenfassung" \
+  FieldErrorTest::test_every_page_that_can_mark_a_field_shows_the_summary failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FieldErrorTest passed
+
+echo
+echo "── FormErrorTest: die Zusammenfassung fällt aus der geteilten Komponente ──"
+#
+# Dieselbe Asymmetrie wie bei FieldErrorTest, und sie stand zugleich in einem
+# zweiten Waechter — wer den einen berichtigt, berichtigt den anderen nicht mit.
+vorher_datei resources/js/Components/AnnouncementForm.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/AnnouncementForm.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('<FormErrors />', '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Components/AnnouncementForm.vue "Formular ohne Zusammenfassung" &&
+pruefe "Formular ohne Zusammenfassung" \
+  FormErrorTest::test_every_page_with_a_form_shows_what_went_wrong failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FormErrorTest passed
+
+echo
+echo "── AttributeLabelTest: Komponenten fallen aus der Sicht ──"
+#
+# Ein Feld, das in eine Komponente zieht, ist fuer einen Waechter ueber Seiten
+# verschwunden — nicht richtig geworden.
+vorher_datei tests/Unit/AttributeLabelTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/AttributeLabelTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            ...$this->files($this->root().'/resources/js/Components', 'vue'),\n", '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Unit/AttributeLabelTest.php "Beschriftungen nur auf Seiten" &&
+pruefe "Beschriftungen nur auf Seiten" \
+  AttributeLabelTest::test_every_exception_still_points_somewhere failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AttributeLabelTest passed
+
+echo
+echo "── AnnouncementChangeTest: das Formular dreht nicht in die Anzeigezone ──"
+#
+# Die Naht, an der docs/102 bezahlt hat: Was der Betreiber eintippt, muss in
+# seiner Zone zurueckkommen. Ohne die Drehung stuende dort UTC, und um zwei
+# Stunden daneben sieht aus wie richtig.
+vorher_datei app/Http/Controllers/AnnouncementController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AnnouncementController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "$this->split(Clock::minute($a->visible_from?->utc()->format('Y-m-d H:i:s')))",
+    "$this->split($a->visible_from?->utc()->format('Y-m-d H:i'))", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/AnnouncementController.php "Formular ohne Zonendrehung" &&
+pruefe "Formular ohne Zonendrehung" \
+  AnnouncementChangeTest::test_a_typed_time_comes_back_in_the_display_zone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementChangeTest passed
+
+echo
+echo "── AnnouncementChangeTest: die Änderung wird als Anlage protokolliert ──"
+#
+# Genau der Weg, den es vor dem Aendern gab. Wer spaeter fragt, warum eine
+# Ankuendigung verschwand, faende eine Loeschung.
+vorher_datei app/Http/Controllers/AnnouncementController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AnnouncementController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'announcement.change'", "'announcement.create'", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/AnnouncementController.php "Änderung als Anlage" &&
+pruefe "Änderung als Anlage" \
+  AnnouncementChangeTest::test_a_change_is_recorded_as_one failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementChangeTest passed
+
+echo
+echo "── AnnouncementChangeTest: der Wortlaut steht vorn ──"
+#
+# AuditQuery::details() kuerzt bei 200 Zeichen. Zwei Texte von je 500 Zeichen
+# schoeben die Kennung aus der Zeile — der Leser wuesste dann nicht einmal
+# mehr, welche Ankuendigung gemeint war.
+vorher_datei app/Http/Controllers/AnnouncementController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AnnouncementController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "foreach ([...array_diff($geaendert, ['body']), ...array_intersect($geaendert, ['body'])] as $feld) {",
+    "foreach ($geaendert as $feld) {", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/AnnouncementController.php "Wortlaut zuerst" &&
+pruefe "Wortlaut zuerst" \
+  AnnouncementChangeTest::test_the_wording_stands_last failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementChangeTest passed
+
+echo
+echo "── AnnouncementChangeTest: ein Speichern ohne Unterschied verschwindet ──"
+#
+# Ein Vorgang, der stattgefunden hat und im Protokoll fehlt, sieht aus wie
+# einer, den es nicht gab.
+vorher_datei app/Http/Controllers/AnnouncementController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AnnouncementController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "$zusammenhang = ['id' => $id, 'changed' => $geaendert];",
+    "if ($geaendert === []) { return []; }\n        $zusammenhang = ['id' => $id, 'changed' => $geaendert];", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/AnnouncementController.php "Speichern ohne Spur" &&
+pruefe "Speichern ohne Spur" \
+  AnnouncementChangeTest::test_saving_without_a_difference_is_recorded_too failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AnnouncementChangeTest passed
+
+echo
 echo "── FieldErrorTest: Erfolg wird am Feld gemeldet ──"
 #
 # docs/19 §6.3: Die Markierung zeigt, wo noch etwas zu tun ist. Erfolg hat keinen

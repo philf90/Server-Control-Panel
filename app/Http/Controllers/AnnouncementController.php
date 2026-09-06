@@ -9,6 +9,7 @@ use App\Enums\AnnouncementCategory;
 use App\Models\Account;
 use App\Models\Announcement;
 use App\Support\Audit\Audit;
+use App\Support\Audit\AuditQuery;
 use App\Support\Time\Clock;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -140,14 +141,8 @@ final class AnnouncementController extends Controller
              */
             'zone' => Clock::label(),
 
-            'categories' => array_map(
-                static fn (AnnouncementCategory $c): array => ['value' => $c->value, 'label' => $c->label()],
-                AnnouncementCategory::cases(),
-            ),
-            'audiences' => array_map(
-                static fn (AnnouncementAudience $a): array => ['value' => $a->value, 'label' => $a->label()],
-                AnnouncementAudience::cases(),
-            ),
+            'categories' => $this->categories(),
+            'audiences' => $this->audienceOptions(),
         ]);
     }
 
@@ -167,6 +162,72 @@ final class AnnouncementController extends Controller
             ->with('success', 'Die Ankündigung steht.');
     }
 
+    /**
+     * Das Formular einer bestehenden Ankündigung.
+     *
+     * **Dass es diese Handlung gibt, ist ein Befund des Abnahmelaufs**
+     * (`docs/105 §10.4`). Bis zum 6. September 2026 kannte diese Seite `store`
+     * und `destroy` und nichts dazwischen, und `docs/103 §10` — die Liste
+     * dessen, was A14 ausdrücklich *nicht* wird — nennt das Bearbeiten nicht.
+     *
+     * > **Eine Aufzählung dessen, was ein Merkmal nicht wird, ist nur dann eine
+     * > Entscheidung, wenn das Fehlende darin steht — sonst ist sie eine Lücke
+     * > mit Überschrift.**
+     *
+     * Der Weg über Löschen und Neuanlegen war keiner: Der Streifen ist ein
+     * **Verweis** auf `/announcements/{id}`, und eine neue Kennung macht aus
+     * dem Verweis eines lesenden Kunden einen 404.
+     */
+    public function edit(Announcement $announcement): Response
+    {
+        return Inertia::render('Announcements/Edit', [
+            'announcement' => ['id' => $announcement->id, 'rank' => $announcement->category->label()],
+            'values' => $this->values($announcement),
+            'zone' => Clock::label(),
+            'categories' => $this->categories(),
+            'audiences' => $this->audienceOptions(),
+        ]);
+    }
+
+    /**
+     * Eine bestehende Ankündigung ändern.
+     *
+     * **Geprüft wird mit derselben Methode wie beim Anlegen.** Eine zweite
+     * Fassung der Regeln wäre die, die beim nächsten Feld veraltet.
+     *
+     * **Und die Kategorie darf mit**, entschieden vom Betreiber am 6. September
+     * 2026. Aus einer Info eine Störung zu machen heisst, dass sie ab sofort
+     * auf der Anmeldeseite steht — vor jedem, der die Adresse kennt. Genau
+     * dieser Schnitt hat die Fähigkeit dieser Seite auf `operate-server` gelegt
+     * (`docs/103 §5`); wer sie hat, darf auch diesen Schritt.
+     */
+    public function update(Request $request, Announcement $announcement, Audit $audit): RedirectResponse
+    {
+        $daten = $this->pruefen($request);
+
+        /*
+         * **Beide Seiten kommen aus derselben Abbildung**, vorher und nachher.
+         * Ein Vergleich zwischen der rohen Eingabe und dem gecasteten Modell
+         * meldete Unterschiede, wo keine sind — `audiences` reist einmal als
+         * Liste und einmal als JSON, und ein Zeitpunkt einmal mit Sekunden.
+         *
+         * > **Zwei Leser derselben Sache, die verschieden zählen, sind zwei
+         * > Fassungen derselben Regel.**
+         */
+        $vorher = $this->fields($announcement);
+
+        $announcement->update($daten);
+
+        $audit->success('announcement.change', context: $this->difference(
+            $announcement->id,
+            $vorher,
+            $this->fields($announcement->refresh()),
+        ));
+
+        return redirect()->route('announcements')
+            ->with('success', 'Die Ankündigung ist geändert.');
+    }
+
     public function destroy(Announcement $announcement, Audit $audit): RedirectResponse
     {
         $audit->success('announcement.remove', context: [
@@ -178,6 +239,135 @@ final class AnnouncementController extends Controller
 
         return redirect()->route('announcements')
             ->with('success', 'Die Ankündigung ist entfernt.');
+    }
+
+    /**
+     * Die fünf Felder einer Ankündigung in einer vergleichbaren Form.
+     *
+     * **Eine Stelle für beide Seiten des Vergleichs** — siehe
+     * {@see self::update()}. Zeitpunkte stehen hier als **UTC** und nicht in
+     * der Anzeigezone: Das Protokoll ist ein Beleg, den jemand aufhebt, und
+     * eine Zeitangabe ohne ihre Zone wird still falsch, sobald die Einstellung
+     * eine andere ist (`docs/40 §3.3`, `docs/102 §3b`).
+     *
+     * @return array<string, mixed>
+     */
+    private function fields(Announcement $a): array
+    {
+        return [
+            'category' => $a->category->value,
+            'body' => $a->body,
+            'visible_from' => $a->visible_from?->utc()->format('Y-m-d H:i'),
+            'visible_until' => $a->visible_until?->utc()->format('Y-m-d H:i'),
+            'audiences' => $a->audiences ?? [],
+        ];
+    }
+
+    /**
+     * Was sich geändert hat, als Zusammenhang für das Protokoll.
+     *
+     * **Flach und nicht verschachtelt, und das ist gemessen.**
+     * {@see AuditQuery::plain()} flacht ein Array mit
+     * `, ` ab — aus `['from' => 'alt', 'to' => 'neu']` würde `alt, neu`, und
+     * welches welches ist, stünde nirgends.
+     *
+     * > **Ein Zusammenhang, den der Leser als „alt, neu" ohne Beschriftung
+     * > bekommt, sagt nicht, welches welches ist.**
+     *
+     * **Die Reihenfolge trägt.** `AuditQuery::details()` läuft in
+     * Einfügereihenfolge und kürzt den fertigen Satz bei
+     * {@see AuditQuery::DETAILS_MAX} Zeichen — mit einem
+     * sichtbaren Hinweis, aber es kürzt. Deshalb stehen die kurzen Tatsachen
+     * vorn und der Wortlaut zuletzt: Zwei Texte von je 500 Zeichen schöben
+     * sonst alles andere aus der Zeile.
+     *
+     * Der volle Wortlaut steht trotzdem drin. Die Spalte ist `json` und nimmt
+     * ihn; gekürzt wird die **Anzeige**, nicht der Beleg.
+     *
+     * **Und ein Speichern ohne Unterschied wird auch protokolliert**, mit
+     * leerem `changed`. Ein Vorgang, der stattgefunden hat und im Protokoll
+     * fehlt, sieht aus wie einer, den es nicht gab.
+     *
+     * @param  array<string, mixed>  $vorher
+     * @param  array<string, mixed>  $nachher
+     * @return array<string, mixed>
+     */
+    private function difference(int $id, array $vorher, array $nachher): array
+    {
+        $geaendert = array_values(array_filter(
+            array_keys($nachher),
+            static fn (string $feld): bool => $vorher[$feld] !== $nachher[$feld],
+        ));
+
+        $zusammenhang = ['id' => $id, 'changed' => $geaendert];
+
+        // Der Wortlaut zuletzt — siehe oben.
+        foreach ([...array_diff($geaendert, ['body']), ...array_intersect($geaendert, ['body'])] as $feld) {
+            $zusammenhang[$feld.'_before'] = $vorher[$feld];
+            $zusammenhang[$feld.'_after'] = $nachher[$feld];
+        }
+
+        return $zusammenhang;
+    }
+
+    /**
+     * Die Werte einer Ankündigung, wie das Formular sie braucht.
+     *
+     * **Fenster als vier Felder und nicht als zwei Zeitpunkte** — dieselbe
+     * Form, die {@see self::pruefen()} entgegennimmt. Ginge die Zerlegung in
+     * der Seite auf, gäbe es zwei Fassungen des Formats, und die zweite ist
+     * die, die veraltet.
+     *
+     * @return array<string, mixed>
+     */
+    private function values(Announcement $a): array
+    {
+        [$vonTag, $vonZeit] = $this->split(Clock::minute($a->visible_from?->utc()->format('Y-m-d H:i:s')));
+        [$bisTag, $bisZeit] = $this->split(Clock::minute($a->visible_until?->utc()->format('Y-m-d H:i:s')));
+
+        return [
+            'category' => $a->category->value,
+            'body' => $a->body,
+            'visible_from_date' => $vonTag,
+            'visible_from_time' => $vonZeit,
+            'visible_until_date' => $bisTag,
+            'visible_until_time' => $bisZeit,
+            'audiences' => $a->audiences ?? [],
+        ];
+    }
+
+    /**
+     * Aus `Y-m-d H:i` der Anzeigezone die zwei Felder — oder zweimal leer.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function split(?string $lokal): array
+    {
+        if ($lokal === null || ! str_contains($lokal, ' ')) {
+            return ['', ''];
+        }
+
+        [$tag, $zeit] = explode(' ', $lokal, 2);
+
+        return [$tag, mb_substr($zeit, 0, 5)];
+    }
+
+    /** @return list<array{value: string, label: string}> */
+    private function categories(): array
+    {
+        return array_map(
+            static fn (AnnouncementCategory $c): array => ['value' => $c->value, 'label' => $c->label()],
+            AnnouncementCategory::cases(),
+        );
+    }
+
+    /** @return list<array{value: string, label: string}> */
+    private function audienceOptions(): array
+    {
+        return array_map(
+            static fn (AnnouncementAudience $a): array => ['value' => $a->value, 'label' => $a->label()],
+            AnnouncementAudience::cases(),
+        );
     }
 
     /**

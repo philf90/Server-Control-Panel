@@ -26007,3 +26007,66 @@ keiner am Prüfling; sie stehen in `docs/102 §9` und in `CLAUDE.md`.
 
 - **Der Prüfstand ist abgeräumt und das ist belegt:**
   `Announcement::count()` gibt 0, die Zahl von vor dem Lauf.
+
+### Eine Ankündigung lässt sich ändern — und zwei Wächter hielten dieselbe Regel
+
+- **Befund 4 des A14-Abnahmelaufs ist gebaut** (`docs/105 §10.4`). Bis zum
+  6. September 2026 kannte `/announcements` `store` und `destroy` und nichts
+  dazwischen; gemeldet hat es der Betreiber beim Fahren von Punkt 3, und
+  `docs/103 §10` — die Liste dessen, was A14 ausdrücklich *nicht* wird — nannte
+  das Bearbeiten nicht.
+
+  Der Umweg über Löschen und Neuanlegen war keiner: Der Streifen ist ein
+  **Verweis** auf `/announcements/{id}`, und eine neue Kennung macht daraus für
+  einen lesenden Kunden einen 404.
+
+- **Die Felder stehen als `AnnouncementForm` an einer Stelle**, und die
+  Anlegeseite bleibt, wo sie ist. Der naheliegende Weg wäre gewesen, es wie bei
+  den Konten zu machen — `create` und `edit` als eine Seite. Das hätte
+  `/announcements` umgebaut, also die Ansicht, die der Abnahmelauf am selben Tag
+  in vier Lagen gemessen hat.
+
+  > **Eine Änderung, die eine gerade gemessene Ansicht umbaut, macht die Messung
+  > wertlos.**
+
+- **Das Protokoll führt `announcement.change` flach und in der richtigen
+  Reihenfolge.** `AuditQuery::plain()` flacht ein verschachteltes Array mit `, `
+  ab — aus `['from' => 'alt', 'to' => 'neu']` würde `alt, neu`, und welches
+  welches ist, stünde nirgends. Und `details()` kürzt bei 200 Zeichen: Zwei
+  Texte von je 500 schöben die Kennung aus der Zeile. Deshalb stehen die kurzen
+  Tatsachen vorn und der Wortlaut zuletzt; der volle Text bleibt im `json` und
+  gekürzt wird nur die Anzeige.
+
+- **Und der volle Testlauf hat zwei Löcher gefunden, die die einzeln gefahrenen
+  Wächter nicht sahen.**
+
+  `FieldErrorTest` und `FormErrorTest` fordern beide die Fehlerzusammenfassung,
+  und **beide** lösten den Auslöser über Komponenten auf, die Forderung aber
+  nicht. Ich habe den einen berichtigt und den anderen nicht bemerkt.
+
+  > **Ein Wächter, der die eine Hälfte seiner Frage über Komponenten auflöst und
+  > die andere nicht, prüft zwei verschiedene Bäume.**
+
+  `AttributeLabelTest` las nur `Pages`. Mit dem Umzug des Formulars verschwand
+  `audiences` aus seiner Sicht, und die Ausnahme dazu zeigte ins Leere.
+
+  > **Ein Feld, das in eine Komponente zieht, ist für einen Wächter über Seiten
+  > verschwunden — nicht richtig geworden.**
+
+  Gemessen, was die Erweiterung auf Komponenten kostet: **ein** Fund, und das
+  ist genau das umgezogene Feld. Also ist das Loch geschlossen und nicht die
+  Ausnahme verschoben.
+
+- **Und ein Prüfkörper war beim ersten Wurf blind.** `test_the_wording_stands_last`
+  änderte Text und Kategorie — und blieb grün, als die Vorkehrung entfernt
+  wurde: `fields()` führt `category` ohnehin vor `body`. Er ändert jetzt Text
+  und Fenster, weil `visible_from` **hinter** `body` steht.
+
+  > **Ein Prüfkörper, der auch ohne die Regel grün ist, misst die Reihenfolge
+  > einer Aufzählung und nicht die Vorkehrung.**
+
+- Sieben Brüche, jeder wörtlich aus dem Skript gefahren. 3150 Tests grün, Pint
+  grün, `vue-tsc` grün, PHPStan Stufe 6 ohne Meldung, shellcheck ohne Meldung.
+  Gemessen an der echten Seite: drei Knöpfe je Zeile mit 10 px Abstand, kein
+  Überlauf bei 390 und 1440 px, und `14:00 UTC` kommt in Berlin als `16:00`
+  zurück.

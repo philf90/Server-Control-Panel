@@ -274,6 +274,25 @@ Route::middleware('auth')->group(function (): void {
         ->middleware('can:operate-server')
         ->name('announcements.store');
 
+    /*
+     * **Ändern, und warum es das gibt.** Bis zum 6. September 2026 kannte diese
+     * Seite `store` und `destroy` und nichts dazwischen (`docs/105 §10.4`). Der
+     * Weg über Löschen und Neuanlegen war keiner: Der Streifen verweist auf
+     * `/announcements/{id}`, und eine neue Kennung macht daraus für einen
+     * lesenden Kunden einen 404.
+     *
+     * Der Pfad endet auf `/edit` und kollidiert deshalb nicht mit der
+     * **offenen** Leseseite eine Zeile weiter oben — die trägt genau ein
+     * Segment.
+     */
+    Route::get('/announcements/{announcement}/edit', [AnnouncementController::class, 'edit'])
+        ->middleware('can:operate-server')
+        ->name('announcements.edit');
+
+    Route::patch('/announcements/{announcement}', [AnnouncementController::class, 'update'])
+        ->middleware('can:operate-server')
+        ->name('announcements.update');
+
     Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy'])
         ->middleware('can:operate-server')
         ->name('announcements.destroy');

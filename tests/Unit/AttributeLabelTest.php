@@ -70,7 +70,7 @@ final class AttributeLabelTest extends TestCase
             'und kein Name. Der allgemeine Name ist hier der bessere.',
         'Databases/Show.vue:cidr' => 'Die Beschriftung trägt einen eingesetzten Wert '.
             '(„Erreichbar von — für {{ … }}") und steht damit nicht fest.',
-        'Announcements/Index.vue:audiences' => 'Die Beschriftung gehört dem einzelnen Kästchen '.
+        'Components/AnnouncementForm.vue:audiences' => 'Die Beschriftung gehört dem einzelnen Kästchen '.
             '(„Betreiber", „Administrator", „Kunde") und nicht dem Feld. Das Feld ist die Gruppe, '.
             'und ihr Name steht als eigener `span` darüber: „Publikum". Wer „Das Feld Publikum muss …" '.
             'liest, findet ihn dort.',
@@ -195,7 +195,11 @@ final class AttributeLabelTest extends TestCase
 
         foreach ($this->pages() as $pfad) {
             $quelle = (string) file_get_contents($pfad);
-            $seite = substr($pfad, strlen($this->root().'/resources/js/Pages/'));
+            $seite = str_replace(
+                [$this->root().'/resources/js/Pages/', $this->root().'/resources/js/'],
+                '',
+                $pfad,
+            );
             $steuerung = $komponenten[substr($seite, 0, -4)] ?? null;
 
             foreach ($this->labels($quelle) as [$feld, $text]) {
@@ -316,10 +320,33 @@ final class AttributeLabelTest extends TestCase
         return $lang['attributes'] ?? [];
     }
 
-    /** @return list<string> */
+    /**
+     * Jede Datei, in der eine Beschriftung stehen kann.
+     *
+     * **Komponenten zählen mit, und das ist am 6. September 2026 bezahlt
+     * worden.** Bis dahin las dieser Wächter nur `Pages`. Als das
+     * Ankündigungsformular in eine Komponente zog — damit Anlegen und Ändern
+     * dieselben Felder benutzen —, verschwand sein `audiences` aus der Sicht
+     * des Wächters, und die Ausnahme dazu zeigte ins Leere.
+     *
+     * > **Ein Feld, das in eine Komponente zieht, ist für einen Wächter über
+     * > Seiten verschwunden — nicht richtig geworden.**
+     *
+     * Gemessen, was die Erweiterung kostet: **ein** Fund, und das ist genau
+     * das umgezogene Feld. Jede andere Komponente hält die Regel schon.
+     *
+     * Für eine Komponente gibt es keinen Controller und damit keine
+     * Meldung am Aufruf — geprüft wird dort der allgemeine Name. Das ist
+     * weniger, als eine Seite bekommt, und mehr als nichts.
+     *
+     * @return list<string>
+     */
     private function pages(): array
     {
-        return $this->files($this->root().'/resources/js/Pages', 'vue');
+        return [
+            ...$this->files($this->root().'/resources/js/Pages', 'vue'),
+            ...$this->files($this->root().'/resources/js/Components', 'vue'),
+        ];
     }
 
     /** @return list<string> */

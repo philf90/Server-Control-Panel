@@ -358,10 +358,12 @@ nach, wo dieselbe Frage noch gestellt wird.**
 
 **Benannt und kein Kriterienausfall:**
 
-- **Die Bearbeiten-Funktion** (Befund 4). Vom Betreiber entschieden, noch nicht
-  gebaut. Sie braucht `edit`/`update`, den Aussperrschutz gibt es hier nicht —
-  wohl aber die Frage, ob eine Änderung an einer **laufenden** Ankündigung im
-  Protokoll als solche erscheint.
+- **Die Bearbeiten-Funktion** (Befund 4) ist am 6. September gebaut —
+  `GET /announcements/{id}/edit` und `PATCH /announcements/{id}`, die Felder als
+  eine Komponente, die Kategorie änderbar, und eine Änderung steht als
+  `announcement.change` im Protokoll. **Sie hat keinen Server gesehen**; was
+  dort nachzumessen bleibt, ist der Rückweg der Zone an einer Ankündigung mit
+  Fenster und die Zeile auf `/audit`.
 - **Der Rest aus P7** — `orphan.row` zu `tls.cloudlab24.de`, unverändert seit
   `docs/100 §12`.
 - **Das hochgeladene Wegwerfzertifikat** aus `docs/100 §6`, läuft am

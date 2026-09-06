@@ -2289,6 +2289,172 @@ kosten, nicht, ob drei richtig sind.
 
 ---
 
+### 2.3r Die Messrunde vor A11 (6. September 2026)
+
+Gefahren, bevor eine Zeile Plan entstand — nach dem Vorbild von `§2.3o` bis
+`§2.3q`. **A11-Rest** ist laut `§11` und `docs/80`: Zeitzone des Servers und
+NTP-Zustand **neben** der Anzeigezeitzone aus `docs/40`, Rechnername nur
+anzeigen. Der Neustart-Teil ist am 26. August gebaut (A1 Schritt 7);
+`timedatectl` kommt in `agent/` und `app/` bis heute nirgends vor.
+
+Gemessen im Container gegen **echtes systemd 255** in einer eigenen PID- und
+Mount-Namespace (`CLAUDE.md`, „Diese Umgebung") und gegen das Repo selbst.
+**Sechzehn Messungen; vier werfen den Entwurf um, und eine halbiert den
+Umfang.**
+
+#### M1–M4 · Was da ist
+
+`timedatectl` liegt vor, `systemd-timedated`, seine Unit, sein D-Bus-Eintrag,
+die Zonendatenbank mit 454 Dateien. Ein Zeitdienst lief nicht und war nicht
+installiert. `hwclock`, `chronyc` und `ntpq` fehlen.
+
+#### M2, M3 · Ohne systemd sagt `timedatectl` nichts — auf **stderr**
+
+    $ timedatectl status
+    rc=1, stdout 0 Bytes, stderr 118 Bytes:
+    System has not been booted with systemd as init system (PID 1). Can't operate.
+    Failed to connect to bus: Host is down
+
+`timedatectl show` verhält sich gleich. Das ist dieselbe Form, an der A1
+Schritt 2 schon einmal bezahlt hat.
+
+> **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts zu
+> tun".**
+
+Ein Leser, der nur `stdout` liest, sähe eine leere Ausgabe und schlösse daraus
+einen Zustand — und zwar in die gefährliche Richtung: „keine Zone gesetzt",
+„NTP aus".
+
+#### M5, M6 · Mit systemd trägt es, und `show` ist die Form für den Agenten
+
+`timedatectl status` gibt `rc=0`, alles auf stdout, stderr leer.
+`timedatectl show` gibt Schlüssel-Wert-Zeilen:
+
+    Timezone=Etc/UTC
+    LocalRTC=no
+    CanNTP=no
+    NTP=no
+    NTPSynchronized=no
+    TimeUSec=Sun 2026-09-06 19:50:28 UTC
+
+#### M8, M10 · `CanNTP` ist ein eigenes Feld, und das entscheidet die Anzeige
+
+Gemessen in drei Zuständen, jeweils ohne Neustart von irgendetwas:
+
+| Zustand | `CanNTP` | `NTP` | `status` zeigt |
+|---|---|---|---|
+| kein Zeitdienst installiert | `no` | `no` | `NTP service: n/a` |
+| installiert, nicht eingeschaltet | **`yes`** | `no` | `inactive` |
+| eingeschaltet (`set-ntp true`) | `yes` | **`yes`** | `active` |
+
+Dazu, **unabhängig davon**, `NTPSynchronized` — ob die Uhr tatsächlich stimmt.
+
+> **Zwei Wahrheitswerte, die vier Zustände tragen, verlieren beim Zusammenziehen
+> genau den Fall, der eine Meldung verdient.** „Kein Zeitdienst installiert" ist
+> etwas anderes als „ausgeschaltet", und „läuft, aber die Uhr stimmt nicht" ist
+> etwas anderes als beides.
+
+#### M7 · `show-timesync` trägt nicht
+
+Ohne `systemd-timesyncd`: `rc=1`, `Failed to parse bus message: No route to
+host`. Der Unterbefehl setzt genau den Dienst voraus, dessen Fehlen man wissen
+will — für A11 also unbrauchbar.
+
+#### M11 · Zwei Dateien beantworten die Zonenfrage, und nur eine gilt
+
+Mit `/etc/timezone` auf `Europe/Berlin` und `/etc/localtime` auf `Etc/UTC`
+gesetzt sagt `timedatectl show -p Timezone`: **`Etc/UTC`**. Es folgt dem
+**Symlink**.
+
+> **Zwei Dateien, die dieselbe Frage beantworten, und nur eine ist die, der das
+> System folgt.**
+
+Wer `/etc/timezone` liest, zeigt eine Zone, der der Server nicht folgt. Das ist
+kein Randfall: `dpkg-reconfigure tzdata` schreibt beide, ein Mensch mit einem
+Editor oft nur eine.
+
+#### M12, M13 · Kosten und Rechte
+
+Fünf Läufe von `timedatectl show`: **10, 12, 10, 10, 11 ms** — kein kalter
+Erstlauf. Und **Lesen braucht kein root**: als unprivilegierter Benutzer
+`rc=0` mit voller Ausgabe. Dass es trotzdem in den Agenten gehört, folgt aus
+der Architekturgrenze und nicht aus den Rechten.
+
+#### M14 · Die Beschriftung gibt es, aber nicht für eine fremde Zone
+
+`timedatectl show` liefert nur den **Namen** (`Etc/UTC`). Die Anzeige soll
+„Europe/Berlin (CEST, UTC+02:00)" heissen — und die Formel dafür steht schon in
+`Clock::describe()`. Sie ist aber **privat**, und beide öffentlichen Wege
+(`label()`, `labelAt()`) nageln auf `Clock::zone()`, also die **Anzeige**zone.
+
+Gegen dieselbe Formel gemessen, für fremde Zonen:
+
+| Zone | September | Januar |
+|---|---|---|
+| `Etc/UTC` | `UTC` | `UTC` |
+| `Europe/Berlin` | `CEST (UTC+02:00)` | `CET (UTC+01:00)` |
+| `Asia/Kolkata` | `IST (UTC+05:30)` | `IST (UTC+05:30)` |
+| `America/Sao_Paulo` | `-03 (UTC-03:00)` | `-03 (UTC-03:00)` |
+| `Australia/Eucla` | `+0845 (UTC+08:45)` | `+0845 (UTC+08:45)` |
+
+Die drei Abkürzungsformen aus `docs/102 §3b` kommen alle vor. **`Clock` braucht
+eine dritte öffentliche Methode mit einem Zonennamen** — die Alternative wäre
+eine zweite Fassung der Beschriftung an der Aufrufstelle, und der Kommentar an
+`describe()` sagt selbst, warum das nicht geht.
+
+Und: `Etc/UTC` heisst beschriftet schlicht `UTC`. **Name und Beschriftung fallen
+auseinander**, die Seite braucht also beide.
+
+#### M15 · Der Rechnername kann fehlen
+
+`Names::fqdn()` gibt in diesem Container **`NULL`**, `Names::host()` gibt `vm`.
+Der Fall „kein vollständiger Name" ist real und muss die Seite tragen — genau
+dafür gibt es `host()` neben `fqdn()`.
+
+#### M16 · Die Seite gibt es schon, und das halbiert den Umfang
+
+`/settings/general` („Allgemein") trägt heute zwei Bereiche: **„Anzeigezeit"**
+und **„Adressen dieses Servers"**. A11 braucht **keine neue Seite** — und der
+Ort ist zugleich der, den `docs/80` verlangt: *neben* der Anzeigezeitzone,
+„weil die beiden sonst verwechselt werden".
+
+> **Ein Merkmal, dessen Ort schon steht, ist kleiner, als seine Zeile im Plan
+> vermuten lässt.**
+
+#### Was diese Runde am Messmittel gefunden hat
+
+`pkill -f "/usr/lib/systemd/systemd --system"` tötet die eigene Shell mit —
+Rückgabewert 144. `CLAUDE.md` hält das für `srvpanel-agentd` fest; es gilt für
+jedes Muster, das auf der eigenen Kommandozeile steht. Abgeräumt wird über die
+Prozessnummer.
+
+#### Was hier nicht messbar ist
+
+**`NTPSynchronized=yes`.** Der Container erreicht keinen Zeitserver: UDP 123 zu
+`ntp.ubuntu.com` und `pool.ntp.org` läuft in die Zeitüberschreitung. Mit
+`NTP=yes` blieb `NTPSynchronized=no` auch nach zwanzig Sekunden. Der Zustand
+„läuft und ist synchron" bleibt damit **hergeleitet und nicht gemessen**; er
+gehört auf den Zielserver.
+
+Und ob `timedatectl show` je einen Schlüssel **weglässt** — ein Leser muss nach
+Schlüssel lesen und nicht nach Position, aber ein Fall, in dem `Timezone` fehlt,
+liess sich hier nicht herstellen.
+
+#### Was der Plan daraus zu entscheiden hat
+
+1. **Wer darf hinsehen?** A11-Rest ist reines Lesen. Nach dem Muster von
+   „Updates" und „Dienste" (A1, A2) sähe der Administrator zu — aber
+   `/settings/general` hängt heute ganz an `manage-settings`. Das ist eine
+   Frage an den Betreiber und keine, die eine Messung beantwortet.
+2. **Was steht da, wenn `timedatectl` nicht antwortet?** Der Symlink wäre ein
+   zweiter Leser — und der zweite ist der, der veraltet. Die Alternative ist,
+   „nicht feststellbar" zu schreiben.
+3. **Wird die Zone des Servers auch gesetzt?** `docs/80` sagt anzeigen. Ein
+   `set-timezone` gäbe es (`timedatectl set-timezone`), und es verschöbe jede
+   Cron-Zeit des Servers.
+
+---
+
 ### Frage 1 — Darf das Panel eine fremde Paketquelle hinzufügen?
 
 > **Entschieden am 24. August 2026: nein.** Der Betreiber hat den Vorschlag
@@ -3009,7 +3175,7 @@ Liste.
 
 | | Was | Wo |
 |---|---|---|
-| **A11** | ~~Neustart~~ **am 26. August 2026 gebaut** (Schritt 7); Zeitzone des Servers und NTP **neben** der Anzeigezeitzone aus `docs/40`, Rechnername nur anzeigen | mit A1, Schritt 7 — die Nachbarn landen in `ServerController` |
+| **A11** | ~~Neustart~~ **am 26. August 2026 gebaut** (Schritt 7); Zeitzone des Servers und NTP **neben** der Anzeigezeitzone aus `docs/40`, Rechnername nur anzeigen | **die Messrunde ist `§2.3r`** (6. September) — sie hat den Ort gefunden: `/settings/general` gibt es schon, eine neue Seite braucht es nicht |
 | **A6** | Leseansicht von `/etc/crontab`, `/etc/cron.d`, `cron.daily` und `cron.weekly` | mit A2 |
 | **A8** | Welche Adressen der Server hat, welche der DNS-Abgleich als Soll nimmt | eigenständig; P7 ist fertig |
 | **A12** | Wartungsmodus: alle Kundenseiten auf 503, Panel erreichbar | **abgenommen am 5. September 2026** auf `cloudsrv24` gegen `0.7.3-rc.19` — alle acht Punkte aus `docs/101 §7`, das Protokoll ist `docs/102` |

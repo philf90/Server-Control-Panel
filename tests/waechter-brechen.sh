@@ -24689,6 +24689,54 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
+echo "== ButtonRowTest: zwei Knöpfe in einer Zelle ohne Reihe =="
+#
+# Derselbe Fehler zum zweiten Mal, gefunden von derselben Person am selben
+# Server: In P5b klebten „Ergaenzen" und „Entfernen" auf der PHP-Seite
+# aneinander (docs/38 §24.2), daraus entstand `td.right > .button-row`. Am
+# 6. September bekam die Ankuendigungsseite die Vorschau als zweiten Knopf,
+# und die Reihe fehlte wieder — die Regel gab es, durchgesetzt hat sie nichts.
+vorher_datei resources/js/Pages/Announcements/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Announcements/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '                  <div class="button-row">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = s.replace(alt, '                  <div>', 1)
+assert neu != s, 'Eingriff hat nichts geaendert'
+open(p, 'w', encoding='utf-8').write(neu)
+PY2
+griff_datei resources/js/Pages/Announcements/Index.vue "keine Reihe um die zwei Knöpfe" &&
+pruefe "keine Reihe um die zwei Knöpfe" \
+  ButtonRowTest::test_two_buttons_in_a_cell_sit_in_a_row failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ButtonRowTest passed
+
+echo
+echo "== ButtonRowTest: die Reihe verliert ihre Fuge =="
+#
+# Die andere Haelfte: Der Name allein genuegt nicht. Ohne `gap` ist die Reihe
+# keine, und die Knoepfe kleben wieder — nur steht dann ueberall das Wort.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+i = s.index('.button-row {')
+j = s.index('\n}', i)
+block = s[i:j]
+alt = '  gap: 10px;'
+assert block.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = block.replace(alt, '')
+assert neu != block, 'Eingriff hat nichts geaendert'
+open(p, 'w', encoding='utf-8').write(s[:i] + neu + s[j:])
+PY2
+griff_datei resources/css/app.css "die Reihe verliert ihre Fuge" &&
+pruefe "die Reihe verliert ihre Fuge" \
+  ButtonRowTest::test_the_row_keeps_its_gap_and_its_alignment failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ButtonRowTest passed
+
+echo
 echo "== SharedPropTest: die Seite nimmt wieder den geteilten Namen =="
 #
 # Der Befund aus dem Abnahmelauf vom 6. September: Auf /announcements zeigte

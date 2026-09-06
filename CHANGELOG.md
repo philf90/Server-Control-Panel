@@ -25840,3 +25840,33 @@ keiner am Prüfling; sie stehen in `docs/102 §9` und in `CLAUDE.md`.
 
   Im Bruchskript fängt `griff_datei` genau das; der Lauf von Hand hatte es
   nicht.
+
+### Zwei Knöpfe in einer Zelle, zum zweiten Mal ohne Abstand
+
+- **Gemeldet vom Betreiber im Abnahmelauf am 6. September 2026**, an der frisch
+  gebauten Vorschau: „Vorschau" und „Entfernen" stiessen in der letzten Spalte
+  direkt aneinander.
+- **Die Regel dafür gab es seit P5b.** `td.right > .button-row` steht in
+  `app.css`, und ihr Kommentar nennt den Grund wörtlich — *„in eine Reihe
+  gehören sie, weil sie sonst ohne Abstand aneinanderkleben"*. Ihr Anlass war
+  derselbe Fehler auf der PHP-Seite (`docs/38 §24.2`), damals ebenfalls vom
+  Betreiber auf dem Server gefunden. Bis zur Vorschau trug diese Zeile genau
+  einen Knopf.
+
+  > **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten
+  > Merkmal wieder da, wenn die Behebung nicht die Regel wurde.**
+
+- **`ButtonRowTest` hält es jetzt**, und die Frage ist eng gestellt. Der erste
+  Ausdruck fragte nach zwei benachbarten Knöpfen **irgendwo** und meldete zehn
+  Stellen; neun davon standen in einem `<template #actions>`, das seinen
+  Abstand selbst mitbringt.
+
+  > **Ein Wächter, der zu viel meldet, wird abgeschaltet — und zwar von dem,
+  > der ihn gebaut hat.**
+
+  Eng gefragt — zwei Knöpfe in derselben `<td>` — sind es 398 Zellen, **sechs**
+  mit mehr als einem Knopf und genau **eine** ohne die Reihe: die neue. Die
+  anderen fünf halten die Form schon; damit ist sie als Hausform belegt und
+  nicht als Geschmack.
+- Drei Brüche, alle belegt: die Reihe fällt weg · die Reihe verliert ihre Fuge ·
+  der Ausdruck über `<td>` läuft ins Leere.

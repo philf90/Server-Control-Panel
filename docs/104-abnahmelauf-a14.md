@@ -308,6 +308,51 @@ beides in Ordnung — der Server schickt ihn nicht, und der Klient hält ihn.
 
 ---
 
+## 8b · Was der Lauf am 6. September gefunden hat
+
+Die Punkte 1, 2, 4, 5, 6, 7 und 8 sind an diesem Tag auf `cloudsrv24` gegen
+**`0.7.3-rc.20`** gefahren und **erfüllt**. Punkt 3 und die Bilderrunde stehen
+noch aus; sie gehören gegen die Fassung **nach** den beiden Behebungen.
+
+**Zwei Befunde, beide vom Lauf gefunden, keiner von einem Test:**
+
+**1 · Die Seiten-Eigenschaft `announcements` überschrieb die geteilte.** Auf
+`/announcements` zeigte der Streifen alle Zeilen der Verwaltung statt der
+sichtbaren. Aufgefallen ist es als **Widerspruch auf derselben Seite**: Die
+Tabelle nannte zwei Zeilen `wartet` und `abgelaufen`, und beide standen
+trotzdem oben.
+
+> **Ein geteilter Schlüssel, den eine Seite auch benutzt, ist auf genau dieser
+> Seite fort.**
+
+Das hat auch die Messung von Punkt 6 zunächst verdorben — gemessen wurde auf der
+einen Seite, auf der das Feld verdeckt ist.
+
+> **Ein Prüfkörper, der an der einen Stelle misst, an der der Gegenstand
+> verdeckt ist, misst etwas anderes.**
+
+Auf der Übersicht stand danach **genau ein** Band, und damit ist Punkt 6
+erfüllt: Die Ablage liegt zwei Stunden vor der eingetippten Ortszeit, der
+Vergleich rechnet in UTC, und der laufende Fall ist der einzige sichtbare.
+
+**2 · Auf den Anmeldeseiten fehlte die Hülle `.bands`.** Gemeldet vom Betreiber
+am Bild: Das Band lag bündig am Bildschirmrand statt eingerückt. Kein
+Kriterienausfall — Punkt 7 fragt, **was** dort steht, nicht wie es eingerückt
+ist.
+
+**Beide sind behoben, dazu zwei Wächter** (`SharedPropTest`, `BandsHullTest`)
+und die Vorschau je Zeile, die der Betreiber währenddessen entschieden hat.
+`SharedPropTest` hat beim ersten Lauf **drei** Kollisionen gefunden — die dritte
+sitzt in `Accounts/Form` und ist älter als A14.
+
+**Was nach den Behebungen noch einmal anzusehen ist:**
+
+1. `/announcements` — steht dort jetzt nur das sichtbare Band?
+2. Die Anmeldeseite bei 390 px — sitzt das Band eingerückt wie im Panel?
+3. Die Vorschau — zeigt sie dieselbe Umbruchlage wie der Streifen?
+
+---
+
 ## 9 · Was dieser Lauf ausdrücklich **nicht** prüft
 
 - **Die Zustellung an ein Abonnement.** A14 adressiert nach Publikum und nicht

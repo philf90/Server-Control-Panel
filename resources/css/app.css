@@ -4865,6 +4865,20 @@ p:not([class]) {
  * `48ch` ist eine Leseweite und keine Pixelzahl: Sie hängt an der Schriftgrösse
  * und nicht an einer Annahme über den Bildschirm.
  */
+/*
+ * Die Zelle der Vorschau auf `/announcements`.
+ *
+ * **Ohne eigenes Polster**: Darin steht die Hülle `.bands`, und die bringt ihr
+ * `padding: 12px 16px` mit. Zweimal eingerückt zeigte die Vorschau eine andere
+ * Lage als der Streifen, den sie vorführen soll.
+ *
+ * > **Eine Vorschau, die anders eingerückt ist als ihr Gegenstand, zeigt eine
+ * > andere Umbruchlage — und genau die will man sehen.**
+ */
+.preview {
+  padding: 0;
+}
+
 td.text {
   max-width: 48ch;
 }

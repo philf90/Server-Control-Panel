@@ -24689,6 +24689,100 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
+echo "== SharedPropTest: die Seite nimmt wieder den geteilten Namen =="
+#
+# Der Befund aus dem Abnahmelauf vom 6. September: Auf /announcements zeigte
+# der Streifen alle Zeilen der Verwaltung statt der sichtbaren, weil eine
+# Seiten-Eigenschaft eine geteilte ueberschreibt. Denselben Satz hat A9 schon
+# bezahlt (`abilities` statt `can`) — zur Regel wurde er erst jetzt.
+vorher_datei app/Http/Controllers/AnnouncementController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AnnouncementController.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'rows' => Announcement::query()"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "            'announcements' => Announcement::query()", 1))
+PY2
+griff_datei app/Http/Controllers/AnnouncementController.php "Seitenprop heisst wieder announcements" &&
+pruefe "Seitenprop heisst wieder announcements" \
+  SharedPropTest::test_no_page_prop_takes_the_name_of_a_shared_one failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SharedPropTest passed
+
+echo
+echo "== SharedPropTest: der Ausdruck über Inertia::render läuft ins Leere =="
+#
+# Die Untergrenze. Trifft der Ausdruck die Aufrufe nicht mehr, meldet der
+# Waechter nichts und sieht aus wie erfuellt. Gemessen: 173 Eigenschaften auf
+# oberster Ebene.
+vorher_datei tests/Feature/SharedPropTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/SharedPropTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "/Inertia::render\\("
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "/Inertia::zeichne\\(", 1))
+PY2
+griff_datei tests/Feature/SharedPropTest.php "der Ausdruck trifft render nicht mehr" &&
+pruefe "der Ausdruck trifft render nicht mehr" \
+  SharedPropTest::test_no_page_prop_takes_the_name_of_a_shared_one failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SharedPropTest passed
+
+echo
+echo "== BandsHullTest: die Hülle fehlt auf der Anmeldeseite =="
+#
+# Gemeldet hat es der Betreiber am Bild, nicht eine Messung: Das Band lag
+# buendig am Bildschirmrand statt eingerueckt. Die Huelle steht in der
+# aufrufenden Vorlage, weil sie im Panel `grid-row: 1` nimmt und dort auch den
+# Balken fuer „Anmelden als" traegt — in die Komponente kann sie deshalb nicht.
+vorher_datei resources/js/Pages/Auth/Login.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Auth/Login.vue'
+s = open(p, encoding='utf-8').read()
+alt = '    <div v-if="incidents.length" class="bands">\n      <Bands :items="incidents" />\n    </div>'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '    <Bands :items="incidents" />', 1))
+PY2
+griff_datei resources/js/Pages/Auth/Login.vue "Hülle fehlt auf der Anmeldeseite" &&
+pruefe "Hülle fehlt auf der Anmeldeseite" \
+  BandsHullTest::test_every_use_of_bands_sits_inside_the_hull failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BandsHullTest passed
+
+echo
+echo "== BandsHullTest: die Hülle verliert ihr Polster =="
+#
+# Die andere Haelfte: Der Name allein genuegt nicht, die Klasse muss auch
+# mitbringen, was ihr Fehlen gekostet hat.
+#
+# Dieser Eingriff hat beim ersten Versuch nichts geaendert und der Waechter war
+# zu Recht gruen: `padding` steht als letzte Zeile des Blocks, also ohne
+# folgendes \n im Ausschnitt — geprueft wurde ohne, ersetzt mit.
+#
+# > Ein Eingriff, der eine andere Zeichenkette prueft als er ersetzt, meldet
+# > Erfolg und aendert nichts.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+i = s.index('.bands {')
+j = s.index('\n}', i)
+block = s[i:j]
+alt = '  padding: 12px 16px;'
+assert block.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = block.replace(alt, '')
+assert neu != block, 'Eingriff hat nichts geaendert'
+open(p, 'w', encoding='utf-8').write(s[:i] + neu + s[j:])
+PY2
+griff_datei resources/css/app.css "die Hülle verliert ihr Polster" &&
+pruefe "die Hülle verliert ihr Polster" \
+  BandsHullTest::test_the_hull_carries_what_its_absence_cost failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BandsHullTest passed
+
+echo
 echo "== AnnouncementPageTest: der Gast bekommt die Menge des Angemeldeten =="
 #
 # Die Leseseite liegt ausserhalb der auth-Klammer, damit der Streifen der

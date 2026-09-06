@@ -28,7 +28,25 @@ function submit(): void {
     Mal, und deshalb ist er eine Komponente und kein Markup.
   -->
   <div class="signin-frame">
-    <Bands :items="incidents" />
+    <!--
+      **Die Hülle steht hier und nicht in `Bands.vue`.** Im Panel trägt
+      dieselbe `.bands` auch den Balken für „Anmelden als" und nimmt
+      `grid-row: 1`; zwei Geschwister mit derselben Rasterzeile wären der
+      M2-Befund zurück (`docs/81 §2.3q`). Sie kann also nicht in die Komponente
+      ziehen.
+
+      Hier fehlte sie bis zum 6. September, und der Abnahmelauf hat es am Bild
+      gefunden: Das Band lag bündig am Bildschirmrand statt eingerückt, und
+      zwei Störungen hätten ohne `gap` aneinandergeklebt.
+
+      > **Eine Hülle, die in der aufrufenden Vorlage steht statt in der
+      > Komponente, gibt es so oft, wie jemand daran denkt.**
+
+      `BandsHullTest` hält es jetzt.
+    -->
+    <div v-if="incidents.length" class="bands">
+      <Bands :items="incidents" />
+    </div>
 
   <main class="signin">
     <FormErrors />

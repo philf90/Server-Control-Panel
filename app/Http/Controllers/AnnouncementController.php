@@ -105,7 +105,27 @@ final class AnnouncementController extends Controller
     public function index(): Response
     {
         return Inertia::render('Announcements/Index', [
-            'announcements' => Announcement::query()
+            /*
+             * **`rows` und nicht `announcements`** — der Name des geteilten
+             * Schlüssels ist vergeben.
+             *
+             * Der Abnahmelauf am 6. September hat das gefunden: Auf
+             * `/announcements` zeigte der Streifen **alle** Zeilen der
+             * Verwaltung statt der sichtbaren, weil eine Seiten-Eigenschaft
+             * eine geteilte überschreibt. Aufgefallen ist es nicht als Fehler,
+             * sondern als Widerspruch — die Tabelle nannte zwei Zeilen
+             * `wartet` und `abgelaufen`, und beide standen trotzdem als Band
+             * darüber.
+             *
+             * > **Ein geteilter Schlüssel, den eine Seite auch benutzt, ist
+             * > auf genau dieser Seite fort.**
+             *
+             * Denselben Satz hat A9 schon einmal bezahlt: Die geteilte
+             * Fähigkeitsablage heisst `abilities` und nicht `can`, weil `can`
+             * vergeben war. Zur Regel wurde er erst jetzt —
+             * {@see \Tests\Feature\SharedPropTest}.
+             */
+            'rows' => Announcement::query()
                 ->orderByDesc('id')
                 ->get()
                 ->map(fn (Announcement $a): array => $this->row($a))

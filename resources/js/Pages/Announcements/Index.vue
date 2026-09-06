@@ -7,10 +7,10 @@
  * deshalb hier **ungekürzt** und nicht noch einmal geklammert.
  */
 import { ref } from 'vue'
-import { router, useForm } from '@inertiajs/vue3'
+import { Link, router } from '@inertiajs/vue3'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Bands from '../../Components/Bands.vue'
-import FormErrors from '../../Components/FormErrors.vue'
+import AnnouncementForm from '../../Components/AnnouncementForm.vue'
 import Section from '../../Components/Section.vue'
 
 const props = defineProps<{
@@ -50,7 +50,13 @@ const zeigen = (id: number): void => {
   vorschau.value = vorschau.value === id ? null : id
 }
 
-const form = useForm({
+/**
+ * Der leere Stand für das Anlegeformular.
+ *
+ * **Alle Publika angehakt und nicht keines.** Eine Ankündigung ohne Publikum
+ * sieht niemand; die Voreinstellung ist deshalb die, die etwas bewirkt.
+ */
+const leer = {
   category: 'info',
   body: '',
   visible_from_date: '',
@@ -58,40 +64,6 @@ const form = useForm({
   visible_until_date: '',
   visible_until_time: '',
   audiences: props.audiences.map((a) => a.value),
-})
-
-/*
- * **`defaults()` vor `reset()`, und das ist keine Zeremonie.**
- *
- * `form.reset()` allein stellt den Stand vom **Seitenaufbau** her — `docs/84`
- * hat das teuer gelernt: Auf der Zugangsseite kam eine gelöschte Zeile zurück,
- * der Betreiber drückte noch einmal Speichern und legte die Beschränkung wieder
- * an, die er gerade aufgehoben hatte. Beide Vorgänge meldeten Erfolg.
- *
- * > **Eine Anzeige, die den Zustand vor der Änderung zeigt, verleitet zu der
- * > Handlung, die die Änderung zurücknimmt.**
- *
- * Hier ist das Formular ein **Anlegeformular** und nicht eines zum Ändern, also
- * ist der leere Stand der richtige. Die Vorgabe wird trotzdem frisch gesetzt:
- * Sie liest `props`, und was `props` liest, kann veralten — die Regel gilt
- * unabhängig davon, ob es heute schon zutrifft.
- */
-function anlegen(): void {
-  form.post('/announcements', {
-    preserveScroll: true,
-    onSuccess: () => {
-      form.defaults({
-        category: 'info',
-        body: '',
-        visible_from_date: '',
-        visible_from_time: '',
-        visible_until_date: '',
-        visible_until_time: '',
-        audiences: props.audiences.map((a) => a.value),
-      })
-      form.reset()
-    },
-  })
 }
 
 /*
@@ -179,6 +151,18 @@ function entfernen(id: number): void {
                     <button type="button" class="button small" @click="zeigen(zeile.id)">
                       {{ vorschau === zeile.id ? 'Vorschau zu' : 'Vorschau' }}
                     </button>
+                    <!--
+                      **Der Weg zum Ändern steht an der Zeile** und nicht in
+                      einem Formular weiter unten. Bei zehn Ankündigungen läge
+                      es auf dem Telefon Bildschirme entfernt — derselbe Fehler
+                      wie der Menüpunkt, den `docs/59` dreimal bezahlt hat.
+
+                      > **Vor jedem neuen Merkmal: Wo sucht jemand diese
+                      > Handlung, und steht sie dort?**
+                    -->
+                    <Link class="button small" :href="`/announcements/${zeile.id}/edit`">
+                      Ändern
+                    </Link>
                     <button type="button" class="button small danger" @click="entfernen(zeile.id)">
                       Entfernen
                     </button>
@@ -207,86 +191,17 @@ function entfernen(id: number): void {
 
       <Section title="Neue Ankündigung">
         <!--
-          **Die Zusammenfassung steht oben und der Satz nur hier**
-          (`docs/19 §6`): Das Feld trägt `aria-invalid` und sonst nichts. Ein
-          roter Rand ohne Wort behauptet, das Feld sei falsch, und sagt nicht
-          warum.
+          Die Felder stehen in `AnnouncementForm` und nicht hier: Seit dem
+          6. September gibt es sie zweimal in Gebrauch — beim Anlegen und beim
+          Ändern —, und zwei Fassungen laufen auseinander.
         -->
-        <FormErrors />
-
-        <form @submit.prevent="anlegen">
-          <label class="field">
-            <span>Kategorie</span>
-            <select v-model="form.category" :aria-invalid="Boolean(form.errors.category)">
-              <option v-for="k in categories" :key="k.value" :value="k.value">{{ k.label }}</option>
-            </select>
-          </label>
-
-          <label class="field">
-            <span>Text</span>
-            <textarea
-              v-model="form.body"
-              rows="3"
-              :maxlength="500"
-              :aria-invalid="Boolean(form.errors.body)"
-            />
-          </label>
-
-          <!--
-            **Zwei Felder je Zeitpunkt, und das ist bezahlt** (`docs/102 §2`):
-            Ein Textfeld für `Y-m-d H:i` mit `inputmode="numeric"` war auf dem
-            iPhone nicht ausfüllbar — die Zifferntastatur gibt weder Bindestrich
-            noch Doppelpunkt noch Leerzeichen her.
-          -->
-          <div class="field-row">
-            <label class="field narrow">
-              <span>Sichtbar ab</span>
-              <input v-model="form.visible_from_date" type="date" :aria-invalid="Boolean(form.errors.visible_from_date)">
-            </label>
-            <label class="field narrow">
-              <span>Uhrzeit</span>
-              <input v-model="form.visible_from_time" type="time" :aria-invalid="Boolean(form.errors.visible_from_time)">
-            </label>
-          </div>
-
-          <div class="field-row">
-            <label class="field narrow">
-              <span>Sichtbar bis</span>
-              <input v-model="form.visible_until_date" type="date" :aria-invalid="Boolean(form.errors.visible_until_date)">
-            </label>
-            <label class="field narrow">
-              <span>Uhrzeit</span>
-              <input v-model="form.visible_until_time" type="time" :aria-invalid="Boolean(form.errors.visible_until_time)">
-            </label>
-          </div>
-
-          <p class="hint">
-            Beide Enden dürfen leer bleiben. Die Zeiten gelten in der Anzeigezeitzone ({{ zone }}).
-          </p>
-
-          <!--
-            **`.choices` mit `.toggle` und keine eigene Klasse.** Der erste Wurf
-            schrieb `.choice`, und die gibt es in `app.css` nicht — die Kästchen
-            streckten sich dann über die ganze Breite, weil `.field` eine
-            Flexspalte ist. Ein Baustein, den man erfindet, statt nachzusehen,
-            ist derselbe Fehler wie ein Hexwert in einer Komponente.
-          -->
-          <div class="field">
-            <span>Publikum</span>
-            <div class="choices">
-              <label v-for="p in audiences" :key="p.value" class="toggle">
-                <input v-model="form.audiences" type="checkbox" :value="p.value">
-                <span>{{ p.label }}</span>
-              </label>
-            </div>
-          </div>
-
-          <div class="button-row">
-            <button type="submit" class="button primary" :disabled="form.processing">
-              Ankündigen
-            </button>
-          </div>
-        </form>
+        <AnnouncementForm
+          :announcement="null"
+          :values="leer"
+          :zone="zone"
+          :categories="categories"
+          :audiences="audiences"
+        />
       </Section>
     </div>
   </PanelLayout>

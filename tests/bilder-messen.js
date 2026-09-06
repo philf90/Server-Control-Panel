@@ -77,10 +77,36 @@
  */
 
 /** Der Tag, an dem dieses Messmittel zuletzt geändert wurde. */
-const STAND = '2026-08-21'
+const STAND = '2026-09-06'
+
+/**
+ * Ob in dieser geladenen Seite schon gemessen wurde.
+ *
+ * **Die Falle, gegen die das steht, ist gemessen** (`docs/96 §8`): Der
+ * Prüfkörper bemisst sich am gegenwärtigen `scrollWidth`, und beim zweiten
+ * Aufruf ohne Neuladen ist sein eigener Block von eben schon Teil des Masses —
+ * heraus kommen 400 statt 200.
+ *
+ * Bis zum 6. September 2026 war die Antwort darauf ein Kommentar an den
+ * Menschen: „vor jeder Messung neu laden". Das ist keine Vorkehrung, sondern
+ * eine Bitte.
+ *
+ * > **Ein Prüfmittel, das seine eigene Falle nur beschreibt, überlässt sie
+ * > dem, der sie am wenigsten sehen kann — dem Leser des Ergebnisses.**
+ *
+ * Geworfen und nicht zurückgegeben: Ein Rückgabewert, der eine Weigerung
+ * ausdrückt, steht in derselben Spalte wie ein Ergebnis und wird abgeschrieben.
+ */
+let gelaufen = false
 
 function bilderMessen () {
   const wurzel = document.documentElement
+
+  if (gelaufen) {
+    throw new Error('Schon gemessen. Seite neu laden — sonst misst die Gegenprobe ihren eigenen Block von eben.')
+  }
+
+  gelaufen = true
 
   /*
    * Der Prüfkörper: 200 px breiter als **alles**, was schon da ist, eine Zeile
@@ -196,7 +222,7 @@ function bilderMessen () {
     })
   }
 
-  return {
+  const ergebnis = {
     stand: STAND,
     breite: wurzel.clientWidth,
     thema: wurzel.getAttribute('data-theme') ?? '(System)',
@@ -206,4 +232,31 @@ function bilderMessen () {
     rollt: roller.filter((r) => r.darf),
     versteckt,
   }
+
+  /*
+   * Das Urteil zusätzlich als **eine Zeile**.
+   *
+   * **Am 6. September 2026 hat genau das eine Bilderrunde gekostet.** Die
+   * Konsole klappt ein zurückgegebenes Objekt auf fünf Schlüssel zusammen; in
+   * allen vier Lagen stand `gegenprobe: {…}` und `schiebt` gar nicht da.
+   * Sichtbar war `dokument: 0` — also derselbe Wert, den auch eine Messung
+   * liefert, die nichts misst.
+   *
+   * > **Ein Objekt in der Konsole zeigt fünf Schlüssel und klappt den Rest weg
+   * > — und was man abschreibt, ist dann eine Auswahl, die niemand getroffen
+   * > hat.**
+   *
+   * `baender-messen.js` hatte die Zeile am selben Vormittag bekommen. Dass sie
+   * hier fehlte, ist dieselbe Familie wie der Menüpunkt, der dreimal zu tief
+   * lag: eine Behebung, die nicht die Regel wurde.
+   */
+  console.log(
+    `stand=${ergebnis.stand} breite=${ergebnis.breite} thema=${ergebnis.thema} ` +
+    `dokument=${ergebnis.dokument} ` +
+    `gegenprobe=${ergebnis.gegenprobe.ausschlag} (soll ${ergebnis.gegenprobe.erwartet}) ` +
+    `schiebt=${ergebnis.schiebt.length} rollt=${ergebnis.rollt.length} ` +
+    `versteckt=${ergebnis.versteckt}`
+  )
+
+  return ergebnis
 }

@@ -25870,3 +25870,203 @@ keiner am Prüfling; sie stehen in `docs/102 §9` und in `CLAUDE.md`.
   nicht als Geschmack.
 - Drei Brüche, alle belegt: die Reihe fällt weg · die Reihe verliert ihre Fuge ·
   der Ausdruck über `<td>` läuft ins Leere.
+
+### A14: die offene Zahl von Punkt 3, und ein Prüfmittel, das seine Falle nur beschrieb
+
+- **Die Hülle misst 214 px und nicht 226.** `docs/103 §8` liess die Zahl
+  ausdrücklich offen — 214 aus einer Messung an der echten Seite gegen 226 aus
+  einem Wegwerf-Aufsatz —, und `docs/104 §3` gab sie dem Serverlauf zur
+  Entscheidung. Entschieden hat sie eine dritte Messung: an der echten Seite
+  unter `artisan serve` im Container, angemeldet, drei Ankündigungen, in drei
+  Bestückungen und beiden Themen. Jedes Mal **62 px je Band und 214 px für die
+  Hülle**, `schiebt = 0`, Gegenprobe 200.
+
+  > **Zwei Messungen, die auseinandergehen, entscheidet keine Überlegung,
+  > sondern die dritte — und die muss den Weg des Prüflings nehmen und nicht
+  > den bequemeren.**
+
+  Der Wegwerf-Aufsatz lag um 12 px daneben, und zwar systematisch. Er bleibt
+  das richtige Mittel für eine Frage nach dem **Überlauf** und ist es nicht für
+  eine nach der **Höhe**: Was ihm fehlt, ist alles, was oberhalb und unterhalb
+  des gemessenen Bausteins auf der Seite steht. Der Kommentar an
+  `.band .clamped` nannte aus demselben Grund 63 px; dort stehen jetzt die
+  gemessenen 62.
+
+- **Und das Kriterium war wörtlich falsch.** „Jedes Band gleich hoch, gleich
+  wie lang sein Text ist" gilt **oberhalb der Umbruchschwelle**. Gemessen bei
+  390 px, mitsamt dem Rangwort: 23 Zeichen → 41 px, 40 → 41 px, 65 → 62 px.
+  Zugesagt ist eine Obergrenze und keine feste Höhe. `docs/104 §3` verlangte
+  als Prüfkörper **60 Zeichen** — mit „Störung" davor sind das 67, also keine
+  zwanzig Zeichen über der Schwelle.
+
+  > **Ein Prüfkörper, der dicht an einer Schwelle liegt, misst die Schwelle und
+  > nicht die Eigenschaft.**
+
+  Der Lauf nennt jetzt 120 Zeichen. Und er misst bei 390 px und nicht breit:
+  Bei 1440 px ergeben dieselben drei Bänder `[41, 62]`, weil dort rund 160
+  Zeichen in eine Zeile passen.
+
+  > **Eine Zusage, die an eine Breite gebunden ist, liest sich wie eine über
+  > jede Breite.**
+
+- **`tests/baender-messen.js`** ist das Messmittel dazu und liegt im Repo, weil
+  es zweimal gebraucht wird — einmal hier, einmal auf dem Server. Es druckt
+  sein Urteil als **eine** Zeile: Ein Objekt klappt die Konsole auf fünf
+  Schlüssel zusammen, und was jemand daraus abschreibt, ist dann eine Auswahl,
+  die niemand getroffen hat.
+
+- **Und `tests/bilder-messen.js` beschrieb seine eigene Falle, statt sie zu
+  verhindern.** `docs/96 §8` hält seit dem 1. September fest, dass der
+  Prüfkörper sich beim zweiten Aufruf ohne Neuladen am eigenen Block von eben
+  bemisst und 400 statt 200 ergibt. Die Antwort darauf war ein Kommentar an den
+  Menschen: *„vor jeder Messung neu laden."*
+
+  > **Ein Prüfmittel, das seine eigene Falle nur beschreibt, überlässt sie dem,
+  > der sie am wenigsten sehen kann — dem Leser des Ergebnisses.**
+
+  Beide Messmittel weigern sich jetzt, und zwar **geworfen und nicht
+  zurückgegeben**: Ein Rückgabewert, der eine Weigerung ausdrückt, steht in
+  derselben Spalte wie ein Ergebnis und wird abgeschrieben.
+
+- **`OverflowProbeTest` prüft seine Regeln seitdem an jedem Messmittel** und
+  nicht an einem. Die Prüflinge werden **gefunden** und nicht aufgezählt —
+  jedes `tests/*-messen.js`, das etwas in die Seite setzt. Der erste Wurf nahm
+  jedes `*-messen.js` und meldete `mandant-messen.js` und `takt-messen.js`, die
+  Routen abfragen und keinen Prüfkörper haben. Das Merkmal auf `scrollWidth` zu
+  legen wäre der entgegengesetzte Fehler gewesen:
+
+  > **Ein Wächter, der seine Prüflinge an der Regel auswählt, die er prüft,
+  > findet nur die, die sie schon einhalten.**
+
+  Drei Brüche, alle belegt: das Messmittel merkt sich seinen Lauf nicht · die
+  Weigerung wird zurückgegeben statt geworfen · die Suche findet nur noch ein
+  Messmittel (Untergrenze).
+
+### Ein Messmittel, das sein Urteil nur zurückgibt, verliert es in der Konsole
+
+- **Gefunden im A14-Abnahmelauf am 6. September 2026, an der Bilderrunde.** Der
+  Betreiber hat vier Lagen gefahren und vier Ergebnisse geschickt; in allen vier
+  stand `gegenprobe: {…}` zusammengeklappt und `schiebt` gar nicht da. Sichtbar
+  war `dokument: 0` — also genau der Wert, den auch eine Messung liefert, die
+  nichts misst.
+
+  > **Ein Objekt in der Konsole zeigt fünf Schlüssel und klappt den Rest weg —
+  > und was man abschreibt, ist dann eine Auswahl, die niemand getroffen hat.**
+
+  `baender-messen.js` hatte die gedruckte Zeile am selben Vormittag bekommen,
+  mit genau dieser Begründung im Kommentar. `bilder-messen.js` nicht.
+
+  > **Ein Fehler, den man an einer Stelle behoben hat, ist an der nächsten
+  > wieder da, wenn die Behebung nicht die Regel wurde.**
+
+- **`OverflowProbeTest::test_every_instrument_prints_one_line` hält es jetzt für
+  jedes Messmittel**, und es fordert die **Gegenprobe** in der Zeile und nicht
+  irgendeinen Druck: Sie ist der Wert, ohne den die übrigen nichts bedeuten.
+  Zwei Brüche, beide wörtlich aus dem Skript gefahren — das Messmittel druckt
+  gar nicht · die Zeile lässt die Gegenprobe weg.
+
+- Gegen die echte Seite gefahren, 390 px:
+  `dokument=0 gegenprobe=200 (soll 200) schiebt=0 rollt=0 versteckt=6`.
+
+### A14 ist abgenommen — 6. September 2026
+
+- **Auf `cloudsrv24` gegen `0.7.3-rc.20` bis `0.7.3-rc.22`, alle acht Punkte
+  aus `docs/103 §8`**, beide Ausschlusskriterien (3 und 6) darunter, keiner als
+  „nicht herstellbar" ausgefallen. Der Lauf ist `docs/104`, das Protokoll
+  **`docs/105`**.
+
+- **Punkt 3 misst eine Eigenschaft und hat sie belegt.** Drei Bänder bei genau
+  390 px, zweimal gemessen: mit 120 und mit 500 Zeichen je **62 px**, die Hülle
+  je **214 px**, `schiebt = 0`, Gegenprobe **200**. Der vierfache Text ändert
+  an der Höhe nichts.
+
+- **Die Bilderrunde in vier Lagen**, auf `/announcements`: `dokument = 0` und
+  Gegenprobe 200 in allen vieren, `schiebt = 0`, beide Themen über den
+  Umschalter des Panels gestellt.
+
+- **Zehn Befunde, fünf im Prüfling** — dasselbe Verhältnis wie bei A10 und A2
+  und aus demselben Grund: Die Vorschrift war vor dem Lauf ausgeschrieben, die
+  Messmittel lagen als geprüfte Werkzeuge im Repo. Was blieb, war neuer Code.
+
+  **Vier der fünf hat der Betreiber beim Benutzen gemeldet** und keine Messung.
+  Der letzte ist der, der offen bleibt: **Eine Ankündigung lässt sich nicht
+  ändern.** `docs/103 §10` zählt auf, was A14 nicht wird — Bearbeiten steht
+  dort nicht.
+
+  > **Eine Aufzählung dessen, was ein Merkmal nicht wird, ist nur dann eine
+  > Entscheidung, wenn das Fehlende darin steht — sonst ist sie eine Lücke mit
+  > Überschrift.**
+
+- **Und eine Erwartung der Vorschrift stimmte auf dem Server nicht.** Für die
+  Bilderrunde bei 1440 px war `rollt=1` angesagt; gemessen wurde 0. Ein Roller
+  taucht nur auf, wenn er auch überläuft — im Container war die Tabelle 43 px
+  breiter als ihr Behälter, auf dem Server passt sie hinein.
+
+  > **Eine Erwartung aus einer Messung unter anderen Bedingungen ist eine
+  > Vermutung, auch wenn sie aus einer Messung stammt.**
+
+- **Der Prüfstand ist abgeräumt und das ist belegt:**
+  `Announcement::count()` gibt 0, die Zahl von vor dem Lauf.
+
+### Eine Ankündigung lässt sich ändern — und zwei Wächter hielten dieselbe Regel
+
+- **Befund 4 des A14-Abnahmelaufs ist gebaut** (`docs/105 §10.4`). Bis zum
+  6. September 2026 kannte `/announcements` `store` und `destroy` und nichts
+  dazwischen; gemeldet hat es der Betreiber beim Fahren von Punkt 3, und
+  `docs/103 §10` — die Liste dessen, was A14 ausdrücklich *nicht* wird — nannte
+  das Bearbeiten nicht.
+
+  Der Umweg über Löschen und Neuanlegen war keiner: Der Streifen ist ein
+  **Verweis** auf `/announcements/{id}`, und eine neue Kennung macht daraus für
+  einen lesenden Kunden einen 404.
+
+- **Die Felder stehen als `AnnouncementForm` an einer Stelle**, und die
+  Anlegeseite bleibt, wo sie ist. Der naheliegende Weg wäre gewesen, es wie bei
+  den Konten zu machen — `create` und `edit` als eine Seite. Das hätte
+  `/announcements` umgebaut, also die Ansicht, die der Abnahmelauf am selben Tag
+  in vier Lagen gemessen hat.
+
+  > **Eine Änderung, die eine gerade gemessene Ansicht umbaut, macht die Messung
+  > wertlos.**
+
+- **Das Protokoll führt `announcement.change` flach und in der richtigen
+  Reihenfolge.** `AuditQuery::plain()` flacht ein verschachteltes Array mit `, `
+  ab — aus `['from' => 'alt', 'to' => 'neu']` würde `alt, neu`, und welches
+  welches ist, stünde nirgends. Und `details()` kürzt bei 200 Zeichen: Zwei
+  Texte von je 500 schöben die Kennung aus der Zeile. Deshalb stehen die kurzen
+  Tatsachen vorn und der Wortlaut zuletzt; der volle Text bleibt im `json` und
+  gekürzt wird nur die Anzeige.
+
+- **Und der volle Testlauf hat zwei Löcher gefunden, die die einzeln gefahrenen
+  Wächter nicht sahen.**
+
+  `FieldErrorTest` und `FormErrorTest` fordern beide die Fehlerzusammenfassung,
+  und **beide** lösten den Auslöser über Komponenten auf, die Forderung aber
+  nicht. Ich habe den einen berichtigt und den anderen nicht bemerkt.
+
+  > **Ein Wächter, der die eine Hälfte seiner Frage über Komponenten auflöst und
+  > die andere nicht, prüft zwei verschiedene Bäume.**
+
+  `AttributeLabelTest` las nur `Pages`. Mit dem Umzug des Formulars verschwand
+  `audiences` aus seiner Sicht, und die Ausnahme dazu zeigte ins Leere.
+
+  > **Ein Feld, das in eine Komponente zieht, ist für einen Wächter über Seiten
+  > verschwunden — nicht richtig geworden.**
+
+  Gemessen, was die Erweiterung auf Komponenten kostet: **ein** Fund, und das
+  ist genau das umgezogene Feld. Also ist das Loch geschlossen und nicht die
+  Ausnahme verschoben.
+
+- **Und ein Prüfkörper war beim ersten Wurf blind.** `test_the_wording_stands_last`
+  änderte Text und Kategorie — und blieb grün, als die Vorkehrung entfernt
+  wurde: `fields()` führt `category` ohnehin vor `body`. Er ändert jetzt Text
+  und Fenster, weil `visible_from` **hinter** `body` steht.
+
+  > **Ein Prüfkörper, der auch ohne die Regel grün ist, misst die Reihenfolge
+  > einer Aufzählung und nicht die Vorkehrung.**
+
+- Sieben Brüche, jeder wörtlich aus dem Skript gefahren. 3150 Tests grün, Pint
+  grün, `vue-tsc` grün, PHPStan Stufe 6 ohne Meldung, shellcheck ohne Meldung.
+  Gemessen an der echten Seite: drei Knöpfe je Zeile mit 10 px Abstand, kein
+  Überlauf bei 390 und 1440 px, und `14:00 UTC` kommt in Berlin als `16:00`
+  zurück.

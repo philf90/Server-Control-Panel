@@ -37,7 +37,7 @@ final class AnnouncementPageTest extends TestCase
     use RefreshDatabase;
 
     /**
-     * Die drei Griffe dieser Seite.
+     * Die fünf Griffe dieser Seite.
      *
      * Als Datenlieferant und nicht als drei Testmethoden: Eine vierte Route
      * bekäme sonst leicht keinen Fall, und das fiele niemandem auf.
@@ -56,6 +56,8 @@ final class AnnouncementPageTest extends TestCase
     {
         yield 'ansehen' => ['get', '/announcements'];
         yield 'anlegen' => ['post', '/announcements'];
+        yield 'ändern öffnen' => ['get', '/announcements/{id}/edit'];
+        yield 'ändern' => ['patch', '/announcements/{id}'];
         yield 'entfernen' => ['delete', '/announcements/{id}'];
     }
 

@@ -141,7 +141,7 @@ final class FieldErrorTest extends TestCase
                 continue;
             }
 
-            if (str_contains($source, '<FormErrors')) {
+            if ($this->summarises($path, $inhalt)) {
                 continue;
             }
 
@@ -206,6 +206,31 @@ final class FieldErrorTest extends TestCase
     }
 
     /**
+     * Trägt diese Seite die Zusammenfassung — selbst oder über eine Komponente?
+     *
+     * **Symmetrisch zu {@see self::marks()}, und das war es einmal nicht.** Bis
+     * zum 6. September 2026 löste dieser Wächter die eine Hälfte seiner Frage
+     * über Komponenten auf und die andere nicht: Die Markierung durfte aus
+     * einer Komponente kommen, die Zusammenfassung musste wörtlich auf der
+     * Seite stehen. Aufgefallen ist es, als `AnnouncementForm` beides
+     * mitbrachte — die einzige Form, in der ein Formular an zwei Orten wirklich
+     * dasselbe ist.
+     *
+     * > **Ein Wächter, der die eine Hälfte seiner Frage über Komponenten
+     * > auflöst und die andere nicht, prüft zwei verschiedene Bäume.**
+     *
+     * Die Regel selbst ist unverändert: Wo ein Feld rot werden kann, muss ein
+     * Satz dastehen, der sagt warum. Nur die Frage danach, wer ihn mitbringt,
+     * ist jetzt dieselbe wie bei der Markierung.
+     *
+     * @param  array<string, string>  $inhalt
+     */
+    private function summarises(string $path, array $inhalt): bool
+    {
+        return $this->carries($path, $inhalt, '<FormErrors');
+    }
+
+    /**
      * Markiert diese Seite ein Feld — selbst oder über eine Komponente?
      *
      * Eine Ebene tief, und das reicht: Die drei Komponenten mit Feldern
@@ -218,14 +243,31 @@ final class FieldErrorTest extends TestCase
      */
     private function marks(string $path, array $inhalt): bool
     {
+        return $this->carries($path, $inhalt, ':aria-invalid=');
+    }
+
+    /**
+     * Steht das Merkmal in dieser Datei — oder in einer Komponente, die sie
+     * einbaut?
+     *
+     * Eine Ebene tief, und das reicht: Die Komponenten mit Feldern
+     * (`CodeField`, `DnsCredentials`, `PasswordFields`, `AnnouncementForm`)
+     * stehen unmittelbar in ihren Seiten. Käme je eine dazu, die eine andere
+     * einbaut, meldete der Test es nicht — deshalb steht die Grenze hier und
+     * nicht im Kommentar einer Hilfsmethode.
+     *
+     * @param  array<string, string>  $inhalt
+     */
+    private function carries(string $path, array $inhalt, string $merkmal): bool
+    {
         $source = $inhalt[$path];
 
-        if (str_contains($source, ':aria-invalid=')) {
+        if (str_contains($source, $merkmal)) {
             return true;
         }
 
         foreach ($inhalt as $anderer => $fremd) {
-            if (! str_contains($anderer, '/Components/') || ! str_contains($fremd, ':aria-invalid=')) {
+            if (! str_contains($anderer, '/Components/') || ! str_contains($fremd, $merkmal)) {
                 continue;
             }
 

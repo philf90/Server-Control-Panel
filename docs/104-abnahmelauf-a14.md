@@ -30,15 +30,26 @@ Gebaut ist seitdem die Leseseite `GET /announcements/{id}` (PR #215). Punkt 4
 misst sie jetzt **aus der Sicht eines Kunden**, denn das ist der Fall, den die
 alte Fassung verschwiegen hätte.
 
-### Zwei Zahlen sind offen, und eine davon entscheidet dieser Lauf
+### Zwei Zahlen waren offen — eine ist am 6. September entschieden
 
-**Die Höhe der Hülle.** `docs/103 §8` nennt 214 px für drei Bänder bei 390 px,
-aus einer Messung an der echten Seite. Der Vorflug hat gegen das gebaute
-Stylesheet **226 px** gemessen. Welche gilt, sagt der Server.
+**Die Höhe der Hülle: 214 px.** `docs/103 §8` nannte 214 aus einer Messung an
+der echten Seite, der Vorflug **226** gegen das gebaute Stylesheet. Entschieden
+hat es keine Vermutung, sondern eine dritte Messung: an der echten Seite unter
+`artisan serve` im Container, angemeldet, drei Ankündigungen, in drei
+Bestückungen und beiden Themen — **jedes Mal 214**.
 
-Getragen ist davon die **Eigenschaft** und nicht der absolute Wert: Bei 390 px
-ergaben 60, 120, 250 und 500 Zeichen alle dieselben 62 px je Band, und `div`
-gegen `a` in acht Lagen Zeile für Zeile dasselbe.
+> **Zwei Messungen, die auseinandergehen, entscheidet keine Überlegung, sondern
+> die dritte — und die muss den Weg des Prüflings nehmen und nicht den
+> bequemeren.**
+
+Der Wegwerf-Aufsatz lag also um 12 px daneben, und zwar systematisch. Er bleibt
+das richtige Mittel für eine Frage nach dem **Überlauf** und ist es nicht für
+eine nach der **Höhe**: Was ihm fehlt, ist alles, was oberhalb und unterhalb
+des gemessenen Bausteins auf der Seite steht.
+
+Getragen ist davon weiterhin die **Eigenschaft** und nicht der absolute Wert:
+Bei 390 px ergaben 60, 80, 120, 250 und 500 Zeichen alle dieselben 62 px je
+Band, und `div` gegen `a` in acht Lagen Zeile für Zeile dasselbe.
 
 > **Eine Differenz zweier Messungen unter denselben Bedingungen trägt, auch
 > wenn die absoluten Werte an der Umgebung hängen.**
@@ -169,23 +180,45 @@ Reihenfolge nach Rang: Störung, Warnung, Info.
 **Gemessen wird eine Eigenschaft und nicht eine Zahl.** Die Zahl steht daneben,
 damit ein Ausreisser auffällt.
 
-**Herstellen.** Den Text der drei auf **60 Zeichen** setzen. Messen. Dann auf
+**Gemessen wird mit `tests/baender-messen.js`** aus dem Repo: in die Konsole
+einfügen, `baenderMessen()` aufrufen. Es druckt sein Urteil als **eine** Zeile,
+und der zweite Aufruf wirft — vor jeder Messung wird neu geladen.
+
+**Herstellen.** Den Text der drei auf **120 Zeichen** setzen. Messen. Dann auf
 **500 Zeichen** setzen. Wieder messen.
+
+**Nicht 60.** Bei 390 px liegt die Umbruchschwelle zwischen 40 und 65 Zeichen
+einschliesslich Rangwort (gemessen: 23 → 41 px, 40 → 41 px, 65 → 62 px). 60
+Zeichen Text ergeben mit „Störung" davor 67 und liegen damit keine zwanzig
+Zeichen über der Schwelle — wer „ungefähr 60" schreibt, misst sie statt der
+Eigenschaft und liest `gleich=false` als Ausfall eines Ausschlusskriteriums.
+
+> **Ein Prüfkörper, der dicht an einer Schwelle liegt, misst die Schwelle und
+> nicht die Eigenschaft.**
 
 **Erwartet bei 390 px:**
 
-| | 60 Zeichen | 500 Zeichen |
+| | 120 Zeichen | 500 Zeichen |
 |---|---|---|
-| Höhe je Band | X | **dasselbe X** |
-| Höhe der Hülle | Y | **dasselbe Y** |
+| Höhe je Band | **62 px** | **62 px** |
+| Höhe der Hülle | **214 px** | **214 px** |
 | `schiebt` | 0 | 0 |
 | Gegenprobe | 200 | 200 |
 
-Der Vorflug erwartet X = 62 px. **Y ist offen** — 214 oder 226; dieser Lauf
-entscheidet es, und der Wert wird in `docs/103 §8` nachgetragen.
+**Beide Zahlen sind am 6. September an der echten Seite gemessen** — im
+Container unter `artisan serve`, angemeldet, in drei Bestückungen und beiden
+Themen (`docs/103 §8`). Damit misst dieser Punkt keine offene Zahl mehr,
+sondern eine erwartete.
 
-**Der Punkt fällt aus**, wenn die beiden Höhen sich unterscheiden. Die Zahl
-allein ist kein Ausfall; sie ist eine Beobachtung.
+**Der Punkt fällt aus**, wenn die beiden Höhen sich unterscheiden. Eine
+abweichende Zahl ist kein Ausfall, sondern eine Beobachtung fürs Protokoll.
+
+**Und er wird bei 390 px gemessen und nicht breit.** Bei 1440 px passen rund
+160 Zeichen in eine Zeile; dieselben drei Bänder ergeben dort `[41, 62]`, und
+das ist richtig — die Klammer sagt eine **Obergrenze** zu und keine feste Höhe.
+
+> **Eine Zusage, die an eine Breite gebunden ist, liest sich wie eine über jede
+> Breite.**
 
 ---
 

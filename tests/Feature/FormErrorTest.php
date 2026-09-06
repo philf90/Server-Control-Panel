@@ -100,6 +100,55 @@ final class FormErrorTest extends TestCase
         return $names;
     }
 
+    /**
+     * Zeigt diese Seite die Zusammenfassung — selbst oder über eine Komponente?
+     *
+     * **Symmetrisch zum Auslöser, und das war es einmal nicht.** Bis zum
+     * 6. September 2026 löste dieser Wächter die eine Hälfte seiner Frage über
+     * Komponenten auf und die andere nicht: Ein Formular durfte aus einer
+     * Komponente kommen, die Zusammenfassung musste wörtlich auf der Seite
+     * stehen. Aufgefallen ist es, als `AnnouncementForm` beides mitbrachte.
+     *
+     * > **Ein Wächter, der die eine Hälfte seiner Frage über Komponenten
+     * > auflöst und die andere nicht, prüft zwei verschiedene Bäume.**
+     *
+     * **Und dieselbe Asymmetrie stand zugleich in {@see FieldErrorTest}.**
+     * Zwei Wächter halten hier eine sehr ähnliche Regel — der eine fragt „diese
+     * Seite kann ein Feld rot machen", der andere „diese Seite schickt ein
+     * Formular ab". Wer den einen berichtigt, berichtigt den anderen nicht mit:
+     *
+     * > **Ein Fehler, den man an einer Stelle behoben hat, ist an der nächsten
+     * > wieder da, wenn die Behebung nicht die Regel wurde.**
+     *
+     * Geprüft wird eine Ebene tief; eine Komponente, die eine andere einbaut,
+     * sähe dieser Wächter nicht. Die Grenze steht deshalb hier und nicht im
+     * Kommentar einer Hilfsmethode.
+     *
+     * @param  list<string>  $components
+     */
+    private function summarises(string $source, array $components): bool
+    {
+        if (str_contains($source, '<'.self::COMPONENT)) {
+            return true;
+        }
+
+        $root = dirname(__DIR__, 2).'/resources/js/Components/';
+
+        foreach ($components as $component) {
+            if (! str_contains($source, '<'.$component)) {
+                continue;
+            }
+
+            $fremd = (string) @file_get_contents($root.$component.'.vue');
+
+            if (str_contains($fremd, '<'.self::COMPONENT)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function test_every_page_with_a_form_shows_what_went_wrong(): void
     {
         $found = [];
@@ -126,7 +175,7 @@ final class FormErrorTest extends TestCase
 
             $checked++;
 
-            if (! str_contains($source, '<'.self::COMPONENT)) {
+            if (! $this->summarises($source, $components)) {
                 $found[] = $relative;
             }
         }

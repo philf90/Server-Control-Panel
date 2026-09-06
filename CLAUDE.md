@@ -2333,6 +2333,65 @@ ACME-`location` auch im HTTPS-Block stehen sollte.
 
 ---
 
+## A14 ist abgenommen — 6. September 2026
+
+Auf `cloudsrv24` gegen `0.7.3-rc.20` bis `0.7.3-rc.22`, **alle acht Punkte aus
+`docs/103 §8`**, beide Ausschlusskriterien (3 und 6) darunter, keiner als „nicht
+herstellbar" ausgefallen. Der Plan ist `docs/103`, der Lauf `docs/104`, das
+Protokoll **`docs/105`**.
+
+**Punkt 3 ist die Messung, für die es diese Stufe gibt.** Drei Bänder bei genau
+390 px, zweimal gefahren: 120 und 500 Zeichen ergeben je **62 px**, die Hülle je
+**214 px**, `schiebt = 0`, Gegenprobe **200**. Damit ist auch die Zahl
+entschieden, die `docs/103 §8` offengelassen hatte — 214 und nicht 226.
+
+**Zehn Befunde, fünf im Prüfling** — dasselbe Verhältnis wie bei A10 und A2 und
+aus demselben Grund: Vorschrift vorher ausgeschrieben, Messmittel als geprüfte
+Werkzeuge im Repo. Was blieb, war neuer Code. **Vier der fünf hat der Betreiber
+beim Benutzen gemeldet** und keine Messung.
+
+**Der eine, der offen bleibt: Eine Ankündigung lässt sich nicht ändern.**
+`routes/web.php` kennt `store` und `destroy` und nichts dazwischen, und
+`docs/103 §10` zählt auf, was A14 ausdrücklich *nicht* wird — Bearbeiten steht
+dort nicht.
+
+> **Eine Aufzählung dessen, was ein Merkmal nicht wird, ist nur dann eine
+> Entscheidung, wenn das Fehlende darin steht — sonst ist sie eine Lücke mit
+> Überschrift.**
+
+Es ist mehr als eine Bequemlichkeit, weil der Streifen ein **Verweis** auf
+`/announcements/{id}` ist:
+
+> **Eine Ressource, auf die ein Verweis zeigt, lässt sich nicht durch Löschen
+> und Neuanlegen berichtigen — der Verweis zeigt danach ins Leere.**
+
+**Zwei Befunde sind derselbe Satz an zwei Orten** — die klebenden Knöpfe (die
+Regel stand seit P5b in `app.css`, samt ihrer Begründung) und das Messmittel,
+das sein Urteil nur zurückgab (`baender-messen.js` hatte die gedruckte Zeile am
+selben Vormittag bekommen). Beim wiederholten Mal heisst das nicht, dass ein
+Wächter fehlt, sondern eine Gewohnheit: **Wer etwas an einer Datei behebt, sieht
+in derselben Stunde nach, wo dieselbe Frage noch gestellt wird.**
+
+> **Ein Objekt in der Konsole zeigt fünf Schlüssel und klappt den Rest weg — und
+> was man abschreibt, ist dann eine Auswahl, die niemand getroffen hat.** Eine
+> ganze Bilderrunde stand mit `gegenprobe: {…}` und ohne `schiebt` da; sichtbar
+> war `dokument: 0`, also derselbe Wert, den auch eine Messung liefert, die
+> nichts misst.
+
+**Und eine Erwartung der Vorschrift stimmte auf dem Server nicht:** `rollt=1`
+angesagt, 0 gemessen. Ein Roller taucht nur auf, wenn er auch überläuft.
+
+> **Eine Erwartung aus einer Messung unter anderen Bedingungen ist eine
+> Vermutung, auch wenn sie aus einer Messung stammt.**
+
+Und einer über die Zahl, die zwei Messungen verschieden beantwortet hatten:
+
+> **Zwei Messungen, die auseinandergehen, entscheidet keine Überlegung, sondern
+> die dritte — und die muss den Weg des Prüflings nehmen und nicht den
+> bequemeren.**
+
+---
+
 ## Zwei Befunde an einem Feld — 4. September 2026
 
 Gemeldet hat den ersten der Betreiber, beim ersten Versuch, den Wartungsmodus

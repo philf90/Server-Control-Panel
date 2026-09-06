@@ -44,10 +44,56 @@ use PHPUnit\Framework\TestCase;
  */
 final class OverflowProbeTest extends TestCase
 {
-    /** Die Messvorschrift, die dieser Wächter liest. */
+    /** Die Messvorschrift, deren eigene Felder dieser Wächter liest. */
     private function source(): string
     {
         return (string) file_get_contents(dirname(__DIR__, 2).'/tests/bilder-messen.js');
+    }
+
+    /**
+     * Jedes Messmittel, das einen Prüfkörper in die Seite setzt.
+     *
+     * **Gefunden und nicht aufgezählt.** Seit dem 6. September 2026 gibt es
+     * zwei davon — `bilder-messen.js` für den Überlauf und `baender-messen.js`
+     * für die Höhe eines Streifens (`docs/104 §3`). Eine Liste im Test nennt,
+     * woran der Schreiber gerade dachte; das dritte Messmittel stünde nicht
+     * darin, und seine Regeln wären ungeprüft.
+     *
+     * **Unterschieden wird am Einsetzen und nicht an einer der geprüften
+     * Regeln.** Der erste Wurf nahm jedes `tests/*-messen.js` und meldete
+     * `mandant-messen.js` und `takt-messen.js` — die fragen Routen ab und
+     * setzen nichts in eine Seite, für sie gibt es weder Prüfkörper noch
+     * Gegenprobe. Das Merkmal auf `scrollWidth` zu legen wäre der
+     * entgegengesetzte Fehler gewesen:
+     *
+     * > **Ein Wächter, der seine Prüflinge an der Regel auswählt, die er
+     * > prüft, findet nur die, die sie schon einhalten.**
+     *
+     * @return array<string, string> Dateiname => Quelltext
+     */
+    private function instruments(): array
+    {
+        $gefunden = [];
+
+        foreach ((array) glob(dirname(__DIR__, 2).'/tests/*-messen.js') as $pfad) {
+            $quelltext = (string) file_get_contents((string) $pfad);
+
+            if (! str_contains($quelltext, 'document.body.append(')) {
+                continue;
+            }
+
+            $gefunden[basename((string) $pfad)] = $quelltext;
+        }
+
+        // Untergrenze: Läuft das Muster ins Leere, prüft die Schleife nichts —
+        // und eine leere Schleife ist grün.
+        $this->assertGreaterThanOrEqual(
+            2,
+            count($gefunden),
+            'Es wurden weniger als zwei Messmittel gefunden — das Muster laeuft ins Leere.',
+        );
+
+        return $gefunden;
     }
 
     /**
@@ -55,15 +101,17 @@ final class OverflowProbeTest extends TestCase
      */
     public function test_the_probe_is_bound_to_the_page(): void
     {
-        $this->assertMatchesRegularExpression(
-            '/scrollWidth \+ \d+/',
-            $this->source(),
-            implode("\n", [
-                'Der Pruefkoerper haengt nicht mehr an der Breite der Seite.',
-                'Ein fester Block schlaegt unterhalb seiner Groesse aus und darueber',
-                'nicht — und liefert dort dieselbe Null wie eine kaputte Messung.',
-            ]),
-        );
+        foreach ($this->instruments() as $datei => $quelltext) {
+            $this->assertMatchesRegularExpression(
+                '/scrollWidth \+ \d+/',
+                $quelltext,
+                implode("\n", [
+                    "In {$datei} haengt der Pruefkoerper nicht mehr an der Breite der Seite.",
+                    'Ein fester Block schlaegt unterhalb seiner Groesse aus und darueber',
+                    'nicht — und liefert dort dieselbe Null wie eine kaputte Messung.',
+                ]),
+            );
+        }
     }
 
     /**
@@ -76,21 +124,23 @@ final class OverflowProbeTest extends TestCase
      */
     public function test_the_probe_has_no_fixed_width(): void
     {
-        preg_match('/\.style\.cssText = `([^`]*)`/', $this->source(), $treffer);
+        foreach ($this->instruments() as $datei => $quelltext) {
+            preg_match('/\.style\.cssText = `([^`]*)`/', $quelltext, $treffer);
 
-        $this->assertCount(2, $treffer, 'Die Zeile, die den Pruefkoerper breit macht, gibt es nicht mehr.');
+            $this->assertCount(2, $treffer, "In {$datei} gibt es die Zeile nicht mehr, die den Pruefkoerper breit macht.");
 
-        $this->assertStringContainsString(
-            'scrollWidth',
-            $treffer[1],
-            'Die Breite des Pruefkoerpers ist eine feste Zahl — dann gilt die Gegenprobe nur unterhalb dieser Zahl.',
-        );
+            $this->assertStringContainsString(
+                'scrollWidth',
+                $treffer[1],
+                "In {$datei} ist die Breite des Pruefkoerpers eine feste Zahl — dann gilt die Gegenprobe nur unterhalb dieser Zahl.",
+            );
 
-        $this->assertDoesNotMatchRegularExpression(
-            '/width:\s*\d+px/',
-            $treffer[1],
-            'Die Breite des Pruefkoerpers steht als feste Zahl da (Befund 22 aus docs/59).',
-        );
+            $this->assertDoesNotMatchRegularExpression(
+                '/width:\s*\d+px/',
+                $treffer[1],
+                "In {$datei} steht die Breite des Pruefkoerpers als feste Zahl da (Befund 22 aus docs/59).",
+            );
+        }
     }
 
     /**
@@ -189,21 +239,104 @@ final class OverflowProbeTest extends TestCase
      */
     public function test_a_reading_names_the_instrument(): void
     {
-        $quelltext = $this->source();
+        foreach ($this->instruments() as $datei => $quelltext) {
+            /*
+             * `\w*STAND` und nicht `STAND`: Zwei Messmittel, die in dieselbe
+             * Konsole geklebt werden, dürfen den Namen nicht teilen — ein
+             * zweites `const STAND` wirft, und dann misst gar nichts mehr.
+             */
+            $this->assertMatchesRegularExpression(
+                "/const \\w*STAND = '\\d{4}-\\d{2}-\\d{2}'/",
+                $quelltext,
+                "{$datei} fuehrt keinen Stand — dann traegt keine Zeile ihre Herkunft.",
+            );
 
-        $this->assertMatchesRegularExpression(
-            "/const STAND = '\\d{4}-\\d{2}-\\d{2}'/",
-            $quelltext,
-            'Das Messmittel fuehrt keinen Stand — dann traegt keine Zeile ihre Herkunft.',
-        );
+            $ergebnis = (string) strstr($quelltext, '  return {');
 
-        $ergebnis = (string) strstr($quelltext, '  return {');
+            $this->assertMatchesRegularExpression(
+                '/stand: \\w*STAND/',
+                $ergebnis,
+                "In {$datei} steht der Stand nicht im Ergebnis — dann sieht eine alte Messung aus wie eine neue.",
+            );
+        }
+    }
 
-        $this->assertStringContainsString(
-            'stand: STAND',
-            $ergebnis,
-            'Der Stand steht nicht im Ergebnis — dann sieht eine alte Messung aus wie eine neue.',
-        );
+    /**
+     * Jedes Messmittel druckt sein Urteil als **eine Zeile**.
+     *
+     * **Am 6. September 2026 hat das eine Bilderrunde gekostet.** Die Konsole
+     * klappt ein zurückgegebenes Objekt auf fünf Schlüssel zusammen; in allen
+     * vier Lagen stand `gegenprobe: {…}` da und `schiebt` gar nicht. Sichtbar
+     * war `dokument: 0` — also derselbe Wert, den auch eine Messung liefert,
+     * die nichts misst.
+     *
+     * > **Ein Objekt in der Konsole zeigt fünf Schlüssel und klappt den Rest
+     * > weg — und was man abschreibt, ist dann eine Auswahl, die niemand
+     * > getroffen hat.**
+     *
+     * `baender-messen.js` hatte die Zeile am selben Vormittag bekommen und
+     * `bilder-messen.js` nicht. Dass die Regel jetzt hier steht und nicht in
+     * einem Kommentar, ist der Unterschied:
+     *
+     * > **Ein Fehler, den man an einer Stelle behoben hat, ist an der nächsten
+     * > wieder da, wenn die Behebung nicht die Regel wurde.**
+     *
+     * Gefordert ist die **Gegenprobe** in der Zeile und nicht irgendein Druck:
+     * Sie ist der Wert, ohne den die übrigen nichts bedeuten.
+     */
+    public function test_every_instrument_prints_one_line(): void
+    {
+        foreach ($this->instruments() as $datei => $quelltext) {
+            preg_match_all('/console\\.log\\((.*?)\\)\\n/s', $quelltext, $treffer);
+
+            $this->assertNotEmpty(
+                $treffer[1],
+                "{$datei} druckt sein Urteil nicht — dann klappt die Konsole das Objekt auf fuenf Schluessel zusammen.",
+            );
+
+            $gedruckt = implode("\n", $treffer[1]);
+
+            $this->assertStringContainsString(
+                'gegenprobe',
+                $gedruckt,
+                "In {$datei} steht die Gegenprobe nicht in der gedruckten Zeile — ohne sie bedeuten die uebrigen Werte nichts.",
+            );
+        }
+    }
+
+    /**
+     * Ein zweiter Aufruf ohne Neuladen wird verweigert, und zwar geworfen.
+     *
+     * **Die Falle ist gemessen** (`docs/96 §8`): Der Prüfkörper bemisst sich am
+     * gegenwärtigen `scrollWidth`, und beim zweiten Aufruf in derselben
+     * geladenen Seite ist sein eigener Block von eben schon Teil des Masses —
+     * heraus kommen 400 statt 200.
+     *
+     * Bis zum 6. September 2026 war die Antwort darauf ein Kommentar an den
+     * Menschen: „vor jeder Messung neu laden".
+     *
+     * > **Ein Prüfmittel, das seine eigene Falle nur beschreibt, überlässt sie
+     * > dem, der sie am wenigsten sehen kann — dem Leser des Ergebnisses.**
+     *
+     * **Geworfen und nicht zurückgegeben.** Ein Rückgabewert, der eine
+     * Weigerung ausdrückt, steht in derselben Spalte wie ein Ergebnis und wird
+     * abgeschrieben; eine Ausnahme in der Konsole ist unübersehbar.
+     */
+    public function test_a_second_run_is_refused(): void
+    {
+        foreach ($this->instruments() as $datei => $quelltext) {
+            $this->assertMatchesRegularExpression(
+                '/let \\w*[gG]elaufen = false/',
+                $quelltext,
+                "{$datei} merkt sich nicht, dass es schon gemessen hat (docs/96 §8).",
+            );
+
+            $this->assertMatchesRegularExpression(
+                '/if \\(\\w*[gG]elaufen\\) \\{\\s*throw new Error\\(/',
+                $quelltext,
+                "{$datei} verweigert den zweiten Aufruf nicht — oder gibt die Weigerung zurueck, statt sie zu werfen.",
+            );
+        }
     }
 
     /**

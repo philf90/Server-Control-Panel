@@ -84,6 +84,26 @@ final class ServerZone
         return self::current()->getName();
     }
 
+    /**
+     * Der Name — oder `null`, wenn er nicht abzulesen war.
+     *
+     * **Derselbe Leser, zwei Aufrufer, zwei Entscheidungen.** {@see self::current()}
+     * braucht eine Zone zum Rechnen und nimmt im Zweifel UTC; A11 zeigt die
+     * Zone des Servers an und muss „nicht feststellbar" sagen können. Ein
+     * gezeigtes UTC, das in Wahrheit „ich weiss es nicht" heisst, ist genau die
+     * Auskunft, gegen die dieser Bereich gebaut ist.
+     *
+     * > **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts zu
+     * > tun".**
+     *
+     * Das ist die Bauart von `SrvPanel\Agent\Apt` aus A1 Schritt 1: Der Leser
+     * entscheidet nichts, die Aufrufer entscheiden verschieden.
+     */
+    public static function known(): ?string
+    {
+        return self::read()?->getName();
+    }
+
     /** Für Tests, die eine andere Zone unterstellen wollen. */
     public static function forget(): void
     {

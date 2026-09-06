@@ -106,8 +106,16 @@ Ein neuer Bereich **„Zeit des Servers"** unmittelbar hinter „Anzeigezeit", a
 | Zeitzone des Servers | `Etc/UTC` — UTC |
 | Zeitabgleich | kein Zeitdienst installiert · ausgeschaltet · eingeschaltet · **nicht feststellbar** |
 | Uhr abgeglichen | ja · nein · **nicht feststellbar** |
+| Hardware-Uhr | UTC · Ortszeit · **nicht feststellbar** |
 | Jetzt auf dem Server | 2026-09-06 19:56 |
 | Dasselbe in der Anzeigezeit | 2026-09-06 21:56 — CEST (UTC+02:00) |
+
+**Die Zeile „Hardware-Uhr" ist beim Bauen dazugekommen.** §5 zählt `local_rtc`
+in der Antwort des Agenten auf, diese Tabelle hatte sie vergessen — und ein
+Feld, das der Agent liest und keine Seite zeigt, ist von aussen nicht von einem
+zu unterscheiden, das es nicht gibt. `LocalRTC=yes` ist dabei kein Kuriosum,
+sondern eine Fehleinstellung mit Folgen: Die Uhr springt bei jedem
+Zonenwechsel.
 
 **Die letzte Zeile ist der Grund für den ganzen Bereich.** `docs/80` verlangt
 die Serverzone *neben* der Anzeigezone, „weil die beiden sonst verwechselt
@@ -140,12 +148,15 @@ Eine neue Operation **`system.time`**, lesend, ohne Argumente.
 
     {
       "readable": true,
-      "timezone": "Etc/UTC",
       "can_ntp": false,
       "ntp": false,
       "synchronized": false,
       "local_rtc": false
     }
+
+**`timezone` stand hier und ist beim Bauen herausgefallen** — die Begründung
+steht in §8 unter „Berichtigt am 6. September 2026". Die Zone kommt aus
+`ServerZone`, das denselben Symlink liest wie `timedatectl`.
 
 **Im Fehlerfall:**
 
@@ -198,7 +209,7 @@ sind die beiden, die die Messrunde gefunden hat.
 
 | | | |
 |---|---|---|
-| 1 | Der Bereich steht da | Zone des Servers mit Name **und** Beschriftung |
+| 1 | Der Bereich steht da | Zone des Servers mit Name **und** Beschriftung; sie stimmt mit der überein, die die Cronseite an einen Zeitplan schreibt |
 | 2 | Die Brücke | „Jetzt auf dem Server" und „dasselbe in der Anzeigezeit" unterscheiden sich um genau den Versatz |
 | 3 | **NTP in seinen Zuständen** *(Ausschluss)* | „ausgeschaltet" und „eingeschaltet" sind verschiedene Sätze; „kein Zeitdienst installiert" ist ein dritter |
 | 4 | **Nicht feststellbar** *(Ausschluss)* | antwortet `timedatectl` nicht, steht das da — und **nicht** „aus" |
@@ -233,17 +244,57 @@ und genau das ist der Zustand, den Entscheidung 2 abbilden soll.
 | `TimeStateTest` | der Leser liest **nach Schlüssel** und nicht nach Position; `yes`/`no` werden zu Wahrheitswerten; ein `rc != 0` gibt `readable: false` und keinen geratenen Wert — gemessen an den **gemessenen** Ausgaben aus `§2.3r` als Prüfkörper und nicht an erfundenen |
 | `NtpVerdictTest` | die drei Zustände des Dienstes ergeben drei **verschiedene** Sätze, und „nicht feststellbar" ist ein vierter; gemessen an der Wirkung und nicht an der Anwesenheit von `CanNTP` im Quelltext |
 | `ZoneLabelTest` | `describeZone()` geht durch dasselbe `describe()` wie `label()` — eine Fassung der Beschriftung; und der Zeitpunkt ist ein Argument, gemessen an Januar **und** Juli |
-| `LocaltimeSourceTest` | `/etc/timezone` kommt in `app/` und `agent/` nirgends vor; die Zone kommt aus `timedatectl` und sonst nirgendwoher |
+| `TimezoneFileTest` | `/etc/timezone` kommt in `app/` und `agent/` nirgends vor; `timedatectl` hat genau einen Aufrufer und einen Pfad auf der Positivliste; **und die Zone reist nicht durch den Agenten** |
 | `AgentOperationReachTest` | (vorhanden) `system.time` zeigt auf eine Operation, die es gibt |
 | `RouteAuthorizationTest` | (vorhanden) die Seite bleibt an `manage-settings` |
 
-**`LocaltimeSourceTest` ist der billigste und der wichtigste.** Der Fund aus
+**`TimezoneFileTest` ist der billigste und der wichtigste.** Der Fund aus
 M11 ist nicht, dass jemand `/etc/timezone` liest — es liest niemand. Er ist,
 dass es **naheliegt**: Die Datei ist da, sie ist einzeilig, und sie beantwortet
 scheinbar dieselbe Frage.
 
 > **Eine Regel gegen eine Quelle, die niemand benutzt, hält den Tag auf, an dem
 > jemand sie naheliegend findet.**
+
+---
+
+### Berichtigt am 6. September 2026 — die Zone kommt nicht vom Agenten
+
+**§5 oben sah `timezone` in der Antwort von `system.time` vor. Das ist beim
+Bauen umgeworfen worden, und gefangen hat es ein Wächter aus P6.**
+
+Die Frage „in welcher Zone steht dieser Server" ist seit P6 beantwortet:
+`App\Support\Cron\ServerZone` liest den Symlink, dem cron folgt — und M11 hat
+gemessen, dass `timedatectl` **demselben** Symlink folgt. Es sind also nicht
+zwei Quellen, sondern zwei Leser einer Quelle, und die Cronseite und diese Seite
+hätten verschiedene Serverzonen nennen können.
+
+> **Eine Messung, die nach dem Werkzeug sucht, findet die Frage nicht — sie war
+> schon beantwortet, nur mit einem anderen Werkzeug.**
+
+Die Messrunde hat `timedatectl` in `agent/` und `app/` gesucht und nichts
+gefunden; nach `/etc/localtime` hat sie nicht gesucht. `ServerZoneSourceTest`
+hat den zweiten Leser gemeldet, bevor er im Repo war.
+
+**Was sich dadurch ändert:**
+
+- `system.time` beantwortet nur noch, was **nur** es beantwortet: ob ein
+  Zeitdienst da ist, ob er läuft, ob die Uhr stimmt, wie die Hardware-Uhr steht.
+- `ServerZone::known()` ist dazugekommen — derselbe Leser, zwei Aufrufer:
+  `current()` braucht eine Zone zum Rechnen und nimmt im Zweifel UTC,
+  `known()` gibt `null` und lässt die Seite „nicht feststellbar" sagen. Das ist
+  die Bauart von `Apt` aus A1 Schritt 1.
+- `ServerTime::rows()` bekommt die Zone als **Argument** und beschafft sie
+  nicht. Sonst liesse sich „Zone nicht ablesbar" nur auf einem Rechner messen,
+  dessen Symlink kaputt ist.
+- Die Tabelle in §4 hat eine Zeile mehr: **Hardware-Uhr**. §5 zählte
+  `local_rtc` in der Antwort auf und §4 zeigte es nicht — ein Feld, das
+  geschrieben und nie gelesen wird, ist von aussen nicht von einem zu
+  unterscheiden, das es nicht gibt.
+
+> **Eine Aufzählung dessen, was ein Merkmal beantwortet, und eine Tabelle
+> dessen, was es zeigt, laufen auseinander — und die Lücke sieht in keiner von
+> beiden nach einer aus.**
 
 ---
 

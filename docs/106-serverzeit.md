@@ -298,6 +298,65 @@ hat den zweiten Leser gemeldet, bevor er im Repo war.
 
 ---
 
+## 8b · Die Bilderrunde im Container — 6. September 2026
+
+**Gefahren gegen die echte Seite**, nicht gegen einen Aufsatz: `artisan serve`,
+der Agent in einer eigenen Mount-Namespace mit einer `timedatectl`-Attrappe, die
+die **gemessene** Ausgabe aus `§2.3r` M6 druckt, und `/etc/localtime` für die
+Dauer der Messung auf `Europe/Berlin` — damit steht in der Zeile der Zone die
+längste Form, die es gibt.
+
+Gemessen mit `tests/bilder-messen.js`, je Lage in einer frisch geladenen Seite:
+
+| Breite | Thema | `dokument` | Gegenprobe | `schiebt` | `rollt` |
+|---|---|---|---|---|---|
+| 390 | hell | **0** | 200 (soll 200) | 0 | 0 |
+| 390 | dunkel | **0** | 200 | 0 | 0 |
+| 1440 | hell | **0** | 200 | 0 | 0 |
+| 1440 | dunkel | **0** | 200 | 0 | 0 |
+
+Die gemessenen Zeilen, mit einer Anzeigezone, die **nicht** die des Servers ist
+(`Asia/Kolkata` gegen `Europe/Berlin`) — sonst zeigten beide Zeitzeilen
+dieselbe Zahl und die Brücke wäre nicht gemessen:
+
+| | |
+|---|---|
+| Zeitzone des Servers | `Europe/Berlin — CEST (UTC+02:00)` |
+| Zeitabgleich | `kein Zeitdienst installiert` |
+| Uhr abgeglichen | `nein` |
+| Hardware-Uhr | `UTC` |
+| Jetzt auf dem Server | `2026-09-06 22:42` |
+| Dasselbe in der Anzeigezeit | `2026-09-07 02:12 IST (UTC+05:30)` |
+| Rechnername | `vm` |
+
+Der Rechnername ist dabei M15 in der Wirkung: `Names::fqdn()` gibt hier `NULL`,
+und `host()` trägt.
+
+### Der Befund der Runde
+
+**Die beiden Zeitzeilen standen in zwei Formen da** — oben `H:i`, unten
+`H:i:s`. Die Zahl war beide Male richtig, und `schiebt` war 0.
+
+> **Zwei Angaben, die man nebeneinander stellt, damit man sie vergleicht,
+> brauchen dieselbe Form — sonst vergleicht der Leser die Form.**
+
+Behoben über `Clock::minute()`; die Beschriftung kommt seitdem aus `labelAt()`
+und nicht aus `label()`, weil Berlin im Januar anders heisst als im Juli.
+`NtpVerdictTest` hält beides, das zweite an einem festen „jetzt" — sonst wäre
+der Fall ein halbes Jahr grün und ein halbes Jahr rot.
+
+**Der Prüfstand ist abgeräumt und das ist belegt:** `/etc/localtime` wieder auf
+`Etc/UTC`, `.env` wieder auf den Vorgabesocket, die Attrappe war ein Bind-Mount
+in einer Namespace und `/usr/bin/timedatectl` ist unberührt (ELF), Socket und
+Prozesse fort.
+
+**Was diese Runde nicht ersetzt:** den Lauf auf `cloudsrv24`. Der Zustand
+„eingeschaltet" und „Uhr abgeglichen: ja" ist hier nicht herstellbar — der
+Container erreicht keinen Zeitserver (`§2.3r`), und ein Zeitdienst ist nicht
+installiert. Punkt 3 und 4 des Abnahmekriteriums bleiben dem Server.
+
+---
+
 ## 9 · Was A11 ausdrücklich **nicht** wird
 
 - **Kein `set-timezone`.** Entscheidung 3.

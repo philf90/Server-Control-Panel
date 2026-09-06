@@ -97,8 +97,25 @@ final class ServerTime
              * > **Zwei Angaben, die verwechselt werden können, werden nicht
              * > durch eine Erklärung unterschieden, sondern dadurch, dass man
              * > sie nebeneinander zeigt.**
+             *
+             * **Auf die Minute genau, wie die Zeile darüber** — und das ist ein
+             * Befund der Bilderrunde vom 6. September 2026. Der erste Wurf nahm
+             * hier `Clock::display()` mit seinen Sekunden, während „Jetzt auf
+             * dem Server" bei der Minute endete.
+             *
+             * > **Zwei Angaben, die man nebeneinander stellt, damit man sie
+             * > vergleicht, brauchen dieselbe Form — sonst vergleicht der Leser
+             * > die Form.**
+             *
+             * **Und `labelAt()` und nicht `label()`**: Berlin heisst im Januar
+             * anders als im Juli, und die Beschriftung gehört zum gezeigten
+             * Zeitpunkt (`docs/102 §3b`).
              */
-            'display' => trim(sprintf('%s %s', Clock::display($at) ?? '', Clock::label())),
+            'display' => trim(sprintf(
+                '%s %s',
+                Clock::minute($at->copy()->utc()->format('Y-m-d H:i:s')) ?? '',
+                Clock::labelAt($at->copy()->utc()->format('Y-m-d H:i:s')) ?? Clock::label(),
+            )),
         ];
     }
 

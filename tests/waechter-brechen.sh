@@ -25579,6 +25579,47 @@ pruefe "isValid statt der Umrechnung" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ZoneLabelTest passed
 
+echo
+echo "== NtpVerdictTest: die beiden Zeitzeilen in zwei Formen =="
+#
+# Befund der Bilderrunde vom 6. September 2026. Der erste Wurf zeigte oben H:i
+# und unten H:i:s -- die Zeile darueber war die Antwort, die Zeile darunter die
+# Frage, und der Unterschied, den man zuerst sieht, waren die Sekunden.
+vorher_datei app/Support/Time/ServerTime.php
+python3 - <<'PY2'
+p = 'app/Support/Time/ServerTime.php'
+s = open(p, encoding='utf-8').read()
+alt = "                Clock::minute($at->copy()->utc()->format('Y-m-d H:i:s')) ?? '',"
+neu = "                Clock::display($at) ?? '',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Time/ServerTime.php "die Anzeigezeit traegt Sekunden" &&
+pruefe "die Anzeigezeit traegt Sekunden" \
+  NtpVerdictTest::test_both_time_rows_show_the_same_moment failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NtpVerdictTest passed
+
+echo
+echo "== NtpVerdictTest: die Beschriftung gilt fuer jetzt statt fuer den Zeitpunkt =="
+#
+# Berlin heisst im Januar anders als im Juli. Eine Zonenangabe, die fuer -jetzt-
+# gilt, gehoert nicht neben einen Zeitpunkt, der woanders liegt (docs/102 §3b).
+vorher_datei app/Support/Time/ServerTime.php
+python3 - <<'PY2'
+p = 'app/Support/Time/ServerTime.php'
+s = open(p, encoding='utf-8').read()
+alt = "                Clock::labelAt($at->copy()->utc()->format('Y-m-d H:i:s')) ?? Clock::label(),"
+neu = "                Clock::label(),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Time/ServerTime.php "die Beschriftung gilt fuer jetzt" &&
+pruefe "die Beschriftung gilt fuer jetzt" \
+  NtpVerdictTest::test_the_label_belongs_to_the_moment_shown failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NtpVerdictTest passed
+
 
 echo
 if [ "$fehler" -eq 0 ]; then

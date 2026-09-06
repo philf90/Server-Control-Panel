@@ -183,11 +183,61 @@ final class NtpVerdictTest extends TestCase
             $zeilen = $this->zeilen(self::AN);
 
             self::assertSame('2026-09-06 19:56', $zeilen['now'], 'Der Server steht in Etc/UTC.');
-            self::assertStringStartsWith('2026-09-07 01:26', $zeilen['display'], 'Kolkata liegt 5:30 weiter.');
-            self::assertStringContainsString('IST (UTC+05:30)', $zeilen['display']);
+            self::assertSame('2026-09-07 01:26 IST (UTC+05:30)', $zeilen['display'], 'Kolkata liegt 5:30 weiter.');
 
             self::assertNotSame($zeilen['now'], $zeilen['display'], 'Beide Zeilen zeigen dieselbe Zahl — dann rechnet eine von beiden nicht.');
+
+            /*
+             * **Und beide in derselben Form** — ein Befund der Bilderrunde vom
+             * 6. September 2026. Der erste Wurf zeigte oben `H:i` und unten
+             * `H:i:s`; die Zeile darüber war die Antwort, die Zeile darunter die
+             * Frage, und der Unterschied, den man zuerst sieht, waren die
+             * Sekunden.
+             *
+             * > **Zwei Angaben, die man nebeneinander stellt, damit man sie
+             * > vergleicht, brauchen dieselbe Form — sonst vergleicht der Leser
+             * > die Form.**
+             *
+             * Gemessen am Muster und nicht an einer festen Zeichenkette: Die
+             * Beschriftung darf danebenstehen, die Sekunden nicht.
+             */
+            self::assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/', $zeilen['now']);
+            self::assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2} \S/', $zeilen['display'],
+                'Die Anzeigezeit trägt Sekunden und die Serverzeit nicht — dann vergleicht der Leser die Form.');
         } finally {
+            Clock::forget();
+        }
+    }
+
+    /**
+     * Die Beschriftung gehört zum gezeigten Zeitpunkt und nicht zu „jetzt".
+     *
+     * **Berlin heisst im Januar `CET` und im Juli `CEST`** — `docs/102 §3b` hat
+     * das bezahlt. Eine Zonenangabe, die für „jetzt" gilt, gehört nicht neben
+     * einen Zeitpunkt, der woanders liegt.
+     *
+     * **Gemessen mit einem festen „jetzt"** und nicht mit dem echten: Sonst
+     * wäre dieser Fall ein halbes Jahr grün und ein halbes Jahr rot — dieselbe
+     * Vorsicht wie in `MaintenanceSeamTest` seit dem 4. September.
+     */
+    public function test_the_label_belongs_to_the_moment_shown(): void
+    {
+        Clock::store('Europe/Berlin');
+        Clock::forget();
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-07-15T12:00:00Z'));
+
+        try {
+            $zeilen = ServerTime::rows(
+                TimeState::read(new Result(0, self::AN, '')),
+                'Etc/UTC',
+                CarbonImmutable::parse('2026-01-15T12:00:00Z'),
+            );
+
+            self::assertStringContainsString('CET (UTC+01:00)', $zeilen['display'],
+                'Die Beschriftung gilt für „jetzt" und nicht für den gezeigten Zeitpunkt.');
+            self::assertStringNotContainsString('CEST', $zeilen['display']);
+        } finally {
+            CarbonImmutable::setTestNow();
             Clock::forget();
         }
     }

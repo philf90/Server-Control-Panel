@@ -166,13 +166,23 @@ function entfernen(id: number): void {
                 <td data-column="Publikum">{{ zeile.audiences.join(' · ') }}</td>
                 <td data-column="Zustand">{{ zeile.state }}</td>
 
+                <!--
+                  **Zwei Knöpfe gehören in eine `.button-row`.** Ohne sie
+                  kleben sie aneinander — die Regel in `app.css` sagt das
+                  wörtlich, und ihr Anlass war derselbe Fehler auf der
+                  PHP-Seite (`docs/38 §24.2`), auch damals vom Betreiber auf
+                  dem Server gefunden. Bis zur Vorschau trug diese Zeile genau
+                  einen Knopf, und der Abstand war nie eine Frage.
+                -->
                 <td class="right">
-                  <button type="button" class="button small" @click="zeigen(zeile.id)">
-                    {{ vorschau === zeile.id ? 'Vorschau zu' : 'Vorschau' }}
-                  </button>
-                  <button type="button" class="button small danger" @click="entfernen(zeile.id)">
-                    Entfernen
-                  </button>
+                  <div class="button-row">
+                    <button type="button" class="button small" @click="zeigen(zeile.id)">
+                      {{ vorschau === zeile.id ? 'Vorschau zu' : 'Vorschau' }}
+                    </button>
+                    <button type="button" class="button small danger" @click="entfernen(zeile.id)">
+                      Entfernen
+                    </button>
+                  </div>
                 </td>
               </tr>
 

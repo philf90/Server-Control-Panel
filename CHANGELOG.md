@@ -25768,3 +25768,75 @@ keiner am Prüfling; sie stehen in `docs/102 §9` und in `CLAUDE.md`.
   Er nahm der Hülle ihr `display: flex` und erwartete einen Fund von
   `BlockSpacingTest` — siehe den Abschnitt darüber. Er zeigt jetzt auf den
   Wächter, der die Regel halten kann.
+
+### A14: zwei Befunde des Abnahmelaufs, und einer war älter als A14
+
+- **Auf `/announcements` zeigte der Streifen alle Zeilen der Verwaltung.**
+  Gefunden am 6. September 2026 beim Fahren von Punkt 6: Die Tabelle nannte
+  zwei Ankündigungen `wartet` und `abgelaufen`, und beide standen trotzdem als
+  Band darüber. Der Filter war in Ordnung — der Schlüssel nicht.
+  `AnnouncementController::index()` gab seine Liste als `announcements` heraus,
+  und genau so heisst die geteilte Eigenschaft. Eine Seiten-Eigenschaft
+  überschreibt eine geteilte.
+
+  > **Ein geteilter Schlüssel, den eine Seite auch benutzt, ist auf genau
+  > dieser Seite fort.**
+
+  Es fiel nicht als Fehler auf, weil die Verwaltungszeilen dieselben Felder
+  tragen, die der Streifen braucht — `id`, `badge`, `rank`, `body`. Keine
+  Ausnahme, keine leere Seite, nur der falsche Inhalt.
+
+  > **Zwei Anzeigen derselben Sache auf einer Seite, die einander
+  > widersprechen, sind der einzige Weg, diesen Fehler zu sehen.**
+
+- **Denselben Satz hat A9 schon bezahlt**, und daraus wurde damals keine Regel:
+  Die geteilte Fähigkeitsablage heisst `abilities` und nicht `can`, weil `can`
+  vergeben war. `SharedPropTest` hält es jetzt für **jeden** geteilten Namen.
+
+  > **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten
+  > Merkmal wieder da, wenn die Behebung nicht die Regel wurde.**
+
+- **Und sein erster Lauf fand drei Kollisionen, nicht eine.** `Accounts/Form`
+  gab das bearbeitete Konto als `account` heraus — den Namen, unter dem
+  `PanelLayout` das **angemeldete** Konto liest. Sichtbar war es in der
+  Fusszeile der Seitenleiste (beim Anlegen fehlte der Name, beim Ändern stand
+  dort der falsche). Gefährlicher ist, was danebenlag: Dieselbe Ablage schaltet
+  über `is_admin` die ganze Navigation um. Dass sie nicht umsprang, lag allein
+  daran, dass das Feld in der Seitenlast fehlt und `undefined === false` falsch
+  ergibt.
+
+  > **Ein Feld, dessen Fehlen den Schaden verhindert, ist keine Absicherung —
+  > es ist ein Zufall mit Ablaufdatum.**
+
+- **Auf den Anmeldeseiten fehlte die Hülle `.bands`.** Gemeldet hat es der
+  Betreiber am Bild, nicht eine Messung: Das Band lag bündig am Bildschirmrand
+  statt eingerückt. `PanelLayout` legt `<Bands>` in ein `<div class="bands">`,
+  `Login.vue` und `TwoFactorChallenge.vue` taten es nicht — ohne Polster, ohne
+  Fuge zwischen zwei Störungen, ohne Stapelrichtung.
+
+  > **Eine Hülle, die in der aufrufenden Vorlage steht statt in der Komponente,
+  > gibt es so oft, wie jemand daran denkt.**
+
+  In die Komponente ziehen kann sie nicht: Im Panel trägt dieselbe `.bands`
+  auch den Balken für „Anmelden als" und nimmt `grid-row: 1` — zwei Geschwister
+  mit derselben Rasterzeile wären der M2-Befund zurück. Sie bleibt also, wo sie
+  ist, und `BandsHullTest` hält sie.
+- **Die Vorschau je Zeile ist neu**, entschieden vom Betreiber während des
+  Laufs. Wer für später ankündigt, sah bisher gar nicht, wie es aussehen wird —
+  der Streifen zeigt nur, was gerade gilt. Gezeigt wird mit **derselben
+  Komponente** wie oben und nicht mit nachgebautem Markup.
+
+  > **Eine Vorschau, die ihren Gegenstand nachbaut, zeigt irgendwann etwas
+  > anderes als das Original.**
+
+- **Und ein eigener Bruch meldete Erfolg, ohne etwas zu ändern.** Der Eingriff
+  zum Polster der Hülle prüfte `'  padding: 12px 16px;'` und ersetzte
+  `'  padding: 12px 16px;\n'` — die Zeile steht als letzte im Block, also ohne
+  folgenden Umbruch im Ausschnitt. Die Behauptung traf zu, die Ersetzung lief
+  ins Leere, und der Wächter blieb zu Recht grün.
+
+  > **Ein Eingriff, der eine andere Zeichenkette prüft als er ersetzt, meldet
+  > Erfolg und ändert nichts.**
+
+  Im Bruchskript fängt `griff_datei` genau das; der Lauf von Hand hatte es
+  nicht.

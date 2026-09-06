@@ -97,7 +97,24 @@ final class AccountController extends Controller
     public function create(): Response
     {
         return Inertia::render('Accounts/Form', [
-            'account' => null,
+            /*
+             * **`admin` und nicht `account`** — der Name des geteilten
+             * Schlüssels ist vergeben (siehe {@see \Tests\Feature\SharedPropTest}).
+             *
+             * Hier stand `account`, und damit überschrieb diese Seite das
+             * angemeldete Konto in der geteilten Nutzlast. Sichtbar wurde es in
+             * der Fusszeile der Seitenleiste: beim Anlegen verschwand der Name,
+             * beim Ändern stand dort der Name des **bearbeiteten** Kontos.
+             *
+             * Gefährlicher als das Sichtbare ist das Danebenliegende:
+             * `PanelLayout` schaltet über `account.is_admin` die ganze
+             * Navigation um. Dass sie nicht umsprang, lag allein daran, dass
+             * das Feld hier fehlt und `undefined === false` falsch ergibt.
+             *
+             * > **Ein Feld, dessen Fehlen den Schaden verhindert, ist keine
+             * > Absicherung — es ist ein Zufall mit Ablaufdatum.**
+             */
+            'admin' => null,
             'values' => [
                 'name' => '',
                 'email' => '',
@@ -189,7 +206,8 @@ final class AccountController extends Controller
     public function edit(Request $request, Account $admin): Response
     {
         return Inertia::render('Accounts/Form', [
-            'account' => [
+            // `admin` und nicht `account`: siehe create() darüber.
+            'admin' => [
                 'id' => (int) $admin->id,
                 'name' => $admin->name,
                 'email' => $admin->email,

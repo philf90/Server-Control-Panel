@@ -57,9 +57,21 @@ final class BlockSpacingTest extends TestCase
      * Kante. Das ist eine Aussage über `background` und `border` und keine über
      * Geschmack.
      *
+     * **`bands` steht hier seit dem 6. September 2026**, und es ist derselbe
+     * Fall wie `.empty`: Die Hülle des Streifens zeichnet nichts — keine
+     * Fläche, keinen Rahmen —, sie hält nur ihre Bänder und rückt sie ein.
+     *
+     * Sie kam an diesem Tag auf die Anmeldeseiten; vorher fehlte sie dort, und
+     * das Band lag bündig am Bildschirmrand. Seitdem grenzt sie unmittelbar an
+     * `.signin`, und dieser Wächter meldete die Fuge — zu Recht gefragt und
+     * falsch beantwortet, denn ihr `padding: 12px 16px` **ist** der Abstand.
+     *
+     * > **Ein Abstand, der aus dem Polster kommt, ist genauso ein Abstand —
+     * > solange der Kasten selbst nichts zeichnet.**
+     *
      * @var list<string>
      */
-    private const HAS_OWN_AIR = ['empty'];
+    private const HAS_OWN_AIR = ['empty', 'bands'];
 
     /**
      * Was eine Tabelle selbst anordnet.

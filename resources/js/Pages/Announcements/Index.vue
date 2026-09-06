@@ -6,13 +6,15 @@
  * Zeilen (`docs/81 §2.3q` M8); wer mehr will, kommt hierher. Der Text steht
  * deshalb hier **ungekürzt** und nicht noch einmal geklammert.
  */
+import { ref } from 'vue'
 import { router, useForm } from '@inertiajs/vue3'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import Bands from '../../Components/Bands.vue'
 import FormErrors from '../../Components/FormErrors.vue'
 import Section from '../../Components/Section.vue'
 
 const props = defineProps<{
-  announcements: {
+  rows: {
     id: number
     category: string
     rank: string
@@ -27,6 +29,26 @@ const props = defineProps<{
   categories: { value: string; label: string }[]
   audiences: { value: string; label: string }[]
 }>()
+
+/*
+ * **Die Vorschau, und warum sie da ist.**
+ *
+ * Wer für später ankündigt, sah bisher gar nicht, wie es aussehen wird — der
+ * Streifen zeigt nur, was gerade gilt, und das ist richtig so. Entschieden vom
+ * Betreiber am 6. September, während des Abnahmelaufs.
+ *
+ * **Gezeigt wird mit derselben Komponente wie oben** und nicht mit
+ * nachgebautem Markup. Eine zweite Fassung des Bandes wäre die, die beim
+ * nächsten Umbau stehenbleibt.
+ *
+ * > **Eine Vorschau, die ihren Gegenstand nachbaut, zeigt irgendwann etwas
+ * > anderes als das Original.**
+ */
+const vorschau = ref<number | null>(null)
+
+const zeigen = (id: number): void => {
+  vorschau.value = vorschau.value === id ? null : id
+}
 
 const form = useForm({
   category: 'info',
@@ -99,7 +121,7 @@ function entfernen(id: number): void {
           Ohne Ankündigungen steht hier ein Satz und keine leere Tabelle —
           dieselbe Regel wie auf der Bestandsdiagnose.
         -->
-        <p v-if="announcements.length === 0" class="quiet">
+        <p v-if="rows.length === 0" class="quiet">
           Es ist nichts angekündigt.
         </p>
 
@@ -116,7 +138,13 @@ function entfernen(id: number): void {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="zeile in announcements" :key="zeile.id">
+              <!--
+                `<template v-for>` und nicht zwei getrennte Schleifen: Die
+                Vorschauzeile gehört zu ihrer Zeile und muss deren `zeile`
+                sehen.
+              -->
+              <template v-for="zeile in rows" :key="zeile.id">
+              <tr>
                 <td data-column="Kategorie">
                   <span class="badge" :class="zeile.badge">{{ zeile.rank }}</span>
                 </td>
@@ -139,11 +167,29 @@ function entfernen(id: number): void {
                 <td data-column="Zustand">{{ zeile.state }}</td>
 
                 <td class="right">
+                  <button type="button" class="button small" @click="zeigen(zeile.id)">
+                    {{ vorschau === zeile.id ? 'Vorschau zu' : 'Vorschau' }}
+                  </button>
                   <button type="button" class="button small danger" @click="entfernen(zeile.id)">
                     Entfernen
                   </button>
                 </td>
               </tr>
+
+              <!--
+                Die Vorschau steht in einer eigenen Zeile unter ihrer Zeile und
+                nicht in einer Zelle daneben: Ein Band ist so breit wie der
+                Streifen, und in einer Spalte gequetscht zeigte es eine andere
+                Umbruchlage als die, um die es geht.
+              -->
+              <tr v-if="vorschau === zeile.id">
+                <td class="preview" colspan="6" data-column="Vorschau">
+                  <div class="bands">
+                    <Bands :items="[zeile]" />
+                  </div>
+                </td>
+              </tr>
+              </template>
             </tbody>
           </table>
         </div>

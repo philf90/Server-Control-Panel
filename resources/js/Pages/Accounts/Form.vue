@@ -47,7 +47,7 @@ interface Existing {
 }
 
 const props = defineProps<{
-  account: Existing | null
+  admin: Existing | null
   values: { name: string; email?: string; role: string | null; status?: string }
   roles: { value: string; label: string }[]
   isLastOperator: boolean
@@ -79,13 +79,13 @@ const form = useForm({
 const reset = useForm({ password: '', password_confirmation: '' })
 
 function submit(): void {
-  if (props.account === null) {
+  if (props.admin === null) {
     form.post('/accounts', { onFinish: () => form.reset('password', 'password_confirmation') })
 
     return
   }
 
-  form.patch(`/accounts/${props.account.id}`)
+  form.patch(`/accounts/${props.admin.id}`)
 }
 
 /*
@@ -95,29 +95,29 @@ function submit(): void {
  * Sitzungskennzeichen gehört nicht in ein Zugriffslog.
  */
 function endSession(session: OpenSession): void {
-  if (props.account === null) return
+  if (props.admin === null) return
 
-  router.delete(`/accounts/${props.account.id}/sessions`, {
+  router.delete(`/accounts/${props.admin.id}/sessions`, {
     data: { session: session.id },
     preserveScroll: true,
   })
 }
 
 function submitReset(): void {
-  if (props.account === null) return
+  if (props.admin === null) return
 
-  reset.post(`/accounts/${props.account.id}/password`, {
+  reset.post(`/accounts/${props.admin.id}/password`, {
     onFinish: () => reset.reset('password', 'password_confirmation'),
   })
 }
 </script>
 
 <template>
-  <Head :title="props.account ? `Konto ${props.account.name}` : 'Konto anlegen'" />
+  <Head :title="props.admin ? `Konto ${props.admin.name}` : 'Konto anlegen'" />
 
   <PanelLayout
-    :title="props.account ? props.account.name : 'Konto anlegen'"
-    :subline="props.account ? 'Adminkonto ändern' : 'Ein weiterer Mensch für die Verwaltung dieses Servers'"
+    :title="props.admin ? props.admin.name : 'Konto anlegen'"
+    :subline="props.admin ? 'Adminkonto ändern' : 'Ein weiterer Mensch für die Verwaltung dieses Servers'"
   >
     <template #breadcrumb>
       <Link href="/accounts" class="link">Konten</Link>
@@ -141,7 +141,7 @@ function submitReset(): void {
             <input v-model="form.name" type="text" required :aria-invalid="Boolean(form.errors.name)">
           </label>
 
-          <template v-if="props.account === null">
+          <template v-if="props.admin === null">
             <label class="field">
               <span>Anmeldeadresse</span>
               <input v-model="form.email" type="email" autocomplete="off" required :aria-invalid="Boolean(form.errors.email)">
@@ -165,7 +165,7 @@ function submitReset(): void {
           -->
           <template v-else>
             <p class="hint">
-              Angemeldet wird mit <span class="ident">{{ props.account.email }}</span>.
+              Angemeldet wird mit <span class="ident">{{ props.admin.email }}</span>.
               Die Adresse lässt sich hier nicht ändern: Sie ist die Anmeldung und
               steht im Protokoll; ihr Wechsel bekommt einen eigenen Weg mit
               Bestätigung.
@@ -203,7 +203,7 @@ function submitReset(): void {
             Datenbanken und kommt an diese Seiten nicht heran.
           </p>
 
-          <template v-if="props.account !== null">
+          <template v-if="props.admin !== null">
             <label class="field">
               <span>Zustand</span>
               <select v-model="form.status" :aria-invalid="Boolean(form.errors.status)">
@@ -226,7 +226,7 @@ function submitReset(): void {
           </p>
         </Section>
 
-        <Section v-if="props.account === null" title="Passwort">
+        <Section v-if="props.admin === null" title="Passwort">
           <PasswordFields
             v-model="form.password"
             v-model:confirmation="form.password_confirmation"
@@ -243,7 +243,7 @@ function submitReset(): void {
 
         <div class="button-row">
           <button type="submit" class="button primary" :disabled="form.processing">
-            {{ form.processing ? 'Wird gespeichert …' : props.account ? 'Speichern' : 'Anlegen' }}
+            {{ form.processing ? 'Wird gespeichert …' : props.admin ? 'Speichern' : 'Anlegen' }}
           </button>
           <Link href="/accounts" class="button">Abbrechen</Link>
         </div>
@@ -266,7 +266,7 @@ function submitReset(): void {
         > zu tun".**
       -->
       <Section
-        v-if="props.account !== null && !props.sessionsReadable"
+        v-if="props.admin !== null && !props.sessionsReadable"
         title="Offene Sitzungen"
       >
         <p class="hint">
@@ -278,7 +278,7 @@ function submitReset(): void {
         </p>
       </Section>
 
-      <Section v-if="props.account !== null && sessions.length > 0" title="Offene Sitzungen" full>
+      <Section v-if="props.admin !== null && sessions.length > 0" title="Offene Sitzungen" full>
         <div class="scrolls">
           <table class="stacks">
             <thead>
@@ -317,7 +317,7 @@ function submitReset(): void {
         darüber.** Ein Passwort, das versehentlich mitgeschickt wird, weil es
         im selben Absenden steckt, ist ein Passwortwechsel, den niemand wollte.
       -->
-      <form v-if="props.account !== null" class="form" @submit.prevent="submitReset">
+      <form v-if="props.admin !== null" class="form" @submit.prevent="submitReset">
         <Section title="Passwort zurücksetzen">
           <p class="hint">
             Setzt ein neues Passwort für dieses Konto. Der zweite Faktor bleibt

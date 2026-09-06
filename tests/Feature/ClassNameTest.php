@@ -62,6 +62,7 @@ final class ClassNameTest extends TestCase
         'log', 'long', 'mark', 'menu', 'met', 'meter', 'multiline', 'name', 'node', 'number',
         'narrow', 'nav', 'neutral', 'note', 'notice', 'obstacle', 'ok', 'on', 'op',
         'open', 'operator', 'output', 'over', 'page', 'pager', 'pair', 'paired', 'pairs', 'password', 'path',
+        'preview',
         'permissions', 'property', 'punctuation',
         'postscript', 'primary', 'progress', 'quiet', 'rail', 'rank', 'release',
         'readout', 'reveal', 'right', 'row', 'rows', 'rules', 'running', 'scrim', 'scrolls',

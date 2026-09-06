@@ -25870,3 +25870,74 @@ keiner am Prüfling; sie stehen in `docs/102 §9` und in `CLAUDE.md`.
   nicht als Geschmack.
 - Drei Brüche, alle belegt: die Reihe fällt weg · die Reihe verliert ihre Fuge ·
   der Ausdruck über `<td>` läuft ins Leere.
+
+### A14: die offene Zahl von Punkt 3, und ein Prüfmittel, das seine Falle nur beschrieb
+
+- **Die Hülle misst 214 px und nicht 226.** `docs/103 §8` liess die Zahl
+  ausdrücklich offen — 214 aus einer Messung an der echten Seite gegen 226 aus
+  einem Wegwerf-Aufsatz —, und `docs/104 §3` gab sie dem Serverlauf zur
+  Entscheidung. Entschieden hat sie eine dritte Messung: an der echten Seite
+  unter `artisan serve` im Container, angemeldet, drei Ankündigungen, in drei
+  Bestückungen und beiden Themen. Jedes Mal **62 px je Band und 214 px für die
+  Hülle**, `schiebt = 0`, Gegenprobe 200.
+
+  > **Zwei Messungen, die auseinandergehen, entscheidet keine Überlegung,
+  > sondern die dritte — und die muss den Weg des Prüflings nehmen und nicht
+  > den bequemeren.**
+
+  Der Wegwerf-Aufsatz lag um 12 px daneben, und zwar systematisch. Er bleibt
+  das richtige Mittel für eine Frage nach dem **Überlauf** und ist es nicht für
+  eine nach der **Höhe**: Was ihm fehlt, ist alles, was oberhalb und unterhalb
+  des gemessenen Bausteins auf der Seite steht. Der Kommentar an
+  `.band .clamped` nannte aus demselben Grund 63 px; dort stehen jetzt die
+  gemessenen 62.
+
+- **Und das Kriterium war wörtlich falsch.** „Jedes Band gleich hoch, gleich
+  wie lang sein Text ist" gilt **oberhalb der Umbruchschwelle**. Gemessen bei
+  390 px, mitsamt dem Rangwort: 23 Zeichen → 41 px, 40 → 41 px, 65 → 62 px.
+  Zugesagt ist eine Obergrenze und keine feste Höhe. `docs/104 §3` verlangte
+  als Prüfkörper **60 Zeichen** — mit „Störung" davor sind das 67, also keine
+  zwanzig Zeichen über der Schwelle.
+
+  > **Ein Prüfkörper, der dicht an einer Schwelle liegt, misst die Schwelle und
+  > nicht die Eigenschaft.**
+
+  Der Lauf nennt jetzt 120 Zeichen. Und er misst bei 390 px und nicht breit:
+  Bei 1440 px ergeben dieselben drei Bänder `[41, 62]`, weil dort rund 160
+  Zeichen in eine Zeile passen.
+
+  > **Eine Zusage, die an eine Breite gebunden ist, liest sich wie eine über
+  > jede Breite.**
+
+- **`tests/baender-messen.js`** ist das Messmittel dazu und liegt im Repo, weil
+  es zweimal gebraucht wird — einmal hier, einmal auf dem Server. Es druckt
+  sein Urteil als **eine** Zeile: Ein Objekt klappt die Konsole auf fünf
+  Schlüssel zusammen, und was jemand daraus abschreibt, ist dann eine Auswahl,
+  die niemand getroffen hat.
+
+- **Und `tests/bilder-messen.js` beschrieb seine eigene Falle, statt sie zu
+  verhindern.** `docs/96 §8` hält seit dem 1. September fest, dass der
+  Prüfkörper sich beim zweiten Aufruf ohne Neuladen am eigenen Block von eben
+  bemisst und 400 statt 200 ergibt. Die Antwort darauf war ein Kommentar an den
+  Menschen: *„vor jeder Messung neu laden."*
+
+  > **Ein Prüfmittel, das seine eigene Falle nur beschreibt, überlässt sie dem,
+  > der sie am wenigsten sehen kann — dem Leser des Ergebnisses.**
+
+  Beide Messmittel weigern sich jetzt, und zwar **geworfen und nicht
+  zurückgegeben**: Ein Rückgabewert, der eine Weigerung ausdrückt, steht in
+  derselben Spalte wie ein Ergebnis und wird abgeschrieben.
+
+- **`OverflowProbeTest` prüft seine Regeln seitdem an jedem Messmittel** und
+  nicht an einem. Die Prüflinge werden **gefunden** und nicht aufgezählt —
+  jedes `tests/*-messen.js`, das etwas in die Seite setzt. Der erste Wurf nahm
+  jedes `*-messen.js` und meldete `mandant-messen.js` und `takt-messen.js`, die
+  Routen abfragen und keinen Prüfkörper haben. Das Merkmal auf `scrollWidth` zu
+  legen wäre der entgegengesetzte Fehler gewesen:
+
+  > **Ein Wächter, der seine Prüflinge an der Regel auswählt, die er prüft,
+  > findet nur die, die sie schon einhalten.**
+
+  Drei Brüche, alle belegt: das Messmittel merkt sich seinen Lauf nicht · die
+  Weigerung wird zurückgegeben statt geworfen · die Suche findet nur noch ein
+  Messmittel (Untergrenze).

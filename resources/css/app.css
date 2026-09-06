@@ -5058,7 +5058,22 @@ td.text {
  * > Zeichen ist es nicht.**
  *
  * Mit der Klammer ergibt bei 390 px jede Länge von 60 bis 500 Zeichen dieselben
- * 63 px, und drei Ankündigungen kosten 189 px statt bis zu 819 px.
+ * **62 px**, und drei Ankündigungen kosten 186 px statt bis zu 819 px — die
+ * Hülle darum misst dann 214 px.
+ *
+ * **Die Zahl ist am 6. September 2026 an der echten Seite nachgemessen und war
+ * vorher eine andere.** Hier stand 63 px; das war der Wert eines
+ * Wegwerf-Aufsatzes, und derselbe Aufsatz gab für die Hülle 226 statt 214.
+ *
+ * > **Ein Aufsatz, der das echte Markup und das gebaute Stylesheet benutzt,
+ * > misst die echte Seite — aufs Pixel gilt das trotzdem nur für das, was
+ * > darin steht.**
+ *
+ * **Und die 60 sind eine Untergrenze und keine Auswahl.** Unterhalb der
+ * Umbruchschwelle ist ein Band zu Recht kürzer: 23 und 40 Zeichen (mitsamt dem
+ * Rangwort) ergeben 41 px. Zugesagt ist eine **Obergrenze** — der Streifen
+ * kann nicht mit dem Text wachsen —, nicht eine feste Höhe. Bei 1440 px liegt
+ * dieselbe Schwelle bei rund 160 Zeichen, und dort sind kurze Bänder 41 px.
  *
  * `min-width: 0`, weil ein Flexkind sonst nicht unter seine Inhaltsbreite darf
  * — dieselbe Ausnahme wie bei `.ident` und beim Bereichstitel aus docs/46.

@@ -13078,6 +13078,61 @@ pruefe "  … zurückgesetzt wieder grün" \
   OverflowProbeTest::test_a_screen_reader_label_is_counted_and_not_listed passed
 
 echo
+echo "── OverflowProbeTest: das Messmittel merkt sich seinen Lauf nicht ──"
+#
+# docs/96 §8: Der Pruefkoerper bemisst sich am gegenwaertigen scrollWidth. Beim
+# zweiten Aufruf ohne Neuladen ist sein eigener Block von eben Teil des Masses,
+# und heraus kommen 400 statt 200.
+vorher_datei tests/baender-messen.js
+python3 - <<'PY2'
+p = 'tests/baender-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace('let baenderGelaufen = false', 'const baenderGelaufen = false', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/baender-messen.js "Messmittel ohne Gedaechtnis" &&
+pruefe "Messmittel ohne Gedächtnis" \
+  OverflowProbeTest::test_a_second_run_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
+echo "── OverflowProbeTest: die Weigerung wird zurückgegeben statt geworfen ──"
+#
+# Ein Rueckgabewert, der eine Weigerung ausdrueckt, steht in derselben Spalte
+# wie ein Ergebnis und wird abgeschrieben.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace("    throw new Error('Schon gemessen.", "    return new Error('Schon gemessen.", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/bilder-messen.js "Weigerung als Rückgabewert" &&
+pruefe "Weigerung als Rückgabewert" \
+  OverflowProbeTest::test_a_second_run_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
+echo "── OverflowProbeTest: die Suche nach Messmitteln läuft ins Leere ──"
+#
+# Untergrenze: Findet die Suche nur noch ein Messmittel, prueft die Schleife
+# eines statt zweier — und eine kurze Schleife ist genauso gruen wie eine volle.
+vorher_datei tests/baender-messen.js
+python3 - <<'PY2'
+p = 'tests/baender-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace('document.body.append(koerper)', 'document.body.appendChild(koerper)', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/baender-messen.js "nur noch ein Messmittel" &&
+pruefe "nur noch ein Messmittel" \
+  OverflowProbeTest::test_a_second_run_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
 echo "── TopLevelSetupTest: die Klammern eines watch rutschen zusammen ──"
 #
 # Genau der Fehler vom 20. August: `})})` statt `})\n})`. Ein watch samt seinem

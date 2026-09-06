@@ -77,10 +77,36 @@
  */
 
 /** Der Tag, an dem dieses Messmittel zuletzt geändert wurde. */
-const STAND = '2026-08-21'
+const STAND = '2026-09-06'
+
+/**
+ * Ob in dieser geladenen Seite schon gemessen wurde.
+ *
+ * **Die Falle, gegen die das steht, ist gemessen** (`docs/96 §8`): Der
+ * Prüfkörper bemisst sich am gegenwärtigen `scrollWidth`, und beim zweiten
+ * Aufruf ohne Neuladen ist sein eigener Block von eben schon Teil des Masses —
+ * heraus kommen 400 statt 200.
+ *
+ * Bis zum 6. September 2026 war die Antwort darauf ein Kommentar an den
+ * Menschen: „vor jeder Messung neu laden". Das ist keine Vorkehrung, sondern
+ * eine Bitte.
+ *
+ * > **Ein Prüfmittel, das seine eigene Falle nur beschreibt, überlässt sie
+ * > dem, der sie am wenigsten sehen kann — dem Leser des Ergebnisses.**
+ *
+ * Geworfen und nicht zurückgegeben: Ein Rückgabewert, der eine Weigerung
+ * ausdrückt, steht in derselben Spalte wie ein Ergebnis und wird abgeschrieben.
+ */
+let gelaufen = false
 
 function bilderMessen () {
   const wurzel = document.documentElement
+
+  if (gelaufen) {
+    throw new Error('Schon gemessen. Seite neu laden — sonst misst die Gegenprobe ihren eigenen Block von eben.')
+  }
+
+  gelaufen = true
 
   /*
    * Der Prüfkörper: 200 px breiter als **alles**, was schon da ist, eine Zeile

@@ -294,7 +294,7 @@ entscheidet.
 |---|---|---|
 | 1 | Eine Ankündigung anlegen und sie erscheint | Streifen oben, Kategorie als Wort, Farbe der Marke |
 | 2 | Drei gleichzeitig | **drei Streifen untereinander**, keiner verdeckt — der Befund aus M2 |
-| 3 | **Drei bei 390 px** *(Ausschluss)* | **jedes Band gleich hoch, gleich wie lang sein Text ist** — gemessen 62 px je Band, 214 px mit der Hülle; `schiebt = 0`, Gegenprobe schlägt an |
+| 3 | **Drei bei 390 px** *(Ausschluss)* | **jedes Band gleich hoch, gleich wie lang sein Text ist** — oberhalb der Umbruchschwelle, also ab rund 65 Zeichen; gemessen 62 px je Band, 214 px mit der Hülle; `schiebt = 0`, Gegenprobe schlägt an |
 | 4 | 500 Zeichen | im Streifen zwei Zeilen; **als Kunde** das Band anklicken und den vollen Text auf `/announcements/{id}` lesen — ohne 403 |
 | 5 | Publikum | ein Kundenkonto sieht die Kundenankündigung und nicht die für Admins |
 | 6 | **Das Fenster** *(Ausschluss)* | mit Anzeigezone auf `Europe/Berlin` gesetzt: sichtbar **während** der eingetippten Ortszeit, davor und danach nicht |
@@ -339,8 +339,38 @@ Getragen ist davon die **Differenz** und nicht der absolute Wert:
 > **Eine Differenz zweier Messungen unter denselben Bedingungen trägt, auch wenn
 > die absoluten Werte an der Umgebung hängen.**
 
-Gemessen wird im Lauf deshalb zuerst die Eigenschaft — 60 gegen 500 Zeichen,
+Gemessen wird im Lauf deshalb zuerst die Eigenschaft — 120 gegen 500 Zeichen,
 dieselbe Höhe — und die Zahl daneben, damit ein Ausreisser auffällt.
+
+**Am 6. September 2026 ist die offene Zahl entschieden: es sind 214.** Gemessen
+an der echten Seite unter `artisan serve` im Container, angemeldet, drei
+Ankündigungen, mit `tests/baender-messen.js`:
+
+| Prüfkörper | Höhe je Band | Hülle | `schiebt` | Gegenprobe |
+|---|---|---|---|---|
+| 60 · 80 · 500 Zeichen, 390 px hell | **62 px** | **214 px** | 0 | 200 |
+| 120 · 120 · 500 Zeichen, 390 px hell | **62 px** | **214 px** | 0 | 200 |
+| 56 · 250 · 500 Zeichen, 390 px dunkel | **62 px** | **214 px** | 0 | 200 |
+
+Meine 226 kamen aus dem Wegwerf-Aufsatz; die 214 des Kriteriums halten. **Der
+Lauf auf dem Server misst damit nicht mehr eine offene Zahl, sondern eine
+erwartete** — und das ist der bessere Prüfkörper.
+
+**Zwei Beobachtungen daneben, die beide wie ein Ausfall aussehen und keiner
+sind.** Bei **1440 px** ergeben dieselben drei Bänder `[41, 62]`: Dort passen
+rund 160 Zeichen in eine Zeile, der kurze Text bleibt einzeilig. Und bei 390 px
+gilt dasselbe unterhalb von rund 40 bis 65 Zeichen einschliesslich Rangwort —
+gemessen 23 → 41 px, 40 → 41 px, 65 → 62 px.
+
+Zugesagt ist eine **Obergrenze** und keine feste Höhe. Die Spalte oben liest
+sich anders, und darum steht das hier:
+
+> **Eine Zusage, die an eine Breite gebunden ist, liest sich wie eine über jede
+> Breite.**
+
+> **Ein Prüfkörper, der dicht an einer Schwelle liegt, misst die Schwelle und
+> nicht die Eigenschaft.** Deshalb 120 Zeichen und nicht 60 — 60 liegt keine
+> zwanzig Zeichen über dem Umbruch.
 
 **Punkt 2 braucht die breite Ansicht.** Der Fehler aus M2 zeigt sich bei
 1440 px und **nicht** bei 390 px — dort stapeln dieselben drei korrekt. Ein

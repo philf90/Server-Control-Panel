@@ -13078,6 +13078,45 @@ pruefe "  … zurückgesetzt wieder grün" \
   OverflowProbeTest::test_a_screen_reader_label_is_counted_and_not_listed passed
 
 echo
+echo "── OverflowProbeTest: das Messmittel druckt sein Urteil nicht ──"
+#
+# Die Konsole klappt ein zurueckgegebenes Objekt auf fuenf Schluessel zusammen.
+# Am 6. September 2026 stand in allen vier Lagen einer Bilderrunde
+# `gegenprobe: {…}` da und `schiebt` gar nicht — sichtbar war `dokument: 0`,
+# also derselbe Wert, den auch eine Messung liefert, die nichts misst.
+vorher_datei tests/bilder-messen.js
+python3 - <<'PY2'
+p = 'tests/bilder-messen.js'
+s = open(p, encoding='utf-8').read()
+i = s.index('  console.log(')
+j = s.index('  return ergebnis')
+open(p, 'w', encoding='utf-8').write(s[:i] + s[j:])
+PY2
+griff_datei tests/bilder-messen.js "Messung ohne gedruckte Zeile" &&
+pruefe "Messung ohne gedruckte Zeile" \
+  OverflowProbeTest::test_every_instrument_prints_one_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
+echo "── OverflowProbeTest: die gedruckte Zeile lässt die Gegenprobe weg ──"
+#
+# Ohne sie bedeuten die uebrigen Werte nichts — eine Null ist nur dann eine
+# Messung, wenn daneben etwas anderes als Null steht.
+vorher_datei tests/baender-messen.js
+python3 - <<'PY2'
+p = 'tests/baender-messen.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace('`schiebt=${schiebt} gegenprobe=${gegenprobe} (soll 200)`', '`schiebt=${schiebt}`', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/baender-messen.js "gedruckte Zeile ohne Gegenprobe" &&
+pruefe "gedruckte Zeile ohne Gegenprobe" \
+  OverflowProbeTest::test_every_instrument_prints_one_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
 echo "── OverflowProbeTest: das Messmittel merkt sich seinen Lauf nicht ──"
 #
 # docs/96 §8: Der Pruefkoerper bemisst sich am gegenwaertigen scrollWidth. Beim

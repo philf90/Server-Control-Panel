@@ -262,6 +262,49 @@ final class OverflowProbeTest extends TestCase
     }
 
     /**
+     * Jedes Messmittel druckt sein Urteil als **eine Zeile**.
+     *
+     * **Am 6. September 2026 hat das eine Bilderrunde gekostet.** Die Konsole
+     * klappt ein zurückgegebenes Objekt auf fünf Schlüssel zusammen; in allen
+     * vier Lagen stand `gegenprobe: {…}` da und `schiebt` gar nicht. Sichtbar
+     * war `dokument: 0` — also derselbe Wert, den auch eine Messung liefert,
+     * die nichts misst.
+     *
+     * > **Ein Objekt in der Konsole zeigt fünf Schlüssel und klappt den Rest
+     * > weg — und was man abschreibt, ist dann eine Auswahl, die niemand
+     * > getroffen hat.**
+     *
+     * `baender-messen.js` hatte die Zeile am selben Vormittag bekommen und
+     * `bilder-messen.js` nicht. Dass die Regel jetzt hier steht und nicht in
+     * einem Kommentar, ist der Unterschied:
+     *
+     * > **Ein Fehler, den man an einer Stelle behoben hat, ist an der nächsten
+     * > wieder da, wenn die Behebung nicht die Regel wurde.**
+     *
+     * Gefordert ist die **Gegenprobe** in der Zeile und nicht irgendein Druck:
+     * Sie ist der Wert, ohne den die übrigen nichts bedeuten.
+     */
+    public function test_every_instrument_prints_one_line(): void
+    {
+        foreach ($this->instruments() as $datei => $quelltext) {
+            preg_match_all('/console\\.log\\((.*?)\\)\\n/s', $quelltext, $treffer);
+
+            $this->assertNotEmpty(
+                $treffer[1],
+                "{$datei} druckt sein Urteil nicht — dann klappt die Konsole das Objekt auf fuenf Schluessel zusammen.",
+            );
+
+            $gedruckt = implode("\n", $treffer[1]);
+
+            $this->assertStringContainsString(
+                'gegenprobe',
+                $gedruckt,
+                "In {$datei} steht die Gegenprobe nicht in der gedruckten Zeile — ohne sie bedeuten die uebrigen Werte nichts.",
+            );
+        }
+    }
+
+    /**
      * Ein zweiter Aufruf ohne Neuladen wird verweigert, und zwar geworfen.
      *
      * **Die Falle ist gemessen** (`docs/96 §8`): Der Prüfkörper bemisst sich am

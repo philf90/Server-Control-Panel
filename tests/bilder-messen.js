@@ -222,7 +222,7 @@ function bilderMessen () {
     })
   }
 
-  return {
+  const ergebnis = {
     stand: STAND,
     breite: wurzel.clientWidth,
     thema: wurzel.getAttribute('data-theme') ?? '(System)',
@@ -232,4 +232,31 @@ function bilderMessen () {
     rollt: roller.filter((r) => r.darf),
     versteckt,
   }
+
+  /*
+   * Das Urteil zusätzlich als **eine Zeile**.
+   *
+   * **Am 6. September 2026 hat genau das eine Bilderrunde gekostet.** Die
+   * Konsole klappt ein zurückgegebenes Objekt auf fünf Schlüssel zusammen; in
+   * allen vier Lagen stand `gegenprobe: {…}` und `schiebt` gar nicht da.
+   * Sichtbar war `dokument: 0` — also derselbe Wert, den auch eine Messung
+   * liefert, die nichts misst.
+   *
+   * > **Ein Objekt in der Konsole zeigt fünf Schlüssel und klappt den Rest weg
+   * > — und was man abschreibt, ist dann eine Auswahl, die niemand getroffen
+   * > hat.**
+   *
+   * `baender-messen.js` hatte die Zeile am selben Vormittag bekommen. Dass sie
+   * hier fehlte, ist dieselbe Familie wie der Menüpunkt, der dreimal zu tief
+   * lag: eine Behebung, die nicht die Regel wurde.
+   */
+  console.log(
+    `stand=${ergebnis.stand} breite=${ergebnis.breite} thema=${ergebnis.thema} ` +
+    `dokument=${ergebnis.dokument} ` +
+    `gegenprobe=${ergebnis.gegenprobe.ausschlag} (soll ${ergebnis.gegenprobe.erwartet}) ` +
+    `schiebt=${ergebnis.schiebt.length} rollt=${ergebnis.rollt.length} ` +
+    `versteckt=${ergebnis.versteckt}`
+  )
+
+  return ergebnis
 }

@@ -25941,3 +25941,29 @@ keiner am Prüfling; sie stehen in `docs/102 §9` und in `CLAUDE.md`.
   Drei Brüche, alle belegt: das Messmittel merkt sich seinen Lauf nicht · die
   Weigerung wird zurückgegeben statt geworfen · die Suche findet nur noch ein
   Messmittel (Untergrenze).
+
+### Ein Messmittel, das sein Urteil nur zurückgibt, verliert es in der Konsole
+
+- **Gefunden im A14-Abnahmelauf am 6. September 2026, an der Bilderrunde.** Der
+  Betreiber hat vier Lagen gefahren und vier Ergebnisse geschickt; in allen vier
+  stand `gegenprobe: {…}` zusammengeklappt und `schiebt` gar nicht da. Sichtbar
+  war `dokument: 0` — also genau der Wert, den auch eine Messung liefert, die
+  nichts misst.
+
+  > **Ein Objekt in der Konsole zeigt fünf Schlüssel und klappt den Rest weg —
+  > und was man abschreibt, ist dann eine Auswahl, die niemand getroffen hat.**
+
+  `baender-messen.js` hatte die gedruckte Zeile am selben Vormittag bekommen,
+  mit genau dieser Begründung im Kommentar. `bilder-messen.js` nicht.
+
+  > **Ein Fehler, den man an einer Stelle behoben hat, ist an der nächsten
+  > wieder da, wenn die Behebung nicht die Regel wurde.**
+
+- **`OverflowProbeTest::test_every_instrument_prints_one_line` hält es jetzt für
+  jedes Messmittel**, und es fordert die **Gegenprobe** in der Zeile und nicht
+  irgendeinen Druck: Sie ist der Wert, ohne den die übrigen nichts bedeuten.
+  Zwei Brüche, beide wörtlich aus dem Skript gefahren — das Messmittel druckt
+  gar nicht · die Zeile lässt die Gegenprobe weg.
+
+- Gegen die echte Seite gefahren, 390 px:
+  `dokument=0 gegenprobe=200 (soll 200) schiebt=0 rollt=0 versteckt=6`.

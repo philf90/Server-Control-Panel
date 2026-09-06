@@ -358,12 +358,9 @@ nach, wo dieselbe Frage noch gestellt wird.**
 
 **Benannt und kein Kriterienausfall:**
 
-- **Die Bearbeiten-Funktion** (Befund 4) ist am 6. September gebaut —
-  `GET /announcements/{id}/edit` und `PATCH /announcements/{id}`, die Felder als
-  eine Komponente, die Kategorie änderbar, und eine Änderung steht als
-  `announcement.change` im Protokoll. **Sie hat keinen Server gesehen**; was
-  dort nachzumessen bleibt, ist der Rückweg der Zone an einer Ankündigung mit
-  Fenster und die Zeile auf `/audit`.
+- **Die Bearbeiten-Funktion** (Befund 4) ist am 6. September gebaut **und am
+  selben Abend auf `cloudsrv24` nachgemessen** — siehe §13. Hier stand bis
+  dahin, sie habe keinen Server gesehen; das gilt nicht mehr.
 - **Der Rest aus P7** — `orphan.row` zu `tls.cloudlab24.de`, unverändert seit
   `docs/100 §12`.
 - **Das hochgeladene Wegwerfzertifikat** aus `docs/100 §6`, läuft am
@@ -384,3 +381,67 @@ zurückzustellen.
 
 > **Ein Abräumen, das man nicht belegt, ist von einem, das nicht stattgefunden
 > hat, nicht zu unterscheiden.**
+
+---
+
+## 13 · Nachgemessen: die Bearbeiten-Funktion auf dem Server
+
+Am **6. September 2026** auf `cloudsrv24` gegen **`0.7.3-rc.23`**, also gegen
+die Fassung, die Befund 4 behebt.
+
+### 13.1 Der Rückweg der Zone
+
+Eine Ankündigung mit Fenster, `Sichtbar bis` auf **10.09.2026 16:00** getippt,
+Anzeigezone `Europe/Berlin` (CEST, UTC+02:00):
+
+| | |
+|---|---|
+| eingetippt | 16:00 |
+| abgelegt (`tinker`) | **2026-09-10 14:00:00 UTC** |
+| Liste zeigt | `sofort bis 2026-09-10 16:00 (CEST (UTC+02:00))` |
+| Formular „Ändern" zeigt | 10.09.2026 · **16:00** |
+
+**Die abgelegte Zeile ist der Kern und nicht das Beiwerk.** Stünde dort
+16:00 UTC, zeigte das Formular ebenfalls 16:00 — und der Fall wäre grün, ohne
+dass irgendetwas umgerechnet wird.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+**Und der erste Griff danach war keiner.** Er las fest `visible_from`, während
+der Wert in `visible_until` stand — heraus kam eine leere Ausgabe, die wie ein
+fehlender Wert aussah.
+
+> **Eine Messung, die nur ein Feld liest, misst nicht den Gegenstand, sondern
+> die Erwartung, in welchem Feld er steht.**
+
+### 13.2 Die Zeile auf `/audit`
+
+Drei Änderungen an derselben Ankündigung, zwei kurze und eine lange:
+
+    id: 17 · changed: category · category_before: info · category_after: warning
+    id: 17 · changed: category · category_before: warning · category_after: incident
+    id: 17 · changed: body · body_before: Das ist ein Test · body_after: Das
+    Speichersystem wird in der kommenden Nacht getauscht. … (gekürzt)
+
+Die lange misst **212 Zeichen** — die 200 aus `AuditQuery::DETAILS_MAX` plus
+den sichtbaren Zusatz. **`id: 17` steht in jeder Zeile ganz vorn**, auch in der gekürzten;
+genau dafür sortiert der Zusammenhang den Wortlaut nach hinten.
+
+Und keine `announcement.remove` oder `announcement.create` dazwischen: Eine
+Änderung erscheint als Änderung.
+
+### 13.3 Eine Beobachtung, kein Befund
+
+**Die Spalte „Einzelheiten" ist seit dieser Änderung nur durch Scrollen
+vollständig lesbar.** Bis zum 6. September trug ein `announcement.*`-Eintrag
+rund 25 Zeichen (`id: 17 · category: info`); jetzt kann eine Zeile 200 tragen,
+und bei 1440 px reicht die Spalte dafür nicht. Die Tabelle steht in einem
+Rollbehälter — das ist die Hausform und kein Fehler —, aber die Zeile war
+vorher auf einen Blick da und ist es nicht mehr.
+
+Vom Betreiber am 6. September so belassen: Es ist keine Fehlfunktion, und die
+Alternative — den Wortlaut aus dem Protokoll zu nehmen — kostet genau die
+Auskunft, derentwegen er darin steht.
+
+> **Ein Deckel, der sich nennt, ist besser als eine Auskunft, die fehlt.**

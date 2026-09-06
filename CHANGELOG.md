@@ -26070,3 +26070,33 @@ keiner am Prüfling; sie stehen in `docs/102 §9` und in `CLAUDE.md`.
   Gemessen an der echten Seite: drei Knöpfe je Zeile mit 10 px Abstand, kein
   Überlauf bei 390 und 1440 px, und `14:00 UTC` kommt in Berlin als `16:00`
   zurück.
+
+### Die Bearbeiten-Funktion ist auf dem Server nachgemessen
+
+- **Am 6. September 2026 auf `cloudsrv24` gegen `0.7.3-rc.23`**, also gegen die
+  Fassung, die Befund 4 aus `docs/105` behebt. Die Einzelheiten stehen dort in
+  §13; `docs/105 §12` sagte bis dahin „hat keinen Server gesehen", und das gilt
+  nicht mehr.
+
+  > **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+  > jemand ihn behoben hat.**
+
+- **Der Rückweg der Zone trägt, mit Versatz.** Eingetippt 16:00 in CEST,
+  abgelegt **14:00:00 UTC**, im Formular wieder 16:00. Die abgelegte Zeile ist
+  dabei der Kern: Stünde dort 16:00 UTC, zeigte das Formular ebenfalls 16:00.
+
+- **Die Protokollzeile hält, was die Reihenfolge zusagt.** Die lange misst
+  **212 Zeichen** — 200 plus den sichtbaren Zusatz —, und `id: 17` steht auch
+  darin ganz vorn.
+
+- **Und der erste Griff danach war keiner.** Er las fest `visible_from`, während
+  der Wert in `visible_until` stand; heraus kam eine leere Ausgabe, die wie ein
+  fehlender Wert aussah.
+
+  > **Eine Messung, die nur ein Feld liest, misst nicht den Gegenstand, sondern
+  > die Erwartung, in welchem Feld er steht.**
+
+- **Als Beobachtung festgehalten:** Die Spalte „Einzelheiten" auf `/audit` ist
+  seitdem nur durch Scrollen vollständig lesbar — ein `announcement.*`-Eintrag
+  trug vorher rund 25 Zeichen, jetzt bis zu 200. Vom Betreiber so belassen; die
+  Alternative kostet die Auskunft, derentwegen der Wortlaut im Protokoll steht.

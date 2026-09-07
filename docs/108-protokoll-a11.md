@@ -210,6 +210,102 @@ Betrachter nicht drücken darf, wird gar nicht erst gezeigt.
 Die 403-Seite ist dabei die **entworfene** aus A9 und nicht Laravels englische
 Vorgabe — ein Befund aus `docs/84`, hier nebenbei nachgemessen.
 
+### Punkt 7 · 390 px — **auf dem Server nicht gemessen**
+
+**Er ist nicht ausgefallen, und er ist auch nicht erfüllt.** Der Punkt verlangt
+`tests/bilder-messen.js` in der Browserkonsole bei 390 px; der Lauf wurde vom
+Telefon aus gefahren, und dort gibt es keine Konsole. Der Zustand ist
+herstellbar — es fehlt das Werkzeug, nicht der Zustand.
+
+> **Ein Punkt, der am Werkzeug scheitert und nicht am Gegenstand, ist nicht
+> „nicht herstellbar" — und ihn so zu nennen wäre die bequemere von zwei
+> falschen Auskünften.**
+
+**Was stattdessen dasteht, ist die Bilderrunde im Container — noch einmal
+gefahren, mit den gemessenen Werten des Servers.** `docs/106 §8b` hat sie am
+6. September gefahren; dort standen aber die Werte des Containers in der
+Tabelle, und in einer Zeile ist der Server **länger**: `Rechnername` trug dort
+`vm` und hier `cloudsrv24.de`.
+
+Gefahren am 7. September gegen dieselbe Fassung des Zweiges, mit einer
+`timedatectl`-Attrappe, die den **Vorflug aus §1 Zeile für Zeile** druckt
+(sieben Schlüssel, `RTCTimeUSec` eingeschlossen), `/etc/localtime` auf
+`Europe/Berlin` und einer `/etc/hosts`-Zeile nach Debian-Art, damit
+`Names::fqdn()` einen vollständigen Namen findet:
+
+| Breite | Thema | `dokument` | Gegenprobe | `schiebt` | `rollt` |
+|---|---|---|---|---|---|
+| 390 | hell | **0** | 200 (soll 200) | 0 | 0 |
+| 390 | dunkel | **0** | 200 | 0 | 0 |
+| 1440 | hell | **0** | 200 | 0 | 0 |
+| 1440 | dunkel | **0** | 200 | 0 | 0 |
+
+Die gemessenen Zeilen — dieselben sechs wie auf dem Server, dazu die beiden
+Bereiche darüber und darunter:
+
+| | |
+|---|---|
+| Zeitzone des Servers | `Europe/Berlin — CEST (UTC+02:00)` |
+| Zeitabgleich | `eingeschaltet` |
+| Uhr abgeglichen | `ja` |
+| Hardware-Uhr | `UTC` |
+| Jetzt auf dem Server | `2026-09-07 14:14` |
+| Dasselbe in der Anzeigezeit | `2026-09-07 14:14 CEST (UTC+02:00)` |
+| Rechnername | `vm.cloudsrv24.de` |
+
+Der Rechnername ist mit 16 Zeichen **drei länger** als der des Servers — der
+Knotenname des Containers ist `vm`, und `Names::fqdn()` nimmt einen Namen nur
+an, wenn er ihn fortsetzt. Damit ist die eine Zeile, in der der Server länger
+war, gemessen und nicht hergeleitet.
+
+**Und die Obergrenze gleich mit.** Derselbe Lauf mit einem FQDN von
+**194 Zeichen** (`vm.` plus drei Labels von 63) ergibt in allen vier Lagen
+wieder `dokument = 0`, Gegenprobe 200/200, `schiebt = 0`. Ein Rechnername kann
+diese Seite nicht schieben — das ist keine Aussage über `cloudsrv24.de`,
+sondern über jeden.
+
+#### Der Befund der Nachmessung: `dokument` ist der falsche Sinn für diese Zelle
+
+`bilder-messen.js` misst, **wer waagerecht rollt**. Die Kennungszelle einer
+`pairs`-Tabelle hat aber eine zweite Art, kaputt zu sein, und die steht seit dem
+7. August 2026 wörtlich in `app.css` über `table.pairs td.ident`:
+
+> Der Seitenüberlauf war dabei die ganze Zeit 0 — die Seite rollt nicht, sie
+> **überlappt**.
+
+Gemessen wurde deshalb zusätzlich **die Zelle gegen ihren Bereich**. Alle acht
+Kennungszellen der Seite liegen in allen vier Lagen darin; bei 390 px füllen
+drei ihren Bereich genau aus (358 von 358 px) und keine geht darüber hinaus.
+
+**Und diese Messung hat ihre eigene Gegenprobe**, denn eine Null ohne etwas
+anderes daneben ist keine. Dieselbe Seite, `overflow-wrap` an
+`table.pairs td.ident` weggenommen:
+
+| | `dokument` | Zelle über ihren Bereich |
+|---|---|---|
+| heil | **0** | **0** |
+| ohne die Regel | **1261** | **1277** |
+
+Damit ist zweierlei belegt: dass beide Messungen arbeiten, und dass es genau
+diese eine Regel ist, die die Seite trägt. Auf **dieser** Seite schlägt der
+Schaden auch in `dokument` durch — der Fund vom 7. August tat das nicht, weil
+er in einem Bereich mit `min-width: 0` neben zwei weiteren steckte.
+
+> **Zwei Messungen, von denen die eine den Schaden manchmal sieht, ersetzen
+> einander nicht — welche der beiden zuschlägt, entscheidet die Umgebung der
+> Zelle und nicht der Schaden.**
+
+**Der Prüfstand ist abgeräumt und das ist belegt:** `/etc/hosts` und `.env`
+Zeile für Zeile wie vorher, `/etc/localtime` zurück auf `Etc/UTC`,
+`Names::fqdn()` wieder `NULL`, Sockel und Prozesse fort,
+`/usr/bin/timedatectl` unberührt (ELF) — die Attrappe war ein Bind-Mount in
+einer eigenen Namespace.
+
+**Was das nicht ersetzt:** den Lauf auf `cloudsrv24`. Der Container trifft
+diesen Aufsatz aufs Pixel (`docs/56` Punkt 5), und trotzdem ist eine Messung am
+Prüfling etwas anderes als eine an seinem Zwilling. Punkt 7 bleibt offen und
+benannt.
+
 ### Punkt 8 · Kosten — **erfüllt**
 
     0,046 s   ← erster Lauf

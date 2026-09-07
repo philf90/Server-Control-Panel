@@ -215,8 +215,19 @@ die Erwartung, die der A14-Lauf berichtigt hat.
 
 ## 8 · Kosten
 
+**Berichtigt am 7. September 2026, während des Laufs.** Hier stand
+`/usr/bin/time -f %e`; das ist ein eigenes Paket (`time`) und auf einem
+Debian- oder Ubuntu-Server nicht im Grundbestand. Fünfmal
+`No such file or directory`, und das ist keine Messung.
+
+> **Eine Messvorschrift, die ein Werkzeug voraussetzt, das der Server nicht
+> hat, misst nicht — sie meldet einen Fehler an sich selbst.**
+
+Gemessen wird mit dem `time` von bash, das jede Shell mitbringt:
+
+    TIMEFORMAT=%R
     for i in 1 2 3 4 5; do
-      /usr/bin/time -f %e timedatectl show >/dev/null
+      time timedatectl show >/dev/null
     done
 
 **Erwartet:** in der Grössenordnung der Messrunde (dort 10–12 ms). Und die Seite

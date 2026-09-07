@@ -186,6 +186,30 @@ darunter sagt sichtbar, warum sich der Name hier nicht ändern lässt. Der Fall
 „kein vollständiger Name" — im Container gemessen — kommt hier nicht vor und
 ist der triviale von beiden.
 
+### Punkt 6 · Die Tür — **erfüllt**
+
+**Berichtigt vor dem Lauf** (`docs/107 §0`): Das Kriterium lautete „ein
+Administrator bekommt 403, der Betreiber nicht", und `/settings/general` gehört
+seit A9 dem Administrator.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
+Gemessen wurde, was die Tür wirklich zusagt:
+
+| Konto | `/settings/general` |
+|---|---|
+| Rolle **Administrator** | **200**, Bereich „Zeit des Servers" vollständig |
+| **Kundenkonto** | **403 „Kein Zutritt"** |
+
+**Und das Menü ist der zweite Beleg.** Beim Administrator steht unter
+„Einstellungen" **nur** „Allgemein" — kein Zertifikat, kein Mailversand, kein
+DNS-Zugang, keine Konten, kein Wartungsmodus, keine Logs. Beim Kunden fehlt der
+Punkt ganz. Das ist `AbilityReachTest` in der Wirkung: Ein Knopf, den der
+Betrachter nicht drücken darf, wird gar nicht erst gezeigt.
+
+Die 403-Seite ist dabei die **entworfene** aus A9 und nicht Laravels englische
+Vorgabe — ein Befund aus `docs/84`, hier nebenbei nachgemessen.
+
 ### Punkt 8 · Kosten — **erfüllt**
 
     0,046 s   ← erster Lauf

@@ -3459,7 +3459,7 @@ Liste.
 | | Was | Wo |
 |---|---|---|
 | **A11** | ~~Neustart~~ **am 26. August 2026 gebaut** (Schritt 7); Zeitzone des Servers und NTP **neben** der Anzeigezeitzone aus `docs/40`, Rechnername nur anzeigen | **abgenommen am 7. September 2026** auf `cloudsrv24` gegen `0.7.3-rc.24` bis `0.7.3-rc.26` — alle acht Punkte aus `docs/106 §7`, beide Ausschlüsse darunter; die Messrunde ist `§2.3r`, der Lauf `docs/107`, das Protokoll **`docs/108`** |
-| **A6** | Leseansicht von `/etc/crontab`, `/etc/cron.d`, `cron.daily` und `cron.weekly` | mit A2 |
+| **A6** | Leseansicht von `/etc/crontab`, `/etc/cron.d` und den `cron.*`-Verzeichnissen | **die Messrunde ist `§2.3t`** (7. September 2026), der Plan **`docs/111`**. „mit A2" ist abgelaufen — A2 ist gebaut und abgenommen, A6 steht für sich. Und es sind **sechs** Verzeichnisse und nicht zwei, eines davon ohne jeden Zeitplan |
 | **A8** | Welche Adressen der Server hat, welche der DNS-Abgleich als Soll nimmt | **gebaut am 22. August 2026** und bis zum 7. September als offen geführt — der Bereich „Adressen dieses Servers" auf `/settings/general`, entstanden als Nachlauf zu Befund 2 aus `docs/74` und nie unter seinem Plannamen zurückgetragen; die Einzelheiten in `docs/80 §A8` |
 | **A12** | Wartungsmodus: alle Kundenseiten auf 503, Panel erreichbar | **abgenommen am 5. September 2026** auf `cloudsrv24` gegen `0.7.3-rc.19` — alle acht Punkte aus `docs/101 §7`, das Protokoll ist `docs/102` |
 | **A14** | Ankündigungen im Panel: farbiger Banner ganz oben, Kategorie Info · Warnung · Störung, mehrere gleichzeitig | **P7b, hinter A12** — entschieden am 4. September 2026; die Messrunde ist `§2.3q`, der Plan **`docs/103`** |

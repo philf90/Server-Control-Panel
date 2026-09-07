@@ -352,3 +352,114 @@ Belegt um 13:56, Zeile für Zeile gegen den Vorflug:
 | `NTPSynchronized` | `yes` | `yes` |
 
 `rc=0`, die Maskierung entfernt, die Anzeigezone zurück auf `Europe/Berlin`.
+
+---
+
+## 5 · Bilanz — **A11 ist noch nicht abgenommen**
+
+**Sieben der acht Punkte aus `docs/106 §7` sind gemessen und erfüllt**, beide
+Ausschlusskriterien (3 und 4) darunter, keiner als „nicht herstellbar"
+ausgefallen. Punkt 7 ist **nicht gemessen**, und das Kriterium verlangt alle
+acht.
+
+| Punkt | gemessen |
+|---|---|
+| 1 · Der Bereich steht da | vier Zeilen, Name **und** Beschriftung; Gegenprobe durch die Schranke `Europe/Berlin` |
+| 2 · Die Brücke | Berlin 12:21/12:21 · Kolkata 12:26 / `15:56 IST (UTC+05:30)` — +3:30, beide auf die Minute |
+| 3 · NTP in seinen Zuständen *(Ausschluss)* | `ausgeschaltet` und `eingeschaltet`, zwei verschiedene Sätze |
+| 4 · Nicht feststellbar *(Ausschluss)* | `rc=1`, drei Zeilen `nicht feststellbar` — Zone und Serverzeit **bleiben** |
+| 5 · Der Rechnername | `cloudsrv24.de`, mit dem sichtbaren Satz, warum er hier feststeht |
+| 6 · Die Tür | Administrator 200 mit dem Bereich · Kundenkonto 403 „Kein Zutritt" |
+| 7 · 390 px | **nicht gemessen** — vier Lagen im Container mit den Werten des Servers |
+| 8 · Kosten | 0,046 / 0,006 / 0,006 / 0,005 / 0,005 s |
+
+**Es fehlt eine Messung von zwei Minuten an einem Schreibtisch**, und bis sie da
+ist, steht A11 auf sieben von acht. Ein Punkt, der am Werkzeug scheitert, wird
+nicht dadurch erfüllt, dass alle anderen es sind.
+
+> **Ein Kriterium, das man beim letzten Punkt weicher liest als beim ersten, ist
+> keines mehr — es ist eine Zusammenfassung.**
+
+### Acht Befunde, drei im Prüfling — und keiner davon aus A11
+
+| | Befund | wo |
+|---|---|---|
+| 1 | `open_basedir` führt `/etc/localtime` nicht — `ServerZone` antwortet im Web-Request nicht | Prüfling (P6) |
+| 2 | Der stille Rückfall auf UTC macht daraus eine falsche Uhrzeit statt einer Lücke | Prüfling (P6) |
+| 3 | `next_due` war abgelegt und trug den falschen Wert über die Behebung hinweg | Prüfling (P6) |
+| 4 | Meine Gegenprobe lief über `srvpanel tinker` — als root, ohne die Schranke | eigene Vorarbeit |
+| 5 | Punkt 6 war gegen einen Zustand geschrieben, den der Prüfling nicht herstellen kann | Kriterium |
+| 6 | `/usr/bin/time` ist auf einem Debian- oder Ubuntu-Server nicht im Grundbestand | Vorschrift |
+| 7 | `show` unmittelbar nach `set-ntp` misst den Übergang und nicht den Zustand | Messmittel |
+| 8 | `bilder-messen.js` misst Rollen und sieht das Überlappen einer Kennungszelle nicht | Messvorschrift |
+
+**Kein einziger Befund steckt in dem, was A11 gebaut hat.** Der Grund ist
+derselbe wie bei A10, A2 und A14: Die Vorschrift war vor dem Lauf
+ausgeschrieben, und die Messmittel lagen als geprüfte Werkzeuge im Repo. Anders
+als dort war der neue Code diesmal auch schon einmal gemessen — die Bilderrunde
+in `docs/106 §8b` hat ihren einen Befund (`H:i` gegen `H:i:s`) vor dem Lauf
+gefunden, und Punkt 2 belegt die Behebung auf dem Server.
+
+**Der Wert dieses Laufs liegt woanders, und das ist seine Lehre.** Die drei
+Befunde im Prüfling sind ein Jahr alt und gehören zu P6. Gefunden hat sie ein
+Schritt, dessen einziger Zweck war, die **neue** Seite zu bestätigen: die
+Gegenprobe von Punkt 1.
+
+> **Ein Abnahmelauf für ein neues Merkmal misst den Bestand mit — und was er
+> dort findet, ist älter und teurer als alles, was er über sein eigenes Thema
+> sagen kann.**
+
+Der Kunde las ein Jahr lang, sein nächtlicher Job laufe um 05:15, während er um
+03:15 lief. Zwei Zeilen einer neuen Seite, die auf `nicht feststellbar` standen,
+haben es aufgedeckt.
+
+### Was dieser Lauf über das Messen gelehrt hat
+
+> **Eine Gegenprobe über einen anderen Weg als den benutzten prüft den falschen
+> Weg.** Zum zweiten Mal nach `docs/44` — dort ein Unix-Socket statt TCP, hier
+> die Kommandozeile statt der Schranke des Web-Requests.
+
+> **Ein `show` unmittelbar nach einem `set` misst den Übergang und nicht den
+> Zustand.** Und: **zwei Messungen, die auseinandergehen, entscheidet keine
+> Überlegung, sondern die dritte.**
+
+> **Eine Messvorschrift, die ein Werkzeug voraussetzt, das der Server nicht hat,
+> misst nicht — sie meldet einen Fehler an sich selbst.**
+
+> **Zwei Messungen, von denen die eine den Schaden manchmal sieht, ersetzen
+> einander nicht — welche der beiden zuschlägt, entscheidet die Umgebung der
+> Zelle und nicht der Schaden.**
+
+> **Ein Punkt, der am Werkzeug scheitert und nicht am Gegenstand, ist nicht
+> „nicht herstellbar".**
+
+---
+
+## 6 · Was offen bleibt
+
+**Aus diesem Lauf:**
+
+- **Punkt 7 auf `cloudsrv24`.** Vier Lagen, `tests/bilder-messen.js` in der
+  Konsole. Solange er fehlt, ist A11 nicht abgenommen. Die Nachmessung im
+  Container steht daneben und ersetzt ihn nicht.
+- **Der dritte NTP-Zustand.** „kein Zeitdienst installiert" hiesse,
+  `systemd-timesyncd` von einem laufenden Server zu entfernen. Belegt in
+  `docs/81 §2.3r` M8 gegen echtes systemd 255, hier bewusst nicht wiederholt.
+- **`NTPSynchronized=yes` als hergestellter Zustand.** Der Lauf hat ihn
+  vorgefunden und nicht erzeugt; ob die Uhr wirklich stimmt, hängt an einem
+  erreichbaren Zeitserver und nicht am Panel (`docs/107 §9`).
+- **Der Wortlaut „RF-kill".** Er erschien exakt mit der Maskierung; die genaue
+  Zuordnung im systemd-Quelltext ist ungemessen und muss es nicht sein — die
+  Seite reicht ihn nicht durch.
+
+**Aus früheren Stufen, unverändert:**
+
+- Der Rest aus P7 (`orphan.row` / `tls.cloudlab24.de`) und das hochgeladene
+  Wegwerfzertifikat aus `docs/100 §6`; das Zertifikat läuft am 13. September von
+  selbst aus.
+- Die beiden Fragen aus `docs/102 §9`: dass `Statements::nginx()` keine
+  Anführungszeichen kennt (gehört zu A10), und ob die ACME-`location` auch im
+  HTTPS-Block stehen sollte.
+
+**Und in P7b ungebaut:** A6, A8 und A3s erster Wurf.
+

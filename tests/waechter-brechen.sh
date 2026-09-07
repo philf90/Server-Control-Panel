@@ -25705,6 +25705,46 @@ pruefe "ServerTime beschafft die Zone" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
 
+echo
+echo "== ServerZoneSourceTest: die Seite liest die Faelligkeit wieder =="
+#
+# Der Rest des Befundes vom 7. September 2026. Die Zone war behoben, und die
+# Cronseite zeigte trotzdem weiter 05:15 fuer einen Job um 03:15: next_due
+# stand als Spalte da und wurde nur beim Anlegen und Aendern geschrieben.
+vorher_datei app/Http/Controllers/CronController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/CronController.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'next_due' => $next === null ? null : Clock::display(Carbon::instance($next)),"
+neu = "            'next_due' => $job->next_due === null ? null : Clock::display($job->next_due),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Http/Controllers/CronController.php "die Seite liest statt zu rechnen" &&
+pruefe "die Seite liest statt zu rechnen" \
+  ServerZoneSourceTest::test_the_next_due_time_is_computed_and_not_stored failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ServerZoneSourceTest passed
+
+echo
+echo "== ServerZoneSourceTest: ein Schreiber der Faelligkeit kommt zurueck =="
+#
+# Ein Wert, der aus -jetzt- folgt und abgelegt wird, ist ab dem naechsten
+# Augenblick falsch -- die Frage ist nur, wie schnell es auffaellt.
+vorher_datei app/Support/Cron/Cron.php
+python3 - <<'PY2'
+p = 'app/Support/Cron/Cron.php'
+s = open(p, encoding='utf-8').read()
+alt = "            $job->save();"
+assert s.count(alt) >= 1, 'Zielstelle nicht gefunden — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            $job->refreshNextDue();\n" + alt, 1))
+PY2
+griff_datei app/Support/Cron/Cron.php "ein Schreiber der Faelligkeit" &&
+pruefe "ein Schreiber der Faelligkeit" \
+  ServerZoneSourceTest::test_the_next_due_time_is_computed_and_not_stored failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ServerZoneSourceTest passed
+
 
 echo
 if [ "$fehler" -eq 0 ]; then

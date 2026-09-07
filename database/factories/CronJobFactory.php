@@ -41,12 +41,10 @@ class CronJobFactory extends Factory
             'active' => true,
 
             /*
-             * **`next_due` bleibt hier leer**, und das ist Absicht. Die Spalte
-             * ist ein gerechneter Wert, kein Bestandteil des Jobs — sie entsteht
-             * in {@see CronJob::refreshNextDue()} aus dem Zeitplan und der Zeit
-             * der Maschine. Sie hier zu erfinden hiesse, eine zweite Rechnung
-             * neben die erste zu stellen, und die zweite wäre die, die von der
-             * ersten abweicht.
+             * **Eine nächste Fälligkeit steht hier nicht**, und seit dem
+             * 7. September 2026 gibt es sie auch als Spalte nicht mehr. Sie ist
+             * ein gerechneter Wert und kein Bestandteil des Jobs; gerechnet
+             * wird sie beim Lesen, aus dem Zeitplan und der Zeit der Maschine.
              */
         ];
     }

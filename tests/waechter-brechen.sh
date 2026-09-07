@@ -26040,6 +26040,108 @@ pruefe "ein Rohwert steht auf der Seite" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ReachabilityWordTest passed
 
+echo
+echo "== ManagerVocabularyTest: der Agent kann ein Wort mehr =="
+#
+# Dieselbe Naht wie DiagnoseSeamTest: Kommt im Agenten ein Schluessel dazu, den
+# die Seite nicht kennt, steht dort ein englischer Rohwert -- oder -nicht
+# feststellbar- fuer einen Zustand, der sehr wohl feststeht.
+vorher_datei agent/src/FilterState.php
+python3 - <<'PY2'
+p = 'agent/src/FilterState.php'
+s = open(p, encoding='utf-8').read()
+alt = "    public const MANAGERS = ['nftables', 'iptables', 'ufw', 'firewalld', 'none', 'unknown'];"
+neu = "    public const MANAGERS = ['nftables', 'iptables', 'ufw', 'firewalld', 'nftables-inet', 'none', 'unknown'];"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/FilterState.php "ein Wort mehr im Agenten" &&
+pruefe "ein Wort mehr im Agenten" \
+  ManagerVocabularyTest::test_every_manager_the_agent_can_say_is_known_to_the_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagerVocabularyTest passed
+
+echo
+echo "== ManagerVocabularyTest: ein toter Eintrag auf der Seite =="
+#
+# So entsteht er wirklich: bei einer Umbenennung traegt man den neuen Namen
+# nach, die erste Richtung ist wieder gruen, und der alte bleibt liegen.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = "  unknown: 'nicht feststellbar',"
+neu = "  unknown: 'nicht feststellbar',\n  pf: 'pf',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "ein toter Eintrag auf der Seite" &&
+pruefe "ein toter Eintrag auf der Seite" \
+  ManagerVocabularyTest::test_every_word_on_the_page_has_a_state_behind_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ManagerVocabularyTest passed
+
+echo
+echo "== PortAbilityTest: der Filter laesst den Namen stehen =="
+#
+# Der Prozessname gehoert dem Betreiber (docs/109 §2, Frage 2). Bleibt er in
+# der Nutzlast, reist er zu jedem Betrachter, der die Antwort ansieht.
+vorher_datei app/Support/Ports/ServerPorts.php
+python3 - <<'PY2'
+p = 'app/Support/Ports/ServerPorts.php'
+s = open(p, encoding='utf-8').read()
+alt = "            $state['listeners'][$i]['process'] = null;"
+neu = "            // $state['listeners'][$i]['process'] = null;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Ports/ServerPorts.php "der Filter laesst den Namen stehen" &&
+pruefe "der Filter laesst den Namen stehen" \
+  PortAbilityTest::test_the_filter_leaves_neither_name_nor_pid failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PortAbilityTest passed
+
+echo
+echo "== PortAbilityTest: privileged bleibt stehen =="
+#
+# Es sagt, ob der Agent nachsehen durfte. Bleibt es auf true, macht die Seite
+# daraus -keiner sichtbar- -- eine Aussage ueber den Server, wo eine ueber den
+# Betrachter steht.
+vorher_datei app/Support/Ports/ServerPorts.php
+python3 - <<'PY2'
+p = 'app/Support/Ports/ServerPorts.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $state['privileged'] = null;"
+neu = "        // $state['privileged'] = null;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Ports/ServerPorts.php "privileged bleibt stehen" &&
+pruefe "privileged bleibt stehen" \
+  PortAbilityTest::test_the_privilege_flag_falls_with_the_names failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PortAbilityTest passed
+
+echo
+echo "== PortAbilityTest: die Vorlage entscheidet ueber den Namen =="
+#
+# Ein v-if auf die Faehigkeit ist die zweite Fassung derselben Regel -- und sie
+# stuende hinter der Nutzlast, in der der Name dann trotzdem reist.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<td data-column="Eigentümer"><span class="ident">{{ eigentuemer(l) }}</span></td>'
+neu = '<td data-column="Eigentümer"><span v-if="$page.props.abilities?.[\'operate-server\']" class="ident">{{ eigentuemer(l) }}</span></td>'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "die Vorlage entscheidet ueber den Namen" &&
+pruefe "die Vorlage entscheidet ueber den Namen" \
+  PortAbilityTest::test_the_template_does_not_decide_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PortAbilityTest passed
+
 
 echo
 if [ "$fehler" -eq 0 ]; then

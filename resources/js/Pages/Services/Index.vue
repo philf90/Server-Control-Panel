@@ -317,6 +317,19 @@ const gestoppt = computed(() => props.services.filter((s) => rang(s) === 'critic
           </table>
         </div>
 
+      </Section>
+
+      <!--
+        **Ein eigener Bereich, und das ist eine Berichtigung.** `docs/109 §3.3`
+        sah ihn so vor; beim Bauen ist er in den Bereich darüber gerutscht. Im
+        Bild bei 1440 px lief die Zeile „Verwaltet von" unmittelbar unter dem
+        letzten Lauscher weiter, und die beiden Tabellen lasen sich als eine —
+        derselbe Befund wie bei Spalten und Indizes in `docs/46 §20.11`.
+
+        > **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+        > Betrachter.**
+      -->
+      <Section title="Regelwerk" full>
         <table v-if="props.ports.filter" class="pairs">
           <tbody>
             <tr>

@@ -2483,6 +2483,50 @@ wird — in beide Richtungen, kein Schreiber mehr und die Seite rechnet.
 
 ---
 
+## A8 stand zweieinhalb Wochen als offen da und war gebaut — 7. September 2026
+
+Gefunden beim Entscheiden, womit es nach A11 weitergeht: `docs/81` führte **A8**
+(die IP-Adressen des Servers) als „eigenständig; P7 ist fertig", also als zu
+bauen. Der Bereich **„Adressen dieses Servers"** auf `/settings/general` steht
+seit dem **22. August** und beantwortet alle drei Teile aus `docs/80 §A8` —
+`Abgeleitet`, `Verglichen wird gegen`, und die Standardadresse für neue Domains
+ist dieselbe Grösse unter einem zweiten Namen (`ServerAddresses` heisst im Kopf
+wörtlich „Die Adressen, auf die eine Kundendomain zeigen soll").
+
+**Gebaut wurde es nicht als A8.** Es fiel als Nachlauf zu Befund 2 der
+Zwischenabnahme (`docs/74`) heraus: `Settings::saveDnsAddresses()` gab es seit
+P7 Schritt 4, und nichts hat es gerufen — die Domainseite wollte sogar warnen,
+wenn eingetragene und abgeleitete Adressen auseinandergehen, und sie konnten nie
+auseinandergehen. Aus der Behebung entstand die Anzeige beider Listen, und
+niemand hat sie unter ihrem Plannamen zurückgetragen.
+
+> **Ein Merkmal, das als Nebenwirkung einer Behebung entsteht, trägt den Namen
+> nicht, unter dem es geplant war — und die Planzeile bleibt offen stehen.**
+
+**Das ist dieselbe Familie wie `context` und `subject_type`, nur andersherum.**
+Dort war ein Feld geschrieben und von keiner Oberfläche gelesen und deshalb von
+aussen nicht von einem zu unterscheiden, das es nicht gibt. Hier ist eine
+Oberfläche gebaut und in keinem Plan vermerkt und deshalb von aussen nicht von
+einer zu unterscheiden, die es nicht gibt.
+
+> **Eine Zeile, die einen Zustand behauptet, veraltet ohne Vorwarnung — und
+> nichts prüft sie.** `DocLinkTest` hält, dass eine genannte Datei existiert,
+> nicht, dass stimmt, was über sie gesagt wird.
+
+**Ein Wächter hilft dagegen nicht, und das ist der Punkt.** „Ist dieses Merkmal
+gebaut?" hängt an einer Beschreibung in Prosa und nicht an einer Eigenschaft des
+Quelltextes — dieselbe Grenze wie bei „Wo sucht jemand diese Handlung?". Was
+bleibt, ist eine Gewohnheit: **Wer entscheidet, was als Nächstes gebaut wird,
+sieht vorher nach, ob es das schon gibt** — und zwar am Quelltext und nicht an
+der Planzeile.
+
+**Und die Zählung der Teile hat mitgeholfen, es zu übersehen.** `docs/80 §A8`
+nannte drei Punkte, wo es zwei Grössen gibt; der dritte war der zweite unter
+einem anderen Namen. Eine Aufzählung, die dieselbe Sache zweimal nennt, sieht
+nach mehr offener Arbeit aus, als da ist.
+
+---
+
 ## A11 ist abgenommen — 7. September 2026
 
 Auf `cloudsrv24` gegen `0.7.3-rc.24` bis `0.7.3-rc.26`, **alle acht Punkte aus

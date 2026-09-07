@@ -3177,7 +3177,7 @@ Liste.
 |---|---|---|
 | **A11** | ~~Neustart~~ **am 26. August 2026 gebaut** (Schritt 7); Zeitzone des Servers und NTP **neben** der Anzeigezeitzone aus `docs/40`, Rechnername nur anzeigen | **abgenommen am 7. September 2026** auf `cloudsrv24` gegen `0.7.3-rc.24` bis `0.7.3-rc.26` — alle acht Punkte aus `docs/106 §7`, beide Ausschlüsse darunter; die Messrunde ist `§2.3r`, der Lauf `docs/107`, das Protokoll **`docs/108`** |
 | **A6** | Leseansicht von `/etc/crontab`, `/etc/cron.d`, `cron.daily` und `cron.weekly` | mit A2 |
-| **A8** | Welche Adressen der Server hat, welche der DNS-Abgleich als Soll nimmt | eigenständig; P7 ist fertig |
+| **A8** | Welche Adressen der Server hat, welche der DNS-Abgleich als Soll nimmt | **gebaut am 22. August 2026** und bis zum 7. September als offen geführt — der Bereich „Adressen dieses Servers" auf `/settings/general`, entstanden als Nachlauf zu Befund 2 aus `docs/74` und nie unter seinem Plannamen zurückgetragen; die Einzelheiten in `docs/80 §A8` |
 | **A12** | Wartungsmodus: alle Kundenseiten auf 503, Panel erreichbar | **abgenommen am 5. September 2026** auf `cloudsrv24` gegen `0.7.3-rc.19` — alle acht Punkte aus `docs/101 §7`, das Protokoll ist `docs/102` |
 | **A14** | Ankündigungen im Panel: farbiger Banner ganz oben, Kategorie Info · Warnung · Störung, mehrere gleichzeitig | **P7b, hinter A12** — entschieden am 4. September 2026; die Messrunde ist `§2.3q`, der Plan **`docs/103`** |
 | **A13** | Die billige Hälfte des Malware-Scans: 0777, frisch geänderte PHP-Dateien, `eval(base64_decode` als Textsuche | ~~mit A10~~ — **reitet nicht mit** (2. September); **vorgeschlagen für P9b**, siehe unten — nicht entschieden |
@@ -3371,7 +3371,7 @@ Serververwaltungssatz in P9 zeigt dorthin statt ihn ein zweites Mal zu führen.
 
 | Stufe | Inhalt | Wann |
 |---|---|---|
-| **P7b — Serververwaltung** | A5, A2, A10, **A12**, **A14**, A1, A11, A6, A8, A3 (erster Wurf) | **entschieden**, vor P8; A12 am 2. September dazu, A14 am 4. September |
+| **P7b — Serververwaltung** | A5, A2, A10, **A12**, **A14**, A1, A11, ~~A8~~, A6, A3 (erster Wurf) | **entschieden**, vor P8; A12 am 2. September dazu, A14 am 4. September; A8 war am 22. August schon gebaut (§A8 in `docs/80`) — offen bleiben **A6** und **A3s erster Wurf** |
 | **P8** | Sicherungen und Wiederherstellung | unverändert |
 | **P9** | Kundenfähigkeit nach `docs/20 §9`, **ohne** den Serververwaltungssatz — **A7 steht darin** | unverändert |
 | **P9b — Absicherung des Servers** | A3 (zweiter Wurf), A4, **A13** | **entschieden am 28. August 2026**, zwischen P9 und P10; A13 ist ein **Vorschlag** vom 4. September (§11) und noch nicht entschieden |

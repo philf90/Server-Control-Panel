@@ -26362,3 +26362,34 @@ Auf `cloudsrv24` gegen `0.7.3-rc.24` bis `0.7.3-rc.26`, **alle acht Punkte aus
   maskierten Dienst sagt *„Operation not possible due to RF-kill"* — auf einem
   Server ohne Funk. Genau dieser Satz wäre auf der Seite gelandet, hätte A11 den
   Wortlaut durchgereicht statt einer geschlossenen Grundmenge.
+
+### A8 war gebaut und stand zweieinhalb Wochen als offen im Plan
+
+Keine Codeänderung — eine Berichtigung des Plans. Gefunden beim Entscheiden,
+womit es nach A11 weitergeht.
+
+- **`docs/81` führte A8 als „eigenständig; P7 ist fertig"**, also als zu bauen.
+  Der Bereich „Adressen dieses Servers" auf `/settings/general` steht seit dem
+  22. August und beantwortet alle drei Teile aus `docs/80 §A8`: `Abgeleitet`
+  (`ServerAddresses::routable`), `Verglichen wird gegen`
+  (`ServerAddresses::effective`) — und die Standardadresse für neue Domains ist
+  **dieselbe Grösse unter einem zweiten Namen**.
+
+- **Gebaut wurde es nicht als A8**, sondern als Nachlauf zu Befund 2 der
+  Zwischenabnahme (`docs/74`): `Settings::saveDnsAddresses()` gab es seit P7
+  Schritt 4 und nichts hat es gerufen. Aus der Behebung fiel die Anzeige beider
+  Listen heraus, und niemand hat sie unter ihrem Plannamen zurückgetragen.
+
+  > **Ein Merkmal, das als Nebenwirkung einer Behebung entsteht, trägt den Namen
+  > nicht, unter dem es geplant war — und die Planzeile bleibt offen stehen.**
+
+- **Dieselbe Familie wie `context` und `subject_type`, nur andersherum.** Dort
+  war ein Feld geschrieben und von keiner Oberfläche gelesen. Hier ist eine
+  Oberfläche gebaut und in keinem Plan vermerkt — von aussen beide nicht von
+  dem zu unterscheiden, was es nicht gibt.
+
+- **Und die Zählung hat mitgeholfen:** `docs/80 §A8` nannte drei Punkte, wo es
+  zwei Grössen gibt. Eine Aufzählung, die dieselbe Sache zweimal nennt, sieht
+  nach mehr offener Arbeit aus, als da ist.
+
+**In P7b bleiben damit A6 und A3s erster Wurf.**

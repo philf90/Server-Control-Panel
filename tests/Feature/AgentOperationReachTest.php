@@ -86,6 +86,8 @@ final class AgentOperationReachTest extends TestCase
          */
         'system.time' => 'Liest den Zustand des Zeitabgleichs. Kein Bestand im Panel, und der Aufruf steht in GeneralSettingsController::zeit().',
 
+        'system.ports' => 'Liest, welche Ports lauschen und was im Regelwerk steht (A3, erster Wurf). Kein Bestand im Panel und kein Vorgang: Sie ruft vier Programme, gibt einen Zustand zurück und ändert nichts — jedes Schreiben ist der zweite Wurf und steht in P9b. Der Aufruf steht in ServicesController::show().',
+
         /*
          * **A12: der Wartungsmodus.** Kein Lebenslauf, und kein Vorgang: Die
          * Operation legt eine Datei an oder entfernt sie, nginx liest sie bei

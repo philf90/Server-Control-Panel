@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\Account;
+use App\Support\Authorization\AdminAbility;
+use App\Support\Ports\ServerPorts;
 use App\Support\Time\Clock;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use SrvPanel\Agent\AgentException;
@@ -42,7 +46,7 @@ use SrvPanel\Agent\Client;
  */
 final class ServicesController extends Controller
 {
-    public function show(Client $agent): Response
+    public function show(Request $request, Client $agent): Response
     {
         // Jede Angabe als Verschluss, damit ein Nachladen nur holt, was es
         // verlangt — dieselbe Regel wie auf der Übersicht, und
@@ -61,9 +65,40 @@ final class ServicesController extends Controller
             return $antwort;
         };
 
+        /*
+         * A3, erster Wurf — eine zweite Quelle, ein zweiter Verschluss. Sie
+         * hängt nicht an der ersten: Steht der Agent still, sollen beide
+         * Bereiche das sagen und nicht einer die Zahlen des anderen erben.
+         */
+        $ports = null;
+
+        $horchen = function () use ($agent, &$ports): array {
+            if ($ports === null) {
+                try {
+                    $ports = $agent->call('system.ports', []);
+                } catch (AgentException $fehler) {
+                    $ports = ['readable' => false, 'reason' => 'unreachable'];
+                }
+            }
+
+            return $ports;
+        };
+
+        $konto = $request->user();
+        $betreiber = $konto instanceof Account && $konto->can(AdminAbility::OPERATE_SERVER);
+
         return Inertia::render('Services/Index', [
             'services' => fn (): array => $this->von($lesen(), 'service'),
             'timers' => fn (): array => $this->von($lesen(), 'timer'),
+
+            /*
+             * **Gefiltert wird hier und nicht in der Vue-Datei** (`docs/109
+             * §2`, Frage 2). Ein `v-if` verbirgt den Prozessnamen im Bild und
+             * schickt ihn trotzdem über die Leitung.
+             */
+            'ports' => fn (): array => $betreiber
+                ? $horchen()
+                : ServerPorts::withoutProcesses($horchen()),
 
             // `live` sagt, ob überhaupt jemand geantwortet hat. Ohne das wäre
             // eine leere Liste von „nichts installiert" nicht zu unterscheiden.

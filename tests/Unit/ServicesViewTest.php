@@ -284,10 +284,38 @@ final class ServicesViewTest extends TestCase
 
         $quelle = $this->withoutMarkupComments(self::quelle(self::SEITE));
 
-        $this->assertSame(
+        /*
+         * **Hier stand `substr_count(…) === 2`, und das war ein Stellvertreter.**
+         *
+         * Die Regel lautet „Dienste und Timer sind zwei Bereiche und keine
+         * gemeinsame Tabelle". Gezählt wurden aber **alle** Bereiche der Seite —
+         * eine Zahl, die nur trug, solange die Seite nichts anderes zeigte. Der
+         * dritte Bereich aus A3 („Ports und Regelwerk") hat sie am 7. September
+         * 2026 umgeworfen, ohne dass an der Trennung etwas falsch war.
+         *
+         * > **Eine Zahl, die eine Regel vertritt, trägt die Annahme mit, dass
+         * > daneben nichts Neues entsteht — und die steht nirgends
+         * > geschrieben.**
+         *
+         * Gefragt wird jetzt, was gemeint ist: dass es beide Bereiche gibt und
+         * dass sie zwei sind. Das ist strenger als vorher, denn eine
+         * Umbenennung fiel der alten Zählung gar nicht auf.
+         */
+        // Der Titel steht mal auf derselben Zeile wie `<Section`, mal auf der
+        // nächsten — gefragt wird deshalb der Titel und nicht die Schreibweise
+        // des Aufrufs.
+        foreach (['Dienste', 'Timer'] as $bereich) {
+            $this->assertMatchesRegularExpression(
+                sprintf('/<Section\s[^>]*title="%s"/s', preg_quote($bereich, '/')),
+                $quelle,
+                sprintf('Den Bereich „%s" gibt es nicht mehr — dann prüft die Trennung hier nichts.', $bereich),
+            );
+        }
+
+        $this->assertGreaterThanOrEqual(
             2,
             substr_count($quelle, '<Section'),
-            'Es sind nicht mehr genau zwei Bereiche — dann prüft die Trennung hier nichts.',
+            'Weniger als zwei Bereiche heisst, die beiden sind zusammengelegt.',
         );
     }
 

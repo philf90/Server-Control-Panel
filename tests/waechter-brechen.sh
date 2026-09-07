@@ -25745,6 +25745,301 @@ pruefe "ein Schreiber der Faelligkeit" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServerZoneSourceTest passed
 
+echo
+echo "== PortStateTest: der Leser schneidet nach Spaltenbreite =="
+#
+# Die Ausgabe von ss richtet sich an ihrer laengsten Zeile aus, und die aendert
+# sich mit dem Bestand. Ein Leser, der ab einer festen Stelle schneidet, trifft
+# auf einem Server mit einem langen Prozessnamen daneben -- still.
+vorher_datei agent/src/PortState.php
+python3 - <<'PY2'
+p = 'agent/src/PortState.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $felder = preg_split('/\\s+/', trim($zeile), 6) ?: [];"
+neu = "        $felder = [substr($zeile, 0, 6), substr($zeile, 7, 6), substr($zeile, 14, 6), substr($zeile, 21, 20), substr($zeile, 42, 12), substr($zeile, 55)];"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/PortState.php "nach Spaltenbreite geschnitten" &&
+pruefe "nach Spaltenbreite geschnitten" \
+  PortStateTest::test_the_reader_goes_by_field_and_not_by_column failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PortStateTest passed
+
+echo
+echo "== PortStateTest: die leere Prozessspalte wird zu -niemand- =="
+#
+# M4 der Messrunde: ohne root gibt ss dieselben Zeilen, rc=0, und laesst die
+# Spalte wortlos leer. Wer sie ohne Ruecksicht auf die Rechte liest, macht aus
+# einem Aufruf ohne Rechte eine Aussage ueber den Server.
+vorher_datei agent/src/PortState.php
+python3 - <<'PY2'
+p = 'agent/src/PortState.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'process' => $privileged ? self::process($felder[5] ?? '') : null,"
+neu = "            'process' => self::process($felder[5] ?? ''),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/PortState.php "der Eigentuemer ohne Ruecksicht auf die Rechte" &&
+pruefe "der Eigentuemer ohne Ruecksicht auf die Rechte" \
+  PortStateTest::test_without_privilege_no_listener_carries_an_owner failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PortStateTest passed
+
+echo
+echo "== PortStateTest: der Fehlerfall traegt eine leere Liste =="
+#
+# Eine leere Liste neben rc=255 waere die Aussage -nichts lauscht-.
+vorher_datei agent/src/PortState.php
+python3 - <<'PY2'
+p = 'agent/src/PortState.php'
+s = open(p, encoding='utf-8').read()
+alt = "            return ['readable' => false, 'reason' => 'unreadable'];"
+neu = "            return ['readable' => false, 'reason' => 'unreadable', 'listeners' => []];"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/PortState.php "der Fehlerfall traegt eine Liste" &&
+pruefe "der Fehlerfall traegt eine Liste" \
+  PortStateTest::test_a_failed_call_is_a_state_and_not_an_empty_list failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PortStateTest passed
+
+echo
+echo "== PortStateTest: der Port wird von links getrennt =="
+#
+# Eine IPv6-Adresse traegt selbst Doppelpunkte. Von links getrennt wird aus
+# [::]:80 der Port -- keine Zahl, und die Zeile faellt aus.
+vorher_datei agent/src/PortState.php
+python3 - <<'PY2'
+p = 'agent/src/PortState.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $trenner = strrpos($feld, ':');"
+neu = "        $trenner = strpos($feld, ':');"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/PortState.php "der Port von links getrennt" &&
+pruefe "der Port von links getrennt" \
+  PortStateTest::test_an_ipv6_address_keeps_its_colons failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PortStateTest passed
+
+echo
+echo "== PortStateTest: die Operation fragt ohne -H =="
+#
+# Ohne -H steht die Kopfzeile in der Ausgabe, und in ihr klebt
+# -Peer Address:PortProcess- ohne Leerzeichen (M1).
+vorher_datei agent/src/Ops/SystemPorts.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemPorts.php'
+s = open(p, encoding='utf-8').read()
+alt = "run('ss', ['-H', '-l', '-t', '-n', '-p'], 10)"
+neu = "run('ss', ['-l', '-t', '-n', '-p'], 10)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/SystemPorts.php "die Operation fragt ohne -H" &&
+pruefe "die Operation fragt ohne -H" \
+  PortStateTest::test_the_operation_asks_without_the_header failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PortStateTest passed
+
+echo
+echo "== FilterVerdictTest: nur nftables wird gefragt =="
+#
+# M10 der Messrunde: Ein Regelwerk ueber iptables-legacy ist fuer nft
+# unsichtbar, und nft antwortet dabei mit rc=0 und nichts -- also der Antwort
+# fuer -keine Regeln-.
+vorher_datei agent/src/FilterState.php
+python3 - <<'PY2'
+p = 'agent/src/FilterState.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if (preg_match('/^-P\\s+\\S+\\s+ACCEPT$/D', $zeile) !== 1) {\n                return ['installed' => true, 'readable' => true, 'configured' => true];\n            }"
+neu = "            if (false) {\n                return ['installed' => true, 'readable' => true, 'configured' => true];\n            }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/FilterState.php "legacy meldet nie eine Konfiguration" &&
+pruefe "legacy meldet nie eine Konfiguration" \
+  FilterVerdictTest::test_a_legacy_ruleset_is_seen_although_nft_is_silent failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FilterVerdictTest passed
+
+echo
+echo "== FilterVerdictTest: konfiguriert haengt an der Zeilenzahl =="
+#
+# Der erste Entwurf sagte -lines > 3-. M11b hat gemessen, dass das falsch ist:
+# -P INPUT DROP ohne eine Regel gibt ebenfalls drei Zeilen und sperrt alles.
+vorher_datei agent/src/FilterState.php
+python3 - <<'PY2'
+p = 'agent/src/FilterState.php'
+s = open(p, encoding='utf-8').read()
+alt = """        foreach ($result->lines() as $zeile) {
+            $zeile = trim($zeile);
+
+            if ($zeile === '') {
+                continue;
+            }
+
+            if (preg_match('/^-P\\s+\\S+\\s+ACCEPT$/D', $zeile) !== 1) {
+                return ['installed' => true, 'readable' => true, 'configured' => true];
+            }
+        }
+
+        return ['installed' => true, 'readable' => true, 'configured' => false];"""
+neu = """        $zeilen = count(array_filter($result->lines(), static fn (string $z): bool => trim($z) !== ''));
+
+        return ['installed' => true, 'readable' => true, 'configured' => $zeilen > 3];"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/FilterState.php "konfiguriert an der Zeilenzahl" &&
+pruefe "konfiguriert an der Zeilenzahl" \
+  FilterVerdictTest::test_a_tightened_default_policy_counts_as_configured failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FilterVerdictTest passed
+
+echo
+echo "== FilterVerdictTest: nicht lesbar wird zu -keiner- =="
+#
+# Wer nft nicht lesen durfte (M8), weiss nicht, ob dort etwas steht.
+vorher_datei agent/src/FilterState.php
+python3 - <<'PY2'
+p = 'agent/src/FilterState.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return $nft['readable'] && $legacy['readable'] ? 'none' : 'unknown';"
+neu = "        return 'none';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/FilterState.php "nicht lesbar wird zu keiner" &&
+pruefe "nicht lesbar wird zu keiner" \
+  FilterVerdictTest::test_unreadable_never_becomes_no_firewall failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FilterVerdictTest passed
+
+echo
+echo "== FilterVerdictTest: firewalld wird am Rueckgabewert gewertet =="
+#
+# M15: vier gemessene Ausgaenge, drei davon beantworten die Frage nicht.
+vorher_datei agent/src/FilterState.php
+python3 - <<'PY2'
+p = 'agent/src/FilterState.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($firewalld !== null && $firewalld->successful() && str_contains($firewalld->stdout, 'running')) {"
+neu = "        if ($firewalld !== null && $firewalld->code !== 36) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/FilterState.php "firewalld am Rueckgabewert" &&
+pruefe "firewalld am Rueckgabewert" \
+  FilterVerdictTest::test_firewalld_is_judged_by_its_word_and_not_by_its_code failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FilterVerdictTest passed
+
+echo
+echo "== FilterVerdictTest: die Sichtbarkeit vor der Zustaendigkeit =="
+#
+# Bei aktivem ufw stehen table ip filter und ip6 filter da (M19). Wer zuerst
+# nach der Sichtbarkeit fragt, nennt dort nftables -- richtig beobachtet und
+# falsch beantwortet.
+vorher_datei agent/src/FilterState.php
+python3 - <<'PY2'
+p = 'agent/src/FilterState.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if ($ufw !== null && $ufw->successful() && str_contains($ufw->stdout, 'Status: active')) {
+            return 'ufw';
+        }
+
+        if ($legacy['configured']) {
+            return 'iptables';
+        }
+
+        if ($nft['configured']) {
+            return 'nftables';
+        }"""
+neu = """        if ($nft['configured']) {
+            return 'nftables';
+        }
+
+        if ($ufw !== null && $ufw->successful() && str_contains($ufw->stdout, 'Status: active')) {
+            return 'ufw';
+        }
+
+        if ($legacy['configured']) {
+            return 'iptables';
+        }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/FilterState.php "Sichtbarkeit vor Zustaendigkeit" &&
+pruefe "Sichtbarkeit vor Zustaendigkeit" \
+  FilterVerdictTest::test_ufw_is_named_before_what_merely_stands_there failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FilterVerdictTest passed
+
+echo
+echo "== ReachabilityWordTest: die Seite behauptet Erreichbarkeit =="
+#
+# Die tragende Regel des ersten Wurfs von A3. Gemessen (M20) ist der Blick von
+# innen Feld fuer Feld derselbe, ob eine Sperre davorsteht oder nicht -- eine
+# Anzeige -Port offen- ist hinter einer Cloud-Firewall schweigend falsch.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<td data-column="Reichweite">{{ reichweite(l) }}</td>'
+neu = '<td data-column="Reichweite">{{ reichweite(l) }} — von aussen erreichbar</td>'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "die Seite behauptet Erreichbarkeit" &&
+pruefe "die Seite behauptet Erreichbarkeit" \
+  ReachabilityWordTest::test_the_section_never_claims_reachability failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ReachabilityWordTest passed
+
+echo
+echo "== ReachabilityWordTest: der Satz ueber das Unbekannte faellt weg =="
+#
+# Keinmal waere er eine stille Zusage: Die Seite zeigt Ports und sagt nicht,
+# dass sie ueber den Weg von aussen nichts weiss.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'Steht eine Firewall des Anbieters davor, sieht er sie nicht.'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "der Satz ueber das Unbekannte fehlt" &&
+pruefe "der Satz ueber das Unbekannte fehlt" \
+  ReachabilityWordTest::test_the_sentence_about_the_unknown_stands_exactly_once failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ReachabilityWordTest passed
+
+echo
+echo "== ReachabilityWordTest: ein Rohwert des Agenten steht auf der Seite =="
+#
+# -any-, -loopback- und -specific- sind Werte des Agenten. Derselbe Befund wie
+# -active- auf der Uebersicht (docs/91 Befund 5).
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<td data-column="Reichweite">{{ reichweite(l) }}</td>'
+neu = '<td data-column="Reichweite">{{ l.scope }}</td>'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "ein Rohwert steht auf der Seite" &&
+pruefe "ein Rohwert steht auf der Seite" \
+  ReachabilityWordTest::test_no_raw_scope_value_reaches_the_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ReachabilityWordTest passed
+
 
 echo
 if [ "$fehler" -eq 0 ]; then

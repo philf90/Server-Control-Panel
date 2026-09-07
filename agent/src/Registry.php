@@ -99,6 +99,7 @@ use SrvPanel\Agent\Ops\SystemPackagesList;
 use SrvPanel\Agent\Ops\SystemPackagesRefresh;
 use SrvPanel\Agent\Ops\SystemPackagesUnattended;
 use SrvPanel\Agent\Ops\SystemPackagesUpgrade;
+use SrvPanel\Agent\Ops\SystemPorts;
 use SrvPanel\Agent\Ops\SystemReboot;
 use SrvPanel\Agent\Ops\SystemRunOutcome;
 use SrvPanel\Agent\Ops\SystemSourcesList;
@@ -211,6 +212,11 @@ final class Registry
         // P7b A11 — Zeitzone und Zeitabgleich des Servers. Liest `timedatectl`
         // und ändert nichts.
         $this->register(new SystemTime);
+
+        // P7b A3, erster Wurf — welche Ports lauschen und welches Regelwerk
+        // läuft. Liest vier Programme und ändert nichts; das Schreiben ist der
+        // zweite Wurf und steht in P9b.
+        $this->register(new SystemPorts);
 
         $this->register(new WebLogrotate);
         $this->register(new WebIsolationProbe);

@@ -26198,3 +26198,70 @@ keiner am Prüfling; sie stehen in `docs/102 §9` und in `CLAUDE.md`.
 
 - **Was A11 nicht wird:** kein `set-timezone`, kein Ändern des Rechnernamens,
   keine NTP-Server-Verwaltung, kein Einschalten von NTP. A11 liest.
+
+### Die Cronseite hat ein Jahr lang die falsche Fälligkeit gezeigt
+
+- **Gefunden am 7. September 2026 im Abnahmelauf von A11** auf `cloudsrv24`
+  (`docs/107 §0c`), gegen `0.7.3-rc.24`. Der Lauf galt der neuen Zeitseite; der
+  Fehler steckte in P6.
+
+  Auf der Cronseite stand für einen Job „jeden Tag um **03:15**" die nächste
+  Fälligkeit als **05:15**. Der Job feuert um 03:15 in der Zone der Maschine,
+  also 01:15 UTC; gerechnet wurde mit UTC, heraus kam 03:15 UTC, angezeigt in
+  Berlin 05:15. **Der Kunde liest, sein nächtlicher Job laufe zwei Stunden
+  später, als er läuft.**
+
+- **Die Ursache ist eine Zeile aus P1, die genau das verbietet.**
+  `App\Support\Cron\ServerZone` liest `/etc/localtime`, um zu wissen, in welcher
+  Zone cron rechnet. Die `open_basedir` des Panels führte den Pfad nicht — auf
+  der Kommandozeile ging es also, im Web-Request nicht.
+
+  > **Eine Klasse, die auf der Kommandozeile antwortet, beantwortet dieselbe
+  > Frage im Web-Request nicht — und der Unterschied steht in einer Datei, die
+  > keiner von beiden nennt.**
+
+- **Und der Grund, warum es ein Jahr niemandem auffiel, steht im Kopf der
+  Klasse.** `current()` fiel bei einem unlesbaren Symlink auf UTC zurück — „die
+  harmloseste Vertretung". Auf einem Server in UTC ist sie das. Auf jedem
+  anderen ist sie eine falsche Uhrzeit ohne Kennzeichen.
+
+  > **Ein Rückfall, der immer etwas liefert, macht aus „unbekannt" eine falsche
+  > Auskunft.**
+
+- **Gefunden hat es die Gegenprobe von A11, und meine eigene Vorarbeit war der
+  Fehler.** Ich hatte `ServerZone` über `srvpanel tinker` gemessen — als root,
+  ohne `open_basedir` — und daraus geschlossen, die Naht sei in Ordnung.
+
+  > **Eine Gegenprobe über einen anderen Weg als den benutzten prüft den
+  > falschen Weg.**
+
+- **Behoben in zwei Teilen, beide vom Betreiber entschieden.**
+
+  **Die Quelle:** `/etc/localtime` steht in der `open_basedir` des Panels.
+  **Ein Pfad und nicht zwei, und das ist gemessen** — `/usr/share/zoneinfo`
+  wird nicht gebraucht, weil nur `readlink()` gerufen und das Ziel nie geöffnet
+  wird. Der Eintrag macht sonst nichts auf: `/etc/passwd`, `/etc/shadow`, die
+  nginx-Konfiguration und selbst das Ziel des Symlinks bleiben unerreichbar,
+  alle vier gemessen.
+
+  > **Eine gemessene Grenze ist schmaler als eine geratene.**
+
+  **Der Rückfall:** `current()` gibt `?DateTimeZone`, `name()` gibt `?string`,
+  und `Occurrence::next()` gibt `null` statt einer Zahl, die mit einer geratenen
+  Zone gerechnet wäre. Die Cronseite sagt es dann mit einem Satz. Die Ursache
+  ist behoben, aber sie war austauschbar — ein **kopiertes** statt verlinktes
+  `/etc/localtime` erzeugt denselben Zustand.
+
+- **Gemessen wird die Behebung durch dieselbe Schranke, unter der php-fpm
+  läuft.** `TimezoneFileTest` fährt einen Unterprozess mit `open_basedir` ohne
+  den Pfad und misst, dass keine Fälligkeit herauskommt — in beiden Richtungen,
+  weil „beides `null`" sonst von „die Messung läuft ins Leere" nicht zu
+  unterscheiden wäre.
+
+- **Und `docs/107` hat beim Ausschreiben schon ein Kriterium verloren.** Punkt 6
+  lautete „ein Administrator bekommt 403"; `/settings/general` gehört seit A9
+  dem Administrator. Die Überschrift der ersten Entscheidung in `docs/106` sagte
+  „Nur der Betreiber", der Satz darunter das Richtige.
+
+  > **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den
+  > Verfasser.**

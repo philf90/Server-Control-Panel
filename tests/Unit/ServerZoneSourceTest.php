@@ -30,8 +30,26 @@ final class ServerZoneSourceTest extends TestCase
     /** Wonach gesucht wird — der Griff an die Datei, die die Zone der Maschine nennt. */
     private const NEEDLE = '/etc/localtime';
 
-    /** Wo er stehen darf. */
-    private const ALLOWED = 'app/Support/Cron/ServerZone.php';
+    /**
+     * Wo er stehen darf — mit dem Grund, warum das kein zweiter Leser ist.
+     *
+     * **Der zweite Eintrag ist am 7. September 2026 dazugekommen.** Er liest
+     * die Datei nicht; er nennt sie in einer `open_basedir`-Liste, um die
+     * Bedingung nachzustellen, unter der php-fpm läuft. Genau dieser
+     * Unterschied — Kommandozeile ohne Schranke, Web-Request mit — hat den
+     * Fehler aus `docs/107 §0c` ein Jahr lang verdeckt, und der Fall lässt sich
+     * ohne den Pfad im Prüfstand nicht herstellen.
+     *
+     * > **Eine Ausnahme mit Grund ist eine Entscheidung; eine ohne ist eine
+     * > Lücke.**
+     *
+     * @var array<string,string> Pfad => Grund
+     */
+    private const ALLOWED = [
+        'app/Support/Cron/ServerZone.php' => 'Die eine Stelle, die den Rechner nach seiner Zone fragt.',
+        'tests/Unit/TimezoneFileTest.php' => 'Nennt den Pfad in einer open_basedir-Liste, um den Web-Request '
+            .'nachzustellen — und liest ihn dabei gerade nicht.',
+    ];
 
     public function test_only_one_class_reads_the_machine_timezone(): void
     {
@@ -45,7 +63,7 @@ final class ServerZoneSourceTest extends TestCase
 
             $found++;
 
-            if ($path !== self::ALLOWED) {
+            if (! array_key_exists($path, self::ALLOWED)) {
                 $offenders[] = $path;
             }
         }
@@ -66,8 +84,27 @@ final class ServerZoneSourceTest extends TestCase
             "Diese Stellen fragen den Rechner selbst nach seiner Zeitzone:\n  %s\n\n".
             'Die Antwort gehört nach %s — sonst gibt es zwei, und die zweite veraltet.',
             implode("\n  ", $offenders),
-            self::ALLOWED,
+            implode(' oder ', array_keys(self::ALLOWED)),
         ));
+    }
+
+    /** Jede Ausnahme nennt ihren Grund, und jede genannte Datei gibt es. */
+    public function test_every_exemption_carries_a_reason_and_exists(): void
+    {
+        $root = dirname(__DIR__, 2);
+
+        foreach (self::ALLOWED as $path => $reason) {
+            $this->assertFileExists($root.'/'.$path, sprintf(
+                '%s steht als Ausnahme da und es gibt sie nicht — dann deckt sie nichts.',
+                $path,
+            ));
+            $this->assertGreaterThan(40, strlen($reason), sprintf(
+                'Die Ausnahme für %s trägt keinen Grund.',
+                $path,
+            ));
+        }
+
+        $this->assertCount(2, self::ALLOWED);
     }
 
     /**

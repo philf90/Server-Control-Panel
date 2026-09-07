@@ -55,11 +55,29 @@ final class Occurrence
     /**
      * Die nächste Fälligkeit nach `$after` — oder `null`.
      *
+     * **`null` heisst seit dem 7. September 2026 zweierlei**, und beides ist
+     * dasselbe für den Leser: Entweder es gibt keinen Termin (`0 0 30 2 *`),
+     * oder die Zone der Maschine ist nicht abzulesen. Im zweiten Fall wäre
+     * jede Zahl geraten.
+     *
+     * **Vorher wurde geraten.** {@see ServerZone::current()} fiel still auf UTC
+     * zurück, und auf `cloudsrv24` stand für „jeden Tag um 03:15" die nächste
+     * Fälligkeit **05:15** — zwei Stunden daneben, seit es Cronjobs gibt
+     * (`docs/107`).
+     *
+     * > **Ein Rückfall, der immer etwas liefert, macht aus „unbekannt" eine
+     * > falsche Auskunft.**
+     *
      * @param  array<string,string>  $schedule  die fünf Felder, wie {@see Schedule::FIELDS} sie nennt
      */
     public static function next(array $schedule, ?DateTimeImmutable $after = null): ?DateTimeImmutable
     {
         $zone = ServerZone::current();
+
+        if (! $zone instanceof DateTimeZone) {
+            return null;
+        }
+
         $from = ($after ?? new DateTimeImmutable('now'))->setTimezone($zone);
 
         $minutes = self::expand($schedule['minute'] ?? '*', 0, 59);

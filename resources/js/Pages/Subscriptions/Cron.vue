@@ -25,7 +25,12 @@ const props = defineProps<{
   subscription: { id: number; name: string; system_user: string | null; usable: boolean }
   jobs: Job[]
   quota: { used: number; limit: number | null }
-  server_zone: string
+  /*
+   * **Darf fehlen, seit dem 7. September 2026.** Die Zone der Maschine ist
+   * nicht immer abzulesen, und vorher stand in diesem Fall UTC da — mitsamt
+   * Fälligkeiten, die damit gerechnet waren (`docs/107`).
+   */
+  server_zone: string | null
   display_zone: string
   can: { manage: boolean }
 }>()
@@ -403,7 +408,7 @@ function entfernen(job: Job): void {
 
           Der Satz steht einmal hier statt in jeder Zeile der Liste.
         -->
-        <p class="notice neutral">
+        <p v-if="props.server_zone !== null" class="notice neutral">
           <span>
             Der <b>Zeitplan</b> gilt in der Zeit des Servers
             (<span class="ident">{{ props.server_zone }}</span>).
@@ -411,6 +416,23 @@ function entfernen(job: Job): void {
               Zeitpunkte in der Liste — etwa „nächste Fälligkeit“ — stehen dagegen in Ihrer
               Anzeigezone (<span class="ident">{{ props.display_zone }}</span>).
             </template>
+          </span>
+        </p>
+
+        <!--
+          **Ohne Zone gibt es keine Fälligkeit, und der Satz sagt warum.**
+          Vorher stand hier UTC und daneben eine ausgerechnete Uhrzeit — auf
+          einem Server in einer anderen Zone war sie falsch, und nichts an ihr
+          sagte es (`docs/107`).
+
+          > **Ein Rückfall, der immer etwas liefert, macht aus „unbekannt" eine
+          > falsche Auskunft.**
+        -->
+        <p v-else class="notice warn">
+          <span>
+            Die <b>Zeitzone dieses Servers</b> ist nicht feststellbar. Die Jobs laufen
+            weiter — nur lässt sich nicht ausrechnen, <b>wann</b> sie das nächste Mal
+            fällig sind, und die Spalte bleibt deshalb leer.
           </span>
         </p>
 

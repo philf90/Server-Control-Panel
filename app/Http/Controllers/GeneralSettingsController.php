@@ -89,7 +89,7 @@ final class GeneralSettingsController extends Controller
              * das antwortet ohne systemd als PID 1 nicht. Der Zustand steht
              * dann als „nicht feststellbar" da und nicht als geratener Wert.
              */
-            'time' => fn (): array => ServerTime::rows($this->zeit($agent), ServerZone::known(), $jetzt),
+            'time' => fn (): array => ServerTime::rows($this->zeit($agent), ServerZone::name(), $jetzt),
 
             /*
              * **Der Rechnername steht bei den Adressen und nicht bei der
@@ -98,6 +98,10 @@ final class GeneralSettingsController extends Controller
              *
              * `fqdn()` kann fehlen — im Container gemessen `NULL`
              * (`docs/81 §2.3r` M15) —, und dafür gibt es `host()` daneben.
+             *
+             * **`ServerZone::name()` und nicht mehr `known()`.** Die beiden
+             * waren dasselbe, seit `current()` seinen stillen Rückfall auf UTC
+             * verloren hat; zwei Namen für einen Wert sind einer zu viel.
              */
             'hostname' => fn (): string => Names::fqdn() ?? Names::host(),
         ]);

@@ -34,6 +34,21 @@ final class Runner
         'systemctl' => '/usr/bin/systemctl',
         'systemd-run' => '/usr/bin/systemd-run',
         'journalctl' => '/usr/bin/journalctl',
+
+        /*
+         * **Dazugekommen am 6. September 2026 für A11**, und rein lesend:
+         * `timedatectl show` gibt den Zustand des Zeitabgleichs als
+         * Schlüssel-Wert-Zeilen. Gerufen wird es ausschliesslich mit `show`;
+         * `set-timezone` und `set-ntp` gäbe es, und A11 ist eine Anzeige
+         * (`docs/106 §9`).
+         *
+         * Gebraucht wird es für die drei Fragen, die anders nicht zu
+         * beantworten sind: ob ein Zeitdienst installiert ist, ob er läuft und
+         * ob die Uhr stimmt. **Die Zone des Servers gehört nicht dazu** — die
+         * beantwortet `App\Support\Cron\ServerZone` seit P6, und ein zweiter
+         * Leser derselben Quelle wäre der, der veraltet.
+         */
+        'timedatectl' => '/usr/bin/timedatectl',
         'nginx' => '/usr/sbin/nginx',
         'sshd' => '/usr/sbin/sshd',
         'php-fpm' => '/usr/sbin/php-fpm',

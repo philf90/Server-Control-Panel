@@ -25166,6 +25166,462 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
+echo "== TimeStateTest: der Leser fuer timedatectl show =="
+#
+# Die Pruefkoerper stammen aus der Messrunde vom 6. September 2026
+# (docs/81 §2.3r), gefahren gegen echtes systemd 255 in einer eigenen
+# Namespace. Wiederholen laesst sich die Messung hier nicht -- der Laeufer hat
+# keinen Init --, und genau deshalb haelt sie ein Waechter mit gemessenen
+# Pruefkoerpern statt einer Messung.
+vorher_datei agent/src/TimeState.php
+python3 - <<'PY2'
+p = 'agent/src/TimeState.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $werte = self::pairs($result->lines());"
+neu = """        $zeilen = $result->lines();
+        $werte = self::pairs($zeilen);
+        $werte['CanNTP'] = explode('=', $zeilen[2] ?? '=', 2)[1];"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/TimeState.php "CanNTP kommt aus der dritten Zeile" &&
+pruefe "CanNTP kommt aus der dritten Zeile" \
+  TimeStateTest::test_the_reader_goes_by_key_and_not_by_position failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimeStateTest passed
+
+echo
+echo "== TimeStateTest: der Fehlerfall traegt einen geratenen Wert =="
+#
+# Ohne systemd als PID 1 ist stdout leer und die Auskunft steht auf stderr.
+# Ein Feld im Fehlerfall sieht aus wie ein gemessenes -- und zwar in die
+# gefaehrliche Richtung: NTP aus.
+vorher_datei agent/src/TimeState.php
+python3 - <<'PY2'
+p = 'agent/src/TimeState.php'
+s = open(p, encoding='utf-8').read()
+alt = "            return ['readable' => false, 'reason' => 'unreadable'];"
+neu = "            return ['readable' => false, 'reason' => 'unreadable', 'ntp' => false];"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/TimeState.php "der Fehlerfall traegt einen Wert" &&
+pruefe "der Fehlerfall traegt einen Wert" \
+  TimeStateTest::test_a_failed_call_is_a_state_and_not_a_value failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimeStateTest passed
+
+echo
+echo "== TimeStateTest: ein unbekannter Wert wird zu false =="
+#
+# Gemessen sind ausschliesslich yes und no. Stuende dort eines Tages true,
+# machte ein Leser mit === 'yes' daraus wortlos -ausgeschaltet- und meldete
+# einen laufenden Zeitdienst als nicht laufend.
+vorher_datei agent/src/TimeState.php
+python3 - <<'PY2'
+p = 'agent/src/TimeState.php'
+s = open(p, encoding='utf-8').read()
+alt = """        return match ($values[$key] ?? null) {
+            'yes' => true,
+            'no' => false,
+            default => null,
+        };"""
+neu = "        return ($values[$key] ?? null) === 'yes';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/TimeState.php "ein unbekannter Wert wird false" &&
+pruefe "ein unbekannter Wert wird false" \
+  TimeStateTest::test_an_unknown_value_is_not_false failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimeStateTest passed
+
+echo
+echo "== TimeStateTest: die Uhr wird mitgelesen =="
+#
+# Die Uhr des Servers ist die, unter der das Panel selbst laeuft; now() gibt
+# sie. Ein zweiter Weg zur selben Zahl waere die zweite Fassung derselben
+# Regel, und die zweite ist die, die veraltet.
+vorher_datei agent/src/TimeState.php
+python3 - <<'PY2'
+p = 'agent/src/TimeState.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return $zustand;"
+neu = """        $zustand['now'] = $werte['TimeUSec'] ?? '';
+
+        return $zustand;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/TimeState.php "TimeUSec wandert in die Antwort" &&
+pruefe "TimeUSec wandert in die Antwort" \
+  TimeStateTest::test_neither_clock_nor_zone_is_read failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimeStateTest passed
+
+echo
+echo "== TimeStateTest: CanNTP zusammengezogen =="
+#
+# Zwei Wahrheitswerte tragen vier Zustaende. Wer sie zusammenzieht, verliert
+# genau den Fall, der eine Meldung verdient: -kein Zeitdienst installiert- ist
+# etwas anderes als -ausgeschaltet-, und in beiden steht NTP auf no.
+vorher_datei agent/src/TimeState.php
+python3 - <<'PY2'
+p = 'agent/src/TimeState.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'CanNTP' => 'can_ntp',"
+neu = "        'NTP' => 'can_ntp',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/TimeState.php "CanNTP zusammengezogen" &&
+pruefe "CanNTP zusammengezogen" \
+  TimeStateTest::test_the_three_measured_service_states_are_three_answers failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimeStateTest passed
+
+echo
+echo "== TimeStateTest: ein Grund ausserhalb der geschlossenen Menge =="
+#
+# Die Menge ist geschlossen, weil das Panel sie kennen muss -- dieselbe Naht,
+# die DiagnoseSeamTest fuer A10 haelt. Laeuft sie auseinander, zeigt die Seite
+# fuer einen Grund, den sie nicht kennt, gar nichts.
+vorher_datei agent/src/TimeState.php
+python3 - <<'PY2'
+p = 'agent/src/TimeState.php'
+s = open(p, encoding='utf-8').read()
+alt = "                return ['readable' => false, 'reason' => 'incomplete'];"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace("'incomplete'", "'no flag'"), 1))
+PY2
+griff_datei agent/src/TimeState.php "ein Grund ausserhalb der Menge" &&
+pruefe "ein Grund ausserhalb der Menge" \
+  TimeStateTest::test_every_reason_it_speaks_is_in_the_closed_set failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimeStateTest passed
+
+echo
+echo "== TimeStateTest: die Operation ruft status statt show =="
+#
+# status ist fuer Menschen gesetzt und beantwortet dieselbe Frage in
+# Fliesstext. Der Leser meldete die Antwort dann stumm als incomplete -- also
+# einen Zustand, der wie ein Serverfehler aussieht.
+vorher_datei agent/src/Ops/SystemTime.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemTime.php'
+s = open(p, encoding='utf-8').read()
+alt = "run('timedatectl', ['show'], 10)"
+neu = "run('timedatectl', ['status'], 10)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/SystemTime.php "status statt show" &&
+pruefe "status statt show" \
+  TimeStateTest::test_the_operation_calls_show_and_nothing_else failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimeStateTest passed
+
+echo
+echo "== TimezoneFileTest: ein zweiter Aufrufer =="
+#
+# Eine zweite Stelle waere die zweite Fassung derselben Frage, und die zweite
+# ist die, die veraltet -- derselbe Grund, aus dem HostnameSourceTest seit dem
+# vierten Anlauf ueber Names wacht.
+vorher_datei agent/src/Ops/SystemInfo.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemInfo.php'
+s = open(p, encoding='utf-8').read()
+i = s.index('public function execute')
+j = s.index('{', i) + 1
+open(p, 'w', encoding='utf-8').write(
+    s[:j] + "\n        $context->runner->run('timedatectl', ['show'], 10);\n" + s[j:]
+)
+PY2
+griff_datei agent/src/Ops/SystemInfo.php "ein zweiter Aufrufer" &&
+pruefe "ein zweiter Aufrufer" \
+  TimezoneFileTest::test_exactly_one_place_calls_it_and_the_allowlist_knows_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
+
+echo
+echo "== TimezoneFileTest: die Positivliste kennt den Pfad nicht =="
+#
+# Der Aufruf steht da und der Pfad fehlt: Der Agent gaebe eine Meldung ueber
+# ein unbekanntes Programm, und die Seite saehe aus, als sei timedatectl
+# kaputt. Eine Naht, die man nicht haelt, reisst still.
+vorher_datei agent/src/Runner.php
+python3 - <<'PY2'
+p = 'agent/src/Runner.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'timedatectl' => '/usr/bin/timedatectl',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Runner.php "die Positivliste kennt den Pfad nicht" &&
+pruefe "die Positivliste kennt den Pfad nicht" \
+  TimezoneFileTest::test_exactly_one_place_calls_it_and_the_allowlist_knows_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
+
+echo
+echo "== TimezoneFileTest: jemand liest die falsche Datei =="
+#
+# /etc/timezone beantwortet dieselbe Frage und ist nicht die, der das System
+# folgt: timedatectl folgt dem Symlink /etc/localtime. Gemessen mit den beiden
+# auseinandergesetzt (docs/81 §2.3r M11).
+vorher_datei app/Support/Time/Clock.php
+python3 - <<'PY2'
+p = 'app/Support/Time/Clock.php'
+s = open(p, encoding='utf-8').read()
+i = s.index('class Clock')
+j = s.index('{', i) + 1
+open(p, 'w', encoding='utf-8').write(
+    s[:j] + "\n    public const FALSCHE_QUELLE = '/etc/timezone';\n" + s[j:]
+)
+PY2
+griff_datei app/Support/Time/Clock.php "jemand liest /etc/timezone" &&
+pruefe "jemand liest /etc/timezone" \
+  TimezoneFileTest::test_the_wrong_file_appears_nowhere failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
+
+echo
+echo "== TimezoneFileTest: die Zone reist durch den Agenten =="
+#
+# Der Befund vom 6. September 2026. timedatectl liefert Timezone mit, der Plan
+# sah es in der Antwort vor -- und gebaut waere es der zweite Leser derselben
+# Quelle gewesen: timedatectl folgt demselben Symlink wie cron. Zwei Seiten
+# desselben Panels haetten dann verschiedene Serverzonen nennen koennen.
+vorher_datei agent/src/TimeState.php
+python3 - <<'PY2'
+p = 'agent/src/TimeState.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $zustand = ['readable' => true];"
+neu = "        $zustand = ['readable' => true, 'zone' => $werte['Timezone'] ?? ''];"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/TimeState.php "der Agent liest die Zone" &&
+pruefe "der Agent liest die Zone" \
+  TimezoneFileTest::test_the_zone_does_not_travel_through_the_agent failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
+
+echo
+echo "== TimezoneFileTest: ein zweiter Beschaffer der Zone =="
+#
+# ServerTime formt und beschafft nicht. Holte es die Zone selbst, gaebe es zwei
+# Stellen, und die Zeile -jetzt auf dem Server- und die Zeile darunter koennten
+# aus zwei verschiedenen Augenblicken stammen.
+vorher_datei app/Support/Time/ServerTime.php
+python3 - <<'PY2'
+p = 'app/Support/Time/ServerTime.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $lesbar = ($answer['readable'] ?? false) === true;"
+neu = "        $lesbar = ($answer['readable'] ?? false) === true;\n        $zone = \\App\\Support\\Cron\\ServerZone::known();"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Time/ServerTime.php "ein zweiter Beschaffer der Zone" &&
+pruefe "ein zweiter Beschaffer der Zone" \
+  TimezoneFileTest::test_the_zone_does_not_travel_through_the_agent failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
+
+echo
+echo "== NtpVerdictTest: die Seite schreibt die Saetze selbst =="
+#
+# Eine zweite Fassung entstuende dort, wo jemand die Anzeige anfasst, ohne
+# ServerTime zu kennen -- und sie saehe zuerst richtig aus.
+vorher_datei resources/js/Pages/Settings/General.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/General.vue'
+s = open(p, encoding='utf-8').read()
+alt = "              <td class=\"right\">{{ props.time.service }}</td>"
+neu = "              <td class=\"right\">{{ props.time.service || 'kein Zeitdienst installiert' }}</td>"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Settings/General.vue "die Seite schreibt den Satz selbst" &&
+pruefe "die Seite schreibt den Satz selbst" \
+  NtpVerdictTest::test_the_page_does_not_build_the_sentences_itself failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NtpVerdictTest passed
+
+echo
+echo "== NtpVerdictTest: die Hardware-Uhr wird gelesen und nicht gezeigt =="
+#
+# Ein Feld, das der Agent liest und keine Seite zeigt, ist von aussen nicht von
+# einem zu unterscheiden, das es nicht gibt.
+vorher_datei app/Support/Time/ServerTime.php
+python3 - <<'PY2'
+p = 'app/Support/Time/ServerTime.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'clock' => self::clock($lesbar ? ($answer['local_rtc'] ?? null) : null),"
+neu = "            'clock' => self::UNKNOWN,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Time/ServerTime.php "die Hardware-Uhr wird nicht gezeigt" &&
+pruefe "die Hardware-Uhr wird nicht gezeigt" \
+  NtpVerdictTest::test_the_hardware_clock_is_shown failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NtpVerdictTest passed
+
+echo
+echo "== NtpVerdictTest: beide Zeitzeilen zeigen dieselbe Zahl =="
+#
+# Die Bruecke ist der Grund fuer den ganzen Bereich: Die Zeit des Servers und
+# die Anzeigezeit werden sonst verwechselt.
+vorher_datei app/Support/Time/ServerTime.php
+python3 - <<'PY2'
+p = 'app/Support/Time/ServerTime.php'
+s = open(p, encoding='utf-8').read()
+alt = "            return $at->copy()->setTimezone($zone)->format('Y-m-d H:i');"
+neu = "            return Clock::display($at) ?? self::UNKNOWN;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Time/ServerTime.php "die Serverzeit rechnet in der Anzeigezone" &&
+pruefe "die Serverzeit rechnet in der Anzeigezone" \
+  NtpVerdictTest::test_both_time_rows_show_the_same_moment failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NtpVerdictTest passed
+
+echo
+echo "== ZoneLabelTest: die Beschriftung haengt an der Anzeigezone =="
+#
+# label() und labelAt() nageln beide auf Clock::zone(). Wer sie hier mitnimmt,
+# hat die dritte Fassung derselben Falle gebaut.
+vorher_datei app/Support/Time/Clock.php
+python3 - <<'PY2'
+p = 'app/Support/Time/Clock.php'
+s = open(p, encoding='utf-8').read()
+alt = "            return self::describe(CarbonImmutable::parse($at)->setTimezone($zone));"
+neu = "            return self::describe(CarbonImmutable::parse($at)->setTimezone(self::zone()));"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Time/Clock.php "describeZone fragt die Anzeigezone" &&
+pruefe "describeZone fragt die Anzeigezone" \
+  ZoneLabelTest::test_the_display_zone_does_not_leak_in failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ZoneLabelTest passed
+
+echo
+echo "== ZoneLabelTest: der Zeitpunkt ist keine Bequemlichkeit =="
+#
+# Berlin heisst im Januar anders als im Juli. Eine Methode, die now() einbaut,
+# ist die dritte Fassung derselben Falle (docs/102 §3b).
+vorher_datei app/Support/Time/Clock.php
+python3 - <<'PY2'
+p = 'app/Support/Time/Clock.php'
+s = open(p, encoding='utf-8').read()
+alt = "            return self::describe(CarbonImmutable::parse($at)->setTimezone($zone));"
+neu = "            return self::describe(CarbonImmutable::now()->setTimezone($zone));"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Time/Clock.php "describeZone baut now() ein" &&
+pruefe "describeZone baut now() ein" \
+  ZoneLabelTest::test_the_moment_is_an_argument failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ZoneLabelTest passed
+
+echo
+echo "== ZoneLabelTest: eine zweite Fassung der Formel =="
+#
+# describe() ist die eine Stelle, durch die alle drei Wege gehen. Stuende die
+# Formel zweimal da, liefe die zweite irgendwann auseinander.
+vorher_datei app/Support/Time/Clock.php
+python3 - <<'PY2'
+p = 'app/Support/Time/Clock.php'
+s = open(p, encoding='utf-8').read()
+alt = "            return self::describe(CarbonImmutable::parse($at)->setTimezone($zone));"
+neu = """            $x = CarbonImmutable::parse($at)->setTimezone($zone);
+
+            return $x->format('T') === 'UTC' ? 'UTC' : sprintf('%s (UTC%s)', $x->format('T'), $x->format('P'));"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Time/Clock.php "die Formel steht zweimal da" &&
+pruefe "die Formel steht zweimal da" \
+  ZoneLabelTest::test_all_three_ways_go_through_the_one_formula failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ZoneLabelTest passed
+
+echo
+echo "== ZoneLabelTest: isValid statt der Umrechnung =="
+#
+# Etc/UTC -- der Wert, den timedatectl auf einem frischen Server liefert --
+# steht nicht in DateTimeZone::listIdentifiers(). isValid() ist der Pruefer
+# fuers Formular, und dort gehoert Etc/UTC zu Recht nicht hinein.
+vorher_datei app/Support/Time/Clock.php
+python3 - <<'PY2'
+p = 'app/Support/Time/Clock.php'
+s = open(p, encoding='utf-8').read()
+alt = """        try {
+            return self::describe(CarbonImmutable::parse($at)->setTimezone($zone));
+        } catch (Throwable) {
+            return null;
+        }"""
+neu = """        if (! self::isValid($zone)) {
+            return null;
+        }
+
+        return self::describe(CarbonImmutable::parse($at)->setTimezone($zone));"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Time/Clock.php "isValid statt der Umrechnung" &&
+pruefe "isValid statt der Umrechnung" \
+  ZoneLabelTest::test_the_label_matches_the_measured_table failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ZoneLabelTest passed
+
+echo
+echo "== NtpVerdictTest: die beiden Zeitzeilen in zwei Formen =="
+#
+# Befund der Bilderrunde vom 6. September 2026. Der erste Wurf zeigte oben H:i
+# und unten H:i:s -- die Zeile darueber war die Antwort, die Zeile darunter die
+# Frage, und der Unterschied, den man zuerst sieht, waren die Sekunden.
+vorher_datei app/Support/Time/ServerTime.php
+python3 - <<'PY2'
+p = 'app/Support/Time/ServerTime.php'
+s = open(p, encoding='utf-8').read()
+alt = "                Clock::minute($at->copy()->utc()->format('Y-m-d H:i:s')) ?? '',"
+neu = "                Clock::display($at) ?? '',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Time/ServerTime.php "die Anzeigezeit traegt Sekunden" &&
+pruefe "die Anzeigezeit traegt Sekunden" \
+  NtpVerdictTest::test_both_time_rows_show_the_same_moment failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NtpVerdictTest passed
+
+echo
+echo "== NtpVerdictTest: die Beschriftung gilt fuer jetzt statt fuer den Zeitpunkt =="
+#
+# Berlin heisst im Januar anders als im Juli. Eine Zonenangabe, die fuer -jetzt-
+# gilt, gehoert nicht neben einen Zeitpunkt, der woanders liegt (docs/102 §3b).
+vorher_datei app/Support/Time/ServerTime.php
+python3 - <<'PY2'
+p = 'app/Support/Time/ServerTime.php'
+s = open(p, encoding='utf-8').read()
+alt = "                Clock::labelAt($at->copy()->utc()->format('Y-m-d H:i:s')) ?? Clock::label(),"
+neu = "                Clock::label(),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Time/ServerTime.php "die Beschriftung gilt fuer jetzt" &&
+pruefe "die Beschriftung gilt fuer jetzt" \
+  NtpVerdictTest::test_the_label_belongs_to_the_moment_shown failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NtpVerdictTest passed
+
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

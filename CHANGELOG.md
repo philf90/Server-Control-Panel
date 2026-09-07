@@ -26070,3 +26070,131 @@ keiner am Prüfling; sie stehen in `docs/102 §9` und in `CLAUDE.md`.
   Gemessen an der echten Seite: drei Knöpfe je Zeile mit 10 px Abstand, kein
   Überlauf bei 390 und 1440 px, und `14:00 UTC` kommt in Berlin als `16:00`
   zurück.
+
+### Die Bearbeiten-Funktion ist auf dem Server nachgemessen
+
+- **Am 6. September 2026 auf `cloudsrv24` gegen `0.7.3-rc.23`**, also gegen die
+  Fassung, die Befund 4 aus `docs/105` behebt. Die Einzelheiten stehen dort in
+  §13; `docs/105 §12` sagte bis dahin „hat keinen Server gesehen", und das gilt
+  nicht mehr.
+
+  > **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+  > jemand ihn behoben hat.**
+
+- **Der Rückweg der Zone trägt, mit Versatz.** Eingetippt 16:00 in CEST,
+  abgelegt **14:00:00 UTC**, im Formular wieder 16:00. Die abgelegte Zeile ist
+  dabei der Kern: Stünde dort 16:00 UTC, zeigte das Formular ebenfalls 16:00.
+
+- **Die Protokollzeile hält, was die Reihenfolge zusagt.** Die lange misst
+  **212 Zeichen** — 200 plus den sichtbaren Zusatz —, und `id: 17` steht auch
+  darin ganz vorn.
+
+- **Und der erste Griff danach war keiner.** Er las fest `visible_from`, während
+  der Wert in `visible_until` stand; heraus kam eine leere Ausgabe, die wie ein
+  fehlender Wert aussah.
+
+  > **Eine Messung, die nur ein Feld liest, misst nicht den Gegenstand, sondern
+  > die Erwartung, in welchem Feld er steht.**
+
+- **Als Beobachtung festgehalten:** Die Spalte „Einzelheiten" auf `/audit` ist
+  seitdem nur durch Scrollen vollständig lesbar — ein `announcement.*`-Eintrag
+  trug vorher rund 25 Zeichen, jetzt bis zu 200. Vom Betreiber so belassen; die
+  Alternative kostet die Auskunft, derentwegen der Wortlaut im Protokoll steht.
+
+### A11 — die Zeit des Servers steht neben der Anzeigezeit
+
+- **Ein Bereich auf `/settings/general` und keine neue Seite.** Die Messrunde
+  (`docs/81 §2.3r`) hat den Umfang halbiert, bevor eine Zeile Plan entstand:
+  Die Seite gibt es seit `docs/40`, sie trägt schon die Anzeigezone, und
+  `docs/80` verlangt die Serverzone genau *dort* — „weil die beiden sonst
+  verwechselt werden". Der Plan ist `docs/106`.
+
+  > **Ein Merkmal, dessen Ort schon steht, ist kleiner, als seine Zeile im Plan
+  > vermuten lässt.**
+
+- **Die letzte Zeile ist der Grund für den ganzen Bereich.** Sie zeigt denselben
+  Augenblick in der Anzeigezeit, unmittelbar unter „Jetzt auf dem Server".
+
+  > **Zwei Angaben, die verwechselt werden können, werden nicht durch eine
+  > Erklärung unterschieden, sondern dadurch, dass man sie nebeneinander
+  > zeigt.**
+
+- **Der Zeitabgleich hat vier Sätze und nicht zwei.** Gemessen gegen echtes
+  systemd 255 tragen `CanNTP` und `NTP` zusammen drei Zustände — „kein
+  Zeitdienst installiert", „ausgeschaltet", „eingeschaltet" —, und „nicht
+  feststellbar" ist der vierte. Das eine behebt man mit `apt-get install`, das
+  andere mit einem Schalter.
+
+  > **Zwei Wahrheitswerte, die vier Zustände tragen, verlieren beim
+  > Zusammenziehen genau den Fall, der eine Meldung verdient.**
+
+- **Die Zone kommt nicht vom Agenten, und das ist der Befund dieser Stufe.**
+  `docs/106 §5` sah `timezone` in der Antwort von `system.time` vor. Gebaut wäre
+  das der **zweite Leser derselben Quelle** gewesen: `App\Support\Cron\ServerZone`
+  beantwortet die Frage seit P6, indem es den Symlink liest, dem cron folgt —
+  und `timedatectl` folgt demselben Symlink. Cronseite und Einstellungsseite
+  hätten verschiedene Serverzonen nennen können.
+
+  Gefangen hat es `ServerZoneSourceTest`, den es seit P6 genau dafür gibt, beim
+  ersten vollen Testlauf — nicht das Nachdenken.
+
+  > **Eine Messung, die nach dem Werkzeug sucht, findet die Frage nicht — sie
+  > war schon beantwortet, nur mit einem anderen Werkzeug.**
+
+  Die Messrunde hatte `timedatectl` in `agent/` und `app/` gesucht und nichts
+  gefunden. Nach der *Frage* hat sie nicht gesucht.
+
+- **`ServerZone::known()` ist dazugekommen — derselbe Leser, zwei
+  Entscheidungen.** `current()` braucht eine Zone zum Rechnen und nimmt im
+  Zweifel UTC; die Anzeige muss „nicht feststellbar" sagen können. Ein
+  gezeigtes UTC, das in Wahrheit „ich weiss es nicht" heisst, ist genau die
+  Auskunft, gegen die dieser Bereich gebaut ist. Das ist die Bauart von `Apt`
+  aus A1 Schritt 1: Der Leser entscheidet nichts, die Aufrufer entscheiden
+  verschieden.
+
+- **`Etc/UTC` steht nicht in `DateTimeZone::listIdentifiers()`.** Der erste Wurf
+  von `Clock::describeZone()` prüfte mit `Clock::isValid()` — und genau der
+  Wert, den `timedatectl` auf einem frischen Server liefert, wäre damit
+  unbeschriftet geblieben. Die Vorgabegruppe `ALL` führt 419 Namen ohne `Etc/*`;
+  erst `ALL_WITH_BC` hat die 35 dazu.
+
+  > **Ein Prüfer, der für ein Formular gebaut ist, ist für einen Wert vom Server
+  > der falsche — er kennt nur die Auswahl, die er anbietet.**
+
+- **`local_rtc` stand in der Antwort und in keiner Zeile.** `docs/106 §5` zählte
+  es auf, `§4` zeigte es nicht. Die Tabelle hat jetzt „Hardware-Uhr", denn
+  `LocalRTC=yes` ist eine Fehleinstellung mit Folgen: Die Uhr springt bei jedem
+  Zonenwechsel.
+
+  > **Eine Aufzählung dessen, was ein Merkmal beantwortet, und eine Tabelle
+  > dessen, was es zeigt, laufen auseinander — und die Lücke sieht in keiner von
+  > beiden nach einer aus.**
+
+- **Und die Bilderrunde hat einen Befund gebracht, den kein Test sah.** Die
+  beiden Zeitzeilen standen in zwei Formen da — oben `H:i`, unten `H:i:s`. Die
+  Zahl war beide Male richtig, `schiebt` war 0, und `assertStringStartsWith`
+  passt auf beide.
+
+  > **Zwei Angaben, die man nebeneinander stellt, damit man sie vergleicht,
+  > brauchen dieselbe Form — sonst vergleicht der Leser die Form.**
+
+  Die Beschriftung kommt seitdem aus `labelAt()` und nicht aus `label()`:
+  Berlin heisst im Januar anders als im Juli. Gemessen wird das an einem festen
+  „jetzt" — sonst wäre der Fall ein halbes Jahr grün und ein halbes Jahr rot.
+
+- **Vier Wächter, zwanzig Brüche, alle gefahren.** `TimeStateTest` (der Leser
+  geht nach Schlüssel und nicht nach Position; `rc != 0` ist ein Zustand und
+  kein Wert; ein unbekannter Wert wird nicht `false`; weder Uhr noch Zone stehen
+  in der Antwort), `NtpVerdictTest` (vier Zustände, vier Sätze — durch
+  `TimeState::read()` und nicht daran vorbei), `ZoneLabelTest` (die gemessene
+  Tabelle aus M14, Januar **und** September) und `TimezoneFileTest`
+  (`/etc/timezone` kommt nirgends vor, `timedatectl` hat genau einen Aufrufer,
+  die Positivliste kennt den Pfad, und die Zone reist nicht durch den Agenten).
+
+- **Die Bilderrunde ist gegen die echte Seite gefahren**, mit dem Agenten in
+  einer eigenen Mount-Namespace und einer `timedatectl`-Attrappe, die die
+  gemessene Ausgabe druckt: vier Lagen, `dokument = 0`, Gegenprobe 200/200,
+  `schiebt = 0`. Der Prüfstand ist abgeräumt und das ist belegt (`docs/106 §8b`).
+
+- **Was A11 nicht wird:** kein `set-timezone`, kein Ändern des Rechnernamens,
+  keine NTP-Server-Verwaltung, kein Einschalten von NTP. A11 liest.

@@ -21,6 +21,22 @@ const props = defineProps<{
   zones: string[]
   example: { utc: string; display: string | null }
   addresses: { derived: string[]; override: string[]; effective: string[] }
+
+  /*
+   * Die Zeit des Servers als fertige Sätze (A11). Die Zuordnung Zustand → Satz
+   * steht in `App\Support\Time\ServerTime` — hier stünde sie ein zweites Mal,
+   * und die zweite Fassung ist die, die veraltet.
+   */
+  time: {
+    zone: string
+    service: string
+    synchronized: string
+    clock: string
+    now: string
+    display: string
+  }
+
+  hostname: string
 }>()
 
 const form = useForm({
@@ -90,6 +106,55 @@ function submit(): void {
       </Section>
 
       <!--
+        **Die Zeit des Servers steht neben der Anzeigezeit** (A11, `docs/106`),
+        und genau deshalb steht sie hier und nicht auf einer eigenen Seite:
+        `docs/80` verlangt sie *neben* der Anzeigezone, „weil die beiden sonst
+        verwechselt werden".
+
+        Der Bereich ist reines Lesen und liegt trotzdem im Formular — das ist
+        gültiges Markup und hält die Reihenfolge, auf die es ankommt. Er nimmt
+        nichts entgegen, also hat er auch keinen Knopf; die eine Hauptsache des
+        Formulars steht unten.
+      -->
+      <Section title="Zeit des Servers">
+        <p class="hint">
+          Diese Angaben kommen vom Server und lassen sich hier nicht ändern.
+          <strong>Die Zeitzone des Servers ist etwas anderes als die Anzeigezeit
+          darüber</strong> — die letzte Zeile zeigt denselben Augenblick in
+          beiden.
+        </p>
+
+        <table class="pairs">
+          <tbody>
+            <tr>
+              <td>Zeitzone des Servers</td>
+              <td class="right ident">{{ props.time.zone }}</td>
+            </tr>
+            <tr>
+              <td>Zeitabgleich</td>
+              <td class="right">{{ props.time.service }}</td>
+            </tr>
+            <tr>
+              <td>Uhr abgeglichen</td>
+              <td class="right">{{ props.time.synchronized }}</td>
+            </tr>
+            <tr>
+              <td>Hardware-Uhr</td>
+              <td class="right">{{ props.time.clock }}</td>
+            </tr>
+            <tr>
+              <td>Jetzt auf dem Server</td>
+              <td class="right ident">{{ props.time.now }}</td>
+            </tr>
+            <tr>
+              <td>Dasselbe in der Anzeigezeit</td>
+              <td class="right ident">{{ props.time.display }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </Section>
+
+      <!--
         **Der Ort ist gewählt und nicht geraten.** „Welche Adressen sollen meine
         Domains tragen?" ist eine Frage über den Server und nicht über einen
         Dienst — „DNS-Zugang" daneben führt Zugangsdaten für Bestellungen über
@@ -107,6 +172,17 @@ function submit(): void {
           nur, wo die Ableitung nicht geht: hinter NAT, einer Floating-IP oder
           einem Lastverteiler ist die Adresse, unter der ein Server von aussen
           erreichbar ist, von innen nicht zu erfahren.
+        </p>
+
+        <!--
+          **Der Bereich sagt selbst, warum der Name kein Feld ist** (`docs/80`).
+          Ein Hinweis, der eine fehlende Handlung erklärt, ist billiger als der
+          Weg, auf dem jemand sie sucht.
+        -->
+        <p class="hint">
+          Der <strong>Rechnername</strong> lässt sich hier nicht ändern: Er steckt
+          im Zertifikat des Panels, in den vhosts und im DNS-Abgleich, und ein
+          Wechsel nimmt alle drei mit.
         </p>
 
         <label class="field">
@@ -128,6 +204,19 @@ function submit(): void {
         -->
         <table class="pairs">
           <tbody>
+            <!--
+              **Der Rechnername steht hier und nicht bei der Zeit** (A11): Der
+              Bereich beantwortet, wie dieser Server heisst und wo er
+              erreichbar ist.
+
+              **Ändern ist kein Knopf**, und der Hinweis darunter sagt warum —
+              der Name steckt in Zertifikaten, vhosts und dem DNS-Abgleich
+              (`docs/80`).
+            -->
+            <tr>
+              <td>Rechnername</td>
+              <td class="right ident">{{ props.hostname }}</td>
+            </tr>
             <tr>
               <td>Abgeleitet</td>
               <td class="right ident"><Idents :values="props.addresses.derived" /></td>

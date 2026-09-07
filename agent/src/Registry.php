@@ -103,6 +103,7 @@ use SrvPanel\Agent\Ops\SystemReboot;
 use SrvPanel\Agent\Ops\SystemRunOutcome;
 use SrvPanel\Agent\Ops\SystemSourcesList;
 use SrvPanel\Agent\Ops\SystemSourcesToggle;
+use SrvPanel\Agent\Ops\SystemTime;
 use SrvPanel\Agent\Ops\SystemUnitsList;
 use SrvPanel\Agent\Ops\WebIsolationProbe;
 use SrvPanel\Agent\Ops\WebLogrotate;
@@ -206,6 +207,10 @@ final class Registry
         $this->register(new SystemUnitsList);
         $this->register(new SystemDiagnose);
         $this->register(new SystemSourcesToggle);
+
+        // P7b A11 — Zeitzone und Zeitabgleich des Servers. Liest `timedatectl`
+        // und ändert nichts.
+        $this->register(new SystemTime);
 
         $this->register(new WebLogrotate);
         $this->register(new WebIsolationProbe);

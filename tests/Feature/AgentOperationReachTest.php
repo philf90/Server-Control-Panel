@@ -79,6 +79,14 @@ final class AgentOperationReachTest extends TestCase
         'system.diagnose' => 'Liest den Bestand und schreibt nichts. Der Befund ist das Ergebnis, nicht ein Zustand des Agenten.',
 
         /*
+         * **A11: der Zeitabgleich des Servers.** Sie liest `timedatectl show`
+         * und schreibt nichts; ein Lebenslauf hätte nichts zu verwalten. Auch
+         * kein Vorgang: Der Griff kostet 10–12 ms (`docs/81 §2.3r` M12), und
+         * eine Anzeige „wartet · läuft · fertig" dafür wäre eine über nichts.
+         */
+        'system.time' => 'Liest den Zustand des Zeitabgleichs. Kein Bestand im Panel, und der Aufruf steht in GeneralSettingsController::zeit().',
+
+        /*
          * **A12: der Wartungsmodus.** Kein Lebenslauf, und kein Vorgang: Die
          * Operation legt eine Datei an oder entfernt sie, nginx liest sie bei
          * der nächsten Anfrage, und der Agent sieht unmittelbar nach. Ein

@@ -136,6 +136,49 @@ final class Clock
     }
 
     /**
+     * Dieselbe Angabe für eine **fremde** Zone.
+     *
+     * **Für die Zone des Servers** (A11, `docs/106 §6`). Sie ist etwas anderes
+     * als die Anzeigezone: Das Panel zeigt Zeiten in der eingestellten Zone,
+     * der Server läuft oft in `Etc/UTC`, und `docs/80` verlangt beide
+     * nebeneinander, „weil die beiden sonst verwechselt werden".
+     *
+     * Beide Wege oben nageln auf {@see self::zone()}; ohne diesen dritten
+     * stünde die Formel an der Aufrufstelle ein zweites Mal, und die zweite ist
+     * die, die veraltet.
+     *
+     * **Der Zeitpunkt ist ein Argument und keine Bequemlichkeit.** Berlin heisst
+     * im Januar anders als im Juli — eine Methode, die `now()` einbaut, ist die
+     * dritte Fassung derselben Falle (`docs/102 §3b`).
+     *
+     * `null`, wenn die Zone unbekannt ist: Sie kommt vom Server, und ein Name,
+     * den PHP nicht kennt, ist keine Beschriftung wert.
+     *
+     * **Und geprüft wird nicht mit {@see self::isValid()}, obwohl es danebensteht.**
+     * Gemessen am 6. September 2026: `Etc/UTC` — der Wert, den `timedatectl`
+     * auf einem frischen Server liefert (`docs/81 §2.3r` M6) — steht **nicht**
+     * in `DateTimeZone::listIdentifiers()`. Die Vorgabegruppe `ALL` führt 419
+     * Namen ohne `Etc/*`; erst `ALL_WITH_BC` hat die 35 dazu. `isValid()` ist
+     * der Prüfer **fürs Formular**, und dort gehört `Etc/UTC` zu Recht nicht
+     * hinein — nur wählt niemand die Zone des Servers aus dieser Liste aus.
+     *
+     * > **Ein Prüfer, der für ein Formular gebaut ist, ist für einen Wert vom
+     * > Server der falsche — er kennt nur die Auswahl, die er anbietet.**
+     *
+     * Gefragt wird deshalb dasselbe wie in {@see self::labelAt()}: ob die
+     * Umrechnung gelingt. Gemessen wirft `setTimezone()` für einen unbekannten
+     * Namen und nimmt `Etc/UTC` an.
+     */
+    public static function describeZone(string $zone, CarbonInterface $at): ?string
+    {
+        try {
+            return self::describe(CarbonImmutable::parse($at)->setTimezone($zone));
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
      * Die eine Fassung der Beschriftung — beide Wege gehen hier durch.
      *
      * Stünde sie zweimal da, liefe die zweite irgendwann auseinander; das ist

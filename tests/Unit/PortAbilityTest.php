@@ -35,7 +35,15 @@ final class PortAbilityTest extends TestCase
 
     private const SEITE = __DIR__.'/../../resources/js/Pages/Services/Index.vue';
 
-    /** Ein Zustand, wie ihn `system.ports` liefert. */
+    /**
+     * Ein Zustand, wie ihn `system.ports` liefert.
+     *
+     * @return array{
+     *     readable: bool,
+     *     privileged: bool,
+     *     listeners: list<array{address: string, port: int, family: string, scope: string, process: ?string, pid: ?int}>
+     * }
+     */
     private static function zustand(): array
     {
         return [

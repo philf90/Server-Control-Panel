@@ -3623,6 +3623,21 @@ Testen berücksichtigen:
     > **Ein Werkzeug, das man über die gewohnten Pfade fährt, prüft die
     > Gewohnheit und nicht die Änderung.**
 
+    **Und die Liste wird im Augenblick des Berichtens geholt, nicht im
+    Augenblick des Laufs.** Am 7. September 2026 kam PR #223 mit genau einer
+    PHPStan-Meldung zurück — einer fehlenden Typangabe in einem Wächter, den es
+    beim Lauf noch gar nicht gab. Der Lauf war sauber, die Pfade waren richtig,
+    und danach sind zwei Dateien dazugekommen. Berichtet wurde trotzdem
+    „PHPStan über die geänderten Dateien leer".
+
+    > **Ein Werkzeug, das man vor der letzten Änderung fährt, hat sie nicht
+    > geprüft — und sein Ergebnis altert stumm.**
+
+    Der Griff dagegen kostet nichts: die Dateiliste unmittelbar vorher aus
+    `git diff --name-only origin/main...HEAD` holen und **mit der Projektdatei**
+    fahren (`-c phpstan.neon`), nicht mit der Wegwerfdatei — sonst prüft man
+    zusätzlich eine andere Konfiguration als die CI.
+
     **Und die geänderten Dateien allein reichen nicht — die Schnittstellen,
     die sie umsetzen, gehören dazu.** Am 22. August meldete ein solcher Lauf
     dreizehnmal `argument.type`: „`ScriptedMeasurement` given, `Measurement`

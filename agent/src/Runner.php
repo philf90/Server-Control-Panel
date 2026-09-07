@@ -49,6 +49,32 @@ final class Runner
          * Leser derselben Quelle wäre der, der veraltet.
          */
         'timedatectl' => '/usr/bin/timedatectl',
+
+        /*
+         * A3, erster Wurf (`docs/109`). Vier Programme für zwei Fragen: was
+         * lauscht, und was steht im Regelwerk.
+         *
+         * **`iptables` steht hier nicht, und das ist der Punkt.**
+         * `/usr/sbin/iptables` ist ein alternatives-Symlink (gemessen,
+         * `docs/81 §2.3s` M7) — die Antwort hinge daran, worauf er gerade
+         * zeigt. Gefragt werden die Bauarten mit ihrem eigenen Namen; nur so
+         * ist eine leere Antwort von der einen von einer vollen der anderen zu
+         * unterscheiden (M10).
+         *
+         * **`ufw` und `firewall-cmd` fehlen auf den meisten Servern**, und das
+         * ist kein Fehler: `run()` wirft dafür `NOT_FOUND`, und `SystemPorts`
+         * macht daraus ein `null`.
+         *
+         * Die Pfade sind auf Ubuntu 24.04 gemessen. Ein Pfad, der auf einer
+         * anderen Plattform woanders liegt, sähe hier aus wie „nicht
+         * installiert" — deshalb prüft sie der Abnahmelauf auf dem Server
+         * (`docs/109 §7`) und nicht dieser Kommentar.
+         */
+        'ss' => '/usr/bin/ss',
+        'nft' => '/usr/sbin/nft',
+        'iptables-legacy' => '/usr/sbin/iptables-legacy',
+        'ufw' => '/usr/sbin/ufw',
+        'firewall-cmd' => '/usr/bin/firewall-cmd',
         'nginx' => '/usr/sbin/nginx',
         'sshd' => '/usr/sbin/sshd',
         'php-fpm' => '/usr/sbin/php-fpm',

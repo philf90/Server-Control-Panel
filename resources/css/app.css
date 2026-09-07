@@ -3116,6 +3116,24 @@ tr:has(td.multiline) > td {
 }
 
 /*
+ * **Und beim nächsten Mal steht die Tabelle unter einem Hinweis.**
+ *
+ * Auf der Diensteseite erklärt ein `.hint`, was der Bereich „Ports und
+ * Regelwerk" **nicht** sagen kann — dass dieser Server über den Weg von aussen
+ * nichts weiss (A3, `docs/109 §3.2`). Darunter folgt unmittelbar der
+ * Rollbehälter mit den Lauschern, und die beiden klebten aneinander.
+ *
+ * Dieselbe Fuge, ein zehnter Name — und gemeldet hat es wieder `BlockSpacingTest`
+ * und nicht das Auge.
+ *
+ * > **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit
+ * > der nächsten Ergänzung.**
+ */
+.hint + .scrolls {
+  margin-top: var(--block-gap);
+}
+
+/*
  * **Der Absatz ohne Klasse.** Auf der Cronseite steht „Cronjobs laufen als
  * p1139 …" als schlichtes `<p>`, und darunter klebte die Meldung über die
  * Zeitzone (`docs/64`, Befund 4). Ein Absatz hat durch Tailwinds Reset gar

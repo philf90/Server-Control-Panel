@@ -135,7 +135,7 @@ Stand hier. Die Spalte **Bewertung** ist meine, nicht die der Hersteller.
 | Wartungsmodus | ja | — | nein | — | **Lücke A12** |
 | API mit Tokens | ja | WHM API | nein | P9 | geplant, richtig eingeordnet |
 | Migration von Fremdpanels | Migrator | Transfer Tool | nein | post-1.0 | richtig eingeordnet |
-| IP-Adressen verwalten | ja | IP Functions | nein | — | **Lücke A8**, klein |
+| IP-Adressen verwalten | ja | IP Functions | **ja** (seit 22. August 2026) | — | ~~Lücke A8~~ — gebaut, siehe §A8 |
 
 ### 3.4 Hosting-Funktionen (zur Einordnung, nicht Gegenstand der Frage)
 
@@ -398,7 +398,7 @@ testbar — und niemand wird geweckt. Das ist heute die grösste Lücke zwischen
 
 ---
 
-### A8 — IP-Adressen des Servers
+### A8 — IP-Adressen des Servers · **gebaut am 22. August 2026**
 
 **Was.** Anzeigen, welche Adressen der Server hat, welche das Panel als
 Sollzustand für den DNS-Abgleich benutzt und welche die Standardadresse für neue
@@ -408,7 +408,31 @@ Domains ist.
 Abgleich „zeigt woandershin" meldet, ist die erste Frage: gegen **was** hat er
 verglichen?
 
-**Aufwand.** 2–3 Tage. P7 ist abgenommen; A8 steht damit für sich.
+**Nachgetragen am 7. September 2026: Es ist gebaut, und zwar seit dem
+22. August.** Der Bereich **„Adressen dieses Servers"** auf `/settings/general`
+beantwortet alle drei Teile:
+
+| verlangt | steht als |
+|---|---|
+| welche Adressen der Server hat | **Abgeleitet** — `ServerAddresses::routable(Names::addresses())` |
+| welche das Panel als Sollzustand nimmt | **Verglichen wird gegen** — `ServerAddresses::effective()` |
+| welche die Standardadresse für neue Domains ist | **dieselbe** — `ServerAddresses` ist im Kopf wörtlich „Die Adressen, auf die eine Kundendomain zeigen soll" |
+
+Der dritte Teil ist damit kein eigener Wert, sondern derselbe unter einem
+zweiten Namen. Dass hier drei Punkte standen, wo es zwei Grössen gibt, ist der
+Grund, aus dem die Zeile so lange als offen gelesen wurde.
+
+**Gebaut wurde es nicht als A8**, sondern als Nachlauf zu Befund 2 der
+Zwischenabnahme (`docs/74`): `Settings::saveDnsAddresses()` gab es seit P7
+Schritt 4, und **nichts hat es gerufen** — die Domainseite wollte sogar warnen,
+wenn eingetragene und abgeleitete Adressen auseinandergehen, und sie konnten nie
+auseinandergehen. Aus der Behebung fiel die Anzeige beider Listen heraus, und
+niemand hat sie hierher zurückgetragen.
+
+> **Ein Merkmal, das als Nebenwirkung einer Behebung entsteht, trägt den Namen
+> nicht, unter dem es geplant war — und die Planzeile bleibt offen stehen.**
+
+**Aufwand.** ~~2–3 Tage~~ — entfällt.
 
 ---
 
@@ -577,7 +601,8 @@ ohne ein beschriebenes Sicherungsformat zweimal gebaut wird.
 | 7 | **A3** Firewall | 2 Wochen | braucht eine eigene Messrunde |
 | 8 | **A4** Anmeldeschutz | 1 Woche | nach A3, gleiche Ecke |
 
-Nebenher, je 2–3 Tage: **A11**, **A6**, **A8**, **A12**, **A13**.
+Nebenher, je 2–3 Tage: **A11**, **A6**, ~~**A8**~~ (am 22. August 2026
+gebaut, siehe §A8), **A12**, **A13**.
 
 **Summe: rund zehn Wochen.**
 

@@ -26393,3 +26393,72 @@ womit es nach A11 weitergeht.
   nach mehr offener Arbeit aus, als da ist.
 
 **In P7b bleiben damit A6 und A3s erster Wurf.**
+
+### A3, erster Wurf — welche Ports lauschen und welches Regelwerk läuft
+
+Gebaut am 7. September 2026, **nach** der Messrunde (`docs/81 §2.3s`). Der Plan
+ist `docs/109`, der Abnahmelauf `docs/110`; gefahren ist er noch nicht. Der Wurf
+**zeigt an und schreibt nicht** — jede Änderung am Regelwerk ist der zweite Wurf
+und steht in P9b.
+
+**Warum es ihn gibt:** Seit P5b öffnet dieses Panel auf Wunsch 3306 und 5432 und
+schreibt daneben, die Firewall sei nicht seine Sache.
+
+- **Zwei Messungen tragen den Entwurf, und beide sind Verbote statt Merkmale.**
+
+  **M10:** Eine Regel über `iptables-legacy` ist für `nft list ruleset`
+  unsichtbar — `rc=0`, stdout 0 Bytes, stderr 0 Bytes, also zeichengleich mit
+  „es gibt keine Regeln". Ein Server mit vollständiger Legacy-Firewall sähe für
+  einen Leser, der nur `nft` fragt, aus wie einer ohne jede.
+
+  > **Ein leeres Regelwerk und ein Regelwerk, das man mit dem falschen Werkzeug
+  > abfragt, sehen gleich aus — und beide sagen `rc=0`.**
+
+  Die Schwester des Fundes aus A1 Schritt 2 (`flock(2)` gegen `fcntl`). Der
+  Agent fragt deshalb beide Familien, und die Seite sagt es ausdrücklich, wenn
+  die Regeln in der alten Bauart liegen.
+
+  **M20:** Der Blick von innen ist Feld für Feld derselbe, ob eine Sperre
+  davorsteht oder nicht — `LISTEN 0 5 0.0.0.0:19100` und `nft rc=0, 0 Bytes`,
+  einmal von aussen erreichbar und einmal nicht.
+
+  > **Ein Port, der lauscht, und ein Regelwerk, das nichts verbietet, sagen über
+  > die Erreichbarkeit von aussen nichts — und sie sagen es in beiden Fällen mit
+  > denselben Zeichen.**
+
+  Die Wörter „offen", „erreichbar" und „geschlossen" kommen im Bereich deshalb
+  nicht vor; `ReachabilityWordTest` hält das, und ein Satz je Seite sagt, was
+  dieser Server nicht weiss.
+
+- **`privileged` fährt in der Antwort mit**, weil `ss -ltnp` ohne root dieselben
+  Zeilen, `rc=0` und eine wortlos leere Prozessspalte gibt (M4). Ein `null` im
+  Eigentümer heisst je nachdem „niemand sichtbar" oder „nicht nachgesehen", und
+  die Seite sagt beides verschieden.
+
+- **Der Verwalter ist eine geschlossene Grundmenge**, kein durchgereichter
+  Wortlaut: `firewall-cmd --state` hat vier gemessene Ausgänge, und drei
+  beantworten die Frage nicht.
+
+- **Der Prozessname gehört dem Betreiber, der Port dem Administrator** —
+  gefiltert im Controller und nicht in der Vorlage. Eine Grenze, die erst im
+  Browser gezogen wird, ist keine.
+
+- **Zwei Regeln haben sich beim Bauen als falsch erwiesen.** `legacy.configured`
+  hing im Plan an `lines > 3`; gemessen gibt ein `-P INPUT DROP` ohne jede Regel
+  ebenfalls drei Zeilen und sperrt alles. Und `AgentException::getCode()` trägt
+  den Fehlercode nicht — er steht in `errorCode`; der erste `catch` hätte ein
+  fehlendes `ufw` als Fehler weitergeworfen und die Operation auf jedem Server
+  ohne ufw scheitern lassen.
+
+- **Und die Bilderrunde hat einen Fehler gefunden, der keine Zahl hat.** Vier
+  Lagen bei `dokument = 0`, und bei 1440 px lief die Zeile „Verwaltet von"
+  unmittelbar unter dem letzten Lauscher weiter — die beiden Tabellen lasen sich
+  als eine. Das Regelwerk steht seitdem in seinem eigenen Bereich.
+
+- **`ServicesViewTest` zählte Bereiche, wo es die Trennung meinte.** `=== 2` war
+  ein Stellvertreter für „Dienste und Timer sind zwei Bereiche" und fiel mit dem
+  dritten, unbeteiligten Bereich um. Gefragt wird jetzt, was gemeint ist — und
+  das ist strenger, denn eine Umbenennung fiel der Zählung gar nicht auf.
+
+  > **Eine Zahl, die eine Regel vertritt, trägt die Annahme mit, dass daneben
+  > nichts Neues entsteht — und die steht nirgends geschrieben.**
